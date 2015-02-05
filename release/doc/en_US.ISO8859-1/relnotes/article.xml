@@ -90,12 +90,8 @@
       information on known bugs, security advisories, and corrections
       to documentation.  An up-to-date copy of the errata for &os;
       &release.current; can be found on the &os; Web site.</para>
-  </sect1>
 
-  <sect1 xml:id="new">
-    <title>What's New</title>
-
-    <para>This section describes the most user-visible new or changed
+    <para>This document describes the most user-visible new or changed
       features in &os; since &release.prev;.</para>
 
     <para>Typical release note items document recent security
@@ -107,143 +103,6 @@
       between releases; this document focuses primarily on security
       advisories, user-visible changes, and major architectural
       improvements.</para>
-
-    <sect2 xml:id="security">
-      <title>Security Advisories</title>
-
-      <para>&nbsp;</para>
-
-    </sect2>
-
-    <sect2 xml:id="kernel">
-      <title>Kernel Changes</title>
-
-      <para revision="276986">Throttling via <acronym>ACPI</acronym>
-	and <acronym>P4TCC</acronym> via &man.device.hints.5; have
-	been turned off by default.</para>
-
-      <sect3 xml:id="kernel-virtualization">
-	<title>Virtualization Support</title>
-
-	<para>&nbsp;</para>
-      </sect3>
-
-      <sect3 xml:id="kernel-arm">
-	<title>ARM Support</title>
-
-	<para>&nbsp;</para>
-      </sect3>
-
-      <sect3 xml:id="boot">
-	<title>Boot Loader Changes</title>
-
-	<para>&nbsp;</para>
-      </sect3>
-
-      <sect3 xml:id="proc">
-	<title>Hardware Support</title>
-
-	<para>&nbsp;</para>
-
-	<sect4 xml:id="mm">
-	  <title>Multimedia Support</title>
-
-	  <para>&nbsp;</para>
-	</sect4>
-
-	<sect4 xml:id="net-if">
-	  <title>Network Interface Support</title>
-
-	  <para>&nbsp;</para>
-	</sect4>
-      </sect3>
-
-      <sect3 xml:id="net-proto">
-	<title>Network Protocols</title>
-
-	<para>&nbsp;</para>
-      </sect3>
-
-      <sect3 xml:id="disks">
-	<title>Disks and Storage</title>
-
-	<para revision="274939" contrib="sponsor" sponsor="&ix;">The
-	  &man.ctld.8; utility has been updated to include support for
-	  registering <acronym>iSCSI</acronym> targets and portals on
-	  <acronym>iSNS</acronym> servers.  This provides a mechanism
-	  which allows <acronym>iSCSI</acronym> initiators to find
-	  targets and portals without requiring active
-	  discovery.</para>
-
-	<para revision="275891" contrib="sponsor" sponsor="&ix;">The
-	  &man.ctl.4; subsystem has been updated, increasing the ports
-	  limit from <literal>128</literal> to <literal>256</literal>,
-	  and <acronym>LUN</acronym> limit from <literal>256</literal>
-	  to <literal>1024</literal>.</para>
-      </sect3>
-
-      <sect3 xml:id="fs">
-	<title>File Systems</title>
-
-	<para revision="275490">A new tunable,
-	  <literal>vfs.zfs.spa_slop_shift</literal>, has been added,
-	  which controls how much space is reserved by default.</para>
-      </sect3>
-    </sect2>
-
-    <sect2 xml:id="userland">
-      <title>Userland Changes</title>
-
-      <para revision="275040">A new file configuration library,
-	&man.figpar.3;, has been added to the base system.</para>
-
-      <para revision="275040">A new utility, &man.dpv.1;, has been
-	added to the base system, providing a &man.dialog.1;-style
-	progress view from one or more input streams.  A corresponding
-	library, &man.dpv.3;, has also been added.</para>
-
-      <para revision="275945">The &man.elfdump.1; utility has been
-	updated to support capability mode provided by
-	&man.capsicum.4;.</para>
-
-      <para revision="276991">The &man.termcap.5; file is installed
-	as-is from sources, instead of reordering, creating
-	<filename>/etc/termcap.db</filename> by default, providing
-	a performance improvements to applications that use the
-	&man.termcap.5; database, such as &man.vi.1; and
-	&man.ncurses.3;.</para>
-
-      <sect3 xml:id="rc-scripts">
-	<title><filename>/etc/rc.d</filename> Scripts</title>
-
-	<para>&nbsp;</para>
-      </sect3>
-    </sect2>
-
-    <sect2 xml:id="contrib">
-      <title>Contributed Software</title>
-
-      <para revision="277597"><application>OpenSSL</application> has
-	been updated to version 1.0.1l.</para>
-    </sect2>
-
-    <sect2 xml:id="ports">
-      <title>Ports/Packages Collection Infrastructure</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="releng">
-      <title>Release Engineering and Integration</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="doc">
-      <title>Documentation</title>
-
-      <para>&nbsp;</para>
-    </sect2>
   </sect1>
 
   <sect1 xml:id="upgrade">
@@ -268,5 +127,296 @@
 	backing up <emphasis>all</emphasis> data and configuration
 	files.</para>
     </important>
+  </sect1>
+
+  <sect1 xml:id="security-errata">
+    <title>Security and Errata</title>
+
+    <para>This section lists the various Security Advisories and
+      Errata Notices since &release.prev;.</para>
+
+    <sect2 xml:id="security">
+      <title>Security Advisories</title>
+
+      <para>No advisories.</para>
+    </sect2>
+
+    <sect2 xml:id="errata">
+      <title>Errata Notices</title>
+
+      <para>No errata notices.</para>
+    </sect2>
+  </sect1>
+
+  <sect1 xml:id="userland">
+    <title>Userland</title>
+
+    <para>This section covers changes and additions to userland
+      applications, contributed software, and system utilities.</para>
+
+    <sect2 xml:id="userland-config">
+      <title>Userland Configuration Changes</title>
+
+      <para revision="276991">The &man.termcap.5; file is installed
+	as-is from sources, instead of reordering, creating
+	<filename>/etc/termcap.db</filename> by default, providing
+	a performance improvements to applications that use the
+	&man.termcap.5; database, such as &man.vi.1; and
+	&man.ncurses.3;.</para>
+    </sect2>
+
+    <sect2 xml:id="userland-programs">
+      <title>Userland Application Changes</title>
+
+      <para revision="275040">A new utility, &man.dpv.1;, has been
+	added to the base system, providing a &man.dialog.1;-style
+	progress view from one or more input streams.  A corresponding
+	library, &man.dpv.3;, has also been added.</para>
+
+      <para revision="275945">The &man.elfdump.1; utility has been
+	updated to support capability mode provided by
+	&man.capsicum.4;.</para>
+    </sect2>
+
+    <sect2 xml:id="userland-contrib">
+      <title>Contributed Software</title>
+
+      <para revision="277597"><application>OpenSSL</application> has
+	been updated to version 1.0.1l.</para>
+    </sect2>
+
+    <sect2 xml:id="userland-installer">
+      <title>Installation and Configuration Tools</title>
+
+      <para>&nbsp;</para>
+    </sect2>
+
+    <sect2 xml:id="userland-rc">
+      <title><filename class="directory">/etc/rc.d</filename>
+	Scripts</title>
+
+      <para>&nbsp;</para>
+    </sect2>
+
+    <sect2 xml:id="userland-periodic">
+      <title><filename class="directory">/etc/periodic</filename>
+	Scripts</title>
+
+      <para>&nbsp;</para>
+    </sect2>
+
+    <sect2 xml:id="userland-libraries">
+      <title>Runtime Libraries and API</title>
+
+      <para revision="275040">A new file configuration library,
+	&man.figpar.3;, has been added to the base system.</para>
+    </sect2>
+
+    <sect2 xml:id="userland-abi">
+      <title>ABI Compatibility</title>
+
+      <para>&nbsp;</para>
+    </sect2>
+  </sect1>
+
+  <sect1 xml:id="kernel">
+    <title>Kernel</title>
+
+    <para>This section covers changes to kernel configurations, system
+      tuning, and system control parameters that are not otherwise
+      categorized.</para>
+
+    <sect2 xml:id="kernel-bugfix">
+      <title>Kernel Bug Fixes</title>
+
+      <para>&nbsp;</para>
+    </sect2>
+
+    <sect2 xml:id="kernel-config">
+      <title>Kernel Configuration</title>
+
+      <para>&nbsp;</para>
+    </sect2>
+
+    <sect2 xml:id="kernel-sysctl">
+      <title>System Tuning and Controls</title>
+
+      <para revision="276986">Throttling via <acronym>ACPI</acronym>
+	and <acronym>P4TCC</acronym> via &man.device.hints.5; have
+	been turned off by default.</para>
+    </sect2>
+  </sect1>
+
+  <sect1 xml:id="drivers">
+    <title>Devices and Drivers</title>
+
+    <para>This section covers changes and additions to devices and
+      device drivers since &release.prev;.</para>
+
+    <sect2 xml:id="drivers-device">
+      <title>Device Drivers</title>
+
+      <para>&nbsp;</para>
+    </sect2>
+
+    <sect2 xml:id="drivers-storage">
+      <title>Storage Drivers</title>
+
+      <para>&nbsp;</para>
+    </sect2>
+
+    <sect2 xml:id="drivers-network">
+      <title>Network Drivers</title>
+
+      <para>&nbsp;</para>
+    </sect2>
+  </sect1>
+
+  <sect1 xml:id="hardware">
+    <title>Hardware Support</title>
+
+    <para>This section covers general hardware support for physical
+      machines, hypervisors, and virtualization environments, as well
+      as hardware changes and updates that do not otherwise fit in
+      other sections of this document.</para>
+
+    <sect2 xml:id="hardware-support">
+      <title>Hardware Support</title>
+
+      <para>&nbsp;</para>
+    </sect2>
+
+    <sect2 xml:id="hardware-virtualization">
+      <title>Virtualization Support</title>
+
+      <para>&nbsp;</para>
+    </sect2>
+
+    <sect2 xml:id="hardware-arm">
+      <title>ARM Support</title>
+
+      <para>&nbsp;</para>
+    </sect2>
+  </sect1>
+
+  <sect1 xml:id="storage">
+    <title>Storage</title>
+
+    <para>This section covers changes and additions to file systems
+      and other storage subsystems, both local and networked.</para>
+
+    <sect2 xml:id="storage-net">
+      <title>Networked Storage</title>
+
+      <para revision="274939" contrib="sponsor" sponsor="&ix;">The
+	&man.ctld.8; utility has been updated to include support for
+	registering <acronym>iSCSI</acronym> targets and portals on
+	<acronym>iSNS</acronym> servers.  This provides a mechanism
+	which allows <acronym>iSCSI</acronym> initiators to find
+	targets and portals without requiring active
+	discovery.</para>
+    </sect2>
+
+    <sect2 xml:id="storage-zfs">
+      <title>ZFS</title>
+
+      <para revision="275490">A new tunable,
+	<literal>vfs.zfs.spa_slop_shift</literal>, has been added,
+	which controls how much space is reserved by default.</para>
+    </sect2>
+
+    <sect2 xml:id="storage-geom">
+      <title>&man.geom.4;</title>
+
+      <para revision="275891" contrib="sponsor" sponsor="&ix;">The
+	&man.ctl.4; subsystem has been updated, increasing the ports
+	limit from <literal>128</literal> to <literal>256</literal>,
+	and <acronym>LUN</acronym> limit from <literal>256</literal>
+	to <literal>1024</literal>.</para>
+    </sect2>
+  </sect1>
+
+  <sect1 xml:id="boot">
+    <title>Boot Loader Changes</title>
+
+    <para>This section covers the boot loader, boot menu, and other
+      boot-related changes.</para>
+
+    <sect2 xml:id="boot-loader">
+      <title>Boot Loader Changes</title>
+
+      <para>&nbsp;</para>
+    </sect2>
+
+    <sect2 xml:id="boot-menu">
+      <title>Boot Menu Changes</title>
+
+      <para>&nbsp;</para>
+    </sect2>
+  </sect1>
+
+  <sect1 xml:id="network">
+    <title>Networking</title>
+
+    <para>This section describes changes that affect networking in
+      &os;.</para>
+
+    <sect2 xml:id="network-protocols">
+      <title>Network Procols</title>
+
+      <para>&nbsp;</para>
+    </sect2>
+  </sect1>
+
+  <sect1 xml:id="ports">
+    <title>Ports Collection and Package Infrastructure</title>
+
+    <para>This section covers changes to the &os;&nbsp;Ports
+      Collection, package infrastructure, and package maintenance and
+      installation tools.</para>
+
+    <sect2 xml:id="ports-infrastructure">
+      <title>Infrastructure Changes</title>
+
+      <para>&nbsp;</para>
+    </sect2>
+
+    <sect2 xml:id="ports-packages ">
+      <title>Packaging Changes</title>
+
+      <para>&nbsp;</para>
+    </sect2>
+  </sect1>
+
+  <sect1 xml:id="doc">
+    <title>Documentation</title>
+
+    <para>This section covers changes to the &os;&nbsp;Documentation
+      Project sources and toolchain.</para>
+
+    <sect2 xml:id="doc-sources">
+      <title>Documentation Source Changes</title>
+
+      <para>&nbsp;</para>
+    </sect2>
+
+    <sect2 xml:id="doc-toolchain">
+      <title>Documentation Toolchain Changes</title>
+
+      <para>&nbsp;</para>
+    </sect2>
+  </sect1>
+
+  <sect1 xml:id="releng">
+    <title>Release Engineering and Integration</title>
+
+    <para>This section convers changes that are specific to the
+      &os;&nbsp;Release Engineering processes.</para>
+
+    <sect2 xml:id="releng-changes">
+      <title>Integration Changes</title>
+
+      <para>&nbsp;</para>
+    </sect2>
   </sect1>
 </article>
