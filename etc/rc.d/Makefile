@@ -38,7 +38,6 @@ FILES=	DAEMON \
 	hostid \
 	hostid_save \
 	hostname \
-	${_inetd} \
 	ipsec \
 	${_kadmind} \
 	${_kdc} \
@@ -181,7 +180,7 @@ FILES+=		hastd
 .endif
 
 .if ${MK_INETD} != "no"
-_inetd=		inetd
+FILES+=		inetd
 .endif
 
 .if ${MK_INET6} != "no"
