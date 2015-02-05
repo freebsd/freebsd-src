@@ -1393,7 +1393,7 @@ softdep_flush(addr)
 		    VFSTOUFS(mp)->softdep_jblocks->jb_suspended))
 			kthread_suspend_check();
 		ACQUIRE_LOCK(ump);
-		while ((ump->softdep_flags & (FLUSH_CLEANUP | FLUSH_EXIT)) == 0)
+		if ((ump->softdep_flags & (FLUSH_CLEANUP | FLUSH_EXIT)) == 0)
 			msleep(&ump->softdep_flushtd, LOCK_PTR(ump), PVM,
 			    "sdflush", hz / 2);
 		ump->softdep_flags &= ~FLUSH_CLEANUP;
@@ -1423,10 +1423,9 @@ worklist_speedup(mp)
 
 	ump = VFSTOUFS(mp);
 	LOCK_OWNED(ump);
-	if ((ump->softdep_flags & (FLUSH_CLEANUP | FLUSH_EXIT)) == 0) {
+	if ((ump->softdep_flags & (FLUSH_CLEANUP | FLUSH_EXIT)) == 0)
 		ump->softdep_flags |= FLUSH_CLEANUP;
-		wakeup(&ump->softdep_flushtd);
-	}
+	wakeup(&ump->softdep_flushtd);
 }
 
 static int
@@ -1471,11 +1470,10 @@ softdep_speedup(ump)
 			TAILQ_INSERT_TAIL(&softdepmounts, sdp, sd_next);
 			FREE_GBLLOCK(&lk);
 			if ((altump->softdep_flags &
-			    (FLUSH_CLEANUP | FLUSH_EXIT)) == 0) {
+			    (FLUSH_CLEANUP | FLUSH_EXIT)) == 0)
 				altump->softdep_flags |= FLUSH_CLEANUP;
-				altump->um_softdep->sd_cleanups++;
-				wakeup(&altump->softdep_flushtd);
-			}
+			altump->um_softdep->sd_cleanups++;
+			wakeup(&altump->softdep_flushtd);
 			FREE_LOCK(altump);
 		}
 	}
