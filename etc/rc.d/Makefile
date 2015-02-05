@@ -45,7 +45,6 @@ FILES=	DAEMON \
 	gssd \
 	hastd \
 	${_hcsecd} \
-	hostapd \
 	hostid \
 	hostid_save \
 	hostname \
@@ -142,7 +141,6 @@ FILES=	DAEMON \
 	var \
 	virecover \
 	watchdogd \
-	wpa_supplicant \
 	ypbind \
 	yppasswdd \
 	ypserv \
@@ -194,6 +192,11 @@ _bluetooth=	bluetooth
 _bthidd=	bthidd
 _hcsecd=	hcsecd
 _ubthidhci=	ubthidhci
+.endif
+
+.if ${MK_WIRELESS} != "no"
+FILES+=		hostapd
+FILES+=		wpa_supplicant
 .endif
 
 FILESDIR=	/etc/rc.d
