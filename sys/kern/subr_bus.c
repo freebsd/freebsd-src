@@ -3672,7 +3672,7 @@ bus_generic_suspend_child(device_t dev, device_t child)
 	error = DEVICE_SUSPEND(child);
 
 	if (error == 0)
-		dev->flags |= DF_SUSPENDED;
+		child->flags |= DF_SUSPENDED;
 
 	return (error);
 }
@@ -3687,7 +3687,7 @@ bus_generic_resume_child(device_t dev, device_t child)
 {
 
 	DEVICE_RESUME(child);
-	dev->flags &= ~DF_SUSPENDED;
+	child->flags &= ~DF_SUSPENDED;
 
 	return (0);
 }
