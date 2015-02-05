@@ -61,6 +61,7 @@ struct format_opts {
 	int bcwidth;
 	int pcwidth;
 	int show_counters;
+	int show_time;		/* show timestamp */
 	uint32_t set_mask;	/* enabled sets mask */
 	uint32_t flags;		/* request flags */
 	uint32_t first;		/* first rule to request */
@@ -2402,7 +2403,7 @@ list_static_range(struct cmdline_opts *co, struct format_opts *fo,
 	for (n = seen = 0; n < rcnt; n++,
 	    rtlv = (ipfw_obj_tlv *)((caddr_t)rtlv + rtlv->length)) {
 
-		if (fo->show_counters != 0) {
+		if ((fo->show_counters | fo->show_time) != 0) {
 			cntr = (struct ip_fw_bcounter *)(rtlv + 1);
 			r = (struct ip_fw_rule *)((caddr_t)cntr + cntr->size);
 		} else {
@@ -2504,10 +2505,11 @@ ipfw_list(int ac, char *av[], int show_counters)
 	/* get configuraion from kernel */
 	cfg = NULL;
 	sfo.show_counters = show_counters;
+	sfo.show_time = co.do_time;
 	sfo.flags = IPFW_CFG_GET_STATIC;
 	if (co.do_dynamic != 0)
 		sfo.flags |= IPFW_CFG_GET_STATES;
-	if (sfo.show_counters != 0)
+	if ((sfo.show_counters | sfo.show_time) != 0)
 		sfo.flags |= IPFW_CFG_GET_COUNTERS;
 	if (ipfw_get_config(&co, &sfo, &cfg, &sz) != 0)
 		err(EX_OSERR, "retrieving config failed");
