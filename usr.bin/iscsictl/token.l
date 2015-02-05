@@ -63,6 +63,7 @@ tgtChapSecret		{ return MUTUAL_SECRET; }
 AuthMethod		{ return AUTH_METHOD; }
 SessionType		{ return SESSION_TYPE; }
 protocol		{ return PROTOCOL; }
+offload			{ return OFFLOAD; }
 port			{ return IGNORED; }
 MaxConnections		{ return IGNORED; }
 TargetAlias		{ return IGNORED; }
