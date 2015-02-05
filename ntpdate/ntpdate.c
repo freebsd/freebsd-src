@@ -751,7 +751,7 @@ receive(
 	 */
 	if (rbufp->recv_length == LEN_PKT_NOMAC)
 		has_mac = 0;
-	else if (rbufp->recv_length >= LEN_PKT_NOMAC)
+	else if (rbufp->recv_length >= (int)LEN_PKT_NOMAC)
 		has_mac = 1;
 	else {
 		if (debug)

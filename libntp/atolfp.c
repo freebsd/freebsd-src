@@ -52,7 +52,7 @@ atolfp(
 	 *
 	 * [spaces][-|+][digits][.][digits][spaces|\n|\0]
 	 */
-	while (isspace((int)*cp))
+	while (isspace((unsigned char)*cp))
 	    cp++;
 	
 	if (*cp == '-') {
@@ -63,7 +63,7 @@ atolfp(
 	if (*cp == '+')
 	    cp++;
 
-	if (*cp != '.' && !isdigit((int)*cp))
+	if (*cp != '.' && !isdigit((unsigned char)*cp))
 	    return 0;
 
 	while (*cp != '\0' && (ind = strchr(digits, *cp)) != NULL) {
@@ -72,7 +72,7 @@ atolfp(
 		cp++;
 	}
 
-	if (*cp != '\0' && !isspace((int)*cp)) {
+	if (*cp != '\0' && !isspace((unsigned char)*cp)) {
 		if (*cp++ != '.')
 		    return 0;
 	
@@ -84,10 +84,10 @@ atolfp(
 			cp++;
 		}
 
-		while (isdigit((int)*cp))
+		while (isdigit((unsigned char)*cp))
 		    cp++;
 		
-		if (*cp != '\0' && !isspace((int)*cp))
+		if (*cp != '\0' && !isspace((unsigned char)*cp))
 		    return 0;
 	}
 

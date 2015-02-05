@@ -3,7 +3,7 @@
 #include <ctype.h>
 
 struct key *key_ptr;
-int key_cnt = 0;
+size_t key_cnt = 0;
 
 int
 make_mac(
@@ -51,7 +51,7 @@ auth_md5(
 	int  authentic;
 	char digest[20];
 
-	if (mac_size > sizeof(digest))
+	if (mac_size > (int)sizeof(digest))
 		return 0;
 	hash_len = make_mac(pkt_data, pkt_size, sizeof(digest), cmp_key,
 			    digest);

@@ -42,7 +42,7 @@
  *   Show information about a numeric option with range constraints.
 =*/
 void
-optionShowRange(tOptions * pOpts, tOptDesc * pOD, void * rng_table, int rng_ct)
+optionShowRange(tOptions * pOpts, tOptDesc * pOD, const void * rng_table, int rng_ct)
 {
     const struct {long const rmin, rmax;} * rng = rng_table;
 

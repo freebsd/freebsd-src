@@ -379,7 +379,7 @@ heath_receive(
 	/*
 	 * Determine synchronization and last update
 	 */
-	if (!isdigit((int)dsec))
+	if (!isdigit((unsigned char)dsec))
 		pp->leap = LEAP_NOTINSYNC;
 	else {
 		pp->nsec = (dsec - '0') * 100000000;

@@ -967,15 +967,11 @@ chu_serial_receive(
 	struct recvbuf *rbufp	/* receive buffer structure pointer */
 	)
 {
-	struct chuunit *up;
-	struct refclockproc *pp;
 	struct peer *peer;
 
 	u_char	*dpt;		/* receive buffer pointer */
 
 	peer = rbufp->recv_peer;
-	pp = peer->procptr;
-	up = pp->unitptr;
 
 	dpt = (u_char *)&rbufp->recv_space;
 	chu_decode(peer, *dpt, rbufp->recv_time);

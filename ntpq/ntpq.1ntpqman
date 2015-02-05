@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntpq 1ntpqman "19 Dec 2014" "4.2.8" "User Commands"
+.TH ntpq 1ntpqman "04 Feb 2015" "4.2.8p1" "User Commands"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-XYaGog/ag-9Yayng)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-oaaWVr/ag-CaaOUr)
 .\"
-.\" It has been AutoGen-ed December 19, 2014 at 07:50:13 AM by AutoGen 5.18.5pre4
+.\" It has been AutoGen-ed February 4, 2015 at 02:43:13 AM by AutoGen 5.18.5pre4
 .\" From the definitions ntpq-opts.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -1397,9 +1397,9 @@ libopts had an internal operational error.  Please report
 it to autogen-users@lists.sourceforge.net.  Thank you.
 .PP
 .SH "AUTHORS"
-The University of Delaware
+The University of Delaware and Network Time Foundation
 .SH "COPYRIGHT"
-Copyright (C) 1970-2014 The University of Delaware all rights reserved.
+Copyright (C) 1992-2015 The University of Delaware and Network Time Foundation all rights reserved.
 This program is released under the terms of the NTP license, <http://ntp.org/license>.
 .SH "BUGS"
 Please send bug reports to: http://bugs.ntp.org, bugs@ntp.org

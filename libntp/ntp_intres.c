@@ -684,11 +684,11 @@ blocking_getnameinfo(
 	blocking_gni_resp *	gni_resp;
 	size_t			octets;
 	size_t			resp_octets;
-	char *			host;
 	char *			service;
 	char *			cp;
 	int			rc;
 	time_t			time_now;
+	char			host[1024];
 
 	gni_req = (void *)((char *)req + sizeof(*req));
 
@@ -699,19 +699,7 @@ blocking_getnameinfo(
 	 * large allocations.  We only need room for the host
 	 * and service names.
 	 */
-	NTP_REQUIRE(octets < 1024);
-
-#ifndef HAVE_ALLOCA
-	host = emalloc(octets);
-#else
-	host = alloca(octets);
-	if (NULL == host) {
-		msyslog(LOG_ERR,
-			"blocking_getnameinfo unable to allocate %lu octets on stack",
-			(u_long)octets);
-		exit(1);
-	}
-#endif
+	NTP_REQUIRE(octets < sizeof(host));
 	service = host + gni_req->hostoctets;
 
 	worker_ctx = get_worker_context(c, gni_req->dns_idx);
@@ -793,9 +781,6 @@ blocking_getnameinfo(
 	rc = queue_blocking_response(c, resp, resp_octets, req);
 	if (rc)
 		msyslog(LOG_ERR, "blocking_getnameinfo unable to queue response");
-#ifndef HAVE_ALLOCA
-	free(host);
-#endif
 	return rc;
 }
 

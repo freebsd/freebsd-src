@@ -96,13 +96,13 @@ keytype_from_text(
 	LIB_GETBUF(upcased);
 	strlcpy(upcased, text, LIB_BUFLENGTH);
 	for (pch = upcased; '\0' != *pch; pch++)
-		*pch = (char)toupper(*pch);
+		*pch = (char)toupper((unsigned char)*pch);
 	key_type = OBJ_sn2nid(upcased);
 #else
 	key_type = 0;
 #endif
 
-	if (!key_type && 'm' == tolower(text[0]))
+	if (!key_type && 'm' == tolower((unsigned char)text[0]))
 		key_type = NID_md5;
 
 	if (!key_type)

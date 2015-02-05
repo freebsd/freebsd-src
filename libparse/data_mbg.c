@@ -266,8 +266,8 @@ mbg_tm_str(
 		 tmp->year, tmp->month, tmp->mday,
 		 tmp->hour, tmp->minute, tmp->second, tmp->frac,
 		 (tmp->offs_from_utc < 0) ? '-' : '+',
-		 abs(tmp->offs_from_utc) / 3600,
-		 (abs(tmp->offs_from_utc) / 60) % 60);
+		 abs((int)tmp->offs_from_utc) / 3600,
+		 (abs((int)tmp->offs_from_utc) / 60) % 60);
 	*buffpp += strlen(*buffpp);
 
 	mbg_time_status_str(buffpp, tmp->status, size - (*buffpp - s));
@@ -383,7 +383,7 @@ get_mbg_comparam(
 	COM_PARM *comparamp
 	)
 {
-  int i;
+  size_t i;
   
   comparamp->baud_rate = get_lsb_long(buffpp);
   for (i = 0; i < sizeof(comparamp->framing); i++)

@@ -2,7 +2,10 @@ ACLOCAL_AMFLAGS = -I sntp/m4 -I sntp/libevent/m4 -I sntp/libopts/m4
 
 NULL =
 
+# moved sntp first to get libtool and libevent built.
+
 SUBDIRS =		\
+	sntp		\
 	scripts		\
 	include		\
 	libntp		\
@@ -17,7 +20,6 @@ SUBDIRS =		\
 	clockstuff	\
 	kernel		\
 	util		\
-	sntp		\
 	tests		\
 	$(NULL)
 
@@ -64,7 +66,6 @@ BUILT_SOURCES =				\
 	.gcc-warning			\
 	libtool				\
 	html/.datecheck			\
-	sntp/built-sources-only		\
 	$(srcdir)/COPYRIGHT		\
 	$(srcdir)/.checkChangeLog	\
 	$(NULL)

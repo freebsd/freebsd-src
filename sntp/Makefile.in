@@ -42,10 +42,10 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 EXTRA_PROGRAMS = sntp$(EXEEXT)
-@BUILD_LIBEVENT_TRUE@@BUILD_SNTP_TRUE@am__append_1 = libevent
-@BUILD_LIBEVENT_TRUE@@BUILD_SNTP_TRUE@am__append_2 = libevent
-@BUILD_SNTP_TRUE@@GTEST_AVAILABLE_TRUE@am__append_3 = tests
-@NEED_LIBOPTS_TRUE@am__append_4 = libopts
+@BUILD_LIBEVENT_TRUE@am__append_1 = libevent
+@BUILD_LIBEVENT_TRUE@am__append_2 = libevent
+@NEED_LIBOPTS_TRUE@am__append_3 = libopts
+@BUILD_SNTP_TRUE@@GTEST_AVAILABLE_TRUE@am__append_4 = tests
 DIST_COMMON = $(am__configure_deps) $(noinst_HEADERS) \
 	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 	$(srcdir)/config.h.in $(top_srcdir)/bincheck.mf \
@@ -278,6 +278,7 @@ INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LD = @LD@
 LDADD_LIBEVENT = @LDADD_LIBEVENT@
 LDADD_LIBNTP = @LDADD_LIBNTP@
+LDADD_LIBUTIL = @LDADD_LIBUTIL@
 LDADD_NTP = @LDADD_NTP@
 LDFLAGS = @LDFLAGS@
 LDFLAGS_NTP = @LDFLAGS_NTP@

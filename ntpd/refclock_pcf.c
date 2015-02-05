@@ -140,7 +140,7 @@ pcf_poll(
 	pp = peer->procptr;
 
 	buf[0] = 0;
-	if (read(pp->io.fd, buf, sizeof(buf)) < sizeof(buf) || buf[0] != 9) {
+	if (read(pp->io.fd, buf, sizeof(buf)) < (ssize_t)sizeof(buf) || buf[0] != 9) {
 		refclock_report(peer, CEVNT_FAULT);
 		return;
 	}

@@ -8,6 +8,9 @@
 # include <config.h>
 #endif
 
+#ifdef USE_SNPRINTB
+# include <util.h>
+#endif
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_unixtime.h"
@@ -182,6 +185,21 @@ static sigjmp_buf env;		/* environment var. for pll_trap() */
 #endif /* SIGSYS */
 #endif /* KERNEL_PLL */
 
+static void
+sync_status(const char *what, int ostatus, int nstatus)
+{
+	char obuf[256], nbuf[256], tbuf[1024];
+#if defined(USE_SNPRINTB) && defined (STA_FMT)
+	snprintb(obuf, sizeof(obuf), STA_FMT, ostatus);
+	snprintb(nbuf, sizeof(nbuf), STA_FMT, nstatus);
+#else
+	snprintf(obuf, sizeof(obuf), "%04x", ostatus);
+	snprintf(nbuf, sizeof(nbuf), "%04x", nstatus);
+#endif
+	snprintf(tbuf, sizeof(tbuf), "%s status: %s -> %s", what, obuf, nbuf);
+	report_event(EVNT_KERN, NULL, tbuf);
+}
+
 /*
  * file_name - return pointer to non-relative portion of this C file pathname
  */
@@ -189,7 +207,9 @@ static char *file_name(void)
 {
 	if (this_file == NULL) {
 	    (void)strncpy(relative_path, __FILE__, PATH_MAX);
-	    for (this_file=relative_path; *this_file && ! isalnum(*this_file); this_file++) ;
+	    for (this_file=relative_path;
+		*this_file && ! isalnum((unsigned char)*this_file);
+		this_file++) ;
 	}
 	return this_file;
 }
@@ -663,16 +683,17 @@ local_clock(
 			 * Enable/disable the PPS if requested.
 			 */
 			if (hardpps_enable) {
+				ntv.status |= (STA_PPSTIME | STA_PPSFREQ);
 				if (!(pll_status & STA_PPSTIME))
-					report_event(EVNT_KERN,
-					    NULL, "PPS enabled");
-				ntv.status |= STA_PPSTIME | STA_PPSFREQ;
+					sync_status("PPS enabled",
+						pll_status,
+						ntv.status);
 			} else {
+				ntv.status &= ~(STA_PPSTIME | STA_PPSFREQ);
 				if (pll_status & STA_PPSTIME)
-					report_event(EVNT_KERN,
-					    NULL, "PPS disabled");
-				ntv.status &= ~(STA_PPSTIME |
-				    STA_PPSFREQ);
+					sync_status("PPS disabled",
+						pll_status,
+						ntv.status);
 			}
 			if (sys_leap == LEAP_ADDSECOND)
 				ntv.status |= STA_INS;
@@ -1142,6 +1163,21 @@ loop_config(
 		break;
 
 	case LOOP_KERN_CLEAR:
+#if 0		/* XXX: needs more review, and how can we get here? */
+#ifndef LOCKCLOCK
+# ifdef KERNEL_PLL
+		if (pll_control && kern_enable) {
+			memset((char *)&ntv, 0, sizeof(ntv));
+			ntv.modes = MOD_STATUS;
+			ntv.status = STA_UNSYNC;
+			ntp_adjtime(&ntv);
+			sync_status("kernel time sync disabled",
+				pll_status,
+				ntv.status);
+		   }
+# endif /* KERNEL_PLL */
+#endif /* LOCKCLOCK */
+#endif
 		break;
 
 	/*

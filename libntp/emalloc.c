@@ -86,11 +86,13 @@ estrdup_impl(
 }
 
 
+#if 0
 #ifndef EREALLOC_CALLSITE
 void *
 emalloc(size_t newsz)
 {
 	return ereallocz(NULL, newsz, 0, FALSE);
 }
+#endif
 #endif
 

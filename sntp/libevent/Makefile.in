@@ -79,7 +79,7 @@ DIST_COMMON = README $(am__configure_deps) \
 	$(srcdir)/test/include.am $(top_srcdir)/configure ChangeLog \
 	build-aux/compile build-aux/config.guess build-aux/config.sub \
 	build-aux/depcomp build-aux/install-sh build-aux/ltmain.sh \
-	build-aux/missing epoll_sub.c
+	build-aux/missing build-aux/ylwrap epoll_sub.c
 @INSTALL_LIBEVENT_FALSE@am__append_5 = $(EVENT2_EXPORT)
 @OPENSSL_TRUE@am__append_6 = sample/le-proxy sample/https-client
 @OPENSSL_TRUE@am__append_7 = \

@@ -183,7 +183,7 @@ find_file_name(tOptions * opts, int * p_free_name)
             fprintf(stderr, zsave_warn, opts->pzProgName);
             fprintf(stderr, zNoStat, errno, strerror(errno), pzDir);
             if (free_dir_name)
-                AGFREE((void*)pzDir);
+                AGFREE(pzDir);
             return NULL;
         }
 
@@ -223,7 +223,7 @@ find_file_name(tOptions * opts, int * p_free_name)
             sprintf(pzPath, "%s/%s", pzDir, opts->pzRcName);
 #endif
             if (free_dir_name)
-                AGFREE((void*)pzDir);
+                AGFREE(pzDir);
             pzDir = pzPath;
             free_dir_name = 1;
         }
@@ -237,7 +237,7 @@ find_file_name(tOptions * opts, int * p_free_name)
                 fprintf(stderr, zsave_warn, opts->pzProgName);
                 fprintf(stderr, zNoStat, errno, strerror(errno),
                         pzDir);
-                AGFREE((void*)pzDir);
+                AGFREE(pzDir);
                 return NULL;
             }
 
@@ -255,7 +255,7 @@ find_file_name(tOptions * opts, int * p_free_name)
     if (! S_ISREG(stBuf.st_mode)) {
         fprintf(stderr, zsave_warn, opts->pzProgName, pzDir);
         if (free_dir_name)
-            AGFREE((void*)pzDir);
+            AGFREE(pzDir);
         return NULL;
     }
 
@@ -377,7 +377,7 @@ prt_value(FILE * fp, int depth, tOptDesc * pOD, tOptionValue const * ovp)
                     /*
                      *  set membership strings get allocated
                      */
-                    AGFREE((void*)pOD->optArg.argString);
+                    AGFREE(pOD->optArg.argString);
                 }
             }
 
@@ -453,7 +453,7 @@ prt_val_list(FILE * fp, char const * name, tArgList * al)
     if (al == NULL)
         return;
     opt_ct   = al->useCt;
-    opt_list = (void **)al->apzArgs;
+    opt_list = (void **)(intptr_t)al->apzArgs;
 
     if (opt_ct <= 0) {
         fprintf(fp, OPEN_CLOSE_FMT, name);
@@ -488,7 +488,7 @@ prt_nested(FILE * fp, tOptDesc * p)
         return;
 
     opt_ct   = al->useCt;
-    opt_list = (void **)al->apzArgs;
+    opt_list = (void **)(intptr_t)al->apzArgs;
 
     if (opt_ct <= 0)
         return;
@@ -534,12 +534,12 @@ open_sv_file(tOptions * opts)
             fprintf(stderr, zsave_warn, opts->pzProgName);
             fprintf(stderr, zNoCreat, errno, strerror(errno), pzFName);
             if (free_name)
-                AGFREE((void*) pzFName );
+                AGFREE(pzFName);
             return fp;
         }
 
         if (free_name)
-            AGFREE((void*)pzFName);
+            AGFREE(pzFName);
     }
 
     fputs("#  ", fp);
@@ -629,7 +629,7 @@ prt_enum_arg(FILE * fp, tOptDesc * od)
      *  bit flag values back into a string suitable for printing.
      */
     (*(od->pOptProc))(OPTPROC_RETURN_VALNAME, od);
-    prt_entry(fp, od, (void*)(od->optArg.argString));
+    prt_entry(fp, od, (void*)(intptr_t)(od->optArg.argString));
 
     od->optArg.argEnum = val;
 }

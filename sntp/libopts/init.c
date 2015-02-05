@@ -101,20 +101,17 @@ validate_struct(tOptions * opts, char const * pname)
      */
     if (opts->pzProgName == NULL) {
         char const *  pz = strrchr(pname, DIRCH);
-        char const ** pp =
-            (char const **)(void **)&(opts->pzProgName);
 
         if (pz != NULL)
-            *pp = pz+1;
+            opts->pzProgName = pz+1;
         else
-            *pp = pname;
+            opts->pzProgName = pname;
 
-        pz = pathfind(getenv("PATH"), (char *)pname, "rx");
+        pz = pathfind(getenv("PATH"), (char *)(intptr_t)pname, "rx");
         if (pz != NULL)
-            pname = (void *)pz;
+            pname = (void *)(intptr_t)pz;
 
-        pp  = (char const **)(void **)&(opts->pzProgPath);
-        *pp = pname;
+        opts->pzProgPath = pname;
 
         /*
          *  when comparing long names, these are equivalent

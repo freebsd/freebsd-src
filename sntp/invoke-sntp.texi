@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-sntp.texi)
 #
-# It has been AutoGen-ed  December 19, 2014 at 07:51:36 AM by AutoGen 5.18.5pre4
+# It has been AutoGen-ed  February  4, 2015 at 02:34:17 AM by AutoGen 5.18.5pre4
 # From the definitions    sntp-opts.def
 # and the template file   agtexi-cmd.tpl
 @end ignore
@@ -100,7 +100,7 @@ with a status code of 0.
 
 @exampleindent 0
 @example
-sntp - standard Simple Network Time Protocol client program - Ver. 4.2.8
+sntp - standard Simple Network Time Protocol client program - Ver. 4.2.8p1
 Usage:  sntp [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]... \
                 [ hostname-or-IP ...]
   Flg Arg Option-Name    Description
@@ -282,7 +282,9 @@ This is the ``adjustments less than @var{steplimit} msec will be slewed'' option
 This option takes a number argument.
 If the time adjustment is less than @file{steplimit} milliseconds,
 slew the amount using @command{adjtime(2)}.  Otherwise, step the
-correction using @command{settimeofday(2)}. 
+correction using @command{settimeofday(2)}.  The default value is 0,
+which means all adjustments will be stepped.  This is a feature, as
+different situations demand different values.
 @node sntp ntpversion
 @subsection ntpversion option (-o)
 @cindex sntp-ntpversion

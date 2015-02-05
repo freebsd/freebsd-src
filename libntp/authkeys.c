@@ -517,7 +517,7 @@ MD5auth_setkey(
 	keyid_t keyno,
 	int	keytype,
 	const u_char *key,
-	int	len
+	size_t len
 	)
 {
 	symkey *	sk;
@@ -527,7 +527,6 @@ MD5auth_setkey(
 	
 	DEBUG_ENSURE(keytype <= USHRT_MAX);
 	DEBUG_ENSURE(len < 4 * 1024);
-	len = max(0, len);
 	/*
 	 * See if we already have the key.  If so just stick in the
 	 * new value.

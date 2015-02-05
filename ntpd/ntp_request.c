@@ -58,7 +58,7 @@ struct req_proc {
  * Universal request codes
  */
 static const struct req_proc univ_codes[] = {
-	{ NO_REQUEST,		NOAUTH,	 0,	0 }
+	{ NO_REQUEST,		NOAUTH,	 0,	0, NULL }
 };
 
 static	void	req_ack	(sockaddr_u *, endpt *, struct req_pkt *, int);
@@ -231,7 +231,7 @@ static endpt *frominter;
 void
 init_request (void)
 {
-	int i;
+	size_t i;
 
 	numrequests = 0;
 	numresppkts = 0;
@@ -261,7 +261,7 @@ req_ack(
 	rpkt.auth_seq = AUTH_SEQ(0, 0);
 	rpkt.implementation = inpkt->implementation;
 	rpkt.request = inpkt->request;
-	rpkt.err_nitems = ERR_NITEMS(errcode, 0);
+	rpkt.err_nitems = ERR_NITEMS(errcode, 0); 
 	rpkt.mbz_itemsize = MBZ_ITEMSIZE(0);
 
 	/*
@@ -448,7 +448,7 @@ process_private(
 	    || (++ec, INFO_SEQ(inpkt->auth_seq) != 0)
 	    || (++ec, INFO_ERR(inpkt->err_nitems) != 0)
 	    || (++ec, INFO_MBZ(inpkt->mbz_itemsize) != 0)
-	    || (++ec, rbufp->recv_length < REQ_LEN_HDR)
+	    || (++ec, rbufp->recv_length < (int)REQ_LEN_HDR)
 		) {
 		NLOG(NLOG_SYSEVENT)
 			if (current_time >= quiet_until) {
@@ -599,11 +599,10 @@ process_private(
 			return;
 		}
 		if (recv_len > REQ_LEN_NOMAC + MAX_MAC_LEN) {
-			DPRINTF(5, ("bad pkt length %lu\n", 
-				    (u_long)recv_len));
+			DPRINTF(5, ("bad pkt length %zu\n", recv_len));
 			msyslog(LOG_ERR,
-				"process_private: bad pkt length %lu",
-				(u_long)recv_len);
+				"process_private: bad pkt length %zu",
+				recv_len);
 			req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
 			return;
 		}
@@ -2076,7 +2075,7 @@ req_get_traps(
 {
 	struct info_trap *it;
 	struct ctl_trap *tr;
-	int i;
+	size_t i;
 
 	if (num_ctl_traps == 0) {
 		req_ack(srcadr, inter, inpkt, INFO_ERR_NODATA);

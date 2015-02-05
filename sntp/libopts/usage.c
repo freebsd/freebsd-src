@@ -435,7 +435,7 @@ print_one_paragraph(char const * text, bool plain, FILE * fp)
     else {
         char const * t = optionQuoteString(text, LINE_SPLICE);
         fprintf(fp, PUTS_FMT, t);
-        AGFREE((void *)t);
+        AGFREE(t);
     }
 }
  
@@ -546,7 +546,7 @@ optionPrintParagraphs(char const * text, bool plain, FILE * fp)
             buf = scan;
         }
     }
-    AGFREE((void *)text);
+    AGFREE(text);
 }
 
 /*=export_func  optionUsage

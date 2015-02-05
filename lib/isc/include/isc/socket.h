@@ -274,7 +274,7 @@ typedef struct isc_socketmgrmethods {
 } isc_socketmgrmethods_t;
 
 typedef struct isc_socketmethods {
-	void		(*attach)(isc_socket_t *socket,
+	void		(*attach)(isc_socket_t *sock,
 				  isc_socket_t **socketp);
 	void		(*detach)(isc_socket_t **socketp);
 	isc_result_t	(*bind)(isc_socket_t *sock, isc_sockaddr_t *sockaddr,
@@ -296,9 +296,9 @@ typedef struct isc_socketmethods {
 	isc_sockettype_t (*gettype)(isc_socket_t *sock);
 	void		(*ipv6only)(isc_socket_t *sock, isc_boolean_t yes);
 	isc_result_t    (*fdwatchpoke)(isc_socket_t *sock, int flags);
-	isc_result_t		(*dup)(isc_socket_t *socket,
+	isc_result_t		(*dup)(isc_socket_t *sock,
 				  isc_socket_t **socketp);
-	int 		(*getfd)(isc_socket_t *socket);
+	int 		(*getfd)(isc_socket_t *sock);
 } isc_socketmethods_t;
 
 /*%
@@ -1094,24 +1094,24 @@ isc_socket_permunix(isc_sockaddr_t *sockaddr, isc_uint32_t perm,
  * \li	#ISC_R_FAILURE
  */
 
-void isc_socket_setname(isc_socket_t *socket, const char *name, void *tag);
+void isc_socket_setname(isc_socket_t *sock, const char *name, void *tag);
 /*%<
  * Set the name and optional tag for a socket.  This allows tracking of the
  * owner or purpose for this socket, and is useful for tracing and statistics
  * reporting.
  */
 
-const char *isc_socket_getname(isc_socket_t *socket);
+const char *isc_socket_getname(isc_socket_t *sock);
 /*%<
  * Get the name associated with a socket, if any.
  */
 
-void *isc_socket_gettag(isc_socket_t *socket);
+void *isc_socket_gettag(isc_socket_t *sock);
 /*%<
  * Get the tag associated with a socket, if any.
  */
 
-int isc_socket_getfd(isc_socket_t *socket);
+int isc_socket_getfd(isc_socket_t *sock);
 /*%<
  * Get the file descriptor associated with a socket
  */

@@ -1,7 +1,7 @@
 /*
  *  EDIT THIS FILE WITH CAUTION  (ntpq-opts.h)
  *
- *  It has been AutoGen-ed  December 19, 2014 at 07:49:47 AM by AutoGen 5.18.5pre4
+ *  It has been AutoGen-ed  February  4, 2015 at 02:42:46 AM by AutoGen 5.18.5pre4
  *  From the definitions    ntpq-opts.def
  *  and the template file   options
  *
@@ -18,7 +18,7 @@
  * The ntpq program is copyrighted and licensed
  * under the following terms:
  *
- *  Copyright (C) 1970-2014 The University of Delaware, all rights reserved.
+ *  Copyright (C) 1992-2015 The University of Delaware and Network Time Foundation, all rights reserved.
  *  This is free software. It is licensed for use, modification and
  *  redistribution under the terms of the NTP License, copies of which
  *  can be seen at:
@@ -31,7 +31,7 @@
  *  both the copyright notice and this permission notice appear in
  *  supporting documentation, and that the name The University of Delaware not be used in
  *  advertising or publicity pertaining to distribution of the software
- *  without specific, written prior permission. The University of Delaware makes no
+ *  without specific, written prior permission. The University of Delaware and Network Time Foundation makes no
  *  representations about the suitability this software for any purpose. It
  *  is provided "as is" without express or implied warranty.
  */
@@ -83,9 +83,9 @@ typedef enum {
 /** count of all options for ntpq */
 #define OPTION_CT    15
 /** ntpq version */
-#define NTPQ_VERSION       "4.2.8"
+#define NTPQ_VERSION       "4.2.8p1"
 /** Full ntpq version text */
-#define NTPQ_FULL_VERSION  "ntpq 4.2.8"
+#define NTPQ_FULL_VERSION  "ntpq 4.2.8p1"
 
 /**
  *  Interface defines for all options.  Replace "n" with the UPPER_CASED

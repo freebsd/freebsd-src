@@ -13,7 +13,7 @@
 /* This is used in msyslog.c; we don't want to clutter up the log with
    the year and day of the week, etc.; just the minimal date and time.  */
 
-char *
+const char *
 humanlogtime(void)
 {
 	char *		bp;
@@ -39,7 +39,7 @@ humanlogtime(void)
  * humantime() -- like humanlogtime() but without date, and with the
  *		  time to display given as an argument.
  */
-char *
+const char *
 humantime(
 	time_t cursec
 	)

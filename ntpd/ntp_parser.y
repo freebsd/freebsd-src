@@ -159,6 +159,7 @@
 %token	<Integer>	T_Maxdist
 %token	<Integer>	T_Maxmem
 %token	<Integer>	T_Maxpoll
+%token	<Integer>	T_Mdnstries
 %token	<Integer>	T_Mem
 %token	<Integer>	T_Memlock
 %token	<Integer>	T_Minclock
@@ -526,6 +527,8 @@ other_mode_command
 			{ CONCAT_G_FIFOS(cfgt.manycastserver, $2); }
 	|	T_Multicastclient address_list
 			{ CONCAT_G_FIFOS(cfgt.multicastclient, $2); }
+	|	T_Mdnstries T_Integer
+			{ cfgt.mdnstries = $2; }
 	;
 
 

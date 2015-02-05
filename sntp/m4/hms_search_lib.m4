@@ -25,6 +25,6 @@ AC_DEFUN([HMS_SEARCH_LIBS],
  no) ;;
  *) $1[]="$ac_cv_search_$2[] $[]$1" ;;
  esac
- [$4]],
- [$5],
+ $4],
+ $5,
  [$6])])

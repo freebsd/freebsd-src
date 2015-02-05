@@ -1338,7 +1338,7 @@ wwv_qrz(
 		if (sp->reach & (1 << AMAX))
 			sp->count--;
 		if (sp->synmax > ATHR && sp->synsnr > ASNR) {
-			if (abs(epoch) < AWND * MS) {
+			if (labs(epoch) < AWND * MS) {
 				sp->reach |= 1;
 				sp->count++;
 				sp->mepoch = sp->lastpos = sp->pos;
@@ -1540,14 +1540,14 @@ wwv_endpoc(
 	 */
 	dtemp = (mepoch - zepoch) % WWV_SEC;
 	if (up->status & FGATE) {
-		if (abs(dtemp) < MAXFREQ * MINAVG) {
+		if (fabs(dtemp) < MAXFREQ * MINAVG) {
 			up->freq += (dtemp / 2.) / ((mcount - zcount) *
 			    FCONST);
 			if (up->freq > MAXFREQ)
 				up->freq = MAXFREQ;
 			else if (up->freq < -MAXFREQ)
 				up->freq = -MAXFREQ;
-			if (abs(dtemp) < MAXFREQ * MINAVG / 2.) {
+			if (fabs(dtemp) < MAXFREQ * MINAVG / 2.) {
 				if (avginc < 3) {
 					avginc++;
 				} else {

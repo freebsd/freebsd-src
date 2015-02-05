@@ -1,4 +1,64 @@
 ---
+NTP 4.2.8p1 (Harlan Stenn <stenn@ntp.org>, 2015/02/04) 
+
+Focus: Security and Bug fixes, enhancements.
+
+Severity: HIGH
+ 
+In addition to bug fixes and enhancements, this release fixes the
+following high-severity vulnerabilities:
+
+* vallen is not validated in several places in ntp_crypto.c, leading
+  to a potential information leak or possibly a crash
+
+    References: Sec 2671 / CVE-2014-9297 / VU#852879
+    Affects: All NTP4 releases before 4.2.8p1 that are running autokey.
+    CVSS: (AV:N/AC:L/Au:N/C:P/I:P/A:P) Base Score: 7.5
+    Date Resolved: Stable (4.2.8p1) 04 Feb 2015
+    Summary: The vallen packet value is not validated in several code
+             paths in ntp_crypto.c which can lead to information leakage
+	     or perhaps a crash of the ntpd process.
+    Mitigation - any of:
+	Upgrade to 4.2.8p1, or later, from the NTP Project Download Page
+		or the NTP Public Services Project Download Page.
+	Disable Autokey Authentication by removing, or commenting out,
+		all configuration directives beginning with the "crypto"
+		keyword in your ntp.conf file. 
+    Credit: This vulnerability was discovered by Stephen Roettger of the
+    	Google Security Team, with additional cases found by Sebastian
+	Krahmer of the SUSE Security Team and Harlan Stenn of Network
+	Time Foundation. 
+
+* ::1 can be spoofed on some OSes, so ACLs based on IPv6 ::1 addresses
+  can be bypassed.
+
+    References: Sec 2672 / CVE-2014-9298 / VU#852879
+    Affects: All NTP4 releases before 4.2.8p1, under at least some
+	versions of MacOS and Linux. *BSD has not been seen to be vulnerable.
+    CVSS: (AV:N/AC:L/Au:N/C:P/I:P/A:C) Base Score: 9
+    Date Resolved: Stable (4.2.8p1) 04 Feb 2014
+    Summary: While available kernels will prevent 127.0.0.1 addresses
+	from "appearing" on non-localhost IPv4 interfaces, some kernels
+	do not offer the same protection for ::1 source addresses on
+	IPv6 interfaces. Since NTP's access control is based on source
+	address and localhost addresses generally have no restrictions,
+	an attacker can send malicious control and configuration packets
+	by spoofing ::1 addresses from the outside. Note Well: This is
+	not really a bug in NTP, it's a problem with some OSes. If you
+	have one of these OSes where ::1 can be spoofed, ALL ::1 -based
+	ACL restrictions on any application can be bypassed!
+    Mitigation:
+        Upgrade to 4.2.8p1, or later, from the NTP Project Download Page
+	or the NTP Public Services Project Download Page
+        Install firewall rules to block packets claiming to come from
+	::1 from inappropriate network interfaces. 
+    Credit: This vulnerability was discovered by Stephen Roettger of
+	the Google Security Team. 
+
+Additionally, over 30 bugfixes and improvements were made to the codebase.
+See the ChangeLog for more information.
+
+---
 NTP 4.2.8 (Harlan Stenn <stenn@ntp.org>, 2014/12/18) 
  
 Focus: Security and Bug fixes, enhancements.
@@ -7,6 +67,24 @@ Severity: HIGH
  
 In addition to bug fixes and enhancements, this release fixes the
 following high-severity vulnerabilities:
+
+************************** vv NOTE WELL vv *****************************
+
+The vulnerabilities listed below can be significantly mitigated by
+following the BCP of putting
+
+ restrict default ... noquery
+
+in the ntp.conf file.  With the exception of:
+
+   receive(): missing return on error
+   References: Sec 2670 / CVE-2014-9296 / VU#852879
+
+below (which is a limited-risk vulnerability), none of the recent
+vulnerabilities listed below can be exploited if the source IP is
+restricted from sending a 'query'-class packet by your ntp.conf file.
+
+************************** ^^ NOTE WELL ^^ *****************************
 
 * Weak default key in config_auth().
 
@@ -23,7 +101,9 @@ following high-severity vulnerabilities:
 	entropy.  This was sufficient back in the late 1990s when the
 	code was written.  Not today.
 
-  Mitigation: Upgrade to 4.2.7p11 or later.
+  Mitigation - any of:
+	- Upgrade to 4.2.7p11 or later.
+	- Follow BCP and put 'restrict ... noquery' in your ntp.conf file.
 
   Credit: This vulnerability was noticed in ntp-4.2.6 by Neel Mehta
   	of the Google Security Team.
@@ -43,7 +123,9 @@ following high-severity vulnerabilities:
 	cryptographic random number generator, either RAND_bytes from
 	OpenSSL, or arc4random(). 
 
-  Mitigation: Upgrade to 4.2.7p230 or later.
+  Mitigation - any of:
+  	- Upgrade to 4.2.7p230 or later.
+	- Follow BCP and put 'restrict ... noquery' in your ntp.conf file.
 
   Credit:  This vulnerability was discovered in ntp-4.2.6 by
   	Stephen Roettger of the Google Security Team.
@@ -61,10 +143,11 @@ following high-severity vulnerabilities:
 	buffer and potentially allow malicious code to be executed
 	with the privilege level of the ntpd process.
 
-  Mitigation: Upgrade to 4.2.8, or later, or
-	Disable Autokey Authentication by removing, or commenting out,
-	all configuration directives beginning with the crypto keyword
-	in your ntp.conf file. 
+  Mitigation - any of:
+  	- Upgrade to 4.2.8, or later, or
+	- Disable Autokey Authentication by removing, or commenting out,
+	  all configuration directives beginning with the crypto keyword
+	  in your ntp.conf file. 
 
   Credit: This vulnerability was discovered by Stephen Roettger of the
   	Google Security Team. 
@@ -80,7 +163,9 @@ following high-severity vulnerabilities:
   	can overflow a stack buffer and potentially allow malicious
 	code to be executed with the privilege level of the ntpd process.
 
-  Mitigation: Upgrade to 4.2.8, or later.
+  Mitigation - any of:
+  	- Upgrade to 4.2.8, or later.
+	- Follow BCP and put 'restrict ... noquery' in your ntp.conf file.
 
   Credit: This vulnerability was discovered by Stephen Roettger of the
   	Google Security Team. 
@@ -96,7 +181,9 @@ following high-severity vulnerabilities:
 	can overflow a stack buffer and potentially allow malicious
 	code to be executed with the privilege level of the ntpd process.
 
-  Mitigation: Upgrade to 4.2.8, or later.
+  Mitigation - any of:
+  	- Upgrade to 4.2.8, or later.
+	- Follow BCP and put 'restrict ... noquery' in your ntp.conf file.
 
   Credit: This vulnerability was discovered by Stephen Roettger of the
 	Google Security Team. 
@@ -118,10 +205,10 @@ following high-severity vulnerabilities:
 	becomes a 5. If system integrity can be partially affected
 	via all three integrity metrics, the CVSS base score become 7.5.
 
-  Mitigation:
-        Upgrade to 4.2.8, or later,
-        or Remove or comment out all configuration directives
-	beginning with the crypto keyword in your ntp.conf file. 
+  Mitigation - any of:
+        - Upgrade to 4.2.8, or later,
+        - Remove or comment out all configuration directives
+	  beginning with the crypto keyword in your ntp.conf file. 
 
   Credit: This vulnerability was discovered by Stephen Roettger of the
   	Google Security Team. 

@@ -133,7 +133,7 @@ get_struct_tm(
 			if (--folds < MINFOLD)
 				return NULL;
 			ts += SOLAR_CYCLE_SECS;
-		} else if (ts >= SOLAR_CYCLE_SECS) {
+		} else if (ts >= (time_t)SOLAR_CYCLE_SECS) {
 			if (++folds > MAXFOLD)
 				return NULL;
 			ts -= SOLAR_CYCLE_SECS;
@@ -157,10 +157,10 @@ common_prettydate(
 	int local
 	)
 {
-	static const char* pfmt[2] = {
-		"%08lx.%08lx  %s, %s %2d %4d %2d:%02d:%02d.%03u",
-		"%08lx.%08lx [%s, %s %2d %4d %2d:%02d:%02d.%03u UTC]"
-	};
+	static const char pfmt0[] =
+	    "%08lx.%08lx  %s, %s %2d %4d %2d:%02d:%02d.%03u";
+	static const char pfmt1[] =
+	    "%08lx.%08lx [%s, %s %2d %4d %2d:%02d:%02d.%03u UTC]";
 
 	char	    *bp;
 	struct tm   *tm;
@@ -186,13 +186,13 @@ common_prettydate(
 		 */
 		struct calendar jd;
 		ntpcal_time_to_date(&jd, &sec);
-		snprintf(bp, LIB_BUFLENGTH, pfmt[local != 0],
+		snprintf(bp, LIB_BUFLENGTH, local ? pfmt1 : pfmt0,
 			 (u_long)ts->l_ui, (u_long)ts->l_uf,
 			 daynames[jd.weekday], months[jd.month-1],
 			 jd.monthday, jd.year, jd.hour,
 			 jd.minute, jd.second, msec);
 	} else		
-		snprintf(bp, LIB_BUFLENGTH, pfmt[0],
+		snprintf(bp, LIB_BUFLENGTH, pfmt0,
 			 (u_long)ts->l_ui, (u_long)ts->l_uf,
 			 daynames[tm->tm_wday], months[tm->tm_mon],
 			 tm->tm_mday, 1900 + tm->tm_year, tm->tm_hour,

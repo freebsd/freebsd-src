@@ -35,7 +35,7 @@ atoint(
 
 	u = 0;
 	while (*cp != '\0') {
-		if (!isdigit((int)*cp))
+		if (!isdigit((unsigned char)*cp))
 		    return 0;
 		if (u > 214748364 || (u == 214748364 && *cp > oflow_digit))
 		    return 0;	/* overflow */

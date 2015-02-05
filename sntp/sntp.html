@@ -36,7 +36,7 @@ display the time offset of the system clock relative to the server
 clock.  Run as root, it can correct the system clock to this offset as
 well.  It can be run as an interactive command or from a cron job.
 
-  <p>This document applies to version 4.2.8 of <code>sntp</code>.
+  <p>This document applies to version 4.2.8p1 of <code>sntp</code>.
 
   <p>The program implements the SNTP protocol as defined by RFC 5905, the NTPv4
 IETF specification.
@@ -175,7 +175,7 @@ the usage text by passing it through a pager program.
 used to select the program, defaulting to <span class="file">more</span>.  Both will exit
 with a status code of 0.
 
-<pre class="example">sntp - standard Simple Network Time Protocol client program - Ver. 4.2.8
+<pre class="example">sntp - standard Simple Network Time Protocol client program - Ver. 4.2.8p1
 Usage:  sntp [ -&lt;flag&gt; [&lt;val&gt;] | --&lt;name&gt;[{=| }&lt;val&gt;] ]... \
                 [ hostname-or-IP ...]
   Flg Arg Option-Name    Description
@@ -417,7 +417,9 @@ This is the &ldquo;adjustments less than <var>steplimit</var> msec will be slewe
 This option takes a number argument. 
 If the time adjustment is less than <span class="file">steplimit</span> milliseconds,
 slew the amount using <span class="command">adjtime(2)</span>.  Otherwise, step the
-correction using <span class="command">settimeofday(2)</span>. 
+correction using <span class="command">settimeofday(2)</span>.  The default value is 0,
+which means all adjustments will be stepped.  This is a feature, as
+different situations demand different values. 
 <div class="node">
 <p><hr>
 <a name="sntp-ntpversion"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#sntp-usereservedport">sntp usereservedport</a>,

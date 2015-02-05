@@ -2,6 +2,7 @@ dnl ######################################################################
 dnl Common m4sh code for compiler stuff
 AC_DEFUN([NTP_COMPILER], [
 AC_REQUIRE([AC_PROG_CC_C89])
+AC_REQUIRE([AC_PROG_CC_C99])
 
 CFLAGS_NTP=
 CPPFLAGS_NTP=

@@ -96,9 +96,13 @@ isc_interfaceiter_create(isc_mem_t *mctx, isc_interfaceiter_t **iterp) {
 	}
 	if (ret < 0) {
 		isc__strerror(errno, strbuf, sizeof(strbuf));
-		UNEXPECTED_ERROR(__FILE__, __LINE__, isc_msgcat_get(isc_msgcat,
-		    ISC_MSGSET_IFITERGETIFADDRS, ISC_MSG_GETIFADDRS,
-		    "getting interface addresses: getifaddrs: %s"), strbuf);
+		UNEXPECTED_ERROR(__FILE__, __LINE__,
+                		 "getting interface addresses: %s: %s",
+				 isc_msgcat_get(isc_msgcat,
+						ISC_MSGSET_IFITERGETIFADDRS,
+						ISC_MSG_GETIFADDRS,
+						"getifaddrs"),
+				 strbuf);
 		result = ISC_R_UNEXPECTED;
 		goto failure;
 	}

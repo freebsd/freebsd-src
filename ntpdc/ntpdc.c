@@ -96,8 +96,10 @@ static	void	hostnames	(struct parse *, FILE *);
 static	void	setdebug	(struct parse *, FILE *);
 static	void	quit		(struct parse *, FILE *);
 static	void	version		(struct parse *, FILE *);
-static	void	warning		(const char *, const char *, const char *);
-static	void	error		(const char *, const char *, const char *);
+static	void	warning		(const char *, ...)
+    __attribute__((__format__(__printf__, 1, 2)));
+static	void	error		(const char *, ...)
+    __attribute__((__format__(__printf__, 1, 2)));
 static	u_long	getkeyid	(const char *);
 
 
@@ -506,7 +508,7 @@ openhost(
 
 	sockfd = socket(ai->ai_family, SOCK_DGRAM, 0);
 	if (sockfd == INVALID_SOCKET) {
-		error("socket", "", "");
+		error("socket");
 		exit(-1);
 	}
 	
@@ -517,7 +519,7 @@ openhost(
 
 		if (setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF,
 			       &rbufsize, sizeof(int)) == -1)
-		    error("setsockopt", "", "");
+		    error("setsockopt");
 	}
 # endif
 #endif
@@ -528,7 +530,7 @@ openhost(
 #else
 	if (connect(sockfd, ai->ai_addr, ai->ai_addrlen) == -1) {
 #endif /* SYS_VXWORKS */
-		error("connect", "", "");
+		error("connect");
 		exit(-1);
 	}
 
@@ -551,7 +553,7 @@ sendpkt(
 	)
 {
 	if (send(sockfd, xdata, xdatalen, 0) == -1) {
-		warning("write to %s failed", currenthost, "");
+		warning("write to %s failed", currenthost);
 		return -1;
 	}
 
@@ -600,7 +602,7 @@ getresponse(
 	int numrecv;
 	int seq;
 	fd_set fds;
-	int n;
+	ssize_t n;
 	int pad;
 
 	/*
@@ -629,7 +631,7 @@ getresponse(
 	n = select(sockfd+1, &fds, (fd_set *)0, (fd_set *)0, &tvo);
 
 	if (n == -1) {
-		warning("select fails", "", "");
+		warning("select fails");
 		return -1;
 	}
 	if (n == 0) {
@@ -648,7 +650,7 @@ getresponse(
 				printf("Received sequence numbers");
 				for (n = 0; n <= MAXSEQ; n++)
 				    if (haveseq[n])
-					printf(" %d,", n);
+					printf(" %zd,", n);
 				if (lastseq != 999)
 				    printf(" last frame received\n");
 				else
@@ -660,7 +662,7 @@ getresponse(
 
 	n = recv(sockfd, (char *)&rpkt, sizeof(rpkt), 0);
 	if (n == -1) {
-		warning("read", "", "");
+		warning("read");
 		return -1;
 	}
 
@@ -668,9 +670,9 @@ getresponse(
 	/*
 	 * Check for format errors.  Bug proofing.
 	 */
-	if (n < RESP_HEADER_SIZE) {
+	if (n < (ssize_t)RESP_HEADER_SIZE) {
 		if (debug)
-			printf("Short (%d byte) packet received\n", n);
+			printf("Short (%zd byte) packet received\n", n);
 		goto again;
 	}
 	if (INFO_VERSION(rpkt.rm_vn_mode) > NTP_VERSION ||
@@ -738,8 +740,8 @@ getresponse(
 	if ((size_t)datasize > (n-RESP_HEADER_SIZE)) {
 		if (debug)
 		    printf(
-			    "Received items %d, size %d (total %d), data in packet is %lu\n",
-			    items, size, datasize, (u_long)(n-RESP_HEADER_SIZE));
+			    "Received items %d, size %d (total %d), data in packet is %zu\n",
+			    items, size, datasize, n-RESP_HEADER_SIZE);
 		goto again;
 	}
 
@@ -920,11 +922,11 @@ sendrequest(
 	if (!maclen) {  
 		fprintf(stderr, "Key not found\n");
 		return 1;
-	} else if (maclen != (info_auth_hashlen + sizeof(keyid_t))) {
+	} else if (maclen != (int)(info_auth_hashlen + sizeof(keyid_t))) {
 		fprintf(stderr,
-			"%d octet MAC, %lu expected with %lu octet digest\n",
-			maclen, (u_long)(info_auth_hashlen + sizeof(keyid_t)),
-			(u_long)info_auth_hashlen);
+			"%d octet MAC, %zu expected with %zu octet digest\n",
+			maclen, (info_auth_hashlen + sizeof(keyid_t)),
+			info_auth_hashlen);
 		return 1;
 	}
 	return sendpkt(&qpkt, reqsize + maclen);
@@ -973,7 +975,7 @@ again:
 		res = select(sockfd+1, &fds, (fd_set *)0, (fd_set *)0, &tvzero);
 
 		if (res == -1) {
-			warning("polling select", "", "");
+			warning("polling select");
 			return -1;
 		} else if (res > 0)
 
@@ -1868,34 +1870,44 @@ version(
 }
 
 
+static void __attribute__((__format__(__printf__, 1, 0)))
+vwarning(const char *fmt, va_list ap)
+{
+	int serrno = errno;
+	(void) fprintf(stderr, "%s: ", progname);
+	vfprintf(stderr, fmt, ap);
+	(void) fprintf(stderr, ": %s\n", strerror(serrno));
+}
+
 /*
  * warning - print a warning message
  */
-static void
+static void __attribute__((__format__(__printf__, 1, 2)))
 warning(
 	const char *fmt,
-	const char *st1,
-	const char *st2
+	...
 	)
 {
-	(void) fprintf(stderr, "%s: ", progname);
-	(void) fprintf(stderr, fmt, st1, st2);
-	(void) fprintf(stderr, ": ");
-	perror("");
+	va_list ap;
+	va_start(ap, fmt);
+	vwarning(fmt, ap);
+	va_end(ap);
 }
 
 
 /*
  * error - print a message and exit
  */
-static void
+static void __attribute__((__format__(__printf__, 1, 2)))
 error(
 	const char *fmt,
-	const char *st1,
-	const char *st2
+	...
 	)
 {
-	warning(fmt, st1, st2);
+	va_list ap;
+	va_start(ap, fmt);
+	vwarning(fmt, ap);
+	va_end(ap);
 	exit(1);
 }
 

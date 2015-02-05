@@ -171,6 +171,7 @@ CHUTEST = @CHUTEST@
 CONFIG_SHELL = @CONFIG_SHELL@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
+CPPFLAGS_LIBEVENT = @CPPFLAGS_LIBEVENT@
 CPPFLAGS_NTP = @CPPFLAGS_NTP@
 CXX = @CXX@
 CXXCPP = @CXXCPP@
@@ -205,7 +206,9 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LD = @LD@
+LDADD_LIBEVENT = @LDADD_LIBEVENT@
 LDADD_LIBNTP = @LDADD_LIBNTP@
+LDADD_LIBUTIL = @LDADD_LIBUTIL@
 LDADD_NLIST = @LDADD_NLIST@
 LDADD_NTP = @LDADD_NTP@
 LDFLAGS = @LDFLAGS@
@@ -404,7 +407,10 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I sntp/m4 -I sntp/libevent/m4 -I sntp/libopts/m4
 NULL = 
+
+# moved sntp first to get libtool and libevent built.
 SUBDIRS = \
+	sntp		\
 	scripts		\
 	include		\
 	libntp		\
@@ -419,7 +425,6 @@ SUBDIRS = \
 	clockstuff	\
 	kernel		\
 	util		\
-	sntp		\
 	tests		\
 	$(NULL)
 
@@ -465,7 +470,6 @@ BUILT_SOURCES = \
 	.gcc-warning			\
 	libtool				\
 	html/.datecheck			\
-	sntp/built-sources-only		\
 	$(srcdir)/COPYRIGHT		\
 	$(srcdir)/.checkChangeLog	\
 	$(NULL)

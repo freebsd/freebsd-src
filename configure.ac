@@ -3,7 +3,7 @@ dnl
 m4_include([sntp/m4/version.m4])
 AC_PREREQ([2.61])
 AC_INIT(
-    [ntp4],
+    [ntp],
     [VERSION_NUMBER],
     [http://bugs.ntp.org./],
     [],
@@ -102,7 +102,7 @@ esac
 enable_nls=no
 LIBOPTS_CHECK_NOBUILD([sntp/libopts])
 
-NTP_ENABLE_LOCAL_LIBEVENT
+NTP_LIBEVENT_CHECK_NOBUILD([2], [sntp/libevent])
 
 NTP_LIBNTP
 
@@ -768,6 +768,10 @@ case "$ntp_cv_struct_ntptimeval" in
 	]
     )
 esac
+
+#### 
+
+AC_CHECK_FUNCS([arc4random_buf])
 
 #### 
 

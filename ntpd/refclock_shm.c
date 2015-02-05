@@ -51,13 +51,17 @@
 #define NSAMPLES        3       /* stages of median filter */
 
 /*
+ * Mode flags
+ */
+#define SHM_MODE_PRIVATE 0x0001
+
+/*
  * Function prototypes
  */
 static  int     shm_start       (int unit, struct peer *peer);
 static  void    shm_shutdown    (int unit, struct peer *peer);
 static  void    shm_poll        (int unit, struct peer *peer);
 static  void    shm_timer       (int unit, struct peer *peer);
-static	void	shm_peek	(int unit, struct peer *peer);
 static	void	shm_clockstats  (int unit, struct peer *peer);
 static	void	shm_control	(int unit, const struct refclockstat * in_st,
 				 struct refclockstat * out_st, struct peer *peer);
@@ -100,6 +104,7 @@ struct shmTime {
 
 struct shmunit {
 	struct shmTime *shm;	/* pointer to shared memory segment */
+	int forall;		/* access for all UIDs?	*/
 
 	/* debugging/monitoring counters - reset when printed */
 	int ticks;		/* number of attempts to read data*/
@@ -112,76 +117,87 @@ struct shmunit {
 	time_t max_delay;	/* age/stale limit */
 };
 
+static struct shmTime*
+getShmTime(
+	int unit,
+	int/*BOOL*/ forall
+	)
+{
+	struct shmTime *p = NULL;
 
-struct shmTime *getShmTime(int);
-
-struct shmTime *getShmTime (int unit) {
 #ifndef SYS_WINNT
-	int shmid=0;
+
+	int shmid;
 
 	/* 0x4e545030 is NTP0.
 	 * Big units will give non-ascii but that's OK
 	 * as long as everybody does it the same way.
 	 */
-	shmid=shmget (0x4e545030 + unit, sizeof (struct shmTime),
-		      IPC_CREAT | ((unit < 2) ? 0600 : 0666));
+	shmid=shmget(0x4e545030 + unit, sizeof (struct shmTime),
+		      IPC_CREAT | (forall ? 0666 : 0600));
 	if (shmid == -1) { /* error */
 		msyslog(LOG_ERR, "SHM shmget (unit %d): %m", unit);
-		return 0;
+		return NULL;
 	}
-	else { /* no error  */
-		struct shmTime *p = (struct shmTime *)shmat (shmid, 0, 0);
-		if (p == (struct shmTime *)-1) { /* error */
-			msyslog(LOG_ERR, "SHM shmat (unit %d): %m", unit);
-			return 0;
-		}
-		return p;
+	p = (struct shmTime *)shmat (shmid, 0, 0);
+	if (p == (struct shmTime *)-1) { /* error */
+		msyslog(LOG_ERR, "SHM shmat (unit %d): %m", unit);
+		return NULL;
 	}
+	return p;
+
 #else
-	char buf[10];
+
+	static const char * nspref[2] = { "Local", "Global" };
+	char buf[20];
 	LPSECURITY_ATTRIBUTES psec = 0;
 	HANDLE shmid = 0;
 	SECURITY_DESCRIPTOR sd;
 	SECURITY_ATTRIBUTES sa;
+	unsigned int numch;
 
-	snprintf(buf, sizeof(buf), "NTP%d", unit);
-	if (unit >= 2) { /* world access */
+	numch = snprintf(buf, sizeof(buf), "%s\\NTP%d",
+			 nspref[forall != 0], (unit & 0xFF));
+	if (numch >= sizeof(buf)) {
+		msyslog(LOG_ERR, "SHM name too long (unit %d)", unit);
+		return NULL;
+	}
+	if (forall) { /* world access */
 		if (!InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION)) {
 			msyslog(LOG_ERR,"SHM InitializeSecurityDescriptor (unit %d): %m", unit);
-			return 0;
+			return NULL;
 		}
-		if (!SetSecurityDescriptorDacl(&sd, 1, 0, 0)) {
+		if (!SetSecurityDescriptorDacl(&sd, TRUE, NULL, FALSE)) {
 			msyslog(LOG_ERR, "SHM SetSecurityDescriptorDacl (unit %d): %m", unit);
-			return 0;
+			return NULL;
 		}
-		sa.nLength=sizeof (SECURITY_ATTRIBUTES);
+		sa.nLength = sizeof(SECURITY_ATTRIBUTES);
 		sa.lpSecurityDescriptor = &sd;
-		sa.bInheritHandle = 0;
+		sa.bInheritHandle = FALSE;
 		psec = &sa;
 	}
 	shmid = CreateFileMapping ((HANDLE)0xffffffff, psec, PAGE_READWRITE,
-				 0, sizeof (struct shmTime), buf);
-	if (!shmid) { /*error*/
-		char buf[1000];
-
+				   0, sizeof (struct shmTime), buf);
+	if (shmid == NULL) { /*error*/
+		char buf[1000];		
 		FormatMessage (FORMAT_MESSAGE_FROM_SYSTEM,
 			       0, GetLastError (), 0, buf, sizeof (buf), 0);
 		msyslog(LOG_ERR, "SHM CreateFileMapping (unit %d): %s", unit, buf);
-		return 0;
-	} else {
-		struct shmTime *p = (struct shmTime *) MapViewOfFile (shmid,
-								    FILE_MAP_WRITE, 0, 0, sizeof (struct shmTime));
-		if (p == 0) { /*error*/
-			char buf[1000];
-
-			FormatMessage (FORMAT_MESSAGE_FROM_SYSTEM,
-				       0, GetLastError (), 0, buf, sizeof (buf), 0);
-			msyslog(LOG_ERR,"SHM MapViewOfFile (unit %d): %s", unit, buf) 
-			return 0;
-		}
-		return p;
+		return NULL;
 	}
+	p = (struct shmTime *)MapViewOfFile(shmid, FILE_MAP_WRITE, 0, 0,
+					    sizeof (struct shmTime));
+	if (p == NULL) { /*error*/
+		char buf[1000];		
+		FormatMessage (FORMAT_MESSAGE_FROM_SYSTEM,
+			       0, GetLastError (), 0, buf, sizeof (buf), 0);
+		msyslog(LOG_ERR,"SHM MapViewOfFile (unit %d): %s", unit, buf);
+		return NULL;
+	}
+
 #endif
+
+	return p;
 }
 /*
  * shm_start - attach to shared memory
@@ -192,18 +208,17 @@ shm_start(
 	struct peer *peer
 	)
 {
-	struct refclockproc *pp;
-	struct shmunit *up;
+	struct refclockproc * const pp = peer->procptr;
+	struct shmunit *      const up = emalloc_zero(sizeof(*up));
 
-	pp = peer->procptr;
 	pp->io.clock_recv = noentry;
 	pp->io.srcclock = peer;
 	pp->io.datalen = 0;
 	pp->io.fd = -1;
 
-	up = emalloc_zero(sizeof(*up));
+	up->forall = (unit >= 2) && !(peer->ttl & SHM_MODE_PRIVATE);
 
-	up->shm = getShmTime(unit);
+	up->shm = getShmTime(unit, up->forall);
 
 	/*
 	 * Initialize miscellaneous peer variables
@@ -243,12 +258,12 @@ shm_control(
 	struct peer               * peer
 	)
 {
-	struct refclockproc *pp;
-	struct shmunit *up;
+	struct refclockproc * const pp = peer->procptr;
+	struct shmunit *      const up = pp->unitptr;
 
-	pp = peer->procptr;
-	up = pp->unitptr;
-
+	UNUSED_ARG(unit);
+	UNUSED_ARG(in_st);
+	UNUSED_ARG(out_st);
 	if (NULL == up)
 		return;
 	if (pp->sloppyclockflag & CLK_FLAG1)
@@ -269,31 +284,23 @@ shm_shutdown(
 	struct peer *peer
 	)
 {
-	struct refclockproc *pp;
-	struct shmunit *up;
+	struct refclockproc * const pp = peer->procptr;
+	struct shmunit *      const up = pp->unitptr;
 
-	pp = peer->procptr;
-	up = pp->unitptr;
-
+	UNUSED_ARG(unit);
 	if (NULL == up)
 		return;
 #ifndef SYS_WINNT
+
 	/* HMS: shmdt() wants char* or const void * */
-	(void) shmdt ((char *)up->shm);
+	(void)shmdt((char *)up->shm);
+
 #else
-	UnmapViewOfFile (up->shm);
+
+	UnmapViewOfFile(up->shm);
+
 #endif
 	free(up);
-}
-
-
-/*
- * shm_timer - called every second
- */
-static  void
-shm_timer(int unit, struct peer *peer)
-{
-	shm_peek(unit, peer);
 }
 
 
@@ -306,12 +313,9 @@ shm_poll(
 	struct peer *peer
 	)
 {
-	struct refclockproc *pp;
-	struct shmunit *up;
+	struct refclockproc * const pp = peer->procptr;
+	struct shmunit *      const up = pp->unitptr;
 	int major_error;
-
-	pp = peer->procptr;
-	up = pp->unitptr;
 
 	pp->polls++;
 
@@ -345,16 +349,18 @@ shm_poll(
 }
 
 /*
- * shm_peek - try to grab a sample
+ * shm_timer - called onece every second.
+ *
+ * This tries to grab a sample from the SHM segment
  */
 static void
-shm_peek(
+shm_timer(
 	int unit,
 	struct peer *peer
 	)
 {
-	struct refclockproc *pp;
-	struct shmunit *up;
+	struct refclockproc * const pp = peer->procptr;
+	struct shmunit *      const up = pp->unitptr;
 
 	/* access order is important for lock-free SHM access; we
 	** enforce order by treating the whole structure volatile.
@@ -383,19 +389,16 @@ shm_peek(
 	 * This is the main routine. It snatches the time from the shm
 	 * board and tacks on a local timestamp.
 	 */
-	pp = peer->procptr;
-	up = pp->unitptr;
 	up->ticks++;
-	if (up->shm == 0) {
+	if ((shm = up->shm) == NULL) {
 		/* try to map again - this may succeed if meanwhile some-
 		body has ipcrm'ed the old (unaccessible) shared mem segment */
-		up->shm = getShmTime(unit);
-	}
-	shm = up->shm;
-	if (shm == 0) {
-		DPRINTF(1, ("%s: no SHM segment\n",
-			    refnumtoa(&peer->srcadr)));
-		return;
+		shm = up->shm = getShmTime(unit, up->forall);
+		if (shm == NULL) {
+			DPRINTF(1, ("%s: no SHM segment\n",
+				    refnumtoa(&peer->srcadr)));
+			return;
+		}
 	}
 	if ( ! shm->valid) {
 		DPRINTF(1, ("%s: SHM not ready\n",
@@ -542,28 +545,17 @@ static void shm_clockstats(
 	struct peer *peer
 	)
 {
-	struct refclockproc *pp;
-	struct shmunit *up;
-	char logbuf[64];
-	unsigned int llen;
+	struct refclockproc * const pp = peer->procptr;
+	struct shmunit *      const up = pp->unitptr;
 
-	pp = peer->procptr;
-	up = pp->unitptr;
-
+	UNUSED_ARG(unit);
 	if (pp->sloppyclockflag & CLK_FLAG4) {
-		/* if snprintf() returns a negative values on errors
-		** (some older ones do) make sure we are NUL
-		** terminated. Using an unsigned result does the trick.
-		*/
-		llen = snprintf(logbuf, sizeof(logbuf),
-				"%3d %3d %3d %3d %3d",
-				up->ticks, up->good, up->notready,
-				up->bad, up->clash);
-		logbuf[min(llen, sizeof(logbuf)-1)] = '\0';
-		record_clock_stats(&peer->srcadr, logbuf);
+		mprintf_clock_stats(
+			&peer->srcadr, "%3d %3d %3d %3d %3d",
+			up->ticks, up->good, up->notready,
+			up->bad, up->clash);
 	}
 	up->ticks = up->good = up->notready = up->bad = up->clash = 0;
-
 }
 
 #else

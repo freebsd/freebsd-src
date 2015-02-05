@@ -19,6 +19,7 @@ AM_LDFLAGS = $(LDFLAGS_NTP)
 LDADD=		../libntp/libntp.a $(LDADD_LIBNTP) $(LIBM) $(PTHREAD_LIBS)
 tg2_LDADD=	../libntp/libntp.a $(LDADD_LIBNTP) $(LIBM)
 ntp_keygen_LDADD  = version.o $(LIBOPTS_LDADD) ../libntp/libntp.a
+ntp_keygen_LDADD += $(LDADD_LIBEVENT)
 ntp_keygen_LDADD += $(LDADD_LIBNTP) $(PTHREAD_LIBS) $(LDADD_NTP) $(LIBM)
 ntp_keygen_SOURCES = ntp-keygen.c ntp-keygen-opts.c ntp-keygen-opts.h
 

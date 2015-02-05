@@ -217,20 +217,26 @@ case "$repo" in
     ;;
 esac
 
-case "$bp::$point" in
- 0::*)
+case "$repo::$bp::$point" in
+ *::0::*)
     newpoint=$point
     ;;
- 1::[1-9]*)
+ dev::1::0)
     newpoint=`expr $point + 1`
     ;;
- 1::)
+ *::1::[1-9]*)
+    newpoint=`expr $point + 1`
+    ;;
+ dev::1::)
+    newpoint=0
+    ;;
+ stable::1::)
     newpoint=1
     ;;
- 1::[Nn][Ee][Ww])
+ *::1::[Nn][Ee][Ww])
     newpoint=
     ;;
- *) echo "Unexpected value for 'point' <$point>!"
+ *) echo "Unexpected value for 'point' <$point>! (repo::bp::point is $repo::$bp::$point)"
     exit 1
     ;;
 esac

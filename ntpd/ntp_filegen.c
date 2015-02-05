@@ -617,7 +617,7 @@ filegen_statsdir(void)
 #ifdef DEBUG
 void
 filegen_unregister(
-	char *name
+	const char *name
 	)
 {
 	struct filegen_entry **	ppfe;

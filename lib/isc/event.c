@@ -34,9 +34,7 @@
 
 static void
 destroy(isc_event_t *event) {
-	isc_mem_t *mctx = event->ev_destroy_arg;
-
-	isc_mem_put(mctx, event, event->ev_size);
+	isc_mem_put(event->ev_destroy_arg, event, event->ev_size);
 }
 
 isc_event_t *

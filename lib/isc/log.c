@@ -1521,10 +1521,11 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 		    level_string[0] == '\0') {
 			if (level < ISC_LOG_CRITICAL)
 				snprintf(level_string, sizeof(level_string),
+					 "%s %d: ",
 					 isc_msgcat_get(isc_msgcat,
 							ISC_MSGSET_LOG,
 							ISC_MSG_LEVEL,
-							"level %d: "),
+							"level"),
 					 level);
 			else if (level > ISC_LOG_DYNAMIC)
 				snprintf(level_string, sizeof(level_string),

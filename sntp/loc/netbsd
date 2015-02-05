@@ -11,4 +11,4 @@ ntpsnmpd,sbin,8
 ntpsweep,noinst,8
 ntptime,sbin,8
 ntptrace,sbin,8
-sntp,bin,1
+sntp,sbin,1

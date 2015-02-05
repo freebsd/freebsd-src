@@ -835,6 +835,9 @@ typedef unsigned int	uintptr_t;
 /* What type to use for setsockopt */
 #undef TYPEOF_IP_MULTICAST_LOOP
 
+/* OK to use snprintb()? */
+#undef USE_SNPRINTB
+
 /* Can we use SIGPOLL for tty IO? */
 #undef USE_TTY_SIGPOLL
 

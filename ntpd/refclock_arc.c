@@ -843,7 +843,7 @@ send_slow(
 static int
 get2(char *p, int *val)
 {
-  if (!isdigit((int)p[0]) || !isdigit((int)p[1])) return 0;
+  if (!isdigit((unsigned char)p[0]) || !isdigit((unsigned char)p[1])) return 0;
   *val = (p[0] - '0') * 10 + p[1] - '0';
   return 1;
 }
@@ -851,7 +851,7 @@ get2(char *p, int *val)
 static int
 get1(char *p, int *val)
 {
-  if (!isdigit((int)p[0])) return 0;
+  if (!isdigit((unsigned char)p[0])) return 0;
   *val = p[0] - '0';
   return 1;
 }
@@ -943,7 +943,7 @@ arc_receive(
 #ifdef DEBUG
 		if(debug) { /* Show \r as `R', other non-printing char as `?'. */
 			printf("arc: stamp -->%c<-- (%d chars rcvd)\n",
-			       ((c == '\r') ? 'R' : (isgraph((int)c) ? c : '?')),
+			       ((c == '\r') ? 'R' : (isgraph((unsigned char)c) ? c : '?')),
 			       rbufp->recv_length);
 		}
 #endif

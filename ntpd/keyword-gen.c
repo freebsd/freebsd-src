@@ -97,6 +97,7 @@ struct key_tok ntp_keywords[] = {
 { "iburst",		T_Iburst,		FOLLBY_TOKEN },
 { "key",		T_Key,			FOLLBY_TOKEN },
 { "maxpoll",		T_Maxpoll,		FOLLBY_TOKEN },
+{ "mdnstries",		T_Mdnstries,		FOLLBY_TOKEN },
 { "minpoll",		T_Minpoll,		FOLLBY_TOKEN },
 { "mode",		T_Mode,			FOLLBY_TOKEN },
 { "noselect",		T_Noselect,		FOLLBY_TOKEN },
@@ -357,7 +358,7 @@ generate_fsm(void)
 			fprintf(stderr,
 				"keyword-gen sst[%u] too small "
 				"for keyword '%s' id %d\n",
-				COUNTOF(sst),
+				(int)COUNTOF(sst),
 				ntp_keywords[i].key,
 				token);
 			exit(4);

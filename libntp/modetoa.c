@@ -9,7 +9,7 @@
 
 const char *
 modetoa(
-	int mode
+	size_t mode
 	)
 {
 	char *bp;
@@ -25,9 +25,9 @@ modetoa(
 		"bclient",
 	};
 
-	if (mode < 0 || mode >= COUNTOF(modestrings)) {
+	if (mode >= COUNTOF(modestrings)) {
 		LIB_GETBUF(bp);
-		snprintf(bp, LIB_BUFLENGTH, "mode#%d", mode);
+		snprintf(bp, LIB_BUFLENGTH, "mode#%zu", mode);
 		return bp;
 	}
 

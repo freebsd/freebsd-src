@@ -45,7 +45,13 @@ case "$#" in
 	    set `cat /etc/redhat-release`
 	    case "$1" in
 	     CentOS)
-	        CVO_OS=centos$3
+		case "$2" in
+		 Linux)
+		    CVO_OS=centos$4
+		    ;;
+		 *) CVO_OS=centos$3
+		    ;;
+		esac
 	        ;;
 	     Fedora)
 	        CVO_OS=fedora$3
