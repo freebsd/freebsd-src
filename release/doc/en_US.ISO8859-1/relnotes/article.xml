@@ -3,6 +3,8 @@
         "../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
  %release;
+<!ENTITY security SYSTEM "../../share/xml/security.xml">
+<!ENTITY errata SYSTEM "../../share/xml/errata.xml">
 ]>
 
 <article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
@@ -13,7 +15,7 @@
   <pubdate>$FreeBSD$</pubdate>
 
   <copyright>
-    <year>2011</year>
+    <year>2015</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
@@ -101,33 +103,13 @@
 	advisories available from
 	<uri xlink:href="http://security.FreeBSD.org/">http://security.FreeBSD.org/</uri>.</para>
 
-      <informaltable frame="none" pgwide="1">
-	<tgroup cols="3">
-	  <colspec colwidth="1*"/>
-	  <colspec colwidth="1*"/>
-	  <colspec colwidth="3*"/>
-	    <thead>
-	      <row>
-		<entry>Advisory</entry>
-		<entry>Date</entry>
-		<entry>Topic</entry>
-	      </row>
-	    </thead>
+      &security;
+    </sect2>
 
-	    <tbody>
-	      <row>
-		<entry><uri xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-10:08.bzip2.asc">SA-10:08.bzip2</uri></entry>
-		<entry>20&nbsp;September&nbsp;2010</entry>
-		<entry><para>Integer overflow in bzip2 decompression</para></entry>
-	      </row>
-	      <row>
-		<entry><uri xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-10:10.openssl.asc">SA-10:10.openssl</uri></entry>
-		<entry>29&nbsp;November&nbsp;2010</entry>
-		<entry><para>OpenSSL multiple vulnerabilities</para></entry>
-	      </row>
-	    </tbody>
-	</tgroup>
-      </informaltable>
+    <sect2 xml:id="errata">
+      <title>Errata Notices</title>
+
+      &errata;
     </sect2>
 
     <sect2 xml:id="kernel">

@@ -3,6 +3,8 @@
         "../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
 %release;
+<!ENTITY security SYSTEM "../../share/xml/security.xml">
+<!ENTITY errata SYSTEM "../../share/xml/errata.xml">
 ]>
 <!--
 	FreeBSD errata document.  Unlike some of the other RELNOTESng
@@ -26,7 +28,7 @@
     <pubdate>$FreeBSD$</pubdate>
 
     <copyright>
-      <year>2013</year>
+      <year>2015</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -86,95 +88,13 @@
       the individual advisories available from
       <uri xlink:href="http://security.FreeBSD.org/">http://security.FreeBSD.org/</uri>.</para>
 
-    <informaltable frame="none" pgwide="1">
-      <tgroup cols="3">
-	<colspec colwidth="1*"/>
-	<colspec colwidth="1*"/>
-	<colspec colwidth="3*"/>
-	<thead>
-	  <row>
-	    <entry>Advisory</entry>
-	    <entry>Date</entry>
-	    <entry>Topic</entry>
-	  </row>
-	</thead>
+    &security;
+  </sect1>
 
-	<tbody>
-	  <row>
-	    <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:01.openssl.asc">SA-12:01.openssl</link></entry>
-	    <entry>03&nbsp;May&nbsp;2012</entry>
+  <sect1 xml:id="errata">
+    <title>Errata Notices</title>
 
-	    <entry><para>OpenSSL multiple vulnerabilities</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:02.crypt.asc">SA-12:02.crypt</link></entry>
-	    <entry>30&nbsp;May&nbsp;2012</entry>
-	    <entry><para>Incorrect <function>crypt()</function> hashing</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:03.bind.asc">SA-12:03.bind</link></entry>
-	    <entry>12&nbsp;June&nbsp;2012</entry>
-	    <entry><para>Incorrect handling of zero-length RDATA fields in &man.named.8;</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:04.sysret.asc">SA-12:04.sysret</link></entry>
-	    <entry>12&nbsp;June&nbsp;2012</entry>
-	    <entry><para>Privilege escalation when returning from kernel</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:05.bind.asc">SA-12:05.bind</link></entry>
-	    <entry>6&nbsp;August&nbsp;2012</entry>
-	    <entry><para>&man.named.8; DNSSEC validation Denial of Service</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:06.bind.asc">SA-12:06.bind</link></entry>
-	    <entry>22&nbsp;November&nbsp;2012</entry>
-	    <entry><para>Multiple Denial of Service vulnerabilities with &man.named.8;</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:07.hostapd.asc">SA-12:07.hostapd</link></entry>
-	    <entry>22&nbsp;November&nbsp;2012</entry>
-	    <entry><para>Insufficient message length validation for EAP-TLS messages</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:08.linux.asc">SA-12:08.linux</link></entry>
-	    <entry>22&nbsp;November&nbsp;2012</entry>
-	    <entry><para>Linux compatibility layer input validation error</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-13:02.libc.asc">SA-13:02.libc</link></entry>
-	    <entry>19&nbsp;February&nbsp;2013</entry>
-	    <entry><para>glob(3) related resource exhaustion</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-13:03.openssl.asc">SA-13:03.openssl</link></entry>
-	    <entry>02&nbsp;April&nbsp;2013</entry>
-	    <entry><para>OpenSSL multiple vulnerabilities</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-13:04.bind.asc">SA-13:04.bind</link></entry>
-	    <entry>02&nbsp;April&nbsp;2013</entry>
-	    <entry><para>BIND remote denial of service</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-13:05.nfsserver.asc">SA-13:05.nfsserver</link></entry>
-	    <entry>29&nbsp;April&nbsp;2013</entry>
-	    <entry><para>Insufficient input validation in the NFS server</para></entry>
-	  </row>
-	</tbody>
-      </tgroup>
-    </informaltable>
+    &errata;
   </sect1>
 
   <sect1 xml:id="open-issues">

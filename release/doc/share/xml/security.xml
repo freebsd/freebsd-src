@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!--
+     The FreeBSD Documentation Project
+
+     $FreeBSD$
+-->
+<informaltable frame="none" pgwide="1">
+  <tgroup cols="3">
+    <colspec colwidth="40%"/>
+    <colspec colwidth="30%"/>
+    <colspec colwidth="30%"/>
+    <thead>
+      <row>
+	<entry>Advisory</entry>
+	<entry>Date</entry>
+	<entry>Topic</entry>
+      </row>
+    </thead>
+
+    <tbody>
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-13:07.bind.asc">FreeBSD-SA-13:07.bind</link></entry>
+	<entry>26&nbsp;July&nbsp;2013</entry>
+	<entry><para>Denial of Service vulnerability in
+	  &man.named.8;</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-13:09.ip_multicast.asc">FreeBSD-SA-13:09.ip_multicast</link></entry>
+	<entry>21&nbsp;August&nbsp;2013</entry>
+	<entry><para>Integer overflow in computing the size of
+	    a temporary buffer can result in a buffer which is too
+	    small for the requested operation</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-13:10.sctp.asc">FreeBSD-SA-13:10.sctp</link></entry>
+	<entry>21&nbsp;August&nbsp;2013</entry>
+	<entry><para>Fix a bug that could lead to kernel memory
+	    disclosure with SCTP state cookie</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-13:12.ifioctl.asc">FreeBSD-SA-13:12.ifioctl</link></entry>
+	<entry>10&nbsp;September&nbsp;2013</entry>
+	<entry><para>In IPv6 and NetATM, stop
+	    <literal>SIOCSIFADDR</literal>,
+	    <literal>SIOCSIFBRDADDR</literal>,
+	    <literal>SIOCSIFDSTADDR</literal> and
+	    <literal>SIOCSIFNETMASK</literal> at the socket layer
+	    rather than pass them on to the link layer without
+	    validation or credential checks</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-13:13.nullfs.asc">FreeBSD-SA-13:13.nullfs</link></entry>
+	<entry>10&nbsp;September&nbsp;2013</entry>
+	<entry><para>Prevent cross-mount hardlinks between different
+	    nullfs mounts of the same underlying
+	    filesystem</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:01.bsnmpd.asc">FreeBSD-SA-14:01.bsnmpd</link></entry>
+	<entry>14&nbsp;January&nbsp;2014</entry>
+	<entry><para>bsnmpd remote denial of service
+	    vulnerability</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:02.ntpd.asc">FreeBSD-SA-14:02.ntpd</link></entry>
+	<entry>14&nbsp;January&nbsp;2014</entry>
+	<entry><para>ntpd distributed reflection Denial of Service
+	    vulnerability</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:04.bind.asc">FreeBSD-SA-14:04.bind</link></entry>
+	<entry>14&nbsp;January&nbsp;2014</entry>
+	<entry><para>BIND remote denial of service
+	    vulnerability</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:05.nfsserver.asc">FreeBSD-SA-14:05.nfsserver</link></entry>
+	<entry>8&nbsp;April&nbsp;2014</entry>
+	<entry><para>NFS deadlock vulnerability</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:06.openssl.asc">FreeBSD-SA-14:06.openssl</link></entry>
+	<entry>8&nbsp;April&nbsp;2014</entry>
+	<entry><para>ECDSA Cache Side-channel Attack in
+	    OpenSSL</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:08.tcp.asc">FreeBSD-SA-14:08.tcp</link></entry>
+	<entry>30&nbsp;April&nbsp;2014</entry>
+	<entry><para>TCP reassembly vulnerability</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:11.sendmail.asc">FreeBSD-SA-14:11.sendmail</link></entry>
+	<entry>5&nbsp;June&nbsp;2014</entry>
+	<entry><para>sendmail improper close-on-exec flag
+	    handling</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:12.ktrace.asc">FreeBSD-SA-14:12.ktrace</link></entry>
+	<entry>5&nbsp;June&nbsp;2014</entry>
+	<entry><para>ktrace memory disclosure</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:14.openssl.asc">FreeBSD-SA-14:14.openssl</link></entry>
+	<entry>5&nbsp;June&nbsp;2014</entry>
+	<entry><para>OpenSSL multiple vulnerabilities</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:16.file.asc">FreeBSD-SA-14:16.file</link></entry>
+	<entry>5&nbsp;June&nbsp;2014</entry>
+	<entry><para>Multiple vulnerabilities in &man.file.1; and
+	    &man.libmagic.3;</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:17.kmem.asc">FreeBSD-SA-14:17.kmem</link></entry>
+	<entry>8&nbsp;July&nbsp;2014</entry>
+	<entry><para>kernel memory disclosure in control message and
+	    SCTP notifications</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:18.openssl.asc">FreeBSD-SA-14:18.openssl</link></entry>
+	<entry>9&nbsp;September&nbsp;2014</entry>
+	<entry><para>Multiple vulnerabilities in
+	    OpenSSL</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:19.tcp.asc">FreeBSD-SA-14:19.tcp</link></entry>
+	<entry>16&nbsp;September&nbsp;2014</entry>
+	<entry><para>Denial of Service in TCP packet
+	    processing</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:21.routed.asc">FreeBSD-SA-14:21.routed</link></entry>
+	<entry>21&nbsp;October&nbsp;2014</entry>
+	<entry><para>&man.routed.8; denial of service
+	    vulnerability</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:23.openssl.asc">FreeBSD-SA-14:23.openssl</link></entry>
+	<entry>21&nbsp;October&nbsp;2014</entry>
+	<entry><para>Multiple vulnerabilities in
+	    OpenSSL</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:25.setlogin.asc">FreeBSD-SA-14:25.setlogin</link></entry>
+	<entry>4&nbsp;November&nbsp;2014</entry>
+	<entry><para>kernel stack disclosure in &man.setlogin.2; and
+	  &man.getlogin.2;</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:26.ftp.asc">FreeBSD-SA-14:26.ftp</link></entry>
+	<entry>4&nbsp;November&nbsp;2014</entry>
+	<entry><para>Remote command execution in
+	    &man.ftp.1;</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:28.file.asc">FreeBSD-SA-14:28.file</link></entry>
+	<entry>10&nbsp;December&nbsp;2014</entry>
+	<entry><para>Multiple vulnerabilities in &man.file.1; and
+	    &man.libmagic.3;</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:29.bind.asc">FreeBSD-SA-14:29.bind</link></entry>
+	<entry>10&nbsp;December&nbsp;2014</entry>
+	<entry><para>BIND remote denial of service
+	    vulnerability</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:31.ntp.asc">FreeBSD-SA-14:31.ntp</link></entry>
+	<entry>23&nbsp;December&nbsp;2014</entry>
+	<entry><para>Multiple vulnerabilities in NTP
+	    suite</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-15:01.openssl.asc">FreeBSD-SA-15:01.ntp</link></entry>
+	<entry>14&nbsp;January&nbsp;2015</entry>
+	<entry><para>Multiple vulnerabilities in
+	    OpenSSL</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-15:02.kmem.asc">FreeBSD-SA-15:02.kmem</link></entry>
+	<entry>27&nbsp;January&nbsp;2015</entry>
+	<entry><para>Fix SCTP SCTP_SS_VALUE kernel memory corruption
+	    and disclosure vulnerability</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-15:03.sctp.asc">FreeBSD-SA-15:03.sctp</link></entry>
+	<entry>27&nbsp;January&nbsp;2015</entry>
+	<entry><para>Fix SCTP stream reset
+	    vulnerability</para></entry>
+      </row>
+    </tbody>
+  </tgroup>
+</informaltable>

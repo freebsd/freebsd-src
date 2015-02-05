@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!--
+     The FreeBSD Documentation Project
+
+     $FreeBSD$
+-->
+<informaltable frame="none" pgwide="1">
+  <tgroup cols="3">
+    <colspec colwidth="40%"/>
+    <colspec colwidth="30%"/>
+    <colspec colwidth="30%"/>
+    <thead>
+      <row>
+	<entry>Errata</entry>
+	<entry>Date</entry>
+	<entry>Topic</entry>
+      </row>
+    </thead>
+
+    <tbody>
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-EN-13:01.fxp.asc">FreeBSD-EN-13:01.fxp</link></entry>
+	<entry>28&nbsp;June&nbsp;2013</entry>
+	<entry><para>Fixed a problem where &man.dhclient.8; would
+	    infinitely try to intialize &man.fxp.4;</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-EN-13:02.vtnet.asc">FreeBSD-EN-13:02.vtnet</link></entry>
+	<entry>28&nbsp;June&nbsp;2013</entry>
+	<entry><para>Fixed a problem frames sent to additional MAC
+	    addresses are not forwarded to the &man.vtnet.4;
+	    interface</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-EN-13:04.freebsd-update.asc">FreeBSD-EN-13:04.freebsd-update</link></entry>
+	<entry>26&nbsp;October&nbsp;2013</entry>
+	<entry><para>Multiple fixes</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-EN-13:05.freebsd-update.asc">FreeBSD-EN-13:05.freebsd-update</link></entry>
+	<entry>28&nbsp;November&nbsp;2013</entry>
+	<entry><para>Fix INDEX generation</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-EN-14:01.random.asc">FreeBSD-EN-14:01.random</link></entry>
+	<entry>14&nbsp;January&nbsp;2014</entry>
+	<entry><para>Disable hardware RNGs by default</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-EN-14:02.mmap.asc">FreeBSD-EN-14:02.mmap</link></entry>
+	<entry>14&nbsp;January&nbsp;2014</entry>
+	<entry><para>Fix incorrect coalescing of stack
+	    entry</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-EN-14:03.pkg.asc">FreeBSD-EN-14:03.pkg</link></entry>
+	<entry>15&nbsp;May&nbsp;2014</entry>
+	<entry><para>Add pkg bootstrapping, configuration and public
+	    keys</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-EN-14:04.kldxref.asc">FreeBSD-EN-14:04.kldxref</link></entry>
+	<entry>15&nbsp;May&nbsp;2014</entry>
+	<entry><para>Improve build repeatability for
+	    &man.kldxref.8;</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-EN-14:06.exec.asc">FreeBSD-EN-14:06.exec</link></entry>
+	<entry>3&nbsp;June&nbsp;2014</entry>
+	<entry><para>Fix triple-fault when executing from a threaded
+	    process</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-EN-14:08.heimdal.asc">FreeBSD-EN-14:08.heimdal</link></entry>
+	<entry>24&nbsp;June&nbsp;2014</entry>
+	<entry><para>Fix <literal>gss_pseudo_random()</literal>
+	    interoperability issue</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-EN-14:09.jail.asc">FreeBSD-EN-14:09.jail</link></entry>
+	<entry>8&nbsp;July&nbsp;2014</entry>
+	<entry><para>Fix jail fails to start if
+	    WITHOUT_INET/WITHOUT_INET6 is use</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-EN-14:10.tzdata.asc">FreeBSD-EN-14:10.tzdata</link></entry>
+	<entry>21&nbsp;October&nbsp;2014</entry>
+	<entry><para>Time zone data file update</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-EN-14:12.zfs.asc">FreeBSD-EN-14:12.zfs</link></entry>
+	<entry>4&nbsp;November&nbsp;2014</entry>
+	<entry><para>Fix NFSv4 and ZFS cache consistency
+	    issue</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-EN-14:13.freebsd-update.asc">FreeBSD-EN-14:13.freebsd-update</link></entry>
+	<entry>23&nbsp;December&nbsp;2014</entry>
+	<entry><para>Fix directory deletion issue</para></entry>
+      </row>
+    </tbody>
+  </tgroup>
+</informaltable>
