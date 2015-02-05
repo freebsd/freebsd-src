@@ -130,8 +130,16 @@ enum sfxge_txq_type {
 #define	SFXGE_TX_SCALE(sc)		1
 #endif
 
-#define	SFXGE_TXQ_LOCK_INIT(_txq, _name)				\
-	mtx_init(&(_txq)->lock, (_name), NULL, MTX_DEF)
+#define	SFXGE_TXQ_LOCK_INIT(_txq, _ifname, _txq_index)			\
+	do {								\
+		struct sfxge_txq  *__txq = (_txq);			\
+									\
+		snprintf((__txq)->lock_name,				\
+			 sizeof((__txq)->lock_name),			\
+			 "%s:txq%u", (_ifname), (_txq_index));		\
+		mtx_init(&(__txq)->lock, (__txq)->lock_name,		\
+			 NULL, MTX_DEF);				\
+	} while (B_FALSE)
 #define	SFXGE_TXQ_LOCK_DESTROY(_txq)					\
 	mtx_destroy(&(_txq)->lock)
 #define	SFXGE_TXQ_LOCK(_txq)						\
@@ -163,6 +171,8 @@ struct sfxge_txq {
 	efx_txq_t			*common;
 
 	efsys_mem_t			*tsoh_buffer;
+
+	char				lock_name[SFXGE_LOCK_NAME_MAX];
 
 	/* This field changes more often and is read regularly on both
 	 * the initiation and completion paths
