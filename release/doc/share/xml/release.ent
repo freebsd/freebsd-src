@@ -20,7 +20,10 @@
 <!ENTITY release.branch "9.3-STABLE">
 
 <!-- The URL for obtaining this version of FreeBSD. -->
-<!ENTITY release.url "http://www.FreeBSD.org/releases/">
+<!ENTITY release.url "https://www.FreeBSD.org/releases/">
+
+<!-- The URL for Security Advisories and Errata Notices. -->
+<!ENTITY security.url "https://www.FreeBSD.org/security/advisories">
 
 <!-- The recommended mailing list to track. -->
 <!ENTITY release.maillist "stable">
@@ -47,7 +50,7 @@
 <!ENTITY release ''>
 
 <!-- The manpaths for man page references -->
-<!ENTITY release.man.url "http://www.FreeBSD.org/cgi/man.cgi">
+<!ENTITY release.man.url "https://www.FreeBSD.org/cgi/man.cgi">
 <!ENTITY release.manpath.xorg          "7.5.2">
 <!ENTITY release.manpath.netbsd        "6.0">
 <!ENTITY release.manpath.freebsd-ports "Ports">
