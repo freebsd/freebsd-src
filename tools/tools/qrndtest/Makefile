@@ -6,6 +6,6 @@ PROG = qrndtest
 
 SRCS = r.c
 
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>
