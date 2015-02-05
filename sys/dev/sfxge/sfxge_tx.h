@@ -201,6 +201,8 @@ struct sfxge_txq {
 	unsigned long			get_non_tcp_overflow;
 	unsigned long			put_overflow;
 	unsigned long			netdown_drops;
+	unsigned long			tso_pdrop_too_many;
+	unsigned long			tso_pdrop_no_rsrc;
 
 	/* The following fields change more often, and are used mostly
 	 * on the completion path
