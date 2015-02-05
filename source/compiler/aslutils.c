@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -571,20 +571,36 @@ UtStringCacheCalloc (
 {
     char                    *Buffer;
     ASL_CACHE_INFO          *Cache;
+    UINT32                  CacheSize = ASL_STRING_CACHE_SIZE;
 
 
-    if (Length > ASL_STRING_CACHE_SIZE)
+    if (Length > CacheSize)
     {
-        Buffer = UtLocalCalloc (Length);
-        return (Buffer);
+        CacheSize = Length;
+
+        if (Gbl_StringCacheList)
+        {
+            Cache = UtLocalCalloc (sizeof (Cache->Next) + CacheSize);
+
+            /* Link new cache buffer just following head of list */
+
+            Cache->Next = Gbl_StringCacheList->Next;
+            Gbl_StringCacheList->Next = Cache;
+
+            /* Leave cache management pointers alone as they pertain to head */
+
+            Gbl_StringCount++;
+            Gbl_StringSize += Length;
+
+            return (Cache->Buffer);
+        }
     }
 
     if ((Gbl_StringCacheNext + Length) >= Gbl_StringCacheLast)
     {
         /* Allocate a new buffer */
 
-        Cache = UtLocalCalloc (sizeof (Cache->Next) +
-            ASL_STRING_CACHE_SIZE);
+        Cache = UtLocalCalloc (sizeof (Cache->Next) + CacheSize);
 
         /* Link new cache buffer to head of list */
 
@@ -594,7 +610,7 @@ UtStringCacheCalloc (
         /* Setup cache management pointers */
 
         Gbl_StringCacheNext = Cache->Buffer;
-        Gbl_StringCacheLast = Gbl_StringCacheNext + ASL_STRING_CACHE_SIZE;
+        Gbl_StringCacheLast = Gbl_StringCacheNext + CacheSize;
     }
 
     Gbl_StringCount++;
