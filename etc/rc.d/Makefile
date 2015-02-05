@@ -48,7 +48,6 @@ FILES=	DAEMON \
 	gssd \
 	hastd \
 	${_hcsecd} \
-	hostapd \
 	hostid \
 	hostid_save \
 	hostname \
@@ -153,7 +152,6 @@ FILES=	DAEMON \
 	var \
 	virecover \
 	watchdogd \
-	wpa_supplicant \
 	ypbind \
 	yppasswdd \
 	ypserv \
@@ -220,6 +218,11 @@ _unbound=	local_unbound
 
 .if ${MK_UTMPX} != "no"
 _utx=		utx
+.endif
+
+.if ${MK_WIRELESS} != "no"
+FILES+=		hostapd
+FILES+=		wpa_supplicant
 .endif
 
 FILESDIR=	/etc/rc.d
