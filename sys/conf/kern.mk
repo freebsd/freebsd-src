@@ -158,6 +158,14 @@ INLINE_LIMIT?=	8000
 CFLAGS+=	-ffreestanding
 
 #
+# The C standard leaves signed integer overflow behavior undefined.
+# gcc and clang opimizers take advantage of this.  The kernel makes
+# use of signed integer wraparound mechanics so we need the compiler
+# to treat it as a wraparound and not take shortcuts.
+# 
+CFLAGS+=	-fwrapv
+
+#
 # GCC SSP support
 #
 .if ${MK_SSP} != "no" && \
