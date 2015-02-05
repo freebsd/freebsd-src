@@ -2,8 +2,6 @@
 
 .include <bsd.own.mk>
 
-FILES=	uath.conf usb.conf zfs.conf
-
 .if ${MACHINE} == "powerpc"
 FILES+=	apple.conf
 .endif
@@ -14,6 +12,14 @@ FILES+=	asus.conf
 
 .if ${MK_HYPERV} != "no"
 FILES+=	hyperv.conf
+.endif
+
+.if ${MK_USB} != "no"
+FILES+=	uath.conf usb.conf
+.endif
+
+.if ${MK_ZFS} != "no"
+FILES+=	zfs.conf
 .endif
 
 NO_OBJ=
