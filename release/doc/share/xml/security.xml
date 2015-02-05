@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!--
+     The FreeBSD Documentation Project
+
+     $FreeBSD$
+-->
+<informaltable frame="none" pgwide="1">
+  <tgroup cols="3">
+    <colspec colwidth="40%"/>
+    <colspec colwidth="30%"/>
+    <colspec colwidth="30%"/>
+    <thead>
+      <row>
+	<entry>Advisory</entry>
+	<entry>Date</entry>
+	<entry>Topic</entry>
+      </row>
+    </thead>
+
+    <tbody>
+      <row>
+	<entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:18.openssl.asc">SA-14:18.openssl</link></entry>
+	<entry>9&nbsp;September&nbsp;2014</entry>
+	<entry><para>Multiple vulnerabilities</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:19.tcp.asc">SA-14:19.tcp</link></entry>
+	<entry>16&nbsp;September&nbsp;2014</entry>
+	<entry><para>Denial of Service in TCP packet
+	    processing.</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:20.rtsold.asc">SA-14:20.rtsold</link></entry>
+	<entry>21&nbsp;October&nbsp;2014</entry>
+	<entry><para>Remote buffer overflow
+	    vulnerability.</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:21.routed.asc">SA-14:21.routed</link></entry>
+	<entry>21&nbsp;October&nbsp;2014</entry>
+	<entry><para>Remote denial of service
+	    vulnerability.</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:22.namei.asc">SA-14:22.namei</link></entry>
+	<entry>21&nbsp;October&nbsp;2014</entry>
+	<entry><para>Memory leak in sandboxed namei
+	    lookup.</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:23.openssl.asc">SA-14:23.openssl</link></entry>
+	<entry>21&nbsp;October&nbsp;2014</entry>
+	<entry><para>Multiple vulerabilities.</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:25.setlogin.asc">SA-14:25.setlogin</link></entry>
+	<entry>04&nbsp;November&nbsp;2014</entry>
+	<entry><para>Kernel stack disclosure.</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:26.ftp.asc">SA-14:26.ftp</link></entry>
+	<entry>04&nbsp;November&nbsp;2014</entry>
+	<entry><para>Remote code execution.</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:28.file.asc">SA-14:28.file</link></entry>
+	<entry>10&nbsp;December&nbsp;2014</entry>
+	<entry><para>Multiple vulnerabilities in &man.file.1; and
+	    &man.libmagic.3;</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:29.bind.asc">SA-14:29.bind</link></entry>
+	<entry>10&nbsp;December&nbsp;2014</entry>
+	<entry><para>Remote denial of service
+	    vulnerability</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:31.ntp.asc">SA-14:31.ntp</link></entry>
+	<entry>23&nbsp;December&nbsp;2014</entry>
+	<entry><para>Multiple vulnerabilities</para></entry>
+      </row>
+
+      <row>
+	<entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-15:01.openssl.asc">SA-15:01.openssl</link></entry>
+	<entry>14&nbsp;January&nbsp;2015</entry>
+	<entry><para>Multiple vulnerabilities</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-15:02.kmem.asc">FreeBSD-SA-15:02.kmem</link></entry>
+	<entry>27&nbsp;January&nbsp;2015</entry>
+	<entry><para>SCTP kernel memory corruption and
+	    disclosure vulnerability</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-15:03.sctp.asc">FreeBSD-SA-15:03.sctp</link></entry>
+	<entry>27&nbsp;January&nbsp;2015</entry>
+	<entry><para>SCTP stream reset
+	    vulnerability</para></entry>
+      </row>
+    </tbody>
+  </tgroup>
+</informaltable>
