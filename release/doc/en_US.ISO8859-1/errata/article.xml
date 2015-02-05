@@ -119,6 +119,99 @@ boot</screen>
 	  instability may be present on virtual machines running
 	  on other hypervisors, such as Xen or KVM.</para>
       </listitem>
+
+      <listitem>
+	<para>&os;/&arch.i386;&nbsp;10.1-RELEASE configured with
+	  a multi-disk ZFS dataset (mirror, raidz1, raidz2, raidz3)
+	  may crash during boot when the ZFS pool mount is attempted
+	  while booting an unmodified <literal>GENERIC</literal>
+	  kernel.</para>
+
+	<para>As described in <filename>/usr/src/UPDATING</filename>
+	  entry <literal>20121223</literal>, rebuilding the kernel
+	  with <literal>options KSTACK_PAGES=4</literal> has been
+	  observed to resolve the boot-time crash.  This, however, is
+	  not an ideal solution for inclusion in the
+	  <literal>GENERIC</literal> kernel configuration, as
+	  increasing <literal>KSTACK_PAGES</literal> implicitly
+	  decreases available usermode threads in an environment that
+	  is already resource-starved.</para>
+
+	<para>Taking into account the heavy resource requirements of
+	  ZFS, in addition to the &arch.i386;-specific tuning
+	  requirements for general workloads, using ZFS with the
+	  &os;/&arch.i386;&nbsp;<literal>GENERIC</literal> kernel
+	  is strongly discouraged.</para>
+
+	<warning>
+	  <para>It is extremely important to take note that, by
+	    default, &man.freebsd-update.8; will install the
+	    <literal>GENERIC</literal> kernel configuration, and
+	    as such, &man.freebsd-update.8; consumers are strongly
+	    encouraged to avoid &os;-provided kernel binary upgrades
+	    with such configurations.</para>
+	</warning>
+
+	<note>
+	  <para>Although there is slight change in how the crash
+	    manifests on &os;/&arch.i386; between 10.0-RELEASE and
+	    10.1-RELEASE, and given the date of the
+	    <filename>/usr/src/UPDATING</filename> entry, there is no
+	    evidence suggesting this is a regression between
+	    &os;&nbsp;10.0-RELEASE and &os;&nbsp;10.1-RELEASE
+	    directly.</para>
+	</note>
+      </listitem>
+
+      <listitem>
+	<para>Due to an incompatibility between &man.bsdconfig.8;
+	  and &man.pkg.8;&nbsp;version 1.3, packages included on the
+	  &os;&nbsp;dvd installer will not be recognized by
+	  &man.bsdconfig.8;.</para>
+
+	<para>To install packages from the <literal>dvd1.iso</literal>
+	  installer, create the <filename
+	    class="directory">/dist</filename> target directory, and
+	  manually mount the <literal>dvd1.iso</literal>
+	  <acronym>ISO</acronym>:</para>
+
+	<screen>&prompt.root; mkdir -p /dist
+&prompt.root; mount -t cd9660 /dev/<replaceable>cd0</replaceable> /dist</screen>
+
+	<note>
+	  <para>Be sure to use the correct <filename
+	      class="directory">/dev</filename> device path for the
+	    <literal>dvd1.iso</literal> <acronym>ISO</acronym>
+	    installer.</para>
+	</note>
+
+	<para>Next, set <envar>REPOS_DIR</envar> to the path of the
+	  <filename class="directory">repos/</filename> directory
+	  within the installer so &man.pkg.8; will use the correct
+	  repository metadata.</para>
+
+	<para>If using &man.sh.1;:</para>
+
+	<screen>&prompt.root; export REPOS_DIR=/dist/packages/repos</screen>
+
+	<para>If using &man.csh.1;:</para>
+
+	<screen>&prompt.root; setenv REPOS_DIR /dist/packages/repos</screen>
+
+	<note>
+	  <para>Keep in mind that <envar>REPOS_DIR</envar> will need
+	    to be set again after the current shell session is
+	    terminated, if continuing to use the packages provided on
+	    the <literal>dvd1.iso</literal> installer.</para>
+	</note>
+
+	<para>Finally, bootstrap &man.pkg.8; from the
+	  <acronym>ISO</acronym>, and install required
+	  packages:</para>
+
+	<screen>&prompt.root; pkg bootstrap
+&prompt.root; pkg install <replaceable>xorg-server</replaceable> <replaceable>xorg</replaceable> <replaceable>gnome2</replaceable> [...]</screen>
+      </listitem>
     </itemizedlist>
   </sect1>
 
