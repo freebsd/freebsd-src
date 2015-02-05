@@ -468,6 +468,7 @@ struct {
 	{0x5411,  "Chelsio T520-LL-CR"},	/* 2 x 10G */
 	{0x5412,  "Chelsio T560-CR"},		/* 1 x 40G, 2 x 10G */
 	{0x5414,  "Chelsio T580-LP-SO-CR"},	/* 2 x 40G, nomem */
+	{0x5415,  "Chelsio T502-BT"},		/* 2 x 1G */
 #ifdef notyet
 	{0x5404,  "Chelsio T520-BCH"},
 	{0x5405,  "Chelsio T540-BCH"},
