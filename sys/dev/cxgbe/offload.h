@@ -129,6 +129,7 @@ struct t4_virt_res {                      /* virtualized HW resources */
 enum {
 	ULD_TOM = 1,
 	ULD_IWARP = 2,
+	ULD_ISCSI = 3,
 };
 
 struct adapter;
