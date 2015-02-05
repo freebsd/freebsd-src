@@ -1185,6 +1185,7 @@ icl_soft_new_conn(const char *name, struct mtx *lock)
 #endif
 	ic->ic_max_data_segment_length = ICL_MAX_DATA_SEGMENT_LENGTH;
 	ic->ic_name = name;
+	ic->ic_offload = "none";
 
 	return (ic);
 }

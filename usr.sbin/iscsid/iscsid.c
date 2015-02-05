@@ -152,7 +152,8 @@ resolve_addr(const struct connection *conn, const char *address,
 
 static struct connection *
 connection_new(unsigned int session_id, const uint8_t isid[8], uint16_t tsih,
-    const struct iscsi_session_conf *conf, int iscsi_fd)
+    const struct iscsi_session_conf *conf, const struct iscsi_session_limits
+    *limits, int iscsi_fd)
 {
 	struct connection *conn;
 	struct addrinfo *from_ai, *to_ai;
@@ -186,6 +187,7 @@ connection_new(unsigned int session_id, const uint8_t isid[8], uint16_t tsih,
 	 * XXX: Should we sanitize this somehow?
 	 */
 	memcpy(&conn->conn_conf, conf, sizeof(conn->conn_conf));
+	memcpy(&conn->conn_limits, limits, sizeof(conn->conn_limits));
 
 	from_addr = conn->conn_conf.isc_initiator_addr;
 	to_addr = conn->conn_conf.isc_target_addr;
@@ -443,7 +445,8 @@ handle_request(int iscsi_fd, const struct iscsi_daemon_request *request, int tim
 	}
 
 	conn = connection_new(request->idr_session_id, request->idr_isid,
-	    request->idr_tsih, &request->idr_conf, iscsi_fd);
+	    request->idr_tsih, &request->idr_conf, &request->idr_limits,
+	    iscsi_fd);
 	set_timeout(timeout);
 	capsicate(conn);
 	login(conn);
