@@ -254,6 +254,7 @@ void clone_cleanup(struct clonedevs **);
 int clone_create(struct clonedevs **, struct cdevsw *, int *unit, struct cdev **dev, int extra);
 
 int	count_dev(struct cdev *_dev);
+void	delist_dev(struct cdev *_dev);
 void	destroy_dev(struct cdev *_dev);
 int	destroy_dev_sched(struct cdev *dev);
 int	destroy_dev_sched_cb(struct cdev *dev, void (*cb)(void *), void *arg);
