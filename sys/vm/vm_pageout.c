@@ -157,7 +157,7 @@ SYSINIT(vmdaemon, SI_SUB_KTHREAD_VM, SI_ORDER_FIRST, kproc_start, &vm_kp);
 int vm_pages_needed;		/* Event on which pageout daemon sleeps */
 int vm_pageout_deficit;		/* Estimated number of pages deficit */
 int vm_pageout_pages_needed;	/* flag saying that the pageout daemon needs pages */
-int vm_pageout_wakeup_thresh;
+u_int vm_pageout_wakeup_thresh;
 
 #if !defined(NO_SWAPPING)
 static int vm_pageout_req_swapout;	/* XXX */
@@ -187,7 +187,7 @@ SYSCTL_INT(_vm, OID_AUTO, panic_on_oom,
 	CTLFLAG_RWTUN, &vm_panic_on_oom, 0,
 	"panic on out of memory instead of killing the largest process");
 
-SYSCTL_INT(_vm, OID_AUTO, pageout_wakeup_thresh,
+SYSCTL_UINT(_vm, OID_AUTO, pageout_wakeup_thresh,
 	CTLFLAG_RW, &vm_pageout_wakeup_thresh, 0,
 	"free page threshold for waking up the pageout daemon");
 
