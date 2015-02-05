@@ -115,6 +115,7 @@ struct usb_bus {
 	uint8_t	devices_max;		/* maximum number of USB devices */
 	uint8_t	do_probe;		/* set if USB should be re-probed */
 	uint8_t no_explore;		/* don't explore USB ports */
+	uint8_t dma_bits;		/* number of DMA address lines */
 };
 
 #endif					/* _USB_BUS_H_ */
