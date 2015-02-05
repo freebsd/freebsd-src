@@ -2621,9 +2621,12 @@ mps_read_config_page(struct mps_softc *sc, struct mps_config_params *params)
 
 	cm->cm_data = params->buffer;
 	cm->cm_length = params->length;
-	cm->cm_sge = &req->PageBufferSGE;
-	cm->cm_sglsize = sizeof(MPI2_SGE_IO_UNION);
-	cm->cm_flags = MPS_CM_FLAGS_SGE_SIMPLE | MPS_CM_FLAGS_DATAIN;
+	if (cm->cm_data != NULL) {
+		cm->cm_sge = &req->PageBufferSGE;
+		cm->cm_sglsize = sizeof(MPI2_SGE_IO_UNION);
+		cm->cm_flags = MPS_CM_FLAGS_SGE_SIMPLE | MPS_CM_FLAGS_DATAIN;
+	} else
+		cm->cm_sge = NULL;
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 
 	cm->cm_complete_data = params;
@@ -2680,9 +2683,12 @@ mps_config_complete(struct mps_softc *sc, struct mps_command *cm)
 		goto done;
 	}
 	params->status = reply->IOCStatus;
-	if (params->hdr.Ext.ExtPageType != 0) {
+	if (params->hdr.Struct.PageType == MPI2_CONFIG_PAGETYPE_EXTENDED) {
 		params->hdr.Ext.ExtPageType = reply->ExtPageType;
 		params->hdr.Ext.ExtPageLength = reply->ExtPageLength;
+		params->hdr.Ext.PageType = reply->Header.PageType;
+		params->hdr.Ext.PageNumber = reply->Header.PageNumber;
+		params->hdr.Ext.PageVersion = reply->Header.PageVersion;
 	} else {
 		params->hdr.Struct.PageType = reply->Header.PageType;
 		params->hdr.Struct.PageNumber = reply->Header.PageNumber;
