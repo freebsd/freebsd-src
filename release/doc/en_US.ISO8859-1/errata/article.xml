@@ -3,6 +3,8 @@
         "../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
 %release;
+<!ENTITY security SYSTEM "../../share/xml/security.xml">
+<!ENTITY errata SYSTEM "../../share/xml/errata.xml">
 ]>
 <!--
 	FreeBSD errata document.  Unlike some of the other RELNOTESng
@@ -86,94 +88,13 @@
       the individual advisories available from
       <uri xlink:href="http://security.FreeBSD.org/">http://security.FreeBSD.org/</uri>.</para>
 
-    <informaltable frame="none" pgwide="1">
-      <tgroup cols="3">
-	<colspec colwidth="1*"/>
-	<colspec colwidth="1*"/>
-	<colspec colwidth="3*"/>
-	<thead>
-	  <row>
-	    <entry>Advisory</entry>
-	    <entry>Date</entry>
-	    <entry>Topic</entry>
-	  </row>
-	</thead>
+    &security;
+  </sect1>
 
-	<tbody>
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:18.openssl.asc">SA-14:18.openssl</link></entry>
-	    <entry>9&nbsp;September&nbsp;2014</entry>
-	    <entry><para>Multiple vulnerabilities</para></entry>
-	  </row>
+  <sect1 xml:id="errata">
+    <title>Errata Notices</title>
 
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:19.tcp.asc">SA-14:19.tcp</link></entry>
-	    <entry>16&nbsp;September&nbsp;2014</entry>
-	    <entry><para>Denial of Service in TCP packet
-		processing.</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:20.rtsold.asc">SA-14:20.rtsold</link></entry>
-	    <entry>21&nbsp;October&nbsp;2014</entry>
-	    <entry><para>Remote buffer overflow
-		vulnerability.</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:21.routed.asc">SA-14:21.routed</link></entry>
-	    <entry>21&nbsp;October&nbsp;2014</entry>
-	    <entry><para>Remote denial of service
-		vulnerability.</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:22.namei.asc">SA-14:22.namei</link></entry>
-	    <entry>21&nbsp;October&nbsp;2014</entry>
-	    <entry><para>Memory leak in sandboxed namei
-		lookup.</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:23.openssl.asc">SA-14:23.openssl</link></entry>
-	    <entry>21&nbsp;October&nbsp;2014</entry>
-	    <entry><para>Multiple vulerabilities.</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:25.setlogin.asc">SA-14:25.setlogin</link></entry>
-	    <entry>04&nbsp;November&nbsp;2014</entry>
-	    <entry><para>Kernel stack disclosure.</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:26.ftp.asc">SA-14:26.ftp</link></entry>
-	    <entry>04&nbsp;November&nbsp;2014</entry>
-	    <entry><para>Remote code execution.</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:28.file.asc">SA-14:28.file</link></entry>
-	    <entry>10&nbsp;December&nbsp;2014</entry>
-	    <entry><para>Multiple vulnerabilities in &man.file.1; and
-		&man.libmagic.3;</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:29.bind.asc">SA-14:29.bind</link></entry>
-	    <entry>10&nbsp;December&nbsp;2014</entry>
-	    <entry><para>Remote denial of service
-		vulnerability</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:31.ntp.asc">SA-14:31.ntp</link></entry>
-	    <entry>23&nbsp;December&nbsp;2014</entry>
-	    <entry><para>Multiple vulnerabilities</para></entry>
-	  </row>
-	</tbody>
-      </tgroup>
-    </informaltable>
+    &errata;
   </sect1>
 
   <sect1 xml:id="late-news">

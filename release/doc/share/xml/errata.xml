@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!--
+     The FreeBSD Documentation Project
+
+     $FreeBSD$
+-->
+<informaltable frame="none" pgwide="1">
+  <tgroup cols="3">
+    <colspec colwidth="40%"/>
+    <colspec colwidth="30%"/>
+    <colspec colwidth="30%"/>
+    <thead>
+      <row>
+	<entry>Errata</entry>
+	<entry>Date</entry>
+	<entry>Topic</entry>
+      </row>
+    </thead>
+
+    <tbody>
+      <row>
+	<entry><link
+	    xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-EN-14:10.tzdata.asc">FreeBSD-EN-14:10.tzdata</link></entry>
+	<entry>21&nbsp;October&nbsp;2014</entry>
+	<entry><para>Time zone data file update</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-EN-14:11.crypt.asc">FreeBSD-EN-14:11.crypt</link></entry>
+	<entry>21&nbsp;October&nbsp;2014</entry>
+	<entry><para>Change &man.crypt.3; default hashing algorithm
+	    back to DES</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-EN-14:12.zfs.asc">FreeBSD-EN-14:12.zfs</link></entry>
+	<entry>11&nbsp;November&nbsp;2014</entry>
+	<entry><para>Fix NFSv4 and ZFS cache consistency
+	    issue</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-EN-14:13.freebsd-update.asc">FreeBSD-EN-14:13.freebsd-update</link></entry>
+	<entry>23&nbsp;December&nbsp;2014</entry>
+	<entry><para>Fixed directory deletion issue in
+	    &man.freebsd-update.8;</para></entry>
+      </row>
+    </tbody>
+  </tgroup>
+</informaltable>
