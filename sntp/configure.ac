@@ -97,11 +97,14 @@ esac
 enable_nls=no
 LIBOPTS_CHECK
 
-AM_COND_IF(
-    [BUILD_SNTP],
-    [NTP_LIBEVENT_CHECK],
-    [NTP_LIBEVENT_CHECK_NOBUILD]
-)
+# From when we only used libevent for sntp:
+#AM_COND_IF(
+#    [BUILD_SNTP],
+#    [NTP_LIBEVENT_CHECK],
+#    [NTP_LIBEVENT_CHECK_NOBUILD]
+#)
+
+NTP_LIBEVENT_CHECK([2])
 
 # Checks for libraries.
 

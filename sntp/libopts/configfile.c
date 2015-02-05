@@ -184,7 +184,7 @@ optionFindValue(const tOptDesc * odesc, char const * name, char const * val)
     else do {
         tArgList* argl  = odesc->optCookie;
         int       argct = argl->useCt;
-        void **   poptv = (void**)(argl->apzArgs);
+        void **   poptv = (void**)(intptr_t)(argl->apzArgs);
 
         if (argct == 0) {
             errno = ENOENT;
@@ -266,7 +266,7 @@ optionFindNextValue(const tOptDesc * odesc, const tOptionValue * pPrevVal,
     else do {
         tArgList* argl = odesc->optCookie;
         int    ct   = argl->useCt;
-        void** poptv = (void**)argl->apzArgs;
+        void** poptv = (void**)(intptr_t)argl->apzArgs;
 
         while (--ct >= 0) {
             tOptionValue* pOV = *(poptv++);
@@ -326,7 +326,7 @@ optionGetValue(tOptionValue const * oov, char const * vname)
 
     if (arg_list->useCt > 0) {
         int     ct     = arg_list->useCt;
-        void ** ovlist = (void**)(arg_list->apzArgs);
+        void ** ovlist = (void**)(intptr_t)(arg_list->apzArgs);
 
         if (vname == NULL) {
             res = (tOptionValue*)*ovlist;
@@ -385,7 +385,7 @@ optionNextValue(tOptionValue const * ov_list,tOptionValue const * oov )
     arg_list = ov_list->v.nestVal;
     {
         int     ct    = arg_list->useCt;
-        void ** o_list = (void**)(arg_list->apzArgs);
+        void ** o_list = (void**)(intptr_t)(arg_list->apzArgs);
 
         while (ct-- > 0) {
             tOptionValue * nov = *(o_list++);
@@ -931,7 +931,7 @@ handle_struct(tOptions * opts, tOptState * ost, char * txt, int dir)
     switch (*txt) {
     case ' ':
     case '\t':
-        txt = (void *)parse_attrs(
+        txt = (void *)(intptr_t)parse_attrs(
             opts, SPN_WHITESPACE_CHARS(txt), &mode, &valu);
         if (txt == NULL)
             return txt;
@@ -1138,7 +1138,7 @@ optionFileLoad(tOptions * opts, char const * prog)
      */
     {
         char const ** pp =
-            (char const **)(void *)&(opts->pzProgName);
+            (char const **)(void *)(intptr_t)&(opts->pzProgName);
         *pp = prog;
     }
 

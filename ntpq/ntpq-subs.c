@@ -269,7 +269,7 @@ char flash2[] = " .+*    "; /* flash decode for version 2 */
 char flash3[] = " x.-+#*o"; /* flash decode for peer status version 3 */
 
 struct varlist {
-	char *name;
+	const char *name;
 	char *value;
 } g_varlist[MAXLIST] = { { 0, 0 } };
 
@@ -330,7 +330,11 @@ typedef struct var_display_collection_tag {
 		l_fp		lfp;	/* NTP_LFP */
 	} v;				/* retrieved value */
 } vdc;
-
+#if !defined(MISSING_C99_STYLE_INIT)
+# define VDC_INIT(a, b, c) { .tag = a, .display = b, .type = c }
+#else
+# define VDC_INIT(a, b, c) { a, b, c }
+#endif
 /*
  * other local function prototypes
  */
@@ -362,7 +366,7 @@ static mru **	hash_table;
  * qsort comparison function table for mrulist().  The first two
  * entries are NULL because they are handled without qsort().
  */
-const static qsort_cmp mru_qcmp_table[MRUSORT_MAX] = {
+static const qsort_cmp mru_qcmp_table[MRUSORT_MAX] = {
 	NULL,			/* MRUSORT_DEF unused */
 	NULL,			/* MRUSORT_R_DEF unused */
 	&qcmp_mru_avgint,	/* MRUSORT_AVGINT */
@@ -477,7 +481,7 @@ dormvlist(
 			(void) fprintf(stderr, "Variable `%s' not found\n",
 				       name);
 		} else {
-			free((void *)vl->name);
+			free((void *)(intptr_t)vl->name);
 			if (vl->value != 0)
 			    free(vl->value);
 			for ( ; (vl+1) < (g_varlist + MAXLIST)
@@ -502,7 +506,7 @@ doclearvlist(
 	register struct varlist *vl;
 
 	for (vl = vlist; vl < vlist + MAXLIST && vl->name != 0; vl++) {
-		free((void *)vl->name);
+		free((void *)(intptr_t)vl->name);
 		vl->name = 0;
 		if (vl->value != 0) {
 			free(vl->value);
@@ -2192,7 +2196,7 @@ fetch_nonce(
 		return FALSE;
 	}
 
-	if (rsize <= sizeof(nonce_eq) - 1 ||
+	if ((size_t)rsize <= sizeof(nonce_eq) - 1 ||
 	    strncmp(rdata, nonce_eq, sizeof(nonce_eq) - 1)) {
 		fprintf(stderr, "unexpected nonce response format: %.*s\n",
 			rsize, rdata);
@@ -2935,7 +2939,7 @@ mrulist(
 	double flstint;
 	int avgint;
 	int lstint;
-	int i;
+	size_t i;
 
 	order = MRUSORT_DEF;
 	parms_buf[0] = '\0';
@@ -3041,7 +3045,7 @@ mrulist(
 		LFPTOD(&interval, favgint);
 		favgint /= recent->count;
 		avgint = (int)(favgint + 0.5);
-		fprintf(fp, "%6d %6d %4hx %c %d %d %6d %5hu %s\n",
+		fprintf(fp, "%6d %6d %4hx %c %d %d %6d %5u %s\n",
 			lstint, avgint, recent->rs,
 			(RES_KOD & recent->rs)
 			    ? 'K'
@@ -3179,7 +3183,6 @@ ifstats(
 	char *		tag;
 	char *		val;
 	int		fields;
-	u_int		ifnum;
 	u_int		ui;
 	ifstats_row	row;
 	int		comprende;
@@ -3198,7 +3201,6 @@ ifstats(
 
 	ZERO(row);
 	fields = 0;
-	ifnum = 0;
 	ui = 0;
 	while (nextvar(&dsize, &datap, &tag, &val)) {
 		if (debug > 1)
@@ -3396,7 +3398,6 @@ reslist(
 	char *		tag;
 	char *		val;
 	int		fields;
-	u_int		idx;
 	u_int		ui;
 	reslist_row	row;
 	int		comprende;
@@ -3415,7 +3416,6 @@ reslist(
 
 	ZERO(row);
 	fields = 0;
-	idx = 0;
 	ui = 0;
 	while (nextvar(&dsize, &datap, &tag, &val)) {
 		if (debug > 1)
@@ -3656,19 +3656,19 @@ sysstats(
 	)
 {
     static vdc sysstats_vdc[] = {
-	{ "ss_uptime",		"uptime:               ", NTP_STR },
-	{ "ss_reset",		"sysstats reset:       ", NTP_STR },
-	{ "ss_received",	"packets received:     ", NTP_STR },
-	{ "ss_thisver",		"current version:      ", NTP_STR },
-	{ "ss_oldver",		"older version:        ", NTP_STR },
-	{ "ss_badformat",	"bad length or format: ", NTP_STR },
-	{ "ss_badauth",		"authentication failed:", NTP_STR },
-	{ "ss_declined",	"declined:             ", NTP_STR },
-	{ "ss_restricted",	"restricted:           ", NTP_STR },
-	{ "ss_limited",		"rate limited:         ", NTP_STR },
-	{ "ss_kodsent",		"KoD responses:        ", NTP_STR },
-	{ "ss_processed",	"processed for time:   ", NTP_STR },
-	{ NULL,			NULL,			  0	  }
+	VDC_INIT("ss_uptime",		"uptime:               ", NTP_STR),
+	VDC_INIT("ss_reset",		"sysstats reset:       ", NTP_STR),
+	VDC_INIT("ss_received",		"packets received:     ", NTP_STR),
+	VDC_INIT("ss_thisver",		"current version:      ", NTP_STR),
+	VDC_INIT("ss_oldver",		"older version:        ", NTP_STR),
+	VDC_INIT("ss_badformat",	"bad length or format: ", NTP_STR),
+	VDC_INIT("ss_badauth",		"authentication failed:", NTP_STR),
+	VDC_INIT("ss_declined",		"declined:             ", NTP_STR),
+	VDC_INIT("ss_restricted",	"restricted:           ", NTP_STR),
+	VDC_INIT("ss_limited",		"rate limited:         ", NTP_STR),
+	VDC_INIT("ss_kodsent",		"KoD responses:        ", NTP_STR),
+	VDC_INIT("ss_processed",	"processed for time:   ", NTP_STR),
+	VDC_INIT(NULL,			NULL,			  0)
     };
 
 	collect_display_vdc(0, sysstats_vdc, FALSE, fp);
@@ -3685,21 +3685,21 @@ sysinfo(
 	)
 {
     static vdc sysinfo_vdc[] = {
-	{ "peeradr",		"system peer:      ", NTP_ADP },
-	{ "peermode",		"system peer mode: ", NTP_MODE },
-	{ "leap",		"leap indicator:   ", NTP_2BIT },
-	{ "stratum",		"stratum:          ", NTP_STR },
-	{ "precision",		"log2 precision:   ", NTP_STR },
-	{ "rootdelay",		"root delay:       ", NTP_STR },
-	{ "rootdisp",		"root dispersion:  ", NTP_STR },
-	{ "refid",		"reference ID:     ", NTP_STR },
-	{ "reftime",		"reference time:   ", NTP_LFP },
-	{ "sys_jitter",		"system jitter:    ", NTP_STR },
-	{ "clk_jitter",		"clock jitter:     ", NTP_STR },
-	{ "clk_wander",		"clock wander:     ", NTP_STR },
-	{ "bcastdelay",		"broadcast delay:  ", NTP_STR },
-	{ "authdelay",		"symm. auth. delay:", NTP_STR },
-	{ NULL,			NULL,		      0	      }
+	VDC_INIT("peeradr",		"system peer:      ", NTP_ADP),
+	VDC_INIT("peermode",		"system peer mode: ", NTP_MODE),
+	VDC_INIT("leap",		"leap indicator:   ", NTP_2BIT),
+	VDC_INIT("stratum",		"stratum:          ", NTP_STR),
+	VDC_INIT("precision",		"log2 precision:   ", NTP_STR),
+	VDC_INIT("rootdelay",		"root delay:       ", NTP_STR),
+	VDC_INIT("rootdisp",		"root dispersion:  ", NTP_STR),
+	VDC_INIT("refid",		"reference ID:     ", NTP_STR),
+	VDC_INIT("reftime",		"reference time:   ", NTP_LFP),
+	VDC_INIT("sys_jitter",		"system jitter:    ", NTP_STR),
+	VDC_INIT("clk_jitter",		"clock jitter:     ", NTP_STR),
+	VDC_INIT("clk_wander",		"clock wander:     ", NTP_STR),
+	VDC_INIT("bcastdelay",		"broadcast delay:  ", NTP_STR),
+	VDC_INIT("authdelay",		"symm. auth. delay:", NTP_STR),
+	VDC_INIT(NULL,			NULL,		      0)
     };
 
 	collect_display_vdc(0, sysinfo_vdc, TRUE, fp);
@@ -3716,23 +3716,23 @@ kerninfo(
 	)
 {
     static vdc kerninfo_vdc[] = {
-	{ "koffset",		"pll offset:          ", NTP_STR },
-	{ "kfreq",		"pll frequency:       ", NTP_STR },
-	{ "kmaxerr",		"maximum error:       ", NTP_STR },
-	{ "kesterr",		"estimated error:     ", NTP_STR },
-	{ "kstflags",		"kernel status:       ", NTP_STR },
-	{ "ktimeconst",		"pll time constant:   ", NTP_STR },
-	{ "kprecis",		"precision:           ", NTP_STR },
-	{ "kfreqtol",		"frequency tolerance: ", NTP_STR },
-	{ "kppsfreq",		"pps frequency:       ", NTP_STR },
-	{ "kppsstab",		"pps stability:       ", NTP_STR },
-	{ "kppsjitter",		"pps jitter:          ", NTP_STR },
-	{ "kppscalibdur",	"calibration interval ", NTP_STR },
-	{ "kppscalibs",		"calibration cycles:  ", NTP_STR },
-	{ "kppsjitexc",		"jitter exceeded:     ", NTP_STR },
-	{ "kppsstbexc",		"stability exceeded:  ", NTP_STR },
-	{ "kppscaliberrs",	"calibration errors:  ", NTP_STR },
-	{ NULL,			NULL,			 0	 }
+	VDC_INIT("koffset",		"pll offset:          ", NTP_STR),
+	VDC_INIT("kfreq",		"pll frequency:       ", NTP_STR),
+	VDC_INIT("kmaxerr",		"maximum error:       ", NTP_STR),
+	VDC_INIT("kesterr",		"estimated error:     ", NTP_STR),
+	VDC_INIT("kstflags",		"kernel status:       ", NTP_STR),
+	VDC_INIT("ktimeconst",		"pll time constant:   ", NTP_STR),
+	VDC_INIT("kprecis",		"precision:           ", NTP_STR),
+	VDC_INIT("kfreqtol",		"frequency tolerance: ", NTP_STR),
+	VDC_INIT("kppsfreq",		"pps frequency:       ", NTP_STR),
+	VDC_INIT("kppsstab",		"pps stability:       ", NTP_STR),
+	VDC_INIT("kppsjitter",		"pps jitter:          ", NTP_STR),
+	VDC_INIT("kppscalibdur",	"calibration interval ", NTP_STR),
+	VDC_INIT("kppscalibs",		"calibration cycles:  ", NTP_STR),
+	VDC_INIT("kppsjitexc",		"jitter exceeded:     ", NTP_STR),
+	VDC_INIT("kppsstbexc",		"stability exceeded:  ", NTP_STR),
+	VDC_INIT("kppscaliberrs",	"calibration errors:  ", NTP_STR),
+	VDC_INIT(NULL,			NULL,			 0)
     };
 
 	collect_display_vdc(0, kerninfo_vdc, TRUE, fp);
@@ -3749,15 +3749,15 @@ monstats(
 	)
 {
     static vdc monstats_vdc[] = {
-	{ "mru_enabled",	"enabled:            ", NTP_STR },
-	{ "mru_depth",		"addresses:          ", NTP_STR },
-	{ "mru_deepest",	"peak addresses:     ", NTP_STR },
-	{ "mru_maxdepth",	"maximum addresses:  ", NTP_STR },
-	{ "mru_mindepth",	"reclaim above count:", NTP_STR },
-	{ "mru_maxage",		"reclaim older than: ", NTP_STR },
-	{ "mru_mem",		"kilobytes:          ", NTP_STR },
-	{ "mru_maxmem",		"maximum kilobytes:  ", NTP_STR },
-	{ NULL,			NULL,			0	}
+	VDC_INIT("mru_enabled",	"enabled:            ", NTP_STR),
+	VDC_INIT("mru_depth",		"addresses:          ", NTP_STR),
+	VDC_INIT("mru_deepest",	"peak addresses:     ", NTP_STR),
+	VDC_INIT("mru_maxdepth",	"maximum addresses:  ", NTP_STR),
+	VDC_INIT("mru_mindepth",	"reclaim above count:", NTP_STR),
+	VDC_INIT("mru_maxage",		"reclaim older than: ", NTP_STR),
+	VDC_INIT("mru_mem",		"kilobytes:          ", NTP_STR),
+	VDC_INIT("mru_maxmem",		"maximum kilobytes:  ", NTP_STR),
+	VDC_INIT(NULL,			NULL,			0)
     };
 
 	collect_display_vdc(0, monstats_vdc, FALSE, fp);
@@ -3774,19 +3774,19 @@ iostats(
 	)
 {
     static vdc iostats_vdc[] = {
-	{ "iostats_reset",	"time since reset:     ", NTP_STR },
-	{ "total_rbuf",		"receive buffers:      ", NTP_STR },
-	{ "free_rbuf",		"free receive buffers: ", NTP_STR },
-	{ "used_rbuf",		"used receive buffers: ", NTP_STR },
-	{ "rbuf_lowater",	"low water refills:    ", NTP_STR },
-	{ "io_dropped",		"dropped packets:      ", NTP_STR },
-	{ "io_ignored",		"ignored packets:      ", NTP_STR },
-	{ "io_received",	"received packets:     ", NTP_STR },
-	{ "io_sent",		"packets sent:         ", NTP_STR },
-	{ "io_sendfailed",	"packet send failures: ", NTP_STR },
-	{ "io_wakeups",		"input wakeups:        ", NTP_STR },
-	{ "io_goodwakeups",	"useful input wakeups: ", NTP_STR },
-	{ NULL,			NULL,			  0	  }
+	VDC_INIT("iostats_reset",	"time since reset:     ", NTP_STR),
+	VDC_INIT("total_rbuf",		"receive buffers:      ", NTP_STR),
+	VDC_INIT("free_rbuf",		"free receive buffers: ", NTP_STR),
+	VDC_INIT("used_rbuf",		"used receive buffers: ", NTP_STR),
+	VDC_INIT("rbuf_lowater",	"low water refills:    ", NTP_STR),
+	VDC_INIT("io_dropped",		"dropped packets:      ", NTP_STR),
+	VDC_INIT("io_ignored",		"ignored packets:      ", NTP_STR),
+	VDC_INIT("io_received",		"received packets:     ", NTP_STR),
+	VDC_INIT("io_sent",		"packets sent:         ", NTP_STR),
+	VDC_INIT("io_sendfailed",	"packet send failures: ", NTP_STR),
+	VDC_INIT("io_wakeups",		"input wakeups:        ", NTP_STR),
+	VDC_INIT("io_goodwakeups",	"useful input wakeups: ", NTP_STR),
+	VDC_INIT(NULL,			NULL,			  0)
     };
 
 	collect_display_vdc(0, iostats_vdc, FALSE, fp);
@@ -3803,10 +3803,10 @@ timerstats(
 	)
 {
     static vdc timerstats_vdc[] = {
-	{ "timerstats_reset",	"time since reset:  ", NTP_STR },
-	{ "timer_overruns",	"timer overruns:    ", NTP_STR },
-	{ "timer_xmts",		"calls to transmit: ", NTP_STR },
-	{ NULL,			NULL,		       0       }
+	VDC_INIT("timerstats_reset",	"time since reset:  ", NTP_STR),
+	VDC_INIT("timer_overruns",	"timer overruns:    ", NTP_STR),
+	VDC_INIT("timer_xmts",		"calls to transmit: ", NTP_STR),
+	VDC_INIT(NULL,			NULL,		       0)
     };
 
 	collect_display_vdc(0, timerstats_vdc, FALSE, fp);
@@ -3823,16 +3823,16 @@ authinfo(
 	)
 {
     static vdc authinfo_vdc[] = {
-	{ "authreset",		"time since reset:", NTP_STR },
-	{ "authkeys",		"stored keys:     ", NTP_STR },
-	{ "authfreek",		"free keys:       ", NTP_STR },
-	{ "authklookups",	"key lookups:     ", NTP_STR },
-	{ "authknotfound",	"keys not found:  ", NTP_STR },
-	{ "authkuncached",	"uncached keys:   ", NTP_STR },
-	{ "authkexpired",	"expired keys:    ", NTP_STR },
-	{ "authencrypts",	"encryptions:     ", NTP_STR },
-	{ "authdecrypts",	"decryptions:     ", NTP_STR },
-	{ NULL,			NULL,		     0	     }
+	VDC_INIT("authreset",		"time since reset:", NTP_STR),
+	VDC_INIT("authkeys",		"stored keys:     ", NTP_STR),
+	VDC_INIT("authfreek",		"free keys:       ", NTP_STR),
+	VDC_INIT("authklookups",	"key lookups:     ", NTP_STR),
+	VDC_INIT("authknotfound",	"keys not found:  ", NTP_STR),
+	VDC_INIT("authkuncached",	"uncached keys:   ", NTP_STR),
+	VDC_INIT("authkexpired",	"expired keys:    ", NTP_STR),
+	VDC_INIT("authencrypts",	"encryptions:     ", NTP_STR),
+	VDC_INIT("authdecrypts",	"decryptions:     ", NTP_STR),
+	VDC_INIT(NULL,			NULL,		     0)
     };
 
 	collect_display_vdc(0, authinfo_vdc, FALSE, fp);
@@ -3849,20 +3849,20 @@ pstats(
 	)
 {
     static vdc pstats_vdc[] = {
-	{ "src",		"remote host:         ", NTP_ADD },
-	{ "dst",		"local address:       ", NTP_ADD },
-	{ "timerec",		"time last received:  ", NTP_STR },
-	{ "timer",		"time until next send:", NTP_STR },
-	{ "timereach",		"reachability change: ", NTP_STR },
-	{ "sent",		"packets sent:        ", NTP_STR },
-	{ "received",		"packets received:    ", NTP_STR },
-	{ "badauth",		"bad authentication:  ", NTP_STR },
-	{ "bogusorg",		"bogus origin:        ", NTP_STR },
-	{ "oldpkt",		"duplicate:           ", NTP_STR },
-	{ "seldisp",		"bad dispersion:      ", NTP_STR },
-	{ "selbroken",		"bad reference time:  ", NTP_STR },
-	{ "candidate",		"candidate order:     ", NTP_STR },
-	{ NULL,			NULL,			 0	 }
+	VDC_INIT("src",		"remote host:         ", NTP_ADD),
+	VDC_INIT("dst",		"local address:       ", NTP_ADD),
+	VDC_INIT("timerec",	"time last received:  ", NTP_STR),
+	VDC_INIT("timer",	"time until next send:", NTP_STR),
+	VDC_INIT("timereach",	"reachability change: ", NTP_STR),
+	VDC_INIT("sent",	"packets sent:        ", NTP_STR),
+	VDC_INIT("received",	"packets received:    ", NTP_STR),
+	VDC_INIT("badauth",	"bad authentication:  ", NTP_STR),
+	VDC_INIT("bogusorg",	"bogus origin:        ", NTP_STR),
+	VDC_INIT("oldpkt",	"duplicate:           ", NTP_STR),
+	VDC_INIT("seldisp",	"bad dispersion:      ", NTP_STR),
+	VDC_INIT("selbroken",	"bad reference time:  ", NTP_STR),
+	VDC_INIT("candidate",	"candidate order:     ", NTP_STR),
+	VDC_INIT(NULL,		NULL,			 0)
     };
 	associd_t associd;
 
@@ -3872,4 +3872,3 @@ pstats(
 
 	collect_display_vdc(associd, pstats_vdc, TRUE, fp);
 }
-

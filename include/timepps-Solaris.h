@@ -413,7 +413,7 @@ time_pps_getparams(
 	}
 
 	punit = (pps_unit_t *)handle;
-	memcpy(params, &punit->params, sizeof(params));
+	memcpy(params, &punit->params, sizeof(*params));
 	return (0);
 }
 

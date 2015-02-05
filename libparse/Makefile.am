@@ -1,5 +1,5 @@
 NULL=
-BUILT_SOURCES =
+BUILT_SOURCES = $(VPHACK) info_trimble.c $(VPHACK_AFTER)
 CLEANFILES =
 noinst_LIBRARIES = @MAKE_LIBPARSE@ @MAKE_LIBPARSE_KERNEL@
 EXTRA_LIBRARIES = libparse.a libparse_kernel.a
@@ -11,6 +11,29 @@ K_CFLAGS = -DPARSESTREAM -DNTP_NEED_BOPS
 # info_trimble.c was mistakenly created in the build directory
 # previously.  It is located in $(srcdir) and any updates must
 # end up there.
+
+#
+# VPHACK and VPHACK_AFTER are enabled on non-GNU makes (such as
+# BSD make) to work around build/dependency issues where we want
+# built source files to live in srcdir, as opposed to builddir.
+#
+
+if VPATH_HACK
+VPHACK=	vphack
+VPHACK_AFTER= vphack_after
+else
+VPHACK=
+VPHACK_AFTER=
+endif
+
+vphack:
+	test -e info_trimble.c || ln -s $(srcdir)/info_trimble.c .
+
+vphack_after:
+	test -L info_trimble.c || ( \
+		mv info_trimble.c $(srcdir)/info_trimble.c && \
+		ln -s $(srcdir)/info_trimble.c . \
+		)
 
 libparse_a_SOURCES = parse.c \
 		     parse_conf.c \
@@ -65,10 +88,15 @@ AM_CPPFLAGS += $(CPPFLAGS_NTP)
 
 EXTRA_DIST = parsesolaris.c parsestreams.c mkinfo_scmd.sed mkinfo_rcmd.sed info_trimble.c
 
-$(srcdir)/info_trimble.c: $(top_srcdir)/include/trimble.h $(srcdir)/Makefile.am $(srcdir)/mkinfo_scmd.sed $(srcdir)/mkinfo_rcmd.sed
+info_trimble.c: $(top_srcdir)/include/trimble.h $(srcdir)/Makefile.am $(srcdir)/mkinfo_scmd.sed $(srcdir)/mkinfo_rcmd.sed
 	sed -n -f $(srcdir)/mkinfo_scmd.sed $(top_srcdir)/include/trimble.h  > info_trimble.new
 	sed -n -f $(srcdir)/mkinfo_rcmd.sed $(top_srcdir)/include/trimble.h >> info_trimble.new
 	mv -f info_trimble.new $@
+
+#$(srcdir)/info_trimble.c: $(top_srcdir)/include/trimble.h $(srcdir)/Makefile.am $(srcdir)/mkinfo_scmd.sed $(srcdir)/mkinfo_rcmd.sed
+#	sed -n -f $(srcdir)/mkinfo_scmd.sed $(top_srcdir)/include/trimble.h  > info_trimble.new
+#	sed -n -f $(srcdir)/mkinfo_rcmd.sed $(top_srcdir)/include/trimble.h >> info_trimble.new
+#	mv -f info_trimble.new $@
 
 kieee754io.o: $(srcdir)/ieee754io.c
 	 $(COMPILE) $(K_CFLAGS) -c $(srcdir)/ieee754io.c -o $@

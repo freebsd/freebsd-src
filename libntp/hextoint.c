@@ -23,7 +23,7 @@ hextoint(
 
 	u = 0;
 	while (*cp != '\0') {
-		if (!isxdigit(*cp))
+		if (!isxdigit((unsigned char)*cp))
 			return 0;
 		if (u & 0xF0000000)
 			return 0;	/* overflow */

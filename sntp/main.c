@@ -659,7 +659,7 @@ xmt(
 	sockaddr_u *	dst = &spkt->addr;
 	struct timeval	tv_xmt;
 	struct pkt	x_pkt;
-	int		pkt_len;
+	size_t		pkt_len;
 	int		sent;
 
 	if (0 != gettimeofday(&tv_xmt, NULL)) {
@@ -1248,7 +1248,7 @@ handle_pkt(
 		if (synch_distance > 0.) {
 			cnt = snprintf(disptxt, sizeof(disptxt),
 				       " +/- %f", synch_distance);
-			if (cnt >= sizeof(disptxt))
+			if ((size_t)cnt >= sizeof(disptxt))
 				snprintf(disptxt, sizeof(disptxt),
 					 "ERROR %d >= %d", cnt,
 					 (int)sizeof(disptxt));
@@ -1392,7 +1392,7 @@ set_li_vn_mode (
 		leap = 3;
 	}
 
-	if (version < 0 || version > 7) {
+	if ((unsigned char)version > 7) {
 		msyslog(LOG_DEBUG, "set_li_vn_mode: version < 0 or > 7, using 4");
 		version = 4;
 	}
@@ -1545,7 +1545,7 @@ gettimeofday_cached(
 		diff = sub_tval(systemt, latest);
 		if (debug > 1)
 			printf("system minus cached %+ld.%06ld\n",
-			       (long)diff.tv_sec, diff.tv_usec);
+			       (long)diff.tv_sec, (long)diff.tv_usec);
 		if (0 != cgt_rc || labs((long)diff.tv_sec) < 3600) {
 			/*
 			 * Either use_monotonic == 0, or this libevent
@@ -1557,13 +1557,14 @@ gettimeofday_cached(
 			diff = sub_tval(latest, mono);
 			if (debug > 1)
 				printf("cached minus monotonic %+ld.%06ld\n",
-				       (long)diff.tv_sec, diff.tv_usec);
+				       (long)diff.tv_sec, (long)diff.tv_usec);
 			if (labs((long)diff.tv_sec) < 3600) {
 				/* older libevent2 using monotonic */
 				offset = sub_tval(systemt, mono);
 				TRACE(1, ("%s: Offsetting libevent CLOCK_MONOTONIC times  by %+ld.%06ld\n",
 					 "gettimeofday_cached",
-					 (long)offset.tv_sec, offset.tv_usec));
+					 (long)offset.tv_sec,
+					 (long)offset.tv_usec));
 			}
 		}
 		offset_ready = TRUE;

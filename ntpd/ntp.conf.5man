@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntp.conf 5man "19 Dec 2014" "4.2.8" "File Formats"
+.TH ntp.conf 5man "04 Feb 2015" "4.2.8p1" "File Formats"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-eCaa6b/ag-rCai4b)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-sPaOCn/ag-RPaGBn)
 .\"
-.\" It has been AutoGen-ed December 19, 2014 at 07:48:49 AM by AutoGen 5.18.5pre4
+.\" It has been AutoGen-ed February 4, 2015 at 02:41:46 AM by AutoGen 5.18.5pre4
 .\" From the definitions ntp.conf.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -415,6 +415,21 @@ in order to avoid accidental or malicious disruption in this mode,
 both the server and client should operate using symmetric-key or
 public-key authentication as described in
 \fIAuthentication\f[] \fIOptions\f[].
+.TP 7
+.NOP \f\*[B-Font]mdnstries\f[] \f\*[I-Font]number\f[]
+If we are participating in mDNS,
+after we have synched for the first time
+we attempt to register with the mDNS system.
+If that registration attempt fails,
+we try again at one minute intervals for up to
+\f\*[B-Font]mdnstries\f[]
+times.
+After all,
+\f\*[B-Font]ntpd\f[]
+may be starting before mDNS.
+The default value for
+\f\*[B-Font]mdnstries\f[]
+is 5.
 .PP
 .SH Authentication Support
 Authentication support allows the NTP client to verify that the
@@ -2974,9 +2989,9 @@ RFC5905
 .PP
 
 .SH "AUTHORS"
-The University of Delaware
+The University of Delaware and Network Time Foundation
 .SH "COPYRIGHT"
-Copyright (C) 1970-2014 The University of Delaware all rights reserved.
+Copyright (C) 1992-2015 The University of Delaware and Network Time Foundation all rights reserved.
 This program is released under the terms of the NTP license, <http://ntp.org/license>.
 .SH BUGS
 The syntax checking is not picky; some combinations of

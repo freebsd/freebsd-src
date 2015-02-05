@@ -52,5 +52,5 @@ extern	void	filegen_statsdir(void);
 extern	FILEGEN *filegen_get	(const char *);
 extern	void	filegen_register (const char *, const char *, FILEGEN *);
 #ifdef DEBUG
-extern	void	filegen_unregister(char *);
+extern	void	filegen_unregister(const char *);
 #endif

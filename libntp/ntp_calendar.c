@@ -153,7 +153,11 @@ ntpcal_get_build_date(
 	 * problem.
 	 *
 	 */
+#ifdef MKREPRO_DATE
+	static const char build[] = MKREPRO_TIME "/" MKREPRO_DATE;
+#else
 	static const char build[] = __TIME__ "/" __DATE__;
+#endif
 	static const char mlist[] = "JanFebMarAprMayJunJulAugSepOctNovDec";
 
 	char		  monstr[4];
@@ -1561,7 +1565,7 @@ isocal_ntp64_to_date(
 	id->year = (uint16_t)ds.hi + 1;		/* shift to current  */
 	id->week = (uint8_t )ds.lo + 1;
 
-	return (ds.hi >= 0 && ds.hi < 0xFFFFU);
+	return (ds.hi >= 0 && ds.hi < 0x0000FFFF);
 }
 
 int

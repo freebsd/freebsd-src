@@ -70,12 +70,12 @@ keyword(
 	int token
 	)
 {
-	int i;
+	size_t i;
 	const char *text;
 
 	i = token - LOWEST_KEYWORD_ID;
 
-	if (i >= 0 && i < COUNTOF(keyword_text))
+	if (i < COUNTOF(keyword_text))
 		text = keyword_text[i];
 	else
 		text = NULL;
@@ -297,7 +297,7 @@ is_integer(
 
 	/* Check that all the remaining characters are digits */
 	for (; lexeme[i] != '\0'; i++) {
-		if (!isdigit(lexeme[i]))
+		if (!isdigit((unsigned char)lexeme[i]))
 			return FALSE;
 	}
 
@@ -322,7 +322,7 @@ is_u_int(
 	int	is_hex;
 	
 	i = 0;
-	if ('0' == lexeme[i] && 'x' == tolower(lexeme[i + 1])) {
+	if ('0' == lexeme[i] && 'x' == tolower((unsigned char)lexeme[i + 1])) {
 		i += 2;
 		is_hex = TRUE;
 	} else {
@@ -331,9 +331,9 @@ is_u_int(
 
 	/* Check that all the remaining characters are digits */
 	for (; lexeme[i] != '\0'; i++) {
-		if (is_hex && !isxdigit(lexeme[i]))
+		if (is_hex && !isxdigit((unsigned char)lexeme[i]))
 			return FALSE;
-		if (!is_hex && !isdigit(lexeme[i]))
+		if (!is_hex && !isdigit((unsigned char)lexeme[i]))
 			return FALSE;
 	}
 
@@ -357,14 +357,14 @@ is_double(
 		i++;
 
 	/* Read the integer part */
-	for (; lexeme[i] && isdigit(lexeme[i]); i++)
+	for (; lexeme[i] && isdigit((unsigned char)lexeme[i]); i++)
 		num_digits++;
 
 	/* Check for the optional decimal point */
 	if ('.' == lexeme[i]) {
 		i++;
 		/* Check for any digits after the decimal point */
-		for (; lexeme[i] && isdigit(lexeme[i]); i++)
+		for (; lexeme[i] && isdigit((unsigned char)lexeme[i]); i++)
 			num_digits++;
 	}
 
@@ -380,7 +380,7 @@ is_double(
 		return 1;
 
 	/* There is still more input, read the exponent */
-	if ('e' == tolower(lexeme[i]))
+	if ('e' == tolower((unsigned char)lexeme[i]))
 		i++;
 	else
 		return 0;
@@ -390,7 +390,7 @@ is_double(
 		i++;
 
 	/* Now read the exponent part */
-	while (lexeme[i] && isdigit(lexeme[i]))
+	while (lexeme[i] && isdigit((unsigned char)lexeme[i]))
 		i++;
 
 	/* Check if we are done */
@@ -455,7 +455,7 @@ create_string_token(
 	 * ignore end of line whitespace
 	 */
 	pch = lexeme;
-	while (*pch && isspace(*pch))
+	while (*pch && isspace((unsigned char)*pch))
 		pch++;
 
 	if (!*pch) {
@@ -481,7 +481,7 @@ yylex(
 	)
 {
 	static follby	followedby = FOLLBY_TOKEN;
-	int		i;
+	size_t		i;
 	int		instring;
 	int		yylval_was_set;
 	int		converted;
@@ -502,7 +502,7 @@ yylex(
 
 		if (EOF == ch) {
 
-			if (!input_from_file || !curr_include_level) 
+			if (!input_from_file || curr_include_level <= 0) 
 				return 0;
 
 			FCLOSE(fp[curr_include_level]);
@@ -640,7 +640,7 @@ yylex(
 		} else if (is_u_int(yytext)) {
 			yylval_was_set = TRUE;
 			if ('0' == yytext[0] &&
-			    'x' == tolower(yytext[1]))
+			    'x' == tolower((unsigned char)yytext[1]))
 				converted = sscanf(&yytext[2], "%x",
 						   &yylval.U_int);
 			else

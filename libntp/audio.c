@@ -67,7 +67,7 @@ static struct audio_info info;	/* audio device info */
 static int ctl_fd;		/* audio control file descriptor */
 
 #ifdef PCM_STYLE_SOUND
-static void audio_config_read (int, char **, char **);
+static void audio_config_read (int, const char **, const char **);
 static int  mixer_name (const char *, int);
 
 
@@ -114,8 +114,8 @@ mixer_name(
 static void
 audio_config_read(
 	int unit,
-	char **c_dev,	/* Control device */
-	char **i_dev	/* input device */
+	const char **c_dev,	/* Control device */
+	const char **i_dev	/* input device */
 	)
 {
 	FILE *fd;
@@ -148,12 +148,12 @@ audio_config_read(
 
 		/* Remove any trailing spaces */
 		for (i = strlen(line);
-		     i > 0 && isascii((int)line[i - 1]) && isspace((int)line[i - 1]);
+		     i > 0 && isascii((unsigned char)line[i - 1]) && isspace((unsigned char)line[i - 1]);
 			)
 			line[--i] = '\0';
 
 		/* Remove leading space */
-		for (cc = line; *cc && isascii((int)*cc) && isspace((int)*cc); cc++)
+		for (cc = line; *cc && isascii((unsigned char)*cc) && isspace((unsigned char)*cc); cc++)
 			continue;
 
 		/* Stop if nothing left */
@@ -162,16 +162,16 @@ audio_config_read(
 
 		/* Uppercase the command and find the arg */
 		for (ca = cc; *ca; ca++) {
-			if (isascii((int)*ca)) {
-				if (islower((int)*ca)) {
-					*ca = toupper(*ca);
-				} else if (isspace((int)*ca) || (*ca == '='))
+			if (isascii((unsigned char)*ca)) {
+				if (islower((unsigned char)*ca)) {
+					*ca = toupper((unsigned char)*ca);
+				} else if (isspace((unsigned char)*ca) || (*ca == '='))
 					break;
 			}
 		}
 
 		/* Remove space (and possible =) leading the arg */
-		for (; *ca && isascii((int)*ca) && (isspace((int)*ca) || (*ca == '=')); ca++)
+		for (; *ca && isascii((unsigned char)*ca) && (isspace((unsigned char)*ca) || (*ca == '=')); ca++)
 			continue;
 
 		if (!strncmp(cc, "IDEV", 4) &&
@@ -210,7 +210,7 @@ audio_config_read(
  */
 int
 audio_init(
-	char	*dname,		/* device name */
+	const char *dname,	/* device name */
 	int	bufsiz,		/* buffer size */
 	int	unit		/* device unit (0-3) */
 	)
@@ -227,7 +227,7 @@ audio_init(
 #endif
 	int fd;
 	int rval;
-	char *actl =
+	const char *actl =
 #ifdef PCM_STYLE_SOUND
 		actl_dev
 #else

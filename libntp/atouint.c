@@ -28,7 +28,7 @@ atouint(
 
 	u = 0;
 	while ('\0' != *cp) {
-		if (!isdigit(*cp))
+		if (!isdigit((unsigned char)*cp))
 			return 0;
 		if (u > 429496729 || (u == 429496729 && *cp >= '6'))
 			return 0;		/* overflow */

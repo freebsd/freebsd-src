@@ -52,7 +52,7 @@
 
 #if defined(HAVE_SYS_POLL_H)
 # include <sys/poll.h>
-#elif defined(HAVE_SYS_SLECET_H)
+#elif defined(HAVE_SYS_SELECT_H)
 # include <sys/select.h>
 #else
 # error need poll() or select()
@@ -204,8 +204,8 @@ static int  syslogok(clockprocT * const pp, gpsd_unitT * const up);
  * data and selecting the GPS device name we created from our unit
  * number. [Note: This is a format string!]
  */
-static const char * s_logon =
-    "?WATCH={\"enable\":true,\"json\":true,\"device\":\"%s\"};\r\n";
+#define s_logon \
+    "?WATCH={\"enable\":true,\"json\":true,\"device\":\"%s\"};\r\n"
 
 /* We keep a static list of network addresses for 'localhost:gpsd', and
  * we try to connect to them in round-robin fashion.
@@ -854,7 +854,7 @@ process_tpv(
 	const char * gps_time;
 	int          gps_mode;
 	double       ept, epp, epx, epy, epv;
-	int          log2;
+	int          xlog2;
 
 	gps_mode = (int)json_object_lookup_int_default(
 		jctx, 0, "mode", 0);
@@ -920,9 +920,9 @@ process_tpv(
 	ept = min(ept, epp  );
 	ept = min(ept, 0.5  );
 	ept = max(ept, 1.0-9);
-	ept = frexp(ept, &log2);
+	ept = frexp(ept, &xlog2);
 
-	peer->precision = log2;
+	peer->precision = xlog2;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1270,7 +1270,7 @@ convert_ascii_time(
 	ep = strptime(gps_time, "%Y-%m-%dT%H:%M:%S", &gd);
 	if (*ep == '.') {
 		dw = 100000000;
-		while (isdigit(*++ep)) {
+		while (isdigit((unsigned char)*++ep)) {
 			ts.tv_nsec += (*ep - '0') * dw;
 			dw /= 10;
 		}

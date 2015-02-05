@@ -396,13 +396,13 @@ emit_usage(tOptions * opts)
 
         /* Copy the program name into the time/name buffer */
         for (;;) {
-            if ((*pzPN++ = (char)tolower(*pz++)) == NUL)
+            if ((*pzPN++ = (char)tolower((unsigned char)*pz++)) == NUL)
                 break;
         }
 
-        pp  = (char **)(void *)&(opts->pzProgPath);
+        pp  = (char **)(void *)(intptr_t)&(opts->pzProgPath);
         *pp = tm_nm_buf;
-        pp  = (char **)(void *)&(opts->pzProgName);
+        pp  = (char **)(void *)(intptr_t)&(opts->pzProgName);
         *pp = tm_nm_buf;
     }
 
@@ -653,7 +653,7 @@ emit_match_expr(char const * name, tOptDesc * cod, tOptions * opts)
              *  They must not be the same.  They cannot be, because it would
              *  not compile correctly if they were.
              */
-            while (toupper(od->pz_Name[match_ct]) == toupper(name[match_ct]))
+            while (toupper((unsigned char)od->pz_Name[match_ct]) == toupper((unsigned char)name[match_ct]))
                 match_ct++;
 
             if (match_ct > min_match_ct)
@@ -666,8 +666,8 @@ emit_match_expr(char const * name, tOptDesc * cod, tOptions * opts)
                 continue;
 
             match_ct = 0;
-            while (  toupper(od->pz_DisableName[match_ct])
-                  == toupper(name[match_ct]))
+            while (  toupper((unsigned char)od->pz_DisableName[match_ct])
+                  == toupper((unsigned char)name[match_ct]))
                 match_ct++;
             if (match_ct > min_match_ct)
                 min_match_ct = match_ct;
@@ -901,11 +901,11 @@ genshelloptUsage(tOptions * opts, int exit_cd)
      */
     {
         char *  pz;
-        char ** pp = (char **)(void *)&(optionParseShellOptions->pzProgName);
+        char ** pp = (char **)(void *)(intptr_t)&(optionParseShellOptions->pzProgName);
         AGDUPSTR(pz, optionParseShellOptions->pzPROGNAME, "prog name");
         *pp = pz;
         while (*pz != NUL) {
-            *pz = (char)tolower(*pz);
+            *pz = (char)tolower((unsigned char)*pz);
             pz++;
         }
     }

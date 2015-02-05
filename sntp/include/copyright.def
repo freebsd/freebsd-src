@@ -1,8 +1,8 @@
 /* -*- Mode: Text -*- */
 
 copyright = {
-    date  = "1970-2014";
-    owner = "The University of Delaware";
+    date  = "1992-2015";
+    owner = "The University of Delaware and Network Time Foundation";
     eaddr = "http://bugs.ntp.org, bugs@ntp.org";
     type  = ntp;
 };

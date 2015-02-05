@@ -33,7 +33,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#dir">(dir)</a>
 <p>This document describes the configuration file for the NTP Project's
 <code>ntpd</code> program.
 
-  <p>This document applies to version 4.2.8 of <code>ntp.conf</code>.
+  <p>This document applies to version 4.2.8p1 of <code>ntp.conf</code>.
 
   <div class="shortcontents">
 <h2>Short Contents</h2>
@@ -403,6 +403,19 @@ in order to avoid accidental or malicious disruption in this mode,
 both the server and client should operate using symmetric-key or
 public-key authentication as described in
 <a href="#Authentication-Options">Authentication Options</a>. 
+<br><dt><code>mdnstries</code> <kbd>number</kbd><dd>If we are participating in mDNS,
+after we have synched for the first time
+we attempt to register with the mDNS system. 
+If that registration attempt fails,
+we try again at one minute intervals for up to
+<code>mdnstries</code>
+times. 
+After all,
+<code>ntpd</code>
+may be starting before mDNS. 
+The default value for
+<code>mdnstries</code>
+is 5. 
 </dl>
 <div class="node">
 <p><hr>

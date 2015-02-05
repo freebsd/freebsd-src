@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntp.conf.texi)
 #
-# It has been AutoGen-ed  December 19, 2014 at 07:49:02 AM by AutoGen 5.18.5pre4
+# It has been AutoGen-ed  February  4, 2015 at 02:41:59 AM by AutoGen 5.18.5pre4
 # From the definitions    ntp.conf.def
 # and the template file   agtexi-file.tpl
 @end ignore
@@ -365,6 +365,20 @@ in order to avoid accidental or malicious disruption in this mode,
 both the server and client should operate using symmetric-key or
 public-key authentication as described in
 @ref{Authentication Options}.
+@item @code{mdnstries} @kbd{number}
+If we are participating in mDNS,
+after we have synched for the first time
+we attempt to register with the mDNS system.
+If that registration attempt fails,
+we try again at one minute intervals for up to
+@code{mdnstries}
+times.
+After all,
+@code{ntpd}
+may be starting before mDNS.
+The default value for
+@code{mdnstries}
+is 5.
 @end table
 @node Authentication Support
 @subsection Authentication Support

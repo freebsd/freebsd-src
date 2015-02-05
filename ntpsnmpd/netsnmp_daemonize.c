@@ -40,6 +40,7 @@ SOFTWARE.
 #undef PACKAGE_NAME
 #undef PACKAGE_STRING
 #undef PACKAGE_TARNAME
+#undef PACKAGE_URL
 #undef PACKAGE_VERSION
 #include <config.h>
 

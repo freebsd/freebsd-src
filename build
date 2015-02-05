@@ -117,7 +117,7 @@ case "$CC" in
     ;;
 esac
 
-	BDIR="$BASEDIR$KEYSUF$CCSUF"
+BDIR="$BASEDIR$KEYSUF$CCSUF"
 
 [ -d "$BDIR" ] || mkdir $BDIR
 [ -f "$BDIR/.buildcvo" ] || echo $CVO > $BDIR/.buildcvo
@@ -162,7 +162,11 @@ if [ -z "$TEST" ] ; then
     fi
 fi
 
-CONFIGURE="../configure --cache-file=../config.cache-$IAM$KEYSUF$CCSUF $CONFIG_ARGS"
+CONFIGURE="../configure"
+# We need KEYSUF because of RAND_ and others, and -noopenssl"
+#CONFIGURE="$CONFIGURE --cache-file=../config.cache-$IAM$KEYSUF$CCSUF"
+CONFIGURE="$CONFIGURE $CONFIG_ARGS"
+
 
 (	# This sequence of commands is logged to make.log.
 	# If config.status is newer than ../configure, and the same

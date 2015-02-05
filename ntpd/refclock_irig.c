@@ -762,7 +762,7 @@ irig_baud(
 	 * persist for lots of samples.
 	 */
 	up->exing = -up->yxing;
-	if (fabs(up->envxing - up->envphase) <= 1) {
+	if (abs(up->envxing - up->envphase) <= 1) {
 		up->tcount++;
 		if (up->tcount > 20 * up->tc) {
 			up->tc++;
@@ -980,10 +980,8 @@ irig_poll(
 	)
 {
 	struct refclockproc *pp;
-	struct irigunit *up;
 
 	pp = peer->procptr;
-	up = pp->unitptr;
 
 	if (pp->coderecv == pp->codeproc) {
 		refclock_report(peer, CEVNT_TIMEOUT);

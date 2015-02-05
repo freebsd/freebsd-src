@@ -1,8 +1,8 @@
-.TH ntp.keys 5man "19 Dec 2014" "4.2.8" "File Formats"
+.TH ntp.keys 5man "04 Feb 2015" "4.2.8p1" "File Formats"
 .\"
 .\"  EDIT THIS FILE WITH CAUTION  (ntp.man)
 .\"
-.\"  It has been AutoGen-ed  December 19, 2014 at 07:48:54 AM by AutoGen 5.18.5pre4
+.\"  It has been AutoGen-ed  February  4, 2015 at 02:41:51 AM by AutoGen 5.18.5pre4
 .\"  From the definitions    ntp.keys.def
 .\"  and the template file   agman-file.tpl
 .Sh NAME
@@ -158,9 +158,9 @@ the default name of the configuration file
 \fCntpdc\fR(1ntpdcmdoc)\f[],
 \fCsntp\fR(1sntpmdoc)\f[]
 .SH "AUTHORS"
-The University of Delaware
+The University of Delaware and Network Time Foundation
 .SH "COPYRIGHT"
-Copyright (C) 1970-2014 The University of Delaware all rights reserved.
+Copyright (C) 1992-2015 The University of Delaware and Network Time Foundation all rights reserved.
 This program is released under the terms of the NTP license, <http://ntp.org/license>.
 .SH "BUGS"
 Please send bug reports to: http://bugs.ntp.org, bugs@ntp.org

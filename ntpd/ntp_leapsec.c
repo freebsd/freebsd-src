@@ -920,7 +920,8 @@ do_leap_hash(
 	/* now do the byte twiddle */
 	for (wi=0; wi < 5; ++wi)
 		for (di=3; di >= 0; --di) {
-			mac->hv[wi*4 + di] = (unsigned char)tmp[wi];
+			mac->hv[wi*4 + di] =
+				(unsigned char)(tmp[wi] & 0x0FF);
 			tmp[wi] >>= 8;
 		}
 	return TRUE;
@@ -972,7 +973,7 @@ leapsec_validate(
 			do_hash_data(&mdctx, line+2);
 		else if (!strncmp(line, "#$", 2))
 			do_hash_data(&mdctx, line+2);
-		else if (isdigit(line[0]))
+		else if (isdigit((unsigned char)line[0]))
 			do_hash_data(&mdctx, line);
 	}
 	isc_sha1_final(&mdctx, ldig.hv);

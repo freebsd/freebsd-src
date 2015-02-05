@@ -327,6 +327,9 @@
    */
 #undef HAVE_ALLOCA_H
 
+/* Define to 1 if you have the `arc4random_buf' function. */
+#undef HAVE_ARC4RANDOM_BUF
+
 /* Define to 1 if you have the <arpa/nameser.h> header file. */
 #undef HAVE_ARPA_NAMESER_H
 
@@ -1557,6 +1560,9 @@ typedef unsigned int	uintptr_t;
 
 /* Use OpenSSL's crypto random functions */
 #undef USE_OPENSSL_CRYPTO_RAND
+
+/* OK to use snprintb()? */
+#undef USE_SNPRINTB
 
 /* Can we use SIGPOLL for tty IO? */
 #undef USE_TTY_SIGPOLL

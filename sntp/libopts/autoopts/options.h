@@ -600,9 +600,17 @@ struct options {
     char *                      pzCurOpt;      ///< current option text
 
     /// Public, the full path of the program
+#if AUTOOPTS_INTERNAL
+    char const *                pzProgPath;
+#else
     char const * const          pzProgPath;
+#endif
     /// Public, the name of the executable, without any path
+#if AUTOOPTS_INTERNAL
+    char const *                pzProgName;
+#else
     char const * const          pzProgName;
+#endif
     /// Public, the upper-cased, shell variable syntax-ed program name
     char const * const          pzPROGNAME;
     /// the name of the "rc file" (configuration file)
@@ -1222,7 +1230,7 @@ extern void optionResetOpt(tOptions*, tOptDesc*);
 
 extern void optionSetMembers(tOptions*, tOptDesc*, char const * const *, unsigned int);
 
-extern void optionShowRange(tOptions*, tOptDesc*, void *, int);
+extern void optionShowRange(tOptions*, tOptDesc*, const void *, int);
 
 extern void optionStackArg(tOptions*, tOptDesc*);
 

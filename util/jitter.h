@@ -137,9 +137,9 @@ typedef u_int32 u_fp;
 /*
  * Conversions between the two fixed point types
  */
-#define	MFPTOFP(x_i, x_f)	(((x_i) >= 0x00010000) ? 0x7fffffff : \
-				(((x_i) <= -0x00010000) ? 0x80000000 : \
-				(((x_i)<<16) | (((x_f)>>16)&0xffff))))
+#define	MFPTOFP(x_i, x_f)	(((int)(x_i) >= 0x00010000) ? 0x7fffffff : \
+				(((int)(x_i) <= -0x00010000) ? 0x80000000 : \
+				(u_int)(((x_i)<<16) | (((x_f)>>16)&0xffff))))
 #define	LFPTOFP(v)		MFPTOFP((v)->l_i, (v)->l_f)
 
 #define UFPTOLFP(x, v) ((v)->l_ui = (u_fp)(x)>>16, (v)->l_uf = (x)<<16)

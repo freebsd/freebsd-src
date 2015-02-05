@@ -79,7 +79,7 @@ typedef union {
 struct parse {
 	const char *keyword;
 	arg_v argval[MAXARGS];
-	int nargs;
+	size_t nargs;
 };
 
 /*

@@ -143,7 +143,7 @@ static void	neol_jdn_to_ymd		(unsigned long, int *, int *, int *);
 static void	neol_localtime		(unsigned long, int* , int*, int*, int*, int*, int*);
 static unsigned long neol_mktime	(int, int, int, int, int, int);
 #if !defined(NEOCLOCK4X_FIRMWARE)
-static int	neol_query_firmware	(int, int, char *, int);
+static int	neol_query_firmware	(int, int, char *, size_t);
 static int	neol_check_firmware	(int, const char*, char *);
 #endif
 
@@ -785,9 +785,9 @@ neol_hexatoi_len(const char str[],
   int i;
   int n = 0;
 
-  for(i=0; isxdigit((int)str[i]) && i < maxlen; i++)
+  for(i=0; isxdigit((unsigned char)str[i]) && i < maxlen; i++)
     {
-      hexdigit = isdigit((int)str[i]) ? toupper(str[i]) - '0' : toupper(str[i]) - 'A' + 10;
+      hexdigit = isdigit((unsigned char)str[i]) ? toupper((unsigned char)str[i]) - '0' : toupper((unsigned char)str[i]) - 'A' + 10;
       n = 16 * n + hexdigit;
     }
   *result = n;
@@ -803,7 +803,7 @@ neol_atoi_len(const char str[],
   int i;
   int n = 0;
 
-  for(i=0; isdigit((int)str[i]) && i < maxlen; i++)
+  for(i=0; isdigit((unsigned char)str[i]) && i < maxlen; i++)
     {
       digit = str[i] - '0';
       n = 10 * n + digit;
@@ -898,10 +898,10 @@ static int
 neol_query_firmware(int fd,
 		    int unit,
 		    char *firmware,
-		    int maxlen)
+		    size_t maxlen)
 {
   char tmpbuf[256];
-  int len;
+  size_t len;
   int lastsearch;
   unsigned char c;
   int last_c_was_crlf;
@@ -1001,7 +1001,7 @@ neol_query_firmware(int fd,
 		tmpbuf[len++] = (char) c;
 	    }
 	  tmpbuf[len] = '\0';
-	  if(len > sizeof(tmpbuf)-5)
+	  if (len > sizeof(tmpbuf)-5)
 	    break;
 	}
     }

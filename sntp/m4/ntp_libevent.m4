@@ -1,4 +1,25 @@
-dnl NTP_ENABLE_LOCAL_LIBEVENT				     -*- Autoconf -*-
+# SYNOPSIS						-*- Autoconf -*-
+#
+#  NTP_ENABLE_LOCAL_LIBEVENT
+#  NTP_LIBEVENT_CHECK([MINVERSION [, DIR]])
+#  NTP_LIBEVENT_CHECK_NOBUILD([MINVERSION [, DIR]])
+#
+# DESCRIPTION
+#
+# AUTHOR
+#
+#  Harlan Stenn
+#
+# LICENSE
+#
+#  This file is Copyright (c) 2014 Network Time Foundation
+# 
+#  Copying and distribution of this file, with or without modification, are
+#  permitted in any medium without royalty provided the copyright notice,
+#  author attribution and this notice are preserved.  This file is offered
+#  as-is, without any warranty.
+
+dnl NTP_ENABLE_LOCAL_LIBEVENT
 dnl
 dnl Provide only the --enable-local-libevent command-line option.
 dnl
@@ -29,7 +50,7 @@ dnl If NOBUILD is provided as the 3rd argument, do all of the above,
 dnl but DO NOT invoke DIR/configure if we are going to use our bundled
 dnl version.  This may be the case for nested packages.
 dnl
-dnl provide --enable-local-libevent .
+dnl provides: --enable-local-libevent 
 dnl
 dnl Examples:
 dnl

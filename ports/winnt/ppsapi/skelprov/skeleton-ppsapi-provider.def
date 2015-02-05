@@ -1,0 +1,9 @@
+LIBRARY	"skeleton-ppsapi-provider.dll"
+
+EXPORTS
+    ppsapi_prov_init
+    prov_time_pps_create
+    prov_time_pps_destroy
+    prov_time_pps_fetch
+    prov_time_pps_kcbind
+    prov_time_pps_setparams

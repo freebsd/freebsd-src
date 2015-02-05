@@ -157,7 +157,9 @@ flag = {
   doc		= <<- _EndOfDoc_
 	If the time adjustment is less than @file{steplimit} milliseconds,
 	slew the amount using @command{adjtime(2)}.  Otherwise, step the
-	correction using @command{settimeofday(2)}. 
+	correction using @command{settimeofday(2)}.  The default value is 0,
+	which means all adjustments will be stepped.  This is a feature, as
+	different situations demand different values.
 	_EndOfDoc_;
 };
 
@@ -292,14 +294,27 @@ doc-section	= {
 is the simplest use of this program
 and can be run as an unprivileged command
 to check the current time and error in the local clock.
-.It Li "sntp -a ntpserver.somewhere"
+.It Li "sntp -Ss -M 128 ntpserver.somewhere"
 With suitable privilege,
 run as a command
 or from a
 .Xr cron 8
 job,
-.Ic "sntp -a"
-will reset the local clock from a synchronized specified server,
+.Ic "sntp -Ss -M 128 ntpserver.somewhere"
+will request the time from the server,
+and if that server reports that it is synchronized
+then if the offset adjustment is less than 128 milliseconds
+the correction will be slewed,
+and if the correction is more than 128 milliseconds
+the correction  will be stepped.
+.It Li "sntp -S ntpserver.somewhere"
+With suitable privilege,
+run as a command
+or from a
+.Xr cron 8
+job,
+.Ic "sntp -S ntpserver.somewhere"
+will set (step) the local clock from a synchronized specified server,
 like the (deprecated)
 .Xr ntpdate 1ntpdatemdoc ,
 or

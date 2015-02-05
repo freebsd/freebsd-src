@@ -90,7 +90,7 @@ man_MANS=	ntpd.$(NTPD_MS)
 
 LDADD_NTPD_COMMON  = $(LDADD_LIBNTP) $(LIBOPTS_LDADD) $(PTHREAD_LIBS)
 LDADD_NTPD_COMMON += $(LIBM) $(LDADD_NTP) $(LSCF)
-ntpd_LDADD = $(LDADD) ../libntp/libntp.a $(LDADD_LIBNTP) $(LIBM) $(LDADD_NTPD_COMMON)
+ntpd_LDADD = $(LDADD) ../libntp/libntp.a $(LDADD_NTPD_COMMON) $(LDADD_LIBUTIL)
 ntpdsim_LDADD = $(LDADD) ../libntp/libntpsim.a $(LDADD_NTPD_COMMON)
 ntpdsim_CPPFLAGS = $(AM_CPPFLAGS) -DSIM
 check_y2k_LDADD = $(LDADD) ../libntp/libntp.a $(LDADD_LIBNTP) $(LIBM) $(LDADD_LIBNTP) $(PTHREAD_LIBS)

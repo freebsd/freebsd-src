@@ -493,11 +493,11 @@ receive(
 		struct exten *ep;
 #endif /*AUTOKEY */
 
-		if (has_mac % 4 != 0 || has_mac < MIN_MAC_LEN) {
+		if (has_mac % 4 != 0 || has_mac < (int)MIN_MAC_LEN) {
 			sys_badlength++;
 			return;			/* bad length */
 		}
-		if (has_mac <= MAX_MAC_LEN) {
+		if (has_mac <= (int)MAX_MAC_LEN) {
 			skeyid = ntohl(((u_int32 *)pkt)[authlen / 4]);
 			break;
 
@@ -706,7 +706,7 @@ receive(
 			 * # if unsync, 0
 			 * % can't happen
 			 */
-			if (has_mac < MAX_MD5_LEN) {
+			if (has_mac < (int)MAX_MD5_LEN) {
 				sys_badauth++;
 				return;
 			}
@@ -744,7 +744,7 @@ receive(
 			 * purposes is zero. Note the hash is saved for
 			 * use later in the autokey mambo.
 			 */
-			if (authlen > LEN_PKT_NOMAC && pkeyid != 0) {
+			if (authlen > (int)LEN_PKT_NOMAC && pkeyid != 0) {
 				session_key(&rbufp->recv_srcadr,
 				    dstadr_sin, skeyid, 0, 2);
 				tkeyid = session_key(
@@ -2101,7 +2101,7 @@ poll_update(
 void
 peer_clear(
 	struct peer *peer,		/* peer structure */
-	char	*ident			/* tally lights */
+	const char *ident		/* tally lights */
 	)
 {
 	u_char	u;
@@ -2391,7 +2391,7 @@ clock_select(void)
 	struct peer *peer;
 	int	i, j, k, n;
 	int	nlist, nl2;
-	int	allow, osurv;
+	int	allow;
 	int	speer;
 	double	d, e, f, g;
 	double	high, low;
@@ -2420,7 +2420,6 @@ clock_select(void)
 	 * enough to handle all associations.
 	 */
 	osys_peer = sys_peer;
-	osurv = sys_survivors;
 	sys_survivors = 0;
 #ifdef LOCKCLOCK
 	sys_leap = LEAP_NOTINSYNC;
@@ -2990,7 +2989,7 @@ peer_xmit(
 	)
 {
 	struct pkt xpkt;	/* transmit packet */
-	int	sendlen, authlen;
+	size_t	sendlen, authlen;
 	keyid_t	xkeyid = 0;	/* transmit key ID */
 	l_fp	xmt_tx, xmt_ty;
 
@@ -3074,7 +3073,7 @@ peer_xmit(
 		LFPTOD(&xmt_ty, peer->xleave);
 #ifdef DEBUG
 		if (debug)
-			printf("transmit: at %ld %s->%s mode %d len %d\n",
+			printf("transmit: at %ld %s->%s mode %d len %zu\n",
 		    	    current_time, peer->dstadr ?
 			    stoa(&peer->dstadr->sin) : "-",
 		            stoa(&peer->srcadr), peer->hmode, sendlen);
@@ -3321,7 +3320,7 @@ peer_xmit(
 		 * Calculate the next session key. Since extension
 		 * fields are present, the cookie value is zero.
 		 */
-		if (sendlen > LEN_PKT_NOMAC) {
+		if (sendlen > (int)LEN_PKT_NOMAC) {
 			session_key(&peer->dstadr->sin, &peer->srcadr,
 			    xkeyid, 0, 2);
 		}
@@ -3363,7 +3362,7 @@ peer_xmit(
 		authtrust(xkeyid, 0);
 #endif	/* AUTOKEY */
 	if (sendlen > sizeof(xpkt)) {
-		msyslog(LOG_ERR, "proto: buffer overflow %u", sendlen);
+		msyslog(LOG_ERR, "proto: buffer overflow %zu", sendlen);
 		exit (-1);
 	}
 	peer->t21_bytes = sendlen;
@@ -3388,7 +3387,7 @@ peer_xmit(
 #ifdef AUTOKEY
 #ifdef DEBUG
 	if (debug)
-		printf("transmit: at %ld %s->%s mode %d keyid %08x len %d index %d\n",
+		printf("transmit: at %ld %s->%s mode %d keyid %08x len %zu index %d\n",
 		    current_time, latoa(peer->dstadr),
 		    ntoa(&peer->srcadr), peer->hmode, xkeyid, sendlen,
 		    peer->keynumber);
@@ -3599,7 +3598,7 @@ pool_xmit(
 			&hints,
 			0,			/* no retry */
 			&pool_name_resolved,
-			(void *)(u_int)pool->associd);
+			(void *)(intptr_t)pool->associd);
 		if (!rc)
 			DPRINTF(1, ("pool DNS lookup %s started\n",
 				pool->hostname));
@@ -3705,7 +3704,7 @@ pool_name_resolved(
 		return;
 	}
 
-	assoc = (associd_t)(u_int)context;
+	assoc = (associd_t)(intptr_t)context;
 	pool = findpeerbyassoc(assoc);
 	if (NULL == pool) {
 		msyslog(LOG_ERR,

@@ -43,7 +43,7 @@ typedef struct {
 struct parse {
 	char *keyword;
 	arg_v argval[MAXARGS + MOREARGS];
-	int nargs;
+	size_t nargs;
 };
 
 /*

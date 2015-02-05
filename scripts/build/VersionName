@@ -19,8 +19,17 @@ esac
 . "$packageinfo"
 
 NAME="$version"
-case $point in
- [1-9]*)
+case "$repotype::$point" in
+ dev::)
+    case "${proto}.${major}" in
+     4.[012])
+	NAME="${NAME}p${point}"
+        ;;
+     *) NAME="${NAME}"
+        ;;
+    esac
+    ;;
+ stable::[1-9]* | dev::[0-9]*)
     case "${proto}.${major}" in
      4.[012])
 	NAME="${NAME}p${point}"
@@ -31,7 +40,7 @@ case $point in
     ;;
  NEW) ;;
  '') ;;
- *) echo "Unexpected value for 'point' <$point>!"
+ *) echo "Unexpected value for 'point' <$point>! (repotype is <$repotype>)"
     exit 1
     ;;
 esac

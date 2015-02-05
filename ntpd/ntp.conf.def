@@ -404,6 +404,20 @@ in order to avoid accidental or malicious disruption in this mode,
 both the server and client should operate using symmetric-key or
 public-key authentication as described in
 .Sx Authentication Options .
+.It Ic mdnstries Ar number
+If we are participating in mDNS,
+after we have synched for the first time
+we attempt to register with the mDNS system.
+If that registration attempt fails,
+we try again at one minute intervals for up to
+.Ic mdnstries
+times.
+After all,
+.Ic ntpd
+may be starting before mDNS.
+The default value for
+.Ic mdnstries
+is 5.
 .El
 .Sh Authentication Support
 Authentication support allows the NTP client to verify that the

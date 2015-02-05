@@ -158,8 +158,7 @@ am__DEPENDENCIES_3 = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 ntpd_DEPENDENCIES = $(am__DEPENDENCIES_2) ../libntp/libntp.a \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_3)
+	$(am__DEPENDENCIES_3) $(am__DEPENDENCIES_1)
 am__objects_2 = ntpdsim-ntp_config.$(OBJEXT) ntpdsim-ntp_io.$(OBJEXT) \
 	ntpdsim-ntp_parser.$(OBJEXT) ntpdsim-ntp_scanner.$(OBJEXT) \
 	ntpdsim-ntpd.$(OBJEXT) ntpdsim-ntpd-opts.$(OBJEXT) \
@@ -256,6 +255,7 @@ CHUTEST = @CHUTEST@
 CONFIG_SHELL = @CONFIG_SHELL@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
+CPPFLAGS_LIBEVENT = @CPPFLAGS_LIBEVENT@
 CPPFLAGS_NTP = @CPPFLAGS_NTP@
 CXX = @CXX@
 CXXCPP = @CXXCPP@
@@ -290,7 +290,9 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LD = @LD@
+LDADD_LIBEVENT = @LDADD_LIBEVENT@
 LDADD_LIBNTP = @LDADD_LIBNTP@
+LDADD_LIBUTIL = @LDADD_LIBUTIL@
 LDADD_NLIST = @LDADD_NLIST@
 LDADD_NTP = @LDADD_NTP@
 LDFLAGS = @LDFLAGS@
@@ -537,7 +539,7 @@ man_MANS = ntpd.$(NTPD_MS)
 # longer a reason to have ntpdbase-opts.def split off of ntpd-opts.def.
 LDADD_NTPD_COMMON = $(LDADD_LIBNTP) $(LIBOPTS_LDADD) $(PTHREAD_LIBS) \
 	$(LIBM) $(LDADD_NTP) $(LSCF)
-ntpd_LDADD = $(LDADD) ../libntp/libntp.a $(LDADD_LIBNTP) $(LIBM) $(LDADD_NTPD_COMMON)
+ntpd_LDADD = $(LDADD) ../libntp/libntp.a $(LDADD_NTPD_COMMON) $(LDADD_LIBUTIL)
 ntpdsim_LDADD = $(LDADD) ../libntp/libntpsim.a $(LDADD_NTPD_COMMON)
 ntpdsim_CPPFLAGS = $(AM_CPPFLAGS) -DSIM
 check_y2k_LDADD = $(LDADD) ../libntp/libntp.a $(LDADD_LIBNTP) $(LIBM) $(LDADD_LIBNTP) $(PTHREAD_LIBS)

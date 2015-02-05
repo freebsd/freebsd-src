@@ -201,8 +201,10 @@ static	void	raw		(struct parse *, FILE *);
 static	void	cooked		(struct parse *, FILE *);
 static	void	authenticate	(struct parse *, FILE *);
 static	void	ntpversion	(struct parse *, FILE *);
-static	void	warning		(const char *, const char *, const char *);
-static	void	error		(const char *, const char *, const char *);
+static	void	warning		(const char *, ...)
+    __attribute__((__format__(__printf__, 1, 2)));
+static	void	error		(const char *, ...)
+    __attribute__((__format__(__printf__, 1, 2)));
 static	u_long	getkeyid	(const char *);
 static	void	atoascii	(const char *, size_t, char *, size_t);
 static	void	cookedprint	(int, int, const char *, int, int, FILE *);
@@ -315,7 +317,7 @@ struct sock_timeval tvsout = { DEFSTIMEOUT, 0 };/* secondary time out */
 l_fp delay_time;				/* delay time */
 char currenthost[LENHOSTNAME];			/* current host name */
 int currenthostisnum;				/* is prior text from IP? */
-struct sockaddr_in hostaddr = { 0 };		/* host address */
+struct sockaddr_in hostaddr;			/* host address */
 int showhostnames = 1;				/* show host names by default */
 int wideremote = 0;				/* show wide remote names? */
 
@@ -678,7 +680,7 @@ openhost(
 	sockfd = socket(ai->ai_family, ai->ai_socktype,
 			ai->ai_protocol);
 	if (sockfd == INVALID_SOCKET) {
-		error("socket", "", "");
+		error("socket");
 		freeaddrinfo(ai);
 		return 0;
 	}
@@ -689,7 +691,7 @@ openhost(
 	{ int rbufsize = DATASIZE + 2048;	/* 2K for slop */
 	if (setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF,
 		       &rbufsize, sizeof(int)) == -1)
-		error("setsockopt", "", "");
+		error("setsockopt");
 	}
 # endif
 #endif
@@ -703,7 +705,7 @@ openhost(
 		    ai->ai_addrlen) == -1)
 #endif /* SYS_VXWORKS */
 	    {
-		error("connect", "", "");
+		error("connect");
 		freeaddrinfo(ai);
 		return 0;
 	}
@@ -761,10 +763,10 @@ sendpkt(
 	)
 {
 	if (debug >= 3)
-		printf("Sending %lu octets\n", (u_long)xdatalen);
+		printf("Sending %zu octets\n", xdatalen);
 
 	if (send(sockfd, xdata, (size_t)xdatalen, 0) == -1) {
-		warning("write to %s failed", currenthost, "");
+		warning("write to %s failed", currenthost);
 		return -1;
 	}
 
@@ -835,7 +837,7 @@ getresponse(
 		n = select(sockfd + 1, &fds, NULL, NULL, &tvo);
 
 		if (n == -1) {
-			warning("select fails", "", "");
+			warning("select fails");
 			return -1;
 		}
 		if (n == 0) {
@@ -874,7 +876,7 @@ getresponse(
 
 		n = recv(sockfd, (char *)&rpkt, sizeof(rpkt), 0);
 		if (n == -1) {
-			warning("read", "", "");
+			warning("read");
 			return -1;
 		}
 
@@ -886,7 +888,7 @@ getresponse(
 		/*
 		 * Check for format errors.  Bug proofing.
 		 */
-		if (n < CTL_HEADER_LEN) {
+		if (n < (int)CTL_HEADER_LEN) {
 			if (debug)
 				printf("Short (%d byte) packet received\n", n);
 			continue;
@@ -994,7 +996,7 @@ getresponse(
 			shouldbesize = (shouldbesize + 7) & ~7;
 
 			maclen = n - shouldbesize;
-			if (maclen >= MIN_MAC_LEN) {
+			if (maclen >= (int)MIN_MAC_LEN) {
 				printf(
 					"Packet shows signs of authentication (total %d, data %d, mac %d)\n",
 					n, shouldbesize, maclen);
@@ -1226,9 +1228,9 @@ sendrequest(
 		return 1;
 	} else if ((size_t)maclen != (info_auth_hashlen + sizeof(keyid_t))) {
 		fprintf(stderr,
-			"%d octet MAC, %lu expected with %lu octet digest\n",
-			maclen, (u_long)(info_auth_hashlen + sizeof(keyid_t)),
-			(u_long)info_auth_hashlen);
+			"%d octet MAC, %zu expected with %zu octet digest\n",
+			maclen, (info_auth_hashlen + sizeof(keyid_t)),
+			info_auth_hashlen);
 		return 1;
 	}
 
@@ -2620,37 +2622,46 @@ ntpversion(
 }
 
 
+static void __attribute__((__format__(__printf__, 1, 0)))
+vwarning(const char *fmt, va_list ap)
+{
+	int serrno = errno;
+	(void) fprintf(stderr, "%s: ", progname);
+	vfprintf(stderr, fmt, ap);
+	(void) fprintf(stderr, ": %s", strerror(serrno));
+}
+
 /*
  * warning - print a warning message
  */
-static void
+static void __attribute__((__format__(__printf__, 1, 2)))
 warning(
 	const char *fmt,
-	const char *st1,
-	const char *st2
+	...
 	)
 {
-	(void) fprintf(stderr, "%s: ", progname);
-	(void) fprintf(stderr, fmt, st1, st2);
-	(void) fprintf(stderr, ": ");
-	perror("");
+	va_list ap;
+	va_start(ap, fmt);
+	vwarning(fmt, ap);
+	va_end(ap);
 }
 
 
 /*
  * error - print a message and exit
  */
-static void
+static void __attribute__((__format__(__printf__, 1, 2)))
 error(
 	const char *fmt,
-	const char *st1,
-	const char *st2
+	...
 	)
 {
-	warning(fmt, st1, st2);
+	va_list ap;
+	va_start(ap, fmt);
+	vwarning(fmt, ap);
+	va_end(ap);
 	exit(1);
 }
-
 /*
  * getkeyid - prompt the user for a keyid to use
  */
@@ -2900,7 +2911,7 @@ nextvar(
 	srclen = strcspn(cp, ",=\r\n");
 	srclen = min(srclen, (size_t)(cpend - cp));
 	len = srclen;
-	while (len > 0 && isspace(cp[len - 1]))
+	while (len > 0 && isspace((unsigned char)cp[len - 1]))
 		len--;
 	if (len > 0)
 		memcpy(name, cp, len);
@@ -2924,7 +2935,7 @@ nextvar(
 	 * So far, so good.  Copy out the value
 	 */
 	cp++;	/* past '=' */
-	while (cp < cpend && (isspace(*cp) && *cp != '\r' && *cp != '\n'))
+	while (cp < cpend && (isspace((unsigned char)*cp) && *cp != '\r' && *cp != '\n'))
 		cp++;
 	np = cp;
 	if ('"' == *np) {
@@ -2945,7 +2956,7 @@ nextvar(
 	/*
 	 * Trim off any trailing whitespace
 	 */
-	while (len > 0 && isspace(value[len - 1]))
+	while (len > 0 && isspace((unsigned char)value[len - 1]))
 		len--;
 	value[len] = '\0';
 
@@ -3028,7 +3039,7 @@ rawprint(
 			 */
 			if (cp == (cpend - 1) || *(cp + 1) != '\n')
 			    makeascii(1, cp, fp);
-		} else if (isspace(*cp) || isprint(*cp))
+		} else if (isspace((unsigned char)*cp) || isprint((unsigned char)*cp))
 			putc(*cp, fp);
 		else
 			makeascii(1, cp, fp);
@@ -3176,7 +3187,7 @@ tstflags(
 			*cp++ = ' ';
 			cb--;
 		}
-		for (i = 0; i < COUNTOF(tstflagnames); i++) {
+		for (i = 0; i < (int)COUNTOF(tstflagnames); i++) {
 			if (val & 0x1) {
 				snprintf(cp, cb, "%s%s", sep,
 					 tstflagnames[i]);

@@ -1,0 +1,90 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual C++ Express 2008
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ntpd", "ntpd\ntpd.vcproj", "{CB61F8BF-9637-495C-9087-E8664B400CE0}"
+	ProjectSection(ProjectDependencies) = postProject
+		{1B814CC1-EAD4-4A13-B29C-A67B23C9845A} = {1B814CC1-EAD4-4A13-B29C-A67B23C9845A}
+		{400FBFCB-462E-40D0-B06B-3B74E3FFFD00} = {400FBFCB-462E-40D0-B06B-3B74E3FFFD00}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "instsrv", "instsrv\instsrv.vcproj", "{C3534C4D-6DF1-498E-9904-4337878A1515}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libntp", "libntp\libntp.vcproj", "{400FBFCB-462E-40D0-B06B-3B74E3FFFD00}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ntpdate", "ntpdate\ntpdate.vcproj", "{2789A62E-3F46-44F1-AAF0-816CD23C2911}"
+	ProjectSection(ProjectDependencies) = postProject
+		{400FBFCB-462E-40D0-B06B-3B74E3FFFD00} = {400FBFCB-462E-40D0-B06B-3B74E3FFFD00}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ntpdc", "ntpdc\ntpdc.vcproj", "{8011C820-B3D5-4034-86EA-FFC30AE6764B}"
+	ProjectSection(ProjectDependencies) = postProject
+		{400FBFCB-462E-40D0-B06B-3B74E3FFFD00} = {400FBFCB-462E-40D0-B06B-3B74E3FFFD00}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ntp-keygen", "ntp-keygen\ntp-keygen.vcproj", "{C88C1FBF-59D2-447F-BF57-0BCA8889028F}"
+	ProjectSection(ProjectDependencies) = postProject
+		{400FBFCB-462E-40D0-B06B-3B74E3FFFD00} = {400FBFCB-462E-40D0-B06B-3B74E3FFFD00}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ntpq", "ntpq\ntpq.vcproj", "{6A92BF14-8931-48B1-A571-DEBE9F190616}"
+	ProjectSection(ProjectDependencies) = postProject
+		{400FBFCB-462E-40D0-B06B-3B74E3FFFD00} = {400FBFCB-462E-40D0-B06B-3B74E3FFFD00}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ntpd-keyword-gen", "ntpd-keyword-gen\ntpd-keyword-gen.vcproj", "{1B814CC1-EAD4-4A13-B29C-A67B23C9845A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{400FBFCB-462E-40D0-B06B-3B74E3FFFD00} = {400FBFCB-462E-40D0-B06B-3B74E3FFFD00}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "loopback-ppsapi-provider", "loopback-pps\loopback-ppsapi-provider.vcproj", "{1ACE209D-D56E-450B-8711-B73E4ACFC38E}"
+	ProjectSection(ProjectDependencies) = postProject
+		{CB61F8BF-9637-495C-9087-E8664B400CE0} = {CB61F8BF-9637-495C-9087-E8664B400CE0}
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CB61F8BF-9637-495C-9087-E8664B400CE0}.Debug|Win32.ActiveCfg = Debug|Win32
+		{CB61F8BF-9637-495C-9087-E8664B400CE0}.Debug|Win32.Build.0 = Debug|Win32
+		{CB61F8BF-9637-495C-9087-E8664B400CE0}.Release|Win32.ActiveCfg = Release|Win32
+		{CB61F8BF-9637-495C-9087-E8664B400CE0}.Release|Win32.Build.0 = Release|Win32
+		{C3534C4D-6DF1-498E-9904-4337878A1515}.Debug|Win32.ActiveCfg = Debug|Win32
+		{C3534C4D-6DF1-498E-9904-4337878A1515}.Debug|Win32.Build.0 = Debug|Win32
+		{C3534C4D-6DF1-498E-9904-4337878A1515}.Release|Win32.ActiveCfg = Release|Win32
+		{C3534C4D-6DF1-498E-9904-4337878A1515}.Release|Win32.Build.0 = Release|Win32
+		{400FBFCB-462E-40D0-B06B-3B74E3FFFD00}.Debug|Win32.ActiveCfg = Debug|Win32
+		{400FBFCB-462E-40D0-B06B-3B74E3FFFD00}.Debug|Win32.Build.0 = Debug|Win32
+		{400FBFCB-462E-40D0-B06B-3B74E3FFFD00}.Release|Win32.ActiveCfg = Release|Win32
+		{400FBFCB-462E-40D0-B06B-3B74E3FFFD00}.Release|Win32.Build.0 = Release|Win32
+		{2789A62E-3F46-44F1-AAF0-816CD23C2911}.Debug|Win32.ActiveCfg = Debug|Win32
+		{2789A62E-3F46-44F1-AAF0-816CD23C2911}.Debug|Win32.Build.0 = Debug|Win32
+		{2789A62E-3F46-44F1-AAF0-816CD23C2911}.Release|Win32.ActiveCfg = Release|Win32
+		{2789A62E-3F46-44F1-AAF0-816CD23C2911}.Release|Win32.Build.0 = Release|Win32
+		{8011C820-B3D5-4034-86EA-FFC30AE6764B}.Debug|Win32.ActiveCfg = Debug|Win32
+		{8011C820-B3D5-4034-86EA-FFC30AE6764B}.Debug|Win32.Build.0 = Debug|Win32
+		{8011C820-B3D5-4034-86EA-FFC30AE6764B}.Release|Win32.ActiveCfg = Release|Win32
+		{8011C820-B3D5-4034-86EA-FFC30AE6764B}.Release|Win32.Build.0 = Release|Win32
+		{C88C1FBF-59D2-447F-BF57-0BCA8889028F}.Debug|Win32.ActiveCfg = Debug|Win32
+		{C88C1FBF-59D2-447F-BF57-0BCA8889028F}.Debug|Win32.Build.0 = Debug|Win32
+		{C88C1FBF-59D2-447F-BF57-0BCA8889028F}.Release|Win32.ActiveCfg = Release|Win32
+		{C88C1FBF-59D2-447F-BF57-0BCA8889028F}.Release|Win32.Build.0 = Release|Win32
+		{6A92BF14-8931-48B1-A571-DEBE9F190616}.Debug|Win32.ActiveCfg = Debug|Win32
+		{6A92BF14-8931-48B1-A571-DEBE9F190616}.Debug|Win32.Build.0 = Debug|Win32
+		{6A92BF14-8931-48B1-A571-DEBE9F190616}.Release|Win32.ActiveCfg = Release|Win32
+		{6A92BF14-8931-48B1-A571-DEBE9F190616}.Release|Win32.Build.0 = Release|Win32
+		{1B814CC1-EAD4-4A13-B29C-A67B23C9845A}.Debug|Win32.ActiveCfg = Debug|Win32
+		{1B814CC1-EAD4-4A13-B29C-A67B23C9845A}.Debug|Win32.Build.0 = Debug|Win32
+		{1B814CC1-EAD4-4A13-B29C-A67B23C9845A}.Release|Win32.ActiveCfg = Release|Win32
+		{1B814CC1-EAD4-4A13-B29C-A67B23C9845A}.Release|Win32.Build.0 = Release|Win32
+		{1ACE209D-D56E-450B-8711-B73E4ACFC38E}.Debug|Win32.ActiveCfg = Debug|Win32
+		{1ACE209D-D56E-450B-8711-B73E4ACFC38E}.Debug|Win32.Build.0 = Debug|Win32
+		{1ACE209D-D56E-450B-8711-B73E4ACFC38E}.Release|Win32.ActiveCfg = Release|Win32
+		{1ACE209D-D56E-450B-8711-B73E4ACFC38E}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

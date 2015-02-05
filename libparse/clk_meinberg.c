@@ -157,7 +157,7 @@ mbg_csum(
 	 )
 {
   unsigned long sum = 0;
-  short i;
+  unsigned int i;
   
   for ( i = 0; i < n; i++ )
     sum += *p++;

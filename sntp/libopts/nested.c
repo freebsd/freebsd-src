@@ -645,7 +645,7 @@ unload_arg_list(tArgList * arg_list)
     char const ** pnew_val = arg_list->apzArgs;
 
     while (ct-- > 0) {
-        tOptionValue* new_val = (tOptionValue*)(void*)*(pnew_val++);
+        tOptionValue* new_val = (tOptionValue*)(void*)(intptr_t)*(pnew_val++);
         if (new_val->valType == OPARG_TYPE_HIERARCHY)
             unload_arg_list(new_val->v.nestVal);
         AGFREE(new_val);
@@ -675,7 +675,7 @@ optionUnloadNested(tOptionValue const * opt_val)
 
     unload_arg_list(opt_val->v.nestVal);
 
-    AGFREE((void*)opt_val);
+    AGFREE((void*)(intptr_t)opt_val);
 }
 
 /**
@@ -694,8 +694,8 @@ sort_list(tArgList * arg_list)
      */
     for (ix = 0; ++ix < lm;) {
         int iy = ix-1;
-        tOptionValue * new_v = C(tOptionValue *, arg_list->apzArgs[ix]);
-        tOptionValue * old_v = C(tOptionValue *, arg_list->apzArgs[iy]);
+        tOptionValue * new_v = C(tOptionValue *, (intptr_t)arg_list->apzArgs[ix]);
+        tOptionValue * old_v = C(tOptionValue *, (intptr_t)arg_list->apzArgs[iy]);
 
         /*
          *  For as long as the new entry precedes the "old" entry,
@@ -704,7 +704,7 @@ sort_list(tArgList * arg_list)
          */
         while (strcmp(old_v->pzName, new_v->pzName) > 0) {
             arg_list->apzArgs[iy+1] = (void*)old_v;
-            old_v = (tOptionValue*)(void*)(arg_list->apzArgs[--iy]);
+            old_v = (tOptionValue*)(void*)(intptr_t)(arg_list->apzArgs[--iy]);
             if (iy < 0)
                 break;
         }
@@ -837,7 +837,7 @@ optionNestedVal(tOptions * opts, tOptDesc * od)
         av = arg_list->apzArgs;
 
         while (--ct >= 0) {
-            void * p = (void *)*(av++);
+            void * p = (void *)(intptr_t)*(av++);
             optionUnloadNested((tOptionValue const *)p);
         }
 
@@ -872,7 +872,7 @@ get_special_char(char const ** ppz, int * ct)
             base = 16;
             pz++;
         }
-        retch = (int)strtoul(pz, (char **)&pz, base);
+        retch = (int)strtoul(pz, (char **)(intptr_t)&pz, base);
         if (*pz != ';')
             return '&';
         base = (int)(++pz - *ppz);

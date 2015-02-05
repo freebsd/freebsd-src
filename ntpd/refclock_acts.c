@@ -343,7 +343,7 @@ acts_receive(
 				up->bufptr = up->buf;
 				acts_message(peer, up->buf);
 			}
-		} else if (!iscntrl(*tptr)) {
+		} else if (!iscntrl((unsigned char)*tptr)) {
 			*up->bufptr++ = *tptr;
 			if (*tptr == '*' || *tptr == '#') {
 				up->tstamp = pp->lastrec;
@@ -515,7 +515,7 @@ acts_timeout(
 		    up->unit);
 		fd = refclock_open(device, SPEED232, LDISC_ACTS |
 		    LDISC_RAW | LDISC_REMOTE);
-		if (fd <= 0) {
+		if (fd < 0) {
 			msyslog(LOG_ERR, "acts: open fails %m");
 			return;
 		}

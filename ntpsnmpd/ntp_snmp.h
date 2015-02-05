@@ -26,6 +26,9 @@
 #ifdef PACKAGE_TARNAME
 # undef PACKAGE_TARNAME
 #endif
+#ifdef PACKAGE_URL
+# undef PACKAGE_URL
+#endif
 #ifdef PACKAGE_VERSION
 # undef PACKAGE_VERSION
 #endif

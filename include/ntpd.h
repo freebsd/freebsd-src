@@ -78,7 +78,7 @@ extern	int	mprintf_event	(int, struct peer *, const char *, ...)
 struct ctl_var {
 	u_short code;
 	u_short flags;
-	char *text;
+	const char *text;
 };
 /*
  * Flag values
@@ -218,7 +218,7 @@ extern struct value tai_leap;
 /* ntp_proto.c */
 extern	void	transmit	(struct peer *);
 extern	void	receive 	(struct recvbuf *);
-extern	void	peer_clear	(struct peer *, char *);
+extern	void	peer_clear	(struct peer *, const char *);
 extern	void 	process_packet	(struct peer *, struct pkt *, u_int);
 extern	void	clock_select	(void);
 
@@ -285,7 +285,7 @@ extern	void	record_loop_stats (double, double, double, double, int);
 extern	void	record_clock_stats (sockaddr_u *, const char *);
 extern	int	mprintf_clock_stats(sockaddr_u *, const char *, ...)
 			NTP_PRINTF(2, 3);
-extern	void	record_raw_stats (sockaddr_u *srcadr, sockaddr_u *dstadr, l_fp *t1, l_fp *t2, l_fp *t3, l_fp *t4, int leap, int version, int mode, int stratum, int poll, int precision, double root_delay, double root_dispersion, u_int32 refid);
+extern	void	record_raw_stats (sockaddr_u *srcadr, sockaddr_u *dstadr, l_fp *t1, l_fp *t2, l_fp *t3, l_fp *t4, int leap, int version, int mode, int stratum, int ppoll, int precision, double root_delay, double root_dispersion, u_int32 refid);
 extern	void	check_leap_file	(int is_daily_check, u_int32 ntptime, const time_t * systime);
 extern	void	record_crypto_stats (sockaddr_u *, const char *);
 #ifdef DEBUG
