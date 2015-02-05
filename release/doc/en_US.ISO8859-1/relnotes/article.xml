@@ -138,13 +138,106 @@
     <sect2 xml:id="security">
       <title>Security Advisories</title>
 
-      <para>No advisories.</para>
+      <informaltable frame="none" pgwide="1">
+	<tgroup cols="3">
+	  <colspec colwidth="40%"/>
+	  <colspec colwidth="30%"/>
+	  <colspec colwidth="30%"/>
+	  <thead>
+	    <row>
+	      <entry>Advisory</entry>
+	      <entry>Date</entry>
+	      <entry>Topic</entry>
+	    </row>
+	  </thead>
+
+	  <tbody>
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:27.stdio.asc">FreeBSD-SA-14:27.stdio</link></entry>
+	      <entry>10&nbsp;December&nbsp;2014</entry>
+	      <entry><para>Buffer overflow in stdio</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:28.file.asc">FreeBSD-SA-14:28.file</link></entry>
+	      <entry>10&nbsp;December&nbsp;2014</entry>
+	      <entry><para>Multiple vulnerabilities in &man.file.1;
+		and &man.libmagic.3;</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:30.unbound.asc">FreeBSD-SA-14:30.unbound</link></entry>
+	      <entry>17&nbsp;December&nbsp;2014</entry>
+	      <entry><para>Remote denial of service
+		vulnerability</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:31.ntp.asc">FreeBSD-SA-14:31.ntp</link></entry>
+	      <entry>23&nbsp;December&nbsp;2014</entry>
+	      <entry><para>Multiple vulnerabilities in NTP
+		suite</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-15:01.openssl.asc">FreeBSD-SA-15:01.openssl</link></entry>
+	      <entry>14&nbsp;January&nbsp;2015</entry>
+	      <entry><para>Multiple vulnerabilities in
+		OpenSSL</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-15:02.kmem.asc">FreeBSD-SA-15:02.kmem</link></entry>
+	      <entry>27&nbsp;January&nbsp;2015</entry>
+	      <entry><para>SCTP kernel memory corruption and
+		disclosure vulnerability</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-15:03.sctp.asc">FreeBSD-SA-15:03.sctp</link></entry>
+	      <entry>27&nbsp;January&nbsp;2015</entry>
+	      <entry><para>SCTP stream reset
+		vulnerability</para></entry>
+	    </row>
+	  </tbody>
+	</tgroup>
+      </informaltable>
     </sect2>
 
     <sect2 xml:id="errata">
       <title>Errata Notices</title>
 
-      <para>No errata notices.</para>
+      <informaltable frame="none" pgwide="1">
+	<tgroup cols="3">
+	  <colspec colwidth="40%"/>
+	  <colspec colwidth="30%"/>
+	  <colspec colwidth="30%"/>
+	  <thead>
+	    <row>
+	      <entry>Errata</entry>
+	      <entry>Date</entry>
+	      <entry>Topic</entry>
+	    </row>
+	  </thead>
+
+	  <tbody>
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-EN-14:13.freebsd-update.asc">FreeBSD-EN-14:13.freebsd-update</link></entry>
+	      <entry>23&nbsp;December&nbsp;2014</entry>
+	      <entry><para>Fixed directory deletion issue in
+		&man.freebsd-update.8;</para></entry>
+	    </row>
+	  </tbody>
+	</tgroup>
+      </informaltable>
     </sect2>
   </sect1>
 
