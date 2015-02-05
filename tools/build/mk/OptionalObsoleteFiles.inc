@@ -3876,6 +3876,8 @@ OLD_FILES+=usr/share/man/man8/utxrm.8.gz
 
 .if ${MK_WIRELESS} == no
 OLD_FILES+=etc/regdomain.xml
+OLD_FILES+=etc/rc.d/hostapd
+OLD_FILES+=etc/rc.d/wpa_supplicant
 OLD_FILES+=usr/sbin/ancontrol
 OLD_FILES+=usr/sbin/hostapd
 OLD_FILES+=usr/sbin/hostapd_cli
