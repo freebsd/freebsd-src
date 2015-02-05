@@ -101,7 +101,6 @@ FILES=	DAEMON \
 	pflog \
 	pfsync \
 	powerd \
-	power_profile \
 	ppp \
 	pppoed \
 	pwcheck \
@@ -152,6 +151,10 @@ FILES=	DAEMON \
 
 .if ${MK_AMD} != "no"
 FILES+=		amd
+.endif
+
+.if ${MK_ACPI} != "no"
+FILES+=		power_profile
 .endif
 
 .if ${MK_APM} != "no"
