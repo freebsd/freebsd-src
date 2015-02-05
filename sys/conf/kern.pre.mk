@@ -79,6 +79,9 @@ INCLUDES+= -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal
 # ... and the same for the NgATM stuff
 INCLUDES+= -I$S/contrib/ngatm
 
+# ... and the same for vchiq
+INCLUDES+= -I$S/contrib/vchiq
+
 # ... and the same for twa
 INCLUDES+= -I$S/dev/twa
 

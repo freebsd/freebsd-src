@@ -48,7 +48,7 @@ sfxge_mac_stat_update(struct sfxge_softc *sc)
 	unsigned int count;
 	int rc;
 
-	SFXGE_PORT_LOCK(port);
+	SFXGE_PORT_LOCK_ASSERT_OWNED(port);
 
 	if (port->init_state != SFXGE_PORT_STARTED) {
 		rc = 0;
@@ -82,7 +82,6 @@ sfxge_mac_stat_update(struct sfxge_softc *sc)
 
 	rc = ETIMEDOUT;
 out:
-	SFXGE_PORT_UNLOCK(port);
 	return (rc);
 }
 
@@ -93,12 +92,16 @@ sfxge_mac_stat_handler(SYSCTL_HANDLER_ARGS)
 	unsigned int id = arg2;
 	int rc;
 
+	SFXGE_PORT_LOCK(&sc->port);
 	if ((rc = sfxge_mac_stat_update(sc)) != 0)
-		return (rc);
+		goto out;
 
-	return (SYSCTL_OUT(req,
-			  (uint64_t *)sc->port.mac_stats.decode_buf + id,
-			  sizeof(uint64_t)));
+	rc = SYSCTL_OUT(req,
+			(uint64_t *)sc->port.mac_stats.decode_buf + id,
+			sizeof(uint64_t));
+out:
+	SFXGE_PORT_UNLOCK(&sc->port);
+	return (rc);
 }
 
 static void
@@ -453,7 +456,7 @@ sfxge_phy_stat_update(struct sfxge_softc *sc)
 	unsigned int count;
 	int rc;
 
-	SFXGE_PORT_LOCK(port);
+	SFXGE_PORT_LOCK_ASSERT_OWNED(port);
 
 	if (port->init_state != SFXGE_PORT_STARTED) {
 		rc = 0;
@@ -487,7 +490,6 @@ sfxge_phy_stat_update(struct sfxge_softc *sc)
 
 	rc = ETIMEDOUT;
 out:
-	SFXGE_PORT_UNLOCK(port);
 	return (rc);
 }
 
@@ -498,12 +500,16 @@ sfxge_phy_stat_handler(SYSCTL_HANDLER_ARGS)
 	unsigned int id = arg2;
 	int rc;
 
+	SFXGE_PORT_LOCK(&sc->port);
 	if ((rc = sfxge_phy_stat_update(sc)) != 0)
-		return (rc);
+		goto out;
 
-	return (SYSCTL_OUT(req,
-			  (uint32_t *)sc->port.phy_stats.decode_buf + id,
-			  sizeof(uint32_t)));
+	rc = SYSCTL_OUT(req,
+			(uint32_t *)sc->port.phy_stats.decode_buf + id,
+			sizeof(uint32_t));
+out:
+	SFXGE_PORT_UNLOCK(&sc->port);
+	return (rc);
 }
 
 static void
@@ -577,7 +583,7 @@ sfxge_port_init(struct sfxge_softc *sc)
 
 	port->sc = sc;
 
-	SFXGE_PORT_LOCK_INIT(port, "sfxge_port");
+	SFXGE_PORT_LOCK_INIT(port, device_get_nameunit(sc->dev));
 
 	port->phy_stats.decode_buf = malloc(EFX_PHY_NSTATS * sizeof(uint32_t),
 					    M_SFXGE, M_WAITOK | M_ZERO);
