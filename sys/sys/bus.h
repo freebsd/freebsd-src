@@ -77,7 +77,7 @@ struct u_device {
 	char		dv_pnpinfo[128];	/**< @brief Plug and play info */
 	char		dv_location[128];	/**< @brief Where is the device? */
 	uint32_t	dv_devflags;		/**< @brief API Flags for device */
-	uint16_t	dv_flags;		/**< @brief flags for dev date */
+	uint16_t	dv_flags;		/**< @brief flags for dev state */
 	device_state_t	dv_state;		/**< @brief State of attachment */
 	uint64_t	dv_fields;		/**< @brief Further fields */
 #define	DV_FIELD_INTR_PARENT	0x1
@@ -104,6 +104,17 @@ struct ou_device {
 	uint16_t	dv_flags;		/**< @brief flags for dev date */
 	device_state_t	dv_state;		/**< @brief State of attachment */
 };
+
+/* Flags exported via dv_flags. */
+#define	DF_ENABLED	0x01		/* device should be probed/attached */
+#define	DF_FIXEDCLASS	0x02		/* devclass specified at create time */
+#define	DF_WILDCARD	0x04		/* unit was originally wildcard */
+#define	DF_DESCMALLOCED	0x08		/* description was malloced */
+#define	DF_QUIET	0x10		/* don't print verbose attach message */
+#define	DF_DONENOMATCH	0x20		/* don't execute DEVICE_NOMATCH again */
+#define	DF_EXTERNALSOFTC 0x40		/* softc not allocated by us */
+#define	DF_REBID	0x80		/* Can rebid after attach */
+#define	DF_SUSPENDED	0x100		/* Device is suspended. */
 
 #ifdef _KERNEL
 
