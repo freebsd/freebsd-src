@@ -267,6 +267,9 @@ db_backtrace(struct thread *td, db_addr_t fp, int count)
 			db_printf("%-10s  r1=%#zx cr=%#x xer=%#x ctr=%#zx",
 			    "", tf->fixreg[1], (uint32_t)tf->cr,
 			    (uint32_t)tf->xer, tf->ctr);
+#ifdef __powerpc64__
+			db_printf(" r2=%#zx", tf->fixreg[2]);
+#endif
 			if (tf->exc == EXC_DSI)
 				db_printf(" sr=%#x",
 				    (uint32_t)tf->cpu.aim.dsisr);

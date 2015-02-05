@@ -68,6 +68,14 @@ typedef struct {
 extern void io_init(void);
 
 
+#ifndef TUKLIB_DOSLIKE
+/// \brief      Write a byte to user_abort_pipe[1]
+///
+/// This is called from a signal handler.
+extern void io_write_to_user_abort_pipe(void);
+#endif
+
+
 /// \brief      Disable creation of sparse files when decompressing
 extern void io_no_sparse(void);
 
@@ -100,6 +108,19 @@ extern void io_close(file_pair *pair, bool success);
 ///             file zero is returned and pair->src_eof set to true.
 ///             On error, SIZE_MAX is returned and error message printed.
 extern size_t io_read(file_pair *pair, io_buf *buf, size_t size);
+
+
+/// \brief      Fix the position in src_fd
+///
+/// This is used when --single-thream has been specified and decompression
+/// is successful. If the input file descriptor supports seeking, this
+/// function fixes the input position to point to the next byte after the
+/// decompressed stream.
+///
+/// \param      pair        File pair having the source file open for reading
+/// \param      rewind_size How many bytes of extra have been read i.e.
+///                         how much to seek backwards.
+extern void io_fix_src_pos(file_pair *pair, size_t rewind_size);
 
 
 /// \brief      Read from source file from given offset to a buffer

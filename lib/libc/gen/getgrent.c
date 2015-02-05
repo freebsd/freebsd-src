@@ -1450,7 +1450,7 @@ docompat:
 		pos = ftello(st->fp);
 	}
 fin:
-	if (!stayopen && st->fp != NULL) {
+	if (st->fp != NULL && !stayopen) {
 		fclose(st->fp);
 		st->fp = NULL;
 	}

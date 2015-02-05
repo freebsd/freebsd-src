@@ -371,6 +371,10 @@ static devclass_t psm_devclass;
 /* other flags (flags) */
 #define	PSM_FLAGS_FINGERDOWN	0x0001	/* VersaPad finger down */
 
+#define kbdcp(p)			((atkbdc_softc_t *)(p))
+#define ALWAYS_RESTORE_CONTROLLER(kbdc)	!(kbdcp(kbdc)->quirks \
+    & KBDC_QUIRK_KEEP_ACTIVATED)
+
 /* Tunables */
 static int tap_enabled = -1;
 TUNABLE_INT("hw.psm.tap_enabled", &tap_enabled);
@@ -1231,7 +1235,8 @@ psmprobe(device_t dev)
 		 * this is CONTROLLER ERROR; I don't know how to recover
 		 * from this error...
 		 */
-		restore_controller(sc->kbdc, command_byte);
+		if (ALWAYS_RESTORE_CONTROLLER(sc->kbdc))
+			restore_controller(sc->kbdc, command_byte);
 		printf("psm%d: unable to set the command byte.\n", unit);
 		endprobe(ENXIO);
 	}
@@ -1270,7 +1275,8 @@ psmprobe(device_t dev)
 		recover_from_error(sc->kbdc);
 		if (sc->config & PSM_CONFIG_IGNPORTERROR)
 			break;
-		restore_controller(sc->kbdc, command_byte);
+		if (ALWAYS_RESTORE_CONTROLLER(sc->kbdc))
+			restore_controller(sc->kbdc, command_byte);
 		if (verbose)
 			printf("psm%d: the aux port is not functioning (%d).\n",
 			    unit, i);
@@ -1293,7 +1299,8 @@ psmprobe(device_t dev)
 		 */
 		if (!reset_aux_dev(sc->kbdc)) {
 			recover_from_error(sc->kbdc);
-			restore_controller(sc->kbdc, command_byte);
+			if (ALWAYS_RESTORE_CONTROLLER(sc->kbdc))
+				restore_controller(sc->kbdc, command_byte);
 			if (verbose)
 				printf("psm%d: failed to reset the aux "
 				    "device.\n", unit);
@@ -1315,7 +1322,8 @@ psmprobe(device_t dev)
 	if (!enable_aux_dev(sc->kbdc) || !disable_aux_dev(sc->kbdc)) {
 		/* MOUSE ERROR */
 		recover_from_error(sc->kbdc);
-		restore_controller(sc->kbdc, command_byte);
+		if (ALWAYS_RESTORE_CONTROLLER(sc->kbdc))
+			restore_controller(sc->kbdc, command_byte);
 		if (verbose)
 			printf("psm%d: failed to enable the aux device.\n",
 			    unit);
@@ -1337,7 +1345,8 @@ psmprobe(device_t dev)
 	/* verify the device is a mouse */
 	sc->hw.hwid = get_aux_id(sc->kbdc);
 	if (!is_a_mouse(sc->hw.hwid)) {
-		restore_controller(sc->kbdc, command_byte);
+		if (ALWAYS_RESTORE_CONTROLLER(sc->kbdc))
+			restore_controller(sc->kbdc, command_byte);
 		if (verbose)
 			printf("psm%d: unknown device type (%d).\n", unit,
 			    sc->hw.hwid);
@@ -1443,7 +1452,8 @@ psmprobe(device_t dev)
 		 * this is CONTROLLER ERROR; I don't know the proper way to
 		 * recover from this error...
 		 */
-		restore_controller(sc->kbdc, command_byte);
+		if (ALWAYS_RESTORE_CONTROLLER(sc->kbdc))
+			restore_controller(sc->kbdc, command_byte);
 		printf("psm%d: unable to set the command byte.\n", unit);
 		endprobe(ENXIO);
 	}

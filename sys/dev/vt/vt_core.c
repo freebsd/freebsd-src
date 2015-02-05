@@ -2518,6 +2518,7 @@ vt_upgrade(struct vt_device *vd)
 {
 	struct vt_window *vw;
 	unsigned int i;
+	int register_handlers;
 
 	if (!vty_enabled(VTY_VT))
 		return;
@@ -2546,6 +2547,7 @@ vt_upgrade(struct vt_device *vd)
 	if (vd->vd_curwindow == NULL)
 		vd->vd_curwindow = vd->vd_windows[VT_CONSWINDOW];
 
+	register_handlers = 0;
 	if (!(vd->vd_flags & VDF_ASYNC)) {
 		/* Attach keyboard. */
 		vt_allocate_keyboard(vd);
@@ -2557,18 +2559,21 @@ vt_upgrade(struct vt_device *vd)
 		vd->vd_flags |= VDF_ASYNC;
 		callout_reset(&vd->vd_timer, hz / VT_TIMERFREQ, vt_timer, vd);
 		vd->vd_timer_armed = 1;
-
-		/* Register suspend/resume handlers. */
-		EVENTHANDLER_REGISTER(power_suspend_early, vt_suspend_handler,
-		    vd, EVENTHANDLER_PRI_ANY);
-		EVENTHANDLER_REGISTER(power_resume, vt_resume_handler, vd,
-		    EVENTHANDLER_PRI_ANY);
+		register_handlers = 1;
 	}
 
 	VT_UNLOCK(vd);
 
 	/* Refill settings with new sizes. */
 	vt_resize(vd);
+
+	if (register_handlers) {
+		/* Register suspend/resume handlers. */
+		EVENTHANDLER_REGISTER(power_suspend_early, vt_suspend_handler,
+		    vd, EVENTHANDLER_PRI_ANY);
+		EVENTHANDLER_REGISTER(power_resume, vt_resume_handler, vd,
+		    EVENTHANDLER_PRI_ANY);
+	}
 }
 
 static void

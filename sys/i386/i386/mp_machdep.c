@@ -719,8 +719,11 @@ init_secondary(void)
 	load_cr0(cr0);
 	CHECK_WRITE(0x38, 5);
 	
-	/* Disable local APIC just to be sure. */
-	lapic_disable();
+	/*
+	 * On real hardware, switch to x2apic mode if possible.
+	 * Disable local APIC until BSP directed APs to run.
+	 */
+	lapic_xapic_mode();
 
 	/* signal our startup to the BSP. */
 	mp_naps++;
@@ -1552,6 +1555,7 @@ cpususpend_handler(void)
 		cpu_ops.cpu_resume();
 
 	/* Resume MCA and local APIC */
+	lapic_xapic_mode();
 	mca_resume();
 	lapic_setup(0);
 

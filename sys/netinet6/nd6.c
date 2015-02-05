@@ -473,9 +473,28 @@ nd6_llinfo_timer(void *arg)
 
 	KASSERT(arg != NULL, ("%s: arg NULL", __func__));
 	ln = (struct llentry *)arg;
-	LLE_WLOCK_ASSERT(ln);
+	LLE_WLOCK(ln);
+	if (callout_pending(&ln->la_timer)) {
+		/*
+		 * Here we are a bit odd here in the treatment of 
+		 * active/pending. If the pending bit is set, it got
+		 * rescheduled before I ran. The active
+		 * bit we ignore, since if it was stopped
+		 * in ll_tablefree() and was currently running
+		 * it would have return 0 so the code would
+		 * not have deleted it since the callout could
+		 * not be stopped so we want to go through
+		 * with the delete here now. If the callout
+		 * was restarted, the pending bit will be back on and
+		 * we just want to bail since the callout_reset would
+		 * return 1 and our reference would have been removed
+		 * by nd6_llinfo_settimer_locked above since canceled
+		 * would have been 1.
+		 */
+		LLE_WUNLOCK(ln);
+		return;
+	}
 	ifp = ln->lle_tbl->llt_ifp;
-
 	CURVNET_SET(ifp->if_vnet);
 
 	if (ln->ln_ntick > 0) {

@@ -1940,7 +1940,7 @@ getprompt(void *unused __unused)
 	 */
 	switch (whichprompt) {
 	case 0:
-		fmt = nullstr;
+		fmt = "";
 		break;
 	case 1:
 		fmt = ps1val();

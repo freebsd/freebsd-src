@@ -492,7 +492,7 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 		if (nr)
 			mb->m_next = mb_list[nr];
 		mb = mb_list[nr];
-		mb->m_len = frag_info[nr].frag_size;
+		mb->m_len = frag_info->frag_size;
 		dma = be64_to_cpu(rx_desc->data[nr].addr);
 
                 /* Allocate a replacement page */

@@ -531,8 +531,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_GETFL:
-		error = fget_unlocked(fdp, fd,
-		    cap_rights_init(&rights, CAP_FCNTL), F_GETFL, &fp, NULL);
+		error = fget_fcntl(td, fd,
+		    cap_rights_init(&rights, CAP_FCNTL), F_GETFL, &fp);
 		if (error != 0)
 			break;
 		td->td_retval[0] = OFLAGS(fp->f_flag);
@@ -540,8 +540,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_SETFL:
-		error = fget_unlocked(fdp, fd,
-		    cap_rights_init(&rights, CAP_FCNTL), F_SETFL, &fp, NULL);
+		error = fget_fcntl(td, fd,
+		    cap_rights_init(&rights, CAP_FCNTL), F_SETFL, &fp);
 		if (error != 0)
 			break;
 		do {
@@ -568,8 +568,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_GETOWN:
-		error = fget_unlocked(fdp, fd,
-		    cap_rights_init(&rights, CAP_FCNTL), F_GETOWN, &fp, NULL);
+		error = fget_fcntl(td, fd,
+		    cap_rights_init(&rights, CAP_FCNTL), F_GETOWN, &fp);
 		if (error != 0)
 			break;
 		error = fo_ioctl(fp, FIOGETOWN, &tmp, td->td_ucred, td);
@@ -579,8 +579,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_SETOWN:
-		error = fget_unlocked(fdp, fd,
-		    cap_rights_init(&rights, CAP_FCNTL), F_SETOWN, &fp, NULL);
+		error = fget_fcntl(td, fd,
+		    cap_rights_init(&rights, CAP_FCNTL), F_SETOWN, &fp);
 		if (error != 0)
 			break;
 		tmp = arg;
@@ -602,7 +602,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	case F_SETLK:
 	do_setlk:
 		cap_rights_init(&rights, CAP_FLOCK);
-		error = fget_unlocked(fdp, fd, &rights, 0, &fp, NULL);
+		error = fget_unlocked(fdp, fd, &rights, &fp, NULL);
 		if (error != 0)
 			break;
 		if (fp->f_type != DTYPE_VNODE) {
@@ -691,7 +691,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		 * that the closing thread was a bit slower and that the
 		 * advisory lock succeeded before the close.
 		 */
-		error = fget_unlocked(fdp, fd, &rights, 0, &fp2, NULL);
+		error = fget_unlocked(fdp, fd, &rights, &fp2, NULL);
 		if (error != 0) {
 			fdrop(fp, td);
 			break;
@@ -710,7 +710,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_GETLK:
 		error = fget_unlocked(fdp, fd,
-		    cap_rights_init(&rights, CAP_FLOCK), 0, &fp, NULL);
+		    cap_rights_init(&rights, CAP_FLOCK), &fp, NULL);
 		if (error != 0)
 			break;
 		if (fp->f_type != DTYPE_VNODE) {
@@ -748,7 +748,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		arg = arg ? 128 * 1024: 0;
 		/* FALLTHROUGH */
 	case F_READAHEAD:
-		error = fget_unlocked(fdp, fd, NULL, 0, &fp, NULL);
+		error = fget_unlocked(fdp, fd, NULL, &fp, NULL);
 		if (error != 0)
 			break;
 		if (fp->f_type != DTYPE_VNODE) {
@@ -2327,17 +2327,17 @@ finit(struct file *fp, u_int flag, short type, void *data, struct fileops *ops)
 
 int
 fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
-    int needfcntl, struct file **fpp, cap_rights_t *haverightsp)
+    struct file **fpp, seq_t *seqp)
 {
 #ifdef CAPABILITIES
-	struct filedescent fde;
+	struct filedescent *fde;
 #endif
 	struct fdescenttbl *fdt;
 	struct file *fp;
 	u_int count;
 #ifdef CAPABILITIES
 	seq_t seq;
-	cap_rights_t *haverights;
+	cap_rights_t haverights;
 	int error;
 #endif
 
@@ -2355,28 +2355,23 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	for (;;) {
 #ifdef CAPABILITIES
 		seq = seq_read(fd_seq(fdt, fd));
-		fde = fdt->fdt_ofiles[fd];
+		fde = &fdt->fdt_ofiles[fd];
+		haverights = *cap_rights_fde(fde);
+		fp = fde->fde_file;
 		if (!seq_consistent(fd_seq(fdt, fd), seq)) {
 			cpu_spinwait();
 			continue;
 		}
-		fp = fde.fde_file;
 #else
 		fp = fdt->fdt_ofiles[fd].fde_file;
 #endif
 		if (fp == NULL)
 			return (EBADF);
 #ifdef CAPABILITIES
-		haverights = cap_rights_fde(&fde);
 		if (needrightsp != NULL) {
-			error = cap_check(haverights, needrightsp);
+			error = cap_check(&haverights, needrightsp);
 			if (error != 0)
 				return (error);
-			if (cap_rights_is_set(needrightsp, CAP_FCNTL)) {
-				error = cap_fcntl_check_fde(&fde, needfcntl);
-				if (error != 0)
-					return (error);
-			}
 		}
 #endif
 	retry:
@@ -2406,11 +2401,9 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 		fdrop(fp, curthread);
 	}
 	*fpp = fp;
-	if (haverightsp != NULL) {
+	if (seqp != NULL) {
 #ifdef CAPABILITIES
-		*haverightsp = *haverights;
-#else
-		CAP_ALL(haverightsp);
+		*seqp = seq;
 #endif
 	}
 	return (0);
@@ -2431,11 +2424,11 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
  */
 static __inline int
 _fget(struct thread *td, int fd, struct file **fpp, int flags,
-    cap_rights_t *needrightsp, u_char *maxprotp)
+    cap_rights_t *needrightsp, seq_t *seqp)
 {
 	struct filedesc *fdp;
 	struct file *fp;
-	cap_rights_t haverights, needrights;
+	cap_rights_t needrights;
 	int error;
 
 	*fpp = NULL;
@@ -2444,26 +2437,13 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags,
 		needrights = *needrightsp;
 	else
 		cap_rights_init(&needrights);
-	if (maxprotp != NULL)
-		cap_rights_set(&needrights, CAP_MMAP);
-	error = fget_unlocked(fdp, fd, &needrights, 0, &fp, &haverights);
+	error = fget_unlocked(fdp, fd, &needrights, &fp, seqp);
 	if (error != 0)
 		return (error);
 	if (fp->f_ops == &badfileops) {
 		fdrop(fp, td);
 		return (EBADF);
 	}
-
-#ifdef CAPABILITIES
-	/*
-	 * If requested, convert capability rights to access flags.
-	 */
-	if (maxprotp != NULL)
-		*maxprotp = cap_rights_to_vmprot(&haverights);
-#else /* !CAPABILITIES */
-	if (maxprotp != NULL)
-		*maxprotp = VM_PROT_ALL;
-#endif /* CAPABILITIES */
 
 	/*
 	 * FREAD and FWRITE failure return EBADF as per POSIX.
@@ -2506,8 +2486,31 @@ int
 fget_mmap(struct thread *td, int fd, cap_rights_t *rightsp, u_char *maxprotp,
     struct file **fpp)
 {
+	int error;
+#ifndef CAPABILITIES
+	error = _fget(td, fd, fpp, 0, rightsp, NULL);
+	if (maxprotp != NULL)
+		*maxprotp = VM_PROT_ALL;
+#else
+	struct filedesc *fdp = td->td_proc->p_fd;
+	seq_t seq;
 
-	return (_fget(td, fd, fpp, 0, rightsp, maxprotp));
+	MPASS(cap_rights_is_set(rightsp, CAP_MMAP));
+	for (;;) {
+		error = _fget(td, fd, fpp, 0, rightsp, &seq);
+		if (error != 0)
+			return (error);
+		/*
+		 * If requested, convert capability rights to access flags.
+		 */
+		if (maxprotp != NULL)
+			*maxprotp = cap_rights_to_vmprot(cap_rights(fdp, fd));
+		if (!fd_modified(fdp, fd, seq))
+			break;
+		fdrop(*fpp, td);
+	}
+#endif
+	return (error);
 }
 
 int
@@ -2522,6 +2525,35 @@ fget_write(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp)
 {
 
 	return (_fget(td, fd, fpp, FWRITE, rightsp, NULL));
+}
+
+int
+fget_fcntl(struct thread *td, int fd, cap_rights_t *rightsp, int needfcntl,
+    struct file **fpp)
+{
+	struct filedesc *fdp = td->td_proc->p_fd;
+#ifndef CAPABILITIES
+	return (fget_unlocked(fdp, fd, rightsp, fpp, NULL));
+#else
+	int error;
+	seq_t seq;
+
+	MPASS(cap_rights_is_set(rightsp, CAP_FCNTL));
+	for (;;) {
+		error = fget_unlocked(fdp, fd, rightsp, fpp, &seq);
+		if (error != 0)
+			return (error);
+		error = cap_fcntl_check(fdp, fd, needfcntl);
+		if (!fd_modified(fdp, fd, seq))
+			break;
+		fdrop(*fpp, td);
+	}
+	if (error != 0) {
+		fdrop(*fpp, td);
+		*fpp = NULL;
+	}
+	return (error);
+#endif
 }
 
 /*

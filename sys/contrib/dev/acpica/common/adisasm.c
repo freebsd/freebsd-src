@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -357,8 +357,12 @@ AdAmlDisassemble (
         AcpiDmDumpDataTable (Table);
         fprintf (stderr, "Acpi Data Table [%4.4s] decoded\n",
             Table->Signature);
-        fprintf (stderr, "Formatted output:  %s - %u bytes\n",
-            DisasmFilename, CmGetFileSize (File));
+
+        if (File)
+        {
+            fprintf (stderr, "Formatted output:  %s - %u bytes\n",
+                DisasmFilename, CmGetFileSize (File));
+        }
     }
     else
     {
@@ -376,8 +380,11 @@ AdAmlDisassemble (
         {
             AcpiOsPrintf ("/**** Before second load\n");
 
-            NsSetupNamespaceListing (File);
-            NsDisplayNamespace ();
+            if (File)
+            {
+                NsSetupNamespaceListing (File);
+                NsDisplayNamespace ();
+            }
             AcpiOsPrintf ("*****/\n");
         }
 
@@ -457,8 +464,11 @@ AdAmlDisassemble (
             if (AslCompilerdebug)
             {
                 AcpiOsPrintf ("/**** After second load and resource conversion\n");
-                NsSetupNamespaceListing (File);
-                NsDisplayNamespace ();
+                if (File)
+                {
+                    NsSetupNamespaceListing (File);
+                    NsDisplayNamespace ();
+                }
                 AcpiOsPrintf ("*****/\n");
 
                 AcpiDmDumpTree (AcpiGbl_ParseOpRoot);
@@ -487,8 +497,11 @@ AdAmlDisassemble (
             AcpiDmDumpDataTable (Table);
 
             fprintf (stderr, "Disassembly completed\n");
-            fprintf (stderr, "ASL Output:    %s - %u bytes\n",
-                DisasmFilename, CmGetFileSize (File));
+            if (File)
+            {
+                fprintf (stderr, "ASL Output:    %s - %u bytes\n",
+                    DisasmFilename, CmGetFileSize (File));
+            }
 
             if (Gbl_MapfileFlag)
             {
@@ -507,7 +520,7 @@ Cleanup:
         ACPI_FREE (Table);
     }
 
-    if (OutToFile && File)
+    if (File)
     {
         if (AslCompilerdebug) /* Display final namespace, with transforms */
         {
@@ -544,12 +557,26 @@ AdDisassemblerHeader (
 {
     time_t                  Timer;
 
+
     time (&Timer);
 
     /* Header and input table info */
 
     AcpiOsPrintf ("/*\n");
-    AcpiOsPrintf (ACPI_COMMON_HEADER ("AML Disassembler", " * "));
+    AcpiOsPrintf (ACPI_COMMON_HEADER (AML_DISASSEMBLER_NAME, " * "));
+
+    if (AcpiGbl_CstyleDisassembly)
+    {
+        AcpiOsPrintf (
+            " * Disassembling to symbolic ASL+ operators\n"
+            " *\n");
+    }
+    else
+    {
+        AcpiOsPrintf (
+            " * Disassembling to non-symbolic legacy ASL operators\n"
+            " *\n");
+    }
 
     AcpiOsPrintf (" * Disassembly of %s, %s", Filename, ctime (&Timer));
     AcpiOsPrintf (" *\n");

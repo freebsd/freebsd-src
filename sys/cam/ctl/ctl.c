@@ -4483,6 +4483,8 @@ ctl_init_log_page_index(struct ctl_lun *lun)
 	lun->log_pages.index[1].page_len = k * 2;
 	lun->log_pages.index[2].page_data = &lun->log_pages.lbp_page[0];
 	lun->log_pages.index[2].page_len = 12*CTL_NUM_LBP_PARAMS;
+	lun->log_pages.index[3].page_data = (uint8_t *)&lun->log_pages.stat_page;
+	lun->log_pages.index[3].page_len = sizeof(lun->log_pages.stat_page);
 
 	return (CTL_RETVAL_COMPLETE);
 }
@@ -4720,6 +4722,9 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 		lun->serseq = CTL_LUN_SERSEQ_OFF;
 
 	lun->ctl_softc = ctl_softc;
+#ifdef CTL_TIME_IO
+	lun->last_busy = getsbinuptime();
+#endif
 	TAILQ_INIT(&lun->ooa_queue);
 	TAILQ_INIT(&lun->blocked_queue);
 	STAILQ_INIT(&lun->error_list);
@@ -7081,6 +7086,67 @@ ctl_lbp_log_sense_handler(struct ctl_scsiio *ctsio,
 	}
 
 	page_index->page_len = data - page_index->page_data;
+	return (0);
+}
+
+int
+ctl_sap_log_sense_handler(struct ctl_scsiio *ctsio,
+			       struct ctl_page_index *page_index,
+			       int pc)
+{
+	struct ctl_lun *lun;
+	struct stat_page *data;
+	uint64_t rn, wn, rb, wb;
+	struct bintime rt, wt;
+	int i;
+
+	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+	data = (struct stat_page *)page_index->page_data;
+
+	scsi_ulto2b(SLP_SAP, data->sap.hdr.param_code);
+	data->sap.hdr.param_control = SLP_LBIN;
+	data->sap.hdr.param_len = sizeof(struct scsi_log_stat_and_perf) -
+	    sizeof(struct scsi_log_param_header);
+	rn = wn = rb = wb = 0;
+	bintime_clear(&rt);
+	bintime_clear(&wt);
+	for (i = 0; i < CTL_MAX_PORTS; i++) {
+		rn += lun->stats.ports[i].operations[CTL_STATS_READ];
+		wn += lun->stats.ports[i].operations[CTL_STATS_WRITE];
+		rb += lun->stats.ports[i].bytes[CTL_STATS_READ];
+		wb += lun->stats.ports[i].bytes[CTL_STATS_WRITE];
+		bintime_add(&rt, &lun->stats.ports[i].time[CTL_STATS_READ]);
+		bintime_add(&wt, &lun->stats.ports[i].time[CTL_STATS_WRITE]);
+	}
+	scsi_u64to8b(rn, data->sap.read_num);
+	scsi_u64to8b(wn, data->sap.write_num);
+	if (lun->stats.blocksize > 0) {
+		scsi_u64to8b(wb / lun->stats.blocksize,
+		    data->sap.recvieved_lba);
+		scsi_u64to8b(rb / lun->stats.blocksize,
+		    data->sap.transmitted_lba);
+	}
+	scsi_u64to8b((uint64_t)rt.sec * 1000 + rt.frac / (UINT64_MAX / 1000),
+	    data->sap.read_int);
+	scsi_u64to8b((uint64_t)wt.sec * 1000 + wt.frac / (UINT64_MAX / 1000),
+	    data->sap.write_int);
+	scsi_u64to8b(0, data->sap.weighted_num);
+	scsi_u64to8b(0, data->sap.weighted_int);
+	scsi_ulto2b(SLP_IT, data->it.hdr.param_code);
+	data->it.hdr.param_control = SLP_LBIN;
+	data->it.hdr.param_len = sizeof(struct scsi_log_idle_time) -
+	    sizeof(struct scsi_log_param_header);
+#ifdef CTL_TIME_IO
+	scsi_u64to8b(lun->idle_time / SBT_1MS, data->it.idle_int);
+#endif
+	scsi_ulto2b(SLP_TI, data->ti.hdr.param_code);
+	data->it.hdr.param_control = SLP_LBIN;
+	data->ti.hdr.param_len = sizeof(struct scsi_log_time_interval) -
+	    sizeof(struct scsi_log_param_header);
+	scsi_ulto4b(3, data->ti.exponent);
+	scsi_ulto4b(1, data->ti.integer);
+
+	page_index->page_len = sizeof(*data);
 	return (0);
 }
 
@@ -11646,7 +11712,8 @@ ctl_clear_ua(struct ctl_softc *ctl_softc, uint32_t initidx,
 	STAILQ_FOREACH(lun, &ctl_softc->lun_list, links) {
 		mtx_lock(&lun->lun_lock);
 		pu = lun->pending_ua[initidx / CTL_MAX_INIT_PER_PORT];
-		pu[initidx % CTL_MAX_INIT_PER_PORT] &= ~ua_type;
+		if (pu != NULL)
+			pu[initidx % CTL_MAX_INIT_PER_PORT] &= ~ua_type;
 		mtx_unlock(&lun->lun_lock);
 	}
 }
@@ -11689,6 +11756,12 @@ ctl_scsiio_precheck(struct ctl_softc *softc, struct ctl_scsiio *ctsio)
 			 * Every I/O goes into the OOA queue for a
 			 * particular LUN, and stays there until completion.
 			 */
+#ifdef CTL_TIME_IO
+			if (TAILQ_EMPTY(&lun->ooa_queue)) {
+				lun->idle_time += getsbinuptime() -
+				    lun->last_busy;
+			}
+#endif
 			TAILQ_INSERT_TAIL(&lun->ooa_queue, &ctsio->io_hdr,
 			    ooa_links);
 		}
@@ -12286,64 +12359,57 @@ ctl_abort_task(union ctl_io *io)
 		printf("%s\n", sbuf_data(&sb));
 #endif
 
-		if ((xio->io_hdr.nexus.targ_port == io->io_hdr.nexus.targ_port)
-		 && (xio->io_hdr.nexus.initid.id ==
-		     io->io_hdr.nexus.initid.id)) {
-			/*
-			 * If the abort says that the task is untagged, the
-			 * task in the queue must be untagged.  Otherwise,
-			 * we just check to see whether the tag numbers
-			 * match.  This is because the QLogic firmware
-			 * doesn't pass back the tag type in an abort
-			 * request.
-			 */
-#if 0
-			if (((xio->scsiio.tag_type == CTL_TAG_UNTAGGED)
-			  && (io->taskio.tag_type == CTL_TAG_UNTAGGED))
-			 || (xio->scsiio.tag_num == io->taskio.tag_num)) {
-#endif
-			/*
-			 * XXX KDM we've got problems with FC, because it
-			 * doesn't send down a tag type with aborts.  So we
-			 * can only really go by the tag number...
-			 * This may cause problems with parallel SCSI.
-			 * Need to figure that out!!
-			 */
-			if (xio->scsiio.tag_num == io->taskio.tag_num) {
-				xio->io_hdr.flags |= CTL_FLAG_ABORT;
-				found = 1;
-				if ((io->io_hdr.flags &
-				     CTL_FLAG_FROM_OTHER_SC) == 0 &&
-				    !(lun->flags & CTL_LUN_PRIMARY_SC)) {
-					union ctl_ha_msg msg_info;
+		if ((xio->io_hdr.nexus.targ_port != io->io_hdr.nexus.targ_port)
+		 || (xio->io_hdr.nexus.initid.id != io->io_hdr.nexus.initid.id)
+		 || (xio->io_hdr.flags & CTL_FLAG_ABORT))
+			continue;
 
-					io->io_hdr.flags |=
-					                CTL_FLAG_SENT_2OTHER_SC;
-					msg_info.hdr.nexus = io->io_hdr.nexus;
-					msg_info.task.task_action =
-						CTL_TASK_ABORT_TASK;
-					msg_info.task.tag_num =
-						io->taskio.tag_num;
-					msg_info.task.tag_type =
-						io->taskio.tag_type;
-					msg_info.hdr.msg_type =
-						CTL_MSG_MANAGE_TASKS;
-					msg_info.hdr.original_sc = NULL;
-					msg_info.hdr.serializing_sc = NULL;
+		/*
+		 * If the abort says that the task is untagged, the
+		 * task in the queue must be untagged.  Otherwise,
+		 * we just check to see whether the tag numbers
+		 * match.  This is because the QLogic firmware
+		 * doesn't pass back the tag type in an abort
+		 * request.
+		 */
 #if 0
-					printf("Sent Abort to other side\n");
+		if (((xio->scsiio.tag_type == CTL_TAG_UNTAGGED)
+		  && (io->taskio.tag_type == CTL_TAG_UNTAGGED))
+		 || (xio->scsiio.tag_num == io->taskio.tag_num)) {
 #endif
-					if (CTL_HA_STATUS_SUCCESS !=
-					        ctl_ha_msg_send(CTL_HA_CHAN_CTL,
-		    				(void *)&msg_info,
-						sizeof(msg_info), 0)) {
-					}
+		/*
+		 * XXX KDM we've got problems with FC, because it
+		 * doesn't send down a tag type with aborts.  So we
+		 * can only really go by the tag number...
+		 * This may cause problems with parallel SCSI.
+		 * Need to figure that out!!
+		 */
+		if (xio->scsiio.tag_num == io->taskio.tag_num) {
+			xio->io_hdr.flags |= CTL_FLAG_ABORT;
+			found = 1;
+			if ((io->io_hdr.flags & CTL_FLAG_FROM_OTHER_SC) == 0 &&
+			    !(lun->flags & CTL_LUN_PRIMARY_SC)) {
+				union ctl_ha_msg msg_info;
+
+				io->io_hdr.flags |= CTL_FLAG_SENT_2OTHER_SC;
+				msg_info.hdr.nexus = io->io_hdr.nexus;
+				msg_info.task.task_action = CTL_TASK_ABORT_TASK;
+				msg_info.task.tag_num = io->taskio.tag_num;
+				msg_info.task.tag_type = io->taskio.tag_type;
+				msg_info.hdr.msg_type = CTL_MSG_MANAGE_TASKS;
+				msg_info.hdr.original_sc = NULL;
+				msg_info.hdr.serializing_sc = NULL;
+#if 0
+				printf("Sent Abort to other side\n");
+#endif
+				if (ctl_ha_msg_send(CTL_HA_CHAN_CTL,
+				    (void *)&msg_info, sizeof(msg_info), 0) !=
+				    CTL_HA_STATUS_SUCCESS) {
 				}
-#if 0
-				printf("ctl_abort_task: found I/O to abort\n");
-#endif
-				break;
 			}
+#if 0
+			printf("ctl_abort_task: found I/O to abort\n");
+#endif
 		}
 	}
 	mtx_unlock(&lun->lun_lock);
@@ -13742,6 +13808,10 @@ ctl_process_done(union ctl_io *io)
 	 * Remove this from the OOA queue.
 	 */
 	TAILQ_REMOVE(&lun->ooa_queue, &io->io_hdr, ooa_links);
+#ifdef CTL_TIME_IO
+	if (TAILQ_EMPTY(&lun->ooa_queue))
+		lun->last_busy = getsbinuptime();
+#endif
 
 	/*
 	 * Run through the blocked queue on this LUN and see if anything

@@ -7404,7 +7404,7 @@ getdevid(struct cam_devitem *item)
 retry:
 	ccb->ccb_h.func_code = XPT_DEV_ADVINFO;
 	ccb->ccb_h.flags = CAM_DIR_IN;
-	ccb->cdai.flags = 0;
+	ccb->cdai.flags = CDAI_FLAG_NONE;
 	ccb->cdai.buftype = CDAI_TYPE_SCSI_DEVID;
 	ccb->cdai.bufsiz = item->device_id_len;
 	if (item->device_id_len != 0)
