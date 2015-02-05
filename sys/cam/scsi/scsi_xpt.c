@@ -139,6 +139,7 @@ typedef enum {
 	PROBE_MODE_SENSE,
 	PROBE_SUPPORTED_VPD_LIST,
 	PROBE_DEVICE_ID,
+	PROBE_EXTENDED_INQUIRY,
 	PROBE_SERIAL_NUM,
 	PROBE_TUR_FOR_NEGOTIATION,
 	PROBE_INQUIRY_BASIC_DV1,
@@ -156,6 +157,7 @@ static char *probe_action_text[] = {
 	"PROBE_MODE_SENSE",
 	"PROBE_SUPPORTED_VPD_LIST",
 	"PROBE_DEVICE_ID",
+	"PROBE_EXTENDED_INQUIRY",
 	"PROBE_SERIAL_NUM",
 	"PROBE_TUR_FOR_NEGOTIATION",
 	"PROBE_INQUIRY_BASIC_DV1",
@@ -923,6 +925,34 @@ done:
 		}
 		goto done;
 	}
+	case PROBE_EXTENDED_INQUIRY:
+	{
+		struct scsi_vpd_extended_inquiry_data *ext_inq;
+
+		ext_inq = NULL;
+		if (scsi_vpd_supported_page(periph, SVPD_EXTENDED_INQUIRY_DATA))
+			ext_inq = malloc(sizeof(*ext_inq), M_CAMXPT,
+			    M_NOWAIT | M_ZERO);
+
+		if (ext_inq != NULL) {
+			scsi_inquiry(csio,
+				     /*retries*/4,
+				     probedone,
+				     MSG_SIMPLE_Q_TAG,
+				     (uint8_t *)ext_inq,
+				     sizeof(*ext_inq),
+				     /*evpd*/TRUE,
+				     SVPD_EXTENDED_INQUIRY_DATA,
+				     SSD_MIN_SIZE,
+				     /*timeout*/60 * 1000);
+			break;
+		}
+		/*
+		 * We'll have to do without, let our probedone
+		 * routine finish up for us.
+		 */
+		goto done;
+	}
 	case PROBE_SERIAL_NUM:
 	{
 		struct scsi_vpd_unit_serial_number *serial_buf;
@@ -1453,6 +1483,50 @@ out:
 		/* Free the device id space if we don't use it */
 		if (devid && length == 0)
 			free(devid, M_CAMXPT);
+		xpt_release_ccb(done_ccb);
+		PROBE_SET_ACTION(softc, PROBE_EXTENDED_INQUIRY);
+		xpt_schedule(periph, priority);
+		goto out;
+	}
+	case PROBE_EXTENDED_INQUIRY: {
+		struct scsi_vpd_extended_inquiry_data *ext_inq;
+		struct ccb_scsiio *csio;
+		int32_t length = 0;
+
+		csio = &done_ccb->csio;
+		ext_inq = (struct scsi_vpd_extended_inquiry_data *)
+		    csio->data_ptr;
+		if (path->device->ext_inq != NULL) {
+			path->device->ext_inq_len = 0;
+			free(path->device->ext_inq, M_CAMXPT);
+			path->device->ext_inq = NULL;
+		}
+
+		if (ext_inq == NULL) {
+			/* Don't process the command as it was never sent */
+		} else if (CCB_COMPLETED_OK(csio->ccb_h)) {
+			length = scsi_2btoul(ext_inq->page_length) +
+			    __offsetof(struct scsi_vpd_extended_inquiry_data,
+			    flags1);
+			length = min(length, sizeof(*ext_inq));
+			length -= csio->resid;
+			if (length > 0) {
+				path->device->ext_inq_len = length;
+				path->device->ext_inq = (uint8_t *)ext_inq;
+			}
+		} else if (cam_periph_error(done_ccb, 0,
+					    SF_RETRY_UA,
+					    &softc->saved_ccb) == ERESTART) {
+			return;
+		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
+			/* Don't wedge the queue */
+			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
+					 /*run_queue*/TRUE);
+		}
+
+		/* Free the device id space if we don't use it */
+		if (ext_inq && length <= 0)
+			free(ext_inq, M_CAMXPT);
 		xpt_release_ccb(done_ccb);
 		PROBE_SET_ACTION(softc, PROBE_SERIAL_NUM);
 		xpt_schedule(periph, priority);
@@ -2476,6 +2550,21 @@ scsi_dev_advinfo(union ccb *start_ccb)
 				amt = cdai->bufsiz;
 			memcpy(cdai->buf, device->rcap_buf, amt);
 		}
+		break;
+	case CDAI_TYPE_EXT_INQ:
+		/*
+		 * We fetch extended inquiry data during probe, if
+		 * available.  We don't allow changing it.
+		 */
+		if (cdai->flags & CDAI_FLAG_STORE) 
+			return;
+		cdai->provsiz = device->ext_inq_len;
+		if (device->ext_inq_len == 0)
+			break;
+		amt = device->ext_inq_len;
+		if (cdai->provsiz > cdai->bufsiz)
+			amt = cdai->bufsiz;
+		memcpy(cdai->buf, device->ext_inq, amt);
 		break;
 	default:
 		return;

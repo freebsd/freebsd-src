@@ -9,6 +9,9 @@ CFLAGS+=	-I${.CURDIR}/../common \
 		-I${.CURDIR}/../../libc/include \
 		-mlongcall
 
+CC:=		gcc
+COMPILER_TYPE:=	gcc
+
 all: ${OBJS}
 
 CLEANFILES=	${OBJS}

@@ -1094,12 +1094,16 @@ sfxge_tx_queue_tso(struct sfxge_txq *txq, struct mbuf *mbuf,
 			 * roll back the work we have done.
 			 */
 			if (txq->n_pend_desc >
-			    SFXGE_TSO_MAX_DESC - (1 + SFXGE_TX_MAPPING_MAX_SEG))
+			    SFXGE_TSO_MAX_DESC - (1 + SFXGE_TX_MAPPING_MAX_SEG)) {
+				txq->tso_pdrop_too_many++;
 				break;
+			}
 			next_id = (id + 1) & txq->ptr_mask;
 			if (__predict_false(tso_start_new_packet(txq, &tso,
-								 next_id)))
+								 next_id))) {
+				txq->tso_pdrop_no_rsrc++;
 				break;
+			}
 			id = next_id;
 		}
 	}
@@ -1467,7 +1471,7 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 	stdp->std_get_non_tcp_max = sfxge_tx_dpl_get_non_tcp_max;
 	stdp->std_getp = &stdp->std_get;
 
-	SFXGE_TXQ_LOCK_INIT(txq, "txq");
+	SFXGE_TXQ_LOCK_INIT(txq, device_get_nameunit(sc->dev), txq_index);
 
 	SYSCTL_ADD_UINT(device_get_sysctl_ctx(sc->dev),
 			SYSCTL_CHILDREN(txq_node), OID_AUTO,
@@ -1516,6 +1520,8 @@ static const struct {
 	SFXGE_TX_STAT(tso_bursts, tso_bursts),
 	SFXGE_TX_STAT(tso_packets, tso_packets),
 	SFXGE_TX_STAT(tso_long_headers, tso_long_headers),
+	SFXGE_TX_STAT(tso_pdrop_too_many, tso_pdrop_too_many),
+	SFXGE_TX_STAT(tso_pdrop_no_rsrc, tso_pdrop_no_rsrc),
 	SFXGE_TX_STAT(tx_collapses, collapses),
 	SFXGE_TX_STAT(tx_drops, drops),
 	SFXGE_TX_STAT(tx_get_overflow, get_overflow),

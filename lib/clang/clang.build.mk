@@ -34,7 +34,8 @@ BUILD_TRIPLE?=	${BUILD_ARCH:C/amd64/x86_64/:C/armv6hf/armv6/:C/arm64/aarch64/}-u
 CFLAGS+=	-DLLVM_DEFAULT_TARGET_TRIPLE=\"${TARGET_TRIPLE}\" \
 		-DLLVM_HOST_TRIPLE=\"${BUILD_TRIPLE}\" \
 		-DDEFAULT_SYSROOT=\"${TOOLS_PREFIX}\"
-CXXFLAGS+=	-std=c++11 -stdlib=libc++ -fno-exceptions -fno-rtti
+CXXFLAGS+=	-std=c++11 -fno-exceptions -fno-rtti
+CXXFLAGS.clang+= -stdlib=libc++
 
 .PATH:	${LLVM_SRCS}/${SRCDIR}
 

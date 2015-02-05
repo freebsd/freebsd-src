@@ -201,7 +201,7 @@ sfxge_mcdi_init(struct sfxge_softc *sc)
 	KASSERT(mcdi->state == SFXGE_MCDI_UNINITIALIZED,
 	    ("MCDI already initialized"));
 
-	SFXGE_MCDI_LOCK_INIT(mcdi, "sfxge_mcdi");
+	SFXGE_MCDI_LOCK_INIT(mcdi, device_get_nameunit(sc->dev));
 
 	mcdi->state = SFXGE_MCDI_INITIALIZED;
 
