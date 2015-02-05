@@ -106,7 +106,14 @@ INCS+=	hesiod.h
 .if ${MK_ICONV} == "yes"
 INCS+=		iconv.h
 .endif
-	
+
+.if ${MK_USB} != "no"
+LSUBDIRS+=	dev/usb
+.endif
+
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
+_dev_powermac_nvram=	dev/powermac_nvram
+.endif
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is

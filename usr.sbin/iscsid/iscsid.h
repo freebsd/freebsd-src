@@ -51,6 +51,7 @@ struct connection {
 	int			conn_socket;
 	unsigned int		conn_session_id;
 	struct iscsi_session_conf	conn_conf;
+	struct iscsi_session_limits	conn_limits;
 	char			conn_target_alias[ISCSI_ADDR_LEN];
 	uint8_t			conn_isid[6];
 	uint16_t		conn_tsih;

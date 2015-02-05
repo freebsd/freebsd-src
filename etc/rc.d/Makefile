@@ -157,10 +157,6 @@ FILES+=		bootparams
 .endif
 
 .if ${MK_BSNMP} != "no"
-_bsnmpd=	bsnmpd
-.endif
-
-.if ${MK_BSNMP} != "no"
 FILES+=		bsnmpd
 .endif
 

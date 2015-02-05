@@ -188,6 +188,16 @@ XFILES+=	hast/ucarp.sh \
 		hast/vip-up.sh
 .endif
 
+.if ${MK_USB} != "no"
+LDIRS+=		libusb20
+XFILES+=	libusb20/Makefile \
+		libusb20/README \
+		libusb20/util.c \
+		libusb20/util.h \
+		libusb20/bulk.c \
+		libusb20/control.c
+.endif
+
 .if ${MACHINE_CPUARCH} == "amd64"
 .if ${MK_BHYVE} != "no"
 LDIRS+=		bhyve

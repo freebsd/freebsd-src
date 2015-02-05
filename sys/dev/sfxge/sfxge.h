@@ -122,6 +122,7 @@ struct sfxge_evq {
 	/* Structure members not used on event processing path */
 	unsigned int		buf_base_id;
 	unsigned int		entries;
+	char			lock_name[SFXGE_LOCK_NAME_MAX];
 } __aligned(CACHE_LINE_SIZE);
 
 #define	SFXGE_NDESCS	1024
@@ -162,6 +163,9 @@ struct sfxge_mcdi {
 	struct cv		cv;
 	enum sfxge_mcdi_state	state;
 	efx_mcdi_transport_t	transport;
+
+	/* Only used in debugging output */
+	char			lock_name[SFXGE_LOCK_NAME_MAX];
 };
 
 struct sfxge_hw_stats {
@@ -186,6 +190,9 @@ struct sfxge_port {
 	struct sfxge_hw_stats	phy_stats;
 	struct sfxge_hw_stats	mac_stats;
 	efx_link_mode_t		link_mode;
+
+	/* Only used in debugging output */
+	char			lock_name[SFXGE_LOCK_NAME_MAX];
 };
 
 enum sfxge_softc_state {
@@ -198,6 +205,7 @@ enum sfxge_softc_state {
 struct sfxge_softc {
 	device_t			dev;
 	struct sx			softc_lock;
+	char				softc_lock_name[SFXGE_LOCK_NAME_MAX];
 	enum sfxge_softc_state		init_state;
 	struct ifnet			*ifnet;
 	unsigned int			if_flags;
@@ -210,7 +218,7 @@ struct sfxge_softc {
 	caddr_t				vpd_data;
 	size_t				vpd_size;
 	efx_nic_t			*enp;
-	struct mtx			enp_lock;
+	efsys_lock_t			enp_lock;
 
 	unsigned int			rxq_entries;
 	unsigned int			txq_entries;
@@ -249,6 +257,7 @@ struct sfxge_softc {
 
 #ifndef SFXGE_HAVE_MQ
 	struct mtx			tx_lock __aligned(CACHE_LINE_SIZE);
+	char				tx_lock_name[SFXGE_LOCK_NAME_MAX];
 #endif
 };
 
@@ -313,5 +322,80 @@ extern int sfxge_mac_filter_set(struct sfxge_softc *sc);
 extern int sfxge_port_ifmedia_init(struct sfxge_softc *sc);
 
 #define	SFXGE_MAX_MTU (9 * 1024)
+
+#define	SFXGE_ADAPTER_LOCK_INIT(_sc, _ifname)				\
+	do {								\
+		struct sfxge_softc *__sc = (_sc);			\
+									\
+		snprintf((__sc)->softc_lock_name,			\
+			 sizeof((__sc)->softc_lock_name),		\
+			 "%s:softc", (_ifname));			\
+		sx_init(&(__sc)->softc_lock, (__sc)->softc_lock_name);	\
+	} while (B_FALSE)
+#define	SFXGE_ADAPTER_LOCK_DESTROY(_sc)					\
+	sx_destroy(&(_sc)->softc_lock)
+#define	SFXGE_ADAPTER_LOCK(_sc)						\
+	sx_xlock(&(_sc)->softc_lock)
+#define	SFXGE_ADAPTER_UNLOCK(_sc)					\
+	sx_xunlock(&(_sc)->softc_lock)
+#define	SFXGE_ADAPTER_LOCK_ASSERT_OWNED(_sc)				\
+	sx_assert(&(_sc)->softc_lock, LA_XLOCKED)
+
+#define	SFXGE_PORT_LOCK_INIT(_port, _ifname)				\
+	do {								\
+		struct sfxge_port *__port = (_port);			\
+									\
+		snprintf((__port)->lock_name,				\
+			 sizeof((__port)->lock_name),			\
+			 "%s:port", (_ifname));				\
+		mtx_init(&(__port)->lock, (__port)->lock_name,		\
+			 NULL, MTX_DEF);				\
+	} while (B_FALSE)
+#define	SFXGE_PORT_LOCK_DESTROY(_port)					\
+	mtx_destroy(&(_port)->lock)
+#define	SFXGE_PORT_LOCK(_port)						\
+	mtx_lock(&(_port)->lock)
+#define	SFXGE_PORT_UNLOCK(_port)					\
+	mtx_unlock(&(_port)->lock)
+#define	SFXGE_PORT_LOCK_ASSERT_OWNED(_port)				\
+	mtx_assert(&(_port)->lock, MA_OWNED)
+
+#define	SFXGE_MCDI_LOCK_INIT(_mcdi, _ifname)				\
+	do {								\
+		struct sfxge_mcdi  *__mcdi = (_mcdi);			\
+									\
+		snprintf((__mcdi)->lock_name,				\
+			 sizeof((__mcdi)->lock_name),			\
+			 "%s:mcdi", (_ifname));				\
+		mtx_init(&(__mcdi)->lock, (__mcdi)->lock_name,		\
+			 NULL, MTX_DEF);				\
+	} while (B_FALSE)
+#define	SFXGE_MCDI_LOCK_DESTROY(_mcdi)					\
+	mtx_destroy(&(_mcdi)->lock)
+#define	SFXGE_MCDI_LOCK(_mcdi)						\
+	mtx_lock(&(_mcdi)->lock)
+#define	SFXGE_MCDI_UNLOCK(_mcdi)					\
+	mtx_unlock(&(_mcdi)->lock)
+#define	SFXGE_MCDI_LOCK_ASSERT_OWNED(_mcdi)				\
+	mtx_assert(&(_mcdi)->lock, MA_OWNED)
+
+#define	SFXGE_EVQ_LOCK_INIT(_evq, _ifname, _evq_index)			\
+	do {								\
+		struct sfxge_evq  *__evq = (_evq);			\
+									\
+		snprintf((__evq)->lock_name,				\
+			 sizeof((__evq)->lock_name),			\
+			 "%s:evq%u", (_ifname), (_evq_index));		\
+		mtx_init(&(__evq)->lock, (__evq)->lock_name,		\
+			 NULL, MTX_DEF);				\
+	} while (B_FALSE)
+#define	SFXGE_EVQ_LOCK_DESTROY(_evq)					\
+	mtx_destroy(&(_evq)->lock)
+#define	SFXGE_EVQ_LOCK(_evq)						\
+	mtx_lock(&(_evq)->lock)
+#define	SFXGE_EVQ_UNLOCK(_evq)						\
+	mtx_unlock(&(_evq)->lock)
+#define	SFXGE_EVQ_LOCK_ASSERT_OWNED(_evq)				\
+	mtx_assert(&(_evq)->lock, MA_OWNED)
 
 #endif /* _SFXGE_H */
