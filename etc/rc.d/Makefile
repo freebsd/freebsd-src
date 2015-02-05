@@ -194,7 +194,7 @@ FILES+=		hastd
 .endif
 
 .if ${MK_INETD} != "no"
-_inetd=		inetd
+FILES+=		inetd
 .endif
 
 .if ${MK_ISCSI} != "no"
