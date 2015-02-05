@@ -4,6 +4,8 @@
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN"
   "http://www.FreeBSD.org/release/XML/release.ent">
 %release;
+<!ENTITY security SYSTEM "../../share/xml/security.xml">
+<!ENTITY errata SYSTEM "../../share/xml/errata.xml">
 ]>
 
 <article xmlns="http://docbook.org/ns/docbook"
@@ -76,48 +78,13 @@
   <sect1 xml:id="security">
     <title>Security Advisories</title>
 
-    <informaltable frame="none" pgwide="0">
-      <tgroup cols="3">
-	<colspec colwidth="1*" />
-	<colspec colwidth="1*" />
-	<colspec colwidth="3*" />
-	<thead>
-	  <row>
-	    <entry>Advisory</entry>
-	    <entry>Date</entry>
-	    <entry>Topic</entry>
-	  </row>
-	</thead>
+    &security;
+  </sect1>
 
-	<tbody>
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:27.stdio.asc">SA-14:27.stdio</link></entry>
-	    <entry>10&nbsp;December&nbsp;2014</entry>
-	    <entry><para>Buffer overflow in stdio</para></entry>
-	  </row>
+  <sect1 xml:id="errata">
+    <title>Errata Notices</title>
 
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:28.file.asc">SA-14:28.file</link></entry>
-	    <entry>10&nbsp;December&nbsp;2014</entry>
-	    <entry><para>Multiple vulnerabilities in &man.file.1; and
-		&man.libmagic.3;</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:30.unbound.asc">SA-14:30.unbound</link></entry>
-	    <entry>17&nbsp;December&nbsp;2014</entry>
-	    <entry><para>Remote denial of service
-		vulnerability</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:31.ntp.asc">SA-14:31.ntp</link></entry>
-	    <entry>23&nbsp;December&nbsp;2014</entry>
-	    <entry><para>Multiple vulnerabilities</para></entry>
-	  </row>
-	</tbody>
-      </tgroup>
-    </informaltable>
+    &errata;
   </sect1>
 
   <sect1 xml:id="open-issues">
