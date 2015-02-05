@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -900,7 +900,7 @@ AcpiDbDisplayGpes (
                     GpeIndex = (i * ACPI_GPE_REGISTER_WIDTH) + j;
                     GpeEventInfo = &GpeBlock->EventInfo[GpeIndex];
 
-                    if ((GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK) ==
+                    if (ACPI_GPE_DISPATCH_TYPE (GpeEventInfo->Flags) ==
                         ACPI_GPE_DISPATCH_NONE)
                     {
                         /* This GPE is not used (no method or handler), ignore it */
@@ -933,7 +933,7 @@ AcpiDbDisplayGpes (
                         AcpiOsPrintf ("RunOnly, ");
                     }
 
-                    switch (GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK)
+                    switch (ACPI_GPE_DISPATCH_TYPE (GpeEventInfo->Flags))
                     {
                     case ACPI_GPE_DISPATCH_NONE:
 
@@ -944,6 +944,7 @@ AcpiDbDisplayGpes (
 
                         AcpiOsPrintf ("Method");
                         break;
+
                     case ACPI_GPE_DISPATCH_HANDLER:
 
                         AcpiOsPrintf ("Handler");
@@ -961,10 +962,15 @@ AcpiDbDisplayGpes (
                         AcpiOsPrintf ("Implicit Notify on %u devices", Count);
                         break;
 
+                    case ACPI_GPE_DISPATCH_RAW_HANDLER:
+
+                        AcpiOsPrintf ("RawHandler");
+                        break;
+
                     default:
 
                         AcpiOsPrintf ("UNKNOWN: %X",
-                            GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK);
+                            ACPI_GPE_DISPATCH_TYPE (GpeEventInfo->Flags));
                         break;
                     }
 

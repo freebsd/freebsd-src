@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -520,6 +520,7 @@ typedef struct acpi_gpe_register_info
     UINT16                          BaseGpeNumber;  /* Base GPE number for this register */
     UINT8                           EnableForWake;  /* GPEs to keep enabled when sleeping */
     UINT8                           EnableForRun;   /* GPEs to keep enabled when running */
+    UINT8                           EnableMask;     /* Current mask of enabled GPEs */
 
 } ACPI_GPE_REGISTER_INFO;
 

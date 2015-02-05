@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -118,10 +118,9 @@ CmDoCompile (
     AslCompilerparse();
     UtEndEvent (Event);
 
-    /* Check for parse errors */
+    /* Check for parser-detected syntax errors */
 
-    Status = AslCheckForErrorExit ();
-    if (ACPI_FAILURE (Status))
+    if (Gbl_SyntaxError)
     {
         fprintf (stderr, "Compiler aborting due to parser-detected syntax error(s)\n");
         LsDumpParseTree ();
