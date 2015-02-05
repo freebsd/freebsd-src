@@ -65,7 +65,8 @@ tdelete(const void * __restrict vkey, void ** __restrict vrootp,
 			q->rlink = (*rootp)->rlink;
 		}
 	}
-	free(*rootp);				/* D4: Free node */
+	if (p != *rootp)
+		free(*rootp);			/* D4: Free node */
 	*rootp = q;				/* link parent to new node */
 	return p;
 }
