@@ -169,6 +169,7 @@ struct target {
 	TAILQ_HEAD(, port)		t_ports;
 	char				*t_name;
 	char				*t_alias;
+	char				*t_offload;
 	char				*t_redirection;
 };
 
@@ -223,6 +224,7 @@ struct connection {
 	struct sockaddr_storage	conn_initiator_sa;
 	uint32_t		conn_cmdsn;
 	uint32_t		conn_statsn;
+	size_t			conn_data_segment_limit;
 	size_t			conn_max_data_segment_length;
 	size_t			conn_max_burst_length;
 	int			conn_immediate_data;
@@ -344,6 +346,8 @@ struct target		*target_find(struct conf *conf,
 			    const char *name);
 int			target_set_redirection(struct target *target,
 			    const char *addr);
+int			target_set_offload(struct target *target,
+			    const char *offload);
 
 struct lun		*lun_new(struct conf *conf, const char *name);
 void			lun_delete(struct lun *lun);
@@ -370,6 +374,8 @@ int			kernel_lun_add(struct lun *lun);
 int			kernel_lun_resize(struct lun *lun);
 int			kernel_lun_remove(struct lun *lun);
 void			kernel_handoff(struct connection *conn);
+void			kernel_limits(const char *offload,
+			    size_t *max_data_segment_length);
 int			kernel_port_add(struct port *port);
 int			kernel_port_update(struct port *port);
 int			kernel_port_remove(struct port *port);

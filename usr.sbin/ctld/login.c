@@ -453,7 +453,8 @@ static void
 login_negotiate_key(struct pdu *request, const char *name,
     const char *value, bool skipped_security, struct keys *response_keys)
 {
-	int which, tmp;
+	int which;
+	size_t tmp;
 	struct connection *conn;
 
 	conn = request->pdu_connection;
@@ -552,13 +553,13 @@ login_negotiate_key(struct pdu *request, const char *name,
 			log_errx(1, "received invalid "
 			    "MaxRecvDataSegmentLength");
 		}
-		if (tmp > MAX_DATA_SEGMENT_LENGTH) {
+		if (tmp > conn->conn_data_segment_limit) {
 			log_debugx("capping MaxRecvDataSegmentLength "
-			    "from %d to %d", tmp, MAX_DATA_SEGMENT_LENGTH);
-			tmp = MAX_DATA_SEGMENT_LENGTH;
+			    "from %zd to %zd", tmp, conn->conn_data_segment_limit);
+			tmp = conn->conn_data_segment_limit;
 		}
 		conn->conn_max_data_segment_length = tmp;
-		keys_add_int(response_keys, name, MAX_DATA_SEGMENT_LENGTH);
+		keys_add_int(response_keys, name, tmp);
 	} else if (strcmp(name, "MaxBurstLength") == 0) {
 		tmp = strtoul(value, NULL, 10);
 		if (tmp <= 0) {
@@ -566,7 +567,7 @@ login_negotiate_key(struct pdu *request, const char *name,
 			log_errx(1, "received invalid MaxBurstLength");
 		}
 		if (tmp > MAX_BURST_LENGTH) {
-			log_debugx("capping MaxBurstLength from %d to %d",
+			log_debugx("capping MaxBurstLength from %zd to %d",
 			    tmp, MAX_BURST_LENGTH);
 			tmp = MAX_BURST_LENGTH;
 		}
@@ -579,10 +580,10 @@ login_negotiate_key(struct pdu *request, const char *name,
 			log_errx(1, "received invalid "
 			    "FirstBurstLength");
 		}
-		if (tmp > MAX_DATA_SEGMENT_LENGTH) {
-			log_debugx("capping FirstBurstLength from %d to %d",
-			    tmp, MAX_DATA_SEGMENT_LENGTH);
-			tmp = MAX_DATA_SEGMENT_LENGTH;
+		if (tmp > conn->conn_data_segment_limit) {
+			log_debugx("capping FirstBurstLength from %zd to %zd",
+			    tmp, conn->conn_data_segment_limit);
+			tmp = conn->conn_data_segment_limit;
 		}
 		/*
 		 * We don't pass the value to the kernel; it only enforces
@@ -679,6 +680,18 @@ login_negotiate(struct connection *conn, struct pdu *request)
 	struct keys *request_keys, *response_keys;
 	int i;
 	bool redirected, skipped_security;
+
+	if (conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
+		/*
+		 * Query the kernel for MaxDataSegmentLength it can handle.
+		 * In case of offload, it depends on hardware capabilities.
+		 */
+		assert(conn->conn_target != NULL);
+		kernel_limits(conn->conn_target->t_offload,
+		    &conn->conn_data_segment_limit);
+	} else {
+		conn->conn_data_segment_limit = MAX_DATA_SEGMENT_LENGTH;
+	}
 
 	if (request == NULL) {
 		log_debugx("beginning operational parameter negotiation; "

@@ -799,6 +799,10 @@ kernel_handoff(struct connection *conn)
 	    sizeof(req.data.handoff.initiator_isid));
 	strlcpy(req.data.handoff.target_name,
 	    conn->conn_target->t_name, sizeof(req.data.handoff.target_name));
+	if (conn->conn_target->t_offload != NULL) {
+		strlcpy(req.data.handoff.offload,
+		    conn->conn_target->t_offload, sizeof(req.data.handoff.offload));
+	}
 #ifdef ICL_KERNEL_PROXY
 	if (proxy_mode)
 		req.data.handoff.connection_id = conn->conn_socket;
@@ -828,6 +832,39 @@ kernel_handoff(struct connection *conn)
 	if (req.status != CTL_ISCSI_OK) {
 		log_errx(1, "error returned from CTL iSCSI handoff request: "
 		    "%s; dropping connection", req.error_str);
+	}
+}
+
+void
+kernel_limits(const char *offload, size_t *max_data_segment_length)
+{
+	struct ctl_iscsi req;
+
+	bzero(&req, sizeof(req));
+
+	req.type = CTL_ISCSI_LIMITS;
+	if (offload != NULL) {
+		strlcpy(req.data.limits.offload, offload,
+		    sizeof(req.data.limits.offload));
+	}
+
+	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
+		log_err(1, "error issuing CTL_ISCSI ioctl; "
+		    "dropping connection");
+	}
+
+	if (req.status != CTL_ISCSI_OK) {
+		log_errx(1, "error returned from CTL iSCSI limits request: "
+		    "%s; dropping connection", req.error_str);
+	}
+
+	*max_data_segment_length = req.data.limits.data_segment_limit;
+	if (offload != NULL) {
+		log_debugx("MaxRecvDataSegment kernel limit for offload "
+		    "\"%s\" is %zd", offload, *max_data_segment_length);
+	} else {
+		log_debugx("MaxRecvDataSegment kernel limit is %zd",
+		    *max_data_segment_length);
 	}
 }
 
