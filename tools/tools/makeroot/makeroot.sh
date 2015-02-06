@@ -165,13 +165,15 @@ if [ -n "${FILELIST}" ]; then
 	    awk '
 		!/ type=/ { file = $1 }
 		/ type=/ { if ($1 == file) {print} }' >> ${manifest}
-else
+elif [ -n "${EXTRAS}" ]; then
 	# Start with all the files in BSDROOT/METALOG except those in
 	# one of the EXTRAS manifests.
 	grep -h type=file ${EXTRAS} | cut -d' ' -f1 | \
 	    sort -u ${BSDROOT}/METALOG - | awk '
 		!/ type=/ { file = $1 }
 		/ type=/ { if ($1 != file) {print} }' >> ${manifest}
+else
+	sort -u ${BSDROOT}/METALOG >> ${manifest}
 fi
 
 # For each extras file, add contents keys relative to the directory the
