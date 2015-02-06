@@ -827,19 +827,22 @@ login(struct connection *conn)
 			log_errx(1, "received Login PDU without TargetName");
 		}
 
-		conn->conn_target = target_find(pg->pg_conf, target_name);
-		if (conn->conn_target == NULL) {
+		conn->conn_port = port_find_in_pg(pg, target_name);
+		if (conn->conn_port == NULL) {
 			login_send_error(request, 0x02, 0x03);
 			log_errx(1, "requested target \"%s\" not found",
 			    target_name);
 		}
+		conn->conn_target = conn->conn_port->p_target;
 	}
 
 	/*
 	 * At this point we know what kind of authentication we need.
 	 */
 	if (conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
-		ag = conn->conn_target->t_auth_group;
+		ag = conn->conn_port->p_auth_group;
+		if (ag == NULL)
+			ag = conn->conn_target->t_auth_group;
 		if (ag->ag_name != NULL) {
 			log_debugx("initiator requests to connect "
 			    "to target \"%s\"; auth-group \"%s\"",
