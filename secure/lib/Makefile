@@ -14,4 +14,8 @@ SUBDIR+=libssh
 SUBDIR+=tests
 .endif
 
+.if defined(LIBCHERI)
+SUBDIR:=
+.endif
+
 .include <bsd.subdir.mk>

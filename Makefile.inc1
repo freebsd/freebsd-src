@@ -721,7 +721,7 @@ buildcheri:
 	@echo "--------------------------------------------------------------"
 #	cd ${.CURDIR}; \
 #	    ${LIBCHERIWMAKE} -f Makefile.inc1 libraries
-.for _lib in lib ${LOCAL_LIB_DIRS}
+.for _lib in lib ${LOCAL_LIB_DIRS} secure/lib
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_lib} && \
 		${LIBCHERIWMAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj && \
@@ -731,7 +731,7 @@ buildcheri:
 .endfor
 
 distributecheri installcheri:
-.for _lib in lib ${LOCAL_LIB_DIRS}
+.for _lib in lib ${LOCAL_LIB_DIRS} secure/lib
 	cd ${.CURDIR}/${_lib}; ${LIBCHERIIMAKE} ${.TARGET:S/cheri$//}
 .endfor
 .endif
