@@ -3559,8 +3559,12 @@ cctl_islist_end_element(void *user_data, const char *name)
 	} else if (strcmp(name, "connection") == 0) {
 		islist->cur_conn = NULL;
 	} else if (strcmp(name, "ctlislist") == 0) {
-	} else
-		errx(1, "unknown element %s", name);
+		/* Nothing. */
+	} else {
+		/*
+		 * Unknown element; ignore it for forward compatiblity.
+		 */
+	}
 
 	free(str);
 }
