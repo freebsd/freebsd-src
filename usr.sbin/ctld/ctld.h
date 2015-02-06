@@ -119,9 +119,23 @@ struct portal_group {
 	int				pg_discovery_filter;
 	bool				pg_unassigned;
 	TAILQ_HEAD(, portal)		pg_portals;
+	TAILQ_HEAD(, port)		pg_ports;
 	char				*pg_redirection;
 
 	uint16_t			pg_tag;
+};
+
+struct port {
+	TAILQ_ENTRY(port)		p_next;
+	TAILQ_ENTRY(port)		p_pgs;
+	TAILQ_ENTRY(port)		p_ts;
+	struct conf			*p_conf;
+	char				*p_name;
+	struct auth_group		*p_auth_group;
+	struct portal_group		*p_portal_group;
+	struct target			*p_target;
+
+	uint32_t			p_ctl_port;
 };
 
 struct lun_option {
@@ -152,12 +166,10 @@ struct target {
 	struct conf			*t_conf;
 	struct lun			*t_luns[MAX_LUNS];
 	struct auth_group		*t_auth_group;
-	struct portal_group		*t_portal_group;
+	TAILQ_HEAD(, port)		t_ports;
 	char				*t_name;
 	char				*t_alias;
 	char				*t_redirection;
-
-	uint32_t			t_ctl_port;
 };
 
 struct isns {
@@ -172,6 +184,7 @@ struct conf {
 	TAILQ_HEAD(, lun)		conf_luns;
 	TAILQ_HEAD(, target)		conf_targets;
 	TAILQ_HEAD(, auth_group)	conf_auth_groups;
+	TAILQ_HEAD(, port)		conf_ports;
 	TAILQ_HEAD(, portal_group)	conf_portal_groups;
 	TAILQ_HEAD(, isns)		conf_isns;
 	int				conf_isns_period;
@@ -199,6 +212,7 @@ struct conf {
 
 struct connection {
 	struct portal		*conn_portal;
+	struct port		*conn_port;
 	struct target		*conn_target;
 	int			conn_socket;
 	int			conn_session_type;
@@ -317,14 +331,19 @@ void			isns_register(struct isns *isns, struct isns *oldisns);
 void			isns_check(struct isns *isns);
 void			isns_deregister(struct isns *isns);
 
+struct port		*port_new(struct conf *conf, struct target *target,
+			    struct portal_group *pg);
+struct port		*port_find(const struct conf *conf, const char *name);
+struct port		*port_find_in_pg(const struct portal_group *pg,
+			    const char *target);
+void			port_delete(struct port *port);
+
 struct target		*target_new(struct conf *conf, const char *name);
 void			target_delete(struct target *target);
 struct target		*target_find(struct conf *conf,
 			    const char *name);
 int			target_set_redirection(struct target *target,
 			    const char *addr);
-void			target_set_ctl_port(struct target *target,
-			    uint32_t value);
 
 struct lun		*lun_new(struct conf *conf, const char *name);
 void			lun_delete(struct lun *lun);
@@ -351,9 +370,9 @@ int			kernel_lun_add(struct lun *lun);
 int			kernel_lun_resize(struct lun *lun);
 int			kernel_lun_remove(struct lun *lun);
 void			kernel_handoff(struct connection *conn);
-int			kernel_port_add(struct target *targ);
-int			kernel_port_update(struct target *targ);
-int			kernel_port_remove(struct target *targ);
+int			kernel_port_add(struct port *port);
+int			kernel_port_update(struct port *port);
+int			kernel_port_remove(struct port *port);
 void			kernel_capsicate(void);
 
 #ifdef ICL_KERNEL_PROXY

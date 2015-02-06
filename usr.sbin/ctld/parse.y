@@ -652,17 +652,54 @@ target_initiator_portal:	INITIATOR_PORTAL STR
 	}
 	;
 
-target_portal_group:	PORTAL_GROUP STR
+target_portal_group:	PORTAL_GROUP STR STR
 	{
-		if (target->t_portal_group != NULL) {
-			log_warnx("portal-group for target \"%s\" "
-			    "specified more than once", target->t_name);
+		struct portal_group *tpg;
+		struct auth_group *tag;
+		struct port *tp;
+
+		tpg = portal_group_find(conf, $2);
+		if (tpg == NULL) {
+			log_warnx("unknown portal-group \"%s\" for target "
+			    "\"%s\"", $2, target->t_name);
+			free($2);
+			free($3);
+			return (1);
+		}
+		tag = auth_group_find(conf, $3);
+		if (tag == NULL) {
+			log_warnx("unknown auth-group \"%s\" for target "
+			    "\"%s\"", $3, target->t_name);
+			free($2);
+			free($3);
+			return (1);
+		}
+		tp = port_new(conf, target, tpg);
+		if (tp == NULL) {
+			log_warnx("can't link portal-group \"%s\" to target "
+			    "\"%s\"", $2, target->t_name);
 			free($2);
 			return (1);
 		}
-		target->t_portal_group = portal_group_find(conf, $2);
-		if (target->t_portal_group == NULL) {
+		tp->p_auth_group = tag;
+		free($2);
+		free($3);
+	}
+	|		PORTAL_GROUP STR
+	{
+		struct portal_group *tpg;
+		struct port *tp;
+
+		tpg = portal_group_find(conf, $2);
+		if (tpg == NULL) {
 			log_warnx("unknown portal-group \"%s\" for target "
+			    "\"%s\"", $2, target->t_name);
+			free($2);
+			return (1);
+		}
+		tp = port_new(conf, target, tpg);
+		if (tp == NULL) {
+			log_warnx("can't link portal-group \"%s\" to target "
 			    "\"%s\"", $2, target->t_name);
 			free($2);
 			return (1);
