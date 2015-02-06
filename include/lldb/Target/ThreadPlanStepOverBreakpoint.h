@@ -35,7 +35,13 @@ public:
     virtual void ThreadDestroyed ();
     void SetAutoContinue (bool do_it);
     virtual bool ShouldAutoContinue(Event *event_ptr);
+    virtual bool IsPlanStale();
 
+    lldb::addr_t
+    GetBreakpointLoadAddress() const
+    {
+        return m_breakpoint_addr;
+    }
 protected:
     virtual bool DoPlanExplainsStop (Event *event_ptr);
     virtual bool DoWillResume (lldb::StateType resume_state, bool current_plan);
