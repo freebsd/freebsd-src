@@ -152,6 +152,12 @@ STAILQ_HEAD(, funix) funixes =	{ &funix_default,
 #define	MARK		0x008	/* this message is a mark */
 #define	ISKERNEL	0x010	/* kernel generated message */
 
+struct ratelimit {
+	struct timespec rl_ts;	/* interval start time */
+	size_t rl_written;	/* bytes written this interval */
+	int rl_warned;		/* did we write a warning yet? */
+};
+
 /*
  * This structure represents the files that will have log
  * copies printed.
@@ -165,6 +171,7 @@ struct filed {
 	short	f_file;			/* file descriptor */
 	time_t	f_time;			/* time this was last written */
 	char	*f_host;		/* host from which to recd. */
+	struct ratelimit f_ratelimit;
 	u_char	f_pmask[LOG_NFACILITIES+1];	/* priority mask */
 	u_char	f_pcmp[LOG_NFACILITIES+1];	/* compare priority */
 #define PRI_LT	0x1
@@ -305,6 +312,9 @@ static int	KeepKernFac;	/* Keep remotely logged kernel facility */
 static int	needdofsync = 0; /* Are any file(s) waiting to be fsynced? */
 static struct pidfh *pfh;
 
+/* are we ratelimiting syslog? */
+static size_t	ratelimit_bytes_per_minute;
+
 volatile sig_atomic_t MarkSet, WantDie;
 
 static int	allowaddr(char *);
@@ -360,7 +370,7 @@ main(int argc, char *argv[])
 		dprintf("madvise() failed: %s\n", strerror(errno));
 
 	bindhostname = NULL;
-	while ((ch = getopt(argc, argv, "468Aa:b:cCdf:kl:m:nNop:P:sS:Tuv"))
+	while ((ch = getopt(argc, argv, "468Aa:b:cCdf:kl:m:nNop:P:R:sS:Tuv"))
 	    != -1)
 		switch (ch) {
 		case '4':
@@ -456,6 +466,12 @@ main(int argc, char *argv[])
 			break;
 		case 'P':		/* path for alt. PID */
 			PidFile = optarg;
+			break;
+		case 'R':
+			ratelimit_bytes_per_minute = atoi(optarg);
+			if (ratelimit_bytes_per_minute < 1) {
+				errx(1, "rate limit too low/parse error '%s'", optarg);
+			}
 			break;
 		case 's':		/* no network mode */
 			SecureMode++;
@@ -683,6 +699,10 @@ main(int argc, char *argv[])
 		free(fdsr);
 }
 
+/*
+ * If sockaddr is INET6 and V4MAPPED turn into a INET sockaddr,
+ * otherwise leave it as-is.
+ */
 static void
 unmapped(struct sockaddr *sa)
 {
@@ -900,6 +920,53 @@ skip_message(const char *name, const char *spec, int checkcase)
 	return !exclude;
 }
 
+static int
+should_ratelimit(struct filed *f, int flags, size_t msglen)
+{
+	struct timespec ts;
+	struct ratelimit *rl;
+	char msgbuf[1024];
+
+	if (ratelimit_bytes_per_minute == 0)
+		return 0;
+
+	rl = &f->f_ratelimit;
+
+	if (clock_gettime(CLOCK_MONOTONIC_FAST, &ts)) {
+		logerror("clock_gettime(CLOCK_MONOTONIC_FAST, &ts)");
+		exit(1);
+	}
+	/* if one minute has passed, reset our count and return false. */
+	if (rl->rl_ts.tv_sec < ts.tv_sec - 60) {
+#ifdef DEBUG_RATELIMIT
+		fprintlog(f, flags, "rate limit period over... resetting");
+#endif
+		rl->rl_ts = ts;
+		rl->rl_written = msglen;
+		rl->rl_warned = 0;
+		return 0;
+	}
+	/* If we are here we are in the same period.
+	 * We need to check if we have exceeded the ratelimit.
+	 */
+	if (rl->rl_written < ratelimit_bytes_per_minute) {
+		/* we have not, do accouting and return false */
+		rl->rl_written += msglen;
+#ifdef DEBUG_RATELIMIT
+		snprintf(msgbuf, sizeof(msgbuf), "wrote %zd bytes %zd until rate limiting", rl->rl_written, ratelimit_bytes_per_minute - rl->rl_written);
+		fprintlog(f, flags, msgbuf);
+#endif
+		return 0;
+	}
+	/* we have exceeded rate limit, warn if needed */
+	if (!rl->rl_warned) {
+		rl->rl_warned = 1;
+		snprintf(msgbuf, sizeof(msgbuf), "wrote %zd bytes rate limiting for 1 minute", rl->rl_written);
+		fprintlog(f, flags, msgbuf);
+	}
+	return 1;
+}
+
 /*
  * Log a message to the appropriate log files, users, etc. based on
  * the priority.
@@ -1013,6 +1080,10 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 
 		/* don't output marks to recently written files */
 		if ((flags & MARK) && (now - f->f_time) < MarkInterval / 2)
+			continue;
+
+		/* do accounting and stop if we are the rate limit */
+		if (should_ratelimit(f, flags, msglen))
 			continue;
 
 		/*

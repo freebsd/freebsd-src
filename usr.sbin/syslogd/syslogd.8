@@ -44,6 +44,7 @@
 .Op Fl m Ar mark_interval
 .Op Fl P Ar pid_file
 .Op Fl p Ar log_socket
+.Op Fl R Ar rate_limit
 .Sh DESCRIPTION
 The
 .Nm
@@ -249,6 +250,10 @@ the default is
 Specify an alternative file in which to store the process ID.
 The default is
 .Pa /var/run/syslog.pid .
+.It Fl R Ar rate_limit
+Specify a max bytes per minute to log.
+Useful to prevent /var/log from taking over your disk.
+This is a global limit across all logging destinations.
 .It Fl S
 Specify the pathname of an alternate log socket for privileged
 applications to be used instead; the default is
