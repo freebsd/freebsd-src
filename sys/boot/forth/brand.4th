@@ -33,13 +33,14 @@ variable brandY
 2 brandX !
 1 brandY !
 
-: fbsd-logo ( x y -- ) \ "FreeBSD" [wide] logo in B/W (6 rows x 42 columns)
+: fbsd-logo ( x y -- ) \ "FreeBSD" [wide] logo in B/W (7 rows x 42 columns)
 
 	2dup at-xy ."  ______               ____   _____ _____  " 1+
 	2dup at-xy ." |  ____|             |  _ \ / ____|  __ \ " 1+
 	2dup at-xy ." | |___ _ __ ___  ___ | |_) | (___ | |  | |" 1+
 	2dup at-xy ." |  ___| '__/ _ \/ _ \|  _ < \___ \| |  | |" 1+
 	2dup at-xy ." | |   | | |  __/  __/| |_) |____) | |__| |" 1+
+	2dup at-xy ." | |   | | |    |    ||     |      |      |" 1+
 	     at-xy ." |_|   |_|  \___|\___||____/|_____/|_____/ "
 
 	\ Put the cursor back at the bottom
