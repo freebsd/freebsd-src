@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 28, 2015
+.Dd February 6, 2015
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -753,6 +753,12 @@ Mount a
 filesystem on the chrooted
 .Pa /dev/fd
 directory.
+.It Va mount.procfs
+Mount a
+.Xr procfs 5
+filesystem on the chrooted
+.Pa /proc
+directory.
 .It Va allow.dying
 Allow making changes to a
 .Va dying
@@ -1207,6 +1213,7 @@ environment of the first jail.
 .Xr jls 8 ,
 .Xr mount 8 ,
 .Xr named 8 ,
+.Xr procfs 5 ,
 .Xr reboot 8 ,
 .Xr rpcbind 8 ,
 .Xr sendmail 8 ,
