@@ -212,6 +212,26 @@ boot</screen>
 	<screen>&prompt.root; pkg bootstrap
 &prompt.root; pkg install <replaceable>xorg-server</replaceable> <replaceable>xorg</replaceable> <replaceable>gnome2</replaceable> [...]</screen>
       </listitem>
+
+      <listitem>
+	<para>[2015-02-06] <emphasis>Affects binary upgrade
+	    users:</emphasis> The second phase of
+	  <command>freebsd-update install</command>, the phase where
+	  the running userland is upgraded, fails on systems deployed
+	  with <literal>nss_ldap</literal> enabled in
+	  &man.nsswitch.conf.5; when upgrading from 10.0-RELEASE to
+	  10.1-RELEASE.</para>
+
+	<para>A workaround is to disable <literal>nss_ldap</literal>
+	  in &man.nsswitch.conf.5; prior to running
+	  <command>freebsd-update install</command> to upgrade the
+	  userland, after which it can be enabled again when the
+	  upgrade process is completed.</para>
+
+	<para>The problem is being investigated, and an Errata Notice
+	  is expected to be issued when a solution to the problem is
+	  identified.</para>
+      </listitem>
     </itemizedlist>
   </sect1>
 
