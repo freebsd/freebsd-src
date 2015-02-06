@@ -10,6 +10,8 @@
 #ifndef LLDB_lldb_python_h_
 #define LLDB_lldb_python_h_
 
+#define LLDB_DISABLE_PYTHON
+
 // Python.h needs to be included before any system headers in order to avoid redefinition of macros
 
 #ifdef LLDB_DISABLE_PYTHON

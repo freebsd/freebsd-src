@@ -185,7 +185,8 @@ namespace lldb {
         eStopReasonException,
         eStopReasonExec,        // Program was re-exec'ed
         eStopReasonPlanComplete,
-        eStopReasonThreadExiting
+        eStopReasonThreadExiting,
+        eStopReasonInstrumentation
     } StopReason;
 
     //----------------------------------------------------------------------
@@ -387,6 +388,11 @@ namespace lldb {
         eLanguageTypeDylan           = 0x0020,   ///< Dylan.
         eNumLanguageTypes
     } LanguageType;
+    
+    typedef enum InstrumentationRuntimeType {
+        eInstrumentationRuntimeTypeAddressSanitizer = 0x0000,
+        eNumInstrumentationRuntimeTypes
+    } InstrumentationRuntimeType;
 
     typedef enum DynamicValueType
     {
@@ -414,6 +420,7 @@ namespace lldb {
         eArgTypeBoolean,
         eArgTypeBreakpointID,
         eArgTypeBreakpointIDRange,
+        eArgTypeBreakpointName,
         eArgTypeByteSize,
         eArgTypeClassName,
         eArgTypeCommandName,
@@ -432,6 +439,7 @@ namespace lldb {
         eArgTypeFunctionName,
         eArgTypeFunctionOrSymbol,
         eArgTypeGDBFormat,
+        eArgTypeHelpText,
         eArgTypeIndex,
         eArgTypeLanguage,
         eArgTypeLineNum,
@@ -563,6 +571,7 @@ namespace lldb {
         eSectionTypeELFRelocationEntries, // Elf SHT_REL or SHT_REL section
         eSectionTypeELFDynamicLinkInfo,   // Elf SHT_DYNAMIC section
         eSectionTypeEHFrame,
+        eSectionTypeCompactUnwind,        // compact unwind section in Mach-O, __TEXT,__unwind_info
         eSectionTypeOther
         
     } SectionType;
@@ -846,9 +855,68 @@ namespace lldb {
         ePathTypePythonDir,             // Find Python modules (PYTHONPATH) directory
         ePathTypeLLDBSystemPlugins,     // System plug-ins directory
         ePathTypeLLDBUserPlugins,       // User plug-ins directory
-        ePathTypeLLDBTempSystemDir      // The LLDB temp directory for this system that will be cleaned up on exit
-        
+        ePathTypeLLDBTempSystemDir,     // The LLDB temp directory for this system that will be cleaned up on exit
+        ePathTypeClangDir               // Find path to Clang builtin headers
     } PathType;
+    
+    //----------------------------------------------------------------------
+    // Kind of member function
+    // Used by the type system
+    //----------------------------------------------------------------------
+    typedef enum MemberFunctionKind
+    {
+        eMemberFunctionKindUnknown = 0,     // Not sure what the type of this is
+        eMemberFunctionKindConstructor,     // A function used to create instances
+        eMemberFunctionKindDestructor,      // A function used to tear down existing instances
+        eMemberFunctionKindInstanceMethod,  // A function that applies to a specific instance
+        eMemberFunctionKindStaticMethod     // A function that applies to a type rather than any instance
+    } MemberFunctionKind;
+
+
+    //----------------------------------------------------------------------
+    // String matching algorithm used by SBTarget
+    //----------------------------------------------------------------------
+    typedef enum MatchType {
+        eMatchTypeNormal,
+        eMatchTypeRegex,
+        eMatchTypeStartsWith
+    } MatchType;
+    
+    //----------------------------------------------------------------------
+    // Bitmask that describes details about a type
+    //----------------------------------------------------------------------
+    typedef enum TypeFlags {
+        eTypeHasChildren        = (1u <<  0),
+        eTypeHasValue           = (1u <<  1),
+        eTypeIsArray            = (1u <<  2),
+        eTypeIsBlock            = (1u <<  3),
+        eTypeIsBuiltIn          = (1u <<  4),
+        eTypeIsClass            = (1u <<  5),
+        eTypeIsCPlusPlus        = (1u <<  6),
+        eTypeIsEnumeration      = (1u <<  7),
+        eTypeIsFuncPrototype    = (1u <<  8),
+        eTypeIsMember           = (1u <<  9),
+        eTypeIsObjC             = (1u << 10),
+        eTypeIsPointer          = (1u << 11),
+        eTypeIsReference        = (1u << 12),
+        eTypeIsStructUnion      = (1u << 13),
+        eTypeIsTemplate         = (1u << 14),
+        eTypeIsTypedef          = (1u << 15),
+        eTypeIsVector           = (1u << 16),
+        eTypeIsScalar           = (1u << 17),
+        eTypeIsInteger          = (1u << 18),
+        eTypeIsFloat            = (1u << 19),
+        eTypeIsComplex          = (1u << 20),
+        eTypeIsSigned           = (1u << 21)
+    } TypeFlags;
+    
+    //----------------------------------------------------------------------
+    // Whether a summary should cap how much data it returns to users or not
+    //----------------------------------------------------------------------
+    typedef enum TypeSummaryCapping {
+        eTypeSummaryCapped = true,
+        eTypeSummaryUncapped = false
+    } TypeSummaryCapping;
 
 } // namespace lldb
 
