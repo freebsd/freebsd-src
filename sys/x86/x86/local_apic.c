@@ -1452,22 +1452,22 @@ SYSINIT(apic_setup_io, SI_SUB_INTR, SI_ORDER_THIRD, apic_setup_io, NULL);
 static int
 native_lapic_ipi_wait(int delay)
 {
-	int x, incr;
+	int x;
 
 	/*
-	 * Wait delay loops for IPI to be sent.  This is highly bogus
-	 * since this is sensitive to CPU clock speed.  If delay is
+	 * Wait delay microseconds for IPI to be sent.  If delay is
 	 * -1, we wait forever.
 	 */
 	if (delay == -1) {
-		incr = 0;
-		delay = 1;
-	} else
-		incr = 1;
-	for (x = 0; x < delay; x += incr) {
+		while ((lapic->icr_lo & APIC_DELSTAT_MASK) != APIC_DELSTAT_IDLE)
+			ia32_pause();
+		return (1);
+	}
+
+	for (x = 0; x < delay; x += 5) {
 		if ((lapic->icr_lo & APIC_DELSTAT_MASK) == APIC_DELSTAT_IDLE)
 			return (1);
-		ia32_pause();
+		DELAY(5);
 	}
 	return (0);
 }
@@ -1501,9 +1501,9 @@ native_lapic_ipi_raw(register_t icrlo, u_int dest)
 	intr_restore(saveintr);
 }
 
-#define	BEFORE_SPIN	1000000
+#define	BEFORE_SPIN	50000
 #ifdef DETECT_DEADLOCK
-#define	AFTER_SPIN	1000
+#define	AFTER_SPIN	50
 #endif
 
 static void
@@ -1514,7 +1514,7 @@ native_lapic_ipi_vectored(u_int vector, int dest)
 	KASSERT((vector & ~APIC_VECTOR_MASK) == 0,
 	    ("%s: invalid vector %d", __func__, vector));
 
-	icrlo = APIC_DESTMODE_PHY | APIC_TRIGMOD_EDGE;
+	icrlo = APIC_DESTMODE_PHY | APIC_TRIGMOD_EDGE | APIC_LEVEL_ASSERT;
 
 	/*
 	 * IPI_STOP_HARD is just a "fake" vector used to send a NMI.
@@ -1522,9 +1522,9 @@ native_lapic_ipi_vectored(u_int vector, int dest)
 	 * the vector.
 	 */
 	if (vector == IPI_STOP_HARD)
-		icrlo |= APIC_DELMODE_NMI | APIC_LEVEL_ASSERT;
+		icrlo |= APIC_DELMODE_NMI;
 	else
-		icrlo |= vector | APIC_DELMODE_FIXED | APIC_LEVEL_DEASSERT;
+		icrlo |= vector | APIC_DELMODE_FIXED;
 	destfield = 0;
 	switch (dest) {
 	case APIC_IPI_DEST_SELF:
