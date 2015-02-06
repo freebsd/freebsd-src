@@ -1272,6 +1272,22 @@ target_set_redirection(struct target *target, const char *addr)
 	return (0);
 }
 
+int
+target_set_offload(struct target *target, const char *offload)
+{
+
+	if (target->t_offload != NULL) {
+		log_warnx("cannot set offload to \"%s\" for "
+		    "target \"%s\"; already defined",
+		    offload, target->t_name);
+		return (1);
+	}
+
+	target->t_offload = checked_strdup(offload);
+
+	return (0);
+}
+
 struct lun *
 lun_new(struct conf *conf, const char *name)
 {
@@ -1514,6 +1530,8 @@ conf_print(struct conf *conf)
 		fprintf(stderr, "target %s {\n", targ->t_name);
 		if (targ->t_alias != NULL)
 			fprintf(stderr, "\t alias %s\n", targ->t_alias);
+		if (targ->t_offload != NULL)
+			fprintf(stderr, "\t offload %s\n", targ->t_offload);
 		fprintf(stderr, "}\n");
 	}
 }
