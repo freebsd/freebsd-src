@@ -162,6 +162,5 @@ getdiskbyname(const char *name)
 	dp->d_magic = DISKMAGIC;
 	dp->d_magic2 = DISKMAGIC;
 	free(buf);
-	(void)cgetclose();
 	return (dp);
 }
