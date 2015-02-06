@@ -27,3 +27,23 @@ kern/kern_clocksource.c                         standard
 
 dev/mbox/mbox_if.m				standard
 dev/ofw/ofw_cpu.c				standard
+
+# VideoCore driver
+contrib/vchiq/interface/compat/vchi_bsd.c	standard \
+	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
+contrib/vchiq/interface/vchiq_arm/vchiq_2835_arm.c	standard \
+	compile-with "${NORMAL_C} -Wno-unused -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
+contrib/vchiq/interface/vchiq_arm/vchiq_arm.c	standard \
+	compile-with "${NORMAL_C} -Wno-unused -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
+contrib/vchiq/interface/vchiq_arm/vchiq_connected.c	standard \
+	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
+contrib/vchiq/interface/vchiq_arm/vchiq_core.c	standard \
+	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
+contrib/vchiq/interface/vchiq_arm/vchiq_kern_lib.c	standard \
+	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
+contrib/vchiq/interface/vchiq_arm/vchiq_kmod.c	standard \
+	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
+contrib/vchiq/interface/vchiq_arm/vchiq_shim.c	standard \
+	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
+contrib/vchiq/interface/vchiq_arm/vchiq_util.c	standard \
+	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
