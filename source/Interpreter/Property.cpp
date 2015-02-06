@@ -60,7 +60,11 @@ Property::Property (const PropertyDefinition &definition) :
             else
                 m_value_sp.reset (new OptionValueBoolean(definition.default_uint_value != 0));
             break;
-            
+
+        case OptionValue::eTypeChar:
+            m_value_sp.reset(new OptionValueChar(Args::StringToChar(definition.default_cstr_value, '\0', nullptr)));
+            break;
+
         case OptionValue::eTypeDictionary:
             // "definition.default_uint_value" is always a OptionValue::Type
             m_value_sp.reset (new OptionValueDictionary(OptionValue::ConvertTypeToMask((OptionValue::Type)definition.default_uint_value)));
@@ -272,4 +276,13 @@ Property::DumpDescription (CommandInterpreter &interpreter,
         }
     }
 }
+
+
+void
+Property::SetValueChangedCallback (OptionValueChangedCallback callback, void *baton)
+{
+    if (m_value_sp)
+        m_value_sp->SetValueChangedCallback (callback, baton);
+}
+
 
