@@ -75,6 +75,7 @@ _LIBRARIES=	\
 		ctf \
 		cuse \
 		cxxrt \
+		devctl \
 		devinfo \
 		devstat \
 		dialog \

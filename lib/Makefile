@@ -45,6 +45,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libcompat \
 	libcrypt \
 	${_libcurl} \
+	libdevctl \
 	libdevinfo \
 	libdevstat \
 	libdpv \
