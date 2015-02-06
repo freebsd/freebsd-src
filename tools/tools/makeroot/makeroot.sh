@@ -75,7 +75,7 @@ KEYDIR=
 KEYUSERS=
 PASSWD=
 
-while getopts "B:de:f:g:K:k:p:s:" opt; do
+while getopts "B:de:f:g:K:k:l:p:s:" opt; do
 	case "$opt" in
 	B)	BFLAG="-B ${OPTARG}" ;;
 	d)	DEBUG=1 ;;
@@ -84,6 +84,7 @@ while getopts "B:de:f:g:K:k:p:s:" opt; do
 	g)	GROUP="${OPTARG}" ;;
 	K)	KEYUSERS="${KEYUSERS} ${OPTARG}" ;;
 	k)	KEYDIR="${OPTARG}" ;;
+	l)	LABEL="${OPTARG}" ;;
 	p)	PASSWD="${OPTARG}" ;;
 	s)	SIZE="${OPTARG}" ;;
 	*)	usage ;;
@@ -230,9 +231,12 @@ if [ -n "${KEYDIR}" ]; then
 	done
 fi
 
+if [ -n "${LABEL}" ]; then
+LABELFLAG="-o label=${LABEL}"
+fi
 if [ -n "${SIZE}" ]; then
 SIZEFLAG="-s ${SIZE}"
 fi
 
 cd ${BSDROOT}; makefs ${DUPFLAG} -N ${DBDIR} ${SIZEFLAG} ${BFLAG} \
-     -t ffs -f 256 ${IMGFILE} ${manifest}
+     -t ffs ${LABELFLAG} -f 256 ${IMGFILE} ${manifest}
