@@ -19,6 +19,7 @@ SUBDIR=	adduser \
 	ctld \
 	daemon \
 	dconschat \
+	devctl \
 	devinfo \
 	digictl \
 	diskinfo \

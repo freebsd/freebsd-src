@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 David Schultz <das@FreeBSD.ORG>
+ * Copyright (c) 2014 John Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,33 +22,21 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef __DEVCTL_H__
+#define	__DEVCTL_H__
 
-#include <math.h>
+#include <stdbool.h>
 
-#define	NMAX	65536
-#define	NMIN	-65536
+int	devctl_attach(const char *device);
+int	devctl_detach(const char *device, bool force);
+int	devctl_enable(const char *device);
+int	devctl_disable(const char *device, bool force_detach);
+int	devctl_suspend(const char *device);
+int	devctl_resume(const char *device);
+int	devctl_set_driver(const char *device, const char *driver, bool force);
 
-double
-scalbln(double x, long n)
-{
-
-	return (scalbn(x, (n > NMAX) ? NMAX : (n < NMIN) ? NMIN : (int)n));
-}
-
-float
-scalblnf(float x, long n)
-{
-
-	return (scalbnf(x, (n > NMAX) ? NMAX : (n < NMIN) ? NMIN : (int)n));
-}
-
-long double
-scalblnl(long double x, long n)
-{
-
-	return (scalbnl(x, (n > NMAX) ? NMAX : (n < NMIN) ? NMIN : (int)n));
-}
+#endif /* !__DEVCTL_H__ */

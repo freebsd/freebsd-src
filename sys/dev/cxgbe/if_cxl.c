@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 2004 David Schultz <das@FreeBSD.ORG>
+ * Copyright (c) 2015 Chelsio Communications, Inc.
  * All rights reserved.
+ * Written by: Navdeep Parhar <np@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,28 +28,17 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <math.h>
+#include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 
-#define	NMAX	65536
-#define	NMIN	-65536
-
-double
-scalbln(double x, long n)
+static int
+mod_event(module_t mod, int cmd, void *arg)
 {
 
-	return (scalbn(x, (n > NMAX) ? NMAX : (n < NMIN) ? NMIN : (int)n));
+	return (0);
 }
-
-float
-scalblnf(float x, long n)
-{
-
-	return (scalbnf(x, (n > NMAX) ? NMAX : (n < NMIN) ? NMIN : (int)n));
-}
-
-long double
-scalblnl(long double x, long n)
-{
-
-	return (scalbnl(x, (n > NMAX) ? NMAX : (n < NMIN) ? NMIN : (int)n));
-}
+static moduledata_t if_cxl_mod = {"if_cxl", mod_event};
+DECLARE_MODULE(if_cxl, if_cxl_mod, SI_SUB_EXEC, SI_ORDER_ANY);
+MODULE_VERSION(if_cxl, 1);
+MODULE_DEPEND(if_cxl, cxl, 1, 1, 1);
