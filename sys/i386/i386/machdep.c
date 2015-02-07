@@ -197,7 +197,7 @@ static void cpu_startup(void *);
 static void fpstate_drop(struct thread *td);
 static void get_fpcontext(struct thread *td, mcontext_t *mcp,
     char *xfpusave, size_t xfpusave_len);
-static int  set_fpcontext(struct thread *td, const mcontext_t *mcp,
+static int  set_fpcontext(struct thread *td, mcontext_t *mcp,
     char *xfpustate, size_t xfpustate_len);
 #ifdef CPU_ENABLE_SSE
 static void set_fpregs_xmm(struct save87 *, struct savexmm *);
@@ -3839,7 +3839,7 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
  * touch the cs selector.
  */
 int
-set_mcontext(struct thread *td, const mcontext_t *mcp)
+set_mcontext(struct thread *td, mcontext_t *mcp)
 {
 	struct trapframe *tp;
 	char *xfpustate;
@@ -3917,7 +3917,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp, char *xfpusave,
 }
 
 static int
-set_fpcontext(struct thread *td, const mcontext_t *mcp, char *xfpustate,
+set_fpcontext(struct thread *td, mcontext_t *mcp, char *xfpustate,
     size_t xfpustate_len)
 {
 	union savefpu *fpstate;
