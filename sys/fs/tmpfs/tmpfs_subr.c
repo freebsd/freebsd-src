@@ -991,6 +991,7 @@ tmpfs_dir_attach(struct vnode *vp, struct tmpfs_dirent *de)
 	dnode->tn_size += sizeof(struct tmpfs_dirent);
 	dnode->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED | \
 	    TMPFS_NODE_MODIFIED;
+	tmpfs_update(vp);
 }
 
 /*
@@ -1036,6 +1037,7 @@ tmpfs_dir_detach(struct vnode *vp, struct tmpfs_dirent *de)
 	dnode->tn_size -= sizeof(struct tmpfs_dirent);
 	dnode->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED | \
 	    TMPFS_NODE_MODIFIED;
+	tmpfs_update(vp);
 }
 
 void
