@@ -29,21 +29,21 @@ dev/mbox/mbox_if.m				standard
 dev/ofw/ofw_cpu.c				standard
 
 # VideoCore driver
-contrib/vchiq/interface/compat/vchi_bsd.c	standard \
+contrib/vchiq/interface/compat/vchi_bsd.c	optional vchiq \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
-contrib/vchiq/interface/vchiq_arm/vchiq_2835_arm.c	standard \
+contrib/vchiq/interface/vchiq_arm/vchiq_2835_arm.c	optional vchiq \
 	compile-with "${NORMAL_C} -Wno-unused -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
-contrib/vchiq/interface/vchiq_arm/vchiq_arm.c	standard \
+contrib/vchiq/interface/vchiq_arm/vchiq_arm.c	optional vchiq \
 	compile-with "${NORMAL_C} -Wno-unused -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
-contrib/vchiq/interface/vchiq_arm/vchiq_connected.c	standard \
+contrib/vchiq/interface/vchiq_arm/vchiq_connected.c	optional vchiq \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
-contrib/vchiq/interface/vchiq_arm/vchiq_core.c	standard \
+contrib/vchiq/interface/vchiq_arm/vchiq_core.c	optional vchiq \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
-contrib/vchiq/interface/vchiq_arm/vchiq_kern_lib.c	standard \
+contrib/vchiq/interface/vchiq_arm/vchiq_kern_lib.c	optional vchiq \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
-contrib/vchiq/interface/vchiq_arm/vchiq_kmod.c	standard \
+contrib/vchiq/interface/vchiq_arm/vchiq_kmod.c	optional vchiq \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
-contrib/vchiq/interface/vchiq_arm/vchiq_shim.c	standard \
+contrib/vchiq/interface/vchiq_arm/vchiq_shim.c	optional vchiq \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
-contrib/vchiq/interface/vchiq_arm/vchiq_util.c	standard \
+contrib/vchiq/interface/vchiq_arm/vchiq_util.c	optional vchiq \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
