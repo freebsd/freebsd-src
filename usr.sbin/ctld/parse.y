@@ -60,7 +60,7 @@ extern void	yyrestart(FILE *);
 %token ALIAS AUTH_GROUP AUTH_TYPE BACKEND BLOCKSIZE CHAP CHAP_MUTUAL
 %token CLOSING_BRACKET DEBUG DEVICE_ID DISCOVERY_AUTH_GROUP DISCOVERY_FILTER
 %token INITIATOR_NAME INITIATOR_PORTAL ISNS_SERVER ISNS_PERIOD ISNS_TIMEOUT
-%token LISTEN LISTEN_ISER LUN MAXPROC OPENING_BRACKET OPTION
+%token LISTEN LISTEN_ISER LUN MAXPROC OFFLOAD OPENING_BRACKET OPTION
 %token PATH PIDFILE PORTAL_GROUP REDIRECT SEMICOLON SERIAL SIZE STR
 %token TARGET TIMEOUT 
 
@@ -463,6 +463,8 @@ target_entry:
 	|
 	target_initiator_portal
 	|
+	target_offload
+	|
 	target_portal_group
 	|
 	target_redirect
@@ -652,17 +654,65 @@ target_initiator_portal:	INITIATOR_PORTAL STR
 	}
 	;
 
-target_portal_group:	PORTAL_GROUP STR
+target_offload:	OFFLOAD STR
 	{
-		if (target->t_portal_group != NULL) {
-			log_warnx("portal-group for target \"%s\" "
-			    "specified more than once", target->t_name);
+		int error;
+
+		error = target_set_offload(target, $2);
+		free($2);
+		if (error != 0)
+			return (1);
+	}
+	;
+
+target_portal_group:	PORTAL_GROUP STR STR
+	{
+		struct portal_group *tpg;
+		struct auth_group *tag;
+		struct port *tp;
+
+		tpg = portal_group_find(conf, $2);
+		if (tpg == NULL) {
+			log_warnx("unknown portal-group \"%s\" for target "
+			    "\"%s\"", $2, target->t_name);
+			free($2);
+			free($3);
+			return (1);
+		}
+		tag = auth_group_find(conf, $3);
+		if (tag == NULL) {
+			log_warnx("unknown auth-group \"%s\" for target "
+			    "\"%s\"", $3, target->t_name);
+			free($2);
+			free($3);
+			return (1);
+		}
+		tp = port_new(conf, target, tpg);
+		if (tp == NULL) {
+			log_warnx("can't link portal-group \"%s\" to target "
+			    "\"%s\"", $2, target->t_name);
 			free($2);
 			return (1);
 		}
-		target->t_portal_group = portal_group_find(conf, $2);
-		if (target->t_portal_group == NULL) {
+		tp->p_auth_group = tag;
+		free($2);
+		free($3);
+	}
+	|		PORTAL_GROUP STR
+	{
+		struct portal_group *tpg;
+		struct port *tp;
+
+		tpg = portal_group_find(conf, $2);
+		if (tpg == NULL) {
 			log_warnx("unknown portal-group \"%s\" for target "
+			    "\"%s\"", $2, target->t_name);
+			free($2);
+			return (1);
+		}
+		tp = port_new(conf, target, tpg);
+		if (tp == NULL) {
+			log_warnx("can't link portal-group \"%s\" to target "
 			    "\"%s\"", $2, target->t_name);
 			free($2);
 			return (1);
