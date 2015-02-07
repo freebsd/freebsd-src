@@ -118,7 +118,7 @@ ia32_get_fpcontext(struct thread *td, struct ia32_mcontext *mcp,
 }
 
 static int
-ia32_set_fpcontext(struct thread *td, const struct ia32_mcontext *mcp,
+ia32_set_fpcontext(struct thread *td, struct ia32_mcontext *mcp,
     char *xfpustate, size_t xfpustate_len)
 {
 	int error;
@@ -197,7 +197,7 @@ ia32_get_mcontext(struct thread *td, struct ia32_mcontext *mcp, int flags)
  * touch the cs selector.
  */
 static int
-ia32_set_mcontext(struct thread *td, const struct ia32_mcontext *mcp)
+ia32_set_mcontext(struct thread *td, struct ia32_mcontext *mcp)
 {
 	struct trapframe *tp;
 	char *xfpustate;
