@@ -921,7 +921,7 @@ files_passwd(void *retval, void *mdata, va_list ap)
 		    errnop);
 	} while (how == nss_lt_all && !(rv & NS_TERMINATE));
 fin:
-	if (!stayopen && st->db != NULL) {
+	if (st->db != NULL && !stayopen) {
 		(void)st->db->close(st->db);
 		st->db = NULL;
 	}
