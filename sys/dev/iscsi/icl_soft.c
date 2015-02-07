@@ -29,8 +29,7 @@
  */
 
 /*
- * iSCSI Common Layer.  It's used by both the initiator and target to send
- * and receive iSCSI PDUs.
+ * Software implementation of iSCSI Common Layer kobj(9) interface.
  */
 
 #include <sys/cdefs.h>
@@ -117,8 +116,6 @@ static kobj_method_t icl_soft_methods[] = {
 
 DEFINE_CLASS(icl_soft, icl_soft_methods, sizeof(struct icl_conn));
 
-static void	icl_conn_close(struct icl_conn *ic);
-
 static void
 icl_conn_fail(struct icl_conn *ic)
 {
@@ -201,6 +198,7 @@ icl_pdu_free(struct icl_pdu *ip)
 void
 icl_soft_conn_pdu_free(struct icl_conn *ic, struct icl_pdu *ip)
 {
+
 	icl_pdu_free(ip);
 }
 
@@ -696,7 +694,7 @@ icl_conn_receive_pdu(struct icl_conn *ic, size_t *availablep)
 	if (error != 0) {
 		/*
 		 * Don't free the PDU; it's pointed to by ic->ic_receive_pdu
-		 * and will get freed in icl_conn_close().
+		 * and will get freed in icl_soft_conn_close().
 		 */
 		icl_conn_fail(ic);
 	}
@@ -1248,7 +1246,7 @@ icl_conn_start(struct icl_conn *ic)
 	error = soreserve(ic->ic_socket, sendspace, recvspace);
 	if (error != 0) {
 		ICL_WARN("soreserve failed with error %d", error);
-		icl_conn_close(ic);
+		icl_soft_conn_close(ic);
 		return (error);
 	}
 	ic->ic_socket->so_snd.sb_flags |= SB_AUTOSIZE;
@@ -1266,7 +1264,7 @@ icl_conn_start(struct icl_conn *ic)
 	error = sosetopt(ic->ic_socket, &opt);
 	if (error != 0) {
 		ICL_WARN("disabling TCP_NODELAY failed with error %d", error);
-		icl_conn_close(ic);
+		icl_soft_conn_close(ic);
 		return (error);
 	}
 
@@ -1277,7 +1275,7 @@ icl_conn_start(struct icl_conn *ic)
 	    ic->ic_name);
 	if (error != 0) {
 		ICL_WARN("kthread_add(9) failed with error %d", error);
-		icl_conn_close(ic);
+		icl_soft_conn_close(ic);
 		return (error);
 	}
 
@@ -1285,7 +1283,7 @@ icl_conn_start(struct icl_conn *ic)
 	    ic->ic_name);
 	if (error != 0) {
 		ICL_WARN("kthread_add(9) failed with error %d", error);
-		icl_conn_close(ic);
+		icl_soft_conn_close(ic);
 		return (error);
 	}
 
@@ -1350,7 +1348,7 @@ icl_soft_conn_handoff(struct icl_conn *ic, int fd)
 }
 
 void
-icl_conn_close(struct icl_conn *ic)
+icl_soft_conn_close(struct icl_conn *ic)
 {
 	struct icl_pdu *pdu;
 
@@ -1417,13 +1415,6 @@ icl_conn_close(struct icl_conn *ic)
 	     ic->ic_outstanding_pdus));
 #endif
 	ICL_CONN_UNLOCK(ic);
-}
-
-void
-icl_soft_conn_close(struct icl_conn *ic)
-{
-
-	icl_conn_close(ic);
 }
 
 bool
