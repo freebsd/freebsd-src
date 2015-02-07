@@ -2699,6 +2699,9 @@ bool X86FastISel::FastLowerCall(CallLoweringInfo &CLI) {
                        TM.Options.GuaranteedTailCallOpt))
     return false;
 
+  SmallVector<MVT, 16> OutVTs;
+  SmallVector<unsigned, 16> ArgRegs;
+
   // If this is a constant i1/i8/i16 argument, promote to i32 to avoid an extra
   // instruction. This is safe because it is common to all FastISel supported
   // calling conventions on x86.
@@ -2716,28 +2719,34 @@ bool X86FastISel::FastLowerCall(CallLoweringInfo &CLI) {
 
     // Passing bools around ends up doing a trunc to i1 and passing it.
     // Codegen this as an argument + "and 1".
-    if (auto *TI = dyn_cast<TruncInst>(Val)) {
-      if (TI->getType()->isIntegerTy(1) && CLI.CS &&
-          (TI->getParent() == CLI.CS->getInstruction()->getParent()) &&
-          TI->hasOneUse()) {
-        Val = cast<TruncInst>(Val)->getOperand(0);
-        unsigned ResultReg = getRegForValue(Val);
+    MVT VT;
+    auto *TI = dyn_cast<TruncInst>(Val);
+    unsigned ResultReg;
+    if (TI && TI->getType()->isIntegerTy(1) && CLI.CS &&
+              (TI->getParent() == CLI.CS->getInstruction()->getParent()) &&
+              TI->hasOneUse()) {
+      Value *PrevVal = TI->getOperand(0);
+      ResultReg = getRegForValue(PrevVal);
 
-        if (!ResultReg)
-          return false;
+      if (!ResultReg)
+        return false;
 
-        MVT ArgVT;
-        if (!isTypeLegal(Val->getType(), ArgVT))
-          return false;
+      if (!isTypeLegal(PrevVal->getType(), VT))
+        return false;
 
-        ResultReg =
-          FastEmit_ri(ArgVT, ArgVT, ISD::AND, ResultReg, Val->hasOneUse(), 1);
+      ResultReg =
+        FastEmit_ri(VT, VT, ISD::AND, ResultReg, hasTrivialKill(PrevVal), 1);
 
-        if (!ResultReg)
-          return false;
-        UpdateValueMap(Val, ResultReg);
-      }
+      if (!ResultReg)
+        return false;
+    } else {
+      if (!isTypeLegal(Val->getType(), VT))
+        return false;
+      ResultReg = getRegForValue(Val);
     }
+
+    ArgRegs.push_back(ResultReg);
+    OutVTs.push_back(VT);
   }
 
   // Analyze operands of the call, assigning locations to each operand.
@@ -2749,13 +2758,6 @@ bool X86FastISel::FastLowerCall(CallLoweringInfo &CLI) {
   if (IsWin64)
     CCInfo.AllocateStack(32, 8);
 
-  SmallVector<MVT, 16> OutVTs;
-  for (auto *Val : OutVals) {
-    MVT VT;
-    if (!isTypeLegal(Val->getType(), VT))
-      return false;
-    OutVTs.push_back(VT);
-  }
   CCInfo.AnalyzeCallOperands(OutVTs, OutFlags, CC_X86);
 
   // Get a count of how many bytes are to be pushed on the stack.
@@ -2777,9 +2779,7 @@ bool X86FastISel::FastLowerCall(CallLoweringInfo &CLI) {
     if (ArgVT == MVT::x86mmx)
       return false;
 
-    unsigned ArgReg = getRegForValue(ArgVal);
-    if (!ArgReg)
-      return false;
+    unsigned ArgReg = ArgRegs[VA.getValNo()];
 
     // Promote the value if needed.
     switch (VA.getLocInfo()) {
