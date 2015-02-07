@@ -847,6 +847,9 @@ MWL_TX_NODROP		opt_mwl.h
 # Options for the Intel 802.11n wireless driver
 IWN_DEBUG		opt_iwn.h
 
+# Options for the Intel 3945ABG wireless driver
+WPI_DEBUG		opt_wpi.h
+
 # dcons options 
 DCONS_BUF_SIZE		opt_dcons.h
 DCONS_POLL_HZ		opt_dcons.h
