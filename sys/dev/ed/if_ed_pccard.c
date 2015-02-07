@@ -1172,8 +1172,8 @@ ed_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	sc = ifp->if_softc;
 	ED_LOCK(sc);
 	if (sc->miibus == NULL) {
-		return;
 		ED_UNLOCK(sc);
+		return;
 	}
 
 	mii = device_get_softc(sc->miibus);

@@ -128,6 +128,9 @@ struct fb_info {
 
 	struct cdev 	*fb_cdev;
 
+	device_t	 fb_fbd_dev;	/* "fbd" device. */
+	device_t	 fb_video_dev;	/* Video adapter. */
+
 	fb_enter_t	*enter;
 	fb_leave_t	*leave;
 	fb_setblankmode_t *setblankmode;

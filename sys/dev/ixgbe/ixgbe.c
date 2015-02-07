@@ -2373,6 +2373,9 @@ ixgbe_allocate_msix(struct adapter *adapter)
 	struct  	tx_ring *txr = adapter->tx_rings;
 	int 		error, rid, vector = 0;
 	int		cpu_id = 0;
+#ifdef	RSS
+	cpuset_t cpu_mask;
+#endif
 
 #ifdef	RSS
 	/*
@@ -2460,8 +2463,9 @@ ixgbe_allocate_msix(struct adapter *adapter)
 		que->tq = taskqueue_create_fast("ixgbe_que", M_NOWAIT,
 		    taskqueue_thread_enqueue, &que->tq);
 #ifdef	RSS
-		taskqueue_start_threads_pinned(&que->tq, 1, PI_NET,
-		    cpu_id,
+		CPU_SETOF(cpu_id, &cpu_mask);
+		taskqueue_start_threads_cpuset(&que->tq, 1, PI_NET,
+		    &cpu_mask,
 		    "%s (bucket %d)",
 		    device_get_nameunit(adapter->dev),
 		    cpu_id);

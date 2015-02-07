@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2014, Intel Corporation 
+  Copyright (c) 2013-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -444,5 +444,10 @@ enum i40e_status_code i40e_aq_add_rem_control_packet_filter(struct i40e_hw *hw,
 				u8 *mac_addr, u16 ethtype, u16 flags,
 				u16 vsi_seid, u16 queue, bool is_add,
 				struct i40e_control_filter_stats *stats,
+				struct i40e_asq_cmd_details *cmd_details);
+enum i40e_status_code i40e_aq_debug_dump(struct i40e_hw *hw, u8 cluster_id,
+				u8 table_id, u32 start_index, u16 buff_size,
+				void *buff, u16 *ret_buff_size,
+				u8 *ret_next_table, u32 *ret_next_index,
 				struct i40e_asq_cmd_details *cmd_details);
 #endif /* _I40E_PROTOTYPE_H_ */

@@ -2558,8 +2558,10 @@ int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr)
 {
 	struct rdma_id_private *id_priv;
 	int ret;
+#if defined(INET6)
 	int ipv6only;
 	size_t var_size = sizeof(int);
+#endif
 
 	if (addr->sa_family != AF_INET && addr->sa_family != AF_INET6)
 		return -EAFNOSUPPORT;
@@ -3222,10 +3224,13 @@ static void cma_set_mgid(struct rdma_id_private *id_priv,
 	unsigned char mc_map[MAX_ADDR_LEN];
 	struct rdma_dev_addr *dev_addr = &id_priv->id.route.addr.dev_addr;
 	struct sockaddr_in *sin = (struct sockaddr_in *) addr;
+#if defined(INET6)
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) addr;
+#endif
 
 	if (cma_any_addr(addr)) {
 		memset(mgid, 0, sizeof *mgid);
+#if defined(INET6)
 	} else if ((addr->sa_family == AF_INET6) &&
 		   ((be32_to_cpu(sin6->sin6_addr.s6_addr32[0]) & 0xFFF0FFFF) ==
 								 0xFF10A01B)) {
@@ -3236,6 +3241,7 @@ static void cma_set_mgid(struct rdma_id_private *id_priv,
 		if (id_priv->id.ps == RDMA_PS_UDP)
 			mc_map[7] = 0x01;	/* Use RDMA CM signature */
 		*mgid = *(union ib_gid *) (mc_map + 4);
+#endif
 	} else {
 		ip_ib_mc_map(sin->sin_addr.s_addr, dev_addr->broadcast, mc_map);
 		if (id_priv->id.ps == RDMA_PS_UDP)

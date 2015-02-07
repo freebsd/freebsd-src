@@ -359,7 +359,7 @@ CNAME(trapcode):
 	li	%r1,TRAP_GENTRAP
 	ld	%r1,0(%r1)
 	mtlr	%r1
-	li	%r1, 0xA0		/* How to get the vector from LR */
+	li	%r1, 0xe0		/* How to get the vector from LR */
 	blrl				/* Branch to generictrap */
 CNAME(trapcodeend):
 

@@ -84,6 +84,11 @@ static int	acpi_pci_set_powerstate_method(device_t dev, device_t child,
 static void	acpi_pci_update_device(ACPI_HANDLE handle, device_t pci_child);
 static bus_dma_tag_t acpi_pci_get_dma_tag(device_t bus, device_t child);
 
+#ifdef PCI_IOV
+static device_t	acpi_pci_create_iov_child(device_t bus, device_t pf,
+		    uint16_t rid, uint16_t vid, uint16_t did);
+#endif
+
 static device_method_t acpi_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		acpi_pci_probe),
@@ -98,6 +103,9 @@ static device_method_t acpi_pci_methods[] = {
 
 	/* PCI interface */
 	DEVMETHOD(pci_set_powerstate,	acpi_pci_set_powerstate_method),
+#ifdef PCI_IOV
+	DEVMETHOD(pci_create_iov_child,	acpi_pci_create_iov_child),
+#endif
 
 	DEVMETHOD_END
 };
@@ -345,3 +353,23 @@ acpi_pci_get_dma_tag(device_t bus, device_t child)
 	return (pci_get_dma_tag(bus, child));
 }
 #endif
+
+#ifdef PCI_IOV
+static device_t
+acpi_pci_create_iov_child(device_t bus, device_t pf, uint16_t rid, uint16_t vid,
+    uint16_t did)
+{
+	struct acpi_pci_devinfo *dinfo;
+	device_t vf;
+
+	vf = pci_add_iov_child(bus, pf, sizeof(struct acpi_pci_devinfo), rid,
+	    vid, did);
+	if (vf == NULL)
+		return (NULL);
+
+	dinfo = device_get_ivars(vf);
+	dinfo->ap_handle = NULL;
+	return (vf);
+}
+#endif
+

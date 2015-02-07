@@ -12,7 +12,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY BROADCOM ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -52,7 +52,7 @@ nlm_ucore_load_image(uint64_t nae_base, int ucore)
 		nlm_store_word_daddr(addr, htobe32(p[i]));
 
 	/* add a 'nop' if number of instructions are odd */
-	if (size & 0x1) 
+	if (size & 0x1)
 		nlm_store_word_daddr(addr, 0x0);
 }
 
@@ -66,11 +66,11 @@ nlm_ucore_write_sharedmem(uint64_t nae_base, int index, uint32_t data)
 		return (-1);
 
 	ucore_cfg = nlm_read_nae_reg(nae_base, NAE_RX_UCORE_CFG);
-	/* set iram to zero */ 
+	/* set iram to zero */
 	nlm_write_nae_reg(nae_base, NAE_RX_UCORE_CFG,
 	    (ucore_cfg & ~(0x1 << 7)));
 
-	nlm_store_word_daddr(addr + (index * 4), data); 
+	nlm_store_word_daddr(addr + (index * 4), data);
 
 	/* restore ucore config */
 	nlm_write_nae_reg(nae_base, NAE_RX_UCORE_CFG, ucore_cfg);
@@ -84,11 +84,11 @@ nlm_ucore_read_sharedmem(uint64_t nae_base, int index)
 	uint32_t ucore_cfg, val;
 
 	ucore_cfg = nlm_read_nae_reg(nae_base, NAE_RX_UCORE_CFG);
-	/* set iram to zero */ 
+	/* set iram to zero */
 	nlm_write_nae_reg(nae_base, NAE_RX_UCORE_CFG,
 	    (ucore_cfg & ~(0x1 << 7)));
 
-	val = nlm_load_word_daddr(addr + (index * 4)); 
+	val = nlm_load_word_daddr(addr + (index * 4));
 
 	/* restore ucore config */
 	nlm_write_nae_reg(nae_base, NAE_RX_UCORE_CFG, ucore_cfg);

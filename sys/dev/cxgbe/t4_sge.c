@@ -1249,9 +1249,6 @@ t4_teardown_port_queues(struct port_info *pi)
 			free_ofld_rxq(pi, ofld_rxq);
 	}
 #endif
-#ifdef DEV_NETMAP
-	CXGBE_UNIMPLEMENTED(__func__);
-#endif
 
 	return (0);
 }
@@ -2915,7 +2912,7 @@ free_mgmtq(struct adapter *sc)
 	return free_wrq(sc, &sc->sge.mgmtq);
 }
 
-static inline int
+int
 tnl_cong(struct port_info *pi)
 {
 

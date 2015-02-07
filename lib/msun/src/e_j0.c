@@ -268,7 +268,8 @@ static const double pS2[5] = {
   1.46576176948256193810e+01, /* 0x402D50B3, 0x44391809 */
 };
 
-	static double pzero(double x)
+static __inline double
+pzero(double x)
 {
 	const double *p,*q;
 	double z,r,s;
@@ -278,7 +279,7 @@ static const double pS2[5] = {
 	if(ix>=0x40200000)     {p = pR8; q= pS8;}
 	else if(ix>=0x40122E8B){p = pR5; q= pS5;}
 	else if(ix>=0x4006DB6D){p = pR3; q= pS3;}
-	else if(ix>=0x40000000){p = pR2; q= pS2;}
+	else                   {p = pR2; q= pS2;}	/* ix>=0x40000000 */
 	z = one/(x*x);
 	r = p[0]+z*(p[1]+z*(p[2]+z*(p[3]+z*(p[4]+z*p[5]))));
 	s = one+z*(q[0]+z*(q[1]+z*(q[2]+z*(q[3]+z*q[4]))));
@@ -363,7 +364,8 @@ static const double qS2[6] = {
  -5.31095493882666946917e+00, /* 0xC0153E6A, 0xF8B32931 */
 };
 
-	static double qzero(double x)
+static __inline double
+qzero(double x)
 {
 	const double *p,*q;
 	double s,r,z;
@@ -373,7 +375,7 @@ static const double qS2[6] = {
 	if(ix>=0x40200000)     {p = qR8; q= qS8;}
 	else if(ix>=0x40122E8B){p = qR5; q= qS5;}
 	else if(ix>=0x4006DB6D){p = qR3; q= qS3;}
-	else if(ix>=0x40000000){p = qR2; q= qS2;}
+	else                   {p = qR2; q= qS2;}	/* ix>=0x40000000 */
 	z = one/(x*x);
 	r = p[0]+z*(p[1]+z*(p[2]+z*(p[3]+z*(p[4]+z*p[5]))));
 	s = one+z*(q[0]+z*(q[1]+z*(q[2]+z*(q[3]+z*(q[4]+z*q[5])))));

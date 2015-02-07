@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2014, Intel Corporation 
+  Copyright (c) 2013-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -32,9 +32,12 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
+#ifndef IXL_STANDALONE_BUILD
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_rss.h"
+#endif
+
 #include "ixl.h"
 #include "ixl_pf.h"
 
@@ -45,7 +48,7 @@
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixl_driver_version[] = "1.3.1";
+char ixl_driver_version[] = "1.3.6";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -99,7 +102,7 @@ static void     ixl_update_link_status(struct ixl_pf *);
 static int      ixl_allocate_pci_resources(struct ixl_pf *);
 static u16	ixl_get_bus_info(struct i40e_hw *, device_t);
 static int	ixl_setup_stations(struct ixl_pf *);
-static int	ixl_setup_vsi(struct ixl_vsi *);
+static int	ixl_switch_config(struct ixl_pf *);
 static int	ixl_initialize_vsi(struct ixl_vsi *);
 static int	ixl_assign_vsi_msix(struct ixl_pf *);
 static int	ixl_assign_vsi_legacy(struct ixl_pf *);
@@ -210,6 +213,9 @@ DRIVER_MODULE(ixl, pci, ixl_driver, ixl_devclass, 0, 0);
 
 MODULE_DEPEND(ixl, pci, 1, 1, 1);
 MODULE_DEPEND(ixl, ether, 1, 1, 1);
+#ifdef DEV_NETMAP
+MODULE_DEPEND(ixl, netmap, 1, 1, 1);
+#endif /* DEV_NETMAP */
 
 /*
 ** Global reset mutex
@@ -284,6 +290,10 @@ int ixl_atr_rate = 20;
 TUNABLE_INT("hw.ixl.atr_rate", &ixl_atr_rate);
 #endif
 
+#ifdef DEV_NETMAP
+#define NETMAP_IXL_MAIN /* only bring in one part of the netmap code */
+#include <dev/netmap/if_ixl_netmap.h>
+#endif /* DEV_NETMAP */
 
 static char *ixl_fc_string[6] = {
 	"None",
@@ -499,48 +509,6 @@ ixl_attach(device_t dev)
 		goto err_out;
 	}
 
-	/* For now always do an initial CORE reset on first device */
-	{
-		static int	ixl_dev_count;
-		static int	ixl_dev_track[32];
-		u32		my_dev;
-		int		i, found = FALSE;
-		u16		bus = pci_get_bus(dev);
-
-		mtx_lock(&ixl_reset_mtx);
-		my_dev = (bus << 8) | hw->bus.device;
-
-		for (i = 0; i < ixl_dev_count; i++) {
-			if (ixl_dev_track[i] == my_dev)
-				found = TRUE;
-		}
-
-                if (!found) {
-                        u32 reg;
-
-                        ixl_dev_track[ixl_dev_count] = my_dev;
-                        ixl_dev_count++;
-
-			INIT_DEBUGOUT("Initial CORE RESET\n");
-                        wr32(hw, I40E_GLGEN_RTRIG, I40E_GLGEN_RTRIG_CORER_MASK);
-                        ixl_flush(hw);
-                        i = 50;
-                        do {
-				i40e_msec_delay(50);
-                                reg = rd32(hw, I40E_GLGEN_RSTAT);
-                                if (!(reg & I40E_GLGEN_RSTAT_DEVSTATE_MASK))
-                                        break;
-                        } while (i--);
-
-                        /* paranoia */
-                        wr32(hw, I40E_PF_ATQLEN, 0);
-                        wr32(hw, I40E_PF_ATQBAL, 0);
-                        wr32(hw, I40E_PF_ATQBAH, 0);
-                        i40e_clear_pxe_mode(hw);
-                }
-                mtx_unlock(&ixl_reset_mtx);
-	}
-
 	/* Set admin queue parameters */
 	hw->aq.num_arq_entries = IXL_AQ_LEN;
 	hw->aq.num_asq_entries = IXL_AQ_LEN;
@@ -630,13 +598,15 @@ ixl_attach(device_t dev)
 	if (error) 
 		goto err_late;
 
-	i40e_msec_delay(75);
-	error = i40e_aq_set_link_restart_an(hw, TRUE, NULL);
-	if (error) {
-		device_printf(dev, "link restart failed, aq_err=%d\n",
-		    pf->hw.aq.asq_last_status);
+	if (((hw->aq.fw_maj_ver == 4) && (hw->aq.fw_min_ver < 33)) ||
+	    (hw->aq.fw_maj_ver < 4)) {
+		i40e_msec_delay(75);
+		error = i40e_aq_set_link_restart_an(hw, TRUE, NULL);
+		if (error)
+			device_printf(dev, "link restart failed, aq_err=%d\n",
+			    pf->hw.aq.asq_last_status);
 	}
-	
+
 	/* Determine link state */
 	vsi->link_up = ixl_config_link(hw);
 
@@ -656,6 +626,18 @@ ixl_attach(device_t dev)
 		goto err_late;
 	}
 
+	error = ixl_switch_config(pf);
+	if (error) {
+		device_printf(dev, "Initial switch config failed: %d\n", error);
+		goto err_mac_hmc;
+	}
+
+	/* Limit phy interrupts to link and modules failure */
+	error = i40e_aq_set_phy_int_mask(hw,
+	    I40E_AQ_EVENT_LINK_UPDOWN | I40E_AQ_EVENT_MODULE_QUAL_FAIL, NULL);
+        if (error)
+		device_printf(dev, "set phy mask failed: %d\n", error);
+
 	/* Get the bus configuration and set the shared code */
 	bus = ixl_get_bus_info(hw, dev);
 	i40e_set_pci_config_data(hw, bus);
@@ -665,13 +647,6 @@ ixl_attach(device_t dev)
 	ixl_update_stats_counters(pf);
 	ixl_add_hw_stats(pf);
 
-	/* Reset port's advertised speeds */
-	if (!i40e_is_40G_device(hw->device_id)) {
-		pf->advertised_speed =
-		    (hw->device_id == I40E_DEV_ID_10G_BASE_T) ? 0x7 : 0x6;
-		ixl_set_advertised_speeds(pf, pf->advertised_speed);
-	}
-
 	/* Register for VLAN events */
 	vsi->vlan_attach = EVENTHANDLER_REGISTER(vlan_config,
 	    ixl_register_vlan, vsi, EVENTHANDLER_PRI_FIRST);
@@ -679,6 +654,9 @@ ixl_attach(device_t dev)
 	    ixl_unregister_vlan, vsi, EVENTHANDLER_PRI_FIRST);
 
 
+#ifdef DEV_NETMAP
+	ixl_netmap_attach(vsi);
+#endif /* DEV_NETMAP */
 	INIT_DEBUGOUT("ixl_attach: end");
 	return (0);
 
@@ -723,9 +701,12 @@ ixl_detach(device_t dev)
 		return (EBUSY);
 	}
 
-	IXL_PF_LOCK(pf);
-	ixl_stop(pf);
-	IXL_PF_UNLOCK(pf);
+	ether_ifdetach(vsi->ifp);
+	if (vsi->ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		IXL_PF_LOCK(pf);
+		ixl_stop(pf);
+		IXL_PF_UNLOCK(pf);
+	}
 
 	for (int i = 0; i < vsi->num_queues; i++, que++) {
 		if (que->tq) {
@@ -753,8 +734,10 @@ ixl_detach(device_t dev)
 	if (vsi->vlan_detach != NULL)
 		EVENTHANDLER_DEREGISTER(vlan_unconfig, vsi->vlan_detach);
 
-	ether_ifdetach(vsi->ifp);
 	callout_drain(&pf->timer);
+#ifdef DEV_NETMAP
+	netmap_detach(vsi->ifp);
+#endif /* DEV_NETMAP */
 
 
 	ixl_free_pci_resources(pf);
@@ -1122,11 +1105,8 @@ ixl_init_locked(struct ixl_pf *pf)
 	/* Set up RSS */
 	ixl_config_rss(vsi);
 
-	/* Setup the VSI */
-	ixl_setup_vsi(vsi);
-
 	/*
-	** Prepare the rings, hmc contexts, etc...
+	** Prepare the VSI: rings, hmc contexts, etc...
 	*/
 	if (ixl_initialize_vsi(vsi)) {
 		device_printf(dev, "initialize vsi failed!!\n");
@@ -1409,16 +1389,14 @@ ixl_media_status(struct ifnet * ifp, struct ifmediareq * ifmr)
 			ifmr->ifm_active |= IFM_1000_LX;
 			break;
 		/* 10 G */
+		case I40E_PHY_TYPE_10GBASE_CR1:
 		case I40E_PHY_TYPE_10GBASE_CR1_CU:
 		case I40E_PHY_TYPE_10GBASE_SFPP_CU:
+		/* Using this until a real KR media type */
+		case I40E_PHY_TYPE_10GBASE_KR:
+		case I40E_PHY_TYPE_10GBASE_KX4:
 			ifmr->ifm_active |= IFM_10G_TWINAX;
 			break;
-		case I40E_PHY_TYPE_10GBASE_KR:
-			/* 
-			** this is not technically correct
-			** but FreeBSD does not have the media
-			** type defined yet, so its a compromise.
-			*/
 		case I40E_PHY_TYPE_10GBASE_SR:
 			ifmr->ifm_active |= IFM_10G_SR;
 			break;
@@ -1438,6 +1416,16 @@ ixl_media_status(struct ifnet * ifp, struct ifmediareq * ifmr)
 			break;
 		case I40E_PHY_TYPE_40GBASE_LR4:
 			ifmr->ifm_active |= IFM_40G_LR4;
+			break;
+		/*
+		** Set these to CR4 because OS does not
+		** have types available yet.
+		*/
+		case I40E_PHY_TYPE_40GBASE_KR4:
+		case I40E_PHY_TYPE_XLAUI:
+		case I40E_PHY_TYPE_XLPPI:
+		case I40E_PHY_TYPE_40GBASE_AOC:
+			ifmr->ifm_active |= IFM_40G_CR4;
 			break;
 		default:
 			ifmr->ifm_active |= IFM_UNKNOWN;
@@ -1765,18 +1753,17 @@ ixl_update_link_status(struct ixl_pf *pf)
 	struct i40e_hw		*hw = &pf->hw;
 	struct ifnet		*ifp = vsi->ifp;
 	device_t		dev = pf->dev;
-	enum i40e_fc_mode 	fc;
 
 
 	if (vsi->link_up){ 
 		if (vsi->link_active == FALSE) {
 			i40e_aq_get_link_info(hw, TRUE, NULL, NULL);
+			pf->fc = hw->fc.current_mode;
 			if (bootverbose) {
-				fc = hw->fc.current_mode;
 				device_printf(dev,"Link is up %d Gbps %s,"
 				    " Flow Control: %s\n",
 				    ((vsi->link_speed == I40E_LINK_SPEED_40GB)? 40:10),
-				    "Full Duplex", ixl_fc_string[fc]);
+				    "Full Duplex", ixl_fc_string[pf->fc]);
 			}
 			vsi->link_active = TRUE;
 			/*
@@ -1893,6 +1880,9 @@ ixl_assign_vsi_msix(struct ixl_pf *pf)
 	struct 		ixl_queue *que = vsi->queues;
 	struct		tx_ring	 *txr;
 	int 		error, rid, vector = 0;
+#ifdef	RSS
+	cpuset_t cpu_mask;
+#endif
 
 	/* Admin Que is vector 0*/
 	rid = vector + 1;
@@ -1955,8 +1945,9 @@ ixl_assign_vsi_msix(struct ixl_pf *pf)
 		que->tq = taskqueue_create_fast("ixl_que", M_NOWAIT,
 		    taskqueue_thread_enqueue, &que->tq);
 #ifdef RSS
-		taskqueue_start_threads_pinned(&que->tq, 1, PI_NET,
-		    cpu_id, "%s (bucket %d)",
+		CPU_SETOF(cpu_id, &cpu_mask);
+		taskqueue_start_threads_cpuset(&que->tq, 1, PI_NET,
+		    &cpu_mask, "%s (bucket %d)",
 		    device_get_nameunit(dev), cpu_id);
 #else
 		taskqueue_start_threads(&que->tq, 1, PI_NET,
@@ -2341,8 +2332,15 @@ ixl_add_ifmedia(struct ixl_vsi *vsi, u32 phy_type)
 		ifmedia_add(&vsi->media, IFM_ETHER | IFM_1000_T, 0, NULL);
 
 	if (phy_type & (1 << I40E_PHY_TYPE_10GBASE_CR1_CU) ||
+	    phy_type & (1 << I40E_PHY_TYPE_10GBASE_KX4) ||
+	    phy_type & (1 << I40E_PHY_TYPE_10GBASE_KR) ||
+	    phy_type & (1 << I40E_PHY_TYPE_10GBASE_AOC) ||
+	    phy_type & (1 << I40E_PHY_TYPE_XAUI) ||
+	    phy_type & (1 << I40E_PHY_TYPE_XFI) ||
+	    phy_type & (1 << I40E_PHY_TYPE_SFI) ||
 	    phy_type & (1 << I40E_PHY_TYPE_10GBASE_SFPP_CU))
 		ifmedia_add(&vsi->media, IFM_ETHER | IFM_10G_TWINAX, 0, NULL);
+
 	if (phy_type & (1 << I40E_PHY_TYPE_10GBASE_SR))
 		ifmedia_add(&vsi->media, IFM_ETHER | IFM_10G_SR, 0, NULL);
 	if (phy_type & (1 << I40E_PHY_TYPE_10GBASE_LR))
@@ -2350,9 +2348,15 @@ ixl_add_ifmedia(struct ixl_vsi *vsi, u32 phy_type)
 	if (phy_type & (1 << I40E_PHY_TYPE_10GBASE_T))
 		ifmedia_add(&vsi->media, IFM_ETHER | IFM_10G_T, 0, NULL);
 
-	if (phy_type & (1 << I40E_PHY_TYPE_40GBASE_CR4_CU) ||
-	    phy_type & (1 << I40E_PHY_TYPE_40GBASE_CR4))
+	if (phy_type & (1 << I40E_PHY_TYPE_40GBASE_CR4) ||
+	    phy_type & (1 << I40E_PHY_TYPE_40GBASE_CR4_CU) ||
+	    phy_type & (1 << I40E_PHY_TYPE_40GBASE_AOC) ||
+	    phy_type & (1 << I40E_PHY_TYPE_XLAUI) ||
+	    phy_type & (1 << I40E_PHY_TYPE_XLPPI) ||
+	    /* KR4 uses CR4 until the OS has the real media type */
+	    phy_type & (1 << I40E_PHY_TYPE_40GBASE_KR4))
 		ifmedia_add(&vsi->media, IFM_ETHER | IFM_40G_CR4, 0, NULL);
+
 	if (phy_type & (1 << I40E_PHY_TYPE_40GBASE_SR4))
 		ifmedia_add(&vsi->media, IFM_ETHER | IFM_40G_SR4, 0, NULL);
 	if (phy_type & (1 << I40E_PHY_TYPE_40GBASE_LR4))
@@ -2370,7 +2374,7 @@ ixl_setup_interface(device_t dev, struct ixl_vsi *vsi)
 	struct ifnet		*ifp;
 	struct i40e_hw		*hw = vsi->hw;
 	struct ixl_queue	*que = vsi->queues;
-	struct i40e_aq_get_phy_abilities_resp abilities_resp;
+	struct i40e_aq_get_phy_abilities_resp abilities;
 	enum i40e_status_code aq_error = 0;
 
 	INIT_DEBUGOUT("ixl_setup_interface: begin");
@@ -2437,21 +2441,25 @@ ixl_setup_interface(device_t dev, struct ixl_vsi *vsi)
 	ifmedia_init(&vsi->media, IFM_IMASK, ixl_media_change,
 		     ixl_media_status);
 
-	aq_error = i40e_aq_get_phy_capabilities(hw, FALSE, TRUE, &abilities_resp, NULL);
+	aq_error = i40e_aq_get_phy_capabilities(hw,
+	    FALSE, TRUE, &abilities, NULL);
+	/* May need delay to detect fiber correctly */
 	if (aq_error == I40E_ERR_UNKNOWN_PHY) {
-		/* Need delay to detect fiber correctly */
 		i40e_msec_delay(200);
 		aq_error = i40e_aq_get_phy_capabilities(hw, FALSE,
-		    TRUE, &abilities_resp, NULL);
+		    TRUE, &abilities, NULL);
+	}
+	if (aq_error) {
 		if (aq_error == I40E_ERR_UNKNOWN_PHY)
 			device_printf(dev, "Unknown PHY type detected!\n");
 		else
-			ixl_add_ifmedia(vsi, abilities_resp.phy_type);
-	} else if (aq_error) {
-		device_printf(dev, "Error getting supported media types, err %d,"
-		    " AQ error %d\n", aq_error, hw->aq.asq_last_status);
-	} else
-		ixl_add_ifmedia(vsi, abilities_resp.phy_type);
+			device_printf(dev,
+			    "Error getting supported media types, err %d,"
+			    " AQ error %d\n", aq_error, hw->aq.asq_last_status);
+		return (0);
+	}
+
+	ixl_add_ifmedia(vsi, abilities.phy_type);
 
 	/* Use autoselect media by default */
 	ifmedia_add(&vsi->media, IFM_ETHER | IFM_AUTO, 0, NULL);
@@ -2477,20 +2485,23 @@ ixl_config_link(struct i40e_hw *hw)
 
 /*********************************************************************
  *
- *  Initialize this VSI 
+ *  Get Firmware Switch configuration
+ *	- this will need to be more robust when more complex
+ *	  switch configurations are enabled.
  *
  **********************************************************************/
 static int
-ixl_setup_vsi(struct ixl_vsi *vsi)
+ixl_switch_config(struct ixl_pf *pf)
 {
-	struct i40e_hw	*hw = vsi->hw;
+	struct i40e_hw	*hw = &pf->hw; 
+	struct ixl_vsi	*vsi = &pf->vsi;
 	device_t 	dev = vsi->dev;
 	struct i40e_aqc_get_switch_config_resp *sw_config;
-	struct i40e_vsi_context	ctxt;
 	u8	aq_buf[I40E_AQ_LARGE_BUF];
 	int	ret = I40E_SUCCESS;
 	u16	next = 0;
 
+	memset(&aq_buf, 0, sizeof(aq_buf));
 	sw_config = (struct i40e_aqc_get_switch_config_resp *)aq_buf;
 	ret = i40e_aq_get_switch_config(hw, sw_config,
 	    sizeof(aq_buf), &next, NULL);
@@ -2507,16 +2518,34 @@ ixl_setup_vsi(struct ixl_vsi *vsi)
 	    sw_config->element[0].uplink_seid,
 	    sw_config->element[0].downlink_seid);
 #endif
-	/* Save off this important value */
+	/* Simplified due to a single VSI at the moment */
 	vsi->seid = sw_config->element[0].seid;
+	return (ret);
+}
+
+/*********************************************************************
+ *
+ *  Initialize the VSI:  this handles contexts, which means things
+ *  			 like the number of descriptors, buffer size,
+ *			 plus we init the rings thru this function.
+ *
+ **********************************************************************/
+static int
+ixl_initialize_vsi(struct ixl_vsi *vsi)
+{
+	struct ixl_queue	*que = vsi->queues;
+	device_t		dev = vsi->dev;
+	struct i40e_hw		*hw = vsi->hw;
+	struct i40e_vsi_context	ctxt;
+	int			err = 0;
 
 	memset(&ctxt, 0, sizeof(ctxt));
 	ctxt.seid = vsi->seid;
 	ctxt.pf_num = hw->pf_id;
-	ret = i40e_aq_get_vsi_params(hw, &ctxt, NULL);
-	if (ret) {
-		device_printf(dev,"get vsi params failed %x!!\n", ret);
-		return (ret);
+	err = i40e_aq_get_vsi_params(hw, &ctxt, NULL);
+	if (err) {
+		device_printf(dev,"get vsi params failed %x!!\n", err);
+		return (err);
 	}
 #ifdef IXL_DEBUG
 	printf("get_vsi_params: seid: %d, uplinkseid: %d, vsi_number: %d, "
@@ -2553,29 +2582,12 @@ ixl_setup_vsi(struct ixl_vsi *vsi)
 	vsi->hw_filters_add = 0;
 	vsi->hw_filters_del = 0;
 
-	ret = i40e_aq_update_vsi_params(hw, &ctxt, NULL);
-	if (ret)
+	err = i40e_aq_update_vsi_params(hw, &ctxt, NULL);
+	if (err) {
 		device_printf(dev,"update vsi params failed %x!!\n",
 		   hw->aq.asq_last_status);
-	return (ret);
-}
-
-
-/*********************************************************************
- *
- *  Initialize the VSI:  this handles contexts, which means things
- *  			 like the number of descriptors, buffer size,
- *			 plus we init the rings thru this function.
- *
- **********************************************************************/
-static int
-ixl_initialize_vsi(struct ixl_vsi *vsi)
-{
-	struct ixl_queue	*que = vsi->queues;
-	device_t		dev = vsi->dev;
-	struct i40e_hw		*hw = vsi->hw;
-	int			err = 0;
-
+		return (err);
+	}
 
 	for (int i = 0; i < vsi->num_queues; i++, que++) {
 		struct tx_ring		*txr = &que->txr;
@@ -2667,6 +2679,15 @@ ixl_initialize_vsi(struct ixl_vsi *vsi)
 			break;
 		}
 		wr32(vsi->hw, I40E_QRX_TAIL(que->me), 0);
+#ifdef DEV_NETMAP
+		/* preserve queue */
+		if (vsi->ifp->if_capenable & IFCAP_NETMAP) {
+			struct netmap_adapter *na = NA(vsi->ifp);
+			struct netmap_kring *kring = &na->rx_rings[i];
+			int t = na->num_rx_desc - 1 - nm_kr_rxspace(kring);
+			wr32(vsi->hw, I40E_QRX_TAIL(que->me), t);
+		} else
+#endif /* DEV_NETMAP */
 		wr32(vsi->hw, I40E_QRX_TAIL(que->me), que->num_desc - 1);
 	}
 	return (err);
@@ -3216,7 +3237,7 @@ static void ixl_config_rss(struct ixl_vsi *vsi)
                 set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP);
 	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6)
                 set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_OTHER);
-        if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6_EX)
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6_EX)
 		set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6);
 	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV6)
                 set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_TCP);
@@ -3521,8 +3542,8 @@ ixl_add_hw_filters(struct ixl_vsi *vsi, int flags, int cnt)
 	if (j > 0) {
 		err = i40e_aq_add_macvlan(hw, vsi->seid, a, j, NULL);
 		if (err) 
-			device_printf(dev, "aq_add_macvlan err %d, aq_error %d\n",
-			    err, hw->aq.asq_last_status);
+			device_printf(dev, "aq_add_macvlan err %d, "
+			    "aq_error %d\n", err, hw->aq.asq_last_status);
 		else
 			vsi->hw_filters_add += j;
 	}
@@ -4307,24 +4328,15 @@ ixl_set_flowcntl(SYSCTL_HANDLER_ARGS)
 	struct ixl_pf *pf = (struct ixl_pf *)arg1;
 	struct i40e_hw *hw = &pf->hw;
 	device_t dev = pf->dev;
-	int requested_fc = 0, error = 0;
+	int error = 0;
 	enum i40e_status_code aq_error = 0;
 	u8 fc_aq_err = 0;
 
-	aq_error = i40e_aq_get_link_info(hw, TRUE, NULL, NULL);
-	if (aq_error) {
-		device_printf(dev,
-		    "%s: Error retrieving link info from aq, %d\n",
-		    __func__, aq_error);
-		return (EAGAIN);
-	}
-
-	/* Read in new mode */
-	requested_fc = hw->fc.current_mode;
-	error = sysctl_handle_int(oidp, &requested_fc, 0, req);
+	/* Get request */
+	error = sysctl_handle_int(oidp, &pf->fc, 0, req);
 	if ((error) || (req->newptr == NULL))
 		return (error);
-	if (requested_fc < 0 || requested_fc > 3) {
+	if (pf->fc < 0 || pf->fc > 3) {
 		device_printf(dev,
 		    "Invalid fc mode; valid modes are 0 through 3\n");
 		return (EINVAL);
@@ -4342,21 +4354,13 @@ ixl_set_flowcntl(SYSCTL_HANDLER_ARGS)
 	}
 
 	/* Set fc ability for port */
-	hw->fc.requested_mode = requested_fc;
+	hw->fc.requested_mode = pf->fc;
 	aq_error = i40e_set_fc(hw, &fc_aq_err, TRUE);
 	if (aq_error) {
 		device_printf(dev,
 		    "%s: Error setting new fc mode %d; fc_err %#x\n",
 		    __func__, aq_error, fc_aq_err);
 		return (EAGAIN);
-	}
-
-	if (hw->fc.current_mode != hw->fc.requested_mode) {
-		device_printf(dev, "%s: FC set failure:\n", __func__);
-		device_printf(dev, "%s: Current: %s / Requested: %s\n",
-		    __func__,
-		    ixl_fc_string[hw->fc.current_mode],
-		    ixl_fc_string[hw->fc.requested_mode]);
 	}
 
 	return (0);
@@ -4417,9 +4421,11 @@ ixl_set_advertised_speeds(struct ixl_pf *pf, int speeds)
 	enum i40e_status_code aq_error = 0;
 
 	/* Get current capability information */
-	aq_error = i40e_aq_get_phy_capabilities(hw, FALSE, FALSE, &abilities, NULL);
+	aq_error = i40e_aq_get_phy_capabilities(hw,
+	    FALSE, FALSE, &abilities, NULL);
 	if (aq_error) {
-		device_printf(dev, "%s: Error getting phy capabilities %d,"
+		device_printf(dev,
+		    "%s: Error getting phy capabilities %d,"
 		    " aq error: %d\n", __func__, aq_error,
 		    hw->aq.asq_last_status);
 		return (EAGAIN);
@@ -4444,7 +4450,8 @@ ixl_set_advertised_speeds(struct ixl_pf *pf, int speeds)
 	/* Do aq command & restart link */
 	aq_error = i40e_aq_set_phy_config(hw, &config, NULL);
 	if (aq_error) {
-		device_printf(dev, "%s: Error setting new phy config %d,"
+		device_printf(dev,
+		    "%s: Error setting new phy config %d,"
 		    " aq error: %d\n", __func__, aq_error,
 		    hw->aq.asq_last_status);
 		return (EAGAIN);

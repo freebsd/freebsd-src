@@ -89,27 +89,39 @@ struct bcm_mbox_softc {
 #define	mbox_write_4(sc, reg, val)		\
     bus_space_write_4((sc)->bst, (sc)->bsh, reg, val)
 
+static int
+bcm_mbox_read_msg(struct bcm_mbox_softc *sc, int *ochan)
+{
+	uint32_t data;
+	uint32_t msg;
+	int chan;
+
+	msg = mbox_read_4(sc, REG_READ);
+	dprintf("bcm_mbox_intr: raw data %08x\n", msg);
+	chan = MBOX_CHAN(msg);
+	data = MBOX_DATA(msg);
+	if (sc->msg[chan]) {
+		printf("bcm_mbox_intr: channel %d oveflow\n", chan);
+		return (1);
+	}
+	dprintf("bcm_mbox_intr: chan %d, data %08x\n", chan, data);
+	sc->msg[chan] = msg;
+
+	if (ochan != NULL)
+		*ochan = chan;
+
+	return (0);
+}
+
 static void
 bcm_mbox_intr(void *arg)
 {
 	struct bcm_mbox_softc *sc = arg;
 	int chan;
-	uint32_t data;
-	uint32_t msg;
 
-	while (!(mbox_read_4(sc, REG_STATUS) & STATUS_EMPTY)) {
-		msg = mbox_read_4(sc, REG_READ);
-		dprintf("bcm_mbox_intr: raw data %08x\n", msg);
-		chan = MBOX_CHAN(msg);
-		data = MBOX_DATA(msg);
-		if (sc->msg[chan]) {
-			printf("bcm_mbox_intr: channel %d oveflow\n", chan);
-			continue;
-		}
-		dprintf("bcm_mbox_intr: chan %d, data %08x\n", chan, data);
-		sc->msg[chan] = msg;
-		sema_post(&sc->sema[chan]);
-	}
+	while (!(mbox_read_4(sc, REG_STATUS) & STATUS_EMPTY))
+		if (bcm_mbox_read_msg(sc, &chan) == 0)
+			sema_post(&sc->sema[chan]);
 }
 
 static int
@@ -201,14 +213,30 @@ static int
 bcm_mbox_read(device_t dev, int chan, uint32_t *data)
 {
 	struct bcm_mbox_softc *sc = device_get_softc(dev);
+	int err, read_chan;
 
 	dprintf("bcm_mbox_read: chan %d\n", chan);
+
+	err = 0;
 	MBOX_LOCK(sc);
-	while (sema_trywait(&sc->sema[chan]) == 0) {
-		/* do not unlock sc while waiting for the mbox */
-		if (sema_timedwait(&sc->sema[chan], 10*hz) == 0)
-			break;
-		printf("timeout sema for chan %d\n", chan);
+	if (!cold) {
+		while (sema_trywait(&sc->sema[chan]) == 0) {
+			/* do not unlock sc while waiting for the mbox */
+			if (sema_timedwait(&sc->sema[chan], 10*hz) == 0)
+				break;
+			printf("timeout sema for chan %d\n", chan);
+		}
+	} else {
+		do {
+			/* Wait for a message */
+			while ((mbox_read_4(sc, REG_STATUS) & STATUS_EMPTY))
+				;
+			/* Read the message */
+			if (bcm_mbox_read_msg(sc, &read_chan) != 0) {
+				err = EINVAL;
+				goto out;
+			}
+		} while (read_chan != chan);
 	}
 	/*
 	 *  get data from intr handler, the same channel is never coming
@@ -216,10 +244,11 @@ bcm_mbox_read(device_t dev, int chan, uint32_t *data)
 	 */
 	*data = MBOX_DATA(sc->msg[chan]);
 	sc->msg[chan] = 0;
+out:
 	MBOX_UNLOCK(sc);
 	dprintf("bcm_mbox_read: chan %d, data %08x\n", chan, *data);
 
-	return (0);
+	return (err);
 }
 
 static device_method_t bcm_mbox_methods[] = {

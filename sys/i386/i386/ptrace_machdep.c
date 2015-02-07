@@ -92,7 +92,8 @@ cpu_ptrace_xstate(struct thread *td, int req, void *addr, int data)
 		break;
 
 	case PT_SETXSTATE:
-		if (data > cpu_max_ext_state_size) {
+		if (data < sizeof(union savefpu) ||
+		    data > cpu_max_ext_state_size) {
 			error = EINVAL;
 			break;
 		}
