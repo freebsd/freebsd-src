@@ -2,13 +2,10 @@
 
 .include <bsd.own.mk>
 
-LIB=	lldbHostFreeBSD
+LIB=	lldbPluginABISysV_ppc
 
-SRCDIR=	tools/lldb/source/Host/freebsd
-SRCS=	Host.cpp \
-	HostInfoFreeBSD.cpp \
-	HostThreadFreeBSD.cpp \
-	ThisThread.cpp
+SRCDIR=	tools/lldb/source/Plugins/ABI/SysV-ppc
+SRCS=	ABISysV_ppc.cpp
 
 TGHDRS=	DiagnosticCommonKinds \
 	DeclNodes \

@@ -123,6 +123,8 @@ SUBDIR+=liblldb \
 	liblldbTarget \
 	liblldbUtility \
 	\
+	liblldbPluginABISysV_ppc \
+	liblldbPluginABISysV_ppc64 \
 	liblldbPluginABISysV_x86_64 \
 	liblldbPluginCXXItaniumABI \
 	liblldbPluginDisassemblerLLVM \
@@ -130,7 +132,9 @@ SUBDIR+=liblldb \
 	liblldbPluginDynamicLoaderPosixDYLD \
 	liblldbPluginInstructionARM \
 	liblldbPluginInstructionARM64 \
+	liblldbPluginInstrumentationRuntimeAddressSanitizer \
 	liblldbPluginJITLoaderGDB \
+	liblldbPluginMemoryHistoryASan \
 	liblldbPluginObjectContainerBSDArchive \
 	liblldbPluginObjectFileELF \
 	liblldbPluginObjectFileJIT \
