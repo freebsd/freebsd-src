@@ -395,9 +395,6 @@ readline(const char *p)
 	char *buf;
 	static int used_event_hook;
 
-	if (line == NULL)
-		return 0;
-
 	if (e == NULL || h == NULL)
 		rl_initialize();
 
