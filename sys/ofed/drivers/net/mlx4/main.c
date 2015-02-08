@@ -34,10 +34,6 @@
  */
 
 #include <linux/kmod.h> 
-/* 
- * kmod.h must be included before module.h since it includes (indirectly) sys/module.h
- * To use the FBSD macro sys/module.h should define MODULE_VERSION before linux/module does.
-*/
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
@@ -3783,7 +3779,6 @@ static void __exit mlx4_cleanup(void)
 module_init_order(mlx4_init, SI_ORDER_MIDDLE);
 module_exit(mlx4_cleanup);
 
-#include <sys/module.h>
 static int
 mlx4_evhand(module_t mod, int event, void *arg)
 {

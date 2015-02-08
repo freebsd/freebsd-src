@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 17, 2013
+.Dd February 4, 2015
 .Dt ISCSI.CONF 5
 .Os
 .Sh NAME
@@ -110,6 +110,8 @@ flag of
 The following are not specified in the
 .Sy RFC 3720
 .Bl -tag -width sockbufsize
+.It Cm offload
+Name of selected iSCSI hardware offload driver.
 .It Cm port
 The iSCSI port used by the iSCSI protocol, defaults to 3260.
 .It Cm tags

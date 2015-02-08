@@ -52,16 +52,22 @@ __DEFAULT_YES_OPTIONS = \
     ATM \
     AUDIT \
     AUTHPF \
+    AUTOFS \
+    BHYVE \
     BINUTILS \
     BINUTILS_BOOTSTRAP \
     BLUETOOTH \
     BOOT \
+    BOOTPARAMD \
+    BOOTPD \
     BSD_CPIO \
+    BSDINSTALL \
     BSNMP \
     BZIP2 \
     CALENDAR \
     CAPSICUM \
     CASPER \
+    CCD \
     CDDL \
     CPP \
     CROSS_COMPILER \
@@ -73,14 +79,18 @@ __DEFAULT_YES_OPTIONS = \
     DMAGENT \
     DYNAMICROOT \
     ED_CRYPTO \
+    EE \
     ELFTOOLCHAIN_TOOLS \
     EXAMPLES \
     FDT \
+    FILE \
+    FINGER \
     FLOPPY \
     FMTREE \
     FORTH \
     FP_LIBC \
     FREEBSD_UPDATE \
+    FTP \
     GAMES \
     GCOV \
     GDB \
@@ -89,13 +99,16 @@ __DEFAULT_YES_OPTIONS = \
     GPIO \
     GPL_DTC \
     GROFF \
+    HAST \
     HTML \
     HYPERV \
     ICONV \
     INET \
     INET6 \
+    INETD \
     IPFILTER \
     IPFW \
+    ISCSI \
     JAIL \
     KDUMP \
     KVM \
@@ -128,7 +141,9 @@ __DEFAULT_YES_OPTIONS = \
     PORTSNAP \
     PPP \
     QUOTAS \
+    RADIUS_SUPPORT \
     RCMDS \
+    RBOOTD \
     RCS \
     RESCUE \
     ROUTED \
@@ -142,10 +157,14 @@ __DEFAULT_YES_OPTIONS = \
     SYSCALL_COMPAT \
     SYSCONS \
     SYSINSTALL \
+    TALK \
+    TCP_WRAPPERS \
     TCSH \
     TELNET \
     TESTS \
     TEXTPROC \
+    TFTP \
+    TIMED \
     UNBOUND \
     USB \
     UTMPX \

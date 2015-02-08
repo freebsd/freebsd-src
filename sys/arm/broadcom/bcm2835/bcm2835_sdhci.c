@@ -29,32 +29,17 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/bio.h>
 #include <sys/bus.h>
-#include <sys/conf.h>
-#include <sys/endian.h>
 #include <sys/kernel.h>
-#include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/queue.h>
-#include <sys/resource.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
-#include <sys/time.h>
-#include <sys/timetc.h>
-#include <sys/watchdog.h>
-
-#include <sys/kdb.h>
 
 #include <machine/bus.h>
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
-#include <machine/resource.h>
-#include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
@@ -82,19 +67,9 @@ __FBSDID("$FreeBSD$");
 #define dprintf(fmt, args...)
 #endif
 
-/* 
- * Arasan HC seems to have problem with Data CRC on lower frequencies.
- * Use this tunable to cap initialization sequence frequency at higher
- * value.  Default is standard 400kHz.
- * HS mode brings too many problems for most of cards, so disable HS mode
- * until a better fix comes up.
- * HS mode still can be enabled with the tunable.
- */
-static int bcm2835_sdhci_min_freq = 400000;
 static int bcm2835_sdhci_hs = 1;
 static int bcm2835_sdhci_pio_mode = 0;
 
-TUNABLE_INT("hw.bcm2835.sdhci.min_freq", &bcm2835_sdhci_min_freq);
 TUNABLE_INT("hw.bcm2835.sdhci.hs", &bcm2835_sdhci_hs);
 TUNABLE_INT("hw.bcm2835.sdhci.pio_mode", &bcm2835_sdhci_pio_mode);
 
@@ -211,16 +186,12 @@ bcm_sdhci_attach(device_t dev)
 	    RF_ACTIVE);
 	if (!sc->sc_irq_res) {
 		device_printf(dev, "cannot allocate interrupt\n");
-		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		err = ENXIO;
 		goto fail;
 	}
 
 	if (bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, bcm_sdhci_intr, sc, &sc->sc_intrhand))
-	{
-		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
+	    NULL, bcm_sdhci_intr, sc, &sc->sc_intrhand)) {
 		device_printf(dev, "cannot setup interrupt handler\n");
 		err = ENXIO;
 		goto fail;
@@ -286,6 +257,7 @@ fail:
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
 	if (sc->sc_mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
+	mtx_destroy(&sc->sc_mtx);
 
 	return (err);
 }
@@ -420,13 +392,6 @@ bcm_sdhci_write_multi_4(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 	struct bcm_sdhci_softc *sc = device_get_softc(dev);
 
 	bus_space_write_multi_4(sc->sc_bst, sc->sc_bsh, off, data, count);
-}
-
-static uint32_t
-bcm_sdhci_min_freq(device_t dev, struct sdhci_slot *slot)
-{
-
-	return bcm2835_sdhci_min_freq;
 }
 
 static void
@@ -681,7 +646,6 @@ static device_method_t bcm_sdhci_methods[] = {
 	DEVMETHOD(mmcbr_acquire_host,	sdhci_generic_acquire_host),
 	DEVMETHOD(mmcbr_release_host,	sdhci_generic_release_host),
 
-	DEVMETHOD(sdhci_min_freq,	bcm_sdhci_min_freq),
 	/* Platform transfer methods */
 	DEVMETHOD(sdhci_platform_will_handle,		bcm_sdhci_will_handle_transfer),
 	DEVMETHOD(sdhci_platform_start_transfer,	bcm_sdhci_start_transfer),

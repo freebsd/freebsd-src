@@ -405,7 +405,7 @@ static int do_switch(struct i915_hw_context *to)
 	}
 
 	if (!to->obj->has_global_gtt_mapping)
-		i915_gem_gtt_bind_object(to->obj);
+		i915_gem_gtt_bind_object(to->obj, to->obj->cache_level);
 
 	if (!to->is_initialized || is_default_context(to))
 		hw_flags |= MI_RESTORE_INHIBIT;

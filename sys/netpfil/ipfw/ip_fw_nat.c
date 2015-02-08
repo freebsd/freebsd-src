@@ -691,7 +691,7 @@ nat44_get_cfg(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	export_nat_cfg(ptr, ucfg);
 	
 	/* Estimate memory amount */
-	sz = sizeof(struct nat44_cfg_nat);
+	sz = sizeof(ipfw_obj_header) + sizeof(struct nat44_cfg_nat);
 	LIST_FOREACH(r, &ptr->redir_chain, _next) {
 		sz += sizeof(struct nat44_cfg_redir);
 		LIST_FOREACH(s, &r->spool_chain, _next)
@@ -699,7 +699,7 @@ nat44_get_cfg(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	}
 
 	ucfg->size = sz;
-	if (sd->valsize < sz + sizeof(*oh)) {
+	if (sd->valsize < sz) {
 
 		/*
 		 * Submitted buffer size is not enough.

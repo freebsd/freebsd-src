@@ -45,6 +45,7 @@
 #define	DEFAULT_PIDFILE			"/var/run/ctld.pid"
 #define	DEFAULT_BLOCKSIZE		512
 
+#define	MAX_LUNS			1024
 #define	MAX_NAME_LEN			223
 #define	MAX_DATA_SEGMENT_LENGTH		(128 * 1024)
 #define	MAX_BURST_LENGTH		16776192
@@ -118,9 +119,34 @@ struct portal_group {
 	int				pg_discovery_filter;
 	bool				pg_unassigned;
 	TAILQ_HEAD(, portal)		pg_portals;
+	TAILQ_HEAD(, port)		pg_ports;
 	char				*pg_redirection;
 
 	uint16_t			pg_tag;
+};
+
+struct pport {
+	TAILQ_ENTRY(pport)		pp_next;
+	TAILQ_HEAD(, port)		pp_ports;
+	struct conf			*pp_conf;
+	char				*pp_name;
+
+	uint32_t			pp_ctl_port;
+};
+
+struct port {
+	TAILQ_ENTRY(port)		p_next;
+	TAILQ_ENTRY(port)		p_pgs;
+	TAILQ_ENTRY(port)		p_pps;
+	TAILQ_ENTRY(port)		p_ts;
+	struct conf			*p_conf;
+	char				*p_name;
+	struct auth_group		*p_auth_group;
+	struct portal_group		*p_portal_group;
+	struct pport			*p_pport;
+	struct target			*p_target;
+
+	uint32_t			p_ctl_port;
 };
 
 struct lun_option {
@@ -132,13 +158,14 @@ struct lun_option {
 
 struct lun {
 	TAILQ_ENTRY(lun)		l_next;
+	struct conf			*l_conf;
 	TAILQ_HEAD(, lun_option)	l_options;
-	struct target			*l_target;
-	int				l_lun;
+	char				*l_name;
 	char				*l_backend;
 	int				l_blocksize;
 	char				*l_device_id;
 	char				*l_path;
+	char				*l_scsiname;
 	char				*l_serial;
 	int64_t				l_size;
 
@@ -147,12 +174,13 @@ struct lun {
 
 struct target {
 	TAILQ_ENTRY(target)		t_next;
-	TAILQ_HEAD(, lun)		t_luns;
 	struct conf			*t_conf;
+	struct lun			*t_luns[MAX_LUNS];
 	struct auth_group		*t_auth_group;
-	struct portal_group		*t_portal_group;
+	TAILQ_HEAD(, port)		t_ports;
 	char				*t_name;
 	char				*t_alias;
+	char				*t_offload;
 	char				*t_redirection;
 };
 
@@ -165,9 +193,12 @@ struct isns {
 
 struct conf {
 	char				*conf_pidfile_path;
+	TAILQ_HEAD(, lun)		conf_luns;
 	TAILQ_HEAD(, target)		conf_targets;
 	TAILQ_HEAD(, auth_group)	conf_auth_groups;
+	TAILQ_HEAD(, port)		conf_ports;
 	TAILQ_HEAD(, portal_group)	conf_portal_groups;
+	TAILQ_HEAD(, pport)		conf_pports;
 	TAILQ_HEAD(, isns)		conf_isns;
 	int				conf_isns_period;
 	int				conf_isns_timeout;
@@ -175,7 +206,6 @@ struct conf {
 	int				conf_timeout;
 	int				conf_maxproc;
 
-	uint16_t			conf_last_portal_group_tag;
 #ifdef ICL_KERNEL_PROXY
 	int				conf_portal_id;
 #endif
@@ -195,6 +225,7 @@ struct conf {
 
 struct connection {
 	struct portal		*conn_portal;
+	struct port		*conn_port;
 	struct target		*conn_target;
 	int			conn_socket;
 	int			conn_session_type;
@@ -205,6 +236,7 @@ struct connection {
 	struct sockaddr_storage	conn_initiator_sa;
 	uint32_t		conn_cmdsn;
 	uint32_t		conn_statsn;
+	size_t			conn_data_segment_limit;
 	size_t			conn_max_data_segment_length;
 	size_t			conn_max_burst_length;
 	int			conn_immediate_data;
@@ -260,7 +292,7 @@ char			*rchap_get_response(struct rchap *rchap);
 void			rchap_delete(struct rchap *rchap);
 
 struct conf		*conf_new(void);
-struct conf		*conf_new_from_file(const char *path);
+struct conf		*conf_new_from_file(const char *path, struct conf *old);
 struct conf		*conf_new_from_kernel(void);
 void			conf_delete(struct conf *conf);
 int			conf_verify(struct conf *conf);
@@ -313,20 +345,38 @@ void			isns_register(struct isns *isns, struct isns *oldisns);
 void			isns_check(struct isns *isns);
 void			isns_deregister(struct isns *isns);
 
+struct pport		*pport_new(struct conf *conf, const char *name,
+			    uint32_t ctl_port);
+struct pport		*pport_find(const struct conf *conf, const char *name);
+struct pport		*pport_copy(struct pport *pport, struct conf *conf);
+void			pport_delete(struct pport *pport);
+
+struct port		*port_new(struct conf *conf, struct target *target,
+			    struct portal_group *pg);
+struct port		*port_new_pp(struct conf *conf, struct target *target,
+			    struct pport *pp);
+struct port		*port_find(const struct conf *conf, const char *name);
+struct port		*port_find_in_pg(const struct portal_group *pg,
+			    const char *target);
+void			port_delete(struct port *port);
+
 struct target		*target_new(struct conf *conf, const char *name);
 void			target_delete(struct target *target);
 struct target		*target_find(struct conf *conf,
 			    const char *name);
 int			target_set_redirection(struct target *target,
 			    const char *addr);
+int			target_set_offload(struct target *target,
+			    const char *offload);
 
-struct lun		*lun_new(struct target *target, int lun_id);
+struct lun		*lun_new(struct conf *conf, const char *name);
 void			lun_delete(struct lun *lun);
-struct lun		*lun_find(const struct target *target, int lun_id);
+struct lun		*lun_find(const struct conf *conf, const char *name);
 void			lun_set_backend(struct lun *lun, const char *value);
 void			lun_set_blocksize(struct lun *lun, size_t value);
 void			lun_set_device_id(struct lun *lun, const char *value);
 void			lun_set_path(struct lun *lun, const char *value);
+void			lun_set_scsiname(struct lun *lun, const char *value);
 void			lun_set_serial(struct lun *lun, const char *value);
 void			lun_set_size(struct lun *lun, size_t value);
 void			lun_set_ctl_lun(struct lun *lun, uint32_t value);
@@ -344,8 +394,11 @@ int			kernel_lun_add(struct lun *lun);
 int			kernel_lun_resize(struct lun *lun);
 int			kernel_lun_remove(struct lun *lun);
 void			kernel_handoff(struct connection *conn);
-int			kernel_port_add(struct target *targ);
-int			kernel_port_remove(struct target *targ);
+void			kernel_limits(const char *offload,
+			    size_t *max_data_segment_length);
+int			kernel_port_add(struct port *port);
+int			kernel_port_update(struct port *port);
+int			kernel_port_remove(struct port *port);
 void			kernel_capsicate(void);
 
 #ifdef ICL_KERNEL_PROXY

@@ -1849,14 +1849,13 @@ ugen_get_port_path(struct usb_fifo *f, struct usb_device_port_path *dpp)
 	if (nlevel > USB_DEVICE_PORT_PATH_MAX)
 		goto error;
 
+	/* store total level of ports */
+	dpp->udp_port_level = nlevel;
+
 	/* store port index array */
 	next = udev;
 	while (next->parent_hub != NULL) {
-		nlevel--;
-
-		dpp->udp_port_no[nlevel] = next->port_no;
-		dpp->udp_port_level = nlevel;
-
+		dpp->udp_port_no[--nlevel] = next->port_no;
 		next = next->parent_hub;
 	}
 	return (0);	/* success */

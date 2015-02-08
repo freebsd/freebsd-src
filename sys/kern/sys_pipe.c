@@ -318,7 +318,7 @@ pipe_zone_init(void *mem, int size, int flags)
 
 	pp = (struct pipepair *)mem;
 
-	mtx_init(&pp->pp_mtx, "pipe mutex", NULL, MTX_DEF);
+	mtx_init(&pp->pp_mtx, "pipe mutex", NULL, MTX_DEF | MTX_NEW);
 	return (0);
 }
 
@@ -377,15 +377,16 @@ pipe_named_ctor(struct pipe **ppipe, struct thread *td)
 void
 pipe_dtor(struct pipe *dpipe)
 {
+	struct pipe *peer;
 	ino_t ino;
 
 	ino = dpipe->pipe_ino;
+	peer = (dpipe->pipe_state & PIPE_NAMED) != 0 ? dpipe->pipe_peer : NULL;
 	funsetown(&dpipe->pipe_sigio);
 	pipeclose(dpipe);
-	if (dpipe->pipe_state & PIPE_NAMED) {
-		dpipe = dpipe->pipe_peer;
-		funsetown(&dpipe->pipe_sigio);
-		pipeclose(dpipe);
+	if (peer != NULL) {
+		funsetown(&peer->pipe_sigio);
+		pipeclose(peer);
 	}
 	if (ino != 0 && ino != (ino_t)-1)
 		free_unr(pipeino_unr, ino);

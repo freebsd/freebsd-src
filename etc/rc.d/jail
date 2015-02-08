@@ -28,7 +28,7 @@ extra_commands="config console status"
 
 need_dad_wait=
 
-# extact_var jail name param num defval
+# extract_var jail name param num defval
 #	Extract value from ${jail_$jail_$name} or ${jail_$name} and
 #	set it to $param.  If not defined, $defval is used.
 #	When $num is [0-9]*, ${jail_$jail_$name$num} are looked up and

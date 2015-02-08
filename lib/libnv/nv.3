@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 25, 2014
+.Dd January 30, 2015
 .Dt NV 3
 .Os
 .Sh NAME
@@ -151,7 +151,7 @@
 .Ft "const void *"
 .Fn nvlist_get_binary "const nvlist_t *nvl" "const char *name" "size_t *sizep"
 .Ft "const nvlist_t *"
-.Fn nvlist_get_parent "const nvlist_t *nvl"
+.Fn nvlist_get_parent "const nvlist_t *nvl" "void **cookiep"
 .\"
 .Ft bool
 .Fn nvlist_take_bool "nvlist_t *nvl" "const char *name"
@@ -587,6 +587,28 @@ while ((name = nvlist_next(nvl, &type, &cookie)) != NULL) {
 	}
 	printf("\\n");
 }
+.Ed
+.Pp
+Iterating over every nested nvlist:
+.Bd -literal
+nvlist_t *nvl;
+const char *name;
+void *cookie;
+int type;
+
+nvl = nvlist_recv(sock);
+if (nvl == NULL)
+	err(1, "nvlist_recv() failed");
+
+cookie = NULL;
+do {
+	while ((name = nvlist_next(nvl, &type, &cookie)) != NULL) {
+		if (type == NV_TYPE_NVLIST) {
+			nvl = nvlist_get_nvlist(nvl, name);
+			cookie = NULL;
+		}
+	}
+} while ((nvl = nvlist_get_parent(nvl, &cookie)) != NULL);
 .Ed
 .Sh SEE ALSO
 .Xr close 2 ,

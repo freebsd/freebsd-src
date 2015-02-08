@@ -38,4 +38,4 @@
  *
  */
 
-inline cyc_func_t i = "i am a cyclic function";
+inline dtrace_trap_func_t i = "i am a dtrace trap function";

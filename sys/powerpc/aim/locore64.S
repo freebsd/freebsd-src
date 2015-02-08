@@ -121,13 +121,37 @@ ASENTRY_NOPROF(__start)
 	.align 3
 0:	nop
 	bl	1f
-	.llong	__tocbase + 0x8000
+	.llong	__tocbase + 0x8000 - .
 1:	mflr	%r2
-	ld	%r2,0(%r2)
+	ld	%r1,0(%r2)
+	add	%r2,%r1,%r2
+
+	/* Get load offset */
+	ld	%r31,-0x8000(%r2) /* First TOC entry is TOC base */
+	subf    %r31,%r31,%r2	/* Subtract from real TOC base to get base */
 
 	/* Set up the stack pointer */
 	ld	%r1,TOC_REF(tmpstk)(%r2)
-	addi	%r1,%r1,TMPSTKSZ-48
+	addi	%r1,%r1,TMPSTKSZ-96
+	add	%r1,%r1,%r31
+
+	/* Relocate kernel */
+	std	%r3,48(%r1)
+	std	%r4,56(%r1)
+	std	%r5,64(%r1)
+	std	%r6,72(%r1)
+	bl	1f
+	.llong _DYNAMIC-.
+1:	mflr	%r3
+	ld	%r4,0(%r3)
+	add	%r3,%r4,%r3
+	mr	%r4,%r31
+	bl	elf_reloc_self
+	nop
+	ld	%r3,48(%r1)
+	ld	%r4,56(%r1)
+	ld	%r5,64(%r1)
+	ld	%r6,72(%r1)
 
 	/* Switch to 64-bit mode */
 	mfmsr	%r9

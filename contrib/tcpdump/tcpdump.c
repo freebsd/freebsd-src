@@ -77,12 +77,12 @@ extern int SIZE_BUF;
 #ifdef __FreeBSD__
 #include <sys/capsicum.h>
 #include <sys/sysctl.h>
+#endif /* __FreeBSD__ */
+#ifdef HAVE_CAPSICUM
 #include <libcapsicum.h>
 #include <libcapsicum_dns.h>
 #include <libcapsicum_service.h>
 #include <nv.h>
-#endif /* __FreeBSD__ */
-#ifdef HAVE_CAPSICUM
 #include <sys/capability.h>
 #include <sys/ioccom.h>
 #include <net/bpf.h>
@@ -966,8 +966,8 @@ main(int argc, char **argv)
 	FILE *VFile;
 #ifdef HAVE_CAPSICUM
 	cap_rights_t rights;
-	int cansandbox;
 #endif	/* HAVE_CAPSICUM */
+	int cansandbox;
 
 #ifdef WIN32
 	if(wsockinit() != 0) return 1;

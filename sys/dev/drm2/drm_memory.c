@@ -125,3 +125,11 @@ drm_clflush_pages(vm_page_t *pages, unsigned long num_pages)
 
 	pmap_invalidate_cache_pages(pages, num_pages);
 }
+
+void
+drm_clflush_virt_range(char *addr, unsigned long length)
+{
+
+	pmap_invalidate_cache_range((vm_offset_t)addr,
+	    (vm_offset_t)addr + length, TRUE);
+}

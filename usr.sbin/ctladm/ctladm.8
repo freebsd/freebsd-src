@@ -34,7 +34,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd December 17, 2014
+.Dd February 1, 2015
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -196,10 +196,16 @@
 .Ic portlist
 .Op Fl f Ar frontend
 .Op Fl i
+.Op Fl l
 .Op Fl p Ar targ_port
 .Op Fl q
 .Op Fl v
 .Op Fl x
+.Nm
+.Ic lunmap
+.Aq Fl p Ar targ_port
+.Op Fl l Ar pLUN
+.Op Fl L Ar cLUN
 .Nm
 .Ic dumpooa
 .Nm
@@ -782,7 +788,9 @@ List CTL frontend ports.
 .It Fl f Ar frontend
 Specify the frontend type.
 .It Fl i
-Report target and connected initiators addresses
+Report target and connected initiators addresses.
+.It Fl l
+Report LUN mapping.
 .It Fl p Ar targ_port
 Specify the frontend port number.
 .It Fl q
@@ -791,6 +799,31 @@ Omit the header in the port list output.
 Enable verbose output (report all port options).
 .It Fl x
 Output the port list in XML format.
+.El
+.It Ic lunmap
+Change LUN mapping for specified port.
+If both
+.Ar pLUN
+and
+.Ar cLUN
+are specified -- LUN will be mapped.
+If
+.Ar pLUN
+is specified, but
+.Ar cLUN
+is not -- LUN will be unmapped.
+If neither
+.Ar pLUN
+nor
+.Ar cLUN
+are specified -- LUN mapping will be disabled, exposing all CTL LUNs.
+.Bl -tag -width 12n
+.It Fl p Ar targ_port
+Specify the frontend port number.
+.It Fl l Ar pLUN
+LUN number visible by specified port.
+.It Fl L Ar cLUN
+CTL LUN number.
 .El
 .It Ic dumpooa
 Dump the OOA (Order Of Arrival) queue for each LUN registered with CTL.

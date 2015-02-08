@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/ti/ti_prcm.h>
 #include <arm/ti/ti_pruss.h>
 
-#define DEBUG
 #ifdef DEBUG
 #define	DPRINTF(fmt, ...)	do {	\
 	printf("%s: ", __func__);	\
@@ -259,6 +258,7 @@ ti_pruss_mmap(struct cdev *cdev, vm_ooffset_t offset, vm_paddr_t *paddr,
 	if (offset > rman_get_size(sc->sc_mem_res))
 		return (-1);
 	*paddr = rman_get_start(sc->sc_mem_res) + offset;
+	*memattr = VM_MEMATTR_UNCACHEABLE;
 
 	return (0);
 }

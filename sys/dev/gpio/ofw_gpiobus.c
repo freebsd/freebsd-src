@@ -217,6 +217,24 @@ ofw_gpiobus_parse_gpios(struct gpiobus_softc *sc, struct gpiobus_ivar *dinfo,
 	return (0);
 }
 
+void
+ofw_gpiobus_register_provider(device_t provider)
+{
+	phandle_t node;
+
+	node = ofw_bus_get_node(provider);
+	OF_device_register_xref(OF_xref_from_node(node), provider);
+}
+
+void
+ofw_gpiobus_unregister_provider(device_t provider)
+{
+	phandle_t node;
+
+	node = ofw_bus_get_node(provider);
+	OF_device_register_xref(OF_xref_from_node(node), NULL);
+}
+
 static struct ofw_gpiobus_devinfo *
 ofw_gpiobus_setup_devinfo(device_t dev, phandle_t node)
 {
