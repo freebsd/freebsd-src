@@ -29,7 +29,11 @@
 #include "ProcessPOSIX.h"
 #include "ProcessPOSIXLog.h"
 #include "Plugins/Process/Utility/InferiorCallPOSIX.h"
+#if defined(__FreeBSD__)
+#include "Plugins/Process/FreeBSD/ProcessMonitor.h"
+#else
 #include "Plugins/Process/Linux/ProcessMonitor.h"
+#endif
 #include "POSIXThread.h"
 
 using namespace lldb;

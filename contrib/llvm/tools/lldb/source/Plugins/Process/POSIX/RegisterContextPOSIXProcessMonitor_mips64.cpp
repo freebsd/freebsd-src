@@ -13,7 +13,11 @@
 #include "Plugins/Process/Utility/RegisterContextPOSIX_mips64.h"
 #include "ProcessPOSIX.h"
 #include "RegisterContextPOSIXProcessMonitor_mips64.h"
+#if defined(__FreeBSD__)
+#include "Plugins/Process/FreeBSD/ProcessMonitor.h"
+#else
 #include "Plugins/Process/Linux/ProcessMonitor.h"
+#endif
 
 using namespace lldb_private;
 using namespace lldb;
