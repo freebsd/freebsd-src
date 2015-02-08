@@ -8,8 +8,11 @@ ident		XEN
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 
-# The following modules don't build with PAE and XEN enabled.
-makeoptions	WITHOUT_MODULES="ctl cxgb dpt drm drm2 hptmv ida malo mwl rdma"
+# The following drivers don't build with PAE or XEN enabled.
+makeoptions	WITHOUT_MODULES="ctl cxgb dpt drm drm2 hptmv ida rdma"
+
+# The following drivers don't work with PAE enabled.
+makeoptions	WITHOUT_MODULES+="asr ncr pst"
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
