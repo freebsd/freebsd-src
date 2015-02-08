@@ -16881,7 +16881,7 @@ dtrace_dtr(void *data)
 #ifdef illumos
 	dtrace_state_destroy(state);
 #else
-	if (state == NULL) {
+	if (state != NULL) {
 		dtrace_state_destroy(state);
 		kmem_free(state, 0);
 	}
