@@ -29,7 +29,7 @@
 .\"	@(#)symlink.7	8.3 (Berkeley) 3/31/94
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2010
+.Dd December 29, 2014
 .Dt SYMLINK 7
 .Os
 .Sh NAME
@@ -219,7 +219,7 @@ would change the ownership of
 .Dq Li slink
 itself.
 .Pp
-There are four exceptions to this rule.
+There are five exceptions to this rule.
 The
 .Xr mv 1
 and
@@ -262,13 +262,12 @@ a file tree.)
 .Pp
 The
 .Xr file 1
-command is also an exception to this rule.
-The
-.Xr file 1
-command does not follow symbolic links named as argument by default.
-The
-.Xr file 1
-command does follow symbolic links named as argument if
+and
+.Xr stat 1
+commands are also exceptions to this rule.
+These
+commands do not follow symbolic links named as argument by default,
+but do follow symbolic links named as argument if the
 .Fl L
 option is specified.
 .Pp
