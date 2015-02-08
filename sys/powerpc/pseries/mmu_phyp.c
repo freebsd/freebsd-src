@@ -102,6 +102,7 @@ mphyp_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	char buf[8];
 	uint32_t prop[2];
 	uint32_t nptlp, shift = 0, slb_encoding = 0;
+	uint32_t lp_size, lp_encoding;
 	phandle_t dev, node, root;
 	int idx, len, res;
 
@@ -148,9 +149,9 @@ mphyp_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 		 * We have to use a variable length array on the stack
 		 * since we have very limited stack space.
 		 */
-		cell_t arr[len/sizeof(cell_t)];
-		res = OF_getprop(node, "ibm,segment-page-sizes", &arr,
-				 sizeof(arr));
+		pcell_t arr[len/sizeof(cell_t)];
+		res = OF_getencprop(node, "ibm,segment-page-sizes", arr,
+		    sizeof(arr));
 		len /= 4;
 		idx = 0;
 		while (len > 0) {
@@ -160,18 +161,26 @@ mphyp_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 			idx += 3;
 			len -= 3;
 			while (len > 0 && nptlp) {
+				lp_size = arr[idx];
+				lp_encoding = arr[idx+1];
+				if (slb_encoding == SLBV_L && lp_encoding == 0)
+					break;
+
 				idx += 2;
 				len -= 2;
 				nptlp--;
 			}
+			if (nptlp && slb_encoding == SLBV_L && lp_encoding == 0)
+				break;
 		}
 
-		/* For now we allow shift only to be <= 0x18. */
-		if (shift >= 0x18)
-		    shift = 0x18;
+		if (len == 0)
+			panic("Standard large pages (SLB[L] = 1, PTE[LP] = 0) "
+			    "not supported by this system. Please enable huge "
+			    "page backing if running under PowerKVM.");
 
 		moea64_large_page_shift = shift;
-		moea64_large_page_size = 1ULL << shift;
+		moea64_large_page_size = 1ULL << lp_size;
 	}
 
 	moea64_mid_bootstrap(mmup, kernelstart, kernelend);
