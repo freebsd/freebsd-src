@@ -31,7 +31,11 @@
 #include "POSIXThread.h"
 #include "ProcessPOSIX.h"
 #include "ProcessPOSIXLog.h"
+#if defined(__FreeBSD__)
+#include "Plugins/Process/FreeBSD/ProcessMonitor.h"
+#else
 #include "Plugins/Process/Linux/ProcessMonitor.h"
+#endif
 #include "RegisterContextPOSIXProcessMonitor_arm64.h"
 #include "RegisterContextPOSIXProcessMonitor_mips64.h"
 #include "RegisterContextPOSIXProcessMonitor_powerpc.h"
