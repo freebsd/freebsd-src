@@ -1199,7 +1199,7 @@ kernel-pkgs:
 		-e "s/%COMMENT%/FreeBSD ${KERNCONF} kernel ${flavor}/" \
 		-e "s/%DESC%/FreeBSD ${KERNCONF} kernel ${flavor}/" \
 		${DESTDIR}/${DISTDIR}/${flavor}-manifestdir/+MANIFEST
-	@pkg create -v -m ${DESTDIR}/${DISTDIR}/${flavor}-manifestdir \
+	@pkg create -m ${DESTDIR}/${DISTDIR}/${flavor}-manifestdir \
 		-p ${DESTDIR}/${DISTDIR}/${flavor}.plist \
 		-r ${DESTDIR}/${DISTDIR}/kernel \
 		-o ${DESTDIR}
@@ -1220,7 +1220,7 @@ kernel-pkgs:
 		-e "s/%COMMENT%/FreeBSD ${KERNCONF} kernel ${flavor}/" \
 		-e "s/%DESC%/FreeBSD ${KERNCONF} kernel ${flavor}/" \
 		${DESTDIR}/${DISTDIR}/${flavor}-manifestdir/+MANIFEST
-	@pkg create -v -m ${DESTDIR}/${DISTDIR}/${flavor}-manifestdir \
+	@pkg create -m ${DESTDIR}/${DISTDIR}/${flavor}-manifestdir \
 		-p ${DESTDIR}/${DISTDIR}/${flavor}.plist \
 		-r ${DESTDIR}/${DISTDIR}/kernel.${_kernel} \
 		-o ${DESTDIR}
