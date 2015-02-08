@@ -439,8 +439,10 @@ _sem_post(sem_t *sem)
 
 	do {
 		count = sem->_kern._count;
-		if (count + 1 > SEM_VALUE_MAX)
-			return (EOVERFLOW);
+		if (count + 1 > SEM_VALUE_MAX) {
+			errno = EOVERFLOW;
+			return (-1);
+		}
 	} while(!atomic_cmpset_rel_int(&sem->_kern._count, count, count+1));
 	(void)usem_wake(&sem->_kern);
 	return (0);
