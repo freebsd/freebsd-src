@@ -3139,6 +3139,9 @@ mcfail:
 	return (rc);
 }
 
+/*
+ * {begin|end}_synchronized_op must be called from the same thread.
+ */
 int
 begin_synchronized_op(struct adapter *sc, struct port_info *pi, int flags,
     char *wmesg)
@@ -3194,6 +3197,9 @@ done:
 	return (rc);
 }
 
+/*
+ * {begin|end}_synchronized_op must be called from the same thread.
+ */
 void
 end_synchronized_op(struct adapter *sc, int flags)
 {
