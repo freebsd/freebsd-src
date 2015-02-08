@@ -2,13 +2,10 @@
 
 .include <bsd.own.mk>
 
-LIB=	lldbHostFreeBSD
+LIB=	lldbPluginMemoryHistoryASan
 
-SRCDIR=	tools/lldb/source/Host/freebsd
-SRCS=	Host.cpp \
-	HostInfoFreeBSD.cpp \
-	HostThreadFreeBSD.cpp \
-	ThisThread.cpp
+SRCDIR=	tools/lldb/source/Plugins/MemoryHistory/asan
+SRCS=	MemoryHistoryASan.cpp
 
 TGHDRS=	DiagnosticCommonKinds \
 	DeclNodes \
