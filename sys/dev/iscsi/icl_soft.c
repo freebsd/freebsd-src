@@ -98,6 +98,10 @@ static icl_conn_handoff_t	icl_soft_conn_handoff;
 static icl_conn_free_t		icl_soft_conn_free;
 static icl_conn_close_t		icl_soft_conn_close;
 static icl_conn_connected_t	icl_soft_conn_connected;
+static icl_conn_task_setup_t	icl_soft_conn_task_setup;
+static icl_conn_task_done_t	icl_soft_conn_task_done;
+static icl_conn_transfer_setup_t	icl_soft_conn_transfer_setup;
+static icl_conn_transfer_done_t	icl_soft_conn_transfer_done;
 
 static kobj_method_t icl_soft_methods[] = {
 	KOBJMETHOD(icl_conn_new_pdu, icl_soft_conn_new_pdu),
@@ -111,6 +115,10 @@ static kobj_method_t icl_soft_methods[] = {
 	KOBJMETHOD(icl_conn_free, icl_soft_conn_free),
 	KOBJMETHOD(icl_conn_close, icl_soft_conn_close),
 	KOBJMETHOD(icl_conn_connected, icl_soft_conn_connected),
+	KOBJMETHOD(icl_conn_task_setup, icl_soft_conn_task_setup),
+	KOBJMETHOD(icl_conn_task_done, icl_soft_conn_task_done),
+	KOBJMETHOD(icl_conn_transfer_setup, icl_soft_conn_transfer_setup),
+	KOBJMETHOD(icl_conn_transfer_done, icl_soft_conn_transfer_done),
 	{ 0, 0 }
 };
 
@@ -1433,6 +1441,32 @@ icl_soft_conn_connected(struct icl_conn *ic)
 	}
 	ICL_CONN_UNLOCK(ic);
 	return (true);
+}
+
+int
+icl_soft_conn_task_setup(struct icl_conn *ic, struct ccb_scsiio *csio,
+    uint32_t *task_tagp, void **prvp)
+{
+
+	return (0);
+}
+
+void
+icl_soft_conn_task_done(struct icl_conn *ic, void *prv)
+{
+}
+
+int
+icl_soft_conn_transfer_setup(struct icl_conn *ic, union ctl_io *io,
+    uint32_t *transfer_tag, void **prvp)
+{
+
+	return (0);
+}
+
+void
+icl_soft_conn_transfer_done(struct icl_conn *ic, void *prv)
+{
 }
 
 static int
