@@ -153,6 +153,21 @@ SRCRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 VERSION=	FreeBSD ${REVISION}-${BRANCH:C/-p[0-9]+$//} ${TARGET_ARCH} ${SRCRELDATE}
 .endif
 
+.if !defined(PKG_VERSION)
+REVISION!=	${MAKE} -C ${SRCDIR}/release -V REVISION
+BRANCH!=	${MAKE} -C ${SRCDIR}/release -V BRANCH
+SRCRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
+		${SRCDIR}/sys/sys/param.h
+.if ${BRANCH:MSTABLE*} || ${BRANCH:MCURRENT*}
+TIMENOW!=	TZ=UTC date +%Y%m%d%H%M%S
+EXTRA_REVISION=	.s${TIMENOW}
+.endif
+.if ${BRANCH:M*-p*}
+EXTRA_REVISION=	_${BRANCH:C/.*-p([0-9]+$)/\1/}
+.endif
+PKG_VERSION=	${REVISION}${EXTRA_REVISION}
+.endif
+
 KNOWN_ARCHES?=	amd64 arm armeb/arm armv6/arm armv6hf/arm i386 i386/pc98 mips mipsel/mips mips64el/mips mips64/mips mipsn32el/mips mipsn32/mips powerpc powerpc64/powerpc sparc64
 .if ${TARGET} == ${TARGET_ARCH}
 _t=		${TARGET}
@@ -1164,6 +1179,54 @@ packagekernel:
 	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz .
 .endfor
 .endif
+
+kernel-pkgs:
+.if !defined(NO_ROOT)
+	@echo "ERROR: kernel-pkgs can only be done with -DNO_ROOT"; \
+	false
+.endif
+	@cd ${DESTDIR}/${DISTDIR} ; \
+		awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
+		${DESTDIR}/${DISTDIR}/kernel.meta
+.for flavor in release debug
+.if exists(${DESTDIR}/${DISTDIR}/${flavor}.plist)
+	@rm -rf ${DESTDIR}/${DISTDIR}/${flavor}-manifestdir
+	@cp -r ${SRCDIR}/release/packages/kernel \
+		${DESTDIR}/${DISTDIR}/${flavor}-manifestdir
+	@cd ${DESTDIR}/${DISTDIR} ; \
+		sed -i '' -e "s/%VERSION%/${PKG_VERSION}/" \
+		-e "s/%PKGNAME%/kernel-${flavor}/" \
+		-e "s/%COMMENT%/FreeBSD ${KERNCONF} kernel ${flavor}/" \
+		-e "s/%DESC%/FreeBSD ${KERNCONF} kernel ${flavor}/" \
+		${DESTDIR}/${DISTDIR}/${flavor}-manifestdir/+MANIFEST
+	@pkg create -v -m ${DESTDIR}/${DISTDIR}/${flavor}-manifestdir \
+		-p ${DESTDIR}/${DISTDIR}/${flavor}.plist \
+		-r ${DESTDIR}/${DISTDIR}/kernel \
+		-o ${DESTDIR}
+.endif
+.endfor
+.for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
+	@cd ${DESTDIR}/${DISTDIR} ; \
+		awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
+		${DESTDIR}/${DISTDIR}/kernel${_kernel}.meta
+.for flavor in release debug
+.if exists(${DESTDIR}/${DISTDIR}/${flavor}.plist)
+	@rm -rf ${DESTDIR}/${DISTDIR}/${flavor}-manifestdir
+	@cp -r ${SRCDIR}/release/packages/kernel \
+		${DESTDIR}/${DISTDIR}/${flavor}-manifestdir
+	@cd ${DESTDIR}/${DISTDIR} ; \
+		sed -i '' -e "s/%VERSION%/${PKG_VERSION}/" \
+		-e "s/%PKGNAME%/kernel-${flavor}/" \
+		-e "s/%COMMENT%/FreeBSD ${KERNCONF} kernel ${flavor}/" \
+		-e "s/%DESC%/FreeBSD ${KERNCONF} kernel ${flavor}/" \
+		${DESTDIR}/${DISTDIR}/${flavor}-manifestdir/+MANIFEST
+	@pkg create -v -m ${DESTDIR}/${DISTDIR}/${flavor}-manifestdir \
+		-p ${DESTDIR}/${DISTDIR}/${flavor}.plist \
+		-r ${DESTDIR}/${DISTDIR}/kernel.${_kernel} \
+		-o ${DESTDIR}
+.endif
+.endfor
+.endfor
 
 #
 # doxygen
