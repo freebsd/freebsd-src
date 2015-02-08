@@ -1937,11 +1937,9 @@ bge_chipinit(struct bge_softc *sc)
 
 	/*
 	 * Disable memory write invalidate.  Apparently it is not supported
-	 * properly by these devices.  Also ensure that INTx isn't disabled,
-	 * as these chips need it even when using MSI.
+	 * properly by these devices.
 	 */
-	PCI_CLRBIT(sc->bge_dev, BGE_PCI_CMD,
-	    PCIM_CMD_INTxDIS | PCIM_CMD_MWIEN, 4);
+	PCI_CLRBIT(sc->bge_dev, BGE_PCI_CMD, PCIM_CMD_MWIEN, 4);
 
 	/* Set the timer prescaler (always 66 MHz). */
 	CSR_WRITE_4(sc, BGE_MISC_CFG, BGE_32BITTIME_66MHZ);
