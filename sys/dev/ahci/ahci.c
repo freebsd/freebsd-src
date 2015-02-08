@@ -103,7 +103,7 @@ static void ahcipoll(struct cam_sim *sim);
 
 static MALLOC_DEFINE(M_AHCI, "AHCI driver", "AHCI driver data buffers");
 
-static struct {
+static const struct {
 	uint32_t	id;
 	uint8_t		rev;
 	const char	*name;
@@ -977,14 +977,14 @@ static device_method_t ahci_methods[] = {
 	DEVMETHOD(bus_teardown_intr,ahci_teardown_intr),
 	DEVMETHOD(bus_child_location_str, ahci_child_location_str),
 	DEVMETHOD(bus_get_dma_tag,  ahci_get_dma_tag),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t ahci_driver = {
         "ahci",
         ahci_methods,
         sizeof(struct ahci_controller)
 };
-DRIVER_MODULE(ahci, pci, ahci_driver, ahci_devclass, 0, 0);
+DRIVER_MODULE(ahci, pci, ahci_driver, ahci_devclass, NULL, NULL);
 static device_method_t ahci_ata_methods[] = {
 	DEVMETHOD(device_probe,     ahci_ata_probe),
 	DEVMETHOD(device_attach,    ahci_attach),
@@ -997,14 +997,14 @@ static device_method_t ahci_ata_methods[] = {
 	DEVMETHOD(bus_setup_intr,   ahci_setup_intr),
 	DEVMETHOD(bus_teardown_intr,ahci_teardown_intr),
 	DEVMETHOD(bus_child_location_str, ahci_child_location_str),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t ahci_ata_driver = {
         "ahci",
         ahci_ata_methods,
         sizeof(struct ahci_controller)
 };
-DRIVER_MODULE(ahci, atapci, ahci_ata_driver, ahci_devclass, 0, 0);
+DRIVER_MODULE(ahci, atapci, ahci_ata_driver, ahci_devclass, NULL, NULL);
 MODULE_VERSION(ahci, 1);
 MODULE_DEPEND(ahci, cam, 1, 1, 1);
 
@@ -1290,14 +1290,14 @@ static device_method_t ahcich_methods[] = {
 	DEVMETHOD(device_detach,    ahci_ch_detach),
 	DEVMETHOD(device_suspend,   ahci_ch_suspend),
 	DEVMETHOD(device_resume,    ahci_ch_resume),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t ahcich_driver = {
         "ahcich",
         ahcich_methods,
         sizeof(struct ahci_channel)
 };
-DRIVER_MODULE(ahcich, ahci, ahcich_driver, ahcich_devclass, 0, 0);
+DRIVER_MODULE(ahcich, ahci, ahcich_driver, ahcich_devclass, NULL, NULL);
 
 static void
 ahci_ch_setleds(device_t dev)
