@@ -43,11 +43,12 @@
 
 struct octeon_gpio_softc {
 	device_t		dev;
-        struct mtx		gpio_mtx;
-        struct resource		*gpio_irq_res[OCTEON_GPIO_IRQS];
-        int			gpio_irq_rid[OCTEON_GPIO_IRQS];
-        void			*gpio_ih[OCTEON_GPIO_IRQS];
-        void			*gpio_intr_cookies[OCTEON_GPIO_IRQS];
+	device_t		busdev;
+	struct mtx		gpio_mtx;
+	struct resource		*gpio_irq_res[OCTEON_GPIO_IRQS];
+	int			gpio_irq_rid[OCTEON_GPIO_IRQS];
+	void			*gpio_ih[OCTEON_GPIO_IRQS];
+	void			*gpio_intr_cookies[OCTEON_GPIO_IRQS];
 	int			gpio_npins;
 	struct gpio_pin		gpio_pins[OCTEON_GPIO_PINS];
 };

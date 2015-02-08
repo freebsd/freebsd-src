@@ -54,9 +54,6 @@ overflow_head() {
 	atf_set "descr" "Test overflow cases"
 }
 overflow_body() {
-	# Begin FreeBSD
-	atf_expect_fail "FreeBSD's expr does not check overflow to the same degree NetBSD's expr does; see bug 196867 for more details"
-	# End FreeBSD
 	test_expr '4611686018427387904 + 4611686018427387903' \
 	          '9223372036854775807'
 	test_expr '4611686018427387904 + 4611686018427387904' \

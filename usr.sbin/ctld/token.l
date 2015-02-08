@@ -65,12 +65,14 @@ listen			{ return LISTEN; }
 listen-iser		{ return LISTEN_ISER; }
 lun			{ return LUN; }
 maxproc			{ return MAXPROC; }
+offload			{ return OFFLOAD; }
 option			{ return OPTION; }
 path			{ return PATH; }
 pidfile			{ return PIDFILE; }
 isns-server		{ return ISNS_SERVER; }
 isns-period		{ return ISNS_PERIOD; }
 isns-timeout		{ return ISNS_TIMEOUT; }
+port			{ return PORT; }
 portal-group		{ return PORTAL_GROUP; }
 redirect		{ return REDIRECT; }
 serial			{ return SERIAL; }

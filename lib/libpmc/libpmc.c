@@ -74,8 +74,12 @@ static int p6_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
 static int tsc_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 #endif
+#if defined(__arm__)
 #if defined(__XSCALE__)
 static int xscale_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
+    struct pmc_op_pmcallocate *_pmc_config);
+#endif
+static int armv7_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 #endif
 #if defined(__mips__)
@@ -153,6 +157,7 @@ PMC_CLASSDEP_TABLE(p4, P4);
 PMC_CLASSDEP_TABLE(p5, P5);
 PMC_CLASSDEP_TABLE(p6, P6);
 PMC_CLASSDEP_TABLE(xscale, XSCALE);
+PMC_CLASSDEP_TABLE(armv7, ARMV7);
 PMC_CLASSDEP_TABLE(mips24k, MIPS24K);
 PMC_CLASSDEP_TABLE(octeon, OCTEON);
 PMC_CLASSDEP_TABLE(ucf, UCF);
@@ -286,6 +291,7 @@ PMC_MDEP_TABLE(p4, P4, PMC_CLASS_SOFT, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(p5, P5, PMC_CLASS_SOFT, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(p6, P6, PMC_CLASS_SOFT, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(xscale, XSCALE, PMC_CLASS_SOFT, PMC_CLASS_XSCALE);
+PMC_MDEP_TABLE(armv7, ARMV7, PMC_CLASS_SOFT, PMC_CLASS_ARMV7);
 PMC_MDEP_TABLE(mips24k, MIPS24K, PMC_CLASS_SOFT, PMC_CLASS_MIPS24K);
 PMC_MDEP_TABLE(octeon, OCTEON, PMC_CLASS_SOFT, PMC_CLASS_OCTEON);
 PMC_MDEP_TABLE(ppc7450, PPC7450, PMC_CLASS_SOFT, PMC_CLASS_PPC7450);
@@ -346,8 +352,11 @@ PMC_CLASS_TABLE_DESC(p6, P6, p6, p6);
 #if	defined(__i386__) || defined(__amd64__)
 PMC_CLASS_TABLE_DESC(tsc, TSC, tsc, tsc);
 #endif
+#if	defined(__arm__)
 #if	defined(__XSCALE__)
 PMC_CLASS_TABLE_DESC(xscale, XSCALE, xscale, xscale);
+#endif
+PMC_CLASS_TABLE_DESC(armv7, ARMV7, armv7, armv7);
 #endif
 #if defined(__mips__)
 PMC_CLASS_TABLE_DESC(mips24k, MIPS24K, mips24k, mips);
@@ -2371,6 +2380,7 @@ soft_allocate_pmc(enum pmc_event pe, char *ctrspec,
 	return (0);
 }
 
+#if	defined(__arm__)
 #if	defined(__XSCALE__)
 
 static struct pmc_event_alias xscale_aliases[] = {
@@ -2383,6 +2393,25 @@ static struct pmc_event_alias xscale_aliases[] = {
 };
 static int
 xscale_allocate_pmc(enum pmc_event pe, char *ctrspec __unused,
+    struct pmc_op_pmcallocate *pmc_config __unused)
+{
+	switch (pe) {
+	default:
+		break;
+	}
+
+	return (0);
+}
+#endif
+
+static struct pmc_event_alias armv7_aliases[] = {
+	EV_ALIAS("dc-misses",		"L1_DCACHE_REFILL"),
+	EV_ALIAS("ic-misses",		"L1_ICACHE_REFILL"),
+	EV_ALIAS("instructions",	"INSTR_EXECUTED"),
+	EV_ALIAS(NULL, NULL)
+};
+static int
+armv7_allocate_pmc(enum pmc_event pe, char *ctrspec __unused,
     struct pmc_op_pmcallocate *pmc_config __unused)
 {
 	switch (pe) {
@@ -2886,6 +2915,10 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 		ev = xscale_event_table;
 		count = PMC_EVENT_TABLE_SIZE(xscale);
 		break;
+	case PMC_CLASS_ARMV7:
+		ev = armv7_event_table;
+		count = PMC_EVENT_TABLE_SIZE(armv7);
+		break;
 	case PMC_CLASS_MIPS24K:
 		ev = mips24k_event_table;
 		count = PMC_EVENT_TABLE_SIZE(mips24k);
@@ -3163,10 +3196,16 @@ pmc_init(void)
 	case PMC_CPU_GENERIC:
 		PMC_MDEP_INIT(generic);
 		break;
+#if defined(__arm__)
 #if defined(__XSCALE__)
 	case PMC_CPU_INTEL_XSCALE:
 		PMC_MDEP_INIT(xscale);
 		pmc_class_table[n] = &xscale_class_table_descr;
+		break;
+#endif
+	case PMC_CPU_ARMV7:
+		PMC_MDEP_INIT(armv7);
+		pmc_class_table[n] = &armv7_class_table_descr;
 		break;
 #endif
 #if defined(__mips__)
@@ -3369,6 +3408,9 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 	} else if (pe >= PMC_EV_XSCALE_FIRST && pe <= PMC_EV_XSCALE_LAST) {
 		ev = xscale_event_table;
 		evfence = xscale_event_table + PMC_EVENT_TABLE_SIZE(xscale);
+	} else if (pe >= PMC_EV_ARMV7_FIRST && pe <= PMC_EV_ARMV7_LAST) {
+		ev = armv7_event_table;
+		evfence = armv7_event_table + PMC_EVENT_TABLE_SIZE(armv7);
 	} else if (pe >= PMC_EV_MIPS24K_FIRST && pe <= PMC_EV_MIPS24K_LAST) {
 		ev = mips24k_event_table;
 		evfence = mips24k_event_table + PMC_EVENT_TABLE_SIZE(mips24k);

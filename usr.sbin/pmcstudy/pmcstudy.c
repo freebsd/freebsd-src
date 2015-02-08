@@ -1796,6 +1796,10 @@ process_file(char *filename)
 
 	if (filename ==  NULL) {
 		io = my_popen(command, "r", &pid_of_command);
+		if (io == NULL) {
+			printf("Can't popen the command %s\n", command);
+			return;
+		}
 	} else {
 		io = fopen(filename, "r");
 		if (io == NULL) {
@@ -1808,6 +1812,11 @@ process_file(char *filename)
 	if (cnts == NULL) {
 		/* Nothing we can do */
 		printf("Nothing to do -- no counters built\n");
+		if (filename) {
+			fclose(io); 
+		} else {
+			my_pclose(io, pid_of_command);
+		}
 		return;
 	}
 	lace_cpus_together();
@@ -2044,7 +2053,7 @@ get_cpuid_set(void)
 				printf("No memory3 allocation fails at startup?\n");	
 				exit(-1);
 			}
-			memset(more, sz, 0);
+			memset(more, 0, sz);
 			memcpy(more, valid_pmcs, sz);
 			pmc_allocated_cnt *= 2;
 			free(valid_pmcs);

@@ -294,7 +294,7 @@ dtrace_invop_calltrap_addr:
  * not still hanging around in the trap handling region
  * once the MMU is turned on.
  */
-	.globl	CNAME(rstcode), CNAME(rstsize)
+	.globl	CNAME(rstcode), CNAME(rstcodeend)
 CNAME(rstcode):
 	/* Explicitly set MSR[SF] */
 	mfmsr	%r9
@@ -302,9 +302,14 @@ CNAME(rstcode):
 	insrdi	%r9,%r8,1,0
 	mtmsrd	%r9
 	isync
+	bl	1f
+	.llong	cpu_reset
+1:	mflr	%r9
+	ld	%r9,0(%r9)
+	mtlr	%r9
 
-	ba	cpu_reset
-CNAME(rstsize) = . - CNAME(rstcode)
+	blr
+CNAME(rstcodeend):
 
 cpu_reset:
 	GET_TOCBASE(%r2)
@@ -342,17 +347,21 @@ cpu_reset:
 
 /*
  * This code gets copied to all the trap vectors
- * (except ISI/DSI, ALI, and the interrupts)
+ * (except ISI/DSI, ALI, and the interrupts). Has to fit in 8 instructions!
  */
 
-	.globl	CNAME(trapcode),CNAME(trapsize)
+	.globl	CNAME(trapcode),CNAME(trapcodeend)
+	.p2align 3
 CNAME(trapcode):
 	mtsprg1	%r1			/* save SP */
 	mflr	%r1			/* Save the old LR in r1 */
 	mtsprg2 %r1			/* And then in SPRG2 */
+	li	%r1,TRAP_GENTRAP
+	ld	%r1,0(%r1)
+	mtlr	%r1
 	li	%r1, 0xA0		/* How to get the vector from LR */
-	bla	generictrap		/* LR & SPRG3 is exception # */
-CNAME(trapsize) = .-CNAME(trapcode)
+	blrl				/* Branch to generictrap */
+CNAME(trapcodeend):
 
 /*
  * For SLB misses: do special things for the kernel
@@ -360,7 +369,8 @@ CNAME(trapsize) = .-CNAME(trapcode)
  * Note: SPRG1 is always safe to overwrite any time the MMU is on, which is
  * the only time this can be called.
  */
-	.globl	CNAME(slbtrap),CNAME(slbtrapsize)
+	.globl	CNAME(slbtrap),CNAME(slbtrapend)
+	.p2align 3
 CNAME(slbtrap):
 	mtsprg1	%r1			/* save SP */
 	GET_CPUINFO(%r1)
@@ -369,18 +379,32 @@ CNAME(slbtrap):
 	std	%r2,(PC_SLBSAVE+104)(%r1)
 	mfsrr1	%r2			/* test kernel mode */
 	mtcr	%r2
-	bf	17,1f			/* branch if PSL_PR is false */
+	bf	17,2f			/* branch if PSL_PR is false */
 	/* User mode */
 	ld	%r2,(PC_SLBSAVE+104)(%r1) /* Restore CR */
 	mtcr	%r2
 	ld	%r2,(PC_SLBSAVE+16)(%r1) /* Restore R2 */
 	mflr	%r1			/* Save the old LR in r1 */
 	mtsprg2 %r1			/* And then in SPRG2 */
+					/* 52 bytes so far */
+	bl	1f
+	.llong	generictrap
+1:	mflr	%r1
+	ld	%r1,0(%r1)
+	mtlr	%r1
 	li	%r1, 0x80		/* How to get the vector from LR */
-	bla	generictrap		/* LR & SPRG3 is exception # */
-1:	mflr	%r2			/* Save the old LR in r2 */
-	bla	kern_slbtrap
-CNAME(slbtrapsize) = .-CNAME(slbtrap)
+	blrl				/* Branch to generictrap */
+					/* 84 bytes */
+2:	mflr	%r2			/* Save the old LR in r2 */
+	nop
+	bl	3f			/* Begin dance to jump to kern_slbtrap*/
+	.llong	kern_slbtrap
+3:	mflr	%r1
+	ld	%r1,0(%r1)
+	mtlr	%r1
+	GET_CPUINFO(%r1)
+	blrl				/* 124 bytes -- 4 to spare */
+CNAME(slbtrapend):
 
 kern_slbtrap:
 	std	%r2,(PC_SLBSAVE+136)(%r1) /* old LR */
@@ -501,7 +525,7 @@ kern_slbtrap:
 /*
  * For ALI: has to save DSISR and DAR
  */
-	.globl	CNAME(alitrap),CNAME(alisize)
+	.globl	CNAME(alitrap),CNAME(aliend)
 CNAME(alitrap):
 	mtsprg1	%r1			/* save SP */
 	GET_CPUINFO(%r1)
@@ -518,6 +542,16 @@ CNAME(alitrap):
 	mflr	%r28			/* save LR */
 	mfcr	%r29			/* save CR */
 
+	/* Begin dance to branch to s_trap in a bit */
+	b	1f
+	.p2align 3
+1:	nop
+	bl	1f
+	.llong	s_trap
+1:	mflr	%r31
+	ld	%r31,0(%r31)
+	mtlr	%r31
+
 	/* Put our exception vector in SPRG3 */
 	li	%r31, EXC_ALI
 	mtsprg3	%r31
@@ -525,15 +559,14 @@ CNAME(alitrap):
 	/* Test whether we already had PR set */
 	mfsrr1	%r31
 	mtcr	%r31
-	bla	s_trap
-CNAME(alisize) = .-CNAME(alitrap)
+	blrl
+CNAME(aliend):
 
 /*
  * Similar to the above for DSI
- * Has to handle BAT spills
- * and standard pagetable spills
+ * Has to handle standard pagetable spills
  */
-	.globl	CNAME(dsitrap),CNAME(dsisize)
+	.globl	CNAME(dsitrap),CNAME(dsiend)
 CNAME(dsitrap):
 	mtsprg1	%r1			/* save SP */
 	GET_CPUINFO(%r1)
@@ -542,15 +575,19 @@ CNAME(dsitrap):
 	std	%r29,(PC_DISISAVE+CPUSAVE_R29)(%r1)
 	std	%r30,(PC_DISISAVE+CPUSAVE_R30)(%r1)
 	std	%r31,(PC_DISISAVE+CPUSAVE_R31)(%r1)
-	mfsprg1	%r1			/* restore SP */
 	mfcr	%r29			/* save CR */
 	mfxer	%r30			/* save XER */
 	mtsprg2	%r30			/* in SPRG2 */
 	mfsrr1	%r31			/* test kernel mode */
 	mtcr	%r31
 	mflr	%r28			/* save LR (SP already saved) */
-	bla	disitrap
-CNAME(dsisize) = .-CNAME(dsitrap)
+	bl	1f			/* Begin branching to disitrap */
+	.llong	disitrap
+1:	mflr	%r1
+	ld	%r1,0(%r1)
+	mtlr	%r1
+	blrl				/* Branch to generictrap */
+CNAME(dsiend):
 
 /*
  * Preamble code for DSI/ISI traps
@@ -624,7 +661,7 @@ realtrap:
 	bl	restore_kernsrs		/* enable kernel mapping */
 	mfsprg2	%r29
 	mr	%r28,%r27
-	ba s_trap
+	b	s_trap
 
 /*
  * generictrap does some standard setup for trap handling to minimize
@@ -636,6 +673,8 @@ realtrap:
  * SPRG2 - Original LR
  */
 
+	.globl	CNAME(trapcode2)
+trapcode2:
 generictrap:
 	/* Save R1 for computing the exception vector */
 	mtsprg3 %r1
@@ -657,6 +696,7 @@ generictrap:
 	mfsprg3 %r31
 	ori	%r31,%r31,0xff00
 	mflr	%r30
+	addi	%r30,%r30,-4 /* The branch instruction, not the next */
 	and	%r30,%r30,%r31
 	mtsprg3	%r30
 
@@ -790,7 +830,7 @@ dbleave:
 /*
  * In case of KDB we want a separate trap catcher for it
  */
-	.globl	CNAME(dblow),CNAME(dbsize)
+	.globl	CNAME(dblow),CNAME(dbend)
 CNAME(dblow):
 	mtsprg1	%r1			/* save SP */
 	mtsprg2	%r29			/* save r29 */
@@ -804,9 +844,16 @@ CNAME(dblow):
         mfsprg2	%r29			/* ... and r29 */
         mflr	%r1			/* save LR */
 	mtsprg2 %r1			/* And then in SPRG2 */
-	li	%r1, 0	 		/* How to get the vector from LR */
 
-        bla     generictrap		/* and we look like a generic trap */
+	nop				/* Begin branching to generictrap */
+	bl	9f
+	.llong	generictrap
+9:	mflr	%r1
+	ld	%r1,0(%r1)
+	mtlr	%r1
+	li	%r1, 0	 		/* How to get the vector from LR */
+	blrl				/* Branch to generictrap */
+
 1:
 	GET_CPUINFO(%r1)
 	std	%r27,(PC_DBSAVE+CPUSAVE_R27)(%r1)	/* free r27 */
@@ -816,6 +863,11 @@ CNAME(dblow):
         std	%r30,(PC_DBSAVE+CPUSAVE_R30)(%r1)	/* free r30 */
         std	%r31,(PC_DBSAVE+CPUSAVE_R31)(%r1)	/* free r31 */
         mflr	%r28					/* save LR */
-	bla	dbtrap
-CNAME(dbsize) = .-CNAME(dblow)
+	bl	9f					/* Begin branch */
+	.llong	dbtrap
+9:	mflr	%r1
+	ld	%r1,0(%r1)
+	mtlr	%r1
+	blrl				/* Branch to generictrap */
+CNAME(dbend):
 #endif /* KDB */

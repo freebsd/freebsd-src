@@ -36,8 +36,9 @@ script()
 {
 	$dtrace -s /dev/stdin <<EOF
 	proc:::signal-discard
-	/args[1]->pr_pid == $child &&
-	    args[1]->pr_psargs == "$longsleep" && args[2] == SIGHUP/
+	/args[1]->p_pid == $child &&
+	    xlate<psinfo_t *>(args[1])->pr_psargs == "$longsleep" &&
+	    args[2] == SIGHUP/
 	{
 		exit(0);
 	}
@@ -48,7 +49,7 @@ killer()
 {
 	while true; do
 		sleep 1
-		/usr/bin/kill -HUP $child
+		kill -HUP $child
 	done
 }
 
@@ -58,7 +59,7 @@ if [ $# != 1 ]; then
 fi
 
 dtrace=$1
-longsleep="/usr/bin/sleep 10000"
+longsleep="/bin/sleep 10000"
 
 /usr/bin/nohup $longsleep &
 child=$!

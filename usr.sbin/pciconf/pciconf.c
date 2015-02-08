@@ -234,9 +234,9 @@ list_devs(const char *name, int verbose, int bars, int caps, int errors,
 		for (p = conf; p < &conf[pc.num_matches]; p++) {
 			printf("%s%d@pci%d:%d:%d:%d:\tclass=0x%06x card=0x%08x "
 			    "chip=0x%08x rev=0x%02x hdr=0x%02x\n",
-			    (p->pd_name && *p->pd_name) ? p->pd_name :
+			    *p->pd_name ? p->pd_name :
 			    "none",
-			    (p->pd_name && *p->pd_name) ? (int)p->pd_unit :
+			    *p->pd_name ? (int)p->pd_unit :
 			    none_count++, p->pc_sel.pc_domain,
 			    p->pc_sel.pc_bus, p->pc_sel.pc_dev,
 			    p->pc_sel.pc_func, (p->pc_class << 16) |

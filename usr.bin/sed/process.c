@@ -324,7 +324,7 @@ applies(struct s_command *cp)
                                 } else
                                         r = 1;
                         }
-		} else if (MATCH(cp->a1)) {
+		} else if (cp->a1 && MATCH(cp->a1)) {
 			/*
 			 * If the second address is a number less than or
 			 * equal to the line number first selected, only

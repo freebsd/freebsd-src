@@ -441,6 +441,10 @@ login_negotiate(struct connection *conn)
 	request = login_new_request(conn, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
 	request_keys = keys_new();
 
+	log_debugx("offload \"%s\" limits MaxRecvDataSegmentLength to %zd",
+	    conn->conn_conf.isc_offload,
+	    conn->conn_limits.isl_max_data_segment_length);
+
 	/*
 	 * The following keys are irrelevant for discovery sessions.
 	 */
@@ -456,9 +460,9 @@ login_negotiate(struct connection *conn)
 
 		keys_add(request_keys, "ImmediateData", "Yes");
 		keys_add_int(request_keys, "MaxBurstLength",
-		    2 * ISCSI_MAX_DATA_SEGMENT_LENGTH);
+		    2 * conn->conn_limits.isl_max_data_segment_length);
 		keys_add_int(request_keys, "FirstBurstLength",
-		    ISCSI_MAX_DATA_SEGMENT_LENGTH);
+		    conn->conn_limits.isl_max_data_segment_length);
 		keys_add(request_keys, "InitialR2T", "Yes");
 		keys_add(request_keys, "MaxOutstandingR2T", "1");
 	} else {
@@ -467,7 +471,7 @@ login_negotiate(struct connection *conn)
 	}
 
 	keys_add_int(request_keys, "MaxRecvDataSegmentLength",
-	    ISCSI_MAX_DATA_SEGMENT_LENGTH);
+	    conn->conn_limits.isl_max_data_segment_length);
 	keys_add(request_keys, "DefaultTime2Wait", "0");
 	keys_add(request_keys, "DefaultTime2Retain", "0");
 	keys_add(request_keys, "ErrorRecoveryLevel", "0");

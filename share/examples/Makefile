@@ -7,20 +7,17 @@
 LDIRS=	BSD_daemon \
 	FreeBSD_version \
 	IPv6 \
-	bhyve \
 	bootforth \
 	csh \
 	diskless \
 	drivers \
 	etc \
 	find_interface \
-	hast \
 	ibcs2 \
 	indent \
 	ipfw \
 	jails \
 	kld \
-	libusb20 \
 	libvgl \
 	mdoc \
 	netgraph \
@@ -42,7 +39,6 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	FreeBSD_version/Makefile \
 	FreeBSD_version/README \
 	IPv6/USAGE \
-	bhyve/vmrun.sh \
 	bootforth/README \
 	bootforth/boot.4th \
 	bootforth/frames.4th \
@@ -64,11 +60,6 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	find_interface/Makefile \
 	find_interface/README \
 	find_interface/find_interface.c \
-	hast/ucarp.sh \
-	hast/ucarp_down.sh \
-	hast/ucarp_up.sh \
-	hast/vip-down.sh \
-	hast/vip-up.sh \
 	ibcs2/README \
 	ibcs2/hello.uu \
 	indent/indent.pro \
@@ -100,12 +91,6 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	kld/syscall/module/syscall.c \
 	kld/syscall/test/Makefile \
 	kld/syscall/test/call.c \
-	libusb20/Makefile \
-	libusb20/README \
-	libusb20/util.c \
-	libusb20/util.h \
-	libusb20/bulk.c \
-	libusb20/control.c \
 	libvgl/Makefile \
 	libvgl/demo.c \
 	mdoc/POSIX-copyright \
@@ -201,6 +186,32 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 BINDIR= ${SHAREDIR}/examples
 
 NO_OBJ=
+
+.if ${MK_HAST} != "no"
+LDIRS+=		hast
+XFILES+=	hast/ucarp.sh \
+		hast/ucarp_down.sh \
+		hast/ucarp_up.sh \
+		hast/vip-down.sh \
+		hast/vip-up.sh
+.endif
+
+.if ${MK_USB} != "no"
+LDIRS+=		libusb20
+XFILES+=	libusb20/Makefile \
+		libusb20/README \
+		libusb20/util.c \
+		libusb20/util.h \
+		libusb20/bulk.c \
+		libusb20/control.c
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64"
+.if ${MK_BHYVE} != "no"
+LDIRS+=		bhyve
+XFILES+=	bhyve/vmrun.sh
+.endif
+.endif
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies''); (latter useful

@@ -35,6 +35,7 @@ CFLAGS+=	-DLLVM_DEFAULT_TARGET_TRIPLE=\"${TARGET_TRIPLE}\" \
 		-DLLVM_HOST_TRIPLE=\"${BUILD_TRIPLE}\" \
 		-DDEFAULT_SYSROOT=\"${TOOLS_PREFIX}\"
 CXXFLAGS+=	-std=c++11 -fno-exceptions -fno-rtti
+CXXFLAGS.clang+= -stdlib=libc++
 
 .PATH:	${LLVM_SRCS}/${SRCDIR}
 

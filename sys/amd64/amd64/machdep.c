@@ -157,7 +157,7 @@ extern u_int64_t hammer_time(u_int64_t, u_int64_t);
 static void cpu_startup(void *);
 static void get_fpcontext(struct thread *td, mcontext_t *mcp,
     char *xfpusave, size_t xfpusave_len);
-static int  set_fpcontext(struct thread *td, const mcontext_t *mcp,
+static int  set_fpcontext(struct thread *td, mcontext_t *mcp,
     char *xfpustate, size_t xfpustate_len);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
@@ -1355,8 +1355,10 @@ add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
 	/*
 	 * Find insertion point while checking for overlap.  Start off by
 	 * assuming the new entry will be added to the end.
+	 *
+	 * NB: physmap_idx points to the next free slot.
 	 */
-	insert_idx = physmap_idx + 2;
+	insert_idx = physmap_idx;
 	for (i = 0; i <= physmap_idx; i += 2) {
 		if (base < physmap[i + 1]) {
 			if (base + length <= physmap[i]) {
@@ -1394,7 +1396,7 @@ add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
 	 * Move the last 'N' entries down to make room for the new
 	 * entry if needed.
 	 */
-	for (i = physmap_idx; i > insert_idx; i -= 2) {
+	for (i = (physmap_idx - 2); i > insert_idx; i -= 2) {
 		physmap[i] = physmap[i - 2];
 		physmap[i + 1] = physmap[i - 1];
 	}
@@ -1557,6 +1559,8 @@ native_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
 	}
 }
 
+#define	PAGES_PER_GB	(1024 * 1024 * 1024 / PAGE_SIZE)
+
 /*
  * Populate the (physmap) array with base/bound pairs describing the
  * available physical memory in the system, then test this memory and
@@ -1575,25 +1579,30 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	u_long physmem_start, physmem_tunable, memtest;
 	pt_entry_t *pte;
 	quad_t dcons_addr, dcons_size;
+	int page_counter;
 
 	bzero(physmap, sizeof(physmap));
-	basemem = 0;
 	physmap_idx = 0;
 
 	init_ops.parse_memmap(kmdp, physmap, &physmap_idx);
+	physmap_idx -= 2;
 
 	/*
 	 * Find the 'base memory' segment for SMP
 	 */
 	basemem = 0;
 	for (i = 0; i <= physmap_idx; i += 2) {
-		if (physmap[i] == 0x00000000) {
+		if (physmap[i] <= 0xA0000) {
 			basemem = physmap[i + 1] / 1024;
 			break;
 		}
 	}
-	if (basemem == 0)
-		panic("BIOS smap did not include a basemem segment!");
+	if (basemem == 0 || basemem > 640) {
+		if (bootverbose)
+			printf(
+		"Memory map doesn't contain a basemem segment, faking it");
+		basemem = 640;
+	}
 
 	/*
 	 * Make hole for "AP -> long mode" bootstrap code.  The
@@ -1601,8 +1610,12 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	 * is configured to support APs and APs for the system start
 	 * in 32bit mode (e.g. SMP bare metal).
 	 */
-	if (init_ops.mp_bootaddress)
+	if (init_ops.mp_bootaddress) {
+		if (physmap[1] >= 0x100000000)
+			panic(
+	"Basemem segment is not suitable for AP bootstrap code!");
 		physmap[1] = init_ops.mp_bootaddress(physmap[1] / 1024);
+	}
 
 	/*
 	 * Maxmem isn't the "maximum memory", it's one larger than the
@@ -1654,12 +1667,14 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	 */
 	physmem_start = (vm_guest > VM_GUEST_NO ? 1 : 16) << PAGE_SHIFT;
 	TUNABLE_ULONG_FETCH("hw.physmem.start", &physmem_start);
-	if (physmem_start < PAGE_SIZE)
-		physmap[0] = PAGE_SIZE;
-	else if (physmem_start >= physmap[1])
-		physmap[0] = round_page(physmap[1] - PAGE_SIZE);
-	else
-		physmap[0] = round_page(physmem_start);
+	if (physmap[0] < physmem_start) {
+		if (physmem_start < PAGE_SIZE)
+			physmap[0] = PAGE_SIZE;
+		else if (physmem_start >= physmap[1])
+			physmap[0] = round_page(physmap[1] - PAGE_SIZE);
+		else
+			physmap[0] = round_page(physmem_start);
+	}
 	pa_indx = 0;
 	da_indx = 1;
 	phys_avail[pa_indx++] = physmap[0];
@@ -1678,6 +1693,9 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	 * physmap is in bytes, so when converting to page boundaries,
 	 * round up the start address and round down the end address.
 	 */
+	page_counter = 0;
+	if (memtest != 0)
+		printf("Testing system memory");
 	for (i = 0; i <= physmap_idx; i += 2) {
 		vm_paddr_t end;
 
@@ -1706,6 +1724,14 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 			page_bad = FALSE;
 			if (memtest == 0)
 				goto skip_memtest;
+
+			/*
+			 * Print a "." every GB to show we're making
+			 * progress.
+			 */
+			page_counter++;
+			if ((page_counter % PAGES_PER_GB) == 0)
+				printf(".");
 
 			/*
 			 * map page into kernel: valid, read/write,non-cacheable
@@ -1794,6 +1820,8 @@ do_next:
 	}
 	*pte = 0;
 	invltlb();
+	if (memtest != 0)
+		printf("\n");
 
 	/*
 	 * XXX
@@ -2452,7 +2480,7 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
  * touch the cs selector.
  */
 int
-set_mcontext(struct thread *td, const mcontext_t *mcp)
+set_mcontext(struct thread *td, mcontext_t *mcp)
 {
 	struct pcb *pcb;
 	struct trapframe *tp;
@@ -2539,7 +2567,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp, char *xfpusave,
 }
 
 static int
-set_fpcontext(struct thread *td, const mcontext_t *mcp, char *xfpustate,
+set_fpcontext(struct thread *td, mcontext_t *mcp, char *xfpustate,
     size_t xfpustate_len)
 {
 	struct savefpu *fpstate;

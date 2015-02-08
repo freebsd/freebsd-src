@@ -47,7 +47,7 @@ SUBDIR=	\
 	ata \
 	ath \
 	ath_pci \
-	autofs \
+	${_autofs} \
 	${_auxio} \
 	${_bce} \
 	bfe \
@@ -86,7 +86,6 @@ SUBDIR=	\
 	${_ct} \
 	${_ctau} \
 	ctl \
-	cuse \
 	${_cxgb} \
 	${_cxgbe} \
 	dc \
@@ -169,8 +168,6 @@ SUBDIR=	\
 	${_ipw} \
 	${_ipwfw} \
 	${_isci} \
-	iscsi \
-	iscsi_initiator \
 	isp \
 	${_ispfw} \
 	${_iwi} \
@@ -385,6 +382,10 @@ SUBDIR=	\
 	${_zfs} \
 	zlib
 
+.if ${MK_AUTOFS} != "no" || defined(ALL_MODULES)
+_autofs=	autofs
+.endif
+
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 .if exists(${.CURDIR}/../opencrypto)
 _crypto=	crypto
@@ -393,6 +394,10 @@ _cryptodev=	cryptodev
 .if exists(${.CURDIR}/../crypto)
 _random=	random
 .endif
+.endif
+
+.if ${MK_CUSE} != "no" || defined(ALL_MODULES)
+SUBDIR+=	cuse
 .endif
 
 .if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \
@@ -411,6 +416,11 @@ _ipfw=		ipfw
 
 .if ${MK_IPFILTER} != "no" || defined(ALL_MODULES)
 _ipfilter=	ipfilter
+.endif
+
+.if ${MK_ISCSI} != "no" || defined(ALL_MODULES)
+SUBDIR+=	iscsi
+SUBDIR+=	iscsi_initiator
 .endif
 
 .if ${MK_NAND} != "no" || defined(ALL_MODULES)
@@ -614,7 +624,10 @@ _qlxge=		qlxge
 _qlxgb=		qlxgb
 _qlxgbe=	qlxgbe
 _sfxge=		sfxge
+
+.if ${MK_BHYVE} != "no" || defined(ALL_MODULES)
 _vmm=		vmm
+.endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386"
@@ -721,6 +734,8 @@ _zfs=		zfs
 .endif
 
 .endif
+
+SUBDIR+=${MODULES_EXTRA}
 
 .for reject in ${WITHOUT_MODULES}
 SUBDIR:= ${SUBDIR:N${reject}}

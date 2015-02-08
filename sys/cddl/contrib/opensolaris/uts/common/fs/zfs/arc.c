@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2014 by Saso Kiselkov. All rights reserved.
  * Copyright 2014 Nexenta Systems, Inc.  All rights reserved.
@@ -2540,13 +2541,9 @@ arc_shrink(void)
 	if (arc_c > arc_c_min) {
 		uint64_t to_free;
 
+		to_free = arc_c >> arc_shrink_shift;
 		DTRACE_PROBE4(arc__shrink, uint64_t, arc_c, uint64_t,
 			arc_c_min, uint64_t, arc_p, uint64_t, to_free);
-#ifdef _KERNEL
-		to_free = arc_c >> arc_shrink_shift;
-#else
-		to_free = arc_c >> arc_shrink_shift;
-#endif
 		if (arc_c > arc_c_min + to_free)
 			atomic_add_64(&arc_c, -to_free);
 		else
@@ -2680,7 +2677,7 @@ extern kmem_cache_t	*zio_buf_cache[];
 extern kmem_cache_t	*zio_data_buf_cache[];
 extern kmem_cache_t	*range_seg_cache;
 
-static void __noinline
+static __noinline void
 arc_kmem_reap_now(arc_reclaim_strategy_t strat)
 {
 	size_t			i;

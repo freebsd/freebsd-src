@@ -23,13 +23,18 @@
 # src tree.
 
 __DEFAULT_YES_OPTIONS = \
+    AUTOFS \
+    BHYVE \
     BLUETOOTH \
+    CCD \
     CDDL \
     CRYPT \
+    CUSE \
     FORMAT_EXTENSIONS \
     INET \
     INET6 \
     IPFILTER \
+    ISCSI \
     KERNEL_SYMBOLS \
     NETGRAPH \
     PF \

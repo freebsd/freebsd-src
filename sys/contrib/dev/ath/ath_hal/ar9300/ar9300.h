@@ -317,12 +317,12 @@ typedef struct {
 
 /* Support for multiple INIs */
 struct ar9300_ini_array {
-    u_int32_t *ia_array;
+    const u_int32_t *ia_array;
     u_int32_t ia_rows;
     u_int32_t ia_columns;
 };
 #define INIT_INI_ARRAY(iniarray, array, rows, columns) do {             \
-    (iniarray)->ia_array = (u_int32_t *)(array);    \
+    (iniarray)->ia_array = (const u_int32_t *)(array);    \
     (iniarray)->ia_rows = (rows);       \
     (iniarray)->ia_columns = (columns); \
 } while (0)

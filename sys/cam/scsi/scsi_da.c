@@ -101,7 +101,8 @@ typedef enum {
 	DA_Q_NO_PREVENT		= 0x04,
 	DA_Q_4K			= 0x08,
 	DA_Q_NO_RC16		= 0x10,
-	DA_Q_NO_UNMAP		= 0x20
+	DA_Q_NO_UNMAP		= 0x20,
+	DA_Q_RETRY_BUSY		= 0x40
 } da_quirks;
 
 #define DA_Q_BIT_STRING		\
@@ -110,7 +111,9 @@ typedef enum {
 	"\002NO_6_BYTE"		\
 	"\003NO_PREVENT"	\
 	"\0044K"		\
-	"\005NO_RC16"
+	"\005NO_RC16"		\
+	"\006NO_UNMAP"		\
+	"\007RETRY_BUSY"
 
 typedef enum {
 	DA_CCB_PROBE_RC		= 0x01,
@@ -358,6 +361,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_FIXED, "STEC", "*", "*"},
 		/*quirks*/ DA_Q_NO_UNMAP
+	},
+	{
+		/*
+		 * VMware returns BUSY status when storage has transient
+		 * connectivity problems, so better wait.
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, "VMware", "Virtual disk", "*"},
+		/*quirks*/ DA_Q_RETRY_BUSY
 	},
 	/* USB mass storage devices supported by umass(4) */
 	{
@@ -1910,18 +1921,18 @@ dadeletemaxsize(struct da_softc *softc, da_delete_methods delete_method)
 		sectors = (off_t)ATA_DSM_RANGE_MAX * softc->trim_max_ranges;
 		break;
 	case DA_DELETE_WS16:
-		sectors = (off_t)min(softc->ws_max_blks, WS16_MAX_BLKS);
+		sectors = omin(softc->ws_max_blks, WS16_MAX_BLKS);
 		break;
 	case DA_DELETE_ZERO:
 	case DA_DELETE_WS10:
-		sectors = (off_t)min(softc->ws_max_blks, WS10_MAX_BLKS);
+		sectors = omin(softc->ws_max_blks, WS10_MAX_BLKS);
 		break;
 	default:
 		return 0;
 	}
 
 	return (off_t)softc->params.secsize *
-	    min(sectors, (off_t)softc->params.sectors);
+	    omin(sectors, softc->params.sectors);
 }
 
 static void
@@ -2684,7 +2695,7 @@ da_delete_trim(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 
 		/* Try to extend the previous range. */
 		if (lba == lastlba) {
-			c = min(count, ATA_DSM_RANGE_MAX - lastcount);
+			c = omin(count, ATA_DSM_RANGE_MAX - lastcount);
 			lastcount += c;
 			off = (ranges - 1) * 8;
 			buf[off + 6] = lastcount & 0xff;
@@ -2694,7 +2705,7 @@ da_delete_trim(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 		}
 
 		while (count > 0) {
-			c = min(count, ATA_DSM_RANGE_MAX);
+			c = omin(count, ATA_DSM_RANGE_MAX);
 			off = ranges * 8;
 
 			buf[off + 0] = lba & 0xff;
@@ -2770,7 +2781,7 @@ da_delete_ws(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 			    "%s issuing short delete %ld > %ld\n",
 			    da_delete_method_desc[softc->delete_method],
 			    count, ws_max_blks);
-			count = min(count, ws_max_blks);
+			count = omin(count, ws_max_blks);
 			break;
 		}
 		bp1 = bioq_first(&softc->delete_queue);
@@ -3630,6 +3641,9 @@ daerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	 * don't treat UAs as errors.
 	 */
 	sense_flags |= SF_RETRY_UA;
+
+	if (softc->quirks & DA_Q_RETRY_BUSY)
+		sense_flags |= SF_RETRY_BUSY;
 	return(cam_periph_error(ccb, cam_flags, sense_flags,
 				&softc->saved_ccb));
 }

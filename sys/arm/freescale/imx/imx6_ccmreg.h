@@ -29,6 +29,26 @@
 #ifndef	IMX6_CCMREG_H
 #define	IMX6_CCMREG_H
 
+#define	CCM_CSCMR1			0x01C
+#define	  SSI1_CLK_SEL_S		  10
+#define	  SSI2_CLK_SEL_S		  12
+#define	  SSI3_CLK_SEL_S		  14
+#define	  SSI_CLK_SEL_M			  0x3
+#define	  SSI_CLK_SEL_508_PFD		  0
+#define	  SSI_CLK_SEL_454_PFD		  1
+#define	  SSI_CLK_SEL_PLL4		  2
+#define	CCM_CSCMR2			0x020
+#define	CCM_CS1CDR			0x028
+#define	  SSI1_CLK_PODF_SHIFT		  0
+#define	  SSI1_CLK_PRED_SHIFT		  6
+#define	  SSI3_CLK_PODF_SHIFT		  16
+#define	  SSI3_CLK_PRED_SHIFT		  22
+#define	  SSI_CLK_PODF_MASK		  0x3f
+#define	  SSI_CLK_PRED_MASK		  0x7
+#define	CCM_CS2CDR			0x02C
+#define	  SSI2_CLK_PODF_SHIFT		  0
+#define	  SSI2_CLK_PRED_SHIFT		  6
+#define	CCM_CSCDR2			0x038
 #define	CCM_CLPCR			0x054
 #define	  CCM_CLPCR_LPM_MASK		  0x03
 #define	  CCM_CLPCR_LPM_RUN		  0x00

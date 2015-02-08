@@ -159,15 +159,19 @@ nvlist_get_nvpair_parent(const nvlist_t *nvl)
 }
 
 const nvlist_t *
-nvlist_get_parent(const nvlist_t *nvl)
+nvlist_get_parent(const nvlist_t *nvl, void **cookiep)
 {
+	nvpair_t *nvp;
 
 	NVLIST_ASSERT(nvl);
 
-	if (nvl->nvl_parent == NULL)
+	nvp = nvl->nvl_parent;
+	if (cookiep != NULL)
+		*cookiep = nvp;
+	if (nvp == NULL)
 		return (NULL);
 
-	return (nvpair_nvlist(nvl->nvl_parent));
+	return (nvpair_nvlist(nvp));
 }
 
 void
@@ -352,7 +356,9 @@ nvlist_dump_error_check(const nvlist_t *nvl, int fd, int level)
 void
 nvlist_dump(const nvlist_t *nvl, int fd)
 {
-	nvpair_t *nvp;
+	const nvlist_t *tmpnvl;
+	nvpair_t *nvp, *tmpnvp;
+	void *cookie;
 	int level;
 
 	level = 0;
@@ -382,14 +388,17 @@ nvlist_dump(const nvlist_t *nvl, int fd)
 			break;
 		case NV_TYPE_NVLIST:
 			dprintf(fd, "\n");
-			nvl = nvpair_get_nvlist(nvp);
-			if (nvlist_dump_error_check(nvl, fd, level + 1)) {
-				nvl = nvlist_get_parent(nvl);
+			tmpnvl = nvpair_get_nvlist(nvp);
+			if (nvlist_dump_error_check(tmpnvl, fd, level + 1))
 				break;
+			tmpnvp = nvlist_first_nvpair(tmpnvl);
+			if (tmpnvp != NULL) {
+				nvl = tmpnvl;
+				nvp = tmpnvp;
+				level++;
+				continue;
 			}
-			level += 1;
-			nvp = nvlist_first_nvpair(nvl);
-			continue;
+			break;
 		case NV_TYPE_DESCRIPTOR:
 			dprintf(fd, " %d\n", nvpair_get_descriptor(nvp));
 			break;
@@ -411,11 +420,12 @@ nvlist_dump(const nvlist_t *nvl, int fd)
 		}
 
 		while ((nvp = nvlist_next_nvpair(nvl, nvp)) == NULL) {
-			nvp = nvlist_get_nvpair_parent(nvl);
-			if (nvp == NULL)
+			cookie = NULL;
+			nvl = nvlist_get_parent(nvl, &cookie);
+			if (nvl == NULL)
 				return;
-			nvl = nvlist_get_parent(nvl);
-			level --;
+			nvp = cookie;
+			level--;
 		}
 	}
 }
@@ -434,7 +444,9 @@ nvlist_fdump(const nvlist_t *nvl, FILE *fp)
 size_t
 nvlist_size(const nvlist_t *nvl)
 {
-	const nvpair_t *nvp;
+	const nvlist_t *tmpnvl;
+	const nvpair_t *nvp, *tmpnvp;
+	void *cookie;
 	size_t size;
 
 	NVLIST_ASSERT(nvl);
@@ -448,19 +460,24 @@ nvlist_size(const nvlist_t *nvl)
 		if (nvpair_type(nvp) == NV_TYPE_NVLIST) {
 			size += sizeof(struct nvlist_header);
 			size += nvpair_header_size() + 1;
-			nvl = nvpair_get_nvlist(nvp);
-			PJDLOG_ASSERT(nvl->nvl_error == 0);
-			nvp = nvlist_first_nvpair(nvl);
-			continue;
+			tmpnvl = nvpair_get_nvlist(nvp);
+			PJDLOG_ASSERT(tmpnvl->nvl_error == 0);
+			tmpnvp = nvlist_first_nvpair(tmpnvl);
+			if (tmpnvp != NULL) {
+				nvl = tmpnvl;
+				nvp = tmpnvp;
+				continue;
+			}
 		} else {
 			size += nvpair_size(nvp);
 		}
 
 		while ((nvp = nvlist_next_nvpair(nvl, nvp)) == NULL) {
-			nvp = nvlist_get_nvpair_parent(nvl);
-			if (nvp == NULL)
+			cookie = NULL;
+			nvl = nvlist_get_parent(nvl, &cookie);
+			if (nvl == NULL)
 				goto out;
-			nvl = nvlist_get_parent(nvl);
+			nvp = cookie;
 		}
 	}
 
@@ -574,7 +591,9 @@ nvlist_xpack(const nvlist_t *nvl, int64_t *fdidxp, size_t *sizep)
 {
 	unsigned char *buf, *ptr;
 	size_t left, size;
-	nvpair_t *nvp;
+	const nvlist_t *tmpnvl;
+	nvpair_t *nvp, *tmpnvp;
+	void *cookie;
 
 	NVLIST_ASSERT(nvl);
 
@@ -617,10 +636,18 @@ nvlist_xpack(const nvlist_t *nvl, int64_t *fdidxp, size_t *sizep)
 			ptr = nvpair_pack_string(nvp, ptr, &left);
 			break;
 		case NV_TYPE_NVLIST:
-			nvl = nvpair_get_nvlist(nvp);
-			nvp = nvlist_first_nvpair(nvl);
-			ptr = nvlist_pack_header(nvl, ptr, &left);
-			continue;
+			tmpnvl = nvpair_get_nvlist(nvp);
+			ptr = nvlist_pack_header(tmpnvl, ptr, &left);
+			if (ptr == NULL)
+				goto out;
+			tmpnvp = nvlist_first_nvpair(tmpnvl);
+			if (tmpnvp != NULL) {
+				nvl = tmpnvl;
+				nvp = tmpnvp;
+				continue;
+			}
+			ptr = nvpair_pack_nvlist_up(ptr, &left);
+			break;
 		case NV_TYPE_DESCRIPTOR:
 			ptr = nvpair_pack_descriptor(nvp, ptr, fdidxp, &left);
 			break;
@@ -635,13 +662,14 @@ nvlist_xpack(const nvlist_t *nvl, int64_t *fdidxp, size_t *sizep)
 			return (NULL);
 		}
 		while ((nvp = nvlist_next_nvpair(nvl, nvp)) == NULL) {
-			nvp = nvlist_get_nvpair_parent(nvl);
-			if (nvp == NULL)
+			cookie = NULL;
+			nvl = nvlist_get_parent(nvl, &cookie);
+			if (nvl == NULL)
 				goto out;
+			nvp = cookie;
 			ptr = nvpair_pack_nvlist_up(ptr, &left);
 			if (ptr == NULL)
 				goto out;
-			nvl = nvlist_get_parent(nvl);
 		}
 	}
 

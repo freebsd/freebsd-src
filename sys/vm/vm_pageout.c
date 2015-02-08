@@ -180,6 +180,12 @@ static int vm_swap_enabled = 1;
 static int vm_swap_idle_enabled = 0;
 #endif
 
+static int vm_panic_on_oom = 0;
+
+SYSCTL_INT(_vm, OID_AUTO, panic_on_oom,
+	CTLFLAG_RWTUN, &vm_panic_on_oom, 0,
+	"panic on out of memory instead of killing the largest process");
+
 SYSCTL_INT(_vm, OID_AUTO, pageout_wakeup_thresh,
 	CTLFLAG_RW, &vm_pageout_wakeup_thresh, 0,
 	"free page threshold for waking up the pageout daemon");
@@ -1516,15 +1522,15 @@ vm_pageout_oom(int shortage)
 	FOREACH_PROC_IN_SYSTEM(p) {
 		int breakout;
 
-		if (PROC_TRYLOCK(p) == 0)
-			continue;
+		PROC_LOCK(p);
+
 		/*
 		 * If this is a system, protected or killed process, skip it.
 		 */
-		if (p->p_state != PRS_NORMAL ||
-		    (p->p_flag & (P_INEXEC | P_PROTECTED | P_SYSTEM)) ||
-		    (p->p_pid == 1) || P_KILLED(p) ||
-		    ((p->p_pid < 48) && (swap_pager_avail != 0))) {
+		if (p->p_state != PRS_NORMAL || (p->p_flag & (P_INEXEC |
+		    P_PROTECTED | P_SYSTEM | P_WEXIT)) != 0 ||
+		    p->p_pid == 1 || P_KILLED(p) ||
+		    (p->p_pid < 48 && swap_pager_avail != 0)) {
 			PROC_UNLOCK(p);
 			continue;
 		}
@@ -1557,11 +1563,14 @@ vm_pageout_oom(int shortage)
 			PROC_UNLOCK(p);
 			continue;
 		}
+		_PHOLD(p);
 		if (!vm_map_trylock_read(&vm->vm_map)) {
-			vmspace_free(vm);
+			_PRELE(p);
 			PROC_UNLOCK(p);
+			vmspace_free(vm);
 			continue;
 		}
+		PROC_UNLOCK(p);
 		size = vmspace_swap_count(vm);
 		vm_map_unlock_read(&vm->vm_map);
 		if (shortage == VM_OOM_MEM)
@@ -1573,16 +1582,21 @@ vm_pageout_oom(int shortage)
 		 */
 		if (size > bigsize) {
 			if (bigproc != NULL)
-				PROC_UNLOCK(bigproc);
+				PRELE(bigproc);
 			bigproc = p;
 			bigsize = size;
-		} else
-			PROC_UNLOCK(p);
+		} else {
+			PRELE(p);
+		}
 	}
 	sx_sunlock(&allproc_lock);
 	if (bigproc != NULL) {
+		if (vm_panic_on_oom != 0)
+			panic("out of swap space");
+		PROC_LOCK(bigproc);
 		killproc(bigproc, "out of swap space");
 		sched_nice(bigproc, PRIO_MIN);
+		_PRELE(bigproc);
 		PROC_UNLOCK(bigproc);
 		wakeup(&vm_cnt.v_free_count);
 	}

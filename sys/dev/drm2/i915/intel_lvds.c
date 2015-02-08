@@ -230,7 +230,7 @@ static inline u32 panel_fitter_scaling(u32 source, u32 target)
 }
 
 static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
-				  const struct drm_display_mode *mode,
+				  struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
@@ -482,7 +482,7 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 
 static int intel_no_modeset_on_lid_dmi_callback(const struct dmi_system_id *id)
 {
-	DRM_DEBUG_KMS("Skipping forced modeset for %s\n", id->ident);
+	DRM_INFO("Skipping forced modeset for %s\n", id->ident);
 	return 1;
 }
 
@@ -638,7 +638,7 @@ static const struct drm_encoder_funcs intel_lvds_enc_funcs = {
 
 static int intel_no_lvds_dmi_callback(const struct dmi_system_id *id)
 {
-	DRM_DEBUG_KMS("Skipping LVDS initialization for %s\n", id->ident);
+	DRM_INFO("Skipping LVDS initialization for %s\n", id->ident);
 	return 1;
 }
 
@@ -861,8 +861,8 @@ static bool lvds_is_present_in_vbt(struct drm_device *dev,
 		    child->device_type != DEVICE_TYPE_LFP)
 			continue;
 
-		if (child->i2c_pin)
-		    *i2c_pin = child->i2c_pin;
+		if (intel_gmbus_is_port_valid(child->i2c_pin))
+			*i2c_pin = child->i2c_pin;
 
 		/* However, we cannot trust the BIOS writers to populate
 		 * the VBT correctly.  Since LVDS requires additional
@@ -996,7 +996,8 @@ bool intel_lvds_init(struct drm_device *dev)
 	 * Attempt to get the fixed panel mode from DDC.  Assume that the
 	 * preferred mode is the right one.
 	 */
-	intel_lvds->edid = drm_get_edid(connector, dev_priv->gmbus[pin]);
+	intel_lvds->edid = drm_get_edid(connector,
+					intel_gmbus_get_adapter(dev_priv, pin));
 	if (intel_lvds->edid) {
 		if (drm_add_edid_modes(connector,
 				       intel_lvds->edid)) {
