@@ -252,7 +252,6 @@ VCHIQ_STATUS_T
 vchiq_prepare_bulk_data(VCHIQ_BULK_T *bulk, VCHI_MEM_HANDLE_T memhandle,
 	void *offset, int size, int dir)
 {
-	PAGELIST_T *pagelist;
 	BULKINFO_T *bi;
 	int ret;
 
@@ -518,7 +517,6 @@ free_pagelist(BULKINFO_T *bi, int actual)
 {
 	vm_page_t*pages;
 	unsigned int num_pages, i;
-	void *page_address;
 	PAGELIST_T *pagelist;
 
 	pagelist = bi->pagelist;
