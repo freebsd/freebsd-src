@@ -42,7 +42,7 @@ struct lzma_coder_s {
 
 static lzma_ret
 index_encode(lzma_coder *coder,
-		lzma_allocator *allocator lzma_attribute((__unused__)),
+		const lzma_allocator *allocator lzma_attribute((__unused__)),
 		const uint8_t *restrict in lzma_attribute((__unused__)),
 		size_t *restrict in_pos lzma_attribute((__unused__)),
 		size_t in_size lzma_attribute((__unused__)),
@@ -159,7 +159,7 @@ out:
 
 
 static void
-index_encoder_end(lzma_coder *coder, lzma_allocator *allocator)
+index_encoder_end(lzma_coder *coder, const lzma_allocator *allocator)
 {
 	lzma_free(coder, allocator);
 	return;
@@ -181,7 +181,7 @@ index_encoder_reset(lzma_coder *coder, const lzma_index *i)
 
 
 extern lzma_ret
-lzma_index_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+lzma_index_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		const lzma_index *i)
 {
 	lzma_next_coder_init(&lzma_index_encoder_init, next, allocator);
