@@ -299,7 +299,10 @@ mphyp_pte_spillable_ident(u_int ptegidx, struct lpte *to_evict)
 		}
 	}
 
-	phyp_pft_hcall(H_READ, 0, slot, 0, 0, &to_evict->pte_hi,
+	if (k == -1)
+		return (k);
+
+	phyp_pft_hcall(H_READ, 0, k, 0, 0, &to_evict->pte_hi,
 	    &to_evict->pte_lo, &junk);
 	return (k);
 }
