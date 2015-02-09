@@ -1199,6 +1199,8 @@ kernel-pkgs:
 		-e "s/%COMMENT%/FreeBSD ${KERNCONF} kernel ${flavor}/" \
 		-e "s/%DESC%/FreeBSD ${KERNCONF} kernel ${flavor}/" \
 		${DESTDIR}/${DISTDIR}/${flavor}-manifestdir/+MANIFEST
+	@awk -F\" '/name/ { printf("===> Creating %s-", $$2) } /version/ {print $$2 }' \
+		${DESTDIR}/${DISTDIR}/${flavor}-manifestdir/+MANIFEST
 	@pkg create -m ${DESTDIR}/${DISTDIR}/${flavor}-manifestdir \
 		-p ${DESTDIR}/${DISTDIR}/${flavor}.plist \
 		-r ${DESTDIR}/${DISTDIR}/kernel \
@@ -1219,6 +1221,8 @@ kernel-pkgs:
 		-e "s/%PKGNAME%/kernel-${flavor}/" \
 		-e "s/%COMMENT%/FreeBSD ${KERNCONF} kernel ${flavor}/" \
 		-e "s/%DESC%/FreeBSD ${KERNCONF} kernel ${flavor}/" \
+		${DESTDIR}/${DISTDIR}/${flavor}-manifestdir/+MANIFEST
+	@awk -F\" '/name/ { printf("===> Creating %s-", $$2) } /version/ {print $$2 }' \
 		${DESTDIR}/${DISTDIR}/${flavor}-manifestdir/+MANIFEST
 	@pkg create -m ${DESTDIR}/${DISTDIR}/${flavor}-manifestdir \
 		-p ${DESTDIR}/${DISTDIR}/${flavor}.plist \
