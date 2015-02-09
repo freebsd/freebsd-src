@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150209: liblzma header
+OLD_FILES+=usr/include/lzma/lzma.h
 # 20150124: spl.9 and friends
 OLD_FILES+=usr/share/man/man9/spl.9
 OLD_FILES+=usr/share/man/man9/spl0.9
