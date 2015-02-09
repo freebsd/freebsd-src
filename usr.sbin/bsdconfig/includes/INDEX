@@ -45,6 +45,7 @@ menu_help=""
 # can be i18n'ed but `command' is the name of a script.
 #
 menu_selection="includes|includes"
+menu_selection="api|includes"
 
 #
 # ------------ Items below this line do NOT need i18n translation ------------
