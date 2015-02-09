@@ -830,8 +830,7 @@ f_user_delete()
 					f_eval_catch $funcname \
 						pw '%s -H 0' "$cmd"
 			else
-				f_eval_catch $funcname \
-					pw '%s -h -' "$cmd"
+				f_eval_catch $funcname pw '%s -h -' "$cmd"
 			fi
 		fi
 	fi
