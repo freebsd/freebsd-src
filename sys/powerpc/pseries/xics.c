@@ -197,13 +197,25 @@ xicp_bind(device_t dev, u_int irq, cpuset_t cpumask)
 {
 	struct xicp_softc *sc = device_get_softc(dev);
 	cell_t status, cpu;
+	int ncpus, i;
 
 	/*
-	 * This doesn't appear to actually support affinity groups, so just
-	 * use the first CPU.
+	 * This doesn't appear to actually support affinity groups, so pick a
+	 * random CPU.
 	 */
 	CPU_FOREACH(cpu)
-		if (CPU_ISSET(cpu, &cpumask)) break;
+		if (CPU_ISSET(cpu, &cpumask)) ncpus++;
+
+	i = mftb() % ncpus;
+	ncpus = 0;
+	CPU_FOREACH(cpu) {
+		if (!CPU_ISSET(cpu, &cpumask))
+			continue;
+		if (ncpus == i)
+			break;
+		ncpus++;
+	}
+	
 
 	rtas_call_method(sc->ibm_set_xive, 3, 1, irq, cpu, XICP_PRIORITY,
 	    &status);
