@@ -3,7 +3,6 @@
 .include <src.opts.mk>
 
 SUBDIR=	browser \
-	${_compositor_demos} \
 	minifile \
 	writefile
 
