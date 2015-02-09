@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
 #include <sys/acct.h>
+#include <sys/bus.h>
 #include <sys/capsicum.h>
 #include <sys/condvar.h>
 #include <sys/event.h>
@@ -3237,6 +3238,9 @@ coredump(struct thread *td)
 	void *rl_cookie;
 	off_t limit;
 	int compress;
+	char *data = NULL;
+	size_t len;
+	char *fullpath, *freepath = NULL;
 
 #ifdef COMPRESS_USER_CORES
 	compress = compress_user_cores;
@@ -3322,9 +3326,36 @@ close:
 	error1 = vn_close(vp, FWRITE, cred, td);
 	if (error == 0)
 		error = error1;
+	else
+		goto out;
+	/*
+	 * Notify the userland helper that a process triggered a core dump.
+	 * This allows the helper to run an automated debugging session.
+	 */
+	len = MAXPATHLEN * 2 + 5 /* comm= */ + 5 /* core= */ + 1;
+	data = malloc(len, M_TEMP, M_NOWAIT);
+	if (data == NULL)
+		goto out;
+	if (vn_fullpath_global(td, p->p_textvp, &fullpath, &freepath) != 0)
+		goto out;
+	snprintf(data, len, "comm=%s", fullpath);
+	if (freepath != NULL) {
+		free(freepath, M_TEMP);
+		freepath = NULL;
+	}
+	if (vn_fullpath_global(td, vp, &fullpath, &freepath) != 0)
+		goto out;
+	snprintf(data, len, "%s core=%s", data, fullpath);
+	devctl_notify("kernel", "signal", "coredump", data);
+	free(name, M_TEMP);
+out:
 #ifdef AUDIT
 	audit_proc_coredump(td, name, error);
 #endif
+	if (freepath != NULL)
+		free(freepath, M_TEMP);
+	if (data != NULL)
+		free(data, M_TEMP);
 	free(name, M_TEMP);
 	return (error);
 }
