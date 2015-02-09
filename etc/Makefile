@@ -382,7 +382,7 @@ distrib-dirs: ${MTREES:N/*}
 		shift; \
 		d=$$1; \
 		test "$$d" == "/" && d=""; \
-		d=${DISTBASE}$$d; \
+		d=${DESTDIR}/${DISTBASE}$$d; \
 		shift; \
 		test -d $$d || mkdir -p $$d; \
 		${ECHO} "${MTREE_CMD:N-W} -C -f $$m -K uname,gname | " \
