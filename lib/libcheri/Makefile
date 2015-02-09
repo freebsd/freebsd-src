@@ -9,6 +9,7 @@ SRCS=	cheri_invoke.S			\
 	libcheri_classes.S		\
 	libcheri_stat.c			\
 	sandbox.c			\
+	sandbox_elf.c			\
 	sandbox_loader.c		\
 
 INCS=	cheri_class.h			\

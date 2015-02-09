@@ -286,7 +286,7 @@ main(int argc, char *argv[])
 #if CAP
 	if (invoke)
 	  {
-	    if (sandbox_class_new("/usr/libexec/cheri_bench-helper.bin",
+	    if (sandbox_class_new("/usr/libexec/cheri_bench-helper",
 				  4*1024*1024, &classp) < 0)
 	      err(EX_OSFILE, "sandbox_class_new");
 	    if (sandbox_object_new(classp, &objectp) < 0)

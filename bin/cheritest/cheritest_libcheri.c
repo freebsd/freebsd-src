@@ -188,7 +188,7 @@ cheritest_libcheri_setup(void)
 	if (cheri_fd_new(zero_fd, &zero_fd_object) < 0)
 		err(EX_OSFILE, "cheri_fd_new: /dev/zero");
 
-	if (sandbox_class_new("/usr/libexec/cheritest-helper.bin",
+	if (sandbox_class_new("/usr/libexec/cheritest-helper",
 	    4*1024*1024, &cheritest_classp) < 0)
 		return (-1);
 	if (sandbox_object_new(cheritest_classp, &cheritest_objectp) < 0)

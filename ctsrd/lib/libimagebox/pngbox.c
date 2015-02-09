@@ -247,7 +247,7 @@ cheri_png_read_start(char *pngbuffer, size_t pnglen,
 		sb_verbose = ibox_verbose;
 
 	if (sandbox_class == NULL)
-		if (sandbox_class_new("/usr/libexec/readpng-cheri-helper.bin",
+		if (sandbox_class_new("/usr/libexec/readpng-cheri-helper",
 		    8*1024*1024, &sandbox_class) < 0)
 			goto error;
 	if (sandbox_object == NULL)

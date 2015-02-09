@@ -59,6 +59,7 @@
 #include "cheri_type.h"
 #include "libcheri_stat.h"
 #include "sandbox.h"
+#include "sandbox_elf.h"
 #include "sandbox_internal.h"
 #include "sandboxasm.h"
 
@@ -73,11 +74,13 @@ CHERI_CLASS_DECL(libcheri_system);
 int
 sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 {
+	int binfd;
 	__capability void *codecap, *datacap, *typecap;
 	struct sandbox_metadata *sbmp;
 	size_t length;
+	ssize_t max_prog_offset;
 	int saved_errno;
-	uint8_t *base;
+	caddr_t base;
 
 	/*
 	 * Perform an initial reservation of space for the sandbox, but using
@@ -113,6 +116,37 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	}
 
 	/*
+	 * Map and (eventually) link the program.  It may overlap guard pages,
+	 * etc so lower ones will be reconfigured manually.
+	 */
+	if ((binfd = open(sbcp->sbc_path, O_RDONLY)) == -1) {
+		saved_errno = errno;
+		warn("%s: open: %s", __func__, sbcp->sbc_path);
+		goto error;
+	}
+	if ((max_prog_offset = loadelf64(binfd, base, length)) == -1) {
+		saved_errno = errno;
+		goto error;
+	}
+	close(binfd);
+
+
+	/*
+	 * Zero and protect guard page(s) to the base of the metadata
+	 * structure.
+	 */
+	/*
+	 * XXXBD: Object binary should not cover map these, but currently
+	 * this is the ELF header.
+	 */
+	memset(base, 0, SANDBOX_METADATA_BASE);
+	if (mprotect(base, SANDBOX_METADATA_BASE, PROT_READ) < 0) {
+		saved_errno = errno;
+		warn("%s: mprotect NULL guard page", __func__);
+		goto error;
+	}
+
+	/*
 	 * Skip guard page(s) to the base of the metadata structure.
 	 */
 	base += SANDBOX_METADATA_BASE;
@@ -128,30 +162,31 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 		warn("%s: mmap metadata", __func__);
 		goto error;
 	}
+	base += roundup2(METADATA_SIZE, PAGE_SIZE);
+	length -= roundup2(METADATA_SIZE, PAGE_SIZE);
 
 	/*
-	 * Skip forward to the mapping location for the binary -- in case we
-	 * add more metadata in the future.  Assert that we didn't bump into
-	 * the sandbox entry address.  This address is hard to change as it is
-	 * the address used in static linking for sandboxed code.
+	 * Protect post-metadata guard page(s)
+	 */
+	if (mprotect(base, SANDBOX_BINARY_BASE, PROT_READ) < 0) {
+		saved_errno = errno;
+		warn("%s: mprotect binary guard page", __func__);
+		goto error;
+	}
+
+	/*
+	 * Assert that we didn't bump into the sandbox entry address.  This
+	 * address is hard to change as it is the address used in static
+	 * linking for sandboxed code.
 	 */
 	assert((register_t)base - (register_t)sbop->sbo_mem <
 	    SANDBOX_BINARY_BASE);
-	base = (void *)((register_t)sbop->sbo_mem + SANDBOX_BINARY_BASE);
-	length = sbcp->sbc_sandboxlen - SANDBOX_BINARY_BASE;
 
 	/*
-	 * Map program binary.
+	 * Skip already mapped binary.
 	 */
-	if (mmap(base, sbcp->sbc_stat.st_size, PROT_READ | PROT_WRITE,
-	    MAP_PRIVATE | MAP_FIXED | MAP_PREFAULT_READ, sbcp->sbc_fd, 0) ==
-	    MAP_FAILED) {
-		saved_errno = errno;
-		warn("%s: mmap %s", __func__, sbcp->sbc_path);
-		goto error;
-	}
-	base += roundup2(sbcp->sbc_stat.st_size, PAGE_SIZE);
-	length -= roundup2(sbcp->sbc_stat.st_size, PAGE_SIZE);
+	base = (caddr_t)sbop->sbo_mem + roundup2(max_prog_offset, PAGE_SIZE);
+	length = sbcp->sbc_sandboxlen - roundup2(max_prog_offset, PAGE_SIZE);
 
 	/*
 	 * Skip guard page.
@@ -200,16 +235,10 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	assert(length == 0);
 
 	/*
-	 * Now that addresses are known, write out metadata for in-sandbox
-	 * use; then mprotect() so that it can't be modified by the sandbox.
+	 * Now that addresses are known, write out metadata for in-sandbox use.
 	 */
 	sbmp->sbm_heapbase = sbop->sbo_heapbase;
 	sbmp->sbm_heaplen = sbop->sbo_heaplen;
-	if (mprotect(base, METADATA_SIZE, PROT_READ) < 0) {
-		saved_errno = errno;
-		warn("%s: mprotect metadata", __func__);
-		goto error;
-	}
 
 	if (sbcp->sbc_sandbox_class_statp != NULL) {
 		(void)sandbox_stat_object_register(
@@ -297,6 +326,15 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 * currently support invoking non-global objects.
 	 */
 	sbmp->sbm_system_object = sbop->sbo_cheri_object_system;
+
+	/*
+	 * Protect metadata now that we've written all values.
+	 */
+	if (mprotect(sbmp, METADATA_SIZE, PROT_READ) < 0) {
+		saved_errno = errno;
+		warn("%s: mprotect metadata", __func__);
+		goto error;
+	}
 	return (0);
 
 error:

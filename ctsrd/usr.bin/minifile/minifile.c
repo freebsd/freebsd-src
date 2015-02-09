@@ -367,7 +367,7 @@ main(int argc, char **argv)
 
 #ifdef CHERI
 	if (sbtype == SB_CHERI)
-		if (sandbox_setup("/usr/libexec/minifile-cheri-helper.bin", 8*1024*1024,
+		if (sandbox_setup("/usr/libexec/minifile-cheri-helper", 8*1024*1024,
 		    &sandbox) < 0)
 			err(1, "can't create cheri sandbox");
 #endif

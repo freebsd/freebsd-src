@@ -89,7 +89,7 @@ main(int argc __unused, char *argv[] __unused)
 
 	if (cheri_fd_new(STDOUT_FILENO, &stdout_fd) < 0)
 		err(EX_OSFILE, "cheri_fd_new: stdout");
-	if (sandbox_class_new("/usr/libexec/cheri_helloworld-helper.bin",
+	if (sandbox_class_new("/usr/libexec/cheri_helloworld-helper",
 	    4*1024*1024, &classp) < 0)
 		err(EX_OSFILE, "sandbox_class_new");
 	if (sandbox_object_new(classp, &objectp) < 0)

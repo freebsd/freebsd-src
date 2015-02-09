@@ -137,7 +137,7 @@ init_sb_class()
 {
 
 	/* XXX: wrong error handling for library code */
-	if (sandbox_class_new("/usr/libexec/libpng_sb-helper.bin",
+	if (sandbox_class_new("/usr/libexec/libpng_sb-helper",
 	    8*1024*1024, &classp) < 0)
 		err(EX_OSFILE, "sandbox_class_new");
 
