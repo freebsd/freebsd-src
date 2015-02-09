@@ -64,9 +64,9 @@ realinstall: _dtbinstall
 .ORDER: beforeinstall _kmodinstall
 _dtbinstall:
 # Need to create this because installkernel doesn't invoke mtree with BSD.root.mtree
-# to make sure the tree is setup properly. This may break ownership of ${DTBDIR}
-# for no-root build.
-	mkdir -p ${DESTDIR}${DTBDIR}
+# to make sure the tree is setup properly. We don't recreate it to avoid duplicate
+# entries in the NO_ROOT case.
+	test -d ${DESTDIR}${DTBDIR} || ${INSTALL} -d -o ${DTBOWN} -g ${DTBGRP} ${DESTDIR}${DTBDIR}
 .for _dtb in ${DTB}
 	${INSTALL} -o ${DTBOWN} -g ${DTBGRP} -m ${DTBMODE} \
 	    ${_INSTALLFLAGS} ${_dtb} ${DESTDIR}${DTBDIR}
