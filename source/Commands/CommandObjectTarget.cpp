@@ -27,6 +27,7 @@
 #include "lldb/Core/Timer.h"
 #include "lldb/Core/ValueObjectVariable.h"
 #include "lldb/DataFormatters/ValueObjectPrinter.h"
+#include "lldb/Host/StringConvert.h"
 #include "lldb/Host/Symbols.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
@@ -159,7 +160,6 @@ public:
                              NULL),
         m_option_group (interpreter),
         m_arch_option (),
-        m_platform_options(true), // Do include the "--platform" option in the platform settings by passing true
         m_core_file (LLDB_OPT_SET_1, false, "core", 'c', 0, eArgTypeFilename, "Fullpath to a core file to use for this target."),
         m_platform_path (LLDB_OPT_SET_1, false, "platform-path", 'P', 0, eArgTypePath, "Path to the remote file to use for this target."),
         m_symbol_file (LLDB_OPT_SET_1, false, "symfile", 's', 0, eArgTypeFilename, "Fullpath to a stand alone debug symbols file for when debug symbols are not in the executable."),
@@ -180,7 +180,6 @@ public:
         m_arguments.push_back (arg);
 
         m_option_group.Append (&m_arch_option, LLDB_OPT_SET_ALL, LLDB_OPT_SET_1);
-        m_option_group.Append (&m_platform_options, LLDB_OPT_SET_ALL, LLDB_OPT_SET_1);
         m_option_group.Append (&m_core_file, LLDB_OPT_SET_ALL, LLDB_OPT_SET_1);
         m_option_group.Append (&m_platform_path, LLDB_OPT_SET_ALL, LLDB_OPT_SET_1);
         m_option_group.Append (&m_symbol_file, LLDB_OPT_SET_ALL, LLDB_OPT_SET_1);
@@ -282,70 +281,83 @@ protected:
             bool must_set_platform_path = false;
 
             Debugger &debugger = m_interpreter.GetDebugger();
-            PlatformSP platform_sp(debugger.GetPlatformList().GetSelectedPlatform ());
-
-            if (remote_file)
-            {
-                // I have a remote file.. two possible cases
-                if (file_spec && file_spec.Exists())
-                {
-                    // if the remote file does not exist, push it there
-                    if (!platform_sp->GetFileExists (remote_file))
-                    {
-                        Error err = platform_sp->PutFile(file_spec, remote_file);
-                        if (err.Fail())
-                        {
-                            result.AppendError(err.AsCString());
-                            result.SetStatus (eReturnStatusFailed);
-                            return false;
-                        }
-                    }
-                }
-                else
-                {
-                    // there is no local file and we need one
-                    // in order to make the remote ---> local transfer we need a platform
-                    // TODO: if the user has passed in a --platform argument, use it to fetch the right platform
-                    if (!platform_sp)
-                    {
-                        result.AppendError("unable to perform remote debugging without a platform");
-                        result.SetStatus (eReturnStatusFailed);
-                        return false;
-                    }
-                    if (file_path)
-                    {
-                        // copy the remote file to the local file
-                        Error err = platform_sp->GetFile(remote_file, file_spec);
-                        if (err.Fail())
-                        {
-                            result.AppendError(err.AsCString());
-                            result.SetStatus (eReturnStatusFailed);
-                            return false;
-                        }
-                    }
-                    else
-                    {
-                        // make up a local file
-                        result.AppendError("remote --> local transfer without local path is not implemented yet");
-                        result.SetStatus (eReturnStatusFailed);
-                        return false;
-                    }
-                }
-            }
 
             TargetSP target_sp;
             const char *arch_cstr = m_arch_option.GetArchitectureName();
             const bool get_dependent_files = m_add_dependents.GetOptionValue().GetCurrentValue();
             Error error (debugger.GetTargetList().CreateTarget (debugger,
-//                                                                remote_file ? remote_file : file_spec,
                                                                 file_path,
                                                                 arch_cstr,
                                                                 get_dependent_files,
-                                                                &m_platform_options,
+                                                                NULL,
                                                                 target_sp));
 
             if (target_sp)
             {
+                // Only get the platform after we create the target because we might have
+                // switched platforms depending on what the arguments were to CreateTarget()
+                // we can't rely on the selected platform.
+
+                PlatformSP platform_sp = target_sp->GetPlatform();
+
+                if (remote_file)
+                {
+                    if (platform_sp)
+                    {
+                        // I have a remote file.. two possible cases
+                        if (file_spec && file_spec.Exists())
+                        {
+                            // if the remote file does not exist, push it there
+                            if (!platform_sp->GetFileExists (remote_file))
+                            {
+                                Error err = platform_sp->PutFile(file_spec, remote_file);
+                                if (err.Fail())
+                                {
+                                    result.AppendError(err.AsCString());
+                                    result.SetStatus (eReturnStatusFailed);
+                                    return false;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // there is no local file and we need one
+                            // in order to make the remote ---> local transfer we need a platform
+                            // TODO: if the user has passed in a --platform argument, use it to fetch the right platform
+                            if (!platform_sp)
+                            {
+                                result.AppendError("unable to perform remote debugging without a platform");
+                                result.SetStatus (eReturnStatusFailed);
+                                return false;
+                            }
+                            if (file_path)
+                            {
+                                // copy the remote file to the local file
+                                Error err = platform_sp->GetFile(remote_file, file_spec);
+                                if (err.Fail())
+                                {
+                                    result.AppendError(err.AsCString());
+                                    result.SetStatus (eReturnStatusFailed);
+                                    return false;
+                                }
+                            }
+                            else
+                            {
+                                // make up a local file
+                                result.AppendError("remote --> local transfer without local path is not implemented yet");
+                                result.SetStatus (eReturnStatusFailed);
+                                return false;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        result.AppendError("no platform found for target");
+                        result.SetStatus (eReturnStatusFailed);
+                        return false;
+                    }
+                }
+
                 if (symfile || remote_file)
                 {
                     ModuleSP module_sp (target_sp->GetExecutableModule());
@@ -426,7 +438,7 @@ protected:
         }
         else
         {
-            result.AppendErrorWithFormat("'%s' takes exactly one executable path argument, or use the --core-file option.\n", m_cmd_name.c_str());
+            result.AppendErrorWithFormat("'%s' takes exactly one executable path argument, or use the --core option.\n", m_cmd_name.c_str());
             result.SetStatus (eReturnStatusFailed);
         }
         return result.Succeeded();
@@ -435,7 +447,6 @@ protected:
 private:
     OptionGroupOptions m_option_group;
     OptionGroupArchitecture m_arch_option;
-    OptionGroupPlatform m_platform_options;
     OptionGroupFile m_core_file;
     OptionGroupFile m_platform_path;
     OptionGroupFile m_symbol_file;
@@ -522,7 +533,7 @@ protected:
         {
             bool success = false;
             const char *target_idx_arg = args.GetArgumentAtIndex(0);
-            uint32_t target_idx = Args::StringToUInt32 (target_idx_arg, UINT32_MAX, 0, &success);
+            uint32_t target_idx = StringConvert::ToUInt32 (target_idx_arg, UINT32_MAX, 0, &success);
             if (success)
             {
                 TargetList &target_list = m_interpreter.GetDebugger().GetTargetList();
@@ -629,7 +640,7 @@ protected:
             for (uint32_t arg_idx = 0; success && arg_idx < argc; ++arg_idx)
             {
                 const char *target_idx_arg = args.GetArgumentAtIndex(arg_idx);
-                uint32_t target_idx = Args::StringToUInt32 (target_idx_arg, UINT32_MAX, 0, &success);
+                uint32_t target_idx = StringConvert::ToUInt32 (target_idx_arg, UINT32_MAX, 0, &success);
                 if (success)
                 {
                     if (target_idx < num_targets)
@@ -1260,7 +1271,7 @@ protected:
             {
                 bool success = false;
 
-                uint32_t insert_idx = Args::StringToUInt32(command.GetArgumentAtIndex(0), UINT32_MAX, 0, &success);
+                uint32_t insert_idx = StringConvert::ToUInt32(command.GetArgumentAtIndex(0), UINT32_MAX, 0, &success);
 
                 if (!success)
                 {
@@ -2963,7 +2974,7 @@ protected:
                                         {
                                             ConstString const_sect_name(sect_name);
                                             bool success = false;
-                                            addr_t load_addr = Args::StringToUInt64(load_addr_cstr, LLDB_INVALID_ADDRESS, 0, &success);
+                                            addr_t load_addr = StringConvert::ToUInt64(load_addr_cstr, LLDB_INVALID_ADDRESS, 0, &success);
                                             if (success)
                                             {
                                                 SectionSP section_sp (section_list->FindSectionByName(const_sect_name));
@@ -3890,7 +3901,7 @@ public:
                     break;
 
                 case 'o':
-                    m_offset = Args::StringToUInt64(option_arg, LLDB_INVALID_ADDRESS);
+                    m_offset = StringConvert::ToUInt64(option_arg, LLDB_INVALID_ADDRESS);
                     if (m_offset == LLDB_INVALID_ADDRESS)
                         error.SetErrorStringWithFormat ("invalid offset string '%s'", option_arg);
                     break;
@@ -3910,7 +3921,7 @@ public:
                     break;
 
                 case 'l':
-                    m_line_number = Args::StringToUInt32(option_arg, UINT32_MAX);
+                    m_line_number = StringConvert::ToUInt32(option_arg, UINT32_MAX);
                     if (m_line_number == UINT32_MAX)
                         error.SetErrorStringWithFormat ("invalid line number string '%s'", option_arg);
                     else if (m_line_number == 0)
@@ -4078,7 +4089,7 @@ public:
                     if (LookupAddressInModule (m_interpreter, 
                                                result.GetOutputStream(), 
                                                module, 
-                                               eSymbolContextEverything, 
+                                               eSymbolContextEverything | (m_options.m_verbose ? eSymbolContextVariable : 0),
                                                m_options.m_addr, 
                                                m_options.m_offset,
                                                m_options.m_verbose))
@@ -4873,7 +4884,7 @@ public:
                 break;
 
                 case 'e':
-                    m_line_end = Args::StringToUInt32 (option_arg, UINT_MAX, 0, &success);
+                    m_line_end = StringConvert::ToUInt32 (option_arg, UINT_MAX, 0, &success);
                     if (!success)
                     {
                         error.SetErrorStringWithFormat ("invalid end line number: \"%s\"", option_arg);
@@ -4883,7 +4894,7 @@ public:
                 break;
 
                 case 'l':
-                    m_line_start = Args::StringToUInt32 (option_arg, 0, 0, &success);
+                    m_line_start = StringConvert::ToUInt32 (option_arg, 0, 0, &success);
                     if (!success)
                     {
                         error.SetErrorStringWithFormat ("invalid start line number: \"%s\"", option_arg);
@@ -4912,7 +4923,7 @@ public:
                 break;
                 case 't' :
                 {
-                    m_thread_id = Args::StringToUInt64(option_arg, LLDB_INVALID_THREAD_ID, 0);
+                    m_thread_id = StringConvert::ToUInt64(option_arg, LLDB_INVALID_THREAD_ID, 0);
                     if (m_thread_id == LLDB_INVALID_THREAD_ID)
                        error.SetErrorStringWithFormat ("invalid thread id string '%s'", option_arg);
                     m_thread_specified = true;
@@ -4928,7 +4939,7 @@ public:
                     break;
                 case 'x':
                 {
-                    m_thread_index = Args::StringToUInt32(option_arg, UINT32_MAX, 0);
+                    m_thread_index = StringConvert::ToUInt32(option_arg, UINT32_MAX, 0);
                     if (m_thread_id == UINT32_MAX)
                        error.SetErrorStringWithFormat ("invalid thread index string '%s'", option_arg);
                     m_thread_specified = true;
@@ -5233,7 +5244,7 @@ protected:
                 bool success;
                 for (size_t i = 0; i < num_args; i++)
                 {
-                    lldb::user_id_t user_id = Args::StringToUInt32 (command.GetArgumentAtIndex(i), 0, 0, &success);
+                    lldb::user_id_t user_id = StringConvert::ToUInt32 (command.GetArgumentAtIndex(i), 0, 0, &success);
                     if (!success)
                     {
                         result.AppendErrorWithFormat ("invalid stop hook id: \"%s\".\n", command.GetArgumentAtIndex(i));
@@ -5302,7 +5313,7 @@ protected:
             {
                 for (size_t i = 0; i < num_args; i++)
                 {
-                    lldb::user_id_t user_id = Args::StringToUInt32 (command.GetArgumentAtIndex(i), 0, 0, &success);
+                    lldb::user_id_t user_id = StringConvert::ToUInt32 (command.GetArgumentAtIndex(i), 0, 0, &success);
                     if (!success)
                     {
                         result.AppendErrorWithFormat ("invalid stop hook id: \"%s\".\n", command.GetArgumentAtIndex(i));

@@ -13,6 +13,7 @@
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Log.h"
+#include "lldb/Core/FormatEntity.h"
 #include "lldb/Core/State.h"
 #include "lldb/Core/Stream.h"
 #include "lldb/Core/StreamString.h"
@@ -66,8 +67,8 @@ g_properties[] =
     { "step-in-avoid-nodebug", OptionValue::eTypeBoolean, true, true, NULL, NULL, "If true, step-in will not stop in functions with no debug information." },
     { "step-out-avoid-nodebug", OptionValue::eTypeBoolean, true, false, NULL, NULL, "If true, when step-in/step-out/step-over leave the current frame, they will continue to step out till they come to a function with "
                                                                                     "debug information.  Passing a frame argument to step-out will override this option." },
-    { "step-avoid-regexp",  OptionValue::eTypeRegex  , true , REG_EXTENDED, "^std::", NULL, "A regular expression defining functions step-in won't stop in." },
-    { "step-avoid-libraries",  OptionValue::eTypeFileSpecList  , true , REG_EXTENDED, NULL, NULL, "A list of libraries that source stepping won't stop in." },
+    { "step-avoid-regexp",  OptionValue::eTypeRegex  , true , 0, "^std::", NULL, "A regular expression defining functions step-in won't stop in." },
+    { "step-avoid-libraries",  OptionValue::eTypeFileSpecList  , true , 0, NULL, NULL, "A list of libraries that source stepping won't stop in." },
     { "trace-thread",       OptionValue::eTypeBoolean, false, false, NULL, NULL, "If true, this thread will single-step and log execution." },
     {  NULL               , OptionValue::eTypeInvalid, false, 0    , NULL, NULL, NULL  }
 };
@@ -2033,7 +2034,7 @@ Thread::DumpUsingSettingsFormat (Stream &strm, uint32_t frame_idx)
 
     StackFrameSP frame_sp;
     SymbolContext frame_sc;
-    if (frame_idx != LLDB_INVALID_INDEX32)
+    if (frame_idx != LLDB_INVALID_FRAME_ID)
     {
         frame_sp = GetStackFrameAtIndex (frame_idx);
         if (frame_sp)
@@ -2043,13 +2044,17 @@ Thread::DumpUsingSettingsFormat (Stream &strm, uint32_t frame_idx)
         }
     }
 
-    const char *thread_format = exe_ctx.GetTargetRef().GetDebugger().GetThreadFormat();
+    const FormatEntity::Entry *thread_format = exe_ctx.GetTargetRef().GetDebugger().GetThreadFormat();
     assert (thread_format);
-    Debugger::FormatPrompt (thread_format, 
-                            frame_sp ? &frame_sc : NULL,
-                            &exe_ctx, 
-                            NULL,
-                            strm);
+    
+    FormatEntity::Format(*thread_format,
+                         strm,
+                         frame_sp ? &frame_sc : NULL,
+                         &exe_ctx,
+                         NULL,
+                         NULL,
+                         false,
+                         false);
 }
 
 void

@@ -99,6 +99,7 @@ ValueObject::ValueObject (ValueObject &parent) :
     m_user_id_of_forced_summary(),
     m_address_type_of_ptr_or_ref_children(eAddressTypeInvalid),
     m_value_checksum(),
+    m_preferred_display_language(lldb::eLanguageTypeUnknown),
     m_value_is_valid (false),
     m_value_did_change (false),
     m_children_count_valid (false),
@@ -149,6 +150,7 @@ ValueObject::ValueObject (ExecutionContextScope *exe_scope,
     m_user_id_of_forced_summary(),
     m_address_type_of_ptr_or_ref_children(child_ptr_or_ref_addr_type),
     m_value_checksum(),
+    m_preferred_display_language(lldb::eLanguageTypeUnknown),
     m_value_is_valid (false),
     m_value_did_change (false),
     m_children_count_valid (false),
@@ -969,7 +971,9 @@ ValueObject::GetPointeeData (DataExtractor& data,
     if (item_count == 0)
         return 0;
     
-    const uint64_t item_type_size = pointee_or_element_clang_type.GetByteSize();
+    ExecutionContext exe_ctx (GetExecutionContextRef());
+    
+    const uint64_t item_type_size = pointee_or_element_clang_type.GetByteSize(&exe_ctx);
     const uint64_t bytes = item_count * item_type_size;
     const uint64_t offset = item_idx * item_type_size;
     
@@ -1045,7 +1049,7 @@ ValueObject::GetPointeeData (DataExtractor& data,
                 break;
             case eAddressTypeHost:
                 {
-                    const uint64_t max_bytes = GetClangType().GetByteSize();
+                    const uint64_t max_bytes = GetClangType().GetByteSize(&exe_ctx);
                     if (max_bytes > offset)
                     {
                         size_t bytes_read = std::min<uint64_t>(max_bytes - offset, bytes);
@@ -1505,14 +1509,14 @@ ValueObject::GetValueAsSigned (int64_t fail_value, bool *success)
         {
             if (success)
                 *success = true;
-                return scalar.SLongLong(fail_value);
+            return scalar.SLongLong(fail_value);
         }
         // fallthrough, otherwise...
     }
     
     if (success)
         *success = false;
-        return fail_value;
+    return fail_value;
 }
 
 // if any more "special cases" are added to ValueObject::DumpPrintableRepresentation() please keep
@@ -2220,10 +2224,12 @@ ValueObject::GetSyntheticChildAtOffset(uint32_t offset, const ClangASTType& type
     if (!can_create)
         return ValueObjectSP();
     
+    ExecutionContext exe_ctx (GetExecutionContextRef());
+    
     ValueObjectChild *synthetic_child = new ValueObjectChild(*this,
                                                              type,
                                                              name_const_str,
-                                                             type.GetByteSize(),
+                                                             type.GetByteSize(&exe_ctx),
                                                              offset,
                                                              0,
                                                              0,
@@ -2261,10 +2267,12 @@ ValueObject::GetSyntheticBase (uint32_t offset, const ClangASTType& type, bool c
     
     const bool is_base_class = true;
     
+    ExecutionContext exe_ctx (GetExecutionContextRef());
+    
     ValueObjectChild *synthetic_child = new ValueObjectChild(*this,
                                                              type,
                                                              name_const_str,
-                                                             type.GetByteSize(),
+                                                             type.GetByteSize(&exe_ctx),
                                                              offset,
                                                              0,
                                                              0,
@@ -4128,16 +4136,22 @@ ValueObject::GetRoot ()
 {
     if (m_root)
         return m_root;
-    ValueObject* parent = m_parent;
-    if (!parent)
-        return (m_root = this);
-    while (parent->m_parent)
+    return (m_root = FollowParentChain( [] (ValueObject* vo) -> bool {
+        return (vo->m_parent != nullptr);
+    }));
+}
+
+ValueObject*
+ValueObject::FollowParentChain (std::function<bool(ValueObject*)> f)
+{
+    ValueObject* vo = this;
+    while (vo)
     {
-        if (parent->m_root)
-            return (m_root = parent->m_root);
-        parent = parent->m_parent;
+        if (f(vo) == false)
+            break;
+        vo = vo->m_parent;
     }
-    return (m_root = parent);
+    return vo;
 }
 
 AddressType
@@ -4181,24 +4195,33 @@ ValueObject::GetFormat () const
 lldb::LanguageType
 ValueObject::GetPreferredDisplayLanguage ()
 {
-    lldb::LanguageType type = lldb::eLanguageTypeUnknown;
-    if (GetRoot())
+    lldb::LanguageType type = m_preferred_display_language;
+    if (m_preferred_display_language == lldb::eLanguageTypeUnknown)
     {
-        if (GetRoot() == this)
+        if (GetRoot())
         {
-            if (StackFrameSP frame_sp = GetFrameSP())
+            if (GetRoot() == this)
             {
-                const SymbolContext& sc(frame_sp->GetSymbolContext(eSymbolContextCompUnit));
-                if (CompileUnit* cu = sc.comp_unit)
-                    type = cu->GetLanguage();
+                if (StackFrameSP frame_sp = GetFrameSP())
+                {
+                    const SymbolContext& sc(frame_sp->GetSymbolContext(eSymbolContextCompUnit));
+                    if (CompileUnit* cu = sc.comp_unit)
+                        type = cu->GetLanguage();
+                }
+            }
+            else
+            {
+                type = GetRoot()->GetPreferredDisplayLanguage();
             }
         }
-        else
-        {
-            type = GetRoot()->GetPreferredDisplayLanguage();
-        }
     }
-    return type;
+    return (m_preferred_display_language = type); // only compute it once
+}
+
+void
+ValueObject::SetPreferredDisplayLanguage (lldb::LanguageType lt)
+{
+    m_preferred_display_language = lt;
 }
 
 bool

@@ -30,6 +30,8 @@
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
 
+#include "Utility/UriParser.h"
+
 using namespace lldb;
 using namespace lldb_private;
 
@@ -105,12 +107,76 @@ PlatformRemoteGDBServer::ResolveExecutable (const ModuleSpec &module_spec,
                                             lldb::ModuleSP &exe_module_sp,
                                             const FileSpecList *module_search_paths_ptr)
 {
+    // copied from PlatformRemoteiOS
+
     Error error;
-    //error.SetErrorString ("PlatformRemoteGDBServer::ResolveExecutable() is unimplemented");
-    if (m_gdb_client.GetFileExists(module_spec.GetFileSpec()))
-        return error;
-    // TODO: get the remote end to somehow resolve this file
-    error.SetErrorString("file not found on remote end");
+    // Nothing special to do here, just use the actual file and architecture
+
+    ModuleSpec resolved_module_spec(module_spec);
+
+    // Resolve any executable within an apk on Android?
+    //Host::ResolveExecutableInBundle (resolved_module_spec.GetFileSpec());
+
+    if (resolved_module_spec.GetFileSpec().Exists())
+    {
+        if (resolved_module_spec.GetArchitecture().IsValid() || resolved_module_spec.GetUUID().IsValid())
+        {
+            error = ModuleList::GetSharedModule (resolved_module_spec,
+                                                 exe_module_sp,
+                                                 NULL,
+                                                 NULL,
+                                                 NULL);
+
+            if (exe_module_sp && exe_module_sp->GetObjectFile())
+                return error;
+            exe_module_sp.reset();
+        }
+        // No valid architecture was specified or the exact arch wasn't
+        // found so ask the platform for the architectures that we should be
+        // using (in the correct order) and see if we can find a match that way
+        StreamString arch_names;
+        for (uint32_t idx = 0; GetSupportedArchitectureAtIndex (idx, resolved_module_spec.GetArchitecture()); ++idx)
+        {
+            error = ModuleList::GetSharedModule (resolved_module_spec,
+                                                 exe_module_sp,
+                                                 NULL,
+                                                 NULL,
+                                                 NULL);
+            // Did we find an executable using one of the
+            if (error.Success())
+            {
+                if (exe_module_sp && exe_module_sp->GetObjectFile())
+                    break;
+                else
+                    error.SetErrorToGenericError();
+            }
+
+            if (idx > 0)
+                arch_names.PutCString (", ");
+            arch_names.PutCString (resolved_module_spec.GetArchitecture().GetArchitectureName());
+        }
+
+        if (error.Fail() || !exe_module_sp)
+        {
+            if (resolved_module_spec.GetFileSpec().Readable())
+            {
+                error.SetErrorStringWithFormat ("'%s' doesn't contain any '%s' platform architectures: %s",
+                                                resolved_module_spec.GetFileSpec().GetPath().c_str(),
+                                                GetPluginName().GetCString(),
+                                                arch_names.GetString().c_str());
+            }
+            else
+            {
+                error.SetErrorStringWithFormat("'%s' is not readable", resolved_module_spec.GetFileSpec().GetPath().c_str());
+            }
+        }
+    }
+    else
+    {
+        error.SetErrorStringWithFormat ("'%s' does not exist",
+                                        resolved_module_spec.GetFileSpec().GetPath().c_str());
+    }
+
     return error;
 }
 
@@ -146,6 +212,15 @@ PlatformRemoteGDBServer::~PlatformRemoteGDBServer()
 bool
 PlatformRemoteGDBServer::GetSupportedArchitectureAtIndex (uint32_t idx, ArchSpec &arch)
 {
+    ArchSpec remote_arch = m_gdb_client.GetSystemArchitecture();
+
+    // TODO: 64 bit systems should also advertize support for 32 bit arch
+    // unknown CPU, we just support the one arch
+    if (idx == 0)
+    {
+        arch = remote_arch;
+        return true;
+    }
     return false;
 }
 
@@ -252,6 +327,17 @@ PlatformRemoteGDBServer::ConnectRemote (Args& args)
         {
             const char *url = args.GetArgumentAtIndex(0);
             m_gdb_client.SetConnection (new ConnectionFileDescriptor());
+
+            // we're going to reuse the hostname when we connect to the debugserver
+            std::string scheme;
+            int port;
+            std::string path;
+            if ( !UriParser::Parse(url, scheme, m_platform_hostname, port, path) )
+            {
+                error.SetErrorString("invalid uri");
+                return error;
+            }
+
             const ConnectionStatus status = m_gdb_client.Connect(url, &error);
             if (status == eConnectionStatusSuccess)
             {
@@ -344,14 +430,30 @@ PlatformRemoteGDBServer::LaunchProcess (ProcessLaunchInfo &launch_info)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_PLATFORM));
     Error error;
-    lldb::pid_t pid = LLDB_INVALID_PROCESS_ID;
 
     if (log)
         log->Printf ("PlatformRemoteGDBServer::%s() called", __FUNCTION__);
 
-    m_gdb_client.SetSTDIN ("/dev/null");
-    m_gdb_client.SetSTDOUT ("/dev/null");
-    m_gdb_client.SetSTDERR ("/dev/null");
+    auto num_file_actions = launch_info.GetNumFileActions ();
+    for (decltype(num_file_actions) i = 0; i < num_file_actions; ++i)
+    {
+        const auto file_action = launch_info.GetFileActionAtIndex (i);
+        if (file_action->GetAction () != FileAction::eFileActionOpen)
+            continue;
+        switch(file_action->GetFD())
+        {
+        case STDIN_FILENO:
+            m_gdb_client.SetSTDIN (file_action->GetPath());
+            break;
+        case STDOUT_FILENO:
+            m_gdb_client.SetSTDOUT (file_action->GetPath());
+            break;
+        case STDERR_FILENO:
+            m_gdb_client.SetSTDERR (file_action->GetPath());
+            break;
+        }
+    }
+
     m_gdb_client.SetDisableASLR (launch_info.GetFlags().Test (eLaunchFlagDisableASLR));
     m_gdb_client.SetDetachOnError (launch_info.GetFlags().Test (eLaunchFlagDetachOnError));
     
@@ -389,7 +491,7 @@ PlatformRemoteGDBServer::LaunchProcess (ProcessLaunchInfo &launch_info)
         std::string error_str;
         if (m_gdb_client.GetLaunchSuccess (error_str))
         {
-            pid = m_gdb_client.GetCurrentProcessID ();
+            const auto pid = m_gdb_client.GetCurrentProcessID (false);
             if (pid != LLDB_INVALID_PROCESS_ID)
             {
                 launch_info.SetProcessID (pid);
@@ -400,7 +502,7 @@ PlatformRemoteGDBServer::LaunchProcess (ProcessLaunchInfo &launch_info)
             {
                 if (log)
                     log->Printf ("PlatformRemoteGDBServer::%s() launch succeeded but we didn't get a valid process id back!", __FUNCTION__);
-                // FIXME isn't this an error condition? Do we need to set an error here?  Check with Greg.
+                error.SetErrorString ("failed to get PID");
             }
         }
         else
@@ -415,6 +517,14 @@ PlatformRemoteGDBServer::LaunchProcess (ProcessLaunchInfo &launch_info)
         error.SetErrorStringWithFormat("'A' packet returned an error: %i", arg_packet_err);
     }
     return error;
+}
+
+Error
+PlatformRemoteGDBServer::KillProcess (const lldb::pid_t pid)
+{
+    if (!m_gdb_client.KillSpawnedProcess(pid))
+        return Error("failed to kill remote spawned process");
+    return Error();
 }
 
 lldb::ProcessSP
@@ -483,7 +593,7 @@ PlatformRemoteGDBServer::DebugProcess (lldb_private::ProcessLaunchInfo &launch_i
                         const int connect_url_len = ::snprintf (connect_url,
                                                                 sizeof(connect_url),
                                                                 "connect://%s:%u",
-                                                                override_hostname ? override_hostname : GetHostname (),
+                                                                override_hostname ? override_hostname : m_platform_hostname.c_str(),
                                                                 port + port_offset);
                         assert (connect_url_len < (int)sizeof(connect_url));
                         error = process_sp->ConnectRemote (NULL, connect_url);
@@ -576,13 +686,19 @@ PlatformRemoteGDBServer::Attach (lldb_private::ProcessAttachInfo &attach_info,
                         const int connect_url_len = ::snprintf (connect_url, 
                                                                 sizeof(connect_url), 
                                                                 "connect://%s:%u", 
-                                                                override_hostname ? override_hostname : GetHostname (), 
+                                                                override_hostname ? override_hostname : m_platform_hostname.c_str(),
                                                                 port + port_offset);
                         assert (connect_url_len < (int)sizeof(connect_url));
-                        error = process_sp->ConnectRemote (NULL, connect_url);
+                        error = process_sp->ConnectRemote(nullptr, connect_url);
                         if (error.Success())
+                        {
+                            auto listener = attach_info.GetHijackListener();
+                            if (listener != nullptr)
+                                process_sp->HijackProcessEvents(listener.get());
                             error = process_sp->Attach(attach_info);
-                        else if (debugserver_pid != LLDB_INVALID_PROCESS_ID)
+                        }
+
+                        if (error.Fail() && debugserver_pid != LLDB_INVALID_PROCESS_ID)
                         {
                             m_gdb_client.KillSpawnedProcess(debugserver_pid);
                         }

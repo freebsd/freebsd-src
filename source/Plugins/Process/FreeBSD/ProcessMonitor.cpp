@@ -30,7 +30,7 @@
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Utility/PseudoTerminal.h"
 
-
+#include "Plugins/Process/POSIX/CrashReason.h"
 #include "POSIXThread.h"
 #include "ProcessFreeBSD.h"
 #include "ProcessPOSIXLog.h"
@@ -994,6 +994,11 @@ ProcessMonitor::Launch(LaunchArgs *args)
         if (PTRACE(PT_TRACE_ME, 0, NULL, 0) < 0)
             exit(ePtraceFailed);
 
+        // terminal has already dupped the tty descriptors to stdin/out/err.
+        // This closes original fd from which they were copied (and avoids
+        // leaking descriptors to the debugged process.
+        terminal.CloseSlaveFileDescriptor();
+
         // Do not inherit setgid powers.
         if (setgid(getgid()) != 0)
             exit(eSetGidFailed);
@@ -1306,168 +1311,20 @@ ProcessMonitor::MonitorSignal(ProcessMonitor *monitor,
     if (log)
         log->Printf ("ProcessMonitor::%s() received signal %s", __FUNCTION__, monitor->m_process->GetUnixSignals().GetSignalAsCString (signo));
 
-    if (signo == SIGSEGV) {
+    switch (signo)
+    {
+    case SIGSEGV:
+    case SIGILL:
+    case SIGFPE:
+    case SIGBUS:
         lldb::addr_t fault_addr = reinterpret_cast<lldb::addr_t>(info->si_addr);
-        ProcessMessage::CrashReason reason = GetCrashReasonForSIGSEGV(info);
-        return ProcessMessage::Crash(tid, reason, signo, fault_addr);
-    }
-
-    if (signo == SIGILL) {
-        lldb::addr_t fault_addr = reinterpret_cast<lldb::addr_t>(info->si_addr);
-        ProcessMessage::CrashReason reason = GetCrashReasonForSIGILL(info);
-        return ProcessMessage::Crash(tid, reason, signo, fault_addr);
-    }
-
-    if (signo == SIGFPE) {
-        lldb::addr_t fault_addr = reinterpret_cast<lldb::addr_t>(info->si_addr);
-        ProcessMessage::CrashReason reason = GetCrashReasonForSIGFPE(info);
-        return ProcessMessage::Crash(tid, reason, signo, fault_addr);
-    }
-
-    if (signo == SIGBUS) {
-        lldb::addr_t fault_addr = reinterpret_cast<lldb::addr_t>(info->si_addr);
-        ProcessMessage::CrashReason reason = GetCrashReasonForSIGBUS(info);
+        const auto reason = GetCrashReason(*info);
         return ProcessMessage::Crash(tid, reason, signo, fault_addr);
     }
 
     // Everything else is "normal" and does not require any special action on
     // our part.
     return ProcessMessage::Signal(tid, signo);
-}
-
-ProcessMessage::CrashReason
-ProcessMonitor::GetCrashReasonForSIGSEGV(const siginfo_t *info)
-{
-    ProcessMessage::CrashReason reason;
-    assert(info->si_signo == SIGSEGV);
-
-    reason = ProcessMessage::eInvalidCrashReason;
-
-    switch (info->si_code) 
-    {
-    default:
-        assert(false && "unexpected si_code for SIGSEGV");
-        break;
-    case SEGV_MAPERR:
-        reason = ProcessMessage::eInvalidAddress;
-        break;
-    case SEGV_ACCERR:
-        reason = ProcessMessage::ePrivilegedAddress;
-        break;
-    }
-        
-    return reason;
-}
-
-ProcessMessage::CrashReason
-ProcessMonitor::GetCrashReasonForSIGILL(const siginfo_t *info)
-{
-    ProcessMessage::CrashReason reason;
-    assert(info->si_signo == SIGILL);
-
-    reason = ProcessMessage::eInvalidCrashReason;
-
-    switch (info->si_code)
-    {
-    default:
-        assert(false && "unexpected si_code for SIGILL");
-        break;
-    case ILL_ILLOPC:
-        reason = ProcessMessage::eIllegalOpcode;
-        break;
-    case ILL_ILLOPN:
-        reason = ProcessMessage::eIllegalOperand;
-        break;
-    case ILL_ILLADR:
-        reason = ProcessMessage::eIllegalAddressingMode;
-        break;
-    case ILL_ILLTRP:
-        reason = ProcessMessage::eIllegalTrap;
-        break;
-    case ILL_PRVOPC:
-        reason = ProcessMessage::ePrivilegedOpcode;
-        break;
-    case ILL_PRVREG:
-        reason = ProcessMessage::ePrivilegedRegister;
-        break;
-    case ILL_COPROC:
-        reason = ProcessMessage::eCoprocessorError;
-        break;
-    case ILL_BADSTK:
-        reason = ProcessMessage::eInternalStackError;
-        break;
-    }
-
-    return reason;
-}
-
-ProcessMessage::CrashReason
-ProcessMonitor::GetCrashReasonForSIGFPE(const siginfo_t *info)
-{
-    ProcessMessage::CrashReason reason;
-    assert(info->si_signo == SIGFPE);
-
-    reason = ProcessMessage::eInvalidCrashReason;
-
-    switch (info->si_code)
-    {
-    default:
-        assert(false && "unexpected si_code for SIGFPE");
-        break;
-    case FPE_INTDIV:
-        reason = ProcessMessage::eIntegerDivideByZero;
-        break;
-    case FPE_INTOVF:
-        reason = ProcessMessage::eIntegerOverflow;
-        break;
-    case FPE_FLTDIV:
-        reason = ProcessMessage::eFloatDivideByZero;
-        break;
-    case FPE_FLTOVF:
-        reason = ProcessMessage::eFloatOverflow;
-        break;
-    case FPE_FLTUND:
-        reason = ProcessMessage::eFloatUnderflow;
-        break;
-    case FPE_FLTRES:
-        reason = ProcessMessage::eFloatInexactResult;
-        break;
-    case FPE_FLTINV:
-        reason = ProcessMessage::eFloatInvalidOperation;
-        break;
-    case FPE_FLTSUB:
-        reason = ProcessMessage::eFloatSubscriptRange;
-        break;
-    }
-
-    return reason;
-}
-
-ProcessMessage::CrashReason
-ProcessMonitor::GetCrashReasonForSIGBUS(const siginfo_t *info)
-{
-    ProcessMessage::CrashReason reason;
-    assert(info->si_signo == SIGBUS);
-
-    reason = ProcessMessage::eInvalidCrashReason;
-
-    switch (info->si_code)
-    {
-    default:
-        assert(false && "unexpected si_code for SIGBUS");
-        break;
-    case BUS_ADRALN:
-        reason = ProcessMessage::eIllegalAlignment;
-        break;
-    case BUS_ADRERR:
-        reason = ProcessMessage::eIllegalAddress;
-        break;
-    case BUS_OBJERR:
-        reason = ProcessMessage::eHardwareError;
-        break;
-    }
-
-    return reason;
 }
 
 void
@@ -1706,7 +1563,10 @@ ProcessMonitor::DupDescriptor(const char *path, int fd, int flags)
     if (target_fd == -1)
         return false;
 
-    return (dup2(target_fd, fd) == -1) ? false : true;
+    if (dup2(target_fd, fd) == -1)
+        return false;
+
+    return (close(target_fd) == -1) ? false : true;
 }
 
 void
@@ -1727,11 +1587,10 @@ ProcessMonitor::StopMonitor()
     StopOpThread();
     sem_destroy(&m_operation_pending);
     sem_destroy(&m_operation_done);
-
-    // Note: ProcessPOSIX passes the m_terminal_fd file descriptor to
-    // Process::SetSTDIOFileDescriptor, which in turn transfers ownership of
-    // the descriptor to a ConnectionFileDescriptor object.  Consequently
-    // even though still has the file descriptor, we shouldn't close it here.
+    if (m_terminal_fd >= 0) {
+        close(m_terminal_fd);
+        m_terminal_fd = -1;
+    }
 }
 
 // FIXME: On Linux, when a new thread is created, we receive to notifications,

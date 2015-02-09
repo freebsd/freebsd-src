@@ -471,12 +471,7 @@ Disassembler::PrintInstructions
             }
 
             const bool show_bytes = (options & eOptionShowBytes) != 0;
-            const char *disassembly_format = "${addr-file-or-load}: ";
-            if (exe_ctx.HasTargetScope())
-            {
-                disassembly_format = exe_ctx.GetTargetRef().GetDebugger().GetDisassemblyFormat ();
-            }
-            inst->Dump (&strm, max_opcode_byte_size, true, show_bytes, &exe_ctx, &sc, &prev_sc, disassembly_format);
+            inst->Dump (&strm, max_opcode_byte_size, true, show_bytes, &exe_ctx, &sc, &prev_sc, NULL);
             strm.EOL();            
         }
         else
@@ -566,7 +561,7 @@ Instruction::Dump (lldb_private::Stream *s,
                    const ExecutionContext* exe_ctx,
                    const SymbolContext *sym_ctx,
                    const SymbolContext *prev_sym_ctx,
-                   const char *disassembly_addr_format_spec)
+                   const FormatEntity::Entry *disassembly_addr_format)
 {
     size_t opcode_column_width = 7;
     const size_t operand_column_width = 25;
@@ -577,7 +572,7 @@ Instruction::Dump (lldb_private::Stream *s,
     
     if (show_address)
     {
-        Debugger::FormatDisassemblerAddress (disassembly_addr_format_spec, sym_ctx, prev_sym_ctx, exe_ctx, &m_address, ss);
+        Debugger::FormatDisassemblerAddress (disassembly_addr_format, sym_ctx, prev_sym_ctx, exe_ctx, &m_address, ss);
     }
     
     if (show_bytes)
@@ -985,18 +980,26 @@ InstructionList::Dump (Stream *s,
 {
     const uint32_t max_opcode_byte_size = GetMaxOpcocdeByteSize();
     collection::const_iterator pos, begin, end;
-    const char *disassemble_format = "${addr-file-or-load}: ";
-    if (exe_ctx)
+
+    const FormatEntity::Entry *disassembly_format = NULL;
+    FormatEntity::Entry format;
+    if (exe_ctx && exe_ctx->HasTargetScope())
     {
-        disassemble_format = exe_ctx->GetTargetRef().GetDebugger().GetDisassemblyFormat ();
+        disassembly_format = exe_ctx->GetTargetRef().GetDebugger().GetDisassemblyFormat ();
     }
+    else
+    {
+        FormatEntity::Parse("${addr}: ", format);
+        disassembly_format = &format;
+    }
+
     for (begin = m_instructions.begin(), end = m_instructions.end(), pos = begin;
          pos != end;
          ++pos)
     {
         if (pos != begin)
             s->EOL();
-        (*pos)->Dump(s, max_opcode_byte_size, show_address, show_bytes, exe_ctx, NULL, NULL, disassemble_format);
+        (*pos)->Dump(s, max_opcode_byte_size, show_address, show_bytes, exe_ctx, NULL, NULL, disassembly_format);
     }
 }
 
@@ -1169,6 +1172,24 @@ Disassembler::Disassembler(const ArchSpec& arch, const char *flavor) :
         m_flavor.assign("default");
     else
         m_flavor.assign(flavor);
+
+    // If this is an arm variant that can only include thumb (T16, T32)
+    // instructions, force the arch triple to be "thumbv.." instead of
+    // "armv..."
+    if (arch.GetTriple().getArch() == llvm::Triple::arm
+        && (arch.GetCore() == ArchSpec::Core::eCore_arm_armv7m
+            || arch.GetCore() == ArchSpec::Core::eCore_arm_armv7em
+            || arch.GetCore() == ArchSpec::Core::eCore_arm_armv6m))
+    {
+        std::string thumb_arch_name (arch.GetTriple().getArchName().str());
+        // Replace "arm" with "thumb" so we get all thumb variants correct
+        if (thumb_arch_name.size() > 3)
+        {
+            thumb_arch_name.erase(0, 3);
+            thumb_arch_name.insert(0, "thumb");
+        }
+        m_arch.SetTriple (thumb_arch_name.c_str());
+    }
 }
 
 //----------------------------------------------------------------------

@@ -9,7 +9,7 @@
 
 #include "lldb/lldb-types.h"
 #include "lldb/lldb-private-forward.h"
-#include "lldb/Target/NativeRegisterContextRegisterInfo.h"
+#include "lldb/Host/common/NativeRegisterContextRegisterInfo.h"
 
 using namespace lldb_private;
 
@@ -26,6 +26,12 @@ uint32_t
 NativeRegisterContextRegisterInfo::GetRegisterCount () const
 {
     return m_register_info_interface_up->GetRegisterCount ();
+}
+
+uint32_t
+NativeRegisterContextRegisterInfo::GetUserRegisterCount () const
+{
+    return m_register_info_interface_up->GetUserRegisterCount ();
 }
 
 const RegisterInfo *

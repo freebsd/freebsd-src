@@ -19,6 +19,7 @@
 #include "lldb/Core/State.h"
 #include "lldb/Core/SourceManager.h"
 #include "lldb/Host/Host.h"
+#include "lldb/Host/StringConvert.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Interpreter/Options.h"
@@ -95,7 +96,7 @@ public:
             {
                 bool success;
                 
-                uint32_t thread_idx = Args::StringToUInt32(command.GetArgumentAtIndex(i), 0, 0, &success);
+                uint32_t thread_idx = StringConvert::ToUInt32(command.GetArgumentAtIndex(i), 0, 0, &success);
                 if (!success)
                 {
                     result.AppendErrorWithFormat ("invalid thread specification: \"%s\"\n", command.GetArgumentAtIndex(i));
@@ -178,7 +179,7 @@ public:
                 case 'c':
                 {
                     bool success;
-                    int32_t input_count =  Args::StringToSInt32 (option_arg, -1, 0, &success);
+                    int32_t input_count =  StringConvert::ToSInt32 (option_arg, -1, 0, &success);
                     if (!success)
                         error.SetErrorStringWithFormat("invalid integer value for option '%c'", short_option);
                     if (input_count < -1)
@@ -190,7 +191,7 @@ public:
                 case 's':
                 {
                     bool success;
-                    m_start =  Args::StringToUInt32 (option_arg, 0, 0, &success);
+                    m_start =  StringConvert::ToUInt32 (option_arg, 0, 0, &success);
                     if (!success)
                         error.SetErrorStringWithFormat("invalid integer value for option '%c'", short_option);
                 }
@@ -384,7 +385,7 @@ public:
             
             case 'c':
                 {
-                    m_step_count = Args::StringToUInt32(option_arg, UINT32_MAX, 0);
+                    m_step_count = StringConvert::ToUInt32(option_arg, UINT32_MAX, 0);
                     if (m_step_count == UINT32_MAX)
                        error.SetErrorStringWithFormat ("invalid ignore count '%s'", option_arg);
                     break;
@@ -522,7 +523,7 @@ protected:
         else
         {
             const char *thread_idx_cstr = command.GetArgumentAtIndex(0);
-            uint32_t step_thread_idx = Args::StringToUInt32 (thread_idx_cstr, LLDB_INVALID_INDEX32);
+            uint32_t step_thread_idx = StringConvert::ToUInt32 (thread_idx_cstr, LLDB_INVALID_INDEX32);
             if (step_thread_idx == LLDB_INVALID_INDEX32)
             {
                 result.AppendErrorWithFormat ("invalid thread index '%s'.\n", thread_idx_cstr);
@@ -812,7 +813,7 @@ public:
                 {
                     bool success;
                     const int base = 0;
-                    uint32_t thread_idx = Args::StringToUInt32 (command.GetArgumentAtIndex(i), LLDB_INVALID_INDEX32, base, &success);
+                    uint32_t thread_idx = StringConvert::ToUInt32 (command.GetArgumentAtIndex(i), LLDB_INVALID_INDEX32, base, &success);
                     if (success)
                     {
                         Thread *thread = process->GetThreadList().FindThreadByIndexID(thread_idx).get();
@@ -984,9 +985,17 @@ public:
 
             switch (short_option)
             {
+                case 'a':
+                {
+                    ExecutionContext exe_ctx (m_interpreter.GetExecutionContext());
+                    lldb::addr_t tmp_addr = Args::StringToAddress(&exe_ctx, option_arg, LLDB_INVALID_ADDRESS, &error);
+                    if (error.Success())
+                        m_until_addrs.push_back(tmp_addr);
+                }
+                break;
                 case 't':
                 {
-                    m_thread_idx = Args::StringToUInt32 (option_arg, LLDB_INVALID_INDEX32);
+                    m_thread_idx = StringConvert::ToUInt32 (option_arg, LLDB_INVALID_INDEX32);
                     if (m_thread_idx == LLDB_INVALID_INDEX32)
                     {
                         error.SetErrorStringWithFormat ("invalid thread index '%s'", option_arg);
@@ -995,7 +1004,7 @@ public:
                 break;
                 case 'f':
                 {
-                    m_frame_idx = Args::StringToUInt32 (option_arg, LLDB_INVALID_FRAME_ID);
+                    m_frame_idx = StringConvert::ToUInt32 (option_arg, LLDB_INVALID_FRAME_ID);
                     if (m_frame_idx == LLDB_INVALID_FRAME_ID)
                     {
                         error.SetErrorStringWithFormat ("invalid frame index '%s'", option_arg);
@@ -1030,6 +1039,7 @@ public:
             m_thread_idx = LLDB_INVALID_THREAD_ID;
             m_frame_idx = 0;
             m_stop_others = false;
+            m_until_addrs.clear();
         }
 
         const OptionDefinition*
@@ -1040,6 +1050,7 @@ public:
 
         uint32_t m_step_thread_idx;
         bool m_stop_others;
+        std::vector<lldb::addr_t> m_until_addrs;
 
         // Options table: Required for subclasses of Options.
 
@@ -1051,7 +1062,7 @@ public:
     CommandObjectThreadUntil (CommandInterpreter &interpreter) :
         CommandObjectParsed (interpreter, 
                              "thread until",
-                             "Run the current or specified thread until it reaches a given line number or leaves the current function.",
+                             "Run the current or specified thread until it reaches a given line number or address or leaves the current function.",
                              NULL,
                              eFlagRequiresThread        |
                              eFlagTryTargetAPILock      |
@@ -1110,22 +1121,32 @@ protected:
         else
         {
             Thread *thread = NULL;
-            uint32_t line_number;
+            std::vector<uint32_t> line_numbers;
 
-            if (command.GetArgumentCount() != 1)
+            if (command.GetArgumentCount() >= 1)
             {
-                result.AppendErrorWithFormat ("No line number provided:\n%s", GetSyntax());
+                size_t num_args = command.GetArgumentCount();
+                for (size_t i = 0; i < num_args; i++)
+                {
+                    uint32_t line_number;
+                    line_number = StringConvert::ToUInt32 (command.GetArgumentAtIndex(0), UINT32_MAX);
+                    if (line_number == UINT32_MAX)
+                    {
+                        result.AppendErrorWithFormat ("invalid line number: '%s'.\n", command.GetArgumentAtIndex(0));
+                        result.SetStatus (eReturnStatusFailed);
+                        return false;
+                    }
+                    else
+                        line_numbers.push_back(line_number);
+                }
+            }
+            else if (m_options.m_until_addrs.empty())
+            {
+                result.AppendErrorWithFormat ("No line number or address provided:\n%s", GetSyntax());
                 result.SetStatus (eReturnStatusFailed);
                 return false;
             }
 
-            line_number = Args::StringToUInt32 (command.GetArgumentAtIndex(0), UINT32_MAX);
-            if (line_number == UINT32_MAX)
-            {
-                result.AppendErrorWithFormat ("invalid line number: '%s'.\n", command.GetArgumentAtIndex(0));
-                result.SetStatus (eReturnStatusFailed);
-                return false;
-            }
 
             if (m_options.m_thread_idx == LLDB_INVALID_THREAD_ID)
             {
@@ -1188,27 +1209,40 @@ protected:
 
                 Address fun_end_addr(fun_start_addr.GetSection(), 
                                      fun_start_addr.GetOffset() + fun_addr_range.GetByteSize());
-                line_table->FindLineEntryByAddress (fun_end_addr, function_start, &end_ptr);
 
                 bool all_in_function = true;
-                
-                while (index_ptr <= end_ptr)
-                {
-                    LineEntry line_entry;
-                    const bool exact = false;
-                    index_ptr = sc.comp_unit->FindLineEntry(index_ptr, line_number, sc.comp_unit, exact, &line_entry);
-                    if (index_ptr == UINT32_MAX)
-                        break;
 
-                    addr_t address = line_entry.range.GetBaseAddress().GetLoadAddress(target);
-                    if (address != LLDB_INVALID_ADDRESS)
+                line_table->FindLineEntryByAddress (fun_end_addr, function_start, &end_ptr);
+
+                for (uint32_t line_number : line_numbers)
+                {
+                    uint32_t start_idx_ptr = index_ptr;
+                    while (start_idx_ptr <= end_ptr)
                     {
-                        if (fun_addr_range.ContainsLoadAddress (address, target))
-                            address_list.push_back (address);
-                        else
-                            all_in_function = false;
+                        LineEntry line_entry;
+                        const bool exact = false;
+                        start_idx_ptr = sc.comp_unit->FindLineEntry(start_idx_ptr, line_number, sc.comp_unit, exact, &line_entry);
+                        if (start_idx_ptr == UINT32_MAX)
+                            break;
+
+                        addr_t address = line_entry.range.GetBaseAddress().GetLoadAddress(target);
+                        if (address != LLDB_INVALID_ADDRESS)
+                        {
+                            if (fun_addr_range.ContainsLoadAddress (address, target))
+                                address_list.push_back (address);
+                            else
+                                all_in_function = false;
+                        }
+                        start_idx_ptr++;
                     }
-                    index_ptr++;
+                }
+
+                for (lldb::addr_t address : m_options.m_until_addrs)
+                {
+                    if (fun_addr_range.ContainsLoadAddress (address, target))
+                        address_list.push_back (address);
+                    else
+                        all_in_function = false;
                 }
 
                 if (address_list.size() == 0)
@@ -1290,7 +1324,8 @@ CommandObjectThreadUntil::CommandOptions::g_option_table[] =
 {
 { LLDB_OPT_SET_1, false, "frame",   'f', OptionParser::eRequiredArgument, NULL, NULL,               0, eArgTypeFrameIndex,   "Frame index for until operation - defaults to 0"},
 { LLDB_OPT_SET_1, false, "thread",  't', OptionParser::eRequiredArgument, NULL, NULL,               0, eArgTypeThreadIndex,  "Thread index for the thread for until operation"},
-{ LLDB_OPT_SET_1, false, "run-mode",'m', OptionParser::eRequiredArgument, NULL, g_duo_running_mode, 0, eArgTypeRunMode,"Determine how to run other threads while stepping this one"},
+{ LLDB_OPT_SET_1, false, "run-mode",'m', OptionParser::eRequiredArgument, NULL, g_duo_running_mode, 0, eArgTypeRunMode, "Determine how to run other threads while stepping this one"},
+{ LLDB_OPT_SET_1, false, "address", 'a', OptionParser::eRequiredArgument, NULL, NULL,               0, eArgTypeAddressOrExpression, "Run until we reach the specified address, or leave the function - can be specified multiple times."},
 { 0, false, NULL, 0, 0, NULL, NULL, 0, eArgTypeNone, NULL }
 };
 
@@ -1351,7 +1386,7 @@ protected:
             return false;
         }
 
-        uint32_t index_id = Args::StringToUInt32(command.GetArgumentAtIndex(0), 0, 0);
+        uint32_t index_id = StringConvert::ToUInt32(command.GetArgumentAtIndex(0), 0, 0);
 
         Thread *new_thread = process->GetThreadList().FindThreadByIndexID(index_id).get();
         if (new_thread == NULL)
@@ -1796,12 +1831,12 @@ public:
                         return Error("only one source file expected.");
                     break;
                 case 'l':
-                    m_line_num = Args::StringToUInt32 (option_arg, 0, 0, &success);
+                    m_line_num = StringConvert::ToUInt32 (option_arg, 0, 0, &success);
                     if (!success || m_line_num == 0)
                         return Error("invalid line number: '%s'.", option_arg);
                     break;
                 case 'b':
-                    m_line_offset = Args::StringToSInt32 (option_arg, 0, 0, &success);
+                    m_line_offset = StringConvert::ToSInt32 (option_arg, 0, 0, &success);
                     if (!success)
                         return Error("invalid line offset: '%s'.", option_arg);
                     break;
@@ -2120,7 +2155,7 @@ public:
         }
 
         bool success;
-        uint32_t thread_plan_idx = Args::StringToUInt32(args.GetArgumentAtIndex(0), 0, 0, &success);
+        uint32_t thread_plan_idx = StringConvert::ToUInt32(args.GetArgumentAtIndex(0), 0, 0, &success);
         if (!success)
         {
             result.AppendErrorWithFormat("Invalid thread index: \"%s\" - should be unsigned int.",

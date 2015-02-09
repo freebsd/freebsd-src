@@ -25,7 +25,7 @@
 //--
 
 // Third Party Headers:
-#include <lldb/API/SBBreakpointLocation.h>
+#include "lldb/API/SBBreakpointLocation.h"
 
 // In-house headers:
 #include "MICmdCmdBreak.h"
@@ -180,19 +180,16 @@ CMICmdCmdBreakInsert::Execute(void)
     CMIUtilString fileName;
     MIuint nFileLine = 0;
     CMIUtilString strFileFn;
-    const MIint nPosColon = m_brkName.find(cColon);
-    if (nPosColon != (MIint)std::string::npos)
+    CMIUtilString rStrLineOrFn;
+    // Full path in windows can have : after drive letter. So look for the
+    // last colon
+    const size_t nPosColon = m_brkName.find_last_of(cColon);
+    if (nPosColon != std::string::npos)
     {
-        CMIUtilString::VecString_t vecFileAndLocation;
-        const MIuint nSplits = m_brkName.Split(cColon, vecFileAndLocation);
-        MIunused(nSplits);
-        if (vecFileAndLocation.size() != 2)
-        {
-            SetError(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_BRKPT_LOCATION_FORMAT), m_cmdData.strMiCmd.c_str(), m_brkName.c_str()));
-            return MIstatus::failure;
-        }
-        fileName = vecFileAndLocation.at(0);
-        const CMIUtilString &rStrLineOrFn(vecFileAndLocation.at(1));
+        // extract file name and line number from it
+        fileName = m_brkName.substr(0, nPosColon);
+        rStrLineOrFn = m_brkName.substr(nPosColon + 1, m_brkName.size() - nPosColon - 1);
+
         if (rStrLineOrFn.empty())
             eBrkPtType = eBreakPoint_ByName;
         else
@@ -232,20 +229,20 @@ CMICmdCmdBreakInsert::Execute(void)
     // Ask LLDB to create a breakpoint
     bool bOk = MIstatus::success;
     CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
-    lldb::SBTarget &rTarget = rSessionInfo.m_lldbTarget;
+    lldb::SBTarget sbTarget = rSessionInfo.GetTarget();
     switch (eBrkPtType)
     {
         case eBreakPoint_ByAddress:
-            m_brkPt = rTarget.BreakpointCreateByAddress(nAddress);
+            m_brkPt = sbTarget.BreakpointCreateByAddress(nAddress);
             break;
         case eBreakPoint_ByFileFn:
-            m_brkPt = rTarget.BreakpointCreateByName(strFileFn.c_str(), fileName.c_str());
+            m_brkPt = sbTarget.BreakpointCreateByName(strFileFn.c_str(), fileName.c_str());
             break;
         case eBreakPoint_ByFileLine:
-            m_brkPt = rTarget.BreakpointCreateByLocation(fileName.c_str(), nFileLine);
+            m_brkPt = sbTarget.BreakpointCreateByLocation(fileName.c_str(), nFileLine);
             break;
         case eBreakPoint_ByName:
-            m_brkPt = rTarget.BreakpointCreateByName(m_brkName.c_str(), rTarget.GetExecutable().GetFilename());
+            m_brkPt = sbTarget.BreakpointCreateByName(m_brkName.c_str(), sbTarget.GetExecutable().GetFilename());
             break;
         case eBreakPoint_count:
         case eBreakPoint_NotDefineYet:
@@ -327,7 +324,7 @@ CMICmdCmdBreakInsert::Acknowledge(void)
     sBrkPtInfo.m_bEnabled = m_bBrkPtEnabled;
     sBrkPtInfo.m_bHaveArgOptionThreadGrp = m_bHaveArgOptionThreadGrp;
     sBrkPtInfo.m_strOptThrdGrp = m_strArgOptionThreadGrp;
-    sBrkPtInfo.m_nTimes = m_brkPt.GetNumLocations();
+    sBrkPtInfo.m_nTimes = m_brkPt.GetHitCount();
     sBrkPtInfo.m_strOrigLoc = m_brkName;
     sBrkPtInfo.m_nIgnore = m_nBrkPtIgnoreCount;
     sBrkPtInfo.m_bPending = m_bBrkPtIsPending;
@@ -440,7 +437,7 @@ CMICmdCmdBreakDelete::Execute(void)
     }
 
     CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
-    const bool bBrkPt = rSessionInfo.m_lldbTarget.BreakpointDelete(static_cast<lldb::break_id_t>(nBrk));
+    const bool bBrkPt = rSessionInfo.GetTarget().BreakpointDelete(static_cast<lldb::break_id_t>(nBrk));
     if (!bBrkPt)
     {
         const CMIUtilString strBrkNum(CMIUtilString::Format("%d", nBrk));
@@ -560,7 +557,7 @@ CMICmdCmdBreakDisable::Execute(void)
     }
 
     CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
-    lldb::SBBreakpoint brkPt = rSessionInfo.m_lldbTarget.FindBreakpointByID(static_cast<lldb::break_id_t>(nBrk));
+    lldb::SBBreakpoint brkPt = rSessionInfo.GetTarget().FindBreakpointByID(static_cast<lldb::break_id_t>(nBrk));
     if (brkPt.IsValid())
     {
         m_bBrkPtDisabledOk = true;
@@ -700,7 +697,7 @@ CMICmdCmdBreakEnable::Execute(void)
     }
 
     CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
-    lldb::SBBreakpoint brkPt = rSessionInfo.m_lldbTarget.FindBreakpointByID(static_cast<lldb::break_id_t>(nBrk));
+    lldb::SBBreakpoint brkPt = rSessionInfo.GetTarget().FindBreakpointByID(static_cast<lldb::break_id_t>(nBrk));
     if (brkPt.IsValid())
     {
         m_bBrkPtEnabledOk = true;
@@ -837,7 +834,7 @@ CMICmdCmdBreakAfter::Execute(void)
     m_nBrkPtCount = pArgCount->GetValue();
 
     CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
-    lldb::SBBreakpoint brkPt = rSessionInfo.m_lldbTarget.FindBreakpointByID(static_cast<lldb::break_id_t>(m_nBrkPtId));
+    lldb::SBBreakpoint brkPt = rSessionInfo.GetTarget().FindBreakpointByID(static_cast<lldb::break_id_t>(m_nBrkPtId));
     if (brkPt.IsValid())
     {
         brkPt.SetIgnoreCount(m_nBrkPtCount);
@@ -972,7 +969,7 @@ CMICmdCmdBreakCondition::Execute(void)
     m_strBrkPtExpr += GetRestOfExpressionNotSurroundedInQuotes();
 
     CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
-    lldb::SBBreakpoint brkPt = rSessionInfo.m_lldbTarget.FindBreakpointByID(static_cast<lldb::break_id_t>(m_nBrkPtId));
+    lldb::SBBreakpoint brkPt = rSessionInfo.GetTarget().FindBreakpointByID(static_cast<lldb::break_id_t>(m_nBrkPtId));
     if (brkPt.IsValid())
     {
         brkPt.SetCondition(m_strBrkPtExpr.c_str());

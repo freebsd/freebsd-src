@@ -27,9 +27,9 @@
 //--
 
 // Third Party Headers:
-#include <lldb/API/SBCommandInterpreter.h>
-#include <lldb/API/SBProcess.h>
-#include <lldb/API/SBStream.h>
+#include "lldb/API/SBCommandInterpreter.h"
+#include "lldb/API/SBProcess.h"
+#include "lldb/API/SBStream.h"
 #include "lldb/lldb-enumerations.h"
 
 // In-house headers:
@@ -91,17 +91,14 @@ CMICmdCmdExecRun::Execute(void)
     lldb::SBError error;
     lldb::SBStream errMsg;
     uint32_t launch_flags = lldb::LaunchFlags::eLaunchFlagDebug;
-    lldb::SBProcess process = rSessionInfo.m_lldbTarget.Launch(rSessionInfo.m_rLlldbListener, nullptr, nullptr, nullptr, nullptr, nullptr,
-                                                               nullptr, launch_flags, false, error);
+    lldb::SBProcess process = rSessionInfo.GetTarget().Launch(rSessionInfo.GetListener(), nullptr, nullptr, nullptr, nullptr,
+                                                              nullptr, nullptr, launch_flags, false, error);
 
     if ((!process.IsValid()) || (error.Fail()))
     {
         SetError(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_INVALID_PROCESS), m_cmdData.strMiCmd.c_str(), errMsg.GetData()));
         return MIstatus::failure;
     }
-
-    // Save the process in the session info
-    rSessionInfo.m_lldbProcess = process;
 
     if (!CMIDriver::Instance().SetDriverStateRunningDebugging())
     {
@@ -137,7 +134,7 @@ CMICmdCmdExecRun::Acknowledge(void)
         m_miResultRecord = miRecordResult;
 
         CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
-        lldb::pid_t pid = rSessionInfo.m_lldbProcess.GetProcessID();
+        lldb::pid_t pid = rSessionInfo.GetProcess().GetProcessID();
         // Give the client '=thread-group-started,id="i1" pid="xyz"'
         m_bHasResultRecordExtra = true;
         const CMICmnMIValueConst miValueConst2("i1");
@@ -212,7 +209,7 @@ CMICmdCmdExecContinue::Execute(void)
 {
     const MIchar *pCmd = "continue";
     CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
-    const lldb::ReturnStatus rtn = rSessionInfo.m_rLldbDebugger.GetCommandInterpreter().HandleCommand(pCmd, m_lldbResult);
+    const lldb::ReturnStatus rtn = rSessionInfo.GetDebugger().GetCommandInterpreter().HandleCommand(pCmd, m_lldbResult);
     MIunused(rtn);
 
     if (m_lldbResult.GetErrorSize() == 0)
@@ -328,7 +325,7 @@ bool
 CMICmdCmdExecNext::ParseArgs(void)
 {
     bool bOk =
-        m_setCmdArgs.Add(*(new CMICmdArgValOptionLong(m_constStrArgThread, true, true, CMICmdArgValListBase::eArgValType_Number, 1)));
+        m_setCmdArgs.Add(*(new CMICmdArgValOptionLong(m_constStrArgThread, false, true, CMICmdArgValListBase::eArgValType_Number, 1)));
     bOk = bOk && m_setCmdArgs.Add(*(new CMICmdArgValNumber(m_constStrArgNumber, false, false)));
     return (bOk && ParseValidateCmdOptions());
 }
@@ -349,14 +346,14 @@ CMICmdCmdExecNext::Execute(void)
 
     // Retrieve the --thread option's thread ID (only 1)
     MIuint64 nThreadId = UINT64_MAX;
-    if (!pArgThread->GetExpectedOption<CMICmdArgValNumber, MIuint64>(nThreadId))
+    if (pArgThread->GetFound() && !pArgThread->GetExpectedOption<CMICmdArgValNumber, MIuint64>(nThreadId))
     {
         SetError(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_THREAD_INVALID), m_cmdData.strMiCmd.c_str(), m_constStrArgThread.c_str()));
         return MIstatus::failure;
     }
 
     CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
-    lldb::SBDebugger &rDebugger = rSessionInfo.m_rLldbDebugger;
+    lldb::SBDebugger &rDebugger = rSessionInfo.GetDebugger();
     CMIUtilString strCmd("thread step-over");
     if (nThreadId != UINT64_MAX)
         strCmd += CMIUtilString::Format(" %llu", nThreadId);
@@ -455,7 +452,7 @@ bool
 CMICmdCmdExecStep::ParseArgs(void)
 {
     bool bOk =
-        m_setCmdArgs.Add(*(new CMICmdArgValOptionLong(m_constStrArgThread, true, true, CMICmdArgValListBase::eArgValType_Number, 1)));
+        m_setCmdArgs.Add(*(new CMICmdArgValOptionLong(m_constStrArgThread, false, true, CMICmdArgValListBase::eArgValType_Number, 1)));
     bOk = bOk && m_setCmdArgs.Add(*(new CMICmdArgValNumber(m_constStrArgNumber, false, false)));
     return (bOk && ParseValidateCmdOptions());
 }
@@ -476,14 +473,14 @@ CMICmdCmdExecStep::Execute(void)
 
     // Retrieve the --thread option's thread ID (only 1)
     MIuint64 nThreadId = UINT64_MAX;
-    if (!pArgThread->GetExpectedOption<CMICmdArgValNumber, MIuint64>(nThreadId))
+    if (pArgThread->GetFound() && !pArgThread->GetExpectedOption<CMICmdArgValNumber, MIuint64>(nThreadId))
     {
         SetError(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_OPTION_NOT_FOUND), m_cmdData.strMiCmd.c_str(), m_constStrArgThread.c_str()));
         return MIstatus::failure;
     }
 
     CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
-    lldb::SBDebugger &rDebugger = rSessionInfo.m_rLldbDebugger;
+    lldb::SBDebugger &rDebugger = rSessionInfo.GetDebugger();
     CMIUtilString strCmd("thread step-in");
     if (nThreadId != UINT64_MAX)
         strCmd += CMIUtilString::Format(" %llu", nThreadId);
@@ -582,7 +579,7 @@ bool
 CMICmdCmdExecNextInstruction::ParseArgs(void)
 {
     bool bOk =
-        m_setCmdArgs.Add(*(new CMICmdArgValOptionLong(m_constStrArgThread, true, true, CMICmdArgValListBase::eArgValType_Number, 1)));
+        m_setCmdArgs.Add(*(new CMICmdArgValOptionLong(m_constStrArgThread, false, true, CMICmdArgValListBase::eArgValType_Number, 1)));
     bOk = bOk && m_setCmdArgs.Add(*(new CMICmdArgValNumber(m_constStrArgNumber, false, false)));
     return (bOk && ParseValidateCmdOptions());
 }
@@ -603,14 +600,14 @@ CMICmdCmdExecNextInstruction::Execute(void)
 
     // Retrieve the --thread option's thread ID (only 1)
     MIuint64 nThreadId = UINT64_MAX;
-    if (!pArgThread->GetExpectedOption<CMICmdArgValNumber, MIuint64>(nThreadId))
+    if (pArgThread->GetFound() && !pArgThread->GetExpectedOption<CMICmdArgValNumber, MIuint64>(nThreadId))
     {
         SetError(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_OPTION_NOT_FOUND), m_cmdData.strMiCmd.c_str(), m_constStrArgThread.c_str()));
         return MIstatus::failure;
     }
 
     CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
-    lldb::SBDebugger &rDebugger = rSessionInfo.m_rLldbDebugger;
+    lldb::SBDebugger &rDebugger = rSessionInfo.GetDebugger();
     CMIUtilString strCmd("thread step-inst-over");
     if (nThreadId != UINT64_MAX)
         strCmd += CMIUtilString::Format(" %llu", nThreadId);
@@ -709,7 +706,7 @@ bool
 CMICmdCmdExecStepInstruction::ParseArgs(void)
 {
     bool bOk =
-        m_setCmdArgs.Add(*(new CMICmdArgValOptionLong(m_constStrArgThread, true, true, CMICmdArgValListBase::eArgValType_Number, 1)));
+        m_setCmdArgs.Add(*(new CMICmdArgValOptionLong(m_constStrArgThread, false, true, CMICmdArgValListBase::eArgValType_Number, 1)));
     bOk = bOk && m_setCmdArgs.Add(*(new CMICmdArgValNumber(m_constStrArgNumber, false, false)));
     return (bOk && ParseValidateCmdOptions());
 }
@@ -730,14 +727,14 @@ CMICmdCmdExecStepInstruction::Execute(void)
 
     // Retrieve the --thread option's thread ID (only 1)
     MIuint64 nThreadId = UINT64_MAX;
-    if (!pArgThread->GetExpectedOption<CMICmdArgValNumber, MIuint64>(nThreadId))
+    if (pArgThread->GetFound() && !pArgThread->GetExpectedOption<CMICmdArgValNumber, MIuint64>(nThreadId))
     {
         SetError(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_OPTION_NOT_FOUND), m_cmdData.strMiCmd.c_str(), m_constStrArgThread.c_str()));
         return MIstatus::failure;
     }
 
     CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
-    lldb::SBDebugger &rDebugger = rSessionInfo.m_rLldbDebugger;
+    lldb::SBDebugger &rDebugger = rSessionInfo.GetDebugger();
     CMIUtilString strCmd("thread step-inst");
     if (nThreadId != UINT64_MAX)
         strCmd += CMIUtilString::Format(" %llu", nThreadId);
@@ -836,7 +833,7 @@ bool
 CMICmdCmdExecFinish::ParseArgs(void)
 {
     bool bOk =
-        m_setCmdArgs.Add(*(new CMICmdArgValOptionLong(m_constStrArgThread, true, true, CMICmdArgValListBase::eArgValType_Number, 1)));
+        m_setCmdArgs.Add(*(new CMICmdArgValOptionLong(m_constStrArgThread, false, true, CMICmdArgValListBase::eArgValType_Number, 1)));
     bOk = bOk &&
           m_setCmdArgs.Add(*(new CMICmdArgValOptionLong(m_constStrArgFrame, false, false, CMICmdArgValListBase::eArgValType_Number, 1)));
     return (bOk && ParseValidateCmdOptions());
@@ -858,14 +855,14 @@ CMICmdCmdExecFinish::Execute(void)
 
     // Retrieve the --thread option's thread ID (only 1)
     MIuint64 nThreadId = UINT64_MAX;
-    if (!pArgThread->GetExpectedOption<CMICmdArgValNumber, MIuint64>(nThreadId))
+    if (pArgThread->GetFound() && !pArgThread->GetExpectedOption<CMICmdArgValNumber, MIuint64>(nThreadId))
     {
         SetError(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_OPTION_NOT_FOUND), m_cmdData.strMiCmd.c_str(), m_constStrArgThread.c_str()));
         return MIstatus::failure;
     }
 
     CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
-    lldb::SBDebugger &rDebugger = rSessionInfo.m_rLldbDebugger;
+    lldb::SBDebugger &rDebugger = rSessionInfo.GetDebugger();
     CMIUtilString strCmd("thread step-out");
     if (nThreadId != UINT64_MAX)
         strCmd += CMIUtilString::Format(" %llu", nThreadId);
@@ -962,7 +959,7 @@ bool
 CMICmdCmdExecInterrupt::Execute(void)
 {
     CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
-    lldb::SBDebugger &rDebugger = rSessionInfo.m_rLldbDebugger;
+    lldb::SBDebugger &rDebugger = rSessionInfo.GetDebugger();
     CMIUtilString strCmd("process interrupt");
     const lldb::ReturnStatus status = rDebugger.GetCommandInterpreter().HandleCommand(strCmd.c_str(), m_lldbResult, false);
     MIunused(status);

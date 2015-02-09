@@ -19,6 +19,7 @@
 #include "lldb/Host/IOObject.h"
 #include "lldb/Host/SocketAddress.h"
 #include "lldb/Host/Socket.h"
+#include "lldb/Host/StringConvert.h"
 
 // C Includes
 #include <errno.h>
@@ -41,6 +42,7 @@
 #include "lldb/lldb-private-log.h"
 #include "lldb/Core/Communication.h"
 #include "lldb/Core/Log.h"
+#include "lldb/Core/StreamString.h"
 #include "lldb/Core/Timer.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Host/Socket.h"
@@ -142,7 +144,7 @@ ConnectionFileDescriptor::Connect(const char *s, Error *error_ptr)
         if (strstr(s, "listen://") == s)
         {
             // listen://HOST:PORT
-            return SocketListen(s + strlen("listen://"), error_ptr);
+            return SocketListenAndAccept(s + strlen("listen://"), error_ptr);
         }
         else if (strstr(s, "accept://") == s)
         {
@@ -173,7 +175,7 @@ ConnectionFileDescriptor::Connect(const char *s, Error *error_ptr)
             // that is already opened (possibly from a service or other source).
             s += strlen("fd://");
             bool success = false;
-            int fd = Args::StringToSInt32(s, -1, 0, &success);
+            int fd = StringConvert::ToSInt32(s, -1, 0, &success);
 
             if (success)
             {
@@ -219,6 +221,7 @@ ConnectionFileDescriptor::Connect(const char *s, Error *error_ptr)
                         m_read_sp.reset(new File(fd, false));
                         m_write_sp.reset(new File(fd, false));
                     }
+                    m_uri.assign(s);
                     return eConnectionStatusSuccess;
                 }
             }
@@ -351,6 +354,7 @@ ConnectionFileDescriptor::Disconnect(Error *error_ptr)
     if (error_ptr)
         *error_ptr = error.Fail() ? error : error2;
 
+    m_uri.clear();
     m_shutting_down = false;
     return status;
 }
@@ -508,6 +512,12 @@ ConnectionFileDescriptor::Write(const void *src, size_t src_len, ConnectionStatu
 
     status = eConnectionStatusSuccess;
     return bytes_sent;
+}
+
+std::string
+ConnectionFileDescriptor::GetURI()
+{
+    return m_uri;
 }
 
 // This ConnectionFileDescriptor::BytesAvailable() uses select().
@@ -700,7 +710,12 @@ ConnectionFileDescriptor::NamedSocketAccept(const char *socket_name, Error *erro
         *error_ptr = error;
     m_write_sp.reset(socket);
     m_read_sp = m_write_sp;
-    return (error.Success()) ? eConnectionStatusSuccess : eConnectionStatusError;
+    if (error.Fail())
+    {
+        return eConnectionStatusError;
+    }
+    m_uri.assign(socket_name);
+    return eConnectionStatusSuccess;
 }
 
 ConnectionStatus
@@ -712,11 +727,16 @@ ConnectionFileDescriptor::NamedSocketConnect(const char *socket_name, Error *err
         *error_ptr = error;
     m_write_sp.reset(socket);
     m_read_sp = m_write_sp;
-    return (error.Success()) ? eConnectionStatusSuccess : eConnectionStatusError;
+    if (error.Fail())
+    {
+        return eConnectionStatusError;
+    }
+    m_uri.assign(socket_name);
+    return eConnectionStatusSuccess;
 }
 
 ConnectionStatus
-ConnectionFileDescriptor::SocketListen(const char *s, Error *error_ptr)
+ConnectionFileDescriptor::SocketListenAndAccept(const char *s, Error *error_ptr)
 {
     m_port_predicate.SetValue(0, eBroadcastNever);
 
@@ -741,7 +761,14 @@ ConnectionFileDescriptor::SocketListen(const char *s, Error *error_ptr)
 
     m_write_sp.reset(socket);
     m_read_sp = m_write_sp;
-    return (error.Success()) ? eConnectionStatusSuccess : eConnectionStatusError;
+    if (error.Fail())
+    {
+        return eConnectionStatusError;
+    }
+    StreamString strm;
+    strm.Printf("connect://%s:%u",socket->GetRemoteIPAddress().c_str(), socket->GetRemotePortNumber());
+    m_uri.swap(strm.GetString());
+    return eConnectionStatusSuccess;
 }
 
 ConnectionStatus
@@ -753,7 +780,12 @@ ConnectionFileDescriptor::ConnectTCP(const char *s, Error *error_ptr)
         *error_ptr = error;
     m_write_sp.reset(socket);
     m_read_sp = m_write_sp;
-    return (error.Success()) ? eConnectionStatusSuccess : eConnectionStatusError;
+    if (error.Fail())
+    {
+        return eConnectionStatusError;
+    }
+    m_uri.assign(s);
+    return eConnectionStatusSuccess;
 }
 
 ConnectionStatus
@@ -766,7 +798,12 @@ ConnectionFileDescriptor::ConnectUDP(const char *s, Error *error_ptr)
         *error_ptr = error;
     m_write_sp.reset(send_socket);
     m_read_sp.reset(recv_socket);
-    return (error.Success()) ? eConnectionStatusSuccess : eConnectionStatusError;
+    if (error.Fail())
+    {
+        return eConnectionStatusError;
+    }
+    m_uri.assign(s);
+    return eConnectionStatusSuccess;
 }
 
 uint16_t

@@ -240,7 +240,13 @@ public:
         bool m_set_lldb_globals;
         bool m_maskout_errors;
     };
-    
+
+    virtual bool
+    Interrupt()
+    {
+        return false;
+    }
+
     virtual bool
     ExecuteOneLine (const char *command,
                     CommandReturnObject *result,
@@ -290,13 +296,13 @@ public:
     }
     
     virtual bool
-    GenerateTypeScriptFunction (const char* oneliner, std::string& output, void* name_token = NULL)
+    GenerateTypeScriptFunction (const char* oneliner, std::string& output, const void* name_token = NULL)
     {
         return false;
     }
     
     virtual bool
-    GenerateTypeScriptFunction (StringList &input, std::string& output, void* name_token = NULL)
+    GenerateTypeScriptFunction (StringList &input, std::string& output, const void* name_token = NULL)
     {
         return false;
     }
@@ -308,13 +314,13 @@ public:
     }
     
     virtual bool
-    GenerateTypeSynthClass (StringList &input, std::string& output, void* name_token = NULL)
+    GenerateTypeSynthClass (StringList &input, std::string& output, const void* name_token = NULL)
     {
         return false;
     }
     
     virtual bool
-    GenerateTypeSynthClass (const char* oneliner, std::string& output, void* name_token = NULL)
+    GenerateTypeSynthClass (const char* oneliner, std::string& output, const void* name_token = NULL)
     {
         return false;
     }

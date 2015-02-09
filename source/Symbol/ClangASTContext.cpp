@@ -11,7 +11,7 @@
 
 // C Includes
 // C++ Includes
-#include <mutex>
+#include <mutex> // std::once
 #include <string>
 
 // Other libraries and framework includes
@@ -708,7 +708,7 @@ uint32_t
 ClangASTContext::GetPointerByteSize ()
 {
     if (m_pointer_byte_size == 0)
-        m_pointer_byte_size = GetBasicType(lldb::eBasicTypeVoid).GetPointerType().GetByteSize();
+        m_pointer_byte_size = GetBasicType(lldb::eBasicTypeVoid).GetPointerType().GetByteSize(nullptr);
     return m_pointer_byte_size;
 }
 

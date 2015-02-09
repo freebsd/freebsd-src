@@ -97,6 +97,10 @@ public:
                  bool *is_incomplete) const;
 
     bool
+    IsVectorType (ClangASTType *element_type,
+                  uint64_t *size) const;
+    
+    bool
     IsArrayOfScalarType () const;
 
     bool
@@ -347,10 +351,10 @@ public:
     //----------------------------------------------------------------------
 
     uint64_t
-    GetByteSize () const;
+    GetByteSize (ExecutionContext *exe_ctx) const;
 
     uint64_t
-    GetBitSize () const;
+    GetBitSize (ExecutionContext *exe_ctx) const;
 
     lldb::Encoding
     GetEncoding (uint64_t &count) const;

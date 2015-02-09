@@ -65,7 +65,7 @@ FileSpec::ResolveUsername (llvm::SmallVectorImpl<char> &path)
     if (path.empty() || path[0] != '~')
         return;
     
-    llvm::StringRef path_str(path.data());
+    llvm::StringRef path_str(path.data(), path.size());
     size_t slash_pos = path_str.find_first_of("/", 1);
     if (slash_pos == 1 || path.size() == 1)
     {
@@ -240,6 +240,12 @@ void FileSpec::Normalize(llvm::SmallVectorImpl<char> &path, PathSyntax syntax)
         return;
 
     std::replace(path.begin(), path.end(), '\\', '/');
+    // Windows path can have \\ slashes which can be changed by replace
+    // call above to //. Here we remove the duplicate.
+    auto iter = std::unique ( path.begin(), path.end(),
+                               []( char &c1, char &c2 ){
+                                  return (c1 == '/' && c2 == '/');});
+    path.erase(iter, path.end());
 }
 
 void FileSpec::DeNormalize(llvm::SmallVectorImpl<char> &path, PathSyntax syntax)
@@ -1330,8 +1336,7 @@ FileSpec::IsSourceImplementationFile () const
     ConstString extension (GetFileNameExtension());
     if (extension)
     {
-        static RegularExpression g_source_file_regex ("^(c|m|mm|cpp|c\\+\\+|cxx|cc|cp|s|asm|f|f77|f90|f95|f03|for|ftn|fpp|ada|adb|ads)$",
-                                                      REG_EXTENDED | REG_ICASE);
+        static RegularExpression g_source_file_regex ("^([cC]|[mM]|[mM][mM]|[cC][pP][pP]|[cC]\\+\\+|[cC][xX][xX]|[cC][cC]|[cC][pP]|[sS]|[aA][sS][mM]|[fF]|[fF]77|[fF]90|[fF]95|[fF]03|[fF][oO][rR]|[fF][tT][nN]|[fF][pP][pP]|[aA][dD][aA]|[aA][dD][bB]|[aA][dD][sS])$");
         return g_source_file_regex.Execute (extension.GetCString());
     }
     return false;

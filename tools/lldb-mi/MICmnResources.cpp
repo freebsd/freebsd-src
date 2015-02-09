@@ -82,7 +82,7 @@ const CMICmnResources::SRsrcTextData CMICmnResources::ms_pResourceId2TextData[] 
     {IDE_MI_APP_ARG_EXECUTEABLE, "--executable\n\tUse the MI Driver in MI mode for the debugging the specified\n\texecutable. Any LLDB "
                                  "command line options are ignored even\n\tif the MI Driver falls through to the LLDB driver. "
                                  "(Depends\n\ton the build configuration see MICmnConfig.h)\n\tNormally specified from the command line."},
-    {IDE_MI_APP_ARG_NO_APP_LOG, "--noLog\n\tUse this argument to tell the MI Driver not to update it's log\n\tfile '%s'."},
+    {IDE_MI_APP_ARG_APP_LOG, "--log\n\tUse this argument to tell the MI Driver to update it's log\n\tfile '%s'."},
     {IDE_MI_APP_ARG_EXAMPLE, "Example MI command:\n\t3-info-gdb-mi-command gdb-set\n\t3^done,command={exists=\"true\"}"},
     {IDE_MI_APP_ARG_EXECUTABLE, "executable (NOT IMPLEMENTED)\n\tThe file path to the executable i.e. '\"C:\\My Dev\\foo.exe\"'."},
     {IDS_STDIN_ERR_INVALID_PROMPT, "Stdin. Invalid prompt description '%s'"},
@@ -254,6 +254,7 @@ const CMICmnResources::SRsrcTextData CMICmnResources::ms_pResourceId2TextData[] 
     {IDS_CMD_ERR_LLDB_ERR_NOT_READ_WHOLE_BLK, "Command '%s'. LLDB unable to read entire memory block of %u bytes at address 0x%08x"},
     {IDS_CMD_ERR_LLDB_ERR_READ_MEM_BYTES, "Command '%s'. Unable to read memory block of %u bytes at address 0x%08x: %s "},
     {IDS_CMD_ERR_INVALID_PROCESS, "Command '%s'. Invalid process during debug session"},
+    {IDS_CMD_ERR_INVALID_PRINT_VALUES, "Command '%s'. Unknown value for PRINT_VALUES: must be: 0 or \"--no-values\", 1 or \"all-values\", 2 or \"simple-values\""},
     {IDS_CMD_ERR_INVALID_FORMAT_TYPE, "Command '%s'. Invalid var format type '%s'"},
     {IDS_CMD_ERR_BRKPT_INFO_OBJ_NOT_FOUND, "Command '%s'. Breakpoint information for breakpoint ID %d not found"},
     {IDS_CMD_ERR_LLDB_ERR_READ_MEM_BYTES, "Command '%s'. Unable to write memory block of %u bytes at address 0x%08x: %s "},

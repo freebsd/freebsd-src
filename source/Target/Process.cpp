@@ -720,6 +720,7 @@ Process::Process(Target &target, Listener &listener, const UnixSignalsSP &unix_s
     m_process_input_reader (),
     m_stdio_communication ("process.stdio"),
     m_stdio_communication_mutex (Mutex::eMutexTypeRecursive),
+    m_stdio_disable(true),
     m_stdout_data (),
     m_stderr_data (),
     m_profile_data_comm_mutex (Mutex::eMutexTypeRecursive),
@@ -3121,6 +3122,11 @@ Process::Launch (ProcessLaunchInfo &launch_info)
                             StartPrivateStateThread ();
 
                         m_stop_info_override_callback = GetTarget().GetArchitecture().GetStopInfoOverrideCallback();
+
+                        // Target was stopped at entry as was intended. Need to notify the listeners
+                        // about it.
+                        if (launch_info.GetFlags().Test(eLaunchFlagStopAtEntry) == true)
+                            HandlePrivateEvent(event_sp);
                     }
                     else if (state == eStateExited)
                     {
@@ -3643,7 +3649,8 @@ Process::PrivateResume ()
         }
         else
         {
-            // Somebody wanted to run without running.  So generate a continue & a stopped event,
+            // Somebody wanted to run without running (e.g. we were faking a step from one frame of a set of inlined
+            // frames that share the same PC to another.)  So generate a continue & a stopped event,
             // and let the world handle them.
             if (log)
                 log->Printf ("Process::PrivateResume() asked to simulate a start & stop.");
@@ -3905,6 +3912,7 @@ Process::Destroy ()
         }
         m_stdio_communication.StopReadThread();
         m_stdio_communication.Disconnect();
+        m_stdio_disable = true;
 
         if (m_process_input_reader)
         {

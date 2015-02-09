@@ -290,7 +290,11 @@ namespace lldb {
         eSymbolContextBlock      = (1u << 4), ///< Set when the deepest \a block is requested from a query, or was located in query results
         eSymbolContextLineEntry  = (1u << 5), ///< Set when \a line_entry is requested from a query, or was located in query results
         eSymbolContextSymbol     = (1u << 6), ///< Set when \a symbol is requested from a query, or was located in query results
-        eSymbolContextEverything = ((eSymbolContextSymbol << 1) - 1u)  ///< Indicates to try and lookup everything up during a query.
+        eSymbolContextEverything = ((eSymbolContextSymbol << 1) - 1u),  ///< Indicates to try and lookup everything up during a routine symbol context query.
+        eSymbolContextVariable   = (1u << 7)  ///< Set when \a global or static variable is requested from a query, or was located in query results.
+                                              ///< eSymbolContextVariable is potentially expensive to lookup so it isn't included in
+                                              ///< eSymbolContextEverything which stops it from being used during frame PC lookups and
+                                              ///< many other potential address to symbol context lookups.
     } SymbolContextItem;
 
     typedef enum Permissions
@@ -374,6 +378,8 @@ namespace lldb {
         eLanguageTypeUPC             = 0x0012,   ///< Unified Parallel C.
         eLanguageTypeD               = 0x0013,   ///< D.
         eLanguageTypePython          = 0x0014,   ///< Python.
+        // NOTE: The below are DWARF5 constants, subject to change upon
+        // completion of the DWARF5 specification
         eLanguageTypeOpenCL          = 0x0015,   ///< OpenCL.
         eLanguageTypeGo              = 0x0016,   ///< Go.
         eLanguageTypeModula3         = 0x0017,   ///< Modula 3.
@@ -386,6 +392,9 @@ namespace lldb {
         eLanguageTypeSwift           = 0x001e,   ///< Swift.
         eLanguageTypeJulia           = 0x001f,   ///< Julia.
         eLanguageTypeDylan           = 0x0020,   ///< Dylan.
+        eLanguageTypeC_plus_plus_14  = 0x0021,   ///< ISO C++:2014.
+        eLanguageTypeFortran03       = 0x0022,   ///< ISO Fortran 2003.
+        eLanguageTypeFortran08       = 0x0023,   ///< ISO Fortran 2008.
         eNumLanguageTypes
     } LanguageType;
     

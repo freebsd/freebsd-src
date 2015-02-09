@@ -552,7 +552,7 @@ ABIMacOSX_i386::GetArgumentValues (Thread &thread,
             if (clang_type.IsIntegerType (is_signed))
             {
                 ReadIntegerArgument(value->GetScalar(),
-                                    clang_type.GetBitSize(),
+                                    clang_type.GetBitSize(nullptr),
                                     is_signed,
                                     thread.GetProcess().get(), 
                                     current_stack_argument);
@@ -560,7 +560,7 @@ ABIMacOSX_i386::GetArgumentValues (Thread &thread,
             else if (clang_type.IsPointerType())
             {
                 ReadIntegerArgument(value->GetScalar(),
-                                    clang_type.GetBitSize(),
+                                    clang_type.GetBitSize(nullptr),
                                     false,
                                     thread.GetProcess().get(),
                                     current_stack_argument);
@@ -672,7 +672,7 @@ ABIMacOSX_i386::GetReturnValueObjectImpl (Thread &thread,
             
     if (clang_type.IsIntegerType (is_signed))
     {
-        size_t bit_width = clang_type.GetBitSize();
+        size_t bit_width = clang_type.GetBitSize(nullptr);
         
         unsigned eax_id = reg_ctx->GetRegisterInfoByName("eax", 0)->kinds[eRegisterKindLLDB];
         unsigned edx_id = reg_ctx->GetRegisterInfoByName("edx", 0)->kinds[eRegisterKindLLDB];
@@ -732,6 +732,10 @@ ABIMacOSX_i386::GetReturnValueObjectImpl (Thread &thread,
     return return_valobj_sp;
 }
 
+// This defines the CFA as esp+4
+// the saved pc is at CFA-4 (i.e. esp+0)
+// The saved esp is CFA+0
+
 bool
 ABIMacOSX_i386::CreateFunctionEntryUnwindPlan (UnwindPlan &unwind_plan)
 {
@@ -745,11 +749,17 @@ ABIMacOSX_i386::CreateFunctionEntryUnwindPlan (UnwindPlan &unwind_plan)
     row->SetCFARegister (sp_reg_num);
     row->SetCFAOffset (4);
     row->SetRegisterLocationToAtCFAPlusOffset(pc_reg_num, -4, false);
+    row->SetRegisterLocationToIsCFAPlusOffset(sp_reg_num, 0, true);
     unwind_plan.AppendRow (row);
     unwind_plan.SetSourceName ("i386 at-func-entry default");
     unwind_plan.SetSourcedFromCompiler (eLazyBoolNo);
     return true;
 }
+
+// This defines the CFA as ebp+8
+// The saved pc is at CFA-4 (i.e. ebp+4)
+// The saved ebp is at CFA-8 (i.e. ebp+0)
+// The saved esp is CFA+0
 
 bool
 ABIMacOSX_i386::CreateDefaultUnwindPlan (UnwindPlan &unwind_plan)
@@ -786,6 +796,11 @@ ABIMacOSX_i386::RegisterIsVolatile (const RegisterInfo *reg_info)
 }
 
 // v. http://developer.apple.com/library/mac/#documentation/developertools/Conceptual/LowLevelABI/130-IA-32_Function_Calling_Conventions/IA32.html#//apple_ref/doc/uid/TP40002492-SW4
+//
+// This document ("OS X ABI Function Call Guide", chapter "IA-32 Function Calling Conventions")
+// says that the following registers on i386 are preserved aka non-volatile aka callee-saved:
+// 
+// ebx, ebp, esi, edi, esp
 
 bool
 ABIMacOSX_i386::RegisterIsCalleeSaved (const RegisterInfo *reg_info)

@@ -117,7 +117,7 @@ public:
     ///     the InstructionList.
     ///     Only needed if show_address is true.
     ///
-    /// @param[in] disassembly_addr_format_spec
+    /// @param[in] disassembly_addr_format
     ///     The format specification for how addresses are printed.
     ///     Only needed if show_address is true.
     //------------------------------------------------------------------
@@ -130,7 +130,7 @@ public:
           const ExecutionContext* exe_ctx,
           const SymbolContext *sym_ctx,
           const SymbolContext *prev_sym_ctx,
-          const char *disassembly_addr_format_spec);
+          const FormatEntity::Entry *disassembly_addr_format);
     
     virtual bool
     DoesBranch () = 0;
@@ -457,7 +457,7 @@ protected:
     //------------------------------------------------------------------
     // Classes that inherit from Disassembler can see and modify these
     //------------------------------------------------------------------
-    const ArchSpec m_arch;
+    ArchSpec m_arch;
     InstructionList m_instruction_list;
     lldb::addr_t m_base_addr;
     std::string m_flavor;
