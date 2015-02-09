@@ -1671,6 +1671,7 @@ _lib_libcapsicum=lib/libcapsicum
 
 lib/libcapsicum__L: lib/libnv__L
 lib/libpjdlog__L: lib/libutil__L
+lib/liblzma__L: lib/libthr__L
 
 _generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib ${_ofed_lib}
 .for _DIR in ${LOCAL_LIB_DIRS}
