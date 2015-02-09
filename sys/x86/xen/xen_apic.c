@@ -350,6 +350,7 @@ xen_pv_lapic_set_lvt_triggermode(u_int apic_id, u_int lvt,
 struct apic_ops xen_apic_ops = {
 	.create			= xen_pv_lapic_create,
 	.init			= xen_pv_lapic_init,
+	.xapic_mode		= xen_pv_lapic_disable,
 	.setup			= xen_pv_lapic_setup,
 	.dump			= xen_pv_lapic_dump,
 	.disable		= xen_pv_lapic_disable,
