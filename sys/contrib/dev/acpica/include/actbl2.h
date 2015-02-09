@@ -466,6 +466,7 @@ typedef struct acpi_table_dmar
 /* Masks for Flags field above */
 
 #define ACPI_DMAR_INTR_REMAP        (1)
+#define	ACPI_DMAR_X2APIC_OPT_OUT    (2)
 
 
 /* DMAR subtable header */
