@@ -64,6 +64,7 @@ struct callout_handle {
 
 #ifdef _KERNEL
 #define	callout_active(c)	((c)->c_flags & CALLOUT_ACTIVE)
+#define	callout_migrating(c)	((c)->c_flags & CALLOUT_DFRMIGRATION)
 #define	callout_deactivate(c)	((c)->c_flags &= ~CALLOUT_ACTIVE)
 #define	callout_drain(c)	_callout_stop_safe(c, 1)
 void	callout_init(struct callout *, int);
