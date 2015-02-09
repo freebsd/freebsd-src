@@ -59,10 +59,6 @@ TARGET_ARCH=	${TARGET}
 IMAKE=		${MAKE} TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}
 DISTDIR=	dist
 
-# Get the __FreeBSD_version for the build
-FREEBSD_VERSION!=	awk '/^\#define __FreeBSD_version/ {print $$3}' \
-	${.CURDIR}/../sys/sys/param.h
-
 .if !defined(NO_XZTHREADS) && empty(XZ_THREADS)
 XZ_THREADS=	0
 .else
