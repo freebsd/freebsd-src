@@ -67,7 +67,7 @@ CLEANFILES+=${_dts:R:S/$/.dtb/}
 realinstall: _dtbinstall
 .ORDER: beforeinstall _kmodinstall
 _dtbinstall:
-# Need to create this because installkernel doens't invoke mtree with BSD.root.mtree
+# Need to create this because installkernel doesn't invoke mtree with BSD.root.mtree
 # to make sure the tree is setup properly. This may break ownership of ${DTBDIR}
 # for no-root build.
 	mkdir -p ${DESTDIR}${DTBDIR}
