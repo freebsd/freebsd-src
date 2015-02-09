@@ -510,7 +510,7 @@ ABISysV_x86_64::GetArgumentValues (Thread &thread,
         if (clang_type.IsIntegerType (is_signed))
         {
             ReadIntegerArgument(value->GetScalar(),
-                                clang_type.GetBitSize(),
+                                clang_type.GetBitSize(nullptr),
                                 is_signed,
                                 thread, 
                                 argument_register_ids, 
@@ -520,7 +520,7 @@ ABISysV_x86_64::GetArgumentValues (Thread &thread,
         else if (clang_type.IsPointerType ())
         {
             ReadIntegerArgument(value->GetScalar(),
-                                clang_type.GetBitSize(),
+                                clang_type.GetBitSize(nullptr),
                                 false,
                                 thread,
                                 argument_register_ids, 
@@ -590,7 +590,7 @@ ABISysV_x86_64::SetReturnValueObject(lldb::StackFrameSP &frame_sp, lldb::ValueOb
             error.SetErrorString ("We don't support returning complex values at present");
         else
         {
-            size_t bit_width = clang_type.GetBitSize();
+            size_t bit_width = clang_type.GetBitSize(nullptr);
             if (bit_width <= 64)
             {
                 const RegisterInfo *xmm0_info = reg_ctx->GetRegisterInfoByName("xmm0", 0);
@@ -658,7 +658,7 @@ ABISysV_x86_64::GetReturnValueObjectSimple (Thread &thread,
         {
             // Extract the register context so we can read arguments from registers
             
-            const size_t byte_size = return_clang_type.GetByteSize();
+            const size_t byte_size = return_clang_type.GetByteSize(nullptr);
             uint64_t raw_value = thread.GetRegisterContext()->ReadRegisterAsUnsigned(reg_ctx->GetRegisterInfoByName("rax", 0), 0);
             const bool is_signed = (type_flags & eTypeIsSigned) != 0;
             switch (byte_size)
@@ -707,7 +707,7 @@ ABISysV_x86_64::GetReturnValueObjectSimple (Thread &thread,
             }
             else
             {
-                const size_t byte_size = return_clang_type.GetByteSize();
+                const size_t byte_size = return_clang_type.GetByteSize(nullptr);
                 if (byte_size <= sizeof(long double))
                 {
                     const RegisterInfo *xmm0_info = reg_ctx->GetRegisterInfoByName("xmm0", 0);
@@ -755,7 +755,7 @@ ABISysV_x86_64::GetReturnValueObjectSimple (Thread &thread,
     }
     else if (type_flags & eTypeIsVector)
     {
-        const size_t byte_size = return_clang_type.GetByteSize();
+        const size_t byte_size = return_clang_type.GetByteSize(nullptr);
         if (byte_size > 0)
         {
 
@@ -821,7 +821,7 @@ ABISysV_x86_64::GetReturnValueObjectImpl (Thread &thread, ClangASTType &return_c
     if (!reg_ctx_sp)
         return return_valobj_sp;
         
-    const size_t bit_width = return_clang_type.GetBitSize();
+    const size_t bit_width = return_clang_type.GetBitSize(nullptr);
     if (return_clang_type.IsAggregateType())
     {
         Target *target = exe_ctx.GetTargetPtr();
@@ -869,7 +869,7 @@ ABISysV_x86_64::GetReturnValueObjectImpl (Thread &thread, ClangASTType &return_c
                 uint32_t count;
                 
                 ClangASTType field_clang_type = return_clang_type.GetFieldAtIndex (idx, name, &field_bit_offset, NULL, NULL);
-                const size_t field_bit_width = field_clang_type.GetBitSize();
+                const size_t field_bit_width = field_clang_type.GetBitSize(nullptr);
 
                 // If there are any unaligned fields, this is stored in memory.
                 if (field_bit_offset % field_bit_width != 0)
@@ -1070,6 +1070,10 @@ ABISysV_x86_64::GetReturnValueObjectImpl (Thread &thread, ClangASTType &return_c
     return return_valobj_sp;
 }
 
+// This defines the CFA as rsp+8
+// the saved pc is at CFA-8 (i.e. rsp+0)
+// The saved rsp is CFA+0
+
 bool
 ABISysV_x86_64::CreateFunctionEntryUnwindPlan (UnwindPlan &unwind_plan)
 {
@@ -1083,11 +1087,17 @@ ABISysV_x86_64::CreateFunctionEntryUnwindPlan (UnwindPlan &unwind_plan)
     row->SetCFARegister (sp_reg_num);
     row->SetCFAOffset (8);
     row->SetRegisterLocationToAtCFAPlusOffset(pc_reg_num, -8, false);
+    row->SetRegisterLocationToIsCFAPlusOffset(sp_reg_num, 0, true);
     unwind_plan.AppendRow (row);
     unwind_plan.SetSourceName ("x86_64 at-func-entry default");
     unwind_plan.SetSourcedFromCompiler (eLazyBoolNo);
     return true;
 }
+
+// This defines the CFA as rbp+16
+// The saved pc is at CFA-8 (i.e. rbp+8)
+// The saved rbp is at CFA-16 (i.e. rbp+0)
+// The saved rsp is CFA+0
 
 bool
 ABISysV_x86_64::CreateDefaultUnwindPlan (UnwindPlan &unwind_plan)
@@ -1132,6 +1142,7 @@ ABISysV_x86_64::RegisterIsVolatile (const RegisterInfo *reg_info)
 // (this doc is also commonly referred to as the x86-64/AMD64 psABI)
 // Edited by Michael Matz, Jan Hubicka, Andreas Jaeger, and Mark Mitchell
 // current version is 0.99.6 released 2012-07-02 at http://refspecs.linuxfoundation.org/elf/x86-64-abi-0.99.pdf
+// It's being revised & updated at https://github.com/hjl-tools/x86-psABI/
 
 bool
 ABISysV_x86_64::RegisterIsCalleeSaved (const RegisterInfo *reg_info)

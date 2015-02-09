@@ -286,8 +286,7 @@ Platform::Platform (bool is_host) :
     m_minor_os_version (UINT32_MAX),
     m_update_os_version (UINT32_MAX),
     m_system_arch(),
-    m_uid_map_mutex (Mutex::eMutexTypeNormal),
-    m_gid_map_mutex (Mutex::eMutexTypeNormal),
+    m_mutex (Mutex::eMutexTypeRecursive),
     m_uid_map(),
     m_gid_map(),
     m_max_uid_name_len (0),
@@ -299,8 +298,7 @@ Platform::Platform (bool is_host) :
     m_ssh_opts (),
     m_ignores_remote_hostname (false),
     m_trap_handlers(),
-    m_calculated_trap_handlers (false),
-    m_trap_handler_mutex()
+    m_calculated_trap_handlers (false)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_OBJECT));
     if (log)
@@ -384,6 +382,8 @@ Platform::GetOSVersion (uint32_t &major,
                         uint32_t &minor, 
                         uint32_t &update)
 {
+    Mutex::Locker locker (m_mutex);
+
     bool success = m_major_os_version != UINT32_MAX;
     if (IsHost())
     {
@@ -463,7 +463,7 @@ Platform::GetOSKernelDescription (std::string &s)
 }
 
 void
-Platform::AddClangModuleCompilationOptions (std::vector<std::string> &options)
+Platform::AddClangModuleCompilationOptions (Target *target, std::vector<std::string> &options)
 {
     std::vector<std::string> default_compilation_options =
     {
@@ -1103,6 +1103,20 @@ Platform::LaunchProcess (ProcessLaunchInfo &launch_info)
     return error;
 }
 
+Error
+Platform::KillProcess (const lldb::pid_t pid)
+{
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_PLATFORM));
+    if (log)
+        log->Printf ("Platform::%s, pid %" PRIu64, __FUNCTION__, pid);
+
+    if (!IsHost ())
+        return Error ("base lldb_private::Platform class can't launch remote processes");
+
+    Host::Kill (pid, SIGTERM);
+    return Error();
+}
+
 lldb::ProcessSP
 Platform::DebugProcess (ProcessLaunchInfo &launch_info, 
                         Debugger &debugger,
@@ -1233,7 +1247,64 @@ Platform::PutFile (const FileSpec& source,
                    uint32_t uid,
                    uint32_t gid)
 {
-    Error error("unimplemented");
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_PLATFORM));
+    if (log)
+        log->Printf("[PutFile] Using block by block transfer....\n");
+
+    uint32_t source_open_options = File::eOpenOptionRead;
+    if (source.GetFileType() == FileSpec::eFileTypeSymbolicLink)
+        source_open_options |= File::eOpenoptionDontFollowSymlinks;
+
+    File source_file(source, source_open_options, lldb::eFilePermissionsUserRW);
+    Error error;
+    uint32_t permissions = source_file.GetPermissions(error);
+    if (permissions == 0)
+        permissions = lldb::eFilePermissionsFileDefault;
+
+    if (!source_file.IsValid())
+        return Error("PutFile: unable to open source file");
+    lldb::user_id_t dest_file = OpenFile (destination,
+                                          File::eOpenOptionCanCreate |
+                                          File::eOpenOptionWrite |
+                                          File::eOpenOptionTruncate,
+                                          permissions,
+                                          error);
+    if (log)
+        log->Printf ("dest_file = %" PRIu64 "\n", dest_file);
+
+    if (error.Fail())
+        return error;
+    if (dest_file == UINT64_MAX)
+        return Error("unable to open target file");
+    lldb::DataBufferSP buffer_sp(new DataBufferHeap(1024, 0));
+    uint64_t offset = 0;
+    for (;;)
+    {
+        size_t bytes_read = buffer_sp->GetByteSize();
+        error = source_file.Read(buffer_sp->GetBytes(), bytes_read);
+        if (error.Fail() || bytes_read == 0)
+            break;
+
+        const uint64_t bytes_written = WriteFile(dest_file, offset,
+            buffer_sp->GetBytes(), bytes_read, error);
+        if (error.Fail())
+            break;
+
+        offset += bytes_written;
+        if (bytes_written != bytes_read)
+        {
+            // We didn't write the correct number of bytes, so adjust
+            // the file position in the source file we are reading from...
+            source_file.SeekFromStart(offset);
+        }
+    }
+    CloseFile(dest_file, error);
+
+    if (uid == UINT32_MAX && gid == UINT32_MAX)
+        return error;
+
+    // TODO: ChownFile?
+
     return error;
 }
 
@@ -1528,7 +1599,7 @@ Platform::GetTrapHandlerSymbolNames ()
 {
     if (!m_calculated_trap_handlers)
     {
-        Mutex::Locker locker (m_trap_handler_mutex);
+        Mutex::Locker locker (m_mutex);
         if (!m_calculated_trap_handlers)
         {
             CalculateTrapHandlerSymbolNames();

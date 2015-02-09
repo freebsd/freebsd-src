@@ -41,13 +41,17 @@ typedef __UINTPTR_TYPE__ uintptr_t;
 typedef __SIZE_TYPE__ size_t;
 typedef __PTRDIFF_TYPE__ ptrdiff_t;
 typedef unsigned short unichar;
+extern "C"
+{
+    int printf(const char * __restrict, ...);
+}
 )";
 
 
 bool ExpressionSourceCode::GetText (std::string &text, lldb::LanguageType wrapping_language, bool const_object, bool static_method, ExecutionContext &exe_ctx) const
 {
     const char *target_specific_defines = "typedef signed char BOOL;\n";
-    static ConstString g_platform_ios_simulator ("PlatformiOSSimulator");
+    static ConstString g_platform_ios_simulator ("ios-simulator");
     
     if (Target *target = exe_ctx.GetTargetPtr())
     {

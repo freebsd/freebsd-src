@@ -24,10 +24,10 @@
 // Third party headers:
 #include <map>
 #include <vector>
-#include <lldb/API/SBDebugger.h>
-#include <lldb/API/SBListener.h>
-#include <lldb/API/SBProcess.h>
-#include <lldb/API/SBTarget.h>
+#include "lldb/API/SBDebugger.h"
+#include "lldb/API/SBListener.h"
+#include "lldb/API/SBProcess.h"
+#include "lldb/API/SBTarget.h"
 
 // In-house headers:
 #include "MICmnBase.h"
@@ -35,6 +35,7 @@
 #include "MICmnLLDBDebugSessionInfoVarObj.h"
 #include "MICmnMIValueTuple.h"
 #include "MIUtilMapIdToVariant.h"
+#include "MIUtilThreadBaseStd.h"
 
 // Declarations:
 class CMICmnLLDBDebugger;
@@ -116,6 +117,17 @@ class CMICmnLLDBDebugSessionInfo : public CMICmnBase, public MI::ISingleton<CMIC
         eVariableType_Arguments = (1u << 3)  // Arguments.
     };
 
+    //++ ===================================================================
+    // Details: Determine the information that should be shown by using MIResponseFormVariableInfo family functions.
+    //--
+    enum VariableInfoFormat_e
+    {
+        eVariableInfoFormat_NoValues,
+        eVariableInfoFormat_AllValues,
+        eVariableInfoFormat_SimpleValues,
+        kNumVariableInfoFormats
+    };
+
     // Typedefs:
   public:
     typedef std::vector<uint32_t> VecActiveThreadId_t;
@@ -147,23 +159,27 @@ class CMICmnLLDBDebugSessionInfo : public CMICmnBase, public MI::ISingleton<CMIC
     bool MIResponseFormThreadInfo(const SMICmdData &vCmdData, const lldb::SBThread &vrThread, CMICmnMIValueTuple &vwrMIValueTuple);
     bool MIResponseFormThreadInfo2(const SMICmdData &vCmdData, const lldb::SBThread &vrThread, CMICmnMIValueTuple &vwrMIValueTuple);
     bool MIResponseFormThreadInfo3(const SMICmdData &vCmdData, const lldb::SBThread &vrThread, CMICmnMIValueTuple &vwrMIValueTuple);
-    bool MIResponseFormVariableInfo(const lldb::SBFrame &vrFrame, const MIuint vMaskVarTypes, CMICmnMIValueList &vwrMiValueList);
-    bool MIResponseFormVariableInfo2(const lldb::SBFrame &vrFrame, const MIuint vMaskVarTypes, CMICmnMIValueList &vwrMiValueList);
-    bool MIResponseFormVariableInfo3(const lldb::SBFrame &vrFrame, const MIuint vMaskVarTypes, CMICmnMIValueList &vwrMiValueList);
+    bool MIResponseFormVariableInfo(const lldb::SBFrame &vrFrame, const MIuint vMaskVarTypes,
+                                    const VariableInfoFormat_e veVarInfoFormat, CMICmnMIValueList &vwrMiValueList);
+    bool MIResponseFormVariableInfo2(const lldb::SBFrame &vrFrame, const MIuint vMaskVarTypes,
+                                     const VariableInfoFormat_e veVarInfoFormat, CMICmnMIValueList &vwrMiValueList);
+    bool MIResponseFormVariableInfo3(const lldb::SBFrame &vrFrame, const MIuint vMaskVarTypes,
+                                     const VariableInfoFormat_e veVarInfoFormat, CMICmnMIValueList &vwrMiValueList);
     bool MIResponseFormBrkPtFrameInfo(const SBrkPtInfo &vrBrkPtInfo, CMICmnMIValueTuple &vwrMiValueTuple);
     bool MIResponseFormBrkPtInfo(const SBrkPtInfo &vrBrkPtInfo, CMICmnMIValueTuple &vwrMiValueTuple);
     bool GetBrkPtInfo(const lldb::SBBreakpoint &vBrkPt, SBrkPtInfo &vrwBrkPtInfo) const;
     bool RecordBrkPtInfo(const MIuint vnBrkPtId, const SBrkPtInfo &vrBrkPtInfo);
     bool RecordBrkPtInfoGet(const MIuint vnBrkPtId, SBrkPtInfo &vrwBrkPtInfo) const;
     bool RecordBrkPtInfoDelete(const MIuint vnBrkPtId);
+    CMIUtilThreadMutex& GetSessionMutex() { return m_sessionMutex;}
+    lldb::SBDebugger &GetDebugger() const;
+    lldb::SBListener &GetListener() const;
+    lldb::SBTarget GetTarget() const;
+    lldb::SBProcess GetProcess() const;
 
     // Attributes:
   public:
     // The following are available to all command instances
-    lldb::SBDebugger &m_rLldbDebugger;
-    lldb::SBListener &m_rLlldbListener;
-    lldb::SBTarget m_lldbTarget;
-    lldb::SBProcess m_lldbProcess;
     const MIuint m_nBrkPointCntMax;
     VecActiveThreadId_t m_vecActiveThreadId;
     lldb::tid_t m_currentSelectedThread;
@@ -186,9 +202,9 @@ class CMICmnLLDBDebugSessionInfo : public CMICmnBase, public MI::ISingleton<CMIC
     void operator=(const CMICmnLLDBDebugSessionInfo &);
     //
     bool GetVariableInfo(const MIuint vnMaxDepth, const lldb::SBValue &vrValue, const bool vbIsChildValue,
-                         CMICmnMIValueList &vwrMiValueList, MIuint &vrwnDepth);
+                         const VariableInfoFormat_e veVarInfoFormat, CMICmnMIValueList &vwrMiValueList, MIuint &vrwnDepth);
     bool GetVariableInfo2(const MIuint vnMaxDepth, const lldb::SBValue &vrValue, const bool vbIsChildValue,
-                          CMICmnMIValueList &vwrMiValueList, MIuint &vrwnDepth);
+                          const VariableInfoFormat_e veVarInfoFormat, CMICmnMIValueList &vwrMiValueList, MIuint &vrwnDepth);
 
     // Overridden:
   private:
@@ -200,6 +216,7 @@ class CMICmnLLDBDebugSessionInfo : public CMICmnBase, public MI::ISingleton<CMIC
     CMIUtilMapIdToVariant m_mapIdToSessionData; // Hold and retrieve key to value data available across all commands
     VecVarObj_t m_vecVarObj;                    // Vector of session variable objects
     MapBrkPtIdToBrkPtInfo_t m_mapBrkPtIdToBrkPtInfo;
+    CMIUtilThreadMutex m_sessionMutex;
 };
 
 //++ ------------------------------------------------------------------------------------

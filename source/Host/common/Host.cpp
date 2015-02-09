@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 // C includes
 #include <errno.h>
 #include <limits.h>
@@ -48,20 +46,21 @@
 #include "lldb/Host/Host.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Core/ArchSpec.h"
-#include "lldb/Core/Debugger.h"
 #include "lldb/Core/Error.h"
 #include "lldb/Core/Log.h"
-#include "lldb/Core/Module.h"
 #include "lldb/Host/FileSpec.h"
 #include "lldb/Host/HostProcess.h"
 #include "lldb/Host/MonitoringProcessLauncher.h"
+#include "lldb/Host/Predicate.h"
 #include "lldb/Host/ProcessLauncher.h"
 #include "lldb/Host/ThreadLauncher.h"
 #include "lldb/lldb-private-forward.h"
+#include "llvm/Support/FileSystem.h"
 #include "lldb/Target/FileAction.h"
 #include "lldb/Target/ProcessLaunchInfo.h"
-#include "lldb/Target/TargetList.h"
+#include "lldb/Target/UnixSignals.h"
 #include "lldb/Utility/CleanUp.h"
+#include "llvm/ADT/SmallString.h"
 
 #if defined(_WIN32)
 #include "lldb/Host/windows/ProcessLauncherWindows.h"
@@ -170,7 +169,7 @@ MonitorChildProcessThreadFunction (void *arg)
     {
         log = lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_PROCESS);
         if (log)
-            log->Printf("%s ::wait_pid (pid = %" PRIi32 ", &status, options = %i)...", function, pid, options);
+            log->Printf("%s ::waitpid (pid = %" PRIi32 ", &status, options = %i)...", function, pid, options);
 
         // Wait for all child processes
 #if !defined(__ANDROID__) && !defined(__ANDROID_NDK__)
@@ -233,9 +232,9 @@ MonitorChildProcessThreadFunction (void *arg)
                 if (log)
                     log->Printf ("%s ::waitpid (pid = %" PRIi32 ", &status, options = %i) => pid = %" PRIi32 ", status = 0x%8.8x (%s), signal = %i, exit_state = %i",
                                  function,
-                                 wait_pid,
-                                 options,
                                  pid,
+                                 options,
+                                 wait_pid,
                                  status,
                                  status_cstr,
                                  signal,
@@ -1051,12 +1050,6 @@ Host::SetCrashDescriptionWithFormat (const char *format, ...)
 void
 Host::SetCrashDescription (const char *description)
 {
-}
-
-lldb::pid_t
-Host::LaunchApplication (const FileSpec &app_file_spec)
-{
-    return LLDB_INVALID_PROCESS_ID;
 }
 
 #endif

@@ -288,6 +288,8 @@ File::Open (const char *path, uint32_t options, uint32_t permissions)
 #ifndef _WIN32
     if (options & eOpenOptionNonBlocking)
         oflag |= O_NONBLOCK;
+    if (options & eOpenOptionCloseOnExec)
+        oflag |= O_CLOEXEC;
 #else
     oflag |= O_BINARY;
 #endif
@@ -742,8 +744,9 @@ File::Read (size_t &num_bytes, off_t &offset, bool null_terminate, DataBufferSP 
                     if (num_bytes > bytes_left)
                         num_bytes = bytes_left;
                         
+                    size_t num_bytes_plus_nul_char = num_bytes + (null_terminate ? 1 : 0);
                     std::unique_ptr<DataBufferHeap> data_heap_ap;
-                    data_heap_ap.reset(new DataBufferHeap(num_bytes + (null_terminate ? 1 : 0), '\0'));
+                    data_heap_ap.reset(new DataBufferHeap(num_bytes_plus_nul_char, '\0'));
                         
                     if (data_heap_ap.get())
                     {
@@ -752,8 +755,8 @@ File::Read (size_t &num_bytes, off_t &offset, bool null_terminate, DataBufferSP 
                         {
                             // Make sure we read exactly what we asked for and if we got
                             // less, adjust the array
-                            if (num_bytes < data_heap_ap->GetByteSize())
-                                data_heap_ap->SetByteSize(num_bytes);
+                            if (num_bytes_plus_nul_char < data_heap_ap->GetByteSize())
+                                data_heap_ap->SetByteSize(num_bytes_plus_nul_char);
                             data_buffer_sp.reset(data_heap_ap.release());
                             return error;
                         }

@@ -893,13 +893,22 @@ SymbolFileDWARF::GetDWARFCompileUnit(lldb_private::CompileUnit *comp_unit)
             // only 1 compile unit which is at offset zero in the DWARF.
             // TODO: modify to support LTO .o files where each .o file might
             // have multiple DW_TAG_compile_unit tags.
-            return info->GetCompileUnit(0).get();
+            
+            DWARFCompileUnit *dwarf_cu = info->GetCompileUnit(0).get();
+            if (dwarf_cu && dwarf_cu->GetUserData() == NULL)
+                dwarf_cu->SetUserData(comp_unit);
+            return dwarf_cu;
         }
         else
         {
             // Just a normal DWARF file whose user ID for the compile unit is
             // the DWARF offset itself
-            return info->GetCompileUnit((dw_offset_t)comp_unit->GetID()).get();
+
+            DWARFCompileUnit *dwarf_cu = info->GetCompileUnit((dw_offset_t)comp_unit->GetID()).get();
+            if (dwarf_cu && dwarf_cu->GetUserData() == NULL)
+                dwarf_cu->SetUserData(comp_unit);
+            return dwarf_cu;
+
         }
     }
     return NULL;
@@ -1036,23 +1045,6 @@ SymbolFileDWARF::ParseCompileUnitAtIndex(uint32_t cu_idx)
     }
     return cu_sp;
 }
-
-static void
-AddRangesToBlock (Block& block,
-                  DWARFDebugRanges::RangeList& ranges,
-                  addr_t block_base_addr)
-{
-    const size_t num_ranges = ranges.GetSize();
-    for (size_t i = 0; i<num_ranges; ++i)
-    {
-        const DWARFDebugRanges::Range &range = ranges.GetEntryRef (i);
-        const addr_t range_base = range.GetRangeBase();
-        assert (range_base >= block_base_addr);
-        block.AddRange(Block::Range (range_base - block_base_addr, range.GetByteSize()));;
-    }
-    block.FinalizeRanges ();
-}
-
 
 Function *
 SymbolFileDWARF::ParseCompileUnitFunction (const SymbolContext& sc, DWARFCompileUnit* dwarf_cu, const DWARFDebugInfoEntry *die)
@@ -1397,8 +1389,24 @@ SymbolFileDWARF::ParseFunctionBlocks
                             subprogram_low_pc = ranges.GetMinRangeBase(0);
                         }
                     }
-                    
-                    AddRangesToBlock (*block, ranges, subprogram_low_pc);
+
+                    const size_t num_ranges = ranges.GetSize();
+                    for (size_t i = 0; i<num_ranges; ++i)
+                    {
+                        const DWARFDebugRanges::Range &range = ranges.GetEntryRef (i);
+                        const addr_t range_base = range.GetRangeBase();
+                        if (range_base >= subprogram_low_pc)
+                            block->AddRange(Block::Range (range_base - subprogram_low_pc, range.GetByteSize()));
+                        else
+                        {
+                            GetObjectFile()->GetModule()->ReportError ("0x%8.8" PRIx64 ": adding range [0x%" PRIx64 "-0x%" PRIx64 ") which has a base that is less than the function's low PC 0x%" PRIx64 ". Please file a bug and attach the file at the start of this error message",
+                                                                       block->GetID(),
+                                                                       range_base,
+                                                                       range.GetRangeEnd(),
+                                                                       subprogram_low_pc);
+                        }
+                    }
+                    block->FinalizeRanges ();
 
                     if (tag != DW_TAG_subprogram && (name != NULL || mangled_name != NULL))
                     {
@@ -2786,6 +2794,59 @@ SymbolFileDWARF::GetFunction (DWARFCompileUnit* dwarf_cu, const DWARFDebugInfoEn
     return false;
 }
 
+
+
+SymbolFileDWARF::GlobalVariableMap &
+SymbolFileDWARF::GetGlobalAranges()
+{
+    if (!m_global_aranges_ap)
+    {
+        m_global_aranges_ap.reset (new GlobalVariableMap());
+
+        ModuleSP module_sp = GetObjectFile()->GetModule();
+        if (module_sp)
+        {
+            const size_t num_cus = module_sp->GetNumCompileUnits();
+            for (size_t i = 0; i < num_cus; ++i)
+            {
+                CompUnitSP cu_sp = module_sp->GetCompileUnitAtIndex(i);
+                if (cu_sp)
+                {
+                    VariableListSP globals_sp = cu_sp->GetVariableList(true);
+                    if (globals_sp)
+                    {
+                        const size_t num_globals = globals_sp->GetSize();
+                        for (size_t g = 0; g < num_globals; ++g)
+                        {
+                            VariableSP var_sp = globals_sp->GetVariableAtIndex(g);
+                            if (var_sp && !var_sp->GetLocationIsConstantValueData())
+                            {
+                                const DWARFExpression &location = var_sp->LocationExpression();
+                                Value location_result;
+                                Error error;
+                                if (location.Evaluate(NULL, NULL, NULL, LLDB_INVALID_ADDRESS, NULL, location_result, &error))
+                                {
+                                    if (location_result.GetValueType() == Value::eValueTypeFileAddress)
+                                    {
+                                        lldb::addr_t file_addr = location_result.GetScalar().ULongLong();
+                                        lldb::addr_t byte_size = 1;
+                                        if (var_sp->GetType())
+                                            byte_size = var_sp->GetType()->GetByteSize();
+                                        m_global_aranges_ap->Append(GlobalVariableMap::Entry(file_addr, byte_size, var_sp.get()));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        m_global_aranges_ap->Sort();
+    }
+    return *m_global_aranges_ap;
+}
+
+
 uint32_t
 SymbolFileDWARF::ResolveSymbolContext (const Address& so_addr, uint32_t resolve_scope, SymbolContext& sc)
 {
@@ -2794,10 +2855,11 @@ SymbolFileDWARF::ResolveSymbolContext (const Address& so_addr, uint32_t resolve_
                        static_cast<void*>(so_addr.GetSection().get()),
                        so_addr.GetOffset(), resolve_scope);
     uint32_t resolved = 0;
-    if (resolve_scope & (   eSymbolContextCompUnit |
-                            eSymbolContextFunction |
-                            eSymbolContextBlock |
-                            eSymbolContextLineEntry))
+    if (resolve_scope & (   eSymbolContextCompUnit  |
+                            eSymbolContextFunction  |
+                            eSymbolContextBlock     |
+                            eSymbolContextLineEntry |
+                            eSymbolContextVariable  ))
     {
         lldb::addr_t file_vm_addr = so_addr.GetFileAddress();
 
@@ -2805,7 +2867,30 @@ SymbolFileDWARF::ResolveSymbolContext (const Address& so_addr, uint32_t resolve_
         if (debug_info)
         {
             const dw_offset_t cu_offset = debug_info->GetCompileUnitAranges().FindAddress(file_vm_addr);
-            if (cu_offset != DW_INVALID_OFFSET)
+            if (cu_offset == DW_INVALID_OFFSET)
+            {
+                // Global variables are not in the compile unit address ranges. The only way to
+                // currently find global variables is to iterate over the .debug_pubnames or the
+                // __apple_names table and find all items in there that point to DW_TAG_variable
+                // DIEs and then find the address that matches.
+                if (resolve_scope & eSymbolContextVariable)
+                {
+                    GlobalVariableMap &map = GetGlobalAranges();
+                    const GlobalVariableMap::Entry *entry = map.FindEntryThatContains(file_vm_addr);
+                    if (entry && entry->data)
+                    {
+                        Variable *variable = entry->data;
+                        SymbolContextScope *scc = variable->GetSymbolContextScope();
+                        if (scc)
+                        {
+                            scc->CalculateSymbolContext(&sc);
+                            sc.variable = variable;
+                        }
+                        return sc.GetResolvedMask();
+                    }
+                }
+            }
+            else
             {
                 uint32_t cu_idx = DW_INVALID_INDEX;
                 DWARFCompileUnit* dwarf_cu = debug_info->GetCompileUnit(cu_offset, &cu_idx).get();
@@ -3409,9 +3494,11 @@ SymbolFileDWARF::ResolveFunction (DWARFCompileUnit *cu,
         // Parse all blocks if needed
         if (inlined_die)
         {
-            sc.block = sc.function->GetBlock (true).FindBlockByID (MakeUserID(inlined_die->GetOffset()));
-            assert (sc.block != NULL);
-            if (sc.block->GetStartAddress (addr) == false)
+            Block &function_block = sc.function->GetBlock (true);
+            sc.block = function_block.FindBlockByID (MakeUserID(inlined_die->GetOffset()));
+            if (sc.block == NULL)
+                sc.block = function_block.FindBlockByID (inlined_die->GetOffset());
+            if (sc.block == NULL || sc.block->GetStartAddress (addr) == false)
                 addr.Clear();
         }
         else 
@@ -6906,7 +6993,7 @@ SymbolFileDWARF::ParseType (const SymbolContext& sc, DWARFCompileUnit* dwarf_cu,
 
                         clang_type = pointee_clang_type.CreateMemberPointerType(class_clang_type);
 
-                        byte_size = clang_type.GetByteSize();
+                        byte_size = clang_type.GetByteSize(nullptr);
 
                         type_sp.reset( new Type (MakeUserID(die->GetOffset()), 
                                                  this, 

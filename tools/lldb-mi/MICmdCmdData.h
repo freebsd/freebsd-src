@@ -42,6 +42,7 @@
 #include "MICmdBase.h"
 #include "MICmnMIValueTuple.h"
 #include "MICmnMIValueList.h"
+#include "MICmnLLDBDebugSessionInfoVarObj.h"
 
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
@@ -218,6 +219,10 @@ class CMICmdCmdDataListRegisterNames : public CMICmdBase
     // From CMICmnBase
     /* dtor */ virtual ~CMICmdCmdDataListRegisterNames(void);
 
+    // Methods:
+  private:
+    lldb::SBValue GetRegister(const MIuint vRegisterIndex) const;
+
     // Attributes:
   private:
     const CMIUtilString m_constStrArgThreadGroup; // Not specified in MI spec but Eclipse gives this option
@@ -255,6 +260,7 @@ class CMICmdCmdDataListRegisterValues : public CMICmdBase
     // Methods:
   private:
     lldb::SBValue GetRegister(const MIuint vRegisterIndex) const;
+    bool AddToOutput(const MIuint vnIndex, const lldb::SBValue &vrValue, CMICmnLLDBDebugSessionInfoVarObj::varFormat_e veVarFormat);
 
     // Attributes:
   private:
@@ -263,7 +269,6 @@ class CMICmdCmdDataListRegisterValues : public CMICmdBase
     const CMIUtilString m_constStrArgFormat;
     const CMIUtilString m_constStrArgRegNo;
     CMICmnMIValueList m_miValueList;
-    lldb::SBProcess *m_pProcess;
 };
 
 //++ ============================================================================

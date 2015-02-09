@@ -21,15 +21,6 @@
 
 #include "GDBRemoteCommunication.h"
 
-typedef enum 
-{
-    eBreakpointSoftware = 0,
-    eBreakpointHardware,
-    eWatchpointWrite,
-    eWatchpointRead,
-    eWatchpointReadWrite
-} GDBStoppointType;
-
 class GDBRemoteCommunicationClient : public GDBRemoteCommunication
 {
 public:
@@ -109,7 +100,7 @@ public:
                    bool &timed_out);
 
     lldb::pid_t
-    GetCurrentProcessID ();
+    GetCurrentProcessID (bool allow_lazy = true);
 
     bool
     GetLaunchSuccess (std::string &error_str);
@@ -182,6 +173,23 @@ public:
     SendAttach (lldb::pid_t pid, 
                 StringExtractorGDBRemote& response);
 
+
+    //------------------------------------------------------------------
+    /// Sends a GDB remote protocol 'I' packet that delivers stdin
+    /// data to the remote process.
+    ///
+    /// @param[in] data
+    ///     A pointer to stdin data.
+    ///
+    /// @param[in] data_len
+    ///     The number of bytes available at \a data.
+    ///
+    /// @return
+    ///     Zero if the attach was successful, or an error indicating
+    ///     an error code.
+    //------------------------------------------------------------------
+    int
+    SendStdinNotification(const char* data, size_t data_len);
 
     //------------------------------------------------------------------
     /// Sets the path to use for stdin/out/err for a process
@@ -375,8 +383,8 @@ public:
         case eWatchpointWrite:      return m_supports_z2;
         case eWatchpointRead:       return m_supports_z3;
         case eWatchpointReadWrite:  return m_supports_z4;
+        case eStoppointInvalid:     return false;
         }
-        return false;
     }
     uint8_t
     SendGDBStoppointTypePacket (GDBStoppointType type,   // Type of breakpoint or watchpoint
@@ -534,7 +542,7 @@ protected:
                                         StringExtractorGDBRemote &response);
 
     bool
-    GetCurrentProcessInfo ();
+    GetCurrentProcessInfo (bool allow_lazy_pid = true);
 
     bool
     GetGDBServerVersion();

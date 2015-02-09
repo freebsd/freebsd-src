@@ -143,7 +143,7 @@ SBType::GetByteSize()
     if (!IsValid())
         return 0;
     
-    return m_opaque_sp->GetClangASTType(false).GetByteSize();
+    return m_opaque_sp->GetClangASTType(false).GetByteSize(nullptr);
     
 }
 
@@ -161,6 +161,14 @@ SBType::IsArrayType()
     if (!IsValid())
         return false;
     return m_opaque_sp->GetClangASTType(true).IsArrayType(nullptr, nullptr, nullptr);
+}
+
+bool
+SBType::IsVectorType()
+{
+    if (!IsValid())
+        return false;
+    return m_opaque_sp->GetClangASTType(true).IsVectorType(nullptr, nullptr);
 }
 
 bool
@@ -220,7 +228,20 @@ SBType::GetArrayElementType()
     return SBType(TypeImplSP(new TypeImpl(m_opaque_sp->GetClangASTType(true).GetArrayElementType())));
 }
 
-bool 
+SBType
+SBType::GetVectorElementType ()
+{
+    SBType type_sb;
+    if (IsValid())
+    {
+        ClangASTType vector_element_type;
+        if (m_opaque_sp->GetClangASTType(true).IsVectorType(&vector_element_type, nullptr))
+            type_sb.SetSP(TypeImplSP(new TypeImpl(vector_element_type)));
+    }
+    return type_sb;
+}
+
+bool
 SBType::IsFunctionType ()
 {
     if (!IsValid())
