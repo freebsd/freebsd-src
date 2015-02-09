@@ -240,6 +240,7 @@ mphyp_pte_unset(mmu_t mmu, uintptr_t slot, struct lpte *pvo_pt, uint64_t vpn)
 	uint64_t junk;
 	int err;
 
+	pvo_pt->pte_hi &= ~LPTE_VALID;
 	err = phyp_pft_hcall(H_REMOVE, 1UL << 31, slot,
 	    pvo_pt->pte_hi & LPTE_AVPN_MASK, 0, &pte.pte_hi, &pte.pte_lo,
 	    &junk);
@@ -265,6 +266,7 @@ mphyp_pte_change(mmu_t mmu, uintptr_t slot, struct lpte *pvo_pt, uint64_t vpn)
 
 	/* XXX: optimization using H_PROTECT for common case? */
 	mphyp_pte_unset(mmu, slot, pvo_pt, vpn);
+	pvo_pt->pte_hi |= LPTE_VALID;
 	result = phyp_pft_hcall(H_ENTER, H_EXACT, slot, pvo_pt->pte_hi,
 				pvo_pt->pte_lo, &index, &evicted.pte_lo, &junk);
 	if (result != H_SUCCESS)
@@ -286,7 +288,7 @@ mphyp_pte_spillable_ident(u_int ptegidx, struct lpte *to_evict)
 		phyp_pft_hcall(H_READ, 0, slot, 0, 0, &pt.pte_hi, &pt.pte_lo,
 		    &junk);
 		
-		if (pt.pte_hi & LPTE_SWBITS)
+		if (pt.pte_hi & LPTE_WIRED)
 			continue;
 
 		/* This is a candidate, so remember it */
@@ -391,7 +393,7 @@ mphyp_pte_insert(mmu_t mmu, u_int ptegidx, struct lpte *pvo_pt)
 		}
 	}
 
-	KASSERT(pvo->pvo_pte.lpte.pte_hi == evicted.pte_hi,
+	KASSERT((pvo->pvo_pte.lpte.pte_hi | LPTE_VALID) == evicted.pte_hi,
 	   ("Unable to find PVO for spilled PTE"));
 
 	/*
