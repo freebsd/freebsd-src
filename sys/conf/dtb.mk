@@ -46,6 +46,9 @@ SYSDIR=	${_dir}
 .PATH: ${SYSDIR}/gnu/dts/${MACHINE} ${SYSDIR}/boot/fdt/dts/${MACHINE}
 
 DTBDIR?=/boot/dtb
+DTBOWN?=root
+DTBGRP?=wheel
+DTBMODE?=444
 DTB=${DTS:R:S/$/.dtb/}
 
 all: ${DTB}
