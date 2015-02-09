@@ -705,8 +705,11 @@ init_secondary(void)
 	wrmsr(MSR_STAR, msr);
 	wrmsr(MSR_SF_MASK, PSL_NT|PSL_T|PSL_I|PSL_C|PSL_D);
 
-	/* Disable local APIC just to be sure. */
-	lapic_disable();
+	/*
+	 * On real hardware, switch to x2apic mode if possible.
+	 * Disable local APIC until BSP directed APs to run.
+	 */
+	lapic_xapic_mode();
 
 	/* signal our startup to the BSP. */
 	mp_naps++;
