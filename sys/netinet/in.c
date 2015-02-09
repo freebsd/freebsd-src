@@ -962,8 +962,7 @@ in_lltable_new(const struct sockaddr *l3addr, u_int flags)
 	lle->base.lle_refcnt = 1;
 	lle->base.lle_free = in_lltable_free;
 	LLE_LOCK_INIT(&lle->base);
-	callout_init_rw(&lle->base.la_timer, &lle->base.lle_lock,
-	    CALLOUT_RETURNUNLOCKED);
+	callout_init(&lle->base.la_timer, 1);
 
 	return (&lle->base);
 }
