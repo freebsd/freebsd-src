@@ -189,6 +189,7 @@ int	ioapic_set_smi(void *cookie, u_int pin);
 struct apic_ops {
 	void	(*create)(u_int, int);
 	void	(*init)(vm_paddr_t);
+	void	(*xapic_mode)(void);
 	void	(*setup)(int);
 	void	(*dump)(const char *);
 	void	(*disable)(void);
@@ -240,6 +241,13 @@ lapic_init(vm_paddr_t addr)
 {
 
 	apic_ops.init(addr);
+}
+
+static inline void
+lapic_xapic_mode(void)
+{
+
+	apic_ops.xapic_mode();
 }
 
 static inline void
@@ -416,6 +424,12 @@ void	lapic_handle_error(void);
 void	lapic_handle_intr(int vector, struct trapframe *frame);
 void	lapic_handle_timer(struct trapframe *frame);
 void	xen_intr_handle_upcall(struct trapframe *frame);
+
+extern int x2apic_mode;
+
+#ifdef _SYS_SYSCTL_H_
+SYSCTL_DECL(_hw_apic);
+#endif
 
 #endif /* !LOCORE */
 #endif /* _X86_APICVAR_H_ */

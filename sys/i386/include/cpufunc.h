@@ -346,6 +346,15 @@ rdmsr(u_int msr)
 	return (rv);
 }
 
+static __inline uint32_t
+rdmsr32(u_int msr)
+{
+	uint32_t low;
+
+	__asm __volatile("rdmsr" : "=a" (low) : "c" (msr) : "edx");
+	return (low);
+}
+
 static __inline uint64_t
 rdpmc(u_int pmc)
 {
