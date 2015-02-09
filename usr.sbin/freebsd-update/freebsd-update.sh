@@ -2820,18 +2820,27 @@ Kernel updates have been installed.  Please reboot and run
 		    grep -E '^[^|]+\|d\|' > INDEX-NEW
 		install_from_index INDEX-NEW || return 1
 
+		# Install new runtime linker
+		grep -vE '^/boot/' $1/INDEX-NEW |
+		    grep -vE '^[^|]+\|d\|' |
+		    grep -E '^/libexec/ld-elf[^|]*\.so\.[0-9]+\|' > INDEX-NEW
+		install_from_index INDEX-NEW || return 1
+
 		# Install new shared libraries next
 		grep -vE '^/boot/' $1/INDEX-NEW |
 		    grep -vE '^[^|]+\|d\|' |
+		    grep -vE '^/libexec/ld-elf[^|]*\.so\.[0-9]+\|' |
 		    grep -E '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' > INDEX-NEW
 		install_from_index INDEX-NEW || return 1
 
 		# Deal with everything else
 		grep -vE '^/boot/' $1/INDEX-OLD |
 		    grep -vE '^[^|]+\|d\|' |
+		    grep -vE '^/libexec/ld-elf[^|]*\.so\.[0-9]+\|' |
 		    grep -vE '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' > INDEX-OLD
 		grep -vE '^/boot/' $1/INDEX-NEW |
 		    grep -vE '^[^|]+\|d\|' |
+		    grep -vE '^/libexec/ld-elf[^|]*\.so\.[0-9]+\|' |
 		    grep -vE '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' > INDEX-NEW
 		install_from_index INDEX-NEW || return 1
 		install_delete INDEX-OLD INDEX-NEW || return 1
