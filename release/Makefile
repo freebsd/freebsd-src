@@ -54,6 +54,10 @@ TARGET_ARCH=	${TARGET}
 IMAKE=		${MAKE} TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}
 DISTDIR=	dist
 
+# Get the __FreeBSD_version for the build
+FREEBSD_VERSION!=	awk '/^\#define __FreeBSD_version/ {print $$3}' \
+	${.CURDIR}/../sys/sys/param.h
+
 # Define OSRELEASE by using newvars.sh
 .if !defined(OSRELEASE) || empty(OSRELEASE)
 .for _V in TYPE BRANCH REVISION
