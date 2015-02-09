@@ -124,9 +124,9 @@ chrp_probe(platform_t plat)
 static int
 chrp_attach(platform_t plat)
 {
+#ifdef __powerpc64__
 	int i;
 
-#ifdef __powerpc64__
 	/* XXX: check for /rtas/ibm,hypertas-functions? */
 	if (!(mfmsr() & PSL_HV)) {
 		struct mem_region *phys, *avail;
