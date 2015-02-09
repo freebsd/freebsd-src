@@ -39,7 +39,7 @@ DISTRIBUTION?=	base
 distribute: .MAKE
 .for dist in ${DISTRIBUTION}
 	${_+_}cd ${.CURDIR}; \
-	    ${MAKE} install -DNO_SUBDIR DESTDIR=${DISTDIR}/${dist} SHARED=copies
+	    ${MAKE} install -DNO_SUBDIR DESTDIR=${DESTDIR}/${DISTDIR}/${dist} SHARED=copies
 .endfor
 .endif
 
