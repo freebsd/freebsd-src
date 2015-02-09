@@ -100,7 +100,6 @@ FILES=	DAEMON \
 	rfcomm_pppd_server \
 	root \
 	route6d \
-	routed \
 	routing \
 	rpcbind \
 	rtadvd \
@@ -108,7 +107,6 @@ FILES=	DAEMON \
 	savecore \
 	sdpd \
 	securelevel \
-	sendmail \
 	serial \
 	sppp \
 	${_sshd} \
