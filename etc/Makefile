@@ -193,8 +193,8 @@ distribute:
 	# Avoid installing tests here; "make distribution" will do this and
 	# correctly place them in the right location.
 	${_+_}cd ${.CURDIR} ; ${MAKE} MK_TESTS=no install \
-	    DESTDIR=${DISTDIR}/${DISTRIBUTION}
-	${_+_}cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${DISTDIR}/${DISTRIBUTION}
+	    DESTDIR=${DESTDIR}/${DISTDIR}/${DISTRIBUTION}
+	${_+_}cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${DESTDIR}/${DISTDIR}/${DISTRIBUTION}
 
 .include <bsd.endian.mk>
 .if ${TARGET_ENDIANNESS} == "1234"
