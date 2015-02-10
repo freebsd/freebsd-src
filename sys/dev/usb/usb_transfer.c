@@ -1409,6 +1409,29 @@ usbd_control_transfer_init(struct usb_xfer *xfer)
 }
 
 /*------------------------------------------------------------------------*
+ *	usbd_control_transfer_did_data
+ *
+ * This function returns non-zero if a control endpoint has
+ * transferred the first DATA packet after the SETUP packet.
+ * Else it returns zero.
+ *------------------------------------------------------------------------*/
+static uint8_t
+usbd_control_transfer_did_data(struct usb_xfer *xfer)
+{
+	struct usb_device_request req;
+
+	/* SETUP packet is not yet sent */
+	if (xfer->flags_int.control_hdr != 0)
+		return (0);
+
+	/* copy out the USB request header */
+	usbd_copy_out(xfer->frbuffers, 0, &req, sizeof(req));
+
+	/* compare remainder to the initial value */
+	return (xfer->flags_int.control_rem != UGETW(req.wLength));
+}
+
+/*------------------------------------------------------------------------*
  *	usbd_setup_ctrl_transfer
  *
  * This function handles initialisation of control transfers. Control
@@ -1512,6 +1535,11 @@ usbd_setup_ctrl_transfer(struct usb_xfer *xfer)
 
 		len = (xfer->sumlen - sizeof(struct usb_device_request));
 	}
+
+	/* update did data flag */
+
+	xfer->flags_int.control_did_data =
+	    usbd_control_transfer_did_data(xfer);
 
 	/* check if there is a length mismatch */
 
