@@ -40,6 +40,7 @@ usage() {
 
 main() {
 	local arg
+	VMCONFIG="/dev/null"
 	while getopts "C:c:d:f:i:o:s:S:" arg; do
 		case "${arg}" in
 			C)
@@ -76,10 +77,9 @@ main() {
 		-z "${WORLDDIR}" -o \
 		-z "${DESTDIR}" -o \
 		-z "${VMSIZE}" -o \
-		-z "${VMIMAGE}" -o \
-		-z "${VMCONFIG}" ];
+		-z "${VMIMAGE}" ];
 	then
-		usage
+		usage || exit 0
 	fi
 
 	if [ -z "${VMBUILDCONF}" ] || [ ! -e "${VMBUILDCONF}" ]; then
@@ -89,7 +89,7 @@ main() {
 
 	. "${VMBUILDCONF}"
 
-	if [ ! -z "${VMCONFIG}" ] && [ -e "${VMCONFIG}" ]; then
+	if [ ! -z "${VMCONFIG}" ] && [ ! -c "${VMCONFIG}" ]; then
 		. "${VMCONFIG}"
 	fi
 
