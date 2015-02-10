@@ -284,6 +284,12 @@ _libsmb=	libsmb
 _libsmb=	libsmb
 .endif
 
+.if ${MACHINE_CPUARCH} == "arm"
+_libsmb=	libsmb
+_libproc=	libproc
+_librtld_db=	librtld_db
+.endif
+
 .if ${MK_OPENSSL} != "no"
 _libmp=		libmp
 .endif
