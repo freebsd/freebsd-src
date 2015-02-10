@@ -343,6 +343,7 @@ static int	restore_entry(struct archive_write_disk *);
 static int	set_mac_metadata(struct archive_write_disk *, const char *,
 				 const void *, size_t);
 static int	set_xattrs(struct archive_write_disk *);
+static int	clear_nochange_fflags(struct archive_write_disk *);
 static int	set_fflags(struct archive_write_disk *);
 static int	set_fflags_platform(struct archive_write_disk *, int fd,
 		    const char *name, mode_t mode,
@@ -1842,6 +1843,8 @@ restore_entry(struct archive_write_disk *a)
 		 * object is a dir, but that doesn't mean the old
 		 * object isn't a dir.
 		 */
+		if (a->flags & ARCHIVE_EXTRACT_CLEAR_NOCHANGE_FFLAGS)
+			(void)clear_nochange_fflags(a);
 		if (unlink(a->name) == 0) {
 			/* We removed it, reset cached stat. */
 			a->pst = NULL;
@@ -1940,6 +1943,8 @@ restore_entry(struct archive_write_disk *a)
 
 		if (!S_ISDIR(a->st.st_mode)) {
 			/* A non-dir is in the way, unlink it. */
+			if (a->flags & ARCHIVE_EXTRACT_CLEAR_NOCHANGE_FFLAGS)
+				(void)clear_nochange_fflags(a);
 			if (unlink(a->name) != 0) {
 				archive_set_error(&a->archive, errno,
 				    "Can't unlink already-existing object");
@@ -1950,6 +1955,8 @@ restore_entry(struct archive_write_disk *a)
 			en = create_filesystem_object(a);
 		} else if (!S_ISDIR(a->mode)) {
 			/* A dir is in the way of a non-dir, rmdir it. */
+			if (a->flags & ARCHIVE_EXTRACT_CLEAR_NOCHANGE_FFLAGS)
+				(void)clear_nochange_fflags(a);
 			if (rmdir(a->name) != 0) {
 				archive_set_error(&a->archive, errno,
 				    "Can't replace existing directory with non-directory");
@@ -3154,6 +3161,36 @@ set_fflags(struct archive_write_disk *a)
 		}
 	}
 	return (ARCHIVE_OK);
+}
+
+static int
+clear_nochange_fflags(struct archive_write_disk *a)
+{
+	int		nochange_flags;
+	mode_t		mode = archive_entry_mode(a->entry);
+
+	/* Hopefully, the compiler will optimize this mess into a constant. */
+	nochange_flags = 0;
+#ifdef SF_IMMUTABLE
+	nochange_flags |= SF_IMMUTABLE;
+#endif
+#ifdef UF_IMMUTABLE
+	nochange_flags |= UF_IMMUTABLE;
+#endif
+#ifdef SF_APPEND
+	nochange_flags |= SF_APPEND;
+#endif
+#ifdef UF_APPEND
+	nochange_flags |= UF_APPEND;
+#endif
+#ifdef EXT2_APPEND_FL
+	nochange_flags |= EXT2_APPEND_FL;
+#endif
+#ifdef EXT2_IMMUTABLE_FL
+	nochange_flags |= EXT2_IMMUTABLE_FL;
+#endif
+
+	return (set_fflags_platform(a, a->fd, a->name, mode, 0, nochange_flags));
 }
 
 

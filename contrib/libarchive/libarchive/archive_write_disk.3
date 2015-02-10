@@ -181,6 +181,9 @@ always cause an error, regardless of this flag.
 Scan data for blocks of NUL bytes and try to recreate them with holes.
 This results in sparse files, independent of whether the archive format
 supports or uses them.
+.It Cm ARCHIVE_EXTRACT_CLEAR_NOCHANGE_FFLAGS
+Before removing a file system object prior to replacing it, clear
+platform-specific file flags which might prevent its removal.
 .El
 .It Xo
 .Fn archive_write_disk_set_group_lookup ,
