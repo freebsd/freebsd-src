@@ -193,8 +193,8 @@ distribute:
 	# Avoid installing tests here; "make distribution" will do this and
 	# correctly place them in the right location.
 	${_+_}cd ${.CURDIR} ; ${MAKE} MK_TESTS=no install \
-	    DESTDIR=${DESTDIR}/${DISTDIR}/${DISTRIBUTION}
-	${_+_}cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${DESTDIR}/${DISTDIR}/${DISTRIBUTION}
+	    DESTDIR=${DISTDIR}/${DISTRIBUTION}
+	${_+_}cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${DISTDIR}/${DISTRIBUTION}
 
 .include <bsd.endian.mk>
 .if ${TARGET_ENDIANNESS} == "1234"
@@ -382,7 +382,7 @@ distrib-dirs: ${MTREES:N/*}
 		shift; \
 		d=$$1; \
 		test "$$d" == "/" && d=""; \
-		d=${DESTDIR}/${DISTBASE}$$d; \
+		d=$d; \
 		shift; \
 		test -d $$d || mkdir -p $$d; \
 		${ECHO} "${MTREE_CMD:N-W} -C -f $$m -K uname,gname | " \
