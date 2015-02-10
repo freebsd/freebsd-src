@@ -260,9 +260,6 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	void		*kmdp;
         char		*env;
 	register_t	msr, scratch;
-#ifdef WII
-	register_t 	vers;
-#endif
 	uint8_t		*cache_check;
 	int		cacheline_warn;
 	#ifndef __powerpc64__
@@ -280,16 +277,6 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	/* First guess at start/end kernel positions */
 	startkernel = __startkernel;
 	endkernel = __endkernel;
-
-#ifdef WII
-	/*
-	 * The Wii loader doesn't pass us any environment so, mdp
-	 * points to garbage at this point. The Wii CPU is a 750CL.
-	 */
-	vers = mfpvr();
-	if ((vers & 0xfffff0e0) == (MPC750 << 16 | MPC750CL)) 
-		mdp = NULL;
-#endif
 
 	/* Check for ePAPR loader, which puts a magic value into r6 */
 	if (mdp == (void *)0x65504150)
@@ -513,13 +500,13 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 		 */
 
 		trap_offset += (size_t)&restorebridgesize;
-		bcopy(&restorebridge, (void *)EXC_RST, trap_offset); 
-		bcopy(&restorebridge, (void *)EXC_DSI, trap_offset); 
-		bcopy(&restorebridge, (void *)EXC_ALI, trap_offset); 
-		bcopy(&restorebridge, (void *)EXC_PGM, trap_offset); 
-		bcopy(&restorebridge, (void *)EXC_MCHK, trap_offset); 
-		bcopy(&restorebridge, (void *)EXC_TRC, trap_offset); 
-		bcopy(&restorebridge, (void *)EXC_BPT, trap_offset); 
+		bcopy(&restorebridge, (void *)EXC_RST, trap_offset);
+		bcopy(&restorebridge, (void *)EXC_DSI, trap_offset);
+		bcopy(&restorebridge, (void *)EXC_ALI, trap_offset);
+		bcopy(&restorebridge, (void *)EXC_PGM, trap_offset);
+		bcopy(&restorebridge, (void *)EXC_MCHK, trap_offset);
+		bcopy(&restorebridge, (void *)EXC_TRC, trap_offset);
+		bcopy(&restorebridge, (void *)EXC_BPT, trap_offset);
 	}
 	#endif
 
@@ -560,7 +547,7 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	 * Restore MSR
 	 */
 	mtmsr(msr);
-	
+
 	/* Warn if cachline size was not determined */
 	if (cacheline_warn == 1) {
 		printf("WARNING: cacheline size undetermined, setting to 32\n");
@@ -569,7 +556,7 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	/*
 	 * Choose a platform module so we can get the physical memory map.
 	 */
-	
+
 	platform_probe_and_attach();
 
 	/*
@@ -698,7 +685,7 @@ int
 ptrace_single_step(struct thread *td)
 {
 	struct trapframe *tf;
-	
+
 	tf = td->td_frame;
 	tf->srr1 |= PSL_SE;
 
@@ -789,7 +776,7 @@ db_trap_glue(struct trapframe *frame)
 		int type = frame->exc;
 
 		/* Ignore DTrace traps. */
-		if (*(uint32_t *)frame->srr0 == EXC_DTRACE) 
+		if (*(uint32_t *)frame->srr0 == EXC_DTRACE)
 			return (0);
 		if (type == EXC_PGM && (frame->srr1 & 0x20000)) {
 			type = T_BREAKPOINT;
