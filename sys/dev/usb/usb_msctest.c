@@ -106,6 +106,8 @@ static uint8_t scsi_request_sense[] =	{ 0x03, 0x00, 0x00, 0x00, 0x12, 0x00,
 					  0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 static uint8_t scsi_read_capacity[] =	{ 0x25, 0x00, 0x00, 0x00, 0x00, 0x00,
 					  0x00, 0x00, 0x00, 0x00 };
+static uint8_t scsi_prevent_removal[] =	{ 0x1e, 0, 0, 0, 1, 0 };
+static uint8_t scsi_allow_removal[] =	{ 0x1e, 0, 0, 0, 0, 0 };
 
 #define	BULK_SIZE		64	/* dummy */
 #define	ERR_CSW_FAILED		-1
@@ -675,10 +677,28 @@ usb_msc_auto_quirk(struct usb_device *udev, uint8_t iface_index)
 	    USB_MS_HZ);
 
 	if (err != 0) {
-
 		if (err != ERR_CSW_FAILED)
 			goto error;
+		DPRINTF("Test unit ready failed\n");
 	}
+
+	err = bbb_command_start(sc, DIR_OUT, 0, NULL, 0,
+	    &scsi_prevent_removal, sizeof(scsi_prevent_removal),
+	    USB_MS_HZ);
+
+	if (err == 0) {
+		err = bbb_command_start(sc, DIR_OUT, 0, NULL, 0,
+		    &scsi_allow_removal, sizeof(scsi_allow_removal),
+		    USB_MS_HZ);
+	}
+
+	if (err != 0) {
+		if (err != ERR_CSW_FAILED)
+			goto error;
+		DPRINTF("Device doesn't handle prevent and allow removal\n");
+		usbd_add_dynamic_quirk(udev, UQ_MSC_NO_PREVENT_ALLOW);
+	}
+
 	timeout = 1;
 
 retry_sync_cache:
@@ -691,11 +711,9 @@ retry_sync_cache:
 		if (err != ERR_CSW_FAILED)
 			goto error;
 
-		DPRINTF("Device doesn't handle synchronize cache "
-		    "and prevent allow medium removal\n");
+		DPRINTF("Device doesn't handle synchronize cache\n");
 
 		usbd_add_dynamic_quirk(udev, UQ_MSC_NO_SYNC_CACHE);
-		usbd_add_dynamic_quirk(udev, UQ_MSC_NO_PREVENT_ALLOW);
 	} else {
 
 		/*
@@ -722,13 +740,10 @@ retry_sync_cache:
 					goto retry_sync_cache;
 
 				DPRINTF("Device most likely doesn't "
-				    "handle synchronize cache nor"
-				    "prevent allow medium removal\n");
+				    "handle synchronize cache\n");
 
 				usbd_add_dynamic_quirk(udev,
 				    UQ_MSC_NO_SYNC_CACHE);
-				usbd_add_dynamic_quirk(udev,
-				    UQ_MSC_NO_PREVENT_ALLOW);
 			} else {
 				if (err != ERR_CSW_FAILED)
 					goto error;
