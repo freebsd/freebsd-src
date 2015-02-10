@@ -1,8 +1,10 @@
-// $FreeBSD$
+/* $FreeBSD$ */
 #define ASSUME_RAM 128
 #define HAVE_CHECK_CRC32 1
 #define HAVE_CHECK_CRC64 1
 #define HAVE_CHECK_SHA256 1
+#define HAVE_CLOCK_GETTIME 1
+#define HAVE_DECL_CLOCK_MONOTONIC 1
 #define HAVE_DECL_PROGRAM_INVOCATION_NAME 0
 #define HAVE_DECODER_ARM 1
 #define HAVE_DECODER_ARMTHUMB 1
@@ -37,13 +39,16 @@
 #define HAVE_MF_HC3 1
 #define HAVE_MF_HC4 1
 #define HAVE_OPTRESET 1
-#define HAVE_PTHREAD 1
+#define HAVE_POSIX_FADVISE 1
+#define HAVE_PTHREAD_CONDATTR_SETCLOCK 1
+#define HAVE_PTHREAD_PRIO_INHERIT 1
 #define HAVE_STDBOOL_H 1
 #define HAVE_STDINT_H 1
 #define HAVE_STDLIB_H 1
 #define HAVE_STRINGS_H 1
 #define HAVE_STRING_H 1
 #define HAVE_STRUCT_STAT_ST_ATIMESPEC_TV_NSEC 1
+#define HAVE_STRUCT_STAT_ST_ATIM_TV_NSEC 1
 #define HAVE_SYS_ENDIAN_H 1
 #define HAVE_SYS_PARAM_H 1
 #define HAVE_SYS_STAT_H 1
@@ -54,19 +59,21 @@
 #define HAVE_VISIBILITY 1
 #define HAVE_WCWIDTH 1
 #define HAVE__BOOL 1
-#define LT_OBJDIR ".libs/"
+#if defined(__FreeBSD__) && defined(__amd64__)
+#define HAVE__MM_MOVEMASK_EPI8 1
+#endif
+#define MYTHREAD_POSIX 1
 #define NDEBUG 1
 #define PACKAGE "xz"
 #define PACKAGE_BUGREPORT "lasse.collin@tukaani.org"
 #define PACKAGE_NAME "XZ Utils"
-#define PACKAGE_STRING "XZ Utils 5.0.3"
+#define PACKAGE_STRING "XZ Utils 5.2.0"
 #define PACKAGE_TARNAME "xz"
 #define PACKAGE_URL "http://tukaani.org/xz/"
-#define PACKAGE_VERSION "5.0.3"
+#define PACKAGE_VERSION "5.2.0"
 #define SIZEOF_SIZE_T 8
 #define STDC_HEADERS 1
 #define TUKLIB_CPUCORES_SYSCTL 1
-#define TUKLIB_PHYSMEM_SYSCONF 1
 #ifndef _ALL_SOURCE
 # define _ALL_SOURCE 1
 #endif
@@ -82,7 +89,6 @@
 #ifndef __EXTENSIONS__
 # define __EXTENSIONS__ 1
 #endif
-#define VERSION "5.0.3"
 #if defined(__FreeBSD__)
 #include <sys/_types.h>
 #if defined(__NO_STRICT_ALIGNMENT)
@@ -92,14 +98,6 @@
 #if _BYTE_ORDER == _BIG_ENDIAN
 # define WORDS_BIGENDIAN 1
 #endif
-#else
-#if defined AC_APPLE_UNIVERSAL_BUILD
-# if defined __BIG_ENDIAN__
-#  define WORDS_BIGENDIAN 1
-# endif
-#else
-# ifndef WORDS_BIGENDIAN
-/* #  undef WORDS_BIGENDIAN */
-# endif
 #endif
-#endif
+#define TUKLIB_PHYSMEM_SYSCONF 1
+#define VERSION "5.2.0"

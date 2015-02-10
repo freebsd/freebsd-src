@@ -118,9 +118,7 @@ __start:
 	bdnz	1b
 	sync
 	isync
-#ifdef WII
-#include <powerpc/wii/locore.S>
-#endif
+
 	/* Zero bss, in case we were started by something unhelpful */
 	li	0,0
 	lis	8,_edata@ha

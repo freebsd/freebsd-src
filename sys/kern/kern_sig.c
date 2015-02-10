@@ -42,10 +42,12 @@ __FBSDID("$FreeBSD$");
 #include "opt_core.h"
 
 #include <sys/param.h>
+#include <sys/ctype.h>
 #include <sys/systm.h>
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
 #include <sys/acct.h>
+#include <sys/bus.h>
 #include <sys/capsicum.h>
 #include <sys/condvar.h>
 #include <sys/event.h>
@@ -177,6 +179,10 @@ SYSCTL_INT(_kern, OID_AUTO, coredump, CTLFLAG_RW,
 static int	set_core_nodump_flag = 0;
 SYSCTL_INT(_kern, OID_AUTO, nodump_coredump, CTLFLAG_RW, &set_core_nodump_flag,
 	0, "Enable setting the NODUMP flag on coredump files");
+
+static int	coredump_devctl = 1;
+SYSCTL_INT(_kern, OID_AUTO, coredump_devctl, CTLFLAG_RW, &coredump_devctl,
+	0, "Generate a devctl notification when processes coredump");
 
 /*
  * Signal properties and actions.
@@ -3216,6 +3222,25 @@ out:
 	return (0);
 }
 
+static int
+coredump_sanitise_path(const char *path)
+{
+	size_t len, i;
+
+	/*
+	 * Only send a subset of ASCII to devd(8) because it
+	 * might pass these strings to sh -c.
+	 */
+	len = strlen(path);
+	for (i = 0; i < len; i++)
+		if (!(isalpha(path[i]) || isdigit(path[i])) &&
+		    path[i] != '/' && path[i] != '.' &&
+		    path[i] != '-')
+			return (0);
+
+	return (1);
+}
+
 /*
  * Dump a process' core.  The main routine does some
  * policy checking, and creates the name of the coredump;
@@ -3237,6 +3262,9 @@ coredump(struct thread *td)
 	void *rl_cookie;
 	off_t limit;
 	int compress;
+	char data[MAXPATHLEN * 2 + 16]; /* space for devctl notification */
+	char *fullpath, *freepath = NULL;
+	size_t len;
 
 #ifdef COMPRESS_USER_CORES
 	compress = compress_user_cores;
@@ -3322,9 +3350,35 @@ close:
 	error1 = vn_close(vp, FWRITE, cred, td);
 	if (error == 0)
 		error = error1;
+	else
+		goto out;
+	/*
+	 * Notify the userland helper that a process triggered a core dump.
+	 * This allows the helper to run an automated debugging session.
+	 */
+	if (coredump_devctl == 0)
+		goto out;
+	if (vn_fullpath_global(td, p->p_textvp, &fullpath, &freepath) != 0)
+		goto out;
+	if (!coredump_sanitise_path(fullpath))
+		goto out;
+	snprintf(data, sizeof(data), "comm=%s ", fullpath);
+	free(freepath, M_TEMP);
+	freepath = NULL;
+	if (vn_fullpath_global(td, vp, &fullpath, &freepath) != 0) {
+		printf("could not find coredump\n");
+		goto out;
+	}
+	if (!coredump_sanitise_path(fullpath))
+		goto out;
+	strlcat(data, "core=", sizeof(data));
+	len = strlcat(data, fullpath, sizeof(data));
+	devctl_notify("kernel", "signal", "coredump", data);
+out:
 #ifdef AUDIT
 	audit_proc_coredump(td, name, error);
 #endif
+	free(freepath, M_TEMP);
 	free(name, M_TEMP);
 	return (error);
 }

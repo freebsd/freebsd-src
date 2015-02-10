@@ -33,6 +33,9 @@
 #  		with xz(1) (extremely time consuming)
 #  WITH_CLOUDWARE: if set, build cloud hosting disk images with the release
 #  TARGET/TARGET_ARCH: architecture of built release
+#  XZ_FLAGS: Additional arguments to pass to xz(1)
+#  XZ_THREADS: Number of xz(1) threads to use
+#  NO_XZTHREADS: Disable multi-threaded xz(1) compression
 #
 
 WORLDDIR?=	${.CURDIR}/..
@@ -40,6 +43,8 @@ PORTSDIR?=	/usr/ports
 DOCDIR?=	/usr/doc
 RELNOTES_LANG?= en_US.ISO8859-1
 XZCMD?=		/usr/bin/xz
+XZ_FLAGS?=
+XZ_THREADS?=
 
 .if !defined(TARGET) || empty(TARGET)
 TARGET=		${MACHINE}
@@ -53,6 +58,15 @@ TARGET_ARCH=	${TARGET}
 .endif
 IMAKE=		${MAKE} TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}
 DISTDIR=	dist
+
+.if !defined(NO_XZTHREADS) && empty(XZ_THREADS)
+XZ_THREADS=	0
+.else
+XZ_THREADS=	${XZ_THREADS}
+.endif
+.if !empty(XZ_THREADS)
+XZ_FLAGS+=	-T ${XZ_THREADS}
+.endif
 
 # Define OSRELEASE by using newvars.sh
 .if !defined(OSRELEASE) || empty(OSRELEASE)
@@ -295,7 +309,7 @@ release-install:
 .for I in ${IMAGES}
 	cp -p ${I} ${DESTDIR}/${OSRELEASE}-${I}
 . if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
-	${XZCMD} -k ${DESTDIR}/${OSRELEASE}-${I}
+	${XZCMD} ${XZ_FLAGS} -k ${DESTDIR}/${OSRELEASE}-${I}
 . endif
 .endfor
 	cd ${DESTDIR} && sha256 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.SHA256

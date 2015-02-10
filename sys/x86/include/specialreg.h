@@ -470,6 +470,7 @@
 /*
  * X2APIC MSRs
  */
+#define	MSR_APIC_000		0x800
 #define	MSR_APIC_ID		0x802
 #define	MSR_APIC_VERSION	0x803
 #define	MSR_APIC_TPR		0x808

@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <x86/apicreg.h>
 #include <machine/intr_machdep.h>
 #include <x86/apicvar.h>
+#include <machine/md_var.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/actables.h>
@@ -127,8 +128,27 @@ madt_probe_cpus(void)
 static int
 madt_setup_local(void)
 {
+	ACPI_TABLE_DMAR *dmartbl;
+	vm_paddr_t dmartbl_physaddr;
 
 	madt = pmap_mapbios(madt_physaddr, madt_length);
+	if ((cpu_feature2 & CPUID2_X2APIC) != 0) {
+		x2apic_mode = 1;
+		dmartbl_physaddr = acpi_find_table(ACPI_SIG_DMAR);
+		if (dmartbl_physaddr != 0) {
+			dmartbl = acpi_map_table(dmartbl_physaddr,
+			    ACPI_SIG_DMAR);
+			if ((dmartbl->Flags & ACPI_DMAR_X2APIC_OPT_OUT) != 0) {
+				x2apic_mode = 0;
+				if (bootverbose)
+					printf(
+		"x2APIC available but disabled by DMAR table\n");
+			}
+			acpi_unmap_table(dmartbl);
+		}
+		TUNABLE_INT_FETCH("hw.x2apic_enable", &x2apic_mode);
+	}
+
 	lapic_init(madt->Address);
 	printf("ACPI APIC Table: <%.*s %.*s>\n",
 	    (int)sizeof(madt->Header.OemId), madt->Header.OemId,
