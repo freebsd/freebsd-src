@@ -1580,6 +1580,56 @@ f_xdialog_info()
 		-1 # timeout of -1 means abort when EOF on stdin
 }
 
+############################################################ PAUSE FUNCTIONS
+
+# f_dialog_pause $msg_text $duration [$hline]
+#
+# Display a message in a widget with a progress bar that runs backward for
+# $duration seconds.
+#
+f_dialog_pause()
+{
+	local pause_text="$1" duration="$2" hline="$3" height width
+	f_isinteger "$duration" || return $FAILURE
+	f_dialog_buttonbox_size height width \
+		"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$pause_text" "$hline"
+	if [ "$USE_XDIALOG" ]; then
+		$DIALOG \
+			--title "$DIALOG_TITLE"         \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--ok-label "$msg_skip"          \
+			--cancel-label "$msg_cancel"    \
+			${noCancel:+--no-cancel}        \
+			--timeout "$duration"           \
+			--yesno "$pause_text"           \
+			$height $width
+	else
+		[ $duration -gt 0 ] && duration=$(( $duration - 1 ))
+		[ $duration -gt 1 ] && duration=$(( $duration - 1 ))
+		height=$(( $height + 3 )) # Add height for progress bar
+		$DIALOG \
+			--title "$DIALOG_TITLE"         \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--hline "$hline"                \
+			--ok-label "$msg_skip"          \
+			--cancel-label "$msg_cancel"    \
+			${noCancel:+--no-cancel}        \
+			--pause "$pause_text"           \
+			$height $width "$duration"
+	fi
+}
+
+# f_dialog_pause_no_cancel $msg_text $duration [$hline]
+#
+# Display a message in a widget with a progress bar that runs backward for
+# $duration seconds. No cancel button is provided. Always returns success.
+#
+f_dialog_pause_no_cancel()
+{
+	noCancel=1 f_dialog_pause "$@"
+	return $SUCCESS
+}
+
 ############################################################ MSGBOX FUNCTIONS
 
 # f_dialog_msgbox $msg_text [$hline]
