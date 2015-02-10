@@ -750,6 +750,7 @@ spinlock_enter(void)
 
 	td = curthread;
 	if (td->td_md.md_spinlock_count == 0) {
+		__asm __volatile("or 2,2,2"); /* Set high thread priority */
 		msr = intr_disable();
 		td->td_md.md_spinlock_count = 1;
 		td->td_md.md_saved_msr = msr;
@@ -768,8 +769,10 @@ spinlock_exit(void)
 	critical_exit();
 	msr = td->td_md.md_saved_msr;
 	td->td_md.md_spinlock_count--;
-	if (td->td_md.md_spinlock_count == 0)
+	if (td->td_md.md_spinlock_count == 0) {
 		intr_restore(msr);
+		__asm __volatile("or 6,6,6"); /* Set normal thread priority */
+	}
 }
 
 int db_trap_glue(struct trapframe *);		/* Called from trap_subr.S */
