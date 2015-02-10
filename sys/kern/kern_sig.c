@@ -3225,14 +3225,13 @@ out:
 static int
 coredump_sanitise_path(const char *path)
 {
-	size_t len, i;
+	size_t i;
 
 	/*
 	 * Only send a subset of ASCII to devd(8) because it
 	 * might pass these strings to sh -c.
 	 */
-	len = strlen(path);
-	for (i = 0; i < len; i++)
+	for (i = 0; path[i]; i++)
 		if (!(isalpha(path[i]) || isdigit(path[i])) &&
 		    path[i] != '/' && path[i] != '.' &&
 		    path[i] != '-')
@@ -3365,10 +3364,8 @@ close:
 	snprintf(data, sizeof(data), "comm=%s ", fullpath);
 	free(freepath, M_TEMP);
 	freepath = NULL;
-	if (vn_fullpath_global(td, vp, &fullpath, &freepath) != 0) {
-		printf("could not find coredump\n");
+	if (vn_fullpath_global(td, vp, &fullpath, &freepath) != 0)
 		goto out;
-	}
 	if (!coredump_sanitise_path(fullpath))
 		goto out;
 	strlcat(data, "core=", sizeof(data));
