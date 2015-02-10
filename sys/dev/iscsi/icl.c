@@ -96,7 +96,7 @@ icl_find(const char *name)
 	}
 
 	TAILQ_FOREACH(im, &sc->sc_modules, im_next) {
-		if (strcmp(im->im_name, name) == 0)
+		if (strcasecmp(im->im_name, name) == 0)
 			return (im);
 	}
 

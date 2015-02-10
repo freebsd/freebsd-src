@@ -121,6 +121,7 @@ struct cctl_lun {
 
 struct cctl_port {
 	uint32_t port_id;
+	char *port_name;
 	int cfiscsi_state;
 	char *cfiscsi_target;
 	uint16_t cfiscsi_portal_group_tag;
@@ -330,7 +331,10 @@ cctl_end_pelement(void *user_data, const char *name)
 	devlist->cur_sb[devlist->level] = NULL;
 	devlist->level--;
 
-	if (strcmp(name, "cfiscsi_target") == 0) {
+	if (strcmp(name, "port_name") == 0) {
+		cur_port->port_name = str;
+		str = NULL;
+	} else if (strcmp(name, "cfiscsi_target") == 0) {
 		cur_port->cfiscsi_target = str;
 		str = NULL;
 	} else if (strcmp(name, "cfiscsi_state") == 0) {
@@ -378,6 +382,7 @@ conf_new_from_kernel(void)
 	struct conf *conf = NULL;
 	struct target *targ;
 	struct portal_group *pg;
+	struct pport *pp;
 	struct port *cp;
 	struct lun *cl;
 	struct lun_option *lo;
@@ -498,8 +503,20 @@ retry_port:
 	STAILQ_FOREACH(port, &devlist.port_list, links) {
 
 		if (port->cfiscsi_target == NULL) {
-			log_debugx("CTL port %ju wasn't managed by ctld; "
-			    "ignoring", (uintmax_t)port->port_id);
+			log_debugx("CTL port %u \"%s\" wasn't managed by ctld; ",
+			    port->port_id, port->port_name);
+			pp = pport_find(conf, port->port_name);
+			if (pp == NULL) {
+#if 0
+				log_debugx("found new kernel port %u \"%s\"",
+				    port->port_id, port->port_name);
+#endif
+				pp = pport_new(conf, port->port_name, port->port_id);
+				if (pp == NULL) {
+					log_warnx("pport_new failed");
+					continue;
+				}
+			}
 			continue;
 		}
 		if (port->cfiscsi_state != 1) {
@@ -880,39 +897,42 @@ kernel_port_add(struct port *port)
 	int error, i, n;
 
 	/* Create iSCSI port. */
-	bzero(&req, sizeof(req));
-	strlcpy(req.driver, "iscsi", sizeof(req.driver));
-	req.reqtype = CTL_REQ_CREATE;
-	req.args = malloc(req.num_args * sizeof(*req.args));
-	n = 0;
-	req.args[n].namelen = sizeof("port_id");
-	req.args[n].name = __DECONST(char *, "port_id");
-	req.args[n].vallen = sizeof(port->p_ctl_port);
-	req.args[n].value = &port->p_ctl_port;
-	req.args[n++].flags = CTL_BEARG_WR;
-	str_arg(&req.args[n++], "cfiscsi_target", targ->t_name);
-	snprintf(tagstr, sizeof(tagstr), "%d", pg->pg_tag);
-	str_arg(&req.args[n++], "cfiscsi_portal_group_tag", tagstr);
-	if (targ->t_alias)
-		str_arg(&req.args[n++], "cfiscsi_target_alias", targ->t_alias);
-	str_arg(&req.args[n++], "ctld_portal_group_name", pg->pg_name);
-	req.num_args = n;
-	error = ioctl(ctl_fd, CTL_PORT_REQ, &req);
-	free(req.args);
-	if (error != 0) {
-		log_warn("error issuing CTL_PORT_REQ ioctl");
-		return (1);
-	}
-	if (req.status == CTL_LUN_ERROR) {
-		log_warnx("error returned from port creation request: %s",
-		    req.error_str);
-		return (1);
-	}
-	if (req.status != CTL_LUN_OK) {
-		log_warnx("unknown port creation request status %d",
-		    req.status);
-		return (1);
-	}
+	if (port->p_portal_group) {
+		bzero(&req, sizeof(req));
+		strlcpy(req.driver, "iscsi", sizeof(req.driver));
+		req.reqtype = CTL_REQ_CREATE;
+		req.args = malloc(req.num_args * sizeof(*req.args));
+		n = 0;
+		req.args[n].namelen = sizeof("port_id");
+		req.args[n].name = __DECONST(char *, "port_id");
+		req.args[n].vallen = sizeof(port->p_ctl_port);
+		req.args[n].value = &port->p_ctl_port;
+		req.args[n++].flags = CTL_BEARG_WR;
+		str_arg(&req.args[n++], "cfiscsi_target", targ->t_name);
+		snprintf(tagstr, sizeof(tagstr), "%d", pg->pg_tag);
+		str_arg(&req.args[n++], "cfiscsi_portal_group_tag", tagstr);
+		if (targ->t_alias)
+			str_arg(&req.args[n++], "cfiscsi_target_alias", targ->t_alias);
+		str_arg(&req.args[n++], "ctld_portal_group_name", pg->pg_name);
+		req.num_args = n;
+		error = ioctl(ctl_fd, CTL_PORT_REQ, &req);
+		free(req.args);
+		if (error != 0) {
+			log_warn("error issuing CTL_PORT_REQ ioctl");
+			return (1);
+		}
+		if (req.status == CTL_LUN_ERROR) {
+			log_warnx("error returned from port creation request: %s",
+			    req.error_str);
+			return (1);
+		}
+		if (req.status != CTL_LUN_OK) {
+			log_warnx("unknown port creation request status %d",
+			    req.status);
+			return (1);
+		}
+	} else if (port->p_pport)
+		port->p_ctl_port = port->p_pport->pp_ctl_port;
 
 	/* Explicitly enable mapping to block any access except allowed. */
 	lm.port = port->p_ctl_port;
@@ -971,40 +991,58 @@ kernel_port_update(struct port *port)
 int
 kernel_port_remove(struct port *port)
 {
+	struct ctl_port_entry entry;
+	struct ctl_lun_map lm;
 	struct ctl_req req;
 	char tagstr[16];
 	struct target *targ = port->p_target;
 	struct portal_group *pg = port->p_portal_group;
 	int error;
 
-	bzero(&req, sizeof(req));
-	strlcpy(req.driver, "iscsi", sizeof(req.driver));
-	req.reqtype = CTL_REQ_REMOVE;
-	req.num_args = 2;
-	req.args = malloc(req.num_args * sizeof(*req.args));
-	str_arg(&req.args[0], "cfiscsi_target", targ->t_name);
-	snprintf(tagstr, sizeof(tagstr), "%d", pg->pg_tag);
-	str_arg(&req.args[1], "cfiscsi_portal_group_tag", tagstr);
-
-	error = ioctl(ctl_fd, CTL_PORT_REQ, &req);
-	free(req.args);
+	/* Disable port */
+	bzero(&entry, sizeof(entry));
+	entry.targ_port = port->p_ctl_port;
+	error = ioctl(ctl_fd, CTL_DISABLE_PORT, &entry);
 	if (error != 0) {
-		log_warn("error issuing CTL_PORT_REQ ioctl");
-		return (1);
+		log_warn("CTL_DISABLE_PORT ioctl failed");
+		return (-1);
 	}
 
-	if (req.status == CTL_LUN_ERROR) {
-		log_warnx("error returned from port removal request: %s",
-		    req.error_str);
-		return (1);
+	/* Remove iSCSI port. */
+	if (port->p_portal_group) {
+		bzero(&req, sizeof(req));
+		strlcpy(req.driver, "iscsi", sizeof(req.driver));
+		req.reqtype = CTL_REQ_REMOVE;
+		req.num_args = 2;
+		req.args = malloc(req.num_args * sizeof(*req.args));
+		str_arg(&req.args[0], "cfiscsi_target", targ->t_name);
+		snprintf(tagstr, sizeof(tagstr), "%d", pg->pg_tag);
+		str_arg(&req.args[1], "cfiscsi_portal_group_tag", tagstr);
+		error = ioctl(ctl_fd, CTL_PORT_REQ, &req);
+		free(req.args);
+		if (error != 0) {
+			log_warn("error issuing CTL_PORT_REQ ioctl");
+			return (1);
+		}
+		if (req.status == CTL_LUN_ERROR) {
+			log_warnx("error returned from port removal request: %s",
+			    req.error_str);
+			return (1);
+		}
+		if (req.status != CTL_LUN_OK) {
+			log_warnx("unknown port removal request status %d",
+			    req.status);
+			return (1);
+		}
+	} else {
+		/* Disable LUN mapping. */
+		lm.port = port->p_ctl_port;
+		lm.plun = UINT32_MAX;
+		lm.lun = UINT32_MAX;
+		error = ioctl(ctl_fd, CTL_LUN_MAP, &lm);
+		if (error != 0)
+			log_warn("CTL_LUN_MAP ioctl failed");
 	}
-
-	if (req.status != CTL_LUN_OK) {
-		log_warnx("unknown port removal request status %d",
-		    req.status);
-		return (1);
-	}
-
 	return (0);
 }
 

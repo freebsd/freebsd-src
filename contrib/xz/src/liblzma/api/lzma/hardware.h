@@ -48,3 +48,17 @@
  *              of RAM on the specific operating system.
  */
 extern LZMA_API(uint64_t) lzma_physmem(void) lzma_nothrow;
+
+
+/**
+ * \brief       Get the number of processor cores or threads
+ *
+ * This function may be useful when determining how many threads to use.
+ * If the hardware supports more than one thread per CPU core, the number
+ * of hardware threads is returned if that information is available.
+ *
+ * \brief       On success, the number of available CPU threads or cores is
+ *              returned. If this information isn't available or an error
+ *              occurs, zero is returned.
+ */
+extern LZMA_API(uint32_t) lzma_cputhreads(void) lzma_nothrow;

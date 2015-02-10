@@ -166,10 +166,28 @@ arptimer(void *arg)
 	struct ifnet *ifp;
 
 	if (lle->la_flags & LLE_STATIC) {
-		LLE_WUNLOCK(lle);
 		return;
 	}
-
+	LLE_WLOCK(lle);
+	if (callout_pending(&lle->la_timer)) {
+		/*
+		 * Here we are a bit odd here in the treatment of 
+		 * active/pending. If the pending bit is set, it got
+		 * rescheduled before I ran. The active
+		 * bit we ignore, since if it was stopped
+		 * in ll_tablefree() and was currently running
+		 * it would have return 0 so the code would
+		 * not have deleted it since the callout could
+		 * not be stopped so we want to go through
+		 * with the delete here now. If the callout
+		 * was restarted, the pending bit will be back on and
+		 * we just want to bail since the callout_reset would
+		 * return 1 and our reference would have been removed
+		 * by arpresolve() below.
+		 */
+		LLE_WUNLOCK(lle);
+ 		return;
+ 	}
 	ifp = lle->lle_tbl->llt_ifp;
 	CURVNET_SET(ifp->if_vnet);
 

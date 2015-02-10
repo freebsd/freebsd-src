@@ -127,9 +127,10 @@ struct t4_virt_res {                      /* virtualized HW resources */
 
 #ifdef TCP_OFFLOAD
 enum {
-	ULD_TOM = 1,
-	ULD_IWARP = 2,
-	ULD_ISCSI = 3,
+	ULD_TOM = 0,
+	ULD_IWARP,
+	ULD_ISCSI,
+	ULD_MAX = ULD_ISCSI
 };
 
 struct adapter;
@@ -156,5 +157,6 @@ int t4_unregister_uld(struct uld_info *);
 int t4_activate_uld(struct adapter *, int);
 int t4_deactivate_uld(struct adapter *, int);
 void t4_iscsi_init(struct ifnet *, unsigned int, const unsigned int *);
+int uld_active(struct adapter *, int);
 #endif
 #endif

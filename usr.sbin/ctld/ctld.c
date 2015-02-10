@@ -93,6 +93,7 @@ conf_new(void)
 	TAILQ_INIT(&conf->conf_auth_groups);
 	TAILQ_INIT(&conf->conf_ports);
 	TAILQ_INIT(&conf->conf_portal_groups);
+	TAILQ_INIT(&conf->conf_pports);
 	TAILQ_INIT(&conf->conf_isns);
 
 	conf->conf_isns_period = 900;
@@ -111,6 +112,7 @@ conf_delete(struct conf *conf)
 	struct target *targ, *tmp;
 	struct auth_group *ag, *cagtmp;
 	struct portal_group *pg, *cpgtmp;
+	struct pport *pp, *pptmp;
 	struct isns *is, *istmp;
 
 	assert(conf->conf_pidfh == NULL);
@@ -123,6 +125,8 @@ conf_delete(struct conf *conf)
 		auth_group_delete(ag);
 	TAILQ_FOREACH_SAFE(pg, &conf->conf_portal_groups, pg_next, cpgtmp)
 		portal_group_delete(pg);
+	TAILQ_FOREACH_SAFE(pp, &conf->conf_pports, pp_next, pptmp)
+		pport_delete(pp);
 	TAILQ_FOREACH_SAFE(is, &conf->conf_isns, i_next, istmp)
 		isns_delete(is);
 	assert(TAILQ_EMPTY(&conf->conf_ports));
@@ -1133,26 +1137,102 @@ valid_iscsi_name(const char *name)
 	return (true);
 }
 
+struct pport *
+pport_new(struct conf *conf, const char *name, uint32_t ctl_port)
+{
+	struct pport *pp;
+
+	pp = calloc(1, sizeof(*pp));
+	if (pp == NULL)
+		log_err(1, "calloc");
+	pp->pp_conf = conf;
+	pp->pp_name = checked_strdup(name);
+	pp->pp_ctl_port = ctl_port;
+	TAILQ_INIT(&pp->pp_ports);
+	TAILQ_INSERT_TAIL(&conf->conf_pports, pp, pp_next);
+	return (pp);
+}
+
+struct pport *
+pport_find(const struct conf *conf, const char *name)
+{
+	struct pport *pp;
+
+	TAILQ_FOREACH(pp, &conf->conf_pports, pp_next) {
+		if (strcasecmp(pp->pp_name, name) == 0)
+			return (pp);
+	}
+	return (NULL);
+}
+
+struct pport *
+pport_copy(struct pport *pp, struct conf *conf)
+{
+	struct pport *ppnew;
+
+	ppnew = pport_new(conf, pp->pp_name, pp->pp_ctl_port);
+	return (ppnew);
+}
+
+void
+pport_delete(struct pport *pp)
+{
+	struct port *port, *tport;
+
+	TAILQ_FOREACH_SAFE(port, &pp->pp_ports, p_ts, tport)
+		port_delete(port);
+	TAILQ_REMOVE(&pp->pp_conf->conf_pports, pp, pp_next);
+	free(pp->pp_name);
+	free(pp);
+}
+
 struct port *
 port_new(struct conf *conf, struct target *target, struct portal_group *pg)
 {
 	struct port *port;
+	char *name;
 
+	asprintf(&name, "%s-%s", pg->pg_name, target->t_name);
+	if (port_find(conf, name) != NULL) {
+		log_warnx("duplicate port \"%s\"", name);
+		free(name);
+		return (NULL);
+	}
 	port = calloc(1, sizeof(*port));
 	if (port == NULL)
 		log_err(1, "calloc");
-	asprintf(&port->p_name, "%s-%s", pg->pg_name, target->t_name);
-	if (port_find(conf, port->p_name) != NULL) {
-		log_warnx("duplicate port \"%s\"", port->p_name);
-		free(port);
-		return (NULL);
-	}
 	port->p_conf = conf;
+	port->p_name = name;
 	TAILQ_INSERT_TAIL(&conf->conf_ports, port, p_next);
 	TAILQ_INSERT_TAIL(&target->t_ports, port, p_ts);
 	port->p_target = target;
 	TAILQ_INSERT_TAIL(&pg->pg_ports, port, p_pgs);
 	port->p_portal_group = pg;
+	return (port);
+}
+
+struct port *
+port_new_pp(struct conf *conf, struct target *target, struct pport *pp)
+{
+	struct port *port;
+	char *name;
+
+	asprintf(&name, "%s-%s", pp->pp_name, target->t_name);
+	if (port_find(conf, name) != NULL) {
+		log_warnx("duplicate port \"%s\"", name);
+		free(name);
+		return (NULL);
+	}
+	port = calloc(1, sizeof(*port));
+	if (port == NULL)
+		log_err(1, "calloc");
+	port->p_conf = conf;
+	port->p_name = name;
+	TAILQ_INSERT_TAIL(&conf->conf_ports, port, p_next);
+	TAILQ_INSERT_TAIL(&target->t_ports, port, p_ts);
+	port->p_target = target;
+	TAILQ_INSERT_TAIL(&pp->pp_ports, port, p_pps);
+	port->p_pport = pp;
 	return (port);
 }
 
@@ -1188,6 +1268,8 @@ port_delete(struct port *port)
 
 	if (port->p_portal_group)
 		TAILQ_REMOVE(&port->p_portal_group->pg_ports, port, p_pgs);
+	if (port->p_pport)
+		TAILQ_REMOVE(&port->p_pport->pp_ports, port, p_pps);
 	if (port->p_target)
 		TAILQ_REMOVE(&port->p_target->t_ports, port, p_ts);
 	TAILQ_REMOVE(&port->p_conf->conf_ports, port, p_next);
@@ -1779,6 +1861,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 		newport = port_find(newconf, oldport->p_name);
 		if (newport != NULL)
 			continue;
+		log_debugx("removing port \"%s\"", oldport->p_name);
 		error = kernel_port_remove(oldport);
 		if (error != 0) {
 			log_warnx("failed to remove port %s",
@@ -1903,8 +1986,10 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 		oldport = port_find(oldconf, newport->p_name);
 
 		if (oldport == NULL) {
+			log_debugx("adding port \"%s\"", newport->p_name);
 			error = kernel_port_add(newport);
 		} else {
+			log_debugx("updating port \"%s\"", newport->p_name);
 			newport->p_ctl_port = oldport->p_ctl_port;
 			error = kernel_port_update(newport);
 		}
@@ -2416,7 +2501,7 @@ main(int argc, char **argv)
 	kernel_init();
 
 	oldconf = conf_new_from_kernel();
-	newconf = conf_new_from_file(config_path);
+	newconf = conf_new_from_file(config_path, oldconf);
 	if (newconf == NULL)
 		log_errx(1, "configuration error; exiting");
 	if (debug > 0) {
@@ -2451,7 +2536,7 @@ main(int argc, char **argv)
 		if (sighup_received) {
 			sighup_received = false;
 			log_debugx("received SIGHUP, reloading configuration");
-			tmpconf = conf_new_from_file(config_path);
+			tmpconf = conf_new_from_file(config_path, newconf);
 			if (tmpconf == NULL) {
 				log_warnx("configuration error, "
 				    "continuing with old configuration");
