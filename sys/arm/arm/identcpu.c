@@ -387,7 +387,7 @@ identify_arm_cpu(void)
 	u_int8_t type, linesize;
 	int i;
 
-	cpuid = cpu_id();
+	cpuid = cpu_ident();
 
 	if (cpuid == 0) {
 		printf("Processor failed probe - no CPU ID\n");
