@@ -131,10 +131,11 @@ set(COMPILER_RT_GTEST_CFLAGS
   -I${COMPILER_RT_GTEST_PATH}
 )
 
+append_list_if(COMPILER_RT_DEBUG -DSANITIZER_DEBUG=1 COMPILER_RT_TEST_CFLAGS)
+
 if(MSVC)
   # clang doesn't support exceptions on Windows yet.
-  list(APPEND COMPILER_RT_TEST_CFLAGS
-       -D_HAS_EXCEPTIONS=0)
+  list(APPEND COMPILER_RT_TEST_CFLAGS -D_HAS_EXCEPTIONS=0)
 
   # We should teach clang to understand "#pragma intrinsic", see PR19898.
   list(APPEND COMPILER_RT_TEST_CFLAGS -Wno-undefined-inline)
@@ -156,12 +157,20 @@ endif()
 # using specified link flags. Make executable a part of provided
 # test_suite.
 # add_compiler_rt_test(<test_suite> <test_name>
+#                      SUBDIR <subdirectory for binary>
 #                      OBJECTS <object files>
 #                      DEPS <deps (e.g. runtime libs)>
 #                      LINK_FLAGS <link flags>)
 macro(add_compiler_rt_test test_suite test_name)
-  parse_arguments(TEST "OBJECTS;DEPS;LINK_FLAGS" "" ${ARGN})
-  set(output_bin "${CMAKE_CURRENT_BINARY_DIR}/${test_name}")
+  parse_arguments(TEST "SUBDIR;OBJECTS;DEPS;LINK_FLAGS" "" ${ARGN})
+  if(TEST_SUBDIR)
+    set(output_bin "${CMAKE_CURRENT_BINARY_DIR}/${TEST_SUBDIR}/${test_name}")
+  else()
+    set(output_bin "${CMAKE_CURRENT_BINARY_DIR}/${test_name}")
+  endif()
+  if(MSVC)
+    set(output_bin "${output_bin}.exe")
+  endif()
   # Use host compiler in a standalone build, and just-built Clang otherwise.
   if(NOT COMPILER_RT_STANDALONE_BUILD)
     list(APPEND TEST_DEPS clang)

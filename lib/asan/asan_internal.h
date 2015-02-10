@@ -94,7 +94,6 @@ void GetPcSpBp(void *context, uptr *pc, uptr *sp, uptr *bp);
 void AsanOnSIGSEGV(int, void *siginfo, void *context);
 
 void MaybeReexec();
-bool AsanInterceptsSignal(int signum);
 void ReadContextStack(void *context, uptr *stack, uptr *ssize);
 void AsanPlatformThreadInit();
 void StopInitOrderChecking();
@@ -107,9 +106,9 @@ void PlatformTSDDtor(void *tsd);
 
 void AppendToErrorMessageBuffer(const char *buffer);
 
-void ParseExtraActivationFlags();
-
 void *AsanDlSymNext(const char *sym);
+
+void ReserveShadowMemoryRange(uptr beg, uptr end);
 
 // Platform-specific options.
 #if SANITIZER_MAC
