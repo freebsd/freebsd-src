@@ -458,14 +458,9 @@ do_rx_data_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		    __func__, vld, tid, toep);
 	}
 	if (toep->ulp_mode == ULP_MODE_ISCSI) {
-		m = m_get(M_NOWAIT, MT_DATA);
-		if (m == NULL)
-			CXGBE_UNIMPLEMENTED("mbuf alloc failure");
-		memcpy(mtod(m, unsigned char *), cpl,
-		    sizeof(struct cpl_rx_data_ddp));
-        	if (!t4_cpl_iscsi_callback(td, toep, m, CPL_RX_DATA_DDP))
+		if (!t4_cpl_iscsi_callback(td, toep, (void *)cpl,
+					CPL_RX_DATA_DDP))
 			return (0);
-		m_freem(m);
         }
 
 	handle_ddp_data(toep, cpl->u.ddp_report, cpl->seq, be16toh(cpl->len));

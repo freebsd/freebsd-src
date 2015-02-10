@@ -1,0 +1,74 @@
+Chelsio iSCSI driver(cxgbei):
+=============================
+To enable offload support on Chelsion HW add below lines in /boot/loader.conf
+#cat /boot/loader.conf
+hw.cxgbe.config_file="uwire"
+hw.cxgbe.iscsicaps_allowed=0xf
+
+Loading cxgbe driver and enabling TOE on the interfaces. Add below lines in /etc/rc.conf
+#cat /etc/rc.conf
+kld_list="if_cxgbe t4_tom"
+ifconfig_cxl0="inet 15.1.1.154"
+ifconfig_cxl1="inet 16.1.1.154"
+ifconfig cxl0 toe
+ifconfig cxl1 toe
+
+Compilation Steps:
+1. Compile iscsi and ctl drivers
+	cd sys/modules/iscsi
+	make && make install
+	cd sys/modules/ctl
+	make && make install
+
+2. Compile ctld
+	cd usr.sbin/ctld
+	make all install
+
+2. Compile iscsictl & iscsid
+	cd /home/chelsio/usr.sbin/iscsid
+	make all install
+	cd /home/chelsio/usr.bin/iscsictl
+	make all install
+
+3. Compile offload module
+	cd sys/modules/cxgbe/cxgbei
+	make && make install
+
+
+Sample /etc/iscsi.conf
+======================
+t0 {
+        TargetAddress           = 15.1.1.33
+        TargetName              = iqn.2008-09.com.example:server.target1
+        HeaderDigest            = CRC32C
+        DataDigest              = CRC32C
+        FirstBurstLength        = 8192
+}
+
+Sample /etc/ctl.conf
+======================
+portal-group pg0 {
+        discovery-auth-group no-authentication
+        listen 0.0.0.0
+}
+
+target iqn.2012-06.com.example:target0 {
+        auth-group no-authentication
+        portal-group pg0
+
+        lun 0 {
+                path /tmp/file1
+                size 16M
+        }
+}
+
+
+Loading iscsi-initiator:
+1. service iscsid onestart
+2. kldload cxgbei
+3. iscsictl -aA
+
+Loading iscsi-target:
+1. service ctld onestart
+2. kldload cxgbei
+3. Login from initiator.
