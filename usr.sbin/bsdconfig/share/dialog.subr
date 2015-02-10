@@ -1,6 +1,6 @@
 if [ ! "$_DIALOG_SUBR" ]; then _DIALOG_SUBR=1
 #
-# Copyright (c) 2006-2014 Devin Teske
+# Copyright (c) 2006-2015 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
