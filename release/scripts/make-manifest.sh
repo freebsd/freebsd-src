@@ -57,6 +57,6 @@ for i in ${*}; do
 			;;
 	esac
 
-	printf "${dist}\t${hash}\t${nfiles}\t${distname}\t${desc}\t${default}\n"
+	printf "${dist}\t${hash}\t${nfiles}\t${distname}\t\"${desc}\"\t${default}\n"
 done
 
