@@ -81,6 +81,10 @@ CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/sparc
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/mips
 .PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/mips
 .PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/mips
+.elif ${MACHINE_CPUARCH} == "arm"
+CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/arm
+.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/arm
+.PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/arm
 .elif ${MACHINE_CPUARCH} == "powerpc"
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/powerpc
 .PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/powerpc
