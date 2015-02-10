@@ -2116,6 +2116,39 @@ f_dialog_menutag2index_with_help()
 	return $FAILURE
 }
 
+# f_dialog_menutag2help $tag_chosen $tag1 $item1 $help1 $tag2 $item2 $help2 ...
+#
+# To use the `--menu' option of dialog(1) with the `--item-help' option, you
+# must pass an ordered list of tag/item/help triplets on the command-line. When
+# the user selects a menu option the tag for that item is printed to stderr.
+#
+# This function allows you to dereference the tag chosen by the user back into
+# the help associated with said tag (item is discarded/ignored).
+#
+# Pass the tag chosen by the user as the first argument, followed by the
+# ordered list of tag/item/help triplets (HINT: use the same tag/item/help list
+# as was passed to dialog(1) for consistency).
+#
+# If the tag cannot be found, NULL is returned.
+#
+f_dialog_menutag2help()
+{
+	local tag="$1" tagn help
+	shift 1 # tag
+
+	while [ $# -gt 0 ]; do
+		tagn="$1"
+		help="$3"
+		shift 3 # tagn/item/help
+
+		if [ "$tag" = "$tagn" ]; then
+			echo "$help"
+			return $SUCCESS
+		fi
+	done
+	return $FAILURE
+}
+
 ############################################################ INIT FUNCTIONS
 
 # f_dialog_init
