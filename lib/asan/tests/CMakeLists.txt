@@ -30,7 +30,8 @@ set(ASAN_UNITTEST_COMMON_CFLAGS
   -fno-rtti
   -O2
   -Wno-format
-  -Werror=sign-compare)
+  -Werror=sign-compare
+  -Wno-non-virtual-dtor)
 append_list_if(COMPILER_RT_HAS_WVARIADIC_MACROS_FLAG -Wno-variadic-macros ASAN_UNITTEST_COMMON_CFLAGS)
 
 # -gline-tables-only must be enough for ASan, so use it if possible.
@@ -45,6 +46,11 @@ list(APPEND ASAN_UNITTEST_COMMON_CFLAGS
   -DASAN_HAS_BLACKLIST=1
   -DASAN_HAS_EXCEPTIONS=1
   -DASAN_UAR=0)
+
+if(APPLE)
+  list(APPEND ASAN_UNITTEST_COMMON_CFLAGS ${DARWIN_osx_CFLAGS})
+  list(APPEND ASAN_UNITTEST_COMMON_LINKFLAGS ${DARWIN_osx_LINKFLAGS})
+endif()
 
 set(ASAN_BLACKLIST_FILE "${CMAKE_CURRENT_SOURCE_DIR}/asan_test.ignore")
 set(ASAN_UNITTEST_INSTRUMENTED_CFLAGS
@@ -117,7 +123,7 @@ endmacro()
 # Link ASan unit test for a given architecture from a set
 # of objects in with given linker flags.
 macro(add_asan_test test_suite test_name arch kind)
-  parse_arguments(TEST "OBJECTS;LINKFLAGS" "WITH_TEST_RUNTIME" ${ARGN})
+  parse_arguments(TEST "OBJECTS;LINKFLAGS;SUBDIR" "WITH_TEST_RUNTIME" ${ARGN})
   get_target_flags_for_arch(${arch} TARGET_LINK_FLAGS)
   set(TEST_DEPS ${TEST_OBJECTS})
   if(NOT COMPILER_RT_STANDALONE_BUILD)
@@ -132,6 +138,7 @@ macro(add_asan_test test_suite test_name arch kind)
     endif()
   endif()
   add_compiler_rt_test(${test_suite} ${test_name}
+                       SUBDIR ${TEST_SUBDIR}
                        OBJECTS ${TEST_OBJECTS}
                        DEPS ${TEST_DEPS}
                        LINK_FLAGS ${TEST_LINKFLAGS}
@@ -141,6 +148,11 @@ endmacro()
 # Main AddressSanitizer unit tests.
 add_custom_target(AsanUnitTests)
 set_target_properties(AsanUnitTests PROPERTIES FOLDER "ASan unit tests")
+# AddressSanitizer unit tests with dynamic runtime (on platforms where it's
+# not the default).
+add_custom_target(AsanDynamicUnitTests)
+set_target_properties(AsanDynamicUnitTests
+  PROPERTIES FOLDER "ASan unit tests with dynamic runtime")
 # ASan benchmarks (not actively used now).
 add_custom_target(AsanBenchmarks)
 set_target_properties(AsanBenchmarks PROPERTIES FOLDER "Asan benchmarks")
@@ -182,11 +194,15 @@ macro(add_asan_tests_for_arch_and_kind arch kind)
     asan_compile(ASAN_INST_TEST_OBJECTS asan_mac_test_helpers.mm ${arch} ${kind}
                  ${ASAN_UNITTEST_INSTRUMENTED_CFLAGS} -ObjC ${ARGN})
   endif()
-  add_asan_test(AsanUnitTests "Asan-${arch}${kind}-Test" ${arch} ${kind}
+  file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/default")
+  add_asan_test(AsanUnitTests "Asan-${arch}${kind}-Test"
+                ${arch} ${kind} SUBDIR "default"
                 OBJECTS ${ASAN_INST_TEST_OBJECTS}
                 LINKFLAGS ${ASAN_UNITTEST_INSTRUMENTED_LINKFLAGS})
-  if(COMPILER_RT_BUILD_SHARED_ASAN)
-    add_asan_test(AsanUnitTests "Asan-${arch}${kind}-Dynamic-Test" ${arch} ${kind}
+  if(COMPILER_RT_ASAN_HAS_STATIC_RUNTIME)
+    file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/dynamic")
+    add_asan_test(AsanDynamicUnitTests "Asan-${arch}${kind}-Dynamic-Test"
+                  ${arch} ${kind} SUBDIR "dynamic"
                   OBJECTS ${ASAN_INST_TEST_OBJECTS}
                   LINKFLAGS ${ASAN_DYNAMIC_UNITTEST_INSTRUMENTED_LINKFLAGS})
   endif()
@@ -220,7 +236,8 @@ macro(add_asan_tests_for_arch_and_kind arch kind)
     asan_compile(ASAN_NOINST_TEST_OBJECTS ${src} ${arch} ${kind}
                  ${ASAN_UNITTEST_COMMON_CFLAGS} ${ARGN})
   endforeach()
-  add_asan_test(AsanUnitTests "Asan-${arch}${kind}-Noinst-Test" ${arch} ${kind}
+  add_asan_test(AsanUnitTests "Asan-${arch}${kind}-Noinst-Test"
+                ${arch} ${kind} SUBDIR "default"
                 OBJECTS ${ASAN_NOINST_TEST_OBJECTS}
                 LINKFLAGS ${ASAN_UNITTEST_NOINST_LINKFLAGS}
                 WITH_TEST_RUNTIME)
@@ -231,14 +248,10 @@ macro(add_asan_tests_for_arch_and_kind arch kind)
     asan_compile(ASAN_BENCHMARKS_OBJECTS ${src} ${arch} ${kind}
                  ${ASAN_UNITTEST_INSTRUMENTED_CFLAGS} ${ARGN})
   endforeach()
-  add_asan_test(AsanBenchmarks "Asan-${arch}${kind}-Benchmark" ${arch} ${kind}
+  add_asan_test(AsanBenchmarks "Asan-${arch}${kind}-Benchmark"
+                ${arch} ${kind} SUBDIR "default"
                 OBJECTS ${ASAN_BENCHMARKS_OBJECTS}
                 LINKFLAGS ${ASAN_UNITTEST_INSTRUMENTED_LINKFLAGS})
-  if(COMPILER_RT_BUILD_SHARED_ASAN)
-    add_asan_test(AsanBenchmarks "Asan-${arch}${kind}-Dynamic-Benchmark" ${arch} ${kind}
-                  OBJECTS ${ASAN_BENCHMARKS_OBJECTS}
-                  LINKFLAGS ${ASAN_DYNAMIC_UNITTEST_INSTRUMENTED_LINKFLAGS})
-  endif()
 endmacro()
 
 if(COMPILER_RT_CAN_EXECUTE_TESTS AND NOT ANDROID)

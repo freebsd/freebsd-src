@@ -15,6 +15,10 @@
 
 #include "sanitizer_platform.h"
 
+#ifndef SANITIZER_DEBUG
+# define SANITIZER_DEBUG 0
+#endif
+
 // Only use SANITIZER_*ATTRIBUTE* before the function return type!
 #if SANITIZER_WINDOWS
 # define SANITIZER_INTERFACE_ATTRIBUTE __declspec(dllexport)
@@ -81,8 +85,9 @@ typedef int fd_t;
 // WARNING: OFF_T may be different from OS type off_t, depending on the value of
 // _FILE_OFFSET_BITS. This definition of OFF_T matches the ABI of system calls
 // like pread and mmap, as opposed to pread64 and mmap64.
-// Mac and Linux/x86-64 are special.
-#if SANITIZER_MAC || (SANITIZER_LINUX && defined(__x86_64__))
+// FreeBSD, Mac and Linux/x86-64 are special.
+#if SANITIZER_FREEBSD || SANITIZER_MAC || \
+  (SANITIZER_LINUX && defined(__x86_64__))
 typedef u64 OFF_T;
 #else
 typedef uptr OFF_T;
@@ -120,7 +125,7 @@ extern "C" {
 
   SANITIZER_INTERFACE_ATTRIBUTE void __sanitizer_cov_dump();
   SANITIZER_INTERFACE_ATTRIBUTE void __sanitizer_cov_init();
-  SANITIZER_INTERFACE_ATTRIBUTE void __sanitizer_cov(__sanitizer::u8 *guard);
+  SANITIZER_INTERFACE_ATTRIBUTE void __sanitizer_cov(__sanitizer::u32 *guard);
   SANITIZER_INTERFACE_ATTRIBUTE
   void __sanitizer_annotate_contiguous_container(const void *beg,
                                                  const void *end,
@@ -240,7 +245,7 @@ void NORETURN CheckFailed(const char *file, int line, const char *cond,
 #define CHECK_GT(a, b) CHECK_IMPL((a), >,  (b))
 #define CHECK_GE(a, b) CHECK_IMPL((a), >=, (b))
 
-#if TSAN_DEBUG
+#if SANITIZER_DEBUG
 #define DCHECK(a)       CHECK(a)
 #define DCHECK_EQ(a, b) CHECK_EQ(a, b)
 #define DCHECK_NE(a, b) CHECK_NE(a, b)
@@ -319,5 +324,12 @@ extern "C" void* _ReturnAddress(void);
       res = (f);                                                   \
     } while (internal_iserror(res, &rverrno) && rverrno == EINTR); \
   }
+
+// Forces the compiler to generate a frame pointer in the function.
+#define ENABLE_FRAME_POINTER                                       \
+  do {                                                             \
+    volatile uptr enable_fp;                                       \
+    enable_fp = GET_CURRENT_FRAME();                               \
+  } while (0)
 
 #endif  // SANITIZER_DEFS_H

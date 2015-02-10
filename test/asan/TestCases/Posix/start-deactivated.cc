@@ -4,12 +4,25 @@
 
 // RUN: %clangxx_asan -O0 -DSHARED_LIB %s -fPIC -shared -o %t-so.so
 // RUN: %clangxx -O0 %s -c -o %t.o
-// RUN: %clangxx_asan -O0 %t.o -o %t
-// RUN: ASAN_OPTIONS=start_deactivated=1 not %run %t 2>&1 | FileCheck %s
+// RUN: %clangxx_asan -O0 %t.o %libdl -o %t
+// RUN: ASAN_OPTIONS=start_deactivated=1,allocator_may_return_null=0 \
+// RUN:   ASAN_ACTIVATION_OPTIONS=allocator_may_return_null=1 not %run %t 2>&1 | FileCheck %s --check-prefix=CHECK
+// RUN: ASAN_OPTIONS=start_deactivated=1 \
+// RUN:   ASAN_ACTIVATION_OPTIONS=help=1 not %run %t 2>&1 | FileCheck %s --check-prefix=CHECK-HELP
+// RUN: ASAN_OPTIONS=start_deactivated=1,verbosity=1 \
+// RUN:   ASAN_ACTIVATION_OPTIONS=help=1,handle_segv=0 not %run %t 2>&1 | FileCheck %s --check-prefix=CHECK-UNSUPPORTED
+// RUN: ASAN_OPTIONS=start_deactivated=1 \
+// RUN:   ASAN_ACTIVATION_OPTIONS=help=1,handle_segv=0 not %run %t 2>&1 | FileCheck %s --check-prefix=CHECK-UNSUPPORTED-V0
+
+// Check that verbosity=1 in activation flags affects reporting of unrecognized activation flags.
+// RUN: ASAN_OPTIONS=start_deactivated=1 \
+// RUN:   ASAN_ACTIVATION_OPTIONS=help=1,handle_segv=0,verbosity=1 not %run %t 2>&1 | FileCheck %s --check-prefix=CHECK-UNSUPPORTED
+
 // XFAIL: arm-linux-gnueabi
 // XFAIL: armv7l-unknown-linux-gnueabihf
 
 #if !defined(SHARED_LIB)
+#include <assert.h>
 #include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,11 +56,17 @@ int main(int argc, char *argv[]) {
   test_malloc_shadow();
   // CHECK: =5=
 
+  // After this line ASan is activated and starts detecting errors.
   void *fn = dlsym(dso, "do_another_bad_thing");
   if (!fn) {
     fprintf(stderr, "dlsym failed: %s\n", dlerror());
     return 1;
   }
+
+  // Test that ASAN_ACTIVATION_OPTIONS=allocator_may_return_null=1 has effect.
+  void *p = malloc((unsigned long)-2);
+  assert(!p);
+  // CHECK: WARNING: AddressSanitizer failed to allocate 0xfff{{.*}} bytes
 
   ((Fn)fn)();
   // CHECK: AddressSanitizer: heap-buffer-overflow
@@ -67,3 +86,16 @@ extern "C" void do_another_bad_thing() {
   printf("%hhx\n", p[105]);
 }
 #endif  // SHARED_LIB
+
+// help=1 in activation flags lists only flags are are supported at activation
+// CHECK-HELP: Available flags for {{.*}}Sanitizer:
+// CHECK-HELP-NOT: handle_segv
+// CHECK-HELP: max_redzone
+// CHECK-HELP-NOT: handle_segv
+
+// unsupported activation flags produce a warning ...
+// CHECK-UNSUPPORTED: WARNING: found 1 unrecognized
+// CHECK-UNSUPPORTED:   handle_segv
+
+// ... but not at verbosity=0
+// CHECK-UNSUPPORTED-V0-NOT: WARNING: found {{.*}} unrecognized

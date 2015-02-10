@@ -8,7 +8,7 @@ lit_config.load_config(config, "@COMPILER_RT_BINARY_DIR@/unittests/lit.common.un
 
 def push_ld_library_path(config, new_path):
   new_ld_library_path = os.path.pathsep.join(
-    (new_path, config.environment['LD_LIBRARY_PATH']))
+    (new_path, config.environment.get('LD_LIBRARY_PATH', '')))
   config.environment['LD_LIBRARY_PATH'] = new_ld_library_path
 
 # Setup config name.
@@ -17,7 +17,13 @@ config.name = 'AddressSanitizer-Unit'
 # Setup test source and exec root. For unit tests, we define
 # it as build directory with ASan unit tests.
 # FIXME: De-hardcode this path.
-config.test_exec_root = "@COMPILER_RT_BINARY_DIR@/lib/asan/tests"
+if @ASAN_TEST_DYNAMIC@:
+  test_dir = "dynamic"
+else:
+  test_dir = "default"
+config.test_exec_root = os.path.join("@COMPILER_RT_BINARY_DIR@",
+                                     "lib", "asan", "tests", test_dir)
+
 config.test_source_root = config.test_exec_root
 
 # Set LD_LIBRARY_PATH to pick dynamic runtime up properly.

@@ -104,7 +104,8 @@ else()
   # Get some LLVM variables from LLVMConfig.
   include("${LLVM_CMAKE_PATH}/LLVMConfig.cmake")
 
-  set(LLVM_LIBRARY_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/${CMAKE_CFG_INTDIR}/lib)
+  set(LLVM_LIBRARY_OUTPUT_INTDIR
+    ${CMAKE_BINARY_DIR}/${CMAKE_CFG_INTDIR}/lib${LLVM_LIBDIR_SUFFIX})
 
   # Find Python interpreter.
   set(Python_ADDITIONAL_VERSIONS 2.7 2.6 2.5)
@@ -162,29 +163,6 @@ set(COMPILER_RT_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
 # Setup custom SDK sysroots.
 set(COMPILER_RT_LINUX_SDK_SYSROOT ${COMPILER_RT_SOURCE_DIR}/SDKs/linux)
 
-# Detect whether the current target platform is 32-bit or 64-bit, and setup
-# the correct commandline flags needed to attempt to target 32-bit and 64-bit.
-if (NOT CMAKE_SIZEOF_VOID_P EQUAL 4 AND
-    NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
-  message(FATAL_ERROR "Please use architecture with 4 or 8 byte pointers.")
-endif()
-if (NOT MSVC)
-  set(TARGET_64_BIT_CFLAGS "-m64")
-  set(TARGET_32_BIT_CFLAGS "-m32")
-else()
-  set(TARGET_64_BIT_CFLAGS "")
-  set(TARGET_32_BIT_CFLAGS "")
-endif()
-
-function(get_target_flags_for_arch arch out_var)
-  list(FIND COMPILER_RT_SUPPORTED_ARCH ${arch} ARCH_INDEX)
-  if(ARCH_INDEX EQUAL -1)
-    message(FATAL_ERROR "Unsupported architecture: ${arch}")
-  else()
-    set(${out_var} ${TARGET_${arch}_CFLAGS} PARENT_SCOPE)
-  endif()
-endfunction()
-
 # We support running instrumented tests when we're not cross compiling
 # and target a UNIX-like system or Windows.
 # We can run tests on Android even when we are cross-compiling.
@@ -199,17 +177,12 @@ option(COMPILER_RT_DEBUG "Build runtimes with full debug info" OFF)
 # COMPILER_RT_DEBUG_PYBOOL is used by lit.common.configured.in.
 pythonize_bool(COMPILER_RT_DEBUG)
 
-# We have to support both static and dynamic/shared runtime on Windows.
-# Android only works with dynamic runtime.
-if(WIN32 OR ANDROID)
-option(COMPILER_RT_BUILD_SHARED_ASAN "Build shared version of AddressSanitizer runtime" ON)
-else()
-option(COMPILER_RT_BUILD_SHARED_ASAN "Build shared version of AddressSanitizer runtime" OFF)
-endif()
-
 #================================
 # Setup Compiler Flags
 #================================
+include(CheckIncludeFile)
+check_include_file(unwind.h HAVE_UNWIND_H)
+
 include(config-ix)
 
 if(MSVC)
@@ -238,6 +211,7 @@ append_list_if(COMPILER_RT_HAS_FUNWIND_TABLES_FLAG -funwind-tables SANITIZER_COM
 append_list_if(COMPILER_RT_HAS_FNO_STACK_PROTECTOR_FLAG -fno-stack-protector SANITIZER_COMMON_CFLAGS)
 append_list_if(COMPILER_RT_HAS_FVISIBILITY_HIDDEN_FLAG -fvisibility=hidden SANITIZER_COMMON_CFLAGS)
 append_list_if(COMPILER_RT_HAS_FNO_FUNCTION_SECTIONS_FLAG -fno-function-sections SANITIZER_COMMON_CFLAGS)
+append_list_if(COMPILER_RT_HAS_FNO_LTO_FLAG -fno-lto SANITIZER_COMMON_CFLAGS)
 
 if(MSVC)
   # Replace the /MD[d] flags with /MT.
@@ -257,14 +231,28 @@ if(MSVC)
   append_list_if(COMPILER_RT_HAS_GS_FLAG /GS- SANITIZER_COMMON_CFLAGS)
 endif()
 
+append_list_if(COMPILER_RT_DEBUG -DSANITIZER_DEBUG=1 SANITIZER_COMMON_CFLAGS)
+
 # Build with optimization, unless we're in debug mode. If we're using MSVC,
 # always respect the optimization flags set by CMAKE_BUILD_TYPE instead.
 if(NOT COMPILER_RT_DEBUG AND NOT MSVC)
   list(APPEND SANITIZER_COMMON_CFLAGS -O3)
 endif()
 
+# Determine if we should restrict stack frame sizes.
+# Stack frames on PowerPC and in debug biuld can be much larger than
+# anticipated.
+# FIXME: Fix all sanitizers and add -Wframe-larger-than to
+# SANITIZER_COMMON_FLAGS
+if(COMPILER_RT_HAS_WFRAME_LARGER_THAN_FLAG AND NOT COMPILER_RT_DEBUG
+   AND NOT ${LLVM_NATIVE_ARCH} STREQUAL "PowerPC")
+  set(SANITIZER_LIMIT_FRAME_SIZE TRUE)
+else()
+  set(SANITIZER_LIMIT_FRAME_SIZE FALSE)
+endif()
+
 # Build sanitizer runtimes with debug info.
-if(COMPILER_RT_HAS_GLINE_TABLES_ONLY_FLAG)
+if(COMPILER_RT_HAS_GLINE_TABLES_ONLY_FLAG AND NOT COMPILER_RT_DEBUG)
   list(APPEND SANITIZER_COMMON_CFLAGS -gline-tables-only)
 elseif(COMPILER_RT_HAS_G_FLAG)
   list(APPEND SANITIZER_COMMON_CFLAGS -g)
@@ -283,12 +271,27 @@ append_list_if(COMPILER_RT_HAS_WD4391_FLAG /wd4391 SANITIZER_COMMON_CFLAGS)
 append_list_if(COMPILER_RT_HAS_WD4722_FLAG /wd4722 SANITIZER_COMMON_CFLAGS)
 append_list_if(COMPILER_RT_HAS_WD4800_FLAG /wd4800 SANITIZER_COMMON_CFLAGS)
 if(APPLE)
-  # Obtain the iOS Simulator SDK path from xcodebuild.
-  execute_process(
-    COMMAND xcodebuild -version -sdk iphonesimulator Path
-    OUTPUT_VARIABLE IOSSIM_SDK_DIR
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
+  macro(find_darwin_sdk_dir var sdk_name)
+    # Let's first try the internal SDK, otherwise use the public SDK.
+    execute_process(
+      COMMAND xcodebuild -version -sdk ${sdk_name}.internal Path
+      OUTPUT_VARIABLE ${var}
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      ERROR_FILE /dev/null
+    )
+    if(${var} STREQUAL "")
+      execute_process(
+        COMMAND xcodebuild -version -sdk ${sdk_name} Path
+        OUTPUT_VARIABLE ${var}
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_FILE /dev/null
+      )
+    endif()
+  endmacro()
+
+  find_darwin_sdk_dir(OSX_SDK_DIR macosx)
+  find_darwin_sdk_dir(IOSSIM_SDK_DIR iphonesimulator)
+
   string(REGEX MATCH "-mmacosx-version-min="
          MACOSX_VERSION_MIN_FLAG "${CMAKE_CXX_FLAGS}")
   set(SANITIZER_COMMON_SUPPORTED_DARWIN_OS osx)
@@ -298,10 +301,12 @@ if(APPLE)
 
   set(SANITIZER_MIN_OSX_VERSION 10.7)
   set(CMAKE_OSX_DEPLOYMENT_TARGET "") # We're setting the flag manually below.
-  set(DARWIN_osx_CFLAGS -mmacosx-version-min=${SANITIZER_MIN_OSX_VERSION})
+  set(DARWIN_osx_CFLAGS -mmacosx-version-min=${SANITIZER_MIN_OSX_VERSION}
+    -isysroot ${OSX_SDK_DIR} -stdlib=libc++)
   set(DARWIN_iossim_CFLAGS
     -mios-simulator-version-min=7.0 -isysroot ${IOSSIM_SDK_DIR})
-  set(DARWIN_osx_LINKFLAGS)
+  set(DARWIN_osx_LINKFLAGS -mmacosx-version-min=${SANITIZER_MIN_OSX_VERSION}
+    -isysroot ${OSX_SDK_DIR} -stdlib=libc++)
   set(DARWIN_iossim_LINKFLAGS
     -Wl,-ios_simulator_version_min,7.0.0
     -mios-simulator-version-min=7.0
