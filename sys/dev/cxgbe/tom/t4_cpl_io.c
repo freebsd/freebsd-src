@@ -990,7 +990,10 @@ t4_tod_output(struct toedev *tod, struct tcpcb *tp)
 	    ("%s: inp %p dropped.", __func__, inp));
 	KASSERT(toep != NULL, ("%s: toep is NULL", __func__));
 
-	t4_push_frames(sc, toep, 0);
+	if (toep->ulp_mode == ULP_MODE_ISCSI)
+		t4_ulp_push_frames(sc, toep, 0);
+	else
+		t4_push_frames(sc, toep, 0);
 
 	return (0);
 }
