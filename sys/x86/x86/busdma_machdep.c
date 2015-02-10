@@ -964,7 +964,7 @@ busdma_sysctl_tree_top(struct bounce_zone *bz)
 	return (bz->sysctl_tree_top);
 }
 
-#if defined(__amd64__) || defined(PAE)
+#if defined(__amd64__)
 #define	SYSCTL_ADD_BUS_SIZE_T	SYSCTL_ADD_UQUAD
 #else
 #define	SYSCTL_ADD_BUS_SIZE_T(ctx, parent, nbr, name, flag, ptr, desc)	\
