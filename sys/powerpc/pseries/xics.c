@@ -197,12 +197,13 @@ xicp_bind(device_t dev, u_int irq, cpuset_t cpumask)
 {
 	struct xicp_softc *sc = device_get_softc(dev);
 	cell_t status, cpu;
-	int ncpus, i;
+	int ncpus, i, error;
 
 	/*
 	 * This doesn't appear to actually support affinity groups, so pick a
 	 * random CPU.
 	 */
+	ncpus = 0;
 	CPU_FOREACH(cpu)
 		if (CPU_ISSET(cpu, &cpumask)) ncpus++;
 
@@ -217,8 +218,10 @@ xicp_bind(device_t dev, u_int irq, cpuset_t cpumask)
 	}
 	
 
-	rtas_call_method(sc->ibm_set_xive, 3, 1, irq, cpu, XICP_PRIORITY,
-	    &status);
+	error = rtas_call_method(sc->ibm_set_xive, 3, 1, irq, cpu,
+	    XICP_PRIORITY, &status);
+	if (error < 0)
+		panic("Cannot bind interrupt %d to CPU %d", irq, cpu);
 }
 
 static void
