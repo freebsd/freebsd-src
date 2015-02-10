@@ -801,8 +801,8 @@ smart_frag_failure:
 		/* make sure the flowid is the same for the fragmented mbufs */
 		M_HASHTYPE_SET(m, M_HASHTYPE_GET(m0));
 		m->m_pkthdr.flowid = m0->m_pkthdr.flowid;
-		/* copy multicast flag, if any */
-		m->m_flags |= (m0->m_flags & M_MCAST);
+		/* copy multicast and flowid flags, if any */
+		m->m_flags |= (m0->m_flags & (M_MCAST | M_FLOWID));
 		/*
 		 * In the first mbuf, leave room for the link header, then
 		 * copy the original IP header including options. The payload
