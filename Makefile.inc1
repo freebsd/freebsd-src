@@ -215,7 +215,7 @@ TMPPATH=	${STRICTTMPPATH}:${PATH}
 # It may not be functional, e.g., due to new ABI
 # when in the middle of installing over this system.
 #
-.if make(distributeworld) || make(installworld)
+.if make(distributeworld) || make(installworld) || make(stageworld)
 INSTALLTMP!=	/usr/bin/mktemp -d -u -t install
 .endif
 
@@ -842,7 +842,7 @@ DEBUG_DISTRIBUTIONS+=	base ${EXTRA_DISTRIBUTIONS:S,doc,,}
 
 MTREE_MAGIC?=	mtree 2.0
 
-distributeworld installworld: _installcheck_world
+distributeworld installworld stageworld: _installcheck_world
 	mkdir -p ${INSTALLTMP}
 	progs=$$(for prog in ${ITOOLS}; do \
 		if progpath=`which $$prog`; then \
@@ -978,6 +978,20 @@ reinstall: .MAKE
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install32
 .endif
 
+restage: .MAKE
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Making hierarchy"
+	@echo "--------------------------------------------------------------"
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 \
+	    LOCAL_MTREE=${LOCAL_MTREE:Q} hierarchy distribution
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Installing everything"
+	@echo "--------------------------------------------------------------"
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
+.if defined(LIB32TMP) && ${MK_LIB32} != "no"
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install32
+.endif
 redistribute: .MAKE
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Distributing everything"
