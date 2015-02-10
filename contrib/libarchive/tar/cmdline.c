@@ -74,6 +74,7 @@ static const struct bsdtar_option {
 	{ "cd",                   1, 'C' },
 	{ "check-links",          0, OPTION_CHECK_LINKS },
 	{ "chroot",               0, OPTION_CHROOT },
+	{ "clear-nochange-fflags", 0, OPTION_CLEAR_NOCHANGE_FFLAGS },
 	{ "compress",             0, 'Z' },
 	{ "confirmation",         0, 'w' },
 	{ "create",               0, 'c' },

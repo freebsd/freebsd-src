@@ -303,6 +303,10 @@ main(int argc, char **argv)
 		case OPTION_CHROOT: /* NetBSD */
 			bsdtar->option_chroot = 1;
 			break;
+		case OPTION_CLEAR_NOCHANGE_FFLAGS:
+			bsdtar->extract_flags |=
+			    ARCHIVE_EXTRACT_CLEAR_NOCHANGE_FFLAGS;
+			break;
 		case OPTION_DISABLE_COPYFILE: /* Mac OS X */
 			bsdtar->readdisk_flags &= ~ARCHIVE_READDISK_MAC_COPYFILE;
 			break;
