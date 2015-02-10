@@ -80,16 +80,20 @@ if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
 	done
 fi
 
+LOCAL_DISTRIBUTIONS=""
 FETCH_DISTRIBUTIONS=""
 for dist in $DISTRIBUTIONS; do
 	if [ ! -f $BSDINSTALL_DISTDIR/$dist ]; then
 		FETCH_DISTRIBUTIONS="$FETCH_DISTRIBUTIONS $dist"
+	else
+		LOCAL_DISTRIBUTIONS="$LOCAL_DISTRIBUTIONS $dist"
 	fi
 done
+LOCAL_DISTRIBUTIONS=`echo $LOCAL_DISTRIBUTIONS`	# Trim white space
 FETCH_DISTRIBUTIONS=`echo $FETCH_DISTRIBUTIONS`	# Trim white space
 
 if [ -n "$FETCH_DISTRIBUTIONS" -a -n "$BSDINSTALL_CONFIGCURRENT" ]; then
-	dialog --backtitle "FreeBSD Installer" --title "Network Installation" --msgbox "No installation files were found on the boot volume. The next few screens will allow you to configure networking so that they can be downloaded from the Internet." 0 0
+	dialog --backtitle "FreeBSD Installer" --title "Network Installation" --msgbox "Some installation files were not found on the boot volume. The next few screens will allow you to configure networking so that they can be downloaded from the Internet." 0 0
 	bsdinstall netconfig || error
 	NETCONFIG_DONE=yes
 fi
@@ -168,13 +172,18 @@ if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
 		DISTDIR_IS_UNIONFS=1
 		mount_nullfs -o union "$BSDINSTALL_FETCHDEST" "$BSDINSTALL_DISTDIR"
 	else
-		export DISTRIBUTIONS="MANIFEST $ALL_DISTRIBUTIONS"
+		export DISTRIBUTIONS="MANIFEST $FETCH_DISTRIBUTIONS"
 		export BSDINSTALL_DISTDIR="$BSDINSTALL_FETCHDEST"
 	fi
 		
 	export FTP_PASSIVE_MODE=YES
-	bsdinstall distfetch || error "Failed to fetch distribution"
+	bsdinstall distfetch || error "Failed to fetch remote distribution"
 	export DISTRIBUTIONS="$ALL_DISTRIBUTIONS"
+fi
+
+if [ ! -z "$LOCAL_DISTRIBUTIONS" ]; then
+	env DISTRIBUTIONS="$LOCAL_DISTRIBUTIONS" bsdinstall distfetch || \
+		error "Failed to fetch distribution from local media"
 fi
 
 bsdinstall checksum || error "Distribution checksum failed"
