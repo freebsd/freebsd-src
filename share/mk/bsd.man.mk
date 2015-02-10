@@ -50,7 +50,7 @@
 .error bsd.man.mk cannot be included directly.
 .endif
 
-MINSTALL?=	${INSTALL} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
+MINSTALL?=	${INSTALL} -T runtime -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
 
 CATDIR=		${MANDIR:H:S/$/\/cat/}
 CATEXT=		.cat
