@@ -11712,7 +11712,8 @@ ctl_clear_ua(struct ctl_softc *ctl_softc, uint32_t initidx,
 	STAILQ_FOREACH(lun, &ctl_softc->lun_list, links) {
 		mtx_lock(&lun->lun_lock);
 		pu = lun->pending_ua[initidx / CTL_MAX_INIT_PER_PORT];
-		pu[initidx % CTL_MAX_INIT_PER_PORT] &= ~ua_type;
+		if (pu != NULL)
+			pu[initidx % CTL_MAX_INIT_PER_PORT] &= ~ua_type;
 		mtx_unlock(&lun->lun_lock);
 	}
 }
