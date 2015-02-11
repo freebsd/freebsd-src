@@ -3,6 +3,7 @@
 #
 
 BOARD=		BEAGLEBONE
+ARMPORTS=	sysutils/u-boot-beaglebone
 
-build-arm-${BOARD:tl}:
+build-arm-${BOARD:tl}:	build-arm-ports${BOARD:tl}
 	touch ${.TARGET}
