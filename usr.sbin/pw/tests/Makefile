@@ -11,7 +11,8 @@ ATF_TESTS_SH=	pw_etcdir \
 		pw_groupmod \
 		pw_useradd \
 		pw_userdel \
-		pw_usermod
+		pw_usermod \
+		pw_usernext
 
 .for tp in ${ATF_TESTS_SH}
 TEST_METADATA.${tp}+=	required_user="root"

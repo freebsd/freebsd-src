@@ -555,7 +555,7 @@ armv7_pcpu_init(struct pmc_mdep *md, int cpu)
 	armv7_pcpu[cpu] = pac = malloc(sizeof(struct armv7_cpu), M_PMC,
 	    M_WAITOK|M_ZERO);
 
-	cpuid = cpu_id();
+	cpuid = cpu_ident();
 	pac->cortex_ver = (cpuid >> CPU_ID_CORTEX_VER_SHIFT) & \
 				CPU_ID_CORTEX_VER_MASK;
 

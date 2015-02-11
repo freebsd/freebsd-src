@@ -88,7 +88,7 @@ get_cyclecount(void)
 }
 
 #define	cpu_getstack(td)	((td)->td_frame->fixreg[1])
-#define	cpu_spinwait()		/* nothing */
+#define	cpu_spinwait()		__asm __volatile("or 27,27,27") /* yield */
 
 extern char btext[];
 extern char etext[];

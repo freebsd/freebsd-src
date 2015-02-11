@@ -190,23 +190,23 @@ int ni_mc_load_microcode(struct radeon_device *rdev)
 
 	switch (rdev->family) {
 	case CHIP_BARTS:
-		io_mc_regs = (const u32 *)&barts_io_mc_regs;
+		io_mc_regs = &barts_io_mc_regs[0][0];
 		ucode_size = BTC_MC_UCODE_SIZE;
 		regs_size = BTC_IO_MC_REGS_SIZE;
 		break;
 	case CHIP_TURKS:
-		io_mc_regs = (const u32 *)&turks_io_mc_regs;
+		io_mc_regs = &turks_io_mc_regs[0][0];
 		ucode_size = BTC_MC_UCODE_SIZE;
 		regs_size = BTC_IO_MC_REGS_SIZE;
 		break;
 	case CHIP_CAICOS:
 	default:
-		io_mc_regs = (const u32 *)&caicos_io_mc_regs;
+		io_mc_regs = &caicos_io_mc_regs[0][0];
 		ucode_size = BTC_MC_UCODE_SIZE;
 		regs_size = BTC_IO_MC_REGS_SIZE;
 		break;
 	case CHIP_CAYMAN:
-		io_mc_regs = (const u32 *)&cayman_io_mc_regs;
+		io_mc_regs = &cayman_io_mc_regs[0][0];
 		ucode_size = CAYMAN_MC_UCODE_SIZE;
 		regs_size = BTC_IO_MC_REGS_SIZE;
 		break;

@@ -11880,7 +11880,7 @@ err:
 	int i;
 
 	*factor = 1;
-#if defined(__amd64__) || defined(__mips__) || defined(__powerpc__)
+#if defined(__amd64__) || defined(__arm__) || defined(__mips__) || defined(__powerpc__)
 	/*
 	 * FreeBSD isn't good at limiting the amount of memory we
 	 * ask to malloc, so let's place a limit here before trying
@@ -16881,7 +16881,7 @@ dtrace_dtr(void *data)
 #ifdef illumos
 	dtrace_state_destroy(state);
 #else
-	if (state == NULL) {
+	if (state != NULL) {
 		dtrace_state_destroy(state);
 		kmem_free(state, 0);
 	}

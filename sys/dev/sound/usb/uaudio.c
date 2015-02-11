@@ -111,6 +111,7 @@ SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_channels, CTLFLAG_RWTUN,
     &uaudio_default_channels, 0, "uaudio default sample channels");
 #endif
 
+#define	UAUDIO_IRQS	(8000 / UAUDIO_NFRAMES)	/* interrupts per second */
 #define	UAUDIO_NFRAMES		64	/* must be factor of 8 due HS-USB */
 #define	UAUDIO_NCHANBUFS	2	/* number of outstanding request */
 #define	UAUDIO_RECURSE_LIMIT	255	/* rounds */
@@ -189,7 +190,6 @@ struct uaudio_chan_alt {
 	uint8_t	iface_index;
 	uint8_t	iface_alt_index;
 	uint8_t channels;
-	uint8_t enable_sync;
 };
 
 struct uaudio_chan {
@@ -226,11 +226,12 @@ struct uaudio_chan {
 #define	CHAN_OP_STOP 2
 #define	CHAN_OP_DRAIN 3
 
-	uint8_t last_sync_time;
-	uint8_t last_sync_state;
-#define	UAUDIO_SYNC_NONE 0
-#define	UAUDIO_SYNC_MORE 1
-#define	UAUDIO_SYNC_LESS 2
+	/* USB audio feedback endpoint state */
+	struct {
+		uint16_t time;		/* I/O interrupt count */
+		int16_t constant;	/* sample rate adjustment in Hz */
+		int16_t remainder;	/* current remainder */
+	} feedback;
 };
 
 #define	UMIDI_EMB_JACK_MAX   16		/* units */
@@ -1799,14 +1800,6 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 		chan_alt->iface_index = curidx;
 		chan_alt->iface_alt_index = alt_index;
 
-		if (UEP_HAS_SYNCADDR(ed1) && ed1->bSynchAddress != 0) {
-			DPRINTF("Sync endpoint will be used, if present\n");
-			chan_alt->enable_sync = 1;
-		} else {
-			DPRINTF("Sync endpoint will not be used\n");
-			chan_alt->enable_sync = 0;
-		}
-
 		usbd_set_parent_iface(sc->sc_udev, curidx,
 		    sc->sc_mixer_iface_index);
 
@@ -2016,29 +2009,44 @@ uaudio_chan_play_sync_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (temp == 0)
 			break;
 
-		/* correctly scale value */
-
-		temp = (temp * 125ULL) - 64;
+		temp *= 125ULL;
 
 		/* auto adjust */
-
 		while (temp < (sample_rate - (sample_rate / 4)))
 			temp *= 2;
-
+ 
 		while (temp > (sample_rate + (sample_rate / 2)))
 			temp /= 2;
 
-		/* compare */
+		/*
+		 * Some USB audio devices only report a sample rate
+		 * different from the nominal one when they want one
+		 * more or less sample. Make sure we catch this case
+		 * by pulling the sample rate offset slowly towards
+		 * zero if the reported value is equal to the sample
+		 * rate.
+		 */
+		if (temp > sample_rate)
+			ch->feedback.constant += 1;
+		else if (temp < sample_rate)
+			ch->feedback.constant -= 1;
+		else if (ch->feedback.constant > 0)
+			ch->feedback.constant--;
+		else if (ch->feedback.constant < 0)
+			ch->feedback.constant++;
 
-		DPRINTF("Comparing %d < %d\n",
-		    (int)temp, (int)sample_rate);
+		DPRINTF("Comparing %d Hz :: %d Hz :: %d samples drift\n",
+		    (int)temp, (int)sample_rate, (int)ch->feedback.constant);
 
-		if (temp == sample_rate)
-			ch->last_sync_state = UAUDIO_SYNC_NONE;
-		else if (temp > sample_rate)
-			ch->last_sync_state = UAUDIO_SYNC_MORE;
-		else
-			ch->last_sync_state = UAUDIO_SYNC_LESS;
+		/*
+		 * Range check sync constant. We cannot change the
+		 * number of samples per second by more than the value
+		 * defined by "UAUDIO_IRQS":
+		 */
+		if (ch->feedback.constant > UAUDIO_IRQS)
+			ch->feedback.constant = UAUDIO_IRQS;
+		else if (ch->feedback.constant < -UAUDIO_IRQS)
+			ch->feedback.constant = -UAUDIO_IRQS;
 		break;
 
 	case USB_ST_SETUP:
@@ -2082,10 +2090,10 @@ tr_transferred:
 		}
 		chn_intr(ch->pcm_ch);
 
-		/* start SYNC transfer, if any */
-		if (ch->usb_alt[ch->cur_alt].enable_sync != 0) {
-			if ((ch->last_sync_time++ & 7) == 0)
-				usbd_transfer_start(ch->xfer[UAUDIO_NCHANBUFS]);
+		/* start the SYNC transfer one time per second, if any */
+		if (++(ch->feedback.time) >= UAUDIO_IRQS) {
+			ch->feedback.time = 0;
+			usbd_transfer_start(ch->xfer[UAUDIO_NCHANBUFS]);
 		}
 
 	case USB_ST_SETUP:
@@ -2120,21 +2128,22 @@ tr_transferred:
 			}
 
 			if (n == (blockcount - 1)) {
-				switch (ch->last_sync_state) {
-				case UAUDIO_SYNC_MORE:
+				/*
+				 * Update sync remainder and check if
+				 * we should transmit more or less
+				 * data:
+				 */
+				ch->feedback.remainder += ch->feedback.constant;
+				if (ch->feedback.remainder >= UAUDIO_IRQS) {
+					ch->feedback.remainder -= UAUDIO_IRQS;
 					DPRINTFN(6, "sending one sample more\n");
 					if ((frame_len + sample_size) <= mfl)
 						frame_len += sample_size;
-					ch->last_sync_state = UAUDIO_SYNC_NONE;
-					break;
-				case UAUDIO_SYNC_LESS:
+				} else if (ch->feedback.remainder <= -UAUDIO_IRQS) {
+					ch->feedback.remainder += UAUDIO_IRQS;
 					DPRINTFN(6, "sending one sample less\n");
 					if (frame_len >= sample_size)
 						frame_len -= sample_size;
-					ch->last_sync_state = UAUDIO_SYNC_NONE;
-					break;
-				default:
-					break;
 				}
 			}
 
@@ -2451,6 +2460,9 @@ uaudio_chan_start(struct uaudio_chan *ch)
 		}
 	}
 	usb_proc_explore_unlock(sc->sc_udev);
+
+	/* reset feedback endpoint state */
+	memset(&ch->feedback, 0, sizeof(ch->feedback));
 
 	if (do_start) {
 		usbd_transfer_start(ch->xfer[0]);
