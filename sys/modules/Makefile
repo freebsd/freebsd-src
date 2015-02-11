@@ -166,8 +166,6 @@ SUBDIR=	\
 	${_ipw} \
 	${_ipwfw} \
 	${_isci} \
-	iscsi \
-	iscsi_initiator \
 	isp \
 	${_ispfw} \
 	${_iwi} \
@@ -433,6 +431,11 @@ _ipfilter=	ipfilter
 .if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
 _ipdivert=	ipdivert
 _ipfw=		ipfw
+.endif
+
+.if ${MK_ISCSI} != "no" || defined(ALL_MODULES)
+SUBDIR+=	iscsi
+SUBDIR+=	iscsi_initiator
 .endif
 
 .if ${MK_NAND} != "no" || defined(ALL_MODULES)

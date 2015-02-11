@@ -208,8 +208,6 @@ MAN=	aac.4 \
 	ipw.4 \
 	ipwfw.4 \
 	isci.4 \
-	iscsi.4 \
-	iscsi_initiator.4 \
 	isp.4 \
 	ispfw.4 \
 	iwi.4 \
@@ -859,6 +857,12 @@ _nvram2env.4=	nvram2env.4
 
 .if exists(${.CURDIR}/man4.${MACHINE_CPUARCH})
 SUBDIR=	man4.${MACHINE_CPUARCH}
+.endif
+
+.if ${MK_ISCSI} != "no"
+MAN+=		iscsi.4
+MAN+=		iscsi_initiator.4
+
 .endif
 
 .if ${MK_TESTS} != "no"

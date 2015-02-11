@@ -297,6 +297,7 @@ __DEFAULT_YES_OPTIONS = \
     IPFILTER \
     IPFW \
     IPX \
+    ISCSI \
     JAIL \
     KDUMP \
     KERBEROS \

@@ -63,8 +63,6 @@ FILES=	DAEMON \
 	ipropd_slave \
 	ipsec \
 	${_ipxrouted} \
-	iscsictl \
-	iscsid \
 	${_kadmind} \
 	${_kdc} \
 	keyserv \
@@ -186,6 +184,11 @@ FILES+=		bsnmpd
 
 .if ${MK_IPX} != "no"
 _ipxrouted=	ipxrouted
+.endif
+
+.if ${MK_ISCSI} != "no"
+FILES+=		iscsictl
+FILES+=		iscsid
 .endif
 
 .if ${MK_JAIL} != "no"
