@@ -2236,6 +2236,8 @@ OLD_FILES+=usr/share/man/man8/jls.8.gz
 .endif
 
 .if ${MK_KERBEROS} == no
+OLD_FILES+=etc/rc.d/ipropd_master
+OLD_FILES+=etc/rc.d/ipropd_slave
 OLD_FILES+=usr/bin/compile_et
 OLD_FILES+=usr/bin/hxtool
 OLD_FILES+=usr/bin/kadmin

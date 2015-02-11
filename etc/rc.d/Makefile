@@ -55,8 +55,6 @@ FILES=	DAEMON \
 	ipfw \
 	ipmon \
 	ipnat \
-	ipropd_master \
-	ipropd_slave \
 	ipsec \
 	${_ipxrouted} \
 	${_kadmind} \
@@ -202,6 +200,8 @@ FILES+=		jail
 .endif
 
 .if ${MK_KERBEROS} != "no"
+FILES+=		ipropd_master
+FILES+=		ipropd_slave
 _kadmind=	kadmind
 _kdc=		kdc
 _kfd=		kfd
