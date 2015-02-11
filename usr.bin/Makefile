@@ -37,7 +37,6 @@ SUBDIR=	alias \
 	cut \
 	dirname \
 	du \
-	ee \
 	elf2aout \
 	elfdump \
 	enigma \
@@ -234,6 +233,10 @@ SUBDIR+=	calendar
 
 .if ${MK_CLANG} != "no"
 _clang=		clang
+.endif
+
+.if ${MK_EE} != "no"
+SUBDIR+=	ee
 .endif
 
 .if ${MK_HESIOD} != "no"
