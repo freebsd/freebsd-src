@@ -1,0 +1,8 @@
+#
+# $FreeBSD$
+#
+
+BOARD=		RPI-B
+
+build-arm-${BOARD:tl}:
+	touch ${.TARGET}

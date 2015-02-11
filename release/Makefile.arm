@@ -1,0 +1,36 @@
+#
+# $FreeBSD$
+#
+
+BOARDS?=	BEAGLEBONE \
+		RPI-B \
+		PANDABOARD \
+		WANDBOARD-QUAD \
+		ZEDBOARD \
+		NUCLEUS
+
+ARMTARGETS?=
+ARMSIZE?=	1G
+ARMPORTS?=
+CLEANFILES+=	arm-all
+WITH_ARM_IMAGES?=1
+
+.if defined(WITH_ARM_IMAGES) && !empty(WITH_ARM_IMAGES) && !empty(BOARDS)
+. for BOARD in ${BOARDS}
+ARMTARGETS+=		arm-${BOARD:tl}
+CLEANDIRS+=		arm-${BOARD:tl}
+CLEANFILES+=		arm-${BOARD:tu}.img \
+			arm-${BOARD:tu}.raw \
+			build-arm-${BOARD:tl}
+.  if exists(${.CURDIR}/arm/Makefile.${BOARD})
+.   include "${.CURDIR}/arm/Makefile.${BOARD}"
+.  endif
+
+arm-${BOARD:tl}:
+	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} build-${.TARGET}
+. endfor
+.endif			# !WITH_ARM_IMAGES
+
+
+arm-all: ${ARMTARGETS}
+	touch ${.TARGET}

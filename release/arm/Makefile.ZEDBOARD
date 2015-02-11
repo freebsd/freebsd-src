@@ -1,0 +1,8 @@
+#
+# $FreeBSD$
+#
+
+BOARD=		ZEDBOARD
+
+build-arm-${BOARD:tl}:
+	touch ${.TARGET}
