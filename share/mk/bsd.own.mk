@@ -341,6 +341,7 @@ __DEFAULT_YES_OPTIONS = \
     PPP \
     PROFILE \
     QUOTAS \
+    RADIUS_SUPPORT \
     RCMDS \
     RCS \
     RESCUE \
