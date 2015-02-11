@@ -285,7 +285,7 @@ unit2npeid(int unit)
 	};
 	/* XXX check feature register instead */
 	return (unit < 3 ? npeidmap[
-	    (cpu_id() & CPU_ID_CPU_MASK) == CPU_ID_IXP435][unit] : -1);
+	    (cpu_ident() & CPU_ID_CPU_MASK) == CPU_ID_IXP435][unit] : -1);
 }
 
 static int
