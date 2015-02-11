@@ -272,6 +272,7 @@ __DEFAULT_YES_OPTIONS = \
     DICT \
     DYNAMICROOT \
     ED_CRYPTO \
+    EE \
     EXAMPLES \
     FLOPPY \
     FMTREE \
