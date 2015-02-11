@@ -3261,9 +3261,11 @@ coredump(struct thread *td)
 	void *rl_cookie;
 	off_t limit;
 	int compress;
-	char data[MAXPATHLEN * 2 + 16]; /* space for devctl notification */
+	char *data = NULL;
 	char *fullpath, *freepath = NULL;
 	size_t len;
+	static const char comm_name[] = "comm=";
+	static const char core_name[] = "core=";
 
 #ifdef COMPRESS_USER_CORES
 	compress = compress_user_cores;
@@ -3357,25 +3359,31 @@ close:
 	 */
 	if (coredump_devctl == 0)
 		goto out;
+	len = MAXPATHLEN * 2 + sizeof(comm_name) - 1 +
+	    sizeof(' ') + sizeof(core_name) - 1;
+	data = malloc(len, M_TEMP, M_WAITOK);
+	if (data == NULL)
+		goto out;
 	if (vn_fullpath_global(td, p->p_textvp, &fullpath, &freepath) != 0)
 		goto out;
 	if (!coredump_sanitise_path(fullpath))
 		goto out;
-	snprintf(data, sizeof(data), "comm=%s ", fullpath);
+	snprintf(data, len, "%s%s ", comm_name, fullpath);
 	free(freepath, M_TEMP);
 	freepath = NULL;
 	if (vn_fullpath_global(td, vp, &fullpath, &freepath) != 0)
 		goto out;
 	if (!coredump_sanitise_path(fullpath))
 		goto out;
-	strlcat(data, "core=", sizeof(data));
-	len = strlcat(data, fullpath, sizeof(data));
+	strlcat(data, core_name, len);
+	strlcat(data, fullpath, len);
 	devctl_notify("kernel", "signal", "coredump", data);
 out:
 #ifdef AUDIT
 	audit_proc_coredump(td, name, error);
 #endif
 	free(freepath, M_TEMP);
+	free(data, M_TEMP);
 	free(name, M_TEMP);
 	return (error);
 }
