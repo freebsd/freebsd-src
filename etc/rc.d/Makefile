@@ -8,7 +8,6 @@ FILES=	DAEMON \
 	NETWORKING \
 	SERVERS \
 	abi \
-	accounting \
 	addswap \
 	adjkerntz \
 	archdep \
