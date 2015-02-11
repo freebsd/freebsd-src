@@ -161,6 +161,7 @@ esac
 
 if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
 	ALL_DISTRIBUTIONS="$DISTRIBUTIONS"
+	WANT_DEBUG=false
 
 	# Download to a directory in the new system as scratch space
 	BSDINSTALL_FETCHDEST="$BSDINSTALL_CHROOT/usr/freebsd-dist"
@@ -177,7 +178,39 @@ if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
 	fi
 		
 	export FTP_PASSIVE_MODE=YES
-	bsdinstall distfetch || error "Failed to fetch remote distribution"
+	# Iterate through the distribution list and set a flag if debugging
+	# distributions have been selected.
+	for _DISTRIBUTION in $DISTRIBUTIONS; do
+		case $_DISTRIBUTION in
+			*-dbg.*)
+				WANT_DEBUG=true
+				DEBUG_LIST="\n$DEBUG_LIST\n$_DISTRIBUTION"
+				;;
+			*)
+				;;
+		esac
+	done
+
+	# Fetch the distributions.
+	bsdinstall distfetch
+	rc=$?
+
+	if [ $rc -ne 0 ]; then
+		# If unable to fetch the remote distributions, recommend
+		# deselecting the debugging distributions, and retrying the
+		# installation, since failure to fetch *-dbg.txz should not
+		# be considered a fatal installation error.
+		msg="Failed to fetch remote distribution"
+		if [ $WANT_DEBUG ]; then
+			# Trim leading and trailing newlines.
+			DEBUG_LIST="${DEBUG_LIST%%\n}"
+			DEBUG_LIST="${DEBUG_LIST##\n}"
+			msg="$msg\n\nPlease deselect the following distributions"
+			msg="$msg and retry the installation:"
+			msg="$msg\n$DEBUG_LIST"
+		fi
+		error "$msg"
+	fi
 	export DISTRIBUTIONS="$ALL_DISTRIBUTIONS"
 fi
 
