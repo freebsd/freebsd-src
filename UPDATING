@@ -292,6 +292,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	The lindev device has been removed since /dev/full has been made a
 	standard device.  __FreeBSD_version has been bumped.
 
+20140424:
+	The knob WITHOUT_VI was added to the base system, which controls
+	building ex(1), vi(1), etc. Older releases of FreeBSD required ex(1)
+	in order to reorder files share/termcap and didn't build ex(1) as a
+	build tool, so building/installing with WITH_VI is highly advised for
+	build hosts for older releases.
+
+	This issue has been fixed in stable/9 and stable/10 in r277022 and
+	r276991, respectively.
+
 20140418:
 	The YES_HESIOD knob has been removed. It has been obsolete for
 	a decade. Please move to using WITH_HESIOD instead or your builds
