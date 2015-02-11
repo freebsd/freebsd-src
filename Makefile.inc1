@@ -50,10 +50,6 @@
 .include <bsd.arch.inc.mk>
 .include <bsd.compiler.mk>
 
-# We must do share/info early so that installation of info `dir'
-# entries works correctly.  Do it first since it is less likely to
-# grow dependencies on include and lib than vice versa.
-#
 # We must do lib/ and libexec/ before bin/, because if installworld
 # installs a new /bin/sh, the 'make' command will *immediately*
 # use that new version.  And the new (dynamically-linked) /bin/sh
@@ -63,7 +59,7 @@ SRCDIR?=	${.CURDIR}
 .if defined(SUBDIR_OVERRIDE)
 SUBDIR=	${SUBDIR_OVERRIDE}
 .else
-SUBDIR=	share/info lib libexec
+SUBDIR=	lib libexec
 SUBDIR+=bin
 .if ${MK_GAMES} != "no"
 SUBDIR+=games
