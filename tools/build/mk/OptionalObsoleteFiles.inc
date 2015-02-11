@@ -6,6 +6,7 @@
 #
 
 .if ${MK_ACCT} == no
+OLD_FILES+=etc/rc.d/accounting
 OLD_FILES+=etc/periodic/daily/310.accounting
 OLD_FILES+=usr/sbin/accton
 OLD_FILES+=usr/sbin/sa
@@ -61,6 +62,7 @@ OLD_FILES+=usr/share/man/man8/amd64/apmconf.8.gz
 .endif
 
 .if ${MK_AT} == no
+OLD_FILES+=etc/pam.d/atrun
 OLD_FILES+=usr/bin/at
 OLD_FILES+=usr/bin/atq
 OLD_FILES+=usr/bin/atrm
