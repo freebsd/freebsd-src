@@ -39,7 +39,6 @@ SUBDIR=	adduser \
 	ifmcstat \
 	inetd \
 	iostat \
-	iscsid \
 	kldxref \
 	mailwrapper \
 	makefs \
@@ -181,6 +180,10 @@ SUBDIR+=	ipfwpcap
 
 .if ${MK_IPX} != "no"
 SUBDIR+=	IPXrouted
+.endif
+
+.if ${MK_ISCSI} != "no"
+SUBDIR+=	iscsid
 .endif
 
 .if ${MK_JAIL} != "no"
