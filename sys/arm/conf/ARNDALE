@@ -19,7 +19,7 @@
 
 #NO_UNIVERSE
 
-include		"EXYNOS5250.common"
+include		"EXYNOS5250"
 ident		ARNDALE
 
 #FDT
