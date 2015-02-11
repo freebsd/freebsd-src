@@ -123,12 +123,34 @@ enum sfxge_txq_type {
 #define	SFXGE_TX_BATCH	64
 
 #ifdef SFXGE_HAVE_MQ
-#define	SFXGE_TXQ_LOCK(txq)		(&(txq)->lock)
+#define	SFXGE_TX_LOCK(txq)		(&(txq)->lock)
 #define	SFXGE_TX_SCALE(sc)		((sc)->intr.n_alloc)
 #else
-#define	SFXGE_TXQ_LOCK(txq)		(&(txq)->sc->tx_lock)
+#define	SFXGE_TX_LOCK(txq)		(&(txq)->sc->tx_lock)
 #define	SFXGE_TX_SCALE(sc)		1
 #endif
+
+#define	SFXGE_TXQ_LOCK_INIT(_txq, _ifname, _txq_index)			\
+	do {								\
+		struct sfxge_txq  *__txq = (_txq);			\
+									\
+		snprintf((__txq)->lock_name,				\
+			 sizeof((__txq)->lock_name),			\
+			 "%s:txq%u", (_ifname), (_txq_index));		\
+		mtx_init(&(__txq)->lock, (__txq)->lock_name,		\
+			 NULL, MTX_DEF);				\
+	} while (B_FALSE)
+#define	SFXGE_TXQ_LOCK_DESTROY(_txq)					\
+	mtx_destroy(&(_txq)->lock)
+#define	SFXGE_TXQ_LOCK(_txq)						\
+	mtx_lock(SFXGE_TX_LOCK(_txq))
+#define	SFXGE_TXQ_TRYLOCK(_txq)						\
+	mtx_trylock(SFXGE_TX_LOCK(_txq))
+#define	SFXGE_TXQ_UNLOCK(_txq)						\
+	mtx_unlock(SFXGE_TX_LOCK(_txq))
+#define	SFXGE_TXQ_LOCK_ASSERT_OWNED(_txq)				\
+	mtx_assert(SFXGE_TX_LOCK(_txq), MA_OWNED)
+
 
 struct sfxge_txq {
 	/* The following fields should be written very rarely */
@@ -149,6 +171,8 @@ struct sfxge_txq {
 	efx_txq_t			*common;
 
 	efsys_mem_t			*tsoh_buffer;
+
+	char				lock_name[SFXGE_LOCK_NAME_MAX];
 
 	/* This field changes more often and is read regularly on both
 	 * the initiation and completion paths
@@ -177,6 +201,8 @@ struct sfxge_txq {
 	unsigned long			get_non_tcp_overflow;
 	unsigned long			put_overflow;
 	unsigned long			netdown_drops;
+	unsigned long			tso_pdrop_too_many;
+	unsigned long			tso_pdrop_no_rsrc;
 
 	/* The following fields change more often, and are used mostly
 	 * on the completion path

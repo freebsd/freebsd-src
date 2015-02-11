@@ -429,6 +429,7 @@ struct ipfw_ifc {
 
 #define	IPFW_UH_RLOCK_ASSERT(_chain)	rw_assert(&(_chain)->uh_lock, RA_RLOCKED)
 #define	IPFW_UH_WLOCK_ASSERT(_chain)	rw_assert(&(_chain)->uh_lock, RA_WLOCKED)
+#define	IPFW_UH_UNLOCK_ASSERT(_chain)	rw_assert(&(_chain)->uh_lock, RA_UNLOCKED)
 
 #define IPFW_UH_RLOCK(p) rw_rlock(&(p)->uh_lock)
 #define IPFW_UH_RUNLOCK(p) rw_runlock(&(p)->uh_lock)

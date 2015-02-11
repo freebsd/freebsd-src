@@ -45,7 +45,7 @@ arm_code(lzma_simple *simple lzma_attribute((__unused__)),
 
 
 static lzma_ret
-arm_coder_init(lzma_next_coder *next, lzma_allocator *allocator,
+arm_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		const lzma_filter_info *filters, bool is_encoder)
 {
 	return lzma_simple_coder_init(next, allocator, filters,
@@ -54,7 +54,8 @@ arm_coder_init(lzma_next_coder *next, lzma_allocator *allocator,
 
 
 extern lzma_ret
-lzma_simple_arm_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+lzma_simple_arm_encoder_init(lzma_next_coder *next,
+		const lzma_allocator *allocator,
 		const lzma_filter_info *filters)
 {
 	return arm_coder_init(next, allocator, filters, true);
@@ -62,7 +63,8 @@ lzma_simple_arm_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
 
 
 extern lzma_ret
-lzma_simple_arm_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+lzma_simple_arm_decoder_init(lzma_next_coder *next,
+		const lzma_allocator *allocator,
 		const lzma_filter_info *filters)
 {
 	return arm_coder_init(next, allocator, filters, false);

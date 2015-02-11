@@ -242,9 +242,3 @@ powerpc/psim/iobus.c 		optional	psim
 powerpc/psim/ata_iobus.c	optional	ata psim
 powerpc/psim/openpic_iobus.c	optional	psim
 powerpc/psim/uart_iobus.c	optional	uart psim
-powerpc/wii/platform_wii.c	optional	wii
-powerpc/wii/wii_bus.c		optional	wii
-powerpc/wii/wii_pic.c		optional	wii
-powerpc/wii/wii_fb.c		optional	wii
-powerpc/wii/wii_gpio.c		optional	wii wiigpio
-powerpc/wii/wii_ipc.c		optional	wii

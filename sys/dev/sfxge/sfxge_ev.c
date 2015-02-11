@@ -415,7 +415,7 @@ sfxge_ev_stat_update(struct sfxge_softc *sc)
 	unsigned int index;
 	clock_t now;
 
-	sx_xlock(&sc->softc_lock);
+	SFXGE_ADAPTER_LOCK(sc);
 
 	if (sc->evq[0]->init_state != SFXGE_EVQ_STARTED)
 		goto out;
@@ -429,12 +429,12 @@ sfxge_ev_stat_update(struct sfxge_softc *sc)
 	/* Add event counts from each event queue in turn */
 	for (index = 0; index < sc->intr.n_alloc; index++) {
 		evq = sc->evq[index];
-		mtx_lock(&evq->lock);
+		SFXGE_EVQ_LOCK(evq);
 		efx_ev_qstats_update(evq->common, sc->ev_stats);
-		mtx_unlock(&evq->lock);
+		SFXGE_EVQ_UNLOCK(evq);
 	}
 out:
-	sx_xunlock(&sc->softc_lock);
+	SFXGE_ADAPTER_UNLOCK(sc);
 }
 
 static int
@@ -495,7 +495,7 @@ sfxge_int_mod_handler(SYSCTL_HANDLER_ARGS)
 	int error;
 	int index;
 
-	sx_xlock(&sc->softc_lock);
+	SFXGE_ADAPTER_LOCK(sc);
 
 	if (req->newptr != NULL) {
 		if ((error = SYSCTL_IN(req, &moderation, sizeof(moderation)))
@@ -522,7 +522,7 @@ sfxge_int_mod_handler(SYSCTL_HANDLER_ARGS)
 	}
 
 out:
-	sx_xunlock(&sc->softc_lock);
+	SFXGE_ADAPTER_UNLOCK(sc);
 
 	return (error);
 }
@@ -577,7 +577,7 @@ sfxge_ev_qpoll(struct sfxge_evq *evq)
 {
 	int rc;
 
-	mtx_lock(&evq->lock);
+	SFXGE_EVQ_LOCK(evq);
 
 	if (evq->init_state != SFXGE_EVQ_STARTING &&
 	    evq->init_state != SFXGE_EVQ_STARTED) {
@@ -607,12 +607,12 @@ sfxge_ev_qpoll(struct sfxge_evq *evq)
 	if ((rc = efx_ev_qprime(evq->common, evq->read_ptr)) != 0)
 		goto fail;
 
-	mtx_unlock(&evq->lock);
+	SFXGE_EVQ_UNLOCK(evq);
 
 	return (0);
 
 fail:
-	mtx_unlock(&(evq->lock));
+	SFXGE_EVQ_UNLOCK(evq);
 	return (rc);
 }
 
@@ -626,7 +626,7 @@ sfxge_ev_qstop(struct sfxge_softc *sc, unsigned int index)
 	KASSERT(evq->init_state == SFXGE_EVQ_STARTED,
 	    ("evq->init_state != SFXGE_EVQ_STARTED"));
 
-	mtx_lock(&evq->lock);
+	SFXGE_EVQ_LOCK(evq);
 	evq->init_state = SFXGE_EVQ_INITIALIZED;
 	evq->read_ptr = 0;
 	evq->exception = B_FALSE;
@@ -639,7 +639,7 @@ sfxge_ev_qstop(struct sfxge_softc *sc, unsigned int index)
 	efx_ev_qdestroy(evq->common);
 	efx_sram_buf_tbl_clear(sc->enp, evq->buf_base_id,
 	    EFX_EVQ_NBUFS(evq->entries));
-	mtx_unlock(&evq->lock);
+	SFXGE_EVQ_UNLOCK(evq);
 }
 
 static int
@@ -669,7 +669,7 @@ sfxge_ev_qstart(struct sfxge_softc *sc, unsigned int index)
 	    evq->buf_base_id, &evq->common)) != 0)
 		goto fail;
 
-	mtx_lock(&evq->lock);
+	SFXGE_EVQ_LOCK(evq);
 
 	/* Set the default moderation */
 	(void)efx_ev_qmoderate(evq->common, sc->ev_moderation);
@@ -680,7 +680,7 @@ sfxge_ev_qstart(struct sfxge_softc *sc, unsigned int index)
 
 	evq->init_state = SFXGE_EVQ_STARTING;
 
-	mtx_unlock(&evq->lock);
+	SFXGE_EVQ_UNLOCK(evq);
 
 	/* Wait for the initialization event */
 	count = 0;
@@ -701,10 +701,10 @@ done:
 	return (0);
 
 fail3:
-	mtx_lock(&evq->lock);
+	SFXGE_EVQ_LOCK(evq);
 	evq->init_state = SFXGE_EVQ_INITIALIZED;
 fail2:
-	mtx_unlock(&evq->lock);
+	SFXGE_EVQ_UNLOCK(evq);
 	efx_ev_qdestroy(evq->common);
 fail:
 	efx_sram_buf_tbl_clear(sc->enp, evq->buf_base_id,
@@ -785,7 +785,7 @@ sfxge_ev_qfini(struct sfxge_softc *sc, unsigned int index)
 
 	sc->evq[index] = NULL;
 
-	mtx_destroy(&evq->lock);
+	SFXGE_EVQ_LOCK_DESTROY(evq);
 
 	free(evq, M_SFXGE);
 }
@@ -832,7 +832,7 @@ sfxge_ev_qinit(struct sfxge_softc *sc, unsigned int index)
 	sfxge_sram_buf_tbl_alloc(sc, EFX_EVQ_NBUFS(evq->entries),
 				 &evq->buf_base_id);
 
-	mtx_init(&evq->lock, "evq", NULL, MTX_DEF);
+	SFXGE_EVQ_LOCK_INIT(evq, device_get_nameunit(sc->dev), index);
 
 	evq->init_state = SFXGE_EVQ_INITIALIZED;
 

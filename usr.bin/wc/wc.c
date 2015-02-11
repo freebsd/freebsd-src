@@ -140,12 +140,14 @@ main(int argc, char *argv[])
 		} while(*++argv);
 	}
 
+	xo_close_list("file");
+
 	if (total > 1) {
 		xo_open_container("total");
 		show_cnt("total", tlinect, twordct, tcharct, tlongline);
 		xo_close_container("total");
 	}
-	xo_close_list("file");
+
 	xo_close_container("wc");
 	xo_finish();
 	exit(errors == 0 ? 0 : 1);

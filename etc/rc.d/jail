@@ -28,7 +28,7 @@ extra_commands="config console status"
 
 need_dad_wait=
 
-# extact_var jail name param num defval
+# extract_var jail name param num defval
 #	Extract value from ${jail_$jail_$name} or ${jail_$name} and
 #	set it to $param.  If not defined, $defval is used.
 #	When $num is [0-9]*, ${jail_$jail_$name$num} are looked up and
@@ -233,8 +233,7 @@ parse_options()
 		fi
 		eval : \${jail_${_j}_procfs_enable:=${jail_procfs_enable:-NO}}
 		if checkyesno jail_${_j}_procfs_enable; then
-			echo "	mount += " \
-			    "\"procfs ${_rootdir%/}/proc procfs rw 0 0\";"
+			echo "	mount.procfs;"
 		fi
 
 		eval : \${jail_${_j}_mount_enable:=${jail_mount_enable:-NO}}

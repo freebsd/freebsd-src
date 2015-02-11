@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 1, 2015
+.Dd February 11, 2015
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -66,7 +66,8 @@ file is:
 
 .No target Ar name {
 .Dl auth-group Ar name
-.Dl portal-group Ar name
+.Dl portal-group Ar name Op Ar agname
+.Dl port Ar name
 .Dl lun Ar number Ar name
 .Dl lun Ar number No {
 .Dl 	path Ar path
@@ -227,7 +228,7 @@ An IPv4 or IPv6 address and port to listen on for incoming connections.
 .\".It Ic listen-iser Ar address
 .\"An IPv4 or IPv6 address and port to listen on for incoming connections
 .\"using iSER (iSCSI over RDMA) protocol.
-.It Ic redirect Aq Ar address
+.It Ic redirect Ar address
 IPv4 or IPv6 address to redirect initiators to.
 When configured, all initiators attempting to connect to portal
 belonging to this
@@ -310,13 +311,22 @@ This clause is mutually exclusive with
 .Sy auth-group ;
 one cannot use
 both in a single target.
-.It Ic portal-group Ar name
+.It Ic offload Ar driver
+Define iSCSI hardware offload driver to use for this target.
+.It Ic portal-group Ar name Op Ar agname
 Assign a previously defined portal group to the target.
 The default portal group is
 .Qq Ar default ,
 which makes the target available
 on TCP port 3260 on all configured IPv4 and IPv6 addresses.
-.It Ic redirect Aq Ar address
+Optional second argument specifies auth group name for connections
+to this specific portal group.
+If second argument is not specified, target auth group is used.
+.It Ic port Ar name
+Assign specified CTL port (such as "isp0") to the target.
+On startup ctld configures LUN mapping and enables all assigned ports.
+Each port can be assigned to only one target.
+.It Ic redirect Ar address
 IPv4 or IPv6 address to redirect initiators to.
 When configured, all initiators attempting to connect to this target
 will get redirected using "Target moved temporarily" login response.

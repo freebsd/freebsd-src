@@ -410,6 +410,11 @@ initclocks(dummy)
 #ifdef SW_WATCHDOG
 	EVENTHANDLER_REGISTER(watchdog_list, watchdog_config, NULL, 0);
 #endif
+	/*
+	 * Arrange for ticks to wrap 10 minutes after boot to help catch
+	 * sign problems sooner.
+	 */
+	ticks = INT_MAX - (hz * 10 * 60);
 }
 
 /*

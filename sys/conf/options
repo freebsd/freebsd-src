@@ -129,6 +129,7 @@ GEOM_SHSEC	opt_geom.h
 GEOM_STRIPE	opt_geom.h
 GEOM_SUNLABEL	opt_geom.h
 GEOM_UNCOMPRESS	opt_geom.h
+GEOM_UNCOMPRESS_DEBUG	opt_geom.h
 GEOM_UZIP	opt_geom.h
 GEOM_VINUM	opt_geom.h
 GEOM_VIRSTOR	opt_geom.h
@@ -209,7 +210,7 @@ SW_WATCHDOG	opt_watchdog.h
 TURNSTILE_PROFILING
 UMTX_PROFILING
 VFS_AIO
-VERBOSE_SYSINIT	opt_global.h
+VERBOSE_SYSINIT
 WLCACHE		opt_wavelan.h
 WLDEBUG		opt_wavelan.h
 
@@ -845,6 +846,9 @@ MWL_TX_NODROP		opt_mwl.h
 
 # Options for the Intel 802.11n wireless driver
 IWN_DEBUG		opt_iwn.h
+
+# Options for the Intel 3945ABG wireless driver
+WPI_DEBUG		opt_wpi.h
 
 # dcons options 
 DCONS_BUF_SIZE		opt_dcons.h

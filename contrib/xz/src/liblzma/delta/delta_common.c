@@ -15,7 +15,7 @@
 
 
 static void
-delta_coder_end(lzma_coder *coder, lzma_allocator *allocator)
+delta_coder_end(lzma_coder *coder, const lzma_allocator *allocator)
 {
 	lzma_next_end(&coder->next, allocator);
 	lzma_free(coder, allocator);
@@ -24,7 +24,7 @@ delta_coder_end(lzma_coder *coder, lzma_allocator *allocator)
 
 
 extern lzma_ret
-lzma_delta_coder_init(lzma_next_coder *next, lzma_allocator *allocator,
+lzma_delta_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		const lzma_filter_info *filters)
 {
 	// Allocate memory for the decoder if needed.
