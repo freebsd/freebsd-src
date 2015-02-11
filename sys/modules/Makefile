@@ -774,7 +774,9 @@ _twa=		twa
 _vesa=		vesa
 _viawd=		viawd
 _virtio=	virtio
+.if ${MK_BHYVE} != "no" || defined(ALL_MODULES)
 _vmm=		vmm
+.endif
 _vxge=  	vxge
 _x86bios=	x86bios
 _wbwd=		wbwd

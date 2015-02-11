@@ -144,6 +144,16 @@ OLD_FILES+=usr/share/man/man8/authpf.8.gz
 OLD_FILES+=usr/share/man/man8/authpf-noip.8.gz
 .endif
 
+.if ${MK_BHYVE} == no
+OLD_FILES+=usr/sbin/bhyve
+OLD_FILES+=usr/sbin/bhyvectl
+OLD_FILES+=usr/sbin/bhyveload
+OLD_FILES+=usr/share/examples/bhyve/vmrun.sh
+OLD_FILES+=usr/share/man/man8/bhyve.8.gz
+OLD_FILES+=usr/share/man/man8/bhyveload.8.gz
+OLD_DIRS+=usr/share/examples/bhyve
+.endif
+
 .if ${MK_BLUETOOTH} == no
 OLD_FILES+=etc/bluetooth/hcsecd.conf
 OLD_FILES+=etc/bluetooth/hosts
