@@ -46,7 +46,6 @@ FILES=	DAEMON \
 	geli2 \
 	gptboot \
 	gssd \
-	hastd \
 	${_hcsecd} \
 	hostid \
 	hostid_save \
@@ -184,6 +183,10 @@ FILES+=		bsnmpd
 
 .if ${MK_IPX} != "no"
 _ipxrouted=	ipxrouted
+.endif
+
+.if ${MK_HAST} != "no"
+FILES+=		hastd
 .endif
 
 .if ${MK_ISCSI} != "no"
