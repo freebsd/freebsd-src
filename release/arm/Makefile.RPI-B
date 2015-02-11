@@ -3,6 +3,7 @@
 #
 
 BOARD=		RPI-B
+ARMPORTS=	sysutils/u-boot-rpi
 
-build-arm-${BOARD:tl}:
+build-arm-${BOARD:tl}:	build-arm-ports${BOARD:tl}
 	touch ${.TARGET}

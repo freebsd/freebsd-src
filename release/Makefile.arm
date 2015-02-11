@@ -6,14 +6,15 @@ BOARDS?=	BEAGLEBONE \
 		RPI-B \
 		PANDABOARD \
 		WANDBOARD-QUAD \
-		ZEDBOARD \
-		NUCLEUS
+		ZEDBOARD
 
 ARMTARGETS?=
 ARMSIZE?=	1G
+ARM_WFLAGS?=	CROSS_TOOLCHAIN=armv6-gcc
 ARMPORTS?=
-CLEANFILES+=	arm-all
+
 WITH_ARM_IMAGES?=1
+CLEANFILES+=	arm-all
 
 .if defined(WITH_ARM_IMAGES) && !empty(WITH_ARM_IMAGES) && !empty(BOARDS)
 . for BOARD in ${BOARDS}
@@ -21,7 +22,8 @@ ARMTARGETS+=		arm-${BOARD:tl}
 CLEANDIRS+=		arm-${BOARD:tl}
 CLEANFILES+=		arm-${BOARD:tu}.img \
 			arm-${BOARD:tu}.raw \
-			build-arm-${BOARD:tl}
+			build-arm-${BOARD:tl} \
+			build-arm-ports${BOARD:tl}
 .  if exists(${.CURDIR}/arm/Makefile.${BOARD})
 .   include "${.CURDIR}/arm/Makefile.${BOARD}"
 .  endif
@@ -31,6 +33,16 @@ arm-${BOARD:tl}:
 . endfor
 .endif			# !WITH_ARM_IMAGES
 
-
 arm-all: ${ARMTARGETS}
+	touch ${.TARGET}
+
+build-arm-ports${BOARD:tl}:
+.if defined(ARMPORTS) && !empty(ARMPORTS)
+. if !exists(${PORTSDIR}/Makefile)
+.  error "Ports tree (${PORTSDIR}) is required."
+. endif
+. for AP in ${ARMPORTS}
+	@echo ${MAKE} -C ${PORTSDIR}/${AP} all install clean distclean
+. endfor
+.endif
 	touch ${.TARGET}
