@@ -5,5 +5,5 @@
 BOARD=		WANDBOARD-QUAD
 ARMPORTS=	sysutils/u-boot-wandboard
 
-build-arm-${BOARD:tl}:	build-arm-ports
+build-arm-${BOARD:tl}:	build-arm-ports${BOARD:tl}
 	touch ${.TARGET}
