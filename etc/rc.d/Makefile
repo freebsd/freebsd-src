@@ -152,6 +152,10 @@ FILES=	DAEMON \
 	zfs \
 	zvol
 
+.if ${MK_ACCT} != "no"
+FILES+=		accounting
+.endif
+
 .if ${MK_ACPI} != "no"
 FILES+=		power_profile
 .endif
