@@ -254,6 +254,7 @@ __DEFAULT_YES_OPTIONS = \
     ATM \
     AUDIT \
     AUTHPF \
+    BHYVE \
     BINUTILS \
     BLUETOOTH \
     BMAKE \

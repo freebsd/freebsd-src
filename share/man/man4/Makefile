@@ -836,7 +836,6 @@ MLINKS+=lindev.4 full.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
-_bhyve.4=	bhyve.4
 _if_ntb.4=	if_ntb.4
 _ntb.4=		ntb.4
 _ntb_hw.4=	ntb_hw.4
@@ -849,6 +848,10 @@ MLINKS+=qlxge.4 if_qlxge.4
 MLINKS+=qlxgb.4 if_qlxgb.4
 MLINKS+=qlxgbe.4 if_qlxgbe.4
 MLINKS+=sfxge.4 if_sfxge.4
+
+.if ${MK_BHYVE} != "no"
+_bhyve.4=	bhyve.4
+.endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "mips"
