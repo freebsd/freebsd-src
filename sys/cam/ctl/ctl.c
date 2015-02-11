@@ -4483,6 +4483,8 @@ ctl_init_log_page_index(struct ctl_lun *lun)
 	lun->log_pages.index[1].page_len = k * 2;
 	lun->log_pages.index[2].page_data = &lun->log_pages.lbp_page[0];
 	lun->log_pages.index[2].page_len = 12*CTL_NUM_LBP_PARAMS;
+	lun->log_pages.index[3].page_data = (uint8_t *)&lun->log_pages.stat_page;
+	lun->log_pages.index[3].page_len = sizeof(lun->log_pages.stat_page);
 
 	return (CTL_RETVAL_COMPLETE);
 }
@@ -4720,6 +4722,9 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 		lun->serseq = CTL_LUN_SERSEQ_OFF;
 
 	lun->ctl_softc = ctl_softc;
+#ifdef CTL_TIME_IO
+	lun->last_busy = getsbinuptime();
+#endif
 	TAILQ_INIT(&lun->ooa_queue);
 	TAILQ_INIT(&lun->blocked_queue);
 	STAILQ_INIT(&lun->error_list);
@@ -7081,6 +7086,67 @@ ctl_lbp_log_sense_handler(struct ctl_scsiio *ctsio,
 	}
 
 	page_index->page_len = data - page_index->page_data;
+	return (0);
+}
+
+int
+ctl_sap_log_sense_handler(struct ctl_scsiio *ctsio,
+			       struct ctl_page_index *page_index,
+			       int pc)
+{
+	struct ctl_lun *lun;
+	struct stat_page *data;
+	uint64_t rn, wn, rb, wb;
+	struct bintime rt, wt;
+	int i;
+
+	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+	data = (struct stat_page *)page_index->page_data;
+
+	scsi_ulto2b(SLP_SAP, data->sap.hdr.param_code);
+	data->sap.hdr.param_control = SLP_LBIN;
+	data->sap.hdr.param_len = sizeof(struct scsi_log_stat_and_perf) -
+	    sizeof(struct scsi_log_param_header);
+	rn = wn = rb = wb = 0;
+	bintime_clear(&rt);
+	bintime_clear(&wt);
+	for (i = 0; i < CTL_MAX_PORTS; i++) {
+		rn += lun->stats.ports[i].operations[CTL_STATS_READ];
+		wn += lun->stats.ports[i].operations[CTL_STATS_WRITE];
+		rb += lun->stats.ports[i].bytes[CTL_STATS_READ];
+		wb += lun->stats.ports[i].bytes[CTL_STATS_WRITE];
+		bintime_add(&rt, &lun->stats.ports[i].time[CTL_STATS_READ]);
+		bintime_add(&wt, &lun->stats.ports[i].time[CTL_STATS_WRITE]);
+	}
+	scsi_u64to8b(rn, data->sap.read_num);
+	scsi_u64to8b(wn, data->sap.write_num);
+	if (lun->stats.blocksize > 0) {
+		scsi_u64to8b(wb / lun->stats.blocksize,
+		    data->sap.recvieved_lba);
+		scsi_u64to8b(rb / lun->stats.blocksize,
+		    data->sap.transmitted_lba);
+	}
+	scsi_u64to8b((uint64_t)rt.sec * 1000 + rt.frac / (UINT64_MAX / 1000),
+	    data->sap.read_int);
+	scsi_u64to8b((uint64_t)wt.sec * 1000 + wt.frac / (UINT64_MAX / 1000),
+	    data->sap.write_int);
+	scsi_u64to8b(0, data->sap.weighted_num);
+	scsi_u64to8b(0, data->sap.weighted_int);
+	scsi_ulto2b(SLP_IT, data->it.hdr.param_code);
+	data->it.hdr.param_control = SLP_LBIN;
+	data->it.hdr.param_len = sizeof(struct scsi_log_idle_time) -
+	    sizeof(struct scsi_log_param_header);
+#ifdef CTL_TIME_IO
+	scsi_u64to8b(lun->idle_time / SBT_1MS, data->it.idle_int);
+#endif
+	scsi_ulto2b(SLP_TI, data->ti.hdr.param_code);
+	data->it.hdr.param_control = SLP_LBIN;
+	data->ti.hdr.param_len = sizeof(struct scsi_log_time_interval) -
+	    sizeof(struct scsi_log_param_header);
+	scsi_ulto4b(3, data->ti.exponent);
+	scsi_ulto4b(1, data->ti.integer);
+
+	page_index->page_len = sizeof(*data);
 	return (0);
 }
 
@@ -11689,6 +11755,12 @@ ctl_scsiio_precheck(struct ctl_softc *softc, struct ctl_scsiio *ctsio)
 			 * Every I/O goes into the OOA queue for a
 			 * particular LUN, and stays there until completion.
 			 */
+#ifdef CTL_TIME_IO
+			if (TAILQ_EMPTY(&lun->ooa_queue)) {
+				lun->idle_time += getsbinuptime() -
+				    lun->last_busy;
+			}
+#endif
 			TAILQ_INSERT_TAIL(&lun->ooa_queue, &ctsio->io_hdr,
 			    ooa_links);
 		}
@@ -13735,6 +13807,10 @@ ctl_process_done(union ctl_io *io)
 	 * Remove this from the OOA queue.
 	 */
 	TAILQ_REMOVE(&lun->ooa_queue, &io->io_hdr, ooa_links);
+#ifdef CTL_TIME_IO
+	if (TAILQ_EMPTY(&lun->ooa_queue))
+		lun->last_busy = getsbinuptime();
+#endif
 
 	/*
 	 * Run through the blocked queue on this LUN and see if anything
