@@ -1191,8 +1191,11 @@ port_new(struct conf *conf, struct target *target, struct portal_group *pg)
 {
 	struct port *port;
 	char *name;
+	int ret;
 
-	asprintf(&name, "%s-%s", pg->pg_name, target->t_name);
+	ret = asprintf(&name, "%s-%s", pg->pg_name, target->t_name);
+	if (ret <= 0)
+		log_err(1, "asprintf");
 	if (port_find(conf, name) != NULL) {
 		log_warnx("duplicate port \"%s\"", name);
 		free(name);
@@ -1216,8 +1219,11 @@ port_new_pp(struct conf *conf, struct target *target, struct pport *pp)
 {
 	struct port *port;
 	char *name;
+	int ret;
 
-	asprintf(&name, "%s-%s", pp->pp_name, target->t_name);
+	ret = asprintf(&name, "%s-%s", pp->pp_name, target->t_name);
+	if (ret <= 0)
+		log_err(1, "asprintf");
 	if (port_find(conf, name) != NULL) {
 		log_warnx("duplicate port \"%s\"", name);
 		free(name);
