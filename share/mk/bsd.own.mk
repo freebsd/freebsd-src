@@ -358,6 +358,7 @@ __DEFAULT_YES_OPTIONS = \
     CXX \
     DICT \
     DYNAMICROOT \
+    EE \
     EXAMPLES \
     FLOPPY \
     FORTH \
