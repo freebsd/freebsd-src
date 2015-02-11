@@ -8,7 +8,6 @@ FILES=	DAEMON \
 	NETWORKING \
 	SERVERS \
 	abi \
-	accounting \
 	addswap \
 	adjkerntz \
 	archdep \
@@ -148,6 +147,10 @@ FILES=	DAEMON \
 	ypxfrd \
 	zfs \
 	zvol
+
+.if ${MK_ACCT} != "no"
+FILES+=		accounting
+.endif
 
 .if ${MK_AMD} != "no"
 FILES+=		amd

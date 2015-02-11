@@ -1,9 +1,10 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 NO_OBJ=
 
 FILES=	README \
-	atrun \
 	cron \
 	ftpd \
 	imap \
@@ -15,6 +16,10 @@ FILES=	README \
 	sshd su system \
 	telnetd \
 	xdm
+
+.if ${MK_AT} != "no"
+FILES+=	atrun
+.endif
 
 FILESDIR=	/etc/pam.d
 FILESMODE=	644
