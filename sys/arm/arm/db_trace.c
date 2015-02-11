@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_sym.h>
 #include <ddb/db_output.h>
 
-#ifdef __ARM_EABI__
 /*
  * Definitions for the instruction interpreter.
  *
@@ -453,131 +452,6 @@ db_stack_trace_cmd(struct unwind_state *state)
 		}
 	}
 }
-#endif
-
-/*
- * APCS stack frames are awkward beasts, so I don't think even trying to use
- * a structure to represent them is a good idea.
- *
- * Here's the diagram from the APCS.  Increasing address is _up_ the page.
- *
- *          save code pointer       [fp]        <- fp points to here
- *          return link value       [fp, #-4]
- *          return sp value         [fp, #-8]
- *          return fp value         [fp, #-12]
- *          [saved v7 value]
- *          [saved v6 value]
- *          [saved v5 value]
- *          [saved v4 value]
- *          [saved v3 value]
- *          [saved v2 value]
- *          [saved v1 value]
- *          [saved a4 value]
- *          [saved a3 value]
- *          [saved a2 value]
- *          [saved a1 value]
- *
- * The save code pointer points twelve bytes beyond the start of the
- * code sequence (usually a single STM) that created the stack frame.
- * We have to disassemble it if we want to know which of the optional
- * fields are actually present.
- */
-
-#ifndef __ARM_EABI__	/* The frame format is differend in AAPCS */
-static void
-db_stack_trace_cmd(db_expr_t addr, db_expr_t count, boolean_t kernel_only)
-{
-	u_int32_t	*frame, *lastframe;
-	c_db_sym_t sym;
-	const char *name;
-	db_expr_t value;
-	db_expr_t offset;
-	int	scp_offset;
-
-	frame = (u_int32_t *)addr;
-	lastframe = NULL;
-	scp_offset = -(get_pc_str_offset() >> 2);
-
-	while (count-- && frame != NULL && !db_pager_quit) {
-		db_addr_t	scp;
-		u_int32_t	savecode;
-		int		r;
-		u_int32_t	*rp;
-		const char	*sep;
-
-		/*
-		 * In theory, the SCP isn't guaranteed to be in the function
-		 * that generated the stack frame.  We hope for the best.
-		 */
-		scp = frame[FR_SCP];
-
-		sym = db_search_symbol(scp, DB_STGY_ANY, &offset);
-		if (sym == C_DB_SYM_NULL) {
-			value = 0;
-			name = "(null)";
-		} else
-			db_symbol_values(sym, &name, &value);
-		db_printf("%s() at ", name);
-		db_printsym(scp, DB_STGY_PROC);
-		db_printf("\n");
-#ifdef __PROG26
-		db_printf("\tscp=0x%08x rlv=0x%08x (", scp, frame[FR_RLV] & R15_PC);
-		db_printsym(frame[FR_RLV] & R15_PC, DB_STGY_PROC);
-		db_printf(")\n");
-#else
-		db_printf("\tscp=0x%08x rlv=0x%08x (", scp, frame[FR_RLV]);
-		db_printsym(frame[FR_RLV], DB_STGY_PROC);
-		db_printf(")\n");
-#endif
-		db_printf("\trsp=0x%08x rfp=0x%08x", frame[FR_RSP], frame[FR_RFP]);
-
-		savecode = ((u_int32_t *)scp)[scp_offset];
-		if ((savecode & 0x0e100000) == 0x08000000) {
-			/* Looks like an STM */
-			rp = frame - 4;
-			sep = "\n\t";
-			for (r = 10; r >= 0; r--) {
-				if (savecode & (1 << r)) {
-					db_printf("%sr%d=0x%08x",
-					    sep, r, *rp--);
-					sep = (frame - rp) % 4 == 2 ?
-					    "\n\t" : " ";
-				}
-			}
-		}
-
-		db_printf("\n");
-
-		/*
-		 * Switch to next frame up
-		 */
-		if (frame[FR_RFP] == 0)
-			break; /* Top of stack */
-
-		lastframe = frame;
-		frame = (u_int32_t *)(frame[FR_RFP]);
-
-		if (INKERNEL((int)frame)) {
-			/* staying in kernel */
-			if (frame <= lastframe) {
-				db_printf("Bad frame pointer: %p\n", frame);
-				break;
-			}
-		} else if (INKERNEL((int)lastframe)) {
-			/* switch from user to kernel */
-			if (kernel_only)
-				break;	/* kernel stack only */
-		} else {
-			/* in user */
-			if (frame <= lastframe) {
-				db_printf("Bad user frame pointer: %p\n",
-					  frame);
-				break;
-			}
-		}
-	}
-}
-#endif
 
 /* XXX stubs */
 void
@@ -600,24 +474,18 @@ db_md_set_watchpoint(db_expr_t addr, db_expr_t size)
 int
 db_trace_thread(struct thread *thr, int count)
 {
-#ifdef __ARM_EABI__
 	struct unwind_state state;
-#endif
 	struct pcb *ctx;
 
 	if (thr != curthread) {
 		ctx = kdb_thr_ctx(thr);
 
-#ifdef __ARM_EABI__
 		state.registers[FP] = ctx->pcb_regs.sf_r11;
 		state.registers[SP] = ctx->pcb_regs.sf_sp;
 		state.registers[LR] = ctx->pcb_regs.sf_lr;
 		state.registers[PC] = ctx->pcb_regs.sf_pc;
 
 		db_stack_trace_cmd(&state);
-#else
-		db_stack_trace_cmd(ctx->pcb_regs.sf_r11, -1, TRUE);
-#endif
 	} else
 		db_trace_self();
 	return (0);
@@ -626,7 +494,6 @@ db_trace_thread(struct thread *thr, int count)
 void
 db_trace_self(void)
 {
-#ifdef __ARM_EABI__
 	struct unwind_state state;
 	uint32_t sp;
 
@@ -639,10 +506,4 @@ db_trace_self(void)
 	state.registers[PC] = (uint32_t)db_trace_self;
 
 	db_stack_trace_cmd(&state);
-#else
-	db_addr_t addr;
-
-	addr = (db_addr_t)__builtin_frame_address(0);
-	db_stack_trace_cmd(addr, -1, FALSE);
-#endif
 }
