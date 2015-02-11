@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2014 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,30 +28,24 @@
 
 /dts-v1/;
 
-/include/ "exynos5250.dtsi"
+/include/ "exynos5420.dtsi"
 
 / {
-	model = "Arndale Board";
+	model = "Arndale Octa Board";
 
 	memory {
 		device_type = "memory";
-		reg = < 0x40000000 0x80000000 >;  /* 2G */
+		reg = < 0x20000000 0x40000000 >;  /* 1G */
 	};
 
 	SOC: Exynos5@0 {
-
-		pad0: pad@11400000 {
+		serial3: serial@12C30000 {
 			status = "okay";
 		};
-
-		serial2: serial@12C20000 {
-			status = "okay";
-		};
-
 	};
 
 	chosen {
-		stdin = &serial2;
-		stdout = &serial2;
+		stdin = &serial3;
+		stdout = &serial3;
 	};
 };

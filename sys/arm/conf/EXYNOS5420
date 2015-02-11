@@ -1,4 +1,4 @@
-# Kernel configuration for Samsung Chromebook (Exynos5 Dual machine).
+# Kernel configuration for Samsung Exynos 5420 boards.
 #
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
@@ -17,22 +17,9 @@
 #
 # $FreeBSD$
 
-include		"EXYNOS5250"
-ident		CHROMEBOOK
-
-hints		"CHROMEBOOK.hints"
-
-device		chrome_ec	# Chrome Embedded Controller
-device		chrome_kb	# Chrome Keyboard
-
-# Framebuffer
-device		vt
-device		kbdmux
-options 	SC_DFLT_FONT		# compile font in
-makeoptions	SC_DFLT_FONT=cp437
-device		ukbd
+ident		EXYNOS5420
+include		"EXYNOS5.common"
+include		"../samsung/exynos/std.exynos5420"
 
 #FDT
 options 	FDT
-options 	FDT_DTB_STATIC
-makeoptions	FDT_DTS_FILE=exynos5250-chromebook.dts
