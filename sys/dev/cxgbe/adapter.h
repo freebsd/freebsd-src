@@ -192,7 +192,7 @@ enum {
 	/* INTR_DIRECT	= (1 << 2),	No longer used. */
 	MASTER_PF	= (1 << 3),
 	ADAP_SYSCTL_CTX	= (1 << 4),
-	TOM_INIT_DONE	= (1 << 5),
+	/* TOM_INIT_DONE= (1 << 5),	No longer used */
 	BUF_PACKING_OK	= (1 << 6),
 
 	CXGBE_BUSY	= (1 << 9),
@@ -758,7 +758,8 @@ struct adapter {
 	uint16_t doorbells;
 	int open_device_map;
 #ifdef TCP_OFFLOAD
-	int offload_map;
+	int offload_map;	/* ports with IFCAP_TOE enabled */
+	int active_ulds;	/* ULDs activated on this adapter */
 #endif
 	int flags;
 
@@ -812,7 +813,6 @@ struct adapter {
 #define ADAPTER_LOCK_ASSERT_OWNED(sc)	mtx_assert(&(sc)->sc_lock, MA_OWNED)
 #define ADAPTER_LOCK_ASSERT_NOTOWNED(sc) mtx_assert(&(sc)->sc_lock, MA_NOTOWNED)
 
-/* XXX: not bulletproof, but much better than nothing */
 #define ASSERT_SYNCHRONIZED_OP(sc)	\
     KASSERT(IS_BUSY(sc) && \
 	(mtx_owned(&(sc)->sc_lock) || sc->last_op_thr == curthread), \

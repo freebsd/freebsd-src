@@ -85,3 +85,27 @@ METHOD void close {
 METHOD bool connected {
 	struct icl_conn *_ic;
 };
+
+METHOD int task_setup {
+	struct icl_conn *_ic;
+	struct ccb_scsiio *_csio;
+	uint32_t *_task_tag;
+	void **_prvp;
+};
+
+METHOD void task_done {
+	struct icl_conn *_ic;
+	void *_prv;
+};
+
+METHOD int transfer_setup {
+	struct icl_conn *_ic;
+	union ctl_io *_io;
+	uint32_t *_transfer_tag;
+	void **_prvp;
+};
+
+METHOD void transfer_done {
+	struct icl_conn *_ic;
+	void *_prv;
+};

@@ -95,6 +95,7 @@ struct ipmi_softc {
 	} _iface;
 	int			ipmi_io_rid;
 	int			ipmi_io_type;
+	struct mtx		ipmi_io_lock;
 	struct resource		*ipmi_io_res[MAX_RES];
 	int			ipmi_io_spacing;
 	int			ipmi_irq_rid;
@@ -107,12 +108,13 @@ struct ipmi_softc {
 	eventhandler_tag	ipmi_watchdog_tag;
 	int			ipmi_watchdog_active;
 	struct intr_config_hook	ipmi_ich;
-	struct mtx		ipmi_lock;
+	struct mtx		ipmi_requests_lock;
 	struct cv		ipmi_request_added;
 	struct proc		*ipmi_kthread;
 	driver_intr_t		*ipmi_intr;
 	int			(*ipmi_startup)(struct ipmi_softc *);
 	int			(*ipmi_enqueue_request)(struct ipmi_softc *, struct ipmi_request *);
+	int			(*ipmi_driver_request)(struct ipmi_softc *, struct ipmi_request *, int);
 };
 
 #define	ipmi_ssif_smbus_address		_iface.ssif.smbus_address
@@ -183,12 +185,13 @@ struct ipmi_ipmb {
 #define	IPMI_ADDR(netfn, lun)		((netfn) << 2 | (lun))
 #define	IPMI_REPLY_ADDR(addr)		((addr) + 0x4)
 
-#define	IPMI_LOCK(sc)			mtx_lock(&(sc)->ipmi_lock)
-#define	IPMI_UNLOCK(sc)			mtx_unlock(&(sc)->ipmi_lock)
-#define	IPMI_LOCK_ASSERT(sc)		mtx_assert(&(sc)->ipmi_lock, MA_OWNED)
+#define	IPMI_LOCK(sc)		mtx_lock(&(sc)->ipmi_requests_lock)
+#define	IPMI_UNLOCK(sc)		mtx_unlock(&(sc)->ipmi_requests_lock)
+#define	IPMI_LOCK_ASSERT(sc)	mtx_assert(&(sc)->ipmi_requests_lock, MA_OWNED)
 
-#define	ipmi_alloc_driver_request(addr, cmd, reqlen, replylen)		\
-	ipmi_alloc_request(NULL, 0, (addr), (cmd), (reqlen), (replylen))
+#define	IPMI_IO_LOCK(sc)	mtx_lock(&(sc)->ipmi_io_lock)
+#define	IPMI_IO_UNLOCK(sc)	mtx_unlock(&(sc)->ipmi_io_lock)
+#define	IPMI_IO_LOCK_ASSERT(sc)	mtx_assert(&(sc)->ipmi_io_lock, MA_OWNED)
 
 #if __FreeBSD_version < 601105
 #define bus_read_1(r, o) \

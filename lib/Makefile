@@ -41,6 +41,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libcom_err} \
 	libcompat \
 	libcrypt \
+	libdevctl \
 	libdevinfo \
 	libdevstat \
 	libdpv \
@@ -152,6 +153,7 @@ SUBDIR_DEPEND_libstdc++= msun
 SUBDIR_DEPEND_libtacplus= libmd
 SUBDIR_DEPEND_libulog= libmd
 SUBDIR_DEPEND_libunbound= ${_libldns}
+SUBDIR_DEPEND_liblzma= ${_libthr}
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
 _csu=csu/${MACHINE_ARCH}-elf
@@ -260,6 +262,12 @@ _libypclnt=	libypclnt
 
 .if ${MK_PF} != "no"
 _libevent=	libevent
+.endif
+
+.if ${MACHINE_CPUARCH} == "arm"
+_libsmb=	libsmb
+_libproc=	libproc
+_librtld_db=	librtld_db
 .endif
 
 .if ${MK_OPENSSL} != "no"

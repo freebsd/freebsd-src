@@ -39,6 +39,7 @@
 #include "opt_smp.h"
 
 #include <machine/asmacros.h>
+#include <machine/specialreg.h>
 #include <x86/apicreg.h>
 
 #include "assym.s"
@@ -48,6 +49,22 @@
 #else
 #define LK
 #endif
+
+	.text
+	SUPERALIGN_TEXT
+	/* End Of Interrupt to APIC */
+as_lapic_eoi:
+	cmpl	$0,x2apic_mode
+	jne	1f
+	movq	lapic_map,%rax
+	movl	$0,LA_EOI(%rax)
+	ret
+1:
+	movl	$MSR_APIC_EOI,%ecx
+	xorl	%eax,%eax
+	xorl	%edx,%edx
+	wrmsr
+	ret
 
 /*
  * I/O Interrupt Entry Point.  Rather than having one entry point for
@@ -62,15 +79,22 @@
 IDTVEC(vec_name) ;							\
 	PUSH_FRAME ;							\
 	FAKE_MCOUNT(TF_RIP(%rsp)) ;					\
-	movq	lapic, %rdx ;	/* pointer to local APIC */		\
+	cmpl	$0,x2apic_mode ;					\
+	je	1f ;							\
+	movl	$(MSR_APIC_ISR0 + index),%ecx ;				\
+	rdmsr ;								\
+	jmp	2f ;							\
+1: ;									\
+	movq	lapic_map, %rdx ;	/* pointer to local APIC */	\
 	movl	LA_ISR + 16 * (index)(%rdx), %eax ;	/* load ISR */	\
+2: ;									\
 	bsrl	%eax, %eax ;	/* index of highest set bit in ISR */	\
-	jz	1f ;							\
+	jz	3f ;							\
 	addl	$(32 * index),%eax ;					\
 	movq	%rsp, %rsi	;                                       \
 	movl	%eax, %edi ;	/* pass the IRQ */			\
 	call	lapic_handle_intr ;					\
-1: ;									\
+3: ;									\
 	MEXITCOUNT ;							\
 	jmp	doreti
 
@@ -160,8 +184,7 @@ IDTVEC(xen_intr_upcall)
 
 	SUPERALIGN_TEXT
 invltlb_ret:
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
+	call	as_lapic_eoi
 	POP_FRAME
 	jmp	doreti_iret
 
@@ -228,8 +251,7 @@ IDTVEC(invlcache)
 IDTVEC(ipi_intr_bitmap_handler)		
 	PUSH_FRAME
 
-	movq	lapic, %rdx
-	movl	$0, LA_EOI(%rdx)	/* End Of Interrupt to APIC */
+	call	as_lapic_eoi
 	
 	FAKE_MCOUNT(TF_RIP(%rsp))
 
@@ -245,8 +267,7 @@ IDTVEC(ipi_intr_bitmap_handler)
 IDTVEC(cpustop)
 	PUSH_FRAME
 
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
+	call	as_lapic_eoi
 
 	call	cpustop_handler
 	jmp	doreti
@@ -260,8 +281,7 @@ IDTVEC(cpususpend)
 	PUSH_FRAME
 
 	call	cpususpend_handler
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
+	call	as_lapic_eoi
 	jmp	doreti
 
 /*
@@ -279,7 +299,6 @@ IDTVEC(rendezvous)
 	incq	(%rax)
 #endif
 	call	smp_rendezvous_action
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
+	call	as_lapic_eoi
 	jmp	doreti
 #endif /* SMP */

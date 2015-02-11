@@ -741,6 +741,8 @@ _zfs=		zfs
 
 .endif
 
+SUBDIR+=${MODULES_EXTRA}
+
 .for reject in ${WITHOUT_MODULES}
 SUBDIR:= ${SUBDIR:N${reject}}
 .endfor

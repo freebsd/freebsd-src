@@ -59,6 +59,7 @@ struct cfiscsi_data_wait {
 	size_t				cdw_sg_len;
 	uint32_t			cdw_r2t_end;
 	uint32_t			cdw_datasn;
+	void				*cdw_icl_prv;
 };
 
 #define CFISCSI_SESSION_STATE_INVALID		0
