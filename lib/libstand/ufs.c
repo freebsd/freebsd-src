@@ -155,7 +155,7 @@ read_inode(inumber, f)
 	 * Read inode and save it.
 	 */
 	buf = malloc(fs->fs_bsize);
-	twiddle();
+	twiddle(1);
 	rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
 		fsbtodb(fs, ino_to_fsba(fs, inumber)), fs->fs_bsize,
 		buf, &rsize);
@@ -265,7 +265,7 @@ block_map(f, file_block, disk_block_p)
 			if (fp->f_blk[level] == (char *)0)
 				fp->f_blk[level] =
 					malloc(fs->fs_bsize);
-			twiddle();
+			twiddle(1);
 			rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
 				fsbtodb(fp->f_fs, ind_block_num),
 				fs->fs_bsize,
@@ -346,7 +346,7 @@ buf_write_file(f, buf_p, size_p)
 		if (fp->f_buf == (char *)0)
 			fp->f_buf = malloc(fs->fs_bsize);
 
-		twiddle();
+		twiddle(4);
 		rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
 			fsbtodb(fs, disk_block),
 			block_size, fp->f_buf, &fp->f_buf_size);
@@ -365,7 +365,7 @@ buf_write_file(f, buf_p, size_p)
 	 *	Write the block out to storage.
 	 */
 
-	twiddle();
+	twiddle(4);
 	rc = (f->f_dev->dv_strategy)(f->f_devdata, F_WRITE,
 		fsbtodb(fs, disk_block),
 		block_size, fp->f_buf, &fp->f_buf_size);
@@ -406,7 +406,7 @@ buf_read_file(f, buf_p, size_p)
 			bzero(fp->f_buf, block_size);
 			fp->f_buf_size = block_size;
 		} else {
-			twiddle();
+			twiddle(4);
 			rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
 				fsbtodb(fs, disk_block),
 				block_size, fp->f_buf, &fp->f_buf_size);
@@ -515,7 +515,7 @@ ufs_open(upath, f)
 	/* allocate space and read super block */
 	fs = malloc(SBLOCKSIZE);
 	fp->f_fs = fs;
-	twiddle();
+	twiddle(1);
 	/*
 	 * Try reading the superblock in each of its possible locations.
 	 */
@@ -649,7 +649,7 @@ ufs_open(upath, f)
 				if (rc)
 					goto out;
 				
-				twiddle();
+				twiddle(1);
 				rc = (f->f_dev->dv_strategy)(f->f_devdata,
 					F_READ, fsbtodb(fs, disk_block),
 					fs->fs_bsize, buf, &buf_size);

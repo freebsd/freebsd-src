@@ -77,7 +77,7 @@ read(int fd, void *dest, size_t bcount)
 	return (-1);
     }
     if (f->f_flags & F_RAW) {
-	twiddle();
+	twiddle(4);
 	errno = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
 					btodb(f->f_offset), bcount, dest, &resid);
 	if (errno)
