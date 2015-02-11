@@ -70,11 +70,15 @@ _dwarf_elf_apply_reloc(Dwarf_Debug dbg, void *buf, Elf_Data *rel_data,
 
 		offset = rela.r_offset;
 		size = _dwarf_get_reloc_size(dbg, type);
+		if (size == 0)
+			continue; /* Unknown or non-absolute relocation. */
 
 		if (endian == ELFDATA2MSB)
-			_dwarf_write_msb(buf, &offset, rela.r_addend, size);
+			_dwarf_write_msb(buf, &offset,
+			    sym.st_value + rela.r_addend, size);
 		else
-			_dwarf_write_lsb(buf, &offset, rela.r_addend, size);
+			_dwarf_write_lsb(buf, &offset,
+			    sym.st_value + rela.r_addend, size);
 	}
 }
 
