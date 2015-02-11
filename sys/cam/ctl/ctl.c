@@ -12286,64 +12286,57 @@ ctl_abort_task(union ctl_io *io)
 		printf("%s\n", sbuf_data(&sb));
 #endif
 
-		if ((xio->io_hdr.nexus.targ_port == io->io_hdr.nexus.targ_port)
-		 && (xio->io_hdr.nexus.initid.id ==
-		     io->io_hdr.nexus.initid.id)) {
-			/*
-			 * If the abort says that the task is untagged, the
-			 * task in the queue must be untagged.  Otherwise,
-			 * we just check to see whether the tag numbers
-			 * match.  This is because the QLogic firmware
-			 * doesn't pass back the tag type in an abort
-			 * request.
-			 */
-#if 0
-			if (((xio->scsiio.tag_type == CTL_TAG_UNTAGGED)
-			  && (io->taskio.tag_type == CTL_TAG_UNTAGGED))
-			 || (xio->scsiio.tag_num == io->taskio.tag_num)) {
-#endif
-			/*
-			 * XXX KDM we've got problems with FC, because it
-			 * doesn't send down a tag type with aborts.  So we
-			 * can only really go by the tag number...
-			 * This may cause problems with parallel SCSI.
-			 * Need to figure that out!!
-			 */
-			if (xio->scsiio.tag_num == io->taskio.tag_num) {
-				xio->io_hdr.flags |= CTL_FLAG_ABORT;
-				found = 1;
-				if ((io->io_hdr.flags &
-				     CTL_FLAG_FROM_OTHER_SC) == 0 &&
-				    !(lun->flags & CTL_LUN_PRIMARY_SC)) {
-					union ctl_ha_msg msg_info;
+		if ((xio->io_hdr.nexus.targ_port != io->io_hdr.nexus.targ_port)
+		 || (xio->io_hdr.nexus.initid.id != io->io_hdr.nexus.initid.id)
+		 || (xio->io_hdr.flags & CTL_FLAG_ABORT))
+			continue;
 
-					io->io_hdr.flags |=
-					                CTL_FLAG_SENT_2OTHER_SC;
-					msg_info.hdr.nexus = io->io_hdr.nexus;
-					msg_info.task.task_action =
-						CTL_TASK_ABORT_TASK;
-					msg_info.task.tag_num =
-						io->taskio.tag_num;
-					msg_info.task.tag_type =
-						io->taskio.tag_type;
-					msg_info.hdr.msg_type =
-						CTL_MSG_MANAGE_TASKS;
-					msg_info.hdr.original_sc = NULL;
-					msg_info.hdr.serializing_sc = NULL;
+		/*
+		 * If the abort says that the task is untagged, the
+		 * task in the queue must be untagged.  Otherwise,
+		 * we just check to see whether the tag numbers
+		 * match.  This is because the QLogic firmware
+		 * doesn't pass back the tag type in an abort
+		 * request.
+		 */
 #if 0
-					printf("Sent Abort to other side\n");
+		if (((xio->scsiio.tag_type == CTL_TAG_UNTAGGED)
+		  && (io->taskio.tag_type == CTL_TAG_UNTAGGED))
+		 || (xio->scsiio.tag_num == io->taskio.tag_num)) {
 #endif
-					if (CTL_HA_STATUS_SUCCESS !=
-					        ctl_ha_msg_send(CTL_HA_CHAN_CTL,
-		    				(void *)&msg_info,
-						sizeof(msg_info), 0)) {
-					}
+		/*
+		 * XXX KDM we've got problems with FC, because it
+		 * doesn't send down a tag type with aborts.  So we
+		 * can only really go by the tag number...
+		 * This may cause problems with parallel SCSI.
+		 * Need to figure that out!!
+		 */
+		if (xio->scsiio.tag_num == io->taskio.tag_num) {
+			xio->io_hdr.flags |= CTL_FLAG_ABORT;
+			found = 1;
+			if ((io->io_hdr.flags & CTL_FLAG_FROM_OTHER_SC) == 0 &&
+			    !(lun->flags & CTL_LUN_PRIMARY_SC)) {
+				union ctl_ha_msg msg_info;
+
+				io->io_hdr.flags |= CTL_FLAG_SENT_2OTHER_SC;
+				msg_info.hdr.nexus = io->io_hdr.nexus;
+				msg_info.task.task_action = CTL_TASK_ABORT_TASK;
+				msg_info.task.tag_num = io->taskio.tag_num;
+				msg_info.task.tag_type = io->taskio.tag_type;
+				msg_info.hdr.msg_type = CTL_MSG_MANAGE_TASKS;
+				msg_info.hdr.original_sc = NULL;
+				msg_info.hdr.serializing_sc = NULL;
+#if 0
+				printf("Sent Abort to other side\n");
+#endif
+				if (ctl_ha_msg_send(CTL_HA_CHAN_CTL,
+				    (void *)&msg_info, sizeof(msg_info), 0) !=
+				    CTL_HA_STATUS_SUCCESS) {
 				}
-#if 0
-				printf("ctl_abort_task: found I/O to abort\n");
-#endif
-				break;
 			}
+#if 0
+			printf("ctl_abort_task: found I/O to abort\n");
+#endif
 		}
 	}
 	mtx_unlock(&lun->lun_lock);
