@@ -17,9 +17,6 @@ FILES=	DAEMON \
 	atm3 \
 	auditd \
 	auditdistd \
-	automount \
-	automountd \
-	autounmountd \
 	bgfsck \
 	${_bluetooth} \
 	bootparams \
@@ -168,6 +165,12 @@ FILES+=		amd
 .if ${MK_APM} != "no"
 FILES+=	apm
 FILES+=	apmd
+.endif
+
+.if ${MK_AUTOFS} != "no"
+FILES+=		automount
+FILES+=		automountd
+FILES+=		autounmountd
 .endif
 
 .if ${MK_BLUETOOTH} != "no"
