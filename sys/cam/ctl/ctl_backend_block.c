@@ -1187,7 +1187,8 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 	struct ctl_be_block_io *beio;
 	struct ctl_be_block_softc *softc;
 	struct ctl_lba_len_flags *lbalen;
-	uint64_t len_left, lba, pb, pbo, adj;
+	uint64_t len_left, lba;
+	uint32_t pb, pbo, adj;
 	int i, seglen;
 	uint8_t *buf, *end;
 
@@ -1241,8 +1242,11 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 	DPRINTF("WRITE SAME at LBA %jx len %u\n",
 	       (uintmax_t)lbalen->lba, lbalen->len);
 
-	pb = (uint64_t)be_lun->blocksize << be_lun->pblockexp;
-	pbo = pb - (uint64_t)be_lun->blocksize * be_lun->pblockoff;
+	pb = be_lun->blocksize << be_lun->pblockexp;
+	if (be_lun->pblockoff > 0)
+		pbo = pb - be_lun->blocksize * be_lun->pblockoff;
+	else
+		pbo = 0;
 	len_left = (uint64_t)lbalen->len * be_lun->blocksize;
 	for (i = 0, lba = 0; i < CTLBLK_MAX_SEGS && len_left > 0; i++) {
 
