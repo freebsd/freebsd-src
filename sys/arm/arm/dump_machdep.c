@@ -161,11 +161,13 @@ static int
 cb_dumpdata(struct md_pa *mdp, int seqnr, void *arg)
 {
 	struct dumperinfo *di = (struct dumperinfo*)arg;
-	vm_paddr_t pa;
+	vm_paddr_t a, pa;
+	void *va;
 	uint32_t pgs;
 	size_t counter, sz, chunk;
-	int c, error;
+	int i, c, error;
 
+	va = 0;
 	error = 0;	/* catch case in which chunk size is 0 */
 	counter = 0;
 	pgs = mdp->md_size / PAGE_SIZE;
@@ -195,16 +197,14 @@ cb_dumpdata(struct md_pa *mdp, int seqnr, void *arg)
 			printf(" %d", pgs * PAGE_SIZE);
 			counter &= (1<<24) - 1;
 		}
-		if (pa == (pa & L1_ADDR_BITS)) {
-			pmap_kenter_section(0, pa & L1_ADDR_BITS, 0);
-			cpu_tlb_flushID_SE(0);
-			cpu_cpwait();
+		for (i = 0; i < chunk; i++) {
+			a = pa + i * PAGE_SIZE;
+			va = pmap_kenter_temporary(trunc_page(a), i);
 		}
 #ifdef SW_WATCHDOG
 		wdog_kern_pat(WD_LASTVAL);
 #endif
-		error = dump_write(di,
-		    (void *)(pa - (pa & L1_ADDR_BITS)),0, dumplo, sz);
+		error = dump_write(di, va, 0, dumplo, sz);
 		if (error)
 			break;
 		dumplo += sz;
