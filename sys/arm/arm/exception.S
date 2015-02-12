@@ -241,26 +241,26 @@ __FBSDID("$FreeBSD$");
 #define	UNWINDSVCFRAME
 #endif
 
-#define	DO_AST								\
-	ldr	r0, [sp]		/* Get the SPSR from stack */	;\
-	mrs	r4, cpsr		/* save CPSR */			;\
-	orr	r1, r4, #(PSR_I|PSR_F)					;\
-	msr	cpsr_c, r1		/* Disable interrupts */	;\
-	and	r0, r0, #(PSR_MODE)	/* Returning to USR mode? */	;\
-	teq	r0, #(PSR_USR32_MODE)					;\
-	bne	2f			/* Nope, get out now */		;\
-	bic	r4, r4, #(PSR_I|PSR_F)					;\
-1:	GET_CURTHREAD_PTR(r5)						;\
-	ldr	r1, [r5, #(TD_FLAGS)]					;\
-	and	r1, r1, #(TDF_ASTPENDING|TDF_NEEDRESCHED)		;\
-	teq	r1, #0x00000000						;\
-	beq	2f			/* Nope. Just bail */		;\
-	msr	cpsr_c, r4		/* Restore interrupts */	;\
-	mov	r0, sp							;\
-	bl	_C_LABEL(ast)		/* ast(frame) */		;\
-	orr	r0, r4, #(PSR_I|PSR_F)					;\
-	msr	cpsr_c, r0						;\
-	b	1b							;\
+#define	DO_AST								   \
+	ldr	r0, [sp];		/* Get the SPSR from stack */	   \
+	mrs	r4, cpsr;		/* save CPSR */			   \
+	orr	r1, r4, #(PSR_I|PSR_F);					   \
+	msr	cpsr_c, r1;		/* Disable interrupts */	   \
+	and	r0, r0, #(PSR_MODE);	/* Returning to USR mode? */	   \
+	teq	r0, #(PSR_USR32_MODE);					   \
+	bne	2f;			/* Nope, get out now */		   \
+	bic	r4, r4, #(PSR_I|PSR_F);					   \
+1:	GET_CURTHREAD_PTR(r5);						   \
+	ldr	r1, [r5, #(TD_FLAGS)];					   \
+	and	r1, r1, #(TDF_ASTPENDING|TDF_NEEDRESCHED);		   \
+	teq	r1, #0;							   \
+	beq	2f;			/* Nope. Just bail */		   \
+	msr	cpsr_c, r4;		/* Restore interrupts */	   \
+	mov	r0, sp;							   \
+	bl	_C_LABEL(ast);		/* ast(frame) */		   \
+	orr	r0, r4, #(PSR_I|PSR_F);					   \
+	msr	cpsr_c, r0;						   \
+	b	1b;							   \
 2:
 
 
