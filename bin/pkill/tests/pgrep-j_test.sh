@@ -40,7 +40,7 @@ if [ `id -u` -eq 0 ]; then
 	if [ "$pid1" = "$pid2" ]; then
 		echo "ok 1 - $name"
 	else
-		echo "not ok 1 - $name"
+		echo "not ok 1 - $name # pgrep output: '$(echo $pid1)', pidfile output: '$(echo $pid2)'"
 	fi
 	[ -f ${PWD}/${base}_1_1.pid ] && kill $(cat ${PWD}/${base}_1_1.pid)
 	[ -f ${PWD}/${base}_1_2.pid ] && kill $(cat ${PWD}/${base}_1_2.pid)
@@ -66,7 +66,7 @@ if [ `id -u` -eq 0 ]; then
 	if [ "$pid1" = "$pid2" ]; then
 		echo "ok 2 - $name"
 	else
-		echo "not ok 2 - $name"
+		echo "not ok 2 - $name # pgrep output: '$(echo $pid1)', pidfile output: '$(echo $pid2)'"
 	fi
 	[ -f ${PWD}/${base}_2_1.pid ] && kill $(cat ${PWD}/${base}_2_1.pid)
 	[ -f ${PWD}/${base}_2_2.pid ] && kill $(cat ${PWD}/${base}_2_2.pid)
@@ -87,7 +87,7 @@ if [ `id -u` -eq 0 ]; then
 	if [ "$pid" = "$(cat ${PWD}/${base}_3_1.pid)" ]; then
 		echo "ok 3 - $name"
 	else
-		echo "not ok 3 - $name"
+		echo "not ok 3 - $name # pgrep output: '$(echo $pid1)', pidfile output: '$(echo $pid2)'"
 	fi
 	rm -f $sleep
 	[ -f ${PWD}/${base}_3_1.pid ] && kill $(cat $PWD/${base}_3_1.pid) 
