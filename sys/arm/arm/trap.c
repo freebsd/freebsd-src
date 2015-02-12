@@ -152,6 +152,7 @@ static int dab_align(struct trapframe *, u_int, u_int, struct thread *,
     struct ksig *);
 static int dab_buserr(struct trapframe *, u_int, u_int, struct thread *,
     struct ksig *);
+static void prefetch_abort_handler(struct trapframe *);
 
 static const struct data_abort data_aborts[] = {
 	{dab_fatal,	"Vector Exception"},
@@ -196,7 +197,7 @@ call_trapsignal(struct thread *td, int sig, u_long code)
 }
 
 void
-data_abort_handler(struct trapframe *tf)
+abort_handler(struct trapframe *tf, int type)
 {
 	struct vm_map *map;
 	struct pcb *pcb;
@@ -209,6 +210,8 @@ data_abort_handler(struct trapframe *tf)
 	struct ksig ksig;
 	struct proc *p;
 
+	if (type == 1)
+		return (prefetch_abort_handler(tf));
 
 	/* Grab FAR/FSR before enabling interrupts */
 	far = cpu_faultaddress();
@@ -625,7 +628,7 @@ dab_buserr(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
  * does no have read permission so send it a signal.
  * Otherwise fault the page in and try again.
  */
-void
+static void
 prefetch_abort_handler(struct trapframe *tf)
 {
 	struct thread *td;
