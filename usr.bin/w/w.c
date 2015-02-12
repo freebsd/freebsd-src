@@ -264,7 +264,9 @@ main(int argc, char *argv[])
 	if (header || wcmd == 0) {
 		pr_header(&now, nusers);
 		if (wcmd == 0) {
-		        xo_close_container("uptime-information");
+			xo_close_container("uptime-information");
+			xo_finish();
+
 			(void)kvm_close(kd);
 			exit(0);
 		}

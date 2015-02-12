@@ -1035,11 +1035,11 @@ Set to "off" to allow them be issued in parallel.
 Parallel issue of consecutive operations may confuse logic of the
 backing file system, hurting performance; but it may improve performance
 of backing stores without prefetch/write-back.
-.It Va psectorsize
-.It Va psectoroffset
+.It Va pblocksize
+.It Va pblockoffset
 Specify physical block size and offset of the device.
-.It Va usectorsize
-.It Va usectoroffset
+.It Va ublocksize
+.It Va ublockoffset
 Specify UNMAP block size and offset of the device.
 .It Va rpm
 .It Va rpm

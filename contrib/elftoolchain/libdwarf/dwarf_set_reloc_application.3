@@ -24,7 +24,7 @@
 .\"
 .\" $Id: dwarf_set_reloc_application.3 2075 2011-10-27 03:47:28Z jkoshy $
 .\"
-.Dd June 26, 2011
+.Dd February 11, 2015
 .Os
 .Dt DWARF_SET_RELOC_APPLICATION 3
 .Sh NAME
@@ -47,6 +47,8 @@ handled by the DWARF(3) library.
 If the argument
 .Ar apply
 holds a non-zero value, the library will process all the relevant
+.Dq ".rel"
+and
 .Dq ".rela"
 relocation sections and will apply the relocation records found to
 their corresponding DWARF sections.

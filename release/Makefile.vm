@@ -101,7 +101,7 @@ vm-install:
 # the DESTDIR.
 .  for FORMAT in ${VMFORMATS}
 	# Don't keep the originals.  There is a copy in ${.OBJDIR} if needed.
-	${XZCMD} ${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
+	${XZCMD} ${XZ_FLAGS} ${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
 .  endfor
 . endif
 	cd ${DESTDIR}/vmimages && sha256 ${OSRELEASE}* > \

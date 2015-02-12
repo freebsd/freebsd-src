@@ -30,13 +30,14 @@
 
 #include <machine/asmacros.h>
 
-#define	LA_EOI	0xB0
-
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(justreturn)
+	pushq	%rdx
 	pushq	%rax
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)
+	pushq	%rcx
+	call	as_lapic_eoi
+	popq	%rcx
 	popq	%rax
-	iretq
+	popq	%rdx
+	jmp	doreti_iret

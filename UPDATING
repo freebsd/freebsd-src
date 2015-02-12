@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150210:
+	The autofs(4) ABI was changed in order to restore binary compatibility
+	with 10.1-RELEASE.  The automountd(8) daemon needs to be rebuilt to work
+	with the new kernel.
+
 20150131:
 	The powerpc64 kernel has been changed to a position-independent
 	executable. This can only be booted with a new version of loader(8),
@@ -286,6 +291,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 20140430:
 	The lindev device has been removed since /dev/full has been made a
 	standard device.  __FreeBSD_version has been bumped.
+
+20140424:
+	The knob WITHOUT_VI was added to the base system, which controls
+	building ex(1), vi(1), etc. Older releases of FreeBSD required ex(1)
+	in order to reorder files share/termcap and didn't build ex(1) as a
+	build tool, so building/installing with WITH_VI is highly advised for
+	build hosts for older releases.
+
+	This issue has been fixed in stable/9 and stable/10 in r277022 and
+	r276991, respectively.
 
 20140418:
 	The YES_HESIOD knob has been removed. It has been obsolete for

@@ -256,12 +256,10 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	vm_offset_t	startkernel, endkernel;
 	void		*generictrap;
 	size_t		trap_offset, trapsize;
+	vm_offset_t	trap;
 	void		*kmdp;
         char		*env;
 	register_t	msr, scratch;
-#ifdef WII
-	register_t 	vers;
-#endif
 	uint8_t		*cache_check;
 	int		cacheline_warn;
 	#ifndef __powerpc64__
@@ -279,16 +277,6 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	/* First guess at start/end kernel positions */
 	startkernel = __startkernel;
 	endkernel = __endkernel;
-
-#ifdef WII
-	/*
-	 * The Wii loader doesn't pass us any environment so, mdp
-	 * points to garbage at this point. The Wii CPU is a 750CL.
-	 */
-	vers = mfpvr();
-	if ((vers & 0xfffff0e0) == (MPC750 << 16 | MPC750CL)) 
-		mdp = NULL;
-#endif
 
 	/* Check for ePAPR loader, which puts a magic value into r6 */
 	if (mdp == (void *)0x65504150)
@@ -481,20 +469,6 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	#endif
 
 		/*
-		 * Copy a code snippet to restore 32-bit bridge mode
-		 * to the top of every non-generic trap handler
-		 */
-
-		trap_offset += (size_t)&restorebridgesize;
-		bcopy(&restorebridge, (void *)EXC_RST, trap_offset); 
-		bcopy(&restorebridge, (void *)EXC_DSI, trap_offset); 
-		bcopy(&restorebridge, (void *)EXC_ALI, trap_offset); 
-		bcopy(&restorebridge, (void *)EXC_PGM, trap_offset); 
-		bcopy(&restorebridge, (void *)EXC_MCHK, trap_offset); 
-		bcopy(&restorebridge, (void *)EXC_TRC, trap_offset); 
-		bcopy(&restorebridge, (void *)EXC_BPT, trap_offset); 
-
-		/*
 		 * Set the common trap entry point to the one that
 		 * knows to restore 32-bit operation on execution.
 		 */
@@ -507,13 +481,34 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	#else /* powerpc64 */
 	cpu_features |= PPC_FEATURE_64;
 	generictrap = &trapcode;
-
-	/* Set TOC base so that the interrupt code can get at it */
-	*((void **)TRAP_GENTRAP) = &trapcode2;
-	*((register_t *)TRAP_TOCBASE) = toc;
 	#endif
 
 	trapsize = (size_t)&trapcodeend - (size_t)&trapcode;
+
+	/*
+	 * Copy generic handler into every possible trap. Special cases will get
+	 * different ones in a minute.
+	 */
+	for (trap = EXC_RST; trap < EXC_LAST; trap += 0x20)
+		bcopy(generictrap, (void *)trap, trapsize);
+
+	#ifndef __powerpc64__
+	if (cpu_features & PPC_FEATURE_64) {
+		/*
+		 * Copy a code snippet to restore 32-bit bridge mode
+		 * to the top of every non-generic trap handler
+		 */
+
+		trap_offset += (size_t)&restorebridgesize;
+		bcopy(&restorebridge, (void *)EXC_RST, trap_offset);
+		bcopy(&restorebridge, (void *)EXC_DSI, trap_offset);
+		bcopy(&restorebridge, (void *)EXC_ALI, trap_offset);
+		bcopy(&restorebridge, (void *)EXC_PGM, trap_offset);
+		bcopy(&restorebridge, (void *)EXC_MCHK, trap_offset);
+		bcopy(&restorebridge, (void *)EXC_TRC, trap_offset);
+		bcopy(&restorebridge, (void *)EXC_BPT, trap_offset);
+	}
+	#endif
 
 	bcopy(&rstcode, (void *)(EXC_RST + trap_offset), (size_t)&rstcodeend -
 	    (size_t)&rstcode);
@@ -527,31 +522,20 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	    (size_t)&dblow);
 	bcopy(&dblow, (void *)(EXC_BPT + trap_offset), (size_t)&dbend -
 	    (size_t)&dblow);
-#else
-	bcopy(generictrap, (void *)EXC_MCHK, trapsize);
-	bcopy(generictrap, (void *)EXC_PGM,  trapsize);
-	bcopy(generictrap, (void *)EXC_TRC,  trapsize);
-	bcopy(generictrap, (void *)EXC_BPT,  trapsize);
 #endif
 	bcopy(&alitrap,  (void *)(EXC_ALI + trap_offset),  (size_t)&aliend -
 	    (size_t)&alitrap);
 	bcopy(&dsitrap,  (void *)(EXC_DSI + trap_offset),  (size_t)&dsiend -
 	    (size_t)&dsitrap);
-	bcopy(generictrap, (void *)EXC_ISI,  trapsize);
+
 	#ifdef __powerpc64__
+	/* Set TOC base so that the interrupt code can get at it */
+	*((void **)TRAP_GENTRAP) = &trapcode2;
+	*((register_t *)TRAP_TOCBASE) = toc;
+
 	bcopy(&slbtrap, (void *)EXC_DSE,(size_t)&slbtrapend - (size_t)&slbtrap);
 	bcopy(&slbtrap, (void *)EXC_ISE,(size_t)&slbtrapend - (size_t)&slbtrap);
-	#endif
-	bcopy(generictrap, (void *)EXC_EXI,  trapsize);
-	bcopy(generictrap, (void *)EXC_FPU,  trapsize);
-	bcopy(generictrap, (void *)EXC_DECR, trapsize);
-	bcopy(generictrap, (void *)EXC_SC,   trapsize);
-	bcopy(generictrap, (void *)EXC_FPA,  trapsize);
-	bcopy(generictrap, (void *)EXC_VEC,  trapsize);
-	bcopy(generictrap, (void *)EXC_PERF,  trapsize);
-	bcopy(generictrap, (void *)EXC_VECAST_G4, trapsize);
-	bcopy(generictrap, (void *)EXC_VECAST_G5, trapsize);
-	#ifndef __powerpc64__
+	#else
 	/* G2-specific TLB miss helper handlers */
 	bcopy(&imisstrap, (void *)EXC_IMISS,  (size_t)&imisssize);
 	bcopy(&dlmisstrap, (void *)EXC_DLMISS,  (size_t)&dlmisssize);
@@ -563,7 +547,7 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	 * Restore MSR
 	 */
 	mtmsr(msr);
-	
+
 	/* Warn if cachline size was not determined */
 	if (cacheline_warn == 1) {
 		printf("WARNING: cacheline size undetermined, setting to 32\n");
@@ -572,7 +556,7 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	/*
 	 * Choose a platform module so we can get the physical memory map.
 	 */
-	
+
 	platform_probe_and_attach();
 
 	/*
@@ -701,7 +685,7 @@ int
 ptrace_single_step(struct thread *td)
 {
 	struct trapframe *tf;
-	
+
 	tf = td->td_frame;
 	tf->srr1 |= PSL_SE;
 
@@ -753,6 +737,7 @@ spinlock_enter(void)
 
 	td = curthread;
 	if (td->td_md.md_spinlock_count == 0) {
+		__asm __volatile("or 2,2,2"); /* Set high thread priority */
 		msr = intr_disable();
 		td->td_md.md_spinlock_count = 1;
 		td->td_md.md_saved_msr = msr;
@@ -771,8 +756,10 @@ spinlock_exit(void)
 	critical_exit();
 	msr = td->td_md.md_saved_msr;
 	td->td_md.md_spinlock_count--;
-	if (td->td_md.md_spinlock_count == 0)
+	if (td->td_md.md_spinlock_count == 0) {
 		intr_restore(msr);
+		__asm __volatile("or 6,6,6"); /* Set normal thread priority */
+	}
 }
 
 int db_trap_glue(struct trapframe *);		/* Called from trap_subr.S */
@@ -789,7 +776,7 @@ db_trap_glue(struct trapframe *frame)
 		int type = frame->exc;
 
 		/* Ignore DTrace traps. */
-		if (*(uint32_t *)frame->srr0 == EXC_DTRACE) 
+		if (*(uint32_t *)frame->srr0 == EXC_DTRACE)
 			return (0);
 		if (type == EXC_PGM && (frame->srr1 & 0x20000)) {
 			type = T_BREAKPOINT;

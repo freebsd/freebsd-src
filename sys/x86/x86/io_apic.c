@@ -130,7 +130,6 @@ struct pic ioapic_template = { ioapic_enable_source, ioapic_disable_source,
 static int next_ioapic_base;
 static u_int next_id;
 
-static SYSCTL_NODE(_hw, OID_AUTO, apic, CTLFLAG_RD, 0, "APIC options");
 static int enable_extint;
 SYSCTL_INT(_hw_apic, OID_AUTO, enable_extint, CTLFLAG_RDTUN, &enable_extint, 0,
     "Enable the ExtINT pin in the first I/O APIC");
@@ -896,7 +895,7 @@ apic_attach(device_t dev)
 	int i;
 
 	/* Reserve the local APIC. */
-	apic_add_resource(dev, 0, lapic_paddr, sizeof(lapic_t));
+	apic_add_resource(dev, 0, lapic_paddr, LAPIC_MEM_REGION);
 	i = 1;
 	STAILQ_FOREACH(io, &ioapic_list, io_next) {
 		apic_add_resource(dev, i, io->io_paddr, IOAPIC_MEM_REGION);
