@@ -21,8 +21,6 @@
         usr
             bin
             ..
-            games
-            ..
             lib
                 clang
                     3.5.1
