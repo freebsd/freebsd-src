@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/armreg.h>
 #include <machine/cpu.h>
 #include <machine/bus.h>
 
@@ -638,7 +639,7 @@ s3c24x0_clock_freq(struct s3c2xx0_softc *sc)
 void
 cpu_reset(void)
 {
-	(void) disable_interrupts(I32_bit|F32_bit);
+	(void) disable_interrupts(PSR_I|PSR_F);
 
 	bus_space_write_4(&s3c2xx0_bs_tag, s3c2xx0_softc->sc_wdt_ioh, WDT_WTCON,
 	    WTCON_ENABLE | WTCON_CLKSEL_16 | WTCON_ENRST);

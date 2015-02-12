@@ -316,7 +316,7 @@ arm_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
 	}
 
 	retval = regs.r[0];
-	errorp = !!(regs.r_cpsr & PSR_C_bit);
+	errorp = !!(regs.r_cpsr & PSR_C);
 
 	/*
 	 * This code, while simpler than the initial versions I used, could
