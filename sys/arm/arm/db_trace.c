@@ -603,14 +603,14 @@ db_trace_thread(struct thread *thr, int count)
 		ctx = kdb_thr_ctx(thr);
 
 #ifdef __ARM_EABI__
-		state.registers[FP] = ctx->un_32.pcb32_r11;
-		state.registers[SP] = ctx->un_32.pcb32_sp;
-		state.registers[LR] = ctx->un_32.pcb32_lr;
-		state.registers[PC] = ctx->un_32.pcb32_pc;
+		state.registers[FP] = ctx->pcb_regs.sf_r11;
+		state.registers[SP] = ctx->pcb_regs.sf_sp;
+		state.registers[LR] = ctx->pcb_regs.sf_lr;
+		state.registers[PC] = ctx->pcb_regs.sf_pc;
 
 		db_stack_trace_cmd(&state);
 #else
-		db_stack_trace_cmd(ctx->un_32.pcb32_r11, -1, TRUE);
+		db_stack_trace_cmd(ctx->pcb_regs.sf_r11, -1, TRUE);
 #endif
 	} else
 		db_trace_self();
