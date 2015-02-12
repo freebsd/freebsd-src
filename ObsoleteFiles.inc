@@ -38,6 +38,22 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150212: /usr/games moving into /usr/bin
+OLD_FILES+=usr/games/bcd
+OLD_FILES+=usr/games/caesar
+OLD_FILES+=usr/games/factor
+OLD_FILES+=usr/games/fortune
+OLD_FILES+=usr/games/grdc
+OLD_FILES+=usr/games/morse
+OLD_FILES+=usr/games/number
+OLD_FILES+=usr/games/pom
+OLD_FILES+=usr/games/ppt
+OLD_FILES+=usr/games/primes
+OLD_FILES+=usr/games/random
+OLD_FILES+=usr/games/rot13
+OLD_FILES+=usr/games/strfile
+OLD_FILES+=usr/games/unstr
+OLD_DIRS+=usr/games
 # 20150209: liblzma header
 OLD_FILES+=usr/include/lzma/lzma.h
 # 20150124: spl.9 and friends
