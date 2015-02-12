@@ -7,20 +7,10 @@ PROG	 = passwd
 BINOWN	 = root
 BINMODE	 = 4555
 LIBADD   = pam
+PRECIOUSPROG=
 .if ${MK_NIS} != "no"
 LINKS	 = ${BINDIR}/passwd ${BINDIR}/yppasswd
 MLINKS	 = passwd.1 yppasswd.1
-.endif
-
-beforeinstall:
-.for i in passwd yppasswd
-	[ ! -e ${DESTDIR}${BINDIR}/$i ] || \
-		chflags noschg ${DESTDIR}${BINDIR}/$i || true
-.endfor
-
-.if !defined(NO_FSCHG)
-afterinstall:
-	-chflags schg ${DESTDIR}${BINDIR}/passwd
 .endif
 
 .include <bsd.prog.mk>
