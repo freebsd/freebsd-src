@@ -1606,21 +1606,20 @@ OLD_FILES+=usr/share/man/man8/freebsd-update.8.gz
 .endif
 
 .if ${MK_GAMES} == no
-OLD_FILES+=usr/games/bcd
-OLD_FILES+=usr/games/caesar
-OLD_FILES+=usr/games/factor
-OLD_FILES+=usr/games/fortune
-OLD_FILES+=usr/games/grdc
-OLD_FILES+=usr/games/morse
-OLD_FILES+=usr/games/number
-OLD_FILES+=usr/games/pom
-OLD_FILES+=usr/games/ppt
-OLD_FILES+=usr/games/primes
-OLD_FILES+=usr/games/random
-OLD_FILES+=usr/games/rot13
-OLD_FILES+=usr/games/strfile
-OLD_FILES+=usr/games/unstr
-OLD_DIRS+=usr/games
+OLD_FILES+=usr/bin/bcd
+OLD_FILES+=usr/bin/caesar
+OLD_FILES+=usr/bin/factor
+OLD_FILES+=usr/bin/fortune
+OLD_FILES+=usr/bin/grdc
+OLD_FILES+=usr/bin/morse
+OLD_FILES+=usr/bin/number
+OLD_FILES+=usr/bin/pom
+OLD_FILES+=usr/bin/ppt
+OLD_FILES+=usr/bin/primes
+OLD_FILES+=usr/bin/random
+OLD_FILES+=usr/bin/rot13
+OLD_FILES+=usr/bin/strfile
+OLD_FILES+=usr/bin/unstr
 OLD_FILES+=usr/share/games/fortune/fortunes
 OLD_FILES+=usr/share/games/fortune/fortunes.dat
 OLD_FILES+=usr/share/games/fortune/freebsd-tips
