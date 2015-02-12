@@ -233,8 +233,7 @@ parse_options()
 		fi
 		eval : \${jail_${_j}_procfs_enable:=${jail_procfs_enable:-NO}}
 		if checkyesno jail_${_j}_procfs_enable; then
-			echo "	mount += " \
-			    "\"procfs ${_rootdir%/}/proc procfs rw 0 0\";"
+			echo "	mount.procfs;"
 		fi
 
 		eval : \${jail_${_j}_mount_enable:=${jail_mount_enable:-NO}}

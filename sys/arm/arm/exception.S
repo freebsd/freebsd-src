@@ -48,10 +48,25 @@
 
 #include "assym.s"
 
+#include "opt_kdtrace.h"
 #include <machine/asm.h>
 #include <machine/armreg.h>
 #include <machine/asmacros.h>
 __FBSDID("$FreeBSD$");
+
+#ifdef KDTRACE_HOOKS
+	.bss
+	.align 4
+	.global	_C_LABEL(dtrace_invop_jump_addr)
+_C_LABEL(dtrace_invop_jump_addr):
+	.word 0
+	.word 0
+
+	.global	_C_LABEL(dtrace_invop_calltrap_addr)
+_C_LABEL(dtrace_invop_calltrap_addr):
+	.word 0
+	.word 0
+#endif
 
 	.text	
 	.align	2

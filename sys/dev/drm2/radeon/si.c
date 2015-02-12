@@ -190,18 +190,18 @@ static int si_mc_load_microcode(struct radeon_device *rdev)
 
 	switch (rdev->family) {
 	case CHIP_TAHITI:
-		io_mc_regs = (const u32 *)&tahiti_io_mc_regs;
+		io_mc_regs = &tahiti_io_mc_regs[0][0];
 		ucode_size = SI_MC_UCODE_SIZE;
 		regs_size = TAHITI_IO_MC_REGS_SIZE;
 		break;
 	case CHIP_PITCAIRN:
-		io_mc_regs = (const u32 *)&pitcairn_io_mc_regs;
+		io_mc_regs = &pitcairn_io_mc_regs[0][0];
 		ucode_size = SI_MC_UCODE_SIZE;
 		regs_size = TAHITI_IO_MC_REGS_SIZE;
 		break;
 	case CHIP_VERDE:
 	default:
-		io_mc_regs = (const u32 *)&verde_io_mc_regs;
+		io_mc_regs = &verde_io_mc_regs[0][0];
 		ucode_size = SI_MC_UCODE_SIZE;
 		regs_size = TAHITI_IO_MC_REGS_SIZE;
 		break;

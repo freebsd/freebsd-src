@@ -252,5 +252,8 @@ netif_common()
 	debug "The following interfaces were not configured: $_fail"
 }
 
+# Load the old "network" config file also for compatibility.
+# This is needed for mfsBSD at least.
+load_rc_config network
 load_rc_config $name
 run_rc_command $*
