@@ -572,7 +572,6 @@ void	xscalec3_context_switch	(void);
 
 #endif /* CPU_XSCALE_81342 */
 
-#define tlb_flush	cpu_tlb_flushID
 #define setttb		cpu_setttb
 #define drain_writebuf	cpu_drain_writebuf
 
