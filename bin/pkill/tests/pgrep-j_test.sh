@@ -30,16 +30,17 @@ sleep=$(pwd)/sleep.txt
 ln -sf /bin/sleep $sleep
 
 name="pgrep -j <jid>"
+sleep_amount=5
 jail -c path=/ name=${base}_1_1 ip4.addr=127.0.0.1 \
-    command=daemon -p ${PWD}/${base}_1_1.pid $sleep 5 &
+    command=daemon -p ${PWD}/${base}_1_1.pid $sleep $sleep_amount &
 
 jail -c path=/ name=${base}_1_2 ip4.addr=127.0.0.1 \
-    command=daemon -p ${PWD}/${base}_1_2.pid $sleep 5 &
+    command=daemon -p ${PWD}/${base}_1_2.pid $sleep $sleep_amount &
 
 jid1=$(jail_name_to_jid ${base}_1_1)
 jid2=$(jail_name_to_jid ${base}_1_2)
 jid="${jid1},${jid2}"
-pid1="$(pgrep -f -x -j $jid "$sleep 5" | sort)"
+pid1="$(pgrep -f -x -j $jid "$sleep $sleep_amount" | sort)"
 pid2=$(printf "%s\n%s" "$(cat ${PWD}/${base}_1_1.pid)" \
     $(cat ${PWD}/${base}_1_2.pid) | sort)
 if [ "$pid1" = "$pid2" ]; then
@@ -51,14 +52,15 @@ fi
 [ -f ${PWD}/${base}_1_2.pid ] && kill $(cat ${PWD}/${base}_1_2.pid)
 
 name="pgrep -j any"
+sleep_amount=6
 jail -c path=/ name=${base}_2_1 ip4.addr=127.0.0.1 \
-    command=daemon -p ${PWD}/${base}_2_1.pid $sleep 5 &
+    command=daemon -p ${PWD}/${base}_2_1.pid $sleep $sleep_amount &
 
 jail -c path=/ name=${base}_2_2 ip4.addr=127.0.0.1 \
-    command=daemon -p ${PWD}/${base}_2_2.pid $sleep 5 &
+    command=daemon -p ${PWD}/${base}_2_2.pid $sleep $sleep_amount &
 
 sleep 2
-pid1="$(pgrep -f -x -j any "$sleep 5" | sort)"
+pid1="$(pgrep -f -x -j any "$sleep $sleep_amount" | sort)"
 pid2=$(printf "%s\n%s" "$(cat ${PWD}/${base}_2_1.pid)" \
     $(cat ${PWD}/${base}_2_2.pid) | sort)
 if [ "$pid1" = "$pid2" ]; then
@@ -70,11 +72,12 @@ fi
 [ -f ${PWD}/${base}_2_2.pid ] && kill $(cat ${PWD}/${base}_2_2.pid)
 
 name="pgrep -j none"
-daemon -p ${PWD}/${base}_3_1.pid $sleep 5 &
+sleep_amount=7
+daemon -p ${PWD}/${base}_3_1.pid $sleep $sleep_amount &
 jail -c path=/ name=${base}_3_2 ip4.addr=127.0.0.1 \
-    command=daemon -p ${PWD}/${base}_3_2.pid $sleep 5 &
+    command=daemon -p ${PWD}/${base}_3_2.pid $sleep $sleep_amount &
 sleep 2
-pid="$(pgrep -f -x -j none "$sleep 5")"
+pid="$(pgrep -f -x -j none "$sleep $sleep_amount")"
 if [ "$pid" = "$(cat ${PWD}/${base}_3_1.pid)" ]; then
 	echo "ok 3 - $name"
 else
