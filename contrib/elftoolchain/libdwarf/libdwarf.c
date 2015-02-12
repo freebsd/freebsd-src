@@ -31,5 +31,5 @@ ELFTC_VCSID("$Id: libdwarf.c 2070 2011-10-27 03:05:32Z jkoshy $");
 struct _libdwarf_globals _libdwarf = {
 	.errhand	= NULL,
 	.errarg		= NULL,
-	.applyrela	= 1
+	.applyreloc	= 1
 };
