@@ -25,11 +25,6 @@ FILES2+=	dot.rhosts
 FILES1+=	dot.cshrc
 .endif
 
-.if ${MK_GAMES} == "no"
-dot.login_SED+=		-e "/\/usr\/games\/fortune /s/^/\#/"
-dot.profile_SED+=	-e "/\/usr\/games\/fortune /s/^/\#/"
-.endif
-
 .if ${MK_VI} == "no"
 dot.cshrc_SED+=		-e '/^setenv.*EDITOR.*vi$$/s/^/\#/'
 dot.mailrc_SED+=	-e '/^set EDITOR=vi$$/s/^/\#/' -e '/^set VISUAL=vi$$/s/^/\#/'

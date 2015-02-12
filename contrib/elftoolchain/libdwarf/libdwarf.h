@@ -439,6 +439,7 @@ enum Dwarf_ISA {
 	DW_ISA_SPARC,
 	DW_ISA_X86,
 	DW_ISA_X86_64,
+	DW_ISA_AARCH64,
 	DW_ISA_MAX
 };
 

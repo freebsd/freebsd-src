@@ -27,13 +27,13 @@
 
 expect() {
 	echo "${2}" >expout
-	atf_check -s eq:0 -o file:expout -e empty /usr/games/factor ${1}
+	atf_check -s eq:0 -o file:expout -e empty /usr/bin/factor ${1}
 }
 
 atf_test_case overflow
 overflow_head() {
 	atf_set "descr" "Tests for overflow conditions"
-	atf_set "require.progs" "/usr/games/factor"
+	atf_set "require.progs" "/usr/bin/factor"
 }
 overflow_body() {
 	expect '8675309' '8675309: 8675309'
@@ -44,7 +44,7 @@ atf_test_case loop
 loop_head() {
 	atf_set "descr" "Tests some cases that once locked the program" \
 	                "in an infinite loop"
-	atf_set "require.progs" "/usr/games/factor"
+	atf_set "require.progs" "/usr/bin/factor"
 }
 loop_body() {
 	expect '99999999999991' '99999999999991: 7 13 769231 1428571'

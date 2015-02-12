@@ -33,8 +33,8 @@ dwarf_set_reloc_application(int apply)
 {
 	int oldapply;
 
-	oldapply = _libdwarf.applyrela;
-	_libdwarf.applyrela = apply;
+	oldapply = _libdwarf.applyreloc;
+	_libdwarf.applyreloc = apply;
 
 	return (oldapply);
 }
