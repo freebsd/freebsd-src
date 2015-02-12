@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#include <machine/armreg.h>
 #include <machine/cpufunc.h>
 #include <machine/fiq.h>
 #include <vm/vm.h>
@@ -53,9 +54,6 @@ TAILQ_HEAD(, fiqhandler) fiqhandler_stack =
 
 extern char *fiq_nullhandler_code;
 extern uint32_t fiq_nullhandler_size;
-
-#define	IRQ_BIT		I32_bit
-#define	FIQ_BIT		F32_bit
 
 /*
  * fiq_installhandler:
@@ -102,7 +100,7 @@ fiq_claim(struct fiqhandler *fh)
 	if (fh->fh_size > 0x100)
 		return (EFBIG);
 
-	oldirqstate = disable_interrupts(FIQ_BIT);
+	oldirqstate = disable_interrupts(PSR_F);
 
 	if ((ofh = TAILQ_FIRST(&fiqhandler_stack)) != NULL) {
 		if ((ofh->fh_flags & FH_CANPUSH) == 0) {
@@ -125,7 +123,7 @@ fiq_claim(struct fiqhandler *fh)
 	fiq_installhandler(fh->fh_func, fh->fh_size);
 
 	/* Make sure FIQs are enabled when we return. */
-	oldirqstate &= ~FIQ_BIT;
+	oldirqstate &= ~PSR_F;
 
  out:
 	restore_interrupts(oldirqstate);
@@ -143,7 +141,7 @@ fiq_release(struct fiqhandler *fh)
 	u_int oldirqstate;
 	struct fiqhandler *ofh;
 
-	oldirqstate = disable_interrupts(FIQ_BIT);
+	oldirqstate = disable_interrupts(PSR_F);
 
 	/*
 	 * If we are the currently active FIQ handler, then we
@@ -167,7 +165,7 @@ fiq_release(struct fiqhandler *fh)
 		fiq_installhandler(fiq_nullhandler_code, fiq_nullhandler_size);
 
 		/* Make sure FIQs are disabled when we return. */
-		oldirqstate |= FIQ_BIT;
+		oldirqstate |= PSR_F;
 	}
 
 	restore_interrupts(oldirqstate);
