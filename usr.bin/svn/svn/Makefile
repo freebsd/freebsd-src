@@ -54,13 +54,8 @@ DPSRCS+=	freebsd-organization.h
 CLEANFILES+=	freebsd-organization.h
 CFLAGS+=	-I. -DHAS_ORGANIZATION_NAME
 freebsd-organization.h:
-	@echo '#define ORGANIZATION_NAME	${ORGANIZATION}' \
+	@echo "#define ORGANIZATION_NAME	\"$$(eval echo ${ORGANIZATION})\"" \
 	    > freebsd-organization.h
-	@# Remove quotes from ORGANIZATION_NAME if they exist.
-	@sed -i '' -e 's,",,g' freebsd-organization.h
-	@# Quote ORGANIZATION_NAME, in case it is two or more words.
-	@sed -i '' -E 's,	,	",' freebsd-organization.h
-	@sed -i '' -E 's,$$,",' freebsd-organization.h
 .endif
 
 svnlite.1: svn.1
