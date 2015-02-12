@@ -309,7 +309,7 @@ tpcl_done(union ctl_io *io)
 
 uint64_t
 tpcl_resolve(struct ctl_softc *softc, int init_port,
-    struct scsi_ec_cscd *cscd, uint32_t *ss)
+    struct scsi_ec_cscd *cscd, uint32_t *ss, uint32_t *ps, uint32_t *pso)
 {
 	struct scsi_ec_cscd_id *cscdid;
 	struct ctl_port *port;
@@ -337,6 +337,12 @@ tpcl_resolve(struct ctl_softc *softc, int init_port,
 			lunid = lun->lun;
 			if (ss && lun->be_lun)
 				*ss = lun->be_lun->blocksize;
+			if (ps && lun->be_lun)
+				*ps = lun->be_lun->blocksize <<
+				    lun->be_lun->pblockexp;
+			if (pso && lun->be_lun)
+				*pso = lun->be_lun->blocksize *
+				    lun->be_lun->pblockoff;
 			break;
 		}
 	}
