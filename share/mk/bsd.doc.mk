@@ -81,6 +81,13 @@ TRFLAGS+=	-I${SRCDIR}
 TRFLAGS+=	-t
 .endif
 
+.if defined(NO_ROOT)
+.if !defined(TAGS) || ! ${TAGS:Mpackage=*}
+TAGS+=		package=${PACKAGE:Uruntime}
+.endif
+TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
+.endif
+
 DCOMPRESS_EXT?=	${COMPRESS_EXT}
 DCOMPRESS_CMD?=	${COMPRESS_CMD}
 .for _dev in ${PRINTERDEVICE:Mhtml}
@@ -135,11 +142,11 @@ CLEANFILES+=	${DOC}.ascii ${DOC}.ascii${DCOMPRESS_EXT} \
 realinstall:
 .for _dev in ${PRINTERDEVICE:Mhtml}
 	cd ${SRCDIR}; \
-	    ${INSTALL} -T docs -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},docs} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${DOC}*.html ${DESTDIR}${BINDIR}/${VOLUME}
 .endfor
 .for _dev in ${PRINTERDEVICE:Nhtml}
-	${INSTALL} -T docs -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},docs} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${DFILE.${_dev}} ${DESTDIR}${BINDIR}/${VOLUME}
 .endfor
 

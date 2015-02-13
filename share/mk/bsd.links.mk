@@ -4,6 +4,13 @@
 .error bsd.links.mk cannot be included directly.
 .endif
 
+.if defined(NO_ROOT)
+.if !defined(TAGS) || ! ${TAGS:Mpackage=*}
+TAGS+=		package=${PACKAGE}
+.endif
+TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
+.endif
+
 afterinstall: _installlinks
 .ORDER: realinstall _installlinks
 _installlinks:
@@ -15,7 +22,7 @@ _installlinks:
 		t=${DESTDIR}$$1; \
 		shift; \
 		${ECHO} $$t -\> $$l; \
-		${INSTALL_LINK} -T runtime $$l $$t; \
+		${INSTALL_LINK} ${TAG_ARGS} $$l $$t; \
 	done; true
 .endif
 .if defined(SYMLINKS) && !empty(SYMLINKS)
@@ -26,6 +33,6 @@ _installlinks:
 		t=${DESTDIR}$$1; \
 		shift; \
 		${ECHO} $$t -\> $$l; \
-		${INSTALL_SYMLINK} -T runtime $$l $$t; \
+		${INSTALL_SYMLINK} ${TAG_ARGS} $$l $$t; \
 	done; true
 .endif
