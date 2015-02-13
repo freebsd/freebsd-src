@@ -374,6 +374,7 @@ __DEFAULT_YES_OPTIONS = \
     GPIB \
     GPIO \
     GROFF \
+    HAST \
     HTML \
     INET \
     INET6 \

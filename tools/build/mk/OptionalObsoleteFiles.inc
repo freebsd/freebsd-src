@@ -2232,6 +2232,20 @@ OLD_FILES+=usr/share/man/man5/qop.5.gz
 OLD_FILES+=usr/share/man/man8/gssd.8.gz
 .endif
 
+.if ${MK_HAST} == no
+OLD_FILES+=sbin/hastctl
+OLD_FILES+=sbin/hastd
+OLD_FILES+=usr/share/examples/hast/ucarp.sh
+OLD_FILES+=usr/share/examples/hast/ucarp_down.sh
+OLD_FILES+=usr/share/examples/hast/ucarp_up.sh
+OLD_FILES+=usr/share/examples/hast/vip-down.sh
+OLD_FILES+=usr/share/examples/hast/vip-up.sh
+OLD_FILES+=usr/share/man/man5/hast.conf.5.gz
+OLD_FILES+=usr/share/man/man8/hastctl.8.gz
+OLD_FILES+=usr/share/man/man8/hastd.8.gz
+OLD_DIRS+=usr/share/examples/hast
+.endif
+
 .if ${MK_HESIOD} == no
 OLD_FILES+=usr/bin/hesinfo
 OLD_FILES+=usr/include/hesiod.h
