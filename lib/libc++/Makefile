@@ -57,7 +57,7 @@ cxxrt_${_S}:
 WARNS=		0
 CFLAGS+=	-I${HDRDIR} -I${LIBCXXRTDIR} -nostdlib -DLIBCXXRT
 .if empty(CXXFLAGS:M-std=*)
-CXXFLAGS+=	-std=c++0x
+CXXFLAGS+=	-std=c++11
 .endif
 
 DPADD=		${LIBCXXRT}
@@ -74,6 +74,7 @@ STD_HEADERS=	__bit_reference\
 		__hash_table\
 		__locale\
 		__mutex_base\
+		__refstring\
 		__split_buffer\
 		__sso_allocator\
 		__std_stream\
@@ -168,14 +169,19 @@ RT_HEADERS=	cxxabi.h\
 
 .for hdr in ${STD_HEADERS}
 STD+=		${HDRDIR}/${hdr}
+INCSLINKS+=	${CXXINCLUDEDIR}/${hdr} ${CXXINCLUDEDIR}/tr1/${hdr}
 .endfor
 .for hdr in ${RT_HEADERS}
 STD+=		${LIBCXXRTDIR}/${hdr}
 .endfor
 STDDIR=		${CXXINCLUDEDIR}
 
-EXP_HEADERS=	dynarray\
-		optional
+EXP_HEADERS=	__config\
+		dynarray\
+		optional\
+		string_view\
+		type_traits\
+		utility
 
 .for hdr in ${EXP_HEADERS}
 EXP+=		${HDRDIR}/experimental/${hdr}
