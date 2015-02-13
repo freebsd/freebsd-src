@@ -583,9 +583,6 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 					CTR3(KTR_LOCK,
 					    "%s: spinning on %p held by %p",
 					    __func__, lk, owner);
-				KTR_STATE1(KTR_SCHED, "thread",
-				    sched_tdname(td), "spinning",
-				    "lockname:\"%s\"", lk->lock_object.lo_name);
 
 				/*
 				 * If we are holding also an interlock drop it
@@ -601,16 +598,11 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				while (LK_HOLDER(lk->lk_lock) ==
 				    (uintptr_t)owner && TD_IS_RUNNING(owner))
 					cpu_spinwait();
-				KTR_STATE0(KTR_SCHED, "thread",
-				    sched_tdname(td), "running");
 				GIANT_RESTORE();
 				continue;
 			} else if (LK_CAN_ADAPT(lk, flags) &&
 			    (x & LK_SHARE) != 0 && LK_SHARERS(x) &&
 			    spintries < alk_retries) {
-				KTR_STATE1(KTR_SCHED, "thread",
-				    sched_tdname(td), "spinning",
-				    "lockname:\"%s\"", lk->lock_object.lo_name);
 				if (flags & LK_INTERLOCK) {
 					class->lc_unlock(ilk);
 					flags &= ~LK_INTERLOCK;
@@ -628,8 +620,6 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 						break;
 					cpu_spinwait();
 				}
-				KTR_STATE0(KTR_SCHED, "thread",
-				    sched_tdname(td), "running");
 				GIANT_RESTORE();
 				if (i != alk_loops)
 					continue;
@@ -825,9 +815,6 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 					CTR3(KTR_LOCK,
 					    "%s: spinning on %p held by %p",
 					    __func__, lk, owner);
-				KTR_STATE1(KTR_SCHED, "thread",
-				    sched_tdname(td), "spinning",
-				    "lockname:\"%s\"", lk->lock_object.lo_name);
 
 				/*
 				 * If we are holding also an interlock drop it
@@ -843,8 +830,6 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				while (LK_HOLDER(lk->lk_lock) ==
 				    (uintptr_t)owner && TD_IS_RUNNING(owner))
 					cpu_spinwait();
-				KTR_STATE0(KTR_SCHED, "thread",
-				    sched_tdname(td), "running");
 				GIANT_RESTORE();
 				continue;
 			} else if (LK_CAN_ADAPT(lk, flags) &&
@@ -854,9 +839,6 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				    !atomic_cmpset_ptr(&lk->lk_lock, x,
 				    x | LK_EXCLUSIVE_SPINNERS))
 					continue;
-				KTR_STATE1(KTR_SCHED, "thread",
-				    sched_tdname(td), "spinning",
-				    "lockname:\"%s\"", lk->lock_object.lo_name);
 				if (flags & LK_INTERLOCK) {
 					class->lc_unlock(ilk);
 					flags &= ~LK_INTERLOCK;
@@ -873,8 +855,6 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 						break;
 					cpu_spinwait();
 				}
-				KTR_STATE0(KTR_SCHED, "thread",
-				    sched_tdname(td), "running");
 				GIANT_RESTORE();
 				if (i != alk_loops)
 					continue;

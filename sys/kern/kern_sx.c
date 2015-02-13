@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/sched.h>
 #include <sys/sleepqueue.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
@@ -561,10 +560,6 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 						CTR3(KTR_LOCK,
 					    "%s: spinning on %p held by %p",
 						    __func__, sx, owner);
-					KTR_STATE1(KTR_SCHED, "thread",
-					    sched_tdname(curthread), "spinning",
-					    "lockname:\"%s\"",
-					    sx->lock_object.lo_name);
 					GIANT_SAVE();
 					while (SX_OWNER(sx->sx_lock) == x &&
 					    TD_IS_RUNNING(owner)) {
@@ -573,14 +568,9 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 						spin_cnt++;
 #endif
 					}
-					KTR_STATE0(KTR_SCHED, "thread",
-					    sched_tdname(curthread), "running");
 					continue;
 				}
 			} else if (SX_SHARERS(x) && spintries < asx_retries) {
-				KTR_STATE1(KTR_SCHED, "thread",
-				    sched_tdname(curthread), "spinning",
-				    "lockname:\"%s\"", sx->lock_object.lo_name);
 				GIANT_SAVE();
 				spintries++;
 				for (i = 0; i < asx_loops; i++) {
@@ -597,8 +587,6 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 					spin_cnt++;
 #endif
 				}
-				KTR_STATE0(KTR_SCHED, "thread",
-				    sched_tdname(curthread), "running");
 				if (i != asx_loops)
 					continue;
 			}
@@ -861,9 +849,6 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 					CTR3(KTR_LOCK,
 					    "%s: spinning on %p held by %p",
 					    __func__, sx, owner);
-				KTR_STATE1(KTR_SCHED, "thread",
-				    sched_tdname(curthread), "spinning",
-				    "lockname:\"%s\"", sx->lock_object.lo_name);
 				GIANT_SAVE();
 				while (SX_OWNER(sx->sx_lock) == x &&
 				    TD_IS_RUNNING(owner)) {
@@ -872,8 +857,6 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 #endif
 					cpu_spinwait();
 				}
-				KTR_STATE0(KTR_SCHED, "thread",
-				    sched_tdname(curthread), "running");
 				continue;
 			}
 		}

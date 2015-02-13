@@ -150,7 +150,6 @@ struct callout_cpu {
 	sbintime_t		cc_lastscan;
 	void			*cc_cookie;
 	u_int			cc_bucket;
-	char			cc_ktr_event_name[20];
 };
 
 #define	cc_exec_curr		cc_exec_entity[0].cc_curr
@@ -189,7 +188,7 @@ struct callout_cpu cc_cpu;
 
 static int timeout_cpu;
 
-static void	callout_cpu_init(struct callout_cpu *cc, int cpu);
+static void	callout_cpu_init(struct callout_cpu *cc);
 static void	softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 #ifdef CALLOUT_PROFILING
 		    int *mpcalls, int *lockcalls, int *gcalls,
@@ -284,7 +283,7 @@ callout_callwheel_init(void *dummy)
 	cc = CC_CPU(timeout_cpu);
 	cc->cc_callout = malloc(ncallout * sizeof(struct callout),
 	    M_CALLOUT, M_WAITOK);
-	callout_cpu_init(cc, timeout_cpu);
+	callout_cpu_init(cc);
 }
 SYSINIT(callwheel_init, SI_SUB_CPU, SI_ORDER_ANY, callout_callwheel_init, NULL);
 
@@ -292,7 +291,7 @@ SYSINIT(callwheel_init, SI_SUB_CPU, SI_ORDER_ANY, callout_callwheel_init, NULL);
  * Initialize the per-cpu callout structures.
  */
 static void
-callout_cpu_init(struct callout_cpu *cc, int cpu)
+callout_cpu_init(struct callout_cpu *cc)
 {
 	struct callout *c;
 	int i;
@@ -307,8 +306,6 @@ callout_cpu_init(struct callout_cpu *cc, int cpu)
 	cc->cc_firstevent = INT64_MAX;
 	for (i = 0; i < 2; i++)
 		cc_cce_cleanup(cc, i);
-	snprintf(cc->cc_ktr_event_name, sizeof(cc->cc_ktr_event_name),
-	    "callwheel cpu %d", cpu);
 	if (cc->cc_callout == NULL)	/* Only cpu0 handles timeout(9) */
 		return;
 	for (i = 0; i < ncallout; i++) {
@@ -370,7 +367,7 @@ start_softclock(void *dummy)
 			continue;
 		cc = CC_CPU(cpu);
 		cc->cc_callout = NULL;	/* Only cpu0 handles timeout(9). */
-		callout_cpu_init(cc, cpu);
+		callout_cpu_init(cc);
 		if (swi_add(NULL, "clock", softclock, cc, SWI_CLOCK,
 		    INTR_MPSAFE, &cc->cc_cookie))
 			panic("died while creating standard software ithreads");
@@ -677,8 +674,6 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 		CTR3(KTR_CALLOUT, "callout %p func %p arg %p",
 		    c, c_func, c_arg);
 	}
-	KTR_STATE3(KTR_SCHED, "callout", cc->cc_ktr_event_name, "running",
-	    "func:%p", c_func, "arg:%p", c_arg, "direct:%d", direct);
 #if defined(DIAGNOSTIC) || defined(CALLOUT_PROFILING)
 	sbt1 = sbinuptime();
 #endif
@@ -701,7 +696,6 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 		lastfunc = c_func;
 	}
 #endif
-	KTR_STATE0(KTR_SCHED, "callout", cc->cc_ktr_event_name, "idle");
 	CTR1(KTR_CALLOUT, "callout %p finished", c);
 	if ((c_flags & CALLOUT_RETURNUNLOCKED) == 0)
 		class->lc_unlock(c_lock);
