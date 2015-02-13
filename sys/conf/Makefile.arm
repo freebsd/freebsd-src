@@ -41,6 +41,9 @@ STRIP_FLAGS = -S
 
 .if ${COMPILER_TYPE} != "clang"
 CFLAGS += -mno-thumb-interwork
+.else
+# We generally don't want fpu instructions in the kernel.
+CFLAGS += -mfpu=none
 .endif
 
 .if empty(DDB_ENABLED)
