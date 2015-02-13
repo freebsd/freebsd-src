@@ -1,8 +1,17 @@
-diff --git a/lib/CodeGen/CGDebugInfo.cpp b/lib/CodeGen/CGDebugInfo.cpp
-index 59ba47c..dddc7e7 100644
---- a/lib/CodeGen/CGDebugInfo.cpp
-+++ b/lib/CodeGen/CGDebugInfo.cpp
-@@ -2251,9 +2251,10 @@ llvm::DICompositeType CGDebugInfo::CreateLimitedType(const RecordType *Ty) {
+Pull in r200797 from upstream clang trunk (by Adrian Prantl):
+
+  Debug info: fix a crasher when when emitting debug info for
+  not-yet-completed templated types. getTypeSize() needs a complete type.
+
+  rdar://problem/15931354
+
+Introduced here: http://svnweb.freebsd.org/changeset/base/271282
+
+Index: tools/clang/lib/CodeGen/CGDebugInfo.cpp
+===================================================================
+--- tools/clang/lib/CodeGen/CGDebugInfo.cpp
++++ tools/clang/lib/CodeGen/CGDebugInfo.cpp
+@@ -2251,9 +2251,10 @@ llvm::DICompositeType CGDebugInfo::CreateLimitedTy
    if (T && (!T.isForwardDecl() || !RD->getDefinition()))
        return T;
  
@@ -16,36 +25,44 @@ index 59ba47c..dddc7e7 100644
      return getOrCreateRecordFwdDecl(Ty, RDContext);
  
    uint64_t Size = CGM.getContext().getTypeSize(Ty);
-diff --git a/test/CodeGenCXX/debug-info-template-fwd.cpp b/test/CodeGenCXX/debug-info-template-fwd.cpp
-new file mode 100644
-index 0000000..b2b7073
---- /dev/null
-+++ b/test/CodeGenCXX/debug-info-template-fwd.cpp
-@@ -0,0 +1,27 @@
+Index: tools/clang/test/CodeGenCXX/debug-info-template-fwd.cpp
+===================================================================
+--- tools/clang/test/CodeGenCXX/debug-info-template-fwd.cpp
++++ tools/clang/test/CodeGenCXX/debug-info-template-fwd.cpp
+@@ -0,0 +1,36 @@
 +// RUN: %clang_cc1 %s -triple=x86_64-apple-darwin -g -emit-llvm -o - | FileCheck %s
-+// This test is for a crash when emitting debug info for not-yet-completed
-+// types.
++// This test is for a crash when emitting debug info for not-yet-completed types.
 +// Test that we don't actually emit a forward decl for the offending class:
-+// CHECK:  [ DW_TAG_structure_type ] [Derived<int>] {{.*}} [def]
++// CHECK:  [ DW_TAG_class_type ] [Derived<const __CFString, Foo>] {{.*}} [def]
 +// rdar://problem/15931354
-+template <class A> class Derived;
++typedef const struct __CFString * CFStringRef;
++template <class R> class Returner {};
++typedef const __CFString String;
 +
-+template <class A> class Base {
-+  static Derived<A> *create();
++template <class A, class B> class Derived;
++
++template <class A, class B>
++class Base
++{
++  static Derived<A, B>* create();
 +};
 +
-+template <class A> struct Derived : Base<A> {
++template <class A, class B>
++class Derived : public Base<A, B> {
++public:
++  static void foo();
 +};
 +
-+Base<int> *f;
++class Foo
++{
++  Foo();
++  static Returner<Base<String,Foo> > all();
++};
 +
-+// During the instantiation of Derived<int>, Base<int> becomes required to be
-+// complete - since the declaration has already been emitted (due to 'f',
-+// above), we immediately try to build debug info for Base<int> which then
-+// requires the (incomplete definition) of Derived<int> which is problematic.
-+//
-+// (if 'f' is not present, the point at which Base<int> becomes required to be
-+// complete during the instantiation of Derived<int> is a no-op because
-+// Base<int> was never emitted so we ignore it and carry on until we
-+// wire up the base class of Derived<int> in the debug info later on)
-+Derived<int> d;
++Foo::Foo(){}
++
++Returner<Base<String,Foo> > Foo::all()
++{
++  Derived<String,Foo>::foo();
++  return Foo::all();
++}
