@@ -8,6 +8,13 @@
 
 INCSGROUPS?=	INCS
 
+.if defined(NO_ROOT)
+.if !defined(TAGS) || ! ${TAGS:Mpackage=*}
+TAGS+=		package=${PACKAGE:Uruntime}
+.endif
+TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
+.endif
+
 .if !target(buildincludes)
 .for group in ${INCSGROUPS}
 buildincludes: ${${group}}
@@ -41,7 +48,7 @@ ${group}NAME_${header:T}?=	${header:T}
 .endif
 installincludes: _${group}INS_${header:T}
 _${group}INS_${header:T}: ${header}
-	${INSTALL} -T development -C -o ${${group}OWN_${.ALLSRC:T}} \
+	${INSTALL}  -C -o ${${group}OWN_${.ALLSRC:T}} \
 	    -g ${${group}GRP_${.ALLSRC:T}} -m ${${group}MODE_${.ALLSRC:T}} \
 	    ${.ALLSRC} \
 	    ${DESTDIR}${${group}DIR_${.ALLSRC:T}}/${${group}NAME_${.ALLSRC:T}}
@@ -53,10 +60,10 @@ _${group}INCS+= ${header}
 installincludes: _${group}INS
 _${group}INS: ${_${group}INCS}
 .if defined(${group}NAME)
-	${INSTALL} -T development -C -o ${${group}OWN} -g ${${group}GRP} -m ${${group}MODE} \
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},development} -C -o ${${group}OWN} -g ${${group}GRP} -m ${${group}MODE} \
 	    ${.ALLSRC} ${DESTDIR}${${group}DIR}/${${group}NAME}
 .else
-	${INSTALL} -T development -C -o ${${group}OWN} -g ${${group}GRP} -m ${${group}MODE} \
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},development} -C -o ${${group}OWN} -g ${${group}GRP} -m ${${group}MODE} \
 	    ${.ALLSRC} ${DESTDIR}${${group}DIR}
 .endif
 .endif
@@ -73,7 +80,7 @@ installincludes:
 		t=${DESTDIR}$$1; \
 		shift; \
 		${ECHO} $$t -\> $$l; \
-		${INSTALL_SYMLINK} $$l $$t; \
+		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} $$l $$t; \
 	done; true
 .endif
 .endif # !target(installincludes)
