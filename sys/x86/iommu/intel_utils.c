@@ -411,11 +411,9 @@ dmar_load_root_entry_ptr(struct dmar_unit *unit)
 	 */
 	DMAR_ASSERT_LOCKED(unit);
 
-	/* VM_OBJECT_RLOCK(unit->ctx_obj); */
-	VM_OBJECT_WLOCK(unit->ctx_obj);
+	VM_OBJECT_RLOCK(unit->ctx_obj);
 	root_entry = vm_page_lookup(unit->ctx_obj, 0);
-	/* VM_OBJECT_RUNLOCK(unit->ctx_obj); */
-	VM_OBJECT_WUNLOCK(unit->ctx_obj);
+	VM_OBJECT_RUNLOCK(unit->ctx_obj);
 	dmar_write8(unit, DMAR_RTADDR_REG, VM_PAGE_TO_PHYS(root_entry));
 	dmar_write4(unit, DMAR_GCMD_REG, unit->hw_gcmd | DMAR_GCMD_SRTP);
 	/* XXXKIB should have a timeout */

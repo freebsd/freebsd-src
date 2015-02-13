@@ -3362,8 +3362,6 @@ close:
 	len = MAXPATHLEN * 2 + sizeof(comm_name) - 1 +
 	    sizeof(' ') + sizeof(core_name) - 1;
 	data = malloc(len, M_TEMP, M_WAITOK);
-	if (data == NULL)
-		goto out;
 	if (vn_fullpath_global(td, p->p_textvp, &fullpath, &freepath) != 0)
 		goto out;
 	if (!coredump_sanitise_path(fullpath))

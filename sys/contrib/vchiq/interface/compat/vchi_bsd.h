@@ -151,9 +151,15 @@ struct mutex {
 
 #define	lmutex_init(lock)	mtx_init(&(lock)->mtx, #lock, NULL, MTX_DEF)
 #define lmutex_lock(lock)	mtx_lock(&(lock)->mtx)
-#define	lmutex_lock_interruptible(lock)	(mtx_lock(&(lock)->mtx),0)
 #define	lmutex_unlock(lock)	mtx_unlock(&(lock)->mtx)
 #define	lmutex_destroy(lock)	mtx_destroy(&(lock)->mtx)
+
+static __inline int 
+lmutex_lock_interruptible(struct mutex *lock)
+{
+	mtx_lock(&(lock)->mtx);
+	return 0;
+}
 
 /*
  * Rwlock API

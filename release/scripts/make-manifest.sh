@@ -11,7 +11,6 @@
 
 base="Base system"
 doc="Additional Documentation"
-games="Games (fortune, etc.)"
 kernel="Kernel"
 ports="Ports tree"
 src="System source tree"
@@ -21,8 +20,6 @@ tests="Test suite"
 desc_base="${base} (MANDATORY)"
 desc_base_dbg="${base} (Debugging)"
 desc_doc="${doc}"
-desc_games="${games}"
-desc_games_dbg="${games} (Debugging)"
 desc_kernel="${kernel} (MANDATORY)"
 desc_kernel_dbg="${kernel} (Debugging)"
 desc_kernel_alt="Alternate ${kernel}"
@@ -37,7 +34,6 @@ default_doc=off
 default_src=off
 default_tests=off
 default_base_dbg=off
-default_games_dbg=off
 default_lib32_dbg=off
 default_kernel_alt=off
 default_kernel_dbg=on

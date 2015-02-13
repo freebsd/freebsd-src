@@ -222,11 +222,9 @@ ctl_show(int argc, char **argv)
 static void
 do_show(int version, void (*func)(struct ngnf_show_header *))
 {
-	struct ng_mesg *ng_mesg;
+	struct ng_mesg ng_mesg[SORCVBUF_SIZE];
 	struct ngnf_show_header req, *resp;
 	int token, nread;
-
-	ng_mesg = alloca(SORCVBUF_SIZE);
 
 	req.version = version;
 	req.hash_id = req.list_id = 0;
