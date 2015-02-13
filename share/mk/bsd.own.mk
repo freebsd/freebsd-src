@@ -427,6 +427,7 @@ __DEFAULT_YES_OPTIONS = \
     SYSINSTALL \
     SYMVER \
     SYSCONS \
+    TALK \
     TCSH \
     TELNET \
     TEXTPROC \
