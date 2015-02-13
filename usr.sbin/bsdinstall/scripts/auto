@@ -162,7 +162,7 @@ esac
 
 if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
 	ALL_DISTRIBUTIONS="$DISTRIBUTIONS"
-	WANT_DEBUG=false
+	WANT_DEBUG=
 
 	# Download to a directory in the new system as scratch space
 	BSDINSTALL_FETCHDEST="$BSDINSTALL_CHROOT/usr/freebsd-dist"
@@ -186,7 +186,7 @@ if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
 			*-dbg.*)
 				[ -e $BSDINSTALL_DISTDIR/$_DISTRIBUTION ] \
 					&& continue
-				WANT_DEBUG=true
+				WANT_DEBUG=1
 				DEBUG_LIST="\n$DEBUG_LIST\n$_DISTRIBUTION"
 				;;
 			*)
@@ -204,7 +204,7 @@ if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
 		# installation, since failure to fetch *-dbg.txz should not
 		# be considered a fatal installation error.
 		msg="Failed to fetch remote distribution"
-		if [ $WANT_DEBUG ]; then
+		if [ ! -z "$WANT_DEBUG" ]; then
 			# Trim leading and trailing newlines.
 			DEBUG_LIST="${DEBUG_LIST%%\n}"
 			DEBUG_LIST="${DEBUG_LIST##\n}"
