@@ -24,8 +24,9 @@ desc_doc="${doc}"
 desc_games="${games}"
 desc_games_dbg="${games} (Debugging)"
 desc_kernel="${kernel} (MANDATORY)"
-desc_kernel_symbols="${kernel} (Debugging symbols)"
+desc_kernel_dbg="${kernel} (Debugging)"
 desc_kernel_alt="Alternate ${kernel}"
+desc_kernel_alt_dbg="Alternate ${kernel} (Debugging)"
 desc_lib32="${lib32}"
 desc_lib32_dbg="${lib32} (Debugging)"
 desc_ports="${ports}"
@@ -39,21 +40,32 @@ default_base_dbg=off
 default_games_dbg=off
 default_lib32_dbg=off
 default_kernel_alt=off
-default_kernel_symbols=on
+default_kernel_dbg=on
+default_kernel_alt_dbg=off
 
 for i in ${*}; do
 	dist="${i}"
 	distname="${i%%.txz}"
-	distname="$(echo ${distname} | sed -E 's/-dbg/_dbg/')"
-	distname="$(echo ${distname} | sed -E 's/kernel\..*/kernel_alt/')"
+	distname="$(echo ${distname} | tr '-' '_')"
+	distname="$(echo ${distname} | tr 'kernel.' 'kernel_')"
 	hash="$(sha256 -q ${i})"
 	nfiles="$(tar tvf ${i} | wc -l | tr -d ' ')"
 	default="$(eval echo \${default_${distname}:-on})"
 	desc="$(eval echo \"\${desc_${distname}}\")"
 
 	case ${i} in
-		kernel.*.*)
-			desc="${desc} \($(echo ${i%%.txz} | cut -f 2 -d '.')\)"
+		kernel-dbg.txz)
+			desc="${desc_kernel_dbg}"
+			;;
+		kernel.*-dbg.txz)
+			desc="$(eval echo \"${desc_kernel_alt_dbg}\")"
+			desc="${desc}: $(eval echo ${i%%-dbg.txz} | cut -f 2 -d '.')"
+			default="$(eval echo \"${default_kernel_alt_dbg}\")"
+			;;
+		kernel.*.txz)
+			desc="$(eval echo \"${desc_kernel_alt}\")"
+			desc="${desc}: $(eval echo ${i%%.txz} | cut -f 2 -d '.')"
+			default="$(eval echo \"${default_kernel_alt}\")"
 			;;
 		*)
 			;;

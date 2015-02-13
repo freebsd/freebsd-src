@@ -1146,7 +1146,7 @@ packagekernel:
 	    --exclude '*.symbols' \
 	    @${DESTDIR}/${DISTDIR}/kernel.meta
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel_symbols.txz \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel-dbg.txz \
 	    --include '*/*/*.symbols' \
 	    @${DESTDIR}/${DISTDIR}/kernel.meta
 .for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
@@ -1155,7 +1155,7 @@ packagekernel:
 	    --exclude '*.symbols' \
 	    @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.${_kernel}_symbols.txz \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.${_kernel}-dbg.txz \
 	    --include '*/*/*.symbols' \
 	    @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
 .endfor
@@ -1165,7 +1165,7 @@ packagekernel:
 	    --exclude '*.symbols' \
 	    .
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel_symbols.txz \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel-dbg.txz \
 	    --include '*/*/*.symbols' \
 	    $$(eval find .)
 .for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
@@ -1174,7 +1174,7 @@ packagekernel:
 	    --exclude '*.symbols' \
 	    .
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.${_kernel}_symbols.txz \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.${_kernel}-dbg.txz \
 	    --include '*/*/*.symbols' \
 	    $$(eval find .)
 .endfor
