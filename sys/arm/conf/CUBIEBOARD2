@@ -26,7 +26,7 @@ makeoptions	MODULES_OVERRIDE=""
 makeoptions	WITHOUT_MODULES="ahc"
 
 options 	HZ=100
-options 	SCHED_4BSD		# 4BSD scheduler
+options 	SCHED_ULE		# ULE scheduler
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	GEOM_PART_BSD		# BSD partition scheme
