@@ -71,11 +71,11 @@ static void saveLandingPad(struct _Unwind_Context *context,
                            int selector,
                            dw_eh_ptr_t landingPad)
 {
-#ifdef __arm__
+#if defined(__arm__) && !defined(__ARM_DWARF_EH__)
 	// On ARM, we store the saved exception in the generic part of the structure
 	ucb->barrier_cache.sp = _Unwind_GetGR(context, 13);
-	ucb->barrier_cache.bitpattern[1] = (uint32_t)selector;
-	ucb->barrier_cache.bitpattern[3] = (uint32_t)landingPad;
+	ucb->barrier_cache.bitpattern[1] = static_cast<uint32_t>(selector);
+	ucb->barrier_cache.bitpattern[3] = reinterpret_cast<uint32_t>(landingPad);
 #endif
 	// Cache the results for the phase 2 unwind, if we found a handler
 	// and this is not a foreign exception.  
@@ -95,15 +95,15 @@ static int loadLandingPad(struct _Unwind_Context *context,
                           unsigned long *selector,
                           dw_eh_ptr_t *landingPad)
 {
-#ifdef __arm__
+#if defined(__arm__) && !defined(__ARM_DWARF_EH__)
 	*selector = ucb->barrier_cache.bitpattern[1];
-	*landingPad = (dw_eh_ptr_t)ucb->barrier_cache.bitpattern[3];
+	*landingPad = reinterpret_cast<dw_eh_ptr_t>(ucb->barrier_cache.bitpattern[3]);
 	return 1;
 #else
 	if (ex)
 	{
 		*selector = ex->handlerSwitchValue;
-		*landingPad = (dw_eh_ptr_t)ex->catchTemp;
+		*landingPad = reinterpret_cast<dw_eh_ptr_t>(ex->catchTemp);
 		return 0;
 	}
 	return 0;
@@ -113,7 +113,7 @@ static int loadLandingPad(struct _Unwind_Context *context,
 static inline _Unwind_Reason_Code continueUnwinding(struct _Unwind_Exception *ex,
                                                     struct _Unwind_Context *context)
 {
-#ifdef __arm__
+#if defined(__arm__) && !defined(__ARM_DWARF_EH__)
 	if (__gnu_unwind_frame(ex, context) != _URC_OK) { return _URC_FAILURE; }
 #endif
 	return _URC_CONTINUE_UNWIND;
@@ -204,7 +204,7 @@ struct __cxa_dependent_exception
 	terminate_handler terminateHandler;
 	__cxa_exception *nextException;
 	int handlerCount;
-#ifdef __arm__
+#if defined(__arm__) && !defined(__ARM_DWARF_EH__)
 	_Unwind_Exception *nextCleanup;
 	int cleanupCount;
 #endif
@@ -267,13 +267,13 @@ static bool isDependentException(uint64_t cls)
 
 static __cxa_exception *exceptionFromPointer(void *ex)
 {
-	return (__cxa_exception*)((char*)ex -
+	return reinterpret_cast<__cxa_exception*>(static_cast<char*>(ex) -
 			offsetof(struct __cxa_exception, unwindHeader));
 }
 static __cxa_exception *realExceptionFromException(__cxa_exception *ex)
 {
 	if (!isDependentException(ex->unwindHeader.exception_class)) { return ex; }
-	return ((__cxa_exception*)(((__cxa_dependent_exception*)ex)->primaryException))-1;
+	return reinterpret_cast<__cxa_exception*>((reinterpret_cast<__cxa_dependent_exception*>(ex))->primaryException)-1;
 }
 
 
@@ -304,13 +304,13 @@ static pthread_key_t eh_key;
 static void exception_cleanup(_Unwind_Reason_Code reason, 
                               struct _Unwind_Exception *ex)
 {
-	__cxa_free_exception((void*)ex);
+	__cxa_free_exception(static_cast<void*>(ex));
 }
 static void dependent_exception_cleanup(_Unwind_Reason_Code reason, 
                               struct _Unwind_Exception *ex)
 {
 
-	__cxa_free_dependent_exception((void*)ex);
+	__cxa_free_dependent_exception(static_cast<void*>(ex));
 }
 
 /**
@@ -333,13 +333,13 @@ static void free_exception_list(__cxa_exception *ex)
  */
 static void thread_cleanup(void* thread_info)
 {
-	__cxa_thread_info *info = (__cxa_thread_info*)thread_info;
+	__cxa_thread_info *info = static_cast<__cxa_thread_info*>(thread_info);
 	if (info->globals.caughtExceptions)
 	{
 		// If this is a foreign exception, ask it to clean itself up.
 		if (info->foreign_exception_state != __cxa_thread_info::none)
 		{
-			_Unwind_Exception *e = (_Unwind_Exception*)info->globals.caughtExceptions;
+			_Unwind_Exception *e = reinterpret_cast<_Unwind_Exception*>(info->globals.caughtExceptions);
 			e->exception_cleanup(_URC_FOREIGN_EXCEPTION_CAUGHT, e);
 		}
 		else
@@ -379,8 +379,8 @@ static void init_key(void)
 		return;
 	}
 	pthread_key_create(&eh_key, thread_cleanup);
-	pthread_setspecific(eh_key, (void*)0x42);
-	fakeTLS = (pthread_getspecific(eh_key) != (void*)0x42);
+	pthread_setspecific(eh_key, reinterpret_cast<void *>(0x42));
+	fakeTLS = (pthread_getspecific(eh_key) != reinterpret_cast<void *>(0x42));
 	pthread_setspecific(eh_key, 0);
 }
 
@@ -394,10 +394,10 @@ static __cxa_thread_info *thread_info()
 		fakeTLS = true;
 	}
 	if (fakeTLS) { return &singleThreadInfo; }
-	__cxa_thread_info *info = (__cxa_thread_info*)pthread_getspecific(eh_key);
+	__cxa_thread_info *info = static_cast<__cxa_thread_info*>(pthread_getspecific(eh_key));
 	if (0 == info)
 	{
-		info = (__cxa_thread_info*)calloc(1, sizeof(__cxa_thread_info));
+		info = static_cast<__cxa_thread_info*>(calloc(1, sizeof(__cxa_thread_info)));
 		pthread_setspecific(eh_key, info);
 	}
 	return info;
@@ -409,7 +409,7 @@ static __cxa_thread_info *thread_info()
 static __cxa_thread_info *thread_info_fast()
 {
 	if (fakeTLS) { return &singleThreadInfo; }
-	return (__cxa_thread_info*)pthread_getspecific(eh_key);
+	return static_cast<__cxa_thread_info*>(pthread_getspecific(eh_key));
 }
 /**
  * ABI function returning the __cxa_eh_globals structure.
@@ -472,7 +472,7 @@ static char *emergency_malloc(size_t size)
 		if (0 != m)
 		{
 			pthread_mutex_unlock(&emergency_malloc_lock);
-			return (char*)m;
+			return static_cast<char*>(m);
 		}
 		for (int i=0 ; i<16 ; i++)
 		{
@@ -510,7 +510,7 @@ static void emergency_malloc_free(char *ptr)
 	// Find the buffer corresponding to this pointer.
 	for (int i=0 ; i<16 ; i++)
 	{
-		if (ptr == (void*)(emergency_buffer + (1024 * i)))
+		if (ptr == static_cast<void*>(emergency_buffer + (1024 * i)))
 		{
 			buffer = i;
 			break;
@@ -521,7 +521,7 @@ static void emergency_malloc_free(char *ptr)
 	// emergency_malloc() is expected to return 0-initialized data.  We don't
 	// zero the buffer when allocating it, because the static buffers will
 	// begin life containing 0 values.
-	memset((void*)ptr, 0, 1024);
+	memset(ptr, 0, 1024);
 	// Signal the condition variable to wake up any threads that are blocking
 	// waiting for some space in the emergency buffer
 	pthread_mutex_lock(&emergency_malloc_lock);
@@ -535,7 +535,7 @@ static void emergency_malloc_free(char *ptr)
 
 static char *alloc_or_die(size_t size)
 {
-	char *buffer = (char*)calloc(1, size);
+	char *buffer = static_cast<char*>(calloc(1, size));
 
 	// If calloc() doesn't want to give us any memory, try using an emergency
 	// buffer.
@@ -597,7 +597,7 @@ extern "C" void *__cxa_allocate_dependent_exception(void)
  */
 extern "C" void __cxa_free_exception(void *thrown_exception)
 {
-	__cxa_exception *ex = ((__cxa_exception*)thrown_exception) - 1;
+	__cxa_exception *ex = reinterpret_cast<__cxa_exception*>(thrown_exception) - 1;
 	// Free the object that was thrown, calling its destructor
 	if (0 != ex->exceptionDestructor)
 	{
@@ -612,7 +612,7 @@ extern "C" void __cxa_free_exception(void *thrown_exception)
 		}
 	}
 
-	free_exception((char*)ex);
+	free_exception(reinterpret_cast<char*>(ex));
 }
 
 static void releaseException(__cxa_exception *exception)
@@ -633,13 +633,13 @@ static void releaseException(__cxa_exception *exception)
 
 void __cxa_free_dependent_exception(void *thrown_exception)
 {
-	__cxa_dependent_exception *ex = ((__cxa_dependent_exception*)thrown_exception) - 1;
+	__cxa_dependent_exception *ex = reinterpret_cast<__cxa_dependent_exception*>(thrown_exception) - 1;
 	assert(isDependentException(ex->unwindHeader.exception_class));
 	if (ex->primaryException)
 	{
-		releaseException(realExceptionFromException((__cxa_exception*)ex));
+		releaseException(realExceptionFromException(reinterpret_cast<__cxa_exception*>(ex)));
 	}
-	free_exception((char*)ex);
+	free_exception(reinterpret_cast<char*>(ex));
 }
 
 /**
@@ -654,8 +654,8 @@ static _Unwind_Reason_Code trace(struct _Unwind_Context *context, void *c)
 {
 	Dl_info myinfo;
 	int mylookup =
-		dladdr((void*)(uintptr_t)__cxa_current_exception_type, &myinfo);
-	void *ip = (void*)_Unwind_GetIP(context);
+		dladdr(reinterpret_cast<void *>(__cxa_current_exception_type), &myinfo);
+	void *ip = reinterpret_cast<void*>(_Unwind_GetIP(context));
 	Dl_info info;
 	if (dladdr(ip, &info) != 0)
 	{
@@ -673,6 +673,11 @@ static _Unwind_Reason_Code trace(struct _Unwind_Context *context, void *c)
  * If the failure happened by falling off the end of the stack without finding
  * a handler, prints a back trace before aborting.
  */
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)
+extern "C" void *__cxa_begin_catch(void *e) throw();
+#else
+extern "C" void *__cxa_begin_catch(void *e);
+#endif
 static void report_failure(_Unwind_Reason_Code err, __cxa_exception *thrown_exception)
 {
 	switch (err)
@@ -681,14 +686,16 @@ static void report_failure(_Unwind_Reason_Code err, __cxa_exception *thrown_exce
 		case _URC_FATAL_PHASE1_ERROR:
 			fprintf(stderr, "Fatal error during phase 1 unwinding\n");
 			break;
-#ifndef __arm__
+#if !defined(__arm__) || defined(__ARM_DWARF_EH__)
 		case _URC_FATAL_PHASE2_ERROR:
 			fprintf(stderr, "Fatal error during phase 2 unwinding\n");
 			break;
 #endif
 		case _URC_END_OF_STACK:
+			__cxa_begin_catch (&(thrown_exception->unwindHeader));
+ 			std::terminate();
 			fprintf(stderr, "Terminating due to uncaught exception %p", 
-					(void*)thrown_exception);
+					static_cast<void*>(thrown_exception));
 			thrown_exception = realExceptionFromException(thrown_exception);
 			static const __class_type_info *e_ti =
 				static_cast<const __class_type_info*>(&typeid(std::exception));
@@ -697,8 +704,8 @@ static void report_failure(_Unwind_Reason_Code err, __cxa_exception *thrown_exce
 			if (throw_ti)
 			{
 				std::exception *e =
-					(std::exception*)e_ti->cast_to((void*)(thrown_exception+1),
-							throw_ti);
+					static_cast<std::exception*>(e_ti->cast_to(static_cast<void*>(thrown_exception+1),
+							throw_ti));
 				if (e)
 				{
 					fprintf(stderr, " '%s'", e->what());
@@ -706,18 +713,21 @@ static void report_failure(_Unwind_Reason_Code err, __cxa_exception *thrown_exce
 			}
 
 			size_t bufferSize = 128;
-			char *demangled = (char*)malloc(bufferSize);
+			char *demangled = static_cast<char*>(malloc(bufferSize));
 			const char *mangled = thrown_exception->exceptionType->name();
 			int status;
 			demangled = __cxa_demangle(mangled, demangled, &bufferSize, &status);
 			fprintf(stderr, " of type %s\n", 
-				status == 0 ? (const char*)demangled : mangled);
+				status == 0 ? demangled : mangled);
 			if (status == 0) { free(demangled); }
 			// Print a back trace if no handler is found.
 			// TODO: Make this optional
 #ifndef __arm__
 			_Unwind_Backtrace(trace, 0);
 #endif
+
+			// Just abort. No need to call std::terminate for the second time
+			abort();
 			break;
 	}
 	std::terminate();
@@ -755,7 +765,7 @@ extern "C" void __cxa_throw(void *thrown_exception,
                             std::type_info *tinfo,
                             void(*dest)(void*))
 {
-	__cxa_exception *ex = ((__cxa_exception*)thrown_exception) - 1;
+	__cxa_exception *ex = reinterpret_cast<__cxa_exception*>(thrown_exception) - 1;
 
 	ex->referenceCount = 1;
 	ex->exceptionType = tinfo;
@@ -773,7 +783,7 @@ extern "C" void __cxa_rethrow_primary_exception(void* thrown_exception)
 	if (NULL == thrown_exception) { return; }
 
 	__cxa_exception *original = exceptionFromPointer(thrown_exception);
-	__cxa_dependent_exception *ex = ((__cxa_dependent_exception*)__cxa_allocate_dependent_exception())-1;
+	__cxa_dependent_exception *ex = reinterpret_cast<__cxa_dependent_exception*>(__cxa_allocate_dependent_exception())-1;
 
 	ex->primaryException = thrown_exception;
 	__cxa_increment_exception_refcount(thrown_exception);
@@ -782,7 +792,7 @@ extern "C" void __cxa_rethrow_primary_exception(void* thrown_exception)
 	ex->unwindHeader.exception_class = dependent_exception_class;
 	ex->unwindHeader.exception_cleanup = dependent_exception_cleanup;
 
-	throw_exception((__cxa_exception*)ex);
+	throw_exception(reinterpret_cast<__cxa_exception*>(ex));
 }
 
 extern "C" void *__cxa_current_primary_exception(void)
@@ -799,14 +809,14 @@ extern "C" void *__cxa_current_primary_exception(void)
 extern "C" void __cxa_increment_exception_refcount(void* thrown_exception)
 {
 	if (NULL == thrown_exception) { return; }
-	__cxa_exception *ex = ((__cxa_exception*)thrown_exception) - 1;
+	__cxa_exception *ex = static_cast<__cxa_exception*>(thrown_exception) - 1;
 	if (isDependentException(ex->unwindHeader.exception_class)) { return; }
 	__sync_fetch_and_add(&ex->referenceCount, 1);
 }
 extern "C" void __cxa_decrement_exception_refcount(void* thrown_exception)
 {
 	if (NULL == thrown_exception) { return; }
-	__cxa_exception *ex = ((__cxa_exception*)thrown_exception) - 1;
+	__cxa_exception *ex = static_cast<__cxa_exception*>(thrown_exception) - 1;
 	releaseException(ex);
 }
 
@@ -838,7 +848,7 @@ extern "C" void __cxa_rethrow()
 	if (ti->foreign_exception_state != __cxa_thread_info::none)
 	{
 		ti->foreign_exception_state = __cxa_thread_info::rethrown;
-		_Unwind_Exception *e = (_Unwind_Exception*)ex;
+		_Unwind_Exception *e = reinterpret_cast<_Unwind_Exception*>(ex);
 		_Unwind_Reason_Code err = _Unwind_Resume_or_Rethrow(e);
 		report_failure(err, ex);
 		return;
@@ -881,8 +891,8 @@ static std::type_info *get_type_info_entry(_Unwind_Context *context,
 	if (offset == 0) { return 0; }
 
 	// ...so we need to resolve it
-	return (std::type_info*)resolve_indirect_value(context,
-			lsda->type_table_encoding, offset, start);
+	return reinterpret_cast<std::type_info*>(resolve_indirect_value(context,
+			lsda->type_table_encoding, offset, start));
 }
 
 
@@ -896,13 +906,13 @@ static bool check_type_signature(__cxa_exception *ex,
                                  const std::type_info *type,
                                  void *&adjustedPtr)
 {
-	void *exception_ptr = (void*)(ex+1);
+	void *exception_ptr = static_cast<void*>(ex+1);
 	const std::type_info *ex_type = ex ? ex->exceptionType : 0;
 
 	bool is_ptr = ex ? ex_type->__is_pointer_p() : false;
 	if (is_ptr)
 	{
-		exception_ptr = *(void**)exception_ptr;
+		exception_ptr = *static_cast<void**>(exception_ptr);
 	}
 	// Always match a catchall, even with a foreign exception
 	//
@@ -974,7 +984,7 @@ static handler_type check_action_record(_Unwind_Context *context,
 		{
 			bool matched = false;
 			*selector = filter;
-#ifdef __arm__
+#if defined(__arm__) && !defined(__ARM_DWARF_EH__)
 			filter++;
 			std::type_info *handler_type = get_type_info_entry(context, lsda, filter--);
 			while (handler_type)
@@ -987,7 +997,7 @@ static handler_type check_action_record(_Unwind_Context *context,
 				handler_type = get_type_info_entry(context, lsda, filter--);
 			}
 #else
-			unsigned char *type_index = ((unsigned char*)lsda->type_table - filter - 1);
+			unsigned char *type_index = reinterpret_cast<unsigned char*>(lsda->type_table) - filter - 1;
 			while (*type_index)
 			{
 				std::type_info *handler_type = get_type_info_entry(context, lsda, *(type_index++));
@@ -1019,7 +1029,7 @@ static handler_type check_action_record(_Unwind_Context *context,
 static void pushCleanupException(_Unwind_Exception *exceptionObject,
                                  __cxa_exception *ex)
 {
-#ifdef __arm__
+#if defined(__arm__) && !defined(__ARM_DWARF_EH__)
 	__cxa_thread_info *info = thread_info_fast();
 	if (ex)
 	{
@@ -1064,8 +1074,13 @@ BEGIN_PERSONALITY_FUNCTION(__gxx_personality_v0)
 		realEx = realExceptionFromException(ex);
 	}
 
+#if defined(__arm__) && !defined(__ARM_DWARF_EH__)
 	unsigned char *lsda_addr =
-		(unsigned char*)_Unwind_GetLanguageSpecificData(context);
+		static_cast<unsigned char*>(_Unwind_GetLanguageSpecificData(context));
+#else
+	unsigned char *lsda_addr =
+		reinterpret_cast<unsigned char*>(static_cast<uintptr_t>(_Unwind_GetLanguageSpecificData(context)));
+#endif
 
 	// No LSDA implies no landing pads - try the next frame
 	if (0 == lsda_addr) { return continueUnwinding(exceptionObject, context); }
@@ -1114,8 +1129,8 @@ BEGIN_PERSONALITY_FUNCTION(__gxx_personality_v0)
 			if (ex)
 			{
 				saveLandingPad(context, exceptionObject, ex, selector, action.landing_pad);
-				ex->languageSpecificData = (const char*)lsda_addr;
-				ex->actionRecord = (const char*)action.action_record;
+				ex->languageSpecificData = reinterpret_cast<const char*>(lsda_addr);
+				ex->actionRecord = reinterpret_cast<const char*>(action.action_record);
 				// ex->adjustedPtr is set when finding the action record.
 			}
 			return _URC_HANDLER_FOUND;
@@ -1161,9 +1176,9 @@ BEGIN_PERSONALITY_FUNCTION(__gxx_personality_v0)
 	}
 
 
-	_Unwind_SetIP(context, (unsigned long)action.landing_pad);
+	_Unwind_SetIP(context, reinterpret_cast<unsigned long>(action.landing_pad));
 	_Unwind_SetGR(context, __builtin_eh_return_data_regno(0),
-	              (unsigned long)exceptionObject);
+	              reinterpret_cast<unsigned long>(exceptionObject));
 	_Unwind_SetGR(context, __builtin_eh_return_data_regno(1), selector);
 
 	return _URC_INSTALL_CONTEXT;
@@ -1176,7 +1191,7 @@ BEGIN_PERSONALITY_FUNCTION(__gxx_personality_v0)
  * pointer to the caught exception, which is either the adjusted pointer (for
  * C++ exceptions) of the unadjusted pointer (for foreign exceptions).
  */
-#if __GNUC__ > 3 && __GNUC_MINOR__ > 2
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)
 extern "C" void *__cxa_begin_catch(void *e) throw()
 #else
 extern "C" void *__cxa_begin_catch(void *e)
@@ -1187,7 +1202,7 @@ extern "C" void *__cxa_begin_catch(void *e)
 	__cxa_thread_info *ti = thread_info();
 	__cxa_eh_globals *globals = &ti->globals;
 	globals->uncaughtExceptions--;
-	_Unwind_Exception *exceptionObject = (_Unwind_Exception*)e;
+	_Unwind_Exception *exceptionObject = static_cast<_Unwind_Exception*>(e);
 
 	if (isCXXException(exceptionObject->exception_class))
 	{
@@ -1241,12 +1256,12 @@ extern "C" void *__cxa_begin_catch(void *e)
 		{
 			std::terminate();
 		}
-		globals->caughtExceptions = (__cxa_exception*)exceptionObject;
+		globals->caughtExceptions = reinterpret_cast<__cxa_exception*>(exceptionObject);
 		ti->foreign_exception_state = __cxa_thread_info::caught;
 	}
 	// exceptionObject is the pointer to the _Unwind_Exception within the
 	// __cxa_exception.  The throw object is after this
-	return ((char*)exceptionObject + sizeof(_Unwind_Exception));
+	return (reinterpret_cast<char*>(exceptionObject) + sizeof(_Unwind_Exception));
 }
 
 
@@ -1270,7 +1285,7 @@ extern "C" void __cxa_end_catch()
 		globals->caughtExceptions = 0;
 		if (ti->foreign_exception_state != __cxa_thread_info::rethrown)
 		{
-			_Unwind_Exception *e = (_Unwind_Exception*)ti->globals.caughtExceptions;
+			_Unwind_Exception *e = reinterpret_cast<_Unwind_Exception*>(ti->globals.caughtExceptions);
 			e->exception_cleanup(_URC_FOREIGN_EXCEPTION_CAUGHT, e);
 		}
 		ti->foreign_exception_state = __cxa_thread_info::none;
@@ -1332,7 +1347,7 @@ extern "C" std::type_info *__cxa_current_exception_type()
  */
 extern "C" void __cxa_call_unexpected(void*exception) 
 {
-	_Unwind_Exception *exceptionObject = (_Unwind_Exception*)exception;
+	_Unwind_Exception *exceptionObject = static_cast<_Unwind_Exception*>(exception);
 	if (exceptionObject->exception_class == exception_class)
 	{
 		__cxa_exception *ex =  exceptionFromPointer(exceptionObject);
@@ -1483,7 +1498,7 @@ namespace std
 		return ATOMIC_LOAD(&terminateHandler);
 	}
 }
-#ifdef __arm__
+#if defined(__arm__) && !defined(__ARM_DWARF_EH__)
 extern "C" _Unwind_Exception *__cxa_get_cleanup(void)
 {
 	__cxa_thread_info *info = thread_info_fast();
