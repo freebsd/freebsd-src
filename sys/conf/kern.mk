@@ -33,6 +33,11 @@ CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
 		${NO_WFORMAT}
 .endif
 
+.if ${COMPILER_TYPE} == "gcc"
+# For gcc 4.2, eliminate the too-often-wrong warnings about uninitialized vars.
+CWARNEXTRA?=	-Wno-uninitialized
+.endif
+
 # External compilers may not support our format extensions.  Allow them
 # to be disabled.  WARNING: format checking is disabled in this case.
 .if ${MK_FORMAT_EXTENSIONS} == "no"
