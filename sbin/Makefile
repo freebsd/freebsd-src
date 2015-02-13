@@ -9,7 +9,6 @@ SUBDIR=adjkerntz \
 	atacontrol \
 	badsect \
 	camcontrol \
-	ccdconfig \
 	clri \
 	comcontrol \
 	conscontrol \
@@ -76,6 +75,10 @@ SUBDIR=adjkerntz \
 
 .if ${MK_ATM} != "no"
 SUBDIR+=	atm
+.endif
+
+.if ${MK_CCD} != "no"
+SUBDIR+=	ccdconfig
 .endif
 
 .if ${MK_CXX} != "no"
