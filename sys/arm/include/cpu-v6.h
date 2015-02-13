@@ -150,6 +150,35 @@ _RF0(cp15_id_isar4_get, CP15_ID_ISAR4(%0))
 _RF0(cp15_id_isar5_get, CP15_ID_ISAR5(%0))
 _RF0(cp15_cbar_get, CP15_CBAR(%0))
 
+/* Performance Monitor registers */
+
+#if __ARM_ARCH == 6 && defined(CPU_ARM1176)
+_RF0(cp15_pmccntr_get, CP15_PMCCNTR(%0))
+_WF1(cp15_pmccntr_set, CP15_PMCCNTR(%0))
+#elif __ARM_ARCH > 6
+_RF0(cp15_pmcr_get, CP15_PMCR(%0))
+_WF1(cp15_pmcr_set, CP15_PMCR(%0))
+_RF0(cp15_pmcnten_get, CP15_PMCNTENSET(%0))
+_WF1(cp15_pmcnten_set, CP15_PMCNTENSET(%0))
+_WF1(cp15_pmcnten_clr, CP15_PMCNTENCLR(%0))
+_RF0(cp15_pmovsr_get, CP15_PMOVSR(%0))
+_WF1(cp15_pmovsr_set, CP15_PMOVSR(%0))
+_WF1(cp15_pmswinc_set, CP15_PMSWINC(%0))
+_RF0(cp15_pmselr_get, CP15_PMSELR(%0))
+_WF1(cp15_pmselr_set, CP15_PMSELR(%0))
+_RF0(cp15_pmccntr_get, CP15_PMCCNTR(%0))
+_WF1(cp15_pmccntr_set, CP15_PMCCNTR(%0))
+_RF0(cp15_pmxevtyper_get, CP15_PMXEVTYPER(%0))
+_WF1(cp15_pmxevtyper_set, CP15_PMXEVTYPER(%0))
+_RF0(cp15_pmxevcntr_get, CP15_PMXEVCNTRR(%0))
+_WF1(cp15_pmxevcntr_set, CP15_PMXEVCNTRR(%0))
+_RF0(cp15_pmuserenr_get, CP15_PMUSERENR(%0))
+_WF1(cp15_pmuserenr_set, CP15_PMUSERENR(%0))
+_RF0(cp15_pminten_get, CP15_PMINTENSET(%0))
+_WF1(cp15_pminten_set, CP15_PMINTENSET(%0))
+_WF1(cp15_pminten_clr, CP15_PMINTENCLR(%0))
+#endif
+
 #undef	_FX
 #undef	_RF0
 #undef	_WF0
@@ -205,14 +234,7 @@ tlb_flush_range_local(vm_offset_t sva, vm_size_t size)
 }
 
 /* Broadcasting operations. */
-#ifndef SMP
-
-#define tlb_flush_all() 		tlb_flush_all_local()
-#define tlb_flush_all_ng() 		tlb_flush_all_ng_local()
-#define tlb_flush(sva) 			tlb_flush_local(sva)
-#define tlb_flush_range(sva, size) 	tlb_flush_range_local(sva, size)
-
-#else /* SMP */
+#if __ARM_ARCH >= 7 && defined SMP
 
 static __inline void
 tlb_flush_all(void)
@@ -252,6 +274,13 @@ tlb_flush_range(vm_offset_t sva,  vm_size_t size)
 		_CP15_TLBIMVAAIS(va);
 	dsb();
 }
+#else /* SMP */
+
+#define tlb_flush_all() 		tlb_flush_all_local()
+#define tlb_flush_all_ng() 		tlb_flush_all_ng_local()
+#define tlb_flush(sva) 			tlb_flush_local(sva)
+#define tlb_flush_range(sva, size) 	tlb_flush_range_local(sva, size)
+
 #endif /* SMP */
 
 /*
@@ -267,14 +296,14 @@ icache_sync(vm_offset_t sva, vm_size_t size)
 
 	dsb();
 	for (va = sva; va < eva; va += arm_dcache_align) {
-#ifdef SMP
+#if __ARM_ARCH >= 7 && defined SMP
 		_CP15_DCCMVAU(va);
 #else
 		_CP15_DCCMVAC(va);
 #endif
 	}
 	dsb();
-#ifdef SMP
+#if __ARM_ARCH >= 7 && defined SMP
 	_CP15_ICIALLUIS();
 #else
 	_CP15_ICIALLU();
@@ -287,7 +316,7 @@ icache_sync(vm_offset_t sva, vm_size_t size)
 static __inline void
 icache_inv_all(void)
 {
-#ifdef SMP
+#if __ARM_ARCH >= 7 && defined SMP
 	_CP15_ICIALLUIS();
 #else
 	_CP15_ICIALLU();
@@ -305,7 +334,7 @@ dcache_wb_pou(vm_offset_t sva, vm_size_t size)
 
 	dsb();
 	for (va = sva; va < eva; va += arm_dcache_align) {
-#ifdef SMP
+#if __ARM_ARCH >= 7 && defined SMP
 		_CP15_DCCMVAU(va);
 #else
 		_CP15_DCCMVAC(va);

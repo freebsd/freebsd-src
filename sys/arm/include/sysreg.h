@@ -29,6 +29,11 @@
 
 /*
  * Macros to make working with the System Control Registers simpler.
+ *
+ * Note that when register r0 is hard-coded in these definitions it means the
+ * cp15 operation neither reads nor writes the register, and r0 is used only
+ * because some syntatically-valid register name has to appear at that point to
+ * keep the asm parser happy.
  */
 
 #ifndef MACHINE_SYSREG_H
@@ -199,6 +204,26 @@
 #if __ARM_ARCH >= 6
 /* From ARMv6: */
 #define	CP15_TLBIMVAA(rr)	p15, 0, rr, c8, c7, 3 /* Invalidate unified TLB by MVA, all ASID */
+#endif
+
+/*
+ * CP15 C9 registers
+ */
+#if __ARM_ARCH == 6 && defined(CPU_ARM1176)
+#define	CP15_PMCCNTR(rr)	p15, 0, rr, c15, c12, 1 /* PM Cycle Count Register */
+#elif __ARM_ARCH > 6
+#define	CP15_PMCR(rr)		p15, 0, rr,  c9, c12, 0 /* Performance Monitor Control Register */
+#define	CP15_PMCNTENSET(rr)	p15, 0, rr,  c9, c12, 1 /* PM Count Enable Set Register */
+#define	CP15_PMCNTENCLR(rr)	p15, 0, rr,  c9, c12, 2 /* PM Count Enable Clear Register */
+#define	CP15_PMOVSR(rr)		p15, 0, rr,  c9, c12, 3 /* PM Overflow Flag Status Register */
+#define	CP15_PMSWINC(rr)	p15, 0, rr,  c9, c12, 4 /* PM Software Increment Register */
+#define	CP15_PMSELR(rr)		p15, 0, rr,  c9, c12, 5 /* PM Event Counter Selection Register */
+#define	CP15_PMCCNTR(rr)	p15, 0, rr,  c9, c13, 0 /* PM Cycle Count Register */
+#define	CP15_PMXEVTYPER(rr)	p15, 0, rr,  c9, c13, 1 /* PM Event Type Select Register */
+#define	CP15_PMXEVCNTRR(rr)	p15, 0, rr,  c9, c13, 2 /* PM Event Count Register */
+#define	CP15_PMUSERENR(rr)	p15, 0, rr,  c9, c14, 0 /* PM User Enable Register */
+#define	CP15_PMINTENSET(rr)	p15, 0, rr,  c9, c14, 1 /* PM Interrupt Enable Set Register */
+#define	CP15_PMINTENCLR(rr)	p15, 0, rr,  c9, c14, 2 /* PM Interrupt Enable Clear Register */
 #endif
 
 /*
