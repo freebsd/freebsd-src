@@ -1,6 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/18/93
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 MAN=	aac.4 \
 	aacraid.4 \
 	acpi.4 \
