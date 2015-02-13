@@ -266,6 +266,7 @@ __DEFAULT_YES_OPTIONS = \
     BZIP2 \
     CALENDAR \
     CAPSICUM \
+    CCD \
     CDDL \
     CPP \
     CROSS_COMPILER \

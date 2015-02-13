@@ -21,7 +21,6 @@ FILES=	DAEMON \
 	bootparams \
 	bridge \
 	${_bthidd} \
-	ccd \
 	cleanvar \
 	cleartmp \
 	cron \
@@ -185,12 +184,16 @@ _ubthidhci=	ubthidhci
 FILES+=		bsnmpd
 .endif
 
-.if ${MK_IPX} != "no"
-_ipxrouted=	ipxrouted
+.if ${MK_CCD} != "no"
+FILES+=		ccd
 .endif
 
 .if ${MK_HAST} != "no"
 FILES+=		hastd
+.endif
+
+.if ${MK_IPX} != "no"
+_ipxrouted=	ipxrouted
 .endif
 
 .if ${MK_ISCSI} != "no"

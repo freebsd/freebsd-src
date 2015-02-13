@@ -91,7 +91,7 @@ MAN=	aac.4 \
 	cc_htcp.4 \
 	cc_newreno.4 \
 	cc_vegas.4 \
-	ccd.4 \
+	${_ccd.4} \
 	cd.4 \
 	cdce.4 \
 	ch.4 \
@@ -860,6 +860,10 @@ _nvram2env.4=	nvram2env.4
 
 .if exists(${.CURDIR}/man4.${MACHINE_CPUARCH})
 SUBDIR=	man4.${MACHINE_CPUARCH}
+.endif
+
+.if ${MK_CCD} != "no"
+_ccd.4=		ccd.4
 .endif
 
 .if ${MK_ISCSI} != "no"
