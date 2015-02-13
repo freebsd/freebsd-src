@@ -53,13 +53,13 @@ ulimit(int cmd, ...)
 		va_start(ap, cmd);
 		arg = va_arg(ap, long);
 		va_end(ap);
-		if (arg > RLIM_INFINITY / 512 || arg < 0)
-			arg = RLIM_INFINITY / 512;
 		limit.rlim_max = limit.rlim_cur = (rlim_t)arg * 512;
 
 		/* The setrlimit() function sets errno to EPERM if needed. */
 		if (setrlimit(RLIMIT_FSIZE, &limit) == -1)
 			return (-1);
+		if (arg * 512 > LONG_MAX)
+			return (LONG_MAX);
 		return (arg);
 	} else {
 		errno = EINVAL;
