@@ -50,6 +50,7 @@ else
 fi
 [ -f ${PWD}/${base}_1_1.pid ] && kill $(cat ${PWD}/${base}_1_1.pid)
 [ -f ${PWD}/${base}_1_2.pid ] && kill $(cat ${PWD}/${base}_1_2.pid)
+wait
 
 name="pgrep -j any"
 sleep_amount=6
@@ -70,6 +71,7 @@ else
 fi
 [ -f ${PWD}/${base}_2_1.pid ] && kill $(cat ${PWD}/${base}_2_1.pid)
 [ -f ${PWD}/${base}_2_2.pid ] && kill $(cat ${PWD}/${base}_2_2.pid)
+wait
 
 name="pgrep -j none"
 sleep_amount=7
