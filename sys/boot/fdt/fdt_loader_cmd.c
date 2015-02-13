@@ -566,17 +566,6 @@ fdt_fixup_memory(struct fdt_mem_region *region, size_t num)
 		return;
 	}
 
-	if ((reg = (uint32_t *)fdt_getprop(fdtp, memory, "reg",
-	    &len)) != NULL) {
-
-		if (fdt_reg_valid(reg, len, addr_cells, size_cells) == 0)
-			/*
-			 * Do not apply fixup if existing 'reg' property
-			 * seems to be valid.
-			 */
-			return;
-	}
-
 	len = (addr_cells + size_cells) * realmrno * sizeof(uint32_t);
 	sb = buf = (uint8_t *)malloc(len);
 	if (!buf)
