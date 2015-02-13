@@ -54,7 +54,7 @@
 __FBSDID("$FreeBSD$");
 
 	.text	
-	.align	0
+	.align	2
 
 /*
  * ASM macros for pushing and pulling trapframes from the stack
