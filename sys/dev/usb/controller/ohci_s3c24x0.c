@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/rman.h>
 
-#include <arm/s3c2xx0/s3c24x0reg.h>
+#include <arm/samsung/s3c2xx0/s3c24x0reg.h>
 
 static device_probe_t ohci_s3c24x0_probe;
 static device_attach_t ohci_s3c24x0_attach;
