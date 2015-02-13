@@ -33,8 +33,6 @@
 #include <machine/armreg.h>
 #include <machine/sysreg.h>
 
-#if __ARM_ARCH >= 7
-
 /* 
  * Define cache functions used by startup code, which counts on the fact that
  * only r0-r3,r12 (ip) are modified and no stack space is used.  These functions
@@ -47,12 +45,18 @@
 
 /* Invalidate D cache to PoC. (aka all cache levels)*/
 ASENTRY_NP(dcache_inv_poc_all)
+#if __ARM_ARCH == 6
+	mcr	CP15_DCIALL
+	DSB
+	bx	lr
+#else
 	mrc	CP15_CLIDR(r0)
 	ands	r0, r0, #0x07000000
-	mov	r0, r0, lsr #23		/* Get LoC (naturally aligned) */
-	beq	4f
+	mov	r0, r0, lsr #23		/* Get LoC 'naturally' aligned for */
+	beq	4f			/* use in the CSSELR register below */
 
-1:	mcr	CP15_CSSELR(r0)		/* set cache level */
+1:	sub	r0, #2
+	mcr	CP15_CSSELR(r0)		/* set cache level */
 	isb
 	mrc	CP15_CCSIDR(r0)		/* read CCSIDR */
 
@@ -83,28 +87,31 @@ ASENTRY_NP(dcache_inv_poc_all)
 
 3:
 	mrc	CP15_CSSELR(r0)		/* get cache level */
-	add	r0, r0, #2		/* next level */
-	mrc	CP15_CLIDR(r1)
-	ands	r1, r1, #0x07000000
-	mov	r1, r1, lsr #23		/* Get LoC (naturally aligned) */
-	cmp 	r1, r0
-	bgt	1b
+	teq	r0, #0
+	bne	1b
 
 4:	dsb				/* wait for stores to finish */
 	mov	r0, #0
 	mcr	CP15_CSSELR(r0)
 	isb
 	bx	lr
+#endif /* __ARM_ARCH == 6 */
 END(dcache_inv_poc_all)
 
 /* Invalidate D cache to PoU. (aka L1 cache only)*/
 ASENTRY_NP(dcache_inv_pou_all)
+#if __ARM_ARCH == 6
+	mcr	CP15_DCIALL
+	DSB
+	bx	lr
+#else
 	mrc	CP15_CLIDR(r0)
 	ands	r0, r0, #0x07000000
 	mov	r0, r0, lsr #26		/* Get LoUU (naturally aligned) */
 	beq	4f
 
-1:	mcr	CP15_CSSELR(r0)		/* set cache level */
+1:	sub	r0, #2
+	mcr	CP15_CSSELR(r0)		/* set cache level */
 	isb
 	mrc	CP15_CCSIDR(r0)		/* read CCSIDR */
 
@@ -125,7 +132,7 @@ ASENTRY_NP(dcache_inv_pou_all)
 	mov	r2, ip			/* r2 now contains set way decr */
 
 	/* r3 = ways/sets, r2 = way decr, r1 = set decr, r0 and ip are free */
-2:	mcr	CP15_DCISW(r3)		/* clean & invalidate line */
+2:	mcr	CP15_DCISW(r3)		/* invalidate line */
 	movs	r0, r3			/* get current way/set */
 	beq	3f			/* at 0 means we are done */
 	movs	r0, r0, lsl #10		/* clear way bits leaving only set bits*/
@@ -135,25 +142,27 @@ ASENTRY_NP(dcache_inv_pou_all)
 
 3:
 	mrc	CP15_CSSELR(r0)		/* get cache level */
-	add	r0, r0, #2		/* next level */
-	mrc	CP15_CLIDR(r1)
-	ands	r1, r1, #0x07000000
-	mov	r1, r1, lsr #26		/* Get LoUU (naturally aligned) */
-	cmp 	r1, r0
-	bgt	1b
+	teq	r0, #0
+	bne	1b
 
 4:	dsb				/* wait for stores to finish */
 	mov	r0, #0
 	mcr	CP15_CSSELR(r0)
 	bx	lr
+#endif
 END(dcache_inv_pou_all)
 
 /* Write back and Invalidate D cache to PoC. */
 ASENTRY_NP(dcache_wbinv_poc_all)
+#if __ARM_ARCH == 6
+	mcr	CP15_DCCIALL
+	DSB
+	bx	lr
+#else
 	mrc	CP15_CLIDR(r0)
 	ands	r0, r0, #0x07000000
-	mov	r0, r0, lsr #23		/* Get LoC (naturally aligned) */
 	beq	4f
+	mov	r0, #0			/* Clean from inner to outer levels */
 
 1:	mcr	CP15_CSSELR(r0)		/* set cache level */
 	isb
@@ -176,7 +185,7 @@ ASENTRY_NP(dcache_wbinv_poc_all)
 	mov	r2, ip			/* r2 now contains set way decr */
 
 	/* r3 = ways/sets, r2 = way decr, r1 = set decr, r0 and ip are free */
-2:	mcr	CP15_DCCISW(r3)		/* clean & invalidate line */
+2:	mcr	CP15_DCCISW(r3)		/* clean and invalidate line */
 	movs	r0, r3			/* get current way/set */
 	beq	3f			/* at 0 means we are done */
 	movs	r0, r0, lsl #10		/* clear way bits leaving only set bits*/
@@ -191,12 +200,11 @@ ASENTRY_NP(dcache_wbinv_poc_all)
 	ands	r1, r1, #0x07000000
 	mov	r1, r1, lsr #23		/* Get LoC (naturally aligned) */
 	cmp 	r1, r0
-	bgt	1b
+	bne	1b
 
 4:	dsb				/* wait for stores to finish */
 	mov	r0, #0
 	mcr	CP15_CSSELR(r0)
 	bx	lr
+#endif /* __ARM_ARCH == 6 */
 END(dcache_wbinv_poc_all)
-
-#endif /* __ARM_ARCH >= 7 */
