@@ -102,10 +102,10 @@ device		ohci			# OHCI localbus->USB interface
 device		usb			# USB Bus (required)
 device		umass			# Disks/Mass storage - Requires scbus and da
 # SCSI peripherals
-device		scbus			# SCSI bus (required for SCSI)
+device		scbus			# SCSI bus (required for ATA/SCSI)
 device		da			# Direct Access (disks)
 device		cd			# CD
-device		pass			# Passthrough device (direct SCSI access)
+device		pass			# Passthrough device (direct ATA/SCSI access)
 
 # USB device (gadget) support
 #device		at91_dci		# Atmel's usb device
