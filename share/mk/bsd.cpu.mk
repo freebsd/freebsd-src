@@ -257,6 +257,10 @@ MACHINE_CPU = v9 ultrasparc ultrasparc3
 CFLAGS += -G0
 .endif
 
+.if ${MACHINE_ARCH} == "armv6"
+_CPUCFLAGS += -mfloat-abi=softfp
+.endif
+
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/kern.pre.mk
 
 .if !defined(NO_CPU_CFLAGS)
