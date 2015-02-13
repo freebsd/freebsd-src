@@ -232,6 +232,7 @@ bcm_sdhci_attach(device_t dev)
 	sc->sc_slot.caps |= (default_freq << SDHCI_CLOCK_BASE_SHIFT);
 	sc->sc_slot.quirks = SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK 
 		| SDHCI_QUIRK_BROKEN_TIMEOUT_VAL
+		| SDHCI_QUIRK_DONT_SET_HISPD_BIT
 		| SDHCI_QUIRK_MISSING_CAPS;
  
 	sdhci_init_slot(dev, &sc->sc_slot, 0);
@@ -401,8 +402,11 @@ bcm_sdhci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint16_
 	val32 |= (val << (off & 3)*8);
 	if (off == SDHCI_TRANSFER_MODE)
 		sc->cmd_and_mode = val32;
-	else
+	else {
 		WR4(sc, off & ~3, val32);
+		if (off == SDHCI_COMMAND_FLAGS)
+			sc->cmd_and_mode = val32;
+	}
 }
 
 static void
