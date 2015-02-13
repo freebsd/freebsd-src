@@ -1874,7 +1874,7 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	struct cdev		     *dev;
 	struct cdevsw		     *devsw;
 	char			     *value;
-	int			      error, atomic, maxio;
+	int			      error, atomic, maxio, unmap;
 	off_t			      ps, pss, po, pos, us, uss, uo, uos;
 
 	params = &be_lun->params;
@@ -1899,7 +1899,6 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 			maxio = CTLBLK_MAX_IO_SIZE;
 	}
 	be_lun->lun_flush = ctl_be_block_flush_dev;
-	be_lun->unmap = ctl_be_block_unmap_dev;
 	be_lun->getattr = ctl_be_block_getattr_dev;
 
 	error = VOP_GETATTR(be_lun->vn, &vattr, NOCRED);
@@ -2030,6 +2029,24 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 
 	be_lun->atomicblock = atomic / be_lun->blocksize;
 	be_lun->opttxferlen = maxio / be_lun->blocksize;
+
+	if (be_lun->dispatch == ctl_be_block_dispatch_zvol) {
+		unmap = 1;
+	} else {
+		struct diocgattr_arg	arg;
+
+		strlcpy(arg.name, "GEOM::candelete", sizeof(arg.name));
+		arg.len = sizeof(arg.value.i);
+		error = devsw->d_ioctl(dev, DIOCGATTR,
+		    (caddr_t)&arg, FREAD, curthread);
+		unmap = (error == 0) ? arg.value.i : 0;
+	}
+	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "unmap");
+	if (value != NULL)
+		unmap = (strcmp(value, "on") == 0);
+	if (unmap)
+		be_lun->unmap = ctl_be_block_unmap_dev;
+
 	return (0);
 }
 
@@ -2182,7 +2199,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	char num_thread_str[16];
 	char tmpstr[32];
 	char *value;
-	int retval, num_threads, unmap;
+	int retval, num_threads;
 	int tmp_num_threads;
 
 	params = &req->reqdata.create;
@@ -2275,16 +2292,12 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		}
 		num_threads = tmp_num_threads;
 	}
-	unmap = (be_lun->dispatch == ctl_be_block_dispatch_zvol);
-	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "unmap");
-	if (value != NULL)
-		unmap = (strcmp(value, "on") == 0);
 
 	be_lun->flags = CTL_BE_BLOCK_LUN_UNCONFIGURED;
 	be_lun->ctl_be_lun.flags = CTL_LUN_FLAG_PRIMARY;
 	if (be_lun->vn == NULL)
 		be_lun->ctl_be_lun.flags |= CTL_LUN_FLAG_OFFLINE;
-	if (unmap)
+	if (be_lun->unmap != NULL)
 		be_lun->ctl_be_lun.flags |= CTL_LUN_FLAG_UNMAP;
 	if (be_lun->dispatch != ctl_be_block_dispatch_dev)
 		be_lun->ctl_be_lun.flags |= CTL_LUN_FLAG_SERSEQ_READ;
@@ -2668,6 +2681,8 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		 * XXX: Note that this field is being updated without locking,
 		 * 	which might cause problems on 32-bit architectures.
 		 */
+		if (be_lun->unmap != NULL)
+			be_lun->ctl_be_lun.flags |= CTL_LUN_FLAG_UNMAP;
 		be_lun->ctl_be_lun.maxlba = (be_lun->size_blocks == 0) ?
 		    0 : (be_lun->size_blocks - 1);
 		be_lun->ctl_be_lun.blocksize = be_lun->blocksize;
