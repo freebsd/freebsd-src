@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIBCXXRTDIR=	${.CURDIR}/../../contrib/libcxxrt
 HDRDIR=		${.CURDIR}/../../contrib/libc++/include
 SRCDIR=		${.CURDIR}/../../contrib/libc++/src
@@ -57,7 +59,7 @@ cxxrt_${_S}:
 WARNS=		0
 CFLAGS+=	-I${HDRDIR} -I${LIBCXXRTDIR} -nostdlib -DLIBCXXRT
 .if empty(CXXFLAGS:M-std=*)
-CXXFLAGS+=	-std=c++0x
+CXXFLAGS+=	-std=c++11
 .endif
 
 DPADD=		${LIBCXXRT}
@@ -74,6 +76,7 @@ STD_HEADERS=	__bit_reference\
 		__hash_table\
 		__locale\
 		__mutex_base\
+		__refstring\
 		__split_buffer\
 		__sso_allocator\
 		__std_stream\
@@ -175,8 +178,12 @@ STD+=		${LIBCXXRTDIR}/${hdr}
 .endfor
 STDDIR=		${CXXINCLUDEDIR}
 
-EXP_HEADERS=	dynarray\
-		optional
+EXP_HEADERS=	__config\
+		dynarray\
+		optional\
+		string_view\
+		type_traits\
+		utility
 
 .for hdr in ${EXP_HEADERS}
 EXP+=		${HDRDIR}/experimental/${hdr}
@@ -191,5 +198,15 @@ EXT_HEADERS=	__hash\
 EXT+=		${HDRDIR}/ext/${hdr}
 .endfor
 EXTDIR=		${CXXINCLUDEDIR}/ext
+
+.if ${MK_GNUCXX} == "no" && ${COMPILER_TYPE} == "gcc"
+CLEANFILES+=	libstdc++.so libstdc++.a
+
+afterinstall:
+	ln -sf ${DESTDIR}${LIBDIR}/lib${LIB}.so \
+		${.OBJDIR}/libstdc++.so
+	ln -sf ${DESTDIR}${LIBDIR}/lib${LIB}.a \
+		${.OBJDIR}/libstdc++.a
+.endif
 
 .include <bsd.lib.mk>
