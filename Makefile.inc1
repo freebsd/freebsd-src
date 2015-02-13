@@ -1143,18 +1143,40 @@ packagekernel:
 .if defined(NO_ROOT)
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
 	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.txz \
+	    --exclude '*.symbols' \
+	    @${DESTDIR}/${DISTDIR}/kernel.meta
+	cd ${DESTDIR}/${DISTDIR}/kernel; \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel_symbols.txz \
+	    --include '*/*/*.symbols' \
 	    @${DESTDIR}/${DISTDIR}/kernel.meta
 .for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz \
+	    --exclude '*.symbols' \
+	    @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
+	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.${_kernel}_symbols.txz \
+	    --include '*/*/*.symbols' \
 	    @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
 .endfor
 .else
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.txz .
+	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.txz \
+	    --exclude '*.symbols' \
+	    .
+	cd ${DESTDIR}/${DISTDIR}/kernel; \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel_symbols.txz \
+	    --include '*/*/*.symbols' \
+	    $$(eval find .)
 .for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz .
+	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz \
+	    --exclude '*.symbols' \
+	    .
+	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.${_kernel}_symbols.txz \
+	    --include '*/*/*.symbols' \
+	    $$(eval find .)
 .endfor
 .endif
 

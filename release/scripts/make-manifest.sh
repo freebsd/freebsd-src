@@ -24,6 +24,7 @@ desc_doc="${doc}"
 desc_games="${games}"
 desc_games_dbg="${games} (Debugging)"
 desc_kernel="${kernel} (MANDATORY)"
+desc_kernel_symbols="${kernel} (Debugging symbols)"
 desc_kernel_alt="Alternate ${kernel}"
 desc_lib32="${lib32}"
 desc_lib32_dbg="${lib32} (Debugging)"
@@ -38,6 +39,7 @@ default_base_dbg=off
 default_games_dbg=off
 default_lib32_dbg=off
 default_kernel_alt=off
+default_kernel_symbols=on
 
 for i in ${*}; do
 	dist="${i}"

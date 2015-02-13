@@ -66,7 +66,7 @@ bsdinstall hostname || error "Set hostname failed"
 
 export DISTRIBUTIONS="base.txz kernel.txz"
 if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
-	DISTMENU=`awk -F'\t' '!/^(kernel|base)/{print $4,$5,$6}' $BSDINSTALL_DISTDIR/MANIFEST`
+	DISTMENU=`awk -F'\t' '!/^(kernel\.txz|base\.txz)/{print $4,$5,$6}' $BSDINSTALL_DISTDIR/MANIFEST`
 
 	exec 3>&1
 	EXTRA_DISTS=$( eval dialog \
@@ -215,7 +215,18 @@ if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
 fi
 
 if [ ! -z "$LOCAL_DISTRIBUTIONS" ]; then
-	env DISTRIBUTIONS="$LOCAL_DISTRIBUTIONS" bsdinstall distfetch || \
+	# Download to a directory in the new system as scratch space
+	BSDINSTALL_FETCHDEST="$BSDINSTALL_CHROOT/usr/freebsd-dist"
+	mkdir -p "$BSDINSTALL_FETCHDEST" || error "Could not create directory $BSDINSTALL_FETCHDEST"
+	# Try to use any existing distfiles
+	if [ -d $BSDINSTALL_DISTDIR ]; then
+		DISTDIR_IS_UNIONFS=1
+		mount_nullfs -o union "$BSDINSTALL_FETCHDEST" "$BSDINSTALL_DISTDIR"
+		export BSDINSTALL_DISTDIR="$BSDINSTALL_FETCHDEST"
+	fi
+	env DISTRIBUTIONS="$LOCAL_DISTRIBUTIONS" \
+		BSDINSTALL_DISTSITE="file:///usr/freebsd-dist" \
+		bsdinstall distfetch || \
 		error "Failed to fetch distribution from local media"
 fi
 
