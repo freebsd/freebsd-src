@@ -25,7 +25,7 @@ include "../xilinx/zedboard/std.zedboard"
 makeoptions	MODULES_OVERRIDE=""
 makeoptions	WITHOUT_MODULES="ahc"
 
-options 	SCHED_4BSD		# 4BSD scheduler
+options 	SCHED_ULE		# ULE scheduler
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	FFS			# Berkeley Fast Filesystem
