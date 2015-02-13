@@ -1,9 +1,10 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 SUBDIR=	geom_bde \
 	geom_bsd \
 	geom_cache \
-	geom_ccd \
 	geom_concat \
 	geom_eli \
 	geom_fox \
@@ -29,5 +30,9 @@ SUBDIR=	geom_bde \
 	geom_virstor \
 	geom_vol_ffs \
 	geom_zero
+
+.if ${MK_CCD} != "no" || defined(ALL_MODULES)
+SUBDIR+=	geom_ccd
+.endif
 
 .include <bsd.subdir.mk>

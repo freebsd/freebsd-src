@@ -351,6 +351,7 @@ __DEFAULT_YES_OPTIONS = \
     SOURCELESS_UCODE \
     BZIP2 \
     CALENDAR \
+    CCD \
     CDDL \
     CPP \
     CRYPT \

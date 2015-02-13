@@ -21,7 +21,6 @@ FILES=	DAEMON \
 	bootparams \
 	bridge \
 	${_bthidd} \
-	ccd \
 	cleanvar \
 	cleartmp \
 	cron \
@@ -167,6 +166,10 @@ FILES+=	apmd
 
 .if ${MK_BSNMP} != "no"
 FILES+=		bsnmpd
+.endif
+
+.if ${MK_CCD} != "no"
+FILES+=		ccd
 .endif
 
 .if ${MK_IPX} != "no"
