@@ -155,7 +155,6 @@ SUBDIR=	alias \
 	systat \
 	tabs \
 	tail \
-	talk \
 	tar \
 	tcopy \
 	tee \
@@ -334,6 +333,10 @@ SUBDIR+=	rwho
 
 .if ${MK_SENDMAIL} != "no"
 SUBDIR+=	vacation
+.endif
+
+.if ${MK_TALK} != "no"
+SUBDIR+=	talk
 .endif
 
 .if ${MK_TELNET} != "no"
