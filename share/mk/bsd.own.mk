@@ -261,6 +261,7 @@ __DEFAULT_YES_OPTIONS = \
     BMAKE \
     BOOT \
     BSD_CPIO \
+    BSDINSTALL \
     BSNMP \
     BZIP2 \
     CALENDAR \

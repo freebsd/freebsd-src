@@ -8,7 +8,6 @@ SUBDIR=	adduser \
 	binmiscctl \
 	bootparamd \
 	bsdconfig \
-	bsdinstall \
 	cdcontrol \
 	chkgrp \
 	chown \
@@ -130,6 +129,10 @@ SUBDIR+=	autofs
 
 .if ${MK_BLUETOOTH} != "no"
 SUBDIR+=	bluetooth
+.endif
+
+.if ${MK_BSDINSTALL} != "no"
+SUBDIR+=	bsdinstall
 .endif
 
 .if ${MK_BSNMP} != "no"
