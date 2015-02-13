@@ -89,9 +89,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/reboot.h>
 
-#include <arm/s3c2xx0/s3c24x0var.h>
-#include <arm/s3c2xx0/s3c2410reg.h>
-#include <arm/s3c2xx0/s3c2xx0board.h>
+#include <arm/samsung/s3c2xx0/s3c24x0var.h>
+#include <arm/samsung/s3c2xx0/s3c2410reg.h>
+#include <arm/samsung/s3c2xx0/s3c2xx0board.h>
 
 /* Page table for mapping proc0 zero page */
 #define KERNEL_PT_SYS		0
@@ -346,7 +346,7 @@ initarm(struct arm_boot_params *abp)
 	 * but since we are boot strapping the addresses used for the read
 	 * may have just been remapped and thus the cache could be out
 	 * of sync. A re-clean after the switch will cure this.
-	 * After booting there are no gross reloations of the kernel thus
+	 * After booting there are no gross relocations of the kernel thus
 	 * this problem will not occur after initarm().
 	 */
 	cpu_idcache_wbinv_all();

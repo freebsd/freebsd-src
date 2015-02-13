@@ -1,5 +1,5 @@
 #$FreeBSD$
-include "../s3c2xx0/std.s3c2410"
+include "../samsung/s3c2xx0/std.s3c2410"
 
 makeoptions	KERNPHYSADDR=0x30000000
 makeoptions	KERNVIRTADDR=0xc0000000

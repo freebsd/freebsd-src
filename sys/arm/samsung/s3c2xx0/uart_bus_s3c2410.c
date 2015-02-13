@@ -15,7 +15,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
 
-#include <arm/s3c2xx0/s3c24x0reg.h>
+#include <arm/samsung/s3c2xx0/s3c24x0reg.h>
 
 #include "uart_if.h"
 

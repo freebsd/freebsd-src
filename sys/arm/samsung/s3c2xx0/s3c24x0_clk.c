@@ -48,8 +48,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/resource.h>
 #include <machine/intr.h>
-#include <arm/s3c2xx0/s3c24x0reg.h>
-#include <arm/s3c2xx0/s3c24x0var.h>
+#include <arm/samsung/s3c2xx0/s3c24x0reg.h>
+#include <arm/samsung/s3c2xx0/s3c24x0var.h>
 
 struct s3c24x0_timer_softc {
 	device_t	dev;

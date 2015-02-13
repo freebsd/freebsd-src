@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 
-#include <arm/s3c2xx0/s3c2xx0var.h>
+#include <arm/samsung/s3c2xx0/s3c2xx0var.h>
 
 bus_space_tag_t uart_bus_space_io;
 bus_space_tag_t uart_bus_space_mem;

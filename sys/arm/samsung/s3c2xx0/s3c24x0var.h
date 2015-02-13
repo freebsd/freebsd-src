@@ -1,4 +1,4 @@
-/* $NetBSD: s3c2410var.h,v 1.2 2003/08/29 12:57:50 bsh Exp $ */
+/* $NetBSD: s3c24x0var.h,v 1.1 2003/07/31 19:49:44 bsh Exp $ */
 
 /*-
  * Copyright (c) 2003  Genetec corporation.  All rights reserved.
@@ -31,19 +31,21 @@
  * $FreeBSD$
  */
 
-#ifndef _ARM_S3C2410VAR_H_
-#define _ARM_S3C2410VAR_H_
+#ifndef _ARM_S3C24X0VAR_H_
+#define _ARM_S3C24X0VAR_H_
 
-#include <arm/s3c2xx0/s3c24x0var.h>
+#include <arm/samsung/s3c2xx0/s3c2xx0var.h>
 
-int	s3c2410_sscom_cnattach(bus_space_tag_t, int, int, int, tcflag_t);
-int	s3c2410_sscom_kgdb_attach(bus_space_tag_t, int, int, int, tcflag_t);
-void	s3c2410_intr_init(struct s3c24x0_softc *);
-void	s3c2410_softreset(void);
+struct s3c24x0_softc {
+	struct s3c2xx0_softc  sc_sx;
 
-void	s3c2410_mask_subinterrupts(int);
-void	s3c2410_unmask_subinterrupts(int);
+	bus_space_handle_t  sc_timer_ioh; /* Timer control registers */
+};
 
-void	*s3c2410_extint_establish(int, int, int, int (*)(void *), void *);
-void	s3c2410_setup_extint(int, int);
-#endif /* _ARM_S3C2410VAR_H_ */
+void	s3c24x0_clock_freq(struct s3c2xx0_softc *);
+void	s3c2410_clock_freq2(vm_offset_t, int *, int *, int *);
+void	s3c2440_clock_freq2(vm_offset_t, int *, int *, int *);
+
+void	s3c24x0_sleep(int);
+
+#endif /* _ARM_S3C24X0VAR_H_ */
