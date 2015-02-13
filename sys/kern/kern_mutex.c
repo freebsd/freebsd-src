@@ -436,6 +436,10 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t tid, int opts,
 					CTR3(KTR_LOCK,
 					    "%s: spinning on %p held by %p",
 					    __func__, m, owner);
+				KTR_STATE1(KTR_SCHED, "thread",
+				    sched_tdname((struct thread *)tid),
+				    "spinning", "lockname:\"%s\"",
+				    m->lock_object.lo_name);
 				while (mtx_owner(m) == owner &&
 				    TD_IS_RUNNING(owner)) {
 					cpu_spinwait();
@@ -443,6 +447,9 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t tid, int opts,
 					spin_cnt++;
 #endif
 				}
+				KTR_STATE0(KTR_SCHED, "thread",
+				    sched_tdname((struct thread *)tid),
+				    "running");
 				continue;
 			}
 		}
@@ -579,6 +586,8 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t tid, int opts,
 
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spinning", m);
+	KTR_STATE1(KTR_SCHED, "thread", sched_tdname((struct thread *)tid),
+	    "spinning", "lockname:\"%s\"", m->lock_object.lo_name);
 
 #ifdef HWPMC_HOOKS
 	PMC_SOFT_CALL( , , lock, failed);
@@ -604,6 +613,8 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t tid, int opts,
 
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spin done", m);
+	KTR_STATE0(KTR_SCHED, "thread", sched_tdname((struct thread *)tid),
+	    "running");
 
 	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_MTX_SPIN_LOCK_ACQUIRE, m,
 	    contested, waittime, (file), (line));
