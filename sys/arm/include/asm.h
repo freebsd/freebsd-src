@@ -227,14 +227,17 @@
 #define ISB	isb
 #define DSB	dsb
 #define DMB	dmb
+#define WFI	wfi
 #elif __ARM_ARCH == 6
 #define ISB	mcr CP15_CP15ISB
 #define DSB	mcr CP15_CP15DSB
 #define DMB	mcr CP15_CP15DMB
+#define WFI	mcr CP15_CP15WFI
 #else
 #define ISB	mcr CP15_CP15ISB
 #define DSB	mcr CP15_CP15DSB	/* DSB and DMB are the */
 #define DMB	mcr CP15_CP15DSB	/* same prior to v6.*/
+/* No form of WFI available on v4, define nothing to get an error on use. */
 #endif
 
 #endif /* !_MACHINE_ASM_H_ */

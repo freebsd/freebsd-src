@@ -166,6 +166,7 @@
 /* Only ARMv6: */
 #define	CP15_CP15DSB		p15, 0, r0, c7, c10, 4 /* DSB */
 #define	CP15_CP15DMB		p15, 0, r0, c7, c10, 5 /* DMB */
+#define	CP15_CP15WFI		p15, 0, r0, c7, c0,  4 /* WFI */
 #endif
 
 #if __ARM_ARCH >= 7
