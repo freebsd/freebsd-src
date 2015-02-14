@@ -34,6 +34,7 @@
 
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 
 #ifdef FDT
 #include <dev/ofw/ofw_bus_subr.h>
@@ -62,6 +63,7 @@
 struct gpiobus_softc
 {
 	struct mtx	sc_mtx;		/* bus mutex */
+	struct rman	sc_intr_rman;	/* isr resources */
 	device_t	sc_busdev;	/* bus device */
 	device_t	sc_owner;	/* bus owner */
 	device_t	sc_dev;		/* driver device */
@@ -71,6 +73,7 @@ struct gpiobus_softc
 
 struct gpiobus_ivar
 {
+	struct resource_list	rl;	/* isr resource list */
 	uint32_t	npins;	/* pins total */
 	uint32_t	*flags;	/* pins flags */
 	uint32_t	*pins;	/* pins map */

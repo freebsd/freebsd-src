@@ -238,6 +238,13 @@ ofw_gpiobus_setup_devinfo(device_t dev, phandle_t node)
 		free(dinfo, M_DEVBUF);
 		return (NULL);
 	}
+	/* And now the interrupt resources. */
+	resource_list_init(&dinfo->opd_dinfo.rl);
+	if (ofw_bus_intr_to_rl(dev, node, &dinfo->opd_dinfo.rl) != 0) {
+		ofw_bus_gen_destroy_devinfo(&dinfo->opd_obdinfo);
+		free(dinfo, M_DEVBUF);
+		return (NULL);
+	}
 
 	return (dinfo);
 }
@@ -246,6 +253,7 @@ static void
 ofw_gpiobus_destroy_devinfo(struct ofw_gpiobus_devinfo *dinfo)
 {
 
+	resource_list_free(&dinfo->opd_dinfo.rl);
 	ofw_bus_gen_destroy_devinfo(&dinfo->opd_obdinfo);
 	free(dinfo, M_DEVBUF);
 }
@@ -326,6 +334,8 @@ ofw_gpiobus_print_child(device_t dev, device_t child)
 	retval += bus_print_child_header(dev, child);
 	retval += printf(" at pin(s) ");
 	gpiobus_print_pins(&devi->opd_dinfo);
+	resource_list_print_type(&devi->opd_dinfo.rl, "irq", SYS_RES_IRQ,
+	    "%ld");
 	retval += bus_print_child_footer(dev, child);
 
 	return (retval);

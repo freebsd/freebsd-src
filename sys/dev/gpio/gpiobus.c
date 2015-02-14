@@ -38,6 +38,13 @@ __FBSDID("$FreeBSD$");
 
 #include "gpiobus_if.h"
 
+#undef GPIOBUS_DEBUG
+#ifdef GPIOBUS_DEBUG
+#define	dprintf printf
+#else
+#define	dprintf(x, arg...)
+#endif
+
 static int gpiobus_parse_pins(struct gpiobus_softc *, device_t, int);
 static int gpiobus_probe(device_t);
 static int gpiobus_attach(device_t);
@@ -105,6 +112,11 @@ gpiobus_init_softc(device_t dev)
 	sc = GPIOBUS_SOFTC(dev);
 	sc->sc_busdev = dev;
 	sc->sc_dev = device_get_parent(dev);
+	sc->sc_intr_rman.rm_type = RMAN_ARRAY;
+	sc->sc_intr_rman.rm_descr = "GPIO Interrupts";
+	if (rman_init(&sc->sc_intr_rman) != 0 ||
+	    rman_manage_region(&sc->sc_intr_rman, 0, ~0) != 0)
+		panic("%s: failed to set up rman.", __func__);
 
 	if (GPIO_PIN_MAX(sc->sc_dev, &sc->sc_npins) != 0)
 		return (ENXIO);
@@ -267,6 +279,7 @@ gpiobus_print_child(device_t dev, device_t child)
 	retval += bus_print_child_header(dev, child);
 	retval += printf(" at pin(s) ");
 	gpiobus_print_pins(devi);
+	resource_list_print_type(&devi->rl, "irq", SYS_RES_IRQ, "%ld");
 	retval += bus_print_child_footer(dev, child);
 
 	return (retval);
@@ -304,7 +317,9 @@ gpiobus_add_child(device_t dev, u_int order, const char *name, int unit)
 		device_delete_child(dev, child);
 		return (0);
 	}
+	resource_list_init(&devi->rl);
 	device_set_ivars(child, devi);
+
 	return (child);
 }
 
@@ -314,14 +329,103 @@ gpiobus_hinted_child(device_t bus, const char *dname, int dunit)
 	struct gpiobus_softc *sc = GPIOBUS_SOFTC(bus);
 	struct gpiobus_ivar *devi;
 	device_t child;
-	int pins;
-
+	int irq, pins;
 
 	child = BUS_ADD_CHILD(bus, 0, dname, dunit);
 	devi = GPIOBUS_IVAR(child);
 	resource_int_value(dname, dunit, "pins", &pins);
 	if (gpiobus_parse_pins(sc, child, pins))
 		device_delete_child(bus, child);
+	if (resource_int_value(dname, dunit, "irq", &irq) == 0) {
+		if (bus_set_resource(child, SYS_RES_IRQ, 0, irq, 1) != 0)
+			device_printf(bus,
+			    "warning: bus_set_resource() failed\n");
+	}
+}
+
+static int
+gpiobus_set_resource(device_t dev, device_t child, int type, int rid,
+    u_long start, u_long count)
+{
+	struct gpiobus_ivar *devi;
+	struct resource_list_entry *rle;
+
+	dprintf("%s: entry (%p, %p, %d, %d, %p, %ld)\n",
+	    __func__, dev, child, type, rid, (void *)(intptr_t)start, count);
+	devi = GPIOBUS_IVAR(child);
+	rle = resource_list_add(&devi->rl, type, rid, start,
+	    start + count - 1, count);
+	if (rle == NULL)
+		return (ENXIO);
+
+	return (0);
+}
+
+static struct resource *
+gpiobus_alloc_resource(device_t bus, device_t child, int type, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	struct gpiobus_softc *sc;
+	struct resource *rv;
+	struct resource_list *rl;
+	struct resource_list_entry *rle;
+	int isdefault;
+
+	if (type != SYS_RES_IRQ)
+		return (NULL);
+	isdefault = (start == 0UL && end == ~0UL && count == 1);
+	rle = NULL;
+	if (isdefault) {
+		rl = BUS_GET_RESOURCE_LIST(bus, child);
+		if (rl == NULL)
+			return (NULL);
+		rle = resource_list_find(rl, type, *rid);
+		if (rle == NULL)
+			return (NULL);
+		if (rle->res != NULL)
+			panic("%s: resource entry is busy", __func__);
+		start = rle->start;
+		count = rle->count;
+		end = rle->end;
+	}
+	sc = device_get_softc(bus);
+	rv = rman_reserve_resource(&sc->sc_intr_rman, start, end, count, flags,
+	    child);
+	if (rv == NULL)
+		return (NULL);
+	rman_set_rid(rv, *rid);
+	if ((flags & RF_ACTIVE) != 0 &&
+	    bus_activate_resource(child, type, *rid, rv) != 0) {
+		rman_release_resource(rv);
+		return (NULL);
+	}
+
+	return (rv);
+}
+
+static int
+gpiobus_release_resource(device_t bus __unused, device_t child, int type,
+    int rid, struct resource *r)
+{
+	int error;
+
+	if (rman_get_flags(r) & RF_ACTIVE) {
+		error = bus_deactivate_resource(child, type, rid, r);
+		if (error)
+			return (error);
+	}
+
+	return (rman_release_resource(r));
+}
+
+static struct resource_list *
+gpiobus_get_resource_list(device_t bus __unused, device_t child)
+{
+	struct gpiobus_ivar *ivar;
+
+	ivar = GPIOBUS_IVAR(child);
+
+	return (&ivar->rl);
 }
 
 static int
@@ -450,6 +554,15 @@ static device_method_t gpiobus_methods[] = {
 	DEVMETHOD(device_resume,	gpiobus_resume),
 
 	/* Bus interface */
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_config_intr,	bus_generic_config_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_set_resource,	gpiobus_set_resource),
+	DEVMETHOD(bus_alloc_resource,	gpiobus_alloc_resource),
+	DEVMETHOD(bus_release_resource,	gpiobus_release_resource),
+	DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
+	DEVMETHOD(bus_get_resource_list,	gpiobus_get_resource_list),
 	DEVMETHOD(bus_add_child,	gpiobus_add_child),
 	DEVMETHOD(bus_print_child,	gpiobus_print_child),
 	DEVMETHOD(bus_child_pnpinfo_str, gpiobus_child_pnpinfo_str),
