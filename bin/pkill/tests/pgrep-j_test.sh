@@ -4,17 +4,7 @@
 jail_name_to_jid()
 {
 	local check_name="$1"
-	(
-		line="$(jls -n 2> /dev/null | grep  name=$check_name  )"
-		for nv in $line; do
-			local name="${nv%=*}"
-			if [ "${name}" = "jid" ]; then
-				eval $nv
-				echo $jid
-				break
-			fi
-		done
-	)
+	jls -j "$check_name" -s 2>/dev/null | tr ' ' '\n' | grep jid= | sed -e 's/.*=//g'
 }
 
 base=pgrep_j_test
@@ -37,10 +27,19 @@ jail -c path=/ name=${base}_1_1 ip4.addr=127.0.0.1 \
 jail -c path=/ name=${base}_1_2 ip4.addr=127.0.0.1 \
     command=daemon -p ${PWD}/${base}_1_2.pid $sleep $sleep_amount &
 
-jid1=$(jail_name_to_jid ${base}_1_1)
-jid2=$(jail_name_to_jid ${base}_1_2)
-jid="${jid1},${jid2}"
-pid1="$(pgrep -f -x -j $jid "$sleep $sleep_amount" | sort)"
+for i in `seq 1 10`; do
+	jid1=$(jail_name_to_jid ${base}_1_1)
+	jid2=$(jail_name_to_jid ${base}_1_2)
+	jid="${jid1},${jid2}"
+	case "$jid" in
+	[0-9]+,[0-9]+)
+		break
+		;;
+	esac
+	sleep 0.1
+done
+
+pid1="$(pgrep -f -x -j "$jid" "$sleep $sleep_amount" | sort)"
 pid2=$(printf "%s\n%s" "$(cat ${PWD}/${base}_1_1.pid)" \
     $(cat ${PWD}/${base}_1_2.pid) | sort)
 if [ "$pid1" = "$pid2" ]; then
