@@ -456,16 +456,6 @@ ti_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	uint32_t mask = (1UL << (pin % PINS_PER_BANK));
 	uint32_t reg_val;
 
-	/* Sanity check the flags supplied are valid, i.e. not input and output */
-	if ((flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) == 0x0000)
-		return (EINVAL);
-	if ((flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) == 
-	    (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT))
-		return (EINVAL);
-	if ((flags & (GPIO_PIN_PULLUP|GPIO_PIN_PULLDOWN)) == 
-	    (GPIO_PIN_PULLUP|GPIO_PIN_PULLDOWN))
-		return (EINVAL);
-
 	TI_GPIO_LOCK(sc);
 
 	/* Sanity check the pin number is valid */

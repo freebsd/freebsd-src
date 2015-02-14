@@ -399,20 +399,6 @@ bcm_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	if (bcm_gpio_pin_is_ro(sc, pin))
 		return (EINVAL);
 
-	/* Check for unwanted flags. */
-	if ((flags & sc->sc_gpio_pins[i].gp_caps) != flags)
-		return (EINVAL);
-
-	/* Can't mix input/output together. */
-	if ((flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) ==
-	    (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT))
-		return (EINVAL);
-
-	/* Can't mix pull-up/pull-down together. */
-	if ((flags & (GPIO_PIN_PULLUP|GPIO_PIN_PULLDOWN)) ==
-	    (GPIO_PIN_PULLUP|GPIO_PIN_PULLDOWN))
-		return (EINVAL);
-
 	bcm_gpio_pin_configure(sc, &sc->sc_gpio_pins[i], flags);
 
 	return (0);
