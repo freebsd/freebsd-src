@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/gpio.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -69,6 +70,23 @@ static int gpiobus_pin_getcaps(device_t, device_t, uint32_t, uint32_t*);
 static int gpiobus_pin_set(device_t, device_t, uint32_t, unsigned int);
 static int gpiobus_pin_get(device_t, device_t, uint32_t, unsigned int*);
 static int gpiobus_pin_toggle(device_t, device_t, uint32_t);
+
+int
+gpio_check_flags(uint32_t caps, uint32_t flags)
+{
+
+	/* Check for unwanted flags. */
+	if ((flags & caps) == 0 || (flags & caps) != flags)
+		return (EINVAL);
+	/* Cannot mix input/output together. */
+	if (flags & GPIO_PIN_INPUT && flags & GPIO_PIN_OUTPUT)
+		return (EINVAL);
+	/* Cannot mix pull-up/pull-down together. */
+	if (flags & GPIO_PIN_PULLUP && flags & GPIO_PIN_PULLDOWN)
+		return (EINVAL);
+
+	return (0);
+}
 
 static void
 gpiobus_print_pins(struct gpiobus_ivar *devi, char *buf, size_t buflen)
@@ -490,11 +508,16 @@ gpiobus_pin_setflags(device_t dev, device_t child, uint32_t pin,
 {
 	struct gpiobus_softc *sc = GPIOBUS_SOFTC(dev);
 	struct gpiobus_ivar *devi = GPIOBUS_IVAR(child);
+	uint32_t caps;
 
 	if (pin >= devi->npins)
 		return (EINVAL);
+	if (GPIO_PIN_GETCAPS(sc->sc_dev, devi->pins[pin], &caps) != 0)
+		return (EINVAL);
+	if (gpio_check_flags(caps, flags) != 0)
+		return (EINVAL);
 
-	return GPIO_PIN_SETFLAGS(sc->sc_dev, devi->pins[pin], flags);
+	return (GPIO_PIN_SETFLAGS(sc->sc_dev, devi->pins[pin], flags));
 }
 
 static int
