@@ -597,6 +597,8 @@ __thr_interpose_libc(void)
 	SLOT(wait4);
 	SLOT(write);
 	SLOT(writev);
+	SLOT(spinlock);
+	SLOT(spinunlock);
 #undef SLOT
 	*(__libc_interposing_slot(
 	    INTERPOS__pthread_mutex_init_calloc_cb)) =
