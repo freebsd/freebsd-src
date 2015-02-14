@@ -971,7 +971,7 @@ ASTDeclReader::RedeclarableResult ASTDeclReader::VisitVarDeclImpl(VarDecl *VD) {
   VD->setCachedLinkage(VarLinkage);
 
   // Reconstruct the one piece of the IdentifierNamespace that we need.
-  if (VarLinkage != NoLinkage &&
+  if (VD->getStorageClass() == SC_Extern && VarLinkage != NoLinkage &&
       VD->getLexicalDeclContext()->isFunctionOrMethod())
     VD->setLocalExternDecl();
 
