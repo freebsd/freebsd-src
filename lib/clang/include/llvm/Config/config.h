@@ -14,6 +14,9 @@
 /* Define if we have libxml2 */
 /* #undef CLANG_HAVE_LIBXML */
 
+/* Multilib suffix for libdir. */
+/* #undef CLANG_LIBDIR_SUFFIX */
+
 /* Relative directory for resource files */
 #define CLANG_RESOURCE_DIR ""
 

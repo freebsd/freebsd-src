@@ -93,7 +93,6 @@ LIBDEPS=\
 	llvmlinker \
 	llvmmcjit \
 	llvmruntimedyld \
-	llvmjit \
 	llvmexecutionengine \
 	llvmirreader \
 	llvmipo \
