@@ -3071,16 +3071,14 @@ netmap_init(void)
 	error = netmap_mem_init();
 	if (error != 0)
 		goto fail;
-	/* XXX could use make_dev_credv() to get error number */
-#ifdef __FreeBSD__
-	/* support for the 'eternal' flag */
+	/*
+	 * MAKEDEV_ETERNAL_KLD avoids an expensive check on syscalls
+	 * when the module is compiled in.
+	 * XXX could use make_dev_credv() to get error number
+	 */
 	netmap_dev = make_dev_credf(MAKEDEV_ETERNAL_KLD,
 		&netmap_cdevsw, 0, NULL, UID_ROOT, GID_WHEEL, 0600,
 			      "netmap");
-#else
-	netmap_dev = make_dev(&netmap_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-			      "netmap");
-#endif
 	if (!netmap_dev)
 		goto fail;
 
