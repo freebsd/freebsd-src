@@ -375,9 +375,14 @@ ports attached to the switch)
 
 /* reduce conditional code */
 // linux API, use for the knlist in FreeBSD
-#define init_waitqueue_head(x)	knlist_init_mtx(&(x)->si_note, NULL)
+/* use a private mutex for the knlist */
+#define init_waitqueue_head(x) do {			\
+	struct mtx *m = &(x)->m;			\
+	mtx_init(m, "nm_kn_lock", NULL, MTX_DEF);	\
+	knlist_init_mtx(&(x)->si.si_note, m);		\
+    } while (0)
 
-void freebsd_selwakeup(struct selinfo *si, int pri);
+#define OS_selrecord(a, b)	selrecord(a, &((b)->si))
 #define OS_selwakeup(a, b)	freebsd_selwakeup(a, b)
 
 #elif defined(linux)
@@ -651,9 +656,8 @@ netmap_update_config(struct netmap_adapter *na)
 	u_int txr, txd, rxr, rxd;
 
 	txr = txd = rxr = rxd = 0;
-	if (na->nm_config) {
-		na->nm_config(na, &txr, &txd, &rxr, &rxd);
-	} else {
+	if (na->nm_config == NULL ||
+	    na->nm_config(na, &txr, &txd, &rxr, &rxd)) {
 		/* take whatever we had at init time */
 		txr = na->num_tx_rings;
 		txd = na->num_tx_desc;
@@ -806,6 +810,19 @@ netmap_krings_create(struct netmap_adapter *na, u_int tailroom)
 }
 
 
+#ifdef __FreeBSD__
+static void
+netmap_knlist_destroy(NM_SELINFO_T *si)
+{
+	/* XXX kqueue(9) needed; these will mirror knlist_init. */
+	knlist_delete(&si->si.si_note, curthread, 0 /* not locked */ );
+	knlist_destroy(&si->si.si_note);
+	/* now we don't need the mutex anymore */
+	mtx_destroy(&si->m);
+}
+#endif /* __FreeBSD__ */
+
+
 /* undo the actions performed by netmap_krings_create */
 /* call with NMG_LOCK held */
 void
@@ -816,6 +833,7 @@ netmap_krings_delete(struct netmap_adapter *na)
 	/* we rely on the krings layout described above */
 	for ( ; kring != na->tailroom; kring++) {
 		mtx_destroy(&kring->q_lock);
+		netmap_knlist_destroy(&kring->si);
 	}
 	free(na->tx_rings, M_DEVBUF);
 	na->tx_rings = na->rx_rings = na->tailroom = NULL;
@@ -996,9 +1014,8 @@ netmap_do_unregif(struct netmap_priv_d *priv, struct netmap_if *nifp)
 		 * XXX The wake up now must happen during *_down(), when
 		 * we order all activities to stop. -gl
 		 */
-		/* XXX kqueue(9) needed; these will mirror knlist_init. */
-		/* knlist_destroy(&na->tx_si.si_note); */
-		/* knlist_destroy(&na->rx_si.si_note); */
+		netmap_knlist_destroy(&na->tx_si);
+		netmap_knlist_destroy(&na->rx_si);
 
 		/* delete rings and buffers */
 		netmap_mem_rings_delete(na);
@@ -1310,7 +1327,7 @@ netmap_rxsync_from_host(struct netmap_adapter *na, struct thread *td, void *pwai
 
 	/* access copies of cur,tail in the kring */
 	if (kring->rcur == kring->rtail && td) /* no bufs available */
-		selrecord(td, &kring->si);
+		OS_selrecord(td, &kring->si);
 
 	mbq_unlock(q);
 	return ret;
@@ -2150,7 +2167,7 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 			error = ENXIO;
 			break;
 		}
-		rmb(); /* make sure following reads are not from cache */
+		mb(); /* make sure following reads are not from cache */
 
 		na = priv->np_na;      /* we have a reference */
 
@@ -2410,7 +2427,7 @@ flush_tx:
 			}
 		}
 		if (want_tx && retry_tx && !is_kevent) {
-			selrecord(td, check_all_tx ?
+			OS_selrecord(td, check_all_tx ?
 			    &na->tx_si : &na->tx_rings[priv->np_txqfirst].si);
 			retry_tx = 0;
 			goto flush_tx;
@@ -2479,7 +2496,7 @@ do_retry_rx:
 		}
 
 		if (retry_rx && !is_kevent)
-			selrecord(td, check_all_rx ?
+			OS_selrecord(td, check_all_rx ?
 			    &na->rx_si : &na->rx_rings[priv->np_rxqfirst].si);
 		if (send_down > 0 || retry_rx) {
 			retry_rx = 0;
@@ -3053,8 +3070,13 @@ netmap_init(void)
 	error = netmap_mem_init();
 	if (error != 0)
 		goto fail;
-	/* XXX could use make_dev_credv() to get error number */
-	netmap_dev = make_dev(&netmap_cdevsw, 0, UID_ROOT, GID_WHEEL, 0660,
+	/*
+	 * MAKEDEV_ETERNAL_KLD avoids an expensive check on syscalls
+	 * when the module is compiled in.
+	 * XXX could use make_dev_credv() to get error number
+	 */
+	netmap_dev = make_dev_credf(MAKEDEV_ETERNAL_KLD,
+		&netmap_cdevsw, 0, NULL, UID_ROOT, GID_WHEEL, 0600,
 			      "netmap");
 	if (!netmap_dev)
 		goto fail;
