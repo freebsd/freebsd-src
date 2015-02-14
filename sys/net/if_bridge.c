@@ -228,7 +228,7 @@ struct bridge_softc {
 
 static VNET_DEFINE(struct mtx, bridge_list_mtx);
 #define	V_bridge_list_mtx	VNET(bridge_list_mtx)
-eventhandler_tag	bridge_detach_cookie = NULL;
+static eventhandler_tag bridge_detach_cookie;
 
 int	bridge_rtable_prune_period = BRIDGE_RTABLE_PRUNE_PERIOD;
 
@@ -538,6 +538,7 @@ vnet_bridge_uninit(const void *unused __unused)
 {
 
 	if_clone_detach(V_bridge_cloner);
+	V_bridge_cloner = NULL;
 	BRIDGE_LIST_LOCK_DESTROY();
 }
 VNET_SYSUNINIT(vnet_bridge_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
@@ -1797,7 +1798,13 @@ bridge_ifdetach(void *arg __unused, struct ifnet *ifp)
 
 	if (ifp->if_flags & IFF_RENAMING)
 		return;
-
+	if (V_bridge_cloner == NULL) {
+		/*
+		 * This detach handler can be called after
+		 * vnet_bridge_uninit().  Just return in that case.
+		 */
+		return;
+	}
 	/* Check if the interface is a bridge member */
 	if (sc != NULL) {
 		BRIDGE_LOCK(sc);
