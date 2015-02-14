@@ -324,23 +324,6 @@ ofw_gpiobus_add_child(device_t dev, u_int order, const char *name, int unit)
 	return (child);
 }
 
-static int
-ofw_gpiobus_print_child(device_t dev, device_t child)
-{
-	struct ofw_gpiobus_devinfo *devi;
-	int retval = 0;
-
-	devi = device_get_ivars(child);
-	retval += bus_print_child_header(dev, child);
-	retval += printf(" at pin(s) ");
-	gpiobus_print_pins(&devi->opd_dinfo);
-	resource_list_print_type(&devi->opd_dinfo.rl, "irq", SYS_RES_IRQ,
-	    "%ld");
-	retval += bus_print_child_footer(dev, child);
-
-	return (retval);
-}
-
 static const struct ofw_bus_devinfo *
 ofw_gpiobus_get_devinfo(device_t bus, device_t dev)
 {
@@ -358,7 +341,6 @@ static device_method_t ofw_gpiobus_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_child_pnpinfo_str,	ofw_bus_gen_child_pnpinfo_str),
-	DEVMETHOD(bus_print_child,	ofw_gpiobus_print_child),
 	DEVMETHOD(bus_add_child,	ofw_gpiobus_add_child),
 
 	/* ofw_bus interface */
