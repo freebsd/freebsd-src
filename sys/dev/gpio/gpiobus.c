@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #define	dprintf(x, arg...)
 #endif
 
+static void gpiobus_print_pins(struct gpiobus_ivar *, char *, size_t);
 static int gpiobus_parse_pins(struct gpiobus_softc *, device_t, int);
 static int gpiobus_probe(device_t);
 static int gpiobus_attach(device_t);
@@ -69,11 +70,11 @@ static int gpiobus_pin_set(device_t, device_t, uint32_t, unsigned int);
 static int gpiobus_pin_get(device_t, device_t, uint32_t, unsigned int*);
 static int gpiobus_pin_toggle(device_t, device_t, uint32_t);
 
-void
-gpiobus_print_pins(struct gpiobus_ivar *devi)
+static void
+gpiobus_print_pins(struct gpiobus_ivar *devi, char *buf, size_t buflen)
 {
-	int range_start, range_stop, need_coma;
-	int i;
+	char tmp[128];
+	int i, range_start, range_stop, need_coma;
 
 	if (devi->npins == 0)
 		return;
@@ -83,11 +84,15 @@ gpiobus_print_pins(struct gpiobus_ivar *devi)
 	for (i = 1; i < devi->npins; i++) {
 		if (devi->pins[i] != (range_stop + 1)) {
 			if (need_coma)
-				printf(",");
+				strlcat(buf, ",", buflen);
+			memset(tmp, 0, sizeof(tmp));
 			if (range_start != range_stop)
-				printf("%d-%d", range_start, range_stop);
+				snprintf(tmp, sizeof(tmp) - 1, "%d-%d",
+				    range_start, range_stop);
 			else
-				printf("%d", range_start);
+				snprintf(tmp, sizeof(tmp) - 1, "%d",
+				    range_start);
+			strlcat(buf, tmp, buflen);
 
 			range_start = range_stop = devi->pins[i];
 			need_coma = 1;
@@ -97,11 +102,15 @@ gpiobus_print_pins(struct gpiobus_ivar *devi)
 	}
 
 	if (need_coma)
-		printf(",");
+		strlcat(buf, ",", buflen);
+	memset(tmp, 0, sizeof(tmp));
 	if (range_start != range_stop)
-		printf("%d-%d", range_start, range_stop);
+		snprintf(tmp, sizeof(tmp) - 1, "%d-%d",
+		    range_start, range_stop);
 	else
-		printf("%d", range_start);
+		snprintf(tmp, sizeof(tmp) - 1, "%d",
+		    range_start);
+	strlcat(buf, tmp, buflen);
 }
 
 int
@@ -273,12 +282,16 @@ gpiobus_resume(device_t dev)
 static int
 gpiobus_print_child(device_t dev, device_t child)
 {
-	struct gpiobus_ivar *devi = GPIOBUS_IVAR(child);
+	char pins[128];
 	int retval = 0;
+	struct gpiobus_ivar *devi;
 
+	devi = GPIOBUS_IVAR(child);
+	memset(pins, 0, sizeof(pins));
 	retval += bus_print_child_header(dev, child);
 	retval += printf(" at pin(s) ");
-	gpiobus_print_pins(devi);
+	gpiobus_print_pins(devi, pins, sizeof(pins));
+	retval += printf("%s", pins);
 	resource_list_print_type(&devi->rl, "irq", SYS_RES_IRQ, "%ld");
 	retval += bus_print_child_footer(dev, child);
 
@@ -289,8 +302,12 @@ static int
 gpiobus_child_location_str(device_t bus, device_t child, char *buf,
     size_t buflen)
 {
+	struct gpiobus_ivar *devi;
 
-	snprintf(buf, buflen, "pins=?");
+	devi = GPIOBUS_IVAR(child);
+	strlcpy(buf, "pin(s)=", buflen);
+	gpiobus_print_pins(devi, buf, buflen);
+
 	return (0);
 }
 
