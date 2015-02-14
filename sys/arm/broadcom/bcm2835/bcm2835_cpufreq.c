@@ -64,8 +64,6 @@ __FBSDID("$FreeBSD$");
 #define MHZ2HZ(freq) ((freq) * (1000 * 1000))
 #define OFFSET2MVOLT(val) (1200 + ((val) * 25))
 #define MVOLT2OFFSET(val) (((val) - 1200) / 25)
-#define RAW2K(temp) (((temp) + 273150) / 1000)
-#define K2RAW(temp) (((temp) * 1000) - 273150)
 
 #define DEFAULT_ARM_FREQUENCY	 700
 #define DEFAULT_CORE_FREQUENCY	 250
@@ -77,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #define MSG_ERROR	  -999999999
 #define MHZSTEP			 100
 #define HZSTEP	   (MHZ2HZ(MHZSTEP))
+#define	TZ_ZEROC		2732
 
 #define VC_LOCK(sc) do {			\
 		sema_wait(&vc_sema);		\
@@ -125,7 +124,7 @@ TUNABLE_INT("hw.bcm2835.cpufreq.verbose", &cpufreq_verbose);
 static int cpufreq_lowest_freq = DEFAULT_LOWEST_FREQ;
 TUNABLE_INT("hw.bcm2835.cpufreq.lowest_freq", &cpufreq_lowest_freq);
 
-#ifdef DEBUG
+#ifdef PROP_DEBUG
 static void
 bcm2835_dump(const void *data, int len)
 {
@@ -1215,7 +1214,7 @@ sysctl_bcm2835_devcpu_temperature(SYSCTL_HANDLER_ARGS)
 		return (EIO);
 
 	/* 1/1000 celsius (raw) to 1/10 kelvin */
-	val = RAW2K(val) * 10;
+	val = val / 100 + TZ_ZEROC;
 
 	err = sysctl_handle_int(oidp, &val, 0, req);
 	if (err || !req->newptr) /* error || read request */
