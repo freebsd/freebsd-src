@@ -7,7 +7,8 @@ LIB=	lldbPluginInstrumentationRuntimeAddressSanitizer
 SRCDIR=	tools/lldb/source/Plugins/InstrumentationRuntime/AddressSanitizer
 SRCS=	AddressSanitizerRuntime.cpp
 
-TGHDRS=	Attrs \
+TGHDRS=	AttrList \
+	Attrs \
 	DiagnosticCommonKinds \
 	DeclNodes \
 	StmtNodes \
