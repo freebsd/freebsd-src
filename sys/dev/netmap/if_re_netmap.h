@@ -222,7 +222,7 @@ re_netmap_rxsync(struct netmap_kring *kring, int flags)
 			/*  sync was in re_newbuf() */
 			bus_dmamap_sync(sc->rl_ldata.rl_rx_mtag,
 			    rxd[nic_i].rx_dmamap, BUS_DMASYNC_POSTREAD);
-			// sc->rl_ifp->if_ipackets++;
+			// if_inc_counter(sc->rl_ifp, IFCOUNTER_IPACKETS, 1);
 			nm_i = nm_next(nm_i, lim);
 			nic_i = nm_next(nic_i, lim);
 		}
