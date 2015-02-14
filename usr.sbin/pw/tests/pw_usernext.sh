@@ -32,7 +32,7 @@ usernext_assigned_group_body() {
 		atf_check -s exit:0 ${PW} useradd -n test$var0 -g 0
 		var0=`expr $var0 + 1`
 	done
-	atf_check -s exit:0 -o match:"100${LIMIT}:1001}" \
+	atf_check -s exit:0 -o match:"100${LIMIT}:1001" \
 		${PW} usernext
 }
 
