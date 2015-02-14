@@ -98,6 +98,8 @@ Windows Support
 
 - Basic support for DWARF debug information in COFF files
 
+- Support for Visual C++ '__super' keyword
+
 
 C Language Changes in Clang
 ---------------------------
@@ -118,10 +120,35 @@ C++ Language Changes in Clang
 - Clang will put individual ``.init_array/.ctors`` sections in
   comdats, reducing code duplication and speeding up startup.
 
-C++11 Feature Support
+C++17 Feature Support
 ^^^^^^^^^^^^^^^^^^^^^
 
-...
+Clang has experimental support for some proposed C++1z (tentatively, C++17)
+features. This support can be enabled using the `-std=c++1z` flag.
+
+New in Clang 3.6 is support for:
+
+- Fold expressions
+
+- `u8` character literals
+
+- Nested namespace definitions: `namespace A::B { ... }` as a shorthand for
+  `namespace A { namespace B { ... } }`
+
+- Attributes for namespaces and enumerators
+
+- Constant evaluation for all non-type template arguments
+
+Note that these features may be changed or removed in future Clang releases
+without notice.
+
+Support for `for (identifier : range)` as a synonym for
+`for (auto &&identifier : range)` has been removed as it is no longer currently
+considered for C++17.
+
+For more details on C++ feature support, see
+`the C++ status page <http://clang.llvm.org/cxx_status.html>`_.
+
 
 Objective-C Language Changes in Clang
 -------------------------------------
@@ -132,6 +159,19 @@ OpenCL C Language Changes in Clang
 ----------------------------------
 
 ...
+
+OpenMP Language Changes in Clang
+--------------------------------
+
+Clang 3.6 contains codegen for many individual pragmas for OpenMP but combinations are not completed as yet. 
+We plan to continue codegen code drop aiming for completion for 3.7. Please see this link for up-to-date 
+`status <https://github.com/clang-omp/clang/wiki/Status-of-supported-OpenMP-constructs>_`
+LLVM’s OpenMP runtime library, originally developed by Intel, has been modified to work on ARM, PowerPC, 
+as well as X86. The Runtime Library's compatibility with GCC 4.9 is improved 
+- missed entry points added, Barrier and fork/join code improved, one more type of barrier enabled.
+Support for ppc64le architecture is now available and automatically detected when using cmake system. 
+Using makefile the new "ppc64le" arch type is available. 
+Contributors to this work include AMD, Argonne National Lab., IBM, Intel, Texas Instruments, University of Houston and many others. 
 
 Internal API Changes
 --------------------

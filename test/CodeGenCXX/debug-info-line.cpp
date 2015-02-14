@@ -166,6 +166,33 @@ void f13() {
   F13_IMPL;
 }
 
+struct f14 {
+  f14(int);
+};
+
+// CHECK-LABEL: define
+struct f14_use {
+// CHECK: call {{.*}}, !dbg [[DBG_F14_CTOR_CALL:![0-9]*]]
+#line 1600
+  f14 v
+      =
+      1;
+  f14_use();
+};
+
+f14_use::f14_use() = default;
+
+// CHECK-LABEL: define
+
+// CHECK-LABEL: define
+int f21_a(int = 0);
+void f21_b(int = f21_a());
+void f21() {
+// CHECK: call {{.*}}f21_b{{.*}}, !dbg [[DBG_F21:![0-9]*]]
+#line 2300
+  f21_b();
+}
+
 // CHECK: [[DBG_F1]] = !MDLocation(line: 100,
 // CHECK: [[DBG_FOO_VALUE]] = !MDLocation(line: 200,
 // CHECK: [[DBG_FOO_REF]] = !MDLocation(line: 202,
