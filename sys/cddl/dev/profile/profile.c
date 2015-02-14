@@ -128,6 +128,16 @@
 
 struct profile_probe_percpu;
 
+#ifdef __mips
+/* bogus */
+#define	PROF_ARTIFICIAL_FRAMES	3
+#endif
+
+#ifdef __arm__
+/* bogus */
+#define	PROF_ARTIFICIAL_FRAMES	3
+#endif
+
 typedef struct profile_probe {
 	char		prof_name[PROF_NAMELEN];
 	dtrace_id_t	prof_id;

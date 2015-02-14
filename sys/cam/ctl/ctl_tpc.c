@@ -785,18 +785,25 @@ ctl_copy_operation_abort(struct ctl_scsiio *ctsio)
 }
 
 static uint64_t
-tpc_resolve(struct tpc_list *list, uint16_t idx, uint32_t *ss)
+tpc_resolve(struct tpc_list *list, uint16_t idx, uint32_t *ss,
+    uint32_t *pb, uint32_t *pbo)
 {
 
 	if (idx == 0xffff) {
 		if (ss && list->lun->be_lun)
 			*ss = list->lun->be_lun->blocksize;
+		if (pb && list->lun->be_lun)
+			*pb = list->lun->be_lun->blocksize <<
+			    list->lun->be_lun->pblockexp;
+		if (pbo && list->lun->be_lun)
+			*pbo = list->lun->be_lun->blocksize *
+			    list->lun->be_lun->pblockoff;
 		return (list->lun->lun);
 	}
 	if (idx >= list->ncscd)
 		return (UINT64_MAX);
 	return (tpcl_resolve(list->lun->ctl_softc,
-	    list->init_port, &list->cscd[idx], ss));
+	    list->init_port, &list->cscd[idx], ss, pb, pbo));
 }
 
 static int
@@ -809,7 +816,7 @@ tpc_process_b2b(struct tpc_list *list)
 	uint64_t sl, dl;
 	off_t srclba, dstlba, numbytes, donebytes, roundbytes;
 	int numlba;
-	uint32_t srcblock, dstblock;
+	uint32_t srcblock, dstblock, pb, pbo, adj;
 
 	if (list->stage == 1) {
 		while ((tior = TAILQ_FIRST(&list->allio)) != NULL) {
@@ -834,14 +841,16 @@ tpc_process_b2b(struct tpc_list *list)
 
 	TAILQ_INIT(&list->allio);
 	seg = (struct scsi_ec_segment_b2b *)list->seg[list->curseg];
-	sl = tpc_resolve(list, scsi_2btoul(seg->src_cscd), &srcblock);
-	dl = tpc_resolve(list, scsi_2btoul(seg->dst_cscd), &dstblock);
+	sl = tpc_resolve(list, scsi_2btoul(seg->src_cscd), &srcblock, NULL, NULL);
+	dl = tpc_resolve(list, scsi_2btoul(seg->dst_cscd), &dstblock, &pb, &pbo);
 	if (sl >= CTL_MAX_LUNS || dl >= CTL_MAX_LUNS) {
 		ctl_set_sense(list->ctsio, /*current_error*/ 1,
 		    /*sense_key*/ SSD_KEY_COPY_ABORTED,
 		    /*asc*/ 0x08, /*ascq*/ 0x04, SSD_ELEM_NONE);
 		return (CTL_RETVAL_ERROR);
 	}
+	if (pbo > 0)
+		pbo = pb - pbo;
 	sdstp = &list->cscd[scsi_2btoul(seg->src_cscd)].dtsp;
 	if (scsi_3btoul(sdstp->block_length) != 0)
 		srcblock = scsi_3btoul(sdstp->block_length);
@@ -878,7 +887,16 @@ tpc_process_b2b(struct tpc_list *list)
 	prun = &run;
 	list->tbdio = 1;
 	while (donebytes < numbytes) {
-		roundbytes = MIN(numbytes - donebytes, TPC_MAX_IO_SIZE);
+		roundbytes = numbytes - donebytes;
+		if (roundbytes > TPC_MAX_IO_SIZE) {
+			roundbytes = TPC_MAX_IO_SIZE;
+			roundbytes -= roundbytes % dstblock;
+			if (pb > dstblock) {
+				adj = (dstlba * dstblock + roundbytes - pbo) % pb;
+				if (roundbytes > adj)
+					roundbytes -= adj;
+			}
+		}
 
 		tior = malloc(sizeof(*tior), M_CTL, M_WAITOK | M_ZERO);
 		TAILQ_INIT(&tior->run);
@@ -891,7 +909,7 @@ tpc_process_b2b(struct tpc_list *list)
 				    /*read_op*/ 1,
 				    /*byte2*/ 0,
 				    /*minimum_cdb_size*/ 0,
-				    /*lba*/ srclba + donebytes / srcblock,
+				    /*lba*/ srclba,
 				    /*num_blocks*/ roundbytes / srcblock,
 				    /*tag_type*/ CTL_TAG_SIMPLE,
 				    /*control*/ 0);
@@ -910,7 +928,7 @@ tpc_process_b2b(struct tpc_list *list)
 				    /*read_op*/ 0,
 				    /*byte2*/ 0,
 				    /*minimum_cdb_size*/ 0,
-				    /*lba*/ dstlba + donebytes / dstblock,
+				    /*lba*/ dstlba,
 				    /*num_blocks*/ roundbytes / dstblock,
 				    /*tag_type*/ CTL_TAG_SIMPLE,
 				    /*control*/ 0);
@@ -922,6 +940,8 @@ tpc_process_b2b(struct tpc_list *list)
 		TAILQ_INSERT_TAIL(prun, tior, rlinks);
 		prun = &tior->run;
 		donebytes += roundbytes;
+		srclba += roundbytes / srcblock;
+		dstlba += roundbytes / dstblock;
 	}
 
 	while ((tior = TAILQ_FIRST(&run)) != NULL) {
@@ -961,7 +981,7 @@ tpc_process_verify(struct tpc_list *list)
 
 	TAILQ_INIT(&list->allio);
 	seg = (struct scsi_ec_segment_verify *)list->seg[list->curseg];
-	sl = tpc_resolve(list, scsi_2btoul(seg->src_cscd), NULL);
+	sl = tpc_resolve(list, scsi_2btoul(seg->src_cscd), NULL, NULL, NULL);
 	if (sl >= CTL_MAX_LUNS) {
 		ctl_set_sense(list->ctsio, /*current_error*/ 1,
 		    /*sense_key*/ SSD_KEY_COPY_ABORTED,
@@ -1019,7 +1039,7 @@ tpc_process_register_key(struct tpc_list *list)
 
 	TAILQ_INIT(&list->allio);
 	seg = (struct scsi_ec_segment_register_key *)list->seg[list->curseg];
-	dl = tpc_resolve(list, scsi_2btoul(seg->dst_cscd), NULL);
+	dl = tpc_resolve(list, scsi_2btoul(seg->dst_cscd), NULL, NULL, NULL);
 	if (dl >= CTL_MAX_LUNS) {
 		ctl_set_sense(list->ctsio, /*current_error*/ 1,
 		    /*sense_key*/ SSD_KEY_COPY_ABORTED,
@@ -1090,7 +1110,7 @@ tpc_process_wut(struct tpc_list *list)
 	int drange, srange;
 	off_t doffset, soffset;
 	off_t srclba, dstlba, numbytes, donebytes, roundbytes;
-	uint32_t srcblock, dstblock;
+	uint32_t srcblock, dstblock, pb, pbo, adj;
 
 	if (list->stage > 0) {
 		/* Cleanup after previous rounds. */
@@ -1118,6 +1138,11 @@ tpc_process_wut(struct tpc_list *list)
 	    &drange, &doffset) != 0)
 		return (CTL_RETVAL_COMPLETE);
 	dstblock = list->lun->be_lun->blocksize;
+	pb = dstblock << list->lun->be_lun->pblockexp;
+	if (list->lun->be_lun->pblockoff > 0)
+		pbo = pb - dstblock * list->lun->be_lun->pblockoff;
+	else
+		pbo = 0;
 
 	/* Check where we are on source ranges list. */
 	srcblock = list->token->blocksize;
@@ -1131,12 +1156,20 @@ tpc_process_wut(struct tpc_list *list)
 	}
 
 	srclba = scsi_8btou64(list->token->range[srange].lba) + soffset;
-	numbytes = srcblock * omin(TPC_MAX_IOCHUNK_SIZE / srcblock,
-	    (scsi_4btoul(list->token->range[srange].length) - soffset));
 	dstlba = scsi_8btou64(list->range[drange].lba) + doffset;
-	numbytes = omin(numbytes,
-	    dstblock * omin(TPC_MAX_IOCHUNK_SIZE / dstblock,
-	    (scsi_4btoul(list->range[drange].length) - doffset)));
+	numbytes = srcblock *
+	    (scsi_4btoul(list->token->range[srange].length) - soffset);
+	numbytes = omin(numbytes, dstblock *
+	    (scsi_4btoul(list->range[drange].length) - doffset));
+	if (numbytes > TPC_MAX_IOCHUNK_SIZE) {
+		numbytes = TPC_MAX_IOCHUNK_SIZE;
+		numbytes -= numbytes % dstblock;
+		if (pb > dstblock) {
+			adj = (dstlba * dstblock + numbytes - pbo) % pb;
+			if (numbytes > adj)
+				numbytes -= adj;
+		}
+	}
 
 	if (numbytes % srcblock != 0 || numbytes % dstblock != 0) {
 		ctl_set_sense(list->ctsio, /*current_error*/ 1,
@@ -1157,7 +1190,16 @@ tpc_process_wut(struct tpc_list *list)
 	list->tbdio = 1;
 	TAILQ_INIT(&list->allio);
 	while (donebytes < numbytes) {
-		roundbytes = MIN(numbytes - donebytes, TPC_MAX_IO_SIZE);
+		roundbytes = numbytes - donebytes;
+		if (roundbytes > TPC_MAX_IO_SIZE) {
+			roundbytes = TPC_MAX_IO_SIZE;
+			roundbytes -= roundbytes % dstblock;
+			if (pb > dstblock) {
+				adj = (dstlba * dstblock + roundbytes - pbo) % pb;
+				if (roundbytes > adj)
+					roundbytes -= adj;
+			}
+		}
 
 		tior = malloc(sizeof(*tior), M_CTL, M_WAITOK | M_ZERO);
 		TAILQ_INIT(&tior->run);
@@ -1170,7 +1212,7 @@ tpc_process_wut(struct tpc_list *list)
 				    /*read_op*/ 1,
 				    /*byte2*/ 0,
 				    /*minimum_cdb_size*/ 0,
-				    /*lba*/ srclba + donebytes / srcblock,
+				    /*lba*/ srclba,
 				    /*num_blocks*/ roundbytes / srcblock,
 				    /*tag_type*/ CTL_TAG_SIMPLE,
 				    /*control*/ 0);
@@ -1189,7 +1231,7 @@ tpc_process_wut(struct tpc_list *list)
 				    /*read_op*/ 0,
 				    /*byte2*/ 0,
 				    /*minimum_cdb_size*/ 0,
-				    /*lba*/ dstlba + donebytes / dstblock,
+				    /*lba*/ dstlba,
 				    /*num_blocks*/ roundbytes / dstblock,
 				    /*tag_type*/ CTL_TAG_SIMPLE,
 				    /*control*/ 0);
@@ -1201,6 +1243,8 @@ tpc_process_wut(struct tpc_list *list)
 		TAILQ_INSERT_TAIL(prun, tior, rlinks);
 		prun = &tior->run;
 		donebytes += roundbytes;
+		srclba += roundbytes / srcblock;
+		dstlba += roundbytes / dstblock;
 	}
 
 	while ((tior = TAILQ_FIRST(&run)) != NULL) {

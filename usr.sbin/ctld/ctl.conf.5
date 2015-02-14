@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 7, 2015
+.Dd February 11, 2015
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -228,7 +228,7 @@ An IPv4 or IPv6 address and port to listen on for incoming connections.
 .\".It Ic listen-iser Ar address
 .\"An IPv4 or IPv6 address and port to listen on for incoming connections
 .\"using iSER (iSCSI over RDMA) protocol.
-.It Ic redirect Aq Ar address
+.It Ic redirect Ar address
 IPv4 or IPv6 address to redirect initiators to.
 When configured, all initiators attempting to connect to portal
 belonging to this
@@ -326,7 +326,7 @@ If second argument is not specified, target auth group is used.
 Assign specified CTL port (such as "isp0") to the target.
 On startup ctld configures LUN mapping and enables all assigned ports.
 Each port can be assigned to only one target.
-.It Ic redirect Aq Ar address
+.It Ic redirect Ar address
 IPv4 or IPv6 address to redirect initiators to.
 When configured, all initiators attempting to connect to this target
 will get redirected using "Target moved temporarily" login response.
