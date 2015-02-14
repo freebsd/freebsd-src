@@ -394,7 +394,7 @@ ar9300_gpio_get(struct ath_hal *ah, u_int32_t gpio)
 {
     u_int32_t gpio_in;
     HALASSERT(gpio < AH_PRIVATE(ah)->ah_caps.halNumGpioPins);
-    if ((gpio == AR9382_GPIO_PIN_8_RESERVED))
+    if (gpio == AR9382_GPIO_PIN_8_RESERVED)
     {
         return 0xffffffff;
     }
