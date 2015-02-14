@@ -38,7 +38,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20150210: new clang import which bumps version from 3.5.1 to 3.6.0.
+# 2015mmdd: new clang import which bumps version from 3.5.1 to 3.6.0.
 OLD_FILES+=usr/include/clang/3.5.1/__wmmintrin_aes.h
 OLD_FILES+=usr/include/clang/3.5.1/__wmmintrin_pclmul.h
 OLD_FILES+=usr/include/clang/3.5.1/altivec.h
@@ -93,6 +93,22 @@ OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
 OLD_DIRS+=usr/lib/clang/3.5.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.5.1/lib
 OLD_DIRS+=usr/lib/clang/3.5.1
+# 20150212: /usr/games moving into /usr/bin
+OLD_FILES+=usr/games/bcd
+OLD_FILES+=usr/games/caesar
+OLD_FILES+=usr/games/factor
+OLD_FILES+=usr/games/fortune
+OLD_FILES+=usr/games/grdc
+OLD_FILES+=usr/games/morse
+OLD_FILES+=usr/games/number
+OLD_FILES+=usr/games/pom
+OLD_FILES+=usr/games/ppt
+OLD_FILES+=usr/games/primes
+OLD_FILES+=usr/games/random
+OLD_FILES+=usr/games/rot13
+OLD_FILES+=usr/games/strfile
+OLD_FILES+=usr/games/unstr
+OLD_DIRS+=usr/games
 # 20150209: liblzma header
 OLD_FILES+=usr/include/lzma/lzma.h
 # 20150124: spl.9 and friends

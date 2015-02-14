@@ -68,6 +68,7 @@
 #undef	ALIGN
 #define	ALIGN(x, y)		roundup2((x), (y))
 #define	DIV_ROUND_UP		howmany
+#define	FIELD_SIZEOF(t, f)	sizeof(((t *)0)->f)
 
 #define	printk(X...)		printf(X)
 
@@ -175,6 +176,7 @@
 #define round_down(x, y) ((x) & ~__round_mask(x, y))
 
 #define	num_possible_cpus()	mp_ncpus
+#define	num_online_cpus()	mp_ncpus
 
 typedef struct pm_message {
         int event;

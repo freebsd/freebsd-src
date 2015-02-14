@@ -3225,14 +3225,13 @@ out:
 static int
 coredump_sanitise_path(const char *path)
 {
-	size_t len, i;
+	size_t i;
 
 	/*
 	 * Only send a subset of ASCII to devd(8) because it
 	 * might pass these strings to sh -c.
 	 */
-	len = strlen(path);
-	for (i = 0; i < len; i++)
+	for (i = 0; path[i]; i++)
 		if (!(isalpha(path[i]) || isdigit(path[i])) &&
 		    path[i] != '/' && path[i] != '.' &&
 		    path[i] != '-')
@@ -3262,9 +3261,11 @@ coredump(struct thread *td)
 	void *rl_cookie;
 	off_t limit;
 	int compress;
-	char data[MAXPATHLEN * 2 + 16]; /* space for devctl notification */
+	char *data = NULL;
 	char *fullpath, *freepath = NULL;
 	size_t len;
+	static const char comm_name[] = "comm=";
+	static const char core_name[] = "core=";
 
 #ifdef COMPRESS_USER_CORES
 	compress = compress_user_cores;
@@ -3358,27 +3359,29 @@ close:
 	 */
 	if (coredump_devctl == 0)
 		goto out;
+	len = MAXPATHLEN * 2 + sizeof(comm_name) - 1 +
+	    sizeof(' ') + sizeof(core_name) - 1;
+	data = malloc(len, M_TEMP, M_WAITOK);
 	if (vn_fullpath_global(td, p->p_textvp, &fullpath, &freepath) != 0)
 		goto out;
 	if (!coredump_sanitise_path(fullpath))
 		goto out;
-	snprintf(data, sizeof(data), "comm=%s ", fullpath);
+	snprintf(data, len, "%s%s ", comm_name, fullpath);
 	free(freepath, M_TEMP);
 	freepath = NULL;
-	if (vn_fullpath_global(td, vp, &fullpath, &freepath) != 0) {
-		printf("could not find coredump\n");
+	if (vn_fullpath_global(td, vp, &fullpath, &freepath) != 0)
 		goto out;
-	}
 	if (!coredump_sanitise_path(fullpath))
 		goto out;
-	strlcat(data, "core=", sizeof(data));
-	len = strlcat(data, fullpath, sizeof(data));
+	strlcat(data, core_name, len);
+	strlcat(data, fullpath, len);
 	devctl_notify("kernel", "signal", "coredump", data);
 out:
 #ifdef AUDIT
 	audit_proc_coredump(td, name, error);
 #endif
 	free(freepath, M_TEMP);
+	free(data, M_TEMP);
 	free(name, M_TEMP);
 	return (error);
 }

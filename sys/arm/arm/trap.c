@@ -78,6 +78,9 @@
  * Created      : 28/11/94
  */
 
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+#endif
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -426,6 +429,13 @@ dab_fatal(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
     struct ksig *ksig)
 {
 	const char *mode;
+
+#ifdef KDTRACE_HOOKS
+	if (!TRAP_USERMODE(tf))	{
+		if (dtrace_trap_func != NULL && (*dtrace_trap_func)(tf, far & FAULT_TYPE_MASK))
+			return (0);
+	}
+#endif
 
 	mode = TRAP_USERMODE(tf) ? "user" : "kernel";
 

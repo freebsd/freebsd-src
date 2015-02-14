@@ -35,6 +35,8 @@ _dwarf_get_reloc_type(Dwarf_P_Debug dbg, int is64)
 	assert(dbg != NULL);
 
 	switch (dbg->dbgp_isa) {
+	case DW_ISA_AARCH64:
+		return (is64 ? R_AARCH64_ABS64 : R_AARCH64_ABS32);
 	case DW_ISA_X86:
 		return (R_386_32);
 	case DW_ISA_X86_64:
@@ -61,6 +63,12 @@ _dwarf_get_reloc_size(Dwarf_Debug dbg, Dwarf_Unsigned rel_type)
 
 	switch (dbg->dbg_machine) {
 	case EM_NONE:
+		break;
+	case EM_AARCH64:
+		if (rel_type == R_AARCH64_ABS32)
+			return (4);
+		else if (rel_type == R_AARCH64_ABS64)
+			return (8);
 		break;
 	case EM_ARM:
 		if (rel_type == R_ARM_ABS32)
