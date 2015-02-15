@@ -363,7 +363,7 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	db_count = (fs->e2fs_gcount + e2fs_descpb - 1) / e2fs_descpb;
 	fs->e2fs_gdbcount = db_count;
 	fs->e2fs_gd = malloc(db_count * fs->e2fs_bsize,
-	    M_EXT2MNT, M_WAITOK | M_ZERO);
+	    M_EXT2MNT, M_WAITOK);
 	fs->e2fs_contigdirs = malloc(fs->e2fs_gcount *
 	    sizeof(*fs->e2fs_contigdirs), M_EXT2MNT, M_WAITOK | M_ZERO);
 
@@ -379,6 +379,7 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 			 fsbtodb(fs, logic_sb_block + i + 1 ),
 			fs->e2fs_bsize, NOCRED, &bp);
 		if (error) {
+			free(fs->e2fs_contigdirs, M_EXT2MNT);
 			free(fs->e2fs_gd, M_EXT2MNT);
 			brelse(bp);
 			return (error);
