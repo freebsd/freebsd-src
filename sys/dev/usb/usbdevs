@@ -1676,6 +1676,7 @@ product DISPLAYLINK LUM70	0x02a9	Lilliput UM-70
 product DISPLAYLINK UM7X0	0x401a	nanovision MiMo
 product DISPLAYLINK LT1421	0x03e0	Lenovo ThinkVision LT1421
 product DISPLAYLINK POLARIS2	0x0117	Polaris2 USB dock
+product DISPLAYLINK PLUGABLE	0x0377	Plugable docking station
 
 /* DMI products */
 product DMI CFSM_RW		0xa109	CF/SM Reader/Writer
