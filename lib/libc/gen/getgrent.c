@@ -1303,7 +1303,7 @@ compat_group(void *retval, void *mdata, va_list ap)
 	void			*discard;
 	size_t			 bufsize, linesize;
 	off_t			 pos;
-	int			 rv, stayopen, *errnop;
+	int			 rv, stayopen = 0, *errnop;
 
 #define set_lookup_type(x, y) do { 				\
 	int i;							\
@@ -1450,7 +1450,7 @@ docompat:
 		pos = ftello(st->fp);
 	}
 fin:
-	if (!stayopen && st->fp != NULL) {
+	if (st->fp != NULL || !stayopen) {
 		fclose(st->fp);
 		st->fp = NULL;
 	}
