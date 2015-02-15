@@ -683,6 +683,7 @@ ar9300_get_capability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 {
     struct ath_hal_9300 *ahp = AH9300(ah);
     const HAL_CAPABILITIES *p_cap = &AH_PRIVATE(ah)->ah_caps;
+    struct ar9300_ani_state *ani;
 
     switch (type) {
     case HAL_CAP_CIPHER:            /* cipher handled in hardware */
@@ -911,6 +912,34 @@ ar9300_get_capability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
             return HAL_ENOTSUPP;
         }
 #endif
+
+    /* FreeBSD ANI */
+    case HAL_CAP_INTMIT:            /* interference mitigation */
+            switch (capability) {
+            case HAL_CAP_INTMIT_PRESENT:            /* hardware capability */
+                    return HAL_OK;
+            case HAL_CAP_INTMIT_ENABLE:
+                    return (ahp->ah_proc_phy_err & HAL_PROCESS_ANI) ?
+                            HAL_OK : HAL_ENXIO;
+            case HAL_CAP_INTMIT_NOISE_IMMUNITY_LEVEL:
+            case HAL_CAP_INTMIT_OFDM_WEAK_SIGNAL_LEVEL:
+//            case HAL_CAP_INTMIT_CCK_WEAK_SIGNAL_THR:
+            case HAL_CAP_INTMIT_FIRSTEP_LEVEL:
+            case HAL_CAP_INTMIT_SPUR_IMMUNITY_LEVEL:
+                    ani = ar9300_ani_get_current_state(ah);
+                    if (ani == AH_NULL)
+                            return HAL_ENXIO;
+                    switch (capability) {
+                    /* XXX AR9300 HAL has OFDM/CCK noise immunity level params? */
+                    case 2: *result = ani->ofdm_noise_immunity_level; break;
+                    case 3: *result = !ani->ofdm_weak_sig_detect_off; break;
+ //                   case 4: *result = ani->cck_weak_sig_threshold; break;
+                    case 5: *result = ani->firstep_level; break;
+                    case 6: *result = ani->spur_immunity_level; break;
+                    }
+                    return HAL_OK;
+            }
+            return HAL_EINVAL;
     default:
         return ath_hal_getcapability(ah, type, capability, result);
     }
@@ -986,6 +1015,27 @@ ar9300_set_capability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
             return AH_TRUE;
         }
         return AH_FALSE;
+
+    /* FreeBSD interrupt mitigation / ANI */
+    case HAL_CAP_INTMIT: {          /* interference mitigation */
+            /* This maps the public ANI commands to the internal ANI commands */
+            /* Private: HAL_ANI_CMD; Public: HAL_CAP_INTMIT_CMD */
+            static const HAL_ANI_CMD cmds[] = {
+                    HAL_ANI_PRESENT,
+                    HAL_ANI_MODE,
+                    HAL_ANI_NOISE_IMMUNITY_LEVEL,
+                    HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION,
+                    HAL_ANI_CCK_WEAK_SIGNAL_THR,
+                    HAL_ANI_FIRSTEP_LEVEL,
+                    HAL_ANI_SPUR_IMMUNITY_LEVEL,
+            };
+#define N(a)    (sizeof(a) / sizeof(a[0]))
+            return capability < N(cmds) ?
+                    ar9300_ani_control(ah, cmds[capability], setting) :
+                    AH_FALSE;
+#undef N
+    }
+
     case HAL_CAP_RXBUFSIZE:         /* set MAC receive buffer size */
         ahp->rx_buf_size = setting & AR_DATABUF_MASK;
         OS_REG_WRITE(ah, AR_DATABUF, ahp->rx_buf_size);
