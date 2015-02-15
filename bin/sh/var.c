@@ -872,7 +872,7 @@ unsetvar(const char *s)
 	if (vp->flags & VREADONLY)
 		return (1);
 	if (vp->text[vp->name_len + 1] != '\0')
-		setvar(s, nullstr, 0);
+		setvar(s, "", 0);
 	if ((vp->flags & VEXPORT) && localevar(vp->text)) {
 		change_env(s, 0);
 		setlocale(LC_ALL, "");

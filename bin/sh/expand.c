@@ -530,8 +530,7 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
 			error((char *)NULL);
 		}
 		error("%.*s: parameter %snot set", (int)(p - str - 1),
-		      str, (varflags & VSNUL) ? "null or "
-					      : nullstr);
+		      str, (varflags & VSNUL) ? "null or " : "");
 		return 0;
 
 	case VSTRIMLEFT:
