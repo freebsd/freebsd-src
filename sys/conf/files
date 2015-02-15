@@ -2565,6 +2565,10 @@ dev/usb/template/usb_template_serialnet.c	optional usb_template
 #
 # USB END
 #
+dev/videomode/videomode.c		optional videomode
+dev/videomode/edid.c			optional videomode
+dev/videomode/pickmode.c		optional videomode
+dev/videomode/vesagtf.c			optional videomode
 dev/utopia/idtphy.c		optional utopia
 dev/utopia/suni.c		optional utopia
 dev/utopia/utopia.c		optional utopia
