@@ -347,7 +347,7 @@ udl_attach(device_t dev)
 	sc->sc_fb_info.fb_width = udl_get_fb_width(sc);
 	sc->sc_fb_info.fb_height = udl_get_fb_height(sc);
 	sc->sc_fb_info.fb_stride = sc->sc_fb_info.fb_width * 2;
-	sc->sc_fb_info.fb_pbase = (uintptr_t)sc->sc_fb_addr;
+	sc->sc_fb_info.fb_pbase = 0;
 	sc->sc_fb_info.fb_vbase = (uintptr_t)sc->sc_fb_addr;
 
 	sc->sc_fbdev = device_add_child(dev, "fbd", -1);
@@ -475,6 +475,11 @@ udl_fb_synchronize(struct udl_softc *sc)
 {
 	const uint32_t max = udl_get_fb_size(sc);
 
+	/* check if framebuffer is not ready */
+	if (sc->sc_fb_addr == NULL ||
+	    sc->sc_fb_copy == NULL)
+		return (NULL);
+
 	while (sc->sc_sync_off < max) {
 		uint32_t delta = max - sc->sc_sync_off;
 
@@ -522,8 +527,9 @@ tr_setup:
 				cb = udl_fb_synchronize(sc);
 				if (cb == NULL)
 					break;
+			} else {
+				TAILQ_REMOVE(&sc->sc_cmd_buf_pending, cb, entry);
 			}
-			TAILQ_REMOVE(&sc->sc_cmd_buf_pending, cb, entry);
 			TAILQ_INSERT_TAIL(phead, cb, entry);
 			usbd_xfer_set_frame_data(xfer, i, cb->buf, cb->off);
 		}
@@ -1059,9 +1065,9 @@ udl_cmd_buf_copy_le16(struct udl_softc *sc, uint32_t src, uint32_t dst,
 
 	udl_cmd_insert_int_1(cb, UDL_BULK_SOC);
 	udl_cmd_insert_int_1(cb, UDL_BULK_CMD_FB_COPY | UDL_BULK_CMD_FB_WORD);
-	udl_cmd_insert_int_3(cb, 2 * dst);
+	udl_cmd_insert_int_3(cb, dst);
 	udl_cmd_insert_int_1(cb, pixels);
-	udl_cmd_insert_int_3(cb, 2 * src);
+	udl_cmd_insert_int_3(cb, src);
 	udl_cmd_buf_send(sc, cb);
 
 	return (0);
