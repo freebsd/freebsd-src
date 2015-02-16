@@ -1567,10 +1567,14 @@ void				pf_free_rule(struct pf_rule *);
 
 #ifdef INET
 int	pf_test(int, struct ifnet *, struct mbuf **, struct inpcb *);
+int	pf_normalize_ip(struct mbuf **, int, struct pfi_kif *, u_short *,
+	    struct pf_pdesc *);
 #endif /* INET */
 
 #ifdef INET6
 int	pf_test6(int, struct ifnet *, struct mbuf **, struct inpcb *);
+int	pf_normalize_ip6(struct mbuf **, int, struct pfi_kif *, u_short *,
+	    struct pf_pdesc *);
 void	pf_poolmask(struct pf_addr *, struct pf_addr*,
 	    struct pf_addr *, struct pf_addr *, u_int8_t);
 void	pf_addr_inc(struct pf_addr *, sa_family_t);
@@ -1590,10 +1594,6 @@ int	pf_match_port(u_int8_t, u_int16_t, u_int16_t, u_int16_t);
 
 void	pf_normalize_init(void);
 void	pf_normalize_cleanup(void);
-int	pf_normalize_ip(struct mbuf **, int, struct pfi_kif *, u_short *,
-	    struct pf_pdesc *);
-int	pf_normalize_ip6(struct mbuf **, int, struct pfi_kif *, u_short *,
-	    struct pf_pdesc *);
 int	pf_normalize_tcp(int, struct pfi_kif *, struct mbuf *, int, int, void *,
 	    struct pf_pdesc *);
 void	pf_normalize_tcp_cleanup(struct pf_state *);
