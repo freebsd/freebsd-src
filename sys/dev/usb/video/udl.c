@@ -78,9 +78,7 @@ static device_probe_t udl_probe;
 static device_attach_t udl_attach;
 static device_detach_t udl_detach;
 static fb_getinfo_t udl_fb_getinfo;
-#if 0
-static fb_blank_display_t udl_fb_blank_display;
-#endif
+static fb_setblankmode_t udl_fb_setblankmode;
 
 static void udl_select_chip(struct udl_softc *, struct usb_attach_arg *);
 static int udl_init_chip(struct udl_softc *);
@@ -94,9 +92,7 @@ static void udl_cmd_insert_int_3(struct udl_cmd_buf *, uint32_t);
 static void udl_cmd_insert_buf_le16(struct udl_cmd_buf *, const uint8_t *, uint32_t);
 static void udl_cmd_write_reg_1(struct udl_cmd_buf *, uint8_t, uint8_t);
 static void udl_cmd_write_reg_3(struct udl_cmd_buf *, uint8_t, uint32_t);
-#if 0
 static int udl_power_save(struct udl_softc *, int, int);
-#endif
 
 static const struct usb_config udl_config[UDL_N_TRANSFER] = {
 	[UDL_BULK_WRITE_0] = {
@@ -131,9 +127,6 @@ static device_method_t udl_methods[] = {
 	DEVMETHOD(device_attach, udl_attach),
 	DEVMETHOD(device_detach, udl_detach),
 	DEVMETHOD(fb_getinfo, udl_fb_getinfo),
-#if 0
-	DEVMETHOD(fb_blank_display, udl_fb_blank_display),
-#endif
 	DEVMETHOD_END
 };
 
@@ -350,6 +343,8 @@ udl_attach(device_t dev)
 	sc->sc_fb_info.fb_stride = sc->sc_fb_info.fb_width * 2;
 	sc->sc_fb_info.fb_pbase = 0;
 	sc->sc_fb_info.fb_vbase = (uintptr_t)sc->sc_fb_addr;
+	sc->sc_fb_info.fb_priv = sc;
+	sc->sc_fb_info.setblankmode = &udl_fb_setblankmode;
 
 	sc->sc_fbdev = device_add_child(dev, "fbd", -1);
 	if (sc->sc_fbdev == NULL)
@@ -407,11 +402,10 @@ udl_fb_getinfo(device_t dev)
 	return (&sc->sc_fb_info);
 }
 
-#if 0
 static int
-udl_fb_blank_display(device_t dev, int mode)
+udl_fb_setblankmode(void *arg, int mode)
 {
-	struct udl_softc *sc = device_get_softc(dev);
+	struct udl_softc *sc = arg;
 
 	switch (mode) {
 	case V_DISPLAY_ON:
@@ -432,7 +426,6 @@ udl_fb_blank_display(device_t dev, int mode)
 	}
 	return (0);
 }
-#endif
 
 static struct udl_cmd_buf *
 udl_cmd_buf_alloc(struct udl_softc *sc, int flags)
@@ -552,7 +545,6 @@ tr_setup:
 	cv_signal(&sc->sc_cv);
 }
 
-#if 0
 static int
 udl_power_save(struct udl_softc *sc, int on, int flags)
 {
@@ -576,7 +568,6 @@ udl_power_save(struct udl_softc *sc, int on, int flags)
 	udl_cmd_buf_send(sc, cb);
 	return (0);
 }
-#endif
 
 static int
 udl_ctrl_msg(struct udl_softc *sc, uint8_t rt, uint8_t r,
