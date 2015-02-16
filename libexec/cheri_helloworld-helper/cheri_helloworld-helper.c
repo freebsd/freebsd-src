@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Robert N. M. Watson
+ * Copyright (c) 2014-2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -44,8 +44,9 @@
 
 #include "cheri_helloworld-helper.h"
 
-int	invoke(register_t op, struct cheri_object system_object,
-	    struct cheri_object fd_object);
+int	invoke(struct cheri_object co, register_t v0,
+	    register_t op, struct cheri_object fd_object)
+	    __attribute__((cheri_ccall)); /* XXXRW: Will be ccheri_ccaller. */
 
 static char hello_world_str[] = "hello world\n";
 
@@ -55,17 +56,11 @@ static char hello_world_str[] = "hello world\n";
  * service, and by writing it to a cheri_fd object passed as an argument.
  */
 int
-invoke(register_t op, struct cheri_object system_object,
+invoke(struct cheri_object co __unused, register_t v0 __unused, register_t op,
     struct cheri_object fd_object)
 {
 	__capability char *hello_world_str_c;
 	__capability char *hello_world_buf_c;
-
-	/*
-	 * Save reference to our system object; NB: stores in a global
-	 * variable so this reference can't currently be ephemeral.
-	 */
-	cheri_system_setup(system_object);
 
 	/*
 	 * Construct a capability to our "hello world" string.

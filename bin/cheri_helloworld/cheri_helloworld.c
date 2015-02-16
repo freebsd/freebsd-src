@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Robert N. M. Watson
+ * Copyright (c) 2014-2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -62,10 +62,9 @@ cheri_helloworld(struct sandbox_object *objectp,
 	 * tidier, hopefully.
 	 */
 	v = sandbox_object_cinvoke(objectp, op, 0, 0, 0, 0, 0, 0, 0,
-            sandbox_object_getsystemobject(objectp).co_codecap,
-            sandbox_object_getsystemobject(objectp).co_datacap,
 	    stdout_fd.co_codecap, stdout_fd.co_datacap, cheri_zerocap(),
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap(), cheri_zerocap());
 	switch (op) {
 	case CHERI_HELLOWORLD_HELPER_OP_HELLOWORLD:
 		assert(v == 123456);
