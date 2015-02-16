@@ -1589,6 +1589,7 @@ int	pf_match_addr_range(struct pf_addr *, struct pf_addr *,
 int	pf_match_port(u_int8_t, u_int16_t, u_int16_t, u_int16_t);
 
 void	pf_normalize_init(void);
+int	pf_refragment6(struct ifnet *, struct mbuf **, struct m_tag *mtag);
 void	pf_normalize_cleanup(void);
 int	pf_normalize_ip(struct mbuf **, int, struct pfi_kif *, u_short *,
 	    struct pf_pdesc *);
