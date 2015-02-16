@@ -428,11 +428,10 @@ udl_fb_setblankmode(void *arg, int mode)
 }
 
 static struct udl_cmd_buf *
-udl_cmd_buf_alloc(struct udl_softc *sc, int flags)
+udl_cmd_buf_alloc_locked(struct udl_softc *sc, int flags)
 {
 	struct udl_cmd_buf *cb;
 
-	UDL_LOCK(sc);
 	while ((cb = TAILQ_FIRST(&sc->sc_cmd_buf_free)) == NULL) {
 		if (flags != M_WAITOK)
 			break;
@@ -442,6 +441,16 @@ udl_cmd_buf_alloc(struct udl_softc *sc, int flags)
 		TAILQ_REMOVE(&sc->sc_cmd_buf_free, cb, entry);
 		cb->off = 0;
 	}
+	return (cb);
+}
+
+static struct udl_cmd_buf *
+udl_cmd_buf_alloc(struct udl_softc *sc, int flags)
+{
+	struct udl_cmd_buf *cb;
+
+	UDL_LOCK(sc);
+	cb = udl_cmd_buf_alloc_locked(sc, flags);
 	UDL_UNLOCK(sc);
 	return (cb);
 }
@@ -465,7 +474,7 @@ udl_cmd_buf_send(struct udl_softc *sc, struct udl_cmd_buf *cb)
 }
 
 static struct udl_cmd_buf *
-udl_fb_synchronize(struct udl_softc *sc)
+udl_fb_synchronize_locked(struct udl_softc *sc)
 {
 	const uint32_t max = udl_get_fb_size(sc);
 
@@ -482,7 +491,7 @@ udl_fb_synchronize(struct udl_softc *sc)
 		if (bcmp(sc->sc_fb_addr + sc->sc_sync_off, sc->sc_fb_copy + sc->sc_sync_off, delta) != 0) {
 			struct udl_cmd_buf *cb;
 
-			cb = udl_cmd_buf_alloc(sc, M_NOWAIT);
+			cb = udl_cmd_buf_alloc_locked(sc, M_NOWAIT);
 			if (cb == NULL)
 				goto done;
 			memcpy(sc->sc_fb_copy + sc->sc_sync_off,
@@ -518,7 +527,7 @@ tr_setup:
 		for (i = 0; i != UDL_CMD_MAX_FRAMES; i++) {
 			cb = TAILQ_FIRST(&sc->sc_cmd_buf_pending);
 			if (cb == NULL) {
-				cb = udl_fb_synchronize(sc);
+				cb = udl_fb_synchronize_locked(sc);
 				if (cb == NULL)
 					break;
 			} else {
