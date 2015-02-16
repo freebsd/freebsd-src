@@ -1555,6 +1555,7 @@ cpususpend_handler(void)
 		cpu_ops.cpu_resume();
 
 	/* Resume MCA and local APIC */
+	lapic_xapic_mode();
 	mca_resume();
 	lapic_setup(0);
 
