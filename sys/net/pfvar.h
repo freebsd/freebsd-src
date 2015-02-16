@@ -1574,7 +1574,7 @@ int	pf_test6(int, struct ifnet *, struct mbuf **, struct inpcb *);
 void	pf_poolmask(struct pf_addr *, struct pf_addr*,
 	    struct pf_addr *, struct pf_addr *, u_int8_t);
 void	pf_addr_inc(struct pf_addr *, sa_family_t);
-int	pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag);
+int	pf_refragment6(struct ifnet *, struct mbuf **, struct m_tag *);
 #endif /* INET6 */
 
 u_int32_t	pf_new_isn(struct pf_state *);
@@ -1589,7 +1589,6 @@ int	pf_match_addr_range(struct pf_addr *, struct pf_addr *,
 int	pf_match_port(u_int8_t, u_int16_t, u_int16_t, u_int16_t);
 
 void	pf_normalize_init(void);
-int	pf_refragment6(struct ifnet *, struct mbuf **, struct m_tag *mtag);
 void	pf_normalize_cleanup(void);
 int	pf_normalize_ip(struct mbuf **, int, struct pfi_kif *, u_short *,
 	    struct pf_pdesc *);
