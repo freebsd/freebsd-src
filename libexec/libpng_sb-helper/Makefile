@@ -40,16 +40,6 @@ WANT_DUMP=	yes
 
 NO_SHARED=	yes
 
-FILESOWN=       ${LIBOWN}
-FILESGRP=       ${LIBGRP}
-FILESMODE=      ${LIBMODE}
-FILESDIR=       ${LIBEXECDIR}
-FILES=		libpng_sb-helper.bin
-CLEANFILES=	libpng_sb-helper.bin
-
-libpng_sb-helper.bin: libpng_sb-helper
-	objcopy -S -O binary ${.ALLSRC} ${.TARGET}
-
 .include <bsd.prog.mk>
 
 CFLAGS+=	${CFLAGS.${.IMPSRC:T}}

@@ -48,20 +48,6 @@ LIBADD=	c_cheri
 
 NO_SHARED=	yes
 
-FILESOWN=       ${LIBOWN}
-FILESGRP=       ${LIBGRP}
-FILESMODE=      ${LIBMODE}
-FILESDIR=       ${LIBEXECDIR}
-FILES=		tcpdump-helper.bin
-CLEANFILES=	tcpdump-helper.bin
-
-chsbrt.o:
-	${AS} -G0 -o ${.TARGET} ${.ALLSRC}
-
-tcpdump-helper.bin: tcpdump-helper
-	objcopy -S -O binary ${.ALLSRC} ${.TARGET}
-	@echo created ${.TARGET}
-
 .PATH: ${.CURDIR}/${MACHINE_ARCH}
 .PATH: ${.CURDIR}/../../lib/libc/${MACHINE}/string
 .PATH: ${.CURDIR}/../../lib/libc/string

@@ -17,14 +17,4 @@ WANT_DUMP=	yes
 
 NO_SHARED=	yes
 
-FILESOWN=       ${LIBOWN}
-FILESGRP=       ${LIBGRP}
-FILESMODE=      ${LIBMODE}
-FILESDIR=       ${LIBEXECDIR}
-FILES=		cheri_helloworld-helper.bin
-CLEANFILES=	cheri_helloworld-helper.bin
-
-cheri_helloworld-helper.bin: cheri_helloworld-helper
-	objcopy -S -O binary ${.ALLSRC} ${.TARGET}
-
 .include <bsd.prog.mk>

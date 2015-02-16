@@ -37,16 +37,6 @@ NO_SHARED=	yes
 
 WARNS=4
 
-FILESOWN=       ${LIBOWN}
-FILESGRP=       ${LIBGRP}
-FILESMODE=      ${LIBMODE}
-FILESDIR=       ${LIBEXECDIR}
-FILES=		${PROG}.bin
-CLEANFILES=	${PROG}.bin
-
-${PROG}.bin: ${PROG}
-	objcopy -S -O binary ${.ALLSRC} ${.TARGET}
-
 .PATH: ${.CURDIR}/${MACHINE_ARCH}
 
 .include <bsd.prog.mk>

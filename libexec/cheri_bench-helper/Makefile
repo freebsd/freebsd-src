@@ -18,14 +18,4 @@ WANT_DUMP=	yes
 
 NO_SHARED=	yes
 
-FILESOWN=       ${LIBOWN}
-FILESGRP=       ${LIBGRP}
-FILESMODE=      ${LIBMODE}
-FILESDIR=       ${LIBEXECDIR}
-FILES=		cheri_bench-helper.bin
-CLEANFILES=	cheri_bench-helper.bin
-
-cheri_bench-helper.bin: cheri_bench-helper
-	objcopy -S -O binary ${.ALLSRC} ${.TARGET}
-
 .include <bsd.prog.mk>

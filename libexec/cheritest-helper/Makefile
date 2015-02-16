@@ -27,16 +27,6 @@ WANT_DUMP=	yes
 
 NO_SHARED=	yes
 
-FILESOWN=       ${LIBOWN}
-FILESGRP=       ${LIBGRP}
-FILESMODE=      ${LIBMODE}
-FILESDIR=       ${LIBEXECDIR}
-FILES=		cheritest-helper.bin
-CLEANFILES=	cheritest-helper.bin
-
-cheritest-helper.bin: cheritest-helper
-	objcopy -S -O binary ${.ALLSRC} ${.TARGET}
-
 .include <bsd.prog.mk>
 
 CFLAGS+=	${CFLAGS.${.IMPSRC:T}}

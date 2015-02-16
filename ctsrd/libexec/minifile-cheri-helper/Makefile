@@ -33,17 +33,7 @@ WARNS=4
 #
 NO_WERROR=	yes
 
-FILESOWN=       ${LIBOWN}
-FILESGRP=       ${LIBGRP}
-FILESMODE=      ${LIBMODE}
-FILESDIR=       ${LIBEXECDIR}
-FILES=		${PROG}.bin ${PROG}.dump
-CLEANFILES+=	${PROG}.bin ${PROG}.dump
-
 chsbrt.o:
 	${AS} -G0 -o ${.TARGET} ${.ALLSRC}
-
-${PROG}.bin: ${PROG}
-	${OBJCOPY} -S -O binary ${.ALLSRC} ${.TARGET}
 
 .include <bsd.prog.mk>
