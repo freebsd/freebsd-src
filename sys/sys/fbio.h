@@ -115,6 +115,7 @@ struct fb_info;
 
 typedef int fb_enter_t(void *priv);
 typedef int fb_leave_t(void *priv);
+typedef int fb_setblankmode_t(void *priv, int mode);
 
 struct fb_info {
 	/* Raw copy of fbtype. Do not change. */
@@ -129,6 +130,7 @@ struct fb_info {
 
 	fb_enter_t	*enter;
 	fb_leave_t	*leave;
+	fb_setblankmode_t *setblankmode;
 
 	intptr_t	fb_pbase;	/* For FB mmap. */
 	intptr_t	fb_vbase;	/* if NULL, use fb_write/fb_read. */
