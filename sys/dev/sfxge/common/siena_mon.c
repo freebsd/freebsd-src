@@ -138,13 +138,13 @@ siena_mon_decode_stats(
 			efx_dword_t dword;
 			EFSYS_MEM_READD(esmp, 4 * mc_sensor, &dword);
 			emsvp->emsv_value =
-				(uint16_t)EFX_DWORD_FIELD(
-					dword,
-					MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_VALUE);
+			    (uint16_t)EFX_DWORD_FIELD(
+				dword,
+				MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_VALUE);
 			emsvp->emsv_state =
-				(uint16_t)EFX_DWORD_FIELD(
-					dword,
-					MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_STATE);
+			    (uint16_t)EFX_DWORD_FIELD(
+				dword,
+				MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_STATE);
 		}
 	}
 
