@@ -89,7 +89,8 @@ efx_ev_rx_not_ok(
 	if (EFX_QWORD_FIELD(*eqp, FSF_AZ_RX_EV_TOBE_DISC) != 0) {
 		EFX_EV_QSTAT_INCR(eep, EV_RX_TOBE_DISC);
 		EFSYS_PROBE(tobe_disc);
-		/* Assume this is a unicast address mismatch, unless below
+		/*
+		 * Assume this is a unicast address mismatch, unless below
 		 * we find either FSF_AZ_RX_EV_ETH_CRC_ERR or
 		 * EV_RX_PAUSE_FRM_ERR is set.
 		 */
@@ -102,7 +103,8 @@ efx_ev_rx_not_ok(
 		(*flagsp) |= EFX_DISCARD;
 
 #if (EFSYS_OPT_RX_HDR_SPLIT || EFSYS_OPT_RX_SCATTER)
-		/* Lookout for payload queue ran dry errors and ignore them.
+		/*
+		 * Lookout for payload queue ran dry errors and ignore them.
 		 *
 		 * Sadly for the header/data split cases, the descriptor
 		 * pointer in this event refers to the header queue and

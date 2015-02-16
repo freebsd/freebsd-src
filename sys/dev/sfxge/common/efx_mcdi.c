@@ -44,7 +44,8 @@ __FBSDID("$FreeBSD$");
 #define	MCDI_P1_REBOOT_OFST	0x1fe
 #define	MCDI_P2_REBOOT_OFST	0x1ff
 
-/* A reboot/assertion causes the MCDI status word to be set after the
+/*
+ * A reboot/assertion causes the MCDI status word to be set after the
  * command word is set or a REBOOT event is sent. If we notice a reboot
  * via these mechanisms then wait 10ms for the status word to be set.
  */
@@ -459,7 +460,8 @@ efx_mcdi_ev_death(
 		++emip->emi_aborted;
 	}
 
-	/* Since we're running in parallel with a request, consume the
+	/*
+	 * Since we're running in parallel with a request, consume the
 	 * status word before dropping the lock.
 	 */
 	if (rc == EIO || rc == EINTR) {
