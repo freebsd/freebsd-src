@@ -182,7 +182,7 @@ udl_get_fb_width(struct udl_softc *sc)
 {
 	unsigned i = sc->sc_cur_mode;
 
-	return (udl_modes[i].vdisplay);
+	return (udl_modes[i].hdisplay);
 }
 
 static uint32_t
@@ -190,7 +190,7 @@ udl_get_fb_height(struct udl_softc *sc)
 {
 	unsigned i = sc->sc_cur_mode;
 
-	return (udl_modes[i].hdisplay);
+	return (udl_modes[i].vdisplay);
 }
 
 static uint32_t
