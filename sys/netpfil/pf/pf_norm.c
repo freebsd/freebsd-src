@@ -678,6 +678,8 @@ pf_reassemble6(struct mbuf **m0, struct ip6_hdr *ip6, struct ip6_frag *fraghdr,
 	struct pf_frent		*frent;
 	struct pf_fragment	*frag;
 	struct pf_fragment_cmp	 key;
+	struct m_tag		*mtag;
+	struct pf_fragment_tag	*ftag;
 	int			 off;
 	uint16_t		 total, maxlen;
 	uint8_t			 proto;
@@ -749,6 +751,15 @@ pf_reassemble6(struct mbuf **m0, struct ip6_hdr *ip6, struct ip6_frag *fraghdr,
 		m = *m0;
 		m->m_pkthdr.len = plen;
 	}
+
+	if ((mtag = m_tag_get(PF_REASSEMBLED, sizeof(struct pf_fragment_tag),
+	    M_NOWAIT)) == NULL)
+		goto fail;
+	ftag = (struct pf_fragment_tag *)(mtag + 1);
+	ftag->ft_hdrlen = hdrlen;
+	ftag->ft_extoff = extoff;
+	ftag->ft_maxlen = maxlen;
+	m_tag_prepend(m, mtag);
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	ip6->ip6_plen = htons(hdrlen - sizeof(struct ip6_hdr) + total);
@@ -1081,6 +1092,75 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 
 	m_freem(m);
 	return (NULL);
+}
+
+int
+pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag)
+{
+	struct mbuf		*m = *m0, *t;
+	struct pf_fragment_tag	*ftag = (struct pf_fragment_tag *)(mtag + 1);
+	struct pf_pdesc		 pd;
+	uint16_t		 hdrlen, extoff, maxlen;
+	uint8_t			 proto;
+	int			 error, action;
+
+	hdrlen = ftag->ft_hdrlen;
+	extoff = ftag->ft_extoff;
+	maxlen = ftag->ft_maxlen;
+	m_tag_delete(m, mtag);
+	mtag = NULL;
+	ftag = NULL;
+
+	if (extoff) {
+		int off;
+
+		/* Use protocol from next field of last extension header */
+		m = m_getptr(m, extoff + offsetof(struct ip6_ext, ip6e_nxt),
+		    &off);
+		KASSERT((m != NULL), ("pf_refragment6: short mbuf chain"));
+		proto = *(mtod(m, caddr_t) + off);
+		*(mtod(m, char *) + off) = IPPROTO_FRAGMENT;
+		m = *m0;
+	} else {
+		struct ip6_hdr *hdr;
+
+		hdr = mtod(m, struct ip6_hdr *);
+		proto = hdr->ip6_nxt;
+		hdr->ip6_nxt = IPPROTO_FRAGMENT;
+	}
+
+	/*
+	 * Maxlen may be less than 8 if there was only a single
+	 * fragment.  As it was fragmented before, add a fragment
+	 * header also for a single fragment.  If total or maxlen
+	 * is less than 8, ip6_fragment() will return EMSGSIZE and
+	 * we drop the packet.
+	 */
+	error = ip6_fragment(ifp, m, hdrlen, proto, maxlen);
+	m = (*m0)->m_nextpkt;
+	(*m0)->m_nextpkt = NULL;
+	if (error == 0) {
+		/* The first mbuf contains the unfragmented packet. */
+		m_freem(*m0);
+		*m0 = NULL;
+		action = PF_PASS;
+	} else {
+		/* Drop expects an mbuf to free. */
+		DPFPRINTF(("refragment error %d", error));
+		action = PF_DROP;
+	}
+	for (t = m; m; m = t) {
+		t = m->m_nextpkt;
+		m->m_nextpkt = NULL;
+		memset(&pd, 0, sizeof(pd));
+		pd.pf_mtag = pf_find_mtag(m);
+		if (error == 0)
+			ip6_forward(m, 0);
+		else
+			m_freem(m);
+	}
+
+	return (action);
 }
 
 int
