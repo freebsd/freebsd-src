@@ -148,9 +148,6 @@ static struct pf_fragment *pf_find_fragment(struct pf_fragment_cmp *key,
 struct pf_frent		*pf_create_fragment(u_short *);
 static int		pf_reassemble(struct mbuf **, struct ip *, int,
 			    u_short *);
-int			pf_reassemble6(struct mbuf **, struct ip6_hdr *,
-			    struct ip6_frag *, uint16_t, uint16_t, int,
-			    u_short *);
 static struct mbuf	*pf_fragcache(struct mbuf **, struct ip*,
 			    struct pf_fragment **, int, int, int *);
 static struct pf_fragment *pf_fillup_fragment(struct pf_fragment_cmp *,
@@ -161,6 +158,9 @@ struct mbuf		*pf_join_fragment(struct pf_fragment *);
 
 #endif /* INET */
 #ifdef INET6
+int			pf_reassemble6(struct mbuf **, struct ip6_hdr *,
+			    struct ip6_frag *, uint16_t, uint16_t, int,
+			    u_short *);
 static void		 pf_scrub_ip6(struct mbuf **, u_int8_t);
 #endif
 #define	DPFPRINTF(x) do {				\
@@ -1094,6 +1094,7 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 	return (NULL);
 }
 
+#ifdef INET6
 int
 pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag)
 {
@@ -1162,6 +1163,7 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag)
 
 	return (action);
 }
+#endif /* INET6 */
 
 int
 pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
