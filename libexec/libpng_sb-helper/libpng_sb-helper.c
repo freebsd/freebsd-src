@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Robert N. M. Watson
+ * Copyright (c) 2014-2015 Robert N. M. Watson
  * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
@@ -77,7 +77,7 @@ libpng_sb_read_callback(void *psp, png_bytep data, png_size_t length)
 {
 
 	cheri_invoke(global_system_object, LIBPNG_SB_USERFN_READ_CALLBACK,
-	    length, 0, 0, 0, 0, 0, 0,
+	    LIBPNG_SB_USERFN_READ_CALLBACK, length, 0, 0, 0, 0, 0, 0,
 	    psp, data,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
@@ -88,7 +88,7 @@ libpng_sb_info_callback(void *psp, png_infop info_ptr)
 {
 
 	cheri_invoke(global_system_object, LIBPNG_SB_USERFN_INFO_CALLBACK,
-	    0, 0, 0, 0, 0, 0, 0,
+	    LIBPNG_SB_USERFN_INFO_CALLBACK, 0, 0, 0, 0, 0, 0, 0,
 	    psp, info_ptr,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
@@ -100,7 +100,7 @@ libpng_sb_row_callback(void *psp, png_bytep new_row, png_uint_32 row_num,
 {
 
 	cheri_invoke(global_system_object, LIBPNG_SB_USERFN_ROW_CALLBACK,
-	    row_num, pass, 0, 0, 0, 0, 0,
+	    LIBPNG_SB_USERFN_ROW_CALLBACK, row_num, pass, 0, 0, 0, 0, 0,
 	    psp, new_row,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
@@ -111,7 +111,7 @@ libpng_sb_end_callback(void *psp, png_infop info_ptr)
 {
 
 	cheri_invoke(global_system_object, LIBPNG_SB_USERFN_END_CALLBACK,
-	    0, 0, 0, 0, 0, 0, 0,
+	    LIBPNG_SB_USERFN_END_CALLBACK, 0, 0, 0, 0, 0, 0, 0,
 	    psp, info_ptr,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());

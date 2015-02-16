@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2014 Robert N. M. Watson
+ * Copyright (c) 2012-2015 Robert N. M. Watson
  * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
@@ -52,11 +52,11 @@
 #include "cheritest-helper-internal.h"
 
 int	invoke(__capability void *sealedcodecap,
-	    __capability void *sealeddatacap,
+	    __capability void *sealeddatacap, register_t v0,
 	    register_t op, register_t arg, size_t len,
 	    __capability char *data_input, __capability char *data_output,
 	    struct cheri_object fd_object, struct zstream_proxy *zspp)
-	    __attribute__((cheri_ccall));
+	    __attribute__((cheri_ccall)); /* XXXRW: Will be ccheri_ccaller. */
 
 static int
 invoke_md5(size_t len, __capability char *data_input,
@@ -165,7 +165,7 @@ static int
 invoke_syscap(void)
 {
 
-	return (cheri_invoke(_cheri_system_object, 0, 0, 0, 0, 0, 0, 0, 0,
+	return (cheri_invoke(_cheri_system_object, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
 }
 
@@ -263,7 +263,7 @@ invoke_libcheri_userfn(register_t arg, size_t len)
 	 * Argument passed to the cheritest-helper method turns into the
 	 * method number for the underlying system class invocation.
 	 */
-	return (cheri_invoke(_cheri_system_object, arg, len, 0, 0, 0, 0, 0, 0,
+	return (cheri_invoke(_cheri_system_object, 0, arg, len, 0, 0, 0, 0, 0, 0,
 	    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
 }
 
@@ -277,6 +277,7 @@ invoke_libcheri_userfn_setstack(register_t arg)
 	 * the sandbox has a visible effect that can be tested for.
 	 */
 	v = (cheri_invoke(_cheri_system_object, CHERITEST_USERFN_SETSTACK,
+	    CHERITEST_USERFN_SETSTACK,
 	    arg, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	    NULL));
 	v += 10;
@@ -377,7 +378,7 @@ static volatile int zero = 0;
 int
 invoke(__capability void *sealedcodecap __unused,
     __capability void *sealeddatacap __unused,
-    register_t op, register_t arg, size_t len,
+    register_t v0 __unused, register_t op, register_t arg, size_t len,
     __capability char *data_input, __capability char *data_output,
     struct cheri_object fd_object, struct zstream_proxy* zspp)
 {

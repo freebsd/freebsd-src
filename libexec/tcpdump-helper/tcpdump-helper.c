@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2014 SRI International
- * Copyright (c) 2012-2014 Robert N. M. Watson
+ * Copyright (c) 2012-2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -926,7 +926,7 @@ invoke_dissector(void *func, u_int length, register_t arg2,
 
 	if (gpso != NULL &&
 	    cheri_getlen(gpso) != 0) {
-		if (0 != cheri_invoke(*gpso, op, length,
+		if (0 != cheri_invoke(*gpso, op, op, length,
 		    arg2, arg3, arg4, arg5, 0, 0,
 		    ndo, NULL, NULL, (void *)bp,
 		    cheri_incbase(gpso, sizeof(struct cheri_object)),

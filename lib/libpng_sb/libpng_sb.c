@@ -76,17 +76,18 @@ struct sb_info_struct {
 static struct sandbox_class *classp;
 
 static register_t
-libpng_sb_userfn_handler(register_t methodnum, register_t a1, register_t a2,
-    register_t a3 __unused,
+libpng_sb_userfn_handler(register_t v0, register_t methodnum, register_t a1,
+    register_t a2, register_t a3 __unused,
     register_t a4 __unused, register_t a5 __unused, register_t a6 __unused,
     register_t a7 __unused, struct cheri_object system_object __unused,
     __capability void *void_cpsp, __capability void *c4,
     __capability void *c5 __unused, __capability void *c6 __unused,
     __capability void *c7 __unused) __attribute__((cheri_ccall));
+    /* XXXRW: Will be ccheri_ccaller. */
 
 static register_t
-libpng_sb_userfn_handler(register_t methodnum, register_t a1, register_t a2,
-    register_t a3 __unused,
+libpng_sb_userfn_handler(register_t v0 __unused, register_t methodnum,
+    register_t a1, register_t a2, register_t a3 __unused,
     register_t a4 __unused, register_t a5 __unused, register_t a6 __unused,
     register_t a7 __unused, struct cheri_object system_object __unused,
     __capability void *void_cpsp, __capability void *c4,

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Robert N. M. Watson
+ * Copyright (c) 2014-2015 Robert N. M. Watson
  * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
@@ -129,13 +129,15 @@ cheri_system_calloc(size_t count, size_t size,
  * 1. one global invocation stack, so no concurrency.
  * 2. one global data object, so no support for multiple data capabilities.
  */
-register_t	cheri_system_enter(register_t methodnum, register_t a1,
+register_t	cheri_system_enter(register_t v0,
+		    register_t methodnum, register_t a1,
 		    register_t a2, register_t a3, register_t a4,
 		    register_t a5, register_t a6, register_t a7,
 		    struct cheri_object system_object,
 		    __capability void *c3, __capability void *c4,
 		    __capability void *c5, __capability void *c6,
 		    __capability void *c7) __attribute__((cheri_ccall));
+		    /* XXXRW: Will be cheri_ccallee. */
 
 static cheri_system_user_fn_t	cheri_system_user_fn_ptr;
 
@@ -153,8 +155,9 @@ cheri_system_user_register_fn(cheri_system_user_fn_t fn_ptr)
  * cheri_system_enter() itself: sandbox invocations turn up here.
  */
 register_t
-cheri_system_enter(register_t methodnum, register_t a1, register_t a2,
-    register_t a3, register_t a4, register_t a5, register_t a6, register_t a7,
+cheri_system_enter(register_t v0 __unused, register_t methodnum,
+    register_t a1, register_t a2, register_t a3, register_t a4, register_t a5,
+    register_t a6, register_t a7,
     struct cheri_object system_object, __capability void *c3,
     __capability void *c4, __capability void *c5, __capability void *c6,
     __capability void *c7)
@@ -220,8 +223,8 @@ cheri_system_enter(register_t methodnum, register_t a1, register_t a2,
 		if (methodnum >= CHERI_SYSTEM_USER_BASE &&
 		    methodnum < CHERI_SYSTEM_USER_CEILING &&
 		    cheri_system_user_fn_ptr != NULL)
-			return (cheri_system_user_fn_ptr(methodnum, a1, a2, a3,
-			    a4, a5, a6, a7, system_object, c3, c4, c5, c6,
+			return (cheri_system_user_fn_ptr(v0, methodnum, a1, a2,
+			    a3, a4, a5, a6, a7, system_object, c3, c4, c5, c6,
 			    c7));
 		return (-1);
 	}

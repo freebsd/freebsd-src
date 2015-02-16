@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2014 Robert N. M. Watson
+ * Copyright (c) 2012-2015 Robert N. M. Watson
  * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
@@ -119,15 +119,17 @@ test_sandbox_md5(const struct cheri_test *ctp __unused)
 
 static register_t cheritest_libcheri_userfn_handler(register_t, register_t,
     register_t, register_t, register_t, register_t, register_t, register_t,
+    register_t,
     struct cheri_object, __capability void *, __capability void *,
     __capability void *, __capability void *, __capability void *)
-    __attribute__((cheri_ccall));
+    __attribute__((cheri_ccall));	/* XXXRW: Will be ccheri_ccaller. */
 
 static register_t
-cheritest_libcheri_userfn_handler(register_t methodnum, register_t arg,
-    register_t a2 __unused, register_t a3 __unused,
-    register_t a4 __unused, register_t a5 __unused, register_t a6 __unused,
-    register_t a7 __unused, struct cheri_object system_object __unused,
+cheritest_libcheri_userfn_handler(register_t v0 __unused,
+    register_t methodnum, register_t arg, register_t a2 __unused,
+    register_t a3 __unused, register_t a4 __unused, register_t a5 __unused,
+    register_t a6 __unused, register_t a7 __unused,
+    struct cheri_object system_object __unused,
     __capability void *c3 __unused, __capability void *c4 __unused,
     __capability void *c5 __unused, __capability void *c6 __unused,
     __capability void *c7 __unused)

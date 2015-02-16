@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2014 Robert N. M. Watson
+ * Copyright (c) 2012-2015 Robert N. M. Watson
  * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
@@ -155,7 +155,7 @@ test_nofault_ccall_creturn(const struct cheri_test *ctp __unused)
 	    sandbox_creturn_typecap);
 	datacap = datacap_create(sandbox_creturn_basecap,
 	    sandbox_creturn_typecap);
-	cheritest_ccall(codecap, datacap);
+	cheritest_ccall(0, codecap, datacap);
 	cheritest_success();
 }
 
@@ -171,7 +171,7 @@ test_nofault_ccall_nop_creturn(const struct cheri_test *ctp __unused)
 	    sandbox_nop_creturn_typecap);
 	datacap = datacap_create(sandbox_nop_creturn_basecap,
 	    sandbox_nop_creturn_typecap);
-	cheritest_ccall(codecap, datacap);
+	cheritest_ccall(0, codecap, datacap);
 	cheritest_success();
 }
 
@@ -192,7 +192,7 @@ test_nofault_ccall_dli_creturn(const struct cheri_test *ctp __unused)
 	    sandbox_dli_creturn_typecap);
 	datacap = datacap_create(sandbox_dli_creturn_basecap,
 	    sandbox_dli_creturn_typecap);
-	v0 = cheritest_ccall(codecap, datacap);
+	v0 = cheritest_ccall(0, codecap, datacap);
 	if (v0 != DLI_RETVAL)
 		cheritest_failure_errx("Invalid return value (got: 0x%jx; "
 		    "expected 0x%jx)", v0, DLI_RETVAL);
@@ -229,7 +229,7 @@ test_fault_ccall_code_untagged(const struct cheri_test *ctp __unused)
 	codecap = cheri_cleartag(codecap);
 	if (cheri_gettag(codecap) != 0)
 		cheritest_failure_errx("cheri_cleartag failed");
-	cheritest_ccall(codecap, datacap);
+	cheritest_ccall(0, codecap, datacap);
 	cheritest_failure_errx("ccall returned successfully");
 }
 
@@ -249,7 +249,7 @@ test_fault_ccall_data_untagged(const struct cheri_test *ctp __unused)
 	datacap = cheri_cleartag(datacap);
 	if (cheri_gettag(datacap) != 0)
 		cheritest_failure_errx("cheri_cleartag failed");
-	cheritest_ccall(codecap, datacap);
+	cheritest_ccall(0, codecap, datacap);
 	cheritest_failure_errx("ccall returned successfully");
 }
 
@@ -267,7 +267,7 @@ test_fault_ccall_code_unsealed(const struct cheri_test *ctp __unused)
 
 	if (cheri_getsealed(codecap) != 0)
 		cheritest_failure_errx("code capability was sealed");
-	cheritest_ccall(codecap, datacap);
+	cheritest_ccall(0, codecap, datacap);
 	cheritest_failure_errx("ccall returned successfully");
 }
 
@@ -285,7 +285,7 @@ test_fault_ccall_data_unsealed(const struct cheri_test *ctp __unused)
 
 	if (cheri_getsealed(datacap) != 0)
 		cheritest_failure_errx("data capability was sealed");
-	cheritest_ccall(codecap, datacap);
+	cheritest_ccall(0, codecap, datacap);
 	cheritest_failure_errx("ccall returned successfully");
 }
 
@@ -304,7 +304,7 @@ test_fault_ccall_typemismatch(const struct cheri_test *ctp __unused)
 
 	if (cheri_gettype(codecap) == cheri_gettype(datacap))
 		cheritest_failure_errx("code and data types match");
-	cheritest_ccall(codecap, datacap);
+	cheritest_ccall(0, codecap, datacap);
 	cheritest_failure_errx("ccall returned successfully");
 }
 
@@ -321,7 +321,7 @@ test_fault_ccall_code_noexecute(const struct cheri_test *ctp __unused)
 
 	if ((cheri_getperm(codecap) & CHERI_PERM_EXECUTE) != 0)
 		cheritest_failure_errx("code capability has execute perm");
-	cheritest_ccall(codecap, datacap);
+	cheritest_ccall(0, codecap, datacap);
 	cheritest_failure_errx("ccall returned successfully");
 }
 
@@ -339,6 +339,6 @@ test_fault_ccall_data_execute(const struct cheri_test *ctp __unused)
 	if ((cheri_getperm(datacap) & CHERI_PERM_EXECUTE) == 0)
 		cheritest_failure_errx("code capability does not have "
 		    "execute perm");
-	cheritest_ccall(codecap, datacap);
+	cheritest_ccall(0, codecap, datacap);
 	cheritest_failure_errx("ccall returned successfull");
 }

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Robert N. M. Watson
+ * Copyright (c) 2014-2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -291,14 +291,16 @@ _cheri_fd_write_c(__capability const void *buf_c)
  * XXXRW: temporarily replaced __unused struct cheri_object co with capability
  * pointers to try to avoid a compiler bug.
  */
-struct cheri_fd_ret	cheri_fd_enter(register_t methodnum, register_t a1,
-			    register_t a2, struct cheri_object co,
+struct cheri_fd_ret	cheri_fd_enter(register_t v0, register_t methodnum,
+			    register_t a1, register_t a2,
+			    struct cheri_object co,
 			    __capability void *c3)
 			    __attribute__((cheri_ccall));
+			    /* XXXRW: Will be ccheri_ccaller. */
 
 struct cheri_fd_ret
-cheri_fd_enter(register_t methodnum, register_t a1, register_t a2,
-    struct cheri_object co __unused, __capability void *c3)
+cheri_fd_enter(register_t v0 __unused, register_t methodnum, register_t a1,
+    register_t a2, struct cheri_object co __unused, __capability void *c3)
 {
 	struct cheri_fd_ret ret;
 
