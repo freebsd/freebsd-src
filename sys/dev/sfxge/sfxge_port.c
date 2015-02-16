@@ -91,16 +91,15 @@ sfxge_mac_stat_handler(SYSCTL_HANDLER_ARGS)
 	struct sfxge_softc *sc = arg1;
 	unsigned int id = arg2;
 	int rc;
+	uint64_t val;
 
 	SFXGE_PORT_LOCK(&sc->port);
-	if ((rc = sfxge_mac_stat_update(sc)) != 0)
-		goto out;
-
-	rc = SYSCTL_OUT(req,
-			(uint64_t *)sc->port.mac_stats.decode_buf + id,
-			sizeof(uint64_t));
-out:
+	if ((rc = sfxge_mac_stat_update(sc)) == 0)
+		val = ((uint64_t *)sc->port.mac_stats.decode_buf)[id];
 	SFXGE_PORT_UNLOCK(&sc->port);
+
+	if (rc == 0)
+		rc = SYSCTL_OUT(req, &val, sizeof(val));
 	return (rc);
 }
 
@@ -173,28 +172,29 @@ sfxge_port_wanted_fc_handler(SYSCTL_HANDLER_ARGS)
 	sc = arg1;
 	port = &sc->port;
 
-	SFXGE_PORT_LOCK(port);
-
 	if (req->newptr != NULL) {
 		if ((error = SYSCTL_IN(req, &fcntl, sizeof(fcntl))) != 0)
-			goto out;
+			return (error);
 
-		if (port->wanted_fc == fcntl)
-			goto out;
+		SFXGE_PORT_LOCK(port);
 
-		port->wanted_fc = fcntl;
+		if (port->wanted_fc != fcntl) {
+			if (port->init_state == SFXGE_PORT_STARTED)
+				error = efx_mac_fcntl_set(sc->enp,
+							  port->wanted_fc,
+							  B_TRUE);
+			if (error == 0)
+				port->wanted_fc = fcntl;
+		}
 
-		if (port->init_state != SFXGE_PORT_STARTED)
-			goto out;
-
-		error = efx_mac_fcntl_set(sc->enp, port->wanted_fc, B_TRUE);
+		SFXGE_PORT_UNLOCK(port);
 	} else {
-		error = SYSCTL_OUT(req, &port->wanted_fc,
-				   sizeof(port->wanted_fc));
-	}
+		SFXGE_PORT_LOCK(port);
+		fcntl = port->wanted_fc;
+		SFXGE_PORT_UNLOCK(port);
 
-out:
-	SFXGE_PORT_UNLOCK(port);
+		error = SYSCTL_OUT(req, &fcntl, sizeof(fcntl));
+	}
 
 	return (error);
 }
@@ -205,7 +205,6 @@ sfxge_port_link_fc_handler(SYSCTL_HANDLER_ARGS)
 	struct sfxge_softc *sc;
 	struct sfxge_port *port;
 	unsigned int wanted_fc, link_fc;
-	int error;
 
 	sc = arg1;
 	port = &sc->port;
@@ -215,10 +214,9 @@ sfxge_port_link_fc_handler(SYSCTL_HANDLER_ARGS)
 		efx_mac_fcntl_get(sc->enp, &wanted_fc, &link_fc);
 	else
 		link_fc = 0;
-	error = SYSCTL_OUT(req, &link_fc, sizeof(link_fc));
 	SFXGE_PORT_UNLOCK(port);
 
-	return (error);
+	return (SYSCTL_OUT(req, &link_fc, sizeof(link_fc)));
 }
 
 #endif /* SFXGE_HAVE_PAUSE_MEDIAOPTS */
@@ -499,16 +497,15 @@ sfxge_phy_stat_handler(SYSCTL_HANDLER_ARGS)
 	struct sfxge_softc *sc = arg1;
 	unsigned int id = arg2;
 	int rc;
+	uint32_t val;
 
 	SFXGE_PORT_LOCK(&sc->port);
-	if ((rc = sfxge_phy_stat_update(sc)) != 0)
-		goto out;
-
-	rc = SYSCTL_OUT(req,
-			(uint32_t *)sc->port.phy_stats.decode_buf + id,
-			sizeof(uint32_t));
-out:
+	if ((rc = sfxge_phy_stat_update(sc)) == 0)
+		val = ((uint32_t *)sc->port.phy_stats.decode_buf)[id];
 	SFXGE_PORT_UNLOCK(&sc->port);
+
+	if (rc == 0)
+		rc = SYSCTL_OUT(req, &val, sizeof(val));
 	return (rc);
 }
 
