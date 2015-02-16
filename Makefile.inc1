@@ -929,7 +929,7 @@ packageworld:
 	    @${DESTDIR}/${DISTDIR}/${dist}.debug.meta
 . else
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvJfL ${DESTDIR}/${DISTDIR}/${dist}-dbg.txz \
+	    tar cvJLf ${DESTDIR}/${DISTDIR}/${dist}-dbg.txz \
 	    usr/lib/debug
 . endif
 .endfor
