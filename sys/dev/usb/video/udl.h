@@ -30,7 +30,7 @@
 #define	UDL_CMD_MAX_DATA_SIZE	512	/* bytes */
 #define	UDL_CMD_MAX_HEAD_SIZE	16	/* bytes */
 #define	UDL_CMD_MAX_PIXEL_COUNT	((UDL_CMD_MAX_DATA_SIZE - UDL_CMD_MAX_HEAD_SIZE) / 2)
-#define	UDL_CMD_MAX_BUFFERS	2048	/* units */
+#define	UDL_CMD_MAX_BUFFERS	(3 * UDL_CMD_MAX_FRAMES)
 #define	UDL_FONT_HEIGHT		16	/* pixels */
 #define	UDL_MAX_MODES		25	/* units */
 
