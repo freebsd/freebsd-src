@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2014 Robert N. M. Watson
+ * Copyright (c) 2012-2015 Robert N. M. Watson
  * Copyright (c) 2012-2014 Michael Roe
  * All rights reserved.
  *
@@ -388,7 +388,6 @@ ccall_set_pc:
 ccall_clear_regs:
 #if !defined(CPU_CHERI_HW_RCLEAR)
 	li		AT, 0
-	li		v0, 0
 	li		v1, 0
 	/* $a0 handled by compiler. */
 	/* $a1 handled by compiler. */
