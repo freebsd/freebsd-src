@@ -270,6 +270,7 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 			initializecpu();
 			PCPU_SET(switchtime, 0);
 			PCPU_SET(switchticks, ticks);
+			lapic_xapic_mode();
 #ifdef SMP
 			if (!CPU_EMPTY(&suspcpus))
 				acpi_wakeup_cpus(sc);
