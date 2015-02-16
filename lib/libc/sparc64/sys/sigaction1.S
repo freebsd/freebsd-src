@@ -29,7 +29,8 @@ __FBSDID("$FreeBSD$");
 
 #include "SYS.h"
 
-_SYSENTRY(sigaction)
+	WEAK_REFERENCE(__sys_sigaction, _sigaction)
+ENTRY(__sys_sigaction)
 	PIC_PROLOGUE(%o3, %o4)
 	SET(sigcode_installed, %o4, %o3)
 	lduw	[%o3], %o4
@@ -44,6 +45,6 @@ _SYSENTRY(sigaction)
 1:	_SYSCALL(sigaction)
 	retl
 	 nop
-_SYSEND(sigaction)
+END(__sys_sigaction)
 
 	.comm	sigcode_installed, 4, 4
