@@ -1206,6 +1206,30 @@ ip6_insertfraghdr(struct mbuf *m0, struct mbuf *m, int hlen,
 	return (0);
 }
 
+int
+ip6_deletefraghdr(struct mbuf *m, int offset, int wait)
+{
+	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
+	struct mbuf *t;
+
+	/* Delete frag6 header. */
+	if (m->m_len >= offset + sizeof(struct ip6_frag)) {
+		/* This is the only possible case with !PULLDOWN_TEST. */
+		bcopy(ip6, (char *)ip6 + sizeof(struct ip6_frag),
+		    offset);
+		m->m_data += sizeof(struct ip6_frag);
+		m->m_len -= sizeof(struct ip6_frag);
+	} else {
+		/* This comes with no copy if the boundary is on cluster. */
+		if ((t = m_split(m, offset, wait)) == NULL)
+			return (ENOMEM);
+		m_adj(t, sizeof(struct ip6_frag));
+		m_cat(m, t);
+	}
+
+	return (0);
+}
+
 static int
 ip6_getpmtu(struct route_in6 *ro_pmtu, struct route_in6 *ro,
     struct ifnet *ifp, struct in6_addr *dst, u_long *mtup,
