@@ -33,8 +33,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 
 20150217:
 	If you are running a -CURRENT kernel since r273872 (Oct 30th, 2014),
-	but before r278907, the RNG was not seeded properly.  Immediately
-	upgrade the kernel to r278907 or later and regenerate any keys (e.g.
+	but before r278927, the RNG was not seeded properly.  Immediately
+	upgrade the kernel to r278927 or later and regenerate any keys (e.g.
 	ssh keys or openssl keys) that were generated w/ a kernel from that
 	range.  This does not effect programs that directly used /dev/random
 	or /dev/urandom.  All userland uses of arc4random(3) are effected.
