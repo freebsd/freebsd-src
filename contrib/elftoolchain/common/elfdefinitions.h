@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: elfdefinitions.h 3110 2014-12-20 08:32:46Z kaiwang27 $
+ * $Id: elfdefinitions.h 3149 2015-02-15 19:00:06Z emaste $
  */
 
 /*
@@ -1396,6 +1396,12 @@ _ELF_DEFINE_RELOC(R_386_8,		22)	\
 _ELF_DEFINE_RELOC(R_386_PC8,		23)
 
 /*
+ */
+#define	_ELF_DEFINE_AARCH64_RELOCATIONS()		\
+_ELF_DEFINE_RELOC(R_AARCH64_ABS64,		257)	\
+_ELF_DEFINE_RELOC(R_AARCH64_ABS32,		258)	\
+
+/*
  * These are the symbols used in the Sun ``Linkers and Loaders
  * Guide'', Document No: 817-1984-17.  See the X86_64 relocations list
  * below for the spellings used in the ELF specification.
@@ -1962,6 +1968,7 @@ _ELF_DEFINE_RELOC(R_X86_64_IRELATIVE,	37)
 
 #define	_ELF_DEFINE_RELOCATIONS()		\
 _ELF_DEFINE_386_RELOCATIONS()			\
+_ELF_DEFINE_AARCH64_RELOCATIONS()		\
 _ELF_DEFINE_AMD64_RELOCATIONS()			\
 _ELF_DEFINE_ARM_RELOCATIONS()			\
 _ELF_DEFINE_IA64_RELOCATIONS()			\
