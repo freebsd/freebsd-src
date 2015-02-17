@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: libdwarf.h 3064 2014-06-06 19:35:55Z kaiwang27 $
+ * $Id: libdwarf.h 3149 2015-02-15 19:00:06Z emaste $
  */
 
 #ifndef	_LIBDWARF_H_
@@ -439,6 +439,7 @@ enum Dwarf_ISA {
 	DW_ISA_SPARC,
 	DW_ISA_X86,
 	DW_ISA_X86_64,
+	DW_ISA_AARCH64,
 	DW_ISA_MAX
 };
 

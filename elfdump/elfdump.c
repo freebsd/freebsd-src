@@ -51,7 +51,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: elfdump.c 2728 2012-12-09 16:54:28Z kaiwang27 $");
+ELFTC_VCSID("$Id: elfdump.c 3146 2015-02-15 18:20:03Z emaste $");
 
 #if defined(ELFTC_NEED_ELF_NOTE_DEFINITION)
 #include "native-elf-format.h"
@@ -975,12 +975,11 @@ ac_detect_ar(int fd)
 	r = -1;
 	if ((a = archive_read_new()) == NULL)
 		return (0);
-	archive_read_support_compression_none(a);
 	archive_read_support_format_ar(a);
 	if (archive_read_open_fd(a, fd, 10240) == ARCHIVE_OK)
 		r = archive_read_next_header(a, &entry);
 	archive_read_close(a);
-	archive_read_finish(a);
+	archive_read_free(a);
 
 	return (r == ARCHIVE_OK);
 }
@@ -1005,7 +1004,6 @@ ac_print_ar(struct elfdump *ed, int fd)
 		err(EXIT_FAILURE, "lseek failed");
 	if ((a = archive_read_new()) == NULL)
 		errx(EXIT_FAILURE, "%s", archive_error_string(a));
-	archive_read_support_compression_none(a);
 	archive_read_support_format_ar(a);
 	AC(archive_read_open_fd(a, fd, 10240));
 	for(;;) {
@@ -1082,7 +1080,7 @@ ac_print_ar(struct elfdump *ed, int fd)
 			/* No need to continue if we only dump ARSYM. */
 			if (ed->flags & ONLY_ARSYM) {
 				AC(archive_read_close(a));
-				AC(archive_read_finish(a));
+				AC(archive_read_free(a));
 				return;
 			}
 			continue;
@@ -1102,7 +1100,7 @@ ac_print_ar(struct elfdump *ed, int fd)
 		free(buff);
 	}
 	AC(archive_read_close(a));
-	AC(archive_read_finish(a));
+	AC(archive_read_free(a));
 }
 
 #else  /* USE_LIBARCHIVE_AR */

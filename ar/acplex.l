@@ -34,7 +34,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: acplex.l 2130 2011-11-10 06:56:46Z jkoshy $");
+ELFTC_VCSID("$Id: acplex.l 3162 2015-02-15 21:43:41Z emaste $");
 
 #include "acpyacc.h"
 
@@ -49,6 +49,7 @@ int	yylex(void);
 
 %}
 
+%option nounput
 %option noyywrap
 
 %%

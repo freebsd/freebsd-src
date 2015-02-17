@@ -22,9 +22,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: nm.1 2377 2012-01-03 07:10:59Z jkoshy $
+.\" $Id: nm.1 3145 2015-02-15 18:04:37Z emaste $
 .\"
-.Dd January 3, 2012
+.Dd February 15, 2015
 .Os
 .Dt NM 1
 .Sh NAME
@@ -36,6 +36,7 @@
 .Op Fl -defined-only
 .Op Fl -demangle Ns Op = Ns style
 .Op Fl -dynamic
+.Op Fl -extern-only
 .Op Fl -help
 .Op Fl -line-numbers
 .Op Fl -no-demangle
@@ -107,6 +108,8 @@ is not specified, it is taken to be
 .It Fl -dynamic
 Only display dynamic symbols.
 This option is only meaningful for shared libraries.
+.It Fl -extern-only
+Only display information about global (external) symbols.
 .It Fl -help
 Display a help message and exit.
 .It Fl -format Ns = Ns Ar format
@@ -200,7 +203,8 @@ Only display information for global and static symbols.
 .It Fl f
 Produce full output (default).
 .It Fl g
-Only display information about global (external) symbols.
+Equivalent to specifying option
+.Fl -extern-only .
 .It Fl h
 Equivalent to specifying option
 .Fl -help .

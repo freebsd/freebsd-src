@@ -35,7 +35,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: sections.c 3134 2014-12-23 10:43:59Z kaiwang27 $");
+ELFTC_VCSID("$Id: sections.c 3150 2015-02-15 19:07:46Z emaste $");
 
 static void	add_gnu_debuglink(struct elfcopy *ecp);
 static uint32_t calc_crc32(const char *p, size_t len, uint32_t crc);
@@ -777,6 +777,8 @@ resync_sections(struct elfcopy *ecp)
 			continue;
 
 		/* Align section offset. */
+		if (s->align == 0)
+			s->align = 1;
 		if (off <= s->off) {
 			if (!s->loadable)
 				s->off = roundup(off, s->align);

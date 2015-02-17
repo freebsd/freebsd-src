@@ -32,7 +32,7 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_convert.m4 3009 2014-03-23 01:49:59Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_convert.m4 3158 2015-02-15 21:42:07Z emaste $");
 
 /* WARNING: GENERATED FROM __file__. */
 
@@ -1007,6 +1007,11 @@ _libelf_cvt_NOTE_tof(unsigned char *dst, size_t dsz, unsigned char *src,
 		descsz = en->n_descsz;
 		type = en->n_type;
 
+		sz = namesz;
+		ROUNDUP2(sz, 4U);
+		sz += descsz;
+		ROUNDUP2(sz, 4U);
+
 		SWAP_WORD(namesz);
 		SWAP_WORD(descsz);
 		SWAP_WORD(type);
@@ -1016,11 +1021,6 @@ _libelf_cvt_NOTE_tof(unsigned char *dst, size_t dsz, unsigned char *src,
 		WRITE_WORD(dst, type);
 
 		src += sizeof(Elf_Note);
-
-		ROUNDUP2(namesz, 4U);
-		ROUNDUP2(descsz, 4U);
-
-		sz = namesz + descsz;
 
 		if (count < sz)
 			sz = count;
