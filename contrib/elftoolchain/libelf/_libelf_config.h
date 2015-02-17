@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: _libelf_config.h 2287 2011-12-04 06:45:47Z jkoshy $
+ * $Id: _libelf_config.h 3143 2015-02-15 17:57:38Z emaste $
  */
 
 #ifdef	__DragonFly__
