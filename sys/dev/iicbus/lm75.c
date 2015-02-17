@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 
 /* LM75 registers. */
 #define	LM75_TEMP	0x0
+#define	LM75_TEMP_MASK		0xff80
+#define	LM75A_TEMP_MASK		0xffe0
 #define	LM75_CONF	0x1
 #define	LM75_CONF_FSHIFT	3
 #define	LM75_CONF_FAULT		0x18
@@ -331,20 +333,24 @@ lm75_temp_read(struct lm75_softc *sc, uint8_t reg, int *temp)
 {
 	uint8_t buf8[2];
 	uint16_t buf;
-	int t;
+	int neg, t;
 
 	if (lm75_read(sc->sc_dev, sc->sc_addr, reg, buf8, 2) < 0)
 		return (-1);
-
-	buf = (buf8[0] << 8) | (buf8[1] & 0xff);
-
+	buf = (uint16_t)((buf8[0] << 8) | (buf8[1] & 0xff));
 	/*
 	 * LM75 has a 9 bit ADC with resolution of 0.5 C per bit.
 	 * LM75A has an 11 bit ADC with resolution of 0.125 C per bit.
 	 * Temperature is stored with two's complement.
 	 */
-	if (buf & LM75_NEG_BIT)
-		buf = ~buf + 1;
+	neg = 0;
+	if (buf & LM75_NEG_BIT) {
+		if (sc->sc_hwtype == HWTYPE_LM75A)
+			buf = ~(buf & LM75A_TEMP_MASK) + 1;
+		else
+			buf = ~(buf & LM75_TEMP_MASK) + 1;
+		neg = 1;
+	}
 	*temp = ((int16_t)buf >> 8) * 10;
 	t = 0;
 	if (sc->sc_hwtype == HWTYPE_LM75A) {
@@ -357,7 +363,7 @@ lm75_temp_read(struct lm75_softc *sc, uint8_t reg, int *temp)
 		t += 500;
 	t /= 100;
 	*temp += t;
-	if (buf & LM75_NEG_BIT)
+	if (neg)
 		*temp = -(*temp);
 	*temp += TZ_ZEROC;
 
@@ -370,6 +376,7 @@ lm75_temp_write(struct lm75_softc *sc, uint8_t reg, int temp)
 	uint8_t buf8[3];
 	uint16_t buf;
 
+	temp = (temp - TZ_ZEROC) / 10;
 	if (temp > LM75_MAX_TEMP)
 		temp = LM75_MAX_TEMP;
 	if (temp < LM75_MIN_TEMP)
