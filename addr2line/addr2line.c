@@ -40,7 +40,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: addr2line.c 2185 2011-11-19 16:07:16Z jkoshy $");
+ELFTC_VCSID("$Id: addr2line.c 3148 2015-02-15 18:47:39Z emaste $");
 
 static struct option longopts[] = {
 	{"target" , required_argument, NULL, 'b'},
@@ -399,8 +399,10 @@ main(int argc, char **argv)
 		for (i = 0; i < argc; i++)
 			translate(dbg, argv[i]);
 	else
-		while (fgets(line, sizeof(line), stdin) != NULL)
+		while (fgets(line, sizeof(line), stdin) != NULL) {
 			translate(dbg, line);
+			fflush(stdout);
+		}
 
 	dwarf_finish(dbg, &de);
 

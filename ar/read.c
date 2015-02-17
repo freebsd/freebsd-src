@@ -39,7 +39,7 @@
 
 #include "ar.h"
 
-ELFTC_VCSID("$Id: read.c 3102 2014-10-29 21:09:01Z jkoshy $");
+ELFTC_VCSID("$Id: read.c 3163 2015-02-15 21:43:51Z emaste $");
 
 /*
  * Handle read modes: 'x', 't' and 'p'.
@@ -90,7 +90,8 @@ ar_read_archive(struct bsdar *bsdar, int mode)
 		else
 			bsdar->options &= ~AR_BSD;
 
-		name = archive_entry_pathname(entry);
+		if ((name = archive_entry_pathname(entry)) == NULL)
+			break;
 
 		/* Skip pseudo members. */
 		if (bsdar_is_pseudomember(bsdar, name))
