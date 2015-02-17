@@ -184,8 +184,16 @@ struct mbuf {
 	 * Compile-time assertions in uipc_mbuf.c test these values to ensure
 	 * that they are correct.
 	 */
-	struct mbuf	*m_next;	/* next buffer in chain */
-	struct mbuf	*m_nextpkt;	/* next chain in queue/record */
+	union {	/* next buffer in chain */
+		struct mbuf		*m_next;
+		SLIST_ENTRY(mbuf)	m_slist;
+		STAILQ_ENTRY(mbuf)	m_stailq;
+	};
+	union {	/* next chain in queue/record */
+		struct mbuf		*m_nextpkt;
+		SLIST_ENTRY(mbuf)	m_slistpkt;
+		STAILQ_ENTRY(mbuf)	m_stailqpkt;
+	};
 	caddr_t		 m_data;	/* location of data */
 	int32_t		 m_len;		/* amount of data in this mbuf */
 	uint32_t	 m_type:8,	/* type of data in this mbuf */
