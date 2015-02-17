@@ -13,8 +13,7 @@ CFLAGS+= -I${.CURDIR}/../../ofed/drivers/infiniband/hw/mlx4
 CFLAGS+= -I${.CURDIR}/../../ofed/include/
 CFLAGS+= -DCONFIG_INFINIBAND_USER_MEM
 CFLAGS+= -DINET6 -DINET
-CFLAGS+= -fms-extensions
 
 .include <bsd.kmod.mk>
 
-CFLAGS+= -Wno-cast-qual -Wno-pointer-arith ${GCC_MS_EXTENSIONS}
+CFLAGS+= -Wno-cast-qual -Wno-pointer-arith
