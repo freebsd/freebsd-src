@@ -18,6 +18,6 @@ CFLAGS+= -DINET6 -DINET
 
 .include <bsd.kmod.mk>
 
-CFLAGS+= -Wno-cast-qual -Wno-pointer-arith ${GCC_MS_EXTENSIONS}
+CFLAGS+= -Wno-cast-qual -Wno-pointer-arith
 
 CWARNFLAGS.cm.c=	-Wno-unused-function
