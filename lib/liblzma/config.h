@@ -26,6 +26,7 @@
 #define HAVE_ENCODER_SPARC 1
 #define HAVE_ENCODER_X86 1
 #define HAVE_FCNTL_H 1
+#define HAVE_FUTIMENS 1
 #define HAVE_FUTIMES 1
 #define HAVE_GETOPT_H 1
 #define HAVE_GETOPT_LONG 1

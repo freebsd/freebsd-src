@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -360,14 +361,14 @@ err:	if (ofp) {
 static void
 setfile(const char *name, struct stat *fs)
 {
-	static struct timeval tv[2];
+	static struct timespec tspec[2];
 
 	fs->st_mode &= S_ISUID|S_ISGID|S_IRWXU|S_IRWXG|S_IRWXO;
 
-	TIMESPEC_TO_TIMEVAL(&tv[0], &fs->st_atim);
-	TIMESPEC_TO_TIMEVAL(&tv[1], &fs->st_mtim);
-	if (utimes(name, tv))
-		cwarn("utimes: %s", name);
+	tspec[0] = fs->st_atim;
+	tspec[1] = fs->st_mtim;
+	if (utimensat(AT_FDCWD, name, tspec, 0))
+		cwarn("utimensat: %s", name);
 
 	/*
 	 * Changing the ownership probably won't succeed, unless we're root
