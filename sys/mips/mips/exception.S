@@ -263,14 +263,14 @@ SlowFault:
  * temporary register to hold it in, against which small constant offsets can
  * be applied.  If we save more registers, SAVE_CREG() will become desirable.
  *
- * XXXRW: Notice run-time 32-byte alignment hack.
+ * XXXRW: Notice run-time capability-alignment hack.
  */
 #define	SAVE_CHERI(t0reg, t1reg, base)					\
 	daddiu	t0reg, base, KERN_CREG_BASE;				\
-	dli	t1reg, -32;						\
+	dli	t1reg, -CHERICAP_SIZE;					\
 	and	t0reg, t1reg, t0reg;					\
 	csc	$c11, t0reg, 0(CHERI_REG_KDC);				\
-	csc	$c12, t0reg, 32(CHERI_REG_KDC)
+	csc	$c12, t0reg, CHERICAP_SIZE(CHERI_REG_KDC)
 #else
 #define	SAVE_CHERI(t0reg, t1reg, base)
 #endif
@@ -371,14 +371,14 @@ SlowFault:
  * Optionally restore kernel-pertinent capability registers.  See comment above
  * about SAVE_CHERI() for details.
  *
- * XXXRW: Notice run-time 32-byte alignment hack.
+ * XXXRW: Notice run-time capability-alignment hack.
  */
 #define	RESTORE_CHERI(t0reg, t1reg, base)				\
 	daddiu	t0reg, base, KERN_CREG_BASE;				\
-	dli	t1reg, -32;						\
+	dli	t1reg, -CHERICAP_SIZE;					\
 	and	t0reg, t1reg, t0reg;					\
 	clc	$c11, t0reg, 0(CHERI_REG_KDC);				\
-	clc	$c12, t0reg, 32(CHERI_REG_KDC);
+	clc	$c12, t0reg, CHERICAP_SIZE(CHERI_REG_KDC);
 #else
 #define	RESTORE_CHERI(t0reg, t1reg, base)
 #endif
@@ -435,17 +435,20 @@ SlowFault:
  *
  * XXXRW: Need NUMSAVECREGS and CHERICAP_SIZE in right header.
  *
- * XXXRW: The stack isn't guaranteed to have 32-byte alignment, so allocate
- * (and later add/mask) an extra 16 bytes so we can do run-time adjustment.
+ * XXXRW: The stack isn't guaranteed to have capability alignment, so allocate
+ * (and later add/mask) an extra CHERICAP_SIZE/2 bytes so we can do run-time
+ * adjustment.
  */
 #define	KERN_REG_SIZE		(NUMSAVEREGS * SZREG)
 #ifdef CPU_CHERI
-#define	KERN_CREG_SIZE		(2 * 32 + 16)
-#define	KERN_CREG_BASE		(CALLFRAME_SIZ + KERN_REG_SIZE + 16)
+#define	KERN_CREG_SIZE		(2 * CHERICAP_SIZE + CHERICAP_SIZE/2)
+#define	KERN_CREG_BASE		(CALLFRAME_SIZ + KERN_REG_SIZE + 	\
+				    CHERICAP_SIZE/2)
 #define	KERN_EXC_FRAME_SIZE	(CALLFRAME_SIZ + KERN_REG_SIZE + \
-				    KERN_CREG_SIZE + 16)
+				    KERN_CREG_SIZE + CHERICAP_SIZE/2)
 #else
-#define	KERN_EXC_FRAME_SIZE	(CALLFRAME_SIZ + KERN_REG_SIZE + 16)
+#define	KERN_EXC_FRAME_SIZE	(CALLFRAME_SIZ + KERN_REG_SIZE +	\
+				    CHERICAP_SIZE/2)
 #endif
 
 NESTED_NOPROFILE(MipsKernGenException, KERN_EXC_FRAME_SIZE, ra)

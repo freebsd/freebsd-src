@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2014 Robert N. M. Watson
+ * Copyright (c) 2011-2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -43,10 +43,10 @@
 
 /*
  * Canonical C-language representation of a capability for compilers that
- * don't support capabilities directly.  We don't define internal fields by
- * default as instructions, rather than memory access, should be preferred.
+ * don't support capabilities directly.  The in-memory layout is sensitive to
+ * the microarchitecture, and hence treated as opaque.  Fields must be
+ * accessed via the ISA.
  */
-#define	CHERICAP_SIZE	32
 struct chericap {
 	uint8_t		c_data[CHERICAP_SIZE];
 } __packed __aligned(CHERICAP_SIZE);

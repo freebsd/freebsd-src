@@ -32,6 +32,16 @@
 #define	_MIPS_INCLUDE_CHERIREG_H_
 
 /*
+ * The size of in-memory capabilities in bytes; minimum alignment is also
+ * assumed to be this size.
+ */
+#ifdef CPU_CHERI128
+#define	CHERICAP_SIZE   16
+#else
+#define	CHERICAP_SIZE   32
+#endif
+
+/*
  * CHERI ISA-defined constants for capabilities -- suitable for inclusion from
  * assembly source code.
  *

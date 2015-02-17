@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2014 Robert N. M. Watson
+ * Copyright (c) 2012-2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -153,14 +153,13 @@
  * or further calls to CHERI_EXECPTION_ENTER() and CHERI_EXCEPTION_RETURN() to
  * manage $c0.
  */
-#define	SZCAP	32
 #define	SAVE_U_PCB_CHERIFRAME_CREG(creg, offs, base, treg)		\
 	PTR_ADDIU	treg, base, U_PCB_CHERIFRAME;			\
-	csc		creg, treg, (SZCAP * offs)(CHERI_REG_KDC)
+	csc		creg, treg, (CHERICAP_SIZE * offs)(CHERI_REG_KDC)
 
 #define	RESTORE_U_PCB_CHERIFRAME_CREG(creg, offs, base, treg)		\
 	PTR_ADDIU	treg, base, U_PCB_CHERIFRAME;			\
-	clc		creg, treg, (SZCAP * offs)(CHERI_REG_KDC)
+	clc		creg, treg, (CHERICAP_SIZE * offs)(CHERI_REG_KDC)
 
 /*
  * Macro to save the capability-cause register; we will never restore it as
@@ -173,9 +172,9 @@
  * calculation in the daddiu.
  */
 #define	SAVE_U_PCB_CHERIFRAME_CAPCAUSE(cause, base, treg)		\
-	PTR_ADDIU	treg, base, (SZCAP * CHERIFRAME_OFF_CAPCAUSE) + \
-			U_PCB_CHERIFRAME;				\
-	csd		cause, treg, 0\
+	PTR_ADDIU	treg, base, (CHERICAP_SIZE * CHERIFRAME_OFF_CAPCAUSE) \
+			    + U_PCB_CHERIFRAME;				\
+	csd		cause, treg, 0					\
 			    (CHERI_REG_KDC);				\
 
 /*
@@ -255,11 +254,11 @@
  */
 #define	SAVE_U_PCB_CHERIKFRAME_CREG(creg, offs, base, treg)		\
 	PTR_ADDIU	treg, base, U_PCB_CHERIKFRAME;			\
-	csc		creg, treg, (SZCAP * offs)(CHERI_REG_KDC)
+	csc		creg, treg, (CHERICAP_SIZE * offs)(CHERI_REG_KDC)
 
 #define	RESTORE_U_PCB_CHERIKFRAME_CREG(creg, offs, base, treg)		\
 	PTR_ADDIU	treg, base, U_PCB_CHERIKFRAME;			\
-	clc		creg, treg, (SZCAP * offs)(CHERI_REG_KDC)
+	clc		creg, treg, (CHERICAP_SIZE * offs)(CHERI_REG_KDC)
 
 /*
  * Macros saving a full voluntary kernel CHERI register frame.

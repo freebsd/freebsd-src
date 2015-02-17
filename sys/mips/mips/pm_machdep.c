@@ -224,7 +224,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 #endif
 	sp -= sizeof(struct sigframe);
 #ifdef CPU_CHERI
-	/* For CHERI, keep the stack pointer 32-byte aligned. */
+	/* For CHERI, keep the stack pointer capability aligned. */
 	sp &= ~(CHERICAP_SIZE - 1);
 #else
 	sp &= ~(sizeof(__int64_t) - 1);
