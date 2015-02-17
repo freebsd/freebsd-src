@@ -105,6 +105,7 @@ CFLAGS+=	-I. -I${SYSDIR}
 CFLAGS+=	-I${SYSDIR}/contrib/altq
 
 CFLAGS.gcc+=	-finline-limit=${INLINE_LIMIT}
+CFLAGS.gcc+=	-fms-extensions
 CFLAGS.gcc+= --param inline-unit-growth=100
 CFLAGS.gcc+= --param large-function-growth=1000
 

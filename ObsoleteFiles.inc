@@ -93,6 +93,8 @@ OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
 OLD_DIRS+=usr/lib/clang/3.5.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.5.1/lib
 OLD_DIRS+=usr/lib/clang/3.5.1
+# 20150217: Removed remnants of ar(4) driver
+OLD_FILES+=usr/include/sys/dev/ic/hd64570.h
 # 20150212: /usr/games moving into /usr/bin
 OLD_FILES+=usr/games/bcd
 OLD_FILES+=usr/games/caesar

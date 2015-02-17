@@ -107,7 +107,7 @@ SYSCTL_INT(_hw_sfxge, OID_AUTO, tx_dpl_put_max, CTLFLAG_RDTUN,
 
 
 /* Forward declarations. */
-static inline void sfxge_tx_qdpl_service(struct sfxge_txq *txq);
+static void sfxge_tx_qdpl_service(struct sfxge_txq *txq);
 static void sfxge_tx_qlist_post(struct sfxge_txq *txq);
 static void sfxge_tx_qunblock(struct sfxge_txq *txq);
 static int sfxge_tx_queue_tso(struct sfxge_txq *txq, struct mbuf *mbuf,
@@ -156,7 +156,7 @@ sfxge_tx_qcomplete(struct sfxge_txq *txq, struct sfxge_evq *evq)
 
 #ifdef SFXGE_HAVE_MQ
 
-static inline unsigned int
+static unsigned int
 sfxge_is_mbuf_non_tcp(struct mbuf *mbuf)
 {
 	/* Absense of TCP checksum flags does not mean that it is non-TCP
@@ -481,7 +481,7 @@ sfxge_tx_qdpl_drain(struct sfxge_txq *txq)
  *
  * NOTE: drops the txq mutex!
  */
-static inline void
+static void
 sfxge_tx_qdpl_service(struct sfxge_txq *txq)
 {
 	SFXGE_TXQ_LOCK_ASSERT_OWNED(txq);
@@ -509,7 +509,7 @@ sfxge_tx_qdpl_service(struct sfxge_txq *txq)
  * overload the csum_data field in the mbuf to keep track of this length
  * because there is no cheap alternative to avoid races.
  */
-static inline int
+static int
 sfxge_tx_qdpl_put(struct sfxge_txq *txq, struct mbuf *mbuf, int locked)
 {
 	struct sfxge_tx_dpl *stdp;
@@ -649,7 +649,7 @@ sfxge_if_qflush(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 
-	for (i = 0; i < SFXGE_TX_SCALE(sc); i++)
+	for (i = 0; i < SFXGE_TXQ_IP_TCP_UDP_CKSUM + SFXGE_TX_SCALE(sc); i++)
 		sfxge_tx_qdpl_flush(sc->txq[i]);
 }
 
@@ -758,7 +758,7 @@ void sfxge_if_start(struct ifnet *ifp)
 	SFXGE_TXQ_UNLOCK(sc->txq[0]);
 }
 
-static inline void
+static void
 sfxge_tx_qdpl_service(struct sfxge_txq *txq)
 {
 	struct ifnet *ifp = txq->sc->ifnet;
@@ -783,7 +783,6 @@ struct sfxge_tso_state {
 	unsigned packet_space;	/* Remaining space in current packet */
 
 	/* Input position */
-	unsigned dma_seg_i;	/* Current DMA segment number */
 	uint64_t dma_addr;	/* DMA address of current position */
 	unsigned in_len;	/* Remaining length in current mbuf */
 
@@ -792,23 +791,21 @@ struct sfxge_tso_state {
 	ssize_t nh_off;		/* Offset of network header */
 	ssize_t tcph_off;	/* Offset of TCP header */
 	unsigned header_len;	/* Number of bytes of header */
-	int full_packet_size;	/* Number of bytes to put in each outgoing
-				 * segment */
 };
 
-static inline const struct ip *tso_iph(const struct sfxge_tso_state *tso)
+static const struct ip *tso_iph(const struct sfxge_tso_state *tso)
 {
 	KASSERT(tso->protocol == htons(ETHERTYPE_IP),
 		("tso_iph() in non-IPv4 state"));
 	return (const struct ip *)(tso->mbuf->m_data + tso->nh_off);
 }
-static inline const struct ip6_hdr *tso_ip6h(const struct sfxge_tso_state *tso)
+static __unused const struct ip6_hdr *tso_ip6h(const struct sfxge_tso_state *tso)
 {
 	KASSERT(tso->protocol == htons(ETHERTYPE_IPV6),
 		("tso_ip6h() in non-IPv6 state"));
 	return (const struct ip6_hdr *)(tso->mbuf->m_data + tso->nh_off);
 }
-static inline const struct tcphdr *tso_tcph(const struct sfxge_tso_state *tso)
+static const struct tcphdr *tso_tcph(const struct sfxge_tso_state *tso)
 {
 	return (const struct tcphdr *)(tso->mbuf->m_data + tso->tcph_off);
 }
@@ -895,7 +892,6 @@ static void tso_start(struct sfxge_tso_state *tso, struct mbuf *mbuf)
 	}
 
 	tso->header_len = tso->tcph_off + 4 * tso_tcph(tso)->th_off;
-	tso->full_packet_size = tso->header_len + mbuf->m_pkthdr.tso_segsz;
 
 	tso->seqnum = ntohl(tso_tcph(tso)->th_seq);
 
@@ -1015,7 +1011,8 @@ static int tso_start_new_packet(struct sfxge_txq *txq,
 	tso->seqnum += tso->mbuf->m_pkthdr.tso_segsz;
 	if (tso->out_len > tso->mbuf->m_pkthdr.tso_segsz) {
 		/* This packet will not finish the TSO burst. */
-		ip_length = tso->full_packet_size - tso->nh_off;
+		ip_length = tso->header_len - tso->nh_off +
+		    tso->mbuf->m_pkthdr.tso_segsz;
 		tsoh_th->th_flags &= ~(TH_FIN | TH_PUSH);
 	} else {
 		/* This packet will be the last in the TSO burst. */
@@ -1280,7 +1277,6 @@ fail:
 void
 sfxge_tx_stop(struct sfxge_softc *sc)
 {
-	const efx_nic_cfg_t *encp;
 	int index;
 
 	index = SFXGE_TX_SCALE(sc);
@@ -1289,7 +1285,6 @@ sfxge_tx_stop(struct sfxge_softc *sc)
 
 	sfxge_tx_qstop(sc, SFXGE_TXQ_IP_CKSUM);
 
-	encp = efx_nic_cfg_get(sc->enp);
 	sfxge_tx_qstop(sc, SFXGE_TXQ_NON_CKSUM);
 
 	/* Tear down the transmit module */

@@ -1239,7 +1239,9 @@ extern  HAL_BOOL ar9300_set_mac_address(struct ath_hal *ah, const u_int8_t *);
 extern  void ar9300_get_bss_id_mask(struct ath_hal *ah, u_int8_t *mac);
 extern  HAL_BOOL ar9300_set_bss_id_mask(struct ath_hal *, const u_int8_t *);
 extern  HAL_STATUS ar9300_select_ant_config(struct ath_hal *ah, u_int32_t cfg);
+#if 0
 extern  u_int32_t ar9300_ant_ctrl_common_get(struct ath_hal *ah, HAL_BOOL is_2ghz);
+#endif
 extern HAL_BOOL ar9300_ant_swcom_sel(struct ath_hal *ah, u_int8_t ops,
                                 u_int32_t *common_tbl1, u_int32_t *common_tbl2);
 extern  HAL_BOOL ar9300_set_regulatory_domain(struct ath_hal *ah,

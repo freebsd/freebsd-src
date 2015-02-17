@@ -1507,6 +1507,7 @@ cpususpend_handler(void)
 		vmm_resume_p();
 
 	/* Resume MCA and local APIC */
+	lapic_xapic_mode();
 	mca_resume();
 	lapic_setup(0);
 

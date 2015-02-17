@@ -815,7 +815,7 @@ files_passwd(void *retval, void *mdata, va_list ap)
 	size_t			 bufsize, namesize;
 	uid_t			 uid;
 	uint32_t		 store;
-	int			 rv, stayopen, *errnop;
+	int			 rv, stayopen = 0, *errnop;
 
 	name = NULL;
 	uid = (uid_t)-1;
