@@ -3739,7 +3739,7 @@ ofed/drivers/infiniband/hw/mlx4/main.c		optional mlx4ib		\
 	no-depend obj-prefix "mlx4ib_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
 ofed/drivers/infiniband/hw/mlx4/mlx4_exp.c	optional mlx4ib		\
-	no-depend \
+	no-depend obj-prefix "mlx4ib_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
 ofed/drivers/infiniband/hw/mlx4/mr.c		optional mlx4ib		\
 	no-depend obj-prefix "mlx4ib_"					\
