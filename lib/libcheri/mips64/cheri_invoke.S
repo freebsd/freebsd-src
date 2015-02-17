@@ -1,5 +1,5 @@
 #-
-# Copyright (c) 2012-2014 Robert N. M. Watson
+# Copyright (c) 2012-2015 Robert N. M. Watson
 # All rights reserved.
 #
 # This software was developed by SRI International and the University of
@@ -27,6 +27,8 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
+
+#include <machine/cherireg.h>
 
 #.set mips64
 .set noreorder
@@ -125,15 +127,15 @@ cheri_invoke_save_regs:
 	# should be doing this?
 	#
 cheri_invoke_save_caps:
-	daddiu	$sp, -256
+	daddiu	$sp, -8*CHERICAP_SIZE
 	csc	$c17, $sp, 0($c11)
-	csc	$c18, $sp, 32($c11)
-	csc	$c19, $sp, 64($c11)
-	csc	$c20, $sp, 96($c11)
-	csc	$c21, $sp, 128($c11)
-	csc	$c22, $sp, 160($c11)
-	csc	$c23, $sp, 192($c11)
-	csc	$c24, $sp, 224($c11)
+	csc	$c18, $sp, CHERICAP_SIZE($c11)
+	csc	$c19, $sp, 2*CHERICAP_SIZE($c11)
+	csc	$c20, $sp, 3*CHERICAP_SIZE($c11)
+	csc	$c21, $sp, 4*CHERICAP_SIZE($c11)
+	csc	$c22, $sp, 5*CHERICAP_SIZE($c11)
+	csc	$c23, $sp, 6*CHERICAP_SIZE($c11)
+	csc	$c24, $sp, 7*CHERICAP_SIZE($c11)
 
 	#
 	# Prepare $idc to be saved (and restored) by CCall; don't need to seal
@@ -141,13 +143,13 @@ cheri_invoke_save_caps:
 	# point until $c11 and $sp are restored.
 	#
 cheri_invoke_bundle_idc:
-	daddiu		$sp, -128
-	csd		$sp, $sp, 96($c11)	# Save MIPS stack pointer
-	csc		$c0, $sp, 64($c11)	# Save CHERI legacy capability
-	csc		$c11, $sp, 32($c11)	# Save CHERI stack capability
+	daddiu		$sp, -4*CHERICAP_SIZE
+	csd		$sp, $sp, 3*CHERICAP_SIZE($c11)	# MIPS stack pointer
+	csc		$c0, $sp, 2*CHERICAP_SIZE($c11)	# Default capability
+	csc		$c11, $sp, CHERICAP_SIZE($c11)	# CHERI stack capability
 	csc		$c26, $sp, 0($c11)	# Save original $idc
 	cfromptr	$c26, $c11, $sp
-	dli		$t0, 128
+	dli		$t0, 4*CHERICAP_SIZE
 	csetlen		$c26, $c26, $t0
 
 	#
@@ -168,11 +170,11 @@ cheri_invoke_ccall:
 	# stack is usable again after this.
 	#
 cheri_invoke_unbundle_idc:
-	cld		$sp, $zero, 96($c26)	# Restore MIPS stack pointer
-	clc		$c0, $zero, 64($c26)	# Restore CHERI $c0
-	clc		$c11, $zero, 32($c26)	# Restore CHERI $c11
+	cld		$sp, $zero, 3*CHERICAP_SIZE($c26)# MIPS stack pointer
+	clc		$c0, $zero, 2*CHERICAP_SIZE($c26)# Default capability
+	clc		$c11, $zero, CHERICAP_SIZE($c26) # CHERI stack capability
 	clc		$c26, $zero, 0($c26)	# Restore original $idc
-	daddiu		$sp, 128
+	daddiu		$sp, 4*CHERICAP_SIZE
 
 	#
 	# Restore capability registers from stack.
@@ -182,14 +184,14 @@ cheri_invoke_unbundle_idc:
 	#
 cheri_invoke_restore_caps:
 	clc	$c17, $sp, 0($c11)
-	clc	$c18, $sp, 32($c11)
-	clc	$c19, $sp, 64($c11)
-	clc	$c20, $sp, 96($c11)
-	clc	$c21, $sp, 128($c11)
-	clc	$c22, $sp, 160($c11)
-	clc	$c23, $sp, 192($c11)
-	clc	$c24, $sp, 224($c11)
-	daddiu	$sp, 256
+	clc	$c18, $sp, CHERICAP_SIZE($c11)
+	clc	$c19, $sp, 2*CHERICAP_SIZE($c11)
+	clc	$c20, $sp, 3*CHERICAP_SIZE($c11)
+	clc	$c21, $sp, 4*CHERICAP_SIZE($c11)
+	clc	$c22, $sp, 5*CHERICAP_SIZE($c11)
+	clc	$c23, $sp, 6*CHERICAP_SIZE($c11)
+	clc	$c24, $sp, 7*CHERICAP_SIZE($c11)
+	daddiu	$sp, 8*CHERICAP_SIZE
 
 	#
 	# CCall has conservatively cleared all non-return-value registers, and

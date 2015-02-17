@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2014 Robert N. M. Watson
+ * Copyright (c) 2012-2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -46,8 +46,8 @@
  * setting up the C heap.
  *
  * Temporary ABI conventions:
- *    $sp contains a pointer to the top of the stack; 32-byte aligned
- *    $fp contains a pointer to the top of the stack; 32-byte aligned
+ *    $sp contains a pointer to the top of the stack; capability aligned
+ *    $fp contains a pointer to the top of the stack; capability aligned
  *
  *    $a0-$a7 contain user arguments
  *    $v0, $v1 contain user return values
