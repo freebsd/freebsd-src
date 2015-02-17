@@ -98,6 +98,14 @@ BERI_LARGE_TLB			opt_global.h
 PLATFORM_INIT_SECONDARY		opt_global.h
 FDT_DTB_STATIC_ONLY		opt_platform.h
 
+#
+# Experimental support for 128-bit capabilities.
+#
+CPU_CHERI128			opt_global.h
+
+#
+# Variations on hardware optimisation of CCall/CReturn.
+#
 CPU_CHERI_HW_RCLEAR	opt_global.h
 CPU_CHERI_HW_CCLEAR	opt_global.h
 CPU_CHERI_HW_CCALL_CHECKS	opt_global.h
