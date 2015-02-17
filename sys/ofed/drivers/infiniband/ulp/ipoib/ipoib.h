@@ -80,6 +80,7 @@
 #include <linux/workqueue.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
+#include <linux/rbtree.h>
 
 #include <asm/atomic.h>
 
@@ -313,6 +314,7 @@ struct ipoib_ethtool_st {
  */
 struct ipoib_dev_priv {
 	spinlock_t lock;
+	spinlock_t drain_lock;
 
 	struct ifnet *dev;
 
