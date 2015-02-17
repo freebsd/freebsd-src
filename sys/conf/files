@@ -3624,19 +3624,16 @@ ofed/drivers/infiniband/core/fmr_pool.c		optional ofed		\
 ofed/drivers/infiniband/core/iwcm.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/local_sa.c		optional ofed		\
-	no-depend							\
-	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/mad_rmpp.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/multicast.c	optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/notice.c		optional ofed		\
+ofed/drivers/infiniband/core/packer.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/packer.c		optional ofed		\
+ofed/drivers/infiniband/core/peer_mem.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/sa_query.c		optional ofed		\
@@ -3740,6 +3737,9 @@ ofed/drivers/infiniband/hw/mlx4/mad.c		optional mlx4ib		\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
 ofed/drivers/infiniband/hw/mlx4/main.c		optional mlx4ib		\
 	no-depend obj-prefix "mlx4ib_"					\
+	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
+ofed/drivers/infiniband/hw/mlx4/mlx4_exp.c	optional mlx4ib		\
+	no-depend \
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
 ofed/drivers/infiniband/hw/mlx4/mr.c		optional mlx4ib		\
 	no-depend obj-prefix "mlx4ib_"					\

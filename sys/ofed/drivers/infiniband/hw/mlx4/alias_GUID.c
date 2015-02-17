@@ -57,6 +57,7 @@ struct mlx4_alias_guid_work_context {
 	int			query_id;
 	struct list_head	list;
 	int			block_num;
+	u8			method;
 };
 
 struct mlx4_next_alias_guid_work {
@@ -80,7 +81,8 @@ void mlx4_ib_update_cache_on_guid_change(struct mlx4_ib_dev *dev, int block_num,
 	guid_indexes = be64_to_cpu((__force __be64) dev->sriov.alias_guid.
 				   ports_guid[port_num - 1].
 				   all_rec_per_port[block_num].guid_indexes);
-	pr_debug("port: %d, guid_indexes: 0x%llx\n", port_num, (long long)guid_indexes);
+	pr_debug("port: %d, guid_indexes: 0x%llx\n", port_num,
+	    (unsigned long long)guid_indexes);
 
 	for (i = 0; i < NUM_ALIAS_GUID_IN_REC; i++) {
 		/* The location of the specific index starts from bit number 4
@@ -144,7 +146,8 @@ void mlx4_ib_notify_slaves_on_guid_change(struct mlx4_ib_dev *dev,
 	guid_indexes = be64_to_cpu((__force __be64) dev->sriov.alias_guid.
 				   ports_guid[port_num - 1].
 				   all_rec_per_port[block_num].guid_indexes);
-	pr_debug("port: %d, guid_indexes: 0x%llx\n", port_num, (long long)guid_indexes);
+	pr_debug("port: %d, guid_indexes: 0x%llx\n", port_num,
+	    (unsigned long long)guid_indexes);
 
 	/*calculate the slaves and notify them*/
 	for (i = 0; i < NUM_ALIAS_GUID_IN_REC; i++) {
@@ -201,7 +204,7 @@ static void aliasguid_query_handler(int status,
 {
 	struct mlx4_ib_dev *dev;
 	struct mlx4_alias_guid_work_context *cb_ctx = context;
-	u8 port_index ;
+	u8 port_index;
 	int i;
 	struct mlx4_sriov_alias_guid_info_rec_det *rec;
 	unsigned long flags, flags1;
@@ -240,6 +243,18 @@ static void aliasguid_query_handler(int status,
 	for (i = 0 ; i < NUM_ALIAS_GUID_IN_REC; i++) {
 		__be64 tmp_cur_ag;
 		tmp_cur_ag = *(__be64 *)&guid_rec->guid_info_list[i * GUID_REC_SIZE];
+		if ((cb_ctx->method == MLX4_GUID_INFO_RECORD_DELETE)
+		    && (MLX4_NOT_SET_GUID == tmp_cur_ag)) {
+			pr_debug("%s:Record num %d in block_num:%d "
+				"was deleted by SM,ownership by %d "
+				"(0 = driver, 1=sysAdmin, 2=None)\n",
+				__func__, i, guid_rec->block_num,
+				rec->ownership);
+			rec->guid_indexes = rec->guid_indexes &
+				~mlx4_ib_get_aguid_comp_mask_from_ix(i);
+			continue;
+		}
+
 		/* check if the SM didn't assign one of the records.
 		 * if it didn't, if it was not sysadmin request:
 		 * ask the SM to give a new GUID, (instead of the driver request).
@@ -379,7 +394,7 @@ static int set_guid_rec(struct ib_device *ibdev,
 	callback_context->port = port;
 	callback_context->dev = dev;
 	callback_context->block_num = index;
-
+	callback_context->method = rec_det->method;
 	memset(&guid_info_rec, 0, sizeof (struct ib_sa_guidinfo_rec));
 
 	guid_info_rec.lid = cpu_to_be16(attr.lid);
