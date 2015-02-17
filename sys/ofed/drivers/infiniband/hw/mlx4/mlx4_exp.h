@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2004 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2006, 2007 Cisco Systems.  All rights reserved.
+ * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -30,23 +31,16 @@
  * SOFTWARE.
  */
 
-#ifndef _CORE_PRIV_H
-#define _CORE_PRIV_H
+#ifndef MLX4_EXP_H
+#define MLX4_EXP_H
 
-#include <linux/list.h>
-#include <linux/spinlock.h>
+#include <rdma/ib_verbs_exp.h>
+#include "mlx4_ib.h"
 
-#include <rdma/ib_verbs.h>
+struct ib_qp *mlx4_ib_exp_create_qp(struct ib_pd *pd,
+				    struct ib_exp_qp_init_attr *init_attr,
+				    struct ib_udata *udata);
+int mlx4_ib_exp_query_device(struct ib_device *ibdev,
+				    struct ib_exp_device_attr *props);
 
-int  ib_device_register_sysfs(struct ib_device *device,
-			      int (*port_callback)(struct ib_device *,
-                                                  u8, struct kobject *));
-void ib_device_unregister_sysfs(struct ib_device *device);
-
-int  ib_sysfs_setup(void);
-void ib_sysfs_cleanup(void);
-
-int  ib_cache_setup(void);
-void ib_cache_cleanup(void);
-
-#endif /* _CORE_PRIV_H */
+#endif /* MLX4_EXP_H */
