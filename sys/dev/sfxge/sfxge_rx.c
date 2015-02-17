@@ -92,8 +92,8 @@ static int lro_loss_packets = 20;
 #define	SFXGE_LRO_CONN_IS_TCPIPV4(c) (!((c)->l2_id & SFXGE_LRO_L2_ID_IPV6))
 
 /* Compare IPv6 addresses, avoiding conditional branches */
-static __inline unsigned long ipv6_addr_cmp(const struct in6_addr *left,
-					    const struct in6_addr *right)
+static unsigned long ipv6_addr_cmp(const struct in6_addr *left,
+				   const struct in6_addr *right)
 {
 #if LONG_BIT == 64
 	const uint64_t *left64 = (const uint64_t *)left;
@@ -167,7 +167,7 @@ sfxge_rx_schedule_refill(struct sfxge_rxq *rxq, boolean_t retrying)
 			     sfxge_rx_post_refill, rxq);
 }
 
-static inline struct mbuf *sfxge_rx_alloc_mbuf(struct sfxge_softc *sc)
+static struct mbuf *sfxge_rx_alloc_mbuf(struct sfxge_softc *sc)
 {
 	struct mb_args args;
 	struct mbuf *m;

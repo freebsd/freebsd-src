@@ -843,6 +843,7 @@ MAN+=	\
 	udbp.4 \
 	udp.4 \
 	udplite.4 \
+	udl.4 \
 	uep.4 \
 	ufm.4 \
 	ufoma.4 \

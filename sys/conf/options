@@ -889,6 +889,9 @@ TDMA_TXRATE_QUARTER_DEFAULT	opt_tdma.h
 TDMA_TXRATE_11NA_DEFAULT	opt_tdma.h
 TDMA_TXRATE_11NG_DEFAULT	opt_tdma.h
 
+# VideoMode
+PICKMODE_DEBUG			opt_videomode.h
+
 # Network stack virtualization options
 VIMAGE			opt_global.h
 VNET_DEBUG		opt_global.h

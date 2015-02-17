@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: _elftc.h 2922 2013-03-17 22:53:15Z kaiwang27 $
+ * $Id: _elftc.h 3139 2015-01-05 03:17:06Z kaiwang27 $
  */
 
 /**
@@ -76,10 +76,17 @@
  * SUCH DAMAGE.
  */
 
+#ifndef	LIST_FOREACH_SAFE
+#define	LIST_FOREACH_SAFE(var, head, field, tvar)		\
+	for ((var) = LIST_FIRST((head));			\
+	    (var) && ((tvar) = LIST_NEXT((var), field), 1);	\
+	    (var) = (tvar))
+#endif
+
 #ifndef	SLIST_FOREACH_SAFE
-#define	SLIST_FOREACH_SAFE(var, head, field, tvar)			\
-	for ((var) = SLIST_FIRST((head));				\
-	    (var) && ((tvar) = SLIST_NEXT((var), field), 1);		\
+#define	SLIST_FOREACH_SAFE(var, head, field, tvar)		\
+	for ((var) = SLIST_FIRST((head));			\
+	    (var) && ((tvar) = SLIST_NEXT((var), field), 1);	\
 	    (var) = (tvar))
 #endif
 

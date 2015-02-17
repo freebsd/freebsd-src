@@ -97,7 +97,7 @@ CFLAGS_PARAM_LARGE_FUNCTION_GROWTH?=1000
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS_ARCH_PARAMS?=--param max-inline-insns-single=1000
 .endif
-CFLAGS.gcc+= -fno-common -finline-limit=${INLINE_LIMIT}
+CFLAGS.gcc+= -fno-common -fms-extensions -finline-limit=${INLINE_LIMIT}
 CFLAGS.gcc+= --param inline-unit-growth=${CFLAGS_PARAM_INLINE_UNIT_GROWTH}
 CFLAGS.gcc+= --param large-function-growth=${CFLAGS_PARAM_LARGE_FUNCTION_GROWTH}
 .if defined(CFLAGS_ARCH_PARAMS)
@@ -162,7 +162,7 @@ NORMAL_LINT=	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC}
 # Infiniband C flags.  Correct include paths and omit errors that linux
 # does not honor.
 OFEDINCLUDES=	-I$S/ofed/include/
-OFEDNOERR=	-Wno-cast-qual -Wno-pointer-arith ${GCC_MS_EXTENSIONS}
+OFEDNOERR=	-Wno-cast-qual -Wno-pointer-arith
 OFEDCFLAGS=	${CFLAGS:N-I*} ${OFEDINCLUDES} ${CFLAGS:M-I*} ${OFEDNOERR}
 OFED_C_NOIMP=	${CC} -c -o ${.TARGET} ${OFEDCFLAGS} ${WERROR} ${PROF}
 OFED_C=		${OFED_C_NOIMP} ${.IMPSRC}

@@ -3439,11 +3439,9 @@ soisdisconnecting(struct socket *so)
 	SOCKBUF_LOCK(&so->so_rcv);
 	so->so_state &= ~SS_ISCONNECTING;
 	so->so_state |= SS_ISDISCONNECTING;
-	so->so_rcv.sb_state |= SBS_CANTRCVMORE;
-	sorwakeup_locked(so);
+	socantrcvmore_locked(so);
 	SOCKBUF_LOCK(&so->so_snd);
-	so->so_snd.sb_state |= SBS_CANTSENDMORE;
-	sowwakeup_locked(so);
+	socantsendmore_locked(so);
 	wakeup(&so->so_timeo);
 }
 
@@ -3458,12 +3456,10 @@ soisdisconnected(struct socket *so)
 	SOCKBUF_LOCK(&so->so_rcv);
 	so->so_state &= ~(SS_ISCONNECTING|SS_ISCONNECTED|SS_ISDISCONNECTING);
 	so->so_state |= SS_ISDISCONNECTED;
-	so->so_rcv.sb_state |= SBS_CANTRCVMORE;
-	sorwakeup_locked(so);
+	socantrcvmore_locked(so);
 	SOCKBUF_LOCK(&so->so_snd);
-	so->so_snd.sb_state |= SBS_CANTSENDMORE;
 	sbdrop_locked(&so->so_snd, sbused(&so->so_snd));
-	sowwakeup_locked(so);
+	socantsendmore_locked(so);
 	wakeup(&so->so_timeo);
 }
 
