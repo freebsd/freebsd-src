@@ -33,7 +33,6 @@
 #include <errno.h>
 #include <limits.h>
 #include <stdarg.h>
-#include <stdint.h>
 #include <ulimit.h>
 
 long
@@ -41,8 +40,7 @@ ulimit(int cmd, ...)
 {
 	struct rlimit limit;
 	va_list ap;
-	volatile intmax_t targ;
-	long arg;
+	rlim_t arg;
 
 	if (cmd == UL_GETFSIZE) {
 		if (getrlimit(RLIMIT_FSIZE, &limit) == -1)
@@ -53,18 +51,18 @@ ulimit(int cmd, ...)
 		return ((long)limit.rlim_cur);
 	} else if (cmd == UL_SETFSIZE) {
 		va_start(ap, cmd);
-		targ = arg = va_arg(ap, long);
+		arg = va_arg(ap, long);
 		va_end(ap);
-		if (targ < 0)
-			targ = LONG_MAX;
-		if (targ > RLIM_INFINITY / 512)
-			targ = RLIM_INFINITY / 512;
-		limit.rlim_max = limit.rlim_cur = targ * 512;
+		if (arg < 0)
+			arg = LONG_MAX;
+		if (arg > RLIM_INFINITY / 512)
+			arg = RLIM_INFINITY / 512;
+		limit.rlim_max = limit.rlim_cur = arg * 512;
 
 		/* The setrlimit() function sets errno to EPERM if needed. */
 		if (setrlimit(RLIMIT_FSIZE, &limit) == -1)
 			return (-1);
-		return ((long)targ);
+		return ((long)arg);
 	} else {
 		errno = EINVAL;
 		return (-1);
