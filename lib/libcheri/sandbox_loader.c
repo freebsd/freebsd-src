@@ -108,7 +108,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 * part of the ABI.
 	 */
 	length = sbcp->sbc_sandboxlen;
-	base = sbop->sbo_mem = mmap(NULL, length, 0, MAP_ANON, -1, 0);
+	base = sbop->sbo_mem = mmap(NULL, length, PROT_NONE, MAP_ANON, -1, 0);
 	if (sbop->sbo_mem == MAP_FAILED) {
 		saved_errno = errno;
 		warn("%s: mmap region", __func__);
@@ -139,8 +139,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 * XXXBD: Object binary should not cover map these, but currently
 	 * this is the ELF header.
 	 */
-	memset(base, 0, SANDBOX_METADATA_BASE);
-	if (mprotect(base, SANDBOX_METADATA_BASE, PROT_READ) < 0) {
+	if (mprotect(base, SANDBOX_METADATA_BASE, PROT_NONE) < 0) {
 		saved_errno = errno;
 		warn("%s: mprotect NULL guard page", __func__);
 		goto error;
