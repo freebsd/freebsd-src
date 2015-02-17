@@ -65,8 +65,8 @@
  * they are sensible.
  */
 struct mbuf;
-#define	MHSIZE		offsetof(struct mbuf, M_dat.M_databuf)
-#define	MPKTHSIZE	offsetof(struct mbuf, M_dat.MH.MH_dat.MH_databuf)
+#define	MHSIZE		offsetof(struct mbuf, m_dat)
+#define	MPKTHSIZE	offsetof(struct mbuf, m_pktdat)
 #define	MLEN		((int)(MSIZE - MHSIZE))
 #define	MHLEN		((int)(MSIZE - MPKTHSIZE))
 #define	MINCLSIZE	(MHLEN + 1)
@@ -160,7 +160,7 @@ struct pkthdr {
  * Compile-time assertions in uipc_mbuf.c test these values to ensure that
  * they are correct.
  */
-struct struct_m_ext {
+struct m_ext {
 	volatile u_int	*ext_cnt;	/* pointer to ref count info */
 	caddr_t		 ext_buf;	/* start of buffer */
 	uint32_t	 ext_size;	/* size of buffer, for ext_free */
@@ -211,19 +211,15 @@ struct mbuf {
 	 */
 	union {
 		struct {
-			struct pkthdr	MH_pkthdr;	/* M_PKTHDR set */
+			struct pkthdr	m_pkthdr;	/* M_PKTHDR set */
 			union {
-				struct struct_m_ext	MH_ext;	/* M_EXT set */
-				char		MH_databuf[0];
-			} MH_dat;
-		} MH;
-		char	M_databuf[0];			/* !M_PKTHDR, !M_EXT */
-	} M_dat;
+				struct m_ext	m_ext;	/* M_EXT set */
+				char		m_pktdat[0];
+			};
+		};
+		char	m_dat[0];			/* !M_PKTHDR, !M_EXT */
+	};
 };
-#define	m_pkthdr	M_dat.MH.MH_pkthdr
-#define	m_ext		M_dat.MH.MH_dat.MH_ext
-#define	m_pktdat	M_dat.MH.MH_dat.MH_databuf
-#define	m_dat		M_dat.M_databuf
 
 /*
  * mbuf flags of global significance and layer crossing.
