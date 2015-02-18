@@ -162,14 +162,13 @@ atibl_pll_rreg(struct atibl_softc *sc, uint32_t reg)
 {
 	uint32_t data, save, tmp;
 
-	bus_write_1(sc->sc_memr, RADEON_CLOCK_CNTL_INDEX,
-	    ((reg & 0x3f) | RADEON_PLL_WR_EN));
+	bus_write_1(sc->sc_memr, RADEON_CLOCK_CNTL_INDEX, (reg & 0x3f));
 	(void)bus_read_4(sc->sc_memr, RADEON_CLOCK_CNTL_DATA);
 	(void)bus_read_4(sc->sc_memr, RADEON_CRTC_GEN_CNTL);
 
 	data = bus_read_4(sc->sc_memr, RADEON_CLOCK_CNTL_DATA);
 
-	/* Only necessary on R300, bt won't hurt others. */
+	/* Only necessary on R300, but won't hurt others. */
 	save = bus_read_4(sc->sc_memr, RADEON_CLOCK_CNTL_INDEX);
 	tmp = save & (~0x3f | RADEON_PLL_WR_EN);
 	bus_write_4(sc->sc_memr, RADEON_CLOCK_CNTL_INDEX, tmp);
@@ -192,7 +191,7 @@ atibl_pll_wreg(struct atibl_softc *sc, uint32_t reg, uint32_t val)
 	bus_write_4(sc->sc_memr, RADEON_CLOCK_CNTL_DATA, val);
 	DELAY(5000);
 
-	/* Only necessary on R300, bt won't hurt others. */
+	/* Only necessary on R300, but won't hurt others. */
 	save = bus_read_4(sc->sc_memr, RADEON_CLOCK_CNTL_INDEX);
 	tmp = save & (~0x3f | RADEON_PLL_WR_EN);
 	bus_write_4(sc->sc_memr, RADEON_CLOCK_CNTL_INDEX, tmp);
