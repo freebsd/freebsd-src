@@ -125,7 +125,8 @@ test_sandbox_inflate_zeros(const struct cheri_test *ctp __unused)
 	zsp.next_out = cheri_ptr(zs.next_out, zs.avail_out);
 	zsp.avail_out = zs.avail_out;
 	v = sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_OP_INFLATE, 0, 0, 0, 0, 0, 0, 0,
+	    CHERITEST_HELPER_OP_INFLATE,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(),
 	    cheri_ptr(&zsp, sizeof(struct zstream_proxy)), cheri_zerocap(),

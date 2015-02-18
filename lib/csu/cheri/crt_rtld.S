@@ -87,11 +87,11 @@ __rtld_vector:
 	# Method switch for the run-time linker vector.
 	#
 	dli	$at, -1
-	beq	$a0, $at, constructors
+	beq	$v0, $at, constructors
 	nop
 
 	# dli	$at, 2
-	# beq	$a0, $at, destructors
+	# beq	$v0, $at, destructors
 	# nop
 
 	#

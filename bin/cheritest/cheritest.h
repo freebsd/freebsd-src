@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2014 Robert N. M. Watson
+ * Copyright (c) 2012-2015 Robert N. M. Watson
  * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
@@ -179,7 +179,7 @@ extern struct cheri_object	 stdin_fd_object;
 extern struct cheri_object	 stdout_fd_object;
 extern struct cheri_object	 zero_fd_object;
 
-void	test_sandbox_fd_op(const struct cheri_test *ctp, int op);
+void	test_sandbox_fd_method(const struct cheri_test *ctp, int methodnum);
 void	test_sandbox_fd_read(const struct cheri_test *ctp);
 void	test_sandbox_fd_read_revoke(const struct cheri_test *ctp);
 void	test_sandbox_fd_write(const struct cheri_test *ctp);
@@ -192,7 +192,8 @@ void 	test_sandbox_inflate_zeros(const struct cheri_test *ctp);
 extern struct sandbox_class	*cheritest_classp;
 extern struct sandbox_object	*cheritest_objectp;
 
-void	test_sandbox_simple_op(const struct cheri_test *ctp, int op);
+void	test_sandbox_simple_method(const struct cheri_test *ctp,
+	    int methodnum);
 void	test_sandbox_md5(const struct cheri_test *ctp);
 void	test_sandbox_userfn(const struct cheri_test *ctp);
 int	cheritest_libcheri_setup(void);

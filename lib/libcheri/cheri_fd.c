@@ -291,16 +291,16 @@ _cheri_fd_write_c(__capability const void *buf_c)
  * XXXRW: temporarily replaced __unused struct cheri_object co with capability
  * pointers to try to avoid a compiler bug.
  */
-struct cheri_fd_ret	cheri_fd_enter(register_t v0, register_t methodnum,
-			    register_t a1, register_t a2,
-			    struct cheri_object co,
+struct cheri_fd_ret	cheri_fd_enter(struct cheri_object co,
+			    register_t methodnum,
+			    register_t a0, register_t a1,
 			    __capability void *c3)
 			    __attribute__((cheri_ccall));
 			    /* XXXRW: Will be ccheri_ccaller. */
 
 struct cheri_fd_ret
-cheri_fd_enter(register_t v0 __unused, register_t methodnum, register_t a1,
-    register_t a2, struct cheri_object co __unused, __capability void *c3)
+cheri_fd_enter(struct cheri_object co __unused, register_t methodnum,
+    register_t a0, register_t a1, __capability void *c3)
 {
 	struct cheri_fd_ret ret;
 
@@ -309,7 +309,7 @@ cheri_fd_enter(register_t v0 __unused, register_t methodnum, register_t a1,
 		return (_cheri_fd_fstat_c(c3));
 
 	case CHERI_FD_METHOD_LSEEK_C:
-		return (_cheri_fd_lseek_c(a1, a2));
+		return (_cheri_fd_lseek_c(a0, a1));
 
 	case CHERI_FD_METHOD_READ_C:
 		return (_cheri_fd_read_c(c3));

@@ -51,11 +51,11 @@
 #include "cheritest-helper.h"
 #include "cheritest-helper-internal.h"
 
-int	invoke(struct cheri_object co __unused, register_t v0,
-	    register_t op, register_t arg, size_t len,
+int	invoke(struct cheri_object co __unused, register_t methodnum,
+	    register_t arg, size_t len,
 	    __capability char *data_input, __capability char *data_output,
 	    struct cheri_object fd_object, struct zstream_proxy *zspp)
-	    __attribute__((cheri_ccall)); /* XXXRW: Will be ccheri_ccaller. */
+	    __attribute__((cheri_ccall)); /* XXXRW: Will be ccheri_ccallee. */
 
 static int
 invoke_md5(size_t len, __capability char *data_input,
@@ -262,7 +262,9 @@ invoke_libcheri_userfn(register_t arg, size_t len)
 	 * Argument passed to the cheritest-helper method turns into the
 	 * method number for the underlying system class invocation.
 	 */
-	return (cheri_invoke(_cheri_system_object, 0, arg, len, 0, 0, 0, 0, 0, 0,
+	return (cheri_invoke(_cheri_system_object,
+	    arg,
+	    len, 0, 0, 0, 0, 0, 0, 0,
 	    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
 }
 
@@ -275,10 +277,10 @@ invoke_libcheri_userfn_setstack(register_t arg)
 	 * In the setstack test, ensure that execution of the return path via
 	 * the sandbox has a visible effect that can be tested for.
 	 */
-	v = (cheri_invoke(_cheri_system_object, CHERITEST_USERFN_SETSTACK,
+	v = (cheri_invoke(_cheri_system_object,
 	    CHERITEST_USERFN_SETSTACK,
-	    arg, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-	    NULL));
+	    arg, 0, 0, 0, 0, 0, 0, 0,
+	    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
 	v += 10;
 	return (v);
 }
@@ -375,13 +377,13 @@ invoke_inflate(struct zstream_proxy *zspp)
  */
 static volatile int zero = 0;
 int
-invoke(struct cheri_object co __unused, register_t v0 __unused,
-    register_t op, register_t arg, size_t len,
+invoke(struct cheri_object co __unused, register_t methodnum,
+    register_t arg, size_t len,
     __capability char *data_input, __capability char *data_output,
     struct cheri_object fd_object, struct zstream_proxy* zspp)
 {
 
-	switch (op) {
+	switch (methodnum) {
 	case CHERITEST_HELPER_OP_MD5:
 		return (invoke_md5(len, data_input, data_output));
 
@@ -396,12 +398,12 @@ invoke(struct cheri_object co __unused, register_t v0 __unused,
 	case CHERITEST_HELPER_OP_CP2_PERM_STORE:
 	case CHERITEST_HELPER_OP_CP2_TAG:
 	case CHERITEST_HELPER_OP_CP2_SEAL:
-		return (invoke_cap_fault(op));
+		return (invoke_cap_fault(methodnum));
 
 	case CHERITEST_HELPER_OP_VM_RFAULT:
 	case CHERITEST_HELPER_OP_VM_WFAULT:
 	case CHERITEST_HELPER_OP_VM_XFAULT:
-		return (invoke_vm_fault(op));
+		return (invoke_vm_fault(methodnum));
 
 	case CHERITEST_HELPER_OP_SYSCALL:
 		return (invoke_syscall());

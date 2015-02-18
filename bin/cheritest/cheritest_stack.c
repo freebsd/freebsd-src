@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Robert N. M. Watson
+ * Copyright (c) 2014-2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -114,8 +114,8 @@ test_sandbox_getstack(const struct cheri_test *ctp __unused)
 
 	cclear = cheri_zerocap();
 	v = sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_LIBCHERI_USERFN, CHERITEST_USERFN_GETSTACK,
-	    0, 0, 0, 0, 0, 0,
+	    CHERITEST_HELPER_LIBCHERI_USERFN,
+	    CHERITEST_USERFN_GETSTACK, 0, 0, 0, 0, 0, 0, 0,
 	    cclear, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
 	if (v != 0)
 		cheritest_failure_errx("Incorrect return value 0x%ld"
@@ -201,7 +201,7 @@ test_sandbox_setstack(const struct cheri_test *ctp __unused)
 	cclear = cheri_zerocap();
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_LIBCHERI_USERFN_SETSTACK,
-	    CHERITEST_USERFN_SETSTACK, 1, 0, 0, 0, 0, 0,
+	    CHERITEST_USERFN_SETSTACK, 1, 0, 0, 0, 0, 0, 0,
 	    cclear, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
 	if (v == CHERITEST_SETSTACK_CONSTANT + 10)
 		cheritest_failure_errx("sandbox return path improperly "
@@ -221,7 +221,7 @@ test_sandbox_setstack_nop(const struct cheri_test *ctp __unused)
 	cclear = cheri_zerocap();
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_LIBCHERI_USERFN_SETSTACK,
-	    CHERITEST_USERFN_SETSTACK, 0, 0, 0, 0, 0, 0,
+	    CHERITEST_USERFN_SETSTACK, 0, 0, 0, 0, 0, 0, 0,
 	    cclear, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
 	if (v != CHERITEST_SETSTACK_CONSTANT)
 		cheritest_failure_errx("unexpected return value (%ld)", v);

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Robert N. M. Watson
+ * Copyright (c) 2014-2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -45,9 +45,10 @@
 #include "cheri_bench-helper.h"
 
 int
-invoke(register_t op, register_t len,
-       __capability void *dataout, 
-       __capability void *datain);
+invoke(register_t methodnum,
+    register_t len,
+    __capability void *dataout, __capability void *datain)
+    __attribute__((cheri_ccall)); /* XXXRW: Will be ccheri_ccaller. */;
 
 /*
  * Print "hello world" in one of three ways, depending on the "op" argument:
@@ -55,10 +56,10 @@ invoke(register_t op, register_t len,
  * service, and by writing it to a cheri_fd object passed as an argument.
  */
 int
-invoke(register_t op, register_t len,
+invoke(register_t methodnum, register_t len,
        __capability void *dataout,  __capability void *datain)
 {
-	switch (op) {
+	switch (methodnum) {
 	case CHERI_BENCH_HELPER_OP_BENCH:
 	  return -1;
 	case CHERI_BENCH_HELPER_OP_PUTS:

@@ -48,10 +48,12 @@
 
 #include "libpng_sb-helper.h"
 
-register_t invoke(register_t op, register_t a1, register_t a2,
+register_t invoke(register_t methodnum,
+    register_t a0, register_t a1,
     struct cheri_object system_object,
     __capability void *c5 __unused, __capability void *c6 __unused,
-    __capability void *c7, __capability void *c8);
+    __capability void *c7, __capability void *c8)
+    __attribute__((cheri_ccall)); /* XXXRW: Will be ccheri_ccaller. */
 
 struct cheri_object global_system_object;
 png_structp g_png_ptr;
@@ -76,7 +78,8 @@ static void
 libpng_sb_read_callback(void *psp, png_bytep data, png_size_t length)
 {
 
-	cheri_invoke(global_system_object, LIBPNG_SB_USERFN_READ_CALLBACK,
+	cheri_invoke(global_system_object,
+	    LIBPNG_SB_USERFN_READ_CALLBACK,
 	    LIBPNG_SB_USERFN_READ_CALLBACK, length, 0, 0, 0, 0, 0, 0,
 	    psp, data,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
@@ -87,7 +90,8 @@ static void
 libpng_sb_info_callback(void *psp, png_infop info_ptr)
 {
 
-	cheri_invoke(global_system_object, LIBPNG_SB_USERFN_INFO_CALLBACK,
+	cheri_invoke(global_system_object,
+	    LIBPNG_SB_USERFN_INFO_CALLBACK,
 	    LIBPNG_SB_USERFN_INFO_CALLBACK, 0, 0, 0, 0, 0, 0, 0,
 	    psp, info_ptr,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
@@ -99,7 +103,8 @@ libpng_sb_row_callback(void *psp, png_bytep new_row, png_uint_32 row_num,
     int pass)
 {
 
-	cheri_invoke(global_system_object, LIBPNG_SB_USERFN_ROW_CALLBACK,
+	cheri_invoke(global_system_object,
+	    LIBPNG_SB_USERFN_ROW_CALLBACK,
 	    LIBPNG_SB_USERFN_ROW_CALLBACK, row_num, pass, 0, 0, 0, 0, 0,
 	    psp, new_row,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
@@ -110,7 +115,8 @@ static void
 libpng_sb_end_callback(void *psp, png_infop info_ptr)
 {
 
-	cheri_invoke(global_system_object, LIBPNG_SB_USERFN_END_CALLBACK,
+	cheri_invoke(global_system_object,
+	    LIBPNG_SB_USERFN_END_CALLBACK,
 	    LIBPNG_SB_USERFN_END_CALLBACK, 0, 0, 0, 0, 0, 0, 0,
 	    psp, info_ptr,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
@@ -159,7 +165,7 @@ sb_end_fn(png_structp png_ptr, png_infop info_ptr)
  * Handle assorted libpng library calls.
  */
 register_t
-invoke(register_t op, register_t a1, register_t a2,
+invoke(register_t op, register_t a0, register_t a1, 
     struct cheri_object system_object,
     __capability void *c5 __unused, __capability void *c6 __unused,
     __capability void *c7, __capability void *c8)
@@ -221,7 +227,7 @@ invoke(register_t op, register_t a1, register_t a2,
 		png_set_tRNS_to_alpha(g_png_ptr);
 		return (0);
 	case LIBPNG_SB_HELPER_OP_SET_FILLER:
-		png_set_filler(g_png_ptr, a1, a2);
+		png_set_filler(g_png_ptr, a0, a1);
 		return (0);
 	case LIBPNG_SB_HELPER_OP_SET_STRIP_16:
 		png_set_strip_16(g_png_ptr);
@@ -238,7 +244,7 @@ invoke(register_t op, register_t a1, register_t a2,
 		png_read_image(g_png_ptr, c7);
 		return (0);
 	case LIBPNG_SB_HELPER_OP_PROCESS_DATA:
-		png_process_data(g_png_ptr, c7, c8, a1);
+		png_process_data(g_png_ptr, c7, c8, a0);
 		return (0);
 	case LIBPNG_SB_HELPER_OP_GET_COLOR_TYPE:
 		return (png_get_color_type(g_png_ptr, c7));
@@ -246,7 +252,7 @@ invoke(register_t op, register_t a1, register_t a2,
 		png_set_gray_to_rgb(g_png_ptr);
 		return (0);
 	case LIBPNG_SB_HELPER_OP_GET_VALID:
-		return(png_get_valid(g_png_ptr, c7, a1));
+		return(png_get_valid(g_png_ptr, c7, a0));
 	case LIBPNG_SB_HELPER_OP_GET_ROWBYTES:
 		return(png_get_rowbytes(g_png_ptr, c7));
 	case LIBPNG_SB_HELPER_OP_GET_IMAGE_WIDTH:

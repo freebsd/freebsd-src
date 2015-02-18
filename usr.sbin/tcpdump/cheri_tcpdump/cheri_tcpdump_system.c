@@ -71,9 +71,10 @@ cheri_tcpdump_putchar(int c)
 }
 
 register_t
-cheri_tcpdump_system(register_t v0, register_t methodnum, register_t a1,
-	    register_t a2, register_t a3, register_t a4, register_t a5,
-	    register_t a6, register_t a7, struct cheri_object system_object,
+cheri_tcpdump_system(struct cheri_object system_object,
+	    register_t methodnum,
+	    register_t a0, register_t a1, register_t a2, register_t a3,
+	    register_t a4, register_t a5, register_t a6, register_t a7,
 	    __capability void *c3, __capability void *c4,
 	    __capability void *c5, __capability void *c6,
 	    __capability void *c7)
@@ -89,11 +90,11 @@ cheri_tcpdump_system(register_t v0, register_t methodnum, register_t a1,
 		return (cheri_tcpdump_puts(c3));
 
 	case CHERI_TCPDUMP_PUTCHAR:
-		return (cheri_tcpdump_putchar(a1));
+		return (cheri_tcpdump_putchar(a0));
 
 	case CHERI_TCPDUMP_PUTCHAR_PAWNED:
 		printf(red_bg);
-		return (cheri_tcpdump_putchar(a1));
+		return (cheri_tcpdump_putchar(a0));
 
 	default:
 		return (-1);

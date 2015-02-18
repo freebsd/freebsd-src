@@ -265,7 +265,7 @@ cheri_magic_descriptor(void *magicbuf, size_t magicsize, int fd)
 	if (dotimings)
 		preinvoke = sysarch(MIPS_GET_COUNT, NULL);
 
-	v = sandbox_invoke(sandbox, outsize, magicsize, filesize, dotimings,
+	v = sandbox_invoke(sandbox, 0, outsize, magicsize, filesize, dotimings,
 	    &out_cap, &magic_cap, &file_cap, &timing_cap, NULL, NULL, NULL,
 	    NULL);
 

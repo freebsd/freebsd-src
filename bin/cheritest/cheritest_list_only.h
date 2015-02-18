@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2014 Robert N. M. Watson
+ * Copyright (c) 2012-2015 Robert N. M. Watson
  * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
@@ -100,7 +100,7 @@
 #define	test_fault_ccall_typemismatch			NULL
 #define	test_fault_ccall_code_noexecute			NULL
 #define	test_fault_ccall_data_execute			NULL
-#define	test_sandbox_simple_op				NULL
+#define	test_sandbox_simple_method			NULL
 #define	test_sandbox_cp2_bound_catch			NULL
 #define	test_sandbox_cp2_bound_nocatch			NULL
 #define	test_sandbox_cp2_perm_load_catch		NULL
@@ -120,7 +120,7 @@
 #define	test_sandbox_vm_xfault_catch			NULL
 #define	test_sandbox_vm_xfault_nocatch			NULL
 #define	test_sandbox_md5				NULL
-#define	test_sandbox_fd_op				NULL
+#define	test_sandbox_fd_method				NULL
 #define	test_sandbox_fd_read				NULL
 #define	test_sandbox_fd_read_revoke			NULL
 #define	test_sandbox_fd_write				NULL

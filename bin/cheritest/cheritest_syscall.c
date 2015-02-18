@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Robert N. M. Watson
+ * Copyright (c) 2013-2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -80,7 +80,7 @@ test_sandbox_syscall(const struct cheri_test *ctp)
 		cheritest_failure_errx(
 		    "security.cheri.syscall_violations sysctl read (%d)",
 		    errno);
-	test_sandbox_simple_op(ctp, CHERITEST_HELPER_OP_SYSCALL);
+	test_sandbox_simple_method(ctp, CHERITEST_HELPER_OP_SYSCALL);
 	len = sizeof(new);
 	if (sysctlbyname("security.cheri.syscall_violations", &new, &len,
 	    NULL, 0) < 0)

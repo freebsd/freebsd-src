@@ -1,5 +1,5 @@
 #-
-# Copyright (c) 2012-2014 Robert N. M. Watson
+# Copyright (c) 2012-2015 Robert N. M. Watson
 # All rights reserved.
 #
 # This software was developed by SRI International and the University of
@@ -46,6 +46,7 @@
 #    $idc contains the unsealed invoked data capability
 #
 # Expectations on the caller
+#    $v0 contains the method number (if any)
 #    $a0-$a7 will contain non-capability arguments
 #    $c3-$c10 will contain capability arguments
 #

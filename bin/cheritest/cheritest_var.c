@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Robert N. M. Watson
+ * Copyright (c) 2014-2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -70,7 +70,8 @@ test_sandbox_save_global(const struct cheri_test *ctp __unused)
 	carg = (__capability void *)&v;
 	cclear = cheri_zerocap();
 	v = sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_SAVE_CAPABILITY_IN_HEAP, 0, 0, 0, 0, 0, 0, 0,
+	    CHERITEST_HELPER_SAVE_CAPABILITY_IN_HEAP,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    carg, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
 	if (v != 0)
 		cheritest_failure_errx("Incorrect return value 0x%lx "
@@ -88,7 +89,8 @@ test_sandbox_save_local(const struct cheri_test *ctp __unused)
 	carg = cheri_local(carg);
 	cclear = cheri_zerocap();
 	(void)sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_SAVE_CAPABILITY_IN_HEAP, 0, 0, 0, 0, 0, 0, 0,
+	    CHERITEST_HELPER_SAVE_CAPABILITY_IN_HEAP,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    carg, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
 	cheritest_failure_errx("Method failed to properly fail\n");
 }
@@ -101,7 +103,8 @@ test_sandbox_var_bss(const struct cheri_test *ctp __unused)
 
 	cclear = cheri_zerocap();
 	v = sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_GET_VAR_BSS, 0, 0, 0, 0, 0, 0, 0,
+	    CHERITEST_HELPER_GET_VAR_BSS,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    cclear, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
 	if (v != CHERITEST_VALUE_BSS)
 		cheritest_failure_errx(".bss returned 0x%lx (expected 0x%lx)",
@@ -117,7 +120,8 @@ test_sandbox_var_data(const struct cheri_test *ctp __unused)
 
 	cclear = cheri_zerocap();
 	v = sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_GET_VAR_DATA, 0, 0, 0, 0, 0, 0, 0,
+	    CHERITEST_HELPER_GET_VAR_DATA,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    cclear, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
 	if (v != CHERITEST_VALUE_DATA)
 		cheritest_failure_errx(".data returned 0x%lx (expected 0x%lx)",
@@ -134,7 +138,8 @@ test_sandbox_var_constructor(const struct cheri_test *ctp __unused)
 
 	cclear = cheri_zerocap();
 	v = sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_GET_VAR_CONSTRUCTOR, 0, 0, 0, 0, 0, 0, 0,
+	    CHERITEST_HELPER_GET_VAR_CONSTRUCTOR,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    cclear, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
 	if (v != CHERITEST_VALUE_CONSTRUCTOR)
 		cheritest_failure_errx(

@@ -59,7 +59,7 @@ cheri_system_helloworld(void)
 
 	return (cheri_invoke(_cheri_system_object,
 	    cheri_system_methodnum_helloworld,
-	    cheri_system_methodnum_helloworld, 0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap()));
@@ -72,8 +72,9 @@ cheri_system_puts(__capability const char *str)
 	__capability char *str_noconst;
 
 	str_noconst = (__capability char *)str;
-	return (cheri_invoke(_cheri_system_object, cheri_system_methodnum_puts,
-	    cheri_system_methodnum_puts, 0, 0, 0, 0, 0, 0, 0, str_noconst,
+	return (cheri_invoke(_cheri_system_object,
+	    cheri_system_methodnum_puts,
+	    0, 0, 0, 0, 0, 0, 0, 0, str_noconst,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap()));
@@ -86,7 +87,7 @@ cheri_system_putchar(int c)
 
 	return (cheri_invoke(_cheri_system_object,
 	    cheri_system_methodnum_putchar,
-	    cheri_system_methodnum_putchar, c, 0, 0, 0, 0, 0, 0,
+	    c, 0, 0, 0, 0, 0, 0, 0,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap()));
@@ -99,13 +100,17 @@ cheri_system_clock_gettime(clockid_t clock_id, __capability struct timespec *tp)
 
 	return (cheri_invoke(_cheri_system_object,
 	    cheri_system_methodnum_clock_gettime,
-	    cheri_system_methodnum_clock_gettime, clock_id, 0, 0, 0, 0, 0, 0,
-	    tp,
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    clock_id, 0, 0, 0, 0, 0, 0, 0,
+	    tp, cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap()));
 }
 
+/*
+ * XXXRW: Should we be using __capability annotations for
+ * cheri_system_calloc() and cheri_system_free() for compatibility with the
+ * hybrid ABI?  If not, should we be trimming them above?
+ */
 register_t cheri_system_methodnum_calloc = CHERI_SYSTEM_CALLOC;
 int
 cheri_system_calloc(size_t number, size_t size, void **ptrp)
@@ -113,8 +118,8 @@ cheri_system_calloc(size_t number, size_t size, void **ptrp)
 
 	return (cheri_invoke(_cheri_system_object,
 	    cheri_system_methodnum_calloc,
-	    cheri_system_methodnum_calloc, number, size, 0, 0, 0, 0, 0, ptrp,
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    number, size, 0, 0, 0, 0, 0, 0,
+	    ptrp, cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap()));
 }
@@ -124,9 +129,10 @@ int
 cheri_system_free(const void *ptr)
 {
 
-	return (cheri_invoke(_cheri_system_object, cheri_system_methodnum_free,
-	    cheri_system_methodnum_free, 0, 0, 0, 0, 0, 0, 0, ptr,
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	return (cheri_invoke(_cheri_system_object,
+	    cheri_system_methodnum_free,
+	    0, 0, 0, 0, 0, 0, 0, 0,
+	    ptr, cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap()));
 }

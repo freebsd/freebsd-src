@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2014 Robert N. M. Watson
+ * Copyright (c) 2012-2015 Robert N. M. Watson
  * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
@@ -212,11 +212,13 @@ test_fault_read_epcc(const struct cheri_test *ctp __unused)
  * including VM faults, arithmetic faults, etc.
  */
 static register_t
-test_sandbox_op(int op)
+test_sandbox_method(int methodnum)
 {
 
 	alarm(10);
-	return (sandbox_object_cinvoke(cheritest_objectp, op, 0, 0, 0, 0, 0, 0, 0,
+	return (sandbox_object_cinvoke(cheritest_objectp,
+	    methodnum,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap()));
@@ -240,7 +242,7 @@ void
 test_sandbox_cp2_bound_catch(const struct cheri_test *ctp __unused)
 {
 
-	test_sandbox_op(CHERITEST_HELPER_OP_CP2_BOUND);
+	test_sandbox_method(CHERITEST_HELPER_OP_CP2_BOUND);
 	cheritest_failure_errx("invoke returned");
 }
 
@@ -250,7 +252,7 @@ test_sandbox_cp2_bound_nocatch(const struct cheri_test *ctp __unused)
 	register_t v;
 
 	signal_handler_clear(SIGPROT);
-	v = test_sandbox_op(CHERITEST_HELPER_OP_CP2_BOUND);
+	v = test_sandbox_method(CHERITEST_HELPER_OP_CP2_BOUND);
 	if (v != -1)
 		cheritest_failure_errx("invoke returned %d (expected %d)", v,
 		    -1);
@@ -261,7 +263,7 @@ void
 test_sandbox_cp2_perm_load_catch(const struct cheri_test *ctp __unused)
 {
 
-	test_sandbox_op(CHERITEST_HELPER_OP_CP2_PERM_LOAD);
+	test_sandbox_method(CHERITEST_HELPER_OP_CP2_PERM_LOAD);
 	cheritest_failure_errx("invoke returned");
 }
 
@@ -271,7 +273,7 @@ test_sandbox_cp2_perm_load_nocatch(const struct cheri_test *ctp __unused)
 	register_t v;
 
 	signal_handler_clear(SIGPROT);
-	v = test_sandbox_op(CHERITEST_HELPER_OP_CP2_PERM_LOAD);
+	v = test_sandbox_method(CHERITEST_HELPER_OP_CP2_PERM_LOAD);
 	if (v != -1)
 		cheritest_failure_errx("invoke returned %d (expected %d)", v,
 		    -1);
@@ -282,7 +284,7 @@ void
 test_sandbox_cp2_perm_store_catch(const struct cheri_test *ctp __unused)
 {
 
-	test_sandbox_op(CHERITEST_HELPER_OP_CP2_PERM_STORE);
+	test_sandbox_method(CHERITEST_HELPER_OP_CP2_PERM_STORE);
 	cheritest_failure_errx("invoke returned");
 }
 
@@ -292,7 +294,7 @@ test_sandbox_cp2_perm_store_nocatch(const struct cheri_test *ctp __unused)
 	register_t v;
 
 	signal_handler_clear(SIGPROT);
-	v = test_sandbox_op(CHERITEST_HELPER_OP_CP2_PERM_STORE);
+	v = test_sandbox_method(CHERITEST_HELPER_OP_CP2_PERM_STORE);
 	if (v != -1)
 		cheritest_failure_errx("invoke returned %d (expected %d)", v,
 		    -1);
@@ -303,7 +305,7 @@ void
 test_sandbox_cp2_tag_catch(const struct cheri_test *ctp __unused)
 {
 
-	test_sandbox_op(CHERITEST_HELPER_OP_CP2_TAG);
+	test_sandbox_method(CHERITEST_HELPER_OP_CP2_TAG);
 	cheritest_failure_errx("invoke returned");
 }
 
@@ -313,7 +315,7 @@ test_sandbox_cp2_tag_nocatch(const struct cheri_test *ctp __unused)
 	register_t v;
 
 	signal_handler_clear(SIGPROT);
-	v = test_sandbox_op(CHERITEST_HELPER_OP_CP2_TAG);
+	v = test_sandbox_method(CHERITEST_HELPER_OP_CP2_TAG);
 	if (v != -1)
 		cheritest_failure_errx("invoke returned %d (expected %d)", v,
 		    -1);
@@ -324,7 +326,7 @@ void
 test_sandbox_cp2_seal_catch(const struct cheri_test *ctp __unused)
 {
 
-	test_sandbox_op(CHERITEST_HELPER_OP_CP2_SEAL);
+	test_sandbox_method(CHERITEST_HELPER_OP_CP2_SEAL);
 	cheritest_failure_errx("invoke returned");
 }
 
@@ -334,7 +336,7 @@ test_sandbox_cp2_seal_nocatch(const struct cheri_test *ctp __unused)
 	register_t v;
 
 	signal_handler_clear(SIGPROT);
-	v = test_sandbox_op(CHERITEST_HELPER_OP_CP2_SEAL);
+	v = test_sandbox_method(CHERITEST_HELPER_OP_CP2_SEAL);
 	if (v != -1)
 		cheritest_failure_errx("invoke returned %d (expected %d)", v,
 		    -1);
@@ -345,7 +347,7 @@ void
 test_sandbox_divzero_catch(const struct cheri_test *ctp __unused)
 {
 
-	test_sandbox_op(CHERITEST_HELPER_OP_DIVZERO);
+	test_sandbox_method(CHERITEST_HELPER_OP_DIVZERO);
 	cheritest_failure_errx("invoke returned");
 }
 
@@ -355,7 +357,7 @@ test_sandbox_divzero_nocatch(const struct cheri_test *ctp __unused)
 	register_t v;
 
 	signal_handler_clear(SIGEMT);
-	v = test_sandbox_op(CHERITEST_HELPER_OP_DIVZERO);
+	v = test_sandbox_method(CHERITEST_HELPER_OP_DIVZERO);
 	if (v != -1)
 		cheritest_failure_errx("invoke returned %d (expected %d)", v,
 		    -1);
@@ -366,7 +368,7 @@ void
 test_sandbox_vm_rfault_catch(const struct cheri_test *ctp __unused)
 {
 
-	test_sandbox_op(CHERITEST_HELPER_OP_VM_RFAULT);
+	test_sandbox_method(CHERITEST_HELPER_OP_VM_RFAULT);
 	cheritest_failure_errx("invoke returned");
 }
 
@@ -376,7 +378,7 @@ test_sandbox_vm_rfault_nocatch(const struct cheri_test *ctp __unused)
 	register_t v;
 
 	signal_handler_clear(SIGBUS);
-	v = test_sandbox_op(CHERITEST_HELPER_OP_VM_RFAULT);
+	v = test_sandbox_method(CHERITEST_HELPER_OP_VM_RFAULT);
 	if (v != -1)
 		cheritest_failure_errx("invoke returned %d (expected %d)", v,
 		    -1);
@@ -387,7 +389,7 @@ void
 test_sandbox_vm_wfault_catch(const struct cheri_test *ctp __unused)
 {
 
-	test_sandbox_op(CHERITEST_HELPER_OP_VM_WFAULT);
+	test_sandbox_method(CHERITEST_HELPER_OP_VM_WFAULT);
 	cheritest_failure_errx("invoke returned");
 }
 
@@ -397,7 +399,7 @@ test_sandbox_vm_wfault_nocatch(const struct cheri_test *ctp __unused)
 	register_t v;
 
 	signal_handler_clear(SIGBUS);
-	v = test_sandbox_op(CHERITEST_HELPER_OP_VM_WFAULT);
+	v = test_sandbox_method(CHERITEST_HELPER_OP_VM_WFAULT);
 	if (v != -1)
 		cheritest_failure_errx("invoke returned %d (expected %d)", v,
 		    -1);
@@ -408,7 +410,7 @@ void
 test_sandbox_vm_xfault_catch(const struct cheri_test *ctp __unused)
 {
 
-	test_sandbox_op(CHERITEST_HELPER_OP_VM_XFAULT);
+	test_sandbox_method(CHERITEST_HELPER_OP_VM_XFAULT);
 	cheritest_failure_errx("invoke returned");
 }
 
@@ -418,7 +420,7 @@ test_sandbox_vm_xfault_nocatch(const struct cheri_test *ctp __unused)
 	register_t v;
 
 	signal_handler_clear(SIGBUS);
-	v = test_sandbox_op(CHERITEST_HELPER_OP_VM_XFAULT);
+	v = test_sandbox_method(CHERITEST_HELPER_OP_VM_XFAULT);
 	if (v != -1)
 		cheritest_failure_errx("invoke returned %d (expected %d)", v,
 		    -1);

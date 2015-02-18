@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2014 Robert N. M. Watson
+ * Copyright (c) 2012-2015 Robert N. M. Watson
  * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
@@ -356,12 +356,12 @@ static const struct cheri_test cheri_tests[] = {
 	 */
 	{ .ct_name = "test_sandbox_abort",
 	  .ct_desc = "Exercise system call in a libcheri sandbox",
-	  .ct_func_arg = test_sandbox_simple_op,
+	  .ct_func_arg = test_sandbox_simple_method,
 	  .ct_arg = CHERITEST_HELPER_OP_ABORT },
 
 	{ .ct_name = "test_sandbox_clock_gettime",
 	  .ct_desc = "Exercise clock_gettime() in a libcheri sandbox",
-	  .ct_func_arg = test_sandbox_simple_op,
+	  .ct_func_arg = test_sandbox_simple_method,
 	  .ct_arg = CHERITEST_HELPER_OP_CS_CLOCK_GETTIME,
 	  .ct_flags = CT_FLAG_STDOUT_IGNORE },
 
@@ -478,7 +478,7 @@ static const struct cheri_test cheri_tests[] = {
 
 	{ .ct_name = "test_sandbox_helloworld",
 	  .ct_desc = "Print 'hello world' in a libcheri sandbox",
-	  .ct_func_arg = test_sandbox_simple_op,
+	  .ct_func_arg = test_sandbox_simple_method,
 	  .ct_arg = CHERITEST_HELPER_OP_CS_HELLOWORLD,
 	  .ct_flags = CT_FLAG_STDOUT_STRING,
 	  .ct_stdout_string = "hello world\n" },
@@ -489,50 +489,50 @@ static const struct cheri_test cheri_tests[] = {
 
 	{ .ct_name = "test_sandbox_malloc",
 	  .ct_desc = "Malloc memory in a libcheri sandbox",
-	  .ct_func_arg = test_sandbox_simple_op,
+	  .ct_func_arg = test_sandbox_simple_method,
 	  .ct_arg = CHERITEST_HELPER_OP_MALLOC },
 
 	{ .ct_name = "test_sandbox_system_calloc",
 	  .ct_desc = "Allocate memory in base for use in the sandbox",
-	  .ct_func_arg = test_sandbox_simple_op,
+	  .ct_func_arg = test_sandbox_simple_method,
 	  .ct_arg = CHERITEST_HELPER_OP_SYSTEM_CALLOC },
 
 	{ .ct_name = "test_sandbox_printf",
 	  .ct_desc = "printf() in a libcheri sandbox",
-	  .ct_func_arg = test_sandbox_simple_op,
+	  .ct_func_arg = test_sandbox_simple_method,
 	  .ct_arg = CHERITEST_HELPER_OP_PRINTF ,
 	  .ct_flags = CT_FLAG_STDOUT_STRING,
 	  .ct_stdout_string = "invoke: printf in sandbox test\n" },
 
 	{ .ct_name = "test_sandbox_cs_putchar",
 	  .ct_desc = "putchar() in a libcheri sandbox",
-	  .ct_func_arg = test_sandbox_simple_op,
+	  .ct_func_arg = test_sandbox_simple_method,
 	  .ct_arg = CHERITEST_HELPER_OP_CS_PUTCHAR,
 	  .ct_flags = CT_FLAG_STDOUT_STRING,
 	  .ct_stdout_string = "C" },
 
 	{ .ct_name = "test_sandbox_cs_puts",
 	  .ct_desc = "puts() in a libcheri sandbox",
-	  .ct_func_arg = test_sandbox_simple_op,
+	  .ct_func_arg = test_sandbox_simple_method,
 	  .ct_arg = CHERITEST_HELPER_OP_CS_PUTS,
 	  .ct_flags = CT_FLAG_STDOUT_STRING,
 	  .ct_stdout_string = "sandbox cs_puts\n" },
 
 	{ .ct_name = "test_sandbox_spin",
 	  .ct_desc = "spin in a libcheri sandbox",
-	  .ct_func_arg = test_sandbox_simple_op,
+	  .ct_func_arg = test_sandbox_simple_method,
 	  .ct_arg = CHERITEST_HELPER_OP_SPIN,
 	  .ct_flags = CT_FLAG_SIGNAL,
 	  .ct_signum = SIGALRM },
 
 	{ .ct_name = "test_sandbox_syscall",
 	  .ct_desc = "Invoke a system call in a libcheri sandbox",
-	  .ct_func_arg = test_sandbox_simple_op,
+	  .ct_func_arg = test_sandbox_simple_method,
 	  .ct_arg = CHERITEST_HELPER_OP_SYSCALL },
 
 	{ .ct_name = "test_sandbox_syscap",
 	  .ct_desc = "Invoke the system capability in a libcheri sandbox",
-	  .ct_func_arg = test_sandbox_simple_op,
+	  .ct_func_arg = test_sandbox_simple_method,
 	  .ct_arg = CHERITEST_HELPER_OP_SYSCAP },
 
 	/*
@@ -540,12 +540,12 @@ static const struct cheri_test cheri_tests[] = {
 	 */
 	{ .ct_name = "test_sandbox_fd_fstat",
 	  .ct_desc = "Exercise fstat() on a cheri_fd in a libcheri sandbox",
-	  .ct_func_arg = test_sandbox_fd_op,
+	  .ct_func_arg = test_sandbox_fd_method,
 	  .ct_arg = CHERITEST_HELPER_OP_FD_FSTAT_C },
 
 	{ .ct_name = "test_sandbox_fd_lseek",
 	  .ct_desc = "Exercise lseek() on a cheri_fd in a libcheri sandbox",
-	  .ct_func_arg = test_sandbox_fd_op,
+	  .ct_func_arg = test_sandbox_fd_method,
 	  .ct_arg = CHERITEST_HELPER_OP_FD_LSEEK_C },
 
 	{ .ct_name = "test_sandbox_fd_read",

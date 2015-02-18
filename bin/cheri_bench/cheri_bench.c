@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Robert N. M. Watson
+ * Copyright (c) 2014-2015 Robert N. M. Watson
  * Copyright (c) 2014 Robert M. Norton
  * All rights reserved.
  *
@@ -87,7 +87,9 @@ static uint64_t invoke_memcpy(__capability char *dataout, __capability char *dat
   int ret;
   uint32_t start_count, end_count;
   start_count = get_cyclecount();
-  ret = sandbox_object_cinvoke(objectp, CHERI_BENCH_HELPER_OP_MEMCPY, len, 0, 0, 0, 0, 0, 0,
+  ret = sandbox_object_cinvoke(objectp,
+			     CHERI_BENCH_HELPER_OP_MEMCPY,
+			     len, 0, 0, 0, 0, 0, 0, 0,
 			     (__capability void *) dataout,
 			     (__capability void *) datain,
 			     cheri_zerocap(),

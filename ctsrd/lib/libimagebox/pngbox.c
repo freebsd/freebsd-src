@@ -258,8 +258,9 @@ cheri_png_read_start(char *pngbuffer, size_t pnglen,
 	 * XXXBD: We don't really want to capabilities in the output
 	 * buffer, but memcpy_c will do capability writes
 	 */
-        v = sandbox_object_cinvoke(sandbox_object, width, height, pnglen,
-	    0, 0, 0, 0, 0,
+        v = sandbox_object_cinvoke(sandbox_object,
+	    0,
+	    width, height, pnglen, 0, 0, 0, 0, 0,
             cheri_ptrperm((void *)is->buffer,
 	     is->width * is->height * sizeof(*is->buffer),
 	     CHERI_PERM_STORE | CHERI_PERM_STORE_CAP),

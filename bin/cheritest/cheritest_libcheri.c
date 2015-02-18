@@ -66,7 +66,8 @@ struct sandbox_class	*cheritest_classp;
 struct sandbox_object	*cheritest_objectp;
 
 void
-test_sandbox_simple_op(const struct cheri_test *ctp __unused, int op)
+test_sandbox_simple_method(const struct cheri_test *ctp __unused,
+    int methodnum)
 {
 	register_t v;
 
@@ -77,7 +78,9 @@ test_sandbox_simple_op(const struct cheri_test *ctp __unused, int op)
 	 */
 	alarm(10);
 
-	v = sandbox_object_cinvoke(cheritest_objectp, op, 0, 0, 0, 0, 0, 0, 0,
+	v = sandbox_object_cinvoke(cheritest_objectp,
+	    methodnum,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap());
@@ -105,8 +108,9 @@ test_sandbox_md5(const struct cheri_test *ctp __unused)
 	    CHERI_PERM_LOAD);
 	bufcap = cheri_ptrperm(buf, sizeof(buf), CHERI_PERM_STORE);
 
-	v = sandbox_object_cinvoke(cheritest_objectp, CHERITEST_HELPER_OP_MD5,
-	    0, strlen(string_to_md5), 0, 0, 0, 0, 0,
+	v = sandbox_object_cinvoke(cheritest_objectp,
+	    CHERITEST_HELPER_OP_MD5,
+	    0, strlen(string_to_md5), 0, 0, 0, 0, 0, 0,
 	    md5cap, bufcap, cclear, cclear, cclear, cclear, cclear, cclear);
 
 	buf[32] = '\0';
@@ -117,19 +121,22 @@ test_sandbox_md5(const struct cheri_test *ctp __unused)
 	cheritest_success();
 }
 
-static register_t cheritest_libcheri_userfn_handler(register_t, register_t,
-    register_t, register_t, register_t, register_t, register_t, register_t,
-    register_t,
-    struct cheri_object, __capability void *, __capability void *,
-    __capability void *, __capability void *, __capability void *)
-    __attribute__((cheri_ccall));	/* XXXRW: Will be ccheri_ccaller. */
+static register_t cheritest_libcheri_userfn_handler(
+    struct cheri_object system_object,
+    register_t methodnum,
+    register_t a0, register_t a1, register_t a2, register_t a3,
+    register_t a4, register_t a5, register_t a6, register_t a7,
+    __capability void *c3, __capability void *c4, __capability void *c5,
+    __capability void *c6, __capability void *c7)
+    __attribute__((cheri_ccall)); /* XXXRW: Will be ccheri_ccallee. */
 
 static register_t
-cheritest_libcheri_userfn_handler(register_t v0 __unused,
-    register_t methodnum, register_t arg, register_t a2 __unused,
-    register_t a3 __unused, register_t a4 __unused, register_t a5 __unused,
-    register_t a6 __unused, register_t a7 __unused,
-    struct cheri_object system_object __unused,
+cheritest_libcheri_userfn_handler(struct cheri_object system_object __unused,
+    register_t methodnum,
+    register_t arg,
+    register_t a1 __unused, register_t a2 __unused, register_t a3 __unused,
+    register_t a4 __unused, register_t a5 __unused, register_t a6 __unused,
+    register_t a7 __unused,
     __capability void *c3 __unused, __capability void *c4 __unused,
     __capability void *c5 __unused, __capability void *c6 __unused,
     __capability void *c7 __unused)
@@ -161,7 +168,7 @@ test_sandbox_userfn(const struct cheri_test *ctp __unused)
 	for (i = 0; i < 10; i++) {
 		v = sandbox_object_cinvoke(cheritest_objectp,
 		    CHERITEST_HELPER_LIBCHERI_USERFN,
-		    CHERITEST_USERFN_RETURNARG, i, 0, 0, 0, 0, 0,
+		    CHERITEST_USERFN_RETURNARG, i, 0, 0, 0, 0, 0, 0,
 		    cclear, cclear, cclear, cclear, cclear, cclear, cclear,
 		    cclear);
 		if (v != i)

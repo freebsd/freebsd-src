@@ -44,19 +44,19 @@
 
 #include "cheri_helloworld-helper.h"
 
-int	invoke(struct cheri_object co, register_t v0,
-	    register_t op, struct cheri_object fd_object)
+int	invoke(struct cheri_object co, register_t methodnum,
+	    struct cheri_object fd_object)
 	    __attribute__((cheri_ccall)); /* XXXRW: Will be ccheri_ccaller. */
 
 static char hello_world_str[] = "hello world\n";
 
 /*
- * Print "hello world" in one of three ways, depending on the "op" argument:
- * via the system-class hello-world service, via the system-class puts
- * service, and by writing it to a cheri_fd object passed as an argument.
+ * Print "hello world" in one of three ways, depending on the "methodnum"
+ * argument: via the system-class hello-world service, via the system-class
+ * puts service, and by writing it to a cheri_fd object passed as an argument.
  */
 int
-invoke(struct cheri_object co __unused, register_t v0 __unused, register_t op,
+invoke(struct cheri_object co __unused, register_t methodnum,
     struct cheri_object fd_object)
 {
 	__capability char *hello_world_str_c;
@@ -73,7 +73,7 @@ invoke(struct cheri_object co __unused, register_t v0 __unused, register_t op,
 	/*
 	 * Select a print method.
 	 */
-	switch (op) {
+	switch (methodnum) {
 	case CHERI_HELLOWORLD_HELPER_OP_HELLOWORLD:
 		return (cheri_system_helloworld());
 

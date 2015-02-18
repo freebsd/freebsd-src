@@ -76,20 +76,21 @@ struct sb_info_struct {
 static struct sandbox_class *classp;
 
 static register_t
-libpng_sb_userfn_handler(register_t v0, register_t methodnum, register_t a1,
-    register_t a2, register_t a3 __unused,
-    register_t a4 __unused, register_t a5 __unused, register_t a6 __unused,
-    register_t a7 __unused, struct cheri_object system_object __unused,
+libpng_sb_userfn_handler(struct cheri_object system_object,
+    register_t methodnum,
+    register_t a0, register_t a1, register_t a2, register_t a3,
+    register_t a4, register_t a5, register_t a6, register_t a7,
     __capability void *void_cpsp, __capability void *c4,
-    __capability void *c5 __unused, __capability void *c6 __unused,
-    __capability void *c7 __unused) __attribute__((cheri_ccall));
-    /* XXXRW: Will be ccheri_ccaller. */
+    __capability void *c5, __capability void *c6, __capability void *c7)
+    __attribute__((cheri_ccall));
+    /* XXXRW: Will be ccheri_ccallee. */
 
 static register_t
-libpng_sb_userfn_handler(register_t v0 __unused, register_t methodnum,
-    register_t a1, register_t a2, register_t a3 __unused,
-    register_t a4 __unused, register_t a5 __unused, register_t a6 __unused,
-    register_t a7 __unused, struct cheri_object system_object __unused,
+libpng_sb_userfn_handler(struct cheri_object system_object __unused,
+    register_t methodnum,
+    register_t a0, register_t a1,
+    register_t a2 __unused, register_t a3 __unused, register_t a4 __unused,
+    register_t a5 __unused, register_t a6 __unused, register_t a7 __unused,
     __capability void *void_cpsp, __capability void *c4,
     __capability void *c5 __unused, __capability void *c6 __unused,
     __capability void *c7 __unused)
@@ -110,16 +111,16 @@ libpng_sb_userfn_handler(register_t v0 __unused, register_t methodnum,
 		printf("calling read_data_fn at %p\n", psp->read_data_fn);
 		printf("data base 0x%jx offset 0x%jx length 0x%zx (rlen 0x%zx)\n",
 		    cheri_getbase(c4), cheri_getoffset(c4), cheri_getlen(c4),
-		    (size_t)a1);
+		    (size_t)a0);
 #endif
-		psp->read_data_fn((png_structp)psp, (png_bytep)c4, a1);
+		psp->read_data_fn((png_structp)psp, (png_bytep)c4, a0);
 		printf("callback complete\n");
 		break;
 	case LIBPNG_SB_USERFN_INFO_CALLBACK:
 		psp->info_fn((png_structp)psp, (png_infop)c4);
 		break;
 	case LIBPNG_SB_USERFN_ROW_CALLBACK:
-		psp->row_fn((png_structp)psp, (png_bytep)c4, a1, a2);
+		psp->row_fn((png_structp)psp, (png_bytep)c4, a0, a1);
 		break;
 	case LIBPNG_SB_USERFN_END_CALLBACK:
 		psp->end_fn((png_structp)psp, (png_infop)c4);
@@ -203,14 +204,16 @@ init_sb_class()
 
 /* Reduce errors and copy-and-paste by standardizing c3-6 */
 static register_t
-sb_cinvoke(struct sandbox_object *objectp,
+sb_cinvoke(struct sandbox_object *objectp, register_t methodnum,
     register_t a0, register_t a1, register_t a2, register_t a3, register_t a4,
     register_t a5, register_t a6, register_t a7,
     __capability void *c7, __capability void *c8,
     __capability void *c9, __capability void *c10)
 {
 
-	return (sandbox_object_cinvoke(objectp, a0, a1, a2, a3, a4, a5, a6, a7,
+	return (sandbox_object_cinvoke(objectp,
+	    methodnum,
+	    a0, a1, a2, a3, a4, a5, a6, a7,
 	    sandbox_object_getsystemobject(objectp).co_codecap,
 	    sandbox_object_getsystemobject(objectp).co_datacap,
 	    cheri_zerocap(), cheri_zerocap(), c7, c8, c9, c10));
@@ -256,7 +259,7 @@ png_create_read_struct(png_const_charp user_png_ver, png_voidp error_ptr,
 		err(EX_OSFILE, "sandbox_object_new");
 
 	v = sb_cinvoke(psp->objectp, LIBPNG_SB_HELPER_OP_CREATE_READ_STRUCT,
-	    0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 	if (v != 0)
 		errx(EX_OSFILE,
@@ -289,7 +292,7 @@ png_create_info_struct(png_structp png_ptr __unused)
 		return (NULL);
 
 	v = sb_cinvoke(psp->objectp, LIBPNG_SB_HELPER_OP_CREATE_INFO_STRUCT,
-	    0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    cheri_setlen((__capability void *)&pip->info_cap, sizeof(__capability void *)),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 	if (v != 0) {
@@ -314,7 +317,7 @@ png_read_info(png_structp png_ptr, png_infop info_ptr)
 	struct sb_png_struct *psp = (struct sb_png_struct *)png_ptr;
 	
 	v = sb_cinvoke(psp->objectp, LIBPNG_SB_HELPER_OP_READ_INFO,
-	    0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    sb_info_ptr_to_cap(info_ptr),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 	if (v != 0) {
@@ -332,7 +335,7 @@ png_set_expand_gray_1_2_4_to_8(png_structp png_ptr)
 	
 	v = sb_cinvoke(psp->objectp,
 	    LIBPNG_SB_HELPER_OP_SET_EXPAND_GRAY_1_2_4_TO_8,
-	    0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 	if (v != 0) {
 		warnx("%s: sb_cinvoke() returned %jx", __func__, (uintmax_t)v);
@@ -350,7 +353,7 @@ png_set_palette_to_rgb(png_structp png_ptr)
 	
 	v = sb_cinvoke(psp->objectp,
 	    LIBPNG_SB_HELPER_OP_SET_PALETTE_TO_RGB,
-	    0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 	if (v != 0) {
 		warnx("%s: sb_cinvoke() returned %jx", __func__, (uintmax_t)v);
@@ -368,7 +371,7 @@ png_set_tRNS_to_alpha(png_structp png_ptr)
 	
 	v = sb_cinvoke(psp->objectp,
 	    LIBPNG_SB_HELPER_OP_SET_TRNS_TO_ALPHA,
-	    0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 	if (v != 0) {
 		warnx("%s: sb_cinvoke() returned %jx", __func__, (uintmax_t)v);
@@ -386,7 +389,7 @@ png_set_filler(png_structp png_ptr, png_uint_32 filler, int flags)
 	
 	v = sb_cinvoke(psp->objectp,
 	    LIBPNG_SB_HELPER_OP_SET_FILLER,
-	    filler, flags, 0, 0, 0, 0, 0,
+	    filler, flags, 0, 0, 0, 0, 0, 0,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 	if (v != 0) {
 		warnx("%s: sb_cinvoke() returned %jx", __func__, (uintmax_t)v);
@@ -403,7 +406,7 @@ png_set_strip_16(png_structp png_ptr)
 	
 	v = sb_cinvoke(psp->objectp,
 	    LIBPNG_SB_HELPER_OP_SET_STRIP_16,
-	    0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 	if (v != 0) {
 		warnx("%s: sb_cinvoke() returned %jx", __func__, (uintmax_t)v);
@@ -427,7 +430,7 @@ png_read_update_info(png_structp png_ptr, png_infop info_ptr)
 	struct sb_png_struct *psp = (struct sb_png_struct *)png_ptr;
 	
 	v = sb_cinvoke(psp->objectp, LIBPNG_SB_HELPER_OP_READ_UPDATE_INFO,
-	    0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    sb_info_ptr_to_cap(info_ptr),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 	if (v != 0) {
@@ -465,7 +468,7 @@ png_read_image(png_structp png_ptr, png_bytepp image)
 		row_pointer[i] = cheri_ptr(image[i], rowbytes);
 	
 	v = sb_cinvoke(psp->objectp, LIBPNG_SB_HELPER_OP_READ_IMAGE,
-	    0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    (__capability void *)row_pointer,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 	if (v != 0) {
@@ -532,7 +535,7 @@ png_set_read_fn(png_structp png_ptr, png_voidp io_ptr,
 	 * callbacks.
 	 */
 	v = sb_cinvoke(psp->objectp, LIBPNG_SB_HELPER_OP_SET_READ_FN,
-	    0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    cheri_ptr(psp, sizeof(struct sb_png_struct)),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 	if (v != 0) {
@@ -571,7 +574,7 @@ png_set_progressive_read_fn(png_structp png_ptr,
 	 * callbacks.
 	 */
 	v = sb_cinvoke(psp->objectp, LIBPNG_SB_HELPER_OP_SET_PROGRESSIVE_READ_FN,
-	    0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    cheri_ptr(psp, sizeof(struct sb_png_struct)),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 	if (v != 0) {
@@ -598,7 +601,7 @@ png_process_data(png_structp png_ptr, png_infop info_ptr,
 	struct sb_png_struct *psp = (struct sb_png_struct *)png_ptr;
 	
 	v = sb_cinvoke(psp->objectp, LIBPNG_SB_HELPER_OP_PROCESS_DATA,
-	    buffer_size, 0, 0, 0, 0, 0, 0,
+	    buffer_size, 0, 0, 0, 0, 0, 0, 0,
 	    sb_info_ptr_to_cap(info_ptr),
 	    cheri_ptr(buffer, buffer_size), cheri_zerocap(), cheri_zerocap());
 	if (v != 0) {
@@ -616,7 +619,7 @@ png_get_color_type(png_const_structp png_ptr,
 	struct sb_png_struct *psp = (struct sb_png_struct *)png_ptr;
 	
 	v = sb_cinvoke(psp->objectp, LIBPNG_SB_HELPER_OP_GET_COLOR_TYPE,
-	    0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    sb_info_ptr_to_cap(info_ptr),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 	if (v < 0 || v > 255) {
@@ -634,7 +637,7 @@ png_set_gray_to_rgb(png_structp png_ptr)
 	struct sb_png_struct *psp = (struct sb_png_struct *)png_ptr;
 	
 	v = sb_cinvoke(psp->objectp, LIBPNG_SB_HELPER_OP_SET_GRAY_TO_RGB,
-	    0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 	if (v != 0) {
 		warnx("%s: sb_cinvoke() returned %jx", __func__, (uintmax_t)v);
@@ -651,7 +654,7 @@ png_get_valid(png_const_structp png_ptr, png_const_infop info_ptr,
 	struct sb_png_struct *psp = (struct sb_png_struct *)png_ptr;
 	
 	v = sb_cinvoke(psp->objectp, LIBPNG_SB_HELPER_OP_GET_VALID,
-	    flag, 0, 0, 0, 0, 0, 0,
+	    flag, 0, 0, 0, 0, 0, 0, 0,
 	    sb_info_ptr_to_cap(info_ptr),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 	if ((png_uint_32)v == flag)
@@ -673,7 +676,7 @@ png_get_rowbytes(png_const_structp png_ptr, png_const_infop info_ptr)
 	struct sb_png_struct *psp = (struct sb_png_struct *)png_ptr;
 	
 	v = sb_cinvoke(psp->objectp, LIBPNG_SB_HELPER_OP_GET_ROWBYTES,
-	    0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    sb_info_ptr_to_cap(info_ptr),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 
@@ -693,7 +696,7 @@ png_get_image_width(png_const_structp png_ptr, png_const_infop info_ptr)
 	struct sb_png_struct *psp = (struct sb_png_struct *)png_ptr;
 	
 	v = sb_cinvoke(psp->objectp, LIBPNG_SB_HELPER_OP_GET_IMAGE_WIDTH,
-	    0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    sb_info_ptr_to_cap(info_ptr),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 	if (v < 0 || v > UINT_MAX) {
@@ -712,7 +715,7 @@ png_get_image_height(png_const_structp png_ptr, png_const_infop info_ptr)
 	struct sb_png_struct *psp = (struct sb_png_struct *)png_ptr;
 	
 	v = sb_cinvoke(psp->objectp, LIBPNG_SB_HELPER_OP_GET_IMAGE_HEIGHT,
-	    0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    sb_info_ptr_to_cap(info_ptr),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 	if (v < 0 || v > UINT_MAX) {
@@ -731,7 +734,7 @@ png_get_bit_depth(png_const_structp png_ptr, png_const_infop info_ptr)
 	struct sb_png_struct *psp = (struct sb_png_struct *)png_ptr;
 	
 	v = sb_cinvoke(psp->objectp, LIBPNG_SB_HELPER_OP_GET_BIT_DEPTH,
-	    0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    sb_info_ptr_to_cap(info_ptr),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 	if (v < 0 || v > 255) {
@@ -750,7 +753,7 @@ png_get_interlace_type(png_const_structp png_ptr, png_const_infop info_ptr)
 	struct sb_png_struct *psp = (struct sb_png_struct *)png_ptr;
 	
 	v = sb_cinvoke(psp->objectp, LIBPNG_SB_HELPER_OP_GET_INTERLACE_TYPE,
-	    0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    sb_info_ptr_to_cap(info_ptr),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 	if (v < 0 || v > 255) {

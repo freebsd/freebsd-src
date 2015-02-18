@@ -53,7 +53,7 @@
  */
 static void
 cheri_helloworld(struct sandbox_object *objectp,
-    struct cheri_object stdout_fd, register_t op)
+    struct cheri_object stdout_fd, register_t methodnum)
 {
 	register_t v;
 
@@ -61,11 +61,12 @@ cheri_helloworld(struct sandbox_object *objectp,
 	 * XXXRW: Once we have more compiler support, this will be a lot
 	 * tidier, hopefully.
 	 */
-	v = sandbox_object_cinvoke(objectp, op, 0, 0, 0, 0, 0, 0, 0,
+	v = sandbox_object_cinvoke(objectp, methodnum,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    stdout_fd.co_codecap, stdout_fd.co_datacap, cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap());
-	switch (op) {
+	switch (methodnum) {
 	case CHERI_HELLOWORLD_HELPER_OP_HELLOWORLD:
 		assert(v == 123456);
 		break;

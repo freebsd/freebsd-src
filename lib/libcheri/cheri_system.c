@@ -129,11 +129,11 @@ cheri_system_calloc(size_t count, size_t size,
  * 1. one global invocation stack, so no concurrency.
  * 2. one global data object, so no support for multiple data capabilities.
  */
-register_t	cheri_system_enter(register_t v0,
-		    register_t methodnum, register_t a1,
-		    register_t a2, register_t a3, register_t a4,
-		    register_t a5, register_t a6, register_t a7,
-		    struct cheri_object system_object,
+register_t	cheri_system_enter(struct cheri_object system_object,
+		    register_t methodnum,
+		    register_t a0, register_t a1, register_t a2,
+		    register_t a3, register_t a4, register_t a5,
+		    register_t a6, register_t a7,
 		    __capability void *c3, __capability void *c4,
 		    __capability void *c5, __capability void *c6,
 		    __capability void *c7) __attribute__((cheri_ccall));
@@ -155,12 +155,12 @@ cheri_system_user_register_fn(cheri_system_user_fn_t fn_ptr)
  * cheri_system_enter() itself: sandbox invocations turn up here.
  */
 register_t
-cheri_system_enter(register_t v0 __unused, register_t methodnum,
-    register_t a1, register_t a2, register_t a3, register_t a4, register_t a5,
-    register_t a6, register_t a7,
-    struct cheri_object system_object, __capability void *c3,
-    __capability void *c4, __capability void *c5, __capability void *c6,
-    __capability void *c7)
+cheri_system_enter(struct cheri_object system_object,
+    register_t methodnum,
+    register_t a0, register_t a1, register_t a2, register_t a3,
+    register_t a4, register_t a5, register_t a6, register_t a7,
+    __capability void *c3, __capability void *c4, __capability void *c5,
+    __capability void *c6, __capability void *c7)
 {
 	__capability struct sandbox_object *sbop = cheri_getidc();
 
@@ -206,13 +206,13 @@ cheri_system_enter(register_t v0 __unused, register_t methodnum,
 		return (cheri_system_puts(c3));
 
 	case CHERI_SYSTEM_METHOD_PUTCHAR:
-		return (cheri_system_putchar(a1));
+		return (cheri_system_putchar(a0));
 
 	case CHERI_SYSTEM_CLOCK_GETTIME:
-		return (cheri_system_clock_gettime(a1, c3));
+		return (cheri_system_clock_gettime(a0, c3));
 
 	case CHERI_SYSTEM_CALLOC:
-		return (cheri_system_calloc(a1, a2,
+		return (cheri_system_calloc(a0, a1,
 		    (void __capability * __capability *)c3));
 
 	case CHERI_SYSTEM_FREE:
@@ -223,9 +223,10 @@ cheri_system_enter(register_t v0 __unused, register_t methodnum,
 		if (methodnum >= CHERI_SYSTEM_USER_BASE &&
 		    methodnum < CHERI_SYSTEM_USER_CEILING &&
 		    cheri_system_user_fn_ptr != NULL)
-			return (cheri_system_user_fn_ptr(v0, methodnum, a1, a2,
-			    a3, a4, a5, a6, a7, system_object, c3, c4, c5, c6,
-			    c7));
+			return (cheri_system_user_fn_ptr(system_object,
+			    methodnum,
+			    a0, a1, a2, a3, a4, a5, a6, a7,
+			    c3, c4, c5, c6, c7));
 		return (-1);
 	}
 }

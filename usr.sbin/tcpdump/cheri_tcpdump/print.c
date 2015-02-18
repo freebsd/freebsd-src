@@ -410,7 +410,8 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 		gndo->ndo_snapend = NULL;
 		/* XXXBD: don't pass in ndo_espsecret */
 		ret = sandbox_object_cinvoke(sb->tds_sandbox_object,
-		    TCPDUMP_HELPER_OP_INIT, g_localnet, g_mask, g_timezone_offset, 0, 0, 0, 0,
+		    TCPDUMP_HELPER_OP_INIT,
+		    g_localnet, g_mask, g_timezone_offset, 0, 0, 0, 0, 0,
 		    cheri_ptrperm(gndo, sizeof(netdissect_options),
 			CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
 		    (__capability void*)gndo->ndo_espsecret,
@@ -422,8 +423,8 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 			for (i = 0; i < sb->tds_num_proto_sandboxes; i++) {
 				ret = sandbox_object_cinvoke(
 				    sb->tds_proto_sandboxes[i]->tds_sandbox_object,
-				    TCPDUMP_HELPER_OP_INIT, g_localnet, g_mask,
-				    0, 0, 0, 0, 0,
+				    TCPDUMP_HELPER_OP_INIT,
+				    g_localnet, g_mask, 0, 0, 0, 0, 0, 0,
 				    cheri_ptrperm(gndo, sizeof(netdissect_options),
 					CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
 				    (__capability void*)gndo->ndo_espsecret,
@@ -441,7 +442,8 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 	sb->tds_total_invokes++;
 	sb->tds_current_invokes++;
 	ret = sandbox_object_cinvoke(sb->tds_sandbox_object,
-	    TCPDUMP_HELPER_OP_PRINT_PACKET, 0, 0, 0, 0, 0, 0, 0,
+	    TCPDUMP_HELPER_OP_PRINT_PACKET,
+	    0, 0, 0, 0, 0, 0, 0, 0,
 	    NULL, NULL,
 	    cheri_ptrperm((void *)hdr, sizeof(*hdr),
 		CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
@@ -582,7 +584,8 @@ has_printer(int type)
 		return (0);	/* XXX: should error? */
 
 	return (sandbox_object_cinvoke(default_sandbox->tds_sandbox_object,
-	    TCPDUMP_HELPER_OP_HAS_PRINTER, type, 0, 0, 0, 0, 0, 0,
+	    TCPDUMP_HELPER_OP_HAS_PRINTER,
+	    type, 0, 0, 0, 0, 0, 0, 0,
 	    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
 }
 
