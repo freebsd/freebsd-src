@@ -41,35 +41,17 @@
 #include <sys/mman.h>
 #include <assert.h>
 
-#if !__has_feature(capabilities)
-#define __capability 
-#define memcpy_c memcpy
-#define CAP 0
-static inline uint32_t
-get_cyclecount(void)
-{
-  unsigned long a, d;
-  asm volatile("rdtsc"
-	       : "=a" (a), "=d" (d)
-	       );
-  return (d << 32) | a;
-}
-#else
-#define CAP 1
 #include <machine/cheri.h>
 #include <machine/cheric.h>
 #include <cheri/cheri_fd.h>
 #include <cheri/sandbox.h>
 #include <cheri_bench-helper.h>
+
 #define get_cyclecount cheri_get_cyclecount
-#endif
 
 static struct sandbox_object *objectp;
 static int fd_socket_pair[2];
 static int shmem_socket_pair[2];
-static __capability void *shmin, *shmout;
-static uint   offset = 0;
-static size_t max_size = 0;
 
 typedef uint64_t memcpy_t(__capability char *, __capability char *, size_t);
 
@@ -81,7 +63,7 @@ static uint64_t do_memcpy (__capability char *dataout, __capability char *datain
   end_count = get_cyclecount();
   return end_count - start_count;
 }
-#if  CAP
+
 static uint64_t invoke_memcpy(__capability char *dataout, __capability char *datain, size_t len)
 {
   int ret;
@@ -102,13 +84,7 @@ static uint64_t invoke_memcpy(__capability char *dataout, __capability char *dat
   if (ret != 0) err(1, "Invoke failed.");
   return end_count - start_count;
 }
-#else
-static uint64_t invoke_memcpy(__capability char *dataout, __capability char *datain, size_t len)
-      {
-	errx(1, "invoke requires capability support.");
-	return 0;
-      }
-#endif
+
 
 static uint64_t socket_memcpy(__capability char *dataout, __capability char *datain, size_t len)
 {
@@ -129,7 +105,7 @@ static uint64_t socket_memcpy(__capability char *dataout, __capability char *dat
 }
 
 
-static void socket_sandbox_func(int fd)
+static void socket_sandbox_func(int fd, size_t max_size)
 {
   char*   buf = malloc(max_size);
   ssize_t io_len;
@@ -162,7 +138,7 @@ static uint64_t shmem_memcpy(__capability char *dataout __unused, __capability c
   return get_cyclecount() - start_count;
 }
 
-static void shmem_sandbox_func(int fd)
+static void shmem_sandbox_func(int fd, __capability char *datain, __capability char *dataout)
 {
   size_t len;
   ssize_t io_len;
@@ -171,14 +147,14 @@ static void shmem_sandbox_func(int fd)
       io_len = recv(fd, &len, sizeof(len), MSG_WAITALL);
       if (io_len != sizeof(len))
         exit(0); // XXX don't complain when parent dies err(1, "shm child recv");
-      memcpy_c(shmout + offset, shmin, len);
+      memcpy_c(dataout, datain, len);
       io_len = send(fd, &len, sizeof(len), MSG_WAITALL);
       if (io_len != sizeof(len))
         err(1, "shm child send");
     }
 }
 
-static int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capability char *datain, size_t size, uint reps)
+int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capability char *datain, size_t size, uint reps) __attribute__((__noinline__))
 {
       uint64_t total_cycles = 0;
 
@@ -208,34 +184,32 @@ static int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capabi
 }
 
 #define USAGE
-#define ARGS 3
 static void usage(void)
 {
-  errx(1,  "usage: cheri_bench [-fips] -t <trials> -r <reps> -o <offset> <size>...\n");
+  errx(1,  "usage: cheri_bench [-fips] -t <trials> -r <reps> -o <in offset> -O <out offset> <size>...\n");
 }
 
 int
 main(int argc, char *argv[])
 {
-#if CAP
 	struct sandbox_class *classp;
-#endif
-	__capability char *datain;
-	__capability char *dataout;
+	char *datain, *dataout;
+	__capability char *datain_cap, *dataout_cap;
 	int arg;
 	long trials = 100;
 	uint reps = 100;
 	pid_t child_pid;
-	size_t size;
+	size_t size, max_size = 0;
 	char *endp;
 	void * shmem_p;
 	int ch;
 	int func = 0, invoke = 0, socket = 0, shared = 0;
+	int inOffset = 0, outOffset = 0;
 
 	// use unbuffered output to avoid dropped characters on uart
 	setbuf(stdout, NULL);
 
-	while ((ch = getopt(argc, argv, "fipst:r:o:")) != -1) {
+	while ((ch = getopt(argc, argv, "fipst:r:o:O:")) != -1) {
 	  switch (ch) {
 	  case 'f':
 	    func = 1;
@@ -260,10 +234,15 @@ main(int argc, char *argv[])
 		printf("Invalid trial count: %s\n", optarg);
 	    break;
 	  case 'o':
-	    offset = strtol(optarg, &endp, 0);
+	    inOffset = strtol(optarg, &endp, 0);
 	    if (*endp != '\0')
 		printf("Invalid offset: %s\n", optarg);
 	    break;
+	  case 'O':
+	    outOffset = strtol(optarg, &endp, 0);
+	    if (*endp != '\0')
+		printf("Invalid offset: %s\n", optarg);
+	    break;	    
 	  case '?':
 	  default:
 	    usage();
@@ -285,7 +264,13 @@ main(int argc, char *argv[])
 		printf("Invalid argument: %s\n", argv[arg]);
 	    max_size = size > max_size ? size : max_size;
 	  }
-#if CAP
+	
+	datain  = mmap(NULL, max_size + inOffset, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
+	dataout = mmap(NULL, max_size + outOffset, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
+	if (datain == NULL || dataout == NULL) err(1, "malloc");
+	datain_cap  = __builtin_cheri_set_cap_length((__capability char *) (datain + inOffset), max_size);
+	dataout_cap = __builtin_cheri_set_cap_length((__capability char *) (dataout + outOffset), max_size);
+
 	if (invoke)
 	  {
 	    if (sandbox_class_new("/usr/libexec/cheri_bench-helper",
@@ -300,7 +285,7 @@ main(int argc, char *argv[])
 	    (void)sandbox_class_method_declare(classp,
 	       CHERI_BENCH_HELPER_OP_MEMCPY, "memcpy");
 	  }
-#endif
+
 	if (socket)
 	  {
 	    if (socketpair(PF_LOCAL, SOCK_STREAM, 0, fd_socket_pair) < 0)
@@ -311,60 +296,40 @@ main(int argc, char *argv[])
 	    if (!child_pid)
 	      {
 		close(fd_socket_pair[0]);
-		socket_sandbox_func(fd_socket_pair[1]);
+		socket_sandbox_func(fd_socket_pair[1], max_size);
 	      }
 	    close(fd_socket_pair[1]);
 	  }
 
 	if (shared)
 	  {
-	    shmem_p = mmap(NULL, max_size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0); // rmn30 XXX attach read only in child?
-	    if (shmem_p == MAP_FAILED)
-	      err(1, "mmap in");
-	    shmin = (__capability void*) shmem_p;
-#if CAP
-	    shmin = __builtin_cheri_set_cap_length(shmin, max_size);
-#endif
-
-	    shmem_p = mmap(NULL, max_size+offset, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0); // rmn30 XXX attach read only in parent?
-	    if (shmem_p == MAP_FAILED)
-	      err(1, "mmap out");
-	    shmout = (__capability void*) shmem_p;
-#if CAP
-	    shmout = __builtin_cheri_set_cap_length(shmout, max_size + offset);
-#endif
-
 	    if (socketpair(PF_LOCAL, SOCK_STREAM, 0, shmem_socket_pair) < 0)
 	      err(1, NULL);
 	    child_pid = fork();
 	    if (child_pid < 0)
 	      err(1, "fork shared");
+	    // XXX remap regions read/write only?
 	    if (!child_pid)
 	      {
 		close(shmem_socket_pair[0]);
-		shmem_sandbox_func(shmem_socket_pair[1]);
+		shmem_sandbox_func(shmem_socket_pair[1], datain_cap, dataout_cap);
 	      }
 	    close(shmem_socket_pair[1]);
 	  }
 
-	datain  = (__capability char*) malloc(max_size);
-	dataout = (__capability char*) malloc(max_size + offset);
-	if (datain == NULL || dataout == NULL) err(1, "malloc");
-
-	printf("#trials=%lu reps=%u offset=%u datain=%p dataout=%p\n", trials, reps, offset, (void *) datain, (void*) dataout);
+	printf("#trials=%lu reps=%u inOffset=%u outOffset=%u datain=%p dataout=%p\n", trials, reps, inOffset, outOffset, (void *) (datain + inOffset), (void*) (dataout + outOffset));
 
 	//for (uint s = 0; s < sizeof(sizes)/sizeof(sizes[0]); s++)
 	//  {
 	for(arg = 0; arg < argc; arg++)
 	  {
-
 	    size = strtol(argv[arg], &endp, 0);
 	    if(func)
 	      {
 		printf("\n#func %zu\n%zu,%u", size, size,reps);
 		for (uint rep = 0; rep < trials; rep++)
 		  {
-		    benchmark(do_memcpy, dataout + offset, datain, size, reps);
+		    benchmark(do_memcpy, dataout_cap, datain_cap, size, reps);
 		  }
 	      }
 	    if (invoke)
@@ -372,7 +337,7 @@ main(int argc, char *argv[])
 		printf("\n#invoke %zu\n%zu,%u", size, size, reps);
 		for (uint rep = 0; rep < trials; rep++)
 		  {
-		    benchmark(invoke_memcpy, dataout + offset, datain, size, reps);
+		    benchmark(invoke_memcpy, dataout_cap, datain_cap, size, reps);
 		  }
 	      }
 	    if(shared)
@@ -380,7 +345,7 @@ main(int argc, char *argv[])
 		printf("\n#shmem %zu\n%zu,%u", size, size, reps);
 		for (uint rep = 0; rep < trials; rep++)
 		  {
-		    benchmark(shmem_memcpy, (__capability char*)shmout + offset, (__capability char*)shmin, size, reps);
+		    benchmark(shmem_memcpy, dataout_cap, datain_cap, size, reps);
 		  }
 	      }
 	    if(socket)
@@ -388,19 +353,20 @@ main(int argc, char *argv[])
 		printf("\n#socket %zu\n%zu,%u", size, size, reps);
 		for (uint rep = 0; rep < trials; rep++)
 		  {
-		    benchmark(socket_memcpy, dataout + offset, datain, size, reps);
+		    benchmark(socket_memcpy, dataout_cap, datain_cap, size, reps);
 		  }
 	      }
 	  }
 	putchar('\n');
-	free((void *)datain);
-	free((void *)dataout);
-#if CAP
+	
+	munmap(datain, max_size + inOffset);
+	munmap(dataout, max_size + outOffset);
+
 	if (invoke)
 	  {
 	    sandbox_object_destroy(objectp);
 	    sandbox_class_destroy(classp);
 	  }
-#endif
+
 	return (0);
 }
