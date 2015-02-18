@@ -6,7 +6,7 @@ NoEcho('
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -92,6 +92,149 @@ DefinitionBlockTerm
             '{' TermList '}'        {$$ = TrLinkChildren ($<n>3,7,$4,$6,$8,$10,$12,$14,$18);}
     ;
 
+    /*
+     * ASL Extensions: C-style math/logical operators and expressions.
+     * The implementation transforms these operators into the standard
+     * AML opcodes and syntax.
+     *
+     * Supported operators and precedence rules (high-to-low)
+     *
+     * NOTE: The operator precedence and associativity rules are
+     * implemented by the tokens in asltokens.y
+     *
+     * (left-to-right):
+     *  1)      ( ) expr++ expr--
+     *
+     * (right-to-left):
+     *  2)      ! ~
+     *
+     * (left-to-right):
+     *  3)      *   /   %
+     *  4)      +   -
+     *  5)      >>  <<
+     *  6)      <   >   <=  >=
+     *  7)      ==  !=
+     *  8)      &
+     *  9)      ^
+     *  10)     |
+     *  11)     &&
+     *  12)     ||
+     *
+     * (right-to-left):
+     *  13)     = += -= *= /= %= <<= >>= &= ^= |=
+     */
+Expression
+
+    /* Unary operators */
+
+    : PARSEOP_EXP_LOGICAL_NOT           {$<n>$ = TrCreateLeafNode (PARSEOP_LNOT);}
+        TermArg                         {$$ = TrLinkChildren ($<n>2,1,$3);}
+    | PARSEOP_EXP_NOT                   {$<n>$ = TrCreateLeafNode (PARSEOP_NOT);}
+        TermArg                         {$$ = TrLinkChildren ($<n>2,2,$3,TrCreateLeafNode (PARSEOP_ZERO));}
+
+    | SuperName PARSEOP_EXP_INCREMENT   {$<n>$ = TrCreateLeafNode (PARSEOP_INCREMENT);}
+                                        {$$ = TrLinkChildren ($<n>3,1,$1);}
+    | SuperName PARSEOP_EXP_DECREMENT   {$<n>$ = TrCreateLeafNode (PARSEOP_DECREMENT);}
+                                        {$$ = TrLinkChildren ($<n>3,1,$1);}
+
+    /* Binary operators: math and logical */
+
+    | TermArg PARSEOP_EXP_ADD           {$<n>$ = TrCreateLeafNode (PARSEOP_ADD);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,TrCreateLeafNode (PARSEOP_ZERO));}
+    | TermArg PARSEOP_EXP_DIVIDE        {$<n>$ = TrCreateLeafNode (PARSEOP_DIVIDE);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,4,$1,$4,TrCreateLeafNode (PARSEOP_ZERO),
+                                            TrCreateLeafNode (PARSEOP_ZERO));}
+    | TermArg PARSEOP_EXP_MODULO        {$<n>$ = TrCreateLeafNode (PARSEOP_MOD);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,TrCreateLeafNode (PARSEOP_ZERO));}
+    | TermArg PARSEOP_EXP_MULTIPLY      {$<n>$ = TrCreateLeafNode (PARSEOP_MULTIPLY);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,TrCreateLeafNode (PARSEOP_ZERO));}
+    | TermArg PARSEOP_EXP_SHIFT_LEFT    {$<n>$ = TrCreateLeafNode (PARSEOP_SHIFTLEFT);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,TrCreateLeafNode (PARSEOP_ZERO));}
+    | TermArg PARSEOP_EXP_SHIFT_RIGHT   {$<n>$ = TrCreateLeafNode (PARSEOP_SHIFTRIGHT);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,TrCreateLeafNode (PARSEOP_ZERO));}
+    | TermArg PARSEOP_EXP_SUBTRACT      {$<n>$ = TrCreateLeafNode (PARSEOP_SUBTRACT);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,TrCreateLeafNode (PARSEOP_ZERO));}
+
+    | TermArg PARSEOP_EXP_AND           {$<n>$ = TrCreateLeafNode (PARSEOP_AND);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,TrCreateLeafNode (PARSEOP_ZERO));}
+    | TermArg PARSEOP_EXP_OR            {$<n>$ = TrCreateLeafNode (PARSEOP_OR);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,TrCreateLeafNode (PARSEOP_ZERO));}
+    | TermArg PARSEOP_EXP_XOR           {$<n>$ = TrCreateLeafNode (PARSEOP_XOR);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,TrCreateLeafNode (PARSEOP_ZERO));}
+
+    | TermArg PARSEOP_EXP_GREATER       {$<n>$ = TrCreateLeafNode (PARSEOP_LGREATER);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,2,$1,$4);}
+    | TermArg PARSEOP_EXP_GREATER_EQUAL {$<n>$ = TrCreateLeafNode (PARSEOP_LGREATEREQUAL);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,2,$1,$4);}
+    | TermArg PARSEOP_EXP_LESS          {$<n>$ = TrCreateLeafNode (PARSEOP_LLESS);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,2,$1,$4);}
+    | TermArg PARSEOP_EXP_LESS_EQUAL    {$<n>$ = TrCreateLeafNode (PARSEOP_LLESSEQUAL);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,2,$1,$4);}
+
+    | TermArg PARSEOP_EXP_EQUAL         {$<n>$ = TrCreateLeafNode (PARSEOP_LEQUAL);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,2,$1,$4);}
+    | TermArg PARSEOP_EXP_NOT_EQUAL     {$<n>$ = TrCreateLeafNode (PARSEOP_LNOTEQUAL);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,2,$1,$4);}
+
+    | TermArg PARSEOP_EXP_LOGICAL_AND   {$<n>$ = TrCreateLeafNode (PARSEOP_LAND);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,2,$1,$4);}
+    | TermArg PARSEOP_EXP_LOGICAL_OR    {$<n>$ = TrCreateLeafNode (PARSEOP_LOR);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,2,$1,$4);}
+
+      /* Parentheses */
+
+    | '(' TermArg ')'                   { $$ = $2;}
+    ;
+
+EqualsTerm
+
+    /* All assignment-type operations */
+
+    : SuperName PARSEOP_EXP_EQUALS
+        TermArg                         {$$ = TrCreateAssignmentNode ($1, $3);}
+
+    | TermArg PARSEOP_EXP_ADD_EQ        {$<n>$ = TrCreateLeafNode (PARSEOP_ADD);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,
+                                            TrSetNodeFlags (TrCreateTargetOperand ($1, NULL), NODE_IS_TARGET));}
+
+    | TermArg PARSEOP_EXP_DIV_EQ        {$<n>$ = TrCreateLeafNode (PARSEOP_DIVIDE);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,4,$1,$4,TrCreateLeafNode (PARSEOP_ZERO),
+                                            TrSetNodeFlags (TrCreateTargetOperand ($1, NULL), NODE_IS_TARGET));}
+
+    | TermArg PARSEOP_EXP_MOD_EQ        {$<n>$ = TrCreateLeafNode (PARSEOP_MOD);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,
+                                            TrSetNodeFlags (TrCreateTargetOperand ($1, NULL), NODE_IS_TARGET));}
+
+    | TermArg PARSEOP_EXP_MUL_EQ        {$<n>$ = TrCreateLeafNode (PARSEOP_MULTIPLY);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,
+                                            TrSetNodeFlags (TrCreateTargetOperand ($1, NULL), NODE_IS_TARGET));}
+
+    | TermArg PARSEOP_EXP_SHL_EQ        {$<n>$ = TrCreateLeafNode (PARSEOP_SHIFTLEFT);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,
+                                            TrSetNodeFlags (TrCreateTargetOperand ($1, NULL), NODE_IS_TARGET));}
+
+    | TermArg PARSEOP_EXP_SHR_EQ        {$<n>$ = TrCreateLeafNode (PARSEOP_SHIFTRIGHT);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,
+                                            TrSetNodeFlags (TrCreateTargetOperand ($1, NULL), NODE_IS_TARGET));}
+
+    | TermArg PARSEOP_EXP_SUB_EQ        {$<n>$ = TrCreateLeafNode (PARSEOP_SUBTRACT);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,
+                                            TrSetNodeFlags (TrCreateTargetOperand ($1, NULL), NODE_IS_TARGET));}
+
+    | TermArg PARSEOP_EXP_AND_EQ        {$<n>$ = TrCreateLeafNode (PARSEOP_AND);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,
+                                            TrSetNodeFlags (TrCreateTargetOperand ($1, NULL), NODE_IS_TARGET));}
+
+    | TermArg PARSEOP_EXP_OR_EQ         {$<n>$ = TrCreateLeafNode (PARSEOP_OR);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,
+                                            TrSetNodeFlags (TrCreateTargetOperand ($1, NULL), NODE_IS_TARGET));}
+
+    | TermArg PARSEOP_EXP_XOR_EQ        {$<n>$ = TrCreateLeafNode (PARSEOP_XOR);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,
+                                            TrSetNodeFlags (TrCreateTargetOperand ($1, NULL), NODE_IS_TARGET));}
+    ;
+
+
 /* ACPI 3.0 -- allow semicolons between terms */
 
 TermList
@@ -104,6 +247,7 @@ TermList
 
 Term
     : Object                        {}
+    | Expression                    {}
     | Type1Opcode                   {}
     | Type2Opcode                   {}
     | Type2IntegerOpcode            {}
@@ -211,7 +355,8 @@ Removed from TermArg due to reduce/reduce conflicts
 */
 
 TermArg
-    : Type2Opcode                   {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
+    : Expression                    {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
+    | Type2Opcode                   {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
     | DataObject                    {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
     | NameString                    {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
     | ArgTerm                       {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
@@ -305,6 +450,7 @@ Type2Opcode
     | RefOfTerm                     {}
     | SizeOfTerm                    {}
     | StoreTerm                     {}
+    | EqualsTerm                    {}
     | TimerTerm                     {}
     | WaitTerm                      {}
     | UserTerm                      {}
@@ -362,6 +508,8 @@ Type2BufferOpcode                   /* "Type5" Opcodes */
 
 Type2BufferOrStringOpcode
     : ConcatTerm                    {}
+    | PrintfTerm                    {}
+    | FprintfTerm                   {}
     | MidTerm                       {}
     ;
 
@@ -387,6 +535,7 @@ Type4Opcode
 Type5Opcode
     : ResourceTemplateTerm          {}
     | UnicodeTerm                   {}
+    | ToPLDTerm                     {}
     | ToUUIDTerm                    {}
     ;
 
@@ -1367,6 +1516,86 @@ ToIntegerTerm
         Target
         ')'                         {$$ = TrLinkChildren ($<n>3,2,$4,$5);}
     | PARSEOP_TOINTEGER '('
+        error ')'                   {$$ = AslDoError(); yyclearin;}
+    ;
+
+PldKeyword
+    : PARSEOP_PLD_REVISION          {$$ = TrCreateLeafNode (PARSEOP_PLD_REVISION);}
+    | PARSEOP_PLD_IGNORECOLOR       {$$ = TrCreateLeafNode (PARSEOP_PLD_IGNORECOLOR);}
+    | PARSEOP_PLD_RED               {$$ = TrCreateLeafNode (PARSEOP_PLD_RED);}
+    | PARSEOP_PLD_GREEN             {$$ = TrCreateLeafNode (PARSEOP_PLD_GREEN);}
+    | PARSEOP_PLD_BLUE              {$$ = TrCreateLeafNode (PARSEOP_PLD_BLUE);}
+    | PARSEOP_PLD_WIDTH             {$$ = TrCreateLeafNode (PARSEOP_PLD_WIDTH);}
+    | PARSEOP_PLD_HEIGHT            {$$ = TrCreateLeafNode (PARSEOP_PLD_HEIGHT);}
+    | PARSEOP_PLD_USERVISIBLE       {$$ = TrCreateLeafNode (PARSEOP_PLD_USERVISIBLE);}
+    | PARSEOP_PLD_DOCK              {$$ = TrCreateLeafNode (PARSEOP_PLD_DOCK);}
+    | PARSEOP_PLD_LID               {$$ = TrCreateLeafNode (PARSEOP_PLD_LID);}
+    | PARSEOP_PLD_PANEL             {$$ = TrCreateLeafNode (PARSEOP_PLD_PANEL);}
+    | PARSEOP_PLD_VERTICALPOSITION  {$$ = TrCreateLeafNode (PARSEOP_PLD_VERTICALPOSITION);}
+    | PARSEOP_PLD_HORIZONTALPOSITION {$$ = TrCreateLeafNode (PARSEOP_PLD_HORIZONTALPOSITION);}
+    | PARSEOP_PLD_SHAPE             {$$ = TrCreateLeafNode (PARSEOP_PLD_SHAPE);}
+    | PARSEOP_PLD_GROUPORIENTATION  {$$ = TrCreateLeafNode (PARSEOP_PLD_GROUPORIENTATION);}
+    | PARSEOP_PLD_GROUPTOKEN        {$$ = TrCreateLeafNode (PARSEOP_PLD_GROUPTOKEN);}
+    | PARSEOP_PLD_GROUPPOSITION     {$$ = TrCreateLeafNode (PARSEOP_PLD_GROUPPOSITION);}
+    | PARSEOP_PLD_BAY               {$$ = TrCreateLeafNode (PARSEOP_PLD_BAY);}
+    | PARSEOP_PLD_EJECTABLE         {$$ = TrCreateLeafNode (PARSEOP_PLD_EJECTABLE);}
+    | PARSEOP_PLD_EJECTREQUIRED     {$$ = TrCreateLeafNode (PARSEOP_PLD_EJECTREQUIRED);}
+    | PARSEOP_PLD_CABINETNUMBER     {$$ = TrCreateLeafNode (PARSEOP_PLD_CABINETNUMBER);}
+    | PARSEOP_PLD_CARDCAGENUMBER    {$$ = TrCreateLeafNode (PARSEOP_PLD_CARDCAGENUMBER);}
+    | PARSEOP_PLD_REFERENCE         {$$ = TrCreateLeafNode (PARSEOP_PLD_REFERENCE);}
+    | PARSEOP_PLD_ROTATION          {$$ = TrCreateLeafNode (PARSEOP_PLD_ROTATION);}
+    | PARSEOP_PLD_ORDER             {$$ = TrCreateLeafNode (PARSEOP_PLD_ORDER);}
+    | PARSEOP_PLD_RESERVED          {$$ = TrCreateLeafNode (PARSEOP_PLD_RESERVED);}
+    | PARSEOP_PLD_VERTICALOFFSET    {$$ = TrCreateLeafNode (PARSEOP_PLD_VERTICALOFFSET);}
+    | PARSEOP_PLD_HORIZONTALOFFSET  {$$ = TrCreateLeafNode (PARSEOP_PLD_HORIZONTALOFFSET);}
+    ;
+
+PldKeywordList
+    :                               {$$ = NULL;}
+    | PldKeyword
+        PARSEOP_EXP_EQUALS Integer  {$$ = TrLinkChildren ($1,1,$3);}
+    | PldKeyword
+        PARSEOP_EXP_EQUALS String   {$$ = TrLinkChildren ($1,1,$3);}
+    | PldKeywordList ','            /* Allows a trailing comma at list end */
+    | PldKeywordList ','
+        PldKeyword
+        PARSEOP_EXP_EQUALS Integer  {$$ = TrLinkPeerNode ($1,TrLinkChildren ($3,1,$5));}
+    | PldKeywordList ','
+        PldKeyword
+        PARSEOP_EXP_EQUALS String   {$$ = TrLinkPeerNode ($1,TrLinkChildren ($3,1,$5));}
+    ;
+
+ToPLDTerm
+    : PARSEOP_TOPLD '('             {$<n>$ = TrCreateLeafNode (PARSEOP_TOPLD);}
+        PldKeywordList
+        ')'                         {$$ = TrLinkChildren ($<n>3,1,$4);}
+    | PARSEOP_TOPLD '('
+        error ')'                   {$$ = AslDoError(); yyclearin;}
+    ;
+
+PrintfArgList
+    :                               {$$ = NULL;}
+    | TermArg                       {$$ = $1;}
+    | PrintfArgList ','
+       TermArg                      {$$ = TrLinkPeerNode ($1, $3);}
+    ;
+
+PrintfTerm
+    : PARSEOP_PRINTF '('            {$<n>$ = TrCreateLeafNode (PARSEOP_PRINTF);}
+        StringData
+        PrintfArgList
+        ')'                         {$$ = TrLinkChildren ($<n>3,2,$4,$5);}
+    | PARSEOP_PRINTF '('
+        error ')'                   {$$ = AslDoError(); yyclearin;}
+    ;
+
+FprintfTerm
+    : PARSEOP_FPRINTF '('            {$<n>$ = TrCreateLeafNode (PARSEOP_FPRINTF);}
+        TermArg ','
+        StringData
+        PrintfArgList
+        ')'                         {$$ = TrLinkChildren ($<n>3,3,$4,$6,$7);}
+    | PARSEOP_FPRINTF '('
         error ')'                   {$$ = AslDoError(); yyclearin;}
     ;
 

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -448,6 +448,124 @@ TrSetEndLineNumber (
 
 /*******************************************************************************
  *
+ * FUNCTION:    TrCreateAssignmentNode
+ *
+ * PARAMETERS:  Target              - Assignment target
+ *              Source              - Assignment source
+ *
+ * RETURN:      Pointer to the new node. Aborts on allocation failure
+ *
+ * DESCRIPTION: Implements the C-style '=' operator. It changes the parse
+ *              tree if possible to utilize the last argument of the math
+ *              operators which is a target operand -- thus saving invocation
+ *              of and additional Store() operator. An optimization.
+ *
+ ******************************************************************************/
+
+ACPI_PARSE_OBJECT *
+TrCreateAssignmentNode (
+    ACPI_PARSE_OBJECT       *Target,
+    ACPI_PARSE_OBJECT       *Source)
+{
+    ACPI_PARSE_OBJECT       *TargetOp;
+    ACPI_PARSE_OBJECT       *SourceOp1;
+    ACPI_PARSE_OBJECT       *SourceOp2;
+    ACPI_PARSE_OBJECT       *Operator;
+
+
+    DbgPrint (ASL_PARSE_OUTPUT,
+        "\nTrCreateAssignmentNode  Line [%u to %u] Source %s Target %s\n",
+        Source->Asl.LineNumber, Source->Asl.EndLine,
+        UtGetOpName (Source->Asl.ParseOpcode),
+        UtGetOpName (Target->Asl.ParseOpcode));
+
+    TrSetNodeFlags (Target, NODE_IS_TARGET);
+
+    switch (Source->Asl.ParseOpcode)
+    {
+    /*
+     * Only these operators can be optimized because they have
+     * a target operand
+     */
+    case PARSEOP_ADD:
+    case PARSEOP_AND:
+    case PARSEOP_DIVIDE:
+    case PARSEOP_MOD:
+    case PARSEOP_MULTIPLY:
+    case PARSEOP_NOT:
+    case PARSEOP_OR:
+    case PARSEOP_SHIFTLEFT:
+    case PARSEOP_SHIFTRIGHT:
+    case PARSEOP_SUBTRACT:
+    case PARSEOP_XOR:
+
+        break;
+
+    /* Otherwise, just create a normal Store operator */
+
+    default:
+
+        goto CannotOptimize;
+    }
+
+    /*
+     * Transform the parse tree such that the target is moved to the
+     * last operand of the operator
+     */
+    SourceOp1 = Source->Asl.Child;
+    SourceOp2 = SourceOp1->Asl.Next;
+
+    /* NOT only has one operand, but has a target */
+
+    if (Source->Asl.ParseOpcode == PARSEOP_NOT)
+    {
+        SourceOp2 = SourceOp1;
+    }
+
+    /* DIVIDE has an extra target operand (remainder) */
+
+    if (Source->Asl.ParseOpcode == PARSEOP_DIVIDE)
+    {
+        SourceOp2 = SourceOp2->Asl.Next;
+    }
+
+    TargetOp = SourceOp2->Asl.Next;
+
+    /*
+     * Can't perform this optimization if there already is a target
+     * for the operator (ZERO is a "no target" placeholder).
+     */
+    if (TargetOp->Asl.ParseOpcode != PARSEOP_ZERO)
+    {
+        goto CannotOptimize;
+    }
+
+    /* Link in the target as the final operand */
+
+    SourceOp2->Asl.Next = Target;
+    Target->Asl.Parent = Source;
+
+    return (Source);
+
+
+CannotOptimize:
+
+    Operator = TrAllocateNode (PARSEOP_STORE);
+    TrLinkChildren (Operator, 2, Source, Target);
+
+    /* Set the appropriate line numbers for the new node */
+
+    Operator->Asl.LineNumber        = Target->Asl.LineNumber;
+    Operator->Asl.LogicalLineNumber = Target->Asl.LogicalLineNumber;
+    Operator->Asl.LogicalByteOffset = Target->Asl.LogicalByteOffset;
+    Operator->Asl.Column            = Target->Asl.Column;
+
+    return (Operator);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    TrCreateLeafNode
  *
  * PARAMETERS:  ParseOpcode         - New opcode to be assigned to the node
@@ -557,6 +675,81 @@ TrCreateConstantLeafNode (
         "\nCreateConstantLeafNode  Ln/Col %u/%u NewNode %p  Op %s  Value %8.8X%8.8X  ",
         Op->Asl.LineNumber, Op->Asl.Column, Op, UtGetOpName (ParseOpcode),
         ACPI_FORMAT_UINT64 (Op->Asl.Value.Integer));
+    return (Op);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    TrCreateTargetOperand
+ *
+ * PARAMETERS:  OriginalOp          - Op to be copied
+ *
+ * RETURN:      Pointer to the new node. Aborts on allocation failure
+ *
+ * DESCRIPTION: Copy an existing node (and subtree). Used in ASL+ (C-style)
+ *              expressions where the target is the same as one of the
+ *              operands. A new node and subtree must be created from the
+ *              original so that the parse tree can be linked properly.
+ *
+ * NOTE:        This code is specific to target operands that are the last
+ *              operand in an ASL/AML operator. Meaning that the top-level
+ *              parse Op in a possible subtree has a NULL Next pointer.
+ *              This simplifies the recursion.
+ *
+ *              Subtree example:
+ *                  DeRefOf (Local1) += 32
+ *
+ *              This gets converted to:
+ *                  Add (DeRefOf (Local1), 32, DeRefOf (Local1))
+ *
+ *              Each DeRefOf has a single child, Local1. Even more complex
+ *              subtrees can be created via the Index and DeRefOf operators.
+ *
+ ******************************************************************************/
+
+ACPI_PARSE_OBJECT *
+TrCreateTargetOperand (
+    ACPI_PARSE_OBJECT       *OriginalOp,
+    ACPI_PARSE_OBJECT       *ParentOp)
+{
+    ACPI_PARSE_OBJECT       *Op;
+
+
+    if (!OriginalOp)
+    {
+        return (NULL);
+    }
+
+    Op = TrGetNextNode ();
+
+    /* Copy the pertinent values (omit link pointer fields) */
+
+    Op->Asl.Value               = OriginalOp->Asl.Value;
+    Op->Asl.Filename            = OriginalOp->Asl.Filename;
+    Op->Asl.LineNumber          = OriginalOp->Asl.LineNumber;
+    Op->Asl.LogicalLineNumber   = OriginalOp->Asl.LogicalLineNumber;
+    Op->Asl.LogicalByteOffset   = OriginalOp->Asl.LogicalByteOffset;
+    Op->Asl.Column              = OriginalOp->Asl.Column;
+    Op->Asl.Flags               = OriginalOp->Asl.Flags;
+    Op->Asl.CompileFlags        = OriginalOp->Asl.CompileFlags;
+    Op->Asl.AmlOpcode           = OriginalOp->Asl.AmlOpcode;
+    Op->Asl.ParseOpcode         = OriginalOp->Asl.ParseOpcode;
+    Op->Asl.Parent              = ParentOp;
+    UtSetParseOpName (Op);
+
+    /* Copy a possible subtree below this node */
+
+    if (OriginalOp->Asl.Child)
+    {
+        Op->Asl.Child = TrCreateTargetOperand (OriginalOp->Asl.Child, Op);
+    }
+
+    if (OriginalOp->Asl.Next) /* Null for top-level node */
+    {
+        Op->Asl.Next = TrCreateTargetOperand (OriginalOp->Asl.Next, ParentOp);
+    }
+
     return (Op);
 }
 
