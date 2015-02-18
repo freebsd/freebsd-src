@@ -121,10 +121,7 @@ ${_YC:R}.o: ${_YC}
 .endfor
 
 # DTrace probe definitions
-# libelf is currently needed for drti.o
 .if ${SRCS:M*.d}
-LDADD+=		-lelf
-DPADD+=		${LIBELF}
 CFLAGS+=	-I${.OBJDIR}
 .endif
 .for _DSRC in ${SRCS:M*.d:N*/*}
