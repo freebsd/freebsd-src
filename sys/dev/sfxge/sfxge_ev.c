@@ -427,7 +427,7 @@ sfxge_ev_stat_update(struct sfxge_softc *sc)
 	sc->ev_stats_update_time = now;
 
 	/* Add event counts from each event queue in turn */
-	for (index = 0; index < sc->intr.n_alloc; index++) {
+	for (index = 0; index < sc->evq_count; index++) {
 		evq = sc->evq[index];
 		SFXGE_EVQ_LOCK(evq);
 		efx_ev_qstats_update(evq->common, sc->ev_stats);
@@ -493,7 +493,7 @@ sfxge_int_mod_handler(SYSCTL_HANDLER_ARGS)
 	struct sfxge_intr *intr = &sc->intr;
 	unsigned int moderation;
 	int error;
-	int index;
+	unsigned int index;
 
 	SFXGE_ADAPTER_LOCK(sc);
 
@@ -513,7 +513,7 @@ sfxge_int_mod_handler(SYSCTL_HANDLER_ARGS)
 
 		sc->ev_moderation = moderation;
 		if (intr->state == SFXGE_INTR_STARTED) {
-			for (index = 0; index < intr->n_alloc; index++)
+			for (index = 0; index < sc->evq_count; index++)
 				sfxge_ev_qmoderate(sc, index, moderation);
 		}
 	} else {
@@ -727,7 +727,7 @@ sfxge_ev_stop(struct sfxge_softc *sc)
 	    ("Interrupts not started"));
 
 	/* Stop the event queue(s) */
-	index = intr->n_alloc;
+	index = sc->evq_count;
 	while (--index >= 0)
 		sfxge_ev_qstop(sc, index);
 
@@ -752,7 +752,7 @@ sfxge_ev_start(struct sfxge_softc *sc)
 		return (rc);
 
 	/* Start the event queues */
-	for (index = 0; index < intr->n_alloc; index++) {
+	for (index = 0; index < sc->evq_count; index++) {
 		if ((rc = sfxge_ev_qstart(sc, index)) != 0)
 			goto fail;
 	}
@@ -853,9 +853,11 @@ sfxge_ev_fini(struct sfxge_softc *sc)
 	sc->ev_moderation = 0;
 
 	/* Tear down the event queue(s). */
-	index = intr->n_alloc;
+	index = sc->evq_count;
 	while (--index >= 0)
 		sfxge_ev_qfini(sc, index);
+
+	sc->evq_count = 0;
 }
 
 int
@@ -868,6 +870,8 @@ sfxge_ev_init(struct sfxge_softc *sc)
 	int rc;
 
 	intr = &sc->intr;
+
+	sc->evq_count = intr->n_alloc;
 
 	KASSERT(intr->state == SFXGE_INTR_INITIALIZED,
 	    ("intr->state != SFXGE_INTR_INITIALIZED"));
@@ -884,7 +888,7 @@ sfxge_ev_init(struct sfxge_softc *sc)
 	/*
 	 * Initialize the event queue(s) - one per interrupt.
 	 */
-	for (index = 0; index < intr->n_alloc; index++) {
+	for (index = 0; index < sc->evq_count; index++) {
 		if ((rc = sfxge_ev_qinit(sc, index)) != 0)
 			goto fail;
 	}
@@ -899,5 +903,6 @@ fail:
 	while (--index >= 0)
 		sfxge_ev_qfini(sc, index);
 
+	sc->evq_count = 0;
 	return (rc);
 }
