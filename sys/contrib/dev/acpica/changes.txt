@@ -1,4 +1,223 @@
 ----------------------------------------
+04 February 2015. Summary of changes for version 20150204:
+
+This release is available at https://acpica.org/downloads
+
+ACPICA kernel-resident subsystem:
+
+Updated all ACPICA copyrights and signons to 2014. Added the 2014 
+copyright to all module headers and signons, including the standard Linux 
+header. This affects virtually every file in the ACPICA core subsystem, 
+iASL compiler, all ACPICA utilities, and the test suites.
+
+Events: Introduce ACPI_GPE_DISPATCH_RAW_HANDLER to fix GPE storm issues.
+A raw gpe handling mechanism was created to allow better handling of GPE
+storms that aren't easily managed by the normal handler. The raw handler
+allows disabling/renabling of the the GPE so that interrupt storms can be
+avoided in cases where events cannot be timely serviced. In this scenario,
+handlers should use the AcpiSetGpe() API to disable/enable the GPE. This API
+will leave the reference counts undisturbed, thereby preventing unintentional
+clearing of the GPE when the intent in only to temporarily disable it. Raw
+handlers allow enabling and disabling of a GPE by removing GPE register
+locking. As such, raw handlers much provide their own locks while using
+GPE API's to protect access to GPE data structures.
+Lv Zheng
+
+Events: Always modify GPE registers under the GPE lock.
+Applies GPE lock around AcpiFinishGpe() to protect access to GPE register
+values. Reported as bug by joe.liu@apple.com.
+
+Unix makefiles: Separate option to disable optimizations and _FORTIFY_SOURCE.
+This change removes the _FORTIFY_SOURCE flag from the NOOPT disable option and
+creates a separate flag (NOFORTIFY) for this purpose. Some toolchains may
+define _FORTIFY_SOURCE which leads redefined errors when building ACPICA. This
+allows disabling the option without also having to disable optimazations.
+David Box
+
+  Current Release:
+    Non-Debug Version: 101.7K Code, 27.9K Data, 129.6K Total
+    Debug Version:     199.2K Code, 82.4K Data, 281.6K Total
+
+----------------------------------------
+07 November 2014. Summary of changes for version 20141107:
+
+This release is available at https://acpica.org/downloads
+
+This release introduces and implements language extensions to ASL that 
+provide support for symbolic ("C-style") operators and expressions. These 
+language extensions are known collectively as ASL+.
+
+
+1) iASL Compiler/Disassembler and Tools:
+
+Disassembler: Fixed a problem with disassembly of the UartSerialBus 
+macro. Changed "StopBitsNone" to the correct "StopBitsZero". David E. 
+Box.
+
+Disassembler: Fixed the Unicode macro support to add escape sequences. 
+All non-printable ASCII values are emitted as escape sequences, as well 
+as the standard escapes for quote and backslash. Ensures that the 
+disassembled macro can be correctly recompiled.
+
+iASL: Added Printf/Fprintf macros for formatted output. These macros are 
+translated to existing AML Concatenate and Store operations. Printf 
+writes to the ASL Debug object. Fprintf allows the specification of an 
+ASL name as the target. Only a single format specifier is required, %o, 
+since the AML interpreter dynamically converts objects to the required 
+type. David E. Box.
+
+    (old)    Store (Concatenate (Concatenate (Concatenate (Concatenate
+                 (Concatenate (Concatenate (Concatenate ("", Arg0),
+                 ": Unexpected value for "), Arg1), ", "), Arg2),
+                 " at line "), Arg3), Debug)
+
+    (new)    Printf ("%o: Unexpected value for %o, %o at line %o",
+                 Arg0, Arg1, Arg2, Arg3)
+
+    (old)    Store (Concatenate (Concatenate (Concatenate (Concatenate
+                 ("", Arg1), ": "), Arg0), " Successful"), STR1)
+
+    (new)    Fprintf (STR1, "%o: %o Successful", Arg1, Arg0)
+
+iASL: Added debug options (-bp, -bt) to dynamically prune levels of the 
+ASL parse tree before the AML code is generated. This allows blocks of 
+ASL code to be removed in order to help locate and identify problem 
+devices and/or code. David E. Box.
+
+AcpiExec: Added support (-fi) for an optional namespace object 
+initialization file. This file specifies initial values for namespace 
+objects as necessary for debugging and testing different ASL code paths 
+that may be taken as a result of BIOS options.
+
+
+2) Overview of symbolic operator support for ASL (ASL+)
+-------------------------------------------------------
+
+As an extension to the ASL language, iASL implements support for symbolic 
+(C-style) operators for math and logical expressions. This can greatly 
+simplify ASL code as well as improve both readability and 
+maintainability. These language extensions can exist concurrently with 
+all legacy ASL code and expressions.
+
+The symbolic extensions are 100% compatible with existing AML 
+interpreters, since no new AML opcodes are created. To implement the 
+extensions, the iASL compiler transforms the symbolic expressions into 
+the legacy ASL/AML equivalents at compile time.
+
+Full symbolic expressions are supported, along with the standard C 
+precedence and associativity rules.
+
+Full disassembler support for the symbolic expressions is provided, and 
+creates an automatic migration path for existing ASL code to ASL+ code 
+via the disassembly process. By default, the disassembler now emits ASL+ 
+code with symbolic expressions. An option (-dl) is provided to force the 
+disassembler to emit legacy ASL code if desired.
+
+Below is the complete list of the currently supported symbolic operators 
+with examples. See the iASL User Guide for additional information.
+
+
+ASL+ Syntax      Legacy ASL Equivalent
+-----------      ---------------------
+
+    // Math operators
+
+Z = X + Y        Add (X, Y, Z)
+Z = X - Y        Subtract (X, Y, Z)
+Z = X * Y        Multiply (X, Y, Z)
+Z = X / Y        Divide (X, Y, , Z)
+Z = X % Y        Mod (X, Y, Z)
+Z = X << Y       ShiftLeft (X, Y, Z)
+Z = X >> Y       ShiftRight (X, Y, Z)
+Z = X & Y        And (X, Y, Z)
+Z = X | Y        Or (X, Y, Z)
+Z = X ^ Y        Xor (X, Y, Z)
+Z = ~X           Not (X, Z)
+X++              Increment (X)
+X--              Decrement (X)
+
+    // Logical operators
+
+(X == Y)         LEqual (X, Y)
+(X != Y)         LNotEqual (X, Y)
+(X < Y)          LLess (X, Y)
+(X > Y)          LGreater (X, Y)
+(X <= Y)         LLessEqual (X, Y)
+(X >= Y)         LGreaterEqual (X, Y)
+(X && Y)         LAnd (X, Y)
+(X || Y)         LOr (X, Y)
+(!X)             LNot (X)
+
+    // Assignment and compound assignment operations
+
+X = Y           Store (Y, X)
+X += Y          Add (X, Y, X)
+X -= Y          Subtract (X, Y, X)
+X *= Y          Multiply (X, Y, X)
+X /= Y          Divide (X, Y, , X)
+X %= Y          Mod (X, Y, X)
+X <<= Y         ShiftLeft (X, Y, X)
+X >>= Y         ShiftRight (X, Y, X)
+X &= Y          And (X, Y, X)
+X |= Y          Or (X, Y, X)
+X ^= Y          Xor (X, Y, X)
+
+
+3) ASL+ Examples:
+-----------------
+
+Legacy ASL:
+        If (LOr (LOr (LEqual (And (R510, 0x03FB), 0x02E0), LEqual (
+            And (R520, 0x03FB), 0x02E0)), LOr (LEqual (And (R530, 
+0x03FB), 
+            0x02E0), LEqual (And (R540, 0x03FB), 0x02E0))))
+        {
+            And (MEMB, 0xFFFFFFF0, SRMB)
+            Store (MEMB, Local2)
+            Store (PDBM, Local1)
+            And (PDBM, 0xFFFFFFFFFFFFFFF9, PDBM)
+            Store (SRMB, MEMB)
+            Or (PDBM, 0x02, PDBM)
+        }
+
+ASL+ version:
+        If (((R510 & 0x03FB) == 0x02E0) ||
+            ((R520 & 0x03FB) == 0x02E0) ||
+            ((R530 & 0x03FB) == 0x02E0) || 
+            ((R540 & 0x03FB) == 0x02E0))
+        {
+            SRMB = (MEMB & 0xFFFFFFF0)
+            Local2 = MEMB
+            Local1 = PDBM
+            PDBM &= 0xFFFFFFFFFFFFFFF9
+            MEMB = SRMB
+            PDBM |= 0x02
+        }
+
+Legacy ASL:
+        Store (0x1234, Local1)
+        Multiply (Add (Add (Local1, TEST), 0x20), Local2, Local3)
+        Multiply (Local2, Add (Add (Local1, TEST), 0x20), Local3)
+        Add (Local1, Add (TEST, Multiply (0x20, Local2)), Local3)
+        Store (Index (PKG1, 0x03), Local6)
+        Store (Add (Local3, Local2), Debug)
+        Add (Local1, 0x0F, Local2)
+        Add (Local1, Multiply (Local2, Local3), Local2)
+        Multiply (Add (Add (Local1, TEST), 0x20), ToBCD (Local1), Local3)
+
+ASL+ version:
+        Local1 = 0x1234
+        Local3 = (((Local1 + TEST) + 0x20) * Local2)
+        Local3 = (Local2 * ((Local1 + TEST) + 0x20))
+        Local3 = (Local1 + (TEST + (0x20 * Local2)))
+        Local6 = Index (PKG1, 0x03)
+        Debug = (Local3 + Local2)
+        Local2 = (Local1 + 0x0F)
+        Local2 = (Local1 + (Local2 * Local3))
+        Local3 = (((Local1 + TEST) + 0x20) * ToBCD (Local1))
+
+
+----------------------------------------
 26 September 2014. Summary of changes for version 20140926:
 
 1) ACPICA kernel-resident subsystem:
