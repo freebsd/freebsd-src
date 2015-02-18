@@ -450,6 +450,7 @@ random_yarrow_read(uint8_t *buf, u_int bytecount)
 		}
 		uint128_increment(&yarrow_state.counter.whole);
 		if ((i + 1) * BLOCKSIZE > bytecount) {
+			/* TODO: FIX! remove memcpy()! */
 			randomdev_encrypt(&yarrow_state.key,
 			    yarrow_state.counter.byte, tbuf, BLOCKSIZE);
 			memcpy(buf, tbuf, bytecount - i * BLOCKSIZE);
