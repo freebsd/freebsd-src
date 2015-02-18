@@ -23,6 +23,7 @@ NO_WSHIFT_COUNT_OVERFLOW=	-Wno-shift-count-overflow
 NO_WSELF_ASSIGN=		-Wno-self-assign
 NO_WUNNEEDED_INTERNAL_DECL=	-Wno-unneeded-internal-declaration
 NO_WSOMETIMES_UNINITIALIZED=	-Wno-error-sometimes-uninitialized
+NO_WCAST_QUAL=			-Wno-cast-qual
 # Several other warnings which might be useful in some cases, but not severe
 # enough to error out the whole kernel build.  Display them anyway, so there is
 # some incentive to fix them eventually.
@@ -38,7 +39,6 @@ CLANG_NO_IAS34= -no-integrated-as
 .endif
 
 .if ${COMPILER_TYPE} == "gcc"
-GCC_MS_EXTENSIONS= -fms-extensions
 .if ${COMPILER_VERSION} >= 40300
 # Catch-all for all the things that are in our tree, but for which we're
 # not yet ready for this compiler. Note: we likely only really "support"
@@ -155,6 +155,14 @@ INLINE_LIMIT?=	8000
 # assumption that the program is linked against libc.  Stop this.
 #
 CFLAGS+=	-ffreestanding
+
+#
+# The C standard leaves signed integer overflow behavior undefined.
+# gcc and clang opimizers take advantage of this.  The kernel makes
+# use of signed integer wraparound mechanics so we need the compiler
+# to treat it as a wraparound and not take shortcuts.
+# 
+CFLAGS+=	-fwrapv
 
 #
 # GCC SSP support

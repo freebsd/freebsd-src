@@ -266,6 +266,8 @@ bool ld_library_path_rpath = false;
 #define	UTRACE_PRELOAD_FINISHED		8
 #define	UTRACE_INIT_CALL		9
 #define	UTRACE_FINI_CALL		10
+#define	UTRACE_DLSYM_START		11
+#define	UTRACE_DLSYM_STOP		12
 
 struct utrace_rtld {
 	char sig[4];			/* 'RTLD' */
@@ -874,7 +876,6 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
     const Elf32_Word *hashval;
     Elf32_Word bkt, nmaskwords;
     int bloom_size32;
-    bool nmw_power2;
     int plttype = DT_REL;
 
     *dyn_rpath = NULL;
@@ -984,16 +985,15 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 		obj->symndx_gnu = hashtab[1];
 		nmaskwords = hashtab[2];
 		bloom_size32 = (__ELF_WORD_SIZE / 32) * nmaskwords;
-		/* Number of bitmask words is required to be power of 2 */
-		nmw_power2 = ((nmaskwords & (nmaskwords - 1)) == 0);
 		obj->maskwords_bm_gnu = nmaskwords - 1;
 		obj->shift2_gnu = hashtab[3];
 		obj->bloom_gnu = (Elf_Addr *) (hashtab + 4);
 		obj->buckets_gnu = hashtab + 4 + bloom_size32;
 		obj->chain_zero_gnu = obj->buckets_gnu + obj->nbuckets_gnu -
 		  obj->symndx_gnu;
-		obj->valid_hash_gnu = nmw_power2 && obj->nbuckets_gnu > 0 &&
-		  obj->buckets_gnu != NULL;
+		/* Number of bitmask words is required to be power of 2 */
+		obj->valid_hash_gnu = powerof2(nmaskwords) &&
+		    obj->nbuckets_gnu > 0 && obj->buckets_gnu != NULL;
 	    }
 	    break;
 
@@ -3099,6 +3099,7 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
     SymLook req;
     RtldLockState lockstate;
     tls_index ti;
+    void *sym;
     int res;
 
     def = NULL;
@@ -3108,6 +3109,7 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
     req.flags = flags | SYMLOOK_IN_PLT;
     req.lockstate = &lockstate;
 
+    LD_UTRACE(UTRACE_DLSYM_START, handle, NULL, 0, 0, name);
     rlock_acquire(rtld_bind_lock, &lockstate);
     if (sigsetjmp(lockstate.env, 0) != 0)
 	    lock_upgrade(rtld_bind_lock, &lockstate);
@@ -3117,6 +3119,7 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 	if ((obj = obj_from_addr(retaddr)) == NULL) {
 	    _rtld_error("Cannot determine caller's shared object");
 	    lock_release(rtld_bind_lock, &lockstate);
+	    LD_UTRACE(UTRACE_DLSYM_STOP, handle, NULL, 0, 0, name);
 	    return NULL;
 	}
 	if (handle == NULL) {	/* Just the caller's shared object. */
@@ -3164,6 +3167,7 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
     } else {
 	if ((obj = dlcheck(handle)) == NULL) {
 	    lock_release(rtld_bind_lock, &lockstate);
+	    LD_UTRACE(UTRACE_DLSYM_STOP, handle, NULL, 0, 0, name);
 	    return NULL;
 	}
 
@@ -3207,19 +3211,22 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 	 * symbol.
 	 */
 	if (ELF_ST_TYPE(def->st_info) == STT_FUNC)
-	    return (make_function_pointer(def, defobj));
+	    sym = make_function_pointer(def, defobj);
 	else if (ELF_ST_TYPE(def->st_info) == STT_GNU_IFUNC)
-	    return (rtld_resolve_ifunc(defobj, def));
+	    sym = rtld_resolve_ifunc(defobj, def);
 	else if (ELF_ST_TYPE(def->st_info) == STT_TLS) {
 	    ti.ti_module = defobj->tlsindex;
 	    ti.ti_offset = def->st_value;
-	    return (__tls_get_addr(&ti));
+	    sym = __tls_get_addr(&ti);
 	} else
-	    return (defobj->relocbase + def->st_value);
+	    sym = defobj->relocbase + def->st_value;
+	LD_UTRACE(UTRACE_DLSYM_STOP, handle, sym, 0, 0, name);
+	return (sym);
     }
 
     _rtld_error("Undefined symbol \"%s\"", name);
     lock_release(rtld_bind_lock, &lockstate);
+    LD_UTRACE(UTRACE_DLSYM_STOP, handle, NULL, 0, 0, name);
     return NULL;
 }
 

@@ -106,6 +106,6 @@ SRCS	+=								\
 	iicbus_if.h							\
 	pci_if.h
 
-CFLAGS  += -I${.CURDIR}/../../../dev/drm2/radeon ${GCC_MS_EXTENSIONS}
+CFLAGS  += -I${.CURDIR}/../../../dev/drm2/radeon
 
 .include <bsd.kmod.mk>

@@ -896,7 +896,7 @@ files_group(void *retval, void *mdata, va_list ap)
 			break;
 		pos = ftello(st->fp);
 	}
-	if (!stayopen && st->fp != NULL) {
+	if (st->fp != NULL && !stayopen) {
 		fclose(st->fp);
 		st->fp = NULL;
 	}
@@ -1450,7 +1450,7 @@ docompat:
 		pos = ftello(st->fp);
 	}
 fin:
-	if (!stayopen && st->fp != NULL) {
+	if (st->fp != NULL && !stayopen) {
 		fclose(st->fp);
 		st->fp = NULL;
 	}

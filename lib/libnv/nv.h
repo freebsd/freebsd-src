@@ -83,7 +83,7 @@ nvlist_t *nvlist_xfer(int sock, nvlist_t *nvl);
 
 const char *nvlist_next(const nvlist_t *nvl, int *typep, void **cookiep);
 
-const nvlist_t *nvlist_get_parent(const nvlist_t *nvl);
+const nvlist_t *nvlist_get_parent(const nvlist_t *nvl, void **cookiep);
 
 /*
  * The nvlist_exists functions check if the given name (optionally of the given

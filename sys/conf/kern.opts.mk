@@ -23,13 +23,18 @@
 # src tree.
 
 __DEFAULT_YES_OPTIONS = \
+    AUTOFS \
+    BHYVE \
     BLUETOOTH \
+    CCD \
     CDDL \
     CRYPT \
+    CUSE \
     FORMAT_EXTENSIONS \
     INET \
     INET6 \
     IPFILTER \
+    ISCSI \
     KERNEL_SYMBOLS \
     NETGRAPH \
     PF \
@@ -53,7 +58,11 @@ MK_${var}:=	no
 .else
 MK_${var}:=	yes
 .endif
+.else
+.if ${MK_${var}} != "yes" && ${MK_${var}} != "no"
+.error "Illegal value for MK_${var}: ${MK_${var}}"
 .endif
+.endif # !defined(MK_${var})
 .endfor
 .undef __DEFAULT_YES_OPTIONS
 
@@ -65,7 +74,11 @@ MK_${var}:=	yes
 .else
 MK_${var}:=	no
 .endif
+.else
+.if ${MK_${var}} != "yes" && ${MK_${var}} != "no"
+.error "Illegal value for MK_${var}: ${MK_${var}}"
 .endif
+.endif # !defined(MK_${var})
 .endfor
 .undef __DEFAULT_NO_OPTIONS
 

@@ -38,6 +38,40 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150217: Removed remnants of ar(4) driver
+OLD_FILES+=usr/include/sys/dev/ic/hd64570.h
+# 20150212: /usr/games moving into /usr/bin
+OLD_FILES+=usr/games/bcd
+OLD_FILES+=usr/games/caesar
+OLD_FILES+=usr/games/factor
+OLD_FILES+=usr/games/fortune
+OLD_FILES+=usr/games/grdc
+OLD_FILES+=usr/games/morse
+OLD_FILES+=usr/games/number
+OLD_FILES+=usr/games/pom
+OLD_FILES+=usr/games/ppt
+OLD_FILES+=usr/games/primes
+OLD_FILES+=usr/games/random
+OLD_FILES+=usr/games/rot13
+OLD_FILES+=usr/games/strfile
+OLD_FILES+=usr/games/unstr
+OLD_DIRS+=usr/games
+# 20150209: liblzma header
+OLD_FILES+=usr/include/lzma/lzma.h
+# 20150124: spl.9 and friends
+OLD_FILES+=usr/share/man/man9/spl.9
+OLD_FILES+=usr/share/man/man9/spl0.9
+OLD_FILES+=usr/share/man/man9/splbio.9
+OLD_FILES+=usr/share/man/man9/splclock.9
+OLD_FILES+=usr/share/man/man9/splhigh.9
+OLD_FILES+=usr/share/man/man9/splimp.9
+OLD_FILES+=usr/share/man/man9/splnet.9
+OLD_FILES+=usr/share/man/man9/splsoftclock.9
+OLD_FILES+=usr/share/man/man9/splsofttty.9
+OLD_FILES+=usr/share/man/man9/splstatclock.9
+OLD_FILES+=usr/share/man/man9/spltty.9
+OLD_FILES+=usr/share/man/man9/splvm.9
+OLD_FILES+=usr/share/man/man9/splx.9
 # 20150118: new clang import which bumps version from 3.5.0 to 3.5.1.
 OLD_FILES+=usr/include/clang/3.5.0/__wmmintrin_aes.h
 OLD_FILES+=usr/include/clang/3.5.0/__wmmintrin_pclmul.h

@@ -459,11 +459,16 @@ OF_getencprop_alloc(phandle_t package, const char *name, int elsz, void **buf)
 	int i;
 
 	retval = OF_getprop_alloc(package, name, elsz, buf);
-	if (retval == -1 || retval*elsz % 4 != 0)
+	if (retval == -1)
 		return (-1);
+ 	if (retval * elsz % 4 != 0) {
+		free(*buf, M_OFWPROP);
+		*buf = NULL;
+		return (-1);
+	}
 
 	cell = *buf;
-	for (i = 0; i < retval*elsz/4; i++)
+	for (i = 0; i < retval * elsz / 4; i++)
 		cell[i] = be32toh(cell[i]);
 
 	return (retval);

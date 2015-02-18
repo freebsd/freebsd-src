@@ -163,9 +163,9 @@ set_addr_dynamic(const char *ifn, struct nat44_cfg_nat *n)
 		}
 	}
 	if (sin == NULL)
-		errx(1, "%s: cannot get interface address", ifn);
-
-	n->ip = sin->sin_addr;
+		n->ip.s_addr = htonl(INADDR_ANY);
+	else
+		n->ip = sin->sin_addr;
 	strncpy(n->if_name, ifn, IF_NAMESIZE);
 
 	free(buf);

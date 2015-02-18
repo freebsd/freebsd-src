@@ -66,7 +66,8 @@ struct lzma_coder_s {
 
 
 extern lzma_ret lzma_simple_coder_init(lzma_next_coder *next,
-		lzma_allocator *allocator, const lzma_filter_info *filters,
+		const lzma_allocator *allocator,
+		const lzma_filter_info *filters,
 		size_t (*filter)(lzma_simple *simple, uint32_t now_pos,
 			bool is_encoder, uint8_t *buffer, size_t size),
 		size_t simple_size, size_t unfiltered_max,

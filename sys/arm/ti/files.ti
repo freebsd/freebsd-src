@@ -9,6 +9,7 @@ arm/arm/cpufunc_asm_armv5.S			standard
 arm/arm/cpufunc_asm_arm10.S			standard
 arm/arm/cpufunc_asm_arm11.S			standard
 arm/arm/cpufunc_asm_armv7.S			standard
+arm/arm/pmu.c					optional	hwpmc
 
 arm/ti/ti_common.c				standard
 arm/ti/ti_cpuid.c				standard

@@ -1302,6 +1302,47 @@ umtx_pi_adjust_thread(struct umtx_pi *pi, struct thread *td)
 	return (1);
 }
 
+static struct umtx_pi *
+umtx_pi_next(struct umtx_pi *pi)
+{
+	struct umtx_q *uq_owner;
+
+	if (pi->pi_owner == NULL)
+		return (NULL);
+	uq_owner = pi->pi_owner->td_umtxq;
+	if (uq_owner == NULL)
+		return (NULL);
+	return (uq_owner->uq_pi_blocked);
+}
+
+/*
+ * Floyd's Cycle-Finding Algorithm.
+ */
+static bool
+umtx_pi_check_loop(struct umtx_pi *pi)
+{
+	struct umtx_pi *pi1;	/* fast iterator */
+
+	mtx_assert(&umtx_lock, MA_OWNED);
+	if (pi == NULL)
+		return (false);
+	pi1 = pi;
+	for (;;) {
+		pi = umtx_pi_next(pi);
+		if (pi == NULL)
+			break;
+		pi1 = umtx_pi_next(pi1);
+		if (pi1 == NULL)
+			break;
+		pi1 = umtx_pi_next(pi1);
+		if (pi1 == NULL)
+			break;
+		if (pi == pi1)
+			return (true);
+	}
+	return (false);
+}
+
 /*
  * Propagate priority when a thread is blocked on POSIX
  * PI mutex.
@@ -1318,6 +1359,8 @@ umtx_propagate_priority(struct thread *td)
 	uq = td->td_umtxq;
 	pi = uq->uq_pi_blocked;
 	if (pi == NULL)
+		return;
+	if (umtx_pi_check_loop(pi))
 		return;
 
 	for (;;) {
@@ -1362,6 +1405,8 @@ umtx_repropagate_priority(struct umtx_pi *pi)
 
 	mtx_assert(&umtx_lock, MA_OWNED);
 
+	if (umtx_pi_check_loop(pi))
+		return;
 	while (pi != NULL && pi->pi_owner != NULL) {
 		pri = PRI_MAX;
 		uq_owner = pi->pi_owner->td_umtxq;
@@ -1692,6 +1737,11 @@ do_lock_pi(struct thread *td, struct umutex *m, uint32_t flags,
 
 			/* If this failed the lock has changed, restart. */
 			continue;
+		}
+
+		if ((owner & ~UMUTEX_CONTESTED) == id) {
+			error = EDEADLK;
+			break;
 		}
 
 		if (try != 0) {

@@ -398,6 +398,7 @@ int	tmpfs_alloc_vp(struct mount *, struct tmpfs_node *, int,
 void	tmpfs_free_vp(struct vnode *);
 int	tmpfs_alloc_file(struct vnode *, struct vnode **, struct vattr *,
 	    struct componentname *, char *);
+void	tmpfs_check_mtime(struct vnode *);
 void	tmpfs_dir_attach(struct vnode *, struct tmpfs_dirent *);
 void	tmpfs_dir_detach(struct vnode *, struct tmpfs_dirent *);
 void	tmpfs_dir_destroy(struct tmpfs_mount *, struct tmpfs_node *);

@@ -92,8 +92,8 @@ static int lro_loss_packets = 20;
 #define	SFXGE_LRO_CONN_IS_TCPIPV4(c) (!((c)->l2_id & SFXGE_LRO_L2_ID_IPV6))
 
 /* Compare IPv6 addresses, avoiding conditional branches */
-static __inline unsigned long ipv6_addr_cmp(const struct in6_addr *left,
-					    const struct in6_addr *right)
+static unsigned long ipv6_addr_cmp(const struct in6_addr *left,
+				   const struct in6_addr *right)
 {
 #if LONG_BIT == 64
 	const uint64_t *left64 = (const uint64_t *)left;
@@ -167,7 +167,7 @@ sfxge_rx_schedule_refill(struct sfxge_rxq *rxq, boolean_t retrying)
 			     sfxge_rx_post_refill, rxq);
 }
 
-static inline struct mbuf *sfxge_rx_alloc_mbuf(struct sfxge_softc *sc)
+static struct mbuf *sfxge_rx_alloc_mbuf(struct sfxge_softc *sc)
 {
 	struct mb_args args;
 	struct mbuf *m;
@@ -207,7 +207,7 @@ sfxge_rx_qfill(struct sfxge_rxq *rxq, unsigned int target, boolean_t retrying)
 	prefetch_read_many(sc->enp);
 	prefetch_read_many(rxq->common);
 
-	mtx_assert(&evq->lock, MA_OWNED);
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
 
 	if (rxq->init_state != SFXGE_RXQ_STARTED)
 		return;
@@ -749,7 +749,7 @@ sfxge_rx_qcomplete(struct sfxge_rxq *rxq, boolean_t eop)
 	index = rxq->index;
 	evq = sc->evq[index];
 
-	mtx_assert(&evq->lock, MA_OWNED);
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
 
 	completed = rxq->completed;
 	while (completed != rxq->pending) {
@@ -834,7 +834,7 @@ sfxge_rx_qstop(struct sfxge_softc *sc, unsigned int index)
 	rxq = sc->rxq[index];
 	evq = sc->evq[index];
 
-	mtx_lock(&evq->lock);
+	SFXGE_EVQ_LOCK(evq);
 
 	KASSERT(rxq->init_state == SFXGE_RXQ_STARTED,
 	    ("rxq not started"));
@@ -849,7 +849,7 @@ again:
 	/* Flush the receive queue */
 	efx_rx_qflush(rxq->common);
 
-	mtx_unlock(&evq->lock);
+	SFXGE_EVQ_UNLOCK(evq);
 
 	count = 0;
 	do {
@@ -861,7 +861,7 @@ again:
 
 	} while (++count < 20);
 
-	mtx_lock(&evq->lock);
+	SFXGE_EVQ_LOCK(evq);
 
 	if (rxq->flush_state == SFXGE_FLUSH_FAILED)
 		goto again;
@@ -885,7 +885,7 @@ again:
 	efx_sram_buf_tbl_clear(sc->enp, rxq->buf_base_id,
 	    EFX_RXQ_NBUFS(sc->rxq_entries));
 
-	mtx_unlock(&evq->lock);
+	SFXGE_EVQ_UNLOCK(evq);
 }
 
 static int
@@ -916,7 +916,7 @@ sfxge_rx_qstart(struct sfxge_softc *sc, unsigned int index)
 	    &rxq->common)) != 0)
 		goto fail;
 
-	mtx_lock(&evq->lock);
+	SFXGE_EVQ_LOCK(evq);
 
 	/* Enable the receive queue. */
 	efx_rx_qenable(rxq->common);
@@ -926,7 +926,7 @@ sfxge_rx_qstart(struct sfxge_softc *sc, unsigned int index)
 	/* Try to fill the queue from the pool. */
 	sfxge_rx_qfill(rxq, EFX_RXQ_LIMIT(sc->rxq_entries), B_FALSE);
 
-	mtx_unlock(&evq->lock);
+	SFXGE_EVQ_UNLOCK(evq);
 
 	return (0);
 

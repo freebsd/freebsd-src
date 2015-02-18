@@ -114,7 +114,7 @@ efx_tx_filter_insert(
 	EFSYS_ASSERT3P(spec, !=, NULL);
 
 	spec->efs_dmaq_id = (uint16_t)etp->et_index;
-	return efx_filter_insert_filter(etp->et_enp, spec, B_FALSE);
+	return (efx_filter_insert_filter(etp->et_enp, spec, B_FALSE));
 }
 #endif
 
@@ -128,7 +128,7 @@ efx_tx_filter_remove(
 	EFSYS_ASSERT3P(spec, !=, NULL);
 
 	spec->efs_dmaq_id = (uint16_t)etp->et_index;
-	return efx_filter_remove_filter(etp->et_enp, spec);
+	return (efx_filter_remove_filter(etp->et_enp, spec));
 }
 #endif
 
@@ -358,6 +358,7 @@ fail1:
 	return (rc);
 }
 
+#if EFSYS_OPT_QSTATS
 #if EFSYS_OPT_NAMES
 /* START MKCONFIG GENERATED EfxTransmitQueueStatNamesBlock 78ca9ab00287fffb */
 static const char 	__cs * __cs __efx_tx_qstat_name[] = {
@@ -378,6 +379,7 @@ efx_tx_qstat_name(
 	return (__efx_tx_qstat_name[id]);
 }
 #endif	/* EFSYS_OPT_NAMES */
+#endif	/* EFSYS_OPT_QSTATS */
 
 #if EFSYS_OPT_QSTATS
 					void

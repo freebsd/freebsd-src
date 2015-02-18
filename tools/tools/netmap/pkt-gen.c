@@ -1817,7 +1817,7 @@ main(int arc, char **argv)
 
 	}
 
-	if (g.ifname == NULL) {
+	if (strlen(g.ifname) <=0 ) {
 		D("missing ifname");
 		usage();
 	}
