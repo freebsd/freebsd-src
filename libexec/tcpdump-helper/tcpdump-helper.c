@@ -85,7 +85,7 @@ const char *program_name;
 
 void	pawned(void);
 
-int	invoke(register_t op, register_t arg1, register_t arg2,
+int	invoke(register_t methodnum, register_t arg1, register_t arg2,
 	    register_t arg3, register_t arg4, register_t arg5,
 	    netdissect_options *ndo,
 	    const char *ndo_espsecret,
