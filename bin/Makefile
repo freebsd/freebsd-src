@@ -32,6 +32,7 @@ SUBDIR= cat \
 	realpath \
 	rm \
 	rmdir \
+	shmem_bench \
 	setfacl \
 	sh \
 	sleep \
