@@ -38,6 +38,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <dev/ofw/openfirm.h>
+#include <dev/pci/pcivar.h>
+
+#ifndef PCI_VENDOR_ID_ATI
+#define PCI_VENDOR_ID_ATI 0x1002
+#endif
 
 /* From the xf86-video-ati driver's radeon_reg.h */
 #define RADEON_LVDS_GEN_CNTL         0x02d0
@@ -121,7 +126,9 @@ atibl_probe(device_t dev)
 	if (OF_getprop(handle, "backlight-control", &control, sizeof(control)) < 0)
 		return (ENXIO);
 
-	if (strcmp(control, "ati") != 0)
+	if (strcmp(control, "ati") != 0 &&
+	    (strcmp(control, "mnca") != 0 ||
+	    pci_get_vendor(device_get_parent(dev)) != 0x1002))
 		return (ENXIO);
 
 	device_set_desc(dev, "PowerBook backlight for ATI graphics");
