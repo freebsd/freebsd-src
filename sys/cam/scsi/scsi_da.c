@@ -3787,7 +3787,7 @@ dasetgeom(struct cam_periph *periph, uint32_t block_len, uint64_t maxsector,
 		xpt_setup_ccb(&cdai.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		cdai.ccb_h.func_code = XPT_DEV_ADVINFO;
 		cdai.buftype = CDAI_TYPE_RCAPLONG;
-		cdai.flags |= CDAI_FLAG_STORE;
+		cdai.flags = CDAI_FLAG_STORE;
 		cdai.bufsiz = rcap_len;
 		cdai.buf = (uint8_t *)rcaplong;
 		xpt_action((union ccb *)&cdai);
