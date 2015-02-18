@@ -343,16 +343,15 @@ WMAKEENV+=	CC="${XCC} ${XCFLAGS}" CXX="${XCXX} ${XCFLAGS} ${XCXXFLAGS}" \
 		SIZE="${XSIZE}"
 
 .if ${XCC:M/*}
-XFLAGS=		--sysroot=${WORLDTMP}
 .if defined(CROSS_BINUTILS_PREFIX)
 # In the case of xdev-build tools, CROSS_BINUTILS_PREFIX won't be a
 # directory, but the compiler will look in the right place for it's
 # tools so we don't need to tell it where to look.
 .if exists(${CROSS_BINUTILS_PREFIX})
-XFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
+BFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
 .endif
 .else
-XFLAGS+=	-B${WORLDTMP}/usr/bin
+BFLAGS+=	-B${WORLDTMP}/usr/bin
 .endif
 .if ${TARGET} == "arm"
 .if ${TARGET_ARCH:M*hf*} != ""
@@ -369,6 +368,8 @@ DEPFLAGS+=	-I${WORLDTMP}/usr/include/c++/v1
 TARGET_ABI?=	unknown
 TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd11.0
 XCFLAGS+=	-target ${TARGET_TRIPLE}
+XCFLAGS+=	--sysroot=${WORLDTMP} ${BFLAGS}
+XCXXFLAGS+=	--sysroot=${WORLDTMP} ${BFLAGS}
 .endif
 .endif
 
