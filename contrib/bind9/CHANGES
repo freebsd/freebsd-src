@@ -1,3 +1,10 @@
+	--- 9.9.6-P2 released ---
+
+4053.	[security]	Revoking a managed trust anchor and supplying
+			an untrusted replacement could cause named
+			to crash with an assertion failure.
+			(CVE-2015-1349) [RT #38344]
+
 	--- 9.9.6-P1 released ---
 
 4006.	[security]	A flaw in delegation handling could be exploited
