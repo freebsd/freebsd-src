@@ -571,8 +571,9 @@ taskqueue_swi_giant_run(void *dummy)
 
 static int
 _taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
-    cpuset_t *mask, const char *ktname)
+    cpuset_t *mask, const char *name, va_list ap)
 {
+	char ktname[MAXCOMLEN + 1];
 	struct thread *td;
 	struct taskqueue *tq;
 	int i, error;
@@ -580,6 +581,7 @@ _taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
 	if (count <= 0)
 		return (EINVAL);
 
+	vsnprintf(ktname, sizeof(ktname), name, ap);
 	tq = *tqp;
 
 	tq->tq_threads = malloc(sizeof(struct thread *) * count, M_TASKQUEUE,
@@ -635,27 +637,35 @@ int
 taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
     const char *name, ...)
 {
-	char ktname[MAXCOMLEN + 1];
 	va_list ap;
+	int error;
 
 	va_start(ap, name);
-	vsnprintf(ktname, sizeof(ktname), name, ap);
+	error = _taskqueue_start_threads(tqp, count, pri, NULL, name, ap);
 	va_end(ap);
+	return (error);
+}
 
-	return (_taskqueue_start_threads(tqp, count, pri, NULL, ktname));
+int
+taskqueue_start_threads_cpuset(struct taskqueue **tqp, int count, int pri,
+    cpuset_t *mask, const char *name, ...)
+{
+	va_list ap;
+	int error;
+
+	va_start(ap, name);
+	error = _taskqueue_start_threads(tqp, count, pri, mask, name, ap);
+	va_end(ap);
+	return (error);
 }
 
 int
 taskqueue_start_threads_pinned(struct taskqueue **tqp, int count, int pri,
     int cpu_id, const char *name, ...)
 {
-	char ktname[MAXCOMLEN + 1];
-	va_list ap;
 	cpuset_t mask;
-
-	va_start(ap, name);
-	vsnprintf(ktname, sizeof(ktname), name, ap);
-	va_end(ap);
+	va_list ap;
+	int error;
 
 	/*
 	 * In case someone passes in NOCPU, just fall back to the
@@ -666,8 +676,11 @@ taskqueue_start_threads_pinned(struct taskqueue **tqp, int count, int pri,
 		CPU_SET(cpu_id, &mask);
 	}
 
-	return (_taskqueue_start_threads(tqp, count, pri,
-	    cpu_id == NOCPU ? NULL : &mask, ktname));
+	va_start(ap, name);
+	error = _taskqueue_start_threads(tqp, count, pri,
+	    cpu_id == NOCPU ? NULL : &mask, name, ap);
+	va_end(ap);
+	return (error);
 }
 
 static inline void

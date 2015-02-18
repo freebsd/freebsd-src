@@ -54,7 +54,7 @@ DPSRCS+=	freebsd-organization.h
 CLEANFILES+=	freebsd-organization.h
 CFLAGS+=	-I. -DHAS_ORGANIZATION_NAME
 freebsd-organization.h:
-	@echo '#define ORGANIZATION_NAME ${ORGANIZATION}' \
+	@echo "#define ORGANIZATION_NAME	\"$$(eval echo ${ORGANIZATION})\"" \
 	    > freebsd-organization.h
 .endif
 

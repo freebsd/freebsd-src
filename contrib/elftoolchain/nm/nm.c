@@ -48,7 +48,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: nm.c 3124 2014-12-21 05:46:28Z kaiwang27 $");
+ELFTC_VCSID("$Id: nm.c 3145 2015-02-15 18:04:37Z emaste $");
 
 /* symbol information list */
 STAILQ_HEAD(sym_head, sym_entry);

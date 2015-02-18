@@ -38,6 +38,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/idr.h>
+#include <linux/rbtree.h>
 #include <linux/notifier.h>
 
 #include <rdma/ib_verbs.h>
@@ -47,7 +48,6 @@
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/doorbell.h>
-#include <linux/rbtree.h>
 
 #define MLX4_IB_DRV_NAME	"mlx4_ib"
 
@@ -72,9 +72,7 @@ enum {
 
 /*module param to indicate if SM assigns the alias_GUID*/
 extern int mlx4_ib_sm_guid_assign;
-#ifdef __linux__
 extern struct proc_dir_entry *mlx4_mrs_dir_entry;
-#endif
 
 #define MLX4_IB_UC_STEER_QPN_ALIGN 1
 #define MLX4_IB_UC_MAX_NUM_QPS     (256 * 1024)
@@ -128,6 +126,7 @@ struct mlx4_ib_cq {
 	struct mutex		resize_mutex;
 	struct ib_umem	       *umem;
 	struct ib_umem	       *resize_umem;
+	int			create_flags;
 };
 
 struct mlx4_ib_mr {
@@ -135,6 +134,13 @@ struct mlx4_ib_mr {
 	struct mlx4_mr		mmr;
 	struct ib_umem	       *umem;
 	struct mlx4_shared_mr_info	*smr_info;
+	atomic_t      invalidated;
+	struct completion invalidation_comp;
+};
+
+struct mlx4_ib_mw {
+	struct ib_mw		ibmw;
+	struct mlx4_mw		mmw;
 };
 
 struct mlx4_ib_fast_reg_page_list {
@@ -146,6 +152,12 @@ struct mlx4_ib_fast_reg_page_list {
 struct mlx4_ib_fmr {
 	struct ib_fmr           ibfmr;
 	struct mlx4_fmr         mfmr;
+};
+
+struct mlx4_ib_flow {
+	struct ib_flow ibflow;
+	/* translating DMFS verbs sniffer rule to FW API requires two reg IDs */
+	u64 reg_id[2];
 };
 
 struct mlx4_ib_wq {
@@ -163,6 +175,9 @@ struct mlx4_ib_wq {
 enum mlx4_ib_qp_flags {
 	MLX4_IB_QP_LSO = IB_QP_CREATE_IPOIB_UD_LSO,
 	MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK = IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK,
+	MLX4_IB_QP_CAP_CROSS_CHANNEL = IB_QP_CREATE_CROSS_CHANNEL,
+	MLX4_IB_QP_CAP_MANAGED_SEND = IB_QP_CREATE_MANAGED_SEND,
+	MLX4_IB_QP_CAP_MANAGED_RECV = IB_QP_CREATE_MANAGED_RECV,
 	MLX4_IB_QP_NETIF = IB_QP_CREATE_NETIF_QP,
 	MLX4_IB_SRIOV_TUNNEL_QP = 1 << 30,
 	MLX4_IB_SRIOV_SQP = 1 << 31,
@@ -179,6 +194,7 @@ enum mlx4_ib_mmap_cmd {
 	MLX4_IB_MMAP_UAR_PAGE		= 0,
 	MLX4_IB_MMAP_BLUE_FLAME_PAGE	= 1,
 	MLX4_IB_MMAP_GET_CONTIGUOUS_PAGES	= 2,
+	MLX4_IB_MMAP_GET_HW_CLOCK	= 3,
 };
 
 enum mlx4_ib_qp_type {
@@ -319,8 +335,14 @@ struct mlx4_ib_qp {
 	struct mlx4_roce_smac_vlan_info pri;
 	struct mlx4_roce_smac_vlan_info alt;
 	struct list_head	rules_list;
+	u64			reg_id;
 	int                     max_inline_data;
 	struct mlx4_bf          bf;
+
+	/*
+	 * Experimental data
+	 */
+	int			max_inlr_data;
 };
 
 struct mlx4_ib_srq {
@@ -353,6 +375,12 @@ struct mlx4_ib_ah {
 #define NUM_ALIAS_GUID_PER_PORT		128
 #define MLX4_NOT_SET_GUID		(0x00LL)
 #define MLX4_GUID_FOR_DELETE_VAL	(~(0x00LL))
+
+/****************************************/
+/* ioctl codes */
+/****************************************/
+#define MLX4_IOC_MAGIC 'm'
+#define MLX4_IOCHWCLOCKOFFSET _IOR(MLX4_IOC_MAGIC, 1, int)
 
 enum mlx4_guid_alias_rec_status {
 	MLX4_GUID_INFO_STATUS_IDLE,
@@ -478,7 +506,9 @@ struct mlx4_ib_sriov {
 struct mlx4_ib_iboe {
 	spinlock_t		lock;
 	struct net_device      *netdevs[MLX4_MAX_PORTS];
+	struct net_device      *masters[MLX4_MAX_PORTS];
 	struct notifier_block 	nb;
+	struct notifier_block	nb_inet;
 	union ib_gid		gid_table[MLX4_MAX_PORTS][128];
 };
 
@@ -518,6 +548,11 @@ struct mlx4_ib_iov_port {
 	struct mlx4_ib_iov_sysfs_attr mcg_dentry;
 };
 
+struct mlx4_ib_counter {
+	int counter_index;
+	int status;
+};
+
 struct mlx4_ib_dev {
 	struct ib_device	ib_dev;
 	struct mlx4_dev	       *dev;
@@ -534,7 +569,7 @@ struct mlx4_ib_dev {
 	struct mutex		cap_mask_mutex;
 	bool			ib_active;
 	struct mlx4_ib_iboe	iboe;
-	int			counters[MLX4_MAX_PORTS];
+	struct mlx4_ib_counter	counters[MLX4_MAX_PORTS];
 	int		       *eq_table;
 	int			eq_added;
 	struct kobject	       *iov_parent;
@@ -595,6 +630,11 @@ static inline struct mlx4_ib_mr *to_mmr(struct ib_mr *ibmr)
 	return container_of(ibmr, struct mlx4_ib_mr, ibmr);
 }
 
+static inline struct mlx4_ib_mw *to_mmw(struct ib_mw *ibmw)
+{
+	return container_of(ibmw, struct mlx4_ib_mw, ibmw);
+}
+
 static inline struct mlx4_ib_fast_reg_page_list *to_mfrpl(struct ib_fast_reg_page_list *ibfrpl)
 {
 	return container_of(ibfrpl, struct mlx4_ib_fast_reg_page_list, ibfrpl);
@@ -604,6 +644,12 @@ static inline struct mlx4_ib_fmr *to_mfmr(struct ib_fmr *ibfmr)
 {
 	return container_of(ibfmr, struct mlx4_ib_fmr, ibfmr);
 }
+
+static inline struct mlx4_ib_flow *to_mflow(struct ib_flow *ibflow)
+{
+	return container_of(ibflow, struct mlx4_ib_flow, ibflow);
+}
+
 static inline struct mlx4_ib_qp *to_mqp(struct ib_qp *ibqp)
 {
 	return container_of(ibqp, struct mlx4_ib_qp, ibqp);
@@ -646,16 +692,23 @@ struct ib_mr *mlx4_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				  u64 virt_addr, int access_flags,
 				  struct ib_udata *udata, int mr_id);
 int mlx4_ib_dereg_mr(struct ib_mr *mr);
+struct ib_mw *mlx4_ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type);
+int mlx4_ib_bind_mw(struct ib_qp *qp, struct ib_mw *mw,
+		    struct ib_mw_bind *mw_bind);
+int mlx4_ib_dealloc_mw(struct ib_mw *mw);
 struct ib_mr *mlx4_ib_alloc_fast_reg_mr(struct ib_pd *pd,
 					int max_page_list_len);
 struct ib_fast_reg_page_list *mlx4_ib_alloc_fast_reg_page_list(struct ib_device *ibdev,
 							       int page_list_len);
 void mlx4_ib_free_fast_reg_page_list(struct ib_fast_reg_page_list *page_list);
 
-int mlx4_ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period);
+int mlx4_ib_modify_cq(struct ib_cq *cq,
+		      struct ib_cq_attr *cq_attr,
+		      int cq_attr_mask);
 int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata);
 int mlx4_ib_ignore_overrun_cq(struct ib_cq *ibcq);
-struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev, int entries, int vector,
+struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
+				struct ib_cq_init_attr *attr,
 				struct ib_ucontext *context,
 				struct ib_udata *udata);
 int mlx4_ib_destroy_cq(struct ib_cq *cq);
@@ -730,6 +783,13 @@ static inline int mlx4_ib_ah_grh_present(struct mlx4_ib_ah *ah)
 
 	return !!(ah->av.ib.g_slid & 0x80);
 }
+static inline int mlx4_ib_qp_has_rq(struct ib_qp_init_attr *attr)
+{
+	if (attr->qp_type == IB_QPT_XRC_INI || attr->qp_type == IB_QPT_XRC_TGT)
+		return 0;
+
+	return !attr->srq;
+}
 
 int mlx4_ib_mcg_port_init(struct mlx4_ib_demux_ctx *ctx);
 void mlx4_ib_mcg_port_cleanup(struct mlx4_ib_demux_ctx *ctx, int destroy_wq);
@@ -757,7 +817,7 @@ int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 			  struct ib_grh *grh, struct ib_mad *mad);
 int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
 			 enum ib_qp_type dest_qpt, u16 pkey_index, u32 remote_qpn,
-			 u32 qkey, struct ib_ah_attr *attr, struct ib_mad *mad);
+			 u32 qkey, struct ib_ah_attr *attr, u8 *s_mac, struct ib_mad *mad);
 __be64 mlx4_ib_get_new_demux_tid(struct mlx4_ib_demux_ctx *ctx);
 
 int mlx4_ib_demux_cm_handler(struct ib_device *ibdev, int port, int *slave,
@@ -799,5 +859,7 @@ int mlx4_ib_steer_qp_alloc(struct mlx4_ib_dev *dev, int count, int *qpn);
 void mlx4_ib_steer_qp_free(struct mlx4_ib_dev *dev, u32 qpn, int count);
 int mlx4_ib_steer_qp_reg(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 			 int is_attach);
+int mlx4_ib_query_device(struct ib_device *ibdev,
+			 struct ib_device_attr *props);
 
 #endif /* MLX4_IB_H */

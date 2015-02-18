@@ -432,6 +432,7 @@ reseed(u_int fastslow)
 void
 random_yarrow_read(uint8_t *buf, u_int bytecount)
 {
+	uint8_t tbuf[BLOCKSIZE];
 	u_int blockcount, i;
 
 	/* Check for initial/final read requests */
@@ -448,8 +449,16 @@ random_yarrow_read(uint8_t *buf, u_int bytecount)
 			yarrow_state.outputblocks = 0;
 		}
 		uint128_increment(&yarrow_state.counter.whole);
-		randomdev_encrypt(&yarrow_state.key, yarrow_state.counter.byte, buf, BLOCKSIZE);
-		buf += BLOCKSIZE;
+		if ((i + 1) * BLOCKSIZE > bytecount) {
+			/* TODO: FIX! remove memcpy()! */
+			randomdev_encrypt(&yarrow_state.key,
+			    yarrow_state.counter.byte, tbuf, BLOCKSIZE);
+			memcpy(buf, tbuf, bytecount - i * BLOCKSIZE);
+		} else {
+			randomdev_encrypt(&yarrow_state.key,
+			    yarrow_state.counter.byte, buf, BLOCKSIZE);
+			buf += BLOCKSIZE;
+		}
 	}
 
 	mtx_unlock(&random_reseed_mtx);

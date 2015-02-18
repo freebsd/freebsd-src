@@ -1140,6 +1140,7 @@ struct ccb_eng_exec {	/* This structure must match SCSIIO size */
 struct ccb_dev_advinfo {
 	struct ccb_hdr ccb_h;
 	uint32_t flags;
+#define	CDAI_FLAG_NONE		0x0	/* No flags set */
 #define	CDAI_FLAG_STORE		0x1	/* If set, action becomes store */
 	uint32_t buftype;		/* IN: Type of data being requested */
 	/* NB: buftype is interpreted on a per-transport basis */

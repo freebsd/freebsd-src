@@ -656,9 +656,8 @@ netmap_update_config(struct netmap_adapter *na)
 	u_int txr, txd, rxr, rxd;
 
 	txr = txd = rxr = rxd = 0;
-	if (na->nm_config) {
-		na->nm_config(na, &txr, &txd, &rxr, &rxd);
-	} else {
+	if (na->nm_config == NULL ||
+	    na->nm_config(na, &txr, &txd, &rxr, &rxd)) {
 		/* take whatever we had at init time */
 		txr = na->num_tx_rings;
 		txd = na->num_tx_desc;
@@ -2168,7 +2167,7 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 			error = ENXIO;
 			break;
 		}
-		rmb(); /* make sure following reads are not from cache */
+		mb(); /* make sure following reads are not from cache */
 
 		na = priv->np_na;      /* we have a reference */
 
@@ -3071,16 +3070,14 @@ netmap_init(void)
 	error = netmap_mem_init();
 	if (error != 0)
 		goto fail;
-	/* XXX could use make_dev_credv() to get error number */
-#ifdef __FreeBSD__
-	/* support for the 'eternal' flag */
+	/*
+	 * MAKEDEV_ETERNAL_KLD avoids an expensive check on syscalls
+	 * when the module is compiled in.
+	 * XXX could use make_dev_credv() to get error number
+	 */
 	netmap_dev = make_dev_credf(MAKEDEV_ETERNAL_KLD,
 		&netmap_cdevsw, 0, NULL, UID_ROOT, GID_WHEEL, 0600,
 			      "netmap");
-#else
-	netmap_dev = make_dev(&netmap_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-			      "netmap");
-#endif
 	if (!netmap_dev)
 		goto fail;
 
