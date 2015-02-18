@@ -1247,11 +1247,6 @@ _m4=		lib/libohash \
 		usr.bin/m4
 .endif
 
-.if ${BOOTSTRAPPING} < 1000013
-_yacc=		lib/liby \
-		usr.bin/yacc
-.endif
-
 .if ${BOOTSTRAPPING} < 1000014
 _crunch=	usr.sbin/crunch
 .endif
@@ -1271,6 +1266,11 @@ _lex=		usr.bin/lex
 
 .if ${BOOTSTRAPPING} >= 900040 && ${BOOTSTRAPPING} < 900041
 _awk=		usr.bin/awk
+.endif
+
+.if ${BOOTSTRAPPING} < 1001506
+_yacc=		lib/liby \
+		usr.bin/yacc
 .endif
 
 .if ${MK_BSNMP} != "no"
