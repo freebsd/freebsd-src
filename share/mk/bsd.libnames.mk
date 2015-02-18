@@ -131,6 +131,7 @@ LIBVMMAPI?=	${DESTDIR}${LIBDIR}/libvmmapi.a
 LIBWIND?=	${DESTDIR}${LIBDIR}/libwind.a
 LIBWRAP?=	${DESTDIR}${LIBDIR}/libwrap.a
 LIBXPG4?=	${DESTDIR}${LIBDIR}/libxpg4.a
+LIBXO?=		${DESTDIR}${LIBDIR}/libxo.a
 LIBY?=		${DESTDIR}${LIBDIR}/liby.a
 LIBYPCLNT?=	${DESTDIR}${LIBDIR}/libypclnt.a
 LIBZ?=		${DESTDIR}${LIBDIR}/libz.a
