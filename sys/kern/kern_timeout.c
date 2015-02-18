@@ -135,7 +135,6 @@ u_int callwheelsize, callwheelmask;
  * the migrating callout is already running.
  */
 struct cc_exec {
-	struct callout		*cc_next;
 	struct callout		*cc_curr;
 #ifdef SMP
 	void			(*ce_migration_func)(void *);
@@ -155,6 +154,7 @@ struct cc_exec {
 struct callout_cpu {
 	struct mtx_padalign	cc_lock;
 	struct cc_exec 		cc_exec_entity[2];
+	struct callout		*cc_next;
 	struct callout		*cc_callout;
 	struct callout_list	*cc_callwheel;
 	struct callout_tailq	cc_expireq;
@@ -167,7 +167,7 @@ struct callout_cpu {
 };
 
 #define	cc_exec_curr(cc, dir)		cc->cc_exec_entity[dir].cc_curr
-#define	cc_exec_next(cc, dir)		cc->cc_exec_entity[dir].cc_next
+#define	cc_exec_next(cc)		cc->cc_next
 #define	cc_exec_cancel(cc, dir)		cc->cc_exec_entity[dir].cc_cancel
 #define	cc_exec_waiting(cc, dir)	cc->cc_exec_entity[dir].cc_waiting
 #ifdef SMP
@@ -226,7 +226,6 @@ cc_cce_cleanup(struct callout_cpu *cc, int direct)
 {
 
 	cc_exec_curr(cc, direct) = NULL;
-	cc_exec_next(cc, direct) = NULL;
 	cc_exec_cancel(cc, direct) = false;
 	cc_exec_waiting(cc, direct) = false;
 #ifdef SMP
@@ -482,7 +481,7 @@ callout_process(sbintime_t now)
 #ifdef CALLOUT_PROFILING
 					++depth_dir;
 #endif
-					cc_exec_next(cc, 1) =
+					cc_exec_next(cc) =
 					    LIST_NEXT(tmp, c_links.le);
 					cc->cc_bucket = firstb & callwheelmask;
 					LIST_REMOVE(tmp, c_links.le);
@@ -491,7 +490,8 @@ callout_process(sbintime_t now)
 					    &mpcalls_dir, &lockcalls_dir, NULL,
 #endif
 					    1);
-					tmp = cc_exec_next(cc, 1);
+					tmp = cc_exec_next(cc);
+					cc_exec_next(cc) = NULL;
 				} else {
 					tmpn = LIST_NEXT(tmp, c_links.le);
 					LIST_REMOVE(tmp, c_links.le);
@@ -575,7 +575,7 @@ callout_lock(struct callout *c)
 static void
 callout_cc_add(struct callout *c, struct callout_cpu *cc,
     sbintime_t sbt, sbintime_t precision, void (*func)(void *),
-    void *arg, int cpu, int flags, int direct)
+    void *arg, int cpu, int flags)
 {
 	int bucket;
 
@@ -584,8 +584,6 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 		sbt = cc->cc_lastscan;
 	c->c_arg = arg;
 	c->c_flags |= (CALLOUT_ACTIVE | CALLOUT_PENDING);
-	if (flags & C_DIRECT_EXEC)
-		c->c_flags |= CALLOUT_DIRECT;
 	c->c_flags &= ~CALLOUT_PROCESSED;
 	c->c_func = func;
 	c->c_time = sbt;
@@ -596,7 +594,7 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	    (u_int)(c->c_precision & 0xffffffff));
 	LIST_INSERT_HEAD(&cc->cc_callwheel[bucket], c, c_links.le);
 	if (cc->cc_bucket == bucket)
-		cc_exec_next(cc, direct) = c;
+		cc_exec_next(cc) = c;
 #ifndef NO_EVENTTIMERS
 	/*
 	 * Inform the eventtimers(4) subsystem there's a new callout
@@ -790,7 +788,7 @@ skip:
 		new_cc = callout_cpu_switch(c, cc, new_cpu);
 		flags = (direct) ? C_DIRECT_EXEC : 0;
 		callout_cc_add(c, new_cc, new_time, new_prec, new_func,
-		    new_arg, new_cpu, flags, direct);
+		    new_arg, new_cpu, flags);
 		CC_UNLOCK(new_cc);
 		CC_LOCK(cc);
 #else
@@ -994,6 +992,14 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 	 */
 	if (c->c_flags & CALLOUT_LOCAL_ALLOC)
 		cpu = c->c_cpu;
+	/* 
+	 * This flag used to be added by callout_cc_add, but the
+	 * first time you call this we could end up with the
+	 * wrong direct flag if we don't do it before we add.
+	 */
+	if (flags & C_DIRECT_EXEC) {
+		c->c_flags |= CALLOUT_DIRECT;
+	}
 	direct = (c->c_flags & CALLOUT_DIRECT) != 0;
 	KASSERT(!direct || c->c_lock == NULL,
 	    ("%s: direct callout %p has lock", __func__, c));
@@ -1039,8 +1045,8 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 	}
 	if (c->c_flags & CALLOUT_PENDING) {
 		if ((c->c_flags & CALLOUT_PROCESSED) == 0) {
-			if (cc_exec_next(cc, direct) == c)
-				cc_exec_next(cc, direct) = LIST_NEXT(c, c_links.le);
+			if (cc_exec_next(cc) == c)
+				cc_exec_next(cc) = LIST_NEXT(c, c_links.le);
 			LIST_REMOVE(c, c_links.le);
 		} else
 			TAILQ_REMOVE(&cc->cc_expireq, c, c_links.tqe);
@@ -1089,7 +1095,7 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 	}
 #endif
 
-	callout_cc_add(c, cc, to_sbt, precision, ftn, arg, cpu, flags, direct);
+	callout_cc_add(c, cc, to_sbt, precision, ftn, arg, cpu, flags);
 	CTR6(KTR_CALLOUT, "%sscheduled %p func %p arg %p in %d.%08x",
 	    cancelled ? "re" : "", c, c->c_func, c->c_arg, (int)(to_sbt >> 32),
 	    (u_int)(to_sbt & 0xffffffff));
@@ -1322,8 +1328,8 @@ again:
 	    c, c->c_func, c->c_arg);
 	if (not_on_a_list == 0) {
 		if ((c->c_flags & CALLOUT_PROCESSED) == 0) {
-			if (cc_exec_next(cc, direct) == c)
-				cc_exec_next(cc, direct) = LIST_NEXT(c, c_links.le);
+			if (cc_exec_next(cc) == c)
+				cc_exec_next(cc) = LIST_NEXT(c, c_links.le);
 			LIST_REMOVE(c, c_links.le);
 		} else
 			TAILQ_REMOVE(&cc->cc_expireq, c, c_links.tqe);

@@ -55,8 +55,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/md_var.h>
 
-#ifdef SMP
 #include <x86/apicreg.h>
+#include <x86/apicvar.h>
+#ifdef SMP
 #include <machine/smp.h>
 #include <machine/vmparam.h>
 #endif
@@ -270,6 +271,7 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 			initializecpu();
 			PCPU_SET(switchtime, 0);
 			PCPU_SET(switchticks, ticks);
+			lapic_xapic_mode();
 #ifdef SMP
 			if (!CPU_EMPTY(&suspcpus))
 				acpi_wakeup_cpus(sc);

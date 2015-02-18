@@ -375,7 +375,7 @@ dmar_print_caps(device_t dev, struct dmar_unit *unit,
 	caphi = unit->hw_cap >> 32;
 	device_printf(dev, "cap=%b,", (u_int)unit->hw_cap,
 	    "\020\004AFL\005WBF\006PLMR\007PHMR\010CM\027ZLR\030ISOCH");
-	printf("%b, ", caphi, "\020\010PSI\027DWD\030DRD");
+	printf("%b, ", caphi, "\020\010PSI\027DWD\030DRD\031FL1GP\034PSI");
 	printf("ndoms=%d, sagaw=%d, mgaw=%d, fro=%d, nfr=%d, superp=%d",
 	    DMAR_CAP_ND(unit->hw_cap), DMAR_CAP_SAGAW(unit->hw_cap),
 	    DMAR_CAP_MGAW(unit->hw_cap), DMAR_CAP_FRO(unit->hw_cap),
@@ -385,8 +385,9 @@ dmar_print_caps(device_t dev, struct dmar_unit *unit,
 	printf("\n");
 	ecaphi = unit->hw_ecap >> 32;
 	device_printf(dev, "ecap=%b,", (u_int)unit->hw_ecap,
-	    "\020\001C\002QI\003DI\004IR\005EIM\007PT\010SC");
-	printf("%b, ", ecaphi, "\020");
+	    "\020\001C\002QI\003DI\004IR\005EIM\007PT\010SC\031ECS\032MTS"
+	    "\033NEST\034DIS\035PASID\036PRS\037ERS\040SRS");
+	printf("%b, ", ecaphi, "\020\002NWFS\003EAFS");
 	printf("mhmw=%d, iro=%d\n", DMAR_ECAP_MHMV(unit->hw_ecap),
 	    DMAR_ECAP_IRO(unit->hw_ecap));
 }

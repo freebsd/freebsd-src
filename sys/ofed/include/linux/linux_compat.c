@@ -712,6 +712,20 @@ vunmap(void *addr)
 	kfree(vmmap);
 }
 
+
+char *
+kasprintf(gfp_t gfp, const char *fmt, ...)
+{
+	va_list ap;
+	char *p;
+
+	va_start(ap, fmt);
+	p = kvasprintf(gfp, fmt, ap);
+	va_end(ap);
+
+	return p;
+}
+
 static void
 linux_compat_init(void)
 {

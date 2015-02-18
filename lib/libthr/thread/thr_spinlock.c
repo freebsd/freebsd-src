@@ -61,7 +61,7 @@ static void	init_spinlock(spinlock_t *lck);
  */
 
 void
-_spinunlock(spinlock_t *lck)
+__thr_spinunlock(spinlock_t *lck)
 {
 	struct spinlock_extra	*_extra;
 
@@ -70,7 +70,7 @@ _spinunlock(spinlock_t *lck)
 }
 
 void
-_spinlock(spinlock_t *lck)
+__thr_spinlock(spinlock_t *lck)
 {
 	struct spinlock_extra *_extra;
 
@@ -82,12 +82,6 @@ _spinlock(spinlock_t *lck)
 		init_spinlock(lck);
 	_extra = (struct spinlock_extra *)lck->fname;
 	THR_UMUTEX_LOCK(_get_curthread(), &_extra->lock);
-}
-
-void
-_spinlock_debug(spinlock_t *lck, char *fname __unused, int lineno __unused)
-{
-	_spinlock(lck);
 }
 
 static void
