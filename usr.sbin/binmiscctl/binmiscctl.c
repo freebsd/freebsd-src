@@ -371,8 +371,10 @@ add_cmd(__unused int argc, char *argv[], ximgact_binmisc_entry_t *xbe)
 }
 
 int
-name_cmd(__unused int argc, char *argv[], ximgact_binmisc_entry_t *xbe)
+name_cmd(int argc, char *argv[], ximgact_binmisc_entry_t *xbe)
 {
+	if (argc == 0)
+		usage("Required argument missing\n");
 	if (strlen(argv[0]) > IBE_NAME_MAX)
 		usage("'%s' string length longer than IBE_NAME_MAX (%d)",
 		    IBE_NAME_MAX);
