@@ -587,7 +587,7 @@ siena_nvram_get_subtype(
 	__out			uint32_t *subtypep)
 {
 	efx_mcdi_req_t req;
-	uint8_t outbuf[MC_CMD_GET_BOARD_CFG_OUT_LEN];
+	uint8_t outbuf[MC_CMD_GET_BOARD_CFG_OUT_LENMAX];
 	efx_word_t *fw_list;
 	int rc;
 
@@ -605,9 +605,16 @@ siena_nvram_get_subtype(
 		goto fail1;
 	}
 
-	if (req.emr_out_length_used < MC_CMD_GET_BOARD_CFG_OUT_LEN) {
+	if (req.emr_out_length_used < MC_CMD_GET_BOARD_CFG_OUT_LENMIN) {
 		rc = EMSGSIZE;
 		goto fail2;
+	}
+
+	if (req.emr_out_length_used <
+	    MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_OFST +
+	    (partn + 1) * sizeof(efx_word_t)) {
+		rc = ENOENT;
+		goto fail3;
 	}
 
 	fw_list = MCDI_OUT2(req, efx_word_t,
@@ -616,6 +623,8 @@ siena_nvram_get_subtype(
 
 	return (0);
 
+fail3:
+	EFSYS_PROBE(fail3);
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
