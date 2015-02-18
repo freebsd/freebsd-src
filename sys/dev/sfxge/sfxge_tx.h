@@ -124,10 +124,8 @@ enum sfxge_txq_type {
 
 #ifdef SFXGE_HAVE_MQ
 #define	SFXGE_TX_LOCK(txq)		(&(txq)->lock)
-#define	SFXGE_TX_SCALE(sc)		((sc)->intr.n_alloc)
 #else
 #define	SFXGE_TX_LOCK(txq)		(&(txq)->sc->tx_lock)
-#define	SFXGE_TX_SCALE(sc)		1
 #endif
 
 #define	SFXGE_TXQ_LOCK_INIT(_txq, _ifname, _txq_index)			\
