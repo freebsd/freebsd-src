@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,8 +49,8 @@
  * Compiler versions and names
  */
 #define ASL_REVISION                ACPI_CA_VERSION
-#define ASL_COMPILER_NAME           "ASL Optimizing Compiler"
-#define AML_DISASSEMBLER_NAME       "AML Disassembler"
+#define ASL_COMPILER_NAME           "ASL+ Optimizing Compiler"
+#define AML_DISASSEMBLER_NAME       "AML/ASL+ Disassembler"
 #define ASL_INVOCATION_NAME         "iasl"
 #define ASL_CREATOR_ID              "INTL"
 

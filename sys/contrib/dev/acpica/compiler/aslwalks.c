@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -293,6 +293,13 @@ AnOperandTypecheckWalkEnd (
         while ((ArgType = GET_CURRENT_ARG_TYPE (RuntimeArgTypes2)))
         {
             RequiredBtypes = AnMapArgTypeToBtype (ArgType);
+
+            if (!ArgOp)
+            {
+                AslError (ASL_ERROR, ASL_MSG_COMPILER_INTERNAL, Op,
+                    "Null ArgOp in argument loop");
+                AslAbort ();
+            }
 
             ThisNodeBtype = AnGetBtype (ArgOp);
             if (ThisNodeBtype == ACPI_UINT32_MAX)
