@@ -12,9 +12,9 @@ SRCS+=	dbcmds.c dbconvert.c dbdisply.c dbexec.c dbfileio.c	\
 	dbtest.c dbutils.c dbxface.c
 
 # components/disassembler
-SRCS+=	dmbuffer.c dmdeferred.c dmnames.c dmobject.c dmopcode.c	\
-	dmresrc.c dmresrcl.c dmresrcl2.c dmresrcs.c dmutils.c	\
-	dmwalk.c
+SRCS+=	dmbuffer.c dmcstyle.c dmdeferred.c dmnames.c dmobject.c	\
+	dmopcode.c dmresrc.c dmresrcl.c dmresrcl2.c dmresrcs.c	\
+	dmutils.c dmwalk.c
 
 # components/dispatcher
 SRCS+=	dsargs.c dscontrol.c dsfield.c dsinit.c dsmethod.c	\
