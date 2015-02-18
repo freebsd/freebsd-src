@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150217: Removed remnants of ar(4) driver
+OLD_FILES+=usr/include/sys/dev/ic/hd64570.h
 # 20150212: /usr/games moving into /usr/bin
 OLD_FILES+=usr/games/bcd
 OLD_FILES+=usr/games/caesar

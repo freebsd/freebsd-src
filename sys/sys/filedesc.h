@@ -169,7 +169,7 @@ void	mountcheckdirs(struct vnode *olddp, struct vnode *newdp);
 
 /* Return a referenced file from an unlocked descriptor. */
 int	fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
-	    int needfcntl, struct file **fpp, cap_rights_t *haverightsp);
+	    struct file **fpp, seq_t *seqp);
 
 /* Requires a FILEDESC_{S,X}LOCK held and returns without a ref. */
 static __inline struct file *
@@ -182,6 +182,13 @@ fget_locked(struct filedesc *fdp, int fd)
 		return (NULL);
 
 	return (fdp->fd_ofiles[fd].fde_file);
+}
+
+static __inline bool
+fd_modified(struct filedesc *fdp, int fd, seq_t seq)
+{
+
+	return (!seq_consistent(fd_seq(fdp->fd_files, fd), seq));
 }
 
 #endif /* _KERNEL */

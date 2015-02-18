@@ -39,7 +39,6 @@ CLANG_NO_IAS34= -no-integrated-as
 .endif
 
 .if ${COMPILER_TYPE} == "gcc"
-GCC_MS_EXTENSIONS= -fms-extensions
 .if ${COMPILER_VERSION} >= 40300
 # Catch-all for all the things that are in our tree, but for which we're
 # not yet ready for this compiler. Note: we likely only really "support"

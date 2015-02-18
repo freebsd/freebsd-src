@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2012 Oleksandr Tymoshenko <gonzo@freebsd.org>
- * Copyright (c) 2012 Luiz Otavio O Souza.
+ * Copyright (c) 2012 Oleksandr Tymoshenko <gonzo@FreeBSD.org>
+ * Copyright (c) 2012-2015 Luiz Otavio O Souza <loos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -251,16 +251,14 @@ bcm_gpio_set_function(struct bcm_gpio_softc *sc, uint32_t pin, uint32_t f)
 static void
 bcm_gpio_set_pud(struct bcm_gpio_softc *sc, uint32_t pin, uint32_t state)
 {
-	uint32_t bank, offset;
+	uint32_t bank;
 
 	/* Must be called with lock held. */
 	BCM_GPIO_LOCK_ASSERT(sc);
 
-	bank = pin / 32;
-	offset = pin - 32 * bank;
-
+	bank = BCM_GPIO_BANK(pin);
 	BCM_GPIO_WRITE(sc, BCM_GPIO_GPPUD(0), state);
-	BCM_GPIO_WRITE(sc, BCM_GPIO_GPPUDCLK(bank), (1 << offset));
+	BCM_GPIO_WRITE(sc, BCM_GPIO_GPPUDCLK(bank), BCM_GPIO_MASK(pin));
 	BCM_GPIO_WRITE(sc, BCM_GPIO_GPPUD(0), 0);
 	BCM_GPIO_WRITE(sc, BCM_GPIO_GPPUDCLK(bank), 0);
 }
@@ -438,29 +436,25 @@ static int
 bcm_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 {
 	struct bcm_gpio_softc *sc = device_get_softc(dev);
-	uint32_t bank, offset;
+	uint32_t bank, reg;
 	int i;
 
 	for (i = 0; i < sc->sc_gpio_npins; i++) {
 		if (sc->sc_gpio_pins[i].gp_pin == pin)
 			break;
 	}
-
 	if (i >= sc->sc_gpio_npins)
 		return (EINVAL);
-
 	/* We never write to read-only/reserved pins. */
 	if (bcm_gpio_pin_is_ro(sc, pin))
 		return (EINVAL);
-
-	bank = pin / 32;
-	offset = pin - 32 * bank;
-
 	BCM_GPIO_LOCK(sc);
+	bank = BCM_GPIO_BANK(pin);
 	if (value)
-		BCM_GPIO_WRITE(sc, BCM_GPIO_GPSET(bank), (1 << offset));
+		reg = BCM_GPIO_GPSET(bank);
 	else
-		BCM_GPIO_WRITE(sc, BCM_GPIO_GPCLR(bank), (1 << offset));
+		reg = BCM_GPIO_GPCLR(bank);
+	BCM_GPIO_WRITE(sc, reg, BCM_GPIO_MASK(pin));
 	BCM_GPIO_UNLOCK(sc);
 
 	return (0);
@@ -470,24 +464,20 @@ static int
 bcm_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 {
 	struct bcm_gpio_softc *sc = device_get_softc(dev);
-	uint32_t bank, offset, reg_data;
+	uint32_t bank, reg_data;
 	int i;
 
 	for (i = 0; i < sc->sc_gpio_npins; i++) {
 		if (sc->sc_gpio_pins[i].gp_pin == pin)
 			break;
 	}
-
 	if (i >= sc->sc_gpio_npins)
 		return (EINVAL);
-
-	bank = pin / 32;
-	offset = pin - 32 * bank;
-
+	bank = BCM_GPIO_BANK(pin);
 	BCM_GPIO_LOCK(sc);
 	reg_data = BCM_GPIO_READ(sc, BCM_GPIO_GPLEV(bank));
 	BCM_GPIO_UNLOCK(sc);
-	*val = (reg_data & (1 << offset)) ? 1 : 0;
+	*val = (reg_data & BCM_GPIO_MASK(pin)) ? 1 : 0;
 
 	return (0);
 }
@@ -496,30 +486,26 @@ static int
 bcm_gpio_pin_toggle(device_t dev, uint32_t pin)
 {
 	struct bcm_gpio_softc *sc = device_get_softc(dev);
-	uint32_t bank, data, offset;
+	uint32_t bank, data, reg;
 	int i;
 
 	for (i = 0; i < sc->sc_gpio_npins; i++) {
 		if (sc->sc_gpio_pins[i].gp_pin == pin)
 			break;
 	}
-
 	if (i >= sc->sc_gpio_npins)
 		return (EINVAL);
-
 	/* We never write to read-only/reserved pins. */
 	if (bcm_gpio_pin_is_ro(sc, pin))
 		return (EINVAL);
-
-	bank = pin / 32;
-	offset = pin - 32 * bank;
-
 	BCM_GPIO_LOCK(sc);
+	bank = BCM_GPIO_BANK(pin);
 	data = BCM_GPIO_READ(sc, BCM_GPIO_GPLEV(bank));
-	if (data & (1 << offset))
-		BCM_GPIO_WRITE(sc, BCM_GPIO_GPCLR(bank), (1 << offset));
+	if (data & BCM_GPIO_MASK(pin))
+		reg = BCM_GPIO_GPCLR(bank);
 	else
-		BCM_GPIO_WRITE(sc, BCM_GPIO_GPSET(bank), (1 << offset));
+		reg = BCM_GPIO_GPSET(bank);
+	BCM_GPIO_WRITE(sc, reg, BCM_GPIO_MASK(pin));
 	BCM_GPIO_UNLOCK(sc);
 
 	return (0);

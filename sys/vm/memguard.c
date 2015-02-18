@@ -89,9 +89,7 @@ memguard_sysctl_desc(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	mtx_lock(&malloc_mtx);
-	/*
-	 * If mtp is NULL, it will be initialized in memguard_cmp().
-	 */
+	/* If mtp is NULL, it will be initialized in memguard_cmp() */
 	vm_memguard_mtype = malloc_desc2type(desc);
 	strlcpy(vm_memguard_desc, desc, sizeof(vm_memguard_desc));
 	mtx_unlock(&malloc_mtx);
@@ -502,7 +500,7 @@ int
 memguard_cmp_zone(uma_zone_t zone)
 {
 
-	 if ((memguard_options & MG_GUARD_NOFREE) == 0 &&
+	if ((memguard_options & MG_GUARD_NOFREE) == 0 &&
 	    zone->uz_flags & UMA_ZONE_NOFREE)
 		return (0);
 

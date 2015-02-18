@@ -281,7 +281,11 @@ printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
 	sym->st_value = 0;
 	sym->st_size = dof->dofh_filesz;
 	sym->st_info = ELF32_ST_INFO(STB_GLOBAL, STT_OBJECT);
+#ifdef illumos
 	sym->st_other = 0;
+#else
+	sym->st_other = ELF32_ST_VISIBILITY(STV_HIDDEN);
+#endif
 	sym->st_shndx = ESHDR_DOF;
 	sym++;
 
@@ -471,7 +475,11 @@ prepare_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf64_t *dep)
 	sym->st_value = 0;
 	sym->st_size = dof->dofh_filesz;
 	sym->st_info = GELF_ST_INFO(STB_GLOBAL, STT_OBJECT);
+#ifdef illumos
 	sym->st_other = 0;
+#else
+	sym->st_other = ELF64_ST_VISIBILITY(STV_HIDDEN);
+#endif
 	sym->st_shndx = ESHDR_DOF;
 	sym++;
 
@@ -711,11 +719,7 @@ dump_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 
 	shp = &elf_file.shdr[ESHDR_DOF];
 	shp->sh_name = 11; /* DTRACE_SHSTRTAB64[11] = ".SUNW_dof" */
-#ifdef illumos
 	shp->sh_flags = SHF_ALLOC;
-#else
-	shp->sh_flags = SHF_WRITE | SHF_ALLOC;
-#endif
 	shp->sh_type = SHT_SUNW_dof;
 	shp->sh_offset = off;
 	shp->sh_size = dof->dofh_filesz;
@@ -1874,7 +1878,7 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 #endif
 
 		(void) snprintf(drti, sizeof (drti), "/usr/lib%s/dtrace/drti.o",
-		    use_32 ? "32":"");
+		    use_32 ? "32" : "");
 
 		len = snprintf(&tmp, 1, fmt, dtp->dt_ld_path, file, tfile,
 		    drti) + 1;
@@ -1885,26 +1889,61 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		    drti);
 #endif
 		if ((status = system(cmd)) == -1) {
-			ret = dt_link_error(dtp, NULL, -1, NULL,
+			ret = dt_link_error(dtp, NULL, fd, NULL,
 			    "failed to run %s: %s", dtp->dt_ld_path,
 			    strerror(errno));
 			goto done;
 		}
 
 		if (WIFSIGNALED(status)) {
-			ret = dt_link_error(dtp, NULL, -1, NULL,
+			ret = dt_link_error(dtp, NULL, fd, NULL,
 			    "failed to link %s: %s failed due to signal %d",
 			    file, dtp->dt_ld_path, WTERMSIG(status));
 			goto done;
 		}
 
 		if (WEXITSTATUS(status) != 0) {
-			ret = dt_link_error(dtp, NULL, -1, NULL,
+			ret = dt_link_error(dtp, NULL, fd, NULL,
 			    "failed to link %s: %s exited with status %d\n",
 			    file, dtp->dt_ld_path, WEXITSTATUS(status));
 			goto done;
 		}
 		(void) close(fd); /* release temporary file */
+
+#ifdef __FreeBSD__
+		/*
+		 * Now that we've linked drti.o, reduce the global __SUNW_dof
+		 * symbol to a local symbol. This is needed to so that multiple
+		 * generated object files (for different providers, for
+		 * instance) can be linked together. This is accomplished using
+		 * the -Blocal flag with Sun's linker, but GNU ld doesn't appear
+		 * to have an equivalent option.
+		 */
+		asprintf(&cmd, "%s --localize-hidden %s", dtp->dt_objcopy_path,
+		    file);
+		if ((status = system(cmd)) == -1) {
+			ret = dt_link_error(dtp, NULL, -1, NULL,
+			    "failed to run %s: %s", dtp->dt_objcopy_path,
+			    strerror(errno));
+			free(cmd);
+			goto done;
+		}
+		free(cmd);
+
+		if (WIFSIGNALED(status)) {
+			ret = dt_link_error(dtp, NULL, -1, NULL,
+			    "failed to link %s: %s failed due to signal %d",
+			    file, dtp->dt_objcopy_path, WTERMSIG(status));
+			goto done;
+		}
+
+		if (WEXITSTATUS(status) != 0) {
+			ret = dt_link_error(dtp, NULL, -1, NULL,
+			    "failed to link %s: %s exited with status %d\n",
+			    file, dtp->dt_objcopy_path, WEXITSTATUS(status));
+			goto done;
+		}
+#endif
 	} else {
 		(void) close(fd);
 	}

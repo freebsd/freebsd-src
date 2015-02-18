@@ -29,7 +29,7 @@
 .\"	@(#)symlink.7	8.3 (Berkeley) 3/31/94
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2015
+.Dd February 16, 2015
 .Dt SYMLINK 7
 .Os
 .Sh NAME
@@ -146,6 +146,7 @@ The following system calls follow symbolic links
 unless given the
 .Dv AT_SYMLINK_NOFOLLOW
 flag:
+.Xr chflagsat 2 ,
 .Xr fchmodat 2 ,
 .Xr fchownat 2 ,
 .Xr fstatat 2

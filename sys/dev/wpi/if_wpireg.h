@@ -470,6 +470,7 @@ struct wpi_cmd_data {
 #define WPI_TX_FULL_TXOP	(1 <<  7)
 #define WPI_TX_BT_DISABLE	(1 << 12) 	/* bluetooth coexistence */
 #define WPI_TX_AUTO_SEQ		(1 << 13)
+#define WPI_TX_MORE_FRAG	(1 << 14)
 #define WPI_TX_INSERT_TSTAMP	(1 << 16)
 
 	uint8_t		plcp;
@@ -963,11 +964,6 @@ static const char * const wpi_fw_errmsg[] = {
 	"SYSASSERT",
 	"FATAL_ERROR"
 };
-
-/* XXX description for some error codes (error data). */
-/* 0x00000074 - wrong totlen field */
-/* 0x000003B3 - powersave error */
-/* 0x00000447 - wrong channel selected */
 
 #define WPI_READ(sc, reg)						\
 	bus_space_read_4((sc)->sc_st, (sc)->sc_sh, (reg))

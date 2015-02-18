@@ -114,7 +114,7 @@ efx_tx_filter_insert(
 	EFSYS_ASSERT3P(spec, !=, NULL);
 
 	spec->efs_dmaq_id = (uint16_t)etp->et_index;
-	return efx_filter_insert_filter(etp->et_enp, spec, B_FALSE);
+	return (efx_filter_insert_filter(etp->et_enp, spec, B_FALSE));
 }
 #endif
 
@@ -128,7 +128,7 @@ efx_tx_filter_remove(
 	EFSYS_ASSERT3P(spec, !=, NULL);
 
 	spec->efs_dmaq_id = (uint16_t)etp->et_index;
-	return efx_filter_remove_filter(etp->et_enp, spec);
+	return (efx_filter_remove_filter(etp->et_enp, spec));
 }
 #endif
 

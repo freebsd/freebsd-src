@@ -1141,7 +1141,7 @@ dev/cxgb/sys/uipc_mvec.c	optional cxgb pci \
 dev/cxgb/cxgb_t3fw.c		optional cxgb cxgb_t3fw \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgbe/t4_mp_ring.c		optional cxgbe pci \
-	compile-with "${NORMAL_C} -I$S/dev/cxgbe ${GCC_MS_EXTENSIONS}"
+	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/t4_main.c		optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/t4_netmap.c		optional cxgbe pci \
@@ -2563,8 +2563,16 @@ dev/usb/template/usb_template_mtp.c	optional usb_template
 dev/usb/template/usb_template_phone.c	optional usb_template
 dev/usb/template/usb_template_serialnet.c	optional usb_template
 #
+# USB video drivers
+#
+dev/usb/video/udl.c			optional udl
+#
 # USB END
 #
+dev/videomode/videomode.c		optional videomode
+dev/videomode/edid.c			optional videomode
+dev/videomode/pickmode.c		optional videomode
+dev/videomode/vesagtf.c			optional videomode
 dev/utopia/idtphy.c		optional utopia
 dev/utopia/suni.c		optional utopia
 dev/utopia/utopia.c		optional utopia
@@ -3616,19 +3624,16 @@ ofed/drivers/infiniband/core/fmr_pool.c		optional ofed		\
 ofed/drivers/infiniband/core/iwcm.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/local_sa.c		optional ofed		\
-	no-depend							\
-	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/mad_rmpp.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/multicast.c	optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/notice.c		optional ofed		\
+ofed/drivers/infiniband/core/packer.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/packer.c		optional ofed		\
+ofed/drivers/infiniband/core/peer_mem.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/sa_query.c		optional ofed		\
@@ -3731,6 +3736,9 @@ ofed/drivers/infiniband/hw/mlx4/mad.c		optional mlx4ib		\
 	no-depend obj-prefix "mlx4ib_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
 ofed/drivers/infiniband/hw/mlx4/main.c		optional mlx4ib		\
+	no-depend obj-prefix "mlx4ib_"					\
+	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
+ofed/drivers/infiniband/hw/mlx4/mlx4_exp.c	optional mlx4ib		\
 	no-depend obj-prefix "mlx4ib_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
 ofed/drivers/infiniband/hw/mlx4/mr.c		optional mlx4ib		\
