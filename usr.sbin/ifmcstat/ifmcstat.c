@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/tree.h>
 
 #include <net/if.h>
-#define	_WANT_IFADDR
 #include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
@@ -52,20 +51,12 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/igmp.h>
-#define KERNEL
-# include <netinet/if_ether.h>
-#undef KERNEL
-#define _KERNEL
-#define SYSCTL_DECL(x)
-# include <netinet/igmp_var.h>
-#undef SYSCTL_DECL
-#undef _KERNEL
+#include <netinet/if_ether.h>
+#include <netinet/igmp_var.h>
 
 #ifdef INET6
 #include <netinet/icmp6.h>
-#define _KERNEL
-# include <netinet6/mld6_var.h>
-#undef _KERNEL
+#include <netinet6/mld6_var.h>
 #endif /* INET6 */
 
 #include <arpa/inet.h>
@@ -82,14 +73,23 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <kvm.h>
 #include <limits.h>
 #include <ifaddrs.h>
-#include <nlist.h>
 #include <sysexits.h>
 #include <unistd.h>
 
-/* XXX: This file currently assumes INET and KVM support in the base system. */
+#ifdef KVM
+/*
+ * Currently the KVM build is broken. To be fixed it requires uncovering
+ * large amount of _KERNEL code in include files, and it is also very
+ * tentative to internal kernel ABI changes. If anyone wishes to restore
+ * it, please move it out of src/usr.sbin to src/tools/tools.
+ */
+#include <kvm.h>
+#include <nlist.h>
+#endif
+
+/* XXX: This file currently assumes INET support in the base system. */
 #ifndef INET
 #define INET
 #endif
