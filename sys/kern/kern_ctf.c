@@ -293,7 +293,9 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 		zs.next_in = ((uint8_t *) raw) + sizeof(ctf_hdr);
 		zs.avail_out = sz - sizeof(ctf_hdr);
 		zs.next_out = ((uint8_t *) ctftab) + sizeof(ctf_hdr);
-		if ((ret = inflate(&zs, Z_FINISH)) != Z_STREAM_END) {
+		ret = inflate(&zs, Z_FINISH);
+		inflateEnd(&zs);
+		if (ret != Z_STREAM_END) {
 			printf("%s(%d): zlib inflate returned %d\n", __func__, __LINE__, ret);
 			error = EIO;
 			goto out;
