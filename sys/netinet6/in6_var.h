@@ -110,7 +110,7 @@ struct in6_ifextra {
 
 #define	LLTABLE6(ifp)	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->lltable)
 
-#if defined(_KERNEL) || defined(_WANT_IFADDR)
+#ifdef _KERNEL
 struct	in6_ifaddr {
 	struct	ifaddr ia_ifa;		/* protocol-independent info */
 #define	ia_ifp		ia_ifa.ifa_ifp
@@ -141,7 +141,7 @@ struct	in6_ifaddr {
 /* List of in6_ifaddr's. */
 TAILQ_HEAD(in6_ifaddrhead, in6_ifaddr);
 LIST_HEAD(in6_ifaddrlisthead, in6_ifaddr);
-#endif
+#endif	/* _KERNEL */
 
 /* control structure to manage address selection policy */
 struct in6_addrpolicy {
