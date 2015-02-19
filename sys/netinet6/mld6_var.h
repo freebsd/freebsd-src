@@ -52,7 +52,7 @@ struct mld_ifinfo {
 	uint32_t mli_qri;	/* MLDv2 Query Response Interval (s) */
 	uint32_t mli_uri;	/* MLDv2 Unsolicited Report Interval (s) */
 	SLIST_HEAD(,in6_multi)	mli_relinmhead; /* released groups */
-	struct ifqueue	 mli_gq;	/* queue of general query responses */
+	struct mbufq	 mli_gq;	/* queue of general query responses */
 };
 #define MLIF_SILENT	0x00000001	/* Do not use MLD on this ifp */
 #define MLIF_USEALLOW	0x00000002	/* Use ALLOW/BLOCK for joins/leaves */

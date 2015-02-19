@@ -577,9 +577,9 @@ efx_ev_mcdi(
 
 	case MCDI_EVENT_CODE_CMDDONE:
 		efx_mcdi_ev_cpl(enp,
-				MCDI_EV_FIELD(*eqp, CMDDONE_SEQ),
-				MCDI_EV_FIELD(*eqp, CMDDONE_DATALEN),
-				MCDI_EV_FIELD(*eqp, CMDDONE_ERRNO));
+				MCDI_EV_FIELD(eqp, CMDDONE_SEQ),
+				MCDI_EV_FIELD(eqp, CMDDONE_DATALEN),
+				MCDI_EV_FIELD(eqp, CMDDONE_ERRNO));
 		break;
 
 	case MCDI_EVENT_CODE_LINKCHANGE: {

@@ -94,6 +94,8 @@ SUBDIR=	adduser \
 	watchdogd \
 	zic
 
+SUBDIR:=	${SUBDIR:Nifmcstat}
+
 # NB: keep these sorted by MK_* knobs
 
 .if ${MK_ACCT} != "no"

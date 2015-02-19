@@ -596,7 +596,6 @@ ip6_msource_cmp(const struct ip6_msource *a, const struct ip6_msource *b)
 	return (memcmp(&a->im6s_addr, &b->im6s_addr, sizeof(struct in6_addr)));
 }
 RB_PROTOTYPE(ip6_msource_tree, ip6_msource, im6s_link, ip6_msource_cmp);
-#endif /* _KERNEL */
 
 /*
  * IPv6 multicast PCB-layer group filter descriptor.
@@ -652,7 +651,7 @@ struct in6_multi {
 	struct ip6_msource_tree	 in6m_srcs;	/* tree of sources */
 	u_long			 in6m_nsrc;	/* # of tree entries */
 
-	struct ifqueue		 in6m_scq;	/* queue of pending
+	struct mbufq		 in6m_scq;	/* queue of pending
 						 * state-change packets */
 	struct timeval		 in6m_lastgsrtv;	/* last G-S-R query */
 	uint16_t		 in6m_sctimer;	/* state-change timer */
@@ -695,8 +694,6 @@ im6s_get_mode(const struct in6_multi *inm, const struct ip6_msource *ims,
 		return (MCAST_INCLUDE);
 	return (MCAST_UNDEFINED);
 }
-
-#ifdef _KERNEL
 
 /*
  * Lock macros for IPv6 layer multicast address lists.  IPv6 lock goes
