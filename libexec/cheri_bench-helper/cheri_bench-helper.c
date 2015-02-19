@@ -45,10 +45,10 @@
 #include "cheri_bench-helper.h"
 
 int
-invoke(register_t methodnum,
+invoke(struct cheri_object co, register_t methodnum,
     register_t len,
     __capability void *dataout, __capability void *datain)
-    __attribute__((cheri_ccall)); /* XXXRW: Will be ccheri_ccaller. */;
+    __attribute__((cheri_ccall)); /* XXXRW: Will be ccheri_ccallee. */;
 
 /*
  * Print "hello world" in one of three ways, depending on the "op" argument:
@@ -56,8 +56,8 @@ invoke(register_t methodnum,
  * service, and by writing it to a cheri_fd object passed as an argument.
  */
 int
-invoke(register_t methodnum, register_t len,
-       __capability void *dataout,  __capability void *datain)
+invoke(struct cheri_object co __unused, register_t methodnum,
+    register_t len, __capability void *dataout,  __capability void *datain)
 {
 	switch (methodnum) {
 	case CHERI_BENCH_HELPER_OP_BENCH:
