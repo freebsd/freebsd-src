@@ -2937,8 +2937,8 @@ mld_v2_merge_state_changes(struct in6_multi *inm, struct mbufq *scq)
 		}
 
 		if (!domerge) {
-			CTR3(KTR_MLD, "%s: queueing %p to ifscq %p)",
-			    __func__, m0, ifscq);
+			CTR3(KTR_MLD, "%s: queueing %p to scq %p)",
+			    __func__, m0, scq);
 			mbufq_enqueue(scq, m0);
 		} else {
 			struct mbuf *mtl;	/* last mbuf of packet mt */

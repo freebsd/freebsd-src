@@ -480,7 +480,7 @@ igmp_dispatch_queue(struct mbufq *mq, int limit, const int loop)
 	struct mbuf *m;
 
 	while ((m = mbufq_dequeue(mq)) != NULL) {
-		CTR3(KTR_IGMPV3, "%s: dispatch %p from %p", __func__, ifq, m);
+		CTR3(KTR_IGMPV3, "%s: dispatch %p from %p", __func__, mq, m);
 		if (loop)
 			m->m_flags |= M_IGMP_LOOP;
 		netisr_dispatch(NETISR_IGMP, m);
@@ -3283,7 +3283,7 @@ igmp_v3_merge_state_changes(struct in_multi *inm, struct mbufq *scq)
 
 		if (!domerge) {
 			CTR3(KTR_IGMPV3, "%s: queueing %p to scq %p)",
-			    __func__, m0, ifscq);
+			    __func__, m0, scq);
 			mbufq_enqueue(scq, m0);
 		} else {
 			struct mbuf *mtl;	/* last mbuf of packet mt */

@@ -93,31 +93,6 @@ struct mb_args {
 #endif /* _KERNEL */
 
 /*
- * Header present at the beginning of every mbuf.
- * Size ILP32: 24
- *	 LP64: 32
- */
-struct m_hdr {
-	union {
-		struct mbuf		*m;
-		SLIST_ENTRY(mbuf)	slist;
-		STAILQ_ENTRY(mbuf)	stailq;
-	}		 mh_next;	/* next buffer in chain */
-	union {
-		struct mbuf		*m;
-		SLIST_ENTRY(mbuf)	slist;
-		STAILQ_ENTRY(mbuf)	stailq;
-	}		 mh_nextpkt;	/* next chain in queue/record */
-	caddr_t		 mh_data;	/* location of data */
-	int32_t		 mh_len;	/* amount of data in this mbuf */
-	uint32_t	 mh_type:8,	/* type of data in this mbuf */
-			 mh_flags:24;	/* flags; see below */
-#if !defined(__LP64__)
-	uint32_t	 mh_pad;	/* pad for 64bit alignment */
-#endif
-};
-
-/*
  * Packet tag structure (see below for details).
  */
 struct m_tag {
@@ -245,7 +220,6 @@ struct mbuf {
 		char	m_dat[0];			/* !M_PKTHDR, !M_EXT */
 	};
 };
-
 
 /*
  * mbuf flags of global significance and layer crossing.
@@ -1258,34 +1232,34 @@ mbufq_drain(struct mbufq *mq)
 
 	n = mbufq_flush(mq);
 	while ((m = n) != NULL) {
-		n = m->m_nextpkt;
+		n = STAILQ_NEXT(m, m_stailqpkt);
 		m_freem(m);
 	}
 }
 
 static inline struct mbuf *
-mbufq_first(struct mbufq *mq)
+mbufq_first(const struct mbufq *mq)
 {
 
 	return (STAILQ_FIRST(&mq->mq_head));
 }
 
 static inline struct mbuf *
-mbufq_last(struct mbufq *mq)
+mbufq_last(const struct mbufq *mq)
 {
 
 	return (STAILQ_LAST(&mq->mq_head, mbuf, m_stailqpkt));
 }
 
 static inline int
-mbufq_full(struct mbufq *mq)
+mbufq_full(const struct mbufq *mq)
 {
 
 	return (mq->mq_len >= mq->mq_maxlen);
 }
 
 static inline int
-mbufq_len(struct mbufq *mq)
+mbufq_len(const struct mbufq *mq)
 {
 
 	return (mq->mq_len);
