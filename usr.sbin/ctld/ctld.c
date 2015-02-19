@@ -87,6 +87,7 @@ conf_new(void)
 	conf = calloc(1, sizeof(*conf));
 	if (conf == NULL)
 		log_err(1, "calloc");
+	TAILQ_INIT(&conf->conf_luns);
 	TAILQ_INIT(&conf->conf_targets);
 	TAILQ_INIT(&conf->conf_auth_groups);
 	TAILQ_INIT(&conf->conf_portal_groups);
@@ -104,6 +105,7 @@ conf_new(void)
 void
 conf_delete(struct conf *conf)
 {
+	struct lun *lun, *ltmp;
 	struct target *targ, *tmp;
 	struct auth_group *ag, *cagtmp;
 	struct portal_group *pg, *cpgtmp;
@@ -111,6 +113,8 @@ conf_delete(struct conf *conf)
 
 	assert(conf->conf_pidfh == NULL);
 
+	TAILQ_FOREACH_SAFE(lun, &conf->conf_luns, l_next, ltmp)
+		lun_delete(lun);
 	TAILQ_FOREACH_SAFE(targ, &conf->conf_targets, t_next, tmp)
 		target_delete(targ);
 	TAILQ_FOREACH_SAFE(ag, &conf->conf_auth_groups, ag_next, cagtmp)
@@ -1146,7 +1150,6 @@ target_new(struct conf *conf, const char *name)
 	for (i = 0; i < len; i++)
 		targ->t_name[i] = tolower(targ->t_name[i]);
 
-	TAILQ_INIT(&targ->t_luns);
 	targ->t_conf = conf;
 	TAILQ_INSERT_TAIL(&conf->conf_targets, targ, t_next);
 
@@ -1156,12 +1159,9 @@ target_new(struct conf *conf, const char *name)
 void
 target_delete(struct target *targ)
 {
-	struct lun *lun, *tmp;
 
 	TAILQ_REMOVE(&targ->t_conf->conf_targets, targ, t_next);
 
-	TAILQ_FOREACH_SAFE(lun, &targ->t_luns, l_next, tmp)
-		lun_delete(lun);
 	free(targ->t_name);
 	free(targ->t_redirection);
 	free(targ);
@@ -1196,25 +1196,31 @@ target_set_redirection(struct target *target, const char *addr)
 	return (0);
 }
 
+void
+target_set_ctl_port(struct target *target, uint32_t value)
+{
+
+	target->t_ctl_port = value;
+}
+
 struct lun *
-lun_new(struct target *targ, int lun_id)
+lun_new(struct conf *conf, const char *name)
 {
 	struct lun *lun;
 
-	lun = lun_find(targ, lun_id);
+	lun = lun_find(conf, name);
 	if (lun != NULL) {
-		log_warnx("duplicated lun %d for target \"%s\"",
-		    lun_id, targ->t_name);
+		log_warnx("duplicated lun \"%s\"", name);
 		return (NULL);
 	}
 
 	lun = calloc(1, sizeof(*lun));
 	if (lun == NULL)
 		log_err(1, "calloc");
-	lun->l_lun = lun_id;
+	lun->l_conf = conf;
+	lun->l_name = checked_strdup(name);
 	TAILQ_INIT(&lun->l_options);
-	lun->l_target = targ;
-	TAILQ_INSERT_TAIL(&targ->t_luns, lun, l_next);
+	TAILQ_INSERT_TAIL(&conf->conf_luns, lun, l_next);
 
 	return (lun);
 }
@@ -1222,26 +1228,36 @@ lun_new(struct target *targ, int lun_id)
 void
 lun_delete(struct lun *lun)
 {
+	struct target *targ;
 	struct lun_option *lo, *tmp;
+	int i;
 
-	TAILQ_REMOVE(&lun->l_target->t_luns, lun, l_next);
+	TAILQ_FOREACH(targ, &lun->l_conf->conf_targets, t_next) {
+		for (i = 0; i < MAX_LUNS; i++) {
+			if (targ->t_luns[i] == lun)
+				targ->t_luns[i] = NULL;
+		}
+	}
+	TAILQ_REMOVE(&lun->l_conf->conf_luns, lun, l_next);
 
 	TAILQ_FOREACH_SAFE(lo, &lun->l_options, lo_next, tmp)
 		lun_option_delete(lo);
+	free(lun->l_name);
 	free(lun->l_backend);
 	free(lun->l_device_id);
 	free(lun->l_path);
+	free(lun->l_scsiname);
 	free(lun->l_serial);
 	free(lun);
 }
 
 struct lun *
-lun_find(const struct target *targ, int lun_id)
+lun_find(const struct conf *conf, const char *name)
 {
 	struct lun *lun;
 
-	TAILQ_FOREACH(lun, &targ->t_luns, l_next) {
-		if (lun->l_lun == lun_id)
+	TAILQ_FOREACH(lun, &conf->conf_luns, l_next) {
+		if (strcmp(lun->l_name, name) == 0)
 			return (lun);
 	}
 
@@ -1277,6 +1293,13 @@ lun_set_path(struct lun *lun, const char *value)
 }
 
 void
+lun_set_scsiname(struct lun *lun, const char *value)
+{
+	free(lun->l_scsiname);
+	lun->l_scsiname = checked_strdup(value);
+}
+
+void
 lun_set_serial(struct lun *lun, const char *value)
 {
 	free(lun->l_serial);
@@ -1304,8 +1327,8 @@ lun_option_new(struct lun *lun, const char *name, const char *value)
 
 	lo = lun_option_find(lun, name);
 	if (lo != NULL) {
-		log_warnx("duplicated lun option %s for lun %d, target \"%s\"",
-		    name, lun->l_lun, lun->l_target->t_name);
+		log_warnx("duplicated lun option \"%s\" for lun \"%s\"",
+		    name, lun->l_name);
 		return (NULL);
 	}
 
@@ -1410,18 +1433,18 @@ conf_print(struct conf *conf)
 			fprintf(stderr, "\t listen %s\n", portal->p_listen);
 		fprintf(stderr, "}\n");
 	}
+	TAILQ_FOREACH(lun, &conf->conf_luns, l_next) {
+		fprintf(stderr, "\tlun %s {\n", lun->l_name);
+		fprintf(stderr, "\t\tpath %s\n", lun->l_path);
+		TAILQ_FOREACH(lo, &lun->l_options, lo_next)
+			fprintf(stderr, "\t\toption %s %s\n",
+			    lo->lo_name, lo->lo_value);
+		fprintf(stderr, "\t}\n");
+	}
 	TAILQ_FOREACH(targ, &conf->conf_targets, t_next) {
 		fprintf(stderr, "target %s {\n", targ->t_name);
 		if (targ->t_alias != NULL)
 			fprintf(stderr, "\t alias %s\n", targ->t_alias);
-		TAILQ_FOREACH(lun, &targ->t_luns, l_next) {
-			fprintf(stderr, "\tlun %d {\n", lun->l_lun);
-			fprintf(stderr, "\t\tpath %s\n", lun->l_path);
-			TAILQ_FOREACH(lo, &lun->l_options, lo_next)
-				fprintf(stderr, "\t\toption %s %s\n",
-				    lo->lo_name, lo->lo_value);
-			fprintf(stderr, "\t}\n");
-		}
 		fprintf(stderr, "}\n");
 	}
 }
@@ -1431,60 +1454,49 @@ static int
 conf_verify_lun(struct lun *lun)
 {
 	const struct lun *lun2;
-	const struct target *targ2;
 
 	if (lun->l_backend == NULL)
 		lun_set_backend(lun, "block");
 	if (strcmp(lun->l_backend, "block") == 0) {
 		if (lun->l_path == NULL) {
-			log_warnx("missing path for lun %d, target \"%s\"",
-			    lun->l_lun, lun->l_target->t_name);
+			log_warnx("missing path for lun \"%s\"",
+			    lun->l_name);
 			return (1);
 		}
 	} else if (strcmp(lun->l_backend, "ramdisk") == 0) {
 		if (lun->l_size == 0) {
-			log_warnx("missing size for ramdisk-backed lun %d, "
-			    "target \"%s\"", lun->l_lun, lun->l_target->t_name);
+			log_warnx("missing size for ramdisk-backed lun \"%s\"",
+			    lun->l_name);
 			return (1);
 		}
 		if (lun->l_path != NULL) {
 			log_warnx("path must not be specified "
-			    "for ramdisk-backed lun %d, target \"%s\"",
-			    lun->l_lun, lun->l_target->t_name);
+			    "for ramdisk-backed lun \"%s\"",
+			    lun->l_name);
 			return (1);
 		}
-	}
-	if (lun->l_lun < 0 || lun->l_lun > 255) {
-		log_warnx("invalid lun number for lun %d, target \"%s\"; "
-		    "must be between 0 and 255", lun->l_lun,
-		    lun->l_target->t_name);
-		return (1);
 	}
 	if (lun->l_blocksize == 0) {
 		lun_set_blocksize(lun, DEFAULT_BLOCKSIZE);
 	} else if (lun->l_blocksize < 0) {
-		log_warnx("invalid blocksize for lun %d, target \"%s\"; "
-		    "must be larger than 0", lun->l_lun, lun->l_target->t_name);
+		log_warnx("invalid blocksize for lun \"%s\"; "
+		    "must be larger than 0", lun->l_name);
 		return (1);
 	}
 	if (lun->l_size != 0 && lun->l_size % lun->l_blocksize != 0) {
-		log_warnx("invalid size for lun %d, target \"%s\"; "
-		    "must be multiple of blocksize", lun->l_lun,
-		    lun->l_target->t_name);
+		log_warnx("invalid size for lun \"%s\"; "
+		    "must be multiple of blocksize", lun->l_name);
 		return (1);
 	}
-	TAILQ_FOREACH(targ2, &lun->l_target->t_conf->conf_targets, t_next) {
-		TAILQ_FOREACH(lun2, &targ2->t_luns, l_next) {
-			if (lun == lun2)
-				continue;
-			if (lun->l_path != NULL && lun2->l_path != NULL &&
-			    strcmp(lun->l_path, lun2->l_path) == 0) {
-				log_debugx("WARNING: path \"%s\" duplicated "
-				    "between lun %d, target \"%s\", and "
-				    "lun %d, target \"%s\"", lun->l_path,
-				    lun->l_lun, lun->l_target->t_name,
-				    lun2->l_lun, lun2->l_target->t_name);
-			}
+	TAILQ_FOREACH(lun2, &lun->l_conf->conf_luns, l_next) {
+		if (lun == lun2)
+			continue;
+		if (lun->l_path != NULL && lun2->l_path != NULL &&
+		    strcmp(lun->l_path, lun2->l_path) == 0) {
+			log_debugx("WARNING: path \"%s\" duplicated "
+			    "between lun \"%s\", and "
+			    "lun \"%s\"", lun->l_path,
+			    lun->l_name, lun2->l_name);
 		}
 	}
 
@@ -1499,11 +1511,16 @@ conf_verify(struct conf *conf)
 	struct target *targ;
 	struct lun *lun;
 	bool found;
-	int error;
+	int error, i;
 
 	if (conf->conf_pidfile_path == NULL)
 		conf->conf_pidfile_path = checked_strdup(DEFAULT_PIDFILE);
 
+	TAILQ_FOREACH(lun, &conf->conf_luns, l_next) {
+		error = conf_verify_lun(lun);
+		if (error != 0)
+			return (error);
+	}
 	TAILQ_FOREACH(targ, &conf->conf_targets, t_next) {
 		if (targ->t_auth_group == NULL) {
 			targ->t_auth_group = auth_group_find(conf,
@@ -1516,11 +1533,9 @@ conf_verify(struct conf *conf)
 			assert(targ->t_portal_group != NULL);
 		}
 		found = false;
-		TAILQ_FOREACH(lun, &targ->t_luns, l_next) {
-			error = conf_verify_lun(lun);
-			if (error != 0)
-				return (error);
-			found = true;
+		for (i = 0; i < MAX_LUNS; i++) {
+			if (targ->t_luns[i] != NULL)
+				found = true;
 		}
 		if (!found && targ->t_redirection == NULL) {
 			log_warnx("no LUNs defined for target \"%s\"",
@@ -1657,126 +1672,128 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	 *      be somewhat hairy, though, and lun deletion failures don't
 	 *      really happen, so leave it as it is for now.
 	 */
+	/*
+	 * First, remove any targets present in the old configuration
+	 * and missing in the new one.
+	 */
 	TAILQ_FOREACH_SAFE(oldtarg, &oldconf->conf_targets, t_next, tmptarg) {
-		/*
-		 * First, remove any targets present in the old configuration
-		 * and missing in the new one.
-		 */
 		newtarg = target_find(newconf, oldtarg->t_name);
-		if (newtarg == NULL) {
-			error = kernel_port_remove(oldtarg);
+		if (newtarg != NULL)
+			continue;
+		error = kernel_port_remove(oldtarg);
+		if (error != 0) {
+			log_warnx("failed to remove target %s",
+			    oldtarg->t_name);
+			/*
+			 * XXX: Uncomment after fixing the root cause.
+			 *
+			 * cumulated_error++;
+			 */
+		}
+	}
+
+	/*
+	 * Second, remove any LUNs present in the old configuration
+	 * and missing in the new one.
+	 */
+	TAILQ_FOREACH_SAFE(oldlun, &oldconf->conf_luns, l_next, tmplun) {
+		newlun = lun_find(newconf, oldlun->l_name);
+		if (newlun == NULL) {
+			log_debugx("lun \"%s\", CTL lun %d "
+			    "not found in new configuration; "
+			    "removing", oldlun->l_name, oldlun->l_ctl_lun);
+			error = kernel_lun_remove(oldlun);
 			if (error != 0) {
-				log_warnx("failed to remove target %s",
-				    oldtarg->t_name);
-				/*
-				 * XXX: Uncomment after fixing the root cause.
-				 *
-				 * cumulated_error++;
-				 */
-			}
-			TAILQ_FOREACH_SAFE(oldlun, &oldtarg->t_luns, l_next,
-			    tmplun) {
-				log_debugx("target %s not found in new "
-				    "configuration; removing its lun %d, "
-				    "backed by CTL lun %d",
-				    oldtarg->t_name, oldlun->l_lun,
-				    oldlun->l_ctl_lun);
-				error = kernel_lun_remove(oldlun);
-				if (error != 0) {
-					log_warnx("failed to remove lun %d, "
-					    "target %s, CTL lun %d",
-					    oldlun->l_lun, oldtarg->t_name,
-					    oldlun->l_ctl_lun);
-					cumulated_error++;
-				}
+				log_warnx("failed to remove lun \"%s\", "
+				    "CTL lun %d",
+				    oldlun->l_name, oldlun->l_ctl_lun);
+				cumulated_error++;
 			}
 			continue;
 		}
 
 		/*
-		 * Second, remove any LUNs present in the old target
-		 * and missing in the new one.
+		 * Also remove the LUNs changed by more than size.
 		 */
-		TAILQ_FOREACH_SAFE(oldlun, &oldtarg->t_luns, l_next, tmplun) {
-			newlun = lun_find(newtarg, oldlun->l_lun);
-			if (newlun == NULL) {
-				log_debugx("lun %d, target %s, CTL lun %d "
-				    "not found in new configuration; "
-				    "removing", oldlun->l_lun, oldtarg->t_name,
-				    oldlun->l_ctl_lun);
-				error = kernel_lun_remove(oldlun);
+		changed = 0;
+		assert(oldlun->l_backend != NULL);
+		assert(newlun->l_backend != NULL);
+		if (strcmp(newlun->l_backend, oldlun->l_backend) != 0) {
+			log_debugx("backend for lun \"%s\", "
+			    "CTL lun %d changed; removing",
+			    oldlun->l_name, oldlun->l_ctl_lun);
+			changed = 1;
+		}
+		if (oldlun->l_blocksize != newlun->l_blocksize) {
+			log_debugx("blocksize for lun \"%s\", "
+			    "CTL lun %d changed; removing",
+			    oldlun->l_name, oldlun->l_ctl_lun);
+			changed = 1;
+		}
+		if (newlun->l_device_id != NULL &&
+		    (oldlun->l_device_id == NULL ||
+		     strcmp(oldlun->l_device_id, newlun->l_device_id) !=
+		     0)) {
+			log_debugx("device-id for lun \"%s\", "
+			    "CTL lun %d changed; removing",
+			    oldlun->l_name, oldlun->l_ctl_lun);
+			changed = 1;
+		}
+		if (newlun->l_path != NULL &&
+		    (oldlun->l_path == NULL ||
+		     strcmp(oldlun->l_path, newlun->l_path) != 0)) {
+			log_debugx("path for lun \"%s\", "
+			    "CTL lun %d, changed; removing",
+			    oldlun->l_name, oldlun->l_ctl_lun);
+			changed = 1;
+		}
+		if (newlun->l_serial != NULL &&
+		    (oldlun->l_serial == NULL ||
+		     strcmp(oldlun->l_serial, newlun->l_serial) != 0)) {
+			log_debugx("serial for lun \"%s\", "
+			    "CTL lun %d changed; removing",
+			    oldlun->l_name, oldlun->l_ctl_lun);
+			changed = 1;
+		}
+		if (changed) {
+			error = kernel_lun_remove(oldlun);
+			if (error != 0) {
+				log_warnx("failed to remove lun \"%s\", "
+				    "CTL lun %d",
+				    oldlun->l_name, oldlun->l_ctl_lun);
+				cumulated_error++;
+			}
+			lun_delete(oldlun);
+			continue;
+		}
+
+		lun_set_ctl_lun(newlun, oldlun->l_ctl_lun);
+	}
+
+	TAILQ_FOREACH_SAFE(newlun, &newconf->conf_luns, l_next, tmplun) {
+		oldlun = lun_find(oldconf, newlun->l_name);
+		if (oldlun != NULL) {
+			if (newlun->l_size != oldlun->l_size ||
+			    newlun->l_size == 0) {
+				log_debugx("resizing lun \"%s\", CTL lun %d",
+				    newlun->l_name, newlun->l_ctl_lun);
+				error = kernel_lun_resize(newlun);
 				if (error != 0) {
-					log_warnx("failed to remove lun %d, "
-					    "target %s, CTL lun %d",
-					    oldlun->l_lun, oldtarg->t_name,
-					    oldlun->l_ctl_lun);
+					log_warnx("failed to "
+					    "resize lun \"%s\", CTL lun %d",
+					    newlun->l_name,
+					    newlun->l_ctl_lun);
 					cumulated_error++;
 				}
-				continue;
 			}
-
-			/*
-			 * Also remove the LUNs changed by more than size.
-			 */
-			changed = 0;
-			assert(oldlun->l_backend != NULL);
-			assert(newlun->l_backend != NULL);
-			if (strcmp(newlun->l_backend, oldlun->l_backend) != 0) {
-				log_debugx("backend for lun %d, target %s, "
-				    "CTL lun %d changed; removing",
-				    oldlun->l_lun, oldtarg->t_name,
-				    oldlun->l_ctl_lun);
-				changed = 1;
-			}
-			if (oldlun->l_blocksize != newlun->l_blocksize) {
-				log_debugx("blocksize for lun %d, target %s, "
-				    "CTL lun %d changed; removing",
-				    oldlun->l_lun, oldtarg->t_name,
-				    oldlun->l_ctl_lun);
-				changed = 1;
-			}
-			if (newlun->l_device_id != NULL &&
-			    (oldlun->l_device_id == NULL ||
-			     strcmp(oldlun->l_device_id, newlun->l_device_id) !=
-			     0)) {
-				log_debugx("device-id for lun %d, target %s, "
-				    "CTL lun %d changed; removing",
-				    oldlun->l_lun, oldtarg->t_name,
-				    oldlun->l_ctl_lun);
-				changed = 1;
-			}
-			if (newlun->l_path != NULL &&
-			    (oldlun->l_path == NULL ||
-			     strcmp(oldlun->l_path, newlun->l_path) != 0)) {
-				log_debugx("path for lun %d, target %s, "
-				    "CTL lun %d, changed; removing",
-				    oldlun->l_lun, oldtarg->t_name,
-				    oldlun->l_ctl_lun);
-				changed = 1;
-			}
-			if (newlun->l_serial != NULL &&
-			    (oldlun->l_serial == NULL ||
-			     strcmp(oldlun->l_serial, newlun->l_serial) != 0)) {
-				log_debugx("serial for lun %d, target %s, "
-				    "CTL lun %d changed; removing",
-				    oldlun->l_lun, oldtarg->t_name,
-				    oldlun->l_ctl_lun);
-				changed = 1;
-			}
-			if (changed) {
-				error = kernel_lun_remove(oldlun);
-				if (error != 0) {
-					log_warnx("failed to remove lun %d, "
-					    "target %s, CTL lun %d",
-					    oldlun->l_lun, oldtarg->t_name,
-					    oldlun->l_ctl_lun);
-					cumulated_error++;
-				}
-				lun_delete(oldlun);
-				continue;
-			}
-
-			lun_set_ctl_lun(newlun, oldlun->l_ctl_lun);
+			continue;
+		}
+		log_debugx("adding lun \"%s\"", newlun->l_name);
+		error = kernel_lun_add(newlun);
+		if (error != 0) {
+			log_warnx("failed to add lun \"%s\"", newlun->l_name);
+			lun_delete(newlun);
+			cumulated_error++;
 		}
 	}
 
@@ -1786,54 +1803,21 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	TAILQ_FOREACH(newtarg, &newconf->conf_targets, t_next) {
 		oldtarg = target_find(oldconf, newtarg->t_name);
 
-		TAILQ_FOREACH_SAFE(newlun, &newtarg->t_luns, l_next, tmplun) {
-			if (oldtarg != NULL) {
-				oldlun = lun_find(oldtarg, newlun->l_lun);
-				if (oldlun != NULL) {
-					if (newlun->l_size != oldlun->l_size ||
-					    newlun->l_size == 0) {
-						log_debugx("resizing lun %d, "
-						    "target %s, CTL lun %d",
-						    newlun->l_lun,
-						    newtarg->t_name,
-						    newlun->l_ctl_lun);
-						error =
-						    kernel_lun_resize(newlun);
-						if (error != 0) {
-							log_warnx("failed to "
-							    "resize lun %d, "
-							    "target %s, "
-							    "CTL lun %d",
-							    newlun->l_lun,
-							    newtarg->t_name,
-							    newlun->l_lun);
-							cumulated_error++;
-						}
-					}
-					continue;
-				}
-			}
-			log_debugx("adding lun %d, target %s",
-			    newlun->l_lun, newtarg->t_name);
-			error = kernel_lun_add(newlun);
-			if (error != 0) {
-				log_warnx("failed to add lun %d, target %s",
-				    newlun->l_lun, newtarg->t_name);
-				lun_delete(newlun);
-				cumulated_error++;
-			}
-		}
-		if (oldtarg == NULL) {
+		if (oldtarg == NULL)
 			error = kernel_port_add(newtarg);
-			if (error != 0) {
-				log_warnx("failed to add target %s",
-				    newtarg->t_name);
-				/*
-				 * XXX: Uncomment after fixing the root cause.
-				 *
-				 * cumulated_error++;
-				 */
-			}
+		else {
+			target_set_ctl_port(newtarg, oldtarg->t_ctl_port);
+			error = kernel_port_update(newtarg);
+		}
+		if (error != 0) {
+			log_warnx("failed to %s target %s",
+			    (oldtarg == NULL) ? "add" : "update",
+			    newtarg->t_name);
+			/*
+			 * XXX: Uncomment after fixing the root cause.
+			 *
+			 * cumulated_error++;
+			 */
 		}
 	}
 
