@@ -1190,7 +1190,7 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 	struct ctl_be_block_io *beio;
 	struct ctl_be_block_softc *softc;
 	struct ctl_lba_len_flags *lbalen;
-	uint64_t len_left, lba;
+	uint64_t len_left, lba, pb, pbo, adj;
 	int i, seglen;
 	uint8_t *buf, *end;
 
@@ -1244,6 +1244,8 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 	DPRINTF("WRITE SAME at LBA %jx len %u\n",
 	       (uintmax_t)lbalen->lba, lbalen->len);
 
+	pb = (uint64_t)be_lun->blocksize << be_lun->pblockexp;
+	pbo = pb - (uint64_t)be_lun->blocksize * be_lun->pblockoff;
 	len_left = (uint64_t)lbalen->len * be_lun->blocksize;
 	for (i = 0, lba = 0; i < CTLBLK_MAX_SEGS && len_left > 0; i++) {
 
@@ -1251,7 +1253,15 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 		 * Setup the S/G entry for this chunk.
 		 */
 		seglen = MIN(CTLBLK_MAX_SEG, len_left);
-		seglen -= seglen % be_lun->blocksize;
+		if (pb > be_lun->blocksize) {
+			adj = ((lbalen->lba + lba) * be_lun->blocksize +
+			    seglen - pbo) % pb;
+			if (seglen > adj)
+				seglen -= adj;
+			else
+				seglen -= seglen % be_lun->blocksize;
+		} else
+			seglen -= seglen % be_lun->blocksize;
 		beio->sg_segs[i].len = seglen;
 		beio->sg_segs[i].addr = uma_zalloc(be_lun->lun_zone, M_WAITOK);
 
