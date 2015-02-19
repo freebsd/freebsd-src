@@ -5,11 +5,6 @@ LLVM 3.6 Release Notes
 .. contents::
     :local:
 
-.. warning::
-   These are in-progress notes for the upcoming LLVM 3.6 release.  You may
-   prefer the `LLVM 3.5 Release Notes <http://llvm.org/releases/3.5.0/docs
-   /ReleaseNotes.html>`_.
-
 
 Introduction
 ============
@@ -26,10 +21,6 @@ have questions or comments, the `LLVM Developer's Mailing List
 <http://lists.cs.uiuc.edu/mailman/listinfo/llvmdev>`_ is a good place to send
 them.
 
-Note that if you are reading this file from a Subversion checkout or the main
-LLVM web page, this document applies to the *next* release, not the current
-one.  To see the release notes for a specific release, please see the `releases
-page <http://llvm.org/releases/>`_.
 
 Non-comprehensive list of changes in this release
 =================================================
@@ -543,6 +534,33 @@ optimizations and also for parts of code generation. It generates
 new LLVM-based code generators "on the fly" for the designed processors and
 loads them in to the compiler backend as runtime libraries to avoid
 per-target recompilation of larger parts of the compiler chain. 
+
+Likely
+------
+
+`Likely <http://www.liblikely.org>`_ is an embeddable just-in-time Lisp for
+image recognition and heterogenous computing. Algorithms are just-in-time
+compiled using LLVM's MCJIT infrastructure to execute on single or
+multi-threaded CPUs and potentially OpenCL SPIR or CUDA enabled GPUs.
+Likely seeks to explore new optimizations for statistical learning 
+algorithms by moving them from an offline model generation step to the 
+compile-time evaluation of a function (the learning algorithm) with constant
+arguments (the training data).
+
+LDC - the LLVM-based D compiler
+-------------------------------
+
+`D <http://dlang.org>`_ is a language with C-like syntax and static typing. It
+pragmatically combines efficiency, control, and modeling power, with safety and
+programmer productivity. D supports powerful concepts like Compile-Time Function
+Execution (CTFE) and Template Meta-Programming, provides an innovative approach
+to concurrency and offers many classical paradigms.
+
+`LDC <http://wiki.dlang.org/LDC>`_ uses the frontend from the reference compiler
+combined with LLVM as backend to produce efficient native code. LDC targets
+x86/x86_64 systems like Linux, OS X, FreeBSD and Windows and also Linux on
+PowerPC (32/64 bit). Ports to other architectures like ARM, AArch64 and MIPS64
+are underway.
 
 Additional Information
 ======================
