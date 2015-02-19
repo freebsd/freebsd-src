@@ -97,7 +97,7 @@ struct in6_addrlifetime {
 struct nd_ifinfo;
 struct scope6_id;
 struct lltable;
-struct mld_ifinfo;
+struct mld_ifsoftc;
 
 struct in6_ifextra {
 	counter_u64_t *in6_ifstat;
@@ -105,7 +105,7 @@ struct in6_ifextra {
 	struct nd_ifinfo *nd_ifinfo;
 	struct scope6_id *scope6_id;
 	struct lltable *lltable;
-	struct mld_ifinfo *mld_ifinfo;
+	struct mld_ifsoftc *mld_ifinfo;
 };
 
 #define	LLTABLE6(ifp)	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->lltable)
@@ -646,7 +646,7 @@ struct in6_multi {
 	u_int	in6m_timer;		/* MLD6 listener report timer */
 
 	/* New fields for MLDv2 follow. */
-	struct mld_ifinfo	*in6m_mli;	/* MLD info */
+	struct mld_ifsoftc	*in6m_mli;	/* MLD info */
 	SLIST_ENTRY(in6_multi)	 in6m_nrele;	/* to-be-released by MLD */
 	struct ip6_msource_tree	 in6m_srcs;	/* tree of sources */
 	u_long			 in6m_nsrc;	/* # of tree entries */
