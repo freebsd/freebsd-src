@@ -244,6 +244,7 @@ ofw_cpu_attach(device_t dev)
 static int
 ofw_cpu_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 {
+	struct ofw_cpulist_softc *psc;
 	struct ofw_cpu_softc *sc;
 
 	sc = device_get_softc(dev);
@@ -255,6 +256,16 @@ ofw_cpu_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 	case CPU_IVAR_NOMINAL_MHZ:
 		if (sc->sc_nominal_mhz > 0) {
 			*result = (uintptr_t)sc->sc_nominal_mhz;
+			return (0);
+		}
+		break;
+	case CPU_IVAR_CPUID_SIZE:
+		psc = device_get_softc(device_get_parent(dev));
+		*result = psc->sc_addr_cells;
+		return (0);
+	case CPU_IVAR_CPUID:
+		if (sc->sc_reg_valid) {
+			*result = (uintptr_t)sc->sc_reg;
 			return (0);
 		}
 		break;
