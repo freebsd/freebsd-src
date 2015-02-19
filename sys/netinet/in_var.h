@@ -33,6 +33,19 @@
 #ifndef _NETINET_IN_VAR_H_
 #define _NETINET_IN_VAR_H_
 
+/*
+ * Argument structure for SIOCAIFADDR.
+ */
+struct	in_aliasreq {
+	char	ifra_name[IFNAMSIZ];		/* if name, e.g. "en0" */
+	struct	sockaddr_in ifra_addr;
+	struct	sockaddr_in ifra_broadaddr;
+#define ifra_dstaddr ifra_broadaddr
+	struct	sockaddr_in ifra_mask;
+	int	ifra_vhid;
+};
+
+#ifdef _KERNEL
 #include <sys/queue.h>
 #include <sys/fnv_hash.h>
 #include <sys/tree.h>
@@ -50,7 +63,6 @@ struct in_ifinfo {
 	struct in_multi		*ii_allhosts;	/* 224.0.0.1 membership */
 };
 
-#ifdef _KERNEL
 /*
  * Interface address, Internet version.  One of these structures
  * is allocated for each Internet address on an interface.
@@ -71,16 +83,7 @@ struct in_ifaddr {
 #define	ia_broadaddr	ia_dstaddr
 	struct	sockaddr_in ia_sockmask; /* reserve space for general netmask */
 };
-#endif	/* _KERNEL */
 
-struct	in_aliasreq {
-	char	ifra_name[IFNAMSIZ];		/* if name, e.g. "en0" */
-	struct	sockaddr_in ifra_addr;
-	struct	sockaddr_in ifra_broadaddr;
-#define ifra_dstaddr ifra_broadaddr
-	struct	sockaddr_in ifra_mask;
-	int	ifra_vhid;
-};
 /*
  * Given a pointer to an in_ifaddr (ifaddr),
  * return a pointer to the addr as a sockaddr_in.
@@ -92,8 +95,6 @@ struct	in_aliasreq {
 #define IN_LNAOF(in, ifa) \
 	((ntohl((in).s_addr) & ~((struct in_ifaddr *)(ifa)->ia_subnetmask))
 
-
-#ifdef	_KERNEL
 extern	u_char	inetctlerrmap[];
 
 #define LLTABLE(ifp)	\
