@@ -48,29 +48,6 @@ static inline void ib_sa_client_put(struct ib_sa_client *client)
 		complete(&client->comp);
 }
 
-int ib_sa_check_selector(ib_sa_comp_mask comp_mask,
-			 ib_sa_comp_mask selector_mask,
-			 ib_sa_comp_mask value_mask,
-			 u8 selector, u8 src_value, u8 dst_value);
-
-int ib_sa_pack_attr(void *dst, void *src, int attr_id);
-
-int ib_sa_unpack_attr(void *dst, void *src, int attr_id);
-
-int ib_sa_path_rec_query(struct ib_sa_client *client,
-			 struct ib_device *device, u8 port_num,
-			 struct ib_sa_path_rec *rec,
-			 ib_sa_comp_mask comp_mask,
-			 int timeout_ms, gfp_t gfp_mask,
-			 void (*callback)(int status,
-					  struct ib_sa_path_rec *resp,
-					  void *context),
-			 void *context,
-			 struct ib_sa_query **sa_query);
-
-int sa_db_init(void);
-void sa_db_cleanup(void);
-
 int ib_sa_mcmember_rec_query(struct ib_sa_client *client,
 			     struct ib_device *device, u8 port_num,
 			     u8 method,
@@ -85,21 +62,5 @@ int ib_sa_mcmember_rec_query(struct ib_sa_client *client,
 
 int mcast_init(void);
 void mcast_cleanup(void);
-
-int ib_sa_informinfo_query(struct ib_sa_client *client,
-			   struct ib_device *device, u8 port_num,
-			   struct ib_sa_inform *rec,
-			   int timeout_ms, gfp_t gfp_mask,
-			   void (*callback)(int status,
-					    struct ib_sa_inform *resp,
-					    void *context),
-			   void *context,
-			   struct ib_sa_query **sa_query);
-
-int notice_dispatch(struct ib_device *device, u8 port_num,
-		    struct ib_sa_notice *notice);
-
-int notice_init(void);
-void notice_cleanup(void);
 
 #endif /* SA_H */

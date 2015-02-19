@@ -33,6 +33,7 @@
 
 #include <linux/errno.h>
 #include <linux/string.h>
+#include <linux/module.h>
 #include <linux/if_ether.h>
 
 #include <rdma/ib_pack.h>
@@ -230,32 +231,28 @@ void ib_ud_header_init(int     		    payload_bytes,
 		       int		    immediate_present,
 		       struct ib_ud_header *header)
 {
-	u16 packet_length = 0;
-
 	memset(header, 0, sizeof *header);
 
 	if (lrh_present) {
+		u16 packet_length = 0;
+
 		header->lrh.link_version     = 0;
 		header->lrh.link_next_header =
 			grh_present ? IB_LNH_IBA_GLOBAL : IB_LNH_IBA_LOCAL;
-		packet_length = IB_LRH_BYTES;
+		packet_length = (IB_LRH_BYTES	+
+				 IB_BTH_BYTES	+
+				 IB_DETH_BYTES	+
+				 (grh_present ? IB_GRH_BYTES : 0) +
+				 payload_bytes	+
+				 4		+ /* ICRC     */
+				 3) / 4;	  /* round up */
+		header->lrh.packet_length = cpu_to_be16(packet_length);
 	}
 
-	if (eth_present) {
-		if (vlan_present) {
+	if (vlan_present)
 			header->eth.type = cpu_to_be16(ETH_P_8021Q);
-			packet_length += IB_VLAN_BYTES;
 
-		}
-		packet_length += IB_ETH_BYTES;
-	}
-
-	packet_length += IB_BTH_BYTES + IB_DETH_BYTES + payload_bytes +
-		4       + /* ICRC     */
-		3;        /* round up */
-	packet_length /= 4;
 	if (grh_present) {
-		packet_length += IB_GRH_BYTES / 4;
 		header->grh.ip_version = 6;
 		header->grh.payload_length =
 			cpu_to_be16((IB_BTH_BYTES  +
@@ -265,9 +262,6 @@ void ib_ud_header_init(int     		    payload_bytes,
 				     3) & ~3);       /* round up */
 		header->grh.next_header     = 0x1b;
 	}
-
-	if (lrh_present)
-		header->lrh.packet_length = cpu_to_be16(packet_length);
 
 	if (immediate_present)
 		header->bth.opcode           = IB_OPCODE_UD_SEND_ONLY_WITH_IMMEDIATE;
@@ -283,36 +277,6 @@ void ib_ud_header_init(int     		    payload_bytes,
 	header->immediate_present = immediate_present;
 }
 EXPORT_SYMBOL(ib_ud_header_init);
-
-/**
- * ib_lrh_header_pack - Pack LRH header struct into wire format
- * @lrh:unpacked LRH header struct
- * @buf:Buffer to pack into
- *
- * ib_lrh_header_pack() packs the LRH header structure @lrh into
- * wire format in the buffer @buf.
- */
-int ib_lrh_header_pack(struct ib_unpacked_lrh *lrh, void *buf)
-{
-	ib_pack(lrh_table, ARRAY_SIZE(lrh_table), lrh, buf);
-	return 0;
-}
-EXPORT_SYMBOL(ib_lrh_header_pack);
-
-/**
- * ib_lrh_header_unpack - Unpack LRH structure from wire format
- * @lrh:unpacked LRH header struct
- * @buf:Buffer to pack into
- *
- * ib_lrh_header_unpack() unpacks the LRH header structure from
- * wire format (in buf) into @lrh.
- */
-int ib_lrh_header_unpack(void *buf, struct ib_unpacked_lrh *lrh)
-{
-	ib_unpack(lrh_table, ARRAY_SIZE(lrh_table), buf, lrh);
-	return 0;
-}
-EXPORT_SYMBOL(ib_lrh_header_unpack);
 
 /**
  * ib_ud_header_pack - Pack UD header struct into wire format
@@ -337,14 +301,11 @@ int ib_ud_header_pack(struct ib_ud_header *header,
 			&header->eth, buf + len);
 		len += IB_ETH_BYTES;
 	}
-
-
 	if (header->vlan_present) {
 		ib_pack(vlan_table, ARRAY_SIZE(vlan_table),
 			&header->vlan, buf + len);
 		len += IB_VLAN_BYTES;
 	}
-
 	if (header->grh_present) {
 		ib_pack(grh_table, ARRAY_SIZE(grh_table),
 			&header->grh, buf + len);

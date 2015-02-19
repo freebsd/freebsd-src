@@ -527,7 +527,6 @@ native_lapic_xapic_mode(void)
 	saveintr = intr_disable();
 	if (x2apic_mode)
 		native_lapic_enable_x2apic();
-	native_lapic_disable();
 	intr_restore(saveintr);
 }
 

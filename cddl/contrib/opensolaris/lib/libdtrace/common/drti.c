@@ -36,7 +36,6 @@
 #include <string.h>
 #include <errno.h>
 #include <libelf.h>
-#include <gelf.h>
 
 /*
  * In Solaris 10 GA, the only mechanism for communicating helper information
@@ -62,9 +61,7 @@ static const char *olddevname = "/devices/pseudo/dtrace@0:helper";
 
 static const char *modname;	/* Name of this load object */
 static int gen;			/* DOF helper generation */
-#ifdef illumos
 extern dof_hdr_t __SUNW_dof;	/* DOF defined in the .SUNW_dof section */
-#endif
 static boolean_t dof_init_debug = B_FALSE;	/* From DTRACE_DOF_INIT_DEBUG */
 
 static void
@@ -99,11 +96,7 @@ static void dtrace_dof_init(void) __attribute__ ((constructor));
 static void
 dtrace_dof_init(void)
 {
-#ifdef illumos
 	dof_hdr_t *dof = &__SUNW_dof;
-#else
-	dof_hdr_t *dof = NULL;
-#endif
 #ifdef _LP64
 	Elf64_Ehdr *elf;
 #else
@@ -118,17 +111,6 @@ dtrace_dof_init(void)
 #endif
 	int fd;
 	const char *p;
-#ifndef illumos
-	Elf *e;
-	Elf_Scn *scn = NULL;
-	Elf_Data *dofdata = NULL;
-	dof_hdr_t *dof_next = NULL;
-	GElf_Shdr shdr;
-	int efd;
-	char *s;
-	size_t shstridx;
-	uint64_t aligned_filesz;
-#endif
 
 	if (getenv("DTRACE_DOF_INIT_DISABLE") != NULL)
 		return;
@@ -152,42 +134,6 @@ dtrace_dof_init(void)
 		modname = lmp->l_name;
 	else
 		modname++;
-#ifndef illumos
-	elf_version(EV_CURRENT);
-	if ((efd = open(lmp->l_name, O_RDONLY, 0)) < 0) {
-		dprintf(1, "couldn't open file for reading\n");
-		return;
-	}
-	if ((e = elf_begin(efd, ELF_C_READ, NULL)) == NULL) {
-		dprintf(1, "elf_begin failed\n");
-		close(efd);
-		return;
-	}
-	elf_getshdrstrndx(e, &shstridx);
-	dof = NULL;
-	while ((scn = elf_nextscn(e, scn)) != NULL) {
-		gelf_getshdr(scn, &shdr);
-		if (shdr.sh_type == SHT_SUNW_dof) {
-			s = elf_strptr(e, shstridx, shdr.sh_name);
-			if (s != NULL && strcmp(s, ".SUNW_dof") == 0) {
-				dofdata = elf_getdata(scn, NULL);
-				dof = dofdata->d_buf;
-				break;
-			}
-		}
-	}
-	if (dof == NULL) {
-		dprintf(1, "SUNW_dof section not found\n");
-		elf_end(e);
-		close(efd);
-		return;
-	}
-
-	while ((char *) dof < (char *) dofdata->d_buf + dofdata->d_size) {
-		aligned_filesz = (shdr.sh_addralign == 0 ? dof->dofh_filesz :
-		    roundup2(dof->dofh_filesz, shdr.sh_addralign));
-		dof_next = (void *) ((char *) dof + aligned_filesz);
-#endif
 
 	if (dof->dofh_ident[DOF_ID_MAG0] != DOF_MAG_MAG0 ||
 	    dof->dofh_ident[DOF_ID_MAG1] != DOF_MAG_MAG1 ||
@@ -237,21 +183,12 @@ dtrace_dof_init(void)
 		dprintf(1, "DTrace ioctl failed for DOF at %p", dof);
 	else {
 		dprintf(1, "DTrace ioctl succeeded for DOF at %p\n", dof);
-#ifndef illumos
+#ifdef __FreeBSD__
 		gen = dh.gen;
 #endif
 	}
 
 	(void) close(fd);
-
-#ifndef illumos
-		/* End of while loop */
-		dof = dof_next;
-	}
-
-	elf_end(e);
-	(void) close(efd);
-#endif
 }
 
 #ifdef illumos

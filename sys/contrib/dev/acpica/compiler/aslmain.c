@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -187,13 +187,17 @@ Usage (
     ACPI_OPTION ("-db",             "Do not translate Buffers to Resource Templates");
     ACPI_OPTION ("-dc <f1 f2 ...>", "Disassemble AML and immediately compile it");
     ACPI_OPTION ("",                "  (Obtain DSDT from current system if no input file)");
+    ACPI_OPTION ("-dl",             "Emit legacy ASL code only (no C-style operators)");
     ACPI_OPTION ("-e  <f1 f2 ...>", "Include ACPI table(s) for external symbol resolution");
     ACPI_OPTION ("-fe <file>",      "Specify external symbol declaration file");
     ACPI_OPTION ("-in",             "Ignore NoOp opcodes");
     ACPI_OPTION ("-vt",             "Dump binary table data in hex format within output file");
 
     printf ("\nDebug Options:\n");
-    ACPI_OPTION ("-bf -bt",         "Create debug file (full or parse tree only) (*.txt)");
+    ACPI_OPTION ("-bf",             "Create debug file (full output) (*.txt)");
+    ACPI_OPTION ("-bs",             "Create debug file (parse tree only) (*.txt)");
+    ACPI_OPTION ("-bp <depth>",     "Prune ASL parse tree");
+    ACPI_OPTION ("-bt <type>",      "Object type to be pruned from the parse tree");
     ACPI_OPTION ("-f",              "Ignore errors, force creation of AML output file(s)");
     ACPI_OPTION ("-m <size>",       "Set internal line buffer size (in Kbytes)");
     ACPI_OPTION ("-n",              "Parse only, no output generation");

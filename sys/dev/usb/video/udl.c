@@ -78,9 +78,7 @@ static device_probe_t udl_probe;
 static device_attach_t udl_attach;
 static device_detach_t udl_detach;
 static fb_getinfo_t udl_fb_getinfo;
-#if 0
-static fb_blank_display_t udl_fb_blank_display;
-#endif
+static fb_setblankmode_t udl_fb_setblankmode;
 
 static void udl_select_chip(struct udl_softc *, struct usb_attach_arg *);
 static int udl_init_chip(struct udl_softc *);
@@ -94,9 +92,7 @@ static void udl_cmd_insert_int_3(struct udl_cmd_buf *, uint32_t);
 static void udl_cmd_insert_buf_le16(struct udl_cmd_buf *, const uint8_t *, uint32_t);
 static void udl_cmd_write_reg_1(struct udl_cmd_buf *, uint8_t, uint8_t);
 static void udl_cmd_write_reg_3(struct udl_cmd_buf *, uint8_t, uint32_t);
-#if 0
 static int udl_power_save(struct udl_softc *, int, int);
-#endif
 
 static const struct usb_config udl_config[UDL_N_TRANSFER] = {
 	[UDL_BULK_WRITE_0] = {
@@ -131,9 +127,6 @@ static device_method_t udl_methods[] = {
 	DEVMETHOD(device_attach, udl_attach),
 	DEVMETHOD(device_detach, udl_detach),
 	DEVMETHOD(fb_getinfo, udl_fb_getinfo),
-#if 0
-	DEVMETHOD(fb_blank_display, udl_fb_blank_display),
-#endif
 	DEVMETHOD_END
 };
 
@@ -169,6 +162,7 @@ static const STRUCT_USB_HOST_ID udl_devs[] = {
 	{USB_VPI(USB_VENDOR_DISPLAYLINK, USB_PRODUCT_DISPLAYLINK_SWDVI, DLUNK)},
 	{USB_VPI(USB_VENDOR_DISPLAYLINK, USB_PRODUCT_DISPLAYLINK_UM7X0, DL120)},
 	{USB_VPI(USB_VENDOR_DISPLAYLINK, USB_PRODUCT_DISPLAYLINK_CONV, DL160)},
+	{USB_VPI(USB_VENDOR_DISPLAYLINK, USB_PRODUCT_DISPLAYLINK_PLUGABLE, DL160)},
 	{USB_VPI(USB_VENDOR_DISPLAYLINK, USB_PRODUCT_DISPLAYLINK_LUM70, DL125)},
 	{USB_VPI(USB_VENDOR_DISPLAYLINK, USB_PRODUCT_DISPLAYLINK_POLARIS2, DLUNK)},
 	{USB_VPI(USB_VENDOR_DISPLAYLINK, USB_PRODUCT_DISPLAYLINK_LT1421, DLUNK)}
@@ -188,7 +182,7 @@ udl_get_fb_width(struct udl_softc *sc)
 {
 	unsigned i = sc->sc_cur_mode;
 
-	return (udl_modes[i].vdisplay);
+	return (udl_modes[i].hdisplay);
 }
 
 static uint32_t
@@ -196,7 +190,7 @@ udl_get_fb_height(struct udl_softc *sc)
 {
 	unsigned i = sc->sc_cur_mode;
 
-	return (udl_modes[i].hdisplay);
+	return (udl_modes[i].vdisplay);
 }
 
 static uint32_t
@@ -347,8 +341,10 @@ udl_attach(device_t dev)
 	sc->sc_fb_info.fb_width = udl_get_fb_width(sc);
 	sc->sc_fb_info.fb_height = udl_get_fb_height(sc);
 	sc->sc_fb_info.fb_stride = sc->sc_fb_info.fb_width * 2;
-	sc->sc_fb_info.fb_pbase = (uintptr_t)sc->sc_fb_addr;
+	sc->sc_fb_info.fb_pbase = 0;
 	sc->sc_fb_info.fb_vbase = (uintptr_t)sc->sc_fb_addr;
+	sc->sc_fb_info.fb_priv = sc;
+	sc->sc_fb_info.setblankmode = &udl_fb_setblankmode;
 
 	sc->sc_fbdev = device_add_child(dev, "fbd", -1);
 	if (sc->sc_fbdev == NULL)
@@ -406,11 +402,10 @@ udl_fb_getinfo(device_t dev)
 	return (&sc->sc_fb_info);
 }
 
-#if 0
 static int
-udl_fb_blank_display(device_t dev, int mode)
+udl_fb_setblankmode(void *arg, int mode)
 {
-	struct udl_softc *sc = device_get_softc(dev);
+	struct udl_softc *sc = arg;
 
 	switch (mode) {
 	case V_DISPLAY_ON:
@@ -431,14 +426,12 @@ udl_fb_blank_display(device_t dev, int mode)
 	}
 	return (0);
 }
-#endif
 
 static struct udl_cmd_buf *
-udl_cmd_buf_alloc(struct udl_softc *sc, int flags)
+udl_cmd_buf_alloc_locked(struct udl_softc *sc, int flags)
 {
 	struct udl_cmd_buf *cb;
 
-	UDL_LOCK(sc);
 	while ((cb = TAILQ_FIRST(&sc->sc_cmd_buf_free)) == NULL) {
 		if (flags != M_WAITOK)
 			break;
@@ -448,6 +441,16 @@ udl_cmd_buf_alloc(struct udl_softc *sc, int flags)
 		TAILQ_REMOVE(&sc->sc_cmd_buf_free, cb, entry);
 		cb->off = 0;
 	}
+	return (cb);
+}
+
+static struct udl_cmd_buf *
+udl_cmd_buf_alloc(struct udl_softc *sc, int flags)
+{
+	struct udl_cmd_buf *cb;
+
+	UDL_LOCK(sc);
+	cb = udl_cmd_buf_alloc_locked(sc, flags);
 	UDL_UNLOCK(sc);
 	return (cb);
 }
@@ -471,9 +474,14 @@ udl_cmd_buf_send(struct udl_softc *sc, struct udl_cmd_buf *cb)
 }
 
 static struct udl_cmd_buf *
-udl_fb_synchronize(struct udl_softc *sc)
+udl_fb_synchronize_locked(struct udl_softc *sc)
 {
 	const uint32_t max = udl_get_fb_size(sc);
+
+	/* check if framebuffer is not ready */
+	if (sc->sc_fb_addr == NULL ||
+	    sc->sc_fb_copy == NULL)
+		return (NULL);
 
 	while (sc->sc_sync_off < max) {
 		uint32_t delta = max - sc->sc_sync_off;
@@ -483,7 +491,7 @@ udl_fb_synchronize(struct udl_softc *sc)
 		if (bcmp(sc->sc_fb_addr + sc->sc_sync_off, sc->sc_fb_copy + sc->sc_sync_off, delta) != 0) {
 			struct udl_cmd_buf *cb;
 
-			cb = udl_cmd_buf_alloc(sc, M_NOWAIT);
+			cb = udl_cmd_buf_alloc_locked(sc, M_NOWAIT);
 			if (cb == NULL)
 				goto done;
 			memcpy(sc->sc_fb_copy + sc->sc_sync_off,
@@ -519,11 +527,12 @@ tr_setup:
 		for (i = 0; i != UDL_CMD_MAX_FRAMES; i++) {
 			cb = TAILQ_FIRST(&sc->sc_cmd_buf_pending);
 			if (cb == NULL) {
-				cb = udl_fb_synchronize(sc);
+				cb = udl_fb_synchronize_locked(sc);
 				if (cb == NULL)
 					break;
+			} else {
+				TAILQ_REMOVE(&sc->sc_cmd_buf_pending, cb, entry);
 			}
-			TAILQ_REMOVE(&sc->sc_cmd_buf_pending, cb, entry);
 			TAILQ_INSERT_TAIL(phead, cb, entry);
 			usbd_xfer_set_frame_data(xfer, i, cb->buf, cb->off);
 		}
@@ -545,7 +554,6 @@ tr_setup:
 	cv_signal(&sc->sc_cv);
 }
 
-#if 0
 static int
 udl_power_save(struct udl_softc *sc, int on, int flags)
 {
@@ -569,7 +577,6 @@ udl_power_save(struct udl_softc *sc, int on, int flags)
 	udl_cmd_buf_send(sc, cb);
 	return (0);
 }
-#endif
 
 static int
 udl_ctrl_msg(struct udl_softc *sc, uint8_t rt, uint8_t r,
@@ -1059,9 +1066,9 @@ udl_cmd_buf_copy_le16(struct udl_softc *sc, uint32_t src, uint32_t dst,
 
 	udl_cmd_insert_int_1(cb, UDL_BULK_SOC);
 	udl_cmd_insert_int_1(cb, UDL_BULK_CMD_FB_COPY | UDL_BULK_CMD_FB_WORD);
-	udl_cmd_insert_int_3(cb, 2 * dst);
+	udl_cmd_insert_int_3(cb, dst);
 	udl_cmd_insert_int_1(cb, pixels);
-	udl_cmd_insert_int_3(cb, 2 * src);
+	udl_cmd_insert_int_3(cb, src);
 	udl_cmd_buf_send(sc, cb);
 
 	return (0);

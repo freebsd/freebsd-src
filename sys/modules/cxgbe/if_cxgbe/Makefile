@@ -26,4 +26,3 @@ SRCS+=	t4_tracer.c
 CFLAGS+= -I${CXGBE}
 
 .include <bsd.kmod.mk>
-CFLAGS+= ${GCC_MS_EXTENSIONS}

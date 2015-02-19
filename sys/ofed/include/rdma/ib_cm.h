@@ -497,7 +497,7 @@ int ib_send_cm_rej(struct ib_cm_id *cm_id,
  *   message.
  * @cm_id: Connection identifier associated with the connection message.
  * @service_timeout: The lower 5-bits specify the maximum time required for
- *   the sender to reply to to the connection message.  The upper 3-bits
+ *   the sender to reply to the connection message.  The upper 3-bits
  *   specify additional control flags.
  * @private_data: Optional user-defined private data sent with the
  *   message receipt acknowledgement.
@@ -600,5 +600,7 @@ struct ib_cm_sidr_rep_param {
  */
 int ib_send_cm_sidr_rep(struct ib_cm_id *cm_id,
 			struct ib_cm_sidr_rep_param *param);
+
+int ib_update_cm_av(struct ib_cm_id *id, const u8 *smac, const u8 *alt_smac);
 
 #endif /* IB_CM_H */
