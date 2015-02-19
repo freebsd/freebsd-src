@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2013, 2014 The FreeBSD Foundation
+# Copyright (c) 2013-2015 The FreeBSD Foundation
 # Copyright (c) 2013 Glen Barber
 # Copyright (c) 2011 Nathan Whitehorn
 # All rights reserved.
@@ -90,6 +90,10 @@ WITH_COMPRESSED_IMAGES=
 WITH_VMIMAGES=
 WITH_COMPRESSED_VMIMAGES=
 
+# Set to non-empty value to build virtual machine images for various
+# cloud providers as part of the release.
+WITH_CLOUDWARE=
+
 usage() {
 	echo "Usage: $0 [-c release.conf]"
 	exit 1
@@ -173,7 +177,8 @@ CHROOT_DMAKEFLAGS="${CONF_FILES}"
 RELEASE_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${ARCH_FLAGS} ${CONF_FILES}"
 RELEASE_KMAKEFLAGS="${MAKE_FLAGS} ${KERNEL_FLAGS} KERNCONF=\"${KERNEL}\" ${ARCH_FLAGS} ${CONF_FILES}"
 RELEASE_RMAKEFLAGS="${ARCH_FLAGS} KERNCONF=\"${KERNEL}\" ${CONF_FILES} \
-	${DOCPORTS} WITH_DVD=${WITH_DVD} WITH_VMIMAGES=${WITH_VMIMAGES}"
+	${DOCPORTS} WITH_DVD=${WITH_DVD} WITH_VMIMAGES=${WITH_VMIMAGES} \
+	WITH_CLOUDWARE=${WITH_CLOUDWARE}"
 
 # Force src checkout if configured
 FORCE_SRC_KEY=
