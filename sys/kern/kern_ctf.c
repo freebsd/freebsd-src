@@ -121,10 +121,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
 	/* Allocate memory for the FLF header. */
-	if ((hdr = malloc(sizeof(*hdr), M_LINKER, M_WAITOK)) == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
+	hdr = malloc(sizeof(*hdr), M_LINKER, M_WAITOK);
 
 	/* Read the ELF header. */
 	if ((error = vn_rdwr(UIO_READ, nd.ni_vp, hdr, sizeof(*hdr),
@@ -146,10 +143,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	}
 
 	/* Allocate memory for all the section headers */
-	if ((shdr = malloc(nbytes, M_LINKER, M_WAITOK)) == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
+	shdr = malloc(nbytes, M_LINKER, M_WAITOK);
 
 	/* Read all the section headers */
 	if ((error = vn_rdwr(UIO_READ, nd.ni_vp, (caddr_t)shdr, nbytes,
@@ -171,11 +165,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	}
 
 	/* Allocate memory to buffer the section header strings. */
-	if ((shstrtab = malloc(shdr[hdr->e_shstrndx].sh_size, M_LINKER,
-	    M_WAITOK)) == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
+	shstrtab = malloc(shdr[hdr->e_shstrndx].sh_size, M_LINKER, M_WAITOK);
 
 	/* Read the section header strings. */
 	if ((error = vn_rdwr(UIO_READ, nd.ni_vp, shstrtab,
@@ -238,10 +228,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 		 * Allocate memory for the compressed CTF data, including
 		 * the header (which isn't compressed).
 		 */
-		if ((raw = malloc(shdr[i].sh_size, M_LINKER, M_WAITOK)) == NULL) {
-			error = ENOMEM;
-			goto out;
-		}
+		raw = malloc(shdr[i].sh_size, M_LINKER, M_WAITOK);
 	} else {
 		/*
 		 * The CTF data is not compressed, so the ELF section
@@ -254,10 +241,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	 * Allocate memory to buffer the CTF data in it's decompressed
 	 * form.
 	 */
-	if ((ctftab = malloc(sz, M_LINKER, M_WAITOK)) == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
+	ctftab = malloc(sz, M_LINKER, M_WAITOK);
 
 	/*
 	 * Read the CTF data into the raw buffer if compressed, or
