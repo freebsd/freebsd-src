@@ -349,7 +349,7 @@ enum pmc_ops {
 #define	PMC_F_NEEDS_LOGFILE	0x00020000 /*needs log file */
 #define	PMC_F_ATTACH_DONE	0x00040000 /*attached at least once */
 
-#define	PMC_CALLCHAIN_DEPTH_MAX	32
+#define	PMC_CALLCHAIN_DEPTH_MAX	128
 
 #define	PMC_CC_F_USERSPACE	0x01	   /*userspace callchain*/
 
@@ -605,7 +605,7 @@ struct pmc_op_getdyneventinfo {
 #define	PMC_LOG_BUFFER_SIZE			4
 #define	PMC_NLOGBUFFERS				1024
 #define	PMC_NSAMPLES				1024
-#define	PMC_CALLCHAIN_DEPTH			16
+#define	PMC_CALLCHAIN_DEPTH			32
 
 #define PMC_SYSCTL_NAME_PREFIX "kern." PMC_MODULE_NAME "."
 
