@@ -33,7 +33,7 @@ SUBDIR=	adduser \
 	getpmac \
 	gstat \
 	i2c \
-#	ifmcstat \
+	ifmcstat \
 	iostat \
 	kldxref \
 	mailwrapper \
@@ -93,6 +93,8 @@ SUBDIR=	adduser \
 	watch \
 	watchdogd \
 	zic
+
+SUBDIR:=	${SUBDIR:Nifmcstat}
 
 # NB: keep these sorted by MK_* knobs
 
