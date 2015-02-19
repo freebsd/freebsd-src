@@ -523,12 +523,7 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 	inm->inm_ifma = ifma;
 	inm->inm_refcount = 1;
 	inm->inm_state = IGMP_NOT_MEMBER;
-
-	/*
-	 * Pending state-changes per group are subject to a bounds check.
-	 */
-	IFQ_SET_MAXLEN(&inm->inm_scq, IGMP_MAX_STATE_CHANGES);
-
+	mbufq_init(&inm->inm_scq, IGMP_MAX_STATE_CHANGES);
 	inm->inm_st[0].iss_fmode = MCAST_UNDEFINED;
 	inm->inm_st[1].iss_fmode = MCAST_UNDEFINED;
 	RB_INIT(&inm->inm_srcs);
