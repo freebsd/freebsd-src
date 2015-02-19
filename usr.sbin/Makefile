@@ -33,7 +33,7 @@ SUBDIR=	adduser \
 	getpmac \
 	gstat \
 	i2c \
-	ifmcstat \
+#	ifmcstat \
 	iostat \
 	kldxref \
 	mailwrapper \
