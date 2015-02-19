@@ -156,7 +156,7 @@ getsock_cap(struct filedesc *fdp, int fd, cap_rights_t *rightsp,
 	struct file *fp;
 	int error;
 
-	error = fget_unlocked(fdp, fd, rightsp, 0, &fp, NULL);
+	error = fget_unlocked(fdp, fd, rightsp, &fp, NULL);
 	if (error != 0)
 		return (error);
 	if (fp->f_type != DTYPE_SOCKET) {

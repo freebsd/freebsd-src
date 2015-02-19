@@ -939,13 +939,10 @@ fail:
 void
 sfxge_rx_stop(struct sfxge_softc *sc)
 {
-	struct sfxge_intr *intr;
 	int index;
 
-	intr = &sc->intr;
-
 	/* Stop the receive queue(s) */
-	index = intr->n_alloc;
+	index = sc->rxq_count;
 	while (--index >= 0)
 		sfxge_rx_qstop(sc, index);
 
@@ -987,7 +984,7 @@ sfxge_rx_start(struct sfxge_softc *sc)
 	 * Set up the scale table.  Enable all hash types and hash insertion.
 	 */
 	for (index = 0; index < SFXGE_RX_SCALE_MAX; index++)
-		sc->rx_indir_table[index] = index % sc->intr.n_alloc;
+		sc->rx_indir_table[index] = index % sc->rxq_count;
 	if ((rc = efx_rx_scale_tbl_set(sc->enp, sc->rx_indir_table,
 				       SFXGE_RX_SCALE_MAX)) != 0)
 		goto fail;
@@ -1000,7 +997,7 @@ sfxge_rx_start(struct sfxge_softc *sc)
 		goto fail;
 
 	/* Start the receive queue(s). */
-	for (index = 0; index < intr->n_alloc; index++) {
+	for (index = 0; index < sc->rxq_count; index++) {
 		if ((rc = sfxge_rx_qstart(sc, index)) != 0)
 			goto fail2;
 	}
@@ -1099,7 +1096,7 @@ sfxge_rx_qinit(struct sfxge_softc *sc, unsigned int index)
 	efsys_mem_t *esmp;
 	int rc;
 
-	KASSERT(index < sc->intr.n_alloc, ("index >= %d", sc->intr.n_alloc));
+	KASSERT(index < sc->rxq_count, ("index >= %d", sc->rxq_count));
 
 	rxq = malloc(sizeof(struct sfxge_rxq), M_SFXGE, M_ZERO | M_WAITOK);
 	rxq->sc = sc;
@@ -1159,7 +1156,7 @@ sfxge_rx_stat_handler(SYSCTL_HANDLER_ARGS)
 
 	/* Sum across all RX queues */
 	sum = 0;
-	for (index = 0; index < sc->intr.n_alloc; index++)
+	for (index = 0; index < sc->rxq_count; index++)
 		sum += *(unsigned int *)((caddr_t)sc->rxq[index] +
 					 sfxge_rx_stats[id].offset);
 
@@ -1190,14 +1187,13 @@ sfxge_rx_stat_init(struct sfxge_softc *sc)
 void
 sfxge_rx_fini(struct sfxge_softc *sc)
 {
-	struct sfxge_intr *intr;
 	int index;
 
-	intr = &sc->intr;
-
-	index = intr->n_alloc;
+	index = sc->rxq_count;
 	while (--index >= 0)
 		sfxge_rx_qfini(sc, index);
+
+	sc->rxq_count = 0;
 }
 
 int
@@ -1212,11 +1208,13 @@ sfxge_rx_init(struct sfxge_softc *sc)
 
 	intr = &sc->intr;
 
+	sc->rxq_count = intr->n_alloc;
+
 	KASSERT(intr->state == SFXGE_INTR_INITIALIZED,
 	    ("intr->state != SFXGE_INTR_INITIALIZED"));
 
 	/* Initialize the receive queue(s) - one per interrupt. */
-	for (index = 0; index < intr->n_alloc; index++) {
+	for (index = 0; index < sc->rxq_count; index++) {
 		if ((rc = sfxge_rx_qinit(sc, index)) != 0)
 			goto fail;
 	}
@@ -1230,5 +1228,6 @@ fail:
 	while (--index >= 0)
 		sfxge_rx_qfini(sc, index);
 
+	sc->rxq_count = 0;
 	return (rc);
 }

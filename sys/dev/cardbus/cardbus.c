@@ -122,6 +122,7 @@ cardbus_detach(device_t cbdev)
 	cardbus_detach_card(cbdev);
 #ifdef PCI_RES_BUS
 	sc = device_get_softc(cbdev);
+	device_printf(cbdev, "Freeing up the allocatd bus\n");
 	(void)bus_release_resource(cbdev, PCI_RES_BUS, 0, sc->sc_bus);
 #endif
 	return (0);
@@ -180,6 +181,7 @@ cardbus_attach_card(device_t cbdev)
 
 	sc = device_get_softc(cbdev);
 	cardbus_detach_card(cbdev); /* detach existing cards */
+	POWER_DISABLE_SOCKET(brdev, cbdev); /* Turn the socket off first */
 	POWER_ENABLE_SOCKET(brdev, cbdev);
 	domain = pcib_get_domain(cbdev);
 	bus = pcib_get_bus(cbdev);

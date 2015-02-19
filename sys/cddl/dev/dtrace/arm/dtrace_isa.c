@@ -69,9 +69,10 @@ void
 dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
     uint32_t *intrpc)
 {
-	u_int32_t	*frame, *lastframe;
-	int	scp_offset;
-	int	depth = 0;
+	struct unwind_state state;
+	register_t sp;
+	int scp_offset;
+	int depth = 0;
 	pc_t caller = (pc_t) solaris_cpu[curcpu].cpu_dtrace_caller;
 
 	if (intrpc != 0)
@@ -79,23 +80,17 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 
 	aframes++;
 
-	frame = (u_int32_t *)__builtin_frame_address(0);;
-	lastframe = NULL;
-	scp_offset = -(get_pc_str_offset() >> 2);
+	__asm __volatile("mov %0, sp" : "=&r" (sp));
 
-	while ((frame != NULL) && (depth < pcstack_limit)) {
-		db_addr_t	scp;
-#if 0 
-		u_int32_t	savecode;
-		int		r;
-		u_int32_t	*rp;
-#endif
+	state.registers[FP] = (uint32_t)__builtin_frame_address(0);
+	state.registers[SP] = sp;
+	state.registers[LR] = (uint32_t)__builtin_return_address(0);
+	state.registers[PC] = (uint32_t)dtrace_getpcstack;
 
-		/*
-		 * In theory, the SCP isn't guaranteed to be in the function
-		 * that generated the stack frame.  We hope for the best.
-		 */
-		scp = frame[FR_SCP];
+	while (depth < pcstack_limit) {
+		int done;
+
+		done = unwind_stack_one(&state, 1);
 
 		if (aframes > 0) {
 			aframes--;
@@ -104,39 +99,10 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 			}
 		}
 		else {
-			pcstack[depth++] = scp;
+			pcstack[depth++] = state.registers[PC];
 		}
 
-#if 0
-		savecode = ((u_int32_t *)scp)[scp_offset];
-		if ((savecode & 0x0e100000) == 0x08000000) {
-			/* Looks like an STM */
-			rp = frame - 4;
-			for (r = 10; r >= 0; r--) {
-				if (savecode & (1 << r)) {
-					/* register r == *rp-- */
-				}
-			}
-		}
-#endif
-
-		/*
-		 * Switch to next frame up
-		 */
-		if (frame[FR_RFP] == 0)
-			break; /* Top of stack */
-
-		lastframe = frame;
-		frame = (u_int32_t *)(frame[FR_RFP]);
-
-		if (INKERNEL((int)frame)) {
-			/* staying in kernel */
-			if (frame <= lastframe) {
-				/* bad frame pointer */
-				break;
-			}
-		}
-		else
+		if (done)
 			break;
 	}
 
@@ -176,55 +142,28 @@ dtrace_getarg(int arg, int aframes)
 int
 dtrace_getstackdepth(int aframes)
 {
-	u_int32_t	*frame, *lastframe;
-	int	scp_offset;
-	int	depth = 1;
+	struct unwind_state state;
+	register_t sp;
+	int scp_offset;
+	int done = 0;
+	int depth = 1;
 
-	frame = (u_int32_t *)__builtin_frame_address(0);;
-	lastframe = NULL;
-	scp_offset = -(get_pc_str_offset() >> 2);
+	__asm __volatile("mov %0, sp" : "=&r" (sp));
 
-	while (frame != NULL) {
-		db_addr_t	scp;
-#if 0 
-		u_int32_t	savecode;
-		int		r;
-		u_int32_t	*rp;
-#endif
+	state.registers[FP] = (uint32_t)__builtin_frame_address(0);
+	state.registers[SP] = sp;
+	state.registers[LR] = (uint32_t)__builtin_return_address(0);
+	state.registers[PC] = (uint32_t)dtrace_getstackdepth;
 
-		/*
-		 * In theory, the SCP isn't guaranteed to be in the function
-		 * that generated the stack frame.  We hope for the best.
-		 */
-		scp = frame[FR_SCP];
-
+	do {
+		done = unwind_stack_one(&state, 1);
 		depth++;
-
-		/*
-		 * Switch to next frame up
-		 */
-		if (frame[FR_RFP] == 0)
-			break; /* Top of stack */
-
-		lastframe = frame;
-		frame = (u_int32_t *)(frame[FR_RFP]);
-
-		if (INKERNEL((int)frame)) {
-			/* staying in kernel */
-			if (frame <= lastframe) {
-				/* bad frame pointer */
-				break;
-			}
-		}
-		else
-			break;
-	}
+	} while (!done);
 
 	if (depth < aframes)
 		return 0;
 	else
 		return depth - aframes;
-
 }
 
 ulong_t

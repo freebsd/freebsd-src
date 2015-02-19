@@ -173,7 +173,6 @@ do {									\
 		ifa_ref(&(ia)->ia_ifa);					\
 	IN_IFADDR_RUNLOCK();						\
 } while (0)
-#endif
 
 /*
  * IP datagram reassembly.
@@ -210,7 +209,7 @@ struct igmp_ifinfo {
 	uint32_t igi_qri;	/* IGMPv3 Query Response Interval (s) */
 	uint32_t igi_uri;	/* IGMPv3 Unsolicited Report Interval (s) */
 	SLIST_HEAD(,in_multi)	igi_relinmhead; /* released groups */
-	struct ifqueue	 igi_gq;	/* queue of general query responses */
+	struct mbufq	 igi_gq;	/* queue of general query responses */
 };
 
 #define IGIF_SILENT	0x00000001	/* Do not use IGMP on this ifp */
@@ -299,7 +298,7 @@ struct in_multi {
 	struct ip_msource_tree	 inm_srcs;	/* tree of sources */
 	u_long			 inm_nsrc;	/* # of tree entries */
 
-	struct ifqueue		 inm_scq;	/* queue of pending
+	struct mbufq		 inm_scq;	/* queue of pending
 						 * state-change packets */
 	struct timeval		 inm_lastgsrtv;	/* Time of last G-S-R query */
 	uint16_t		 inm_sctimer;	/* state-change timer */
@@ -342,8 +341,6 @@ ims_get_mode(const struct in_multi *inm, const struct ip_msource *ims,
 		return (MCAST_INCLUDE);
 	return (MCAST_UNDEFINED);
 }
-
-#ifdef _KERNEL
 
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_net_inet);
@@ -425,12 +422,6 @@ void	 in_rtredirect(struct sockaddr *, struct sockaddr *,
 	    struct sockaddr *, int, struct sockaddr *, u_int);
 int	 in_rtrequest(int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **, u_int);
-
-#if 0
-int	 in_rt_getifa(struct rt_addrinfo *, u_int fibnum);
-int	 in_rtioctl(u_long, caddr_t, u_int);
-int	 in_rtrequest1(int, struct rt_addrinfo *, struct rtentry **, u_int);
-#endif
 #endif /* _KERNEL */
 
 /* INET6 stuff */

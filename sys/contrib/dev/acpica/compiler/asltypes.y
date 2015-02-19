@@ -6,7 +6,7 @@ NoEcho('
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -285,8 +285,14 @@ NoEcho('
 %type <n> ResourceMacroList
 %type <n> ResourceMacroTerm
 %type <n> ResourceTemplateTerm
+%type <n> PldKeyword
+%type <n> PldKeywordList
+%type <n> ToPLDTerm
 %type <n> ToUUIDTerm
 %type <n> UnicodeTerm
+%type <n> PrintfArgList
+%type <n> PrintfTerm
+%type <n> FprintfTerm
 
 /* Resource Descriptors */
 
@@ -379,3 +385,9 @@ NoEcho('
 %type <n> OptionalWordConst
 %type <n> OptionalWordConstExpr
 %type <n> OptionalXferSize
+
+/*
+ * C-style expression parser
+ */
+%type <n> Expression
+%type <n> EqualsTerm
