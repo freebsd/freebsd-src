@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/ofw_cpu.h>
 
 static int	ofw_cpulist_probe(device_t);
 static int	ofw_cpulist_attach(device_t);
@@ -274,3 +275,50 @@ ofw_cpu_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 	return (ENOENT);
 }
 
+int
+ofw_cpu_early_foreach(ofw_cpu_foreach_cb callback, boolean_t only_runnable)
+{
+	phandle_t node, child;
+	pcell_t addr_cells, reg[2];
+	char status[16];
+	u_int id;
+	int count, rv;
+
+	count = 0;
+	id = 0;
+
+	node = OF_finddevice("/cpus");
+	if (node == -1)
+		return (-1);
+
+	/* Find the number of cells in the cpu register */
+	if (OF_getencprop(node, "#address-cells", &addr_cells,
+	    sizeof(addr_cells)) < 0)
+		return (-1);
+
+	for (child = OF_child(node); child != 0; child = OF_peer(child), id++) {
+		/*
+		 * If we are filtering by runnable then limit to only
+		 * those that have been enabled.
+		 */
+		if (only_runnable) {
+			status[0] = '\0';
+			OF_getprop(child, "status", status, sizeof(status));
+			if (status[0] != '\0' && strcmp(status, "okay") != 0)
+				continue;
+		}
+
+		/*
+		 * Check we have a register to identify the cpu
+		 */
+		rv = OF_getencprop(child, "reg", reg,
+		    addr_cells * sizeof(cell_t));
+		if (rv != addr_cells * sizeof(cell_t))
+			continue;
+
+		if (callback == NULL || callback(id, child, addr_cells, reg))
+			count++;
+	}
+
+	return (only_runnable ? count : id);
+}
