@@ -1,5 +1,5 @@
 .\" Copyright (c) 2005 Robert N. M. Watson
-.\" Copyright (c) 2014 The FreeBSD Foundation, Inc.
+.\" Copyright (c) 2014,2015 The FreeBSD Foundation, Inc.
 .\" All rights reserved.
 .\"
 .\" Part of this documentation was written by
@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 26, 2014
+.Dd February 12, 2015
 .Dt LIBTHR 3
 .Os
 .Sh NAME
@@ -200,45 +200,25 @@ Bigger values reduce the frequency of the FIFO discipline.
 The value must be between 0 and 255.
 .El
 .Sh INTERACTION WITH RUN-TIME LINKER
-The
+On load,
 .Nm
-library must appear before
-.Li libc
-in the global order of depended objects.
-.Pp
-Loading
-.Nm
-with the
-.Xr dlopen 3
-call in the process after the program binary is activated
-is not supported, and causes miscellaneous and hard-to-diagnose misbehaviour.
-This is due to
-.Nm
-interposing several important
-.Li libc
-symbols to provide thread-safe services.
-In particular,
-.Dv errno
-and the locking stubs from
-.Li libc
-are affected.
-This requirement is currently not enforced.
-.Pp
-If the program loads any modules at run-time, and those modules may require
-threading services, the main program binary must be linked with
-.Li libpthread ,
-even if it does not require any services from the library.
+installs interposing handlers into the hooks exported by
+.Li libc .
+The interposers provide real locking implementation instead of the
+stubs for single-threaded processes in
+.Li ,
+cancellation support and some modifications to the signal operations.
 .Pp
 .Nm
 cannot be unloaded; the
 .Xr dlclose 3
 function does not perform any action when called with a handle for
 .Nm .
-One of the reasons is that the interposing of
+One of the reasons is that the internal interposing of
 .Li libc
 functions cannot be undone.
 .Sh SIGNALS
-The implementation also interposes the user-installed
+The implementation interposes the user-installed
 .Xr signal 3
 handlers.
 This interposing is done to postpone signal delivery to threads which
