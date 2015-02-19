@@ -44,6 +44,7 @@
 #define	CONN_DIGEST_CRC32C		1
 
 #define CONN_MUTUAL_CHALLENGE_LEN	1024
+#define	SOCKBUF_SIZE			1048576
 
 struct connection {
 	int			conn_iscsi_fd;
