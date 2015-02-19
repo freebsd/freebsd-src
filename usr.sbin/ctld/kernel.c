@@ -114,8 +114,7 @@ struct cctl_lun {
 	uint32_t blocksize;
 	char *serial_number;
 	char *device_id;
-	char *cfiscsi_target;
-	int cfiscsi_lun;
+	char *ctld_name;
 	STAILQ_HEAD(,cctl_lun_nv) attr_list;
 	STAILQ_ENTRY(cctl_lun) links;
 };
@@ -229,11 +228,9 @@ cctl_end_element(void *user_data, const char *name)
 	} else if (strcmp(name, "device_id") == 0) {
 		cur_lun->device_id = str;
 		str = NULL;
-	} else if (strcmp(name, "cfiscsi_target") == 0) {
-		cur_lun->cfiscsi_target = str;
+	} else if (strcmp(name, "ctld_name") == 0) {
+		cur_lun->ctld_name = str;
 		str = NULL;
-	} else if (strcmp(name, "cfiscsi_lun") == 0) {
-		cur_lun->cfiscsi_lun = strtoul(str, NULL, 0);
 	} else if (strcmp(name, "lun") == 0) {
 		devlist->cur_lun = NULL;
 	} else if (strcmp(name, "ctllunlist") == 0) {
@@ -522,38 +519,25 @@ retry_port:
 	STAILQ_FOREACH(lun, &devlist.lun_list, links) {
 		struct cctl_lun_nv *nv;
 
-		if (lun->cfiscsi_target == NULL) {
+		if (lun->ctld_name == NULL) {
 			log_debugx("CTL lun %ju wasn't managed by ctld; "
 			    "ignoring", (uintmax_t)lun->lun_id);
 			continue;
 		}
 
-		targ = target_find(conf, lun->cfiscsi_target);
-		if (targ == NULL) {
-#if 0
-			log_debugx("found new kernel target %s for CTL lun %ld",
-			    lun->cfiscsi_target, lun->lun_id);
-#endif
-			targ = target_new(conf, lun->cfiscsi_target);
-			if (targ == NULL) {
-				log_warnx("target_new failed");
-				continue;
-			}
-		}
-
-		cl = lun_find(targ, lun->cfiscsi_lun);
+		cl = lun_find(conf, lun->ctld_name);
 		if (cl != NULL) {
-			log_warnx("found CTL lun %ju, backing lun %d, target "
-			    "%s, also backed by CTL lun %d; ignoring",
-			    (uintmax_t) lun->lun_id, cl->l_lun,
-			    cl->l_target->t_name, cl->l_ctl_lun);
+			log_warnx("found CTL lun %ju \"%s\", "
+			    "also backed by CTL lun %d; ignoring",
+			    (uintmax_t)lun->lun_id, lun->ctld_name,
+			    cl->l_ctl_lun);
 			continue;
 		}
 
-		log_debugx("found CTL lun %ju, backing lun %d, target %s",
-		    (uintmax_t)lun->lun_id, lun->cfiscsi_lun, lun->cfiscsi_target);
+		log_debugx("found CTL lun %ju \"%s\"",
+		    (uintmax_t)lun->lun_id, lun->ctld_name);
 
-		cl = lun_new(targ, lun->cfiscsi_lun);
+		cl = lun_new(conf, lun->ctld_name);
 		if (cl == NULL) {
 			log_warnx("lun_new failed");
 			continue;
@@ -574,9 +558,9 @@ retry_port:
 			lo = lun_option_new(cl, nv->name, nv->value);
 			if (lo == NULL)
 				log_warnx("unable to add CTL lun option %s "
-				    "for CTL lun %ju for lun %d, target %s",
+				    "for CTL lun %ju \"%s\"",
 				    nv->name, (uintmax_t) lun->lun_id,
-				    cl->l_lun, cl->l_target->t_name);
+				    cl->l_name);
 		}
 	}
 
@@ -599,7 +583,6 @@ kernel_lun_add(struct lun *lun)
 {
 	struct lun_option *lo;
 	struct ctl_lun_req req;
-	char *tmp;
 	int error, i, num_options;
 
 	bzero(&req, sizeof(req));
@@ -637,38 +620,17 @@ kernel_lun_add(struct lun *lun)
 		}
 	}
 
-	lo = lun_option_find(lun, "cfiscsi_target");
+	lo = lun_option_find(lun, "ctld_name");
 	if (lo != NULL) {
-		lun_option_set(lo, lun->l_target->t_name);
+		lun_option_set(lo, lun->l_name);
 	} else {
-		lo = lun_option_new(lun, "cfiscsi_target",
-		    lun->l_target->t_name);
+		lo = lun_option_new(lun, "ctld_name", lun->l_name);
 		assert(lo != NULL);
 	}
 
-	asprintf(&tmp, "%d", lun->l_lun);
-	if (tmp == NULL)
-		log_errx(1, "asprintf");
-	lo = lun_option_find(lun, "cfiscsi_lun");
-	if (lo != NULL) {
-		lun_option_set(lo, tmp);
-		free(tmp);
-	} else {
-		lo = lun_option_new(lun, "cfiscsi_lun", tmp);
-		free(tmp);
-		assert(lo != NULL);
-	}
-
-	asprintf(&tmp, "%s,lun,%d", lun->l_target->t_name, lun->l_lun);
-	if (tmp == NULL)
-		log_errx(1, "asprintf");
 	lo = lun_option_find(lun, "scsiname");
-	if (lo != NULL) {
-		lun_option_set(lo, tmp);
-		free(tmp);
-	} else {
-		lo = lun_option_new(lun, "scsiname", tmp);
-		free(tmp);
+	if (lo == NULL && lun->l_scsiname != NULL) {
+		lo = lun_option_new(lun, "scsiname", lun->l_scsiname);
 		assert(lo != NULL);
 	}
 
@@ -846,10 +808,11 @@ kernel_port_add(struct target *targ)
 {
 	struct ctl_port_entry entry;
 	struct ctl_req req;
+	struct ctl_lun_map lm;
 	char tagstr[16];
-	int error;
-	uint32_t port_id = -1;
+	int error, i;
 
+	/* Create iSCSI port. */
 	bzero(&req, sizeof(req));
 	strlcpy(req.driver, "iscsi", sizeof(req.driver));
 	req.reqtype = CTL_REQ_CREATE;
@@ -857,8 +820,8 @@ kernel_port_add(struct target *targ)
 	req.args = malloc(req.num_args * sizeof(*req.args));
 	req.args[0].namelen = sizeof("port_id");
 	req.args[0].name = __DECONST(char *, "port_id");
-	req.args[0].vallen = sizeof(port_id);
-	req.args[0].value = &port_id;
+	req.args[0].vallen = sizeof(targ->t_ctl_port);
+	req.args[0].value = &targ->t_ctl_port;
 	req.args[0].flags = CTL_BEARG_WR;
 	str_arg(&req.args[1], "cfiscsi_target", targ->t_name);
 	snprintf(tagstr, sizeof(tagstr), "%d", targ->t_portal_group->pg_tag);
@@ -867,35 +830,73 @@ kernel_port_add(struct target *targ)
 		str_arg(&req.args[3], "cfiscsi_target_alias", targ->t_alias);
 	else
 		req.num_args--;
-
 	error = ioctl(ctl_fd, CTL_PORT_REQ, &req);
 	free(req.args);
 	if (error != 0) {
 		log_warn("error issuing CTL_PORT_REQ ioctl");
 		return (1);
 	}
-
 	if (req.status == CTL_LUN_ERROR) {
 		log_warnx("error returned from port creation request: %s",
 		    req.error_str);
 		return (1);
 	}
-
 	if (req.status != CTL_LUN_OK) {
 		log_warnx("unknown port creation request status %d",
 		    req.status);
 		return (1);
 	}
 
-	bzero(&entry, sizeof(entry));
-	entry.targ_port = port_id;
+	/* Explicitly enable mapping to block any access except allowed. */
+	lm.port = targ->t_ctl_port;
+	lm.plun = UINT32_MAX;
+	lm.lun = 0;
+	error = ioctl(ctl_fd, CTL_LUN_MAP, &lm);
+	if (error != 0)
+		log_warn("CTL_LUN_MAP ioctl failed");
 
+	/* Map configured LUNs */
+	for (i = 0; i < MAX_LUNS; i++) {
+		if (targ->t_luns[i] == NULL)
+			continue;
+		lm.port = targ->t_ctl_port;
+		lm.plun = i;
+		lm.lun = targ->t_luns[i]->l_ctl_lun;
+		error = ioctl(ctl_fd, CTL_LUN_MAP, &lm);
+		if (error != 0)
+			log_warn("CTL_LUN_MAP ioctl failed");
+	}
+
+	/* Enable port */
+	bzero(&entry, sizeof(entry));
+	entry.targ_port = targ->t_ctl_port;
 	error = ioctl(ctl_fd, CTL_ENABLE_PORT, &entry);
 	if (error != 0) {
 		log_warn("CTL_ENABLE_PORT ioctl failed");
 		return (-1);
 	}
 
+	return (0);
+}
+
+int
+kernel_port_update(struct target *targ)
+{
+	struct ctl_lun_map lm;
+	int error, i;
+
+	/* Map configured LUNs and unmap others */
+	for (i = 0; i < MAX_LUNS; i++) {
+		lm.port = targ->t_ctl_port;
+		lm.plun = i;
+		if (targ->t_luns[i] == NULL)
+			lm.lun = UINT32_MAX;
+		else
+			lm.lun = targ->t_luns[i]->l_ctl_lun;
+		error = ioctl(ctl_fd, CTL_LUN_MAP, &lm);
+		if (error != 0)
+			log_warn("CTL_LUN_MAP ioctl failed");
+	}
 	return (0);
 }
 
