@@ -85,7 +85,11 @@ const char *program_name;
 
 void	pawned(void);
 
-int	invoke(register_t methodnum, register_t arg1, register_t arg2,
+/*
+ * XXXRW: Too many immediate arguments?
+ */
+int	invoke(struct cheri_object co, register_t methodnum,
+	    register_t arg1, register_t arg2,
 	    register_t arg3, register_t arg4, register_t arg5,
 	    netdissect_options *ndo,
 	    const char *ndo_espsecret,
@@ -94,7 +98,7 @@ int	invoke(register_t methodnum, register_t arg1, register_t arg2,
 	    struct cheri_object *proto_sandbox_objects,
 	    const u_char *sp2,
 	    void* carg1, void *carg2)
-	    __attribute__((cheri_ccall)); /* XXXRW: Will be ccheri_ccaller. */
+	    __attribute__((cheri_ccall)); /* XXXRW: Will be ccheri_ccallee. */
 
 static void	dispatch_dissector(register_t methodnum, u_int length,
     register_t arg2, register_t arg3, register_t arg4, register_t arg5,
@@ -172,8 +176,8 @@ invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask, uint32_t timezone_offset,
  * c6 the packet body.   They are used only by print_packet.
  */
 int
-invoke(register_t methodnum, register_t arg1, register_t arg2,
-    register_t arg3, register_t arg4, register_t arg5,
+invoke(struct cheri_object co __unused, register_t methodnum, register_t arg1,
+    register_t arg2, register_t arg3, register_t arg4, register_t arg5,
     netdissect_options *ndo,
     const char *ndo_espsecret,
     const struct pcap_pkthdr *h, const u_char *sp,
