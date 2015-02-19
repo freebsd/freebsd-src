@@ -42,6 +42,7 @@ struct cfiscsi_target {
 	volatile u_int			ct_refcount;
 	char				ct_name[CTL_ISCSI_NAME_LEN];
 	char				ct_alias[CTL_ISCSI_ALIAS_LEN];
+	uint16_t			ct_tag;
 	int				ct_state;
 	int				ct_online;
 	int				ct_target_id;
@@ -79,7 +80,6 @@ struct cfiscsi_session {
 	struct cfiscsi_target		*cs_target;
 	struct callout			cs_callout;
 	int				cs_timeout;
-	int				cs_portal_group_tag;
 	struct cv			cs_maintenance_cv;
 	bool				cs_terminating;
 	bool				cs_tasks_aborted;

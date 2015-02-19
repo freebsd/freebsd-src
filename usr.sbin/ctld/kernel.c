@@ -913,12 +913,8 @@ kernel_port_remove(struct target *targ)
 	req.num_args = 2;
 	req.args = malloc(req.num_args * sizeof(*req.args));
 	str_arg(&req.args[0], "cfiscsi_target", targ->t_name);
-	if (targ->t_portal_group) {
-		snprintf(tagstr, sizeof(tagstr), "%d",
-		    targ->t_portal_group->pg_tag);
-		str_arg(&req.args[1], "cfiscsi_portal_group_tag", tagstr);
-	} else
-		req.num_args--;
+	snprintf(tagstr, sizeof(tagstr), "%d", targ->t_portal_group->pg_tag);
+	str_arg(&req.args[1], "cfiscsi_portal_group_tag", tagstr);
 
 	error = ioctl(ctl_fd, CTL_PORT_REQ, &req);
 	free(req.args);
