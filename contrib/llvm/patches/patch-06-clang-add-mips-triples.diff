@@ -13,7 +13,7 @@ Index: tools/clang/lib/Driver/Tools.cpp
 ===================================================================
 --- tools/clang/lib/Driver/Tools.cpp
 +++ tools/clang/lib/Driver/Tools.cpp
-@@ -6651,6 +6651,17 @@ void freebsd::Link::ConstructJob(Compilation &C, c
+@@ -6652,6 +6652,17 @@ void freebsd::Link::ConstructJob(Compilation &C, c
      CmdArgs.push_back("elf32ppc_fbsd");
    }
  
