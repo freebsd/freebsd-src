@@ -37,7 +37,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	upgrade the kernel to r278950 or later and regenerate any keys (e.g.
 	ssh keys or openssl keys) that were generated w/ a kernel from that
 	range.  This does not effect programs that directly used /dev/random
-	or /dev/urandom.  All userland uses of arc4random(3) are effected.
+	or /dev/urandom.  All userland uses of arc4random(3) are affected.
 
 20150210:
 	The autofs(4) ABI was changed in order to restore binary compatibility
