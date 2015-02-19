@@ -2978,7 +2978,7 @@ inm_print(const struct in_multi *inm)
 	    inm->inm_timer,
 	    inm_state_str(inm->inm_state),
 	    inm->inm_refcount,
-	    inm->inm_scq.ifq_len);
+	    inm->inm_scq.mq_len);
 	printf("igi %p nsrc %lu sctimer %u scrv %u\n",
 	    inm->inm_igi,
 	    inm->inm_nsrc,
