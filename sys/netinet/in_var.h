@@ -173,7 +173,6 @@ do {									\
 		ifa_ref(&(ia)->ia_ifa);					\
 	IN_IFADDR_RUNLOCK();						\
 } while (0)
-#endif
 
 /*
  * IP datagram reassembly.
@@ -343,8 +342,6 @@ ims_get_mode(const struct in_multi *inm, const struct ip_msource *ims,
 	return (MCAST_UNDEFINED);
 }
 
-#ifdef _KERNEL
-
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_net_inet);
 SYSCTL_DECL(_net_inet_ip);
@@ -425,12 +422,6 @@ void	 in_rtredirect(struct sockaddr *, struct sockaddr *,
 	    struct sockaddr *, int, struct sockaddr *, u_int);
 int	 in_rtrequest(int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **, u_int);
-
-#if 0
-int	 in_rt_getifa(struct rt_addrinfo *, u_int fibnum);
-int	 in_rtioctl(u_long, caddr_t, u_int);
-int	 in_rtrequest1(int, struct rt_addrinfo *, struct rtentry **, u_int);
-#endif
 #endif /* _KERNEL */
 
 /* INET6 stuff */
