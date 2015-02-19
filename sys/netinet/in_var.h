@@ -210,7 +210,7 @@ struct igmp_ifinfo {
 	uint32_t igi_qri;	/* IGMPv3 Query Response Interval (s) */
 	uint32_t igi_uri;	/* IGMPv3 Unsolicited Report Interval (s) */
 	SLIST_HEAD(,in_multi)	igi_relinmhead; /* released groups */
-	struct ifqueue	 igi_gq;	/* queue of general query responses */
+	struct mbufq	 igi_gq;	/* queue of general query responses */
 };
 
 #define IGIF_SILENT	0x00000001	/* Do not use IGMP on this ifp */
@@ -299,7 +299,7 @@ struct in_multi {
 	struct ip_msource_tree	 inm_srcs;	/* tree of sources */
 	u_long			 inm_nsrc;	/* # of tree entries */
 
-	struct ifqueue		 inm_scq;	/* queue of pending
+	struct mbufq		 inm_scq;	/* queue of pending
 						 * state-change packets */
 	struct timeval		 inm_lastgsrtv;	/* Time of last G-S-R query */
 	uint16_t		 inm_sctimer;	/* state-change timer */
