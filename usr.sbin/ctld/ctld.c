@@ -59,6 +59,7 @@ static volatile bool sigterm_received = false;
 static volatile bool sigalrm_received = false;
 
 static int nchildren = 0;
+static uint16_t last_portal_group_tag = 0;
 
 static void
 usage(void)
@@ -609,8 +610,7 @@ portal_group_new(struct conf *conf, const char *name)
 	pg->pg_name = checked_strdup(name);
 	TAILQ_INIT(&pg->pg_portals);
 	pg->pg_conf = conf;
-	conf->conf_last_portal_group_tag++;
-	pg->pg_tag = conf->conf_last_portal_group_tag;
+	pg->pg_tag = 0;		/* Assigned later in conf_apply(). */
 	TAILQ_INSERT_TAIL(&conf->conf_portal_groups, pg, pg_next);
 
 	return (pg);
@@ -1655,6 +1655,17 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 		}
 	}
 
+	/*
+	 * Go through the new portal groups, assigning tags or preserving old.
+	 */
+	TAILQ_FOREACH(newpg, &newconf->conf_portal_groups, pg_next) {
+		oldpg = portal_group_find(oldconf, newpg->pg_name);
+		if (oldpg != NULL)
+			newpg->pg_tag = oldpg->pg_tag;
+		else
+			newpg->pg_tag = ++last_portal_group_tag;
+	}
+
 	/* Deregister on removed iSNS servers. */
 	TAILQ_FOREACH(oldns, &oldconf->conf_isns, i_next) {
 		TAILQ_FOREACH(newns, &newconf->conf_isns, i_next) {
@@ -2372,7 +2383,7 @@ main(int argc, char **argv)
 			log_debugx("exiting on signal; "
 			    "reloading empty configuration");
 
-			log_debugx("disabling CTL iSCSI port "
+			log_debugx("removing CTL iSCSI ports "
 			    "and terminating all connections");
 
 			oldconf = newconf;
