@@ -176,8 +176,6 @@ doesn't guard those
 .Xr uma 9
 zones that have been initialized with the
 .Dv UMA_ZONE_NOFREE
-or
-.Dv UMA_ZONE_REFCNT
 flag set, since it can produce false positives on them.
 However, this safety measure can be turned off by setting bit 3
 of the

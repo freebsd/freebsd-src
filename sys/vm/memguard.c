@@ -504,9 +504,6 @@ memguard_cmp_zone(uma_zone_t zone)
 	    zone->uz_flags & UMA_ZONE_NOFREE)
 		return (0);
 
-	if (zone->uz_flags & UMA_ZONE_REFCNT)
-		return (0);
-
 	if (memguard_cmp(zone->uz_size))
 		return (1);
 
