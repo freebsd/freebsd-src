@@ -302,6 +302,13 @@
       <para revision="277166" arch="powerpc">The &man.ptrace.2; system
 	call has been updated include support for Altivec registers on
 	&os;/&arch.powerpc;.</para>
+
+      <para revision="278320">A new device control utility,
+	&man.devctl.8; has been added, which allows making
+	administrative changes to individual devices, such as
+	attaching and detaching drivers, and enabling and disabling
+	devices.  The &man.devctl.8; utility uses the new
+	&man.devctl.3; library.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
