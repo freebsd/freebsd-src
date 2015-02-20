@@ -560,7 +560,10 @@
     <sect2 xml:id="kernel-sysctl">
       <title>System Tuning and Controls</title>
 
-      <para>&nbsp;</para>
+      <para revision="275140" contrib="sponsor" sponsor="&ff;">The
+	&man.hwpmc.4; default and maximum callchain depths have been
+	increased.  The default has been increased from 16 to 32, and
+	the maximum increased from 32 to 128.</para>
     </sect2>
   </sect1>
 
