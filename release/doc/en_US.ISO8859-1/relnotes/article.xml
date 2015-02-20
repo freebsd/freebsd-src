@@ -334,6 +334,14 @@
       <para revision="275490">A new tunable,
 	<literal>vfs.zfs.spa_slop_shift</literal>, has been added,
 	which controls how much space is reserved by default.</para>
+
+      <para revision="277583">The <literal>arc_meta_limit</literal>
+	statistics are now visible through the
+	<literal>kstat</literal> &man.sysctl.8;.  As a result of this
+	change, the <literal>vfs.zfs.arc_meta_used</literal>
+	&man.sysctl.8; has been removed, and replaced with the
+	<literal>kstat.zfs.misc.arcstats.arc_meta_used</literal>
+	&man.sysctl.8;.</para>
     </sect2>
 
     <sect2 xml:id="storage-geom">
