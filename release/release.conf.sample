@@ -53,6 +53,9 @@ PORTBRANCH="ports/head@rHEAD"
 #WITH_DVD=
 #WITH_COMPRESSED_IMAGES=
 
+## Set to '1' to disable multi-threaded xz(1) compression.
+#XZ_THREADS=0
+
 ## Set when building embedded images.
 #EMBEDDEDBUILD=
 
