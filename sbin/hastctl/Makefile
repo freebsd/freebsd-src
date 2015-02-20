@@ -17,9 +17,7 @@ SRCS+=	proto.c proto_common.c proto_uds.c
 SRCS+=	token.l
 SRCS+=	subr.c
 SRCS+=	y.tab.h
-.warning WARNS is ${WARNS}
 WARNS?=	5
-.warning WARNS is now ${WARNS}
 MAN=	hastctl.8
 
 NO_WFORMAT=
