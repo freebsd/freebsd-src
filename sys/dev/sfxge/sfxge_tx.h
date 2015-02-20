@@ -41,13 +41,7 @@
  * clusters.  (The chain could be longer than this initially, but can
  * be shortened with m_collapse().)
  */
-#define	SFXGE_TX_MAPPING_MAX_SEG (64 / 2 + 1)
-
-/* Maximum number of DMA segments needed to map an output packet.  It
- * could overlap all mbufs in the chain and also require an extra
- * segment for a TSO header.
- */
-#define	SFXGE_TX_PACKET_MAX_SEG (SFXGE_TX_MAPPING_MAX_SEG + 1)
+#define	SFXGE_TX_MAPPING_MAX_SEG	(64 / 2 + 1)
 
 /*
  * Buffer mapping flags.

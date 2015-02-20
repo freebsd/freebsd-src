@@ -1172,9 +1172,7 @@ sfxge_rx_stat_init(struct sfxge_softc *sc)
 
 	stat_list = SYSCTL_CHILDREN(sc->stats_node);
 
-	for (id = 0;
-	     id < sizeof(sfxge_rx_stats) / sizeof(sfxge_rx_stats[0]);
-	     id++) {
+	for (id = 0; id < nitems(sfxge_rx_stats); id++) {
 		SYSCTL_ADD_PROC(
 			ctx, stat_list,
 			OID_AUTO, sfxge_rx_stats[id].name,

@@ -1614,14 +1614,14 @@ efx_rx_scale_toeplitz_ipv6_key_set(
 
 #endif	/* EFSYS_OPT_RX_SCALE */
 
-#define	EFX_RXQ_MAXNDESCS	4096
-#define	EFX_RXQ_MINNDESCS	512
+#define	EFX_RXQ_MAXNDESCS		4096
+#define	EFX_RXQ_MINNDESCS		512
 
-#define	EFX_RXQ_NDESCS_MASK	EFX_MASK(EFX_RXQ_MAXNDESCS, EFX_RXQ_MINNDESCS)
+#define	EFX_RXQ_NDESCS_MASK		EFX_MASK(EFX_RXQ_MAXNDESCS, EFX_RXQ_MINNDESCS)
 
-#define	EFX_RXQ_SIZE(_ndescs)	((_ndescs) * sizeof (efx_qword_t))
-#define	EFX_RXQ_NBUFS(_ndescs)	(EFX_RXQ_SIZE(_ndescs) / EFX_BUF_SIZE)
-#define	EFX_RXQ_LIMIT(_ndescs)  ((_ndescs) - 16)
+#define	EFX_RXQ_SIZE(_ndescs)		((_ndescs) * sizeof (efx_qword_t))
+#define	EFX_RXQ_NBUFS(_ndescs)		(EFX_RXQ_SIZE(_ndescs) / EFX_BUF_SIZE)
+#define	EFX_RXQ_LIMIT(_ndescs)		((_ndescs) - 16)
 
 typedef enum efx_rxq_type_e {
 	EFX_RXQ_TYPE_DEFAULT,
@@ -1700,14 +1700,14 @@ extern		void
 efx_tx_fini(
 	__in	efx_nic_t *enp);
 
-#define	EFX_TXQ_MAXNDESCS	4096
-#define	EFX_TXQ_MINNDESCS	512
+#define	EFX_TXQ_MAXNDESCS		4096
+#define	EFX_TXQ_MINNDESCS		512
 
-#define	EFX_TXQ_NDESCS_MASK	EFX_MASK(EFX_TXQ_MAXNDESCS, EFX_TXQ_MINNDESCS)
+#define	EFX_TXQ_NDESCS_MASK		EFX_MASK(EFX_TXQ_MAXNDESCS, EFX_TXQ_MINNDESCS)
 
-#define	EFX_TXQ_SIZE(_ndescs)	((_ndescs) * sizeof (efx_qword_t))
-#define	EFX_TXQ_NBUFS(_ndescs)	(EFX_TXQ_SIZE(_ndescs) / EFX_BUF_SIZE)
-#define	EFX_TXQ_LIMIT(_ndescs)  ((_ndescs) - 16)
+#define	EFX_TXQ_SIZE(_ndescs)		((_ndescs) * sizeof (efx_qword_t))
+#define	EFX_TXQ_NBUFS(_ndescs)		(EFX_TXQ_SIZE(_ndescs) / EFX_BUF_SIZE)
+#define	EFX_TXQ_LIMIT(_ndescs)		((_ndescs) - 16)
 
 extern	__checkReturn	int
 efx_tx_qcreate(
