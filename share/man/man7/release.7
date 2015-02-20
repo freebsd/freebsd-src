@@ -262,8 +262,9 @@ Set to the number of threads
 should use when compressing images.
 By default,
 .Va XZ_THREADS
-is set to the number of cores reported by
-.Va kern.ncpu .
+is set to
+.Va 0 ,
+which uses all available cores on the system.
 .It Va VCSCMD
 The command run to obtain the source trees.
 Defaults to
