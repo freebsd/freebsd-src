@@ -1392,8 +1392,10 @@ nis_passwd(void *retval, void *mdata, va_list ap)
 				continue;
 			}
 		}
-		if (resultlen >= bufsize)
+		if (resultlen >= bufsize) {
+			free(result);
 			goto erange;
+		}
 		memcpy(buffer, result, resultlen);
 		buffer[resultlen] = '\0';
 		free(result);
