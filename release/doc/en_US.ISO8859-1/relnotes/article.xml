@@ -480,9 +480,9 @@
 
       <para revision="278934">The &man.elf.3; compile-time dependency
 	has been removed from <filename>dtri.o</filename>, which
-	allows adding <application>DTrace</application> to userland
-	applications and libraries without also linking against
-	&man.elf.3;.</para>
+	allows adding <application>DTrace</application> probes to
+	userland applications and libraries without also linking
+	against &man.elf.3;.</para>
     </sect2>
 
     <sect2 xml:id="userland-abi">
