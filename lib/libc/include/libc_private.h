@@ -271,7 +271,7 @@ void _malloc_first_thread(void);
 /*
  * Function to clean up streams, called from abort() and exit().
  */
-void (*__cleanup)(void) __hidden;
+extern void (*__cleanup)(void) __hidden;
 
 /*
  * Get kern.osreldate to detect ABI revisions.  Explicitly
