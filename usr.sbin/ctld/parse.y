@@ -61,7 +61,7 @@ extern void	yyrestart(FILE *);
 %token CLOSING_BRACKET DEBUG DEVICE_ID DISCOVERY_AUTH_GROUP DISCOVERY_FILTER
 %token INITIATOR_NAME INITIATOR_PORTAL ISNS_SERVER ISNS_PERIOD ISNS_TIMEOUT
 %token LISTEN LISTEN_ISER LUN MAXPROC OPENING_BRACKET OPTION
-%token PATH PIDFILE PORTAL_GROUP REDIRECT SEMICOLON SERIAL SIZE STR
+%token PATH PIDFILE PORT PORTAL_GROUP REDIRECT SEMICOLON SERIAL SIZE STR
 %token TARGET TIMEOUT 
 
 %union
@@ -465,6 +465,8 @@ target_entry:
 	|
 	target_portal_group
 	|
+	target_port
+	|
 	target_redirect
 	|
 	target_lun
@@ -708,6 +710,36 @@ target_portal_group:	PORTAL_GROUP STR STR
 	}
 	;
 
+target_port:	PORT STR
+	{
+		struct pport *pp;
+		struct port *tp;
+
+		pp = pport_find(conf, $2);
+		if (pp == NULL) {
+			log_warnx("unknown port \"%s\" for target \"%s\"",
+			    $2, target->t_name);
+			free($2);
+			return (1);
+		}
+		if (!TAILQ_EMPTY(&pp->pp_ports)) {
+			log_warnx("can't link port \"%s\" to target \"%s\", "
+			    "port already linked to some target",
+			    $2, target->t_name);
+			free($2);
+			return (1);
+		}
+		tp = port_new_pp(conf, target, pp);
+		if (tp == NULL) {
+			log_warnx("can't link port \"%s\" to target \"%s\"",
+			    $2, target->t_name);
+			free($2);
+			return (1);
+		}
+		free($2);
+	}
+	;
+
 target_redirect:	REDIRECT STR
 	{
 		int error;
@@ -937,15 +969,19 @@ check_perms(const char *path)
 }
 
 struct conf *
-conf_new_from_file(const char *path)
+conf_new_from_file(const char *path, struct conf *oldconf)
 {
 	struct auth_group *ag;
 	struct portal_group *pg;
+	struct pport *pp;
 	int error;
 
 	log_debugx("obtaining configuration from %s", path);
 
 	conf = conf_new();
+
+	TAILQ_FOREACH(pp, &oldconf->conf_pports, pp_next)
+		pport_copy(pp, conf);
 
 	ag = auth_group_new(conf, "default");
 	assert(ag != NULL);
