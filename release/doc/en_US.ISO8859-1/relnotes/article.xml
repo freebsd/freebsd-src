@@ -788,6 +788,15 @@
     <para>This section covers changes and additions to file systems
       and other storage subsystems, both local and networked.</para>
 
+    <sect2 xml:id="storage-general">
+      <title>General Storage</title>
+
+      <para revision="278037" contrib="sponsor" sponsor="&ix;">The
+	&man.cam.4; <acronym>LUN</acronym> mapping has been rewritten,
+	replacing <acronym>iSCSI</acronym>-specific mapping mechanisms
+	with a new mechanism that works for any port.</para>
+    </sect2>
+
     <sect2 xml:id="storage-net">
       <title>Networked Storage</title>
 
