@@ -1190,8 +1190,6 @@ rt_m_getfib(struct mbuf *m)
 	((_m)->m_pkthdr.fibnum) = (_fib);				\
 } while (0)
 
-#endif /* _KERNEL */
-
 #ifdef MBUF_PROFILING
  void m_profile(struct mbuf *m);
  #define M_PROFILE(m) m_profile(m)
@@ -1296,4 +1294,5 @@ mbufq_prepend(struct mbufq *mq, struct mbuf *m)
 	STAILQ_INSERT_HEAD(&mq->mq_head, m, m_stailqpkt);
 	mq->mq_len++;
 }
+#endif /* _KERNEL */
 #endif /* !_SYS_MBUF_H_ */

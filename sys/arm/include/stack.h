@@ -55,6 +55,6 @@ struct unwind_state {
 #define	LR	14
 #define	PC	15
 
-int unwind_stack_one(struct unwind_state *);
+int unwind_stack_one(struct unwind_state *, int);
 
 #endif /* !_MACHINE_STACK_H_ */
