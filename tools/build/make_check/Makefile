@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# Failure is handled by the invoker, don't kill other legs of a parallel build.
+MAKE_JOB_ERROR_TOKEN=no
+
 # Test for broken LHS expansion.
 # This *must* cause make(1) to detect a recursive variable, and fail as such.
 .if make(lhs_expn)
