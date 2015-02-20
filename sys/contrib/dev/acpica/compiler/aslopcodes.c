@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,8 +68,61 @@ OpcDoEisaId (
     ACPI_PARSE_OBJECT       *Op);
 
 static void
+OpcDoPld (
+    ACPI_PARSE_OBJECT       *Op);
+
+static void
 OpcDoUuId (
     ACPI_PARSE_OBJECT       *Op);
+
+static UINT8 *
+OpcEncodePldBuffer (
+    ACPI_PLD_INFO           *PldInfo);
+
+
+/* ToPld strings */
+
+static char *AslPldPanelList[] =
+{
+    "TOP",
+    "BOTTOM",
+    "LEFT",
+    "RIGHT",
+    "FRONT",
+    "BACK",
+    "UNKNOWN",
+    NULL
+};
+
+static char *AslPldVerticalPositionList[] =
+{
+    "UPPER",
+    "CENTER",
+    "LOWER",
+    NULL
+};
+
+static char *AslPldHorizontalPositionList[] =
+{
+    "LEFT",
+    "CENTER",
+    "RIGHT",
+    NULL
+};
+
+static char *AslPldShapeList[] =
+{
+    "ROUND",
+    "OVAL",
+    "SQUARE",
+    "VERTICALRECTANGLE",
+    "HORIZONTALRECTANGLE",
+    "VERTICALTRAPEZOID",
+    "HORIZONTALTRAPEZOID",
+    "UNKNOWN",
+    "CHAMFERED",
+    NULL
+};
 
 
 /*******************************************************************************
@@ -653,9 +706,698 @@ OpcDoEisaId (
 
 /*******************************************************************************
  *
+ * FUNCTION:    OpcEncodePldBuffer
+ *
+ * PARAMETERS:  PldInfo             - _PLD buffer struct (Using local struct)
+ *
+ * RETURN:      Encode _PLD buffer suitable for return value from _PLD
+ *
+ * DESCRIPTION: Bit-packs a _PLD buffer struct.
+ *
+ ******************************************************************************/
+
+static UINT8 *
+OpcEncodePldBuffer (
+    ACPI_PLD_INFO           *PldInfo)
+{
+    UINT32                  *Buffer;
+    UINT32                  Dword;
+
+
+    Buffer = ACPI_ALLOCATE_ZEROED (ACPI_PLD_BUFFER_SIZE);
+    if (!Buffer)
+    {
+        return (NULL);
+    }
+
+    /* First 32 bits */
+
+    Dword = 0;
+    ACPI_PLD_SET_REVISION       (&Dword, PldInfo->Revision);
+    ACPI_PLD_SET_IGNORE_COLOR   (&Dword, PldInfo->IgnoreColor);
+    ACPI_PLD_SET_RED            (&Dword, PldInfo->Red);
+    ACPI_PLD_SET_GREEN          (&Dword, PldInfo->Green);
+    ACPI_PLD_SET_BLUE           (&Dword, PldInfo->Blue);
+    ACPI_MOVE_32_TO_32          (&Buffer[0], &Dword);
+
+    /* Second 32 bits */
+
+    Dword = 0;
+    ACPI_PLD_SET_WIDTH          (&Dword, PldInfo->Width);
+    ACPI_PLD_SET_HEIGHT         (&Dword, PldInfo->Height);
+    ACPI_MOVE_32_TO_32          (&Buffer[1], &Dword);
+
+    /* Third 32 bits */
+
+    Dword = 0;
+    ACPI_PLD_SET_USER_VISIBLE   (&Dword, PldInfo->UserVisible);
+    ACPI_PLD_SET_DOCK           (&Dword, PldInfo->Dock);
+    ACPI_PLD_SET_LID            (&Dword, PldInfo->Lid);
+    ACPI_PLD_SET_PANEL          (&Dword, PldInfo->Panel);
+    ACPI_PLD_SET_VERTICAL       (&Dword, PldInfo->VerticalPosition);
+    ACPI_PLD_SET_HORIZONTAL     (&Dword, PldInfo->HorizontalPosition);
+    ACPI_PLD_SET_SHAPE          (&Dword, PldInfo->Shape);
+    ACPI_PLD_SET_ORIENTATION    (&Dword, PldInfo->GroupOrientation);
+    ACPI_PLD_SET_TOKEN          (&Dword, PldInfo->GroupToken);
+    ACPI_PLD_SET_POSITION       (&Dword, PldInfo->GroupPosition);
+    ACPI_PLD_SET_BAY            (&Dword, PldInfo->Bay);
+    ACPI_MOVE_32_TO_32          (&Buffer[2], &Dword);
+
+    /* Fourth 32 bits */
+
+    Dword = 0;
+    ACPI_PLD_SET_EJECTABLE      (&Dword, PldInfo->Ejectable);
+    ACPI_PLD_SET_OSPM_EJECT     (&Dword, PldInfo->OspmEjectRequired);
+    ACPI_PLD_SET_CABINET        (&Dword, PldInfo->CabinetNumber);
+    ACPI_PLD_SET_CARD_CAGE      (&Dword, PldInfo->CardCageNumber);
+    ACPI_PLD_SET_REFERENCE      (&Dword, PldInfo->Reference);
+    ACPI_PLD_SET_ROTATION       (&Dword, PldInfo->Rotation);
+    ACPI_PLD_SET_ORDER          (&Dword, PldInfo->Order);
+    ACPI_MOVE_32_TO_32          (&Buffer[3], &Dword);
+
+    if (PldInfo->Revision >= 2)
+    {
+        /* Fifth 32 bits */
+
+        Dword = 0;
+        ACPI_PLD_SET_VERT_OFFSET    (&Dword, PldInfo->VerticalOffset);
+        ACPI_PLD_SET_HORIZ_OFFSET   (&Dword, PldInfo->HorizontalOffset);
+        ACPI_MOVE_32_TO_32          (&Buffer[4], &Dword);
+    }
+
+    return (ACPI_CAST_PTR (UINT8, Buffer));
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    OpcStrupr (strupr)
+ *
+ * PARAMETERS:  SrcString           - The source string to convert
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Convert string to uppercase
+ *
+ * NOTE: This is not a POSIX function, so it appears here, not in utclib.c
+ *
+ ******************************************************************************/
+
+static void
+OpcStrupr (
+    char                    *SrcString)
+{
+    char                    *String;
+
+
+    if (!SrcString)
+    {
+        return;
+    }
+
+    /* Walk entire string, uppercasing the letters */
+
+    for (String = SrcString; *String; String++)
+    {
+        *String = (char) toupper ((int) *String);
+    }
+
+    return;
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    OpcFindName
+ *
+ * PARAMETERS:  List                - Array of char strings to be searched
+ *              Name                - Char string to string for
+ *              Index               - Index value to set if found
+ *
+ * RETURN:      TRUE if any names matched, FALSE otherwise
+ *
+ * DESCRIPTION: Match PLD name to value in lookup table. Sets Value to
+ *              equivalent parameter value.
+ *
+ ******************************************************************************/
+
+static BOOLEAN
+OpcFindName (
+    char                    **List,
+    char                    *Name,
+    UINT64                  *Index)
+{
+    char                     *Str;
+    UINT32                   i;
+
+
+    OpcStrupr (Name);
+
+    for (i = 0, Str = List[0]; Str; i++, Str = List[i])
+    {
+        if (!(ACPI_STRNCMP (Str, Name, ACPI_STRLEN (Name))))
+        {
+            *Index = i;
+            return (TRUE);
+        }
+    }
+
+    return (FALSE);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    OpcDoPld
+ *
+ * PARAMETERS:  Op                  - Parse node
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Convert ToPLD macro to 20-byte buffer
+ *
+ ******************************************************************************/
+
+static void
+OpcDoPld (
+    ACPI_PARSE_OBJECT       *Op)
+{
+    UINT8                   *Buffer;
+    ACPI_PARSE_OBJECT       *Node;
+    ACPI_PLD_INFO           PldInfo;
+    ACPI_PARSE_OBJECT       *NewOp;
+
+
+    if (!Op)
+    {
+        AslError(ASL_ERROR, ASL_MSG_NOT_EXIST, Op, NULL);
+        return;
+    }
+
+    if (Op->Asl.ParseOpcode != PARSEOP_TOPLD)
+    {
+        AslError(ASL_ERROR, ASL_MSG_INVALID_TYPE, Op, NULL);
+        return;
+    }
+
+    Buffer = UtLocalCalloc (ACPI_PLD_BUFFER_SIZE);
+    if (!Buffer)
+    {
+        AslError(ASL_ERROR, ASL_MSG_BUFFER_ALLOCATION, Op, NULL);
+        return;
+    }
+
+    ACPI_MEMSET (&PldInfo, 0, sizeof (ACPI_PLD_INFO));
+
+    Node = Op->Asl.Child;
+    while (Node)
+    {
+        switch (Node->Asl.ParseOpcode)
+        {
+        case PARSEOP_PLD_REVISION:
+
+            if (Node->Asl.Child->Asl.ParseOpcode != PARSEOP_INTEGER)
+            {
+                AslError(ASL_ERROR, ASL_MSG_INVALID_TYPE, Node, NULL);
+                break;
+            }
+
+            if (Node->Asl.Child->Asl.Value.Integer > 127)
+            {
+                AslError(ASL_ERROR, ASL_MSG_RANGE, Node, NULL);
+                break;
+            }
+
+            PldInfo.Revision = (UINT8) Node->Asl.Child->Asl.Value.Integer;
+            break;
+
+        case PARSEOP_PLD_IGNORECOLOR:
+
+            if (Node->Asl.Child->Asl.ParseOpcode != PARSEOP_INTEGER)
+            {
+                AslError(ASL_ERROR, ASL_MSG_INVALID_TYPE, Node, NULL);
+                break;
+            }
+
+            if (Node->Asl.Child->Asl.Value.Integer > 1)
+            {
+                AslError(ASL_ERROR, ASL_MSG_RANGE, Node, NULL);
+                break;
+            }
+
+            PldInfo.IgnoreColor = (UINT8) Node->Asl.Child->Asl.Value.Integer;
+            break;
+
+        case PARSEOP_PLD_RED:
+        case PARSEOP_PLD_GREEN:
+        case PARSEOP_PLD_BLUE:
+
+            if (Node->Asl.Child->Asl.ParseOpcode != PARSEOP_INTEGER)
+            {
+                AslError(ASL_ERROR, ASL_MSG_RANGE, Node, NULL);
+                break;
+            }
+
+            if (Node->Asl.Child->Asl.Value.Integer > 255)
+            {
+                AslError(ASL_ERROR, ASL_MSG_RANGE, Node, NULL);
+                break;
+            }
+
+            if (Node->Asl.ParseOpcode == PARSEOP_PLD_RED)
+            {
+                PldInfo.Red = (UINT8) Node->Asl.Child->Asl.Value.Integer;
+            }
+            else if (Node->Asl.ParseOpcode == PARSEOP_PLD_GREEN)
+            {
+                PldInfo.Green = (UINT8) Node->Asl.Child->Asl.Value.Integer;
+            }
+            else /* PARSEOP_PLD_BLUE */
+            {
+                PldInfo.Blue = (UINT8) Node->Asl.Child->Asl.Value.Integer;
+            }
+            break;
+
+        case PARSEOP_PLD_WIDTH:
+        case PARSEOP_PLD_HEIGHT:
+
+            if (Node->Asl.Child->Asl.ParseOpcode != PARSEOP_INTEGER)
+            {
+                AslError(ASL_ERROR, ASL_MSG_INVALID_TYPE, Node, NULL);
+                break;
+            }
+
+            if (Node->Asl.Child->Asl.Value.Integer > 65535)
+            {
+                AslError(ASL_ERROR, ASL_MSG_RANGE, Node, NULL);
+                break;
+            }
+
+            if (Node->Asl.ParseOpcode == PARSEOP_PLD_WIDTH)
+            {
+                PldInfo.Width = (UINT16) Node->Asl.Child->Asl.Value.Integer;
+            }
+            else /* PARSEOP_PLD_HEIGHT */
+            {
+                PldInfo.Height = (UINT16) Node->Asl.Child->Asl.Value.Integer;
+            }
+
+            break;
+
+        case PARSEOP_PLD_USERVISIBLE:
+        case PARSEOP_PLD_DOCK:
+        case PARSEOP_PLD_LID:
+
+            if (Node->Asl.Child->Asl.ParseOpcode != PARSEOP_INTEGER)
+            {
+                AslError(ASL_ERROR, ASL_MSG_INVALID_TYPE, Node, NULL);
+                break;
+            }
+
+            if (Node->Asl.Child->Asl.Value.Integer > 1)
+            {
+                AslError(ASL_ERROR, ASL_MSG_RANGE, Node, NULL);
+                break;
+            }
+
+            if (Node->Asl.ParseOpcode == PARSEOP_PLD_USERVISIBLE)
+            {
+                PldInfo.UserVisible = (UINT8) Node->Asl.Child->Asl.Value.Integer;
+            }
+            else if (Node->Asl.ParseOpcode == PARSEOP_PLD_DOCK)
+            {
+                PldInfo.Dock = (UINT8) Node->Asl.Child->Asl.Value.Integer;
+            }
+            else
+            {
+                PldInfo.Lid = (UINT8) Node->Asl.Child->Asl.Value.Integer;
+            }
+
+            break;
+
+        case PARSEOP_PLD_PANEL:
+
+            if (Node->Asl.Child->Asl.ParseOpcode == PARSEOP_INTEGER)
+            {
+                if (Node->Asl.Child->Asl.Value.Integer > 6)
+                {
+                    AslError(ASL_ERROR, ASL_MSG_RANGE, Node, NULL);
+                    break;
+                }
+            }
+            else /* PARSEOP_STRING */
+            {
+                if (!OpcFindName(AslPldPanelList,
+                    Node->Asl.Child->Asl.Value.String,
+                    &Node->Asl.Child->Asl.Value.Integer))
+                {
+                    AslError(ASL_ERROR, ASL_MSG_INVALID_OPERAND, Node, NULL);
+                    break;
+                }
+            }
+
+            PldInfo.Panel = (UINT8) Node->Asl.Child->Asl.Value.Integer;
+            break;
+
+        case PARSEOP_PLD_VERTICALPOSITION:
+
+            if (Node->Asl.Child->Asl.ParseOpcode == PARSEOP_INTEGER)
+            {
+                if (Node->Asl.Child->Asl.Value.Integer > 2)
+                {
+                    AslError(ASL_ERROR, ASL_MSG_RANGE, Node, NULL);
+                    break;
+                }
+            }
+            else /* PARSEOP_STRING */
+            {
+                if (!OpcFindName(AslPldVerticalPositionList,
+                    Node->Asl.Child->Asl.Value.String,
+                    &Node->Asl.Child->Asl.Value.Integer))
+                {
+                    AslError(ASL_ERROR, ASL_MSG_INVALID_OPERAND, Node, NULL);
+                    break;
+                }
+            }
+
+            PldInfo.VerticalPosition = (UINT8) Node->Asl.Child->Asl.Value.Integer;
+            break;
+
+        case PARSEOP_PLD_HORIZONTALPOSITION:
+
+            if (Node->Asl.Child->Asl.ParseOpcode == PARSEOP_INTEGER)
+            {
+                if (Node->Asl.Child->Asl.Value.Integer > 2)
+                {
+                    AslError(ASL_ERROR, ASL_MSG_RANGE, Node, NULL);
+                    break;
+                }
+            }
+            else /* PARSEOP_STRING */
+            {
+                if (!OpcFindName(AslPldHorizontalPositionList,
+                    Node->Asl.Child->Asl.Value.String,
+                    &Node->Asl.Child->Asl.Value.Integer))
+                {
+                    AslError(ASL_ERROR, ASL_MSG_INVALID_OPERAND, Node, NULL);
+                    break;
+                }
+            }
+
+            PldInfo.HorizontalPosition = (UINT8) Node->Asl.Child->Asl.Value.Integer;
+            break;
+
+        case PARSEOP_PLD_SHAPE:
+
+            if (Node->Asl.Child->Asl.ParseOpcode == PARSEOP_INTEGER)
+            {
+                if (Node->Asl.Child->Asl.Value.Integer > 8)
+                {
+                    AslError(ASL_ERROR, ASL_MSG_RANGE, Node, NULL);
+                    break;
+                }
+            }
+            else /* PARSEOP_STRING */
+            {
+                if (!OpcFindName(AslPldShapeList,
+                    Node->Asl.Child->Asl.Value.String,
+                    &Node->Asl.Child->Asl.Value.Integer))
+                {
+                    AslError(ASL_ERROR, ASL_MSG_INVALID_OPERAND, Node, NULL);
+                    break;
+                }
+            }
+
+            PldInfo.Shape = (UINT8) Node->Asl.Child->Asl.Value.Integer;
+            break;
+
+        case PARSEOP_PLD_GROUPORIENTATION:
+
+            if (Node->Asl.Child->Asl.ParseOpcode != PARSEOP_INTEGER)
+            {
+                AslError(ASL_ERROR, ASL_MSG_INVALID_TYPE, Node, NULL);
+                break;
+            }
+
+            if (Node->Asl.Child->Asl.Value.Integer > 1)
+            {
+                AslError(ASL_ERROR, ASL_MSG_RANGE, Node, NULL);
+                break;
+            }
+
+            PldInfo.GroupOrientation = (UINT8) Node->Asl.Child->Asl.Value.Integer;
+            break;
+
+        case PARSEOP_PLD_GROUPTOKEN:
+        case PARSEOP_PLD_GROUPPOSITION:
+
+            if (Node->Asl.Child->Asl.ParseOpcode != PARSEOP_INTEGER)
+            {
+                AslError(ASL_ERROR, ASL_MSG_INVALID_TYPE, Node, NULL);
+                break;
+            }
+
+            if (Node->Asl.Child->Asl.Value.Integer > 255)
+            {
+                AslError(ASL_ERROR, ASL_MSG_RANGE, Node, NULL);
+                break;
+            }
+
+
+            if (Node->Asl.ParseOpcode == PARSEOP_PLD_GROUPTOKEN)
+            {
+                PldInfo.GroupToken = (UINT8) Node->Asl.Child->Asl.Value.Integer;
+            }
+            else /* PARSEOP_PLD_GROUPPOSITION */
+            {
+                PldInfo.GroupPosition = (UINT8) Node->Asl.Child->Asl.Value.Integer;
+            }
+
+            break;
+
+        case PARSEOP_PLD_BAY:
+        case PARSEOP_PLD_EJECTABLE:
+        case PARSEOP_PLD_EJECTREQUIRED:
+
+            if (Node->Asl.Child->Asl.ParseOpcode != PARSEOP_INTEGER)
+            {
+                AslError(ASL_ERROR, ASL_MSG_INVALID_TYPE, Node, NULL);
+                break;
+            }
+
+            if (Node->Asl.Child->Asl.Value.Integer > 1)
+            {
+                AslError(ASL_ERROR, ASL_MSG_RANGE, Node, NULL);
+                break;
+            }
+
+            if (Node->Asl.ParseOpcode == PARSEOP_PLD_BAY)
+            {
+                PldInfo.Bay = (UINT8) Node->Asl.Child->Asl.Value.Integer;
+            }
+            else if (Node->Asl.ParseOpcode == PARSEOP_PLD_EJECTABLE)
+            {
+                PldInfo.Ejectable = (UINT8) Node->Asl.Child->Asl.Value.Integer;
+            }
+            else /* PARSEOP_PLD_EJECTREQUIRED */
+            {
+                PldInfo.OspmEjectRequired = (UINT8) Node->Asl.Child->Asl.Value.Integer;
+            }
+
+            break;
+
+        case PARSEOP_PLD_CABINETNUMBER:
+        case PARSEOP_PLD_CARDCAGENUMBER:
+
+            if (Node->Asl.Child->Asl.ParseOpcode != PARSEOP_INTEGER)
+            {
+                AslError(ASL_ERROR, ASL_MSG_INVALID_TYPE, Node, NULL);
+                break;
+            }
+
+            if (Node->Asl.Child->Asl.Value.Integer > 255)
+            {
+                AslError(ASL_ERROR, ASL_MSG_RANGE, Node, NULL);
+                break;
+            }
+
+            if (Node->Asl.ParseOpcode == PARSEOP_PLD_CABINETNUMBER)
+            {
+                PldInfo.CabinetNumber = (UINT8) Node->Asl.Child->Asl.Value.Integer;
+            }
+            else /* PARSEOP_PLD_CARDCAGENUMBER */
+            {
+                PldInfo.CardCageNumber = (UINT8) Node->Asl.Child->Asl.Value.Integer;
+            }
+
+            break;
+
+        case PARSEOP_PLD_REFERENCE:
+
+            if (Node->Asl.Child->Asl.ParseOpcode != PARSEOP_INTEGER)
+            {
+                AslError(ASL_ERROR, ASL_MSG_INVALID_TYPE, Node, NULL);
+                break;
+            }
+
+            if (Node->Asl.Child->Asl.Value.Integer > 1)
+            {
+                AslError(ASL_ERROR, ASL_MSG_RANGE, Node, NULL);
+                break;
+            }
+
+            PldInfo.Reference = (UINT8) Node->Asl.Child->Asl.Value.Integer;
+            break;
+
+        case PARSEOP_PLD_ROTATION:
+
+            if (Node->Asl.Child->Asl.ParseOpcode != PARSEOP_INTEGER)
+            {
+                AslError(ASL_ERROR, ASL_MSG_INVALID_TYPE, Node, NULL);
+                break;
+            }
+
+            if (Node->Asl.Child->Asl.Value.Integer > 7)
+            {
+                switch (Node->Asl.Child->Asl.Value.Integer)
+                {
+                case 45:
+
+                    Node->Asl.Child->Asl.Value.Integer = 1;
+                    break;
+
+                case 90:
+
+                    Node->Asl.Child->Asl.Value.Integer = 2;
+                    break;
+
+                case 135:
+
+                    Node->Asl.Child->Asl.Value.Integer = 3;
+                    break;
+
+                case 180:
+
+                    Node->Asl.Child->Asl.Value.Integer = 4;
+                    break;
+
+                case 225:
+
+                    Node->Asl.Child->Asl.Value.Integer = 5;
+                    break;
+
+                case 270:
+
+                    Node->Asl.Child->Asl.Value.Integer = 6;
+                    break;
+
+                case 315:
+
+                    Node->Asl.Child->Asl.Value.Integer = 7;
+                    break;
+
+                default:
+
+                    AslError(ASL_ERROR, ASL_MSG_RANGE, Node, NULL);
+                    break;
+                }
+            }
+
+            PldInfo.Rotation = (UINT8) Node->Asl.Child->Asl.Value.Integer;
+            break;
+
+        case PARSEOP_PLD_ORDER:
+
+            if (Node->Asl.Child->Asl.ParseOpcode != PARSEOP_INTEGER)
+            {
+                AslError(ASL_ERROR, ASL_MSG_INVALID_TYPE, Node, NULL);
+                break;
+            }
+
+            if (Node->Asl.Child->Asl.Value.Integer > 31)
+            {
+                AslError(ASL_ERROR, ASL_MSG_RANGE, Node, NULL);
+                break;
+            }
+
+            PldInfo.Order = (UINT8) Node->Asl.Child->Asl.Value.Integer;
+            break;
+
+        case PARSEOP_PLD_VERTICALOFFSET:
+        case PARSEOP_PLD_HORIZONTALOFFSET:
+
+            if (Node->Asl.Child->Asl.ParseOpcode != PARSEOP_INTEGER)
+            {
+                AslError(ASL_ERROR, ASL_MSG_INVALID_TYPE, Node, NULL);
+                break;
+            }
+
+            if (Node->Asl.Child->Asl.Value.Integer > 65535)
+            {
+                AslError(ASL_ERROR, ASL_MSG_RANGE, Node, NULL);
+                break;
+            }
+
+            if (Node->Asl.ParseOpcode == PARSEOP_PLD_VERTICALOFFSET)
+            {
+                PldInfo.VerticalOffset = (UINT16) Node->Asl.Child->Asl.Value.Integer;
+            }
+            else /* PARSEOP_PLD_HORIZONTALOFFSET */
+            {
+                PldInfo.HorizontalOffset = (UINT16) Node->Asl.Child->Asl.Value.Integer;
+            }
+
+            break;
+
+        default:
+
+            AslError(ASL_ERROR, ASL_MSG_INVALID_TYPE, Node, NULL);
+            break;
+        }
+
+        Node = Node->Asl.Next;
+    }
+
+    Buffer = OpcEncodePldBuffer(&PldInfo);
+
+    /* Change Op to a Buffer */
+
+    Op->Asl.ParseOpcode = PARSEOP_BUFFER;
+    Op->Common.AmlOpcode = AML_BUFFER_OP;
+
+    /* Disable further optimization */
+
+    Op->Asl.CompileFlags &= ~NODE_COMPILE_TIME_CONST;
+    UtSetParseOpName (Op);
+
+    /* Child node is the buffer length */
+
+    NewOp = TrAllocateNode (PARSEOP_INTEGER);
+
+    NewOp->Asl.AmlOpcode     = AML_BYTE_OP;
+    NewOp->Asl.Value.Integer = 20;
+    NewOp->Asl.Parent        = Op;
+
+    Op->Asl.Child = NewOp;
+    Op = NewOp;
+
+    /* Peer to the child is the raw buffer data */
+
+    NewOp = TrAllocateNode (PARSEOP_RAW_DATA);
+    NewOp->Asl.AmlOpcode     = AML_RAW_DATA_BUFFER;
+    NewOp->Asl.AmlLength     = 20;
+    NewOp->Asl.Value.String  = ACPI_CAST_PTR (char, Buffer);
+    NewOp->Asl.Parent        = Op->Asl.Parent;
+
+    Op->Asl.Next = NewOp;
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    OpcDoUuId
  *
- * PARAMETERS:  Op        - Parse node
+ * PARAMETERS:  Op                  - Parse node
  *
  * RETURN:      None
  *
@@ -673,7 +1415,7 @@ OpcDoUuId (
     ACPI_PARSE_OBJECT       *NewOp;
 
 
-    InString = (char *) Op->Asl.Value.String;
+    InString = ACPI_CAST_PTR (char, Op->Asl.Value.String);
     Buffer = UtLocalCalloc (16);
 
     Status = AuValidateUuid (InString);
@@ -712,7 +1454,7 @@ OpcDoUuId (
     NewOp = TrAllocateNode (PARSEOP_RAW_DATA);
     NewOp->Asl.AmlOpcode     = AML_RAW_DATA_BUFFER;
     NewOp->Asl.AmlLength     = 16;
-    NewOp->Asl.Value.String  = (char *) Buffer;
+    NewOp->Asl.Value.String  = ACPI_CAST_PTR (char, Buffer);
     NewOp->Asl.Parent        = Op->Asl.Parent;
 
     Op->Asl.Next = NewOp;
@@ -723,7 +1465,7 @@ OpcDoUuId (
  *
  * FUNCTION:    OpcGenerateAmlOpcode
  *
- * PARAMETERS:  Op        - Parse node
+ * PARAMETERS:  Op                  - Parse node
  *
  * RETURN:      None
  *
@@ -737,7 +1479,6 @@ void
 OpcGenerateAmlOpcode (
     ACPI_PARSE_OBJECT       *Op)
 {
-
     UINT16                  Index;
 
 
@@ -781,6 +1522,21 @@ OpcGenerateAmlOpcode (
     case PARSEOP_EISAID:
 
         OpcDoEisaId (Op);
+        break;
+
+    case PARSEOP_PRINTF:
+
+        OpcDoPrintf (Op);
+        break;
+
+    case PARSEOP_FPRINTF:
+
+        OpcDoFprintf (Op);
+        break;
+
+    case PARSEOP_TOPLD:
+
+        OpcDoPld (Op);
         break;
 
     case PARSEOP_TOUUID:

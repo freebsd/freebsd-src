@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -979,11 +979,23 @@ AcpiDmCheckResourceReference (
 
 
 /*
+ * dmcstyle
+ */
+BOOLEAN
+AcpiDmCheckForSymbolicOpcode (
+    ACPI_PARSE_OBJECT       *Op,
+    ACPI_OP_WALK_INFO       *Info);
+
+void
+AcpiDmCloseOperator (
+    ACPI_PARSE_OBJECT       *Op);
+
+
+/*
  * acdisasm
  */
 void
 AdDisassemblerHeader (
     char                    *Filename);
-
 
 #endif  /* __ACDISASM_H__ */

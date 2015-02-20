@@ -125,6 +125,7 @@ CFLAGS+=	-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 .if ${MACHINE_CPUARCH} == arm
 CFLAGS.clang+=	-mllvm -arm-use-movt=0
 CFLAGS.clang+=	-mfpu=none
+CFLAGS+=	-funwind-tables
 .endif
 
 .if ${MACHINE_CPUARCH} == powerpc
