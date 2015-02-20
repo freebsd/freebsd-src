@@ -861,6 +861,7 @@ efx_phy_bist_stop(
 #define	EFX_FEATURE_MCDI		0x00000020
 #define	EFX_FEATURE_LOOKAHEAD_SPLIT	0x00000040
 #define	EFX_FEATURE_MAC_HEADER_FILTERS	0x00000080
+#define	EFX_FEATURE_TURBO		0x00000100
 
 typedef struct efx_nic_cfg_s {
 	uint32_t		enc_board_type;
@@ -881,6 +882,7 @@ typedef struct efx_nic_cfg_s {
 	uint32_t		enc_rxq_limit;
 	uint32_t		enc_buftbl_limit;
 	uint32_t		enc_evq_moderation_max;
+	uint32_t		enc_clk_mult;
 #if EFSYS_OPT_LOOPBACK
 	uint32_t		enc_loopback_types[EFX_LINK_NMODES];
 #endif	/* EFSYS_OPT_LOOPBACK */
