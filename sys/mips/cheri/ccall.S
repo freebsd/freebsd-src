@@ -128,8 +128,8 @@ ccall_inc_exception_cnt:
 	INC_EXCEPTION_CNTR(CHERI_CCALL_CNT)
 
 	/*
-	 * The effective ABI requires that the code capability be in $c0, and
-	 * the data capability be in $c1.  Throw an exception if this isn't
+	 * The effective ABI requires that the code capability be in $c1, and
+	 * the data capability be in $c2.  Throw an exception if this isn't
 	 * how CCall was invoked.
 	 */
 	/*
@@ -144,33 +144,33 @@ ccall_validate_args:
 	cbtu		CHERI_REG_CCALLCODE, CCall_c1_untagged
 	nop
 	cbtu		CHERI_REG_CCALLDATA, CCall_c2_untagged
-	nop
+	/* NB branch delay utilised below */
 
 	/* Second, check for the sealed bit on both arguments. */
 	cgetsealed	k0, CHERI_REG_CCALLCODE
 	beqz		k0, CCall_c1_unsealed
-	nop
+	/* NB branch delay utilised below */
 
 	cgetsealed	k0, CHERI_REG_CCALLDATA
 	beqz		k0, CCall_c2_unsealed
-	nop
+	/* NB branch delay utilised below */
 
 	/* Third, check for type equality. */
 	cgettype	k0, CHERI_REG_CCALLCODE
 	cgettype	k1, CHERI_REG_CCALLDATA
 	bne		k0, k1, CCall_c1_c2_type_mismatch
-	nop
+	/* NB branch delay utilised below */
 
 	/* Fourth, check permissions. */
 	cgetperm	k0, CHERI_REG_CCALLCODE
 	andi		k0, CHERI_PERM_EXECUTE
 	beqz		k0, CCall_c1_perm_execute
-	nop
+	/* NB branch delay utilised below */
 
 	cgetperm	k0, CHERI_REG_CCALLDATA
 	andi		k0, CHERI_PERM_EXECUTE
 	bnez		k0, CCall_c2_perm_execute
-	nop
+	/* NB branch delay utilised below */
 
 	/* Fifth, check that PCC offset is not >= length. */
 	/* XXXRW: Check that this is right! */
@@ -237,6 +237,7 @@ ccall_check_globals:
 	dli		t0, 3			/* $c3 */
 	movn		AT, t0, k0		/* Clear if true. */
 
+#if !defined(CPU_CHERI_CHERI8)
 	cgettag		k0, $c4			/* k0 = tagged. */
 	cgetperm	k1, $c4			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
@@ -268,7 +269,8 @@ ccall_check_globals:
 	and		k0, k0, k1		/* k0 = tagged && !global */
 	dli		t0, 7			/* $c7 */
 	movn		AT, t0, k0		/* Clear if true. */
-
+#endif
+#if !defined(CPU_CHERI_CHERI8) && !defined(CHERI_CPU_CHERI16)
 	cgettag		k0, $c8			/* k0 = tagged. */
 	cgetperm	k1, $c8			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
@@ -292,7 +294,7 @@ ccall_check_globals:
 	and		k0, k0, k1		/* k0 = tagged && !global */
 	dli		t0, 10			/* $c10 */
 	movn		AT, t0, k0		/* Clear if true. */
-
+#endif
 	/* One branch to rule them all. */
 #if defined(NOTYET)
 	bnez		AT, CCall_local_argument
@@ -361,8 +363,7 @@ ccall_unseal_caps:
 	cunseal		CHERI_REG_IDC, CHERI_REG_CCALLDATA, CHERI_REG_KDC
 
 	/* Restore KDC offset. */
-	dli		k0, 0
-	csetoffset	CHERI_REG_KDC, CHERI_REG_KDC, k0
+	csetoffset	CHERI_REG_KDC, CHERI_REG_KDC, zero
 
 	/* Install cs.offset as PC. */
 ccall_set_pc:
@@ -439,19 +440,26 @@ ccall_clear_caps:
 	/* $c10 handled by compiler; global bit checked earlier. */
 	cfromptr	$c11, $c11, zero
 	cfromptr	$c12, $c12, zero
+#if  !defined(CPU_CHERI_CHERI8) && !defined(CHERI_CPU_CHERI16)
 	cfromptr	$c13, $c13, zero
 	cfromptr	$c14, $c14, zero
 	cfromptr	$c15, $c15, zero
 	cfromptr	$c16, $c16, zero
+#endif
 	cfromptr	$c17, $c17, zero
 	cfromptr	$c18, $c18, zero
 	cfromptr	$c19, $c19, zero
+#if !defined(CPU_CHERI_CHERI8)
 	cfromptr	$c20, $c20, zero
 	cfromptr	$c21, $c21, zero
 	cfromptr	$c22, $c22, zero
 	cfromptr	$c23, $c23, zero
+#endif
+#if  !defined(CPU_CHERI_CHERI8) && !defined(CHERI_CPU_CHERI16)
 	cfromptr	$c24, $c24, zero
 	cfromptr	$c25, $c25, zero
+#endif
+
 #else /* CPU_CHERI_HW_CCLEAR */
 	/* Hypothesise that cclearregs would take two instructions. */
 	nop
@@ -660,28 +668,38 @@ creturn_clear_caps:
 	cfromptr	$c1, $c1, zero
 	cfromptr	$c2, $c2, zero
 	/* $c3 handled by compiler; global bit checked earlier. */
+#if !defined(CPU_CHERI_CHERI8)
 	cfromptr	$c4, $c4, zero
 	cfromptr	$c5, $c5, zero
 	cfromptr	$c6, $c6, zero
 	cfromptr	$c7, $c7, zero
+#endif
+#if !defined(CPU_CHERI_CHERI8) && !defined(CHERI_CPU_CHERI16)
 	cfromptr	$c8, $c8, zero
 	cfromptr	$c9, $c9, zero
 	cfromptr	$c10, $c10, zero
+#endif
 	cfromptr	$c11, $c11, zero
 	cfromptr	$c12, $c12, zero
+#if !defined(CPU_CHERI_CHERI8) && !defined(CHERI_CPU_CHERI16)
 	cfromptr	$c13, $c13, zero
 	cfromptr	$c14, $c14, zero
 	cfromptr	$c15, $c15, zero
 	cfromptr	$c16, $c16, zero
+#endif
 	cfromptr	$c17, $c17, zero
 	cfromptr	$c18, $c18, zero
 	cfromptr	$c19, $c19, zero
+#if !defined(CPU_CHERI_CHERI8)
 	cfromptr	$c20, $c20, zero
 	cfromptr	$c21, $c21, zero
 	cfromptr	$c22, $c22, zero
 	cfromptr	$c23, $c23, zero
+#endif
+#if !defined(CPU_CHERI_CHERI8) && !defined(CHERI_CPU_CHERI16)
 	cfromptr	$c24, $c24, zero
 	cfromptr	$c25, $c25, zero
+#endif
 #else
 	/* Hypothesise that cclearregs would take two instructions. */
 	nop

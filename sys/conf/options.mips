@@ -111,6 +111,19 @@ CPU_CHERI_HW_CCLEAR	opt_global.h
 CPU_CHERI_HW_CCALL_CHECKS	opt_global.h
 
 #
+# Restricted CHERI register set sizes: These tell context save/restore
+# and ccall only to save a subset of the capability registers -- those
+# corresponding to the -cheri8 and -cheri16 llvm options. Data
+# structure sizes are not affected (yet).  CHERI0 saves no cheri
+# registers on context save. This is obviously unsafe but OK if user
+# space does not use capabilities and potentially useful as a
+# baseline.
+#
+CPU_CHERI_CHERI0	opt_global.h
+CPU_CHERI_CHERI8	opt_global.h
+CPU_CHERI_CHERI16	opt_global.h
+
+#
 # Options that control the NetFPGA-10G Embedded CPU Ethernet Core.
 #
 NF10BMAC_64BIT			opt_netfpga.h

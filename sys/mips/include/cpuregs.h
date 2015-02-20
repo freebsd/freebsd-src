@@ -522,8 +522,8 @@
 #define	MIPS_COP_0_DESAVE	_(31)
 
 /* CHERI */
-#ifdef CPU_BERI
-#define	MIPS_COP_0_EXC_INS	_(8)	/* sel 1 */
+#if defined(CPU_BERI) || defined(CPU_CHERI)
+#define	MIPS_COP_0_EXC_INS	_(8)	/* sel 1 encoding of instruction causing exception */
 #endif
 
 /* MIPS32 Config register definitions */

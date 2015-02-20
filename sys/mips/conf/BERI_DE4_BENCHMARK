@@ -1,0 +1,45 @@
+#
+# CHERI -- Kernel for the SRI/Cambridge "CHERI" (Capability Hardware Enhanced
+# RISC Instructions) FPGA soft core, as configured in its Terasic DE-4
+# reference configuration.
+#
+# $FreeBSD$
+#
+
+# Ensure the kernel picks up this FDT
+options         FDT_DTB_STATIC_ONLY
+
+include		BERI_DE4_MDROOT
+ident		BERI_DE4_BENCHMARK
+
+nocpu           CPU_HAVEFPU
+nooptions       SMP
+
+nooptions	HZ
+options 	HZ=100
+
+nooptions	INVARIANTS
+nooptions	INVARIANT_SUPPORT
+nooptions       WITNESS
+nooptions       WITNESS_SKIPSPIN
+
+# Disable devices that poll
+nooptions	DEVICE_POLLING
+nodevice	altera_atse
+nodevice	altera_avgen
+nodevice	miibus
+nodevice	altera_sdcard
+nodevice        pixelstream
+nodevice        bpf
+nodevice	cfi
+nodevice	cfid
+nodevice        uart
+nodevice        terasic_mtl
+nodevice        miibus
+nodevice        usb
+nodevice        saf1761otg
+nodevice        ukbd
+nodevice        ums
+nodevice        cheri_compositor
+nodevice        crypto
+nodevice        cryptodev
