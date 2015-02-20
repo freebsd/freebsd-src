@@ -524,6 +524,18 @@
 	updated to allow using a non-standard <filename
 	  class="directory">src/</filename> tree, specified as an
 	argument to the <literal>-s</literal> flag.</para>
+
+      <para revision="277990" arch="powerpc64">The
+	&os;/&arch.powerpc64; kernel now builds as
+	a position-independent executable, allowing the kernel to be
+	loaded into and run from any physical or virtual
+	address.</para>
+
+      <important>
+	<para>This change requires an update to &man.loader.8;.
+	  The userland and kernel must be updated before rebooting the
+	  system.</para>
+      </important>
     </sect2>
 
     <sect2 xml:id="kernel-sysctl">
