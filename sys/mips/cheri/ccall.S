@@ -237,6 +237,7 @@ ccall_check_globals:
 	dli		t0, 3			/* $c3 */
 	movn		AT, t0, k0		/* Clear if true. */
 
+#if !defined(CPU_CHERI_CHERI8)
 	cgettag		k0, $c4			/* k0 = tagged. */
 	cgetperm	k1, $c4			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
@@ -268,7 +269,8 @@ ccall_check_globals:
 	and		k0, k0, k1		/* k0 = tagged && !global */
 	dli		t0, 7			/* $c7 */
 	movn		AT, t0, k0		/* Clear if true. */
-
+#endif
+#if !defined(CPU_CHERI_CHERI8) && !defined(CHERI_CPU_CHERI16)
 	cgettag		k0, $c8			/* k0 = tagged. */
 	cgetperm	k1, $c8			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
@@ -292,7 +294,7 @@ ccall_check_globals:
 	and		k0, k0, k1		/* k0 = tagged && !global */
 	dli		t0, 10			/* $c10 */
 	movn		AT, t0, k0		/* Clear if true. */
-
+#endif
 	/* One branch to rule them all. */
 #if defined(NOTYET)
 	bnez		AT, CCall_local_argument
@@ -439,19 +441,26 @@ ccall_clear_caps:
 	/* $c10 handled by compiler; global bit checked earlier. */
 	cfromptr	$c11, $c11, zero
 	cfromptr	$c12, $c12, zero
+#if  !defined(CPU_CHERI_CHERI8) && !defined(CHERI_CPU_CHERI16)
 	cfromptr	$c13, $c13, zero
 	cfromptr	$c14, $c14, zero
 	cfromptr	$c15, $c15, zero
 	cfromptr	$c16, $c16, zero
+#endif
 	cfromptr	$c17, $c17, zero
 	cfromptr	$c18, $c18, zero
 	cfromptr	$c19, $c19, zero
+#if !defined(CPU_CHERI_CHERI8)
 	cfromptr	$c20, $c20, zero
 	cfromptr	$c21, $c21, zero
 	cfromptr	$c22, $c22, zero
 	cfromptr	$c23, $c23, zero
+#endif
+#if  !defined(CPU_CHERI_CHERI8) && !defined(CHERI_CPU_CHERI16)
 	cfromptr	$c24, $c24, zero
 	cfromptr	$c25, $c25, zero
+#endif
+
 #else /* CPU_CHERI_HW_CCLEAR */
 	/* Hypothesise that cclearregs would take two instructions. */
 	nop
@@ -660,28 +669,38 @@ creturn_clear_caps:
 	cfromptr	$c1, $c1, zero
 	cfromptr	$c2, $c2, zero
 	/* $c3 handled by compiler; global bit checked earlier. */
+#if !defined(CPU_CHERI_CHERI8)
 	cfromptr	$c4, $c4, zero
 	cfromptr	$c5, $c5, zero
 	cfromptr	$c6, $c6, zero
 	cfromptr	$c7, $c7, zero
+#endif
+#if !defined(CPU_CHERI_CHERI8) && !defined(CHERI_CPU_CHERI16)
 	cfromptr	$c8, $c8, zero
 	cfromptr	$c9, $c9, zero
 	cfromptr	$c10, $c10, zero
+#endif
 	cfromptr	$c11, $c11, zero
 	cfromptr	$c12, $c12, zero
+#if !defined(CPU_CHERI_CHERI8) && !defined(CHERI_CPU_CHERI16)
 	cfromptr	$c13, $c13, zero
 	cfromptr	$c14, $c14, zero
 	cfromptr	$c15, $c15, zero
 	cfromptr	$c16, $c16, zero
+#endif
 	cfromptr	$c17, $c17, zero
 	cfromptr	$c18, $c18, zero
 	cfromptr	$c19, $c19, zero
+#if !defined(CPU_CHERI_CHERI8)
 	cfromptr	$c20, $c20, zero
 	cfromptr	$c21, $c21, zero
 	cfromptr	$c22, $c22, zero
 	cfromptr	$c23, $c23, zero
+#endif
+#if !defined(CPU_CHERI_CHERI8) && !defined(CHERI_CPU_CHERI16)
 	cfromptr	$c24, $c24, zero
 	cfromptr	$c25, $c25, zero
+#endif
 #else
 	/* Hypothesise that cclearregs would take two instructions. */
 	nop
