@@ -460,6 +460,10 @@
       <para revision="274987">The &man.gpio.3; library has been added,
 	providing a wrapper around the &man.gpio.4; kernel
 	interface.</para>
+
+      <para revision="277610">The <literal>futimens()</literal> and
+	<literal>utimensat()</literal> system calls have been
+	added.  See &man.utimensat.2; for more information.</para>
     </sect2>
 
     <sect2 xml:id="userland-abi">
