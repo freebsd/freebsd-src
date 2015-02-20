@@ -382,6 +382,12 @@
 
       <para revision="277270"><application>OpenSSL</application> has
 	been updated to version 1.0.1l.</para>
+
+      <para revision="278433">The &man.xz.1; utility has been udpated
+	to version 5.2.0.</para>
+
+      <para revision="278433">The &man.xz.1; utility has been updated
+	to support multi-threaded compression.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
