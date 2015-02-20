@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	mklocale
-WARNS?=	6
+WARNS?=	5
 SRCS=	yacc.y lex.l y.tab.h
 CFLAGS+= -I. -I${.CURDIR} -I${.CURDIR}/../../lib/libc/locale
 

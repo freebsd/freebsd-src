@@ -17,7 +17,9 @@ SRCS+=	rangelock.c
 SRCS+=	subr.c
 SRCS+=	token.l
 SRCS+=	y.tab.h
-WARNS?=	6
+.warning WARNS is ${WARNS}
+WARNS?=	5
+.warning WARNS is now ${WARNS}
 MAN=	hastd.8 hast.conf.5
 
 NO_WFORMAT=
