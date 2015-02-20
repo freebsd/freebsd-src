@@ -519,6 +519,11 @@
 	at the &man.loader.8; prompt during boot, or add
 	<literal>kern.vty=vt</literal> to &man.loader.conf.5; and
 	reboot the system.</para>
+
+      <para revision="277904">The &man.config.8; utility has been
+	updated to allow using a non-standard <filename
+	  class="directory">src/</filename> tree, specified as an
+	argument to the <literal>-s</literal> flag.</para>
     </sect2>
 
     <sect2 xml:id="kernel-sysctl">
