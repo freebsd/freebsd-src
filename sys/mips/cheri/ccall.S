@@ -128,8 +128,8 @@ ccall_inc_exception_cnt:
 	INC_EXCEPTION_CNTR(CHERI_CCALL_CNT)
 
 	/*
-	 * The effective ABI requires that the code capability be in $c0, and
-	 * the data capability be in $c1.  Throw an exception if this isn't
+	 * The effective ABI requires that the code capability be in $c1, and
+	 * the data capability be in $c2.  Throw an exception if this isn't
 	 * how CCall was invoked.
 	 */
 	/*
