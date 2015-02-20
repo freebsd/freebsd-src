@@ -144,33 +144,33 @@ ccall_validate_args:
 	cbtu		CHERI_REG_CCALLCODE, CCall_c1_untagged
 	nop
 	cbtu		CHERI_REG_CCALLDATA, CCall_c2_untagged
-	nop
+	/* NB branch delay utilised below */
 
 	/* Second, check for the sealed bit on both arguments. */
 	cgetsealed	k0, CHERI_REG_CCALLCODE
 	beqz		k0, CCall_c1_unsealed
-	nop
+	/* NB branch delay utilised below */
 
 	cgetsealed	k0, CHERI_REG_CCALLDATA
 	beqz		k0, CCall_c2_unsealed
-	nop
+	/* NB branch delay utilised below */
 
 	/* Third, check for type equality. */
 	cgettype	k0, CHERI_REG_CCALLCODE
 	cgettype	k1, CHERI_REG_CCALLDATA
 	bne		k0, k1, CCall_c1_c2_type_mismatch
-	nop
+	/* NB branch delay utilised below */
 
 	/* Fourth, check permissions. */
 	cgetperm	k0, CHERI_REG_CCALLCODE
 	andi		k0, CHERI_PERM_EXECUTE
 	beqz		k0, CCall_c1_perm_execute
-	nop
+	/* NB branch delay utilised below */
 
 	cgetperm	k0, CHERI_REG_CCALLDATA
 	andi		k0, CHERI_PERM_EXECUTE
 	bnez		k0, CCall_c2_perm_execute
-	nop
+	/* NB branch delay utilised below */
 
 	/* Fifth, check that PCC offset is not >= length. */
 	/* XXXRW: Check that this is right! */
@@ -363,8 +363,7 @@ ccall_unseal_caps:
 	cunseal		CHERI_REG_IDC, CHERI_REG_CCALLDATA, CHERI_REG_KDC
 
 	/* Restore KDC offset. */
-	dli		k0, 0
-	csetoffset	CHERI_REG_KDC, CHERI_REG_KDC, k0
+	csetoffset	CHERI_REG_KDC, CHERI_REG_KDC, zero
 
 	/* Install cs.offset as PC. */
 ccall_set_pc:
