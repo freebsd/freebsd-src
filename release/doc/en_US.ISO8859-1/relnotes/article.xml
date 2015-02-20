@@ -464,6 +464,12 @@
       <para revision="277610">The <literal>futimens()</literal> and
 	<literal>utimensat()</literal> system calls have been
 	added.  See &man.utimensat.2; for more information.</para>
+
+      <para revision="278934">The &man.elf.3; compile-time dependency
+	has been removed from <filename>dtri.o</filename>, which
+	allows adding <application>DTrace</application> to userland
+	applications and libraries without also linking against
+	&man.elf.3;.</para>
     </sect2>
 
     <sect2 xml:id="userland-abi">
