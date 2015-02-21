@@ -336,6 +336,8 @@ struct vattr {
 #define	VWRITE_ACL	 	000040000000 /* change ACL and/or file mode */
 #define	VWRITE_OWNER	 	000100000000 /* change file owner */
 #define	VSYNCHRONIZE	 	000200000000 /* not used */
+#define	VCREAT			000400000000 /* creating new file */
+#define	VVERIFY			001000000000 /* verification required */
 
 /*
  * Permissions that were traditionally granted only to the file owner.
