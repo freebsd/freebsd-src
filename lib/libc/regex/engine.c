@@ -244,7 +244,7 @@ matcher(struct re_guts *g,
 	ZAPSTATE(&m->mbs);
 
 	/* Adjust start according to moffset, to speed things up */
-	if (g->moffset > -1)
+	if (dp != NULL && g->moffset > -1)
 		start = ((dp - g->moffset) < start) ? start : dp - g->moffset;
 
 	SP("mloop", m->st, *start);
