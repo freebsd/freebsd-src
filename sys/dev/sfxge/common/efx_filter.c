@@ -721,13 +721,16 @@ efx_filter_init(
 		    eftp->eft_spec);
 		if (!eftp->eft_spec) {
 			rc = ENOMEM;
-			goto fail2;
+			goto fail3;
 		}
 		memset(eftp->eft_spec, 0, eftp->eft_size * sizeof(*eftp->eft_spec));
 	}
 	enp->en_mod_flags |= EFX_MOD_FILTER;
 
 	return (0);
+
+fail3:
+	EFSYS_PROBE(fail3);
 
 fail2:
 	EFSYS_PROBE(fail2);
@@ -755,12 +758,17 @@ efx_filter_fini(
 		EFX_STATIC_ASSERT(sizeof(eftp->eft_bitmap[0]) == sizeof(uint32_t));
 		bitmap_size = (eftp->eft_size + (sizeof(uint32_t) * 8) - 1) / 8;
 
-		EFSYS_KMEM_FREE(enp->en_esip, bitmap_size, eftp->eft_bitmap);
-		eftp->eft_bitmap = NULL;
+		if (eftp->eft_bitmap != NULL) {
+			EFSYS_KMEM_FREE(enp->en_esip, bitmap_size,
+			    eftp->eft_bitmap);
+			eftp->eft_bitmap = NULL;
+		}
 
-		EFSYS_KMEM_FREE(enp->en_esip, eftp->eft_size * sizeof(*eftp->eft_spec),
-		    eftp->eft_spec);
-		eftp->eft_spec = NULL;
+		if (eftp->eft_spec != NULL) {
+			EFSYS_KMEM_FREE(enp->en_esip, eftp->eft_size *
+			    sizeof(*eftp->eft_spec), eftp->eft_spec);
+			eftp->eft_spec = NULL;
+		}
 	}
 
 	enp->en_mod_flags &= ~EFX_MOD_FILTER;
