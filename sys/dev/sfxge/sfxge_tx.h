@@ -36,12 +36,22 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 
+/* Maximum size of TSO packet */
+#define	SFXGE_TSO_MAX_SIZE		(65535)
+
+/*
+ * Maximum number of segments to be created for a TSO packet.
+ * Allow for a reasonable minimum MSS of 512.
+ */
+#define	SFXGE_TSO_MAX_SEGS		howmany(SFXGE_TSO_MAX_SIZE, 512)
+
 /* Maximum number of DMA segments needed to map an mbuf chain.  With
  * TSO, the mbuf length may be just over 64K, divided into 2K mbuf
  * clusters.  (The chain could be longer than this initially, but can
  * be shortened with m_collapse().)
  */
-#define	SFXGE_TX_MAPPING_MAX_SEG	(64 / 2 + 1)
+#define	SFXGE_TX_MAPPING_MAX_SEG					\
+	(1 + howmany(SFXGE_TSO_MAX_SIZE, MCLBYTES))
 
 /*
  * Buffer mapping flags.
