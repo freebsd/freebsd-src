@@ -1622,6 +1622,7 @@ efx_rx_scale_toeplitz_ipv6_key_set(
 #define	EFX_RXQ_SIZE(_ndescs)		((_ndescs) * sizeof (efx_qword_t))
 #define	EFX_RXQ_NBUFS(_ndescs)		(EFX_RXQ_SIZE(_ndescs) / EFX_BUF_SIZE)
 #define	EFX_RXQ_LIMIT(_ndescs)		((_ndescs) - 16)
+#define	EFX_RXQ_DC_NDESCS(_dcsize)	(8 << _dcsize)
 
 typedef enum efx_rxq_type_e {
 	EFX_RXQ_TYPE_DEFAULT,
@@ -1708,6 +1709,7 @@ efx_tx_fini(
 #define	EFX_TXQ_SIZE(_ndescs)		((_ndescs) * sizeof (efx_qword_t))
 #define	EFX_TXQ_NBUFS(_ndescs)		(EFX_TXQ_SIZE(_ndescs) / EFX_BUF_SIZE)
 #define	EFX_TXQ_LIMIT(_ndescs)		((_ndescs) - 16)
+#define	EFX_TXQ_DC_NDESCS(_dcsize)	(8 << _dcsize)
 
 extern	__checkReturn	int
 efx_tx_qcreate(
