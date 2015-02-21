@@ -98,6 +98,8 @@ dmar_get_requester(device_t dev, uint16_t *rid)
 	devclass_t pci_class;
 	device_t l, pci, pcib, pcip, pcibp, requester;
 	int cap_offset;
+	uint16_t pcie_flags;
+	bool bridge_is_pcie;
 
 	pci_class = devclass_find("pci");
 	l = requester = dev;
@@ -144,13 +146,30 @@ dmar_get_requester(device_t dev, uint16_t *rid)
 		} else {
 			/*
 			 * Device is not PCIe, it cannot be seen as a
-			 * requester by DMAR unit.
+			 * requester by DMAR unit.  Check whether the
+			 * bridge is PCIe.
 			 */
-			requester = pcibp;
+			bridge_is_pcie = pci_find_cap(pcib, PCIY_EXPRESS,
+			    &cap_offset) == 0;
+			requester = pcib;
 
-			/* Check whether the bus above the bridge is PCIe. */
-			if (pci_find_cap(pcibp, PCIY_EXPRESS,
-			    &cap_offset) == 0) {
+			/*
+			 * Check for a buggy PCIe/PCI bridge that
+			 * doesn't report the express capability.  If
+			 * the bridge above it is express but isn't a
+			 * PCI bridge, then we know pcib is actually a
+			 * PCIe/PCI bridge.
+			 */
+			if (!bridge_is_pcie && pci_find_cap(pcibp,
+			    PCIY_EXPRESS, &cap_offset) == 0) {
+				pcie_flags = pci_read_config(pcibp,
+				    cap_offset + PCIER_FLAGS, 2);
+				if ((pcie_flags & PCIEM_FLAGS_TYPE) !=
+				    PCIEM_TYPE_PCI_BRIDGE)
+					bridge_is_pcie = true;
+			}
+
+			if (bridge_is_pcie) {
 				/*
 				 * The current device is not PCIe, but
 				 * the bridge above it is.  This is a
@@ -168,6 +187,7 @@ dmar_get_requester(device_t dev, uint16_t *rid)
 				 * non-taken transactions.
 				 */
 				*rid = PCI_RID(pci_get_bus(l), 0, 0);
+				l = pcibp;
 			} else {
 				/*
 				 * Neither the device nor the bridge
@@ -177,8 +197,8 @@ dmar_get_requester(device_t dev, uint16_t *rid)
 				 * requester ID.
 				 */
 				*rid = pci_get_rid(pcib);
+				l = pcib;
 			}
-			l = pcibp;
 		}
 	}
 	return (requester);
