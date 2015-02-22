@@ -199,7 +199,7 @@ filter_available_targets(SANITIZER_COMMON_SUPPORTED_ARCH
 filter_available_targets(ASAN_SUPPORTED_ARCH
   x86_64 i386 i686 powerpc64 powerpc64le arm mips mipsel mips64 mips64el)
 filter_available_targets(DFSAN_SUPPORTED_ARCH x86_64 mips64 mips64el)
-filter_available_targets(LSAN_SUPPORTED_ARCH x86_64)
+filter_available_targets(LSAN_SUPPORTED_ARCH x86_64 mips64 mips64el)
 # LSan common files should be available on all architectures supported
 # by other sanitizers (even if they build into dummy object files).
 filter_available_targets(LSAN_COMMON_SUPPORTED_ARCH
@@ -207,7 +207,7 @@ filter_available_targets(LSAN_COMMON_SUPPORTED_ARCH
 filter_available_targets(MSAN_SUPPORTED_ARCH x86_64 mips64 mips64el)
 filter_available_targets(PROFILE_SUPPORTED_ARCH x86_64 i386 i686 arm mips mips64
   mipsel mips64el aarch64 powerpc64 powerpc64le)
-filter_available_targets(TSAN_SUPPORTED_ARCH x86_64)
+filter_available_targets(TSAN_SUPPORTED_ARCH x86_64 mips64 mips64el)
 filter_available_targets(UBSAN_SUPPORTED_ARCH x86_64 i386 i686 arm aarch64 mips mipsel mips64 mips64el)
 
 if(ANDROID)
