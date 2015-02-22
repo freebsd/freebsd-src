@@ -180,7 +180,6 @@ scheme_write(lba_t end)
 {
 	int error;
 
-	end = image_get_size();
 	error = scheme->write(end, bootcode);
 	return (error);
 }
