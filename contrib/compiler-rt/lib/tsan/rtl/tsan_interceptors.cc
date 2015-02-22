@@ -72,6 +72,7 @@ extern "C" void *__libc_malloc(uptr size);
 extern "C" void *__libc_calloc(uptr size, uptr n);
 extern "C" void *__libc_realloc(void *ptr, uptr size);
 extern "C" void __libc_free(void *ptr);
+extern "C" int dirfd(void *dirp);
 #if !SANITIZER_FREEBSD
 extern "C" int mallopt(int param, int value);
 #endif
@@ -101,14 +102,15 @@ typedef long long_t;  // NOLINT
 # define F_TLOCK 2      /* Test and lock a region for exclusive use.  */
 # define F_TEST  3      /* Test a region for other processes locks.  */
 
-typedef void (*sighandler_t)(int sig);
-
 #define errno (*__errno_location())
+
+typedef void (*sighandler_t)(int sig);
+typedef void (*sigactionhandler_t)(int sig, my_siginfo_t *siginfo, void *uctx);
 
 struct sigaction_t {
   union {
     sighandler_t sa_handler;
-    void (*sa_sigaction)(int sig, my_siginfo_t *siginfo, void *uctx);
+    sigactionhandler_t sa_sigaction;
   };
 #if SANITIZER_FREEBSD
   int sa_flags;
@@ -505,14 +507,10 @@ TSAN_INTERCEPTOR(void*, __libc_memalign, uptr align, uptr sz) {
 TSAN_INTERCEPTOR(void*, calloc, uptr size, uptr n) {
   if (cur_thread()->in_symbolizer)
     return __libc_calloc(size, n);
-  if (__sanitizer::CallocShouldReturnNullDueToOverflow(size, n))
-    return AllocatorReturnNull();
   void *p = 0;
   {
     SCOPED_INTERCEPTOR_RAW(calloc, size, n);
-    p = user_alloc(thr, pc, n * size);
-    if (p)
-      internal_memset(p, 0, n * size);
+    p = user_calloc(thr, pc, size, n);
   }
   invoke_malloc_hook(p, n * size);
   return p;
@@ -951,6 +949,8 @@ TSAN_INTERCEPTOR(int, pthread_join, void *th, void **ret) {
   }
   return res;
 }
+
+DEFINE_REAL_PTHREAD_FUNCTIONS
 
 TSAN_INTERCEPTOR(int, pthread_detach, void *th) {
   SCOPED_TSAN_INTERCEPTOR(pthread_detach, th);
@@ -1826,12 +1826,11 @@ TSAN_INTERCEPTOR(int, rmdir, char *path) {
   return res;
 }
 
-TSAN_INTERCEPTOR(void*, opendir, char *path) {
-  SCOPED_TSAN_INTERCEPTOR(opendir, path);
-  void *res = REAL(opendir)(path);
-  if (res != 0)
-    Acquire(thr, pc, Dir2addr(path));
-  return res;
+TSAN_INTERCEPTOR(int, closedir, void *dirp) {
+  SCOPED_TSAN_INTERCEPTOR(closedir, dirp);
+  int fd = dirfd(dirp);
+  FdClose(thr, pc, fd);
+  return REAL(closedir)(dirp);
 }
 
 #if !SANITIZER_FREEBSD
@@ -1875,15 +1874,18 @@ static void CallUserSignalHandler(ThreadState *thr, bool sync, bool acquire,
   // Ensure that the handler does not spoil errno.
   const int saved_errno = errno;
   errno = 99;
-  // Need to remember pc before the call, because the handler can reset it.
-  uptr pc = sigact ?
+  // This code races with sigaction. Be careful to not read sa_sigaction twice.
+  // Also need to remember pc for reporting before the call,
+  // because the handler can reset it.
+  volatile uptr pc = sigact ?
      (uptr)sigactions[sig].sa_sigaction :
      (uptr)sigactions[sig].sa_handler;
-  pc += 1;  // return address is expected, OutputReport() will undo this
-  if (sigact)
-    sigactions[sig].sa_sigaction(sig, info, uctx);
-  else
-    sigactions[sig].sa_handler(sig);
+  if (pc != (uptr)SIG_DFL && pc != (uptr)SIG_IGN) {
+    if (sigact)
+      ((sigactionhandler_t)pc)(sig, info, uctx);
+    else
+      ((sighandler_t)pc)(sig);
+  }
   // We do not detect errno spoiling for SIGTERM,
   // because some SIGTERM handlers do spoil errno but reraise SIGTERM,
   // tsan reports false positive in such case.
@@ -1893,7 +1895,9 @@ static void CallUserSignalHandler(ThreadState *thr, bool sync, bool acquire,
   // signal; and it looks too fragile to intercept all ways to reraise a signal.
   if (flags()->report_bugs && !sync && sig != SIGTERM && errno != 99) {
     VarSizeStackTrace stack;
-    ObtainCurrentStack(thr, pc, &stack);
+    // Add 1 to pc because return address is expected,
+    // OutputReport() will undo this.
+    ObtainCurrentStack(thr, pc + 1, &stack);
     ThreadRegistryLock l(ctx->thread_registry);
     ScopedReport rep(ReportTypeErrnoInSignal);
     if (!IsFiredSuppression(ctx, rep, stack)) {
@@ -1919,11 +1923,8 @@ void ProcessPendingSignals(ThreadState *thr) {
     SignalDesc *signal = &sctx->pending_signals[sig];
     if (signal->armed) {
       signal->armed = false;
-      if (sigactions[sig].sa_handler != SIG_DFL
-          && sigactions[sig].sa_handler != SIG_IGN) {
-        CallUserSignalHandler(thr, false, true, signal->sigaction,
-            sig, &signal->siginfo, &signal->ctx);
-      }
+      CallUserSignalHandler(thr, false, true, signal->sigaction, sig,
+          &signal->siginfo, &signal->ctx);
     }
   }
   pthread_sigmask(SIG_SETMASK, &oldset, 0);
@@ -2005,7 +2006,19 @@ TSAN_INTERCEPTOR(int, sigaction, int sig, sigaction_t *act, sigaction_t *old) {
     internal_memcpy(old, &sigactions[sig], sizeof(*old));
   if (act == 0)
     return 0;
-  internal_memcpy(&sigactions[sig], act, sizeof(*act));
+  // Copy act into sigactions[sig].
+  // Can't use struct copy, because compiler can emit call to memcpy.
+  // Can't use internal_memcpy, because it copies byte-by-byte,
+  // and signal handler reads the sa_handler concurrently. It it can read
+  // some bytes from old value and some bytes from new value.
+  // Use volatile to prevent insertion of memcpy.
+  sigactions[sig].sa_handler = *(volatile sighandler_t*)&act->sa_handler;
+  sigactions[sig].sa_flags = *(volatile int*)&act->sa_flags;
+  internal_memcpy(&sigactions[sig].sa_mask, &act->sa_mask,
+      sizeof(sigactions[sig].sa_mask));
+#if !SANITIZER_FREEBSD
+  sigactions[sig].sa_restorer = act->sa_restorer;
+#endif
   sigaction_t newact;
   internal_memcpy(&newact, act, sizeof(newact));
   REAL(sigfillset)(&newact.sa_mask);
@@ -2171,6 +2184,16 @@ static void HandleRecvmsg(ThreadState *thr, uptr pc,
 #undef SANITIZER_INTERCEPT_FGETPWENT
 #undef SANITIZER_INTERCEPT_GETPWNAM_AND_FRIENDS
 #undef SANITIZER_INTERCEPT_GETPWNAM_R_AND_FRIENDS
+// __tls_get_addr can be called with mis-aligned stack due to:
+// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=58066
+// There are two potential issues:
+// 1. Sanitizer code contains a MOVDQA spill (it does not seem to be the case
+// right now). or 2. ProcessPendingSignal calls user handler which contains
+// MOVDQA spill (this happens right now).
+// Since the interceptor only initializes memory for msan, the simplest solution
+// is to disable the interceptor in tsan (other sanitizers do not call
+// signal handlers from COMMON_INTERCEPTOR_ENTER).
+#undef SANITIZER_INTERCEPT_TLS_GET_ADDR
 
 #define COMMON_INTERCEPT_FUNCTION(name) INTERCEPT_FUNCTION(name)
 
@@ -2209,11 +2232,14 @@ static void HandleRecvmsg(ThreadState *thr, uptr pc,
     if (fd >= 0) FdClose(thr, pc, fd);           \
   }
 
-#define COMMON_INTERCEPTOR_LIBRARY_LOADED(filename, res)  \
+#define COMMON_INTERCEPTOR_LIBRARY_LOADED(filename, handle) \
   libignore()->OnLibraryLoaded(filename)
 
 #define COMMON_INTERCEPTOR_LIBRARY_UNLOADED() \
   libignore()->OnLibraryUnloaded()
+
+#define COMMON_INTERCEPTOR_DIR_ACQUIRE(ctx, path) \
+  Acquire(((TsanInterceptorContext *) ctx)->thr, pc, Dir2addr(path))
 
 #define COMMON_INTERCEPTOR_FD_ACQUIRE(ctx, fd) \
   FdAcquire(((TsanInterceptorContext *) ctx)->thr, pc, fd)
@@ -2530,7 +2556,7 @@ void InitializeInterceptors() {
   TSAN_INTERCEPT(abort);
   TSAN_INTERCEPT(puts);
   TSAN_INTERCEPT(rmdir);
-  TSAN_INTERCEPT(opendir);
+  TSAN_INTERCEPT(closedir);
 
   TSAN_MAYBE_INTERCEPT_EPOLL_CTL;
   TSAN_MAYBE_INTERCEPT_EPOLL_WAIT;
@@ -2567,21 +2593,6 @@ void InitializeInterceptors() {
   }
 
   FdInit();
-}
-
-void *internal_start_thread(void(*func)(void *arg), void *arg) {
-  // Start the thread with signals blocked, otherwise it can steal user signals.
-  __sanitizer_sigset_t set, old;
-  internal_sigfillset(&set);
-  internal_sigprocmask(SIG_SETMASK, &set, &old);
-  void *th;
-  REAL(pthread_create)(&th, 0, (void*(*)(void *arg))func, arg);
-  internal_sigprocmask(SIG_SETMASK, &old, 0);
-  return th;
-}
-
-void internal_join_thread(void *th) {
-  REAL(pthread_join)(th, 0);
 }
 
 }  // namespace __tsan
