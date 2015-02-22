@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 
 #include "ps3-hvcall.h"
 
-#define PS3FB_SIZE (4*1024*1024)
-
 #define L1GPU_CONTEXT_ATTRIBUTE_DISPLAY_MODE_SET	0x0100
 #define L1GPU_CONTEXT_ATTRIBUTE_DISPLAY_SYNC		0x0101
 #define  L1GPU_DISPLAY_SYNC_HSYNC			1
@@ -138,8 +136,8 @@ ps3fb_remap(void)
 	    0,L1GPU_DISPLAY_SYNC_VSYNC,0,0);
 	lv1_gpu_context_attribute(0, L1GPU_CONTEXT_ATTRIBUTE_DISPLAY_SYNC,
 	    1,L1GPU_DISPLAY_SYNC_VSYNC,0,0);
-	lv1_gpu_memory_allocate(PS3FB_SIZE, 0, 0, 0, 0, &sc->sc_fbhandle,
-	    &fb_paddr);
+	lv1_gpu_memory_allocate(roundup2(sc->fb_info.fb_size, 1024*1024),
+	    0, 0, 0, 0, &sc->sc_fbhandle, &fb_paddr);
 	lv1_gpu_context_allocate(sc->sc_fbhandle, 0, &sc->sc_fbcontext,
 	    &sc->sc_dma_control, &sc->sc_driver_info, &sc->sc_reports,
 	    &sc->sc_reports_size);
@@ -150,7 +148,7 @@ ps3fb_remap(void)
 	    L1GPU_CONTEXT_ATTRIBUTE_DISPLAY_FLIP, 1, 0, 0, 0);
 
 	sc->fb_info.fb_pbase = fb_paddr;
-	for (va = 0; va < PS3FB_SIZE; va += PAGE_SIZE)
+	for (va = 0; va < sc->fb_info.fb_size; va += PAGE_SIZE)
 		pmap_kenter_attr(0x10000000 + va, fb_paddr + va,
 		    VM_MEMATTR_WRITE_COMBINING);
 	sc->fb_info.fb_flags &= ~FB_FLAG_NOWRITE;
@@ -168,6 +166,8 @@ ps3fb_init(struct vt_device *vd)
 	sc->fb_info.fb_depth = 32;
 	sc->fb_info.fb_height = 480;
 	sc->fb_info.fb_width = 720;
+	TUNABLE_INT_FETCH("hw.ps3fb.height", &sc->fb_info.fb_height);
+	TUNABLE_INT_FETCH("hw.ps3fb.width", &sc->fb_info.fb_width);
 	sc->fb_info.fb_stride = sc->fb_info.fb_width*4;
 	sc->fb_info.fb_size = sc->fb_info.fb_height * sc->fb_info.fb_stride;
 	sc->fb_info.fb_bpp = sc->fb_info.fb_stride / sc->fb_info.fb_width * 8;
