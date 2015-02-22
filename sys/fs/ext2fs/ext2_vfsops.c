@@ -355,7 +355,7 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	}
 
 	fs->e2fs_ipb = fs->e2fs_bsize / EXT2_INODE_SIZE(fs);
-	fs->e2fs_itpg = fs->e2fs_ipg /fs->e2fs_ipb;
+	fs->e2fs_itpg = fs->e2fs_ipg / fs->e2fs_ipb;
 	/* s_resuid / s_resgid ? */
 	fs->e2fs_gcount = (es->e2fs_bcount - es->e2fs_first_dblock +
 	    EXT2_BLOCKS_PER_GROUP(fs) - 1) / EXT2_BLOCKS_PER_GROUP(fs);
@@ -365,7 +365,7 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	fs->e2fs_gd = malloc(db_count * fs->e2fs_bsize,
 	    M_EXT2MNT, M_WAITOK);
 	fs->e2fs_contigdirs = malloc(fs->e2fs_gcount *
-	    sizeof(*fs->e2fs_contigdirs), M_EXT2MNT, M_WAITOK);
+	    sizeof(*fs->e2fs_contigdirs), M_EXT2MNT, M_WAITOK | M_ZERO);
 
 	/*
 	 * Adjust logic_sb_block.
@@ -379,6 +379,7 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 			 fsbtodb(fs, logic_sb_block + i + 1 ),
 			fs->e2fs_bsize, NOCRED, &bp);
 		if (error) {
+			free(fs->e2fs_contigdirs, M_EXT2MNT);
 			free(fs->e2fs_gd, M_EXT2MNT);
 			brelse(bp);
 			return (error);
@@ -390,11 +391,11 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 		brelse(bp);
 		bp = NULL;
 	}
+	/* Initialization for the ext2 Orlov allocator variant. */
 	fs->e2fs_total_dir = 0;
-	for (i=0; i < fs->e2fs_gcount; i++){
+	for (i = 0; i < fs->e2fs_gcount; i++)
 		fs->e2fs_total_dir += fs->e2fs_gd[i].ext2bgd_ndirs;
-		fs->e2fs_contigdirs[i] = 0;
-	}
+
 	if (es->e2fs_rev == E2FS_REV0 ||
 	    !EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_LARGEFILE))
 		fs->e2fs_maxfilesize = 0x7fffffff;
