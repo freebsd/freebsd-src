@@ -43,44 +43,11 @@ void Flags::SetDefaults() {
 #undef LSAN_FLAG
 }
 
-static void RegisterLsanFlags(FlagParser *parser, Flags *f) {
+void RegisterLsanFlags(FlagParser *parser, Flags *f) {
 #define LSAN_FLAG(Type, Name, DefaultValue, Description) \
   RegisterFlag(parser, #Name, Description, &f->Name);
 #include "lsan_flags.inc"
 #undef LSAN_FLAG
-}
-
-static void InitializeFlags(bool standalone) {
-  Flags *f = flags();
-  FlagParser parser;
-  RegisterLsanFlags(&parser, f);
-  RegisterCommonFlags(&parser);
-
-  f->SetDefaults();
-
-  // Set defaults for common flags (only in standalone mode) and parse
-  // them from LSAN_OPTIONS.
-  if (standalone) {
-    SetCommonFlagsDefaults();
-    CommonFlags cf;
-    cf.CopyFrom(*common_flags());
-    cf.external_symbolizer_path = GetEnv("LSAN_SYMBOLIZER_PATH");
-    cf.malloc_context_size = 30;
-    cf.detect_leaks = true;
-    OverrideCommonFlags(cf);
-  }
-
-  bool help_before = common_flags()->help;
-
-  const char *options = GetEnv("LSAN_OPTIONS");
-  parser.ParseString(options);
-
-  SetVerbosity(common_flags()->verbosity);
-
-  if (Verbosity()) ReportUnrecognizedFlags();
-
-  if (!help_before && common_flags()->help)
-    parser.PrintFlagDescriptions();
 }
 
 #define LOG_POINTERS(...)                           \
@@ -93,14 +60,23 @@ static void InitializeFlags(bool standalone) {
     if (flags()->log_threads) Report(__VA_ARGS__); \
   } while (0);
 
-static bool suppressions_inited = false;
+ALIGNED(64) static char suppression_placeholder[sizeof(SuppressionContext)];
+static SuppressionContext *suppression_ctx = nullptr;
+static const char kSuppressionLeak[] = "leak";
+static const char *kSuppressionTypes[] = { kSuppressionLeak };
 
 void InitializeSuppressions() {
-  CHECK(!suppressions_inited);
-  SuppressionContext::InitIfNecessary();
+  CHECK_EQ(nullptr, suppression_ctx);
+  suppression_ctx = new (suppression_placeholder) // NOLINT
+      SuppressionContext(kSuppressionTypes, ARRAY_SIZE(kSuppressionTypes));
+  suppression_ctx->ParseFromFile(flags()->suppressions);
   if (&__lsan_default_suppressions)
-    SuppressionContext::Get()->Parse(__lsan_default_suppressions());
-  suppressions_inited = true;
+    suppression_ctx->Parse(__lsan_default_suppressions());
+}
+
+static SuppressionContext *GetSuppressionContext() {
+  CHECK(suppression_ctx);
+  return suppression_ctx;
 }
 
 struct RootRegion {
@@ -116,8 +92,7 @@ void InitializeRootRegions() {
   root_regions = new(placeholder) InternalMmapVector<RootRegion>(1);
 }
 
-void InitCommonLsan(bool standalone) {
-  InitializeFlags(standalone);
+void InitCommonLsan() {
   InitializeRootRegions();
   if (common_flags()->detect_leaks) {
     // Initialization which can fail or print warnings should only be done if
@@ -140,9 +115,11 @@ static inline bool CanBeAHeapPointer(uptr p) {
   // bound on heap addresses.
   const uptr kMinAddress = 4 * 4096;
   if (p < kMinAddress) return false;
-#ifdef __x86_64__
+#if defined(__x86_64__)
   // Accept only canonical form user-space addresses.
   return ((p >> 47) == 0);
+#elif defined(__mips64)
+  return ((p >> 40) == 0);
 #else
   return true;
 #endif
@@ -382,7 +359,7 @@ static void CollectLeaksCb(uptr chunk, void *arg) {
 
 static void PrintMatchedSuppressions() {
   InternalMmapVector<Suppression *> matched(1);
-  SuppressionContext::Get()->GetMatched(&matched);
+  GetSuppressionContext()->GetMatched(&matched);
   if (!matched.size())
     return;
   const char *line = "-----------------------------------------------------";
@@ -461,17 +438,17 @@ static Suppression *GetSuppressionForAddr(uptr addr) {
   // Suppress by module name.
   const char *module_name;
   uptr module_offset;
+  SuppressionContext *suppressions = GetSuppressionContext();
   if (Symbolizer::GetOrInit()->GetModuleNameAndOffsetForPC(addr, &module_name,
                                                            &module_offset) &&
-      SuppressionContext::Get()->Match(module_name, SuppressionLeak, &s))
+      suppressions->Match(module_name, kSuppressionLeak, &s))
     return s;
 
   // Suppress by file or function name.
   SymbolizedStack *frames = Symbolizer::GetOrInit()->SymbolizePC(addr);
   for (SymbolizedStack *cur = frames; cur; cur = cur->next) {
-    if (SuppressionContext::Get()->Match(cur->info.function, SuppressionLeak,
-                                         &s) ||
-        SuppressionContext::Get()->Match(cur->info.file, SuppressionLeak, &s)) {
+    if (suppressions->Match(cur->info.function, kSuppressionLeak, &s) ||
+        suppressions->Match(cur->info.file, kSuppressionLeak, &s)) {
       break;
     }
   }

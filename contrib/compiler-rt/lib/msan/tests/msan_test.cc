@@ -72,12 +72,21 @@ int shmdt(const void *);
 # include <mntent.h>
 # include <netinet/ether.h>
 #else
+# include <signal.h>
 # include <netinet/in.h>
 # include <pthread_np.h>
 # include <sys/uio.h>
 # include <sys/mount.h>
+# include <sys/sysctl.h>
+# include <net/ethernet.h>
 # define f_namelen f_namemax  // FreeBSD names this statfs field so.
 # define cpu_set_t cpuset_t
+extern "C" {
+// FreeBSD's <ssp/string.h> defines mempcpy() to be a macro expanding into
+// a __builtin___mempcpy_chk() call, but since Msan RTL defines it as an
+// ordinary function, we can declare it here to complete the tests.
+void *mempcpy(void *dest, const void *src, size_t n);
+}
 #endif
 
 #if defined(__i386__) || defined(__x86_64__)
@@ -97,14 +106,17 @@ int shmdt(const void *);
 # define DIR_TO_READ "/bin"
 # define SUBFILE_TO_READ "cat"
 # define SYMLINK_TO_READ "/usr/bin/tar"
+# define SUPERUSER_GROUP "wheel"
 #else
 # define FILE_TO_READ "/proc/self/stat"
 # define DIR_TO_READ "/proc/self"
 # define SUBFILE_TO_READ "stat"
 # define SYMLINK_TO_READ "/proc/self/exe"
+# define SUPERUSER_GROUP "root"
 #endif
 
-static const size_t kPageSize = 4096;
+const size_t kPageSize = 4096;
+const size_t kMaxPathLength = 4096;
 
 typedef unsigned char      U1;
 typedef unsigned short     U2;  // NOLINT
@@ -158,11 +170,11 @@ void ExpectPoisonedWithOrigin(const T& t, unsigned origin) {
     EXPECT_EQ(origin, __msan_get_origin((void*)&t));
 }
 
-#define EXPECT_NOT_POISONED(x) ExpectNotPoisoned(x)
+#define EXPECT_NOT_POISONED(x) EXPECT_EQ(true, TestForNotPoisoned((x)))
 
 template<typename T>
-void ExpectNotPoisoned(const T& t) {
-  EXPECT_EQ(-1, __msan_test_shadow((void*)&t, sizeof(t)));
+bool TestForNotPoisoned(const T& t) {
+  return __msan_test_shadow((void*)&t, sizeof(t)) == -1;
 }
 
 static U8 poisoned_array[100];
@@ -2166,6 +2178,8 @@ TEST(MemorySanitizer, mmap) {
   }
 }
 
+// There's no fcvt() on FreeBSD.
+#if !defined(__FreeBSD__)
 // FIXME: enable and add ecvt.
 // FIXME: check why msandr does nt handle fcvt.
 TEST(MemorySanitizer, fcvt) {
@@ -2181,7 +2195,10 @@ TEST(MemorySanitizer, fcvt) {
   EXPECT_NOT_POISONED(str[0]);
   ASSERT_NE(0U, strlen(str));
 }
+#endif
 
+// There's no fcvt_long() on FreeBSD.
+#if !defined(__FreeBSD__)
 TEST(MemorySanitizer, fcvt_long) {
   int a, b;
   break_optimization(&a);
@@ -2195,7 +2212,7 @@ TEST(MemorySanitizer, fcvt_long) {
   EXPECT_NOT_POISONED(str[0]);
   ASSERT_NE(0U, strlen(str));
 }
-
+#endif
 
 TEST(MemorySanitizer, memchr) {
   char x[10];
@@ -2797,9 +2814,20 @@ TEST(MemorySanitizer, getrusage) {
   EXPECT_NOT_POISONED(usage.ru_nivcsw);
 }
 
-#ifdef __GLIBC__
-extern char *program_invocation_name;
-#else  // __GLIBC__
+#if defined(__FreeBSD__)
+static void GetProgramPath(char *buf, size_t sz) {
+  int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 };
+  int res = sysctl(mib, 4, buf, &sz, NULL, 0);
+  ASSERT_EQ(0, res);
+}
+#elif defined(__GLIBC__)
+static void GetProgramPath(char *buf, size_t sz) {
+  extern char *program_invocation_name;
+  int res = snprintf(buf, sz, "%s", program_invocation_name);
+  ASSERT_GE(res, 0);
+  ASSERT_LT((size_t)res, sz);
+}
+#else
 # error "TODO: port this"
 #endif
 
@@ -2834,21 +2862,29 @@ static int dl_phdr_callback(struct dl_phdr_info *info, size_t size, void *data) 
 
 // Compute the path to our loadable DSO.  We assume it's in the same
 // directory.  Only use string routines that we intercept so far to do this.
-static int PathToLoadable(char *buf, size_t sz) {
-  const char *basename = "libmsan_loadable.x86_64.so";
-  char *argv0 = program_invocation_name;
-  char *last_slash = strrchr(argv0, '/');
-  assert(last_slash);
-  int res =
-      snprintf(buf, sz, "%.*s/%s", int(last_slash - argv0), argv0, basename);
-  assert(res >= 0);
-  return (size_t)res < sz ? 0 : res;
+static void GetPathToLoadable(char *buf, size_t sz) {
+  char program_path[kMaxPathLength];
+  GetProgramPath(program_path, sizeof(program_path));
+
+  const char *last_slash = strrchr(program_path, '/');
+  ASSERT_NE(nullptr, last_slash);
+  size_t dir_len = (size_t)(last_slash - program_path);
+#if defined(__x86_64__)
+  static const char basename[] = "libmsan_loadable.x86_64.so";
+#elif defined(__MIPSEB__) || defined(MIPSEB)
+  static const char basename[] = "libmsan_loadable.mips64.so";
+#elif defined(__mips64)
+  static const char basename[] = "libmsan_loadable.mips64el.so";
+#endif
+  int res = snprintf(buf, sz, "%.*s/%s",
+                     (int)dir_len, program_path, basename);
+  ASSERT_GE(res, 0);
+  ASSERT_LT((size_t)res, sz);
 }
 
 TEST(MemorySanitizer, dl_iterate_phdr) {
-  char path[4096];
-  int res = PathToLoadable(path, sizeof(path));
-  ASSERT_EQ(0, res);
+  char path[kMaxPathLength];
+  GetPathToLoadable(path, sizeof(path));
 
   // Having at least one dlopen'ed library in the process makes this more
   // entertaining.
@@ -2858,15 +2894,13 @@ TEST(MemorySanitizer, dl_iterate_phdr) {
   int count = 0;
   int result = dl_iterate_phdr(dl_phdr_callback, &count);
   ASSERT_GT(count, 0);
-  
+
   dlclose(lib);
 }
 
-
 TEST(MemorySanitizer, dlopen) {
-  char path[4096];
-  int res = PathToLoadable(path, sizeof(path));
-  ASSERT_EQ(0, res);
+  char path[kMaxPathLength];
+  GetPathToLoadable(path, sizeof(path));
 
   // We need to clear shadow for globals when doing dlopen.  In order to test
   // this, we have to poison the shadow for the DSO before we load it.  In
@@ -2891,7 +2925,7 @@ TEST(MemorySanitizer, dlopen) {
 
 // Regression test for a crash in dlopen() interceptor.
 TEST(MemorySanitizer, dlopenFailed) {
-  const char *path = "/libmsan_loadable_does_not_exist.x86_64.so";
+  const char *path = "/libmsan_loadable_does_not_exist.so";
   void *lib = dlopen(path, RTLD_LAZY);
   ASSERT_TRUE(lib == NULL);
 }
@@ -3271,8 +3305,10 @@ TEST(MemorySanitizer, getgrnam_r) {
   struct group grp;
   struct group *grpres;
   char buf[10000];
-  int res = getgrnam_r("root", &grp, buf, sizeof(buf), &grpres);
+  int res = getgrnam_r(SUPERUSER_GROUP, &grp, buf, sizeof(buf), &grpres);
   ASSERT_EQ(0, res);
+  // Note that getgrnam_r() returns 0 if the matching group is not found.
+  ASSERT_NE(nullptr, grpres);
   EXPECT_NOT_POISONED(grp.gr_name);
   ASSERT_TRUE(grp.gr_name != NULL);
   EXPECT_NOT_POISONED(grp.gr_name[0]);
@@ -3360,6 +3396,8 @@ TEST(MemorySanitizer, getgrent_r) {
   EXPECT_NOT_POISONED(grpres);
 }
 
+// There's no fgetgrent_r() on FreeBSD.
+#if !defined(__FreeBSD__)
 TEST(MemorySanitizer, fgetgrent_r) {
   FILE *fp = fopen("/etc/group", "r");
   struct group grp;
@@ -3375,6 +3413,7 @@ TEST(MemorySanitizer, fgetgrent_r) {
   EXPECT_NOT_POISONED(grpres);
   fclose(fp);
 }
+#endif
 
 TEST(MemorySanitizer, getgroups) {
   int n = getgroups(0, 0);
@@ -3502,7 +3541,7 @@ TEST(MemorySanitizer, VolatileBitfield) {
 }
 
 TEST(MemorySanitizer, UnalignedLoad) {
-  char x[32];
+  char x[32] __attribute__((aligned(8)));
   U4 origin = __LINE__;
   for (unsigned i = 0; i < sizeof(x) / 4; ++i)
     __msan_set_origin(x + 4 * i, 4, origin + i);
@@ -3536,7 +3575,7 @@ TEST(MemorySanitizer, UnalignedLoad) {
 }
 
 TEST(MemorySanitizer, UnalignedStore16) {
-  char x[5];
+  char x[5] __attribute__((aligned(4)));
   U2 y2 = 0;
   U4 origin = __LINE__;
   __msan_poison(&y2, 1);
@@ -3547,11 +3586,10 @@ TEST(MemorySanitizer, UnalignedStore16) {
   EXPECT_POISONED_O(x[1], origin);
   EXPECT_NOT_POISONED(x[2]);
   EXPECT_POISONED_O(x[3], origin);
-  EXPECT_POISONED_O(x[4], origin);
 }
 
 TEST(MemorySanitizer, UnalignedStore32) {
-  char x[8];
+  char x[8] __attribute__((aligned(4)));
   U4 y4 = 0;
   U4 origin = __LINE__;
   __msan_poison(&y4, 2);
@@ -3569,7 +3607,7 @@ TEST(MemorySanitizer, UnalignedStore32) {
 }
 
 TEST(MemorySanitizer, UnalignedStore64) {
-  char x[16];
+  char x[16] __attribute__((aligned(8)));
   U8 y8 = 0;
   U4 origin = __LINE__;
   __msan_poison(&y8, 3);
@@ -3592,7 +3630,7 @@ TEST(MemorySanitizer, UnalignedStore64) {
 }
 
 TEST(MemorySanitizer, UnalignedStore16_precise) {
-  char x[8];
+  char x[8] __attribute__((aligned(4)));
   U2 y = 0;
   U4 originx1 = __LINE__;
   U4 originx2 = __LINE__;
@@ -3615,7 +3653,7 @@ TEST(MemorySanitizer, UnalignedStore16_precise) {
 }
 
 TEST(MemorySanitizer, UnalignedStore16_precise2) {
-  char x[8];
+  char x[8] __attribute__((aligned(4)));
   U2 y = 0;
   U4 originx1 = __LINE__;
   U4 originx2 = __LINE__;
@@ -3638,7 +3676,7 @@ TEST(MemorySanitizer, UnalignedStore16_precise2) {
 }
 
 TEST(MemorySanitizer, UnalignedStore64_precise) {
-  char x[12];
+  char x[12] __attribute__((aligned(8)));
   U8 y = 0;
   U4 originx1 = __LINE__;
   U4 originx2 = __LINE__;
@@ -3670,7 +3708,7 @@ TEST(MemorySanitizer, UnalignedStore64_precise) {
 }
 
 TEST(MemorySanitizer, UnalignedStore64_precise2) {
-  char x[12];
+  char x[12] __attribute__((aligned(8)));
   U8 y = 0;
   U4 originx1 = __LINE__;
   U4 originx2 = __LINE__;

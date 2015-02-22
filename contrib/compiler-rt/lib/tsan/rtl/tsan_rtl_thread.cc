@@ -145,7 +145,9 @@ void ThreadContext::OnFinished() {
   AllocatorThreadFinish(thr);
 #endif
   thr->~ThreadState();
+#if TSAN_COLLECT_STATS
   StatAggregate(ctx->stat, thr->stat);
+#endif
   thr = 0;
 }
 
@@ -239,6 +241,7 @@ void ThreadStart(ThreadState *thr, int tid, uptr os_id) {
   uptr stk_size = 0;
   uptr tls_addr = 0;
   uptr tls_size = 0;
+#ifndef SANITIZER_GO
   GetThreadStackAndTls(tid == 0, &stk_addr, &stk_size, &tls_addr, &tls_size);
 
   if (tid) {
@@ -259,6 +262,7 @@ void ThreadStart(ThreadState *thr, int tid, uptr os_id) {
           thr_end, tls_addr + tls_size - thr_end);
     }
   }
+#endif
 
   ThreadRegistry *tr = ctx->thread_registry;
   OnStartedArgs args = { thr, stk_addr, stk_size, tls_addr, tls_size };

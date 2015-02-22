@@ -39,17 +39,27 @@ using namespace __tsan;  // NOLINT
 #define stderr __stderrp
 #endif
 
+#ifdef __mips__
+const int kSigCount = 129;
+#else
 const int kSigCount = 65;
+#endif
 
 struct my_siginfo_t {
   // The size is determined by looking at sizeof of real siginfo_t on linux.
   u64 opaque[128 / sizeof(u64)];
 };
 
+#ifdef __mips__
+struct ucontext_t {
+  u64 opaque[768 / sizeof(u64) + 1];
+};
+#else
 struct ucontext_t {
   // The size is determined by looking at sizeof of real ucontext_t on linux.
   u64 opaque[936 / sizeof(u64) + 1];
 };
+#endif
 
 extern "C" int pthread_attr_init(void *attr);
 extern "C" int pthread_attr_destroy(void *attr);
@@ -89,8 +99,13 @@ const int SIGFPE = 8;
 const int SIGSEGV = 11;
 const int SIGPIPE = 13;
 const int SIGTERM = 15;
+#ifdef __mips__
+const int SIGBUS = 10;
+const int SIGSYS = 12;
+#else
 const int SIGBUS = 7;
 const int SIGSYS = 31;
+#endif
 void *const MAP_FAILED = (void*)-1;
 const int PTHREAD_BARRIER_SERIAL_THREAD = -1;
 const int MAP_FIXED = 0x10;
@@ -108,6 +123,9 @@ typedef void (*sighandler_t)(int sig);
 typedef void (*sigactionhandler_t)(int sig, my_siginfo_t *siginfo, void *uctx);
 
 struct sigaction_t {
+#ifdef __mips__
+  u32 sa_flags;
+#endif
   union {
     sighandler_t sa_handler;
     sigactionhandler_t sa_sigaction;
@@ -117,7 +135,9 @@ struct sigaction_t {
   __sanitizer_sigset_t sa_mask;
 #else
   __sanitizer_sigset_t sa_mask;
+#ifndef __mips__
   int sa_flags;
+#endif
   void (*sa_restorer)();
 #endif
 };
@@ -125,8 +145,13 @@ struct sigaction_t {
 const sighandler_t SIG_DFL = (sighandler_t)0;
 const sighandler_t SIG_IGN = (sighandler_t)1;
 const sighandler_t SIG_ERR = (sighandler_t)-1;
+#ifdef __mips__
+const int SA_SIGINFO = 8;
+const int SIG_SETMASK = 3;
+#else
 const int SA_SIGINFO = 4;
 const int SIG_SETMASK = 2;
+#endif
 
 namespace std {
 struct nothrow_t {};
@@ -157,7 +182,13 @@ static LibIgnore *libignore() {
 }
 
 void InitializeLibIgnore() {
-  libignore()->Init(*SuppressionContext::Get());
+  const SuppressionContext &supp = *Suppressions();
+  const uptr n = supp.SuppressionCount();
+  for (uptr i = 0; i < n; i++) {
+    const Suppression *s = supp.SuppressionAt(i);
+    if (0 == internal_strcmp(s->type, kSuppressionLib))
+      libignore()->AddIgnoredLibrary(s->templ);
+  }
   libignore()->OnLibraryLoaded(0);
 }
 
@@ -1895,9 +1926,9 @@ static void CallUserSignalHandler(ThreadState *thr, bool sync, bool acquire,
   // signal; and it looks too fragile to intercept all ways to reraise a signal.
   if (flags()->report_bugs && !sync && sig != SIGTERM && errno != 99) {
     VarSizeStackTrace stack;
-    // Add 1 to pc because return address is expected,
-    // OutputReport() will undo this.
-    ObtainCurrentStack(thr, pc + 1, &stack);
+    // StackTrace::GetNestInstructionPc(pc) is used because return address is
+    // expected, OutputReport() will undo this.
+    ObtainCurrentStack(thr, StackTrace::GetNextInstructionPc(pc), &stack);
     ThreadRegistryLock l(ctx->thread_registry);
     ScopedReport rep(ReportTypeErrnoInSignal);
     if (!IsFiredSuppression(ctx, rep, stack)) {
