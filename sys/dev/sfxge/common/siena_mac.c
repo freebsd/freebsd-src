@@ -534,6 +534,7 @@ siena_mac_stats_update(
 			    &generation_start);
 
 	/* Check that we didn't read the stats in the middle of a DMA */
+	/* Not a good enough check ? */
 	if (memcmp(&generation_start, &generation_end,
 	    sizeof (generation_start)))
 		return (EAGAIN);
