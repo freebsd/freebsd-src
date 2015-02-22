@@ -541,7 +541,7 @@ main(int argc, char *argv[])
 
 	if (argc > optind)
 		usage("trailing arguments");
-	if (scheme_selected() == NULL)
+	if (scheme_selected() == NULL && nparts > 0)
 		usage("no scheme");
 	if (nparts == 0)
 		usage("no partitions");
@@ -577,8 +577,9 @@ main(int argc, char *argv[])
 		fprintf(stderr, "Sectors per track:   %u\n", nsecs);
 		fprintf(stderr, "Number of heads:     %u\n", nheads);
 		fputc('\n', stderr);
-		fprintf(stderr, "Partitioning scheme: %s\n",
-		    scheme_selected()->name);
+		if (scheme_selected())
+			fprintf(stderr, "Partitioning scheme: %s\n",
+			    scheme_selected()->name);
 		fprintf(stderr, "Output file format:  %s\n",
 		    format_selected()->name);
 		fputc('\n', stderr);
