@@ -294,10 +294,8 @@ add_param(const char *name, void *value, size_t valuelen,
 		param->jp_flags |= flags;
 		return param - params;
 	}
-	if (jailparam_init(param, name) < 0)
-		errx(1, "%s", jail_errmsg);
-	param->jp_flags = flags;
-	if ((value != NULL ? jailparam_import_raw(param, value, valuelen)
+	if (jailparam_init(param, name) < 0 ||
+	    (value != NULL ? jailparam_import_raw(param, value, valuelen)
 	     : jailparam_import(param, value)) < 0) {
 		if (flags & JP_OPT) {
 			nparams--;
@@ -305,6 +303,7 @@ add_param(const char *name, void *value, size_t valuelen,
 		}
 		errx(1, "%s", jail_errmsg);
 	}
+	param->jp_flags = flags;
 	return param - params;
 }
 
