@@ -105,6 +105,7 @@ siena_mon_decode_stats(
 	uint16_t mc_sensor;
 	size_t mc_sensor_max;
 	uint32_t vmask = 0;
+	uint32_t idx = 0;
 
 	/* Assert the MC_CMD_SENSOR and EFX_MON_STATE namespaces agree */
 	SIENA_STATIC_SENSOR_ASSERT(OK);
@@ -125,18 +126,19 @@ siena_mon_decode_stats(
 	for (mc_sensor = 0; mc_sensor < mc_sensor_max; ++mc_sensor) {
 		uint16_t efx_sensor = sensor_map[mc_sensor];
 
+		if (~dmask & (1 << mc_sensor))
+			continue;
+		idx++;
+
 		if (efx_sensor == SIENA_MON_WRONG_PORT)
 			continue;
 		EFSYS_ASSERT(efx_sensor < EFX_MON_NSTATS);
-
-		if (~dmask & (1 << mc_sensor))
-			continue;
 
 		vmask |= (1 << efx_sensor);
 		if (value != NULL && esmp != NULL && !EFSYS_MEM_IS_NULL(esmp)) {
 			efx_mon_stat_value_t *emsvp = value + efx_sensor;
 			efx_dword_t dword;
-			EFSYS_MEM_READD(esmp, 4 * mc_sensor, &dword);
+			EFSYS_MEM_READD(esmp, 4 * (idx - 1), &dword);
 			emsvp->emsv_value =
 			    (uint16_t)EFX_DWORD_FIELD(
 				dword,

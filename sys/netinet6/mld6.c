@@ -102,33 +102,33 @@ __FBSDID("$FreeBSD$");
 #define KTR_MLD KTR_INET6
 #endif
 
-static struct mld_ifinfo *
+static struct mld_ifsoftc *
 		mli_alloc_locked(struct ifnet *);
 static void	mli_delete_locked(const struct ifnet *);
 static void	mld_dispatch_packet(struct mbuf *);
 static void	mld_dispatch_queue(struct mbufq *, int);
-static void	mld_final_leave(struct in6_multi *, struct mld_ifinfo *);
+static void	mld_final_leave(struct in6_multi *, struct mld_ifsoftc *);
 static void	mld_fasttimo_vnet(void);
 static int	mld_handle_state_change(struct in6_multi *,
-		    struct mld_ifinfo *);
-static int	mld_initial_join(struct in6_multi *, struct mld_ifinfo *,
+		    struct mld_ifsoftc *);
+static int	mld_initial_join(struct in6_multi *, struct mld_ifsoftc *,
 		    const int);
 #ifdef KTR
 static char *	mld_rec_type_to_str(const int);
 #endif
-static void	mld_set_version(struct mld_ifinfo *, const int);
+static void	mld_set_version(struct mld_ifsoftc *, const int);
 static void	mld_slowtimo_vnet(void);
 static int	mld_v1_input_query(struct ifnet *, const struct ip6_hdr *,
 		    /*const*/ struct mld_hdr *);
 static int	mld_v1_input_report(struct ifnet *, const struct ip6_hdr *,
 		    /*const*/ struct mld_hdr *);
-static void	mld_v1_process_group_timer(struct mld_ifinfo *,
+static void	mld_v1_process_group_timer(struct mld_ifsoftc *,
 		    struct in6_multi *);
-static void	mld_v1_process_querier_timers(struct mld_ifinfo *);
+static void	mld_v1_process_querier_timers(struct mld_ifsoftc *);
 static int	mld_v1_transmit_report(struct in6_multi *, const int);
 static void	mld_v1_update_group(struct in6_multi *, const int);
-static void	mld_v2_cancel_link_timers(struct mld_ifinfo *);
-static void	mld_v2_dispatch_general_query(struct mld_ifinfo *);
+static void	mld_v2_cancel_link_timers(struct mld_ifsoftc *);
+static void	mld_v2_dispatch_general_query(struct mld_ifsoftc *);
 static struct mbuf *
 		mld_v2_encap_report(struct ifnet *, struct mbuf *);
 static int	mld_v2_enqueue_filter_change(struct mbufq *,
@@ -140,11 +140,11 @@ static int	mld_v2_input_query(struct ifnet *, const struct ip6_hdr *,
 		    struct mbuf *, const int, const int);
 static int	mld_v2_merge_state_changes(struct in6_multi *,
 		    struct mbufq *);
-static void	mld_v2_process_group_timers(struct mld_ifinfo *,
+static void	mld_v2_process_group_timers(struct mld_ifsoftc *,
 		    struct mbufq *, struct mbufq *,
 		    struct in6_multi *, const int);
 static int	mld_v2_process_group_query(struct in6_multi *,
-		    struct mld_ifinfo *mli, int, struct mbuf *, const int);
+		    struct mld_ifsoftc *mli, int, struct mbuf *, const int);
 static int	sysctl_mld_gsr(SYSCTL_HANDLER_ARGS);
 static int	sysctl_mld_ifinfo(SYSCTL_HANDLER_ARGS);
 
@@ -206,7 +206,7 @@ static MALLOC_DEFINE(M_MLD, "mld", "mld state");
  * VIMAGE-wide globals.
  */
 static VNET_DEFINE(struct timeval, mld_gsrdelay) = {10, 0};
-static VNET_DEFINE(LIST_HEAD(, mld_ifinfo), mli_head);
+static VNET_DEFINE(LIST_HEAD(, mld_ifsoftc), mli_head);
 static VNET_DEFINE(int, interface_timers_running6);
 static VNET_DEFINE(int, state_change_timers_running6);
 static VNET_DEFINE(int, current_state_timers_running6);
@@ -344,7 +344,7 @@ out_locked:
 }
 
 /*
- * Expose struct mld_ifinfo to userland, keyed by ifindex.
+ * Expose struct mld_ifsoftc to userland, keyed by ifindex.
  * For use by ifmcstat(8).
  *
  * SMPng: NOTE: Does an unlocked ifindex space read.
@@ -358,7 +358,7 @@ sysctl_mld_ifinfo(SYSCTL_HANDLER_ARGS)
 	int			 error;
 	u_int			 namelen;
 	struct ifnet		*ifp;
-	struct mld_ifinfo	*mli;
+	struct mld_ifsoftc	*mli;
 
 	name = (int *)arg1;
 	namelen = arg2;
@@ -389,8 +389,17 @@ sysctl_mld_ifinfo(SYSCTL_HANDLER_ARGS)
 
 	LIST_FOREACH(mli, &V_mli_head, mli_link) {
 		if (ifp == mli->mli_ifp) {
-			error = SYSCTL_OUT(req, mli,
-			    sizeof(struct mld_ifinfo));
+			struct mld_ifinfo info;
+
+			info.mli_version = mli->mli_version;
+			info.mli_v1_timer = mli->mli_v1_timer;
+			info.mli_v2_timer = mli->mli_v2_timer;
+			info.mli_flags = mli->mli_flags;
+			info.mli_rv = mli->mli_rv;
+			info.mli_qi = mli->mli_qi;
+			info.mli_qri = mli->mli_qri;
+			info.mli_uri = mli->mli_uri;
+			error = SYSCTL_OUT(req, &info, sizeof(info));
 			break;
 		}
 	}
@@ -454,10 +463,10 @@ mld_is_addr_reported(const struct in6_addr *addr)
  *
  * SMPng: Normally called with IF_AFDATA_LOCK held.
  */
-struct mld_ifinfo *
+struct mld_ifsoftc *
 mld_domifattach(struct ifnet *ifp)
 {
-	struct mld_ifinfo *mli;
+	struct mld_ifsoftc *mli;
 
 	CTR3(KTR_MLD, "%s: called for ifp %p(%s)",
 	    __func__, ifp, if_name(ifp));
@@ -478,14 +487,14 @@ mld_domifattach(struct ifnet *ifp)
 /*
  * VIMAGE: assume curvnet set by caller.
  */
-static struct mld_ifinfo *
+static struct mld_ifsoftc *
 mli_alloc_locked(/*const*/ struct ifnet *ifp)
 {
-	struct mld_ifinfo *mli;
+	struct mld_ifsoftc *mli;
 
 	MLD_LOCK_ASSERT();
 
-	mli = malloc(sizeof(struct mld_ifinfo), M_MLD, M_NOWAIT|M_ZERO);
+	mli = malloc(sizeof(struct mld_ifsoftc), M_MLD, M_NOWAIT|M_ZERO);
 	if (mli == NULL)
 		goto out;
 
@@ -501,7 +510,7 @@ mli_alloc_locked(/*const*/ struct ifnet *ifp)
 
 	LIST_INSERT_HEAD(&V_mli_head, mli, mli_link);
 
-	CTR2(KTR_MLD, "allocate mld_ifinfo for ifp %p(%s)",
+	CTR2(KTR_MLD, "allocate mld_ifsoftc for ifp %p(%s)",
 	     ifp, if_name(ifp));
 
 out:
@@ -522,7 +531,7 @@ out:
 void
 mld_ifdetach(struct ifnet *ifp)
 {
-	struct mld_ifinfo	*mli;
+	struct mld_ifsoftc	*mli;
 	struct ifmultiaddr	*ifma;
 	struct in6_multi	*inm, *tinm;
 
@@ -578,9 +587,9 @@ mld_domifdetach(struct ifnet *ifp)
 static void
 mli_delete_locked(const struct ifnet *ifp)
 {
-	struct mld_ifinfo *mli, *tmli;
+	struct mld_ifsoftc *mli, *tmli;
 
-	CTR3(KTR_MLD, "%s: freeing mld_ifinfo for ifp %p(%s)",
+	CTR3(KTR_MLD, "%s: freeing mld_ifsoftc for ifp %p(%s)",
 	    __func__, ifp, if_name(ifp));
 
 	MLD_LOCK_ASSERT();
@@ -603,7 +612,7 @@ mli_delete_locked(const struct ifnet *ifp)
 		}
 	}
 #ifdef INVARIANTS
-	panic("%s: mld_ifinfo not found for ifp %p\n", __func__,  ifp);
+	panic("%s: mld_ifsoftc not found for ifp %p\n", __func__,  ifp);
 #endif
 }
 
@@ -619,7 +628,7 @@ mld_v1_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
     /*const*/ struct mld_hdr *mld)
 {
 	struct ifmultiaddr	*ifma;
-	struct mld_ifinfo	*mli;
+	struct mld_ifsoftc	*mli;
 	struct in6_multi	*inm;
 	int			 is_general_query;
 	uint16_t		 timer;
@@ -678,7 +687,7 @@ mld_v1_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 	 * Switch to MLDv1 host compatibility mode.
 	 */
 	mli = MLD_IFINFO(ifp);
-	KASSERT(mli != NULL, ("%s: no mld_ifinfo for ifp %p", __func__, ifp));
+	KASSERT(mli != NULL, ("%s: no mld_ifsoftc for ifp %p", __func__, ifp));
 	mld_set_version(mli, MLD_VERSION_1);
 
 	timer = (ntohs(mld->mld_maxdelay) * PR_FASTHZ) / MLD_TIMER_SCALE;
@@ -795,7 +804,7 @@ static int
 mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
     struct mbuf *m, const int off, const int icmp6len)
 {
-	struct mld_ifinfo	*mli;
+	struct mld_ifsoftc	*mli;
 	struct mldv2_query	*mld;
 	struct in6_multi	*inm;
 	uint32_t		 maxdelay, nsrc, qqi;
@@ -877,7 +886,7 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 	MLD_LOCK();
 
 	mli = MLD_IFINFO(ifp);
-	KASSERT(mli != NULL, ("%s: no mld_ifinfo for ifp %p", __func__, ifp));
+	KASSERT(mli != NULL, ("%s: no mld_ifsoftc for ifp %p", __func__, ifp));
 
 	/*
 	 * Discard the v2 query if we're in Compatibility Mode.
@@ -967,7 +976,7 @@ out_locked:
  * Return <0 if any error occured. Currently this is ignored.
  */
 static int
-mld_v2_process_group_query(struct in6_multi *inm, struct mld_ifinfo *mli,
+mld_v2_process_group_query(struct in6_multi *inm, struct mld_ifsoftc *mli,
     int timer, struct mbuf *m0, const int off)
 {
 	struct mldv2_query	*mld;
@@ -1171,7 +1180,7 @@ mld_v1_input_report(struct ifnet *ifp, const struct ip6_hdr *ip6,
 	 */
 	inm = in6m_lookup_locked(ifp, &mld->mld_addr);
 	if (inm != NULL) {
-		struct mld_ifinfo *mli;
+		struct mld_ifsoftc *mli;
 
 		mli = inm->in6m_mli;
 		KASSERT(mli != NULL,
@@ -1321,7 +1330,7 @@ mld_fasttimo_vnet(void)
 	struct mbufq		 scq;	/* State-change packets */
 	struct mbufq		 qrq;	/* Query response packets */
 	struct ifnet		*ifp;
-	struct mld_ifinfo	*mli;
+	struct mld_ifsoftc	*mli;
 	struct ifmultiaddr	*ifma;
 	struct in6_multi	*inm, *tinm;
 	int			 uri_fasthz;
@@ -1446,7 +1455,7 @@ out_locked:
  * Will update the global pending timer flags.
  */
 static void
-mld_v1_process_group_timer(struct mld_ifinfo *mli, struct in6_multi *inm)
+mld_v1_process_group_timer(struct mld_ifsoftc *mli, struct in6_multi *inm)
 {
 	int report_timer_expired;
 
@@ -1490,7 +1499,7 @@ mld_v1_process_group_timer(struct mld_ifinfo *mli, struct in6_multi *inm)
  * Note: Unlocked read from mli.
  */
 static void
-mld_v2_process_group_timers(struct mld_ifinfo *mli,
+mld_v2_process_group_timers(struct mld_ifsoftc *mli,
     struct mbufq *qrq, struct mbufq *scq,
     struct in6_multi *inm, const int uri_fasthz)
 {
@@ -1611,7 +1620,7 @@ mld_v2_process_group_timers(struct mld_ifinfo *mli,
  * as per Section 9.12.
  */
 static void
-mld_set_version(struct mld_ifinfo *mli, const int version)
+mld_set_version(struct mld_ifsoftc *mli, const int version)
 {
 	int old_version_timer;
 
@@ -1641,7 +1650,7 @@ mld_set_version(struct mld_ifinfo *mli, const int version)
  * joined on it; state-change, general-query, and group-query timers.
  */
 static void
-mld_v2_cancel_link_timers(struct mld_ifinfo *mli)
+mld_v2_cancel_link_timers(struct mld_ifsoftc *mli)
 {
 	struct ifmultiaddr	*ifma;
 	struct ifnet		*ifp;
@@ -1734,7 +1743,7 @@ mld_slowtimo(void)
 static void
 mld_slowtimo_vnet(void)
 {
-	struct mld_ifinfo *mli;
+	struct mld_ifsoftc *mli;
 
 	MLD_LOCK();
 
@@ -1750,7 +1759,7 @@ mld_slowtimo_vnet(void)
  * See Section 9.12 of RFC 3810.
  */
 static void
-mld_v1_process_querier_timers(struct mld_ifinfo *mli)
+mld_v1_process_querier_timers(struct mld_ifsoftc *mli)
 {
 
 	MLD_LOCK_ASSERT();
@@ -1866,7 +1875,7 @@ mld_v1_transmit_report(struct in6_multi *in6m, const int type)
 int
 mld_change_state(struct in6_multi *inm, const int delay)
 {
-	struct mld_ifinfo *mli;
+	struct mld_ifsoftc *mli;
 	struct ifnet *ifp;
 	int error;
 
@@ -1891,7 +1900,7 @@ mld_change_state(struct in6_multi *inm, const int delay)
 	MLD_LOCK();
 
 	mli = MLD_IFINFO(ifp);
-	KASSERT(mli != NULL, ("%s: no mld_ifinfo for ifp %p", __func__, ifp));
+	KASSERT(mli != NULL, ("%s: no mld_ifsoftc for ifp %p", __func__, ifp));
 
 	/*
 	 * If we detect a state transition to or from MCAST_UNDEFINED
@@ -1934,7 +1943,7 @@ out_locked:
  * initial state change for delay ticks (in units of PR_FASTHZ).
  */
 static int
-mld_initial_join(struct in6_multi *inm, struct mld_ifinfo *mli,
+mld_initial_join(struct in6_multi *inm, struct mld_ifsoftc *mli,
     const int delay)
 {
 	struct ifnet		*ifp;
@@ -2083,7 +2092,7 @@ mld_initial_join(struct in6_multi *inm, struct mld_ifinfo *mli,
  * Issue an intermediate state change during the life-cycle.
  */
 static int
-mld_handle_state_change(struct in6_multi *inm, struct mld_ifinfo *mli)
+mld_handle_state_change(struct in6_multi *inm, struct mld_ifsoftc *mli)
 {
 	struct ifnet		*ifp;
 	int			 retval;
@@ -2147,7 +2156,7 @@ mld_handle_state_change(struct in6_multi *inm, struct mld_ifinfo *mli)
  *  to INCLUDE {} for immediate transmission.
  */
 static void
-mld_final_leave(struct in6_multi *inm, struct mld_ifinfo *mli)
+mld_final_leave(struct in6_multi *inm, struct mld_ifsoftc *mli)
 {
 	int syncstates;
 #ifdef KTR
@@ -2963,7 +2972,7 @@ mld_v2_merge_state_changes(struct in6_multi *inm, struct mbufq *scq)
  * Respond to a pending MLDv2 General Query.
  */
 static void
-mld_v2_dispatch_general_query(struct mld_ifinfo *mli)
+mld_v2_dispatch_general_query(struct mld_ifsoftc *mli)
 {
 	struct ifmultiaddr	*ifma;
 	struct ifnet		*ifp;

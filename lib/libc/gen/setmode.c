@@ -186,10 +186,10 @@ setmode(const char *p)
 	 * as best we can.
 	 */
 	sigfillset(&sigset);
-        (void)_sigprocmask(SIG_BLOCK, &sigset, &sigoset);
+	(void)_sigprocmask(SIG_BLOCK, &sigset, &sigoset);
 	(void)umask(mask = umask(0));
 	mask = ~mask;
-        (void)_sigprocmask(SIG_SETMASK, &sigoset, NULL);
+	(void)_sigprocmask(SIG_SETMASK, &sigoset, NULL);
 
 	setlen = SET_LEN + 2;
 

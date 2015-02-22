@@ -573,7 +573,9 @@ MLINKS+=cdce.4 if_cdce.4
 MLINKS+=crypto.4 cryptodev.4
 MLINKS+=cue.4 if_cue.4
 MLINKS+=cxgb.4 if_cxgb.4
-MLINKS+=cxgbe.4 if_cxgbe.4
+MLINKS+=cxgbe.4 if_cxgbe.4 \
+	cxgbe.4 cxl.4 \
+	cxgbe.4 if_cxl.4
 MLINKS+=dc.4 if_dc.4
 MLINKS+=de.4 if_de.4
 MLINKS+=disc.4 if_disc.4
