@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 27, 2014
+.Dd February 22, 2015
 .Dt MKIMG 1
 .Os
 .Sh NAME
@@ -37,13 +37,12 @@
 .Op Fl S Ar secsz
 .Op Fl T Ar tracksz
 .Op Fl b Ar bootcode
+.Op Fl c Ar capacity
 .Op Fl f Ar format
 .Op Fl o Ar outfile
 .Op Fl v
 .Op Fl y
-.Fl s Ar scheme
-.Fl p Ar partition
-.Op Fl p Ar partition ...
+.Op Fl s Ar scheme Op Fl p Ar partition ...
 .Nm
 .Ar --formats | --schemes | --version
 .Sh DESCRIPTION
@@ -109,13 +108,29 @@ utility will use the (physical) block size to determine the start of
 partitions and to round the size of the disk image.
 .Pp
 The
-.Op Fl v
+.Fl c
+option can be used to specify a minimal capacity for the disk image.
+Use this option without the
+.Fl s
+and
+.Fl p
+options to create an empty disk image with the given (virtual) size.
+An empty partition table can be written to the disk when specifying a
+partitioning scheme with the
+.Fl s
+option, but without specifying any partitions.
+When the size required to for all the partitions is larger than the
+given capacity, then the disk image will be larger than the capacity
+given.
+.Pp
+The
+.Fl v
 option increases the level of output that the
 .Nm
 utility prints.
 .Pp
 The
-.Op Fl y
+.Fl y
 option is used for testing purposes only and is not to be used in production.
 When present, the
 .Nm
