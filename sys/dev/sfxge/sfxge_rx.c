@@ -1113,7 +1113,6 @@ sfxge_rx_qinit(struct sfxge_softc *sc, unsigned int index)
 	/* Allocate and zero DMA space. */
 	if ((rc = sfxge_dma_alloc(sc, EFX_RXQ_SIZE(sc->rxq_entries), esmp)) != 0)
 		return (rc);
-	(void)memset(esmp->esm_base, 0, EFX_RXQ_SIZE(sc->rxq_entries));
 
 	/* Allocate buffer table entries. */
 	sfxge_sram_buf_tbl_alloc(sc, EFX_RXQ_NBUFS(sc->rxq_entries),
