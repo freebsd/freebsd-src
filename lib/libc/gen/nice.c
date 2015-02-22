@@ -43,14 +43,18 @@ __FBSDID("$FreeBSD$");
  * Backwards compatible nice.
  */
 int
-nice(incr)
-	int incr;
+nice(int incr)
 {
 	int prio;
 
 	errno = 0;
 	prio = getpriority(PRIO_PROCESS, 0);
 	if (prio == -1 && errno)
-		return (-1);
-	return (setpriority(PRIO_PROCESS, 0, prio + incr));
+		return -1;
+	if (setpriority(PRIO_PROCESS, 0, prio + incr) == -1) {
+		if (errno == EACCES)
+			errno = EPERM;
+		return -1;
+	}
+	return getpriority(PRIO_PROCESS, 0);
 }
