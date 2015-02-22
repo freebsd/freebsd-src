@@ -224,6 +224,53 @@ efx_tx_qpush(
 			    etp->et_index, &dword, B_FALSE);
 }
 
+#define	EFX_MAX_PACE_VALUE 20
+#define	EFX_TX_PACE_CLOCK_BASE	104
+
+	__checkReturn	int
+efx_tx_qpace(
+	__in		efx_txq_t *etp,
+	__in		unsigned int ns)
+{
+	efx_nic_t *enp = etp->et_enp;
+	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+	efx_oword_t oword;
+	unsigned int pace_val;
+	unsigned int timer_period;
+	int rc;
+
+	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
+
+	if (ns == 0) {
+		pace_val = 0;
+	} else {
+		/*
+		 * The pace_val to write into the table is s.t
+		 * ns <= timer_period * (2 ^ pace_val)
+		 */
+		timer_period = EFX_TX_PACE_CLOCK_BASE / encp->enc_clk_mult;
+		for (pace_val = 1; pace_val <= EFX_MAX_PACE_VALUE; pace_val++) {
+			if ((timer_period << pace_val) >= ns)
+				break;
+		}
+	}
+	if (pace_val > EFX_MAX_PACE_VALUE) {
+		rc = EINVAL;
+		goto fail1;
+	}
+
+	/* Update the pacing table */
+	EFX_POPULATE_OWORD_1(oword, FRF_AZ_TX_PACE, pace_val);
+	EFX_BAR_TBL_WRITEO(enp, FR_AZ_TX_PACE_TBL, etp->et_index, &oword);
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, int, rc);
+
+	return (rc);
+}
+
 		void
 efx_tx_qflush(
 	__in	efx_txq_t *etp)
@@ -233,6 +280,8 @@ efx_tx_qflush(
 	uint32_t label;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
+
+	efx_tx_qpace(etp, 0);
 
 	label = etp->et_index;
 

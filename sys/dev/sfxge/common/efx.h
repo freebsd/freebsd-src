@@ -1736,6 +1736,11 @@ efx_tx_qpost(
 	__in		unsigned int completed,
 	__inout		unsigned int *addedp);
 
+extern	__checkReturn	int
+efx_tx_qpace(
+	__in		efx_txq_t *etp,
+	__in		unsigned int ns);
+
 extern		void
 efx_tx_qpush(
 	__in	efx_txq_t *etp,
