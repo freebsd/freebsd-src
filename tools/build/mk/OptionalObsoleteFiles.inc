@@ -1606,7 +1606,6 @@ OLD_FILES+=usr/share/man/man8/freebsd-update.8.gz
 .endif
 
 .if ${MK_GAMES} == no
-OLD_FILES+=usr/bin/bcd
 OLD_FILES+=usr/bin/caesar
 OLD_FILES+=usr/bin/factor
 OLD_FILES+=usr/bin/fortune
@@ -1614,7 +1613,6 @@ OLD_FILES+=usr/bin/grdc
 OLD_FILES+=usr/bin/morse
 OLD_FILES+=usr/bin/number
 OLD_FILES+=usr/bin/pom
-OLD_FILES+=usr/bin/ppt
 OLD_FILES+=usr/bin/primes
 OLD_FILES+=usr/bin/random
 OLD_FILES+=usr/bin/rot13
@@ -1638,7 +1636,6 @@ OLD_FILES+=usr/share/games/fortune/zippy
 OLD_FILES+=usr/share/games/fortune/zippy.dat
 OLD_DIRS+=usr/share/games/fortune
 OLD_DIRS+=usr/share/games
-OLD_FILES+=usr/share/man/man6/bcd.6.gz
 OLD_FILES+=usr/share/man/man6/caesar.6.gz
 OLD_FILES+=usr/share/man/man6/factor.6.gz
 OLD_FILES+=usr/share/man/man6/fortune.6.gz
@@ -1646,7 +1643,6 @@ OLD_FILES+=usr/share/man/man6/grdc.6.gz
 OLD_FILES+=usr/share/man/man6/morse.6.gz
 OLD_FILES+=usr/share/man/man6/number.6.gz
 OLD_FILES+=usr/share/man/man6/pom.6.gz
-OLD_FILES+=usr/share/man/man6/ppt.6.gz
 OLD_FILES+=usr/share/man/man6/primes.6.gz
 OLD_FILES+=usr/share/man/man6/random.6.gz
 OLD_FILES+=usr/share/man/man6/rot13.6.gz
