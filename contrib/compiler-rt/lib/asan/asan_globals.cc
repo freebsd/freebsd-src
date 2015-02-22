@@ -182,6 +182,8 @@ static void RegisterGlobal(const Global *g) {
 
 static void UnregisterGlobal(const Global *g) {
   CHECK(asan_inited);
+  if (flags()->report_globals >= 2)
+    ReportGlobal(*g, "Removed");
   CHECK(flags()->report_globals);
   CHECK(AddrIsInMem(g->beg));
   CHECK(AddrIsAlignedByGranularity(g->beg));
@@ -207,6 +209,20 @@ void StopInitOrderChecking() {
     PoisonRedZones(*g);
   }
 }
+
+#if SANITIZER_WINDOWS  // Should only be called on Windows.
+SANITIZER_INTERFACE_ATTRIBUTE
+void UnregisterGlobalsInRange(void *beg, void *end) {
+  if (!flags()->report_globals)
+    return;
+  BlockingMutexLock lock(&mu_for_globals);
+  for (ListOfGlobals *l = list_of_all_globals; l; l = l->next) {
+    void *address = (void *)l->g->beg;
+    if (beg <= address && address < end)
+      UnregisterGlobal(l->g);
+  }
+}
+#endif
 
 }  // namespace __asan
 

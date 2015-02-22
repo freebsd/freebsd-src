@@ -54,8 +54,21 @@ namespace __tsan {
 
 #ifndef SANITIZER_GO
 struct MapUnmapCallback;
+#ifdef __mips64
+static const uptr kAllocatorSpace = 0;
+static const uptr kAllocatorSize = SANITIZER_MMAP_RANGE_SIZE;
+static const uptr kAllocatorRegionSizeLog = 20;
+static const uptr kAllocatorNumRegions =
+    kAllocatorSize >> kAllocatorRegionSizeLog;
+typedef TwoLevelByteMap<(kAllocatorNumRegions >> 12), 1 << 12,
+    MapUnmapCallback> ByteMap;
+typedef SizeClassAllocator32<kAllocatorSpace, kAllocatorSize, 0,
+    CompactSizeClassMap, kAllocatorRegionSizeLog, ByteMap,
+    MapUnmapCallback> PrimaryAllocator;
+#else
 typedef SizeClassAllocator64<kHeapMemBeg, kHeapMemEnd - kHeapMemBeg, 0,
     DefaultSizeClassMap, MapUnmapCallback> PrimaryAllocator;
+#endif
 typedef SizeClassAllocatorLocalCache<PrimaryAllocator> AllocatorCache;
 typedef LargeMmapAllocator<MapUnmapCallback> SecondaryAllocator;
 typedef CombinedAllocator<PrimaryAllocator, AllocatorCache,
@@ -351,7 +364,9 @@ struct ThreadState {
   Vector<JmpBuf> jmp_bufs;
   int ignore_interceptors;
 #endif
+#if TSAN_COLLECT_STATS
   u64 stat[StatCnt];
+#endif
   const int tid;
   const int unique_id;
   bool in_symbolizer;
@@ -365,7 +380,9 @@ struct ThreadState {
   const uptr tls_size;
   ThreadContext *tctx;
 
+#if SANITIZER_DEBUG && !SANITIZER_GO
   InternalDeadlockDetector internal_deadlock_detector;
+#endif
   DDPhysicalThread *dd_pt;
   DDLogicalThread *dd_lt;
 
@@ -539,15 +556,20 @@ void ObtainCurrentStack(ThreadState *thr, uptr toppc, StackTraceTy *stack) {
 }
 
 
+#if TSAN_COLLECT_STATS
 void StatAggregate(u64 *dst, u64 *src);
 void StatOutput(u64 *stat);
+#endif
+
 void ALWAYS_INLINE StatInc(ThreadState *thr, StatType typ, u64 n = 1) {
-  if (kCollectStats)
-    thr->stat[typ] += n;
+#if TSAN_COLLECT_STATS
+  thr->stat[typ] += n;
+#endif
 }
 void ALWAYS_INLINE StatSet(ThreadState *thr, StatType typ, u64 n) {
-  if (kCollectStats)
-    thr->stat[typ] = n;
+#if TSAN_COLLECT_STATS
+  thr->stat[typ] = n;
+#endif
 }
 
 void MapShadow(uptr addr, uptr size);
@@ -728,6 +750,16 @@ void ALWAYS_INLINE TraceAddEvent(ThreadState *thr, FastState fs,
   Event ev = (u64)addr | ((u64)typ << 61);
   *evp = ev;
 }
+
+#ifndef SANITIZER_GO
+uptr ALWAYS_INLINE HeapEnd() {
+#if SANITIZER_CAN_USE_ALLOCATOR64
+  return kHeapMemEnd + PrimaryAllocator::AdditionalSize();
+#else
+  return kHeapMemEnd;
+#endif
+}
+#endif
 
 }  // namespace __tsan
 

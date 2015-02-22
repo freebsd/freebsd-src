@@ -314,7 +314,7 @@ static void AsanInitInternal() {
 
   // Initialize flags. This must be done early, because most of the
   // initialization steps look at flags().
-  InitializeFlags(flags());
+  InitializeFlags();
 
   SetCanPoisonMemory(flags()->poison_heap);
   SetMallocContextSize(common_flags()->malloc_context_size);
@@ -440,7 +440,7 @@ static void AsanInitInternal() {
   SanitizerInitializeUnwinder();
 
 #if CAN_SANITIZE_LEAKS
-  __lsan::InitCommonLsan(false);
+  __lsan::InitCommonLsan();
   if (common_flags()->detect_leaks && common_flags()->leak_check_at_exit) {
     Atexit(__lsan::DoLeakCheck);
   }
