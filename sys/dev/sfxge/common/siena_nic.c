@@ -478,7 +478,7 @@ siena_phy_cfg(
 	if (MCDI_OUT_DWORD_FIELD(req, GET_PHY_CFG_OUT_FLAGS,
 	    GET_PHY_CFG_OUT_BIST))
 		encp->enc_bist_mask |= (1 << EFX_PHY_BIST_TYPE_NORMAL);
-#endif	/* EFSYS_OPT_BIST */
+#endif	/* EFSYS_OPT_PHY_BIST */
 
 	return (0);
 
@@ -610,7 +610,6 @@ siena_nic_probe(
 	unsigned int mask;
 	int rc;
 
-	mask = 0;	/* XXX: pacify gcc */
 	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_SIENA);
 
 	/* Read clear any assertion state */

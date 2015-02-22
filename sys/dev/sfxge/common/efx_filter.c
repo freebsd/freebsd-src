@@ -412,7 +412,7 @@ efx_filter_search(
 	__in		uint32_t key,
 	__in		boolean_t for_insert,
 	__out		int *filter_index,
-	__out		int *depth_required)
+	__out		unsigned int *depth_required)
 {
 	unsigned hash, incr, filter_idx, depth;
 
@@ -528,7 +528,8 @@ efx_filter_remove_filter(
 	efx_filter_tbl_t *eftp = &efp->ef_tbl[tbl_id];
 	efx_filter_spec_t *saved_spec;
 	efx_oword_t filter;
-	int filter_idx, depth;
+	int filter_idx;
+	unsigned int depth;
 	int state;
 	uint32_t key;
 	int rc;
@@ -561,7 +562,7 @@ efx_filter_remove_index(
 	__in		int index)
 {
 	efx_filter_t *efp = &enp->en_filter;
-	enum efx_filter_tbl_id tbl_id = efx_filter_tbl_id(type);
+	efx_filter_tbl_id_t tbl_id = efx_filter_tbl_id(type);
 	efx_filter_tbl_t *eftp = &efp->ef_tbl[tbl_id];
 	int state;
 
