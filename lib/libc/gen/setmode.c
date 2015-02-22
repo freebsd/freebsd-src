@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 
 #include <ctype.h>
+#include <errno.h>
+#include <limits.h>
 #include <signal.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -66,7 +68,7 @@ typedef struct bitcmd {
 #define	CMD2_OBITS	0x08
 #define	CMD2_UBITS	0x10
 
-static BITCMD	*addcmd(BITCMD *, int, int, int, u_int);
+static BITCMD	*addcmd(BITCMD *, mode_t, mode_t, mode_t, mode_t);
 static void	 compress_mode(BITCMD *);
 #ifdef SETMODE_DEBUG
 static void	 dumpmode(BITCMD *);
@@ -151,33 +153,32 @@ common:			if (set->cmd2 & CMD2_CLR) {
 		BITCMD *newset;						\
 		setlen += SET_LEN_INCR;					\
 		newset = realloc(saveset, sizeof(BITCMD) * setlen);	\
-		if (!newset) {						\
-			if (saveset)					\
-				free(saveset);				\
-			saveset = NULL;					\
-			return (NULL);					\
-		}							\
+		if (newset == NULL)					\
+			goto out;					\
 		set = newset + (set - saveset);				\
 		saveset = newset;					\
 		endset = newset + (setlen - 2);				\
 	}								\
-	set = addcmd(set, (a), (b), (c), (d))
+	set = addcmd(set, (mode_t)(a), (mode_t)(b), (mode_t)(c), (d))
 
 #define	STANDARD_BITS	(S_ISUID|S_ISGID|S_IRWXU|S_IRWXG|S_IRWXO)
 
 void *
 setmode(const char *p)
 {
-	int perm, who;
+	int serrno;
 	char op, *ep;
 	BITCMD *set, *saveset, *endset;
 	sigset_t sigset, sigoset;
-	mode_t mask;
-	int equalopdone=0, permXbits, setlen;
+	mode_t mask, perm, permXbits, who;
 	long perml;
+	int equalopdone;
+	int setlen;
 
-	if (!*p)
+	if (!*p) {
+		errno = EINVAL;
 		return (NULL);
+	}
 
 	/*
 	 * Get a copy of the mask for the permissions that are mask relative.
@@ -203,10 +204,17 @@ setmode(const char *p)
 	 * or illegal bits.
 	 */
 	if (isdigit((unsigned char)*p)) {
+		errno = 0;
 		perml = strtol(p, &ep, 8);
-		if (*ep || perml < 0 || perml & ~(STANDARD_BITS|S_ISTXT)) {
-			free(saveset);
-			return (NULL);
+		if (*ep) {
+			errno = EINVAL;
+			goto out;
+		}
+		if (errno == ERANGE && (perml == LONG_MAX || perml == LONG_MIN))
+			goto out;
+		if (perml & ~(STANDARD_BITS|S_ISTXT)) {
+			errno = EINVAL;
+			goto out;
 		}
 		perm = (mode_t)perml;
 		ADDCMD('=', (STANDARD_BITS|S_ISTXT), perm, mask);
@@ -218,6 +226,7 @@ setmode(const char *p)
 	 * Build list of structures to set/clear/copy bits as described by
 	 * each clause of the symbolic mode.
 	 */
+	equalopdone = 0;
 	for (;;) {
 		/* First, find out which bits might be modified. */
 		for (who = 0;; ++p) {
@@ -240,8 +249,8 @@ setmode(const char *p)
 		}
 
 getop:		if ((op = *p++) != '+' && op != '-' && op != '=') {
-			free(saveset);
-			return (NULL);
+			errno = EINVAL;
+			goto out;
 		}
 		if (op == '=')
 			equalopdone = 0;
@@ -330,10 +339,15 @@ apply:		if (!*p)
 	dumpmode(saveset);
 #endif
 	return (saveset);
+out:
+	serrno = errno;
+	free(saveset);
+	errno = serrno;
+	return NULL;
 }
 
 static BITCMD *
-addcmd(BITCMD *set, int op, int who, int oparg, u_int mask)
+addcmd(BITCMD *set, mode_t op, mode_t who, mode_t oparg, mode_t mask)
 {
 	switch (op) {
 	case '=':
