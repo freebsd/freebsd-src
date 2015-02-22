@@ -442,7 +442,7 @@ mkimg(void)
 		errc(EX_IOERR, error, "image sizing");
 	block = image_get_size();
 	ncyls = block / (nsecs * nheads);
-	error = (scheme_write(block));
+	error = scheme_write(block);
 	if (error)
 		errc(EX_IOERR, error, "writing metadata");
 }
