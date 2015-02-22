@@ -61,10 +61,10 @@ __FBSDID("$FreeBSD$");
 #define	SFXGE_CAP (IFCAP_VLAN_MTU | \
 		   IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM | IFCAP_TSO |	\
 		   IFCAP_JUMBO_MTU | IFCAP_LRO |			\
-		   IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE)
+		   IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE | IFCAP_HWSTATS)
 #define	SFXGE_CAP_ENABLE SFXGE_CAP
 #define	SFXGE_CAP_FIXED (IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM | \
-			 IFCAP_JUMBO_MTU | IFCAP_LINKSTATE)
+			 IFCAP_JUMBO_MTU | IFCAP_LINKSTATE | IFCAP_HWSTATS)
 
 MALLOC_DEFINE(M_SFXGE, "sfxge", "Solarflare 10GigE driver");
 
@@ -342,6 +342,8 @@ sfxge_ifnet_init(struct ifnet *ifp, struct sfxge_softc *sc)
 		 "%s:tx", device_get_nameunit(sc->dev));
 	mtx_init(&sc->tx_lock, sc->tx_lock_name, NULL, MTX_DEF);
 #endif
+
+	ifp->if_get_counter = sfxge_get_counter;
 
 	if ((rc = sfxge_port_ifmedia_init(sc)) != 0)
 		goto fail;
