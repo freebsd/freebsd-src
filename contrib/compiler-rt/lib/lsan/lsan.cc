@@ -52,6 +52,9 @@ extern "C" void __lsan_init() {
 
   if (common_flags()->detect_leaks && common_flags()->leak_check_at_exit)
     Atexit(DoLeakCheck);
+
+  InitializeCoverage(common_flags()->coverage, common_flags()->coverage_dir);
+
   lsan_inited = true;
   lsan_init_is_running = false;
 }

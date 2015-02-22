@@ -58,8 +58,10 @@ real_pthread_attr_getstack(void *attr, void **addr, size_t *size);
 }  // extern "C"
 
 static int my_pthread_attr_getstack(void *attr, void **addr, size_t *size) {
-  if (real_pthread_attr_getstack)
+#if !SANITIZER_GO
+  if (&real_pthread_attr_getstack)
     return real_pthread_attr_getstack((pthread_attr_t *)attr, addr, size);
+#endif
   return pthread_attr_getstack((pthread_attr_t *)attr, addr, size);
 }
 
@@ -67,8 +69,10 @@ SANITIZER_WEAK_ATTRIBUTE int
 real_sigaction(int signum, const void *act, void *oldact);
 
 int internal_sigaction(int signum, const void *act, void *oldact) {
-  if (real_sigaction)
+#if !SANITIZER_GO
+  if (&real_sigaction)
     return real_sigaction(signum, act, oldact);
+#endif
   return sigaction(signum, (const struct sigaction *)act,
                    (struct sigaction *)oldact);
 }
@@ -120,6 +124,7 @@ void GetThreadStackTopAndBottom(bool at_initialization, uptr *stack_top,
   *stack_bottom = (uptr)stackaddr;
 }
 
+#if !SANITIZER_GO
 bool SetEnv(const char *name, const char *value) {
   void *f = dlsym(RTLD_NEXT, "setenv");
   if (f == 0)
@@ -130,6 +135,7 @@ bool SetEnv(const char *name, const char *value) {
   internal_memcpy(&setenv_f, &f, sizeof(f));
   return setenv_f(name, value, 1) == 0;
 }
+#endif
 
 bool SanitizerSetThreadName(const char *name) {
 #ifdef PR_SET_NAME
@@ -163,7 +169,7 @@ static uptr g_tls_size;
 #endif
 
 void InitTlsSize() {
-#if !SANITIZER_FREEBSD && !SANITIZER_ANDROID
+#if !SANITIZER_FREEBSD && !SANITIZER_ANDROID && !SANITIZER_GO
   typedef void (*get_tls_func)(size_t*, size_t*) DL_INTERNAL_FUNCTION;
   get_tls_func get_tls;
   void *get_tls_static_info_ptr = dlsym(RTLD_NEXT, "_dl_get_tls_static_info");
@@ -208,6 +214,8 @@ uptr ThreadDescriptorSize() {
         val = FIRST_32_SECOND_64(1168, 1776);
       else if (minor <= 12)
         val = FIRST_32_SECOND_64(1168, 2288);
+      else if (minor == 13)
+        val = FIRST_32_SECOND_64(1168, 2304);
       else
         val = FIRST_32_SECOND_64(1216, 2304);
     }
@@ -259,6 +267,7 @@ uptr ThreadSelf() {
 }
 #endif  // SANITIZER_FREEBSD
 
+#if !SANITIZER_GO
 static void GetTls(uptr *addr, uptr *size) {
 #if SANITIZER_LINUX
 # if defined(__x86_64__) || defined(__i386__)
@@ -287,6 +296,7 @@ static void GetTls(uptr *addr, uptr *size) {
 # error "Unknown OS"
 #endif
 }
+#endif
 
 uptr GetTlsSize() {
 #if SANITIZER_FREEBSD
@@ -300,6 +310,10 @@ uptr GetTlsSize() {
 
 void GetThreadStackAndTls(bool main, uptr *stk_addr, uptr *stk_size,
                           uptr *tls_addr, uptr *tls_size) {
+#if SANITIZER_GO
+  // Stub implementation for Go.
+  *stk_addr = *stk_size = *tls_addr = *tls_size = 0;
+#else
   GetTls(tls_addr, tls_size);
 
   uptr stack_top, stack_bottom;
@@ -316,6 +330,7 @@ void GetThreadStackAndTls(bool main, uptr *stk_addr, uptr *stk_size,
       *tls_addr = *stk_addr + *stk_size;
     }
   }
+#endif
 }
 
 void AdjustStackSize(void *attr_) {
@@ -418,6 +433,45 @@ void PrepareForSandboxing(__sanitizer_sandbox_arguments *args) {
   Symbolizer::GetOrInit()->PrepareForSandboxing();
   CovPrepareForSandboxing(args);
 #endif
+}
+
+// getrusage does not give us the current RSS, only the max RSS.
+// Still, this is better than nothing if /proc/self/statm is not available
+// for some reason, e.g. due to a sandbox.
+static uptr GetRSSFromGetrusage() {
+  struct rusage usage;
+  if (getrusage(RUSAGE_SELF, &usage))  // Failed, probably due to a sandbox.
+    return 0;
+  return usage.ru_maxrss << 10;  // ru_maxrss is in Kb.
+}
+
+uptr GetRSS() {
+  if (!common_flags()->can_use_proc_maps_statm)
+    return GetRSSFromGetrusage();
+  uptr fd = OpenFile("/proc/self/statm", false);
+  if ((sptr)fd < 0)
+    return GetRSSFromGetrusage();
+  char buf[64];
+  uptr len = internal_read(fd, buf, sizeof(buf) - 1);
+  internal_close(fd);
+  if ((sptr)len <= 0)
+    return 0;
+  buf[len] = 0;
+  // The format of the file is:
+  // 1084 89 69 11 0 79 0
+  // We need the second number which is RSS in pages.
+  char *pos = buf;
+  // Skip the first number.
+  while (*pos >= '0' && *pos <= '9')
+    pos++;
+  // Skip whitespaces.
+  while (!(*pos >= '0' && *pos <= '9') && *pos != 0)
+    pos++;
+  // Read the number.
+  uptr rss = 0;
+  while (*pos >= '0' && *pos <= '9')
+    rss = rss * 10 + *pos++ - '0';
+  return rss * GetPageSizeCached();
 }
 
 }  // namespace __sanitizer

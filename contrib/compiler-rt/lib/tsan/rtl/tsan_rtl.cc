@@ -365,8 +365,7 @@ int Finalize(ThreadState *thr) {
   ctx->report_mtx.Unlock();
 
 #ifndef SANITIZER_GO
-  if (common_flags()->verbosity)
-    AllocatorPrintStats();
+  if (Verbosity()) AllocatorPrintStats();
 #endif
 
   ThreadFinalize(thr);
@@ -565,43 +564,26 @@ void MemoryAccessImpl1(ThreadState *thr, uptr addr,
   // it's just not worth it (performance- and complexity-wise).
 
   Shadow old(0);
-  if (kShadowCnt == 1) {
-    int idx = 0;
+
+  // It release mode we manually unroll the loop,
+  // because empirically gcc generates better code this way.
+  // However, we can't afford unrolling in debug mode, because the function
+  // consumes almost 4K of stack. Gtest gives only 4K of stack to death test
+  // threads, which is not enough for the unrolled loop.
+#if SANITIZER_DEBUG
+  for (int idx = 0; idx < 4; idx++) {
 #include "tsan_update_shadow_word_inl.h"
-  } else if (kShadowCnt == 2) {
-    int idx = 0;
-#include "tsan_update_shadow_word_inl.h"
-    idx = 1;
-#include "tsan_update_shadow_word_inl.h"
-  } else if (kShadowCnt == 4) {
-    int idx = 0;
-#include "tsan_update_shadow_word_inl.h"
-    idx = 1;
-#include "tsan_update_shadow_word_inl.h"
-    idx = 2;
-#include "tsan_update_shadow_word_inl.h"
-    idx = 3;
-#include "tsan_update_shadow_word_inl.h"
-  } else if (kShadowCnt == 8) {
-    int idx = 0;
-#include "tsan_update_shadow_word_inl.h"
-    idx = 1;
-#include "tsan_update_shadow_word_inl.h"
-    idx = 2;
-#include "tsan_update_shadow_word_inl.h"
-    idx = 3;
-#include "tsan_update_shadow_word_inl.h"
-    idx = 4;
-#include "tsan_update_shadow_word_inl.h"
-    idx = 5;
-#include "tsan_update_shadow_word_inl.h"
-    idx = 6;
-#include "tsan_update_shadow_word_inl.h"
-    idx = 7;
-#include "tsan_update_shadow_word_inl.h"
-  } else {
-    CHECK(false);
   }
+#else
+  int idx = 0;
+#include "tsan_update_shadow_word_inl.h"
+  idx = 1;
+#include "tsan_update_shadow_word_inl.h"
+  idx = 2;
+#include "tsan_update_shadow_word_inl.h"
+  idx = 3;
+#include "tsan_update_shadow_word_inl.h"
+#endif
 
   // we did not find any races and had already stored
   // the current access info, so we are done
@@ -652,7 +634,7 @@ bool ContainsSameAccessSlow(u64 *s, u64 a, u64 sync_epoch, bool is_write) {
   return false;
 }
 
-#if defined(__SSE3__) && TSAN_SHADOW_COUNT == 4
+#if defined(__SSE3__)
 #define SHUF(v0, v1, i0, i1, i2, i3) _mm_castps_si128(_mm_shuffle_ps( \
     _mm_castsi128_ps(v0), _mm_castsi128_ps(v1), \
     (i0)*1 + (i1)*4 + (i2)*16 + (i3)*64))
@@ -712,11 +694,12 @@ bool ContainsSameAccessFast(u64 *s, u64 a, u64 sync_epoch, bool is_write) {
 
 ALWAYS_INLINE
 bool ContainsSameAccess(u64 *s, u64 a, u64 sync_epoch, bool is_write) {
-#if defined(__SSE3__) && TSAN_SHADOW_COUNT == 4
+#if defined(__SSE3__)
   bool res = ContainsSameAccessFast(s, a, sync_epoch, is_write);
   // NOTE: this check can fail if the shadow is concurrently mutated
-  // by other threads.
-  DCHECK_EQ(res, ContainsSameAccessSlow(s, a, sync_epoch, is_write));
+  // by other threads. But it still can be useful if you modify
+  // ContainsSameAccessFast and want to ensure that it's not completely broken.
+  // DCHECK_EQ(res, ContainsSameAccessSlow(s, a, sync_epoch, is_write));
   return res;
 #else
   return ContainsSameAccessSlow(s, a, sync_epoch, is_write);
@@ -733,7 +716,7 @@ void MemoryAccess(ThreadState *thr, uptr pc, uptr addr,
       (int)(1 << kAccessSizeLog), kAccessIsWrite, shadow_mem,
       (uptr)shadow_mem[0], (uptr)shadow_mem[1],
       (uptr)shadow_mem[2], (uptr)shadow_mem[3]);
-#if TSAN_DEBUG
+#if SANITIZER_DEBUG
   if (!IsAppMem(addr)) {
     Printf("Access to non app mem %zx\n", addr);
     DCHECK(IsAppMem(addr));
@@ -990,7 +973,7 @@ bool MD5Hash::operator==(const MD5Hash &other) const {
   return hash[0] == other.hash[0] && hash[1] == other.hash[1];
 }
 
-#if TSAN_DEBUG
+#if SANITIZER_DEBUG
 void build_consistency_debug() {}
 #else
 void build_consistency_release() {}
@@ -1000,16 +983,6 @@ void build_consistency_release() {}
 void build_consistency_stats() {}
 #else
 void build_consistency_nostats() {}
-#endif
-
-#if TSAN_SHADOW_COUNT == 1
-void build_consistency_shadow1() {}
-#elif TSAN_SHADOW_COUNT == 2
-void build_consistency_shadow2() {}
-#elif TSAN_SHADOW_COUNT == 4
-void build_consistency_shadow4() {}
-#else
-void build_consistency_shadow8() {}
 #endif
 
 }  // namespace __tsan
