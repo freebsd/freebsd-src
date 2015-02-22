@@ -895,7 +895,8 @@ typedef struct efx_nic_cfg_s {
 	uint32_t		enc_txq_limit;
 	uint32_t		enc_rxq_limit;
 	uint32_t		enc_buftbl_limit;
-	uint32_t		enc_evq_moderation_max;
+	uint32_t		enc_evq_timer_quantum_ns;
+	uint32_t		enc_evq_timer_max_us;
 	uint32_t		enc_clk_mult;
 #if EFSYS_OPT_LOOPBACK
 	uint32_t		enc_loopback_types[EFX_LINK_NMODES];

@@ -408,7 +408,8 @@ struct efx_evq_s {
 
 #define	EFX_EVQ_MAGIC	0x08081997
 
-#define	EFX_EV_TIMER_QUANTUM	5
+#define	EFX_EVQ_FALCON_TIMER_QUANTUM_NS	4968 /* 621 cycles */
+#define	EFX_EVQ_SIENA_TIMER_QUANTUM_NS	6144 /* 768 cycles */
 
 struct efx_rxq_s {
 	uint32_t			er_magic;
