@@ -654,7 +654,7 @@ out:
 	return (should_abort);
 }
 
-#endif	/* EFSYS_OPT_SIENA */
+#endif	/* EFSYS_OPT_MCDI */
 
 	__checkReturn	int
 efx_ev_qprime(
@@ -970,7 +970,7 @@ efx_ev_qcreate(
 	eep->ee_handler[FSE_AZ_EV_CODE_DRV_GEN_EV] = efx_ev_drv_gen;
 #if EFSYS_OPT_MCDI
 	eep->ee_handler[FSE_AZ_EV_CODE_MCDI_EVRESPONSE] = efx_ev_mcdi;
-#endif	/* EFSYS_OPT_SIENA */
+#endif	/* EFSYS_OPT_MCDI */
 
 	/* Set up the new event queue */
 	if (enp->en_family != EFX_FAMILY_FALCON) {
