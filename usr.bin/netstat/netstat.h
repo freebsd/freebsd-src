@@ -108,7 +108,7 @@ struct in6_addr;
 void in6_fillscopeid(struct sockaddr_in6 *);
 char *routename6(struct sockaddr_in6 *);
 const char *netname6(struct sockaddr_in6 *, struct in6_addr *);
-void	inet6print(struct in6_addr *, int, const char *, int);
+void	inet6print(const char *, struct in6_addr *, int, const char *, int);
 #endif /*INET6*/
 
 #ifdef IPSEC
@@ -143,7 +143,7 @@ void	nserr_stats(u_long, const char *, int, int);
 void	netgraphprotopr(u_long, const char *, int, int);
 #endif
 
-void	unixpr(u_long, u_long, u_long, u_long, u_long);
+void	unixpr(u_long, u_long, u_long, u_long, u_long, bool *);
 
 void	esis_stats(u_long, const char *, int, int);
 void	clnp_stats(u_long, const char *, int, int);

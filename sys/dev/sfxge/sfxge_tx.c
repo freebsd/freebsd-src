@@ -67,16 +67,22 @@ __FBSDID("$FreeBSD$");
 #include "sfxge.h"
 #include "sfxge_tx.h"
 
-/* Set the block level to ensure there is space to generate a
- * large number of descriptors for TSO.  With minimum MSS and
- * maximum mbuf length we might need more than a ring-ful of
- * descriptors, but this should not happen in practice except
- * due to deliberate attack.  In that case we will truncate
- * the output at a packet boundary.  Allow for a reasonable
- * minimum MSS of 512.
+/*
+ * Estimate maximum number of Tx descriptors required for TSO packet.
+ * With minimum MSS and maximum mbuf length we might need more (even
+ * than a ring-ful of descriptors), but this should not happen in
+ * practice except due to deliberate attack.  In that case we will
+ * truncate the output at a packet boundary.
  */
-#define	SFXGE_TSO_MAX_DESC ((65535 / 512) * 2 + SFXGE_TX_MAPPING_MAX_SEG - 1)
-#define	SFXGE_TXQ_BLOCK_LEVEL(_entries)	((_entries) - SFXGE_TSO_MAX_DESC)
+#define	SFXGE_TSO_MAX_DESC						\
+	(SFXGE_TSO_MAX_SEGS * 2 + SFXGE_TX_MAPPING_MAX_SEG - 1)
+
+/*
+ * Set the block level to ensure there is space to generate a
+ * large number of descriptors for TSO.
+ */
+#define	SFXGE_TXQ_BLOCK_LEVEL(_entries)					\
+	(EFX_TXQ_LIMIT(_entries) - SFXGE_TSO_MAX_DESC)
 
 #ifdef SFXGE_HAVE_MQ
 
@@ -505,7 +511,7 @@ sfxge_tx_qdpl_service(struct sfxge_txq *txq)
  * list", otherwise we atomically push it on the "put list".  The swizzle
  * function takes care of ordering.
  *
- * The length of the put list is bounded by SFXGE_TX_MAX_DEFFERED.  We
+ * The length of the put list is bounded by SFXGE_TX_MAX_DEFERRED.  We
  * overload the csum_data field in the mbuf to keep track of this length
  * because there is no cheap alternative to avoid races.
  */
@@ -569,7 +575,7 @@ sfxge_tx_qdpl_put(struct sfxge_txq *txq, struct mbuf *mbuf, int locked)
 
 /*
  * Called from if_transmit - will try to grab the txq lock and enqueue to the
- * put list if it succeeds, otherwise will push onto the defer list.
+ * put list if it succeeds, otherwise try to push onto the defer list if space.
  */
 int
 sfxge_tx_packet_add(struct sfxge_txq *txq, struct mbuf *m)
@@ -865,6 +871,8 @@ static void tso_fini(struct sfxge_txq *txq)
 static void tso_start(struct sfxge_tso_state *tso, struct mbuf *mbuf)
 {
 	struct ether_header *eh = mtod(mbuf, struct ether_header *);
+	const struct tcphdr *th;
+	struct tcphdr th_copy;
 
 	tso->mbuf = mbuf;
 
@@ -892,13 +900,24 @@ static void tso_start(struct sfxge_tso_state *tso, struct mbuf *mbuf)
 		tso->tcph_off = tso->nh_off + sizeof(struct ip6_hdr);
 	}
 
-	tso->header_len = tso->tcph_off + 4 * tso_tcph(tso)->th_off;
+	KASSERT(mbuf->m_len >= tso->tcph_off,
+		("network header is fragmented in mbuf"));
+	/* We need TCP header including flags (window is the next) */
+	if (mbuf->m_len < tso->tcph_off + offsetof(struct tcphdr, th_win)) {
+		m_copydata(tso->mbuf, tso->tcph_off, sizeof(th_copy),
+			   (caddr_t)&th_copy);
+		th = &th_copy;
+	} else {
+		th = tso_tcph(tso);
+	}
+
+	tso->header_len = tso->tcph_off + 4 * th->th_off;
 	tso->seg_size = mbuf->m_pkthdr.tso_segsz;
 
-	tso->seqnum = ntohl(tso_tcph(tso)->th_seq);
+	tso->seqnum = ntohl(th->th_seq);
 
 	/* These flags must not be duplicated */
-	KASSERT(!(tso_tcph(tso)->th_flags & (TH_URG | TH_SYN | TH_RST)),
+	KASSERT(!(th->th_flags & (TH_URG | TH_SYN | TH_RST)),
 		("incompatible TCP flag on TSO packet"));
 
 	tso->out_len = mbuf->m_pkthdr.len - tso->header_len;
@@ -1091,8 +1110,8 @@ sfxge_tx_queue_tso(struct sfxge_txq *txq, struct mbuf *mbuf,
 			 * the remainder of the input mbuf but do not
 			 * roll back the work we have done.
 			 */
-			if (txq->n_pend_desc >
-			    SFXGE_TSO_MAX_DESC - (1 + SFXGE_TX_MAPPING_MAX_SEG)) {
+			if (txq->n_pend_desc + 1 /* header */ + n_dma_seg >
+			    SFXGE_TSO_MAX_DESC) {
 				txq->tso_pdrop_too_many++;
 				break;
 			}
@@ -1130,8 +1149,11 @@ sfxge_tx_qunblock(struct sfxge_txq *txq)
 		unsigned int level;
 
 		level = txq->added - txq->completed;
-		if (level <= SFXGE_TXQ_UNBLOCK_LEVEL(txq->entries))
+		if (level <= SFXGE_TXQ_UNBLOCK_LEVEL(txq->entries)) {
+			/* reaped must be in sync with blocked */
+			sfxge_tx_qreap(txq);
 			txq->blocked = 0;
+		}
 	}
 
 	sfxge_tx_qdpl_service(txq);
@@ -1535,9 +1557,7 @@ sfxge_tx_stat_init(struct sfxge_softc *sc)
 
 	stat_list = SYSCTL_CHILDREN(sc->stats_node);
 
-	for (id = 0;
-	     id < sizeof(sfxge_tx_stats) / sizeof(sfxge_tx_stats[0]);
-	     id++) {
+	for (id = 0; id < nitems(sfxge_tx_stats); id++) {
 		SYSCTL_ADD_PROC(
 			ctx, stat_list,
 			OID_AUTO, sfxge_tx_stats[id].name,

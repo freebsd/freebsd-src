@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 28, 2015
+.Dd February 20, 2015
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -256,6 +256,15 @@ Set to a non-empty value to compress the release images with
 The original
 .Pq uncompressed
 images are not removed.
+.It Va XZ_THREADS Pq Vt int
+Set to the number of threads
+.Xr xz 1
+should use when compressing images.
+By default,
+.Va XZ_THREADS
+is set to
+.Va 0 ,
+which uses all available cores on the system.
 .It Va VCSCMD
 The command run to obtain the source trees.
 Defaults to

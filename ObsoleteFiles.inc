@@ -93,6 +93,11 @@ OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
 OLD_DIRS+=usr/lib/clang/3.5.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.5.1/lib
 OLD_DIRS+=usr/lib/clang/3.5.1
+# 20150222: Removed bcd(6) and ppt(6)
+OLD_FILES+=usr/bin/bcd
+OLD_FILES+=usr/bin/ppt
+OLD_FILES+=usr/share/man/man6/bcd.6.gz
+OLD_FILES+=usr/share/man/man6/ppt.6.gz
 # 20150217: Removed remnants of ar(4) driver
 OLD_FILES+=usr/include/sys/dev/ic/hd64570.h
 # 20150212: /usr/games moving into /usr/bin

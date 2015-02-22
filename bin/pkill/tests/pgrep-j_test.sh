@@ -4,7 +4,7 @@
 jail_name_to_jid()
 {
 	local check_name="$1"
-	jls -j "$check_name" -s 2>/dev/null | tr ' ' '\n' | grep jid= | sed -e 's/.*=//g'
+	jls -j "$check_name" -s | tr ' ' '\n' | grep jid= | sed -e 's/.*=//g'
 }
 
 base=pgrep_j_test
@@ -38,6 +38,7 @@ for i in `seq 1 10`; do
 	esac
 	sleep 0.1
 done
+sleep 0.5
 
 pid1="$(pgrep -f -x -j "$jid" "$sleep $sleep_amount" | sort)"
 pid2=$(printf "%s\n%s" "$(cat ${PWD}/${base}_1_1.pid)" \
