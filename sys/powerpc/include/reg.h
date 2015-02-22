@@ -20,7 +20,10 @@ struct reg {
 
 /* Must match pcb.pcb_fpu */
 struct fpreg {
-	double fpreg[32];
+	union {
+		double fpr;
+		uint64_t vsr[2];
+	} fpreg[32];
 	double fpscr;
 };
 

@@ -74,6 +74,9 @@
 #define	EXC_DLMISS	0x1100		/* Data load translation miss */
 #define	EXC_DSMISS	0x1200		/* Data store translation miss */
 
+/* Power ISA 2.06+: */
+#define	EXC_VSX		0x0f40		/* VSX Unavailable */
+
 /* The following are available on 4xx and 85xx */
 #define	EXC_CRIT	0x0100		/* Critical Input Interrupt */
 #define	EXC_PIT		0x1000		/* Programmable Interval Timer */
