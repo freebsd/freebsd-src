@@ -18,7 +18,7 @@ Index: lib/Transforms/Scalar/LoopRotation.cpp
 ===================================================================
 --- lib/Transforms/Scalar/LoopRotation.cpp
 +++ lib/Transforms/Scalar/LoopRotation.cpp
-@@ -498,6 +498,8 @@ bool LoopRotate::rotateLoop(Loop *L, bool Simplifi
+@@ -535,6 +535,8 @@ bool LoopRotate::rotateLoop(Loop *L, bool Simplifi
        Loop *PredLoop = LI->getLoopFor(*PI);
        if (!PredLoop || PredLoop->contains(Exit))
          continue;
