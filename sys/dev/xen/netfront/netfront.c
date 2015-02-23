@@ -2062,6 +2062,9 @@ create_netdev(device_t dev)
 		np->rx_mbufs[i] = NULL;
 		np->grant_rx_ref[i] = GRANT_REF_INVALID;
 	}
+
+	mbufq_init(&np->xn_rx_batch, INT_MAX);
+
 	/* A grant for every tx ring slot */
 	if (gnttab_alloc_grant_references(NET_TX_RING_SIZE,
 					  &np->gref_tx_head) != 0) {
