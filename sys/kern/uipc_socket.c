@@ -2286,6 +2286,8 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 			cm = cmn;
 		}
 	}
+	KASSERT(m == NULL || m->m_type == MT_DATA,
+	    ("soreceive_dgram: !data"));
 	while (m != NULL && uio->uio_resid > 0) {
 		len = uio->uio_resid;
 		if (len > m->m_len)
