@@ -1,4 +1,4 @@
-/*	$Id: mdoc_html.c,v 1.213 2014/11/27 22:27:56 schwarze Exp $ */
+/*	$Id: mdoc_html.c,v 1.216 2014/12/02 10:08:06 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -26,11 +26,10 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "mandoc.h"
 #include "mandoc_aux.h"
+#include "mdoc.h"
 #include "out.h"
 #include "html.h"
-#include "mdoc.h"
 #include "main.h"
 
 #define	INDENT		 5
@@ -1202,7 +1201,8 @@ mdoc_bd_pre(MDOC_ARGS)
 		default:
 			break;
 		}
-		if (nn->next && nn->next->line == nn->line)
+		if (h->flags & HTML_NONEWLINE ||
+		    (nn->next && ! (nn->next->flags & MDOC_LINE)))
 			continue;
 		else if (nn->next)
 			print_text(h, "\n");
@@ -1869,7 +1869,8 @@ static void
 mdoc_pf_post(MDOC_ARGS)
 {
 
-	h->flags |= HTML_NOSPACE;
+	if ( ! (n->next == NULL || n->next->flags & MDOC_LINE))
+		h->flags |= HTML_NOSPACE;
 }
 
 static int

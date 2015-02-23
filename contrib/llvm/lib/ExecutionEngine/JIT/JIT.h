@@ -15,8 +15,8 @@
 #define JIT_H
 
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
+#include "llvm/IR/ValueHandle.h"
 #include "llvm/PassManager.h"
-#include "llvm/Support/ValueHandle.h"
 
 namespace llvm {
 
@@ -39,12 +39,12 @@ private:
 public:
   explicit JITState(Module *M) : PM(M), M(M) {}
 
-  FunctionPassManager &getPM(const MutexGuard &L) {
+  FunctionPassManager &getPM() {
     return PM;
   }
 
   Module *getModule() const { return M; }
-  std::vector<AssertingVH<Function> > &getPendingFunctions(const MutexGuard &L){
+  std::vector<AssertingVH<Function> > &getPendingFunctions() {
     return PendingFunctions;
   }
 };
@@ -106,16 +106,16 @@ public:
                                       RM, CMM);
   }
 
-  virtual void addModule(Module *M);
+  void addModule(Module *M) override;
 
   /// removeModule - Remove a Module from the list of modules.  Returns true if
   /// M is found.
-  virtual bool removeModule(Module *M);
+  bool removeModule(Module *M) override;
 
   /// runFunction - Start execution with the specified function and arguments.
   ///
-  virtual GenericValue runFunction(Function *F,
-                                   const std::vector<GenericValue> &ArgValues);
+  GenericValue runFunction(Function *F,
+                           const std::vector<GenericValue> &ArgValues) override;
 
   /// getPointerToNamedFunction - This method returns the address of the
   /// specified function by using the MemoryManager. As such it is only
@@ -125,8 +125,8 @@ public:
   /// found, this function silently returns a null pointer. Otherwise,
   /// it prints a message to stderr and aborts.
   ///
-  virtual void *getPointerToNamedFunction(const std::string &Name,
-                                          bool AbortOnFailure = true);
+  void *getPointerToNamedFunction(const std::string &Name,
+                                  bool AbortOnFailure = true) override;
 
   // CompilationCallback - Invoked the first time that a call site is found,
   // which causes lazy compilation of the target function.
@@ -136,7 +136,7 @@ public:
   /// getPointerToFunction - This returns the address of the specified function,
   /// compiling it if necessary.
   ///
-  void *getPointerToFunction(Function *F);
+  void *getPointerToFunction(Function *F) override;
 
   /// addPointerToBasicBlock - Adds address of the specific basic block.
   void addPointerToBasicBlock(const BasicBlock *BB, void *Addr);
@@ -146,18 +146,18 @@ public:
 
   /// getPointerToBasicBlock - This returns the address of the specified basic
   /// block, assuming function is compiled.
-  void *getPointerToBasicBlock(BasicBlock *BB);
+  void *getPointerToBasicBlock(BasicBlock *BB) override;
 
   /// getOrEmitGlobalVariable - Return the address of the specified global
   /// variable, possibly emitting it to memory if needed.  This is used by the
   /// Emitter.
-  void *getOrEmitGlobalVariable(const GlobalVariable *GV);
+  void *getOrEmitGlobalVariable(const GlobalVariable *GV) override;
 
   /// getPointerToFunctionOrStub - If the specified function has been
   /// code-gen'd, return a pointer to the function.  If not, compile it, or use
   /// a stub to implement lazy compilation if available.
   ///
-  void *getPointerToFunctionOrStub(Function *F);
+  void *getPointerToFunctionOrStub(Function *F) override;
 
   /// recompileAndRelinkFunction - This method is used to force a function
   /// which has already been compiled, to be compiled again, possibly
@@ -165,12 +165,12 @@ public:
   /// with a branch to the new copy. If there was no old copy, this acts
   /// just like JIT::getPointerToFunction().
   ///
-  void *recompileAndRelinkFunction(Function *F);
+  void *recompileAndRelinkFunction(Function *F) override;
 
   /// freeMachineCodeForFunction - deallocate memory used to code-generate this
   /// Function.
   ///
-  void freeMachineCodeForFunction(Function *F);
+  void freeMachineCodeForFunction(Function *F) override;
 
   /// addPendingFunction - while jitting non-lazily, a called but non-codegen'd
   /// function was encountered.  Add it to a pending list to be processed after
@@ -189,10 +189,13 @@ public:
                                     TargetMachine *TM);
 
   // Run the JIT on F and return information about the generated code
-  void runJITOnFunction(Function *F, MachineCodeInfo *MCI = 0);
+  void runJITOnFunction(Function *F, MachineCodeInfo *MCI = nullptr) override;
 
-  virtual void RegisterJITEventListener(JITEventListener *L);
-  virtual void UnregisterJITEventListener(JITEventListener *L);
+  void RegisterJITEventListener(JITEventListener *L) override;
+  void UnregisterJITEventListener(JITEventListener *L) override;
+
+  TargetMachine *getTargetMachine() override { return &TM; }
+
   /// These functions correspond to the methods on JITEventListener.  They
   /// iterate over the registered listeners and call the corresponding method on
   /// each.
@@ -202,7 +205,7 @@ public:
   void NotifyFreeingMachineCode(void *OldPtr);
 
   BasicBlockAddressMapTy &
-  getBasicBlockAddressMap(const MutexGuard &) {
+  getBasicBlockAddressMap() {
     return BasicBlockAddressMap;
   }
 
@@ -210,14 +213,14 @@ public:
 private:
   static JITCodeEmitter *createEmitter(JIT &J, JITMemoryManager *JMM,
                                        TargetMachine &tm);
-  void runJITOnFunctionUnlocked(Function *F, const MutexGuard &locked);
-  void updateFunctionStub(Function *F);
-  void jitTheFunction(Function *F, const MutexGuard &locked);
+  void runJITOnFunctionUnlocked(Function *F);
+  void updateFunctionStubUnlocked(Function *F);
+  void jitTheFunctionUnlocked(Function *F);
 
 protected:
 
   /// getMemoryforGV - Allocate memory for a global variable.
-  virtual char* getMemoryForGV(const GlobalVariable* GV);
+  char* getMemoryForGV(const GlobalVariable* GV) override;
 
 };
 

@@ -33,8 +33,8 @@ options 	UFS_ACL			# Support for access control lists
 options 	UFS_DIRHASH		# Improve performance on big directories
 options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
 options 	QUOTA			# Enable disk quotas for UFS
-options 	NFSCL			# New Network Filesystem Client
-#options 	NFSD			# New Network Filesystem Server
+options 	NFSCL			# Network Filesystem Client
+#options 	NFSD			# Network Filesystem Server
 options 	NFSLOCKD		# Network Lock Manager
 options 	NFS_ROOT		# NFS usable as /, requires NFSCL
 options 	MSDOSFS			# MSDOS Filesystem
@@ -56,6 +56,7 @@ options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+options 	PLATFORM
 options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
 options 	VFP			# Enable floating point hardware support
 

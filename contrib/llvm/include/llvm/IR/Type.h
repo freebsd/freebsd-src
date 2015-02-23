@@ -15,12 +15,13 @@
 #ifndef LLVM_IR_TYPE_H
 #define LLVM_IR_TYPE_H
 
+#include "llvm-c/Core.h"
 #include "llvm/ADT/APFloat.h"
-#include "llvm/Support/Casting.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Support/CBindingWrapping.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm-c/Core.h"
 
 namespace llvm {
 
@@ -70,11 +71,7 @@ public:
     StructTyID,      ///< 12: Structures
     ArrayTyID,       ///< 13: Arrays
     PointerTyID,     ///< 14: Pointers
-    VectorTyID,      ///< 15: SIMD 'packed' format, or other vector type
-
-    NumTypeIDs,                         // Must remain as last defined ID
-    LastPrimitiveTyID = X86_MMXTyID,
-    FirstDerivedTyID = IntegerTyID
+    VectorTyID       ///< 15: SIMD 'packed' format, or other vector type
   };
 
 private:
@@ -91,7 +88,7 @@ protected:
   friend class LLVMContextImpl;
   explicit Type(LLVMContext &C, TypeID tid)
     : Context(C), IDAndSubclassData(0),
-      NumContainedTys(0), ContainedTys(0) {
+      NumContainedTys(0), ContainedTys(nullptr) {
     setTypeID(tid);
   }
   ~Type() {}
@@ -239,12 +236,6 @@ public:
   /// elements or all its elements are empty.
   bool isEmptyTy() const;
 
-  /// Here are some useful little methods to query what type derived types are
-  /// Note that all other types can just compare to see if this == Type::xxxTy;
-  ///
-  bool isPrimitiveType() const { return getTypeID() <= LastPrimitiveTyID; }
-  bool isDerivedType()   const { return getTypeID() >= FirstDerivedTyID; }
-
   /// isFirstClassType - Return true if the type is "first class", meaning it
   /// is a valid type for a Value.
   ///
@@ -257,9 +248,8 @@ public:
   /// and array types.
   ///
   bool isSingleValueType() const {
-    return (getTypeID() != VoidTyID && isPrimitiveType()) ||
-            getTypeID() == IntegerTyID || getTypeID() == PointerTyID ||
-            getTypeID() == VectorTyID;
+    return isFloatingPointTy() || isX86_MMXTy() || isIntegerTy() ||
+           isPointerTy() || isVectorTy();
   }
 
   /// isAggregateType - Return true if the type is an aggregate type. This
@@ -275,7 +265,7 @@ public:
   /// get the actual size for a particular target, it is reasonable to use the
   /// DataLayout subsystem to do this.
   ///
-  bool isSized() const {
+  bool isSized(SmallPtrSet<const Type*, 4> *Visited = nullptr) const {
     // If it's a primitive, it is always sized.
     if (getTypeID() == IntegerTyID || isFloatingPointTy() ||
         getTypeID() == PointerTyID ||
@@ -287,7 +277,7 @@ public:
         getTypeID() != VectorTyID)
       return false;
     // Otherwise we have to try harder to decide.
-    return isSizedDerivedType();
+    return isSizedDerivedType(Visited);
   }
 
   /// getPrimitiveSizeInBits - Return the basic size of this type if it is a
@@ -300,12 +290,12 @@ public:
   /// instance of the type is stored to memory. The DataLayout class provides
   /// additional query functions to provide this information.
   ///
-  unsigned getPrimitiveSizeInBits() const;
+  unsigned getPrimitiveSizeInBits() const LLVM_READONLY;
 
   /// getScalarSizeInBits - If this is a vector type, return the
   /// getPrimitiveSizeInBits value for the element type. Otherwise return the
   /// getPrimitiveSizeInBits value for this type.
-  unsigned getScalarSizeInBits();
+  unsigned getScalarSizeInBits() const LLVM_READONLY;
 
   /// getFPMantissaWidth - Return the width of the mantissa of this type.  This
   /// is only valid on floating point types.  If the FP type does not
@@ -314,8 +304,8 @@ public:
 
   /// getScalarType - If this is a vector type, return the element type,
   /// otherwise return 'this'.
-  const Type *getScalarType() const;
-  Type *getScalarType();
+  const Type *getScalarType() const LLVM_READONLY;
+  Type *getScalarType() LLVM_READONLY;
 
   //===--------------------------------------------------------------------===//
   // Type Iteration support.
@@ -429,7 +419,7 @@ private:
   /// isSizedDerivedType - Derived types like structures and arrays are sized
   /// iff all of the members of the type are sized as well.  Since asking for
   /// their size is relatively uncommon, move this operation out of line.
-  bool isSizedDerivedType() const;
+  bool isSizedDerivedType(SmallPtrSet<const Type*, 4> *Visited = nullptr) const;
 };
 
 // Printing of types.

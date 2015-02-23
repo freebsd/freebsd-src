@@ -105,7 +105,7 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp)
 	KASSERT(curvnet == ifp->if_vnet,
 	    ("curvnet(%p) differs from iface vnet(%p)", curvnet, ifp->if_vnet));
 	chain = &V_layer3_chain;
-	IPFW_WLOCK(chain);
+	IPFW_UH_WLOCK(chain);
 	/* Check every nat entry... */
 	LIST_FOREACH(ptr, &chain->nat, _next) {
 		/* ...using nic 'ifp->if_xname' as dynamic alias address. */
@@ -117,13 +117,15 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp)
 				continue;
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
+			IPFW_WLOCK(chain);
 			ptr->ip = ((struct sockaddr_in *)
 			    (ifa->ifa_addr))->sin_addr;
 			LibAliasSetAddress(ptr->lib, ptr->ip);
+			IPFW_WUNLOCK(chain);
 		}
 		if_addr_runlock(ifp);
 	}
-	IPFW_WUNLOCK(chain);
+	IPFW_UH_WUNLOCK(chain);
 }
 
 /*
@@ -689,7 +691,7 @@ nat44_get_cfg(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	export_nat_cfg(ptr, ucfg);
 	
 	/* Estimate memory amount */
-	sz = sizeof(struct nat44_cfg_nat);
+	sz = sizeof(ipfw_obj_header) + sizeof(struct nat44_cfg_nat);
 	LIST_FOREACH(r, &ptr->redir_chain, _next) {
 		sz += sizeof(struct nat44_cfg_redir);
 		LIST_FOREACH(s, &r->spool_chain, _next)
@@ -697,7 +699,7 @@ nat44_get_cfg(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	}
 
 	ucfg->size = sz;
-	if (sd->valsize < sz + sizeof(*oh)) {
+	if (sd->valsize < sz) {
 
 		/*
 		 * Submitted buffer size is not enough.

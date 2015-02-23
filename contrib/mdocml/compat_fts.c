@@ -6,8 +6,8 @@ int dummy;
 
 #else
 
-/*	$Id: compat_fts.c,v 1.4 2014/08/17 20:45:59 schwarze Exp $	*/
-/*	$OpenBSD: fts.c,v 1.46 2014/05/25 17:47:04 tedu Exp $	*/
+/*	$Id: compat_fts.c,v 1.6 2014/12/11 18:20:07 schwarze Exp $	*/
+/*	$OpenBSD: fts.c,v 1.49 2014/11/23 00:14:22 guenther Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993, 1994
@@ -62,6 +62,10 @@ static unsigned short	 fts_stat(FTS *, FTSENT *);
 static int	 fts_safe_changedir(FTS *, FTSENT *, int, const char *);
 
 #define	ISDOT(a)	(a[0] == '.' && (!a[1] || (a[1] == '.' && !a[2])))
+#define	MAX(a,b)	(((a)>(b))?(a):(b))
+#ifndef	O_DIRECTORY
+#define	O_DIRECTORY	0
+#endif
 
 #define	CLR(opt)	(sp->fts_options &= ~(opt))
 #define	ISSET(opt)	(sp->fts_options & (opt))
@@ -146,7 +150,8 @@ fts_open(char * const *argv, int options, void *dummy)
 	 * and ".." are all fairly nasty problems.  Note, if we can't get the
 	 * descriptor we run anyway, just more slowly.
 	 */
-	if (!ISSET(FTS_NOCHDIR) && (sp->fts_rfd = open(".", O_RDONLY, 0)) < 0)
+	if (!ISSET(FTS_NOCHDIR) &&
+	    (sp->fts_rfd = open(".", O_RDONLY | O_CLOEXEC)) < 0)
 		SET(FTS_NOCHDIR);
 
 	if (nitems == 0)
@@ -406,7 +411,7 @@ fts_build(FTS *sp)
 	DIR *dirp;
 	void *oldaddr;
 	size_t dlen, len, maxlen;
-	int nitems, cderrno, descend, level, nlinks, nostat, doadjust;
+	int nitems, cderrno, descend, level, doadjust;
 	int saved_errno;
 	char *cp;
 
@@ -422,14 +427,6 @@ fts_build(FTS *sp)
 		cur->fts_errno = errno;
 		return (NULL);
 	}
-
-	/*
-	 * Nlinks is the number of possible entries of type directory in the
-	 * directory if we're cheating on stat calls, 0 if we're not doing
-	 * any stat calls at all, -1 if we're doing stats on everything.
-	 */
-	nlinks = -1;
-	nostat = 0;
 
 	/*
 	 * If we're going to need to stat anything or we want to descend
@@ -448,8 +445,7 @@ fts_build(FTS *sp)
 	 */
 	cderrno = 0;
 	if (fts_safe_changedir(sp, cur, dirfd(dirp), NULL)) {
-		if (nlinks)
-			cur->fts_errno = errno;
+		cur->fts_errno = errno;
 		cur->fts_flags |= FTS_DONTCHDIR;
 		descend = 0;
 		cderrno = errno;
@@ -544,21 +540,9 @@ mem1:				saved_errno = errno;
 		}
 
 		if (cderrno) {
-			if (nlinks) {
-				p->fts_info = FTS_NS;
-				p->fts_errno = cderrno;
-			} else
-				p->fts_info = FTS_NSOK;
+			p->fts_info = FTS_NS;
+			p->fts_errno = cderrno;
 			p->fts_accpath = cur->fts_accpath;
-		} else if (nlinks == 0
-#ifdef DT_DIR
-		    || (nostat &&
-		    dp->d_type != DT_DIR && dp->d_type != DT_UNKNOWN)
-#endif
-		    ) {
-			p->fts_accpath =
-			    ISSET(FTS_NOCHDIR) ? p->fts_path : p->fts_name;
-			p->fts_info = FTS_NSOK;
 		} else {
 			/* Build a file name for fts_stat to stat. */
 			if (ISSET(FTS_NOCHDIR)) {
@@ -568,11 +552,6 @@ mem1:				saved_errno = errno;
 				p->fts_accpath = p->fts_name;
 			/* Stat it. */
 			p->fts_info = fts_stat(sp, p);
-
-			/* Decrement link count if applicable. */
-			if (nlinks > 0 && (p->fts_info == FTS_D ||
-			    p->fts_info == FTS_DC || p->fts_info == FTS_DOT))
-				--nlinks;
 		}
 
 		/* We walk in directory order so "ls -f" doesn't get upset. */
@@ -803,7 +782,7 @@ fts_safe_changedir(FTS *sp, FTSENT *p, int fd, const char *path)
 	newfd = fd;
 	if (ISSET(FTS_NOCHDIR))
 		return (0);
-	if (fd < 0 && (newfd = open(path, O_RDONLY, 0)) < 0)
+	if (fd < 0 && (newfd = open(path, O_RDONLY|O_DIRECTORY|O_CLOEXEC)) < 0)
 		return (-1);
 	if (fstat(newfd, &sb)) {
 		ret = -1;

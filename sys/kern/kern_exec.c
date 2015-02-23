@@ -634,6 +634,8 @@ interpret:
 	 * it that it now has its own resources back
 	 */
 	p->p_flag |= P_EXEC;
+	if ((p->p_flag2 & P2_NOTRACE_EXEC) == 0)
+		p->p_flag2 &= ~P2_NOTRACE;
 	if (p->p_flag & P_PPWAIT) {
 		p->p_flag &= ~(P_PPWAIT | P_PPTRACE);
 		cv_broadcast(&p->p_pwait);

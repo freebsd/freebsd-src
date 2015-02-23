@@ -134,7 +134,8 @@ fb_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		break;
 
 	case FBIO_BLANK:	/* blank display */
-		error = 0;	/* TODO */
+		if (info->setblankmode != NULL)
+			error = info->setblankmode(info->fb_priv, *(int *)data);
 		break;
 
 	default:
@@ -332,22 +333,6 @@ fbd_detach(device_t dev)
 	return (err);
 }
 
-static int
-fbd_suspend(device_t dev)
-{
-
-	vt_fb_suspend();
-	return (bus_generic_suspend(dev));
-}
-
-static int
-fbd_resume(device_t dev)
-{
-
-	vt_fb_resume();
-	return (bus_generic_resume(dev));
-}
-
 static device_method_t fbd_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		fbd_probe),
@@ -355,8 +340,6 @@ static device_method_t fbd_methods[] = {
 	DEVMETHOD(device_detach,	fbd_detach),
 
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	fbd_suspend),
-	DEVMETHOD(device_resume,	fbd_resume),
 
 	{ 0, 0 }
 };

@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 #define PPOD_SZ(n)	((n) * sizeof(struct pagepod))
 #define PPOD_SIZE	(PPOD_SZ(1))
 
-/* XXX: must match A_ULP_RX_TDDP_PSZ */ 
+/* XXX: must match A_ULP_RX_TDDP_PSZ */
 static int t4_ddp_pgsz[] = {4096, 4096 << 2, 4096 << 4, 4096 << 6};
 
 #if 0
@@ -98,74 +98,26 @@ t4_dump_tcb(struct adapter *sc, int tid)
 
 #define MAX_DDP_BUFFER_SIZE		(M_TCB_RX_DDP_BUF0_LEN)
 static int
-alloc_ppods(struct tom_data *td, int n, struct ppod_region *pr)
+alloc_ppods(struct tom_data *td, int n, u_int *ppod_addr)
 {
-	int ppod;
+	vmem_addr_t v;
+	int rc;
 
-	KASSERT(n > 0, ("%s: nonsense allocation (%d)", __func__, n));
+	MPASS(n > 0);
 
-	mtx_lock(&td->ppod_lock);
-	if (n > td->nppods_free) {
-		mtx_unlock(&td->ppod_lock);
-		return (-1);
-	}
+	rc = vmem_alloc(td->ppod_arena, PPOD_SZ(n), M_NOWAIT | M_FIRSTFIT, &v);
+	*ppod_addr = (u_int)v;
 
-	if (td->nppods_free_head >= n) {
-		td->nppods_free_head -= n;
-		ppod = td->nppods_free_head;
-		TAILQ_INSERT_HEAD(&td->ppods, pr, link);
-	} else {
-		struct ppod_region *p;
-
-		ppod = td->nppods_free_head;
-		TAILQ_FOREACH(p, &td->ppods, link) {
-			ppod += p->used + p->free;
-			if (n <= p->free) {
-				ppod -= n;
-				p->free -= n;
-				TAILQ_INSERT_AFTER(&td->ppods, p, pr, link);
-				goto allocated;
-			}
-		}
-
-		if (__predict_false(ppod != td->nppods)) {
-			panic("%s: ppods TAILQ (%p) corrupt."
-			    "  At %d instead of %d at the end of the queue.",
-			    __func__, &td->ppods, ppod, td->nppods);
-		}
-
-		mtx_unlock(&td->ppod_lock);
-		return (-1);
-	}
-
-allocated:
-	pr->used = n;
-	pr->free = 0;
-	td->nppods_free -= n;
-	mtx_unlock(&td->ppod_lock);
-
-	return (ppod);
+	return (rc);
 }
 
 static void
-free_ppods(struct tom_data *td, struct ppod_region *pr)
+free_ppods(struct tom_data *td, u_int ppod_addr, int n)
 {
-	struct ppod_region *p;
 
-	KASSERT(pr->used > 0, ("%s: nonsense free (%d)", __func__, pr->used));
+	MPASS(n > 0);
 
-	mtx_lock(&td->ppod_lock);
-	p = TAILQ_PREV(pr, ppod_head, link);
-	if (p != NULL)
-		p->free += pr->used + pr->free;
-	else
-		td->nppods_free_head += pr->used + pr->free;
-	td->nppods_free += pr->used;
-	KASSERT(td->nppods_free <= td->nppods,
-	    ("%s: nppods_free (%d) > nppods (%d).  %d freed this time.",
-	    __func__, td->nppods_free, td->nppods, pr->used));
-	TAILQ_REMOVE(&td->ppods, pr, link);
-	mtx_unlock(&td->ppod_lock);
+	vmem_free(td->ppod_arena, (vmem_addr_t)ppod_addr, PPOD_SZ(n));
 }
 
 static inline int
@@ -187,7 +139,7 @@ free_ddp_buffer(struct tom_data *td, struct ddp_buffer *db)
 		free(db->pages, M_CXGBE);
 
 	if (db->nppods > 0)
-		free_ppods(td, &db->ppod_region);
+		free_ppods(td, db->ppod_addr, db->nppods);
 
 	free(db, M_CXGBE);
 }
@@ -702,6 +654,7 @@ alloc_ddp_buffer(struct tom_data *td, vm_page_t *pages, int npages, int offset,
 			break;
 	}
 have_pgsz:
+	MPASS(idx <= M_PPOD_PGSZ);
 
 	db = malloc(sizeof(*db), M_CXGBE, M_NOWAIT);
 	if (db == NULL) {
@@ -710,16 +663,13 @@ have_pgsz:
 	}
 
 	nppods = pages_to_nppods(npages, t4_ddp_pgsz[idx]);
-	ppod = alloc_ppods(td, nppods, &db->ppod_region);
-	if (ppod < 0) {
+	if (alloc_ppods(td, nppods, &db->ppod_addr) != 0) {
 		free(db, M_CXGBE);
 		CTR4(KTR_CXGBE, "%s: no pods, nppods %d, resid %d, pgsz %d",
 		    __func__, nppods, len, t4_ddp_pgsz[idx]);
 		return (NULL);
 	}
-
-	KASSERT(idx <= M_PPOD_PGSZ && ppod <= M_PPOD_TAG,
-	    ("%s: DDP pgsz_idx = %d, ppod = %d", __func__, idx, ppod));
+	ppod = (db->ppod_addr - td->ppod_start) / PPOD_SIZE;
 
 	db->tag = V_PPOD_PGSZ(idx) | V_PPOD_TAG(ppod);
 	db->nppods = nppods;
@@ -745,7 +695,8 @@ write_page_pods(struct adapter *sc, struct toepcb *toep, struct ddp_buffer *db)
 	struct ulp_mem_io *ulpmc;
 	struct ulptx_idata *ulpsc;
 	struct pagepod *ppod;
-	int i, j, k, n, chunk, len, ddp_pgsz, idx, ppod_addr;
+	int i, j, k, n, chunk, len, ddp_pgsz, idx;
+	u_int ppod_addr;
 	uint32_t cmd;
 
 	cmd = htobe32(V_ULPTX_CMD(ULP_TX_MEM_WRITE));
@@ -754,7 +705,7 @@ write_page_pods(struct adapter *sc, struct toepcb *toep, struct ddp_buffer *db)
 	else
 		cmd |= htobe32(F_T5_ULP_MEMIO_IMM);
 	ddp_pgsz = t4_ddp_pgsz[G_PPOD_PGSZ(db->tag)];
-	ppod_addr = sc->vres.ddp.start + G_PPOD_TAG(db->tag) * PPOD_SIZE;
+	ppod_addr = db->ppod_addr;
 	for (i = 0; i < db->nppods; ppod_addr += chunk) {
 
 		/* How many page pods are we writing in this cycle */
@@ -901,9 +852,9 @@ handle_ddp(struct socket *so, struct uio *uio, int flags, int error)
 	SOCKBUF_LOCK_ASSERT(sb);
 
 #if 0
-	if (sb->sb_cc + sc->tt.ddp_thres > uio->uio_resid) {
+	if (sbused(sb) + sc->tt.ddp_thres > uio->uio_resid) {
 		CTR4(KTR_CXGBE, "%s: sb_cc %d, threshold %d, resid %d",
-		    __func__, sb->sb_cc, sc->tt.ddp_thres, uio->uio_resid);
+		    __func__, sbused(sb), sc->tt.ddp_thres, uio->uio_resid);
 	}
 #endif
 
@@ -987,13 +938,10 @@ no_ddp:
 void
 t4_init_ddp(struct adapter *sc, struct tom_data *td)
 {
-	int nppods = sc->vres.ddp.size / PPOD_SIZE;
 
-	td->nppods = nppods;
-	td->nppods_free = nppods;
-	td->nppods_free_head = nppods;
-	TAILQ_INIT(&td->ppods);
-	mtx_init(&td->ppod_lock, "page pods", NULL, MTX_DEF);
+	td->ppod_start = sc->vres.ddp.start;
+	td->ppod_arena = vmem_create("DDP page pods", sc->vres.ddp.start,
+	    sc->vres.ddp.size, 1, 32, M_FIRSTFIT | M_NOWAIT);
 
 	t4_register_cpl_handler(sc, CPL_RX_DATA_DDP, do_rx_data_ddp);
 	t4_register_cpl_handler(sc, CPL_RX_DDP_COMPLETE, do_rx_ddp_complete);
@@ -1003,12 +951,10 @@ void
 t4_uninit_ddp(struct adapter *sc __unused, struct tom_data *td)
 {
 
-	KASSERT(td->nppods == td->nppods_free,
-	    ("%s: page pods still in use, nppods = %d, free = %d",
-	    __func__, td->nppods, td->nppods_free));
-
-	if (mtx_initialized(&td->ppod_lock))
-		mtx_destroy(&td->ppod_lock);
+	if (td->ppod_arena != NULL) {
+		vmem_destroy(td->ppod_arena);
+		td->ppod_arena = NULL;
+	}
 }
 
 #define	VNET_SO_ASSERT(so)						\
@@ -1111,9 +1057,9 @@ t4_soreceive_ddp(struct socket *so, struct sockaddr **psa, struct uio *uio,
 
 	/* Prevent other readers from entering the socket. */
 	error = sblock(sb, SBLOCKWAIT(flags));
+	SOCKBUF_LOCK(sb);
 	if (error)
 		goto out;
-	SOCKBUF_LOCK(sb);
 
 	/* Easy one, no space to copyout anything. */
 	if (uio->uio_resid == 0) {
@@ -1135,8 +1081,8 @@ restart:
 
 		/* uio should be just as it was at entry */
 		KASSERT(oresid == uio->uio_resid,
-		    ("%s: oresid = %d, uio_resid = %zd, sbused = %d",
-		    __func__, oresid, uio->uio_resid, sbused(sb)));
+		    ("%s: oresid = %d, uio_resid = %zd, sbavail = %d",
+		    __func__, oresid, uio->uio_resid, sbavail(sb)));
 
 		error = handle_ddp(so, uio, flags, 0);
 		ddp_handled = 1;
@@ -1146,7 +1092,7 @@ restart:
 
 	/* Abort if socket has reported problems. */
 	if (so->so_error) {
-		if (sbused(sb))
+		if (sbavail(sb))
 			goto deliver;
 		if (oresid > uio->uio_resid)
 			goto out;
@@ -1158,32 +1104,32 @@ restart:
 
 	/* Door is closed.  Deliver what is left, if any. */
 	if (sb->sb_state & SBS_CANTRCVMORE) {
-		if (sbused(sb))
+		if (sbavail(sb))
 			goto deliver;
 		else
 			goto out;
 	}
 
 	/* Socket buffer is empty and we shall not block. */
-	if (sbused(sb) == 0 &&
+	if (sbavail(sb) == 0 &&
 	    ((so->so_state & SS_NBIO) || (flags & (MSG_DONTWAIT|MSG_NBIO)))) {
 		error = EAGAIN;
 		goto out;
 	}
 
 	/* Socket buffer got some data that we shall deliver now. */
-	if (sbused(sb) && !(flags & MSG_WAITALL) &&
+	if (sbavail(sb) > 0 && !(flags & MSG_WAITALL) &&
 	    ((so->so_state & SS_NBIO) ||
 	     (flags & (MSG_DONTWAIT|MSG_NBIO)) ||
-	     sbused(sb) >= sb->sb_lowat ||
-	     sbused(sb) >= uio->uio_resid ||
-	     sbused(sb) >= sb->sb_hiwat) ) {
+	     sbavail(sb) >= sb->sb_lowat ||
+	     sbavail(sb) >= uio->uio_resid ||
+	     sbavail(sb) >= sb->sb_hiwat) ) {
 		goto deliver;
 	}
 
 	/* On MSG_WAITALL we must wait until all data or error arrives. */
 	if ((flags & MSG_WAITALL) &&
-	    (sbused(sb) >= uio->uio_resid || sbused(sb) >= sb->sb_lowat))
+	    (sbavail(sb) >= uio->uio_resid || sbavail(sb) >= sb->sb_lowat))
 		goto deliver;
 
 	/*
@@ -1202,7 +1148,7 @@ restart:
 
 deliver:
 	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
-	KASSERT(sbused(sb) > 0, ("%s: sockbuf empty", __func__));
+	KASSERT(sbavail(sb) > 0, ("%s: sockbuf empty", __func__));
 	KASSERT(sb->sb_mb != NULL, ("%s: sb_mb == NULL", __func__));
 
 	if (sb->sb_flags & SB_DDP_INDICATE && !ddp_handled)
@@ -1213,7 +1159,7 @@ deliver:
 		uio->uio_td->td_ru.ru_msgrcv++;
 
 	/* Fill uio until full or current end of socket buffer is reached. */
-	len = min(uio->uio_resid, sbused(sb));
+	len = min(uio->uio_resid, sbavail(sb));
 	if (mp0 != NULL) {
 		/* Dequeue as many mbufs as possible. */
 		if (!(flags & MSG_PEEK) && len >= sb->sb_mb->m_len) {

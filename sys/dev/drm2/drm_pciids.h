@@ -48,6 +48,13 @@
 	{0x8086, 0x0162, CHIP_I9XX|CHIP_I915, "Intel IvyBridge"}, \
 	{0x8086, 0x0166, CHIP_I9XX|CHIP_I915, "Intel IvyBridge (M)"}, \
 	{0x8086, 0x016A, CHIP_I9XX|CHIP_I915, "Intel IvyBridge (S)"}, \
+	{0x8086, 0x0402, CHIP_I9XX|CHIP_I915, "Intel Haswell"}, \
+	{0x8086, 0x0412, CHIP_I9XX|CHIP_I915, "Intel Haswell"}, \
+	{0x8086, 0x040a, CHIP_I9XX|CHIP_I915, "Intel Haswell (S)"}, \
+	{0x8086, 0x041a, CHIP_I9XX|CHIP_I915, "Intel Haswell (S)"}, \
+	{0x8086, 0x0406, CHIP_I9XX|CHIP_I915, "Intel Haswell (M)"}, \
+	{0x8086, 0x0416, CHIP_I9XX|CHIP_I915, "Intel Haswell (M)"}, \
+	{0x8086, 0x0c16, CHIP_I9XX|CHIP_I915, "Intel Haswell (SDV)"}, \
 	{0x8086, 0x2562, CHIP_I8XX, "Intel i845G GMCH"}, \
 	{0x8086, 0x2572, CHIP_I8XX, "Intel i865G GMCH"}, \
 	{0x8086, 0x2582, CHIP_I9XX|CHIP_I915, "Intel i915G"}, \

@@ -13,47 +13,47 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "systemz-shorten-inst"
-
 #include "SystemZTargetMachine.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 
 using namespace llvm;
 
+#define DEBUG_TYPE "systemz-shorten-inst"
+
 namespace {
-  class SystemZShortenInst : public MachineFunctionPass {
-  public:
-    static char ID;
-    SystemZShortenInst(const SystemZTargetMachine &tm);
+class SystemZShortenInst : public MachineFunctionPass {
+public:
+  static char ID;
+  SystemZShortenInst(const SystemZTargetMachine &tm);
 
-    virtual const char *getPassName() const {
-      return "SystemZ Instruction Shortening";
-    }
+  const char *getPassName() const override {
+    return "SystemZ Instruction Shortening";
+  }
 
-    bool processBlock(MachineBasicBlock *MBB);
-    bool runOnMachineFunction(MachineFunction &F);
+  bool processBlock(MachineBasicBlock &MBB);
+  bool runOnMachineFunction(MachineFunction &F) override;
 
-  private:
-    bool shortenIIF(MachineInstr &MI, unsigned *GPRMap, unsigned LiveOther,
-                    unsigned LLIxL, unsigned LLIxH);
+private:
+  bool shortenIIF(MachineInstr &MI, unsigned *GPRMap, unsigned LiveOther,
+                  unsigned LLIxL, unsigned LLIxH);
 
-    const SystemZInstrInfo *TII;
+  const SystemZInstrInfo *TII;
 
-    // LowGPRs[I] has bit N set if LLVM register I includes the low
-    // word of GPR N.  HighGPRs is the same for the high word.
-    unsigned LowGPRs[SystemZ::NUM_TARGET_REGS];
-    unsigned HighGPRs[SystemZ::NUM_TARGET_REGS];
-  };
+  // LowGPRs[I] has bit N set if LLVM register I includes the low
+  // word of GPR N.  HighGPRs is the same for the high word.
+  unsigned LowGPRs[SystemZ::NUM_TARGET_REGS];
+  unsigned HighGPRs[SystemZ::NUM_TARGET_REGS];
+};
 
-  char SystemZShortenInst::ID = 0;
-} // end of anonymous namespace
+char SystemZShortenInst::ID = 0;
+} // end anonymous namespace
 
 FunctionPass *llvm::createSystemZShortenInstPass(SystemZTargetMachine &TM) {
   return new SystemZShortenInst(TM);
 }
 
 SystemZShortenInst::SystemZShortenInst(const SystemZTargetMachine &tm)
-  : MachineFunctionPass(ID), TII(0), LowGPRs(), HighGPRs() {
+  : MachineFunctionPass(ID), TII(nullptr), LowGPRs(), HighGPRs() {
   // Set up LowGPRs and HighGPRs.
   for (unsigned I = 0; I < 16; ++I) {
     LowGPRs[SystemZMC::GR32Regs[I]] |= 1 << I;
@@ -98,16 +98,15 @@ bool SystemZShortenInst::shortenIIF(MachineInstr &MI, unsigned *GPRMap,
 }
 
 // Process all instructions in MBB.  Return true if something changed.
-bool SystemZShortenInst::processBlock(MachineBasicBlock *MBB) {
+bool SystemZShortenInst::processBlock(MachineBasicBlock &MBB) {
   bool Changed = false;
 
   // Work out which words are live on exit from the block.
   unsigned LiveLow = 0;
   unsigned LiveHigh = 0;
-  for (MachineBasicBlock::succ_iterator SI = MBB->succ_begin(),
-         SE = MBB->succ_end(); SI != SE; ++SI) {
-    for (MachineBasicBlock::livein_iterator LI = (*SI)->livein_begin(),
-           LE = (*SI)->livein_end(); LI != LE; ++LI) {
+  for (auto SI = MBB.succ_begin(), SE = MBB.succ_end(); SI != SE; ++SI) {
+    for (auto LI = (*SI)->livein_begin(), LE = (*SI)->livein_end();
+         LI != LE; ++LI) {
       unsigned Reg = *LI;
       assert(Reg < SystemZ::NUM_TARGET_REGS && "Invalid register number");
       LiveLow |= LowGPRs[Reg];
@@ -116,8 +115,7 @@ bool SystemZShortenInst::processBlock(MachineBasicBlock *MBB) {
   }
 
   // Iterate backwards through the block looking for instructions to change.
-  for (MachineBasicBlock::reverse_iterator MBBI = MBB->rbegin(),
-         MBBE = MBB->rend(); MBBI != MBBE; ++MBBI) {
+  for (auto MBBI = MBB.rbegin(), MBBE = MBB.rend(); MBBI != MBBE; ++MBBI) {
     MachineInstr &MI = *MBBI;
     unsigned Opcode = MI.getOpcode();
     if (Opcode == SystemZ::IILF)
@@ -128,8 +126,8 @@ bool SystemZShortenInst::processBlock(MachineBasicBlock *MBB) {
                             SystemZ::LLIHH);
     unsigned UsedLow = 0;
     unsigned UsedHigh = 0;
-    for (MachineInstr::mop_iterator MOI = MI.operands_begin(),
-           MOE = MI.operands_end(); MOI != MOE; ++MOI) {
+    for (auto MOI = MI.operands_begin(), MOE = MI.operands_end();
+         MOI != MOE; ++MOI) {
       MachineOperand &MO = *MOI;
       if (MO.isReg()) {
         if (unsigned Reg = MO.getReg()) {
@@ -155,9 +153,8 @@ bool SystemZShortenInst::runOnMachineFunction(MachineFunction &F) {
   TII = static_cast<const SystemZInstrInfo *>(F.getTarget().getInstrInfo());
 
   bool Changed = false;
-  for (MachineFunction::iterator MFI = F.begin(), MFE = F.end();
-       MFI != MFE; ++MFI)
-    Changed |= processBlock(MFI);
+  for (auto &MBB : F)
+    Changed |= processBlock(MBB);
 
   return Changed;
 }

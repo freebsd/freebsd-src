@@ -1,4 +1,4 @@
-/*	$Id: mandoc.h,v 1.171 2014/11/28 18:09:01 schwarze Exp $ */
+/*	$Id: mandoc.h,v 1.176 2014/12/01 08:05:52 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010-2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,8 +15,6 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifndef MANDOC_H
-#define MANDOC_H
 
 #define ASCII_NBRSP	 31  /* non-breaking space */
 #define	ASCII_HYPH	 30  /* breakable hyphen */
@@ -77,6 +75,7 @@ enum	mandocerr {
 
 	/* related to macros and nesting */
 	MANDOCERR_MACRO_OBS, /* obsolete macro: macro */
+	MANDOCERR_MACRO_CALL, /* macro neither callable nor escaped: macro */
 	MANDOCERR_PAR_SKIP, /* skipping paragraph macro: macro ... */
 	MANDOCERR_PAR_MOVE, /* moving paragraph macro out of list: macro */
 	MANDOCERR_NS_SKIP, /* skipping no-space macro */
@@ -102,6 +101,7 @@ enum	mandocerr {
 	MANDOCERR_IT_NOBODY, /* empty list item: Bl -type It */
 	MANDOCERR_BF_NOFONT, /* missing font type, using \fR: Bf */
 	MANDOCERR_BF_BADFONT, /* unknown font type, using \fR: Bf font */
+	MANDOCERR_PF_SKIP, /* nothing follows prefix: Pf arg */
 	MANDOCERR_ARG_STD, /* missing -std argument, adding it: macro */
 	MANDOCERR_EQN_NOBOX, /* missing eqn box, using "": op */
 
@@ -414,12 +414,12 @@ enum	mandoc_esc {
 typedef	void	(*mandocmsg)(enum mandocerr, enum mandoclevel,
 			const char *, int, int, const char *);
 
+__BEGIN_DECLS
+
 struct	mparse;
 struct	mchars;
 struct	mdoc;
 struct	man;
-
-__BEGIN_DECLS
 
 enum mandoc_esc	  mandoc_escape(const char **, const char **, int *);
 struct mchars	 *mchars_alloc(void);
@@ -437,7 +437,7 @@ void		  mparse_free(struct mparse *);
 void		  mparse_keep(struct mparse *);
 enum mandoclevel  mparse_open(struct mparse *, int *, const char *);
 enum mandoclevel  mparse_readfd(struct mparse *, int, const char *);
-enum mandoclevel  mparse_readmem(struct mparse *, const void *, size_t,
+enum mandoclevel  mparse_readmem(struct mparse *, void *, size_t,
 			const char *);
 void		  mparse_reset(struct mparse *);
 void		  mparse_result(struct mparse *,
@@ -448,5 +448,3 @@ const char	 *mparse_strlevel(enum mandoclevel);
 enum mandoclevel  mparse_wait(struct mparse *);
 
 __END_DECLS
-
-#endif /*!MANDOC_H*/

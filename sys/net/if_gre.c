@@ -119,16 +119,6 @@ static int	gre_set_tunnel(struct ifnet *, struct sockaddr *,
     struct sockaddr *);
 static void	gre_delete_tunnel(struct ifnet *);
 
-int		gre_input(struct mbuf **, int *, int);
-#ifdef INET
-extern int	in_gre_attach(struct gre_softc *);
-extern int	in_gre_output(struct mbuf *, int, int);
-#endif
-#ifdef INET6
-extern int	in6_gre_attach(struct gre_softc *);
-extern int	in6_gre_output(struct mbuf *, int, int);
-#endif
-
 SYSCTL_DECL(_net_link);
 static SYSCTL_NODE(_net_link, IFT_TUNNEL, gre, CTLFLAG_RW, 0,
     "Generic Routing Encapsulation");
@@ -762,7 +752,7 @@ gre_check_nesting(struct ifnet *ifp, struct mbuf *m)
 
 	count = 1;
 	mtag = NULL;
-	while ((mtag = m_tag_locate(m, MTAG_GRE, 0, NULL)) != NULL) {
+	while ((mtag = m_tag_locate(m, MTAG_GRE, 0, mtag)) != NULL) {
 		if (*(struct ifnet **)(mtag + 1) == ifp) {
 			log(LOG_NOTICE, "%s: loop detected\n", ifp->if_xname);
 			return (EIO);

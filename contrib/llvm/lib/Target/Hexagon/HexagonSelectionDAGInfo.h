@@ -18,21 +18,18 @@
 
 namespace llvm {
 
-class HexagonTargetMachine;
-
 class HexagonSelectionDAGInfo : public TargetSelectionDAGInfo {
 public:
-  explicit HexagonSelectionDAGInfo(const HexagonTargetMachine &TM);
+  explicit HexagonSelectionDAGInfo(const DataLayout &DL);
   ~HexagonSelectionDAGInfo();
 
-  virtual
   SDValue EmitTargetCodeForMemcpy(SelectionDAG &DAG, SDLoc dl,
                                   SDValue Chain,
                                   SDValue Dst, SDValue Src,
                                   SDValue Size, unsigned Align,
                                   bool isVolatile, bool AlwaysInline,
                                   MachinePointerInfo DstPtrInfo,
-                                  MachinePointerInfo SrcPtrInfo) const;
+                                  MachinePointerInfo SrcPtrInfo) const override;
 };
 
 }

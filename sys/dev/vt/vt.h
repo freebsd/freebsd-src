@@ -90,8 +90,6 @@ SYSCTL_INT(_kern_vt, OID_AUTO, _name, CTLFLAG_RWTUN, &vt_##_name, _default,\
 struct vt_driver;
 
 void vt_allocate(struct vt_driver *, void *);
-void vt_resume(void);
-void vt_suspend(void);
 
 typedef unsigned int 	vt_axis_t;
 
@@ -155,11 +153,15 @@ struct vt_device {
 	int			 vd_keyboard;	/* (G) Keyboard index. */
 	unsigned int		 vd_kbstate;	/* (?) Device unit. */
 	unsigned int		 vd_unit;	/* (c) Device unit. */
+	int			 vd_altbrk;	/* (?) Alt break seq. state */
 };
 
 #define	VD_PASTEBUF(vd)	((vd)->vd_pastebuf.vpb_buf)
 #define	VD_PASTEBUFSZ(vd)	((vd)->vd_pastebuf.vpb_bufsz)
 #define	VD_PASTEBUFLEN(vd)	((vd)->vd_pastebuf.vpb_len)
+
+void vt_resume(struct vt_device *vd);
+void vt_suspend(struct vt_device *vd);
 
 /*
  * Per-window terminal screen buffer.
@@ -313,6 +315,8 @@ typedef int vd_fb_mmap_t(struct vt_device *, vm_ooffset_t, vm_paddr_t *, int,
 typedef void vd_drawrect_t(struct vt_device *, int, int, int, int, int,
     term_color_t);
 typedef void vd_setpixel_t(struct vt_device *, int, int, term_color_t);
+typedef void vd_suspend_t(struct vt_device *);
+typedef void vd_resume_t(struct vt_device *);
 
 struct vt_driver {
 	char		 vd_name[16];
@@ -335,6 +339,10 @@ struct vt_driver {
 
 	/* Update display setting on vt switch. */
 	vd_postswitch_t	*vd_postswitch;
+
+	/* Suspend/resume handlers. */
+	vd_suspend_t	*vd_suspend;
+	vd_resume_t	*vd_resume;
 
 	/* Priority to know which one can override */
 	int		vd_priority;

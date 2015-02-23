@@ -187,10 +187,10 @@ struct jailsys_flags {
 	{ "vnet", 0, PR_VNET },
 #endif
 #ifdef INET
-	{ "ip4", PR_IP4_USER | PR_IP4_DISABLE, PR_IP4_USER },
+	{ "ip4", PR_IP4_USER, PR_IP4_USER },
 #endif
 #ifdef INET6
-	{ "ip6", PR_IP6_USER | PR_IP6_DISABLE, PR_IP6_USER },
+	{ "ip6", PR_IP6_USER, PR_IP6_USER },
 #endif
 };
 const size_t pr_flag_jailsys_size = sizeof(pr_flag_jailsys);
@@ -208,6 +208,7 @@ static char *pr_allow_names[] = {
 	"allow.mount.zfs",
 	"allow.mount.procfs",
 	"allow.mount.tmpfs",
+	"allow.mount.fdescfs",
 };
 const size_t pr_allow_names_size = sizeof(pr_allow_names);
 
@@ -224,6 +225,7 @@ static char *pr_allow_nonames[] = {
 	"allow.mount.nozfs",
 	"allow.mount.noprocfs",
 	"allow.mount.notmpfs",
+	"allow.mount.nofdescfs",
 };
 const size_t pr_allow_nonames_size = sizeof(pr_allow_nonames);
 
@@ -800,18 +802,16 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #ifdef INET
 	error = vfs_getopt(opts, "ip4.addr", &op, &ip4s);
 	if (error == ENOENT)
-		ip4s = (pr_flags & PR_IP4_DISABLE) ? 0 : -1;
+		ip4s = 0;
 	else if (error != 0)
 		goto done_free;
 	else if (ip4s & (sizeof(*ip4) - 1)) {
 		error = EINVAL;
 		goto done_free;
 	} else {
-		ch_flags |= PR_IP4_USER | PR_IP4_DISABLE;
-		if (ip4s == 0)
-			pr_flags |= PR_IP4_USER | PR_IP4_DISABLE;
-		else {
-			pr_flags = (pr_flags & ~PR_IP4_DISABLE) | PR_IP4_USER;
+		ch_flags |= PR_IP4_USER;
+		pr_flags |= PR_IP4_USER;
+		if (ip4s > 0) {
 			ip4s /= sizeof(*ip4);
 			if (ip4s > jail_max_af_ips) {
 				error = EINVAL;
@@ -858,18 +858,16 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #ifdef INET6
 	error = vfs_getopt(opts, "ip6.addr", &op, &ip6s);
 	if (error == ENOENT)
-		ip6s = (pr_flags & PR_IP6_DISABLE) ? 0 : -1;
+		ip6s = 0;
 	else if (error != 0)
 		goto done_free;
 	else if (ip6s & (sizeof(*ip6) - 1)) {
 		error = EINVAL;
 		goto done_free;
 	} else {
-		ch_flags |= PR_IP6_USER | PR_IP6_DISABLE;
-		if (ip6s == 0)
-			pr_flags |= PR_IP6_USER | PR_IP6_DISABLE;
-		else {
-			pr_flags = (pr_flags & ~PR_IP6_DISABLE) | PR_IP6_USER;
+		ch_flags |= PR_IP6_USER;
+		pr_flags |= PR_IP6_USER;
+		if (ip6s > 0) {
 			ip6s /= sizeof(*ip6);
 			if (ip6s > jail_max_af_ips) {
 				error = EINVAL;
@@ -1249,8 +1247,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		{
 #ifdef INET
 			if (!(ch_flags & PR_IP4_USER))
-				pr->pr_flags |=
-				    PR_IP4 | PR_IP4_USER | PR_IP4_DISABLE;
+				pr->pr_flags |= PR_IP4 | PR_IP4_USER;
 			else if (!(pr_flags & PR_IP4_USER)) {
 				pr->pr_flags |= ppr->pr_flags & PR_IP4;
 				if (ppr->pr_ip4 != NULL) {
@@ -1265,8 +1262,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #endif
 #ifdef INET6
 			if (!(ch_flags & PR_IP6_USER))
-				pr->pr_flags |=
-				    PR_IP6 | PR_IP6_USER | PR_IP6_DISABLE;
+				pr->pr_flags |= PR_IP6 | PR_IP6_USER;
 			else if (!(pr_flags & PR_IP6_USER)) {
 				pr->pr_flags |= ppr->pr_flags & PR_IP6;
 				if (ppr->pr_ip6 != NULL) {
@@ -2724,7 +2720,6 @@ prison_restrict_ip4(struct prison *pr, struct in_addr *newip4)
 			}
 		}
 		if (pr->pr_ip4s == 0) {
-			pr->pr_flags |= PR_IP4_DISABLE;
 			free(pr->pr_ip4, M_PRISON);
 			pr->pr_ip4 = NULL;
 		}
@@ -3065,7 +3060,6 @@ prison_restrict_ip6(struct prison *pr, struct in6_addr *newip6)
 			}
 		}
 		if (pr->pr_ip6s == 0) {
-			pr->pr_flags |= PR_IP6_DISABLE;
 			free(pr->pr_ip6, M_PRISON);
 			pr->pr_ip6 = NULL;
 		}
@@ -4221,6 +4215,10 @@ SYSCTL_PROC(_security_jail, OID_AUTO, mount_devfs_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT_DEVFS, sysctl_jail_default_allow, "I",
     "Processes in jail can mount the devfs file system");
+SYSCTL_PROC(_security_jail, OID_AUTO, mount_fdescfs_allowed,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    NULL, PR_ALLOW_MOUNT_FDESCFS, sysctl_jail_default_allow, "I",
+    "Processes in jail can mount the fdescfs file system");
 SYSCTL_PROC(_security_jail, OID_AUTO, mount_nullfs_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT_NULLFS, sysctl_jail_default_allow, "I",
@@ -4381,6 +4379,8 @@ SYSCTL_JAIL_PARAM(_allow_mount, , CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may mount/unmount jail-friendly file systems in general");
 SYSCTL_JAIL_PARAM(_allow_mount, devfs, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may mount the devfs file system");
+SYSCTL_JAIL_PARAM(_allow_mount, fdescfs, CTLTYPE_INT | CTLFLAG_RW,
+    "B", "Jail may mount the fdescfs file system");
 SYSCTL_JAIL_PARAM(_allow_mount, nullfs, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may mount the nullfs file system");
 SYSCTL_JAIL_PARAM(_allow_mount, procfs, CTLTYPE_INT | CTLFLAG_RW,

@@ -72,6 +72,7 @@ _LIBRARIES=	\
 		ctf \
 		cuse \
 		cxxrt \
+		devctl \
 		devinfo \
 		devstat \
 		dialog \
@@ -110,6 +111,7 @@ _LIBRARIES=	\
 		memstat \
 		mp \
 		nandfs \
+		ncurses \
 		ncursesw \
 		netgraph \
 		ngatm \
@@ -222,6 +224,7 @@ _DP_pam+=	ypclnt
 _DP_krb5+=	asn1 com_err crypt crypto hx509 roken wind heimbase heimipcc \
 		pthread
 _DP_gssapi_krb5+=	gssapi krb5 crypto roken asn1 com_err
+_DP_lzma=	pthread
 _DP_ucl=	m
 
 # Define spacial cases

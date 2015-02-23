@@ -31,7 +31,7 @@ using namespace lldb;
 using namespace lldb_private;
 
 // this macro enables a simpler implementation for some method calls in this object that relies only upon
-// ValueObject knowning how to set the address type of its children correctly. the alternative implementation
+// ValueObject knowing how to set the address type of its children correctly. the alternative implementation
 // relies on being able to create a target copy of the frozen object, which makes it less bug-prone but less
 // efficient as well. once we are confident the faster implementation is bug-free, this macro (and the slower
 // implementations) can go
@@ -109,7 +109,6 @@ ValueObjectConstResultImpl::CreateChildAtIndex (size_t idx, bool synthetic_array
     ExecutionContext exe_ctx (m_impl_backend->GetExecutionContextRef());
     
     child_clang_type = clang_type.GetChildClangTypeAtIndex (&exe_ctx,
-                                                            m_impl_backend->GetName().GetCString(),
                                                             idx,
                                                             transparent_pointers,
                                                             omit_empty_base_classes,
@@ -120,7 +119,8 @@ ValueObjectConstResultImpl::CreateChildAtIndex (size_t idx, bool synthetic_array
                                                             child_bitfield_bit_size,
                                                             child_bitfield_bit_offset,
                                                             child_is_base_class,
-                                                            child_is_deref_of_parent);
+                                                            child_is_deref_of_parent,
+                                                            m_impl_backend);
     if (child_clang_type && child_byte_size)
     {
         if (synthetic_index)

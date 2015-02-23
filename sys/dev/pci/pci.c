@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/limits.h>
 #include <sys/linker.h>
 #include <sys/fcntl.h>
 #include <sys/conf.h>
@@ -268,13 +269,24 @@ static const struct pci_quirk pci_quirks[] = {
 	{ 0x43851002, PCI_QUIRK_UNMAP_REG,	0x14,	0 },
 
 	/*
-	 * Atheros AR8161/AR8162/E2200 ethernet controller has a bug that
+	 * Atheros AR8161/AR8162/E2200 Ethernet controllers have a bug that
 	 * MSI interrupt does not assert if PCIM_CMD_INTxDIS bit of the
 	 * command register is set.
 	 */
 	{ 0x10911969, PCI_QUIRK_MSI_INTX_BUG,	0,	0 },
 	{ 0xE0911969, PCI_QUIRK_MSI_INTX_BUG,	0,	0 },
 	{ 0x10901969, PCI_QUIRK_MSI_INTX_BUG,	0,	0 },
+
+	/*
+	 * Broadcom BCM5714(S)/BCM5715(S)/BCM5780(S) Ethernet MACs don't
+	 * issue MSI interrupts with PCIM_CMD_INTxDIS set either.
+	 */
+	{ 0x166814e4, PCI_QUIRK_MSI_INTX_BUG,	0,	0 }, /* BCM5714 */
+	{ 0x166914e4, PCI_QUIRK_MSI_INTX_BUG,	0,	0 }, /* BCM5714S */
+	{ 0x166a14e4, PCI_QUIRK_MSI_INTX_BUG,	0,	0 }, /* BCM5780 */
+	{ 0x166b14e4, PCI_QUIRK_MSI_INTX_BUG,	0,	0 }, /* BCM5780S */
+	{ 0x167814e4, PCI_QUIRK_MSI_INTX_BUG,	0,	0 }, /* BCM5715 */
+	{ 0x167914e4, PCI_QUIRK_MSI_INTX_BUG,	0,	0 }, /* BCM5715S */
 
 	{ 0 }
 };
@@ -593,8 +605,6 @@ pci_read_device(device_t pcib, int d, int b, int s, int f, size_t size)
 
 	if (REG(PCIR_DEVVENDOR, 4) != 0xfffffffful) {
 		devlist_entry = malloc(size, M_DEVBUF, M_WAITOK | M_ZERO);
-		if (devlist_entry == NULL)
-			return (NULL);
 
 		cfg = &devlist_entry->cfg;
 
@@ -3866,14 +3876,16 @@ pci_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
 			mte->mte_handlers++;
 		}
 
-		if (!pci_has_quirk(pci_get_devid(dev),
-		    PCI_QUIRK_MSI_INTX_BUG)) {
-			/*
-			 * Make sure that INTx is disabled if we are
-			 * using MSI/MSIX
-			 */
+		/*
+		 * Make sure that INTx is disabled if we are using MSI/MSI-X,
+		 * unless the device is affected by PCI_QUIRK_MSI_INTX_BUG,
+		 * in which case we "enable" INTx so MSI/MSI-X actually works.
+		 */
+		if (!pci_has_quirk(pci_get_devid(child),
+		    PCI_QUIRK_MSI_INTX_BUG))
 			pci_set_command_bit(dev, child, PCIM_CMD_INTxDIS);
-		}
+		else
+			pci_clear_command_bit(dev, child, PCIM_CMD_INTxDIS);
 	bad:
 		if (error) {
 			(void)bus_generic_teardown_intr(dev, child, irq,
@@ -4811,8 +4823,8 @@ pci_child_location_str_method(device_t dev, device_t child, char *buf,
     size_t buflen)
 {
 
-	snprintf(buf, buflen, "slot=%d function=%d", pci_get_slot(child),
-	    pci_get_function(child));
+	snprintf(buf, buflen, "pci%d:%d:%d:%d", pci_get_domain(child),
+	    pci_get_bus(child), pci_get_slot(child), pci_get_function(child));
 	return (0);
 }
 
@@ -4842,10 +4854,60 @@ pci_assign_interrupt_method(device_t dev, device_t child)
 	    cfg->intpin));
 }
 
+static void
+pci_lookup(void *arg, const char *name, device_t *dev)
+{
+	long val;
+	char *end;
+	int domain, bus, slot, func;
+
+	if (*dev != NULL)
+		return;
+
+	/*
+	 * Accept pciconf-style selectors of either pciD:B:S:F or
+	 * pciB:S:F.  In the latter case, the domain is assumed to
+	 * be zero.
+	 */
+	if (strncmp(name, "pci", 3) != 0)
+		return;
+	val = strtol(name + 3, &end, 10);
+	if (val < 0 || val > INT_MAX || *end != ':')
+		return;
+	domain = val;
+	val = strtol(end + 1, &end, 10);
+	if (val < 0 || val > INT_MAX || *end != ':')
+		return;
+	bus = val;
+	val = strtol(end + 1, &end, 10);
+	if (val < 0 || val > INT_MAX)
+		return;
+	slot = val;
+	if (*end == ':') {
+		val = strtol(end + 1, &end, 10);
+		if (val < 0 || val > INT_MAX || *end != '\0')
+			return;
+		func = val;
+	} else if (*end == '\0') {
+		func = slot;
+		slot = bus;
+		bus = domain;
+		domain = 0;
+	} else
+		return;
+
+	if (domain > PCI_DOMAINMAX || bus > PCI_BUSMAX || slot > PCI_SLOTMAX ||
+	    func > PCIE_ARI_FUNCMAX || (slot != 0 && func > PCI_FUNCMAX))
+		return;
+
+	*dev = pci_find_dbsf(domain, bus, slot, func);
+}
+
 static int
 pci_modevent(module_t mod, int what, void *arg)
 {
 	static struct cdev *pci_cdev;
+	static eventhandler_tag tag;
 
 	switch (what) {
 	case MOD_LOAD:
@@ -4854,9 +4916,13 @@ pci_modevent(module_t mod, int what, void *arg)
 		pci_cdev = make_dev(&pcicdev, 0, UID_ROOT, GID_WHEEL, 0644,
 		    "pci");
 		pci_load_vendor_data();
+		tag = EVENTHANDLER_REGISTER(dev_lookup, pci_lookup, NULL,
+		    1000);
 		break;
 
 	case MOD_UNLOAD:
+		if (tag != NULL)
+			EVENTHANDLER_DEREGISTER(dev_lookup, tag);
 		destroy_dev(pci_cdev);
 		break;
 	}

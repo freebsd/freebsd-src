@@ -26,6 +26,11 @@ TERM_SRCS=	eqn_term.c \
 		term_ps.c \
 		tbl_term.c
 
+DB_SRCS=	mandocdb.c \
+		mansearch.c \
+		mansearch_const.c \
+		manpath.c
+
 SRCS=		${HTML_SRCS} \
 		${MAN_SRCS} \
 		${TERM_SRCS} \
@@ -33,13 +38,9 @@ SRCS=		${HTML_SRCS} \
 		out.c \
 		tree.c
 
-APROPOS_SRCS=	mansearch.c \
-		mansearch_const.c \
-		manpath.c
+SRCS+=	${DB_SRCS}
 
-SRCS+=	${APROPOS_SRCS}
-
-WARNS?=	3
+WARNS?=	2
 CFLAGS+= -DHAVE_CONFIG_H \
 	 -I${.CURDIR}/../../lib/libohash/ \
 	 -I${.CURDIR}/../../contrib/sqlite3

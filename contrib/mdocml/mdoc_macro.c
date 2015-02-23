@@ -1,4 +1,4 @@
-/*	$Id: mdoc_macro.c,v 1.154 2014/11/29 04:31:35 schwarze Exp $ */
+/*	$Id: mdoc_macro.c,v 1.157 2014/12/13 13:14:39 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010, 2012, 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -53,7 +53,8 @@ static	void		phrase_ta(MACRO_PROT_ARGS);
 static	void		dword(struct mdoc *, int, int, const char *,
 				 enum mdelim, int);
 static	void		append_delims(struct mdoc *, int, int *, char *);
-static	enum mdoct	lookup(enum mdoct, const char *);
+static	enum mdoct	lookup(struct mdoc *, enum mdoct,
+				int, int, const char *);
 static	int		macro_or_word(MACRO_PROT_ARGS, int);
 static	int		make_pending(struct mdoc_node *, enum mdoct,
 				struct mdoc *, int, int);
@@ -245,14 +246,19 @@ mdoc_macroend(struct mdoc *mdoc)
  * or as a line macro if from == MDOC_MAX.
  */
 static enum mdoct
-lookup(enum mdoct from, const char *p)
+lookup(struct mdoc *mdoc, enum mdoct from, int line, int ppos, const char *p)
 {
 	enum mdoct	 res;
 
 	if (from == MDOC_MAX || mdoc_macros[from].flags & MDOC_PARSED) {
 		res = mdoc_hash_find(p);
-		if (res != MDOC_MAX && mdoc_macros[res].flags & MDOC_CALLABLE)
-			return(res);
+		if (res != MDOC_MAX) {
+			if (mdoc_macros[res].flags & MDOC_CALLABLE)
+				return(res);
+			if (res != MDOC_br && res != MDOC_sp && res != MDOC_ll)
+				mandoc_msg(MANDOCERR_MACRO_CALL,
+				    mdoc->parse, line, ppos, p);
+		}
 	}
 	return(MDOC_MAX);
 }
@@ -666,12 +672,10 @@ macro_or_word(MACRO_PROT_ARGS, int parsed)
 
 	p = buf + ppos;
 	ntok = MDOC_MAX;
-	if (mdoc->flags & MDOC_PHRASELIT)
-		/* nothing */;
-	else if (*p == '"')
+	if (*p == '"')
 		p++;
-	else if (parsed)
-		ntok = lookup(tok, p);
+	else if (parsed && ! (mdoc->flags & MDOC_PHRASELIT))
+		ntok = lookup(mdoc, tok, line, ppos, p);
 
 	if (ntok == MDOC_MAX) {
 		dword(mdoc, line, ppos, p, DELIM_MAX, tok == MDOC_MAX ||
@@ -832,7 +836,8 @@ blk_exp_close(MACRO_PROT_ARGS)
 		if (ac == ARGS_PUNCT || ac == ARGS_EOLN)
 			break;
 
-		ntok = ac == ARGS_QWORD ? MDOC_MAX : lookup(tok, p);
+		ntok = ac == ARGS_QWORD ? MDOC_MAX :
+		    lookup(mdoc, tok, line, lastarg, p);
 
 		if (ntok == MDOC_MAX) {
 			dword(mdoc, line, lastarg, p, DELIM_MAX,
@@ -933,7 +938,7 @@ in_line(MACRO_PROT_ARGS)
 		}
 
 		ntok = (ac == ARGS_QWORD || (tok == MDOC_Fn && !cnt)) ?
-		    MDOC_MAX : lookup(tok, p);
+		    MDOC_MAX : lookup(mdoc, tok, line, la, p);
 
 		/*
 		 * In this case, we've located a submacro and must
@@ -1389,7 +1394,7 @@ in_line_argn(MACRO_PROT_ARGS)
 	char		*p;
 	enum mdoct	 ntok;
 
-	nl = MDOC_NEWLINE & mdoc->flags;
+	nl = mdoc->flags & MDOC_NEWLINE;
 
 	/*
 	 * A line macro that has a fixed number of arguments (maxargs).
@@ -1421,11 +1426,18 @@ in_line_argn(MACRO_PROT_ARGS)
 
 	mdoc_argv(mdoc, line, tok, &arg, pos, buf);
 
-	for (flushed = j = 0; ; ) {
+	p = NULL;
+	flushed = j = 0;
+	for (;;) {
 		la = *pos;
 		ac = mdoc_args(mdoc, line, pos, buf, tok, &p);
-		if (ac == ARGS_PUNCT || ac == ARGS_EOLN)
+		if (ac == ARGS_PUNCT || ac == ARGS_EOLN) {
+			if (j < 2 && tok == MDOC_Pf)
+				mandoc_vmsg(MANDOCERR_PF_SKIP,
+				    mdoc->parse, line, ppos, "Pf %s",
+				    p == NULL ? "at eol" : p);
 			break;
+		}
 
 		if ( ! (mdoc_macros[tok].flags & MDOC_IGNDELIM) &&
 		    ac != ARGS_QWORD && j == 0 &&
@@ -1440,7 +1452,8 @@ in_line_argn(MACRO_PROT_ARGS)
 			flushed = 1;
 		}
 
-		ntok = ac == ARGS_QWORD ? MDOC_MAX : lookup(tok, p);
+		ntok = (ac == ARGS_QWORD || (tok == MDOC_Pf && j == 0)) ?
+		    MDOC_MAX : lookup(mdoc, tok, line, la, p);
 
 		if (ntok != MDOC_MAX) {
 			if ( ! flushed)
@@ -1463,8 +1476,11 @@ in_line_argn(MACRO_PROT_ARGS)
 		j++;
 	}
 
-	if (j == 0)
+	if (j == 0) {
 		mdoc_elem_alloc(mdoc, line, ppos, tok, arg);
+		if (ac == ARGS_PUNCT && tok == MDOC_Pf)
+			append_delims(mdoc, line, pos, buf);
+	}
 	if ( ! flushed)
 		rew_elem(mdoc, tok);
 	if (nl)

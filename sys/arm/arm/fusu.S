@@ -204,7 +204,7 @@ Lblock_userspace_access:
 	.word	_C_LABEL(block_userspace_access)
 
 	.data
-	.align	0
+	.align	2
 	.global	_C_LABEL(block_userspace_access)
 _C_LABEL(block_userspace_access):
 	.word	0

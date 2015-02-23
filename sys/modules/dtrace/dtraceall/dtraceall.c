@@ -66,11 +66,8 @@ MODULE_VERSION(dtraceall, 1);
 MODULE_DEPEND(dtraceall, opensolaris, 1, 1, 1);
 MODULE_DEPEND(dtraceall, dtrace, 1, 1, 1);
 MODULE_DEPEND(dtraceall, dtmalloc, 1, 1, 1);
-#if defined(NFSCLIENT)
+#if defined(NFSCL)
 MODULE_DEPEND(dtraceall, dtnfscl, 1, 1, 1);
-#endif
-#if defined(NFSCLIENT)
-MODULE_DEPEND(dtraceall, dtnfsclient, 1, 1, 1);
 #endif
 #if defined(__amd64__) || defined(__i386__) || defined(__powerpc__)
 MODULE_DEPEND(dtraceall, fbt, 1, 1, 1);

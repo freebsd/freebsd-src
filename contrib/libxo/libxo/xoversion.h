@@ -18,17 +18,17 @@
 /**
  * The version string
  */
-#define LIBXO_VERSION		"0.1.6"
+#define LIBXO_VERSION		"0.2.0"
 
 /**
  * The version number
  */
-#define LIBXO_VERSION_NUMBER	1006
+#define LIBXO_VERSION_NUMBER	2000
 
 /**
  * The version number as a string
  */
-#define LIBXO_VERSION_STRING	"1006"
+#define LIBXO_VERSION_STRING	"2000"
 
 /**
  * The version number extra info as a string

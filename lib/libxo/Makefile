@@ -7,6 +7,8 @@ LIBXO=	${.CURDIR:H:H}/contrib/libxo
 LIB=	xo
 SHLIB_MAJOR=0
 
+SHLIBDIR?=      /lib
+
 SRCS=	libxo.c
 
 CFLAGS+=-I${LIBXO}/libxo
@@ -19,6 +21,7 @@ MAN+=	xo_attr.3 \
 	xo_create.3 \
 	xo_emit.3 \
 	xo_err.3 \
+	xo_error.3 \
 	xo_finish.3 \
 	xo_flush.3 \
 	xo_no_setlocale.3 \

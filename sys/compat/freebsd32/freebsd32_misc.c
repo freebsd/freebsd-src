@@ -1300,6 +1300,49 @@ freebsd32_futimesat(struct thread *td, struct freebsd32_futimesat_args *uap)
 }
 
 int
+freebsd32_futimens(struct thread *td, struct freebsd32_futimens_args *uap)
+{
+	struct timespec32 ts32[2];
+	struct timespec ts[2], *tsp;
+	int error;
+
+	if (uap->times != NULL) {
+		error = copyin(uap->times, ts32, sizeof(ts32));
+		if (error)
+			return (error);
+		CP(ts32[0], ts[0], tv_sec);
+		CP(ts32[0], ts[0], tv_nsec);
+		CP(ts32[1], ts[1], tv_sec);
+		CP(ts32[1], ts[1], tv_nsec);
+		tsp = ts;
+	} else
+		tsp = NULL;
+	return (kern_futimens(td, uap->fd, tsp, UIO_SYSSPACE));
+}
+
+int
+freebsd32_utimensat(struct thread *td, struct freebsd32_utimensat_args *uap)
+{
+	struct timespec32 ts32[2];
+	struct timespec ts[2], *tsp;
+	int error;
+
+	if (uap->times != NULL) {
+		error = copyin(uap->times, ts32, sizeof(ts32));
+		if (error)
+			return (error);
+		CP(ts32[0], ts[0], tv_sec);
+		CP(ts32[0], ts[0], tv_nsec);
+		CP(ts32[1], ts[1], tv_sec);
+		CP(ts32[1], ts[1], tv_nsec);
+		tsp = ts;
+	} else
+		tsp = NULL;
+	return (kern_utimensat(td, uap->fd, uap->path, UIO_USERSPACE,
+	    tsp, UIO_SYSSPACE, uap->flag));
+}
+
+int
 freebsd32_adjtime(struct thread *td, struct freebsd32_adjtime_args *uap)
 {
 	struct timeval32 tv32;
@@ -2969,6 +3012,7 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 
 	switch (uap->com) {
 	case PROC_SPROTECT:
+	case PROC_TRACE_CTL:
 		error = copyin(PTRIN(uap->data), &flags, sizeof(flags));
 		if (error != 0)
 			return (error);
@@ -2997,6 +3041,9 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 			return (error);
 		data = &x.rk;
 		break;
+	case PROC_TRACE_STATUS:
+		data = &flags;
+		break;
 	default:
 		return (EINVAL);
 	}
@@ -3011,6 +3058,10 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 		error1 = copyout(&x.rk, uap->data, sizeof(x.rk));
 		if (error == 0)
 			error = error1;
+		break;
+	case PROC_TRACE_STATUS:
+		if (error == 0)
+			error = copyout(&flags, uap->data, sizeof(flags));
 		break;
 	}
 	return (error);
@@ -3032,6 +3083,9 @@ freebsd32_fcntl(struct thread *td, struct freebsd32_fcntl_args *uap)
 	case F_GETLK:
 	case F_SETFD:
 	case F_SETFL:
+	case F_OGETLK:
+	case F_OSETLK:
+	case F_OSETLKW:
 		tmp = (unsigned int)(uap->arg);
 		break;
 	default:

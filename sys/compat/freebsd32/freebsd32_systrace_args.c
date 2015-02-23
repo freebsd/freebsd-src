@@ -1615,7 +1615,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* __getcwd */
 	case 326: {
 		struct __getcwd_args *p = params;
-		uarg[0] = (intptr_t) p->buf; /* u_char * */
+		uarg[0] = (intptr_t) p->buf; /* char * */
 		uarg[1] = p->buflen; /* u_int */
 		*n_args = 2;
 		break;
@@ -3306,6 +3306,24 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[1] = p->nfds; /* u_int */
 		uarg[2] = (intptr_t) p->ts; /* const struct timespec32 * */
 		uarg[3] = (intptr_t) p->set; /* const sigset_t * */
+		*n_args = 4;
+		break;
+	}
+	/* freebsd32_futimens */
+	case 546: {
+		struct freebsd32_futimens_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->times; /* struct timespec * */
+		*n_args = 2;
+		break;
+	}
+	/* freebsd32_utimensat */
+	case 547: {
+		struct freebsd32_utimensat_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->path; /* char * */
+		uarg[2] = (intptr_t) p->times; /* struct timespec * */
+		iarg[3] = p->flag; /* int */
 		*n_args = 4;
 		break;
 	}
@@ -5859,7 +5877,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 326:
 		switch(ndx) {
 		case 0:
-			p = "u_char *";
+			p = "char *";
 			break;
 		case 1:
 			p = "u_int";
@@ -8873,6 +8891,38 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* freebsd32_futimens */
+	case 546:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct timespec *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd32_utimensat */
+	case 547:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		case 2:
+			p = "struct timespec *";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
 	default:
 		break;
 	};
@@ -10748,6 +10798,16 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 #endif
 	/* freebsd32_ppoll */
 	case 545:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_futimens */
+	case 546:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_utimensat */
+	case 547:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

@@ -412,7 +412,7 @@ efx_filter_search(
 	__in		uint32_t key,
 	__in		boolean_t for_insert,
 	__out		int *filter_index,
-	__out		int *depth_required)
+	__out		unsigned int *depth_required)
 {
 	unsigned hash, incr, filter_idx, depth;
 
@@ -528,7 +528,8 @@ efx_filter_remove_filter(
 	efx_filter_tbl_t *eftp = &efp->ef_tbl[tbl_id];
 	efx_filter_spec_t *saved_spec;
 	efx_oword_t filter;
-	int filter_idx, depth;
+	int filter_idx;
+	unsigned int depth;
 	int state;
 	uint32_t key;
 	int rc;
@@ -561,7 +562,7 @@ efx_filter_remove_index(
 	__in		int index)
 {
 	efx_filter_t *efp = &enp->en_filter;
-	enum efx_filter_tbl_id tbl_id = efx_filter_tbl_id(type);
+	efx_filter_tbl_id_t tbl_id = efx_filter_tbl_id(type);
 	efx_filter_tbl_t *eftp = &efp->ef_tbl[tbl_id];
 	int state;
 
@@ -721,13 +722,16 @@ efx_filter_init(
 		    eftp->eft_spec);
 		if (!eftp->eft_spec) {
 			rc = ENOMEM;
-			goto fail2;
+			goto fail3;
 		}
 		memset(eftp->eft_spec, 0, eftp->eft_size * sizeof(*eftp->eft_spec));
 	}
 	enp->en_mod_flags |= EFX_MOD_FILTER;
 
 	return (0);
+
+fail3:
+	EFSYS_PROBE(fail3);
 
 fail2:
 	EFSYS_PROBE(fail2);
@@ -755,12 +759,17 @@ efx_filter_fini(
 		EFX_STATIC_ASSERT(sizeof(eftp->eft_bitmap[0]) == sizeof(uint32_t));
 		bitmap_size = (eftp->eft_size + (sizeof(uint32_t) * 8) - 1) / 8;
 
-		EFSYS_KMEM_FREE(enp->en_esip, bitmap_size, eftp->eft_bitmap);
-		eftp->eft_bitmap = NULL;
+		if (eftp->eft_bitmap != NULL) {
+			EFSYS_KMEM_FREE(enp->en_esip, bitmap_size,
+			    eftp->eft_bitmap);
+			eftp->eft_bitmap = NULL;
+		}
 
-		EFSYS_KMEM_FREE(enp->en_esip, eftp->eft_size * sizeof(*eftp->eft_spec),
-		    eftp->eft_spec);
-		eftp->eft_spec = NULL;
+		if (eftp->eft_spec != NULL) {
+			EFSYS_KMEM_FREE(enp->en_esip, eftp->eft_size *
+			    sizeof(*eftp->eft_spec), eftp->eft_spec);
+			eftp->eft_spec = NULL;
+		}
 	}
 
 	enp->en_mod_flags &= ~EFX_MOD_FILTER;

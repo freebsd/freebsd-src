@@ -101,16 +101,6 @@ in the header files
 and
 .In sys/disklabel.h .
 .Bl -tag -width CDIOCREADSUBCHANNEL
-.It Dv DIOCGDINFO
-.It Dv DIOCSDINFO
-.Pq Li "struct disklabel"
-Read or write the in-core copy of the disklabel for the
-drive.
-The disklabel is initialized with information
-read from the scsi inquiry commands, and should be the same as
-the information printed at boot.
-This structure is defined in the header file
-.In sys/disklabel.h .
 .It Dv CDIOCPLAYTRACKS
 .Pq Li "struct ioc_play_track"
 Start audio playback given a track address and length.

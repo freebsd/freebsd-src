@@ -46,6 +46,14 @@
  */
 struct ti_gpio_softc {
 	device_t		sc_dev;
+	device_t		sc_busdev;
+
+	/* Interrupt trigger type and level. */
+	enum intr_trigger	*sc_irq_trigger;
+	enum intr_polarity	*sc_irq_polarity;
+
+	int			sc_maxpin;
+	struct mtx		sc_mtx;
 
 	/*
 	 * The memory resource(s) for the PRCM register set, when the device is
@@ -55,15 +63,11 @@ struct ti_gpio_softc {
 	struct resource		*sc_mem_res[MAX_GPIO_BANKS];
 	struct resource		*sc_irq_res[MAX_GPIO_INTRS];
 
+	/* Interrupt events. */
+	struct intr_event	**sc_events;
+
 	/* The handle for the register IRQ handlers. */
 	void			*sc_irq_hdl[MAX_GPIO_INTRS];
-
-	/*
-	 * The following describes the H/W revision of each of the GPIO banks.
-	 */
-	uint32_t		sc_revision[MAX_GPIO_BANKS];
-
-	struct mtx		sc_mtx;
 };
 
 #endif /* TI_GPIO_H */

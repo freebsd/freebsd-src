@@ -46,7 +46,7 @@ class MachineInstrBuilder {
   MachineFunction *MF;
   MachineInstr *MI;
 public:
-  MachineInstrBuilder() : MF(0), MI(0) {}
+  MachineInstrBuilder() : MF(nullptr), MI(nullptr) {}
 
   /// Create a MachineInstrBuilder for manipulating an existing instruction.
   /// F must be the machine function  that was used to allocate I.
@@ -172,7 +172,12 @@ public:
     MI->addOperand(*MF, MachineOperand::CreateMetadata(MD));
     return *this;
   }
-  
+
+  const MachineInstrBuilder &addCFIIndex(unsigned CFIIndex) const {
+    MI->addOperand(*MF, MachineOperand::CreateCFIIndex(CFIIndex));
+    return *this;
+  }
+
   const MachineInstrBuilder &addSym(MCSymbol *Sym) const {
     MI->addOperand(*MF, MachineOperand::CreateMCSymbol(Sym));
     return *this;

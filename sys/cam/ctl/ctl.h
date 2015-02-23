@@ -181,6 +181,9 @@ int ctl_debugconf_sp_select_handler(struct ctl_scsiio *ctsio,
 int ctl_lbp_log_sense_handler(struct ctl_scsiio *ctsio,
 				   struct ctl_page_index *page_index,
 				   int pc);
+int ctl_sap_log_sense_handler(struct ctl_scsiio *ctsio,
+				   struct ctl_page_index *page_index,
+				   int pc);
 int ctl_config_move_done(union ctl_io *io);
 void ctl_datamove(union ctl_io *io);
 void ctl_done(union ctl_io *io);

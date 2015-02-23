@@ -62,7 +62,7 @@ PROG_FULL=${PROG}.full
     ${BINDIR} == "/bin" ||\
     ${BINDIR} == "/libexec" ||\
     ${BINDIR} == "/sbin" ||\
-    ${BINDIR:C%/usr/(bin|bsdinstall|games|libexec|lpr|sendmail|sm.bin|sbin)(/.*)?%/usr/bin%} == "/usr/bin"\
+    ${BINDIR:C%/usr/(bin|bsdinstall|libexec|lpr|sendmail|sm.bin|sbin)(/.*)?%/usr/bin%} == "/usr/bin"\
      )
 DEBUGFILEDIR=	${DEBUGDIR}${BINDIR}
 .else
@@ -168,15 +168,15 @@ CLEANFILES+= ${OBJS}
 _EXTRADEPEND:
 .if defined(LDFLAGS) && !empty(LDFLAGS:M-nostdlib)
 .if defined(DPADD) && !empty(DPADD)
-	echo ${PROG}: ${DPADD} >> ${DEPENDFILE}
+	echo ${PROG_FULL}: ${DPADD} >> ${DEPENDFILE}
 .endif
 .else
-	echo ${PROG}: ${LIBC} ${DPADD} >> ${DEPENDFILE}
+	echo ${PROG_FULL}: ${LIBC} ${DPADD} >> ${DEPENDFILE}
 .if defined(PROG_CXX)
 .if ${COMPILER_TYPE} == "clang" && empty(CXXFLAGS:M-stdlib=libstdc++)
-	echo ${PROG}: ${LIBCPLUSPLUS} >> ${DEPENDFILE}
+	echo ${PROG_FULL}: ${LIBCPLUSPLUS} >> ${DEPENDFILE}
 .else
-	echo ${PROG}: ${LIBSTDCPLUSPLUS} >> ${DEPENDFILE}
+	echo ${PROG_FULL}: ${LIBSTDCPLUSPLUS} >> ${DEPENDFILE}
 .endif
 .endif
 .endif

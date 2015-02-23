@@ -118,6 +118,10 @@ __FBSDID("$FreeBSD$");
 #define CLKSEL_TIMER6_CLK		(CM_DPLL + 0x01C)
 #define	CLKSEL_PRUSS_OCP_CLK		(CM_DPLL + 0x030)
 
+#define	CM_RTC				0x800
+#define	CM_RTC_RTC_CLKCTRL		(CM_RTC + 0x000)
+#define	CM_RTC_CLKSTCTRL		(CM_RTC + 0x004)
+
 #define	PRM_PER				0xC00
 #define	PRM_PER_RSTCTRL			(PRM_PER + 0x00)
 
@@ -295,7 +299,8 @@ struct ti_clock_dev ti_am335x_clk_devmap[] = {
 		.clk_get_source_freq = NULL,
 	},
 
-
+	/* RTC */
+	AM335X_GENERIC_CLOCK_DEV(RTC_CLK),
 
 	{  INVALID_CLK_IDENT, NULL, NULL, NULL, NULL }
 };
@@ -362,6 +367,9 @@ static struct am335x_clk_details g_am335x_clk_details[] = {
 
 	_CLK_DETAIL(MAILBOX0_CLK, CM_PER_MAILBOX0_CLKCTRL, 0),
 	_CLK_DETAIL(SPINLOCK0_CLK, CM_PER_SPINLOCK0_CLKCTRL, 0),
+
+	/* RTC module */
+	_CLK_DETAIL(RTC_CLK, CM_RTC_RTC_CLKCTRL, 0),
 
 	{ INVALID_CLK_IDENT, 0},
 };
@@ -494,7 +502,7 @@ am335x_clk_gpio_activate(struct ti_clock_dev *clkdev)
 	/* set *_CLKCTRL register MODULEMODE[1:0] to enable(2) */
 	/* set *_CLKCTRL register OPTFCLKEN_GPIO_1_G DBCLK[18] to FCLK_EN(1) */
 	prcm_write_4(clk_details->clkctrl_reg, 2 | (1 << 18));
-	while ((prcm_read_4(clk_details->clkctrl_reg) & 
+	while ((prcm_read_4(clk_details->clkctrl_reg) &
 	    (3 | (1 << 18) )) != (2 | (1 << 18)))
 		DELAY(10);
 
@@ -716,21 +724,21 @@ am335x_clk_lcdc_activate(struct ti_clock_dev *clkdev)
 	prcm_write_4(CM_WKUP_CM_CLKMODE_DPLL_DISP, 0x4);
 
 	/* Make sure it's in bypass mode */
-	while (!(prcm_read_4(CM_WKUP_CM_IDLEST_DPLL_DISP) 
+	while (!(prcm_read_4(CM_WKUP_CM_IDLEST_DPLL_DISP)
 	    & (1 << 8)))
 		DELAY(10);
 
-	/* 
-	 * For now set frequency to  5xSYSFREQ 
-	 * More flexible control might be required
+	/*
+	 * For now set frequency to  99*SYSFREQ/8 which is twice as
+	 * HDMI 1080p pixel clock (minimum LCDC freq divisor is 2)
 	 */
-	prcm_write_4(CM_WKUP_CM_CLKSEL_DPLL_DISP, (5 << 8) | 0);
+	prcm_write_4(CM_WKUP_CM_CLKSEL_DPLL_DISP, (99 << 8) | 8);
 
 	/* Locked mode */
 	prcm_write_4(CM_WKUP_CM_CLKMODE_DPLL_DISP, 0x7);
 
 	int timeout = 10000;
-	while ((!(prcm_read_4(CM_WKUP_CM_IDLEST_DPLL_DISP) 
+	while ((!(prcm_read_4(CM_WKUP_CM_IDLEST_DPLL_DISP)
 	    & (1 << 0))) && timeout--)
 		DELAY(10);
 
@@ -778,9 +786,9 @@ am335x_clk_pruss_activate(struct ti_clock_dev *clkdev)
 	while ((prcm_read_4(CM_PER_PRUSS_CLKSTCTRL) & (1<<6)) == 0)
 		DELAY(10);
 
-	/* Select DISP DPLL as OCP clock */
-	prcm_write_4(CLKSEL_PRUSS_OCP_CLK, 1);
-	while ((prcm_read_4(CLKSEL_PRUSS_OCP_CLK) & 0x3) != 1)
+	/* Select L3F as OCP clock */
+	prcm_write_4(CLKSEL_PRUSS_OCP_CLK, 0);
+	while ((prcm_read_4(CLKSEL_PRUSS_OCP_CLK) & 0x3) != 0)
 		DELAY(10);
 
 	/* Clear the RESET bit */

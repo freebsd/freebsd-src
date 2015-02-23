@@ -22,14 +22,21 @@
 #include "lldb/Core/StreamFile.h"
 #include "lldb/Core/StreamString.h"
 #include "lldb/Host/FileSpec.h"
+#include "lldb/Host/FileSystem.h"
 #include "lldb/Host/Host.h"
+#include "lldb/Host/HostInfo.h"
+#include "lldb/Host/Socket.h"
 #include "lldb/Host/TimeValue.h"
 #include "lldb/Target/Process.h"
 
 // Project includes
 #include "ProcessGDBRemoteLog.h"
 
-#define DEBUGSERVER_BASENAME    "debugserver"
+#if defined(__APPLE__)
+# define DEBUGSERVER_BASENAME    "debugserver"
+#else
+# define DEBUGSERVER_BASENAME    "lldb-gdbserver"
+#endif
 
 using namespace lldb;
 using namespace lldb_private;
@@ -321,6 +328,7 @@ GDBRemoteCommunication::WaitForPacketWithTimeoutMicroSecondsNoLock (StringExtrac
             switch (status)
             {
             case eConnectionStatusTimedOut:
+            case eConnectionStatusInterrupted:
                 timed_out = true;
                 break;
             case eConnectionStatusSuccess:
@@ -457,7 +465,8 @@ GDBRemoteCommunication::CheckForPacket (const uint8_t *src, size_t src_len, Stri
             assert (content_length <= m_bytes.size());
             assert (total_length <= m_bytes.size());
             assert (content_length <= total_length);
-            
+            const size_t content_end = content_start + content_length;
+
             bool success = true;
             std::string &packet_str = packet.GetStringRef();
             
@@ -471,7 +480,45 @@ GDBRemoteCommunication::CheckForPacket (const uint8_t *src, size_t src_len, Stri
                 if (!m_history.DidDumpToLog ())
                     m_history.Dump (log);
                 
-                log->Printf("<%4" PRIu64 "> read packet: %.*s", (uint64_t)total_length, (int)(total_length), m_bytes.c_str());
+                bool binary = false;
+                // Only detect binary for packets that start with a '$' and have a '#CC' checksum
+                if (m_bytes[0] == '$' && total_length > 4)
+                {
+                    for (size_t i=0; !binary && i<total_length; ++i)
+                    {
+                        if (isprint(m_bytes[i]) == 0)
+                            binary = true;
+                    }
+                }
+                if (binary)
+                {
+                    StreamString strm;
+                    // Packet header...
+                    strm.Printf("<%4" PRIu64 "> read packet: %c", (uint64_t)total_length, m_bytes[0]);
+                    for (size_t i=content_start; i<content_end; ++i)
+                    {
+                        // Remove binary escaped bytes when displaying the packet...
+                        const char ch = m_bytes[i];
+                        if (ch == 0x7d)
+                        {
+                            // 0x7d is the escape character.  The next character is to
+                            // be XOR'd with 0x20.
+                            const char escapee = m_bytes[++i] ^ 0x20;
+                            strm.Printf("%2.2x", escapee);
+                        }
+                        else
+                        {
+                            strm.Printf("%2.2x", (uint8_t)ch);
+                        }
+                    }
+                    // Packet footer...
+                    strm.Printf("%c%c%c", m_bytes[total_length-3], m_bytes[total_length-2], m_bytes[total_length-1]);
+                    log->PutCString(strm.GetString().c_str());
+                }
+                else
+                {
+                    log->Printf("<%4" PRIu64 "> read packet: %.*s", (uint64_t)total_length, (int)(total_length), m_bytes.c_str());
+                }
             }
 
             m_history.AddPacket (m_bytes.c_str(), total_length, History::ePacketTypeRecv, total_length);
@@ -482,7 +529,7 @@ GDBRemoteCommunication::CheckForPacket (const uint8_t *src, size_t src_len, Stri
             // run-length encoding in the process.
             // Reserve enough byte for the most common case (no RLE used)
             packet_str.reserve(m_bytes.length());
-            for (std::string::const_iterator c = m_bytes.begin() + content_start; c != m_bytes.begin() + content_start + content_length; ++c)
+            for (std::string::const_iterator c = m_bytes.begin() + content_start; c != m_bytes.begin() + content_end; ++c)
             {
                 if (*c == '*')
                 {
@@ -610,6 +657,10 @@ GDBRemoteCommunication::StartDebugserverProcess (const char *hostname,
                                                  lldb_private::ProcessLaunchInfo &launch_info,
                                                  uint16_t &out_port)
 {
+    Log *log (ProcessGDBRemoteLog::GetLogIfAllCategoriesSet (GDBR_LOG_PROCESS));
+    if (log)
+        log->Printf ("GDBRemoteCommunication::%s(hostname=%s, in_port=%" PRIu16 ", out_port=%" PRIu16, __FUNCTION__, hostname ? hostname : "<empty>", in_port, out_port);
+
     out_port = in_port;
     Error error;
     // If we locate debugserver, keep that located version around
@@ -622,24 +673,34 @@ GDBRemoteCommunication::StartDebugserverProcess (const char *hostname,
     // to the debugserver to use and use it if we do.
     const char *env_debugserver_path = getenv("LLDB_DEBUGSERVER_PATH");
     if (env_debugserver_path)
+    {
         debugserver_file_spec.SetFile (env_debugserver_path, false);
+        if (log)
+            log->Printf ("GDBRemoteCommunication::%s() gdb-remote stub exe path set from environment variable: %s", __FUNCTION__, env_debugserver_path);
+    }
     else
         debugserver_file_spec = g_debugserver_file_spec;
     bool debugserver_exists = debugserver_file_spec.Exists();
     if (!debugserver_exists)
     {
         // The debugserver binary is in the LLDB.framework/Resources
-        // directory. 
-        if (Host::GetLLDBPath (ePathTypeSupportExecutableDir, debugserver_file_spec))
+        // directory.
+        if (HostInfo::GetLLDBPath(ePathTypeSupportExecutableDir, debugserver_file_spec))
         {
-            debugserver_file_spec.GetFilename().SetCString(DEBUGSERVER_BASENAME);
+            debugserver_file_spec.AppendPathComponent (DEBUGSERVER_BASENAME);
             debugserver_exists = debugserver_file_spec.Exists();
             if (debugserver_exists)
             {
+                if (log)
+                    log->Printf ("GDBRemoteCommunication::%s() found gdb-remote stub exe '%s'", __FUNCTION__, debugserver_file_spec.GetPath ().c_str ());
+
                 g_debugserver_file_spec = debugserver_file_spec;
             }
             else
             {
+                if (log)
+                    log->Printf ("GDBRemoteCommunication::%s() could not find gdb-remote stub exe '%s'", __FUNCTION__, debugserver_file_spec.GetPath ().c_str ());
+
                 g_debugserver_file_spec.Clear();
                 debugserver_file_spec.Clear();
             }
@@ -690,9 +751,9 @@ GDBRemoteCommunication::StartDebugserverProcess (const char *hostname,
                 // Binding to port zero, we need to figure out what port it ends up
                 // using using a named pipe...
                 FileSpec tmpdir_file_spec;
-                if (Host::GetLLDBPath (ePathTypeLLDBTempSystemDir, tmpdir_file_spec))
+                if (HostInfo::GetLLDBPath(ePathTypeLLDBTempSystemDir, tmpdir_file_spec))
                 {
-                    tmpdir_file_spec.GetFilename().SetCString("debugserver-named-pipe.XXXXXX");
+                    tmpdir_file_spec.AppendPathComponent("debugserver-named-pipe.XXXXXX");
                     strncpy(named_pipe_path, tmpdir_file_spec.GetPath().c_str(), sizeof(named_pipe_path));
                 }
                 else
@@ -702,7 +763,7 @@ GDBRemoteCommunication::StartDebugserverProcess (const char *hostname,
 
                 if (::mktemp (named_pipe_path))
                 {
-#if defined(_MSC_VER)
+#if defined(_WIN32)
                     if ( false )
 #else
                     if (::mkfifo(named_pipe_path, 0600) == 0)
@@ -722,21 +783,28 @@ GDBRemoteCommunication::StartDebugserverProcess (const char *hostname,
         {
             // No host and port given, so lets listen on our end and make the debugserver
             // connect to us..
-            error = StartListenThread ("localhost", 0);
+            error = StartListenThread ("127.0.0.1", 0);
             if (error.Fail())
                 return error;
 
             ConnectionFileDescriptor *connection = (ConnectionFileDescriptor *)GetConnection ();
-            out_port = connection->GetBoundPort(3);
-            assert (out_port != 0);
-            char port_cstr[32];
-            snprintf(port_cstr, sizeof(port_cstr), "localhost:%i", out_port);
-            // Send the host and port down that debugserver and specify an option
-            // so that it connects back to the port we are listening to in this process
-            debugserver_args.AppendArgument("--reverse-connect");
-            debugserver_args.AppendArgument(port_cstr);
+            // Wait for 10 seconds to resolve the bound port
+            out_port = connection->GetListeningPort(10);
+            if (out_port > 0)
+            {
+                char port_cstr[32];
+                snprintf(port_cstr, sizeof(port_cstr), "127.0.0.1:%i", out_port);
+                // Send the host and port down that debugserver and specify an option
+                // so that it connects back to the port we are listening to in this process
+                debugserver_args.AppendArgument("--reverse-connect");
+                debugserver_args.AppendArgument(port_cstr);
+            }
+            else
+            {
+                error.SetErrorString ("failed to bind to port 0 on 127.0.0.1");
+                return error;
+            }
         }
-
         
         const char *env_debugserver_log_file = getenv("LLDB_DEBUGSERVER_LOG_FILE");
         if (env_debugserver_log_file)
@@ -751,7 +819,25 @@ GDBRemoteCommunication::StartDebugserverProcess (const char *hostname,
             ::snprintf (arg_cstr, sizeof(arg_cstr), "--log-flags=%s", env_debugserver_log_flags);
             debugserver_args.AppendArgument(arg_cstr);
         }
-        
+
+        // Add additional args, starting with LLDB_DEBUGSERVER_EXTRA_ARG_1 until an env var doesn't come back.
+        uint32_t env_var_index = 1;
+        bool has_env_var;
+        do
+        {
+            char env_var_name[64];
+            snprintf (env_var_name, sizeof (env_var_name), "LLDB_DEBUGSERVER_EXTRA_ARG_%" PRIu32, env_var_index++);
+            const char *extra_arg = getenv(env_var_name);
+            has_env_var = extra_arg != nullptr;
+
+            if (has_env_var)
+            {
+                debugserver_args.AppendArgument (extra_arg);
+                if (log)
+                    log->Printf ("GDBRemoteCommunication::%s adding env var %s contents to stub command line (%s)", __FUNCTION__, env_var_name, extra_arg);
+            }
+        } while (has_env_var);
+
         // Close STDIN, STDOUT and STDERR. We might need to redirect them
         // to "/dev/null" if we run into any problems.
         launch_info.AppendCloseFileAction (STDIN_FILENO);
@@ -760,31 +846,34 @@ GDBRemoteCommunication::StartDebugserverProcess (const char *hostname,
         
         error = Host::LaunchProcess(launch_info);
         
-        if (named_pipe_path[0])
+        if (error.Success() && launch_info.GetProcessID() != LLDB_INVALID_PROCESS_ID)
         {
-            File name_pipe_file;
-            error = name_pipe_file.Open(named_pipe_path, File::eOpenOptionRead);
-            if (error.Success())
+            if (named_pipe_path[0])
             {
-                char port_cstr[256];
-                port_cstr[0] = '\0';
-                size_t num_bytes = sizeof(port_cstr);
-                error = name_pipe_file.Read(port_cstr, num_bytes);
-                assert (error.Success());
-                assert (num_bytes > 0 && port_cstr[num_bytes-1] == '\0');
-                out_port = Args::StringToUInt32(port_cstr, 0);
-                name_pipe_file.Close();
+                File name_pipe_file;
+                error = name_pipe_file.Open(named_pipe_path, File::eOpenOptionRead);
+                if (error.Success())
+                {
+                    char port_cstr[256];
+                    port_cstr[0] = '\0';
+                    size_t num_bytes = sizeof(port_cstr);
+                    error = name_pipe_file.Read(port_cstr, num_bytes);
+                    assert (error.Success());
+                    assert (num_bytes > 0 && port_cstr[num_bytes-1] == '\0');
+                    out_port = Args::StringToUInt32(port_cstr, 0);
+                    name_pipe_file.Close();
+                }
+                FileSystem::Unlink(named_pipe_path);
             }
-            Host::Unlink(named_pipe_path);
-        }
-        else if (listen)
-        {
-            
-        }
-        else
-        {
-            // Make sure we actually connect with the debugserver...
-            JoinListenThread();
+            else if (listen)
+            {
+                
+            }
+            else
+            {
+                // Make sure we actually connect with the debugserver...
+                JoinListenThread();
+            }
         }
     }
     else

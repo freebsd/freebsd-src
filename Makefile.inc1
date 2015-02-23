@@ -50,10 +50,6 @@
 .include <bsd.arch.inc.mk>
 .include <bsd.compiler.mk>
 
-# We must do share/info early so that installation of info `dir'
-# entries works correctly.  Do it first since it is less likely to
-# grow dependencies on include and lib than vice versa.
-#
 # We must do lib/ and libexec/ before bin/, because if installworld
 # installs a new /bin/sh, the 'make' command will *immediately*
 # use that new version.  And the new (dynamically-linked) /bin/sh
@@ -63,7 +59,7 @@ SRCDIR?=	${.CURDIR}
 .if defined(SUBDIR_OVERRIDE)
 SUBDIR=	${SUBDIR_OVERRIDE}
 .else
-SUBDIR=	share/info lib libexec
+SUBDIR=	lib libexec
 SUBDIR+=bin
 .if ${MK_GAMES} != "no"
 SUBDIR+=games
@@ -193,9 +189,8 @@ OBJTREE=	${MAKEOBJDIRPREFIX}
 OBJTREE=	${MAKEOBJDIRPREFIX}/${TARGET}.${TARGET_ARCH}
 .endif
 WORLDTMP=	${OBJTREE}${.CURDIR}/tmp
-# /usr/games added for fortune which depend on strfile
-BPATH=		${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/usr/games:${WORLDTMP}/legacy/bin
-XPATH=		${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
+BPATH=		${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/bin
+XPATH=		${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin
 STRICTTMPPATH=	${BPATH}:${XPATH}
 TMPPATH=	${STRICTTMPPATH}:${PATH}
 
@@ -260,7 +255,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
-		MK_HTML=no MK_INFO=no NO_LINT=yes MK_MAN=no \
+		MK_HTML=no NO_LINT=yes MK_MAN=no \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
 		MK_CLANG_EXTRAS=no MK_CLANG_FULL=no \
@@ -293,7 +288,7 @@ KTMAKE=		TOOLS_PREFIX=${WORLDTMP} MAKEOBJDIRPREFIX=${WORLDTMP} \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
-		MK_HTML=no MK_INFO=no -DNO_LINT MK_MAN=no \
+		MK_HTML=no -DNO_LINT MK_MAN=no \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no
 
@@ -348,16 +343,15 @@ WMAKEENV+=	CC="${XCC} ${XCFLAGS}" CXX="${XCXX} ${XCFLAGS} ${XCXXFLAGS}" \
 		SIZE="${XSIZE}"
 
 .if ${XCC:M/*}
-XFLAGS=		--sysroot=${WORLDTMP}
 .if defined(CROSS_BINUTILS_PREFIX)
 # In the case of xdev-build tools, CROSS_BINUTILS_PREFIX won't be a
 # directory, but the compiler will look in the right place for it's
 # tools so we don't need to tell it where to look.
 .if exists(${CROSS_BINUTILS_PREFIX})
-XFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
+BFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
 .endif
 .else
-XFLAGS+=	-B${WORLDTMP}/usr/bin
+BFLAGS+=	-B${WORLDTMP}/usr/bin
 .endif
 .if ${TARGET} == "arm"
 .if ${TARGET_ARCH:M*hf*} != ""
@@ -374,6 +368,8 @@ DEPFLAGS+=	-I${WORLDTMP}/usr/include/c++/v1
 TARGET_ABI?=	unknown
 TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd11.0
 XCFLAGS+=	-target ${TARGET_TRIPLE}
+XCFLAGS+=	--sysroot=${WORLDTMP} ${BFLAGS}
+XCXXFLAGS+=	--sysroot=${WORLDTMP} ${BFLAGS}
 .endif
 .endif
 
@@ -438,7 +434,7 @@ LIB32WMAKEFLAGS+= CC="${XCC} ${LIB32FLAGS}" \
 		MK_TESTS=no
 
 LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} ${LIB32WMAKEFLAGS} \
-		MK_MAN=no MK_INFO=no MK_HTML=no
+		MK_MAN=no MK_HTML=no
 LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} \
 		MK_TOOLCHAIN=no ${IMAKE_INSTALL}
 .endif
@@ -590,7 +586,7 @@ _libraries:
 	@echo ">>> stage 4.2: building libraries"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; \
-	    ${WMAKE} -DNO_FSCHG MK_HTML=no MK_INFO=no -DNO_LINT MK_MAN=no \
+	    ${WMAKE} -DNO_FSCHG MK_HTML=no -DNO_LINT MK_MAN=no \
 	    MK_PROFILE=no MK_TESTS=no MK_TESTS_SUPPORT=${MK_TESTS} libraries
 _depend:
 	@echo
@@ -784,9 +780,6 @@ __installcheck_UGID:
 #
 # Required install tools to be saved in a scratch dir for safety.
 #
-.if ${MK_INFO} != "no"
-_install-info=	install-info
-.endif
 .if ${MK_ZONEINFO} != "no"
 _zoneinfo=	zic tzsetup
 .endif
@@ -814,9 +807,6 @@ ITOOLS+=makewhatis
 
 # Non-base distributions produced by the base system
 EXTRA_DISTRIBUTIONS=	doc
-.if ${MK_GAMES} != "no"
-EXTRA_DISTRIBUTIONS+=	games
-.endif
 .if defined(LIB32TMP) && ${MK_LIB32} != "no"
 EXTRA_DISTRIBUTIONS+=	lib32
 .endif
@@ -826,7 +816,7 @@ EXTRA_DISTRIBUTIONS+=	tests
 
 DEBUG_DISTRIBUTIONS=
 .if ${MK_DEBUG_FILES} != "no"
-DEBUG_DISTRIBUTIONS+=	base ${EXTRA_DISTRIBUTIONS:S,doc,,}
+DEBUG_DISTRIBUTIONS+=	base ${EXTRA_DISTRIBUTIONS:S,doc,,:S,tests,,}
 .endif
 
 MTREE_MAGIC?=	mtree 2.0
@@ -923,25 +913,25 @@ packageworld:
 .for dist in base ${EXTRA_DISTRIBUTIONS}
 .if defined(NO_ROOT)
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.txz \
-	    --exclude usr/lib/debug \
-	    @${DESTDIR}/${DISTDIR}/${dist}.meta
+	    tar cvf - --exclude usr/lib/debug \
+	    @${DESTDIR}/${DISTDIR}/${dist}.meta | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/${dist}.txz
 .else
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.txz \
-	    --exclude usr/lib/debug .
+	    tar cvf - --exclude usr/lib/debug . | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/${dist}.txz
 .endif
 .endfor
 
 .for dist in ${DEBUG_DISTRIBUTIONS}
 . if defined(NO_ROOT)
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}-dbg.txz \
-	    @${DESTDIR}/${DISTDIR}/${dist}.debug.meta
+	    tar cvf - @${DESTDIR}/${DISTDIR}/${dist}.debug.meta | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/${dist}-dbg.txz
 . else
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvJfL ${DESTDIR}/${DISTDIR}/${dist}-dbg.txz \
-	    usr/lib/debug
+	    tar cvLf - usr/lib/debug | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/${dist}-dbg.txz
 . endif
 .endfor
 
@@ -1149,19 +1139,21 @@ distributekernel distributekernel.debug:
 packagekernel:
 .if defined(NO_ROOT)
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.txz \
-	    @${DESTDIR}/${DISTDIR}/kernel.meta
+	    tar cvf - @${DESTDIR}/${DISTDIR}/kernel.meta | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.txz
 .for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz \
-	    @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
+	    tar cvf - @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz
 .endfor
 .else
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.txz .
+	    tar cvf - . | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.txz
 .for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz .
+	    tar cvf - . | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz
 .endfor
 .endif
 
@@ -1230,6 +1222,8 @@ legacy:
 #
 # bootstrap-tools: Build tools needed for compatibility
 #
+_bt=		_bootstrap-tools	
+
 .if ${MK_GAMES} != "no"
 _strfile=	games/fortune/strfile
 .endif
@@ -1253,11 +1247,8 @@ _sed=		usr.bin/sed
 .if ${BOOTSTRAPPING} < 1000002
 _m4=		lib/libohash \
 		usr.bin/m4
-.endif
 
-.if ${BOOTSTRAPPING} < 1000013
-_yacc=		lib/liby \
-		usr.bin/yacc
+${_bt}-usr.bin/m4: ${_bt}-lib/libohash
 .endif
 
 .if ${BOOTSTRAPPING} < 1000014
@@ -1267,6 +1258,8 @@ _crunch=	usr.sbin/crunch
 .if ${BOOTSTRAPPING} < 1000026
 _nmtree=	lib/libnetbsd \
 		usr.sbin/nmtree
+
+${_bt}-usr.sbin/nmtree: ${_bt}-lib/libnetbsd
 .endif
 
 .if ${BOOTSTRAPPING} < 1000027
@@ -1281,6 +1274,13 @@ _lex=		usr.bin/lex
 _awk=		usr.bin/awk
 .endif
 
+.if ${BOOTSTRAPPING} < 1001506
+_yacc=		lib/liby \
+		usr.bin/yacc
+
+${_bt}-usr.bin/yacc: ${_bt}-lib/liby
+.endif
+
 .if ${MK_BSNMP} != "no"
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .endif
@@ -1293,14 +1293,24 @@ _clang_tblgen= \
 	lib/clang/libllvmtablegen \
 	usr.bin/clang/tblgen \
 	usr.bin/clang/clang-tblgen
+
+${_bt}-usr.bin/clang/clang-tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/libllvmsupport
+${_bt}-usr.bin/clang/tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/libllvmsupport
 .endif
 
+# ELF Tool Chain libraries are needed for ELF tools and dtrace tools.
 # dtrace tools are required for older bootstrap env and cross-build
 # pre libdwarf
-.if ${MK_CDDL} != "no" && (${BOOTSTRAPPING} < 1100006 \
-      || (${MACHINE} != ${TARGET} || ${MACHINE_ARCH} != ${TARGET_ARCH}))
-_dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
-    lib/libdwarf cddl/usr.bin/ctfconvert cddl/usr.bin/ctfmerge
+.if ${BOOTSTRAPPING} < 1100006 || (${MACHINE} != ${TARGET} || \
+    ${MACHINE_ARCH} != ${TARGET_ARCH})
+_elftoolchain_libs= lib/libelf lib/libdwarf 
+.if ${MK_CDDL} != "no"
+_dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf cddl/usr.bin/ctfconvert \
+    cddl/usr.bin/ctfmerge
+
+${_bt}-cddl/usr.bin/ctfconvert: ${_bt}-lib/libelf ${_bt}-lib/libdwarf ${_bt}-cddl/lib/libctf
+${_bt}-cddl/usr.bin/ctfmerge: ${_bt}-lib/libelf ${_bt}-lib/libdwarf ${_bt}-cddl/lib/libctf
+.endif
 .endif
 
 # Default to building the GPL DTC, but build the BSDL one if users explicitly
@@ -1318,15 +1328,20 @@ _kerberos5_bootstrap_tools= \
 	kerberos5/tools/asn1_compile \
 	kerberos5/tools/slc \
 	usr.bin/compile_et
+
+${_bt}-kerberos5/tools/slc: ${_bt}-kerberos5/lib/libroken
+${_bt}-kerberos5/tools/asn1_compile: ${_bt}-kerberos5/lib/libroken
 .endif
+
+bootstrap-tools: .PHONY
 
 #	Please document (add comment) why something is in 'bootstrap-tools'.
 #	Try to bound the building of the bootstrap-tool to just the
 #	FreeBSD versions that need the tool built at this stage of the build.
-bootstrap-tools: .MAKE
 .for _tool in \
     ${_clang_tblgen} \
     ${_kerberos5_bootstrap_tools} \
+    ${_elftoolchain_libs} \
     ${_dtrace_tools} \
     ${_strfile} \
     ${_gperf} \
@@ -1348,12 +1363,15 @@ bootstrap-tools: .MAKE
     ${_crunch} \
     ${_nmtree} \
     ${_vtfontcvt}
+${_bt}-${_tool}: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool} && \
 		${MAKE} DIRPRFX=${_tool}/ obj && \
 		${MAKE} DIRPRFX=${_tool}/ depend && \
 		${MAKE} DIRPRFX=${_tool}/ all && \
 		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy install
+
+bootstrap-tools: ${_bt}-${_tool}
 .endfor
 
 #
@@ -1365,11 +1383,6 @@ _share=	share/syscons/scrnmaps
 
 .if ${MK_GCC} != "no"
 _gcc_tools= gnu/usr.bin/cc/cc_tools
-.endif
-
-.if ${MK_INFO} != "no"
-_texinfo=	gnu/usr.bin/texinfo/libtxi \
-		gnu/usr.bin/texinfo/makeinfo
 .endif
 
 .if ${MK_RESCUE} != "no"
@@ -1403,16 +1416,6 @@ build-tools: .MAKE
 		${MAKE} DIRPRFX=${_tool}/ depend && \
 		${MAKE} DIRPRFX=${_tool}/ all
 .endfor
-.for _tool in \
-    ${_texinfo}
-	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
-		cd ${.CURDIR}/${_tool} && \
-		${MAKE} DIRPRFX=${_tool}/ obj && \
-		${MAKE} DIRPRFX=${_tool}/ depend && \
-		${MAKE} DIRPRFX=${_tool}/ all && \
-		${MAKE} DIRPRFX=${_tool}/ install DESTDIR=${WORLDTMP}
-.endfor
-
 
 #
 # kernel-tools: Build kernel-building tools
@@ -1440,15 +1443,19 @@ _kgzip=		usr.sbin/kgzip
 .endif
 
 # If we're given an XAS, don't build binutils.
-.if ${XAS:M/*} == "" && ${MK_BINUTILS_BOOTSTRAP} != "no"
+.if ${XAS:M/*} == ""
+.if ${MK_BINUTILS_BOOTSTRAP} != "no"
 _binutils=	gnu/usr.bin/binutils
+.endif
 .if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
 _elftctools=	lib/libelftc \
-		usr.bin/addr2line \
 		usr.bin/elfcopy \
 		usr.bin/nm \
 		usr.bin/size \
 		usr.bin/strings
+# These are not required by the build, but can be useful for developers who
+# cross-build on a FreeBSD 10 host:
+_elftctools+=	usr.bin/addr2line
 .endif
 .endif
 
@@ -1493,7 +1500,7 @@ NXBMAKE=	${NXBENV} ${MAKE} \
 		MACHINE=${TARGET} MACHINE_ARCH=${TARGET_ARCH} \
 		MK_GDB=no MK_TESTS=no \
 		SSP_CFLAGS= \
-		MK_HTML=no MK_INFO=no NO_LINT=yes MK_MAN=no \
+		MK_HTML=no NO_LINT=yes MK_MAN=no \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
 		MK_CLANG_EXTRAS=no MK_CLANG_FULL=no \
@@ -1643,7 +1650,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_lib_libcapsicum} \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
 		lib/libopie lib/libpam ${_lib_libthr} \
-		lib/libradius lib/libsbuf lib/libtacplus \
+		${_lib_libradius} lib/libsbuf lib/libtacplus \
 		lib/libgeom \
 		${_cddl_lib_libumem} ${_cddl_lib_libnvpair} \
 		${_cddl_lib_libuutil} \
@@ -1666,6 +1673,10 @@ lib/libgeom__L: lib/libexpat__L
 _lib_libthr=	lib/libthr
 .endif
 
+.if ${MK_RADIUS_SUPPORT} != "no"
+_lib_libradius=	lib/libradius
+.endif
+
 .if ${MK_OFED} != "no"
 _ofed_lib=	contrib/ofed/usr.lib/
 .endif
@@ -1676,6 +1687,7 @@ _lib_libcapsicum=lib/libcapsicum
 
 lib/libcapsicum__L: lib/libnv__L
 lib/libpjdlog__L: lib/libutil__L
+lib/liblzma__L: lib/libthr__L
 
 _generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib ${_ofed_lib}
 .for _DIR in ${LOCAL_LIB_DIRS}
@@ -2022,7 +2034,7 @@ XDEV_CPUTYPE?=${CPUTYPE}
 XDEV_CPUTYPE?=${TARGET_CPUTYPE}
 .endif
 
-NOFUN=-DNO_FSCHG MK_HTML=no MK_INFO=no -DNO_LINT \
+NOFUN=-DNO_FSCHG MK_HTML=no -DNO_LINT \
 	MK_MAN=no MK_NLS=no MK_PROFILE=no \
 	MK_KERBEROS=no MK_RESCUE=no MK_TESTS=no MK_WARNS=no \
 	TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \

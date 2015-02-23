@@ -299,10 +299,10 @@ CNAME(restorebridgesize) = .-CNAME(restorebridge)
  * not still hanging around in the trap handling region
  * once the MMU is turned on.
  */
-	.globl	CNAME(rstcode), CNAME(rstsize)
+	.globl	CNAME(rstcode), CNAME(rstcodeend)
 CNAME(rstcode):
 	ba	cpu_reset
-CNAME(rstsize) = . - CNAME(rstcode)
+CNAME(rstcodeend):
 
 cpu_reset:
 	bl	1f
@@ -339,14 +339,14 @@ cpu_reset:
  * (except ISI/DSI, ALI, and the interrupts)
  */
 
-	.globl	CNAME(trapcode),CNAME(trapsize)
+	.globl	CNAME(trapcode),CNAME(trapcodeend)
 CNAME(trapcode):
 	mtsprg1	%r1			/* save SP */
 	mflr	%r1			/* Save the old LR in r1 */
 	mtsprg2 %r1			/* And then in SPRG2 */
 	li	%r1, 0x20		/* How to get the vector from LR */
 	bla	generictrap		/* LR & SPRG3 is exception # */
-CNAME(trapsize) = .-CNAME(trapcode)
+CNAME(trapcodeend):
 
 /*
  * 64-bit version of trapcode. Identical, except it calls generictrap64.
@@ -362,7 +362,7 @@ CNAME(trapcode64):
 /*
  * For ALI: has to save DSISR and DAR
  */
-	.globl	CNAME(alitrap),CNAME(alisize)
+	.globl	CNAME(alitrap),CNAME(aliend)
 CNAME(alitrap):
 	mtsprg1	%r1			/* save SP */
 	GET_CPUINFO(%r1)
@@ -386,7 +386,7 @@ CNAME(alitrap):
 	mfsrr1	%r31
 	mtcr	%r31
 	bla	s_trap
-CNAME(alisize) = .-CNAME(alitrap)
+CNAME(aliend):
 
 /*
  * G2 specific: instuction TLB miss.
@@ -594,7 +594,7 @@ CNAME(dsmisssize) = .-CNAME(dsmisstrap)
  * Has to handle BAT spills
  * and standard pagetable spills
  */
-	.globl	CNAME(dsitrap),CNAME(dsisize)
+	.globl	CNAME(dsitrap),CNAME(dsiend)
 CNAME(dsitrap):
 	mtsprg1	%r1			/* save SP */
 	GET_CPUINFO(%r1)
@@ -645,7 +645,7 @@ CNAME(dsitrap):
 1:
 	mflr	%r28			/* save LR (SP already saved) */
 	bla	disitrap
-CNAME(dsisize) = .-CNAME(dsitrap)
+CNAME(dsiend):
 
 /*
  * Preamble code for DSI/ISI traps
@@ -883,7 +883,7 @@ CNAME(rfi_patch2):
 /*
  * In case of KDB we want a separate trap catcher for it
  */
-	.globl	CNAME(dblow),CNAME(dbsize)
+	.globl	CNAME(dblow),CNAME(dbend)
 CNAME(dblow):
 	mtsprg1	%r1			/* save SP */
 	mtsprg2	%r29			/* save r29 */
@@ -909,5 +909,5 @@ CNAME(dblow):
         stw	%r31,(PC_DBSAVE+CPUSAVE_R31)(%r1)	/* free r31 */
         mflr	%r28					/* save LR */
 	bla	dbtrap
-CNAME(dbsize) = .-CNAME(dblow)
+CNAME(dbend):
 #endif /* KDB */

@@ -358,9 +358,22 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 	if (shmmap_s == NULL) {
 		shmmap_s = malloc(shminfo.shmseg * sizeof(struct shmmap_state),
 		    M_SHM, M_WAITOK);
-		for (i = 0; i < shminfo.shmseg; i++)
-			shmmap_s[i].shmid = -1;
-		p->p_vmspace->vm_shm = shmmap_s;
+
+		/*
+		 * If malloc() above sleeps, the Giant lock is
+		 * temporarily dropped, which allows another thread to
+		 * allocate shmmap_state and set vm_shm.  Recheck
+		 * vm_shm and free the new shmmap_state if another one
+		 * is already allocated.
+		 */
+		if (p->p_vmspace->vm_shm != NULL) {
+			free(shmmap_s, M_SHM);
+			shmmap_s = p->p_vmspace->vm_shm;
+		} else {
+			for (i = 0; i < shminfo.shmseg; i++)
+				shmmap_s[i].shmid = -1;
+			p->p_vmspace->vm_shm = shmmap_s;
+		}
 	}
 	shmseg = shm_find_segment_by_shmid(shmid);
 	if (shmseg == NULL) {
@@ -706,9 +719,10 @@ shmget_allocate_segment(td, uap, mode)
 #endif
 		return (ENOMEM);
 	}
+	shm_object->pg_color = 0;
 	VM_OBJECT_WLOCK(shm_object);
 	vm_object_clear_flag(shm_object, OBJ_ONEMAPPING);
-	vm_object_set_flag(shm_object, OBJ_NOSPLIT);
+	vm_object_set_flag(shm_object, OBJ_COLORED | OBJ_NOSPLIT);
 	VM_OBJECT_WUNLOCK(shm_object);
 
 	shmseg->object = shm_object;
@@ -825,8 +839,6 @@ shmrealloc(void)
 		return;
 
 	newsegs = malloc(shminfo.shmmni * sizeof(*newsegs), M_SHM, M_WAITOK);
-	if (newsegs == NULL)
-		return;
 	for (i = 0; i < shmalloced; i++)
 		bcopy(&shmsegs[i], &newsegs[i], sizeof(newsegs[0]));
 	for (; i < shminfo.shmmni; i++) {

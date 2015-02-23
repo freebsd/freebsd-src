@@ -35,7 +35,8 @@ SRCS+=	iommu.c		\
 	vhpet.c		\
 	vioapic.c	\
 	vlapic.c	\
-	vpmtmr.c
+	vpmtmr.c	\
+	vrtc.c
 
 # intel-specific files
 .PATH: ${.CURDIR}/../../amd64/vmm/intel

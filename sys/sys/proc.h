@@ -430,7 +430,7 @@ do {									\
 #define	TDP_RESETSPUR	0x04000000 /* Reset spurious page fault history. */
 #define	TDP_NERRNO	0x08000000 /* Last errno is already in td_errno */
 #define	TDP_UIOHELD	0x10000000 /* Current uio has pages held in td_ma */
-#define	TDP_DEVMEMIO	0x20000000 /* Accessing memory for /dev/mem */
+#define	TDP_UNUSED29	0x20000000 /* --available-- */
 #define	TDP_EXECVMSPC	0x40000000 /* Execve destroyed old vmspace */
 
 /*
@@ -674,6 +674,8 @@ struct proc {
 
 /* These flags are kept in p_flag2. */
 #define	P2_INHERIT_PROTECTED 0x00000001 /* New children get P_PROTECTED. */
+#define	P2_NOTRACE	0x00000002	/* No ptrace(2) attach or coredumps. */
+#define	P2_NOTRACE_EXEC 0x00000004	/* Keep P2_NOPTRACE on exec(2). */
 
 /* Flags protected by proctree_lock, kept in p_treeflags. */
 #define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */
@@ -750,6 +752,8 @@ extern pid_t pid_max;
 
 
 #define	STOPEVENT(p, e, v) do {						\
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,			\
+ 	    "checking stopevent %d", (e));				\
 	if ((p)->p_stops & (e))	{					\
 		PROC_LOCK(p);						\
 		stopevent((p), (e), (v));				\

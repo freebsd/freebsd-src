@@ -2443,13 +2443,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	}
 #ifdef SCTP_MBUF_LOGGING
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-		struct mbuf *mat;
-
-		for (mat = m_sig; mat; mat = SCTP_BUF_NEXT(mat)) {
-			if (SCTP_BUF_IS_EXTENDED(mat)) {
-				sctp_log_mb(mat, SCTP_MBUF_SPLIT);
-			}
-		}
+		sctp_log_mbc(m_sig, SCTP_MBUF_SPLIT);
 	}
 #endif
 
@@ -2601,7 +2595,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 		/* This should not happen */
 		return (NULL);
 	}
-	if ((*stcb == NULL) && to) {
+	if (*stcb == NULL) {
 		/* Yep, lets check */
 		*stcb = sctp_findassociation_ep_addr(inp_p, to, netp, dst, NULL);
 		if (*stcb == NULL) {
@@ -2639,9 +2633,6 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 				}
 			}
 		}
-	}
-	if (to == NULL) {
-		return (NULL);
 	}
 	cookie_len -= SCTP_SIGNATURE_SIZE;
 	if (*stcb == NULL) {
@@ -3117,7 +3108,6 @@ sctp_handle_ecn_cwr(struct sctp_cwr_chunk *cp, struct sctp_tcb *stcb, struct sct
 	uint32_t cwr_tsn;
 
 	cwr_tsn = ntohl(cp->tsn);
-
 	override = cp->ch.chunk_flags & SCTP_CWR_REDUCE_OVERRIDE;
 	TAILQ_FOREACH(chk, &stcb->asoc.control_send_queue, sctp_next) {
 		if (chk->rec.chunk_id.id != SCTP_ECN_ECHO) {
@@ -3133,10 +3123,8 @@ sctp_handle_ecn_cwr(struct sctp_cwr_chunk *cp, struct sctp_tcb *stcb, struct sct
 			stcb->asoc.ecn_echo_cnt_onq--;
 			TAILQ_REMOVE(&stcb->asoc.control_send_queue, chk,
 			    sctp_next);
-			if (chk->data) {
-				sctp_m_freem(chk->data);
-				chk->data = NULL;
-			}
+			sctp_m_freem(chk->data);
+			chk->data = NULL;
 			stcb->asoc.ctrl_queue_cnt--;
 			sctp_free_a_chunk(stcb, chk, SCTP_SO_NOT_LOCKED);
 			if (override == 0) {
@@ -3661,6 +3649,9 @@ sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
 					/* huh ? */
 					return (0);
 				}
+				if (ntohs(respin->ph.param_length) < sizeof(struct sctp_stream_reset_response_tsn)) {
+					return (0);
+				}
 				if (action == SCTP_STREAM_RESET_RESULT_PERFORMED) {
 					resp = (struct sctp_stream_reset_response_tsn *)respin;
 					asoc->stream_reset_outstanding--;
@@ -4049,7 +4040,7 @@ __attribute__((noinline))
 	    sctp_handle_stream_reset(struct sctp_tcb *stcb, struct mbuf *m, int offset,
         struct sctp_chunkhdr *ch_req)
 {
-	int chk_length, param_len, ptype;
+	uint16_t remaining_length, param_len, ptype;
 	struct sctp_paramhdr pstore;
 	uint8_t cstore[SCTP_CHUNK_BUFFER_SIZE];
 	uint32_t seq = 0;
@@ -4062,7 +4053,7 @@ __attribute__((noinline))
 	int num_param = 0;
 
 	/* now it may be a reset or a reset-response */
-	chk_length = ntohs(ch_req->chunk_length);
+	remaining_length = ntohs(ch_req->chunk_length) - sizeof(struct sctp_chunkhdr);
 
 	/* setup for adding the response */
 	sctp_alloc_a_chunk(stcb, chk);
@@ -4100,20 +4091,27 @@ strres_nochunk:
 	ch->chunk_length = htons(chk->send_size);
 	SCTP_BUF_LEN(chk->data) = SCTP_SIZE32(chk->send_size);
 	offset += sizeof(struct sctp_chunkhdr);
-	while ((size_t)chk_length >= sizeof(struct sctp_stream_reset_tsn_request)) {
+	while (remaining_length >= sizeof(struct sctp_paramhdr)) {
 		ph = (struct sctp_paramhdr *)sctp_m_getptr(m, offset, sizeof(pstore), (uint8_t *) & pstore);
-		if (ph == NULL)
-			break;
-		param_len = ntohs(ph->param_length);
-		if (param_len < (int)sizeof(struct sctp_stream_reset_tsn_request)) {
-			/* bad param */
+		if (ph == NULL) {
+			/* TSNH */
 			break;
 		}
-		ph = (struct sctp_paramhdr *)sctp_m_getptr(m, offset, min(param_len, (int)sizeof(cstore)),
+		param_len = ntohs(ph->param_length);
+		if ((param_len > remaining_length) ||
+		    (param_len < (sizeof(struct sctp_paramhdr) + sizeof(uint32_t)))) {
+			/* bad parameter length */
+			break;
+		}
+		ph = (struct sctp_paramhdr *)sctp_m_getptr(m, offset, min(param_len, sizeof(cstore)),
 		    (uint8_t *) & cstore);
+		if (ph == NULL) {
+			/* TSNH */
+			break;
+		}
 		ptype = ntohs(ph->param_type);
 		num_param++;
-		if (param_len > (int)sizeof(cstore)) {
+		if (param_len > sizeof(cstore)) {
 			trunc = 1;
 		} else {
 			trunc = 0;
@@ -4125,6 +4123,9 @@ strres_nochunk:
 		if (ptype == SCTP_STR_RESET_OUT_REQUEST) {
 			struct sctp_stream_reset_out_request *req_out;
 
+			if (param_len < sizeof(struct sctp_stream_reset_out_request)) {
+				break;
+			}
 			req_out = (struct sctp_stream_reset_out_request *)ph;
 			num_req++;
 			if (stcb->asoc.stream_reset_outstanding) {
@@ -4138,12 +4139,18 @@ strres_nochunk:
 		} else if (ptype == SCTP_STR_RESET_ADD_OUT_STREAMS) {
 			struct sctp_stream_reset_add_strm *str_add;
 
+			if (param_len < sizeof(struct sctp_stream_reset_add_strm)) {
+				break;
+			}
 			str_add = (struct sctp_stream_reset_add_strm *)ph;
 			num_req++;
 			sctp_handle_str_reset_add_strm(stcb, chk, str_add);
 		} else if (ptype == SCTP_STR_RESET_ADD_IN_STREAMS) {
 			struct sctp_stream_reset_add_strm *str_add;
 
+			if (param_len < sizeof(struct sctp_stream_reset_add_strm)) {
+				break;
+			}
 			str_add = (struct sctp_stream_reset_add_strm *)ph;
 			num_req++;
 			sctp_handle_str_reset_add_out_strm(stcb, chk, str_add);
@@ -4168,6 +4175,9 @@ strres_nochunk:
 			struct sctp_stream_reset_response *resp;
 			uint32_t result;
 
+			if (param_len < sizeof(struct sctp_stream_reset_response)) {
+				break;
+			}
 			resp = (struct sctp_stream_reset_response *)ph;
 			seq = ntohl(resp->response_seq);
 			result = ntohl(resp->result);
@@ -4179,7 +4189,11 @@ strres_nochunk:
 			break;
 		}
 		offset += SCTP_SIZE32(param_len);
-		chk_length -= SCTP_SIZE32(param_len);
+		if (remaining_length >= SCTP_SIZE32(param_len)) {
+			remaining_length -= SCTP_SIZE32(param_len);
+		} else {
+			remaining_length = 0;
+		}
 	}
 	if (num_req == 0) {
 		/* we have no response free the stuff */
@@ -5501,13 +5515,7 @@ process_control_chunks:
 						} else {
 #ifdef SCTP_MBUF_LOGGING
 							if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-								struct mbuf *mat;
-
-								for (mat = SCTP_BUF_NEXT(mm); mat; mat = SCTP_BUF_NEXT(mat)) {
-									if (SCTP_BUF_IS_EXTENDED(mat)) {
-										sctp_log_mb(mat, SCTP_MBUF_ICOPY);
-									}
-								}
+								sctp_log_mbc(SCTP_BUF_NEXT(mm), SCTP_MBUF_ICOPY);
 							}
 #endif
 							sctp_queue_op_err(stcb, mm);
@@ -5967,19 +5975,6 @@ out:
 	return;
 }
 
-#if 0
-static void
-sctp_print_mbuf_chain(struct mbuf *m)
-{
-	for (; m; m = SCTP_BUF_NEXT(m)) {
-		SCTP_PRINTF("%p: m_len = %ld\n", (void *)m, SCTP_BUF_LEN(m));
-		if (SCTP_BUF_IS_EXTENDED(m))
-			SCTP_PRINTF("%p: extend_size = %d\n", (void *)m, SCTP_BUF_EXTEND_SIZE(m));
-	}
-}
-
-#endif
-
 #ifdef INET
 void
 sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
@@ -6010,13 +6005,7 @@ sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 #ifdef SCTP_MBUF_LOGGING
 	/* Log in any input mbufs */
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-		struct mbuf *mat;
-
-		for (mat = m; mat; mat = SCTP_BUF_NEXT(mat)) {
-			if (SCTP_BUF_IS_EXTENDED(mat)) {
-				sctp_log_mb(mat, SCTP_MBUF_INPUT);
-			}
-		}
+		sctp_log_mbc(m, SCTP_MBUF_INPUT);
 	}
 #endif
 #ifdef SCTP_PACKET_LOGGING

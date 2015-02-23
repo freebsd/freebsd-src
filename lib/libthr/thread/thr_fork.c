@@ -128,12 +128,10 @@ __pthread_cxa_finalize(struct dl_phdr_info *phdr_info)
 	_thr_sigact_unload(phdr_info);
 }
 
-__weak_reference(_fork, fork);
-
-pid_t _fork(void);
+__weak_reference(__thr_fork, _fork);
 
 pid_t
-_fork(void)
+__thr_fork(void)
 {
 	struct pthread *curthread;
 	struct pthread_atfork *af;

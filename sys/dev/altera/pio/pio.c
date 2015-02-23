@@ -178,8 +178,6 @@ pio_attach(device_t dev)
 	sc->bst = rman_get_bustag(sc->res[0]);
 	sc->bsh = rman_get_bushandle(sc->res[0]);
 
-	WRITE4(sc, PIO_DATA, 0);
-
 	if ((node = ofw_bus_get_node(sc->dev)) == -1)
 		return (ENXIO);
 

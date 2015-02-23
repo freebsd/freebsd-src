@@ -171,11 +171,18 @@ public:
   typedef std::vector<const CodeGenInstruction*>::const_iterator inst_iterator;
   inst_iterator inst_begin() const{return getInstructionsByEnumValue().begin();}
   inst_iterator inst_end() const { return getInstructionsByEnumValue().end(); }
+  iterator_range<inst_iterator> instructions() const {
+    return iterator_range<inst_iterator>(inst_begin(), inst_end());
+  }
 
 
   /// isLittleEndianEncoding - are instruction bit patterns defined as  [0..n]?
   ///
   bool isLittleEndianEncoding() const;
+
+  /// reverseBitsForLittleEndianEncoding - For little-endian instruction bit
+  /// encodings, reverse the bit order of all instructions.
+  void reverseBitsForLittleEndianEncoding();
 
   /// guessInstructionProperties - should we just guess unset instruction
   /// properties?

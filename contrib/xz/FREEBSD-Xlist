@@ -32,7 +32,6 @@ macosx/
 makefile.am
 po/
 src/*/*.rc
-src/liblzma/liblzma.pc.in
 src/scripts/
 tests/
 version.sh

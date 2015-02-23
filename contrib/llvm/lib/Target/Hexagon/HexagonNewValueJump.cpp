@@ -21,33 +21,32 @@
 //
 //
 //===----------------------------------------------------------------------===//
-#define DEBUG_TYPE "hexagon-nvj"
 #include "llvm/PassSupport.h"
-#include "llvm/Support/Compiler.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/CodeGen/Passes.h"
-#include "llvm/CodeGen/ScheduleDAGInstrs.h"
-#include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/CodeGen/LiveVariables.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/CodeGen/MachineFunctionAnalysis.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetRegisterInfo.h"
 #include "Hexagon.h"
-#include "HexagonTargetMachine.h"
-#include "HexagonRegisterInfo.h"
-#include "HexagonSubtarget.h"
 #include "HexagonInstrInfo.h"
 #include "HexagonMachineFunctionInfo.h"
-
-#include <map>
-
+#include "HexagonRegisterInfo.h"
+#include "HexagonSubtarget.h"
+#include "HexagonTargetMachine.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/Statistic.h"
+#include "llvm/CodeGen/LiveVariables.h"
+#include "llvm/CodeGen/MachineFunctionAnalysis.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/Passes.h"
+#include "llvm/CodeGen/ScheduleDAGInstrs.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
+#include <map>
 using namespace llvm;
+
+#define DEBUG_TYPE "hexagon-nvj"
 
 STATISTIC(NumNVJGenerated, "Number of New Value Jump Instructions created");
 
@@ -76,16 +75,16 @@ namespace {
       initializeHexagonNewValueJumpPass(*PassRegistry::getPassRegistry());
     }
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.addRequired<MachineBranchProbabilityInfo>();
       MachineFunctionPass::getAnalysisUsage(AU);
     }
 
-    const char *getPassName() const {
+    const char *getPassName() const override {
       return "Hexagon NewValueJump";
     }
 
-    virtual bool runOnMachineFunction(MachineFunction &Fn);
+    bool runOnMachineFunction(MachineFunction &Fn) override;
 
   private:
     /// \brief A handle to the branch probability pass.
@@ -395,8 +394,8 @@ bool HexagonNewValueJump::runOnMachineFunction(MachineFunction &MF) {
     bool MO2IsKill = false;
     MachineBasicBlock::iterator jmpPos;
     MachineBasicBlock::iterator cmpPos;
-    MachineInstr *cmpInstr = NULL, *jmpInstr = NULL;
-    MachineBasicBlock *jmpTarget = NULL;
+    MachineInstr *cmpInstr = nullptr, *jmpInstr = nullptr;
+    MachineBasicBlock *jmpTarget = nullptr;
     bool afterRA = false;
     bool isSecondOpReg = false;
     bool isSecondOpNewified = false;

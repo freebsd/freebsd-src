@@ -14,54 +14,44 @@
 #ifndef SPARCTARGETMACHINE_H
 #define SPARCTARGETMACHINE_H
 
-#include "SparcFrameLowering.h"
-#include "SparcISelLowering.h"
 #include "SparcInstrInfo.h"
-#include "SparcJITInfo.h"
-#include "SparcSelectionDAGInfo.h"
 #include "SparcSubtarget.h"
-#include "llvm/IR/DataLayout.h"
-#include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
 
 class SparcTargetMachine : public LLVMTargetMachine {
   SparcSubtarget Subtarget;
-  const DataLayout DL;       // Calculates type size & alignment
-  SparcInstrInfo InstrInfo;
-  SparcTargetLowering TLInfo;
-  SparcSelectionDAGInfo TSInfo;
-  SparcFrameLowering FrameLowering;
-  SparcJITInfo JITInfo;
 public:
   SparcTargetMachine(const Target &T, StringRef TT,
                      StringRef CPU, StringRef FS, const TargetOptions &Options,
                      Reloc::Model RM, CodeModel::Model CM,
                      CodeGenOpt::Level OL, bool is64bit);
 
-  virtual const SparcInstrInfo *getInstrInfo() const { return &InstrInfo; }
-  virtual const TargetFrameLowering  *getFrameLowering() const {
-    return &FrameLowering;
+  const SparcInstrInfo *getInstrInfo() const override {
+    return getSubtargetImpl()->getInstrInfo();
   }
-  virtual const SparcSubtarget   *getSubtargetImpl() const{ return &Subtarget; }
-  virtual const SparcRegisterInfo *getRegisterInfo() const {
-    return &InstrInfo.getRegisterInfo();
+  const TargetFrameLowering *getFrameLowering() const override {
+    return getSubtargetImpl()->getFrameLowering();
   }
-  virtual const SparcTargetLowering* getTargetLowering() const {
-    return &TLInfo;
+  const SparcSubtarget *getSubtargetImpl() const override { return &Subtarget; }
+  const SparcRegisterInfo *getRegisterInfo() const override {
+    return getSubtargetImpl()->getRegisterInfo();
   }
-  virtual const SparcSelectionDAGInfo* getSelectionDAGInfo() const {
-    return &TSInfo;
+  const SparcTargetLowering *getTargetLowering() const override {
+    return getSubtargetImpl()->getTargetLowering();
   }
-  virtual SparcJITInfo *getJITInfo() {
-    return &JITInfo;
+  const SparcSelectionDAGInfo *getSelectionDAGInfo() const override {
+    return getSubtargetImpl()->getSelectionDAGInfo();
   }
-  virtual const DataLayout       *getDataLayout() const { return &DL; }
+  SparcJITInfo *getJITInfo() override { return Subtarget.getJITInfo(); }
+  const DataLayout *getDataLayout() const override {
+    return getSubtargetImpl()->getDataLayout();
+  }
 
   // Pass Pipeline Configuration
-  virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
-  virtual bool addCodeEmitter(PassManagerBase &PM, JITCodeEmitter &JCE);
+  TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
+  bool addCodeEmitter(PassManagerBase &PM, JITCodeEmitter &JCE) override;
 };
 
 /// SparcV8TargetMachine - Sparc 32-bit target machine

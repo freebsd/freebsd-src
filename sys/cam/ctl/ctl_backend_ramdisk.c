@@ -569,6 +569,8 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 		be_lun->size_bytes = be_lun->size_blocks * blocksize;
 
 		be_lun->ctl_be_lun.maxlba = be_lun->size_blocks - 1;
+		be_lun->ctl_be_lun.atomicblock = UINT32_MAX;
+		be_lun->ctl_be_lun.opttxferlen = softc->rd_size / blocksize;
 	} else {
 		be_lun->ctl_be_lun.maxlba = 0;
 		blocksize = 0;
@@ -586,17 +588,15 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 
 	be_lun->softc = softc;
 
-	unmap = 0;
+	unmap = 1;
 	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "unmap");
 	if (value != NULL && strcmp(value, "on") == 0)
-		unmap = 1;
+		unmap = (strcmp(value, "on") == 0);
 
 	be_lun->flags = CTL_BE_RAMDISK_LUN_UNCONFIGURED;
 	be_lun->ctl_be_lun.flags = CTL_LUN_FLAG_PRIMARY;
 	if (unmap)
 		be_lun->ctl_be_lun.flags |= CTL_LUN_FLAG_UNMAP;
-	be_lun->ctl_be_lun.atomicblock = UINT32_MAX;
-	be_lun->ctl_be_lun.opttxferlen = softc->rd_size / blocksize;
 	be_lun->ctl_be_lun.be_lun = be_lun;
 
 	if (params->flags & CTL_LUN_FLAG_ID_REQ) {

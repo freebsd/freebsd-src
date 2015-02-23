@@ -35,7 +35,6 @@
 
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "hexagon-peephole"
 #include "Hexagon.h"
 #include "HexagonTargetMachine.h"
 #include "llvm/ADT/DenseMap.h"
@@ -56,6 +55,8 @@
 #include <algorithm>
 
 using namespace llvm;
+
+#define DEBUG_TYPE "hexagon-peephole"
 
 static cl::opt<bool> DisableHexagonPeephole("disable-hexagon-peephole",
     cl::Hidden, cl::ZeroOrMore, cl::init(false),
@@ -89,13 +90,13 @@ namespace {
       initializeHexagonPeepholePass(*PassRegistry::getPassRegistry());
     }
 
-    bool runOnMachineFunction(MachineFunction &MF);
+    bool runOnMachineFunction(MachineFunction &MF) override;
 
-    const char *getPassName() const {
+    const char *getPassName() const override {
       return "Hexagon optimize redundant zero and size extends";
     }
 
-    void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       MachineFunctionPass::getAnalysisUsage(AU);
     }
 

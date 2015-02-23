@@ -148,8 +148,11 @@ static struct ktr_header ktr_header;
 
 void linux_ktrsyscall(struct ktr_syscall *);
 void linux_ktrsysret(struct ktr_sysret *);
-extern char *linux_syscallnames[];
-extern int nlinux_syscalls;
+extern const char *linux_syscallnames[];
+
+#include <linux_syscalls.c>
+static int nlinux_syscalls = sizeof(linux_syscallnames) / \
+				sizeof(linux_syscallnames[0]);
 
 /*
  * from linux.h
@@ -711,6 +714,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 			case SYS_readlinkat:
 			case SYS_renameat:
 			case SYS_unlinkat:
+			case SYS_utimensat:
 				putchar('(');
 				atfdname(*ip, decimal);
 				c = ',';
@@ -1151,7 +1155,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
 				putchar(',');
-				sendfileflagsname(*ip);
+				sendfileflagsname(*(int *)ip);
 				ip++;
 				narg--;
 				break;
@@ -1527,6 +1531,8 @@ ktrcsw(struct ktr_csw *cs)
 #define	UTRACE_PRELOAD_FINISHED		8
 #define	UTRACE_INIT_CALL		9
 #define	UTRACE_FINI_CALL		10
+#define	UTRACE_DLSYM_START		11
+#define	UTRACE_DLSYM_STOP		12
 
 struct utrace_rtld {
 	char sig[4];				/* 'RTLD' */
@@ -1604,6 +1610,13 @@ ktruser_rtld(int len, void *p)
 		break;
 	case UTRACE_FINI_CALL:
 		printf("RTLD: fini %p for %p (%s)\n", ut->mapbase, ut->handle,
+		    ut->name);
+		break;
+	case UTRACE_DLSYM_START:
+		printf("RTLD: dlsym(%p, %s)\n", ut->handle, ut->name);
+		break;
+	case UTRACE_DLSYM_STOP:
+		printf("RTLD: %p = dlsym(%p, %s)\n", ut->mapbase, ut->handle,
 		    ut->name);
 		break;
 	default:
@@ -1934,7 +1947,7 @@ void
 ktrfault(struct ktr_fault *ktr)
 {
 
-	printf("0x%jx ", ktr->vaddr);
+	printf("0x%jx ", (uintmax_t)ktr->vaddr);
 	vmprotname(ktr->type);
 	printf("\n");
 }

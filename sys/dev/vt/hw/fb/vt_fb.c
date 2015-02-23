@@ -53,6 +53,8 @@ static struct vt_driver vt_fb_driver = {
 	.vd_priority = VD_PRIORITY_GENERIC+10,
 	.vd_fb_ioctl = vt_fb_ioctl,
 	.vd_fb_mmap = vt_fb_mmap,
+	.vd_suspend = vt_fb_suspend,
+	.vd_resume = vt_fb_resume,
 };
 
 VT_DRIVER_DECLARE(vt_fb, vt_fb_driver);
@@ -154,6 +156,9 @@ vt_fb_setpixel(struct vt_device *vd, int x, int y, term_color_t color)
 	c = info->fb_cmap[color];
 	o = info->fb_stride * y + x * FBTYPE_GET_BYTESPP(info);
 
+	if (info->fb_flags & FB_FLAG_NOWRITE)
+		return;
+
 	KASSERT((info->fb_vbase != 0), ("Unmapped framebuffer"));
 
 	switch (FBTYPE_GET_BYTESPP(info)) {
@@ -204,6 +209,9 @@ vt_fb_blank(struct vt_device *vd, term_color_t color)
 
 	info = vd->vd_softc;
 	c = info->fb_cmap[color];
+
+	if (info->fb_flags & FB_FLAG_NOWRITE)
+		return;
 
 	KASSERT((info->fb_vbase != 0), ("Unmapped framebuffer"));
 
@@ -259,6 +267,9 @@ vt_fb_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
 	bgc = info->fb_cmap[bg];
 	b = m = 0;
 	bpl = (width + 7) >> 3; /* Bytes per source line. */
+
+	if (info->fb_flags & FB_FLAG_NOWRITE)
+		return;
 
 	KASSERT((info->fb_vbase != 0), ("Unmapped framebuffer"));
 
@@ -441,15 +452,15 @@ vt_fb_attach(struct fb_info *info)
 }
 
 void
-vt_fb_resume(void)
+vt_fb_suspend(struct vt_device *vd)
 {
 
-	vt_resume();
+	vt_suspend(vd);
 }
 
 void
-vt_fb_suspend(void)
+vt_fb_resume(struct vt_device *vd)
 {
 
-	vt_suspend();
+	vt_resume(vd);
 }

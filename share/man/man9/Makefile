@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 MAN=	accept_filter.9 \
 	accf_data.9 \
 	accf_dns.9 \
@@ -252,7 +254,6 @@ MAN=	accept_filter.9 \
 	sleep.9 \
 	sleepqueue.9 \
 	socket.9 \
-	spl.9 \
 	stack.9 \
 	store.9 \
 	style.9 \
@@ -272,7 +273,6 @@ MAN=	accept_filter.9 \
 	uidinfo.9 \
 	uio.9 \
 	unr.9 \
-	usbdi.9 \
 	utopia.9 \
 	vaccess.9 \
 	vaccess_acl_nfs4.9 \
@@ -1080,6 +1080,8 @@ MLINKS+=microuptime.9 binuptime.9 \
 	microuptime.9 sbinuptime.9
 MLINKS+=mi_switch.9 cpu_switch.9 \
 	mi_switch.9 cpu_throw.9
+MLINKS+=mod_cc.9 CCV.9 \
+	mod_cc.9 DECLARE_CC_MODULE.9
 MLINKS+=mtx_pool.9 mtx_pool_alloc.9 \
 	mtx_pool.9 mtx_pool_create.9 \
 	mtx_pool.9 mtx_pool_destroy.9 \
@@ -1445,18 +1447,6 @@ MLINKS+=socket.9 soabort.9 \
 	socket.9 soupcall_clear.9 \
 	socket.9 soupcall_set.9 \
 	socket.9 sowakeup.9
-MLINKS+=spl.9 spl0.9 \
-	spl.9 splbio.9 \
-	spl.9 splclock.9 \
-	spl.9 splhigh.9 \
-	spl.9 splimp.9 \
-	spl.9 splnet.9 \
-	spl.9 splsoftclock.9 \
-	spl.9 splsofttty.9 \
-	spl.9 splstatclock.9 \
-	spl.9 spltty.9 \
-	spl.9 splvm.9 \
-	spl.9 splx.9
 MLINKS+=stack.9 stack_copy.9 \
 	stack.9 stack_create.9 \
 	stack.9 stack_destroy.9 \
@@ -1604,6 +1594,9 @@ MLINKS+=uidinfo.9 uifind.9 \
 	uidinfo.9 uihold.9
 MLINKS+=uio.9 uiomove.9 \
 	uio.9 uiomove_nofault.9
+
+.if ${MK_USB} != "no"
+MAN+=	usbdi.9
 MLINKS+=usbdi.9 usbd_do_request.9 \
 	usbdi.9 usbd_do_request_flags.9 \
 	usbdi.9 usbd_errstr.9 \
@@ -1655,6 +1648,7 @@ MLINKS+=usbdi.9 usbd_do_request.9 \
 	usbdi.9 usb_fifo_reset.9 \
 	usbdi.9 usb_fifo_softc.9 \
 	usbdi.9 usb_fifo_wakeup.9
+.endif
 MLINKS+=vcount.9 count_dev.9
 MLINKS+=vfsconf.9 vfs_modevent.9 \
 	vfsconf.9 vfs_register.9 \

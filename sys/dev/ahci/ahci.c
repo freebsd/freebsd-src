@@ -868,14 +868,14 @@ static device_method_t ahcich_methods[] = {
 	DEVMETHOD(device_detach,    ahci_ch_detach),
 	DEVMETHOD(device_suspend,   ahci_ch_suspend),
 	DEVMETHOD(device_resume,    ahci_ch_resume),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t ahcich_driver = {
         "ahcich",
         ahcich_methods,
         sizeof(struct ahci_channel)
 };
-DRIVER_MODULE(ahcich, ahci, ahcich_driver, ahcich_devclass, 0, 0);
+DRIVER_MODULE(ahcich, ahci, ahcich_driver, ahcich_devclass, NULL, NULL);
 
 struct ahci_dc_cb_args {
 	bus_addr_t maddr;

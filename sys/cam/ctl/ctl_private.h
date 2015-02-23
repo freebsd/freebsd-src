@@ -342,6 +342,8 @@ static const struct ctl_page_index log_page_index_template[] = {
 	 CTL_PAGE_FLAG_NONE, NULL, NULL},
 	{SLS_LOGICAL_BLOCK_PROVISIONING, 0, 0, NULL,
 	 CTL_PAGE_FLAG_NONE, ctl_lbp_log_sense_handler, NULL},
+	{SLS_STAT_AND_PERF, 0, 0, NULL,
+	 CTL_PAGE_FLAG_NONE, ctl_sap_log_sense_handler, NULL},
 };
 
 #define	CTL_NUM_LOG_PAGES sizeof(log_page_index_template)/   \
@@ -351,6 +353,11 @@ struct ctl_log_pages {
 	uint8_t				pages_page[CTL_NUM_LOG_PAGES];
 	uint8_t				subpages_page[CTL_NUM_LOG_PAGES * 2];
 	uint8_t				lbp_page[12*CTL_NUM_LBP_PARAMS];
+	struct stat_page {
+		struct scsi_log_stat_and_perf sap;
+		struct scsi_log_idle_time it;
+		struct scsi_log_time_interval ti;
+	} stat_page;
 	struct ctl_page_index		index[CTL_NUM_LOG_PAGES];
 };
 
@@ -403,6 +410,10 @@ struct ctl_lun {
 	struct ctl_lun_delay_info	delay_info;
 	int				sync_interval;
 	int				sync_count;
+#ifdef CTL_TIME_IO
+	sbintime_t			idle_time;
+	sbintime_t			last_busy;
+#endif
 	TAILQ_HEAD(ctl_ooaq, ctl_io_hdr)  ooa_queue;
 	TAILQ_HEAD(ctl_blockq,ctl_io_hdr) blocked_queue;
 	STAILQ_ENTRY(ctl_lun)		links;
@@ -492,6 +503,13 @@ extern const struct ctl_cmd_entry ctl_cmd_table[256];
 uint32_t ctl_get_initindex(struct ctl_nexus *nexus);
 uint32_t ctl_get_resindex(struct ctl_nexus *nexus);
 uint32_t ctl_port_idx(int port_num);
+int ctl_lun_map_init(struct ctl_port *port);
+int ctl_lun_map_deinit(struct ctl_port *port);
+int ctl_lun_map_set(struct ctl_port *port, uint32_t plun, uint32_t glun);
+int ctl_lun_map_unset(struct ctl_port *port, uint32_t plun);
+int ctl_lun_map_unsetg(struct ctl_port *port, uint32_t glun);
+uint32_t ctl_lun_map_from_port(struct ctl_port *port, uint32_t plun);
+uint32_t ctl_lun_map_to_port(struct ctl_port *port, uint32_t glun);
 int ctl_pool_create(struct ctl_softc *ctl_softc, const char *pool_name,
 		    uint32_t total_ctl_io, void **npool);
 void ctl_pool_free(struct ctl_io_pool *pool);

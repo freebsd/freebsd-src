@@ -46,7 +46,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: strings.c 2351 2011-12-19 11:20:37Z jkoshy $");
+ELFTC_VCSID("$Id: strings.c 3124 2014-12-21 05:46:28Z kaiwang27 $");
 
 enum return_code {
 	RETURN_OK,

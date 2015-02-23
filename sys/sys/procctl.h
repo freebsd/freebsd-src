@@ -41,6 +41,8 @@
 #define	PROC_REAP_STATUS	4	/* reaping status */
 #define	PROC_REAP_GETPIDS	5	/* get descendants */
 #define	PROC_REAP_KILL		6	/* kill descendants */
+#define	PROC_TRACE_CTL		7	/* en/dis ptrace and coredumps */
+#define	PROC_TRACE_STATUS	8	/* query tracing status */
 
 /* Operations for PROC_SPROTECT (passed in integer arg). */
 #define	PPROT_OP(x)	((x) & 0xf)
@@ -95,6 +97,10 @@ struct procctl_reaper_kill {
 
 #define	REAPER_KILL_CHILDREN	0x00000001
 #define	REAPER_KILL_SUBTREE	0x00000002
+
+#define	PROC_TRACE_CTL_ENABLE		1
+#define	PROC_TRACE_CTL_DISABLE		2
+#define	PROC_TRACE_CTL_DISABLE_EXEC	3
 
 #ifndef _KERNEL
 __BEGIN_DECLS

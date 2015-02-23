@@ -1,5 +1,13 @@
 /* $FreeBSD$ */
 
+/* Get __FreeBSD_version. */
+#include <osreldate.h>
+
+/* Only specific versions of FreeBSD support xlocale */
+#if __FreeBSD_version >= 1000002 || (__FreeBSD_version < 1000000 && __FreeBSD_version >= 900506)
+#define FREEBSD_XLOCALE_SUPPORT 1
+#endif
+
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
@@ -48,7 +56,9 @@
 #define HAVE_FORK 1
 
 /* Define to 1 if you have the `freelocale' function. */
+#ifdef FREEBSD_XLOCALE_SUPPORT
 #define HAVE_FREELOCALE 1
+#endif
 
 /* Define to 1 if fseeko (and presumably ftello) exists and is declared. */
 #define HAVE_FSEEKO 1
@@ -102,7 +112,9 @@
 #define HAVE_MMAP 1
 
 /* Define to 1 if you have the `newlocale' function. */
+#ifdef FREEBSD_XLOCALE_SUPPORT
 #define HAVE_NEWLOCALE 1
+#endif
 
 /* Define to 1 if you have the `pread' function. */
 #define HAVE_PREAD 1
@@ -195,7 +207,9 @@
 #define HAVE_UNISTD_H 1
 
 /* Define to 1 if you have the `uselocale' function. */
+#ifdef FREEBSD_XLOCALE_SUPPORT
 #define HAVE_USELOCALE 1
+#endif
 
 /* Define to 1 if you have the `utime' function. */
 #define HAVE_UTIME 1
@@ -235,7 +249,9 @@
 #define HAVE_WORKING_VFORK 1
 
 /* Define to 1 if you have the <xlocale.h> header file. */
+#ifdef FREEBSD_XLOCALE_SUPPORT
 #define HAVE_XLOCALE_H 1
+#endif
 
 /* Define to 1 if you have the <zlib.h> header file. */
 #define HAVE_ZLIB_H 1
@@ -262,7 +278,7 @@
 #define PACKAGE_NAME "file"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "file 5.21"
+#define PACKAGE_STRING "file 5.22"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "file"
@@ -271,7 +287,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "5.21"
+#define PACKAGE_VERSION "5.22"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
@@ -302,7 +318,7 @@
 
 
 /* Version number of package */
-#define VERSION "5.21"
+#define VERSION "5.22"
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */

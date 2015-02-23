@@ -8,10 +8,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "PPCTargetObjectFile.h"
+#include "llvm/IR/Mangler.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCSectionELF.h"
-#include "llvm/Target/Mangler.h"
 
 using namespace llvm;
 
@@ -22,16 +22,9 @@ Initialize(MCContext &Ctx, const TargetMachine &TM) {
   InitializeELF(TM.Options.UseInitArray);
 }
 
-const MCSection * PPC64LinuxTargetObjectFile::
-SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,
-                       Mangler *Mang, const TargetMachine &TM) const {
-
-  const MCSection *DefaultSection = 
-    TargetLoweringObjectFileELF::SelectSectionForGlobal(GV, Kind, Mang, TM);
-
-  if (DefaultSection != ReadOnlySection)
-    return DefaultSection;
-
+const MCSection *PPC64LinuxTargetObjectFile::SelectSectionForGlobal(
+    const GlobalValue *GV, SectionKind Kind, Mangler &Mang,
+    const TargetMachine &TM) const {
   // Here override ReadOnlySection to DataRelROSection for PPC64 SVR4 ABI
   // when we have a constant that contains global relocations.  This is
   // necessary because of this ABI's handling of pointers to functions in
@@ -46,14 +39,17 @@ SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,
   // linker, so we must use DataRelROSection instead of ReadOnlySection.
   // For more information, see the description of ELIMINATE_COPY_RELOCS in
   // GNU ld.
-  const GlobalVariable *GVar = dyn_cast<GlobalVariable>(GV);
+  if (Kind.isReadOnly()) {
+    const GlobalVariable *GVar = dyn_cast<GlobalVariable>(GV);
 
-  if (GVar && GVar->isConstant() &&
-      (GVar->getInitializer()->getRelocationInfo() ==
-       Constant::GlobalRelocations))
-    return DataRelROSection;
+    if (GVar && GVar->isConstant() &&
+        (GVar->getInitializer()->getRelocationInfo() ==
+         Constant::GlobalRelocations))
+      Kind = SectionKind::getReadOnlyWithRel();
+  }
 
-  return DefaultSection;
+  return TargetLoweringObjectFileELF::SelectSectionForGlobal(GV, Kind,
+                                                             Mang, TM);
 }
 
 const MCExpr *PPC64LinuxTargetObjectFile::

@@ -31,7 +31,7 @@ echo "config.log: writing..."
 # Initialize all variables here,
 # such that nothing can leak in from the environment.
 
-VERSION="1.13.1"
+VERSION="1.13.2"
 echo "VERSION=\"${VERSION}\"" 1>&2
 echo "VERSION=\"${VERSION}\"" 1>&3
 
@@ -74,6 +74,16 @@ EXAMPLEDIR=
 WWWPREFIX="/var/www"
 HTDOCDIR=
 CGIBINDIR=
+
+BINM_APROPOS="apropos"
+BINM_MAN="man"
+BINM_WHATIS="whatis"
+BINM_MAKEWHATIS="makewhatis"
+MANM_MAN="man"
+MANM_MDOC="mdoc"
+MANM_ROFF="roff"
+MANM_EQN="eqn"
+MANM_TBL="tbl"
 
 INSTALL="install"
 INSTALL_PROGRAM=
@@ -285,6 +295,11 @@ cat << __HEREDOC__
 #define HAVE_OHASH ${HAVE_OHASH}
 #define HAVE_MANPATH ${HAVE_MANPATH}
 
+#define BINM_APROPOS "${BINM_APROPOS}"
+#define BINM_MAN "${BINM_MAN}"
+#define BINM_WHATIS "${BINM_WHATIS}"
+#define BINM_MAKEWHATIS "${BINM_MAKEWHATIS}"
+
 #if !defined(__BEGIN_DECLS)
 #  ifdef __cplusplus
 #  define	__BEGIN_DECLS		extern "C" {
@@ -358,12 +373,15 @@ if [ ${BUILD_DB} -eq 0 -a ${BUILD_CGI} -gt 0 ]; then
 fi
 
 BUILD_TARGETS="base-build"
-[ ${BUILD_DB}  -gt 0 ] && BUILD_TARGETS="${BUILD_TARGETS} db-build"
 [ ${BUILD_CGI} -gt 0 ] && BUILD_TARGETS="${BUILD_TARGETS} cgi-build"
+INSTALL_TARGETS="base-install"
+[ ${BUILD_DB}  -gt 0 ] && INSTALL_TARGETS="${INSTALL_TARGETS} db-install"
+[ ${BUILD_CGI} -gt 0 ] && INSTALL_TARGETS="${INSTALL_TARGETS} cgi-install"
 
 cat << __HEREDOC__
 VERSION		= ${VERSION}
 BUILD_TARGETS	= ${BUILD_TARGETS}
+INSTALL_TARGETS	= ${INSTALL_TARGETS}
 CFLAGS		= ${CFLAGS}
 DBLIB		= ${DBLIB}
 STATIC		= ${STATIC}
@@ -377,6 +395,15 @@ EXAMPLEDIR	= ${EXAMPLEDIR}
 WWWPREFIX	= ${WWWPREFIX}
 HTDOCDIR	= ${HTDOCDIR}
 CGIBINDIR	= ${CGIBINDIR}
+BINM_APROPOS	= ${BINM_APROPOS}
+BINM_MAN	= ${BINM_MAN}
+BINM_WHATIS	= ${BINM_WHATIS}
+BINM_MAKEWHATIS	= ${BINM_MAKEWHATIS}
+MANM_MAN	= ${MANM_MAN}
+MANM_MDOC	= ${MANM_MDOC}
+MANM_ROFF	= ${MANM_ROFF}
+MANM_EQN	= ${MANM_EQN}
+MANM_TBL	= ${MANM_TBL}
 INSTALL		= ${INSTALL}
 INSTALL_PROGRAM	= ${INSTALL_PROGRAM}
 INSTALL_LIB	= ${INSTALL_LIB}
@@ -385,7 +412,7 @@ INSTALL_DATA	= ${INSTALL_DATA}
 __HEREDOC__
 
 [ ${BUILD_DB} -gt 0 ] && \
-	echo "MAN_OBJS	= \$(MANDOC_OBJS) \$(APROPOS_OBJS)"
+	echo "MAIN_OBJS	= \$(BASE_OBJS) \$(DB_OBJS)"
 
 echo "Makefile.local: written" 1>&2
 echo "Makefile.local: written" 1>&3

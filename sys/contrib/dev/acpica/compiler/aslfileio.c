@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,8 +68,8 @@ FlFileError (
     UINT8                   ErrorId)
 {
 
-    sprintf (MsgBuffer, "\"%s\" (%s)", Gbl_Files[FileId].Filename,
-        strerror (errno));
+    sprintf (MsgBuffer, "\"%s\" (%s) - %s", Gbl_Files[FileId].Filename,
+        Gbl_Files[FileId].Description, strerror (errno));
     AslCommonError (ASL_ERROR, ErrorId, 0, 0, 0, 0, NULL, MsgBuffer);
 }
 
@@ -98,6 +98,9 @@ FlOpenFile (
     FILE                    *File;
 
 
+    Gbl_Files[FileId].Filename = Filename;
+    Gbl_Files[FileId].Handle = NULL;
+
     File = fopen (Filename, Mode);
     if (!File)
     {
@@ -105,8 +108,7 @@ FlOpenFile (
         AslAbort ();
     }
 
-    Gbl_Files[FileId].Filename = Filename;
-    Gbl_Files[FileId].Handle   = File;
+    Gbl_Files[FileId].Handle = File;
 }
 
 

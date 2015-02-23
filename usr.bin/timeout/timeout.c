@@ -28,6 +28,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/procctl.h>
 #include <sys/time.h>
 #include <sys/wait.h>
 
@@ -166,12 +167,15 @@ main(int argc, char **argv)
 	int foreground, preserve;
 	int error, pstat, status;
 	int killsig = SIGTERM;
-	pid_t pgid, pid, cpid;
+	pid_t pid, cpid;
 	double first_kill;
 	double second_kill;
 	bool timedout = false;
 	bool do_second_kill = false;
+	bool child_done = false;
 	struct sigaction signals;
+	struct procctl_reaper_status info;
+	struct procctl_reaper_kill killemall;
 	int signums[] = {
 		-1,
 		SIGTERM,
@@ -184,8 +188,6 @@ main(int argc, char **argv)
 
 	foreground = preserve = 0;
 	second_kill = 0;
-	cpid = -1;
-	pgid = -1;
 
 	const struct option longopts[] = {
 		{ "preserve-status", no_argument,       &preserve,    1 },
@@ -225,10 +227,9 @@ main(int argc, char **argv)
 	argv++;
 
 	if (!foreground) {
-		pgid = setpgid(0,0);
-
-		if (pgid == -1)
-			err(EX_OSERR, "setpgid()");
+		/* Aquire a reaper */
+		if (procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, NULL) == -1)
+			err(EX_OSERR, "Fail to acquire the reaper");
 	}
 
 	memset(&signals, 0, sizeof(signals));
@@ -280,20 +281,38 @@ main(int argc, char **argv)
 
 		if (sig_chld) {
 			sig_chld = 0;
-			while (((cpid = wait(&status)) < 0) && errno == EINTR)
-				continue;
 
-			if (cpid == pid) {
-				pstat = status;
-				break;
+			while ((cpid = waitpid(-1, &status, WNOHANG)) != 0) {
+				if (cpid < 0) {
+					if (errno == EINTR)
+						continue;
+					else
+						break;
+				} else if (cpid == pid) {
+					pstat = status;
+					child_done = true;
+				}
+			}
+			if (child_done) {
+				if (foreground) {
+					break;
+				} else {
+					procctl(P_PID, getpid(),
+					    PROC_REAP_STATUS, &info);
+					if (info.rs_children == 0)
+						break;
+				}
 			}
 		} else if (sig_alrm) {
 			sig_alrm = 0;
 
 			timedout = true;
-			if (!foreground)
-				killpg(pgid, killsig);
-			else
+			if (!foreground) {
+				killemall.rk_sig = killsig;
+				killemall.rk_flags = 0;
+				procctl(P_PID, getpid(), PROC_REAP_KILL,
+				    &killemall);
+			} else
 				kill(pid, killsig);
 
 			if (do_second_kill) {
@@ -305,9 +324,12 @@ main(int argc, char **argv)
 				break;
 
 		} else if (sig_term) {
-			if (!foreground)
-				killpg(pgid, killsig);
-			else
+			if (!foreground) {
+				killemall.rk_sig = sig_term;
+				killemall.rk_flags = 0;
+				procctl(P_PID, getpid(), PROC_REAP_KILL,
+				    &killemall);
+			} else
 				kill(pid, sig_term);
 
 			if (do_second_kill) {
@@ -320,10 +342,13 @@ main(int argc, char **argv)
 		}
 	}
 
-	while (cpid != pid  && wait(&pstat) == -1) {
+	while (!child_done && wait(&pstat) == -1) {
 		if (errno != EINTR)
 			err(EX_OSERR, "waitpid()");
 	}
+
+	if (!foreground)
+		procctl(P_PID, getpid(), PROC_REAP_RELEASE, NULL);
 
 	if (WEXITSTATUS(pstat))
 		pstat = WEXITSTATUS(pstat);

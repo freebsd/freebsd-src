@@ -746,7 +746,7 @@ update_clip(struct adapter *sc, void *arg __unused)
 	if (begin_synchronized_op(sc, NULL, HOLD_LOCK, "t4tomuc"))
 		return;
 
-	if (sc->flags & TOM_INIT_DONE)
+	if (uld_active(sc, ULD_TOM))
 		update_clip_table(sc, sc->tom_softc);
 
 	end_synchronized_op(sc, LOCK_HELD);
@@ -1025,7 +1025,6 @@ t4_tom_activate(struct adapter *sc)
 		TOEDEV(sc->port[i]->ifp) = &td->tod;
 
 	sc->tom_softc = td;
-	sc->flags |= TOM_INIT_DONE;
 	register_toedev(sc->tom_softc);
 
 done:
@@ -1048,6 +1047,9 @@ t4_tom_deactivate(struct adapter *sc)
 	if (sc->offload_map != 0)
 		return (EBUSY);	/* at least one port has IFCAP_TOE enabled */
 
+	if (uld_active(sc, ULD_IWARP) || uld_active(sc, ULD_ISCSI))
+		return (EBUSY);	/* both iWARP and iSCSI rely on the TOE. */
+
 	mtx_lock(&td->toep_list_lock);
 	if (!TAILQ_EMPTY(&td->toep_list))
 		rc = EBUSY;
@@ -1068,7 +1070,6 @@ t4_tom_deactivate(struct adapter *sc)
 		unregister_toedev(sc->tom_softc);
 		free_tom_data(sc, td);
 		sc->tom_softc = NULL;
-		sc->flags &= ~TOM_INIT_DONE;
 	}
 
 	return (rc);
@@ -1122,7 +1123,7 @@ tom_uninit(struct adapter *sc, void *arg __unused)
 		return;
 
 	/* Try to free resources (works only if no port has IFCAP_TOE) */
-	if (sc->flags & TOM_INIT_DONE)
+	if (uld_active(sc, ULD_TOM))
 		t4_deactivate_uld(sc, ULD_TOM);
 
 	end_synchronized_op(sc, 0);

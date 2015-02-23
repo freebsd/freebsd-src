@@ -67,7 +67,7 @@ nexus_xen_attach(device_t dev)
 {
 	int error;
 #ifndef XEN
-	device_t acpi_dev;
+	device_t acpi_dev = NULL;
 #endif
 
 	nexus_init_resources();

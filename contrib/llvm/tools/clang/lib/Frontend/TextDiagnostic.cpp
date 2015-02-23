@@ -26,6 +26,8 @@ using namespace clang;
 
 static const enum raw_ostream::Colors noteColor =
   raw_ostream::BLACK;
+static const enum raw_ostream::Colors remarkColor =
+  raw_ostream::BLUE;
 static const enum raw_ostream::Colors fixitColor =
   raw_ostream::GREEN;
 static const enum raw_ostream::Colors caretColor =
@@ -312,14 +314,6 @@ private:
   SmallVector<int,200> m_byteToColumn;
   SmallVector<int,200> m_columnToByte;
 };
-
-// used in assert in selectInterestingSourceRegion()
-struct char_out_of_range {
-  const char lower,upper;
-  char_out_of_range(char lower, char upper) :
-    lower(lower), upper(upper) {}
-  bool operator()(char c) { return c < lower || upper < c; }
-};
 } // end anonymous namespace
 
 /// \brief When the source code line we want to print is too long for
@@ -339,7 +333,7 @@ static void selectInterestingSourceRegion(std::string &SourceLine,
   // No special characters are allowed in CaretLine.
   assert(CaretLine.end() ==
          std::find_if(CaretLine.begin(), CaretLine.end(),
-         char_out_of_range(' ','~')));
+                      [](char c) { return c < ' ' || '~' < c; }));
 
   // Find the slice that we need to display the full caret line
   // correctly.
@@ -695,8 +689,9 @@ TextDiagnostic::emitDiagnosticMessage(SourceLocation Loc,
   
   printDiagnosticLevel(OS, Level, DiagOpts->ShowColors,
                        DiagOpts->CLFallbackMode);
-  printDiagnosticMessage(OS, Level, Message,
-                         OS.tell() - StartOfLocationInfo,
+  printDiagnosticMessage(OS,
+                         /*IsSupplemental*/ Level == DiagnosticsEngine::Note,
+                         Message, OS.tell() - StartOfLocationInfo,
                          DiagOpts->MessageLength, DiagOpts->ShowColors);
 }
 
@@ -711,6 +706,7 @@ TextDiagnostic::printDiagnosticLevel(raw_ostream &OS,
     case DiagnosticsEngine::Ignored:
       llvm_unreachable("Invalid diagnostic type");
     case DiagnosticsEngine::Note:    OS.changeColor(noteColor, true); break;
+    case DiagnosticsEngine::Remark:  OS.changeColor(remarkColor, true); break;
     case DiagnosticsEngine::Warning: OS.changeColor(warningColor, true); break;
     case DiagnosticsEngine::Error:   OS.changeColor(errorColor, true); break;
     case DiagnosticsEngine::Fatal:   OS.changeColor(fatalColor, true); break;
@@ -721,6 +717,7 @@ TextDiagnostic::printDiagnosticLevel(raw_ostream &OS,
   case DiagnosticsEngine::Ignored:
     llvm_unreachable("Invalid diagnostic type");
   case DiagnosticsEngine::Note:    OS << "note"; break;
+  case DiagnosticsEngine::Remark:  OS << "remark"; break;
   case DiagnosticsEngine::Warning: OS << "warning"; break;
   case DiagnosticsEngine::Error:   OS << "error"; break;
   case DiagnosticsEngine::Fatal:   OS << "fatal error"; break;
@@ -739,24 +736,18 @@ TextDiagnostic::printDiagnosticLevel(raw_ostream &OS,
     OS.resetColor();
 }
 
-/*static*/ void
-TextDiagnostic::printDiagnosticMessage(raw_ostream &OS,
-                                       DiagnosticsEngine::Level Level,
-                                       StringRef Message,
-                                       unsigned CurrentColumn, unsigned Columns,
-                                       bool ShowColors) {
+/*static*/
+void TextDiagnostic::printDiagnosticMessage(raw_ostream &OS,
+                                            bool IsSupplemental,
+                                            StringRef Message,
+                                            unsigned CurrentColumn,
+                                            unsigned Columns, bool ShowColors) {
   bool Bold = false;
-  if (ShowColors) {
-    // Print warnings, errors and fatal errors in bold, no color
-    switch (Level) {
-    case DiagnosticsEngine::Warning:
-    case DiagnosticsEngine::Error:
-    case DiagnosticsEngine::Fatal:
-      OS.changeColor(savedColor, true);
-      Bold = true;
-      break;
-    default: break; //don't bold notes
-    }
+  if (ShowColors && !IsSupplemental) {
+    // Print primary diagnostic messages in bold and without color, to visually
+    // indicate the transition from continuation notes and other output.
+    OS.changeColor(savedColor, true);
+    Bold = true;
   }
 
   if (Columns)
@@ -787,7 +778,7 @@ void TextDiagnostic::emitDiagnosticLoc(SourceLocation Loc, PresumedLoc PLoc,
     FileID FID = SM.getFileID(Loc);
     if (!FID.isInvalid()) {
       const FileEntry* FE = SM.getFileEntryForID(FID);
-      if (FE && FE->getName()) {
+      if (FE && FE->isValid()) {
         OS << FE->getName();
         if (FE->isInPCH())
           OS << " (in PCH)";
@@ -816,7 +807,10 @@ void TextDiagnostic::emitDiagnosticLoc(SourceLocation Loc, PresumedLoc PLoc,
     if (unsigned ColNo = PLoc.getColumn()) {
       if (DiagOpts->getFormat() == DiagnosticOptions::Msvc) {
         OS << ',';
-        ColNo--;
+        // Visual Studio 2010 or earlier expects column number to be off by one
+        if (LangOpts.MSCompatibilityVersion &&
+            LangOpts.MSCompatibilityVersion < 170000000)
+          ColNo--;
       } else
         OS << ':';
       OS << ColNo;
@@ -875,12 +869,6 @@ void TextDiagnostic::emitDiagnosticLoc(SourceLocation Loc, PresumedLoc PLoc,
       OS << ':';
   }
   OS << ' ';
-}
-
-void TextDiagnostic::emitBasicNote(StringRef Message) {
-  // FIXME: Emit this as a real note diagnostic.
-  // FIXME: Format an actual diagnostic rather than a hard coded string.
-  OS << "note: " << Message << "\n";
 }
 
 void TextDiagnostic::emitIncludeLocation(SourceLocation Loc,
@@ -1143,7 +1131,7 @@ void TextDiagnostic::emitSnippetAndCaret(
   std::string FixItInsertionLine = buildFixItInsertionLine(LineNo,
                                                            sourceColMap,
                                                            Hints, SM,
-                                                           DiagOpts.getPtr());
+                                                           DiagOpts.get());
 
   // If the source line is too long for our terminal, select only the
   // "interesting" source region within that line.

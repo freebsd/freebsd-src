@@ -1,3 +1,5 @@
+/*	$NetBSD: tc1.c,v 1.6 2014/06/18 20:12:15 christos Exp $	*/
+
 /*-
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -30,22 +32,24 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include "config.h"
 #ifndef lint
 __COPYRIGHT("@(#) Copyright (c) 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n");
 #endif /* not lint */
 
 #if !defined(lint) && !defined(SCCSID)
+#if 0
 static char sccsid[] = "@(#)test.c	8.1 (Berkeley) 6/4/93";
+#else
+__RCSID("$NetBSD: tc1.c,v 1.6 2014/06/18 20:12:15 christos Exp $");
+#endif
 #endif /* not lint && not SCCSID */
-__RCSID("$NetBSD: test.c,v 1.3 2009/07/17 12:25:52 christos Exp $");
 __FBSDID("$FreeBSD$");
 
 /*
  * test.c: A little test program
  */
-#include "sys.h"
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
@@ -54,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <locale.h>
 
 #include "histedit.h"
 
@@ -68,7 +73,7 @@ static	void	sig(int);
 static char *
 prompt(EditLine *el)
 {
-	static char a[] = "\1\e[7m\1Edit$\1\e[0m\1 ";
+	static char a[] = "\1\033[7m\1Edit$\1\033[0m\1 ";
 	static char b[] = "Edit> ";
 
 	return (continuation ? b : a);
@@ -88,6 +93,7 @@ complete(EditLine *el, int ch)
 	const char* ptr;
 	const LineInfo *lf = el_line(el);
 	int len;
+	int res = CC_ERROR;
 
 	/*
 	 * Find the last word
@@ -101,16 +107,16 @@ complete(EditLine *el, int ch)
 		if (len > strlen(dp->d_name))
 			continue;
 		if (strncmp(dp->d_name, ptr, len) == 0) {
-			closedir(dd);
 			if (el_insertstr(el, &dp->d_name[len]) == -1)
-				return (CC_ERROR);
+				res = CC_ERROR;
 			else
-				return (CC_REFRESH);
+				res = CC_REFRESH;
+			break;
 		}
 	}
 
 	closedir(dd);
-	return (CC_ERROR);
+	return res;
 }
 
 int
@@ -127,6 +133,7 @@ main(int argc, char *argv[])
 	History *hist;
 	HistEvent ev;
 
+	(void) setlocale(LC_CTYPE, "");
 	(void) signal(SIGINT, sig);
 	(void) signal(SIGQUIT, sig);
 	(void) signal(SIGHUP, sig);

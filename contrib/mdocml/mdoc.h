@@ -1,4 +1,4 @@
-/*	$Id: mdoc.h,v 1.131 2014/07/29 13:58:18 schwarze Exp $ */
+/*	$Id: mdoc.h,v 1.132 2014/12/01 04:05:32 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -14,8 +14,6 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifndef MDOC_H
-#define MDOC_H
 
 enum	mdoct {
 	MDOC_Ap = 0,
@@ -395,5 +393,3 @@ const struct mdoc_meta *mdoc_meta(const struct mdoc *);
 void mdoc_deroff(char **, const struct mdoc_node *);
 
 __END_DECLS
-
-#endif /*!MDOC_H*/

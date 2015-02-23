@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -466,6 +466,7 @@ typedef struct acpi_table_dmar
 /* Masks for Flags field above */
 
 #define ACPI_DMAR_INTR_REMAP        (1)
+#define	ACPI_DMAR_X2APIC_OPT_OUT    (2)
 
 
 /* DMAR subtable header */

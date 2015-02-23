@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2014, Intel Corporation 
+  Copyright (c) 2013-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -589,10 +589,10 @@ enum i40e_status_code i40e_init_adminq(struct i40e_hw *hw)
 	if (ret_code != I40E_SUCCESS)
 		goto init_adminq_free_asq;
 
-        if (i40e_is_vf(hw))  /* VF has no need of firmware */
-                goto init_adminq_exit;
-
-/* There are some cases where the firmware may not be quite ready
+	/* VF has no need of firmware */
+	if (i40e_is_vf(hw))
+		goto init_adminq_exit;
+	/* There are some cases where the firmware may not be quite ready
 	 * for AdminQ operations, so we retry the AdminQ setup a few times
 	 * if we see timeouts in this first AQ call.
 	 */
@@ -600,6 +600,7 @@ enum i40e_status_code i40e_init_adminq(struct i40e_hw *hw)
 		ret_code = i40e_aq_get_firmware_version(hw,
 							&hw->aq.fw_maj_ver,
 							&hw->aq.fw_min_ver,
+							&hw->aq.fw_build,
 							&hw->aq.api_maj_ver,
 							&hw->aq.api_min_ver,
 							NULL);
@@ -613,7 +614,8 @@ enum i40e_status_code i40e_init_adminq(struct i40e_hw *hw)
 		goto init_adminq_free_arq;
 
 	/* get the NVM version info */
-	i40e_read_nvm_word(hw, I40E_SR_NVM_IMAGE_VERSION, &hw->nvm.version);
+	i40e_read_nvm_word(hw, I40E_SR_NVM_DEV_STARTER_VERSION,
+			   &hw->nvm.version);
 	i40e_read_nvm_word(hw, I40E_SR_NVM_EETRACK_LO, &eetrack_lo);
 	i40e_read_nvm_word(hw, I40E_SR_NVM_EETRACK_HI, &eetrack_hi);
 	hw->nvm.eetrack = (eetrack_hi << 16) | eetrack_lo;
@@ -625,7 +627,8 @@ enum i40e_status_code i40e_init_adminq(struct i40e_hw *hw)
 
 	/* pre-emptive resource lock release */
 	i40e_aq_release_resource(hw, I40E_NVM_RESOURCE_ID, 0, NULL);
-	hw->aq.nvm_busy = FALSE;
+	hw->aq.nvm_release_on_done = FALSE;
+	hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
 
 	ret_code = i40e_aq_set_hmc_resource_profile(hw,
 						    I40E_HMC_PROFILE_DEFAULT,
@@ -764,12 +767,6 @@ enum i40e_status_code i40e_asq_send_command(struct i40e_hw *hw,
 		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
 			   "AQTX: Admin queue not initialized.\n");
 		status = I40E_ERR_QUEUE_EMPTY;
-		goto asq_send_command_exit;
-	}
-
-	if (i40e_is_nvm_update_op(desc) && hw->aq.nvm_busy) {
-		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE, "AQTX: NVM busy.\n");
-		status = I40E_ERR_NVM;
 		goto asq_send_command_exit;
 	}
 
@@ -924,9 +921,6 @@ enum i40e_status_code i40e_asq_send_command(struct i40e_hw *hw,
 		status = I40E_ERR_ADMIN_QUEUE_TIMEOUT;
 	}
 
-	if (!status && i40e_is_nvm_update_op(desc))
-		hw->aq.nvm_busy = TRUE;
-
 asq_send_command_error:
 	i40e_release_spinlock(&hw->aq.asq_spinlock);
 asq_send_command_exit:
@@ -1042,7 +1036,6 @@ clean_arq_element_out:
 	i40e_release_spinlock(&hw->aq.arq_spinlock);
 
 	if (i40e_is_nvm_update_op(&e->desc)) {
-		hw->aq.nvm_busy = FALSE;
 		if (hw->aq.nvm_release_on_done) {
 			i40e_release_nvm(hw);
 			hw->aq.nvm_release_on_done = FALSE;

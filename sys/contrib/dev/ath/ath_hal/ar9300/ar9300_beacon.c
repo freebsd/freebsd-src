@@ -34,7 +34,8 @@ extern u_int32_t ar9300_num_tx_pending(struct ath_hal *ah, u_int q);
  */
 void
 ar9300_beacon_init(struct ath_hal *ah,
-    u_int32_t next_beacon, u_int32_t beacon_period, HAL_OPMODE opmode)
+    u_int32_t next_beacon, u_int32_t beacon_period, 
+    u_int32_t beacon_period_fraction, HAL_OPMODE opmode)
 {
     u_int32_t               beacon_period_usec;
 
@@ -52,6 +53,14 @@ ar9300_beacon_init(struct ath_hal *ah,
 
     beacon_period_usec =
         ONE_EIGHTH_TU_TO_USEC(beacon_period & HAL_BEACON_PERIOD_TU8);
+
+    /* Add the fraction adjustment lost due to unit conversions. */
+    beacon_period_usec += beacon_period_fraction;
+
+    HALDEBUG(ah, HAL_DEBUG_BEACON,
+        "%s: next_beacon=0x%08x, beacon_period=%d, opmode=%d, beacon_period_usec=%d\n",
+        __func__, next_beacon, beacon_period, opmode, beacon_period_usec);
+
     OS_REG_WRITE(ah, AR_BEACON_PERIOD, beacon_period_usec);
     OS_REG_WRITE(ah, AR_DMA_BEACON_PERIOD, beacon_period_usec);
     OS_REG_WRITE(ah, AR_SWBA_PERIOD, beacon_period_usec);

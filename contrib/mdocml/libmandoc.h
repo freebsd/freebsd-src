@@ -1,4 +1,4 @@
-/*	$Id: libmandoc.h,v 1.49 2014/11/28 06:27:05 schwarze Exp $ */
+/*	$Id: libmandoc.h,v 1.51 2014/12/01 08:05:52 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,8 +15,6 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifndef LIBMANDOC_H
-#define LIBMANDOC_H
 
 enum	rofferr {
 	ROFF_CONT, /* continue processing line */
@@ -37,6 +35,11 @@ struct	buf {
 
 __BEGIN_DECLS
 
+struct	mparse;
+struct	mchars;
+enum	mandocerr;
+struct	tbl_span;
+struct	eqn;
 struct	roff;
 struct	mdoc;
 struct	man;
@@ -91,5 +94,3 @@ const struct tbl_span	*roff_span(const struct roff *);
 const struct eqn	*roff_eqn(const struct roff *);
 
 __END_DECLS
-
-#endif /*!LIBMANDOC_H*/

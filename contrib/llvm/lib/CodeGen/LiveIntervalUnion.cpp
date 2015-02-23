@@ -13,7 +13,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "regalloc"
 #include "llvm/CodeGen/LiveIntervalUnion.h"
 #include "llvm/ADT/SparseBitVector.h"
 #include "llvm/Support/Debug.h"
@@ -22,6 +21,8 @@
 #include <algorithm>
 
 using namespace llvm;
+
+#define DEBUG_TYPE "regalloc"
 
 
 // Merge a LiveInterval's segments. Guarantee no overlaps.
@@ -138,7 +139,7 @@ collectInterferingVRegs(unsigned MaxInterferingRegs) {
   }
 
   LiveInterval::iterator VirtRegEnd = VirtReg->end();
-  LiveInterval *RecentReg = 0;
+  LiveInterval *RecentReg = nullptr;
   while (LiveUnionI.valid()) {
     assert(VirtRegI != VirtRegEnd && "Reached end of VirtReg");
 
@@ -200,5 +201,5 @@ void LiveIntervalUnion::Array::clear() {
     LIUs[i].~LiveIntervalUnion();
   free(LIUs);
   Size =  0;
-  LIUs = 0;
+  LIUs = nullptr;
 }

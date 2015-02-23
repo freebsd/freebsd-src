@@ -2,6 +2,6 @@
 
 cpu 		CPU_CORTEXA
 machine 	arm	armv6
-makeoptions	CONF_CFLAGS="-march=armv7a -Wa,-march=armv7a"
+makeoptions	CONF_CFLAGS="-march=armv7a"
 
 files		"../ti/files.ti"

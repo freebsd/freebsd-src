@@ -36,7 +36,7 @@
 
 #include "_libelftc.h"
 
-ELFTC_VCSID("$Id: libelftc_dem_gnu3.c 2179 2011-11-18 03:05:47Z jkoshy $");
+ELFTC_VCSID("$Id: libelftc_dem_gnu3.c 3123 2014-12-21 05:46:19Z kaiwang27 $");
 
 /**
  * @file cpp_demangle.c

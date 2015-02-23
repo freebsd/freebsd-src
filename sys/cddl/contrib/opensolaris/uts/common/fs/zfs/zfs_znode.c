@@ -172,7 +172,7 @@ static struct {
 } znode_move_stats;
 #endif	/* ZNODE_STATS */
 
-#ifdef sun
+#ifdef illumos
 static void
 zfs_znode_move_impl(znode_t *ozp, znode_t *nzp)
 {
@@ -343,7 +343,7 @@ zfs_znode_move(void *buf, void *newbuf, size_t size, void *arg)
 
 	return (KMEM_CBRC_YES);
 }
-#endif /* sun */
+#endif /* illumos */
 
 void
 zfs_znode_init(void)
@@ -362,12 +362,12 @@ zfs_znode_init(void)
 void
 zfs_znode_fini(void)
 {
-#ifdef sun
+#ifdef illumos
 	/*
 	 * Cleanup vfs & vnode ops
 	 */
 	zfs_remove_op_tables();
-#endif	/* sun */
+#endif
 
 	/*
 	 * Cleanup zcache
@@ -378,7 +378,7 @@ zfs_znode_fini(void)
 	rw_destroy(&zfsvfs_lock);
 }
 
-#ifdef sun
+#ifdef illumos
 struct vnodeops *zfs_dvnodeops;
 struct vnodeops *zfs_fvnodeops;
 struct vnodeops *zfs_symvnodeops;
@@ -470,7 +470,7 @@ zfs_create_op_tables()
 
 	return (error);
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 int
 zfs_create_share_dir(zfsvfs_t *zfsvfs, dmu_tx_t *tx)
@@ -689,7 +689,7 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 	case VDIR:
 		zp->z_zn_prefetch = B_TRUE; /* z_prefetch default is enabled */
 		break;
-#ifdef sun
+#ifdef illumos
 	case VBLK:
 	case VCHR:
 		{
@@ -700,12 +700,12 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 			vp->v_rdev = zfs_cmpldev(rdev);
 		}
 		break;
-#endif	/* sun */
+#endif
 	case VFIFO:
-#ifdef sun
+#ifdef illumos
 	case VSOCK:
 	case VDOOR:
-#endif	/* sun */
+#endif
 		vp->v_op = &zfs_fifoops;
 		break;
 	case VREG:
@@ -714,14 +714,14 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 			vp->v_op = &zfs_shareops;
 		}
 		break;
-#ifdef sun
+#ifdef illumos
 	case VLNK:
 		vn_setops(vp, zfs_symvnodeops);
 		break;
 	default:
 		vn_setops(vp, zfs_evnodeops);
 		break;
-#endif	/* sun */
+#endif
 	}
 
 	mutex_enter(&zfsvfs->z_znodes_lock);
@@ -794,7 +794,7 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
 		gen = vap->va_nblocks;		/* ditto */
 	} else {
 		obj = 0;
-		gethrestime(&now);
+		vfs_timestamp(&now);
 		gen = dmu_tx_get_txg(tx);
 	}
 
@@ -1426,7 +1426,7 @@ zfs_tstamp_update_setup(znode_t *zp, uint_t flag, uint64_t mtime[2],
 {
 	timestruc_t	now;
 
-	gethrestime(&now);
+	vfs_timestamp(&now);
 
 	if (have_tx) {	/* will sa_bulk_update happen really soon? */
 		zp->z_atime_dirty = 0;
@@ -1490,7 +1490,7 @@ zfs_grow_blocksize(znode_t *zp, uint64_t size, dmu_tx_t *tx)
 	dmu_object_size_from_db(sa_get_db(zp->z_sa_hdl), &zp->z_blksz, &dummy);
 }
 
-#ifdef sun
+#ifdef illumos
 /*
  * This is a dummy interface used when pvn_vplist_dirty() should *not*
  * be calling back into the fs for a putpage().  E.g.: when truncating
@@ -1504,7 +1504,7 @@ zfs_no_putpage(vnode_t *vp, page_t *pp, u_offset_t *offp, size_t *lenp,
 	ASSERT(0);
 	return (0);
 }
-#endif	/* sun */
+#endif
 
 /*
  * Increase the file length

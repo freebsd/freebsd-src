@@ -1,6 +1,10 @@
 /*-
  * Copyright (C) 2009 Nathan Whitehorn
+ * Copyright (C) 2015 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Andrew Turner
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -39,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/ofw_cpu.h>
 
 static int	ofw_cpulist_probe(device_t);
 static int	ofw_cpulist_attach(device_t);
@@ -46,6 +51,10 @@ static const struct ofw_bus_devinfo *ofw_cpulist_get_devinfo(device_t dev,
     device_t child);
 
 static MALLOC_DEFINE(M_OFWCPU, "ofwcpu", "OFW CPU device information");
+
+struct ofw_cpulist_softc {
+	pcell_t	 sc_addr_cells;
+};
 
 static device_method_t ofw_cpulist_methods[] = {
 	/* Device interface */
@@ -70,7 +79,7 @@ static device_method_t ofw_cpulist_methods[] = {
 static driver_t ofw_cpulist_driver = {
 	"cpulist",
 	ofw_cpulist_methods,
-	0
+	sizeof(struct ofw_cpulist_softc)
 };
 
 static devclass_t ofw_cpulist_devclass;
@@ -96,11 +105,17 @@ ofw_cpulist_probe(device_t dev)
 static int 
 ofw_cpulist_attach(device_t dev) 
 {
+	struct ofw_cpulist_softc *sc;
 	phandle_t root, child;
 	device_t cdev;
 	struct ofw_bus_devinfo *dinfo;
 
+	sc = device_get_softc(dev);
 	root = ofw_bus_get_node(dev);
+
+	sc->sc_addr_cells = 1;
+	OF_getencprop(root, "#address-cells", &sc->sc_addr_cells,
+	    sizeof(sc->sc_addr_cells));
 
 	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
 		dinfo = malloc(sizeof(*dinfo), M_OFWCPU, M_WAITOK | M_ZERO);
@@ -137,6 +152,8 @@ static int	ofw_cpu_read_ivar(device_t dev, device_t child, int index,
 struct ofw_cpu_softc {
 	struct pcpu	*sc_cpu_pcpu;
 	uint32_t	 sc_nominal_mhz;
+	boolean_t	 sc_reg_valid;
+	pcell_t		 sc_reg[2];
 };
 
 static device_method_t ofw_cpu_methods[] = {
@@ -171,7 +188,7 @@ ofw_cpu_probe(device_t dev)
 {
 	const char *type = ofw_bus_get_type(dev);
 
-	if (strcmp(type, "cpu") != 0)
+	if (type == NULL || strcmp(type, "cpu") != 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "Open Firmware CPU");
@@ -181,14 +198,45 @@ ofw_cpu_probe(device_t dev)
 static int
 ofw_cpu_attach(device_t dev)
 {
+	struct ofw_cpulist_softc *psc;
 	struct ofw_cpu_softc *sc;
-	uint32_t cell;
+	phandle_t node;
+	pcell_t cell;
+	int rv;
 
 	sc = device_get_softc(dev);
-	OF_getprop(ofw_bus_get_node(dev), "reg", &cell, sizeof(cell));
-	sc->sc_cpu_pcpu = pcpu_find(cell);
-	OF_getprop(ofw_bus_get_node(dev), "clock-frequency", &cell, sizeof(cell));
-	sc->sc_nominal_mhz = cell / 1000000; /* convert to MHz */
+	psc = device_get_softc(device_get_parent(dev));
+
+	if (nitems(sc->sc_reg) < psc->sc_addr_cells) {
+		if (bootverbose)
+			device_printf(dev, "Too many address cells\n");
+		return (EINVAL);
+	}
+
+	node = ofw_bus_get_node(dev);
+
+	/* Read and validate the reg property for use later */
+	sc->sc_reg_valid = false;
+	rv = OF_getencprop(node, "reg", sc->sc_reg, sizeof(sc->sc_reg));
+	if (rv < 0)
+		device_printf(dev, "missing 'reg' property\n");
+	else if ((rv % 4) != 0) {
+		if (bootverbose)
+			device_printf(dev, "Malformed reg property\n");
+	} else if ((rv / 4) != psc->sc_addr_cells) {
+		if (bootverbose)
+			device_printf(dev, "Invalid reg size %u\n", rv);
+	} else
+		sc->sc_reg_valid = true;
+
+	sc->sc_cpu_pcpu = pcpu_find(device_get_unit(dev));
+
+	if (OF_getencprop(node, "clock-frequency", &cell, sizeof(cell)) < 0) {
+		if (bootverbose)
+			device_printf(dev,
+			    "missing 'clock-frequency' property\n");
+	} else
+		sc->sc_nominal_mhz = cell / 1000000; /* convert to MHz */
 
 	bus_generic_probe(dev);
 	return (bus_generic_attach(dev));
@@ -197,6 +245,7 @@ ofw_cpu_attach(device_t dev)
 static int
 ofw_cpu_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 {
+	struct ofw_cpulist_softc *psc;
 	struct ofw_cpu_softc *sc;
 
 	sc = device_get_softc(dev);
@@ -206,10 +255,70 @@ ofw_cpu_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 		*result = (uintptr_t)sc->sc_cpu_pcpu;
 		return (0);
 	case CPU_IVAR_NOMINAL_MHZ:
-		*result = (uintptr_t)sc->sc_nominal_mhz;
+		if (sc->sc_nominal_mhz > 0) {
+			*result = (uintptr_t)sc->sc_nominal_mhz;
+			return (0);
+		}
+		break;
+	case CPU_IVAR_CPUID_SIZE:
+		psc = device_get_softc(device_get_parent(dev));
+		*result = psc->sc_addr_cells;
 		return (0);
+	case CPU_IVAR_CPUID:
+		if (sc->sc_reg_valid) {
+			*result = (uintptr_t)sc->sc_reg;
+			return (0);
+		}
+		break;
 	}
 
 	return (ENOENT);
 }
 
+int
+ofw_cpu_early_foreach(ofw_cpu_foreach_cb callback, boolean_t only_runnable)
+{
+	phandle_t node, child;
+	pcell_t addr_cells, reg[2];
+	char status[16];
+	u_int id;
+	int count, rv;
+
+	count = 0;
+	id = 0;
+
+	node = OF_finddevice("/cpus");
+	if (node == -1)
+		return (-1);
+
+	/* Find the number of cells in the cpu register */
+	if (OF_getencprop(node, "#address-cells", &addr_cells,
+	    sizeof(addr_cells)) < 0)
+		return (-1);
+
+	for (child = OF_child(node); child != 0; child = OF_peer(child), id++) {
+		/*
+		 * If we are filtering by runnable then limit to only
+		 * those that have been enabled.
+		 */
+		if (only_runnable) {
+			status[0] = '\0';
+			OF_getprop(child, "status", status, sizeof(status));
+			if (status[0] != '\0' && strcmp(status, "okay") != 0)
+				continue;
+		}
+
+		/*
+		 * Check we have a register to identify the cpu
+		 */
+		rv = OF_getencprop(child, "reg", reg,
+		    addr_cells * sizeof(cell_t));
+		if (rv != addr_cells * sizeof(cell_t))
+			continue;
+
+		if (callback == NULL || callback(id, child, addr_cells, reg))
+			count++;
+	}
+
+	return (only_runnable ? count : id);
+}

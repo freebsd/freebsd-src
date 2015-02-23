@@ -22,9 +22,9 @@
 #include <map>
 #include <string>
 #include <vector>
-//#include <iostream>
 #include "llvm/Support/ManagedStatic.h"
-#include "llvm/Support/InstIterator.h"
+#include "llvm/IR/InstIterator.h"
+#include "llvm/Support/MutexGuard.h"
 
 using namespace llvm;
 
@@ -33,8 +33,15 @@ typedef std::map<const GlobalValue *, key_val_pair_t> global_val_annot_t;
 typedef std::map<const Module *, global_val_annot_t> per_module_annot_t;
 
 ManagedStatic<per_module_annot_t> annotationCache;
+static sys::Mutex Lock;
+
+void llvm::clearAnnotationCache(const llvm::Module *Mod) {
+  MutexGuard Guard(Lock);
+  annotationCache->erase(Mod);
+}
 
 static void cacheAnnotationFromMD(const MDNode *md, key_val_pair_t &retval) {
+  MutexGuard Guard(Lock);
   assert(md && "Invalid mdnode for annotation");
   assert((md->getNumOperands() % 2) == 1 && "Invalid number of operands");
   // start index = 1, to skip the global variable key
@@ -60,6 +67,7 @@ static void cacheAnnotationFromMD(const MDNode *md, key_val_pair_t &retval) {
 }
 
 static void cacheAnnotationFromMD(const Module *m, const GlobalValue *gv) {
+  MutexGuard Guard(Lock);
   NamedMDNode *NMD = m->getNamedMetadata(llvm::NamedMDForAnnotations);
   if (!NMD)
     return;
@@ -92,6 +100,7 @@ static void cacheAnnotationFromMD(const Module *m, const GlobalValue *gv) {
 
 bool llvm::findOneNVVMAnnotation(const GlobalValue *gv, std::string prop,
                                  unsigned &retval) {
+  MutexGuard Guard(Lock);
   const Module *m = gv->getParent();
   if ((*annotationCache).find(m) == (*annotationCache).end())
     cacheAnnotationFromMD(m, gv);
@@ -105,6 +114,7 @@ bool llvm::findOneNVVMAnnotation(const GlobalValue *gv, std::string prop,
 
 bool llvm::findAllNVVMAnnotation(const GlobalValue *gv, std::string prop,
                                  std::vector<unsigned> &retval) {
+  MutexGuard Guard(Lock);
   const Module *m = gv->getParent();
   if ((*annotationCache).find(m) == (*annotationCache).end())
     cacheAnnotationFromMD(m, gv);
@@ -195,8 +205,37 @@ bool llvm::isImageWriteOnly(const llvm::Value &val) {
   return false;
 }
 
+bool llvm::isImageReadWrite(const llvm::Value &val) {
+  if (const Argument *arg = dyn_cast<Argument>(&val)) {
+    const Function *func = arg->getParent();
+    std::vector<unsigned> annot;
+    if (llvm::findAllNVVMAnnotation(func,
+                                    llvm::PropertyAnnotationNames[
+                                        llvm::PROPERTY_ISREADWRITE_IMAGE_PARAM],
+                                    annot)) {
+      if (std::find(annot.begin(), annot.end(), arg->getArgNo()) != annot.end())
+        return true;
+    }
+  }
+  return false;
+}
+
 bool llvm::isImage(const llvm::Value &val) {
-  return llvm::isImageReadOnly(val) || llvm::isImageWriteOnly(val);
+  return llvm::isImageReadOnly(val) || llvm::isImageWriteOnly(val) ||
+         llvm::isImageReadWrite(val);
+}
+
+bool llvm::isManaged(const llvm::Value &val) {
+  if(const GlobalValue *gv = dyn_cast<GlobalValue>(&val)) {
+    unsigned annot;
+    if(llvm::findOneNVVMAnnotation(gv,
+                          llvm::PropertyAnnotationNames[llvm::PROPERTY_MANAGED],
+                                   annot)) {
+      assert((annot == 1) && "Unexpected annotation on a managed symbol");
+      return true;
+    }
+  }
+  return false;
 }
 
 std::string llvm::getTextureName(const llvm::Value &val) {
@@ -354,12 +393,12 @@ llvm::skipPointerTransfer(const Value *V, bool ignore_GEP_indices) {
 const Value *
 llvm::skipPointerTransfer(const Value *V, std::set<const Value *> &processed) {
   if (processed.find(V) != processed.end())
-    return NULL;
+    return nullptr;
   processed.insert(V);
 
   const Value *V2 = V->stripPointerCasts();
   if (V2 != V && processed.find(V2) != processed.end())
-    return NULL;
+    return nullptr;
   processed.insert(V2);
 
   V = V2;
@@ -375,20 +414,20 @@ llvm::skipPointerTransfer(const Value *V, std::set<const Value *> &processed) {
       continue;
     } else if (const PHINode *PN = dyn_cast<PHINode>(V)) {
       if (V != V2 && processed.find(V) != processed.end())
-        return NULL;
+        return nullptr;
       processed.insert(PN);
-      const Value *common = 0;
+      const Value *common = nullptr;
       for (unsigned i = 0; i != PN->getNumIncomingValues(); ++i) {
         const Value *pv = PN->getIncomingValue(i);
         const Value *base = skipPointerTransfer(pv, processed);
         if (base) {
-          if (common == 0)
+          if (!common)
             common = base;
           else if (common != base)
             return PN;
         }
       }
-      if (common == 0)
+      if (!common)
         return PN;
       V = common;
     }
@@ -406,7 +445,7 @@ BasicBlock *llvm::getParentBlock(Value *v) {
   if (Instruction *I = dyn_cast<Instruction>(v))
     return I->getParent();
 
-  return 0;
+  return nullptr;
 }
 
 Function *llvm::getParentFunction(Value *v) {
@@ -419,13 +458,13 @@ Function *llvm::getParentFunction(Value *v) {
   if (BasicBlock *B = dyn_cast<BasicBlock>(v))
     return B->getParent();
 
-  return 0;
+  return nullptr;
 }
 
 // Dump a block by name
 void llvm::dumpBlock(Value *v, char *blockName) {
   Function *F = getParentFunction(v);
-  if (F == 0)
+  if (!F)
     return;
 
   for (Function::iterator it = F->begin(), ie = F->end(); it != ie; ++it) {
@@ -440,8 +479,8 @@ void llvm::dumpBlock(Value *v, char *blockName) {
 // Find an instruction by name
 Instruction *llvm::getInst(Value *base, char *instName) {
   Function *F = getParentFunction(base);
-  if (F == 0)
-    return 0;
+  if (!F)
+    return nullptr;
 
   for (inst_iterator it = inst_begin(F), ie = inst_end(F); it != ie; ++it) {
     Instruction *I = &*it;
@@ -450,7 +489,7 @@ Instruction *llvm::getInst(Value *base, char *instName) {
     }
   }
 
-  return 0;
+  return nullptr;
 }
 
 // Dump an instruction by nane

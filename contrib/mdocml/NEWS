@@ -1,6 +1,75 @@
-$Id: NEWS,v 1.6 2014/08/11 01:39:00 schwarze Exp $
+$Id: NEWS,v 1.8 2014/12/13 13:43:47 schwarze Exp $
 
 This file lists the most important changes in the mdocml.bsd.lv distribution.
+
+Changes in version 1.13.2, released on December 13, 2014
+
+    --- MAJOR NEW FEATURES ---
+ * Include an implementation of man(1), the manual page viewer.
+ * Unified set of command line option, each one supported by all
+   command names, including new options -a (format all), -c (no
+   pager), -h (synopsis only), and -w (list filenames).
+ * Support the MANPAGER and PAGER environment variables.
+ * Support gzip'ed manuals by the whole toolset, even as .so targets.
+ * Support UTF-8 and Latin-1 input by the whole toolset, delete preconv(1).
+ * Switch the default output mode from -Tascii to -Tlocale.
+ * Improve -Tascii output for Unicode escape sequences.
+ * Let the -Thtml output mode produce polyglot HTML5.
+ * Many improvements for eqn(7), in particular in-line equations,
+   MathML output in -Thtml mode, and much improved terminal formatting.
+    --- PORTABILITY IMPROVEMENTS ---
+ * Change the build sequence to the usual ./configure; make; make install.
+ * Support ./configure.local for build customizations.
+ * Autodetect wchar, sqlite3, and manpath support.
+ * Provide a fallback version of fts(3) for systems lacking it.
+ * Support choosing alternative binary and manual names.
+    --- MINOR NEW FEATURES ---
+ * Rudimentary implementation of the e, x, and z tbl(7) layout
+   modifiers to equalize, maximize, and ignore the width of columns.
+ * Implement font modifiers in tbl(7) layouts.
+ * Allow comma-separated options in the tbl(7) options line.
+ * Parse and ignore the .pl (page length) roff(7) request.
+ * Implement .An -[no]split for the mdoc(7) -Thtml output mode.
+ * Support bold italic font in PostScript and PDF output.
+ * Warn about commas in function arguments and parentheses in function names.
+ * Warn about botched .Xr ordering and punctuation below SEE ALSO.
+ * Warn about AUTHORS sections without .An macros.
+ * Warn about attempts to call non-callable macros.
+ * New developer documentation manual page mandoc_headers(3).
+    --- BUGFIXES ---
+ * Fix read buffer overrun sometimes triggered by trailing whitespace.
+ * Fix read buffer overrun triggered by certain invalid \H sequences.
+ * Fix NULL pointer access triggered by .Bl without any arguments.
+ * Fix NULL pointer access triggered by .It Nm Fo without .Fc.
+ * Fix NULL pointer access triggered by .Sh Xo .Sh without .Xc.
+ * Fix NULL pointer access triggered by missing .Nm.
+ * Fix an assertion triggered by .It right after .El.
+ * Fix an assertion triggered by .Ec without preceding .Eo.
+ * Fix an assertion triggered by .Sm or .Db with multiple arguments.
+ * Fix assertion failures triggered by very large width arguments.
+ * Fix a division by zero in the roff(7) parser.
+ * Prevent negative arguments to .ll from causing integer underflow.
+ * Correctly autodetect source format even when .Dd is preceded by .ll.
+ * Multiple fixes with respect to .Bd and .Bl -offset and -width.
+ * Many bugfixes with respect to scaling units.
+ * Multiple fixes with respect to delimiter handling by in-line macros.
+ * Multiple fixes with respect to .Pf.
+ * Make \c work properly in no-fill mode.
+ * Stricter syntax checking of Unicode character names.
+    --- THANKS TO ---
+ * Kristaps Dzonsons for rewriting the eqn(7) parser, implementing
+   HTML5 and MathML output, and various other code contributions.
+ * Jonathan Gray (OpenBSD) for extensive testing with afl (the
+   American Fuzzy Lop security fuzzer) resulting in many bug reports.
+ * Anthony Bentley (OpenBSD), Baptiste Daroussin (FreeBSD), Daniel
+   Dickman, Doug Hogan, Jason McIntyre, Theo de Raadt (OpenBSD),
+   and Martin Natano for source code patches.
+ * Carsten Kunze (Heirloom troff), Daniel Levai (Slackware),
+   Garrett D'Amore (illumos), Giovanni Becchis, Matthew Dempsky,
+   Stuart Henderson, Ted Unangst, Todd Miller (OpenBSD), Thomas
+   Klausner (NetBSD), Ulrich Spoerlein (FreeBSD), Justin Haynes,
+   Marcus Merighi, Sebastien Marie, Steffen Nurpmeso and Theo Buehler
+   for bug reports.
 
 Changes in version 1.13.1, released on August 10, 2014
 

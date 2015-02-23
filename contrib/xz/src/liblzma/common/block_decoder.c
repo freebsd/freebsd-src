@@ -45,6 +45,9 @@ struct lzma_coder_s {
 
 	/// Check of the uncompressed data
 	lzma_check_state check;
+
+	/// True if the integrity check won't be calculated and verified.
+	bool ignore_check;
 };
 
 
@@ -71,7 +74,7 @@ is_size_valid(lzma_vli size, lzma_vli reference)
 
 
 static lzma_ret
-block_decode(lzma_coder *coder, lzma_allocator *allocator,
+block_decode(lzma_coder *coder, const lzma_allocator *allocator,
 		const uint8_t *restrict in, size_t *restrict in_pos,
 		size_t in_size, uint8_t *restrict out,
 		size_t *restrict out_pos, size_t out_size, lzma_action action)
@@ -97,8 +100,9 @@ block_decode(lzma_coder *coder, lzma_allocator *allocator,
 					coder->block->uncompressed_size))
 			return LZMA_DATA_ERROR;
 
-		lzma_check_update(&coder->check, coder->block->check,
-				out + out_start, out_used);
+		if (!coder->ignore_check)
+			lzma_check_update(&coder->check, coder->block->check,
+					out + out_start, out_used);
 
 		if (ret != LZMA_STREAM_END)
 			return ret;
@@ -140,7 +144,9 @@ block_decode(lzma_coder *coder, lzma_allocator *allocator,
 		if (coder->block->check == LZMA_CHECK_NONE)
 			return LZMA_STREAM_END;
 
-		lzma_check_finish(&coder->check, coder->block->check);
+		if (!coder->ignore_check)
+			lzma_check_finish(&coder->check, coder->block->check);
+
 		coder->sequence = SEQ_CHECK;
 
 	// Fall through
@@ -155,7 +161,8 @@ block_decode(lzma_coder *coder, lzma_allocator *allocator,
 		// Validate the Check only if we support it.
 		// coder->check.buffer may be uninitialized
 		// when the Check ID is not supported.
-		if (lzma_check_is_supported(coder->block->check)
+		if (!coder->ignore_check
+				&& lzma_check_is_supported(coder->block->check)
 				&& memcmp(coder->block->raw_check,
 					coder->check.buffer.u8,
 					check_size) != 0)
@@ -170,7 +177,7 @@ block_decode(lzma_coder *coder, lzma_allocator *allocator,
 
 
 static void
-block_decoder_end(lzma_coder *coder, lzma_allocator *allocator)
+block_decoder_end(lzma_coder *coder, const lzma_allocator *allocator)
 {
 	lzma_next_end(&coder->next, allocator);
 	lzma_free(coder, allocator);
@@ -179,7 +186,7 @@ block_decoder_end(lzma_coder *coder, lzma_allocator *allocator)
 
 
 extern lzma_ret
-lzma_block_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+lzma_block_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		lzma_block *block)
 {
 	lzma_next_coder_init(&lzma_block_decoder_init, next, allocator);
@@ -223,6 +230,9 @@ lzma_block_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
 	// Caller can test lzma_check_is_supported(block->check).
 	next->coder->check_pos = 0;
 	lzma_check_init(&next->coder->check, block->check);
+
+	next->coder->ignore_check = block->version >= 1
+			? block->ignore_check : false;
 
 	// Initialize the filter chain.
 	return lzma_raw_decoder_init(&next->coder->next, allocator,

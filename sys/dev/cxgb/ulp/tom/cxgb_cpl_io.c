@@ -1088,7 +1088,7 @@ send_reset(struct toepcb *toep)
 	req->cmd = CPL_ABORT_SEND_RST;
 
 	if (tp->t_state == TCPS_SYN_SENT)
-		mbufq_tail(&toep->out_of_order_queue, m); /* defer */
+		(void )mbufq_enqueue(&toep->out_of_order_queue, m); /* defer */
 	else
 		l2t_send(sc, m, toep->tp_l2t);
 }

@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2014, Intel Corporation 
+  Copyright (c) 2013-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -93,7 +93,7 @@
 #include "i40e_type.h"
 #include "i40e_prototype.h"
 
-#ifdef IXL_DEBUG
+#if defined(IXL_DEBUG) || defined(IXL_DEBUG_SYSCTL)
 #include <sys/sbuf.h>
 
 #define MAC_FORMAT "%02x:%02x:%02x:%02x:%02x:%02x"
@@ -101,7 +101,13 @@
 	(mac_addr)[0], (mac_addr)[1], (mac_addr)[2], (mac_addr)[3], \
 	(mac_addr)[4], (mac_addr)[5]
 #define ON_OFF_STR(is_set) ((is_set) ? "On" : "Off")
+#endif /* IXL_DEBUG || IXL_DEBUG_SYSCTL */
 
+#ifdef IXL_DEBUG
+/* Enable debug sysctls */
+#ifndef IXL_DEBUG_SYSCTL
+#define IXL_DEBUG_SYSCTL 1
+#endif
 
 #define _DBG_PRINTF(S, ...)		printf("%s: " S "\n", __func__, ##__VA_ARGS__)
 #define _DEV_DBG_PRINTF(dev, S, ...)	device_printf(dev, "%s: " S "\n", __func__, ##__VA_ARGS__)
@@ -128,7 +134,7 @@
 
 #define HW_DEBUGOUT(...)		if (DEBUG_HW) _DBG_PRINTF(__VA_ARGS__)
 
-#else
+#else /* no IXL_DEBUG */
 #define DEBUG_INIT  0
 #define DEBUG_IOCTL 0
 #define DEBUG_HW    0
@@ -144,7 +150,7 @@
 #define IOCTL_DBG_IF2(...)
 #define IOCTL_DBG_IF(...)
 #define HW_DEBUGOUT(...)
-#endif
+#endif /* IXL_DEBUG */
 
 /* Tunables */
 
@@ -202,7 +208,9 @@
 #define IXL_TX_BUF_SZ		((u32) 1514)
 #define IXL_AQ_BUF_SZ		((u32) 4096)
 #define IXL_RX_HDR		128
+/* Controls the length of the Admin Queue */
 #define IXL_AQ_LEN		256
+#define IXL_AQ_LEN_MAX		1024
 #define IXL_AQ_BUFSZ		4096
 #define IXL_RX_LIMIT		512
 #define IXL_RX_ITR		0
@@ -214,6 +222,7 @@
 #define IXL_MAX_TSO_SEGS	66 
 #define IXL_SPARSE_CHAIN	6
 #define IXL_QUEUE_HUNG		0x80000000
+#define IXL_KEYSZ		10
 
 /* ERJ: hardware can support ~1.5k filters between all functions */
 #define IXL_MAX_FILTERS	256
@@ -266,7 +275,7 @@
 #define IXL_RX_UNLOCK(_sc)              mtx_unlock(&(_sc)->mtx)
 #define IXL_RX_LOCK_DESTROY(_sc)        mtx_destroy(&(_sc)->mtx)
 
-#if __FreeBSD_version >= 1100000
+#if __FreeBSD_version >= 1100036
 #define IXL_SET_IPACKETS(vsi, count)	(vsi)->ipackets = (count)
 #define IXL_SET_IERRORS(vsi, count)	(vsi)->ierrors = (count)
 #define IXL_SET_OPACKETS(vsi, count)	(vsi)->opackets = (count)
@@ -462,7 +471,6 @@ struct ixl_vsi {
 	u16			max_frame_size;
 	u32			link_speed;
 	bool			link_up;
-	u32			fc; /* local flow ctrl setting */
 
 	/* MAC/VLAN Filter list */
 	struct ixl_ftl_head ftl;

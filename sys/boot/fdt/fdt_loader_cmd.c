@@ -261,7 +261,7 @@ fdt_load_dtb_file(const char * filename)
 	oldbfp = file_findfile(NULL, "dtb");
 
 	/* Attempt to load and validate a new dtb from a file. */
-	if ((bfp = file_loadraw(filename, "dtb")) == NULL) {
+	if ((bfp = file_loadraw(filename, "dtb", 1)) == NULL) {
 		sprintf(command_errbuf, "failed to load file '%s'", filename);
 		return (1);
 	}
@@ -564,17 +564,6 @@ fdt_fixup_memory(struct fdt_mem_region *region, size_t num)
 		sprintf(command_errbuf, "Could not fixup '/memory' node : "
 		    "sysinfo doesn't contain valid memory regions info!\n");
 		return;
-	}
-
-	if ((reg = (uint32_t *)fdt_getprop(fdtp, memory, "reg",
-	    &len)) != NULL) {
-
-		if (fdt_reg_valid(reg, len, addr_cells, size_cells) == 0)
-			/*
-			 * Do not apply fixup if existing 'reg' property
-			 * seems to be valid.
-			 */
-			return;
 	}
 
 	len = (addr_cells + size_cells) * realmrno * sizeof(uint32_t);

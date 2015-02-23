@@ -1,5 +1,5 @@
 set top_src=`pwd`
-alias Zautoreconf "(cd $top_src ; autoreconf --install)"
+alias Zautoreconf "(cd $top_src ; autoreconf)"
 
 set opts=' \
 --with-libslax-prefix=/Users/phil/work/root \

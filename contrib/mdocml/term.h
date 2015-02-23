@@ -1,4 +1,4 @@
-/*	$Id: term.h,v 1.105 2014/10/28 17:36:19 schwarze Exp $ */
+/*	$Id: term.h,v 1.108 2014/12/02 10:08:06 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011, 2012, 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,12 +15,6 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifndef TERM_H
-#define TERM_H
-
-__BEGIN_DECLS
-
-struct	termp;
 
 enum	termenc {
 	TERMENC_ASCII,
@@ -43,6 +37,8 @@ enum	termfont {
 };
 
 #define	TERM_MAXMARGIN	  100000 /* FIXME */
+
+struct	termp;
 
 typedef void	(*term_margin)(struct termp *, const void *);
 
@@ -83,6 +79,7 @@ struct	termp {
 #define	TERMP_HANG	 (1 << 11)	/* See term_flushln(). */
 #define	TERMP_NOSPLIT	 (1 << 12)	/* Do not break line before .An. */
 #define	TERMP_SPLIT	 (1 << 13)	/* Break line before .An. */
+#define	TERMP_NONEWLINE	 (1 << 14)	/* No line break in nofill mode. */
 	int		 *buf;		/* Output buffer. */
 	enum termenc	  enc;		/* Type of encoding. */
 	const struct mchars *symtab;	/* Character table. */
@@ -103,6 +100,11 @@ struct	termp {
 	const void	 *argf;		/* arg for headf/footf */
 	struct termp_ps	 *ps;
 };
+
+__BEGIN_DECLS
+
+struct	tbl_span;
+struct	eqn;
 
 const char	 *ascii_uc2str(int);
 
@@ -134,5 +136,3 @@ void		  term_fontrepl(struct termp *, enum termfont);
 void		  term_fontlast(struct termp *);
 
 __END_DECLS
-
-#endif /*!TERM_H*/

@@ -1834,9 +1834,6 @@ uma_startup(void *bootmem, int boot_pages)
 	zone_ctor(zones, sizeof(struct uma_zone), &args, M_WAITOK);
 
 #ifdef UMA_DEBUG
-	printf("Initializing pcpu cache locks.\n");
-#endif
-#ifdef UMA_DEBUG
 	printf("Creating slab and hash zones.\n");
 #endif
 

@@ -67,6 +67,7 @@ beech [label="Beech Rintoul\nbeech@FreeBSD.org\n2007/05/30"]
 bf [label="Brendan Fabeny\nbf@FreeBSD.org\n2010/06/02"]
 bland [label="Alexander Nedotsukov\nbland@FreeBSD.org\n2003/08/14"]
 bmah [label="Bruce A. Mah\nbmah@FreeBSD.org\n2000/08/23"]
+bofh [label="Muhammad Moinur Rahman\nbofh@FreeBSD.org\n2014/12/23"]
 brix [label="Henrik Brix Andersen\nbrix@FreeBSD.org\n2007/10/31"]
 brooks [label="Brooks Davies\nbrooks@FreeBSD.org\n2004/05/03"]
 bsam [label="Boris Samorodov\nbsam@FreeBSD.org\n2006/07/20"]
@@ -115,6 +116,7 @@ itetcu [label="Ion-Mihai Tetcu\nitetcu@FreeBSD.org\n2006/06/07"]
 jacula [label="Giuseppe Pilichi\njacula@FreeBSD.org\n2010/04/05"]
 jadawin [label="Philippe Audeoud\njadawin@FreeBSD.org\n2008/03/02"]
 jase [label="Jase Thew\njase@FreeBSD.org\n2012/05/30"]
+jbeich [label="Jan Beich\njbeich@FreeBSD.org\n2015/01/19"]
 jgh [label="Jason Helfman\njgh@FreeBSD.org\n2011/12/16"]
 jhale [label="Jason E. Hale\njhale@FreeBSD.org\n2012/09/10"]
 jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2007/09/12"]
@@ -263,8 +265,10 @@ bdrewery -> sbruno
 bdrewery -> trociny
 
 bapt -> bdrewery
+bapt -> bofh
 bapt -> eadler
 bapt -> grembo
+bapt -> jbeich
 bapt -> jlaffaye
 bapt -> marius
 bapt -> marino
@@ -348,6 +352,7 @@ fjoe -> osa
 
 flo -> bar
 flo -> jase
+flo -> jbeich
 flo -> grembo
 
 flz -> garga
@@ -430,6 +435,7 @@ marcus -> bland
 marcus -> eik
 marcus -> jmallett
 
+marino -> bofh
 marino -> robak
 
 makc -> alonso

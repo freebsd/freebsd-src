@@ -12,13 +12,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "asm-printer"
 #include "MSP430.h"
 #include "InstPrinter/MSP430InstPrinter.h"
 #include "MSP430InstrInfo.h"
 #include "MSP430MCInstLower.h"
 #include "MSP430TargetMachine.h"
-#include "llvm/Assembly/Writer.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -26,6 +24,7 @@
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Mangler.h"
 #include "llvm/IR/Module.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCInst.h"
@@ -33,8 +32,9 @@
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/Mangler.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "asm-printer"
 
 namespace {
   class MSP430AsmPrinter : public AsmPrinter {
@@ -42,21 +42,21 @@ namespace {
     MSP430AsmPrinter(TargetMachine &TM, MCStreamer &Streamer)
       : AsmPrinter(TM, Streamer) {}
 
-    virtual const char *getPassName() const {
+    const char *getPassName() const override {
       return "MSP430 Assembly Printer";
     }
 
     void printOperand(const MachineInstr *MI, int OpNum,
-                      raw_ostream &O, const char* Modifier = 0);
+                      raw_ostream &O, const char* Modifier = nullptr);
     void printSrcMemOperand(const MachineInstr *MI, int OpNum,
                             raw_ostream &O);
     bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
                          unsigned AsmVariant, const char *ExtraCode,
-                         raw_ostream &O);
+                         raw_ostream &O) override;
     bool PrintAsmMemoryOperand(const MachineInstr *MI,
                                unsigned OpNo, unsigned AsmVariant,
-                               const char *ExtraCode, raw_ostream &O);
-    void EmitInstruction(const MachineInstr *MI);
+                               const char *ExtraCode, raw_ostream &O) override;
+    void EmitInstruction(const MachineInstr *MI) override;
   };
 } // end of anonymous namespace
 
@@ -97,12 +97,6 @@ void MSP430AsmPrinter::printOperand(const MachineInstr *MI, int OpNum,
     if (Offset)
       O << ')';
 
-    return;
-  }
-  case MachineOperand::MO_ExternalSymbol: {
-    bool isMemOp  = Modifier && !strcmp(Modifier, "mem");
-    O << (isMemOp ? '&' : '#');
-    O << MAI->getGlobalPrefix() << MO.getSymbolName();
     return;
   }
   }
@@ -158,7 +152,7 @@ void MSP430AsmPrinter::EmitInstruction(const MachineInstr *MI) {
 
   MCInst TmpInst;
   MCInstLowering.Lower(MI, TmpInst);
-  OutStreamer.EmitInstruction(TmpInst);
+  EmitToStreamer(OutStreamer, TmpInst);
 }
 
 // Force static initialization.

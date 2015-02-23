@@ -725,19 +725,9 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	assert(paging->cpu_mode == CPU_MODE_PROTECTED);
 
 	/*
-	 * Calculate the %eip to store in the old TSS before modifying the
-	 * 'inst_length'.
+	 * Calculate the instruction pointer to store in the old TSS.
 	 */
 	eip = vmexit->rip + vmexit->inst_length;
-
-	/*
-	 * Set the 'inst_length' to '0'.
-	 *
-	 * If an exception is triggered during emulation of the task switch
-	 * then the exception handler should return to the instruction that
-	 * caused the task switch as opposed to the subsequent instruction.
-	 */
-	vmexit->inst_length = 0;
 
 	/*
 	 * Section 4.6, "Access Rights" in Intel SDM Vol 3.
@@ -883,8 +873,8 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	 * after this point will be handled in the context of the new task and
 	 * the saved instruction pointer will belong to the new task.
 	 */
-	vmexit->rip = newtss.tss_eip;
-	assert(vmexit->inst_length == 0);
+	error = vm_set_register(ctx, vcpu, VM_REG_GUEST_RIP, newtss.tss_eip);
+	assert(error == 0);
 
 	/* Load processor state from new TSS */
 	error = tss32_restore(ctx, vcpu, task_switch, ot_sel, &newtss, nt_iov);

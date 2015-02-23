@@ -166,7 +166,7 @@ __END_DECLS
 #define	__SRW	0x0010		/* open for reading & writing */
 #define	__SEOF	0x0020		/* found EOF */
 #define	__SERR	0x0040		/* found error */
-#define	__SMBF	0x0080		/* _buf is from malloc */
+#define	__SMBF	0x0080		/* _bf._base is from malloc */
 #define	__SAPP	0x0100		/* fdopen()ed in append mode */
 #define	__SSTR	0x0200		/* this is an sprintf/snprintf string */
 #define	__SOPT	0x0400		/* do fseek() optimization */

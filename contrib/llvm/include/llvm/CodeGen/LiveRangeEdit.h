@@ -99,7 +99,7 @@ private:
 
   /// MachineRegisterInfo callback to notify when new virtual
   /// registers are created.
-  void MRI_NoteNewVirtualRegister(unsigned VReg);
+  void MRI_NoteNewVirtualRegister(unsigned VReg) override;
 
 public:
   /// Create a LiveRangeEdit for breaking down parent into smaller pieces.
@@ -116,7 +116,7 @@ public:
                 MachineFunction &MF,
                 LiveIntervals &lis,
                 VirtRegMap *vrm,
-                Delegate *delegate = 0)
+                Delegate *delegate = nullptr)
     : Parent(parent), NewRegs(newRegs),
       MRI(MF.getRegInfo()), LIS(lis), VRM(vrm),
       TII(*MF.getTarget().getInstrInfo()),
@@ -174,7 +174,7 @@ public:
   struct Remat {
     VNInfo *ParentVNI;      // parent_'s value at the remat location.
     MachineInstr *OrigMI;   // Instruction defining ParentVNI.
-    explicit Remat(VNInfo *ParentVNI) : ParentVNI(ParentVNI), OrigMI(0) {}
+    explicit Remat(VNInfo *ParentVNI) : ParentVNI(ParentVNI), OrigMI(nullptr) {}
   };
 
   /// canRematerializeAt - Determine if ParentVNI can be rematerialized at

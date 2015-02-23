@@ -17,8 +17,7 @@
 
 #include "llvm/Analysis/Passes.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Assembly/Writer.h"
-#include "llvm/DebugInfo.h"
+#include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/Function.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -34,12 +33,12 @@ namespace {
       initializeModuleDebugInfoPrinterPass(*PassRegistry::getPassRegistry());
     }
 
-    virtual bool runOnModule(Module &M);
+    bool runOnModule(Module &M) override;
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesAll();
     }
-    virtual void print(raw_ostream &O, const Module *M) const;
+    void print(raw_ostream &O, const Module *M) const override;
   };
 }
 
@@ -57,31 +56,27 @@ bool ModuleDebugInfoPrinter::runOnModule(Module &M) {
 }
 
 void ModuleDebugInfoPrinter::print(raw_ostream &O, const Module *M) const {
-  for (DebugInfoFinder::iterator I = Finder.compile_unit_begin(),
-       E = Finder.compile_unit_end(); I != E; ++I) {
+  for (DICompileUnit CU : Finder.compile_units()) {
     O << "Compile Unit: ";
-    DICompileUnit(*I).print(O);
+    CU.print(O);
     O << '\n';
   }
 
-  for (DebugInfoFinder::iterator I = Finder.subprogram_begin(),
-       E = Finder.subprogram_end(); I != E; ++I) {
+  for (DISubprogram S : Finder.subprograms()) {
     O << "Subprogram: ";
-    DISubprogram(*I).print(O);
+    S.print(O);
     O << '\n';
   }
 
-  for (DebugInfoFinder::iterator I = Finder.global_variable_begin(),
-       E = Finder.global_variable_end(); I != E; ++I) {
+  for (DIGlobalVariable GV : Finder.global_variables()) {
     O << "GlobalVariable: ";
-    DIGlobalVariable(*I).print(O);
+    GV.print(O);
     O << '\n';
   }
 
-  for (DebugInfoFinder::iterator I = Finder.type_begin(),
-       E = Finder.type_end(); I != E; ++I) {
+  for (DIType T : Finder.types()) {
     O << "Type: ";
-    DIType(*I).print(O);
+    T.print(O);
     O << '\n';
   }
 }

@@ -1,4 +1,4 @@
-/*	$Id: mdoc_validate.c,v 1.262 2014/11/28 18:36:35 schwarze Exp $ */
+/*	$Id: mdoc_validate.c,v 1.263 2014/11/30 05:29:00 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010-2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -210,7 +210,7 @@ static	const struct valids mdoc_valids[MDOC_MAX] = {
 	{ NULL, NULL },				/* Nx */
 	{ NULL, NULL },				/* Ox */
 	{ NULL, NULL },				/* Pc */
-	{ NULL, ewarn_eq1 },			/* Pf */
+	{ NULL, NULL },				/* Pf */
 	{ NULL, NULL },				/* Po */
 	{ NULL, NULL },				/* Pq */
 	{ NULL, NULL },				/* Qc */

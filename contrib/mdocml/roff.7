@@ -1,4 +1,4 @@
-.\"	$Id: roff.7,v 1.59 2014/11/19 01:20:25 schwarze Exp $
+.\"	$Id: roff.7,v 1.60 2014/12/02 10:08:06 schwarze Exp $
 .\"
 .\" Copyright (c) 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2010, 2011, 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: November 19 2014 $
+.Dd $Mdocdate: December 2 2014 $
 .Dt ROFF 7
 .Os
 .Sh NAME
@@ -1196,8 +1196,10 @@ Bracket building function; ignored by
 .Sx Special Characters
 with names of arbitrary length.
 .Ss \ec
-Interrupt text processing to insert requests or macros; ignored by
-.Xr mandoc 1 .
+When encountered at the end of an input text line,
+the next input text line is considered to continue that line,
+even if there are request or macro lines in between.
+No whitespace is inserted.
 .Ss \eD\(aq Ns Ar string Ns \(aq
 Draw graphics function; ignored by
 .Xr mandoc 1 .

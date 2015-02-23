@@ -107,6 +107,7 @@ int magic_errno(magic_t);
 #define MAGIC_PARAM_NAME_MAX		1
 #define MAGIC_PARAM_ELF_PHNUM_MAX	2
 #define MAGIC_PARAM_ELF_SHNUM_MAX	3
+#define MAGIC_PARAM_ELF_NOTES_MAX	4
 
 int magic_setparam(magic_t, int, const void *);
 int magic_getparam(magic_t, int, void *);

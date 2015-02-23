@@ -627,7 +627,6 @@ create_service(struct netconfig *nconf)
 
 	/* Get mountd's address on this transport */
 	memset(&hints, 0, sizeof hints);
-	hints.ai_flags = AI_PASSIVE;
 	hints.ai_family = si.si_af;
 	hints.ai_socktype = si.si_socktype;
 	hints.ai_protocol = si.si_proto;
@@ -643,6 +642,8 @@ create_service(struct netconfig *nconf)
 			out_of_mem();
 		sock_fd[sock_fdcnt++] = -1;	/* Set invalid for now. */
 		mallocd_res = 0;
+
+		hints.ai_flags = AI_PASSIVE;
 
 		/*	
 		 * XXX - using RPC library internal functions.
@@ -1746,8 +1747,12 @@ get_exportlist(void)
 		iov[5].iov_len = strlen(fsp->f_mntfromname) + 1;
 		errmsg[0] = '\0';
 
+		/*
+		 * EXDEV is returned when path exists but is not a
+		 * mount point.  May happens if raced with unmount.
+		 */
 		if (nmount(iov, iovlen, fsp->f_flags) < 0 &&
-		    errno != ENOENT && errno != ENOTSUP) {
+		    errno != ENOENT && errno != ENOTSUP && errno != EXDEV) {
 			syslog(LOG_ERR,
 			    "can't delete exports for %s: %m %s",
 			    fsp->f_mntonname, errmsg);

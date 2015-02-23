@@ -41,6 +41,7 @@ __RCSID("$NetBSD: t_access.c,v 1.1 2011/07/07 06:57:53 jruoho Exp $");
 #include <atf-c.h>
 
 #ifdef __FreeBSD__
+#include <sys/param.h>
 #include <sys/stat.h>
 #endif
 
@@ -116,6 +117,10 @@ ATF_TC_HEAD(access_inval, tc)
 ATF_TC_BODY(access_inval, tc)
 {
 
+#if defined(__FreeBSD__) && __FreeBSD_version < 1100033
+	atf_tc_expect_fail("arguments to access aren't validated; see "
+	    "bug # 181155 for more details");
+#endif
 	errno = 0;
 
 	ATF_REQUIRE(access("/usr", -1) != 0);

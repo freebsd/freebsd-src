@@ -16,11 +16,13 @@
 #ifndef LLVM_CODEGEN_MACHINEMEMOPERAND_H
 #define LLVM_CODEGEN_MACHINEMEMOPERAND_H
 
+#include "llvm/ADT/PointerUnion.h"
+#include "llvm/CodeGen/PseudoSourceValue.h"
+#include "llvm/IR/Value.h"  // PointerLikeTypeTraits<Value*>
 #include "llvm/Support/DataTypes.h"
 
 namespace llvm {
 
-class Value;
 class FoldingSetNodeID;
 class MDNode;
 class raw_ostream;
@@ -33,17 +35,23 @@ struct MachinePointerInfo {
   /// V - This is the IR pointer value for the access, or it is null if unknown.
   /// If this is null, then the access is to a pointer in the default address
   /// space.
-  const Value *V;
+  PointerUnion<const Value *, const PseudoSourceValue *> V;
 
   /// Offset - This is an offset from the base Value*.
   int64_t Offset;
 
-  explicit MachinePointerInfo(const Value *v = 0, int64_t offset = 0)
+  explicit MachinePointerInfo(const Value *v = nullptr, int64_t offset = 0)
+    : V(v), Offset(offset) {}
+
+  explicit MachinePointerInfo(const PseudoSourceValue *v,
+                              int64_t offset = 0)
     : V(v), Offset(offset) {}
 
   MachinePointerInfo getWithOffset(int64_t O) const {
-    if (V == 0) return MachinePointerInfo(0, 0);
-    return MachinePointerInfo(V, Offset+O);
+    if (V.isNull()) return MachinePointerInfo();
+    if (V.is<const Value*>())
+      return MachinePointerInfo(V.get<const Value*>(), Offset+O);
+    return MachinePointerInfo(V.get<const PseudoSourceValue*>(), Offset+O);
   }
 
   /// getAddrSpace - Return the LLVM IR address space number that this pointer
@@ -109,8 +117,8 @@ public:
   /// MachineMemOperand - Construct an MachineMemOperand object with the
   /// specified PtrInfo, flags, size, and base alignment.
   MachineMemOperand(MachinePointerInfo PtrInfo, unsigned flags, uint64_t s,
-                    unsigned base_alignment, const MDNode *TBAAInfo = 0,
-                    const MDNode *Ranges = 0);
+                    unsigned base_alignment, const MDNode *TBAAInfo = nullptr,
+                    const MDNode *Ranges = nullptr);
 
   const MachinePointerInfo &getPointerInfo() const { return PtrInfo; }
 
@@ -121,7 +129,13 @@ public:
   /// other PseudoSourceValue member functions which return objects which stand
   /// for frame/stack pointer relative references and other special references
   /// which are not representable in the high-level IR.
-  const Value *getValue() const { return PtrInfo.V; }
+  const Value *getValue() const { return PtrInfo.V.dyn_cast<const Value*>(); }
+
+  const PseudoSourceValue *getPseudoValue() const {
+    return PtrInfo.V.dyn_cast<const PseudoSourceValue*>();
+  }
+
+  const void *getOpaqueValue() const { return PtrInfo.V.getOpaqueValue(); }
 
   /// getFlags - Return the raw flags of the source value, \see MemOperandFlags.
   unsigned int getFlags() const { return Flags & ((1 << MOMaxBits) - 1); }
@@ -133,6 +147,8 @@ public:
   /// address. For PseudoSourceValue::FPRel values, this is the FrameIndex
   /// number.
   int64_t getOffset() const { return PtrInfo.Offset; }
+
+  unsigned getAddrSpace() const { return PtrInfo.getAddrSpace(); }
 
   /// getSize - Return the size in bytes of the memory reference.
   uint64_t getSize() const { return Size; }
@@ -175,6 +191,7 @@ public:
   /// should only be used when an object is being relocated and all references
   /// to it are being updated.
   void setValue(const Value *NewSV) { PtrInfo.V = NewSV; }
+  void setValue(const PseudoSourceValue *NewSV) { PtrInfo.V = NewSV; }
   void setOffset(int64_t NewOffset) { PtrInfo.Offset = NewOffset; }
 
   /// Profile - Gather unique data for the object.

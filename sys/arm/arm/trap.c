@@ -78,6 +78,9 @@
  * Created      : 28/11/94
  */
 
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+#endif
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -127,6 +130,7 @@ static int dab_align(struct trapframe *, u_int, u_int, struct thread *,
     struct ksig *);
 static int dab_buserr(struct trapframe *, u_int, u_int, struct thread *,
     struct ksig *);
+static void prefetch_abort_handler(struct trapframe *);
 
 static const struct data_abort data_aborts[] = {
 	{dab_fatal,	"Vector Exception"},
@@ -171,7 +175,7 @@ call_trapsignal(struct thread *td, int sig, u_long code)
 }
 
 void
-data_abort_handler(struct trapframe *tf)
+abort_handler(struct trapframe *tf, int type)
 {
 	struct vm_map *map;
 	struct pcb *pcb;
@@ -184,6 +188,8 @@ data_abort_handler(struct trapframe *tf)
 	struct ksig ksig;
 	struct proc *p;
 
+	if (type == 1)
+		return (prefetch_abort_handler(tf));
 
 	/* Grab FAR/FSR before enabling interrupts */
 	far = cpu_faultaddress();
@@ -424,6 +430,13 @@ dab_fatal(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
 {
 	const char *mode;
 
+#ifdef KDTRACE_HOOKS
+	if (!TRAP_USERMODE(tf))	{
+		if (dtrace_trap_func != NULL && (*dtrace_trap_func)(tf, far & FAULT_TYPE_MASK))
+			return (0);
+	}
+#endif
+
 	mode = TRAP_USERMODE(tf) ? "user" : "kernel";
 
 	disable_interrupts(PSR_I|PSR_F);
@@ -545,7 +558,7 @@ dab_buserr(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
 		 * If the current trapframe is at the top of the kernel stack,
 		 * the fault _must_ have come from user mode.
 		 */
-		if (tf != ((struct trapframe *)pcb->un_32.pcb32_sp) - 1) {
+		if (tf != ((struct trapframe *)pcb->pcb_regs.sf_sp) - 1) {
 			/*
 			 * Kernel mode. We're either about to die a
 			 * spectacular death, or pcb_onfault will come
@@ -605,7 +618,7 @@ dab_buserr(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
  * does no have read permission so send it a signal.
  * Otherwise fault the page in and try again.
  */
-void
+static void
 prefetch_abort_handler(struct trapframe *tf)
 {
 	struct thread *td;

@@ -35,12 +35,14 @@ struct {
 	uint32_t	scl;
 	unsigned long	start;
 } bcm_bsc_pins[] = {
-	{ 0, 1, 0x20205000 },	/* BSC0 GPIO pins and base address. */
-	{ 2, 3, 0x20804000 }	/* BSC1 GPIO pins and base address. */
+	{ 0, 1, 0x205000 },	/* BSC0 GPIO pins and base address. */
+	{ 2, 3, 0x804000 }	/* BSC1 GPIO pins and base address. */
 };
+#define	BCM_BSC_BASE_MASK	0x00ffffff
 
 struct bcm_bsc_softc {
 	device_t		sc_dev;
+	device_t		sc_iicbus;
 	struct mtx		sc_mtx;
 	struct resource *	sc_mem_res;
 	struct resource *	sc_irq_res;
@@ -56,14 +58,10 @@ struct bcm_bsc_softc {
 #define	BCM_I2C_READ		0x02
 #define	BCM_I2C_ERROR		0x04
 
-#define	BCM_BSC_SLOW		10000	/*  10 kHz. */
-#define	BCM_BSC_FAST		50000	/*  50 kHz. */
-#define	BCM_BSC_FASTEST		100000	/* 100 kHz. */
-
 #define	BCM_BSC_WRITE(_sc, _off, _val)		\
-    bus_space_write_4(_sc->sc_bst, _sc->sc_bsh, _off, _val)
+    bus_space_write_4((_sc)->sc_bst, (_sc)->sc_bsh, _off, _val)
 #define	BCM_BSC_READ(_sc, _off)			\
-    bus_space_read_4(_sc->sc_bst, _sc->sc_bsh, _off)
+    bus_space_read_4((_sc)->sc_bst, (_sc)->sc_bsh, _off)
 
 #define	BCM_BSC_LOCK(_sc)			\
     mtx_lock(&(_sc)->sc_mtx)

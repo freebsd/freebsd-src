@@ -1,13 +1,12 @@
-$Id: INSTALL,v 1.5 2014/08/18 13:27:47 kristaps Exp $
+$Id: INSTALL,v 1.9 2014/12/11 07:44:46 schwarze Exp $
 
 About mdocml, the portable mandoc distribution
 ----------------------------------------------
 The mandoc manpage compiler toolset is a suite of tools compiling
 mdoc(7), the roff(7) macro language of choice for BSD manual pages,
 and man(7), the predominant historical language for UNIX manuals.
-The toolset does not yet implement man(1); that is only scheduled
-for the next release, 1.13.2.  It can, however, already serve to
-translate source manpages to the output displayed by man(1).
+Since the present version 1.13.2, it includes a man(1) manual viewer
+in addition to the apropos(1) manual page search tool.
 For general information, see <http://mdocml.bsd.lv/>.
 
 In this document, we describe the installation and deployment of
@@ -22,7 +21,7 @@ tech@ mailing list, too.
 
 Enjoy using the mandoc toolset!
 
-Ingo Schwarze, Karlsruhe, August 2014
+Ingo Schwarze, Karlsruhe, December 2014
 
 
 Installation
@@ -59,8 +58,8 @@ should work.  If the build fails, look at "configure.local.example"
 and go back to step 2.
 
 4. Run "make -n install" and check whether everything will be
-installed to the intended places.  Otherwise, put some *DIR variables
-into "configure.local" and go back to step 2.
+installed to the intended places.  Otherwise, put some *DIR or *NM*
+variables into "configure.local" and go back to step 2.
 
 5. Run "sudo make install".  If you intend to build a binary
 package using some kind of fake root mechanism, you may need a
@@ -70,14 +69,14 @@ in the "Makefile" to understand how DESTDIR is used.
 6. To set up a man.cgi(8) server, read its manual page.
 
 7. To use mandoc(1) as your man(1) formatter, read the "Deployment"
-section below.
+sections below.
 
 
 Understanding mandoc dependencies
 ---------------------------------
-The mandoc(1), preconv(1), and demandoc(1) utilities have no external
-dependencies.  However, makewhatis(8) and apropos(1) depend on the
-following software:
+The mandoc(1) and demandoc(1) utilities have no external dependencies.
+However, makewhatis(8), apropos(1), and man(1) depend on the following
+software:
 
 1. The SQLite database system, see <http://sqlite.org/>.
 The recommended version of SQLite is 3.8.4.3 or newer.  The mandoc
@@ -89,14 +88,14 @@ fails due to the missing sqlite3_errstr() API.  Both are very minor
 problems, apropos(1) is fully usable with SQLite 3.7.5.  Versions
 older than 3.7.5 may or may not work, they have not been tested.
 
-1.2. The fts(3) directory traversion functions.
+2. The fts(3) directory traversion functions.
 If your system does not have them, the bundled compatibility version
 will be used, so you need not worry in that case.  But be careful: the
 glibc version of fts(3) is known to be broken on 32bit platforms,
 see <https://sourceware.org/bugzilla/show_bug.cgi?id=15838>.
 If you run into that problem, set "HAVE_FTS=0" in configure.local.
 
-1.3. Marc Espie's ohash(3) library.
+3. Marc Espie's ohash(3) library.
 If your system does not have it, the bundled compatibility version
 will be used, so you probably need not worry about it.
 
@@ -145,11 +144,39 @@ in unusual headers.  You can also look at the file "config.h" and
 check that no "#define HAVE_*" differ from your expectations.
 
 
-Deployment
-----------
-If you want to integrate the mandoc(1) tools with your existing
-man(1) system as a formatter, then contact us first: on systems without
-mandoc(1) as the default, you may have your work cut out for you!
+Deployment using the integrated man(1) viewer
+---------------------------------------------
+This mode of deployment requires database support.  In case of
+doubt, look at the section "user settings related to database
+support" in the file configure.local.example.
+
+Deployment requires the following steps:
+
+1. Build and install mandoc as described above in steps 2 to 5
+below "Installation".
+
+2. If your system uses manpath(1), make sure it is configured
+correctly, in particular, it returns all directory trees where
+manual pages are installed.  If your system uses man.conf(5), make
+sure it contains a "_whatdb" line for each directory tree, and the
+order of these lines meets your wishes.
+
+3. Run the command "sudo makewhatis" to build mandoc.db(5) databases
+in all the directory trees configured in step 2.
+
+At this point, your new man(1), apropos(1), and whatis(1) should work.
+Otherwise, please look at <http://mdocml.bsd.lv/contact.html>, both
+for help and to have these instructions improved.
+
+Whenever installing new manual pages, re-run makewhatis(8) to update
+the databases, or man(1) will not find the new pages.
+
+
+Deployment using your system's native man(1) viewer
+---------------------------------------------------
+This mode of deployment does not require database support,
+so it works even if you don't have SQLite3.
+
 Usually, you can have your default installation and mandoc(1) work right
 alongside each other by using user-specific versions of the files
 mentioned below.
@@ -174,15 +201,17 @@ mandoc(1)" to disregard them.
 of cached pages being pulled up.  You can usually do this by commenting
 out NOCACHE or similar.
 
+
 mandoc(1) still has a long way to go in understanding non-trivial
 low-level roff(7) markup embedded in some man(7) pages.  On the BSD
 systems using mandoc(1), third-party software is generally vetted
 on whether it may be formatted with mandoc(1).  If not, groff(1)
 is pulled in as a dependency and used to install a pre-formatted
-"catpage" intead of directly as manual page source.
+"catpage" instead of directly as manual page source.
 
 For more background on switching operating systems to use mandoc(1)
-instead of groff(1) to format manuals, see the two BSDCan presentations
-by Ingo Schwarze:
+instead of groff(1) to format manuals, see the BSDCan and EuroBSDCon
+presentations by Ingo Schwarze:
 <http://www.openbsd.org/papers/bsdcan11-mandoc-openbsd.html>
 <http://www.openbsd.org/papers/bsdcan14-mandoc.pdf>
+<http://www.openbsd.org/papers/eurobsdcon2014-mandoc-paper.pdf>

@@ -50,7 +50,7 @@ namespace GraphProgram {
    };
 }
 
-void DisplayGraph(StringRef Filename, bool wait = true,
+bool DisplayGraph(StringRef Filename, bool wait = true,
                   GraphProgram::Name program = GraphProgram::DOT);
 
 template<typename GraphType>
@@ -259,8 +259,8 @@ public:
 
   /// emitSimpleNode - Outputs a simple (non-record) node
   void emitSimpleNode(const void *ID, const std::string &Attr,
-                      const std::string &Label, unsigned NumEdgeSources = 0,
-                      const std::vector<std::string> *EdgeSourceLabels = 0) {
+                   const std::string &Label, unsigned NumEdgeSources = 0,
+                   const std::vector<std::string> *EdgeSourceLabels = nullptr) {
     O << "\tNode" << ID << "[ ";
     if (!Attr.empty())
       O << Attr << ",";
@@ -325,7 +325,10 @@ template <typename GraphType>
 std::string WriteGraph(const GraphType &G, const Twine &Name,
                        bool ShortNames = false, const Twine &Title = "") {
   int FD;
-  std::string Filename = createGraphFilename(Name, FD);
+  // Windows can't always handle long paths, so limit the length of the name.
+  std::string N = Name.str();
+  N = N.substr(0, std::min<std::size_t>(N.size(), 140));
+  std::string Filename = createGraphFilename(N, FD);
   raw_fd_ostream O(FD, /*shouldClose=*/ true);
 
   if (FD == -1) {

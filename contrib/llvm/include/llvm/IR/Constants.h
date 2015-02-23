@@ -25,8 +25,8 @@
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/IR/Constant.h"
-#include "llvm/IR/OperandTraits.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/OperandTraits.h"
 
 namespace llvm {
 
@@ -49,7 +49,7 @@ struct ConvertConstantType;
 /// represents both boolean and integral constants.
 /// @brief Class for constant integers.
 class ConstantInt : public Constant {
-  virtual void anchor();
+  void anchor() override;
   void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
   ConstantInt(const ConstantInt &) LLVM_DELETED_FUNCTION;
   ConstantInt(IntegerType *Ty, const APInt& V);
@@ -231,7 +231,7 @@ public:
 ///
 class ConstantFP : public Constant {
   APFloat Val;
-  virtual void anchor();
+  void anchor() override;
   void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
   ConstantFP(const ConstantFP &) LLVM_DELETED_FUNCTION;
   friend class LLVMContextImpl;
@@ -255,8 +255,8 @@ public:
   static Constant *get(Type* Ty, double V);
   static Constant *get(Type* Ty, StringRef Str);
   static ConstantFP *get(LLVMContext &Context, const APFloat &V);
-  static ConstantFP *getNegativeZero(Type* Ty);
-  static ConstantFP *getInfinity(Type *Ty, bool Negative = false);
+  static Constant *getNegativeZero(Type *Ty);
+  static Constant *getInfinity(Type *Ty, bool Negative = false);
 
   /// isValueValidForType - return true if Ty is big enough to represent V.
   static bool isValueValidForType(Type *Ty, const APFloat &V);
@@ -299,7 +299,7 @@ class ConstantAggregateZero : public Constant {
   ConstantAggregateZero(const ConstantAggregateZero &) LLVM_DELETED_FUNCTION;
 protected:
   explicit ConstantAggregateZero(Type *ty)
-    : Constant(ty, ConstantAggregateZeroVal, 0, 0) {}
+    : Constant(ty, ConstantAggregateZeroVal, nullptr, 0) {}
 protected:
   // allocate space for exactly zero operands
   void *operator new(size_t s) {
@@ -308,7 +308,7 @@ protected:
 public:
   static ConstantAggregateZero *get(Type *Ty);
 
-  virtual void destroyConstant();
+  void destroyConstant() override;
 
   /// getSequentialElement - If this CAZ has array or vector type, return a zero
   /// with the right element type.
@@ -356,8 +356,8 @@ public:
     return cast<ArrayType>(Value::getType());
   }
 
-  virtual void destroyConstant();
-  virtual void replaceUsesOfWithOnConstant(Value *From, Value *To, Use *U);
+  void destroyConstant() override;
+  void replaceUsesOfWithOnConstant(Value *From, Value *To, Use *U) override;
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
   static bool classof(const Value *V) {
@@ -414,8 +414,8 @@ public:
     return cast<StructType>(Value::getType());
   }
 
-  virtual void destroyConstant();
-  virtual void replaceUsesOfWithOnConstant(Value *From, Value *To, Use *U);
+  void destroyConstant() override;
+  void replaceUsesOfWithOnConstant(Value *From, Value *To, Use *U) override;
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
   static bool classof(const Value *V) {
@@ -461,8 +461,8 @@ public:
   /// elements have the same value, return that value. Otherwise return NULL.
   Constant *getSplatValue() const;
 
-  virtual void destroyConstant();
-  virtual void replaceUsesOfWithOnConstant(Value *From, Value *To, Use *U);
+  void destroyConstant() override;
+  void replaceUsesOfWithOnConstant(Value *From, Value *To, Use *U) override;
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
   static bool classof(const Value *V) {
@@ -486,7 +486,7 @@ class ConstantPointerNull : public Constant {
 protected:
   explicit ConstantPointerNull(PointerType *T)
     : Constant(T,
-               Value::ConstantPointerNullVal, 0, 0) {}
+               Value::ConstantPointerNullVal, nullptr, 0) {}
 
 protected:
   // allocate space for exactly zero operands
@@ -497,7 +497,7 @@ public:
   /// get() - Static factory methods - Return objects of the specified value
   static ConstantPointerNull *get(PointerType *T);
 
-  virtual void destroyConstant();
+  void destroyConstant() override;
 
   /// getType - Specialize the getType() method to always return an PointerType,
   /// which reduces the amount of casting needed in parts of the compiler.
@@ -536,7 +536,7 @@ class ConstantDataSequential : public Constant {
   ConstantDataSequential(const ConstantDataSequential &) LLVM_DELETED_FUNCTION;
 protected:
   explicit ConstantDataSequential(Type *ty, ValueTy VT, const char *Data)
-    : Constant(ty, VT, 0, 0), DataElements(Data), Next(0) {}
+    : Constant(ty, VT, nullptr, 0), DataElements(Data), Next(nullptr) {}
   ~ConstantDataSequential() { delete Next; }
 
   static Constant *getImpl(StringRef Bytes, Type *Ty);
@@ -624,7 +624,7 @@ public:
   /// host endianness of the data elements.
   StringRef getRawDataValues() const;
 
-  virtual void destroyConstant();
+  void destroyConstant() override;
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
   ///
@@ -645,7 +645,7 @@ private:
 class ConstantDataArray : public ConstantDataSequential {
   void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
   ConstantDataArray(const ConstantDataArray &) LLVM_DELETED_FUNCTION;
-  virtual void anchor();
+  void anchor() override;
   friend class ConstantDataSequential;
   explicit ConstantDataArray(Type *ty, const char *Data)
     : ConstantDataSequential(ty, ConstantDataArrayVal, Data) {}
@@ -697,7 +697,7 @@ public:
 class ConstantDataVector : public ConstantDataSequential {
   void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
   ConstantDataVector(const ConstantDataVector &) LLVM_DELETED_FUNCTION;
-  virtual void anchor();
+  void anchor() override;
   friend class ConstantDataSequential;
   explicit ConstantDataVector(Type *ty, const char *Data)
   : ConstantDataSequential(ty, ConstantDataVectorVal, Data) {}
@@ -757,14 +757,20 @@ public:
   /// block must be embedded into a function.
   static BlockAddress *get(BasicBlock *BB);
 
+  /// \brief Lookup an existing \c BlockAddress constant for the given
+  /// BasicBlock.
+  ///
+  /// \returns 0 if \c !BB->hasAddressTaken(), otherwise the \c BlockAddress.
+  static BlockAddress *lookup(const BasicBlock *BB);
+
   /// Transparently provide more efficient getOperand methods.
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
 
   Function *getFunction() const { return (Function*)Op<0>().get(); }
   BasicBlock *getBasicBlock() const { return (BasicBlock*)Op<1>().get(); }
 
-  virtual void destroyConstant();
-  virtual void replaceUsesOfWithOnConstant(Value *From, Value *To, Use *U);
+  void destroyConstant() override;
+  void replaceUsesOfWithOnConstant(Value *From, Value *To, Use *U) override;
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const Value *V) {
@@ -1093,8 +1099,8 @@ public:
   /// would make it harder to remove ConstantExprs altogether.
   Instruction *getAsInstruction();
 
-  virtual void destroyConstant();
-  virtual void replaceUsesOfWithOnConstant(Value *From, Value *To, Use *U);
+  void destroyConstant() override;
+  void replaceUsesOfWithOnConstant(Value *From, Value *To, Use *U) override;
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const Value *V) {
@@ -1130,7 +1136,7 @@ class UndefValue : public Constant {
   void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
   UndefValue(const UndefValue &) LLVM_DELETED_FUNCTION;
 protected:
-  explicit UndefValue(Type *T) : Constant(T, UndefValueVal, 0, 0) {}
+  explicit UndefValue(Type *T) : Constant(T, UndefValueVal, nullptr, 0) {}
 protected:
   // allocate space for exactly zero operands
   void *operator new(size_t s) {
@@ -1158,7 +1164,7 @@ public:
   /// index.
   UndefValue *getElementValue(unsigned Idx) const;
 
-  virtual void destroyConstant();
+  void destroyConstant() override;
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
   static bool classof(const Value *V) {

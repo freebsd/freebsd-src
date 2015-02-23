@@ -1065,14 +1065,9 @@ read_another:
 	m->m_pkthdr.len = m->m_len = packet_length;
 
 	/*
-	 * Attach an mbuf cluster
+	 * Attach an mbuf cluster.
 	 */
-	MCLGET(m, M_NOWAIT);
-
-	/*
-	 * Insist on getting a cluster
-	 */
-	if ((m->m_flags & M_EXT) == 0) {
+	if (!(MCLGET(m, M_NOWAIT))) {
 		m_freem(m);
 		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		printf("sn: snread() kernel memory allocation problem\n");

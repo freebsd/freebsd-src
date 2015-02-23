@@ -1,4 +1,4 @@
-/*	$Id: man_html.c,v 1.104 2014/09/27 11:17:19 kristaps Exp $ */
+/*	$Id: man_html.c,v 1.107 2014/12/04 02:05:42 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2012, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -25,11 +25,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "mandoc.h"
 #include "mandoc_aux.h"
+#include "man.h"
 #include "out.h"
 #include "html.h"
-#include "man.h"
 #include "main.h"
 
 /* TODO: preserve ident widths. */
@@ -213,21 +212,14 @@ print_man_node(MAN_ARGS)
 		man_root_pre(man, n, mh, h);
 		break;
 	case MAN_TEXT:
-		/*
-		 * If we have a blank line, output a vertical space.
-		 * If we have a space as the first character, break
-		 * before printing the line's data.
-		 */
 		if ('\0' == *n->string) {
 			print_paragraph(h);
 			return;
 		}
-
-		if (' ' == *n->string && MAN_LINE & n->flags)
+		if (n->flags & MAN_LINE && (*n->string == ' ' || 
+		    (n->prev != NULL && mh->fl & MANH_LITERAL &&
+		     ! (h->flags & HTML_NONEWLINE))))
 			print_otag(h, TAG_BR, 0, NULL);
-		else if (MANH_LITERAL & mh->fl && n->prev)
-			print_otag(h, TAG_BR, 0, NULL);
-
 		print_text(h, n->string);
 		return;
 	case MAN_EQN:
@@ -290,7 +282,7 @@ a2width(const struct man_node *n, struct roffsu *su)
 
 	if (MAN_TEXT != n->type)
 		return(0);
-	if (a2roffsu(n->string, su, SCALE_BU))
+	if (a2roffsu(n->string, su, SCALE_EN))
 		return(1);
 
 	return(0);

@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #ifdef RADIX_MPATH
 #include <net/radix_mpath.h>
 #endif
+#include <net/rss_config.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -788,6 +789,10 @@ smart_frag_failure:
 			IPSTAT_INC(ips_odropped);
 			goto done;
 		}
+		/* make sure the flowid is the same for the fragmented mbufs */
+		M_HASHTYPE_SET(m, M_HASHTYPE_GET(m0));
+		m->m_pkthdr.flowid = m0->m_pkthdr.flowid;
+		/* copy multicast flag, if any */
 		m->m_flags |= (m0->m_flags & M_MCAST);
 		/*
 		 * In the first mbuf, leave room for the link header, then

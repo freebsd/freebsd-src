@@ -40,7 +40,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: archive.c 2370 2011-12-29 12:48:12Z jkoshy $");
+ELFTC_VCSID("$Id: archive.c 3102 2014-10-29 21:09:01Z jkoshy $");
 
 #define _ARMAG_LEN 8		/* length of ar magic string */
 #define _ARHDR_LEN 60		/* length of ar header */
@@ -350,7 +350,6 @@ ac_detect_ar(int ifd)
 	r = -1;
 	if ((a = archive_read_new()) == NULL)
 		return (0);
-	archive_read_support_filter_none(a);
 	archive_read_support_format_ar(a);
 	if (archive_read_open_fd(a, ifd, 10240) == ARCHIVE_OK)
 		r = archive_read_next_header(a, &entry);
@@ -386,7 +385,6 @@ ac_read_objs(struct elfcopy *ecp, int ifd)
 		err(EXIT_FAILURE, "lseek failed");
 	if ((a = archive_read_new()) == NULL)
 		errx(EXIT_FAILURE, "%s", archive_error_string(a));
-	archive_read_support_filter_none(a);
 	archive_read_support_format_ar(a);
 	AC(archive_read_open_fd(a, ifd, 10240));
 	for(;;) {
@@ -449,7 +447,6 @@ ac_write_objs(struct elfcopy *ecp, int ofd)
 	if ((a = archive_write_new()) == NULL)
 		errx(EXIT_FAILURE, "%s", archive_error_string(a));
 	archive_write_set_format_ar_svr4(a);
-	archive_write_add_filter_none(a);
 	AC(archive_write_open_fd(a, ofd));
 
 	/* Write the archive symbol table, even if it's empty. */

@@ -6,7 +6,8 @@ int dummy;
 
 #else
 
-/*	$OpenBSD: malloc.c,v 1.158 2014/04/23 15:07:27 tedu Exp $	*/
+/*	$Id: compat_reallocarray.c,v 1.4 2014/12/11 09:05:01 schwarze Exp $	*/
+/*	$OpenBSD: reallocarray.c,v 1.2 2014/12/08 03:45:00 bcook Exp $	*/
 /*
  * Copyright (c) 2008 Otto Moerbeek <otto@drijf.net>
  *
@@ -22,12 +23,17 @@ int dummy;
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+
 #include <sys/types.h>
 #include <errno.h>
 #include <stdint.h>
 #include <stdlib.h>
 
-#define MUL_NO_OVERFLOW (1UL << (sizeof(size_t) * 4))
+/*
+ * This is sqrt(SIZE_MAX+1), as s1*s2 <= SIZE_MAX
+ * if both s1 < MUL_NO_OVERFLOW and s2 < MUL_NO_OVERFLOW
+ */
+#define MUL_NO_OVERFLOW	((size_t)1 << (sizeof(size_t) * 4))
 
 void *
 reallocarray(void *optr, size_t nmemb, size_t size)

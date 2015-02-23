@@ -12,9 +12,9 @@
 
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/PointerUnion.h"
 #include "llvm/ADT/StringRef.h"
+#include <memory>
 
 namespace llvm {
   class MemoryBuffer;
@@ -30,7 +30,7 @@ namespace arcmt {
 
 class FileRemapper {
   // FIXME: Reuse the same FileManager for multiple ASTContexts.
-  OwningPtr<FileManager> FileMgr;
+  std::unique_ptr<FileManager> FileMgr;
 
   typedef llvm::PointerUnion<const FileEntry *, llvm::MemoryBuffer *> Target;
   typedef llvm::DenseMap<const FileEntry *, Target> MappingsTy;
@@ -55,8 +55,6 @@ public:
   void remap(StringRef filePath, llvm::MemoryBuffer *memBuf);
 
   void applyMappings(PreprocessorOptions &PPOpts) const;
-
-  void transferMappingsAndClear(PreprocessorOptions &PPOpts);
 
   void clear(StringRef outputDir = StringRef());
 

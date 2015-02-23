@@ -832,6 +832,7 @@ ipoib_priv_alloc(void)
 
 	priv = malloc(sizeof(struct ipoib_dev_priv), M_TEMP, M_ZERO|M_WAITOK);
 	spin_lock_init(&priv->lock);
+	spin_lock_init(&priv->drain_lock);
 	mutex_init(&priv->vlan_mutex);
 	INIT_LIST_HEAD(&priv->path_list);
 	INIT_LIST_HEAD(&priv->child_intfs);
@@ -1527,8 +1528,6 @@ ipoib_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 module_init(ipoib_init_module);
 module_exit(ipoib_cleanup_module);
 
-#undef MODULE_VERSION
-#include <sys/module.h>
 static int
 ipoib_evhand(module_t mod, int event, void *arg)
 {
@@ -1542,4 +1541,4 @@ static moduledata_t ipoib_mod = {
 
 DECLARE_MODULE(ipoib, ipoib_mod, SI_SUB_SMP, SI_ORDER_ANY);
 MODULE_DEPEND(ipoib, ibcore, 1, 1, 1);
-
+MODULE_DEPEND(ipoib, linuxapi, 1, 1, 1);

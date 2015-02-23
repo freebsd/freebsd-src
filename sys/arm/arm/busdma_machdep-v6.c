@@ -858,8 +858,6 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	else
 		ba = standard_allocator;
 
-	/* Be careful not to access map from here on. */
-
 	bufzone = busdma_bufalloc_findzone(ba, dmat->maxsize);
 
 	if (bufzone != NULL && dmat->alignment <= bufzone->size &&

@@ -1,4 +1,4 @@
-# $Id: Makefile 2937 2013-04-27 04:48:23Z jkoshy $
+# $Id: Makefile 3097 2014-09-02 22:10:18Z kaiwang27 $
 
 TOP=	${.CURDIR}/..
 
@@ -42,6 +42,7 @@ SRCS=	\
 	dwarf_pubtypes.c	\
 	dwarf_ranges.c		\
 	dwarf_reloc.c		\
+	dwarf_sections.c	\
 	dwarf_seterror.c	\
 	dwarf_str.c		\
 	dwarf_types.c		\
@@ -115,6 +116,7 @@ MAN=	dwarf.3                                         \
 	dwarf_add_weakname.3				\
 	dwarf_attr.3					\
 	dwarf_attrlist.3				\
+	dwarf_attroffset.3				\
 	dwarf_attrval_signed.3				\
 	dwarf_child.3					\
 	dwarf_dealloc.3					\
@@ -154,6 +156,7 @@ MAN=	dwarf.3                                         \
 	dwarf_get_cie_info.3				\
 	dwarf_get_cie_of_fde.3				\
 	dwarf_get_cu_die_offset.3			\
+	dwarf_get_die_infotypes_flag.3			\
 	dwarf_get_elf.3					\
 	dwarf_get_fde_at_pc.3				\
 	dwarf_get_fde_info_for_all_regs.3		\
@@ -175,6 +178,7 @@ MAN=	dwarf.3                                         \
 	dwarf_get_relocation_info.3			\
 	dwarf_get_relocation_info_count.3		\
 	dwarf_get_section_bytes.3			\
+	dwarf_get_section_max_offsets.3			\
 	dwarf_get_str.3					\
 	dwarf_get_types.3				\
 	dwarf_get_vars.3				\
@@ -192,6 +196,7 @@ MAN=	dwarf.3                                         \
 	dwarf_new_expr.3				\
 	dwarf_new_fde.3					\
 	dwarf_next_cu_header.3				\
+	dwarf_next_types_section.3			\
 	dwarf_object_init.3				\
 	dwarf_producer_init.3				\
 	dwarf_producer_set_isa.3			\
@@ -220,7 +225,9 @@ MLINKS+= \
 	dwarf_attrval_signed.3	dwarf_attrval_string.3	\
 	dwarf_attrval_signed.3	dwarf_attrval_unsigned.3 \
 	dwarf_child.3	dwarf_offdie.3			\
+	dwarf_child.3	dwarf_offdie_b.3		\
 	dwarf_child.3	dwarf_siblingof.3		\
+	dwarf_child.3	dwarf_siblingof_b.3		\
 	dwarf_dealloc.3	dwarf_fde_cie_list_dealloc.3	\
 	dwarf_dealloc.3	dwarf_funcs_dealloc.3		\
 	dwarf_dealloc.3	dwarf_globals_dealloc.3		\
@@ -234,6 +241,7 @@ MLINKS+= \
 	dwarf_dieoffset.3	dwarf_die_CU_offset.3	\
 	dwarf_dieoffset.3	dwarf_die_CU_offset_range.3 \
 	dwarf_dieoffset.3	dwarf_get_cu_die_offset_given_cu_header_offset.3 \
+	dwarf_dieoffset.3	dwarf_get_cu_die_offset_given_cu_header_offset_b.3 \
 	dwarf_finish.3		dwarf_object_finish.3	\
 	dwarf_formref.3	dwarf_global_formref.3		\
 	dwarf_formudata.3	dwarf_formsdata.3	\
@@ -273,6 +281,7 @@ MLINKS+= \
 	dwarf_get_pubtypes.3	dwarf_pubtype_name_offsets.3 \
 	dwarf_get_pubtypes.3	dwarf_pubtypename.3	\
 	dwarf_get_ranges.3	dwarf_get_ranges_a.3	\
+	dwarf_get_section_max_offsets.3 dwarf_get_section_max_offsets_b.3 \
 	dwarf_get_types.3	dwarf_type_die_offset.3	\
 	dwarf_get_types.3	dwarf_type_cu_offset.3	\
 	dwarf_get_types.3	dwarf_type_name_offsets.3 \
@@ -291,6 +300,7 @@ MLINKS+= \
 	dwarf_highpc.3	dwarf_bitoffset.3		\
 	dwarf_highpc.3	dwarf_bitsize.3			\
 	dwarf_highpc.3	dwarf_bytesize.3		\
+	dwarf_highpc.3	dwarf_highpc_b.3		\
 	dwarf_highpc.3	dwarf_lowpc.3			\
 	dwarf_highpc.3	dwarf_srclang.3			\
 	dwarf_lineno.3	dwarf_lineaddr.3		\
@@ -302,6 +312,9 @@ MLINKS+= \
 	dwarf_lineno.3	dwarf_line_srcfileno.3		\
 	dwarf_loclist.3	dwarf_loclist_n.3		\
 	dwarf_loclist_from_expr.3 dwarf_loclist_from_expr_a.3 \
+	dwarf_loclist_from_expr.3 dwarf_loclist_from_expr_b.3 \
+	dwarf_next_cu_header.3 dwarf_next_cu_header_b.3	\
+	dwarf_next_cu_header.3 dwarf_next_cu_header_c.3	\
 	dwarf_producer_init.3 dwarf_producer_init_b.3	\
 	dwarf_seterrarg.3	dwarf_seterrhand.3	\
 	dwarf_set_frame_cfa_value.3 dwarf_set_frame_rule_initial_value.3 \

@@ -7,12 +7,18 @@
 .
     bin
     ..
-    games
-    ..
     include
     ..
     lib
         aout
+        ..
+        clang
+            3.5.1
+                lib
+                    freebsd
+                    ..
+                ..
+            ..
         ..
         compat
             aout
@@ -174,6 +180,8 @@
             atf
             ..
             atm
+            ..
+            binutils
             ..
             legal
                 intel_ipw

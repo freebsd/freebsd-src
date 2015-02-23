@@ -1,4 +1,4 @@
-/*	$Id: man_term.c,v 1.156 2014/11/21 01:52:53 schwarze Exp $ */
+/*	$Id: man_term.c,v 1.159 2014/12/04 02:05:42 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010-2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -123,7 +123,7 @@ static	const struct termact termacts[MAN_MAX] = {
 	{ NULL, NULL, 0 }, /* RE */
 	{ pre_RS, post_RS, 0 }, /* RS */
 	{ pre_ign, NULL, 0 }, /* DT */
-	{ pre_ign, NULL, 0 }, /* UC */
+	{ pre_ign, NULL, MAN_NOTEXT }, /* UC */
 	{ pre_PD, NULL, MAN_NOTEXT }, /* PD */
 	{ pre_ign, NULL, 0 }, /* AT */
 	{ pre_in, NULL, MAN_NOTEXT }, /* in */
@@ -201,7 +201,7 @@ a2width(const struct termp *p, const char *cp)
 {
 	struct roffsu	 su;
 
-	if ( ! a2roffsu(cp, &su, SCALE_BU))
+	if ( ! a2roffsu(cp, &su, SCALE_EN))
 		return(-1);
 
 	return((int)term_hspan(p, &su));
@@ -778,12 +778,18 @@ pre_SS(DECL_ARGS)
 		mt->fl &= ~MANT_LITERAL;
 		mt->lmargin[mt->lmargincur] = term_len(p, p->defindent);
 		mt->offset = term_len(p, p->defindent);
-		/* If following a prior empty `SS', no vspace. */
-		if (n->prev && MAN_SS == n->prev->tok)
-			if (NULL == n->prev->body->child)
-				break;
-		if (NULL == n->prev)
+
+		/*
+		 * No vertical space before the first subsection
+		 * and after an empty subsection.
+		 */
+
+		do {
+			n = n->prev;
+		} while (n != NULL && termacts[n->tok].flags & MAN_NOTEXT);
+		if (n == NULL || (n->tok == MAN_SS && n->body->child == NULL))
 			break;
+
 		for (i = 0; i < mt->pardist; i++)
 			term_vspace(p);
 		break;
@@ -827,13 +833,18 @@ pre_SH(DECL_ARGS)
 		mt->fl &= ~MANT_LITERAL;
 		mt->lmargin[mt->lmargincur] = term_len(p, p->defindent);
 		mt->offset = term_len(p, p->defindent);
-		/* If following a prior empty `SH', no vspace. */
-		if (n->prev && MAN_SH == n->prev->tok)
-			if (NULL == n->prev->body->child)
-				break;
-		/* If the first macro, no vspae. */
-		if (NULL == n->prev)
+
+		/*
+		 * No vertical space before the first section
+		 * and after an empty section.
+		 */
+
+		do {
+			n = n->prev;
+		} while (n != NULL && termacts[n->tok].flags & MAN_NOTEXT);
+		if (n == NULL || (n->tok == MAN_SH && n->body->child == NULL))
 			break;
+
 		for (i = 0; i < mt->pardist; i++)
 			term_vspace(p);
 		break;
@@ -1018,13 +1029,14 @@ out:
 	 * -man doesn't have nested macros, we don't need to be
 	 * more specific than this.
 	 */
-	if (MANT_LITERAL & mt->fl && ! (TERMP_NOBREAK & p->flags) &&
-	    (NULL == n->next || MAN_LINE & n->next->flags)) {
+	if (mt->fl & MANT_LITERAL &&
+	    ! (p->flags & (TERMP_NOBREAK | TERMP_NONEWLINE)) &&
+	    (n->next == NULL || n->next->flags & MAN_LINE)) {
 		rm = p->rmargin;
 		rmax = p->maxrmargin;
 		p->rmargin = p->maxrmargin = TERM_MAXMARGIN;
 		p->flags |= TERMP_NOSPACE;
-		if (NULL != n->string && '\0' != *n->string)
+		if (n->string != NULL && *n->string != '\0')
 			term_flushln(p);
 		else
 			term_newln(p);

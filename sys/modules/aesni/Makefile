@@ -22,3 +22,6 @@ aesni_wrap.o: aesni_wrap.c
 	${CTFCONVERT_CMD}
 
 .include <bsd.kmod.mk>
+
+CWARNFLAGS.aesni_ghash.c=	${NO_WCAST_QUAL}
+CWARNFLAGS.aesni_wrap.c=	${NO_WCAST_QUAL}

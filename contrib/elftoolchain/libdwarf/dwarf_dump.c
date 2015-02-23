@@ -27,7 +27,7 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: dwarf_dump.c 2073 2011-10-27 03:30:47Z jkoshy $");
+ELFTC_VCSID("$Id: dwarf_dump.c 3052 2014-05-26 20:36:24Z kaiwang27 $");
 
 int
 dwarf_get_ACCESS_name(unsigned access, const char **s)
@@ -250,6 +250,54 @@ dwarf_get_AT_name(unsigned attr, const char **s)
 		*s = "DW_AT_visibility"; break;
 	case DW_AT_vtable_elem_location:
 		*s = "DW_AT_vtable_elem_location"; break;
+	case DW_AT_sf_names:
+		*s = "DW_AT_sf_names"; break;
+	case DW_AT_src_info:
+		*s = "DW_AT_src_info"; break;
+	case DW_AT_mac_info:
+		*s = "DW_AT_mac_info"; break;
+	case DW_AT_src_coords:
+		*s = "DW_AT_src_coords"; break;
+	case DW_AT_body_begin:
+		*s = "DW_AT_body_begin"; break;
+	case DW_AT_body_end:
+		*s = "DW_AT_body_end"; break;
+	case DW_AT_GNU_vector:
+		*s = "DW_AT_GNU_vector"; break;
+	case DW_AT_GNU_guarded_by:
+		*s = "DW_AT_GNU_guarded_by"; break;
+	case DW_AT_GNU_pt_guarded_by:
+		*s = "DW_AT_GNU_pt_guarded_by"; break;
+	case DW_AT_GNU_guarded:
+		*s = "DW_AT_GNU_guarded"; break;
+	case DW_AT_GNU_pt_guarded:
+		*s = "DW_AT_GNU_pt_guarded"; break;
+	case DW_AT_GNU_locks_excluded:
+		*s = "DW_AT_GNU_locks_excluded"; break;
+	case DW_AT_GNU_exclusive_locks_required:
+		*s = "DW_AT_GNU_exclusive_locks_required"; break;
+	case DW_AT_GNU_shared_locks_required:
+		*s = "DW_AT_GNU_shared_locks_required"; break;
+	case DW_AT_GNU_odr_signature:
+		*s = "DW_AT_GNU_odr_signature"; break;
+	case DW_AT_GNU_template_name:
+		*s = "DW_AT_GNU_template_name"; break;
+	case DW_AT_GNU_call_site_value:
+		*s = "DW_AT_GNU_call_site_value"; break;
+	case DW_AT_GNU_call_site_data_value:
+		*s = "DW_AT_GNU_call_site_data_value"; break;
+	case DW_AT_GNU_call_site_target:
+		*s = "DW_AT_GNU_call_site_target"; break;
+	case DW_AT_GNU_call_site_target_clobbered:
+		*s = "DW_AT_GNU_call_site_target_clobbered"; break;
+	case DW_AT_GNU_tail_call:
+		*s = "DW_AT_GNU_tail_call"; break;
+	case DW_AT_GNU_all_tail_call_sites:
+		*s = "DW_AT_GNU_all_tail_call_sites"; break;
+	case DW_AT_GNU_all_call_sites:
+		*s = "DW_AT_GNU_all_call_sites"; break;
+	case DW_AT_GNU_all_source_call_sites:
+		*s = "DW_AT_GNU_all_source_call_sites"; break;
 	default:
 		return (DW_DLV_NO_ENTRY);
 	}
@@ -1094,6 +1142,30 @@ dwarf_get_OP_name(unsigned op, const char **s)
 		*s = "DW_OP_stack_value"; break;
 	case DW_OP_GNU_push_tls_address:
 		*s = "DW_OP_GNU_push_tls_address"; break;
+	case DW_OP_GNU_uninit:
+		*s = "DW_OP_GNU_uninit"; break;
+	case DW_OP_GNU_encoded_addr:
+		*s = "DW_OP_GNU_encoded_addr"; break;
+	case DW_OP_GNU_implicit_pointer:
+		*s = "DW_OP_GNU_implicit_pointer"; break;
+	case DW_OP_GNU_entry_value:
+		*s = "DW_OP_GNU_entry_value"; break;
+	case DW_OP_GNU_const_type:
+		*s = "DW_OP_GNU_const_type"; break;
+	case DW_OP_GNU_regval_type:
+		*s = "DW_OP_GNU_regval_type"; break;
+	case DW_OP_GNU_deref_type:
+		*s = "DW_OP_GNU_deref_type"; break;
+	case DW_OP_GNU_convert:
+		*s = "DW_OP_GNU_convert"; break;
+	case DW_OP_GNU_reinterpret:
+		*s = "DW_OP_GNU_reinterpret"; break;
+	case DW_OP_GNU_parameter_ref:
+		*s = "DW_OP_GNU_parameter_ref"; break;
+	case DW_OP_GNU_addr_index:
+		*s = "DW_OP_GNU_addr_index"; break;
+	case DW_OP_GNU_const_index:
+		*s = "DW_OP_GNU_const_index"; break;
 	default:
 		return (DW_DLV_NO_ENTRY);
 	}
@@ -1244,6 +1316,26 @@ dwarf_get_TAG_name(unsigned tag, const char **s)
 		*s = "DW_TAG_volatile_type"; break;
 	case DW_TAG_with_stmt:
 		*s = "DW_TAG_with_stmt"; break;
+	case DW_TAG_format_label:
+		*s = "DW_TAG_format_label"; break;
+	case DW_TAG_function_template:
+		*s = "DW_TAG_function_template"; break;
+	case DW_TAG_class_template:
+		*s = "DW_TAG_class_template"; break;
+	case DW_TAG_GNU_BINCL:
+		*s = "DW_TAG_GNU_BINCL"; break;
+	case DW_TAG_GNU_EINCL:
+		*s = "DW_TAG_GNU_EINCL"; break;
+	case DW_TAG_GNU_template_template_param:
+		*s = "DW_TAG_GNU_template_template_param"; break;
+	case DW_TAG_GNU_template_parameter_pack:
+		*s = "DW_TAG_GNU_template_parameter_pack"; break;
+	case DW_TAG_GNU_formal_parameter_pack:
+		*s = "DW_TAG_GNU_formal_parameter_pack"; break;
+	case DW_TAG_GNU_call_site:
+		*s = "DW_TAG_GNU_call_site"; break;
+	case DW_TAG_GNU_call_site_parameter:
+		*s = "DW_TAG_GNU_call_site_parameter"; break;
 	default:
 		return (DW_DLV_NO_ENTRY);
 	}

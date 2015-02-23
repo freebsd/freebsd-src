@@ -30,23 +30,24 @@ class SMRange;
 class SourceMgr;
 class Twine;
 
+class InlineAsmIdentifierInfo {
+public:
+  void *OpDecl;
+  bool IsVarDecl;
+  unsigned Length, Size, Type;
+
+  void clear() {
+    OpDecl = nullptr;
+    IsVarDecl = false;
+    Length = 1;
+    Size = 0;
+    Type = 0;
+  }
+};
+
 /// MCAsmParserSemaCallback - Generic Sema callback for assembly parser.
 class MCAsmParserSemaCallback {
 public:
-  typedef struct {
-    void *OpDecl;
-    bool IsVarDecl;
-    unsigned Length, Size, Type;
-
-    void clear() {
-      OpDecl = 0;
-      IsVarDecl = false;
-      Length = 1;
-      Size = 0;
-      Type = 0;
-    }
-  } InlineAsmIdentifierInfo;
-
   virtual ~MCAsmParserSemaCallback();
   virtual void *LookupInlineAsmIdentifier(StringRef &LineBuf,
                                           InlineAsmIdentifierInfo &Info,
@@ -55,9 +56,6 @@ public:
   virtual bool LookupInlineAsmField(StringRef Base, StringRef Member,
                                     unsigned &Offset) = 0;
 };
-
-typedef MCAsmParserSemaCallback::InlineAsmIdentifierInfo
-  InlineAsmIdentifierInfo;
 
 /// MCAsmParser - Generic assembler parser interface, for use by target specific
 /// assembly parsers.
@@ -117,6 +115,10 @@ public:
                                 const MCInstrInfo *MII,
                                 const MCInstPrinter *IP,
                                 MCAsmParserSemaCallback &SI) = 0;
+
+  /// Note - Emit a note at the location \p L, with the message \p Msg.
+  virtual void Note(SMLoc L, const Twine &Msg,
+                    ArrayRef<SMRange> Ranges = None) = 0;
 
   /// Warning - Emit a warning at the location \p L, with the message \p Msg.
   ///

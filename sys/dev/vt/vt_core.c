@@ -114,6 +114,7 @@ const struct terminal_class vt_termclass = {
 
 #define	VT_LOCK(vd)	mtx_lock(&(vd)->vd_lock)
 #define	VT_UNLOCK(vd)	mtx_unlock(&(vd)->vd_lock)
+#define	VT_LOCK_ASSERT(vd, what)	mtx_assert(&(vd)->vd_lock, what)
 
 #define	VT_UNIT(vw)	((vw)->vw_device->vd_unit * VT_MAXWINDOWS + \
 			(vw)->vw_number)
@@ -166,6 +167,8 @@ static void vt_update_static(void *);
 #ifndef SC_NO_CUTPASTE
 static void vt_mouse_paste(void);
 #endif
+static void vt_suspend_handler(void *priv);
+static void vt_resume_handler(void *priv);
 
 SET_DECLARE(vt_drv_set, struct vt_driver);
 
@@ -283,12 +286,18 @@ vt_resume_flush_timer(struct vt_device *vd, int ms)
 static void
 vt_suspend_flush_timer(struct vt_device *vd)
 {
+	/*
+	 * As long as this function is called locked, callout_stop()
+	 * has the same effect like callout_drain() with regard to
+	 * preventing the callback function from executing.
+	 */
+	VT_LOCK_ASSERT(vd, MA_OWNED);
 
 	if (!(vd->vd_flags & VDF_ASYNC) ||
 	    !atomic_cmpset_int(&vd->vd_timer_armed, 1, 0))
 		return;
 
-	callout_drain(&vd->vd_timer);
+	callout_stop(&vd->vd_timer);
 }
 
 static void
@@ -825,7 +834,9 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 				terminal_input_char(vw->vw_terminal, 0x1b);
 			}
 #endif
-
+#if defined(KDB)
+			kdb_alt_break(c, &vd->vd_altbrk);
+#endif
 			terminal_input_char(vw->vw_terminal, KEYCHAR(c));
 		} else
 			terminal_input_raw(vw->vw_terminal, c);
@@ -2356,20 +2367,23 @@ skip_thunk:
 		}
 		VT_UNLOCK(vd);
 		return (EINVAL);
-	case VT_WAITACTIVE:
+	case VT_WAITACTIVE: {
+		unsigned int idx;
+
 		error = 0;
 
-		i = *(unsigned int *)data;
-		if (i > VT_MAXWINDOWS)
+		idx = *(unsigned int *)data;
+		if (idx > VT_MAXWINDOWS)
 			return (EINVAL);
-		if (i != 0)
-			vw = vd->vd_windows[i - 1];
+		if (idx > 0)
+			vw = vd->vd_windows[idx - 1];
 
 		VT_LOCK(vd);
 		while (vd->vd_curwindow != vw && error == 0)
 			error = cv_wait_sig(&vd->vd_winswitch, &vd->vd_lock);
 		VT_UNLOCK(vd);
 		return (error);
+	}
 	case VT_SETMODE: {    	/* set screen switcher mode */
 		struct vt_mode *mode;
 		struct proc *p1;
@@ -2504,6 +2518,7 @@ vt_upgrade(struct vt_device *vd)
 {
 	struct vt_window *vw;
 	unsigned int i;
+	int register_handlers;
 
 	if (!vty_enabled(VTY_VT))
 		return;
@@ -2532,6 +2547,7 @@ vt_upgrade(struct vt_device *vd)
 	if (vd->vd_curwindow == NULL)
 		vd->vd_curwindow = vd->vd_windows[VT_CONSWINDOW];
 
+	register_handlers = 0;
 	if (!(vd->vd_flags & VDF_ASYNC)) {
 		/* Attach keyboard. */
 		vt_allocate_keyboard(vd);
@@ -2543,12 +2559,21 @@ vt_upgrade(struct vt_device *vd)
 		vd->vd_flags |= VDF_ASYNC;
 		callout_reset(&vd->vd_timer, hz / VT_TIMERFREQ, vt_timer, vd);
 		vd->vd_timer_armed = 1;
+		register_handlers = 1;
 	}
 
 	VT_UNLOCK(vd);
 
 	/* Refill settings with new sizes. */
 	vt_resize(vd);
+
+	if (register_handlers) {
+		/* Register suspend/resume handlers. */
+		EVENTHANDLER_REGISTER(power_suspend_early, vt_suspend_handler,
+		    vd, EVENTHANDLER_PRI_ANY);
+		EVENTHANDLER_REGISTER(power_resume, vt_resume_handler, vd,
+		    EVENTHANDLER_PRI_ANY);
+	}
 }
 
 static void
@@ -2602,7 +2627,9 @@ vt_allocate(struct vt_driver *drv, void *softc)
 
 	if (vd->vd_flags & VDF_ASYNC) {
 		/* Stop vt_flush periodic task. */
+		VT_LOCK(vd);
 		vt_suspend_flush_timer(vd);
+		VT_UNLOCK(vd);
 		/*
 		 * Mute current terminal until we done. vt_change_font (called
 		 * from vt_resize) will unmute it.
@@ -2644,26 +2671,54 @@ vt_allocate(struct vt_driver *drv, void *softc)
 	termcn_cnregister(vd->vd_windows[VT_CONSWINDOW]->vw_terminal);
 }
 
-void
-vt_suspend()
+static void
+vt_suspend_handler(void *priv)
 {
+	struct vt_device *vd;
+
+	vd = priv;
+	if (vd->vd_driver != NULL && vd->vd_driver->vd_suspend != NULL)
+		vd->vd_driver->vd_suspend(vd);
+}
+
+static void
+vt_resume_handler(void *priv)
+{
+	struct vt_device *vd;
+
+	vd = priv;
+	if (vd->vd_driver != NULL && vd->vd_driver->vd_resume != NULL)
+		vd->vd_driver->vd_resume(vd);
+}
+
+void
+vt_suspend(struct vt_device *vd)
+{
+	int error;
 
 	if (vt_suspendswitch == 0)
 		return;
 	/* Save current window. */
-	main_vd->vd_savedwindow = main_vd->vd_curwindow;
+	vd->vd_savedwindow = vd->vd_curwindow;
 	/* Ask holding process to free window and switch to console window */
-	vt_proc_window_switch(main_vd->vd_windows[VT_CONSWINDOW]);
+	vt_proc_window_switch(vd->vd_windows[VT_CONSWINDOW]);
+
+	/* Wait for the window switch to complete. */
+	error = 0;
+	VT_LOCK(vd);
+	while (vd->vd_curwindow != vd->vd_windows[VT_CONSWINDOW] && error == 0)
+		error = cv_wait_sig(&vd->vd_winswitch, &vd->vd_lock);
+	VT_UNLOCK(vd);
 }
 
 void
-vt_resume()
+vt_resume(struct vt_device *vd)
 {
 
 	if (vt_suspendswitch == 0)
 		return;
 	/* Switch back to saved window */
-	if (main_vd->vd_savedwindow != NULL)
-		vt_proc_window_switch(main_vd->vd_savedwindow);
-	main_vd->vd_savedwindow = NULL;
+	if (vd->vd_savedwindow != NULL)
+		vt_proc_window_switch(vd->vd_savedwindow);
+	vd->vd_savedwindow = NULL;
 }

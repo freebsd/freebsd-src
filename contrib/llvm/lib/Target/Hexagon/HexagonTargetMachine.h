@@ -14,12 +14,8 @@
 #ifndef HexagonTARGETMACHINE_H
 #define HexagonTARGETMACHINE_H
 
-#include "HexagonFrameLowering.h"
-#include "HexagonISelLowering.h"
 #include "HexagonInstrInfo.h"
-#include "HexagonSelectionDAGInfo.h"
 #include "HexagonSubtarget.h"
-#include "llvm/IR/DataLayout.h"
 #include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
@@ -27,13 +23,7 @@ namespace llvm {
 class Module;
 
 class HexagonTargetMachine : public LLVMTargetMachine {
-  const DataLayout DL;       // Calculates type size & alignment.
   HexagonSubtarget Subtarget;
-  HexagonInstrInfo InstrInfo;
-  HexagonTargetLowering TLInfo;
-  HexagonSelectionDAGInfo TSInfo;
-  HexagonFrameLowering FrameLowering;
-  const InstrItineraryData* InstrItins;
 
 public:
   HexagonTargetMachine(const Target &T, StringRef TT,StringRef CPU,
@@ -41,39 +31,33 @@ public:
                        Reloc::Model RM, CodeModel::Model CM,
                        CodeGenOpt::Level OL);
 
-  virtual const HexagonInstrInfo *getInstrInfo() const {
-    return &InstrInfo;
+  const HexagonInstrInfo *getInstrInfo() const override {
+    return getSubtargetImpl()->getInstrInfo();
   }
-  virtual const HexagonSubtarget *getSubtargetImpl() const {
+  const HexagonSubtarget *getSubtargetImpl() const override {
     return &Subtarget;
   }
-  virtual const HexagonRegisterInfo *getRegisterInfo() const {
-    return &InstrInfo.getRegisterInfo();
+  const HexagonRegisterInfo *getRegisterInfo() const override {
+    return getSubtargetImpl()->getRegisterInfo();
   }
-
-  virtual const InstrItineraryData* getInstrItineraryData() const {
-    return InstrItins;
+  const InstrItineraryData* getInstrItineraryData() const override {
+    return &getSubtargetImpl()->getInstrItineraryData();
   }
-
-
-  virtual const HexagonTargetLowering* getTargetLowering() const {
-    return &TLInfo;
+  const HexagonTargetLowering* getTargetLowering() const override {
+    return getSubtargetImpl()->getTargetLowering();
   }
-
-  virtual const HexagonFrameLowering* getFrameLowering() const {
-    return &FrameLowering;
+  const HexagonFrameLowering* getFrameLowering() const override {
+    return getSubtargetImpl()->getFrameLowering();
   }
-
-  virtual const HexagonSelectionDAGInfo* getSelectionDAGInfo() const {
-    return &TSInfo;
+  const HexagonSelectionDAGInfo* getSelectionDAGInfo() const override {
+    return getSubtargetImpl()->getSelectionDAGInfo();
   }
-
-  virtual const DataLayout       *getDataLayout() const { return &DL; }
+  const DataLayout *getDataLayout() const override {
+    return getSubtargetImpl()->getDataLayout();
+  }
   static unsigned getModuleMatchQuality(const Module &M);
 
-  // Pass Pipeline Configuration.
-  virtual bool addPassesForOptimizations(PassManagerBase &PM);
-  virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
+  TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
 };
 
 extern bool flag_aligned_memcpy;

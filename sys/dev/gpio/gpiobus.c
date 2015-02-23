@@ -131,6 +131,37 @@ gpiobus_print_pins(struct gpiobus_ivar *devi, char *buf, size_t buflen)
 	strlcat(buf, tmp, buflen);
 }
 
+device_t
+gpiobus_attach_bus(device_t dev)
+{
+	device_t busdev;
+
+	busdev = device_add_child(dev, "gpiobus", -1);
+	if (busdev == NULL)
+		return (NULL);
+	if (device_add_child(dev, "gpioc", -1) == NULL) {
+		device_delete_child(dev, busdev);
+		return (NULL);
+	}
+#ifdef FDT
+	ofw_gpiobus_register_provider(dev);
+#endif
+	bus_generic_attach(dev);
+
+	return (busdev);
+}
+
+int
+gpiobus_detach_bus(device_t dev)
+{
+
+#ifdef FDT
+	ofw_gpiobus_unregister_provider(dev);
+#endif
+
+	return (bus_generic_detach(dev));
+}
+
 int
 gpiobus_init_softc(device_t dev)
 {

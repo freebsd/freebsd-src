@@ -54,8 +54,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
-int			cpu_can_deep_sleep = 0;	/* C3 state is available. */
-int			cpu_disable_deep_sleep = 0; /* Timer dies in C3. */
+int			cpu_deepest_sleep = 0;	/* Deepest Cx state available. */
+int			cpu_disable_c2_sleep = 0; /* Timer dies in C2. */
+int			cpu_disable_c3_sleep = 0; /* Timer dies in C3. */
 
 static void		setuptimer(void);
 static void		loadtimer(sbintime_t now, int first);
@@ -605,7 +606,7 @@ cpu_initclocks_bsp(void)
 	else if (!periodic && (timer->et_flags & ET_FLAGS_ONESHOT) == 0)
 		periodic = 1;
 	if (timer->et_flags & ET_FLAGS_C3STOP)
-		cpu_disable_deep_sleep++;
+		cpu_disable_c3_sleep++;
 
 	/*
 	 * We honor the requested 'hz' value.
@@ -871,9 +872,9 @@ sysctl_kern_eventtimer_timer(SYSCTL_HANDLER_ARGS)
 	configtimer(0);
 	et_free(timer);
 	if (et->et_flags & ET_FLAGS_C3STOP)
-		cpu_disable_deep_sleep++;
+		cpu_disable_c3_sleep++;
 	if (timer->et_flags & ET_FLAGS_C3STOP)
-		cpu_disable_deep_sleep--;
+		cpu_disable_c3_sleep--;
 	periodic = want_periodic;
 	timer = et;
 	et_init(timer, timercb, NULL, NULL);
@@ -907,3 +908,42 @@ sysctl_kern_eventtimer_periodic(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern_eventtimer, OID_AUTO, periodic,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     0, 0, sysctl_kern_eventtimer_periodic, "I", "Enable event timer periodic mode");
+
+#include "opt_ddb.h"
+
+#ifdef DDB
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(clocksource, db_show_clocksource)
+{
+	struct pcpu_state *st;
+	int c;
+
+	CPU_FOREACH(c) {
+		st = DPCPU_ID_PTR(c, timerstate);
+		db_printf(
+		    "CPU %2d: action %d handle %d  ipi %d idle %d\n"
+		    "        now %#jx nevent %#jx (%jd)\n"
+		    "        ntick %#jx (%jd) nhard %#jx (%jd)\n"
+		    "        nstat %#jx (%jd) nprof %#jx (%jd)\n"
+		    "        ncall %#jx (%jd) ncallopt %#jx (%jd)\n",
+		    c, st->action, st->handle, st->ipi, st->idle,
+		    (uintmax_t)st->now,
+		    (uintmax_t)st->nextevent,
+		    (uintmax_t)(st->nextevent - st->now) / tick_sbt,
+		    (uintmax_t)st->nexttick,
+		    (uintmax_t)(st->nexttick - st->now) / tick_sbt,
+		    (uintmax_t)st->nexthard,
+		    (uintmax_t)(st->nexthard - st->now) / tick_sbt,
+		    (uintmax_t)st->nextstat,
+		    (uintmax_t)(st->nextstat - st->now) / tick_sbt,
+		    (uintmax_t)st->nextprof,
+		    (uintmax_t)(st->nextprof - st->now) / tick_sbt,
+		    (uintmax_t)st->nextcall,
+		    (uintmax_t)(st->nextcall - st->now) / tick_sbt,
+		    (uintmax_t)st->nextcallopt,
+		    (uintmax_t)(st->nextcallopt - st->now) / tick_sbt);
+	}
+}
+
+#endif

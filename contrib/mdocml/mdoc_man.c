@@ -1,4 +1,4 @@
-/*	$Id: mdoc_man.c,v 1.76 2014/11/27 22:27:56 schwarze Exp $ */
+/*	$Id: mdoc_man.c,v 1.77 2014/11/30 05:29:00 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2012, 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -1602,7 +1602,8 @@ static void
 post_pf(DECL_ARGS)
 {
 
-	outflags &= ~MMAN_spc;
+	if ( ! (n->next == NULL || n->next->flags & MDOC_LINE))
+		outflags &= ~MMAN_spc;
 }
 
 static int

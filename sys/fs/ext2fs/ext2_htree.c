@@ -395,7 +395,7 @@ ext2_htree_append_block(struct vnode *vp, char *data,
 	int error;
 
 	cursize = roundup(dp->i_size, blksize);
-	newsize = roundup(dp->i_size, blksize) + blksize;
+	newsize = cursize + blksize;
 
 	auio.uio_offset = cursize;
 	auio.uio_resid = blksize;
@@ -771,7 +771,7 @@ ext2_htree_add_entry(struct vnode *dvp, struct ext2fs_direct_2 *entry,
 		dst_node->h_fake_dirent.e2d_reclen = blksize;
 
 		cursize = roundup(ip->i_size, blksize);
-		dirsize = roundup(ip->i_size, blksize) + blksize;
+		dirsize = cursize + blksize;
 		blknum = dirsize / blksize - 1;
 
 		error = ext2_htree_append_block(dvp, newidxblock,
@@ -861,7 +861,7 @@ ext2_htree_add_entry(struct vnode *dvp, struct ext2fs_direct_2 *entry,
 	ext2_htree_split_dirblock((char *)bp->b_data, newdirblock, blksize,
 	    fs->e3fs_hash_seed, hash_version, &split_hash, entry);
 	cursize = roundup(ip->i_size, blksize);
-	dirsize = roundup(ip->i_size, blksize) + blksize;
+	dirsize = cursize + blksize;
 	blknum = dirsize / blksize - 1;
 
 	/* Add index entry for the new directory block */

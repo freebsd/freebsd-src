@@ -2,7 +2,8 @@
 
 .include <src.opts.mk>
 
-SUBDIR=	libiberty \
+SUBDIR=	doc\
+	libiberty \
 	libbfd \
 	libopcodes \
 	libbinutils \
@@ -15,9 +16,8 @@ SUBDIR=	libiberty \
 	readelf \
 	${_size} \
 	${_strings} \
-	${_strip} \
-	doc
-	
+	${_strip}
+
 .if ${MK_ELFTOOLCHAIN_TOOLS} == "no"
 _addr2line=	addr2line
 _nm=		nm

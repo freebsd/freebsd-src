@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include "io/vatpic.h"
 #include "io/vioapic.h"
 #include "io/vhpet.h"
+#include "io/vrtc.h"
 
 struct vmmdev_softc {
 	struct vm	*vm;		/* vm instance cookie */
@@ -174,6 +175,8 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_activate_cpu *vac;
 	struct vm_cpuset *vm_cpuset;
 	struct vm_intinfo *vmii;
+	struct vm_rtc_time *rtctime;
+	struct vm_rtc_data *rtcdata;
 
 	sc = vmmdev_lookup2(cdev);
 	if (sc == NULL)
@@ -202,6 +205,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_ACTIVATE_CPU:
 	case VM_SET_INTINFO:
 	case VM_GET_INTINFO:
+	case VM_RESTART_INSTRUCTION:
 		/*
 		 * XXX fragile, handle with care
 		 * Assumes that the first field of the ioctl data is the vcpu.
@@ -307,7 +311,9 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	case VM_INJECT_EXCEPTION:
 		vmexc = (struct vm_exception *)data;
-		error = vm_inject_exception(sc->vm, vmexc->cpuid, vmexc);
+		error = vm_inject_exception(sc->vm, vmexc->cpuid,
+		    vmexc->vector, vmexc->error_code_valid, vmexc->error_code,
+		    vmexc->restart_instruction);
 		break;
 	case VM_INJECT_NMI:
 		vmnmi = (struct vm_nmi *)data;
@@ -481,6 +487,28 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		vmii = (struct vm_intinfo *)data;
 		error = vm_get_intinfo(sc->vm, vmii->vcpuid, &vmii->info1,
 		    &vmii->info2);
+		break;
+	case VM_RTC_WRITE:
+		rtcdata = (struct vm_rtc_data *)data;
+		error = vrtc_nvram_write(sc->vm, rtcdata->offset,
+		    rtcdata->value);
+		break;
+	case VM_RTC_READ:
+		rtcdata = (struct vm_rtc_data *)data;
+		error = vrtc_nvram_read(sc->vm, rtcdata->offset,
+		    &rtcdata->value);
+		break;
+	case VM_RTC_SETTIME:
+		rtctime = (struct vm_rtc_time *)data;
+		error = vrtc_set_time(sc->vm, rtctime->secs);
+		break;
+	case VM_RTC_GETTIME:
+		error = 0;
+		rtctime = (struct vm_rtc_time *)data;
+		rtctime->secs = vrtc_get_time(sc->vm);
+		break;
+	case VM_RESTART_INSTRUCTION:
+		error = vm_restart_instruction(sc->vm, vcpu);
 		break;
 	default:
 		error = ENOTTY;

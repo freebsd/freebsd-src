@@ -16,10 +16,10 @@
 
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
+#include "llvm/IR/CallSite.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Function.h"
-#include "llvm/InstVisitor.h"
-#include "llvm/Support/CallSite.h"
+#include "llvm/IR/InstVisitor.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -108,29 +108,29 @@ public:
   
   /// create - Create an interpreter ExecutionEngine. This can never fail.
   ///
-  static ExecutionEngine *create(Module *M, std::string *ErrorStr = 0);
+  static ExecutionEngine *create(Module *M, std::string *ErrorStr = nullptr);
 
   /// run - Start execution with the specified function and arguments.
   ///
-  virtual GenericValue runFunction(Function *F,
-                                   const std::vector<GenericValue> &ArgValues);
+  GenericValue runFunction(Function *F,
+                           const std::vector<GenericValue> &ArgValues) override;
 
-  virtual void *getPointerToNamedFunction(const std::string &Name,
-                                          bool AbortOnFailure = true) {
+  void *getPointerToNamedFunction(const std::string &Name,
+                                  bool AbortOnFailure = true) override {
     // FIXME: not implemented.
-    return 0;
+    return nullptr;
   }
 
   /// recompileAndRelinkFunction - For the interpreter, functions are always
   /// up-to-date.
   ///
-  virtual void *recompileAndRelinkFunction(Function *F) {
+  void *recompileAndRelinkFunction(Function *F) override {
     return getPointerToFunction(F);
   }
 
   /// freeMachineCodeForFunction - The interpreter does not generate any code.
   ///
-  void freeMachineCodeForFunction(Function *F) { }
+  void freeMachineCodeForFunction(Function *F) override { }
 
   // Methods used to execute code:
   // Place a call on the stack
@@ -212,8 +212,8 @@ private:  // Helper functions
   //
   void SwitchToNewBasicBlock(BasicBlock *Dest, ExecutionContext &SF);
 
-  void *getPointerToFunction(Function *F) { return (void*)F; }
-  void *getPointerToBasicBlock(BasicBlock *BB) { return (void*)BB; }
+  void *getPointerToFunction(Function *F) override { return (void*)F; }
+  void *getPointerToBasicBlock(BasicBlock *BB) override { return (void*)BB; }
 
   void initializeExecutionEngine() { }
   void initializeExternalFunctions();

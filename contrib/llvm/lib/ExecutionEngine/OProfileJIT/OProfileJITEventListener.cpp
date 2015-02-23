@@ -15,10 +15,8 @@
 #include "llvm/Config/config.h"
 #include "llvm/ExecutionEngine/JITEventListener.h"
 
-#define DEBUG_TYPE "oprofile-jit-event-listener"
-#include "llvm/DebugInfo.h"
+#include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/Function.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/ExecutionEngine/ObjectImage.h"
 #include "llvm/ExecutionEngine/OProfileWrapper.h"
@@ -33,6 +31,8 @@
 
 using namespace llvm;
 using namespace llvm::jitprofiling;
+
+#define DEBUG_TYPE "oprofile-jit-event-listener"
 
 namespace {
 
@@ -171,11 +171,8 @@ void OProfileJITEventListener::NotifyObjectEmitted(const ObjectImage &Obj) {
   }
 
   // Use symbol info to iterate functions in the object.
-  error_code ec;
-  for (object::symbol_iterator I = Obj.begin_symbols(),
-                               E = Obj.end_symbols();
-                        I != E && !ec;
-                        I.increment(ec)) {
+  for (object::symbol_iterator I = Obj.begin_symbols(), E = Obj.end_symbols();
+       I != E; ++I) {
     object::SymbolRef::Type SymType;
     if (I->getType(SymType)) continue;
     if (SymType == object::SymbolRef::ST_Function) {
@@ -204,11 +201,8 @@ void OProfileJITEventListener::NotifyFreeingObject(const ObjectImage &Obj) {
   }
 
   // Use symbol info to iterate functions in the object.
-  error_code ec;
-  for (object::symbol_iterator I = Obj.begin_symbols(),
-                               E = Obj.end_symbols();
-                        I != E && !ec;
-                        I.increment(ec)) {
+  for (object::symbol_iterator I = Obj.begin_symbols(), E = Obj.end_symbols();
+       I != E; ++I) {
     object::SymbolRef::Type SymType;
     if (I->getType(SymType)) continue;
     if (SymType == object::SymbolRef::ST_Function) {
@@ -229,7 +223,8 @@ void OProfileJITEventListener::NotifyFreeingObject(const ObjectImage &Obj) {
 
 namespace llvm {
 JITEventListener *JITEventListener::createOProfileJITEventListener() {
-  static OwningPtr<OProfileWrapper> JITProfilingWrapper(new OProfileWrapper);
+  static std::unique_ptr<OProfileWrapper> JITProfilingWrapper(
+      new OProfileWrapper);
   return new OProfileJITEventListener(*JITProfilingWrapper);
 }
 

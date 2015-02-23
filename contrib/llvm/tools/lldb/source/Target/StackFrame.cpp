@@ -360,7 +360,7 @@ StackFrame::GetSymbolContext (uint32_t resolve_scope)
         }
         
 
-        // Resolve our PC to section offset if we haven't alreday done so
+        // Resolve our PC to section offset if we haven't already done so
         // and if we don't have a module. The resolved address section will
         // contain the module to which it belongs
         if (!m_sc.module_sp && m_flags.IsClear(RESOLVED_FRAME_CODE_ADDR))
@@ -861,7 +861,7 @@ StackFrame::GetValueForVariableExpressionPath (const char *var_expr_cstr,
                                                                             valobj_sp->GetTypeName().AsCString("<invalid type>"),
                                                                             var_expr_path_strm.GetString().c_str());
                                         }
-                                        else if (child_index >= synthetic->GetNumChildren() /* synthetic does not have that many values */)
+                                        else if (static_cast<uint32_t>(child_index) >= synthetic->GetNumChildren() /* synthetic does not have that many values */)
                                         {
                                             valobj_sp->GetExpressionPath (var_expr_path_strm, false);
                                             error.SetErrorStringWithFormat ("array index %ld is not valid for \"(%s) %s\"", 
@@ -937,7 +937,7 @@ StackFrame::GetValueForVariableExpressionPath (const char *var_expr_cstr,
                                                                         valobj_sp->GetTypeName().AsCString("<invalid type>"),
                                                                         var_expr_path_strm.GetString().c_str());
                                     }
-                                    else if (child_index >= synthetic->GetNumChildren() /* synthetic does not have that many values */)
+                                    else if (static_cast<uint32_t>(child_index) >= synthetic->GetNumChildren() /* synthetic does not have that many values */)
                                     {
                                         valobj_sp->GetExpressionPath (var_expr_path_strm, false);
                                         error.SetErrorStringWithFormat ("array index %ld is not valid for \"(%s) %s\"", 
@@ -1444,13 +1444,12 @@ StackFrame::GetStatus (Stream& strm,
             const uint32_t source_lines_after = debugger.GetStopSourceLineCount(false);
             disasm_display = debugger.GetStopDisassemblyDisplay ();
 
-            if (source_lines_before > 0 || source_lines_after > 0)
+            GetSymbolContext(eSymbolContextCompUnit | eSymbolContextLineEntry);
+            if (m_sc.comp_unit && m_sc.line_entry.IsValid())
             {
-                GetSymbolContext(eSymbolContextCompUnit | eSymbolContextLineEntry);
-
-                if (m_sc.comp_unit && m_sc.line_entry.IsValid())
+                have_source = true;
+                if (source_lines_before > 0 || source_lines_after > 0)
                 {
-                    have_source = true;
                     target->GetSourceManager().DisplaySourceLinesWithLineNumbers (m_sc.line_entry.file,
                                                                                       m_sc.line_entry.line,
                                                                                       source_lines_before,
