@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd November 14, 2014
+.Dd February 22, 2015
 .Dt SH 1
 .Os
 .Sh NAME
@@ -1196,17 +1196,18 @@ command is implemented as a special built-in command.
 .Ss Variables and Parameters
 The shell maintains a set of parameters.
 A parameter
-denoted by a name is called a variable.
+denoted by a name
+(consisting solely
+of alphabetics, numerics, and underscores,
+and starting with an alphabetic or an underscore)
+is called a variable.
 When starting up,
-the shell turns all the environment variables into shell
+the shell turns all environment variables with valid names into shell
 variables.
 New variables can be set using the form
 .Pp
 .D1 Ar name Ns = Ns Ar value
 .Pp
-Variables set by the user must have a name consisting solely
-of alphabetics, numerics, and underscores.
-The first letter of a variable name must not be numeric.
 A parameter can also be denoted by a number
 or a special character as explained below.
 .Pp
@@ -1369,6 +1370,10 @@ This variable overrides the
 .Va MAIL
 setting.
 There is a maximum of 10 mailboxes that can be monitored at once.
+.It Va OPTIND
+The index of the next argument to be processed by
+.Ic getopts .
+This is initialized to 1 at startup.
 .It Va PATH
 The default search path for executables.
 See the
@@ -2297,6 +2302,8 @@ If an invalid option is encountered,
 is set to
 .Ql \&? .
 It returns a false value (1) when it encounters the end of the options.
+A new set of arguments may be parsed by assigning
+.Li OPTIND=1 .
 .It Ic hash Oo Fl rv Oc Op Ar command ...
 The shell maintains a hash table which remembers the locations of commands.
 With no arguments whatsoever, the
@@ -2771,7 +2778,7 @@ This is inherited by children of the shell, and is used in the history
 editing modes.
 .El
 .Pp
-Additionally, all environment variables are turned into shell variables
+Additionally, environment variables are turned into shell variables
 at startup,
 which may affect the shell as described under
 .Sx Special Variables .

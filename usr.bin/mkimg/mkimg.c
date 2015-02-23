@@ -60,6 +60,8 @@ static struct option longopts[] = {
 	{ NULL, 0, NULL, 0 }
 };
 
+static uint64_t capacity;
+
 struct partlisthead partlist = STAILQ_HEAD_INITIALIZER(partlist);
 u_int nparts = 0;
 
@@ -147,6 +149,7 @@ usage(const char *why)
 	fprintf(stderr, "\t--version\t-  show version information\n");
 	fputc('\n', stderr);
 	fprintf(stderr, "\t-b <file>\t-  file containing boot code\n");
+	fprintf(stderr, "\t-c <num>\t-  capacity (in bytes) of the disk\n");
 	fprintf(stderr, "\t-f <format>\n");
 	fprintf(stderr, "\t-o <file>\t-  file to write image into\n");
 	fprintf(stderr, "\t-p <partition>\n");
@@ -179,7 +182,7 @@ usage(const char *why)
 }
 
 static int
-parse_number(u_int *valp, u_int min, u_int max, const char *arg)
+parse_uint32(uint32_t *valp, uint32_t min, uint32_t max, const char *arg)
 {
 	uint64_t val;
 
@@ -187,7 +190,20 @@ parse_number(u_int *valp, u_int min, u_int max, const char *arg)
 		return (errno);
 	if (val > UINT_MAX || val < (uint64_t)min || val > (uint64_t)max)
 		return (EINVAL);
-	*valp = (u_int)val;
+	*valp = (uint32_t)val;
+	return (0);
+}
+
+static int
+parse_uint64(uint64_t *valp, uint64_t min, uint64_t max, const char *arg)
+{
+	uint64_t val;
+
+	if (expand_number(arg, &val) == -1)
+		return (errno);
+	if (val < min || val > max)
+		return (EINVAL);
+	*valp = val;
 	return (0);
 }
 
@@ -376,6 +392,17 @@ mkimg_uuid(struct uuid *uuid)
 	memcpy(uuid, gen, sizeof(uuid_t));
 }
 
+static int
+capacity_resize(lba_t end)
+{
+	lba_t capsz;
+
+	capsz = (capacity + secsz - 1) / secsz;
+	if (end >= capsz)
+		return (0);
+	return (image_set_size(capsz));
+}
+
 static void
 mkimg(void)
 {
@@ -437,12 +464,14 @@ mkimg(void)
 	block = scheme_metadata(SCHEME_META_IMG_END, block);
 	error = image_set_size(block);
 	if (!error)
+		error = capacity_resize(block);
+	if (!error)
 		error = format_resize(block);
 	if (error)
 		errc(EX_IOERR, error, "image sizing");
 	block = image_get_size();
 	ncyls = block / (nsecs * nheads);
-	error = (scheme_write(block));
+	error = scheme_write(block);
 	if (error)
 		errc(EX_IOERR, error, "writing metadata");
 }
@@ -455,7 +484,7 @@ main(int argc, char *argv[])
 
 	bcfd = -1;
 	outfd = 1;	/* Write to stdout by default */
-	while ((c = getopt_long(argc, argv, "b:f:o:p:s:vyH:P:S:T:",
+	while ((c = getopt_long(argc, argv, "b:c:f:o:p:s:vyH:P:S:T:",
 	    longopts, NULL)) != -1) {
 		switch (c) {
 		case 'b':	/* BOOT CODE */
@@ -464,6 +493,11 @@ main(int argc, char *argv[])
 			bcfd = open(optarg, O_RDONLY, 0);
 			if (bcfd == -1)
 				err(EX_UNAVAILABLE, "%s", optarg);
+			break;
+		case 'c':	/* CAPACITY */
+			error = parse_uint64(&capacity, 1, OFF_MAX, optarg);
+			if (error)
+				errc(EX_DATAERR, error, "capacity in bytes");
 			break;
 		case 'f':	/* OUTPUT FORMAT */
 			if (format_selected() != NULL)
@@ -499,26 +533,26 @@ main(int argc, char *argv[])
 			verbose++;
 			break;
 		case 'H':	/* GEOMETRY: HEADS */
-			error = parse_number(&nheads, 1, 255, optarg);
+			error = parse_uint32(&nheads, 1, 255, optarg);
 			if (error)
 				errc(EX_DATAERR, error, "number of heads");
 			break;
 		case 'P':	/* GEOMETRY: PHYSICAL SECTOR SIZE */
-			error = parse_number(&blksz, 512, INT_MAX+1U, optarg);
+			error = parse_uint32(&blksz, 512, INT_MAX+1U, optarg);
 			if (error == 0 && !pwr_of_two(blksz))
 				error = EINVAL;
 			if (error)
 				errc(EX_DATAERR, error, "physical sector size");
 			break;
 		case 'S':	/* GEOMETRY: LOGICAL SECTOR SIZE */
-			error = parse_number(&secsz, 512, INT_MAX+1U, optarg);
+			error = parse_uint32(&secsz, 512, INT_MAX+1U, optarg);
 			if (error == 0 && !pwr_of_two(secsz))
 				error = EINVAL;
 			if (error)
 				errc(EX_DATAERR, error, "logical sector size");
 			break;
 		case 'T':	/* GEOMETRY: TRACK SIZE */
-			error = parse_number(&nsecs, 1, 63, optarg);
+			error = parse_uint32(&nsecs, 1, 63, optarg);
 			if (error)
 				errc(EX_DATAERR, error, "track size");
 			break;
@@ -541,9 +575,9 @@ main(int argc, char *argv[])
 
 	if (argc > optind)
 		usage("trailing arguments");
-	if (scheme_selected() == NULL)
+	if (scheme_selected() == NULL && nparts > 0)
 		usage("no scheme");
-	if (nparts == 0)
+	if (nparts == 0 && capacity == 0)
 		usage("no partitions");
 
 	if (secsz > blksz) {
@@ -577,8 +611,9 @@ main(int argc, char *argv[])
 		fprintf(stderr, "Sectors per track:   %u\n", nsecs);
 		fprintf(stderr, "Number of heads:     %u\n", nheads);
 		fputc('\n', stderr);
-		fprintf(stderr, "Partitioning scheme: %s\n",
-		    scheme_selected()->name);
+		if (scheme_selected())
+			fprintf(stderr, "Partitioning scheme: %s\n",
+			    scheme_selected()->name);
 		fprintf(stderr, "Output file format:  %s\n",
 		    format_selected()->name);
 		fputc('\n', stderr);

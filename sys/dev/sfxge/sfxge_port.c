@@ -85,6 +85,68 @@ out:
 	return (rc);
 }
 
+uint64_t
+sfxge_get_counter(struct ifnet *ifp, ift_counter c)
+{
+	struct sfxge_softc *sc = ifp->if_softc;
+	uint64_t *mac_stats;
+	uint64_t val;
+
+	SFXGE_PORT_LOCK(&sc->port);
+
+	/* Ignore error and use old values */
+	(void)sfxge_mac_stat_update(sc);
+
+	mac_stats = (uint64_t *)sc->port.mac_stats.decode_buf;
+
+	switch (c) {
+	case IFCOUNTER_IPACKETS:
+		val = mac_stats[EFX_MAC_RX_PKTS];
+		break;
+	case IFCOUNTER_IERRORS:
+		val = mac_stats[EFX_MAC_RX_ERRORS];
+		break;
+	case IFCOUNTER_OPACKETS:
+		val = mac_stats[EFX_MAC_TX_PKTS];
+		break;
+	case IFCOUNTER_OERRORS:
+		val = mac_stats[EFX_MAC_TX_ERRORS];
+		break;
+	case IFCOUNTER_COLLISIONS:
+		val = mac_stats[EFX_MAC_TX_SGL_COL_PKTS] +
+		      mac_stats[EFX_MAC_TX_MULT_COL_PKTS] +
+		      mac_stats[EFX_MAC_TX_EX_COL_PKTS] +
+		      mac_stats[EFX_MAC_TX_LATE_COL_PKTS];
+		break;
+	case IFCOUNTER_IBYTES:
+		val = mac_stats[EFX_MAC_RX_OCTETS];
+		break;
+	case IFCOUNTER_OBYTES:
+		val = mac_stats[EFX_MAC_TX_OCTETS];
+		break;
+	case IFCOUNTER_OMCASTS:
+		val = mac_stats[EFX_MAC_TX_MULTICST_PKTS] +
+		      mac_stats[EFX_MAC_TX_BRDCST_PKTS];
+		break;
+	case IFCOUNTER_OQDROPS:
+		SFXGE_PORT_UNLOCK(&sc->port);
+		return (sfxge_tx_get_drops(sc));
+	case IFCOUNTER_IMCASTS:
+		/* if_imcasts is maintained in net/if_ethersubr.c */
+	case IFCOUNTER_IQDROPS:
+		/* if_iqdrops is maintained in net/if_ethersubr.c */
+	case IFCOUNTER_NOPROTO:
+		/* if_noproto is maintained in net/if_ethersubr.c */
+	default:
+		SFXGE_PORT_UNLOCK(&sc->port);
+		return (if_get_counter_default(ifp, c));
+	}
+
+	SFXGE_PORT_UNLOCK(&sc->port);
+
+	return (val);
+}
+
 static int
 sfxge_mac_stat_handler(SYSCTL_HANDLER_ARGS)
 {

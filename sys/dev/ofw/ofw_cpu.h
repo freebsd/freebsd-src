@@ -1,6 +1,9 @@
-/*
- * Copyright (c) 1983, 1993
- *	The Regents of the University of California.  All rights reserved.
+/*-
+ * Copyright (c) 2015 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * This software was developed by Andrew Turner under
+ * sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,14 +13,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -25,36 +25,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)nice.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef _DEV_OFW_OFW_CPU_H_
+#define _DEV_OFW_OFW_CPU_H_
 
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <errno.h>
-#include <unistd.h>
+typedef boolean_t (*ofw_cpu_foreach_cb)(u_int, phandle_t, u_int, pcell_t *);
+int ofw_cpu_early_foreach(ofw_cpu_foreach_cb, boolean_t);
 
-/*
- * Backwards compatible nice.
- */
-int
-nice(int incr)
-{
-	int prio;
-
-	errno = 0;
-	prio = getpriority(PRIO_PROCESS, 0);
-	if (prio == -1 && errno)
-		return -1;
-	if (setpriority(PRIO_PROCESS, 0, prio + incr) == -1) {
-		if (errno == EACCES)
-			errno = EPERM;
-		return -1;
-	}
-	return getpriority(PRIO_PROCESS, 0);
-}
+#endif /* _DEV_OFW_OFW_CPU_H_ */

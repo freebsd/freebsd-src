@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2014, Intel Corporation 
+  Copyright (c) 2013-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -38,12 +38,15 @@
 ** 	    both the BASE and the VF drivers.
 */
 
+#ifndef IXL_STANDALONE_BUILD
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_rss.h"
+#endif
+
 #include "ixl.h"
 
-#ifdef RSS 
+#ifdef RSS
 #include <net/rss_config.h>
 #endif
 
@@ -1371,7 +1374,7 @@ ixl_rx_discard(struct rx_ring *rxr, int i)
 
 #ifdef RSS
 /*
-** ixl_ptype_to_hash: parse the packet type
+** i40e_ptype_to_hash: parse the packet type
 ** to determine the appropriate hash.
 */
 static inline int
