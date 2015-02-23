@@ -1076,7 +1076,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
 				putchar(',');
-				sendfileflagsname(*ip);
+				sendfileflagsname(*(int *)ip);
 				ip++;
 				narg--;
 				break;
