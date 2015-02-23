@@ -76,6 +76,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libmd_cheri} \
 	${_libmilter} \
 	${_libmp} \
+	libmt \
 	${_libnandfs} \
 	libnetbsd \
 	${_libnetgraph} \
