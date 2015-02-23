@@ -830,3 +830,4 @@ netmap_loader(__unused struct module *module, int event, __unused void *arg)
 
 
 DEV_MODULE(netmap, netmap_loader, NULL);
+MODULE_VERSION(netmap, 1);
