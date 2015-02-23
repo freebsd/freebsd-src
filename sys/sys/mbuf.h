@@ -1282,6 +1282,7 @@ mbufq_dequeue(struct mbufq *mq)
 	m = STAILQ_FIRST(&mq->mq_head);
 	if (m) {
 		STAILQ_REMOVE_HEAD(&mq->mq_head, m_stailqpkt);
+		m->m_nextpkt = NULL;
 		mq->mq_len--;
 	}
 	return (m);
