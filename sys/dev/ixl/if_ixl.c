@@ -213,6 +213,9 @@ DRIVER_MODULE(ixl, pci, ixl_driver, ixl_devclass, 0, 0);
 
 MODULE_DEPEND(ixl, pci, 1, 1, 1);
 MODULE_DEPEND(ixl, ether, 1, 1, 1);
+#ifdef DEV_NETMAP
+MODULE_DEPEND(ixl, netmap, 1, 1, 1);
+#endif /* DEV_NETMAP */
 
 /*
 ** Global reset mutex
@@ -287,6 +290,10 @@ int ixl_atr_rate = 20;
 TUNABLE_INT("hw.ixl.atr_rate", &ixl_atr_rate);
 #endif
 
+#ifdef DEV_NETMAP
+#define NETMAP_IXL_MAIN /* only bring in one part of the netmap code */
+#include <dev/netmap/if_ixl_netmap.h>
+#endif /* DEV_NETMAP */
 
 static char *ixl_fc_string[6] = {
 	"None",
@@ -647,6 +654,9 @@ ixl_attach(device_t dev)
 	    ixl_unregister_vlan, vsi, EVENTHANDLER_PRI_FIRST);
 
 
+#ifdef DEV_NETMAP
+	ixl_netmap_attach(vsi);
+#endif /* DEV_NETMAP */
 	INIT_DEBUGOUT("ixl_attach: end");
 	return (0);
 
@@ -725,6 +735,9 @@ ixl_detach(device_t dev)
 		EVENTHANDLER_DEREGISTER(vlan_unconfig, vsi->vlan_detach);
 
 	callout_drain(&pf->timer);
+#ifdef DEV_NETMAP
+	netmap_detach(vsi->ifp);
+#endif /* DEV_NETMAP */
 
 
 	ixl_free_pci_resources(pf);
@@ -2662,6 +2675,15 @@ ixl_initialize_vsi(struct ixl_vsi *vsi)
 			break;
 		}
 		wr32(vsi->hw, I40E_QRX_TAIL(que->me), 0);
+#ifdef DEV_NETMAP
+		/* preserve queue */
+		if (vsi->ifp->if_capenable & IFCAP_NETMAP) {
+			struct netmap_adapter *na = NA(vsi->ifp);
+			struct netmap_kring *kring = &na->rx_rings[i];
+			int t = na->num_rx_desc - 1 - nm_kr_rxspace(kring);
+			wr32(vsi->hw, I40E_QRX_TAIL(que->me), t);
+		} else
+#endif /* DEV_NETMAP */
 		wr32(vsi->hw, I40E_QRX_TAIL(que->me), que->num_desc - 1);
 	}
 	return (err);
