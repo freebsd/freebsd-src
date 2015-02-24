@@ -310,7 +310,8 @@ alloc_nm_rxq_hwq(struct port_info *pi, struct sge_nm_rxq *nm_rxq)
 	if (is_t5(sc))
 		nm_rxq->fl_db_val |= F_DBTYPE;
 
-	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS), V_SEINTARM(F_QINTR_CNT_EN) |
+	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS),
+	    V_SEINTARM(V_QINTR_TIMER_IDX(1)) |
 	    V_INGRESSQID(nm_rxq->iq_cntxt_id));
 
 	return (rc);
@@ -1139,6 +1140,7 @@ t4_nm_intr(void *arg)
 		netmap_rx_irq(ifp, nm_rxq->nid, &processed);
 	}
 	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS), V_CIDXINC(n) |
-	    V_INGRESSQID((u32)nm_rxq->iq_cntxt_id) | V_SEINTARM(F_QINTR_CNT_EN));
+	    V_INGRESSQID((u32)nm_rxq->iq_cntxt_id) |
+	    V_SEINTARM(V_QINTR_TIMER_IDX(1)));
 }
 #endif
