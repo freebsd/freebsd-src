@@ -226,9 +226,9 @@ cxgbe_nm_qflush(struct ifnet *ifp)
 }
 
 static int
-alloc_nm_rxq_hwq(struct port_info *pi, struct sge_nm_rxq *nm_rxq)
+alloc_nm_rxq_hwq(struct port_info *pi, struct sge_nm_rxq *nm_rxq, int cong)
 {
-	int rc, cntxt_id;
+	int rc, cntxt_id, i;
 	__be32 v;
 	struct adapter *sc = pi->adapter;
 	struct netmap_adapter *na = NA(pi->nm_ifp);
@@ -267,6 +267,11 @@ alloc_nm_rxq_hwq(struct port_info *pi, struct sge_nm_rxq *nm_rxq)
 	    V_FW_IQ_CMD_IQESIZE(ilog2(IQ_ESIZE) - 4));
 	c.iqsize = htobe16(pi->qsize_rxq);
 	c.iqaddr = htobe64(nm_rxq->iq_ba);
+	if (cong >= 0) {
+		c.iqns_to_fl0congen = htobe32(F_FW_IQ_CMD_IQFLINTCONGEN |
+		    V_FW_IQ_CMD_FL0CNGCHMAP(cong) | F_FW_IQ_CMD_FL0CONGCIF |
+		    F_FW_IQ_CMD_FL0CONGEN);
+	}
 	c.iqns_to_fl0congen |=
 	    htobe32(V_FW_IQ_CMD_FL0HOSTFCMODE(X_HOSTFCMODE_NONE) |
 		F_FW_IQ_CMD_FL0FETCHRO | F_FW_IQ_CMD_FL0DATARO |
@@ -309,6 +314,34 @@ alloc_nm_rxq_hwq(struct port_info *pi, struct sge_nm_rxq *nm_rxq)
 	nm_rxq->fl_db_val = F_DBPRIO | V_QID(nm_rxq->fl_cntxt_id) | V_PIDX(0);
 	if (is_t5(sc))
 		nm_rxq->fl_db_val |= F_DBTYPE;
+
+	if (is_t5(sc) && cong >= 0) {
+		uint32_t param, val;
+
+		param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
+		    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_CONM_CTXT) |
+		    V_FW_PARAMS_PARAM_YZ(nm_rxq->iq_cntxt_id);
+		param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
+		    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_CONM_CTXT) |
+		    V_FW_PARAMS_PARAM_YZ(nm_rxq->iq_cntxt_id);
+		if (cong == 0)
+			val = 1 << 19;
+		else {
+			val = 2 << 19;
+			for (i = 0; i < 4; i++) {
+				if (cong & (1 << i))
+					val |= 1 << (i << 2);
+			}
+		}
+
+		rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
+		if (rc != 0) {
+			/* report error but carry on */
+			device_printf(sc->dev,
+			    "failed to set congestion manager context for "
+			    "ingress queue %d: %d\n", nm_rxq->iq_cntxt_id, rc);
+		}
+	}
 
 	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS),
 	    V_SEINTARM(V_QINTR_TIMER_IDX(1)) |
@@ -450,7 +483,7 @@ cxgbe_netmap_on(struct adapter *sc, struct port_info *pi, struct ifnet *ifp,
 	nm_set_native_flags(na);
 
 	for_each_nm_rxq(pi, i, nm_rxq) {
-		alloc_nm_rxq_hwq(pi, nm_rxq);
+		alloc_nm_rxq_hwq(pi, nm_rxq, tnl_cong(pi));
 		nm_rxq->fl_hwidx = hwidx;
 		slot = netmap_reset(na, NR_RX, i, 0);
 		MPASS(slot != NULL);	/* XXXNM: error check, not assert */
