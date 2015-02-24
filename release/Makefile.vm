@@ -111,8 +111,6 @@ vm-install:
 		${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
 . endfor
 . if defined(WITH_COMPRESSED_VMIMAGES) && !empty(WITH_COMPRESSED_VMIMAGES)
-# This is very time consuming, so defer it after the images are moved to
-# the DESTDIR.
 .  for FORMAT in ${VMFORMATS}
 	# Don't keep the originals.  There is a copy in ${.OBJDIR} if needed.
 	${XZ_CMD} ${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
