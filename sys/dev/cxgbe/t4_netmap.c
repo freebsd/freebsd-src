@@ -681,7 +681,7 @@ int lazy_tx_credit_flush = 1;
  */
 static void
 cxgbe_nm_tx(struct adapter *sc, struct sge_nm_txq *nm_txq,
-    struct netmap_kring *kring, int npkt, int npkt_remaining)
+    struct netmap_kring *kring, int npkt, int npkt_remaining, int txcsum)
 {
 	struct netmap_ring *ring = kring->ring;
 	struct netmap_slot *slot;
@@ -717,10 +717,12 @@ cxgbe_nm_tx(struct adapter *sc, struct sge_nm_txq *nm_txq,
 			 * checksum offloading, TCP segmentation offloading,
 			 * encryption, VLAN encapsulation/decapsulation, etc."
 			 *
-			 * XXXNM: it makes sense to enable checksum offload.
+			 * So the ncxl interfaces have tx hardware checksumming
+			 * disabled by default.  But you can override netmap by
+			 * enabling IFCAP_TXCSUM on the interface manully.
 			 */
-			cpl->ctrl1 = htobe64(F_TXPKT_IPCSUM_DIS |
-			    F_TXPKT_L4CSUM_DIS);
+			cpl->ctrl1 = txcsum ? 0 :
+			    htobe64(F_TXPKT_IPCSUM_DIS | F_TXPKT_L4CSUM_DIS);
 
 			usgl = (void *)(cpl + 1);
 			usgl->cmd_nsge = htobe32(V_ULPTX_CMD(ULP_TX_SC_DSGL) |
@@ -833,7 +835,7 @@ cxgbe_netmap_txsync(struct netmap_kring *kring, int flags)
 	struct sge_nm_txq *nm_txq = &sc->sge.nm_txq[pi->first_nm_txq + kring->ring_id];
 	const u_int head = kring->rhead;
 	u_int reclaimed = 0;
-	int n, d, npkt_remaining, ndesc_remaining;
+	int n, d, npkt_remaining, ndesc_remaining, txcsum;
 
 	/*
 	 * Tx was at kring->nr_hwcur last time around and now we need to advance
@@ -844,6 +846,7 @@ cxgbe_netmap_txsync(struct netmap_kring *kring, int flags)
 
 	npkt_remaining = head >= kring->nr_hwcur ? head - kring->nr_hwcur :
 	    kring->nkr_num_slots - kring->nr_hwcur + head;
+	txcsum = ifp->if_capenable & (IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6);
 	while (npkt_remaining) {
 		reclaimed += reclaim_nm_tx_desc(nm_txq);
 		ndesc_remaining = contiguous_ndesc_available(nm_txq);
@@ -867,7 +870,7 @@ cxgbe_netmap_txsync(struct netmap_kring *kring, int flags)
 
 		/* Send n packets and update nm_txq->pidx and kring->nr_hwcur */
 		npkt_remaining -= n;
-		cxgbe_nm_tx(sc, nm_txq, kring, n, npkt_remaining);
+		cxgbe_nm_tx(sc, nm_txq, kring, n, npkt_remaining, txcsum);
 	}
 	MPASS(npkt_remaining == 0);
 	MPASS(kring->nr_hwcur == head);
