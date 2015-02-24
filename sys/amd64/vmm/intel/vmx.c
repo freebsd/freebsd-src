@@ -100,13 +100,11 @@ __FBSDID("$FreeBSD$");
 	(VM_EXIT_HOST_LMA			|			\
 	VM_EXIT_SAVE_EFER			|			\
 	VM_EXIT_LOAD_EFER			|			\
-	VM_EXIT_ACKNOWLEDGE_INTERRUPT		|			\
-	VM_EXIT_SAVE_PAT			|			\
-	VM_EXIT_LOAD_PAT)
+	VM_EXIT_ACKNOWLEDGE_INTERRUPT)
 
 #define	VM_EXIT_CTLS_ZERO_SETTING	VM_EXIT_SAVE_DEBUG_CONTROLS
 
-#define	VM_ENTRY_CTLS_ONE_SETTING	(VM_ENTRY_LOAD_EFER | VM_ENTRY_LOAD_PAT)
+#define	VM_ENTRY_CTLS_ONE_SETTING	(VM_ENTRY_LOAD_EFER)
 
 #define	VM_ENTRY_CTLS_ZERO_SETTING					\
 	(VM_ENTRY_LOAD_DEBUG_CONTROLS		|			\
@@ -859,10 +857,6 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	 * VM exit and entry respectively. It is also restored from the
 	 * host VMCS area on a VM exit.
 	 *
-	 * MSR_PAT is saved and restored in the guest VMCS are on a VM exit
-	 * and entry respectively. It is also restored from the host VMCS
-	 * area on a VM exit.
-	 *
 	 * The TSC MSR is exposed read-only. Writes are disallowed as that
 	 * will impact the host TSC.
 	 * XXX Writes would be implemented with a wrmsr trap, and
@@ -874,7 +868,6 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	    guest_msr_rw(vmx, MSR_SYSENTER_ESP_MSR) ||
 	    guest_msr_rw(vmx, MSR_SYSENTER_EIP_MSR) ||
 	    guest_msr_rw(vmx, MSR_EFER) ||
-	    guest_msr_rw(vmx, MSR_PAT) ||
 	    guest_msr_ro(vmx, MSR_TSC))
 		panic("vmx_vminit: error setting guest msr access");
 
