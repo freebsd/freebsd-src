@@ -4432,7 +4432,7 @@ saextget(struct cdev *dev, struct cam_periph *periph, struct sbuf *sb,
 		    ts2_len);
 
 		SASBADDVARSTRDESC(sb, indent, tmpstr2, %s, serial_num,
-		    cgd.serial_num_len + 1, "Serial Number");
+		    (ssize_t)cgd.serial_num_len + 1, "Serial Number");
 		if (ts2_malloc != 0)
 			free(tmpstr2, M_SCSISA);
 	} else {
@@ -4441,8 +4441,8 @@ saextget(struct cdev *dev, struct cam_periph *periph, struct sbuf *sb,
 		 * be empty if the device has no serial number.
 		 */
 		tmpstr[0] = '\0';
-		SASBADDVARSTRDESC(sb, indent, tmpstr, %s, serial_num, 0,
-		    "Serial Number");
+		SASBADDVARSTRDESC(sb, indent, tmpstr, %s, serial_num,
+		    (ssize_t)0, "Serial Number");
 	}
 
 	SASBADDUINTDESC(sb, indent, softc->maxio, %u, maxio, 
