@@ -1747,8 +1747,12 @@ get_exportlist(void)
 		iov[5].iov_len = strlen(fsp->f_mntfromname) + 1;
 		errmsg[0] = '\0';
 
+		/*
+		 * EXDEV is returned when path exists but is not a
+		 * mount point.  May happens if raced with unmount.
+		 */
 		if (nmount(iov, iovlen, fsp->f_flags) < 0 &&
-		    errno != ENOENT && errno != ENOTSUP) {
+		    errno != ENOENT && errno != ENOTSUP && errno != EXDEV) {
 			syslog(LOG_ERR,
 			    "can't delete exports for %s: %m %s",
 			    fsp->f_mntonname, errmsg);
