@@ -36,6 +36,7 @@ struct cheri_tcpdump_control {
 	int	ctdc_sandboxes;		/* Number of sandboxes (mode dep.)*/
 	int	ctdc_sb_max_lifetime;	/* Maximum sandbox life (sec) */
 	int	ctdc_sb_max_packets;	/* Max packets to process */
+	uint	ctdc_sb_timeout;	/* Max time to proess a packet */
 	int	ctdc_colorize;		/* Enable colorized output */
 	int	ctdc_pause;		/* Pause packet processing */
 	int	ctdc_reset;		/* Reset the sandboxes */

@@ -66,6 +66,7 @@ usage(void)
 "	-m <mode>		none, one, local, ip-hash, per-proto\n"
 "	-p <packets>		max packets per sandbox\n"
 "	-s <sandboxes>		number of sandboxes (mode dependent)\n"
+"	-t <timeout>		max dissection time (usec)\n"
 );
 	exit(1);
 }
@@ -84,7 +85,7 @@ main(int argc, char *argv[])
 	ctdc.ctdc_colorize = 1;
 	ctdc.ctdc_sandboxes = 3;
 
-	while ((opt = getopt(argc, argv, "cCf:l:m:p:s:")) != -1) {
+	while ((opt = getopt(argc, argv, "cCf:l:m:p:s:t:")) != -1) {
 		switch (opt) {
 		case 'c':
 			ctdc.ctdc_colorize = 1;
@@ -132,6 +133,13 @@ main(int argc, char *argv[])
 				usage();
 			}
 			ctdc.ctdc_sandboxes = atoi(optarg);
+			break;
+		case 't':
+			if (!isdigit(*optarg)) {
+				warnx("invalid timeout '%s'", optarg);
+				usage();
+			}
+			ctdc.ctdc_sb_timeout = atoi(optarg);
 			break;
 		default:
 			warnx("unknown option %c", opt);

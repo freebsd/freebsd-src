@@ -52,6 +52,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -128,6 +129,8 @@ int		g_mode;
 int		g_sandboxes = 1;
 int		g_max_lifetime;
 int		g_max_packets;
+useconds_t	g_timeout;
+int		g_timeout_occured;
 int		g_reset;
 
 static const char *hash_colors[] = {
@@ -149,6 +152,13 @@ static struct tcpdump_sandbox_list sandboxes =
 static struct tcpdump_sandbox *default_sandbox;
 
 static struct sandbox_class	*tcpdump_classp;
+
+static void
+handle_alarm(int sig)
+{
+	assert(sig == SIGALRM);
+	g_timeout_occured = 1;
+}
 
 static void
 set_color_default(void)
@@ -441,6 +451,8 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 	/* Invoke */
 	sb->tds_total_invokes++;
 	sb->tds_current_invokes++;
+	if (g_timeout != 0)
+		ualarm(g_timeout, 0);
 	ret = sandbox_object_cinvoke(sb->tds_sandbox_object,
 	    TCPDUMP_HELPER_OP_PRINT_PACKET,
 	    0, 0, 0, 0, 0, 0, 0, 0,
@@ -450,6 +462,13 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 	    cheri_ptrperm((void *)data, hdr->caplen,
 		CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
 	    sb->tds_proto_sandbox_objects, NULL, NULL, NULL);
+	if (g_timeout_occured) {
+		/* XXX: dump hex here? */
+		printf("dissection terminated due to timeout (ret = %d)\n", ret);
+		g_timeout_occured = 0;
+		tcpdump_sandbox_reset(sb);
+	} else if (g_timeout != 0)
+		ualarm(0, 0);
 
 	/* If it fails, reset it */
 	if (ret < 0) {
@@ -534,6 +553,14 @@ poll_ctdc_config(void)
 		    g_max_packets, ctdc->ctdc_sb_max_packets);
 		g_max_packets = ctdc->ctdc_sb_max_packets;
 	}
+
+	if (g_timeout != ctdc->ctdc_sb_timeout) {
+		fprintf(stderr, "%s max dissection time from %d to %d\n",
+		    g_timeout < ctdc->ctdc_sb_timeout ?
+		    "increasing" : "decreasing",
+		    g_timeout, ctdc->ctdc_sb_timeout);
+		g_timeout = ctdc->ctdc_sb_timeout;
+	}
 }
 
 void
@@ -541,6 +568,7 @@ init_print(uint32_t localnet, uint32_t mask, uint32_t timezone_offset)
 {
 	char *control_file;
 	int control_fd = -1, i;
+	stack_t sigstk;
 
 	if ((control_file = getenv("DEMO_CONTROL")) == NULL ||
 	    (control_fd = open(control_file, O_RDONLY)) == -1 ||
@@ -559,6 +587,7 @@ init_print(uint32_t localnet, uint32_t mask, uint32_t timezone_offset)
 	g_timezone_offset = timezone_offset;
 	g_max_lifetime = ctdc->ctdc_sb_max_lifetime;
 	g_max_packets = ctdc->ctdc_sb_max_packets;
+	g_timeout = ctdc->ctdc_sb_timeout;
 	g_reset = ctdc->ctdc_reset;
 	g_sandboxes = CTDC_SANDBOXES(ctdc, 1, MAX_SANDBOXES);
 
@@ -573,6 +602,15 @@ init_print(uint32_t localnet, uint32_t mask, uint32_t timezone_offset)
 	if (tcpdump_classp == NULL &&
 	    tcpdump_sandbox_object_setup() != 0)
 		error("failure setting up sandbox object");
+
+	signal(SIGALRM, handle_alarm);
+	if ((sigstk.ss_sp = malloc(SIGSTKSZ)) == NULL)
+		error("failure allocating alternative signal stack");
+	sigstk.ss_size = SIGSTKSZ;
+	sigstk.ss_flags = 0;
+	if (sigaltstack(&sigstk, NULL) < 0)
+		error("sigaltstack");
+
 }
 
 int
