@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
-#include <sys/msgbuf.h>
+#include <sys/rwlock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
@@ -59,6 +59,8 @@ __FBSDID("$FreeBSD$");
 
 extern int n_slbs;
 
+static struct rwlock mphyp_eviction_lock;
+
 /*
  * Kernel MMU interface
  */
@@ -66,18 +68,10 @@ extern int n_slbs;
 static void	mphyp_bootstrap(mmu_t mmup, vm_offset_t kernelstart,
 		    vm_offset_t kernelend);
 static void	mphyp_cpu_bootstrap(mmu_t mmup, int ap);
-static void	mphyp_pte_synch(mmu_t, uintptr_t pt, struct lpte *pvo_pt);
-static void	mphyp_pte_clear(mmu_t, uintptr_t pt, struct lpte *pvo_pt,
-		    uint64_t vpn, u_int64_t ptebit);
-static void	mphyp_pte_unset(mmu_t, uintptr_t pt, struct lpte *pvo_pt,
-		    uint64_t vpn);
-static void	mphyp_pte_change(mmu_t, uintptr_t pt, struct lpte *pvo_pt,
-		    uint64_t vpn);
-static int	mphyp_pte_insert(mmu_t, u_int ptegidx, struct lpte *pvo_pt);
-static uintptr_t mphyp_pvo_to_pte(mmu_t, const struct pvo_entry *pvo);
-
-#define VSID_HASH_MASK		0x0000007fffffffffULL
-
+static int64_t	mphyp_pte_synch(mmu_t, struct pvo_entry *pvo);
+static int64_t	mphyp_pte_clear(mmu_t, struct pvo_entry *pvo, uint64_t ptebit);
+static int64_t	mphyp_pte_unset(mmu_t, struct pvo_entry *pvo);
+static int	mphyp_pte_insert(mmu_t, struct pvo_entry *pvo);
 
 static mmu_method_t mphyp_methods[] = {
         MMUMETHOD(mmu_bootstrap,        mphyp_bootstrap),
@@ -86,14 +80,31 @@ static mmu_method_t mphyp_methods[] = {
 	MMUMETHOD(moea64_pte_synch,     mphyp_pte_synch),
         MMUMETHOD(moea64_pte_clear,     mphyp_pte_clear),
         MMUMETHOD(moea64_pte_unset,     mphyp_pte_unset),
-        MMUMETHOD(moea64_pte_change,    mphyp_pte_change),
         MMUMETHOD(moea64_pte_insert,    mphyp_pte_insert),
-        MMUMETHOD(moea64_pvo_to_pte,    mphyp_pvo_to_pte),
+
+	/* XXX: pmap_copy_page, pmap_init_page with H_PAGE_INIT */
 
         { 0, 0 }
 };
 
 MMU_DEF_INHERIT(pseries_mmu, "mmu_phyp", mphyp_methods, 0, oea64_mmu);
+
+static int brokenkvm = 0;
+
+static void
+print_kvm_bug_warning(void *data)
+{
+
+	if (brokenkvm)
+		printf("WARNING: Running on a broken hypervisor that does "
+		    "not support mandatory H_CLEAR_MOD and H_CLEAR_REF "
+		    "hypercalls. Performance will be suboptimal.\n");
+}
+
+SYSINIT(kvmbugwarn1, SI_SUB_COPYRIGHT, SI_ORDER_THIRD + 1,
+    print_kvm_bug_warning, NULL);
+SYSINIT(kvmbugwarn2, SI_SUB_LAST, SI_ORDER_THIRD + 1, print_kvm_bug_warning,
+    NULL);
 
 static void
 mphyp_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
@@ -105,6 +116,8 @@ mphyp_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	uint32_t lp_size, lp_encoding;
 	phandle_t dev, node, root;
 	int idx, len, res;
+
+	rw_init(&mphyp_eviction_lock, "pte eviction");
 
 	moea64_early_bootstrap(mmup, kernelstart, kernelend);
 
@@ -185,6 +198,10 @@ mphyp_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 
 	moea64_mid_bootstrap(mmup, kernelstart, kernelend);
 	moea64_late_bootstrap(mmup, kernelstart, kernelend);
+
+	/* Test for broken versions of KVM that don't conform to the spec */
+	if (phyp_hcall(H_CLEAR_MOD, 0, 0) == H_FUNCTION)
+		brokenkvm = 1;
 }
 
 static void
@@ -209,72 +226,105 @@ mphyp_cpu_bootstrap(mmu_t mmup, int ap)
 	}
 }
 
-static void
-mphyp_pte_synch(mmu_t mmu, uintptr_t slot, struct lpte *pvo_pt)
+static int64_t
+mphyp_pte_synch(mmu_t mmu, struct pvo_entry *pvo)
 {
 	struct lpte pte;
 	uint64_t junk;
 
 	__asm __volatile("ptesync");
-	phyp_pft_hcall(H_READ, 0, slot, 0, 0, &pte.pte_hi, &pte.pte_lo,
-	    &junk);
+	phyp_pft_hcall(H_READ, 0, pvo->pvo_pte.slot, 0, 0, &pte.pte_hi,
+	    &pte.pte_lo, &junk);
+	if ((pte.pte_hi & LPTE_AVPN_MASK) !=
+	    ((pvo->pvo_vpn >> (ADDR_API_SHFT64 - ADDR_PIDX_SHFT)) &
+	    LPTE_AVPN_MASK))
+		return (-1);
+	if (!(pte.pte_hi & LPTE_VALID))
+		return (-1);
 
-	pvo_pt->pte_lo |= pte.pte_lo & (LPTE_CHG | LPTE_REF);
+	return (pte.pte_lo & (LPTE_CHG | LPTE_REF));
 }
 
-static void
-mphyp_pte_clear(mmu_t mmu, uintptr_t slot, struct lpte *pvo_pt, uint64_t vpn,
-    u_int64_t ptebit)
+static int64_t
+mphyp_pte_clear(mmu_t mmu, struct pvo_entry *pvo, uint64_t ptebit)
 {
+	int64_t refchg;
+	uint64_t ptelo, junk;
+	int err;
 
-	if (ptebit & LPTE_CHG)
-		phyp_hcall(H_CLEAR_MOD, 0, slot);
-	if (ptebit & LPTE_REF)
-		phyp_hcall(H_CLEAR_REF, 0, slot);
+	/*
+	 * This involves two steps (synch and clear) so we need the entry
+	 * not to change in the middle. We are protected against deliberate
+	 * unset by virtue of holding the pmap lock. Protection against
+	 * incidental unset (page table eviction) comes from holding the
+	 * shared eviction lock.
+	 */
+	PMAP_LOCK_ASSERT(pvo->pvo_pmap, MA_OWNED);
+	rw_rlock(&mphyp_eviction_lock);
+
+	refchg = mphyp_pte_synch(mmu, pvo);
+	if (refchg < 0) {
+		rw_runlock(&mphyp_eviction_lock);
+		return (refchg);
+	}
+
+	if (brokenkvm) {
+		/*
+		 * No way to clear either bit, which is total madness.
+		 * Pessimistically claim that, once modified, it stays so
+		 * forever and that it is never referenced.
+		 */
+		rw_runlock(&mphyp_eviction_lock);
+		return (refchg & ~LPTE_REF);
+	}
+
+	if (ptebit & LPTE_CHG) {
+		err = phyp_pft_hcall(H_CLEAR_MOD, 0, pvo->pvo_pte.slot, 0, 0,
+		    &ptelo, &junk, &junk);
+		KASSERT(err == H_SUCCESS,
+		    ("Error clearing page change bit: %d", err));
+		refchg |= (ptelo & LPTE_CHG);
+	}
+	if (ptebit & LPTE_REF) {
+		err = phyp_pft_hcall(H_CLEAR_REF, 0, pvo->pvo_pte.slot, 0, 0,
+		    &ptelo, &junk, &junk);
+		KASSERT(err == H_SUCCESS,
+		    ("Error clearing page reference bit: %d", err));
+		refchg |= (ptelo & LPTE_REF);
+	}
+
+	rw_runlock(&mphyp_eviction_lock);
+
+	return (refchg);
 }
 
-static void
-mphyp_pte_unset(mmu_t mmu, uintptr_t slot, struct lpte *pvo_pt, uint64_t vpn)
+static int64_t
+mphyp_pte_unset(mmu_t mmu, struct pvo_entry *pvo)
 {
 	struct lpte pte;
 	uint64_t junk;
 	int err;
 
-	pvo_pt->pte_hi &= ~LPTE_VALID;
-	err = phyp_pft_hcall(H_REMOVE, 1UL << 31, slot,
-	    pvo_pt->pte_hi & LPTE_AVPN_MASK, 0, &pte.pte_hi, &pte.pte_lo,
+	PMAP_LOCK_ASSERT(pvo->pvo_pmap, MA_OWNED);
+
+	moea64_pte_from_pvo(pvo, &pte);
+
+	err = phyp_pft_hcall(H_REMOVE, H_AVPN, pvo->pvo_pte.slot,
+	    pte.pte_hi & LPTE_AVPN_MASK, 0, &pte.pte_hi, &pte.pte_lo,
 	    &junk);
-	KASSERT(err == H_SUCCESS, ("Error removing page: %d", err));
+	KASSERT(err == H_SUCCESS || err == H_NOT_FOUND,
+	    ("Error removing page: %d", err));
 
-	pvo_pt->pte_lo |= pte.pte_lo & (LPTE_CHG | LPTE_REF);
+	if (err == H_NOT_FOUND) {
+		moea64_pte_overflow--;
+		return (-1);
+	}
+
+	return (pte.pte_lo & (LPTE_REF | LPTE_CHG));
 }
 
-static void
-mphyp_pte_change(mmu_t mmu, uintptr_t slot, struct lpte *pvo_pt, uint64_t vpn)
-{
-	struct lpte evicted;
-	uint64_t index, junk;
-	int64_t result;
-
-	/*
-	 * NB: this is protected by the global table lock, so this two-step
-	 * is safe, except for the scratch-page case. No CPUs on which we run
-	 * this code should be using scratch pages.
-	 */
-	KASSERT(!(pvo_pt->pte_hi & LPTE_LOCKED),
-	    ("Locked pages not supported on PHYP"));
-
-	/* XXX: optimization using H_PROTECT for common case? */
-	mphyp_pte_unset(mmu, slot, pvo_pt, vpn);
-	pvo_pt->pte_hi |= LPTE_VALID;
-	result = phyp_pft_hcall(H_ENTER, H_EXACT, slot, pvo_pt->pte_hi,
-				pvo_pt->pte_lo, &index, &evicted.pte_lo, &junk);
-	if (result != H_SUCCESS)
-		panic("mphyp_pte_change() insertion failure: %ld\n", result);
-}
-
-static __inline int
-mphyp_pte_spillable_ident(u_int ptegidx, struct lpte *to_evict)
+static uintptr_t
+mphyp_pte_spillable_ident(uintptr_t ptegbase, struct lpte *to_evict)
 {
 	uint64_t slot, junk, k;
 	struct lpte pt;
@@ -284,9 +334,9 @@ mphyp_pte_spillable_ident(u_int ptegidx, struct lpte *to_evict)
 	i = mftb() % 8;
 	k = -1;
 	for (j = 0; j < 8; j++) {
-		slot = (ptegidx << 3) + (i + j) % 8;
-		phyp_pft_hcall(H_READ, 0, slot, 0, 0, &pt.pte_hi, &pt.pte_lo,
-		    &junk);
+		slot = ptegbase + (i + j) % 8;
+		phyp_pft_hcall(H_READ, 0, slot, 0, 0, &pt.pte_hi,
+		    &pt.pte_lo, &junk);
 		
 		if (pt.pte_hi & LPTE_WIRED)
 			continue;
@@ -295,7 +345,7 @@ mphyp_pte_spillable_ident(u_int ptegidx, struct lpte *to_evict)
 		k = slot;
 
 		/* Try to get a page that has not been used lately */
-		if (!(pt.pte_lo & LPTE_REF)) {
+		if (!(pt.pte_hi & LPTE_VALID) || !(pt.pte_lo & LPTE_REF)) {
 			memcpy(to_evict, &pt, sizeof(struct lpte));
 			return (k);
 		}
@@ -310,137 +360,101 @@ mphyp_pte_spillable_ident(u_int ptegidx, struct lpte *to_evict)
 }
 
 static int
-mphyp_pte_insert(mmu_t mmu, u_int ptegidx, struct lpte *pvo_pt)
+mphyp_pte_insert(mmu_t mmu, struct pvo_entry *pvo)
 {
 	int64_t result;
-	struct lpte evicted;
-	struct pvo_entry *pvo;
-	uint64_t index, junk;
-	u_int pteg_bktidx;
+	struct lpte evicted, pte;
+	uint64_t index, junk, lastptelo;
 
-	/* Check for locked pages, which we can't support on this system */
-	KASSERT(!(pvo_pt->pte_hi & LPTE_LOCKED),
-	    ("Locked pages not supported on PHYP"));
+	PMAP_LOCK_ASSERT(pvo->pvo_pmap, MA_OWNED);
 
 	/* Initialize PTE */
-	pvo_pt->pte_hi |= LPTE_VALID;
-	pvo_pt->pte_hi &= ~LPTE_HID;
+	moea64_pte_from_pvo(pvo, &pte);
 	evicted.pte_hi = 0;
+
+	/* Make sure further insertion is locked out during evictions */
+	rw_rlock(&mphyp_eviction_lock);
 
 	/*
 	 * First try primary hash.
 	 */
-	pteg_bktidx = ptegidx;
-	result = phyp_pft_hcall(H_ENTER, 0, pteg_bktidx << 3, pvo_pt->pte_hi,
-	    pvo_pt->pte_lo, &index, &evicted.pte_lo, &junk);
-	if (result == H_SUCCESS)
-		return (index & 0x07);
+	pvo->pvo_pte.slot &= ~7UL; /* Base slot address */
+	result = phyp_pft_hcall(H_ENTER, 0, pvo->pvo_pte.slot, pte.pte_hi,
+	    pte.pte_lo, &index, &evicted.pte_lo, &junk);
+	if (result == H_SUCCESS) {
+		rw_runlock(&mphyp_eviction_lock);
+		pvo->pvo_pte.slot = index;
+		return (0);
+	}
 	KASSERT(result == H_PTEG_FULL, ("Page insertion error: %ld "
-	    "(ptegidx: %#x/%#x, PTE %#lx/%#lx", result, ptegidx,
-	    moea64_pteg_count, pvo_pt->pte_hi, pvo_pt->pte_lo));
+	    "(ptegidx: %#zx/%#x, PTE %#lx/%#lx", result, pvo->pvo_pte.slot,
+	    moea64_pteg_count, pte.pte_hi, pte.pte_lo));
 
 	/*
 	 * Next try secondary hash.
 	 */
-	pteg_bktidx ^= moea64_pteg_mask;
-	pvo_pt->pte_hi |= LPTE_HID;
-	result = phyp_pft_hcall(H_ENTER, 0, pteg_bktidx << 3,
-	    pvo_pt->pte_hi, pvo_pt->pte_lo, &index, &evicted.pte_lo, &junk);
-	if (result == H_SUCCESS)
-		return (index & 0x07);
+	pvo->pvo_vaddr ^= PVO_HID;
+	pte.pte_hi ^= LPTE_HID;
+	pvo->pvo_pte.slot ^= (moea64_pteg_mask << 3);
+
+	result = phyp_pft_hcall(H_ENTER, 0, pvo->pvo_pte.slot,
+	    pte.pte_hi, pte.pte_lo, &index, &evicted.pte_lo, &junk);
+	if (result == H_SUCCESS) {
+		rw_runlock(&mphyp_eviction_lock);
+		pvo->pvo_pte.slot = index;
+		return (0);
+	}
 	KASSERT(result == H_PTEG_FULL, ("Secondary page insertion error: %ld",
 	    result));
 
 	/*
 	 * Out of luck. Find a PTE to sacrifice.
 	 */
-	pteg_bktidx = ptegidx;
-	index = mphyp_pte_spillable_ident(pteg_bktidx, &evicted);
+
+	/* Lock out all insertions for a bit */
+	if (!rw_try_upgrade(&mphyp_eviction_lock)) {
+		rw_runlock(&mphyp_eviction_lock);
+		rw_wlock(&mphyp_eviction_lock);
+	}
+
+	index = mphyp_pte_spillable_ident(pvo->pvo_pte.slot, &evicted);
 	if (index == -1L) {
-		pteg_bktidx ^= moea64_pteg_mask;
-		index = mphyp_pte_spillable_ident(pteg_bktidx, &evicted);
+		/* Try other hash table? */
+		pvo->pvo_vaddr ^= PVO_HID;
+		pte.pte_hi ^= LPTE_HID;
+		pvo->pvo_pte.slot ^= (moea64_pteg_mask << 3);
+		index = mphyp_pte_spillable_ident(pvo->pvo_pte.slot, &evicted);
 	}
 
 	if (index == -1L) {
 		/* No freeable slots in either PTEG? We're hosed. */
+		rw_wunlock(&mphyp_eviction_lock);
 		panic("mphyp_pte_insert: overflow");
 		return (-1);
 	}
 
-	if (pteg_bktidx == ptegidx)
-                pvo_pt->pte_hi &= ~LPTE_HID;
-        else
-                pvo_pt->pte_hi |= LPTE_HID;
-
-	/*
-	 * Synchronize the sacrifice PTE with its PVO, then mark both
-	 * invalid. The PVO will be reused when/if the VM system comes
-	 * here after a fault.
-	 */
-
-	if (evicted.pte_hi & LPTE_HID)
-		pteg_bktidx ^= moea64_pteg_mask; /* PTEs indexed by primary */
-
-	LIST_FOREACH(pvo, &moea64_pvo_table[pteg_bktidx], pvo_olink) {
-		if (pvo->pvo_pte.lpte.pte_hi == evicted.pte_hi) {
-			KASSERT(pvo->pvo_pte.lpte.pte_hi & LPTE_VALID,
-			    ("Invalid PVO for valid PTE!"));
-			mphyp_pte_unset(mmu, index, &pvo->pvo_pte.lpte,
-			    pvo->pvo_vpn);
-			PVO_PTEGIDX_CLR(pvo);
-			moea64_pte_overflow++;
-			break;
-		}
+	/* Victim acquired: update page before waving goodbye */
+	if (evicted.pte_hi & LPTE_VALID) {
+		result = phyp_pft_hcall(H_REMOVE, H_AVPN, index,
+		    evicted.pte_hi & LPTE_AVPN_MASK, 0, &junk, &lastptelo,
+		    &junk);
+		moea64_pte_overflow++;
+		KASSERT(result == H_SUCCESS,
+		    ("Error evicting page: %d", (int)result));
 	}
-
-	KASSERT((pvo->pvo_pte.lpte.pte_hi | LPTE_VALID) == evicted.pte_hi,
-	   ("Unable to find PVO for spilled PTE"));
 
 	/*
 	 * Set the new PTE.
 	 */
-	result = phyp_pft_hcall(H_ENTER, H_EXACT, index, pvo_pt->pte_hi,
-	    pvo_pt->pte_lo, &index, &evicted.pte_lo, &junk);
+	result = phyp_pft_hcall(H_ENTER, H_EXACT, index, pte.pte_hi,
+	    pte.pte_lo, &index, &evicted.pte_lo, &junk);
+	rw_wunlock(&mphyp_eviction_lock); /* All clear */
+
+	pvo->pvo_pte.slot = index;
 	if (result == H_SUCCESS)
-		return (index & 0x07);
+		return (0);
 
 	panic("Page replacement error: %ld", result);
-	return (-1);
-}
-
-static __inline u_int
-va_to_pteg(uint64_t vsid, vm_offset_t addr, int large)
-{
-	uint64_t hash;
-	int shift;
-
-	shift = large ? moea64_large_page_shift : ADDR_PIDX_SHFT;
-	hash = (vsid & VSID_HASH_MASK) ^ (((uint64_t)addr & ADDR_PIDX) >>
-	    shift);
-	return (hash & moea64_pteg_mask);
-}
-
-static uintptr_t
-mphyp_pvo_to_pte(mmu_t mmu, const struct pvo_entry *pvo)
-{
-	uint64_t vsid;
-	u_int ptegidx;
-
-	/* If the PTEG index is not set, then there is no page table entry */
-	if (!PVO_PTEGIDX_ISSET(pvo))
-		return (-1);
-
-	vsid = PVO_VSID(pvo);
-	ptegidx = va_to_pteg(vsid, PVO_VADDR(pvo), pvo->pvo_vaddr & PVO_LARGE);
-
-	/*
-	 * We can find the actual pte entry without searching by grabbing
-	 * the PTEG index from 3 unused bits in pvo_vaddr and by
-	 * noticing the HID bit.
-	 */
-	if (pvo->pvo_pte.lpte.pte_hi & LPTE_HID)
-		ptegidx ^= moea64_pteg_mask;
-
-	return ((ptegidx << 3) | PVO_PTEGIDX_GET(pvo));
+	return (result);
 }
 
