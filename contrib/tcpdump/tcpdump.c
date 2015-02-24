@@ -2085,7 +2085,6 @@ print_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 
 	print_info = (struct print_info *)user;
         ndo = print_info->ndo;
-	printf("nod %p\n", ndo);
 
 	p = cheri_ptrperm((void *)sp, h->caplen,
 	    CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP);
