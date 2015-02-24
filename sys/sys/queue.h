@@ -116,7 +116,7 @@ struct qm_trace {
 };
 
 #define	TRACEBUF	struct qm_trace trace;
-#define	TRACEBUF_INITIALIZER	{ __FILE__, __LINE__, NULL, 0 } ,
+#define	TRACEBUF_INITIALIZER	{ __LINE__, 0, __FILE__, NULL } ,
 #define	TRASHIT(x)	do {(x) = (void *)-1;} while (0)
 #define	QMD_SAVELINK(name, link)	void **name = (void *)&(link)
 
