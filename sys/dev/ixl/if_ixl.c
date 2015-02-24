@@ -1880,6 +1880,9 @@ ixl_assign_vsi_msix(struct ixl_pf *pf)
 	struct 		ixl_queue *que = vsi->queues;
 	struct		tx_ring	 *txr;
 	int 		error, rid, vector = 0;
+#ifdef	RSS
+	cpuset_t cpu_mask;
+#endif
 
 	/* Admin Que is vector 0*/
 	rid = vector + 1;
@@ -1942,8 +1945,10 @@ ixl_assign_vsi_msix(struct ixl_pf *pf)
 		que->tq = taskqueue_create_fast("ixl_que", M_NOWAIT,
 		    taskqueue_thread_enqueue, &que->tq);
 #ifdef RSS
-		taskqueue_start_threads_pinned(&que->tq, 1, PI_NET,
-		    cpu_id, "%s (bucket %d)",
+		CPU_ZERO(&cpu_mask);
+		CPU_SET(cpu_id, &cpu_mask);
+		taskqueue_start_threads_cpuset(&que->tq, 1, PI_NET,
+		    &cpu_mask, "%s (bucket %d)",
 		    device_get_nameunit(dev), cpu_id);
 #else
 		taskqueue_start_threads(&que->tq, 1, PI_NET,
