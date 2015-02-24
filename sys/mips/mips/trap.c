@@ -102,6 +102,9 @@ _Static_assert(CAUSE * sizeof(register_t) ==
 #include <sys/dtrace_bsd.h>
 #endif
 
+int log_bad_page_faults = 1;
+SYSCTL_INT(_machdep, OID_AUTO, log_bad_page_faults, CTLFLAG_RW,
+    &log_bad_page_faults, 1, "Print trap frame on bad page fault");
 #ifdef TRAP_DEBUG
 int trap_debug = 0;
 SYSCTL_INT(_machdep, OID_AUTO, trap_debug, CTLFLAG_RW,
@@ -1638,6 +1641,9 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 	struct proc *p;
 	char *read_or_write;
 	register_t pc;
+
+	if (!log_bad_page_faults)
+		return;
 
 	trap_type &= ~T_USER;
 
