@@ -45,11 +45,12 @@
 #include <machine/cheric.h>
 #include <cheri/cheri_fd.h>
 #include <cheri/sandbox.h>
+#include <cheri/cheri_invoke.h>
 #include <cheri_bench-helper.h>
 
 #define get_cyclecount cheri_get_cyclecount
 
-static struct sandbox_object *objectp;
+static struct cheri_object objectp;
 static int fd_socket_pair[2];
 static int shmem_socket_pair[2];
 
@@ -69,17 +70,17 @@ static uint64_t invoke_memcpy(__capability char *dataout, __capability char *dat
   int ret;
   uint32_t start_count, end_count;
   start_count = get_cyclecount();
-  ret = sandbox_object_cinvoke(objectp,
-			     CHERI_BENCH_HELPER_OP_MEMCPY,
-			     len, 0, 0, 0, 0, 0, 0, 0,
-			     (__capability void *) dataout,
-			     (__capability void *) datain,
-			     cheri_zerocap(),
-			     cheri_zerocap(),
-			     cheri_zerocap(),
-			     cheri_zerocap(),
-			     cheri_zerocap(),
-			     cheri_zerocap());
+  ret = cheri_invoke(objectp,
+		     CHERI_BENCH_HELPER_OP_MEMCPY,
+		     len, 0, 0, 0, 0, 0, 0, 0,
+		     (__capability void *) dataout,
+		     (__capability void *) datain,
+		     cheri_zerocap(),
+		     cheri_zerocap(),
+		     cheri_zerocap(),
+		     cheri_zerocap(),
+		     cheri_zerocap(),
+		     cheri_zerocap());
   end_count = get_cyclecount();
   if (ret != 0) err(1, "Invoke failed.");
   return end_count - start_count;
@@ -193,6 +194,7 @@ int
 main(int argc, char *argv[])
 {
 	struct sandbox_class *classp;
+	struct sandbox_object *sandboxp;
 	char *datain, *dataout;
 	__capability char *datain_cap, *dataout_cap;
 	int arg;
@@ -276,7 +278,7 @@ main(int argc, char *argv[])
 	    if (sandbox_class_new("/usr/libexec/cheri_bench-helper",
 				  4*1024*1024, &classp) < 0)
 	      err(EX_OSFILE, "sandbox_class_new");
-	    if (sandbox_object_new(classp, &objectp) < 0)
+	    if (sandbox_object_new(classp, &sandboxp) < 0)
 	      err(EX_OSFILE, "sandbox_object_new");
 
 	    /*
@@ -284,6 +286,7 @@ main(int argc, char *argv[])
 	     */
 	    (void)sandbox_class_method_declare(classp,
 	       CHERI_BENCH_HELPER_OP_MEMCPY, "memcpy");
+	    objectp = sandbox_object_getobject(sandboxp);
 	  }
 
 	if (socket)
@@ -364,7 +367,7 @@ main(int argc, char *argv[])
 
 	if (invoke)
 	  {
-	    sandbox_object_destroy(objectp);
+	    sandbox_object_destroy(sandboxp);
 	    sandbox_class_destroy(classp);
 	  }
 
