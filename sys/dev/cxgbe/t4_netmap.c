@@ -514,12 +514,17 @@ cxgbe_netmap_off(struct adapter *sc, struct port_info *pi, struct ifnet *ifp,
 		if_printf(ifp, "netmap disable_vi failed: %d\n", rc);
 	nm_clear_native_flags(na);
 
-	/*
-	 * XXXNM: We need to make sure that the tx queues are quiet and won't
-	 * request any more SGE_EGR_UPDATEs.
-	 */
-
 	for_each_nm_txq(pi, i, nm_txq) {
+		struct sge_qstat *spg = (void *)&nm_txq->desc[nm_txq->sidx];
+
+		/* Wait for hw pidx to catch up ... */
+		while (be16toh(nm_txq->pidx) != spg->pidx)
+			pause("nmpidx", 1);
+
+		/* ... and then for the cidx. */
+		while (spg->pidx != spg->cidx)
+			pause("nmcidx", 1);
+
 		free_nm_txq_hwq(pi, nm_txq);
 	}
 	for_each_nm_rxq(pi, i, nm_rxq) {
