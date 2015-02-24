@@ -342,18 +342,6 @@ vmcs_init(struct vmcs *vmcs)
 	 */
 	VMPTRLD(vmcs);
 
-	/* Initialize guest IA32_PAT MSR with the default value */
-	pat = PAT_VALUE(0, PAT_WRITE_BACK)	|
-	      PAT_VALUE(1, PAT_WRITE_THROUGH)	|
-	      PAT_VALUE(2, PAT_UNCACHED)	|
-	      PAT_VALUE(3, PAT_UNCACHEABLE)	|
-	      PAT_VALUE(4, PAT_WRITE_BACK)	|
-	      PAT_VALUE(5, PAT_WRITE_THROUGH)	|
-	      PAT_VALUE(6, PAT_UNCACHED)	|
-	      PAT_VALUE(7, PAT_UNCACHEABLE);
-	if ((error = vmwrite(VMCS_GUEST_IA32_PAT, pat)) != 0)
-		goto done;
-
 	/* Host state */
 
 	/* Initialize host IA32_PAT MSR */
