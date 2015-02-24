@@ -48,7 +48,7 @@ sfxge_mac_stat_update(struct sfxge_softc *sc)
 	unsigned int count;
 	int rc;
 
-	mtx_lock(&port->lock);
+	SFXGE_PORT_LOCK_ASSERT_OWNED(port);
 
 	if (port->init_state != SFXGE_PORT_STARTED) {
 		rc = 0;
@@ -82,8 +82,69 @@ sfxge_mac_stat_update(struct sfxge_softc *sc)
 
 	rc = ETIMEDOUT;
 out:
-	mtx_unlock(&port->lock);
 	return (rc);
+}
+
+uint64_t
+sfxge_get_counter(struct ifnet *ifp, ift_counter c)
+{
+	struct sfxge_softc *sc = ifp->if_softc;
+	uint64_t *mac_stats;
+	uint64_t val;
+
+	SFXGE_PORT_LOCK(&sc->port);
+
+	/* Ignore error and use old values */
+	(void)sfxge_mac_stat_update(sc);
+
+	mac_stats = (uint64_t *)sc->port.mac_stats.decode_buf;
+
+	switch (c) {
+	case IFCOUNTER_IPACKETS:
+		val = mac_stats[EFX_MAC_RX_PKTS];
+		break;
+	case IFCOUNTER_IERRORS:
+		val = mac_stats[EFX_MAC_RX_ERRORS];
+		break;
+	case IFCOUNTER_OPACKETS:
+		val = mac_stats[EFX_MAC_TX_PKTS];
+		break;
+	case IFCOUNTER_OERRORS:
+		val = mac_stats[EFX_MAC_TX_ERRORS];
+		break;
+	case IFCOUNTER_COLLISIONS:
+		val = mac_stats[EFX_MAC_TX_SGL_COL_PKTS] +
+		      mac_stats[EFX_MAC_TX_MULT_COL_PKTS] +
+		      mac_stats[EFX_MAC_TX_EX_COL_PKTS] +
+		      mac_stats[EFX_MAC_TX_LATE_COL_PKTS];
+		break;
+	case IFCOUNTER_IBYTES:
+		val = mac_stats[EFX_MAC_RX_OCTETS];
+		break;
+	case IFCOUNTER_OBYTES:
+		val = mac_stats[EFX_MAC_TX_OCTETS];
+		break;
+	case IFCOUNTER_OMCASTS:
+		val = mac_stats[EFX_MAC_TX_MULTICST_PKTS] +
+		      mac_stats[EFX_MAC_TX_BRDCST_PKTS];
+		break;
+	case IFCOUNTER_OQDROPS:
+		SFXGE_PORT_UNLOCK(&sc->port);
+		return (sfxge_tx_get_drops(sc));
+	case IFCOUNTER_IMCASTS:
+		/* if_imcasts is maintained in net/if_ethersubr.c */
+	case IFCOUNTER_IQDROPS:
+		/* if_iqdrops is maintained in net/if_ethersubr.c */
+	case IFCOUNTER_NOPROTO:
+		/* if_noproto is maintained in net/if_ethersubr.c */
+	default:
+		SFXGE_PORT_UNLOCK(&sc->port);
+		return (if_get_counter_default(ifp, c));
+	}
+
+	SFXGE_PORT_UNLOCK(&sc->port);
+
+	return (val);
 }
 
 static int
@@ -92,13 +153,16 @@ sfxge_mac_stat_handler(SYSCTL_HANDLER_ARGS)
 	struct sfxge_softc *sc = arg1;
 	unsigned int id = arg2;
 	int rc;
+	uint64_t val;
 
-	if ((rc = sfxge_mac_stat_update(sc)) != 0)
-		return (rc);
+	SFXGE_PORT_LOCK(&sc->port);
+	if ((rc = sfxge_mac_stat_update(sc)) == 0)
+		val = ((uint64_t *)sc->port.mac_stats.decode_buf)[id];
+	SFXGE_PORT_UNLOCK(&sc->port);
 
-	return (SYSCTL_OUT(req,
-			  (uint64_t *)sc->port.mac_stats.decode_buf + id,
-			  sizeof(uint64_t)));
+	if (rc == 0)
+		rc = SYSCTL_OUT(req, &val, sizeof(val));
+	return (rc);
 }
 
 static void
@@ -170,28 +234,29 @@ sfxge_port_wanted_fc_handler(SYSCTL_HANDLER_ARGS)
 	sc = arg1;
 	port = &sc->port;
 
-	mtx_lock(&port->lock);
-
 	if (req->newptr != NULL) {
 		if ((error = SYSCTL_IN(req, &fcntl, sizeof(fcntl))) != 0)
-			goto out;
+			return (error);
 
-		if (port->wanted_fc == fcntl)
-			goto out;
+		SFXGE_PORT_LOCK(port);
 
-		port->wanted_fc = fcntl;
+		if (port->wanted_fc != fcntl) {
+			if (port->init_state == SFXGE_PORT_STARTED)
+				error = efx_mac_fcntl_set(sc->enp,
+							  port->wanted_fc,
+							  B_TRUE);
+			if (error == 0)
+				port->wanted_fc = fcntl;
+		}
 
-		if (port->init_state != SFXGE_PORT_STARTED)
-			goto out;
-
-		error = efx_mac_fcntl_set(sc->enp, port->wanted_fc, B_TRUE);
+		SFXGE_PORT_UNLOCK(port);
 	} else {
-		error = SYSCTL_OUT(req, &port->wanted_fc,
-				   sizeof(port->wanted_fc));
-	}
+		SFXGE_PORT_LOCK(port);
+		fcntl = port->wanted_fc;
+		SFXGE_PORT_UNLOCK(port);
 
-out:
-	mtx_unlock(&port->lock);
+		error = SYSCTL_OUT(req, &fcntl, sizeof(fcntl));
+	}
 
 	return (error);
 }
@@ -202,20 +267,18 @@ sfxge_port_link_fc_handler(SYSCTL_HANDLER_ARGS)
 	struct sfxge_softc *sc;
 	struct sfxge_port *port;
 	unsigned int wanted_fc, link_fc;
-	int error;
 
 	sc = arg1;
 	port = &sc->port;
 
-	mtx_lock(&port->lock);
+	SFXGE_PORT_LOCK(port);
 	if (port->init_state == SFXGE_PORT_STARTED && SFXGE_LINK_UP(sc))
 		efx_mac_fcntl_get(sc->enp, &wanted_fc, &link_fc);
 	else
 		link_fc = 0;
-	error = SYSCTL_OUT(req, &link_fc, sizeof(link_fc));
-	mtx_unlock(&port->lock);
+	SFXGE_PORT_UNLOCK(port);
 
-	return (error);
+	return (SYSCTL_OUT(req, &link_fc, sizeof(link_fc)));
 }
 
 #endif /* SFXGE_HAVE_PAUSE_MEDIAOPTS */
@@ -262,7 +325,7 @@ sfxge_mac_poll_work(void *arg, int npending)
 	enp = sc->enp;
 	port = &sc->port;
 
-	mtx_lock(&port->lock);
+	SFXGE_PORT_LOCK(port);
 
 	if (port->init_state != SFXGE_PORT_STARTED)
 		goto done;
@@ -272,7 +335,7 @@ sfxge_mac_poll_work(void *arg, int npending)
 	sfxge_mac_link_update(sc, mode);
 
 done:
-	mtx_unlock(&port->lock);
+	SFXGE_PORT_UNLOCK(port);
 }
 
 static int
@@ -320,7 +383,7 @@ sfxge_mac_filter_set(struct sfxge_softc *sc)
 	struct sfxge_port *port = &sc->port;
 	int rc;
 
-	mtx_lock(&port->lock);
+	SFXGE_PORT_LOCK(port);
 	/*
 	 * The function may be called without softc_lock held in the
 	 * case of SIOCADDMULTI and SIOCDELMULTI ioctls. ioctl handler
@@ -335,7 +398,7 @@ sfxge_mac_filter_set(struct sfxge_softc *sc)
 		rc = sfxge_mac_filter_set_locked(sc);
 	else
 		rc = 0;
-	mtx_unlock(&port->lock);
+	SFXGE_PORT_UNLOCK(port);
 	return (rc);
 }
 
@@ -348,7 +411,7 @@ sfxge_port_stop(struct sfxge_softc *sc)
 	port = &sc->port;
 	enp = sc->enp;
 
-	mtx_lock(&port->lock);
+	SFXGE_PORT_LOCK(port);
 
 	KASSERT(port->init_state == SFXGE_PORT_STARTED,
 	    ("port not started"));
@@ -367,7 +430,7 @@ sfxge_port_stop(struct sfxge_softc *sc)
 	/* Destroy the common code port object. */
 	efx_port_fini(sc->enp);
 
-	mtx_unlock(&port->lock);
+	SFXGE_PORT_UNLOCK(port);
 }
 
 int
@@ -383,7 +446,7 @@ sfxge_port_start(struct sfxge_softc *sc)
 	port = &sc->port;
 	enp = sc->enp;
 
-	mtx_lock(&port->lock);
+	SFXGE_PORT_LOCK(port);
 
 	KASSERT(port->init_state == SFXGE_PORT_INITIALIZED,
 	    ("port not initialized"));
@@ -426,7 +489,7 @@ sfxge_port_start(struct sfxge_softc *sc)
 	port->init_state = SFXGE_PORT_STARTED;
 
 	/* Single poll in case there were missing initial events */
-	mtx_unlock(&port->lock);
+	SFXGE_PORT_UNLOCK(port);
 	sfxge_mac_poll_work(sc, 0);
 
 	return (0);
@@ -439,7 +502,7 @@ fail3:
 fail2:
 	efx_port_fini(sc->enp);
 fail:
-	mtx_unlock(&port->lock);
+	SFXGE_PORT_UNLOCK(port);
 
 	return (rc);
 }
@@ -453,7 +516,7 @@ sfxge_phy_stat_update(struct sfxge_softc *sc)
 	unsigned int count;
 	int rc;
 
-	mtx_lock(&port->lock);
+	SFXGE_PORT_LOCK_ASSERT_OWNED(port);
 
 	if (port->init_state != SFXGE_PORT_STARTED) {
 		rc = 0;
@@ -487,7 +550,6 @@ sfxge_phy_stat_update(struct sfxge_softc *sc)
 
 	rc = ETIMEDOUT;
 out:
-	mtx_unlock(&port->lock);
 	return (rc);
 }
 
@@ -497,13 +559,16 @@ sfxge_phy_stat_handler(SYSCTL_HANDLER_ARGS)
 	struct sfxge_softc *sc = arg1;
 	unsigned int id = arg2;
 	int rc;
+	uint32_t val;
 
-	if ((rc = sfxge_phy_stat_update(sc)) != 0)
-		return (rc);
+	SFXGE_PORT_LOCK(&sc->port);
+	if ((rc = sfxge_phy_stat_update(sc)) == 0)
+		val = ((uint32_t *)sc->port.phy_stats.decode_buf)[id];
+	SFXGE_PORT_UNLOCK(&sc->port);
 
-	return (SYSCTL_OUT(req,
-			  (uint32_t *)sc->port.phy_stats.decode_buf + id,
-			  sizeof(uint32_t)));
+	if (rc == 0)
+		rc = SYSCTL_OUT(req, &val, sizeof(val));
+	return (rc);
 }
 
 static void
@@ -554,7 +619,7 @@ sfxge_port_fini(struct sfxge_softc *sc)
 	sfxge_dma_free(esmp);
 	free(port->mac_stats.decode_buf, M_SFXGE);
 
-	mtx_destroy(&port->lock);
+	SFXGE_PORT_LOCK_DESTROY(port);
 
 	port->sc = NULL;
 }
@@ -577,7 +642,7 @@ sfxge_port_init(struct sfxge_softc *sc)
 
 	port->sc = sc;
 
-	mtx_init(&port->lock, "sfxge_port", NULL, MTX_DEF);
+	SFXGE_PORT_LOCK_INIT(port, device_get_nameunit(sc->dev));
 
 	port->phy_stats.decode_buf = malloc(EFX_PHY_NSTATS * sizeof(uint32_t),
 					    M_SFXGE, M_WAITOK | M_ZERO);
@@ -615,7 +680,7 @@ fail2:
 	sfxge_dma_free(phy_stats_buf);
 fail:
 	free(port->phy_stats.decode_buf, M_SFXGE);
-	(void)mtx_destroy(&port->lock);
+	SFXGE_PORT_LOCK_DESTROY(port);
 	port->sc = NULL;
 	return (rc);
 }
@@ -655,7 +720,7 @@ sfxge_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 	efx_link_mode_t mode;
 
 	sc = ifp->if_softc;
-	sx_xlock(&sc->softc_lock);
+	SFXGE_ADAPTER_LOCK(sc);
 
 	ifmr->ifm_status = IFM_AVALID;
 	ifmr->ifm_active = IFM_ETHER;
@@ -669,7 +734,7 @@ sfxge_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 		ifmr->ifm_active |= sfxge_port_link_fc_ifm(sc);
 	}
 
-	sx_xunlock(&sc->softc_lock);
+	SFXGE_ADAPTER_UNLOCK(sc);
 }
 
 static int
@@ -682,7 +747,7 @@ sfxge_media_change(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	ifm = sc->media.ifm_cur;
 
-	sx_xlock(&sc->softc_lock);
+	SFXGE_ADAPTER_LOCK(sc);
 
 	if (!SFXGE_RUNNING(sc)) {
 		rc = 0;
@@ -695,7 +760,7 @@ sfxge_media_change(struct ifnet *ifp)
 
 	rc = efx_phy_adv_cap_set(sc->enp, ifm->ifm_data);
 out:
-	sx_xunlock(&sc->softc_lock);
+	SFXGE_ADAPTER_UNLOCK(sc);
 
 	return (rc);
 }

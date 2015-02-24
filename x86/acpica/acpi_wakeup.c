@@ -30,6 +30,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#if defined(__amd64__)
+#define DEV_APIC
+#else
+#include "opt_apic.h"
+#endif
 #ifdef __i386__
 #include "opt_npx.h"
 #endif
@@ -55,8 +60,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/md_var.h>
 
-#ifdef SMP
+#ifdef DEV_APIC
 #include <x86/apicreg.h>
+#include <x86/apicvar.h>
+#endif
+#ifdef SMP
 #include <machine/smp.h>
 #include <machine/vmparam.h>
 #endif
@@ -270,6 +278,9 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 			initializecpu();
 			PCPU_SET(switchtime, 0);
 			PCPU_SET(switchticks, ticks);
+#ifdef DEV_APIC
+			lapic_xapic_mode();
+#endif
 #ifdef SMP
 			if (!CPU_EMPTY(&suspcpus))
 				acpi_wakeup_cpus(sc);

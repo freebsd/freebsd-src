@@ -253,15 +253,26 @@ xicp_bind(device_t dev, u_int irq, cpuset_t cpumask)
 {
 	struct xicp_softc *sc = device_get_softc(dev);
 	cell_t status, cpu;
-	int i;
+	int ncpus, i, error;
 
 	/*
-	 * This doesn't appear to actually support affinity groups, so just
-	 * use the first CPU.
+	 * This doesn't appear to actually support affinity groups, so pick a
+	 * random CPU.
 	 */
+	ncpus = 0;
 	CPU_FOREACH(cpu)
-		if (CPU_ISSET(cpu, &cpumask)) break;
+		if (CPU_ISSET(cpu, &cpumask)) ncpus++;
 
+	i = mftb() % ncpus;
+	ncpus = 0;
+	CPU_FOREACH(cpu) {
+		if (!CPU_ISSET(cpu, &cpumask))
+			continue;
+		if (ncpus == i)
+			break;
+		ncpus++;
+	}
+	
 	/* XXX: super inefficient */
 	for (i = 0; i < sc->nintvecs; i++) {
 		if (sc->intvecs[i].irq == irq) {
@@ -272,10 +283,13 @@ xicp_bind(device_t dev, u_int irq, cpuset_t cpumask)
 	KASSERT(i < sc->nintvecs, ("Binding non-configured interrupt"));
 
 	if (rtas_exists())
-		rtas_call_method(sc->ibm_set_xive, 3, 1, irq, cpu,
+		error = rtas_call_method(sc->ibm_set_xive, 3, 1, irq, cpu,
 		    XICP_PRIORITY, &status);
 	else
-		opal_call(OPAL_SET_XIVE, irq, cpu, XICP_PRIORITY);
+		error = opal_call(OPAL_SET_XIVE, irq, cpu, XICP_PRIORITY);
+
+	if (error < 0)
+		panic("Cannot bind interrupt %d to CPU %d", irq, cpu);
 }
 
 static void

@@ -70,6 +70,21 @@ static __cs uint16_t __siena_mon_port0_map[] = {
 	EFX_MON_STAT_2_5V,		/* MC_CMD_SENSOR_IN_2V5 */
 	EFX_MON_STAT_3_3V,		/* MC_CMD_SENSOR_IN_3V3 */
 	EFX_MON_STAT_12V,		/* MC_CMD_SENSOR_IN_12V0 */
+	EFX_MON_STAT_1_2VA,		/* MC_CMD_SENSOR_IN_1V2A */
+	EFX_MON_STAT_VREF,		/* MC_CMD_SENSOR_IN_VREF */
+	EFX_MON_STAT_VAOE,		/* MC_CMD_SENSOR_OUT_VAOE */
+	EFX_MON_STAT_AOE_TEMP,		/* MC_CMD_SENSOR_AOE_TEMP */
+	EFX_MON_STAT_PSU_AOE_TEMP,	/* MC_CMD_SENSOR_PSU_AOE_TEMP */
+	EFX_MON_STAT_PSU_TEMP,		/* MC_CMD_SENSOR_PSE_TEMP */
+	EFX_MON_STAT_FAN0,		/* MC_CMD_SENSOR_FAN_0 */
+	EFX_MON_STAT_FAN1,		/* MC_CMD_SENSOR_FAN_1 */
+	EFX_MON_STAT_FAN2,		/* MC_CMD_SENSOR_FAN_2 */
+	EFX_MON_STAT_FAN3,		/* MC_CMD_SENSOR_FAN_3 */
+	EFX_MON_STAT_FAN4,		/* MC_CMD_SENSOR_FAN_4 */
+	EFX_MON_STAT_VAOE_IN,		/* MC_CMD_SENSOR_IN_VAOE */
+	EFX_MON_STAT_IAOE,		/* MC_CMD_SENSOR_OUT_IAOE */
+	EFX_MON_STAT_IAOE_IN,		/* MC_CMD_SENSOR_IN_IAOE */
+
 };
 
 static __cs uint16_t __siena_mon_port1_map[] = {
@@ -86,6 +101,21 @@ static __cs uint16_t __siena_mon_port1_map[] = {
 	EFX_MON_STAT_2_5V,		/* MC_CMD_SENSOR_IN_2V5 */
 	EFX_MON_STAT_3_3V,		/* MC_CMD_SENSOR_IN_3V3 */
 	EFX_MON_STAT_12V,		/* MC_CMD_SENSOR_IN_12V0 */
+	EFX_MON_STAT_1_2VA,		/* MC_CMD_SENSOR_IN_1V2A */
+	EFX_MON_STAT_VREF,		/* MC_CMD_SENSOR_IN_VREF */
+	EFX_MON_STAT_VAOE,		/* MC_CMD_SENSOR_OUT_VAOE */
+	EFX_MON_STAT_AOE_TEMP,		/* MC_CMD_SENSOR_AOE_TEMP */
+	EFX_MON_STAT_PSU_AOE_TEMP,	/* MC_CMD_SENSOR_PSU_AOE_TEMP */
+	EFX_MON_STAT_PSU_TEMP,		/* MC_CMD_SENSOR_PSE_TEMP */
+	EFX_MON_STAT_FAN0,		/* MC_CMD_SENSOR_FAN_0 */
+	EFX_MON_STAT_FAN1,		/* MC_CMD_SENSOR_FAN_1 */
+	EFX_MON_STAT_FAN2,		/* MC_CMD_SENSOR_FAN_2 */
+	EFX_MON_STAT_FAN3,		/* MC_CMD_SENSOR_FAN_3 */
+	EFX_MON_STAT_FAN4,		/* MC_CMD_SENSOR_FAN_4 */
+	EFX_MON_STAT_VAOE_IN,		/* MC_CMD_SENSOR_IN_VAOE */
+	EFX_MON_STAT_IAOE,		/* MC_CMD_SENSOR_OUT_IAOE */
+	EFX_MON_STAT_IAOE_IN,		/* MC_CMD_SENSOR_IN_IAOE */
+
 };
 
 #define	SIENA_STATIC_SENSOR_ASSERT(_field)				\
@@ -105,6 +135,7 @@ siena_mon_decode_stats(
 	uint16_t mc_sensor;
 	size_t mc_sensor_max;
 	uint32_t vmask = 0;
+	uint32_t idx = 0;
 
 	/* Assert the MC_CMD_SENSOR and EFX_MON_STATE namespaces agree */
 	SIENA_STATIC_SENSOR_ASSERT(OK);
@@ -125,26 +156,27 @@ siena_mon_decode_stats(
 	for (mc_sensor = 0; mc_sensor < mc_sensor_max; ++mc_sensor) {
 		uint16_t efx_sensor = sensor_map[mc_sensor];
 
+		if (~dmask & (1 << mc_sensor))
+			continue;
+		idx++;
+
 		if (efx_sensor == SIENA_MON_WRONG_PORT)
 			continue;
 		EFSYS_ASSERT(efx_sensor < EFX_MON_NSTATS);
-
-		if (~dmask & (1 << mc_sensor))
-			continue;
 
 		vmask |= (1 << efx_sensor);
 		if (value != NULL && esmp != NULL && !EFSYS_MEM_IS_NULL(esmp)) {
 			efx_mon_stat_value_t *emsvp = value + efx_sensor;
 			efx_dword_t dword;
-			EFSYS_MEM_READD(esmp, 4 * mc_sensor, &dword);
+			EFSYS_MEM_READD(esmp, 4 * (idx - 1), &dword);
 			emsvp->emsv_value =
-				(uint16_t)EFX_DWORD_FIELD(
-					dword,
-					MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_VALUE);
+			    (uint16_t)EFX_DWORD_FIELD(
+				dword,
+				MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_VALUE);
 			emsvp->emsv_state =
-				(uint16_t)EFX_DWORD_FIELD(
-					dword,
-					MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_STATE);
+			    (uint16_t)EFX_DWORD_FIELD(
+				dword,
+				MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_STATE);
 		}
 	}
 

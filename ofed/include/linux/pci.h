@@ -270,6 +270,14 @@ pci_set_master(struct pci_dev *pdev)
 }
 
 static inline int
+pci_clear_master(struct pci_dev *pdev)
+{
+
+	pci_disable_busmaster(pdev->dev.bsddev);
+	return (0);
+}
+
+static inline int
 pci_request_region(struct pci_dev *pdev, int bar, const char *res_name)
 {
 	int rid;
@@ -456,6 +464,30 @@ pci_enable_msix(struct pci_dev *pdev, struct msix_entry *entries, int nreq)
 	for (i = 0; i < nreq; i++)
 		entries[i].vector = pdev->dev.msix + i;
 	return (0);
+}
+
+#define	pci_enable_msix_range	linux_pci_enable_msix_range
+static inline int
+pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries,
+    int minvec, int maxvec)
+{
+	int nvec = maxvec;
+	int rc;
+
+	if (maxvec < minvec)
+		return (-ERANGE);
+
+	do {
+		rc = pci_enable_msix(dev, entries, nvec);
+		if (rc < 0) {
+			return (rc);
+		} else if (rc > 0) {
+			if (rc < minvec)
+				return (-ENOSPC);
+			nvec = rc;
+		}
+	} while (rc);
+	return (nvec);
 }
 
 static inline int pci_channel_offline(struct pci_dev *pdev)

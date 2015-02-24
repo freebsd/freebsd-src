@@ -230,6 +230,8 @@ int fget_read(struct thread *td, int fd, cap_rights_t *rightsp,
     struct file **fpp);
 int fget_write(struct thread *td, int fd, cap_rights_t *rightsp,
     struct file **fpp);
+int fget_fcntl(struct thread *td, int fd, cap_rights_t *rightsp,
+    int needfcntl, struct file **fpp);
 int _fdrop(struct file *fp, struct thread *td);
 
 fo_rdwr_t	invfo_rdwr;

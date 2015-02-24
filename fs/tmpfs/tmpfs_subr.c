@@ -1426,7 +1426,6 @@ tmpfs_check_mtime(struct vnode *vp)
 	ASSERT_VOP_ELOCKED(vp, "check_mtime");
 	if (vp->v_type != VREG)
 		return;
-	node = VP_TO_TMPFS_NODE(vp);
 	obj = vp->v_object;
 	KASSERT((obj->flags & (OBJ_TMPFS_NODE | OBJ_TMPFS)) ==
 	    (OBJ_TMPFS_NODE | OBJ_TMPFS), ("non-tmpfs obj"));

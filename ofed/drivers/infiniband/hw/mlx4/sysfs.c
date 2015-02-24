@@ -56,8 +56,8 @@ static ssize_t show_admin_alias_guid(struct device *dev,
 	record_num = mlx4_ib_iov_dentry->entry_num / 8 ;
 	guid_index_in_rec = mlx4_ib_iov_dentry->entry_num % 8 ;
 
-	return sprintf(buf, "%llx\n", (long long)
-		       be64_to_cpu(*(__be64 *)&mdev->sriov.alias_guid.
+	return sprintf(buf, "%llx\n",
+		       (long long)be64_to_cpu(*(__be64 *)&mdev->sriov.alias_guid.
 				   ports_guid[port->num - 1].
 				   all_rec_per_port[record_num].
 				   all_recs[8 * guid_index_in_rec]));

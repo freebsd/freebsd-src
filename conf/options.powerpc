@@ -25,7 +25,6 @@ MAMBO
 POWERNV
 PSERIES
 PSIM
-WII			opt_platform.h
 
 SC_OFWFB		opt_ofwfb.h
 

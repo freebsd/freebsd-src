@@ -735,6 +735,8 @@ _zfs=		zfs
 
 .endif
 
+SUBDIR+=${MODULES_EXTRA}
+
 .for reject in ${WITHOUT_MODULES}
 SUBDIR:= ${SUBDIR:N${reject}}
 .endfor
@@ -748,5 +750,9 @@ afterinstall:
 		kldxref ${DESTDIR}${KMODDIR}; \
 	fi
 .endif
+
+.include "${SYSDIR}/conf/config.mk"
+
+SUBDIR:= ${SUBDIR:u:O}
 
 .include <bsd.subdir.mk>

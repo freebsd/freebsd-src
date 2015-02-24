@@ -29,8 +29,7 @@
  */
 
 /*
- * iSCSI Common Layer.  It's used by both the initiator and target to send
- * and receive iSCSI PDUs.
+ * Software implementation of iSCSI Common Layer kobj(9) interface.
  */
 
 #include <sys/cdefs.h>
@@ -99,6 +98,10 @@ static icl_conn_handoff_t	icl_soft_conn_handoff;
 static icl_conn_free_t		icl_soft_conn_free;
 static icl_conn_close_t		icl_soft_conn_close;
 static icl_conn_connected_t	icl_soft_conn_connected;
+static icl_conn_task_setup_t	icl_soft_conn_task_setup;
+static icl_conn_task_done_t	icl_soft_conn_task_done;
+static icl_conn_transfer_setup_t	icl_soft_conn_transfer_setup;
+static icl_conn_transfer_done_t	icl_soft_conn_transfer_done;
 
 static kobj_method_t icl_soft_methods[] = {
 	KOBJMETHOD(icl_conn_new_pdu, icl_soft_conn_new_pdu),
@@ -112,12 +115,14 @@ static kobj_method_t icl_soft_methods[] = {
 	KOBJMETHOD(icl_conn_free, icl_soft_conn_free),
 	KOBJMETHOD(icl_conn_close, icl_soft_conn_close),
 	KOBJMETHOD(icl_conn_connected, icl_soft_conn_connected),
+	KOBJMETHOD(icl_conn_task_setup, icl_soft_conn_task_setup),
+	KOBJMETHOD(icl_conn_task_done, icl_soft_conn_task_done),
+	KOBJMETHOD(icl_conn_transfer_setup, icl_soft_conn_transfer_setup),
+	KOBJMETHOD(icl_conn_transfer_done, icl_soft_conn_transfer_done),
 	{ 0, 0 }
 };
 
 DEFINE_CLASS(icl_soft, icl_soft_methods, sizeof(struct icl_conn));
-
-static void	icl_conn_close(struct icl_conn *ic);
 
 static void
 icl_conn_fail(struct icl_conn *ic)
@@ -201,6 +206,7 @@ icl_pdu_free(struct icl_pdu *ip)
 void
 icl_soft_conn_pdu_free(struct icl_conn *ic, struct icl_pdu *ip)
 {
+
 	icl_pdu_free(ip);
 }
 
@@ -696,7 +702,7 @@ icl_conn_receive_pdu(struct icl_conn *ic, size_t *availablep)
 	if (error != 0) {
 		/*
 		 * Don't free the PDU; it's pointed to by ic->ic_receive_pdu
-		 * and will get freed in icl_conn_close().
+		 * and will get freed in icl_soft_conn_close().
 		 */
 		icl_conn_fail(ic);
 	}
@@ -1185,6 +1191,7 @@ icl_soft_new_conn(const char *name, struct mtx *lock)
 #endif
 	ic->ic_max_data_segment_length = ICL_MAX_DATA_SEGMENT_LENGTH;
 	ic->ic_name = name;
+	ic->ic_offload = "None";
 
 	return (ic);
 }
@@ -1247,7 +1254,7 @@ icl_conn_start(struct icl_conn *ic)
 	error = soreserve(ic->ic_socket, sendspace, recvspace);
 	if (error != 0) {
 		ICL_WARN("soreserve failed with error %d", error);
-		icl_conn_close(ic);
+		icl_soft_conn_close(ic);
 		return (error);
 	}
 	ic->ic_socket->so_snd.sb_flags |= SB_AUTOSIZE;
@@ -1265,7 +1272,7 @@ icl_conn_start(struct icl_conn *ic)
 	error = sosetopt(ic->ic_socket, &opt);
 	if (error != 0) {
 		ICL_WARN("disabling TCP_NODELAY failed with error %d", error);
-		icl_conn_close(ic);
+		icl_soft_conn_close(ic);
 		return (error);
 	}
 
@@ -1276,7 +1283,7 @@ icl_conn_start(struct icl_conn *ic)
 	    ic->ic_name);
 	if (error != 0) {
 		ICL_WARN("kthread_add(9) failed with error %d", error);
-		icl_conn_close(ic);
+		icl_soft_conn_close(ic);
 		return (error);
 	}
 
@@ -1284,7 +1291,7 @@ icl_conn_start(struct icl_conn *ic)
 	    ic->ic_name);
 	if (error != 0) {
 		ICL_WARN("kthread_add(9) failed with error %d", error);
-		icl_conn_close(ic);
+		icl_soft_conn_close(ic);
 		return (error);
 	}
 
@@ -1349,7 +1356,7 @@ icl_soft_conn_handoff(struct icl_conn *ic, int fd)
 }
 
 void
-icl_conn_close(struct icl_conn *ic)
+icl_soft_conn_close(struct icl_conn *ic)
 {
 	struct icl_pdu *pdu;
 
@@ -1418,13 +1425,6 @@ icl_conn_close(struct icl_conn *ic)
 	ICL_CONN_UNLOCK(ic);
 }
 
-void
-icl_soft_conn_close(struct icl_conn *ic)
-{
-
-	icl_conn_close(ic);
-}
-
 bool
 icl_soft_conn_connected(struct icl_conn *ic)
 {
@@ -1441,6 +1441,32 @@ icl_soft_conn_connected(struct icl_conn *ic)
 	}
 	ICL_CONN_UNLOCK(ic);
 	return (true);
+}
+
+int
+icl_soft_conn_task_setup(struct icl_conn *ic, struct ccb_scsiio *csio,
+    uint32_t *task_tagp, void **prvp)
+{
+
+	return (0);
+}
+
+void
+icl_soft_conn_task_done(struct icl_conn *ic, void *prv)
+{
+}
+
+int
+icl_soft_conn_transfer_setup(struct icl_conn *ic, union ctl_io *io,
+    uint32_t *transfer_tag, void **prvp)
+{
+
+	return (0);
+}
+
+void
+icl_soft_conn_transfer_done(struct icl_conn *ic, void *prv)
+{
 }
 
 static int

@@ -561,6 +561,7 @@ struct scsi_log_sense
 #define	SLS_ERROR_LASTN_PAGE		0x07
 #define	SLS_LOGICAL_BLOCK_PROVISIONING	0x0c
 #define	SLS_SELF_TEST_PAGE		0x10
+#define	SLS_STAT_AND_PERF		0x19
 #define	SLS_IE_PAGE			0x2f
 #define	SLS_PAGE_CTRL_MASK		0xC0
 #define	SLS_PAGE_CTRL_THRESHOLD		0x00
@@ -617,6 +618,45 @@ struct scsi_log_param_header {
 #define	SLP_DS				0x40
 #define	SLP_DU				0x80
 	u_int8_t param_len;
+};
+
+struct scsi_log_stat_and_perf {
+	struct scsi_log_param_header hdr;
+#define	SLP_SAP				0x0001
+	uint8_t	read_num[8];
+	uint8_t	write_num[8];
+	uint8_t	recvieved_lba[8];
+	uint8_t	transmitted_lba[8];
+	uint8_t	read_int[8];
+	uint8_t	write_int[8];
+	uint8_t	weighted_num[8];
+	uint8_t	weighted_int[8];
+};
+
+struct scsi_log_idle_time {
+	struct scsi_log_param_header hdr;
+#define	SLP_IT				0x0002
+	uint8_t	idle_int[8];
+};
+
+struct scsi_log_time_interval {
+	struct scsi_log_param_header hdr;
+#define	SLP_TI				0x0003
+	uint8_t	exponent[4];
+	uint8_t	integer[4];
+};
+
+struct scsi_log_fua_stat_and_perf {
+	struct scsi_log_param_header hdr;
+#define	SLP_FUA_SAP			0x0004
+	uint8_t	fua_read_num[8];
+	uint8_t	fua_write_num[8];
+	uint8_t	fuanv_read_num[8];
+	uint8_t	fuanv_write_num[8];
+	uint8_t	fua_read_int[8];
+	uint8_t	fua_write_int[8];
+	uint8_t	fuanv_read_int[8];
+	uint8_t	fuanv_write_int[8];
 };
 
 struct scsi_control_page {
@@ -1718,6 +1758,7 @@ struct ata_pass_16 {
 #define	SERVICE_ACTION_IN	0x9E
 #define	REPORT_LUNS		0xA0
 #define	ATA_PASS_12		0xA1
+#define	SECURITY_PROTOCOL_IN	0xA2
 #define	MAINTENANCE_IN		0xA3
 #define	MAINTENANCE_OUT		0xA4
 #define	MOVE_MEDIUM     	0xA5
@@ -1725,6 +1766,7 @@ struct ata_pass_16 {
 #define	WRITE_12		0xAA
 #define	WRITE_VERIFY_12		0xAE
 #define	VERIFY_12		0xAF
+#define	SECURITY_PROTOCOL_OUT	0xB5
 #define	READ_ELEMENT_STATUS	0xB8
 #define	READ_CD			0xBE
 
@@ -2662,6 +2704,41 @@ struct scsi_target_group_data_extended {
 	struct scsi_target_port_group_descriptor groups[];
 };
 
+struct scsi_security_protocol_in
+{
+	uint8_t opcode;
+	uint8_t security_protocol;
+#define	SPI_PROT_INFORMATION		0x00
+#define	SPI_PROT_CBCS			0x07
+#define	SPI_PROT_TAPE_DATA_ENC		0x20
+#define	SPI_PROT_DATA_ENC_CONFIG	0x21
+#define	SPI_PROT_SA_CREATE_CAP		0x40
+#define	SPI_PROT_IKEV2_SCSI		0x41
+#define	SPI_PROT_JEDEC_UFS		0xEC
+#define	SPI_PROT_SDCARD_TFSSS		0xED
+#define	SPI_PROT_AUTH_HOST_TRANSIENT	0xEE
+#define	SPI_PROT_ATA_DEVICE_PASSWORD	0xEF
+	uint8_t security_protocol_specific[2];
+	uint8_t byte4;
+#define	SPI_INC_512	0x80
+	uint8_t reserved1;
+	uint8_t length[4];
+	uint8_t reserved2;
+	uint8_t control;
+};
+
+struct scsi_security_protocol_out
+{
+	uint8_t opcode;
+	uint8_t security_protocol;
+	uint8_t security_protocol_specific[2];
+	uint8_t byte4;
+#define	SPO_INC_512	0x80
+	uint8_t reserved1;
+	uint8_t length[4];
+	uint8_t reserved2;
+	uint8_t control;
+};
 
 typedef enum {
 	SSD_TYPE_NONE,
@@ -3582,6 +3659,20 @@ void scsi_start_stop(struct ccb_scsiio *csio, u_int32_t retries,
 		     void (*cbfcnp)(struct cam_periph *, union ccb *),
 		     u_int8_t tag_action, int start, int load_eject,
 		     int immediate, u_int8_t sense_len, u_int32_t timeout);
+
+void scsi_security_protocol_in(struct ccb_scsiio *csio, uint32_t retries, 
+			       void (*cbfcnp)(struct cam_periph *, union ccb *),
+			       uint8_t tag_action, uint32_t security_protocol,
+			       uint32_t security_protocol_specific, int byte4,
+			       uint8_t *data_ptr, uint32_t dxfer_len,
+			       int sense_len, int timeout);
+
+void scsi_security_protocol_out(struct ccb_scsiio *csio, uint32_t retries, 
+				void (*cbfcnp)(struct cam_periph *,union ccb *),
+				uint8_t tag_action, uint32_t security_protocol,
+				uint32_t security_protocol_specific, int byte4,
+				uint8_t *data_ptr, uint32_t dxfer_len,
+				int sense_len, int timeout);
 
 void scsi_persistent_reserve_in(struct ccb_scsiio *csio, uint32_t retries, 
 				void (*cbfcnp)(struct cam_periph *,union ccb *),
