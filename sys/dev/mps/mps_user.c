@@ -27,10 +27,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * LSI MPT-Fusion Host Adapter FreeBSD userland interface
+ * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD userland interface
  */
 /*-
- * Copyright (c) 2011, 2012 LSI Corp.
+ * Copyright (c) 2011-2015 LSI Corp.
+ * Copyright (c) 2013-2015 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * LSI MPT-Fusion Host Adapter FreeBSD
+ * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD
  *
  * $FreeBSD$
  */
@@ -90,6 +91,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <cam/cam.h>
+#include <cam/cam_ccb.h>
 #include <cam/scsi/scsi_all.h>
 
 #include <dev/mps/mpi/mpi2_type.h>
@@ -101,6 +103,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/mps/mps_ioctl.h>
 #include <dev/mps/mpsvar.h>
 #include <dev/mps/mps_table.h>
+#include <dev/mps/mps_sas.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
@@ -700,7 +703,7 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 			mps_printf(sc, "Cannot allocate memory %s %d\n",
 			 __func__, __LINE__);
 			return (ENOMEM);
-    	}
+		}
 		cm->cm_data = buf;
 		cm->cm_length = cmd->len;
 	} else {
@@ -767,6 +770,7 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 	int			err = 0, dir = 0, sz;
 	uint8_t			function = 0;
 	u_int			sense_len;
+	struct mpssas_target	*targ = NULL;
 
 	/*
 	 * Only allow one passthru command at a time.  Use the MPS_FLAGS_BUSY
@@ -848,11 +852,22 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 		task->TaskMID = cm->cm_desc.Default.SMID;
 
 		cm->cm_data = NULL;
-		cm->cm_desc.HighPriority.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
+		cm->cm_desc.HighPriority.RequestFlags =
+		    MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
 		cm->cm_complete = NULL;
 		cm->cm_complete_data = NULL;
 
-		err = mps_wait_command(sc, cm, 30, CAN_SLEEP);
+		targ = mpssas_find_target_by_handle(sc->sassc, 0,
+		    task->DevHandle);
+		if (targ == NULL) {
+			mps_dprint(sc, MPS_INFO,
+			   "%s %d : invalid handle for requested TM 0x%x \n",
+			   __func__, __LINE__, task->DevHandle);
+			err = 1;
+		} else {
+			mpssas_prepare_for_tm(sc, cm, targ, CAM_LUN_WILDCARD);
+			err = mps_wait_command(sc, cm, 30, CAN_SLEEP);
+		}
 
 		if (err != 0) {
 			err = EIO;
