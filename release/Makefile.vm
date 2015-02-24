@@ -34,8 +34,10 @@ CLOUDTARGETS+=	cw-${_CW:tl}
 CLEANDIRS+=	cw-${_CW:tl}
 CLEANFILES+=	${_CW:tl}.img \
 		${_CW:tl}.${${_CW:tu}_FORMAT} \
-		${_CW:tl}.${${_CW:tu}_FORMAT}.raw
+		${_CW:tl}.${${_CW:tu}_FORMAT}.raw \
+		cw${_CW:tl}-package
 CLOUDINSTALL+=	cw${_CW:tl}-install
+CLOUDPACKAGE+=	cw${_CW:tl}-package
 ${_CW:tu}IMAGE=	${_CW:tl}.${${_CW:tu}_FORMAT}
 .  if exists(${.CURDIR}/tools/${_CW:tl}.conf) && !defined(${_CW:tu}CONF)
 ${_CW:tu}CONF?=	${.CURDIR}/tools/${_CW:tl}.conf
@@ -58,6 +60,16 @@ cw${_CW:tl}-install:
 		${DESTDIR}/${_CW:tl}/CHECKSUM.SHA256
 	cd ${DESTDIR}/${_CW:tl} && md5 ${${_CW}_DISK}* > \
 		${DESTDIR}/${_CW:tl}/CHECKSUM.MD5
+
+cw${_CW:tl}-package:
+	@# Special target to handle packaging cloud images in the formats
+	@# specific to each hosting provider.
+.if exists(${.CURDIR}/tools/${_CW:tl}-package.sh)
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		${.CURDIR}/tools/${_CW:tl}-package.sh \
+		-D ${DESTDIR} -I ${${_CW}_DISK} -S ${WORLDDIR}
+.endif
+	touch ${.TARGET}
 
 . endfor
 .endif
