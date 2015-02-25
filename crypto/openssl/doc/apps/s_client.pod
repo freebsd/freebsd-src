@@ -17,6 +17,22 @@ B<openssl> B<s_client>
 [B<-pass arg>]
 [B<-CApath directory>]
 [B<-CAfile filename>]
+[B<-attime timestamp>]
+[B<-check_ss_sig>]
+[B<-crl_check>]
+[B<-crl_check_all>]
+[B<-explicit_policy>]
+[B<-ignore_critical>]
+[B<-inhibit_any>]
+[B<-inhibit_map>]
+[B<-issuer_checks>]
+[B<-policy arg>]
+[B<-policy_check>]
+[B<-policy_print>]
+[B<-purpose purpose>]
+[B<-use_deltas>]
+[B<-verify_depth num>]
+[B<-x509_strict>]
 [B<-reconnect>]
 [B<-pause>]
 [B<-showcerts>]
@@ -38,6 +54,7 @@ B<openssl> B<s_client>
 [B<-bugs>]
 [B<-cipher cipherlist>]
 [B<-starttls protocol>]
+[B<-xmpphost hostname>]
 [B<-engine id>]
 [B<-tlsextdebug>]
 [B<-no_ticket>]
@@ -52,6 +69,11 @@ to a remote host using SSL/TLS. It is a I<very> useful diagnostic tool for
 SSL servers.
 
 =head1 OPTIONS
+
+In addition to the options below the B<s_client> utility also supports the
+common and client only options documented in the
+in the L<SSL_CONF_cmd(3)|SSL_CONF_cmd(3)/SUPPORTED COMMAND LINE COMMANDS>
+manual page.
 
 =over 4
 
@@ -101,6 +123,15 @@ also used when building the client certificate chain.
 
 A file containing trusted certificates to use during server authentication
 and to use when attempting to build the client certificate chain.
+
+=item B<-attime>, B<-check_ss_sig>, B<-crl_check>, B<-crl_check_all>,
+B<explicit_policy>, B<-ignore_critical>, B<-inhibit_any>,
+B<-inhibit_map>, B<-issuer_checks>, B<-policy>,
+B<-policy_check>, B<-policy_print>, B<-purpose>,
+B<-use_deltas>, B<-verify_depth>, B<-x509_strict>
+
+Set various certificate chain valiadition options. See the
+L<B<verify>|verify(1)> manual page for details.
 
 =item B<-reconnect>
 
@@ -192,18 +223,22 @@ command for more information.
 
 send the protocol-specific message(s) to switch to TLS for communication.
 B<protocol> is a keyword for the intended protocol.  Currently, the only
-supported keywords are "smtp", "pop3", "imap", and "ftp".
+supported keywords are "smtp", "pop3", "imap", "ftp" and "xmpp".
+
+=item B<-xmpphost hostname>
+
+This option, when used with "-starttls xmpp", specifies the host for the
+"to" attribute of the stream element.
+If this option is not specified, then the host specified with "-connect"
+will be used.
 
 =item B<-tlsextdebug>
 
-print out a hex dump of any TLS extensions received from the server. Note: this
-option is only available if extension support is explicitly enabled at compile
-time
+print out a hex dump of any TLS extensions received from the server.
 
 =item B<-no_ticket>
 
-disable RFC4507bis session ticket support. Note: this option is only available
-if extension support is explicitly enabled at compile time
+disable RFC4507bis session ticket support. 
 
 =item B<-sess_out filename>
 
@@ -216,7 +251,7 @@ connection from this session.
 
 =item B<-engine id>
 
-specifying an engine (by it's unique B<id> string) will cause B<s_client>
+specifying an engine (by its unique B<id> string) will cause B<s_client>
 to attempt to obtain a functional reference to the specified engine,
 thus initialising it if needed. The engine will then be set as the default
 for all available algorithms.
@@ -278,8 +313,11 @@ Since the SSLv23 client hello cannot include compression methods or extensions
 these will only be supported if its use is disabled, for example by using the
 B<-no_sslv2> option.
 
-TLS extensions are only supported in OpenSSL 0.9.8 if they are explictly
-enabled at compile time using for example the B<enable-tlsext> switch.
+The B<s_client> utility is a test tool and is designed to continue the
+handshake after any certificate verification errors. As a result it will
+accept any certificate chain (trusted or not) sent by the peer. None test
+applications should B<not> do this as it makes them vulnerable to a MITM
+attack.
 
 =head1 BUGS
 
@@ -287,9 +325,6 @@ Because this program has a lot of options and also because some of
 the techniques used are rather old, the C source of s_client is rather
 hard to read and not a model of how things should be done. A typical
 SSL client program would be much simpler.
-
-The B<-verify> option should really exit if the server verification
-fails.
 
 The B<-prexit> option is a bit of a hack. We should really report
 information whenever a session is renegotiated.
