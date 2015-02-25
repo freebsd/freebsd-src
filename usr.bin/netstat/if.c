@@ -244,10 +244,6 @@ show_stat(const char *fmt, int width, const char *name,
 		/* Format in human readable form. */
 		humanize_number(buf, sizeof(buf), (int64_t)value, "",
 		    HN_AUTOSCALE, HN_NOSPACE | HN_DECIMAL);
-		snprintf(newfmt, sizeof(newfmt), "%s%%%ds%s",
-		    lsep, width, rsep);
-		xo_emit(newfmt, buf);
-		xo_attr("value", "%lu", value);
 		maybe_pad(lsep);
 		snprintf(newfmt, sizeof(newfmt), "{:%s/%%%ds}", name, width);
 		xo_emit(newfmt, buf);
