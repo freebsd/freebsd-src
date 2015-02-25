@@ -68,7 +68,7 @@ mt_start_element(void *user_data, const char *name, const char **attr)
 		return;
 
 	mtinfo->level++;
-	if ((u_int)mtinfo->level > (sizeof(mtinfo->cur_sb) /
+	if ((u_int)mtinfo->level >= (sizeof(mtinfo->cur_sb) /
             sizeof(mtinfo->cur_sb[0]))) {
 		mtinfo->error = 1;
                 snprintf(mtinfo->error_str, sizeof(mtinfo->error_str), 
