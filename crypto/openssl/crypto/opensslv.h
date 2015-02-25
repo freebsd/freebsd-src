@@ -1,6 +1,10 @@
 #ifndef HEADER_OPENSSLV_H
 #define HEADER_OPENSSLV_H
 
+#ifdef  __cplusplus
+extern "C" {
+#endif
+
 /* Numeric release version identifier:
  * MNNFFPPS: major minor fix patch status
  * The status nibble has one of the values 0 for development, 1 to e for betas
@@ -25,11 +29,11 @@
  * (Prior to 0.9.5a beta1, a different scheme was used: MMNNFFRBB for
  *  major minor fix final patch/beta)
  */
-#define OPENSSL_VERSION_NUMBER	0x1000105fL
+#define OPENSSL_VERSION_NUMBER	0x100010cfL
 #ifdef OPENSSL_FIPS
-#define OPENSSL_VERSION_TEXT	"OpenSSL 1.0.1e-fips 11 Feb 2013"
+#define OPENSSL_VERSION_TEXT	"OpenSSL 1.0.1l-fips 15 Jan 2015"
 #else
-#define OPENSSL_VERSION_TEXT	"OpenSSL 1.0.1e-freebsd 11 Feb 2013"
+#define OPENSSL_VERSION_TEXT	"OpenSSL 1.0.1l-freebsd 15 Jan 2015"
 #endif
 #define OPENSSL_VERSION_PTEXT	" part of " OPENSSL_VERSION_TEXT
 
@@ -86,4 +90,7 @@
 #define SHLIB_VERSION_NUMBER "7"
 
 
+#ifdef  __cplusplus
+}
+#endif
 #endif /* HEADER_OPENSSLV_H */

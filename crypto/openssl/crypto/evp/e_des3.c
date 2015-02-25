@@ -101,7 +101,7 @@ static int des_ede_ecb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 static int des_ede_ofb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 			      const unsigned char *in, size_t inl)
 {
-	if (inl>=EVP_MAXCHUNK)
+	while (inl>=EVP_MAXCHUNK)
 		{
 		DES_ede3_ofb64_encrypt(in, out, (long)EVP_MAXCHUNK,
 			       &data(ctx)->ks1, &data(ctx)->ks2, &data(ctx)->ks3,
@@ -124,15 +124,14 @@ static int des_ede_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 #ifdef KSSL_DEBUG
 	{
         int i;
-        char *cp;
-	printf("des_ede_cbc_cipher(ctx=%lx, buflen=%d)\n", ctx, ctx->buf_len);
-	printf("\t iv= ");
+	fprintf(stderr,"des_ede_cbc_cipher(ctx=%p, buflen=%d)\n", ctx, ctx->buf_len);
+	fprintf(stderr,"\t iv= ");
         for(i=0;i<8;i++)
-                printf("%02X",ctx->iv[i]);
-	printf("\n");
+                fprintf(stderr,"%02X",ctx->iv[i]);
+	fprintf(stderr,"\n");
 	}
 #endif    /* KSSL_DEBUG */
-	if (inl>=EVP_MAXCHUNK)
+	while (inl>=EVP_MAXCHUNK)
 		{
 		DES_ede3_cbc_encrypt(in, out, (long)EVP_MAXCHUNK,
 			     &data(ctx)->ks1, &data(ctx)->ks2, &data(ctx)->ks3,
@@ -151,7 +150,7 @@ static int des_ede_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 static int des_ede_cfb64_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 			      const unsigned char *in, size_t inl)
 {
-	if (inl>=EVP_MAXCHUNK)
+	while (inl>=EVP_MAXCHUNK)
 		{
 		DES_ede3_cfb64_encrypt(in, out, (long)EVP_MAXCHUNK, 
 			       &data(ctx)->ks1, &data(ctx)->ks2, &data(ctx)->ks3,
@@ -260,11 +259,14 @@ static int des_ede3_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 #ifdef KSSL_DEBUG
 	{
         int i;
-        printf("des_ede3_init_key(ctx=%lx)\n", ctx);
-	printf("\tKEY= ");
-        for(i=0;i<24;i++) printf("%02X",key[i]); printf("\n");
-	printf("\t IV= ");
-        for(i=0;i<8;i++) printf("%02X",iv[i]); printf("\n");
+        fprintf(stderr,"des_ede3_init_key(ctx=%p)\n", ctx);
+	fprintf(stderr,"\tKEY= ");
+        for(i=0;i<24;i++) fprintf(stderr,"%02X",key[i]); fprintf(stderr,"\n");
+	if (iv) 
+		{
+		fprintf(stderr,"\t IV= ");
+		for(i=0;i<8;i++) fprintf(stderr,"%02X",iv[i]); fprintf(stderr,"\n");
+		}
 	}
 #endif	/* KSSL_DEBUG */
 

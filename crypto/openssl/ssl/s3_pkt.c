@@ -110,6 +110,7 @@
  */
 
 #include <stdio.h>
+#include <limits.h>
 #include <errno.h>
 #define USE_SOCKETS
 #include "ssl_locl.h"
@@ -274,6 +275,12 @@ int ssl3_read_n(SSL *s, int n, int max, int extend)
 	return(n);
 	}
 
+/* MAX_EMPTY_RECORDS defines the number of consecutive, empty records that will
+ * be processed per call to ssl3_get_record. Without this limit an attacker
+ * could send empty records at a faster rate than we can process and cause
+ * ssl3_get_record to loop forever. */
+#define MAX_EMPTY_RECORDS 32
+
 /* Call this to get a new input record.
  * It will return <= 0 if more data is needed, normally due to an error
  * or non-blocking IO.
@@ -294,6 +301,7 @@ static int ssl3_get_record(SSL *s)
 	short version;
 	unsigned mac_size, orig_len;
 	size_t extra;
+	unsigned empty_record_count = 0;
 
 	rr= &(s->s3->rrec);
 	sess=s->session;
@@ -337,7 +345,7 @@ fprintf(stderr, "Record type=%d, Length=%d\n", rr->type, rr->length);
 			if (version != s->version)
 				{
 				SSLerr(SSL_F_SSL3_GET_RECORD,SSL_R_WRONG_VERSION_NUMBER);
-                                if ((s->version & 0xFF00) == (version & 0xFF00))
+                                if ((s->version & 0xFF00) == (version & 0xFF00) && !s->enc_write_ctx && !s->write_hash)
                                 	/* Send back error using their minor version number :-) */
 					s->version = (unsigned short)version;
 				al=SSL_AD_PROTOCOL_VERSION;
@@ -524,7 +532,17 @@ printf("\n");
 	s->packet_length=0;
 
 	/* just read a 0 length packet */
-	if (rr->length == 0) goto again;
+	if (rr->length == 0)
+		{
+		empty_record_count++;
+		if (empty_record_count > MAX_EMPTY_RECORDS)
+			{
+			al=SSL_AD_UNEXPECTED_MESSAGE;
+			SSLerr(SSL_F_SSL3_GET_RECORD,SSL_R_RECORD_TOO_SMALL);
+			goto f_err;
+			}
+		goto again;
+		}
 
 #if 0
 fprintf(stderr, "Ultimate Record type=%d, Length=%d\n", rr->type, rr->length);
@@ -582,10 +600,11 @@ int ssl3_do_compress(SSL *ssl)
 int ssl3_write_bytes(SSL *s, int type, const void *buf_, int len)
 	{
 	const unsigned char *buf=buf_;
-	unsigned int tot,n,nw;
-	int i;
+	unsigned int n,nw;
+	int i,tot;
 
 	s->rwstate=SSL_NOTHING;
+	OPENSSL_assert(s->s3->wnum <= INT_MAX);
 	tot=s->s3->wnum;
 	s->s3->wnum=0;
 
@@ -599,6 +618,22 @@ int ssl3_write_bytes(SSL *s, int type, const void *buf_, int len)
 			return -1;
 			}
 		}
+
+	/* ensure that if we end up with a smaller value of data to write 
+	 * out than the the original len from a write which didn't complete 
+	 * for non-blocking I/O and also somehow ended up avoiding 
+	 * the check for this in ssl3_write_pending/SSL_R_BAD_WRITE_RETRY as
+	 * it must never be possible to end up with (len-tot) as a large
+	 * number that will then promptly send beyond the end of the users
+	 * buffer ... so we trap and report the error in a way the user
+	 * will notice
+	 */
+	if (len < tot)
+		{
+		SSLerr(SSL_F_SSL3_WRITE_BYTES,SSL_R_BAD_LENGTH);
+		return(-1);
+		}
+
 
 	n=(len-tot);
 	for (;;)
@@ -643,9 +678,6 @@ static int do_ssl3_write(SSL *s, int type, const unsigned char *buf,
 	SSL3_BUFFER *wb=&(s->s3->wbuf);
 	SSL_SESSION *sess;
 
- 	if (wb->buf == NULL)
-		if (!ssl3_setup_write_buffer(s))
-			return -1;
 
 	/* first check if there is a SSL3_BUFFER still being written
 	 * out.  This will happen with non blocking IO */
@@ -659,11 +691,11 @@ static int do_ssl3_write(SSL *s, int type, const unsigned char *buf,
 		if (i <= 0)
 			return(i);
 		/* if it went, fall through and send more stuff */
-		/* we may have released our buffer, so get it again */
-		if (wb->buf == NULL)
-			if (!ssl3_setup_write_buffer(s))
-				return -1;
 		}
+
+ 	if (wb->buf == NULL)
+		if (!ssl3_setup_write_buffer(s))
+			return -1;
 
 	if (len == 0 && !create_empty_fragment)
 		return 0;
@@ -826,8 +858,7 @@ static int do_ssl3_write(SSL *s, int type, const unsigned char *buf,
 		wr->length += eivlen;
 		}
 
-	/* ssl3_enc can only have an error on read */
-	s->method->ssl3_enc->enc(s,1);
+	if(s->method->ssl3_enc->enc(s,1)<1) goto err;
 
 	/* record length after mac and block padding */
 	s2n(wr->length,plen);
@@ -955,7 +986,7 @@ int ssl3_read_bytes(SSL *s, int type, unsigned char *buf, int len, int peek)
 		if (!ssl3_setup_read_buffer(s))
 			return(-1);
 
-	if ((type && (type != SSL3_RT_APPLICATION_DATA) && (type != SSL3_RT_HANDSHAKE) && type) ||
+	if ((type && (type != SSL3_RT_APPLICATION_DATA) && (type != SSL3_RT_HANDSHAKE)) ||
 	    (peek && (type != SSL3_RT_APPLICATION_DATA)))
 		{
 		SSLerr(SSL_F_SSL3_READ_BYTES, ERR_R_INTERNAL_ERROR);
@@ -1474,8 +1505,14 @@ int ssl3_do_change_cipher_spec(SSL *s)
 		slen=s->method->ssl3_enc->client_finished_label_len;
 		}
 
-	s->s3->tmp.peer_finish_md_len = s->method->ssl3_enc->final_finish_mac(s,
+	i = s->method->ssl3_enc->final_finish_mac(s,
 		sender,slen,s->s3->tmp.peer_finish_md);
+	if (i == 0)
+		{
+		SSLerr(SSL_F_SSL3_DO_CHANGE_CIPHER_SPEC, ERR_R_INTERNAL_ERROR);
+		return 0;
+		}
+	s->s3->tmp.peer_finish_md_len = i;
 
 	return(1);
 	}

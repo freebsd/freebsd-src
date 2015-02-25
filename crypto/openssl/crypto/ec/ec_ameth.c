@@ -88,7 +88,7 @@ static int eckey_param2type(int *pptype, void **ppval, EC_KEY *ec_key)
 		if (!pstr)
 			return 0;
 		pstr->length = i2d_ECParameters(ec_key, &pstr->data);
-		if (pstr->length < 0)
+		if (pstr->length <= 0)
 			{
 			ASN1_STRING_free(pstr);
 			ECerr(EC_F_ECKEY_PARAM2TYPE, ERR_R_EC_LIB);
@@ -352,6 +352,7 @@ static int eckey_priv_encode(PKCS8_PRIV_KEY_INFO *p8, const EVP_PKEY *pkey)
 		EC_KEY_set_enc_flags(ec_key, old_flags);
 		OPENSSL_free(ep);
 		ECerr(EC_F_ECKEY_PRIV_ENCODE, ERR_R_EC_LIB);
+		return 0;
 	}
 	/* restore old encoding flags */
 	EC_KEY_set_enc_flags(ec_key, old_flags);
@@ -452,14 +453,16 @@ static int do_EC_KEY_print(BIO *bp, const EC_KEY *x, int off, int ktype)
 	if (ktype > 0)
 		{
 		public_key = EC_KEY_get0_public_key(x);
-		if ((pub_key = EC_POINT_point2bn(group, public_key,
-			EC_KEY_get_conv_form(x), NULL, ctx)) == NULL)
+		if (public_key != NULL)
 			{
-			reason = ERR_R_EC_LIB;
-			goto err;
-			}
-		if (pub_key)
+			if ((pub_key = EC_POINT_point2bn(group, public_key,
+				EC_KEY_get_conv_form(x), NULL, ctx)) == NULL)
+				{
+				reason = ERR_R_EC_LIB;
+				goto err;
+				}
 			buf_len = (size_t)BN_num_bytes(pub_key);
+			}
 		}
 
 	if (ktype == 2)

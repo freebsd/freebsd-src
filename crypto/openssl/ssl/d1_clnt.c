@@ -249,6 +249,9 @@ int dtls1_connect(SSL *s)
 			memset(s->s3->client_random,0,sizeof(s->s3->client_random));
 			s->d1->send_cookie = 0;
 			s->hit = 0;
+			s->d1->change_cipher_spec_ok = 0;
+			/* Should have been reset by ssl3_get_finished, too. */
+			s->s3->change_cipher_spec = 0;
 			break;
 
 #ifndef OPENSSL_NO_SCTP
@@ -370,20 +373,6 @@ int dtls1_connect(SSL *s)
 
 		case SSL3_ST_CR_CERT_A:
 		case SSL3_ST_CR_CERT_B:
-#ifndef OPENSSL_NO_TLSEXT
-			ret=ssl3_check_finished(s);
-			if (ret <= 0) goto end;
-			if (ret == 2)
-				{
-				s->hit = 1;
-				if (s->tlsext_ticket_expected)
-					s->state=SSL3_ST_CR_SESSION_TICKET_A;
-				else
-					s->state=SSL3_ST_CR_FINISHED_A;
-				s->init_num=0;
-				break;
-				}
-#endif
 			/* Check if it is anon DH or PSK */
 			if (!(s->s3->tmp.new_cipher->algorithm_auth & SSL_aNULL) &&
 			    !(s->s3->tmp.new_cipher->algorithm_mkey & SSL_kPSK))
@@ -506,7 +495,6 @@ int dtls1_connect(SSL *s)
 				else
 #endif
 					s->state=SSL3_ST_CW_CHANGE_A;
-				s->s3->change_cipher_spec=0;
 				}
 
 			s->init_num=0;
@@ -527,7 +515,6 @@ int dtls1_connect(SSL *s)
 #endif
 				s->state=SSL3_ST_CW_CHANGE_A;
 			s->init_num=0;
-			s->s3->change_cipher_spec=0;
 			break;
 
 		case SSL3_ST_CW_CHANGE_A:
@@ -537,13 +524,6 @@ int dtls1_connect(SSL *s)
 			ret=dtls1_send_change_cipher_spec(s,
 				SSL3_ST_CW_CHANGE_A,SSL3_ST_CW_CHANGE_B);
 			if (ret <= 0) goto end;
-
-#ifndef OPENSSL_NO_SCTP
-			/* Change to new shared key of SCTP-Auth,
-			 * will be ignored if no SCTP used.
-			 */
-			BIO_ctrl(SSL_get_wbio(s), BIO_CTRL_DGRAM_SCTP_NEXT_AUTH_KEY, 0, NULL);
-#endif
 
 			s->state=SSL3_ST_CW_FINISHED_A;
 			s->init_num=0;
@@ -571,6 +551,16 @@ int dtls1_connect(SSL *s)
 				goto end;
 				}
 			
+#ifndef OPENSSL_NO_SCTP
+				if (s->hit)
+					{
+					/* Change to new shared key of SCTP-Auth,
+					 * will be ignored if no SCTP used.
+					 */
+					BIO_ctrl(SSL_get_wbio(s), BIO_CTRL_DGRAM_SCTP_NEXT_AUTH_KEY, 0, NULL);
+					}
+#endif
+
 			dtls1_reset_seq_numbers(s, SSL3_CC_WRITE);
 			break;
 
@@ -613,6 +603,13 @@ int dtls1_connect(SSL *s)
 				}
 			else
 				{
+#ifndef OPENSSL_NO_SCTP
+				/* Change to new shared key of SCTP-Auth,
+				 * will be ignored if no SCTP used.
+				 */
+				BIO_ctrl(SSL_get_wbio(s), BIO_CTRL_DGRAM_SCTP_NEXT_AUTH_KEY, 0, NULL);
+#endif
+
 #ifndef OPENSSL_NO_TLSEXT
 				/* Allow NewSessionTicket if ticket expected */
 				if (s->tlsext_ticket_expected)
@@ -773,7 +770,7 @@ int dtls1_client_hello(SSL *s)
 	unsigned char *buf;
 	unsigned char *p,*d;
 	unsigned int i,j;
-	unsigned long Time,l;
+	unsigned long l;
 	SSL_COMP *comp;
 
 	buf=(unsigned char *)s->init_buf->data;
@@ -798,13 +795,11 @@ int dtls1_client_hello(SSL *s)
 
 		/* if client_random is initialized, reuse it, we are
 		 * required to use same upon reply to HelloVerify */
-		for (i=0;p[i]=='\0' && i<sizeof(s->s3->client_random);i++) ;
+		for (i=0;p[i]=='\0' && i<sizeof(s->s3->client_random);i++)
+			;
 		if (i==sizeof(s->s3->client_random))
-			{
-			Time=(unsigned long)time(NULL);	/* Time */
-			l2n(Time,p);
-			RAND_pseudo_bytes(p,sizeof(s->s3->client_random)-4);
-			}
+			ssl_fill_hello_random(s, 0, p,
+					      sizeof(s->s3->client_random));
 
 		/* Do the message type and length last */
 		d=p= &(buf[DTLS1_HM_HEADER_LENGTH]);
@@ -868,12 +863,18 @@ int dtls1_client_hello(SSL *s)
 		*(p++)=0; /* Add the NULL method */
 
 #ifndef OPENSSL_NO_TLSEXT
+		/* TLS extensions*/
+		if (ssl_prepare_clienthello_tlsext(s) <= 0)
+			{
+			SSLerr(SSL_F_DTLS1_CLIENT_HELLO,SSL_R_CLIENTHELLO_TLSEXT);
+			goto err;
+			}
 		if ((p = ssl_add_clienthello_tlsext(s, p, buf+SSL3_RT_MAX_PLAIN_LENGTH)) == NULL)
 			{
 			SSLerr(SSL_F_DTLS1_CLIENT_HELLO,ERR_R_INTERNAL_ERROR);
 			goto err;
 			}
-#endif		
+#endif
 
 		l=(p-d);
 		d=buf;
@@ -1716,6 +1717,12 @@ int dtls1_send_client_certificate(SSL *s)
 		s->state=SSL3_ST_CW_CERT_D;
 		l=dtls1_output_cert_chain(s,
 			(s->s3->tmp.cert_req == 2)?NULL:s->cert->key->x509);
+		if (!l)
+			{
+			SSLerr(SSL_F_DTLS1_SEND_CLIENT_CERTIFICATE, ERR_R_INTERNAL_ERROR);
+			ssl3_send_alert(s,SSL3_AL_FATAL,SSL_AD_INTERNAL_ERROR);
+			return 0;
+			}
 		s->init_num=(int)l;
 		s->init_off=0;
 

@@ -161,6 +161,8 @@ int ssl3_send_finished(SSL *s, int a, int b, const char *sender, int slen)
 
 		i=s->method->ssl3_enc->final_finish_mac(s,
 			sender,slen,s->s3->tmp.finish_md);
+		if (i == 0)
+			return 0;
 		s->s3->tmp.finish_md_len = i;
 		memcpy(p, s->s3->tmp.finish_md, i);
 		p+=i;
@@ -437,6 +439,7 @@ long ssl3_get_message(SSL *s, int st1, int stn, int mt, long max, int *ok)
 			goto f_err;
 			}
 		*ok=1;
+		s->state = stn;
 		s->init_msg = s->init_buf->data + 4;
 		s->init_num = (int)s->s3->tmp.message_size;
 		return s->init_num;

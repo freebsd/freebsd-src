@@ -855,6 +855,12 @@ start:
 			}
 		}
 
+	if (s->d1->listen && rr->type != SSL3_RT_HANDSHAKE)
+		{
+		rr->length = 0;
+		goto start;
+		}
+
 	/* we now have a packet which can be read and processed */
 
 	if (s->s3->change_cipher_spec /* set when we receive ChangeCipherSpec,
@@ -1063,6 +1069,7 @@ start:
 			!(s->s3->flags & SSL3_FLAGS_NO_RENEGOTIATE_CIPHERS) &&
 			!s->s3->renegotiate)
 			{
+			s->d1->handshake_read_seq++;
 			s->new_session = 1;
 			ssl3_renegotiate(s);
 			if (ssl3_renegotiate_check(s))
@@ -1623,7 +1630,7 @@ int do_dtls1_write(SSL *s, int type, const unsigned char *buf, unsigned int len,
 		wr->length += bs;
 		}
 
-	s->method->ssl3_enc->enc(s,1);
+	if(s->method->ssl3_enc->enc(s,1) < 1) goto err;
 
 	/* record length after mac and block padding */
 /*	if (type == SSL3_RT_APPLICATION_DATA ||

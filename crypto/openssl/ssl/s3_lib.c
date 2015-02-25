@@ -328,7 +328,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL_SSLV3,
 	SSL_NOT_EXP|SSL_HIGH|SSL_FIPS,
 	SSL_HANDSHAKE_MAC_DEFAULT|TLS1_PRF,
-	168,
+	112,
 	168,
 	},
 
@@ -377,7 +377,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL_SSLV3,
 	SSL_NOT_EXP|SSL_HIGH|SSL_FIPS,
 	SSL_HANDSHAKE_MAC_DEFAULT|TLS1_PRF,
-	168,
+	112,
 	168,
 	},
 
@@ -425,7 +425,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL_SSLV3,
 	SSL_NOT_EXP|SSL_HIGH|SSL_FIPS,
 	SSL_HANDSHAKE_MAC_DEFAULT|TLS1_PRF,
-	168,
+	112,
 	168,
 	},
 
@@ -474,7 +474,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL_SSLV3,
 	SSL_NOT_EXP|SSL_HIGH|SSL_FIPS,
 	SSL_HANDSHAKE_MAC_DEFAULT|TLS1_PRF,
-	168,
+	112,
 	168,
 	},
 
@@ -522,7 +522,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL_SSLV3,
 	SSL_NOT_EXP|SSL_HIGH|SSL_FIPS,
 	SSL_HANDSHAKE_MAC_DEFAULT|TLS1_PRF,
-	168,
+	112,
 	168,
 	},
 
@@ -602,7 +602,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL_SSLV3,
 	SSL_NOT_EXP|SSL_HIGH|SSL_FIPS,
 	SSL_HANDSHAKE_MAC_DEFAULT|TLS1_PRF,
-	168,
+	112,
 	168,
 	},
 
@@ -687,7 +687,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL_SSLV3,
 	SSL_NOT_EXP|SSL_HIGH|SSL_FIPS,
 	SSL_HANDSHAKE_MAC_DEFAULT|TLS1_PRF,
-	168,
+	112,
 	168,
 	},
 
@@ -751,7 +751,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL_SSLV3,
 	SSL_NOT_EXP|SSL_HIGH,
 	SSL_HANDSHAKE_MAC_DEFAULT|TLS1_PRF,
-	168,
+	112,
 	168,
 	},
 
@@ -1683,9 +1683,9 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL_3DES,
 	SSL_SHA1,
 	SSL_TLSV1,
-	SSL_NOT_EXP|SSL_HIGH,
+	SSL_NOT_EXP|SSL_HIGH|SSL_FIPS,
 	SSL_HANDSHAKE_MAC_DEFAULT|TLS1_PRF,
-	168,
+	112,
 	168,
 	},
 
@@ -1699,7 +1699,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL_AES128,
 	SSL_SHA1,
 	SSL_TLSV1,
-	SSL_NOT_EXP|SSL_HIGH,
+	SSL_NOT_EXP|SSL_HIGH|SSL_FIPS,
 	SSL_HANDSHAKE_MAC_DEFAULT|TLS1_PRF,
 	128,
 	128,
@@ -1715,7 +1715,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL_AES256,
 	SSL_SHA1,
 	SSL_TLSV1,
-	SSL_NOT_EXP|SSL_HIGH,
+	SSL_NOT_EXP|SSL_HIGH|SSL_FIPS,
 	SSL_HANDSHAKE_MAC_DEFAULT|TLS1_PRF,
 	256,
 	256,
@@ -2062,7 +2062,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL_TLSV1,
 	SSL_NOT_EXP|SSL_HIGH|SSL_FIPS,
 	SSL_HANDSHAKE_MAC_DEFAULT|TLS1_PRF,
-	168,
+	112,
 	168,
 	},
 
@@ -2142,7 +2142,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL_TLSV1,
 	SSL_NOT_EXP|SSL_HIGH|SSL_FIPS,
 	SSL_HANDSHAKE_MAC_DEFAULT|TLS1_PRF,
-	168,
+	112,
 	168,
 	},
 
@@ -2222,7 +2222,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL_TLSV1,
 	SSL_NOT_EXP|SSL_HIGH|SSL_FIPS,
 	SSL_HANDSHAKE_MAC_DEFAULT|TLS1_PRF,
-	168,
+	112,
 	168,
 	},
 
@@ -2302,7 +2302,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL_TLSV1,
 	SSL_NOT_EXP|SSL_HIGH|SSL_FIPS,
 	SSL_HANDSHAKE_MAC_DEFAULT|TLS1_PRF,
-	168,
+	112,
 	168,
 	},
 
@@ -2382,7 +2382,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL_TLSV1,
 	SSL_NOT_EXP|SSL_HIGH|SSL_FIPS,
 	SSL_HANDSHAKE_MAC_DEFAULT|TLS1_PRF,
-	168,
+	112,
 	168,
 	},
 
@@ -2432,7 +2432,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL_TLSV1,
 	SSL_NOT_EXP|SSL_HIGH,
 	SSL_HANDSHAKE_MAC_DEFAULT|TLS1_PRF,
-	168,
+	112,
 	168,
 	},
 
@@ -2448,7 +2448,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL_TLSV1,
 	SSL_NOT_EXP|SSL_HIGH,
 	SSL_HANDSHAKE_MAC_DEFAULT|TLS1_PRF,
-	168,
+	112,
 	168,
 	},
 
@@ -2464,7 +2464,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	SSL_TLSV1,
 	SSL_NOT_EXP|SSL_HIGH,
 	SSL_HANDSHAKE_MAC_DEFAULT|TLS1_PRF,
-	168,
+	112,
 	168,
 	},
 
@@ -3037,6 +3037,11 @@ void ssl3_clear(SSL *s)
 		s->s3->tmp.ecdh = NULL;
 		}
 #endif
+#ifndef OPENSSL_NO_TLSEXT
+#ifndef OPENSSL_NO_EC
+	s->s3->is_probably_safari = 0;
+#endif /* !OPENSSL_NO_EC */
+#endif /* !OPENSSL_NO_TLSEXT */
 
 	rp = s->s3->rbuf.buf;
 	wp = s->s3->wbuf.buf;
@@ -3805,17 +3810,17 @@ SSL_CIPHER *ssl3_choose_cipher(SSL *s, STACK_OF(SSL_CIPHER) *clnt,
 #endif
 
 #ifdef CIPHER_DEBUG
-	printf("Server has %d from %p:\n", sk_SSL_CIPHER_num(srvr), (void *)srvr);
+	fprintf(stderr, "Server has %d from %p:\n", sk_SSL_CIPHER_num(srvr), (void *)srvr);
 	for(i=0 ; i < sk_SSL_CIPHER_num(srvr) ; ++i)
 		{
 		c=sk_SSL_CIPHER_value(srvr,i);
-		printf("%p:%s\n",(void *)c,c->name);
+		fprintf(stderr, "%p:%s\n",(void *)c,c->name);
 		}
-	printf("Client sent %d from %p:\n", sk_SSL_CIPHER_num(clnt), (void *)clnt);
+	fprintf(stderr, "Client sent %d from %p:\n", sk_SSL_CIPHER_num(clnt), (void *)clnt);
 	for(i=0 ; i < sk_SSL_CIPHER_num(clnt) ; ++i)
 	    {
 	    c=sk_SSL_CIPHER_value(clnt,i);
-	    printf("%p:%s\n",(void *)c,c->name);
+	    fprintf(stderr, "%p:%s\n",(void *)c,c->name);
 	    }
 #endif
 
@@ -3845,12 +3850,17 @@ SSL_CIPHER *ssl3_choose_cipher(SSL *s, STACK_OF(SSL_CIPHER) *clnt,
 		emask_k = cert->export_mask_k;
 		emask_a = cert->export_mask_a;
 #ifndef OPENSSL_NO_SRP
-		mask_k=cert->mask_k | s->srp_ctx.srp_Mask;
-		emask_k=cert->export_mask_k | s->srp_ctx.srp_Mask;
+		if (s->srp_ctx.srp_Mask & SSL_kSRP)
+			{
+			mask_k |= SSL_kSRP;
+			emask_k |= SSL_kSRP;
+			mask_a |= SSL_aSRP;
+			emask_a |= SSL_aSRP;
+			}
 #endif
-			
+
 #ifdef KSSL_DEBUG
-/*		printf("ssl3_choose_cipher %d alg= %lx\n", i,c->algorithms);*/
+/*		fprintf(stderr,"ssl3_choose_cipher %d alg= %lx\n", i,c->algorithms);*/
 #endif    /* KSSL_DEBUG */
 
 		alg_k=c->algorithm_mkey;
@@ -3873,7 +3883,7 @@ SSL_CIPHER *ssl3_choose_cipher(SSL *s, STACK_OF(SSL_CIPHER) *clnt,
 			{
 			ok = (alg_k & emask_k) && (alg_a & emask_a);
 #ifdef CIPHER_DEBUG
-			printf("%d:[%08lX:%08lX:%08lX:%08lX]%p:%s (export)\n",ok,alg_k,alg_a,emask_k,emask_a,
+			fprintf(stderr, "%d:[%08lX:%08lX:%08lX:%08lX]%p:%s (export)\n",ok,alg_k,alg_a,emask_k,emask_a,
 			       (void *)c,c->name);
 #endif
 			}
@@ -3881,7 +3891,7 @@ SSL_CIPHER *ssl3_choose_cipher(SSL *s, STACK_OF(SSL_CIPHER) *clnt,
 			{
 			ok = (alg_k & mask_k) && (alg_a & mask_a);
 #ifdef CIPHER_DEBUG
-			printf("%d:[%08lX:%08lX:%08lX:%08lX]%p:%s\n",ok,alg_k,alg_a,mask_k,mask_a,(void *)c,
+			fprintf(stderr, "%d:[%08lX:%08lX:%08lX:%08lX]%p:%s\n",ok,alg_k,alg_a,mask_k,mask_a,(void *)c,
 			       c->name);
 #endif
 			}
@@ -3990,6 +4000,7 @@ SSL_CIPHER *ssl3_choose_cipher(SSL *s, STACK_OF(SSL_CIPHER) *clnt,
 				}
 			ok = ok && ec_ok;
 			}
+#ifndef OPENSSL_NO_ECDH
 		if (
 			/* if we are considering an ECC cipher suite that uses an ephemeral EC key */
 			(alg_k & SSL_kEECDH)
@@ -4037,6 +4048,7 @@ SSL_CIPHER *ssl3_choose_cipher(SSL *s, STACK_OF(SSL_CIPHER) *clnt,
 				}
 			ok = ok && ec_ok;
 			}
+#endif /* OPENSSL_NO_ECDH */
 #endif /* OPENSSL_NO_EC */
 #endif /* OPENSSL_NO_TLSEXT */
 
@@ -4044,6 +4056,13 @@ SSL_CIPHER *ssl3_choose_cipher(SSL *s, STACK_OF(SSL_CIPHER) *clnt,
 		ii=sk_SSL_CIPHER_find(allow,c);
 		if (ii >= 0)
 			{
+#if !defined(OPENSSL_NO_EC) && !defined(OPENSSL_NO_TLSEXT)
+			if ((alg_k & SSL_kEECDH) && (alg_a & SSL_aECDSA) && s->s3->is_probably_safari)
+				{
+				if (!ret) ret=sk_SSL_CIPHER_value(allow,ii);
+				continue;
+				}
+#endif
 			ret=sk_SSL_CIPHER_value(allow,ii);
 			break;
 			}

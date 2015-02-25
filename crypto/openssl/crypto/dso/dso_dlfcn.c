@@ -60,10 +60,8 @@
    that handle _GNU_SOURCE and other similar macros.  Defining it later
    is simply too late, because those headers are protected from re-
    inclusion.  */
-#ifdef __linux
-# ifndef _GNU_SOURCE
-#  define _GNU_SOURCE	/* make sure dladdr is declared */
-# endif
+#ifndef _GNU_SOURCE
+# define _GNU_SOURCE	/* make sure dladdr is declared */
 #endif
 
 #include <stdio.h>
@@ -464,7 +462,7 @@ static int dlfcn_pathbyaddr(void *addr,char *path,int sz)
 		return len;
 		}
 
-	ERR_add_error_data(4, "dlfcn_pathbyaddr(): ", dlerror());
+	ERR_add_error_data(2, "dlfcn_pathbyaddr(): ", dlerror());
 #endif
 	return -1;
 	}

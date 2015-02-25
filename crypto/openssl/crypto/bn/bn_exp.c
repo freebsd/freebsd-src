@@ -680,7 +680,7 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
 
     /* Dedicated window==4 case improves 512-bit RSA sign by ~15%, but as
      * 512-bit RSA is hardly relevant, we omit it to spare size... */ 
-    if (window==5)
+    if (window==5 && top>1)
 	{
 	void bn_mul_mont_gather5(BN_ULONG *rp,const BN_ULONG *ap,
 			const void *table,const BN_ULONG *np,
@@ -874,7 +874,14 @@ int BN_mod_exp_mont_word(BIGNUM *rr, BN_ULONG a, const BIGNUM *p,
 	bits = BN_num_bits(p);
 	if (bits == 0)
 		{
-		ret = BN_one(rr);
+		/* x**0 mod 1 is still zero. */
+		if (BN_is_one(m))
+			{
+			ret = 1;
+			BN_zero(rr);
+			}
+		else
+			ret = BN_one(rr);
 		return ret;
 		}
 	if (a == 0)

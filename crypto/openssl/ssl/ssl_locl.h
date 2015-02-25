@@ -810,6 +810,16 @@ const SSL_METHOD *func_name(void)  \
 	return &func_name##_data; \
 	}
 
+struct openssl_ssl_test_functions
+	{
+	int (*p_ssl_init_wbio_buffer)(SSL *s, int push);
+	int (*p_ssl3_setup_buffers)(SSL *s);
+	int (*p_tls1_process_heartbeat)(SSL *s);
+	int (*p_dtls1_process_heartbeat)(SSL *s);
+	};
+
+#ifndef OPENSSL_UNIT_TEST
+
 void ssl_clear_cipher_ctx(SSL *s);
 int ssl_clear_bad_session(SSL *s);
 CERT *ssl_cert_new(void);
@@ -850,10 +860,11 @@ void ssl_set_cert_masks(CERT *c, const SSL_CIPHER *cipher);
 STACK_OF(SSL_CIPHER) *ssl_get_ciphers_by_id(SSL *s);
 int ssl_verify_alarm_type(long type);
 void ssl_load_ciphers(void);
+int ssl_fill_hello_random(SSL *s, int server, unsigned char *field, int len);
 
 int ssl2_enc_init(SSL *s, int client);
 int ssl2_generate_key_material(SSL *s);
-void ssl2_enc(SSL *s,int send_data);
+int ssl2_enc(SSL *s,int send_data);
 void ssl2_mac(SSL *s,unsigned char *mac,int send_data);
 const SSL_CIPHER *ssl2_get_cipher_by_char(const unsigned char *p);
 int ssl2_put_cipher_by_char(const SSL_CIPHER *c,unsigned char *p);
@@ -986,7 +997,9 @@ void dtls1_stop_timer(SSL *s);
 int dtls1_is_timer_expired(SSL *s);
 void dtls1_double_timeout(SSL *s);
 int dtls1_send_newsession_ticket(SSL *s);
-unsigned int dtls1_min_mtu(void);
+unsigned int dtls1_min_mtu(SSL *s);
+unsigned int dtls1_link_min_mtu(void);
+void dtls1_hm_fragment_free(hm_fragment *frag);
 
 /* some client-only functions */
 int ssl3_client_hello(SSL *s);
@@ -1003,7 +1016,6 @@ int ssl3_get_key_exchange(SSL *s);
 int ssl3_get_server_certificate(SSL *s);
 int ssl3_check_cert_and_algorithm(SSL *s);
 #ifndef OPENSSL_NO_TLSEXT
-int ssl3_check_finished(SSL *s);
 # ifndef OPENSSL_NO_NEXTPROTONEG
 int ssl3_send_next_proto(SSL *s);
 # endif
@@ -1095,8 +1107,8 @@ int tls1_ec_nid2curve_id(int nid);
 #endif /* OPENSSL_NO_EC */
 
 #ifndef OPENSSL_NO_TLSEXT
-unsigned char *ssl_add_clienthello_tlsext(SSL *s, unsigned char *p, unsigned char *limit); 
-unsigned char *ssl_add_serverhello_tlsext(SSL *s, unsigned char *p, unsigned char *limit); 
+unsigned char *ssl_add_clienthello_tlsext(SSL *s, unsigned char *buf, unsigned char *limit); 
+unsigned char *ssl_add_serverhello_tlsext(SSL *s, unsigned char *buf, unsigned char *limit); 
 int ssl_parse_clienthello_tlsext(SSL *s, unsigned char **data, unsigned char *d, int n, int *al);
 int ssl_parse_serverhello_tlsext(SSL *s, unsigned char **data, unsigned char *d, int n, int *al);
 int ssl_prepare_clienthello_tlsext(SSL *s);
@@ -1176,4 +1188,12 @@ void tls_fips_digest_extra(
 
 int srp_verify_server_param(SSL *s, int *al);
 
+#else
+
+#define ssl_init_wbio_buffer SSL_test_functions()->p_ssl_init_wbio_buffer
+#define ssl3_setup_buffers SSL_test_functions()->p_ssl3_setup_buffers
+#define tls1_process_heartbeat SSL_test_functions()->p_tls1_process_heartbeat
+#define dtls1_process_heartbeat SSL_test_functions()->p_dtls1_process_heartbeat
+
+#endif
 #endif

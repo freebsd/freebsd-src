@@ -68,6 +68,7 @@
 #ifdef OPENSSL_FIPS
 #include <openssl/fips.h>
 #include <openssl/fips_rand.h>
+#include "rand_lcl.h"
 #endif
 
 #ifndef OPENSSL_NO_ENGINE
@@ -199,7 +200,7 @@ static size_t drbg_get_entropy(DRBG_CTX *ctx, unsigned char **pout,
 	*pout = OPENSSL_malloc(min_len);
 	if (!*pout)
 		return 0;
-	if (RAND_SSLeay()->bytes(*pout, min_len) <= 0)
+	if (ssleay_rand_bytes(*pout, min_len, 0, 0) <= 0)
 		{
 		OPENSSL_free(*pout);
 		*pout = NULL;
@@ -269,6 +270,14 @@ int RAND_init_fips(void)
 	DRBG_CTX *dctx;
 	size_t plen;
 	unsigned char pers[32], *p;
+#ifndef OPENSSL_ALLOW_DUAL_EC_DRBG
+	if (fips_drbg_type >> 16)
+		{
+		RANDerr(RAND_F_RAND_INIT_FIPS, RAND_R_DUAL_EC_DRBG_DISABLED);
+		return 0;
+		}
+#endif
+		
 	dctx = FIPS_get_default_drbg();
         if (FIPS_drbg_init(dctx, fips_drbg_type, fips_drbg_flags) <= 0)
 		{
