@@ -124,7 +124,7 @@ loadelf64(int fd, void *location, size_t maxsize)
 			continue;
 		}
 #ifdef DEBUG
-		printf("mapping %zu bytes at %p, file offset %zu\n",
+		printf("mapping 0x%zx bytes at %p, file offset 0x%zx\n",
 		    maplen, taddr, offset);
 #endif
 		if((addr = mmap(taddr, maplen, prot,
@@ -151,7 +151,7 @@ loadelf64(int fd, void *location, size_t maxsize)
 		maplen = (phdr.p_offset - rounddown2(phdr.p_offset, PAGE_SIZE)) +
 		    phdr.p_memsz - mappedbytes;
 #ifdef DEBUG
-		printf("mapping %zu bytes at %p\n", maplen, taddr);
+		printf("mapping 0x%zx bytes at 0x%p\n", maplen, taddr);
 #endif
 		if (mmap(taddr, maplen, prot,
 		    MAP_FIXED | MAP_ANON, -1, 0) == MAP_FAILED) {
