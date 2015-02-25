@@ -48,6 +48,29 @@
 	<entry><para>Fixed directory deletion issue in
 	    &man.freebsd-update.8;</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-15:01.vt.asc">FreeBSD-EN-15:01.vt</link></entry>
+	<entry>25&nbsp;February&nbsp;2015</entry>
+	<entry><para>&man.vt.4; crash with improper ioctl
+	    parameters</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-15:02.openssl.asc">FreeBSD-EN-15:02.openssl</link></entry>
+	<entry>25&nbsp;February&nbsp;2015</entry>
+	<entry><para>OpenSSL update</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-15:03.freebsd-update.asc">FreeBSD-EN-15:03.freebsd-update</link></entry>
+	<entry>25&nbsp;February&nbsp;2015</entry>
+	<entry><para>&man.freebsd-update.8; updates libraries in
+	    suboptimal order</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
