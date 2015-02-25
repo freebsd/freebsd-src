@@ -111,6 +111,21 @@
 	<entry>23&nbsp;December&nbsp;2014</entry>
 	<entry><para>Fix directory deletion issue</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-15:02.openssl.asc">FreeBSD-EN-15:02.openssl</link></entry>
+	<entry>25&nbsp;February&nbsp;2015</entry>
+	<entry><para>OpenSSL update</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-15:03.freebsd-update.asc">FreeBSD-EN-15:03.freebsd-update</link></entry>
+	<entry>25&nbsp;February&nbsp;2015</entry>
+	<entry><para>&man.freebsd-update.8; updates libraries in
+	    suboptimal order</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>

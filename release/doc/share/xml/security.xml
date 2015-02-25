@@ -216,6 +216,21 @@
 	<entry><para>Fix SCTP stream reset
 	    vulnerability</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-15:04.igmp.asc">FreeBSD-SA-15:04.igmp</link></entry>
+	<entry>25&nbsp;February&nbsp;2015</entry>
+	<entry><para>Integer overflow in IGMP protocol</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-15:05.bind.asc">FreeBSD-SA-15:05.igmp</link></entry>
+	<entry>25&nbsp;February&nbsp;2015</entry>
+	<entry><para>Remote denial of service
+	    vulnerability</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
