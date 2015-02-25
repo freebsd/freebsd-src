@@ -1198,8 +1198,14 @@ key_unlink(struct secpolicy *sp)
 	SPTREE_UNLOCK_ASSERT();
 
 	SPTREE_WLOCK();
+	if (sp->state == IPSEC_SPSTATE_DEAD) {
+		SPTREE_WUNLOCK();
+		return;
+	}
+	sp->state = IPSEC_SPSTATE_DEAD;
 	TAILQ_REMOVE(&V_sptree[sp->spidx.dir], sp, chain);
 	SPTREE_WUNLOCK();
+	KEY_FREESP(&sp);
 }
 
 /*
@@ -1900,6 +1906,7 @@ key_spdadd(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 
 	SPTREE_WLOCK();
 	TAILQ_INSERT_TAIL(&V_sptree[newsp->spidx.dir], newsp, chain);
+	newsp->state = IPSEC_SPSTATE_ALIVE;
 	SPTREE_WUNLOCK();
 
 	/* delete the entry in spacqtree */
@@ -2335,6 +2342,12 @@ key_spdflush(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	for (dir = 0; dir < IPSEC_DIR_MAX; dir++) {
 		TAILQ_CONCAT(&drainq, &V_sptree[dir], chain);
 	}
+	/*
+	 * We need to set state to DEAD for each policy to be sure,
+	 * that another thread won't try to unlink it.
+	 */
+	TAILQ_FOREACH(sp, &drainq, chain)
+		sp->state = IPSEC_SPSTATE_DEAD;
 	SPTREE_WUNLOCK();
 	sp = TAILQ_FIRST(&drainq);
 	while (sp != NULL) {
@@ -4209,9 +4222,10 @@ restart:
 			    now - sp->created > sp->lifetime) ||
 			    (sp->validtime &&
 			    now - sp->lastused > sp->validtime)) {
+				SP_ADDREF(sp);
 				SPTREE_RUNLOCK();
-				key_unlink(sp);
 				key_spdexpire(sp);
+				key_unlink(sp);
 				KEY_FREESP(&sp);
 				goto restart;
 			}

@@ -226,9 +226,9 @@ cxgbe_nm_qflush(struct ifnet *ifp)
 }
 
 static int
-alloc_nm_rxq_hwq(struct port_info *pi, struct sge_nm_rxq *nm_rxq)
+alloc_nm_rxq_hwq(struct port_info *pi, struct sge_nm_rxq *nm_rxq, int cong)
 {
-	int rc, cntxt_id;
+	int rc, cntxt_id, i;
 	__be32 v;
 	struct adapter *sc = pi->adapter;
 	struct netmap_adapter *na = NA(pi->nm_ifp);
@@ -267,6 +267,11 @@ alloc_nm_rxq_hwq(struct port_info *pi, struct sge_nm_rxq *nm_rxq)
 	    V_FW_IQ_CMD_IQESIZE(ilog2(IQ_ESIZE) - 4));
 	c.iqsize = htobe16(pi->qsize_rxq);
 	c.iqaddr = htobe64(nm_rxq->iq_ba);
+	if (cong >= 0) {
+		c.iqns_to_fl0congen = htobe32(F_FW_IQ_CMD_IQFLINTCONGEN |
+		    V_FW_IQ_CMD_FL0CNGCHMAP(cong) | F_FW_IQ_CMD_FL0CONGCIF |
+		    F_FW_IQ_CMD_FL0CONGEN);
+	}
 	c.iqns_to_fl0congen |=
 	    htobe32(V_FW_IQ_CMD_FL0HOSTFCMODE(X_HOSTFCMODE_NONE) |
 		F_FW_IQ_CMD_FL0FETCHRO | F_FW_IQ_CMD_FL0DATARO |
@@ -310,7 +315,36 @@ alloc_nm_rxq_hwq(struct port_info *pi, struct sge_nm_rxq *nm_rxq)
 	if (is_t5(sc))
 		nm_rxq->fl_db_val |= F_DBTYPE;
 
-	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS), V_SEINTARM(F_QINTR_CNT_EN) |
+	if (is_t5(sc) && cong >= 0) {
+		uint32_t param, val;
+
+		param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
+		    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_CONM_CTXT) |
+		    V_FW_PARAMS_PARAM_YZ(nm_rxq->iq_cntxt_id);
+		param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
+		    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_CONM_CTXT) |
+		    V_FW_PARAMS_PARAM_YZ(nm_rxq->iq_cntxt_id);
+		if (cong == 0)
+			val = 1 << 19;
+		else {
+			val = 2 << 19;
+			for (i = 0; i < 4; i++) {
+				if (cong & (1 << i))
+					val |= 1 << (i << 2);
+			}
+		}
+
+		rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
+		if (rc != 0) {
+			/* report error but carry on */
+			device_printf(sc->dev,
+			    "failed to set congestion manager context for "
+			    "ingress queue %d: %d\n", nm_rxq->iq_cntxt_id, rc);
+		}
+	}
+
+	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS),
+	    V_SEINTARM(V_QINTR_TIMER_IDX(1)) |
 	    V_INGRESSQID(nm_rxq->iq_cntxt_id));
 
 	return (rc);
@@ -351,7 +385,8 @@ alloc_nm_txq_hwq(struct port_info *pi, struct sge_nm_txq *nm_txq)
 	    V_FW_EQ_ETH_CMD_VFN(0));
 	c.alloc_to_len16 = htobe32(F_FW_EQ_ETH_CMD_ALLOC |
 	    F_FW_EQ_ETH_CMD_EQSTART | FW_LEN16(c));
-	c.autoequiqe_to_viid = htobe32(V_FW_EQ_ETH_CMD_VIID(pi->nm_viid));
+	c.autoequiqe_to_viid = htobe32(F_FW_EQ_ETH_CMD_AUTOEQUEQE |
+	    V_FW_EQ_ETH_CMD_VIID(pi->nm_viid));
 	c.fetchszm_to_iqid =
 	    htobe32(V_FW_EQ_ETH_CMD_HOSTFCMODE(X_HOSTFCMODE_NONE) |
 		V_FW_EQ_ETH_CMD_PCIECHN(pi->tx_chan) | F_FW_EQ_ETH_CMD_FETCHRO |
@@ -448,7 +483,7 @@ cxgbe_netmap_on(struct adapter *sc, struct port_info *pi, struct ifnet *ifp,
 	nm_set_native_flags(na);
 
 	for_each_nm_rxq(pi, i, nm_rxq) {
-		alloc_nm_rxq_hwq(pi, nm_rxq);
+		alloc_nm_rxq_hwq(pi, nm_rxq, tnl_cong(pi));
 		nm_rxq->fl_hwidx = hwidx;
 		slot = netmap_reset(na, NR_RX, i, 0);
 		MPASS(slot != NULL);	/* XXXNM: error check, not assert */
@@ -513,12 +548,17 @@ cxgbe_netmap_off(struct adapter *sc, struct port_info *pi, struct ifnet *ifp,
 		if_printf(ifp, "netmap disable_vi failed: %d\n", rc);
 	nm_clear_native_flags(na);
 
-	/*
-	 * XXXNM: We need to make sure that the tx queues are quiet and won't
-	 * request any more SGE_EGR_UPDATEs.
-	 */
-
 	for_each_nm_txq(pi, i, nm_txq) {
+		struct sge_qstat *spg = (void *)&nm_txq->desc[nm_txq->sidx];
+
+		/* Wait for hw pidx to catch up ... */
+		while (be16toh(nm_txq->pidx) != spg->pidx)
+			pause("nmpidx", 1);
+
+		/* ... and then for the cidx. */
+		while (spg->pidx != spg->cidx)
+			pause("nmcidx", 1);
+
 		free_nm_txq_hwq(pi, nm_txq);
 	}
 	for_each_nm_rxq(pi, i, nm_rxq) {
@@ -641,7 +681,7 @@ int lazy_tx_credit_flush = 1;
  */
 static void
 cxgbe_nm_tx(struct adapter *sc, struct sge_nm_txq *nm_txq,
-    struct netmap_kring *kring, int npkt, int npkt_remaining)
+    struct netmap_kring *kring, int npkt, int npkt_remaining, int txcsum)
 {
 	struct netmap_ring *ring = kring->ring;
 	struct netmap_slot *slot;
@@ -677,10 +717,12 @@ cxgbe_nm_tx(struct adapter *sc, struct sge_nm_txq *nm_txq,
 			 * checksum offloading, TCP segmentation offloading,
 			 * encryption, VLAN encapsulation/decapsulation, etc."
 			 *
-			 * XXXNM: it makes sense to enable checksum offload.
+			 * So the ncxl interfaces have tx hardware checksumming
+			 * disabled by default.  But you can override netmap by
+			 * enabling IFCAP_TXCSUM on the interface manully.
 			 */
-			cpl->ctrl1 = htobe64(F_TXPKT_IPCSUM_DIS |
-			    F_TXPKT_L4CSUM_DIS);
+			cpl->ctrl1 = txcsum ? 0 :
+			    htobe64(F_TXPKT_IPCSUM_DIS | F_TXPKT_L4CSUM_DIS);
 
 			usgl = (void *)(cpl + 1);
 			usgl->cmd_nsge = htobe32(V_ULPTX_CMD(ULP_TX_SC_DSGL) |
@@ -793,7 +835,7 @@ cxgbe_netmap_txsync(struct netmap_kring *kring, int flags)
 	struct sge_nm_txq *nm_txq = &sc->sge.nm_txq[pi->first_nm_txq + kring->ring_id];
 	const u_int head = kring->rhead;
 	u_int reclaimed = 0;
-	int n, d, npkt_remaining, ndesc_remaining;
+	int n, d, npkt_remaining, ndesc_remaining, txcsum;
 
 	/*
 	 * Tx was at kring->nr_hwcur last time around and now we need to advance
@@ -804,6 +846,7 @@ cxgbe_netmap_txsync(struct netmap_kring *kring, int flags)
 
 	npkt_remaining = head >= kring->nr_hwcur ? head - kring->nr_hwcur :
 	    kring->nkr_num_slots - kring->nr_hwcur + head;
+	txcsum = ifp->if_capenable & (IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6);
 	while (npkt_remaining) {
 		reclaimed += reclaim_nm_tx_desc(nm_txq);
 		ndesc_remaining = contiguous_ndesc_available(nm_txq);
@@ -827,7 +870,7 @@ cxgbe_netmap_txsync(struct netmap_kring *kring, int flags)
 
 		/* Send n packets and update nm_txq->pidx and kring->nr_hwcur */
 		npkt_remaining -= n;
-		cxgbe_nm_tx(sc, nm_txq, kring, n, npkt_remaining);
+		cxgbe_nm_tx(sc, nm_txq, kring, n, npkt_remaining, txcsum);
 	}
 	MPASS(npkt_remaining == 0);
 	MPASS(kring->nr_hwcur == head);
@@ -1133,6 +1176,7 @@ t4_nm_intr(void *arg)
 		netmap_rx_irq(ifp, nm_rxq->nid, &processed);
 	}
 	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS), V_CIDXINC(n) |
-	    V_INGRESSQID((u32)nm_rxq->iq_cntxt_id) | V_SEINTARM(F_QINTR_CNT_EN));
+	    V_INGRESSQID((u32)nm_rxq->iq_cntxt_id) |
+	    V_SEINTARM(V_QINTR_TIMER_IDX(1)));
 }
 #endif
