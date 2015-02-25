@@ -2569,8 +2569,7 @@ igb_allocate_msix(struct adapter *adapter)
 			 * round-robin bucket -> queue -> CPU allocation.
 			 */
 #ifdef	RSS
-			CPU_ZERO(&cpu_mask);
-			CPU_SET(cpu_id, &cpu_mask);
+			CPU_SETOF(cpu_id, &cpu_mask);
 			taskqueue_start_threads_cpuset(&que->tq, 1, PI_NET,
 			    &cpu_mask,
 			    "%s que (bucket %d)",
