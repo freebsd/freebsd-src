@@ -15,6 +15,22 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20150225:	p24	FreeBSD-SA-15:04.igmp
+			FreeBSD-SA-15:05.bind
+			FreeBSD-EN-15:01.vt
+			FreeBSD-EN-15:02.openssl
+			FreeBSD-EN-15:03.freebsd-update
+
+	Fix integer overflow in IGMP protocol. [SA-15:04]
+
+	Fix BIND remote denial of service vulnerability. [SA-15:05]
+
+	Fix vt(4) crash with improper ioctl parameters. [EN-15:01]
+
+	Updated base system OpenSSL to 0.9.8zd. [EN-15:02]
+
+	Fix freebsd-update libraries update ordering issue. [EN-15:03]
+
 20150127:	p23	FreeBSD-SA-15:02.kmem
 			FreeBSD-SA-15:03.sctp
 

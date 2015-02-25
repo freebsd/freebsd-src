@@ -53,6 +53,7 @@
  *
  */
 
+#include "../crypto/constant_time_locl.h"
 #include "ssl_locl.h"
 
 #include <openssl/md5.h>
@@ -66,30 +67,6 @@
  * Currently SHA-384/512 has a 128-byte block size and that's the largest
  * supported by TLS.) */
 #define MAX_HASH_BLOCK_SIZE 128
-
-/* Some utility functions are needed:
- *
- * These macros return the given value with the MSB copied to all the other
- * bits. They use the fact that arithmetic shift shifts-in the sign bit.
- * However, this is not ensured by the C standard so you may need to replace
- * them with something else on odd CPUs. */
-#define DUPLICATE_MSB_TO_ALL(x) ( (unsigned)( (int)(x) >> (sizeof(int)*8-1) ) )
-#define DUPLICATE_MSB_TO_ALL_8(x) ((unsigned char)(DUPLICATE_MSB_TO_ALL(x)))
-
-/* constant_time_ge returns 0xff if a>=b and 0x00 otherwise. */
-static unsigned constant_time_ge(unsigned a, unsigned b)
-	{
-	a -= b;
-	return DUPLICATE_MSB_TO_ALL(~a);
-	}
-
-/* constant_time_eq_8 returns 0xff if a==b and 0x00 otherwise. */
-static unsigned char constant_time_eq_8(unsigned char a, unsigned char b)
-	{
-	unsigned c = a ^ b;
-	c--;
-	return DUPLICATE_MSB_TO_ALL_8(c);
-	}
 
 /* ssl3_cbc_remove_padding removes padding from the decrypted, SSLv3, CBC
  * record in |rec| by updating |rec->length| in constant time.
@@ -119,8 +96,8 @@ int ssl3_cbc_remove_padding(const SSL* s,
 	padding_length = good & (padding_length+1);
 	rec->length -= padding_length;
 	rec->type |= padding_length<<8;	/* kludge: pass padding length */
-	return (int)((good & 1) | (~good & -1));
-}
+	return constant_time_select_int(good, 1, -1);
+	}
 
 /* tls1_cbc_remove_padding removes the CBC padding from the decrypted, TLS, CBC
  * record in |rec| in constant time and returns 1 if the padding is valid and
@@ -139,14 +116,21 @@ int tls1_cbc_remove_padding(const SSL* s,
 			    unsigned mac_size)
 	{
 	unsigned padding_length, good, to_check, i;
-	const char has_explicit_iv = s->version == DTLS1_VERSION;
-	const unsigned overhead = 1 /* padding length byte */ +
-				  mac_size +
-				  (has_explicit_iv ? block_size : 0);
-
-	/* These lengths are all public so we can test them in non-constant
-	 * time. */
-	if (overhead > rec->length)
+	const unsigned overhead = 1 /* padding length byte */ + mac_size;
+	/* Check if version requires explicit IV */
+	if (s->version == DTLS1_VERSION || s->version == DTLS1_BAD_VER)
+		{
+		/* These lengths are all public so we can test them in
+		 * non-constant time.
+		 */
+		if (overhead + block_size > rec->length)
+			return 0;
+		/* We can now safely skip explicit IV */
+		rec->data += block_size;
+		rec->input += block_size;
+		rec->length -= block_size;
+		}
+	else if (overhead > rec->length)
 		return 0;
 
 	padding_length = rec->data[rec->length-1];
@@ -187,7 +171,7 @@ int tls1_cbc_remove_padding(const SSL* s,
 
 	for (i = 0; i < to_check; i++)
 		{
-		unsigned char mask = constant_time_ge(padding_length, i);
+		unsigned char mask = constant_time_ge_8(padding_length, i);
 		unsigned char b = rec->data[rec->length-1-i];
 		/* The final |padding_length+1| bytes should all have the value
 		 * |padding_length|. Therefore the XOR should be zero. */
@@ -195,40 +179,15 @@ int tls1_cbc_remove_padding(const SSL* s,
 		}
 
 	/* If any of the final |padding_length+1| bytes had the wrong value,
-	 * one or more of the lower eight bits of |good| will be cleared. We
-	 * AND the bottom 8 bits together and duplicate the result to all the
-	 * bits. */
-	good &= good >> 4;
-	good &= good >> 2;
-	good &= good >> 1;
-	good <<= sizeof(good)*8-1;
-	good = DUPLICATE_MSB_TO_ALL(good);
-
+	 * one or more of the lower eight bits of |good| will be cleared.
+	 */
+	good = constant_time_eq(0xff, good & 0xff);
 	padding_length = good & (padding_length+1);
 	rec->length -= padding_length;
 	rec->type |= padding_length<<8;	/* kludge: pass padding length */
 
-	/* We can always safely skip the explicit IV. We check at the beginning
-	 * of this function that the record has at least enough space for the
-	 * IV, MAC and padding length byte. (These can be checked in
-	 * non-constant time because it's all public information.) So, if the
-	 * padding was invalid, then we didn't change |rec->length| and this is
-	 * safe. If the padding was valid then we know that we have at least
-	 * overhead+padding_length bytes of space and so this is still safe
-	 * because overhead accounts for the explicit IV. */
-	if (has_explicit_iv)
-		{
-		rec->data += block_size;
-		rec->input += block_size;
-		rec->length -= block_size;
-		}
-
-	return (int)((good & 1) | (~good & -1));
+	return constant_time_select_int(good, 1, -1);
 	}
-
-#if defined(_M_AMD64) || defined(__x86_64__)
-#define CBC_MAC_ROTATE_IN_PLACE
-#endif
 
 /* ssl3_cbc_copy_mac copies |md_size| bytes from the end of |rec| to |out| in
  * constant time (independent of the concrete value of rec->length, which may
@@ -243,15 +202,18 @@ int tls1_cbc_remove_padding(const SSL* s,
  *
  * If CBC_MAC_ROTATE_IN_PLACE is defined then the rotation is performed with
  * variable accesses in a 64-byte-aligned buffer. Assuming that this fits into
- * a single cache-line, then the variable memory accesses don't actually affect
- * the timing. This has been tested to be true on Intel amd64 chips.
+ * a single or pair of cache-lines, then the variable memory accesses don't
+ * actually affect the timing. CPUs with smaller cache-lines [if any] are
+ * not multi-core and are not considered vulnerable to cache-timing attacks.
  */
+#define CBC_MAC_ROTATE_IN_PLACE
+
 void ssl3_cbc_copy_mac(unsigned char* out,
 		       const SSL3_RECORD *rec,
 		       unsigned md_size,unsigned orig_len)
 	{
 #if defined(CBC_MAC_ROTATE_IN_PLACE)
-	unsigned char rotated_mac_buf[EVP_MAX_MD_SIZE*2];
+	unsigned char rotated_mac_buf[64+EVP_MAX_MD_SIZE];
 	unsigned char *rotated_mac;
 #else
 	unsigned char rotated_mac[EVP_MAX_MD_SIZE];
@@ -271,7 +233,7 @@ void ssl3_cbc_copy_mac(unsigned char* out,
 	OPENSSL_assert(md_size <= EVP_MAX_MD_SIZE);
 
 #if defined(CBC_MAC_ROTATE_IN_PLACE)
-	rotated_mac = (unsigned char*) (((intptr_t)(rotated_mac_buf + 64)) & ~63);
+	rotated_mac = rotated_mac_buf + ((0-(size_t)rotated_mac_buf)&63);
 #endif
 
 	/* This information is public so it's safe to branch based on it. */
@@ -289,16 +251,13 @@ void ssl3_cbc_copy_mac(unsigned char* out,
 	rotate_offset = (div_spoiler + mac_start - scan_start) % md_size;
 
 	memset(rotated_mac, 0, md_size);
-	for (i = scan_start; i < orig_len;)
+	for (i = scan_start, j = 0; i < orig_len; i++)
 		{
-		for (j = 0; j < md_size && i < orig_len; i++, j++)
-			{
-			unsigned char mac_started = constant_time_ge(i, mac_start);
-			unsigned char mac_ended = constant_time_ge(i, mac_end);
-			unsigned char b = 0;
-			b = rec->data[i];
-			rotated_mac[j] |= b & mac_started & ~mac_ended;
-			}
+		unsigned char mac_started = constant_time_ge_8(i, mac_start);
+		unsigned char mac_ended = constant_time_ge_8(i, mac_end);
+		unsigned char b = rec->data[i];
+		rotated_mac[j++] |= b & mac_started & ~mac_ended;
+		j &= constant_time_lt(j,md_size);
 		}
 
 	/* Now rotate the MAC */
@@ -306,19 +265,32 @@ void ssl3_cbc_copy_mac(unsigned char* out,
 	j = 0;
 	for (i = 0; i < md_size; i++)
 		{
-		unsigned char offset = (div_spoiler + rotate_offset + i) % md_size;
-		out[j++] = rotated_mac[offset];
+		/* in case cache-line is 32 bytes, touch second line */
+		((volatile unsigned char *)rotated_mac)[rotate_offset^32];
+		out[j++] = rotated_mac[rotate_offset++];
+		rotate_offset &= constant_time_lt(rotate_offset,md_size);
 		}
 #else
 	memset(out, 0, md_size);
+	rotate_offset = md_size - rotate_offset;
+	rotate_offset &= constant_time_lt(rotate_offset,md_size);
 	for (i = 0; i < md_size; i++)
 		{
-		unsigned char offset = (div_spoiler + md_size - rotate_offset + i) % md_size;
 		for (j = 0; j < md_size; j++)
-			out[j] |= rotated_mac[i] & constant_time_eq_8(j, offset);
+			out[j] |= rotated_mac[i] & constant_time_eq_8(j, rotate_offset);
+		rotate_offset++;
+		rotate_offset &= constant_time_lt(rotate_offset,md_size);
 		}
 #endif
 	}
+
+/* u32toLE serialises an unsigned, 32-bit number (n) as four bytes at (p) in
+ * little-endian order. The value of p is advanced by four. */
+#define u32toLE(n, p) \
+	(*((p)++)=(unsigned char)(n), \
+	 *((p)++)=(unsigned char)(n>>8), \
+	 *((p)++)=(unsigned char)(n>>16), \
+	 *((p)++)=(unsigned char)(n>>24))
 
 /* These functions serialize the state of a hash and thus perform the standard
  * "final" operation without adding the padding and length that such a function
@@ -326,10 +298,10 @@ void ssl3_cbc_copy_mac(unsigned char* out,
 static void tls1_md5_final_raw(void* ctx, unsigned char *md_out)
 	{
 	MD5_CTX *md5 = ctx;
-	l2n(md5->A, md_out);
-	l2n(md5->B, md_out);
-	l2n(md5->C, md_out);
-	l2n(md5->D, md_out);
+	u32toLE(md5->A, md_out);
+	u32toLE(md5->B, md_out);
+	u32toLE(md5->C, md_out);
+	u32toLE(md5->D, md_out);
 	}
 
 static void tls1_sha1_final_raw(void* ctx, unsigned char *md_out)
@@ -449,6 +421,7 @@ void ssl3_cbc_digest_record(
 	/* mdLengthSize is the number of bytes in the length field that terminates
 	* the hash. */
 	unsigned md_length_size = 8;
+	char length_is_big_endian = 1;
 
 	/* This is a, hopefully redundant, check that allows us to forget about
 	 * many possible overflows later in this function. */
@@ -462,6 +435,7 @@ void ssl3_cbc_digest_record(
 			md_transform = (void(*)(void *ctx, const unsigned char *block)) MD5_Transform;
 			md_size = 16;
 			sslv3_pad_length = 48;
+			length_is_big_endian = 0;
 			break;
 		case NID_sha1:
 			SHA1_Init((SHA_CTX*)md_state.c);
@@ -602,11 +576,22 @@ void ssl3_cbc_digest_record(
 		md_transform(md_state.c, hmac_pad);
 		}
 
-	memset(length_bytes,0,md_length_size-4);
-	length_bytes[md_length_size-4] = (unsigned char)(bits>>24);
-	length_bytes[md_length_size-3] = (unsigned char)(bits>>16);
-	length_bytes[md_length_size-2] = (unsigned char)(bits>>8);
-	length_bytes[md_length_size-1] = (unsigned char)bits;
+	if (length_is_big_endian)
+		{
+		memset(length_bytes,0,md_length_size-4);
+		length_bytes[md_length_size-4] = (unsigned char)(bits>>24);
+		length_bytes[md_length_size-3] = (unsigned char)(bits>>16);
+		length_bytes[md_length_size-2] = (unsigned char)(bits>>8);
+		length_bytes[md_length_size-1] = (unsigned char)bits;
+		}
+	else
+		{
+		memset(length_bytes,0,md_length_size);
+		length_bytes[md_length_size-5] = (unsigned char)(bits>>24);
+		length_bytes[md_length_size-6] = (unsigned char)(bits>>16);
+		length_bytes[md_length_size-7] = (unsigned char)(bits>>8);
+		length_bytes[md_length_size-8] = (unsigned char)bits;
+		}
 
 	if (k > 0)
 		{
@@ -655,12 +640,12 @@ void ssl3_cbc_digest_record(
 				b = data[k-header_length];
 			k++;
 
-			is_past_c = is_block_a & constant_time_ge(j, c);
-			is_past_cp1 = is_block_a & constant_time_ge(j, c+1);
+			is_past_c = is_block_a & constant_time_ge_8(j, c);
+			is_past_cp1 = is_block_a & constant_time_ge_8(j, c+1);
 			/* If this is the block containing the end of the
 			 * application data, and we are at the offset for the
 			 * 0x80 value, then overwrite b with 0x80. */
-			b = (b&~is_past_c) | (0x80&is_past_c);
+                        b =  constant_time_select_8(is_past_c, 0x80, b);
 			/* If this the the block containing the end of the
 			 * application data and we're past the 0x80 value then
 			 * just write zero. */
@@ -676,7 +661,8 @@ void ssl3_cbc_digest_record(
 			if (j >= md_block_size - md_length_size)
 				{
 				/* If this is index_b, write a length byte. */
-				b = (b&~is_block_b) | (is_block_b&length_bytes[j-(md_block_size-md_length_size)]);
+				b = constant_time_select_8(
+					is_block_b, length_bytes[j-(md_block_size-md_length_size)], b);
 				}
 			block[j] = b;
 			}

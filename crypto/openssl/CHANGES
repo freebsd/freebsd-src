@@ -2,6 +2,229 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 0.9.8zc and 0.9.8zd [8 Jan 2015]
+
+  *) Fix DTLS segmentation fault in dtls1_get_record. A carefully crafted DTLS
+     message can cause a segmentation fault in OpenSSL due to a NULL pointer
+     dereference. This could lead to a Denial Of Service attack. Thanks to
+     Markus Stenberg of Cisco Systems, Inc. for reporting this issue.
+     (CVE-2014-3571)
+     [Steve Henson]
+
+  *) Fix issue where no-ssl3 configuration sets method to NULL. When openssl is
+     built with the no-ssl3 option and a SSL v3 ClientHello is received the ssl
+     method would be set to NULL which could later result in a NULL pointer
+     dereference. Thanks to Frank Schmirler for reporting this issue.
+     (CVE-2014-3569)
+     [Kurt Roeckx]
+
+  *) Abort handshake if server key exchange message is omitted for ephemeral
+     ECDH ciphersuites.
+
+     Thanks to Karthikeyan Bhargavan of the PROSECCO team at INRIA for
+     reporting this issue.
+     (CVE-2014-3572)
+     [Steve Henson]
+
+  *) Remove non-export ephemeral RSA code on client and server. This code
+     violated the TLS standard by allowing the use of temporary RSA keys in
+     non-export ciphersuites and could be used by a server to effectively
+     downgrade the RSA key length used to a value smaller than the server
+     certificate. Thanks for Karthikeyan Bhargavan of the PROSECCO team at
+     INRIA or reporting this issue.
+     (CVE-2015-0204)
+     [Steve Henson]
+
+  *) Fix various certificate fingerprint issues.
+
+     By using non-DER or invalid encodings outside the signed portion of a
+     certificate the fingerprint can be changed without breaking the signature.
+     Although no details of the signed portion of the certificate can be changed
+     this can cause problems with some applications: e.g. those using the
+     certificate fingerprint for blacklists.
+
+     1. Reject signatures with non zero unused bits.
+
+     If the BIT STRING containing the signature has non zero unused bits reject
+     the signature. All current signature algorithms require zero unused bits.
+
+     2. Check certificate algorithm consistency.
+
+     Check the AlgorithmIdentifier inside TBS matches the one in the
+     certificate signature. NB: this will result in signature failure
+     errors for some broken certificates.
+
+     Thanks to Konrad Kraszewski from Google for reporting this issue.
+
+     3. Check DSA/ECDSA signatures use DER.
+
+     Reencode DSA/ECDSA signatures and compare with the original received
+     signature. Return an error if there is a mismatch.
+
+     This will reject various cases including garbage after signature
+     (thanks to Antti Karjalainen and Tuomo Untinen from the Codenomicon CROSS
+     program for discovering this case) and use of BER or invalid ASN.1 INTEGERs
+     (negative or with leading zeroes).
+
+     Further analysis was conducted and fixes were developed by Stephen Henson
+     of the OpenSSL core team.
+
+     (CVE-2014-8275)
+     [Steve Henson]
+
+   *) Correct Bignum squaring. Bignum squaring (BN_sqr) may produce incorrect
+      results on some platforms, including x86_64. This bug occurs at random
+      with a very low probability, and is not known to be exploitable in any
+      way, though its exact impact is difficult to determine. Thanks to Pieter
+      Wuille (Blockstream) who reported this issue and also suggested an initial
+      fix. Further analysis was conducted by the OpenSSL development team and
+      Adam Langley of Google. The final fix was developed by Andy Polyakov of
+      the OpenSSL core team.
+      (CVE-2014-3570)
+      [Andy Polyakov]
+
+ Changes between 0.9.8zb and 0.9.8zc [15 Oct 2014]
+
+  *) Session Ticket Memory Leak.
+
+     When an OpenSSL SSL/TLS/DTLS server receives a session ticket the
+     integrity of that ticket is first verified. In the event of a session
+     ticket integrity check failing, OpenSSL will fail to free memory
+     causing a memory leak. By sending a large number of invalid session
+     tickets an attacker could exploit this issue in a Denial Of Service
+     attack.
+     (CVE-2014-3567)
+     [Steve Henson]
+
+  *) Build option no-ssl3 is incomplete.
+
+     When OpenSSL is configured with "no-ssl3" as a build option, servers
+     could accept and complete a SSL 3.0 handshake, and clients could be
+     configured to send them.
+     (CVE-2014-3568)
+     [Akamai and the OpenSSL team]
+
+  *) Add support for TLS_FALLBACK_SCSV.
+     Client applications doing fallback retries should call
+     SSL_set_mode(s, SSL_MODE_SEND_FALLBACK_SCSV).
+     (CVE-2014-3566)
+     [Adam Langley, Bodo Moeller]
+
+  *) Add additional DigestInfo checks.
+ 
+     Reencode DigestInto in DER and check against the original when
+     verifying RSA signature: this will reject any improperly encoded
+     DigestInfo structures.
+
+     Note: this is a precautionary measure and no attacks are currently known.
+
+     [Steve Henson]
+
+ Changes between 0.9.8za and 0.9.8zb [6 Aug 2014]
+
+  *) OpenSSL DTLS clients enabling anonymous (EC)DH ciphersuites are subject
+     to a denial of service attack. A malicious server can crash the client
+     with a null pointer dereference (read) by specifying an anonymous (EC)DH
+     ciphersuite and sending carefully crafted handshake messages.
+
+     Thanks to Felix Gröbert (Google) for discovering and researching this
+     issue.
+     (CVE-2014-3510)
+     [Emilia Käsper]
+
+  *) By sending carefully crafted DTLS packets an attacker could cause openssl
+     to leak memory. This can be exploited through a Denial of Service attack.
+     Thanks to Adam Langley for discovering and researching this issue.
+     (CVE-2014-3507)
+     [Adam Langley]
+
+  *) An attacker can force openssl to consume large amounts of memory whilst
+     processing DTLS handshake messages. This can be exploited through a
+     Denial of Service attack.
+     Thanks to Adam Langley for discovering and researching this issue.
+     (CVE-2014-3506)
+     [Adam Langley]
+
+  *) An attacker can force an error condition which causes openssl to crash
+     whilst processing DTLS packets due to memory being freed twice. This
+     can be exploited through a Denial of Service attack.
+     Thanks to Adam Langley and Wan-Teh Chang for discovering and researching
+     this issue.
+     (CVE-2014-3505)
+     [Adam Langley]
+
+  *) A flaw in OBJ_obj2txt may cause pretty printing functions such as
+     X509_name_oneline, X509_name_print_ex et al. to leak some information
+     from the stack. Applications may be affected if they echo pretty printing
+     output to the attacker.
+
+     Thanks to Ivan Fratric (Google) for discovering this issue.
+     (CVE-2014-3508)
+     [Emilia Käsper, and Steve Henson]
+
+  *) Fix ec_GFp_simple_points_make_affine (thus, EC_POINTs_mul etc.)
+     for corner cases. (Certain input points at infinity could lead to
+     bogus results, with non-infinity inputs mapped to infinity too.)
+     [Bodo Moeller]
+
+ Changes between 0.9.8y and 0.9.8za [5 Jun 2014]
+
+  *) Fix for SSL/TLS MITM flaw. An attacker using a carefully crafted
+     handshake can force the use of weak keying material in OpenSSL
+     SSL/TLS clients and servers.
+
+     Thanks to KIKUCHI Masashi (Lepidum Co. Ltd.) for discovering and
+     researching this issue. (CVE-2014-0224)
+     [KIKUCHI Masashi, Steve Henson]
+
+  *) Fix DTLS recursion flaw. By sending an invalid DTLS handshake to an
+     OpenSSL DTLS client the code can be made to recurse eventually crashing
+     in a DoS attack.
+
+     Thanks to Imre Rad (Search-Lab Ltd.) for discovering this issue.
+     (CVE-2014-0221)
+     [Imre Rad, Steve Henson]
+
+  *) Fix DTLS invalid fragment vulnerability. A buffer overrun attack can
+     be triggered by sending invalid DTLS fragments to an OpenSSL DTLS
+     client or server. This is potentially exploitable to run arbitrary
+     code on a vulnerable client or server.
+
+     Thanks to Jüri Aedla for reporting this issue. (CVE-2014-0195)
+     [Jüri Aedla, Steve Henson]
+
+  *) Fix bug in TLS code where clients enable anonymous ECDH ciphersuites
+     are subject to a denial of service attack.
+
+     Thanks to Felix Gröbert and Ivan Fratric at Google for discovering
+     this issue. (CVE-2014-3470)
+     [Felix Gröbert, Ivan Fratric, Steve Henson]
+
+  *) Fix for the attack described in the paper "Recovering OpenSSL
+     ECDSA Nonces Using the FLUSH+RELOAD Cache Side-channel Attack"
+     by Yuval Yarom and Naomi Benger. Details can be obtained from:
+     http://eprint.iacr.org/2014/140
+
+     Thanks to Yuval Yarom and Naomi Benger for discovering this
+     flaw and to Yuval Yarom for supplying a fix (CVE-2014-0076)
+     [Yuval Yarom and Naomi Benger]
+
+     Thanks to mancha for backporting the fix to the 0.9.8 branch.
+
+  *) Fix handling of warning-level alerts in SSL23 client mode so they
+     don't cause client-side termination (eg. on SNI unrecognized_name
+     warnings). Add client and server support for six additional alerts
+     per RFC 6066 and RFC 4279.
+     [mancha]
+
+  *) Add option SSL_OP_SAFARI_ECDHE_ECDSA_BUG (part of SSL_OP_ALL) which
+     avoids preferring ECDHE-ECDSA ciphers when the client appears to be
+     Safari on OS X.  Safari on OS X 10.8..10.8.3 advertises support for
+     several ECDHE-ECDSA ciphers, but fails to negotiate them.  The bug
+     is fixed in OS X 10.8.4, but Apple have ruled out both hot fixing
+     10.8..10.8.3 and forcing users to upgrade to 10.8.4 or newer.
+     [Rob Stradling, Adam Langley]
+
  Changes between 0.9.8x and 0.9.8y [5 Feb 2013]
 
   *) Make the decoding of SSLv3, TLS and DTLS CBC records constant time.

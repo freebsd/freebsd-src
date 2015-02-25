@@ -3512,6 +3512,7 @@ BIO_set_callback                        3903	EXIST::FUNCTION:
 d2i_ASIdOrRange                         3904	EXIST::FUNCTION:RFC3779
 i2d_ASIdentifiers                       3905	EXIST::FUNCTION:RFC3779
 CRYPTO_memcmp                           3906	EXIST::FUNCTION:
+BN_consttime_swap                       3907	EXIST::FUNCTION:
 SEED_decrypt                            3908	EXIST::FUNCTION:SEED
 SEED_encrypt                            3909	EXIST::FUNCTION:SEED
 SEED_cbc_encrypt                        3910	EXIST::FUNCTION:SEED
@@ -3659,7 +3660,7 @@ ENGINE_set_ld_ssl_clnt_cert_fn          4044	EXIST:VMS:FUNCTION:ENGINE
 ENGINE_get_ssl_client_cert_function     4045	EXIST:!VMS:FUNCTION:ENGINE
 ENGINE_get_ssl_client_cert_fn           4045	EXIST:VMS:FUNCTION:ENGINE
 ENGINE_load_ssl_client_cert             4046	EXIST::FUNCTION:ENGINE
-ENGINE_load_capi                        4047	EXIST:WIN32:FUNCTION:CAPIENG,ENGINE
+ENGINE_load_capi                        4047	EXIST:WIN32:FUNCTION:CAPIENG,ENGINE,STATIC_ENGINE
 OPENSSL_isservice                       4048	EXIST::FUNCTION:
 FIPS_dsa_sig_decode                     4049	EXIST:OPENSSL_FIPS:FUNCTION:DSA
 EVP_CIPHER_CTX_clear_flags              4050	EXIST::FUNCTION:

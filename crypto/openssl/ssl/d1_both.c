@@ -313,9 +313,10 @@ int dtls1_do_write(SSL *s, int type)
 				s->init_off -= DTLS1_HM_HEADER_LENGTH;
 				s->init_num += DTLS1_HM_HEADER_LENGTH;
 
-				/* write atleast DTLS1_HM_HEADER_LENGTH bytes */
-				if ( len <= DTLS1_HM_HEADER_LENGTH)  
-					len += DTLS1_HM_HEADER_LENGTH;
+				if ( s->init_num > curr_mtu)
+					len = curr_mtu;
+				else
+					len = s->init_num;
 				}
 
 			dtls1_fix_message_header(s, frag_off, 
@@ -682,8 +683,8 @@ dtls1_reassemble_fragment(SSL *s, const struct hm_header_st* msg_hdr, int *ok)
 
 		if (item == NULL)
 			{
-			goto err;
 			i = -1;
+			goto err;
 			}
 
 		item = pqueue_insert(s->d1->buffered_messages, item);
@@ -1194,6 +1195,8 @@ dtls1_buffer_message(SSL *s, int is_ccs)
 	OPENSSL_assert(s->init_off == 0);
 
 	frag = dtls1_hm_fragment_new(s->init_num, 0);
+	if (!frag)
+		return 0;
 
 	memcpy(frag->fragment, s->init_buf->data, s->init_num);
 

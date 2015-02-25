@@ -1258,6 +1258,10 @@ char *SSL_get_shared_ciphers(const SSL *s,char *buf,int len)
 
 	p=buf;
 	sk=s->session->ciphers;
+
+	if (sk_SSL_CIPHER_num(sk) == 0)
+		return NULL;
+
 	for (i=0; i<sk_SSL_CIPHER_num(sk); i++)
 		{
 		int n;
@@ -1397,6 +1401,7 @@ STACK_OF(SSL_CIPHER) *ssl_bytes_to_cipher_list(SSL *s,unsigned char *p,int num,
 					ssl3_send_alert(s,SSL3_AL_FATAL,SSL_AD_INAPPROPRIATE_FALLBACK);
 				goto err;
 				}
+			p += n;
 			continue;
 			}
 
@@ -1599,7 +1604,9 @@ SSL_CTX *SSL_CTX_new(SSL_METHOD *meth)
 	CRYPTO_new_ex_data(CRYPTO_EX_INDEX_SSL_CTX, ret, &ret->ex_data);
 
 	ret->extra_certs=NULL;
-	ret->comp_methods=SSL_COMP_get_compression_methods();
+	/* No compression for DTLS */
+	if (meth->version != DTLS1_VERSION)
+		ret->comp_methods=SSL_COMP_get_compression_methods();
 
 #ifndef OPENSSL_NO_TLSEXT
 	ret->tlsext_servername_callback = 0;
@@ -2460,9 +2467,7 @@ void ssl_clear_cipher_ctx(SSL *s)
 /* Fix this function so that it takes an optional type parameter */
 X509 *SSL_get_certificate(const SSL *s)
 	{
-	if (s->server)
-		return(ssl_get_server_send_cert(s));
-	else if (s->cert != NULL)
+	if (s->cert != NULL)
 		return(s->cert->key->x509);
 	else
 		return(NULL);

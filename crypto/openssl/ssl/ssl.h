@@ -490,10 +490,13 @@ typedef struct ssl_session_st
 #define SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG		0x00000008L
 #define SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG		0x00000010L
 #define SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER		0x00000020L
-#define SSL_OP_MSIE_SSLV2_RSA_PADDING			0x00000040L /* no effect since 0.9.7h and 0.9.8b */
+#define SSL_OP_SAFARI_ECDHE_ECDSA_BUG			0x00000040L
 #define SSL_OP_SSLEAY_080_CLIENT_DH_BUG			0x00000080L
 #define SSL_OP_TLS_D5_BUG				0x00000100L
 #define SSL_OP_TLS_BLOCK_PADDING_BUG			0x00000200L
+
+/* Hasn't done anything since OpenSSL 0.9.7h, retained for compatibility */
+#define SSL_OP_MSIE_SSLV2_RSA_PADDING			0x0
 
 /* Disable SSL 3.0/TLS 1.0 CBC vulnerability workaround that was added
  * in OpenSSL 0.9.6d.  Usually (depending on the application protocol)
@@ -560,8 +563,13 @@ typedef struct ssl_session_st
 /* Don't attempt to automatically build certificate chain */
 #define SSL_MODE_NO_AUTO_CHAIN 0x00000008L
 /* Send TLS_FALLBACK_SCSV in the ClientHello.
- * To be set by applications that reconnect with a downgraded protocol
- * version; see draft-ietf-tls-downgrade-scsv-00 for details. */
+ * To be set only by applications that reconnect with a downgraded protocol
+ * version; see draft-ietf-tls-downgrade-scsv-00 for details.
+ *
+ * DO NOT ENABLE THIS if your application attempts a normal handshake.
+ * Only use this in explicit fallback retries, following the guidance
+ * in draft-ietf-tls-downgrade-scsv-00.
+ */
 #define SSL_MODE_SEND_FALLBACK_SCSV 0x00000080L
 
 
