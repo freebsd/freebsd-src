@@ -69,6 +69,7 @@ register_t cheri_system_methodnum_puts = CHERI_SYSTEM_METHOD_PUTS;
 int
 cheri_system_puts(__capability const char *str)
 {
+#ifndef CHERI_NO_OUTPUT
 	__capability char *str_noconst;
 
 	str_noconst = (__capability char *)str;
@@ -78,6 +79,9 @@ cheri_system_puts(__capability const char *str)
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap()));
+#else
+	return (0);
+#endif
 }
 
 register_t cheri_system_methodnum_putchar = CHERI_SYSTEM_METHOD_PUTCHAR;
@@ -85,12 +89,16 @@ int
 cheri_system_putchar(int c)
 {
 
+#ifndef CHERI_NO_OUTPUT
 	return (cheri_invoke(_cheri_system_object,
 	    cheri_system_methodnum_putchar,
 	    c, 0, 0, 0, 0, 0, 0, 0,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap()));
+#else
+	return (c);
+#endif
 }
 
 register_t cheri_system_methodnum_clock_gettime = CHERI_SYSTEM_CLOCK_GETTIME;
