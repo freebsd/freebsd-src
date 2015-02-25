@@ -1539,8 +1539,8 @@ igmp_input(struct mbuf **mp, int *offp, int proto)
 		case IGMP_VERSION_3: {
 				struct igmpv3 *igmpv3;
 				uint16_t igmpv3len;
-				uint16_t srclen;
-				int nsrc;
+				uint16_t nsrc;
+				int srclen;
 
 				IGMPSTAT_INC(igps_rcv_v3_queries);
 				igmpv3 = (struct igmpv3 *)igmp;
