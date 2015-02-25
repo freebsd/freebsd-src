@@ -1,0 +1,31 @@
+Pull in r199571 from upstream clang trunk (by Ted Kremenek):
+
+  Harden InitListExpr::isStringLiteralInit() against getInit()
+  returning null.
+
+  This led to a crash on invalid code (sorry, no good test case).
+
+  Fixes <rdar://problem/15831804>.
+
+This fixes an assertion when compiling certain incorrect code, as
+reported upstream in http://llvm.org/PR22684 .
+
+Introduced here: http://svnweb.freebsd.org/changeset/base/279289
+
+Index: tools/clang/lib/AST/Expr.cpp
+===================================================================
+--- tools/clang/lib/AST/Expr.cpp
++++ tools/clang/lib/AST/Expr.cpp
+@@ -1892,7 +1892,11 @@ bool InitListExpr::isStringLiteralInit() const {
+   const ArrayType *AT = getType()->getAsArrayTypeUnsafe();
+   if (!AT || !AT->getElementType()->isIntegerType())
+     return false;
+-  const Expr *Init = getInit(0)->IgnoreParens();
++  // It is possible for getInit() to return null.
++  const Expr *Init = getInit(0);
++  if (!Init)
++    return false;
++  Init = Init->IgnoreParens();
+   return isa<StringLiteral>(Init) || isa<ObjCEncodeExpr>(Init);
+ }
+ 
