@@ -167,7 +167,8 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	/*
 	 * Protect post-metadata guard page(s)
 	 */
-	if (mprotect(base, SANDBOX_BINARY_BASE, PROT_READ) < 0) {
+	if (mprotect(base, SANDBOX_BINARY_BASE - roundup2(SANDBOX_METADATA_BASE +
+	    METADATA_SIZE, PAGE_SIZE), PROT_READ) < 0) {
 		saved_errno = errno;
 		warn("%s: mprotect binary guard page", __func__);
 		goto error;
