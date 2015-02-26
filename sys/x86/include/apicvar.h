@@ -426,6 +426,7 @@ void	lapic_handle_timer(struct trapframe *frame);
 void	xen_intr_handle_upcall(struct trapframe *frame);
 
 extern int x2apic_mode;
+extern int lapic_eoi_suppression;
 
 #ifdef _SYS_SYSCTL_H_
 SYSCTL_DECL(_hw_apic);
