@@ -252,6 +252,7 @@ db_backtrace(struct thread *td, db_addr_t fp, int count)
 			case EXC_FPU: trapstr = "FPU"; break;
 			case EXC_DECR: trapstr = "DECR"; break;
 			case EXC_PERF: trapstr = "PERF"; break;
+			case EXC_VSX: trapstr = "VSX"; break;
 			default: trapstr = NULL; break;
 			}
 			if (trapstr != NULL) {

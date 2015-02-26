@@ -34,18 +34,6 @@
 #include <mips/nlm/hal/mips-extns.h>
 #include <mips/nlm/hal/iomap.h>
 
-#define	PIC_UART_0_IRQ	9
-
-#define	PIC_PCIE_0_IRQ	11
-#define	PIC_PCIE_1_IRQ	12
-#define	PIC_PCIE_2_IRQ	13
-#define	PIC_PCIE_3_IRQ	14
-
-#define	PIC_EHCI_0_IRQ	16 
-#define	PIC_MMC_IRQ	21
-/* 41 used by IRQ_SMP */
-
-
 /* XLP 8xx/4xx A0, A1, A2 CPU COP0 PRIDs */
 #define	CHIP_PROCESSOR_ID_XLP_8XX		0x10
 #define	CHIP_PROCESSOR_ID_XLP_3XX		0x11
@@ -74,7 +62,6 @@ extern void xlp_enable_threads(int code);
 #endif
 uint32_t xlp_get_cpu_frequency(int node, int core);
 int nlm_set_device_frequency(int node, int devtype, int frequency);
-int xlp_irt_to_irq(int irt);
 int xlp_irq_to_irt(int irq);
 
 static __inline int nlm_processor_id(void)
@@ -139,5 +126,12 @@ static __inline int nlm_is_xlp8xx_b0(void)
 		rev == XLP_REVISION_B0);
 }
 
+static __inline int xlp_socdev_irt(uint32_t offset)
+{
+	uint64_t base;
+
+	base = nlm_pcicfg_base(offset);
+	return (nlm_irtstart(base));
+}
 #endif /* LOCORE */
 #endif /* __NLM_XLP_H__ */

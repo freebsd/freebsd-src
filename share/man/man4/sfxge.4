@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 30, 2014
+.Dd February 22, 2015
 .Dt SFXGE 4
 .Os
 .Sh NAME
@@ -103,7 +103,7 @@ The value must be greater than 0.
 The maximum number of non-TCP packets in the deferred packet
 .Dq get-list
 , used only if the transmit queue lock can be acquired.
-If packet is dropped, the
+If a packet is dropped, the
 .Va tx_get_non_tcp_overflow
 counter is incremented and the local sender receives ENOBUFS.
 The value must be greater than 0.
