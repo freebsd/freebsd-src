@@ -35,6 +35,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
+
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
@@ -251,3 +255,39 @@ cpu_init_interrupts()
 		mips_intr_counters[i] = mips_intrcnt_create(name);
 	}
 }
+
+static int	xlp_pic_probe(device_t);
+static int	xlp_pic_attach(device_t);
+
+static int
+xlp_pic_probe(device_t dev)
+{
+
+	if (!ofw_bus_is_compatible(dev, "netlogic,xlp-pic"))
+		return (ENXIO);
+	device_set_desc(dev, "XLP PIC");
+	return (0);
+}
+
+static int
+xlp_pic_attach(device_t dev)
+{
+
+	return (0);
+}
+
+static device_method_t xlp_pic_methods[] = {
+	DEVMETHOD(device_probe,		xlp_pic_probe),
+	DEVMETHOD(device_attach,	xlp_pic_attach),
+
+	DEVMETHOD_END
+};
+
+static driver_t xlp_pic_driver = {
+	"xlp_pic",
+	xlp_pic_methods,
+	1,		/* no softc */
+};
+
+static devclass_t xlp_pic_devclass;
+DRIVER_MODULE(xlp_pic, simplebus, xlp_pic_driver, xlp_pic_devclass, 0, 0);
