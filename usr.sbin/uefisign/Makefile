@@ -4,7 +4,7 @@ PROG=	uefisign
 SRCS=	uefisign.c child.c pe.c
 MAN=	uefisign.8
 
-LDFLAGS=	-lcrypto
+LIBADD=	crypto
 
 WARNS=	6
 
