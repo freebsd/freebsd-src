@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_bootp.h"
 #include "opt_nfs.h"
+#include "opt_nfs.h"
+#include "opt_nfsroot.h"
 #include "opt_rootdevname.h"
 
 #include <sys/param.h>
@@ -1155,7 +1157,11 @@ mountopts(struct nfs_args *args, char *p)
 	args->rsize = BOOTP_BLOCKSIZE;
 	args->wsize = BOOTP_BLOCKSIZE;
 	args->flags = NFSMNT_RSIZE | NFSMNT_WSIZE | NFSMNT_RESVPORT;
+#ifdef NFS_ROOT_TCP
+	args->sotype = SOCK_STREAM;
+#else
 	args->sotype = SOCK_DGRAM;
+#endif
 	if (p != NULL)
 		nfs_parse_options(p, args);
 }

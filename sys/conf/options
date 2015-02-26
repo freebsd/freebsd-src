@@ -299,6 +299,9 @@ UFS_GJOURNAL	opt_ufs.h
 # they won't make any difference yet).
 NFS_ROOT	opt_nfsroot.h
 
+# Default NFS root mounts to TCP rather than UDP.
+NFS_ROOT_TCP	opt_nfsroot.h
+
 # SMB/CIFS requester
 NETSMB		opt_netsmb.h
 
