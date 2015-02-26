@@ -43,13 +43,26 @@
 #define	XLP_IRQ_IS_PICINTR(irq)	((irq) >= PIC_IRQ_BASE && \
 				    (irq) <= PIC_IRT_LAST_IRQ)
 
-#define	PIC_UART_0_IRQ		9
-#define	PIC_PCIE_0_IRQ		11
-#define	PIC_PCIE_1_IRQ		12
-#define	PIC_PCIE_2_IRQ		13
-#define	PIC_PCIE_3_IRQ		14
-#define	PIC_EHCI_0_IRQ		16
-#define	PIC_MMC_IRQ		21
+#define	PIC_UART_0_IRQ		17
+#define	PIC_UART_1_IRQ		18
+
+#define	PIC_PCIE_0_IRQ		19
+#define	PIC_PCIE_1_IRQ		20
+#define	PIC_PCIE_2_IRQ		21
+#define	PIC_PCIE_3_IRQ		22
+#define	PIC_PCIE_IRQ(l)		(PIC_PCIE_0_IRQ + (l))
+
+#define	PIC_USB_0_IRQ		23
+#define	PIC_USB_1_IRQ		24
+#define	PIC_USB_2_IRQ		25
+#define	PIC_USB_3_IRQ		26
+#define	PIC_USB_4_IRQ		27
+#define	PIC_USB_IRQ(n)		(PIC_USB_0_IRQ + (n))
+
+#define	PIC_MMC_IRQ		29
+#define	PIC_I2C_0_IRQ		30
+#define	PIC_I2C_1_IRQ		31
+#define	PIC_I2C_IRQ(n)		(PIC_I2C_0_IRQ + (n))
 
 /*
  * XLR needs custom pre and post handlers for PCI/PCI-e interrupts

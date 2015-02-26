@@ -61,11 +61,45 @@ struct xlp_intrsrc {
 	void (*busack)(int);		/* Additional ack */
 	struct intr_event *ie;		/* event corresponding to intr */
 	int irq;
+	int irt;
 };
 	
 static struct xlp_intrsrc xlp_interrupts[XLR_MAX_INTR];
 static mips_intrcnt_t mips_intr_counters[XLR_MAX_INTR];
 static int intrcnt_index;
+
+int
+xlp_irq_to_irt(int irq)
+{
+	uint32_t offset;
+
+	switch (irq) {
+	case PIC_UART_0_IRQ:
+	case PIC_UART_1_IRQ:
+		offset =  XLP_IO_UART_OFFSET(0, irq - PIC_UART_0_IRQ);
+		return (xlp_socdev_irt(offset));
+	case PIC_PCIE_0_IRQ:
+	case PIC_PCIE_1_IRQ:
+	case PIC_PCIE_2_IRQ:
+	case PIC_PCIE_3_IRQ:
+		offset = XLP_IO_PCIE_OFFSET(0, irq - PIC_PCIE_0_IRQ);
+		return (xlp_socdev_irt(offset));
+	case PIC_USB_0_IRQ:
+	case PIC_USB_1_IRQ:
+	case PIC_USB_2_IRQ:
+	case PIC_USB_3_IRQ:
+	case PIC_USB_4_IRQ:
+		offset = XLP_IO_USB_OFFSET(0, irq - PIC_USB_0_IRQ);
+		return (xlp_socdev_irt(offset));
+	case PIC_I2C_0_IRQ:
+	case PIC_I2C_1_IRQ:
+		offset = XLP_IO_I2C0_OFFSET(0);
+		return (xlp_socdev_irt(offset) + irq - PIC_I2C_0_IRQ);
+	default:
+		printf("ERROR: %s: unknown irq %d\n", __func__, irq);
+		return (-1);
+	}
+}
 
 void
 xlp_enable_irq(int irq)
@@ -102,7 +136,7 @@ xlp_post_filter(void *source)
 	
 	if (src->busack)
 		src->busack(src->irq);
-	nlm_pic_ack(xlp_pic_base, xlp_irq_to_irt(src->irq));
+	nlm_pic_ack(xlp_pic_base, src->irt);
 }
 
 static void
@@ -119,7 +153,7 @@ xlp_post_ithread(void *source)
 {
 	struct xlp_intrsrc *src = source;
 
-	nlm_pic_ack(xlp_pic_base, xlp_irq_to_irt(src->irq));
+	nlm_pic_ack(xlp_pic_base, src->irt);
 }
 
 void
@@ -163,6 +197,13 @@ xlp_establish_intr(const char *name, driver_filter_t filt,
 		src->busack = busack;
 		src->ie = ie;
 	}
+	if (XLP_IRQ_IS_PICINTR(irq)) {
+		/* Set all irqs to CPU 0 for now */
+		src->irt = xlp_irq_to_irt(irq);
+		nlm_pic_write_irt_direct(xlp_pic_base, src->irt, 1, 0,
+		    PIC_LOCAL_SCHEDULING, irq, 0);
+	}
+
 	intr_event_add_handler(ie, name, filt, handler, arg,
 	    intr_priority(flags), flags, cookiep);
 	xlp_enable_irq(irq);
