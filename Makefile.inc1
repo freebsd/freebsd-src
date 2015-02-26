@@ -1548,6 +1548,10 @@ _cc=		gnu/usr.bin/cc
 .endif
 .endif
 
+.if ${MK_LINT} != "no"
+_xlint=		usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint
+.endif
+
 cross-tools: .MAKE
 .for _tool in \
     ${_cheritest} \
@@ -1556,7 +1560,7 @@ cross-tools: .MAKE
     ${_binutils} \
     ${_elftctools} \
     ${_cc} \
-    usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint \
+    ${_xlint} \
     ${_btxld} \
     ${_crunchide} \
     ${_kgzip} \

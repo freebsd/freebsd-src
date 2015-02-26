@@ -112,6 +112,7 @@ __DEFAULT_YES_OPTIONS = \
     LIB32 \
     LIBPTHREAD \
     LIBTHR \
+    LINT \
     LOCALES \
     LOCATE \
     LPR \

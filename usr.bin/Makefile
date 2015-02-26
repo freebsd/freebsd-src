@@ -386,7 +386,9 @@ SUBDIR+=	mkstr
 SUBDIR+=	rpcgen
 SUBDIR+=	sysinit
 SUBDIR+=	unifdef
+.if ${MK_LINT} != "no"
 SUBDIR+=	xlint
+.endif
 SUBDIR+=	xstr
 SUBDIR+=	yacc
 .endif
