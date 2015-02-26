@@ -18,7 +18,6 @@ fi
 certfile="${1}.pem"
 efifile="${1}.cer"
 keyfile="${1}.key"
-p12file="${1}.p12"
 # XXX: Set this to ten years; we don't want system to suddenly stop booting
 #      due to certificate expiration.  Better way would be to use Authenticode
 #      Timestamp.  That said, the rumor is UEFI implementations ignore it anyway.
@@ -28,13 +27,11 @@ subj="/CN=${1}"
 [ ! -e "${certfile}" ] || die "${certfile} already exists"
 [ ! -e "${efifile}" ] || die "${efifile} already exists"
 [ ! -e "${keyfile}" ] || die "${keyfile} already exists"
-[ ! -e "${p12file}" ] || die "${p12file} already exists"
 
 umask 077 || die "umask 077 failed"
 
 openssl genrsa -out "${keyfile}" 2048 2> /dev/null || die "openssl genrsa failed"
 openssl req -new -x509 -sha256 -days "${days}" -subj "${subj}" -key "${keyfile}" -out "${certfile}" || die "openssl req failed"
 openssl x509 -inform PEM -outform DER -in "${certfile}" -out "${efifile}" || die "openssl x509 failed"
-openssl pkcs12 -export -out "${p12file}" -inkey "${keyfile}" -in "${certfile}" -password 'pass:' || die "openssl pkcs12 failed"
 
-echo "certificate: ${certfile}; private key: ${keyfile}; UEFI public key: ${efifile}; private key with empty password for pesign: ${p12file}"
+echo "certificate: ${certfile}; private key: ${keyfile}; certificate to enroll in UEFI: ${efifile}"
