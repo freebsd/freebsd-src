@@ -371,7 +371,13 @@ XCFLAGS+=	-target ${TARGET_TRIPLE}
 XCFLAGS+=	--sysroot=${WORLDTMP} ${BFLAGS}
 XCXXFLAGS+=	--sysroot=${WORLDTMP} ${BFLAGS}
 .endif
+.else
+.if defined(CROSS_BINUTILS_PREFIX) && exists(${CROSS_BINUTILS_PREFIX})
+BFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
+XCFLAGS+=	${BFLAGS}
+XCXXFLAGS+=	${BFLAGS}
 .endif
+.endif # ${XCC:M/*}
 
 WMAKE=		${WMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 DESTDIR=${WORLDTMP}
 
