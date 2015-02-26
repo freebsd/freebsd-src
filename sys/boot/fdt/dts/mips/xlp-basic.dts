@@ -62,7 +62,7 @@
 			current-speed = <115200>;
 			clock-frequency = <133000000>;
 			interrupt-parent = <&pic>;
-			interrupts = <9>;
+			interrupts = <17>;
 		};
 
 	};

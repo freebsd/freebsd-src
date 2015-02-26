@@ -62,7 +62,6 @@ extern void xlp_enable_threads(int code);
 #endif
 uint32_t xlp_get_cpu_frequency(int node, int core);
 int nlm_set_device_frequency(int node, int devtype, int frequency);
-int xlp_irt_to_irq(int irt);
 int xlp_irq_to_irt(int irq);
 
 static __inline int nlm_processor_id(void)
@@ -127,5 +126,12 @@ static __inline int nlm_is_xlp8xx_b0(void)
 		rev == XLP_REVISION_B0);
 }
 
+static __inline int xlp_socdev_irt(uint32_t offset)
+{
+	uint64_t base;
+
+	base = nlm_pcicfg_base(offset);
+	return (nlm_irtstart(base));
+}
 #endif /* LOCORE */
 #endif /* __NLM_XLP_H__ */
