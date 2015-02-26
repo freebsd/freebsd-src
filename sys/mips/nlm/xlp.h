@@ -34,18 +34,6 @@
 #include <mips/nlm/hal/mips-extns.h>
 #include <mips/nlm/hal/iomap.h>
 
-#define	PIC_UART_0_IRQ	9
-
-#define	PIC_PCIE_0_IRQ	11
-#define	PIC_PCIE_1_IRQ	12
-#define	PIC_PCIE_2_IRQ	13
-#define	PIC_PCIE_3_IRQ	14
-
-#define	PIC_EHCI_0_IRQ	16 
-#define	PIC_MMC_IRQ	21
-/* 41 used by IRQ_SMP */
-
-
 /* XLP 8xx/4xx A0, A1, A2 CPU COP0 PRIDs */
 #define	CHIP_PROCESSOR_ID_XLP_8XX		0x10
 #define	CHIP_PROCESSOR_ID_XLP_3XX		0x11
