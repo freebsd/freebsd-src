@@ -59,7 +59,7 @@
 #define	KERN_INFO	"<6>"
 #define	KERN_DEBUG	"<7>"
 
-#define	BUILD_BUG_ON(x)		CTASSERT(x)
+#define	BUILD_BUG_ON(x)		CTASSERT(!(x))
 
 #define BUG()			panic("BUG")
 #define BUG_ON(condition)	do { if (condition) BUG(); } while(0)

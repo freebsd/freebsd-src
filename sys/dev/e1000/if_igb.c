@@ -2460,6 +2460,9 @@ igb_allocate_msix(struct adapter *adapter)
 	struct igb_queue	*que = adapter->queues;
 	int			error, rid, vector = 0;
 	int			cpu_id = 0;
+#ifdef	RSS
+	cpuset_t cpu_mask;
+#endif
 
 	/* Be sure to start with all interrupts disabled */
 	E1000_WRITE_REG(&adapter->hw, E1000_IMC, ~0);
@@ -2566,8 +2569,9 @@ igb_allocate_msix(struct adapter *adapter)
 			 * round-robin bucket -> queue -> CPU allocation.
 			 */
 #ifdef	RSS
-			taskqueue_start_threads_pinned(&que->tq, 1, PI_NET,
-			    cpu_id,
+			CPU_SETOF(cpu_id, &cpu_mask);
+			taskqueue_start_threads_cpuset(&que->tq, 1, PI_NET,
+			    &cpu_mask,
 			    "%s que (bucket %d)",
 			    device_get_nameunit(adapter->dev),
 			    cpu_id);

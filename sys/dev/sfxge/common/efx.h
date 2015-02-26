@@ -895,7 +895,8 @@ typedef struct efx_nic_cfg_s {
 	uint32_t		enc_txq_limit;
 	uint32_t		enc_rxq_limit;
 	uint32_t		enc_buftbl_limit;
-	uint32_t		enc_evq_moderation_max;
+	uint32_t		enc_evq_timer_quantum_ns;
+	uint32_t		enc_evq_timer_max_us;
 	uint32_t		enc_clk_mult;
 #if EFSYS_OPT_LOOPBACK
 	uint32_t		enc_loopback_types[EFX_LINK_NMODES];
@@ -1024,6 +1025,10 @@ typedef enum efx_nvram_type_e {
 	EFX_NVRAM_MC_GOLDEN,
 	EFX_NVRAM_PHY,
 	EFX_NVRAM_NULLPHY,
+	EFX_NVRAM_FPGA,
+	EFX_NVRAM_FCFW,
+	EFX_NVRAM_CPLD,
+	EFX_NVRAM_FPGA_BACKUP,
 	EFX_NVRAM_NTYPES,
 } efx_nvram_type_t;
 
@@ -1730,6 +1735,11 @@ efx_tx_qpost(
 	__in		unsigned int n,
 	__in		unsigned int completed,
 	__inout		unsigned int *addedp);
+
+extern	__checkReturn	int
+efx_tx_qpace(
+	__in		efx_txq_t *etp,
+	__in		unsigned int ns);
 
 extern		void
 efx_tx_qpush(

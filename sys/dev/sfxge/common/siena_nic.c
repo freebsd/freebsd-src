@@ -329,8 +329,10 @@ siena_board_cfg(
 			encp->enc_clk_mult = 2;
 	}
 
-	encp->enc_evq_moderation_max = EFX_EV_TIMER_QUANTUM <<
-		FRF_AB_TIMER_VAL_WIDTH / encp->enc_clk_mult;
+	encp->enc_evq_timer_quantum_ns =
+		EFX_EVQ_SIENA_TIMER_QUANTUM_NS / encp->enc_clk_mult;
+	encp->enc_evq_timer_max_us = (encp->enc_evq_timer_quantum_ns <<
+		FRF_CZ_TC_TIMER_VAL_WIDTH) / 1000;
 
 	/* Resource limits */
 	req.emr_cmd = MC_CMD_GET_RESOURCE_LIMITS;

@@ -214,6 +214,9 @@ sfxge_tx_qdpl_swizzle(struct sfxge_txq *txq)
 		count++;
 	} while (mbuf != NULL);
 
+	if (count > stdp->std_put_hiwat)
+		stdp->std_put_hiwat = count;
+
 	/* Append the reversed put list to the get list. */
 	KASSERT(*get_tailp == NULL, ("*get_tailp != NULL"));
 	*stdp->std_getp = get_next;
@@ -1400,7 +1403,6 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 	/* Allocate and zero DMA space for the descriptor ring. */
 	if ((rc = sfxge_dma_alloc(sc, EFX_TXQ_SIZE(sc->txq_entries), esmp)) != 0)
 		return (rc);
-	(void)memset(esmp->esm_base, 0, EFX_TXQ_SIZE(sc->txq_entries));
 
 	/* Allocate buffer table entries. */
 	sfxge_sram_buf_tbl_alloc(sc, EFX_TXQ_NBUFS(sc->txq_entries),
@@ -1486,6 +1488,10 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 			SYSCTL_CHILDREN(txq_node), OID_AUTO,
 			"dpl_get_hiwat", CTLFLAG_RD | CTLFLAG_STATS,
 			&stdp->std_get_hiwat, 0, "");
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(sc->dev),
+			SYSCTL_CHILDREN(txq_node), OID_AUTO,
+			"dpl_put_hiwat", CTLFLAG_RD | CTLFLAG_STATS,
+			&stdp->std_put_hiwat, 0, "");
 #endif
 
 	txq->type = type;
@@ -1565,6 +1571,29 @@ sfxge_tx_stat_init(struct sfxge_softc *sc)
 			sc, id, sfxge_tx_stat_handler, "LU",
 			"");
 	}
+}
+
+uint64_t
+sfxge_tx_get_drops(struct sfxge_softc *sc)
+{
+	unsigned int index;
+	uint64_t drops = 0;
+	struct sfxge_txq *txq;
+
+	/* Sum across all TX queues */
+	for (index = 0; index < sc->txq_count; index++) {
+		txq = sc->txq[index];
+		/*
+		 * In theory, txq->put_overflow and txq->netdown_drops
+		 * should use atomic operation and other should be
+		 * obtained under txq lock, but it is just statistics.
+		 */
+		drops += txq->drops + txq->get_overflow +
+			 txq->get_non_tcp_overflow +
+			 txq->put_overflow + txq->netdown_drops +
+			 txq->tso_pdrop_too_many + txq->tso_pdrop_no_rsrc;
+	}
+	return (drops);
 }
 
 void

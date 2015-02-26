@@ -102,6 +102,8 @@ struct sfxge_tx_dpl {
 						 * in get list */
 	unsigned int	std_get_hiwat;		/* Packets in get list
 						 * high watermark */
+	unsigned int	std_put_hiwat;		/* Packets in put list
+						 * high watermark */
 };
 
 
@@ -217,6 +219,7 @@ struct sfxge_txq {
 struct sfxge_evq;
 
 extern int sfxge_tx_packet_add(struct sfxge_txq *, struct mbuf *);
+extern uint64_t sfxge_tx_get_drops(struct sfxge_softc *sc);
 
 extern int sfxge_tx_init(struct sfxge_softc *sc);
 extern void sfxge_tx_fini(struct sfxge_softc *sc);
