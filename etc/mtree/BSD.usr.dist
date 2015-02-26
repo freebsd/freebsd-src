@@ -419,6 +419,8 @@
             ..
             tcsh
             ..
+            uefisign
+            ..
         ..
         games
             fortune
