@@ -89,7 +89,9 @@
 #define HAVE_ERRNO_H 1
 
 /* Define to 1 if you have the <execinfo.h> header file. */
-/* #undef HAVE_EXECINFO_H */
+#if __FreeBSD_version >= 1000052
+#define HAVE_EXECINFO_H 1
+#endif
 
 /* Define to 1 if you have the `exp' function. */
 #define HAVE_EXP 1
@@ -122,7 +124,9 @@
 #define HAVE_FMODF 1
 
 /* Define to 1 if you have the `futimens' function. */
-/* #undef HAVE_FUTIMENS */
+#if __FreeBSD_version >= 1100056
+#define HAVE_FUTIMENS 1
+#endif
 
 /* Define to 1 if you have the `futimes' function. */
 #define HAVE_FUTIMES 1
