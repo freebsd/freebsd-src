@@ -84,6 +84,7 @@ loader.efi: loader.sym
 		--output-target=${EFI_TARGET} ${.ALLSRC} ${.TARGET}
 
 LIBEFI=		${.OBJDIR}/../../efi/libefi/libefi.a
+LIBSTAND=       ${.OBJDIR}/../../userboot/libstand/libstand.a
 
 DPADD=		${LIBFICL} ${LIBEFI} ${LIBSTAND}
 LDADD=		${LIBFICL} ${LIBEFI} ${LIBSTAND}
