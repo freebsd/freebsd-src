@@ -53,8 +53,6 @@ boot1.efi: loader.sym
 		-j .rela.dyn -j .reloc -j .eh_frame -j set_Xcommand_set \
 		--output-target=${EFI_TARGET} ${.ALLSRC} ${.TARGET}
 
-CFLAGS+=	-I${.CURDIR}/../../common
-
 boot1.o: ${.CURDIR}/../../common/ufsread.c
 
 # The following inserts out objects into a template FAT file system
