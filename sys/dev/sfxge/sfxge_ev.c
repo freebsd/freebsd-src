@@ -103,7 +103,7 @@ sfxge_ev_rx(void *arg, uint32_t label, uint32_t id, uint32_t size,
 	KASSERT(evq->index == rxq->index,
 	    ("evq->index != rxq->index"));
 
-	if (rxq->init_state != SFXGE_RXQ_STARTED)
+	if (__predict_false(rxq->init_state != SFXGE_RXQ_STARTED))
 		goto done;
 
 	expected = rxq->pending++ & rxq->ptr_mask;
@@ -256,7 +256,7 @@ sfxge_ev_tx(void *arg, uint32_t label, uint32_t id)
 	KASSERT(evq->index == txq->evq_index,
 	    ("evq->index != txq->evq_index"));
 
-	if (txq->init_state != SFXGE_TXQ_STARTED)
+	if (__predict_false(txq->init_state != SFXGE_TXQ_STARTED))
 		goto done;
 
 	stop = (id + 1) & txq->ptr_mask;
@@ -433,7 +433,7 @@ sfxge_ev_stat_update(struct sfxge_softc *sc)
 
 	SFXGE_ADAPTER_LOCK(sc);
 
-	if (sc->evq[0]->init_state != SFXGE_EVQ_STARTED)
+	if (__predict_false(sc->evq[0]->init_state != SFXGE_EVQ_STARTED))
 		goto out;
 
 	now = ticks;
@@ -598,8 +598,8 @@ sfxge_ev_qpoll(struct sfxge_evq *evq)
 
 	SFXGE_EVQ_LOCK(evq);
 
-	if (evq->init_state != SFXGE_EVQ_STARTING &&
-	    evq->init_state != SFXGE_EVQ_STARTED) {
+	if (__predict_false(evq->init_state != SFXGE_EVQ_STARTING &&
+			    evq->init_state != SFXGE_EVQ_STARTED)) {
 		rc = EINVAL;
 		goto fail;
 	}
