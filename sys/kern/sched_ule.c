@@ -365,7 +365,7 @@ SDT_PROBE_DEFINE2(sched, , , surrender, "struct thread *",
  * the maximum randomness.
  */
 static uint32_t
-sched_random() 
+sched_random(void) 
 {
 	uint32_t *rndptr;
 
