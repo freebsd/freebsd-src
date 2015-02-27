@@ -131,7 +131,9 @@ INLINE_LIMIT?=	8000
 # Also explicitly disable Altivec instructions inside the kernel.
 #
 .if ${MACHINE_CPUARCH} == "powerpc"
-CFLAGS+=	-msoft-float -mno-altivec
+CFLAGS+=	-mno-altivec
+CFLAGS.clang+=	-mllvm -disable-ppc-float-in-variadic=true
+CFLAGS.gcc+=	-msoft-float
 INLINE_LIMIT?=	15000
 .endif
 
@@ -139,7 +141,7 @@ INLINE_LIMIT?=	15000
 # Use dot symbols on powerpc64 to make ddb happy
 #
 .if ${MACHINE_ARCH} == "powerpc64"
-CFLAGS+=	-mcall-aixdesc
+CFLAGS.gcc+=	-mcall-aixdesc
 .endif
 
 #
