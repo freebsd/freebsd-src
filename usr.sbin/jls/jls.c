@@ -166,10 +166,12 @@ main(int argc, char **argv)
 			    JP_USER);
 			add_param("path", NULL, (size_t)0, NULL, JP_USER);
 		}
-	} else
+	} else {
+		pflags &= ~PRINT_VERBOSE;
 		while (optind < argc)
 			add_param(argv[optind++], NULL, (size_t)0, NULL,
 			    JP_USER);
+	}
 
 	if (pflags & PRINT_SKIP) {
 		/* Check for parameters with jailsys parents. */
