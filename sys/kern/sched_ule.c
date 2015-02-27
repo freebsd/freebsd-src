@@ -302,7 +302,6 @@ static int sched_interact_score(struct thread *);
 static void sched_interact_update(struct thread *);
 static void sched_interact_fork(struct thread *);
 static void sched_pctcpu_update(struct td_sched *, int);
-static int sched_random(void);
 
 /* Operations on per processor queues */
 static struct thread *tdq_choose(struct tdq *);
@@ -357,6 +356,7 @@ SDT_PROBE_DEFINE(sched, , , remain__cpu);
 SDT_PROBE_DEFINE2(sched, , , surrender, "struct thread *", 
     "struct proc *");
 
+#ifdef SMP
 /*
  * We need some randomness. Implement the classic Linear Congruential
  * generator X_{n+1}=(aX_n+c) mod m. These values are optimized for
@@ -372,6 +372,7 @@ static int sched_random()
         *rndptr = rnd;
         return(rnd);
 } 
+#endif
 
 /*
  * Print the threads waiting on a run-queue.
