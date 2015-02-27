@@ -58,7 +58,8 @@ __FBSDID("$FreeBSD$");
 #include <mips/nlm/xlp.h>
 
 struct xlp_intrsrc {
-	void (*busack)(int);		/* Additional ack */
+	void (*bus_ack)(int, void *);	/* Additional ack */
+	void *bus_ack_arg;		/* arg for additional ack */
 	struct intr_event *ie;		/* event corresponding to intr */
 	int irq;
 	int irt;
@@ -119,23 +120,13 @@ cpu_establish_softintr(const char *name, driver_filter_t * filt,
 	panic("Soft interrupts unsupported!\n");
 }
 
-void
-cpu_establish_hardintr(const char *name, driver_filter_t * filt,
-    void (*handler) (void *), void *arg, int irq, int flags,
-    void **cookiep)
-{
-
-	xlp_establish_intr(name, filt, handler, arg, irq, flags,
-	    cookiep, NULL);
-}
-
 static void
 xlp_post_filter(void *source)
 {
 	struct xlp_intrsrc *src = source;
 	
-	if (src->busack)
-		src->busack(src->irq);
+	if (src->bus_ack)
+		src->bus_ack(src->irq, src->bus_ack_arg);
 	nlm_pic_ack(xlp_pic_base, src->irt);
 }
 
@@ -144,8 +135,8 @@ xlp_pre_ithread(void *source)
 {
 	struct xlp_intrsrc *src = source;
 
-	if (src->busack)
-		src->busack(src->irq);
+	if (src->bus_ack)
+		src->bus_ack(src->irq, src->bus_ack_arg);
 }
 
 static void
@@ -157,19 +148,35 @@ xlp_post_ithread(void *source)
 }
 
 void
-xlp_establish_intr(const char *name, driver_filter_t filt,
-    driver_intr_t handler, void *arg, int irq, int flags,
-    void **cookiep, void (*busack)(int))
+xlp_set_bus_ack(int irq, void (*ack)(int, void *), void *arg)
+{
+	struct xlp_intrsrc *src;
+
+	KASSERT(irq > 0 && irq <= XLR_MAX_INTR,
+	    ("%s called for bad hard intr %d", __func__, irq));
+
+	/* no locking needed - this will called early in boot */
+	src = &xlp_interrupts[irq];
+	KASSERT(src->ie != NULL,
+	    ("%s called after IRQ enable for %d.", __func__, irq));
+	src->bus_ack_arg = arg;
+	src->bus_ack = ack;
+}
+
+void
+cpu_establish_hardintr(const char *name, driver_filter_t * filt,
+    void (*handler) (void *), void *arg, int irq, int flags,
+    void **cookiep)
 {
 	struct intr_event *ie;	/* descriptor for the IRQ */
 	struct xlp_intrsrc *src = NULL;
 	int errcode;
 
-	if (irq < 0 || irq > XLR_MAX_INTR)
-		panic("%s called for unknown hard intr %d", __func__, irq);
+	KASSERT(irq > 0 && irq <= XLR_MAX_INTR ,
+	    ("%s called for bad hard intr %d", __func__, irq));
 
 	/*
-	 * FIXME locking - not needed now, because we do this only on
+	 * Locking - not needed now, because we do this only on
 	 * startup from CPU0
 	 */
 	src = &xlp_interrupts[irq];
@@ -194,7 +201,6 @@ xlp_establish_intr(const char *name, driver_filter_t filt,
 			return;
 		}
 		src->irq = irq;
-		src->busack = busack;
 		src->ie = ie;
 	}
 	if (XLP_IRQ_IS_PICINTR(irq)) {
