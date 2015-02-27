@@ -134,7 +134,7 @@ sfxge_intr_message(void *arg)
 	KASSERT(intr->type == EFX_INTR_MESSAGE,
 	    ("intr->type != EFX_INTR_MESSAGE"));
 
-	if (intr->state != SFXGE_INTR_STARTED)
+	if (__predict_false(intr->state != SFXGE_INTR_STARTED))
 		return;
 
 	(void)efx_intr_status_message(enp, index, &fatal);
