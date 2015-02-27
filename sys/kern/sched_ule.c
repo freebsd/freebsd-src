@@ -360,17 +360,19 @@ SDT_PROBE_DEFINE2(sched, , , surrender, "struct thread *",
 /*
  * We need some randomness. Implement the classic Linear Congruential
  * generator X_{n+1}=(aX_n+c) mod m. These values are optimized for
- * m = 2^32, a = 69069 and c = 5. This is signed so that we can get
- * both positive and negative values from it by shifting the value
- * right.
+ * m = 2^32, a = 69069 and c = 5. We only return the upper 16 bits
+ * of the random state (in the low bits of our answer) to return
+ * the maximum randomness.
  */
-static int sched_random(void) 
+static uint32_t
+sched_random() 
 {
-        int rnd, *rndptr;
-        rndptr = DPCPU_PTR(randomval);
-        rnd = *rndptr * 69069 + 5;
-        *rndptr = rnd;
-        return(rnd);
+	uint32_t *rndptr;
+
+	rndptr = DPCPU_PTR(randomval);
+	*rndptr = *rndptr * 69069 + 5;
+
+	return (*rndptr >> 16);
 } 
 #endif
 
@@ -718,7 +720,7 @@ cpu_search(const struct cpu_group *cg, struct cpu_search *low,
 			CPU_CLR(cpu, &cpumask);
 			tdq = TDQ_CPU(cpu);
 			load = tdq->tdq_load * 256;
-			rnd = sched_random() >> 26;	/* -32 to +31 */
+			rnd = sched_random() % 32;
 			if (match & CPU_SEARCH_LOWEST) {
 				if (cpu == low->cs_prefer)
 					load -= 64;
@@ -882,7 +884,7 @@ sched_balance(void)
 		return;
 
 	balance_ticks = max(balance_interval / 2, 1) +
-            ((sched_random() >> 16) % balance_interval);
+	    (sched_random() % balance_interval);
 	tdq = TDQ_SELF();
 	TDQ_UNLOCK(tdq);
 	sched_balance_group(cpu_top);
