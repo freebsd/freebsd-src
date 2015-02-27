@@ -238,8 +238,7 @@ static int xl_transmit(if_t, struct mbuf *);
 static void xl_start_locked(struct xl_softc *);
 static void xl_start_90xB_locked(struct xl_softc *);
 static int xl_ioctl(if_t, u_long, void *, struct thread *);
-static void xl_init(void *);
-static void xl_init_locked(struct xl_softc *);
+static void xl_init(struct xl_softc *);
 static void xl_stop(struct xl_softc *);
 static int xl_watchdog(struct xl_softc *);
 static int xl_shutdown(device_t);
@@ -333,7 +332,6 @@ static struct ifdriver xl_ifdrv = {
 		.ifop_origin = IFOP_ORIGIN_DRIVER,
 		.ifop_ioctl = xl_ioctl,
 		.ifop_transmit = xl_transmit,
-		.ifop_init = xl_init,
 #ifdef DEVICE_POLLING
 		.ifop_poll = xl_poll,
 #endif
@@ -2175,7 +2173,7 @@ xl_intr(void *arg)
 
 		if (status & XL_STAT_ADFAIL) {
 			sc->xl_flags &= ~XL_FLAG_RUNNING;
-			xl_init_locked(sc);
+			xl_init(sc);
 			break;
 		}
 
@@ -2236,7 +2234,7 @@ xl_poll(if_t ifp, enum poll_cmd cmd, int count)
 
 			if (status & XL_STAT_ADFAIL) {
 				sc->xl_flags &= ~XL_FLAG_RUNNING;
-				xl_init_locked(sc);
+				xl_init(sc);
 			}
 
 			if (status & XL_STAT_STATSOFLOW)
@@ -2624,17 +2622,7 @@ xl_start_90xB_locked(struct xl_softc *sc)
 }
 
 static void
-xl_init(void *xsc)
-{
-	struct xl_softc		*sc = xsc;
-
-	XL_LOCK(sc);
-	xl_init_locked(sc);
-	XL_UNLOCK(sc);
-}
-
-static void
-xl_init_locked(struct xl_softc *sc)
+xl_init(struct xl_softc *sc)
 {
 	int			error, i;
 	struct mii_data		*mii = NULL;
@@ -2870,7 +2858,7 @@ xl_ifmedia_upd(if_t ifp)
 	    sc->xl_media & XL_MEDIAOPT_BTX ||
 	    sc->xl_media & XL_MEDIAOPT_BT4) {
 		sc->xl_flags &= ~XL_FLAG_RUNNING;
-		xl_init_locked(sc);
+		xl_init(sc);
 	} else {
 		xl_setmode(sc, ifm->ifm_media);
 	}
@@ -2978,7 +2966,7 @@ xl_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 			    (IFF_PROMISC | IFF_ALLMULTI))
 				xl_rxfilter(sc);
 			else
-				xl_init_locked(sc);
+				xl_init(sc);
 		} else if (sc->xl_flags & XL_FLAG_RUNNING)
 			xl_stop(sc);
 		XL_UNLOCK(sc);
@@ -3077,7 +3065,7 @@ xl_watchdog(struct xl_softc *sc)
 		    "no carrier - transceiver cable problem?\n");
 
 	sc->xl_flags &= ~XL_FLAG_RUNNING;
-	xl_init_locked(sc);
+	xl_init(sc);
 
 	if (if_snd_len(ifp)) {
 		if (sc->xl_type == XL_TYPE_905B)
@@ -3196,7 +3184,7 @@ xl_resume(device_t dev)
 	XL_LOCK(sc);
 	if (sc->xl_if_flags & IFF_UP) {
 		sc->xl_flags &= ~XL_FLAG_RUNNING;
-		xl_init_locked(sc);
+		xl_init(sc);
 	}
 	XL_UNLOCK(sc);
 

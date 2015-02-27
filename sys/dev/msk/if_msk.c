@@ -286,8 +286,7 @@ static int msk_ioctl(if_t, u_long, void *, struct thread *);
 static void msk_set_prefetch(struct msk_softc *, int, bus_addr_t, uint32_t);
 static void msk_set_rambuffer(struct msk_if_softc *);
 static void msk_set_tx_stfwd(struct msk_if_softc *);
-static void msk_init(void *);
-static void msk_init_locked(struct msk_if_softc *);
+static void msk_init(struct msk_if_softc *);
 static void msk_stop(struct msk_if_softc *);
 static void msk_watchdog(struct msk_if_softc *);
 static int msk_mediachange(if_t);
@@ -399,7 +398,6 @@ static struct ifdriver msk_ifdrv = {
 	.ifdrv_ops = {
 		.ifop_origin = IFOP_ORIGIN_DRIVER,
 		.ifop_ioctl = msk_ioctl,
-		.ifop_init = msk_init,
 		.ifop_transmit = msk_transmit,
 	},
 	.ifdrv_name = "msk",
@@ -1108,7 +1106,7 @@ msk_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 		    ETHER_VLAN_ENCAP_LEN;
 		if ((sc_if->msk_flags & MSK_FLAG_RUNNING) != 0) {
 			sc_if->msk_flags &= ~MSK_FLAG_RUNNING;
-			msk_init_locked(sc_if);
+			msk_init(sc_if);
 		}
 		MSK_IF_UNLOCK(sc_if);
 		break;
@@ -1122,7 +1120,7 @@ msk_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 			    (IFF_PROMISC | IFF_ALLMULTI)) != 0)
 				msk_rxfilter(sc_if);
 			else if ((sc_if->msk_flags & MSK_FLAG_DETACH) == 0)
-				msk_init_locked(sc_if);
+				msk_init(sc_if);
 		} else if ((sc_if->msk_flags & MSK_FLAG_RUNNING) != 0)
 			msk_stop(sc_if);
 		MSK_IF_UNLOCK(sc_if);
@@ -1164,7 +1162,7 @@ msk_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 			msk_setvlan(sc_if);
 		if (reinit && (sc_if->msk_flags & MSK_FLAG_RUNNING) != 0) {
 			sc_if->msk_flags &= ~MSK_FLAG_RUNNING;
-			msk_init_locked(sc_if);
+			msk_init(sc_if);
 		}
 		MSK_IF_UNLOCK(sc_if);
 		break;
@@ -2957,14 +2955,14 @@ msk_watchdog(struct msk_if_softc *sc_if)
 			   "(missed link)\n");
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		sc_if->msk_flags &= ~MSK_FLAG_RUNNING;
-		msk_init_locked(sc_if);
+		msk_init(sc_if);
 		return;
 	}
 
 	if_printf(ifp, "watchdog timeout\n");
 	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	sc_if->msk_flags &= ~MSK_FLAG_RUNNING;
-	msk_init_locked(sc_if);
+	msk_init(sc_if);
 	msk_start(sc_if);
 }
 
@@ -3037,7 +3035,7 @@ mskc_resume(device_t dev)
 		if (sc->msk_if[i] != NULL && sc->msk_if[i]->msk_ifp != NULL &&
 		    (sc->msk_if[i]->msk_if_flags & IFF_UP)) {
 			sc->msk_if[i]->msk_flags &= ~MSK_FLAG_RUNNING;
-			msk_init_locked(sc->msk_if[i]);
+			msk_init(sc->msk_if[i]);
 		}
 	}
 	sc->msk_pflags &= ~MSK_FLAG_SUSPEND;
@@ -3742,17 +3740,7 @@ msk_set_tx_stfwd(struct msk_if_softc *sc_if)
 }
 
 static void
-msk_init(void *xsc)
-{
-	struct msk_if_softc *sc_if = xsc;
-
-	MSK_IF_LOCK(sc_if);
-	msk_init_locked(sc_if);
-	MSK_IF_UNLOCK(sc_if);
-}
-
-static void
-msk_init_locked(struct msk_if_softc *sc_if)
+msk_init(struct msk_if_softc *sc_if)
 {
 	struct msk_softc *sc;
 	if_t ifp;

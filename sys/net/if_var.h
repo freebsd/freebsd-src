@@ -427,14 +427,6 @@ void if_poll_deregister(struct ifnet *ifp);
  * others are mandatory.  Those wrappers that driver can invoke
  * theirselves are not inlined, but implemented in if.c.
  */
-static inline void
-if_init(if_t ifp, void *sc)
-{
-
-	if (ifp->if_ops->ifop_init != NULL)
-		return (ifp->if_ops->ifop_init(sc));
-}
-
 #undef if_input
 static inline void
 if_input(if_t ifp, struct mbuf *m)

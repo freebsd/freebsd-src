@@ -581,7 +581,6 @@ typedef enum {
 
 typedef struct ifnet * if_t;
 
-typedef void	(*if_init_t)(void *);
 typedef void	(*if_input_t)(if_t, struct mbuf *);
 typedef int	(*if_transmit_t)(if_t, struct mbuf *);
 typedef int	(*if_output_t)(if_t, struct mbuf *, const struct sockaddr *,
@@ -611,7 +610,6 @@ struct ifops {
 #endif
 	if_ioctl_t	ifop_ioctl;	/* ioctl routine */
 	if_get_counter_t ifop_get_counter; /* get counter values */
-	if_init_t	ifop_init;	/* init routine */
 	if_qflush_t	ifop_qflush;	/* flush any queue */	
 	if_resolvemulti_t ifop_resolvemulti; /* validate/resolve multicast */
 	if_reassign_t	ifop_reassign;	/* reassign to vnet routine */

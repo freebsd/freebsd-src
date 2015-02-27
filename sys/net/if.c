@@ -442,7 +442,6 @@ ifdriver_bless(struct ifdriver *ifdrv, struct iftype *ift)
 		COPY(ifop_output);
 		COPY(ifop_ioctl);
 		COPY(ifop_get_counter);
-		COPY(ifop_init);
 		COPY(ifop_qflush);
 		COPY(ifop_resolvemulti);
 		COPY(ifop_reassign);
@@ -2261,7 +2260,7 @@ if_drvioctl(struct ifnet *ifp, u_long cmd, void *data, struct thread *td)
 	char new_name[IFNAMSIZ];
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
-	uint32_t flags;
+	uint32_t flags, oflags;
 	int error = 0;
 
 	ifr = (struct ifreq *)data;
@@ -2379,8 +2378,10 @@ if_drvioctl(struct ifnet *ifp, u_long cmd, void *data, struct thread *td)
 		/*
 		 * Historically if_flags were 16-bit, and thus
 		 * they come from userland in two parts, that
-		 * we need to swap.
+		 * we need to swap.  Clear IFF_RUNNING that is
+		 * no longer used in kernel.
 		 */
+		ifr->ifr_flags &= ~IFF_RUNNING;
 		flags = (ifr->ifr_flags & 0xffff) |
 		    (ifr->ifr_flagshigh << 16);
 		if ((flags & IFF_CANTCHANGE) !=
@@ -2394,15 +2395,18 @@ if_drvioctl(struct ifnet *ifp, u_long cmd, void *data, struct thread *td)
 			return (error);
 		flags = (ifr->ifr_flags & 0xffff) |
 		    (ifr->ifr_flagshigh << 16);
+		oflags = ifp->if_flags;
+		ifp->if_flags = flags;
+		getmicrotime(&ifp->if_lastchange);
 		/*
 		 * Manage IFF_UP flip.
 		 */
-		if (ifp->if_flags & IFF_UP && (flags & IFF_UP) == 0)
+		if (oflags & IFF_UP && (flags & IFF_UP) == 0)
 			if_down(ifp);
-		else if (flags & IFF_UP && (ifp->if_flags & IFF_UP) == 0)
+		else if (flags & IFF_UP && (oflags & IFF_UP) == 0)
 			if_up(ifp);
-		/* See if permanently promiscuous mode bit is about to flip */
-		if ((ifp->if_flags ^ flags) & IFF_PPROMISC) {
+		/* See if permanently promiscuous mode bit is about to flip. */
+		if ((oflags ^ flags) & IFF_PPROMISC) {
 			if (flags & IFF_PPROMISC)
 				ifp->if_flags |= IFF_PROMISC;
 			else if (ifp->if_pcount == 0)
@@ -2411,8 +2415,6 @@ if_drvioctl(struct ifnet *ifp, u_long cmd, void *data, struct thread *td)
 			    ifp->if_xname,
 			    (flags & IFF_PPROMISC) ? "enabled" : "disabled");
 		}
-		ifp->if_flags = flags;
-		getmicrotime(&ifp->if_lastchange);
 		break;
 
 	case SIOCSIFCAP:
@@ -2779,17 +2781,10 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 	/*
 	 * Pass the request on to the socket control method, and if the
 	 * latter returns EOPNOTSUPP, directly to the interface.
-	 *
-	 * Make an exception for the legacy SIOCSIF* requests.  Drivers
-	 * trust SIOCSIFADDR et al to come from an already privileged
-	 * layer, and do not perform any credentials checks or input
-	 * validation.
 	 */
 	error = ((*so->so_proto->pr_usrreqs->pru_control)(so, cmd, data,
 	    ifp, td));
-	if (error == EOPNOTSUPP && ifp != NULL &&
-	    cmd != SIOCSIFADDR && cmd != SIOCSIFBRDADDR &&
-	    cmd != SIOCSIFDSTADDR && cmd != SIOCSIFNETMASK)
+	if (error == EOPNOTSUPP)
 		error = if_ioctl(ifp, cmd, data, td);
 
 	if ((oif_flags ^ ifp->if_flags) & IFF_UP) {

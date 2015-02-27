@@ -419,8 +419,7 @@ static void bge_intr_task(void *, int);
 static int bge_start_locked(struct bge_softc *);
 static int bge_transmit(if_t, struct mbuf *);
 static int bge_ioctl(if_t, u_long, void *, struct thread *);
-static void bge_init_locked(struct bge_softc *);
-static void bge_init(void *);
+static void bge_init(struct bge_softc *);
 static void bge_stop_block(struct bge_softc *, bus_size_t, uint32_t);
 static void bge_stop(struct bge_softc *);
 static void bge_watchdog(struct bge_softc *);
@@ -536,7 +535,6 @@ static struct ifdriver bge_ifdrv = {
 	.ifdrv_ops = {
 		.ifop_origin = IFOP_ORIGIN_DRIVER,
 		.ifop_ioctl = bge_ioctl,
-		.ifop_init = bge_init,
 		.ifop_transmit = bge_transmit,
 		.ifop_get_counter = bge_get_counter,
 #ifdef DEVICE_POLLING
@@ -5408,7 +5406,7 @@ bge_transmit(if_t ifp, struct mbuf *m)
 }
 
 static void
-bge_init_locked(struct bge_softc *sc)
+bge_init(struct bge_softc *sc)
 {
 	if_t ifp;
 	uint16_t *m;
@@ -5578,16 +5576,6 @@ bge_init_locked(struct bge_softc *sc)
 	callout_reset(&sc->bge_stat_ch, hz, bge_tick, sc);
 }
 
-static void
-bge_init(void *xsc)
-{
-	struct bge_softc *sc = xsc;
-
-	BGE_LOCK(sc);
-	bge_init_locked(sc);
-	BGE_UNLOCK(sc);
-}
-
 /*
  * Set media options.
  */
@@ -5754,7 +5742,7 @@ bge_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 		sc->bge_mtu = ifr->ifr_mtu;
 		if (sc->bge_flags & BGE_FLAG_RUNNING) {
 			sc->bge_flags &= ~BGE_FLAG_RUNNING;
-			bge_init_locked(sc);
+			bge_init(sc);
 		}
 		BGE_UNLOCK(sc);
 		break;
@@ -5777,7 +5765,7 @@ bge_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 				if ((oflags ^ sc->bge_if_flags) & IFF_ALLMULTI)
 					bge_setmulti(sc);
 			} else
-				bge_init_locked(sc);
+				bge_init(sc);
 		} else if (sc->bge_flags & BGE_FLAG_RUNNING)
 			bge_stop(sc);
 		BGE_UNLOCK(sc);
@@ -5827,8 +5815,10 @@ bge_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 		    (sc->bge_flags & (BGE_FLAG_TSO | BGE_FLAG_TSO3)) != 0)
 			ifr->ifr_hwassist |= CSUM_TSO;
 		if (mask & IFCAP_VLAN_MTU) {
+			BGE_LOCK(sc);
 			sc->bge_flags &= ~BGE_FLAG_RUNNING;
 			bge_init(sc);
+			BGE_UNLOCK(sc);
 		}
 		if ((mask & IFCAP_VLAN_HWTAGGING) != 0) {
 			BGE_LOCK(sc);
@@ -5887,7 +5877,7 @@ bge_watchdog(struct bge_softc *sc)
 	if_printf(ifp, "watchdog timeout -- resetting\n");
 
 	sc->bge_flags &= ~BGE_FLAG_RUNNING;
-	bge_init_locked(sc);
+	bge_init(sc);
 
 	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 }
@@ -6043,7 +6033,7 @@ bge_resume(device_t dev)
 	sc = device_get_softc(dev);
 	BGE_LOCK(sc);
 	if (sc->bge_if_flags & IFF_UP) {
-		bge_init_locked(sc);
+		bge_init(sc);
 		if (sc->bge_flags & BGE_FLAG_RUNNING)
 			bge_start_locked(sc);
 	}

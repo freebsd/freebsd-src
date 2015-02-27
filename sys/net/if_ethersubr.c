@@ -943,27 +943,9 @@ ether_crc32_be(const uint8_t *buf, size_t len)
 static int
 ether_ioctl(struct ifnet *ifp, u_long command, void *data, struct thread *td)
 {
-	struct ifaddr *ifa = (struct ifaddr *) data;
 	struct ifreq *ifr = (struct ifreq *) data;
-	int error = 0;
 
 	switch (command) {
-	case SIOCSIFADDR:
-		ifp->if_flags |= IFF_UP;
-
-		switch (ifa->ifa_addr->sa_family) {
-#ifdef INET
-		case AF_INET:
-			if_init(ifp, ifp->if_softc);	/* before arpwhohas */
-			arp_ifinit(ifp, ifa);
-			break;
-#endif
-		default:
-			if_init(ifp, ifp->if_softc);
-			break;
-		}
-		break;
-
 	case SIOCGIFADDR:
 		{
 			struct sockaddr *sa;
@@ -978,17 +960,16 @@ ether_ioctl(struct ifnet *ifp, u_long command, void *data, struct thread *td)
 		/*
 		 * Set the interface MTU.
 		 */
-		if (ifr->ifr_mtu > ETHERMTU) {
-			error = EINVAL;
-		} else {
+		if (ifr->ifr_mtu > ETHERMTU)
+			return (EINVAL);
+		else
 			ifp->if_mtu = ifr->ifr_mtu;
-		}
 		break;
 	default:
-		error = EOPNOTSUPP;
-		break;
+		return (EOPNOTSUPP);
 	}
-	return (error);
+
+	return (0);
 }
 
 static int

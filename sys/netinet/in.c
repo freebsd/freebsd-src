@@ -339,6 +339,22 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 		return (EPROTONOSUPPORT);
 
 	/*
+	 * Historically assigning address to an interface is an
+	 * implicit IFF_UP.  Even if address assignment fails,
+	 * the interface stays up.
+	 */
+	if ((ifp->if_flags & IFF_UP) == 0) {
+		struct ifreq ifr;
+
+		ifr.ifr_flags = ifp->if_flags & 0xffff;
+		ifr.ifr_flagshigh = ifp->if_flags >> 16;
+		ifr.ifr_flags |= IFF_UP;
+		error = if_drvioctl(ifp, SIOCSIFFLAGS, &ifr, td);
+		if (error)
+			return (error);
+	}
+
+	/*
 	 * See whether address already exist.
 	 */
 	iaIsFirst = true;
@@ -430,15 +446,6 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	IN_IFADDR_WUNLOCK();
 
 	/*
-	 * Give the interface a chance to initialize
-	 * if this is its first address,
-	 * and to validate the address if necessary.
-	 */
-	error = if_ioctl(ifp, SIOCSIFADDR, ia, td);
-	if (error != 0 && error != EOPNOTSUPP)
-		goto fail1;
-
-	/*
 	 * Add route for the network.
 	 */
 	if (vhid == 0) {
@@ -482,6 +489,9 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 		error = in_joingroup(ifp, &allhosts_addr, NULL,
 			&ii->ii_allhosts);
 	}
+
+	if (vhid == 0 && (ifp->if_flags & IFF_BROADCAST))
+		arp_ifinit(ifp, ifa);
 
 	EVENTHANDLER_INVOKE(ifaddr_event, ifp);
 

@@ -173,8 +173,7 @@ static int	vtnet_init_tx_queues(struct vtnet_softc *);
 static int	vtnet_init_rxtx_queues(struct vtnet_softc *);
 static void	vtnet_set_active_vq_pairs(struct vtnet_softc *);
 static int	vtnet_reinit(struct vtnet_softc *);
-static void	vtnet_init_locked(struct vtnet_softc *);
-static void	vtnet_init(void *);
+static void	vtnet_init(struct vtnet_softc *);
 
 static void	vtnet_free_ctrl_vq(struct vtnet_softc *);
 static void	vtnet_exec_ctrl_cmd(struct vtnet_softc *, void *,
@@ -299,7 +298,6 @@ static struct ifdriver vtnet_ifdrv = {
 	.ifdrv_ops = {
 		.ifop_origin = IFOP_ORIGIN_DRIVER,
 		.ifop_ioctl = vtnet_ioctl,
-		.ifop_init = vtnet_init,
 		.ifop_get_counter = vtnet_get_counter,
 		.ifop_transmit = vtnet_txq_mq_start,
 		.ifop_qflush = vtnet_qflush,
@@ -480,7 +478,7 @@ vtnet_resume(device_t dev)
 
 	VTNET_CORE_LOCK(sc);
 	if (sc->vtnet_if_flags & IFF_UP)
-		vtnet_init_locked(sc);
+		vtnet_init(sc);
 	sc->vtnet_flags &= ~VTNET_FLAG_SUSPENDED;
 	VTNET_CORE_UNLOCK(sc);
 
@@ -1003,7 +1001,7 @@ vtnet_change_mtu(struct vtnet_softc *sc, int new_mtu)
 
 	if (sc->vtnet_flags & VTNET_FLAG_RUNNING) {
 		sc->vtnet_flags &= ~VTNET_FLAG_RUNNING;
-		vtnet_init_locked(sc);
+		vtnet_init(sc);
 	}
 
 	return (0);
@@ -1044,7 +1042,7 @@ vtnet_ioctl(if_t ifp, u_long cmd, void *data, struct thread *td)
 			    (IFF_PROMISC | IFF_ALLMULTI))
 				vtnet_rx_filter(sc);
 		} else
-			vtnet_init_locked(sc);
+			vtnet_init(sc);
 		VTNET_CORE_UNLOCK(sc);
 		break;
 
@@ -1072,7 +1070,7 @@ vtnet_ioctl(if_t ifp, u_long cmd, void *data, struct thread *td)
 		    (sc->vtnet_flags & VTNET_FLAG_RUNNING)) {
 			VTNET_CORE_LOCK(sc);
 			sc->vtnet_flags &= ~VTNET_FLAG_RUNNING;
-			vtnet_init_locked(sc);
+			vtnet_init(sc);
 			VTNET_CORE_UNLOCK(sc);
 		}
 		ifr->ifr_hwassist = 0;
@@ -2502,7 +2500,7 @@ vtnet_tick(void *xsc)
 
 	if (timedout != 0) {
 		sc->vtnet_flags &= ~VTNET_FLAG_RUNNING;
-		vtnet_init_locked(sc);
+		vtnet_init(sc);
 	} else
 		callout_schedule(&sc->vtnet_tick_ch, hz);
 }
@@ -2858,7 +2856,7 @@ vtnet_reinit(struct vtnet_softc *sc)
 }
 
 static void
-vtnet_init_locked(struct vtnet_softc *sc)
+vtnet_init(struct vtnet_softc *sc)
 {
 	device_t dev;
 	if_t ifp;
@@ -2889,25 +2887,6 @@ vtnet_init_locked(struct vtnet_softc *sc)
 
 fail:
 	vtnet_stop(sc);
-}
-
-static void
-vtnet_init(void *xsc)
-{
-	struct vtnet_softc *sc;
-
-	sc = xsc;
-
-#ifdef DEV_NETMAP
-	if (!NA(sc->vtnet_ifp)) {
-		D("try to attach again");
-		vtnet_netmap_attach(sc);
-	}
-#endif /* DEV_NETMAP */
-
-	VTNET_CORE_LOCK(sc);
-	vtnet_init_locked(sc);
-	VTNET_CORE_UNLOCK(sc);
 }
 
 static void
