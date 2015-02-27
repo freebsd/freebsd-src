@@ -302,6 +302,7 @@ static int sched_interact_score(struct thread *);
 static void sched_interact_update(struct thread *);
 static void sched_interact_fork(struct thread *);
 static void sched_pctcpu_update(struct td_sched *, int);
+static int sched_random(void);
 
 /* Operations on per processor queues */
 static struct thread *tdq_choose(struct tdq *);
@@ -355,6 +356,22 @@ SDT_PROBE_DEFINE(sched, , , on__cpu);
 SDT_PROBE_DEFINE(sched, , , remain__cpu);
 SDT_PROBE_DEFINE2(sched, , , surrender, "struct thread *", 
     "struct proc *");
+
+/*
+ * We need some randomness. Implement the classic Linear Congruential
+ * generator X_{n+1}=(aX_n+c) mod m. These values are optimized for
+ * m = 2^32, a = 69069 and c = 5. This is signed so that we can get
+ * both positive and negative values from it by shifting the value
+ * right.
+ */
+static int sched_random() 
+{
+        int rnd, *rndptr;
+        rndptr = DPCPU_PTR(randomval);
+        rnd = *rndptr * 69069 + 5;
+        *rndptr = rnd;
+        return(rnd);
+} 
 
 /*
  * Print the threads waiting on a run-queue.
@@ -651,7 +668,7 @@ cpu_search(const struct cpu_group *cg, struct cpu_search *low,
 	cpuset_t cpumask;
 	struct cpu_group *child;
 	struct tdq *tdq;
-	int cpu, i, hload, lload, load, total, rnd, *rndptr;
+	int cpu, i, hload, lload, load, total, rnd;
 
 	total = 0;
 	cpumask = cg->cg_mask;
@@ -700,8 +717,7 @@ cpu_search(const struct cpu_group *cg, struct cpu_search *low,
 			CPU_CLR(cpu, &cpumask);
 			tdq = TDQ_CPU(cpu);
 			load = tdq->tdq_load * 256;
-			rndptr = DPCPU_PTR(randomval);
-			rnd = (*rndptr = *rndptr * 69069 + 5) >> 26;
+			rnd = sched_random() >> 26;	/* -32 to +31 */
 			if (match & CPU_SEARCH_LOWEST) {
 				if (cpu == low->cs_prefer)
 					load -= 64;
@@ -861,14 +877,11 @@ sched_balance(void)
 {
 	struct tdq *tdq;
 
-	/*
-	 * Select a random time between .5 * balance_interval and
-	 * 1.5 * balance_interval.
-	 */
-	balance_ticks = max(balance_interval / 2, 1);
-	balance_ticks += random() % balance_interval;
 	if (smp_started == 0 || rebalance == 0)
 		return;
+
+	balance_ticks = max(balance_interval / 2, 1) +
+            ((sched_random() >> 16) % balance_interval);
 	tdq = TDQ_SELF();
 	TDQ_UNLOCK(tdq);
 	sched_balance_group(cpu_top);
