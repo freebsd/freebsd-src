@@ -56,7 +56,7 @@ loadelf64(int fd, void *location, size_t maxsize)
 
 	assert((intptr_t)location % PAGE_SIZE == 0);
 
-	if ((rlen = read(fd, &ehdr, sizeof(ehdr))) != sizeof(ehdr)) {
+	if ((rlen = pread(fd, &ehdr, sizeof(ehdr), 0)) != sizeof(ehdr)) {
 		warn("%s: read ELF header", __func__);
 		return (-1);
 	}
