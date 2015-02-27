@@ -1048,8 +1048,11 @@ cam_periph_runccb(union ccb *ccb,
 		  cam_flags camflags, u_int32_t sense_flags,
 		  struct devstat *ds)
 {
+	struct bintime *starttime;
+	struct bintime ltime;
 	int error;
  
+	starttime = NULL;
 	xpt_path_assert(ccb->ccb_h.path, MA_OWNED);
 
 	/*
@@ -1057,8 +1060,11 @@ cam_periph_runccb(union ccb *ccb,
 	 * this particular type of ccb, record the transaction start.
 	 */
 	if ((ds != NULL) && (ccb->ccb_h.func_code == XPT_SCSI_IO ||
-	    ccb->ccb_h.func_code == XPT_ATA_IO))
-		devstat_start_transaction(ds, NULL);
+	    ccb->ccb_h.func_code == XPT_ATA_IO)) {
+		starttime = &ltime;
+		binuptime(starttime);
+		devstat_start_transaction(ds, starttime);
+	}
 
 	ccb->ccb_h.cbfcnp = cam_periph_done;
 	xpt_action(ccb);
@@ -1086,22 +1092,22 @@ cam_periph_runccb(union ccb *ccb,
 	if (ds != NULL) {
 		if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
 			devstat_end_transaction(ds,
-					ccb->csio.dxfer_len,
+					ccb->csio.dxfer_len - ccb->csio.resid,
 					ccb->csio.tag_action & 0x3,
 					((ccb->ccb_h.flags & CAM_DIR_MASK) ==
 					CAM_DIR_NONE) ?  DEVSTAT_NO_DATA : 
 					(ccb->ccb_h.flags & CAM_DIR_OUT) ?
 					DEVSTAT_WRITE : 
-					DEVSTAT_READ, NULL, NULL);
+					DEVSTAT_READ, NULL, starttime);
 		} else if (ccb->ccb_h.func_code == XPT_ATA_IO) {
 			devstat_end_transaction(ds,
-					ccb->ataio.dxfer_len,
+					ccb->ataio.dxfer_len - ccb->ataio.resid,
 					ccb->ataio.tag_action & 0x3,
 					((ccb->ccb_h.flags & CAM_DIR_MASK) ==
 					CAM_DIR_NONE) ?  DEVSTAT_NO_DATA : 
 					(ccb->ccb_h.flags & CAM_DIR_OUT) ?
 					DEVSTAT_WRITE : 
-					DEVSTAT_READ, NULL, NULL);
+					DEVSTAT_READ, NULL, starttime);
 		}
 	}
 
