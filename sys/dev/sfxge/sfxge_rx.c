@@ -209,7 +209,7 @@ sfxge_rx_qfill(struct sfxge_rxq *rxq, unsigned int target, boolean_t retrying)
 
 	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
 
-	if (rxq->init_state != SFXGE_RXQ_STARTED)
+	if (__predict_false(rxq->init_state != SFXGE_RXQ_STARTED))
 		return;
 
 	rxfill = rxq->added - rxq->completed;
@@ -269,7 +269,7 @@ void
 sfxge_rx_qrefill(struct sfxge_rxq *rxq)
 {
 
-	if (rxq->init_state != SFXGE_RXQ_STARTED)
+	if (__predict_false(rxq->init_state != SFXGE_RXQ_STARTED))
 		return;
 
 	/* Make sure the queue is full */
@@ -760,7 +760,7 @@ sfxge_rx_qcomplete(struct sfxge_rxq *rxq, boolean_t eop)
 		rx_desc = &rxq->queue[id];
 		m = rx_desc->mbuf;
 
-		if (rxq->init_state != SFXGE_RXQ_STARTED)
+		if (__predict_false(rxq->init_state != SFXGE_RXQ_STARTED))
 			goto discard;
 
 		if (rx_desc->flags & (EFX_ADDR_MISMATCH | EFX_DISCARD))
