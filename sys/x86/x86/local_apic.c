@@ -388,16 +388,21 @@ native_lapic_init(vm_paddr_t addr)
 	int i, arat;
 
 	/*
-	 * Enable x2APIC mode if possible, otherwise map the local
-	 * APIC registers page.
+	 * Enable x2APIC mode if possible. Map the local APIC
+	 * registers page.
+	 *
+	 * Keep the LAPIC registers page mapped uncached for x2APIC
+	 * mode too, to have direct map page attribute set to
+	 * uncached.  This is needed to work around CPU errata present
+	 * on all Intel processors.
 	 */
 	KASSERT(trunc_page(addr) == addr,
 	    ("local APIC not aligned on a page boundary"));
+	lapic_paddr = addr;
+	lapic_map = pmap_mapdev(addr, PAGE_SIZE);
 	if (x2apic_mode) {
 		native_lapic_enable_x2apic();
-	} else {
-		lapic_paddr = addr;
-		lapic_map = pmap_mapdev(addr, PAGE_SIZE);
+		lapic_map = NULL;
 	}
 
 	/* Setup the spurious interrupt handler. */
