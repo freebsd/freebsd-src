@@ -561,7 +561,7 @@ xlp_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
 }
 
 static void
-bridge_pcie_ack(int irq)
+bridge_pcie_ack(int irq, void *arg)
 {
 	uint32_t node,reg;
 	uint64_t base;
@@ -597,7 +597,6 @@ mips_platform_pcib_setup_intr(device_t dev, device_t child,
 {
 	int error = 0;
 	int xlpirq;
-	void *extra_ack;
 
 	error = rman_activate_resource(irq);
 	if (error)
@@ -656,12 +655,11 @@ mips_platform_pcib_setup_intr(device_t dev, device_t child,
 		xlpirq = PIC_PCIE_IRQ(link);
 	}
 
-	if (xlpirq >= PIC_PCIE_0_IRQ && xlpirq <= PIC_PCIE_3_IRQ)
-		extra_ack = bridge_pcie_ack;
-	else
-		extra_ack = NULL;
-	xlp_establish_intr(device_get_name(child), filt,
-	    intr, arg, xlpirq, flags, cookiep, extra_ack);
+	/* if it is for real PCIe, we need to ack at bridge too */
+	if (xlpirq >= PIC_PCIE_IRQ(0) && xlpirq <= PIC_PCIE_IRQ(3))
+		xlp_set_bus_ack(xlpirq, bridge_pcie_ack, NULL);
+	cpu_establish_hardintr(device_get_name(child), filt, intr, arg,
+	    xlpirq, flags, cookiep);
 
 	return (0);
 }
