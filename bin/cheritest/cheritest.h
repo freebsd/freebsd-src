@@ -96,6 +96,8 @@ extern struct cheritest_child_state *ccsp;
 #define	CT_FLAG_STDIN_STRING	0x00000010  /* Provide strong on stdin. */
 #define	CT_FLAG_STDOUT_IGNORE	0x00000020  /* Standard output produced,
 					       but not checkable */
+#define CT_FLAG_SLOW		0x00000040  /* Test is expected to take a 
+					       long time to run */
 
 struct cheri_test {
 	const char	*ct_name;

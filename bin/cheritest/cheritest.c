@@ -522,7 +522,7 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_desc = "spin in a libcheri sandbox",
 	  .ct_func_arg = test_sandbox_simple_method,
 	  .ct_arg = CHERITEST_HELPER_OP_SPIN,
-	  .ct_flags = CT_FLAG_SIGNAL,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_SLOW,
 	  .ct_signum = SIGALRM },
 
 	{ .ct_name = "test_sandbox_syscall",
@@ -630,6 +630,7 @@ int tests_failed, tests_passed, tests_xfailed;
 int expected_failures;
 int list;
 int run_all;
+int fast_tests_only;
 int verbose;
 
 static void
@@ -637,9 +638,11 @@ usage(void)
 {
 
 	fprintf(stderr, "usage:\n");
-	fprintf(stderr, "cheritest -l [-v]          -- List tests\n");
+	fprintf(stderr, "cheritest -l               -- List tests\n");
+	fprintf(stderr, "cheritest -l -f            -- List fast tests\n");
 #ifndef LIST_ONLY
 	fprintf(stderr, "cheritest -a               -- Run all tests\n");
+	fprintf(stderr, "cheritest -a -f            -- Run fast tests\n");
 	fprintf(stderr, "cheritest [-v] <test> ...  -- Run specified tests\n");
 #endif
 	exit(EX_USAGE);
@@ -653,18 +656,23 @@ list_tests(void)
 	xo_open_container("testsuite");
 	xo_open_list("test");
 	for (i = 0; i < cheri_tests_len; i++) {
-		xo_open_instance("test");
-		if (verbose)
-			xo_emit("{cw:name/%s}{:description/%s}",
-			    cheri_tests[i].ct_name, cheri_tests[i].ct_desc);
-		else
-			xo_emit("{:name/%s}{e:description/%s}",
-			    cheri_tests[i].ct_name, cheri_tests[i].ct_desc);
-		if (cheri_tests[i].ct_xfail_reason)
-			xo_emit("{e:expected-failure-reason/%s}",
-			    cheri_tests[i].ct_xfail_reason);
-		xo_emit("\n");
-		xo_close_instance("test");
+		if (!fast_tests_only ||
+	 	    !(cheri_tests[i].ct_flags & CT_FLAG_SLOW)) {
+			xo_open_instance("test");
+			if (verbose)
+				xo_emit("{cw:name/%s}{:description/%s}",
+				    cheri_tests[i].ct_name,
+				    cheri_tests[i].ct_desc);
+			else
+				xo_emit("{:name/%s}{e:description/%s}",
+			    	    cheri_tests[i].ct_name,
+				    cheri_tests[i].ct_desc);
+			if (cheri_tests[i].ct_xfail_reason)
+				xo_emit("{e:expected-failure-reason/%s}",
+				    cheri_tests[i].ct_xfail_reason);
+			xo_emit("\n");
+			xo_close_instance("test");
+		}
 	}
 	xo_close_list("test");
 	xo_close_container("testsuite");
@@ -989,10 +997,13 @@ main(__unused int argc, __unused char *argv[])
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
 		errx(1, "xo_parse_args failed\n");
-	while ((opt = getopt(argc, argv, "alv")) != -1) {
+	while ((opt = getopt(argc, argv, "aflv")) != -1) {
 		switch (opt) {
 		case 'a':
 			run_all = 1;
+			break;
+		case 'f':
+			fast_tests_only = 1;
 			break;
 		case 'l':
 			list = 1;
@@ -1068,7 +1079,9 @@ main(__unused int argc, __unused char *argv[])
 	xo_open_list("test");
 	if (run_all) {
 		for (t = 0; t < cheri_tests_len; t++)
-			cheritest_run_test(&cheri_tests[t]);
+			if (!fast_tests_only || 
+			    !(cheri_tests[t].ct_flags & CT_FLAG_SLOW))
+				cheritest_run_test(&cheri_tests[t]);
 	} else {
 		for (i = 0; i < argc; i++)
 			cheritest_run_test_name(argv[i]);
