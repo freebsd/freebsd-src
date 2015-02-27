@@ -161,9 +161,7 @@ static void	if_attachdomain1(struct ifnet *);
 static int	ifconf(u_long, caddr_t);
 static void	if_freemulti(struct ifmultiaddr *);
 static void	if_grow(void);
-static void	if_route(struct ifnet *, int flag, int fam);
 static int	if_setflag(struct ifnet *, int, int, int *, int);
-static void	if_unroute(struct ifnet *, int flag, int fam);
 static void	link_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int	if_rtdel(struct radix_node *, void *);
 static int	if_delmulti_locked(struct ifnet *, struct ifmultiaddr *, int);
@@ -2113,53 +2111,6 @@ link_init_sdl(struct ifnet *ifp, struct sockaddr *paddr, u_char iftype)
 	return (sdl);
 }
 
-/*
- * Mark an interface down and notify protocols of
- * the transition.
- */
-static void
-if_unroute(struct ifnet *ifp, int flag, int fam)
-{
-	struct ifaddr *ifa;
-
-	KASSERT(flag == IFF_UP, ("if_unroute: flag != IFF_UP"));
-
-	ifp->if_flags &= ~flag;
-	getmicrotime(&ifp->if_lastchange);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
-		if (fam == PF_UNSPEC || (fam == ifa->ifa_addr->sa_family))
-			pfctlinput(PRC_IFDOWN, ifa->ifa_addr);
-	if_qflush(ifp);
-
-	if (ifp->if_carp)
-		(*carp_linkstate_p)(ifp);
-	rt_ifmsg(ifp);
-}
-
-/*
- * Mark an interface up and notify protocols of
- * the transition.
- */
-static void
-if_route(struct ifnet *ifp, int flag, int fam)
-{
-	struct ifaddr *ifa;
-
-	KASSERT(flag == IFF_UP, ("if_route: flag != IFF_UP"));
-
-	ifp->if_flags |= flag;
-	getmicrotime(&ifp->if_lastchange);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
-		if (fam == PF_UNSPEC || (fam == ifa->ifa_addr->sa_family))
-			pfctlinput(PRC_IFUP, ifa->ifa_addr);
-	if (ifp->if_carp)
-		(*carp_linkstate_p)(ifp);
-	rt_ifmsg(ifp);
-#ifdef INET6
-	in6_if_up(ifp);
-#endif
-}
-
 void	(*vlan_link_state_p)(struct ifnet *);	/* XXX: private from if_vlan */
 void	(*vlan_trunk_cap_p)(struct ifnet *);		/* XXX: private from if_vlan */
 struct ifnet *(*vlan_trunkdev_p)(struct ifnet *);
@@ -2229,8 +2180,16 @@ do_link_state_change(void *arg, int pending)
 void
 if_down(struct ifnet *ifp)
 {
+	struct ifaddr *ifa;
 
-	if_unroute(ifp, IFF_UP, AF_UNSPEC);
+	ifp->if_flags &= ~IFF_UP;
+	getmicrotime(&ifp->if_lastchange);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+		pfctlinput(PRC_IFDOWN, ifa->ifa_addr);
+	if_qflush(ifp);
+	if (ifp->if_carp)
+		(*carp_linkstate_p)(ifp);
+	rt_ifmsg(ifp);
 }
 
 /*
@@ -2240,8 +2199,18 @@ if_down(struct ifnet *ifp)
 void
 if_up(struct ifnet *ifp)
 {
+	struct ifaddr *ifa;
 
-	if_route(ifp, IFF_UP, AF_UNSPEC);
+	ifp->if_flags |= IFF_UP;
+	getmicrotime(&ifp->if_lastchange);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+		pfctlinput(PRC_IFUP, ifa->ifa_addr);
+	if (ifp->if_carp)
+		(*carp_linkstate_p)(ifp);
+	rt_ifmsg(ifp);
+#ifdef INET6
+	in6_if_up(ifp);
+#endif
 }
 
 /*
