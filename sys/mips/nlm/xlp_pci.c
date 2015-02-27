@@ -52,6 +52,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
 
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
 #include <machine/bus.h>
 #include <machine/md_var.h>
 #include <machine/intr_machdep.h>
@@ -281,7 +284,6 @@ DEFINE_CLASS_1(pci, xlp_pci_driver, xlp_pci_methods, sizeof(struct pci_softc),
     pci_driver);
 DRIVER_MODULE(xlp_pci, pcib, xlp_pci_driver, pci_devclass, 0, 0);
 
-static devclass_t pcib_devclass;
 static struct rman irq_rman, port_rman, mem_rman, emul_rman;
 
 static void
@@ -328,8 +330,11 @@ static int
 xlp_pcib_probe(device_t dev)
 {
 
-	device_set_desc(dev, "XLP PCI bus");
-	return (BUS_PROBE_NOWILDCARD);
+	if (ofw_bus_is_compatible(dev, "netlogic,xlp-pci")) {
+		device_set_desc(dev, "XLP PCI bus");
+		return (BUS_PROBE_DEFAULT);
+	}
+	return (ENXIO);
 }
 
 static int
@@ -479,13 +484,6 @@ xlp_pcib_attach(device_t dev)
 	device_add_child(dev, "pci", 0);
 	bus_generic_attach(dev);
 	return (0);
-}
-
-static void
-xlp_pcib_identify(driver_t * driver, device_t parent)
-{
-
-	BUS_ADD_CHILD(parent, 0, "pcib", 0);
 }
 
 /*
@@ -780,7 +778,6 @@ mips_pcib_route_interrupt(device_t bus, device_t dev, int pin)
 
 static device_method_t xlp_pcib_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify, xlp_pcib_identify),
 	DEVMETHOD(device_probe, xlp_pcib_probe),
 	DEVMETHOD(device_attach, xlp_pcib_attach),
 
@@ -813,4 +810,5 @@ static driver_t xlp_pcib_driver = {
 	1, /* no softc */
 };
 
-DRIVER_MODULE(pcib, nexus, xlp_pcib_driver, pcib_devclass, 0, 0);
+static devclass_t pcib_devclass;
+DRIVER_MODULE(xlp_pcib, simplebus, xlp_pcib_driver, pcib_devclass, 0, 0);
