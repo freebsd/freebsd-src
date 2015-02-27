@@ -45,16 +45,12 @@ static inline uint32_t
 get_cyclecount(void)
 {
 #if 0
-  unsigned long a, d;
-  asm volatile("rdtsc"
-	       : "=a" (a), "=d" (d)
-	       );
-  return (d << 32) | a;
-#else
   //uint64_t _time;
   //__asm __volatile("rdhwr %0, $2" : "=r" (_time));
+  //__asm __volatile(".word 0x7c10103b\n\tmove %0, $16" : "=r" (_time) :: "$16"); // rdhwr $16, $2 manually assembled due to gas issuesa
   //return (_time & 0xffffffff);
 #endif
+  __asm __volatile("dsra $zero, $1, $2"); // we can't do rdhwr on beri kernels because it is not enabled, so use this as a placeholder
   return 0;
 }
 
