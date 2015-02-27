@@ -268,7 +268,7 @@ moea64_pte_clear_native(mmu_t mmu, struct pvo_entry *pvo, uint64_t ptebit)
 		/* See "Resetting the Reference Bit" in arch manual */
 		PTESYNC();
 		/* 2-step here safe: precision is not guaranteed */
-		ptelo |= pt->pte_lo;
+		ptelo = pt->pte_lo;
 
 		/* One-byte store to avoid touching the C bit */
 		((volatile uint8_t *)(&pt->pte_lo))[6] =
