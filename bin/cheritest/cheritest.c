@@ -1086,8 +1086,9 @@ main(__unused int argc, __unused char *argv[])
 		for (i = 0; i < argc; i++)
 			cheritest_run_test_name(argv[i]);
 	}
-	xo_close_container("testsuite");
 	xo_close_list("test");
+	xo_close_container("testsuite");
+	xo_finish();
 	if (tests_passed + tests_failed > 1) {
 		if (expected_failures == 0)
 			fprintf(stderr, "SUMMARY: passed %d failed %d\n",
@@ -1104,7 +1105,6 @@ main(__unused int argc, __unused char *argv[])
 	}
 
 	cheritest_libcheri_destroy();
-	xo_finish();
 	if (tests_failed > tests_xfailed)
 		exit(-1);
 	exit(EX_OK);
