@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
 
+#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -74,169 +75,21 @@ __FBSDID("$FreeBSD$");
 #include "pcib_if.h"
 #include "pci_if.h"
 
-#define	EMUL_MEM_START	0x16000000UL
-#define	EMUL_MEM_END	0x18ffffffUL
-
-/* Override PCI a bit for SoC devices */
-
-enum {
-	INTERNAL_DEV	= 0x1,	/* internal device, skip on enumeration */
-	MEM_RES_EMUL	= 0x2,	/* no MEM or IO bar, custom res alloc */
-	SHARED_IRQ	= 0x4,
-	DEV_MMIO32	= 0x8,	/* byte access not allowed to mmio */
-};
-
-struct  xlp_devinfo {
-	struct pci_devinfo pcidev;
-	int	irq;
-	int	flags;
-	u_long	mem_res_start;
-};
-
-static struct resource *
-xlp_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
-{
-	struct resource *r;
-	struct xlp_devinfo *xlp_devinfo;
-	int busno;
-
-	/*
-	 * Do custom allocation for MEMORY resource for SoC device if 
-	 * MEM_RES_EMUL flag is set
-	 */
-	busno = pci_get_bus(child);
-	if ((type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) && busno == 0) {
-		xlp_devinfo = (struct xlp_devinfo *)device_get_ivars(child);
-		if ((xlp_devinfo->flags & MEM_RES_EMUL) != 0) {
-			/* no emulation for IO ports */
-			if (type == SYS_RES_IOPORT)
-				return (NULL);
-
-			start = xlp_devinfo->mem_res_start;
-			count = XLP_PCIE_CFG_SIZE - XLP_IO_PCI_HDRSZ;
-
-			/* MMC needs to 2 slots with rids 16 and 20 and a
-			 * fixup for size */
-			if (pci_get_device(child) == PCI_DEVICE_ID_NLM_MMC) {
-				count = 0x100;
-				if (*rid == 16)
-					; /* first slot already setup */
-				else if (*rid == 20)
-					start += 0x100; /* second slot */
-				else
-					return (NULL);
-			}
-
-			end = start + count - 1;
-			r = BUS_ALLOC_RESOURCE(device_get_parent(bus), child,
-			    type, rid, start, end, count, flags);
-			if (r == NULL)
-				return (NULL);
-			if ((xlp_devinfo->flags & DEV_MMIO32) != 0)
-				rman_set_bustag(r, rmi_uart_bus_space);
-			return (r);
-		}
-	}
-
-	/* Not custom alloc, use PCI code */
-	return (pci_alloc_resource(bus, child, type, rid, start, end, count,
-	    flags));
-}
-
-static int
-xlp_pci_release_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
-{
-	u_long start;
-
-	/* If custom alloc, handle that */
-	start = rman_get_start(r);
-	if (type == SYS_RES_MEMORY && pci_get_bus(child) == 0 &&
-	    start >= EMUL_MEM_START && start <= EMUL_MEM_END)
-		return (BUS_RELEASE_RESOURCE(device_get_parent(bus), child,
-		    type, rid, r));
-
-	/* use default PCI function */
-	return (bus_generic_rl_release_resource(bus, child, type, rid, r));
-}
-
-static void
-xlp_add_soc_child(device_t pcib, device_t dev, int b, int s, int f)
-{
-	struct pci_devinfo *dinfo;
-	struct xlp_devinfo *xlp_dinfo;
-	int domain, node, irq, devoffset, flags;
-	uint16_t devid;
-
-	domain = pcib_get_domain(dev);
-	node = s / 8;
-	devoffset = XLP_HDR_OFFSET(node, 0, s % 8, f);
-	if (!nlm_dev_exists(devoffset))
-		return;
-
-	/* Find if there is a desc for the SoC device */
-	devid = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_DEVICE, 2);
-	flags = 0;
-	irq = 0;
-	switch (devid) {
-	case PCI_DEVICE_ID_NLM_UART:
-		irq = PIC_UART_0_IRQ + f;
-		flags = MEM_RES_EMUL | DEV_MMIO32;
-		break;
-	case PCI_DEVICE_ID_NLM_I2C:
-		flags = MEM_RES_EMUL | DEV_MMIO32;
-		break;
-	case PCI_DEVICE_ID_NLM_NOR:
-		flags = MEM_RES_EMUL;
-		break;
-	case PCI_DEVICE_ID_NLM_MMC:
-		irq = PIC_MMC_IRQ;
-		flags = MEM_RES_EMUL;
-		break;
-	case PCI_DEVICE_ID_NLM_EHCI:
-		irq = PIC_USB_0_IRQ + f;
-		break;
-	case PCI_DEVICE_ID_NLM_PCIE:
-		break;
-	case PCI_DEVICE_ID_NLM_ICI:
-	case PCI_DEVICE_ID_NLM_PIC:
-	case PCI_DEVICE_ID_NLM_FMN:
-	default:
-		return;
-	}
-
-	dinfo = pci_read_device(pcib, domain, b, s, f, sizeof(*xlp_dinfo));
-	if (dinfo == NULL)
-		return;
-	xlp_dinfo = (struct xlp_devinfo *)dinfo;
-	xlp_dinfo->irq = irq;
-	xlp_dinfo->flags = flags;
-
-	/* SoC device with interrupts need fixup (except PCIe controllers) */
-	if (irq != 0 && devid != PCI_DEVICE_ID_NLM_PCIE)
-		PCIB_WRITE_CONFIG(pcib, b, s, f, XLP_PCI_DEVSCRATCH_REG0 << 2,
-		    (1 << 8) | irq, 4);
-
-	/* memory resource from ecfg space, if MEM_RES_EMUL is set */
-	if ((flags & MEM_RES_EMUL) != 0)
-		xlp_dinfo->mem_res_start = XLP_DEFAULT_IO_BASE + devoffset +
-		    XLP_IO_PCI_HDRSZ;
-	pci_add_child(dev, dinfo);
-}
-
 static int
 xlp_pci_attach(device_t dev)
 {
-	device_t pcib = device_get_parent(dev);
-	int maxslots, s, f, pcifunchigh;
-	int busno;
+	struct pci_devinfo *dinfo;
+	device_t pcib;
+	int maxslots, s, f, pcifunchigh, irq;
+	int busno, node, devoffset;
+	uint16_t devid;
 	uint8_t hdrtype;
 
 	/*
 	 * The on-chip devices are on a bus that is almost, but not
 	 * quite, completely like PCI. Add those things by hand.
 	 */
+	pcib = device_get_parent(dev);
 	busno = pcib_get_bus(dev);
 	maxslots = PCIB_MAXSLOTS(pcib);
 	for (s = 0; s <= maxslots; s++) {
@@ -247,8 +100,35 @@ xlp_pci_attach(device_t dev)
 			continue;
 		if (hdrtype & PCIM_MFDEV)
 			pcifunchigh = PCI_FUNCMAX;
-		for (f = 0; f <= pcifunchigh; f++)
-			xlp_add_soc_child(pcib, dev, busno, s, f);
+		node = s / 8;
+		for (f = 0; f <= pcifunchigh; f++) {
+			devoffset = XLP_HDR_OFFSET(node, 0, s % 8, f);
+			if (!nlm_dev_exists(devoffset))
+				continue;
+
+			/* Find if there is a desc for the SoC device */
+			devid = PCIB_READ_CONFIG(pcib, busno, s, f, PCIR_DEVICE, 2);
+
+			/* Skip devices that don't have a proper PCI header */
+			switch (devid) {
+			case PCI_DEVICE_ID_NLM_ICI:
+			case PCI_DEVICE_ID_NLM_PIC:
+			case PCI_DEVICE_ID_NLM_FMN:
+			case PCI_DEVICE_ID_NLM_UART:
+			case PCI_DEVICE_ID_NLM_I2C:
+			case PCI_DEVICE_ID_NLM_NOR:
+			case PCI_DEVICE_ID_NLM_MMC:
+				continue;
+			case PCI_DEVICE_ID_NLM_EHCI:
+				irq = PIC_USB_IRQ(f);
+				PCIB_WRITE_CONFIG(pcib, busno, s, f,
+				    XLP_PCI_DEVSCRATCH_REG0 << 2,
+				    (1 << 8) | irq, 4);
+			}
+			dinfo = pci_read_device(pcib, pcib_get_domain(dev),
+			    busno, s, f, sizeof(*dinfo));
+			pci_add_child(dev, dinfo);
+		}
 	}
 	return (bus_generic_attach(dev));
 }
@@ -274,57 +154,12 @@ static device_method_t xlp_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		xlp_pci_probe),
 	DEVMETHOD(device_attach,	xlp_pci_attach),
-	DEVMETHOD(bus_alloc_resource,	xlp_pci_alloc_resource),
-	DEVMETHOD(bus_release_resource, xlp_pci_release_resource),
-
 	DEVMETHOD_END
 };
 
 DEFINE_CLASS_1(pci, xlp_pci_driver, xlp_pci_methods, sizeof(struct pci_softc),
     pci_driver);
 DRIVER_MODULE(xlp_pci, pcib, xlp_pci_driver, pci_devclass, 0, 0);
-
-static struct rman irq_rman, port_rman, mem_rman, emul_rman;
-
-static void
-xlp_pcib_init_resources(void)
-{
-	irq_rman.rm_start = 0;
-	irq_rman.rm_end = 255;
-	irq_rman.rm_type = RMAN_ARRAY;
-	irq_rman.rm_descr = "PCI Mapped Interrupts";
-	if (rman_init(&irq_rman)
-	    || rman_manage_region(&irq_rman, 0, 255))
-		panic("pci_init_resources irq_rman");
-
-	port_rman.rm_start = 0;
-	port_rman.rm_end = ~0ul;
-	port_rman.rm_type = RMAN_ARRAY;
-	port_rman.rm_descr = "I/O ports";
-	if (rman_init(&port_rman)
-	    || rman_manage_region(&port_rman, PCIE_IO_BASE, PCIE_IO_LIMIT))
-		panic("pci_init_resources port_rman");
-
-	mem_rman.rm_start = 0;
-	mem_rman.rm_end = ~0ul;
-	mem_rman.rm_type = RMAN_ARRAY;
-	mem_rman.rm_descr = "I/O memory";
-	if (rman_init(&mem_rman)
-	    || rman_manage_region(&mem_rman, PCIE_MEM_BASE, PCIE_MEM_LIMIT))
-		panic("pci_init_resources mem_rman");
-
-	/*
-	 * This includes the GBU (nor flash) memory range and the PCIe
-	 * memory area. 
-	 */
-	emul_rman.rm_start = 0;
-	emul_rman.rm_end = ~0ul;
-	emul_rman.rm_type = RMAN_ARRAY;
-	emul_rman.rm_descr = "Emulated MEMIO";
-	if (rman_init(&emul_rman)
-	    || rman_manage_region(&emul_rman, EMUL_MEM_START, EMUL_MEM_END))
-		panic("pci_init_resources emul_rman");
-}
 
 static int
 xlp_pcib_probe(device_t dev)
@@ -473,8 +308,6 @@ static int
 xlp_pcib_attach(device_t dev)
 {
 	int node, link;
-
-	xlp_pcib_init_resources();
 
 	/* enable hardware swap on all nodes/links */
 	for (node = 0; node < XLP_MAX_NODES; node++)
@@ -673,79 +506,6 @@ mips_platform_pcib_teardown_intr(device_t dev, device_t child,
 	return (bus_generic_teardown_intr(dev, child, irq, cookie));
 }
 
-static struct resource *
-xlp_pcib_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
-{
-	struct rman *rm = NULL;
-	struct resource *rv;
-	void *va;
-	int needactivate = flags & RF_ACTIVE;
-
-	switch (type) {
-	case SYS_RES_IRQ:
-		rm = &irq_rman;
-		break;
-	
-	case SYS_RES_IOPORT:
-		rm = &port_rman;
-		break;
-
-	case SYS_RES_MEMORY:
-		if (start >= EMUL_MEM_START && start <= EMUL_MEM_END)
-			rm = &emul_rman;
-		else
-			rm = &mem_rman;
-			break;
-
-	default:
-		return (0);
-	}
-
-	rv = rman_reserve_resource(rm, start, end, count, flags, child);
-	if (rv == NULL)
-		return (NULL);
-
-	rman_set_rid(rv, *rid);
-
-	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
-		va = pmap_mapdev(start, count);
-		rman_set_bushandle(rv, (bus_space_handle_t)va);
-		rman_set_bustag(rv, rmi_bus_space);
-	}
-	if (needactivate) {
-		if (bus_activate_resource(child, type, *rid, rv)) {
-			rman_release_resource(rv);
-			return (NULL);
-		}
-	}
-	return (rv);
-}
-
-static int
-xlp_pcib_release_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
-{
-
-	return (rman_release_resource(r));
-}
-
-static int
-xlp_pcib_activate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
-{
-
-	return (rman_activate_resource(r));
-}
-
-static int
-xlp_pcib_deactivate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
-{
-
-	return (rman_deactivate_resource(r));
-}
-
 static int
 mips_pcib_route_interrupt(device_t bus, device_t dev, int pin)
 {
@@ -784,10 +544,10 @@ static device_method_t xlp_pcib_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar, xlp_pcib_read_ivar),
 	DEVMETHOD(bus_write_ivar, xlp_pcib_write_ivar),
-	DEVMETHOD(bus_alloc_resource, xlp_pcib_alloc_resource),
-	DEVMETHOD(bus_release_resource, xlp_pcib_release_resource),
-	DEVMETHOD(bus_activate_resource, xlp_pcib_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, xlp_pcib_deactivate_resource),
+	DEVMETHOD(bus_alloc_resource, bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource, bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr, mips_platform_pcib_setup_intr),
 	DEVMETHOD(bus_teardown_intr, mips_platform_pcib_teardown_intr),
 
