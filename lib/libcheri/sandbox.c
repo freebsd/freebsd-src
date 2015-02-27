@@ -122,6 +122,19 @@ sandbox_class_new(const char *path, size_t sandboxlen,
 	}
 
 	/*
+	 * Initialise the class mapping: this will be the code capabilty used
+	 * by all sandboxes.  For now, we just map the code segment in exactly
+	 * the same way we do the data segment.  In the future, we will want
+	 * to initialise them differently.
+	 */
+	if (sandbox_class_load(sbcp) < 0) {
+		saved_errno = EINVAL;
+		warnx("%s: sandbox_class_load() failed for %s", __func__,
+		    path);
+		goto error;
+	}
+
+	/*
 	 * Register the class/object for statistics; also register a single
 	 * "noname" method to catch statistics for unnamed or overflow
 	 * methods.

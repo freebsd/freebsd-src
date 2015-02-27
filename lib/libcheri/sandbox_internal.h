@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2014 Robert N. M. Watson
+ * Copyright (c) 2012-2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -54,6 +54,19 @@ struct sandbox_class {
 	int			 sbc_fd;
 	struct stat		 sbc_stat;
 	size_t			 sbc_sandboxlen;
+	void			*sbc_mem;
+
+	/*
+	 * The class's code capability, in various incarnations required for
+	 * class creation.  These will be used for all objects in the class.
+	 */
+	__capability void	*sbc_typecap;		/* Class type */
+	__capability void	*sbc_classcap_rtld;	/* Ctor/dtor */
+	__capability void	*sbc_classcap_invoke;	/* Object invoke */
+
+	/*
+	 * Class and method statistics.
+	 */
 	struct sandbox_class_stat	*sbc_sandbox_class_statp;
 	struct sandbox_method_stat	*sbc_sandbox_method_nonamep;
 	struct sandbox_method_stat	*sbc_sandbox_methods[
@@ -109,6 +122,7 @@ struct sandbox {
 	struct sandbox_object	*sb_sandbox_objectp;
 };
 
+int	sandbox_class_load(struct sandbox_class *sbcp);
 int	sandbox_object_load(struct sandbox_class *sbcp,
 	    struct sandbox_object *sbop);
 void	sandbox_object_unload(struct sandbox_class *sbcp,

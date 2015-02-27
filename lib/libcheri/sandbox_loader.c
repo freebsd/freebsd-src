@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2014 Robert N. M. Watson
+ * Copyright (c) 2012-2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -70,6 +70,76 @@
 #define	STACK_SIZE	(32*PAGE_SIZE)
 
 CHERI_CLASS_DECL(libcheri_system);
+
+int
+sandbox_class_load(struct sandbox_class *sbcp)
+{
+	__capability void *codecap;
+	size_t length;
+	ssize_t max_prog_offset;
+	int saved_errno;
+	caddr_t base;
+
+	/*
+	 * Set up the code capability for a new sandbox class.  Very similar
+	 * to object setup (i.e., guard pages for NULL, etc), but no need to
+	 * configure a stack.
+	 *
+	 * Eventually, we will want to do something a bit different here -- in
+	 * particular, perform run-time-linker-esque setup such as vtable
+	 * initialisation, and also set up the code and data capabilities
+	 * quite differently.
+	 */
+
+	length = sbcp->sbc_sandboxlen;
+	base = sbcp->sbc_mem = mmap(NULL, length, PROT_NONE, MAP_ANON, -1, 0);
+	if (sbcp->sbc_mem == MAP_FAILED) {
+		saved_errno = errno;
+		warn("%s: mmap region", __func__);
+		goto error;
+	}
+	if ((max_prog_offset = loadelf64(sbcp->sbc_fd, base, length)) == -1) {
+		saved_errno = errno;
+		goto error;
+	}
+
+	/*
+	 * Protect guard page(s) at the bottom of the code capability.
+	 *
+	 * XXXRW: More ideally, the ELF load wouldn't unprotect them.  See
+	 * XXXBD in sandbox_object_load().
+	 */
+	if (mprotect(base, SANDBOX_METADATA_BASE, PROT_NONE) < 0) {
+		saved_errno = errno;
+		warn("%s: mprotect NULL guard page", __func__);
+		goto error;
+	}
+
+	/*
+	 * Construct various class-related capabilities, such as the type,
+	 * code capability for the run-time linker, and code capability for
+	 * object-capability invocation.
+	 */
+	sbcp->sbc_typecap = cheri_type_alloc();
+
+	codecap = cheri_ptrperm(sbcp->sbc_mem, max_prog_offset,
+	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_EXECUTE);
+	codecap = cheri_setoffset(codecap, SANDBOX_RTLD_VECTOR);
+	sbcp->sbc_classcap_rtld = cheri_seal(codecap, sbcp->sbc_typecap);
+
+	codecap = cheri_ptrperm(sbcp->sbc_mem, max_prog_offset,
+	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_EXECUTE);
+	codecap = cheri_setoffset(codecap, SANDBOX_INVOKE_VECTOR);
+	sbcp->sbc_classcap_invoke = cheri_seal(codecap, sbcp->sbc_typecap);
+
+	return (0);
+
+error:
+	if (sbcp->sbc_mem != NULL)
+		munmap(sbcp->sbc_mem, sbcp->sbc_sandboxlen);
+	errno = saved_errno;
+	return (-1);
+}
 
 int
 sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
@@ -248,45 +318,27 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 		SANDBOX_CLASS_ALLOC(sbcp->sbc_sandbox_class_statp);
 	}
 
-	typecap = cheri_type_alloc();
-
 	/*
 	 * Construct capabilities for run-time linker vector.
-	 *
-	 * NB: Currently, the only difference between the rtld vector and the
-	 * ccall vector is the vector address.
-	 *
-	 * XXXRW: We use the same type for both the run-time linker vector and
-	 * the CCall vector.  Is this OK?
 	 */
-	codecap = cheri_ptrperm(sbop->sbo_mem, sbcp->sbc_sandboxlen,
-	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_EXECUTE);
-	codecap = cheri_setoffset(codecap, SANDBOX_RTLD_VECTOR);
-	sbop->sbo_cheri_object_rtld.co_codecap = cheri_seal(codecap, typecap);
-
 	datacap = cheri_ptrperm(sbop->sbo_mem, sbcp->sbc_sandboxlen,
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP |
 	    CHERI_PERM_STORE | CHERI_PERM_STORE_CAP |
 	    CHERI_PERM_STORE_LOCAL_CAP);
-	sbop->sbo_cheri_object_rtld.co_datacap = cheri_seal(datacap, typecap);
+	sbop->sbo_cheri_object_rtld.co_codecap = sbcp->sbc_classcap_rtld;
+	sbop->sbo_cheri_object_rtld.co_datacap = cheri_seal(datacap,
+	    sbcp->sbc_typecap);
 
 	/*
-	 * Construct capabilities for CCall vector.
-	 *
-	 * XXXRW: Does the code capability need CHERI_PERM_LOAD?
+	 * Construct capabilities for object-capability invocation vector.
 	 */
-	codecap = cheri_ptrperm(sbop->sbo_mem, sbcp->sbc_sandboxlen,
-	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_EXECUTE);
-	codecap = cheri_setoffset(codecap, SANDBOX_INVOKE_VECTOR);
-	sbop->sbo_cheri_object_invoke.co_codecap =
-	    cheri_seal(codecap, typecap);
-
 	datacap = cheri_ptrperm(sbop->sbo_mem, sbcp->sbc_sandboxlen,
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP |
 	    CHERI_PERM_STORE | CHERI_PERM_STORE_CAP |
 	    CHERI_PERM_STORE_LOCAL_CAP);
-	sbop->sbo_cheri_object_invoke.co_datacap =
-	    cheri_seal(datacap, typecap);
+	sbop->sbo_cheri_object_invoke.co_codecap = sbcp->sbc_classcap_invoke;
+	sbop->sbo_cheri_object_invoke.co_datacap = cheri_seal(datacap,
+	    sbcp->sbc_typecap);
 
 	/*
 	 * Construct an object capability for the system-class instance that
@@ -300,6 +352,9 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 * XXXRW: For now, we will populate $c0 with $pcc on invocation, so we
 	 * need to leave a full set of permissions on it.  Eventually, we
 	 * would prefer to limit this to LOAD and EXECUTE.
+	 *
+	 * XXXRW: We should do this once per class .. or even just once
+	 * globally, rather than on every object creation.
 	 */
 	codecap = cheri_getpcc();
 	codecap = cheri_setoffset(codecap,
