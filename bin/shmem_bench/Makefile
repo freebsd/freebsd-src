@@ -8,7 +8,5 @@ WANT_DUMP=	yes
 
 NO_SHARED?=	YES
 
-NO_WERROR=	YES
-
 .include <src.opts.mk>
 .include <bsd.prog.mk>
