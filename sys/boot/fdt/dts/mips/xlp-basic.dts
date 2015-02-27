@@ -65,6 +65,10 @@
 			interrupts = <17>;
 		};
 
+		pci0: pci@18000000 {
+			compatible = "netlogic,xlp-pci", "pci";
+			reg = <0xd0000000 0x10000000>;
+		};
 	};
 
 	chosen {
