@@ -364,7 +364,7 @@ SDT_PROBE_DEFINE2(sched, , , surrender, "struct thread *",
  * both positive and negative values from it by shifting the value
  * right.
  */
-static int sched_random() 
+static int sched_random(void) 
 {
         int rnd, *rndptr;
         rndptr = DPCPU_PTR(randomval);
