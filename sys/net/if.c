@@ -3563,17 +3563,11 @@ if_snd_free(struct ifqueue *ifq)
 static void
 if_snd_qflush(if_t ifp)
 {
-	struct ifqueue *ifq;
-	struct mbuf *m, *n;
-	
-	ifq = ifp->if_snd;
+	struct ifqueue *ifq = ifp->if_snd;
+
 	mtx_lock(&ifq->ifq_mtx);
-	n = mbufq_flush(&ifq->ifq_mbq);
+	mbufq_drain(&ifq->ifq_mbq);
 	mtx_unlock(&ifq->ifq_mtx);
-	while ((m = n) != NULL) {
-		n = m->m_nextpkt;
-		m_freem(m);
-	}
 }
 
 int
