@@ -68,9 +68,7 @@
  * XLR needs custom pre and post handlers for PCI/PCI-e interrupts
  * XXX: maybe follow i386 intsrc model
  */
-void xlp_establish_intr(const char *name, driver_filter_t filt,
-    driver_intr_t handler, void *arg, int irq, int flags,
-    void **cookiep, void (*busack)(int));
 void xlp_enable_irq(int irq);
+void xlp_set_bus_ack(int irq, void (*ack)(int, void *), void *arg);
 
 #endif				/* _RMI_INTERRUPT_H_ */
