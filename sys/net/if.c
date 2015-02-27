@@ -3542,9 +3542,9 @@ if_snd_alloc(int maxlen)
 {
 	struct ifqueue *ifq;
 
-	ifq = malloc(sizeof(struct ifqueue), M_IFNET, M_ZERO | M_WAITOK);
+	ifq = malloc(sizeof(struct ifqueue), M_IFNET, M_WAITOK);
 	mbufq_init(&ifq->ifq_mbq, maxlen);
-	mtx_init(&ifq->ifq_mtx, "ifqueue", NULL, MTX_DEF);
+	mtx_init(&ifq->ifq_mtx, "ifqueue", NULL, MTX_DEF | MTX_NEW);
 
 	return (ifq);
 }
