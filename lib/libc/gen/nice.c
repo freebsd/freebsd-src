@@ -45,16 +45,18 @@ __FBSDID("$FreeBSD$");
 int
 nice(int incr)
 {
-	int prio;
+	int saverrno, prio;
 
+	saverrno = errno;
 	errno = 0;
 	prio = getpriority(PRIO_PROCESS, 0);
-	if (prio == -1 && errno)
-		return -1;
+	if (prio == -1 && errno != 0)
+		return (-1);
 	if (setpriority(PRIO_PROCESS, 0, prio + incr) == -1) {
 		if (errno == EACCES)
 			errno = EPERM;
-		return -1;
+		return (-1);
 	}
-	return getpriority(PRIO_PROCESS, 0);
+	errno = saverrno;
+	return (0);
 }
