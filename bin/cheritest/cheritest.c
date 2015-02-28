@@ -487,6 +487,10 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_desc = "Generate an MD5 checksum in a libcheri sandbox",
 	  .ct_func = test_sandbox_md5 },
 
+	{ .ct_name = "test_sandbox_twoobj_md5",
+	  .ct_desc = "Instantiate second object and generate MD5 checksum",
+	  .ct_func = test_sandbox_twoobj_md5 },
+
 	{ .ct_name = "test_sandbox_malloc",
 	  .ct_desc = "Malloc memory in a libcheri sandbox",
 	  .ct_func_arg = test_sandbox_simple_method,

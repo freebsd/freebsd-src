@@ -198,6 +198,7 @@ void	test_sandbox_simple_method(const struct cheri_test *ctp,
 	    int methodnum);
 void	test_sandbox_md5(const struct cheri_test *ctp);
 void	test_sandbox_userfn(const struct cheri_test *ctp);
+void	test_sandbox_twoobj_md5(const struct cheri_test*ctp);
 int	cheritest_libcheri_setup(void);
 void	cheritest_libcheri_destroy(void);
 

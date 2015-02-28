@@ -178,6 +178,55 @@ test_sandbox_userfn(const struct cheri_test *ctp __unused)
 	cheritest_success();
 }
 
+/*
+ * Most tests run within a single object instantiated by
+ * cheritest_libcheri_setup().  This test creates, invokes, and destroys a
+ * second object to ensure that works.
+ *
+ * XXXRW: It would be good if we could 'set' a value in one object, and check
+ * that the other object is unaffected through a 'get'.  This will require
+ * some new methods.  For now, just do our MD5 test to make sure that
+ * invocation at least appears to work.
+ */
+void
+test_sandbox_twoobj_md5(const struct cheri_test *ctp __unused)
+{
+	struct sandbox_object *sbop;
+	__capability void *md5cap, *bufcap, *cclear;
+	char buf[33];
+	register_t v;
+
+	/*
+	 * Create a second instance of the cheritest class.
+	 */
+	if (sandbox_object_new(cheritest_classp, &sbop) < 0)
+		cheritest_failure_errx("sandbox_object_new() failed");
+
+	/*
+	 * The actual MD5 method call.  This should work as epected for the
+	 * test to pass.
+	 */
+	cclear = cheri_zerocap();
+	md5cap = cheri_ptrperm(string_to_md5, sizeof(string_to_md5),
+	    CHERI_PERM_LOAD);
+	bufcap = cheri_ptrperm(buf, sizeof(buf), CHERI_PERM_STORE);
+	v = sandbox_object_cinvoke(sbop,
+	    CHERITEST_HELPER_OP_MD5,
+	    0, strlen(string_to_md5), 0, 0, 0, 0, 0, 0,
+	    md5cap, bufcap, cclear, cclear, cclear, cclear, cclear, cclear);
+	buf[32] = '\0';
+	if (strcmp(buf, string_md5) != 0)
+		cheritest_failure_errx(
+		    "Incorrect MD5 checksum returned from sandbox ('%s')",
+		    buf);
+
+	/*
+	 * Destroy the second object and declare success.
+	 */
+	sandbox_object_destroy(sbop);
+	cheritest_success();
+}
+
 int
 cheritest_libcheri_setup(void)
 {

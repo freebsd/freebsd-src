@@ -120,6 +120,7 @@
 #define	test_sandbox_vm_xfault_catch			NULL
 #define	test_sandbox_vm_xfault_nocatch			NULL
 #define	test_sandbox_md5				NULL
+#define	test_sandbox_twoobj_md5				NULL
 #define	test_sandbox_fd_method				NULL
 #define	test_sandbox_fd_read				NULL
 #define	test_sandbox_fd_read_revoke			NULL
