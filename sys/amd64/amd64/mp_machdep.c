@@ -705,18 +705,20 @@ init_secondary(void)
 	wrmsr(MSR_STAR, msr);
 	wrmsr(MSR_SF_MASK, PSL_NT|PSL_T|PSL_I|PSL_C|PSL_D);
 
-	/*
-	 * On real hardware, switch to x2apic mode if possible.
-	 * Disable local APIC until BSP directed APs to run.
-	 */
-	lapic_xapic_mode();
-
 	/* signal our startup to the BSP. */
 	mp_naps++;
 
 	/* Spin until the BSP releases the AP's. */
 	while (!aps_ready)
 		ia32_pause();
+
+	/*
+	 * On real hardware, switch to x2apic mode if possible.  Do it
+	 * after aps_ready was signalled, to avoid manipulating the
+	 * mode while BSP might still want to send some IPI to us
+	 * (second startup IPI is ignored on modern hardware etc).
+	 */
+	lapic_xapic_mode();
 
 	/* Initialize the PAT MSR. */
 	pmap_init_pat();
