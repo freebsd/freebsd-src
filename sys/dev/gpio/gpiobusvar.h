@@ -100,6 +100,8 @@ int gpio_check_flags(uint32_t, uint32_t);
 device_t gpiobus_attach_bus(device_t);
 int gpiobus_detach_bus(device_t);
 int gpiobus_init_softc(device_t);
+int gpiobus_alloc_ivars(struct gpiobus_ivar *);
+void gpiobus_free_ivars(struct gpiobus_ivar *);
 
 extern driver_t gpiobus_driver;
 
