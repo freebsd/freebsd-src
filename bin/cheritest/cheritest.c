@@ -631,6 +631,7 @@ int expected_failures;
 int list;
 int run_all;
 int fast_tests_only;
+int sleep_after_test;
 int verbose;
 
 static void
@@ -999,7 +1000,7 @@ main(__unused int argc, __unused char *argv[])
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
 		errx(1, "xo_parse_args failed\n");
-	while ((opt = getopt(argc, argv, "aflv")) != -1) {
+	while ((opt = getopt(argc, argv, "aflsv")) != -1) {
 		switch (opt) {
 		case 'a':
 			run_all = 1;
@@ -1009,6 +1010,9 @@ main(__unused int argc, __unused char *argv[])
 			break;
 		case 'l':
 			list = 1;
+			break;
+		case 's':
+			sleep_after_test = 1;
 			break;
 		case 'v':
 			verbose++;
@@ -1082,8 +1086,11 @@ main(__unused int argc, __unused char *argv[])
 	if (run_all) {
 		for (t = 0; t < cheri_tests_len; t++)
 			if (!fast_tests_only || 
-			    !(cheri_tests[t].ct_flags & CT_FLAG_SLOW))
+			    !(cheri_tests[t].ct_flags & CT_FLAG_SLOW)) {
 				cheritest_run_test(&cheri_tests[t]);
+				if (sleep_after_test)
+					sleep(1);
+				}
 	} else {
 		for (i = 0; i < argc; i++)
 			cheritest_run_test_name(argv[i]);
