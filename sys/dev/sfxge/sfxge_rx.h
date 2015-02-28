@@ -36,7 +36,6 @@
 #include "opt_inet6.h"
 
 #if defined(INET) || defined(INET6)
-#error LRO
 #define	SFXGE_LRO	1
 #endif
 
