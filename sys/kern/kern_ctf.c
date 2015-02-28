@@ -68,7 +68,6 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	int flags;
 	int i;
 	int nbytes;
-	ssize_t resid;
 	size_t sz;
 	struct nameidata nd;
 	struct thread *td = curthread;
@@ -125,7 +124,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 
 	/* Read the ELF header. */
 	if ((error = vn_rdwr(UIO_READ, nd.ni_vp, hdr, sizeof(*hdr),
-	    0, UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED, &resid,
+	    0, UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED, NULL,
 	    td)) != 0)
 		goto out;
 
@@ -148,7 +147,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	/* Read all the section headers */
 	if ((error = vn_rdwr(UIO_READ, nd.ni_vp, (caddr_t)shdr, nbytes,
 	    hdr->e_shoff, UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED,
-	    &resid, td)) != 0)
+	    NULL, td)) != 0)
 		goto out;
 
 	/*
@@ -170,8 +169,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	/* Read the section header strings. */
 	if ((error = vn_rdwr(UIO_READ, nd.ni_vp, shstrtab,
 	    shdr[hdr->e_shstrndx].sh_size, shdr[hdr->e_shstrndx].sh_offset,
-	    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED, &resid,
-	    td)) != 0)
+	    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED, NULL, td)) != 0)
 		goto out;
 
 	/* Search for the section containing the CTF data. */
@@ -190,7 +188,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	/* Read the CTF header. */
 	if ((error = vn_rdwr(UIO_READ, nd.ni_vp, ctf_hdr, sizeof(ctf_hdr),
 	    shdr[i].sh_offset, UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred,
-	    NOCRED, &resid, td)) != 0)
+	    NOCRED, NULL, td)) != 0)
 		goto out;
 
 	/* Check the CTF magic number. (XXX check for big endian!) */
@@ -249,7 +247,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	 */
 	if ((error = vn_rdwr(UIO_READ, nd.ni_vp, raw == NULL ? ctftab : raw,
 	    shdr[i].sh_size, shdr[i].sh_offset, UIO_SYSSPACE, IO_NODELOCKED,
-	    td->td_ucred, NOCRED, &resid, td)) != 0)
+	    td->td_ucred, NOCRED, NULL, td)) != 0)
 		goto out;
 
 	/* Check if decompression is required. */

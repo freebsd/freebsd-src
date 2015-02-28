@@ -1173,8 +1173,10 @@ nis_group(void *retval, void *mdata, va_list ap)
 		 * terminator, alignment padding, and one (char *)
 		 * pointer for the member list terminator.
 		 */
-		if (resultlen >= bufsize - _ALIGNBYTES - sizeof(char *))
+		if (resultlen >= bufsize - _ALIGNBYTES - sizeof(char *)) {
+			free(result);
 			goto erange;
+		}
 		memcpy(buffer, result, resultlen);
 		buffer[resultlen] = '\0';
 		free(result);

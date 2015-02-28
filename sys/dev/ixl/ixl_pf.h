@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2014, Intel Corporation 
+  Copyright (c) 2013-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -65,6 +65,7 @@ struct ixl_pf {
 	struct taskqueue	*tq;
 
 	int			advertised_speed;
+	int			fc; /* local flow ctrl setting */
 
 	/*
 	** VSI - Stations: 

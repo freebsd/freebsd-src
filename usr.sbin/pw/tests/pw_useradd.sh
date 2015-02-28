@@ -114,9 +114,11 @@ user_add_account_expiration_date_relative_body() {
 	populate_etc_skel
 
 	EPOCH=`date -j -v+13m "+%s"`
+	BUF=`expr $EPOCH + 5`
 	atf_check -s exit:0 ${PW} useradd test -e +13o
-	atf_check -s exit:0 -o match:"^test:\*:.*::0:${EPOCH}:User &:.*" \
-		${PW} usershow test
+	TIME=`${PW} usershow test | awk -F ':' '{print $7}'`
+	[ ! -z $TIME -a $TIME -ge $EPOCH -a $TIME -lt $BUF ] || \
+		atf_fail "Expiration time($TIME) was not within $EPOCH - $BUF seconds."
 }
 
 # Test add user with password expiration as an epoch date
@@ -160,9 +162,11 @@ user_add_password_expiration_date_relative_body() {
 	populate_etc_skel
 
 	EPOCH=`date -j -v+13m "+%s"`
+	BUF=`expr $EPOCH + 5`
 	atf_check -s exit:0 ${PW} useradd test -p +13o
-	atf_check -s exit:0 -o match:"^test:\*:.*::${EPOCH}:0:User &:.*" \
-		${PW} usershow test
+	TIME=`${PW} usershow test | awk -F ':' '{print $6}'`
+	[ ! -z $TIME -a $TIME -ge $EPOCH -a $TIME -lt $BUF ] || \
+		atf_fail "Expiration time($TIME) was not within $EPOCH - $BUF seconds."
 }
 
 atf_init_test_cases() {

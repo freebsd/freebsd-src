@@ -294,7 +294,6 @@ struct ifaddr {
 struct ifaddr *	ifa_alloc(size_t size, int flags);
 void	ifa_free(struct ifaddr *ifa);
 void	ifa_ref(struct ifaddr *ifa);
-#endif /* _KERNEL */
 
 /*
  * Multicast address structure.  This is analogous to the ifaddr
@@ -309,8 +308,6 @@ struct ifmultiaddr {
 	void	*ifma_protospec;	/* protocol-specific state, if any */
 	struct	ifmultiaddr *ifma_llifma; /* pointer to ifma for ifma_lladdr */
 };
-
-#ifdef _KERNEL
 
 extern	struct rwlock ifnet_rwlock;
 extern	struct sx ifnet_sxlock;

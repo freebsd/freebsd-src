@@ -209,7 +209,7 @@ sfxge_rx_qfill(struct sfxge_rxq *rxq, unsigned int target, boolean_t retrying)
 
 	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
 
-	if (rxq->init_state != SFXGE_RXQ_STARTED)
+	if (__predict_false(rxq->init_state != SFXGE_RXQ_STARTED))
 		return;
 
 	rxfill = rxq->added - rxq->completed;
@@ -269,7 +269,7 @@ void
 sfxge_rx_qrefill(struct sfxge_rxq *rxq)
 {
 
-	if (rxq->init_state != SFXGE_RXQ_STARTED)
+	if (__predict_false(rxq->init_state != SFXGE_RXQ_STARTED))
 		return;
 
 	/* Make sure the queue is full */
@@ -760,7 +760,7 @@ sfxge_rx_qcomplete(struct sfxge_rxq *rxq, boolean_t eop)
 		rx_desc = &rxq->queue[id];
 		m = rx_desc->mbuf;
 
-		if (rxq->init_state != SFXGE_RXQ_STARTED)
+		if (__predict_false(rxq->init_state != SFXGE_RXQ_STARTED))
 			goto discard;
 
 		if (rx_desc->flags & (EFX_ADDR_MISMATCH | EFX_DISCARD))
@@ -1113,7 +1113,6 @@ sfxge_rx_qinit(struct sfxge_softc *sc, unsigned int index)
 	/* Allocate and zero DMA space. */
 	if ((rc = sfxge_dma_alloc(sc, EFX_RXQ_SIZE(sc->rxq_entries), esmp)) != 0)
 		return (rc);
-	(void)memset(esmp->esm_base, 0, EFX_RXQ_SIZE(sc->rxq_entries));
 
 	/* Allocate buffer table entries. */
 	sfxge_sram_buf_tbl_alloc(sc, EFX_RXQ_NBUFS(sc->rxq_entries),
@@ -1172,9 +1171,7 @@ sfxge_rx_stat_init(struct sfxge_softc *sc)
 
 	stat_list = SYSCTL_CHILDREN(sc->stats_node);
 
-	for (id = 0;
-	     id < sizeof(sfxge_rx_stats) / sizeof(sfxge_rx_stats[0]);
-	     id++) {
+	for (id = 0; id < nitems(sfxge_rx_stats); id++) {
 		SYSCTL_ADD_PROC(
 			ctx, stat_list,
 			OID_AUTO, sfxge_rx_stats[id].name,

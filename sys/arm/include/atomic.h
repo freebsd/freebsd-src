@@ -582,8 +582,8 @@ atomic_load_64(volatile uint64_t *p)
 
 	/*
 	 * The only way to atomically load 64 bits is with LDREXD which puts the
-	 * exclusive monitor into the open state, so reset it with CLREX because
-	 * we don't actually need to store anything.
+	 * exclusive monitor into the exclusive state, so reset it to open state
+	 * with CLREX because we don't actually need to store anything.
 	 */
 	__asm __volatile(
 		"1:          \n"
@@ -1103,13 +1103,23 @@ atomic_store_long(volatile u_long *dst, u_long src)
 	*dst = src;
 }
 
-#define atomic_clear_ptr		atomic_clear_32
-#define atomic_set_ptr			atomic_set_32
-#define atomic_cmpset_ptr		atomic_cmpset_32
-#define atomic_cmpset_rel_ptr		atomic_cmpset_rel_32
-#define atomic_cmpset_acq_ptr		atomic_cmpset_acq_32
-#define atomic_store_ptr		atomic_store_32
-#define atomic_store_rel_ptr		atomic_store_rel_32
+#define atomic_clear_ptr(p, v) \
+	atomic_clear_32((volatile uint32_t *)(p), (uint32_t)(v))
+#define atomic_set_ptr(p, v) \
+	atomic_set_32((volatile uint32_t *)(p), (uint32_t)(v))
+#define atomic_cmpset_ptr(p, cmpval, newval) \
+	atomic_cmpset_32((volatile u_int32_t *)(p), (u_int32_t)(cmpval), \
+	    (u_int32_t)(newval))
+#define atomic_cmpset_rel_ptr(p, cmpval, newval) \
+	atomic_cmpset_rel_32((volatile u_int32_t *)(p), (u_int32_t)(cmpval), \
+	    (u_int32_t)(newval))
+#define atomic_cmpset_acq_ptr(p, cmpval, newval) \
+	atomic_cmpset_acq_32((volatile u_int32_t *)(p), (u_int32_t)(cmpval), \
+	    (u_int32_t)(newval))
+#define atomic_store_ptr(p, v) \
+	atomic_store_32((volatile uint32_t *)(p), (uint32_t)(v))
+#define atomic_store_rel_ptr(p, v) \
+	atomic_store_rel_32((volatile uint32_t *)(p), (uint32_t)(v))
 
 #define atomic_add_int			atomic_add_32
 #define atomic_add_acq_int		atomic_add_acq_32

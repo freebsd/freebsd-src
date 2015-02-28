@@ -324,6 +324,7 @@ extern void sfxge_mac_link_update(struct sfxge_softc *sc,
     efx_link_mode_t mode);
 extern int sfxge_mac_filter_set(struct sfxge_softc *sc);
 extern int sfxge_port_ifmedia_init(struct sfxge_softc *sc);
+extern uint64_t sfxge_get_counter(struct ifnet *ifp, ift_counter c);
 
 #define	SFXGE_MAX_MTU (9 * 1024)
 
