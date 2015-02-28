@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2014 Robert N. M. Watson
+ * Copyright (c) 2013-2015 Robert N. M. Watson
  * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
@@ -64,6 +64,7 @@
 #define	CHERITEST_HELPER_GET_VAR_CONSTRUCTOR	30
 #define	CHERITEST_HELPER_OP_INFLATE	31
 #define CHERITEST_HELPER_OP_SYSTEM_CALLOC	32
+#define	CHERITEST_HELPER_SET_VAR_DATA	33
 
 /*
  * We use system-class extensions to allow cheritest-helper code to call back

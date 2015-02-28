@@ -332,6 +332,16 @@ invoke_get_var_data(void)
 }
 
 static register_t
+invoke_set_var_data(register_t v)
+{
+
+	volatile register_t *cheritest_var_datap = &cheritest_var_data;
+
+	*cheritest_var_datap = v;
+	return (0);
+}
+
+static register_t
 invoke_get_var_constructor(void)
 {
 	volatile register_t *cheritest_var_constructorp =
@@ -462,6 +472,9 @@ invoke(struct cheri_object co __unused, register_t methodnum,
 
 	case CHERITEST_HELPER_GET_VAR_DATA:
 		return (invoke_get_var_data());
+
+	case CHERITEST_HELPER_SET_VAR_DATA:
+		return (invoke_set_var_data(arg));
 
 	case CHERITEST_HELPER_GET_VAR_CONSTRUCTOR:
 		return (invoke_get_var_constructor());
