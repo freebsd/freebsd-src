@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 11, 2015
+.Dd February 27, 2015
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -228,6 +228,9 @@ An IPv4 or IPv6 address and port to listen on for incoming connections.
 .\".It Ic listen-iser Ar address
 .\"An IPv4 or IPv6 address and port to listen on for incoming connections
 .\"using iSER (iSCSI over RDMA) protocol.
+.It Ic offload Ar driver
+Define iSCSI hardware offload driver to use for this
+.Sy portal-group .
 .It Ic redirect Ar address
 IPv4 or IPv6 address to redirect initiators to.
 When configured, all initiators attempting to connect to portal
@@ -311,8 +314,6 @@ This clause is mutually exclusive with
 .Sy auth-group ;
 one cannot use
 both in a single target.
-.It Ic offload Ar driver
-Define iSCSI hardware offload driver to use for this target.
 .It Ic portal-group Ar name Op Ar agname
 Assign a previously defined portal group to the target.
 The default portal group is
