@@ -12,7 +12,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY BROADCOM ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -220,7 +220,7 @@ xlp_pcib_read_config(device_t dev, u_int b, u_int s, u_int f,
 	else if ((width == 4) && (reg & 3))
 		return 0xFFFFFFFF;
 
-	/* 
+	/*
 	 * The intline and int pin of SoC devices are DOA, except
 	 * for bridges (slot %8 == 1).
 	 * use the values we stashed in a writable PCI scratch reg.
@@ -304,7 +304,7 @@ xlp_pcib_hardware_swap_enable(int node, int link)
 #endif
 }
 
-static int 
+static int
 xlp_pcib_attach(device_t dev)
 {
 	int node, link;
@@ -321,7 +321,7 @@ xlp_pcib_attach(device_t dev)
 
 /*
  * XLS PCIe can have upto 4 links, and each link has its on IRQ
- * Find the link on which the device is on 
+ * Find the link on which the device is on
  */
 static int
 xlp_pcie_link(device_t pcib, device_t dev)
@@ -351,7 +351,7 @@ xlp_alloc_msi(device_t pcib, device_t dev, int count, int maxcount, int *irqs)
 	/*
 	 * Each link has 32 MSIs that can be allocated, but for now
 	 * we only support one device per link.
-	 * msi_alloc() equivalent is needed when we start supporting 
+	 * msi_alloc() equivalent is needed when we start supporting
 	 * bridges on the PCIe link.
 	 */
 	link = xlp_pcie_link(pcib, dev);
@@ -381,7 +381,7 @@ xlp_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
 	int link;
 
 	if (irq < 64) {
-		device_printf(dev, "%s: map_msi for irq %d  - ignored", 
+		device_printf(dev, "%s: map_msi for irq %d  - ignored",
 		    device_get_nameunit(pcib), irq);
 		return (ENXIO);
 	}
@@ -444,7 +444,7 @@ mips_platform_pcib_setup_intr(device_t dev, device_t child,
 	if (strcmp(device_get_name(dev), "pcib") != 0)
 		return (0);
 
-	/* 
+	/*
 	 * temporary hack for MSI, we support just one device per
 	 * link, and assign the link interrupt to the device interrupt
 	 */
@@ -480,7 +480,7 @@ mips_platform_pcib_setup_intr(device_t dev, device_t child,
 
 		val = nlm_read_pci_reg(base, PCIE_BRIDGE_MSI_CAP);
 		/* MSI capability enable at bridge */
-		nlm_write_pci_reg(base, PCIE_BRIDGE_MSI_CAP, 
+		nlm_write_pci_reg(base, PCIE_BRIDGE_MSI_CAP,
 		    (val | (PCIM_MSICTRL_MSI_ENABLE << 16) |
 		        (PCIM_MSICTRL_MMC_32 << 16)));
 		xlpirq = PIC_PCIE_IRQ(link);
