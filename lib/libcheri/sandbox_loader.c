@@ -141,6 +141,50 @@ error:
 	return (-1);
 }
 
+static struct cheri_object
+cheri_system_object_for_instance(struct sandbox_object *sbop)
+{
+	struct cheri_object system_object;
+	__capability void *codecap, *datacap;
+
+	/*
+	 * Construct an object capability for the system-class instance that
+	 * will be passed into the sandbox.
+	 *
+	 * The code capability will simply be our $pcc.
+	 *
+	 * XXXRW: For now, we will populate $c0 with $pcc on invocation, so we
+	 * need to leave a full set of permissions on it.  Eventually, we
+	 * would prefer to limit this to LOAD and EXECUTE.
+	 *
+	 * XXXRW: We should do this once per class .. or even just once
+	 * globally, rather than on every object creation.
+	 */
+	codecap = cheri_getpcc();
+	codecap = cheri_setoffset(codecap,
+	    (register_t)CHERI_CLASS_ENTRY(libcheri_system));
+	system_object.co_codecap = cheri_seal(codecap, cheri_system_type);
+
+	/*
+	 * Construct a data capability describing the sandbox structure
+	 * itself, which allows the system class to identify the sandbox a
+	 * request is being issued from.  Embed saved $c0 as first field to
+	 * allow the ambient MIPS environment to be installed.
+	 */
+	datacap = cheri_ptrperm(sbop, sizeof(*sbop), CHERI_PERM_GLOBAL |
+	    CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE |
+	    CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_LOCAL_CAP);
+	system_object.co_datacap = cheri_seal(datacap, cheri_system_type);
+
+	/*
+	 * Return object capability.
+	 *
+	 * XXXRW: Possibly, this should be !CHERI_PERM_GLOBAL -- but we do not
+	 * currently support invoking non-global objects.
+	 */
+	return (system_object);
+}
+
 int
 sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 {
@@ -311,7 +355,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	}
 
 	/*
-	 * Construct capabilities for run-time linker vector.
+	 * Construct data capability for run-time linker vector.
 	 */
 	datacap = cheri_ptrperm(sbop->sbo_mem, sbcp->sbc_sandboxlen,
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP |
@@ -322,7 +366,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	    sbcp->sbc_typecap);
 
 	/*
-	 * Construct capabilities for object-capability invocation vector.
+	 * Construct data capability for object-capability invocation vector.
 	 */
 	datacap = cheri_ptrperm(sbop->sbo_mem, sbcp->sbc_sandboxlen,
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP |
@@ -333,46 +377,11 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	    sbcp->sbc_typecap);
 
 	/*
-	 * Construct an object capability for the system-class instance that
-	 * will be passed into the sandbox.
-	 */
-	typecap = cheri_system_type;
-
-	/*
-	 * The code capability will simply be our $pcc.
-	 *
-	 * XXXRW: For now, we will populate $c0 with $pcc on invocation, so we
-	 * need to leave a full set of permissions on it.  Eventually, we
-	 * would prefer to limit this to LOAD and EXECUTE.
-	 *
-	 * XXXRW: We should do this once per class .. or even just once
-	 * globally, rather than on every object creation.
-	 */
-	codecap = cheri_getpcc();
-	codecap = cheri_setoffset(codecap,
-	    (register_t)CHERI_CLASS_ENTRY(libcheri_system));
-	sbop->sbo_cheri_object_system.co_codecap = cheri_seal(codecap,
-	    typecap);
-
-	/*
-	 * Construct a data capability describing the sandbox structure
-	 * itself, which allows the system class to identify the sandbox a
-	 * request is being issued from.  Embed saved $c0 as first field to
-	 * allow the ambient MIPS environment to be installed.
-	 */
-	datacap = cheri_ptrperm(sbop, sizeof(*sbop), CHERI_PERM_GLOBAL |
-	    CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE |
-	    CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_LOCAL_CAP);
-	sbop->sbo_cheri_object_system.co_datacap = cheri_seal(datacap,
-	    typecap);
-
-	/*
 	 * Install a reference to the system object in the class.
 	 *
-	 * XXXRW: Possibly, this should be !CHERI_PERM_GLOBAL -- but we do not
-	 * currently support invoking non-global objects.
 	 */
-	sbmp->sbm_system_object = sbop->sbo_cheri_object_system;
+	sbmp->sbm_system_object = sbop->sbo_cheri_object_system =
+	    cheri_system_object_for_instance(sbop);
 
 	/*
 	 * Protect metadata now that we've written all values.
