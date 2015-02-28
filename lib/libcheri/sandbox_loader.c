@@ -144,7 +144,6 @@ error:
 int
 sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 {
-	int binfd;
 	__capability void *codecap, *datacap, *typecap;
 	struct sandbox_metadata *sbmp;
 	size_t length;
@@ -189,17 +188,10 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 * Map and (eventually) link the program.  It may overlap guard pages,
 	 * etc so lower ones will be reconfigured manually.
 	 */
-	if ((binfd = open(sbcp->sbc_path, O_RDONLY)) == -1) {
-		saved_errno = errno;
-		warn("%s: open: %s", __func__, sbcp->sbc_path);
-		goto error;
-	}
-	if ((max_prog_offset = loadelf64(binfd, base, length)) == -1) {
+	if ((max_prog_offset = loadelf64(sbcp->sbc_fd, base, length)) == -1) {
 		saved_errno = errno;
 		goto error;
 	}
-	close(binfd);
-
 
 	/*
 	 * Zero and protect guard page(s) to the base of the metadata
