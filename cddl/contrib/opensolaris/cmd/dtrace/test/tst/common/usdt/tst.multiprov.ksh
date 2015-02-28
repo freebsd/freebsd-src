@@ -102,5 +102,5 @@ if [ $? -ne 0 ]; then
 fi
 
 cd /
-/usr/bin/rm -rf $DIR
+rm -rf $DIR
 exit 0
