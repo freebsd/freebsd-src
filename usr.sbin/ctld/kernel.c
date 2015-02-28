@@ -816,9 +816,10 @@ kernel_handoff(struct connection *conn)
 	    sizeof(req.data.handoff.initiator_isid));
 	strlcpy(req.data.handoff.target_name,
 	    conn->conn_target->t_name, sizeof(req.data.handoff.target_name));
-	if (conn->conn_target->t_offload != NULL) {
+	if (conn->conn_portal->p_portal_group->pg_offload != NULL) {
 		strlcpy(req.data.handoff.offload,
-		    conn->conn_target->t_offload, sizeof(req.data.handoff.offload));
+		    conn->conn_portal->p_portal_group->pg_offload,
+		    sizeof(req.data.handoff.offload));
 	}
 #ifdef ICL_KERNEL_PROXY
 	if (proxy_mode)
