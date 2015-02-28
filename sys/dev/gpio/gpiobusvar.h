@@ -71,6 +71,13 @@ struct gpiobus_softc
 	int		*sc_pins_mapped; /* mark mapped pins */
 };
 
+struct gpiobus_pin
+{
+	device_t	dev;	/* gpio device */
+	uint32_t	flags;	/* pin flags */
+	uint32_t	pin;	/* pin number */
+};
+
 struct gpiobus_ivar
 {
 	struct resource_list	rl;	/* isr resource list */
@@ -92,7 +99,8 @@ gpio_map_gpios(device_t bus, phandle_t dev, phandle_t gparent, int gcells,
 	return (GPIO_MAP_GPIOS(bus, dev, gparent, gcells, gpios, pin, flags));
 }
 
-device_t ofw_gpiobus_add_fdt_child(device_t, phandle_t);
+device_t ofw_gpiobus_add_fdt_child(device_t, const char *, phandle_t);
+int ofw_gpiobus_parse_gpios(device_t, char *, struct gpiobus_pin **);
 void ofw_gpiobus_register_provider(device_t);
 void ofw_gpiobus_unregister_provider(device_t);
 #endif
