@@ -194,6 +194,7 @@ sandbox_class_destroy(struct sandbox_class *sbcp)
 	if (sbcp->sbc_sandbox_class_statp != NULL)
 		(void)sandbox_stat_class_deregister(
 		    sbcp->sbc_sandbox_class_statp);
+	sandbox_class_unload(sbcp);
 	close(sbcp->sbc_fd);
 	free(sbcp->sbc_path);
 	free(sbcp);

@@ -123,6 +123,7 @@ struct sandbox {
 };
 
 int	sandbox_class_load(struct sandbox_class *sbcp);
+void	sandbox_class_unload(struct sandbox_class *sbcp);
 int	sandbox_object_load(struct sandbox_class *sbcp,
 	    struct sandbox_object *sbop);
 void	sandbox_object_unload(struct sandbox_class *sbcp,

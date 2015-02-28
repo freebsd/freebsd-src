@@ -141,6 +141,13 @@ error:
 	return (-1);
 }
 
+void
+sandbox_class_unload(struct sandbox_class *sbcp)
+{
+
+	munmap(sbcp->sbc_mem, sbcp->sbc_sandboxlen);
+}
+
 static struct cheri_object
 cheri_system_object_for_instance(struct sandbox_object *sbop)
 {
