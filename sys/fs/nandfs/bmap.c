@@ -460,6 +460,7 @@ bmap_truncate_mapping(struct nandfs_node *node, nandfs_lbn_t lastblk,
 			error = bmap_truncate_indirect(node, level, &left,
 			    &cleaned, ap, f, copy);
 			if (error) {
+				free(copy, M_NANDFSTEMP);
 				nandfs_error("%s: error %d when truncate "
 				    "at level %d\n", __func__, error, level);
 				return (error);
