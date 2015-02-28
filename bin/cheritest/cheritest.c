@@ -487,9 +487,17 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_desc = "Generate an MD5 checksum in a libcheri sandbox",
 	  .ct_func = test_sandbox_md5 },
 
-	{ .ct_name = "test_sandbox_twoobj_md5",
+	{ .ct_name = "test_2sandbox_newdestroy",
+	  .ct_desc = "Instantiate and destroy a second sandbox object",
+	  .ct_func = test_2sandbox_newdestroy },
+
+	{ .ct_name = "test_2sandbox_md5",
 	  .ct_desc = "Instantiate second object and generate MD5 checksum",
-	  .ct_func = test_sandbox_twoobj_md5 },
+	  .ct_func = test_2sandbox_md5 },
+
+	{ .ct_name = "test_2sandbox_var_data_getset",
+	  .ct_desc = "Instantiate second object and get/set variables",
+	  .ct_func = test_2sandbox_var_data_getset },
 
 	{ .ct_name = "test_sandbox_malloc",
 	  .ct_desc = "Malloc memory in a libcheri sandbox",
@@ -619,6 +627,10 @@ static const struct cheri_test cheri_tests[] = {
 	{ .ct_name = "test_sandbox_var_data",
 	  .ct_desc = "Check initial value of .data variable",
 	  .ct_func = test_sandbox_var_data },
+
+	{ .ct_name = "test_sandbox_var_data_getset",
+	  .ct_desc = "Get and set .data variables over multiple invocations",
+	  .ct_func = test_sandbox_var_data_getset },
 
 	{ .ct_name = "test_sandbox_var_constructor",
 	  .ct_desc = "Check initial value of constructor-initalised variable",

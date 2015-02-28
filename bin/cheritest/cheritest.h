@@ -198,7 +198,8 @@ void	test_sandbox_simple_method(const struct cheri_test *ctp,
 	    int methodnum);
 void	test_sandbox_md5(const struct cheri_test *ctp);
 void	test_sandbox_userfn(const struct cheri_test *ctp);
-void	test_sandbox_twoobj_md5(const struct cheri_test*ctp);
+void	test_2sandbox_newdestroy(const struct cheri_test *ctp);
+void	test_2sandbox_md5(const struct cheri_test *ctp);
 int	cheritest_libcheri_setup(void);
 void	cheritest_libcheri_destroy(void);
 
@@ -221,6 +222,8 @@ void	test_sandbox_save_global(const struct cheri_test *ctp);
 void	test_sandbox_save_local(const struct cheri_test *ctp);
 void	test_sandbox_var_bss(const struct cheri_test *ctp);
 void	test_sandbox_var_data(const struct cheri_test *ctp);
+void	test_sandbox_var_data_getset(const struct cheri_test *ctp);
+void	test_2sandbox_var_data_getset(const struct cheri_test *ctp);
 void	test_sandbox_var_constructor(const struct cheri_test *ctp);
 
 /* cheritest_vm.c */

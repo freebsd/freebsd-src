@@ -120,7 +120,8 @@
 #define	test_sandbox_vm_xfault_catch			NULL
 #define	test_sandbox_vm_xfault_nocatch			NULL
 #define	test_sandbox_md5				NULL
-#define	test_sandbox_twoobj_md5				NULL
+#define	test_2sandbox_newdestroy			NULL
+#define	test_2sandbox_md5				NULL
 #define	test_sandbox_fd_method				NULL
 #define	test_sandbox_fd_read				NULL
 #define	test_sandbox_fd_read_revoke			NULL
@@ -135,6 +136,8 @@
 #define	test_sandbox_inflate_zeros			NULL
 #define	test_sandbox_var_bss				NULL
 #define	test_sandbox_var_data				NULL
+#define	test_sandbox_var_data_getset			NULL
+#define	test_2sandbox_var_data_getset			NULL
 #define	test_sandbox_var_constructor			NULL
 
 #endif /* !_CHERITEST_LIST_ONLY_H_ */

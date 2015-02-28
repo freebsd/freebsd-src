@@ -180,16 +180,23 @@ test_sandbox_userfn(const struct cheri_test *ctp __unused)
 
 /*
  * Most tests run within a single object instantiated by
- * cheritest_libcheri_setup().  This test creates, invokes, and destroys a
- * second object to ensure that works.
- *
- * XXXRW: It would be good if we could 'set' a value in one object, and check
- * that the other object is unaffected through a 'get'.  This will require
- * some new methods.  For now, just do our MD5 test to make sure that
- * invocation at least appears to work.
+ * cheritest_libcheri_setup().  These tests perform variations on the them of
+ * "create a second object and optionally do stuff with it".
  */
 void
-test_sandbox_twoobj_md5(const struct cheri_test *ctp __unused)
+test_2sandbox_newdestroy(const struct cheri_test *ctp __unused)
+{
+
+	struct sandbox_object *sbop;
+
+	if (sandbox_object_new(cheritest_classp, &sbop) < 0)
+		cheritest_failure_errx("sandbox_object_new() failed");
+	sandbox_object_destroy(sbop);
+	cheritest_success();
+}
+
+void
+test_2sandbox_md5(const struct cheri_test *ctp __unused)
 {
 	struct sandbox_object *sbop;
 	__capability void *md5cap, *bufcap, *cclear;
@@ -303,6 +310,8 @@ cheritest_libcheri_setup(void)
 	    CHERITEST_HELPER_GET_VAR_DATA, "get_var_data");
 	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_GET_VAR_CONSTRUCTOR, "get_var_constructor");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_SET_VAR_DATA, "set_var_data");
 
 	cheri_system_user_register_fn(&cheritest_libcheri_userfn_handler);
 
