@@ -1317,11 +1317,9 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 	struct vattr va;
 	vm_object_t obj;
 	vm_offset_t foff;
-	struct mount *mp;
 	struct ucred *cred;
 	int error, flags, locktype;
 
-	mp = vp->v_mount;
 	cred = td->td_ucred;
 	if ((*maxprotp & VM_PROT_WRITE) && (*flagsp & MAP_SHARED))
 		locktype = LK_EXCLUSIVE;
