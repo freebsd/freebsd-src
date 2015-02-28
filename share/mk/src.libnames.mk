@@ -170,7 +170,7 @@ _DP_edit=	ncursesw
 .if ${MK_OPENSSL} != "no"
 _DP_bsnmp=	crypto
 .endif
-_DP_grom=	bsdxml sbuf
+_DP_geom=	bsdxml sbuf
 _DP_cam=	sbuf
 _DP_casper=	capsicum nv pjdlog
 _DP_capsicum=	nv
