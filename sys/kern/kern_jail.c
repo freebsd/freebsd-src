@@ -2180,7 +2180,8 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 	error = vfs_setopt(opts, "nodying", &i, sizeof(i));
 	if (error != 0 && error != ENOENT)
 		goto done_deref;
-	error = vfs_setopt(opts, "osreldate", &pr->pr_osreldate, sizeof(pr->pr_osreldate));
+	error = vfs_setopt(opts, "osreldate", &pr->pr_osreldate,
+	    sizeof(pr->pr_osreldate));
 	if (error != 0 && error != ENOENT)
 		goto done_deref;
 	error = vfs_setopts(opts, "osrelease", pr->pr_osrelease);
