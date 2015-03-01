@@ -122,6 +122,9 @@ static int		pci_remap_intr_method(device_t bus, device_t dev,
 
 static uint16_t		pci_get_rid_method(device_t dev, device_t child);
 
+static struct pci_devinfo * pci_fill_devinfo(device_t pcib, int d, int b, int s,
+    int f, uint16_t vid, uint16_t did, size_t size);
+
 static device_method_t pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pci_probe),
@@ -595,74 +598,82 @@ struct pci_devinfo *
 pci_read_device(device_t pcib, int d, int b, int s, int f, size_t size)
 {
 #define	REG(n, w)	PCIB_READ_CONFIG(pcib, b, s, f, n, w)
-	pcicfgregs *cfg = NULL;
-	struct pci_devinfo *devlist_entry;
-	struct devlist *devlist_head;
+	uint16_t vid, did;
 
-	devlist_head = &pci_devq;
+	vid = REG(PCIR_VENDOR, 2);
+	did = REG(PCIR_DEVICE, 2);
+	if (vid != 0xffff)
+		return (pci_fill_devinfo(pcib, d, b, s, f, vid, did, size));
 
-	devlist_entry = NULL;
-
-	if (REG(PCIR_DEVVENDOR, 4) != 0xfffffffful) {
-		devlist_entry = malloc(size, M_DEVBUF, M_WAITOK | M_ZERO);
-
-		cfg = &devlist_entry->cfg;
-
-		cfg->domain		= d;
-		cfg->bus		= b;
-		cfg->slot		= s;
-		cfg->func		= f;
-		cfg->vendor		= REG(PCIR_VENDOR, 2);
-		cfg->device		= REG(PCIR_DEVICE, 2);
-		cfg->cmdreg		= REG(PCIR_COMMAND, 2);
-		cfg->statreg		= REG(PCIR_STATUS, 2);
-		cfg->baseclass		= REG(PCIR_CLASS, 1);
-		cfg->subclass		= REG(PCIR_SUBCLASS, 1);
-		cfg->progif		= REG(PCIR_PROGIF, 1);
-		cfg->revid		= REG(PCIR_REVID, 1);
-		cfg->hdrtype		= REG(PCIR_HDRTYPE, 1);
-		cfg->cachelnsz		= REG(PCIR_CACHELNSZ, 1);
-		cfg->lattimer		= REG(PCIR_LATTIMER, 1);
-		cfg->intpin		= REG(PCIR_INTPIN, 1);
-		cfg->intline		= REG(PCIR_INTLINE, 1);
-
-		cfg->mingnt		= REG(PCIR_MINGNT, 1);
-		cfg->maxlat		= REG(PCIR_MAXLAT, 1);
-
-		cfg->mfdev		= (cfg->hdrtype & PCIM_MFDEV) != 0;
-		cfg->hdrtype		&= ~PCIM_MFDEV;
-		STAILQ_INIT(&cfg->maps);
-
-		pci_fixancient(cfg);
-		pci_hdrtypedata(pcib, b, s, f, cfg);
-
-		if (REG(PCIR_STATUS, 2) & PCIM_STATUS_CAPPRESENT)
-			pci_read_cap(pcib, cfg);
-
-		STAILQ_INSERT_TAIL(devlist_head, devlist_entry, pci_links);
-
-		devlist_entry->conf.pc_sel.pc_domain = cfg->domain;
-		devlist_entry->conf.pc_sel.pc_bus = cfg->bus;
-		devlist_entry->conf.pc_sel.pc_dev = cfg->slot;
-		devlist_entry->conf.pc_sel.pc_func = cfg->func;
-		devlist_entry->conf.pc_hdr = cfg->hdrtype;
-
-		devlist_entry->conf.pc_subvendor = cfg->subvendor;
-		devlist_entry->conf.pc_subdevice = cfg->subdevice;
-		devlist_entry->conf.pc_vendor = cfg->vendor;
-		devlist_entry->conf.pc_device = cfg->device;
-
-		devlist_entry->conf.pc_class = cfg->baseclass;
-		devlist_entry->conf.pc_subclass = cfg->subclass;
-		devlist_entry->conf.pc_progif = cfg->progif;
-		devlist_entry->conf.pc_revid = cfg->revid;
-
-		pci_numdevs++;
-		pci_generation++;
-	}
-	return (devlist_entry);
-#undef REG
+	return (NULL);
 }
+
+static struct pci_devinfo *
+pci_fill_devinfo(device_t pcib, int d, int b, int s, int f, uint16_t vid,
+    uint16_t did, size_t size)
+{
+	struct pci_devinfo *devlist_entry;
+	pcicfgregs *cfg;
+
+	devlist_entry = malloc(size, M_DEVBUF, M_WAITOK | M_ZERO);
+
+	cfg = &devlist_entry->cfg;
+
+	cfg->domain		= d;
+	cfg->bus		= b;
+	cfg->slot		= s;
+	cfg->func		= f;
+	cfg->vendor		= vid;
+	cfg->device		= did;
+	cfg->cmdreg		= REG(PCIR_COMMAND, 2);
+	cfg->statreg		= REG(PCIR_STATUS, 2);
+	cfg->baseclass		= REG(PCIR_CLASS, 1);
+	cfg->subclass		= REG(PCIR_SUBCLASS, 1);
+	cfg->progif		= REG(PCIR_PROGIF, 1);
+	cfg->revid		= REG(PCIR_REVID, 1);
+	cfg->hdrtype		= REG(PCIR_HDRTYPE, 1);
+	cfg->cachelnsz		= REG(PCIR_CACHELNSZ, 1);
+	cfg->lattimer		= REG(PCIR_LATTIMER, 1);
+	cfg->intpin		= REG(PCIR_INTPIN, 1);
+	cfg->intline		= REG(PCIR_INTLINE, 1);
+
+	cfg->mingnt		= REG(PCIR_MINGNT, 1);
+	cfg->maxlat		= REG(PCIR_MAXLAT, 1);
+
+	cfg->mfdev		= (cfg->hdrtype & PCIM_MFDEV) != 0;
+	cfg->hdrtype		&= ~PCIM_MFDEV;
+	STAILQ_INIT(&cfg->maps);
+
+	pci_fixancient(cfg);
+	pci_hdrtypedata(pcib, b, s, f, cfg);
+
+	if (REG(PCIR_STATUS, 2) & PCIM_STATUS_CAPPRESENT)
+		pci_read_cap(pcib, cfg);
+
+	STAILQ_INSERT_TAIL(&pci_devq, devlist_entry, pci_links);
+
+	devlist_entry->conf.pc_sel.pc_domain = cfg->domain;
+	devlist_entry->conf.pc_sel.pc_bus = cfg->bus;
+	devlist_entry->conf.pc_sel.pc_dev = cfg->slot;
+	devlist_entry->conf.pc_sel.pc_func = cfg->func;
+	devlist_entry->conf.pc_hdr = cfg->hdrtype;
+
+	devlist_entry->conf.pc_subvendor = cfg->subvendor;
+	devlist_entry->conf.pc_subdevice = cfg->subdevice;
+	devlist_entry->conf.pc_vendor = cfg->vendor;
+	devlist_entry->conf.pc_device = cfg->device;
+
+	devlist_entry->conf.pc_class = cfg->baseclass;
+	devlist_entry->conf.pc_subclass = cfg->subclass;
+	devlist_entry->conf.pc_progif = cfg->progif;
+	devlist_entry->conf.pc_revid = cfg->revid;
+
+	pci_numdevs++;
+	pci_generation++;
+
+	return (devlist_entry);
+}
+#undef REG
 
 static void
 pci_read_cap(device_t pcib, pcicfgregs *cfg)
