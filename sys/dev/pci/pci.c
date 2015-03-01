@@ -1702,12 +1702,16 @@ pci_remap_msix_method(device_t dev, device_t child, int count,
 	for (i = 0; i < msix->msix_table_len; i++) {
 		if (msix->msix_table[i].mte_vector == 0)
 			continue;
-		if (msix->msix_table[i].mte_handlers > 0)
+		if (msix->msix_table[i].mte_handlers > 0) {
+			free(used, M_DEVBUF);
 			return (EBUSY);
+		}
 		rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ, i + 1);
 		KASSERT(rle != NULL, ("missing resource"));
-		if (rle->res != NULL)
+		if (rle->res != NULL) {
+			free(used, M_DEVBUF);
 			return (EBUSY);
+		}
 	}
 
 	/* Free the existing resource list entries. */
