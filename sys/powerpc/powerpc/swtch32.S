@@ -71,6 +71,8 @@
  */
 ENTRY(cpu_throw)
 	mr	%r2, %r4
+	li	%r14,0	/* Tell cpu_switchin not to release a thread */
+
 	b	cpu_switchin
 
 /*
@@ -119,7 +121,6 @@ ENTRY(cpu_switch)
 	bl	pmap_deactivate		/* Deactivate the current pmap */
 
 	sync				/* Make sure all of that finished */
-	stw	%r16,TD_LOCK(%r14)	/* ULE:	update old thread's lock */
 
 cpu_switchin:
 #if defined(SMP) && defined(SCHED_ULE)
@@ -133,7 +134,15 @@ blocked_loop:
 	isync
 #endif
 
-	mfsprg	%r7,0			/* Get the pcpu pointer */
+	lwz	%r17,TD_PCB(%r2)	/* Get new current PCB */
+	lwz	%r1,PCB_SP(%r17)	/* Load new stack pointer */
+
+	/* Release old thread now that we have a stack pointer set up */
+	cmpwi	%r14,0
+	beq-	1f
+	stw	%r16,TD_LOCK(%r14)	/* ULE:	update old thread's lock */
+
+1:	mfsprg	%r7,0			/* Get the pcpu pointer */
 	stw	%r2,PC_CURTHREAD(%r7)	/* Store new current thread */
 	lwz	%r17,TD_PCB(%r2)	/* Store new current PCB */
 	stw	%r17,PC_CURPCB(%r7)
