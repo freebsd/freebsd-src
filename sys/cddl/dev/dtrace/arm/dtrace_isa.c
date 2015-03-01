@@ -262,34 +262,3 @@ dtrace_fuword64(void *uaddr)
 	}
 	return (dtrace_fuword64_nocheck(uaddr));
 }
-
-#define __with_interrupts_disabled(expr) \
-	do {						\
-		u_int cpsr_save, tmp;			\
-							\
-		__asm __volatile(			\
-			"mrs  %0, cpsr;"		\
-			"orr  %1, %0, %2;"		\
-			"msr  cpsr_fsxc, %1;"		\
-			: "=r" (cpsr_save), "=r" (tmp)	\
-			: "I" (PSR_I | PSR_F)		    \
-			: "cc" );		\
-		(expr);				\
-		 __asm __volatile(		\
-			"msr  cpsr_fsxc, %0"	\
-			: /* no output */	\
-			: "r" (cpsr_save)	\
-			: "cc" );		\
-	} while(0)
-
-uint32_t dtrace_cas32(uint32_t *target, uint32_t cmp, uint32_t new)
-{
-	return atomic_cmpset_32((uint32_t*)target, (uint32_t)cmp, (uint32_t)new);
-
-}
-
-void * dtrace_casptr(volatile void *target, volatile void *cmp, volatile void *new)
-{
-        return (void*)dtrace_cas32((uint32_t*)target, (uint32_t)cmp, (uint32_t)new);
-}
-
