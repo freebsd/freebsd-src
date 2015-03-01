@@ -400,6 +400,7 @@ auth_portal_new(struct auth_group *ag, const char *portal)
 	return (ap);
 
 error:
+	free(ap);
 	log_errx(1, "Incorrect initiator portal '%s'", portal);
 	return (NULL);
 }
