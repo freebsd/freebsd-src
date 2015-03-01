@@ -45,6 +45,8 @@ struct nvlist;
 typedef struct nvlist nvlist_t;
 #endif
 
+__BEGIN_DECLS
+
 /*
  * The dnvlist_get functions returns value associated with the given name.
  * If it returns a pointer, the pointer represents internal buffer and should
@@ -102,5 +104,7 @@ char *dnvlist_takev_string(nvlist_t *nvl, char *defval, const char *namefmt, va_
 nvlist_t *dnvlist_takev_nvlist(nvlist_t *nvl, nvlist_t *defval, const char *namefmt, va_list nameap) __printflike(3, 0);
 int dnvlist_takev_descriptor(nvlist_t *nvl, int defval, const char *namefmt, va_list nameap) __printflike(3, 0);
 void *dnvlist_takev_binary(nvlist_t *nvl, size_t *sizep, void *defval, size_t defsize, const char *namefmt, va_list nameap) __printflike(5, 0);
+
+__END_DECLS
 
 #endif	/* !_DNV_H_ */
