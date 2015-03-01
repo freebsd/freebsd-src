@@ -290,7 +290,7 @@ dmar_get_ctx(struct dmar_unit *dmar, device_t dev, uint16_t rid, bool id_mapped,
 		 * higher chance to succeed if the sleep is allowed.
 		 */
 		DMAR_UNLOCK(dmar);
-		dmar_ensure_ctx_page(dmar, bus);
+		dmar_ensure_ctx_page(dmar, PCI_RID2BUS(rid));
 		ctx1 = dmar_get_ctx_alloc(dmar, rid);
 
 		if (id_mapped) {
