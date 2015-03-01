@@ -50,7 +50,7 @@ struct pcicfg_pp {
 struct pci_map {
     pci_addr_t	pm_value;	/* Raw BAR value */
     pci_addr_t	pm_size;
-    uint8_t	pm_reg;
+    uint16_t	pm_reg;
     STAILQ_ENTRY(pci_map) pm_link;
 };
 
