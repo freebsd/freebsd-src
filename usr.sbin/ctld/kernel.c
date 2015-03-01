@@ -864,7 +864,10 @@ kernel_port_add(struct port *port)
 		bzero(&req, sizeof(req));
 		strlcpy(req.driver, "iscsi", sizeof(req.driver));
 		req.reqtype = CTL_REQ_CREATE;
+		req.num_args = 5;
 		req.args = malloc(req.num_args * sizeof(*req.args));
+		if (req.args == NULL)
+			log_err(1, "malloc");
 		n = 0;
 		req.args[n].namelen = sizeof("port_id");
 		req.args[n].name = __DECONST(char *, "port_id");
@@ -978,6 +981,8 @@ kernel_port_remove(struct port *port)
 		req.reqtype = CTL_REQ_REMOVE;
 		req.num_args = 2;
 		req.args = malloc(req.num_args * sizeof(*req.args));
+		if (req.args == NULL)
+			log_err(1, "malloc");
 		str_arg(&req.args[0], "cfiscsi_target", targ->t_name);
 		snprintf(tagstr, sizeof(tagstr), "%d", pg->pg_tag);
 		str_arg(&req.args[1], "cfiscsi_portal_group_tag", tagstr);
