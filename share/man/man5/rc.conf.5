@@ -4447,6 +4447,11 @@ This variables contains the
 .Xr rctl.conf 5
 ruleset to load for
 .Xr rctl 8 .
+.It Va iovctl_files
+.Pq Vt str
+A space-separated list of configuration files used by
+.Xr iovctl 8 .
+The default value is an empty string.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/rc.conf" -compact
@@ -4500,6 +4505,7 @@ ruleset to load for
 .Xr hcsecd 8 ,
 .Xr ifconfig 8 ,
 .Xr inetd 8 ,
+.Xr iovctl 8 ,
 .Xr ipf 8 ,
 .Xr ipfw 8 ,
 .Xr ipnat 8 ,
