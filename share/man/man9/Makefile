@@ -195,6 +195,9 @@ MAN=	accept_filter.9 \
 	p_candebug.9 \
 	p_cansee.9 \
 	pci.9 \
+	PCI_ADD_VF.9 \
+	PCI_INIT_IOV.9 \
+	PCI_UNINIT_IOV.9 \
 	pfil.9 \
 	pfind.9 \
 	pget.9 \
