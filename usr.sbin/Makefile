@@ -35,7 +35,6 @@ SUBDIR=	adduser \
 	i2c \
 	ifmcstat \
 	iostat \
-	iovctl \
 	kldxref \
 	mailwrapper \
 	makefs \
