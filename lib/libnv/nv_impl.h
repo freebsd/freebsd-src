@@ -97,14 +97,6 @@ const void	*nvpair_get_binary(const nvpair_t *nvp, size_t *sizep);
 
 void nvpair_free(nvpair_t *nvp);
 
-const nvpair_t *nvlist_getf_nvpair(const nvlist_t *nvl, const char *namefmt, ...) __printflike(2, 3);
-
-const nvpair_t *nvlist_getv_nvpair(const nvlist_t *nvl, const char *namefmt, va_list nameap) __printflike(2, 0);
-
-nvpair_t *nvlist_takef_nvpair(nvlist_t *nvl, const char *namefmt, ...) __printflike(2, 3);
-
-nvpair_t *nvlist_takev_nvpair(nvlist_t *nvl, const char *namefmt, va_list nameap) __printflike(2, 0);
-
 nvpair_t *nvpair_createf_null(const char *namefmt, ...) __printflike(1, 2);
 nvpair_t *nvpair_createf_bool(bool value, const char *namefmt, ...) __printflike(2, 3);
 nvpair_t *nvpair_createf_number(uint64_t value, const char *namefmt, ...) __printflike(2, 3);
