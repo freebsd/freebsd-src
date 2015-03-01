@@ -162,6 +162,8 @@ ar71xx_ehci_attach(device_t self)
 		case AR71XX_SOC_AR9341:
 		case AR71XX_SOC_AR9342:
 		case AR71XX_SOC_AR9344:
+		case AR71XX_SOC_QCA9556:
+		case AR71XX_SOC_QCA9558:
 			sc->sc_flags |= EHCI_SCFLG_TT | EHCI_SCFLG_NORESTERM;
 			break;
 		default:
@@ -258,4 +260,6 @@ static driver_t ehci_driver = {
 static devclass_t ehci_devclass;
 
 DRIVER_MODULE(ehci, nexus, ehci_driver, ehci_devclass, 0, 0);
+DRIVER_MODULE(ehci, apb, ehci_driver, ehci_devclass, 0, 0);
+
 MODULE_DEPEND(ehci, usb, 1, 1, 1);
