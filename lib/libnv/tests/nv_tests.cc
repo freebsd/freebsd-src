@@ -288,6 +288,122 @@ ATF_TEST_CASE_BODY(nvlist_add_binary__single_insert)
 	free(value);
 }
 
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_clone__empty_nvlist);
+ATF_TEST_CASE_BODY(nvlist_clone__empty_nvlist)
+{
+	nvlist_t *nvl, *clone;
+
+	nvl = nvlist_create(0);
+	ATF_REQUIRE(nvl != NULL);
+
+	clone = nvlist_clone(nvl);
+	ATF_REQUIRE(clone != NULL);
+	ATF_REQUIRE(clone != nvl);
+	ATF_REQUIRE(nvlist_empty(clone));
+
+	nvlist_destroy(clone);
+	nvlist_destroy(nvl);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_clone__nonempty_nvlist);
+ATF_TEST_CASE_BODY(nvlist_clone__nonempty_nvlist)
+{
+	nvlist_t *nvl, *clone;
+	const char *key;
+	void *it;
+	uint64_t value;
+	int type;
+
+	nvl = nvlist_create(0);
+	ATF_REQUIRE(nvl != NULL);
+
+	key = "testkey";
+	value = 684874;
+	nvlist_add_number(nvl, key, value);
+
+	clone = nvlist_clone(nvl);
+	ATF_REQUIRE(clone != NULL);
+	ATF_REQUIRE(clone != nvl);
+	ATF_REQUIRE(nvlist_exists_number(clone, key));
+	ATF_REQUIRE_EQ(nvlist_get_number(clone, key), value);
+
+	/* Iterate over the nvlist; ensure that it has only our one key. */
+	it = NULL;
+	ATF_REQUIRE_EQ(strcmp(nvlist_next(clone, &type, &it), key), 0);
+	ATF_REQUIRE_EQ(type, NV_TYPE_NUMBER);
+	ATF_REQUIRE_EQ(nvlist_next(clone, &type, &it), NULL);
+
+	nvlist_destroy(clone);
+	nvlist_destroy(nvl);
+}
+
+static const char * const test_subnvlist_key = "nvlist";
+
+static const char * const test_string_key = "string";
+static const char * const test_string_val = "59525";
+
+static nvlist_t*
+create_test_nvlist(void)
+{
+	nvlist_t *nvl, *sublist;
+
+	nvl = nvlist_create(0);
+	ATF_REQUIRE(nvl != NULL);
+
+	sublist = nvlist_create(0);
+	ATF_REQUIRE(sublist != NULL);
+
+	nvlist_add_string(sublist, test_string_key, test_string_val);
+	nvlist_move_nvlist(nvl, test_subnvlist_key, sublist);
+
+	return (nvl);
+}
+
+static void
+verify_test_nvlist(const nvlist_t *nvl)
+{
+	void *it;
+	const nvlist_t *value;
+	int type;
+
+	ATF_REQUIRE(nvlist_exists_nvlist(nvl, test_subnvlist_key));
+
+	value = nvlist_get_nvlist(nvl, test_subnvlist_key);
+
+	ATF_REQUIRE(nvlist_exists_string(value, test_string_key));
+	ATF_REQUIRE_EQ(strcmp(nvlist_get_string(value, test_string_key), test_string_val), 0);
+	ATF_REQUIRE(nvlist_get_string(value, test_string_key) != test_string_val);
+
+	/* Iterate over both nvlists; ensure that each has only the one key. */
+	it = NULL;
+	ATF_REQUIRE_EQ(strcmp(nvlist_next(value, &type, &it),
+	    test_string_key), 0);
+	ATF_REQUIRE_EQ(type, NV_TYPE_STRING);
+	ATF_REQUIRE_EQ(nvlist_next(value, &type, &it), NULL);
+
+	it = NULL;
+	ATF_REQUIRE_EQ(strcmp(nvlist_next(nvl, &type, &it),
+	    test_subnvlist_key), 0);
+	ATF_REQUIRE_EQ(type, NV_TYPE_NVLIST);
+	ATF_REQUIRE_EQ(nvlist_next(nvl, &type, &it), NULL);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_clone__nested_nvlist);
+ATF_TEST_CASE_BODY(nvlist_clone__nested_nvlist)
+{
+	nvlist_t *nvl, *clone;
+
+	nvl = create_test_nvlist();
+	clone = nvlist_clone(nvl);
+
+	ATF_REQUIRE(clone != NULL);
+	ATF_REQUIRE(clone != nvl);
+	verify_test_nvlist(clone);
+
+	nvlist_destroy(clone);
+	nvlist_destroy(nvl);
+}
+
 ATF_INIT_TEST_CASES(tp)
 {
 	ATF_ADD_TEST_CASE(tp, nvlist_create__is_empty);
@@ -297,6 +413,10 @@ ATF_INIT_TEST_CASES(tp)
 	ATF_ADD_TEST_CASE(tp, nvlist_add_string__single_insert);
 	ATF_ADD_TEST_CASE(tp, nvlist_add_nvlist__single_insert);
 	ATF_ADD_TEST_CASE(tp, nvlist_add_binary__single_insert);
+
+	ATF_ADD_TEST_CASE(tp, nvlist_clone__empty_nvlist);
+	ATF_ADD_TEST_CASE(tp, nvlist_clone__nonempty_nvlist);
+	ATF_ADD_TEST_CASE(tp, nvlist_clone__nested_nvlist);
 }
 /*-
  * Copyright (c) 2014-2015 Sandvine Inc.  All rights reserved.
