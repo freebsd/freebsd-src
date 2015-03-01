@@ -224,7 +224,8 @@ static const float pS2[5] = {
   1.4657617569e+01, /* 0x416a859a */
 };
 
-	static float pzerof(float x)
+static __inline float
+pzerof(float x)
 {
 	const float *p,*q;
 	float z,r,s;
@@ -319,7 +320,8 @@ static const float qS2[6] = {
  -5.3109550476e+00, /* 0xc0a9f358 */
 };
 
-	static float qzerof(float x)
+static __inline float
+qzerof(float x)
 {
 	const float *p,*q;
 	float s,r,z;
