@@ -29,47 +29,72 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/conf.h>
+#include <sys/ctype.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/iov.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/queue.h>
 
 #include <machine/stdarg.h>
 
+#include <sys/dnv.h>
 #include <sys/nv.h>
 #include <sys/iov_schema.h>
 
+#include <net/ethernet.h>
+
 #include <dev/pci/schema_private.h>
 
-static const char *pci_iov_schema_valid_types[] = {
-	"bool",
-	"string",
-	"uint8_t",
-	"uint16_t",
-	"uint32_t",
-	"uint64_t",
-	"unicast-mac",
+struct config_type_validator;
+typedef int (validate_func)(const struct config_type_validator *,
+   const nvlist_t *, const char *name);
+
+static validate_func pci_iov_schema_validate_bool;
+static validate_func pci_iov_schema_validate_string;
+static validate_func pci_iov_schema_validate_uint;
+static validate_func pci_iov_schema_validate_unicast_mac;
+
+struct config_type_validator {
+	const char *type_name;
+	validate_func *validate;
+	uintmax_t limit;
 };
+
+static struct config_type_validator pci_iov_schema_validators[] = {
+	{ "bool", pci_iov_schema_validate_bool },
+	{ "string", pci_iov_schema_validate_string },
+	{ "uint8_t", pci_iov_schema_validate_uint, UINT8_MAX },
+	{ "uint16_t", pci_iov_schema_validate_uint, UINT16_MAX },
+	{ "uint32_t", pci_iov_schema_validate_uint, UINT32_MAX },
+	{ "uint64_t", pci_iov_schema_validate_uint, UINT64_MAX },
+	{ "unicast-mac", pci_iov_schema_validate_unicast_mac },
+};
+
+static const struct config_type_validator *
+pci_iov_schema_find_validator(const char *type)
+{
+	struct config_type_validator *validator;
+	int i;
+
+	for (i = 0; i < nitems(pci_iov_schema_validators); i++) {
+		validator = &pci_iov_schema_validators[i];
+		if (strcmp(type, validator->type_name) == 0)
+			return (validator);
+	}
+
+	return (NULL);
+}
 
 static void
 pci_iov_schema_add_type(nvlist_t *entry, const char *type)
 {
-	int i, error;
 
-	error = EINVAL;
-	for (i = 0; i < nitems(pci_iov_schema_valid_types); i++) {
-		if (strcmp(type, pci_iov_schema_valid_types[i]) == 0) {
-			error = 0;
-			break;
-		}
-	}
-
-	if (error != 0) {
-		nvlist_set_error(entry, error);
+	if (pci_iov_schema_find_validator(type) == NULL) {
+		nvlist_set_error(entry, EINVAL);
 		return;
 	}
-
 	nvlist_add_string(entry, "type", type);
 }
 
@@ -197,6 +222,381 @@ pci_iov_schema_add_unicast_mac(nvlist_t *schema, const char *name,
 	pci_iov_schema_add_required(entry, flags);
 
 	nvlist_move_nvlist(schema, name, entry);
+}
+
+static int
+pci_iov_schema_validate_bool(const struct config_type_validator * validator,
+   const nvlist_t *config, const char *name)
+{
+
+	if (!nvlist_exists_bool(config, name))
+		return (EINVAL);
+	return (0);
+}
+
+static int
+pci_iov_schema_validate_string(const struct config_type_validator * validator,
+   const nvlist_t *config, const char *name)
+{
+
+	if (!nvlist_exists_string(config, name))
+		return (EINVAL);
+	return (0);
+}
+
+static int
+pci_iov_schema_validate_uint(const struct config_type_validator * validator,
+   const nvlist_t *config, const char *name)
+{
+	uint64_t value;
+
+	if (!nvlist_exists_number(config, name))
+		return (EINVAL);
+
+	value = nvlist_get_number(config, name);
+
+	if (value > validator->limit)
+		return (EINVAL);
+
+	return (0);
+}
+
+static int
+pci_iov_schema_validate_unicast_mac(
+   const struct config_type_validator * validator,
+   const nvlist_t *config, const char *name)
+{
+	const uint8_t *mac;
+	size_t size;
+
+	if (!nvlist_exists_binary(config, name))
+		return (EINVAL);
+
+	mac = nvlist_get_binary(config, name, &size);
+
+	if (size != ETHER_ADDR_LEN)
+		return (EINVAL);
+
+	if (ETHER_IS_MULTICAST(mac))
+		return (EINVAL);
+
+	return (0);
+}
+
+static void
+pci_iov_config_add_default(const nvlist_t *param_schema, const char *name,
+    nvlist_t *config)
+{
+	const void *binary;
+	size_t len;
+
+	if (nvlist_exists_binary(param_schema, "default")) {
+		binary = nvlist_get_binary(param_schema, "default", &len);
+		nvlist_add_binary(config, name, binary, len);
+	} else if (nvlist_exists_bool(param_schema, "default"))
+		nvlist_add_bool(config, name,
+		    nvlist_get_bool(param_schema, "default"));
+	else if (nvlist_exists_number(param_schema, "default"))
+		nvlist_add_number(config, name,
+		    nvlist_get_number(param_schema, "default"));
+	else if (nvlist_exists_nvlist(param_schema, "default"))
+		nvlist_add_nvlist(config, name,
+		    nvlist_get_nvlist(param_schema, "default"));
+	else if (nvlist_exists_string(param_schema, "default"))
+		nvlist_add_string(config, name,
+		    nvlist_get_string(param_schema, "default"));
+	else
+		panic("Unexpected nvlist type");
+}
+
+/*
+ * Validate that all required parameters from the schema are specified in the
+ * config.  If any parameter with a default value is not specified in the
+ * config, add it to config.
+ */
+static int
+pci_iov_schema_validate_required(const nvlist_t *schema, nvlist_t *config)
+{
+	const nvlist_t *param_schema;
+	const char *name;
+	void *cookie;
+	int type;
+
+	cookie = NULL;
+	while ((name = nvlist_next(schema, &type, &cookie)) != NULL) {
+		param_schema = nvlist_get_nvlist(schema, name);
+
+		if (dnvlist_get_bool(param_schema, "required", 0)) {
+			if (!nvlist_exists(config, name))
+				return (EINVAL);
+		}
+
+		if (nvlist_exists(param_schema, "default") &&
+		    !nvlist_exists(config, name))
+			pci_iov_config_add_default(param_schema, name, config);
+	}
+
+	return (nvlist_error(config));
+}
+
+static int
+pci_iov_schema_validate_param(const nvlist_t *schema_param, const char *name,
+    const nvlist_t *config)
+{
+	const struct config_type_validator *validator;
+	const char *type;
+
+	type = nvlist_get_string(schema_param, "type");
+	validator = pci_iov_schema_find_validator(type);
+
+	KASSERT(validator != NULL,
+	    ("Schema was not validated: Unknown type %s", type));
+
+	return (validator->validate(validator, config, name));
+}
+
+/*
+ * Validate that all parameters in config are defined in the schema.  Also
+ * validate that the type of the parameter matches the type in the schema.
+ */
+static int
+pci_iov_schema_validate_types(const nvlist_t *schema, const nvlist_t *config)
+{
+	const nvlist_t *schema_param;
+	void *cookie;
+	const char *name;
+	int type, error;
+
+	cookie = NULL;
+	while ((name = nvlist_next(config, &type, &cookie)) != NULL) {
+		if (!nvlist_exists_nvlist(schema, name))
+			return (EINVAL);
+
+		schema_param = nvlist_get_nvlist(schema, name);
+
+		error = pci_iov_schema_validate_param(schema_param, name,
+		    config);
+
+		if (error != 0)
+			return (error);
+	}
+
+	return (0);
+}
+
+static int
+pci_iov_schema_validate_device(const nvlist_t *schema, nvlist_t *config,
+    const char *schema_device, const char *config_device)
+{
+	const nvlist_t *device_schema, *iov_schema, *driver_schema;
+	nvlist_t *device_config, *iov_config, *driver_config;
+	int error;
+
+	device_config = NULL;
+	iov_config = NULL;
+	driver_config = NULL;
+
+	device_schema = nvlist_get_nvlist(schema, schema_device);
+	iov_schema = nvlist_get_nvlist(device_schema, IOV_CONFIG_NAME);
+	driver_schema = nvlist_get_nvlist(device_schema, DRIVER_CONFIG_NAME);
+
+	device_config = dnvlist_take_nvlist(config, config_device, NULL);
+	if (device_config == NULL) {
+		error = EINVAL;
+		goto out;
+	}
+
+	iov_config = dnvlist_take_nvlist(device_config, IOV_CONFIG_NAME, NULL);
+	if (iov_config == NULL) {
+		error = EINVAL;
+		goto out;
+	}
+
+	driver_config = dnvlist_take_nvlist(device_config, DRIVER_CONFIG_NAME,
+	    NULL);
+	if (driver_config == NULL) {
+		error = EINVAL;
+		goto out;
+	}
+
+	error = pci_iov_schema_validate_required(iov_schema, iov_config);
+	if (error != 0)
+		goto out;
+
+	error = pci_iov_schema_validate_required(driver_schema, driver_config);
+	if (error != 0)
+		goto out;
+
+	error = pci_iov_schema_validate_types(iov_schema, iov_config);
+	if (error != 0)
+		goto out;
+
+	error = pci_iov_schema_validate_types(driver_schema, driver_config);
+	if (error != 0)
+		goto out;
+
+out:
+	/* Note that these functions handle NULL pointers safely. */
+	nvlist_move_nvlist(device_config, IOV_CONFIG_NAME, iov_config);
+	nvlist_move_nvlist(device_config, DRIVER_CONFIG_NAME, driver_config);
+	nvlist_move_nvlist(config, config_device, device_config);
+
+	return (error);
+}
+
+static int
+pci_iov_schema_validate_vfs(const nvlist_t *schema, nvlist_t *config,
+    uint16_t num_vfs)
+{
+	char device[VF_MAX_NAME];
+	int i, error;
+
+	for (i = 0; i < num_vfs; i++) {
+		snprintf(device, sizeof(device), VF_PREFIX"%d", i);
+
+		error = pci_iov_schema_validate_device(schema, config,
+		    VF_SCHEMA_NAME, device);
+		if (error != 0)
+			return (error);
+	}
+
+	return (0);
+}
+
+/*
+ * Validate that the device node only has IOV and DRIVER subnodes.
+ */
+static int
+pci_iov_schema_validate_device_subsystems(const nvlist_t *config)
+{
+	void *cookie;
+	const char *name;
+	int type;
+
+	cookie = NULL;
+	while ((name = nvlist_next(config, &type, &cookie)) != NULL) {
+		if (strcasecmp(name, IOV_CONFIG_NAME) == 0)
+			continue;
+		else if (strcasecmp(name, DRIVER_CONFIG_NAME) == 0)
+			continue;
+
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+/*
+ * Validate that the string is a valid device node name.  It must either be "PF"
+ * or "VF-n", where n is an integer in the range [0, num_vfs).
+ */
+static int
+pci_iov_schema_validate_dev_name(const char *name, uint16_t num_vfs)
+{
+	const char *number_start;
+	char *endp;
+	u_long vf_num;
+
+	if (strcasecmp(PF_CONFIG_NAME, name) == 0)
+		return (0);
+
+	/* Ensure that we start with "VF-" */
+	if (strncasecmp(name, VF_PREFIX, VF_PREFIX_LEN) != 0)
+		return (EINVAL);
+
+	number_start = name + VF_PREFIX_LEN;
+
+	/* Filter out name == "VF-" (no number) */
+	if (number_start[0] == '\0')
+		return (EINVAL);
+
+	/* Disallow leading whitespace or +/- */
+	if (!isdigit(number_start[0]))
+		return (EINVAL);
+
+	vf_num = strtoul(number_start, &endp, 10);
+	if (*endp != '\0')
+		return (EINVAL);
+
+	/* Disallow leading zeros on VF-[1-9][0-9]* */
+	if (vf_num != 0 && number_start[0] == '0')
+		return (EINVAL);
+
+	/* Disallow leading zeros on VF-0 */
+	if (vf_num == 0 && number_start[1] != '\0')
+		return (EINVAL);
+
+	if (vf_num >= num_vfs)
+		return (EINVAL);
+
+	return (0);
+}
+
+/*
+ * Validate that there are no device nodes in config other than the ones for
+ * the PF and the VFs.  This includes validating that all config nodes of the
+ * form VF-n specify a VF number that is < num_vfs.
+ */
+static int
+pci_iov_schema_validate_device_names(const nvlist_t *config, uint16_t num_vfs)
+{
+	const nvlist_t *device;
+	void *cookie;
+	const char *name;
+	int type, error;
+
+	cookie = NULL;
+	while ((name = nvlist_next(config, &type, &cookie)) != NULL) {
+		error = pci_iov_schema_validate_dev_name(name, num_vfs);
+		if (error != 0)
+			return (error);
+
+		/*
+		 * Note that as this is a valid PF/VF node, we know that
+		 * pci_iov_schema_validate_device() has already checked that
+		 * the PF/VF node is an nvlist.
+		 */
+		device = nvlist_get_nvlist(config, name);
+		error = pci_iov_schema_validate_device_subsystems(device);
+		if (error != 0)
+			return (error);
+	}
+
+	return (0);
+}
+
+int
+pci_iov_schema_validate_config(const nvlist_t *schema, nvlist_t *config)
+{
+	int error;
+	uint16_t num_vfs;
+
+	error = pci_iov_schema_validate_device(schema, config, PF_CONFIG_NAME,
+	    PF_CONFIG_NAME);
+	if (error != 0)
+		return (error);
+
+	num_vfs = pci_iov_config_get_num_vfs(config);
+
+	error = pci_iov_schema_validate_vfs(schema, config, num_vfs);
+	if (error != 0)
+		return (error);
+
+	return (pci_iov_schema_validate_device_names(config, num_vfs));
+}
+
+/*
+ * Return value of the num_vfs parameter.  config must have already been
+ * validated, which guarantees that the parameter exists.
+ */
+uint16_t
+pci_iov_config_get_num_vfs(const nvlist_t *config)
+{
+	const nvlist_t *pf, *iov;
+
+	pf = nvlist_get_nvlist(config, PF_CONFIG_NAME);
+	iov = nvlist_get_nvlist(pf, IOV_CONFIG_NAME);
+	return (nvlist_get_number(iov, "num_vfs"));
 }
 
 /* Allocate a new empty schema node. */
