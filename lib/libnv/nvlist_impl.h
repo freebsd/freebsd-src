@@ -32,7 +32,9 @@
 #ifndef	_NVLIST_IMPL_H_
 #define	_NVLIST_IMPL_H_
 
+#ifndef _KERNEL
 #include <stdint.h>
+#endif
 
 #include "nv.h"
 
