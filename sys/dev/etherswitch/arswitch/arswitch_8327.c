@@ -66,7 +66,11 @@
 static void
 ar8327_phy_fixup(struct arswitch_softc *sc, int phy)
 {
-
+	if (bootverbose)
+		device_printf(sc->sc_dev,
+		    "%s: called; phy=%d; chiprev=%d\n", __func__,
+		    phy,
+		    sc->chip_rev);
 	switch (sc->chip_rev) {
 	case 1:
 		/* For 100M waveform */
@@ -385,23 +389,23 @@ ar8327_fetch_pdata_pad(struct arswitch_softc *sc,
 	    sbuf, &val) == 0)
 		pc->pipe_rxclk_sel = val;
 
-#if 0
-	device_printf(sc->sc_dev,
-	    "%s: pad %d: mode=%d, rxclk_sel=%d, txclk_sel=%d, "
-	    "txclk_delay_sel=%d, rxclk_delay_sel=%d, txclk_delay_en=%d, "
-	    "rxclk_enable_en=%d, sgmii_delay_en=%d, pipe_rxclk_sel=%d\n",
-	    __func__,
-	    pad,
-	    pc->mode,
-	    pc->rxclk_sel,
-	    pc->txclk_sel,
-	    pc->txclk_delay_sel,
-	    pc->rxclk_delay_sel,
-	    pc->txclk_delay_en,
-	    pc->rxclk_delay_en,
-	    pc->sgmii_delay_en,
-	    pc->pipe_rxclk_sel);
-#endif
+	if (bootverbose) {
+		device_printf(sc->sc_dev,
+		    "%s: pad %d: mode=%d, rxclk_sel=%d, txclk_sel=%d, "
+		    "txclk_delay_sel=%d, rxclk_delay_sel=%d, txclk_delay_en=%d, "
+		    "rxclk_enable_en=%d, sgmii_delay_en=%d, pipe_rxclk_sel=%d\n",
+		    __func__,
+		    pad,
+		    pc->mode,
+		    pc->rxclk_sel,
+		    pc->txclk_sel,
+		    pc->txclk_delay_sel,
+		    pc->rxclk_delay_sel,
+		    pc->txclk_delay_en,
+		    pc->rxclk_delay_en,
+		    pc->sgmii_delay_en,
+		    pc->pipe_rxclk_sel);
+	}
 
 	return (1);
 }
@@ -636,6 +640,15 @@ ar8327_hw_global_setup(struct arswitch_softc *sc)
 	/* Enable MIB counters */
 	arswitch_modifyreg(sc->sc_dev, AR8327_REG_MODULE_EN,
 	    AR8327_MODULE_EN_MIB, AR8327_MODULE_EN_MIB);
+
+	/* Disable EEE on all ports due to stability issues */
+	t = arswitch_readreg(sc->sc_dev, AR8327_REG_EEE_CTRL);
+	t |= AR8327_EEE_CTRL_DISABLE_PHY(0) |
+	    AR8327_EEE_CTRL_DISABLE_PHY(1) |
+	    AR8327_EEE_CTRL_DISABLE_PHY(2) |
+	    AR8327_EEE_CTRL_DISABLE_PHY(3) |
+	    AR8327_EEE_CTRL_DISABLE_PHY(4);
+	arswitch_writereg(sc->sc_dev, AR8327_REG_EEE_CTRL, t);
 
 	/* Set the right number of ports */
 	sc->info.es_nports = 6;
