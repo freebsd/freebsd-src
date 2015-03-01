@@ -140,4 +140,14 @@ void		pci_cfg_restore(device_t, struct pci_devinfo *);
  */
 void		pci_cfg_save(device_t, struct pci_devinfo *, int);
 
+int		pci_mapsize(uint64_t testval);
+void		pci_read_bar(device_t dev, int reg, pci_addr_t *mapp,
+		    pci_addr_t *testvalp, int *bar64);
+struct pci_map *pci_add_bar(device_t dev, int reg, pci_addr_t value,
+		    pci_addr_t size);
+
+struct resource *pci_alloc_multi_resource(device_t dev, device_t child,
+		    int type, int *rid, u_long start, u_long end, u_long count,
+		    u_long num, u_int flags);
+
 #endif /* _PCI_PRIVATE_H_ */
