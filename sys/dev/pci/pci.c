@@ -3344,7 +3344,7 @@ pci_add_children(device_t dev, int domain, int busno, size_t dinfo_size)
 	KASSERT(dinfo_size >= sizeof(struct pci_devinfo),
 	    ("dinfo_size too small"));
 	maxslots = PCIB_MAXSLOTS(pcib);
-	for (s = 0; s <= maxslots; s++) {
+	for (s = 0; s <= maxslots; s++, first_func = 0) {
 		pcifunchigh = 0;
 		f = 0;
 		DELAY(1);
@@ -3356,9 +3356,6 @@ pci_add_children(device_t dev, int domain, int busno, size_t dinfo_size)
 		for (f = first_func; f <= pcifunchigh; f++)
 			pci_identify_function(pcib, dev, domain, busno, s, f,
 			    dinfo_size);
-
-		/* For slots after slot 0 we need to check for function 0. */
-		first_func = 0;
 	}
 #undef REG
 }
