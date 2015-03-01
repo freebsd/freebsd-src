@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015 Sandvine Inc.  All rights reserved.
+ * Copyright (c) 2014-2015 Sandvine Inc.  All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,31 +26,27 @@
  * $FreeBSD$
  */
 
-#ifndef _PCI_IOV_PRIVATE_H_
-#define _PCI_IOV_PRIVATE_H_
+#ifndef _SYS_IOV_SCHEMA_H_
+#define _SYS_IOV_SCHEMA_H_
 
-struct pci_iov_bar {
-	struct resource *res;
+#define	IOV_SCHEMA_HASDEFAULT	(1 << 0)
+#define	IOV_SCHEMA_REQUIRED	(1 << 1)
 
-	pci_addr_t bar_size;
-	pci_addr_t bar_shift;
-};
+nvlist_t	*pci_iov_schema_alloc_node(void);
 
-struct pcicfg_iov {
-	struct cdev *iov_cdev;
-	nvlist_t *iov_schema;
-
-	struct pci_iov_bar iov_bar[PCIR_MAX_BAR_0 + 1];
-	struct rman rman;
-	char rman_name[64];
- 
-	int iov_pos;
-	int iov_num_vfs;
-	uint32_t iov_flags;
-};
-
-#define	IOV_RMAN_INITED		0x0001
-#define	IOV_BUSY		0x0002
+void	pci_iov_schema_add_bool(nvlist_t *schema, const char *name,
+	    uint32_t flags,  int defaultVal);
+void	pci_iov_schema_add_string(nvlist_t *schema, const char *name,
+	    uint32_t flags, const char *defaultVal);
+void	pci_iov_schema_add_uint8(nvlist_t *schema, const char *name,
+	    uint32_t flags, uint8_t defaultVal);
+void	pci_iov_schema_add_uint16(nvlist_t *schema, const char *name,
+	    uint32_t flags, uint16_t defaultVal);
+void	pci_iov_schema_add_uint32(nvlist_t *schema, const char *name,
+	    uint32_t flags, uint32_t defaultVal);
+void	pci_iov_schema_add_uint64(nvlist_t *schema, const char *name,
+	    uint32_t flags, uint64_t defaultVal);
+void	pci_iov_schema_add_unicast_mac(nvlist_t *schema, const char *name,
+	    uint32_t flags, const uint8_t * defaultVal);
 
 #endif
-
