@@ -46,11 +46,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <machine/bus.h>
+#include <machine/stdarg.h>
+
+#include <sys/nv.h>
+#include <sys/iov_schema.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pci_private.h>
 #include <dev/pci/pci_iov_private.h>
+#include <dev/pci/schema_private.h>
 
 #include "pci_if.h"
 #include "pcib_if.h"
@@ -71,18 +76,30 @@ static struct cdevsw iov_cdevsw = {
 #define IOV_WRITE(d, r, v, w) \
 	pci_write_config((d)->cfg.dev, (d)->cfg.iov->iov_pos + r, v, w)
 
+static nvlist_t	*pci_iov_build_schema(nvlist_t **pf_schema,
+		    nvlist_t **vf_schema);
+static void	pci_iov_build_pf_schema(nvlist_t *schema,
+		    nvlist_t **driver_schema);
+static void	pci_iov_build_vf_schema(nvlist_t *schema,
+		    nvlist_t **driver_schema);
+static nvlist_t	*pci_iov_get_pf_subsystem_schema(void);
+static nvlist_t	*pci_iov_get_vf_subsystem_schema(void);
+
 int
-pci_iov_attach_method(device_t bus, device_t dev)
+pci_iov_attach_method(device_t bus, device_t dev, nvlist_t *pf_schema,
+    nvlist_t *vf_schema)
 {
 	device_t pcib;
 	struct pci_devinfo *dinfo;
 	struct pcicfg_iov *iov;
+	nvlist_t *schema;
 	uint32_t version;
 	int error;
 	int iov_pos;
 
 	dinfo = device_get_ivars(dev);
 	pcib = device_get_parent(bus);
+	schema = NULL;
 	
 	error = pci_find_extcap(dev, PCIZ_SRIOV, &iov_pos);
 
@@ -108,6 +125,13 @@ pci_iov_attach_method(device_t bus, device_t dev)
 	}
 	iov->iov_pos = iov_pos;
 
+	schema = pci_iov_build_schema(&pf_schema, &vf_schema);
+	if (schema == NULL) {
+		error = ENOMEM;
+		goto cleanup;
+	}
+	iov->iov_schema = schema;
+
 	iov->iov_cdev = make_dev(&iov_cdevsw, device_get_unit(dev),
 	    UID_ROOT, GID_WHEEL, 0600, "iov/%s", device_get_nameunit(dev));
 
@@ -123,6 +147,9 @@ pci_iov_attach_method(device_t bus, device_t dev)
 	return (0);
 
 cleanup:
+	nvlist_destroy(schema);
+	nvlist_destroy(pf_schema);
+	nvlist_destroy(vf_schema);
 	free(iov, M_SRIOV);
 	mtx_unlock(&Giant);
 	return (error);
@@ -154,11 +181,121 @@ pci_iov_detach_method(device_t bus, device_t dev)
 		destroy_dev(iov->iov_cdev);
 		iov->iov_cdev = NULL;
 	}
+	nvlist_destroy(iov->iov_schema);
 
 	free(iov, M_SRIOV);
 	mtx_unlock(&Giant);
 
 	return (0);
+}
+
+static nvlist_t *
+pci_iov_build_schema(nvlist_t **pf, nvlist_t **vf)
+{
+	nvlist_t *schema, *pf_driver, *vf_driver;
+
+	/* We always take ownership of the schemas. */
+	pf_driver = *pf;
+	*pf = NULL;
+	vf_driver = *vf;
+	*vf = NULL;
+
+	schema = pci_iov_schema_alloc_node();
+	if (schema == NULL)
+		goto cleanup;
+
+	pci_iov_build_pf_schema(schema, &pf_driver);
+	pci_iov_build_vf_schema(schema, &vf_driver);
+
+	if (nvlist_error(schema) != 0)
+		goto cleanup;
+
+	return (schema);
+
+cleanup:
+	nvlist_destroy(schema);
+	nvlist_destroy(pf_driver);
+	nvlist_destroy(vf_driver);
+	return (NULL);
+}
+
+static void
+pci_iov_build_pf_schema(nvlist_t *schema, nvlist_t **driver_schema)
+{
+	nvlist_t *pf_schema, *iov_schema;
+
+	pf_schema = pci_iov_schema_alloc_node();
+	if (pf_schema == NULL) {
+		nvlist_set_error(schema, ENOMEM);
+		return;
+	}
+
+	iov_schema = pci_iov_get_pf_subsystem_schema();
+
+	/*
+	 * Note that if either *driver_schema or iov_schema is NULL, then
+	 * nvlist_move_nvlist will put the schema in the error state and
+	 * SR-IOV will fail to initialize later, so we don't have to explicitly
+	 * handle that case.
+	 */
+	nvlist_move_nvlist(pf_schema, DRIVER_CONFIG_NAME, *driver_schema);
+	nvlist_move_nvlist(pf_schema, IOV_CONFIG_NAME, iov_schema);
+	nvlist_move_nvlist(schema, PF_CONFIG_NAME, pf_schema);
+	*driver_schema = NULL;
+}
+
+static void
+pci_iov_build_vf_schema(nvlist_t *schema, nvlist_t **driver_schema)
+{
+	nvlist_t *vf_schema, *iov_schema;
+
+	vf_schema = pci_iov_schema_alloc_node();
+	if (vf_schema == NULL) {
+		nvlist_set_error(schema, ENOMEM);
+		return;
+	}
+
+	iov_schema = pci_iov_get_vf_subsystem_schema();
+
+	/*
+	 * Note that if either *driver_schema or iov_schema is NULL, then
+	 * nvlist_move_nvlist will put the schema in the error state and
+	 * SR-IOV will fail to initialize later, so we don't have to explicitly
+	 * handle that case.
+	 */
+	nvlist_move_nvlist(vf_schema, DRIVER_CONFIG_NAME, *driver_schema);
+	nvlist_move_nvlist(vf_schema, IOV_CONFIG_NAME, iov_schema);
+	nvlist_move_nvlist(schema, VF_SCHEMA_NAME, vf_schema);
+	*driver_schema = NULL;
+}
+
+static nvlist_t *
+pci_iov_get_pf_subsystem_schema(void)
+{
+	nvlist_t *pf;
+
+	pf = pci_iov_schema_alloc_node();
+	if (pf == NULL)
+		return (NULL);
+
+	pci_iov_schema_add_uint16(pf, "num_vfs", IOV_SCHEMA_REQUIRED, -1);
+	pci_iov_schema_add_string(pf, "device", IOV_SCHEMA_REQUIRED, NULL);
+
+	return (pf);
+}
+
+static nvlist_t *
+pci_iov_get_vf_subsystem_schema(void)
+{
+	nvlist_t *vf;
+
+	vf = pci_iov_schema_alloc_node();
+	if (vf == NULL)
+		return (NULL);
+
+	pci_iov_schema_add_bool(vf, "passthrough", IOV_SCHEMA_HASDEFAULT, 0);
+
+	return (vf);
 }
 
 static int
@@ -605,6 +742,50 @@ out:
 	return (error);
 }
 
+static int
+pci_iov_get_schema_ioctl(struct cdev *cdev, struct pci_iov_schema *output)
+{
+	struct pci_devinfo *dinfo;
+	void *packed;
+	size_t output_len, size;
+	int error;
+
+	packed = NULL;
+
+	mtx_lock(&Giant);
+	dinfo = cdev->si_drv1;
+	packed = nvlist_pack(dinfo->cfg.iov->iov_schema, &size);
+	mtx_unlock(&Giant);
+
+	if (packed == NULL) {
+		error = ENOMEM;
+		goto fail;
+	}
+
+	output_len = output->len;
+	output->len = size;
+	if (size <= output_len) {
+		error = copyout(packed, output->schema, size);
+
+		if (error != 0)
+			goto fail;
+
+		output->error = 0;
+	} else
+		/*
+		 * If we return an error then the ioctl code won't copyout
+		 * output back to userland, so we flag the error in the struct
+		 * instead.
+		 */
+		output->error = EMSGSIZE;
+
+	error = 0;
+
+fail:
+	free(packed, M_NVLIST);
+
+	return (error);
+}
 
 static int
 pci_iov_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
@@ -616,6 +797,9 @@ pci_iov_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		return (pci_iov_config(dev, (struct pci_iov_arg *)data));
 	case IOV_DELETE:
 		return (pci_iov_delete(dev));
+	case IOV_GET_SCHEMA:
+		return (pci_iov_get_schema_ioctl(dev,
+		    (struct pci_iov_schema *)data));
 	default:
 		return (EINVAL);
 	}
