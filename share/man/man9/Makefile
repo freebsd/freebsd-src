@@ -1159,6 +1159,8 @@ MLINKS+=pci.9 pci_alloc_msi.9 \
 	pci.9 pci_get_powerstate.9 \
 	pci.9 pci_get_vpd_ident.9 \
 	pci.9 pci_get_vpd_readonly.9 \
+	pci.9 pci_iov_attach.9 \
+	pci.9 pci_iov_detach.9 \
 	pci.9 pci_msi_count.9 \
 	pci.9 pci_msix_count.9 \
 	pci.9 pci_pending_msix.9 \
