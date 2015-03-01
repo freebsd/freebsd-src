@@ -197,6 +197,7 @@ MAN=	accept_filter.9 \
 	pci.9 \
 	PCI_ADD_VF.9 \
 	PCI_INIT_IOV.9 \
+	pci_iov_schema.9 \
 	PCI_UNINIT_IOV.9 \
 	pfil.9 \
 	pfind.9 \
@@ -1175,6 +1176,14 @@ MLINKS+=pci.9 pci_alloc_msi.9 \
 	pci.9 pci_set_powerstate.9 \
 	pci.9 pci_set_max_read_req.9 \
 	pci.9 pci_write_config.9
+MLINKS+=pci_iov_schema.9 pci_iov_schema_alloc_node.9 \
+	pci_iov_schema.9 pci_iov_schema_add_bool.9 \
+	pci_iov_schema.9 pci_iov_schema_add_string.9 \
+	pci_iov_schema.9 pci_iov_schema_add_uint8.9 \
+	pci_iov_schema.9 pci_iov_schema_add_uint16.9 \
+	pci_iov_schema.9 pci_iov_schema_add_uint32.9 \
+	pci_iov_schema.9 pci_iov_schema_add_uint64.9 \
+	pci_iov_schema.9 pci_iov_schema_add_unicast_mac.9
 MLINKS+=pfil.9 pfil_add_hook.9 \
 	pfil.9 pfil_head_register.9 \
 	pfil.9 pfil_head_unregister.9 \
