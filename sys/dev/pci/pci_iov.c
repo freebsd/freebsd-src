@@ -70,6 +70,18 @@ static struct cdevsw iov_cdevsw = {
 	.d_ioctl = pci_iov_ioctl
 };
 
+SYSCTL_DECL(_hw_pci);
+
+/*
+ * The maximum amount of memory we will allocate for user configuration of an
+ * SR-IOV device.  1MB ought to be enough for anyone, but leave this 
+ * configurable just in case.
+ */
+static u_long pci_iov_max_config = 1024 * 1024;
+SYSCTL_ULONG(_hw_pci, OID_AUTO, iov_max_config, CTLFLAG_RWTUN,
+    &pci_iov_max_config, 0, "Maximum allowed size of SR-IOV configuration.");
+
+
 #define IOV_READ(d, r, w) \
 	pci_read_config((d)->cfg.dev, (d)->cfg.iov->iov_pos + r, w)
 
@@ -348,6 +360,51 @@ pci_iov_add_bars(struct pcicfg_iov *iov, struct pci_devinfo *dinfo)
 	}
 }
 
+static int
+pci_iov_parse_config(struct pcicfg_iov *iov, struct pci_iov_arg *arg,
+    nvlist_t **ret)
+{
+	void *packed_config;
+	nvlist_t *config;
+	int error;
+
+	config = NULL;
+	packed_config = NULL;
+
+	if (arg->len > pci_iov_max_config) {
+		error = EMSGSIZE;
+		goto out;
+	}
+
+	packed_config = malloc(arg->len, M_SRIOV, M_WAITOK);
+
+	error = copyin(arg->config, packed_config, arg->len);
+	if (error != 0)
+		goto out;
+
+	config = nvlist_unpack(packed_config, arg->len);
+	if (config == NULL) {
+		error = EINVAL;
+		goto out;
+	}
+
+	error = pci_iov_schema_validate_config(iov->iov_schema, config);
+	if (error != 0)
+		goto out;
+
+	error = nvlist_error(config);
+	if (error != 0)
+		goto out;
+
+	*ret = config;
+	config = NULL;
+
+out:
+	nvlist_destroy(config);
+	free(packed_config, M_SRIOV);
+	return (error);
+}
+
 /*
  * Set the ARI_EN bit in the lowest-numbered PCI function with the SR-IOV
  * capability.  This bit is only writeable on the lowest-numbered PF but
@@ -422,6 +479,16 @@ pci_iov_config_page_size(struct pci_devinfo *dinfo)
 }
 
 static int
+pci_init_iov(device_t dev, uint16_t num_vfs, const nvlist_t *config)
+{
+	const nvlist_t *device, *driver_config;
+
+	device = nvlist_get_nvlist(config, PF_CONFIG_NAME);
+	driver_config = nvlist_get_nvlist(device, DRIVER_CONFIG_NAME);
+	return (PCI_INIT_IOV(dev, num_vfs, driver_config));
+}
+
+static int
 pci_iov_init_rman(device_t pf, struct pcicfg_iov *iov)
 {
 	int error;
@@ -479,9 +546,11 @@ pci_iov_setup_bars(struct pci_devinfo *dinfo)
 }
 
 static void
-pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const char *driver,
+pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const nvlist_t *config,
     uint16_t first_rid, uint16_t rid_stride)
 {
+	char device_name[VF_MAX_NAME];
+	const nvlist_t *device, *driver_config, *iov_config;
 	device_t bus, dev, vf;
 	struct pcicfg_iov *iov;
 	struct pci_devinfo *vfinfo;
@@ -498,11 +567,22 @@ pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const char *driver,
 	did = IOV_READ(dinfo, PCIR_SRIOV_VF_DID, 2);
 
 	for (i = 0; i < iov->iov_num_vfs; i++, next_rid += rid_stride) {
-
+		snprintf(device_name, sizeof(device_name), VF_PREFIX"%d", i);
+		device = nvlist_get_nvlist(config, device_name);
+		iov_config = nvlist_get_nvlist(device, IOV_CONFIG_NAME);
+		driver_config = nvlist_get_nvlist(device, DRIVER_CONFIG_NAME);
 
 		vf = PCI_CREATE_IOV_CHILD(bus, dev, next_rid, vid, did);
 		if (vf == NULL)
 			break;
+
+		/*
+		 * If we are creating passthrough devices then force the ppt
+		 * driver to attach to prevent a VF driver from claiming the
+		 * VFs.
+		 */
+		if (nvlist_get_bool(iov_config, "passthrough"))
+			device_set_devclass(vf, "ppt");
 
 		vfinfo = device_get_ivars(vf);
 
@@ -511,7 +591,7 @@ pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const char *driver,
 
 		pci_iov_add_bars(iov, vfinfo);
 
-		error = PCI_ADD_VF(dev, i);
+		error = PCI_ADD_VF(dev, i, driver_config);
 		if (error != 0) {
 			device_printf(dev, "Failed to add VF %d\n", i);
 			pci_delete_child(bus, vf);
@@ -525,14 +605,14 @@ static int
 pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 {
 	device_t bus, dev;
-	const char *driver;
 	struct pci_devinfo *dinfo;
 	struct pcicfg_iov *iov;
+	nvlist_t *config;
 	int i, error;
 	uint16_t rid_off, rid_stride;
 	uint16_t first_rid, last_rid;
 	uint16_t iov_ctl;
-	uint16_t total_vfs;
+	uint16_t num_vfs, total_vfs;
 	int iov_inited;
 
 	mtx_lock(&Giant);
@@ -541,6 +621,7 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 	dev = dinfo->cfg.dev;
 	bus = device_get_parent(dev);
 	iov_inited = 0;
+	config = NULL;
 
 	if ((iov->iov_flags & IOV_BUSY) || iov->iov_num_vfs != 0) {
 		mtx_unlock(&Giant);
@@ -548,21 +629,16 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 	}
 	iov->iov_flags |= IOV_BUSY;
 
-	total_vfs = IOV_READ(dinfo, PCIR_SRIOV_TOTAL_VFS, 2);
+	error = pci_iov_parse_config(iov, arg, &config);
+	if (error != 0)
+		goto out;
 
-	if (arg->num_vfs > total_vfs) {
+	num_vfs = pci_iov_config_get_num_vfs(config);
+	total_vfs = IOV_READ(dinfo, PCIR_SRIOV_TOTAL_VFS, 2);
+	if (num_vfs > total_vfs) {
 		error = EINVAL;
 		goto out;
 	}
-
-	/*
-	 * If we are creating passthrough devices then force the ppt driver to
-	 * attach to prevent a VF driver from claming the VFs.
-	 */
-	if (arg->passthrough)
-		driver = "ppt";
-	else
-		driver = NULL;
 
 	error = pci_iov_config_page_size(dinfo);
 	if (error != 0)
@@ -572,19 +648,18 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 	if (error != 0)
 		goto out;
 
-	error = PCI_INIT_IOV(dev, arg->num_vfs);
-
+	error = pci_init_iov(dev, num_vfs, config);
 	if (error != 0)
 		goto out;
-
 	iov_inited = 1;
-	IOV_WRITE(dinfo, PCIR_SRIOV_NUM_VFS, arg->num_vfs, 2);
+
+	IOV_WRITE(dinfo, PCIR_SRIOV_NUM_VFS, num_vfs, 2);
 
 	rid_off = IOV_READ(dinfo, PCIR_SRIOV_VF_OFF, 2);
 	rid_stride = IOV_READ(dinfo, PCIR_SRIOV_VF_STRIDE, 2);
 
 	first_rid = pci_get_rid(dev) + rid_off;
-	last_rid = first_rid + (arg->num_vfs - 1) * rid_stride;
+	last_rid = first_rid + (num_vfs - 1) * rid_stride;
 
 	/* We don't yet support allocating extra bus numbers for VFs. */
 	if (pci_get_bus(dev) != PCI_RID2BUS(last_rid)) {
@@ -600,7 +675,7 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 	if (error != 0)
 		goto out;
 
-	iov->iov_num_vfs = arg->num_vfs;
+	iov->iov_num_vfs = num_vfs;
 
 	error = pci_iov_setup_bars(dinfo);
 	if (error != 0)
@@ -612,7 +687,10 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 
 	/* Per specification, we must wait 100ms before accessing VFs. */
 	pause("iov", roundup(hz, 10));
-	pci_iov_enumerate_vfs(dinfo, driver, first_rid, rid_stride);
+	pci_iov_enumerate_vfs(dinfo, config, first_rid, rid_stride);
+
+	nvlist_destroy(config);
+	iov->iov_flags &= ~IOV_BUSY;
 	mtx_unlock(&Giant);
 
 	return (0);
@@ -635,6 +713,8 @@ out:
 		rman_fini(&iov->rman);
 		iov->iov_flags &= ~IOV_RMAN_INITED;
 	}
+
+	nvlist_destroy(config);
 	iov->iov_num_vfs = 0;
 	iov->iov_flags &= ~IOV_BUSY;
 	mtx_unlock(&Giant);
