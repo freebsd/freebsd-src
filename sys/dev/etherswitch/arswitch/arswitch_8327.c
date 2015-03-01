@@ -683,7 +683,7 @@ ar8327_port_init(struct arswitch_softc *sc, int port)
 	t |= AR8X16_PORT_CTRL_STATE_FORWARD << AR8327_PORT_LOOKUP_STATE_S;
 
 	/* So this allows traffic to any port except ourselves */
-	t |= (0x3f & ~(1 << port));
+	t |= (0x7f & ~(1 << port));
 	arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_LOOKUP(port), t);
 }
 
@@ -736,7 +736,7 @@ ar8327_reset_vlans(struct arswitch_softc *sc)
 		arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_VLAN1(i), t);
 
 		/* Ports can see other ports */
-		t = (0x3f & ~(1 << i));	/* all ports besides us */
+		t = (0x7f & ~(1 << i));	/* all ports besides us */
 		t |= AR8327_PORT_LOOKUP_LEARN;
 
 		/* in_port_only, forward */
