@@ -160,6 +160,7 @@ unsigned int kernel_ptbls;	/* Number of KVA ptbls. */
 	((pmap) != kernel_pmap && (pmap)->pm_stats.resident_count == 0)
 
 extern void tid_flush(tlbtid_t);
+extern int elf32_nxstack;
 
 /**************************************************************************/
 /* TLB and TID handling */
