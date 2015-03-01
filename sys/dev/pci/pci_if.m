@@ -217,6 +217,7 @@ METHOD int iov_detach {
 METHOD int init_iov {
 	device_t		dev;
 	uint16_t		num_vfs;
+	const struct nvlist	*config;
 };
 
 METHOD void uninit_iov {
@@ -226,6 +227,7 @@ METHOD void uninit_iov {
 METHOD int add_vf {
 	device_t		dev;
 	uint16_t		vfnum;
+	const struct nvlist	*config;
 };
 
 METHOD device_t create_iov_child {

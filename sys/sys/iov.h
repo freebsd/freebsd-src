@@ -46,12 +46,6 @@
 #define	DEFAULT_SCHEMA_NAME	"DEFAULT"
 #define	REQUIRED_SCHEMA_NAME	"REQUIRED"
 
-struct pci_iov_arg
-{
-	int num_vfs;
-	int passthrough;
-};
-
 /*
  * Because each PF device is expected to expose a unique set of possible
  * configurations, the SR-IOV infrastructure dynamically queries the PF
@@ -168,7 +162,94 @@ struct pci_iov_schema
 	int error;
 };
 
-#define	IOV_CONFIG	_IOWR('p', 10, struct pci_iov_arg)
+/*
+ * SR-IOV configuration is passed to the kernel as a packed nvlist.  See nv(3)
+ * for the details of the nvlist API.  The expected format of the nvlist is:
+ *
+ * BASIC RULES
+ *   1) All keys are case-insensitive.
+ *   2) No keys that are not specified below may exist at any level of the
+ *      config nvlist.
+ *   3) Unless otherwise specified, all keys are optional.  It should go without
+ *      saying a key being mandatory is transitive: that is, if a key is
+ *      specified to contain a sub-nodes that contains a mandatory key, then
+ *      the outer key is implicitly mandatory.  If a key is mandatory then the
+ *      associated value is also mandatory.
+ *   4) Order of keys is irrelevant.
+ *
+ * TOP LEVEL OF CONFIG NVLIST
+ * 1) All keys specified in this section are mandatory.
+ * 2) There must be a top-level key with the name PF_CONFIG_NAME.  The value
+ *    associated is an nvlist that follows the "device node" format.  The
+ *    parameters in this node specify parameters that apply to the PF.
+ * 3) For every VF being configured (this is set via the "num_vfs" parameter
+ *    in the PF section), there must be a top-level key whose name is VF_PREFIX
+ *    immediately followed by the index of the VF as a decimal integer.  For
+ *    example, this would be VF-0 for the first VF.  VFs are numbered starting
+ *    from 0.  The value associated with this key follows the "device node"
+ *    format.  The parameters in this node specify configuration that applies
+ *    to the VF specified in the key.  Leading zeros are not permitted in VF
+ *    index.  Configuration for the second VF must be specified in a node with
+ *    the key VF-1.  VF-01 is not a valid key.
+ *
+ * DEVICE NODES
+ * 1) All keys specified in this section are mandatory.
+ * 2) The device node must contain a key with the name DRIVER_CONFIG_NAME.  The
+ *    value associated with this key is an nvlist following the subsystem node
+ *    format.  The parameters in this key specify configuration that is specific
+ *    to a particular device driver.
+ * 3) The device node must contain a key with the name IOV_CONFIG_NAME.  The
+ *    value associated with this key is an nvlist following the subsystem node
+ *    format.  The parameters in this key specify configuration that is consumed
+ *    by the SR-IOV infrastructure.
+ *
+ * SUBSYSTEM NODES
+ * 1) A subsystem node specifies configuration parameters that apply to a
+ *    particular subsystem (driver or infrastructure) of a particular device
+ *    (PF or individual VF).
+ *         Note: We will refer to the section of the configuration schema that
+ *               specifies the parameters for this subsystem and device
+ *               configuration as the device/subystem schema.
+ * 2) The subsystem node must contain only keys that correspond to parameters
+ *    that are specified in the device/subsystem schema.
+ * 3) Every parameter specified as required in the device/subsystem schema is
+ *    a mandatory key in the subsystem node.
+ *    Note:  All parameters that are not required in device/subsystem schema are
+ *           optional keys.  In particular, any parameter specified to have a
+ *           default value in the device/subsystem schema is optional.  The
+ *           kernel is responsible for applying default values.
+ * 4) The value of every parameter in the device node must conform to the
+ *    restrictions of the type specified for that parameter in the device/
+ *    subsystem schema.
+ *
+ * The following is an example of a valid configuration, when validated against
+ * the schema example given above.
+ *
+ * PF (NVLIST):
+ *     driver (NVLIST):
+ *     iov (NVLIST):
+ *         num_vfs (NUMBER): 3 (3) (0x3)
+ *         device (STRING): [ix0]
+ * VF-0 (NVLIST):
+ *     driver (NVLIST):
+ *         vlan (NUMBER): 1000 (1000) (0x3e8)
+ *     iov (NVLIST):
+ *         passthrough (BOOL): TRUE
+ * VF-1 (NVLIST):
+ *     driver (NVLIST):
+ *     iov (NVLIST):
+ * VF-2 (NVLIST):
+ *     driver (NVLIST):
+ *         mac-addr (BINARY): 6 020102030405
+ *     iov (NVLIST):
+ */
+struct pci_iov_arg
+{
+	void *config;
+	size_t len;
+};
+
+#define	IOV_CONFIG	_IOW('p', 10, struct pci_iov_arg)
 #define	IOV_DELETE	_IO('p', 11)
 #define	IOV_GET_SCHEMA	_IOWR('p', 12, struct pci_iov_schema)
 
