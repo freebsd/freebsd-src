@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2014 Robert N. M. Watson
+ * Copyright (c) 2011-2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -35,6 +35,10 @@
  * start with a guard page at 0x0, followed by metadata at 0x1000.  Code
  * linkage begins with a series of entry vectors, followed by the proper body
  * of the code segment.  Each vector has room for 128 instructions.
+ *
+ * Data is page-aligned above code, unlike with conventional linker scripts,
+ * to ensure that we need to map code or data into only one of code and data
+ * capabilities, which can have suitable restricted permissions.
  */
 __vector_base__ = 0x8000;
 __vector_size__ = 0x200;
@@ -47,6 +51,7 @@ __reserved1_vector__ = __vector_base__ + __vector_size__ * 3;
 __code_body__ = __vector_base__ + __vector_size__ * 4;
 
 CAP_ALIGN = 0x20;
+PAGE_ALIGN = 0x1000;
 
 SECTIONS
 {
@@ -59,9 +64,6 @@ SECTIONS
 		crt_invoke.o(.text .data .bss)
 	}
 	.= __code_body__;
-	.MIPS.options ALIGN(CAP_ALIGN): {
-		*(.MIPS.options)
-	}
 	.init : {
 		KEEP (*(.init))
 	} = 0
@@ -71,6 +73,27 @@ SECTIONS
 	.fini ALIGN(CAP_ALIGN): {
 		KEEP (*(.fini))
 	} = 0
+
+	/*
+	 * Memory to be mapped into the data segment.  For compiler-generated
+	 * content, it would be much preferable to map into the code segment
+	 * and use $pcc-relative loads, but we are not yet there.
+	 */
+	.MIPS.options ALIGN(PAGE_ALIGN): {
+		*(.MIPS.options)
+	}
+	.ctors ALIGN(CAP_ALIGN) : {
+		KEEP (crtbeginC.o(.ctors))
+		KEEP (*(EXCLUDE_FILE (*crtendC.o) .ctors))
+		KEEP (*(SORT(.ctors.*)))
+		KEEP (crtendC.o(.ctors))
+	}
+	.dtors ALIGN(CAP_ALIGN) : {
+		KEEP (crtbeginC.o(.dtors))
+		KEEP (*(EXCLUDE_FILE (*crtendC.o) .dtors))
+		KEEP (*(SORT(.dtors.*)))
+		KEEP (crtendC.o(.dtors))
+	}
 	.preinit_array ALIGN(CAP_ALIGN) : {
 		PROVIDE_HIDDEN (__preinit_array_start = .);
 		KEEP (*(.preinit_array))
@@ -87,18 +110,6 @@ SECTIONS
 		KEEP (*(.fini_array))
 		KEEP (*(SORT(.fini_array.*)))
 		PROVIDE_HIDDEN (__fini_array_end = .);
-	}
-	.ctors ALIGN(CAP_ALIGN) : {
-		KEEP (crtbeginC.o(.ctors))
-		KEEP (*(EXCLUDE_FILE (*crtendC.o) .ctors))
-		KEEP (*(SORT(.ctors.*)))
-		KEEP (crtendC.o(.ctors))
-	}
-	.dtors ALIGN(CAP_ALIGN) : {
-		KEEP (crtbeginC.o(.dtors))
-		KEEP (*(EXCLUDE_FILE (*crtendC.o) .dtors))
-		KEEP (*(SORT(.dtors.*)))
-		KEEP (crtendC.o(.dtors))
 	}
 	.bss ALIGN(CAP_ALIGN): {
 		*(.bss)
