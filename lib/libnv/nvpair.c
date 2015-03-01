@@ -1128,6 +1128,12 @@ nvpair_movev_nvlist(nvlist_t *value, const char *namefmt, va_list nameap)
 		return (NULL);
 	}
 
+	if (nvlist_error(value) != 0) {
+		errno = nvlist_error(value);
+		nvlist_destroy(value);
+		return (NULL);
+	}
+
 	nvp = nvpair_allocv(NV_TYPE_NVLIST, (uint64_t)(uintptr_t)value, 0,
 	    namefmt, nameap);
 	if (nvp == NULL)
