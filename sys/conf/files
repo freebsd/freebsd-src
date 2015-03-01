@@ -1992,6 +1992,7 @@ dev/pci/pci_pci.c		optional pci
 dev/pci/pci_subr.c		optional pci
 dev/pci/pci_user.c		optional pci
 dev/pci/pcib_if.m		standard
+dev/pci/pcib_support.c		standard
 dev/pci/vga_pci.c		optional pci
 dev/pcn/if_pcn.c		optional pcn pci
 dev/pdq/if_fea.c		optional fea eisa

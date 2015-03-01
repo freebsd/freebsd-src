@@ -93,6 +93,7 @@ struct pcib_softc
 #define	PCIB_SUBTRACTIVE	0x1
 #define	PCIB_DISABLE_MSI	0x2
 #define	PCIB_DISABLE_MSIX	0x4
+#define	PCIB_ENABLE_ARI		0x8
     uint16_t	command;	/* command register */
     u_int	domain;		/* domain number */
     u_int	pribus;		/* primary bus number */
@@ -115,6 +116,8 @@ struct pcib_softc
     uint8_t	seclat;		/* secondary bus latency timer */
 };
 
+#define	PCIB_SUPPORTED_ARI_VER	1
+
 typedef uint32_t pci_read_config_fn(int b, int s, int f, int reg, int width);
 
 #ifdef NEW_PCIB
@@ -135,13 +138,13 @@ int		pcib_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r);
 #endif
 int		pcib_maxslots(device_t dev);
-uint32_t	pcib_read_config(device_t dev, u_int b, u_int s, u_int f, u_int reg, int width);
-void		pcib_write_config(device_t dev, u_int b, u_int s, u_int f, u_int reg, uint32_t val, int width);
+int		pcib_maxfuncs(device_t dev);
 int		pcib_route_interrupt(device_t pcib, device_t dev, int pin);
 int		pcib_alloc_msi(device_t pcib, device_t dev, int count, int maxcount, int *irqs);
 int		pcib_release_msi(device_t pcib, device_t dev, int count, int *irqs);
 int		pcib_alloc_msix(device_t pcib, device_t dev, int *irq);
 int		pcib_release_msix(device_t pcib, device_t dev, int irq);
 int		pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr, uint32_t *data);
+uint16_t	pcib_get_rid(device_t pcib, device_t dev);
 
 #endif
