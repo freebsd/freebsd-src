@@ -317,7 +317,8 @@ bmap_truncate_indirect(struct nandfs_node *node, int level, nandfs_lbn_t *left,
 
 	error = nandfs_bread_meta(node, lbn, NOCRED, 0, &bp);
 	if (error) {
-		brelse(bp);
+		if (bp != NULL)
+			brelse(bp);
 		return (error);
 	}
 
