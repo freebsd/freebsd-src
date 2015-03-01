@@ -22,6 +22,7 @@ MLINKS+=nv.3 libnv.3 \
 MLINKS+=nv.3 nvlist_create.3 \
 	nv.3 nvlist_destroy.3 \
 	nv.3 nvlist_error.3 \
+	nv.3 nvlist_set_error.3 \
 	nv.3 nvlist_empty.3 \
 	nv.3 nvlist_clone.3 \
 	nv.3 nvlist_dump.3 \
