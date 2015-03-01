@@ -180,6 +180,8 @@ static struct vt_window	vt_conswindow;
 static struct vt_device	vt_consdev = {
 	.vd_driver = NULL,
 	.vd_softc = NULL,
+	.vd_prev_driver = NULL,
+	.vd_prev_softc = NULL,
 	.vd_flags = VDF_INVALID,
 	.vd_windows = { [VT_CONSWINDOW] =  &vt_conswindow, },
 	.vd_curwindow = &vt_conswindow,
@@ -2598,31 +2600,11 @@ vt_resize(struct vt_device *vd)
 	}
 }
 
-void
-vt_allocate(struct vt_driver *drv, void *softc)
+static void
+vt_replace_backend(const struct vt_driver *drv, void *softc)
 {
 	struct vt_device *vd;
 
-	if (!vty_enabled(VTY_VT))
-		return;
-
-	if (main_vd->vd_driver == NULL) {
-		main_vd->vd_driver = drv;
-		printf("VT: initialize with new VT driver \"%s\".\n",
-		    drv->vd_name);
-	} else {
-		/*
-		 * Check if have rights to replace current driver. For example:
-		 * it is bad idea to replace KMS driver with generic VGA one.
-		 */
-		if (drv->vd_priority <= main_vd->vd_driver->vd_priority) {
-			printf("VT: Driver priority %d too low. Current %d\n ",
-			    drv->vd_priority, main_vd->vd_driver->vd_priority);
-			return;
-		}
-		printf("VT: Replacing driver \"%s\" with new \"%s\".\n",
-		    main_vd->vd_driver->vd_name, drv->vd_name);
-	}
 	vd = main_vd;
 
 	if (vd->vd_flags & VDF_ASYNC) {
@@ -2644,9 +2626,44 @@ vt_allocate(struct vt_driver *drv, void *softc)
 	VT_LOCK(vd);
 	vd->vd_flags &= ~VDF_TEXTMODE;
 
-	vd->vd_driver = drv;
-	vd->vd_softc = softc;
-	vd->vd_driver->vd_init(vd);
+	if (drv != NULL) {
+		/*
+		 * We want to upgrade from the current driver to the
+		 * given driver.
+		 */
+
+		vd->vd_prev_driver = vd->vd_driver;
+		vd->vd_prev_softc = vd->vd_softc;
+		vd->vd_driver = drv;
+		vd->vd_softc = softc;
+
+		vd->vd_driver->vd_init(vd);
+	} else if (vd->vd_prev_driver != NULL && vd->vd_prev_softc != NULL) {
+		/*
+		 * No driver given: we want to downgrade to the previous
+		 * driver.
+		 */
+		const struct vt_driver *old_drv;
+		void *old_softc;
+
+		old_drv = vd->vd_driver;
+		old_softc = vd->vd_softc;
+
+		vd->vd_driver = vd->vd_prev_driver;
+		vd->vd_softc = vd->vd_prev_softc;
+		vd->vd_prev_driver = NULL;
+		vd->vd_prev_softc = NULL;
+
+		vd->vd_flags |= VDF_DOWNGRADE;
+
+		vd->vd_driver->vd_init(vd);
+
+		if (old_drv->vd_fini)
+			old_drv->vd_fini(vd, old_softc);
+
+		vd->vd_flags &= ~VDF_DOWNGRADE;
+	}
+
 	VT_UNLOCK(vd);
 
 	/* Update windows sizes and initialize last items. */
@@ -2689,6 +2706,52 @@ vt_resume_handler(void *priv)
 	vd = priv;
 	if (vd->vd_driver != NULL && vd->vd_driver->vd_resume != NULL)
 		vd->vd_driver->vd_resume(vd);
+}
+
+void
+vt_allocate(const struct vt_driver *drv, void *softc)
+{
+
+	if (!vty_enabled(VTY_VT))
+		return;
+
+	if (main_vd->vd_driver == NULL) {
+		main_vd->vd_driver = drv;
+		printf("VT: initialize with new VT driver \"%s\".\n",
+		    drv->vd_name);
+	} else {
+		/*
+		 * Check if have rights to replace current driver. For example:
+		 * it is bad idea to replace KMS driver with generic VGA one.
+		 */
+		if (drv->vd_priority <= main_vd->vd_driver->vd_priority) {
+			printf("VT: Driver priority %d too low. Current %d\n ",
+			    drv->vd_priority, main_vd->vd_driver->vd_priority);
+			return;
+		}
+		printf("VT: Replacing driver \"%s\" with new \"%s\".\n",
+		    main_vd->vd_driver->vd_name, drv->vd_name);
+	}
+
+	vt_replace_backend(drv, softc);
+}
+
+void
+vt_deallocate(const struct vt_driver *drv, void *softc)
+{
+
+	if (!vty_enabled(VTY_VT))
+		return;
+
+	if (main_vd->vd_prev_driver == NULL ||
+	    main_vd->vd_driver != drv ||
+	    main_vd->vd_softc != softc)
+		return;
+
+	printf("VT: Switching back from \"%s\" to \"%s\".\n",
+	    main_vd->vd_driver->vd_name, main_vd->vd_prev_driver->vd_name);
+
+	vt_replace_backend(NULL, NULL);
 }
 
 void

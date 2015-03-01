@@ -937,19 +937,21 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	info->fb_priv = sc;
 	info->enter = &vt_kms_postswitch;
 
+	kdev = fb_helper->dev->device;
+	info->fb_video_dev = device_get_parent(kdev);
+
 	/* set the fb pointer */
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		fb_helper->crtc_info[i].mode_set.fb = fb_helper->fb;
 	}
 
 	if (new_fb) {
-		device_t fbd;
 		int ret;
 
-		kdev = fb_helper->dev->device;
-		fbd = device_add_child(kdev, "fbd", device_get_unit(kdev));
-		if (fbd != NULL) 
-			ret = device_probe_and_attach(fbd);
+		info->fb_fbd_dev = device_add_child(kdev, "fbd",
+		    device_get_unit(kdev));
+		if (info->fb_fbd_dev != NULL)
+			ret = device_probe_and_attach(info->fb_fbd_dev);
 		else
 			ret = ENODEV;
 #ifdef DEV_VT
