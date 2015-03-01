@@ -45,7 +45,6 @@ SUBDIR=	alias \
 	expand \
 	false \
 	fetch \
-	file \
 	find \
 	fmt \
 	fold \
@@ -228,6 +227,10 @@ _clang=		clang
 
 .if ${MK_EE} != "no"
 SUBDIR+=	ee
+.endif
+
+.if ${MK_FILE} != "no"
+SUBDIR+=	file
 .endif
 
 .if ${MK_FINGER} != "no"

@@ -59,7 +59,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libkvm \
 	${_libldns} \
 	liblzma \
-	libmagic \
+	${_libmagic} \
 	libmandoc \
 	libmemstat \
 	libmd \
@@ -169,6 +169,10 @@ _libbsnmp=	libbsnmp
 
 .if ${MK_CLANG} != "no" && !defined(COMPAT_32BIT)
 _clang=		clang
+.endif
+
+.if ${MK_FILE} != "no"
+_libmagic=	libmagic
 .endif
 
 .if ${MK_GPIB} != "no"
