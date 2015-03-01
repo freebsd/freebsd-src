@@ -1006,7 +1006,9 @@ dmar_print_ctx(struct dmar_ctx *ctx, bool show_mappings)
 	db_printf(
 	    "  @%p pci%d:%d:%d dom %d mgaw %d agaw %d pglvl %d end %jx\n"
 	    "    refs %d flags %x pgobj %p map_ents %u loads %lu unloads %lu\n",
-	    ctx, ctx->bus, ctx->slot, ctx->func, ctx->domain, ctx->mgaw,
+	    ctx, pci_get_bus(ctx->ctx_tag.owner),
+	    pci_get_slot(ctx->ctx_tag.owner),
+	    pci_get_function(ctx->ctx_tag.owner), ctx->domain, ctx->mgaw,
 	    ctx->agaw, ctx->pglvl, (uintmax_t)ctx->end, ctx->refs,
 	    ctx->flags, ctx->pgtbl_obj, ctx->entries_cnt, ctx->loads,
 	    ctx->unloads);
@@ -1079,8 +1081,10 @@ DB_FUNC(dmar_ctx, db_dmar_print_ctx, db_show_table, CS_OWN, NULL)
 	for (i = 0; i < dmar_devcnt; i++) {
 		unit = device_get_softc(dmar_devs[i]);
 		LIST_FOREACH(ctx, &unit->contexts, link) {
-			if (domain == unit->segment && bus == ctx->bus &&
-			    device == ctx->slot && function == ctx->func) {
+			if (domain == unit->segment && 
+			    bus == pci_get_bus(ctx->ctx_tag.owner) &&
+			    device == pci_get_slot(ctx->ctx_tag.owner) && 
+			    function == pci_get_function(ctx->ctx_tag.owner)) {
 				dmar_print_ctx(ctx, show_mappings);
 				goto out;
 			}

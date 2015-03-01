@@ -56,6 +56,14 @@ static int		pcib_suspend(device_t dev);
 static int		pcib_resume(device_t dev);
 static int		pcib_power_for_sleep(device_t pcib, device_t dev,
 			    int *pstate);
+static uint16_t		pcib_ari_get_rid(device_t pcib, device_t dev);
+static uint32_t		pcib_read_config(device_t dev, u_int b, u_int s, 
+    u_int f, u_int reg, int width);
+static void		pcib_write_config(device_t dev, u_int b, u_int s,
+    u_int f, u_int reg, uint32_t val, int width);
+static int		pcib_ari_maxslots(device_t dev);
+static int		pcib_ari_maxfuncs(device_t dev);
+static int		pcib_try_enable_ari(device_t pcib, device_t dev);
 
 static device_method_t pcib_methods[] = {
     /* Device interface */
@@ -83,7 +91,8 @@ static device_method_t pcib_methods[] = {
     DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
     /* pcib interface */
-    DEVMETHOD(pcib_maxslots,		pcib_maxslots),
+    DEVMETHOD(pcib_maxslots,		pcib_ari_maxslots),
+    DEVMETHOD(pcib_maxfuncs,		pcib_ari_maxfuncs),
     DEVMETHOD(pcib_read_config,		pcib_read_config),
     DEVMETHOD(pcib_write_config,	pcib_write_config),
     DEVMETHOD(pcib_route_interrupt,	pcib_route_interrupt),
@@ -93,6 +102,8 @@ static device_method_t pcib_methods[] = {
     DEVMETHOD(pcib_release_msix,	pcib_release_msix),
     DEVMETHOD(pcib_map_msi,		pcib_map_msi),
     DEVMETHOD(pcib_power_for_sleep,	pcib_power_for_sleep),
+    DEVMETHOD(pcib_get_rid,		pcib_ari_get_rid),
+    DEVMETHOD(pcib_try_enable_ari,	pcib_try_enable_ari),
 
     DEVMETHOD_END
 };
@@ -1630,27 +1641,94 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 #endif
 
 /*
+ * If ARI is enabled on this downstream port, translate the function number
+ * to the non-ARI slot/function.  The downstream port will convert it back in
+ * hardware.  If ARI is not enabled slot and func are not modified.
+ */
+static __inline void
+pcib_xlate_ari(device_t pcib, int bus, int *slot, int *func)
+{
+	struct pcib_softc *sc;
+	int ari_func;
+
+	sc = device_get_softc(pcib);
+	ari_func = *func;
+
+	if (sc->flags & PCIB_ENABLE_ARI) {
+		KASSERT(*slot == 0,
+		    ("Non-zero slot number with ARI enabled!"));
+		*slot = PCIE_ARI_SLOT(ari_func);
+		*func = PCIE_ARI_FUNC(ari_func);
+	}
+}
+
+
+static void
+pcib_enable_ari(struct pcib_softc *sc, uint32_t pcie_pos)
+{
+	uint32_t ctl2;
+
+	ctl2 = pci_read_config(sc->dev, pcie_pos + PCIER_DEVICE_CTL2, 4);
+	ctl2 |= PCIEM_CTL2_ARI;
+	pci_write_config(sc->dev, pcie_pos + PCIER_DEVICE_CTL2, ctl2, 4);
+
+	sc->flags |= PCIB_ENABLE_ARI;
+}
+
+/*
  * PCIB interface.
  */
 int
 pcib_maxslots(device_t dev)
 {
-    return(PCI_SLOTMAX);
+	return (PCI_SLOTMAX);
+}
+
+static int
+pcib_ari_maxslots(device_t dev)
+{
+	struct pcib_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	if (sc->flags & PCIB_ENABLE_ARI)
+		return (PCIE_ARI_SLOTMAX);
+	else
+		return (PCI_SLOTMAX);
+}
+
+static int
+pcib_ari_maxfuncs(device_t dev)
+{
+	struct pcib_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	if (sc->flags & PCIB_ENABLE_ARI)
+		return (PCIE_ARI_FUNCMAX);
+	else
+		return (PCI_FUNCMAX);
 }
 
 /*
  * Since we are a child of a PCI bus, its parent must support the pcib interface.
  */
-uint32_t
+static uint32_t
 pcib_read_config(device_t dev, u_int b, u_int s, u_int f, u_int reg, int width)
 {
-    return(PCIB_READ_CONFIG(device_get_parent(device_get_parent(dev)), b, s, f, reg, width));
+
+	pcib_xlate_ari(dev, b, &s, &f);
+	return(PCIB_READ_CONFIG(device_get_parent(device_get_parent(dev)), b, s,
+	    f, reg, width));
 }
 
-void
+static void
 pcib_write_config(device_t dev, u_int b, u_int s, u_int f, u_int reg, uint32_t val, int width)
 {
-    PCIB_WRITE_CONFIG(device_get_parent(device_get_parent(dev)), b, s, f, reg, val, width);
+
+	pcib_xlate_ari(dev, b, &s, &f);
+	PCIB_WRITE_CONFIG(device_get_parent(device_get_parent(dev)), b, s, f,
+	    reg, val, width);
 }
 
 /*
@@ -1762,3 +1840,83 @@ pcib_power_for_sleep(device_t pcib, device_t dev, int *pstate)
 	bus = device_get_parent(pcib);
 	return (PCIB_POWER_FOR_SLEEP(bus, dev, pstate));
 }
+
+static uint16_t
+pcib_ari_get_rid(device_t pcib, device_t dev)
+{
+	struct pcib_softc *sc;
+	uint8_t bus, slot, func;
+
+	sc = device_get_softc(pcib);
+
+	if (sc->flags & PCIB_ENABLE_ARI) {
+		bus = pci_get_bus(dev);
+		func = pci_get_function(dev);
+
+		return (PCI_ARI_RID(bus, func));
+	} else {
+		bus = pci_get_bus(dev);
+		slot = pci_get_slot(dev);
+		func = pci_get_function(dev);
+
+		return (PCI_RID(bus, slot, func));
+	}
+}
+
+/*
+ * Check that the downstream port (pcib) and the endpoint device (dev) both
+ * support ARI.  If so, enable it and return 0, otherwise return an error.
+ */
+static int
+pcib_try_enable_ari(device_t pcib, device_t dev)
+{
+	struct pcib_softc *sc;
+	int error;
+	uint32_t cap2;
+	int ari_cap_off;
+	uint32_t ari_ver;
+	uint32_t pcie_pos;
+
+	sc = device_get_softc(pcib);
+
+	/*
+	 * ARI is controlled in a register in the PCIe capability structure.
+	 * If the downstream port does not have the PCIe capability structure
+	 * then it does not support ARI.
+	 */
+	error = pci_find_cap(pcib, PCIY_EXPRESS, &pcie_pos);
+	if (error != 0)
+		return (ENODEV);
+
+	/* Check that the PCIe port advertises ARI support. */
+	cap2 = pci_read_config(pcib, pcie_pos + PCIER_DEVICE_CAP2, 4);
+	if (!(cap2 & PCIEM_CAP2_ARI))
+		return (ENODEV);
+
+	/*
+	 * Check that the endpoint device advertises ARI support via the ARI
+	 * extended capability structure.
+	 */
+	error = pci_find_extcap(dev, PCIZ_ARI, &ari_cap_off);
+	if (error != 0)
+		return (ENODEV);
+
+	/*
+	 * Finally, check that the endpoint device supports the same version
+	 * of ARI that we do.
+	 */
+	ari_ver = pci_read_config(dev, ari_cap_off, 4);
+	if (PCI_EXTCAP_VER(ari_ver) != PCIB_SUPPORTED_ARI_VER) {
+		if (bootverbose)
+			device_printf(pcib,
+			    "Unsupported version of ARI (%d) detected\n",
+			    PCI_EXTCAP_VER(ari_ver));
+
+		return (ENXIO);
+	}
+
+	pcib_enable_ari(sc, pcie_pos);
+
+	return (0);
+}
+

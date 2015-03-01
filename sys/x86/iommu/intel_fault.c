@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <dev/acpica/acpivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
@@ -203,19 +205,28 @@ dmar_fault_task(void *arg, int pending __unused)
 		DMAR_FAULT_UNLOCK(unit);
 
 		sid = DMAR_FRCD2_SID(fault_rec[1]);
-		bus = (sid >> 8) & 0xf;
-		slot = (sid >> 3) & 0x1f;
-		func = sid & 0x7;
 		printf("DMAR%d: ", unit->unit);
 		DMAR_LOCK(unit);
-		ctx = dmar_find_ctx_locked(unit, bus, slot, func);
+		ctx = dmar_find_ctx_locked(unit, sid);
 		if (ctx == NULL) {
 			printf("<unknown dev>:");
+
+			/*
+			 * Note that the slot and function will not be correct
+			 * if ARI is in use, but without a ctx entry we have
+			 * no way of knowing whether ARI is in use or not.
+			 */
+			bus = PCI_RID2BUS(sid);
+			slot = PCI_RID2SLOT(sid);
+			func = PCI_RID2FUNC(sid);
 		} else {
 			ctx->flags |= DMAR_CTX_FAULTED;
 			ctx->last_fault_rec[0] = fault_rec[0];
 			ctx->last_fault_rec[1] = fault_rec[1];
 			device_print_prettyname(ctx->ctx_tag.owner);
+			bus = pci_get_bus(ctx->ctx_tag.owner);
+			slot = pci_get_slot(ctx->ctx_tag.owner);
+			func = pci_get_function(ctx->ctx_tag.owner);
 		}
 		DMAR_UNLOCK(unit);
 		printf(

@@ -99,14 +99,14 @@ amd_iommu_remove_mapping(void *domain, vm_paddr_t gpa, uint64_t len)
 }
 
 static void
-amd_iommu_add_device(void *domain, int bus, int slot, int func)
+amd_iommu_add_device(void *domain, uint16_t rid)
 {
 
 	printf("amd_iommu_add_device: not implemented\n");
 }
 
 static void
-amd_iommu_remove_device(void *domain, int bus, int slot, int func)
+amd_iommu_remove_device(void *domain, uint16_t rid)
 {
 
 	printf("amd_iommu_remove_device: not implemented\n");
