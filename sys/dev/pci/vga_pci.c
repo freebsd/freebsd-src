@@ -199,7 +199,7 @@ vga_pci_unmap_bios(device_t dev, void *bios)
 int
 vga_pci_repost(device_t dev)
 {
-#if defined(__amd64__) || defined(__i386__)
+#if defined(__amd64__) || (defined(__i386__) && !defined(PC98))
 	x86regs_t regs;
 
 	if (!vga_pci_is_boot_display(dev))
@@ -633,3 +633,4 @@ static driver_t vga_pci_driver = {
 static devclass_t vga_devclass;
 
 DRIVER_MODULE(vgapci, pci, vga_pci_driver, vga_devclass, 0, 0);
+MODULE_DEPEND(vgapci, x86bios, 1, 1, 1);
