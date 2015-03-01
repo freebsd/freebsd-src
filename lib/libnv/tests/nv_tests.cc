@@ -943,6 +943,198 @@ ATF_TEST_CASE_BODY(nvlist_take_binary__other_keys_unchanged)
 	nvlist_destroy(nvl);
 }
 
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_free__single_null);
+ATF_TEST_CASE_BODY(nvlist_free__single_null)
+{
+	nvlist_t *nvl;
+	const char *key;
+
+	nvl = nvlist_create(0);
+	key = "test";
+	nvlist_add_null(nvl, key);
+
+	nvlist_free(nvl, key);
+	ATF_REQUIRE(nvlist_empty(nvl));
+
+	nvlist_destroy(nvl);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_free__single_bool);
+ATF_TEST_CASE_BODY(nvlist_free__single_bool)
+{
+	nvlist_t *nvl;
+	const char *key;
+
+	nvl = nvlist_create(0);
+	key = "test";
+	nvlist_add_bool(nvl, key, true);
+
+	nvlist_free(nvl, key);
+	ATF_REQUIRE(nvlist_empty(nvl));
+
+	nvlist_destroy(nvl);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_free__single_number);
+ATF_TEST_CASE_BODY(nvlist_free__single_number)
+{
+	nvlist_t *nvl;
+	const char *key;
+
+	nvl = nvlist_create(0);
+	key = "test";
+	nvlist_add_number(nvl, key, 584);
+
+	nvlist_free(nvl, key);
+	ATF_REQUIRE(nvlist_empty(nvl));
+
+	nvlist_destroy(nvl);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_free__single_string);
+ATF_TEST_CASE_BODY(nvlist_free__single_string)
+{
+	nvlist_t *nvl;
+	const char *key;
+
+	nvl = nvlist_create(0);
+	key = "test";
+	nvlist_add_string(nvl, key, "gjkfkjd");
+
+	nvlist_free(nvl, key);
+	ATF_REQUIRE(nvlist_empty(nvl));
+
+	nvlist_destroy(nvl);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_free__single_nvlist);
+ATF_TEST_CASE_BODY(nvlist_free__single_nvlist)
+{
+	nvlist_t *nvl;
+	const char *key;
+
+	nvl = nvlist_create(0);
+	key = "test";
+	nvlist_add_nvlist(nvl, key, nvlist_create(0));
+
+	nvlist_free(nvl, key);
+	ATF_REQUIRE(nvlist_empty(nvl));
+
+	nvlist_destroy(nvl);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_free__single_binary);
+ATF_TEST_CASE_BODY(nvlist_free__single_binary)
+{
+	nvlist_t *nvl;
+	const char *key;
+
+	nvl = nvlist_create(0);
+	key = "test";
+	nvlist_add_binary(nvl, key, "jgjgfd", 6);
+
+	nvlist_free(nvl, key);
+	ATF_REQUIRE(nvlist_empty(nvl));
+
+	nvlist_destroy(nvl);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_free_null__single_null);
+ATF_TEST_CASE_BODY(nvlist_free_null__single_null)
+{
+	nvlist_t *nvl;
+	const char *key;
+
+	nvl = nvlist_create(0);
+	key = "test";
+	nvlist_add_null(nvl, key);
+
+	nvlist_free_null(nvl, key);
+	ATF_REQUIRE(nvlist_empty(nvl));
+
+	nvlist_destroy(nvl);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_free_bool__single_bool);
+ATF_TEST_CASE_BODY(nvlist_free_bool__single_bool)
+{
+	nvlist_t *nvl;
+	const char *key;
+
+	nvl = nvlist_create(0);
+	key = "test";
+	nvlist_add_bool(nvl, key, true);
+
+	nvlist_free_bool(nvl, key);
+	ATF_REQUIRE(nvlist_empty(nvl));
+
+	nvlist_destroy(nvl);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_free_number__single_number);
+ATF_TEST_CASE_BODY(nvlist_free_number__single_number)
+{
+	nvlist_t *nvl;
+	const char *key;
+
+	nvl = nvlist_create(0);
+	key = "test";
+	nvlist_add_number(nvl, key, 584);
+
+	nvlist_free_number(nvl, key);
+	ATF_REQUIRE(nvlist_empty(nvl));
+
+	nvlist_destroy(nvl);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_free_string__single_string);
+ATF_TEST_CASE_BODY(nvlist_free_string__single_string)
+{
+	nvlist_t *nvl;
+	const char *key;
+
+	nvl = nvlist_create(0);
+	key = "test";
+	nvlist_add_string(nvl, key, "gjkfkjd");
+
+	nvlist_free_string(nvl, key);
+	ATF_REQUIRE(nvlist_empty(nvl));
+
+	nvlist_destroy(nvl);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_free_nvlist__single_nvlist);
+ATF_TEST_CASE_BODY(nvlist_free_nvlist__single_nvlist)
+{
+	nvlist_t *nvl;
+	const char *key;
+
+	nvl = nvlist_create(0);
+	key = "test";
+	nvlist_add_nvlist(nvl, key, nvlist_create(0));
+
+	nvlist_free_nvlist(nvl, key);
+	ATF_REQUIRE(nvlist_empty(nvl));
+
+	nvlist_destroy(nvl);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_free_binary__single_binary);
+ATF_TEST_CASE_BODY(nvlist_free_binary__single_binary)
+{
+	nvlist_t *nvl;
+	const char *key;
+
+	nvl = nvlist_create(0);
+	key = "test";
+	nvlist_add_binary(nvl, key, "jgjgfd", 6);
+
+	nvlist_free_binary(nvl, key);
+	ATF_REQUIRE(nvlist_empty(nvl));
+
+	nvlist_destroy(nvl);
+}
+
 ATF_INIT_TEST_CASES(tp)
 {
 	ATF_ADD_TEST_CASE(tp, nvlist_create__is_empty);
@@ -976,6 +1168,20 @@ ATF_INIT_TEST_CASES(tp)
 	ATF_ADD_TEST_CASE(tp, nvlist_take_nvlist__other_keys_unchanged);
 	ATF_ADD_TEST_CASE(tp, nvlist_take_binary__single_remove);
 	ATF_ADD_TEST_CASE(tp, nvlist_take_binary__other_keys_unchanged);
+
+	ATF_ADD_TEST_CASE(tp, nvlist_free__single_null);
+	ATF_ADD_TEST_CASE(tp, nvlist_free__single_bool);
+	ATF_ADD_TEST_CASE(tp, nvlist_free__single_number);
+	ATF_ADD_TEST_CASE(tp, nvlist_free__single_string);
+	ATF_ADD_TEST_CASE(tp, nvlist_free__single_nvlist);
+	ATF_ADD_TEST_CASE(tp, nvlist_free__single_binary);
+
+	ATF_ADD_TEST_CASE(tp, nvlist_free_null__single_null);
+	ATF_ADD_TEST_CASE(tp, nvlist_free_bool__single_bool);
+	ATF_ADD_TEST_CASE(tp, nvlist_free_number__single_number);
+	ATF_ADD_TEST_CASE(tp, nvlist_free_string__single_string);
+	ATF_ADD_TEST_CASE(tp, nvlist_free_nvlist__single_nvlist);
+	ATF_ADD_TEST_CASE(tp, nvlist_free_binary__single_binary);
 }
 /*-
  * Copyright (c) 2014-2015 Sandvine Inc.  All rights reserved.
