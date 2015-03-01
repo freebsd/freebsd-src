@@ -31,6 +31,10 @@ __FBSDID("$FreeBSD$");
 #include <nv.h>
 
 #include <errno.h>
+#include <set>
+#include <sstream>
+#include <string>
+
 /*
  * Test that a newly created nvlist has no errors, and is empty.
  */
@@ -404,6 +408,183 @@ ATF_TEST_CASE_BODY(nvlist_clone__nested_nvlist)
 	nvlist_destroy(nvl);
 }
 
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_pack__empty_nvlist);
+ATF_TEST_CASE_BODY(nvlist_pack__empty_nvlist)
+{
+	nvlist_t *nvl, *unpacked;
+	void *packed;
+	size_t packed_size;
+
+	nvl = nvlist_create(0);
+	ATF_REQUIRE(nvl != NULL);
+
+	packed = nvlist_pack(nvl, &packed_size);
+	ATF_REQUIRE(packed != NULL);
+
+	unpacked = nvlist_unpack(packed, packed_size);
+	ATF_REQUIRE(unpacked != NULL);
+	ATF_REQUIRE(unpacked != nvl);
+	ATF_REQUIRE(nvlist_empty(unpacked));
+
+	nvlist_destroy(unpacked);
+	nvlist_destroy(nvl);
+	free(packed);
+}
+
+static void
+verify_null(const nvlist_t *nvl, int type)
+{
+
+	ATF_REQUIRE_EQ(type, NV_TYPE_NULL);
+}
+
+static void
+verify_number(const nvlist_t *nvl, const char *name, int type, uint64_t value)
+{
+
+	ATF_REQUIRE_EQ(type, NV_TYPE_NUMBER);
+	ATF_REQUIRE_EQ(nvlist_get_number(nvl, name), value);
+}
+
+static void
+verify_string(const nvlist_t *nvl, const char *name, int type,
+    const char * value)
+{
+
+	ATF_REQUIRE_EQ(type, NV_TYPE_STRING);
+	ATF_REQUIRE_EQ(strcmp(nvlist_get_string(nvl, name), value), 0);
+}
+
+static void
+verify_nvlist(const nvlist_t *nvl, const char *name, int type)
+{
+
+	ATF_REQUIRE_EQ(type, NV_TYPE_NVLIST);
+	verify_test_nvlist(nvlist_get_nvlist(nvl, name));
+}
+
+static void
+verify_binary(const nvlist_t *nvl, const char *name, int type,
+    const void * value, size_t size)
+{
+	const void *actual_value;
+	size_t actual_size;
+
+	ATF_REQUIRE_EQ(type, NV_TYPE_BINARY);
+	actual_value = nvlist_get_binary(nvl, name, &actual_size);
+	ATF_REQUIRE_EQ(size, actual_size);
+	ATF_REQUIRE_EQ(memcmp(value, actual_value, size), 0);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_pack__multiple_values);
+ATF_TEST_CASE_BODY(nvlist_pack__multiple_values)
+{
+	std::ostringstream msg;
+	std::set<std::string> keys_seen;
+	nvlist_t *nvl, *unpacked, *nvvalue;
+	const char *nullkey, *numkey, *strkey, *nvkey, *binkey, *name;
+	int numvalue;
+	const char * strvalue;
+	void *binvalue, *packed, *it;
+	size_t binsize, packed_size;
+	int type;
+
+	nvl = nvlist_create(0);
+
+	nullkey = "null";
+	nvlist_add_null(nvl, nullkey);
+
+	numkey = "number";
+	numvalue = 939853984;
+	nvlist_add_number(nvl, numkey, numvalue);
+
+	strkey = "string";
+	strvalue = "jfieutijf";
+	nvlist_add_string(nvl, strkey, strvalue);
+
+	nvkey = "nvlist";
+	nvvalue = create_test_nvlist();
+	nvlist_move_nvlist(nvl, nvkey, nvvalue);
+
+	binkey = "binary";
+	binsize = 4;
+	binvalue = malloc(binsize);
+	memset(binvalue, 'b', binsize);
+	nvlist_move_binary(nvl, binkey, binvalue, binsize);
+
+	packed = nvlist_pack(nvl, &packed_size);
+	ATF_REQUIRE(packed != NULL);
+
+	unpacked = nvlist_unpack(packed, packed_size);
+	ATF_REQUIRE(unpacked != 0);
+
+	it = NULL;
+	while ((name = nvlist_next(unpacked, &type, &it)) != NULL) {
+		/* Ensure that we see every key only once. */
+		ATF_REQUIRE_EQ(keys_seen.count(name), 0);
+
+		if (strcmp(name, nullkey) == 0)
+			verify_null(unpacked, type);
+		else if (strcmp(name, numkey) == 0)
+			verify_number(unpacked, name, type, numvalue);
+		else if (strcmp(name, strkey) == 0)
+			verify_string(unpacked, name, type, strvalue);
+		else if (strcmp(name, nvkey) == 0)
+			verify_nvlist(unpacked, name, type);
+		else if (strcmp(name, binkey) == 0)
+			verify_binary(unpacked, name, type, binvalue, binsize);
+		else {
+			msg << "Unexpected key :'" << name << "'";
+			ATF_FAIL(msg.str().c_str());
+		}
+
+		keys_seen.insert(name);
+	}
+
+	/* Ensure that we saw every key. */
+	ATF_REQUIRE_EQ(keys_seen.size(), 5);
+
+	nvlist_destroy(nvl);
+	nvlist_destroy(unpacked);
+	free(packed);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_unpack__duplicate_key);
+ATF_TEST_CASE_BODY(nvlist_unpack__duplicate_key)
+{
+	nvlist_t *nvl, *unpacked;
+	const char *key1, *key2;
+	void *packed, *keypos;
+	size_t size, keylen;
+
+	nvl = nvlist_create(0);
+
+	key1 = "key1";
+	keylen = strlen(key1);
+	nvlist_add_number(nvl, key1, 5);
+
+	key2 = "key2";
+	ATF_REQUIRE_EQ(keylen, strlen(key2));
+	nvlist_add_number(nvl, key2, 10);
+
+	packed = nvlist_pack(nvl, &size);
+
+	/*
+	 * Mangle the packed nvlist by replacing key1 with key2, creating a
+	 * packed nvlist with a duplicate key.
+	 */
+	keypos = memmem(packed, size, key1, keylen);
+	ATF_REQUIRE(keypos != NULL);
+	memcpy(keypos, key2, keylen);
+
+	unpacked = nvlist_unpack(packed, size);
+	ATF_REQUIRE(nvlist_error(unpacked) != 0);
+
+	free(packed);
+	nvlist_destroy(nvl);
+	nvlist_destroy(unpacked);
+}
+
 ATF_INIT_TEST_CASES(tp)
 {
 	ATF_ADD_TEST_CASE(tp, nvlist_create__is_empty);
@@ -417,6 +598,10 @@ ATF_INIT_TEST_CASES(tp)
 	ATF_ADD_TEST_CASE(tp, nvlist_clone__empty_nvlist);
 	ATF_ADD_TEST_CASE(tp, nvlist_clone__nonempty_nvlist);
 	ATF_ADD_TEST_CASE(tp, nvlist_clone__nested_nvlist);
+
+	ATF_ADD_TEST_CASE(tp, nvlist_pack__empty_nvlist);
+	ATF_ADD_TEST_CASE(tp, nvlist_pack__multiple_values);
+	ATF_ADD_TEST_CASE(tp, nvlist_unpack__duplicate_key);
 }
 /*-
  * Copyright (c) 2014-2015 Sandvine Inc.  All rights reserved.
