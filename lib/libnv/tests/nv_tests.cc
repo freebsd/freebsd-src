@@ -409,6 +409,22 @@ ATF_TEST_CASE_BODY(nvlist_clone__nested_nvlist)
 	nvlist_destroy(nvl);
 }
 
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_clone__error_nvlist);
+ATF_TEST_CASE_BODY(nvlist_clone__error_nvlist)
+{
+	nvlist_t *nvl, *clone;
+
+	nvl = nvlist_create(0);
+	ATF_REQUIRE(nvl != NULL);
+
+	nvlist_set_error(nvl, ENOMEM);
+
+	clone = nvlist_clone(nvl);
+	ATF_REQUIRE(clone == NULL);
+
+	nvlist_destroy(nvl);
+}
+
 ATF_TEST_CASE_WITHOUT_HEAD(nvlist_pack__empty_nvlist);
 ATF_TEST_CASE_BODY(nvlist_pack__empty_nvlist)
 {
@@ -548,6 +564,24 @@ ATF_TEST_CASE_BODY(nvlist_pack__multiple_values)
 	nvlist_destroy(nvl);
 	nvlist_destroy(unpacked);
 	free(packed);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_pack__error_nvlist);
+ATF_TEST_CASE_BODY(nvlist_pack__error_nvlist)
+{
+	nvlist_t *nvl;
+	void *packed;
+	size_t size;
+
+	nvl = nvlist_create(0);
+	ATF_REQUIRE(nvl != NULL);
+
+	nvlist_set_error(nvl, ENOMEM);
+
+	packed = nvlist_pack(nvl, &size);
+	ATF_REQUIRE(packed == NULL);
+
+	nvlist_destroy(nvl);
 }
 
 ATF_TEST_CASE_WITHOUT_HEAD(nvlist_unpack__duplicate_key);
@@ -1148,9 +1182,11 @@ ATF_INIT_TEST_CASES(tp)
 	ATF_ADD_TEST_CASE(tp, nvlist_clone__empty_nvlist);
 	ATF_ADD_TEST_CASE(tp, nvlist_clone__nonempty_nvlist);
 	ATF_ADD_TEST_CASE(tp, nvlist_clone__nested_nvlist);
+	ATF_ADD_TEST_CASE(tp, nvlist_clone__error_nvlist);
 
 	ATF_ADD_TEST_CASE(tp, nvlist_pack__empty_nvlist);
 	ATF_ADD_TEST_CASE(tp, nvlist_pack__multiple_values);
+	ATF_ADD_TEST_CASE(tp, nvlist_pack__error_nvlist);
 	ATF_ADD_TEST_CASE(tp, nvlist_unpack__duplicate_key);
 
 	ATF_ADD_TEST_CASE(tp, nvlist_move_string__single_insert);

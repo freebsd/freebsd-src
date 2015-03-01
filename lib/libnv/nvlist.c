@@ -137,6 +137,20 @@ nvlist_destroy(nvlist_t *nvl)
 	errno = serrno;
 }
 
+void
+nvlist_set_error(nvlist_t *nvl, int error)
+{
+
+	PJDLOG_ASSERT(error != 0);
+
+	/*
+	 * Check for error != 0 so that we don't do the wrong thing if somebody
+	 * tries to abuse this API when asserts are disabled.
+	 */
+	if (nvl != NULL && error != 0 && nvl->nvl_error == 0)
+		nvl->nvl_error = error;
+}
+
 int
 nvlist_error(const nvlist_t *nvl)
 {
