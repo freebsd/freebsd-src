@@ -219,7 +219,8 @@ static const float ps2[5] = {
   8.3646392822e+00, /* 0x4105d590 */
 };
 
-	static float ponef(float x)
+static __inline float
+ponef(float x)
 {
 	const float *p,*q;
 	float z,r,s;
@@ -315,7 +316,8 @@ static const float qs2[6] = {
  -4.9594988823e+00, /* 0xc09eb437 */
 };
 
-	static float qonef(float x)
+static __inline float
+qonef(float x)
 {
 	const float *p,*q;
 	float  s,r,z;

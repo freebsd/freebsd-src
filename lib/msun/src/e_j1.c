@@ -262,7 +262,8 @@ static const double ps2[5] = {
   8.36463893371618283368e+00, /* 0x4020BAB1, 0xF44E5192 */
 };
 
-	static double pone(double x)
+static __inline double
+pone(double x)
 {
 	const double *p,*q;
 	double z,r,s;
@@ -358,7 +359,8 @@ static const double qs2[6] = {
  -4.95949898822628210127e+00, /* 0xC013D686, 0xE71BE86B */
 };
 
-	static double qone(double x)
+static __inline double
+qone(double x)
 {
 	const double *p,*q;
 	double  s,r,z;
