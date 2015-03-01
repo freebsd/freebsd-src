@@ -280,6 +280,7 @@ __DEFAULT_YES_OPTIONS = \
     ED_CRYPTO \
     EE \
     EXAMPLES \
+    FILE \
     FINGER \
     FLOPPY \
     FMTREE \
