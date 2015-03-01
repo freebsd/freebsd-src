@@ -142,6 +142,10 @@ pci_iov_attach_method(device_t bus, device_t dev, nvlist_t *pf_schema,
 		error = ENOMEM;
 		goto cleanup;
 	}
+
+	error = pci_iov_validate_schema(schema);
+	if (error != 0)
+		goto cleanup;
 	iov->iov_schema = schema;
 
 	iov->iov_cdev = make_dev(&iov_cdevsw, device_get_unit(dev),
