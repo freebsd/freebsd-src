@@ -243,6 +243,22 @@ ATF_TEST_CASE_BODY(nvlist_add_nvlist__single_insert)
 	nvlist_destroy(nvl);
 }
 
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_add_nvlist__child_with_error);
+ATF_TEST_CASE_BODY(nvlist_add_nvlist__child_with_error)
+{
+	nvlist_t *nvl, *parent;
+
+	nvl = nvlist_create(0);
+	parent = nvlist_create(0);
+
+	nvlist_set_error(nvl, EBADF);
+	nvlist_add_nvlist(parent, "test", nvl);
+	ATF_REQUIRE_EQ(nvlist_error(parent), EBADF);
+
+	nvlist_destroy(nvl);
+	nvlist_destroy(parent);
+}
+
 ATF_TEST_CASE_WITHOUT_HEAD(nvlist_add_binary__single_insert);
 ATF_TEST_CASE_BODY(nvlist_add_binary__single_insert)
 {
@@ -650,6 +666,21 @@ ATF_TEST_CASE_BODY(nvlist_move_nvlist__null_child)
 	nvlist_move_nvlist(parent, "test", NULL);
 
 	ATF_REQUIRE(nvlist_error(parent) != 0);
+
+	nvlist_destroy(parent);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_move_nvlist__child_with_error);
+ATF_TEST_CASE_BODY(nvlist_move_nvlist__child_with_error)
+{
+	nvlist_t *nvl, *parent;
+
+	nvl = nvlist_create(0);
+	parent = nvlist_create(0);
+
+	nvlist_set_error(nvl, EBADF);
+	nvlist_move_nvlist(parent, "test", nvl);
+	ATF_REQUIRE_EQ(nvlist_error(parent), EBADF);
 
 	nvlist_destroy(parent);
 }
@@ -1177,6 +1208,7 @@ ATF_INIT_TEST_CASES(tp)
 	ATF_ADD_TEST_CASE(tp, nvlist_add_number__single_insert);
 	ATF_ADD_TEST_CASE(tp, nvlist_add_string__single_insert);
 	ATF_ADD_TEST_CASE(tp, nvlist_add_nvlist__single_insert);
+	ATF_ADD_TEST_CASE(tp, nvlist_add_nvlist__child_with_error);
 	ATF_ADD_TEST_CASE(tp, nvlist_add_binary__single_insert);
 
 	ATF_ADD_TEST_CASE(tp, nvlist_clone__empty_nvlist);
@@ -1192,6 +1224,7 @@ ATF_INIT_TEST_CASES(tp)
 	ATF_ADD_TEST_CASE(tp, nvlist_move_string__single_insert);
 	ATF_ADD_TEST_CASE(tp, nvlist_move_nvlist__single_insert);
 	ATF_ADD_TEST_CASE(tp, nvlist_move_nvlist__null_child);
+	ATF_ADD_TEST_CASE(tp, nvlist_move_nvlist__child_with_error);
 	ATF_ADD_TEST_CASE(tp, nvlist_move_binary__single_insert);
 
 	ATF_ADD_TEST_CASE(tp, nvlist_take_bool__single_remove);
