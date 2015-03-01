@@ -141,6 +141,7 @@ static const int locale_categories[7] = {
 static int varequal(const char *, const char *);
 static struct var *find_var(const char *, struct var ***, int *);
 static int localevar(const char *);
+static void setvareq_const(const char *s, int flags);
 
 extern char **environ;
 
@@ -183,7 +184,7 @@ initvar(void)
 			setvareq(*envp, VEXPORT|VTEXTFIXED);
 		}
 	}
-	setvareq("OPTIND=1", VTEXTFIXED);
+	setvareq_const("OPTIND=1", 0);
 }
 
 /*
@@ -388,6 +389,12 @@ setvareq(char *s, int flags)
 	INTON;
 }
 
+
+static void
+setvareq_const(const char *s, int flags)
+{
+	setvareq(__DECONST(char *, s), flags | VTEXTFIXED);
+}
 
 
 /*
