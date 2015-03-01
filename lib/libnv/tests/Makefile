@@ -2,7 +2,9 @@
 
 TESTSDIR=	${TESTSBASE}/lib/libnv
 
-ATF_TESTS_CXX=	nv_tests
+ATF_TESTS_CXX=	\
+	dnv_tests \
+	nv_tests \
 
 TAP_TESTS_C+=	nvlist_add_test
 TAP_TESTS_C+=	nvlist_exists_test
