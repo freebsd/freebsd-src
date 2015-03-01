@@ -34,10 +34,12 @@
 
 #include <sys/cdefs.h>
 
+#ifndef _KERNEL
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#endif
 
 #ifndef	_NVLIST_T_DECLARED
 #define	_NVLIST_T_DECLARED
@@ -63,6 +65,10 @@ typedef struct nvlist nvlist_t;
  */
 #define	NV_FLAG_IGNORE_CASE		0x01
 
+#if defined(_KERNEL) && defined(MALLOC_DECLARE)
+MALLOC_DECLARE(M_NVLIST);
+#endif
+
 __BEGIN_DECLS
 
 nvlist_t	*nvlist_create(int flags);
@@ -73,8 +79,10 @@ void		 nvlist_set_error(nvlist_t *nvl, int error);
 
 nvlist_t *nvlist_clone(const nvlist_t *nvl);
 
+#ifndef _KERNEL
 void nvlist_dump(const nvlist_t *nvl, int fd);
 void nvlist_fdump(const nvlist_t *nvl, FILE *fp);
+#endif
 
 size_t		 nvlist_size(const nvlist_t *nvl);
 void		*nvlist_pack(const nvlist_t *nvl, size_t *sizep);
@@ -101,7 +109,9 @@ bool nvlist_exists_bool(const nvlist_t *nvl, const char *name);
 bool nvlist_exists_number(const nvlist_t *nvl, const char *name);
 bool nvlist_exists_string(const nvlist_t *nvl, const char *name);
 bool nvlist_exists_nvlist(const nvlist_t *nvl, const char *name);
+#ifndef _KERNEL
 bool nvlist_exists_descriptor(const nvlist_t *nvl, const char *name);
+#endif
 bool nvlist_exists_binary(const nvlist_t *nvl, const char *name);
 
 /*
@@ -115,9 +125,13 @@ void nvlist_add_bool(nvlist_t *nvl, const char *name, bool value);
 void nvlist_add_number(nvlist_t *nvl, const char *name, uint64_t value);
 void nvlist_add_string(nvlist_t *nvl, const char *name, const char *value);
 void nvlist_add_stringf(nvlist_t *nvl, const char *name, const char *valuefmt, ...) __printflike(3, 4);
+#ifdef _VA_LIST_DECLARED
 void nvlist_add_stringv(nvlist_t *nvl, const char *name, const char *valuefmt, va_list valueap) __printflike(3, 0);
+#endif
 void nvlist_add_nvlist(nvlist_t *nvl, const char *name, const nvlist_t *value);
+#ifndef _KERNEL
 void nvlist_add_descriptor(nvlist_t *nvl, const char *name, int value);
+#endif
 void nvlist_add_binary(nvlist_t *nvl, const char *name, const void *value, size_t size);
 
 /*
@@ -127,7 +141,9 @@ void nvlist_add_binary(nvlist_t *nvl, const char *name, const void *value, size_
 
 void nvlist_move_string(nvlist_t *nvl, const char *name, char *value);
 void nvlist_move_nvlist(nvlist_t *nvl, const char *name, nvlist_t *value);
+#ifndef _KERNEL
 void nvlist_move_descriptor(nvlist_t *nvl, const char *name, int value);
+#endif
 void nvlist_move_binary(nvlist_t *nvl, const char *name, void *value, size_t size);
 
 /*
@@ -140,7 +156,9 @@ bool		 nvlist_get_bool(const nvlist_t *nvl, const char *name);
 uint64_t	 nvlist_get_number(const nvlist_t *nvl, const char *name);
 const char	*nvlist_get_string(const nvlist_t *nvl, const char *name);
 const nvlist_t	*nvlist_get_nvlist(const nvlist_t *nvl, const char *name);
+#ifndef _KERNEL
 int		 nvlist_get_descriptor(const nvlist_t *nvl, const char *name);
+#endif
 const void	*nvlist_get_binary(const nvlist_t *nvl, const char *name, size_t *sizep);
 
 /*
@@ -153,7 +171,9 @@ bool		 nvlist_take_bool(nvlist_t *nvl, const char *name);
 uint64_t	 nvlist_take_number(nvlist_t *nvl, const char *name);
 char		*nvlist_take_string(nvlist_t *nvl, const char *name);
 nvlist_t	*nvlist_take_nvlist(nvlist_t *nvl, const char *name);
+#ifndef _KERNEL
 int		 nvlist_take_descriptor(nvlist_t *nvl, const char *name);
+#endif
 void		*nvlist_take_binary(nvlist_t *nvl, const char *name, size_t *sizep);
 
 /*
@@ -169,14 +189,21 @@ void nvlist_free_bool(nvlist_t *nvl, const char *name);
 void nvlist_free_number(nvlist_t *nvl, const char *name);
 void nvlist_free_string(nvlist_t *nvl, const char *name);
 void nvlist_free_nvlist(nvlist_t *nvl, const char *name);
+#ifndef _KERNEL
 void nvlist_free_descriptor(nvlist_t *nvl, const char *name);
+#endif
 void nvlist_free_binary(nvlist_t *nvl, const char *name);
 
 /*
  * Below are the same functions, but which operate on format strings and
  * variable argument lists.
+ *
+ * Functions that are not inserting a new pair into the nvlist cannot handle
+ * a failure to allocate the memory to hold the new name.  Therefore these
+ * functions are not provided in the kernel.
  */
 
+#ifndef _KERNEL
 bool nvlist_existsf(const nvlist_t *nvl, const char *namefmt, ...) __printflike(2, 3);
 bool nvlist_existsf_type(const nvlist_t *nvl, int type, const char *namefmt, ...) __printflike(3, 4);
 
@@ -198,33 +225,47 @@ bool nvlist_existsv_string(const nvlist_t *nvl, const char *namefmt, va_list nam
 bool nvlist_existsv_nvlist(const nvlist_t *nvl, const char *namefmt, va_list nameap) __printflike(2, 0);
 bool nvlist_existsv_descriptor(const nvlist_t *nvl, const char *namefmt, va_list nameap) __printflike(2, 0);
 bool nvlist_existsv_binary(const nvlist_t *nvl, const char *namefmt, va_list nameap) __printflike(2, 0);
+#endif
 
 void nvlist_addf_null(nvlist_t *nvl, const char *namefmt, ...) __printflike(2, 3);
 void nvlist_addf_bool(nvlist_t *nvl, bool value, const char *namefmt, ...) __printflike(3, 4);
 void nvlist_addf_number(nvlist_t *nvl, uint64_t value, const char *namefmt, ...) __printflike(3, 4);
 void nvlist_addf_string(nvlist_t *nvl, const char *value, const char *namefmt, ...) __printflike(3, 4);
 void nvlist_addf_nvlist(nvlist_t *nvl, const nvlist_t *value, const char *namefmt, ...) __printflike(3, 4);
+#ifndef _KERNEL
 void nvlist_addf_descriptor(nvlist_t *nvl, int value, const char *namefmt, ...) __printflike(3, 4);
+#endif
 void nvlist_addf_binary(nvlist_t *nvl, const void *value, size_t size, const char *namefmt, ...) __printflike(4, 5);
 
+#if !defined(_KERNEL) || defined(_VA_LIST_DECLARED)
 void nvlist_addv_null(nvlist_t *nvl, const char *namefmt, va_list nameap) __printflike(2, 0);
 void nvlist_addv_bool(nvlist_t *nvl, bool value, const char *namefmt, va_list nameap) __printflike(3, 0);
 void nvlist_addv_number(nvlist_t *nvl, uint64_t value, const char *namefmt, va_list nameap) __printflike(3, 0);
 void nvlist_addv_string(nvlist_t *nvl, const char *value, const char *namefmt, va_list nameap) __printflike(3, 0);
 void nvlist_addv_nvlist(nvlist_t *nvl, const nvlist_t *value, const char *namefmt, va_list nameap) __printflike(3, 0);
+#ifndef _KERNEL
 void nvlist_addv_descriptor(nvlist_t *nvl, int value, const char *namefmt, va_list nameap) __printflike(3, 0);
+#endif
 void nvlist_addv_binary(nvlist_t *nvl, const void *value, size_t size, const char *namefmt, va_list nameap) __printflike(4, 0);
+#endif
 
 void nvlist_movef_string(nvlist_t *nvl, char *value, const char *namefmt, ...) __printflike(3, 4);
 void nvlist_movef_nvlist(nvlist_t *nvl, nvlist_t *value, const char *namefmt, ...) __printflike(3, 4);
+#ifndef _KERNEL
 void nvlist_movef_descriptor(nvlist_t *nvl, int value, const char *namefmt, ...) __printflike(3, 4);
+#endif
 void nvlist_movef_binary(nvlist_t *nvl, void *value, size_t size, const char *namefmt, ...) __printflike(4, 5);
 
+#if !defined(_KERNEL) || defined(_VA_LIST_DECLARED)
 void nvlist_movev_string(nvlist_t *nvl, char *value, const char *namefmt, va_list nameap) __printflike(3, 0);
 void nvlist_movev_nvlist(nvlist_t *nvl, nvlist_t *value, const char *namefmt, va_list nameap) __printflike(3, 0);
+#ifndef _KERNEL
 void nvlist_movev_descriptor(nvlist_t *nvl, int value, const char *namefmt, va_list nameap) __printflike(3, 0);
+#endif
 void nvlist_movev_binary(nvlist_t *nvl, void *value, size_t size, const char *namefmt, va_list nameap) __printflike(4, 0);
+#endif
 
+#ifndef _KERNEL
 bool		 nvlist_getf_bool(const nvlist_t *nvl, const char *namefmt, ...) __printflike(2, 3);
 uint64_t	 nvlist_getf_number(const nvlist_t *nvl, const char *namefmt, ...) __printflike(2, 3);
 const char	*nvlist_getf_string(const nvlist_t *nvl, const char *namefmt, ...) __printflike(2, 3);
@@ -274,6 +315,7 @@ void nvlist_freev_string(nvlist_t *nvl, const char *namefmt, va_list nameap) __p
 void nvlist_freev_nvlist(nvlist_t *nvl, const char *namefmt, va_list nameap) __printflike(2, 0);
 void nvlist_freev_descriptor(nvlist_t *nvl, const char *namefmt, va_list nameap) __printflike(2, 0);
 void nvlist_freev_binary(nvlist_t *nvl, const char *namefmt, va_list nameap) __printflike(2, 0);
+#endif /* _KERNEL */
 
 __END_DECLS
 

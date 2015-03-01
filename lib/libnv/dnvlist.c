@@ -30,10 +30,22 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#ifdef _KERNEL
+
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/systm.h>
+#include <sys/malloc.h>
+
+#include <machine/stdarg.h>
+
+#else
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#endif
 
 #include "nv.h"
 #include "nv_impl.h"
@@ -55,7 +67,9 @@ DNVLIST_GET(bool, bool)
 DNVLIST_GET(uint64_t, number)
 DNVLIST_GET(const char *, string)
 DNVLIST_GET(const nvlist_t *, nvlist)
+#ifndef _KERNEL
 DNVLIST_GET(int, descriptor)
+#endif
 
 #undef	DNVLIST_GET
 
@@ -75,6 +89,7 @@ dnvlist_get_binary(const nvlist_t *nvl, const char *name, size_t *sizep,
 	return (value);
 }
 
+#ifndef _KERNEL
 #define	DNVLIST_GETF(ftype, type)					\
 ftype									\
 dnvlist_getf_##type(const nvlist_t *nvl, ftype defval,			\
@@ -144,10 +159,10 @@ dnvlist_getv_binary(const nvlist_t *nvl, size_t *sizep, const void *defval,
 	char *name;
 	const void *value;
 
-	vasprintf(&name, namefmt, nameap);
+	nv_vasprintf(&name, namefmt, nameap);
 	if (name != NULL) {
 		value = dnvlist_get_binary(nvl, name, sizep, defval, defsize);
-		free(name);
+		nv_free(name);
 	} else {
 		if (sizep != NULL)
 			*sizep = defsize;
@@ -155,6 +170,7 @@ dnvlist_getv_binary(const nvlist_t *nvl, size_t *sizep, const void *defval,
 	}
 	return (value);
 }
+#endif
 
 #define	DNVLIST_TAKE(ftype, type)					\
 ftype									\
@@ -171,7 +187,9 @@ DNVLIST_TAKE(bool, bool)
 DNVLIST_TAKE(uint64_t, number)
 DNVLIST_TAKE(char *, string)
 DNVLIST_TAKE(nvlist_t *, nvlist)
+#ifndef _KERNEL
 DNVLIST_TAKE(int, descriptor)
+#endif
 
 #undef	DNVLIST_TAKE
 
@@ -191,6 +209,7 @@ dnvlist_take_binary(nvlist_t *nvl, const char *name, size_t *sizep,
 	return (value);
 }
 
+#ifndef _KERNEL
 #define	DNVLIST_TAKEF(ftype, type)					\
 ftype									\
 dnvlist_takef_##type(nvlist_t *nvl, ftype defval,			\
@@ -260,10 +279,10 @@ dnvlist_takev_binary(nvlist_t *nvl, size_t *sizep, void *defval,
 	char *name;
 	void *value;
 
-	vasprintf(&name, namefmt, nameap);
+	nv_vasprintf(&name, namefmt, nameap);
 	if (name != NULL) {
 		value = dnvlist_take_binary(nvl, name, sizep, defval, defsize);
-		free(name);
+		nv_free(name);
 	} else {
 		if (sizep != NULL)
 			*sizep = defsize;
@@ -272,3 +291,4 @@ dnvlist_takev_binary(nvlist_t *nvl, size_t *sizep, void *defval,
 
 	return (value);
 }
+#endif
