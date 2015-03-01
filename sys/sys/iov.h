@@ -34,6 +34,11 @@
 #define	PF_CONFIG_NAME		"PF"
 #define	VF_SCHEMA_NAME		"VF"
 
+#define	VF_PREFIX		"VF-"
+#define	VF_PREFIX_LEN		3
+#define	VF_NUM_LEN		5	/* The maximum VF num is 65535. */
+#define	VF_MAX_NAME		(VF_PREFIX_LEN + VF_NUM_LEN + 1)
+
 #define	DRIVER_CONFIG_NAME	"DRIVER"
 #define	IOV_CONFIG_NAME		"IOV"
 
