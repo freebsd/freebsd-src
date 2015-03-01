@@ -383,10 +383,10 @@ dmar_get_ctx(struct dmar_unit *dmar, device_t dev, uint16_t rid, bool id_mapped,
 			LIST_INSERT_HEAD(&dmar->contexts, ctx, link);
 			ctx_id_entry_init(ctx, ctxp);
 			device_printf(dev,
-			    "dmar%d pci%d:%d:%d:%d domain %d mgaw %d "
+			    "dmar%d pci%d:%d:%d:%d rid %x domain %d mgaw %d "
 			    "agaw %d %s-mapped\n",
 			    dmar->unit, dmar->segment, bus, slot,
-			    func, ctx->domain, ctx->mgaw, ctx->agaw,
+			    func, rid, ctx->domain, ctx->mgaw, ctx->agaw,
 			    id_mapped ? "id" : "re");
 		} else {
 			dmar_ctx_dtr(ctx1, true, true);
