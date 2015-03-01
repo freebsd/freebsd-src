@@ -63,6 +63,8 @@ typedef struct nvlist nvlist_t;
  */
 #define	NV_FLAG_IGNORE_CASE		0x01
 
+__BEGIN_DECLS
+
 nvlist_t	*nvlist_create(int flags);
 void		 nvlist_destroy(nvlist_t *nvl);
 int		 nvlist_error(const nvlist_t *nvl);
@@ -271,5 +273,7 @@ void nvlist_freev_string(nvlist_t *nvl, const char *namefmt, va_list nameap) __p
 void nvlist_freev_nvlist(nvlist_t *nvl, const char *namefmt, va_list nameap) __printflike(2, 0);
 void nvlist_freev_descriptor(nvlist_t *nvl, const char *namefmt, va_list nameap) __printflike(2, 0);
 void nvlist_freev_binary(nvlist_t *nvl, const char *namefmt, va_list nameap) __printflike(2, 0);
+
+__END_DECLS
 
 #endif	/* !_NV_H_ */
