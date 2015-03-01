@@ -68,6 +68,10 @@
 #define PCI_RID2SLOT(rid) (((rid) >> PCI_RID_SLOT_SHIFT) & PCI_SLOTMAX)
 #define PCI_RID2FUNC(rid) (((rid) >> PCI_RID_FUNC_SHIFT) & PCI_FUNCMAX)
 
+#define PCIE_ARI_RID2SLOT(rid) (0)
+#define PCIE_ARI_RID2FUNC(rid) \
+    (((rid) >> PCI_RID_FUNC_SHIFT) & PCIE_ARI_FUNCMAX)
+
 #define PCIE_ARI_SLOT(func) (((func) >> PCI_RID_SLOT_SHIFT) & PCI_SLOTMAX)
 #define PCIE_ARI_FUNC(func) (((func) >> PCI_RID_FUNC_SHIFT) & PCI_FUNCMAX)
 
