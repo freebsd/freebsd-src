@@ -188,8 +188,6 @@ void print_kernel_section_addr(void);
 void print_kenv(void);
 u_int booke_init(uint32_t, uint32_t);
 
-extern int elf32_nxstack;
-
 static void
 cpu_booke_startup(void *dummy)
 {
