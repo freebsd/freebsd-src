@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2014-2015 SRI International
+ * Copyright (c) 2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -31,7 +32,11 @@
 #ifndef __SANDBOX_ELF_H__
 #define __SANDBOX_ELF_H__
 
+/* Flags to loadelf64(). */
+#define	SANDBOX_LOADELF_DATA	0x00000001
+#define	SANDBOX_LOADELF_CODE	0x00000002
+
 extern ssize_t
-loadelf64(int fd, void *location, size_t maxsize);
+sandbox_loadelf64(int fd, void *location, size_t maxsize, u_int flags);
 
 #endif /* __SANDBOX_ELF_H__ */

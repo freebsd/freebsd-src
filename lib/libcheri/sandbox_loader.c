@@ -98,7 +98,8 @@ sandbox_class_load(struct sandbox_class *sbcp)
 		warn("%s: mmap region", __func__);
 		goto error;
 	}
-	if ((max_prog_offset = loadelf64(sbcp->sbc_fd, base, length)) == -1) {
+	if ((max_prog_offset = sandbox_loadelf64(sbcp->sbc_fd, base, length,
+	    SANDBOX_LOADELF_CODE)) == -1) {
 		saved_errno = errno;
 		goto error;
 	}
@@ -239,7 +240,8 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 * Map and (eventually) link the program.  It may overlap guard pages,
 	 * etc so lower ones will be reconfigured manually.
 	 */
-	if ((max_prog_offset = loadelf64(sbcp->sbc_fd, base, length)) == -1) {
+	if ((max_prog_offset = sandbox_loadelf64(sbcp->sbc_fd, base, length,
+	    SANDBOX_LOADELF_DATA)) == -1) {
 		saved_errno = errno;
 		goto error;
 	}

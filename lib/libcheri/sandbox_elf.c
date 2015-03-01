@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2014-2015 SRI International
+ * Copyright (c) 2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -44,7 +45,7 @@
 #include "sandbox_elf.h"
 
 ssize_t
-loadelf64(int fd, void *location, size_t maxsize)
+sandbox_loadelf64(int fd, void *location, size_t maxsize, u_int flags)
 {
 	int i, prot;
 	char *addr, *taddr;
@@ -107,6 +108,26 @@ loadelf64(int fd, void *location, size_t maxsize)
 			printf("skipping program segment %d\n", i+1);
 #endif
 			continue;
+		}
+
+		/*
+		 * Consider something 'data' if PF_X is unset; otherwise,
+		 * consider it code.  Either way, load it only if requested by
+		 * a suitable flag.
+		 */
+		if (phdr.p_flags & PF_X) {
+#ifdef NOTYET
+			/*
+			 * XXXRW: Our current linker script will sometimes
+			 * place data and code in the same page.  For now,
+			 * map code into object instances.
+			 */
+			if (!(flags & SANDBOX_LOADELF_CODE))
+				continue;
+#endif
+		} else {
+			if (!(flags & SANDBOX_LOADELF_DATA))
+				continue;
 		}
 		prot = (
 		    (phdr.p_flags & PF_R ? PROT_READ : 0) |
