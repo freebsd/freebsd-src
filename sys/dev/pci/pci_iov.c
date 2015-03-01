@@ -143,7 +143,7 @@ pci_iov_detach_method(device_t bus, device_t dev)
 		return (0);
 	}
 
-	if (iov->iov_num_vfs != 0) {
+	if (iov->iov_num_vfs != 0 || iov->iov_flags & IOV_BUSY) {
 		mtx_unlock(&Giant);
 		return (EBUSY);
 	}
@@ -405,10 +405,11 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 	bus = device_get_parent(dev);
 	iov_inited = 0;
 
-	if (iov->iov_num_vfs != 0) {
+	if ((iov->iov_flags & IOV_BUSY) || iov->iov_num_vfs != 0) {
 		mtx_unlock(&Giant);
 		return (EBUSY);
 	}
+	iov->iov_flags |= IOV_BUSY;
 
 	total_vfs = IOV_READ(dinfo, PCIR_SRIOV_TOTAL_VFS, 2);
 
@@ -498,9 +499,112 @@ out:
 		iov->iov_flags &= ~IOV_RMAN_INITED;
 	}
 	iov->iov_num_vfs = 0;
+	iov->iov_flags &= ~IOV_BUSY;
 	mtx_unlock(&Giant);
 	return (error);
 }
+
+/* Return true if child is a VF of the given PF. */
+static int
+pci_iov_is_child_vf(struct pcicfg_iov *pf, device_t child)
+{
+	struct pci_devinfo *vfinfo;
+
+	vfinfo = device_get_ivars(child);
+
+	if (!(vfinfo->cfg.flags & PCICFG_VF))
+		return (0);
+
+	return (pf == vfinfo->cfg.iov);
+}
+
+static int
+pci_iov_delete(struct cdev *cdev)
+{
+	device_t bus, dev, vf, *devlist;
+	struct pci_devinfo *dinfo;
+	struct pcicfg_iov *iov;
+	int i, error, devcount;
+	uint32_t iov_ctl;
+
+	mtx_lock(&Giant);
+	dinfo = cdev->si_drv1;
+	iov = dinfo->cfg.iov;
+	dev = dinfo->cfg.dev;
+	bus = device_get_parent(dev);
+	devlist = NULL;
+
+	if (iov->iov_flags & IOV_BUSY) {
+		mtx_unlock(&Giant);
+		return (EBUSY);
+	}
+
+	if (iov->iov_num_vfs == 0) {
+		mtx_unlock(&Giant);
+		return (ECHILD);
+	}
+
+	iov->iov_flags |= IOV_BUSY;
+
+	error = device_get_children(bus, &devlist, &devcount);
+
+	if (error != 0)
+		goto out;
+
+	for (i = 0; i < devcount; i++) {
+		vf = devlist[i];
+
+		if (!pci_iov_is_child_vf(iov, vf))
+			continue;
+
+		error = device_detach(vf);
+		if (error != 0) {
+			device_printf(dev,
+			   "Could not disable SR-IOV: failed to detach VF %s\n",
+			    device_get_nameunit(vf));
+			goto out;
+		}
+	}
+
+	for (i = 0; i < devcount; i++) {
+		vf = devlist[i];
+
+		if (pci_iov_is_child_vf(iov, vf))
+			pci_delete_child(bus, vf);
+	}
+	PCI_UNINIT_IOV(dev);
+
+	iov_ctl = IOV_READ(dinfo, PCIR_SRIOV_CTL, 2);
+	iov_ctl &= ~(PCIM_SRIOV_VF_EN | PCIM_SRIOV_VF_MSE);
+	IOV_WRITE(dinfo, PCIR_SRIOV_CTL, iov_ctl, 2);
+	IOV_WRITE(dinfo, PCIR_SRIOV_NUM_VFS, 0, 2);
+
+	iov->iov_num_vfs = 0;
+
+	for (i = 0; i <= PCIR_MAX_BAR_0; i++) {
+		if (iov->iov_bar[i].res != NULL) {
+			pci_release_resource(bus, dev, SYS_RES_MEMORY,
+			    iov->iov_pos + PCIR_SRIOV_BAR(i),
+			    iov->iov_bar[i].res);
+			pci_delete_resource(bus, dev, SYS_RES_MEMORY,
+			    iov->iov_pos + PCIR_SRIOV_BAR(i));
+			iov->iov_bar[i].res = NULL;
+		}
+	}
+
+	if (iov->iov_flags & IOV_RMAN_INITED) {
+		rman_fini(&iov->rman);
+		iov->iov_flags &= ~IOV_RMAN_INITED;
+	}
+
+	error = 0;
+out:
+	free(devlist, M_TEMP);
+	iov->iov_flags &= ~IOV_BUSY;
+	mtx_unlock(&Giant);
+	return (error);
+}
+
 
 static int
 pci_iov_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
@@ -510,6 +614,8 @@ pci_iov_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	switch (cmd) {
 	case IOV_CONFIG:
 		return (pci_iov_config(dev, (struct pci_iov_arg *)data));
+	case IOV_DELETE:
+		return (pci_iov_delete(dev));
 	default:
 		return (EINVAL);
 	}
