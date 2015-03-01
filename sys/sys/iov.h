@@ -38,6 +38,7 @@ struct pci_iov_arg
 };
 
 #define	IOV_CONFIG	_IOWR('p', 10, struct pci_iov_arg)
+#define	IOV_DELETE	_IO('p', 11)
 
 #endif
 
