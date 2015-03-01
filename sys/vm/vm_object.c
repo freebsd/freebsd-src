@@ -196,8 +196,7 @@ vm_object_zinit(void *mem, int size, int flags)
 	vm_object_t object;
 
 	object = (vm_object_t)mem;
-	bzero(&object->lock, sizeof(object->lock));
-	rw_init_flags(&object->lock, "vm object", RW_DUPOK);
+	rw_init_flags(&object->lock, "vm object", RW_DUPOK | RW_NEW);
 
 	/* These are true for any object that has been freed */
 	object->rtree.rt_root = 0;
