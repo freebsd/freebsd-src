@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <nv.h>
 
 #include <errno.h>
+#include <limits>
 #include <set>
 #include <sstream>
 #include <string>
@@ -662,6 +663,286 @@ ATF_TEST_CASE_BODY(nvlist_move_binary__single_insert)
 	nvlist_destroy(nvl);
 }
 
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_take_bool__single_remove);
+ATF_TEST_CASE_BODY(nvlist_take_bool__single_remove)
+{
+	nvlist_t *nvl;
+	const char *testkey;
+	bool testval;
+
+	nvl = nvlist_create(0);
+	ATF_REQUIRE(nvl != NULL);
+
+	testkey = "boolkey";
+	testval = false;
+	nvlist_add_bool(nvl, testkey, testval);
+
+	ATF_REQUIRE_EQ(nvlist_take_bool(nvl, testkey), testval);
+	ATF_REQUIRE(nvlist_empty(nvl));
+
+	nvlist_destroy(nvl);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_take_bool__other_keys_unchanged);
+ATF_TEST_CASE_BODY(nvlist_take_bool__other_keys_unchanged)
+{
+	nvlist_t *nvl;
+	const char *testkey, *otherkey1, *otherkey2;
+	bool testval, otherval1;
+	nvlist_t *otherval2;
+
+	nvl = nvlist_create(0);
+	ATF_REQUIRE(nvl != NULL);
+
+	testkey = "boolkey";
+	testval = true;
+	nvlist_add_bool(nvl, testkey, testval);
+
+	otherkey1 = "key1";
+	otherval1 = false;
+	nvlist_add_bool(nvl, otherkey1, otherval1);
+
+	otherkey2 = "key2";
+	otherval2 = create_test_nvlist();
+	nvlist_move_nvlist(nvl, otherkey2, otherval2);
+
+	ATF_REQUIRE_EQ(nvlist_take_bool(nvl, testkey), testval);
+
+	ATF_REQUIRE(nvlist_exists_bool(nvl, otherkey1));
+	ATF_REQUIRE_EQ(nvlist_get_bool(nvl, otherkey1), otherval1);
+
+	ATF_REQUIRE(nvlist_exists_nvlist(nvl, otherkey2));
+	verify_test_nvlist(nvlist_get_nvlist(nvl, otherkey2));
+
+	nvlist_destroy(nvl);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_take_number__single_remove);
+ATF_TEST_CASE_BODY(nvlist_take_number__single_remove)
+{
+	nvlist_t *nvl;
+	const char *testkey;
+	uint64_t testval;
+
+	nvl = nvlist_create(0);
+	ATF_REQUIRE(nvl != NULL);
+
+	testkey = "numkey";
+	testval = std::numeric_limits<uint64_t>::max();
+	nvlist_add_number(nvl, testkey, testval);
+
+	ATF_REQUIRE_EQ(nvlist_take_number(nvl, testkey), testval);
+	ATF_REQUIRE(nvlist_empty(nvl));
+
+	nvlist_destroy(nvl);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_take_number__other_keys_unchanged);
+ATF_TEST_CASE_BODY(nvlist_take_number__other_keys_unchanged)
+{
+	nvlist_t *nvl;
+	const char *testkey, *otherkey1, *otherkey2;
+	uint64_t testval, otherval1;
+	const char *otherval2;
+
+	nvl = nvlist_create(0);
+	ATF_REQUIRE(nvl != NULL);
+
+	otherkey1 = "key1";
+	otherval1 = 5;
+	nvlist_add_number(nvl, otherkey1, otherval1);
+
+	testkey = "numkey";
+	testval = 1654;
+	nvlist_add_number(nvl, testkey, testval);
+
+	otherkey2 = "key2";
+	otherval2 = "string";
+	nvlist_add_string(nvl, otherkey2, otherval2);
+
+	ATF_REQUIRE_EQ(nvlist_take_number(nvl, testkey), testval);
+
+	ATF_REQUIRE(nvlist_exists_number(nvl, otherkey1));
+	ATF_REQUIRE_EQ(nvlist_get_number(nvl, otherkey1), otherval1);
+
+	ATF_REQUIRE(nvlist_exists_string(nvl, otherkey2));
+	ATF_REQUIRE_EQ(strcmp(nvlist_get_string(nvl, otherkey2), otherval2), 0);
+
+	nvlist_destroy(nvl);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_take_string__single_remove);
+ATF_TEST_CASE_BODY(nvlist_take_string__single_remove)
+{
+	nvlist_t *nvl;
+	const char *testkey;
+	const char *testval;
+
+	nvl = nvlist_create(0);
+	ATF_REQUIRE(nvl != NULL);
+
+	testkey = "numkey";
+	testval = "nvlist";
+	nvlist_add_string(nvl, testkey, testval);
+
+	ATF_REQUIRE_EQ(strcmp(nvlist_take_string(nvl, testkey), testval), 0);
+	ATF_REQUIRE(nvlist_empty(nvl));
+
+	nvlist_destroy(nvl);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_take_string__other_keys_unchanged);
+ATF_TEST_CASE_BODY(nvlist_take_string__other_keys_unchanged)
+{
+	nvlist_t *nvl;
+	const char *testkey, *otherkey1, *otherkey2;
+	const char *testval, *otherval1;
+	bool otherval2;
+
+	nvl = nvlist_create(0);
+	ATF_REQUIRE(nvl != NULL);
+
+	otherkey1 = "key1";
+	otherval1 = "fjdifjdk";
+	nvlist_add_string(nvl, otherkey1, otherval1);
+
+	otherkey2 = "key2";
+	otherval2 = true;
+	nvlist_add_bool(nvl, otherkey2, otherval2);
+
+	testkey = "strkey";
+	testval = "1654";
+	nvlist_add_string(nvl, testkey, testval);
+
+	ATF_REQUIRE_EQ(strcmp(nvlist_take_string(nvl, testkey), testval), 0);
+
+	ATF_REQUIRE(nvlist_exists_string(nvl, otherkey1));
+	ATF_REQUIRE_EQ(strcmp(nvlist_get_string(nvl, otherkey1), otherval1), 0);
+
+	ATF_REQUIRE(nvlist_exists_bool(nvl, otherkey2));
+	ATF_REQUIRE_EQ(nvlist_get_bool(nvl, otherkey2), otherval2);
+
+	nvlist_destroy(nvl);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_take_nvlist__single_remove);
+ATF_TEST_CASE_BODY(nvlist_take_nvlist__single_remove)
+{
+	nvlist_t *nvl;
+	const char *testkey;
+	nvlist_t *testval;
+
+	nvl = nvlist_create(0);
+	ATF_REQUIRE(nvl != NULL);
+
+	testkey = "numkey";
+	testval = create_test_nvlist();
+	nvlist_move_nvlist(nvl, testkey, testval);
+
+	verify_test_nvlist(nvlist_take_nvlist(nvl, testkey));
+	ATF_REQUIRE(nvlist_empty(nvl));
+
+	nvlist_destroy(nvl);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_take_nvlist__other_keys_unchanged);
+ATF_TEST_CASE_BODY(nvlist_take_nvlist__other_keys_unchanged)
+{
+	nvlist_t *nvl;
+	const char *testkey, *otherkey1, *otherkey2;
+	nvlist_t *testval, *otherval1;
+
+	nvl = nvlist_create(0);
+	ATF_REQUIRE(nvl != NULL);
+
+	testkey = "strkey";
+	testval = create_test_nvlist();
+	nvlist_move_nvlist(nvl, testkey, testval);
+
+	otherkey1 = "key1";
+	otherval1 = nvlist_create(0);
+	nvlist_move_nvlist(nvl, otherkey1, otherval1);
+
+	otherkey2 = "key2";
+	nvlist_add_null(nvl, otherkey2);
+
+	verify_test_nvlist(nvlist_take_nvlist(nvl, testkey));
+
+	ATF_REQUIRE(nvlist_exists_nvlist(nvl, otherkey1));
+	ATF_REQUIRE(nvlist_empty(nvlist_get_nvlist(nvl, otherkey1)));
+
+	ATF_REQUIRE(nvlist_exists_null(nvl, otherkey2));
+
+	nvlist_destroy(nvl);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_take_binary__single_remove);
+ATF_TEST_CASE_BODY(nvlist_take_binary__single_remove)
+{
+	nvlist_t *nvl;
+	const char *testkey;
+	void *testval;
+	const void *actual_val;
+	size_t testsize, actual_size;
+
+	nvl = nvlist_create(0);
+	ATF_REQUIRE(nvl != NULL);
+
+	testkey = "numkey";
+	testsize = 457;
+	testval = malloc(testsize);
+	memset(testval, '5', testsize);
+	nvlist_move_binary(nvl, testkey, testval, testsize);
+
+	actual_val = nvlist_take_binary(nvl, testkey, &actual_size);
+	ATF_REQUIRE_EQ(testsize, actual_size);
+	ATF_REQUIRE_EQ(memcmp(actual_val, testval, testsize), 0);
+	ATF_REQUIRE(nvlist_empty(nvl));
+
+	nvlist_destroy(nvl);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_take_binary__other_keys_unchanged);
+ATF_TEST_CASE_BODY(nvlist_take_binary__other_keys_unchanged)
+{
+	nvlist_t *nvl;
+	const char *testkey, *otherkey1, *otherkey2;
+	const void *actual_value;
+	char testval[] = "gjiertj";
+	char otherval1[] = "fdreg";
+	size_t testsize, othersize, actual_size;
+	bool otherval2;
+
+	nvl = nvlist_create(0);
+	ATF_REQUIRE(nvl != NULL);
+
+	otherkey1 = "key1";
+	othersize = sizeof(otherval1);
+	nvlist_add_binary(nvl, otherkey1, otherval1, othersize);
+
+	otherkey2 = "key2";
+	otherval2 = true;
+	nvlist_add_bool(nvl, otherkey2, otherval2);
+
+	testkey = "strkey";
+	testsize = sizeof(testval);
+	nvlist_add_binary(nvl, testkey, testval, testsize);
+
+	actual_value = nvlist_take_binary(nvl, testkey, &actual_size);
+	ATF_REQUIRE_EQ(testsize, actual_size);
+	ATF_REQUIRE_EQ(memcmp(actual_value, testval, testsize), 0);
+
+	ATF_REQUIRE(nvlist_exists_binary(nvl, otherkey1));
+	actual_value = nvlist_get_binary(nvl, otherkey1, &actual_size);
+	ATF_REQUIRE_EQ(othersize, actual_size);
+	ATF_REQUIRE_EQ(memcmp(actual_value, otherval1, othersize), 0);
+
+	ATF_REQUIRE(nvlist_exists_bool(nvl, otherkey2));
+	ATF_REQUIRE_EQ(nvlist_get_bool(nvl, otherkey2), otherval2);
+
+	nvlist_destroy(nvl);
+}
+
 ATF_INIT_TEST_CASES(tp)
 {
 	ATF_ADD_TEST_CASE(tp, nvlist_create__is_empty);
@@ -684,6 +965,17 @@ ATF_INIT_TEST_CASES(tp)
 	ATF_ADD_TEST_CASE(tp, nvlist_move_nvlist__single_insert);
 	ATF_ADD_TEST_CASE(tp, nvlist_move_nvlist__null_child);
 	ATF_ADD_TEST_CASE(tp, nvlist_move_binary__single_insert);
+
+	ATF_ADD_TEST_CASE(tp, nvlist_take_bool__single_remove);
+	ATF_ADD_TEST_CASE(tp, nvlist_take_bool__other_keys_unchanged);
+	ATF_ADD_TEST_CASE(tp, nvlist_take_number__single_remove);
+	ATF_ADD_TEST_CASE(tp, nvlist_take_number__other_keys_unchanged);
+	ATF_ADD_TEST_CASE(tp, nvlist_take_string__single_remove);
+	ATF_ADD_TEST_CASE(tp, nvlist_take_string__other_keys_unchanged);
+	ATF_ADD_TEST_CASE(tp, nvlist_take_nvlist__single_remove);
+	ATF_ADD_TEST_CASE(tp, nvlist_take_nvlist__other_keys_unchanged);
+	ATF_ADD_TEST_CASE(tp, nvlist_take_binary__single_remove);
+	ATF_ADD_TEST_CASE(tp, nvlist_take_binary__other_keys_unchanged);
 }
 /*-
  * Copyright (c) 2014-2015 Sandvine Inc.  All rights reserved.
