@@ -2,8 +2,6 @@
 
 TESTSDIR=	${TESTSBASE}/lib/libnv
 
-ATF_TESTS_CXX=	nv_tests
-
 TAP_TESTS_C+=	nvlist_add_test
 TAP_TESTS_C+=	nvlist_exists_test
 TAP_TESTS_C+=	nvlist_free_test
@@ -13,6 +11,6 @@ TAP_TESTS_C+=	nvlist_send_recv_test
 
 LIBADD+=	nv
 
-WARNS?=		3
+WARNS?=		6
 
 .include <bsd.test.mk>
