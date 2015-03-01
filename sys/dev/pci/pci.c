@@ -4695,10 +4695,29 @@ struct resource *
 pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
+#ifdef PCI_IOV
+	struct pci_devinfo *dinfo;
+#endif
 
 	if (device_get_parent(child) != dev)
 		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
 		    type, rid, start, end, count, flags));
+
+#ifdef PCI_IOV
+	dinfo = device_get_ivars(child);
+	if (dinfo->cfg.flags & PCICFG_VF) {
+		switch (type) {
+		/* VFs can't have I/O BARs. */
+		case SYS_RES_IOPORT:
+			return (NULL);
+		case SYS_RES_MEMORY:
+			return (pci_vf_alloc_mem_resource(dev, child, rid,
+			    start, end, count, flags));
+		}
+
+		/* Fall through for other types of resource allocations. */
+	}
+#endif
 
 	return (pci_alloc_multi_resource(dev, child, type, rid, start, end,
 	    count, 1, flags));
@@ -4718,6 +4737,22 @@ pci_release_resource(device_t dev, device_t child, int type, int rid,
 
 	dinfo = device_get_ivars(child);
 	cfg = &dinfo->cfg;
+
+#ifdef PCI_IOV
+	if (dinfo->cfg.flags & PCICFG_VF) {
+		switch (type) {
+		/* VFs can't have I/O BARs. */
+		case SYS_RES_IOPORT:
+			return (EDOOFUS);
+		case SYS_RES_MEMORY:
+			return (pci_vf_release_mem_resource(dev, child, rid,
+			    r));
+		}
+
+		/* Fall through for other types of resource allocations. */
+	}
+#endif
+
 #ifdef NEW_PCIB
 	/*
 	 * PCI-PCI bridge I/O window resources are not BARs.  For
