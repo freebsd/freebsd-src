@@ -89,7 +89,8 @@ SYSCTL_INT(_kern_vt, OID_AUTO, _name, CTLFLAG_RWTUN, &vt_##_name, _default,\
 
 struct vt_driver;
 
-void vt_allocate(struct vt_driver *, void *);
+void vt_allocate(const struct vt_driver *, void *);
+void vt_deallocate(const struct vt_driver *, void *);
 
 typedef unsigned int 	vt_axis_t;
 
@@ -124,6 +125,9 @@ struct vt_device {
 	struct vt_pastebuf	 vd_pastebuf;	/* (?) Copy/paste buf. */
 	const struct vt_driver	*vd_driver;	/* (c) Graphics driver. */
 	void			*vd_softc;	/* (u) Driver data. */
+	const struct vt_driver	*vd_prev_driver;/* (?) Previous driver. */
+	void			*vd_prev_softc;	/* (?) Previous driver data. */
+	device_t		 vd_video_dev;	/* (?) Video adapter. */
 #ifndef SC_NO_CUTPASTE
 	struct vt_mouse_cursor	*vd_mcursor;	/* (?) Cursor bitmap. */
 	term_color_t		 vd_mcursor_fg;	/* (?) Cursor fg color. */
@@ -150,6 +154,7 @@ struct vt_device {
 #define	VDF_INITIALIZED	0x20	/* vtterm_cnprobe already done. */
 #define	VDF_MOUSECURSOR	0x40	/* Mouse cursor visible. */
 #define	VDF_QUIET_BELL	0x80	/* Disable bell. */
+#define	VDF_DOWNGRADE	0x8000	/* The driver is being downgraded. */
 	int			 vd_keyboard;	/* (G) Keyboard index. */
 	unsigned int		 vd_kbstate;	/* (?) Device unit. */
 	unsigned int		 vd_unit;	/* (c) Device unit. */
@@ -301,6 +306,7 @@ struct vt_window {
 
 typedef int vd_init_t(struct vt_device *vd);
 typedef int vd_probe_t(struct vt_device *vd);
+typedef void vd_fini_t(struct vt_device *vd, void *softc);
 typedef void vd_postswitch_t(struct vt_device *vd);
 typedef void vd_blank_t(struct vt_device *vd, term_color_t color);
 typedef void vd_bitblt_text_t(struct vt_device *vd, const struct vt_window *vw,
@@ -323,6 +329,7 @@ struct vt_driver {
 	/* Console attachment. */
 	vd_probe_t	*vd_probe;
 	vd_init_t	*vd_init;
+	vd_fini_t	*vd_fini;
 
 	/* Drawing. */
 	vd_blank_t	*vd_blank;
