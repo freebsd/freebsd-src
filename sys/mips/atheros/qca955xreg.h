@@ -188,7 +188,7 @@
 
 
 /* GMAC Interface */
-#define	QCA955X_GMAC_REG_ETH_CFG	0x00	/* XXX register base? */
+#define	QCA955X_GMAC_REG_ETH_CFG	(QCA955X_GMAC_BASE + 0x00)
 
 #define	QCA955X_ETH_CFG_RGMII_EN	BIT(0)
 #define	QCA955X_ETH_CFG_GE0_SGMII	BIT(6)
