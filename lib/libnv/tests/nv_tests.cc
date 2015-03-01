@@ -585,6 +585,83 @@ ATF_TEST_CASE_BODY(nvlist_unpack__duplicate_key)
 	nvlist_destroy(unpacked);
 }
 
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_move_string__single_insert);
+ATF_TEST_CASE_BODY(nvlist_move_string__single_insert)
+{
+	nvlist_t *nvl;
+	const char *key;
+	char *value;
+
+	nvl = nvlist_create(0);
+	ATF_REQUIRE(nvl != NULL);
+
+	key = "testkey";
+	value = strdup("testval");
+	ATF_REQUIRE(value != NULL);
+
+	nvlist_move_string(nvl, key, value);
+	ATF_REQUIRE_EQ(nvlist_get_string(nvl, key), value);
+
+	nvlist_destroy(nvl);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_move_nvlist__null_child);
+ATF_TEST_CASE_BODY(nvlist_move_nvlist__null_child)
+{
+	nvlist_t *parent;
+
+	parent = nvlist_create(0);
+
+	nvlist_move_nvlist(parent, "test", NULL);
+
+	ATF_REQUIRE(nvlist_error(parent) != 0);
+
+	nvlist_destroy(parent);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_move_nvlist__single_insert);
+ATF_TEST_CASE_BODY(nvlist_move_nvlist__single_insert)
+{
+	nvlist_t *nvl;
+	const char *key;
+	nvlist_t *value;
+
+	nvl = nvlist_create(0);
+	ATF_REQUIRE(nvl != NULL);
+
+	key = "testkey";
+	value = nvlist_create(0);
+	ATF_REQUIRE(value != NULL);
+
+	nvlist_move_nvlist(nvl, key, value);
+	ATF_REQUIRE_EQ(nvlist_get_nvlist(nvl, key), value);
+
+	nvlist_destroy(nvl);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_move_binary__single_insert);
+ATF_TEST_CASE_BODY(nvlist_move_binary__single_insert)
+{
+	nvlist_t *nvl;
+	const char *key;
+	void *value;
+	size_t size, actual_size;
+
+	nvl = nvlist_create(0);
+	ATF_REQUIRE(nvl != NULL);
+
+	key = "testkey";
+	size = 73;
+	value = malloc(size);
+	ATF_REQUIRE(value != NULL);
+
+	nvlist_move_binary(nvl, key, value, size);
+	ATF_REQUIRE_EQ(nvlist_get_binary(nvl, key, &actual_size), value);
+	ATF_REQUIRE_EQ(size, actual_size);
+
+	nvlist_destroy(nvl);
+}
+
 ATF_INIT_TEST_CASES(tp)
 {
 	ATF_ADD_TEST_CASE(tp, nvlist_create__is_empty);
@@ -602,6 +679,11 @@ ATF_INIT_TEST_CASES(tp)
 	ATF_ADD_TEST_CASE(tp, nvlist_pack__empty_nvlist);
 	ATF_ADD_TEST_CASE(tp, nvlist_pack__multiple_values);
 	ATF_ADD_TEST_CASE(tp, nvlist_unpack__duplicate_key);
+
+	ATF_ADD_TEST_CASE(tp, nvlist_move_string__single_insert);
+	ATF_ADD_TEST_CASE(tp, nvlist_move_nvlist__single_insert);
+	ATF_ADD_TEST_CASE(tp, nvlist_move_nvlist__null_child);
+	ATF_ADD_TEST_CASE(tp, nvlist_move_binary__single_insert);
 }
 /*-
  * Copyright (c) 2014-2015 Sandvine Inc.  All rights reserved.
