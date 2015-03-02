@@ -1,4 +1,4 @@
-/* $Id: style.css,v 1.30 2014/09/27 11:16:24 kristaps Exp $ */
+/* $Id: style.css,v 1.31 2015/02/10 08:05:30 schwarze Exp $ */
 
 /*
  * This is an example style-sheet provided for mandoc(1) and the -Thtml
@@ -51,7 +51,7 @@ small		{ } /* Small: SB, SM. */
 i.addr		{ font-weight: normal; } /* Address (Ad). */
 i.arg		{ font-weight: normal; } /* Command argument (Ar). */
 span.author	{ } /* Author name (An). */
-b.cmd		{ font-style: normal; } /* Command (Cm). */ 
+b.cmd		{ font-style: normal; } /* Command (Cm). */
 b.config	{ font-style: normal; } /* Config statement (Cd). */
 span.define	{ } /* Defines (Dv). */
 span.desc	{ } /* Nd.  After em-dash. */
