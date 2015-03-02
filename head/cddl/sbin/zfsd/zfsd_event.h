@@ -68,7 +68,7 @@ public:
 	/** Specialized DevCtlEvent object factory for Devfs events. */
 	static BuildMethod Builder;
 
-	virtual DevCtl::Event *DeepCopy() const; 
+	virtual DevCtl::Event *DeepCopy() const;
 
 	/**
 	 * Interpret and perform any actions necessary to
@@ -140,7 +140,7 @@ protected:
 	/** Constructor */
 	ZfsEvent(Type, DevCtl::NVPairMap &, const string &);
 
-	/** 
+	/**
 	 * Detach any spares that are no longer needed, but were not
 	 * automatically detached by the kernel
 	 */

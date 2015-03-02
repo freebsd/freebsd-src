@@ -92,7 +92,7 @@ using DevCtl::ParseException;
 /*-------------------------- File-scoped classes ----------------------------*/
 /**
  * \brief Functor that operators on STL collections of CaseFiles
- * 
+ *
  * Selectively calls ReEvaluate on the casefile, based on its pool GUID.
  */
 class CaseFileReEvaluator : public std::unary_function<CaseFile, bool>
@@ -403,7 +403,7 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 			       "unconfigured.  Closing\n",
 			       PoolGUIDString().c_str(),
 			       VdevGUIDString().c_str());
-			/* 
+			/*
 			 * Close the case now so we won't waste cycles in the
 			 * system rescan
 			 */
@@ -1108,14 +1108,14 @@ bool
 CaseFile::ShouldDegrade() const
 {
 	return (std::count_if(m_events.begin(), m_events.end(),
-	    		      IsChecksumEvent) > ZFS_DEGRADE_IO_COUNT);
+			      IsChecksumEvent) > ZFS_DEGRADE_IO_COUNT);
 }
 
 bool
 CaseFile::ShouldFault() const
 {
 	return (std::count_if(m_events.begin(), m_events.end(),
-	    		      IsIOEvent) > ZFS_DEGRADE_IO_COUNT);
+			      IsIOEvent) > ZFS_DEGRADE_IO_COUNT);
 }
 
 nvlist_t *

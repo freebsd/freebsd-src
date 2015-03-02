@@ -154,7 +154,7 @@ DevfsEvent::DeepCopy() const
 {
 	return (new DevfsEvent(*this));
 }
- 
+
 bool
 DevfsEvent::Process() const
 {
@@ -194,7 +194,7 @@ DevfsEvent::Process() const
 		       "as a replace by physical path candidate.\n",
 		       devName.c_str());
 	} else if (havePhysPath && IsWholeDev()) {
-		/* 
+		/*
 		 * TODO: attempt to resolve events using every casefile
 		 * that matches this physpath
 		 */
@@ -395,7 +395,7 @@ ZfsEvent::ProcessPoolEvent() const
 	}
 	else if (Value("type") == "misc.fs.zfs.resilver_finish")
 	{
-		/* 
+		/*
 		 * It's possible to get a resilver_finish event with no
 		 * corresponding casefile.  For example, if a damaged pool were
 		 * exported, repaired, then reimported.

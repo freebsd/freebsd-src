@@ -227,7 +227,7 @@ ZfsDaemon::RescanSystem()
 {
         struct gmesh	  mesh;
         struct gclass	 *mp;
-        struct ggeom 	 *gp;
+        struct ggeom	 *gp;
         struct gprovider *pp;
 	int		  result;
 

@@ -119,7 +119,7 @@ public:
 	bool			 IsSpare()	const;
 	virtual DevCtl::Guid	 PoolGUID()	const;
 	virtual vdev_state	 State()	const;
-	std::string	 	 Path()		const;
+	std::string		 Path()		const;
 	virtual std::string	 PhysicalPath()	const;
 	std::string		 GUIDString()	const;
 	nvlist_t		*PoolConfig()	const;
@@ -137,8 +137,8 @@ private:
 	bool			 VdevLookupPoolGuid();
 	DevCtl::Guid		 m_poolGUID;
 	DevCtl::Guid		 m_vdevGUID;
-	nvlist_t    		*m_poolConfig;
-	nvlist_t    		*m_config;
+	nvlist_t		*m_poolConfig;
+	nvlist_t		*m_config;
 };
 
 //- Special objects -----------------------------------------------------------
