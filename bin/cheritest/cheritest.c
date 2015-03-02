@@ -489,15 +489,18 @@ static const struct cheri_test cheri_tests[] = {
 
 	{ .ct_name = "test_2sandbox_newdestroy",
 	  .ct_desc = "Instantiate and destroy a second sandbox object",
-	  .ct_func = test_2sandbox_newdestroy },
+	  .ct_func = test_2sandbox_newdestroy,
+	  .ct_flags = CT_FLAG_SLOW },
 
 	{ .ct_name = "test_2sandbox_md5",
 	  .ct_desc = "Instantiate second object and generate MD5 checksum",
-	  .ct_func = test_2sandbox_md5 },
+	  .ct_func = test_2sandbox_md5,
+	  .ct_flags = CT_FLAG_SLOW },
 
 	{ .ct_name = "test_2sandbox_var_data_getset",
 	  .ct_desc = "Instantiate second object and get/set variables",
-	  .ct_func = test_2sandbox_var_data_getset },
+	  .ct_func = test_2sandbox_var_data_getset,
+          .ct_flags = CT_FLAG_SLOW },
 
 	{ .ct_name = "test_sandbox_malloc",
 	  .ct_desc = "Malloc memory in a libcheri sandbox",
