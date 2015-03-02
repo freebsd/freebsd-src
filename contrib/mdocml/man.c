@@ -1,7 +1,7 @@
-/*	$Id: man.c,v 1.145 2014/11/28 06:27:05 schwarze Exp $ */
+/*	$Id: man.c,v 1.149 2015/01/30 21:28:46 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2013, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2011 Joerg Sonnenberger <joerg@netbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -39,7 +39,7 @@ const	char *const __man_macronames[MAN_MAX] = {
 	"IP",		"HP",		"SM",		"SB",
 	"BI",		"IB",		"BR",		"RB",
 	"R",		"B",		"I",		"IR",
-	"RI",		"na",		"sp",		"nf",
+	"RI",		"sp",		"nf",
 	"fi",		"RE",		"RS",		"DT",
 	"UC",		"PD",		"AT",		"in",
 	"ft",		"OP",		"EX",		"EE",
@@ -48,6 +48,10 @@ const	char *const __man_macronames[MAN_MAX] = {
 
 const	char * const *man_macronames = __man_macronames;
 
+static	void		 man_alloc1(struct man *);
+static	void		 man_breakscope(struct man *, enum mant);
+static	void		 man_descope(struct man *, int, int);
+static	void		 man_free1(struct man *);
 static	struct man_node	*man_node_alloc(struct man *, int, int,
 				enum man_type, enum mant);
 static	void		 man_node_append(struct man *, struct man_node *);
@@ -56,9 +60,6 @@ static	void		 man_node_unlink(struct man *,
 				struct man_node *);
 static	int		 man_ptext(struct man *, int, char *, int);
 static	int		 man_pmacro(struct man *, int, char *, int);
-static	void		 man_free1(struct man *);
-static	void		 man_alloc1(struct man *);
-static	void		 man_descope(struct man *, int, int);
 
 
 const struct man_node *
@@ -92,7 +93,8 @@ man_free(struct man *man)
 }
 
 struct man *
-man_alloc(struct roff *roff, struct mparse *parse, int quick)
+man_alloc(struct roff *roff, struct mparse *parse,
+	const char *defos, int quick)
 {
 	struct man	*p;
 
@@ -100,6 +102,7 @@ man_alloc(struct roff *roff, struct mparse *parse, int quick)
 
 	man_hash_init();
 	p->parse = parse;
+	p->defos = defos;
 	p->quick = quick;
 	p->roff = roff;
 
@@ -107,12 +110,11 @@ man_alloc(struct roff *roff, struct mparse *parse, int quick)
 	return(p);
 }
 
-int
+void
 man_endparse(struct man *man)
 {
 
 	man_macroend(man);
-	return(1);
 }
 
 int
@@ -336,6 +338,7 @@ man_addspan(struct man *man, const struct tbl_span *sp)
 {
 	struct man_node	*n;
 
+	man_breakscope(man, MAN_MAX);
 	n = man_node_alloc(man, sp->line, 0, MAN_TBL, MAN_MAX);
 	n->span = sp;
 	man_node_append(man, n);
@@ -492,62 +495,11 @@ man_pmacro(struct man *man, int ln, char *buf, int offs)
 		    ln, offs - 1, NULL);
 
 	/*
-	 * Remove prior ELINE macro, as it's being clobbered by a new
-	 * macro.  Note that NSCOPED macros do not close out ELINE
-	 * macros---they don't print text---so we let those slip by.
+	 * Some macros break next-line scopes; otherwise, remember
+	 * whether we are in next-line scope for a block head.
 	 */
 
-	if ( ! (man_macros[tok].flags & MAN_NSCOPED) &&
-			man->flags & MAN_ELINE) {
-		n = man->last;
-		assert(MAN_TEXT != n->type);
-
-		/* Remove repeated NSCOPED macros causing ELINE. */
-
-		if (man_macros[n->tok].flags & MAN_NSCOPED)
-			n = n->parent;
-
-		mandoc_vmsg(MANDOCERR_BLK_LINE, man->parse, n->line,
-		    n->pos, "%s breaks %s", man_macronames[tok],
-		    man_macronames[n->tok]);
-
-		man_node_delete(man, n);
-		man->flags &= ~MAN_ELINE;
-	}
-
-	/*
-	 * Remove prior BLINE macro that is being clobbered.
-	 */
-	if ((man->flags & MAN_BLINE) &&
-	    (man_macros[tok].flags & MAN_BSCOPE)) {
-		n = man->last;
-
-		/* Might be a text node like 8 in
-		 * .TP 8
-		 * .SH foo
-		 */
-		if (n->type == MAN_TEXT)
-			n = n->parent;
-
-		/* Remove element that didn't end BLINE, if any. */
-		if ( ! (man_macros[n->tok].flags & MAN_BSCOPE))
-			n = n->parent;
-
-		assert(n->type == MAN_HEAD);
-		n = n->parent;
-		assert(n->type == MAN_BLOCK);
-		assert(man_macros[n->tok].flags & MAN_SCOPED);
-
-		mandoc_vmsg(MANDOCERR_BLK_LINE, man->parse, n->line,
-		    n->pos, "%s breaks %s", man_macronames[tok],
-		    man_macronames[n->tok]);
-
-		man_node_delete(man, n);
-		man->flags &= ~MAN_BLINE;
-	}
-
-	/* Remember whether we are in next-line scope for a block head. */
-
+	man_breakscope(man, tok);
 	bline = man->flags & MAN_BLINE;
 
 	/* Call to handler... */
@@ -580,6 +532,62 @@ man_pmacro(struct man *man, int ln, char *buf, int offs)
 	man_unscope(man, man->last->parent);
 	man_body_alloc(man, ln, ppos, man->last->tok);
 	return(1);
+}
+
+void
+man_breakscope(struct man *man, enum mant tok)
+{
+	struct man_node	*n;
+
+	/*
+	 * An element next line scope is open,
+	 * and the new macro is not allowed inside elements.
+	 * Delete the element that is being broken.
+	 */
+
+	if (man->flags & MAN_ELINE && (tok == MAN_MAX ||
+	    ! (man_macros[tok].flags & MAN_NSCOPED))) {
+		n = man->last;
+		assert(n->type != MAN_TEXT);
+		if (man_macros[n->tok].flags & MAN_NSCOPED)
+			n = n->parent;
+
+		mandoc_vmsg(MANDOCERR_BLK_LINE, man->parse,
+		    n->line, n->pos, "%s breaks %s",
+		    tok == MAN_MAX ? "TS" : man_macronames[tok],
+		    man_macronames[n->tok]);
+
+		man_node_delete(man, n);
+		man->flags &= ~MAN_ELINE;
+	}
+
+	/*
+	 * A block header next line scope is open,
+	 * and the new macro is not allowed inside block headers.
+	 * Delete the block that is being broken.
+	 */
+
+	if (man->flags & MAN_BLINE && (tok == MAN_MAX ||
+	    man_macros[tok].flags & MAN_BSCOPE)) {
+		n = man->last;
+		if (n->type == MAN_TEXT)
+			n = n->parent;
+		if ( ! (man_macros[n->tok].flags & MAN_BSCOPE))
+			n = n->parent;
+
+		assert(n->type == MAN_HEAD);
+		n = n->parent;
+		assert(n->type == MAN_BLOCK);
+		assert(man_macros[n->tok].flags & MAN_SCOPED);
+
+		mandoc_vmsg(MANDOCERR_BLK_LINE, man->parse,
+		    n->line, n->pos, "%s breaks %s",
+		    tok == MAN_MAX ? "TS" : man_macronames[tok],
+		    man_macronames[n->tok]);
+
+		man_node_delete(man, n);
+		man->flags &= ~MAN_BLINE;
+	}
 }
 
 /*
