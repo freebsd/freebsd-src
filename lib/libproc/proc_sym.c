@@ -82,6 +82,21 @@ fail:
 	strlcpy(buf, symbol, len);
 }
 
+static int
+find_dbg_obj(const char *path)
+{
+	int fd;
+	char dbg_path[PATH_MAX];
+
+	snprintf(dbg_path, sizeof(dbg_path),
+	    "/usr/lib/debug/%s.debug", path);
+	fd = open(dbg_path, O_RDONLY);
+	if (fd > 0)
+		return (fd);
+	else
+		return (open(path, O_RDONLY));
+}
+
 static void
 proc_rdl2prmap(rd_loadobj_t *rdl, prmap_t *map)
 {
@@ -295,7 +310,7 @@ proc_addr2sym(struct proc_handle *p, uintptr_t addr, char *name,
 
 	if ((map = proc_addr2map(p, addr)) == NULL)
 		return (-1);
-	if ((fd = open(map->pr_mapname, O_RDONLY, 0)) < 0) {
+	if ((fd = find_dbg_obj(map->pr_mapname)) < 0) {
 		DPRINTF("ERROR: open %s failed", map->pr_mapname);
 		goto err0;
 	}
@@ -443,7 +458,7 @@ proc_name2sym(struct proc_handle *p, const char *object, const char *symbol,
 		DPRINTFX("ERROR: couldn't find object %s", object);
 		goto err0;
 	}
-	if ((fd = open(map->pr_mapname, O_RDONLY, 0)) < 0) {
+	if ((fd = find_dbg_obj(map->pr_mapname)) < 0) {
 		DPRINTF("ERROR: open %s failed", map->pr_mapname);
 		goto err0;
 	}
@@ -539,7 +554,7 @@ proc_iter_symbyaddr(struct proc_handle *p, const char *object, int which,
 
 	if ((map = proc_name2map(p, object)) == NULL)
 		return (-1);
-	if ((fd = open(map->pr_mapname, O_RDONLY)) < 0) {
+	if ((fd = find_dbg_obj(map->pr_mapname)) < 0) {
 		DPRINTF("ERROR: open %s failed", map->pr_mapname);
 		goto err0;
 	}

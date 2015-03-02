@@ -112,11 +112,23 @@ CTASSERT(offsetof(struct mbuf, m_pktdat) % 8 == 0);
 #if defined(__LP64__)
 CTASSERT(offsetof(struct mbuf, m_dat) == 32);
 CTASSERT(sizeof(struct pkthdr) == 56);
-CTASSERT(sizeof(struct struct_m_ext) == 48);
+CTASSERT(sizeof(struct m_ext) == 48);
 #else
 CTASSERT(offsetof(struct mbuf, m_dat) == 24);
 CTASSERT(sizeof(struct pkthdr) == 48);
-CTASSERT(sizeof(struct struct_m_ext) == 28);
+CTASSERT(sizeof(struct m_ext) == 28);
+#endif
+
+/*
+ * Assert that the queue(3) macros produce code of the same size as an old
+ * plain pointer does.
+ */
+#ifdef INVARIANTS
+static struct mbuf m_assertbuf;
+CTASSERT(sizeof(m_assertbuf.m_slist) == sizeof(m_assertbuf.m_next));
+CTASSERT(sizeof(m_assertbuf.m_stailq) == sizeof(m_assertbuf.m_next));
+CTASSERT(sizeof(m_assertbuf.m_slistpkt) == sizeof(m_assertbuf.m_nextpkt));
+CTASSERT(sizeof(m_assertbuf.m_stailqpkt) == sizeof(m_assertbuf.m_nextpkt));
 #endif
 
 /*

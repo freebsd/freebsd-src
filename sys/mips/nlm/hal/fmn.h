@@ -94,7 +94,7 @@
 /* Each XLP chip can hold upto 32K messages on the chip itself */
 #define	CMS_ON_CHIP_MESG_SPACE	(32*1024)
 #define	CMS_MAX_ONCHIP_SEGMENTS	1024
-#define	CMS_MAX_SPILL_SEGMENTS_PER_QUEUE 	64
+#define	CMS_MAX_SPILL_SEGMENTS_PER_QUEUE	64
 
 /* FMN Network error */
 #define	CMS_ILLEGAL_DST_ERROR		0x100

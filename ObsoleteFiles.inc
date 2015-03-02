@@ -38,6 +38,29 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150222: Removed bcd(6) and ppt(6)
+OLD_FILES+=usr/bin/bcd
+OLD_FILES+=usr/bin/ppt
+OLD_FILES+=usr/share/man/man6/bcd.6.gz
+OLD_FILES+=usr/share/man/man6/ppt.6.gz
+# 20150217: Removed remnants of ar(4) driver
+OLD_FILES+=usr/include/sys/dev/ic/hd64570.h
+# 20150212: /usr/games moving into /usr/bin
+OLD_FILES+=usr/games/bcd
+OLD_FILES+=usr/games/caesar
+OLD_FILES+=usr/games/factor
+OLD_FILES+=usr/games/fortune
+OLD_FILES+=usr/games/grdc
+OLD_FILES+=usr/games/morse
+OLD_FILES+=usr/games/number
+OLD_FILES+=usr/games/pom
+OLD_FILES+=usr/games/ppt
+OLD_FILES+=usr/games/primes
+OLD_FILES+=usr/games/random
+OLD_FILES+=usr/games/rot13
+OLD_FILES+=usr/games/strfile
+OLD_FILES+=usr/games/unstr
+OLD_DIRS+=usr/games
 # 20150209: liblzma header
 OLD_FILES+=usr/include/lzma/lzma.h
 # 20150124: spl.9 and friends

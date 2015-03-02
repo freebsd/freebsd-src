@@ -48,7 +48,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: nm.c 3124 2014-12-21 05:46:28Z kaiwang27 $");
+ELFTC_VCSID("$Id: nm.c 3145 2015-02-15 18:04:37Z emaste $");
 
 /* symbol information list */
 STAILQ_HEAD(sym_head, sym_entry);
@@ -1525,7 +1525,8 @@ print_lineno(struct sym_entry *ep, struct func_info_head *func_info,
 	/* For function symbol, search the function line information list.  */
 	if ((ep->sym->st_info & 0xf) == STT_FUNC && func_info != NULL) {
 		SLIST_FOREACH(func, func_info, entries) {
-			if (!strcmp(ep->name, func->name) &&
+			if (func->name != NULL &&
+			    !strcmp(ep->name, func->name) &&
 			    ep->sym->st_value >= func->lowpc &&
 			    ep->sym->st_value < func->highpc) {
 				printf("\t%s:%" PRIu64, func->file, func->line);

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 5, 2012
+.Dd May 24, 2014
 .Dt PCI 9
 .Os
 .Sh NAME
@@ -46,6 +46,8 @@
 .Nm pci_get_powerstate ,
 .Nm pci_get_vpd_ident ,
 .Nm pci_get_vpd_readonly ,
+.Nm pci_iov_attach ,
+.Nm pci_iov_detach ,
 .Nm pci_msi_count ,
 .Nm pci_msix_count ,
 .Nm pci_pending_msix ,
@@ -94,6 +96,10 @@
 .Fn pci_get_vpd_ident "device_t dev" "const char **identptr"
 .Ft int
 .Fn pci_get_vpd_readonly "device_t dev" "const char *kw" "const char **vptr"
+.Ft int
+.Fn pci_iov_attach "device_t dev" "nvlist_t *pf_schema" "nvlist_t *vf_schema"
+.Ft int
+.Fn pci_iov_detach "device_t dev"
 .Ft int
 .Fn pci_msi_count "device_t dev"
 .Ft int
@@ -432,6 +438,75 @@ it does not support the specific power state
 .Fa state ,
 then the function will fail with
 .Er EOPNOTSUPP .
+.Pp
+The
+.Fn pci_iov_attach
+function is used to advertise that the given device
+.Pq and associated device driver
+supports PCI Single-Root I/O Virtualization
+.Po SR-IOV Pc .
+A driver that supports SR-IOV must implement the
+.Xr PCI_INIT_IOV 9 ,
+.Xr PCI_ADD_VF 9
+and
+.Xr PCI_UNIT_IOV 9
+methods.
+This function should be called during the
+.Xr DEVICE_ATTACH 9
+method.
+If this function returns an error, it is recommended that the device driver
+still successfully attaches, but runs with SR-IOV disabled.
+The
+.Fa pf_schema
+and
+.Fa vf_schema
+parameters are used to define what device-specific configuration parameters the
+device driver accepts when SR-IOV is enabled for the Physical Function
+.Pq PF
+and for individual Virtual Functions
+.Pq VFs
+respectively.
+See
+.Xr pci_iov_schema 9
+for details on how to construct the schema.
+If either the
+.Pa pf_schema
+or
+.Pa vf_schema
+is invalid or specifies parameter names that conflict with parameter names that
+are already in use,
+.Fn pci_iov_attach
+will return an error and SR-IOV will not be available on the PF device.
+If a driver does not accept configuration parameters for either the PF device
+or the VF devices, the driver must pass an empty schema for that device.
+The SR-IOV infrastructure takes ownership of the
+.Fa pf_schema
+and
+.Fa vf_schema
+and is responsible for freeing them.
+The driver must never free the schemas itself.
+.Pp
+The
+.Fn pci_iov_detach
+function is used to advise the SR-IOV infrastructure that the driver for the
+given device is attempting to detach and that all SR-IOV resources for the
+device must be released.
+This function must be called during the
+.Xr DEVICE_DETACH 9
+method if
+.Fn pci_iov_attach
+was successfully called on the device and
+.Fn pci_iov_detach
+has not subsequently been called on the device and returned no error.
+If this function returns an error, the
+.Xr DEVICE_DETACH 9
+method must fail and return an error, as detaching the PF driver while VF
+devices are active would cause system instability.
+This function is safe to call and will always succeed if
+.Fn pci_iov_attach
+previously failed with an error on the given device, or if
+.Fn pci_iov_attach
+was never called on the device.
 .Pp
 The
 .Fn pci_save_state

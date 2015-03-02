@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2014, Intel Corporation 
+  Copyright (c) 2013-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -32,9 +32,12 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
+#ifndef IXL_STANDALONE_BUILD
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_rss.h"
+#endif
+
 #include "ixl.h"
 #include "ixlv.h"
 
@@ -1379,6 +1382,9 @@ ixlv_assign_msix(struct ixlv_sc *sc)
 	struct 		ixl_queue *que = vsi->queues;
 	struct		tx_ring	 *txr;
 	int 		error, rid, vector = 1;
+#ifdef	RSS
+	cpuset_t cpu_mask;
+#endif
 
 	for (int i = 0; i < vsi->num_queues; i++, vector++, que++) {
 		int cpu_id = i;
@@ -1413,8 +1419,9 @@ ixlv_assign_msix(struct ixlv_sc *sc)
 		que->tq = taskqueue_create_fast("ixlv_que", M_NOWAIT,
 		    taskqueue_thread_enqueue, &que->tq);
 #ifdef RSS
-		taskqueue_start_threads_pinned(&que->tq, 1, PI_NET,
-		    cpu_id, "%s (bucket %d)",
+		CPU_SETOF(cpu_id, &cpu_mask);
+		taskqueue_start_threads_cpuset(&que->tq, 1, PI_NET,
+		    &cpu_mask, "%s (bucket %d)",
 		    device_get_nameunit(dev), cpu_id);
 #else
                 taskqueue_start_threads(&que->tq, 1, PI_NET,
@@ -1819,8 +1826,7 @@ ixlv_msix_adminq(void *arg)
 {
 	struct ixlv_sc	*sc = arg;
 	struct i40e_hw	*hw = &sc->hw;
-	device_t	dev = sc->dev;
-	u32		reg, mask, oldreg;
+	u32		reg, mask;
 
         reg = rd32(hw, I40E_VFINT_ICR01);
         mask = rd32(hw, I40E_VFINT_ICR0_ENA1);
@@ -1828,43 +1834,6 @@ ixlv_msix_adminq(void *arg)
         reg = rd32(hw, I40E_VFINT_DYN_CTL01);
         reg |= I40E_PFINT_DYN_CTL0_CLEARPBA_MASK;
         wr32(hw, I40E_VFINT_DYN_CTL01, reg);
-
-	/* check for Admin queue errors */
-	oldreg = reg = rd32(hw, hw->aq.arq.len);
-	if (reg & I40E_VF_ARQLEN_ARQVFE_MASK) {
-		device_printf(dev, "ARQ VF Error detected\n");
-		reg &= ~I40E_VF_ARQLEN_ARQVFE_MASK;
-	}
-	if (reg & I40E_VF_ARQLEN_ARQOVFL_MASK) {
-		device_printf(dev, "ARQ Overflow Error detected\n");
-		reg &= ~I40E_VF_ARQLEN_ARQOVFL_MASK;
-	}
-	if (reg & I40E_VF_ARQLEN_ARQCRIT_MASK) {
-		device_printf(dev, "ARQ Critical Error detected\n");
-		reg &= ~I40E_VF_ARQLEN_ARQCRIT_MASK;
-	}
-	if (oldreg != reg)
-		wr32(hw, hw->aq.arq.len, reg);
-
-	oldreg = reg = rd32(hw, hw->aq.asq.len);
-	if (reg & I40E_VF_ATQLEN_ATQVFE_MASK) {
-		device_printf(dev, "ASQ VF Error detected\n");
-		reg &= ~I40E_VF_ATQLEN_ATQVFE_MASK;
-	}
-	if (reg & I40E_VF_ATQLEN_ATQOVFL_MASK) {
-		device_printf(dev, "ASQ Overflow Error detected\n");
-		reg &= ~I40E_VF_ATQLEN_ATQOVFL_MASK;
-	}
-	if (reg & I40E_VF_ATQLEN_ATQCRIT_MASK) {
-		device_printf(dev, "ASQ Critical Error detected\n");
-		reg &= ~I40E_VF_ATQLEN_ATQCRIT_MASK;
-	}
-	if (oldreg != reg)
-		wr32(hw, hw->aq.asq.len, reg);
-
-        /* re-enable interrupt causes */
-        wr32(hw, I40E_VFINT_ICR0_ENA1, mask);
-        wr32(hw, I40E_VFINT_DYN_CTL01, I40E_VFINT_DYN_CTL01_INTENA_MASK);
 
 	/* schedule task */
 	taskqueue_enqueue(sc->tq, &sc->aq_irq);
@@ -2600,7 +2569,7 @@ ixlv_config_rss(struct ixlv_sc *sc)
                 set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP);
 	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6)
                 set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_OTHER);
-        if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6_EX)
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6_EX)
 		set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6);
 	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV6)
                 set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_TCP);
@@ -2752,8 +2721,10 @@ ixlv_do_adminq_locked(struct ixlv_sc *sc)
 	struct i40e_hw			*hw = &sc->hw;
 	struct i40e_arq_event_info	event;
 	struct i40e_virtchnl_msg	*v_msg;
-	i40e_status			ret;
+	device_t			dev = sc->dev;
 	u16				result = 0;
+	u32				reg, oldreg;
+	i40e_status			ret;
 
 	IXLV_CORE_LOCK_ASSERT(sc);
 
@@ -2770,6 +2741,39 @@ ixlv_do_adminq_locked(struct ixlv_sc *sc)
 		if (result != 0)
 			bzero(event.msg_buf, IXL_AQ_BUF_SZ);
 	} while (result);
+
+	/* check for Admin queue errors */
+	oldreg = reg = rd32(hw, hw->aq.arq.len);
+	if (reg & I40E_VF_ARQLEN_ARQVFE_MASK) {
+		device_printf(dev, "ARQ VF Error detected\n");
+		reg &= ~I40E_VF_ARQLEN_ARQVFE_MASK;
+	}
+	if (reg & I40E_VF_ARQLEN_ARQOVFL_MASK) {
+		device_printf(dev, "ARQ Overflow Error detected\n");
+		reg &= ~I40E_VF_ARQLEN_ARQOVFL_MASK;
+	}
+	if (reg & I40E_VF_ARQLEN_ARQCRIT_MASK) {
+		device_printf(dev, "ARQ Critical Error detected\n");
+		reg &= ~I40E_VF_ARQLEN_ARQCRIT_MASK;
+	}
+	if (oldreg != reg)
+		wr32(hw, hw->aq.arq.len, reg);
+
+	oldreg = reg = rd32(hw, hw->aq.asq.len);
+	if (reg & I40E_VF_ATQLEN_ATQVFE_MASK) {
+		device_printf(dev, "ASQ VF Error detected\n");
+		reg &= ~I40E_VF_ATQLEN_ATQVFE_MASK;
+	}
+	if (reg & I40E_VF_ATQLEN_ATQOVFL_MASK) {
+		device_printf(dev, "ASQ Overflow Error detected\n");
+		reg &= ~I40E_VF_ATQLEN_ATQOVFL_MASK;
+	}
+	if (reg & I40E_VF_ATQLEN_ATQCRIT_MASK) {
+		device_printf(dev, "ASQ Critical Error detected\n");
+		reg &= ~I40E_VF_ATQLEN_ATQCRIT_MASK;
+	}
+	if (oldreg != reg)
+		wr32(hw, hw->aq.asq.len, reg);
 
 	ixlv_enable_adminq_irq(hw);
 }

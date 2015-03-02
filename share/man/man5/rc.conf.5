@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 11, 2014
+.Dd February 20, 2015
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -2806,16 +2806,8 @@ these are the flags to pass to the routing daemon.
 .Pq Vt str
 The IPv6 equivalent of
 .Va routed_flags .
-.It Va mrouted_enable
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-run the multicast routing daemon,
-.Xr mrouted 8 .
 .It Va mroute6d_enable
 .Pq Vt bool
-The IPv6 equivalent of
-.Va mrouted_enable .
 If set to
 .Dq Li YES ,
 run the IPv6 multicast routing daemon.
@@ -2829,19 +2821,8 @@ and
 may be installed from the
 .Fx
 Ports Collection.
-.It Va mrouted_flags
-.Pq Vt str
-If
-.Va mrouted_enable
-is set to
-.Dq Li YES ,
-these are the flags to pass to the
-.Xr mrouted 8
-daemon.
 .It Va mroute6d_flags
 .Pq Vt str
-The IPv6 equivalent of
-.Va mrouted_flags .
 If
 .Va mroute6d_enable
 is set to
@@ -4466,6 +4447,11 @@ This variables contains the
 .Xr rctl.conf 5
 ruleset to load for
 .Xr rctl 8 .
+.It Va iovctl_files
+.Pq Vt str
+A space-separated list of configuration files used by
+.Xr iovctl 8 .
+The default value is an empty string.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/rc.conf" -compact
@@ -4519,6 +4505,7 @@ ruleset to load for
 .Xr hcsecd 8 ,
 .Xr ifconfig 8 ,
 .Xr inetd 8 ,
+.Xr iovctl 8 ,
 .Xr ipf 8 ,
 .Xr ipfw 8 ,
 .Xr ipnat 8 ,
@@ -4530,7 +4517,6 @@ ruleset to load for
 .Xr mixer 8 ,
 .Xr mountd 8 ,
 .Xr moused 8 ,
-.Xr mrouted 8 ,
 .Xr newfs 8 ,
 .Xr newsyslog 8 ,
 .Xr nfsd 8 ,

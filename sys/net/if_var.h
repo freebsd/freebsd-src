@@ -365,8 +365,6 @@ EVENTHANDLER_DECLARE(group_change_event, group_change_event_handler_t);
 
 #define	TOEDEV(ifp)	((ifp)->if_llsoftc)
 
-#endif /* _KERNEL */
-
 /*
  * The ifaddr structure contains information about one address
  * of an interface.  They are maintained by the different address families,
@@ -377,7 +375,6 @@ EVENTHANDLER_DECLARE(group_change_event, group_change_event_handler_t);
  * chunk of malloc'ed memory, where we store the three addresses
  * (ifa_addr, ifa_dstaddr and ifa_netmask) referenced here.
  */
-#if defined(_KERNEL) || defined(_WANT_IFADDR)
 struct ifaddr {
 	struct	sockaddr *ifa_addr;	/* address of interface */
 	struct	sockaddr *ifa_dstaddr;	/* other end of p-to-p link */
@@ -389,6 +386,8 @@ struct ifaddr {
 	void	(*ifa_rtrequest)	/* check or clean routes (+ or -)'d */
 		(int, struct rtentry *, struct rt_addrinfo *);
 	u_short	ifa_flags;		/* mostly rt_flags for cloning */
+#define	IFA_ROUTE	RTF_UP		/* route installed */
+#define	IFA_RTSELF	RTF_HOST	/* loopback route to self installed */
 	u_int	ifa_refcnt;		/* references to this structure */
 
 	counter_u64_t	ifa_ipackets;
@@ -396,11 +395,6 @@ struct ifaddr {
 	counter_u64_t	ifa_ibytes;
 	counter_u64_t	ifa_obytes;
 };
-#endif
-
-#ifdef _KERNEL
-#define	IFA_ROUTE	RTF_UP		/* route installed */
-#define	IFA_RTSELF	RTF_HOST	/* loopback route to self installed */
 
 /* For compatibility with other BSDs. SCTP uses it. */
 #define	ifa_list	ifa_link
@@ -408,7 +402,6 @@ struct ifaddr {
 struct ifaddr *	ifa_alloc(size_t size, int flags);
 void	ifa_free(struct ifaddr *ifa);
 void	ifa_ref(struct ifaddr *ifa);
-#endif /* _KERNEL */
 
 /*
  * Multicast address structure.  This is analogous to the ifaddr
@@ -423,8 +416,6 @@ struct ifmultiaddr {
 	void	*ifma_protospec;	/* protocol-specific state, if any */
 	struct	ifmultiaddr *ifma_llifma; /* pointer to ifma for ifma_lladdr */
 };
-
-#ifdef _KERNEL
 
 extern	struct rwlock ifnet_rwlock;
 extern	struct sx ifnet_sxlock;

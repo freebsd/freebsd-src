@@ -302,6 +302,7 @@ static const struct ath_hal_private ar9300hal = {
         ar9300_get_desc_info,              /* ah_get_desc_info */
         ar9300_select_ant_config,          /* ah_select_ant_config */
         ar9300_ant_ctrl_common_get,        /* ah_ant_ctrl_common_get */
+        ar9300_ant_swcom_sel,              /* ah_ant_swcom_sel */
         ar9300_enable_tpc,                 /* ah_enable_tpc */
         AH_NULL,                           /* ah_olpc_temp_compensation */
 #if ATH_SUPPORT_CRDC
@@ -319,7 +320,9 @@ static const struct ath_hal_private ar9300hal = {
         ar9300_set_key_cache_entry,        /* ah_set_key_cache_entry */
         ar9300_set_key_cache_entry_mac,    /* ah_set_key_cache_entry_mac */
         ar9300_print_keycache,             /* ah_print_key_cache */
-
+#if ATH_SUPPORT_KEYPLUMB_WAR
+        ar9300_check_key_cache_entry,      /* ah_check_key_cache_entry */
+#endif
         /* Power Management Functions */
         ar9300_set_power_mode,             /* ah_set_power_mode */
         ar9300_set_sm_power_mode,          /* ah_set_sm_ps_mode */
@@ -342,6 +345,8 @@ static const struct ath_hal_private ar9300hal = {
         /* Get Channel Noise */
         ath_hal_get_chan_noise,            /* ah_get_chan_noise */
         ar9300_chain_noise_floor,          /* ah_get_chain_noise_floor */
+        ar9300_get_nf_from_reg,            /* ah_get_nf_from_reg */
+        ar9300_get_rx_nf_offset,           /* ah_get_rx_nf_offset */
 
         /* Beacon Functions */
         ar9300_beacon_init,                /* ah_beacon_init */
@@ -499,11 +504,11 @@ static const struct ath_hal_private ar9300hal = {
 #else
         AH_NULL,
         AH_NULL,
-        ar9300TX99TgtChannelPwrUpdate,		/* ah_tx99channelpwrupdate */
-        ar9300TX99TgtStart,					/* ah_tx99start */
-        ar9300TX99TgtStop,					/* ah_tx99stop */
-        ar9300TX99TgtChainmskSetup,			/* ah_tx99_chainmsk_setup */
-        ar9300TX99SetSingleCarrier,			/* ah_tx99_set_single_carrier */
+        ar9300_tx99_channel_pwr_update,		/* ah_tx99channelpwrupdate */
+        ar9300_tx99_start,					/* ah_tx99start */
+        ar9300_tx99_stop,					/* ah_tx99stop */
+        ar9300_tx99_chainmsk_setup,			/* ah_tx99_chainmsk_setup */
+        ar9300_tx99_set_single_carrier,		/* ah_tx99_set_single_carrier */
 #endif
 #endif
         ar9300_chk_rssi_update_tx_pwr,
@@ -525,6 +530,8 @@ static const struct ath_hal_private ar9300hal = {
         ar9300_dump_keycache,              /* ah_dump_keycache */
         ar9300_is_ani_noise_spur,         /* ah_is_ani_noise_spur */
         ar9300_set_hw_beacon_proc,         /* ah_set_hw_beacon_proc */
+        ar9300_set_ctl_pwr,                 /* ah_set_ctl_pwr */
+        ar9300_set_txchainmaskopt,          /* ah_set_txchainmaskopt */
     },
 
     ar9300_get_channel_edges,              /* ah_get_channel_edges */
@@ -837,6 +844,18 @@ ar9300_attach(u_int16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st,
 
     /* Enable RIFS */
     ahp->ah_rifs_enabled = AH_TRUE;
+
+    /* by default, stop RX also in abort txdma, due to
+       "Unable to stop TxDMA" msg observed */
+    ahp->ah_abort_txdma_norx = AH_TRUE;
+
+    /* do not use optional tx chainmask by default */
+    ahp->ah_tx_chainmaskopt = 0;
+
+    ahp->ah_skip_rx_iq_cal = AH_FALSE;
+    ahp->ah_rx_cal_complete = AH_FALSE;
+    ahp->ah_rx_cal_chan = 0;
+    ahp->ah_rx_cal_chan_flag = 0;
 
     HALDEBUG(ah, HAL_DEBUG_RESET,
         "%s: This Mac Chip Rev 0x%02x.%x is \n", __func__,

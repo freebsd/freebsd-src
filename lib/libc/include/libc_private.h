@@ -95,6 +95,9 @@ do {							\
 		_SPINUNLOCK(&__stdio_thread_lock);	\
 } while (0)
 
+void		__libc_spinlock_stub(struct _spinlock *);
+void		__libc_spinunlock_stub(struct _spinlock *);
+
 /*
  * Indexes into the pthread jump table.
  *
@@ -216,6 +219,8 @@ enum {
 	INTERPOS_write,
 	INTERPOS_writev,
 	INTERPOS__pthread_mutex_init_calloc_cb,
+	INTERPOS_spinlock,
+	INTERPOS_spinunlock,
 	INTERPOS_MAX
 };
 
@@ -266,7 +271,7 @@ void _malloc_first_thread(void);
 /*
  * Function to clean up streams, called from abort() and exit().
  */
-void (*__cleanup)(void) __hidden;
+extern void (*__cleanup)(void) __hidden;
 
 /*
  * Get kern.osreldate to detect ABI revisions.  Explicitly

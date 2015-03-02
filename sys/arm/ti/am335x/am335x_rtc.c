@@ -137,7 +137,7 @@ am335x_rtc_detach(device_t dev)
 	struct am335x_rtc_softc *sc;
 
 	sc = device_get_softc(dev);
-	if (sc->sc_irq_res)
+	if (sc->sc_irq_res[0] != NULL)
 		bus_release_resources(dev, am335x_rtc_irq_spec, sc->sc_irq_res);
 	if (sc->sc_mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);

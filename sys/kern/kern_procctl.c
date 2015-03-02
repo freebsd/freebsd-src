@@ -160,7 +160,7 @@ static int
 reap_status(struct thread *td, struct proc *p,
     struct procctl_reaper_status *rs)
 {
-	struct proc *reap, *p2;
+	struct proc *reap, *p2, *first_p;
 
 	sx_assert(&proctree_lock, SX_LOCKED);
 	bzero(rs, sizeof(*rs));
@@ -176,8 +176,10 @@ reap_status(struct thread *td, struct proc *p,
 	rs->rs_descendants = 0;
 	rs->rs_children = 0;
 	if (!LIST_EMPTY(&reap->p_reaplist)) {
-		KASSERT(!LIST_EMPTY(&reap->p_children), ("no children"));
-		rs->rs_pid = LIST_FIRST(&reap->p_children)->p_pid;
+		first_p = LIST_FIRST(&reap->p_children);
+		if (first_p == NULL)
+			first_p = LIST_FIRST(&reap->p_reaplist);
+		rs->rs_pid = first_p->p_pid;
 		LIST_FOREACH(p2, &reap->p_reaplist, p_reapsibling) {
 			if (proc_realparent(p2) == reap)
 				rs->rs_children++;
@@ -239,13 +241,13 @@ reap_kill(struct thread *td, struct proc *p, struct procctl_reaper_kill *rk)
 	int error, error1;
 
 	sx_assert(&proctree_lock, SX_LOCKED);
-	PROC_UNLOCK(p);
 	if (IN_CAPABILITY_MODE(td))
 		return (ECAPMODE);
 	if (rk->rk_sig <= 0 || rk->rk_sig > _SIG_MAXSIG)
 		return (EINVAL);
 	if ((rk->rk_flags & ~REAPER_KILL_CHILDREN) != 0)
 		return (EINVAL);
+	PROC_UNLOCK(p);
 	reap = (p->p_treeflag & P_TREE_REAPER) == 0 ? p->p_reaper : p;
 	ksiginfo_init(&ksi);
 	ksi.ksi_signo = rk->rk_sig;

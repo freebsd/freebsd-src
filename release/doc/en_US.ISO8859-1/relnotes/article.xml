@@ -22,7 +22,7 @@
 
     <pubdate>$FreeBSD$</pubdate>
 
-    <!-- Last rev: 277458 -->
+    <!-- Last rev: 278934 -->
 
     <copyright>
       <year>2015</year>
@@ -302,6 +302,13 @@
       <para revision="277166" arch="powerpc">The &man.ptrace.2; system
 	call has been updated include support for Altivec registers on
 	&os;/&arch.powerpc;.</para>
+
+      <para revision="278320">A new device control utility,
+	&man.devctl.8; has been added, which allows making
+	administrative changes to individual devices, such as
+	attaching and detaching drivers, and enabling and disabling
+	devices.  The &man.devctl.8; utility uses the new
+	&man.devctl.3; library.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
@@ -375,6 +382,12 @@
 
       <para revision="277270"><application>OpenSSL</application> has
 	been updated to version 1.0.1l.</para>
+
+      <para revision="278433">The &man.xz.1; utility has been udpated
+	to version 5.2.0.</para>
+
+      <para revision="278433">The &man.xz.1; utility has been updated
+	to support multi-threaded compression.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
@@ -460,6 +473,16 @@
       <para revision="274987">The &man.gpio.3; library has been added,
 	providing a wrapper around the &man.gpio.4; kernel
 	interface.</para>
+
+      <para revision="277610">The <literal>futimens()</literal> and
+	<literal>utimensat()</literal> system calls have been
+	added.  See &man.utimensat.2; for more information.</para>
+
+      <para revision="278934">The &man.elf.3; compile-time dependency
+	has been removed from <filename>dtri.o</filename>, which
+	allows adding <application>DTrace</application> probes to
+	userland applications and libraries without also linking
+	against &man.elf.3;.</para>
     </sect2>
 
     <sect2 xml:id="userland-abi">
@@ -515,12 +538,32 @@
 	at the &man.loader.8; prompt during boot, or add
 	<literal>kern.vty=vt</literal> to &man.loader.conf.5; and
 	reboot the system.</para>
+
+      <para revision="277904">The &man.config.8; utility has been
+	updated to allow using a non-standard <filename
+	  class="directory">src/</filename> tree, specified as an
+	argument to the <literal>-s</literal> flag.</para>
+
+      <para revision="277990" arch="powerpc64">The
+	&os;/&arch.powerpc64; kernel now builds as
+	a position-independent executable, allowing the kernel to be
+	loaded into and run from any physical or virtual
+	address.</para>
+
+      <important>
+	<para>This change requires an update to &man.loader.8;.
+	  The userland and kernel must be updated before rebooting the
+	  system.</para>
+      </important>
     </sect2>
 
     <sect2 xml:id="kernel-sysctl">
       <title>System Tuning and Controls</title>
 
-      <para>&nbsp;</para>
+      <para revision="275140" contrib="sponsor" sponsor="&ff;">The
+	&man.hwpmc.4; default and maximum callchain depths have been
+	increased.  The default has been increased from 16 to 32, and
+	the maximum increased from 32 to 128.</para>
     </sect2>
   </sect1>
 
@@ -761,6 +804,18 @@
     <para>This section covers changes and additions to file systems
       and other storage subsystems, both local and networked.</para>
 
+    <sect2 xml:id="storage-general">
+      <title>General Storage</title>
+      <para revision="278037" contrib="sponsor" sponsor="&ix;">The
+	&man.ctl.4; <acronym>LUN</acronym> mapping has been rewritten,
+	replacing <acronym>iSCSI</acronym>-specific mapping mechanisms
+	with a new mechanism that works for any port.</para>
+
+      <para revision="278354" contrib="sponsor" sponsor="&ix;">The
+	&man.ctld.8; utility has been updated to allow controlling
+	non-<acronym>iSCSI</acronym> &man.ctl.4; ports.</para>
+    </sect2>
+
     <sect2 xml:id="storage-net">
       <title>Networked Storage</title>
 
@@ -962,6 +1017,11 @@
 	Release Engineering build tools have been updated to include
 	support for producing virtual machine disk images for various
 	cloud hosting providers.</para>
+
+      <para revision="278926">The Release Engineering build tools have
+	been updated to use multi-threaded &man.xz.1;.  By default,
+	the number of &man.xz.1; threads is set to the number of cores
+	available.</para>
     </sect2>
   </sect1>
 </article>
