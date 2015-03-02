@@ -1,7 +1,7 @@
-/*	$Id: man_term.c,v 1.159 2014/12/04 02:05:42 schwarze Exp $ */
+/*	$Id: man_term.c,v 1.168 2015/01/30 22:04:44 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2012 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010-2014 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2010-2015 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -21,6 +21,7 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,7 +38,7 @@
 struct	mtermp {
 	int		  fl;
 #define	MANT_LITERAL	 (1 << 0)
-	size_t		  lmargin[MAXMARGINS]; /* margins (incl. visible page) */
+	int		  lmargin[MAXMARGINS]; /* margins (incl. vis. page) */
 	int		  lmargincur; /* index of current margin */
 	int		  lmarginsz; /* actual number of nested margins */
 	size_t		  offset; /* default offset to visible page */
@@ -46,7 +47,7 @@ struct	mtermp {
 
 #define	DECL_ARGS	  struct termp *p, \
 			  struct mtermp *mt, \
-			  const struct man_node *n, \
+			  struct man_node *n, \
 			  const struct man_meta *meta
 
 struct	termact {
@@ -55,9 +56,6 @@ struct	termact {
 	int		  flags;
 #define	MAN_NOTEXT	 (1 << 0) /* Never has text children. */
 };
-
-static	int		  a2width(const struct termp *, const char *);
-static	size_t		  a2height(const struct termp *, const char *);
 
 static	void		  print_man_nodelist(DECL_ARGS);
 static	void		  print_man_node(DECL_ARGS);
@@ -116,7 +114,6 @@ static	const struct termact termacts[MAN_MAX] = {
 	{ pre_I, NULL, 0 }, /* I */
 	{ pre_alternate, NULL, 0 }, /* IR */
 	{ pre_alternate, NULL, 0 }, /* RI */
-	{ pre_ign, NULL, MAN_NOTEXT }, /* na */
 	{ pre_sp, NULL, MAN_NOTEXT }, /* sp */
 	{ pre_literal, NULL, 0 }, /* nf */
 	{ pre_literal, NULL, 0 }, /* fi */
@@ -182,29 +179,6 @@ terminal_man(void *arg, const struct man *man)
 			print_man_nodelist(p, &mt, n, meta);
 		term_end(p);
 	}
-}
-
-
-static size_t
-a2height(const struct termp *p, const char *cp)
-{
-	struct roffsu	 su;
-
-	if ( ! a2roffsu(cp, &su, SCALE_VS))
-		SCALE_VS_INIT(&su, atoi(cp));
-
-	return(term_vspan(p, &su));
-}
-
-static int
-a2width(const struct termp *p, const char *cp)
-{
-	struct roffsu	 su;
-
-	if ( ! a2roffsu(cp, &su, SCALE_EN))
-		return(-1);
-
-	return((int)term_hspan(p, &su));
 }
 
 /*
@@ -288,14 +262,16 @@ pre_literal(DECL_ARGS)
 static int
 pre_PD(DECL_ARGS)
 {
+	struct roffsu	 su;
 
 	n = n->child;
-	if (0 == n) {
+	if (n == NULL) {
 		mt->pardist = 1;
 		return(0);
 	}
 	assert(MAN_TEXT == n->type);
-	mt->pardist = atoi(n->string);
+	if (a2roffsu(n->string, &su, SCALE_VS))
+		mt->pardist = term_vspan(p, &su);
 	return(0);
 }
 
@@ -303,7 +279,7 @@ static int
 pre_alternate(DECL_ARGS)
 {
 	enum termfont		 font[2];
-	const struct man_node	*nn;
+	struct man_node		*nn;
 	int			 savelit, i;
 
 	switch (n->tok) {
@@ -423,9 +399,10 @@ pre_ft(DECL_ARGS)
 static int
 pre_in(DECL_ARGS)
 {
-	int		 len, less;
-	size_t		 v;
+	struct roffsu	 su;
 	const char	*cp;
+	size_t		 v;
+	int		 less;
 
 	term_newln(p);
 
@@ -444,10 +421,10 @@ pre_in(DECL_ARGS)
 	else
 		cp--;
 
-	if ((len = a2width(p, ++cp)) < 0)
+	if ( ! a2roffsu(++cp, &su, SCALE_EN))
 		return(0);
 
-	v = (size_t)len;
+	v = term_hspan(p, &su);
 
 	if (less < 0)
 		p->offset -= p->offset > v ? v : p->offset;
@@ -455,6 +432,8 @@ pre_in(DECL_ARGS)
 		p->offset += v;
 	else
 		p->offset = v;
+	if (p->offset > SHRT_MAX)
+		p->offset = term_len(p, p->defindent);
 
 	return(0);
 }
@@ -462,9 +441,8 @@ pre_in(DECL_ARGS)
 static int
 pre_sp(DECL_ARGS)
 {
-	char		*s;
-	size_t		 i, len;
-	int		 neg;
+	struct roffsu	 su;
+	int		 i, len;
 
 	if ((NULL == n->prev && n->parent)) {
 		switch (n->parent->tok) {
@@ -484,29 +462,20 @@ pre_sp(DECL_ARGS)
 		}
 	}
 
-	neg = 0;
-	switch (n->tok) {
-	case MAN_br:
+	if (n->tok == MAN_br)
 		len = 0;
-		break;
-	default:
-		if (NULL == n->child) {
-			len = 1;
-			break;
-		}
-		s = n->child->string;
-		if ('-' == *s) {
-			neg = 1;
-			s++;
-		}
-		len = a2height(p, s);
-		break;
+	else if (n->child == NULL)
+		len = 1;
+	else {
+		if ( ! a2roffsu(n->child->string, &su, SCALE_VS))
+			su.scale = 1.0;
+		len = term_vspan(p, &su);
 	}
 
-	if (0 == len)
+	if (len == 0)
 		term_newln(p);
-	else if (neg)
-		p->skipvsp += len;
+	else if (len < 0)
+		p->skipvsp -= len;
 	else
 		for (i = 0; i < len; i++)
 			term_vspace(p);
@@ -517,9 +486,9 @@ pre_sp(DECL_ARGS)
 static int
 pre_HP(DECL_ARGS)
 {
-	size_t			 len, one;
-	int			 ival;
+	struct roffsu		 su;
 	const struct man_node	*nn;
+	int			 len;
 
 	switch (n->type) {
 	case MAN_BLOCK:
@@ -536,25 +505,21 @@ pre_HP(DECL_ARGS)
 		p->trailspace = 2;
 	}
 
-	len = mt->lmargin[mt->lmargincur];
-	ival = -1;
-
 	/* Calculate offset. */
 
-	if (NULL != (nn = n->parent->head->child))
-		if ((ival = a2width(p, nn->string)) >= 0)
-			len = (size_t)ival;
-
-	one = term_len(p, 1);
-	if (len < one)
-		len = one;
+	if ((nn = n->parent->head->child) != NULL &&
+	    a2roffsu(nn->string, &su, SCALE_EN)) {
+		len = term_hspan(p, &su);
+		if (len < 0 && (size_t)(-len) > mt->offset)
+			len = -mt->offset;
+		else if (len > SHRT_MAX)
+			len = term_len(p, p->defindent);
+		mt->lmargin[mt->lmargincur] = len;
+	} else
+		len = mt->lmargin[mt->lmargincur];
 
 	p->offset = mt->offset;
 	p->rmargin = mt->offset + len;
-
-	if (ival >= 0)
-		mt->lmargin[mt->lmargincur] = (size_t)ival;
-
 	return(1);
 }
 
@@ -595,9 +560,9 @@ pre_PP(DECL_ARGS)
 static int
 pre_IP(DECL_ARGS)
 {
+	struct roffsu		 su;
 	const struct man_node	*nn;
-	size_t			 len;
-	int			 savelit, ival;
+	int			 len, savelit;
 
 	switch (n->type) {
 	case MAN_BODY:
@@ -614,28 +579,23 @@ pre_IP(DECL_ARGS)
 		return(1);
 	}
 
-	len = mt->lmargin[mt->lmargincur];
-	ival = -1;
-
 	/* Calculate the offset from the optional second argument. */
-	if (NULL != (nn = n->parent->head->child))
-		if (NULL != (nn = nn->next))
-			if ((ival = a2width(p, nn->string)) >= 0)
-				len = (size_t)ival;
+	if ((nn = n->parent->head->child) != NULL &&
+	    (nn = nn->next) != NULL &&
+	    a2roffsu(nn->string, &su, SCALE_EN)) {
+		len = term_hspan(p, &su);
+		if (len < 0 && (size_t)(-len) > mt->offset)
+			len = -mt->offset;
+		else if (len > SHRT_MAX)
+			len = term_len(p, p->defindent);
+		mt->lmargin[mt->lmargincur] = len;
+	} else
+		len = mt->lmargin[mt->lmargincur];
 
 	switch (n->type) {
 	case MAN_HEAD:
-		/* Handle zero-width lengths. */
-		if (0 == len)
-			len = term_len(p, 1);
-
 		p->offset = mt->offset;
 		p->rmargin = mt->offset + len;
-		if (ival < 0)
-			break;
-
-		/* Set the saved left-margin. */
-		mt->lmargin[mt->lmargincur] = (size_t)ival;
 
 		savelit = MANT_LITERAL & mt->fl;
 		mt->fl &= ~MANT_LITERAL;
@@ -681,9 +641,9 @@ post_IP(DECL_ARGS)
 static int
 pre_TP(DECL_ARGS)
 {
-	const struct man_node	*nn;
-	size_t			 len;
-	int			 savelit, ival;
+	struct roffsu		 su;
+	struct man_node		*nn;
+	int			 len, savelit;
 
 	switch (n->type) {
 	case MAN_HEAD:
@@ -700,22 +660,22 @@ pre_TP(DECL_ARGS)
 		return(1);
 	}
 
-	len = (size_t)mt->lmargin[mt->lmargincur];
-	ival = -1;
-
 	/* Calculate offset. */
 
-	if (NULL != (nn = n->parent->head->child))
-		if (nn->string && 0 == (MAN_LINE & nn->flags))
-			if ((ival = a2width(p, nn->string)) >= 0)
-				len = (size_t)ival;
+	if ((nn = n->parent->head->child) != NULL &&
+	    nn->string != NULL && ! (MAN_LINE & nn->flags) &&
+	    a2roffsu(nn->string, &su, SCALE_EN)) {
+		len = term_hspan(p, &su);
+		if (len < 0 && (size_t)(-len) > mt->offset)
+			len = -mt->offset;
+		else if (len > SHRT_MAX)
+			len = term_len(p, p->defindent);
+		mt->lmargin[mt->lmargincur] = len;
+	} else
+		len = mt->lmargin[mt->lmargincur];
 
 	switch (n->type) {
 	case MAN_HEAD:
-		/* Handle zero-length properly. */
-		if (0 == len)
-			len = term_len(p, 1);
-
 		p->offset = mt->offset;
 		p->rmargin = mt->offset + len;
 
@@ -734,9 +694,6 @@ pre_TP(DECL_ARGS)
 
 		if (savelit)
 			mt->fl |= MANT_LITERAL;
-		if (ival >= 0)
-			mt->lmargin[mt->lmargincur] = (size_t)ival;
-
 		return(0);
 	case MAN_BODY:
 		p->offset = mt->offset + len;
@@ -881,8 +838,7 @@ post_SH(DECL_ARGS)
 static int
 pre_RS(DECL_ARGS)
 {
-	int		 ival;
-	size_t		 sz;
+	struct roffsu	 su;
 
 	switch (n->type) {
 	case MAN_BLOCK:
@@ -894,13 +850,16 @@ pre_RS(DECL_ARGS)
 		break;
 	}
 
-	sz = term_len(p, p->defindent);
+	n = n->parent->head;
+	n->aux = SHRT_MAX + 1;
+	if (n->child != NULL && a2roffsu(n->child->string, &su, SCALE_EN))
+		n->aux = term_hspan(p, &su);
+	if (n->aux < 0 && (size_t)(-n->aux) > mt->offset)
+		n->aux = -mt->offset;
+	else if (n->aux > SHRT_MAX)
+		n->aux = term_len(p, p->defindent);
 
-	if (NULL != (n = n->parent->head->child))
-		if ((ival = a2width(p, n->string)) >= 0)
-			sz = (size_t)ival;
-
-	mt->offset += sz;
+	mt->offset += n->aux;
 	p->offset = mt->offset;
 	p->rmargin = p->maxrmargin;
 
@@ -914,8 +873,6 @@ pre_RS(DECL_ARGS)
 static void
 post_RS(DECL_ARGS)
 {
-	int		 ival;
-	size_t		 sz;
 
 	switch (n->type) {
 	case MAN_BLOCK:
@@ -927,13 +884,7 @@ post_RS(DECL_ARGS)
 		break;
 	}
 
-	sz = term_len(p, p->defindent);
-
-	if (NULL != (n = n->parent->head->child))
-		if ((ival = a2width(p, n->string)) >= 0)
-			sz = (size_t)ival;
-
-	mt->offset = mt->offset < sz ?  0 : mt->offset - sz;
+	mt->offset -= n->parent->head->aux;
 	p->offset = mt->offset;
 
 	if (--mt->lmarginsz < MAXMARGINS)
@@ -998,7 +949,7 @@ print_man_node(DECL_ARGS)
 		 * Tables are preceded by a newline.  Then process a
 		 * table line, which will cause line termination,
 		 */
-		if (TBL_SPAN_FIRST & n->span->flags)
+		if (n->span->prev == NULL)
 			term_newln(p);
 		term_tbl(p, n->span);
 		return;
@@ -1056,10 +1007,10 @@ static void
 print_man_nodelist(DECL_ARGS)
 {
 
-	print_man_node(p, mt, n, meta);
-	if ( ! n->next)
-		return;
-	print_man_nodelist(p, mt, n->next, meta);
+	while (n != NULL) {
+		print_man_node(p, mt, n, meta);
+		n = n->next;
+	}
 }
 
 static void
