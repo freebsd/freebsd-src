@@ -2,11 +2,10 @@
 
 .include "../Makefile.inc0"
 
-.PATH: ${SRCDIR}/gas/doc ${SRCDIR}/ld
+.PATH: ${SRCDIR}/gas/doc \
+	${SRCDIR}/ld \
+	${SRCDIR}/binutils/doc
 
-FILESGROUPS=	TOP
-
-TOPDIR=	${SHAREDIR}/doc/binutils
-TOP=	as.txt ld.txt
+MAN=	ld.7 ldint.7 as.7 binutils.7
 
 .include <bsd.prog.mk>

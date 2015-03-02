@@ -185,8 +185,6 @@
             ..
             atm
             ..
-            binutils
-            ..
             legal
                 intel_ipw
                 ..
