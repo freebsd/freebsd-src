@@ -1,6 +1,6 @@
 ************************************************************************
 * Official mandoc TODO.
-* $Id: TODO,v 1.195 2014/12/13 13:14:39 schwarze Exp $
+* $Id: TODO,v 1.201 2015/02/20 13:47:28 schwarze Exp $
 ************************************************************************
 
 Many issues are annotated for difficulty as follows:
@@ -60,7 +60,7 @@ are mere guesses, and some may be wrong.
 - .fc (field control)
   found by naddy@ in xloadimage(1)
   loc **  exist ***  algo *  size *  imp *
-  
+
 - .nr third argument (auto-increment step size, requires \n+)
   found by bentley@ in sbcl(1)  Mon, 9 Dec 2013 18:36:57 -0700
   loc *  exist *  algo *  size *  imp **
@@ -69,30 +69,36 @@ are mere guesses, and some may be wrong.
   reported by brad@  Sat, 15 Jan 2011 15:45:23 -0500
   loc ***  exist ***  algo ***  size **  imp *
 
-- .ta (tab settings) occurs in ircbug(1) and probably gnats(1)
-  reported by brad@  Sat, 15 Jan 2011 15:50:51 -0500
+- .ta (tab settings)
+  #1 most important issue naddy@ Mon, 16 Feb 2015 20:59:17 +0100
+  ircbug(1) gnats(1) reported by brad@  Sat, 15 Jan 2011 15:50:51 -0500
   also Tcl_NewStringObj(3) via wiz@  Wed, 5 Mar 2014 22:27:43 +0100
   also posix2time(3) Carsten Kunze  Mon, 1 Dec 2014 13:03:10 +0100
   loc **  exist ***  algo **  size **  imp ***
 
 - .ti (temporary indent)
-  found by naddy@ in xloadimage(1)
+  found by naddy@ in xloadimage(1) [devel/libvstr] vstr(3)
   found by bentley@ in nmh(1)  Mon, 23 Apr 2012 13:38:28 -0600
   loc **  exist **  algo **  size *  imp ** (parser reorg helps a lot)
 
-- .while and .shift 
+- .while and .shift
   found by jca@ in ratpoison(1)  Sun, 30 Jun 2013 12:01:09 +0200
   loc *  exist **  algo **  size **  imp **
 
 - \h horizontal move
-  found in cclive(1) and nasm(1) asciidoc/DocBook output
+  #2 most important issue naddy@  Mon, 16 Feb 2015 20:59:17 +0100
+  found in cclive(1) nasm(1) bogofilter(1) asciidoc/DocBook output
   bentley@ on discuss@  Sat, 21 Sep 2013 22:29:34 -0600
   naddy@  Thu, 4 Dec 2014 16:26:41 +0100
-  loc **  exist **  algo **  size *  imp ** (parser reorg helps a lot)
+  loc **  exist **  algo **  size *  imp *** (parser reorg helps a lot)
 
 - \n+ and \n- numerical register increment and decrement
   found by bentley@ in sbcl(1)  Mon, 9 Dec 2013 18:36:57 -0700
   loc *  exist *  algo *  size *  imp **
+
+- \n(.$ macro argument count number register; ocserv(8) by autogen
+  found by sthen@  Thu, 19 Feb 2015 22:03:01 +0000
+  loc *  exist **  algo *  size *  imp **
 
 - \w'' improve width measurements
   would not be very useful without an expression parser, see below
@@ -104,10 +110,6 @@ are mere guesses, and some may be wrong.
   loc *  exist *  algo *  size *  imp *
 
 --- missing mdoc features ----------------------------------------------
-
-- fix bad block nesting involving multiple identical explicit blocks
-  see the OpenBSD mdoc_macro.c 1.47 commit message
-  loc *  exist ***  algo ***  size *  imp **
 
 - .Bl -column .Xo support is missing
   ultimate goal:
@@ -255,6 +257,10 @@ are mere guesses, and some may be wrong.
 
 --- compatibility checks -----------------------------------------------
 
+- write a configure check for [[:<:]] support and provide some
+  fallback for whatis(1) when it doesn't work;
+  Svyatoslav Mishyn  Wed, 17 Dec 2014 11:07:10 +0200
+
 - is .Bk implemented correctly in modern groff?
   sobrado@  Tue, 19 Apr 2011 22:12:55 +0200
 
@@ -346,6 +352,10 @@ are mere guesses, and some may be wrong.
 - in enclosures, mandoc sometimes fancies a bogus end of sentence
   reminded by jmc@  Thu, 23 Sep 2010 18:13:39 +0059
   loc *  exist **  algo ***  size *  imp ***
+
+- a line starting with "\fB something" counts as starting with whitespace
+  and triggers a line break; found in audio/normalize-mp3(1)
+  loc **  exist *  algo **  size *  imp **
 
 - formatting /usr/local/man/man1/latex2man.1 with groff and mandoc
   reveals lots of bugs both in groff and mandoc...
@@ -457,7 +467,7 @@ are mere guesses, and some may be wrong.
   loc *  exist *  algo *  size *  imp *
 
 - trailing whitespace must be ignored even when followed by a font escape,
-  see for example 
+  see for example
     makes
     \fBdig \fR
     operate in batch mode
@@ -531,7 +541,7 @@ are mere guesses, and some may be wrong.
   How does SQLITE_CONFIG_PAGECACHE actually work?  Document it!
   from kristaps@  Sat, 09 Aug 2014 13:51:36 +0200
 
-Several areas can be cleaned up to make mandoc even faster.  These are 
+Several areas can be cleaned up to make mandoc even faster.  These are
 
 - improve hashing mechanism for macros (quite important: performance)
 
@@ -540,7 +550,7 @@ Several areas can be cleaned up to make mandoc even faster.  These are
 - the PDF file is HUGE: this can be reduced by using relative offsets
 
 - instead of re-initialising the roff predefined-strings set before each
-  parse, create a read-only version the first time and copy it 
+  parse, create a read-only version the first time and copy it
   loc *  exist **  algo **  size *  imp **
 
 ************************************************************************
@@ -556,7 +566,7 @@ Several areas can be cleaned up to make mandoc even faster.  These are
 
 - Find better ways to prevent endless loops
   in roff(7) macro and string expansion.
- 
+
 - Finish cleanup of date handling.
   Decide which formats should be recognized where.
   Update both mdoc(7) and man(7) documentation.
