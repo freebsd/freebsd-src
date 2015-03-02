@@ -99,6 +99,7 @@ main() {
 	BRANCH=$(chroot ${CHROOTDIR} make -C /usr/src/release -V BRANCH)
 	UNAME_r=${REVISION}-${BRANCH}
 	export UNAME_r
+	export XZ_CMD=$(make -C /usr/src/release -V XZ_CMD)
 
 	# Build the 'xdev' target for crochet.
 	eval chroot ${CHROOTDIR} make -C /usr/src \
@@ -146,9 +147,9 @@ main() {
 		-c /tmp/external/${XDEV}/crochet-${KERNEL}.conf
 	mkdir -p ${CHROOTDIR}/R/
 	cp -p ${CHROOTDIR}/usr/obj/*.img ${CHROOTDIR}/R/
-	bzip2 ${CHROOTDIR}/R/FreeBSD*.img
-	cd ${CHROOTDIR}/R/ && sha256 FreeBSD*.img.bz2 > CHECKSUM.SHA256
-	cd ${CHROOTDIR}/R/ && md5 FreeBSD*.img.bz2 > CHECKSUM.MD5
+	${XZ_CMD} ${CHROOTDIR}/R/FreeBSD*.img
+	cd ${CHROOTDIR}/R/ && sha256 FreeBSD*.img.xz > CHECKSUM.SHA256
+	cd ${CHROOTDIR}/R/ && md5 FreeBSD*.img.xz > CHECKSUM.MD5
 }
 
 main "$@"
