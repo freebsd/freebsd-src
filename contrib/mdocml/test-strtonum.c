@@ -1,6 +1,6 @@
-/*	$Id: msec.c,v 1.14 2014/12/21 14:14:35 schwarze Exp $ */
+/*	$Id: test-strtonum.c,v 1.1 2015/02/16 14:56:22 schwarze Exp $	*/
 /*
- * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2015 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,23 +14,29 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#include "config.h"
 
-#include <sys/types.h>
+#include <stdlib.h>
 
-#include <string.h>
-
-#include "mandoc.h"
-#include "libmandoc.h"
-
-#define LINE(x, y) \
-	if (0 == strcmp(p, x)) return(y);
-
-const char *
-mandoc_a2msec(const char *p)
+int
+main(void)
 {
+	const char *errstr;
 
-#include "msec.in"
-
-	return(NULL);
+	if (strtonum("1", 0, 2, &errstr) != 1)
+		return(1);
+	if (errstr != NULL)
+		return(2);
+	if (strtonum("1x", 0, 2, &errstr) != 0)
+		return(3);
+	if (errstr == NULL)
+		return(4);
+	if (strtonum("2", 0, 1, &errstr) != 0)
+		return(5);
+	if (errstr == NULL)
+		return(6);
+	if (strtonum("0", 1, 2, &errstr) != 0)
+		return(7);
+	if (errstr == NULL)
+		return(8);
+	return(0);
 }
