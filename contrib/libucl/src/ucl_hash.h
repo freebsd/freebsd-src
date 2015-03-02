@@ -25,15 +25,11 @@
 #define __UCL_HASH_H
 
 #include "ucl.h"
-#include "uthash.h"
 
 /******************************************************************************/
 
-typedef struct ucl_hash_node_s
-{
-	const ucl_object_t *data;
-	UT_hash_handle hh;
-} ucl_hash_node_t;
+struct ucl_hash_node_s;
+typedef struct ucl_hash_node_s ucl_hash_node_t;
 
 typedef int ucl_hash_cmp_func (const void* void_a, const void* void_b);
 typedef void ucl_hash_free_func (void *ptr);
@@ -43,16 +39,14 @@ typedef void* ucl_hash_iter_t;
 /**
  * Linear chained hashtable.
  */
-typedef struct ucl_hash_struct
-{
-	ucl_hash_node_t *buckets; /**< array of hash buckets. One list for each hash modulus. */
-} ucl_hash_t;
+struct ucl_hash_struct;
+typedef struct ucl_hash_struct ucl_hash_t;
 
 
 /**
  * Initializes the hashtable.
  */
-ucl_hash_t* ucl_hash_create (void);
+ucl_hash_t* ucl_hash_create (bool ignore_case);
 
 /**
  * Deinitializes the hashtable.
@@ -94,6 +88,6 @@ const void* ucl_hash_iterate (ucl_hash_t *hashlin, ucl_hash_iter_t *iter);
 /**
  * Check whether an iterator has next element
  */
-bool ucl_hash_iter_has_next (ucl_hash_iter_t iter);
+bool ucl_hash_iter_has_next (ucl_hash_t *hashlin, ucl_hash_iter_t iter);
 
 #endif

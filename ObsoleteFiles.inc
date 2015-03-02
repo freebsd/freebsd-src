@@ -38,6 +38,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150302: binutils documentation distributed as a manpage
+OLD_FILES+=usr/share/doc/binutils/as.txt
+OLD_FILES+=usr/share/doc/binutils/ld.txt
+OLD_DIRS+=usr/share/doc/binutils
 # 20150222: Removed bcd(6) and ppt(6)
 OLD_FILES+=usr/bin/bcd
 OLD_FILES+=usr/bin/ppt

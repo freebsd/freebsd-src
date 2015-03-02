@@ -19,20 +19,32 @@ if [ `id -u` -eq 0 ]; then
 fi
 
 if [ $# -eq 0 ]; then
-  echo "usage: $0 manual_source_file ..."
+  echo "usage: $0 -h manual_source_file ..."
   exit 1
 fi
+
+if [ "X$1" = "X-h" ]; then
+  shift
+  export PATH="/usr/local/heirloom-doctools/bin:$PATH"
+  EQN="neqn"
+  ROFF="nroff"
+  MOPT="-Omdoc $MOPT"
+else
+  EQN="eqn -Tascii"
+  ROFF="groff -ww -Tascii -P -c"
+fi
+MOPT="-Werror $MOPT"
 
 while [ -n "$1" ]; do
   file=$1
   shift
   echo " ========== $file ========== "
-  tbl $file | groff -mandoc -Tascii -P -c 2> /tmp/groff.err > /tmp/groff.out
-  mandoc -Ios='OpenBSD ports' -Werror $file 2> /tmp/mandoc.err > /tmp/mandoc.out
-  for i in groff mandoc; do
+  tbl $file | $EQN | $ROFF -mandoc 2> /tmp/roff.err > /tmp/roff.out
+  mandoc -Ios='OpenBSD ports' $MOPT $file 2> /tmp/mandoc.err > /tmp/mandoc.out
+  for i in roff mandoc; do
     [[ -s /tmp/$i.err ]] && echo "$i errors:" && cat /tmp/$i.err
   done
-  diff -au /tmp/groff.out /tmp/mandoc.out 2>&1
+  diff -au /tmp/roff.out /tmp/mandoc.out 2>&1
 done
 
 exit 0
