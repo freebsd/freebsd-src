@@ -119,7 +119,7 @@ ar71xx_ehci_attach(device_t self)
 
 	rid = 0;
 	sc->sc_irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	    RF_ACTIVE | RF_SHAREABLE);
 	if (sc->sc_irq_res == NULL) {
 		device_printf(self, "Could not allocate irq\n");
 		goto error;
