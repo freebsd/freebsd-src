@@ -137,9 +137,8 @@ ccall_inc_exception_cnt:
 	 * Once we can, we can remove all pre-trusted-stack tests from this
 	 * handler.
 	 */
-
-#if !defined(CPU_CHERI_HW_CCALL_CHECKS)
 ccall_validate_args:
+#if !defined(CPU_CHERI_HW_CCALL_CHECKS)
 	/* First, test argument registers for tag validity. */
 	cbtu		CHERI_REG_CCALLCODE, CCall_c1_untagged
 	nop
@@ -188,7 +187,6 @@ ccall_validate_args:
 	 * having been performed on the wrong registers.  We do this by
 	 * inspecting the exception-instruction CP0 register.
 	 */
-ccall_check_regs_nos:
 	dmfc0		k0, MIPS_COP_0_EXC_INS, 1	/* Get ins. encoding */
 	srl		k0, k0, 11	/* Shift register numbers to bottom */
 	and		k0, k0, 0x3ff	/* Mask everything but reg. numbers */
