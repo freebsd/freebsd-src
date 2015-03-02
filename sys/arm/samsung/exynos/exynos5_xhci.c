@@ -239,7 +239,7 @@ exynos_xhci_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	if (xhci_init(&esc->base, dev)) {
+	if (xhci_init(&esc->base, dev, 0)) {
 		device_printf(dev, "Could not initialize softc\n");
 		bus_release_resources(dev, exynos_xhci_spec, esc->res);
 		return (ENXIO);
