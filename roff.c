@@ -418,7 +418,6 @@ static	enum rofft	 roff_parse(struct roff *, char *, int *,
 static	enum rofferr	 roff_parsetext(struct buf *, int, int *);
 static	enum rofferr	 roff_res(struct roff *, struct buf *, int, int);
 static	enum rofferr	 roff_rm(ROFF_ARGS);
-static	enum rofferr	 roff_rn(ROFF_ARGS);
 static	enum rofferr	 roff_rr(ROFF_ARGS);
 static	void		 roff_setstr(struct roff *,
 				const char *, const char *, int);
@@ -625,7 +624,7 @@ static	struct roffmac	 roffs[ROFF_MAX] = {
 	{ "rhang", roff_line_ignore, NULL, NULL, 0, NULL },
 	{ "rj", roff_line_ignore, NULL, NULL, 0, NULL },
 	{ "rm", roff_rm, NULL, NULL, 0, NULL },
-	{ "rn", roff_rn, NULL, NULL, 0, NULL },
+	{ "rn", roff_unsupp, NULL, NULL, 0, NULL },
 	{ "rnn", roff_unsupp, NULL, NULL, 0, NULL },
 	{ "rr", roff_rr, NULL, NULL, 0, NULL },
 	{ "rs", roff_line_ignore, NULL, NULL, 0, NULL },
@@ -2322,35 +2321,6 @@ roff_rm(ROFF_ARGS)
 		if (name[namesz] == '\\')
 			break;
 	}
-	return(ROFF_IGN);
-}
-
-static enum rofferr
-roff_rn(ROFF_ARGS)
-{
-	struct roffkv	*n;
-	char		*newname;
-	const char	*name;
-	size_t		namesz;
-
-	name = newname = buf->buf + pos;
-	if (*name == '\0')
-		return(ROFF_IGN);
-
-	namesz = roff_getname(r, &newname, ln, pos);
-	if (name[namesz] == '\\')
-		return(ROFF_IGN);
-
-
-	for (n = r->strtab; n; n = n->next)
-		if (0 == strncmp(name, n->key.p, namesz) &&
-		    '\0' == n->key.p[(int)namesz]) {
-			free(n->key.p);
-			fprintf(stderr, "From %s to %s\n", n->key.p, newname);
-			n->key.p = mandoc_strdup(newname);
-			n->key.sz = strlen(n->key.p);
-		}
-
 	return(ROFF_IGN);
 }
 
