@@ -272,22 +272,10 @@ ofw_gpiobus_parse_gpios_impl(device_t consumer, phandle_t cnode, char *pname,
 			    "cannot map the gpios specifier.\n");
 			goto fail;
 		}
-		/* Consistency check. */
-		if ((*pins)[j].pin >= bussc->sc_npins) {
-			device_printf(consumer, "invalid pin %d, max: %d\n",
-			    (*pins)[j].pin, bussc->sc_npins - 1);
+		/* Reserve the GPIO pin. */
+		if (gpiobus_map_pin(bussc->sc_busdev, consumer,
+		    (*pins)[j].pin) != 0)
 			goto fail;
-		}
-		/*
-		 * Mark pin as mapped and give warning if it's already mapped.
-		 */
-		if (bussc->sc_pins_mapped[(*pins)[j].pin]) {
-			device_printf(consumer,
-			    "warning: pin %d is already mapped\n",
-			    pins[j]->pin);
-			goto fail;
-		}
-		bussc->sc_pins_mapped[(*pins)[j].pin] = 1;
 		j++;
 		i += gpiocells + 1;
 	}
