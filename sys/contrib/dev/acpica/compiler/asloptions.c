@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -184,7 +184,7 @@ AslDoOptions (
         }
         break;
 
-    case 'b':   /* Debug output options */
+    case 'b':   /* Debug options */
 
         switch (AcpiGbl_Optarg[0])
         {
@@ -193,10 +193,37 @@ AslDoOptions (
             AslCompilerdebug = 1; /* same as yydebug */
             DtParserdebug = 1;
             PrParserdebug = 1;
+            Gbl_DebugFlag = TRUE;
+            break;
+
+        case 'p':   /* Prune ASL parse tree */
+
+            /* Get the required argument */
+
+            if (AcpiGetoptArgument (argc, argv))
+            {
+                return (-1);
+            }
+
+            Gbl_PruneParseTree = TRUE;
+            Gbl_PruneDepth = (UINT8) strtoul (AcpiGbl_Optarg, NULL, 0);
+            break;
+
+        case 's':
+
+            Gbl_DebugFlag = TRUE;
             break;
 
         case 't':
 
+            /* Get the required argument */
+
+            if (AcpiGetoptArgument (argc, argv))
+            {
+                return (-1);
+            }
+
+            Gbl_PruneType = (UINT8) strtoul (AcpiGbl_Optarg, NULL, 0);
             break;
 
         default:
@@ -205,9 +232,6 @@ AslDoOptions (
             return (-1);
         }
 
-        /* Produce debug output file */
-
-        Gbl_DebugFlag = TRUE;
         break;
 
     case 'c':
@@ -248,6 +272,12 @@ AslDoOptions (
 
         case 'c':
 
+            break;
+
+        case 'l':   /* Use legacy ASL code (not ASL+) for disassembly */
+
+            Gbl_DoCompile = FALSE;
+            AcpiGbl_CstyleDisassembly = FALSE;
             break;
 
         default:
@@ -530,7 +560,6 @@ AslDoOptions (
 
         Gbl_OutputFilenamePrefix = AcpiGbl_Optarg;
         UtConvertBackslashes (Gbl_OutputFilenamePrefix);
-
         Gbl_UseDefaultAmlFilename = FALSE;
         break;
 

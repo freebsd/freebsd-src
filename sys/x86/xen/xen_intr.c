@@ -126,9 +126,9 @@ struct xenisrc {
 	int		xi_virq;
 	void		*xi_cookie;
 	u_int		xi_close:1;	/* close on unbind? */
-	u_int		xi_shared:1;	/* Shared with other domains. */
 	u_int		xi_activehi:1;
 	u_int		xi_edgetrigger:1;
+	u_int		xi_masked:1;
 };
 
 #define ARRAY_SIZE(a)	(sizeof(a) / sizeof(a[0]))
@@ -930,8 +930,21 @@ out:
  *              acknowledgements.
  */
 static void
-xen_intr_disable_source(struct intsrc *isrc, int eoi)
+xen_intr_disable_source(struct intsrc *base_isrc, int eoi)
 {
+	struct xenisrc *isrc;
+
+	isrc = (struct xenisrc *)base_isrc;
+
+	/*
+	 * NB: checking if the event channel is already masked is
+	 * needed because the event channel user-space device
+	 * masks event channels on it's filter as part of it's
+	 * normal operation, and those shouldn't be automatically
+	 * unmasked by the generic interrupt code. The event channel
+	 * device will unmask them when needed.
+	 */
+	isrc->xi_masked = !!evtchn_test_and_set_mask(isrc->xi_port);
 }
 
 /*
@@ -940,8 +953,14 @@ xen_intr_disable_source(struct intsrc *isrc, int eoi)
  * \param isrc  The interrupt source to unmask (if necessary).
  */
 static void
-xen_intr_enable_source(struct intsrc *isrc)
+xen_intr_enable_source(struct intsrc *base_isrc)
 {
+	struct xenisrc *isrc;
+
+	isrc = (struct xenisrc *)base_isrc;
+
+	if (isrc->xi_masked == 0)
+		evtchn_unmask_port(isrc->xi_port);
 }
 
 /*
@@ -950,7 +969,7 @@ xen_intr_enable_source(struct intsrc *isrc)
  * \param isrc  The interrupt source to EOI.
  */
 static void
-xen_intr_eoi_source(struct intsrc *isrc)
+xen_intr_eoi_source(struct intsrc *base_isrc)
 {
 }
 
@@ -981,8 +1000,9 @@ xen_intr_pirq_disable_source(struct intsrc *base_isrc, int eoi)
 	struct xenisrc *isrc;
 
 	isrc = (struct xenisrc *)base_isrc;
-	evtchn_mask_port(isrc->xi_port);
 
+	if (isrc->xi_edgetrigger == 0)
+		evtchn_mask_port(isrc->xi_port);
 	if (eoi == PIC_EOI)
 		xen_intr_pirq_eoi_source(base_isrc);
 }
@@ -998,7 +1018,9 @@ xen_intr_pirq_enable_source(struct intsrc *base_isrc)
 	struct xenisrc *isrc;
 
 	isrc = (struct xenisrc *)base_isrc;
-	evtchn_unmask_port(isrc->xi_port);
+
+	if (isrc->xi_edgetrigger == 0)
+		evtchn_unmask_port(isrc->xi_port);
 }
 
 /*
@@ -1010,13 +1032,17 @@ static void
 xen_intr_pirq_eoi_source(struct intsrc *base_isrc)
 {
 	struct xenisrc *isrc;
+	int error;
 
-	/* XXX Use shared page of flags for this. */
 	isrc = (struct xenisrc *)base_isrc;
+
 	if (test_bit(isrc->xi_pirq, xen_intr_pirq_eoi_map)) {
 		struct physdev_eoi eoi = { .irq = isrc->xi_pirq };
 
-		(void)HYPERVISOR_physdev_op(PHYSDEVOP_eoi, &eoi);
+		error = HYPERVISOR_physdev_op(PHYSDEVOP_eoi, &eoi);
+		if (error != 0)
+			panic("Unable to EOI PIRQ#%d: %d\n",
+			    isrc->xi_pirq, error);
 	}
 }
 
@@ -1361,7 +1387,6 @@ int
 xen_register_pirq(int vector, enum intr_trigger trig, enum intr_polarity pol)
 {
 	struct physdev_map_pirq map_pirq;
-	struct physdev_irq alloc_pirq;
 	struct xenisrc *isrc;
 	int error;
 
@@ -1379,14 +1404,6 @@ xen_register_pirq(int vector, enum intr_trigger trig, enum intr_polarity pol)
 	error = HYPERVISOR_physdev_op(PHYSDEVOP_map_pirq, &map_pirq);
 	if (error) {
 		printf("xen: unable to map IRQ#%d\n", vector);
-		return (error);
-	}
-
-	alloc_pirq.irq = vector;
-	alloc_pirq.vector = 0;
-	error = HYPERVISOR_physdev_op(PHYSDEVOP_alloc_irq_vector, &alloc_pirq);
-	if (error) {
-		printf("xen: unable to alloc PIRQ for IRQ#%d\n", vector);
 		return (error);
 	}
 
@@ -1432,6 +1449,8 @@ xen_register_msi(device_t dev, int vector, int count)
 		KASSERT(isrc != NULL,
 		    ("xen: unable to allocate isrc for interrupt"));
 		isrc->xi_pirq = msi_irq.pirq + i;
+		/* MSI interrupts are always edge triggered */
+		isrc->xi_edgetrigger = 1;
 	}
 	mtx_unlock(&xen_intr_isrc_lock);
 
@@ -1573,10 +1592,9 @@ xen_intr_dump_port(struct xenisrc *isrc)
 	    isrc->xi_port, xen_intr_print_type(isrc->xi_type));
 	if (isrc->xi_type == EVTCHN_TYPE_PIRQ) {
 		db_printf("\tPirq: %d ActiveHi: %d EdgeTrigger: %d "
-		    "NeedsEOI: %d Shared: %d\n",
+		    "NeedsEOI: %d\n",
 		    isrc->xi_pirq, isrc->xi_activehi, isrc->xi_edgetrigger,
-		    !!test_bit(isrc->xi_pirq, xen_intr_pirq_eoi_map),
-		    isrc->xi_shared);
+		    !!test_bit(isrc->xi_pirq, xen_intr_pirq_eoi_map));
 	}
 	if (isrc->xi_type == EVTCHN_TYPE_VIRQ)
 		db_printf("\tVirq: %d\n", isrc->xi_virq);

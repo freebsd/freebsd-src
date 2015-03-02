@@ -2258,7 +2258,8 @@ repeat:
 
 	if (usb_status & (MUSB2_MASK_IRESET |
 	    MUSB2_MASK_IRESUME | MUSB2_MASK_ISUSP | 
-	    MUSB2_MASK_ICONN | MUSB2_MASK_IDISC)) {
+	    MUSB2_MASK_ICONN | MUSB2_MASK_IDISC |
+	    MUSB2_MASK_IVBUSERR)) {
 
 		DPRINTFN(4, "real bus interrupt 0x%08x\n", usb_status);
 
@@ -2330,6 +2331,12 @@ repeat:
 		 * always in reset state once device is connected.
 		 */
 		if (sc->sc_mode == MUSB2_HOST_MODE) {
+		    /* check for VBUS error in USB host mode */
+		    if (usb_status & MUSB2_MASK_IVBUSERR) {
+			temp = MUSB2_READ_1(sc, MUSB2_REG_DEVCTL);
+			temp |= MUSB2_MASK_SESS;
+			MUSB2_WRITE_1(sc, MUSB2_REG_DEVCTL, temp);
+		    }
 		    if (usb_status & MUSB2_MASK_ICONN)
 			sc->sc_flags.status_bus_reset = 1;
 		    if (usb_status & MUSB2_MASK_IDISC)

@@ -13,7 +13,6 @@ desc_base="Base system (MANDATORY)"
 desc_kernel="Kernel (MANDATORY)"
 desc_doc="Additional documentation"
 doc_default=off
-desc_games="Games (fortune, etc.)"
 desc_lib32="32-bit compatibility libraries"
 desc_ports="Ports tree"
 desc_src="System source code"

@@ -195,6 +195,26 @@ static const struct inst db_inst_0f0x[] = {
 /*0f*/	{ "",      FALSE, NONE,  0,	      0 },
 };
 
+static const struct inst db_inst_0f1x[] = {
+/*10*/	{ "",      FALSE, NONE,  0,	      0 },
+/*11*/	{ "",      FALSE, NONE,  0,	      0 },
+/*12*/	{ "",      FALSE, NONE,  0,	      0 },
+/*13*/	{ "",      FALSE, NONE,  0,	      0 },
+/*14*/	{ "",      FALSE, NONE,  0,	      0 },
+/*15*/	{ "",      FALSE, NONE,  0,	      0 },
+/*16*/	{ "",      FALSE, NONE,  0,	      0 },
+/*17*/	{ "",      FALSE, NONE,  0,	      0 },
+
+/*18*/	{ "",      FALSE, NONE,  0,	      0 },
+/*19*/	{ "",      FALSE, NONE,  0,	      0 },
+/*1a*/	{ "",      FALSE, NONE,  0,	      0 },
+/*1b*/	{ "",      FALSE, NONE,  0,	      0 },
+/*1c*/	{ "",      FALSE, NONE,  0,	      0 },
+/*1d*/	{ "",      FALSE, NONE,  0,	      0 },
+/*1e*/	{ "",      FALSE, NONE,  0,	      0 },
+/*1f*/	{ "nopl",  TRUE,  SDEP,  0,	      "nopw" },
+};
+
 static const struct inst db_inst_0f2x[] = {
 /*20*/	{ "mov",   TRUE,  LONG,  op2(CR,El),  0 },
 /*21*/	{ "mov",   TRUE,  LONG,  op2(DR,El),  0 },
@@ -356,7 +376,7 @@ static const struct inst db_inst_0fcx[] = {
 
 static const struct inst * const db_inst_0f[] = {
 	db_inst_0f0x,
-	0,
+	db_inst_0f1x,
 	db_inst_0f2x,
 	db_inst_0f3x,
 	db_inst_0f4x,

@@ -116,6 +116,7 @@ static struct powerpc_exception powerpc_exceptions[] = {
 	{ 0x0e00, "floating-point assist" },
 	{ 0x0f00, "performance monitoring" },
 	{ 0x0f20, "altivec unavailable" },
+	{ 0x0f40, "vsx unavailable" },
 	{ 0x1000, "instruction tlb miss" },
 	{ 0x1100, "data load tlb miss" },
 	{ 0x1200, "data store tlb miss" },
@@ -228,6 +229,17 @@ trap(struct trapframe *frame)
 			KASSERT((td->td_pcb->pcb_flags & PCB_VEC) != PCB_VEC,
 			    ("Altivec already enabled for thread"));
 			enable_vec(td);
+			break;
+
+		case EXC_VSX:
+			KASSERT((td->td_pcb->pcb_flags & PCB_VSX) != PCB_VSX,
+			    ("VSX already enabled for thread"));
+			if (!(td->td_pcb->pcb_flags & PCB_VEC))
+				enable_vec(td);
+			if (!(td->td_pcb->pcb_flags & PCB_FPU))
+				save_fpu(td);
+			td->td_pcb->pcb_flags |= PCB_VSX;
+			enable_fpu(td);
 			break;
 
 		case EXC_VECAST_G4:
@@ -709,7 +721,7 @@ fix_unaligned(struct thread *td, struct trapframe *frame)
 	case EXC_ALI_LFD:
 	case EXC_ALI_STFD:
 		reg = EXC_ALI_RST(frame->cpu.aim.dsisr);
-		fpr = &td->td_pcb->pcb_fpu.fpr[reg];
+		fpr = &td->td_pcb->pcb_fpu.fpr[reg].fpr;
 		fputhread = PCPU_GET(fputhread);
 
 		/* Juggle the FPU to ensure that we've initialized

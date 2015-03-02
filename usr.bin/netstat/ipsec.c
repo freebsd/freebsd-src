@@ -107,8 +107,10 @@ __FBSDID("$FreeBSD$");
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
+#include <libxo/xo.h>
 #include "netstat.h"
 
 #ifdef IPSEC
@@ -171,27 +173,39 @@ static void print_ipsecstats(const struct ipsecstat *ipsecstat);
 static void
 print_ipsecstats(const struct ipsecstat *ipsecstat)
 {
+	xo_open_container("ipsec-statistics");
+
 #define	p(f, m) if (ipsecstat->f || sflag <= 1) \
-    printf(m, (uintmax_t)ipsecstat->f, plural(ipsecstat->f))
-	p(ips_in_polvio, "\t%ju inbound packet%s violated process "
-		"security policy\n");
-	p(ips_in_nomem, "\t%ju inbound packet%s failed due to "
-		"insufficient memory\n");
-	p(ips_in_inval, "\t%ju invalid inbound packet%s\n");
-	p(ips_out_polvio, "\t%ju outbound packet%s violated process "
-		"security policy\n");
-	p(ips_out_nosa, "\t%ju outbound packet%s with no SA available\n");
-	p(ips_out_nomem, "\t%ju outbound packet%s failed due to "
-		"insufficient memory\n");
-	p(ips_out_noroute, "\t%ju outbound packet%s with no route "
-		"available\n");
-	p(ips_out_inval, "\t%ju invalid outbound packet%s\n");
-	p(ips_out_bundlesa, "\t%ju outbound packet%s with bundled SAs\n");
-	p(ips_mbcoalesced, "\t%ju mbuf%s coalesced during clone\n");
-	p(ips_clcoalesced, "\t%ju cluster%s coalesced during clone\n");
-	p(ips_clcopied, "\t%ju cluster%s copied during clone\n");
-	p(ips_mbinserted, "\t%ju mbuf%s inserted during makespace\n");
+	xo_emit(m, (uintmax_t)ipsecstat->f, plural(ipsecstat->f))
+
+	p(ips_in_polvio, "\t{:dropped-policy-violation/%ju} "
+	    "{N:/inbound packet%s violated process security policy}\n");
+	p(ips_in_nomem, "\t{:dropped-no-memory/%ju} "
+	    "{N:/inbound packet%s failed due to insufficient memory}\n");
+	p(ips_in_inval, "\t{:dropped-invalid/%ju} "
+	    "{N:/invalid inbound packet%s}\n");
+	p(ips_out_polvio, "\t{:discarded-policy-violation/%ju} "
+	    "{N:/outbound packet%s violated process security policy}\n");
+	p(ips_out_nosa, "\t{:discarded-no-sa/%ju} "
+	    "{N:/outbound packet%s with no SA available}\n");
+	p(ips_out_nomem, "\t{:discarded-no-memory/%ju} "
+	    "{N:/outbound packet%s failed due to insufficient memory}\n");
+	p(ips_out_noroute, "\t{:discarded-no-route/%ju} "
+	    "{N:/outbound packet%s with no route available}\n");
+	p(ips_out_inval, "\t{:discarded-invalid/%ju} "
+	    "{N:/invalid outbound packet%s}\n");
+	p(ips_out_bundlesa, "\t{:send-bundled-sa/%ju} "
+	    "{N:/outbound packet%s with bundled SAs}\n");
+	p(ips_mbcoalesced, "\t{:mbufs-coalesced-during-clone/%ju} "
+	    "{N:/mbuf%s coalesced during clone}\n");
+	p(ips_clcoalesced, "\t{:clusters-coalesced-during-clone/%ju} "
+	    "{N:/cluster%s coalesced during clone}\n");
+	p(ips_clcopied, "\t{:clusters-copied-during-clone/%ju} "
+	    "{N:/cluster%s copied during clone}\n");
+	p(ips_mbinserted, "\t{:mbufs-inserted/%ju} "
+	    "{N:/mbuf%s inserted during makespace}\n");
 #undef p
+	xo_close_container("ipsec-statistics");
 }
 
 void
@@ -201,15 +215,13 @@ ipsec_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 
 	if (off == 0)
 		return;
-	printf ("%s:\n", name);
+	xo_emit("{T:/%s}:\n", name);
 	kread_counters(off, (char *)&ipsecstat, sizeof(ipsecstat));
 
 	print_ipsecstats(&ipsecstat);
 }
 
 
-static void ipsec_hist_new(const uint64_t *hist, size_t histmax,
-			   const struct val2str *name, const char *title);
 static void print_ahstats(const struct ahstat *ahstat);
 static void print_espstats(const struct espstat *espstat);
 static void print_ipcompstats(const struct ipcompstat *ipcompstat);
@@ -219,7 +231,7 @@ static void print_ipcompstats(const struct ipcompstat *ipcompstat);
  */
 static void
 ipsec_hist_new(const uint64_t *hist, size_t histmax,
-	       const struct val2str *name, const char *title)
+    const struct val2str *name, const char *title, const char *cname)
 {
 	int first;
 	size_t proto;
@@ -230,54 +242,72 @@ ipsec_hist_new(const uint64_t *hist, size_t histmax,
 		if (hist[proto] <= 0)
 			continue;
 		if (first) {
-			printf("\t%s histogram:\n", title);
+			xo_open_list(cname);
+			xo_emit("\t{T:/%s histogram}:\n", title);
 			first = 0;
 		}
+		xo_open_instance(cname);
 		for (p = name; p && p->str; p++) {
 			if (p->val == (int)proto)
 				break;
 		}
 		if (p && p->str) {
-			printf("\t\t%s: %ju\n", p->str,
+			xo_emit("\t\t{k:name}: {:count/%ju}\n", p->str,
 			    (uintmax_t)hist[proto]);
 		} else {
-			printf("\t\t#%lu: %ju\n", (unsigned long)proto,
-			    (uintmax_t)hist[proto]);
+			xo_emit("\t\t#{k:name/%lu}: {:count/%ju}\n",
+			    (unsigned long)proto, (uintmax_t)hist[proto]);
 		}
+		xo_close_instance(cname);
 	}
+	if (!first)
+		xo_close_list(cname);
 }
 
 static void
 print_ahstats(const struct ahstat *ahstat)
 {
-#define	p(f, m) if (ahstat->f || sflag <= 1) \
-    printf("\t%ju" m, (uintmax_t)ahstat->f, plural(ahstat->f))
-#define	hist(f, n, t) \
-    ipsec_hist_new((f), sizeof(f)/sizeof(f[0]), (n), (t));
+	xo_open_container("ah-statictics");
 
-	p(ahs_hdrops, " packet%s shorter than header shows\n");
-	p(ahs_nopf, " packet%s dropped; protocol family not supported\n");
-	p(ahs_notdb, " packet%s dropped; no TDB\n");
-	p(ahs_badkcr, " packet%s dropped; bad KCR\n");
-	p(ahs_qfull, " packet%s dropped; queue full\n");
-	p(ahs_noxform, " packet%s dropped; no transform\n");
-	p(ahs_wrap, " replay counter wrap%s\n");
-	p(ahs_badauth, " packet%s dropped; bad authentication detected\n");
-	p(ahs_badauthl, " packet%s dropped; bad authentication length\n");
-	p(ahs_replay, " possible replay packet%s detected\n");
-	p(ahs_input, " packet%s in\n");
-	p(ahs_output, " packet%s out\n");
-	p(ahs_invalid, " packet%s dropped; invalid TDB\n");
-	p(ahs_ibytes, " byte%s in\n");
-	p(ahs_obytes, " byte%s out\n");
-	p(ahs_toobig, " packet%s dropped; larger than IP_MAXPACKET\n");
-	p(ahs_pdrops, " packet%s blocked due to policy\n");
-	p(ahs_crypto, " crypto processing failure%s\n");
-	p(ahs_tunnel, " tunnel sanity check failure%s\n");
-	hist(ahstat->ahs_hist, ipsec_ahnames, "AH output");
+#define	p(f, n, m) if (ahstat->f || sflag <= 1) \
+	xo_emit("\t{:" n "/%ju} {N:/" m "}\n",	\
+	    (uintmax_t)ahstat->f, plural(ahstat->f))
+#define	hist(f, n, t, c) \
+	ipsec_hist_new((f), sizeof(f)/sizeof(f[0]), (n), (t), (c))
+
+	p(ahs_hdrops, "dropped-short-header",
+	    "packet%s shorter than header shows");
+	p(ahs_nopf, "dropped-bad-protocol",
+	    "packet%s dropped; protocol family not supported");
+	p(ahs_notdb, "dropped-no-tdb", "packet%s dropped; no TDB");
+	p(ahs_badkcr, "dropped-bad-kcr", "packet%s dropped; bad KCR");
+	p(ahs_qfull, "dropped-queue-full", "packet%s dropped; queue full");
+	p(ahs_noxform, "dropped-no-transform",
+	    "packet%s dropped; no transform");
+	p(ahs_wrap, "replay-counter-wraps", "replay counter wrap%s");
+	p(ahs_badauth, "dropped-bad-auth",
+	    "packet%s dropped; bad authentication detected");
+	p(ahs_badauthl, "dropped-bad-auth-level",
+	    "packet%s dropped; bad authentication length");
+	p(ahs_replay, "possile-replay-detected",
+	    "possible replay packet%s detected");
+	p(ahs_input, "received-packets", "packet%s in");
+	p(ahs_output, "send-packets", "packet%s out");
+	p(ahs_invalid, "dropped-bad-tdb", "packet%s dropped; invalid TDB");
+	p(ahs_ibytes, "received-bytes", "byte%s in");
+	p(ahs_obytes, "send-bytes", "byte%s out");
+	p(ahs_toobig, "dropped-too-large",
+	    "packet%s dropped; larger than IP_MAXPACKET");
+	p(ahs_pdrops, "dropped-policy-violation",
+	    "packet%s blocked due to policy");
+	p(ahs_crypto, "crypto-failures", "crypto processing failure%s");
+	p(ahs_tunnel, "tunnel-failures", "tunnel sanity check failure%s");
+	hist(ahstat->ahs_hist, ipsec_ahnames,
+	    "AH output", "ah-output-histogram");
 
 #undef p
 #undef hist
+	xo_close_container("ah-statictics");
 }
 
 void
@@ -287,7 +317,7 @@ ah_stats(u_long off, const char *name, int family __unused, int proto __unused)
 
 	if (off == 0)
 		return;
-	printf ("%s:\n", name);
+	xo_emit("{T:/%s}:\n", name);
 	kread_counters(off, (char *)&ahstat, sizeof(ahstat));
 
 	print_ahstats(&ahstat);
@@ -296,35 +326,47 @@ ah_stats(u_long off, const char *name, int family __unused, int proto __unused)
 static void
 print_espstats(const struct espstat *espstat)
 {
-#define	p(f, m) if (espstat->f || sflag <= 1) \
-    printf("\t%ju" m, (uintmax_t)espstat->f, plural(espstat->f))
-#define	hist(f, n, t) \
-    ipsec_hist_new((f), sizeof(f)/sizeof(f[0]), (n), (t));
+	xo_open_container("esp-statictics");
+#define	p(f, n, m) if (espstat->f || sflag <= 1)	\
+	xo_emit("\t{:" n "/%ju} {N:/" m "}\n",		\
+	    (uintmax_t)espstat->f, plural(espstat->f))
+#define	hist(f, n, t, c) \
+	ipsec_hist_new((f), sizeof(f)/sizeof(f[0]), (n), (t), (c));
 
-	p(esps_hdrops, " packet%s shorter than header shows\n");
-	p(esps_nopf, " packet%s dropped; protocol family not supported\n");
-	p(esps_notdb, " packet%s dropped; no TDB\n");
-	p(esps_badkcr, " packet%s dropped; bad KCR\n");
-	p(esps_qfull, " packet%s dropped; queue full\n");
-	p(esps_noxform, " packet%s dropped; no transform\n");
-	p(esps_badilen, " packet%s dropped; bad ilen\n");
-	p(esps_wrap, " replay counter wrap%s\n");
-	p(esps_badenc, " packet%s dropped; bad encryption detected\n");
-	p(esps_badauth, " packet%s dropped; bad authentication detected\n");
-	p(esps_replay, " possible replay packet%s detected\n");
-	p(esps_input, " packet%s in\n");
-	p(esps_output, " packet%s out\n");
-	p(esps_invalid, " packet%s dropped; invalid TDB\n");
-	p(esps_ibytes, " byte%s in\n");
-	p(esps_obytes, " byte%s out\n");
-	p(esps_toobig, " packet%s dropped; larger than IP_MAXPACKET\n");
-	p(esps_pdrops, " packet%s blocked due to policy\n");
-	p(esps_crypto, " crypto processing failure%s\n");
-	p(esps_tunnel, " tunnel sanity check failure%s\n");
-	hist(espstat->esps_hist, ipsec_espnames, "ESP output");
+	p(esps_hdrops, "dropped-short-header",
+	    "packet%s shorter than header shows");
+	p(esps_nopf, "dropped-bad-protocol",
+	    "packet%s dropped; protocol family not supported");
+	p(esps_notdb, "dropped-no-tdb", "packet%s dropped; no TDB");
+	p(esps_badkcr, "dropped-bad-kcr", "packet%s dropped; bad KCR");
+	p(esps_qfull, "dropped-queue-full", "packet%s dropped; queue full");
+	p(esps_noxform, "dropped-no-transform",
+	    "packet%s dropped; no transform");
+	p(esps_badilen, "dropped-bad-length", "packet%s dropped; bad ilen");
+	p(esps_wrap, "replay-counter-wraps", "replay counter wrap%s");
+	p(esps_badenc, "dropped-bad-crypto",
+	    "packet%s dropped; bad encryption detected");
+	p(esps_badauth, "dropped-bad-auth",
+	    "packet%s dropped; bad authentication detected");
+	p(esps_replay, "possible-replay-detected",
+	    "possible replay packet%s detected");
+	p(esps_input, "received-packets", "packet%s in");
+	p(esps_output, "sent-packets", "packet%s out");
+	p(esps_invalid, "dropped-bad-tdb", "packet%s dropped; invalid TDB");
+	p(esps_ibytes, "receieve-bytes", "byte%s in");
+	p(esps_obytes, "sent-bytes", "byte%s out");
+	p(esps_toobig, "dropped-too-large",
+	    "packet%s dropped; larger than IP_MAXPACKET");
+	p(esps_pdrops, "dropped-policy-violation",
+	    "packet%s blocked due to policy");
+	p(esps_crypto, "crypto-failures", "crypto processing failure%s");
+	p(esps_tunnel, "tunnel-failures", "tunnel sanity check failure%s");
+	hist(espstat->esps_hist, ipsec_espnames,
+	    "ESP output", "esp-output-histogram");
 
 #undef p
 #undef hist
+	xo_close_container("esp-statictics");
 }
 
 void
@@ -334,7 +376,7 @@ esp_stats(u_long off, const char *name, int family __unused, int proto __unused)
 
 	if (off == 0)
 		return;
-	printf ("%s:\n", name);
+	xo_emit("{T:/%s}:\n", name);
 	kread_counters(off, (char *)&espstat, sizeof(espstat));
 
 	print_espstats(&espstat);
@@ -343,32 +385,44 @@ esp_stats(u_long off, const char *name, int family __unused, int proto __unused)
 static void
 print_ipcompstats(const struct ipcompstat *ipcompstat)
 {
-#define	p(f, m) if (ipcompstat->f || sflag <= 1) \
-    printf("\t%ju" m, (uintmax_t)ipcompstat->f, plural(ipcompstat->f))
-#define	hist(f, n, t) \
-    ipsec_hist_new((f), sizeof(f)/sizeof(f[0]), (n), (t));
+	xo_open_container("ipcomp-statictics");
 
-	p(ipcomps_hdrops, " packet%s shorter than header shows\n");
-	p(ipcomps_nopf, " packet%s dropped; protocol family not supported\n");
-	p(ipcomps_notdb, " packet%s dropped; no TDB\n");
-	p(ipcomps_badkcr, " packet%s dropped; bad KCR\n");
-	p(ipcomps_qfull, " packet%s dropped; queue full\n");
-	p(ipcomps_noxform, " packet%s dropped; no transform\n");
-	p(ipcomps_wrap, " replay counter wrap%s\n");
-	p(ipcomps_input, " packet%s in\n");
-	p(ipcomps_output, " packet%s out\n");
-	p(ipcomps_invalid, " packet%s dropped; invalid TDB\n");
-	p(ipcomps_ibytes, " byte%s in\n");
-	p(ipcomps_obytes, " byte%s out\n");
-	p(ipcomps_toobig, " packet%s dropped; larger than IP_MAXPACKET\n");
-	p(ipcomps_pdrops, " packet%s blocked due to policy\n");
-	p(ipcomps_crypto, " crypto processing failure%s\n");
-	hist(ipcompstat->ipcomps_hist, ipsec_compnames, "COMP output");
-	p(ipcomps_threshold, " packet%s sent uncompressed; size < compr. algo. threshold\n");
-	p(ipcomps_uncompr, " packet%s sent uncompressed; compression was useless\n");
+#define	p(f, n, m) if (ipcompstat->f || sflag <= 1)	\
+	xo_emit("\t{:" n "/%ju} {N:/" m "}\n",		\
+	    (uintmax_t)ipcompstat->f, plural(ipcompstat->f))
+#define	hist(f, n, t, c) \
+	ipsec_hist_new((f), sizeof(f)/sizeof(f[0]), (n), (t), (c));
+
+	p(ipcomps_hdrops, "dropped-short-header",
+	    "packet%s shorter than header shows");
+	p(ipcomps_nopf, "dropped-bad-protocol",
+	    "packet%s dropped; protocol family not supported");
+	p(ipcomps_notdb, "dropped-no-tdb", "packet%s dropped; no TDB");
+	p(ipcomps_badkcr, "dropped-bad-kcr", "packet%s dropped; bad KCR");
+	p(ipcomps_qfull, "dropped-queue-full", "packet%s dropped; queue full");
+	p(ipcomps_noxform, "dropped-no-transform",
+	    "packet%s dropped; no transform");
+	p(ipcomps_wrap, "replay-counter-wraps", "replay counter wrap%s");
+	p(ipcomps_input, "receieve-packets", "packet%s in");
+	p(ipcomps_output, "sent-packets", "packet%s out");
+	p(ipcomps_invalid, "dropped-bad-tdb", "packet%s dropped; invalid TDB");
+	p(ipcomps_ibytes, "receieved-bytes", "byte%s in");
+	p(ipcomps_obytes, "sent-bytes", "byte%s out");
+	p(ipcomps_toobig, "dropped-too-large",
+	    "packet%s dropped; larger than IP_MAXPACKET");
+	p(ipcomps_pdrops, "dropped-policy-violation",
+	    "packet%s blocked due to policy");
+	p(ipcomps_crypto, "crypto-failure", "crypto processing failure%s");
+	hist(ipcompstat->ipcomps_hist, ipsec_compnames,
+	    "COMP output", "comp-output-histogram");
+	p(ipcomps_threshold, "sent-uncompressed-small-packets",
+	    "packet%s sent uncompressed; size < compr. algo. threshold");
+	p(ipcomps_uncompr, "sent-uncompressed-useless-packets",
+	    "packet%s sent uncompressed; compression was useless");
 
 #undef p
 #undef hist
+	xo_close_container("ipcomp-statictics");
 }
 
 void
@@ -379,7 +433,7 @@ ipcomp_stats(u_long off, const char *name, int family __unused,
 
 	if (off == 0)
 		return;
-	printf ("%s:\n", name);
+	xo_emit("{T:/%s}:\n", name);
 	kread_counters(off, (char *)&ipcompstat, sizeof(ipcompstat));
 
 	print_ipcompstats(&ipcompstat);

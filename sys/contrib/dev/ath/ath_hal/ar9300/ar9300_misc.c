@@ -683,6 +683,7 @@ ar9300_get_capability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 {
     struct ath_hal_9300 *ahp = AH9300(ah);
     const HAL_CAPABILITIES *p_cap = &AH_PRIVATE(ah)->ah_caps;
+    struct ar9300_ani_state *ani;
 
     switch (type) {
     case HAL_CAP_CIPHER:            /* cipher handled in hardware */
@@ -911,6 +912,34 @@ ar9300_get_capability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
             return HAL_ENOTSUPP;
         }
 #endif
+
+    /* FreeBSD ANI */
+    case HAL_CAP_INTMIT:            /* interference mitigation */
+            switch (capability) {
+            case HAL_CAP_INTMIT_PRESENT:            /* hardware capability */
+                    return HAL_OK;
+            case HAL_CAP_INTMIT_ENABLE:
+                    return (ahp->ah_proc_phy_err & HAL_PROCESS_ANI) ?
+                            HAL_OK : HAL_ENXIO;
+            case HAL_CAP_INTMIT_NOISE_IMMUNITY_LEVEL:
+            case HAL_CAP_INTMIT_OFDM_WEAK_SIGNAL_LEVEL:
+//            case HAL_CAP_INTMIT_CCK_WEAK_SIGNAL_THR:
+            case HAL_CAP_INTMIT_FIRSTEP_LEVEL:
+            case HAL_CAP_INTMIT_SPUR_IMMUNITY_LEVEL:
+                    ani = ar9300_ani_get_current_state(ah);
+                    if (ani == AH_NULL)
+                            return HAL_ENXIO;
+                    switch (capability) {
+                    /* XXX AR9300 HAL has OFDM/CCK noise immunity level params? */
+                    case 2: *result = ani->ofdm_noise_immunity_level; break;
+                    case 3: *result = !ani->ofdm_weak_sig_detect_off; break;
+ //                   case 4: *result = ani->cck_weak_sig_threshold; break;
+                    case 5: *result = ani->firstep_level; break;
+                    case 6: *result = ani->spur_immunity_level; break;
+                    }
+                    return HAL_OK;
+            }
+            return HAL_EINVAL;
     default:
         return ath_hal_getcapability(ah, type, capability, result);
     }
@@ -986,6 +1015,27 @@ ar9300_set_capability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
             return AH_TRUE;
         }
         return AH_FALSE;
+
+    /* FreeBSD interrupt mitigation / ANI */
+    case HAL_CAP_INTMIT: {          /* interference mitigation */
+            /* This maps the public ANI commands to the internal ANI commands */
+            /* Private: HAL_ANI_CMD; Public: HAL_CAP_INTMIT_CMD */
+            static const HAL_ANI_CMD cmds[] = {
+                    HAL_ANI_PRESENT,
+                    HAL_ANI_MODE,
+                    HAL_ANI_NOISE_IMMUNITY_LEVEL,
+                    HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION,
+                    HAL_ANI_CCK_WEAK_SIGNAL_THR,
+                    HAL_ANI_FIRSTEP_LEVEL,
+                    HAL_ANI_SPUR_IMMUNITY_LEVEL,
+            };
+#define N(a)    (sizeof(a) / sizeof(a[0]))
+            return capability < N(cmds) ?
+                    ar9300_ani_control(ah, cmds[capability], setting) :
+                    AH_FALSE;
+#undef N
+    }
+
     case HAL_CAP_RXBUFSIZE:         /* set MAC receive buffer size */
         ahp->rx_buf_size = setting & AR_DATABUF_MASK;
         OS_REG_WRITE(ah, AR_DATABUF, ahp->rx_buf_size);
@@ -1697,10 +1747,10 @@ ar9300_get_bb_panic_info(struct ath_hal *ah, struct hal_bb_panic_info *bb_panic)
 
     /* Suppress BB Status mesg following signature */
     switch (bb_panic->status) {
-		case 0x04000539:
-		case 0x04008009:	
-		case 0x04000b09:
-		case 0x1300000a:
+        case 0x04000539:
+        case 0x04008009:    
+        case 0x04000b09:
+        case 0x1300000a:
         return -1;
     }
 
@@ -3718,8 +3768,6 @@ ar9300_tx99_start(struct ath_hal *ah, u_int8_t *data)
 
     /* Disable AGC to A2 */
     OS_REG_WRITE(ah, AR_PHY_TEST, (OS_REG_READ(ah, AR_PHY_TEST) | PHY_AGC_CLR));
-    OS_REG_WRITE(ah, 0x9864, OS_REG_READ(ah, 0x9864) | 0x7f000);
-    OS_REG_WRITE(ah, 0x9924, OS_REG_READ(ah, 0x9924) | 0x7f00fe);
     OS_REG_WRITE(ah, AR_DIAG_SW, OS_REG_READ(ah, AR_DIAG_SW) &~ AR_DIAG_RX_DIS);
 
     OS_REG_WRITE(ah, AR_CR, AR_CR_RXD);     /* set receive disable */
@@ -3762,4 +3810,48 @@ HAL_BOOL
 ar9300SetDfs3StreamFix(struct ath_hal *ah, u_int32_t val)
 {
    return AH_FALSE;
+}
+
+HAL_BOOL
+ar9300_set_ctl_pwr(struct ath_hal *ah, u_int8_t *ctl_array)
+{
+    struct ath_hal_9300 *ahp = AH9300(ah);
+    ar9300_eeprom_t *p_eep_data = &ahp->ah_eeprom;
+    u_int8_t *ctl_index;
+    u_int32_t offset = 0;
+
+    if (!ctl_array)
+        return AH_FALSE;
+
+    /* copy 2G ctl freqbin and power data */
+    ctl_index = p_eep_data->ctl_index_2g;
+    OS_MEMCPY(ctl_index + OSPREY_NUM_CTLS_2G, ctl_array,
+                OSPREY_NUM_CTLS_2G * OSPREY_NUM_BAND_EDGES_2G +     /* ctl_freqbin_2G */
+                OSPREY_NUM_CTLS_2G * sizeof(OSP_CAL_CTL_DATA_2G));  /* ctl_power_data_2g */
+    offset = (OSPREY_NUM_CTLS_2G * OSPREY_NUM_BAND_EDGES_2G) +
+            ( OSPREY_NUM_CTLS_2G * sizeof(OSP_CAL_CTL_DATA_2G));
+
+
+    /* copy 2G ctl freqbin and power data */
+    ctl_index = p_eep_data->ctl_index_5g;
+    OS_MEMCPY(ctl_index + OSPREY_NUM_CTLS_5G, ctl_array + offset,
+                OSPREY_NUM_CTLS_5G * OSPREY_NUM_BAND_EDGES_5G +     /* ctl_freqbin_5G */
+                OSPREY_NUM_CTLS_5G * sizeof(OSP_CAL_CTL_DATA_5G));  /* ctl_power_data_5g */
+
+    return AH_FALSE;
+}
+
+void
+ar9300_set_txchainmaskopt(struct ath_hal *ah, u_int8_t mask)
+{
+    struct ath_hal_9300 *ahp = AH9300(ah);
+
+    /* optional txchainmask should be subset of primary txchainmask */
+    if ((mask & ahp->ah_tx_chainmask) != mask) {
+        ahp->ah_tx_chainmaskopt = 0;
+        ath_hal_printf(ah, "Error: ah_tx_chainmask=%d, mask=%d\n", ahp->ah_tx_chainmask, mask);
+        return;
+    }
+    
+    ahp->ah_tx_chainmaskopt = mask;
 }

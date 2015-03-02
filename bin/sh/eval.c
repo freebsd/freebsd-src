@@ -149,7 +149,7 @@ evalcmd(int argc, char **argv)
  */
 
 void
-evalstring(char *s, int flags)
+evalstring(const char *s, int flags)
 {
 	union node *n;
 	struct stackmark smark;
@@ -498,7 +498,7 @@ exphere(union node *redir, struct arglist *fn)
 	struct localvar *savelocalvars;
 	int need_longjmp = 0;
 
-	redir->nhere.expdoc = nullstr;
+	redir->nhere.expdoc = "";
 	savelocalvars = localvars;
 	localvars = NULL;
 	forcelocal++;

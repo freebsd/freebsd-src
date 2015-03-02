@@ -160,6 +160,7 @@ unsigned int kernel_ptbls;	/* Number of KVA ptbls. */
 	((pmap) != kernel_pmap && (pmap)->pm_stats.resident_count == 0)
 
 extern void tid_flush(tlbtid_t);
+extern int elf32_nxstack;
 
 /**************************************************************************/
 /* TLB and TID handling */
@@ -1014,6 +1015,10 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 
 	debugf("mmu_booke_bootstrap: entered\n");
 
+	/* Set interesting system properties */
+	hw_direct_map = 0;
+	elf32_nxstack = 1;
+
 	/* Initialize invalidation mutex */
 	mtx_init(&tlbivax_mutex, "tlbivax", NULL, MTX_SPIN);
 
@@ -1315,6 +1320,8 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 		kstack0 += PAGE_SIZE;
 		kstack0_phys += PAGE_SIZE;
 	}
+
+	pmap_bootstrapped = 1;
 	
 	debugf("virtual_avail = %08x\n", virtual_avail);
 	debugf("virtual_end   = %08x\n", virtual_end);

@@ -170,5 +170,7 @@ int		pcib_alloc_msix(device_t pcib, device_t dev, int *irq);
 int		pcib_release_msix(device_t pcib, device_t dev, int irq);
 int		pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr, uint32_t *data);
 uint16_t	pcib_get_rid(device_t pcib, device_t dev);
+void		pcib_decode_rid(device_t pcib, uint16_t rid, int *bus, 
+		    int *slot, int *func);
 
 #endif

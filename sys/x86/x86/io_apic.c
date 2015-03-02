@@ -97,6 +97,7 @@ struct ioapic {
 	u_int io_apic_id:4;
 	u_int io_intbase:8;		/* System Interrupt base */
 	u_int io_numintr:8;
+	u_int io_haseoi:1;
 	volatile ioapic_t *io_addr;	/* XXX: should use bus_space */
 	vm_paddr_t io_paddr;
 	STAILQ_ENTRY(ioapic) io_next;
@@ -134,10 +135,53 @@ static int enable_extint;
 SYSCTL_INT(_hw_apic, OID_AUTO, enable_extint, CTLFLAG_RDTUN, &enable_extint, 0,
     "Enable the ExtINT pin in the first I/O APIC");
 
-static __inline void
-_ioapic_eoi_source(struct intsrc *isrc)
+static void
+_ioapic_eoi_source(struct intsrc *isrc, int locked)
 {
+	struct ioapic_intsrc *src;
+	struct ioapic *io;
+	volatile uint32_t *apic_eoi;
+	uint32_t low1;
+
 	lapic_eoi();
+	if (!lapic_eoi_suppression)
+		return;
+	src = (struct ioapic_intsrc *)isrc;
+	if (src->io_edgetrigger)
+		return;
+	io = (struct ioapic *)isrc->is_pic;
+
+	/*
+	 * Handle targeted EOI for level-triggered pins, if broadcast
+	 * EOI suppression is supported by LAPICs.
+	 */
+	if (io->io_haseoi) {
+		/*
+		 * If IOAPIC has EOI Register, simply write vector
+		 * number into the reg.
+		 */
+		apic_eoi = (volatile uint32_t *)((volatile char *)
+		    io->io_addr + IOAPIC_EOIR);
+		*apic_eoi = src->io_vector;
+	} else {
+		/*
+		 * Otherwise, if IO-APIC is too old to provide EOIR,
+		 * do what Intel did for the Linux kernel. Temporary
+		 * switch the pin to edge-trigger and back, masking
+		 * the pin during the trick.
+		 */
+		if (!locked)
+			mtx_lock_spin(&icu_lock);
+		low1 = src->io_lowreg;
+		low1 &= ~IOART_TRGRLVL;
+		low1 |= IOART_TRGREDG | IOART_INTMSET;
+		ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(src->io_intpin),
+		    low1);
+		ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(src->io_intpin),
+		    src->io_lowreg);
+		if (!locked)
+			mtx_unlock_spin(&icu_lock);
+	}
 }
 
 static u_int
@@ -230,7 +274,7 @@ ioapic_disable_source(struct intsrc *isrc, int eoi)
 	}
 
 	if (eoi == PIC_EOI)
-		_ioapic_eoi_source(isrc);
+		_ioapic_eoi_source(isrc, 1);
 
 	mtx_unlock_spin(&icu_lock);
 }
@@ -239,7 +283,7 @@ static void
 ioapic_eoi_source(struct intsrc *isrc)
 {
 
-	_ioapic_eoi_source(isrc);
+	_ioapic_eoi_source(isrc, 0);
 }
 
 /*
@@ -544,6 +588,22 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 	io->io_numintr = numintr;
 	io->io_addr = apic;
 	io->io_paddr = addr;
+
+	if (bootverbose) {
+		printf("ioapic%u: ver 0x%02x maxredir 0x%02x\n", io->io_id,
+		    (value & IOART_VER_VERSION), (value & IOART_VER_MAXREDIR)
+		    >> MAXREDIRSHIFT);
+	}
+	/*
+	 * The  summary information about IO-APIC versions is taken from
+	 * the Linux kernel source:
+	 *     0Xh     82489DX
+	 *     1Xh     I/OAPIC or I/O(x)APIC which are not PCI 2.2 Compliant
+	 *     2Xh     I/O(x)APIC which is PCI 2.2 Compliant
+	 *     30h-FFh Reserved
+	 * IO-APICs with version >= 0x20 have working EOIR register.
+	 */
+	io->io_haseoi = (value & IOART_VER_VERSION) >= 0x20;
 
 	/*
 	 * Initialize pins.  Start off with interrupts disabled.  Default

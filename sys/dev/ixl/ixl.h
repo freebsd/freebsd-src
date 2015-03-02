@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2014, Intel Corporation 
+  Copyright (c) 2013-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -208,7 +208,9 @@
 #define IXL_TX_BUF_SZ		((u32) 1514)
 #define IXL_AQ_BUF_SZ		((u32) 4096)
 #define IXL_RX_HDR		128
+/* Controls the length of the Admin Queue */
 #define IXL_AQ_LEN		256
+#define IXL_AQ_LEN_MAX		1024
 #define IXL_AQ_BUFSZ		4096
 #define IXL_RX_LIMIT		512
 #define IXL_RX_ITR		0
@@ -273,7 +275,7 @@
 #define IXL_RX_UNLOCK(_sc)              mtx_unlock(&(_sc)->mtx)
 #define IXL_RX_LOCK_DESTROY(_sc)        mtx_destroy(&(_sc)->mtx)
 
-#if __FreeBSD_version >= 1100000
+#if __FreeBSD_version >= 1100036
 #define IXL_SET_IPACKETS(vsi, count)	(vsi)->ipackets = (count)
 #define IXL_SET_IERRORS(vsi, count)	(vsi)->ierrors = (count)
 #define IXL_SET_OPACKETS(vsi, count)	(vsi)->opackets = (count)
@@ -469,7 +471,6 @@ struct ixl_vsi {
 	u16			max_frame_size;
 	u32			link_speed;
 	bool			link_up;
-	u32			fc; /* local flow ctrl setting */
 
 	/* MAC/VLAN Filter list */
 	struct ixl_ftl_head ftl;

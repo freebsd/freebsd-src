@@ -108,7 +108,8 @@ thrd_join(thrd_t thr, int *res)
 
 	if (pthread_join(thr, &value_ptr) != 0)
 		return (thrd_error);
-	*res = (intptr_t)value_ptr;
+	if (res != NULL)
+		*res = (intptr_t)value_ptr;
 	return (thrd_success);
 }
 

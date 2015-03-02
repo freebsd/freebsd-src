@@ -3261,9 +3261,11 @@ coredump(struct thread *td)
 	void *rl_cookie;
 	off_t limit;
 	int compress;
-	char data[MAXPATHLEN * 2 + 16]; /* space for devctl notification */
+	char *data = NULL;
 	char *fullpath, *freepath = NULL;
 	size_t len;
+	static const char comm_name[] = "comm=";
+	static const char core_name[] = "core=";
 
 #ifdef COMPRESS_USER_CORES
 	compress = compress_user_cores;
@@ -3308,7 +3310,7 @@ coredump(struct thread *td)
 	    vattr.va_nlink != 1 || (vp->v_vflag & VV_SYSTEM) != 0) {
 		VOP_UNLOCK(vp, 0);
 		error = EFAULT;
-		goto close;
+		goto out;
 	}
 
 	VOP_UNLOCK(vp, 0);
@@ -3345,37 +3347,39 @@ coredump(struct thread *td)
 		VOP_ADVLOCK(vp, (caddr_t)p, F_UNLCK, &lf, F_FLOCK);
 	}
 	vn_rangelock_unlock(vp, rl_cookie);
-close:
-	error1 = vn_close(vp, FWRITE, cred, td);
-	if (error == 0)
-		error = error1;
-	else
-		goto out;
+
 	/*
 	 * Notify the userland helper that a process triggered a core dump.
 	 * This allows the helper to run an automated debugging session.
 	 */
-	if (coredump_devctl == 0)
+	if (error != 0 || coredump_devctl == 0)
 		goto out;
+	len = MAXPATHLEN * 2 + sizeof(comm_name) - 1 +
+	    sizeof(' ') + sizeof(core_name) - 1;
+	data = malloc(len, M_TEMP, M_WAITOK);
 	if (vn_fullpath_global(td, p->p_textvp, &fullpath, &freepath) != 0)
 		goto out;
 	if (!coredump_sanitise_path(fullpath))
 		goto out;
-	snprintf(data, sizeof(data), "comm=%s ", fullpath);
+	snprintf(data, len, "%s%s ", comm_name, fullpath);
 	free(freepath, M_TEMP);
 	freepath = NULL;
 	if (vn_fullpath_global(td, vp, &fullpath, &freepath) != 0)
 		goto out;
 	if (!coredump_sanitise_path(fullpath))
 		goto out;
-	strlcat(data, "core=", sizeof(data));
-	len = strlcat(data, fullpath, sizeof(data));
+	strlcat(data, core_name, len);
+	strlcat(data, fullpath, len);
 	devctl_notify("kernel", "signal", "coredump", data);
 out:
+	error1 = vn_close(vp, FWRITE, cred, td);
+	if (error == 0)
+		error = error1;
 #ifdef AUDIT
 	audit_proc_coredump(td, name, error);
 #endif
 	free(freepath, M_TEMP);
+	free(data, M_TEMP);
 	free(name, M_TEMP);
 	return (error);
 }

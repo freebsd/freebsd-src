@@ -247,7 +247,7 @@ bcm_bsc_attach(device_t dev)
 	/* Check the unit we are attaching by its base address. */
 	start = rman_get_start(sc->sc_mem_res);
 	for (i = 0; i < nitems(bcm_bsc_pins); i++) {
-		if (bcm_bsc_pins[i].start == start)
+		if (bcm_bsc_pins[i].start == (start & BCM_BSC_BASE_MASK))
 			break;
 	}
 	if (i == nitems(bcm_bsc_pins)) {
