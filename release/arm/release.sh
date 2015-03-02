@@ -99,7 +99,7 @@ main() {
 	BRANCH=$(chroot ${CHROOTDIR} make -C /usr/src/release -V BRANCH)
 	UNAME_r=${REVISION}-${BRANCH}
 	export UNAME_r
-	export XZ_CMD=$(make -C /usr/src/release -V XZ_CMD)
+	export XZ_CMD=$(chroot ${CHROOTDIR} make -C /usr/src/release -V XZ_CMD)
 
 	# Build the 'xdev' target for crochet.
 	eval chroot ${CHROOTDIR} make -C /usr/src \
