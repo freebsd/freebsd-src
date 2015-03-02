@@ -192,7 +192,7 @@ xhci_pci_attach(device_t self)
 	sc->sc_io_hdl = rman_get_bushandle(sc->sc_io_res);
 	sc->sc_io_size = rman_get_size(sc->sc_io_res);
 
-	if (xhci_init(sc, self)) {
+	if (xhci_init(sc, self, 0)) {
 		device_printf(self, "Could not initialize softc\n");
 		bus_release_resource(self, SYS_RES_MEMORY, PCI_XHCI_CBMEM,
 		    sc->sc_io_res);

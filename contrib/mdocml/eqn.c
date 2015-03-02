@@ -1,7 +1,7 @@
-/*	$Id: eqn.c,v 1.56 2014/10/25 15:06:30 schwarze Exp $ */
+/*	$Id: eqn.c,v 1.57 2015/01/28 21:11:53 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -31,8 +31,6 @@
 #include "libmandoc.h"
 #include "libroff.h"
 
-#define	EQN_MSG(t, x) \
-	mandoc_msg((t), (x)->parse, (x)->eqn.ln, (x)->eqn.pos, NULL)
 #define	EQN_NEST_MAX	 128 /* maximum nesting of defines */
 #define	STRNEQ(p1, sz1, p2, sz2) \
 	((sz1) == (sz2) && 0 == strncmp((p1), (p2), (sz1)))
@@ -266,6 +264,21 @@ static	const struct eqnsym eqnsyms[EQNSYM__MAX] = {
 	{ ">=", ">=" }, /* EQNSYM_moreequal */
 };
 
+static	struct eqn_box	*eqn_box_alloc(struct eqn_node *, struct eqn_box *);
+static	void		 eqn_box_free(struct eqn_box *);
+static	struct eqn_box	*eqn_box_makebinary(struct eqn_node *,
+				enum eqn_post, struct eqn_box *);
+static	void		 eqn_def(struct eqn_node *);
+static	struct eqn_def	*eqn_def_find(struct eqn_node *, const char *, size_t);
+static	void		 eqn_delim(struct eqn_node *);
+static	const char	*eqn_next(struct eqn_node *, char, size_t *, int);
+static	const char	*eqn_nextrawtok(struct eqn_node *, size_t *);
+static	const char	*eqn_nexttok(struct eqn_node *, size_t *);
+static	enum rofferr	 eqn_parse(struct eqn_node *, struct eqn_box *);
+static	enum eqn_tok	 eqn_tok_parse(struct eqn_node *, char **);
+static	void		 eqn_undef(struct eqn_node *);
+
+
 enum rofferr
 eqn_read(struct eqn_node **epp, int ln,
 		const char *p, int pos, int *offs)
@@ -365,7 +378,8 @@ again:
 	/* Prevent self-definitions. */
 
 	if (lim >= EQN_NEST_MAX) {
-		EQN_MSG(MANDOCERR_ROFFLOOP, ep);
+		mandoc_msg(MANDOCERR_ROFFLOOP, ep->parse,
+		    ep->eqn.ln, ep->eqn.pos, NULL);
 		return(NULL);
 	}
 
@@ -406,7 +420,8 @@ again:
 			ep->cur++;
 	} else {
 		if (q)
-			EQN_MSG(MANDOCERR_ARG_QUOTE, ep);
+			mandoc_msg(MANDOCERR_ARG_QUOTE, ep->parse,
+			    ep->eqn.ln, ep->eqn.pos, NULL);
 		next = strchr(start, '\0');
 		*sz = (size_t)(next - start);
 		ep->cur += *sz;
@@ -600,23 +615,27 @@ eqn_delim(struct eqn_node *ep)
 /*
  * Undefine a previously-defined string.
  */
-static int
+static void
 eqn_undef(struct eqn_node *ep)
 {
 	const char	*start;
 	struct eqn_def	*def;
 	size_t		 sz;
 
-	if (NULL == (start = eqn_nextrawtok(ep, &sz))) {
-		EQN_MSG(MANDOCERR_EQNEOF, ep);
-		return(0);
-	} else if (NULL != (def = eqn_def_find(ep, start, sz)))
-		def->keysz = 0;
-
-	return(1);
+	if ((start = eqn_nextrawtok(ep, &sz)) == NULL) {
+		mandoc_msg(MANDOCERR_REQ_EMPTY, ep->parse,
+		    ep->eqn.ln, ep->eqn.pos, "undef");
+		return;
+	}
+	if ((def = eqn_def_find(ep, start, sz)) == NULL)
+		return;
+	free(def->key);
+	free(def->val);
+	def->key = def->val = NULL;
+	def->keysz = def->valsz = 0;
 }
 
-static int
+static void
 eqn_def(struct eqn_node *ep)
 {
 	const char	*start;
@@ -624,9 +643,10 @@ eqn_def(struct eqn_node *ep)
 	struct eqn_def	*def;
 	int		 i;
 
-	if (NULL == (start = eqn_nextrawtok(ep, &sz))) {
-		EQN_MSG(MANDOCERR_EQNEOF, ep);
-		return(0);
+	if ((start = eqn_nextrawtok(ep, &sz)) == NULL) {
+		mandoc_msg(MANDOCERR_REQ_EMPTY, ep->parse,
+		    ep->eqn.ln, ep->eqn.pos, "define");
+		return;
 	}
 
 	/*
@@ -646,47 +666,51 @@ eqn_def(struct eqn_node *ep)
 			ep->defs[i].key = ep->defs[i].val = NULL;
 		}
 
-		ep->defs[i].keysz = sz;
-		ep->defs[i].key = mandoc_realloc(
-		    ep->defs[i].key, sz + 1);
-
-		memcpy(ep->defs[i].key, start, sz);
-		ep->defs[i].key[(int)sz] = '\0';
-		def = &ep->defs[i];
+		def = ep->defs + i;
+		free(def->key);
+		def->key = mandoc_strndup(start, sz);
+		def->keysz = sz;
 	}
 
 	start = eqn_next(ep, ep->data[(int)ep->cur], &sz, 0);
-
-	if (NULL == start) {
-		EQN_MSG(MANDOCERR_EQNEOF, ep);
-		return(-1);
+	if (start == NULL) {
+		mandoc_vmsg(MANDOCERR_REQ_EMPTY, ep->parse,
+		    ep->eqn.ln, ep->eqn.pos, "define %s", def->key);
+		free(def->key);
+		free(def->val);
+		def->key = def->val = NULL;
+		def->keysz = def->valsz = 0;
+		return;
 	}
-
+	free(def->val);
+	def->val = mandoc_strndup(start, sz);
 	def->valsz = sz;
-	def->val = mandoc_realloc(def->val, sz + 1);
-	memcpy(def->val, start, sz);
-	def->val[(int)sz] = '\0';
-	return(1);
 }
 
 /*
  * Recursively parse an eqn(7) expression.
  */
-static int
+static enum rofferr
 eqn_parse(struct eqn_node *ep, struct eqn_box *parent)
 {
+	char		 sym[64];
+	struct eqn_box	*cur;
+	const char	*start;
 	char		*p;
+	size_t		 i, sz;
 	enum eqn_tok	 tok, subtok;
 	enum eqn_post	 pos;
-	struct eqn_box	*cur;
-	int		 rc, size;
-	size_t		 i, sz;
-	char		 sym[64];
-	const char	*start;
+	int		 size;
 
 	assert(parent != NULL);
+
+	/*
+	 * Empty equation.
+	 * Do not add it to the high-level syntax tree.
+	 */
+
 	if (ep->data == NULL)
-		return(-1);
+		return(ROFF_IGN);
 
 next_tok:
 	tok = eqn_tok_parse(ep, &p);
@@ -694,20 +718,17 @@ next_tok:
 this_tok:
 	switch (tok) {
 	case (EQN_TOK_UNDEF):
-		if ((rc = eqn_undef(ep)) <= 0)
-			return(rc);
+		eqn_undef(ep);
 		break;
 	case (EQN_TOK_NDEFINE):
 	case (EQN_TOK_DEFINE):
-		if ((rc = eqn_def(ep)) <= 0)
-			return(rc);
+		eqn_def(ep);
 		break;
 	case (EQN_TOK_TDEFINE):
-		if (NULL == eqn_nextrawtok(ep, NULL))
-			EQN_MSG(MANDOCERR_EQNEOF, ep);
-		else if (NULL == eqn_next(ep,
-				ep->data[(int)ep->cur], NULL, 0))
-			EQN_MSG(MANDOCERR_EQNEOF, ep);
+		if (eqn_nextrawtok(ep, NULL) == NULL ||
+		    eqn_next(ep, ep->data[(int)ep->cur], NULL, 0) == NULL)
+			mandoc_msg(MANDOCERR_REQ_EMPTY, ep->parse,
+			    ep->eqn.ln, ep->eqn.pos, "tdefine");
 		break;
 	case (EQN_TOK_DELIM):
 		eqn_delim(ep);
@@ -1037,7 +1058,7 @@ this_tok:
 		 * End of file!
 		 * TODO: make sure we're not in an open subexpression.
 		 */
-		return(0);
+		return(ROFF_EQN);
 	default:
 		assert(tok == EQN_TOK__MAX);
 		assert(NULL != p);
@@ -1081,7 +1102,7 @@ eqn_end(struct eqn_node **epp)
 
 	ep->eqn.root = mandoc_calloc(1, sizeof(struct eqn_box));
 	ep->eqn.root->expectargs = UINT_MAX;
-	return(0 == eqn_parse(ep, ep->eqn.root) ? ROFF_EQN : ROFF_IGN);
+	return(eqn_parse(ep, ep->eqn.root));
 }
 
 void

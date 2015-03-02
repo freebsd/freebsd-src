@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.453 2014/12/09 09:14:33 schwarze Exp $
+# $Id: Makefile,v 1.456 2015/02/16 16:23:54 schwarze Exp $
 #
 # Copyright (c) 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
 # Copyright (c) 2011, 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -14,6 +14,8 @@
 # WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+VERSION = 1.13.2
 
 # === LIST OF FILES ====================================================
 
@@ -31,6 +33,7 @@ TESTSRCS	 = test-dirent-namlen.c \
 		   test-strlcpy.c \
 		   test-strptime.c \
 		   test-strsep.c \
+		   test-strtonum.c \
 		   test-wchar.c
 
 SRCS		 = att.c \
@@ -46,6 +49,7 @@ SRCS		 = att.c \
 		   compat_strlcat.c \
 		   compat_strlcpy.c \
 		   compat_strsep.c \
+		   compat_strtonum.c \
 		   demandoc.c \
 		   eqn.c \
 		   eqn_html.c \
@@ -189,7 +193,8 @@ COMPAT_OBJS	 = compat_fgetln.o \
 		   compat_strcasestr.o \
 		   compat_strlcat.o \
 		   compat_strlcpy.o \
-		   compat_strsep.o
+		   compat_strsep.o \
+		   compat_strtonum.o
 
 MANDOC_HTML_OBJS = eqn_html.o \
 		   html.o \
@@ -211,6 +216,7 @@ BASE_OBJS	 = $(MANDOC_HTML_OBJS) \
 		   $(MANDOC_MAN_OBJS) \
 		   $(MANDOC_TERM_OBJS) \
 		   main.o \
+		   manpath.o \
 		   out.o \
 		   tree.o
 
@@ -218,8 +224,7 @@ MAIN_OBJS	 = $(BASE_OBJS)
 
 DB_OBJS		 = mandocdb.o \
 		   mansearch.o \
-		   mansearch_const.o \
-		   manpath.o
+		   mansearch_const.o
 
 CGI_OBJS	 = $(MANDOC_HTML_OBJS) \
 		   cgi.o \
@@ -308,10 +313,12 @@ base-install: base-build
 	mkdir -p $(DESTDIR)$(MANDIR)/man3
 	mkdir -p $(DESTDIR)$(MANDIR)/man7
 	$(INSTALL_PROGRAM) mandoc demandoc $(DESTDIR)$(BINDIR)
+	ln -f $(DESTDIR)$(BINDIR)/mandoc $(DESTDIR)$(BINDIR)/$(BINM_MAN)
 	$(INSTALL_LIB) libmandoc.a $(DESTDIR)$(LIBDIR)
 	$(INSTALL_LIB) man.h mandoc.h mandoc_aux.h mdoc.h \
 		$(DESTDIR)$(INCLUDEDIR)
 	$(INSTALL_MAN) mandoc.1 demandoc.1 $(DESTDIR)$(MANDIR)/man1
+	$(INSTALL_MAN) man.1 $(DESTDIR)$(MANDIR)/man1/$(BINM_MAN).1
 	$(INSTALL_MAN) mandoc.3 mandoc_escape.3 mandoc_malloc.3 \
 		mchars_alloc.3 tbl.3 $(DESTDIR)$(MANDIR)/man3
 	$(INSTALL_MAN) man.7 $(DESTDIR)$(MANDIR)/man7/${MANM_MAN}.7
@@ -330,12 +337,10 @@ db-install: base-build
 	mkdir -p $(DESTDIR)$(MANDIR)/man5
 	mkdir -p $(DESTDIR)$(MANDIR)/man8
 	ln -f $(DESTDIR)$(BINDIR)/mandoc $(DESTDIR)$(BINDIR)/$(BINM_APROPOS)
-	ln -f $(DESTDIR)$(BINDIR)/mandoc $(DESTDIR)$(BINDIR)/$(BINM_MAN)
 	ln -f $(DESTDIR)$(BINDIR)/mandoc $(DESTDIR)$(BINDIR)/$(BINM_WHATIS)
 	ln -f $(DESTDIR)$(BINDIR)/mandoc \
 		$(DESTDIR)$(SBINDIR)/$(BINM_MAKEWHATIS)
 	$(INSTALL_MAN) apropos.1 $(DESTDIR)$(MANDIR)/man1/$(BINM_APROPOS).1
-	$(INSTALL_MAN) man.1 $(DESTDIR)$(MANDIR)/man1/$(BINM_MAN).1
 	ln -f $(DESTDIR)$(MANDIR)/man1/$(BINM_APROPOS).1 \
 		$(DESTDIR)$(MANDIR)/man1/$(BINM_WHATIS).1
 	$(INSTALL_MAN) mansearch.3 $(DESTDIR)$(MANDIR)/man3
@@ -377,7 +382,7 @@ demandoc: $(DEMANDOC_OBJS) libmandoc.a
 
 www-install: www
 	mkdir -p $(HTDOCDIR)/snapshots
-	$(INSTALL_DATA) $(WWW_MANS) style.css $(HTDOCDIR)/man
+	$(INSTALL_DATA) $(WWW_MANS) style.css $(HTDOCDIR)
 	$(INSTALL_DATA) $(WWW_OBJS) $(HTDOCDIR)/snapshots
 	$(INSTALL_DATA) mdocml.tar.gz \
 		$(HTDOCDIR)/snapshots/mdocml-$(VERSION).tar.gz
