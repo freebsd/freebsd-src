@@ -2626,14 +2626,14 @@ backup_kernel_finddir () {
 	while true ; do
 		# Pathname does not exist, so it is OK use that name
 		# for backup directory.
-		if [ ! -e $BACKUPKERNELDIR ]; then
+		if [ ! -e $BASEDIR/$BACKUPKERNELDIR ]; then
 			return 0
 		fi
 
 		# If directory do exist, we only use if it has our
 		# marker file.
-		if [ -d $BACKUPKERNELDIR -a \
-			-e $BACKUPKERNELDIR/.freebsd-update ]; then
+		if [ -d $BASEDIR/$BACKUPKERNELDIR -a \
+			-e $BASEDIR/$BACKUPKERNELDIR/.freebsd-update ]; then
 			return 0
 		fi
 
@@ -2641,7 +2641,7 @@ backup_kernel_finddir () {
 		# the end and try again.
 		CNT=$((CNT + 1))
 		if [ $CNT -gt 9 ]; then
-			echo "Could not find valid backup dir ($BACKUPKERNELDIR)"
+			echo "Could not find valid backup dir ($BASEDIR/$BACKUPKERNELDIR)"
 			exit 1
 		fi
 		BACKUPKERNELDIR="`echo $BACKUPKERNELDIR | sed -Ee 's/[0-9]\$//'`"
@@ -2668,17 +2668,17 @@ backup_kernel () {
 	# Remove old kernel backup files.  If $BACKUPKERNELDIR was
 	# "not ours", backup_kernel_finddir would have exited, so
 	# deleting the directory content is as safe as we can make it.
-	if [ -d $BACKUPKERNELDIR ]; then
-		rm -fr $BACKUPKERNELDIR
+	if [ -d $BASEDIR/$BACKUPKERNELDIR ]; then
+		rm -fr $BASEDIR/$BACKUPKERNELDIR
 	fi
 
 	# Create directories for backup.
-	mkdir -p $BACKUPKERNELDIR
-	mtree -cdn -p "${KERNELDIR}" | \
-	    mtree -Ue -p "${BACKUPKERNELDIR}" > /dev/null
+	mkdir -p $BASEDIR/$BACKUPKERNELDIR
+	mtree -cdn -p "${BASEDIR}/${KERNELDIR}" | \
+	    mtree -Ue -p "${BASEDIR}/${BACKUPKERNELDIR}" > /dev/null
 
 	# Mark the directory as having been created by freebsd-update.
-	touch $BACKUPKERNELDIR/.freebsd-update
+	touch $BASEDIR/$BACKUPKERNELDIR/.freebsd-update
 	if [ $? -ne 0 ]; then
 		echo "Could not create kernel backup directory"
 		exit 1
@@ -2696,8 +2696,8 @@ backup_kernel () {
 	fi
 
 	# Backup all the kernel files using hardlinks.
-	(cd $KERNELDIR && find . -type f $FINDFILTER -exec \
-	    cp -pl '{}' ${BACKUPKERNELDIR}/'{}' \;)
+	(cd ${BASEDIR}/${KERNELDIR} && find . -type f $FINDFILTER -exec \
+	    cp -pl '{}' ${BASEDIR}/${BACKUPKERNELDIR}/'{}' \;)
 
 	# Re-enable patchname expansion.
 	set +f
@@ -2795,7 +2795,7 @@ install_files () {
 
 		# Update linker.hints if necessary
 		if [ -s INDEX-OLD -o -s INDEX-NEW ]; then
-			kldxref -R /boot/ 2>/dev/null
+			kldxref -R ${BASEDIR}/boot/ 2>/dev/null
 		fi
 
 		# We've finished updating the kernel.
@@ -2846,14 +2846,14 @@ Kernel updates have been installed.  Please reboot and run
 		install_delete INDEX-OLD INDEX-NEW || return 1
 
 		# Rebuild /etc/spwd.db and /etc/pwd.db if necessary.
-		if [ /etc/master.passwd -nt /etc/spwd.db ] ||
-		    [ /etc/master.passwd -nt /etc/pwd.db ]; then
-			pwd_mkdb /etc/master.passwd
+		if [ ${BASEDIR}/etc/master.passwd -nt ${BASEDIR}/etc/spwd.db ] ||
+		    [ ${BASEDIR}/etc/master.passwd -nt ${BASEDIR}/etc/pwd.db ]; then
+			pwd_mkdb -d ${BASEDIR}/etc ${BASEDIR}/etc/master.passwd
 		fi
 
 		# Rebuild /etc/login.conf.db if necessary.
-		if [ /etc/login.conf -nt /etc/login.conf.db ]; then
-			cap_mkdb /etc/login.conf
+		if [ ${BASEDIR}/etc/login.conf -nt ${BASEDIR}/etc/login.conf.db ]; then
+			cap_mkdb ${BASEDIR}/etc/login.conf
 		fi
 
 		# We've finished installing the world and deleting old files
