@@ -1480,22 +1480,9 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 				*destld = 0.0;
 			break;
 		/*
-		 * This calculation is somewhat bogus.  It simply divides
-		 * the elapsed time by the total number of transactions
-		 * completed.  While that does give the caller a good
-		 * picture of the average rate of transaction completion,
-		 * it doesn't necessarily give the caller a good view of
-		 * how long transactions took to complete on average.
-		 * Those two numbers will be different for a device that
-		 * can handle more than one transaction at a time.  e.g.
-		 * SCSI disks doing tagged queueing.
-		 *
-		 * The only way to accurately determine the real average
-		 * time per transaction would be to compute and store the
-		 * time on a per-transaction basis.  That currently isn't
-		 * done in the kernel, and would only be desireable if it
-		 * could be implemented in a somewhat non-intrusive and high
-		 * performance way.
+		 * Some devstat callers update the duration and some don't.
+		 * So this will only be accurate if they provide the
+		 * duration. 
 		 */
 		case DSM_MS_PER_TRANSACTION:
 			if (totaltransfers > 0) {
@@ -1505,11 +1492,6 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 			} else
 				*destld = 0.0;
 			break;
-		/*
-		 * As above, these next two really only give the average
-		 * rate of completion for read and write transactions, not
-		 * the average time the transaction took to complete.
-		 */
 		case DSM_MS_PER_TRANSACTION_READ:
 			if (totaltransfersread > 0) {
 				*destld = totaldurationread;
