@@ -372,6 +372,7 @@ nd6_options(union nd_opts *ndopts)
 		case ND_OPT_TARGET_LINKADDR:
 		case ND_OPT_MTU:
 		case ND_OPT_REDIRECTED_HEADER:
+		case ND_OPT_NONCE:
 			if (ndopts->nd_opt_array[nd_opt->nd_opt_type]) {
 				nd6log((LOG_INFO,
 				    "duplicated ND6 option found (type=%d)\n",
@@ -526,7 +527,7 @@ nd6_llinfo_timer(void *arg)
 			ln->la_asked++;
 			nd6_llinfo_settimer_locked(ln, (long)ndi->retrans * hz / 1000);
 			LLE_WUNLOCK(ln);
-			nd6_ns_output(ifp, NULL, dst, ln, 0);
+			nd6_ns_output(ifp, NULL, dst, ln, NULL);
 			LLE_WLOCK(ln);
 		} else {
 			struct mbuf *m = ln->la_hold;
@@ -573,7 +574,7 @@ nd6_llinfo_timer(void *arg)
 			ln->ln_state = ND6_LLINFO_PROBE;
 			nd6_llinfo_settimer_locked(ln, (long)ndi->retrans * hz / 1000);
 			LLE_WUNLOCK(ln);
-			nd6_ns_output(ifp, dst, dst, ln, 0);
+			nd6_ns_output(ifp, dst, dst, ln, NULL);
 			LLE_WLOCK(ln);
 		} else {
 			ln->ln_state = ND6_LLINFO_STALE; /* XXX */
@@ -585,7 +586,7 @@ nd6_llinfo_timer(void *arg)
 			ln->la_asked++;
 			nd6_llinfo_settimer_locked(ln, (long)ndi->retrans * hz / 1000);
 			LLE_WUNLOCK(ln);
-			nd6_ns_output(ifp, dst, dst, ln, 0);
+			nd6_ns_output(ifp, dst, dst, ln, NULL);
 			LLE_WLOCK(ln);
 		} else {
 			EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_EXPIRED);
@@ -2084,7 +2085,7 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 		nd6_llinfo_settimer_locked(lle,
 		    (long)ND_IFINFO(ifp)->retrans * hz / 1000);
 		LLE_WUNLOCK(lle);
-		nd6_ns_output(ifp, NULL, &dst->sin6_addr, lle, 0);
+		nd6_ns_output(ifp, NULL, &dst->sin6_addr, lle, NULL);
 	} else {
 		/* We did the lookup so we need to do the unlock here. */
 		LLE_WUNLOCK(lle);
