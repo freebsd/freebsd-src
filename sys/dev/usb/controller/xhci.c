@@ -97,15 +97,19 @@ SYSCTL_INT(_hw_usb_xhci, OID_AUTO, streams, CTLFLAG_RWTUN,
 static int xhcidebug;
 static int xhciroute;
 static int xhcipolling;
+static int xhcidma32;
 
 SYSCTL_INT(_hw_usb_xhci, OID_AUTO, debug, CTLFLAG_RWTUN,
     &xhcidebug, 0, "Debug level");
 SYSCTL_INT(_hw_usb_xhci, OID_AUTO, xhci_port_route, CTLFLAG_RWTUN,
-    &xhciroute, 0, "Routing bitmap for switching EHCI ports to XHCI controller");
+    &xhciroute, 0, "Routing bitmap for switching EHCI ports to the XHCI controller");
 SYSCTL_INT(_hw_usb_xhci, OID_AUTO, use_polling, CTLFLAG_RWTUN,
-    &xhcipolling, 0, "Set to enable software interrupt polling for XHCI controller");
+    &xhcipolling, 0, "Set to enable software interrupt polling for the XHCI controller");
+SYSCTL_INT(_hw_usb_xhci, OID_AUTO, dma32, CTLFLAG_RWTUN,
+    &xhcidma32, 0, "Set to only use 32-bit DMA for the XHCI controller");
 #else
 #define	xhciroute 0
+#define	xhcidma32 0
 #endif
 
 #define	XHCI_INTR_ENDPT 1
@@ -576,7 +580,7 @@ xhci_halt_controller(struct xhci_softc *sc)
 }
 
 usb_error_t
-xhci_init(struct xhci_softc *sc, device_t self)
+xhci_init(struct xhci_softc *sc, device_t self, uint8_t dma32)
 {
 	uint32_t temp;
 
@@ -623,7 +627,8 @@ xhci_init(struct xhci_softc *sc, device_t self)
 	}
 
 	/* get DMA bits */
-	sc->sc_bus.dma_bits = XHCI_HCS0_AC64(temp) ? 64 : 32;
+	sc->sc_bus.dma_bits = (XHCI_HCS0_AC64(temp) &&
+	    xhcidma32 == 0 && dma32 == 0) ? 64 : 32;
 
 	device_printf(self, "%d bytes context size, %d-bit DMA\n",
 	    sc->sc_ctx_is_64_byte ? 64 : 32, (int)sc->sc_bus.dma_bits);
