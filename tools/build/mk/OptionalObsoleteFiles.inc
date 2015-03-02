@@ -958,6 +958,7 @@ OLD_FILES+=usr/libexec/cc1plus
 OLD_FILES+=usr/bin/gperf
 OLD_FILES+=usr/share/info/gperf.info.gz
 OLD_FILES+=usr/share/man/man1/gperf.1.gz
+OLD_FILES+=usr/share/man/man1/gperf.7.gz
 .endif
 .endif
 
