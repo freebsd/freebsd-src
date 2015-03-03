@@ -718,7 +718,7 @@ usage(void)
 {
 
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
-		"usage: syslogd [-468ACcdknosTuv] [-a allowed_peer]",
+		"usage: syslogd [-468ACcdFknosTuv] [-a allowed_peer]",
 		"               [-b bind_address] [-f config_file]",
 		"               [-l [mode:]path] [-m mark_interval]",
 		"               [-P pid_file] [-p log_socket]");
