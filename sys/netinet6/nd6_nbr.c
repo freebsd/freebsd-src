@@ -95,6 +95,8 @@ static void nd6_dad_ns_input(struct ifaddr *, struct nd_opt_nonce *);
 static void nd6_dad_na_input(struct ifaddr *);
 static void nd6_na_output_fib(struct ifnet *, const struct in6_addr *,
     const struct in6_addr *, u_long, int, struct sockaddr *, u_int);
+static void nd6_ns_output_fib(struct ifnet *, const struct in6_addr *,
+    const struct in6_addr *, struct llentry *, uint8_t *, u_int);
 
 static VNET_DEFINE(int, dad_enhanced) = 1;
 #define	V_dad_enhanced			VNET(dad_enhanced)
@@ -394,9 +396,10 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
  * nonce - If non-NULL, NS is used for duplicate address detection and
  *         the value (length is ND_OPT_NONCE_LEN) is used as a random nonce.
  */
-void
-nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6, 
-    const struct in6_addr *taddr6, struct llentry *ln, uint8_t *nonce)
+static void
+nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6,
+    const struct in6_addr *taddr6, struct llentry *ln, uint8_t *nonce,
+    u_int fibnum)
 {
 	struct mbuf *m;
 	struct m_tag *mtag;
@@ -416,8 +419,9 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 	maxlen += (sizeof(struct nd_opt_hdr) + ifp->if_addrlen + 7) & ~7;
 	if (max_linkhdr + maxlen >= MCLBYTES) {
 #ifdef DIAGNOSTIC
-		printf("nd6_ns_output: max_linkhdr + maxlen >= MCLBYTES "
-		    "(%d + %d > %d)\n", max_linkhdr, maxlen, MCLBYTES);
+		printf("%s: max_linkhdr + maxlen >= MCLBYTES "
+		    "(%d + %d > %d)\n", __func__, max_linkhdr, maxlen,
+		    MCLBYTES);
 #endif
 		return;
 	}
@@ -428,6 +432,7 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 		m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return;
+	M_SETFIB(m, fibnum);
 
 	bzero(&ro, sizeof(ro));
 
@@ -521,9 +526,8 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 			    NULL, &ro, NULL, &oifp, &src_in);
 			if (error) {
 				char ip6buf[INET6_ADDRSTRLEN];
-				nd6log((LOG_DEBUG,
-				    "nd6_ns_output: source can't be "
-				    "determined: dst=%s, error=%d\n",
+				nd6log((LOG_DEBUG, "%s: source can't be "
+				    "determined: dst=%s, error=%d\n", __func__,
 				    ip6_sprintf(ip6buf, &dst_sa.sin6_addr),
 				    error));
 				goto bad;
@@ -626,6 +630,15 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 	return;
 }
 
+#ifndef BURN_BRIDGES
+void
+nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
+    const struct in6_addr *taddr6, struct llentry *ln, uint8_t *nonce)
+{
+
+	nd6_ns_output_fib(ifp, daddr6, taddr6, ln, nonce, RT_DEFAULT_FIB);
+}
+#endif
 /*
  * Neighbor advertisement input handling.
  *
