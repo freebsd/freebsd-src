@@ -11,6 +11,7 @@ SRCS=	cheri_invoke.S			\
 	sandbox.c			\
 	sandbox_elf.c			\
 	sandbox_loader.c		\
+	sandbox_methods.c		\
 
 INCS=	cheri_class.h			\
 	cheri_enter.h			\

@@ -38,11 +38,16 @@
 #include <err.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <stdbool.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "sandbox_elf.h"
+
+#define	CHERI_CALLEE_SYM_PREFIX	"__cheri_callee_method."
+#define	CHERI_CALLER_SYM_PREFIX	"__cheri_method."
 
 ssize_t
 sandbox_loadelf64(int fd, void *location, size_t maxsize, u_int flags)
@@ -205,8 +210,9 @@ main(int argc, char **argv)
 	if ((fd = open(argv[1], O_RDONLY)) == -1)
 		err(1, "%s: open(%s)", __func__, argv[1]);
 
-	if((len = loadelf64(fd, base, maxlen)) == -1)
-		err(1, "%s: loadelf64", __func__);
+	if ((len = sandbox_loadelf64(fd, base, maxlen, SANDBOX_LOADELF_CODE))
+	    == -1)
+		err(1, "%s: sandbox_loadelf64", __func__);
 	printf("mapped %jd bytes from %s\n", len, argv[1]);
 
 	return (0);

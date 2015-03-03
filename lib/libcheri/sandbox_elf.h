@@ -36,7 +36,7 @@
 #define	SANDBOX_LOADELF_DATA	0x00000001
 #define	SANDBOX_LOADELF_CODE	0x00000002
 
-extern ssize_t
-sandbox_loadelf64(int fd, void *location, size_t maxsize, u_int flags);
+extern ssize_t sandbox_loadelf64(int fd, void *location, size_t maxsize,
+    u_int flags);
 
 #endif /* __SANDBOX_ELF_H__ */
