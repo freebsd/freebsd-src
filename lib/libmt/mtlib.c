@@ -568,6 +568,15 @@ static struct densities {
 	 *
 	 * IBM 3592 definitions obtained from second edition of the IBM
 	 * System Storage Tape Drive 3592 SCSI Reference (May 25, 2012).
+	 *
+	 * DAT-72 and DAT-160 bpi values taken from "HP StorageWorks DAT160
+	 * tape drive white paper", dated June 2007.
+	 *
+	 * DAT-160 / SDLT220 density code (0x48) conflict information
+	 * found here:
+	 *
+	 * http://h20564.www2.hp.com/hpsc/doc/public/display?docId=emr_na-c01065117&sp4ts.oid=429311
+ 	 * (Document ID c01065117)
 	 */
 	/*Num.  bpmm    bpi     Reference     */
 	{ 0x1,	32,	800,	"X3.22-1983" },
@@ -613,6 +622,14 @@ static struct densities {
 	{ 0x42, 7398,   187909, "LTO-2" },
 	{ 0x44, 9638,   244805, "LTO-3" }, 
 	{ 0x46, 12725,  323215, "LTO-4" }, 
+	{ 0x47, 6417,   163000, "DAT-72" },
+	/*
+	 * XXX KDM note that 0x48 is also the density code for DAT-160.
+	 * For some reason they used overlapping density codes.
+	 */
+#if 0
+	{ 0x48, 6870,   174500, "DAT-160" },
+#endif
 	{ 0x48, 5236,   133000, "SDLTapeI(110)" },
 	{ 0x49, 7598,   193000, "SDLTapeI(160)" },
 	{ 0x4a,     0,       0, "T10000A" },
