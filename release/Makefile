@@ -319,7 +319,7 @@ real-release:
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} obj
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${RELEASE_TARGETS}
 
-install:	release-install vm-install
+install:	release-install vm-install cloudware-install
 
 release-install:
 .if defined(DESTDIR) && !empty(DESTDIR)
