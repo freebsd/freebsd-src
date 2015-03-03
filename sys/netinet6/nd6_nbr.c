@@ -1528,7 +1528,6 @@ nd6_dad_ns_output(struct dadq *dp, struct ifaddr *ifa)
 {
 	struct in6_ifaddr *ia = (struct in6_ifaddr *)ifa;
 	struct ifnet *ifp = ifa->ifa_ifp;
-	uint8_t *nonce;
 	int i;
 
 	dp->dad_ns_tcount++;
@@ -1543,7 +1542,6 @@ nd6_dad_ns_output(struct dadq *dp, struct ifaddr *ifa)
 	if (V_dad_enhanced != 0) {
 		for (i = 0; i < ND_OPT_NONCE_LEN32; i++)
 			dp->dad_nonce[i] = arc4random();
-		nonce = (uint8_t *)&dp->dad_nonce[0];
 		/*
 		 * XXXHRS: Note that in the case that
 		 * DupAddrDetectTransmits > 1, multiple NS messages with
@@ -1552,9 +1550,9 @@ nd6_dad_ns_output(struct dadq *dp, struct ifaddr *ifa)
 		 * the latest nonce on the sender side.  Practically it
 		 * should work well in almost all cases.
 		 */
-	} else
-		nonce = NULL;
-	nd6_ns_output(ifp, NULL, &ia->ia_addr.sin6_addr, NULL, nonce);
+	}
+	nd6_ns_output(ifp, NULL, &ia->ia_addr.sin6_addr, NULL,
+	    (uint8_t *)&dp->dad_nonce[0]);
 }
 
 static void
