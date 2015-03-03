@@ -463,7 +463,7 @@ ccall_clear_caps:
 	nop
 	nop
 #endif /* CPU_CHERI_HW_CCLEAR */
-
+ccall_exception_return:
 	CHERI_EXCEPTION_RETURN(k0)
 	eret
 
@@ -703,7 +703,7 @@ creturn_clear_caps:
 	nop
 	nop
 #endif
-
+creturn_exception_return:
 	CHERI_EXCEPTION_RETURN(k0)
 	eret
 
