@@ -76,7 +76,11 @@ static int
 xs_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	int error;
-	struct xs_dev_data *u = dev->si_drv1;
+	struct xs_dev_data *u;
+
+	error = devfs_get_cdevpriv((void **)&u);
+	if (error != 0)
+		return (error);
 
 	while (u->read_prod == u->read_cons) {
 		error = tsleep(u, PCATCH, "xsdread", hz/10);
@@ -114,10 +118,14 @@ static int
 xs_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	int error;
-	struct xs_dev_data *u = dev->si_drv1;
+	struct xs_dev_data *u;
 	struct xs_dev_transaction *trans;
 	void *reply;
 	int len = uio->uio_resid;
+
+	error = devfs_get_cdevpriv((void **)&u);
+	if (error != 0)
+		return (error);
 
 	if ((len + u->len) > sizeof(u->u.buffer))
 		return (EINVAL);
@@ -176,25 +184,10 @@ xs_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 	return (error);
 }
 
-static int
-xs_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
+static void
+xs_dev_dtor(void *arg)
 {
-	struct xs_dev_data *u;
-
-#if 0 /* XXX figure out if equiv needed */
-	nonseekable_open(inode, filp);
-#endif
-	u = malloc(sizeof(*u), M_XENSTORE, M_WAITOK|M_ZERO);
-	LIST_INIT(&u->transactions);
-        dev->si_drv1 = u;
-
-	return (0);
-}
-
-static int
-xs_dev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
-{
-	struct xs_dev_data *u = dev->si_drv1;
+	struct xs_dev_data *u = arg;
 	struct xs_dev_transaction *trans, *tmp;
 
 	LIST_FOREACH_SAFE(trans, &u->transactions, list, tmp) {
@@ -204,7 +197,21 @@ xs_dev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	}
 
 	free(u, M_XENSTORE);
-	return (0);
+}
+
+static int
+xs_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
+{
+	struct xs_dev_data *u;
+	int error;
+
+	u = malloc(sizeof(*u), M_XENSTORE, M_WAITOK|M_ZERO);
+	LIST_INIT(&u->transactions);
+	error = devfs_set_cdevpriv(u, xs_dev_dtor);
+	if (error != 0)
+		free(u, M_XENSTORE);
+
+	return (error);
 }
 
 static struct cdevsw xs_dev_cdevsw = {
@@ -212,13 +219,13 @@ static struct cdevsw xs_dev_cdevsw = {
 	.d_read = xs_dev_read,
 	.d_write = xs_dev_write,
 	.d_open = xs_dev_open,
-	.d_close = xs_dev_close,
 	.d_name = "xs_dev",
 };
 
 void
 xs_dev_init()
 {
-	make_dev(&xs_dev_cdevsw, 0, UID_ROOT, GID_WHEEL, 0400,
-	    "xen/xenstore");
+
+	make_dev_credf(MAKEDEV_ETERNAL, &xs_dev_cdevsw, 0, NULL,
+	    UID_ROOT, GID_WHEEL, 0400, "xen/xenstore");
 }
