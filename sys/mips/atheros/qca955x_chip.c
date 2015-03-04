@@ -209,21 +209,22 @@ qca955x_chip_set_pll_ge(int unit, int speed, uint32_t pll)
 static void
 qca955x_chip_ddr_flush_ge(int unit)
 {
-#if 0
+
 	switch (unit) {
 	case 0:
-		ar71xx_ddr_flush(AR934X_DDR_REG_FLUSH_GE0);
+		ar71xx_ddr_flush(QCA955X_DDR_REG_FLUSH_GE0);
 		break;
 	case 1:
-		ar71xx_ddr_flush(AR934X_DDR_REG_FLUSH_GE1);
+		ar71xx_ddr_flush(QCA955X_DDR_REG_FLUSH_GE1);
 		break;
 	default:
 		printf("%s: invalid DDR flush for arge unit: %d\n",
 		    __func__, unit);
 		return;
 	}
-#endif
 }
+
+/* XXX TODO: USB flush, PCIe flush, wmac flush */
 
 static void
 qca955x_chip_ddr_flush_ip2(void)
