@@ -991,8 +991,11 @@ moea64_activate(mmu_t mmu, struct thread *td)
 
 	#ifdef __powerpc64__
 	PCPU_SET(userslb, pm->pm_slb);
+	__asm __volatile("slbmte %0, %1; isync" ::
+	    "r"(td->td_pcb->pcb_cpu.aim.usr_vsid), "r"(USER_SLB_SLBE));
 	#else
 	PCPU_SET(curpmap, pm->pmap_phys);
+	mtsrin(USER_SR << ADDR_SR_SHFT, td->td_pcb->pcb_cpu.aim.usr_vsid);
 	#endif
 }
 
@@ -1000,6 +1003,8 @@ void
 moea64_deactivate(mmu_t mmu, struct thread *td)
 {
 	pmap_t	pm;
+
+	__asm __volatile("isync; slbie %0" :: "r"(USER_ADDR));
 
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 	CPU_CLR(PCPU_GET(cpuid), &pm->pm_active);
