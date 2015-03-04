@@ -986,6 +986,8 @@ moea_activate(mmu_t mmu, struct thread *td)
 
 	CPU_SET(PCPU_GET(cpuid), &pm->pm_active);
 	PCPU_SET(curpmap, pmr);
+
+	mtsrin(USER_SR << ADDR_SR_SHFT, td->td_pcb->pcb_cpu.aim.usr_vsid);
 }
 
 void
