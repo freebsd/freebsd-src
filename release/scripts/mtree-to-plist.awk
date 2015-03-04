@@ -29,6 +29,7 @@
 	if (tags ~ /package=/) {
 		gsub(/package=/,"",tags);
 		gsub(/,/, "-", tags);
+		gsub(/runtime-/, "", tags);
 		pkg=tags
 	} else {
 		pkg=tags
