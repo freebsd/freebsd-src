@@ -195,6 +195,62 @@ gpiobus_init_softc(device_t dev)
 	return (0);
 }
 
+int
+gpiobus_alloc_ivars(struct gpiobus_ivar *devi)
+{
+
+	/* Allocate pins and flags memory. */
+	devi->pins = malloc(sizeof(uint32_t) * devi->npins, M_DEVBUF,
+	    M_NOWAIT | M_ZERO);
+	if (devi->pins == NULL)
+		return (ENOMEM);
+	devi->flags = malloc(sizeof(uint32_t) * devi->npins, M_DEVBUF,
+	    M_NOWAIT | M_ZERO);
+	if (devi->flags == NULL) {
+		free(devi->pins, M_DEVBUF);
+		return (ENOMEM);
+	}
+
+	return (0);
+}
+
+void
+gpiobus_free_ivars(struct gpiobus_ivar *devi)
+{
+
+	if (devi->flags) {
+		free(devi->flags, M_DEVBUF);
+		devi->flags = NULL;
+	}
+	if (devi->pins) {
+		free(devi->pins, M_DEVBUF);
+		devi->pins = NULL;
+	}
+}
+
+int
+gpiobus_map_pin(device_t bus, device_t child, uint32_t pin)
+{
+	struct gpiobus_softc *sc;
+
+	sc = device_get_softc(bus);
+	/* Consistency check. */
+	if (pin >= sc->sc_npins) {
+		device_printf(child,
+		    "invalid pin %d, max: %d\n", pin, sc->sc_npins - 1);
+		return (-1);
+	}
+	/* Mark pin as mapped and give warning if it's already mapped. */
+	if (sc->sc_pins_mapped[pin]) {
+		device_printf(child,
+		    "warning: pin %d is already mapped\n", pin);
+		return (-1);
+	}
+	sc->sc_pins_mapped[pin] = 1;
+
+	return (0);
+}
+
 static int
 gpiobus_parse_pins(struct gpiobus_softc *sc, device_t child, int mask)
 {
@@ -206,43 +262,25 @@ gpiobus_parse_pins(struct gpiobus_softc *sc, device_t child, int mask)
 		if (mask & (1 << i))
 			npins++;
 	}
-
 	if (npins == 0) {
 		device_printf(child, "empty pin mask\n");
 		return (EINVAL);
 	}
-
 	devi->npins = npins;
-	devi->pins = malloc(sizeof(uint32_t) * devi->npins, M_DEVBUF, 
-	    M_NOWAIT | M_ZERO);
-
-	if (!devi->pins)
-		return (ENOMEM);
-
+	if (gpiobus_alloc_ivars(devi) != 0) {
+		device_printf(child, "cannot allocate device ivars\n");
+		return (EINVAL);
+	}
 	npins = 0;
 	for (i = 0; i < 32; i++) {
-
 		if ((mask & (1 << i)) == 0)
 			continue;
-
-		if (i >= sc->sc_npins) {
-			device_printf(child, 
-			    "invalid pin %d, max: %d\n", i, sc->sc_npins - 1);
-			free(devi->pins, M_DEVBUF);
+		/* Reserve the GPIO pin. */
+		if (gpiobus_map_pin(sc->sc_busdev, child, i) != 0) {
+			gpiobus_free_ivars(devi);
 			return (EINVAL);
 		}
-
 		devi->pins[npins++] = i;
-		/*
-		 * Mark pin as mapped and give warning if it's already mapped
-		 */
-		if (sc->sc_pins_mapped[i]) {
-			device_printf(child, 
-			    "warning: pin %d is already mapped\n", i);
-			free(devi->pins, M_DEVBUF);
-			return (EINVAL);
-		}
-		sc->sc_pins_mapped[i] = 1;
 	}
 
 	return (0);
@@ -299,10 +337,7 @@ gpiobus_detach(device_t dev)
 	for (i = 0; i < ndevs; i++) {
 		device_delete_child(dev, devlist[i]);
 		devi = GPIOBUS_IVAR(devlist[i]);
-		if (devi->pins) {
-			free(devi->pins, M_DEVBUF);
-			devi->pins = NULL;
-		}
+		gpiobus_free_ivars(devi);
 	}
 	free(devlist, M_TEMP);
 

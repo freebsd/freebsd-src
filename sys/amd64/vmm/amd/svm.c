@@ -1641,7 +1641,7 @@ done:
 	 * VMRUN.
 	 */
 	v_tpr = vlapic_get_cr8(vlapic);
-	KASSERT(v_tpr >= 0 && v_tpr <= 15, ("invalid v_tpr %#x", v_tpr));
+	KASSERT(v_tpr <= 15, ("invalid v_tpr %#x", v_tpr));
 	if (ctrl->v_tpr != v_tpr) {
 		VCPU_CTR2(sc->vm, vcpu, "VMCB V_TPR changed from %#x to %#x",
 		    ctrl->v_tpr, v_tpr);
@@ -1808,14 +1808,14 @@ static __inline void
 disable_gintr(void)
 {
 
-        __asm __volatile("clgi" : : :);
+	__asm __volatile("clgi");
 }
 
 static __inline void
 enable_gintr(void)
 {
 
-        __asm __volatile("stgi" : : :);
+        __asm __volatile("stgi");
 }
 
 /*

@@ -635,7 +635,7 @@ evalvar(char *p, int flag)
 	int varlenb;
 	int easy;
 	int quotes = flag & (EXP_FULL | EXP_CASE);
-	int record;
+	int record = 0;
 
 	varflags = (unsigned char)*p++;
 	subtype = varflags & VSTYPE;

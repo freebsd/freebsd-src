@@ -44,6 +44,7 @@ FILES=	DAEMON \
 	hostid \
 	hostid_save \
 	hostname \
+	iovctl \
 	ip6addrctl \
 	ipfilter \
 	ipfs \

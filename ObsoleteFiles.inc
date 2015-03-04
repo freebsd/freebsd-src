@@ -93,6 +93,10 @@ OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
 OLD_DIRS+=usr/lib/clang/3.5.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.5.1/lib
 OLD_DIRS+=usr/lib/clang/3.5.1
+# 20150302: binutils documentation distributed as a manpage
+OLD_FILES+=usr/share/doc/binutils/as.txt
+OLD_FILES+=usr/share/doc/binutils/ld.txt
+OLD_DIRS+=usr/share/doc/binutils
 # 20150222: Removed bcd(6) and ppt(6)
 OLD_FILES+=usr/bin/bcd
 OLD_FILES+=usr/bin/ppt

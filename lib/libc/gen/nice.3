@@ -28,7 +28,7 @@
 .\"     @(#)nice.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd February 22, 2015
+.Dd February 28, 2015
 .Dt NICE 3
 .Os
 .Sh NAME
@@ -48,9 +48,9 @@ This interface is obsoleted by
 .Pp
 The
 .Fn nice
-function obtains the scheduling priority of the process
-from the system and sets it to the priority value specified in
-.Fa incr .
+function adds
+.Fa incr
+to the scheduling priority of the process.
 The priority is a value in the range -20 to 20.
 The default priority is 0; lower priorities cause more favorable scheduling.
 Only the super-user may lower priorities.
@@ -60,8 +60,9 @@ Children inherit the priority of their parent processes via
 .Sh RETURN VALUES
 Upon successful completion,
 .Fn nice
-returns the new nice value minus
-.Dv NZERO .
+returns 0, and
+.Va errno
+is unchanged.
 Otherwise, \-1 is returned, the process' nice value is not changed, and
 .Va errno
 is set to indicate the error.
@@ -84,7 +85,11 @@ argument is negative and the caller does not have appropriate privileges.
 The
 .Fn nice
 function conforms to
-.St -xpg4.2 .
+.St -p1003.1-2008
+except for the return value.
+This implementation returns 0 upon successful completion but 
+the standard requires returning the new nice value,
+which could be \-1.
 .Sh HISTORY
 A
 .Fn nice

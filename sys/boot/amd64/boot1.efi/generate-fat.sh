@@ -13,7 +13,19 @@
 
 FAT_SIZE=1600 			#Size in 512-byte blocks of the produced image
 
-BOOT1_SIZE=64k
+BOOT1_SIZE=128k
+
+#
+# Known filenames
+# amd64: BOOTx64.efi
+# arm64: BOOTaa64.efi
+#
+if [ -z "$1" ]; then
+	echo "Usage: $0 filename"
+	exit 1
+fi
+
+FILENAME=$1
 
 # Generate 800K FAT image
 OUTPUT_FILE=fat.tmpl
@@ -28,7 +40,7 @@ mount -t msdosfs /dev/$DEVICE stub
 mkdir -p stub/efi/boot
 
 # Make a dummy file for boot1
-echo 'Boot1 START' | dd of=stub/efi/boot/BOOTx64.efi cbs=$BOOT1_SIZE count=1 conv=block
+echo 'Boot1 START' | dd of=stub/efi/boot/$FILENAME cbs=$BOOT1_SIZE count=1 conv=block
 
 umount stub
 mdconfig -d -u $DEVICE

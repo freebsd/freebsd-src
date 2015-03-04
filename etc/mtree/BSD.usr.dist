@@ -183,8 +183,6 @@
             ..
             atm
             ..
-            binutils
-            ..
             legal
                 intel_ipw
                 ..
@@ -416,6 +414,8 @@
                 ..
             ..
             tcsh
+            ..
+            uefisign
             ..
         ..
         games

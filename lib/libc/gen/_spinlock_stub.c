@@ -59,7 +59,7 @@ _spinlock(spinlock_t *lck)
 
 }
 
-#pragma weak _spinlock
+#pragma weak _spinunlock
 void
 _spinunlock(spinlock_t *lck)
 {
