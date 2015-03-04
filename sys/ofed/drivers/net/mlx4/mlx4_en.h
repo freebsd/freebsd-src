@@ -154,7 +154,7 @@ enum {
 #define MLX4_EN_NUM_UP			1
 
 #define MAX_TX_RINGS			(MLX4_EN_MAX_TX_RING_P_UP * \
-					 (MLX4_EN_NUM_UP + 1))
+					 MLX4_EN_NUM_UP)
 
 #define MLX4_EN_DEF_TX_RING_SIZE	1024
 #define MLX4_EN_DEF_RX_RING_SIZE  	1024
@@ -358,11 +358,7 @@ struct mlx4_en_rx_ring {
 
 static inline int mlx4_en_can_lro(__be16 status)
 {
-	static __be16 status_all;
-	static __be16 status_ipv4_ipok_tcp;
-	static __be16 status_ipv6_ipok_tcp;
-
-	status_all                         = cpu_to_be16(
+	const __be16 status_all = cpu_to_be16(
 			MLX4_CQE_STATUS_IPV4    |
 			MLX4_CQE_STATUS_IPV4F   |
 			MLX4_CQE_STATUS_IPV6    |
@@ -370,11 +366,11 @@ static inline int mlx4_en_can_lro(__be16 status)
 			MLX4_CQE_STATUS_TCP     |
 			MLX4_CQE_STATUS_UDP     |
 			MLX4_CQE_STATUS_IPOK);
-	status_ipv4_ipok_tcp               = cpu_to_be16(
+	const __be16 status_ipv4_ipok_tcp = cpu_to_be16(
 			MLX4_CQE_STATUS_IPV4    |
 			MLX4_CQE_STATUS_IPOK    |
 			MLX4_CQE_STATUS_TCP);
-	status_ipv6_ipok_tcp               = cpu_to_be16(
+	const __be16 status_ipv6_ipok_tcp = cpu_to_be16(
 			MLX4_CQE_STATUS_IPV6    |
 			MLX4_CQE_STATUS_IPOK    |
 			MLX4_CQE_STATUS_TCP);
@@ -383,7 +379,6 @@ static inline int mlx4_en_can_lro(__be16 status)
 	return (status == status_ipv4_ipok_tcp ||
 			status == status_ipv6_ipok_tcp);
 }
-
 
 struct mlx4_en_cq {
 	struct mlx4_cq          mcq;

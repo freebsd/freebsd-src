@@ -241,8 +241,8 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 								 DEF_RX_RINGS)));
 		} else {
 			mdev->profile.prof[i].rx_ring_num = rounddown_pow_of_two(
-				min_t(int, dev->caps.comp_pool/
-				      dev->caps.num_ports - 1 , MAX_MSIX_P_PORT - 1));
+				min_t(int, dev->caps.comp_pool /
+				      dev->caps.num_ports, MAX_MSIX_P_PORT));
 		}
 	}
 
