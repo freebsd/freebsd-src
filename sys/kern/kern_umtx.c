@@ -1810,6 +1810,19 @@ umtx_pi_setowner(struct umtx_pi *pi, struct thread *owner)
 	TAILQ_INSERT_TAIL(&uq_owner->uq_pi_contested, pi, pi_link);
 }
 
+
+/*
+ * Disown a PI mutex, and remove it from the owned list.
+ */
+static void
+umtx_pi_disown(struct umtx_pi *pi)
+{
+
+	mtx_assert(&umtx_lock, MA_OWNED);
+	TAILQ_REMOVE(&pi->pi_owner->td_umtxq->uq_pi_contested, pi, pi_link);
+	pi->pi_owner = NULL;
+}
+
 /*
  * Claim ownership of a PI mutex.
  */
@@ -2226,8 +2239,7 @@ do_unlock_pi(struct thread *td, struct umutex *m, uint32_t flags)
 			return (EPERM);
 		}
 		uq_me = curthread->td_umtxq;
-		pi->pi_owner = NULL;
-		TAILQ_REMOVE(&uq_me->uq_pi_contested, pi, pi_link);
+		umtx_pi_disown(pi);
 		/* get highest priority thread which is still sleeping. */
 		uq_first = TAILQ_FIRST(&pi->pi_blocked);
 		while (uq_first != NULL && 
@@ -2248,6 +2260,25 @@ do_unlock_pi(struct thread *td, struct umutex *m, uint32_t flags)
 		mtx_unlock_spin(&umtx_lock);
 		if (uq_first)
 			umtxq_signal_thread(uq_first);
+	} else {
+		pi = umtx_pi_lookup(&key);
+		/*
+		 * A umtx_pi can exist if a signal or timeout removed the
+		 * last waiter from the umtxq, but there is still
+		 * a thread in do_lock_pi() holding the umtx_pi.
+		 */
+		if (pi != NULL) {
+			/*
+			 * The umtx_pi can be unowned, such as when a thread
+			 * has just entered do_lock_pi(), allocated the
+			 * umtx_pi, and unlocked the umtxq.
+			 * If the current thread owns it, it must disown it.
+			 */
+			mtx_lock_spin(&umtx_lock);
+			if (pi->pi_owner == td)
+				umtx_pi_disown(pi);
+			mtx_unlock_spin(&umtx_lock);
+		}
 	}
 	umtxq_unlock(&key);
 
