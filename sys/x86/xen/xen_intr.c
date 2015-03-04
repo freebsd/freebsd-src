@@ -128,6 +128,7 @@ struct xenisrc {
 	u_int		xi_close:1;	/* close on unbind? */
 	u_int		xi_activehi:1;
 	u_int		xi_edgetrigger:1;
+	u_int		xi_masked:1;
 };
 
 #define ARRAY_SIZE(a)	(sizeof(a) / sizeof(a[0]))
@@ -578,12 +579,11 @@ xen_intr_handle_upcall(struct trapframe *trap_frame)
 
 			/* process port */
 			port = (l1i * LONG_BIT) + l2i;
+			synch_clear_bit(port, &s->evtchn_pending[0]);
 
 			isrc = xen_intr_port_to_isrc[port];
-			if (__predict_false(isrc == NULL)) {
-				synch_clear_bit(port, &s->evtchn_pending[0]);
+			if (__predict_false(isrc == NULL))
 				continue;
-			}
 
 			/* Make sure we are firing on the right vCPU */
 			KASSERT((isrc->xi_cpu == PCPU_GET(cpuid)),
@@ -930,11 +930,21 @@ out:
  *              acknowledgements.
  */
 static void
-xen_intr_disable_source(struct intsrc *isrc, int eoi)
+xen_intr_disable_source(struct intsrc *base_isrc, int eoi)
 {
+	struct xenisrc *isrc;
 
-	if (eoi == PIC_EOI)
-		xen_intr_eoi_source(isrc);
+	isrc = (struct xenisrc *)base_isrc;
+
+	/*
+	 * NB: checking if the event channel is already masked is
+	 * needed because the event channel user-space device
+	 * masks event channels on it's filter as part of it's
+	 * normal operation, and those shouldn't be automatically
+	 * unmasked by the generic interrupt code. The event channel
+	 * device will unmask them when needed.
+	 */
+	isrc->xi_masked = !!evtchn_test_and_set_mask(isrc->xi_port);
 }
 
 /*
@@ -943,8 +953,14 @@ xen_intr_disable_source(struct intsrc *isrc, int eoi)
  * \param isrc  The interrupt source to unmask (if necessary).
  */
 static void
-xen_intr_enable_source(struct intsrc *isrc)
+xen_intr_enable_source(struct intsrc *base_isrc)
 {
+	struct xenisrc *isrc;
+
+	isrc = (struct xenisrc *)base_isrc;
+
+	if (isrc->xi_masked == 0)
+		evtchn_unmask_port(isrc->xi_port);
 }
 
 /*
@@ -955,11 +971,6 @@ xen_intr_enable_source(struct intsrc *isrc)
 static void
 xen_intr_eoi_source(struct intsrc *base_isrc)
 {
-	struct xenisrc *isrc;
-
-	isrc = (struct xenisrc *)base_isrc;
-	synch_clear_bit(isrc->xi_port,
-	    &HYPERVISOR_shared_info->evtchn_pending[0]);
 }
 
 /*
@@ -1025,8 +1036,6 @@ xen_intr_pirq_eoi_source(struct intsrc *base_isrc)
 
 	isrc = (struct xenisrc *)base_isrc;
 
-	synch_clear_bit(isrc->xi_port,
-	    &HYPERVISOR_shared_info->evtchn_pending[0]);
 	if (test_bit(isrc->xi_pirq, xen_intr_pirq_eoi_map)) {
 		struct physdev_eoi eoi = { .irq = isrc->xi_pirq };
 

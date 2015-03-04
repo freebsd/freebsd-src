@@ -2396,9 +2396,13 @@ saregister(struct cam_periph *periph, void *arg)
 	 * Long format data for READ POSITION was introduced in SSC, which
 	 * was after SCSI-2.  (Roughly equivalent to SCSI-3.)  If the drive
 	 * reports that it is SCSI-2 or older, it is unlikely to support
-	 * long position data.
+	 * long position data, but it might.  Some drives from that era
+	 * claim to be SCSI-2, but do support long position information.
+	 * So, instead of immediately disabling long position information
+	 * for SCSI-2 devices, we'll try one pass through sagetpos(), and 
+	 * then disable long position information if we get an error.   
 	 */
-	if (cgd->inq_data.version <= SCSI_REV_2)
+	if (cgd->inq_data.version <= SCSI_REV_CCS)
 		softc->quirks |= SA_QUIRK_NO_LONG_POS;
 
 	if (cgd->inq_data.spc3_flags & SPC3_SID_PROTECT) {

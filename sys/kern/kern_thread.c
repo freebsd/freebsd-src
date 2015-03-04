@@ -413,7 +413,6 @@ thread_exit(void)
 #ifdef AUDIT
 	AUDIT_SYSCALL_EXIT(0, td);
 #endif
-	umtx_thread_exit(td);
 	/*
 	 * drop FPU & debug register state storage, or any other
 	 * architecture specific resources that
@@ -864,6 +863,7 @@ thread_suspend_check(int return_instead)
 			tidhash_remove(td);
 			PROC_LOCK(p);
 			tdsigcleanup(td);
+			umtx_thread_exit(td);
 			PROC_SLOCK(p);
 			thread_stopped(p);
 			thread_exit();

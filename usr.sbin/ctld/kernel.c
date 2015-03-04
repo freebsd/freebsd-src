@@ -816,9 +816,10 @@ kernel_handoff(struct connection *conn)
 	    sizeof(req.data.handoff.initiator_isid));
 	strlcpy(req.data.handoff.target_name,
 	    conn->conn_target->t_name, sizeof(req.data.handoff.target_name));
-	if (conn->conn_target->t_offload != NULL) {
+	if (conn->conn_portal->p_portal_group->pg_offload != NULL) {
 		strlcpy(req.data.handoff.offload,
-		    conn->conn_target->t_offload, sizeof(req.data.handoff.offload));
+		    conn->conn_portal->p_portal_group->pg_offload,
+		    sizeof(req.data.handoff.offload));
 	}
 #ifdef ICL_KERNEL_PROXY
 	if (proxy_mode)
@@ -934,8 +935,20 @@ kernel_port_add(struct port *port)
 			    req.status);
 			return (1);
 		}
-	} else if (port->p_pport)
+	} else if (port->p_pport) {
 		port->p_ctl_port = port->p_pport->pp_ctl_port;
+
+		if (strncmp(targ->t_name, "naa.", 4) == 0 &&
+		    strlen(targ->t_name) == 20) {
+			bzero(&entry, sizeof(entry));
+			entry.port_type = CTL_PORT_NONE;
+			entry.targ_port = port->p_ctl_port;
+			entry.flags |= CTL_PORT_WWNN_VALID;
+			entry.wwnn = strtoull(targ->t_name + 4, NULL, 16);
+			if (ioctl(ctl_fd, CTL_SET_PORT_WWNS, &entry) == -1)
+				log_warn("CTL_SET_PORT_WWNS ioctl failed");
+		}
+	}
 
 	/* Explicitly enable mapping to block any access except allowed. */
 	lm.port = port->p_ctl_port;

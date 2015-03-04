@@ -422,7 +422,7 @@ intpr(int interval, void (*pfunc)(char *), int af)
 		show_stat("lu", 8, "received-packets", IFA_STAT(ipackets),
 		    link|network);
 		show_stat("lu", 5, "received-errors", IFA_STAT(ierrors), link);
-		show_stat("lu", 5, "dropped-packet", IFA_STAT(iqdrops), link);
+		show_stat("lu", 5, "dropped-packets", IFA_STAT(iqdrops), link);
 		if (bflag)
 			show_stat("lu", 10, "received-bytes", IFA_STAT(ibytes),
 			    link|network);
