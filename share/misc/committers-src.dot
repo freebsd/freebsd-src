@@ -300,6 +300,7 @@ vanhu [label="Yvan Vanhullebus\nvanhu@FreeBSD.org\n2008/07/21"]
 versus [label="Konrad Jankowski\nversus@FreeBSD.org\n2008/10/27"]
 weongyo [label="Weongyo Jeong\nweongyo@FreeBSD.org\n2007/12/21"]
 wes [label="Wes Peters\nwes@FreeBSD.org\n1998/11/25"]
+whu [label="Wei Hu\nwhu@FreeBSD.org\n2015/02/11"]
 wkoszek [label="Wojciech A. Koszek\nwkoszek@FreeBSD.org\n2006/02/21"]
 wollman [label="Garrett Wollman\nwollman@FreeBSD.org\n????/??/??"]
 wsalamon [label="Wayne Salamon\nwsalamon@FreeBSD.org\n2005/06/25"]
@@ -430,6 +431,7 @@ gavin -> versus
 gibbs -> mjacob
 gibbs -> njl
 gibbs -> royger
+gibbs -> whu
 
 glebius -> mav
 
@@ -630,6 +632,8 @@ pjd -> trociny
 rgrimes -> markm
 
 rmacklem -> jwd
+
+royger -> whu
 
 rpaulo -> avg
 rpaulo -> bschmidt
