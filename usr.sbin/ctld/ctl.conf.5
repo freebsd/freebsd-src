@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 27, 2015
+.Dd March 4, 2015
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -413,14 +413,10 @@ target iqn.2012-06.com.example:target0 {
 
 lun example_1 {
 	path /dev/zvol/tank/example_1
+	option naa 0x50015178f369f093
 }
 
 target iqn.2012-06.com.example:target1 {
-	chap chapuser chapsecret
-	lun 0 example_1
-}
-
-target iqn.2012-06.com.example:target2 {
 	auth-group ag0
 	portal-group pg0
 	lun 0 example_1
@@ -428,6 +424,12 @@ target iqn.2012-06.com.example:target2 {
 		path /dev/zvol/tank/example_2
 		option foo bar
 	}
+}
+
+target naa.50015178f369f092 {
+	port isp0
+	port isp1
+	lun 0 example_1
 }
 .Ed
 .Sh SEE ALSO
