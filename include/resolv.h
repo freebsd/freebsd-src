@@ -179,7 +179,10 @@ struct __res_state {
 	u_int	_pad;			/*%< make _u 64 bit aligned */
 	union {
 		/* On an 32-bit arch this means 512b total. */
-		char	pad[72 - 4*sizeof (int) - 3*sizeof (void *)];
+		/* Evil nonsensical padding that breaks CHERI sandbox mode... */
+#ifndef __CHERI_SANDBOX__
+		char    pad[72 - 4*sizeof (int) - 3*sizeof (void *)];
+#endif
 		struct {
 			u_int16_t		nscount;
 			u_int16_t		nstimes[MAXNS];	/*%< ms. */
