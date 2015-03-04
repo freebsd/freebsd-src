@@ -201,8 +201,7 @@ trap(struct trapframe *frame)
 		case EXC_ISE:
 		case EXC_DSE:
 			if (handle_user_slb_spill(&p->p_vmspace->vm_pmap,
-			    (type == EXC_ISE) ? frame->srr0 :
-			    frame->cpu.aim.dar) != 0) {
+			    (type == EXC_ISE) ? frame->srr0 : frame->dar) != 0){
 				sig = SIGSEGV;
 				ucode = SEGV_MAPERR;
 			}
@@ -326,7 +325,7 @@ trap(struct trapframe *frame)
 #endif
 #ifdef __powerpc64__
 		case EXC_DSE:
-			if ((frame->cpu.aim.dar & SEGMENT_MASK) == USER_ADDR) {
+			if ((frame->dar & SEGMENT_MASK) == USER_ADDR) {
 				__asm __volatile ("slbmte %0, %1" ::
 					"r"(td->td_pcb->pcb_cpu.aim.usr_vsid),
 					"r"(USER_SLB_SLBE));
@@ -387,8 +386,7 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 	switch (vector) {
 	case EXC_DSE:
 	case EXC_DSI:
-		printf("   virtual address = 0x%" PRIxPTR "\n",
-		    frame->cpu.aim.dar);
+		printf("   virtual address = 0x%" PRIxPTR "\n", frame->dar);
 		printf("   dsisr           = 0x%" PRIxPTR "\n",
 		    frame->cpu.aim.dsisr);
 		break;
@@ -642,7 +640,7 @@ trap_pfault(struct trapframe *frame, int user)
 		if (frame->srr1 & SRR1_ISI_PFAULT)
 			ftype |= VM_PROT_READ;
 	} else {
-		eva = frame->cpu.aim.dar;
+		eva = frame->dar;
 		if (frame->cpu.aim.dsisr & DSISR_STORE)
 			ftype = VM_PROT_WRITE;
 		else
@@ -736,12 +734,12 @@ fix_unaligned(struct thread *td, struct trapframe *frame)
 		save_fpu(td);
 
 		if (indicator == EXC_ALI_LFD) {
-			if (copyin((void *)frame->cpu.aim.dar, fpr,
+			if (copyin((void *)frame->dar, fpr,
 			    sizeof(double)) != 0)
 				return -1;
 			enable_fpu(td);
 		} else {
-			if (copyout(fpr, (void *)frame->cpu.aim.dar,
+			if (copyout(fpr, (void *)frame->dar,
 			    sizeof(double)) != 0)
 				return -1;
 		}
