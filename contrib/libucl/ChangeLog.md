@@ -20,3 +20,15 @@
 ### Libucl 0.6.1
 
 - Various utilities fixes
+
+### Libucl 0.7.0
+
+- Move to klib library from uthash to reduce memory overhead and increase performance
+
+### Libucl 0.7.1
+
+- Added safe iterators API
+
+### Libucl 0.7.2
+
+- Fixed serious bugs in schema and arrays iteration

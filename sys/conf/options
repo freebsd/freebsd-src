@@ -173,6 +173,7 @@ NO_SYSCTL_DESCR	opt_global.h
 NSWBUF_MIN	opt_swap.h
 MBUF_PACKET_ZONE_DISABLE	opt_global.h
 PANIC_REBOOT_WAIT_TIME	opt_panic.h
+PCI_IOV		opt_global.h
 PPC_DEBUG	opt_ppc.h
 PPC_PROBE_CHIPSET	opt_ppc.h
 PPS_SYNC	opt_ntp.h
@@ -888,6 +889,9 @@ TDMA_TXRATE_HALF_DEFAULT	opt_tdma.h
 TDMA_TXRATE_QUARTER_DEFAULT	opt_tdma.h
 TDMA_TXRATE_11NA_DEFAULT	opt_tdma.h
 TDMA_TXRATE_11NG_DEFAULT	opt_tdma.h
+
+# VideoMode
+PICKMODE_DEBUG			opt_videomode.h
 
 # Network stack virtualization options
 VIMAGE			opt_global.h

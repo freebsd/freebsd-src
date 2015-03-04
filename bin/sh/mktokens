@@ -74,11 +74,11 @@ exec > token.h
 awk '{print "#define " $1 " " NR-1}' $temp
 echo '
 /* Array indicating which tokens mark the end of a list */
-const char tokendlist[] = {'
+static const char tokendlist[] = {'
 awk '{print "\t" $2 ","}' $temp
 echo '};
 
-const char *const tokname[] = {'
+static const char *const tokname[] = {'
 sed -e 's/"/\\"/g' \
     -e 's/[^	 ]*[	 ][	 ]*[^	 ]*[	 ][	 ]*\(.*\)/	"\1",/' \
     $temp

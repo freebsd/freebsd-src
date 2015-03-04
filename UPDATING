@@ -31,6 +31,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150217:
+	If you are running a -CURRENT kernel since r273872 (Oct 30th, 2014),
+	but before r278950, the RNG was not seeded properly.  Immediately
+	upgrade the kernel to r278950 or later and regenerate any keys (e.g.
+	ssh keys or openssl keys) that were generated w/ a kernel from that
+	range.  This does not affect programs that directly used /dev/random
+	or /dev/urandom.  All userland uses of arc4random(3) are affected.
+
 20150210:
 	The autofs(4) ABI was changed in order to restore binary compatibility
 	with 10.1-RELEASE.  The automountd(8) daemon needs to be rebuilt to work

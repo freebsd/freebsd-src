@@ -1,4 +1,4 @@
-.\"	$Id: mdoc.7,v 1.245 2014/11/30 21:56:18 schwarze Exp $
+.\"	$Id: mdoc.7,v 1.252 2015/02/23 13:31:04 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2010, 2011, 2013 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: November 30 2014 $
+.Dd $Mdocdate: February 23 2015 $
 .Dt MDOC 7
 .Os
 .Sh NAME
@@ -454,6 +454,7 @@ in the alphabetical
 .Op Fl compact
 .It Sx \&D1 Ta indented display (one line)
 .It Sx \&Dl Ta indented literal display (one line)
+.It Sx \&Ql Ta in-line literal display: Ql text
 .It Sx \&Bl , \&El Ta list block:
 .Fl Ar type
 .Op Fl width Ar val
@@ -528,7 +529,6 @@ in the alphabetical
 .It Sx \&Dq , \&Do , \&Dc Ta enclose in typographic double quotes: Dq text
 .It Sx \&Qq , \&Qo , \&Qc Ta enclose in typewriter double quotes: Qq text
 .It Sx \&Sq , \&So , \&Sc Ta enclose in single quotes: Sq text
-.It Sx \&Ql Ta single-quoted literal text: Ql text
 .It Sx \&Pq , \&Po , \&Pc Ta enclose in parentheses: Pq text
 .It Sx \&Bq , \&Bo , \&Bc Ta enclose in square brackets: Bq text
 .It Sx \&Brq , \&Bro , \&Brc Ta enclose in curly braces: Brq text
@@ -777,7 +777,7 @@ The
 must be one of the following:
 .Bl -tag -width 13n -offset indent
 .It Fl centered
-Produce one output line from each input line, and centre-justify each line.
+Produce one output line from each input line, and center-justify each line.
 Using this display type is not recommended; many
 .Nm
 implementations render it poorly.
@@ -822,7 +822,7 @@ which has no effect;
 .Cm right ,
 which justifies to the right margin; or
 .Cm center ,
-which aligns around an imagined centre axis.
+which aligns around an imagined center axis.
 .It
 A macro invocation, which selects a predefined width
 associated with that macro.
@@ -1256,7 +1256,9 @@ Examples:
 .Dl \&.Dl % mandoc mdoc.7 \e(ba less
 .Pp
 See also
+.Sx \&Ql ,
 .Sx \&Bd
+.Fl literal ,
 and
 .Sx \&D1 .
 .Ss \&Do
@@ -1314,38 +1316,26 @@ it should by convention be all caps.
 The manual section.
 This may be one of
 .Cm 1
-.Pq utilities ,
+.Pq General Commands ,
 .Cm 2
-.Pq system calls ,
+.Pq System Calls ,
 .Cm 3
-.Pq libraries ,
+.Pq Library Functions ,
 .Cm 3p
-.Pq Perl libraries ,
+.Pq Perl Library ,
 .Cm 4
-.Pq devices ,
+.Pq Device Drivers ,
 .Cm 5
-.Pq file formats ,
+.Pq File Formats ,
 .Cm 6
-.Pq games ,
+.Pq Games ,
 .Cm 7
-.Pq miscellaneous ,
+.Pq Miscellaneous Information ,
 .Cm 8
-.Pq system utilities ,
-.Cm 9
-.Pq kernel functions ,
-.Cm X11
-.Pq X Window System ,
-.Cm X11R6
-.Pq X Window System ,
-.Cm unass
-.Pq unassociated ,
-.Cm local
-.Pq local system ,
-.Cm draft
-.Pq draft manual ,
+.Pq System Manager's Manual ,
 or
-.Cm paper
-.Pq paper .
+.Cm 9
+.Pq Kernel Developer's Manual .
 It should correspond to the manual's filename suffix and defaults to
 the empty string if unspecified.
 .It Ar arch
@@ -1768,17 +1758,18 @@ is preferred for displaying code; the
 .Sx \&Ic
 macro is used when referring to specific instructions.
 .Ss \&In
-An
-.Dq include
-file.
+The name of an include file.
+This macro is most often used in section 2, 3, and 9 manual pages.
+.Pp
 When invoked as the first macro on an input line in the
 .Em SYNOPSIS
 section, the argument is displayed in angle brackets
 and preceded by
-.Dq #include ,
+.Qq #include ,
 and a blank line is inserted in front if there is a preceding
 function declaration.
-This is most often used in section 2, 3, and 9 manual pages.
+In other sections, it only encloses its argument in angle brackets
+and causes no line break.
 .Pp
 Examples:
 .Dl \&.In sys/types.h
@@ -1939,11 +1930,9 @@ Examples:
 .Dl \&.An Kristaps Dzonsons \&Aq \&Mt kristaps@bsd.lv
 .Ss \&Nd
 A one line description of the manual's content.
-This may only be invoked in the
-.Em SYNOPSIS
-section subsequent the
-.Sx \&Nm
-macro.
+This is the mandatory last macro of the
+.Em NAME
+section and not appropriate for other sections.
 .Pp
 Examples:
 .Dl Pf . Sx \&Nd mdoc language reference
@@ -2100,8 +2089,16 @@ Its syntax is as follows:
 The optional
 .Ar system
 parameter specifies the relevant operating system or environment.
-Left unspecified, it defaults to the local operating system version.
-This is the suggested form.
+It is suggested to leave it unspecified, in which case
+.Xr mandoc 1
+uses its
+.Fl Ios
+argument, or, if that isn't specified either,
+.Fa sysname
+and
+.Fa release
+as returned by
+.Xr uname 3 .
 .Pp
 Examples:
 .Dl \&.Os
@@ -2205,11 +2202,21 @@ See also
 Close quoted context opened by
 .Sx \&Qo .
 .Ss \&Ql
-Format a single-quoted literal.
+In-line literal display.
+This can for example be used for complete command invocations and
+for multi-word code fragments when more specific markup is not
+appropriate and an indented display is not desired.
+While
+.Xr mandoc 1
+always encloses the arguments in single quotes, other formatters
+usually omit the quotes on non-terminal output devices when the
+arguments have three or more characters.
+.Pp
 See also
-.Sx \&Qq
+.Sx \&Dl
 and
-.Sx \&Sq .
+.Sx \&Bd
+.Fl literal .
 .Ss \&Qo
 Multi-line version of
 .Sx \&Qq .
@@ -3125,49 +3132,12 @@ Manually switching the font using the
 font escape sequences is never required.
 .Sh COMPATIBILITY
 This section provides an incomplete list of compatibility issues
-between mandoc and other troff implementations, at this time limited
-to GNU troff
+between mandoc and GNU troff
 .Pq Qq groff .
-The term
-.Qq historic groff
-refers to groff versions before 1.17,
-which featured a significant update of the
-.Pa doc.tmac
-file.
-.Pp
-Heirloom troff, the other significant troff implementation accepting
-\-mdoc, is similar to historic groff.
 .Pp
 The following problematic behaviour is found in groff:
-.ds hist (Historic groff only.)
 .Pp
 .Bl -dash -compact
-.It
-Display macros
-.Po
-.Sx \&Bd ,
-.Sx \&Dl ,
-and
-.Sx \&D1
-.Pc
-may not be nested.
-\*[hist]
-.It
-.Sx \&At
-with unknown arguments produces no output at all.
-\*[hist]
-Newer groff and mandoc print
-.Qq AT&T UNIX
-and the arguments.
-.It
-.Sx \&Bl Fl column
-does not recognise trailing punctuation characters when they immediately
-precede tabulator characters, but treats them as normal text and
-outputs a space before them.
-.It
-.Sx \&Bd Fl ragged compact
-does not start a new line.
-\*[hist]
 .It
 .Sx \&Dd
 with non-standard arguments behaves very strangely.
@@ -3176,53 +3146,6 @@ Any other number of arguments is replaced by the current date,
 but without any arguments the string
 .Dq Epoch
 is printed.
-.It
-.Sx \&Fl
-does not print a dash for an empty argument.
-\*[hist]
-.It
-.Sx \&Fn
-does not start a new line unless invoked as the line macro in the
-.Em SYNOPSIS
-section.
-\*[hist]
-.It
-.Sx \&Fo
-with
-.Pf non- Sx \&Fa
-children causes inconsistent spacing between arguments.
-In mandoc, a single space is always inserted between arguments.
-.It
-.Sx \&Ft
-in the
-.Em SYNOPSIS
-causes inconsistent vertical spacing, depending on whether a prior
-.Sx \&Fn
-has been invoked.
-See
-.Sx \&Ft
-and
-.Sx \&Fn
-for the normalised behaviour in mandoc.
-.It
-.Sx \&In
-ignores additional arguments and is not treated specially in the
-.Em SYNOPSIS .
-\*[hist]
-.It
-.Sx \&It
-sometimes requires a
-.Fl nested
-flag.
-\*[hist]
-In new groff and mandoc, any list may be nested by default and
-.Fl enum
-lists will restart the sequence only for the sub-list.
-.It
-.Sx \&Li
-followed by a delimiter is incorrectly used in some manuals
-instead of properly quoting that character, which sometimes works with
-historic groff.
 .It
 .Sx \&Lk
 only accepts a single link-name argument; the remainder is misformatted.
@@ -3236,19 +3159,6 @@ can only be called by other macros, but not at the beginning of a line.
 .It
 .Sx \&%C
 is not implemented (up to and including groff-1.22.2).
-.It
-Historic groff only allows up to eight or nine arguments per macro input
-line, depending on the exact situation.
-Providing more arguments causes garbled output.
-The number of arguments on one input line is not limited with mandoc.
-.It
-Historic groff has many un-callable macros.
-Most of these (excluding some block-level macros) are callable
-in new groff and mandoc.
-.It
-.Sq \(ba
-(vertical bar) is not fully supported as a delimiter.
-\*[hist]
 .It
 .Sq \ef
 .Pq font face
@@ -3267,13 +3177,27 @@ The following features are unimplemented in mandoc:
 .Bl -dash -compact
 .It
 .Sx \&Bd
-.Fl file Ar file .
+.Fl file Ar file
+is unsupported for security reasons.
+.It
+.Sx \&Bd
+.Fl filled
+does not adjust the right margin, but is an alias for
+.Sx \&Bd
+.Fl ragged .
+.It
+.Sx \&Bd
+.Fl literal
+does not use a literal font, but is an alias for
+.Sx \&Bd
+.Fl unfilled .
 .It
 .Sx \&Bd
 .Fl offset Cm center
 and
-.Fl offset Cm right .
-Groff does not implement centred and flush-right rendering either,
+.Fl offset Cm right
+don't work.
+Groff does not implement centered and flush-right rendering either,
 but produces large indentations.
 .El
 .Sh SEE ALSO

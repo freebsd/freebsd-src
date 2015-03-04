@@ -36,18 +36,22 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 
+/* Maximum size of TSO packet */
+#define	SFXGE_TSO_MAX_SIZE		(65535)
+
+/*
+ * Maximum number of segments to be created for a TSO packet.
+ * Allow for a reasonable minimum MSS of 512.
+ */
+#define	SFXGE_TSO_MAX_SEGS		howmany(SFXGE_TSO_MAX_SIZE, 512)
+
 /* Maximum number of DMA segments needed to map an mbuf chain.  With
  * TSO, the mbuf length may be just over 64K, divided into 2K mbuf
  * clusters.  (The chain could be longer than this initially, but can
  * be shortened with m_collapse().)
  */
-#define	SFXGE_TX_MAPPING_MAX_SEG (64 / 2 + 1)
-
-/* Maximum number of DMA segments needed to map an output packet.  It
- * could overlap all mbufs in the chain and also require an extra
- * segment for a TSO header.
- */
-#define	SFXGE_TX_PACKET_MAX_SEG (SFXGE_TX_MAPPING_MAX_SEG + 1)
+#define	SFXGE_TX_MAPPING_MAX_SEG					\
+	(1 + howmany(SFXGE_TSO_MAX_SIZE, MCLBYTES))
 
 /*
  * Buffer mapping flags.
@@ -98,6 +102,8 @@ struct sfxge_tx_dpl {
 						 * in get list */
 	unsigned int	std_get_hiwat;		/* Packets in get list
 						 * high watermark */
+	unsigned int	std_put_hiwat;		/* Packets in put list
+						 * high watermark */
 };
 
 
@@ -124,10 +130,8 @@ enum sfxge_txq_type {
 
 #ifdef SFXGE_HAVE_MQ
 #define	SFXGE_TX_LOCK(txq)		(&(txq)->lock)
-#define	SFXGE_TX_SCALE(sc)		((sc)->intr.n_alloc)
 #else
 #define	SFXGE_TX_LOCK(txq)		(&(txq)->sc->tx_lock)
-#define	SFXGE_TX_SCALE(sc)		1
 #endif
 
 #define	SFXGE_TXQ_LOCK_INIT(_txq, _ifname, _txq_index)			\
@@ -215,6 +219,7 @@ struct sfxge_txq {
 struct sfxge_evq;
 
 extern int sfxge_tx_packet_add(struct sfxge_txq *, struct mbuf *);
+extern uint64_t sfxge_tx_get_drops(struct sfxge_softc *sc);
 
 extern int sfxge_tx_init(struct sfxge_softc *sc);
 extern void sfxge_tx_fini(struct sfxge_softc *sc);

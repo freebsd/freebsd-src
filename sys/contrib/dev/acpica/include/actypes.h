@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -743,11 +743,15 @@ typedef UINT32                          ACPI_EVENT_STATUS;
 #define ACPI_GPE_ENABLE                 0
 #define ACPI_GPE_DISABLE                1
 #define ACPI_GPE_CONDITIONAL_ENABLE     2
+#define ACPI_GPE_SAVE_MASK              4
+
+#define ACPI_GPE_ENABLE_SAVE            (ACPI_GPE_ENABLE | ACPI_GPE_SAVE_MASK)
+#define ACPI_GPE_DISABLE_SAVE           (ACPI_GPE_DISABLE | ACPI_GPE_SAVE_MASK)
 
 /*
  * GPE info flags - Per GPE
  * +-------+-+-+---+
- * |  7:4  |3|2|1:0|
+ * |  7:5  |4|3|2:0|
  * +-------+-+-+---+
  *     |    | |  |
  *     |    | |  +-- Type of dispatch:to method, handler, notify, or none
@@ -759,13 +763,15 @@ typedef UINT32                          ACPI_EVENT_STATUS;
 #define ACPI_GPE_DISPATCH_METHOD        (UINT8) 0x01
 #define ACPI_GPE_DISPATCH_HANDLER       (UINT8) 0x02
 #define ACPI_GPE_DISPATCH_NOTIFY        (UINT8) 0x03
-#define ACPI_GPE_DISPATCH_MASK          (UINT8) 0x03
+#define ACPI_GPE_DISPATCH_RAW_HANDLER   (UINT8) 0x04
+#define ACPI_GPE_DISPATCH_MASK          (UINT8) 0x07
+#define ACPI_GPE_DISPATCH_TYPE(flags)   ((UINT8) ((flags) & ACPI_GPE_DISPATCH_MASK))
 
-#define ACPI_GPE_LEVEL_TRIGGERED        (UINT8) 0x04
+#define ACPI_GPE_LEVEL_TRIGGERED        (UINT8) 0x08
 #define ACPI_GPE_EDGE_TRIGGERED         (UINT8) 0x00
-#define ACPI_GPE_XRUPT_TYPE_MASK        (UINT8) 0x04
+#define ACPI_GPE_XRUPT_TYPE_MASK        (UINT8) 0x08
 
-#define ACPI_GPE_CAN_WAKE               (UINT8) 0x08
+#define ACPI_GPE_CAN_WAKE               (UINT8) 0x10
 
 /*
  * Flags for GPE and Lock interfaces

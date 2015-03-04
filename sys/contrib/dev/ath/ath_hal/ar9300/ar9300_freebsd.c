@@ -36,6 +36,9 @@
 static HAL_BOOL ar9300ClrMulticastFilterIndex(struct ath_hal *ah, uint32_t ix);
 static HAL_BOOL ar9300SetMulticastFilterIndex(struct ath_hal *ah, uint32_t ix);
 
+static void ar9300_beacon_set_beacon_timers(struct ath_hal *ah,
+    const HAL_BEACON_TIMERS *bt);
+
 static void
 ar9300SetChainMasks(struct ath_hal *ah, uint32_t tx_chainmask,
     uint32_t rx_chainmask)
@@ -193,10 +196,9 @@ ar9300_attach_freebsd_ops(struct ath_hal *ah)
 	/* Beacon functions */
 	/* ah_setBeaconTimers */
 	ah->ah_beaconInit		= ar9300_freebsd_beacon_init;
-	/* ah_setBeaconTimers */
+	ah->ah_setBeaconTimers		= ar9300_beacon_set_beacon_timers;
 	ah->ah_setStationBeaconTimers = ar9300_set_sta_beacon_timers;
 	/* ah_resetStationBeaconTimers */
-	/* ah_getNextTBTT */
 	ah->ah_getNextTBTT = ar9300_get_next_tbtt;
 
 	/* Interrupt functions */
@@ -606,7 +608,7 @@ ar9300_freebsd_beacon_init(struct ath_hal *ah, uint32_t next_beacon,
     uint32_t beacon_period)
 {
 
-	ar9300_beacon_init(ah, next_beacon, beacon_period,
+	ar9300_beacon_init(ah, next_beacon, beacon_period, 0,
 	    AH_PRIVATE(ah)->ah_opmode);
 }
 
@@ -668,6 +670,55 @@ ar9300SetMulticastFilterIndex(struct ath_hal *ah, uint32_t ix)
 	}
 	return (AH_TRUE);
 }
+
+#define	TU_TO_USEC(_tu) ((_tu) << 10)
+#define	ONE_EIGHTH_TU_TO_USEC(_tu8) ((_tu8) << 7)
+
+/*
+ * Initializes all of the hardware registers used to
+ * send beacons.  Note that for station operation the
+ * driver calls ar9300_set_sta_beacon_timers instead.
+ */
+static void
+ar9300_beacon_set_beacon_timers(struct ath_hal *ah,
+    const HAL_BEACON_TIMERS *bt)
+{
+	uint32_t bperiod;
+
+#if 0
+    HALASSERT(opmode == HAL_M_IBSS || opmode == HAL_M_HOSTAP);
+    if (opmode == HAL_M_IBSS) {
+        OS_REG_SET_BIT(ah, AR_TXCFG, AR_TXCFG_ADHOC_BEACON_ATIM_TX_POLICY);
+    }
+#endif
+
+	/* XXX TODO: should migrate the HAL code to always use ONE_EIGHTH_TU */
+	OS_REG_WRITE(ah, AR_NEXT_TBTT_TIMER, TU_TO_USEC(bt->bt_nexttbtt));
+	OS_REG_WRITE(ah, AR_NEXT_DMA_BEACON_ALERT, ONE_EIGHTH_TU_TO_USEC(bt->bt_nextdba));
+	OS_REG_WRITE(ah, AR_NEXT_SWBA, ONE_EIGHTH_TU_TO_USEC(bt->bt_nextswba));
+	OS_REG_WRITE(ah, AR_NEXT_NDP_TIMER, TU_TO_USEC(bt->bt_nextatim));
+
+	bperiod = TU_TO_USEC(bt->bt_intval & HAL_BEACON_PERIOD);
+	/* XXX TODO! */
+//        ahp->ah_beaconInterval = bt->bt_intval & HAL_BEACON_PERIOD;
+	OS_REG_WRITE(ah, AR_BEACON_PERIOD, bperiod);
+	OS_REG_WRITE(ah, AR_DMA_BEACON_PERIOD, bperiod);
+	OS_REG_WRITE(ah, AR_SWBA_PERIOD, bperiod);
+	OS_REG_WRITE(ah, AR_NDP_PERIOD, bperiod);
+
+	/*
+	 * Reset TSF if required.
+	 */
+	if (bt->bt_intval & HAL_BEACON_RESET_TSF)
+		ar9300_reset_tsf(ah);
+
+	/* enable timers */
+	/* NB: flags == 0 handled specially for backwards compatibility */
+	OS_REG_SET_BIT(ah, AR_TIMER_MODE,
+	    bt->bt_flags != 0 ? bt->bt_flags :
+	    AR_TBTT_TIMER_EN | AR_DBA_TIMER_EN | AR_SWBA_TIMER_EN);
+}
+
 
 /*
  * RF attach stubs

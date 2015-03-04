@@ -47,7 +47,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: readelf.c 3110 2014-12-20 08:32:46Z kaiwang27 $");
+ELFTC_VCSID("$Id: readelf.c 3155 2015-02-15 19:15:57Z emaste $");
 
 /*
  * readelf(1) options.
@@ -1503,7 +1503,8 @@ r_type(unsigned int mach, unsigned int type)
 static const char *
 note_type(const char *name, unsigned int et, unsigned int nt)
 {
-	if (strcmp(name, "CORE") == 0 && et == ET_CORE)
+	if ((strcmp(name, "CORE") == 0 || strcmp(name, "LINUX") == 0) &&
+	    et == ET_CORE)
 		return note_type_linux_core(nt);
 	else if (strcmp(name, "FreeBSD") == 0)
 		if (et == ET_CORE)
@@ -1559,13 +1560,27 @@ note_type_linux_core(unsigned int nt)
 	case 1: return "NT_PRSTATUS (Process status)";
 	case 2: return "NT_FPREGSET (Floating point information)";
 	case 3: return "NT_PRPSINFO (Process information)";
+	case 4: return "NT_TASKSTRUCT (Task structure)";
 	case 6: return "NT_AUXV (Auxiliary vector)";
-	case 0x46E62B7FUL: return "NT_PRXFPREG (Linux user_xfpregs structure)";
 	case 10: return "NT_PSTATUS (Linux process status)";
 	case 12: return "NT_FPREGS (Linux floating point regset)";
 	case 13: return "NT_PSINFO (Linux process information)";
 	case 16: return "NT_LWPSTATUS (Linux lwpstatus_t type)";
 	case 17: return "NT_LWPSINFO (Linux lwpinfo_t type)";
+	case 18: return "NT_WIN32PSTATUS (win32_pstatus structure)";
+	case 0x100: return "NT_PPC_VMX (ppc Altivec registers)";
+	case 0x102: return "NT_PPC_VSX (ppc VSX registers)";
+	case 0x202: return "NT_X86_XSTATE (x86 XSAVE extended state)";
+	case 0x300: return "NT_S390_HIGH_GPRS (s390 upper register halves)";
+	case 0x301: return "NT_S390_TIMER (s390 timer register)";
+	case 0x302: return "NT_S390_TODCMP (s390 TOD comparator register)";
+	case 0x303: return "NT_S390_TODPREG (s390 TOD programmable register)";
+	case 0x304: return "NT_S390_CTRS (s390 control registers)";
+	case 0x305: return "NT_S390_PREFIX (s390 prefix register)";
+	case 0x400: return "NT_ARM_VFP (arm VFP registers)";
+	case 0x46494c45UL: return "NT_FILE (mapped files)";
+	case 0x46E62B7FUL: return "NT_PRXFPREG (Linux user_xfpregs structure)";
+	case 0x53494749UL: return "NT_SIGINFO (siginfo_t data)";
 	default: return (note_type_unknown(nt));
 	}
 }
@@ -1605,7 +1620,8 @@ note_type_unknown(unsigned int nt)
 {
 	static char s_nt[32];
 
-	snprintf(s_nt, sizeof(s_nt), "<unknown: %u>", nt);
+	snprintf(s_nt, sizeof(s_nt),
+	    nt >= 0x100 ? "<unknown: 0x%x>" : "<unknown: %u>", nt);
 	return (s_nt);
 }
 
@@ -3154,6 +3170,10 @@ dump_rel(struct readelf *re, struct section *s, Elf_Data *d)
 			warnx("gelf_getrel failed: %s", elf_errmsg(-1));
 			continue;
 		}
+		if (s->link >= re->shnum) {
+			warnx("invalid section link index %u", s->link);
+			continue;
+		}
 		symname = get_symbol_name(re, s->link, GELF_R_SYM(r.r_info));
 		symval = get_symbol_value(re, s->link, GELF_R_SYM(r.r_info));
 		if (re->ec == ELFCLASS32) {
@@ -3204,6 +3224,10 @@ dump_rela(struct readelf *re, struct section *s, Elf_Data *d)
 	for (i = 0; i < len; i++) {
 		if (gelf_getrela(d, i, &r) != &r) {
 			warnx("gelf_getrel failed: %s", elf_errmsg(-1));
+			continue;
+		}
+		if (s->link >= re->shnum) {
+			warnx("invalid section link index %u", s->link);
 			continue;
 		}
 		symname = get_symbol_name(re, s->link, GELF_R_SYM(r.r_info));
@@ -4219,14 +4243,22 @@ dump_attributes(struct readelf *re)
 		len = d->d_size - 1;
 		p++;
 		while (len > 0) {
+			if (len < 4) {
+				warnx("truncated attribute section length");
+				break;
+			}
 			seclen = re->dw_decode(&p, 4);
 			if (seclen > len) {
 				warnx("invalid attribute section length");
 				break;
 			}
 			len -= seclen;
-			printf("Attribute Section: %s\n", (char *) p);
 			nlen = strlen((char *) p) + 1;
+			if (nlen + 4 > seclen) {
+				warnx("invalid attribute section name");
+				break;
+			}
+			printf("Attribute Section: %s\n", (char *) p);
 			p += nlen;
 			seclen -= nlen + 4;
 			while (seclen > 0) {
@@ -6696,10 +6728,8 @@ load_sections(struct readelf *re)
 		return;
 	}
 
-	if ((scn = elf_getscn(re->elf, 0)) == NULL) {
-		warnx("elf_getscn failed: %s", elf_errmsg(-1));
+	if ((scn = elf_getscn(re->elf, 0)) == NULL)
 		return;
-	}
 
 	(void) elf_errno();
 	do {

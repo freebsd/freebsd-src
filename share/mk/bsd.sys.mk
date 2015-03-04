@@ -118,7 +118,10 @@ CWARNFLAGS+=	-Wno-unknown-pragmas
 CLANG_NO_IAS=	 -no-integrated-as
 .endif
 CLANG_OPT_SMALL= -mstack-alignment=8 -mllvm -inline-threshold=3\
-		 -mllvm -simplifycfg-dup-ret -mllvm -enable-gvn=false
+		 -mllvm -simplifycfg-dup-ret -mllvm
+.if ${COMPILER_VERSION} >= 30500
+CLANG_OPT_SMALL+= -enable-gvn=false
+.endif
 CFLAGS.clang+=	 -Qunused-arguments
 .if ${MACHINE_CPUARCH} == "sparc64"
 # Don't emit .cfi directives, since we must use GNU as on sparc64, for now.

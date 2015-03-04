@@ -3310,7 +3310,7 @@ coredump(struct thread *td)
 	    vattr.va_nlink != 1 || (vp->v_vflag & VV_SYSTEM) != 0) {
 		VOP_UNLOCK(vp, 0);
 		error = EFAULT;
-		goto close;
+		goto out;
 	}
 
 	VOP_UNLOCK(vp, 0);
@@ -3347,17 +3347,12 @@ coredump(struct thread *td)
 		VOP_ADVLOCK(vp, (caddr_t)p, F_UNLCK, &lf, F_FLOCK);
 	}
 	vn_rangelock_unlock(vp, rl_cookie);
-close:
-	error1 = vn_close(vp, FWRITE, cred, td);
-	if (error == 0)
-		error = error1;
-	else
-		goto out;
+
 	/*
 	 * Notify the userland helper that a process triggered a core dump.
 	 * This allows the helper to run an automated debugging session.
 	 */
-	if (coredump_devctl == 0)
+	if (error != 0 || coredump_devctl == 0)
 		goto out;
 	len = MAXPATHLEN * 2 + sizeof(comm_name) - 1 +
 	    sizeof(' ') + sizeof(core_name) - 1;
@@ -3377,6 +3372,9 @@ close:
 	strlcat(data, fullpath, len);
 	devctl_notify("kernel", "signal", "coredump", data);
 out:
+	error1 = vn_close(vp, FWRITE, cred, td);
+	if (error == 0)
+		error = error1;
 #ifdef AUDIT
 	audit_proc_coredump(td, name, error);
 #endif

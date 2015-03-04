@@ -687,7 +687,7 @@ login_negotiate(struct connection *conn, struct pdu *request)
 		 * In case of offload, it depends on hardware capabilities.
 		 */
 		assert(conn->conn_target != NULL);
-		kernel_limits(conn->conn_target->t_offload,
+		kernel_limits(conn->conn_portal->p_portal_group->pg_offload,
 		    &conn->conn_data_segment_limit);
 	} else {
 		conn->conn_data_segment_limit = MAX_DATA_SEGMENT_LENGTH;

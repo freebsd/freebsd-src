@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/smp.h>
 #include <vm/vm.h>
@@ -40,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include <x86/apicvar.h>
 #include <machine/md_var.h>
+#include <x86/vmware.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/actables.h>
@@ -130,6 +132,7 @@ madt_setup_local(void)
 {
 	ACPI_TABLE_DMAR *dmartbl;
 	vm_paddr_t dmartbl_physaddr;
+	u_int p[4];
 
 	madt = pmap_mapbios(madt_physaddr, madt_length);
 	if ((cpu_feature2 & CPUID2_X2APIC) != 0) {
@@ -145,6 +148,18 @@ madt_setup_local(void)
 		"x2APIC available but disabled by DMAR table\n");
 			}
 			acpi_unmap_table(dmartbl);
+		}
+		if (vm_guest == VM_GUEST_VMWARE) {
+			vmware_hvcall(VMW_HVCMD_GETVCPU_INFO, p);
+			if ((p[0] & VMW_VCPUINFO_VCPU_RESERVED) != 0 ||
+			    (p[0] & VMW_VCPUINFO_LEGACY_X2APIC) == 0) {
+				x2apic_mode = 0;
+				if (bootverbose)
+					printf(
+       "x2APIC available but disabled inside VMWare without intr redirection\n");
+			}
+		} else if (vm_guest == VM_GUEST_XEN) {
+			x2apic_mode = 0;
 		}
 		TUNABLE_INT_FETCH("hw.x2apic_enable", &x2apic_mode);
 	}

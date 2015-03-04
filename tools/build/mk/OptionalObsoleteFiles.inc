@@ -200,13 +200,15 @@ OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xsc
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xsw
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xu
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xw
-OLD_FILES+=usr/share/doc/binutils/as.txt
-OLD_FILES+=usr/share/doc/binutils/ld.txt
 OLD_FILES+=usr/share/man/man1/as.1.gz
 OLD_FILES+=usr/share/man/man1/ld.1.gz
 OLD_FILES+=usr/share/man/man1/objcopy.1.gz
 OLD_FILES+=usr/share/man/man1/objdump.1.gz
 OLD_FILES+=usr/share/man/man1/readelf.1.gz
+OLD_FILES+=usr/share/man/man7/as.7.gz
+OLD_FILES+=usr/share/man/man7/ld.7.gz
+OLD_FILES+=usr/share/man/man7/ldint.7.gz
+OLD_FILES+=usr/share/man/man7/binutils.7.gz
 .endif
 
 .if ${MK_BLUETOOTH} == no
@@ -956,6 +958,7 @@ OLD_FILES+=usr/libexec/cc1plus
 OLD_FILES+=usr/bin/gperf
 OLD_FILES+=usr/share/info/gperf.info.gz
 OLD_FILES+=usr/share/man/man1/gperf.1.gz
+OLD_FILES+=usr/share/man/man1/gperf.7.gz
 .endif
 .endif
 
@@ -1606,7 +1609,6 @@ OLD_FILES+=usr/share/man/man8/freebsd-update.8.gz
 .endif
 
 .if ${MK_GAMES} == no
-OLD_FILES+=usr/bin/bcd
 OLD_FILES+=usr/bin/caesar
 OLD_FILES+=usr/bin/factor
 OLD_FILES+=usr/bin/fortune
@@ -1614,7 +1616,6 @@ OLD_FILES+=usr/bin/grdc
 OLD_FILES+=usr/bin/morse
 OLD_FILES+=usr/bin/number
 OLD_FILES+=usr/bin/pom
-OLD_FILES+=usr/bin/ppt
 OLD_FILES+=usr/bin/primes
 OLD_FILES+=usr/bin/random
 OLD_FILES+=usr/bin/rot13
@@ -1638,7 +1639,6 @@ OLD_FILES+=usr/share/games/fortune/zippy
 OLD_FILES+=usr/share/games/fortune/zippy.dat
 OLD_DIRS+=usr/share/games/fortune
 OLD_DIRS+=usr/share/games
-OLD_FILES+=usr/share/man/man6/bcd.6.gz
 OLD_FILES+=usr/share/man/man6/caesar.6.gz
 OLD_FILES+=usr/share/man/man6/factor.6.gz
 OLD_FILES+=usr/share/man/man6/fortune.6.gz
@@ -1646,7 +1646,6 @@ OLD_FILES+=usr/share/man/man6/grdc.6.gz
 OLD_FILES+=usr/share/man/man6/morse.6.gz
 OLD_FILES+=usr/share/man/man6/number.6.gz
 OLD_FILES+=usr/share/man/man6/pom.6.gz
-OLD_FILES+=usr/share/man/man6/ppt.6.gz
 OLD_FILES+=usr/share/man/man6/primes.6.gz
 OLD_FILES+=usr/share/man/man6/random.6.gz
 OLD_FILES+=usr/share/man/man6/rot13.6.gz

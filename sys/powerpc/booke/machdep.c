@@ -188,8 +188,6 @@ void print_kernel_section_addr(void);
 void print_kenv(void);
 u_int booke_init(uint32_t, uint32_t);
 
-extern int elf32_nxstack;
-
 static void
 cpu_booke_startup(void *dummy)
 {
@@ -226,9 +224,6 @@ cpu_booke_startup(void *dummy)
 	/* Set up buffers, so they can be used to read disk labels. */
 	bufinit();
 	vm_pager_bufferinit();
-
-	/* Cpu supports execution permissions on the pages. */
-	elf32_nxstack = 1;
 }
 
 static char *
@@ -454,7 +449,6 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	/* Initialise virtual memory. */
 	pmap_mmu_install(MMU_TYPE_BOOKE, 0);
 	pmap_bootstrap((uintptr_t)kernel_text, end);
-	pmap_bootstrapped = 1;
 	debugf("MSR = 0x%08x\n", mfmsr());
 #if defined(BOOKE_E500)
 	//tlb1_print_entries();

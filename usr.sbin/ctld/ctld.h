@@ -120,6 +120,7 @@ struct portal_group {
 	bool				pg_unassigned;
 	TAILQ_HEAD(, portal)		pg_portals;
 	TAILQ_HEAD(, port)		pg_ports;
+	char				*pg_offload;
 	char				*pg_redirection;
 
 	uint16_t			pg_tag;
@@ -180,7 +181,6 @@ struct target {
 	TAILQ_HEAD(, port)		t_ports;
 	char				*t_name;
 	char				*t_alias;
-	char				*t_offload;
 	char				*t_redirection;
 };
 
@@ -336,6 +336,8 @@ int			portal_group_add_listen(struct portal_group *pg,
 			    const char *listen, bool iser);
 int			portal_group_set_filter(struct portal_group *pg,
 			    const char *filter);
+int			portal_group_set_offload(struct portal_group *pg,
+			    const char *offload);
 int			portal_group_set_redirection(struct portal_group *pg,
 			    const char *addr);
 
@@ -366,8 +368,6 @@ struct target		*target_find(struct conf *conf,
 			    const char *name);
 int			target_set_redirection(struct target *target,
 			    const char *addr);
-int			target_set_offload(struct target *target,
-			    const char *offload);
 
 struct lun		*lun_new(struct conf *conf, const char *name);
 void			lun_delete(struct lun *lun);

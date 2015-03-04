@@ -576,6 +576,9 @@ struct ath_hal_9300 {
     u_int8_t    ah_tx_chainmask; /* tx chain mask */
     u_int8_t    ah_rx_chainmask; /* rx chain mask */
 
+    /* optional tx chainmask */
+    u_int8_t    ah_tx_chainmaskopt;
+
     u_int8_t    ah_tx_cal_chainmask; /* tx cal chain mask */
     u_int8_t    ah_rx_cal_chainmask; /* rx cal chain mask */
 
@@ -845,6 +848,7 @@ struct ath_hal_9300 {
     HAL_BOOL                ah_aic_enabled;
     u_int32_t           ah_aic_sram[ATH_AIC_MAX_BT_CHANNEL];
 #endif
+
 #endif /* ATH_SUPPORT_MCI */
     u_int8_t            ah_cac_quiet_enabled;
 #if ATH_WOW_OFFLOAD
@@ -852,6 +856,14 @@ struct ath_hal_9300 {
     u_int32_t           ah_mcast_filter_u32_set;
 #endif
     HAL_BOOL            ah_reduced_self_gen_mask;
+    HAL_BOOL                ah_chip_reset_done;
+    HAL_BOOL                ah_abort_txdma_norx;
+    /* store previous passive RX Cal info */
+    HAL_BOOL                ah_skip_rx_iq_cal;
+    HAL_BOOL                ah_rx_cal_complete; /* previous rx cal completed or not */
+    u_int32_t           ah_rx_cal_chan;     /* chan on which rx cal is done */
+    u_int32_t           ah_rx_cal_chan_flag;
+    u_int32_t           ah_rx_cal_corr[AR9300_MAX_CHAINS];
 
     /* Local additions for FreeBSD */
     /*
@@ -877,7 +889,6 @@ struct ath_hal_9300 {
     struct ar9300NfLimits nf_2GHz;
     struct ar9300NfLimits nf_5GHz;
     struct ar9300NfLimits *nfp;
-
 };
 
 #define AH9300(_ah) ((struct ath_hal_9300 *)(_ah))
@@ -1194,7 +1205,8 @@ extern  HAL_BOOL ar9300_get_channel_edges(struct ath_hal *ah,
 extern  HAL_BOOL ar9300_fill_capability_info(struct ath_hal *ah);
 
 extern  void ar9300_beacon_init(struct ath_hal *ah,
-                              u_int32_t next_beacon, u_int32_t beacon_period, HAL_OPMODE opmode);
+                              u_int32_t next_beacon, u_int32_t beacon_period, 
+                              u_int32_t beacon_period_fraction, HAL_OPMODE opmode);
 extern  void ar9300_set_sta_beacon_timers(struct ath_hal *ah,
         const HAL_BEACON_STATE *);
 
@@ -1217,12 +1229,21 @@ extern  HAL_BOOL ar9300_set_key_cache_entry_mac(struct ath_hal *,
 extern  HAL_BOOL ar9300_set_key_cache_entry(struct ath_hal *ah, u_int16_t entry,
                        const HAL_KEYVAL *k, const u_int8_t *mac, int xor_key);
 extern  HAL_BOOL ar9300_print_keycache(struct ath_hal *ah);
+#if ATH_SUPPORT_KEYPLUMB_WAR
+extern  HAL_BOOL ar9300_check_key_cache_entry(struct ath_hal *ah, u_int16_t entry,
+                        const HAL_KEYVAL *k, int xorKey);
+#endif
 
 extern  void ar9300_get_mac_address(struct ath_hal *ah, u_int8_t *mac);
 extern  HAL_BOOL ar9300_set_mac_address(struct ath_hal *ah, const u_int8_t *);
 extern  void ar9300_get_bss_id_mask(struct ath_hal *ah, u_int8_t *mac);
 extern  HAL_BOOL ar9300_set_bss_id_mask(struct ath_hal *, const u_int8_t *);
 extern  HAL_STATUS ar9300_select_ant_config(struct ath_hal *ah, u_int32_t cfg);
+#if 0
+extern  u_int32_t ar9300_ant_ctrl_common_get(struct ath_hal *ah, HAL_BOOL is_2ghz);
+#endif
+extern HAL_BOOL ar9300_ant_swcom_sel(struct ath_hal *ah, u_int8_t ops,
+                                u_int32_t *common_tbl1, u_int32_t *common_tbl2);
 extern  HAL_BOOL ar9300_set_regulatory_domain(struct ath_hal *ah,
                                     u_int16_t reg_domain, HAL_STATUS *stats);
 extern  u_int ar9300_get_wireless_modes(struct ath_hal *ah);
@@ -1397,6 +1418,8 @@ extern HAL_BOOL ar9300_set_tx_power_limit(struct ath_hal *ah, u_int32_t limit,
                                        u_int16_t extra_txpow, u_int16_t tpc_in_db);
 extern void ar9300_chain_noise_floor(struct ath_hal *ah, int16_t *nf_buf,
                                     struct ieee80211_channel *chan, int is_scan);
+extern int16_t ar9300_get_nf_from_reg(struct ath_hal *ah, struct ieee80211_channel *chan, int wait_time);
+extern int ar9300_get_rx_nf_offset(struct ath_hal *ah, struct ieee80211_channel *chan, int8_t *nf_pwr, int8_t *nf_cal);
 extern HAL_BOOL ar9300_load_nf(struct ath_hal *ah, int16_t nf[]);
 
 extern HAL_RFGAIN ar9300_get_rfgain(struct ath_hal *ah);
@@ -1681,6 +1704,8 @@ extern void ar9300_tx99_start(struct ath_hal *ah, u_int8_t *data);
 extern void ar9300_tx99_stop(struct ath_hal *ah);
 #endif /* ATH_SUPPORT_HTC */
 #endif /* ATH_TX99_DIAG */
+extern HAL_BOOL ar9300_set_ctl_pwr(struct ath_hal *ah, u_int8_t *ctl_array);
+extern void ar9300_set_txchainmaskopt(struct ath_hal *ah, u_int8_t mask);
 
 enum {
 	AR9300_COEFF_TX_TYPE = 0,

@@ -134,7 +134,8 @@ fb_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		break;
 
 	case FBIO_BLANK:	/* blank display */
-		error = 0;	/* TODO */
+		if (info->setblankmode != NULL)
+			error = info->setblankmode(info->fb_priv, *(int *)data);
 		break;
 
 	default:
@@ -262,6 +263,8 @@ fbd_unregister(struct fb_info* info)
 	LIST_FOREACH_SAFE(entry, &fb_list_head, fb_list, tmp) {
 		if (entry->fb_info == info) {
 			LIST_REMOVE(entry, fb_list);
+			if (LIST_EMPTY(&fb_list_head))
+				vt_fb_detach(info);
 			free(entry, M_DEVBUF);
 			return (0);
 		}

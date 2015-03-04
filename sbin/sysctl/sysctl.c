@@ -71,7 +71,7 @@ static const char rcsid[] =
 
 static const char *conffile;
 
-static int	aflag, bflag, dflag, eflag, hflag, iflag;
+static int	aflag, bflag, Bflag, dflag, eflag, hflag, iflag;
 static int	Nflag, nflag, oflag, qflag, Tflag, Wflag, xflag;
 
 static int	oidfmt(int *, int, char *, u_int *);
@@ -112,8 +112,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: sysctl [-bdehiNnoqTWx] [-f filename] name[=value] ...",
-	    "       sysctl [-bdehNnoqTWx] -a");
+	    "usage: sysctl [-bdehiNnoqTWx] [ -B <bufsize> ] [-f filename] name[=value] ...",
+	    "       sysctl [-bdehNnoqTWx] [ -B <bufsize> ] -a");
 	exit(1);
 }
 
@@ -127,7 +127,7 @@ main(int argc, char **argv)
 	setbuf(stdout,0);
 	setbuf(stderr,0);
 
-	while ((ch = getopt(argc, argv, "Aabdef:hiNnoqTwWxX")) != -1) {
+	while ((ch = getopt(argc, argv, "AabB:def:hiNnoqTwWxX")) != -1) {
 		switch (ch) {
 		case 'A':
 			/* compatibility */
@@ -138,6 +138,9 @@ main(int argc, char **argv)
 			break;
 		case 'b':
 			bflag = 1;
+			break;
+		case 'B':
+			Bflag = strtol(optarg, NULL, 0);
 			break;
 		case 'd':
 			dflag = 1;
@@ -222,7 +225,7 @@ parse(const char *string, int lineno)
 	unsigned int uintval;
 	long longval;
 	unsigned long ulongval;
-	size_t newsize = 0;
+	size_t newsize = Bflag;
 	int64_t i64val;
 	uint64_t u64val;
 	int mib[CTL_MAXNAME];
@@ -815,9 +818,13 @@ show_var(int *oid, int nlen)
 		return (0);
 	}
 	/* find an estimate of how much we need for this var */
-	j = 0;
-	i = sysctl(oid, nlen, 0, &j, 0, 0);
-	j += j; /* we want to be sure :-) */
+	if (Bflag)
+		j = Bflag;
+	else {
+		j = 0;
+		i = sysctl(oid, nlen, 0, &j, 0, 0);
+		j += j; /* we want to be sure :-) */
+	}
 
 	val = oval = malloc(j + 1);
 	if (val == NULL) {

@@ -1299,13 +1299,12 @@ fdt_merge_strings(int argc, char *argv[], int start, char **buffer)
 	sz += argc - start;
 
 	buf = (char *)malloc(sizeof(char) * sz);
-	bzero(buf, sizeof(char) * sz);
-
 	if (buf == NULL) {
 		sprintf(command_errbuf, "could not allocate space "
 		    "for string");
 		return (1);
 	}
+	bzero(buf, sizeof(char) * sz);
 
 	idx = 0;
 	for (i = start, idx = 0; i < argc; i++) {
