@@ -38,6 +38,17 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150302: binutils documentation distributed as a manpage
+OLD_FILES+=usr/share/doc/binutils/as.txt
+OLD_FILES+=usr/share/doc/binutils/ld.txt
+OLD_DIRS+=usr/share/doc/binutils
+# 20150222: Removed bcd(6) and ppt(6)
+OLD_FILES+=usr/bin/bcd
+OLD_FILES+=usr/bin/ppt
+OLD_FILES+=usr/share/man/man6/bcd.6.gz
+OLD_FILES+=usr/share/man/man6/ppt.6.gz
+# 20150217: Removed remnants of ar(4) driver
+OLD_FILES+=usr/include/sys/dev/ic/hd64570.h
 # 20150212: /usr/games moving into /usr/bin
 OLD_FILES+=usr/games/bcd
 OLD_FILES+=usr/games/caesar

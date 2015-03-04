@@ -76,8 +76,8 @@ main(int argc, char *argv[])
 	myname = basename(argv[0]);
 	Aflag = aflag = cflag = mflag = timeset = 0;
 	atflag = 0;
-	if (clock_gettime(CLOCK_REALTIME, &ts[0]) == -1)
-		err(1, "clock_gettime(CLOCK_REALTIME)");
+	ts[0].tv_sec = ts[1].tv_sec = 0;
+	ts[0].tv_nsec = ts[1].tv_nsec = UTIME_NOW;
 
 	while ((ch = getopt(argc, argv, "A:acd:fhmr:t:")) != -1)
 		switch(ch) {
@@ -152,6 +152,11 @@ main(int argc, char *argv[])
 		ts[1] = ts[0];
 	}
 
+	if (!aflag)
+		ts[0].tv_nsec = UTIME_OMIT;
+	if (!mflag)
+		ts[1].tv_nsec = UTIME_OMIT;
+
 	if (*argv == NULL)
 		usage(myname);
 
@@ -183,11 +188,6 @@ main(int argc, char *argv[])
 				continue;
 		}
 
-		if (!aflag)
-			ts[0] = sb.st_atim;
-		if (!mflag)
-			ts[1] = sb.st_mtim;
-
 		/*
 		 * We're adjusting the times based on the file times, not a
 		 * specified time (that gets handled above).
@@ -203,24 +203,7 @@ main(int argc, char *argv[])
 			}
 		}
 
-		/* Try utimensat(2). */
 		if (!utimensat(AT_FDCWD, *argv, ts, atflag))
-			continue;
-
-		/* If the user specified a time, nothing else we can do. */
-		if (timeset || Aflag) {
-			rval = 1;
-			warn("%s", *argv);
-			continue;
-		}
-
-		/*
-		 * System V and POSIX 1003.1 require that a NULL argument
-		 * set the access/modification times to the current time.
-		 * The permission checks are different, too, in that the
-		 * ability to write the file is sufficient.  Take a shot.
-		 */
-		 if (!utimensat(AT_FDCWD, *argv, NULL, atflag))
 			continue;
 
 		rval = 1;
@@ -238,8 +221,8 @@ stime_arg1(const char *arg, struct timespec *tvp)
 	struct tm *t;
 	int yearset;
 	char *p;
-					/* Start with the current time. */
-	now = tvp[0].tv_sec;
+
+	now = time(NULL);
 	if ((t = localtime(&now)) == NULL)
 		err(1, "localtime");
 					/* [[CC]YY]MMDDhhmm[.SS] */
@@ -300,8 +283,8 @@ stime_arg2(const char *arg, int year, struct timespec *tvp)
 {
 	time_t now;
 	struct tm *t;
-					/* Start with the current time. */
-	now = tvp[0].tv_sec;
+
+	now = time(NULL);
 	if ((t = localtime(&now)) == NULL)
 		err(1, "localtime");
 

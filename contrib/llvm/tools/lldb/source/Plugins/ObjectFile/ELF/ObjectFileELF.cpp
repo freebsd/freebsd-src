@@ -1331,8 +1331,11 @@ ObjectFileELF::GetSectionHeaderInfo(SectionHeaderColl &section_headers,
     }
 
     // If there are no section headers we are done.
-    if (header.e_shnum == 0)
+    if (header.e_shnum == 0) {
+        if (arch_spec.GetTriple().getOS() == llvm::Triple::OSType::UnknownOS)
+            arch_spec.GetTriple().setOSName(HostInfo::GetOSString().data());
         return 0;
+    }
 
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_MODULES));
 

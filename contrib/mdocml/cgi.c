@@ -1,4 +1,4 @@
-/*	$Id: cgi.c,v 1.102 2014/11/26 17:55:27 schwarze Exp $ */
+/*	$Id: cgi.c,v 1.104 2015/02/10 08:05:30 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014 Ingo Schwarze <schwarze@usta.de>
@@ -58,10 +58,10 @@ static	void		 catman(const struct req *, const char *);
 static	void		 format(const struct req *, const char *);
 static	void		 html_print(const char *);
 static	void		 html_putchar(char);
-static	int 		 http_decode(char *);
+static	int		 http_decode(char *);
 static	void		 http_parse(struct req *, const char *);
 static	void		 http_print(const char *);
-static	void 		 http_putchar(char);
+static	void		 http_putchar(char);
 static	void		 http_printquery(const struct req *, const char *);
 static	void		 pathgen(struct req *);
 static	void		 pg_error_badrequest(const char *);
@@ -186,7 +186,7 @@ http_print(const char *p)
 static void
 html_print(const char *p)
 {
-	
+
 	if (NULL == p)
 		return;
 	while ('\0' != *p)
@@ -621,7 +621,7 @@ pg_searchres(const struct req *req, struct manpage *r, size_t sz)
 	for (i = 0; i < sz; i++) {
 		printf("<TR>\n"
 		       "<TD CLASS=\"title\">\n"
-		       "<A HREF=\"%s/%s/%s?", 
+		       "<A HREF=\"%s/%s/%s?",
 		    scriptname, req->q.manpath, r[i].file);
 		http_printquery(req, "&amp;");
 		printf("\">");
@@ -701,7 +701,7 @@ catman(const struct req *req, const char *file)
 	while (NULL != (p = fgetln(f, &len))) {
 		bold = italic = 0;
 		for (i = 0; i < (int)len - 1; i++) {
-			/* 
+			/*
 			 * This means that the catpage is out of state.
 			 * Ignore it and keep going (although the
 			 * catpage is bogus).
@@ -742,7 +742,7 @@ catman(const struct req *req, const char *file)
 				continue;
 			}
 
-			/* 
+			/*
 			 * Handle funny behaviour troff-isms.
 			 * These grok'd from the original man2html.c.
 			 */
@@ -780,7 +780,7 @@ catman(const struct req *req, const char *file)
 			}
 
 			/* Bold mode. */
-			
+
 			if (italic)
 				printf("</I>");
 			if ( ! bold)
@@ -791,9 +791,9 @@ catman(const struct req *req, const char *file)
 			html_putchar(p[i]);
 		}
 
-		/* 
+		/*
 		 * Clean up the last character.
-		 * We can get to a newline; don't print that. 
+		 * We can get to a newline; don't print that.
 		 */
 
 		if (italic)
@@ -822,7 +822,6 @@ format(const struct req *req, const char *file)
 	struct man	*man;
 	void		*vp;
 	char		*opts;
-	enum mandoclevel rc;
 	int		 fd;
 	int		 usepath;
 
@@ -832,17 +831,10 @@ format(const struct req *req, const char *file)
 	}
 
 	mchars = mchars_alloc();
-	mp = mparse_alloc(MPARSE_SO, MANDOCLEVEL_FATAL, NULL,
+	mp = mparse_alloc(MPARSE_SO, MANDOCLEVEL_BADARG, NULL,
 	    mchars, req->q.manpath);
-	rc = mparse_readfd(mp, fd, file);
+	mparse_readfd(mp, fd, file);
 	close(fd);
-
-	if (rc >= MANDOCLEVEL_FATAL) {
-		fprintf(stderr, "fatal mandoc error: %s/%s\n",
-		    req->q.manpath, file);
-		pg_error_internal();
-		return;
-	}
 
 	usepath = strcmp(req->q.manpath, req->p[0]);
 	mandoc_asprintf(&opts,
@@ -899,7 +891,7 @@ pg_show(struct req *req, const char *fullpath)
 		pg_error_badrequest(
 		    "You did not specify a page to show.");
 		return;
-	} 
+	}
 	manpath = mandoc_strndup(fullpath, file - fullpath);
 	file++;
 
@@ -1064,7 +1056,7 @@ main(void)
 		    MAN_DIR, strerror(errno));
 		pg_error_internal();
 		return(EXIT_FAILURE);
-	} 
+	}
 
 	memset(&req, 0, sizeof(struct req));
 	pathgen(&req);

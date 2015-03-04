@@ -259,6 +259,10 @@ struct sfxge_softc {
 	struct mtx			tx_lock __aligned(CACHE_LINE_SIZE);
 	char				tx_lock_name[SFXGE_LOCK_NAME_MAX];
 #endif
+
+	unsigned int			evq_count;
+	unsigned int			rxq_count;
+	unsigned int			txq_count;
 };
 
 #define	SFXGE_LINK_UP(sc) ((sc)->port.link_mode != EFX_LINK_DOWN)
@@ -320,6 +324,7 @@ extern void sfxge_mac_link_update(struct sfxge_softc *sc,
     efx_link_mode_t mode);
 extern int sfxge_mac_filter_set(struct sfxge_softc *sc);
 extern int sfxge_port_ifmedia_init(struct sfxge_softc *sc);
+extern uint64_t sfxge_get_counter(struct ifnet *ifp, ift_counter c);
 
 #define	SFXGE_MAX_MTU (9 * 1024)
 

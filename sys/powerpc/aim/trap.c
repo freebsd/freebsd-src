@@ -116,6 +116,7 @@ static struct powerpc_exception powerpc_exceptions[] = {
 	{ 0x0e00, "floating-point assist" },
 	{ 0x0f00, "performance monitoring" },
 	{ 0x0f20, "altivec unavailable" },
+	{ 0x0f40, "vsx unavailable" },
 	{ 0x1000, "instruction tlb miss" },
 	{ 0x1100, "data load tlb miss" },
 	{ 0x1200, "data store tlb miss" },
@@ -200,8 +201,7 @@ trap(struct trapframe *frame)
 		case EXC_ISE:
 		case EXC_DSE:
 			if (handle_user_slb_spill(&p->p_vmspace->vm_pmap,
-			    (type == EXC_ISE) ? frame->srr0 :
-			    frame->cpu.aim.dar) != 0) {
+			    (type == EXC_ISE) ? frame->srr0 : frame->dar) != 0){
 				sig = SIGSEGV;
 				ucode = SEGV_MAPERR;
 			}
@@ -228,6 +228,17 @@ trap(struct trapframe *frame)
 			KASSERT((td->td_pcb->pcb_flags & PCB_VEC) != PCB_VEC,
 			    ("Altivec already enabled for thread"));
 			enable_vec(td);
+			break;
+
+		case EXC_VSX:
+			KASSERT((td->td_pcb->pcb_flags & PCB_VSX) != PCB_VSX,
+			    ("VSX already enabled for thread"));
+			if (!(td->td_pcb->pcb_flags & PCB_VEC))
+				enable_vec(td);
+			if (!(td->td_pcb->pcb_flags & PCB_FPU))
+				save_fpu(td);
+			td->td_pcb->pcb_flags |= PCB_VSX;
+			enable_fpu(td);
 			break;
 
 		case EXC_VECAST_G4:
@@ -314,7 +325,7 @@ trap(struct trapframe *frame)
 #endif
 #ifdef __powerpc64__
 		case EXC_DSE:
-			if ((frame->cpu.aim.dar & SEGMENT_MASK) == USER_ADDR) {
+			if ((frame->dar & SEGMENT_MASK) == USER_ADDR) {
 				__asm __volatile ("slbmte %0, %1" ::
 					"r"(td->td_pcb->pcb_cpu.aim.usr_vsid),
 					"r"(USER_SLB_SLBE));
@@ -375,8 +386,7 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 	switch (vector) {
 	case EXC_DSE:
 	case EXC_DSI:
-		printf("   virtual address = 0x%" PRIxPTR "\n",
-		    frame->cpu.aim.dar);
+		printf("   virtual address = 0x%" PRIxPTR "\n", frame->dar);
 		printf("   dsisr           = 0x%" PRIxPTR "\n",
 		    frame->cpu.aim.dsisr);
 		break;
@@ -630,7 +640,7 @@ trap_pfault(struct trapframe *frame, int user)
 		if (frame->srr1 & SRR1_ISI_PFAULT)
 			ftype |= VM_PROT_READ;
 	} else {
-		eva = frame->cpu.aim.dar;
+		eva = frame->dar;
 		if (frame->cpu.aim.dsisr & DSISR_STORE)
 			ftype = VM_PROT_WRITE;
 		else
@@ -709,7 +719,7 @@ fix_unaligned(struct thread *td, struct trapframe *frame)
 	case EXC_ALI_LFD:
 	case EXC_ALI_STFD:
 		reg = EXC_ALI_RST(frame->cpu.aim.dsisr);
-		fpr = &td->td_pcb->pcb_fpu.fpr[reg];
+		fpr = &td->td_pcb->pcb_fpu.fpr[reg].fpr;
 		fputhread = PCPU_GET(fputhread);
 
 		/* Juggle the FPU to ensure that we've initialized
@@ -724,12 +734,12 @@ fix_unaligned(struct thread *td, struct trapframe *frame)
 		save_fpu(td);
 
 		if (indicator == EXC_ALI_LFD) {
-			if (copyin((void *)frame->cpu.aim.dar, fpr,
+			if (copyin((void *)frame->dar, fpr,
 			    sizeof(double)) != 0)
 				return -1;
 			enable_fpu(td);
 		} else {
-			if (copyout(fpr, (void *)frame->cpu.aim.dar,
+			if (copyout(fpr, (void *)frame->dar,
 			    sizeof(double)) != 0)
 				return -1;
 		}

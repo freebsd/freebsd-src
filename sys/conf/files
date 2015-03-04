@@ -271,6 +271,7 @@ contrib/dev/acpica/components/debugger/dbtest.c		optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbutils.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbxface.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmbuffer.c	optional acpi acpi_debug
+contrib/dev/acpica/components/disassembler/dmcstyle.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmdeferred.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmnames.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmopcode.c	optional acpi acpi_debug
@@ -1141,7 +1142,7 @@ dev/cxgb/sys/uipc_mvec.c	optional cxgb pci \
 dev/cxgb/cxgb_t3fw.c		optional cxgb cxgb_t3fw \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgbe/t4_mp_ring.c		optional cxgbe pci \
-	compile-with "${NORMAL_C} -I$S/dev/cxgbe ${GCC_MS_EXTENSIONS}"
+	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/t4_main.c		optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/t4_netmap.c		optional cxgbe pci \
@@ -1451,6 +1452,7 @@ dev/iicbus/ad7418.c		optional ad7418
 dev/iicbus/ds133x.c		optional ds133x
 dev/iicbus/ds1374.c		optional ds1374
 dev/iicbus/ds1672.c		optional ds1672
+dev/iicbus/ds3231.c		optional ds3231
 dev/iicbus/icee.c		optional icee
 dev/iicbus/if_ic.c		optional ic
 dev/iicbus/iic.c		optional iic
@@ -2029,6 +2031,8 @@ dev/pci/ignore_pci.c		optional pci
 dev/pci/isa_pci.c		optional pci isa
 dev/pci/pci.c			optional pci
 dev/pci/pci_if.m		standard
+dev/pci/pci_iov.c		optional pci pci_iov
+dev/pci/pci_iov_schema.c	optional pci pci_iov
 dev/pci/pci_pci.c		optional pci
 dev/pci/pci_subr.c		optional pci
 dev/pci/pci_user.c		optional pci
@@ -2160,6 +2164,37 @@ dev/sdhci/sdhci.c		optional sdhci
 dev/sdhci/sdhci_if.m		optional sdhci
 dev/sdhci/sdhci_pci.c		optional sdhci pci
 dev/sf/if_sf.c			optional sf pci
+dev/sfxge/common/efx_bootcfg.c	optional sfxge pci
+dev/sfxge/common/efx_ev.c	optional sfxge pci
+dev/sfxge/common/efx_filter.c	optional sfxge pci
+dev/sfxge/common/efx_intr.c	optional sfxge pci
+dev/sfxge/common/efx_mac.c	optional sfxge pci
+dev/sfxge/common/efx_mcdi.c	optional sfxge pci
+dev/sfxge/common/efx_mon.c	optional sfxge pci
+dev/sfxge/common/efx_nic.c	optional sfxge pci
+dev/sfxge/common/efx_nvram.c	optional sfxge pci
+dev/sfxge/common/efx_phy.c	optional sfxge pci
+dev/sfxge/common/efx_port.c	optional sfxge pci
+dev/sfxge/common/efx_rx.c	optional sfxge pci
+dev/sfxge/common/efx_sram.c	optional sfxge pci
+dev/sfxge/common/efx_tx.c	optional sfxge pci
+dev/sfxge/common/efx_vpd.c	optional sfxge pci
+dev/sfxge/common/efx_wol.c	optional sfxge pci
+dev/sfxge/common/siena_mac.c	optional sfxge pci
+dev/sfxge/common/siena_mon.c	optional sfxge pci
+dev/sfxge/common/siena_nic.c	optional sfxge pci
+dev/sfxge/common/siena_nvram.c	optional sfxge pci
+dev/sfxge/common/siena_phy.c	optional sfxge pci
+dev/sfxge/common/siena_sram.c	optional sfxge pci
+dev/sfxge/common/siena_vpd.c	optional sfxge pci
+dev/sfxge/sfxge.c		optional sfxge pci
+dev/sfxge/sfxge_dma.c		optional sfxge pci
+dev/sfxge/sfxge_ev.c		optional sfxge pci
+dev/sfxge/sfxge_intr.c		optional sfxge pci
+dev/sfxge/sfxge_mcdi.c		optional sfxge pci
+dev/sfxge/sfxge_port.c		optional sfxge pci
+dev/sfxge/sfxge_rx.c		optional sfxge pci
+dev/sfxge/sfxge_tx.c		optional sfxge pci
 dev/sge/if_sge.c		optional sge pci
 dev/si/si.c			optional si
 dev/si/si2_z280.c		optional si
@@ -2563,8 +2598,16 @@ dev/usb/template/usb_template_mtp.c	optional usb_template
 dev/usb/template/usb_template_phone.c	optional usb_template
 dev/usb/template/usb_template_serialnet.c	optional usb_template
 #
+# USB video drivers
+#
+dev/usb/video/udl.c			optional udl
+#
 # USB END
 #
+dev/videomode/videomode.c		optional videomode
+dev/videomode/edid.c			optional videomode
+dev/videomode/pickmode.c		optional videomode
+dev/videomode/vesagtf.c			optional videomode
 dev/utopia/idtphy.c		optional utopia
 dev/utopia/suni.c		optional utopia
 dev/utopia/utopia.c		optional utopia
@@ -3035,6 +3078,7 @@ kern/subr_clock.c		standard
 kern/subr_counter.c		standard
 kern/subr_devstat.c		standard
 kern/subr_disk.c		standard
+kern/subr_dnvlist.c		standard
 kern/subr_eventhandler.c	standard
 kern/subr_fattime.c		standard
 kern/subr_firmware.c		optional firmware
@@ -3048,6 +3092,8 @@ kern/subr_mbpool.c		optional libmbpool
 kern/subr_mchain.c		optional libmchain
 kern/subr_module.c		standard
 kern/subr_msgbuf.c		standard
+kern/subr_nvlist.c		standard
+kern/subr_nvpair.c		standard
 kern/subr_param.c		standard
 kern/subr_pcpu.c		standard
 kern/subr_pctrie.c		standard
@@ -3175,6 +3221,7 @@ kgssapi/gsstest.c		optional kgssapi_debug
 # the file should be moved to conf/files.<arch> from here.
 #
 libkern/arc4random.c		standard
+libkern/asprintf.c		standard
 libkern/bcd.c			standard
 libkern/bsearch.c		standard
 libkern/crc32.c			standard
@@ -3616,19 +3663,16 @@ ofed/drivers/infiniband/core/fmr_pool.c		optional ofed		\
 ofed/drivers/infiniband/core/iwcm.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/local_sa.c		optional ofed		\
-	no-depend							\
-	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/mad_rmpp.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/multicast.c	optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/notice.c		optional ofed		\
+ofed/drivers/infiniband/core/packer.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/packer.c		optional ofed		\
+ofed/drivers/infiniband/core/peer_mem.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/sa_query.c		optional ofed		\
@@ -3731,6 +3775,9 @@ ofed/drivers/infiniband/hw/mlx4/mad.c		optional mlx4ib		\
 	no-depend obj-prefix "mlx4ib_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
 ofed/drivers/infiniband/hw/mlx4/main.c		optional mlx4ib		\
+	no-depend obj-prefix "mlx4ib_"					\
+	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
+ofed/drivers/infiniband/hw/mlx4/mlx4_exp.c	optional mlx4ib		\
 	no-depend obj-prefix "mlx4ib_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
 ofed/drivers/infiniband/hw/mlx4/mr.c		optional mlx4ib		\

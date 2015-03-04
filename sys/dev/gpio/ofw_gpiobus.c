@@ -39,182 +39,45 @@ __FBSDID("$FreeBSD$");
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
 
-static int ofw_gpiobus_parse_gpios(struct gpiobus_softc *,
-    struct gpiobus_ivar *, phandle_t);
 static struct ofw_gpiobus_devinfo *ofw_gpiobus_setup_devinfo(device_t,
-    phandle_t);
+	device_t, phandle_t);
 static void ofw_gpiobus_destroy_devinfo(struct ofw_gpiobus_devinfo *);
+static int ofw_gpiobus_parse_gpios_impl(device_t, phandle_t, char *,
+	struct gpiobus_softc *, struct gpiobus_pin **);
 
 device_t
-ofw_gpiobus_add_fdt_child(device_t bus, phandle_t child)
+ofw_gpiobus_add_fdt_child(device_t bus, const char *drvname, phandle_t child)
 {
-	struct ofw_gpiobus_devinfo *dinfo;
 	device_t childdev;
+	struct ofw_gpiobus_devinfo *dinfo;
 
 	/*
 	 * Set up the GPIO child and OFW bus layer devinfo and add it to bus.
 	 */
-	dinfo = ofw_gpiobus_setup_devinfo(bus, child);
-	if (dinfo == NULL)
+	childdev = device_add_child(bus, drvname, -1);
+	if (childdev == NULL)
 		return (NULL);
-	childdev = device_add_child(bus, NULL, -1);
-	if (childdev == NULL) {
-		device_printf(bus, "could not add child: %s\n",
-		    dinfo->opd_obdinfo.obd_name);
-		ofw_gpiobus_destroy_devinfo(dinfo);
+	dinfo = ofw_gpiobus_setup_devinfo(bus, childdev, child);
+	if (dinfo == NULL) {
+		device_delete_child(bus, childdev);
 		return (NULL);
 	}
-	device_set_ivars(childdev, dinfo);
+	if (device_probe_and_attach(childdev) != 0) {
+		ofw_gpiobus_destroy_devinfo(dinfo);
+		device_delete_child(bus, childdev);
+		return (NULL);
+	}
 
 	return (childdev);
 }
 
-static int
-ofw_gpiobus_alloc_ivars(struct gpiobus_ivar *dinfo)
+int
+ofw_gpiobus_parse_gpios(device_t consumer, char *pname,
+	struct gpiobus_pin **pins)
 {
 
-	/* Allocate pins and flags memory. */
-	dinfo->pins = malloc(sizeof(uint32_t) * dinfo->npins, M_DEVBUF,
-	    M_NOWAIT | M_ZERO);
-	if (dinfo->pins == NULL)
-		return (ENOMEM);
-	dinfo->flags = malloc(sizeof(uint32_t) * dinfo->npins, M_DEVBUF,
-	    M_NOWAIT | M_ZERO);
-	if (dinfo->flags == NULL) {
-		free(dinfo->pins, M_DEVBUF);
-		return (ENOMEM);
-	}
-
-	return (0);
-}
-
-static void
-ofw_gpiobus_free_ivars(struct gpiobus_ivar *dinfo)
-{
-
-	free(dinfo->flags, M_DEVBUF);
-	free(dinfo->pins, M_DEVBUF);
-}
-
-static int
-ofw_gpiobus_parse_gpios(struct gpiobus_softc *sc, struct gpiobus_ivar *dinfo,
-	phandle_t child)
-{
-	int cells, i, j, len;
-	pcell_t *gpios;
-	phandle_t gpio;
-
-	/* Retrieve the gpios property. */
-	if ((len = OF_getproplen(child, "gpios")) < 0)
-		return (EINVAL);
-	gpios = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (gpios == NULL)
-		return (ENOMEM);
-	if (OF_getencprop(child, "gpios", gpios, len) < 0) {
-		free(gpios, M_DEVBUF);
-		return (EINVAL);
-	}
-
-	/*
-	 * The gpio-specifier is controller independent, but the first pcell
-	 * has the reference to the GPIO controller phandler.
-	 * One the first pass we count the number of encoded gpio-specifiers.
-	 */
-	i = 0;
-	len /= sizeof(pcell_t);
-	while (i < len) {
-		/* Allow NULL specifiers. */
-		if (gpios[i] == 0) {
-			dinfo->npins++;
-			i++;
-			continue;
-		}
-		gpio = OF_node_from_xref(gpios[i]);
-		/* Verify if we're attaching to the correct GPIO controller. */
-		if (!OF_hasprop(gpio, "gpio-controller") ||
-		    gpio != ofw_bus_get_node(sc->sc_dev)) {
-			free(gpios, M_DEVBUF);
-			return (EINVAL);
-		}
-		/* Read gpio-cells property for this GPIO controller. */
-		if (OF_getencprop(gpio, "#gpio-cells", &cells,
-		    sizeof(cells)) < 0) {
-			free(gpios, M_DEVBUF);
-			return (EINVAL);
-		}
-		dinfo->npins++;
-		i += cells + 1;
-	}
-
-	if (dinfo->npins == 0) {
-		free(gpios, M_DEVBUF);
-		return (EINVAL);
-	}
-
-	/* Allocate the child resources. */
-	if (ofw_gpiobus_alloc_ivars(dinfo) != 0) {
-		free(gpios, M_DEVBUF);
-		return (ENOMEM);
-	}
-
-	/* Decode the gpio specifier on the second pass. */
-	i = 0;
-	j = 0;
-	while (i < len) {
-		/* Allow NULL specifiers. */
-		if (gpios[i] == 0) {
-			i++;
-			j++;
-			continue;
-		}
-
-		gpio = OF_node_from_xref(gpios[i]);
-		/* Read gpio-cells property for this GPIO controller. */
-		if (OF_getencprop(gpio, "#gpio-cells", &cells,
-		    sizeof(cells)) < 0) {
-			ofw_gpiobus_free_ivars(dinfo);
-			free(gpios, M_DEVBUF);
-			return (EINVAL);
-		}
-
-		/* Get the GPIO pin number and flags. */
-		if (gpio_map_gpios(sc->sc_dev, child, gpio, cells,
-		    &gpios[i + 1], &dinfo->pins[j], &dinfo->flags[j]) != 0) {
-			ofw_gpiobus_free_ivars(dinfo);
-			free(gpios, M_DEVBUF);
-			return (EINVAL);
-		}
-
-		/* Consistency check. */
-		if (dinfo->pins[j] > sc->sc_npins) {
-			device_printf(sc->sc_busdev,
-			    "invalid pin %d, max: %d\n",
-			    dinfo->pins[j], sc->sc_npins - 1);
-			ofw_gpiobus_free_ivars(dinfo);
-			free(gpios, M_DEVBUF);
-			return (EINVAL);
-		}
-
-		/*
-		 * Mark pin as mapped and give warning if it's already mapped.
-		 */
-		if (sc->sc_pins_mapped[dinfo->pins[j]]) {
-			device_printf(sc->sc_busdev,
-			    "warning: pin %d is already mapped\n",
-			    dinfo->pins[j]);
-			ofw_gpiobus_free_ivars(dinfo);
-			free(gpios, M_DEVBUF);
-			return (EINVAL);
-		}
-		sc->sc_pins_mapped[dinfo->pins[j]] = 1;
-
-		i += cells + 1;
-		j++;
-	}
-
-	free(gpios, M_DEVBUF);
-
-	return (0);
+	return (ofw_gpiobus_parse_gpios_impl(consumer,
+	    ofw_bus_get_node(consumer), pname, NULL, pins));
 }
 
 void
@@ -236,12 +99,15 @@ ofw_gpiobus_unregister_provider(device_t provider)
 }
 
 static struct ofw_gpiobus_devinfo *
-ofw_gpiobus_setup_devinfo(device_t dev, phandle_t node)
+ofw_gpiobus_setup_devinfo(device_t bus, device_t child, phandle_t node)
 {
+	int i, npins;
+	struct gpiobus_ivar *devi;
+	struct gpiobus_pin *pins;
 	struct gpiobus_softc *sc;
 	struct ofw_gpiobus_devinfo *dinfo;
 
-	sc = device_get_softc(dev);
+	sc = device_get_softc(bus);
 	dinfo = malloc(sizeof(*dinfo), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (dinfo == NULL)
 		return (NULL);
@@ -249,31 +115,178 @@ ofw_gpiobus_setup_devinfo(device_t dev, phandle_t node)
 		free(dinfo, M_DEVBUF);
 		return (NULL);
 	}
-
 	/* Parse the gpios property for the child. */
-	if (ofw_gpiobus_parse_gpios(sc, &dinfo->opd_dinfo, node) != 0) {
-		ofw_bus_gen_destroy_devinfo(&dinfo->opd_obdinfo);
-		free(dinfo, M_DEVBUF);
-		return (NULL);
+	npins = ofw_gpiobus_parse_gpios_impl(child, node, "gpios", sc, &pins);
+	if (npins <= 0)
+		goto fail;
+	devi = &dinfo->opd_dinfo;
+	devi->npins = (uint32_t)npins;
+	if (gpiobus_alloc_ivars(devi) != 0) {
+		free(pins, M_DEVBUF);
+		goto fail;
 	}
+	for (i = 0; i < devi->npins; i++) {
+		devi->flags[i] = pins[i].flags;
+		devi->pins[i] = pins[i].pin;
+	}
+	free(pins, M_DEVBUF);
 	/* And now the interrupt resources. */
 	resource_list_init(&dinfo->opd_dinfo.rl);
-	if (ofw_bus_intr_to_rl(dev, node, &dinfo->opd_dinfo.rl) != 0) {
-		ofw_bus_gen_destroy_devinfo(&dinfo->opd_obdinfo);
-		free(dinfo, M_DEVBUF);
-		return (NULL);
+	if (ofw_bus_intr_to_rl(bus, node, &dinfo->opd_dinfo.rl) != 0) {
+		gpiobus_free_ivars(devi);
+		goto fail;
 	}
+	device_set_ivars(child, dinfo);
 
 	return (dinfo);
+
+fail:
+	ofw_bus_gen_destroy_devinfo(&dinfo->opd_obdinfo);
+	free(dinfo, M_DEVBUF);
+	return (NULL);
 }
 
 static void
 ofw_gpiobus_destroy_devinfo(struct ofw_gpiobus_devinfo *dinfo)
 {
+	struct gpiobus_ivar *devi;
 
+	devi = &dinfo->opd_dinfo;
+	gpiobus_free_ivars(devi);
 	resource_list_free(&dinfo->opd_dinfo.rl);
 	ofw_bus_gen_destroy_devinfo(&dinfo->opd_obdinfo);
 	free(dinfo, M_DEVBUF);
+}
+
+static int
+ofw_gpiobus_parse_gpios_impl(device_t consumer, phandle_t cnode, char *pname,
+	struct gpiobus_softc *bussc, struct gpiobus_pin **pins)
+{
+	int gpiocells, i, j, ncells, npins;
+	pcell_t *gpios;
+	phandle_t gpio;
+
+	ncells = OF_getencprop_alloc(cnode, pname, sizeof(*gpios),
+            (void **)&gpios);
+	if (ncells == -1) {
+		device_printf(consumer,
+		    "Warning: No %s specified in fdt data; "
+		    "device may not function.\n", pname);
+		return (-1);
+	}
+	/*
+	 * The gpio-specifier is controller independent, the first pcell has
+	 * the reference to the GPIO controller phandler.
+	 * Count the number of encoded gpio-specifiers on the first pass.
+	 */
+	i = 0;
+	npins = 0;
+	while (i < ncells) {
+		/* Allow NULL specifiers. */
+		if (gpios[i] == 0) {
+			npins++;
+			i++;
+			continue;
+		}
+		gpio = OF_node_from_xref(gpios[i]);
+		/* If we have bussc, ignore devices from other gpios. */
+		if (bussc != NULL)
+			if (ofw_bus_get_node(bussc->sc_dev) != gpio)
+				return (0);
+		/*
+		 * Check for gpio-controller property and read the #gpio-cells
+		 * for this GPIO controller.
+		 */
+		if (!OF_hasprop(gpio, "gpio-controller") ||
+		    OF_getencprop(gpio, "#gpio-cells", &gpiocells,
+		    sizeof(gpiocells)) < 0) {
+			device_printf(consumer,
+			    "gpio reference is not a gpio-controller.\n");
+			free(gpios, M_OFWPROP);
+			return (-1);
+		}
+		if (ncells - i < gpiocells + 1) {
+			device_printf(consumer,
+			    "%s cells doesn't match #gpio-cells.\n", pname);
+			return (-1);
+		}
+		npins++;
+		i += gpiocells + 1;
+	}
+	if (npins == 0 || pins == NULL) {
+		if (npins == 0)
+			device_printf(consumer, "no pin specified in %s.\n",
+			    pname);
+		free(gpios, M_OFWPROP);
+		return (npins);
+	}
+	*pins = malloc(sizeof(struct gpiobus_pin) * npins, M_DEVBUF,
+	    M_NOWAIT | M_ZERO);
+	if (*pins == NULL) {
+		free(gpios, M_OFWPROP);
+		return (-1);
+	}
+	/* Decode the gpio specifier on the second pass. */
+	i = 0;
+	j = 0;
+	while (i < ncells) {
+		/* Allow NULL specifiers. */
+		if (gpios[i] == 0) {
+			j++;
+			i++;
+			continue;
+		}
+		gpio = OF_node_from_xref(gpios[i]);
+		/* Read gpio-cells property for this GPIO controller. */
+		if (OF_getencprop(gpio, "#gpio-cells", &gpiocells,
+		    sizeof(gpiocells)) < 0) {
+			device_printf(consumer,
+			    "gpio does not have the #gpio-cells property.\n");
+			goto fail;
+		}
+		/* Return the device reference for the GPIO controller. */
+		(*pins)[j].dev = OF_device_from_xref(gpios[i]);
+		if ((*pins)[j].dev == NULL) {
+			device_printf(consumer,
+			    "no device registered for the gpio controller.\n");
+			goto fail;
+		}
+		/*
+		 * If the gpiobus softc is NULL we use the GPIO_GET_BUS() to
+		 * retrieve it.  The GPIO_GET_BUS() method is only valid after
+		 * the child is probed and attached.
+		 */
+		if (bussc == NULL) {
+			if (GPIO_GET_BUS((*pins)[j].dev) == NULL) {
+				device_printf(consumer,
+				    "no gpiobus reference for %s.\n",
+				    device_get_nameunit((*pins)[j].dev));
+				goto fail;
+			}
+			bussc = device_get_softc(GPIO_GET_BUS((*pins)[j].dev));
+		}
+		/* Get the GPIO pin number and flags. */
+		if (gpio_map_gpios((*pins)[j].dev, cnode, gpio, gpiocells,
+		    &gpios[i + 1], &(*pins)[j].pin, &(*pins)[j].flags) != 0) {
+			device_printf(consumer,
+			    "cannot map the gpios specifier.\n");
+			goto fail;
+		}
+		/* Reserve the GPIO pin. */
+		if (gpiobus_map_pin(bussc->sc_busdev, consumer,
+		    (*pins)[j].pin) != 0)
+			goto fail;
+		j++;
+		i += gpiocells + 1;
+	}
+	free(gpios, M_OFWPROP);
+
+	return (npins);
+
+fail:
+	free(gpios, M_OFWPROP);
+	free(*pins, M_DEVBUF);
+	return (-1);
 }
 
 static int
@@ -296,17 +309,18 @@ ofw_gpiobus_attach(device_t dev)
 	err = gpiobus_init_softc(dev);
 	if (err != 0)
 		return (err);
- 
 	bus_generic_probe(dev);
 	bus_enumerate_hinted_children(dev);
-
 	/*
 	 * Attach the children represented in the device tree.
 	 */
 	for (child = OF_child(ofw_bus_get_node(dev)); child != 0;
-	    child = OF_peer(child))
-		if (ofw_gpiobus_add_fdt_child(dev, child) == NULL)
+	    child = OF_peer(child)) {
+		if (!OF_hasprop(child, "gpios"))
 			continue;
+		if (ofw_gpiobus_add_fdt_child(dev, NULL, child) == NULL)
+			continue;
+	}
 
 	return (bus_generic_attach(dev));
 }

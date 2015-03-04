@@ -32,7 +32,7 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_convert.m4 3009 2014-03-23 01:49:59Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_convert.m4 3158 2015-02-15 21:42:07Z emaste $");
 
 /* WARNING: GENERATED FROM __file__. */
 

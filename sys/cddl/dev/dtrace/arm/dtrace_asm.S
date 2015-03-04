@@ -195,3 +195,25 @@ ENTRY(dtrace_caller)
 	mov	r0, #-1
 	RET
 END(dtrace_caller)
+
+/*
+uint32_t
+dtrace_cas32(uint32_t *target, uint32_t cmp, uint32_t new)
+
+void *
+dtrace_casptr(volatile void *target, volatile void *cmp, volatile void *new)
+*/
+ENTRY(dtrace_cas32)
+EENTRY(dtrace_casptr)
+1:	ldrex	r3, [r0]	/* Load target */
+	cmp	r3, r1		/* Check if *target == cmp */
+	bne	2f		/* No, return */
+	strex	r3, r2, [r0]	/* Store new to target */
+	cmp	r3, #0		/* Did the store succeed? */
+	bne	1b		/* No, try again */
+	mov	r0, r2		/* Return the new value of the store */
+2:	movne	r0, r3		/* The first compare failed, return */
+				/* the value loaded from memory */
+	RET
+EEND(dtrace_casptr)
+END(dtrace_cas32)

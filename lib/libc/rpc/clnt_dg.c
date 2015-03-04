@@ -327,7 +327,7 @@ clnt_dg_call(cl, proc, xargs, argsp, xresults, resultsp, utimeout)
 	struct sockaddr *sa;
 	sigset_t mask;
 	sigset_t newmask;
-	socklen_t inlen, salen;
+	socklen_t salen;
 	ssize_t recvlen = 0;
 	int kin_len, n, rpc_lock_value;
 	u_int32_t xid;
@@ -520,7 +520,6 @@ get_reply:
 				goto call_again_same_xid;
 		}
 	}
-	inlen = (socklen_t)recvlen;
 
 	/*
 	 * now decode and validate the response

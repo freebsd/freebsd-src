@@ -633,7 +633,7 @@ mutex_unlock_common(struct pthread_mutex *m, int cv, int *mtx_defer)
 {
 	struct pthread *curthread = _get_curthread();
 	uint32_t id;
-	int defered;
+	int defered, error;
 
 	if (__predict_false(m <= THR_MUTEX_DESTROYED)) {
 		if (m == THR_MUTEX_DESTROYED)
@@ -647,6 +647,7 @@ mutex_unlock_common(struct pthread_mutex *m, int cv, int *mtx_defer)
 	if (__predict_false(m->m_owner != curthread))
 		return (EPERM);
 
+	error = 0;
 	id = TID(curthread);
 	if (__predict_false(
 		PMUTEX_TYPE(m->m_flags) == PTHREAD_MUTEX_RECURSIVE &&
@@ -660,7 +661,7 @@ mutex_unlock_common(struct pthread_mutex *m, int cv, int *mtx_defer)
 			defered = 0;
 
 		DEQUEUE_MUTEX(curthread, m);
-		_thr_umutex_unlock2(&m->m_lock, id, mtx_defer);
+		error = _thr_umutex_unlock2(&m->m_lock, id, mtx_defer);
 
 		if (mtx_defer == NULL && defered)  {
 			_thr_wake_all(curthread->defer_waiters,
@@ -670,7 +671,7 @@ mutex_unlock_common(struct pthread_mutex *m, int cv, int *mtx_defer)
 	}
 	if (!cv && m->m_flags & PMUTEX_FLAG_PRIVATE)
 		THR_CRITICAL_LEAVE(curthread);
-	return (0);
+	return (error);
 }
 
 int

@@ -358,16 +358,15 @@ WMAKEENV+=	CC="${XCC} ${XCFLAGS}" CXX="${XCXX} ${XCFLAGS} ${XCXXFLAGS}" \
 		SIZE="${XSIZE}"
 
 .if ${XCC:M/*}
-XFLAGS=		--sysroot=${WORLDTMP}
 .if defined(CROSS_BINUTILS_PREFIX)
 # In the case of xdev-build tools, CROSS_BINUTILS_PREFIX won't be a
 # directory, but the compiler will look in the right place for it's
 # tools so we don't need to tell it where to look.
 .if exists(${CROSS_BINUTILS_PREFIX})
-XFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
+BFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
 .endif
 .else
-XFLAGS+=	-B${WORLDTMP}/usr/bin
+BFLAGS+=	-B${WORLDTMP}/usr/bin
 .endif
 .if ${TARGET} == "arm"
 .if ${TARGET_ARCH:M*hf*} != ""
@@ -384,8 +383,16 @@ DEPFLAGS+=	-I${WORLDTMP}/usr/include/c++/v1
 TARGET_ABI?=	unknown
 TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd11.0
 XCFLAGS+=	-target ${TARGET_TRIPLE}
+XCFLAGS+=	--sysroot=${WORLDTMP} ${BFLAGS}
+XCXXFLAGS+=	--sysroot=${WORLDTMP} ${BFLAGS}
 .endif
+.else
+.if defined(CROSS_BINUTILS_PREFIX) && exists(${CROSS_BINUTILS_PREFIX})
+BFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
+XCFLAGS+=	${BFLAGS}
+XCXXFLAGS+=	${BFLAGS}
 .endif
+.endif # ${XCC:M/*}
 
 WMAKE=		${WMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 DESTDIR=${WORLDTMP}
 
@@ -930,25 +937,25 @@ packageworld:
 .for dist in base ${EXTRA_DISTRIBUTIONS}
 .if defined(NO_ROOT)
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.txz \
-	    --exclude usr/lib/debug \
-	    @${DESTDIR}/${DISTDIR}/${dist}.meta
+	    tar cvf - --exclude usr/lib/debug \
+	    @${DESTDIR}/${DISTDIR}/${dist}.meta | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/${dist}.txz
 .else
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.txz \
-	    --exclude usr/lib/debug .
+	    tar cvf - --exclude usr/lib/debug . | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/${dist}.txz
 .endif
 .endfor
 
 .for dist in ${DEBUG_DISTRIBUTIONS}
 . if defined(NO_ROOT)
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}-dbg.txz \
-	    @${DESTDIR}/${DISTDIR}/${dist}.debug.meta
+	    tar cvf - @${DESTDIR}/${DISTDIR}/${dist}.debug.meta | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/${dist}-dbg.txz
 . else
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvJfL ${DESTDIR}/${DISTDIR}/${dist}-dbg.txz \
-	    usr/lib/debug
+	    tar cvLf - usr/lib/debug | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/${dist}-dbg.txz
 . endif
 .endfor
 
@@ -1170,19 +1177,21 @@ distributekernel distributekernel.debug:
 packagekernel:
 .if defined(NO_ROOT)
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.txz \
-	    @${DESTDIR}/${DISTDIR}/kernel.meta
+	    tar cvf - @${DESTDIR}/${DISTDIR}/kernel.meta | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.txz
 .for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz \
-	    @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
+	    tar cvf - @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz
 .endfor
 .else
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.txz .
+	    tar cvf - . | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.txz
 .for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz .
+	    tar cvf - . | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz
 .endfor
 .endif
 
@@ -1303,6 +1312,8 @@ legacy:
 #
 # bootstrap-tools: Build tools needed for compatibility
 #
+_bt=		_bootstrap-tools	
+
 .if ${MK_GAMES} != "no"
 _strfile=	games/fortune/strfile
 .endif
@@ -1326,11 +1337,8 @@ _sed=		usr.bin/sed
 .if ${BOOTSTRAPPING} < 1000002
 _m4=		lib/libohash \
 		usr.bin/m4
-.endif
 
-.if ${BOOTSTRAPPING} < 1000013
-_yacc=		lib/liby \
-		usr.bin/yacc
+${_bt}-usr.bin/m4: ${_bt}-lib/libohash
 .endif
 
 .if ${BOOTSTRAPPING} < 1000014
@@ -1340,6 +1348,8 @@ _crunch=	usr.sbin/crunch
 .if ${BOOTSTRAPPING} < 1000026
 _nmtree=	lib/libnetbsd \
 		usr.sbin/nmtree
+
+${_bt}-usr.sbin/nmtree: ${_bt}-lib/libnetbsd
 .endif
 
 .if ${BOOTSTRAPPING} < 1000027
@@ -1354,6 +1364,13 @@ _lex=		usr.bin/lex
 _awk=		usr.bin/awk
 .endif
 
+.if ${BOOTSTRAPPING} < 1001506
+_yacc=		lib/liby \
+		usr.bin/yacc
+
+${_bt}-usr.bin/yacc: ${_bt}-lib/liby
+.endif
+
 .if ${MK_BSNMP} != "no"
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .endif
@@ -1366,6 +1383,9 @@ _clang_tblgen= \
 	lib/clang/libllvmtablegen \
 	usr.bin/clang/tblgen \
 	usr.bin/clang/clang-tblgen
+
+${_bt}-usr.bin/clang/clang-tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/libllvmsupport
+${_bt}-usr.bin/clang/tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/libllvmsupport
 .endif
 
 # ELF Tool Chain libraries are needed for ELF tools and dtrace tools.
@@ -1377,6 +1397,9 @@ _elftoolchain_libs= lib/libelf lib/libdwarf
 .if ${MK_CDDL} != "no"
 _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf cddl/usr.bin/ctfconvert \
     cddl/usr.bin/ctfmerge
+
+${_bt}-cddl/usr.bin/ctfconvert: ${_bt}-lib/libelf ${_bt}-lib/libdwarf ${_bt}-cddl/lib/libctf
+${_bt}-cddl/usr.bin/ctfmerge: ${_bt}-lib/libelf ${_bt}-lib/libdwarf ${_bt}-cddl/lib/libctf
 .endif
 .endif
 
@@ -1395,12 +1418,16 @@ _kerberos5_bootstrap_tools= \
 	kerberos5/tools/asn1_compile \
 	kerberos5/tools/slc \
 	usr.bin/compile_et
+
+${_bt}-kerberos5/tools/slc: ${_bt}-kerberos5/lib/libroken
+${_bt}-kerberos5/tools/asn1_compile: ${_bt}-kerberos5/lib/libroken
 .endif
+
+bootstrap-tools: .PHONY
 
 #	Please document (add comment) why something is in 'bootstrap-tools'.
 #	Try to bound the building of the bootstrap-tool to just the
 #	FreeBSD versions that need the tool built at this stage of the build.
-bootstrap-tools: .MAKE
 .for _tool in \
     ${_clang_tblgen} \
     ${_kerberos5_bootstrap_tools} \
@@ -1426,12 +1453,15 @@ bootstrap-tools: .MAKE
     ${_crunch} \
     ${_nmtree} \
     ${_vtfontcvt}
+${_bt}-${_tool}: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool} && \
 		${MAKE} DIRPRFX=${_tool}/ obj && \
 		${MAKE} DIRPRFX=${_tool}/ depend && \
 		${MAKE} DIRPRFX=${_tool}/ all && \
 		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy install
+
+bootstrap-tools: ${_bt}-${_tool}
 .endfor
 
 #

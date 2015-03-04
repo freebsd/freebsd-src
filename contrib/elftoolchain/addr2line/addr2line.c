@@ -40,7 +40,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: addr2line.c 2185 2011-11-19 16:07:16Z jkoshy $");
+ELFTC_VCSID("$Id: addr2line.c 3148 2015-02-15 18:47:39Z emaste $");
 
 static struct option longopts[] = {
 	{"target" , required_argument, NULL, 'b'},

@@ -8,14 +8,15 @@ atf_test_case usernext
 usernext_body() {
 	populate_etc_skel
 
-	var0=1
-	LIMIT=`jot -r 1 2 10`
-	while [ "$var0" -lt "$LIMIT" ]
+	CURRENT=`${PW} usernext | sed -e 's/:.*//'`
+	RANDOM=`jot -r 1 1 150`
+	MAX=`expr ${CURRENT} + ${RANDOM}`
+	while [ "${CURRENT}" -lt "${MAX}" ]
 	do
-		atf_check -s exit:0 ${PW} useradd test$var0
-		var0=`expr $var0 + 1`
+		atf_check -s exit:0 ${PW} useradd test${CURRENT}
+		CURRENT=`expr ${CURRENT} + 1`
 	done
-	atf_check -s exit:0 -o match:"100${LIMIT}:100${LIMIT}" \
+	atf_check -s exit:0 -o match:"${CURRENT}:${CURRENT}" \
 		${PW} usernext
 }
 
@@ -25,14 +26,16 @@ atf_test_case usernext_assigned_group
 usernext_assigned_group_body() {
 	populate_etc_skel
 
-	var0=1
-	LIMIT=`jot -r 1 2 10`
-	while [ "$var0" -lt "$LIMIT" ]
+	CURRENT=`${PW} usernext | sed -e 's/:.*//'`
+	CURRENTGID=`${PW} groupnext`
+	RANDOM=`jot -r 1 1 150`
+	MAX=`expr ${CURRENT} + ${RANDOM}`
+	while [ "${CURRENT}" -lt "${MAX}" ]
 	do
-		atf_check -s exit:0 ${PW} useradd -n test$var0 -g 0
-		var0=`expr $var0 + 1`
+		atf_check -s exit:0 ${PW} useradd -n test${CURRENT} -g 0
+		CURRENT=`expr ${CURRENT} + 1`
 	done
-	atf_check -s exit:0 -o match:"100${LIMIT}:1001}" \
+	atf_check -s exit:0 -o match:"${CURRENT}:${CURRENTGID}" \
 		${PW} usernext
 }
 

@@ -11,13 +11,10 @@ mips/nlm/bus_space_rmi_pci.c			standard
 mips/nlm/mpreset.S				standard
 mips/nlm/board_eeprom.c				standard
 mips/nlm/board_cpld.c				standard
+mips/nlm/xlp_simplebus.c			optional fdt
 mips/nlm/xlp_pci.c				optional pci
 mips/nlm/uart_cpu_xlp.c				optional uart
 mips/nlm/usb_init.c				optional usb
-#
-# Simple SoC devices
-mips/nlm/dev/uart_pci_xlp.c			optional uart
-mips/nlm/dev/cfi_pci_xlp.c			optional cfi
 #
 # Network driver and micro-core code
 mips/nlm/dev/net/nae.c				optional xlpge
