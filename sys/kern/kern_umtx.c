@@ -2106,6 +2106,17 @@ do_lock_pi(struct thread *td, struct umutex *m, uint32_t flags,
 				error = umtx_pi_claim(pi, td);
 				umtxq_unbusy(&uq->uq_key);
 				umtxq_unlock(&uq->uq_key);
+				if (error != 0) {
+					/*
+					 * Since we're going to return an
+					 * error, restore the m_owner to its
+					 * previous, unowned state to avoid
+					 * compounding the problem.
+					 */
+					(void)casuword32(&m->m_owner,
+					    id | UMUTEX_CONTESTED,
+					    UMUTEX_CONTESTED);
+				}
 				break;
 			}
 
