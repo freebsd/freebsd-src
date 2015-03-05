@@ -84,13 +84,6 @@ struct sandbox_required_methods {
 	struct sandbox_required_method	*srms_methods;	/* Array of methods */
 };
 
-/* Flags to loadelf64(). */
-#define	SANDBOX_LOADELF_DATA	0x00000001
-#define	SANDBOX_LOADELF_CODE	0x00000002
-
-ssize_t	sandbox_loadelf64(int fd, void *location, size_t maxsize,
-	    u_int flags);
-
 int	sandbox_parse_ccall_methods(int fd,
 	    struct sandbox_provided_methods **provided_methodsp,
 	    struct sandbox_required_methods **required_methodsp);
