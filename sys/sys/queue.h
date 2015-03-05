@@ -608,7 +608,7 @@ struct {								\
 	TAILQ_NEXT((listelm), field) = (elm);				\
 	(elm)->field.tqe_prev = &TAILQ_NEXT((listelm), field);		\
 	QMD_TRACE_ELEM(&(elm)->field);					\
-	QMD_TRACE_ELEM(&listelm->field);				\
+	QMD_TRACE_ELEM(&(listelm)->field);				\
 } while (0)
 
 #define	TAILQ_INSERT_BEFORE(listelm, elm, field) do {			\
@@ -618,7 +618,7 @@ struct {								\
 	*(listelm)->field.tqe_prev = (elm);				\
 	(listelm)->field.tqe_prev = &TAILQ_NEXT((elm), field);		\
 	QMD_TRACE_ELEM(&(elm)->field);					\
-	QMD_TRACE_ELEM(&listelm->field);				\
+	QMD_TRACE_ELEM(&(listelm)->field);				\
 } while (0)
 
 #define	TAILQ_INSERT_HEAD(head, elm, field) do {			\
