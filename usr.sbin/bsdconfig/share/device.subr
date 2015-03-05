@@ -1118,6 +1118,7 @@ f_device_sort_by_awk='
 # 	-v prop="property"
 function asorti(src, dest)
 {
+	k = nitems = 0
 	for (i in src) dest[++nitems] = i
 	for (i = 1; i <= nitems; k = i++) {
 		idx = dest[i]
