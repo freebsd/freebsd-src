@@ -204,6 +204,8 @@ sandbox_parse_ccall_methods(int fd,
 		goto bad;
 	}
 
+	npmethods = nrmethods = 0;
+
 	/* No symbols provided or required */
 	if (cheri_callee_idx == 0 && cheri_caller_idx == 0)
 		goto good;
@@ -212,7 +214,6 @@ sandbox_parse_ccall_methods(int fd,
 	 * Scan the symbol table for ccall methods we provide and methods
 	 * we require;
 	 */
-	npmethods = nrmethods = 0;
 	maxpmethods = maxrmethods = 16;
 	if ((pmethods = calloc(maxpmethods, sizeof(*pmethods))) == NULL) {
 		warn("%s: calloc pmethods", __func__);
@@ -392,6 +393,7 @@ sandbox_parse_ccall_methods(int fd,
 		}
 	}
 
+good:
 	if ((provided_methods = calloc(1, sizeof(*provided_methods))) == NULL) {
 		warn("%s: calloc provided_methods", __func__);
 		goto bad;
@@ -420,7 +422,6 @@ sandbox_parse_ccall_methods(int fd,
 	}
 	*required_methodsp = required_methods;
 
-good:
 	free(shstrtab);
 	free(symtab);
 	free(strtab);
