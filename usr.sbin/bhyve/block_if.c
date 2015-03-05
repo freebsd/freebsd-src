@@ -83,6 +83,8 @@ struct blockif_ctxt {
 	int			bc_rdonly;
 	off_t			bc_size;
 	int			bc_sectsz;
+	int			bc_psectsz;
+	int			bc_psectoff;
 	pthread_t		bc_btid;
         pthread_mutex_t		bc_mtx;
         pthread_cond_t		bc_cond;
@@ -268,7 +270,7 @@ blockif_open(const char *optstr, const char *ident)
 	char *nopt, *xopts;
 	struct blockif_ctxt *bc;
 	struct stat sbuf;
-	off_t size;
+	off_t size, psectsz, psectoff;
 	int extra, fd, i, sectsz;
 	int nocache, sync, ro;
 
@@ -323,6 +325,7 @@ blockif_open(const char *optstr, const char *ident)
 	 */
         size = sbuf.st_size;
 	sectsz = DEV_BSIZE;
+	psectsz = psectoff = 0;
 	if (S_ISCHR(sbuf.st_mode)) {
 		if (ioctl(fd, DIOCGMEDIASIZE, &size) < 0 ||
 		    ioctl(fd, DIOCGSECTORSIZE, &sectsz)) {
@@ -332,7 +335,10 @@ blockif_open(const char *optstr, const char *ident)
 		}
 		assert(size != 0);
 		assert(sectsz != 0);
-	}
+		if (ioctl(fd, DIOCGSTRIPESIZE, &psectsz) == 0 && psectsz > 0)
+			ioctl(fd, DIOCGSTRIPEOFFSET, &psectoff);
+	} else
+		psectsz = sbuf.st_blksize;
 
 	bc = calloc(1, sizeof(struct blockif_ctxt));
 	if (bc == NULL) {
@@ -345,6 +351,8 @@ blockif_open(const char *optstr, const char *ident)
 	bc->bc_rdonly = ro;
 	bc->bc_size = size;
 	bc->bc_sectsz = sectsz;
+	bc->bc_psectsz = psectsz;
+	bc->bc_psectoff = psectoff;
 	pthread_mutex_init(&bc->bc_mtx, NULL);
 	pthread_cond_init(&bc->bc_cond, NULL);
 	TAILQ_INIT(&bc->bc_freeq);
@@ -593,6 +601,15 @@ blockif_sectsz(struct blockif_ctxt *bc)
 
 	assert(bc->bc_magic == BLOCKIF_SIG);
 	return (bc->bc_sectsz);
+}
+
+void
+blockif_psectsz(struct blockif_ctxt *bc, int *size, int *off)
+{
+
+	assert(bc->bc_magic == BLOCKIF_SIG);
+	*size = bc->bc_psectsz;
+	*off = bc->bc_psectoff;
 }
 
 int
