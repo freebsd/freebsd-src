@@ -54,7 +54,7 @@ sandbox_parse_ccall_methods(int fd,
     struct sandbox_provided_methods **provided_methodsp,
     struct sandbox_required_methods **required_methodsp)
 {
-	int i, j, nsyms;
+	size_t i, j, nsyms;
 	int cheri_caller_idx, cheri_callee_idx;
 	size_t maxpmethods, npmethods;
 	struct sandbox_provided_method *pmethods = NULL;
@@ -99,8 +99,8 @@ sandbox_parse_ccall_methods(int fd,
 		warn("%s: malloc for string section header", __func__);
 		return (-1);
 	}
-	if (pread(fd, shstrtab, shstrtabhdr.sh_size, shstrtabhdr.sh_offset)
-	    != shstrtabhdr.sh_size) {
+	if (pread(fd, shstrtab, shstrtabhdr.sh_size, shstrtabhdr.sh_offset) !=
+	    (ssize_t)shstrtabhdr.sh_size) {
 		warn("%s: reading string section", __func__);
 		return (-1);
 	}
@@ -109,29 +109,33 @@ sandbox_parse_ccall_methods(int fd,
 	for (i = 1; i < ehdr.e_shnum; i++) {	/* Skip hdr 0 */
 		if ((rlen = pread(fd, &shdr, sizeof(shdr), ehdr.e_shoff +
 		    ehdr.e_shentsize * i)) != sizeof(shdr)) {
-			warn("%s: reading %d section header", __func__, i+1);
+			warn("%s: reading %zu section header", __func__, i+1);
 			return (-1);
 		}
 		sname = shstrtab + shdr.sh_name;
-#ifdef DEBUG
-		printf("shdr[%d] name     %s\n", i, sname);
-		printf("shdr[%d] type     %jx\n", i, (intmax_t)shdr.sh_type);
+#if defined(DEBUG) && DEBUG > 1
+		printf("shdr[%zu] name     %s\n", i, sname);
+		printf("shdr[%zu] type     %jx\n", i, (intmax_t)shdr.sh_type);
 		if (shdr.sh_flags != 0)
-			printf("shdr[%d] flags    %jx\n", i,
+			printf("shdr[%zu] flags    %jx\n", i,
 			    (intmax_t)shdr.sh_flags);
 		if (shdr.sh_addr != 0)
-			printf("shdr[%d] addr     %jx\n", i,
+			printf("shdr[%zu] addr     %jx\n", i,
 			    (intmax_t)shdr.sh_addr);
-		printf("shdr[%d] offset   %jx\n", i, (intmax_t)shdr.sh_offset);
-		printf("shdr[%d] size     %jx\n", i, (intmax_t)shdr.sh_size);
+		printf("shdr[%zu] offset   %jx\n", i,
+		    (intmax_t)shdr.sh_offset);
+		printf("shdr[%zu] size     %jx\n", i,
+		    (intmax_t)shdr.sh_size);
 		if (shdr.sh_link != 0)
-			printf("shdr[%d] link     %jx\n", i,
+			printf("shdr[%zu] link     %jx\n", i,
 			    (intmax_t)shdr.sh_link);
 		if (shdr.sh_info != 0)
-			printf("shdr[%d] info     %jx\n", i,
+			printf("shdr[%zu] info     %jx\n", i,
 			    (intmax_t)shdr.sh_info);
-		printf("shdr[%d] align    %jx\n", i, (intmax_t)shdr.sh_addralign);
-		printf("shdr[%d] entsize  %jx\n", i, (intmax_t)shdr.sh_entsize);
+		printf("shdr[%zu] align    %jx\n", i,
+		    (intmax_t)shdr.sh_addralign);
+		printf("shdr[%zu] entsize  %jx\n", i,
+		    (intmax_t)shdr.sh_entsize);
 #endif
 
 		if (shdr.sh_type == SHT_SYMTAB &&
@@ -151,7 +155,7 @@ sandbox_parse_ccall_methods(int fd,
 				goto bad;
 			}
 			if (pread(fd, symtab, shdr.sh_size, shdr.sh_offset) !=
-			    shdr.sh_size) {
+			    (ssize_t)shdr.sh_size) {
 				warn("%s: pread symtab", __func__);
 				goto bad;
 			}
@@ -170,7 +174,7 @@ sandbox_parse_ccall_methods(int fd,
 				goto bad;
 			}
 			if (pread(fd, strtab, shdr.sh_size, shdr.sh_offset) !=
-			    shdr.sh_size) {
+			    (ssize_t)shdr.sh_size) {
 				warn("%s: pread strtab", __func__);
 				goto bad;
 			}
