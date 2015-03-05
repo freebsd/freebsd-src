@@ -33,6 +33,7 @@ LIBCALENDAR?=	${DESTDIR}${LIBDIR}/libcalendar.a
 LIBCAM?=	${DESTDIR}${LIBDIR}/libcam.a
 LIBCAPSICUM?=	${DESTDIR}${LIBDIR}/libcapsicum.a
 LIBCASPER?=	${DESTDIR}${LIBDIR}/libcasper.a
+LIBCHERI?=	${DESTDIR}${LIBDIR}/libcheri.a
 LIBCOM_ERR?=	${DESTDIR}${LIBDIR}/libcom_err.a
 LIBCOMPAT?=	${DESTDIR}${LIBDIR}/libcompat.a
 LIBCOMPILER_RT?=${DESTDIR}${LIBDIR}/libcompiler_rt.a
