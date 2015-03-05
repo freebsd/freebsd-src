@@ -105,6 +105,13 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	if (name[0] == '_' && name[1] == '_')
 		return (0);
 
+	/*
+	 * Architecture-specific exclusion list, largely to do with FBT trap
+	 * processing, to prevent reentrance.
+	 */
+	if (strcmp(name, "undefinedinstruction") == 0)
+		return (0);
+
 	instr = (uint32_t *)symval->value;
 	limit = (uint32_t *)(symval->value + symval->size);
 
