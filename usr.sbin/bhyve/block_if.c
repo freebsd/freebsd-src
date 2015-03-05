@@ -80,6 +80,7 @@ struct blockif_elem {
 struct blockif_ctxt {
 	int			bc_magic;
 	int			bc_fd;
+	int			bc_ischr;
 	int			bc_rdonly;
 	off_t			bc_size;
 	int			bc_sectsz;
@@ -190,6 +191,11 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be)
 			err = errno;
 		break;
 	case BOP_FLUSH:
+		if (bc->bc_ischr) {
+			if (ioctl(bc->bc_fd, DIOCGFLUSH))
+				err = errno;
+		} else if (fsync(bc->bc_fd))
+			err = errno;
 		break;
 	default:
 		err = EINVAL;
@@ -348,6 +354,7 @@ blockif_open(const char *optstr, const char *ident)
 
 	bc->bc_magic = BLOCKIF_SIG;
 	bc->bc_fd = fd;
+	bc->bc_ischr = S_ISCHR(sbuf.st_mode);
 	bc->bc_rdonly = ro;
 	bc->bc_size = size;
 	bc->bc_sectsz = sectsz;

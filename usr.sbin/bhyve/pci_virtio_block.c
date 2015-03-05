@@ -128,6 +128,7 @@ struct pci_vtblk_softc {
 	pthread_mutex_t vsc_mtx;
 	struct vqueue_info vbsc_vq;
 	int		vbsc_fd;
+	int		vbsc_ischr;
 	struct vtblk_config vbsc_cfg;	
 	char vbsc_ident[VTBLK_BLK_ID_BYTES];
 };
@@ -218,10 +219,12 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vqueue_info *vq)
 
 	switch (type) {
 	case VBH_OP_WRITE:
-		err = pwritev(sc->vbsc_fd, iov + 1, i - 1, offset);
+		if (pwritev(sc->vbsc_fd, iov + 1, i - 1, offset) < 0)
+			err = errno;
 		break;
 	case VBH_OP_READ:
-		err = preadv(sc->vbsc_fd, iov + 1, i - 1, offset);
+		if (preadv(sc->vbsc_fd, iov + 1, i - 1, offset) < 0)
+			err = errno;
 		break;
 	case VBH_OP_IDENT:
 		/* Assume a single buffer */
@@ -231,7 +234,11 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vqueue_info *vq)
 		break;
 	case VBH_OP_FLUSH:
 	case VBH_OP_FLUSH_OUT:
-		err = fsync(sc->vbsc_fd);
+		if (sc->vbsc_ischr) {
+			if (ioctl(sc->vbsc_fd, DIOCGFLUSH))
+				err = errno;
+		} else if (fsync(sc->vbsc_fd))
+			err = errno;
 		break;
 	default:
 		err = -ENOSYS;
@@ -320,6 +327,7 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 
 	/* record fd of storage device/file */
 	sc->vbsc_fd = fd;
+	sc->vbsc_ischr = S_ISCHR(sbuf.st_mode);
 
 	pthread_mutex_init(&sc->vsc_mtx, NULL);
 
