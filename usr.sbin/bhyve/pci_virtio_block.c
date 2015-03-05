@@ -217,6 +217,7 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vqueue_info *vq)
 	DPRINTF(("virtio-block: %s op, %d bytes, %d segs, offset %ld\n\r", 
 		 writeop ? "write" : "read/ident", iolen, i - 1, offset));
 
+	err = 0;
 	switch (type) {
 	case VBH_OP_WRITE:
 		if (pwritev(sc->vbsc_fd, iov + 1, i - 1, offset) < 0)
