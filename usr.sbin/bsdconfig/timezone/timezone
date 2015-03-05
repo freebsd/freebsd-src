@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2011-2013 Devin Teske
+# Copyright (c) 2011-2015 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -277,8 +277,8 @@ f_make_menus         # creates $continent_menu_list and $continent_*_menu_list
 #
 # Launch application main menu
 #
-defaultctry=""
-defaultzone=""
+defaultctry=
+defaultzone=
 NEED_CONTINENT=1
 NEED_COUNTRY=1
 while :; do
@@ -296,10 +296,10 @@ while :; do
 
 		continent=$( eval f_dialog_menutag2item \"\$mtag\" \
 		                  	$continent_menu_list )
-		cont=$( f_find_continent "$continent" )
-		cont_title=$( f_continent $cont title )
-		nitems=$( f_continent $cont nitems )
-		isocean=$( f_OCEANP $cont )
+		f_find_continent "$continent" cont
+		f_continent $cont title cont_title
+		f_continent $cont nitems nitems
+		f_OCEANP $cont isocean
 	fi
 
 	if [ "$NEED_COUNTRY" ]; then
@@ -342,7 +342,7 @@ while :; do
 			#
 			# Calculate size of menu
 			#
-			menu_list=$( f_continent $cont menu_list )
+			f_continent $cont menu_list menu_list
 			eval f_dialog_menu_size height width rows \
 			                        \"\$title\"  \
 			                        \"\$btitle\" \
@@ -375,7 +375,7 @@ while :; do
 		fi
 
 		# Get the country code from the user's selection 
-		tlc=$( f_continent $cont tlc_$tag )
+		f_continent $cont tlc_$tag tlc
 
 		NEED_COUNTRY=
 	fi
@@ -384,12 +384,12 @@ while :; do
 	# If the selection has only one zone (nzones == -1),
 	# just set it.
 	#
-	nzones=$( f_country $tlc nzones )
+	f_country $tlc nzones nzones
 	if [ $nzones -lt 0 ]; then
-		real_cont=$( f_country $tlc cont )
-		real_continent=$( f_continent $real_cont name )
-		name=$( f_country $tlc name )
-		filename=$( f_country $tlc filename )
+		f_country $tlc cont real_cont
+		f_continent $real_cont name real_continent
+		f_country $tlc name name
+		f_country $tlc filename filename
 
 		if ! f_confirm_zone "$real_continent/$filename"; then
 			[ $nitems -eq 1 ] && NEED_CONTINENT=1
@@ -397,13 +397,13 @@ while :; do
 			continue
 		fi
 	else
-		f_sprintf title "$msg_country_time_zones" \
-		                "$( f_country $tlc name )"
+		f_country $tlc name name
+		f_sprintf title "$msg_country_time_zones" "$name"
 		f_dialog_title "$title"
 		title="$DIALOG_TITLE" btitle="$DIALOG_BACKTITLE"
 		f_dialog_title_restore
 		prompt="$msg_select_zone"
-		menu_list=$( f_country $tlc menu_list )
+		f_country $tlc menu_list menu_list
 		eval f_dialog_menu_size height width rows \
 			\"\$title\"  \"\$btitle\" \"\$prompt\" \"\" $menu_list
 
@@ -432,10 +432,10 @@ while :; do
 			continue
 		fi
 
-		real_cont=$( f_country $tlc cont_$n )
-		real_continent=$( f_continent $real_cont name )
-		name=$( f_country $tlc name )
-		filename=$( f_country $tlc filename_$n )
+		f_country $tlc cont_$n real_cont
+		f_continent $real_cont name real_continent
+		f_country $tlc name name
+		f_country $tlc filename_$n filename
 
 		f_confirm_zone "$real_continent/$filename" || continue
 	fi
