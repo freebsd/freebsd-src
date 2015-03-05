@@ -4,6 +4,8 @@
 
 NO_OBJ=
 
+FILESGROUPS=	FILES
+
 FILES=	README \
 	cron \
 	ftpd \
@@ -17,7 +19,11 @@ FILES=	README \
 	xdm
 
 .if ${MK_AT} != "no"
-FILES+=	atrun
+FILESGROUPS=	AT
+AT+=	atrun
+ATPACKAGE+=	at
+ATDIR=	/etc/pam.d
+ATMODE=	644
 .endif
 
 FILESDIR=	/etc/pam.d

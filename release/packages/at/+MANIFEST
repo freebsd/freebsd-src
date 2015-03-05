@@ -1,0 +1,13 @@
+name = "FreeBSD-at"
+origin = "base"
+version = "%VERSION%"
+comment = "at(1) and related utilities"
+categories = [ base ]
+maintainer = "re@FreeBSD.org"
+www = "http://www.FreeBSD.org"
+prefix = "/"
+licenselogic = "single"
+licenses = [ BSD2CLAUSE ]
+desc = <<EOD
+TODO
+EOD
