@@ -9,9 +9,9 @@
     ..
     at
 /set uname=daemon
-        jobs
+        jobs            tags=package=at
         ..
-        spool
+        spool           tags=package=at
         ..
 /set uname=root
     ..
