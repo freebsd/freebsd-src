@@ -1116,7 +1116,7 @@ f_device_shutdown()
 f_device_sort_by_awk='
 # Variables that should be defined on the invocation line:
 # 	-v prop="property"
-function asorti(src, dest)
+function _asorti(src, dest)
 {
 	k = nitems = 0
 	for (i in src) dest[++nitems] = i
@@ -1137,7 +1137,7 @@ function asorti(src, dest)
 	}
 }
 END {
-	nitems = asorti(devices, devices_sorted)
+	nitems = _asorti(devices, devices_sorted)
 	for (i = 1; i <= nitems; i++) print devices[devices_sorted[i]]
 }
 '
