@@ -1,0 +1,13 @@
+name = "FreeBSD-syscons"
+origin = "base"
+version = "%VERSION%"
+comment = "syscons(4) support files"
+categories = [ base ]
+maintainer = "re@FreeBSD.org"
+www = "http://www.FreeBSD.org"
+prefix = "/"
+licenselogic = "single"
+licenses = [ BSD2CLAUSE ]
+desc = <<EOD
+syscons(4) support files such as keyboard maps, fonts and screen output maps.
+EOD
