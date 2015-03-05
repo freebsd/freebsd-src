@@ -1,0 +1,13 @@
+name = "FreeBSD-svn"
+origin = "base"
+version = "%VERSION%"
+comment = "Version control system"
+categories = [ base ]
+maintainer = "re@FreeBSD.org"
+www = "http://www.FreeBSD.org"
+prefix = "/"
+licenselogic = "single"
+licenses = [ APACHE20 ]
+desc = <<EOD
+Lite version of the Subversion version control system
+EOD
