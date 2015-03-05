@@ -550,7 +550,7 @@ gpart_autofill(struct gctl_req *req)
 
 		s = find_provcfg(pp, "end");
 		first = (off_t)strtoimax(s, NULL, 0) + 1;
-		if (first > a_first)
+		if (first + offset > a_first)
 			a_first = ALIGNUP(first + offset, alignment);
 	}
 	if (a_first <= last) {
