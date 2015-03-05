@@ -9,6 +9,7 @@ UNBOUNDDIR= ${.CURDIR}/../../contrib/unbound
 
 LIB=	unbound
 PRIVATELIB=
+PACKAGE=	unbound
 
 CFLAGS= -I${UNBOUNDDIR} -I${LDNSDIR} -I${.OBJDIR}
 
