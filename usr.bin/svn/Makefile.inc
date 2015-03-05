@@ -8,6 +8,8 @@ SVNLITE?=
 SVNLITE?=	lite
 .endif
 
+PACKAGE=	svn
+
 .if !defined(SVNDIR)
 
 SVNDIR=		${.CURDIR}/../../../contrib/subversion/subversion
