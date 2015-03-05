@@ -33,6 +33,9 @@
 #include <sys/mman.h>
 #include <sys/param.h>
 
+#include <machine/cheri.h>
+#include <machine/cheric.h>
+
 #include <assert.h>
 #include <elf.h>
 #include <err.h>
@@ -48,6 +51,8 @@
 
 #define	CHERI_CALLEE_SYM_PREFIX	"__cheri_callee_method."
 #define	CHERI_CALLER_SYM_PREFIX	"__cheri_method."
+
+extern int sb_verbose;
 
 int
 sandbox_parse_ccall_methods(int fd,
@@ -532,6 +537,8 @@ sandbox_free_provided_methods(struct sandbox_provided_methods *provided_methods)
 	size_t i, npmethods;
 	struct sandbox_provided_method *pmethods;
 
+	assert(provided_methods != NULL);
+
 	npmethods = provided_methods->spms_nmethods;
 	pmethods = provided_methods->spms_methods;
 	if (pmethods != NULL) {
@@ -541,6 +548,120 @@ sandbox_free_provided_methods(struct sandbox_provided_methods *provided_methods)
 	}
 	free(provided_methods->spms_class);
 	free(provided_methods);
+}
+
+void
+sandbox_warn_unresolved_methods(
+    struct sandbox_required_methods *required_methods)
+{
+	size_t i, nrmethods;
+	struct sandbox_required_method *rmethods;
+
+	assert(required_methods);
+
+	rmethods = required_methods->srms_methods;
+	nrmethods = required_methods->srms_nmethods;
+	for (i = 0; i < nrmethods; i++) {
+		if (rmethods[i].srm_resolved)
+			continue;
+		warnx("%s: Unresolved method: %s->%s", __func__,
+		    rmethods[i].srm_class, rmethods[i].srm_method);
+	}
+}
+
+int
+sandbox_create_method_vtable(__capability void * codecap,
+    struct sandbox_provided_methods *provided_methods,
+    void __capability * __capability * __capability *vtablep)
+{
+	size_t i;
+	struct sandbox_provided_method *pmethods;
+	void __capability * __capability *vtable;
+
+	assert(provided_methods != NULL);
+	pmethods = provided_methods->spms_methods;
+
+	/* Ensure the capability is capability aligned. */
+	assert(!(cheri_getbase(codecap) & (sizeof(codecap) - 1)));
+
+	if (provided_methods->spms_nmethods == 0) {
+		/* XXXBD: should be an error when all methods are converted. */
+		*vtablep = NULL;
+		return (0);
+	}
+
+	if ((vtable = (__capability void *)calloc(provided_methods->spms_nmethods,
+	    sizeof(*vtable))) == NULL) {
+		warn("%s: calloc", __func__);
+		return (-1);
+	}
+	for (i = 0; i < provided_methods->spms_nmethods; i++) {
+		/* Zero offsets can't be sane. */
+		assert(pmethods[i].spm_offset != 0);
+		vtable[i] = cheri_setoffset(codecap, pmethods[i].spm_offset);
+	}
+	/* XXXBD: should CHERI_PERM_LOAD be needed? */
+	*vtablep = cheri_andperm(vtable, CHERI_PERM_GLOBAL |
+	    CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP);
+	return (0);
+}
+
+int
+sandbox_set_required_method_variables(__capability void *datacap,
+    struct sandbox_required_methods *required_methods)
+{
+	size_t i;
+	__capability intptr_t *method_var_p;
+	struct sandbox_required_method *rmethods;
+
+	assert(required_methods != NULL);
+	rmethods = required_methods->srms_methods;
+
+	/* Ensure the capability is capability aligned. */
+	assert(!(cheri_getbase(datacap) & (sizeof(datacap) - 1)));
+
+	if (required_methods->srms_unresolved_methods > 0) {
+		warn("%s: %zu unresolved methods", __func__,
+		    required_methods->srms_unresolved_methods);
+		if (sb_verbose)
+			sandbox_warn_unresolved_methods(required_methods);
+		return (-1);
+	}
+
+	for (i = 0; i < required_methods->srms_nmethods; i++) {
+		/* Zero offsets can't be sane. */
+		assert(rmethods[i].srm_index_offset != 0);
+
+		method_var_p = cheri_setoffset(datacap,
+		    rmethods[i].srm_index_offset);
+		*method_var_p = rmethods[i].srm_method_number;
+	}
+	return(0);
+}
+
+int
+sandbox_set_provided_method_variables(__capability void *datacap,
+    struct sandbox_provided_methods *provided_methods)
+{
+	size_t i;
+	__capability intptr_t *method_var_p;
+	struct sandbox_provided_method *pmethods;
+
+	assert(provided_methods != NULL);
+	pmethods = provided_methods->spms_methods;
+
+	/* Ensure the capability is capability aligned. */
+	assert(!(cheri_getbase(datacap) & (sizeof(datacap) - 1)));
+
+	for (i = 0; i < provided_methods->spms_nmethods; i++) {
+		/* Zero offsets can't be sane. */
+		assert(pmethods[i].spm_index_offset != 0);
+
+		method_var_p = cheri_setoffset(datacap,
+		    pmethods[i].spm_index_offset);
+		*method_var_p = i;
+	}
+	return(0);
 }
 
 #ifdef TEST_METHODS

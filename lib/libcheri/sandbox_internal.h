@@ -63,9 +63,16 @@ struct sandbox_class {
 	__capability void	*sbc_typecap;		/* Class type */
 	__capability void	*sbc_classcap_rtld;	/* Ctor/dtor */
 	__capability void	*sbc_classcap_invoke;	/* Object invoke */
+	void __capability * __capability *sbc_vtable;	/* Method vtable */
 
 	/*
-	 * Class and method statistics.
+	 * Class CCall methods.
+	 */
+	struct sandbox_provided_methods	*sbc_provided_methods;
+	struct sandbox_required_methods	*sbc_required_methods;
+
+	/*
+	 * Class and invoke() method statistics.
 	 */
 	struct sandbox_class_stat	*sbc_sandbox_class_statp;
 	struct sandbox_method_stat	*sbc_sandbox_method_nonamep;

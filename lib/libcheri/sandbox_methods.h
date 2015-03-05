@@ -94,5 +94,15 @@ void	sandbox_free_required_methods(
 	    struct sandbox_required_methods *required_methods);
 void	sandbox_free_provided_methods(
 	    struct sandbox_provided_methods *provided_methods);
+void	sandbox_warn_unresolved_methods(
+	    struct sandbox_required_methods *required_methods);
+
+int	sandbox_create_method_vtable(__capability void * codecap,
+	    struct sandbox_provided_methods *provided_methods,
+	    void __capability * __capability * __capability *vtablep);
+int	sandbox_set_provided_method_variables(__capability void *datacap,
+	    struct sandbox_provided_methods *provided_methods);
+int	sandbox_set_required_method_variables(__capability void *datacap,
+	    struct sandbox_required_methods *required_methods);
 
 #endif /* __SANDBOX_METHODS_H__ */

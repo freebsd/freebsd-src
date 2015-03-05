@@ -84,6 +84,10 @@ register_t	sandbox_invoke(struct sandbox *sb, register_t methodnum,
 /*
  * Second-generation sandbox API with a more object-oriented spin.
  */
+int	sandbox_program_init(int argc, char **argv);
+int	sandbox_program_finalize(void);
+int	sandbox_program_fini(void);
+
 struct sandbox_class;
 int	sandbox_class_new(const char *path, size_t sandboxlen,
 	    struct sandbox_class **sbcpp);

@@ -48,6 +48,7 @@
 #include <inttypes.h>
 #include <libgen.h>
 #include <sandbox_stat.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -59,7 +60,15 @@
 #include "libcheri_stat.h"
 #include "sandbox.h"
 #include "sandbox_internal.h"
+#include "sandbox_methods.h"
 #include "sandboxasm.h"
+
+static size_t			num_sandbox_classes;
+static size_t			max_sandbox_classes;
+static struct sandbox_class	**sandbox_classes;
+
+static struct sandbox_provided_methods	*main_provided_methods;
+static struct sandbox_required_methods	*main_required_methods;
 
 /*
  * Control verbose debugging output around sandbox invocation; disabled by
@@ -75,13 +84,113 @@ sandbox_init(void)
 		sb_verbose = 1;
 }
 
+/* XXXBD: should be done in sandbox_init(), but need access to argv[0]. */
+int
+sandbox_program_init(int argc, char **argv)
+{
+	int fd;
+
+	/* XXXBD: do this with RTLD or hypothentical getexecfd(). */
+	if (argc <= 0) {
+		warnx("%s: no argv[0]", __func__);
+		return (-1);
+	}
+	if ((fd = open(argv[0], O_RDONLY)) == -1) {
+		warn("%s: open %s", __func__, argv[0]);
+		return (-1);
+	}
+	if (sandbox_parse_ccall_methods(fd, &main_provided_methods,
+	    &main_required_methods) == -1) {
+		warn("%s: sandbox_parse_ccall_methods for %s", __func__,
+		    argv[0]);
+		close(fd);
+		return (-1);
+	}
+	close(fd);
+	return (0);
+}
+
+int
+sandbox_program_finalize(void)
+{
+	size_t i;
+	struct sandbox_required_methods *required_methods;
+
+	assert(main_provided_methods != NULL);
+	assert(main_required_methods != NULL);
+
+	/*
+	 * Check that all methods in the main program have been
+	 * provided.
+	 */
+	if (main_required_methods->srms_unresolved_methods > 0) {
+		warnx("%s: main program has %zu unresolved methods", __func__,
+		    main_required_methods->srms_unresolved_methods);
+		if (sb_verbose)
+			sandbox_warn_unresolved_methods(main_required_methods);
+		return (-1);
+	}
+	/*
+	 * Update main program method variables.
+	 */
+	if (sandbox_set_provided_method_variables(cheri_getdefault(),
+	    main_provided_methods) == -1) {
+		warnx("%s: sandbox_set_provided_method_variables for main "
+		    "program", __func__);
+		return (-1);
+	}
+	if (sandbox_set_required_method_variables(cheri_getdefault(),
+	    main_required_methods) == -1) {
+		warnx("%s: sandbox_set_required_method_variables for main "
+		    "program", __func__);
+		return (-1);
+	}
+
+	/*
+	 * Sanity check sandbox classes for unresolved methods.
+	 *
+	 * XXXBD: Does this make sense here or should we just fail attempts
+	 * to call sandbox_object_new() on incomplete classes?
+	 */
+	for (i = 0; i < num_sandbox_classes; i++) {
+		required_methods = sandbox_classes[i]->sbc_required_methods;
+		assert(required_methods != NULL);
+		if (required_methods->srms_unresolved_methods > 0) {
+			warnx("%s: sandbox %s has %zu unresolved methods",
+			    __func__, sandbox_classes[i]->sbc_path,
+			    required_methods->srms_unresolved_methods);
+			if (sb_verbose)
+				sandbox_warn_unresolved_methods(
+				    required_methods);
+			return (-1);
+		}
+	}
+
+	return (0);
+}
+
+int
+sandbox_program_fini(void)
+{
+
+	if (main_provided_methods != NULL)
+		sandbox_free_provided_methods(main_provided_methods);
+	main_provided_methods = NULL;
+	if (main_required_methods != NULL)
+		sandbox_free_required_methods(main_required_methods);
+	main_required_methods = NULL;
+	return (0);
+}
+
 int
 sandbox_class_new(const char *path, size_t sandboxlen,
     struct sandbox_class **sbcpp)
 {
 	char sandbox_basename[MAXPATHLEN];
 	struct sandbox_class *sbcp;
+	struct sandbox_class **new_sandbox_classes;
 	int fd, saved_errno;
+	size_t i;
 
 	fd = open(path, O_RDONLY);
 	if (fd == -1) {
@@ -133,6 +242,76 @@ sandbox_class_new(const char *path, size_t sandboxlen,
 		    path);
 		goto error;
 	}
+
+	/*
+	 * Resolve methods in other classes.
+	 */
+	for (i = 0; i < num_sandbox_classes; i++) {
+		if (sandbox_resolve_methods(sbcp->sbc_provided_methods,
+		    sandbox_classes[i]->sbc_required_methods) < 0) {
+			saved_errno = EINVAL;
+			warnx("%s: sandbox_resolve_methods() failed providing "
+			    "methods from %s to %s", __func__, path,
+			    sandbox_classes[i]->sbc_path);
+			goto error;
+		}
+		if (sandbox_resolve_methods(
+		    sandbox_classes[i]->sbc_provided_methods,
+		    sbcp->sbc_required_methods) < 0) {
+			saved_errno = EINVAL;
+			warnx("%s: sandbox_resolve_methods() failed providing "
+			    "methods from %s to %s", __func__,
+			    sandbox_classes[i]->sbc_path, path);
+			goto error;
+		}
+	}
+	/*
+	 * XXXBD: failure to initalize main_*_methods should eventually
+	 * be impossible and trigger an assert.
+	 */
+	if (main_provided_methods != NULL && main_required_methods != NULL) {
+		if (sandbox_resolve_methods(sbcp->sbc_provided_methods,
+		    main_required_methods) < 0) {
+			saved_errno = EINVAL;
+			warnx("%s: sandbox_resolve_methods() failed providing "
+			    "methods from %s main program", __func__, path);
+			goto error;
+		}
+		if (sandbox_resolve_methods(main_provided_methods,
+		    sbcp->sbc_required_methods) < 0) {
+			saved_errno = EINVAL;
+			warnx("%s: sandbox_resolve_methods() failed providing "
+			    "methods from main program to %s", __func__,
+			    path);
+			goto error;
+		}
+	}
+
+	/*
+	 * Register the class on the list of classes.
+	 */
+	if (max_sandbox_classes == 0) {
+		max_sandbox_classes = 4;
+		if ((sandbox_classes = calloc(max_sandbox_classes,
+		   sizeof(*sandbox_classes))) == NULL) {
+			saved_errno = errno;
+			warn("%s: calloc sandbox_classes array", __func__);
+			goto error;
+		}
+	}
+	if (num_sandbox_classes >= max_sandbox_classes) {
+		if ((new_sandbox_classes = realloc(sandbox_classes,
+		    max_sandbox_classes * 2 * sizeof(*sandbox_classes)))
+		    == NULL) {
+			saved_errno = errno;
+			warn("%s: realloc sandbox_classes array", __func__);
+			goto error;
+		}
+		free(sandbox_classes);
+		sandbox_classes = new_sandbox_classes;
+		max_sandbox_classes *= 2;
+	}
+	sandbox_classes[num_sandbox_classes++] = sbcp;
 
 	/*
 	 * Register the class/object for statistics; also register a single

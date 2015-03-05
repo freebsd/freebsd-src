@@ -48,6 +48,7 @@
 #include <inttypes.h>
 #include <libgen.h>
 #include <sandbox_stat.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -61,6 +62,7 @@
 #include "sandbox.h"
 #include "sandbox_elf.h"
 #include "sandbox_internal.h"
+#include "sandbox_methods.h"
 #include "sandboxasm.h"
 
 #define	roundup2(x, y)	(((x)+((y)-1))&(~((y)-1))) /* if y is powers of two */
@@ -117,6 +119,18 @@ sandbox_class_load(struct sandbox_class *sbcp)
 	}
 
 	/*
+	* Parse the sandbox ELF binary for CCall methods provided and
+	* required.
+	*/
+	if (sandbox_parse_ccall_methods(sbcp->sbc_fd,
+	     &sbcp->sbc_provided_methods, &sbcp->sbc_required_methods) < 0) {
+		saved_errno = EINVAL;
+		warnx("%s: sandbox_parse_ccal_methods() failed for %s",
+		    __func__, sbcp->sbc_path);
+		goto error;
+	}
+
+	/*
 	 * Construct various class-related capabilities, such as the type,
 	 * code capability for the run-time linker, and code capability for
 	 * object-capability invocation.
@@ -132,6 +146,15 @@ sandbox_class_load(struct sandbox_class *sbcp)
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_EXECUTE);
 	codecap = cheri_setoffset(codecap, SANDBOX_INVOKE_VECTOR);
 	sbcp->sbc_classcap_invoke = cheri_seal(codecap, sbcp->sbc_typecap);
+
+	codecap = cheri_ptrperm(sbcp->sbc_mem, max_prog_offset,
+	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_EXECUTE);
+	if (sandbox_create_method_vtable(codecap, sbcp->sbc_provided_methods,
+	    (void __capability *__capability *__capability *)&sbcp->sbc_vtable) == -1) {
+		saved_errno = EINVAL;
+		warnx("%s: sandbox_create_method_vtable", __func__);
+		goto error;
+	}
 
 	return (0);
 
@@ -381,6 +404,25 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP |
 	    CHERI_PERM_STORE | CHERI_PERM_STORE_CAP |
 	    CHERI_PERM_STORE_LOCAL_CAP);
+	if (sandbox_set_provided_method_variables(datacap,
+	    sbcp->sbc_provided_methods)
+	    == -1) {
+		saved_errno = EINVAL;
+		warnx("%s: sandbox_set_ccallee_method_variables", __func__);
+		goto error;
+	}
+	if (sandbox_set_required_method_variables(datacap,
+	    sbcp->sbc_required_methods)
+	    == -1) {
+		saved_errno = EINVAL;
+		warnx("%s: sandbox_set_ccaller_method_variables", __func__);
+		goto error;
+	}
+	/*
+	 * XXXBD: Ideally we would render the .CHERI_CCALLEE and
+	 * .CHERI_CCALLER sections read-only at this point to avoid
+	 * control flow attacks.
+	 */
 	sbop->sbo_cheri_object_invoke.co_codecap = sbcp->sbc_classcap_invoke;
 	sbop->sbo_cheri_object_invoke.co_datacap = cheri_seal(datacap,
 	    sbcp->sbc_typecap);
