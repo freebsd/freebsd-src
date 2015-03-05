@@ -1,7 +1,7 @@
 #!/usr/bin/awk
 /^[^#]/ {
 	gsub(/^\./,"", $1)
-	uname = gname = mode = flags = tags = ""
+	uname = gname = mode = flags = tags = type = ""
 	for (i=2; i<=NF; i++) {
 		if ($i ~ /^uname=/) {
 			uname=$i
@@ -18,6 +18,8 @@
 		} else if ($i ~ /^tags=/) {
 			tags=$i
 			gsub(/tags=/, "", tags)
+		} else if ($i ~ /^type=dir/) {
+			type="dir"
 		}
 	}
 	if (length(tags) == 0)
@@ -32,5 +34,5 @@
 	}
 	output=pkg".plist"
 
-	print "@("uname","gname","mode","flags") " $1 > output
+	print "@"type"("uname","gname","mode","flags") " $1 > output
 }
