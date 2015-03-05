@@ -111,7 +111,6 @@ FILES=	DAEMON \
 	securelevel \
 	serial \
 	sppp \
-	${_sshd} \
 	statd \
 	static_arp \
 	static_ndp \
@@ -246,7 +245,8 @@ FILES+=		keyserv
 .endif
 
 .if ${MK_OPENSSH} != "no"
-_sshd=		sshd
+FILESGROUPS+=	SSH
+SSH=		sshd
 .endif
 
 .if ${MK_PF} != "no"
@@ -297,5 +297,9 @@ UNBOUNDPACKAGE=	unbound
 ACPIDIR=	/etc/rc.d
 ACPIMODE=	${BINMODE}
 ACPIPACKAGE=	acpi
+
+SSHDIR=		/etc/rc.d
+SSHMODE=	${BINMODE}
+SSHPACKAGE=	ssh
 
 .include <bsd.prog.mk>

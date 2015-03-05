@@ -18,6 +18,7 @@ SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
 	roaming_common.c roaming_serv.c \
 	sandbox-null.c sandbox-rlimit.c sandbox-systrace.c sandbox-darwin.c \
 	sandbox-seccomp-filter.c sandbox-capsicum.c
+PACKAGE=	ssh
 
 # gss-genr.c really belongs in libssh; see src/secure/lib/libssh/Makefile
 SRCS+=	gss-genr.c
