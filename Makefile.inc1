@@ -1195,6 +1195,37 @@ packagekernel:
 .endfor
 .endif
 
+create-world-packages:
+.if !defined(NO_ROOT)
+	@echo "ERROR: create-world-package can only be done with -DNO_ROOT"; \
+	false
+.endif
+	@cd ${DESTDIR} ; \
+		awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
+		${DESTDIR}/METALOG
+	@for plist in ${DESTDIR}/*.plist; do \
+		plist=$${plist##*/} ; \
+		test -d ${SRCDIR}/release/packages/$${plist%.plist} || \
+			( echo "Unkown package FreeBSD-$${plist%.plist}" ; false ) ; \
+	done
+	@for plist in ${DESTDIR}/*.plist; do \
+		plist=$${plist##*/} ; \
+		pkgname=$${plist%.plist} ; \
+		rm -rf ${DESTDIR}/$${pkgname}-manifestdir ; \
+		cp -r ${SRCDIR}/release/packages/$${pkgname} \
+			${DESTDIR}/$${pkgname}-manifestdir ; \
+		sed -i '' -e "s/%VERSION%/${PKG_VERSION}/" \
+			-e "s/%PKGNAME%/$${pkgname}/" \
+			-e "s/%COMMENT%/Generic comment for $${pkgname}/" \
+			-e "s/%DESC%/Generic description for $${pkgname}/" \
+			${DESTDIR}/$${pkgname}-manifestdir/+MANIFEST ; \
+		awk -F\" '/name/ { printf("===> Creating %s-", $$2) } /version/ {print $$2 }' \
+			${DESTDIR}/$${pkgname}-manifestdir/+MANIFEST ; \
+		pkg create -m ${DESTDIR}/$${pkgname}-manifestdir \
+			-p ${DESTDIR}/$${pkgname}.plist \
+			-r ${DESTDIR} -o ${DESTDIR} ; \
+	done
+
 kernel-pkgs:
 .if !defined(NO_ROOT)
 	@echo "ERROR: kernel-pkgs can only be done with -DNO_ROOT"; \
