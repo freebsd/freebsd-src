@@ -269,7 +269,7 @@ distribution:
 	    ${BSM_ETC_EXEC_FILES} ${BSM_ETC_DIR}
 .if ${MK_UNBOUND} != "no"
 	if [ ! -e ${DESTDIR}/etc/unbound ]; then \
-		${INSTALL_SYMLINK} ${TAG_ARGS} ../var/unbound ${DESTDIR}/etc/unbound; \
+		${INSTALL_SYMLINK} -T package=unbound ../var/unbound ${DESTDIR}/etc/unbound; \
 	fi
 .endif
 .if ${MK_SENDMAIL} != "no"
@@ -377,12 +377,11 @@ distrib-dirs: ${MTREES:N/*}
 		shift; \
 		d=$$1; \
 		test "$$d" == "/" && d=""; \
-		d=$d; \
+		d=$$d; \
 		shift; \
-		test -d $$d || mkdir -p $$d; \
-		${ECHO} "${MTREE_CMD:N-W} -C -f $$m -K uname,gname | " \
+		${ECHO} "${MTREE_CMD:N-W} -C -f $$m -K all | " \
 		    "sed s#^\.#.$$d# | ${METALOG.add}" ; \
-		${MTREE_CMD:N-W} -C -f $$m -K uname,gname | sed s#^\.#.$$d# | \
+		${MTREE_CMD:N-W} -C -f $$m -K all | sed s#^\.#.$$d# | \
 		    ${METALOG.add} ; \
 	done; true
 .endif

@@ -97,8 +97,8 @@
         vi.recover      mode=01777
         ..
     ..
-    unbound         uname=unbound gname=unbound mode=0755
-        conf.d          uname=unbound gname=unbound mode=0755
+    unbound         uname=unbound gname=unbound mode=0755 tags=package=unbound
+        conf.d          uname=unbound gname=unbound mode=0755 tags=package=unbound
         ..
     ..
     yp

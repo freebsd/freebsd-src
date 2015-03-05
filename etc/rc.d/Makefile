@@ -2,6 +2,8 @@
 
 .include <src.opts.mk>
 
+FILESGROUPS=	FILES
+
 FILES=	DAEMON \
 	FILESYSTEMS \
 	LOGIN \
@@ -121,7 +123,6 @@ FILES=	DAEMON \
 	tmp \
 	${_ubthidhci} \
 	ugidfw \
-	${_unbound} \
 	${_utx} \
 	var \
 	watchdogd \
@@ -268,7 +269,8 @@ FILES+=		timed
 .endif
 
 .if ${MK_UNBOUND} != "no"
-_unbound=	local_unbound
+FILESGROUPS+=	UNBOUND
+UNBOUND+=	local_unbound
 .endif
 
 .if ${MK_UTMPX} != "no"
@@ -286,5 +288,9 @@ FILES+=		wpa_supplicant
 
 FILESDIR=	/etc/rc.d
 FILESMODE=	${BINMODE}
+
+UNBOUNDDIR=	/etc/rc.d
+UNBOUNDMODE=	${BINMODE}
+UNBOUNDPACKAGE=	unbound
 
 .include <bsd.prog.mk>
