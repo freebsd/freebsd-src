@@ -276,7 +276,7 @@ distribution:
 	${_+_}cd ${.CURDIR}/sendmail; ${MAKE} distribution
 .endif
 .if ${MK_OPENSSH} != "no"
-	cd ${.CURDIR}; ${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	cd ${.CURDIR}; ${INSTALL} -T package=ssh,config -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${SSH} ${DESTDIR}/etc/ssh
 .endif
 .if ${MK_OPENSSL} != "no"

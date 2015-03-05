@@ -5,6 +5,7 @@
 PROG=	ssh-keygen
 SRCS=	ssh-keygen.c
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
+PACKAGE=	ssh
 
 .if !defined(NO_SHARED)
 # required when linking with a dynamic libssh
