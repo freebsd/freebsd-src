@@ -25,14 +25,30 @@
 	if (length(tags) == 0)
 		next
 	if (tags ~ /package=/) {
-		gsub(/package=/,"",tags)
-		gsub(/,/, "-", tags)
-		gsub(/runtime-/, "", tags)
-		pkg=tags
+		ext = pkgname = ""
+		split(tags, a, ",");
+		for (i in a) {
+			if (a[i] ~ /^package=/) {
+				pkgname=a[i]
+				gsub(/package=/, "", pkgname)
+			} else if (a[i] == "config") {
+				type="config"
+			} else {
+				ext=a[i]
+			}
+		}
+		if (length(ext) > 0) {
+			if (pkgname == "runtime") {
+				pkgname=ext
+			} else {
+				pkgname=pkgname"-"ext
+			}
+		}
 	} else {
-		pkg=tags
+		print "No packages specified in line: $0" > 2
+		next
 	}
-	output=pkg".plist"
+	output=pkgname".plist"
 
 	print "@"type"("uname","gname","mode","flags") " $1 > output
 }
