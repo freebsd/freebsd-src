@@ -565,7 +565,7 @@ gpart_autofill(struct gctl_req *req)
 			    (off_t)strtoimax(s, NULL, 0) / pp->lg_sectorsize;
 		} else
 			first = (off_t)strtoimax(s, NULL, 0) + 1;
-		if (first > a_first)
+		if (first + offset > a_first)
 			a_first = ALIGNUP(first + offset, alignment);
 	}
 	if (a_first <= last) {
