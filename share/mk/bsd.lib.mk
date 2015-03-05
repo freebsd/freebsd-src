@@ -368,10 +368,19 @@ _libinstall:
 
 .else
 .if ${_SHLIBDIR} == ${_LIBDIR}
+.if ${SHLIB_LINK:Mlib*}
 	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${SHLIB_NAME} ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
 .else
+	${INSTALL_SYMLINK} ${TAG_ARGS} ${SHLIB_NAME} ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
+.endif
+.else
+.if ${SHLIB_LINK:Mlib*}
 	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${_SHLIBDIRPREFIX}${_SHLIBDIR}/${SHLIB_NAME} \
 	    ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
+.else
+	${INSTALL_SYMLINK} ${TAG_ARGS} ${_SHLIBDIRPREFIX}${_SHLIBDIR}/${SHLIB_NAME} \
+	    ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
+.endif
 .if exists(${DESTDIR}${_LIBDIR}/${SHLIB_NAME})
 	-chflags noschg ${DESTDIR}${_LIBDIR}/${SHLIB_NAME}
 	rm -f ${DESTDIR}${_LIBDIR}/${SHLIB_NAME}
