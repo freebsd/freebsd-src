@@ -536,42 +536,6 @@ __boot_page_padding:
 /* locore subroutines */
 /************************************************************************/
 
-ivor_setup:
-	/* Set base address of interrupt handler routines */
-	lis	%r3, interrupt_vector_base@h
-	mtspr	SPR_IVPR, %r3
-
-	/* Assign interrupt handler routines offsets */
-	li	%r3, int_critical_input@l
-	mtspr	SPR_IVOR0, %r3
-	li	%r3, int_machine_check@l
-	mtspr	SPR_IVOR1, %r3
-	li	%r3, int_data_storage@l
-	mtspr	SPR_IVOR2, %r3
-	li	%r3, int_instr_storage@l
-	mtspr	SPR_IVOR3, %r3
-	li	%r3, int_external_input@l
-	mtspr	SPR_IVOR4, %r3
-	li	%r3, int_alignment@l
-	mtspr	SPR_IVOR5, %r3
-	li	%r3, int_program@l
-	mtspr	SPR_IVOR6, %r3
-	li	%r3, int_syscall@l
-	mtspr	SPR_IVOR8, %r3
-	li	%r3, int_decrementer@l
-	mtspr	SPR_IVOR10, %r3
-	li	%r3, int_fixed_interval_timer@l
-	mtspr	SPR_IVOR11, %r3
-	li	%r3, int_watchdog@l
-	mtspr	SPR_IVOR12, %r3
-	li	%r3, int_data_tlb_error@l
-	mtspr	SPR_IVOR13, %r3
-	li	%r3, int_inst_tlb_error@l
-	mtspr	SPR_IVOR14, %r3
-	li	%r3, int_debug@l
-	mtspr	SPR_IVOR15, %r3
-	blr
-
 /*
  * void tid_flush(tlbtid_t tid);
  *
