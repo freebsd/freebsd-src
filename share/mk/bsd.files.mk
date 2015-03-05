@@ -13,13 +13,6 @@ FILESGROUPS?=	FILES
 buildfiles: ${${group}}
 .endfor
 
-.if defined(NO_ROOT)
-.if !defined(TAGS) || ! ${TAGS:Mpackage=*}
-TAGS+=		package=${PACKAGE:Uruntime}
-.endif
-TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
-.endif
-
 all: buildfiles
 
 .for group in ${FILESGROUPS}
@@ -30,6 +23,14 @@ ${group}OWN?=	${SHAREOWN}
 ${group}GRP?=	${SHAREGRP}
 ${group}MODE?=	${SHAREMODE}
 ${group}DIR?=	${BINDIR}
+
+.if defined(NO_ROOT)
+.if !defined(${group}TAGS) || ! ${${group}TAGS:Mpackage=*}
+${group}TAGS+=		package=${${group}PACKAGE:Uruntime}
+.endif
+${group}TAG_ARGS=	-T ${${group}TAGS:[*]:S/ /,/g}
+.endif
+
 
 _${group}FILES=
 .for file in ${${group}}
@@ -47,7 +48,7 @@ ${group}NAME_${file:T}?=	${file:T}
 .endif
 installfiles-${group}: _${group}INS_${file:T}
 _${group}INS_${file:T}: ${file}
-	${INSTALL} ${TAG_ARGS} -o ${${group}OWN_${.ALLSRC:T}} \
+	${INSTALL} ${${group}TAG_ARGS} -o ${${group}OWN_${.ALLSRC:T}} \
 	    -g ${${group}GRP_${.ALLSRC:T}} -m ${${group}MODE_${.ALLSRC:T}} \
 	    ${.ALLSRC} \
 	    ${DESTDIR}${${group}DIR_${.ALLSRC:T}}/${${group}NAME_${.ALLSRC:T}}
@@ -59,11 +60,11 @@ _${group}FILES+= ${file}
 installfiles-${group}: _${group}INS
 _${group}INS: ${_${group}FILES}
 .if defined(${group}NAME)
-	${INSTALL} ${TAG_ARGS} -o ${${group}OWN} -g ${${group}GRP} \
+	${INSTALL} ${${group}TAG_ARGS} -o ${${group}OWN} -g ${${group}GRP} \
 	    -m ${${group}MODE} ${.ALLSRC} \
 	    ${DESTDIR}${${group}DIR}/${${group}NAME}
 .else
-	${INSTALL} ${TAG_ARGS} -o ${${group}OWN} -g ${${group}GRP} \
+	${INSTALL} ${${group}TAG_ARGS} -o ${${group}OWN} -g ${${group}GRP} \
 	    -m ${${group}MODE} ${.ALLSRC} ${DESTDIR}${${group}DIR}
 .endif
 .endif
