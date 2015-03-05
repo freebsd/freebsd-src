@@ -282,8 +282,7 @@ ofw_gpiobus_parse_gpios_impl(device_t consumer, phandle_t cnode, char *pname,
 			goto fail;
 		}
 		/* Reserve the GPIO pin. */
-		if (gpiobus_map_pin(bussc->sc_busdev, consumer,
-		    (*pins)[j].pin) != 0)
+		if (gpiobus_map_pin(bussc->sc_busdev, (*pins)[j].pin) != 0)
 			goto fail;
 		j++;
 		i += gpiocells + 1;
