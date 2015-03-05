@@ -88,18 +88,18 @@ struct sandbox_required_methods {
 #define	SANDBOX_LOADELF_DATA	0x00000001
 #define	SANDBOX_LOADELF_CODE	0x00000002
 
-extern ssize_t sandbox_loadelf64(int fd, void *location, size_t maxsize,
-    u_int flags);
+ssize_t	sandbox_loadelf64(int fd, void *location, size_t maxsize,
+	    u_int flags);
 
-extern int sandbox_parse_ccall_methods(int fd,
-    struct sandbox_provided_methods **provided_methodsp,
-    struct sandbox_required_methods **required_methodsp);
-extern int sandbox_resolve_methods(
-    struct sandbox_provided_methods *provided_methods,
-    struct sandbox_required_methods *required_methods);
-void sandbox_free_required_methods(
-    struct sandbox_required_methods *required_methods);
-void sandbox_free_provided_methods(
-    struct sandbox_provided_methods *provided_methods);
+int	sandbox_parse_ccall_methods(int fd,
+	    struct sandbox_provided_methods **provided_methodsp,
+	    struct sandbox_required_methods **required_methodsp);
+int	sandbox_resolve_methods(
+	    struct sandbox_provided_methods *provided_methods,
+	    struct sandbox_required_methods *required_methods);
+void	sandbox_free_required_methods(
+	    struct sandbox_required_methods *required_methods);
+void	sandbox_free_provided_methods(
+	    struct sandbox_provided_methods *provided_methods);
 
 #endif /* __SANDBOX_METHODS_H__ */
