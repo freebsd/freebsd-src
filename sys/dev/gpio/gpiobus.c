@@ -53,6 +53,7 @@ static int gpiobus_attach(device_t);
 static int gpiobus_detach(device_t);
 static int gpiobus_suspend(device_t);
 static int gpiobus_resume(device_t);
+static void gpiobus_probe_nomatch(device_t, device_t);
 static int gpiobus_print_child(device_t, device_t);
 static int gpiobus_child_location_str(device_t, device_t, char *, size_t);
 static int gpiobus_child_pnpinfo_str(device_t, device_t, char *, size_t);
@@ -363,6 +364,20 @@ gpiobus_resume(device_t dev)
 	return (bus_generic_resume(dev));
 }
 
+static void
+gpiobus_probe_nomatch(device_t dev, device_t child)
+{
+	char pins[128];
+	struct gpiobus_ivar *devi;
+
+	devi = GPIOBUS_IVAR(child);
+	memset(pins, 0, sizeof(pins));
+	gpiobus_print_pins(devi, pins, sizeof(pins));
+	device_printf(dev, "<unknown device> at pin(s) %s", pins);
+	resource_list_print_type(&devi->rl, "irq", SYS_RES_IRQ, "%ld");
+	printf("\n");
+}
+
 static int
 gpiobus_print_child(device_t dev, device_t child)
 {
@@ -670,6 +685,7 @@ static device_method_t gpiobus_methods[] = {
 	DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
 	DEVMETHOD(bus_get_resource_list,	gpiobus_get_resource_list),
 	DEVMETHOD(bus_add_child,	gpiobus_add_child),
+	DEVMETHOD(bus_probe_nomatch,	gpiobus_probe_nomatch),
 	DEVMETHOD(bus_print_child,	gpiobus_print_child),
 	DEVMETHOD(bus_child_pnpinfo_str, gpiobus_child_pnpinfo_str),
 	DEVMETHOD(bus_child_location_str, gpiobus_child_location_str),
