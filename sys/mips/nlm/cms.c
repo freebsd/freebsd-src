@@ -107,7 +107,7 @@ static int fmn_loops[XLP_MAX_CORES * XLP_MAX_THREADS];
 static int polled = 0;
 
 /* We do only i/o device credit setup here. CPU credit setup is now
- * moved to xlp_msgring_cpu_init() so that the credits get setup 
+ * moved to xlp_msgring_cpu_init() so that the credits get setup
  * only if the CPU exists. xlp_msgring_cpu_init() gets called from
  * platform_init_ap; and this makes it easy for us to setup CMS
  * credits for various types of XLP chips, with varying number of
@@ -198,9 +198,9 @@ xlp_handle_msg_vc(u_int vcmask, int max_msgs)
 
 			mflags = nlm_save_flags_cop2();
 			status = nlm_fmn_msgrcv(vc, &srcid, &size, &code,
-		 	    &msg);
+			    &msg);
 			nlm_restore_flags(mflags);
-			if (status != 0) 	/*  no msg or error */
+			if (status != 0)	/*  no msg or error */
 				continue;
 			if (srcid < 0 && srcid >= 1024) {
 				printf("[%s]: bad src id %d\n", __func__,

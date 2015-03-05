@@ -169,8 +169,8 @@ static void	do_link_state_change(void *, int);
 static int	if_getgroup(struct ifgroupreq *, struct ifnet *);
 static int	if_getgroupmembers(struct ifgroupreq *);
 static void	if_delgroups(struct ifnet *);
-static void	if_attach_internal(struct ifnet *, int);
-static void	if_detach_internal(struct ifnet *, int);
+static void	if_attach_internal(struct ifnet *, int, struct if_clone *);
+static void	if_detach_internal(struct ifnet *, int, struct if_clone **);
 static struct ifqueue * if_snd_alloc(int);
 static void	if_snd_free(struct ifqueue *);
 static void	if_snd_qflush(if_t);
@@ -621,7 +621,7 @@ if_attach(struct if_attach_args *ifat)
 
 	bpfattach(ifp, ifdrv->ifdrv_dlt, ifdrv->ifdrv_dlt_hdrlen);
 
-	if_attach_internal(ifp, 0);
+	if_attach_internal(ifp, 0, NULL);
 
 	return (ifp);
 }
@@ -756,7 +756,7 @@ if_tsomax_update(if_t ifp, const struct iftsomax *new)
 }
 
 static void
-if_attach_internal(struct ifnet *ifp, int vmove)
+if_attach_internal(struct ifnet *ifp, int vmove, struct if_clone *ifc)
 {
 
 	if (ifp->if_index == 0 || ifp != ifnet_byindex(ifp->if_index))
@@ -770,6 +770,10 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 #endif
 
 	if_addgroup(ifp, IFG_ALL);
+
+	/* Restore group membership for cloned interfaces. */
+	if (vmove && ifc != NULL)
+		if_clone_addgroup(ifp, ifc);
 
 	getmicrotime(&ifp->if_lastchange);
 	ifp->if_epoch = time_uptime;
@@ -920,7 +924,7 @@ if_detach(if_t ifp)
 		if_poll_deregister(ifp);
 #endif
 	CURVNET_SET_QUIET(ifp->if_vnet);
-	if_detach_internal(ifp, 0);
+	if_detach_internal(ifp, 0, NULL);
 
 	IFNET_WLOCK();
 	KASSERT(ifp == ifnet_byindex_locked(ifp->if_index),
@@ -938,7 +942,7 @@ if_detach(if_t ifp)
 }
 
 static void
-if_detach_internal(struct ifnet *ifp, int vmove)
+if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 {
 	struct ifaddr *ifa;
 	struct radix_node_head	*rnh;
@@ -966,6 +970,10 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 		else
 			return; /* XXX this should panic as well? */
 	}
+
+	/* Check if this is a cloned interface or not. */
+	if (vmove && ifcp != NULL)
+		*ifcp = if_clone_findifc(ifp);
 
 	/*
 	 * Remove/wait for pending events.
@@ -1077,12 +1085,13 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 void
 if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 {
+	struct if_clone *ifc;
 
 	/*
 	 * Detach from current vnet, but preserve LLADDR info, do not
 	 * mark as dead etc. so that the ifnet can be reattached later.
 	 */
-	if_detach_internal(ifp, 1);
+	if_detach_internal(ifp, 1, &ifc);
 
 	/*
 	 * Unlink the ifnet from ifindex_table[] in current vnet, and shrink
@@ -1112,7 +1121,7 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	ifnet_setbyindex_locked(ifp->if_index, ifp);
 	IFNET_WUNLOCK();
 
-	if_attach_internal(ifp, 1);
+	if_attach_internal(ifp, 1, ifc);
 
 	CURVNET_RESTORE();
 }

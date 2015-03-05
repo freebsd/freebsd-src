@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 static struct vt_driver vt_fb_driver = {
 	.vd_name = "fb",
 	.vd_init = vt_fb_init,
+	.vd_fini = vt_fb_fini,
 	.vd_blank = vt_fb_blank,
 	.vd_bitblt_text = vt_fb_bitblt_text,
 	.vd_bitblt_bmp = vt_fb_bitblt_bitmap,
@@ -419,6 +420,7 @@ vt_fb_init(struct vt_device *vd)
 	info = vd->vd_softc;
 	vd->vd_height = info->fb_height;
 	vd->vd_width = info->fb_width;
+	vd->vd_video_dev = info->fb_video_dev;
 
 	if (info->fb_size == 0)
 		return (CN_DEAD);
@@ -442,11 +444,27 @@ vt_fb_init(struct vt_device *vd)
 	return (CN_INTERNAL);
 }
 
+void
+vt_fb_fini(struct vt_device *vd, void *softc)
+{
+
+	vd->vd_video_dev = NULL;
+}
+
 int
 vt_fb_attach(struct fb_info *info)
 {
 
 	vt_allocate(&vt_fb_driver, info);
+
+	return (0);
+}
+
+int
+vt_fb_detach(struct fb_info *info)
+{
+
+	vt_deallocate(&vt_fb_driver, info);
 
 	return (0);
 }

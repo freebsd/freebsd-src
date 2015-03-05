@@ -1,7 +1,7 @@
-/*	$Id: mandocdb.c,v 1.179 2014/12/09 07:29:42 schwarze Exp $ */
+/*	$Id: mandocdb.c,v 1.185 2015/02/27 16:22:09 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2011, 2012, 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011-2015 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -350,7 +350,8 @@ mandocdb(int argc, char *argv[])
 
 	mpages_info.alloc  = mlinks_info.alloc  = hash_alloc;
 	mpages_info.calloc = mlinks_info.calloc = hash_calloc;
-	mpages_info.free  = mlinks_info.free  = hash_free;
+	mpages_info.free   = mlinks_info.free   = hash_free;
+	mpages_info.data   = mlinks_info.data   = NULL;
 
 	mpages_info.key_offset = offsetof(struct mpage, inodev);
 	mlinks_info.key_offset = offsetof(struct mlink, file);
@@ -441,7 +442,7 @@ mandocdb(int argc, char *argv[])
 
 	exitcode = (int)MANDOCLEVEL_OK;
 	mchars = mchars_alloc();
-	mp = mparse_alloc(mparse_options, MANDOCLEVEL_FATAL, NULL,
+	mp = mparse_alloc(mparse_options, MANDOCLEVEL_BADARG, NULL,
 	    mchars, NULL);
 	ohash_init(&mpages, 6, &mpages_info);
 	ohash_init(&mlinks, 6, &mlinks_info);
@@ -612,7 +613,11 @@ treescan(void)
 					say(path, "&realpath");
 				continue;
 			}
-			if (strstr(buf, basedir) != buf) {
+			if (strstr(buf, basedir) != buf
+#ifdef HOMEBREWDIR
+			    && strstr(buf, HOMEBREWDIR) != buf
+#endif
+			) {
 				if (warnings) say("",
 				    "%s: outside base directory", buf);
 				continue;
@@ -667,7 +672,8 @@ treescan(void)
 					say(path, "Skip pdf");
 				continue;
 			} else if ( ! use_all &&
-			    ((FORM_SRC == dform && strcmp(fsec, dsec)) ||
+			    ((FORM_SRC == dform &&
+			      strncmp(fsec, dsec, strlen(dsec))) ||
 			     (FORM_CAT == dform && strcmp(fsec, "0")))) {
 				if (warnings)
 					say(path, "Wrong filename suffix");
@@ -817,6 +823,10 @@ filescan(const char *file)
 		start = buf;
 	else if (strstr(buf, basedir) == buf)
 		start = buf + strlen(basedir);
+#ifdef HOMEBREWDIR
+	else if (strstr(buf, HOMEBREWDIR) == buf)
+		start = buf;
+#endif
 	else {
 		exitcode = (int)MANDOCLEVEL_BADARG;
 		say("", "%s: outside base directory", buf);
@@ -852,6 +862,7 @@ filescan(const char *file)
 	if (strlcpy(mlink->file, start, sizeof(mlink->file)) >=
 	    sizeof(mlink->file)) {
 		say(start, "Filename too long");
+		free(mlink);
 		return;
 	}
 
@@ -1100,11 +1111,11 @@ mpages_merge(struct mparse *mp)
 	char			*cp;
 	int			 fd;
 	unsigned int		 pslot;
-	enum mandoclevel	 lvl;
 
 	str_info.alloc = hash_alloc;
 	str_info.calloc = hash_calloc;
 	str_info.free = hash_free;
+	str_info.data = NULL;
 	str_info.key_offset = offsetof(struct str, key);
 
 	if ( ! nodb)
@@ -1113,7 +1124,7 @@ mpages_merge(struct mparse *mp)
 	mpage = ohash_first(&mpages, &pslot);
 	while (mpage != NULL) {
 		mlinks_undupe(mpage);
-		if (mpage->mlinks == NULL) {
+		if ((mlink = mpage->mlinks) == NULL) {
 			mpage = ohash_next(&mpages, &pslot);
 			continue;
 		}
@@ -1126,22 +1137,19 @@ mpages_merge(struct mparse *mp)
 		man = NULL;
 		sodest = NULL;
 
-		mparse_open(mp, &fd, mpage->mlinks->file);
+		mparse_open(mp, &fd, mlink->file);
 		if (fd == -1) {
-			say(mpage->mlinks->file, "&open");
+			say(mlink->file, "&open");
 			goto nextpage;
 		}
 
 		/*
-		 * Try interpreting the file as mdoc(7) or man(7)
-		 * source code, unless it is already known to be
-		 * formatted.  Fall back to formatted mode.
+		 * Interpret the file as mdoc(7) or man(7) source
+		 * code, unless it is known to be formatted.
 		 */
-		if (mpage->mlinks->dform != FORM_CAT ||
-		    mpage->mlinks->fform != FORM_CAT) {
-			lvl = mparse_readfd(mp, fd, mpage->mlinks->file);
-			if (lvl < MANDOCLEVEL_FATAL)
-				mparse_result(mp, &mdoc, &man, &sodest);
+		if (mlink->dform != FORM_CAT || mlink->fform != FORM_CAT) {
+			mparse_readfd(mp, fd, mlink->file);
+			mparse_result(mp, &mdoc, &man, &sodest);
 		}
 
 		if (sodest != NULL) {
@@ -1158,7 +1166,6 @@ mpages_merge(struct mparse *mp)
 				/* The .so target exists. */
 
 				mpage_dest = mlink_dest->mpage;
-				mlink = mpage->mlinks;
 				while (1) {
 					mlink->mpage = mpage_dest;
 
@@ -1198,26 +1205,20 @@ mpages_merge(struct mparse *mp)
 			    mandoc_strdup(mdoc_meta(mdoc)->title);
 		} else if (man != NULL) {
 			mpage->form = FORM_SRC;
-			mpage->sec =
-			    mandoc_strdup(man_meta(man)->msec);
-			mpage->arch =
-			    mandoc_strdup(mpage->mlinks->arch);
-			mpage->title =
-			    mandoc_strdup(man_meta(man)->title);
+			mpage->sec = mandoc_strdup(man_meta(man)->msec);
+			mpage->arch = mandoc_strdup(mlink->arch);
+			mpage->title = mandoc_strdup(man_meta(man)->title);
 		} else {
 			mpage->form = FORM_CAT;
-			mpage->sec =
-			    mandoc_strdup(mpage->mlinks->dsec);
-			mpage->arch =
-			    mandoc_strdup(mpage->mlinks->arch);
-			mpage->title =
-			    mandoc_strdup(mpage->mlinks->name);
+			mpage->sec = mandoc_strdup(mlink->dsec);
+			mpage->arch = mandoc_strdup(mlink->arch);
+			mpage->title = mandoc_strdup(mlink->name);
 		}
 		putkey(mpage, mpage->sec, TYPE_sec);
 		if (*mpage->arch != '\0')
 			putkey(mpage, mpage->arch, TYPE_arch);
 
-		for (mlink = mpage->mlinks; mlink; mlink = mlink->next) {
+		for ( ; mlink != NULL; mlink = mlink->next) {
 			if ('\0' != *mlink->dsec)
 				putkey(mpage, mlink->dsec, TYPE_sec);
 			if ('\0' != *mlink->fsec)
@@ -1243,11 +1244,12 @@ mpages_merge(struct mparse *mp)
 				mlink_check(mpage, mlink);
 
 		dbadd(mpage);
+		mlink = mpage->mlinks;
 
 nextpage:
 		if (mparse_wait(mp) != MANDOCLEVEL_OK) {
 			exitcode = (int)MANDOCLEVEL_SYSERR;
-			say(mpage->mlinks->file, "&wait gunzip");
+			say(mlink->file, "&wait gunzip");
 		}
 		ohash_delete(&strings);
 		ohash_delete(&names);

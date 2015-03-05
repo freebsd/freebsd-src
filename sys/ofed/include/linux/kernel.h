@@ -67,6 +67,8 @@
 
 #undef	ALIGN
 #define	ALIGN(x, y)		roundup2((x), (y))
+#undef PTR_ALIGN
+#define	PTR_ALIGN(p, a)		((__typeof(p))ALIGN((uintptr_t)(p), (a)))
 #define	DIV_ROUND_UP		howmany
 #define	FIELD_SIZEOF(t, f)	sizeof(((t *)0)->f)
 

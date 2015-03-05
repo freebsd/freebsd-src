@@ -342,6 +342,8 @@ portal_group_entry:
 	|
 	portal_group_listen_iser
 	|
+	portal_group_offload
+	|
 	portal_group_redirect
 	;
 
@@ -392,6 +394,17 @@ portal_group_listen_iser:	LISTEN_ISER STR
 		int error;
 
 		error = portal_group_add_listen(portal_group, $2, true);
+		free($2);
+		if (error != 0)
+			return (1);
+	}
+	;
+
+portal_group_offload:	OFFLOAD STR
+	{
+		int error;
+
+		error = portal_group_set_offload(portal_group, $2);
 		free($2);
 		if (error != 0)
 			return (1);
@@ -462,8 +475,6 @@ target_entry:
 	target_initiator_name
 	|
 	target_initiator_portal
-	|
-	target_offload
 	|
 	target_portal_group
 	|
@@ -652,17 +663,6 @@ target_initiator_portal:	INITIATOR_PORTAL STR
 		ap = auth_portal_new(target->t_auth_group, $2);
 		free($2);
 		if (ap == NULL)
-			return (1);
-	}
-	;
-
-target_offload:	OFFLOAD STR
-	{
-		int error;
-
-		error = target_set_offload(target, $2);
-		free($2);
-		if (error != 0)
 			return (1);
 	}
 	;

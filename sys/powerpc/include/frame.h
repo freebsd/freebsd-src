@@ -56,14 +56,13 @@ struct trapframe {
 	register_t srr0;
 	register_t srr1;
 	register_t exc;
+	register_t dar;	/* DAR/DEAR filled in on DSI traps */
 	union {
 		struct {
-			/* dar & dsisr are only filled on a DSI trap */
-			register_t dar;
+			/* dsisr only filled on a DSI trap */
 			register_t dsisr;
 		} aim;
 		struct {
-			register_t dear;
 			register_t esr;
 			register_t dbcr0;
 		} booke;

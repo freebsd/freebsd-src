@@ -126,7 +126,12 @@
 
 #define	IPI_STOP	(APIC_IPI_INTS + 7)	/* Stop CPU until restarted. */
 #define	IPI_SUSPEND	(APIC_IPI_INTS + 8)	/* Suspend CPU until restarted. */
-#define	IPI_STOP_HARD	(APIC_IPI_INTS + 9)	/* Stop CPU with a NMI. */
+
+/*
+ * IPI_STOP_HARD does not need to occupy a slot in the IPI vector space since
+ * it is delivered using an NMI anyways.
+ */
+#define	IPI_STOP_HARD	255			/* Stop CPU with a NMI. */
 
 /*
  * The spurious interrupt can share the priority class with the IPIs since

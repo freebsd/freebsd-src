@@ -1103,23 +1103,13 @@ atomic_store_long(volatile u_long *dst, u_long src)
 	*dst = src;
 }
 
-#define atomic_clear_ptr(p, v) \
-	atomic_clear_32((volatile uint32_t *)(p), (uint32_t)(v))
-#define atomic_set_ptr(p, v) \
-	atomic_set_32((volatile uint32_t *)(p), (uint32_t)(v))
-#define atomic_cmpset_ptr(p, cmpval, newval) \
-	atomic_cmpset_32((volatile u_int32_t *)(p), (u_int32_t)(cmpval), \
-	    (u_int32_t)(newval))
-#define atomic_cmpset_rel_ptr(p, cmpval, newval) \
-	atomic_cmpset_rel_32((volatile u_int32_t *)(p), (u_int32_t)(cmpval), \
-	    (u_int32_t)(newval))
-#define atomic_cmpset_acq_ptr(p, cmpval, newval) \
-	atomic_cmpset_acq_32((volatile u_int32_t *)(p), (u_int32_t)(cmpval), \
-	    (u_int32_t)(newval))
-#define atomic_store_ptr(p, v) \
-	atomic_store_32((volatile uint32_t *)(p), (uint32_t)(v))
-#define atomic_store_rel_ptr(p, v) \
-	atomic_store_rel_32((volatile uint32_t *)(p), (uint32_t)(v))
+#define atomic_clear_ptr		atomic_clear_32
+#define atomic_set_ptr			atomic_set_32
+#define atomic_cmpset_ptr		atomic_cmpset_32
+#define atomic_cmpset_rel_ptr		atomic_cmpset_rel_32
+#define atomic_cmpset_acq_ptr		atomic_cmpset_acq_32
+#define atomic_store_ptr		atomic_store_32
+#define atomic_store_rel_ptr		atomic_store_rel_32
 
 #define atomic_add_int			atomic_add_32
 #define atomic_add_acq_int		atomic_add_acq_32

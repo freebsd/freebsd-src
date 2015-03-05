@@ -263,6 +263,8 @@ fbd_unregister(struct fb_info* info)
 	LIST_FOREACH_SAFE(entry, &fb_list_head, fb_list, tmp) {
 		if (entry->fb_info == info) {
 			LIST_REMOVE(entry, fb_list);
+			if (LIST_EMPTY(&fb_list_head))
+				vt_fb_detach(info);
 			free(entry, M_DEVBUF);
 			return (0);
 		}

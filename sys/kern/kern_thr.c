@@ -322,6 +322,7 @@ sys_thr_exit(struct thread *td, struct thr_exit_args *uap)
 		LIST_REMOVE(td, td_hash);
 		rw_wunlock(&tidhash_lock);
 		tdsigcleanup(td);
+		umtx_thread_exit(td);
 		PROC_SLOCK(p);
 		thread_stopped(p);
 		thread_exit();
