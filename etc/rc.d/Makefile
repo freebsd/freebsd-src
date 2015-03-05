@@ -140,7 +140,8 @@ FILES+=		accounting
 .endif
 
 .if ${MK_ACPI} != "no"
-FILES+=		power_profile
+FILESGROUPS+=	ACPI
+ACPI=		power_profile
 .endif
 
 .if ${MK_ACPI} != "no" || ${MK_APM} != "no"
@@ -292,5 +293,9 @@ FILESMODE=	${BINMODE}
 UNBOUNDDIR=	/etc/rc.d
 UNBOUNDMODE=	${BINMODE}
 UNBOUNDPACKAGE=	unbound
+
+ACPIDIR=	/etc/rc.d
+ACPIMODE=	${BINMODE}
+ACPIPACKAGE=	acpi
 
 .include <bsd.prog.mk>
