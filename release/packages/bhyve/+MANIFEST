@@ -1,0 +1,15 @@
+name = "FreeBSD-bhyve"
+origin = "base"
+version = "%VERSION%"
+comment = "The BSD Hypervisor"
+categories = [ base ]
+maintainer = "re@FreeBSD.org"
+www = "http://www.FreeBSD.org"
+prefix = "/"
+licenselogic = "single"
+licenses = [ BSD2CLAUSE ]
+desc = <<EOD
+bhyve, the "BSD hypervisor" is a hypervisor/virtual machine manager developed on
+FreeBSD and relies on modern CPU features such as Extended Page Tables (EPT) and
+VirtIO network and storage drivers
+EOD
