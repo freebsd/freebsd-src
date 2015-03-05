@@ -1182,6 +1182,7 @@ struct dadq {
 	int dad_ns_icount;
 	int dad_na_icount;
 	int dad_ns_lcount;	/* looped back NS */
+	int dad_loopbackprobe;	/* probing state for loopback detection */
 	struct callout dad_timer_ch;
 	struct vnet *dad_vnet;
 	u_int dad_refcnt;
@@ -1223,7 +1224,6 @@ static struct dadq *
 nd6_dad_find(struct ifaddr *ifa, struct nd_opt_nonce *n)
 {
 	struct dadq *dp;
-	char ip6buf[INET6_ADDRSTRLEN];
 
 	DADQ_RLOCK();
 	TAILQ_FOREACH(dp, &V_dadq, dad_list) {
@@ -1238,10 +1238,6 @@ nd6_dad_find(struct ifaddr *ifa, struct nd_opt_nonce *n)
 		    n->nd_opt_nonce_len == (ND_OPT_NONCE_LEN + 2) / 8 &&
 		    memcmp(&n->nd_opt_nonce[0], &dp->dad_nonce[0],
 		        ND_OPT_NONCE_LEN) == 0) {
-			log(LOG_ERR, "%s: a looped back NS message is "
-			    "detected during DAD for %s.\n",
-			    if_name(ifa->ifa_ifp),
-			    ip6_sprintf(ip6buf, IFA_IN6(ifa)));
 			dp->dad_ns_lcount++;
 			continue;
 		}
@@ -1357,7 +1353,7 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	dp->dad_count = V_ip6_dad_count;
 	dp->dad_ns_icount = dp->dad_na_icount = 0;
 	dp->dad_ns_ocount = dp->dad_ns_tcount = 0;
-	dp->dad_ns_lcount = 0;
+	dp->dad_ns_lcount = dp->dad_loopbackprobe = 0;
 	refcount_init(&dp->dad_refcnt, 1);
 	nd6_dad_add(dp);
 	if (delay == 0) {
@@ -1432,8 +1428,10 @@ nd6_dad_timer(struct dadq *dp)
 		goto err;
 	}
 
-	/* timeouted with IFF_{RUNNING,UP} check */
-	if (dp->dad_ns_tcount > V_dad_maxtry) {
+	/* Stop DAD if the interface is down even after dad_maxtry attempts. */
+	if ((dp->dad_ns_tcount > V_dad_maxtry) &&
+	    (((ifp->if_flags & IFF_UP) == 0) ||
+	     ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0))) {
 		nd6log((LOG_INFO, "%s: could not run DAD, driver problem?\n",
 		    if_name(ifa->ifa_ifp)));
 		goto err;
@@ -1456,7 +1454,42 @@ nd6_dad_timer(struct dadq *dp)
 		if (dp->dad_ns_icount > 0 || dp->dad_na_icount > 0)
 			/* We've seen NS or NA, means DAD has failed. */
 			nd6_dad_duplicated(ifa, dp);
-		else {
+		else if (V_dad_enhanced != 0 &&
+		    dp->dad_ns_lcount > 0 &&
+		    dp->dad_ns_lcount > dp->dad_loopbackprobe) {
+			/*
+			 * A looped back probe is detected,
+			 * Sec. 4.1 in draft-ietf-6man-enhanced-dad-13
+			 * requires transmission of additional probes until
+			 * the loopback condition becomes clear.
+			 */
+			log(LOG_ERR, "%s: a looped back NS message is "
+			    "detected during DAD for %s.  "
+			    "Another DAD probes are being sent.\n",
+			    if_name(ifa->ifa_ifp),
+			    ip6_sprintf(ip6buf, IFA_IN6(ifa)));
+			dp->dad_loopbackprobe = dp->dad_ns_lcount;
+			/*
+			 * An interface with IGNORELOOP is one which a
+			 * loopback is permanently expected while regular
+			 * traffic works.  In that case, stop DAD after
+			 * MAX_MULTICAST_SOLICIT number of NS messages
+			 * regardless of the number of received loopback NS
+			 * by increasing dad_loopbackprobe in advance.
+			 */
+			if (ND_IFINFO(ifa->ifa_ifp)->flags & ND6_IFF_IGNORELOOP)
+				dp->dad_loopbackprobe += V_nd6_mmaxtries;
+			/*
+			 * Send an NS immediately and increase dad_count by
+			 * V_nd6_mmaxtries - 1.
+			 */
+			nd6_dad_ns_output(dp, ifa);
+			dp->dad_count =
+			    dp->dad_ns_ocount + V_nd6_mmaxtries - 1;
+			nd6_dad_starttimer(dp,
+			    (long)ND_IFINFO(ifa->ifa_ifp)->retrans * hz / 1000);
+			goto done;
+		} else {
 			/*
 			 * We are done with DAD.  No NA came, no NS came.
 			 * No duplicate address found.  Check IFDISABLED flag
@@ -1470,6 +1503,12 @@ nd6_dad_timer(struct dadq *dp)
 			    "%s: DAD complete for %s - no duplicates found\n",
 			    if_name(ifa->ifa_ifp),
 			    ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr)));
+			if (dp->dad_ns_lcount > 0)
+				log(LOG_ERR, "%s: DAD completed while "
+				    "a looped back NS message is detected "
+				    "during DAD for %s.\n",
+				    if_name(ifa->ifa_ifp),
+				    ip6_sprintf(ip6buf, IFA_IN6(ifa)));
 		}
 	}
 err:
