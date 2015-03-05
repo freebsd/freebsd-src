@@ -230,21 +230,20 @@ gpiobus_free_ivars(struct gpiobus_ivar *devi)
 }
 
 int
-gpiobus_map_pin(device_t bus, device_t child, uint32_t pin)
+gpiobus_map_pin(device_t bus, uint32_t pin)
 {
 	struct gpiobus_softc *sc;
 
 	sc = device_get_softc(bus);
 	/* Consistency check. */
 	if (pin >= sc->sc_npins) {
-		device_printf(child,
+		device_printf(bus,
 		    "invalid pin %d, max: %d\n", pin, sc->sc_npins - 1);
 		return (-1);
 	}
 	/* Mark pin as mapped and give warning if it's already mapped. */
 	if (sc->sc_pins_mapped[pin]) {
-		device_printf(child,
-		    "warning: pin %d is already mapped\n", pin);
+		device_printf(bus, "warning: pin %d is already mapped\n", pin);
 		return (-1);
 	}
 	sc->sc_pins_mapped[pin] = 1;
@@ -277,7 +276,7 @@ gpiobus_parse_pins(struct gpiobus_softc *sc, device_t child, int mask)
 		if ((mask & (1 << i)) == 0)
 			continue;
 		/* Reserve the GPIO pin. */
-		if (gpiobus_map_pin(sc->sc_busdev, child, i) != 0) {
+		if (gpiobus_map_pin(sc->sc_busdev, i) != 0) {
 			gpiobus_free_ivars(devi);
 			return (EINVAL);
 		}
