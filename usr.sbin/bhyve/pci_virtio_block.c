@@ -311,7 +311,7 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 		}
 		assert(size != 0);
 		assert(sectsz != 0);
-		if (ioctl(fd, DIOCGSTRIPESIZE, &sts) == 0)
+		if (ioctl(fd, DIOCGSTRIPESIZE, &sts) == 0 && sts > 0)
 			ioctl(fd, DIOCGSTRIPEOFFSET, &sto);
 	} else
 		sts = sbuf.st_blksize;
