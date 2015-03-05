@@ -48,11 +48,13 @@
 #include <sysexits.h>
 #include <unistd.h>
 
+struct cheri_object	cheri_helloworld;
+
 /*
  * Print "hello world" from a sandbox ... three different ways!
  */
 static void
-cheri_helloworld(struct sandbox_object *objectp,
+invoke_cheri_helloworld(struct sandbox_object *objectp,
     struct cheri_object stdout_fd, register_t methodnum)
 {
 	register_t v;
@@ -82,19 +84,25 @@ cheri_helloworld(struct sandbox_object *objectp,
 }
 
 int
-main(int argc __unused, char *argv[] __unused)
+main(int argc, char *argv[])
 {
 	struct sandbox_class *classp;
 	struct sandbox_object *objectp;
 	struct cheri_object stdout_fd;
+
+	if (sandbox_program_init(argc, argv) == -1)
+		errx(EX_OSFILE, "sandbox_program_init");
 
 	if (cheri_fd_new(STDOUT_FILENO, &stdout_fd) < 0)
 		err(EX_OSFILE, "cheri_fd_new: stdout");
 	if (sandbox_class_new("/usr/libexec/cheri_helloworld-helper",
 	    4*1024*1024, &classp) < 0)
 		err(EX_OSFILE, "sandbox_class_new");
+	if (sandbox_program_finalize() == -1)
+		errx(EX_SOFTWARE, "sandbox_program_finalize");
 	if (sandbox_object_new(classp, &objectp) < 0)
 		err(EX_OSFILE, "sandbox_object_new");
+	cheri_helloworld = sandbox_object_getobject(objectp);
 
 	/*
 	 * Ideally, this information would be sucked out of ELF.
@@ -107,12 +115,20 @@ main(int argc __unused, char *argv[] __unused)
 	    CHERI_HELLOWORLD_HELPER_OP_FD_WRITE_C, "fd_write_c");
 
 	/* Do it three times, one for each possible way. */
-	cheri_helloworld(objectp, stdout_fd,
+	invoke_cheri_helloworld(objectp, stdout_fd,
 	    CHERI_HELLOWORLD_HELPER_OP_HELLOWORLD);
-	cheri_helloworld(objectp, stdout_fd,
+	invoke_cheri_helloworld(objectp, stdout_fd,
 	    CHERI_HELLOWORLD_HELPER_OP_PUTS);
-	cheri_helloworld(objectp, stdout_fd,
+	invoke_cheri_helloworld(objectp, stdout_fd,
 	    CHERI_HELLOWORLD_HELPER_OP_FD_WRITE_C);
+
+	int ret;
+	ret = call_cheri_system_helloworld();
+	assert(ret == 123456);
+	ret = call_cheri_system_puts();
+	assert(ret >= 0);
+	ret = call_cheri_fd_write_c(stdout_fd);
+	assert(ret == 12);
 
 	sandbox_object_destroy(objectp);
 	sandbox_class_destroy(classp);

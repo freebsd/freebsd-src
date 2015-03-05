@@ -36,4 +36,25 @@
 #define	CHERI_HELLOWORLD_HELPER_OP_PUTS		2
 #define	CHERI_HELLOWORLD_HELPER_OP_FD_WRITE_C	3
 
+extern struct cheri_object	cheri_helloworld;
+#ifdef CHERI_HELLOWORLD_INTERNAL
+#define	CHERI_HELLOWORLD_CCALL					\
+    __attribute__((cheri_ccallee))				\
+    __attribute__((cheri_method_class(cheri_helloworld)))
+#else
+#define	CHERI_HELLOWORLD_CCALL					\
+    __attribute__((cheri_ccall))				\
+    __attribute__((cheri_method_suffix("_cap")))		\
+    __attribute__((cheri_method_class(cheri_helloworld)))
+#endif
+
+CHERI_HELLOWORLD_CCALL
+int call_cheri_system_helloworld(void);
+
+CHERI_HELLOWORLD_CCALL
+int call_cheri_system_puts(void);
+
+CHERI_HELLOWORLD_CCALL
+int call_cheri_fd_write_c(struct cheri_object fd_object);
+
 #endif /* !_LIBEXEC_CHERI_HELLOWORLD_HELPER_H_ */

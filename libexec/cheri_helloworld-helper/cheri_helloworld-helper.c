@@ -42,6 +42,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#define CHERI_HELLOWORLD_INTERNAL
 #include "cheri_helloworld-helper.h"
 
 int	invoke(struct cheri_object co, register_t v0,
@@ -87,4 +88,33 @@ invoke(struct cheri_object co __unused, register_t v0 __unused,
 	default:
 		return (-1);
 	}
+}
+
+int
+call_cheri_system_helloworld(void)
+{
+
+	return (cheri_system_helloworld());
+}
+
+int
+call_cheri_system_puts(void)
+{
+	__capability char *hello_world_str_c;
+
+	hello_world_str_c = cheri_ptrperm(&hello_world_str,
+	    sizeof(hello_world_str), CHERI_PERM_LOAD); /* Nul-terminated. */
+
+	return (cheri_system_puts(hello_world_str_c));
+}
+
+int
+call_cheri_fd_write_c(struct cheri_object fd_object)
+{
+	__capability char *hello_world_buf_c;
+
+	hello_world_buf_c = cheri_ptrperm(&hello_world_str,
+	    strlen(hello_world_str), CHERI_PERM_LOAD); /* Just the text. */
+	return (cheri_fd_write_c(fd_object,
+	    hello_world_buf_c).cfr_retval0);
 }
