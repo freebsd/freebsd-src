@@ -2055,6 +2055,19 @@ fixspace(int old, int new, off_t off, int *space)
 	KASSERT(*space >= 0, ("%s: space went backwards", __func__));
 }
 
+/*
+ * Structure describing a single sendfile(2) I/O, which may consist of
+ * several underlying pager I/Os.
+ *
+ * The syscall context allocates the structure and initializes 'nios'
+ * to 1.  As sendfile_swapin() runs through pages and starts asynchronous
+ * paging operations, it increments 'nios'.
+ *
+ * Every I/O completion calls sf_iodone(), which decrements the 'nios', and
+ * the syscall also calls sf_iodone() after allocating all mbufs, linking them
+ * and sending to socket.  Whoever reaches zero 'nios' is responsible to
+ * call pru_ready on the socket, to notify it of readyness of the data.
+ */
 struct sf_io {
 	u_int		nios;
 	u_int		error;
@@ -2110,6 +2123,9 @@ sf_iodone(void *arg, vm_page_t *pg, int reqpage, int error)
 	free(sfio, M_TEMP);
 }
 
+/*
+ * Iterate through pages vector and request paging for non-valid pages.
+ */
 static int
 sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
     int npages, int rhpages)
@@ -2119,6 +2135,11 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 
 	nios = 0;
 	VM_OBJECT_WLOCK(obj);
+
+	/*
+	 * First grab all the pages and wire them.  Note that we grab
+	 * only required pages.  Readahead pages are dealt with later.
+	 */
 	for (int i = 0; i < npages; i++)
 		pa[i] = vm_page_grab(obj, OFF_TO_IDX(vmoff(i, off)),
 		    VM_ALLOC_WIRED | VM_ALLOC_NORMAL);
@@ -2126,6 +2147,7 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 	for (int i = 0; i < npages;) {
 		int j, a, count, rv;
 
+		/* Skip valid pages. */
 		if (vm_page_is_valid(pa[i], vmoff(i, off) & PAGE_MASK,
 		    xfsize(i, npages, off, len))) {
 			vm_page_xunbusy(pa[i]);
@@ -2133,11 +2155,26 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 			continue;
 		}
 
+		/*
+		 * Now 'i' points to first invalid page, iterate further
+		 * to make 'j' point at first valid after a bunch of
+		 * invalid ones.
+		 */
 		for (j = i + 1; j < npages; j++)
 			if (vm_page_is_valid(pa[j], vmoff(j, off) & PAGE_MASK,
 			    xfsize(j, npages, off, len)))
 				break;
 
+		/*
+		 * Now we got region of invalid pages between 'i' and 'j'.
+		 * Check that they belong to pager.  They may not be there,
+		 * which is a regular situation for shmem pager.  For vnode
+		 * pager this happens only in case of sparse file.
+		 *
+		 * Important feature of vm_pager_has_page() is the hint
+		 * stored in 'a', about how many pages we can pagein after
+		 * this page in a single I/O.
+		 */
 		while (!vm_pager_has_page(obj, OFF_TO_IDX(vmoff(i, off)),
 		    NULL, &a) && i < j) {
 			pmap_zero_page(pa[i]);
@@ -2149,6 +2186,15 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 		if (i == j)
 			continue;
 
+		/*
+		 * We want to pagein as many pages as possible, limited only
+		 * by the 'a' hint and actual request.
+		 *
+		 * If calculated count yields in value greater than npages,
+		 * then we are doing optional readahead, and we need to grab
+		 * and wire pages for it.  Since readahead is optional, we
+		 * prefer failure over sleep and thus say VM_ALLOC_NOWAIT.
+		 */
 		count = min(a + 1, npages + rhpages - i);
 		for (j = npages; j < i + count; j++) {
 			pa[j] = vm_page_grab(obj, OFF_TO_IDX(vmoff(j, off)),
@@ -2518,20 +2564,18 @@ retry_space:
 				break;
 			}
 
+			m0 = m_get(M_WAITOK, MT_DATA);
+			m0->m_ext.ext_buf = (char *)sf_buf_kva(sf);
+			m0->m_ext.ext_size = PAGE_SIZE;
+			m0->m_ext.ext_arg1 = sf;
+			m0->m_ext.ext_arg2 = sfs;
 			/*
-			 * Get an mbuf and set it up.
-			 *
 			 * SF_NOCACHE sets the page as being freed upon send.
 			 * However, we ignore it for the last page in 'space',
 			 * if the page is truncated, and we got more data to
 			 * send (rem > space), or if we have readahead
 			 * configured (rhpages > 0).
 			 */
-			m0 = m_get(M_WAITOK, MT_DATA);
-			m0->m_ext.ext_buf = (char *)sf_buf_kva(sf);
-			m0->m_ext.ext_size = PAGE_SIZE;
-			m0->m_ext.ext_arg1 = sf;
-			m0->m_ext.ext_arg2 = sfs;
 			if ((flags & SF_NOCACHE) == 0 ||
 			    (i == npages - 1 &&
 			    ((off + space) & PAGE_MASK) &&
@@ -2592,6 +2636,12 @@ retry_space:
 
 		CURVNET_SET(so->so_vnet);
 		if (nios == 0) {
+			/*
+			 * If sendfile_swapin() didn't initiate any I/Os,
+			 * which happens if all data is cached in VM, then
+			 * we can send data right now without the
+			 * PRUS_NOTREADY flag.
+			 */
 			free(sfio, M_TEMP);
 			error = (*so->so_proto->pr_usrreqs->pru_send)
 			    (so, 0, m, NULL, NULL, td);
