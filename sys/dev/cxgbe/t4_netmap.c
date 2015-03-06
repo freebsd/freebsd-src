@@ -60,6 +60,15 @@ extern int fl_pktshift;	/* XXXNM */
 
 SYSCTL_NODE(_hw, OID_AUTO, cxgbe, CTLFLAG_RD, 0, "cxgbe netmap parameters");
 
+/*
+ * 0 = normal netmap rx
+ * 1 = black hole
+ * 2 = supermassive black hole (buffer packing enabled)
+ */
+int black_hole = 0;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_black_hole, CTLFLAG_RDTUN, &black_hole, 0,
+    "Sink incoming packets.");
+
 int rx_ndesc = 256;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_rx_ndesc, CTLFLAG_RWTUN,
     &rx_ndesc, 0, "# of rx descriptors after which the hw cidx is updated.");
@@ -285,7 +294,8 @@ alloc_nm_rxq_hwq(struct port_info *pi, struct sge_nm_rxq *nm_rxq, int cong)
 	c.iqns_to_fl0congen |=
 	    htobe32(V_FW_IQ_CMD_FL0HOSTFCMODE(X_HOSTFCMODE_NONE) |
 		F_FW_IQ_CMD_FL0FETCHRO | F_FW_IQ_CMD_FL0DATARO |
-		(fl_pad ? F_FW_IQ_CMD_FL0PADEN : 0));
+		(fl_pad ? F_FW_IQ_CMD_FL0PADEN : 0) |
+		(black_hole == 2 ? F_FW_IQ_CMD_FL0PACKEN : 0));
 	c.fl0dcaen_to_fl0cidxfthresh =
 	    htobe16(V_FW_IQ_CMD_FL0FBMIN(X_FETCHBURSTMIN_64B) |
 		V_FW_IQ_CMD_FL0FBMAX(X_FETCHBURSTMAX_512B));
@@ -916,6 +926,9 @@ cxgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 	u_int n;
 	int force_update = (flags & NAF_FORCE_READ) || kring->nr_kflags & NKR_PENDINTR;
 
+	if (black_hole)
+		return (0);	/* No updates ever. */
+
 	if (netmap_no_pendintr || force_update) {
 		kring->nr_hwtail = atomic_load_acq_32(&nm_rxq->fl_cidx);
 		kring->nr_kflags &= ~NKR_PENDINTR;
@@ -1123,6 +1136,7 @@ t4_nm_intr(void *arg)
 	u_int n = 0, work = 0;
 	uint8_t opcode;
 	uint32_t fl_cidx = atomic_load_acq_32(&nm_rxq->fl_cidx);
+	u_int fl_credits = fl_cidx & 7;
 
 	while ((d->rsp.u.type_gen & F_RSPD_GEN) == nm_rxq->iq_gen) {
 
@@ -1133,8 +1147,10 @@ t4_nm_intr(void *arg)
 
 		switch (G_RSPD_TYPE(d->rsp.u.type_gen)) {
 		case X_RSPD_TYPE_FLBUF:
-			/* No buffer packing so new buf every time */
-			MPASS(lq & F_RSPD_NEWBUF);
+			if (black_hole != 2) {
+				/* No buffer packing so new buf every time */
+				MPASS(lq & F_RSPD_NEWBUF);
+			}
 
 			/* fall through */
 
@@ -1150,7 +1166,9 @@ t4_nm_intr(void *arg)
 			case CPL_RX_PKT:
 				ring->slot[fl_cidx].len = G_RSPD_LEN(lq) - fl_pktshift;
 				ring->slot[fl_cidx].flags = kring->nkr_slot_flags;
-				if (__predict_false(++fl_cidx == nm_rxq->fl_sidx))
+				fl_cidx += (lq & F_RSPD_NEWBUF) ? 1 : 0;
+				fl_credits += (lq & F_RSPD_NEWBUF) ? 1 : 0;
+				if (__predict_false(fl_cidx == nm_rxq->fl_sidx))
 					fl_cidx = 0;
 				break;
 			default:
@@ -1178,18 +1196,33 @@ t4_nm_intr(void *arg)
 
 		if (__predict_false(++n == rx_ndesc)) {
 			atomic_store_rel_32(&nm_rxq->fl_cidx, fl_cidx);
-			netmap_rx_irq(ifp, nm_rxq->nid, &work);
-			MPASS(work != 0);
+			if (black_hole && fl_credits >= 8) {
+				fl_credits /= 8;
+				IDXINCR(nm_rxq->fl_pidx, fl_credits * 8,
+				    nm_rxq->fl_sidx);
+				t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL),
+				    nm_rxq->fl_db_val | V_PIDX(fl_credits));
+				fl_credits = fl_cidx & 7;
+			} else if (!black_hole) {
+				netmap_rx_irq(ifp, nm_rxq->nid, &work);
+				MPASS(work != 0);
+			}
 			t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS),
 			    V_CIDXINC(n) | V_INGRESSQID(nm_rxq->iq_cntxt_id) |
 			    V_SEINTARM(V_QINTR_TIMER_IDX(X_TIMERREG_UPDATE_CIDX)));
 			n = 0;
 		}
 	}
-	if (fl_cidx != nm_rxq->fl_cidx) {
-		atomic_store_rel_32(&nm_rxq->fl_cidx, fl_cidx);
+
+	atomic_store_rel_32(&nm_rxq->fl_cidx, fl_cidx);
+	if (black_hole) {
+		fl_credits /= 8;
+		IDXINCR(nm_rxq->fl_pidx, fl_credits * 8, nm_rxq->fl_sidx);
+		t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL),
+		    nm_rxq->fl_db_val | V_PIDX(fl_credits));
+	} else
 		netmap_rx_irq(ifp, nm_rxq->nid, &work);
-	}
+
 	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS), V_CIDXINC(n) |
 	    V_INGRESSQID((u32)nm_rxq->iq_cntxt_id) |
 	    V_SEINTARM(V_QINTR_TIMER_IDX(holdoff_tmr_idx)));
