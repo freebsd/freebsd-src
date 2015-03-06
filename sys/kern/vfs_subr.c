@@ -2624,6 +2624,7 @@ loop:
 		 */
 		if (vp->v_usecount == 0 || (flags & FORCECLOSE)) {
 			VNASSERT(vp->v_usecount == 0 ||
+			    vp->v_op != &devfs_specops ||
 			    (vp->v_type != VCHR && vp->v_type != VBLK), vp,
 			    ("device VNODE %p is FORCECLOSED", vp));
 			vgonel(vp);
