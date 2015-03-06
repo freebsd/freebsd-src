@@ -220,7 +220,7 @@ cheri_system_object_for_instance(struct sandbox_object *sbop)
 int
 sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 {
-	__capability void *codecap, *datacap, *typecap;
+	__capability void *datacap;
 	struct sandbox_metadata *sbmp;
 	size_t length;
 	ssize_t max_prog_offset;
