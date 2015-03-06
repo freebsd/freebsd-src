@@ -197,6 +197,7 @@ extern struct sandbox_object	*cheritest_objectp;
 void	test_sandbox_simple_method(const struct cheri_test *ctp,
 	    int methodnum);
 void	test_sandbox_md5(const struct cheri_test *ctp);
+void	test_sandbox_md5_ccall(const struct cheri_test *ctp);
 void	test_sandbox_userfn(const struct cheri_test *ctp);
 void	test_2sandbox_newdestroy(const struct cheri_test *ctp);
 void	test_2sandbox_md5(const struct cheri_test *ctp);

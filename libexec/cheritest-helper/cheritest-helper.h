@@ -84,4 +84,25 @@
 #define	CHERITEST_VALUE_INVALID		0xbb
 #define	CHERITEST_VALUE_CONSTRUCTOR	0xcc
 
+#ifdef LIST_ONLY
+#define CHERITEST_CCALL
+#define	__capability
+#else
+extern struct cheri_object cheritest;
+#ifdef CHERITEST_INTERNAL
+#define	CHERITEST_CCALL					\
+    __attribute__((cheri_ccallee))			\
+    __attribute__((cheri_method_class(cheritest)))
+#else
+#define	CHERITEST_CCALL					\
+    __attribute__((cheri_ccall))			\
+    __attribute__((cheri_method_suffix("_cap")))	\
+    __attribute__((cheri_method_class(cheritest)))
+#endif
+#endif
+
+CHERITEST_CCALL
+int	call_invoke_md5(size_t len, __capability char *data_input,
+	    __capability char *data_output);
+
 #endif /* !_LIBEXEC_CHERITEST_CHERITEST_HELPER_H_ */

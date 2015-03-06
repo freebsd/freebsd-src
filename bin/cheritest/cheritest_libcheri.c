@@ -65,6 +65,8 @@
 struct sandbox_class	*cheritest_classp;
 struct sandbox_object	*cheritest_objectp;
 
+struct cheri_object cheritest;
+
 void
 test_sandbox_simple_method(const struct cheri_test *ctp __unused,
     int methodnum)
@@ -112,6 +114,26 @@ test_sandbox_md5(const struct cheri_test *ctp __unused)
 	    CHERITEST_HELPER_OP_MD5,
 	    0, strlen(string_to_md5), 0, 0, 0, 0, 0, 0,
 	    md5cap, bufcap, cclear, cclear, cclear, cclear, cclear, cclear);
+
+	buf[32] = '\0';
+	if (strcmp(buf, string_md5) != 0)
+		cheritest_failure_errx(
+		    "Incorrect MD5 checksum returned from sandbox ('%s')",
+		    buf);
+	cheritest_success();
+}
+
+void
+test_sandbox_md5_ccall(const struct cheri_test *ctp __unused)
+{
+	__capability void *md5cap, *bufcap;
+	char buf[33];
+
+	md5cap = cheri_ptrperm(string_to_md5, sizeof(string_to_md5),
+	    CHERI_PERM_LOAD);
+	bufcap = cheri_ptrperm(buf, sizeof(buf), CHERI_PERM_STORE);
+
+	call_invoke_md5(strlen(string_to_md5), md5cap, bufcap);
 
 	buf[32] = '\0';
 	if (strcmp(buf, string_md5) != 0)
@@ -256,6 +278,7 @@ cheritest_libcheri_setup(void)
 		return (-1);
 	if (sandbox_object_new(cheritest_classp, &cheritest_objectp) < 0)
 		return (-1);
+	cheritest = sandbox_object_getvtableobject(cheritest_objectp);
 	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_OP_MD5, "md5");
 	(void)sandbox_class_method_declare(cheritest_classp,

@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2012-2015 Robert N. M. Watson
- * Copyright (c) 2014 SRI International
+ * Copyright (c) 2014-2015 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -48,6 +48,7 @@
 #include <string.h>
 #include <zlib.h>
 
+#define	CHERITEST_INTERNAL
 #include "cheritest-helper.h"
 #include "cheritest-helper-internal.h"
 
@@ -483,4 +484,11 @@ invoke(struct cheri_object co __unused, register_t methodnum,
 		return (invoke_inflate(zspp));
 	}
 	return (-1);
+}
+
+int
+call_invoke_md5(size_t len, char *data_input, char *data_output)
+{
+
+	return (invoke_md5(len, data_input, data_output));
 }
