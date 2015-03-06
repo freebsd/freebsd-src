@@ -58,6 +58,16 @@ extern int fl_pad;	/* XXXNM */
 extern int spg_len;	/* XXXNM */
 extern int fl_pktshift;	/* XXXNM */
 
+SYSCTL_NODE(_hw, OID_AUTO, cxgbe, CTLFLAG_RD, 0, "cxgbe netmap parameters");
+
+int rx_ndesc = 256;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_rx_ndesc, CTLFLAG_RWTUN,
+    &rx_ndesc, 0, "# of rx descriptors after which the hw cidx is updated.");
+
+int holdoff_tmr_idx = 2;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_holdoff_tmr_idx, CTLFLAG_RWTUN,
+    &holdoff_tmr_idx, 0, "Holdoff timer index for netmap rx queues.");
+
 /* netmap ifnet routines */
 static void cxgbe_nm_init(void *);
 static int cxgbe_nm_ioctl(struct ifnet *, unsigned long, caddr_t);
@@ -344,8 +354,8 @@ alloc_nm_rxq_hwq(struct port_info *pi, struct sge_nm_rxq *nm_rxq, int cong)
 	}
 
 	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS),
-	    V_SEINTARM(V_QINTR_TIMER_IDX(1)) |
-	    V_INGRESSQID(nm_rxq->iq_cntxt_id));
+	    V_INGRESSQID(nm_rxq->iq_cntxt_id) |
+	    V_SEINTARM(V_QINTR_TIMER_IDX(holdoff_tmr_idx)));
 
 	return (rc);
 }
@@ -491,13 +501,14 @@ cxgbe_netmap_on(struct adapter *sc, struct port_info *pi, struct ifnet *ifp,
 		/* We deal with 8 bufs at a time */
 		MPASS((na->num_rx_desc & 7) == 0);
 		MPASS(na->num_rx_desc == nm_rxq->fl_sidx);
-		for (j = 0; j < nm_rxq->fl_sidx - 8; j++) {
+		for (j = 0; j < nm_rxq->fl_sidx; j++) {
 			uint64_t ba;
 
 			PNMB(na, &slot[j], &ba);
+			MPASS(ba != 0);
 			nm_rxq->fl_desc[j] = htobe64(ba | hwidx);
 		}
-		nm_rxq->fl_pidx = j;
+		j = nm_rxq->fl_pidx = nm_rxq->fl_sidx - 8;
 		MPASS((j & 7) == 0);
 		j /= 8;	/* driver pidx to hardware pidx */
 		wmb();
@@ -708,6 +719,7 @@ cxgbe_nm_tx(struct adapter *sc, struct sge_nm_txq *nm_txq,
 		for (i = 0; i < n; i++) {
 			slot = &ring->slot[kring->nr_hwcur];
 			PNMB(kring->na, slot, &ba);
+			MPASS(ba != 0);
 
 			cpl->ctrl0 = nm_txq->cpl_ctrl0;
 			cpl->pack = 0;
@@ -933,6 +945,7 @@ cxgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 		while (n > 0) {
 			for (i = 0; i < 8; i++, fl_pidx++, slot++) {
 				PNMB(na, slot, &ba);
+				MPASS(ba != 0);
 				nm_rxq->fl_desc[fl_pidx] = htobe64(ba | hwidx);
 				slot->flags &= ~NS_BUF_CHANGED;
 				MPASS(fl_pidx <= nm_rxq->fl_sidx);
@@ -1107,8 +1120,7 @@ t4_nm_intr(void *arg)
 	struct netmap_ring *ring = kring->ring;
 	struct iq_desc *d = &nm_rxq->iq_desc[nm_rxq->iq_cidx];
 	uint32_t lq;
-	u_int n = 0;
-	int processed = 0;
+	u_int n = 0, work = 0;
 	uint8_t opcode;
 	uint32_t fl_cidx = atomic_load_acq_32(&nm_rxq->fl_cidx);
 
@@ -1164,7 +1176,10 @@ t4_nm_intr(void *arg)
 			nm_rxq->iq_gen ^= F_RSPD_GEN;
 		}
 
-		if (__predict_false(++n == 64)) {	/* XXXNM: tune */
+		if (__predict_false(++n == rx_ndesc)) {
+			atomic_store_rel_32(&nm_rxq->fl_cidx, fl_cidx);
+			netmap_rx_irq(ifp, nm_rxq->nid, &work);
+			MPASS(work != 0);
 			t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS),
 			    V_CIDXINC(n) | V_INGRESSQID(nm_rxq->iq_cntxt_id) |
 			    V_SEINTARM(V_QINTR_TIMER_IDX(X_TIMERREG_UPDATE_CIDX)));
@@ -1173,10 +1188,10 @@ t4_nm_intr(void *arg)
 	}
 	if (fl_cidx != nm_rxq->fl_cidx) {
 		atomic_store_rel_32(&nm_rxq->fl_cidx, fl_cidx);
-		netmap_rx_irq(ifp, nm_rxq->nid, &processed);
+		netmap_rx_irq(ifp, nm_rxq->nid, &work);
 	}
 	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS), V_CIDXINC(n) |
 	    V_INGRESSQID((u32)nm_rxq->iq_cntxt_id) |
-	    V_SEINTARM(V_QINTR_TIMER_IDX(1)));
+	    V_SEINTARM(V_QINTR_TIMER_IDX(holdoff_tmr_idx)));
 }
 #endif
