@@ -152,13 +152,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 * Fill siginfo structure.
 	 */
 	ksi->ksi_info.si_signo = ksi->ksi_signo;
-	#ifdef AIM
 	ksi->ksi_info.si_addr = (void *)((tf->exc == EXC_DSI) ? 
-	    tf->cpu.aim.dar : tf->srr0);
-	#else
-	ksi->ksi_info.si_addr = (void *)((tf->exc == EXC_DSI) ? 
-	    tf->cpu.booke.dear : tf->srr0);
-	#endif
+	    tf->dar : tf->srr0);
 
 	#ifdef COMPAT_FREEBSD32
 	if (SV_PROC_FLAG(p, SV_ILP32)) {
@@ -284,13 +279,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	} else {
 		/* Old FreeBSD-style arguments. */
 		tf->fixreg[FIRSTARG+1] = code;
-		#ifdef AIM
 		tf->fixreg[FIRSTARG+3] = (tf->exc == EXC_DSI) ? 
-		    tf->cpu.aim.dar : tf->srr0;
-		#else
-		tf->fixreg[FIRSTARG+3] = (tf->exc == EXC_DSI) ? 
-		    tf->cpu.booke.dear : tf->srr0;
-		#endif
+		    tf->dar : tf->srr0;
 	}
 	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);

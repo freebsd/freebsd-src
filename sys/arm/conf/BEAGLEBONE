@@ -28,10 +28,10 @@ include		"../ti/am335x/std.am335x"
 makeoptions	WITHOUT_MODULES="ahc"
 
 # DTrace support
-options         KDTRACE_HOOKS                # Kernel DTrace hooks
-options                DDB_CTF                      # all architectures - kernel ELF linker loads CTF data
-makeoptions         WITH_CTF=1
-makeoptions     MODULES_OVERRIDE="opensolaris dtrace dtrace/lockstat dtrace/profile dtrace/fbt"
+options 	KDTRACE_HOOKS		# Kernel DTrace hooks
+options 	DDB_CTF			# all architectures - kernel ELF linker loads CTF data
+makeoptions	WITH_CTF=1
+makeoptions	MODULES_OVERRIDE="opensolaris dtrace dtrace/lockstat dtrace/profile dtrace/fbt"
 
 options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler

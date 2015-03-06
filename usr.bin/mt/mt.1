@@ -29,7 +29,7 @@
 .\"	@(#)mt.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd February 12, 2014
+.Dd March 3, 2014
 .Dt MT 1
 .Os
 .Sh NAME
@@ -503,7 +503,8 @@ Value  Width        Tracks    Density         Code Type Reference   Note
 0x42   12.7  (0.5)  512      7,398  (187,909)       C   LTO-2
 0x44   12.7  (0.5)  704      9,638  (244,805)       C   LTO-3
 0x46   12.7  (0.5)  896      12,725 (323,215)       C   LTO-4
-0x48   12.7  (0.5)  448      5,236  (133,000) PRML  C   SDLTapeI(110) 6,8
+0x47    3.81 (0.25)   ?      6,417  (163,000)       CS  DAT-72
+0x48   12.7  (0.5)  448      5,236  (133,000) PRML  C   SDLTapeI(110) 6,8,13
 0x49   12.7  (0.5)  448      7,598  (193,000) PRML  C   SDLTapeI(160) 6,8
 0x4A   12.7  (0.5)  768          ?                  C   T10000A      10
 0x4B   12.7  (0.5) 1152          ?                  C   T10000B      10
@@ -556,6 +557,7 @@ NOTES
     density code is 0x90.
 12. This is Exabyte 8500 uncompressed format.  The compressed format
     density code is 0x8c.
+13. This density code (0x48) was also used for DAT-160.
 .Ed
 .Sh ENVIRONMENT
 .Bl -tag -width ".Ev TAPE"
