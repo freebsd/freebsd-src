@@ -244,10 +244,6 @@ show_stat(const char *fmt, int width, const char *name,
 		/* Format in human readable form. */
 		humanize_number(buf, sizeof(buf), (int64_t)value, "",
 		    HN_AUTOSCALE, HN_NOSPACE | HN_DECIMAL);
-		snprintf(newfmt, sizeof(newfmt), "%s%%%ds%s",
-		    lsep, width, rsep);
-		xo_emit(newfmt, buf);
-		xo_attr("value", "%lu", value);
 		maybe_pad(lsep);
 		snprintf(newfmt, sizeof(newfmt), "{:%s/%%%ds}", name, width);
 		xo_emit(newfmt, buf);
@@ -426,7 +422,7 @@ intpr(int interval, void (*pfunc)(char *), int af)
 		show_stat("lu", 8, "received-packets", IFA_STAT(ipackets),
 		    link|network);
 		show_stat("lu", 5, "received-errors", IFA_STAT(ierrors), link);
-		show_stat("lu", 5, "dropped-packet", IFA_STAT(iqdrops), link);
+		show_stat("lu", 5, "dropped-packets", IFA_STAT(iqdrops), link);
 		if (bflag)
 			show_stat("lu", 10, "received-bytes", IFA_STAT(ibytes),
 			    link|network);

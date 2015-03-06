@@ -53,6 +53,7 @@ static int gpiobus_attach(device_t);
 static int gpiobus_detach(device_t);
 static int gpiobus_suspend(device_t);
 static int gpiobus_resume(device_t);
+static void gpiobus_probe_nomatch(device_t, device_t);
 static int gpiobus_print_child(device_t, device_t);
 static int gpiobus_child_location_str(device_t, device_t, char *, size_t);
 static int gpiobus_child_pnpinfo_str(device_t, device_t, char *, size_t);
@@ -195,6 +196,61 @@ gpiobus_init_softc(device_t dev)
 	return (0);
 }
 
+int
+gpiobus_alloc_ivars(struct gpiobus_ivar *devi)
+{
+
+	/* Allocate pins and flags memory. */
+	devi->pins = malloc(sizeof(uint32_t) * devi->npins, M_DEVBUF,
+	    M_NOWAIT | M_ZERO);
+	if (devi->pins == NULL)
+		return (ENOMEM);
+	devi->flags = malloc(sizeof(uint32_t) * devi->npins, M_DEVBUF,
+	    M_NOWAIT | M_ZERO);
+	if (devi->flags == NULL) {
+		free(devi->pins, M_DEVBUF);
+		return (ENOMEM);
+	}
+
+	return (0);
+}
+
+void
+gpiobus_free_ivars(struct gpiobus_ivar *devi)
+{
+
+	if (devi->flags) {
+		free(devi->flags, M_DEVBUF);
+		devi->flags = NULL;
+	}
+	if (devi->pins) {
+		free(devi->pins, M_DEVBUF);
+		devi->pins = NULL;
+	}
+}
+
+int
+gpiobus_map_pin(device_t bus, uint32_t pin)
+{
+	struct gpiobus_softc *sc;
+
+	sc = device_get_softc(bus);
+	/* Consistency check. */
+	if (pin >= sc->sc_npins) {
+		device_printf(bus,
+		    "invalid pin %d, max: %d\n", pin, sc->sc_npins - 1);
+		return (-1);
+	}
+	/* Mark pin as mapped and give warning if it's already mapped. */
+	if (sc->sc_pins_mapped[pin]) {
+		device_printf(bus, "warning: pin %d is already mapped\n", pin);
+		return (-1);
+	}
+	sc->sc_pins_mapped[pin] = 1;
+
+	return (0);
+}
+
 static int
 gpiobus_parse_pins(struct gpiobus_softc *sc, device_t child, int mask)
 {
@@ -206,43 +262,25 @@ gpiobus_parse_pins(struct gpiobus_softc *sc, device_t child, int mask)
 		if (mask & (1 << i))
 			npins++;
 	}
-
 	if (npins == 0) {
 		device_printf(child, "empty pin mask\n");
 		return (EINVAL);
 	}
-
 	devi->npins = npins;
-	devi->pins = malloc(sizeof(uint32_t) * devi->npins, M_DEVBUF, 
-	    M_NOWAIT | M_ZERO);
-
-	if (!devi->pins)
-		return (ENOMEM);
-
+	if (gpiobus_alloc_ivars(devi) != 0) {
+		device_printf(child, "cannot allocate device ivars\n");
+		return (EINVAL);
+	}
 	npins = 0;
 	for (i = 0; i < 32; i++) {
-
 		if ((mask & (1 << i)) == 0)
 			continue;
-
-		if (i >= sc->sc_npins) {
-			device_printf(child, 
-			    "invalid pin %d, max: %d\n", i, sc->sc_npins - 1);
-			free(devi->pins, M_DEVBUF);
+		/* Reserve the GPIO pin. */
+		if (gpiobus_map_pin(sc->sc_busdev, i) != 0) {
+			gpiobus_free_ivars(devi);
 			return (EINVAL);
 		}
-
 		devi->pins[npins++] = i;
-		/*
-		 * Mark pin as mapped and give warning if it's already mapped
-		 */
-		if (sc->sc_pins_mapped[i]) {
-			device_printf(child, 
-			    "warning: pin %d is already mapped\n", i);
-			free(devi->pins, M_DEVBUF);
-			return (EINVAL);
-		}
-		sc->sc_pins_mapped[i] = 1;
 	}
 
 	return (0);
@@ -299,10 +337,7 @@ gpiobus_detach(device_t dev)
 	for (i = 0; i < ndevs; i++) {
 		device_delete_child(dev, devlist[i]);
 		devi = GPIOBUS_IVAR(devlist[i]);
-		if (devi->pins) {
-			free(devi->pins, M_DEVBUF);
-			devi->pins = NULL;
-		}
+		gpiobus_free_ivars(devi);
 	}
 	free(devlist, M_TEMP);
 
@@ -326,6 +361,20 @@ gpiobus_resume(device_t dev)
 {
 
 	return (bus_generic_resume(dev));
+}
+
+static void
+gpiobus_probe_nomatch(device_t dev, device_t child)
+{
+	char pins[128];
+	struct gpiobus_ivar *devi;
+
+	devi = GPIOBUS_IVAR(child);
+	memset(pins, 0, sizeof(pins));
+	gpiobus_print_pins(devi, pins, sizeof(pins));
+	device_printf(dev, "<unknown device> at pin(s) %s", pins);
+	resource_list_print_type(&devi->rl, "irq", SYS_RES_IRQ, "%ld");
+	printf("\n");
 }
 
 static int
@@ -635,6 +684,7 @@ static device_method_t gpiobus_methods[] = {
 	DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
 	DEVMETHOD(bus_get_resource_list,	gpiobus_get_resource_list),
 	DEVMETHOD(bus_add_child,	gpiobus_add_child),
+	DEVMETHOD(bus_probe_nomatch,	gpiobus_probe_nomatch),
 	DEVMETHOD(bus_print_child,	gpiobus_print_child),
 	DEVMETHOD(bus_child_pnpinfo_str, gpiobus_child_pnpinfo_str),
 	DEVMETHOD(bus_child_location_str, gpiobus_child_location_str),

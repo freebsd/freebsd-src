@@ -110,6 +110,6 @@ grep D_PDESC_INVAL test.out 2> /dev/null 1>&2
 status=$?
 
 cd /
-/usr/bin/rm -rf $DIR
+rm -rf $DIR
 
 exit $status

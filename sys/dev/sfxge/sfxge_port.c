@@ -50,7 +50,7 @@ sfxge_mac_stat_update(struct sfxge_softc *sc)
 
 	SFXGE_PORT_LOCK_ASSERT_OWNED(port);
 
-	if (port->init_state != SFXGE_PORT_STARTED) {
+	if (__predict_false(port->init_state != SFXGE_PORT_STARTED)) {
 		rc = 0;
 		goto out;
 	}
@@ -241,7 +241,7 @@ sfxge_port_wanted_fc_handler(SYSCTL_HANDLER_ARGS)
 		SFXGE_PORT_LOCK(port);
 
 		if (port->wanted_fc != fcntl) {
-			if (port->init_state == SFXGE_PORT_STARTED)
+		    if (__predict_false(port->init_state == SFXGE_PORT_STARTED))
 				error = efx_mac_fcntl_set(sc->enp,
 							  port->wanted_fc,
 							  B_TRUE);
@@ -272,7 +272,8 @@ sfxge_port_link_fc_handler(SYSCTL_HANDLER_ARGS)
 	port = &sc->port;
 
 	SFXGE_PORT_LOCK(port);
-	if (port->init_state == SFXGE_PORT_STARTED && SFXGE_LINK_UP(sc))
+	if (__predict_true(port->init_state == SFXGE_PORT_STARTED) &&
+	    SFXGE_LINK_UP(sc))
 		efx_mac_fcntl_get(sc->enp, &wanted_fc, &link_fc);
 	else
 		link_fc = 0;
@@ -290,7 +291,7 @@ static const uint64_t sfxge_link_baudrate[EFX_LINK_NMODES] = {
 	[EFX_LINK_100FDX]	= IF_Mbps(100),
 	[EFX_LINK_1000HDX]	= IF_Gbps(1),
 	[EFX_LINK_1000FDX]	= IF_Gbps(1),
-	[EFX_LINK_10000FDX]     = IF_Gbps(10),
+	[EFX_LINK_10000FDX]	= IF_Gbps(10),
 };
 
 void
@@ -327,7 +328,7 @@ sfxge_mac_poll_work(void *arg, int npending)
 
 	SFXGE_PORT_LOCK(port);
 
-	if (port->init_state != SFXGE_PORT_STARTED)
+	if (__predict_false(port->init_state != SFXGE_PORT_STARTED))
 		goto done;
 
 	/* This may sleep waiting for MCDI completion */
@@ -394,7 +395,7 @@ sfxge_mac_filter_set(struct sfxge_softc *sc)
 	 * lock is held in sleeping thread. Both problems are repeatable
 	 * on LAG with LACP proto bring up.
 	 */
-	if (port->init_state == SFXGE_PORT_STARTED)
+	if (__predict_true(port->init_state == SFXGE_PORT_STARTED))
 		rc = sfxge_mac_filter_set_locked(sc);
 	else
 		rc = 0;
@@ -518,7 +519,7 @@ sfxge_phy_stat_update(struct sfxge_softc *sc)
 
 	SFXGE_PORT_LOCK_ASSERT_OWNED(port);
 
-	if (port->init_state != SFXGE_PORT_STARTED) {
+	if (__predict_false(port->init_state != SFXGE_PORT_STARTED)) {
 		rc = 0;
 		goto out;
 	}

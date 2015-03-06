@@ -149,7 +149,7 @@ evalcmd(int argc, char **argv)
  */
 
 void
-evalstring(char *s, int flags)
+evalstring(const char *s, int flags)
 {
 	union node *n;
 	struct stackmark smark;

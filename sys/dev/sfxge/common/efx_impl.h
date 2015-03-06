@@ -204,7 +204,7 @@ typedef struct efx_nic_ops_s {
 # define EFX_TXQ_LIMIT_TARGET 259
 #endif
 #ifndef EFX_RXQ_LIMIT_TARGET
-# define EFX_RXQ_LIMIT_TARGET 768
+# define EFX_RXQ_LIMIT_TARGET 512
 #endif
 #ifndef EFX_TXQ_DC_SIZE
 #define EFX_TXQ_DC_SIZE 1 /* 16 descriptors */

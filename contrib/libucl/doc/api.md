@@ -377,7 +377,9 @@ If parsing operations fail then the resulting UCL object will be a `UCL_STRING`.
 
 # Iteration functions
 
-Iteration are used to iterate over UCL compound types: arrays and objects. Moreover, iterations could be performed over the keys with multiple values (implicit arrays). To iterate over an object, an array or a key with multiple values there is a function `ucl_iterate_object`.
+Iteration are used to iterate over UCL compound types: arrays and objects. Moreover, iterations could be performed over the keys with multiple values (implicit arrays).
+There are two types of iterators API: old and unsafe one via `ucl_iterate_object` and the proposed interface of safe iterators.
+
 
 ## ucl_iterate_object
 ~~~C
@@ -400,6 +402,60 @@ while ((obj = ucl_iterate_object (top, &it, true))) {
 			ucl_object_tostring_forced (cur));
 	}
 }
+~~~
+
+## Safe iterators API
+
+Safe iterators are defined to clarify iterating over UCL objects and simplify flattening of UCL objects in non-trivial cases.
+For example, if there is an implicit array that contains another array and a boolean value it is extremely unclear how to iterate over
+such an object. Safe iterators are desinged to define two sorts of iteration:
+
+1. Iteration over complex objects with expanding all values
+2. Iteration over complex objects without expanding of values
+
+The following example demonstrates the difference between these two types of iteration:
+
+~~~
+key = 1;
+key = [2, 3, 4];
+
+Iteration with expansion:
+
+1, 2, 3, 4
+
+Iteration without expansion:
+
+1, [2, 3, 4]
+~~~
+
+UCL defines the following functions to manage safe iterators:
+
+- `ucl_object_iterate_new` - creates new safe iterator
+- `ucl_object_iterate_reset` - resets iterator to a new object
+- `ucl_object_iterate_safe` - safely iterate the object inside iterator
+- `ucl_object_iterate_free` - free memory associated with the safe iterator
+
+Please note that unlike unsafe iterators, safe iterators *must* be explicitly initialized and freed.
+An assert is likely generated if you use uninitialized or `NULL` iterator in all safe iterators functions.
+
+~~~C
+ucl_object_iter_t it;
+const ucl_object_t *cur;
+
+it = ucl_object_iterate_new (obj);
+
+while ((cur = ucl_object_iterate_safe (it, true)) != NULL) {
+	/* Do something */
+}
+
+/* Switch to another object */
+it = ucl_object_iterate_reset (it, another_obj);
+
+while ((cur = ucl_object_iterate_safe (it, true)) != NULL) {
+	/* Do something else */
+}
+
+ucl_object_iterate_free (it);
 ~~~
 
 # Validation functions

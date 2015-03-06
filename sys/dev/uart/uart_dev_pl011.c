@@ -452,14 +452,22 @@ uart_pl011_bus_transmit(struct uart_softc *sc)
 		__uart_setreg(bas, UART_DR, sc->sc_txbuf[i]);
 		uart_barrier(bas);
 	}
-	sc->sc_txbusy = 1;
 
-	/* Enable TX interrupt */
-	reg = __uart_getreg(bas, UART_IMSC);
-	reg |= (UART_TXEMPTY);
-	__uart_setreg(bas, UART_IMSC, reg);
+	/* If not empty wait until it is */
+	if ((__uart_getreg(bas, UART_FR) & FR_TXFE) != FR_TXFE) {
+		sc->sc_txbusy = 1;
+
+		/* Enable TX interrupt */
+		reg = __uart_getreg(bas, UART_IMSC);
+		reg |= (UART_TXEMPTY);
+		__uart_setreg(bas, UART_IMSC, reg);
+	}
 
 	uart_unlock(sc->sc_hwmtx);
+
+	/* No interrupt expected, schedule the next fifo write */
+	if (!sc->sc_txbusy)
+		uart_sched_softih(sc, SER_INT_TXIDLE);
 
 	return (0);
 }

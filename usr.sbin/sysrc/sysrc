@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2010-2014 Devin Teske
+# Copyright (c) 2010-2015 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 #
 # Version information
 #
-SYSRC_VERSION="6.2 Nov-3,2014"
+SYSRC_VERSION="6.3 Mar-4,2015"
 
 #
 # Options
@@ -94,7 +94,7 @@ help()
 	local optfmt="\t%-11s%s\n"
 	local envfmt="\t%-17s%s\n"
 
-	f_err "Usage: %s [OPTIONS] name[[+]=value] ...\n" "$pgm"
+	f_err "Usage: %s [OPTIONS] name[[+|-]=value] ...\n" "$pgm"
 
 	f_err "OPTIONS:\n"
 	f_err "$optfmt" "-a" \
@@ -531,6 +531,7 @@ while [ $# -gt 0 ]; do
 
 	case "$NAME" in
 	*+) mode=APPEND NAME="${NAME%+}" ;;
+	*-) mode=REMOVE NAME="${NAME%-}" ;;
 	 *) mode=ASSIGN
 	esac
 
@@ -594,29 +595,70 @@ while [ $# -gt 0 ]; do
 		fi
 
 		#
-		# If `-N' is passed, simplify the output
+		# Determine both `before' value and appropriate `new' value
 		#
-		if [ ! "$SHOW_VALUE" ]; then
-			echo "$NAME"
-			case "$mode" in
-			APPEND)
-				before=$( f_sysrc_get "$NAME" )
-				f_sysrc_set "$NAME" "$before${1#*=}"
-				;;
-			*)
-				f_sysrc_set "$NAME" "${1#*=}"
+		case "$mode" in
+		APPEND)
+			before=$( f_sysrc_get "$NAME" )
+			add="${1#*=}"
+			delim="${add%"${add#?}"}" # first character
+			oldIFS="$IFS"
+			case "$delim" in
+			""|[$IFS]|[a-zA-Z0-9]) delim=" " ;;
+			*) IFS="$delim"
 			esac
-		else
+			new="$before"
+			for a in $add; do
+				[ "$a" ] || continue
+				skip=
+				for b in $before; do
+					[ "$b" = "$a" ] && skip=1 break
+				done
+				[ "$skip" ] || new="$new$delim$a"
+			done
+			new="${new#"$delim"}" IFS="$oldIFS"
+			unset add delim oldIFS a skip b
+			[ "$SHOW_FILE" ] && before=$( f_sysrc_find "$NAME" )
+			;;
+		REMOVE)
+			before=$( f_sysrc_get "$NAME" )
+			remove="${1#*=}"
+			delim="${remove%"${remove#?}"}" # first character
+			oldIFS="$IFS"
+			case "$delim" in
+			""|[$IFS]|[a-zA-Z0-9]) delim=" " ;;
+			*) IFS="$delim"
+			esac
+			new=
+			for b in $before; do
+				[ "$b" ] || continue
+				add=1
+				for r in $remove; do
+					[ "$r" = "$b" ] && add= break
+				done
+				[ "$add" ] && new="$new$delim$b"
+			done
+			new="${new#"$delim"}" IFS="$oldIFS"
+			unset remove delim oldIFS b add r
+			[ "$SHOW_FILE" ] && before=$( f_sysrc_find "$NAME" )
+			;;
+		*)
 			if [ "$SHOW_FILE" ]; then
 				before=$( f_sysrc_find "$NAME" )
 			else
 				before=$( f_sysrc_get "$NAME" )
 			fi
-			if case "$mode" in
-				APPEND) f_sysrc_set "$NAME" "$before${1#*=}" ;;
-				     *) f_sysrc_set "$NAME" "${1#*=}"
-				esac
-			then
+			new="${1#*=}"
+		esac
+
+		#
+		# If `-N' is passed, simplify the output
+		#
+		if [ ! "$SHOW_VALUE" ]; then
+			echo "$NAME"
+			f_sysrc_set "$NAME" "$new"
+		else
+			if f_sysrc_set "$NAME" "$new"; then
 				if [ "$SHOW_FILE" ]; then
 					after=$( f_sysrc_find "$NAME" )
 				else

@@ -292,7 +292,7 @@ static const struct {
 	{0x11841039, 0x00, "SiS 966",		0},
 	{0x11851039, 0x00, "SiS 968",		0},
 	{0x01861039, 0x00, "SiS 968",		0},
-	{0xa01c177d, 0x00, "ThunderX SATA",	AHCI_Q_ABAR0},
+	{0xa01c177d, 0x00, "ThunderX",		AHCI_Q_ABAR0|AHCI_Q_1MSI},
 	{0x00000000, 0x00, NULL,		0}
 };
 

@@ -187,8 +187,51 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_booke_startup, NULL);
 void print_kernel_section_addr(void);
 void print_kenv(void);
 u_int booke_init(uint32_t, uint32_t);
+void ivor_setup(void);
 
-extern int elf32_nxstack;
+extern void *interrupt_vector_base;
+extern void *int_critical_input;
+extern void *int_machine_check;
+extern void *int_data_storage;
+extern void *int_instr_storage;
+extern void *int_external_input;
+extern void *int_alignment;
+extern void *int_program;
+extern void *int_syscall;
+extern void *int_decrementer;
+extern void *int_fixed_interval_timer;
+extern void *int_watchdog;
+extern void *int_data_tlb_error;
+extern void *int_inst_tlb_error;
+extern void *int_debug;
+
+#define SET_TRAP(ivor, handler) \
+	KASSERT(((uintptr_t)(&handler) & ~0xffffUL) == \
+	    ((uintptr_t)(&interrupt_vector_base) & ~0xffffUL), \
+	    ("Handler " #handler " too far from interrupt vector base")); \
+	mtspr(ivor, (uintptr_t)(&handler) & 0xffffUL);
+
+void
+ivor_setup(void)
+{
+
+	mtspr(SPR_IVPR, ((uintptr_t)&interrupt_vector_base) & 0xffff0000);
+
+	SET_TRAP(SPR_IVOR0, int_critical_input);
+	SET_TRAP(SPR_IVOR1, int_machine_check);
+	SET_TRAP(SPR_IVOR2, int_data_storage);
+	SET_TRAP(SPR_IVOR3, int_instr_storage);
+	SET_TRAP(SPR_IVOR4, int_external_input);
+	SET_TRAP(SPR_IVOR5, int_alignment);
+	SET_TRAP(SPR_IVOR6, int_program);
+	SET_TRAP(SPR_IVOR8, int_syscall);
+	SET_TRAP(SPR_IVOR10, int_decrementer);
+	SET_TRAP(SPR_IVOR11, int_fixed_interval_timer);
+	SET_TRAP(SPR_IVOR12, int_watchdog);
+	SET_TRAP(SPR_IVOR13, int_data_tlb_error);
+	SET_TRAP(SPR_IVOR14, int_inst_tlb_error);
+	SET_TRAP(SPR_IVOR15, int_debug);
+}
 
 static void
 cpu_booke_startup(void *dummy)
@@ -226,9 +269,6 @@ cpu_booke_startup(void *dummy)
 	/* Set up buffers, so they can be used to read disk labels. */
 	bufinit();
 	vm_pager_bufferinit();
-
-	/* Cpu supports execution permissions on the pages. */
-	elf32_nxstack = 1;
 }
 
 static char *
@@ -454,7 +494,6 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	/* Initialise virtual memory. */
 	pmap_mmu_install(MMU_TYPE_BOOKE, 0);
 	pmap_bootstrap((uintptr_t)kernel_text, end);
-	pmap_bootstrapped = 1;
 	debugf("MSR = 0x%08x\n", mfmsr());
 #if defined(BOOKE_E500)
 	//tlb1_print_entries();

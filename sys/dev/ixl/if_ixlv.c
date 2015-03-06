@@ -1419,8 +1419,7 @@ ixlv_assign_msix(struct ixlv_sc *sc)
 		que->tq = taskqueue_create_fast("ixlv_que", M_NOWAIT,
 		    taskqueue_thread_enqueue, &que->tq);
 #ifdef RSS
-		CPU_ZERO(&cpu_mask);
-		CPU_SET(cpu_id, &cpu_mask);
+		CPU_SETOF(cpu_id, &cpu_mask);
 		taskqueue_start_threads_cpuset(&que->tq, 1, PI_NET,
 		    &cpu_mask, "%s (bucket %d)",
 		    device_get_nameunit(dev), cpu_id);
