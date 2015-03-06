@@ -61,6 +61,8 @@ argument specifies the number of elements in the array.
 There can be up to
 .Va 256
 elements in the array.
+Including an element that has been previously revoked will generate an error.
+After a successful call only those listed in the array may be used.
 .Pp
 The list of allowed ioctl commands for a given file descriptor can be obtained
 with the

@@ -91,10 +91,6 @@ ENTRY(cpu_switch)
 	stw	%r16,PCB_CR(%r6)
 	mflr	%r16			/* Save the link register */
 	stw	%r16,PCB_LR(%r6)
-#ifdef BOOKE
-	mfspr	%r16,SPR_DBCR0
-	stw	%r16,PCB_BOOKE_DBCR0(%r6)
-#endif
 	stw	%r1,PCB_SP(%r6)		/* Save the stack pointer */
 
 	mr	%r14,%r3		/* Copy the old thread ptr... */
@@ -173,16 +169,6 @@ blocked_loop:
 	mtcr	%r5
 	lwz	%r5,PCB_LR(%r3)		/* Load the link register */
 	mtlr	%r5
-#ifdef AIM
-	lwz	%r5,PCB_AIM_USR_VSID(%r3) /* Load the USER_SR segment reg */
-	isync
-	mtsr	USER_SR,%r5
-	isync
-#endif
-#ifdef BOOKE
-	lwz	%r5,PCB_BOOKE_DBCR0(%r3)
-	mtspr	SPR_DBCR0,%r5
-#endif
 	lwz	%r1,PCB_SP(%r3)		/* Load the stack pointer */
 	/*
 	 * Perform a dummy stwcx. to clear any reservations we may have

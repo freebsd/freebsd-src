@@ -94,6 +94,7 @@ struct var vps4;
 static struct var voptind;
 struct var vdisvfork;
 
+struct localvar *localvars;
 int forcelocal;
 
 static const struct varinit varinit[] = {

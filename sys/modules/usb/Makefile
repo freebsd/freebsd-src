@@ -29,6 +29,11 @@ SYSDIR?=${.CURDIR}/../..
 .include "${SYSDIR}/conf/kern.opts.mk"
 
 #
+# Allow USB modules to be built in parallel
+#
+SUBDIR_PARALLEL=
+
+#
 # Check for common USB debug flags to pass when building the USB
 # modules in this directory:
 #
