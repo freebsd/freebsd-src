@@ -180,6 +180,7 @@ xhci_pci_attach(device_t self)
 {
 	struct xhci_softc *sc = device_get_softc(self);
 	int count, err, rid;
+	uint8_t usedma32;
 
 	rid = PCI_XHCI_CBMEM;
 	sc->sc_io_res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid,
@@ -192,7 +193,17 @@ xhci_pci_attach(device_t self)
 	sc->sc_io_hdl = rman_get_bushandle(sc->sc_io_res);
 	sc->sc_io_size = rman_get_size(sc->sc_io_res);
 
-	if (xhci_init(sc, self, 0)) {
+	/* check for USB 3.0 controllers which don't support 64-bit DMA */
+	switch (pci_get_devid(self)) {
+	case 0x01941033:	/* NEC uPD720200 USB 3.0 controller */
+		usedma32 = 1;
+		break;
+	default:
+		usedma32 = 0;
+		break;
+	}
+	
+	if (xhci_init(sc, self, usedma32)) {
 		device_printf(self, "Could not initialize softc\n");
 		bus_release_resource(self, SYS_RES_MEMORY, PCI_XHCI_CBMEM,
 		    sc->sc_io_res);
