@@ -279,7 +279,7 @@ alloc_nm_rxq_hwq(struct port_info *pi, struct sge_nm_rxq *nm_rxq, int cong)
 	c.fl0dcaen_to_fl0cidxfthresh =
 	    htobe16(V_FW_IQ_CMD_FL0FBMIN(X_FETCHBURSTMIN_64B) |
 		V_FW_IQ_CMD_FL0FBMAX(X_FETCHBURSTMAX_512B));
-	c.fl0size = htobe16(na->num_rx_desc + spg_len / EQ_ESIZE);
+	c.fl0size = htobe16(na->num_rx_desc / 8 + spg_len / EQ_ESIZE);
 	c.fl0addr = htobe64(nm_rxq->fl_ba);
 
 	rc = -t4_wr_mbox(sc, sc->mbox, &c, sizeof(c), &c);
