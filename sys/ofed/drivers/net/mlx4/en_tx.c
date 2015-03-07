@@ -710,16 +710,16 @@ u16 mlx4_en_select_queue(struct net_device *dev, struct mbuf *mb)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	u32 rings_p_up = priv->num_tx_rings_p_up;
-	u32 vlan_tag = 0;
 	u32 up = 0;
 	u32 queue_index;
 
+#if (MLX4_EN_NUM_UP > 1)
 	/* Obtain VLAN information if present */
 	if (mb->m_flags & M_VLANTAG) {
-		vlan_tag = mb->m_pkthdr.ether_vtag;
-	        up = (vlan_tag >> 13);
+		u32 vlan_tag = mb->m_pkthdr.ether_vtag;
+	        up = (vlan_tag >> 13) % MLX4_EN_NUM_UP;
 	}
-
+#endif
 	/* hash mbuf */
 	queue_index = mlx4_en_hashmbuf(MLX4_F_HASHL3 | MLX4_F_HASHL4, mb, hashrandom);
 
