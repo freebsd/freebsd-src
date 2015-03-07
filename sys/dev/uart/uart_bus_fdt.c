@@ -63,37 +63,6 @@ static driver_t uart_fdt_driver = {
 	sizeof(struct uart_softc),
 };
 
-/*
- * Compatible devices.  Keep this sorted in most- to least-specific order first,
- * alphabetical second.  That is, "zwie,ns16550" should appear before "ns16550"
- * on the theory that the zwie driver knows how to make better use of the
- * hardware than the generic driver.  Likewise with chips within a family, the
- * highest-numbers / most recent models should probably appear earlier.
- */
-static struct ofw_compat_data compat_data[] = {
-	{"arm,pl011",		(uintptr_t)&uart_pl011_class},
-	{"atmel,at91rm9200-usart",(uintptr_t)&at91_usart_class},
-	{"atmel,at91sam9260-usart",(uintptr_t)&at91_usart_class},
-	{"cadence,uart",	(uintptr_t)&uart_cdnc_class},
-	{"exynos",		(uintptr_t)&uart_exynos4210_class},
-	{"fsl,imx6q-uart",	(uintptr_t)&uart_imx_class},
-	{"fsl,imx53-uart",	(uintptr_t)&uart_imx_class},
-	{"fsl,imx51-uart",	(uintptr_t)&uart_imx_class},
-	{"fsl,imx31-uart",	(uintptr_t)&uart_imx_class},
-	{"fsl,imx27-uart",	(uintptr_t)&uart_imx_class},
-	{"fsl,imx25-uart",	(uintptr_t)&uart_imx_class},
-	{"fsl,imx21-uart",	(uintptr_t)&uart_imx_class},
-	{"fsl,mvf600-uart",	(uintptr_t)&uart_vybrid_class},
-	{"lpc,uart",		(uintptr_t)&uart_lpc_class},
-	{"qcom,msm-uartdm",	(uintptr_t)&uart_msm_class},
-	{"ti,ns16550",		(uintptr_t)&uart_ti8250_class},
-	{"ns16550",		(uintptr_t)&uart_ns8250_class},
-	{NULL,			(uintptr_t)NULL},
-};
-
-/* Export the compat_data table for use by the uart_cpu_fdt.c probe routine. */
-UART_FDT_CLASS_AND_DEVICE(compat_data);
-
 static int
 uart_fdt_get_clock(phandle_t node, pcell_t *cell)
 {
