@@ -41,6 +41,6 @@ tcp:kernel::state-change
 {
 	newstate = args[3]->tcps_state;
 	oldstate = args[5]->tcps_state;
-	printf("%s\t\t%s\n", tcp_state_string[oldstate],
+	printf("%d %s\t\t%s\n", args[1]->pid, tcp_state_string[oldstate],
 			     tcp_state_string[newstate]);
 }
