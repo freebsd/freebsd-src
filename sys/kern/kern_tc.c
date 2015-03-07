@@ -23,10 +23,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
-#ifdef FFCLOCK
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#endif
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
@@ -1498,7 +1496,10 @@ pps_fetch(struct pps_fetch_args *fapi, struct pps_state *pps)
 		cseq = pps->ppsinfo.clear_sequence;
 		while (aseq == pps->ppsinfo.assert_sequence &&
 		    cseq == pps->ppsinfo.clear_sequence) {
-			err = tsleep(pps, PCATCH, "ppsfch", timo);
+			if (pps->mtx != NULL)
+				err = msleep(pps, pps->mtx, PCATCH, "ppsfch", timo);
+			else
+				err = tsleep(pps, PCATCH, "ppsfch", timo);
 			if (err == EWOULDBLOCK && fapi->timeout.tv_sec == -1) {
 				continue;
 			} else if (err != 0) {
