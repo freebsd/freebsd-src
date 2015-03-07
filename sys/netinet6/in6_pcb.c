@@ -645,7 +645,7 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
 		 * know the value, notify.
 		 * XXX: should we avoid to notify the value to TCP sockets?
 		 */
-		if (cmd == PRC_MSGSIZE)
+		if (cmd == PRC_MSGSIZE && cmdarg != NULL)
 			ip6_notify_pmtu(inp, (struct sockaddr_in6 *)dst,
 					*(u_int32_t *)cmdarg);
 

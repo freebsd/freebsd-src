@@ -98,12 +98,11 @@ struct db_variable db_regs[] = {
 	{ "ctr", DB_OFFSET(ctr),	db_frame },
 	{ "cr",	 DB_OFFSET(cr),		db_frame },
 	{ "xer", DB_OFFSET(xer),	db_frame },
+	{ "dar", DB_OFFSET(dar),	db_frame },
 #ifdef AIM
-	{ "dar", DB_OFFSET(cpu.aim.dar),	db_frame },
 	{ "dsisr", DB_OFFSET(cpu.aim.dsisr),	db_frame },
 #endif
 #if defined(BOOKE)
-	{ "dear", DB_OFFSET(cpu.booke.dear),	db_frame },
 	{ "esr", DB_OFFSET(cpu.booke.esr),	db_frame },
 #endif
 };
@@ -218,18 +217,16 @@ db_backtrace(struct thread *td, db_addr_t fp, int count)
 				/* XXX take advantage of the union. */
 				db_printf("DSI %s trap @ %#zx by ",
 				    (tf->cpu.aim.dsisr & DSISR_STORE) ? "write"
-				    : "read", tf->cpu.aim.dar);
+				    : "read", tf->dar);
 				goto print_trap;
 			case EXC_ALI:
 				/* XXX take advantage of the union. */
 				db_printf("ALI trap @ %#zx (xSR %#x) ",
-				    tf->cpu.aim.dar,
-				    (uint32_t)tf->cpu.aim.dsisr);
+				    tf->dar, (uint32_t)tf->cpu.aim.dsisr);
 				goto print_trap;
 #ifdef __powerpc64__
 			case EXC_DSE:
-				db_printf("DSE trap @ %#zx by ",
-				    tf->cpu.aim.dar);
+				db_printf("DSE trap @ %#zx by ", tf->dar);
 				goto print_trap;
 			case EXC_ISE:
 				db_printf("ISE trap @ %#zx by ", tf->srr0);

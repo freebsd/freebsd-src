@@ -208,12 +208,10 @@ EENTRY(dtrace_casptr)
 1:	ldrex	r3, [r0]	/* Load target */
 	cmp	r3, r1		/* Check if *target == cmp */
 	bne	2f		/* No, return */
-	strex	r3, r2, [r0]	/* Store new to target */
-	cmp	r3, #0		/* Did the store succeed? */
+	strex	ip, r2, [r0]	/* Store new to target */
+	cmp	ip, #0		/* Did the store succeed? */
 	bne	1b		/* No, try again */
-	mov	r0, r2		/* Return the new value of the store */
-2:	movne	r0, r3		/* The first compare failed, return */
-				/* the value loaded from memory */
+2:	mov	r0, r3		/* Return the value loaded from target */
 	RET
 EEND(dtrace_casptr)
 END(dtrace_cas32)

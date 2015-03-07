@@ -55,6 +55,7 @@ off_t	blockif_size(struct blockif_ctxt *bc);
 void	blockif_chs(struct blockif_ctxt *bc, uint16_t *c, uint8_t *h,
     uint8_t *s);
 int	blockif_sectsz(struct blockif_ctxt *bc);
+void	blockif_psectsz(struct blockif_ctxt *bc, int *size, int *off);
 int	blockif_queuesz(struct blockif_ctxt *bc);
 int	blockif_is_ro(struct blockif_ctxt *bc);
 int	blockif_read(struct blockif_ctxt *bc, struct blockif_req *breq);

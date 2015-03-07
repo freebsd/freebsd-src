@@ -53,6 +53,7 @@ static int gpiobus_attach(device_t);
 static int gpiobus_detach(device_t);
 static int gpiobus_suspend(device_t);
 static int gpiobus_resume(device_t);
+static void gpiobus_probe_nomatch(device_t, device_t);
 static int gpiobus_print_child(device_t, device_t);
 static int gpiobus_child_location_str(device_t, device_t, char *, size_t);
 static int gpiobus_child_pnpinfo_str(device_t, device_t, char *, size_t);
@@ -229,21 +230,20 @@ gpiobus_free_ivars(struct gpiobus_ivar *devi)
 }
 
 int
-gpiobus_map_pin(device_t bus, device_t child, uint32_t pin)
+gpiobus_map_pin(device_t bus, uint32_t pin)
 {
 	struct gpiobus_softc *sc;
 
 	sc = device_get_softc(bus);
 	/* Consistency check. */
 	if (pin >= sc->sc_npins) {
-		device_printf(child,
+		device_printf(bus,
 		    "invalid pin %d, max: %d\n", pin, sc->sc_npins - 1);
 		return (-1);
 	}
 	/* Mark pin as mapped and give warning if it's already mapped. */
 	if (sc->sc_pins_mapped[pin]) {
-		device_printf(child,
-		    "warning: pin %d is already mapped\n", pin);
+		device_printf(bus, "warning: pin %d is already mapped\n", pin);
 		return (-1);
 	}
 	sc->sc_pins_mapped[pin] = 1;
@@ -276,7 +276,7 @@ gpiobus_parse_pins(struct gpiobus_softc *sc, device_t child, int mask)
 		if ((mask & (1 << i)) == 0)
 			continue;
 		/* Reserve the GPIO pin. */
-		if (gpiobus_map_pin(sc->sc_busdev, child, i) != 0) {
+		if (gpiobus_map_pin(sc->sc_busdev, i) != 0) {
 			gpiobus_free_ivars(devi);
 			return (EINVAL);
 		}
@@ -361,6 +361,20 @@ gpiobus_resume(device_t dev)
 {
 
 	return (bus_generic_resume(dev));
+}
+
+static void
+gpiobus_probe_nomatch(device_t dev, device_t child)
+{
+	char pins[128];
+	struct gpiobus_ivar *devi;
+
+	devi = GPIOBUS_IVAR(child);
+	memset(pins, 0, sizeof(pins));
+	gpiobus_print_pins(devi, pins, sizeof(pins));
+	device_printf(dev, "<unknown device> at pin(s) %s", pins);
+	resource_list_print_type(&devi->rl, "irq", SYS_RES_IRQ, "%ld");
+	printf("\n");
 }
 
 static int
@@ -670,6 +684,7 @@ static device_method_t gpiobus_methods[] = {
 	DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
 	DEVMETHOD(bus_get_resource_list,	gpiobus_get_resource_list),
 	DEVMETHOD(bus_add_child,	gpiobus_add_child),
+	DEVMETHOD(bus_probe_nomatch,	gpiobus_probe_nomatch),
 	DEVMETHOD(bus_print_child,	gpiobus_print_child),
 	DEVMETHOD(bus_child_pnpinfo_str, gpiobus_child_pnpinfo_str),
 	DEVMETHOD(bus_child_location_str, gpiobus_child_location_str),

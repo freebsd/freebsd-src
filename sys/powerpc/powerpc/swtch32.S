@@ -121,8 +121,9 @@ ENTRY(cpu_switch)
 cpu_switchin:
 #if defined(SMP) && defined(SCHED_ULE)
 	/* Wait for the new thread to become unblocked */
-	lis	%r6,blocked_lock@ha
-	addi	%r6,%r6,blocked_lock@l
+	bl	_GLOBAL_OFFSET_TABLE_@local-4
+	mflr	%r6
+	lwz	%r6,blocked_lock@got(%r6)
 blocked_loop:
 	lwz	%r7,TD_LOCK(%r2)
 	cmpw	%r6,%r7 
