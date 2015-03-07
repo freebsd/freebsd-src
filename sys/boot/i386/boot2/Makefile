@@ -41,8 +41,10 @@ CFLAGS=	-fomit-frame-pointer \
 CFLAGS.gcc+=	-Os \
 		-fno-guess-branch-probability \
 		-fno-unit-at-a-time \
-		-mno-align-long-strings \
 		--param max-inline-insns-single=100
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} <= 40201
+CFLAGS.gcc+=   -mno-align-long-strings
+.endif
 
 CFLAGS.clang+=	-Oz ${CLANG_OPT_SMALL}
 

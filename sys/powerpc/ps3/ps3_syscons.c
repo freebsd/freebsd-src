@@ -191,7 +191,6 @@ ps3fb_init(struct vt_device *vd)
 	    L1GPU_CONTEXT_ATTRIBUTE_DISPLAY_FLIP, 1, 0, 0, 0);
 
 	vt_fb_init(vd);
-	sc->fb_info.fb_flags &= ~FB_FLAG_NOMMAP; /* Set wrongly by vt_fb_init */
 
 	return (CN_INTERNAL);
 }

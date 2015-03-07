@@ -1626,7 +1626,7 @@ vm_object_backing_scan(vm_object_t object, int op)
 					p = next;
 					continue;
 				}
-				VM_OBJECT_WLOCK(backing_object);
+				VM_OBJECT_WUNLOCK(backing_object);
 				VM_OBJECT_WUNLOCK(object);
 				VM_WAIT;
 				VM_OBJECT_WLOCK(object);

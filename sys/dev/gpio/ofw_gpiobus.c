@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 static struct ofw_gpiobus_devinfo *ofw_gpiobus_setup_devinfo(device_t,
 	device_t, phandle_t);
-static void ofw_gpiobus_destroy_devinfo(struct ofw_gpiobus_devinfo *);
+static void ofw_gpiobus_destroy_devinfo(device_t, struct ofw_gpiobus_devinfo *);
 static int ofw_gpiobus_parse_gpios_impl(device_t, phandle_t, char *,
 	struct gpiobus_softc *, struct gpiobus_pin **);
 
@@ -63,7 +63,7 @@ ofw_gpiobus_add_fdt_child(device_t bus, const char *drvname, phandle_t child)
 		return (NULL);
 	}
 	if (device_probe_and_attach(childdev) != 0) {
-		ofw_gpiobus_destroy_devinfo(dinfo);
+		ofw_gpiobus_destroy_devinfo(bus, dinfo);
 		device_delete_child(bus, childdev);
 		return (NULL);
 	}
@@ -117,41 +117,50 @@ ofw_gpiobus_setup_devinfo(device_t bus, device_t child, phandle_t node)
 	}
 	/* Parse the gpios property for the child. */
 	npins = ofw_gpiobus_parse_gpios_impl(child, node, "gpios", sc, &pins);
-	if (npins <= 0)
-		goto fail;
+	if (npins <= 0) {
+		ofw_bus_gen_destroy_devinfo(&dinfo->opd_obdinfo);
+		free(dinfo, M_DEVBUF);
+		return (NULL);
+	}
+	/* Initialize the irq resource list. */
+	resource_list_init(&dinfo->opd_dinfo.rl);
+	/* Allocate the child ivars and copy the parsed pin data. */
 	devi = &dinfo->opd_dinfo;
 	devi->npins = (uint32_t)npins;
 	if (gpiobus_alloc_ivars(devi) != 0) {
 		free(pins, M_DEVBUF);
-		goto fail;
+		ofw_gpiobus_destroy_devinfo(bus, dinfo);
+		return (NULL);
 	}
 	for (i = 0; i < devi->npins; i++) {
 		devi->flags[i] = pins[i].flags;
 		devi->pins[i] = pins[i].pin;
 	}
 	free(pins, M_DEVBUF);
-	/* And now the interrupt resources. */
-	resource_list_init(&dinfo->opd_dinfo.rl);
+	/* Parse the interrupt resources. */
 	if (ofw_bus_intr_to_rl(bus, node, &dinfo->opd_dinfo.rl) != 0) {
-		gpiobus_free_ivars(devi);
-		goto fail;
+		ofw_gpiobus_destroy_devinfo(bus, dinfo);
+		return (NULL);
 	}
 	device_set_ivars(child, dinfo);
 
 	return (dinfo);
-
-fail:
-	ofw_bus_gen_destroy_devinfo(&dinfo->opd_obdinfo);
-	free(dinfo, M_DEVBUF);
-	return (NULL);
 }
 
 static void
-ofw_gpiobus_destroy_devinfo(struct ofw_gpiobus_devinfo *dinfo)
+ofw_gpiobus_destroy_devinfo(device_t bus, struct ofw_gpiobus_devinfo *dinfo)
 {
+	int i;
 	struct gpiobus_ivar *devi;
+	struct gpiobus_softc *sc;
 
+	sc = device_get_softc(bus);
 	devi = &dinfo->opd_dinfo;
+	for (i = 0; i < devi->npins; i++) {
+		if (devi->pins[i] > sc->sc_npins)
+			continue;
+		sc->sc_pins_mapped[devi->pins[i]] = 0;
+	}
 	gpiobus_free_ivars(devi);
 	resource_list_free(&dinfo->opd_dinfo.rl);
 	ofw_bus_gen_destroy_devinfo(&dinfo->opd_obdinfo);
@@ -273,8 +282,7 @@ ofw_gpiobus_parse_gpios_impl(device_t consumer, phandle_t cnode, char *pname,
 			goto fail;
 		}
 		/* Reserve the GPIO pin. */
-		if (gpiobus_map_pin(bussc->sc_busdev, consumer,
-		    (*pins)[j].pin) != 0)
+		if (gpiobus_map_pin(bussc->sc_busdev, (*pins)[j].pin) != 0)
 			goto fail;
 		j++;
 		i += gpiocells + 1;
