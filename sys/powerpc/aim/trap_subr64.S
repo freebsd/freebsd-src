@@ -673,8 +673,7 @@ realtrap:
  * SPRG2 - Original LR
  */
 
-	.globl	CNAME(trapcode2)
-trapcode2:
+	.globl	CNAME(generictrap)
 generictrap:
 	/* Save R1 for computing the exception vector */
 	mtsprg3 %r1
