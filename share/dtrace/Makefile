@@ -17,7 +17,8 @@ SCRIPTS=	disklatency \
 		hotopen \
 		nfsclienttime \
 		tcpstate \
-		tcptrack
+		tcptrack \
+		tcpconn
 
 SCRIPTSDIR= ${SHAREDIR}/dtrace
 
