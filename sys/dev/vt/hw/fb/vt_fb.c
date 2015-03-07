@@ -41,6 +41,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/vt/hw/fb/vt_fb.h>
 #include <dev/vt/colors/vt_termcolors.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 static struct vt_driver vt_fb_driver = {
 	.vd_name = "fb",
 	.vd_init = vt_fb_init,
@@ -136,10 +139,14 @@ vt_fb_mmap(struct vt_device *vd, vm_ooffset_t offset, vm_paddr_t *paddr,
 		return (ENODEV);
 
 	if (offset >= 0 && offset < info->fb_size) {
-		*paddr = info->fb_pbase + offset;
-	#ifdef VM_MEMATTR_WRITE_COMBINING
-		*memattr = VM_MEMATTR_WRITE_COMBINING;
-	#endif
+		if (info->fb_pbase == 0) {
+			*paddr = vtophys((uint8_t *)info->fb_vbase + offset);
+		} else {
+			*paddr = info->fb_pbase + offset;
+#ifdef VM_MEMATTR_WRITE_COMBINING
+			*memattr = VM_MEMATTR_WRITE_COMBINING;
+#endif
+		}
 		return (0);
 	}
 
@@ -425,7 +432,7 @@ vt_fb_init(struct vt_device *vd)
 	if (info->fb_size == 0)
 		return (CN_DEAD);
 
-	if (info->fb_pbase == 0)
+	if (info->fb_pbase == 0 && info->fb_vbase == 0)
 		info->fb_flags |= FB_FLAG_NOMMAP;
 
 	if (info->fb_cmsize <= 0) {
