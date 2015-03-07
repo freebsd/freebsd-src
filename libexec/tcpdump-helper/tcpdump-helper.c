@@ -88,7 +88,8 @@ void	pawned(void);
 /*
  * XXXRW: Too many immediate arguments?
  */
-int	invoke(struct cheri_object co, register_t methodnum,
+int	invoke(struct cheri_object co __unused, register_t v0 __unused,
+	    register_t methodnum,
 	    register_t arg1, register_t arg2,
 	    register_t arg3, register_t arg4, register_t arg5,
 	    netdissect_options *ndo,
@@ -176,7 +177,8 @@ invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask, uint32_t timezone_offset,
  * c6 the packet body.   They are used only by print_packet.
  */
 int
-invoke(struct cheri_object co __unused, register_t methodnum, register_t arg1,
+invoke(struct cheri_object co __unused, register_t v0 __unused,
+    register_t methodnum, register_t arg1,
     register_t arg2, register_t arg3, register_t arg4, register_t arg5,
     netdissect_options *ndo,
     const char *ndo_espsecret,

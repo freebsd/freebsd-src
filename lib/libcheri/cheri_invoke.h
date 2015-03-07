@@ -31,6 +31,8 @@
 #ifndef _CHERI_INVOKE_H_
 #define	_CHERI_INVOKE_H_
 
+#define CHERI_INVOKE_METHOD_LEGACY_INVOKE	-1
+
 #if __has_feature(capabilities)
 register_t	cheri_invoke(struct cheri_object co, register_t v0,
 		    register_t a0, register_t a1, register_t a2,

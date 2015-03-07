@@ -52,7 +52,8 @@
 #include "cheritest-helper.h"
 #include "cheritest-helper-internal.h"
 
-int	invoke(struct cheri_object co __unused, register_t methodnum,
+int	invoke(struct cheri_object co __unused, register_t v0 __unused,
+	    register_t methodnum,
 	    register_t arg, size_t len,
 	    __capability char *data_input, __capability char *data_output,
 	    struct cheri_object fd_object, struct zstream_proxy *zspp)
@@ -388,7 +389,8 @@ invoke_inflate(struct zstream_proxy *zspp)
  */
 static volatile int zero = 0;
 int
-invoke(struct cheri_object co __unused, register_t methodnum,
+invoke(struct cheri_object co __unused, register_t v0 __unused,
+    register_t methodnum,
     register_t arg, size_t len,
     __capability char *data_input, __capability char *data_output,
     struct cheri_object fd_object, struct zstream_proxy* zspp)

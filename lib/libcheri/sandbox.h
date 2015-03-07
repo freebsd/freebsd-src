@@ -68,15 +68,16 @@ void	sandbox_destroy(struct sandbox *sb);
 
 #if __has_feature(capabilities)
 register_t
-sandbox_cinvoke(struct sandbox *sb, register_t methodnum,
-    register_t a0, register_t a1, register_t a2, register_t a3,
+sandbox_cinvoke(struct sandbox *sb,
+    register_t methodnum, register_t a1, register_t a2, register_t a3,
     register_t a4, register_t a5, register_t a6, register_t a7,
     __capability void *c3, __capability void *c4, __capability void *c5,
     __capability void *c6, __capability void *c7, __capability void *c8,
     __capability void *c9, __capability void *c10);
 #endif
-register_t	sandbox_invoke(struct sandbox *sb, register_t methodnum,
-	    register_t a0, register_t a1, register_t a2, register_t a3,
+register_t	sandbox_invoke(struct sandbox *sb,
+	    register_t methodnum, register_t a1, register_t a2, register_t a3,
+	    register_t a4,
 	    struct chericap *c3, struct chericap *c4, struct chericap *c5,
 	    struct chericap *c6, struct chericap *c7, struct chericap *c8,
 	    struct chericap *c9, struct chericap *c10);
@@ -104,7 +105,7 @@ int	sandbox_object_new_flags(struct sandbox_class *sbcp, uint flags,
 void	*sandbox_object_getbase(struct sandbox_object *sbop);
 #if __has_feature(capabilities)
 register_t	sandbox_object_cinvoke(struct sandbox_object *sbop,
-		    register_t methodnum, register_t a0, register_t a1,
+		    register_t methodnum, register_t a1,
 		    register_t a2, register_t a3, register_t a4,
 		    register_t a5, register_t a6, register_t a7,
 		    __capability void *c3, __capability void *c4,
@@ -113,7 +114,7 @@ register_t	sandbox_object_cinvoke(struct sandbox_object *sbop,
 		    __capability void *c9, __capability void *c10);
 #endif
 register_t	sandbox_object_invoke(struct sandbox_object *sbop,
-		    register_t methodnum, register_t a0, register_t a1,
+		    register_t methodnum, register_t a1,
 		    register_t a2, register_t a3, register_t a4,
 		    register_t a5, register_t a6, register_t a7,
 		    struct chericap *c3p, struct chericap *c4p,

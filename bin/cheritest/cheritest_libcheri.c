@@ -82,7 +82,7 @@ test_sandbox_simple_method(const struct cheri_test *ctp __unused,
 
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    methodnum,
-	    0, 0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap());
@@ -112,7 +112,7 @@ test_sandbox_md5(const struct cheri_test *ctp __unused)
 
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_OP_MD5,
-	    0, strlen(string_to_md5), 0, 0, 0, 0, 0, 0,
+	    0, strlen(string_to_md5), 0, 0, 0, 0, 0,
 	    md5cap, bufcap, cclear, cclear, cclear, cclear, cclear, cclear);
 
 	buf[32] = '\0';
@@ -190,7 +190,7 @@ test_sandbox_userfn(const struct cheri_test *ctp __unused)
 	for (i = 0; i < 10; i++) {
 		v = sandbox_object_cinvoke(cheritest_objectp,
 		    CHERITEST_HELPER_LIBCHERI_USERFN,
-		    CHERITEST_USERFN_RETURNARG, i, 0, 0, 0, 0, 0, 0,
+		    CHERITEST_USERFN_RETURNARG, i, 0, 0, 0, 0, 0,
 		    cclear, cclear, cclear, cclear, cclear, cclear, cclear,
 		    cclear);
 		if (v != i)
@@ -241,7 +241,7 @@ test_2sandbox_md5(const struct cheri_test *ctp __unused)
 	bufcap = cheri_ptrperm(buf, sizeof(buf), CHERI_PERM_STORE);
 	v = sandbox_object_cinvoke(sbop,
 	    CHERITEST_HELPER_OP_MD5,
-	    0, strlen(string_to_md5), 0, 0, 0, 0, 0, 0,
+	    0, strlen(string_to_md5), 0, 0, 0, 0, 0,
 	    md5cap, bufcap, cclear, cclear, cclear, cclear, cclear, cclear);
 	buf[32] = '\0';
 	if (strcmp(buf, string_md5) != 0)

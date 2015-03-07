@@ -439,7 +439,7 @@ sandbox_object_new(struct sandbox_class *sbcp, struct sandbox_object **sbopp)
 
 register_t
 sandbox_object_cinvoke(struct sandbox_object *sbop, register_t methodnum,
-    register_t a0, register_t a1, register_t a2, register_t a3,
+    register_t a1, register_t a2, register_t a3,
     register_t a4, register_t a5, register_t a6, register_t a7,
     __capability void *c3, __capability void *c4, __capability void *c5,
     __capability void *c6, __capability void *c7, __capability void *c8,
@@ -463,8 +463,9 @@ sandbox_object_cinvoke(struct sandbox_object *sbop, register_t methodnum,
 	SANDBOX_OBJECT_INVOKE(sbop->sbo_sandbox_object_statp);
 	start = cheri_get_cyclecount();
 	v0 = cheri_invoke(sbop->sbo_cheri_object_invoke,
+	    CHERI_INVOKE_METHOD_LEGACY_INVOKE,
 	    methodnum,
-	    a0, a1, a2, a3, a4, a5, a6, a7,
+	    a1, a2, a3, a4, a5, a6, a7,
 	    c3, c4, c5, c6, c7, c8, c9, c10);
 	sample = cheri_get_cyclecount() - start;
 	SANDBOX_METHOD_TIME_SAMPLE(sbcp->sbc_sandbox_methods[methodnum],
@@ -493,7 +494,7 @@ sandbox_object_cinvoke(struct sandbox_object *sbop, register_t methodnum,
  */
 register_t
 sandbox_object_invoke(struct sandbox_object *sbop, register_t methodnum,
-    register_t a0, register_t a1, register_t a2, register_t a3,
+    register_t a1, register_t a2, register_t a3,
     register_t a4, register_t a5, register_t a6, register_t a7,
     struct chericap *c3p, struct chericap *c4p, struct chericap *c5p,
     struct chericap *c6p, struct chericap *c7p, struct chericap *c8p,
@@ -522,7 +523,7 @@ sandbox_object_invoke(struct sandbox_object *sbop, register_t methodnum,
 
 	v0 = sandbox_object_cinvoke(sbop,
 	    methodnum,
-	    a0, a1, a2, a3, a4, a5, a6, a7,
+	    a1, a2, a3, a4, a5, a6, a7,
 	    c3, c4, c5, c6, c7, c8, c9, c10);
 	if (v0 < 0) {
 		if (methodnum < SANDBOX_CLASS_METHOD_COUNT)
@@ -606,7 +607,7 @@ sandbox_destroy(struct sandbox *sb)
 
 register_t
 sandbox_cinvoke(struct sandbox *sb, register_t methodnum,
-    register_t a0, register_t a1, register_t a2, register_t a3,
+    register_t a1, register_t a2, register_t a3,
     register_t a4, register_t a5, register_t a6, register_t a7,
     __capability void *c3, __capability void *c4, __capability void *c5,
     __capability void *c6, __capability void *c7, __capability void *c8,
@@ -614,7 +615,7 @@ sandbox_cinvoke(struct sandbox *sb, register_t methodnum,
 {
 
 	return (sandbox_object_cinvoke(sb->sb_sandbox_objectp, methodnum,
-	    a0, a1, a2, a3, a4, a5, a6, a7,
+	    a1, a2, a3, a4, a5, a6, a7,
 	    c3, c4, c5, c6, c7, c8, c9, c10));
 }
 
@@ -629,13 +630,13 @@ sandbox_cinvoke(struct sandbox *sb, register_t methodnum,
  */
 register_t
 sandbox_invoke(struct sandbox *sb, register_t methodnum,
-    register_t a0, register_t a1, register_t a2, register_t a3,
+    register_t a1, register_t a2, register_t a3, register_t a4,
     struct chericap *c3p, struct chericap *c4p, struct chericap *c5p,
     struct chericap *c6p, struct chericap *c7p, struct chericap *c8p,
     struct chericap *c9p, struct chericap *c10p)
 {
 
 	return (sandbox_object_invoke(sb->sb_sandbox_objectp, methodnum,
-	    a0, a1, a2, a3, 0, 0, 0, 0,
+	    a1, a2, a3, a4, 0, 0, 0,
 	    c3p, c4p, c5p, c6p, c7p, c8p, c9p, c10p));
 }

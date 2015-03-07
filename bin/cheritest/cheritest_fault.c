@@ -218,7 +218,7 @@ test_sandbox_method(int methodnum)
 	alarm(10);
 	return (sandbox_object_cinvoke(cheritest_objectp,
 	    methodnum,
-	    0, 0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap()));

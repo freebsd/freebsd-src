@@ -48,7 +48,8 @@
 
 #include "libpng_sb-helper.h"
 
-register_t invoke(register_t methodnum,
+register_t invoke(struct cheri_object co __unused, register_t v0 __unused,
+    register_t methodnum,
     register_t a0, register_t a1,
     struct cheri_object system_object,
     __capability void *c5 __unused, __capability void *c6 __unused,
@@ -165,7 +166,8 @@ sb_end_fn(png_structp png_ptr, png_infop info_ptr)
  * Handle assorted libpng library calls.
  */
 register_t
-invoke(register_t op, register_t a0, register_t a1, 
+invoke(struct cheri_object c __unused, register_t v0 __unused,
+    register_t op, register_t a0, register_t a1,
     struct cheri_object system_object,
     __capability void *c5 __unused, __capability void *c6 __unused,
     __capability void *c7, __capability void *c8)

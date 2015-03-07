@@ -44,8 +44,8 @@
 
 #include "cheri_helloworld-helper.h"
 
-int	invoke(struct cheri_object co, register_t methodnum,
-	    struct cheri_object fd_object)
+int	invoke(struct cheri_object co, register_t v0,
+	    register_t methodnum, struct cheri_object fd_object)
 	    __attribute__((cheri_ccall)); /* XXXRW: Will be ccheri_ccaller. */
 
 static char hello_world_str[] = "hello world\n";
@@ -56,8 +56,8 @@ static char hello_world_str[] = "hello world\n";
  * puts service, and by writing it to a cheri_fd object passed as an argument.
  */
 int
-invoke(struct cheri_object co __unused, register_t methodnum,
-    struct cheri_object fd_object)
+invoke(struct cheri_object co __unused, register_t v0 __unused,
+    register_t methodnum, struct cheri_object fd_object)
 {
 	__capability char *hello_world_str_c;
 	__capability char *hello_world_buf_c;

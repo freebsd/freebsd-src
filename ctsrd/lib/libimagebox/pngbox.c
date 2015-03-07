@@ -260,7 +260,7 @@ cheri_png_read_start(char *pngbuffer, size_t pnglen,
 	 */
         v = sandbox_object_cinvoke(sandbox_object,
 	    0,
-	    width, height, pnglen, 0, 0, 0, 0, 0,
+	    width, height, pnglen, 0, 0, 0, 0,
             cheri_ptrperm((void *)is->buffer,
 	     is->width * is->height * sizeof(*is->buffer),
 	     CHERI_PERM_STORE | CHERI_PERM_STORE_CAP),

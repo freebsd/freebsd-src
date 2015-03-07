@@ -62,7 +62,7 @@ cheri_helloworld(struct sandbox_object *objectp,
 	 * tidier, hopefully.
 	 */
 	v = sandbox_object_cinvoke(objectp, methodnum,
-	    0, 0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0,
 	    stdout_fd.co_codecap, stdout_fd.co_datacap, cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap());

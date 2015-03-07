@@ -72,7 +72,7 @@ test_sandbox_fd_method(const struct cheri_test *ctp __unused, int methodnum)
 
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    methodnum,
-	    0, 0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0,
 	    cheri_zerocap(), cheri_zerocap(),
 	    zero_fd_object.co_codecap, zero_fd_object.co_datacap,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
@@ -98,7 +98,7 @@ test_sandbox_fd_read(const struct cheri_test *ctp)
 	    CHERI_PERM_STORE);
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_OP_FD_READ_C,
-	    0, 0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0,
 	    /* data_input */ cheri_zerocap(), /* data_output */ stringc,
 	    stdin_fd_object.co_codecap, stdin_fd_object.co_datacap,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
@@ -124,7 +124,7 @@ test_sandbox_fd_read_revoke(const struct cheri_test *ctp __unused)
 	    CHERI_PERM_STORE);
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_OP_FD_READ_C,
-	    0, 0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0,
 	    /* data_input */ cheri_zerocap(), /* data_output */ stringc,
 	    stdin_fd_object.co_codecap, stdin_fd_object.co_datacap,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
@@ -145,7 +145,7 @@ test_sandbox_fd_write(const struct cheri_test *ctp __unused)
 	    strlen(ctp->ct_stdout_string), CHERI_PERM_LOAD);
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_OP_FD_WRITE_C,
-	    0, 0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0,
 	    /* data_input */ stringc, /* data_output */ cheri_zerocap(),
 	    stdout_fd_object.co_codecap, stdout_fd_object.co_datacap,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
@@ -171,7 +171,7 @@ test_sandbox_fd_write_revoke(const struct cheri_test *ctp __unused)
 	    strlen(ctp->ct_stdout_string), CHERI_PERM_LOAD);
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_OP_FD_WRITE_C,
-	    0, 0, 0, 0, 0, 0, 0, 0,
+	    0, 0, 0, 0, 0, 0, 0,
 	    /* data_input */ stringc, /* data_output */ cheri_zerocap(),
 	    stdout_fd_object.co_codecap, stdout_fd_object.co_datacap,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
