@@ -159,7 +159,7 @@ unsigned int kernel_ptbls;	/* Number of KVA ptbls. */
 #define PMAP_REMOVE_DONE(pmap) \
 	((pmap) != kernel_pmap && (pmap)->pm_stats.resident_count == 0)
 
-extern void tid_flush(tlbtid_t);
+extern void tid_flush(tlbtid_t tid, int tlb0_ways, int tlb0_entries_per_way);
 extern int elf32_nxstack;
 
 /**************************************************************************/
@@ -2818,7 +2818,7 @@ tid_alloc(pmap_t pmap)
 		tidbusy[thiscpu][tid]->pm_tid[thiscpu] = TID_NONE;
 
 		/* Flush all entries from TLB0 matching this TID. */
-		tid_flush(tid);
+		tid_flush(tid, tlb0_ways, tlb0_entries_per_way);
 	}
 
 	tidbusy[thiscpu][tid] = pmap;

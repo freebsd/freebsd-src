@@ -31,6 +31,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150307:
+	The 32-bit PowerPC kernel has been changed to a position-independent
+	executable. This can only be booted with a version of loader(8)
+	newer than January 31, 2015, so make sure to update both world and
+	kernel before rebooting.
+
 20150217:
 	If you are running a -CURRENT kernel since r273872 (Oct 30th, 2014),
 	but before r278950, the RNG was not seeded properly.  Immediately
