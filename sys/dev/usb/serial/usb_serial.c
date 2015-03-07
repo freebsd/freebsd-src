@@ -1105,7 +1105,7 @@ ucom_cfg_status_change(struct usb_proc_msg *_task)
 	/* time pulse counting support */
 	switch(ucom_pps_mode) {
 	case 1:
-		if ((sc->sc_pps.ppscap & PPS_CAPTUREBOTH) &&
+		if ((sc->sc_pps.ppsparam.mode & PPS_CAPTUREBOTH) &&
 		    (msr_delta & SER_CTS)) {
 			pps_capture(&sc->sc_pps);
 			pps_event(&sc->sc_pps, (sc->sc_msr & SER_CTS) ?
@@ -1113,7 +1113,7 @@ ucom_cfg_status_change(struct usb_proc_msg *_task)
 		}
 		break;
 	case 2:
-		if ((sc->sc_pps.ppscap & PPS_CAPTUREBOTH) &&
+		if ((sc->sc_pps.ppsparam.mode & PPS_CAPTUREBOTH) &&
 		    (msr_delta & SER_DCD)) {
 			pps_capture(&sc->sc_pps);
 			pps_event(&sc->sc_pps, (sc->sc_msr & SER_DCD) ?
