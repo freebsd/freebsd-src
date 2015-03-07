@@ -131,13 +131,6 @@ void	sandbox_object_destroy(struct sandbox_object *sbop);
 #define	SANDBOX_OBJECT_FLAG_USERFN	0x00000004	/* User callbacks. */
 
 /*
- * API to query the object-capability pair for the sandbox vtable
- * XXXBD: Will eventually become sandbox_object_getobject();
- */
-struct cheri_object	sandbox_object_getvtableobject(
-			    struct sandbox_object *sbop);
-
-/*
  * API to query the object-capability pair for the sandbox itself
  */
 struct cheri_object	sandbox_object_getobject(struct sandbox_object *sbop);

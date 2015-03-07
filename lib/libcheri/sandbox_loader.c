@@ -427,9 +427,6 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	sbop->sbo_cheri_object_invoke.co_codecap = sbcp->sbc_classcap_invoke;
 	sbop->sbo_cheri_object_invoke.co_datacap = cheri_seal(datacap,
 	    sbcp->sbc_typecap);
-	sbop->sbo_cheri_object_vtable.co_codecap = sbcp->sbc_vtable;
-	sbop->sbo_cheri_object_vtable.co_datacap = cheri_seal(datacap,
-	    sbcp->sbc_typecap);
 
 	/*
 	 * Install a reference to the system object in the class.

@@ -107,7 +107,6 @@ struct sandbox_object {
 	 */
 	struct cheri_object	 sbo_cheri_object_rtld;
 	struct cheri_object	 sbo_cheri_object_invoke;
-	struct cheri_object	 sbo_cheri_object_vtable;
 
 	/*
 	 * System-object capabilities that can be passed to the object.
