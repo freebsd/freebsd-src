@@ -68,13 +68,14 @@ static int autofs_fd;
 static int request_id;
 
 static void
-done(int request_error)
+done(int request_error, bool wildcards)
 {
 	struct autofs_daemon_done add;
 	int error;
 
 	memset(&add, 0, sizeof(add));
 	add.add_id = request_id;
+	add.add_wildcards = wildcards;
 	add.add_error = request_error;
 
 	log_debugx("completing request %d with error %d",
@@ -172,7 +173,7 @@ static void
 exit_callback(void)
 {
 
-	done(EIO);
+	done(EIO, true);
 }
 
 static void
@@ -184,6 +185,7 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 	FILE *f;
 	char *options, *fstype, *nobrowse, *retrycnt, *tmp;
 	int error;
+	bool wildcards;
 
 	log_debugx("got request %d: from %s, path %s, prefix \"%s\", "
 	    "key \"%s\", options \"%s\"", adr->adr_id, adr->adr_from,
@@ -209,9 +211,26 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 		    checked_strdup(adr->adr_options), checked_strdup(map),
 		    checked_strdup("[kernel request]"), lineno);
 	}
-	parse_map(parent, map, adr->adr_key[0] != '\0' ? adr->adr_key : NULL);
+
+	/*
+	 * "Wildcards" here actually means "make autofs(4) request
+	 * automountd(8) action if the node being looked up does not
+	 * exist, even though the parent is marked as cached".  This
+	 * needs to be done for maps with wildcard entries, but also
+	 * for special and executable maps.
+	 */
+	parse_map(parent, map, adr->adr_key[0] != '\0' ? adr->adr_key : NULL,
+	    &wildcards);
+	if (!wildcards)
+		wildcards = node_has_wildcards(parent);
+	if (wildcards)
+		log_debugx("map may contain wildcard entries");
+	else
+		log_debugx("map does not contain wildcard entries");
+
 	if (adr->adr_key[0] != '\0')
 		node_expand_wildcard(root, adr->adr_key);
+
 	node = node_find(root, adr->adr_path);
 	if (node == NULL) {
 		log_errx(1, "map %s does not contain key for \"%s\"; "
@@ -236,7 +255,7 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 		if (nobrowse != NULL && adr->adr_key[0] == '\0') {
 			log_debugx("skipping map %s due to \"nobrowse\" "
 			    "option; exiting", map);
-			done(0);
+			done(0, true);
 
 			/*
 			 * Exit without calling exit_callback().
@@ -263,7 +282,7 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 		}
 
 		log_debugx("nothing to mount; exiting");
-		done(0);
+		done(0, wildcards);
 
 		/*
 		 * Exit without calling exit_callback().
@@ -337,7 +356,7 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 		log_errx(1, "mount failed");
 
 	log_debugx("mount done; exiting");
-	done(0);
+	done(0, wildcards);
 
 	/*
 	 * Exit without calling exit_callback().

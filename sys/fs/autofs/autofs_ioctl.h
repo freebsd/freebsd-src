@@ -71,7 +71,10 @@ struct autofs_daemon_request {
 	char		adr_options[MAXPATHLEN];
 };
 
-struct autofs_daemon_done {
+/*
+ * Compatibility with 10.1-RELEASE automountd(8).
+ */
+struct autofs_daemon_done_101 {
 	/*
 	 * Identifier, copied from adr_id.
 	 */
@@ -83,7 +86,31 @@ struct autofs_daemon_done {
 	int		add_error;
 };
 
+struct autofs_daemon_done {
+	/*
+	 * Identifier, copied from adr_id.
+	 */
+	int		add_id;
+
+	/*
+	 * Set to 1 if the map may contain wildcard entries;
+	 * otherwise autofs will do negative caching.
+	 */
+	int		add_wildcards;
+
+	/*
+	 * Error number, possibly returned to userland.
+	 */
+	int		add_error;
+
+	/*
+	 * Reserved for future use.
+	 */
+	int		add_spare[7];
+};
+
 #define	AUTOFSREQUEST	_IOR('I', 0x01, struct autofs_daemon_request)
-#define	AUTOFSDONE	_IOW('I', 0x02, struct autofs_daemon_done)
+#define	AUTOFSDONE101	_IOW('I', 0x02, struct autofs_daemon_done_101)
+#define	AUTOFSDONE	_IOW('I', 0x03, struct autofs_daemon_done)
 
 #endif /* !AUTOFS_IOCTL_H */
