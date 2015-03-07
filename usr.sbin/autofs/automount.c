@@ -230,6 +230,57 @@ mount_unmount(struct node *root)
 }
 
 static void
+flush_autofs(const char *fspath)
+{
+	struct iovec *iov = NULL;
+	char errmsg[255];
+	int error, iovlen = 0;
+
+	log_debugx("flushing %s", fspath);
+	memset(errmsg, 0, sizeof(errmsg));
+
+	build_iovec(&iov, &iovlen, "fstype",
+	    __DECONST(void *, "autofs"), (size_t)-1);
+	build_iovec(&iov, &iovlen, "fspath",
+	    __DECONST(void *, fspath), (size_t)-1);
+	build_iovec(&iov, &iovlen, "errmsg",
+	    errmsg, sizeof(errmsg));
+
+	error = nmount(iov, iovlen, MNT_UPDATE);
+	if (error != 0) {
+		if (*errmsg != '\0') {
+			log_err(1, "cannot flush %s: %s",
+			    fspath, errmsg);
+		} else {
+			log_err(1, "cannot flush %s", fspath);
+		}
+	}
+}
+
+static void
+flush_caches(void)
+{
+	struct statfs *mntbuf;
+	int i, nitems;
+
+	nitems = getmntinfo(&mntbuf, MNT_WAIT);
+	if (nitems <= 0)
+		log_err(1, "getmntinfo");
+
+	log_debugx("flushing autofs caches");
+
+	for (i = 0; i < nitems; i++) {
+		if (strcmp(mntbuf[i].f_fstypename, "autofs") != 0) {
+			log_debugx("skipping %s, filesystem type is not autofs",
+			    mntbuf[i].f_mntonname);
+			continue;
+		}
+
+		flush_autofs(mntbuf[i].f_mntonname);
+	}
+}
+
+static void
 unmount_automounted(bool force)
 {
 	struct statfs *mntbuf;
@@ -262,7 +313,7 @@ static void
 usage_automount(void)
 {
 
-	fprintf(stderr, "usage: automount [-D name=value][-o opts][-Lfuv]\n");
+	fprintf(stderr, "usage: automount [-D name=value][-o opts][-Lcfuv]\n");
 	exit(1);
 }
 
@@ -272,7 +323,7 @@ main_automount(int argc, char **argv)
 	struct node *root;
 	int ch, debug = 0, show_maps = 0;
 	char *options = NULL;
-	bool do_unmount = false, force_unmount = false;
+	bool do_unmount = false, force_unmount = false, flush = false;
 
 	/*
 	 * Note that in automount(8), the only purpose of variable
@@ -280,13 +331,16 @@ main_automount(int argc, char **argv)
 	 */
 	defined_init();
 
-	while ((ch = getopt(argc, argv, "D:Lfo:uv")) != -1) {
+	while ((ch = getopt(argc, argv, "D:Lfco:uv")) != -1) {
 		switch (ch) {
 		case 'D':
 			defined_parse_and_add(optarg);
 			break;
 		case 'L':
 			show_maps++;
+			break;
+		case 'c':
+			flush = true;
 			break;
 		case 'f':
 			force_unmount = true;
@@ -318,6 +372,11 @@ main_automount(int argc, char **argv)
 		usage_automount();
 
 	log_init(debug);
+
+	if (flush) {
+		flush_caches();
+		return (0);
+	}
 
 	if (do_unmount) {
 		unmount_automounted(force_unmount);
