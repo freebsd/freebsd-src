@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
+#include <dev/uart/uart_cpu_fdt.h>
 
 static int uart_fdt_probe(device_t);
 
@@ -91,7 +92,7 @@ static struct ofw_compat_data compat_data[] = {
 };
 
 /* Export the compat_data table for use by the uart_cpu_fdt.c probe routine. */
-const struct ofw_compat_data *uart_fdt_compat_data = compat_data;
+UART_FDT_CLASS_AND_DEVICE(compat_data);
 
 static int
 uart_fdt_get_clock(phandle_t node, pcell_t *cell)
@@ -127,6 +128,20 @@ uart_fdt_get_shift(phandle_t node, pcell_t *cell)
 	return (0);
 }
 
+static uintptr_t
+uart_fdt_find_device(device_t dev)
+{
+	struct ofw_compat_data **cd;
+	const struct ofw_compat_data *ocd;
+
+	SET_FOREACH(cd, uart_fdt_class_and_device_set) {
+		ocd = ofw_bus_search_compatible(dev, *cd);
+		if (ocd->ocd_data != 0)
+			return (ocd->ocd_data);
+	}
+	return (0);
+}
+
 static int
 uart_fdt_probe(device_t dev)
 {
@@ -134,18 +149,15 @@ uart_fdt_probe(device_t dev)
 	phandle_t node;
 	pcell_t clock, shift;
 	int err;
-	const struct ofw_compat_data * cd;
 
 	sc = device_get_softc(dev);
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	cd = ofw_bus_search_compatible(dev, compat_data);
-	if (cd->ocd_data == (uintptr_t)NULL)
+	sc->sc_class = (struct uart_class *)uart_fdt_find_device(dev);
+	if (sc->sc_class == NULL)
 		return (ENXIO);
-
-	sc->sc_class = (struct uart_class *)cd->ocd_data;
 
 	node = ofw_bus_get_node(dev);
 
