@@ -570,8 +570,7 @@ sandbox_warn_unresolved_methods(
 }
 
 int
-sandbox_create_method_vtable(__capability void *codecap,
-    __capability void *typecap,
+sandbox_create_method_vtable(__capability void * codecap,
     struct sandbox_provided_methods *provided_methods,
     void __capability * __capability * __capability *vtablep)
 {
@@ -599,8 +598,7 @@ sandbox_create_method_vtable(__capability void *codecap,
 	for (i = 0; i < provided_methods->spms_nmethods; i++) {
 		/* Zero offsets can't be sane. */
 		assert(pmethods[i].spm_offset != 0);
-		vtable[i] = cheri_seal(cheri_setoffset(codecap,
-		    pmethods[i].spm_offset), typecap);
+		vtable[i] = cheri_setoffset(codecap, pmethods[i].spm_offset);
 	}
 	/* XXXBD: should CHERI_PERM_LOAD be needed? */
 	*vtablep = cheri_andperm(vtable, CHERI_PERM_GLOBAL |
