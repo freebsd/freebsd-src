@@ -205,9 +205,27 @@ done_mapping:
 /*
  * Setup a temporary stack
  */
-	lis	%r1, tmpstack@ha
-	addi	%r1, %r1, tmpstack@l
+	bl	1f
+	.long tmpstack-.
+1:	mflr	%r1
+	lwz	%r2,0(%r1)
+	add	%r1,%r1,%r2
 	addi	%r1, %r1, (TMPSTACKSZ - 16)
+
+/*
+ * Relocate kernel
+ */
+	bl      1f
+	.long   _DYNAMIC-.
+	.long   _GLOBAL_OFFSET_TABLE_-.
+1:	mflr    %r5
+	lwz	%r3,0(%r5)	/* _DYNAMIC in %r3 */
+	add	%r3,%r3,%r5
+	lwz	%r4,4(%r5)	/* GOT pointer */
+	add	%r4,%r4,%r5
+	lwz	%r4,4(%r4)	/* got[0] is _DYNAMIC link addr */
+	subf	%r4,%r4,%r3	/* subtract to calculate relocbase */
+	bl	elf_reloc_self
 
 /*
  * Initialise exception vector offsets
@@ -338,10 +356,13 @@ bp_tlb1_end:
 	blt	4b
 
 	/* Switch to the final mapping */
-	lis	%r5, __boot_page@ha
-	ori	%r5, %r5, __boot_page@l
 	bl	5f
-5:	mflr	%r3
+	.long __boot_page-.
+5:	mflr	%r5
+	lwz	%r3,0(%r3)
+	add	%r5,%r5,%r3		/* __boot_page in r5 */
+	bl	6f
+6:	mflr	%r3
 	rlwinm	%r3, %r3, 0, 0xfff	/* Offset from boot page start */
 	add	%r3, %r3, %r5		/* Make this virtual address */
 	addi	%r3, %r3, 32
@@ -365,8 +386,11 @@ bp_tlb1_end:
 /*
  * Setup a temporary stack
  */
-	lis	%r1, tmpstack@ha
-	addi	%r1, %r1, tmpstack@l
+	bl	1f
+	.long tmpstack-.
+1:	mflr	%r1
+	lwz	%r2,0(%r1)
+	add	%r1,%r1,%r2
 	addi	%r1, %r1, (TMPSTACKSZ - 16)
 
 /*
@@ -377,8 +401,11 @@ bp_tlb1_end:
 	/*
 	 * Assign our pcpu instance
 	 */
-	lis	%r3, ap_pcpu@h
-	ori	%r3, %r3, ap_pcpu@l
+	bl	1f
+	.long ap_pcpu-.
+1:	mflr	%r4
+	lwz	%r3, 0(%r4)
+	add	%r3, %r3, %r4
 	lwz	%r3, 0(%r3)
 	mtsprg0	%r3
 
@@ -543,23 +570,13 @@ __boot_page_padding:
  * dedicated for cases when invalidation(s) should NOT be propagated to other
  * CPUs.
  *
- * Global vars tlb0_ways, tlb0_entries_per_way are assumed to have been set up
- * correctly (by tlb0_get_tlbconf()).
+ * void tid_flush(tlbtid_t tid, int tlb0_ways, int tlb0_entries_per_way);
  *
+ * XXX: why isn't this in C?
  */
 ENTRY(tid_flush)
 	cmpwi	%r3, TID_KERNEL
 	beq	tid_flush_end	/* don't evict kernel translations */
-
-	/* Number of TLB0 ways */
-	lis	%r4, tlb0_ways@h
-	ori	%r4, %r4, tlb0_ways@l
-	lwz	%r4, 0(%r4)
-
-	/* Number of entries / way */
-	lis	%r5, tlb0_entries_per_way@h
-	ori	%r5, %r5, tlb0_entries_per_way@l
-	lwz	%r5, 0(%r5)
 
 	/* Disable interrupts */
 	mfmsr	%r10
@@ -718,6 +735,11 @@ setfault:
 /* Data section								*/
 /************************************************************************/
 	.data
+	.align 3
+GLOBAL(__startkernel)
+	.long   begin
+GLOBAL(__endkernel)
+	.long   end
 	.align	4
 tmpstack:
 	.space	TMPSTACKSZ
