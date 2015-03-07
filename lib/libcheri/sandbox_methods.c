@@ -570,43 +570,6 @@ sandbox_warn_unresolved_methods(
 }
 
 int
-sandbox_create_method_vtable(__capability void * codecap,
-    struct sandbox_provided_methods *provided_methods,
-    void __capability * __capability * __capability *vtablep)
-{
-	size_t i;
-	struct sandbox_provided_method *pmethods;
-	void __capability * __capability *vtable;
-
-	assert(provided_methods != NULL);
-	pmethods = provided_methods->spms_methods;
-
-	/* Ensure the capability is capability aligned. */
-	assert(!(cheri_getbase(codecap) & (sizeof(codecap) - 1)));
-
-	if (provided_methods->spms_nmethods == 0) {
-		/* XXXBD: should be an error when all methods are converted. */
-		*vtablep = NULL;
-		return (0);
-	}
-
-	if ((vtable = (__capability void *)calloc(provided_methods->spms_nmethods,
-	    sizeof(*vtable))) == NULL) {
-		warn("%s: calloc", __func__);
-		return (-1);
-	}
-	for (i = 0; i < provided_methods->spms_nmethods; i++) {
-		/* Zero offsets can't be sane. */
-		assert(pmethods[i].spm_offset != 0);
-		vtable[i] = cheri_setoffset(codecap, pmethods[i].spm_offset);
-	}
-	/* XXXBD: should CHERI_PERM_LOAD be needed? */
-	*vtablep = cheri_andperm(vtable, CHERI_PERM_GLOBAL |
-	    CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP);
-	return (0);
-}
-
-int
 sandbox_set_required_method_variables(__capability void *datacap,
     struct sandbox_required_methods *required_methods)
 {

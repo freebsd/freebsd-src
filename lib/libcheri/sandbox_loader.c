@@ -147,15 +147,6 @@ sandbox_class_load(struct sandbox_class *sbcp)
 	codecap = cheri_setoffset(codecap, SANDBOX_INVOKE_VECTOR);
 	sbcp->sbc_classcap_invoke = cheri_seal(codecap, sbcp->sbc_typecap);
 
-	codecap = cheri_ptrperm(sbcp->sbc_mem, max_prog_offset,
-	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_EXECUTE);
-	if (sandbox_create_method_vtable(codecap, sbcp->sbc_provided_methods,
-	    (void __capability *__capability *__capability *)&sbcp->sbc_vtable) == -1) {
-		saved_errno = EINVAL;
-		warnx("%s: sandbox_create_method_vtable", __func__);
-		goto error;
-	}
-
 	return (0);
 
 error:

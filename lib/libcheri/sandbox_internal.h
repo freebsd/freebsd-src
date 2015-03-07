@@ -63,7 +63,6 @@ struct sandbox_class {
 	__capability void	*sbc_typecap;		/* Class type */
 	__capability void	*sbc_classcap_rtld;	/* Ctor/dtor */
 	__capability void	*sbc_classcap_invoke;	/* Object invoke */
-	void __capability * __capability *sbc_vtable;	/* Method vtable */
 
 	/*
 	 * Class CCall methods.

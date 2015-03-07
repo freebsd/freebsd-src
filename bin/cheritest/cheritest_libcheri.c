@@ -278,7 +278,7 @@ cheritest_libcheri_setup(void)
 		return (-1);
 	if (sandbox_object_new(cheritest_classp, &cheritest_objectp) < 0)
 		return (-1);
-	cheritest = sandbox_object_getvtableobject(cheritest_objectp);
+	cheritest = sandbox_object_getobject(cheritest_objectp);
 	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_OP_MD5, "md5");
 	(void)sandbox_class_method_declare(cheritest_classp,
