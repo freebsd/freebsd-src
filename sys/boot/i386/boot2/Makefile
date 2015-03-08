@@ -42,8 +42,10 @@ CFLAGS=	-Os \
 
 CFLAGS.gcc+=	-fno-guess-branch-probability \
 		-fno-unit-at-a-time \
-		-mno-align-long-strings \
 		--param max-inline-insns-single=100
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} <= 40201
+CFLAGS.gcc+=   -mno-align-long-strings
+.endif
 
 LD_FLAGS=-static -N --gc-sections
 

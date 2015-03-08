@@ -27,7 +27,6 @@ CFLAGS=	-Os \
 	-fno-guess-branch-probability \
 	-fomit-frame-pointer \
 	-fno-unit-at-a-time \
-	-mno-align-long-strings \
 	-mrtd \
 	-mregparm=3 \
 	-D${BOOT2_UFS} \
@@ -45,6 +44,9 @@ CFLAGS=	-Os \
 	-Winline
 
 CFLAGS.gcc+=	--param max-inline-insns-single=100
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} <= 40201
+CFLAGS.gcc+=   -mno-align-long-strings
+.endif
 
 # Set machine type to PC98_SYSTEM_PARAMETER
 #CFLAGS+=	-DSET_MACHINE_TYPE
