@@ -53,11 +53,10 @@
 /*
  * XXX TODO: teach about the AR933x SoC switch
  * XXX TODO: teach about the AR934x SoC switch
- * XXX TODO: teach about the AR8327 external switch
  */
 
 static int
-arswitch_vlan_op(struct arswitch_softc *sc, uint32_t op, uint32_t vid,
+ar8xxx_vlan_op(struct arswitch_softc *sc, uint32_t op, uint32_t vid,
 	uint32_t data)
 {
 	int err;
@@ -87,20 +86,20 @@ arswitch_vlan_op(struct arswitch_softc *sc, uint32_t op, uint32_t vid,
 	return (0);
 }
 
-static int
-arswitch_flush_dot1q_vlan(struct arswitch_softc *sc)
+int
+ar8xxx_flush_dot1q_vlan(struct arswitch_softc *sc)
 {
 
 	ARSWITCH_LOCK_ASSERT(sc, MA_OWNED);
-	return (arswitch_vlan_op(sc, AR8X16_VLAN_OP_FLUSH, 0, 0));
+	return (ar8xxx_vlan_op(sc, AR8X16_VLAN_OP_FLUSH, 0, 0));
 }
 
-static int
-arswitch_purge_dot1q_vlan(struct arswitch_softc *sc, int vid)
+int
+ar8xxx_purge_dot1q_vlan(struct arswitch_softc *sc, int vid)
 {
 
 	ARSWITCH_LOCK_ASSERT(sc, MA_OWNED);
-	return (arswitch_vlan_op(sc, AR8X16_VLAN_OP_PURGE, vid, 0));
+	return (ar8xxx_vlan_op(sc, AR8X16_VLAN_OP_PURGE, vid, 0));
 }
 
 int
@@ -110,7 +109,7 @@ ar8xxx_get_dot1q_vlan(struct arswitch_softc *sc, uint32_t *ports, int vid)
 	int err;
 
 	ARSWITCH_LOCK_ASSERT(sc, MA_OWNED);
-	err = arswitch_vlan_op(sc, AR8X16_VLAN_OP_GET, vid, 0);
+	err = ar8xxx_vlan_op(sc, AR8X16_VLAN_OP_GET, vid, 0);
 	if (err)
 		return (err);
 
@@ -130,7 +129,7 @@ ar8xxx_set_dot1q_vlan(struct arswitch_softc *sc, uint32_t ports, int vid)
 	int err;
 
 	ARSWITCH_LOCK_ASSERT(sc, MA_OWNED);
-	err = arswitch_vlan_op(sc, AR8X16_VLAN_OP_LOAD, vid, ports);
+	err = ar8xxx_vlan_op(sc, AR8X16_VLAN_OP_LOAD, vid, ports);
 	if (err)
 		return (err);
 	return (0);
@@ -193,7 +192,7 @@ ar8xxx_reset_vlans(struct arswitch_softc *sc)
 		}
 	}
 
-	if (arswitch_flush_dot1q_vlan(sc)) {
+	if (sc->hal.arswitch_flush_dot1q_vlan(sc)) {
 		ARSWITCH_UNLOCK(sc);
 		return;
 	}
@@ -323,7 +322,7 @@ ar8xxx_setvgroup(struct arswitch_softc *sc, etherswitch_vlangroup_t *vg)
 	    (vid & ETHERSWITCH_VID_VALID) != 0 &&
 	    (vid & ETHERSWITCH_VID_MASK) !=
 	    (vg->es_vid & ETHERSWITCH_VID_MASK)) {
-		err = arswitch_purge_dot1q_vlan(sc, vid);
+		err = sc->hal.arswitch_purge_dot1q_vlan(sc, vid);
 		if (err) {
 			ARSWITCH_UNLOCK(sc);
 			return (err);
