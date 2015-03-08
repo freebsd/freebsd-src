@@ -57,6 +57,9 @@
 #include <dev/etherswitch/arswitch/arswitchreg.h>
 #include <dev/etherswitch/arswitch/arswitchvar.h>
 #include <dev/etherswitch/arswitch/arswitch_reg.h>
+#include <dev/etherswitch/arswitch/arswitch_phy.h>
+#include <dev/etherswitch/arswitch/arswitch_vlans.h>
+
 #include <dev/etherswitch/arswitch/arswitch_8327.h>
 
 #include "mdio_if.h"
@@ -290,7 +293,7 @@ ar8327_fetch_pdata_port(struct arswitch_softc *sc,
 	    sbuf, &val) == 0)
 		pcfg->rxpause = val;
 
-#if 0
+#if 1
 	device_printf(sc->sc_dev,
 	    "%s: port %d: speed=%d, duplex=%d, txpause=%d, rxpause=%d\n",
 	    __func__,
@@ -562,6 +565,7 @@ ar8327_init_pdata(struct arswitch_softc *sc)
 	/* SGMII config */
 	bzero(&scfg, sizeof(scfg));
 	if (ar8327_fetch_pdata_sgmii(sc, &scfg)) {
+		device_printf(sc->sc_dev, "%s: SGMII cfg?\n", __func__);
 		t = scfg.sgmii_ctrl;
 		if (sc->chip_rev == 1)
 			t |= AR8327_SGMII_CTRL_EN_PLL |
@@ -657,12 +661,16 @@ ar8327_hw_global_setup(struct arswitch_softc *sc)
 }
 
 /*
- * Port setup.
+ * Port setup.  Called at attach time.
  */
 static void
 ar8327_port_init(struct arswitch_softc *sc, int port)
 {
 	uint32_t t;
+	int ports;
+
+	/* For now, port can see all other ports */
+	ports = 0x7f;
 
 	if (port == AR8X16_PORT_CPU)
 		t = sc->ar8327.port0_status;
@@ -696,7 +704,7 @@ ar8327_port_init(struct arswitch_softc *sc, int port)
 	t |= AR8X16_PORT_CTRL_STATE_FORWARD << AR8327_PORT_LOOKUP_STATE_S;
 
 	/* So this allows traffic to any port except ourselves */
-	t |= (0x7f & ~(1 << port));
+	t |= (ports & ~(1 << port));
 	arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_LOOKUP(port), t);
 }
 
@@ -705,16 +713,18 @@ ar8327_port_vlan_setup(struct arswitch_softc *sc, etherswitch_port_t *p)
 {
 
 	/* XXX stub for now */
-	device_printf(sc->sc_dev, "%s: called\n", __func__);
+//	device_printf(sc->sc_dev, "%s: called\n", __func__);
 	return (0);
 }
 
+/*
+ * Get the port VLAN configuration.
+ */
 static int
 ar8327_port_vlan_get(struct arswitch_softc *sc, etherswitch_port_t *p)
 {
-
 	/* XXX stub for now */
-	device_printf(sc->sc_dev, "%s: called\n", __func__);
+//	device_printf(sc->sc_dev, "%s: called\n", __func__);
 	return (0);
 }
 
@@ -723,6 +733,13 @@ ar8327_reset_vlans(struct arswitch_softc *sc)
 {
 	int i;
 	uint32_t mode, t;
+	int ports;
+
+	ARSWITCH_LOCK_ASSERT(sc, MA_NOTOWNED);
+	ARSWITCH_LOCK(sc);
+
+	/* Clear the existing VLAN configuration */
+	memset(sc->vid, 0, sizeof(sc->vid));
 
 	/*
 	 * Disable mirroring.
@@ -732,10 +749,21 @@ ar8327_reset_vlans(struct arswitch_softc *sc)
 	    (0xF << AR8327_FWD_CTRL0_MIRROR_PORT_S));
 
 	/*
-	 * For now, let's default to one portgroup, just so traffic
-	 * flows.  All ports can see other ports.
+	 * XXX TODO: disable any Q-in-Q port configuration,
+	 * tagging, egress filters, etc.
 	 */
+
+	/*
+	 * For now, let's default to one portgroup, just so traffic
+	 * flows.  All ports can see other ports. There are two CPU GMACs
+	 * (GMAC0, GMAC6), GMAC1..GMAC5 are external PHYs.
+	 *
+	 * (ETHERSWITCH_VLAN_PORT)
+	 */
+	ports = 0x7f;
+
 	for (i = 0; i < AR8327_NUM_PORTS; i++) {
+
 		/* set pvid = 1; there's only one vlangroup */
 		t = 1 << AR8327_PORT_VLAN0_DEF_SVID_S;
 		t |= 1 << AR8327_PORT_VLAN0_DEF_CVID_S;
@@ -749,7 +777,7 @@ ar8327_reset_vlans(struct arswitch_softc *sc)
 		arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_VLAN1(i), t);
 
 		/* Ports can see other ports */
-		t = (0x7f & ~(1 << i));	/* all ports besides us */
+		t = (ports & ~(1 << i));	/* all ports besides us */
 		t |= AR8327_PORT_LOOKUP_LEARN;
 
 		/* in_port_only, forward */
@@ -769,12 +797,20 @@ ar8327_reset_vlans(struct arswitch_softc *sc)
 		    AR8327_PORT_HOL_CTRL1_EG_MIRROR_EN,
 		    0);
 	}
+
+	ARSWITCH_UNLOCK(sc);
 }
 
 static int
 ar8327_vlan_getvgroup(struct arswitch_softc *sc, etherswitch_vlangroup_t *vg)
 {
-	device_printf(sc->sc_dev, "%s: called\n", __func__);
+
+#if 0
+	/* XXX for now, no dot1q vlans */
+	if (sc->vlan_mode == ETHERSWITCH_VLAN_DOT1Q)
+		return (EINVAL);
+	return (ar8xxx_getvgroup(sc, vg));
+#endif
 	return (0);
 }
 
@@ -782,7 +818,12 @@ static int
 ar8327_vlan_setvgroup(struct arswitch_softc *sc, etherswitch_vlangroup_t *vg)
 {
 
-	device_printf(sc->sc_dev, "%s: called\n", __func__);
+#if 0
+	/* XXX for now, no dot1q vlans */
+	if (sc->vlan_mode == ETHERSWITCH_VLAN_DOT1Q)
+		return (EINVAL);
+	return (ar8xxx_setvgroup(sc, vg));
+#endif
 	return (0);
 }
 
@@ -832,16 +873,28 @@ ar8327_attach(struct arswitch_softc *sc)
 	sc->hal.arswitch_hw_global_setup = ar8327_hw_global_setup;
 
 	sc->hal.arswitch_port_init = ar8327_port_init;
+
+	sc->hal.arswitch_vlan_getvgroup = ar8327_vlan_getvgroup;
+	sc->hal.arswitch_vlan_setvgroup = ar8327_vlan_setvgroup;
 	sc->hal.arswitch_port_vlan_setup = ar8327_port_vlan_setup;
 	sc->hal.arswitch_port_vlan_get = ar8327_port_vlan_get;
 
 	sc->hal.arswitch_vlan_init_hw = ar8327_reset_vlans;
-	sc->hal.arswitch_vlan_getvgroup = ar8327_vlan_getvgroup;
-	sc->hal.arswitch_vlan_setvgroup = ar8327_vlan_setvgroup;
 	sc->hal.arswitch_vlan_get_pvid = ar8327_get_pvid;
 	sc->hal.arswitch_vlan_set_pvid = ar8327_set_pvid;
 
 	sc->hal.arswitch_atu_flush = ar8327_atu_flush;
+
+	/*
+	 * Reading the PHY via the MDIO interface currently doesn't
+	 * work correctly.
+	 *
+	 * So for now, just go direct to the PHY registers themselves.
+	 * This has always worked  on external devices, but not internal
+	 * devices (AR934x, AR724x, AR933x.)
+	 */
+	sc->hal.arswitch_phy_read = arswitch_readphy_external;
+	sc->hal.arswitch_phy_write = arswitch_writephy_external;
 
 	/* Set the switch vlan capabilities. */
 	sc->info.es_vlan_caps = ETHERSWITCH_VLAN_DOT1Q |
