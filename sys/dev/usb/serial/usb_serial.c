@@ -1102,14 +1102,19 @@ ucom_cfg_status_change(struct usb_proc_msg *_task)
 	sc->sc_msr = new_msr;
 	sc->sc_lsr = new_lsr;
 
-	/* time pulse counting support */
+	/*
+	 * Time pulse counting support. Note that both CTS and DCD are
+	 * active-low signals. The status bit is high to indicate that
+	 * the signal on the line is low, which corresponds to a PPS
+	 * clear event.
+	 */
 	switch(ucom_pps_mode) {
 	case 1:
 		if ((sc->sc_pps.ppsparam.mode & PPS_CAPTUREBOTH) &&
 		    (msr_delta & SER_CTS)) {
 			pps_capture(&sc->sc_pps);
 			pps_event(&sc->sc_pps, (sc->sc_msr & SER_CTS) ?
-			    PPS_CAPTUREASSERT : PPS_CAPTURECLEAR);
+			    PPS_CAPTURECLEAR : PPS_CAPTUREASSERT);
 		}
 		break;
 	case 2:
@@ -1117,7 +1122,7 @@ ucom_cfg_status_change(struct usb_proc_msg *_task)
 		    (msr_delta & SER_DCD)) {
 			pps_capture(&sc->sc_pps);
 			pps_event(&sc->sc_pps, (sc->sc_msr & SER_DCD) ?
-			    PPS_CAPTUREASSERT : PPS_CAPTURECLEAR);
+			    PPS_CAPTURECLEAR : PPS_CAPTUREASSERT);
 		}
 		break;
 	default:
