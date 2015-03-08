@@ -83,7 +83,11 @@ hint.arswitch.0.port.6.txpause=1
 hint.arswitch.0.port.6.rxpause=1
 
 # arge0 - hooked up to AR8327 GMAC6, RGMII
-hint.arge.0.phymask=0x0
+# set at 1000/full to the switch.
+# so, lock both sides of this connect up to 1000/full;
+# if_arge thus wont change the PLL configuration
+# upon a link status change.
+hint.arge.0.phymask=0x10
 hint.arge.0.miimode=3           # RGMII
 hint.arge.0.media=1000
 hint.arge.0.fduplex=1
