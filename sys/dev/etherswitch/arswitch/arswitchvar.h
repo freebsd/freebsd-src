@@ -99,6 +99,15 @@ struct arswitch_softc {
 		int (* arswitch_vlan_set_pvid) (struct arswitch_softc *, int,
 		    int);
 
+		int (* arswitch_get_dot1q_vlan) (struct arswitch_softc *,
+		    uint32_t *ports, int vid);
+		int (* arswitch_set_dot1q_vlan) (struct arswitch_softc *sc,
+		    uint32_t ports, int vid);
+		int (* arswitch_get_port_vlan) (struct arswitch_softc *sc,
+		    uint32_t *ports, int vid);
+		int (* arswitch_set_port_vlan) (struct arswitch_softc *sc,
+		    uint32_t ports, int vid);
+
 		/* PHY functions */
 		int (* arswitch_phy_read) (device_t, int, int);
 		int (* arswitch_phy_write) (device_t, int, int, int);
