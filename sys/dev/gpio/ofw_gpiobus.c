@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
 
+#include "gpiobus_if.h"
+
 static struct ofw_gpiobus_devinfo *ofw_gpiobus_setup_devinfo(device_t,
 	device_t, phandle_t);
 static void ofw_gpiobus_destroy_devinfo(device_t, struct ofw_gpiobus_devinfo *);
@@ -49,6 +51,8 @@ device_t
 ofw_gpiobus_add_fdt_child(device_t bus, const char *drvname, phandle_t child)
 {
 	device_t childdev;
+	int i;
+	struct gpiobus_ivar *devi;
 	struct ofw_gpiobus_devinfo *dinfo;
 
 	/*
@@ -67,6 +71,11 @@ ofw_gpiobus_add_fdt_child(device_t bus, const char *drvname, phandle_t child)
 		device_delete_child(bus, childdev);
 		return (NULL);
 	}
+	/* Use the child name as pin name. */
+	devi = &dinfo->opd_dinfo;
+	for (i = 0; i < devi->npins; i++)
+		GPIOBUS_PIN_SETNAME(bus, devi->pins[i],
+		    device_get_nameunit(childdev));
 
 	return (childdev);
 }
@@ -159,7 +168,7 @@ ofw_gpiobus_destroy_devinfo(device_t bus, struct ofw_gpiobus_devinfo *dinfo)
 	for (i = 0; i < devi->npins; i++) {
 		if (devi->pins[i] > sc->sc_npins)
 			continue;
-		sc->sc_pins_mapped[devi->pins[i]] = 0;
+		sc->sc_pins[devi->pins[i]].mapped = 0;
 	}
 	gpiobus_free_ivars(devi);
 	resource_list_free(&dinfo->opd_dinfo.rl);

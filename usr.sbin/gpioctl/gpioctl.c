@@ -68,6 +68,7 @@ usage(void)
 	fprintf(stderr, "\tgpioctl [-f ctldev] -l [-v]\n");
 	fprintf(stderr, "\tgpioctl [-f ctldev] -t pin\n");
 	fprintf(stderr, "\tgpioctl [-f ctldev] -c pin flag ...\n");
+	fprintf(stderr, "\tgpioctl [-f ctldev] -n pin pin-name\n");
 	fprintf(stderr, "\tgpioctl [-f ctldev] pin [0|1]\n");
 	exit(1);
 }
@@ -182,11 +183,11 @@ main(int argc, char **argv)
 	char *ctlfile = NULL;
 	int pinn, pinv, ch;
 	int flags, flag, ok;
-	int config, toggle, verbose, list;
+	int config, list, name, toggle, verbose;
 
-	config = toggle = verbose = list = pinn = 0;
+	config = toggle = verbose = list = name = pinn = 0;
 
-	while ((ch = getopt(argc, argv, "c:f:lt:v")) != -1) {
+	while ((ch = getopt(argc, argv, "c:f:ln:t:v")) != -1) {
 		switch (ch) {
 		case 'c':
 			config = 1;
@@ -199,6 +200,12 @@ main(int argc, char **argv)
 			break;
 		case 'l':
 			list = 1;
+			break;
+		case 'n':
+			name = 1;
+			pinn = str2int(optarg, &ok);
+			if (!ok)
+				fail("Invalid pin number: %s\n", optarg);
 			break;
 		case 't':
 			toggle = 1;
@@ -223,6 +230,19 @@ main(int argc, char **argv)
 	if (handle == GPIO_INVALID_HANDLE) {
 		perror("gpio_open");
 		exit(1);
+	}
+
+	/* Set the pin name. */
+	if (name) {
+		if (argc == 0) {
+			usage();
+			exit(1);
+		}
+		if (gpio_pin_set_name(handle, pinn, argv[0]) < 0) {
+			perror("gpio_pin_set_name");
+			exit(1);
+		}
+		exit(0);
 	}
 
 	if (list) {
