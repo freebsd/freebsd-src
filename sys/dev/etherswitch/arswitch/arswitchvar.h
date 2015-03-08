@@ -99,6 +99,9 @@ struct arswitch_softc {
 		int (* arswitch_vlan_set_pvid) (struct arswitch_softc *, int,
 		    int);
 
+		int (* arswitch_flush_dot1q_vlan) (struct arswitch_softc *sc);
+		int (* arswitch_purge_dot1q_vlan) (struct arswitch_softc *sc,
+		    int vid);
 		int (* arswitch_get_dot1q_vlan) (struct arswitch_softc *,
 		    uint32_t *ports, int vid);
 		int (* arswitch_set_dot1q_vlan) (struct arswitch_softc *sc,
