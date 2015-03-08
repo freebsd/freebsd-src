@@ -60,7 +60,7 @@ struct arswitch_softc {
 	int		is_internal_switch;
 	int		chip_ver;
 	int		chip_rev;
-	int		mii_lo_first;
+	int		mii_lo_first;		/* Send low data DWORD before high */
 	ar8x16_switch_type	sc_switchtype;
 	/* should be the max of both pre-AR8327 and AR8327 ports */
 	char		*ifname[ARSWITCH_NUM_PHYS];
@@ -98,6 +98,10 @@ struct arswitch_softc {
 		    int *);
 		int (* arswitch_vlan_set_pvid) (struct arswitch_softc *, int,
 		    int);
+
+		/* PHY functions */
+		int (* arswitch_phy_read) (device_t, int, int);
+		int (* arswitch_phy_write) (device_t, int, int, int);
 	} hal;
 
 	struct {
