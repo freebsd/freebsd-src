@@ -312,6 +312,8 @@ arswitch_attach(device_t dev)
 
 	sc->hal.arswitch_get_dot1q_vlan = ar8xxx_get_dot1q_vlan;
 	sc->hal.arswitch_set_dot1q_vlan = ar8xxx_set_dot1q_vlan;
+	sc->hal.arswitch_flush_dot1q_vlan = ar8xxx_flush_dot1q_vlan;
+	sc->hal.arswitch_purge_dot1q_vlan = ar8xxx_purge_dot1q_vlan;
 	sc->hal.arswitch_get_port_vlan = ar8xxx_get_port_vlan;
 	sc->hal.arswitch_set_port_vlan = ar8xxx_set_port_vlan;
 
