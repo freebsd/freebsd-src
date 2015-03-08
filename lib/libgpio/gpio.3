@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 7, 2015
+.Dd March 8, 2015
 .Dt GPIO 3
 .Os
 .Sh NAME
@@ -43,43 +43,43 @@
 .Ft void
 .Fn gpio_close "gpio_handle_t handle"
 .Ft int
-.Fn gpio_pin_list "gpio_handle_t handle, gpio_config_t **pcfgs"
+.Fn gpio_pin_list "gpio_handle_t handle" "gpio_config_t **pcfgs"
 .Ft int
-.Fn gpio_pin_config "gpio_handle_t handle, gpio_config_t *cfg"
+.Fn gpio_pin_config "gpio_handle_t handle" "gpio_config_t *cfg"
 .Ft int
-.Fn gpio_pin_set_name "gpio_handle_t handle, gpio_pin_t pin, char *name"
+.Fn gpio_pin_set_name "gpio_handle_t handle" "gpio_pin_t pin" "char *name"
 .Ft int
-.Fn gpio_pin_set_flags "gpio_handle_t handle, gpio_config_t *cfg"
+.Fn gpio_pin_set_flags "gpio_handle_t handle" "gpio_config_t *cfg"
 .Ft gpio_value_t
-.Fn gpio_pin_get "gpio_handle_t handle, gpio_pin_t pin"
+.Fn gpio_pin_get "gpio_handle_t handle" "gpio_pin_t pin"
 .Ft int
-.Fn gpio_pin_set "gpio_handle_t handle, gpio_pin_t pin, gpio_value_t value"
+.Fn gpio_pin_set "gpio_handle_t handle" "gpio_pin_t pin" "gpio_value_t value"
 .Ft int
-.Fn gpio_pin_toggle "gpio_handle_t handle, gpio_pin_t pin"
+.Fn gpio_pin_toggle "gpio_handle_t handle" "gpio_pin_t pin"
 .Ft int
-.Fn gpio_pin_low "gpio_handle_t handle, gpio_pin_t pin"
+.Fn gpio_pin_low "gpio_handle_t handle" "gpio_pin_t pin"
 .Ft int
-.Fn gpio_pin_high "gpio_handle_t handle, gpio_pin_t pin"
+.Fn gpio_pin_high "gpio_handle_t handle" "gpio_pin_t pin"
 .Ft int
-.Fn gpio_pin_input "gpio_handle_t handle, gpio_pin_t pin"
+.Fn gpio_pin_input "gpio_handle_t handle" "gpio_pin_t pin"
 .Ft int
-.Fn gpio_pin_output "gpio_handle_t handle, gpio_pin_t pin"
+.Fn gpio_pin_output "gpio_handle_t handle" "gpio_pin_t pin"
 .Ft int
-.Fn gpio_pin_opendrain "gpio_handle_t handle, gpio_pin_t pin"
+.Fn gpio_pin_opendrain "gpio_handle_t handle" "gpio_pin_t pin"
 .Ft int
-.Fn gpio_pin_pushpull "gpio_handle_t handle, gpio_pin_t pin"
+.Fn gpio_pin_pushpull "gpio_handle_t handle" "gpio_pin_t pin"
 .Ft int
-.Fn gpio_pin_tristate "gpio_handle_t handle, gpio_pin_t pin"
+.Fn gpio_pin_tristate "gpio_handle_t handle" "gpio_pin_t pin"
 .Ft int
-.Fn gpio_pin_pullup "gpio_handle_t handle, gpio_pin_t pin"
+.Fn gpio_pin_pullup "gpio_handle_t handle" "gpio_pin_t pin"
 .Ft int
-.Fn gpio_pin_pulldown "gpio_handle_t handle, gpio_pin_t pin"
+.Fn gpio_pin_pulldown "gpio_handle_t handle" "gpio_pin_t pin"
 .Ft int
-.Fn gpio_pin_invin "gpio_handle_t handle, gpio_pin_t pin"
+.Fn gpio_pin_invin "gpio_handle_t handle" "gpio_pin_t pin"
 .Ft int
-.Fn gpio_pin_invout "gpio_handle_t handle, gpio_pin_t pin"
+.Fn gpio_pin_invout "gpio_handle_t handle" "gpio_pin_t pin"
 .Ft int
-.Fn gpio_pin_pulsate "gpio_handle_t handle, gpio_pin_t pin"
+.Fn gpio_pin_pulsate "gpio_handle_t handle" "gpio_pin_t pin"
 .Sh DESCRIPTION
 The
 .Nm libgpio
@@ -101,7 +101,7 @@ This function takes a pointer to a
 which is dynamically allocated.
 This pointer should be freed with
 .Xr free 3
-when it's no longer necessary.
+when it is no longer necessary.
 .Pp
 The function
 .Fn gpio_pin_config
