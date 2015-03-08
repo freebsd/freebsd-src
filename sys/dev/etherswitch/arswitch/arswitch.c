@@ -303,13 +303,23 @@ arswitch_attach(device_t dev)
 	sc->hal.arswitch_port_vlan_setup = ar8xxx_port_vlan_setup;
 	sc->hal.arswitch_port_vlan_get = ar8xxx_port_vlan_get;
 	sc->hal.arswitch_vlan_init_hw = ar8xxx_reset_vlans;
+
 	sc->hal.arswitch_vlan_getvgroup = ar8xxx_getvgroup;
 	sc->hal.arswitch_vlan_setvgroup = ar8xxx_setvgroup;
+
 	sc->hal.arswitch_vlan_get_pvid = ar8xxx_get_pvid;
 	sc->hal.arswitch_vlan_set_pvid = ar8xxx_set_pvid;
+
+	sc->hal.arswitch_get_dot1q_vlan = ar8xxx_get_dot1q_vlan;
+	sc->hal.arswitch_set_dot1q_vlan = ar8xxx_set_dot1q_vlan;
+	sc->hal.arswitch_get_port_vlan = ar8xxx_get_port_vlan;
+	sc->hal.arswitch_set_port_vlan = ar8xxx_set_port_vlan;
+
 	sc->hal.arswitch_atu_flush = ar8xxx_atu_flush;
+
 	sc->hal.arswitch_phy_read = arswitch_readphy_internal;
 	sc->hal.arswitch_phy_write = arswitch_writephy_internal;
+
 
 	/*
 	 * Attach switch related functions
@@ -627,6 +637,15 @@ ar8xxx_port_vlan_get(struct arswitch_softc *sc, etherswitch_port_t *p)
 }
 
 static int
+arswitch_is_cpuport(struct arswitch_softc *sc, int port)
+{
+
+	return ((port == AR8X16_PORT_CPU) ||
+	    ((AR8X16_IS_SWITCH(sc, AR8327) &&
+	      port == AR8327_PORT_GMAC6)));
+}
+
+static int
 arswitch_getport(device_t dev, etherswitch_port_t *p)
 {
 	struct arswitch_softc *sc;
@@ -635,7 +654,8 @@ arswitch_getport(device_t dev, etherswitch_port_t *p)
 	int err;
 
 	sc = device_get_softc(dev);
-	if (p->es_port < 0 || p->es_port > sc->numphys)
+	/* XXX +1 is for AR8327; should make this configurable! */
+	if (p->es_port < 0 || p->es_port > sc->info.es_nports)
 		return (ENXIO);
 
 	err = sc->hal.arswitch_port_vlan_get(sc, p);
@@ -643,7 +663,7 @@ arswitch_getport(device_t dev, etherswitch_port_t *p)
 		return (err);
 
 	mii = arswitch_miiforport(sc, p->es_port);
-	if (p->es_port == AR8X16_PORT_CPU) {
+	if (arswitch_is_cpuport(sc, p->es_port)) {
 		/* fill in fixed values for CPU port */
 		/* XXX is this valid in all cases? */
 		p->es_flags |= ETHERSWITCH_PORT_CPU;
@@ -712,7 +732,7 @@ arswitch_setport(device_t dev, etherswitch_port_t *p)
 	struct ifnet *ifp;
 
 	sc = device_get_softc(dev);
-	if (p->es_port < 0 || p->es_port > sc->numphys)
+	if (p->es_port < 0 || p->es_port > sc->info.es_nports)
 		return (ENXIO);
 
 	/* Port flags. */
@@ -723,7 +743,7 @@ arswitch_setport(device_t dev, etherswitch_port_t *p)
 	}
 
 	/* Do not allow media changes on CPU port. */
-	if (p->es_port == AR8X16_PORT_CPU)
+	if (arswitch_is_cpuport(sc, p->es_port))
 		return (0);
 
 	mii = arswitch_miiforport(sc, p->es_port);

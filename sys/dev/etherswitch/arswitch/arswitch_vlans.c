@@ -103,8 +103,8 @@ arswitch_purge_dot1q_vlan(struct arswitch_softc *sc, int vid)
 	return (arswitch_vlan_op(sc, AR8X16_VLAN_OP_PURGE, vid, 0));
 }
 
-static int
-arswitch_get_dot1q_vlan(struct arswitch_softc *sc, uint32_t *ports, int vid)
+int
+ar8xxx_get_dot1q_vlan(struct arswitch_softc *sc, uint32_t *ports, int vid)
 {
 	uint32_t reg;
 	int err;
@@ -124,8 +124,8 @@ arswitch_get_dot1q_vlan(struct arswitch_softc *sc, uint32_t *ports, int vid)
 	return (0);
 }
 
-static int
-arswitch_set_dot1q_vlan(struct arswitch_softc *sc, uint32_t ports, int vid)
+int
+ar8xxx_set_dot1q_vlan(struct arswitch_softc *sc, uint32_t ports, int vid)
 {
 	int err;
 
@@ -136,8 +136,8 @@ arswitch_set_dot1q_vlan(struct arswitch_softc *sc, uint32_t ports, int vid)
 	return (0);
 }
 
-static int
-arswitch_get_port_vlan(struct arswitch_softc *sc, uint32_t *ports, int vid)
+int
+ar8xxx_get_port_vlan(struct arswitch_softc *sc, uint32_t *ports, int vid)
 {
 	int port;
 	uint32_t reg;
@@ -151,8 +151,8 @@ arswitch_get_port_vlan(struct arswitch_softc *sc, uint32_t *ports, int vid)
 	return (0);
 }
 
-static int
-arswitch_set_port_vlan(struct arswitch_softc *sc, uint32_t ports, int vid)
+int
+ar8xxx_set_port_vlan(struct arswitch_softc *sc, uint32_t ports, int vid)
 {
 	int err, port;
 
@@ -224,7 +224,7 @@ ar8xxx_reset_vlans(struct arswitch_softc *sc)
 		ports = 0;
 		for (i = 0; i <= sc->numphys; i++)
 			ports |= (1 << i);
-		arswitch_set_dot1q_vlan(sc, ports, sc->vid[0]);
+		sc->hal.arswitch_set_dot1q_vlan(sc, ports, sc->vid[0]);
 		sc->vid[0] |= ETHERSWITCH_VID_VALID;
 	} else if (sc->vlan_mode == ETHERSWITCH_VLAN_PORT) {
 		/* Initialize the port based vlans. */
@@ -286,11 +286,11 @@ ar8xxx_getvgroup(struct arswitch_softc *sc, etherswitch_vlangroup_t *vg)
 	/* Member Ports. */
 	switch (sc->vlan_mode) {
 	case ETHERSWITCH_VLAN_DOT1Q:
-		err = arswitch_get_dot1q_vlan(sc, &vg->es_member_ports,
+		err = sc->hal.arswitch_get_dot1q_vlan(sc, &vg->es_member_ports,
 		    vg->es_vid);
 		break;
 	case ETHERSWITCH_VLAN_PORT:
-		err = arswitch_get_port_vlan(sc, &vg->es_member_ports,
+		err = sc->hal.arswitch_get_port_vlan(sc, &vg->es_member_ports,
 		    vg->es_vid);
 		break;
 	default:
@@ -345,10 +345,10 @@ ar8xxx_setvgroup(struct arswitch_softc *sc, etherswitch_vlangroup_t *vg)
 	/* Member Ports. */
 	switch (sc->vlan_mode) {
 	case ETHERSWITCH_VLAN_DOT1Q:
-		err = arswitch_set_dot1q_vlan(sc, vg->es_member_ports, vid);
+		err = sc->hal.arswitch_set_dot1q_vlan(sc, vg->es_member_ports, vid);
 		break;
 	case ETHERSWITCH_VLAN_PORT:
-		err = arswitch_set_port_vlan(sc, vg->es_member_ports, vid);
+		err = sc->hal.arswitch_set_port_vlan(sc, vg->es_member_ports, vid);
 		break;
 	default:
 		err = -1;
