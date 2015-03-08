@@ -2926,7 +2926,7 @@ wpi_add_node(struct wpi_softc *sc, struct ieee80211_node *ni)
 		return EINVAL;
 
 	memset(&node, 0, sizeof node);
-	IEEE80211_ADDR_COPY(node.macaddr, ni->ni_bssid);
+	IEEE80211_ADDR_COPY(node.macaddr, ni->ni_macaddr);
 	node.id = wn->id;
 	node.plcp = (ic->ic_curmode == IEEE80211_MODE_11A) ?
 	    wpi_ridx_to_plcp[WPI_RIDX_OFDM6] : wpi_ridx_to_plcp[WPI_RIDX_CCK1];
@@ -2993,7 +2993,7 @@ wpi_del_node(struct wpi_softc *sc, struct ieee80211_node *ni)
 	}
 
 	memset(&node, 0, sizeof node);
-	IEEE80211_ADDR_COPY(node.macaddr, ni->ni_bssid);
+	IEEE80211_ADDR_COPY(node.macaddr, ni->ni_macaddr);
 	node.count = 1;
 
 	error = wpi_cmd(sc, WPI_CMD_DEL_NODE, &node, sizeof node, 1);
@@ -3404,6 +3404,7 @@ wpi_config(struct wpi_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	uint32_t flags;
 	int error;
 
@@ -3425,7 +3426,7 @@ wpi_config(struct wpi_softc *sc)
 
 	/* Configure adapter. */
 	memset(&sc->rxon, 0, sizeof (struct wpi_rxon));
-	IEEE80211_ADDR_COPY(sc->rxon.myaddr, IF_LLADDR(ifp));
+	IEEE80211_ADDR_COPY(sc->rxon.myaddr, vap->iv_myaddr);
 
 	/* Set default channel. */
 	sc->rxon.chan = ieee80211_chan2ieee(ic, ic->ic_curchan);
@@ -3559,6 +3560,7 @@ wpi_scan(struct wpi_softc *sc, struct ieee80211_channel *c)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211_scan_state *ss = ic->ic_scan;
+	struct ieee80211vap *vap = ss->ss_vap;
 	struct wpi_scan_hdr *hdr;
 	struct wpi_cmd_data *tx;
 	struct wpi_scan_essid *essids;
@@ -3645,7 +3647,7 @@ wpi_scan(struct wpi_softc *sc, struct ieee80211_channel *c)
 		IEEE80211_FC0_SUBTYPE_PROBE_REQ;
 	wh->i_fc[1] = IEEE80211_FC1_DIR_NODS;
 	IEEE80211_ADDR_COPY(wh->i_addr1, ifp->if_broadcastaddr);
-	IEEE80211_ADDR_COPY(wh->i_addr2, IF_LLADDR(ifp));
+	IEEE80211_ADDR_COPY(wh->i_addr2, vap->iv_myaddr);
 	IEEE80211_ADDR_COPY(wh->i_addr3, ifp->if_broadcastaddr);
 	*(uint16_t *)&wh->i_dur[0] = 0;	/* filled by h/w */
 	*(uint16_t *)&wh->i_seq[0] = 0;	/* filled by h/w */
