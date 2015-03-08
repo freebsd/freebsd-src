@@ -428,7 +428,7 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, u_long npages,
 		msucc = TAILQ_FIRST(&object->memq);
 	if (msucc != NULL) {
 		KASSERT(msucc->pindex > pindex,
-		    ("vm_reserv_alloc_page: pindex already allocated"));
+		    ("vm_reserv_alloc_contig: pindex already allocated"));
 		rv = vm_reserv_from_page(msucc);
 		if (rv->object == object && vm_reserv_has_pindex(rv, pindex))
 			goto found;
