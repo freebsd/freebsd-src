@@ -185,9 +185,9 @@ gpiobus_init_softc(device_t dev)
 	/* Pins = GPIO_PIN_MAX() + 1 */
 	sc->sc_npins++;
 
-	sc->sc_pins_mapped = malloc(sizeof(int) * sc->sc_npins, M_DEVBUF, 
+	sc->sc_pins = malloc(sizeof(*sc->sc_pins) * sc->sc_npins, M_DEVBUF,
 	    M_NOWAIT | M_ZERO);
-	if (sc->sc_pins_mapped == NULL)
+	if (sc->sc_pins == NULL)
 		return (ENOMEM);
 
 	/* Initialize the bus lock. */
@@ -242,11 +242,11 @@ gpiobus_map_pin(device_t bus, uint32_t pin)
 		return (-1);
 	}
 	/* Mark pin as mapped and give warning if it's already mapped. */
-	if (sc->sc_pins_mapped[pin]) {
+	if (sc->sc_pins[pin].mapped) {
 		device_printf(bus, "warning: pin %d is already mapped\n", pin);
 		return (-1);
 	}
-	sc->sc_pins_mapped[pin] = 1;
+	sc->sc_pins[pin].mapped = 1;
 
 	return (0);
 }
@@ -281,6 +281,9 @@ gpiobus_parse_pins(struct gpiobus_softc *sc, device_t child, int mask)
 			return (EINVAL);
 		}
 		devi->pins[npins++] = i;
+		/* Use the child name as pin name. */
+		GPIOBUS_PIN_SETNAME(sc->sc_busdev, i,
+		    device_get_nameunit(child));
 	}
 
 	return (0);
@@ -340,10 +343,14 @@ gpiobus_detach(device_t dev)
 		gpiobus_free_ivars(devi);
 	}
 	free(devlist, M_TEMP);
-
-	if (sc->sc_pins_mapped) {
-		free(sc->sc_pins_mapped, M_DEVBUF);
-		sc->sc_pins_mapped = NULL;
+	if (sc->sc_pins) {
+		for (i = 0; i < sc->sc_npins; i++) {
+			if (sc->sc_pins[i].name != NULL)
+				free(sc->sc_pins[i].name, M_DEVBUF);
+			sc->sc_pins[i].name = NULL;
+		}
+		free(sc->sc_pins, M_DEVBUF);
+		sc->sc_pins = NULL;
 	}
 
 	return (0);
@@ -664,6 +671,43 @@ gpiobus_pin_toggle(device_t dev, device_t child, uint32_t pin)
 	return GPIO_PIN_TOGGLE(sc->sc_dev, devi->pins[pin]);
 }
 
+static int
+gpiobus_pin_getname(device_t dev, uint32_t pin, char *name)
+{
+	struct gpiobus_softc *sc;
+
+	sc = GPIOBUS_SOFTC(dev);
+	if (pin > sc->sc_npins)
+		return (EINVAL);
+	/* Did we have a name for this pin ? */
+	if (sc->sc_pins[pin].name != NULL) {
+		memcpy(name, sc->sc_pins[pin].name, GPIOMAXNAME);
+		return (0);
+	}
+
+	/* Return the default pin name. */
+	return (GPIO_PIN_GETNAME(device_get_parent(dev), pin, name));
+}
+
+static int
+gpiobus_pin_setname(device_t dev, uint32_t pin, const char *name)
+{
+	struct gpiobus_softc *sc;
+
+	sc = GPIOBUS_SOFTC(dev);
+	if (pin > sc->sc_npins)
+		return (EINVAL);
+	if (name == NULL)
+		return (EINVAL);
+	/* Save the pin name. */
+	if (sc->sc_pins[pin].name == NULL)
+		sc->sc_pins[pin].name = malloc(GPIOMAXNAME, M_DEVBUF,
+		    M_WAITOK | M_ZERO);
+	strlcpy(sc->sc_pins[pin].name, name, GPIOMAXNAME);
+
+	return (0);
+}
+
 static device_method_t gpiobus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		gpiobus_probe),
@@ -699,6 +743,8 @@ static device_method_t gpiobus_methods[] = {
 	DEVMETHOD(gpiobus_pin_get,	gpiobus_pin_get),
 	DEVMETHOD(gpiobus_pin_set,	gpiobus_pin_set),
 	DEVMETHOD(gpiobus_pin_toggle,	gpiobus_pin_toggle),
+	DEVMETHOD(gpiobus_pin_getname,	gpiobus_pin_getname),
+	DEVMETHOD(gpiobus_pin_setname,	gpiobus_pin_setname),
 
 	DEVMETHOD_END
 };
