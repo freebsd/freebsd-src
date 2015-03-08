@@ -37,10 +37,9 @@ udp:kernel::receive
 {
 	printf("Received %d bytes of data from %s:%d\n",
 	       args[4]->udp_length,
-	       args[2]->ip_daddr,
-	       args[3]->udps_rport);
+	       args[2]->ip_saddr,
+	       args[4]->udp_sport);
 	tracemem(args[4]->udp_hdr, 64);
-
 }
 
 udp:kernel::send
@@ -48,7 +47,7 @@ udp:kernel::send
 	printf("Sent %d bytes of data to %s:%d\n", 
 	       args[4]->udp_length,
 	       args[2]->ip_daddr,
-	       args[3]->udps_rport);
+	       args[4]->udp_dport);
 	tracemem(args[4]->udp_hdr, 64);
 }
 
