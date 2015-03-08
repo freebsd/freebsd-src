@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 7, 2015
+.Dd March 8, 2015
 .Dt GPIOCTL 1
 .Os
 .Sh NAME
@@ -65,7 +65,8 @@ utility could be used to manage GPIO pins from userland and list available pins.
 The options are as follows:
 .Bl -tag -width ".Fl f Ar ctldev"
 .It Fl c Ar pin Ar flag Op flag ...
-Configure pin by setting provided flags. The following flags are currently defined:
+Configure pin by setting provided flags.
+The following flags are currently defined:
 .Bl -tag -offset indent -width ".Cm PULSE"
 .It Cm IN
 Input pin
