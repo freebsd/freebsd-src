@@ -1714,7 +1714,7 @@ static const die_creator_t die_creators[] = {
 	{ DW_TAG_variable,		DW_F_NOTDP,	die_variable_create },
 	{ DW_TAG_volatile_type,		0,		die_volatile_create },
 	{ DW_TAG_restrict_type,		0,		die_restrict_create },
-	{ 0, NULL }
+	{ 0, 0, NULL }
 };
 
 static const die_creator_t *

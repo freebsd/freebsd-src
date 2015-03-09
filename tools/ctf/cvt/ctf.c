@@ -1216,7 +1216,7 @@ decompress_ctf(caddr_t cbuf, size_t cbufsz, caddr_t dbuf, size_t dbufsz)
 	    (rc = inflate(&zstr, Z_NO_FLUSH)) != Z_STREAM_END ||
 	    (rc = inflateEnd(&zstr)) != Z_OK) {
 		warning("CTF decompress zlib error %s\n", zError(rc));
-		return (NULL);
+		return (0);
 	}
 
 	debug(3, "reflated %lu bytes to %lu, pointer at %d\n",
