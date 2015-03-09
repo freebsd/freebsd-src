@@ -89,7 +89,7 @@ checked_strdup(const char *s)
  * Concatenate two strings, inserting separator between them, unless not needed.
  */
 char *
-separated_concat(const char *s1, const char *s2, char separator)
+concat(const char *s1, char separator, const char *s2)
 {
 	char *result;
 	int ret;
@@ -135,7 +135,7 @@ create_directory(const char *path)
 		component = strsep(&copy, "/");
 		if (component == NULL)
 			break;
-		tmp = separated_concat(partial, component, '/');
+		tmp = concat(partial, '/', component);
 		free(partial);
 		partial = tmp;
 		//log_debugx("creating \"%s\"", partial);
@@ -545,7 +545,7 @@ node_path_x(const struct node *n, char *x)
 	}
 
 	assert(n->n_key[0] != '\0');
-	path = separated_concat(n->n_key, x, '/');
+	path = concat(n->n_key, '/', x);
 	free(x);
 
 	return (node_path_x(n->n_parent, path));
@@ -581,7 +581,7 @@ node_options_x(const struct node *n, char *x)
 	if (n == NULL)
 		return (x);
 
-	options = separated_concat(x, n->n_options, ',');
+	options = concat(x, ',', n->n_options);
 	free(x);
 
 	return (node_options_x(n->n_parent, options));

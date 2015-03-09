@@ -349,8 +349,7 @@ main_automount(int argc, char **argv)
 			if (options == NULL) {
 				options = checked_strdup(optarg);
 			} else {
-				options =
-				    separated_concat(options, optarg, ',');
+				options = concat(options, ',', optarg);
 			}
 			break;
 		case 'u':
@@ -388,8 +387,7 @@ main_automount(int argc, char **argv)
 
 	if (show_maps) {
 		if (options != NULL) {
-			root->n_options = separated_concat(options,
-			    root->n_options, ',');
+			root->n_options = concat(options, ',', root->n_options);
 		}
 		if (show_maps > 1) {
 			node_expand_indirect_maps(root);

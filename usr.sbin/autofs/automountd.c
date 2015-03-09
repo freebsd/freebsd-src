@@ -241,8 +241,7 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 		 * Prepend options passed via automountd(8) command line.
 		 */
 		if (cmdline_options != NULL) {
-			options =
-			    separated_concat(cmdline_options, options, ',');
+			options = concat(cmdline_options, ',', options);
 		}
 
 		nobrowse = pick_option("nobrowse", &options);
@@ -268,8 +267,7 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 			 * We still need to create the single subdirectory
 			 * user is trying to access.
 			 */
-			tmp = separated_concat(adr->adr_path,
-			    adr->adr_key, '/');
+			tmp = concat(adr->adr_path, '/', adr->adr_key);
 			node = node_find(root, tmp);
 			if (node != NULL)
 				create_subtree(node, false);
@@ -301,12 +299,12 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 	 * Prepend options passed via automountd(8) command line.
 	 */
 	if (cmdline_options != NULL)
-		options = separated_concat(cmdline_options, options, ',');
+		options = concat(cmdline_options, ',', options);
 
 	/*
 	 * Append "automounted".
 	 */
-	options = separated_concat(options, "automounted", ',');
+	options = concat(options, ',', "automounted");
 
 	/*
 	 * Remove "nobrowse", mount(8) doesn't understand it.
@@ -334,11 +332,10 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 		if (retrycnt == NULL) {
 			log_debugx("retrycnt not specified in options; "
 			    "defaulting to 1");
-			options = separated_concat(options,
-			    separated_concat("retrycnt", "1", '='), ',');
+			options = concat(options, ',', "retrycnt=1");
 		} else {
-			options = separated_concat(options,
-			    separated_concat("retrycnt", retrycnt, '='), ',');
+			options = concat(options, ',',
+			    concat("retrycnt", '=', retrycnt));
 		}
 	}
 
@@ -465,8 +462,7 @@ main_automountd(int argc, char **argv)
 			if (options == NULL) {
 				options = checked_strdup(optarg);
 			} else {
-				options =
-				    separated_concat(options, optarg, ',');
+				options = concat(options, ',', optarg);
 			}
 			break;
 		case 'v':

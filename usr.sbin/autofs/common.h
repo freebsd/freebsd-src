@@ -70,7 +70,7 @@ void	log_warnx(const char *, ...) __printflike(1, 2);
 void	log_debugx(const char *, ...) __printf0like(1, 2);
 
 char	*checked_strdup(const char *);
-char	*separated_concat(const char *s1, const char *s2, char separator);
+char	*concat(const char *s1, char separator, const char *s2);
 void	create_directory(const char *path);
 
 struct node	*node_new_root(void);
