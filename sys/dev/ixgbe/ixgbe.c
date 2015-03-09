@@ -1764,6 +1764,7 @@ ixgbe_media_change(struct ifnet * ifp)
 		return (EINVAL);
 
         switch (IFM_SUBTYPE(ifm->ifm_media)) {
+	case IFM_10G_T:
         case IFM_AUTO:
                 adapter->hw.phy.autoneg_advertised =
 		    IXGBE_LINK_SPEED_100_FULL |
