@@ -368,6 +368,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 */
 	sbmp->sbm_heapbase = sbop->sbo_heapbase;
 	sbmp->sbm_heaplen = sbop->sbo_heaplen;
+	sbmp->sbm_vtablebase = sbcp->sbc_provided_methods->spms_base;
 
 	if (sbcp->sbc_sandbox_class_statp != NULL) {
 		(void)sandbox_stat_object_register(

@@ -407,6 +407,16 @@ good:
 	}
 	provided_methods->spms_class = class_name;
 	provided_methods->spms_nmethods = npmethods;
+	/* Find the base of the callee vtable. */
+	provided_methods->spms_base = (intptr_t)-1;
+	for (i = 0; i < npmethods; i++) {
+		if (provided_methods->spms_base < pmethods[i].spm_index_offset)
+			provided_methods->spms_base = pmethods[i].spm_index_offset;
+	}
+#ifdef DEBUG
+	printf("[%s]->spms_base = %p\n", provided_methods->spms_class,
+	    provided_methods->spms_base);
+#endif
 	if (npmethods > 0)
 		provided_methods->spms_methods = pmethods;
 	else {
@@ -496,13 +506,15 @@ sandbox_resolve_methods(struct sandbox_provided_methods *provided_methods,
 			if (strcmp(rmethods[r].srm_method,
 			    pmethods[p].spm_method) != 0)
 				continue;
-			rmethods[r].srm_method_number = p;
+			rmethods[r].srm_vtable_offset =
+			    pmethods[p].spm_index_offset -
+			    provided_methods->spms_base;
 			rmethods[r].srm_resolved = 1;
 			resolved++;
 #ifdef DEBUG
 			printf("%s->%s resolved as method %lu\n",
 			    rmethods[r].srm_class, rmethods[r].srm_method,
-			    rmethods[r].srm_method_number);
+			    rmethods[r].srm_vtable_offset);
 #endif
 			break;
 		}
@@ -599,7 +611,7 @@ sandbox_set_required_method_variables(__capability void *datacap,
 
 		method_var_p = cheri_setoffset(datacap,
 		    rmethods[i].srm_index_offset);
-		*method_var_p = rmethods[i].srm_method_number;
+		*method_var_p = rmethods[i].srm_vtable_offset;
 	}
 	return(0);
 }
@@ -624,7 +636,7 @@ sandbox_set_provided_method_variables(__capability void *datacap,
 
 		method_var_p = cheri_setoffset(datacap,
 		    pmethods[i].spm_index_offset);
-		*method_var_p = i;
+		*method_var_p = pmethods[i].spm_offset;
 	}
 	return(0);
 }

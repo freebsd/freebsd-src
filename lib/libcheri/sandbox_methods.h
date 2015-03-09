@@ -61,6 +61,7 @@ struct sandbox_provided_methods {
 	char				*spms_class;	/* Class name */
 	size_t				 spms_nmethods;	/* Number of methods */
 	struct sandbox_provided_method	*spms_methods;	/* Array of methods */
+	intptr_t			 spms_base;	/* Base of vtable */
 };
 
 /*
@@ -70,7 +71,7 @@ struct sandbox_required_method {
 	char		*srm_class;		/* Class name */
 	char		*srm_method;		/* Method name */
 	intptr_t	 srm_index_offset;	/* Offset of caller variable */
-	intptr_t	 srm_method_number;	/* Method number */
+	intptr_t	 srm_vtable_offset;	/* Method number */
 	bool		 srm_resolved;		/* Resolved? */
 };
 

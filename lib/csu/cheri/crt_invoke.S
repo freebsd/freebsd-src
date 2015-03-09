@@ -117,6 +117,27 @@ __invoke_vector:
 	dla	$gp, _gp
 
 	#
+	# Skip vtable dispatch if $v0 is -1
+	daddi	$t0, $0, -1
+	beq	$v0, $t0, legacy_invoke
+	nop			# Branch-delay slot
+
+	#
+	# Load the vtable address from sandbox metadata.
+	#
+	# XXXBD: See XXXRW comment in crt_rtld.S constructors
+	#
+	dli	$t0, 0x1000
+	ld	$t1, 16($t0)
+	daddu	$t0, $t1, $v0
+	ld	$t9, 0($t0)
+	jalr	$t9
+	nop			# Branch-delay slot
+	b	creturn_target
+	nop
+
+legacy_invoke:
+	#
 	# Call the MIPS/CHERI-ABI C "invoke" function.
 	#
 	dla	$t9, invoke
