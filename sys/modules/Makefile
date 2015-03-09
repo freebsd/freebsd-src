@@ -686,13 +686,7 @@ _snc=		snc
 .if ${MACHINE_CPUARCH} == "arm"
 _cfi=		cfi
 _cpsw=		cpsw
-.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
-_dtrace=	dtrace
-.endif
 _sound=		sound
-.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
-_opensolaris=	opensolaris
-.endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"
