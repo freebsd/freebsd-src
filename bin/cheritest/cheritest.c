@@ -1011,7 +1011,7 @@ cheritest_run_test_name(const char *name)
 #endif /* !LIST_ONLY */
 
 int
-main(__unused int argc, __unused char *argv[])
+main(int argc, char *argv[])
 {
 	int opt;
 #ifndef LIST_ONLY
