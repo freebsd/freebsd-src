@@ -1020,6 +1020,11 @@ main(int argc, char *argv[])
 	u_int t;
 #endif
 
+#ifndef LIST_ONLY
+	if (sandbox_program_init(argc, argv) == -1)
+		err(EX_SOFTWARE, "sandbox_program_init");
+#endif
+
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
 		errx(1, "xo_parse_args failed\n");

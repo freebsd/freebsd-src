@@ -276,6 +276,8 @@ cheritest_libcheri_setup(void)
 	if (sandbox_class_new("/usr/libexec/cheritest-helper",
 	    4*1024*1024, &cheritest_classp) < 0)
 		return (-1);
+	if (sandbox_program_finalize() == -1)
+		err(EX_SOFTWARE, "sandbox_program_finalize");
 	if (sandbox_object_new(cheritest_classp, &cheritest_objectp) < 0)
 		return (-1);
 	cheritest = sandbox_object_getobject(cheritest_objectp);
