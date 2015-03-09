@@ -561,7 +561,6 @@ static char *
 node_path_x(const struct node *n, char *x)
 {
 	char *path;
-	size_t len;
 
 	if (n->n_parent == NULL)
 		return (x);
@@ -580,14 +579,6 @@ node_path_x(const struct node *n, char *x)
 	path = separated_concat(n->n_key, x, '/');
 	free(x);
 
-	/*
-	 * Strip trailing slash.
-	 */
-	len = strlen(path);
-	assert(len > 0);
-	if (path[len - 1] == '/')
-		path[len - 1] = '\0';
-
 	return (node_path_x(n->n_parent, path));
 }
 
@@ -598,8 +589,19 @@ node_path_x(const struct node *n, char *x)
 char *
 node_path(const struct node *n)
 {
+	char *path;
+	size_t len;
 
-	return (node_path_x(n, checked_strdup("")));
+	path = node_path_x(n, checked_strdup(""));
+
+	/*
+	 * Strip trailing slash, unless the whole path is "/".
+	 */
+	len = strlen(path);
+	if (len > 1 && path[len - 1] == '/')
+		path[len - 1] = '\0';
+
+	return (path);
 }
 
 static char *
