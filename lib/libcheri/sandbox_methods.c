@@ -238,7 +238,8 @@ sandbox_parse_ccall_methods(int fd,
 #endif
 		if (symtab[i].st_name == 0)
 			continue;
-		if (symtab[i].st_shndx == cheri_callee_idx) {
+		if (cheri_callee_idx != 0 &&
+		    symtab[i].st_shndx == cheri_callee_idx) {
 			if (npmethods >= maxpmethods) {
 				maxpmethods *= 2;
 				if ((pmethods = reallocf(pmethods,
@@ -303,7 +304,8 @@ sandbox_parse_ccall_methods(int fd,
 			    pmethods[npmethods].spm_index_offset);
 #endif
 			npmethods++;
-		} else if (symtab[i].st_shndx == cheri_caller_idx) {
+		} else if (cheri_caller_idx != 0 &&
+		    symtab[i].st_shndx == cheri_caller_idx) {
 			if (nrmethods >= maxrmethods) {
 				maxrmethods *= 2;
 				if ((rmethods = reallocf(rmethods,
