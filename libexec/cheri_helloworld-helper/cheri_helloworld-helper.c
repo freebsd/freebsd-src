@@ -49,7 +49,8 @@ int	invoke(struct cheri_object co, register_t v0,
 	    register_t methodnum, struct cheri_object fd_object)
 	    __attribute__((cheri_ccall)); /* XXXRW: Will be ccheri_ccaller. */
 
-static char hello_world_str[] = "hello world\n";
+static char hello_world_str[] = "hello world";
+static char hello_world_str_nl[] = "hello world\n";
 
 /*
  * Print "hello world" in one of three ways, depending on the "methodnum"
@@ -68,8 +69,8 @@ invoke(struct cheri_object co __unused, register_t v0 __unused,
 	 */
 	hello_world_str_c = cheri_ptrperm(&hello_world_str,
 	    sizeof(hello_world_str), CHERI_PERM_LOAD); /* Nul-terminated. */
-	hello_world_buf_c = cheri_ptrperm(&hello_world_str,
-	    strlen(hello_world_str), CHERI_PERM_LOAD); /* Just the text. */
+	hello_world_buf_c = cheri_ptrperm(&hello_world_str_nl,
+	    strlen(hello_world_str_nl), CHERI_PERM_LOAD); /* Just the text. */
 
 	/*
 	 * Select a print method.
@@ -113,8 +114,8 @@ call_cheri_fd_write_c(struct cheri_object fd_object)
 {
 	__capability char *hello_world_buf_c;
 
-	hello_world_buf_c = cheri_ptrperm(&hello_world_str,
-	    strlen(hello_world_str), CHERI_PERM_LOAD); /* Just the text. */
+	hello_world_buf_c = cheri_ptrperm(&hello_world_str_nl,
+	    strlen(hello_world_str_nl), CHERI_PERM_LOAD); /* Just the text. */
 	return (cheri_fd_write_c(fd_object,
 	    hello_world_buf_c).cfr_retval0);
 }
