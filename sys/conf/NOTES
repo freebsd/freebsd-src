@@ -2889,11 +2889,6 @@ options 	SHMMNI=33
 # a single process at one time.
 options 	SHMSEG=9
 
-# Compress user core dumps.
-options		COMPRESS_USER_CORES
-# required to compress file output from kernel for COMPRESS_USER_CORES.
-device		gzio	    
-
 # Set the amount of time (in seconds) the system will wait before
 # rebooting automatically when a kernel panic occurs.  If set to (-1),
 # the system will wait indefinitely until a key is pressed on the
@@ -2983,3 +2978,7 @@ options 	RANDOM_DEBUG	# Debugging messages
 
 # Module to enable execution of application via emulators like QEMU
 options         IMAGACT_BINMISC
+
+# zlib I/O stream support
+# This enables support for compressed core dumps.
+options 	GZIO

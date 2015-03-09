@@ -38,8 +38,8 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_gzio.h"
 #include "opt_ktrace.h"
-#include "opt_core.h"
 
 #include <sys/param.h>
 #include <sys/ctype.h>
@@ -3075,17 +3075,18 @@ sysctl_debug_num_cores_check (SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_debug, OID_AUTO, ncores, CTLTYPE_INT|CTLFLAG_RW,
 	    0, sizeof(int), sysctl_debug_num_cores_check, "I", "");
 
-#if defined(COMPRESS_USER_CORES)
-int compress_user_cores = 1;
-SYSCTL_INT(_kern, OID_AUTO, compress_user_cores, CTLFLAG_RW,
+#define	GZ_SUFFIX	".gz"
+
+#ifdef GZIO
+static int compress_user_cores = 1;
+SYSCTL_INT(_kern, OID_AUTO, compress_user_cores, CTLFLAG_RWTUN,
     &compress_user_cores, 0, "Compression of user corefiles");
 
-int compress_user_cores_gzlevel = -1; /* default level */
-SYSCTL_INT(_kern, OID_AUTO, compress_user_cores_gzlevel, CTLFLAG_RW,
-    &compress_user_cores_gzlevel, -1, "Corefile gzip compression level");
-
-#define GZ_SUFFIX	".gz"
-#define GZ_SUFFIX_LEN	3
+int compress_user_cores_gzlevel = 6;
+SYSCTL_INT(_kern, OID_AUTO, compress_user_cores_gzlevel, CTLFLAG_RWTUN,
+    &compress_user_cores_gzlevel, 0, "Corefile gzip compression level");
+#else
+static int compress_user_cores = 0;
 #endif
 
 static char corefilename[MAXPATHLEN] = {"%N.core"};
@@ -3162,10 +3163,8 @@ corefile_open(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 		}
 	}
 	free(hostname, M_TEMP);
-#ifdef COMPRESS_USER_CORES
 	if (compress)
 		sbuf_printf(&sb, GZ_SUFFIX);
-#endif
 	if (sbuf_error(&sb) != 0) {
 		log(LOG_ERR, "pid %ld (%s), uid (%lu): corename is too "
 		    "long\n", (long)pid, comm, (u_long)uid);
@@ -3260,18 +3259,12 @@ coredump(struct thread *td)
 	char *name;			/* name of corefile */
 	void *rl_cookie;
 	off_t limit;
-	int compress;
 	char *data = NULL;
 	char *fullpath, *freepath = NULL;
 	size_t len;
 	static const char comm_name[] = "comm=";
 	static const char core_name[] = "core=";
 
-#ifdef COMPRESS_USER_CORES
-	compress = compress_user_cores;
-#else
-	compress = 0;
-#endif
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	MPASS((p->p_flag & P_HADTHREADS) == 0 || p->p_singlethread == td);
 	_STOPEVENT(p, S_CORE, 0);
@@ -3297,8 +3290,8 @@ coredump(struct thread *td)
 	}
 	PROC_UNLOCK(p);
 
-	error = corefile_open(p->p_comm, cred->cr_uid, p->p_pid, td, compress,
-	    &vp, &name);
+	error = corefile_open(p->p_comm, cred->cr_uid, p->p_pid, td,
+	    compress_user_cores, &vp, &name);
 	if (error != 0)
 		return (error);
 
@@ -3337,7 +3330,7 @@ coredump(struct thread *td)
 
 	if (p->p_sysent->sv_coredump != NULL) {
 		error = p->p_sysent->sv_coredump(td, vp, limit,
-		    compress ? IMGACT_CORE_COMPRESS : 0);
+		    compress_user_cores ? IMGACT_CORE_COMPRESS : 0);
 	} else {
 		error = ENOSYS;
 	}
