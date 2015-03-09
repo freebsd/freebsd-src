@@ -1699,7 +1699,7 @@ static void
 ixgbe_media_status(struct ifnet * ifp, struct ifmediareq * ifmr)
 {
 	struct adapter *adapter = ifp->if_softc;
-       struct ixgbe_hw *hw = &adapter->hw;
+	struct ixgbe_hw *hw = &adapter->hw;
 
 	INIT_DEBUGOUT("ixgbe_media_status: begin");
 	IXGBE_CORE_LOCK(adapter);
@@ -1715,29 +1715,28 @@ ixgbe_media_status(struct ifnet * ifp, struct ifmediareq * ifmr)
 
 	ifmr->ifm_status |= IFM_ACTIVE;
 
-       /*
-        * Not all NIC are 1000baseSX as an example X540T.
-        * We must set properly the media based on NIC model.
-        */
-       switch (hw->device_id) {
-              case IXGBE_DEV_ID_X540T:
-      			if (adapter->link_speed == IXGBE_LINK_SPEED_100_FULL)
-                            	ifmr->ifm_active |= IFM_100_TX | IFM_FDX;
-                     	else if (adapter->link_speed == IXGBE_LINK_SPEED_1GB_FULL)
-                            	ifmr->ifm_active |= IFM_1000_T | IFM_FDX;
-                     	else if (adapter->link_speed == IXGBE_LINK_SPEED_10GB_FULL)
-                            	ifmr->ifm_active |= adapter->optics | IFM_FDX;
-                     	break;
-              default:
-                     	if (adapter->link_speed == IXGBE_LINK_SPEED_100_FULL)
-                            	ifmr->ifm_active |= IFM_100_TX | IFM_FDX;
-                     	else if (adapter->link_speed == IXGBE_LINK_SPEED_1GB_FULL)
-                            	ifmr->ifm_active |= IFM_1000_SX | IFM_FDX;
-                     	else if (adapter->link_speed == IXGBE_LINK_SPEED_10GB_FULL)
-                            	ifmr->ifm_active |= adapter->optics | IFM_FDX;
-                     	break;
-       }
-
+	/*
+	 * Not all NIC are 1000baseSX as an example X540T.
+	 * We must set properly the media based on NIC model.
+	 */
+	switch (hw->device_id) {
+	case IXGBE_DEV_ID_X540T:
+		if (adapter->link_speed == IXGBE_LINK_SPEED_100_FULL)
+			ifmr->ifm_active |= IFM_100_TX | IFM_FDX;
+		else if (adapter->link_speed == IXGBE_LINK_SPEED_1GB_FULL)
+			ifmr->ifm_active |= IFM_1000_T | IFM_FDX;
+		else if (adapter->link_speed == IXGBE_LINK_SPEED_10GB_FULL)
+			ifmr->ifm_active |= adapter->optics | IFM_FDX;
+		break;
+	default:
+		if (adapter->link_speed == IXGBE_LINK_SPEED_100_FULL)
+			ifmr->ifm_active |= IFM_100_TX | IFM_FDX;
+		else if (adapter->link_speed == IXGBE_LINK_SPEED_1GB_FULL)
+			ifmr->ifm_active |= IFM_1000_SX | IFM_FDX;
+		else if (adapter->link_speed == IXGBE_LINK_SPEED_10GB_FULL)
+			ifmr->ifm_active |= adapter->optics | IFM_FDX;
+		break;
+	}
 
 	IXGBE_CORE_UNLOCK(adapter);
 
