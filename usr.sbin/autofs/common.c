@@ -86,46 +86,7 @@ checked_strdup(const char *s)
 }
 
 /*
- * Take two pointers to strings, concatenate the contents with "/" in the
- * middle, make the first pointer point to the result, the second pointer
- * to NULL, and free the old strings.
- *
- * Concatenate pathnames, basically.
- */
-static void
-concat(char **p1, char **p2)
-{
-	int ret;
-	char *path;
-
-	assert(p1 != NULL);
-	assert(p2 != NULL);
-
-	if (*p1 == NULL)
-		*p1 = checked_strdup("");
-
-	if (*p2 == NULL)
-		*p2 = checked_strdup("");
-
-	ret = asprintf(&path, "%s/%s", *p1, *p2);
-	if (ret < 0)
-		log_err(1, "asprintf");
-
-	/*
-	 * XXX
-	 */
-	//free(*p1);
-	//free(*p2);
-
-	*p1 = path;
-	*p2 = NULL;
-}
-
-/*
  * Concatenate two strings, inserting separator between them, unless not needed.
- *
- * This function is very convenient to use when you do not care about freeing
- * memory - which is okay here, because we are a short running process.
  */
 char *
 separated_concat(const char *s1, const char *s2, char separator)
@@ -151,7 +112,7 @@ separated_concat(const char *s1, const char *s2, char separator)
 	if (ret < 0)
 		log_err(1, "asprintf");
 
-	//log_debugx("separated_concat: got %s and %s, returning %s", s1, s2, result);
+	//log_debugx("%s: got %s and %s, returning %s", __func__, s1, s2, result);
 
 	return (result);
 }
@@ -159,7 +120,7 @@ separated_concat(const char *s1, const char *s2, char separator)
 void
 create_directory(const char *path)
 {
-	char *component, *copy, *tofree, *partial;
+	char *component, *copy, *tofree, *partial, *tmp;
 	int error;
 
 	assert(path[0] == '/');
@@ -169,12 +130,14 @@ create_directory(const char *path)
 	 */
 	copy = tofree = checked_strdup(path + 1);
 
-	partial = NULL;
+	partial = checked_strdup("");
 	for (;;) {
 		component = strsep(&copy, "/");
 		if (component == NULL)
 			break;
-		concat(&partial, &component);
+		tmp = separated_concat(partial, component, '/');
+		free(partial);
+		partial = tmp;
 		//log_debugx("creating \"%s\"", partial);
 		error = mkdir(partial, 0755);
 		if (error != 0 && errno != EEXIST) {
