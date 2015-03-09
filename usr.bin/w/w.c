@@ -554,5 +554,6 @@ usage(int wcmd)
 		xo_error("usage: w [-dhin] [-M core] [-N system] [user ...]\n");
 	else
 		xo_error("usage: uptime\n");
+	xo_finish();
 	exit(1);
 }
