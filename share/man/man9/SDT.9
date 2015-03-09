@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 18, 2014
+.Dd March 8, 2015
 .Dt SDT 9
 .Os
 .Sh NAME
@@ -196,13 +196,13 @@ They are meant to be added to executable code and can be used to instrument the
 code in which they are called.
 .Sh EXAMPLES
 The following probe definition will create a DTrace probe called
-.Ql icmp::unreach:pkt-receive ,
+.Ql icmp:::receive-unreachable ,
 which would hypothetically be triggered when the kernel receives an ICMP packet
 of type Destination Unreachable:
 .Bd -literal -offset indent
 SDT_PROVIDER_DECLARE(icmp);
 
-SDT_PROBE_DEFINE1(icmp, , unreach, pkt__receive,
+SDT_PROBE_DEFINE1(icmp, , , receive__unreachable,
     "struct icmp *");
 
 .Ed
@@ -286,10 +286,10 @@ This manual page was written by
 .Sh BUGS
 The
 .Nm
-macros allow the module name of a probe to be specified as part of a probe
-definition.
-However, the DTrace framework uses the module name of probes to determine
-which probes should be destroyed when a kernel module is unloaded, so the module
+macros allow the module and function names of a probe to be specified as part of
+a probe definition.
+The DTrace framework uses the module name of probes to determine which probes
+should be destroyed when a kernel module is unloaded, so the module
 name of a probe should match the name of the module in which its defined.
 .Nm
 will set the module name properly if it is left unspecified in the probe
