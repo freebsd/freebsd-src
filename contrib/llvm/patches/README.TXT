@@ -1,11 +1,11 @@
 This is a set of individual patches, which contain all the customizations to
 llvm/clang currently in the FreeBSD base system.  These can be applied in
-alphabetical order to a pristine llvm/clang 3.6.0 RC4 source tree, for example
-by doing:
+alphabetical order to a pristine llvm/clang 3.6.0 source tree, for example by
+doing:
 
-svn co https://llvm.org/svn/llvm-project/llvm/tags/RELEASE_360/rc4 llvm-3.6.0-rc4 
-svn co https://llvm.org/svn/llvm-project/cfe/tags/RELEASE_360/rc4 llvm-3.6.0-rc4/tools/clang
-cd llvm-3.6.0-rc4
+svn co https://llvm.org/svn/llvm-project/llvm/tags/RELEASE_360/final llvm-3.6.0 
+svn co https://llvm.org/svn/llvm-project/cfe/tags/RELEASE_360/final llvm-3.6.0/tools/clang
+cd llvm-3.6.0
 for p in /usr/src/contrib/llvm/patches/patch-*.diff; do
 	patch -p0 -f -F0 -E -i $p -s || break
 done
