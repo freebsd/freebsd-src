@@ -136,8 +136,14 @@ separated_concat(const char *s1, const char *s2, char separator)
 	assert(s1 != NULL);
 	assert(s2 != NULL);
 
-	if (s1[0] == '\0' || s2[0] == '\0' ||
-	    s1[strlen(s1) - 1] == separator || s2[0] == separator) {
+	/*
+	 * If s2 starts with separator - skip it; otherwise concatenating
+	 * "/" and "/foo" would end up returning "//foo".
+	 */
+	if (s2[0] == separator)
+		s2++;
+
+	if (s1[0] == '\0' || s2[0] == '\0' || s1[strlen(s1) - 1] == separator) {
 		ret = asprintf(&result, "%s%s", s1, s2);
 	} else {
 		ret = asprintf(&result, "%s%c%s", s1, separator, s2);
