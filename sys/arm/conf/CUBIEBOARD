@@ -23,9 +23,6 @@ ident		CUBIEBOARD
 
 include		"../allwinner/std.a10"
 
-makeoptions	MODULES_OVERRIDE=""
-makeoptions	WITHOUT_MODULES="ahc"
-
 options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	PREEMPTION		# Enable kernel thread preemption

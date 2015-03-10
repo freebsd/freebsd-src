@@ -23,9 +23,6 @@ ident		ZEDBOARD
 
 include 	"../xilinx/zedboard/std.zedboard"
 
-makeoptions	MODULES_OVERRIDE=""
-makeoptions	WITHOUT_MODULES="ahc"
-
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
