@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/param.h>
+#include <sys/queue.h>
 
 #include <assert.h>
 #include <elf.h>
@@ -46,21 +47,119 @@
 
 #include "sandbox_elf.h"
 
-#define	CHERI_CALLEE_SYM_PREFIX	"__cheri_callee_method."
-#define	CHERI_CALLER_SYM_PREFIX	"__cheri_method."
+STAILQ_HEAD(sandbox_map, sandbox_map_entry);
+
+struct sandbox_map_entry {
+	STAILQ_ENTRY(sandbox_map_entry)	sme_entries;
+
+	size_t	sme_map_offset;		/* Offset to sandbox start */
+	size_t	sme_len;		/* Length of mapping */
+	int	sme_prot;		/* Page protections */
+	int	sme_flags;		/* Mmap flags */
+	int	sme_fd;			/* File */
+	off_t	sme_file_offset;	/* Offset in file */
+	size_t	sme_tailbytes;		/* Bytes to zero on last page */
+};
+
+static struct sandbox_map_entry *
+sandbox_map_entry_new(size_t map_offset, size_t len, int prot, int flags,
+    int fd, off_t file_offset, size_t tailbytes)
+{
+	struct sandbox_map_entry *sme;
+
+	if ((sme = calloc(1, sizeof(*sme))) == NULL) {
+		warn("%s: calloc", __func__);
+		return (NULL);
+	}
+	sme->sme_map_offset = map_offset;
+	sme->sme_len = len;
+	sme->sme_prot = prot;
+	sme->sme_flags = flags;
+	sme->sme_fd = fd;
+	sme->sme_file_offset = file_offset;
+	sme->sme_tailbytes = tailbytes;
+
+	return (sme);
+}
+
+static void *
+sandbox_map_entry_mmap(void *base, struct sandbox_map_entry *sme)
+{
+	caddr_t taddr;
+	void *addr;
+
+	taddr = (caddr_t)base + sme->sme_map_offset;
+#ifdef DEBUG
+	if (sme->sme_fd > -1)
+		printf("mapping 0x%zx bytes at %p, file offset 0x%zx\n",
+		    sme->sme_len, taddr, sme->sme_file_offset);
+	else
+		printf("mapping 0x%zx bytes at 0x%p\n", sme->sme_len, taddr);
+#endif
+	if ((addr = mmap(taddr, sme->sme_len, sme->sme_prot, sme->sme_flags,
+	    sme->sme_fd, sme->sme_file_offset)) == sandbox_map_entry_mmap) {
+		warn("%s: mmap", __func__);
+		return (addr);
+	}
+	assert(addr == taddr);
+
+	/*
+	 * XXXBD: Optimization opportunity.  Check contents and clear
+	 * sme->sme_tailbytes if memset isn't useful.  Requires a
+	 * first-pass flag.
+	 */
+	memset(taddr + sme->sme_len, 0, sme->sme_tailbytes);
+
+	return (addr);
+}
+
+static int
+sandbox_map_load(void *base, struct sandbox_map *sm)
+{
+	struct sandbox_map_entry *sme;
+
+	STAILQ_FOREACH(sme, sm, sme_entries) {
+		if (sandbox_map_entry_mmap(base, sme) == MAP_FAILED)
+			return (-1);
+	}
+	return (0);
+}
+
+static void
+sandbox_map_free(struct sandbox_map *sm)
+{
+	struct sandbox_map_entry *sme, *sme_temp;
+
+	if (sm == NULL)
+		return;
+
+	STAILQ_FOREACH_SAFE(sme, sm, sme_entries, sme_temp) {
+		STAILQ_REMOVE(sm, sme, sandbox_map_entry, sme_entries);
+		free(sme);
+	}
+	free(sm);
+}
 
 ssize_t
-sandbox_loadelf64(int fd, void *location, size_t maxsize, u_int flags)
+sandbox_loadelf64(int fd, void *location, size_t maxsize __unused, u_int flags)
 {
 	int i, prot;
-	char *addr, *taddr;
+	size_t taddr;
 	int maxoffset = 0;
 	ssize_t rlen;
-	size_t maplen, mappedbytes, offset, zerobytes;
+	size_t maplen, mappedbytes, offset, tailbytes;
 	Elf64_Ehdr ehdr;
 	Elf64_Phdr phdr;
+	struct sandbox_map *sm;
+	struct sandbox_map_entry *sme;
 
 	assert((intptr_t)location % PAGE_SIZE == 0);
+
+	if ((sm = malloc(sizeof(*sm))) == NULL) {
+		warn("%s: malloc sandbox_map", __func__);
+		return (-1);
+	}
+	STAILQ_INIT(sm);
 
 	if ((rlen = pread(fd, &ehdr, sizeof(ehdr), 0)) != sizeof(ehdr)) {
 		warn("%s: read ELF header", __func__);
@@ -138,8 +237,7 @@ sandbox_loadelf64(int fd, void *location, size_t maxsize, u_int flags)
 		    (phdr.p_flags & PF_R ? PROT_READ : 0) |
 		    (phdr.p_flags & PF_W ? PROT_WRITE : 0) |
 		    (phdr.p_flags & PF_X ? PROT_EXEC : 0));
-		taddr = (char *)rounddown2((phdr.p_vaddr + (intptr_t)location),
-		    PAGE_SIZE);
+		taddr = rounddown2((phdr.p_vaddr), PAGE_SIZE);
 		offset = rounddown2(phdr.p_offset, PAGE_SIZE);
 		maplen = phdr.p_offset - rounddown2(phdr.p_offset, PAGE_SIZE)
 		    + phdr.p_filesz;
@@ -149,46 +247,44 @@ sandbox_loadelf64(int fd, void *location, size_t maxsize, u_int flags)
 			    "writable, skipping", __func__, i+1);
 			continue;
 		}
-#ifdef DEBUG
-		printf("mapping 0x%zx bytes at %p, file offset 0x%zx\n",
-		    maplen, taddr, offset);
-#endif
-		if((addr = mmap(taddr, maplen, prot,
+
+		/* Calculate bytes to be zeroed in last page */
+		mappedbytes = roundup2(maplen, PAGE_SIZE);
+		tailbytes = mappedbytes - maplen;
+
+		if ((sme = sandbox_map_entry_new(taddr, maplen, prot,
 		    MAP_FIXED | MAP_PRIVATE | MAP_PREFAULT_READ,
-		    fd, offset)) == MAP_FAILED) {
-			warn("%s: mmap", __func__);
-			return (-1);
-		}
+		    fd, offset, tailbytes)) == NULL)
+			goto error;
+		STAILQ_INSERT_TAIL(sm, sme, sme_entries);
+
 		maxoffset = MAX((size_t)maxoffset, phdr.p_vaddr + phdr.p_memsz);
 
-		/* If we've mapped everything directly we're done. */
-		if (phdr.p_filesz == phdr.p_memsz)
-			continue;
-
-		/* Zero any remaining bits of the last page */
-		mappedbytes = roundup2(maplen, PAGE_SIZE);
-		zerobytes = mappedbytes - maplen;
-		memset(taddr + maplen, 0, zerobytes);
-
-		/* If everything fit it the mapped range we're done */
-		if (phdr.p_memsz <= mappedbytes)
+		/*
+		 * If we would map everything directly or everything fit
+		 * in the mapped range we're done.
+		 */
+		if (phdr.p_filesz == phdr.p_memsz || phdr.p_memsz <= mappedbytes)
 			continue;
 
 		taddr = taddr + mappedbytes;
 		maplen = (phdr.p_offset - rounddown2(phdr.p_offset, PAGE_SIZE)) +
 		    phdr.p_memsz - mappedbytes;
-#ifdef DEBUG
-		printf("mapping 0x%zx bytes at 0x%p\n", maplen, taddr);
-#endif
-		if (mmap(taddr, maplen, prot,
-		    MAP_FIXED | MAP_ANON, -1, 0) == MAP_FAILED) {
-			warn("%s: mmap (anon)", __func__);
-			return (-1);
-		}
 
+		if ((sme = sandbox_map_entry_new(taddr, maplen, prot,
+		    MAP_FIXED | MAP_ANON, -1, offset, 0)) == NULL)
+			goto error;
+		STAILQ_INSERT_TAIL(sm, sme, sme_entries);
 	}
 
+	sandbox_map_load(location, sm);
+	sandbox_map_free(sm);
+
 	return (maxoffset);
+
+error:
+	sandbox_map_free(sm);
+	return (-1);
 }
 
 #ifdef TEST_LOADELF64
