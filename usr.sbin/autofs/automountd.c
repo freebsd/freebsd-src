@@ -202,7 +202,7 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 		parent = root;
 	} else {
 		parent = node_new_map(root, checked_strdup(adr->adr_prefix),
-		    checked_strdup(adr->adr_options), checked_strdup(map),
+		    NULL,  checked_strdup(map),
 		    checked_strdup("[kernel request]"), lineno);
 	}
 
@@ -231,18 +231,18 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 		    "failing mount", map, adr->adr_path);
 	}
 
+	options = node_options(node);
+	options = concat(adr->adr_options, ',', options);
+
+	/*
+	 * Prepend options passed via automountd(8) command line.
+	 */
+	if (cmdline_options != NULL)
+		options = concat(cmdline_options, ',', options);
+
 	if (node->n_location == NULL) {
 		log_debugx("found node defined at %s:%d; not a mountpoint",
 		    node->n_config_file, node->n_config_line);
-
-		options = node_options(node);
-
-		/*
-		 * Prepend options passed via automountd(8) command line.
-		 */
-		if (cmdline_options != NULL) {
-			options = concat(cmdline_options, ',', options);
-		}
 
 		nobrowse = pick_option("nobrowse", &options);
 		if (nobrowse != NULL && adr->adr_key[0] == '\0') {
@@ -292,14 +292,6 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 		log_errx(1, "variable expansion failed for %s; "
 		    "failing mount", adr->adr_path);
 	}
-
-	options = node_options(node);
-
-	/*
-	 * Prepend options passed via automountd(8) command line.
-	 */
-	if (cmdline_options != NULL)
-		options = concat(cmdline_options, ',', options);
 
 	/*
 	 * Append "automounted".
