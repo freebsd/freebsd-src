@@ -706,31 +706,24 @@ Specify threshold in MSR 0x3F6.
 .Pq Event CDH , Umask 02H
 Sample stores and collect precise store operation via PEBS record.
 PMC3 only.
-.It Li MEM_UOP_RETIRED.LOADS
-.Pq Event D0H , Umask 01H
-Qualify retired memory uops that are loads. Combine with umask 10H, 20H,
-40H, 80H.
-Supports PEBS.
-.It Li MEM_UOP_RETIRED.STORES
-.Pq Event D0H , Umask 02H
-Qualify retired memory uops that are stores. Combine with umask 10H, 20H,
-40H, 80H.
-.It Li MEM_UOP_RETIRED.STLB_MISS
-.Pq Event D0H , Umask 10H
-Qualify retired memory uops with STLB miss. Must combine with umask 01H,
-02H, to produce counts.
-.It Li MEM_UOP_RETIRED.LOCK
-.Pq Event D0H , Umask 20H
-Qualify retired memory uops with lock. Must combine with umask 01H, 02H, to
-produce counts.
-.It Li MEM_UOP_RETIRED.SPLIT
-.Pq Event D0H , Umask 40H
-Qualify retired memory uops with line split. Must combine with umask 01H,
-02H, to produce counts.
-.It Li MEM_UOP_RETIRED.ALL
-.Pq Event D0H , Umask 80H
-Qualify any retired memory uops. Must combine with umask 01H, 02H, to
-produce counts.
+.It Li MEM_UOPS_RETIRED.STLB_MISS_LOADS
+.Pq Event D0H , Umask 11H
+Count retired load uops that missed the STLB.
+.It Li MEM_UOPS_RETIRED.STLB_MISS_STORES
+.Pq Event D0H , Umask 12H
+Count retired store uops that missed the STLB.
+.It Li MEM_UOPS_RETIRED.SPLIT_LOADS
+.Pq Event D0H , Umask 41H
+Count retired load uops that were split across a cache line.
+.It Li MEM_UOPS_RETIRED.SPLIT_STORES
+.Pq Event D0H , Umask 42H
+Count retired store uops that were split across a cache line.
+.It Li MEM_UOPS_RETIRED.ALL_LOADS
+.Pq Event D0H , Umask 81H
+Count all retired load uops.
+.It Li MEM_UOPS_RETIRED.ALL_STORES
+.Pq Event D0H , Umask 82H
+Count all retired store uops.
 .It Li MEM_LOAD_UOPS_RETIRED.L1_HIT
 .Pq Event D1H , Umask 01H
 Retired load uops with L1 cache hits as data sources.
