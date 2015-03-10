@@ -154,7 +154,8 @@ sandbox_loadelf64(int fd, void *location, size_t maxsize, u_int flags)
 		    maplen, taddr, offset);
 #endif
 		if((addr = mmap(taddr, maplen, prot,
-		    MAP_FIXED | MAP_PRIVATE, fd, offset)) == MAP_FAILED) {
+		    MAP_FIXED | MAP_PRIVATE | MAP_PREFAULT_READ,
+		    fd, offset)) == MAP_FAILED) {
 			warn("%s: mmap", __func__);
 			return (-1);
 		}
