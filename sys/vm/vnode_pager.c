@@ -727,7 +727,7 @@ vnode_pager_local_getpages0(struct vnode *vp, vm_page_t *m, int bytecount,
 	/*
 	 * The requested page has valid blocks.  Invalid part can only
 	 * exist at the end of file, and the page is made fully valid
-	 * by zeroing in vm_pager_getpages().  Free non-requested
+	 * by zeroing in vm_pager_get_pages().  Free non-requested
 	 * pages, since no i/o is done to read its content.
 	 */
 	if (mreq->valid != 0) {
