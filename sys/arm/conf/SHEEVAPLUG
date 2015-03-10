@@ -3,12 +3,12 @@
 #
 # $FreeBSD$
 #
+#NO_UNIVERSE
 
 ident		SHEEVAPLUG
 include		"../mv/kirkwood/std.db88f6xxx"
 
 options 	SOC_MV_KIRKWOOD
-makeoptions	MODULES_OVERRIDE=""
 
 #makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	WERROR="-Werror"
