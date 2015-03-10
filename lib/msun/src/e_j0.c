@@ -64,6 +64,8 @@ __FBSDID("$FreeBSD$");
 
 static double pzero(double), qzero(double);
 
+static const volatile double vone = 1, vzero = 0;
+
 static const double
 huge 	= 1e300,
 one	= 1.0,
@@ -150,10 +152,16 @@ __ieee754_y0(double x)
 
 	EXTRACT_WORDS(hx,lx,x);
         ix = 0x7fffffff&hx;
-    /* Y0(NaN) is NaN, y0(-inf) is Nan, y0(inf) is 0  */
-	if(ix>=0x7ff00000) return  one/(x+x*x); 
-        if((ix|lx)==0) return -one/zero;
-        if(hx<0) return zero/zero;
+	/*
+	 * y0(NaN) = NaN.
+	 * y0(Inf) = 0.
+	 * y0(-Inf) = NaN and raise invalid exception.
+	 */
+	if(ix>=0x7ff00000) return vone/(x+x*x); 
+	/* y0(+-0) = -inf and raise divide-by-zero exception. */
+	if((ix|lx)==0) return -one/vzero;
+	/* y0(x<0) = NaN and raise invalid exception. */
+	if(hx<0) return vzero/vzero;
         if(ix >= 0x40000000) {  /* |x| >= 2.0 */
         /* y0(x) = sqrt(2/(pi*x))*(p0(x)*sin(x0)+q0(x)*cos(x0))
          * where x0 = x-pi/4

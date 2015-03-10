@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 #include "math.h"
 #include "math_private.h"
 
+static const volatile double vone = 1, vzero = 0;
+
 static const double
 invsqrtpi=  5.64189583547756279280e-01, /* 0x3FE20DD7, 0x50429B6D */
 two   =  2.00000000000000000000e+00, /* 0x40000000, 0x00000000 */
@@ -220,10 +222,12 @@ __ieee754_yn(int n, double x)
 
 	EXTRACT_WORDS(hx,lx,x);
 	ix = 0x7fffffff&hx;
-    /* if Y(n,NaN) is NaN */
+	/* yn(n,NaN) = NaN */
 	if((ix|((u_int32_t)(lx|-lx))>>31)>0x7ff00000) return x+x;
-	if((ix|lx)==0) return -one/zero;
-	if(hx<0) return zero/zero;
+	/* yn(n,+-0) = -inf and raise divide-by-zero exception. */
+	if((ix|lx)==0) return -one/vzero;
+	/* yn(n,x<0) = NaN and raise invalid exception. */
+	if(hx<0) return vzero/vzero;
 	sign = 1;
 	if(n<0){
 		n = -n;
