@@ -202,7 +202,7 @@ _ILINKS+= ${MACHINE_ARCH}
 # Ensure that the link exists without depending on it when it exists.
 .for _link in ${_ILINKS}
 .if !exists(${.OBJDIR}/${_link})
-${SRCS}: ${_link}
+${SRCS} ${CLEAN:M*.o}: ${_link}
 .endif
 .endfor
 
