@@ -64,8 +64,6 @@ struct ds3231_softc {
 	uint8_t		sc_status;
 };
 
-static int ds3231_sqw_freq[] = { 1, 1024, 4096, 8192 };
-
 static void ds3231_start(void *);
 
 static int
@@ -282,6 +280,7 @@ ds3231_bbsqw_sysctl(SYSCTL_HANDLER_ARGS)
 static int
 ds3231_sqw_freq_sysctl(SYSCTL_HANDLER_ARGS)
 {
+	int ds3231_sqw_freq[] = { 1, 1024, 4096, 8192 };
 	int error, freq, i, newf, tmp;
 	struct ds3231_softc *sc;
 
@@ -290,8 +289,8 @@ ds3231_sqw_freq_sysctl(SYSCTL_HANDLER_ARGS)
 	if (error != 0)
 		return (error);
 	tmp = (sc->sc_ctrl & DS3231_CTRL_RS_MASK) >> DS3231_CTRL_RS_SHIFT;
-	if (tmp > nitems(ds3231_sqw_freq))
-		tmp = nitems(ds3231_sqw_freq);
+	if (tmp >= nitems(ds3231_sqw_freq))
+		tmp = nitems(ds3231_sqw_freq) - 1;
 	freq = ds3231_sqw_freq[tmp];
 	error = sysctl_handle_int(oidp, &freq, 0, req);
 	if (error != 0 || req->newptr == NULL)
