@@ -362,7 +362,7 @@ ixlv_configure_queues(struct ixlv_sc *sc)
 
 	struct i40e_virtchnl_vsi_queue_config_info *vqci;
 	struct i40e_virtchnl_queue_pair_info *vqpi;
-	
+
 	pairs = vsi->num_queues;
 	len = sizeof(struct i40e_virtchnl_vsi_queue_config_info) +
 		       (sizeof(struct i40e_virtchnl_queue_pair_info) * pairs);
@@ -788,14 +788,11 @@ ixlv_request_stats(struct ixlv_sc *sc)
 void
 ixlv_update_stats_counters(struct ixlv_sc *sc, struct i40e_eth_stats *es)
 {
-	struct ixl_vsi *vsi;
+	struct ixl_vsi *vsi = &sc->vsi;
 	uint64_t tx_discards;
-	int i;
-
-	vsi = &sc->vsi;
 
 	tx_discards = es->tx_discards;
-	for (i = 0; i < sc->vsi.num_queues; i++)
+	for (int i = 0; i < vsi->num_queues; i++)
 		tx_discards += sc->vsi.queues[i].txr.br->br_drops;
 
 	/* Update ifnet stats */
@@ -816,7 +813,7 @@ ixlv_update_stats_counters(struct ixlv_sc *sc, struct i40e_eth_stats *es)
 	IXL_SET_NOPROTO(vsi, es->rx_unknown_protocol);
 	IXL_SET_COLLISIONS(vsi, 0);
 
-	sc->vsi.eth_stats = *es;
+	vsi->eth_stats = *es;
 }
 
 /*
@@ -845,9 +842,9 @@ ixlv_vc_completion(struct ixlv_sc *sc,
 			    vpe->event_data.link_event.link_status,
 			    vpe->event_data.link_event.link_speed);
 #endif
-			vsi->link_up =
+			sc->link_up =
 				vpe->event_data.link_event.link_status;
-			vsi->link_speed =
+			sc->link_speed =
 				vpe->event_data.link_event.link_speed;
 			ixlv_update_link_status(sc);
 			break;

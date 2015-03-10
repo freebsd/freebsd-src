@@ -866,7 +866,7 @@ static enum i40e_media_type i40e_get_media_type(struct i40e_hw *hw)
 	return media;
 }
 
-#define I40E_PF_RESET_WAIT_COUNT	110
+#define I40E_PF_RESET_WAIT_COUNT	200
 /**
  * i40e_pf_reset - Reset the PF
  * @hw: pointer to the hardware structure
@@ -1108,11 +1108,9 @@ u32 i40e_led_get(struct i40e_hw *hw)
 		if (!gpio_val)
 			continue;
 
-		/* ignore gpio LED src mode entries related to the activity
-		 *  LEDs
-		 */
-		current_mode = ((gpio_val & I40E_GLGEN_GPIO_CTL_LED_MODE_MASK)
-				>> I40E_GLGEN_GPIO_CTL_LED_MODE_SHIFT);
+		/* ignore gpio LED src mode entries related to the activity LEDs */
+		current_mode = ((gpio_val & I40E_GLGEN_GPIO_CTL_LED_MODE_MASK) >>
+			I40E_GLGEN_GPIO_CTL_LED_MODE_SHIFT);
 		switch (current_mode) {
 		case I40E_COMBINED_ACTIVITY:
 		case I40E_FILTER_ACTIVITY:
@@ -1156,11 +1154,9 @@ void i40e_led_set(struct i40e_hw *hw, u32 mode, bool blink)
 		if (!gpio_val)
 			continue;
 
-		/* ignore gpio LED src mode entries related to the activity
-		 * LEDs
-		 */
-		current_mode = ((gpio_val & I40E_GLGEN_GPIO_CTL_LED_MODE_MASK)
-				>> I40E_GLGEN_GPIO_CTL_LED_MODE_SHIFT);
+		/* ignore gpio LED src mode entries related to the activity LEDs */
+		current_mode = ((gpio_val & I40E_GLGEN_GPIO_CTL_LED_MODE_MASK) >>
+			I40E_GLGEN_GPIO_CTL_LED_MODE_SHIFT);
 		switch (current_mode) {
 		case I40E_COMBINED_ACTIVITY:
 		case I40E_FILTER_ACTIVITY:
@@ -1528,6 +1524,7 @@ enum i40e_status_code i40e_aq_get_link_info(struct i40e_hw *hw,
 aq_get_link_info_exit:
 	return status;
 }
+
 
 /**
  * i40e_aq_set_phy_int_mask
@@ -2816,13 +2813,12 @@ i40e_aq_erase_nvm_exit:
 #define I40E_DEV_FUNC_CAP_MSIX_VF	0x44
 #define I40E_DEV_FUNC_CAP_FLOW_DIRECTOR	0x45
 #define I40E_DEV_FUNC_CAP_IEEE_1588	0x46
-#define I40E_DEV_FUNC_CAP_FLEX10	0xF1
+#define I40E_DEV_FUNC_CAP_MFP_MODE_1	0xF1
 #define I40E_DEV_FUNC_CAP_CEM		0xF2
 #define I40E_DEV_FUNC_CAP_IWARP		0x51
 #define I40E_DEV_FUNC_CAP_LED		0x61
 #define I40E_DEV_FUNC_CAP_SDP		0x62
 #define I40E_DEV_FUNC_CAP_MDIO		0x63
-#define I40E_DEV_FUNC_CAP_WR_CSR_PROT	0x64
 
 /**
  * i40e_parse_discover_capabilities
@@ -2840,7 +2836,6 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 	struct i40e_aqc_list_capabilities_element_resp *cap;
 	u32 valid_functions, num_functions;
 	u32 number, logical_id, phys_id;
-	u8 major_rev;
 	struct i40e_hw_capabilities *p;
 	u32 i = 0;
 	u16 id;
@@ -2859,7 +2854,6 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 		number = LE32_TO_CPU(cap->number);
 		logical_id = LE32_TO_CPU(cap->logical_id);
 		phys_id = LE32_TO_CPU(cap->phys_id);
-		major_rev = cap->major_rev;
 
 		switch (id) {
 		case I40E_DEV_FUNC_CAP_SWITCH_MODE:
@@ -2934,21 +2928,9 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 		case I40E_DEV_FUNC_CAP_MSIX_VF:
 			p->num_msix_vectors_vf = number;
 			break;
-		case I40E_DEV_FUNC_CAP_FLEX10:
-			if (major_rev == 1) {
-				if (number == 1) {
-					p->flex10_enable = TRUE;
-					p->flex10_capable = TRUE;
-				}
-			} else {
-				/* Capability revision >= 2 */
-				if (number & 1)
-					p->flex10_enable = TRUE;
-				if (number & 2)
-					p->flex10_capable = TRUE;
-			}
-			p->flex10_mode = logical_id;
-			p->flex10_status = phys_id;
+		case I40E_DEV_FUNC_CAP_MFP_MODE_1:
+			if (number == 1)
+				p->mfp_mode_1 = TRUE;
 			break;
 		case I40E_DEV_FUNC_CAP_CEM:
 			if (number == 1)
@@ -2981,17 +2963,10 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 			p->fd_filters_guaranteed = number;
 			p->fd_filters_best_effort = logical_id;
 			break;
-		case I40E_DEV_FUNC_CAP_WR_CSR_PROT:
-			p->wr_csr_prot = (u64)number;
-			p->wr_csr_prot |= (u64)logical_id << 32;
-			break;
 		default:
 			break;
 		}
 	}
-
-	if (p->fcoe)
-		i40e_debug(hw, I40E_DEBUG_ALL, "device is FCoE capable\n");
 
 	/* Always disable FCoE if compiled without the I40E_FCOE_ENA flag */
 	p->fcoe = FALSE;
@@ -4945,63 +4920,6 @@ void i40e_set_pci_config_data(struct i40e_hw *hw, u16 link_status)
 		hw->bus.speed = i40e_bus_speed_unknown;
 		break;
 	}
-}
-
-/**
- * i40e_aq_debug_dump
- * @hw: pointer to the hardware structure
- * @cluster_id: specific cluster to dump
- * @table_id: table id within cluster
- * @start_index: index of line in the block to read
- * @buff_size: dump buffer size
- * @buff: dump buffer
- * @ret_buff_size: actual buffer size returned
- * @ret_next_table: next block to read
- * @ret_next_index: next index to read
- *
- * Dump internal FW/HW data for debug purposes.
- *
- **/
-enum i40e_status_code i40e_aq_debug_dump(struct i40e_hw *hw, u8 cluster_id,
-				u8 table_id, u32 start_index, u16 buff_size,
-				void *buff, u16 *ret_buff_size,
-				u8 *ret_next_table, u32 *ret_next_index,
-				struct i40e_asq_cmd_details *cmd_details)
-{
-	struct i40e_aq_desc desc;
-	struct i40e_aqc_debug_dump_internals *cmd =
-		(struct i40e_aqc_debug_dump_internals *)&desc.params.raw;
-	struct i40e_aqc_debug_dump_internals *resp =
-		(struct i40e_aqc_debug_dump_internals *)&desc.params.raw;
-	enum i40e_status_code status;
-
-	if (buff_size == 0 || !buff)
-		return I40E_ERR_PARAM;
-
-	i40e_fill_default_direct_cmd_desc(&desc,
-					  i40e_aqc_opc_debug_dump_internals);
-	/* Indirect Command */
-	desc.flags |= CPU_TO_LE16((u16)I40E_AQ_FLAG_BUF);
-	if (buff_size > I40E_AQ_LARGE_BUF)
-		desc.flags |= CPU_TO_LE16((u16)I40E_AQ_FLAG_LB);
-
-	cmd->cluster_id = cluster_id;
-	cmd->table_id = table_id;
-	cmd->idx = CPU_TO_LE32(start_index);
-
-	desc.datalen = CPU_TO_LE16(buff_size);
-
-	status = i40e_asq_send_command(hw, &desc, buff, buff_size, cmd_details);
-	if (!status) {
-		if (ret_buff_size != NULL)
-			*ret_buff_size = LE16_TO_CPU(desc.datalen);
-		if (ret_next_table != NULL)
-			*ret_next_table = resp->table_id;
-		if (ret_next_index != NULL)
-			*ret_next_index = LE32_TO_CPU(resp->idx);
-	}
-
-	return status;
 }
 
 /**
