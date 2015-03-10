@@ -1126,6 +1126,10 @@ static struct iap_event_descr iap_events[] = {
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
     IAPDESCR(79H_18H, 0x79, 0x18, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW |
         IAP_F_HWX),
+    IAPDESCR(79H_24H, 0x79, 0x24, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW |
+        IAP_F_HWX),
+    IAPDESCR(79H_3CH, 0x79, 0x3C, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW |
+        IAP_F_HWX),
 
     IAPDESCR(7AH, 0x7A, IAP_M_AGENT, IAP_F_CA | IAP_F_CC2),
 
@@ -1272,7 +1276,8 @@ static struct iap_event_descr iap_events[] = {
 	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
     IAPDESCR(A1H_08H, 0xA1, 0x08, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |   /* No desc in IB for this*/
 	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
-    IAPDESCR(A1H_0CH, 0xA1, 0x0C, IAP_F_IB | IAP_F_IBX),
+    IAPDESCR(A1H_0CH, 0xA1, 0x0C, IAP_F_FM | IAP_F_SB | IAP_F_IB |
+	IAP_F_SBX | IAP_F_IBX),
     IAPDESCR(A1H_10H, 0xA1, 0x10, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |   /* No desc in IB for this*/
 	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
     IAPDESCR(A1H_20H, 0xA1, 0x20, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |   /* No desc in IB for this*/
