@@ -18,9 +18,6 @@
 #
 # $FreeBSD$
 
-makeoptions	MODULES_OVERRIDE=""
-makeoptions	WITHOUT_MODULES="ahc"
-
 makeoptions	WERROR="-Werror"
 
 options 	HZ=100

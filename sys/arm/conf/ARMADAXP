@@ -22,7 +22,6 @@ ident		MV-88F78XX0
 include		"../mv/armadaxp/std.mv78x60"
 
 options 	SOC_MV_ARMADAXP
-makeoptions	MODULES_OVERRIDE=""
 
 makeoptions	WERROR="-Werror"
 
