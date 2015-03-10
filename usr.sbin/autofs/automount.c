@@ -141,8 +141,8 @@ mount_autofs(const char *from, const char *fspath, const char *options,
 }
 
 static void
-mount_if_not_already(const struct node *n, const char *map,
-    const struct statfs *mntbuf, int nitems)
+mount_if_not_already(const struct node *n, const char *map, const char *options,
+    const char *prefix, const struct statfs *mntbuf, int nitems)
 {
 	const struct statfs *sb;
 	char *mountpoint;
@@ -175,7 +175,7 @@ mount_if_not_already(const struct node *n, const char *map,
 		    mountpoint);
 	}
 
-	mount_autofs(from, mountpoint, n->n_options, n->n_key);
+	mount_autofs(from, mountpoint, options, prefix);
 	free(from);
 	free(mountpoint);
 }
@@ -184,7 +184,7 @@ static void
 mount_unmount(struct node *root)
 {
 	struct statfs *mntbuf;
-	struct node *n, *n2, *n3;
+	struct node *n, *n2;
 	int i, nitems;
 
 	nitems = getmntinfo(&mntbuf, MNT_WAIT);
@@ -216,15 +216,14 @@ mount_unmount(struct node *root)
 
 	TAILQ_FOREACH(n, &root->n_children, n_next) {
 		if (!node_is_direct_map(n)) {
-			mount_if_not_already(n, n->n_map, mntbuf, nitems);
+			mount_if_not_already(n, n->n_map, n->n_options,
+			    n->n_key, mntbuf, nitems);
 			continue;
 		}
 
 		TAILQ_FOREACH(n2, &n->n_children, n_next) {
-			TAILQ_FOREACH(n3, &n2->n_children, n_next) {
-				mount_if_not_already(n3, n->n_map,
-				    mntbuf, nitems);
-			}
+			mount_if_not_already(n2, n->n_map, n->n_options,
+			    "/", mntbuf, nitems);
 		}
 	}
 }
