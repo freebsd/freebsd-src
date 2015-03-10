@@ -449,6 +449,18 @@ node_expand_defined(struct node *n)
 	return (cumulated_error);
 }
 
+static bool
+node_is_direct_key(const struct node *n)
+{
+
+	if (n->n_parent != NULL && n->n_parent->n_parent == NULL &&
+	    strcmp(n->n_key, "/-") == 0) {
+		return (true);
+	}
+
+	return (false);
+}
+
 bool
 node_is_direct_map(const struct node *n)
 {
@@ -460,11 +472,7 @@ node_is_direct_map(const struct node *n)
 		n = n->n_parent;
 	}
 
-	assert(n->n_key != NULL);
-	if (strcmp(n->n_key, "/-") != 0)
-		return (false);
-
-	return (true);
+	return (node_is_direct_key(n));
 }
 
 bool
@@ -538,11 +546,8 @@ node_path_x(const struct node *n, char *x)
 	 * Return "/-" for direct maps only if we were asked for path
 	 * to the "/-" node itself, not to any of its subnodes.
 	 */
-	if (n->n_parent->n_parent == NULL &&
-	    strcmp(n->n_key, "/-") == 0 &&
-	    x[0] != '\0') {
+	if (node_is_direct_key(n) && x[0] != '\0')
 		return (x);
-	}
 
 	assert(n->n_key[0] != '\0');
 	path = concat(n->n_key, '/', x);
