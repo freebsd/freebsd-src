@@ -1597,29 +1597,21 @@ static struct iap_event_descr iap_events[] = {
 
     /* Sandy Bridge / Sandy Bridge Xeon - 11, 12, 21, 41, 42, 81, 82 */
     IAPDESCR(D0H_00H, 0xD0, 0x00, IAP_F_FM | IAP_F_CC),
-    IAPDESCR(D0H_01H, 0xD0, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_IB |
-	IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
-    IAPDESCR(D0H_02H, 0xD0, 0x02, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW |
-	IAP_F_HWX),
-    IAPDESCR(D0H_10H, 0xD0, 0x10, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW |
-	IAP_F_HWX),
-    IAPDESCR(D0H_11H, 0xD0, 0x11, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
-    IAPDESCR(D0H_12H, 0xD0, 0x12, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
-    IAPDESCR(D0H_20H, 0xD0, 0x20, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW |
-        IAP_F_HWX),
+    IAPDESCR(D0H_01H, 0xD0, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
+    IAPDESCR(D0H_11H, 0xD0, 0x11, IAP_F_FM | IAP_F_SB | IAP_F_SBX | IAP_F_IB |
+        IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(D0H_12H, 0xD0, 0x12, IAP_F_FM | IAP_F_SB | IAP_F_SBX | IAP_F_IB |
+        IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
     IAPDESCR(D0H_21H, 0xD0, 0x21, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
-    IAPDESCR(D0H_40H, 0xD0, 0x40, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW |
-        IAP_F_HWX),
-    IAPDESCR(D0H_41H, 0xD0, 0x41, IAP_F_FM | IAP_F_SB | IAP_F_SBX |
-        IAP_F_IB | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),	/* Not in spec but in linux and Vtune guide */
-    IAPDESCR(D0H_42H, 0xD0, 0x42, IAP_F_FM | IAP_F_SB | IAP_F_SBX | 
-        IAP_F_IB | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),	/* Not in spec but in linux and Vtune guide */
-    IAPDESCR(D0H_80H, 0xD0, 0x80, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW |
-        IAP_F_HWX),
-    IAPDESCR(D0H_81H, 0xD0, 0x81, IAP_F_FM | IAP_F_SB | IAP_F_SBX |
-	IAP_F_IB | IAP_F_IBX),	/* Not in spec but in linux and Vtune guide */
-    IAPDESCR(D0H_82H, 0xD0, 0x82, IAP_F_FM | IAP_F_SB | IAP_F_SBX | 
-	IAP_F_IB | IAP_F_IBX),	/* Not in spec but in linux and Vtune guide */
+    IAPDESCR(D0H_41H, 0xD0, 0x41, IAP_F_FM | IAP_F_SB | IAP_F_SBX | IAP_F_IB |
+        IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(D0H_42H, 0xD0, 0x42, IAP_F_FM | IAP_F_SB | IAP_F_SBX | IAP_F_IB |
+        IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(D0H_81H, 0xD0, 0x81, IAP_F_FM | IAP_F_SB | IAP_F_SBX | IAP_F_IB |
+        IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(D0H_82H, 0xD0, 0x82, IAP_F_FM | IAP_F_SB | IAP_F_SBX | IAP_F_IB |
+        IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+
     IAPDESCR(D1H_01H, 0xD1, 0x01, IAP_F_FM | IAP_F_WM | IAP_F_SB |
 	IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
     IAPDESCR(D1H_02H, 0xD1, 0x02, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
