@@ -586,7 +586,7 @@ pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const nvlist_t *config,
 		 * VFs.
 		 */
 		if (nvlist_get_bool(iov_config, "passthrough"))
-			device_set_devclass(vf, "ppt");
+			device_set_devclass_fixed(vf, "ppt");
 
 		vfinfo = device_get_ivars(vf);
 
