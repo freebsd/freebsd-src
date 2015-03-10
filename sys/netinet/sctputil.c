@@ -936,6 +936,7 @@ sctp_init_asoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	asoc->sctp_frag_point = inp->sctp_frag_point;
 	asoc->sctp_features = inp->sctp_features;
 	asoc->default_dscp = inp->sctp_ep.default_dscp;
+	asoc->max_cwnd = inp->max_cwnd;
 #ifdef INET6
 	if (inp->sctp_ep.default_flowlabel) {
 		asoc->default_flowlabel = inp->sctp_ep.default_flowlabel;
