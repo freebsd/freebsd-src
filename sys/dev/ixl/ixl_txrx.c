@@ -62,6 +62,9 @@ static __inline void ixl_rx_discard(struct rx_ring *, int);
 static __inline void ixl_rx_input(struct rx_ring *, struct ifnet *,
 		    struct mbuf *, u8);
 
+#ifdef DEV_NETMAP
+#include <dev/netmap/if_ixl_netmap.h>
+#endif /* DEV_NETMAP */
 
 /*
 ** Multiqueue Transmit driver
@@ -484,12 +487,23 @@ fail:
 void
 ixl_init_tx_ring(struct ixl_queue *que)
 {
+#ifdef DEV_NETMAP
+	struct netmap_adapter *na = NA(que->vsi->ifp);
+	struct netmap_slot *slot;
+#endif /* DEV_NETMAP */
 	struct tx_ring		*txr = &que->txr;
 	struct ixl_tx_buf	*buf;
 
 	/* Clear the old ring contents */
 	IXL_TX_LOCK(txr);
 
+#ifdef DEV_NETMAP
+	/*
+	 * (under lock): if in netmap mode, do some consistency
+	 * checks and set slot to entry 0 of the netmap ring.
+	 */
+	slot = netmap_reset(na, NR_TX, que->me, 0);
+#endif /* DEV_NETMAP */
 
 	bzero((void *)txr->base,
 	      (sizeof(struct i40e_tx_desc)) * que->num_desc);
@@ -514,6 +528,19 @@ ixl_init_tx_ring(struct ixl_queue *que)
 			m_freem(buf->m_head);
 			buf->m_head = NULL;
 		}
+#ifdef DEV_NETMAP
+		/*
+		 * In netmap mode, set the map for the packet buffer.
+		 * NOTE: Some drivers (not this one) also need to set
+		 * the physical buffer address in the NIC ring.
+		 * netmap_idx_n2k() maps a nic index, i, into the corresponding
+		 * netmap slot index, si
+		 */
+		if (slot) {
+			int si = netmap_idx_n2k(&na->tx_rings[que->me], i);
+			netmap_load_map(na, buf->tag, buf->map, NMB(na, slot + si));
+		}
+#endif /* DEV_NETMAP */
 		/* Clear the EOP index */
 		buf->eop_index = -1;
         }
@@ -825,6 +852,11 @@ ixl_txeof(struct ixl_queue *que)
 
 	mtx_assert(&txr->mtx, MA_OWNED);
 
+#ifdef DEV_NETMAP
+	// XXX todo: implement moderation
+	if (netmap_tx_irq(que->vsi->ifp, que->me))
+		return FALSE;
+#endif /* DEF_NETMAP */
 
 	/* These are not the descriptors you seek, move along :) */
 	if (txr->avail == que->num_desc) {
@@ -1126,8 +1158,16 @@ ixl_init_rx_ring(struct ixl_queue *que)
 	struct ixl_rx_buf	*buf;
 	bus_dma_segment_t	pseg[1], hseg[1];
 	int			rsize, nsegs, error = 0;
+#ifdef DEV_NETMAP
+	struct netmap_adapter *na = NA(que->vsi->ifp);
+	struct netmap_slot *slot;
+#endif /* DEV_NETMAP */
 
 	IXL_RX_LOCK(rxr);
+#ifdef DEV_NETMAP
+	/* same as in ixl_init_tx_ring() */
+	slot = netmap_reset(na, NR_RX, que->me, 0);
+#endif /* DEV_NETMAP */
 	/* Clear the ring contents */
 	rsize = roundup2(que->num_desc *
 	    sizeof(union i40e_rx_desc), DBA_ALIGN);
@@ -1161,7 +1201,27 @@ ixl_init_rx_ring(struct ixl_queue *que)
 		struct mbuf	*mh, *mp;
 
 		buf = &rxr->buffers[j];
+#ifdef DEV_NETMAP
+		/*
+		 * In netmap mode, fill the map and set the buffer
+		 * address in the NIC ring, considering the offset
+		 * between the netmap and NIC rings (see comment in
+		 * ixgbe_setup_transmit_ring() ). No need to allocate
+		 * an mbuf, so end the block with a continue;
+		 */
+		if (slot) {
+			int sj = netmap_idx_n2k(&na->rx_rings[que->me], j);
+			uint64_t paddr;
+			void *addr;
 
+			addr = PNMB(na, slot + sj, &paddr);
+			netmap_load_map(na, rxr->dma.tag, buf->pmap, addr);
+			/* Update descriptor and the cached value */
+			rxr->base[j].read.pkt_addr = htole64(paddr);
+			rxr->base[j].read.hdr_addr = 0;
+			continue;
+		}
+#endif /* DEV_NETMAP */
 		/*
 		** Don't allocate mbufs if not
 		** doing header split, its wasteful
@@ -1461,6 +1521,12 @@ ixl_rxeof(struct ixl_queue *que, int count)
 
 	IXL_RX_LOCK(rxr);
 
+#ifdef DEV_NETMAP
+	if (netmap_rx_irq(ifp, que->me, &count)) {
+		IXL_RX_UNLOCK(rxr);
+		return (FALSE);
+	}
+#endif /* DEV_NETMAP */
 
 	for (i = rxr->next_check; count != 0;) {
 		struct mbuf	*sendmp, *mh, *mp;
