@@ -55,6 +55,8 @@ struct sandbox_class {
 	struct stat		 sbc_stat;
 	size_t			 sbc_sandboxlen;
 	void			*sbc_mem;
+	struct sandbox_map	*sbc_codemap;
+	struct sandbox_map	*sbc_datamap;
 
 	/*
 	 * The class's code capability, in various incarnations required for

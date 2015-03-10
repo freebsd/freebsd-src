@@ -100,11 +100,12 @@ sandbox_class_load(struct sandbox_class *sbcp)
 		warn("%s: mmap region", __func__);
 		goto error;
 	}
-	if ((max_prog_offset = sandbox_loadelf64(sbcp->sbc_fd, base, length,
-	    SANDBOX_LOADELF_CODE)) == -1) {
-		saved_errno = errno;
+	if (sandbox_map_load(base, sbcp->sbc_codemap) == -1) {
+		saved_errno = EINVAL;
+		warnx("%s: sandbox_map_load(sbc_codemap)\n", __func__);
 		goto error;
 	}
+	max_prog_offset = sandbox_map_maxoffset(sbcp->sbc_codemap);
 
 	/*
 	 * Protect guard page(s) at the bottom of the code capability.
@@ -213,7 +214,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	__capability void *datacap;
 	struct sandbox_metadata *sbmp;
 	size_t length;
-	ssize_t max_prog_offset;
+	size_t max_prog_offset;
 	int saved_errno;
 	caddr_t base;
 
@@ -254,11 +255,12 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 * Map and (eventually) link the program.  It may overlap guard pages,
 	 * etc so lower ones will be reconfigured manually.
 	 */
-	if ((max_prog_offset = sandbox_loadelf64(sbcp->sbc_fd, base, length,
-	    SANDBOX_LOADELF_DATA)) == -1) {
-		saved_errno = errno;
+	if (sandbox_map_load(base, sbcp->sbc_datamap) == -1) {
+		saved_errno = EINVAL;
+		warnx("%s: sandbox_map_load(sbc_datamap)\n", __func__);
 		goto error;
 	}
+	max_prog_offset = sandbox_map_maxoffset(sbcp->sbc_datamap);
 
 	/*
 	 * Zero and protect guard page(s) to the base of the metadata

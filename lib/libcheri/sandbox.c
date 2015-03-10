@@ -59,6 +59,7 @@
 #include "cheri_invoke.h"
 #include "libcheri_stat.h"
 #include "sandbox.h"
+#include "sandbox_elf.h"
 #include "sandbox_internal.h"
 #include "sandbox_methods.h"
 #include "sandboxasm.h"
@@ -220,6 +221,24 @@ sandbox_class_new(const char *path, size_t sandboxlen,
 	if (fstat(sbcp->sbc_fd, &sbcp->sbc_stat) < 0) {
 		saved_errno = errno;
 		warn("%s: fstat %s", __func__, path);
+		goto error;
+	}
+
+	/*
+	 * Parse the ELF and produce mappings for code and data.
+	 */
+	if ((sbcp->sbc_codemap = sandbox_parse_elf64(fd,
+	    SANDBOX_LOADELF_CODE)) == NULL) {
+		saved_errno = EINVAL;
+		warnx("%s: sandbox_parse_elf64(CODE) failed for %s", __func__,
+		    path);
+		goto error;
+	}
+	if ((sbcp->sbc_datamap = sandbox_parse_elf64(fd,
+	    SANDBOX_LOADELF_DATA)) == NULL) {
+		saved_errno = EINVAL;
+		warnx("%s: sandbox_parse_elf64(DATA) failed for %s", __func__,
+		    path);
 		goto error;
 	}
 

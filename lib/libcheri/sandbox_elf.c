@@ -47,7 +47,7 @@
 
 #include "sandbox_elf.h"
 
-STAILQ_HEAD(sandbox_map, sandbox_map_entry);
+STAILQ_HEAD(sandbox_map_head, sandbox_map_entry);
 
 struct sandbox_map_entry {
 	STAILQ_ENTRY(sandbox_map_entry)	sme_entries;
@@ -59,6 +59,11 @@ struct sandbox_map_entry {
 	int	sme_fd;			/* File */
 	off_t	sme_file_offset;	/* Offset in file */
 	size_t	sme_tailbytes;		/* Bytes to zero on last page */
+};
+
+struct sandbox_map {
+	struct sandbox_map_head	sm_head;
+	size_t			sm_maxoffset;
 };
 
 static struct sandbox_map_entry *
@@ -113,19 +118,19 @@ sandbox_map_entry_mmap(void *base, struct sandbox_map_entry *sme)
 	return (addr);
 }
 
-static int
+int
 sandbox_map_load(void *base, struct sandbox_map *sm)
 {
 	struct sandbox_map_entry *sme;
 
-	STAILQ_FOREACH(sme, sm, sme_entries) {
+	STAILQ_FOREACH(sme, &sm->sm_head, sme_entries) {
 		if (sandbox_map_entry_mmap(base, sme) == MAP_FAILED)
 			return (-1);
 	}
 	return (0);
 }
 
-static void
+void
 sandbox_map_free(struct sandbox_map *sm)
 {
 	struct sandbox_map_entry *sme, *sme_temp;
@@ -133,19 +138,26 @@ sandbox_map_free(struct sandbox_map *sm)
 	if (sm == NULL)
 		return;
 
-	STAILQ_FOREACH_SAFE(sme, sm, sme_entries, sme_temp) {
-		STAILQ_REMOVE(sm, sme, sandbox_map_entry, sme_entries);
+	STAILQ_FOREACH_SAFE(sme, &sm->sm_head, sme_entries, sme_temp) {
+		STAILQ_REMOVE(&sm->sm_head, sme, sandbox_map_entry,
+		    sme_entries);
 		free(sme);
 	}
 	free(sm);
 }
 
-ssize_t
-sandbox_loadelf64(int fd, void *location, size_t maxsize __unused, u_int flags)
+size_t
+sandbox_map_maxoffset(struct sandbox_map *sm)
+{
+
+	return(sm->sm_maxoffset);
+}
+
+struct sandbox_map *
+sandbox_parse_elf64(int fd, u_int flags)
 {
 	int i, prot;
 	size_t taddr;
-	int maxoffset = 0;
 	ssize_t rlen;
 	size_t maplen, mappedbytes, offset, tailbytes;
 	Elf64_Ehdr ehdr;
@@ -153,17 +165,15 @@ sandbox_loadelf64(int fd, void *location, size_t maxsize __unused, u_int flags)
 	struct sandbox_map *sm;
 	struct sandbox_map_entry *sme;
 
-	assert((intptr_t)location % PAGE_SIZE == 0);
-
-	if ((sm = malloc(sizeof(*sm))) == NULL) {
+	if ((sm = calloc(1, sizeof(*sm))) == NULL) {
 		warn("%s: malloc sandbox_map", __func__);
-		return (-1);
+		return (NULL);
 	}
-	STAILQ_INIT(sm);
+	STAILQ_INIT(&sm->sm_head);
 
 	if ((rlen = pread(fd, &ehdr, sizeof(ehdr), 0)) != sizeof(ehdr)) {
 		warn("%s: read ELF header", __func__);
-		return (-1);
+		return (NULL);
 	}
 
 	/* XXX: check for magic number */
@@ -187,7 +197,7 @@ sandbox_loadelf64(int fd, void *location, size_t maxsize __unused, u_int flags)
 		if ((rlen = pread(fd, &phdr, sizeof(phdr), ehdr.e_phoff +
 		    ehdr.e_phentsize * i)) != sizeof(phdr)) {
 			warn("%s: reading %d program header", __func__, i+1);
-			return (-1);
+			return (NULL);
 		}
 #ifdef DEBUG
 		printf("phdr[%d] type        %jx\n", i, (intmax_t)phdr.p_type);
@@ -256,9 +266,10 @@ sandbox_loadelf64(int fd, void *location, size_t maxsize __unused, u_int flags)
 		    MAP_FIXED | MAP_PRIVATE | MAP_PREFAULT_READ,
 		    fd, offset, tailbytes)) == NULL)
 			goto error;
-		STAILQ_INSERT_TAIL(sm, sme, sme_entries);
+		STAILQ_INSERT_TAIL(&sm->sm_head, sme, sme_entries);
 
-		maxoffset = MAX((size_t)maxoffset, phdr.p_vaddr + phdr.p_memsz);
+		sm->sm_maxoffset = MAX(sm->sm_maxoffset, phdr.p_vaddr +
+		    phdr.p_memsz);
 
 		/*
 		 * If we would map everything directly or everything fit
@@ -272,22 +283,40 @@ sandbox_loadelf64(int fd, void *location, size_t maxsize __unused, u_int flags)
 		    phdr.p_memsz - mappedbytes;
 
 		if ((sme = sandbox_map_entry_new(taddr, maplen, prot,
-		    MAP_FIXED | MAP_ANON, -1, offset, 0)) == NULL)
+		    MAP_FIXED | MAP_ANON, -1, 0, 0)) == NULL)
 			goto error;
-		STAILQ_INSERT_TAIL(sm, sme, sme_entries);
+		STAILQ_INSERT_TAIL(&sm->sm_head, sme, sme_entries);
 	}
 
-	sandbox_map_load(location, sm);
-	sandbox_map_free(sm);
-
-	return (maxoffset);
-
+	return (sm);
 error:
 	sandbox_map_free(sm);
-	return (-1);
+	return (NULL);
 }
 
 #ifdef TEST_LOADELF64
+static ssize_t
+sandbox_loadelf64(int fd, void *base, size_t maxsize __unused, u_int flags)
+{
+	struct sandbox_map *sm;
+	ssize_t maxoffset;
+
+	assert((intptr_t)base % PAGE_SIZE == 0);
+
+	if ((sm = sandbox_parse_elf64(fd, flags)) == NULL) {
+		warnx("%s: sandbox_parse_elf64", __func__);
+		return (-1);
+	}
+	if (sandbox_map_load(base, sm) == -1) {
+		warnx("%s: sandbox_map_load", __func__);
+		return (-1);
+	}
+	maxoffset = sm->sm_maxoffset;
+	sandbox_map_free(sm);
+
+	return (maxoffset);
+}
+
 int
 main(int argc, char **argv)
 {

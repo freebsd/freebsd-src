@@ -32,11 +32,15 @@
 #ifndef __SANDBOX_ELF_H__
 #define __SANDBOX_ELF_H__
 
+struct sandbox_map;
+
 /* Flags to loadelf64(). */
 #define	SANDBOX_LOADELF_DATA	0x00000001
 #define	SANDBOX_LOADELF_CODE	0x00000002
 
-extern ssize_t sandbox_loadelf64(int fd, void *location, size_t maxsize,
-    u_int flags);
+struct sandbox_map	*sandbox_parse_elf64(int fd, u_int flags);
+int			 sandbox_map_load(void *base, struct sandbox_map *sm);
+void			 sandbox_map_free(struct sandbox_map *sm);
+size_t			 sandbox_map_maxoffset(struct sandbox_map *sm);
 
 #endif /* __SANDBOX_ELF_H__ */
