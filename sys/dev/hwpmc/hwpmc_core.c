@@ -1965,15 +1965,15 @@ iap_event_sb_sbx_ib_ibx_ok_on_counter(enum pmc_event pe, int ri)
 		break;
 		/* Events valid only on counter 1. */
 	case PMC_EV_IAP_EVENT_C0H_01H:
-		mask = 0x1;
+		mask = 0x2;
 		break;
 		/* Events valid only on counter 2. */
 	case PMC_EV_IAP_EVENT_48H_01H:
 	case PMC_EV_IAP_EVENT_A2H_02H:
+	case PMC_EV_IAP_EVENT_A3H_08H:
 		mask = 0x4;
 		break;
 		/* Events valid only on counter 3. */
-	case PMC_EV_IAP_EVENT_A3H_08H:
 	case PMC_EV_IAP_EVENT_BBH_01H:
 	case PMC_EV_IAP_EVENT_CDH_01H:
 	case PMC_EV_IAP_EVENT_CDH_02H:
