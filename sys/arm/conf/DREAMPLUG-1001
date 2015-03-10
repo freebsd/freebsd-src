@@ -20,14 +20,13 @@
 #
 # $FreeBSD$
 #
+#NO_UNIVERSE
 
 ident		DREAMPLUG-1001
 
 include		"../mv/kirkwood/std.db88f6xxx"
 
 makeoptions	FDT_DTS_FILE=dreamplug-1001.dts
-
-makeoptions	MODULES_OVERRIDE=""
 
 options 	SOC_MV_KIRKWOOD
 
