@@ -35,7 +35,7 @@
 .Nm
 .Op Fl CHhn
 .Op Fl w Ar interval
-.Op Fl b | c | e | f | i | j | k | l | r | s | t | v | x
+.Op Fl b | c | e | f | i | j | k | l | r | s | S | t | v | x
 .Op Fl a | Ar pid | Ar core ...
 .Sh DESCRIPTION
 The
@@ -75,6 +75,8 @@ Display resource limits for the process.
 Display resource usage information for the process.
 .It Fl s
 Display security credential information for the process.
+.It Fl S
+Display the cpuset information for the thread.
 .It Fl t
 Display thread information for the process.
 .It Fl v
@@ -108,9 +110,16 @@ flag may be used to request per-thread statistics rather than per-process
 statistics for some options.
 For those options, the second field in the table will list the thread ID
 to which the row of information corresponds.
+The
+.Fl H
+flag is implied for the
+.Fl S
+mode.
 .Pp
-Some information, such as VM and file descriptor information, is available
+Information for VM, file descriptor, and cpuset options is available
 only to the owner of a process or the superuser.
+A cpuset value displayed as -1 means that the information is either invalid
+or not available.
 .Ss Binary Information
 Display the process ID, command, and path to the process binary:
 .Pp
