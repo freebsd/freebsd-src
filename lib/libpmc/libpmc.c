@@ -325,7 +325,7 @@ PMC_CLASS_TABLE_DESC(core2, IAP, core2, iap);
 PMC_CLASS_TABLE_DESC(corei7, IAP, corei7, iap);
 PMC_CLASS_TABLE_DESC(nehalem_ex, IAP, nehalem_ex, iap);
 PMC_CLASS_TABLE_DESC(haswell, IAP, haswell, iap);
-PMC_CLASS_TABLE_DESC(haswell_xeon, IAP, haswell, iap);
+PMC_CLASS_TABLE_DESC(haswell_xeon, IAP, haswell_xeon, iap);
 PMC_CLASS_TABLE_DESC(ivybridge, IAP, ivybridge, iap);
 PMC_CLASS_TABLE_DESC(ivybridge_xeon, IAP, ivybridge_xeon, iap);
 PMC_CLASS_TABLE_DESC(sandybridge, IAP, sandybridge, iap);
