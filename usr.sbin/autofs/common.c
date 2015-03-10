@@ -661,29 +661,34 @@ node_find_x(struct node *node, const char *path)
 	char *tmp;
 	size_t tmplen;
 
-	//log_debugx("looking up %s in %s", path, node->n_key);
+	//log_debugx("looking up %s in %s", path, node_path(node));
 
-	tmp = node_path(node);
-	tmplen = strlen(tmp);
-	if (strncmp(tmp, path, tmplen) != 0) {
+	if (!node_is_direct_key(node)) {
+		tmp = node_path(node);
+		tmplen = strlen(tmp);
+		if (strncmp(tmp, path, tmplen) != 0) {
+			free(tmp);
+			return (NULL);
+		}
+		if (path[tmplen] != '/' && path[tmplen] != '\0') {
+			/*
+			 * If we have two map entries like 'foo' and 'foobar', make
+			 * sure the search for 'foobar' won't match 'foo' instead.
+			 */
+			free(tmp);
+			return (NULL);
+		}
 		free(tmp);
-		return (NULL);
 	}
-	if (path[tmplen] != '/' && path[tmplen] != '\0') {
-		/*
-		 * If we have two map entries like 'foo' and 'foobar', make
-		 * sure the search for 'foobar' won't match 'foo' instead.
-		 */
-		free(tmp);
-		return (NULL);
-	}
-	free(tmp);
 
 	TAILQ_FOREACH(child, &node->n_children, n_next) {
 		found = node_find_x(child, path);
 		if (found != NULL)
 			return (found);
 	}
+
+	if (node->n_parent == NULL || node_is_direct_key(node))
+		return (NULL);
 
 	return (node);
 }
@@ -693,9 +698,12 @@ node_find(struct node *root, const char *path)
 {
 	struct node *node;
 
+	assert(root->n_parent == NULL);
+
 	node = node_find_x(root, path);
-	if (node == root)
-		return (NULL);
+	if (node != NULL)
+		assert(node != root);
+
 	return (node);
 }
 
