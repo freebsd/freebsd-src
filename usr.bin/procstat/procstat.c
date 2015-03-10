@@ -39,9 +39,9 @@
 
 #include "procstat.h"
 
-static int Lflag, Rflag, Sflag;
+static int Lflag, Oflag, Rflag;
 static int aflag, bflag, cflag, eflag, fflag, iflag, jflag, kflag, lflag, rflag;
-static int sflag, tflag, vflag, xflag;
+static int sflag, tflag, vflag, xflag, Sflag;
 int	hflag, nflag, Cflag, Hflag, Xflag;
 
 static void
@@ -50,8 +50,8 @@ usage(void)
 
 	fprintf(stderr, "usage: procstat [-CHhnX] [-M core] [-N system] "
 	    "[-w interval] \n");
-	fprintf(stderr, "                [-L | -R | -S | -b | -c | -e | -f | -i | -j | -k | "
-	    "-l | -r | -s | -t | -v | -x]\n");
+	fprintf(stderr, "                [-L | -O | -R | -S | -b | -c | -e | "
+	    "-f | -i | -j | -k | -l | -r | -s | -t | -v | -x]\n");
 	fprintf(stderr, "                [-a | pid | core ...]\n");
 	exit(EX_USAGE);
 }
@@ -92,6 +92,8 @@ procstat(struct procstat *prstat, struct kinfo_proc *kipp)
 		procstat_vm(prstat, kipp);
 	else if (xflag)
 		procstat_auxv(prstat, kipp);
+	else if (Sflag)
+		procstat_cs(prstat, kipp);
 	else
 		procstat_basic(kipp);
 }
@@ -135,7 +137,7 @@ main(int argc, char *argv[])
 
 	interval = 0;
 	memf = nlistf = NULL;
-	while ((ch = getopt(argc, argv, "CHLM:N:RSXabcefijklhrstvw:x")) != -1) {
+	while ((ch = getopt(argc, argv, "CHLM:N:ORSXabcefijklhrstvw:x")) != -1) {
 		switch (ch) {
 		case 'C':
 			Cflag++;
@@ -155,6 +157,10 @@ main(int argc, char *argv[])
 
 		case 'N':
 			nlistf = optarg;
+			break;
+
+		case 'O':
+			Oflag++;
 			break;
 
 		case 'R':
@@ -252,9 +258,9 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	/* We require that either 0 or 1 mode flags be set. */
-	tmp = Lflag + Rflag + Sflag + bflag + cflag + eflag + fflag + iflag +
-	    jflag + (kflag ? 1 : 0) + lflag + rflag + sflag + tflag + vflag +
-	    xflag;
+	tmp = Lflag + Oflag + Rflag + Sflag + bflag + cflag + eflag + fflag +
+	    iflag + jflag + (kflag ? 1 : 0) + lflag + rflag + sflag + tflag +
+	    vflag + xflag;
 	if (!(tmp == 0 || tmp == 1))
 		usage();
 
