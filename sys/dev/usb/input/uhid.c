@@ -518,7 +518,9 @@ uhid_open(struct usb_fifo *fifo, int fflags)
 	 */
 	if (fflags & FREAD) {
 		/* reset flags */
+		mtx_lock(&sc->sc_mtx);
 		sc->sc_flags &= ~UHID_FLAG_IMMED;
+		mtx_unlock(&sc->sc_mtx);
 
 		if (usb_fifo_alloc_buffer(fifo,
 		    sc->sc_isize + 1, UHID_FRAME_NUM)) {
