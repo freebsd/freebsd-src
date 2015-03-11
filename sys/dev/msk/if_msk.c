@@ -2894,8 +2894,7 @@ msk_transmit(if_t ifp, struct mbuf *m)
 		return (error);
 
 	sc_if = if_getsoftc(ifp, IF_DRIVER_SOFTC);
-	if (MSK_IF_TRYLOCK(sc_if) == 0)
-		return (0);
+	MSK_IF_LOCK(sc_if);
 	error = msk_start(sc_if);
 	MSK_IF_UNLOCK(sc_if);
 	return (error);

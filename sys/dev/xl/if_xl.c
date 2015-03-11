@@ -2414,8 +2414,7 @@ xl_transmit(if_t ifp, struct mbuf *m)
 		return (error);
 
 	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
-	if (XL_TRY_LOCK(sc) == 0)
-		return (0);
+	XL_LOCK(sc);
 	if (sc->xl_type == XL_TYPE_905B)
 		xl_start_90xB_locked(sc);
 	else
