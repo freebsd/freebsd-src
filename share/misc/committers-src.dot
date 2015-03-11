@@ -178,6 +178,7 @@ ian [label="Ian Lepore\nian@FreeBSD.org\n2013/01/07"]
 iedowse [label="Ian Dowse\niedowse@FreeBSD.org\n2000/12/01"]
 imp [label="Warner Losh\nimp@FreeBSD.org\n1996/09/20"]
 ivoras [label="Ivan Voras\nivoras@FreeBSD.org\n2008/06/10"]
+jah [label="Jason A. Harmening\njah@FreeBSD.org\n2015/03/08"]
 jamie [label="Jamie Gritton\njamie@FreeBSD.org\n2009/01/28"]
 jasone [label="Jason Evans\njasone@FreeBSD.org\n1999/03/03"]
 jceel [label="Jakub Klama\njceel@FreeBSD.org\n2011/09/25"]
@@ -549,6 +550,7 @@ ken -> slm
 kib -> ae
 kib -> dchagin
 kib -> gjb
+kib -> jah
 kib -> jlh
 kib -> jpaetzel
 kib -> lulf
