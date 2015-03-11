@@ -1313,10 +1313,13 @@ ctf_add_type(ctf_file_t *dst_fp, ctf_file_t *src_fp, ctf_id_t src_type)
 	 * unless dst_type is a forward declaration and src_type is a struct,
 	 * union, or enum (i.e. the definition of the previous forward decl).
 	 */
-	if (dst_type != CTF_ERR && dst_kind != kind && (
-	    dst_kind != CTF_K_FORWARD || (kind != CTF_K_ENUM &&
-	    kind != CTF_K_STRUCT && kind != CTF_K_UNION)))
-		return (ctf_set_errno(dst_fp, ECTF_CONFLICT));
+	if (dst_type != CTF_ERR && dst_kind != kind) {
+		if (dst_kind != CTF_K_FORWARD || (kind != CTF_K_ENUM &&
+		    kind != CTF_K_STRUCT && kind != CTF_K_UNION))
+			return (ctf_set_errno(dst_fp, ECTF_CONFLICT));
+		else
+			dst_type = CTF_ERR;
+	}
 
 	/*
 	 * If the non-empty name was not found in the appropriate hash, search
