@@ -49,7 +49,6 @@
 #include <netinet/udp.h>
 
 #include "mlx4_en.h"
-#include "utils.h"
 
 enum {
 	MAX_INLINE = 104, /* 128 - 16 - 4 - 4 */
@@ -699,10 +698,10 @@ static void build_inline_wqe(struct mlx4_en_tx_desc *tx_desc, struct mbuf *mb,
 	tx_desc->ctrl.fence_size = (real_size / 16) & 0x3f;
 }
 
-static unsigned long hashrandom;
+static uint32_t hashrandom;
 static void hashrandom_init(void *arg)
 {
-	hashrandom = random();
+	hashrandom = m_ether_tcpip_hash_init();
 }
 SYSINIT(hashrandom_init, SI_SUB_KLD, SI_ORDER_SECOND, &hashrandom_init, NULL);
 
@@ -724,7 +723,7 @@ u16 mlx4_en_select_queue(struct net_device *dev, struct mbuf *mb)
 	if (M_HASHTYPE_GET(mb) != M_HASHTYPE_NONE)
 		queue_index = mb->m_pkthdr.flowid;
 	else
-		queue_index = mlx4_en_hashmbuf(MLX4_F_HASHL3 | MLX4_F_HASHL4, mb, hashrandom);
+		queue_index = m_ether_tcpip_hash(MBUF_HASHFLAG_L3 | MBUF_HASHFLAG_L4, mb, hashrandom);
 
 	return ((queue_index % rings_p_up) + (up * rings_p_up));
 }

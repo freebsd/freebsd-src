@@ -1190,6 +1190,15 @@ rt_m_getfib(struct mbuf *m)
 	((_m)->m_pkthdr.fibnum) = (_fib);				\
 } while (0)
 
+/* flags passed as first argument for "m_ether_tcpip_hash()" */
+#define	MBUF_HASHFLAG_L2	(1 << 2)
+#define	MBUF_HASHFLAG_L3	(1 << 3)
+#define	MBUF_HASHFLAG_L4	(1 << 4)
+
+/* mbuf hashing helper routines */
+uint32_t	m_ether_tcpip_hash_init(void);
+uint32_t	m_ether_tcpip_hash(const uint32_t, const struct mbuf *, const uint32_t);
+
 #ifdef MBUF_PROFILING
  void m_profile(struct mbuf *m);
  #define M_PROFILE(m) m_profile(m)
