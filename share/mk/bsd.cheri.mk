@@ -10,4 +10,6 @@ CC+=    -mabi=sandbox
 .endif
 .if ${MK_CHERI128} == "yes"
 CC+=	-mllvm -cheri128
+# XXX: Needed as Clang rejects -mllvm -cheri128 when using $CC to link.
+CFLAGS+=        -Qunused-arguments
 .endif
