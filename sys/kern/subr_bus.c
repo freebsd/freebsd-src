@@ -2683,6 +2683,25 @@ device_set_devclass(device_t dev, const char *classname)
 }
 
 /**
+ * @brief Set the devclass of a device and mark the devclass fixed.
+ * @see device_set_devclass()
+ */
+int
+device_set_devclass_fixed(device_t dev, const char *classname)
+{
+	int error;
+
+	if (classname == NULL)
+		return (EINVAL);
+
+	error = device_set_devclass(dev, classname);
+	if (error)
+		return (error);
+	dev->flags |= DF_FIXEDCLASS;
+	return (0);
+}
+
+/**
  * @brief Set the driver of a device
  *
  * @retval 0		success

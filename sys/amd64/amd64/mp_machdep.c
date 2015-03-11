@@ -828,8 +828,8 @@ set_interrupt_apic_ids(void)
 			continue;
 
 		/* Don't let hyperthreads service interrupts. */
-		if (hyperthreading_cpus > 1 &&
-		    apic_id % hyperthreading_cpus != 0)
+		if (cpu_logical > 1 &&
+		    apic_id % cpu_logical != 0)
 			continue;
 
 		intr_add_cpu(i);

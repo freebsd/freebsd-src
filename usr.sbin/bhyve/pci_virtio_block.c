@@ -217,6 +217,7 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vqueue_info *vq)
 	DPRINTF(("virtio-block: %s op, %d bytes, %d segs, offset %ld\n\r", 
 		 writeop ? "write" : "read/ident", iolen, i - 1, offset));
 
+	err = 0;
 	switch (type) {
 	case VBH_OP_WRITE:
 		if (pwritev(sc->vbsc_fd, iov + 1, i - 1, offset) < 0)
@@ -246,12 +247,11 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vqueue_info *vq)
 	}
 
 	/* convert errno into a virtio block error return */
-	if (err < 0) {
-		if (err == -ENOSYS)
-			*status = VTBLK_S_UNSUPP;
-		else
-			*status = VTBLK_S_IOERR;
-	} else
+	if (err == -ENOSYS)
+		*status = VTBLK_S_UNSUPP;
+	else if (err != 0)
+		*status = VTBLK_S_IOERR;
+	else
 		*status = VTBLK_S_OK;
 
 	/*

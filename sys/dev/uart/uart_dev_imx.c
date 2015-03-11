@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
+#include <dev/uart/uart_cpu_fdt.h>
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_dev_imx.h>
 #include "uart_if.h"
@@ -291,7 +292,7 @@ static kobj_method_t imx_uart_methods[] = {
 	{ 0, 0 }
 };
 
-struct uart_class uart_imx_class = {
+static struct uart_class uart_imx_class = {
 	"imx",
 	imx_uart_methods,
 	sizeof(struct imx_uart_softc),
@@ -299,6 +300,18 @@ struct uart_class uart_imx_class = {
 	.uc_range = 0x100,
 	.uc_rclk = 24000000 /* TODO: get value from CCM */
 };
+
+static struct ofw_compat_data compat_data[] = {
+	{"fsl,imx6q-uart",	(uintptr_t)&uart_imx_class},
+	{"fsl,imx53-uart",	(uintptr_t)&uart_imx_class},
+	{"fsl,imx51-uart",	(uintptr_t)&uart_imx_class},
+	{"fsl,imx31-uart",	(uintptr_t)&uart_imx_class},
+	{"fsl,imx27-uart",	(uintptr_t)&uart_imx_class},
+	{"fsl,imx25-uart",	(uintptr_t)&uart_imx_class},
+	{"fsl,imx21-uart",	(uintptr_t)&uart_imx_class},
+	{NULL,			(uintptr_t)NULL},
+};
+UART_FDT_CLASS_AND_DEVICE(compat_data);
 
 #define	SIGCHG(c, i, s, d)				\
 	if (c) {					\

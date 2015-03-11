@@ -17,14 +17,13 @@
 #
 # $FreeBSD$
 #
+#NO_UNIVERSE
 
 ident		DOCKSTAR
 
 include		"../mv/kirkwood/std.db88f6xxx"
 
 makeoptions	FDT_DTS_FILE=dockstar.dts
-
-makeoptions	MODULES_OVERRIDE=""
 
 options 	SOC_MV_KIRKWOOD
 

@@ -153,7 +153,7 @@ arm_physmem_print_tables()
  * Walk the list of hardware regions, processing it against the list of
  * exclusions that contain the given exflags, and generating an "avail list".
  *
- * Updates the kernel global 'realmem' with the sum of all pages in hw regions.
+ * Updates the value at *pavail with the sum of all pages in all hw regions.
  *
  * Returns the number of pages of non-excluded memory added to the avail list.
  */

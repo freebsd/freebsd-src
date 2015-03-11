@@ -411,7 +411,7 @@ link_elf_init(void* arg)
 
 	ef = (elf_file_t) linker_kernel_file;
 	ef->preloaded = 1;
-#ifdef __powerpc64__
+#ifdef __powerpc__
 	ef->address = (caddr_t) (__startkernel - KERNBASE);
 #else
 	ef->address = 0;

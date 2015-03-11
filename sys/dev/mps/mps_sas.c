@@ -3406,19 +3406,6 @@ mpssas_check_eedp(struct mps_softc *sc, struct cam_path *path,
 
 	xpt_path_string(local_path, path_str, sizeof(path_str));
 
-	/*
-	 * If this is a SATA direct-access end device,
-	 * mark it so that a SCSI StartStopUnit command
-	 * will be sent to it when the driver is being
-	 * shutdown.
-	 */
-	if ((cgd.inq_data.device == T_DIRECT) && 
-	    (target->devinfo & MPI2_SAS_DEVICE_INFO_SATA_DEVICE) &&
-	    ((target->devinfo & MPI2_SAS_DEVICE_INFO_MASK_DEVICE_TYPE) ==
-	    MPI2_SAS_DEVICE_INFO_END_DEVICE)) {
-		lun->stop_at_shutdown = TRUE;
-	}
-
 	mps_dprint(sc, MPS_INFO, "Sending read cap: path %s handle %d\n",
 	    path_str, target->handle);
 

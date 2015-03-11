@@ -53,14 +53,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_bus.h>
 
 #include <dev/usb/controller/dwc_otg.h>
+#include <dev/usb/controller/dwc_otg_fdt.h>
 
 static device_probe_t dwc_otg_probe;
-static device_attach_t dwc_otg_attach;
 static device_detach_t dwc_otg_detach;
-
-struct dwc_otg_super_softc {
-	struct dwc_otg_softc sc_otg;	/* must be first */
-};
 
 static int
 dwc_otg_probe(device_t dev)
@@ -74,13 +70,13 @@ dwc_otg_probe(device_t dev)
 
 	device_set_desc(dev, "DWC OTG 2.0 integrated USB controller");
 
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
-static int
+int
 dwc_otg_attach(device_t dev)
 {
-	struct dwc_otg_super_softc *sc = device_get_softc(dev);
+	struct dwc_otg_fdt_softc *sc = device_get_softc(dev);
 	char usb_mode[24];
 	int err;
 	int rid;
@@ -161,7 +157,7 @@ error:
 static int
 dwc_otg_detach(device_t dev)
 {
-	struct dwc_otg_super_softc *sc = device_get_softc(dev);
+	struct dwc_otg_fdt_softc *sc = device_get_softc(dev);
 	device_t bdev;
 	int err;
 
@@ -212,10 +208,10 @@ static device_method_t dwc_otg_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t dwc_otg_driver = {
+driver_t dwc_otg_driver = {
 	.name = "dwcotg",
 	.methods = dwc_otg_methods,
-	.size = sizeof(struct dwc_otg_super_softc),
+	.size = sizeof(struct dwc_otg_fdt_softc),
 };
 
 static devclass_t dwc_otg_devclass;

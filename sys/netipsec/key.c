@@ -3870,7 +3870,7 @@ key_ismyaddr6(struct sockaddr_in6 *sin6)
 
 	IN6_IFADDR_RLOCK();
 	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
-		if (key_sockaddrcmp((struct sockaddr *)&sin6,
+		if (key_sockaddrcmp((struct sockaddr *)sin6,
 		    (struct sockaddr *)&ia->ia_addr, 0) == 0) {
 			IN6_IFADDR_RUNLOCK();
 			return 1;

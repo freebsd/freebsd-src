@@ -149,10 +149,10 @@ arp_ifscrub(struct ifnet *ifp, uint32_t addr)
 	addr4.sin_len    = sizeof(addr4);
 	addr4.sin_family = AF_INET;
 	addr4.sin_addr.s_addr = addr;
-	IF_AFDATA_RLOCK(ifp);
+	IF_AFDATA_WLOCK(ifp);
 	lla_lookup(LLTABLE(ifp), (LLE_DELETE | LLE_IFADDR),
 	    (struct sockaddr *)&addr4);
-	IF_AFDATA_RUNLOCK(ifp);
+	IF_AFDATA_WUNLOCK(ifp);
 }
 #endif
 
