@@ -40,7 +40,7 @@
 #include "procstat.h"
 
 static int aflag, bflag, cflag, eflag, fflag, iflag, jflag, kflag, lflag, rflag;
-static int sflag, tflag, vflag, xflag, Sflag;;
+static int sflag, tflag, vflag, xflag, Sflag;
 int	hflag, nflag, Cflag, Hflag;
 
 static void
