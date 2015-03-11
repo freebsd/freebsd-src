@@ -1431,8 +1431,7 @@ nd6_dad_timer(struct dadq *dp)
 
 	/* Stop DAD if the interface is down even after dad_maxtry attempts. */
 	if ((dp->dad_ns_tcount > V_dad_maxtry) &&
-	    (((ifp->if_flags & IFF_UP) == 0) ||
-	     ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0))) {
+	    ((ifp->if_flags & IFF_UP) == 0)) {
 		nd6log((LOG_INFO, "%s: could not run DAD, driver problem?\n",
 		    if_name(ifa->ifa_ifp)));
 		goto err;
