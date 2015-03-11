@@ -123,6 +123,7 @@ struct icl_conn {
 	 * User (initiator or provider) private fields.
 	 */
 	void			*ic_prv0;
+	void			*ic_ofld_prv0;
 };
 
 struct icl_conn	*icl_new_conn(const char *offload, const char *name,
