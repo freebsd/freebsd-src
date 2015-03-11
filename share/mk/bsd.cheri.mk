@@ -8,3 +8,6 @@ CC+=	--sysroot=${SYSROOT}
 .if defined(USE_CHERI_STACK)
 CC+=    -mabi=sandbox
 .endif
+.if ${MK_CHERI128} == "yes"
+CC+=	-mllvm -cheri128
+.endif
