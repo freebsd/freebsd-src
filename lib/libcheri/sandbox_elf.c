@@ -63,6 +63,7 @@ struct sandbox_map_entry {
 
 struct sandbox_map {
 	struct sandbox_map_head	sm_head;
+	size_t			sm_minoffset;
 	size_t			sm_maxoffset;
 };
 
@@ -153,6 +154,43 @@ sandbox_map_maxoffset(struct sandbox_map *sm)
 	return(sm->sm_maxoffset);
 }
 
+size_t
+sandbox_map_minoffset(struct sandbox_map *sm)
+{
+
+	return(sm->sm_minoffset);
+}
+
+static int
+sandbox_map_optimize(struct sandbox_map *sm)
+{
+	size_t delta;
+	struct sandbox_map_entry *sme;
+
+	/*
+	 * Search for any mapping that start below sm->sm_minoffset (the
+	 * offset of the first real program data in a section) and shift
+	 * them up to match.  This eliminates the problem of the reserved
+	 * first 0x8000 bytes being mapped from the ELF file due to linker
+	 * script bugs.
+	 */
+	STAILQ_FOREACH(sme, &sm->sm_head, sme_entries) {
+		if (sme->sme_map_offset < sm->sm_minoffset) {
+			delta = sm->sm_minoffset - sme->sme_map_offset;
+#ifdef DEBUG
+			printf("shifting map up by 0x%zx from 0x%zx\n", delta,
+			    sme->sme_map_offset);
+#endif
+			assert(sme->sme_len > delta);
+			sme->sme_map_offset += delta;
+			sme->sme_len -= delta;
+			sme->sme_file_offset += delta;
+		}
+	}
+
+	return (0);
+}
+
 struct sandbox_map *
 sandbox_parse_elf64(int fd, u_int flags)
 {
@@ -160,8 +198,10 @@ sandbox_parse_elf64(int fd, u_int flags)
 	size_t taddr;
 	ssize_t rlen;
 	size_t maplen, mappedbytes, offset, tailbytes;
+	size_t min_section_addr = (size_t)-1;
 	Elf64_Ehdr ehdr;
 	Elf64_Phdr phdr;
+	Elf64_Shdr shdr;
 	struct sandbox_map *sm;
 	struct sandbox_map_entry *sme;
 
@@ -295,6 +335,30 @@ sandbox_parse_elf64(int fd, u_int flags)
 			goto error;
 		STAILQ_INSERT_TAIL(&sm->sm_head, sme, sme_entries);
 	}
+
+	for (i = 1; i < ehdr.e_shnum; i++) {	/* Skip section 0 */
+		if ((rlen = pread(fd, &shdr, sizeof(shdr), ehdr.e_shoff +
+		    ehdr.e_shentsize * i)) != sizeof(shdr)) {
+			warn("%s: reading %d section header", __func__, i+1);
+			goto error;
+		}
+
+		/*
+		 * Find the "real" section with the lowest address.
+		 * Exclude everything in the first page as those would
+		 * either introduce potential NULL related bugs or
+		 * treat various ELF stables as valid.
+		 */
+		if (shdr.sh_addr >= 0x1000 &&
+		    min_section_addr > shdr.sh_addr)
+			min_section_addr = shdr.sh_addr;
+	}
+#ifdef DEBUG
+	printf("minimum section address 0x%lx\n", min_section_addr);
+#endif
+	sm->sm_minoffset = rounddown2(min_section_addr, PAGE_SIZE);
+
+	sandbox_map_optimize(sm);
 
 	return (sm);
 error:

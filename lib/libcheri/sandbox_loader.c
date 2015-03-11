@@ -93,6 +93,19 @@ sandbox_class_load(struct sandbox_class *sbcp)
 	 * quite differently.
 	 */
 
+	/*
+	 * Ensure that we aren't going to map over NULL, guard pages, or
+	 * metadata.  This check can probably be relaxed somewhat for
+	 * the code capability, but for now it's right.
+	 */
+	if (sandbox_map_minoffset(sbcp->sbc_codemap) < SANDBOX_BINARY_BASE) {
+		saved_errno = EINVAL;
+		warnx("%s: sandbox wants to load below 0x%zx and 0x%zx",
+		    __func__, (size_t)SANDBOX_BINARY_BASE,
+		    sandbox_map_minoffset(sbcp->sbc_codemap));
+		goto error;
+	}
+
 	length = sbcp->sbc_sandboxlen;
 	base = sbcp->sbc_mem = mmap(NULL, length, PROT_NONE, MAP_ANON, -1, 0);
 	if (sbcp->sbc_mem == MAP_FAILED) {
@@ -106,18 +119,6 @@ sandbox_class_load(struct sandbox_class *sbcp)
 		goto error;
 	}
 	max_prog_offset = sandbox_map_maxoffset(sbcp->sbc_codemap);
-
-	/*
-	 * Protect guard page(s) at the bottom of the code capability.
-	 *
-	 * XXXRW: More ideally, the ELF load wouldn't unprotect them.  See
-	 * XXXBD in sandbox_object_load().
-	 */
-	if (mprotect(base, SANDBOX_METADATA_BASE, PROT_NONE) < 0) {
-		saved_errno = errno;
-		warn("%s: mprotect NULL guard page", __func__);
-		goto error;
-	}
 
 	/*
 	* Parse the sandbox ELF binary for CCall methods provided and
@@ -243,6 +244,19 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 * implemented here.  Location and contents of sandbox metadata is
 	 * part of the ABI.
 	 */
+
+	/*
+	 * Ensure that we aren't going to map over NULL, guard pages, or
+	 * metadata.
+	 */
+	if (sandbox_map_minoffset(sbcp->sbc_datamap) < SANDBOX_BINARY_BASE) {
+		saved_errno = EINVAL;
+		warnx("%s: sandbox wants to load below 0x%zx and 0x%zx",
+		    __func__, (size_t)SANDBOX_BINARY_BASE,
+		    sandbox_map_minoffset(sbcp->sbc_datamap));
+		goto error;
+	}
+
 	length = sbcp->sbc_sandboxlen;
 	base = sbop->sbo_mem = mmap(NULL, length, PROT_NONE, MAP_ANON, -1, 0);
 	if (sbop->sbo_mem == MAP_FAILED) {
@@ -252,8 +266,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	}
 
 	/*
-	 * Map and (eventually) link the program.  It may overlap guard pages,
-	 * etc so lower ones will be reconfigured manually.
+	 * Map and (eventually) link the program.
 	 */
 	if (sandbox_map_load(base, sbcp->sbc_datamap) == -1) {
 		saved_errno = EINVAL;
@@ -261,20 +274,6 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 		goto error;
 	}
 	max_prog_offset = sandbox_map_maxoffset(sbcp->sbc_datamap);
-
-	/*
-	 * Zero and protect guard page(s) to the base of the metadata
-	 * structure.
-	 */
-	/*
-	 * XXXBD: Object binary should not cover map these, but currently
-	 * this is the ELF header.
-	 */
-	if (mprotect(base, SANDBOX_METADATA_BASE, PROT_NONE) < 0) {
-		saved_errno = errno;
-		warn("%s: mprotect NULL guard page", __func__);
-		goto error;
-	}
 
 	/*
 	 * Skip guard page(s) to the base of the metadata structure.

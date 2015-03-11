@@ -42,5 +42,6 @@ struct sandbox_map	*sandbox_parse_elf64(int fd, u_int flags);
 int			 sandbox_map_load(void *base, struct sandbox_map *sm);
 void			 sandbox_map_free(struct sandbox_map *sm);
 size_t			 sandbox_map_maxoffset(struct sandbox_map *sm);
+size_t			 sandbox_map_minoffset(struct sandbox_map *sm);
 
 #endif /* __SANDBOX_ELF_H__ */
