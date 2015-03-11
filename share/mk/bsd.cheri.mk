@@ -8,5 +8,3 @@ CC+=	--sysroot=${SYSROOT}
 .if defined(USE_CHERI_STACK)
 CC+=    -mabi=sandbox
 .endif
-# XXXRW: Needed as Clang rejects -G0 when using $CC to link.
-#CFLAGS+=        -Qunused-arguments
