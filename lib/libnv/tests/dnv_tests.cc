@@ -450,7 +450,7 @@ ATF_TEST_CASE_BODY(dnvlist_take_nvlist__empty)
 	nvl = nvlist_create(0);
 
 	actual_val = dnvlist_take_nvlist(nvl, "123", NULL);
-	ATF_REQUIRE_EQ(actual_val, NULL);
+	ATF_REQUIRE_EQ(actual_val, static_cast<nvlist_t *>(NULL));
 
 	free(actual_val);
 	nvlist_destroy(nvl);

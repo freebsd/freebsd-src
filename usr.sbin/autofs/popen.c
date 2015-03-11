@@ -104,7 +104,7 @@ auto_popen(const char *argv0, ...)
 		if (arg == NULL)
 			break;
 
-		command = separated_concat(command, arg, ' ');
+		command = concat(command, ' ', arg);
 	}
 	va_end(ap);
 
