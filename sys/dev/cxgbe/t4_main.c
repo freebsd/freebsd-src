@@ -8190,11 +8190,8 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 
 #ifdef TCP_OFFLOAD
 void
-t4_iscsi_init(struct ifnet *ifp, unsigned int tag_mask,
-    const unsigned int *pgsz_order)
+t4_iscsi_init(struct adapter *sc, u_int tag_mask, const u_int *pgsz_order)
 {
-	struct port_info *pi = ifp->if_softc;
-	struct adapter *sc = pi->adapter;
 
 	t4_write_reg(sc, A_ULP_RX_ISCSI_TAGMASK, tag_mask);
 	t4_write_reg(sc, A_ULP_RX_ISCSI_PSZ, V_HPZ0(pgsz_order[0]) |
