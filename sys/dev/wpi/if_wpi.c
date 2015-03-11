@@ -447,8 +447,6 @@ wpi_attach(device_t dev)
 	ic->ic_cryptocaps =
 		  IEEE80211_CRYPTO_AES_CCM;
 
-	ic->ic_flags |= IEEE80211_F_DATAPAD;
-
 	/*
 	 * Read in the eeprom and also setup the channels for
 	 * net80211. We don't set the rates as net80211 does this for us
@@ -2224,8 +2222,6 @@ done:
 static int
 wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211_frame *wh;
 	struct wpi_tx_cmd *cmd;
 	struct wpi_tx_data *data;
@@ -2233,15 +2229,21 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 	struct wpi_tx_ring *ring;
 	struct mbuf *m1;
 	bus_dma_segment_t *seg, segs[WPI_MAX_SCATTER];
-	int error, i, hdrspace, nsegs, totlen;
+	int error, i, hdrlen, nsegs, totlen, pad;
 
 	WPI_LOCK_ASSERT(sc);
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_BEGIN, __func__);
 
 	wh = mtod(buf->m, struct ieee80211_frame *);
-	hdrspace = ieee80211_anyhdrspace(ic, wh);
+	hdrlen = ieee80211_anyhdrsize(wh);
 	totlen = buf->m->m_pkthdr.len;
+
+	if (hdrlen & 3) {
+		/* First segment length must be a multiple of 4. */
+		pad = 4 - (hdrlen & 3);
+	} else
+		pad = 0;
 
 	ring = &sc->txq[buf->ac];
 	desc = &ring->desc[ring->cur];
@@ -2257,8 +2259,8 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 	memcpy(cmd->data, buf->data, buf->size);
 
 	/* Save and trim IEEE802.11 header. */
-	memcpy((uint8_t *)(cmd->data + buf->size), wh, hdrspace);
-	m_adj(buf->m, hdrspace);
+	memcpy((uint8_t *)(cmd->data + buf->size), wh, hdrlen);
+	m_adj(buf->m, hdrlen);
 
 	error = bus_dmamap_load_mbuf_sg(ring->data_dmat, data->map, buf->m,
 	    segs, &nsegs, BUS_DMA_NOWAIT);
@@ -2296,10 +2298,10 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 	    __func__, ring->qid, ring->cur, totlen, nsegs);
 
 	/* Fill TX descriptor. */
-	desc->nsegs = WPI_PAD32(totlen) << 4 | (1 + nsegs);
+	desc->nsegs = WPI_PAD32(totlen + pad) << 4 | (1 + nsegs);
 	/* First DMA segment is used by the TX command. */
 	desc->segs[0].addr = htole32(data->cmd_paddr);
-	desc->segs[0].len  = htole32(4 + buf->size + hdrspace);
+	desc->segs[0].len  = htole32(4 + buf->size + hdrlen + pad);
 	/* Other DMA segments are for data payload. */
 	seg = &segs[0];
 	for (i = 1; i <= nsegs; i++) {
@@ -2345,10 +2347,9 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	uint32_t flags;
 	uint16_t qos;
 	uint8_t tid, type;
-	int ac, error, rate, ismcast, hdrlen, totlen;
+	int ac, error, rate, ismcast, totlen;
 
 	wh = mtod(m, struct ieee80211_frame *);
-	hdrlen = ieee80211_anyhdrsize(wh);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
 
@@ -2392,12 +2393,12 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		/* 802.11 header may have moved. */
 		wh = mtod(m, struct ieee80211_frame *);
 	}
-	totlen = m->m_pkthdr.len - (hdrlen & 3);
+	totlen = m->m_pkthdr.len;
 
 	if (ieee80211_radiotap_active_vap(vap)) {
 		struct wpi_tx_radiotap_header *tap = &sc->sc_txtap;
 
-		tap->wt_flags = IEEE80211_RADIOTAP_F_DATAPAD;
+		tap->wt_flags = 0;
 		tap->wt_rate = rate;
 		if (k != NULL)
 			tap->wt_flags |= IEEE80211_RADIOTAP_F_WEP;
@@ -2514,12 +2515,11 @@ wpi_tx_data_raw(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	struct wpi_buf tx_data;
 	uint32_t flags;
 	uint8_t type;
-	int ac, rate, hdrlen, totlen;
+	int ac, rate, totlen;
 
 	wh = mtod(m, struct ieee80211_frame *);
-	hdrlen = ieee80211_anyhdrsize(wh);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
-	totlen = m->m_pkthdr.len - (hdrlen & 3);
+	totlen = m->m_pkthdr.len;
 
 	ac = params->ibp_pri & 3;
 
@@ -2541,8 +2541,6 @@ wpi_tx_data_raw(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 
 		tap->wt_flags = 0;
 		tap->wt_rate = rate;
-		if (params->ibp_flags & IEEE80211_BPF_DATAPAD)
-			tap->wt_flags |= IEEE80211_RADIOTAP_F_DATAPAD;
 
 		ieee80211_radiotap_tx(vap, m);
 	}
@@ -2926,7 +2924,7 @@ wpi_add_node(struct wpi_softc *sc, struct ieee80211_node *ni)
 		return EINVAL;
 
 	memset(&node, 0, sizeof node);
-	IEEE80211_ADDR_COPY(node.macaddr, ni->ni_bssid);
+	IEEE80211_ADDR_COPY(node.macaddr, ni->ni_macaddr);
 	node.id = wn->id;
 	node.plcp = (ic->ic_curmode == IEEE80211_MODE_11A) ?
 	    wpi_ridx_to_plcp[WPI_RIDX_OFDM6] : wpi_ridx_to_plcp[WPI_RIDX_CCK1];
@@ -2993,7 +2991,7 @@ wpi_del_node(struct wpi_softc *sc, struct ieee80211_node *ni)
 	}
 
 	memset(&node, 0, sizeof node);
-	IEEE80211_ADDR_COPY(node.macaddr, ni->ni_bssid);
+	IEEE80211_ADDR_COPY(node.macaddr, ni->ni_macaddr);
 	node.count = 1;
 
 	error = wpi_cmd(sc, WPI_CMD_DEL_NODE, &node, sizeof node, 1);
@@ -3404,6 +3402,7 @@ wpi_config(struct wpi_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	uint32_t flags;
 	int error;
 
@@ -3425,7 +3424,7 @@ wpi_config(struct wpi_softc *sc)
 
 	/* Configure adapter. */
 	memset(&sc->rxon, 0, sizeof (struct wpi_rxon));
-	IEEE80211_ADDR_COPY(sc->rxon.myaddr, IF_LLADDR(ifp));
+	IEEE80211_ADDR_COPY(sc->rxon.myaddr, vap->iv_myaddr);
 
 	/* Set default channel. */
 	sc->rxon.chan = ieee80211_chan2ieee(ic, ic->ic_curchan);
@@ -3559,6 +3558,7 @@ wpi_scan(struct wpi_softc *sc, struct ieee80211_channel *c)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211_scan_state *ss = ic->ic_scan;
+	struct ieee80211vap *vap = ss->ss_vap;
 	struct wpi_scan_hdr *hdr;
 	struct wpi_cmd_data *tx;
 	struct wpi_scan_essid *essids;
@@ -3645,7 +3645,7 @@ wpi_scan(struct wpi_softc *sc, struct ieee80211_channel *c)
 		IEEE80211_FC0_SUBTYPE_PROBE_REQ;
 	wh->i_fc[1] = IEEE80211_FC1_DIR_NODS;
 	IEEE80211_ADDR_COPY(wh->i_addr1, ifp->if_broadcastaddr);
-	IEEE80211_ADDR_COPY(wh->i_addr2, IF_LLADDR(ifp));
+	IEEE80211_ADDR_COPY(wh->i_addr2, vap->iv_myaddr);
 	IEEE80211_ADDR_COPY(wh->i_addr3, ifp->if_broadcastaddr);
 	*(uint16_t *)&wh->i_dur[0] = 0;	/* filled by h/w */
 	*(uint16_t *)&wh->i_seq[0] = 0;	/* filled by h/w */

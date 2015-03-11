@@ -68,7 +68,6 @@ static __inline void ixl_rx_input(struct rx_ring *, struct ifnet *,
 
 /*
 ** Multiqueue Transmit driver
-**
 */
 int
 ixl_mq_start(struct ifnet *ifp, struct mbuf *m)
@@ -112,7 +111,7 @@ ixl_mq_start(struct ifnet *ifp, struct mbuf *m)
 
 	err = drbr_enqueue(ifp, txr->br, m);
 	if (err)
-		return(err);
+		return (err);
 	if (IXL_TX_TRYLOCK(txr)) {
 		ixl_mq_start_locked(ifp, txr);
 		IXL_TX_UNLOCK(txr);
@@ -488,15 +487,16 @@ fail:
 void
 ixl_init_tx_ring(struct ixl_queue *que)
 {
-	struct tx_ring *txr = &que->txr;
-	struct ixl_tx_buf *buf;
 #ifdef DEV_NETMAP
 	struct netmap_adapter *na = NA(que->vsi->ifp);
 	struct netmap_slot *slot;
 #endif /* DEV_NETMAP */
+	struct tx_ring		*txr = &que->txr;
+	struct ixl_tx_buf	*buf;
 
 	/* Clear the old ring contents */
 	IXL_TX_LOCK(txr);
+
 #ifdef DEV_NETMAP
 	/*
 	 * (under lock): if in netmap mode, do some consistency
@@ -1158,7 +1158,7 @@ ixl_init_rx_ring(struct ixl_queue *que)
 	struct ixl_rx_buf	*buf;
 	bus_dma_segment_t	pseg[1], hseg[1];
 	int			rsize, nsegs, error = 0;
-#ifdef DEV_NETMAP 
+#ifdef DEV_NETMAP
 	struct netmap_adapter *na = NA(que->vsi->ifp);
 	struct netmap_slot *slot;
 #endif /* DEV_NETMAP */
@@ -1222,7 +1222,6 @@ ixl_init_rx_ring(struct ixl_queue *que)
 			continue;
 		}
 #endif /* DEV_NETMAP */
-
 		/*
 		** Don't allocate mbufs if not
 		** doing header split, its wasteful

@@ -25,58 +25,34 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/queue.h>
+#include <sys/fnv_hash.h>
 #include <sys/socket.h>
-#include <sys/sockio.h>
-#include <sys/sysctl.h>
-#include <sys/module.h>
-#include <sys/priv.h>
-#include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/hash.h>
-#include <sys/lock.h>
-#include <sys/rmlock.h>
-#include <sys/taskqueue.h>
-#include <sys/eventhandler.h>
+
+#include <net/if.h>
+#include <net/if_var.h>
 
 #include <net/ethernet.h>
-#include <net/if.h>
-#include <net/if_clone.h>
-#include <net/if_arp.h>
-#include <net/if_dl.h>
-#include <net/if_llc.h>
-#include <net/if_media.h>
-#include <net/if_types.h>
-#include <net/if_var.h>
-#include <net/bpf.h>
 
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
 #endif
+
 #ifdef INET
-#include <netinet/in_systm.h>
-#include <netinet/if_ether.h>
 #include <netinet/ip.h>
 #endif
 
 #ifdef INET6
 #include <netinet/ip6.h>
-#include <netinet6/in6_var.h>
-#include <netinet6/in6_ifattach.h>
 #endif
 
 #include <net/if_vlan_var.h>
 
-#include "utils.h"
-
-/* XXX this code should be factored out */
-/* XXX copied from if_lagg.c */
-
 static const void *
-mlx4_en_gethdr(struct mbuf *m, u_int off, u_int len, void *buf)
+m_ether_tcpip_hash_gethdr(const struct mbuf *m, const u_int off,
+    const u_int len, void *buf)
 {
+
 	if (m->m_pkthdr.len < (off + len)) {
 		return (NULL);
 	} else if (m->m_len < (off + len)) {
@@ -87,22 +63,18 @@ mlx4_en_gethdr(struct mbuf *m, u_int off, u_int len, void *buf)
 }
 
 uint32_t
-mlx4_en_hashmbuf(uint32_t flags, struct mbuf *m, uint32_t key)
+m_ether_tcpip_hash_init(void)
 {
-	uint16_t etype;
-	uint32_t p = key;
-	int off;
-	struct ether_header *eh;
-	const struct ether_vlan_header *vlan;
-#ifdef INET
-	const struct ip *ip;
-	const uint32_t *ports;
-	int iphlen;
-#endif
-#ifdef INET6
-	const struct ip6_hdr *ip6;
-	uint32_t flow;
-#endif
+	uint32_t seed;
+
+	seed = arc4random();
+	return (fnv_32_buf(&seed, sizeof(seed), FNV1_32_INIT));
+}
+
+uint32_t
+m_ether_tcpip_hash(const uint32_t flags, const struct mbuf *m,
+    const uint32_t key)
+{
 	union {
 #ifdef INET
 		struct ip ip;
@@ -113,47 +85,57 @@ mlx4_en_hashmbuf(uint32_t flags, struct mbuf *m, uint32_t key)
 		struct ether_vlan_header vlan;
 		uint32_t port;
 	} buf;
+	struct ether_header *eh;
+	const struct ether_vlan_header *vlan;
+#ifdef INET
+	const struct ip *ip;
+#endif
+#ifdef INET6
+	const struct ip6_hdr *ip6;
+#endif
+	uint32_t p;
+	int off;
+	uint16_t etype;
 
-
+	p = key;
 	off = sizeof(*eh);
 	if (m->m_len < off)
-		goto out;
+		goto done;
 	eh = mtod(m, struct ether_header *);
 	etype = ntohs(eh->ether_type);
-	if (flags & MLX4_F_HASHL2) {
-		p = hash32_buf(&eh->ether_shost, ETHER_ADDR_LEN, p);
-		p = hash32_buf(&eh->ether_dhost, ETHER_ADDR_LEN, p);
+	if (flags & MBUF_HASHFLAG_L2) {
+		p = fnv_32_buf(&eh->ether_shost, ETHER_ADDR_LEN, p);
+		p = fnv_32_buf(&eh->ether_dhost, ETHER_ADDR_LEN, p);
 	}
-
 	/* Special handling for encapsulating VLAN frames */
-	if ((m->m_flags & M_VLANTAG) && (flags & MLX4_F_HASHL2)) {
-		p = hash32_buf(&m->m_pkthdr.ether_vtag,
+	if ((m->m_flags & M_VLANTAG) && (flags & MBUF_HASHFLAG_L2)) {
+		p = fnv_32_buf(&m->m_pkthdr.ether_vtag,
 		    sizeof(m->m_pkthdr.ether_vtag), p);
 	} else if (etype == ETHERTYPE_VLAN) {
-		vlan = mlx4_en_gethdr(m, off,  sizeof(*vlan), &buf);
+		vlan = m_ether_tcpip_hash_gethdr(m, off, sizeof(*vlan), &buf);
 		if (vlan == NULL)
-			goto out;
+			goto done;
 
-		if (flags & MLX4_F_HASHL2)
-			p = hash32_buf(&vlan->evl_tag, sizeof(vlan->evl_tag), p);
+		if (flags & MBUF_HASHFLAG_L2)
+			p = fnv_32_buf(&vlan->evl_tag, sizeof(vlan->evl_tag), p);
 		etype = ntohs(vlan->evl_proto);
 		off += sizeof(*vlan) - sizeof(*eh);
 	}
-
 	switch (etype) {
 #ifdef INET
 	case ETHERTYPE_IP:
-		ip = mlx4_en_gethdr(m, off, sizeof(*ip), &buf);
+		ip = m_ether_tcpip_hash_gethdr(m, off, sizeof(*ip), &buf);
 		if (ip == NULL)
-			goto out;
-
-		if (flags & MLX4_F_HASHL3) {
-			p = hash32_buf(&ip->ip_src, sizeof(struct in_addr), p);
-			p = hash32_buf(&ip->ip_dst, sizeof(struct in_addr), p);
-		}
-		if (!(flags & MLX4_F_HASHL4))
 			break;
-		switch (ip->ip_p) {
+		if (flags & MBUF_HASHFLAG_L3) {
+			p = fnv_32_buf(&ip->ip_src, sizeof(struct in_addr), p);
+			p = fnv_32_buf(&ip->ip_dst, sizeof(struct in_addr), p);
+		}
+		if (flags & MBUF_HASHFLAG_L4) {
+			const uint32_t *ports;
+			int iphlen;
+
+			switch (ip->ip_p) {
 			case IPPROTO_TCP:
 			case IPPROTO_UDP:
 			case IPPROTO_SCTP:
@@ -161,29 +143,39 @@ mlx4_en_hashmbuf(uint32_t flags, struct mbuf *m, uint32_t key)
 				if (iphlen < sizeof(*ip))
 					break;
 				off += iphlen;
-				ports = mlx4_en_gethdr(m, off, sizeof(*ports), &buf);
+				ports = m_ether_tcpip_hash_gethdr(m,
+				    off, sizeof(*ports), &buf);
 				if (ports == NULL)
 					break;
-				p = hash32_buf(ports, sizeof(*ports), p);
+				p = fnv_32_buf(ports, sizeof(*ports), p);
 				break;
+			default:
+				break;
+			}
 		}
 		break;
 #endif
 #ifdef INET6
 	case ETHERTYPE_IPV6:
-		if (!(flags & MLX4_F_HASHL3))
-			break;
-		ip6 = mlx4_en_gethdr(m, off, sizeof(*ip6), &buf);
+		ip6 = m_ether_tcpip_hash_gethdr(m, off, sizeof(*ip6), &buf);
 		if (ip6 == NULL)
-			goto out;
+			break;
+		if (flags & MBUF_HASHFLAG_L3) {
+			p = fnv_32_buf(&ip6->ip6_src, sizeof(struct in6_addr), p);
+			p = fnv_32_buf(&ip6->ip6_dst, sizeof(struct in6_addr), p);
+		}
+		if (flags & MBUF_HASHFLAG_L4) {
+			uint32_t flow;
 
-		p = hash32_buf(&ip6->ip6_src, sizeof(struct in6_addr), p);
-		p = hash32_buf(&ip6->ip6_dst, sizeof(struct in6_addr), p);
-		flow = ip6->ip6_flow & IPV6_FLOWLABEL_MASK;
-		p = hash32_buf(&flow, sizeof(flow), p);	/* IPv6 flow label */
+			/* IPv6 flow label */
+			flow = ip6->ip6_flow & IPV6_FLOWLABEL_MASK;
+			p = fnv_32_buf(&flow, sizeof(flow), p);
+		}
 		break;
 #endif
+	default:
+		break;
 	}
-out:
+done:
 	return (p);
 }
