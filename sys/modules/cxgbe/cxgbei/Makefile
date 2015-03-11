@@ -1,20 +1,19 @@
 # $FreeBSD$
 
-CXGBEI = ${.CURDIR}/../../../dev/cxgbe/cxgbei
 CXGBE = ${.CURDIR}/../../../dev/cxgbe
-.PATH: ${CXGBEI} ${CXGBE}/common
+.PATH: ${CXGBE}/cxgbei
 
 KMOD=	cxgbei
 
-SRCS=  cxgbei.c
-SRCS+= cxgbei_ulp2_ddp.c
-SRCS+=  icl_cxgbei.c
-SRCS+=  bus_if.h
-SRCS+=  device_if.h
-SRCS+=  opt_inet.h
-SRCS+=  opt_inet6.h
-SRCS+=  opt_ofed.h
-SRCS+=  pci_if.h
+SRCS=	cxgbei.c
+SRCS+=	cxgbei_ulp2_ddp.c
+SRCS+=	icl_cxgbei.c
+SRCS+=	bus_if.h
+SRCS+=	device_if.h
+SRCS+=	opt_inet.h
+SRCS+=	opt_inet6.h
+SRCS+=	opt_ofed.h
+SRCS+=	pci_if.h
 SRCS+=	opt_cam.h
 SRCS+=	icl_conn_if.h
 
