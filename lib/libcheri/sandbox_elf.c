@@ -243,10 +243,18 @@ sandbox_parse_elf64(int fd, u_int flags)
 			if (!(flags & SANDBOX_LOADELF_DATA))
 				continue;
 		}
+
 		prot = (
 		    (phdr.p_flags & PF_R ? PROT_READ : 0) |
 		    (phdr.p_flags & PF_W ? PROT_WRITE : 0) |
 		    (phdr.p_flags & PF_X ? PROT_EXEC : 0));
+		/* XXXBD: write should not be required for code! */
+		/* XXXBD: ideally read would not be required for code. */
+		if (flags & SANDBOX_LOADELF_CODE)
+			prot &= PROT_READ | PROT_WRITE | PROT_EXEC;
+		if (flags & SANDBOX_LOADELF_DATA)
+			prot &= PROT_READ | PROT_WRITE;
+
 		taddr = rounddown2((phdr.p_vaddr), PAGE_SIZE);
 		offset = rounddown2(phdr.p_offset, PAGE_SIZE);
 		maplen = phdr.p_offset - rounddown2(phdr.p_offset, PAGE_SIZE)
