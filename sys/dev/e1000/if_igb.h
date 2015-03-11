@@ -164,6 +164,8 @@
 
 /* Support AutoMediaDetect for Marvell M88 PHY in i354 */
 #define IGB_MEDIA_RESET			(1 << 0)
+/* Driver allocated resources */
+#define	IGB_RUNNING			(1 << 1)
 
 /*
  * Micellaneous constants
@@ -311,10 +313,8 @@ struct tx_ring {
 	u32			txd_cmd;
 	bus_dma_tag_t		txtag;
 	char			mtx_name[16];
-#ifndef IGB_LEGACY_TX
 	struct buf_ring		*br;
 	struct task		txq_task;
-#endif
 	u32			bytes;  /* used for AIM */
 	u32			packets;
 	/* Soft Stats */
@@ -363,7 +363,7 @@ struct rx_ring {
 };
 
 struct adapter {
-	struct ifnet		*ifp;
+	if_t			ifp;
 	struct e1000_hw		hw;
 
 	struct e1000_osdep	osdep;
@@ -385,7 +385,8 @@ struct adapter {
 	struct ifmedia		media;
 	struct callout		timer;
 	int			msix;
-	int			if_flags;
+	u32			if_flags;
+	u32			if_capenable;
 	int			pause_frames;
 
 	struct mtx		core_mtx;
@@ -456,6 +457,7 @@ struct adapter {
 
 	/* Multicast array memory */
 	u8			*mta;
+	int			mcnt;
 
 	/* Misc stats maintained by the driver */
 	unsigned long   	dropped_pkts;
@@ -554,18 +556,6 @@ igb_rx_unrefreshed(struct rx_ring *rxr)
 	cur &= 0xFFFFFFFF00000000LL;		\
 	cur |= new;				\
 }
-
-#if __FreeBSD_version >= 800000 && __FreeBSD_version < 800504
-static __inline int
-drbr_needs_enqueue(struct ifnet *ifp, struct buf_ring *br)
-{
-#ifdef ALTQ
-	if (ALTQ_IS_ENABLED(&ifp->if_snd))
-		return (1);
-#endif
-	return (!buf_ring_empty(br));
-}
-#endif
 
 #endif /* _IGB_H_DEFINED_ */
 
