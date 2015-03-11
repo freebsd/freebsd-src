@@ -47,6 +47,11 @@ CFLAGS+=	-I${DESTDIR}/usr/include/openssl
 CFLAGS+=	-DHAVE_LIBCRYPTO -DHAVE_OPENSSL_EVP_H
 .endif
 
+.ifdef OAKLAND2015
+CFLAGS+=	-DTCPDUMP_BENCHMARKING
+.endif
+
+
 version.c: ${TCPDUMP_DISTDIR}/VERSION
 	rm -f version.c ; \
 	    sed 's/.*/char version[] = "&";/' ${TCPDUMP_DISTDIR}/VERSION \
