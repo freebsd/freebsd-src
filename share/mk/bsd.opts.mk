@@ -66,6 +66,8 @@ __DEFAULT_YES_OPTIONS = \
     WARNS
 
 __DEFAULT_NO_OPTIONS = \
+    CHERI128 \
+    CHERI256 \
     CTF \
     DEBUG_FILES \
     INSTALL_AS_USER
@@ -85,13 +87,25 @@ __T=${TARGET_ARCH}
 __T=${MACHINE_ARCH}
 .endif
 
-.if ${__T} == "mips64"
-__DEFAULT_YES_OPTIONS+=CHERI
-.else
-__DEFAULT_NO_OPTIONS+=CHERI
+.if defined(WITH_CHERI)
+.warning WITH_CHERI should not be set directly.
+.warning Use WITH_CHERI128 or WITH_CHERI256 instead.
+.if !defined(WITH_CHERI128) && !defined(CHERI256)
+WITH_CHERI256:=	yes
+.endif
 .endif
 
 .include <bsd.mkopt.mk>
+
+.if ${MK_CHERI128} == "yes" && ${MK_CHERI256} == "yes"
+.error WITH_CHERI128 and WITH_CHERI256 are incompatible.
+.endif
+
+.if ${MK_CHERI128} == "yes" || ${MK_CHERI256} == "yes"
+MK_CHERI:=	yes
+.else
+MK_CHERI:=	no
+.endif
 
 #
 # Supported NO_* options (if defined, MK_* will be forced to "no",

@@ -171,6 +171,14 @@ CHERI_FLAGS=	-DDB_FROM_SRC \
 		LOCAL_DIRS="ctsrd tools/tools/atsectl" \
 		LOCAL_LIB_DIRS=ctsrd/lib \
 		LOCAL_MTREE=ctsrd/ctsrd.mtree
+.if ${CHERI} == "128"
+CHERI_FLAGS+=	-DWITH_CHERI128
+.elif ${CHERI} == "256" || ${CHERI} == "1"
+CHERI_FLAGS+=	-DWITH_CHERI256
+.else
+.warning CHERI is an unexpected value '${CHERI}' defaulting to 256-bit
+CHERI_FLAGS+=	-DWITH_CHERI256
+.endif
 .endif
 
 _MAKE=	PATH=${PATH} ${SUB_MAKE} -f Makefile.inc1 ${CHERI_FLAGS} TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH}
