@@ -678,6 +678,14 @@ main(int argc, char **argv)
 	cap_rights_t rights;
 #endif	/* HAVE_CAPSICUM */
 	int cansandbox;
+#ifdef TCPDUMP_BENCHMARKING
+	struct timespec entry, initdone, packetsdone, init_time, packet_time;
+#endif
+
+#ifdef TCPDUMP_BENCHMARKING
+	if (clock_gettime(CLOCK_REALTIME_PRECISE, &entry) == -1)
+		error("%s: clock_gettime", __func__);
+#endif
 
 #ifdef WIN32
 	if(wsockinit() != 0) return 1;
@@ -1639,6 +1647,10 @@ main(int argc, char **argv)
 		fprintf(stderr, "capability mode sandbox enabled\n");
 #endif	/* __FreeBSD__ */
 
+#ifdef TCPDUMP_BENCHMARKING
+	if (clock_gettime(CLOCK_REALTIME_PRECISE, &initdone) == -1)
+		error("%s: clock_gettime", __func__);
+#endif
 	do {
 		status = pcap_loop(pd, cnt, callback, pcap_userdata);
 		if (WFileName == NULL) {
@@ -1715,6 +1727,29 @@ main(int argc, char **argv)
 		}
 	}
 	while (ret != NULL);
+
+#ifdef TCPDUMP_BENCHMARKING
+	/* timespecsub from sys/sys/time.h, also under UCB license */
+#define timespecsub(vvp, uvp)						\
+	do {								\
+		(vvp)->tv_sec -= (uvp)->tv_sec;				\
+		(vvp)->tv_nsec -= (uvp)->tv_nsec;			\
+		if ((vvp)->tv_nsec < 0) {				\
+			(vvp)->tv_sec--;				\
+			(vvp)->tv_nsec += 1000000000;			\
+		}							\
+	} while (0)
+
+	if (clock_gettime(CLOCK_REALTIME_PRECISE, &packetsdone) == -1)
+		error("%s: clock_gettime", __func__);
+	init_time = initdone;
+	timespecsub(&init_time, &entry);
+	packet_time = packetsdone;
+	timespecsub(&packet_time, &initdone);
+	fprintf(stderr, "init: %ld.%09ld packet-processing: %ld.%09ld\n",
+	    init_time.tv_sec, init_time.tv_nsec, packet_time.tv_sec,
+	    packet_time.tv_nsec);
+#endif
 
 	free(cmdbuf);
 	exit(status == -1 ? 1 : 0);
