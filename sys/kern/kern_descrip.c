@@ -3399,7 +3399,7 @@ export_fd_to_sb(void *data, int type, int fd, int fflags, int refcnt,
 	}
 	if (locked)
 		FILEDESC_SUNLOCK(efbuf->fdp);
-	error = sbuf_bcat(efbuf->sb, kif, kif->kf_structsize);
+	error = sbuf_bcat(efbuf->sb, kif, kif->kf_structsize) == 0 ? 0 : ENOMEM;
 	if (efbuf->fdp != NULL)
 		FILEDESC_SLOCK(efbuf->fdp);
 	return (error);
