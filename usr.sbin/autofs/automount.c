@@ -345,11 +345,7 @@ main_automount(int argc, char **argv)
 			force_unmount = true;
 			break;
 		case 'o':
-			if (options == NULL) {
-				options = checked_strdup(optarg);
-			} else {
-				options = concat(options, ',', optarg);
-			}
+			options = concat(options, ',', optarg);
 			break;
 		case 'u':
 			do_unmount = true;
@@ -385,9 +381,7 @@ main_automount(int argc, char **argv)
 	parse_master(root, AUTO_MASTER_PATH);
 
 	if (show_maps) {
-		if (options != NULL) {
-			root->n_options = concat(options, ',', root->n_options);
-		}
+		root->n_options = concat(options, ',', root->n_options);
 		if (show_maps > 1) {
 			node_expand_indirect_maps(root);
 			node_expand_ampersand(root, NULL);
