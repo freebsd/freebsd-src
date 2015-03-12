@@ -335,7 +335,6 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 		warn("%s: mmap heap", __func__);
 		goto error;
 	}
-	memset(base, 0, sbop->sbo_heaplen);
 	base += sbop->sbo_heaplen;
 	length -= sbop->sbo_heaplen;
 
