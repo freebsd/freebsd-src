@@ -273,6 +273,9 @@ llan_init(void *xsc)
 	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	mtx_unlock(&sc->io_lock);
+
+	/* Check for pending receives scheduled before interrupt enable */
+	llan_intr(sc);
 }
 
 static int
@@ -335,6 +338,7 @@ llan_intr(void *xsc)
 	struct mbuf *m;
 
 	mtx_lock(&sc->io_lock);
+restart:
 	phyp_hcall(H_VIO_SIGNAL, sc->unit, 0);
 
 	while ((sc->rx_buf[sc->rx_dma_slot].control >> 7) == sc->rx_valid_val) {
@@ -369,6 +373,15 @@ llan_intr(void *xsc)
 	}
 
 	phyp_hcall(H_VIO_SIGNAL, sc->unit, 1);
+
+	/*
+	 * H_VIO_SIGNAL enables interrupts for future packets only.
+	 * Make sure none were queued between the end of the loop and the
+	 * enable interrupts call.
+	 */
+	if ((sc->rx_buf[sc->rx_dma_slot].control >> 7) == sc->rx_valid_val)
+		goto restart;
+
 	mtx_unlock(&sc->io_lock);
 }
 
