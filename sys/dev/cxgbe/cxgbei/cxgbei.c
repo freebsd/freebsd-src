@@ -414,14 +414,14 @@ cxgbei_task_reserve_itt(struct icl_conn *ic, void **prv,
 	if ((scmd->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
 		tdata->nsge = cxgbei_map_sg(tdata->sgl, scmd);
 		if (tdata->nsge == 0) {
-			CTR1(KTR_CXGBE, "%s: map_sg failed\n", __func__);
+			CTR1(KTR_CXGBE, "%s: map_sg failed", __func__);
 			return 0;
 		}
 		sge = tdata->sgl;
 
 		tdata->sc_ddp_tag = *itt;
 
-		CTR3(KTR_CXGBE, "%s: *itt:0x%x sc_ddp_tag:0x%x\n",
+		CTR3(KTR_CXGBE, "%s: *itt:0x%x sc_ddp_tag:0x%x",
 				__func__, *itt, tdata->sc_ddp_tag);
 		if (cxgbei_ulp2_sw_tag_usable(&ci->tag_format,
 							tdata->sc_ddp_tag)) {
@@ -429,7 +429,7 @@ cxgbei_task_reserve_itt(struct icl_conn *ic, void **prv,
 			    sge, tdata->nsge, &tdata->sc_ddp_tag);
 		} else {
 			CTR3(KTR_CXGBE,
-				"%s: itt:0x%x sc_ddp_tag:0x%x not usable\n",
+				"%s: itt:0x%x sc_ddp_tag:0x%x not usable",
 				__func__, *itt, tdata->sc_ddp_tag);
 		}
 	}
@@ -461,7 +461,7 @@ cxgbei_task_reserve_ttt(struct icl_conn *ic, void **prv, union ctl_io *io,
 		goto out;
 	tdata->nsge = cxgbei_map_sg_tgt(tdata->sgl, io);
 	if (tdata->nsge == 0) {
-		CTR1(KTR_CXGBE, "%s: map_sg failed\n", __func__);
+		CTR1(KTR_CXGBE, "%s: map_sg failed", __func__);
 		return 0;
 	}
 	sge = tdata->sgl;
@@ -471,7 +471,7 @@ cxgbei_task_reserve_ttt(struct icl_conn *ic, void **prv, union ctl_io *io,
 		err = t4_sk_ddp_tag_reserve(ci, isock, xferlen, sge,
 		    tdata->nsge, &tdata->sc_ddp_tag);
 	} else {
-		CTR2(KTR_CXGBE, "%s: sc_ddp_tag:0x%x not usable\n",
+		CTR2(KTR_CXGBE, "%s: sc_ddp_tag:0x%x not usable",
 				__func__, tdata->sc_ddp_tag);
 	}
 out:
@@ -589,7 +589,7 @@ process_rx_iscsi_hdr(struct toepcb *toep, struct mbuf *m)
 		/* we only update tp->rcv_nxt once per pdu */
 		if (cb->seq != tp->rcv_nxt) {
 			CTR3(KTR_CXGBE,
-			"tid 0x%x, CPL_ISCSI_HDR, BAD seq got 0x%x exp 0x%x.\n",
+			"tid 0x%x, CPL_ISCSI_HDR, BAD seq got 0x%x exp 0x%x.",
 			toep->tid, cb->seq, tp->rcv_nxt);
 			goto err_out1;
 		}
@@ -606,7 +606,7 @@ process_rx_iscsi_hdr(struct toepcb *toep, struct mbuf *m)
 
 		tp->rcv_nxt += lcb->ulp.iscsi.pdulen;
 		if (tp->rcv_wnd <= lcb->ulp.iscsi.pdulen)
-			CTR3(KTR_CXGBE, "%s: Neg rcv_wnd:0x%lx pdulen:0x%x\n",
+			CTR3(KTR_CXGBE, "%s: Neg rcv_wnd:0x%lx pdulen:0x%x",
 				__func__, tp->rcv_wnd, lcb->ulp.iscsi.pdulen);
 			tp->rcv_wnd -= lcb->ulp.iscsi.pdulen;
 			tp->t_rcvtime = ticks;
@@ -673,7 +673,7 @@ iscsi_conn_receive_pdu(struct iscsi_socket *isock)
 	if (cb->flags & SBUF_ULP_FLAG_DATA_RCVD) {
 		m = mbufq_first(&isock->iscsi_rcvq);
 		if (m == NULL) {
-			CTR1(KTR_CXGBE, "%s:No Data\n", __func__);
+			CTR1(KTR_CXGBE, "%s:No Data", __func__);
 			goto err_out;
 		}
 		mbufq_dequeue(&isock->iscsi_rcvq);
@@ -715,7 +715,7 @@ process_rx_data_ddp(struct toepcb *toep, const struct cpl_rx_data_ddp *cpl)
 	}
 	lcb = find_ulp_mbuf_cb(isock->mbuf_ulp_lhdr);
 	if (lcb == NULL) {
-		CTR2(KTR_CXGBE, "%s: mtag NULL lmbuf :%p\n", __func__, lmbuf);
+		CTR2(KTR_CXGBE, "%s: mtag NULL lmbuf :%p", __func__, lmbuf);
 		mtx_unlock(&isock->iscsi_rcvq_lock);
 		return;
 	}
@@ -723,9 +723,9 @@ process_rx_data_ddp(struct toepcb *toep, const struct cpl_rx_data_ddp *cpl)
 	isock->mbuf_ulp_lhdr = NULL;
 
 	if (ntohs(cpl->len) != lcb->ulp.iscsi.pdulen) {
-		CTR3(KTR_CXGBE, "tid 0x%x, RX_DATA_DDP pdulen %u != %u.\n",
+		CTR3(KTR_CXGBE, "tid 0x%x, RX_DATA_DDP pdulen %u != %u.",
 			toep->tid, ntohs(cpl->len), lcb->ulp.iscsi.pdulen);
-		CTR4(KTR_CXGBE, "%s: lmbuf:%p lcb:%p lcb->flags:0x%x\n",
+		CTR4(KTR_CXGBE, "%s: lmbuf:%p lcb:%p lcb->flags:0x%x",
 			__func__, lmbuf, lcb, lcb->flags);
 	}
 
