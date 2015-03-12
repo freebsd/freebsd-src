@@ -70,6 +70,7 @@ struct g_part_alias_list {
 	enum g_part_alias alias;
 } g_part_alias_list[G_PART_ALIAS_COUNT] = {
 	{ "apple-boot", G_PART_ALIAS_APPLE_BOOT },
+	{ "apple-core-storage", G_PART_ALIAS_APPLE_CORE_STORAGE },
 	{ "apple-hfs", G_PART_ALIAS_APPLE_HFS },
 	{ "apple-label", G_PART_ALIAS_APPLE_LABEL },
 	{ "apple-raid", G_PART_ALIAS_APPLE_RAID },
