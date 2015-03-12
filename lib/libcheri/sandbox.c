@@ -38,6 +38,7 @@
 #include <sys/param.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 
 #include <machine/cheri.h>
 #include <machine/cheric.h>
@@ -89,17 +90,33 @@ sandbox_init(void)
 int
 sandbox_program_init(int argc, char **argv)
 {
-	int fd;
+	int fd = -1;
+	int mib[4];
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_PATHNAME;
+	mib[3] = -1;
+	char buf[MAXPATHLEN];
+	size_t cb = sizeof(buf);
 
 	/* XXXBD: do this with RTLD or hypothentical getexecfd(). */
-	if (argc <= 0) {
-		warnx("%s: no argv[0]", __func__);
-		return (-1);
+	if ((sysctl(mib, 4, buf, &cb, NULL, 0) != -1) && cb > 0) {
+		if ((fd = open(buf, O_RDONLY)) == -1)
+			warn("%s: open %s (from kern.proc.pathname.(-1))",
+			    __func__, buf);
 	}
-	if ((fd = open(argv[0], O_RDONLY)) == -1) {
-		warn("%s: open %s", __func__, argv[0]);
-		return (-1);
+	if (fd == -1) {
+		if (argc < 0) {
+			warnx("%s: no argv[0]", __func__);
+			return (-1);
+		}
+		/* XXX: if argv[0] contains no /, search path */
+		if ((fd = open(argv[0], O_RDONLY)) == -1) {
+			warn("%s: open %s", __func__, argv[0]);
+			return (-1);
+		}
 	}
+
 	if (sandbox_parse_ccall_methods(fd, &main_provided_methods,
 	    &main_required_methods) == -1) {
 		warn("%s: sandbox_parse_ccall_methods for %s", __func__,
