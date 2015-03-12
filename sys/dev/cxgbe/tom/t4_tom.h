@@ -115,6 +115,7 @@ struct toepcb {
 	int rx_credits;		/* rx credits (in bytes) to be returned to hw */
 
 	u_int ulp_mode;	/* ULP mode */
+	void *ulpcb;
 
 	u_int ddp_flags;
 	struct ddp_buffer *db[2];
@@ -288,17 +289,5 @@ void insert_ddp_data(struct toepcb *, uint32_t);
 
 /* ULP related */
 #define CXGBE_ISCSI_MBUF_TAG          50
-int t4tom_cpl_handler_registered(struct adapter *, unsigned int);
-void t4tom_register_cpl_iscsi_callback(void (*fp)(struct tom_data *,
-    struct socket *, void *, unsigned int));
-void t4tom_register_queue_iscsi_callback(struct mbuf *(*fp)(struct socket *,
-    unsigned int, int *));
 void t4_ulp_push_frames(struct adapter *sc, struct toepcb *toep, int);
-int t4_cpl_iscsi_callback(struct tom_data *, struct toepcb *, void *, uint32_t);
-struct mbuf *t4_queue_iscsi_callback(struct socket *, struct toepcb *, uint32_t,
-    int *);
-extern void (*tom_cpl_iscsi_callback)(struct tom_data *, struct socket *,
-    void *, unsigned int);
-extern struct mbuf *(*tom_queue_iscsi_callback)(struct socket*, unsigned int,
-    int *);
 #endif
