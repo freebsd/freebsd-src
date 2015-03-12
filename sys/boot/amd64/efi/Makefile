@@ -55,8 +55,6 @@ FILESMODE_loader.efi=	${BINMODE}
 LDSCRIPT=	${.CURDIR}/ldscript.${MACHINE_CPUARCH}
 LDFLAGS=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared -Wl,-znocombreloc
 
-${PROG}:	${LDSCRIPT}
-
 CLEANFILES=	vers.c loader.efi
 
 NEWVERSWHAT=	"EFI loader" ${MACHINE_CPUARCH}
@@ -85,7 +83,7 @@ loader.efi: loader.sym
 
 LIBEFI=		${.OBJDIR}/../../efi/libefi/libefi.a
 
-DPADD=		${LIBFICL} ${LIBEFI} ${LIBSTAND}
+DPADD=		${LIBFICL} ${LIBEFI} ${LIBSTAND} ${LDSCRIPT}
 LDADD=		${LIBFICL} ${LIBEFI} ${LIBSTAND}
 
 .endif # ${COMPILER_TYPE} != "gcc"
