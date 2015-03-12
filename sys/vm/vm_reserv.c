@@ -261,6 +261,7 @@ sysctl_vm_reserv_partpopq(SYSCTL_HANDLER_ARGS)
 		sbuf_printf(&sbuf, "%5d: %6dK, %6d\n", level,
 		    unused_pages * ((int)PAGE_SIZE / 1024), counter);
 	}
+	sbuf_putc(&sbuf, 0); /* nullterm */
 	error = sbuf_finish(&sbuf);
 	sbuf_delete(&sbuf);
 	return (error);
