@@ -232,7 +232,11 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 	}
 
 	options = node_options(node);
-	options = concat(adr->adr_options, ',', options);
+
+	/*
+	 * Append options from auto_master.
+	 */
+	options = concat(options, ',', adr->adr_options);
 
 	/*
 	 * Prepend options passed via automountd(8) command line.
