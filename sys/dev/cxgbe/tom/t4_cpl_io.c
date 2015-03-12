@@ -805,6 +805,10 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 		close_conn(sc, toep);
 }
 
+void (*cxgbei_fw4_ack)(struct toepcb *, int);
+struct mbuf *(*cxgbei_writeq_len)(struct toepcb *, int *);
+struct mbuf *(*cxgbei_writeq_next)(struct toepcb *);
+
 /* Send ULP data over TOE using TX_DATA_WR. We send whole mbuf at once */
 void
 t4_ulp_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
@@ -840,7 +844,7 @@ t4_ulp_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 	if (__predict_false(toep->flags & TPF_TX_SUSPENDED))
 		return;
 
-	sndptr = t4_queue_iscsi_callback(so, toep, 1, &qlen);
+	sndptr = cxgbei_writeq_len(toep, &qlen);
 	if (!qlen)
 		return;
 
@@ -850,8 +854,7 @@ t4_ulp_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 		max_nsegs = max_dsgl_nsegs(tx_credits);
 
 		if (drop) {
-			t4_cpl_iscsi_callback(toep->td, toep, &drop,
-			    CPL_FW4_ACK);
+			cxgbei_fw4_ack(toep, drop);
 			drop = 0;
 		}
 
@@ -951,7 +954,7 @@ t4_ulp_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 		tp->snd_max += ulp_len;
 
                 /* goto next mbuf */
-		sndptr = m = t4_queue_iscsi_callback(so, toep, 2, &qlen);
+		sndptr = m = cxgbei_writeq_next(toep);
 
 		toep->flags |= TPF_TX_DATA_SENT;
 		if (toep->tx_credits < MIN_OFLD_TX_CREDITS) {
@@ -1266,91 +1269,6 @@ abort_status_to_errno(struct tcpcb *tp, unsigned int abort_reason)
 	default:
 		return (EIO);
 	}
-}
-
-int
-cpl_not_handled(struct sge_iq *, const struct rss_header *, struct mbuf *);
-/*
- * tom_cpl_iscsi_callback -
- * iscsi and tom would share the following cpl messages, so when any of these
- * message is received, after tom is done with processing it, the messages
- * needs to be forwarded to iscsi for further processing:
- * - CPL_SET_TCB_RPL
- * - CPL_RX_DATA_DDP
- */
-void (*tom_cpl_iscsi_callback)(struct tom_data *, struct socket *, void *,
-    unsigned int);
-
-struct mbuf *(*tom_queue_iscsi_callback)(struct socket *, unsigned int, int *);
-/*
- * Check if the handler function is set for a given CPL
- * return 0 if the function is NULL or cpl_not_handled, 1 otherwise.
- */
-int
-t4tom_cpl_handler_registered(struct adapter *sc, unsigned int opcode)
-{
-
-	MPASS(opcode < nitems(sc->cpl_handler));
-
-	return (sc->cpl_handler[opcode] &&
-	    sc->cpl_handler[opcode] != cpl_not_handled);
-}
-
-/*
- * set the tom_cpl_iscsi_callback function, this function should be used
- * whenever both toe and iscsi need to process the same cpl msg.
- */
-void
-t4tom_register_cpl_iscsi_callback(void (*fp)(struct tom_data *, struct socket *,
-    void *, unsigned int))
-{
-
-	tom_cpl_iscsi_callback = fp;
-}
-
-void
-t4tom_register_queue_iscsi_callback(struct mbuf *(*fp)(struct socket *,
-    unsigned int, int *qlen))
-{
-
-	tom_queue_iscsi_callback = fp;
-}
-
-int
-t4_cpl_iscsi_callback(struct tom_data *td, struct toepcb *toep, void *m,
-    unsigned int opcode)
-{
-	struct socket *so;
-
-	if (opcode == CPL_FW4_ACK)
-		so = toep->inp->inp_socket;
-	else {
-		INP_WLOCK(toep->inp);
-		so = toep->inp->inp_socket;
-		INP_WUNLOCK(toep->inp);
-	}
-
-	if (tom_cpl_iscsi_callback && so) {
-		if (toep->ulp_mode == ULP_MODE_ISCSI) {
-			tom_cpl_iscsi_callback(td, so, m, opcode);
-			return (0);
-		}
-	}
-
-	return (1);
-}
-
-struct mbuf *
-t4_queue_iscsi_callback(struct socket *so, struct toepcb *toep,
-    unsigned int cmd, int *qlen)
-{
-
-	if (tom_queue_iscsi_callback && so) {
-		if (toep->ulp_mode == ULP_MODE_ISCSI)
-			return (tom_queue_iscsi_callback(so, cmd, qlen));
-	}
-
-	return (NULL);
 }
 
 /*
@@ -1748,16 +1666,32 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 			t4_push_frames(sc, toep, plen);
 	} else if (plen > 0) {
 		struct sockbuf *sb = &so->so_snd;
+		int sbu;
 
-		if (toep->ulp_mode == ULP_MODE_ISCSI)
-			t4_cpl_iscsi_callback(toep->td, toep, &plen,
-			    CPL_FW4_ACK);
-		else {
-			SOCKBUF_LOCK(sb);
+		SOCKBUF_LOCK(sb);
+		sbu = sbused(sb);
+		if (toep->ulp_mode == ULP_MODE_ISCSI) {
+
+			if (__predict_false(sbu > 0)) {
+				/*
+				 * The data trasmitted before the tid's ULP mode
+				 * changed to ISCSI is still in so_snd.
+				 * Incoming credits should account for so_snd
+				 * first.
+				 */
+				sbdrop_locked(sb, min(sbu, plen));
+				plen -= min(sbu, plen);
+			}
+			/* XXXNP: sowwakeup_locked causes a LOR. */
+			SOCKBUF_UNLOCK(sb);
+
+			if (__predict_true(plen > 0))
+				cxgbei_fw4_ack(toep, plen);
+		} else {
 			sbdrop_locked(sb, plen);
-			sowwakeup_locked(so);
-			SOCKBUF_UNLOCK_ASSERT(sb);
+			sowwakeup_locked(so);	/* unlocks so_snd */
 		}
+		SOCKBUF_UNLOCK_ASSERT(sb);
 	}
 
 	INP_WUNLOCK(inp);
@@ -1781,14 +1715,21 @@ do_set_tcb_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	if (is_ftid(sc, tid))
 		return (t4_filter_rpl(iq, rss, m)); /* TCB is a filter */
-	else {
-		struct toepcb *toep = lookup_tid(sc, tid);
 
-		t4_cpl_iscsi_callback(toep->td, toep, m, CPL_SET_TCB_RPL);
-		return (0);
-	}
+	/*
+	 * TOM and/or other ULPs don't request replies for CPL_SET_TCB or
+	 * CPL_SET_TCB_FIELD requests.  This can easily change and when it does
+	 * the dispatch code will go here.
+	 */
+#ifdef INVARIANTS
+	panic("%s: Unexpected CPL_SET_TCB_RPL for tid %u on iq %p", __func__,
+	    tid, iq);
+#else
+	log(LOG_ERR, "%s: Unexpected CPL_SET_TCB_RPL for tid %u on iq %p\n",
+	    __func__, tid, iq);
+#endif
 
-	CXGBE_UNIMPLEMENTED(__func__);
+	return (0);
 }
 
 void

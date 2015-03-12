@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sx.h>
 #include <sys/uio.h>
+#include <machine/bus.h>
 #include <vm/uma.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -446,6 +447,7 @@ icl_cxgbei_conn_free(struct icl_conn *ic)
 	refcount_release(&icl_ncons);
 }
 
+/* XXXNP: what is this for?  There's no conn_start method. */
 static int
 icl_conn_start(struct icl_conn *ic)
 {
@@ -572,9 +574,8 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 	ICL_CONN_UNLOCK(ic);
 
 	error = icl_conn_start(ic);
-	if(!error) {
-		cxgbei_conn_set_ulp_mode(ic->ic_socket, ic);
-	}
+	if (!error)
+		cxgbei_conn_handoff(ic);
 
 	return (error);
 }
@@ -620,7 +621,7 @@ icl_cxgbei_conn_close(struct icl_conn *ic)
 	//ICL_DEBUG("send/receive threads terminated");
 
 	ICL_CONN_UNLOCK(ic);
-	cxgbei_conn_close(ic->ic_socket);
+	cxgbei_conn_close(ic);
 	soclose(ic->ic_socket);
 	ICL_CONN_LOCK(ic);
 	ic->ic_socket = NULL;
@@ -690,6 +691,7 @@ icl_cxgbei_conn_task_setup(struct icl_conn *ic, struct ccb_scsiio *csio,
 void
 icl_cxgbei_conn_task_done(struct icl_conn *ic, void *prv)
 {
+
 	cxgbei_cleanup_task(ic, prv);
 	uma_zfree(icl_transfer_zone, prv);
 }

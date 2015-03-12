@@ -28,55 +28,37 @@
 
 #ifndef __CXGBEI_OFLD_H__
 #define __CXGBEI_OFLD_H__
-#include "mbufq.h"
 
-typedef struct iscsi_socket {
-	/* iscsi private */
-	unsigned char   s_flag;
-	unsigned char   s_cpuno;        /* bind to cpuno */
-	unsigned char   s_mode;         /* offload mode */
-	unsigned char   s_txhold;
+struct iscsi_socket {
+	u_char  s_dcrc_len;
+	void   *s_conn;	/* ic_conn pointer */
+	struct toepcb *toep;
 
-	unsigned char   s_ddp_pgidx;    /* ddp page selection */
-	unsigned char   s_hcrc_len;
-	unsigned char   s_dcrc_len;
-	unsigned char   filler[1];
+	/*
+	 * XXXNP: locks on the same line.
+	 * XXXNP: are the locks even needed?  Why not use so_snd/so_rcv mtx to
+	 * guard the write and rcv queues?
+	 */
+	struct mbufq iscsi_rcvq;	/* rx - ULP mbufs */
+	struct mtx iscsi_rcvq_lock;
 
-	unsigned int    s_tid;          /* for debug only */
-	unsigned int    s_tmax;
-	unsigned int    s_rmax;
-	unsigned int    s_mss;
-	void            *s_odev;        /* offload device, if any */
-	void            *s_appdata;     /* upperlayer data pointer */
-	void            *s_private;     /* underlying socket related info. */
-	void            *s_conn;	/* ic_conn pointer */
-	struct socket	*sock;
-	struct mbuf_head iscsi_rcv_mbufq;/* rx - ULP mbufs */
-	struct mbuf_head ulp2_writeq;	 /* tx - ULP mbufs */
-	struct mbuf_head ulp2_wrq;	 /* tx wr- ULP mbufs */
+	struct mbufq ulp2_writeq;	/* tx - ULP mbufs */
+	struct mtx ulp2_writeq_lock;
+
+	struct mbufq ulp2_wrq;		/* tx wr- ULP mbufs */
+	struct mtx ulp2_wrq_lock;
 
 	struct mbuf *mbuf_ulp_lhdr;
 	struct mbuf *mbuf_ulp_ldata;
-}iscsi_socket;
+};
 
-#define ISCSI_SG_SBUF_DMABLE            0x1
-#define ISCSI_SG_SBUF_DMA_ONLY          0x2     /*private*/
-#define ISCSI_SG_BUF_ALLOC              0x10
-#define ISCSI_SG_PAGE_ALLOC             0x20
-#define ISCSI_SG_SBUF_MAP_NEEDED        0x40
-#define ISCSI_SG_SBUF_MAPPED            0x80
-
-#define ISCSI_SG_SBUF_LISTHEAD          0x100
-#define ISCSI_SG_SBUF_LISTTAIL          0x200
-#define ISCSI_SG_SBUF_XFER_DONE         0x400
-
-typedef struct cxgbei_sgl {
+struct cxgbei_sgl {
         int     sg_flag;
         void    *sg_addr;
         void    *sg_dma_addr;
         size_t  sg_offset;
         size_t  sg_length;
-} cxgbei_sgl;
+};
 
 #define cxgbei_scsi_for_each_sg(_sgl, _sgel, _n, _i)      \
         for (_i = 0, _sgel = (cxgbei_sgl*) (_sgl); _i < _n; _i++, \
@@ -95,14 +77,6 @@ typedef struct cxgbei_sgl {
 #define SBUF_ULP_FLAG_DCRC_ERROR        0x20
 #define SBUF_ULP_FLAG_PAD_ERROR         0x40
 #define SBUF_ULP_FLAG_DATA_DDPED        0x80
-
-/* Flags for return value of CPL message handlers */
-enum {
-	CPL_RET_BUF_DONE = 1,	/* buffer processing done buffer may be freed */
-	CPL_RET_BAD_MSG = 2,	/* bad CPL message (e.g., unknown opcode) */
-	CPL_RET_UNKNOWN_TID = 4	/* unexpected unknown TID */
-};
-
 
 /*
  * Similar to tcp_skb_cb but with ULP elements added to support DDP, iSCSI,
@@ -126,33 +100,55 @@ struct ulp_mbuf_cb {
 	void *pdu;                      /* pdu pointer */
 };
 
-/* private data for eack scsi task */
-typedef struct cxgbei_task_data {
-	cxgbei_sgl sgl[256];
-	unsigned int	nsge;
-	unsigned int	sc_ddp_tag;
-}cxgbei_task_data;
-
-static unsigned char t4tom_cpl_handler_register_flag;
-enum {
-	TOM_CPL_ISCSI_HDR_REGISTERED_BIT,
-	TOM_CPL_SET_TCB_RPL_REGISTERED_BIT,
-	TOM_CPL_RX_DATA_DDP_REGISTERED_BIT
+/* private data for each scsi task */
+struct cxgbei_task_data {
+	struct cxgbei_sgl sgl[256];
+	u_int	nsge;
+	u_int	sc_ddp_tag;
 };
 
-#define ODEV_FLAG_ULP_CRC_ENABLED       0x1
-#define ODEV_FLAG_ULP_DDP_ENABLED       0x2
-#define ODEV_FLAG_ULP_TX_ALLOC_DIGEST   0x4
-#define ODEV_FLAG_ULP_RX_PAD_INCLUDED   0x8
+struct cxgbei_ulp2_tag_format {
+	u_char sw_bits;
+	u_char rsvd_bits;
+	u_char rsvd_shift;
+	u_char filler[1];
+	uint32_t rsvd_mask;
+};
 
-#define ODEV_FLAG_ULP_ENABLED   \
-        (ODEV_FLAG_ULP_CRC_ENABLED | ODEV_FLAG_ULP_DDP_ENABLED)
+struct cxgbei_data {
+	u_int max_txsz;
+	u_int max_rxsz;
+	u_int llimit;
+	u_int ulimit;
+	u_int nppods;
+	u_int idx_last;
+	u_char idx_bits;
+	uint32_t idx_mask;
+	uint32_t rsvd_tag_mask;
 
-struct ulp_mbuf_cb * get_ulp_mbuf_cb(struct mbuf *);
-int cxgbei_conn_set_ulp_mode(struct socket *, void *);
-int cxgbei_conn_close(struct socket *);
+	struct mtx map_lock;
+	bus_dma_tag_t ulp_ddp_tag;
+	unsigned char *colors;
+	struct cxgbei_ulp2_gather_list **gl_map;
+
+	struct cxgbei_ulp2_tag_format tag_format;
+};
+
+struct icl_conn;
+struct icl_pdu;
+
+struct ulp_mbuf_cb *get_ulp_mbuf_cb(struct mbuf *);
+int cxgbei_conn_handoff(struct icl_conn *);
+int cxgbei_conn_close(struct icl_conn *);
 void cxgbei_conn_task_reserve_itt(void *, void **, void *, unsigned int *);
 void cxgbei_conn_transfer_reserve_ttt(void *, void **, void *, unsigned int *);
 void cxgbei_cleanup_task(void *, void *);
-int cxgbei_conn_xmit_pdu(void *, void *);
+int cxgbei_conn_xmit_pdu(struct icl_conn *, struct icl_pdu *);
+
+struct cxgbei_ulp2_pagepod_hdr;
+int t4_ddp_set_map(struct cxgbei_data *, void *,
+    struct cxgbei_ulp2_pagepod_hdr *, u_int, u_int,
+    struct cxgbei_ulp2_gather_list *, int);
+void t4_ddp_clear_map(struct cxgbei_data *, struct cxgbei_ulp2_gather_list *,
+    u_int, u_int, u_int, struct iscsi_socket *);
 #endif
