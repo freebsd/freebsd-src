@@ -1484,7 +1484,6 @@ cross-tools: .MAKE
     ${_binutils} \
     ${_elftctools} \
     ${_cc} \
-    usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint \
     ${_btxld} \
     ${_crunchide} \
     ${_kgzip} \
