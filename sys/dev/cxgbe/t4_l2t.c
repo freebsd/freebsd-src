@@ -321,6 +321,7 @@ skip:
 		mtx_unlock(&e->lock);
 	}
 
+	sbuf_putc(&sb, 0); /* nullterm */
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);
 
