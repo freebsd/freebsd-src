@@ -251,7 +251,8 @@ cheri_png_read_start(char *pngbuffer, size_t pnglen,
 		    8*1024*1024, &sandbox_class) < 0)
 			goto error;
 	if (sandbox_object == NULL)
-		if (sandbox_object_new(sandbox_class, &sandbox_object) < 0)
+		if (sandbox_object_new(sandbox_class, 4*1024*1024,
+		    &sandbox_object) < 0)
 			goto error;
 
 	/*

@@ -255,7 +255,7 @@ png_create_read_struct(png_const_charp user_png_ver, png_voidp error_ptr,
 	if (classp == NULL)
 		init_sb_class();
 	/* XXX: should use a sandbox pool */
-	if (sandbox_object_new(classp, &psp->objectp) < 0)
+	if (sandbox_object_new(classp, 4*1024*1024, &psp->objectp) < 0)
 		err(EX_OSFILE, "sandbox_object_new");
 
 	v = sb_cinvoke(psp->objectp, LIBPNG_SB_HELPER_OP_CREATE_READ_STRUCT,

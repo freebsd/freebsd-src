@@ -100,7 +100,7 @@ main(int argc, char *argv[])
 		err(EX_OSFILE, "sandbox_class_new");
 	if (sandbox_program_finalize() == -1)
 		errx(EX_SOFTWARE, "sandbox_program_finalize");
-	if (sandbox_object_new(classp, &objectp) < 0)
+	if (sandbox_object_new(classp, 2*1024*1024, &objectp) < 0)
 		err(EX_OSFILE, "sandbox_object_new");
 	cheri_helloworld = sandbox_object_getobject(objectp);
 

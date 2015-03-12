@@ -176,7 +176,8 @@ tcpdump_sandbox_new(const char * name, const char * color,
 		return (NULL);
 	memset(sb, 0, sizeof(*sb));
 
-	if (sandbox_object_new(tcpdump_classp, &sb->tds_sandbox_object) < 0) {
+	if (sandbox_object_new(tcpdump_classp, 128*1024,
+	    &sb->tds_sandbox_object) < 0) {
 		free(sb);
 		return (NULL);
 	}
@@ -211,7 +212,8 @@ tcpdump_sandbox_reset(struct tcpdump_sandbox *sb)
 
 	/* XXX: should have a cheap reset based on ELF loader */
 	sandbox_object_destroy(sb->tds_sandbox_object);
-	if (sandbox_object_new(tcpdump_classp, &sb->tds_sandbox_object) < 0) {
+	if (sandbox_object_new(tcpdump_classp, 128*1024,
+	    &sb->tds_sandbox_object) < 0) {
 		fprintf(stderr, "failed to create sandbox object: %s",
 		    strerror(errno));
 		return (-1);

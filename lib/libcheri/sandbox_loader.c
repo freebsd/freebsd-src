@@ -77,8 +77,6 @@ int
 sandbox_class_load(struct sandbox_class *sbcp)
 {
 	__capability void *codecap;
-	size_t length;
-	ssize_t max_prog_offset;
 	int saved_errno;
 	caddr_t base;
 
@@ -106,9 +104,10 @@ sandbox_class_load(struct sandbox_class *sbcp)
 		goto error;
 	}
 
-	length = sbcp->sbc_sandboxlen;
-	base = sbcp->sbc_mem = mmap(NULL, length, PROT_NONE, MAP_ANON, -1, 0);
-	if (sbcp->sbc_mem == MAP_FAILED) {
+	sbcp->sbc_codelen = sandbox_map_maxoffset(sbcp->sbc_codemap);
+	base = sbcp->sbc_codemem = mmap(NULL, sbcp->sbc_codelen, PROT_NONE,
+	    MAP_ANON, -1, 0);
+	if (sbcp->sbc_codemem == MAP_FAILED) {
 		saved_errno = errno;
 		warn("%s: mmap region", __func__);
 		goto error;
@@ -118,7 +117,6 @@ sandbox_class_load(struct sandbox_class *sbcp)
 		warnx("%s: sandbox_map_load(sbc_codemap)\n", __func__);
 		goto error;
 	}
-	max_prog_offset = sandbox_map_maxoffset(sbcp->sbc_codemap);
 
 	/*
 	* Parse the sandbox ELF binary for CCall methods provided and
@@ -139,12 +137,12 @@ sandbox_class_load(struct sandbox_class *sbcp)
 	 */
 	sbcp->sbc_typecap = cheri_type_alloc();
 
-	codecap = cheri_ptrperm(sbcp->sbc_mem, max_prog_offset,
+	codecap = cheri_ptrperm(sbcp->sbc_codemem, sbcp->sbc_codelen,
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_EXECUTE);
 	codecap = cheri_setoffset(codecap, SANDBOX_RTLD_VECTOR);
 	sbcp->sbc_classcap_rtld = cheri_seal(codecap, sbcp->sbc_typecap);
 
-	codecap = cheri_ptrperm(sbcp->sbc_mem, max_prog_offset,
+	codecap = cheri_ptrperm(sbcp->sbc_codemem, sbcp->sbc_codelen,
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_EXECUTE);
 	codecap = cheri_setoffset(codecap, SANDBOX_INVOKE_VECTOR);
 	sbcp->sbc_classcap_invoke = cheri_seal(codecap, sbcp->sbc_typecap);
@@ -152,8 +150,8 @@ sandbox_class_load(struct sandbox_class *sbcp)
 	return (0);
 
 error:
-	if (sbcp->sbc_mem != NULL)
-		munmap(sbcp->sbc_mem, sbcp->sbc_sandboxlen);
+	if (sbcp->sbc_codemem != NULL)
+		munmap(sbcp->sbc_codemem, sbcp->sbc_codelen);
 	errno = saved_errno;
 	return (-1);
 }
@@ -162,7 +160,7 @@ void
 sandbox_class_unload(struct sandbox_class *sbcp)
 {
 
-	munmap(sbcp->sbc_mem, sbcp->sbc_sandboxlen);
+	munmap(sbcp->sbc_codemem, sbcp->sbc_codelen);
 }
 
 static struct cheri_object
@@ -215,6 +213,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	__capability void *datacap;
 	struct sandbox_metadata *sbmp;
 	size_t length;
+	size_t heaplen;
 	size_t max_prog_offset;
 	int saved_errno;
 	caddr_t base;
@@ -257,9 +256,13 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 		goto error;
 	}
 
-	length = sbcp->sbc_sandboxlen;
-	base = sbop->sbo_mem = mmap(NULL, length, PROT_NONE, MAP_ANON, -1, 0);
-	if (sbop->sbo_mem == MAP_FAILED) {
+	heaplen = roundup2(sbop->sbo_heaplen, PAGE_SIZE);
+	sbop->sbo_datalen = length =
+	    /* 0x0000 and metadata covered by maxoffset */
+	    roundup2(sandbox_map_maxoffset(sbcp->sbc_datamap), PAGE_SIZE) +
+	    GUARD_PAGE_SIZE + heaplen + GUARD_PAGE_SIZE + STACK_SIZE;
+	base = sbop->sbo_datamem = mmap(NULL, length, PROT_NONE, MAP_ANON, -1, 0);
+	if (sbop->sbo_datamem == MAP_FAILED) {
 		saved_errno = errno;
 		warn("%s: mmap region", __func__);
 		goto error;
@@ -295,28 +298,18 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	length -= roundup2(METADATA_SIZE, PAGE_SIZE);
 
 	/*
-	 * Protect post-metadata guard page(s)
-	 */
-	if (mprotect(base, SANDBOX_BINARY_BASE - roundup2(SANDBOX_METADATA_BASE +
-	    METADATA_SIZE, PAGE_SIZE), PROT_NONE) < 0) {
-		saved_errno = errno;
-		warn("%s: mprotect binary guard page", __func__);
-		goto error;
-	}
-
-	/*
 	 * Assert that we didn't bump into the sandbox entry address.  This
 	 * address is hard to change as it is the address used in static
 	 * linking for sandboxed code.
 	 */
-	assert((register_t)base - (register_t)sbop->sbo_mem <
+	assert((register_t)base - (register_t)sbop->sbo_datamem <
 	    SANDBOX_BINARY_BASE);
 
 	/*
 	 * Skip already mapped binary.
 	 */
-	base = (caddr_t)sbop->sbo_mem + roundup2(max_prog_offset, PAGE_SIZE);
-	length = sbcp->sbc_sandboxlen - roundup2(max_prog_offset, PAGE_SIZE);
+	base = (caddr_t)sbop->sbo_datamem + roundup2(max_prog_offset, PAGE_SIZE);
+	length = sbop->sbo_datalen - roundup2(max_prog_offset, PAGE_SIZE);
 
 	/*
 	 * Skip guard page.
@@ -327,16 +320,15 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	/*
 	 * Heap.
 	 */
-	sbop->sbo_heapbase = (register_t)base - (register_t)sbop->sbo_mem;
-	sbop->sbo_heaplen = length - (GUARD_PAGE_SIZE + STACK_SIZE);
-	if (mmap(base, sbop->sbo_heaplen, PROT_READ | PROT_WRITE,
-	    MAP_ANON | MAP_FIXED, -1, 0) == MAP_FAILED) {
+	sbop->sbo_heapbase = (register_t)base - (register_t)sbop->sbo_datamem;
+	if (mmap(base, heaplen, PROT_READ | PROT_WRITE, MAP_ANON | MAP_FIXED,
+	    -1, 0) == MAP_FAILED) {
 		saved_errno = errno;
 		warn("%s: mmap heap", __func__);
 		goto error;
 	}
-	base += sbop->sbo_heaplen;
-	length -= sbop->sbo_heaplen;
+	base += heaplen;
+	length -= heaplen;
 
 	/*
 	 * Skip guard page.
@@ -367,21 +359,22 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 * Now that addresses are known, write out metadata for in-sandbox use.
 	 */
 	sbmp->sbm_heapbase = sbop->sbo_heapbase;
-	sbmp->sbm_heaplen = sbop->sbo_heaplen;
+	sbmp->sbm_heaplen = heaplen;
 	sbmp->sbm_vtablebase = sbcp->sbc_provided_methods->spms_base;
 
 	if (sbcp->sbc_sandbox_class_statp != NULL) {
 		(void)sandbox_stat_object_register(
 		    &sbop->sbo_sandbox_object_statp,
 		    sbcp->sbc_sandbox_class_statp,
-		    SANDBOX_OBJECT_TYPE_POINTER, (uintptr_t)sbop->sbo_mem);
+		    SANDBOX_OBJECT_TYPE_POINTER,
+		    (uintptr_t)sbop->sbo_datamem);
 		SANDBOX_CLASS_ALLOC(sbcp->sbc_sandbox_class_statp);
 	}
 
 	/*
 	 * Construct data capability for run-time linker vector.
 	 */
-	datacap = cheri_ptrperm(sbop->sbo_mem, sbcp->sbc_sandboxlen,
+	datacap = cheri_ptrperm(sbop->sbo_datamem, sbop->sbo_datalen,
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP |
 	    CHERI_PERM_STORE | CHERI_PERM_STORE_CAP |
 	    CHERI_PERM_STORE_LOCAL_CAP);
@@ -392,7 +385,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	/*
 	 * Construct data capability for object-capability invocation vector.
 	 */
-	datacap = cheri_ptrperm(sbop->sbo_mem, sbcp->sbc_sandboxlen,
+	datacap = cheri_ptrperm(sbop->sbo_datamem, sbop->sbo_datalen,
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP |
 	    CHERI_PERM_STORE | CHERI_PERM_STORE_CAP |
 	    CHERI_PERM_STORE_LOCAL_CAP);
@@ -437,29 +430,43 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	return (0);
 
 error:
-	if (sbop->sbo_mem != NULL)
-		munmap(sbop->sbo_mem, sbcp->sbc_sandboxlen);
+	if (sbop->sbo_datamem != NULL)
+		munmap(sbop->sbo_datamem, sbop->sbo_datalen);
 	errno = saved_errno;
 	return (-1);
 }
 
 void
-sandbox_object_unload(struct sandbox_class *sbcp, struct sandbox_object *sbop)
+sandbox_object_unload(struct sandbox_object *sbop)
 {
 
-	munmap(sbop->sbo_mem, sbcp->sbc_sandboxlen);
+	munmap(sbop->sbo_datamem, sbop->sbo_datalen);
+}
+
+void *
+sandbox_class_getbase(struct sandbox_class *sbcp)
+{
+
+	return (sbcp->sbc_codemem);
 }
 
 void *
 sandbox_object_getbase(struct sandbox_object *sbop)
 {
 
-	return (sbop->sbo_mem);
+	return (sbop->sbo_datamem);
 }
 
 size_t
-sandbox_class_getlength(struct sandbox_class *sbcp) 
+sandbox_class_getlength(struct sandbox_class *sbcp)
 {
 
-	return (sbcp->sbc_sandboxlen);
+	return (sbcp->sbc_codelen);
+}
+
+size_t
+sandbox_object_getlength(struct sandbox_object *sbop)
+{
+
+	return (sbop->sbo_datalen);
 }

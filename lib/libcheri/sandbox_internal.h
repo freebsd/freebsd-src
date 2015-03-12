@@ -53,8 +53,8 @@ struct sandbox_class {
 	char			*sbc_path;
 	int			 sbc_fd;
 	struct stat		 sbc_stat;
-	size_t			 sbc_sandboxlen;
-	void			*sbc_mem;
+	size_t			 sbc_codelen;
+	void			*sbc_codemem;
 	struct sandbox_map	*sbc_codemap;
 	struct sandbox_map	*sbc_datamap;
 
@@ -97,8 +97,8 @@ struct sandbox_class {
 struct sandbox_object {
 	CHERI_SYSTEM_OBJECT_FIELDS;
 	struct sandbox_class	*sbo_sandbox_classp;
-	void			*sbo_mem;
-	register_t		 sbo_sandboxlen;
+	void			*sbo_datamem;
+	register_t		 sbo_datalen;
 	register_t		 sbo_heapbase;
 	register_t		 sbo_heaplen;
 	uint			 sbo_flags;	/* Sandbox flags. */
@@ -134,7 +134,6 @@ int	sandbox_class_load(struct sandbox_class *sbcp);
 void	sandbox_class_unload(struct sandbox_class *sbcp);
 int	sandbox_object_load(struct sandbox_class *sbcp,
 	    struct sandbox_object *sbop);
-void	sandbox_object_unload(struct sandbox_class *sbcp,
-	    struct sandbox_object *sbop);
+void	sandbox_object_unload(struct sandbox_object *sbop);
 
 #endif /* !_SANDBOX_INTERNAL_H_ */

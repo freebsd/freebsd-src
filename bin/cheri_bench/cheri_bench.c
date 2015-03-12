@@ -278,7 +278,7 @@ main(int argc, char *argv[])
 	    if (sandbox_class_new("/usr/libexec/cheri_bench-helper",
 				  4*1024*1024, &classp) < 0)
 	      err(EX_OSFILE, "sandbox_class_new");
-	    if (sandbox_object_new(classp, &sandboxp) < 0)
+	    if (sandbox_object_new(classp, 2*1024*1024, &sandboxp) < 0)
 	      err(EX_OSFILE, "sandbox_object_new");
 
 	    /*

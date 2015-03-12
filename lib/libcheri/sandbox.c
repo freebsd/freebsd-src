@@ -201,7 +201,7 @@ sandbox_program_fini(void)
 }
 
 int
-sandbox_class_new(const char *path, size_t sandboxlen,
+sandbox_class_new(const char *path, size_t maxmaplen,
     struct sandbox_class **sbcpp)
 {
 	char sandbox_basename[MAXPATHLEN];
@@ -226,7 +226,6 @@ sandbox_class_new(const char *path, size_t sandboxlen,
 		errno = saved_errno;
 		return (-1);
 	}
-	sbcp->sbc_sandboxlen = sandboxlen;
 	sbcp->sbc_fd = fd;
 	sbcp->sbc_path = strdup(path);
 	if (sbcp->sbc_path == NULL) {
@@ -259,10 +258,24 @@ sandbox_class_new(const char *path, size_t sandboxlen,
 		goto error;
 	}
 
-	/* For now, support only "small" sandboxed programs. */
-	if (sbcp->sbc_stat.st_size >= (off_t)sbcp->sbc_sandboxlen/2) {
+	/*
+	 * Don't allow sandbox binaries to request over maxmaplen of
+	 * either code or data.
+	 *
+	 * XXXBD: It would be nice to have some sort of default sane
+	 * value, but programs can have astonishing amounts of BSS
+	 * relative to file size.
+	 */
+	if (maxmaplen > 0 &&
+	    sandbox_map_maxoffset(sbcp->sbc_codemap) > maxmaplen) {
 		saved_errno = EINVAL;
-		warnx("%s: %s too large", __func__, path);
+		warnx("%s: %s code too large", __func__, path);
+		goto error;
+	}
+	if (maxmaplen > 0 &&
+	    sandbox_map_maxoffset(sbcp->sbc_datamap) > maxmaplen) {
+		saved_errno = EINVAL;
+		warnx("%s: %s data too large", __func__, path);
 		goto error;
 	}
 
@@ -422,8 +435,8 @@ sandbox_class_destroy(struct sandbox_class *sbcp)
  * generally get up and running.
  */
 int
-sandbox_object_new_flags(struct sandbox_class *sbcp, uint flags,
-    struct sandbox_object **sbopp)
+sandbox_object_new_flags(struct sandbox_class *sbcp, size_t heaplen,
+    uint flags, struct sandbox_object **sbopp)
 {
 	struct sandbox_object *sbop;
 	int error;
@@ -434,6 +447,7 @@ sandbox_object_new_flags(struct sandbox_class *sbcp, uint flags,
 	CHERI_SYSTEM_OBJECT_INIT(sbop);
 	sbop->sbo_sandbox_classp = sbcp;
 	sbop->sbo_flags = flags;
+	sbop->sbo_heaplen = heaplen;
 
 	error = sandbox_object_load(sbcp, sbop);
 	if (error) {
@@ -466,11 +480,12 @@ sandbox_object_new_flags(struct sandbox_class *sbcp, uint flags,
 #define	SANDBOX_OBJECT_FLAG_DEFAULT	(SANDBOX_OBJECT_FLAG_CONSOLE |	\
 	    SANDBOX_OBJECT_FLAG_ALLOCFREE | SANDBOX_OBJECT_FLAG_USERFN)
 int
-sandbox_object_new(struct sandbox_class *sbcp, struct sandbox_object **sbopp)
+sandbox_object_new(struct sandbox_class *sbcp, size_t heaplen,
+    struct sandbox_object **sbopp)
 {
 
-	return (sandbox_object_new_flags(sbcp, SANDBOX_OBJECT_FLAG_DEFAULT,
-	    sbopp));
+	return (sandbox_object_new_flags(sbcp, heaplen,
+	    SANDBOX_OBJECT_FLAG_DEFAULT, sbopp));
 }
 
 register_t
@@ -583,7 +598,7 @@ sandbox_object_destroy(struct sandbox_object *sbop)
 	if (sbop->sbo_sandbox_object_statp != NULL)
 		(void)sandbox_stat_object_deregister(
 		    sbop->sbo_sandbox_object_statp);
-	sandbox_object_unload(sbcp, sbop);	/* Unmap memory. */
+	sandbox_object_unload(sbop);		/* Unmap memory. */
 	bzero(sbop, sizeof(*sbop));		/* Clears tags. */
 	free(sbop);
 }
@@ -610,12 +625,15 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbpp)
 	sbp = calloc(1, sizeof(*sbp));
 	if (sbp == NULL)
 		return (-1);
-	if (sandbox_class_new(path, sandboxlen, &sbp->sb_sandbox_classp) !=
-	    0) {
+
+	/* XXX: sandboxlen/2 is about what used to be allocated. */
+	if (sandbox_class_new(path, sandboxlen/2,
+	    &sbp->sb_sandbox_classp) != 0) {
 		free(sbp);
 		return (-1);
 	}
-	if (sandbox_object_new(sbp->sb_sandbox_classp,
+	/* XXX: sandboxlen/2 is about what used to be allocated. */
+	if (sandbox_object_new(sbp->sb_sandbox_classp, sandboxlen/2,
 	    &sbp->sb_sandbox_objectp) != 0) {
 		sandbox_class_destroy(sbp->sb_sandbox_classp);
 		free(sbp);

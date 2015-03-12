@@ -176,7 +176,7 @@ test_2sandbox_var_data_getset(const struct cheri_test *ctp __unused)
 	__capability void *cclear;
 	register_t v;
 
-	if (sandbox_object_new(cheritest_classp, &sbop) < 0)
+	if (sandbox_object_new(cheritest_classp, 2*1024*1024, &sbop) < 0)
 		cheritest_failure_errx("sandbox_object_new() failed");
 
 	/*

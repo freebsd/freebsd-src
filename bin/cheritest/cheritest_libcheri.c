@@ -211,7 +211,7 @@ test_2sandbox_newdestroy(const struct cheri_test *ctp __unused)
 
 	struct sandbox_object *sbop;
 
-	if (sandbox_object_new(cheritest_classp, &sbop) < 0)
+	if (sandbox_object_new(cheritest_classp, 2*1024*1024, &sbop) < 0)
 		cheritest_failure_errx("sandbox_object_new() failed");
 	sandbox_object_destroy(sbop);
 	cheritest_success();
@@ -228,7 +228,7 @@ test_2sandbox_md5(const struct cheri_test *ctp __unused)
 	/*
 	 * Create a second instance of the cheritest class.
 	 */
-	if (sandbox_object_new(cheritest_classp, &sbop) < 0)
+	if (sandbox_object_new(cheritest_classp, 2*1024*1024, &sbop) < 0)
 		cheritest_failure_errx("sandbox_object_new() failed");
 
 	/*
@@ -278,7 +278,7 @@ cheritest_libcheri_setup(void)
 		return (-1);
 	if (sandbox_program_finalize() == -1)
 		err(EX_SOFTWARE, "sandbox_program_finalize");
-	if (sandbox_object_new(cheritest_classp, &cheritest_objectp) < 0)
+	if (sandbox_object_new(cheritest_classp, 2*1024*1024, &cheritest_objectp) < 0)
 		return (-1);
 	cheritest = sandbox_object_getobject(cheritest_objectp);
 	(void)sandbox_class_method_declare(cheritest_classp,
