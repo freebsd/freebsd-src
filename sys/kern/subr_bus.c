@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/cpuset.h>
 
 #include <net/vnet.h>
 
@@ -284,6 +285,7 @@ static void
 device_sysctl_init(device_t dev)
 {
 	devclass_t dc = dev->devclass;
+	int domain;
 
 	if (dev->sysctl_tree != NULL)
 		return;
@@ -313,6 +315,10 @@ device_sysctl_init(device_t dev)
 	    OID_AUTO, "%parent", CTLTYPE_STRING | CTLFLAG_RD,
 	    dev, DEVICE_SYSCTL_PARENT, device_sysctl_handler, "A",
 	    "parent device");
+	if (bus_get_domain(dev, &domain) == 0)
+		SYSCTL_ADD_INT(&dev->sysctl_ctx,
+		    SYSCTL_CHILDREN(dev->sysctl_tree), OID_AUTO, "%domain",
+		    CTLFLAG_RD, NULL, domain, "NUMA domain");
 }
 
 static void
@@ -3719,6 +3725,25 @@ bus_print_child_footer(device_t dev, device_t child)
 /**
  * @brief Helper function for implementing BUS_PRINT_CHILD().
  *
+ * This function prints out the VM domain for the given device.
+ *
+ * @returns the number of characters printed
+ */
+int
+bus_print_child_domain(device_t dev, device_t child)
+{
+	int domain;
+
+	/* No domain? Don't print anything */
+	if (BUS_GET_DOMAIN(dev, child, &domain) != 0)
+		return (0);
+
+	return (printf(" numa-domain %d", domain));
+}
+
+/**
+ * @brief Helper function for implementing BUS_PRINT_CHILD().
+ *
  * This function simply calls bus_print_child_header() followed by
  * bus_print_child_footer().
  *
@@ -3730,6 +3755,7 @@ bus_generic_print_child(device_t dev, device_t child)
 	int	retval = 0;
 
 	retval += bus_print_child_header(dev, child);
+	retval += bus_print_child_domain(dev, child);
 	retval += bus_print_child_footer(dev, child);
 
 	return (retval);
@@ -4144,6 +4170,16 @@ bus_generic_child_present(device_t dev, device_t child)
 	return (BUS_CHILD_PRESENT(device_get_parent(dev), dev));
 }
 
+int
+bus_generic_get_domain(device_t dev, device_t child, int *domain)
+{
+
+	if (dev->parent)
+		return (BUS_GET_DOMAIN(dev->parent, dev, domain));
+
+	return (ENOENT);
+}
+
 /*
  * Some convenience functions to make it easier for drivers to use the
  * resource-management functions.  All these really do is hide the
@@ -4474,6 +4510,18 @@ bus_get_dma_tag(device_t dev)
 	if (parent == NULL)
 		return (NULL);
 	return (BUS_GET_DMA_TAG(parent, dev));
+}
+
+/**
+ * @brief Wrapper function for BUS_GET_DOMAIN().
+ *
+ * This function simply calls the BUS_GET_DOMAIN() method of the
+ * parent of @p dev.
+ */
+int
+bus_get_domain(device_t dev, int *domain)
+{
+	return (BUS_GET_DOMAIN(device_get_parent(dev), dev, domain));
 }
 
 /* Resume all devices and then notify userland that we're up again. */
