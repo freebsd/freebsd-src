@@ -1651,9 +1651,9 @@ static struct iap_event_descr iap_events[] = {
 
     IAPDESCR(D3H_01H, 0xD3, 0x01, IAP_F_FM | IAP_F_IB | IAP_F_SBX |
 	IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
-    IAPDESCR(D3H_03H, 0xD0, 0x3, IAP_F_IBX  ),
+    IAPDESCR(D3H_03H, 0xD3, 0x03, IAP_F_IBX),
     IAPDESCR(D3H_04H, 0xD3, 0x04, IAP_F_FM | IAP_F_SBX | IAP_F_IBX),	/* Not defined for IBX */
-    IAPDESCR(D3H_0CH, 0xD0, 0x0, IAP_F_IBX  ),
+    IAPDESCR(D3H_0CH, 0xD3, 0x0C, IAP_F_IBX),
     IAPDESCR(D3H_10H, 0xD3, 0x10, IAP_F_IBX  ),
     IAPDESCR(D3H_20H, 0xD3, 0x20, IAP_F_IBX  ),
 
