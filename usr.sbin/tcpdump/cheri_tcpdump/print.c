@@ -140,7 +140,7 @@ static const char *hash_colors[] = {
 };
 #define	N_HASH_COLORS	3
 
-#define	MAX_SANDBOXES	64
+#define	MAX_SANDBOXES	129
 static char *hash_names[MAX_SANDBOXES];
 static char *proto_names[MAX_SANDBOXES];
 
