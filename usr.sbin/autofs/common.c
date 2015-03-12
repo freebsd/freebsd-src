@@ -607,13 +607,16 @@ node_options(const struct node *n)
 }
 
 static void
-node_print_indent(const struct node *n, int indent)
+node_print_indent(const struct node *n, const char *cmdline_options,
+    int indent)
 {
 	const struct node *child, *first_child;
-	char *path, *options;
+	char *path, *options, *tmp;
 
 	path = node_path(n);
-	options = node_options(n);
+	tmp = node_options(n);
+	options = concat(cmdline_options, ',', tmp);
+	free(tmp);
 
 	/*
 	 * Do not show both parent and child node if they have the same
@@ -644,16 +647,21 @@ node_print_indent(const struct node *n, int indent)
 	free(options);
 
 	TAILQ_FOREACH(child, &n->n_children, n_next)
-		node_print_indent(child, indent + 2);
+		node_print_indent(child, cmdline_options, indent + 2);
 }
 
+/*
+ * Recursively print node with all its children.  The cmdline_options
+ * argument is used for additional options to be prepended to all the
+ * others - usually those are the options passed by command line.
+ */
 void
-node_print(const struct node *n)
+node_print(const struct node *n, const char *cmdline_options)
 {
 	const struct node *child;
 
 	TAILQ_FOREACH(child, &n->n_children, n_next)
-		node_print_indent(child, 0);
+		node_print_indent(child, cmdline_options, 0);
 }
 
 static struct node *
