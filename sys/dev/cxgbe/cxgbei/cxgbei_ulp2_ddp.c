@@ -208,7 +208,7 @@ cxgbei_ulp2_ddp_make_gl_from_iscsi_sgvec(u_int xferlen, struct cxgbei_sgl *sgl,
 	int i = 1, j = 0;
 
 	if (xferlen <= DDP_THRESHOLD) {
-		CTR2(KTR_CXGBE, "xfer %u < threshold %u, no ddp.\n",
+		CTR2(KTR_CXGBE, "xfer %u < threshold %u, no ddp.",
 			xferlen, DDP_THRESHOLD);
 		return NULL;
 	}
@@ -224,7 +224,7 @@ cxgbei_ulp2_ddp_make_gl_from_iscsi_sgvec(u_int xferlen, struct cxgbei_sgl *sgl,
 	gl->offset = sgoffset;
 	gl->pages[0] = sgpage;
 	CTR6(KTR_CXGBE,
-		"%s: xferlen:0x%x len:0x%x off:0x%x sg_addr:%p npages:%d\n",
+		"%s: xferlen:0x%x len:0x%x off:0x%x sg_addr:%p npages:%d",
 		__func__, xferlen, gl->length, gl->offset, sg->sg_addr, npages);
 
 	for (i = 1, sg = sg_next(sg); i < sgcnt; i++, sg = sg_next(sg)) {
@@ -323,13 +323,13 @@ cxgbei_ulp2_ddp_tag_reserve(struct cxgbei_data *ci, void *isock, u_int tid,
 		}
 	}
 	if (rc) {
-		CTR3(KTR_CXGBE, "xferlen %u, gl %u, npods %u NO DDP.\n",
+		CTR3(KTR_CXGBE, "xferlen %u, gl %u, npods %u NO DDP.",
 			      gl->length, gl->nelem, npods);
 		return (rc);
 	}
 
 	tag = cxgbei_ulp2_ddp_tag_base(idx, ci->colors, tformat, sw_tag);
-	CTR4(KTR_CXGBE, "%s: sw_tag:0x%x idx:0x%x tag:0x%x\n",
+	CTR4(KTR_CXGBE, "%s: sw_tag:0x%x idx:0x%x tag:0x%x",
 			__func__, sw_tag, idx, tag);
 
 	hdr.rsvd = 0;
@@ -367,7 +367,7 @@ cxgbei_ulp2_ddp_tag_release(struct cxgbei_data *ci, uint32_t tag,
 	MPASS(isock != NULL);
 
 	idx = (tag >> IPPOD_IDX_SHIFT) & ci->idx_mask;
-	CTR3(KTR_CXGBE, "tag:0x%x idx:0x%x nppods:0x%x\n",
+	CTR3(KTR_CXGBE, "tag:0x%x idx:0x%x nppods:0x%x",
 			tag, idx, ci->nppods);
 	if (idx < ci->nppods) {
 		struct cxgbei_ulp2_gather_list *gl = ci->gl_map[idx];
@@ -375,18 +375,18 @@ cxgbei_ulp2_ddp_tag_release(struct cxgbei_data *ci, uint32_t tag,
 
 		if (!gl || !gl->nelem) {
 			CTR4(KTR_CXGBE,
-				"release 0x%x, idx 0x%x, gl 0x%p, %u.\n",
+				"release 0x%x, idx 0x%x, gl 0x%p, %u.",
 				tag, idx, gl, gl ? gl->nelem : 0);
 			return;
 		}
 		npods = (gl->nelem + IPPOD_PAGES_MAX - 1) >> IPPOD_PAGES_SHIFT;
-		CTR3(KTR_CXGBE, "ddp tag 0x%x, release idx 0x%x, npods %u.\n",
+		CTR3(KTR_CXGBE, "ddp tag 0x%x, release idx 0x%x, npods %u.",
 			      tag, idx, npods);
 		t4_ddp_clear_map(ci, gl, tag, idx, npods, isock);
 		ddp_unmark_entries(ci, idx, npods);
 		cxgbei_ulp2_ddp_release_gl(ci, gl);
 	} else
-		CTR3(KTR_CXGBE, "ddp tag 0x%x, idx 0x%x > max 0x%x.\n",
+		CTR3(KTR_CXGBE, "ddp tag 0x%x, idx 0x%x > max 0x%x.",
 			      tag, idx, ci->nppods);
 }
 
