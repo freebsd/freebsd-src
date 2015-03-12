@@ -196,12 +196,9 @@ SUBDIR=	${_addr2line} \
 	write \
 	xargs \
 	xinstall \
-	${_xlint} \
 	xo \
-	${_xstr} \
 	xz \
 	xzdec \
-	${_yacc} \
 	yes \
 	${_ypcat} \
 	${_ypmatch} \
