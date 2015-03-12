@@ -175,8 +175,7 @@ static __inline
 long
 sbspace(struct sockbuf *sb)
 {
-	long bleft;
-	long mleft;
+	int bleft, mleft;		/* size should match sockbuf fields */
 
 	if (sb->sb_flags & SB_STOP)
 		return(0);
