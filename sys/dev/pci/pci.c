@@ -3781,6 +3781,7 @@ pci_print_child(device_t dev, device_t child)
 	retval += printf(" at device %d.%d", pci_get_slot(child),
 	    pci_get_function(child));
 
+	retval += bus_print_child_domain(dev, child);
 	retval += bus_print_child_footer(dev, child);
 
 	return (retval);

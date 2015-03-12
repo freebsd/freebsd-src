@@ -670,3 +670,16 @@ METHOD int remap_intr {
 	device_t	_child;
 	u_int		_irq;
 } DEFAULT null_remap_intr;
+
+/**
+ * @brief Get the VM domain handle for the given bus and child.
+ *
+ * @param _dev		the bus device
+ * @param _child	the child device
+ * @param _domain	a pointer to the bus's domain handle identifier
+ */
+METHOD int get_domain {
+	device_t	_dev;
+	device_t	_child;
+	int		*_domain;
+} DEFAULT bus_generic_get_domain;
