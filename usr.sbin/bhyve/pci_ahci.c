@@ -773,8 +773,8 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 
 	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
 	if (p->atapi || hdr->prdtl == 0) {
-		p->tfd = (ATA_E_ABORT << 8) | ATA_S_READY | ATA_S_ERROR;
-		p->is |= AHCI_P_IX_TFE;
+		ahci_write_fis_d2h(p, slot, cfis,
+		    (ATA_E_ABORT << 8) | ATA_S_READY | ATA_S_ERROR);
 	} else {
 		uint16_t buf[256];
 		uint64_t sectors;
@@ -851,19 +851,16 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		}
 		ahci_write_fis_piosetup(p);
 		write_prdt(p, slot, cfis, (void *)buf, sizeof(buf));
-		p->tfd = ATA_S_DSC | ATA_S_READY;
-		p->is |= AHCI_P_IX_DP;
-		p->ci &= ~(1 << slot);
+		ahci_write_fis_d2h(p, slot, cfis, ATA_S_DSC | ATA_S_READY);
 	}
-	ahci_generate_intr(p->pr_sc);
 }
 
 static void
 handle_atapi_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 {
 	if (!p->atapi) {
-		p->tfd = (ATA_E_ABORT << 8) | ATA_S_READY | ATA_S_ERROR;
-		p->is |= AHCI_P_IX_TFE;
+		ahci_write_fis_d2h(p, slot, cfis,
+		    (ATA_E_ABORT << 8) | ATA_S_READY | ATA_S_ERROR);
 	} else {
 		uint16_t buf[256];
 
@@ -894,11 +891,8 @@ handle_atapi_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		buf[88] = (1 << 14 | 0x7f);
 		ahci_write_fis_piosetup(p);
 		write_prdt(p, slot, cfis, (void *)buf, sizeof(buf));
-		p->tfd = ATA_S_DSC | ATA_S_READY;
-		p->is |= AHCI_P_IX_DHR;
-		p->ci &= ~(1 << slot);
+		ahci_write_fis_d2h(p, slot, cfis, ATA_S_DSC | ATA_S_READY);
 	}
-	ahci_generate_intr(p->pr_sc);
 }
 
 static void
@@ -1479,9 +1473,7 @@ ahci_handle_cmd(struct ahci_port *p, int slot, uint8_t *cfis)
 			p->mult_sectors = cfis[12];
 			p->tfd = ATA_S_DSC | ATA_S_READY;
 		}
-		p->is |= AHCI_P_IX_DP;
-		p->ci &= ~(1 << slot);
-		ahci_generate_intr(p->pr_sc);
+		ahci_write_fis_d2h(p, slot, cfis, p->tfd);
 		break;
 	case ATA_READ_DMA:
 	case ATA_WRITE_DMA:
@@ -1517,17 +1509,15 @@ ahci_handle_cmd(struct ahci_port *p, int slot, uint8_t *cfis)
 		break;
 	case ATA_PACKET_CMD:
 		if (!p->atapi) {
-			p->tfd = (ATA_E_ABORT << 8) | ATA_S_READY | ATA_S_ERROR;
-			p->is |= AHCI_P_IX_TFE;
-			ahci_generate_intr(p->pr_sc);
+			ahci_write_fis_d2h(p, slot, cfis,
+			    (ATA_E_ABORT << 8) | ATA_S_READY | ATA_S_ERROR);
 		} else
 			handle_packet_cmd(p, slot, cfis);
 		break;
 	default:
 		WPRINTF("Unsupported cmd:%02x\n", cfis[2]);
-		p->tfd = (ATA_E_ABORT << 8) | ATA_S_READY | ATA_S_ERROR;
-		p->is |= AHCI_P_IX_TFE;
-		ahci_generate_intr(p->pr_sc);
+		ahci_write_fis_d2h(p, slot, cfis,
+		    (ATA_E_ABORT << 8) | ATA_S_READY | ATA_S_ERROR);
 		break;
 	}
 }
