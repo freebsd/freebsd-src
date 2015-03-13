@@ -117,6 +117,7 @@ mask_table_value(struct table_value *src, struct table_value *dst,
 	_MCPY(dscp, IPFW_VTYPE_DSCP);
 	_MCPY(nh4, IPFW_VTYPE_NH4);
 	_MCPY(nh6, IPFW_VTYPE_NH6);
+	_MCPY(zoneid, IPFW_VTYPE_NH6);
 #undef	_MCPY
 }
 
@@ -666,6 +667,7 @@ ipfw_import_table_value_v1(ipfw_table_value *iv)
 	v.nh4 = iv->nh4;
 	v.nh6 = iv->nh6;
 	v.limit = iv->limit;
+	v.zoneid = iv->zoneid;
 
 	memcpy(iv, &v, sizeof(ipfw_table_value));
 }
@@ -691,6 +693,7 @@ ipfw_export_table_value_v1(struct table_value *v, ipfw_table_value *piv)
 	iv.limit = v->limit;
 	iv.nh4 = v->nh4;
 	iv.nh6 = v->nh6;
+	iv.zoneid = v->zoneid;
 
 	memcpy(piv, &iv, sizeof(iv));
 }
