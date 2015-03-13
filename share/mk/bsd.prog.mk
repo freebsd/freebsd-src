@@ -168,15 +168,15 @@ CLEANFILES+= ${OBJS}
 _EXTRADEPEND:
 .if defined(LDFLAGS) && !empty(LDFLAGS:M-nostdlib)
 .if defined(DPADD) && !empty(DPADD)
-	echo ${PROG}: ${DPADD} >> ${DEPENDFILE}
+	echo ${PROG_FULL}: ${DPADD} >> ${DEPENDFILE}
 .endif
 .else
-	echo ${PROG}: ${LIBC} ${DPADD} >> ${DEPENDFILE}
+	echo ${PROG_FULL}: ${LIBC} ${DPADD} >> ${DEPENDFILE}
 .if defined(PROG_CXX) && !defined(EARLY_BUILD)
 .if !empty(CXXFLAGS:M-stdlib=libc++)
-	echo ${PROG}: ${LIBCPLUSPLUS} >> ${DEPENDFILE}
+	echo ${PROG_FULL}: ${LIBCPLUSPLUS} >> ${DEPENDFILE}
 .else
-	echo ${PROG}: ${LIBSTDCPLUSPLUS} >> ${DEPENDFILE}
+	echo ${PROG_FULL}: ${LIBSTDCPLUSPLUS} >> ${DEPENDFILE}
 .endif
 .endif
 .endif
