@@ -103,7 +103,10 @@ struct cheri_frame {
 	 * incorrect, but should be made correct.
 	 */
 	register_t	cf_capcause;	/* Updated only on CP2 exceptions. */
-	register_t	_cf_pad[3];
+	register_t	_cf_pad0[1];
+#if !defined(CPU_CHERI128)
+	register_t	_cf_pad1[2];
+#endif
 };
 
 #ifdef _KERNEL
