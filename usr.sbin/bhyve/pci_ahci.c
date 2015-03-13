@@ -1682,8 +1682,6 @@ ata_ioreq_cb(struct blockif_req *br, int err)
 		tfd = ATA_S_READY | ATA_S_DSC;
 	} else {
 		tfd = (ATA_E_ABORT << 8) | ATA_S_READY | ATA_S_ERROR;
-		if (ncq)
-			p->serr |= (1 << slot);
 	}
 
 	if (ncq) {
