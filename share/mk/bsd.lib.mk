@@ -276,7 +276,7 @@ _EXTRADEPEND:
 	mv $$TMP ${DEPENDFILE}
 .if !defined(NO_EXTRADEPEND) && defined(SHLIB_NAME)
 .if defined(DPADD) && !empty(DPADD)
-	echo ${SHLIB_NAME}: ${DPADD} >> ${DEPENDFILE}
+	echo ${SHLIB_NAME_FULL}: ${DPADD} >> ${DEPENDFILE}
 .endif
 .endif
 
