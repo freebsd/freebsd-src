@@ -42,5 +42,12 @@ CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
 
 CFLAGS.pngerror.c=	-O0
 
-CFLAGS+=	-Wno-cast-align \
-		-Wno-tautological-constant-out-of-range-compare
+CFLAGS+=	-Wno-cast-align
+
+.if ${COMPILER_TYPE} == "clang"
+CFLAGS+=	-Wno-tautological-constant-out-of-range-compare
+.endif
+
+.if ${COMPILER_TYPE} == "gcc"
+CFLAGS+=	-Wno-error
+.endif
