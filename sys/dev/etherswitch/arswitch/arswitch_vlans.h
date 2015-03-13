@@ -37,8 +37,10 @@ int ar8xxx_set_pvid(struct arswitch_softc *, int, int);
 
 int ar8xxx_flush_dot1q_vlan(struct arswitch_softc *sc);
 int ar8xxx_purge_dot1q_vlan(struct arswitch_softc *sc, int vid);
-int ar8xxx_get_dot1q_vlan(struct arswitch_softc *sc, uint32_t *ports, int vid);
-int ar8xxx_set_dot1q_vlan(struct arswitch_softc *sc, uint32_t ports, int vid);
+int ar8xxx_get_dot1q_vlan(struct arswitch_softc *sc, uint32_t *ports,
+    uint32_t *untagged_ports, int vid);
+int ar8xxx_set_dot1q_vlan(struct arswitch_softc *sc, uint32_t ports,
+    uint32_t untagged_ports, int vid);
 int ar8xxx_get_port_vlan(struct arswitch_softc *sc, uint32_t *ports, int vid);
 int ar8xxx_set_port_vlan(struct arswitch_softc *sc, uint32_t ports, int vid);
 

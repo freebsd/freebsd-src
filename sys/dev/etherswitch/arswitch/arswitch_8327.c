@@ -66,6 +66,51 @@
 #include "miibus_if.h"
 #include "etherswitch_if.h"
 
+
+static int
+ar8327_vlan_op(struct arswitch_softc *sc, uint32_t op, uint32_t vid,
+    uint32_t data)
+{
+	int err;
+
+	/*
+	 * Wait for the "done" bit to finish.
+	 */
+	if (arswitch_waitreg(sc->sc_dev, AR8327_REG_VTU_FUNC1,
+	    AR8327_VTU_FUNC1_BUSY, 0, 5))
+		return (EBUSY);
+
+	/*
+	 * If it's a "load" operation, then ensure 'data' is loaded
+	 * in first.
+	 */
+	if ((op & AR8327_VTU_FUNC1_OP) == AR8327_VTU_FUNC1_OP_LOAD) {
+		err = arswitch_writereg(sc->sc_dev, AR8327_REG_VTU_FUNC0, data);
+		if (err)
+			return (err);
+	}
+
+	/*
+	 * Set the VID.
+	 */
+	op |= ((vid & 0xfff) << AR8327_VTU_FUNC1_VID_S);
+
+	/*
+	 * Set busy bit to start loading in the command.
+	 */
+	op |= AR8327_VTU_FUNC1_BUSY;
+	arswitch_writereg(sc->sc_dev, AR8327_REG_VTU_FUNC1, op);
+
+	/*
+	 * Finally - wait for it to load.
+	 */
+	if (arswitch_waitreg(sc->sc_dev, AR8327_REG_VTU_FUNC1,
+	    AR8327_VTU_FUNC1_BUSY, 0, 5))
+		return (EBUSY);
+
+	return (0);
+}
+
 static void
 ar8327_phy_fixup(struct arswitch_softc *sc, int phy)
 {
@@ -742,7 +787,7 @@ ar8327_port_vlan_get(struct arswitch_softc *sc, etherswitch_port_t *p)
 	/* Retrieve the PVID */
 	sc->hal.arswitch_vlan_get_pvid(sc, p->es_port, &p->es_pvid);
 
-	/* Retrieve the current port configuration */
+	/* Retrieve the current port configuration from the VTU */
 	/*
 	 * DOUBLE_TAG
 	 * VLAN_MODE_ADD
@@ -754,10 +799,24 @@ ar8327_port_vlan_get(struct arswitch_softc *sc, etherswitch_port_t *p)
 }
 
 static void
+ar8327_port_disable_mirror(struct arswitch_softc *sc, int port)
+{
+
+	arswitch_modifyreg(sc->sc_dev,
+	    AR8327_REG_PORT_LOOKUP(port),
+	    AR8327_PORT_LOOKUP_ING_MIRROR_EN,
+	    0);
+	arswitch_modifyreg(sc->sc_dev,
+	    AR8327_REG_PORT_HOL_CTRL1(port),
+	    AR8327_PORT_HOL_CTRL1_EG_MIRROR_EN,
+	    0);
+}
+
+static void
 ar8327_reset_vlans(struct arswitch_softc *sc)
 {
 	int i;
-	uint32_t mode, t;
+	uint32_t t;
 	int ports;
 
 	ARSWITCH_LOCK_ASSERT(sc, MA_NOTOWNED);
@@ -787,43 +846,66 @@ ar8327_reset_vlans(struct arswitch_softc *sc)
 	 */
 	ports = 0x7f;
 
+	/*
+	 * XXX TODO: set things up correctly for vlans!
+	 */
 	for (i = 0; i < AR8327_NUM_PORTS; i++) {
+		int egress, ingress;
 
-		if (sc->vlan_mode == ETHERSWITCH_VLAN_PORT)
+		if (sc->vlan_mode == ETHERSWITCH_VLAN_PORT) {
 			sc->vid[i] = i | ETHERSWITCH_VID_VALID;
+			/* set egress == out_keep */
+			ingress = AR8X16_PORT_VLAN_MODE_PORT_ONLY;
+			/* in_port_only, forward */
+			egress = AR8327_PORT_VLAN1_OUT_MODE_UNTOUCH;
+		} else if (sc->vlan_mode == ETHERSWITCH_VLAN_DOT1Q) {
+			ingress = AR8X16_PORT_VLAN_MODE_SECURE;
+			egress = AR8327_PORT_VLAN1_OUT_MODE_UNMOD;
+		} else {
+			/* set egress == out_keep */
+			ingress = AR8X16_PORT_VLAN_MODE_PORT_ONLY;
+			/* in_port_only, forward */
+			egress = AR8327_PORT_VLAN1_OUT_MODE_UNTOUCH;
+		}
 
 		/* set pvid = 1; there's only one vlangroup to start with */
 		t = 1 << AR8327_PORT_VLAN0_DEF_SVID_S;
 		t |= 1 << AR8327_PORT_VLAN0_DEF_CVID_S;
 		arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_VLAN0(i), t);
 
-		/* set egress == out_keep */
-		mode = AR8327_PORT_VLAN1_OUT_MODE_UNTOUCH;
-
 		t = AR8327_PORT_VLAN1_PORT_VLAN_PROP;
-		t |= mode << AR8327_PORT_VLAN1_OUT_MODE_S;
+		t |= egress << AR8327_PORT_VLAN1_OUT_MODE_S;
 		arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_VLAN1(i), t);
 
 		/* Ports can see other ports */
+		/* XXX not entirely true for dot1q? */
 		t = (ports & ~(1 << i));	/* all ports besides us */
 		t |= AR8327_PORT_LOOKUP_LEARN;
 
-		/* in_port_only, forward */
-		t |= AR8X16_PORT_VLAN_MODE_PORT_ONLY << AR8327_PORT_LOOKUP_IN_MODE_S;
+		t |= ingress << AR8327_PORT_LOOKUP_IN_MODE_S;
 		t |= AR8X16_PORT_CTRL_STATE_FORWARD << AR8327_PORT_LOOKUP_STATE_S;
 		arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_LOOKUP(i), t);
+	}
 
-		/*
-		 * Disable port mirroring entirely.
-		 */
-		arswitch_modifyreg(sc->sc_dev,
-		    AR8327_REG_PORT_LOOKUP(i),
-		    AR8327_PORT_LOOKUP_ING_MIRROR_EN,
-		    0);
-		arswitch_modifyreg(sc->sc_dev,
-		    AR8327_REG_PORT_HOL_CTRL1(i),
-		    AR8327_PORT_HOL_CTRL1_EG_MIRROR_EN,
-		    0);
+	/*
+	 * Disable port mirroring entirely.
+	 */
+	for (i = 0; i < AR8327_NUM_PORTS; i++) {
+		ar8327_port_disable_mirror(sc, i);
+	}
+
+	/*
+	 * If dot1q - set pvid; dot1q, etc.
+	 */
+	sc->vid[0] = 1;
+	if (sc->vlan_mode == ETHERSWITCH_VLAN_DOT1Q) {
+		for (i = 0; i < AR8327_NUM_PORTS; i++) {
+			/* Each port - pvid 1 */
+			sc->hal.arswitch_vlan_set_pvid(sc, i, sc->vid[0]);
+		}
+		/* Initialise vlan1 - all ports, untagged */
+		sc->hal.arswitch_set_dot1q_vlan(sc, ports, ports, sc->vid[0]);
+		sc->vid[0] |= ETHERSWITCH_VID_VALID;
 	}
 
 	ARSWITCH_UNLOCK(sc);
@@ -867,9 +949,6 @@ static int
 ar8327_vlan_getvgroup(struct arswitch_softc *sc, etherswitch_vlangroup_t *vg)
 {
 
-	/* XXX for now, no dot1q vlans */
-	if (sc->vlan_mode == ETHERSWITCH_VLAN_DOT1Q)
-		return (EINVAL);
 	return (ar8xxx_getvgroup(sc, vg));
 }
 
@@ -877,9 +956,6 @@ static int
 ar8327_vlan_setvgroup(struct arswitch_softc *sc, etherswitch_vlangroup_t *vg)
 {
 
-	/* XXX for now, no dot1q vlans */
-	if (sc->vlan_mode == ETHERSWITCH_VLAN_DOT1Q)
-		return (EINVAL);
 	return (ar8xxx_setvgroup(sc, vg));
 }
 
@@ -939,6 +1015,98 @@ ar8327_atu_flush(struct arswitch_softc *sc)
 	return (ret);
 }
 
+static int
+ar8327_flush_dot1q_vlan(struct arswitch_softc *sc)
+{
+
+	return (ar8327_vlan_op(sc, AR8327_VTU_FUNC1_OP_FLUSH, 0, 0));
+}
+
+static int
+ar8327_purge_dot1q_vlan(struct arswitch_softc *sc, int vid)
+{
+
+	return (ar8327_vlan_op(sc, AR8327_VTU_FUNC1_OP_PURGE, vid, 0));
+}
+
+static int
+ar8327_get_dot1q_vlan(struct arswitch_softc *sc, uint32_t *ports,
+    uint32_t *untagged_ports, int vid)
+{
+	int i, r;
+	uint32_t op, reg, val;
+
+	op = AR8327_VTU_FUNC1_OP_GET_ONE;
+
+	/* Filter out the vid flags; only grab the VLAN ID */
+	vid &= 0xfff;
+
+	/* XXX TODO: the VTU here stores egress mode - keep, tag, untagged, none */
+	r = ar8327_vlan_op(sc, op, vid, 0);
+	if (r != 0) {
+		device_printf(sc->sc_dev, "%s: %d: op failed\n", __func__, vid);
+	}
+
+	reg = arswitch_readreg(sc->sc_dev, AR8327_REG_VTU_FUNC0);
+	DPRINTF(sc->sc_dev, "%s: %d: reg=0x%08x\n", __func__, vid, reg);
+
+	/*
+	 * If any of the bits are set, update the port mask.
+	 * Worry about the port config itself when getport() is called.
+	 */
+	*ports = 0;
+	for (i = 0; i < AR8327_NUM_PORTS; i++) {
+		val = reg >> AR8327_VTU_FUNC0_EG_MODE_S(i);
+		val = val & 0x3;
+		/* XXX KEEP (unmodified?) */
+		if (val == AR8327_VTU_FUNC0_EG_MODE_TAG) {
+			*ports |= (1 << i);
+		} else if (val == AR8327_VTU_FUNC0_EG_MODE_UNTAG) {
+			*ports |= (1 << i);
+			*untagged_ports |= (1 << i);
+		}
+	}
+
+	return (0);
+}
+
+static int
+ar8327_set_dot1q_vlan(struct arswitch_softc *sc, uint32_t ports,
+    uint32_t untagged_ports, int vid)
+{
+	int i;
+	uint32_t op, val, mode;
+
+	op = AR8327_VTU_FUNC1_OP_LOAD;
+	vid &= 0xfff;
+
+	DPRINTF(sc->sc_dev,
+	    "%s: vid: %d, ports=0x%08x, untagged_ports=0x%08x\n",
+	    __func__,
+	    vid,
+	    ports,
+	    untagged_ports);
+
+	/*
+	 * Mark it as valid; and that it should use per-VLAN MAC table,
+	 * not VID=0 when doing MAC lookups
+	 */
+	val = AR8327_VTU_FUNC0_VALID | AR8327_VTU_FUNC0_IVL;
+
+	for (i = 0; i < AR8327_NUM_PORTS; i++) {
+		if ((ports & BIT(i)) == 0)
+			mode = AR8327_VTU_FUNC0_EG_MODE_NOT;
+		else if (untagged_ports & BIT(i))
+			mode = AR8327_VTU_FUNC0_EG_MODE_UNTAG;
+		else
+			mode = AR8327_VTU_FUNC0_EG_MODE_TAG;
+
+		val |= mode << AR8327_VTU_FUNC0_EG_MODE_S(i);
+	}
+
+	return (ar8327_vlan_op(sc, op, vid, val));
+}
+
 void
 ar8327_attach(struct arswitch_softc *sc)
 {
@@ -952,6 +1120,10 @@ ar8327_attach(struct arswitch_softc *sc)
 	sc->hal.arswitch_vlan_setvgroup = ar8327_vlan_setvgroup;
 	sc->hal.arswitch_port_vlan_setup = ar8327_port_vlan_setup;
 	sc->hal.arswitch_port_vlan_get = ar8327_port_vlan_get;
+	sc->hal.arswitch_flush_dot1q_vlan = ar8327_flush_dot1q_vlan;
+	sc->hal.arswitch_purge_dot1q_vlan = ar8327_purge_dot1q_vlan;
+	sc->hal.arswitch_set_dot1q_vlan = ar8327_set_dot1q_vlan;
+	sc->hal.arswitch_get_dot1q_vlan = ar8327_get_dot1q_vlan;
 
 	sc->hal.arswitch_vlan_init_hw = ar8327_reset_vlans;
 	sc->hal.arswitch_vlan_get_pvid = ar8327_get_pvid;
