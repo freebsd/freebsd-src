@@ -86,7 +86,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libpcap \
 	libpjdlog \
 	${_libpmc} \
-	${_libpng} \
+	libpng \
 	${_libpng_sb} \
 	${_libproc} \
 	libprocstat \
@@ -210,7 +210,6 @@ _libcurl=	libcurl
 _libjpeg=	libjpeg
 _netsurf=	netsurf
 .endif
-_libpng=	libpng
 _libpng_sb=	libpng_sb
 .endif
 
