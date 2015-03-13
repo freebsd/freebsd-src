@@ -1898,6 +1898,8 @@ moea64_get_unique_vsid(void) {
 			hash &= VSID_HASHMASK & ~(VSID_NBPW - 1);
 			hash |= i;
 		}
+		if (hash == VSID_VRMA)	/* also special, avoid this too */
+			continue;
 		KASSERT(!(moea64_vsid_bitmap[n] & mask),
 		    ("Allocating in-use VSID %#zx\n", hash));
 		moea64_vsid_bitmap[n] |= mask;
