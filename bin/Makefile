@@ -32,7 +32,6 @@ SUBDIR= cat \
 	realpath \
 	rm \
 	rmdir \
-	shmem_bench \
 	setfacl \
 	sh \
 	sleep \
@@ -40,6 +39,10 @@ SUBDIR= cat \
 	sync \
 	test \
 	uuidgen
+
+.if ${TARGET} == "mips"
+SUBDIR+=	shmem_bench
+.endif
 
 .if ${MK_CHERI} != "no"
 SUBDIR+=	cheri_helloworld
