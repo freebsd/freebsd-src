@@ -531,7 +531,7 @@ rgephy_reset(struct mii_softc *sc)
 				PHY_WRITE(sc, RGEPHY_MII_SSR, ssr);
 			}
 		}
-		break;
+		/* FALLTHROUGH */
 	default:
 		if (sc->mii_mpd_rev >= RGEPHY_8211B) {
 			pcr = PHY_READ(sc, RGEPHY_MII_PCR);
