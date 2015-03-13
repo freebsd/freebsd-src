@@ -35,6 +35,7 @@
 #include <netinet/in.h>
 #include <netinet/ip_fw.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 
 #include "ipfw2.h"
 
@@ -1384,6 +1385,7 @@ static void
 tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *arg,
     uint8_t type, uint32_t vmask)
 {
+	struct addrinfo hints, *res;
 	uint32_t a4, flag, val, vm;
 	ipfw_table_value *v;
 	uint32_t i;
@@ -1494,9 +1496,19 @@ tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *arg,
 			}
 			break;
 		case IPFW_VTYPE_NH6:
-			if (strchr(n, ':') != NULL &&
-			    inet_pton(AF_INET6, n, &v->nh6) == 1)
-				break;
+			if (strchr(n, ':') != NULL) {
+				memset(&hints, 0, sizeof(hints));
+				hints.ai_family = AF_INET6;
+				hints.ai_flags = AI_NUMERICHOST;
+				if (getaddrinfo(n, NULL, &hints, &res) == 0) {
+					v->nh6 = ((struct sockaddr_in6 *)
+					    res->ai_addr)->sin6_addr;
+					v->zoneid = ((struct sockaddr_in6 *)
+					    res->ai_addr)->sin6_scope_id;
+					freeaddrinfo(res);
+					break;
+				}
+			}
 			etype = "ipv6";
 			break;
 		}
@@ -1643,10 +1655,11 @@ static void
 table_show_value(char *buf, size_t bufsize, ipfw_table_value *v,
     uint32_t vmask, int print_ip)
 {
+	char abuf[INET6_ADDRSTRLEN + IF_NAMESIZE + 2];
+	struct sockaddr_in6 sa6;
 	uint32_t flag, i, l;
 	size_t sz;
 	struct in_addr a4;
-	char abuf[INET6_ADDRSTRLEN];
 
 	sz = bufsize;
 
@@ -1702,8 +1715,15 @@ table_show_value(char *buf, size_t bufsize, ipfw_table_value *v,
 			l = snprintf(buf, sz, "%d,", v->dscp);
 			break;
 		case IPFW_VTYPE_NH6:
-			inet_ntop(AF_INET6, &v->nh6, abuf, sizeof(abuf));
-			l = snprintf(buf, sz, "%s,", abuf);
+			sa6.sin6_family = AF_INET6;
+			sa6.sin6_len = sizeof(sa6);
+			sa6.sin6_addr = v->nh6;
+			sa6.sin6_port = 0;
+			sa6.sin6_scope_id = v->zoneid;
+			if (getnameinfo((const struct sockaddr *)&sa6,
+			    sa6.sin6_len, abuf, sizeof(abuf), NULL, 0,
+			    NI_NUMERICHOST) == 0)
+				l = snprintf(buf, sz, "%s,", abuf);
 			break;
 		}
 
@@ -1862,11 +1882,12 @@ struct _table_value {
 	uint32_t	nat;		/* O_NAT */
 	uint32_t	nh4;
 	uint8_t		dscp;
-	uint8_t		spare0[3];
+	uint8_t		spare0;
+	uint16_t	spare1;
 	/* -- 32 bytes -- */
 	struct in6_addr	nh6;
 	uint32_t	limit;		/* O_LIMIT */
-	uint32_t	spare1;
+	uint32_t	zoneid;
 	uint64_t	refcnt;		/* Number of references */
 };
 
