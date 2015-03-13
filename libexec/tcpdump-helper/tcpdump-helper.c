@@ -93,7 +93,6 @@ int	invoke(struct cheri_object co __unused, register_t v0 __unused,
 	    register_t arg1, register_t arg2,
 	    register_t arg3, register_t arg4, register_t arg5,
 	    netdissect_options *ndo,
-	    const char *ndo_espsecret,
 	    const struct pcap_pkthdr *h,
 	    const u_char *sp,
 	    struct cheri_object *proto_sandbox_objects,
@@ -108,10 +107,8 @@ static void	dispatch_dissector(register_t methodnum, u_int length,
 
 static int
 invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask, uint32_t timezone_offset,
-    const netdissect_options *ndo,
-    const char *ndo_espsecret)
+    const netdissect_options *ndo)
 {
-	size_t espsec_len;
 
 /* XXXBD: broken, use system default
 	cheri_system_methodnum_puts = CHERI_TCPDUMP_PUTS;
@@ -122,23 +119,9 @@ invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask, uint32_t timezone_offset,
 
 	/*
 	 * Make a copy of the parent's netdissect_options.  Most of the
-	 * items are unchanged until the next init or per-packet.  The
-	 * exceptions are related to IPSec decryption and we punt on
-	 * those for now and allow them to be reinitalized on a
-	 * per-sandbox basis.
+	 * items are unchanged until the next init or per-packet.
 	 */
 	memcpy_c(gndo, ndo, sizeof(netdissect_options));
-	if (ndo->ndo_espsecret != NULL) { /* XXX: check the real thing */
-		if (gndo->ndo_espsecret != NULL)
-			free(gndo->ndo_espsecret);
-
-		espsec_len = cheri_getlen((void *)ndo_espsecret);
-		gndo->ndo_espsecret = malloc(espsec_len);
-		if (gndo->ndo_espsecret == NULL)
-			abort();
-		memcpy_c(cheri_ptr(gndo->ndo_espsecret, espsec_len),
-		    ndo_espsecret, espsec_len);
-	}
 	gndo->ndo_printf = tcpdump_printf;
 	gndo->ndo_default_print = ndo_default_print;
 	gndo->ndo_error = ndo_error;
@@ -181,7 +164,6 @@ invoke(struct cheri_object co __unused, register_t v0 __unused,
     register_t methodnum, register_t arg1,
     register_t arg2, register_t arg3, register_t arg4, register_t arg5,
     netdissect_options *ndo,
-    const char *ndo_espsecret,
     const struct pcap_pkthdr *h, const u_char *sp,
     struct cheri_object *proto_sandbox_objects, const u_char *sp2,
     void * carg1, void *carg2)
@@ -197,7 +179,7 @@ invoke(struct cheri_object co __unused, register_t v0 __unused,
 #ifdef DEBUG
 		printf("calling invoke_init\n");
 #endif
-		return (invoke_init(arg1, arg2, arg3, ndo, ndo_espsecret));
+		return (invoke_init(arg1, arg2, arg3, ndo));
 
 	case TCPDUMP_HELPER_OP_PRINT_PACKET:
 #ifdef DEBUG

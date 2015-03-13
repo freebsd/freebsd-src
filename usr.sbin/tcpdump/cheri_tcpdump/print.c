@@ -420,14 +420,12 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 		save_snapend = gndo->ndo_snapend;
 		gndo->ndo_packetp = NULL;
 		gndo->ndo_snapend = NULL;
-		/* XXXBD: don't pass in ndo_espsecret */
 		ret = sandbox_object_cinvoke(sb->tds_sandbox_object,
 		    TCPDUMP_HELPER_OP_INIT,
 		    g_localnet, g_mask, g_timezone_offset, 0, 0, 0, 0,
 		    cheri_ptrperm(gndo, sizeof(netdissect_options),
 			CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
-		    (__capability void*)gndo->ndo_espsecret,
-		    NULL, NULL, NULL, NULL, NULL, NULL);
+		    NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 		if (ret != 0)
 			error("failed to initialize sandbox: %d \n",
 			    ret);
@@ -439,8 +437,7 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 				    g_localnet, g_mask, 0, 0, 0, 0, 0,
 				    cheri_ptrperm(gndo, sizeof(netdissect_options),
 					CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
-				    (__capability void*)gndo->ndo_espsecret,
-				    NULL, NULL, NULL, NULL, NULL, NULL);
+				    NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 				if (ret != 0)
 					error("failed to initialize sandbox: %d \n",
 					    ret);
@@ -458,12 +455,12 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 	ret = sandbox_object_cinvoke(sb->tds_sandbox_object,
 	    TCPDUMP_HELPER_OP_PRINT_PACKET,
 	    0, 0, 0, 0, 0, 0, 0,
-	    NULL, NULL,
+	    NULL,
 	    cheri_ptrperm((void *)hdr, sizeof(*hdr),
 		CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
 	    cheri_ptrperm((void *)data, hdr->caplen,
 		CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
-	    sb->tds_proto_sandbox_objects, NULL, NULL, NULL);
+	    sb->tds_proto_sandbox_objects, NULL, NULL, NULL, NULL);
 	if (g_timeout_occured) {
 		/* XXX: dump hex here? */
 		printf("dissection terminated due to timeout (ret = %d)\n", ret);
