@@ -272,13 +272,13 @@ void
 xo_warnx (const char *fmt, ...);
 
 void
-xo_err (int eval, const char *fmt, ...);
+xo_err (int eval, const char *fmt, ...) __dead2;
 
 void
-xo_errx (int eval, const char *fmt, ...);
+xo_errx (int eval, const char *fmt, ...) __dead2;
 
 void
-xo_errc (int eval, int code, const char *fmt, ...);
+xo_errc (int eval, int code, const char *fmt, ...) __dead2;
 
 void
 xo_message_hcv (xo_handle_t *xop, int code, const char *fmt, va_list vap);
