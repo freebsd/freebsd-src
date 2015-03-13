@@ -363,8 +363,11 @@ smic_loop(void *arg)
 	IPMI_LOCK(sc);
 	while ((req = ipmi_dequeue_request(sc)) != NULL) {
 		ok = 0;
-		for (i = 0; i < 3 && !ok; i++)
+		for (i = 0; i < 3 && !ok; i++) {
+			IPMI_IO_LOCK(sc);
 			ok = smic_polled_request(sc, req);
+			IPMI_IO_UNLOCK(sc);
+		}
 		if (ok)
 			req->ir_error = 0;
 		else
@@ -383,6 +386,24 @@ smic_startup(struct ipmi_softc *sc)
 	    "%s: smic", device_get_nameunit(sc->ipmi_dev)));
 }
 
+static int
+smic_driver_request(struct ipmi_softc *sc, struct ipmi_request *req, int timo)
+{
+	int i, ok;
+
+	ok = 0;
+	for (i = 0; i < 3 && !ok; i++) {
+		IPMI_IO_LOCK(sc);
+		ok = smic_polled_request(sc, req);
+		IPMI_IO_UNLOCK(sc);
+	}
+	if (ok)
+		req->ir_error = 0;
+	else
+		req->ir_error = EIO;
+	return (req->ir_error);
+}
+
 int
 ipmi_smic_attach(struct ipmi_softc *sc)
 {
@@ -391,6 +412,7 @@ ipmi_smic_attach(struct ipmi_softc *sc)
 	/* Setup function pointers. */
 	sc->ipmi_startup = smic_startup;
 	sc->ipmi_enqueue_request = ipmi_polled_enqueue_request;
+	sc->ipmi_driver_request = smic_driver_request;
 
 	/* See if we can talk to the controller. */
 	flags = INB(sc, SMIC_FLAGS);

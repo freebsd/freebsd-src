@@ -321,6 +321,8 @@ kcs_polled_request(struct ipmi_softc *sc, struct ipmi_request *req)
 	u_char *cp, data;
 	int i, state;
 
+	IPMI_IO_LOCK(sc);
+
 	/* Send the request. */
 	if (!kcs_start_write(sc)) {
 		device_printf(sc->ipmi_dev, "KCS: Failed to start write\n");
@@ -444,6 +446,7 @@ kcs_polled_request(struct ipmi_softc *sc, struct ipmi_request *req)
 		}
 		i++;
 	}
+	IPMI_IO_UNLOCK(sc);
 	req->ir_replylen = i;
 #ifdef KCS_DEBUG
 	device_printf(sc->ipmi_dev, "KCS: READ finished (%d bytes)\n", i);
@@ -457,6 +460,7 @@ kcs_polled_request(struct ipmi_softc *sc, struct ipmi_request *req)
 	return (1);
 fail:
 	kcs_error(sc);
+	IPMI_IO_UNLOCK(sc);
 	return (0);
 }
 
@@ -490,6 +494,21 @@ kcs_startup(struct ipmi_softc *sc)
 	    device_get_nameunit(sc->ipmi_dev)));
 }
 
+static int
+kcs_driver_request(struct ipmi_softc *sc, struct ipmi_request *req, int timo)
+{
+	int i, ok;
+
+	ok = 0;
+	for (i = 0; i < 3 && !ok; i++)
+		ok = kcs_polled_request(sc, req);
+	if (ok)
+		req->ir_error = 0;
+	else
+		req->ir_error = EIO;
+	return (req->ir_error);
+}
+
 int
 ipmi_kcs_attach(struct ipmi_softc *sc)
 {
@@ -498,6 +517,7 @@ ipmi_kcs_attach(struct ipmi_softc *sc)
 	/* Setup function pointers. */
 	sc->ipmi_startup = kcs_startup;
 	sc->ipmi_enqueue_request = ipmi_polled_enqueue_request;
+	sc->ipmi_driver_request = kcs_driver_request;
 
 	/* See if we can talk to the controller. */
 	status = INB(sc, KCS_CTL_STS);
