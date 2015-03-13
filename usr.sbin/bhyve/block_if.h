@@ -58,9 +58,11 @@ int	blockif_sectsz(struct blockif_ctxt *bc);
 void	blockif_psectsz(struct blockif_ctxt *bc, int *size, int *off);
 int	blockif_queuesz(struct blockif_ctxt *bc);
 int	blockif_is_ro(struct blockif_ctxt *bc);
+int	blockif_candelete(struct blockif_ctxt *bc);
 int	blockif_read(struct blockif_ctxt *bc, struct blockif_req *breq);
 int	blockif_write(struct blockif_ctxt *bc, struct blockif_req *breq);
 int	blockif_flush(struct blockif_ctxt *bc, struct blockif_req *breq);
+int	blockif_delete(struct blockif_ctxt *bc, struct blockif_req *breq);
 int	blockif_cancel(struct blockif_ctxt *bc, struct blockif_req *breq);
 int	blockif_close(struct blockif_ctxt *bc);
 

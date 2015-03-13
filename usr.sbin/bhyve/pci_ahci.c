@@ -644,6 +644,100 @@ ahci_handle_flush(struct ahci_port *p, int slot, uint8_t *cfis)
 }
 
 static inline void
+read_prdt(struct ahci_port *p, int slot, uint8_t *cfis,
+		void *buf, int size)
+{
+	struct ahci_cmd_hdr *hdr;
+	struct ahci_prdt_entry *prdt;
+	void *to;
+	int i, len;
+
+	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
+	len = size;
+	to = buf;
+	prdt = (struct ahci_prdt_entry *)(cfis + 0x80);
+	for (i = 0; i < hdr->prdtl && len; i++) {
+		uint8_t *ptr;
+		uint32_t dbcsz;
+		int sublen;
+
+		dbcsz = (prdt->dbc & DBCMASK) + 1;
+		ptr = paddr_guest2host(ahci_ctx(p->pr_sc), prdt->dba, dbcsz);
+		sublen = len < dbcsz ? len : dbcsz;
+		memcpy(to, ptr, sublen);
+		len -= sublen;
+		to += sublen;
+		prdt++;
+	}
+}
+
+static void
+ahci_handle_dsm_trim(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done)
+{
+	struct ahci_ioreq *aior;
+	struct blockif_req *breq;
+	uint8_t *entry;
+	uint64_t elba;
+	uint32_t len, elen;
+	int err;
+	uint8_t buf[512];
+
+	len = (uint16_t)cfis[13] << 8 | cfis[12];
+	len *= 512;
+	read_prdt(p, slot, cfis, buf, sizeof(buf));
+
+next:
+	entry = &buf[done];
+	elba = ((uint64_t)entry[5] << 40) |
+		((uint64_t)entry[4] << 32) |
+		((uint64_t)entry[3] << 24) |
+		((uint64_t)entry[2] << 16) |
+		((uint64_t)entry[1] << 8) |
+		entry[0];
+	elen = (uint16_t)entry[7] << 8 | entry[6];
+	done += 8;
+	if (elen == 0) {
+		if (done >= len) {
+			ahci_write_fis_d2h(p, slot, cfis, ATA_S_READY | ATA_S_DSC);
+			p->pending &= ~(1 << slot);
+			ahci_check_stopped(p);
+			return;
+		}
+		goto next;
+	}
+
+	/*
+	 * Pull request off free list
+	 */
+	aior = STAILQ_FIRST(&p->iofhd);
+	assert(aior != NULL);
+	STAILQ_REMOVE_HEAD(&p->iofhd, io_flist);
+	aior->cfis = cfis;
+	aior->slot = slot;
+	aior->len = len;
+	aior->done = done;
+	aior->prdtl = 0;
+
+	breq = &aior->io_req;
+	breq->br_offset = elba * blockif_sectsz(p->bctx);
+	breq->br_iovcnt = 1;
+	breq->br_iov[0].iov_len = elen * blockif_sectsz(p->bctx);
+
+	/*
+	 * Mark this command in-flight.
+	 */
+	p->pending |= 1 << slot;
+
+	/*
+	 * Stuff request onto busy list
+	 */
+	TAILQ_INSERT_HEAD(&p->iobhd, aior, io_blist);
+
+	err = blockif_delete(p->bctx, breq);
+	assert(err == 0);
+}
+
+static inline void
 write_prdt(struct ahci_port *p, int slot, uint8_t *cfis,
 		void *buf, int size)
 {
@@ -684,10 +778,11 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 	} else {
 		uint16_t buf[256];
 		uint64_t sectors;
-		int sectsz, psectsz, psectoff;
+		int sectsz, psectsz, psectoff, candelete;
 		uint16_t cyl;
 		uint8_t sech, heads;
 
+		candelete = blockif_candelete(p->bctx);
 		sectsz = blockif_sectsz(p->bctx);
 		sectors = blockif_size(p->bctx) / sectsz;
 		blockif_chs(p->bctx, &cyl, &heads, &sech);
@@ -718,6 +813,7 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		buf[66] = 100;
 		buf[67] = 100;
 		buf[68] = 100;
+		buf[69] = 0;
 		buf[75] = 31;
 		buf[76] = (1 << 8 | 1 << 2);
 		buf[80] = 0x1f0;
@@ -736,6 +832,11 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		buf[101] = (sectors >> 16);
 		buf[102] = (sectors >> 32);
 		buf[103] = (sectors >> 48);
+		if (candelete) {
+			buf[69] |= ATA_SUPPORT_RZAT | ATA_SUPPORT_DRAT;
+			buf[105] = 1;
+			buf[169] = ATA_SUPPORT_DSM_TRIM;
+		}
 		buf[106] = 0x4000;
 		buf[209] = 0x4000;
 		if (psectsz > sectsz) {
@@ -1394,6 +1495,15 @@ ahci_handle_cmd(struct ahci_port *p, int slot, uint8_t *cfis)
 	case ATA_FLUSHCACHE48:
 		ahci_handle_flush(p, slot, cfis);
 		break;
+	case ATA_DATA_SET_MANAGEMENT:
+		if (cfis[11] == 0 && cfis[3] == ATA_DSM_TRIM &&
+		    cfis[13] == 0 && cfis[12] == 1) {
+			ahci_handle_dsm_trim(p, slot, cfis, 0);
+			break;
+		}
+		ahci_write_fis_d2h(p, slot, cfis,
+		    (ATA_E_ABORT << 8) | ATA_S_READY | ATA_S_ERROR);
+		break;
 	case ATA_STANDBY_CMD:
 		break;
 	case ATA_NOP:
@@ -1505,7 +1615,7 @@ ata_ioreq_cb(struct blockif_req *br, int err)
 	struct pci_ahci_softc *sc;
 	uint32_t tfd;
 	uint8_t *cfis;
-	int pending, slot, ncq;
+	int pending, slot, ncq, dsm;
 
 	DPRINTF("%s %d\n", __func__, err);
 
@@ -1521,6 +1631,8 @@ ata_ioreq_cb(struct blockif_req *br, int err)
 	if (cfis[2] == ATA_WRITE_FPDMA_QUEUED ||
 			cfis[2] == ATA_READ_FPDMA_QUEUED)
 		ncq = 1;
+	if (cfis[2] == ATA_DATA_SET_MANAGEMENT)
+		dsm = 1;
 
 	pthread_mutex_lock(&sc->mtx);
 
@@ -1534,10 +1646,17 @@ ata_ioreq_cb(struct blockif_req *br, int err)
 	 */
 	STAILQ_INSERT_TAIL(&p->iofhd, aior, io_flist);
 
-	if (pending && !err) {
-		ahci_handle_dma(p, slot, cfis, aior->done,
-		    hdr->prdtl - pending);
-		goto out;
+	if (dsm) {
+		if (aior->done != aior->len && !err) {
+			ahci_handle_dsm_trim(p, slot, cfis, aior->done);
+			goto out;
+		}
+	} else {
+		if (pending && !err) {
+			ahci_handle_dma(p, slot, cfis, aior->done,
+			    hdr->prdtl - pending);
+			goto out;
+		}
 	}
 
 	if (!err && aior->done == aior->len) {
