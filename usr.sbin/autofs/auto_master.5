@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 9, 2015
+.Dd March 13, 2015
 .Dt AUTO_MASTER 5
 .Os
 .Sh NAME
@@ -260,6 +260,11 @@ when they are automatically created.
 .It Li -media
 Query devices that are not yet mounted, but contain valid filesystems.
 Generally used to access files on removable media.
+.It Li -noauto
+Mount filesystems configured in
+.Xr fstab 5
+as "noauto".
+This needs to be set up as a direct map.
 .It Li -null
 Prevent
 .Xr automountd 8
