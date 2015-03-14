@@ -22,7 +22,7 @@
   #include <machine/sysarch.h>
 #endif
 
-#if defined(__mips__)
+#if defined(__mips__) && !defined(__FreeBSD__)
   #include <sys/cachectl.h>
   #include <sys/syscall.h>
   #if defined(__ANDROID__) && defined(__LP64__)
@@ -109,7 +109,7 @@ void __clear_cache(void *start, void *end) {
     #else
         compilerrt_abort();
     #endif
-#elif defined(__mips__)
+#elif defined(__mips__) && !defined(__FreeBSD__)
   const uintptr_t start_int = (uintptr_t) start;
   const uintptr_t end_int = (uintptr_t) end;
     #if defined(__ANDROID__) && defined(__LP64__)
