@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <x86/apicreg.h>
 
 #include <machine/vmm.h>
-#include "vmm_ipi.h"
 #include "vmm_ktr.h"
 #include "vmm_lapic.h"
 #include "vlapic.h"
