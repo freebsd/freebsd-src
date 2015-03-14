@@ -604,7 +604,8 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 	char ip6buf[INET6_ADDRSTRLEN];
 #endif
 
-	sbuf_new_for_sysctl(&sb, NULL, linesize, req);
+	sbuf_new(&sb, NULL, linesize * (V_tcp_hostcache.cache_count + 1),
+		SBUF_INCLUDENUL);
 
 	sbuf_printf(&sb,
 	        "\nIP address        MTU  SSTRESH      RTT   RTTVAR BANDWIDTH "
@@ -642,6 +643,8 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 	}
 #undef msec
 	error = sbuf_finish(&sb);
+	if (error == 0)
+		error = SYSCTL_OUT(req, sbuf_data(&sb), sbuf_len(&sb));
 	sbuf_delete(&sb);
 	return(error);
 }
