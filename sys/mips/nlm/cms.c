@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/limits.h>
 #include <sys/bus.h>
+#include <sys/sbuf.h>
 
 #include <sys/ktr.h>
 #include <sys/kernel.h>
@@ -473,27 +474,22 @@ SYSINIT(start_msgring_threads, SI_SUB_SMP, SI_ORDER_MIDDLE,
 static int
 sys_print_debug(SYSCTL_HANDLER_ARGS)
 {
-	int error, nb, i, fs;
-	static char xprintb[4096], *buf;
+	struct sbuf sb;
+	int error, i;
 
-	buf = xprintb;
-	fs = sizeof(xprintb);
-	nb = snprintf(buf, fs,
+	sbuf_new_for_sysctl(&sb, NULL, 64, req);
+	sbuf_printf(&sb, 
 	    "\nID     vc0       vc1       vc2     vc3     loops\n");
-	buf += nb;
-	fs -= nb;
 	for (i = 0; i < 32; i++) {
 		if ((xlp_hw_thread_mask & (1 << i)) == 0)
 			continue;
-		nb = snprintf(buf, fs,
-		    "%2d: %8d %8d %8d %8d %8d\n", i,
+		sbuf_printf(&sb, "%2d: %8d %8d %8d %8d %8d\n", i,
 		    fmn_msgcount[i][0], fmn_msgcount[i][1],
 		    fmn_msgcount[i][2], fmn_msgcount[i][3],
 		    fmn_loops[i]);
-		buf += nb;
-		fs -= nb;
 	}
-	error = SYSCTL_OUT(req, xprintb, buf - xprintb);
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
 	return (error);
 }
 
