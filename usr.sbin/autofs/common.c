@@ -92,19 +92,30 @@ char *
 concat(const char *s1, char separator, const char *s2)
 {
 	char *result;
+	char s1last, s2first;
 	int ret;
 
-	assert(s1 != NULL);
-	assert(s2 != NULL);
+	if (s1 == NULL)
+		s1 = "";
+	if (s2 == NULL)
+		s2 = "";
 
-	/*
-	 * If s2 starts with separator - skip it; otherwise concatenating
-	 * "/" and "/foo" would end up returning "//foo".
-	 */
-	if (s2[0] == separator)
-		s2++;
+	if (s1[0] == '\0')
+		s1last = '\0';
+	else
+		s1last = s1[strlen(s1) - 1];
 
-	if (s1[0] == '\0' || s2[0] == '\0' || s1[strlen(s1) - 1] == separator) {
+	s2first = s2[0];
+
+	if (s1last == separator && s2first == separator) {
+		/*
+		 * If s1 ends with the separator and s2 begins with
+		 * it - skip the latter; otherwise concatenating "/"
+		 * and "/foo" would end up returning "//foo".
+		 */
+		ret = asprintf(&result, "%s%s", s1, s2 + 1);
+	} else if (s1last == separator || s2first == separator ||
+	    s1[0] == '\0' || s2[0] == '\0') {
 		ret = asprintf(&result, "%s%s", s1, s2);
 	} else {
 		ret = asprintf(&result, "%s%c%s", s1, separator, s2);
@@ -605,13 +616,16 @@ node_options(const struct node *n)
 }
 
 static void
-node_print_indent(const struct node *n, int indent)
+node_print_indent(const struct node *n, const char *cmdline_options,
+    int indent)
 {
 	const struct node *child, *first_child;
-	char *path, *options;
+	char *path, *options, *tmp;
 
 	path = node_path(n);
-	options = node_options(n);
+	tmp = node_options(n);
+	options = concat(cmdline_options, ',', tmp);
+	free(tmp);
 
 	/*
 	 * Do not show both parent and child node if they have the same
@@ -642,16 +656,21 @@ node_print_indent(const struct node *n, int indent)
 	free(options);
 
 	TAILQ_FOREACH(child, &n->n_children, n_next)
-		node_print_indent(child, indent + 2);
+		node_print_indent(child, cmdline_options, indent + 2);
 }
 
+/*
+ * Recursively print node with all its children.  The cmdline_options
+ * argument is used for additional options to be prepended to all the
+ * others - usually those are the options passed by command line.
+ */
 void
-node_print(const struct node *n)
+node_print(const struct node *n, const char *cmdline_options)
 {
 	const struct node *child;
 
 	TAILQ_FOREACH(child, &n->n_children, n_next)
-		node_print_indent(child, 0);
+		node_print_indent(child, cmdline_options, 0);
 }
 
 static struct node *

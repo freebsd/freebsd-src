@@ -1525,11 +1525,14 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 
 		case O_FORWARD_IP6:
 		    {
-			char buf[4 + INET6_ADDRSTRLEN + 1];
+			char buf[INET6_ADDRSTRLEN + IF_NAMESIZE + 2];
 			ipfw_insn_sa6 *s = (ipfw_insn_sa6 *)cmd;
 
-			bprintf(bp, "fwd %s", inet_ntop(AF_INET6,
-			    &s->sa.sin6_addr, buf, sizeof(buf)));
+			bprintf(bp, "fwd ");
+			if (getnameinfo((const struct sockaddr *)&s->sa,
+			    sizeof(struct sockaddr_in6), buf, sizeof(buf),
+			    NULL, 0, NI_NUMERICHOST) == 0)
+				bprintf(bp, "%s", buf);
 			if (s->sa.sin6_port)
 				bprintf(bp, ",%d", s->sa.sin6_port);
 		    }
@@ -3741,8 +3744,8 @@ chkarg:
 			p->sa.sin6_family = AF_INET6;
 			p->sa.sin6_port = port_number;
 			p->sa.sin6_flowinfo = 0;
-			p->sa.sin6_scope_id = 0;
-			/* No table support for v6 yet. */
+			p->sa.sin6_scope_id =
+			    ((struct sockaddr_in6 *)&result)->sin6_scope_id;
 			bcopy(&((struct sockaddr_in6*)&result)->sin6_addr,
 			    &p->sa.sin6_addr, sizeof(p->sa.sin6_addr));
 		} else {

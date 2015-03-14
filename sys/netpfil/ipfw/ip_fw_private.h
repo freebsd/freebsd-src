@@ -102,7 +102,10 @@ struct ip_fw_args {
 	struct inpcb	*inp;
 
 	struct _ip6dn_args	dummypar; /* dummynet->ip6_output */
-	struct sockaddr_in hopstore;	/* store here if cannot use a pointer */
+	union {		/* store here if cannot use a pointer */
+		struct sockaddr_in hopstore;
+		struct sockaddr_in6 hopstore6;
+	};
 };
 
 MALLOC_DECLARE(M_IPFW);
@@ -294,11 +297,12 @@ struct table_value {
 	uint32_t	nat;		/* O_NAT */
 	uint32_t	nh4;
 	uint8_t		dscp;
-	uint8_t		spare0[3];
+	uint8_t		spare0;
+	uint16_t	spare1;
 	/* -- 32 bytes -- */
 	struct in6_addr	nh6;
 	uint32_t	limit;		/* O_LIMIT */
-	uint32_t	spare1;
+	uint32_t	zoneid;		/* scope zone id for nh6 */
 	uint64_t	refcnt;		/* Number of references */
 };
 

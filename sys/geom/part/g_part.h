@@ -85,6 +85,7 @@ enum g_part_alias {
 	G_PART_ALIAS_DFBSD_HAMMER,	/* A DfBSD HAMMER FS partition entry */
 	G_PART_ALIAS_DFBSD_HAMMER2,	/* A DfBSD HAMMER2 FS partition entry */
 	G_PART_ALIAS_PREP_BOOT,		/* A PREP/CHRP boot partition entry. */
+	G_PART_ALIAS_APPLE_CORE_STORAGE,/* An Apple Core Storage partition. */
 	/* Keep the following last */
 	G_PART_ALIAS_COUNT
 };
