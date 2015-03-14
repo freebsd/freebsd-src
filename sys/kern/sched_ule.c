@@ -2830,7 +2830,7 @@ sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS)
 
 	KASSERT(cpu_top != NULL, ("cpu_top isn't initialized"));
 
-	topo = sbuf_new(NULL, NULL, 500, SBUF_AUTOEXTEND);
+	topo = sbuf_new_for_sysctl(NULL, NULL, 512, req);
 	if (topo == NULL)
 		return (ENOMEM);
 
@@ -2839,8 +2839,7 @@ sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS)
 	sbuf_printf(topo, "</groups>\n");
 
 	if (err == 0) {
-		sbuf_finish(topo);
-		err = SYSCTL_OUT(req, sbuf_data(topo), sbuf_len(topo));
+		err = sbuf_finish(topo);
 	}
 	sbuf_delete(topo);
 	return (err);
