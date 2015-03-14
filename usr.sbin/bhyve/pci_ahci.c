@@ -794,6 +794,17 @@ write_prdt(struct ahci_port *p, int slot, uint8_t *cfis,
 }
 
 static void
+ahci_checksum(uint8_t *buf, int size)
+{
+	int i;
+	uint8_t sum = 0;
+
+	for (i = 0; i < size - 1; i++)
+		sum += buf[i];
+	buf[size - 1] = 0x100 - sum;
+}
+
+static void
 ahci_handle_read_log(struct ahci_port *p, int slot, uint8_t *cfis)
 {
 	struct ahci_cmd_hdr *hdr;
@@ -809,6 +820,7 @@ ahci_handle_read_log(struct ahci_port *p, int slot, uint8_t *cfis)
 
 	memset(buf, 0, sizeof(buf));
 	memcpy(buf, p->err_cfis, sizeof(p->err_cfis));
+	ahci_checksum(buf, sizeof(buf));
 
 	if (cfis[2] == ATA_READ_LOG_EXT)
 		ahci_write_fis_piosetup(p);
@@ -914,6 +926,8 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		buf[119] = (ATA_SUPPORT_RWLOGDMAEXT | 1 << 14);
 		buf[120] = (ATA_SUPPORT_RWLOGDMAEXT | 1 << 14);
 		buf[222] = 0x1020;
+		buf[255] = 0x00a5;
+		ahci_checksum((uint8_t *)buf, sizeof(buf));
 		ahci_write_fis_piosetup(p);
 		write_prdt(p, slot, cfis, (void *)buf, sizeof(buf));
 		ahci_write_fis_d2h(p, slot, cfis, ATA_S_DSC | ATA_S_READY);
@@ -962,6 +976,8 @@ handle_atapi_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		if (p->xfermode & ATA_UDMA0)
 			buf[88] |= (1 << ((p->xfermode & 7) + 8));
 		buf[222] = 0x1020;
+		buf[255] = 0x00a5;
+		ahci_checksum((uint8_t *)buf, sizeof(buf));
 		ahci_write_fis_piosetup(p);
 		write_prdt(p, slot, cfis, (void *)buf, sizeof(buf));
 		ahci_write_fis_d2h(p, slot, cfis, ATA_S_DSC | ATA_S_READY);
