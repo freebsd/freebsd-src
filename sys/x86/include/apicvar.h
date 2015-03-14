@@ -111,11 +111,8 @@
 #define	IPI_INVLPG	(APIC_IPI_INTS + 2)
 #define	IPI_INVLRNG	(APIC_IPI_INTS + 3)
 #define	IPI_INVLCACHE	(APIC_IPI_INTS + 4)
-#ifdef __i386__
-#define	IPI_LAZYPMAP	(APIC_IPI_INTS + 5)	/* Lazy pmap release. */
-#endif
 /* Vector to handle bitmap based IPIs */
-#define	IPI_BITMAP_VECTOR	(APIC_IPI_INTS + 6) 
+#define	IPI_BITMAP_VECTOR	(APIC_IPI_INTS + 5) 
 
 /* IPIs handled by IPI_BITMAP_VECTOR */
 #define	IPI_AST		0 	/* Generate software trap. */
@@ -124,8 +121,15 @@
 #define IPI_BITMAP_LAST IPI_HARDCLOCK
 #define IPI_IS_BITMAPED(x) ((x) <= IPI_BITMAP_LAST)
 
-#define	IPI_STOP	(APIC_IPI_INTS + 7)	/* Stop CPU until restarted. */
-#define	IPI_SUSPEND	(APIC_IPI_INTS + 8)	/* Suspend CPU until restarted. */
+#define	IPI_STOP	(APIC_IPI_INTS + 6)	/* Stop CPU until restarted. */
+#define	IPI_SUSPEND	(APIC_IPI_INTS + 7)	/* Suspend CPU until restarted. */
+#ifdef __i386__
+#define	IPI_LAZYPMAP	(APIC_IPI_INTS + 8)	/* Lazy pmap release. */
+#define	IPI_DYN_FIRST	(APIC_IPI_INTS + 9)
+#else
+#define	IPI_DYN_FIRST	(APIC_IPI_INTS + 8)
+#endif
+#define	IPI_DYN_LAST	(254)			/* IPIs allocated at runtime */
 
 /*
  * IPI_STOP_HARD does not need to occupy a slot in the IPI vector space since
@@ -224,6 +228,8 @@ struct apic_ops {
 	void	(*ipi_raw)(register_t, u_int);
 	void	(*ipi_vectored)(u_int, int);
 	int	(*ipi_wait)(int);
+	int	(*ipi_alloc)(inthand_t *ipifunc);
+	void	(*ipi_free)(int vector);
 
 	/* LVT */
 	int	(*set_lvt_mask)(u_int, u_int, u_char);
@@ -394,6 +400,20 @@ lapic_ipi_wait(int delay)
 {
 
 	return (apic_ops.ipi_wait(delay));
+}
+
+static inline int
+lapic_ipi_alloc(inthand_t *ipifunc)
+{
+
+	return (apic_ops.ipi_alloc(ipifunc));
+}
+
+static inline void
+lapic_ipi_free(int vector)
+{
+
+	return (apic_ops.ipi_free(vector));
 }
 
 static inline int
