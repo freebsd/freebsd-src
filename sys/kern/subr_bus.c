@@ -213,7 +213,7 @@ devclass_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	default:
 		return (EINVAL);
 	}
-	return (SYSCTL_OUT(req, value, strlen(value)));
+	return (SYSCTL_OUT_STR(req, value));
 }
 
 static void
@@ -270,7 +270,7 @@ device_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	default:
 		return (EINVAL);
 	}
-	error = SYSCTL_OUT(req, value, strlen(value));
+	error = SYSCTL_OUT_STR(req, value);
 	if (buf != NULL)
 		free(buf, M_BUS);
 	return (error);
