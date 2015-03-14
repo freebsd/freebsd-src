@@ -5087,7 +5087,6 @@ sysctl_int_array(SYSCTL_HANDLER_ARGS)
 	for (i = arg1; arg2; arg2 -= sizeof(int), i++)
 		sbuf_printf(&sb, "%d ", *i);
 	sbuf_trim(&sb);
-	sbuf_putc(&sb, 0); /* nullterm */
 	sbuf_finish(&sb);
 	rc = sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
 	sbuf_delete(&sb);
