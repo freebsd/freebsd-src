@@ -596,7 +596,7 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 static int
 sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 {
-	int linesize = 128;
+	const int linesize = 128;
 	struct sbuf sb;
 	int i, error;
 	struct hc_metrics *hc_entry;
@@ -604,8 +604,7 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 	char ip6buf[INET6_ADDRSTRLEN];
 #endif
 
-	sbuf_new(&sb, NULL, linesize * (V_tcp_hostcache.cache_count + 1),
-	    SBUF_FIXEDLEN);
+	sbuf_new_for_sysctl(&sb, NULL, linesize, req);
 
 	sbuf_printf(&sb,
 	        "\nIP address        MTU  SSTRESH      RTT   RTTVAR BANDWIDTH "
@@ -642,8 +641,7 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 		THC_UNLOCK(&V_tcp_hostcache.hashbase[i].hch_mtx);
 	}
 #undef msec
-	sbuf_finish(&sb);
-	error = SYSCTL_OUT(req, sbuf_data(&sb), sbuf_len(&sb));
+	error = sbuf_finish(&sb);
 	sbuf_delete(&sb);
 	return(error);
 }
