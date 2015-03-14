@@ -252,7 +252,6 @@ sysctl_wb_debug(SYSCTL_HANDLER_ARGS)
 	sbuf_printf(&sb, "CRF6 0x%02x ", sc->reg_timeout);
 	sbuf_printf(&sb, "CRF7 0x%02x", sc->reg_2);
 
-	sbuf_putc(&sb, 0); /* nullterm */
 	error = sbuf_finish(&sb);
 	sbuf_delete(&sb);
 	return (error);
