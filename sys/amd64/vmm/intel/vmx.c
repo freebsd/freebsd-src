@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include "vmm_lapic.h"
 #include "vmm_host.h"
 #include "vmm_ioport.h"
-#include "vmm_ipi.h"
 #include "vmm_ktr.h"
 #include "vmm_stat.h"
 #include "vatpic.h"
@@ -175,7 +174,7 @@ static int posted_interrupts;
 SYSCTL_INT(_hw_vmm_vmx_cap, OID_AUTO, posted_interrupts, CTLFLAG_RD,
     &posted_interrupts, 0, "APICv posted interrupt support");
 
-static int pirvec;
+static int pirvec = -1;
 SYSCTL_INT(_hw_vmm_vmx, OID_AUTO, posted_interrupt_vector, CTLFLAG_RD,
     &pirvec, 0, "APICv posted interrupt vector");
 
@@ -485,8 +484,8 @@ static int
 vmx_cleanup(void)
 {
 	
-	if (pirvec != 0)
-		vmm_ipi_free(pirvec);
+	if (pirvec >= 0)
+		lapic_ipi_free(pirvec);
 
 	if (vpid_unr != NULL) {
 		delete_unrhdr(vpid_unr);
@@ -694,8 +693,8 @@ vmx_init(int ipinum)
 		    MSR_VMX_TRUE_PINBASED_CTLS, PINBASED_POSTED_INTERRUPT, 0,
 		    &tmp);
 		if (error == 0) {
-			pirvec = vmm_ipi_alloc();
-			if (pirvec == 0) {
+			pirvec = lapic_ipi_alloc(&IDTVEC(justreturn));
+			if (pirvec < 0) {
 				if (bootverbose) {
 					printf("vmx_init: unable to allocate "
 					    "posted interrupt vector\n");

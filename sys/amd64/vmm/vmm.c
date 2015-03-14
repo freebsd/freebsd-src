@@ -76,7 +76,6 @@ __FBSDID("$FreeBSD$");
 #include "vlapic.h"
 #include "vpmtmr.h"
 #include "vrtc.h"
-#include "vmm_ipi.h"
 #include "vmm_stat.h"
 #include "vmm_lapic.h"
 
@@ -298,8 +297,8 @@ vmm_init(void)
 
 	vmm_host_state_init();
 
-	vmm_ipinum = vmm_ipi_alloc();
-	if (vmm_ipinum == 0)
+	vmm_ipinum = lapic_ipi_alloc(&IDTVEC(justreturn));
+	if (vmm_ipinum < 0)
 		vmm_ipinum = IPI_AST;
 
 	error = vmm_mem_init();
@@ -338,7 +337,7 @@ vmm_handler(module_t mod, int what, void *arg)
 			vmm_resume_p = NULL;
 			iommu_cleanup();
 			if (vmm_ipinum != IPI_AST)
-				vmm_ipi_free(vmm_ipinum);
+				lapic_ipi_free(vmm_ipinum);
 			error = VMM_CLEANUP();
 			/*
 			 * Something bad happened - prevent new

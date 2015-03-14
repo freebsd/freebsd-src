@@ -54,6 +54,7 @@ inthand_t
 	IDTVEC(ipi_intr_bitmap_handler), /* Bitmap based IPIs */ 
 	IDTVEC(cpustop),	/* CPU stops & waits to be restarted */
 	IDTVEC(cpususpend),	/* CPU suspends & waits to be resumed */
+	IDTVEC(justreturn),	/* interrupt CPU with minimum overhead */
 	IDTVEC(rendezvous);	/* handle CPU rendezvous */
 
 struct pmap;
