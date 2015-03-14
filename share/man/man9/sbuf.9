@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 11, 2013
+.Dd March 14, 2015
 .Dt SBUF 9
 .Os
 .Sh NAME
@@ -34,6 +34,9 @@
 .Nm sbuf_new_auto ,
 .Nm sbuf_new_for_sysctl ,
 .Nm sbuf_clear ,
+.Nm sbuf_get_flags ,
+.Nm sbuf_set_flags ,
+.Nm sbuf_clear_flags ,
 .Nm sbuf_setpos ,
 .Nm sbuf_bcat ,
 .Nm sbuf_bcopyin ,
@@ -66,6 +69,12 @@
 .Fn sbuf_new_auto
 .Ft void
 .Fn sbuf_clear "struct sbuf *s"
+.Ft int
+.Fn sbuf_get_flags "struct sbuf *s"
+.Ft void
+.Fn sbuf_set_flags "struct sbuf *s" "int flags"
+.Ft void
+.Fn sbuf_clear_flags "struct sbuf *s" "int flags"
 .Ft int
 .Fn sbuf_setpos "struct sbuf *s" "int pos"
 .Ft int
@@ -159,6 +168,8 @@ Attempting to extend the sbuf beyond this size results in an overflow condition.
 .It Dv SBUF_AUTOEXTEND
 This indicates that the storage buffer may be extended as necessary, so long
 as resources allow, to hold additional data.
+.It Dv SBUF_INCLUDENUL
+This causes the final nulterm byte to be counted in the length of the data.
 .El
 .Pp
 Note that if
@@ -209,6 +220,18 @@ The
 function invalidates the contents of the
 .Fa sbuf
 and resets its position to zero.
+.Pp
+The
+.Fn sbuf_get_flags
+function returns the current user flags.
+The
+.Fn sbuf_set_flags
+and
+.Fn sbuf_get_flags
+functions set or clear one or more user flags, respectively.
+The user flags are described under the
+.Fn sbuf_new
+function.
 .Pp
 The
 .Fn sbuf_setpos

@@ -262,6 +262,28 @@ sbuf_uionew(struct sbuf *s, struct uio *uio, int *error)
 }
 #endif
 
+int
+sbuf_get_flags(struct sbuf *s)
+{
+
+	return (s->s_flags & SBUF_USRFLAGMSK);
+}
+
+void
+sbuf_clear_flags(struct sbuf *s, int flags)
+{
+
+	s->s_flags &= ~(flags & SBUF_USRFLAGMSK);
+}
+
+void
+sbuf_set_flags(struct sbuf *s, int flags)
+{
+
+
+	s->s_flags |= (flags & SBUF_USRFLAGMSK);
+}
+
 /*
  * Clear an sbuf and reset its position.
  */
@@ -697,11 +719,13 @@ sbuf_finish(struct sbuf *s)
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 
+	s->s_buf[s->s_len] = '\0';
+	if (s->s_flags & SBUF_INCLUDENUL)
+		s->s_len++;
 	if (s->s_drain_func != NULL) {
 		while (s->s_len > 0 && s->s_error == 0)
 			s->s_error = sbuf_drain(s);
 	}
-	s->s_buf[s->s_len] = '\0';
 	SBUF_SETFLAG(s, SBUF_FINISHED);
 #ifdef _KERNEL
 	return (s->s_error);
@@ -743,6 +767,10 @@ sbuf_len(struct sbuf *s)
 
 	if (s->s_error != 0)
 		return (-1);
+
+	/* If finished, nulterm is already in len, else add one. */
+	if ((s->s_flags & (SBUF_INCLUDENUL | SBUF_FINISHED)) == SBUF_INCLUDENUL)
+		return (s->s_len + 1);
 	return (s->s_len);
 }
 
