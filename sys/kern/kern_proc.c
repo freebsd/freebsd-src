@@ -1273,6 +1273,7 @@ sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags,
 
 	pid = p->p_pid;
 	sbuf_new_for_sysctl(&sb, (char *)&ki, sizeof(ki), req);
+	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
 	error = kern_proc_out(p, &sb, flags);
 	error2 = sbuf_finish(&sb);
 	sbuf_delete(&sb);
@@ -1934,6 +1935,7 @@ sysctl_kern_proc_auxv(SYSCTL_HANDLER_ARGS)
 		return (0);
 	}
 	sbuf_new_for_sysctl(&sb, NULL, GET_PS_STRINGS_CHUNK_SZ, req);
+	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
 	error = proc_getauxv(curthread, p, &sb);
 	error2 = sbuf_finish(&sb);
 	PRELE(p);
@@ -2421,6 +2423,7 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 
 	name = (int *)arg1;
 	sbuf_new_for_sysctl(&sb, NULL, sizeof(struct kinfo_vmentry), req);
+	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
 	error = pget((pid_t)name[0], PGET_CANDEBUG | PGET_NOTWEXIT, &p);
 	if (error != 0) {
 		sbuf_delete(&sb);
