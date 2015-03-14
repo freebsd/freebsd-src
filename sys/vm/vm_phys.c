@@ -263,7 +263,6 @@ sysctl_vm_phys_free(SYSCTL_HANDLER_ARGS)
 			}
 		}
 	}
-	sbuf_putc(&sbuf, 0); /* nullterm */
 	error = sbuf_finish(&sbuf);
 	sbuf_delete(&sbuf);
 	return (error);
@@ -293,7 +292,6 @@ sysctl_vm_phys_segs(SYSCTL_HANDLER_ARGS)
 		sbuf_printf(&sbuf, "domain:    %d\n", seg->domain);
 		sbuf_printf(&sbuf, "free list: %p\n", seg->free_queues);
 	}
-	sbuf_putc(&sbuf, 0); /* nullterm */
 	error = sbuf_finish(&sbuf);
 	sbuf_delete(&sbuf);
 	return (error);
