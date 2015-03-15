@@ -307,8 +307,11 @@ wpi_attach(device_t dev)
 	struct wpi_softc *sc = (struct wpi_softc *)device_get_softc(dev);
 	struct ieee80211com *ic;
 	struct ifnet *ifp;
-	int i, error, rid, supportsa = 1;
+	int i, error, rid;
+#ifdef WPI_DEBUG
+	int supportsa = 1;
 	const struct wpi_ident *ident;
+#endif
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
 
 	sc->sc_dev = dev;
@@ -339,6 +342,7 @@ wpi_attach(device_t dev)
 	 * this is one such card. A 0x0 in the subdevice table indicates
 	 * the entire subdevice range is to be ignored.
 	 */
+#ifdef WPI_DEBUG
 	for (ident = wpi_ident_table; ident->name != NULL; ident++) {
 		if (ident->subdevice &&
 		    pci_get_subdevice(dev) == ident->subdevice) {
@@ -346,6 +350,7 @@ wpi_attach(device_t dev)
 		    break;
 		}
 	}
+#endif
 
 	/* Clear device-specific "PCI retry timeout" register (41h). */
 	pci_write_config(dev, 0x41, 0, 1);
