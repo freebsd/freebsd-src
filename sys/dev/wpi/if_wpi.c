@@ -1370,7 +1370,7 @@ wpi_read_eeprom_band(struct wpi_softc *sc, int n)
 
 	for (i = 0; i < band->nchan; i++) {
 		if (!(channels[i].flags & WPI_EEPROM_CHAN_VALID)) {
-			DPRINTF(sc, WPI_DEBUG_HW,
+			DPRINTF(sc, WPI_DEBUG_EEPROM,
 			    "Channel Not Valid: %d, band %d\n",
 			     band->chan[i],n);
 			continue;
