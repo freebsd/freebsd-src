@@ -3850,9 +3850,8 @@ wpi_setup_beacon(struct wpi_softc *sc, struct ieee80211_node *ni)
 static void
 wpi_update_beacon(struct ieee80211vap *vap, int item)
 {
+	struct wpi_softc *sc = vap->iv_ic->ic_ifp->if_softc;
 	struct ieee80211_node *ni = vap->iv_bss;
-	struct ifnet *ifp = vap->iv_ifp;
-	struct wpi_softc *sc = ifp->if_softc;
 	int error;
 
 	WPI_LOCK(sc);
@@ -3970,8 +3969,7 @@ static int
 wpi_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
     ieee80211_keyix *keyix, ieee80211_keyix *rxkeyix)
 {
-	struct ifnet *ifp = vap->iv_ifp;
-	struct wpi_softc *sc = ifp->if_softc;
+	struct wpi_softc *sc = vap->iv_ic->ic_ifp->if_softc;
 
 	if (!(&vap->iv_nw_keys[0] <= k &&
 	    k < &vap->iv_nw_keys[IEEE80211_WEP_NKID])) {
