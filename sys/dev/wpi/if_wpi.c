@@ -1978,7 +1978,7 @@ wpi_notif_intr(struct wpi_softc *sc)
 			    le32toh(miss->total));
 
 			if (vap->iv_state == IEEE80211_S_RUN &&
-			    (ic->ic_flags & IEEE80211_S_SCAN) == 0) {
+			    (ic->ic_flags & IEEE80211_F_SCAN) == 0) {
 				if (misses >=  vap->iv_bmissthreshold) {
 					WPI_UNLOCK(sc);
 					ieee80211_beacon_miss(ic);
