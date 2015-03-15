@@ -607,7 +607,8 @@ wpi_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 
 	ieee80211_ratectl_init(vap);
 	/* Complete setup. */
-	ieee80211_vap_attach(vap, ieee80211_media_change, ieee80211_media_status);
+	ieee80211_vap_attach(vap, ieee80211_media_change,
+	    ieee80211_media_status);
 	ic->ic_opmode = opmode;
 	return vap;
 }
@@ -1299,8 +1300,8 @@ wpi_read_eeprom(struct wpi_softc *sc, uint8_t macaddr[IEEE80211_ADDR_LEN])
 	WPI_CHK(wpi_read_prom_data(sc, WPI_EEPROM_TYPE, &sc->type,
 	    sizeof(sc->type)));
 
-	DPRINTF(sc, WPI_DEBUG_EEPROM, "cap=%x rev=%x type=%x\n", sc->cap, le16toh(sc->rev),
-	    sc->type);
+	DPRINTF(sc, WPI_DEBUG_EEPROM, "cap=%x rev=%x type=%x\n", sc->cap,
+	    le16toh(sc->rev), sc->type);
 
 	/* Read the regulatory domain (4 ASCII characters.) */
 	WPI_CHK(wpi_read_prom_data(sc, WPI_EEPROM_DOMAIN, sc->domain,
@@ -1377,14 +1378,18 @@ wpi_read_eeprom_band(struct wpi_softc *sc, int n)
 		c->ic_maxpower = 2*c->ic_maxregpower;
 
 		if (n == 0) {	/* 2GHz band */
-			c->ic_freq = ieee80211_ieee2mhz(chan, IEEE80211_CHAN_G);
+			c->ic_freq = ieee80211_ieee2mhz(chan,
+			    IEEE80211_CHAN_G);
+
 			/* G =>'s B is supported */
 			c->ic_flags = IEEE80211_CHAN_B | nflags;
 			c = &ic->ic_channels[ic->ic_nchans++];
 			c[0] = c[-1];
 			c->ic_flags = IEEE80211_CHAN_G | nflags;
 		} else {	/* 5GHz band */
-			c->ic_freq = ieee80211_ieee2mhz(chan, IEEE80211_CHAN_A);
+			c->ic_freq = ieee80211_ieee2mhz(chan,
+			    IEEE80211_CHAN_A);
+
 			c->ic_flags = IEEE80211_CHAN_A | nflags;
 		}
 
@@ -2307,7 +2312,8 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 		    buf->m, segs, &nsegs, BUS_DMA_NOWAIT);
 		if (error != 0) {
 			device_printf(sc->sc_dev,
-			    "%s: can't map mbuf (error %d)\n", __func__, error);
+			    "%s: can't map mbuf (error %d)\n", __func__,
+			    error);
 			m_freem(buf->m);
 			return error;
 		}
@@ -2532,8 +2538,8 @@ fail:	m_freem(m);
 }
 
 static int
-wpi_tx_data_raw(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
-    const struct ieee80211_bpf_params *params)
+wpi_tx_data_raw(struct wpi_softc *sc, struct mbuf *m,
+    struct ieee80211_node *ni, const struct ieee80211_bpf_params *params)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_frame *wh;
@@ -3476,7 +3482,8 @@ wpi_config(struct wpi_softc *sc)
 		sc->rxon.mode = WPI_MODE_MONITOR;
 		break;
 	default:
-		device_printf(sc->sc_dev, "unknown opmode %d\n", ic->ic_opmode);
+		device_printf(sc->sc_dev, "unknown opmode %d\n",
+		    ic->ic_opmode);
 		return EINVAL;
 	}
 	sc->rxon.filter = htole32(sc->rxon.filter);
@@ -4332,8 +4339,8 @@ wpi_read_firmware(struct wpi_softc *sc)
 
 	DPRINTF(sc, WPI_DEBUG_FIRMWARE,
 	    "Firmware Version: Major %d, Minor %d, Driver %d, \n"
-	    "runtime (text: %u, data: %u) init (text: %u, data %u) boot (text %u)\n",
-	    hdr->major, hdr->minor, le32toh(hdr->driver),
+	    "runtime (text: %u, data: %u) init (text: %u, data %u) "
+	    "boot (text %u)\n", hdr->major, hdr->minor, le32toh(hdr->driver),
 	    fw->main.textsz, fw->main.datasz,
 	    fw->init.textsz, fw->init.datasz, fw->boot.textsz);
 
@@ -4443,7 +4450,8 @@ wpi_apm_stop_master(struct wpi_softc *sc)
 			return;
 		DELAY(10);
 	}
-	device_printf(sc->sc_dev, "%s: timeout waiting for master\n", __func__);
+	device_printf(sc->sc_dev, "%s: timeout waiting for master\n",
+	    __func__);
 }
 
 static void
