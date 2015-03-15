@@ -1658,6 +1658,15 @@ wpi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		ieee80211_state_name[vap->iv_state],
 		ieee80211_state_name[nstate]);
 
+	if (vap->iv_state == IEEE80211_S_RUN && nstate != IEEE80211_S_RUN) {
+		if ((error = wpi_set_pslevel(sc, 0, 0, 1)) != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: could not set power saving level\n",
+			    __func__);
+			return error;
+		}
+	}
+
 	switch (nstate) {
 	case IEEE80211_S_SCAN:
 		WPI_RXON_LOCK(sc);
@@ -4326,8 +4335,6 @@ wpi_run(struct wpi_softc *sc, struct ieee80211vap *vap)
 	if ((vap->iv_flags & IEEE80211_F_PMGTON) &&
 	    vap->iv_opmode != IEEE80211_M_IBSS)
 		(void)wpi_set_pslevel(sc, 0, 3, 1);
-	else
-		(void)wpi_set_pslevel(sc, 0, 0, 1);
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
 
