@@ -81,6 +81,22 @@ def FeatureCFALUBug : SubtargetFeature<"cfalubug",
         "true",
         "GPU has CF_ALU bug">;
 
+// XXX - This should probably be removed once enabled by default
+def FeatureEnableLoadStoreOpt : SubtargetFeature <"load-store-opt",
+        "EnableLoadStoreOpt",
+        "true",
+        "Enable SI load/store optimizer pass">;
+
+def FeatureFlatAddressSpace : SubtargetFeature<"flat-address-space",
+        "FlatAddressSpace",
+        "true",
+        "Support flat address space">;
+
+def FeatureVGPRSpilling : SubtargetFeature<"vgpr-spilling",
+        "EnableVGPRSpilling",
+        "true",
+        "Enable spilling of VGPRs to scratch memory">;
+
 class SubtargetFeatureFetchLimit <string Value> :
                           SubtargetFeature <"fetch"#Value,
         "TexVTXClauseSize",
@@ -135,16 +151,28 @@ def FeatureSouthernIslands : SubtargetFeatureGeneration<"SOUTHERN_ISLANDS",
 
 def FeatureSeaIslands : SubtargetFeatureGeneration<"SEA_ISLANDS",
         [Feature64BitPtr, FeatureFP64, FeatureLocalMemorySize65536,
-         FeatureWavefrontSize64]>;
+         FeatureWavefrontSize64, FeatureFlatAddressSpace]>;
+
+def FeatureVolcanicIslands : SubtargetFeatureGeneration<"VOLCANIC_ISLANDS",
+        [Feature64BitPtr, FeatureFP64, FeatureLocalMemorySize65536,
+         FeatureWavefrontSize64, FeatureFlatAddressSpace]>;
+
 //===----------------------------------------------------------------------===//
 
 def AMDGPUInstrInfo : InstrInfo {
   let guessInstructionProperties = 1;
 }
 
+def AMDGPUAsmParser : AsmParser {
+  // Some of the R600 registers have the same name, so this crashes.
+  // For example T0_XYZW and T0_XY both have the asm name T0.
+  let ShouldEmitMatchRegisterName = 0;
+}
+
 def AMDGPU : Target {
   // Pull in Instruction Info:
   let InstructionSet = AMDGPUInstrInfo;
+  let AssemblyParsers = [AMDGPUAsmParser];
 }
 
 // Dummy Instruction itineraries for pseudo instructions

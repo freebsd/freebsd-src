@@ -1,7 +1,7 @@
 .\" $FreeBSD$
 .\" Man page generated from reStructuredText.
 .
-.TH "LLVM-SYMBOLIZER" "1" "2015-01-10" "3.5" "LLVM"
+.TH "LLVM-SYMBOLIZER" "1" "2015-03-14" "3.6" "LLVM"
 .SH NAME
 llvm-symbolizer \- convert addresses into source code locations
 .
@@ -125,6 +125,13 @@ Mach\-O universal binary), symbolize the object file for a given architecture.
 You can also specify architecture by writing \fBbinary_name:arch_name\fP in the
 input (see example above). If architecture is not specified in either way,
 address will not be symbolized. Defaults to empty string.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-dsym\-hint=<path/to/file.dSYM>
+(Darwin\-only flag). If the debug info for a binary isn\(aqt present in the default
+location, look for the debug info at the .dSYM path provided via the
+\fB\-dsym\-hint\fP flag. This flag can be used multiple times.
 .UNINDENT
 .SH EXIT STATUS
 .sp

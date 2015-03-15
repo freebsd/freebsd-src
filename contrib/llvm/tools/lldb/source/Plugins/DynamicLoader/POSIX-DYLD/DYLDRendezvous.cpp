@@ -34,6 +34,13 @@ ResolveRendezvousAddress(Process *process)
     addr_t info_addr;
     Error error;
 
+    if (!process)
+    {
+        if (log)
+            log->Printf ("%s null process provided", __FUNCTION__);
+        return LLDB_INVALID_ADDRESS;
+    }
+
     // Try to get it from our process.  This might be a remote process and might
     // grab it via some remote-specific mechanism.
     info_location = process->GetImageInfoAddress();
@@ -43,7 +50,7 @@ ResolveRendezvousAddress(Process *process)
     // If the process fails to return an address, fall back to seeing if the local object file can help us find it.
     if (info_location == LLDB_INVALID_ADDRESS)
     {
-        Target *target = process ? &process->GetTarget() : nullptr;
+        Target *target = &process->GetTarget();
         if (target)
         {
             ObjectFile *obj_file = target->GetExecutableModule()->GetObjectFile();
@@ -69,6 +76,9 @@ ResolveRendezvousAddress(Process *process)
             log->Printf ("%s FAILED - invalid info address", __FUNCTION__);
         return LLDB_INVALID_ADDRESS;
     }
+
+    if (log)
+        log->Printf ("%s reading pointer (%" PRIu32 " bytes) from 0x%" PRIx64, __FUNCTION__, process->GetAddressByteSize(), info_location);
 
     info_addr = process->ReadPointerFromMemory(info_location, error);
     if (error.Fail())
@@ -193,7 +203,7 @@ DYLDRendezvous::UpdateSOEntries()
     // state and take a snapshot of the currently loaded images.
     if (m_current.state == eAdd || m_current.state == eDelete)
     {
-        assert(m_previous.state == eConsistent);
+        assert(m_previous.state == eConsistent || (m_previous.state == eAdd && m_current.state == eDelete));
         m_soentries.clear();
         m_added_soentries.clear();
         m_removed_soentries.clear();
@@ -320,23 +330,11 @@ DYLDRendezvous::ReadStringFromMemory(addr_t addr)
 {
     std::string str;
     Error error;
-    size_t size;
-    char c;
 
     if (addr == LLDB_INVALID_ADDRESS)
         return std::string();
 
-    for (;;) {
-        size = m_process->DoReadMemory(addr, &c, 1, error);
-        if (size != 1 || error.Fail())
-            return std::string();
-        if (c == 0)
-            break;
-        else {
-            str.push_back(c);
-            addr++;
-        }
-    }
+    m_process->ReadCStringFromMemory(addr, str, error);
 
     return str;
 }

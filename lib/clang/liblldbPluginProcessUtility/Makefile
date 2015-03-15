@@ -18,6 +18,7 @@ SRCS=	DynamicRegisterInfo.cpp \
 	RegisterContextDummy.cpp \
 	RegisterContextFreeBSD_i386.cpp \
 	RegisterContextFreeBSD_mips64.cpp \
+	RegisterContextFreeBSD_powerpc.cpp \
 	RegisterContextFreeBSD_x86_64.cpp \
 	RegisterContextHistory.cpp \
 	RegisterContextLinux_arm64.cpp \
@@ -31,6 +32,7 @@ SRCS=	DynamicRegisterInfo.cpp \
 	RegisterContextMemory.cpp \
 	RegisterContextPOSIX_arm64.cpp \
 	RegisterContextPOSIX_mips64.cpp \
+	RegisterContextPOSIX_powerpc.cpp \
 	RegisterContextPOSIX_x86.cpp \
 	RegisterContextThreadMemory.cpp \
 	StopInfoMachException.cpp \
