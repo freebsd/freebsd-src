@@ -19,7 +19,7 @@ FILES=	README \
 	xdm
 
 .if ${MK_AT} != "no"
-FILESGROUPS=	AT
+FILESGROUPS+=	AT
 AT+=	atrun
 ATPACKAGE+=	at
 ATDIR=	/etc/pam.d
