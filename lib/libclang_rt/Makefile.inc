@@ -5,7 +5,7 @@
 CRTARCH=${MACHINE_CPUARCH:C/amd64/x86_64/}
 CRTSRC=${.CURDIR}/../../../contrib/compiler-rt
 
-LIBDIR=/usr/lib/clang/3.5.1/lib/freebsd
+LIBDIR=/usr/lib/clang/3.6.0/lib/freebsd
 
 NO_PIC=
 MK_PROFILE=no
@@ -23,3 +23,4 @@ CFLAGS+=-funwind-tables
 CFLAGS+=-fvisibility-inlines-hidden
 CFLAGS+=-fvisibility=hidden
 CFLAGS+=-I${CRTSRC}/lib
+CXXFLAGS+=-std=c++11

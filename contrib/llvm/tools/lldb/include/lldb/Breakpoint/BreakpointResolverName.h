@@ -64,20 +64,20 @@ public:
     virtual
     ~BreakpointResolverName ();
 
-    virtual Searcher::CallbackReturn
+    Searcher::CallbackReturn
     SearchCallback (SearchFilter &filter,
                     SymbolContext &context,
                     Address *addr,
-                    bool containing);
+                    bool containing) override;
 
-    virtual Searcher::Depth
-    GetDepth ();
+    Searcher::Depth
+    GetDepth () override;
 
-    virtual void
-    GetDescription (Stream *s);
+    void
+    GetDescription (Stream *s) override;
 
-    virtual void
-    Dump (Stream *s) const;
+    void
+    Dump (Stream *s) const override;
 
     /// Methods for support type inquiry through isa, cast, and dyn_cast:
     static inline bool classof(const BreakpointResolverName *) { return true; }
@@ -85,7 +85,12 @@ public:
         return V->getResolverID() == BreakpointResolver::NameResolver;
     }
 
+    lldb::BreakpointResolverSP
+    CopyForBreakpoint (Breakpoint &breakpoint) override;
+
 protected:
+    BreakpointResolverName(const BreakpointResolverName &rhs);
+
     struct LookupInfo
     {
         ConstString name;
@@ -113,8 +118,6 @@ protected:
 
     void
     AddNameLookup (const ConstString &name, uint32_t name_type_mask);
-private:
-    DISALLOW_COPY_AND_ASSIGN(BreakpointResolverName);
 };
 
 } // namespace lldb_private

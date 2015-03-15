@@ -10,8 +10,9 @@
 #ifndef utility_StringLexer_h_
 #define utility_StringLexer_h_
 
-#include <string>
+#include <initializer_list>
 #include <list>
+#include <string>
 
 namespace lldb_utility {
     
@@ -27,11 +28,18 @@ public:
     
     StringLexer (const StringLexer& rhs);
     
+    // These APIs are not bounds-checked.  Use HasAtLeast() if you're not sure.
     Character
     Peek ();
     
     bool
     NextIf (Character c);
+    
+    std::pair<bool, Character>
+    NextIf (std::initializer_list<Character> cs);
+    
+    bool
+    AdvanceIf (const std::string& token);
     
     Character
     Next ();
@@ -42,8 +50,12 @@ public:
     bool
     HasAny (Character c);
     
+    std::string
+    GetUnlexed ();
+    
+    // This will assert if there are less than s characters preceding the cursor.
     void
-    PutBack (Character c);
+    PutBack (Size s);
     
     StringLexer&
     operator = (const StringLexer& rhs);
@@ -51,7 +63,6 @@ public:
 private:
     std::string m_data;
     Position m_position;
-    std::list<Character> m_putback_data;
     
     void
     Consume();

@@ -12,9 +12,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Target/TargetMachine.h"
-
+#include "llvm/Analysis/JumpInstrTableInfo.h"
 #include "llvm/Analysis/Passes.h"
 #include "llvm/CodeGen/AsmPrinter.h"
+#include "llvm/CodeGen/ForwardControlFlowIntegrity.h"
 #include "llvm/CodeGen/JumpInstrTables.h"
 #include "llvm/CodeGen/MachineFunctionAnalysis.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
@@ -48,8 +49,8 @@ EnableFastISelOption("fast-isel", cl::Hidden,
   cl::desc("Enable the \"fast\" instruction selector"));
 
 void LLVMTargetMachine::initAsmInfo() {
-  MCAsmInfo *TmpAsmInfo = TheTarget.createMCAsmInfo(*getRegisterInfo(),
-                                                    TargetTriple);
+  MCAsmInfo *TmpAsmInfo = TheTarget.createMCAsmInfo(
+      *getSubtargetImpl()->getRegisterInfo(), getTargetTriple());
   // TargetSelect.h moved to a different directory between LLVM 2.9 and 3.0,
   // and if the old one gets included then MCAsmInfo will be NULL and
   // we'll crash later.
@@ -110,9 +111,9 @@ static MCContext *addPassesToGenerateCode(LLVMTargetMachine *TM,
 
   // Install a MachineModuleInfo class, which is an immutable pass that holds
   // all the per-module stuff we're generating, including MCContext.
-  MachineModuleInfo *MMI =
-    new MachineModuleInfo(*TM->getMCAsmInfo(), *TM->getRegisterInfo(),
-                          &TM->getTargetLowering()->getObjFileLowering());
+  MachineModuleInfo *MMI = new MachineModuleInfo(
+      *TM->getMCAsmInfo(), *TM->getSubtargetImpl()->getRegisterInfo(),
+      &TM->getSubtargetImpl()->getTargetLowering()->getObjFileLowering());
   PM.add(MMI);
 
   // Set up a MachineFunction for the rest of CodeGen to work on.
@@ -143,8 +144,13 @@ bool LLVMTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
                                             AnalysisID StopAfter) {
   // Passes to handle jumptable function annotations. These can't be handled at
   // JIT time, so we don't add them directly to addPassesToGenerateCode.
-  PM.add(createJumpInstrTableInfoPass());
+  PM.add(createJumpInstrTableInfoPass(
+      getSubtargetImpl()->getInstrInfo()->getJumpInstrTableEntryBound()));
   PM.add(createJumpInstrTablesPass(Options.JTType));
+  if (Options.FCFI)
+    PM.add(createForwardControlFlowIntegrityPass(
+        Options.JTType, Options.CFIType, Options.CFIEnforcing,
+        Options.getCFIFuncName()));
 
   // Add common CodeGen passes.
   MCContext *Context = addPassesToGenerateCode(this, PM, DisableVerify,
@@ -165,10 +171,10 @@ bool LLVMTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
   if (Options.MCOptions.MCSaveTempLabels)
     Context->setAllowTemporaryLabels(false);
 
-  const MCAsmInfo &MAI = *getMCAsmInfo();
-  const MCRegisterInfo &MRI = *getRegisterInfo();
-  const MCInstrInfo &MII = *getInstrInfo();
   const MCSubtargetInfo &STI = getSubtarget<MCSubtargetInfo>();
+  const MCAsmInfo &MAI = *getMCAsmInfo();
+  const MCRegisterInfo &MRI = *getSubtargetImpl()->getRegisterInfo();
+  const MCInstrInfo &MII = *getSubtargetImpl()->getInstrInfo();
   std::unique_ptr<MCStreamer> AsmStreamer;
 
   switch (FileType) {
@@ -201,9 +207,10 @@ bool LLVMTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
     if (!MCE || !MAB)
       return true;
 
-    AsmStreamer.reset(getTarget().createMCObjectStreamer(
-        getTargetTriple(), *Context, *MAB, Out, MCE, STI,
-        Options.MCOptions.MCRelaxAll, Options.MCOptions.MCNoExecStack));
+    AsmStreamer.reset(
+        getTarget()
+            .createMCObjectStreamer(getTargetTriple(), *Context, *MAB, Out, MCE,
+                                    STI, Options.MCOptions.MCRelaxAll));
     break;
   }
   case CGFT_Null:
@@ -226,26 +233,6 @@ bool LLVMTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
   return false;
 }
 
-/// addPassesToEmitMachineCode - Add passes to the specified pass manager to
-/// get machine code emitted.  This uses a JITCodeEmitter object to handle
-/// actually outputting the machine code and resolving things like the address
-/// of functions.  This method should return true if machine code emission is
-/// not supported.
-///
-bool LLVMTargetMachine::addPassesToEmitMachineCode(PassManagerBase &PM,
-                                                   JITCodeEmitter &JCE,
-                                                   bool DisableVerify) {
-  // Add common CodeGen passes.
-  MCContext *Context = addPassesToGenerateCode(this, PM, DisableVerify, nullptr,
-                                               nullptr);
-  if (!Context)
-    return true;
-
-  addCodeEmitter(PM, JCE);
-
-  return false; // success!
-}
-
 /// addPassesToEmitMC - Add passes to the specified pass manager to get
 /// machine code emitted with the MCJIT. This method returns true if machine
 /// code is not supported. It fills the MCContext Ctx pointer which can be
@@ -265,19 +252,20 @@ bool LLVMTargetMachine::addPassesToEmitMC(PassManagerBase &PM,
 
   // Create the code emitter for the target if it exists.  If not, .o file
   // emission fails.
-  const MCRegisterInfo &MRI = *getRegisterInfo();
+  const MCRegisterInfo &MRI = *getSubtargetImpl()->getRegisterInfo();
   const MCSubtargetInfo &STI = getSubtarget<MCSubtargetInfo>();
-  MCCodeEmitter *MCE = getTarget().createMCCodeEmitter(*getInstrInfo(), MRI,
-                                                       STI, *Ctx);
+  MCCodeEmitter *MCE = getTarget().createMCCodeEmitter(
+      *getSubtargetImpl()->getInstrInfo(), MRI, STI, *Ctx);
   MCAsmBackend *MAB = getTarget().createMCAsmBackend(MRI, getTargetTriple(),
                                                      TargetCPU);
   if (!MCE || !MAB)
     return true;
 
   std::unique_ptr<MCStreamer> AsmStreamer;
-  AsmStreamer.reset(getTarget().createMCObjectStreamer(
-      getTargetTriple(), *Ctx, *MAB, Out, MCE, STI,
-      Options.MCOptions.MCRelaxAll, Options.MCOptions.MCNoExecStack));
+  AsmStreamer.reset(getTarget()
+                        .createMCObjectStreamer(getTargetTriple(), *Ctx, *MAB,
+                                                Out, MCE, STI,
+                                                Options.MCOptions.MCRelaxAll));
 
   // Create the AsmPrinter, which takes ownership of AsmStreamer if successful.
   FunctionPass *Printer = getTarget().createAsmPrinter(*this, *AsmStreamer);

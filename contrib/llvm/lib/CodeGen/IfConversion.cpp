@@ -17,6 +17,7 @@
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/LivePhysRegs.h"
+#include "llvm/CodeGen/MachineBlockFrequencyInfo.h"
 #include "llvm/CodeGen/MachineBranchProbabilityInfo.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -30,7 +31,6 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetLowering.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
 
@@ -161,6 +161,7 @@ namespace {
     const TargetLoweringBase *TLI;
     const TargetInstrInfo *TII;
     const TargetRegisterInfo *TRI;
+    const MachineBlockFrequencyInfo *MBFI;
     const MachineBranchProbabilityInfo *MBPI;
     MachineRegisterInfo *MRI;
 
@@ -177,6 +178,7 @@ namespace {
     }
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {
+      AU.addRequired<MachineBlockFrequencyInfo>();
       AU.addRequired<MachineBranchProbabilityInfo>();
       MachineFunctionPass::getAnalysisUsage(AU);
     }
@@ -269,15 +271,16 @@ INITIALIZE_PASS_DEPENDENCY(MachineBranchProbabilityInfo)
 INITIALIZE_PASS_END(IfConverter, "if-converter", "If Converter", false, false)
 
 bool IfConverter::runOnMachineFunction(MachineFunction &MF) {
-  TLI = MF.getTarget().getTargetLowering();
-  TII = MF.getTarget().getInstrInfo();
-  TRI = MF.getTarget().getRegisterInfo();
+  TLI = MF.getSubtarget().getTargetLowering();
+  TII = MF.getSubtarget().getInstrInfo();
+  TRI = MF.getSubtarget().getRegisterInfo();
+  MBFI = &getAnalysis<MachineBlockFrequencyInfo>();
   MBPI = &getAnalysis<MachineBranchProbabilityInfo>();
   MRI = &MF.getRegInfo();
 
   const TargetSubtargetInfo &ST =
     MF.getTarget().getSubtarget<TargetSubtargetInfo>();
-  SchedModel.init(*ST.getSchedModel(), &ST, TII);
+  SchedModel.init(ST.getSchedModel(), &ST, TII);
 
   if (!TII) return false;
 
@@ -286,9 +289,8 @@ bool IfConverter::runOnMachineFunction(MachineFunction &MF) {
   bool BFChange = false;
   if (!PreRegAlloc) {
     // Tail merge tend to expose more if-conversion opportunities.
-    BranchFolder BF(true, false);
-    BFChange = BF.OptimizeFunction(MF, TII,
-                                   MF.getTarget().getRegisterInfo(),
+    BranchFolder BF(true, false, *MBFI, *MBPI);
+    BFChange = BF.OptimizeFunction(MF, TII, MF.getSubtarget().getRegisterInfo(),
                                    getAnalysisIfAvailable<MachineModuleInfo>());
   }
 
@@ -420,9 +422,8 @@ bool IfConverter::runOnMachineFunction(MachineFunction &MF) {
   BBAnalysis.clear();
 
   if (MadeChange && IfCvtBranchFold) {
-    BranchFolder BF(false, false);
-    BF.OptimizeFunction(MF, TII,
-                        MF.getTarget().getRegisterInfo(),
+    BranchFolder BF(false, false, *MBFI, *MBPI);
+    BF.OptimizeFunction(MF, TII, MF.getSubtarget().getRegisterInfo(),
                         getAnalysisIfAvailable<MachineModuleInfo>());
   }
 
@@ -940,9 +941,8 @@ static bool canFallThroughTo(MachineBasicBlock *BB, MachineBasicBlock *ToBB) {
 /// to determine if it can be if-converted. If predecessor is already enqueued,
 /// dequeue it!
 void IfConverter::InvalidatePreds(MachineBasicBlock *BB) {
-  for (MachineBasicBlock::pred_iterator PI = BB->pred_begin(),
-         E = BB->pred_end(); PI != E; ++PI) {
-    BBInfo &PBBI = BBAnalysis[(*PI)->getNumber()];
+  for (const auto &Predecessor : BB->predecessors()) {
+    BBInfo &PBBI = BBAnalysis[Predecessor->getNumber()];
     if (PBBI.IsDone || PBBI.BB == BB)
       continue;
     PBBI.IsAnalyzed = false;
@@ -1184,6 +1184,7 @@ bool IfConverter::IfConvertTriangle(BBInfo &BBI, IfcvtKind Kind) {
   bool HasEarlyExit = CvtBBI->FalseBB != nullptr;
   uint64_t CvtNext = 0, CvtFalse = 0, BBNext = 0, BBCvt = 0, SumWeight = 0;
   uint32_t WeightScale = 0;
+
   if (HasEarlyExit) {
     // Get weights before modifying CvtBBI->BB and BBI.BB.
     CvtNext = MBPI->getEdgeWeight(CvtBBI->BB, NextBBI->BB);
@@ -1192,6 +1193,7 @@ bool IfConverter::IfConvertTriangle(BBInfo &BBI, IfcvtKind Kind) {
     BBCvt = MBPI->getEdgeWeight(BBI.BB, CvtBBI->BB);
     SumWeight = MBPI->getSumForBlock(CvtBBI->BB, WeightScale);
   }
+
   if (CvtBBI->BB->pred_size() > 1) {
     BBI.NonPredSize -= TII->RemoveBranch(*BBI.BB);
     // Copy instructions in the true block, predicate them, and add them to

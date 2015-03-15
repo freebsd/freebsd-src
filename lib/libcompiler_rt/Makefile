@@ -7,6 +7,7 @@ NO_PIC=
 WARNS?=	2
 
 CFLAGS+=${PICFLAG} -fvisibility=hidden -DVISIBILITY_HIDDEN
+CFLAGS+=-I${.CURDIR}/../../contrib/libcxxrt
 
 .if ${MACHINE_CPUARCH} == "amd64"
 CRTARCH=x86_64

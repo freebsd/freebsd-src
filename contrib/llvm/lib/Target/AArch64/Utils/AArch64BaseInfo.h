@@ -14,8 +14,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef AArch64BASEINFO_H
-#define AArch64BASEINFO_H
+#ifndef LLVM_LIB_TARGET_AARCH64_UTILS_AARCH64BASEINFO_H
+#define LLVM_LIB_TARGET_AARCH64_UTILS_AARCH64BASEINFO_H
 
 // FIXME: Is it easiest to fix this layering violation by moving the .inc
 // #includes from AArch64MCTargetDesc.h to here?
@@ -1143,7 +1143,7 @@ namespace AArch64SysReg {
 
     SysRegMapper(uint64_t FeatureBits) : FeatureBits(FeatureBits) { }
     uint32_t fromString(StringRef Name, bool &Valid) const;
-    std::string toString(uint32_t Bits, bool &Valid) const;
+    std::string toString(uint32_t Bits) const;
   };
 
   struct MSRMapper : SysRegMapper {
@@ -1271,7 +1271,12 @@ namespace AArch64II {
     /// thread-local symbol. On Darwin, only one type of thread-local access
     /// exists (pre linker-relaxation), but on ELF the TLSModel used for the
     /// referee will affect interpretation.
-    MO_TLS = 0x20
+    MO_TLS = 0x20,
+
+    /// MO_CONSTPOOL - This flag indicates that a symbol operand represents
+    /// the address of a constant pool entry for the symbol, rather than the
+    /// address of the symbol itself.
+    MO_CONSTPOOL = 0x40
   };
 } // end namespace AArch64II
 

@@ -19,14 +19,14 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/ValueHandle.h"
-#include <utility>
 #include <unordered_map>
+#include <utility>
 namespace llvm {
 
 class MachineInstr;
@@ -48,6 +48,8 @@ public:
   LexicalScope(LexicalScope *P, const MDNode *D, const MDNode *I, bool A)
       : Parent(P), Desc(D), InlinedAtLocation(I), AbstractScope(A),
         LastInsn(nullptr), FirstInsn(nullptr), DFSIn(0), DFSOut(0) {
+    assert((!D || D->isResolved()) && "Expected resolved node");
+    assert((!I || I->isResolved()) && "Expected resolved node");
     if (Parent)
       Parent->addChild(this);
   }
@@ -116,8 +118,8 @@ public:
 
 private:
   LexicalScope *Parent;                        // Parent to this scope.
-  AssertingVH<const MDNode> Desc;              // Debug info descriptor.
-  AssertingVH<const MDNode> InlinedAtLocation; // Location at which this
+  const MDNode *Desc;                          // Debug info descriptor.
+  const MDNode *InlinedAtLocation;             // Location at which this
                                                // scope is inlined.
   bool AbstractScope;                          // Abstract Scope
   SmallVector<LexicalScope *, 4> Children;     // Scopes defined in scope.
@@ -148,12 +150,6 @@ public:
   /// empty - Return true if there is any lexical scope information available.
   bool empty() { return CurrentFnLexicalScope == nullptr; }
 
-  /// isCurrentFunctionScope - Return true if given lexical scope represents
-  /// current function.
-  bool isCurrentFunctionScope(const LexicalScope *LS) {
-    return LS == CurrentFnLexicalScope;
-  }
-
   /// getCurrentFunctionScope - Return lexical scope for the current function.
   LexicalScope *getCurrentFunctionScope() const {
     return CurrentFnLexicalScope;
@@ -163,7 +159,7 @@ public:
   /// which have machine instructions that belong to lexical scope identified by
   /// DebugLoc.
   void getMachineBasicBlocks(DebugLoc DL,
-                             SmallPtrSet<const MachineBasicBlock *, 4> &MBBs);
+                             SmallPtrSetImpl<const MachineBasicBlock *> &MBBs);
 
   /// dominates - Return true if DebugLoc's lexical scope dominates at least one
   /// machine instruction's lexical scope in a given machine basic block.
