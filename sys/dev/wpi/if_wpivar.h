@@ -181,9 +181,9 @@ struct wpi_softc {
 	int			calib_cnt;
 
 	struct callout		scan_timeout;
+	struct callout		tx_timeout;
 
-	/* Watch dog timers. */
-	struct callout		watchdog_to;
+	/* Watch dog timer. */
 	struct callout		watchdog_rfkill;
 
 	/* Firmware image. */
@@ -206,8 +206,6 @@ struct wpi_softc {
 
 	uint32_t		nodesmsk;
 	struct mtx		nt_mtx;
-
-	int			sc_tx_timer;
 
 	void			(*sc_node_free)(struct ieee80211_node *);
 	void			(*sc_scan_curchan)(struct ieee80211_scan_state *,
