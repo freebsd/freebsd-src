@@ -2964,30 +2964,23 @@ wpi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct ifreq *ifr = (struct ifreq *) data;
-	int error = 0, startall = 0, stop = 0;
+	int error = 0;
 
 	switch (cmd) {
 	case SIOCGIFADDR:
 		error = ether_ioctl(ifp, cmd, data);
 		break;
 	case SIOCSIFFLAGS:
-		WPI_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
-			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-				wpi_init_locked(sc);
-				if (WPI_READ(sc, WPI_GP_CNTRL) &
-				    WPI_GP_CNTRL_RFKILL)
-					startall = 1;
-				else
-					stop = 1;
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+				wpi_init(sc);
+
+				if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 &&
+				    vap != NULL)
+					ieee80211_stop(vap);
 			}
-		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			wpi_stop_locked(sc);
-		WPI_UNLOCK(sc);
-		if (startall)
-			ieee80211_start_all(ic);
-		else if (vap != NULL && stop)
-			ieee80211_stop(vap);
+		} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			wpi_stop(sc);
 		break;
 	case SIOCGIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &ic->ic_media, cmd);
