@@ -375,6 +375,7 @@ struct wpi_rxon {
 #define WPI_FILTER_NODECRYPT	(1 << 3)
 #define WPI_FILTER_BSS		(1 << 5)
 #define WPI_FILTER_BEACON	(1 << 6)
+#define WPI_FILTER_ASSOC	(1 << 7)    /* Accept associaton requests. */
 
 	uint8_t		chan;
 	uint16_t	reserved5;
