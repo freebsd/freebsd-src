@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <pthread.h>
 #include <pthread_np.h>
 #include <inttypes.h>
+#include <md5.h>
 
 #include "bhyverun.h"
 #include "pci_emul.h"
@@ -131,6 +132,7 @@ struct ahci_port {
 	struct pci_ahci_softc *pr_sc;
 	uint8_t *cmd_lst;
 	uint8_t *rfis;
+	char ident[20 + 1];
 	int atapi;
 	int reset;
 	int mult_sectors;
@@ -855,8 +857,7 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		buf[1] = cyl;
 		buf[3] = heads;
 		buf[6] = sech;
-		/* TODO emulate different serial? */
-		ata_string((uint8_t *)(buf+10), "123456", 20);
+		ata_string((uint8_t *)(buf+10), p->ident, 20);
 		ata_string((uint8_t *)(buf+23), "001", 8);
 		ata_string((uint8_t *)(buf+27), "BHYVE SATA DISK", 40);
 		buf[47] = (0x8000 | 128);
@@ -946,8 +947,7 @@ handle_atapi_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 
 		memset(buf, 0, sizeof(buf));
 		buf[0] = (2 << 14 | 5 << 8 | 1 << 7 | 2 << 5);
-		/* TODO emulate different serial? */
-		ata_string((uint8_t *)(buf+10), "123456", 20);
+		ata_string((uint8_t *)(buf+10), p->ident, 20);
 		ata_string((uint8_t *)(buf+23), "001", 8);
 		ata_string((uint8_t *)(buf+27), "BHYVE SATA DVD ROM", 40);
 		buf[49] = (1 << 9 | 1 << 8);
@@ -2167,6 +2167,8 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 	struct blockif_ctxt *bctxt;
 	struct pci_ahci_softc *sc;
 	int ret, slots;
+	MD5_CTX mdctx;
+	u_char digest[16];
 
 	ret = 0;
 
@@ -2202,6 +2204,16 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 	}	
 	sc->port[0].bctx = bctxt;
 	sc->port[0].pr_sc = sc;
+
+	/*
+	 * Create an identifier for the backing file. Use parts of the
+	 * md5 sum of the filename
+	 */
+	MD5Init(&mdctx);
+	MD5Update(&mdctx, opts, strlen(opts));
+	MD5Final(digest, &mdctx);	
+	sprintf(sc->port[0].ident, "BHYVE-%02X%02X-%02X%02X-%02X%02X",
+	    digest[0], digest[1], digest[2], digest[3], digest[4], digest[5]);
 
 	/*
 	 * Allocate blockif request structures and add them
