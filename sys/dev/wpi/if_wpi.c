@@ -586,7 +586,6 @@ wpi_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
     const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct wpi_vap *wvp;
-	struct wpi_buf *bcn;
 	struct ieee80211vap *vap;
 
 	if (!TAILQ_EMPTY(&ic->ic_vaps))		/* only one at a time */
@@ -598,9 +597,6 @@ wpi_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 		return NULL;
 	vap = &wvp->vap;
 	ieee80211_vap_setup(ic, vap, name, unit, opmode, flags, bssid, mac);
-
-	bcn = &wvp->wv_bcbuf;
-	bcn->data = NULL;
 
 	/* Override with driver methods. */
 	wvp->newstate = vap->iv_newstate;
@@ -622,13 +618,10 @@ static void
 wpi_vap_delete(struct ieee80211vap *vap)
 {
 	struct wpi_vap *wvp = WPI_VAP(vap);
-	struct wpi_buf *bcn = &wvp->wv_bcbuf;
 
 	ieee80211_ratectl_deinit(vap);
 	ieee80211_vap_detach(vap);
 
-	if (bcn->data != NULL)
-		free(bcn->data, M_DEVBUF);
 	free(wvp, M_80211_VAP);
 }
 
@@ -2322,6 +2315,8 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 
 	WPI_TXQ_LOCK(sc);
 
+	KASSERT(buf->size <= sizeof(buf->data), ("buffer overflow"));
+
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_BEGIN, __func__);
 
 	if (sc->txq_active == 0) {
@@ -2454,8 +2449,8 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	struct ieee80211_channel *chan;
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *k = NULL;
-	struct wpi_cmd_data tx;
 	struct wpi_buf tx_data;
+	struct wpi_cmd_data *tx = (struct wpi_cmd_data *)&tx_data.data;
 	uint32_t flags;
 	uint16_t qos;
 	uint8_t tid, type;
@@ -2548,7 +2543,7 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 			flags |= WPI_TX_FULL_TXOP;
 	}
 
-	memset(&tx, 0, sizeof (struct wpi_cmd_data));
+	memset(tx, 0, sizeof (struct wpi_cmd_data));
 	if (type == IEEE80211_FC0_TYPE_MGT) {
 		uint8_t subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 
@@ -2557,13 +2552,13 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 			flags |= WPI_TX_INSERT_TSTAMP;
 		if (subtype == IEEE80211_FC0_SUBTYPE_ASSOC_REQ ||
 		    subtype == IEEE80211_FC0_SUBTYPE_REASSOC_REQ)
-			tx.timeout = htole16(3);
+			tx->timeout = htole16(3);
 		else
-			tx.timeout = htole16(2);
+			tx->timeout = htole16(2);
 	}
 
 	if (ismcast || type != IEEE80211_FC0_TYPE_DATA)
-		tx.id = WPI_ID_BROADCAST;
+		tx->id = WPI_ID_BROADCAST;
 	else {
 		if (wn->id == WPI_ID_UNDEFINED) {
 			device_printf(sc->sc_dev,
@@ -2572,38 +2567,37 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 			goto fail;
 		}
 
-		tx.id = wn->id;
+		tx->id = wn->id;
 	}
 
 	if (type != IEEE80211_FC0_TYPE_MGT)
-		tx.data_ntries = tp->maxretry;
+		tx->data_ntries = tp->maxretry;
 
 	if (k != NULL && !swcrypt) {
 		switch (k->wk_cipher->ic_cipher) {
 		case IEEE80211_CIPHER_AES_CCM:
-			tx.security = WPI_CIPHER_CCMP;
+			tx->security = WPI_CIPHER_CCMP;
 			break;
 
 		default:
 			break;
 		}
 
-		memcpy(tx.key, k->wk_key, k->wk_keylen);
+		memcpy(tx->key, k->wk_key, k->wk_keylen);
 	}
 
-	tx.len = htole16(totlen);
-	tx.flags = htole32(flags);
-	tx.plcp = rate2plcp(rate);
-	tx.tid = tid;
-	tx.lifetime = htole32(WPI_LIFETIME_INFINITE);
-	tx.ofdm_mask = 0xff;
-	tx.cck_mask = 0x0f;
-	tx.rts_ntries = 7;
+	tx->len = htole16(totlen);
+	tx->flags = htole32(flags);
+	tx->plcp = rate2plcp(rate);
+	tx->tid = tid;
+	tx->lifetime = htole32(WPI_LIFETIME_INFINITE);
+	tx->ofdm_mask = 0xff;
+	tx->cck_mask = 0x0f;
+	tx->rts_ntries = 7;
 
-	tx_data.data = &tx;
 	tx_data.ni = ni;
 	tx_data.m = m;
-	tx_data.size = sizeof(tx);
+	tx_data.size = sizeof(struct wpi_cmd_data);
 	tx_data.code = WPI_CMD_TX_DATA;
 	tx_data.ac = ac;
 
@@ -2619,8 +2613,8 @@ wpi_tx_data_raw(struct wpi_softc *sc, struct mbuf *m,
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_frame *wh;
-	struct wpi_cmd_data tx;
 	struct wpi_buf tx_data;
+	struct wpi_cmd_data *tx = (struct wpi_cmd_data *)&tx_data.data;
 	uint32_t flags;
 	uint8_t type;
 	int ac, rate, totlen;
@@ -2653,7 +2647,7 @@ wpi_tx_data_raw(struct wpi_softc *sc, struct mbuf *m,
 		ieee80211_radiotap_tx(vap, m);
 	}
 
-	memset(&tx, 0, sizeof (struct wpi_cmd_data));
+	memset(tx, 0, sizeof (struct wpi_cmd_data));
 	if (type == IEEE80211_FC0_TYPE_MGT) {
 		uint8_t subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 
@@ -2662,23 +2656,22 @@ wpi_tx_data_raw(struct wpi_softc *sc, struct mbuf *m,
 			flags |= WPI_TX_INSERT_TSTAMP;
 		if (subtype == IEEE80211_FC0_SUBTYPE_ASSOC_REQ ||
 		    subtype == IEEE80211_FC0_SUBTYPE_REASSOC_REQ)
-			tx.timeout = htole16(3);
+			tx->timeout = htole16(3);
 		else
-			tx.timeout = htole16(2);
+			tx->timeout = htole16(2);
 	}
 
-	tx.len = htole16(totlen);
-	tx.flags = htole32(flags);
-	tx.plcp = rate2plcp(rate);
-	tx.id = WPI_ID_BROADCAST;
-	tx.lifetime = htole32(WPI_LIFETIME_INFINITE);
-	tx.rts_ntries = params->ibp_try1;
-	tx.data_ntries = params->ibp_try0;
+	tx->len = htole16(totlen);
+	tx->flags = htole32(flags);
+	tx->plcp = rate2plcp(rate);
+	tx->id = WPI_ID_BROADCAST;
+	tx->lifetime = htole32(WPI_LIFETIME_INFINITE);
+	tx->rts_ntries = params->ibp_try1;
+	tx->data_ntries = params->ibp_try0;
 
-	tx_data.data = &tx;
 	tx_data.ni = ni;
 	tx_data.m = m;
-	tx_data.size = sizeof(tx);
+	tx_data.size = sizeof(struct wpi_cmd_data);
 	tx_data.code = WPI_CMD_TX_DATA;
 	tx_data.ac = ac;
 
@@ -3933,13 +3926,11 @@ wpi_auth(struct wpi_softc *sc, struct ieee80211vap *vap)
 static int
 wpi_setup_beacon(struct wpi_softc *sc, struct ieee80211_node *ni)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ieee80211vap *vap = ni->ni_vap;
-	struct wpi_vap *wvp = WPI_VAP(vap);
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+	struct wpi_vap *wvp = WPI_VAP(ni->ni_vap);
 	struct wpi_buf *bcn = &wvp->wv_bcbuf;
 	struct ieee80211_beacon_offsets bo;
-	struct wpi_cmd_beacon *cmd;
+	struct wpi_cmd_beacon *cmd = (struct wpi_cmd_beacon *)&bcn->data;
 	struct mbuf *m;
 	int totlen;
 
@@ -3956,30 +3947,16 @@ wpi_setup_beacon(struct wpi_softc *sc, struct ieee80211_node *ni)
 	}
 	totlen = m->m_pkthdr.len;
 
-	if (bcn->data == NULL) {
-		cmd = malloc(sizeof(struct wpi_cmd_beacon), M_DEVBUF,
-		    M_NOWAIT | M_ZERO);
+	cmd->id = WPI_ID_BROADCAST;
+	cmd->ofdm_mask = 0xff;
+	cmd->cck_mask = 0x0f;
+	cmd->lifetime = htole32(WPI_LIFETIME_INFINITE);
+	cmd->flags = htole32(WPI_TX_AUTO_SEQ | WPI_TX_INSERT_TSTAMP);
 
-		if (cmd == NULL) {
-			device_printf(sc->sc_dev,
-			    "could not allocate buffer for beacon command\n");
-			m_freem(m);
-			return ENOMEM;
-		}
-
-		cmd->id = WPI_ID_BROADCAST;
-		cmd->ofdm_mask = 0xff;
-		cmd->cck_mask = 0x0f;
-		cmd->lifetime = htole32(WPI_LIFETIME_INFINITE);
-		cmd->flags = htole32(WPI_TX_AUTO_SEQ | WPI_TX_INSERT_TSTAMP);
-
-		bcn->data = cmd;
-		bcn->ni = NULL;
-		bcn->code = WPI_CMD_SET_BEACON;
-		bcn->ac = 4;
-		bcn->size = sizeof(struct wpi_cmd_beacon);
-	} else
-		cmd = bcn->data;
+	bcn->ni = NULL;
+	bcn->code = WPI_CMD_SET_BEACON;
+	bcn->ac = 4;
+	bcn->size = sizeof(struct wpi_cmd_beacon);
 
 	cmd->len = htole16(totlen);
 	cmd->plcp = (ic->ic_curmode == IEEE80211_MODE_11A) ?
