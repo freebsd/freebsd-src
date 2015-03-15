@@ -180,6 +180,8 @@ struct wpi_softc {
 	struct callout		calib_to;
 	int			calib_cnt;
 
+	struct callout		scan_timeout;
+
 	/* Watch dog timers. */
 	struct callout		watchdog_to;
 	struct callout		watchdog_rfkill;
@@ -204,7 +206,6 @@ struct wpi_softc {
 	struct mtx		nt_mtx;
 
 	int			sc_tx_timer;
-	int			sc_scan_timer;
 
 	void			(*sc_node_free)(struct ieee80211_node *);
 	void			(*sc_scan_curchan)(struct ieee80211_scan_state *,
