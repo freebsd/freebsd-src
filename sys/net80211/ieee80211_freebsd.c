@@ -209,7 +209,7 @@ ieee80211_sysctl_parent(SYSCTL_HANDLER_ARGS)
 	struct ieee80211com *ic = arg1;
 	const char *name = ic->ic_ifp->if_xname;
 
-	return SYSCTL_OUT(req, name, strlen(name));
+	return SYSCTL_OUT_STR(req, name);
 }
 
 static int
