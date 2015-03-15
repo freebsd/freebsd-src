@@ -38,7 +38,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 2015mmdd: new clang import which bumps version from 3.5.1 to 3.6.0.
+# 20150315: new clang import which bumps version from 3.5.1 to 3.6.0.
 OLD_FILES+=usr/include/clang/3.5.1/__wmmintrin_aes.h
 OLD_FILES+=usr/include/clang/3.5.1/__wmmintrin_pclmul.h
 OLD_FILES+=usr/include/clang/3.5.1/altivec.h
