@@ -1530,7 +1530,7 @@ wpi_node_free(struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct wpi_softc *sc = ic->ic_ifp->if_softc;
-	struct wpi_node *wn = (struct wpi_node *)ni;
+	struct wpi_node *wn = WPI_NODE(ni);
 
 	if (wn->id >= WPI_ID_IBSS_MIN && wn->id <= WPI_ID_IBSS_MAX) {
 		free_unr(sc->sc_unr, wn->id);
@@ -2365,7 +2365,7 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	const struct ieee80211_txparam *tp;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
-	struct wpi_node *wn = (void *)ni;
+	struct wpi_node *wn = WPI_NODE(ni);
 	struct ieee80211_channel *chan;
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *k = NULL;
@@ -2942,7 +2942,7 @@ static int
 wpi_add_node(struct wpi_softc *sc, struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	struct wpi_node *wn = (void *)ni;
+	struct wpi_node *wn = WPI_NODE(ni);
 	struct wpi_node_info node;
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_DOING, __func__);
@@ -2987,7 +2987,7 @@ wpi_add_broadcast_node(struct wpi_softc *sc, int async)
 static int
 wpi_add_ibss_node(struct wpi_softc *sc, struct ieee80211_node *ni)
 {
-	struct wpi_node *wn = (void *)ni;
+	struct wpi_node *wn = WPI_NODE(ni);
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_DOING, __func__);
 
@@ -3005,7 +3005,7 @@ wpi_add_ibss_node(struct wpi_softc *sc, struct ieee80211_node *ni)
 static void
 wpi_del_node(struct wpi_softc *sc, struct ieee80211_node *ni)
 {
-	struct wpi_node *wn = (void *)ni;
+	struct wpi_node *wn = WPI_NODE(ni);
 	struct wpi_cmd_del_node node;
 	int error;
 
@@ -4014,7 +4014,7 @@ wpi_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k,
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_node *ni = vap->iv_bss;
 	struct wpi_softc *sc = ic->ic_ifp->if_softc;
-	struct wpi_node *wn = (void *)ni;
+	struct wpi_node *wn = WPI_NODE(ni);
 	struct wpi_node_info node;
 	uint16_t kflags;
 	int error;
@@ -4067,7 +4067,7 @@ wpi_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_node *ni = vap->iv_bss;
 	struct wpi_softc *sc = ic->ic_ifp->if_softc;
-	struct wpi_node *wn = (void *)ni;
+	struct wpi_node *wn = WPI_NODE(ni);
 	struct wpi_node_info node;
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_DOING, __func__);
