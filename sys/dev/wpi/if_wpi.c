@@ -200,6 +200,7 @@ static int	wpi_raw_xmit(struct ieee80211_node *, struct mbuf *,
 static void	wpi_start(struct ifnet *);
 static void	wpi_start_task(void *, int);
 static void	wpi_watchdog_rfkill(void *);
+static void	wpi_scan_timeout(void *);
 static void	wpi_watchdog(void *);
 static int	wpi_ioctl(struct ifnet *, u_long, caddr_t);
 static int	wpi_cmd(struct wpi_softc *, int, const void *, size_t, int);
@@ -520,6 +521,7 @@ wpi_attach(device_t dev)
 	wpi_radiotap_attach(sc);
 
 	callout_init_mtx(&sc->calib_to, &sc->sc_mtx, 0);
+	callout_init_mtx(&sc->scan_timeout, &sc->sc_mtx, 0);
 	callout_init_mtx(&sc->watchdog_to, &sc->sc_mtx, 0);
 	callout_init_mtx(&sc->watchdog_rfkill, &sc->sc_mtx, 0);
 	TASK_INIT(&sc->sc_reinittask, 0, wpi_hw_reset, sc);
@@ -683,8 +685,9 @@ wpi_detach(device_t dev)
 
 		wpi_stop(sc);
 
-		callout_drain(&sc->watchdog_to);
 		callout_drain(&sc->watchdog_rfkill);
+		callout_drain(&sc->watchdog_to);
+		callout_drain(&sc->scan_timeout);
 		callout_drain(&sc->calib_to);
 		ieee80211_ifdetach(ic);
 	}
@@ -2163,7 +2166,7 @@ wpi_notif_intr(struct wpi_softc *sc)
 			    "scan finished nchan=%d status=%d chan=%d\n",
 			    scan->nchan, scan->status, scan->chan);
 #endif
-			sc->sc_scan_timer = 0;
+			callout_stop(&sc->scan_timeout);
 			WPI_UNLOCK(sc);
 			ieee80211_scan_next(vap);
 			WPI_LOCK(sc);
@@ -2925,6 +2928,17 @@ wpi_watchdog_rfkill(void *arg)
 		ieee80211_runtask(ic, &sc->sc_radioon_task);
 }
 
+static void
+wpi_scan_timeout(void *arg)
+{
+	struct wpi_softc *sc = arg;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
+
+	if_printf(ifp, "scan timeout\n");
+	ieee80211_runtask(ic, &sc->sc_reinittask);
+}
+
 /**
  * Called every second, wpi_watchdog used by the watch dog timer
  * to check that the card is still alive
@@ -2942,15 +2956,6 @@ wpi_watchdog(void *arg)
 		if (--sc->sc_tx_timer == 0) {
 			if_printf(ifp, "device timeout\n");
 			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-			ieee80211_runtask(ic, &sc->sc_reinittask);
-		}
-	}
-
-	if (sc->sc_scan_timer > 0) {
-		struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-		if (--sc->sc_scan_timer == 0 && vap != NULL) {
-			if_printf(ifp, "scan timeout\n");
-			ieee80211_cancel_scan(vap);
 			ieee80211_runtask(ic, &sc->sc_reinittask);
 		}
 	}
@@ -3873,7 +3878,7 @@ wpi_scan(struct wpi_softc *sc, struct ieee80211_channel *c)
 	 * We are absolutely not allowed to send a scan command when another
 	 * scan command is pending.
 	 */
-	if (sc->sc_scan_timer) {
+	if (callout_pending(&sc->scan_timeout)) {
 		device_printf(sc->sc_dev, "%s: called whilst scanning!\n",
 		    __func__);
 
@@ -4016,7 +4021,7 @@ wpi_scan(struct wpi_softc *sc, struct ieee80211_channel *c)
 	if (error != 0)
 		goto fail;
 
-	sc->sc_scan_timer = 5;
+	callout_reset(&sc->scan_timeout, 5*hz, wpi_scan_timeout, sc);
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
 
@@ -5270,9 +5275,9 @@ wpi_stop_locked(struct wpi_softc *sc)
 	sc->txq_active = 0;
 	WPI_TXQ_UNLOCK(sc);
 
-	sc->sc_scan_timer = 0;
 	sc->sc_tx_timer = 0;
 	callout_stop(&sc->watchdog_to);
+	callout_stop(&sc->scan_timeout);
 	callout_stop(&sc->calib_to);
 
 	IF_LOCK(&ifp->if_snd);
@@ -5403,6 +5408,9 @@ wpi_hw_reset(void *arg, int pending)
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_DOING, __func__);
+
+	if (vap != NULL && (ic->ic_flags & IEEE80211_F_SCAN))
+		ieee80211_cancel_scan(vap);
 
 	wpi_stop(sc);
 	if (vap != NULL)
