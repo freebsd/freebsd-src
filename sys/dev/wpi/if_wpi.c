@@ -375,8 +375,7 @@ wpi_attach(device_t dev)
 	    RF_ACTIVE);
 	if (sc->mem == NULL) {
 		device_printf(dev, "can't map mem space\n");
-		error = ENOMEM;
-		return error;
+		return ENOMEM;
 	}
 	sc->sc_st = rman_get_bustag(sc->mem);
 	sc->sc_sh = rman_get_bushandle(sc->mem);
