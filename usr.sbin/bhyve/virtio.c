@@ -97,6 +97,7 @@ vi_reset_dev(struct virtio_softc *vs)
 	for (vq = vs->vs_queues, i = 0; i < nvq; vq++, i++) {
 		vq->vq_flags = 0;
 		vq->vq_last_avail = 0;
+		vq->vq_save_used = 0;
 		vq->vq_pfn = 0;
 		vq->vq_msix_idx = VIRTIO_MSI_NO_VECTOR;
 	}
@@ -188,6 +189,7 @@ vi_vq_init(struct virtio_softc *vs, uint32_t pfn)
 	/* Mark queue as allocated, and start at 0 when we use it. */
 	vq->vq_flags = VQ_ALLOC;
 	vq->vq_last_avail = 0;
+	vq->vq_save_used = 0;
 }
 
 /*
@@ -247,12 +249,12 @@ _vq_record(int i, volatile struct virtio_desc *vd, struct vmctx *ctx,
  * that vq_has_descs() does one).
  */
 int
-vq_getchain(struct vqueue_info *vq,
+vq_getchain(struct vqueue_info *vq, uint16_t *pidx,
 	    struct iovec *iov, int n_iov, uint16_t *flags)
 {
 	int i;
 	u_int ndesc, n_indir;
-	u_int idx, head, next;
+	u_int idx, next;
 	volatile struct virtio_desc *vdir, *vindir, *vp;
 	struct vmctx *ctx;
 	struct virtio_softc *vs;
@@ -295,8 +297,8 @@ vq_getchain(struct vqueue_info *vq,
 	 * index, but we just abort if the count gets excessive.
 	 */
 	ctx = vs->vs_pi->pi_vmctx;
-	head = vq->vq_avail->va_ring[idx & (vq->vq_qsize - 1)];
-	next = head;
+	*pidx = next = vq->vq_avail->va_ring[idx & (vq->vq_qsize - 1)];
+	vq->vq_last_avail++;
 	for (i = 0; i < VQ_MAX_DESCRIPTORS; next = vdir->vd_next) {
 		if (next >= vq->vq_qsize) {
 			fprintf(stderr,
@@ -377,9 +379,9 @@ loopy:
  * and used its positive return value.)
  */
 void
-vq_relchain(struct vqueue_info *vq, uint32_t iolen)
+vq_relchain(struct vqueue_info *vq, uint16_t idx, uint32_t iolen)
 {
-	uint16_t head, uidx, mask;
+	uint16_t uidx, mask;
 	volatile struct vring_used *vuh;
 	volatile struct virtio_used *vue;
 
@@ -395,11 +397,10 @@ vq_relchain(struct vqueue_info *vq, uint32_t iolen)
 	 */
 	mask = vq->vq_qsize - 1;
 	vuh = vq->vq_used;
-	head = vq->vq_avail->va_ring[vq->vq_last_avail++ & mask];
 
 	uidx = vuh->vu_idx;
 	vue = &vuh->vu_ring[uidx++ & mask];
-	vue->vu_idx = head; /* ie, vue->id = head */
+	vue->vu_idx = idx;
 	vue->vu_tlen = iolen;
 	vuh->vu_idx = uidx;
 }
@@ -436,8 +437,8 @@ vq_endchains(struct vqueue_info *vq, int used_all_avail)
 	 * entire avail was processed, we need to interrupt always.
 	 */
 	vs = vq->vq_vs;
-	new_idx = vq->vq_used->vu_idx;
 	old_idx = vq->vq_save_used;
+	vq->vq_save_used = new_idx = vq->vq_used->vu_idx;
 	if (used_all_avail &&
 	    (vs->vs_negotiated_caps & VIRTIO_F_NOTIFY_ON_EMPTY))
 		intr = 1;
