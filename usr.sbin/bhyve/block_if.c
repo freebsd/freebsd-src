@@ -54,8 +54,8 @@ __FBSDID("$FreeBSD$");
 
 #define BLOCKIF_SIG	0xb109b109
 
-#define BLOCKIF_MAXREQ	64
 #define BLOCKIF_NUMTHR	8
+#define BLOCKIF_MAXREQ	(64 + BLOCKIF_NUMTHR)
 
 enum blockop {
 	BOP_READ,
