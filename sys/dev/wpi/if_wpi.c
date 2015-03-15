@@ -1722,11 +1722,8 @@ static void
 wpi_calib_timeout(void *arg)
 {
 	struct wpi_softc *sc = arg;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
-	if (vap->iv_state != IEEE80211_S_RUN)
+	if (!(sc->rxon.filter & htole32(WPI_FILTER_BSS)))
 		return;
 
 	wpi_power_calibration(sc);
