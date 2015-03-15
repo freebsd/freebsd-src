@@ -617,8 +617,10 @@ wpi_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	vap = &wvp->wv_vap;
 	ieee80211_vap_setup(ic, vap, name, unit, opmode, flags, bssid, mac);
 
-	if (opmode == IEEE80211_M_IBSS)
+	if (opmode == IEEE80211_M_IBSS) {
+		WPI_VAP_LOCK_INIT(wvp);
 		wpi_init_beacon(wvp);
+	}
 
 	/* Override with driver methods. */
 	vap->iv_key_alloc = wpi_key_alloc;
@@ -649,6 +651,8 @@ wpi_vap_delete(struct ieee80211vap *vap)
 	if (opmode == IEEE80211_M_IBSS) {
 		if (bcn->m != NULL)
 			m_freem(bcn->m);
+
+		WPI_VAP_LOCK_DESTROY(wvp);
 	}
 
 	free(wvp, M_80211_VAP);
@@ -2340,8 +2344,6 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 	bus_dma_segment_t *seg, segs[WPI_MAX_SCATTER];
 	int error, i, hdrlen, nsegs, totlen, pad;
 
-	WPI_LOCK_ASSERT(sc);
-
 	WPI_TXQ_LOCK(sc);
 
 	KASSERT(buf->size <= sizeof(buf->data), ("buffer overflow"));
@@ -3967,7 +3969,7 @@ wpi_config_beacon(struct wpi_vap *wvp)
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_DOING, __func__);
 
-	WPI_LOCK_ASSERT(sc);
+	WPI_VAP_LOCK_ASSERT(wvp);
 
 	cmd->len = htole16(bcn->m->m_pkthdr.len);
 	cmd->plcp = (ic->ic_curmode == IEEE80211_MODE_11A) ?
@@ -4025,12 +4027,14 @@ wpi_setup_beacon(struct wpi_softc *sc, struct ieee80211_node *ni)
 		return ENOMEM;
 	}
 
+	WPI_VAP_LOCK(wvp);
 	if (bcn->m != NULL)
 		m_freem(bcn->m);
 
 	bcn->m = m;
 
 	error = wpi_config_beacon(wvp);
+	WPI_VAP_UNLOCK(wvp);
 
 	return error;
 }
@@ -4047,21 +4051,21 @@ wpi_update_beacon(struct ieee80211vap *vap, int item)
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_BEGIN, __func__);
 
-	WPI_LOCK(sc);
+	WPI_VAP_LOCK(wvp);
 	if (bcn->m == NULL) {
 		bcn->m = ieee80211_beacon_alloc(ni, bo);
 		if (bcn->m == NULL) {
 			device_printf(sc->sc_dev,
 			    "%s: could not allocate beacon frame\n", __func__);
-			WPI_UNLOCK(sc);
 
 			DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END_ERR,
 			    __func__);
 
+			WPI_VAP_UNLOCK(wvp);
 			return;
 		}
 	}
-	WPI_UNLOCK(sc);
+	WPI_VAP_UNLOCK(wvp);
 
 	if (item == IEEE80211_BEACON_TIM)
 		mcast = 1;	/* TODO */
@@ -4069,9 +4073,9 @@ wpi_update_beacon(struct ieee80211vap *vap, int item)
 	setbit(bo->bo_flags, item);
 	ieee80211_beacon_update(ni, bo, bcn->m, mcast);
 
-	WPI_LOCK(sc);
+	WPI_VAP_LOCK(wvp);
 	wpi_config_beacon(wvp);
-	WPI_UNLOCK(sc);
+	WPI_VAP_UNLOCK(wvp);
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
 }
