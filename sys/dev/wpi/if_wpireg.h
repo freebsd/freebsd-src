@@ -24,6 +24,7 @@
 #define WPI_RX_RING_COUNT	(1 << WPI_RX_RING_COUNT_LOG)
 
 #define WPI_NTXQUEUES		8
+#define WPI_DRV_NTXQUEUES	5
 #define WPI_NDMACHNLS		6
 
 /* Maximum scatter/gather. */
