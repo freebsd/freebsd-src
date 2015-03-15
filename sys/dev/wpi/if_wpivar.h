@@ -121,12 +121,12 @@ struct wpi_buf {
 };
 
 struct wpi_vap {
-	struct ieee80211vap		vap;
+	struct ieee80211vap		wv_vap;
 
 	struct wpi_buf			wv_bcbuf;
 	struct ieee80211_beacon_offsets	wv_boff;
 
-	int				(*newstate)(struct ieee80211vap *,
+	int				(*wv_newstate)(struct ieee80211vap *,
 					    enum ieee80211_state, int);
 };
 #define	WPI_VAP(vap)	((struct wpi_vap *)(vap))
