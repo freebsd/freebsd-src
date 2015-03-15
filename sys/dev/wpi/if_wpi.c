@@ -3168,11 +3168,7 @@ wpi_updateedca(struct ieee80211com *ic)
 		    cmd.ac[aci].cwmin, cmd.ac[aci].cwmax,
 		    cmd.ac[aci].txoplimit);
 	}
-	IEEE80211_UNLOCK(ic);
-	WPI_LOCK(sc);
 	error = wpi_cmd(sc, WPI_CMD_EDCA_PARAMS, &cmd, sizeof cmd, 1);
-	WPI_UNLOCK(sc);
-	IEEE80211_LOCK(ic);
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
 
@@ -4921,9 +4917,7 @@ wpi_scan_start(struct ieee80211com *ic)
 {
 	struct wpi_softc *sc = ic->ic_ifp->if_softc;
 
-	WPI_LOCK(sc);
 	wpi_set_led(sc, WPI_LED_LINK, 20, 2);
-	WPI_UNLOCK(sc);
 }
 
 /*
@@ -4936,11 +4930,8 @@ wpi_scan_end(struct ieee80211com *ic)
 	struct wpi_softc *sc = ifp->if_softc;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
-	if (vap->iv_state == IEEE80211_S_RUN) {
-		WPI_LOCK(sc);
+	if (vap->iv_state == IEEE80211_S_RUN)
 		wpi_set_led(sc, WPI_LED_LINK, 0, 1);
-		WPI_UNLOCK(sc);
-	}
 }
 
 /**
