@@ -112,7 +112,7 @@ struct wpi_power_group {
 };
 
 struct wpi_buf {
-	void			*data;
+	uint8_t			data[56];  /* sizeof(struct wpi_cmd_beacon) */
 	struct ieee80211_node	*ni;
 	struct mbuf		*m;
 	size_t			size;
