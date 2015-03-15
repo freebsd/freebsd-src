@@ -4311,7 +4311,8 @@ wpi_run(struct wpi_softc *sc, struct ieee80211vap *vap)
 	callout_reset(&sc->calib_to, 60*hz, wpi_calib_timeout, sc);
 
 	/* Enable power-saving mode if requested by user. */
-	if (vap->iv_flags & IEEE80211_F_PMGTON)
+	if ((vap->iv_flags & IEEE80211_F_PMGTON) &&
+	    vap->iv_opmode != IEEE80211_M_IBSS)
 		(void)wpi_set_pslevel(sc, 0, 3, 1);
 	else
 		(void)wpi_set_pslevel(sc, 0, 0, 1);
