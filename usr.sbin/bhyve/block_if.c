@@ -579,7 +579,9 @@ blockif_close(struct blockif_ctxt *bc)
 	/*
 	 * Stop the block i/o thread
 	 */
+	pthread_mutex_lock(&bc->bc_mtx);
 	bc->bc_closing = 1;
+	pthread_mutex_unlock(&bc->bc_mtx);
 	pthread_cond_broadcast(&bc->bc_cond);
 	for (i = 0; i < BLOCKIF_NUMTHR; i++)
 		pthread_join(bc->bc_btid[i], &jval);
