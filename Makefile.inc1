@@ -1209,10 +1209,6 @@ packagekernel:
 .endif
 
 create-world-packages:
-.if !defined(NO_ROOT)
-	@echo "ERROR: create-world-package can only be done with -DNO_ROOT"; \
-	false
-.endif
 	@cd ${DESTDIR} ; \
 		awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		${DESTDIR}/METALOG
@@ -1238,6 +1234,15 @@ create-world-packages:
 			-p ${DESTDIR}/$${pkgname}.plist \
 			-r ${DESTDIR} -o ${DESTDIR} ; \
 	done
+
+STAGEDIR=	${MAKEOBJDIRPREFIX}${.CURDIR}/stage
+
+packages:
+	@mkdir -p ${MAKEOBJDIRPREFIX}${.CURDIR}/stage
+	${_+_}@cd ${.CURDIR}; \
+		${MAKE} buildworld >/dev/null ; \
+		${MAKE} DESTDIR=${DESTDIR:U${STAGEDIR}} -DNO_ROOT stageworld >/dev/null ; \
+		${MAKE} DESTDIR=${DESTDIR:U${STAGEDIR}} create-world-packages
 
 kernel-pkgs:
 .if !defined(NO_ROOT)
