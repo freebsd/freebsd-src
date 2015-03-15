@@ -635,6 +635,7 @@ wpi_detach(device_t dev)
 
 		ieee80211_draintask(ic, &sc->sc_reinittask);
 		ieee80211_draintask(ic, &sc->sc_radiooff_task);
+		ieee80211_draintask(ic, &sc->sc_radioon_task);
 
 		wpi_stop(sc);
 
