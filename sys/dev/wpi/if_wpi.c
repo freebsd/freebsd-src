@@ -396,6 +396,7 @@ wpi_attach(device_t dev)
 	}
 
 	WPI_LOCK_INIT(sc);
+	WPI_RXON_LOCK_INIT(sc);
 	WPI_NT_LOCK_INIT(sc);
 	WPI_TXQ_LOCK_INIT(sc);
 
@@ -520,8 +521,8 @@ wpi_attach(device_t dev)
 
 	wpi_radiotap_attach(sc);
 
-	callout_init_mtx(&sc->calib_to, &sc->sc_mtx, 0);
-	callout_init_mtx(&sc->scan_timeout, &sc->sc_mtx, 0);
+	callout_init_mtx(&sc->calib_to, &sc->rxon_mtx, 0);
+	callout_init_mtx(&sc->scan_timeout, &sc->rxon_mtx, 0);
 	callout_init_mtx(&sc->watchdog_to, &sc->sc_mtx, 0);
 	callout_init_mtx(&sc->watchdog_rfkill, &sc->sc_mtx, 0);
 	TASK_INIT(&sc->sc_reinittask, 0, wpi_hw_reset, sc);
@@ -722,6 +723,7 @@ wpi_detach(device_t dev)
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
 	WPI_TXQ_LOCK_DESTROY(sc);
 	WPI_NT_LOCK_DESTROY(sc);
+	WPI_RXON_LOCK_DESTROY(sc);
 	WPI_LOCK_DESTROY(sc);
 	return 0;
 }
@@ -1652,10 +1654,9 @@ wpi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		ieee80211_state_name[vap->iv_state],
 		ieee80211_state_name[nstate]);
 
-	IEEE80211_UNLOCK(ic);
-	WPI_LOCK(sc);
 	switch (nstate) {
 	case IEEE80211_S_SCAN:
+		WPI_RXON_LOCK(sc);
 		if ((sc->rxon.filter & htole32(WPI_FILTER_BSS)) &&
 		    vap->iv_opmode != IEEE80211_M_STA) {
 			sc->rxon.filter &= ~htole32(WPI_FILTER_BSS);
@@ -1664,6 +1665,7 @@ wpi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				    "%s: could not send RXON\n", __func__);
 			}
 		}
+		WPI_RXON_UNLOCK(sc);
 		break;
 
 	case IEEE80211_S_ASSOC:
@@ -1688,7 +1690,9 @@ wpi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		 * RUN -> RUN transition; Just restart the timers.
 		 */
 		if (vap->iv_state == IEEE80211_S_RUN) {
+			WPI_RXON_LOCK(sc);
 			wpi_calib_timeout(sc);
+			WPI_RXON_UNLOCK(sc);
 			break;
 		}
 
@@ -1706,8 +1710,6 @@ wpi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	default:
 		break;
 	}
-	WPI_UNLOCK(sc);
-	IEEE80211_LOCK(ic);
 	if (error != 0) {
 		DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END_ERR, __func__);
 		return error;
@@ -2163,7 +2165,9 @@ wpi_notif_intr(struct wpi_softc *sc)
 			    "scan finished nchan=%d status=%d chan=%d\n",
 			    scan->nchan, scan->status, scan->chan);
 #endif
+			WPI_RXON_LOCK(sc);
 			callout_stop(&sc->scan_timeout);
+			WPI_RXON_UNLOCK(sc);
 			WPI_UNLOCK(sc);
 			ieee80211_scan_next(vap);
 			WPI_LOCK(sc);
@@ -3344,14 +3348,14 @@ wpi_update_promisc(struct ifnet *ifp)
 {
 	struct wpi_softc *sc = ifp->if_softc;
 
-	WPI_LOCK(sc);
+	WPI_RXON_LOCK(sc);
 	wpi_set_promisc(sc);
 
 	if (wpi_send_rxon(sc, 1, 1) != 0) {
 		device_printf(sc->sc_dev, "%s: could not send RXON\n",
 		    __func__);
 	}
-	WPI_UNLOCK(sc);
+	WPI_RXON_UNLOCK(sc);
 }
 
 static void
@@ -3633,6 +3637,9 @@ static int
 wpi_send_rxon(struct wpi_softc *sc, int assoc, int async)
 {
 	int error;
+
+	if (async)
+		WPI_RXON_LOCK_ASSERT(sc);
 
 	if (assoc && (sc->rxon.filter & htole32(WPI_FILTER_BSS))) {
 		struct wpi_assoc rxon_assoc;
@@ -4036,6 +4043,8 @@ wpi_auth(struct wpi_softc *sc, struct ieee80211vap *vap)
 	struct ieee80211_node *ni = vap->iv_bss;
 	int error;
 
+	WPI_RXON_LOCK(sc);
+
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_BEGIN, __func__);
 
 	/* Update adapter configuration. */
@@ -4072,6 +4081,8 @@ wpi_auth(struct wpi_softc *sc, struct ieee80211vap *vap)
 	}
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
+
+	WPI_RXON_UNLOCK(sc);
 
 	return error;
 }
@@ -4253,6 +4264,7 @@ wpi_run(struct wpi_softc *sc, struct ieee80211vap *vap)
 	}
 
 	/* Update adapter configuration. */
+	WPI_RXON_LOCK(sc);
 	IEEE80211_ADDR_COPY(sc->rxon.bssid, ni->ni_bssid);
 	sc->rxon.associd = htole16(IEEE80211_NODE_AID(ni));
 	sc->rxon.chan = ieee80211_chan2ieee(ic, ni->ni_chan);
@@ -4287,6 +4299,11 @@ wpi_run(struct wpi_softc *sc, struct ieee80211vap *vap)
 		return error;
 	}
 
+	/* Start periodic calibration timer. */
+	callout_reset(&sc->calib_to, 60*hz, wpi_calib_timeout, sc);
+
+	WPI_RXON_UNLOCK(sc);
+
 	if (vap->iv_opmode == IEEE80211_M_IBSS ||
 	    vap->iv_opmode == IEEE80211_M_HOSTAP) {
 		if ((error = wpi_setup_beacon(sc, ni)) != 0) {
@@ -4312,9 +4329,6 @@ wpi_run(struct wpi_softc *sc, struct ieee80211vap *vap)
 
 	/* Link LED always on while associated. */
 	wpi_set_led(sc, WPI_LED_LINK, 0, 1);
-
-	/* Start periodic calibration timer. */
-	callout_reset(&sc->calib_to, 60*hz, wpi_calib_timeout, sc);
 
 	/* Enable power-saving mode if requested by user. */
 	if ((vap->iv_flags & IEEE80211_F_PMGTON) &&
@@ -5274,8 +5288,11 @@ wpi_stop_locked(struct wpi_softc *sc)
 
 	sc->sc_tx_timer = 0;
 	callout_stop(&sc->watchdog_to);
+
+	WPI_RXON_LOCK(sc);
 	callout_stop(&sc->scan_timeout);
 	callout_stop(&sc->calib_to);
+	WPI_RXON_UNLOCK(sc);
 
 	IF_LOCK(&ifp->if_snd);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
@@ -5337,12 +5354,14 @@ wpi_set_channel(struct ieee80211com *ic)
 	sc->sc_rxtap.wr_chan_flags = htole16(c->ic_flags);
 	sc->sc_txtap.wt_chan_freq = htole16(c->ic_freq);
 	sc->sc_txtap.wt_chan_flags = htole16(c->ic_flags);
+	WPI_UNLOCK(sc);
 
 	/*
 	 * Only need to set the channel in Monitor mode. AP scanning and auth
 	 * are already taken care of by their respective firmware commands.
 	 */
 	if (ic->ic_opmode == IEEE80211_M_MONITOR) {
+		WPI_RXON_LOCK(sc);
 		sc->rxon.chan = ieee80211_chan2ieee(ic, c);
 		if (IEEE80211_IS_CHAN_2GHZ(c)) {
 			sc->rxon.flags |= htole32(WPI_RXON_AUTO |
@@ -5351,12 +5370,12 @@ wpi_set_channel(struct ieee80211com *ic)
 			sc->rxon.flags &= ~htole32(WPI_RXON_AUTO |
 			    WPI_RXON_24GHZ);
 		}
-		if ((error = wpi_send_rxon(sc, 0, 0)) != 0)
+		if ((error = wpi_send_rxon(sc, 0, 1)) != 0)
 			device_printf(sc->sc_dev,
 			    "%s: error %d setting channel\n", __func__,
 			    error);
+		WPI_RXON_UNLOCK(sc);
 	}
-	WPI_UNLOCK(sc);
 }
 
 /**
@@ -5372,13 +5391,14 @@ wpi_scan_curchan(struct ieee80211_scan_state *ss, unsigned long maxdwell)
 	struct wpi_softc *sc = ic->ic_ifp->if_softc;
 	int error;
 
+	WPI_RXON_LOCK(sc);
 	if (sc->rxon.chan != ieee80211_chan2ieee(ic, ic->ic_curchan)) {
-		WPI_LOCK(sc);
 		error = wpi_scan(sc, ic->ic_curchan);
-		WPI_UNLOCK(sc);
+		WPI_RXON_UNLOCK(sc);
 		if (error != 0)
 			ieee80211_cancel_scan(vap);
 	} else {
+		WPI_RXON_UNLOCK(sc);
 		/* Send probe request when associated. */
 		sc->sc_scan_curchan(ss, maxdwell);
 	}
