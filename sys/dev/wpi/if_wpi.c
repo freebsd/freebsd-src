@@ -447,6 +447,7 @@ wpi_attach(device_t dev)
 	ic->ic_caps =
 		  IEEE80211_C_STA		/* station mode supported */
 		| IEEE80211_C_IBSS		/* IBSS mode supported */
+		| IEEE80211_C_HOSTAP		/* Host access point mode */
 		| IEEE80211_C_MONITOR		/* monitor mode supported */
 		| IEEE80211_C_AHDEMO		/* adhoc demo mode */
 		| IEEE80211_C_BGSCAN		/* capable of bg scanning */
@@ -454,9 +455,6 @@ wpi_attach(device_t dev)
 		| IEEE80211_C_SHSLOT		/* short slot time supported */
 		| IEEE80211_C_WPA		/* 802.11i */
 		| IEEE80211_C_SHPREAMBLE	/* short preamble supported */
-#if 0
-		| IEEE80211_C_HOSTAP		/* Host access point mode */
-#endif
 		| IEEE80211_C_WME		/* 802.11e */
 		| IEEE80211_C_PMGT		/* Station-side power mgmt */
 		;
@@ -624,7 +622,7 @@ wpi_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	vap = &wvp->wv_vap;
 	ieee80211_vap_setup(ic, vap, name, unit, opmode, flags, bssid, mac);
 
-	if (opmode == IEEE80211_M_IBSS) {
+	if (opmode == IEEE80211_M_IBSS || opmode == IEEE80211_M_HOSTAP) {
 		WPI_VAP_LOCK_INIT(wvp);
 		wpi_init_beacon(wvp);
 	}
@@ -635,6 +633,7 @@ wpi_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	wvp->wv_newstate = vap->iv_newstate;
 	vap->iv_newstate = wpi_newstate;
 	vap->iv_update_beacon = wpi_update_beacon;
+	vap->iv_max_aid = WPI_ID_IBSS_MAX - WPI_ID_IBSS_MIN + 1;
 
 	ieee80211_ratectl_init(vap);
 	/* Complete setup. */
@@ -654,7 +653,7 @@ wpi_vap_delete(struct ieee80211vap *vap)
 	ieee80211_ratectl_deinit(vap);
 	ieee80211_vap_detach(vap);
 
-	if (opmode == IEEE80211_M_IBSS) {
+	if (opmode == IEEE80211_M_IBSS || opmode == IEEE80211_M_HOSTAP) {
 		if (bcn->m != NULL)
 			m_freem(bcn->m);
 
@@ -1382,6 +1381,10 @@ wpi_eeprom_channel_flags(struct wpi_eeprom_chan *channel)
 		nflags |= IEEE80211_CHAN_NOADHOC;
 	}
 
+	/* XXX HOSTAP uses WPI_MODE_IBSS */
+	if (nflags & IEEE80211_CHAN_NOADHOC)
+		nflags |= IEEE80211_CHAN_NOHOSTAP;
+
 	return nflags;
 }
 
@@ -1650,9 +1653,8 @@ wpi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	WPI_LOCK(sc);
 	switch (nstate) {
 	case IEEE80211_S_SCAN:
-		if ((vap->iv_opmode == IEEE80211_M_IBSS ||
-		    vap->iv_opmode == IEEE80211_M_AHDEMO) &&
-		    (sc->rxon.filter & htole32(WPI_FILTER_BSS))) {
+		if ((sc->rxon.filter & htole32(WPI_FILTER_BSS)) &&
+		    vap->iv_opmode != IEEE80211_M_STA) {
 			sc->rxon.filter &= ~htole32(WPI_FILTER_BSS);
 			if ((error = wpi_send_rxon(sc, 0, 1)) != 0) {
 				device_printf(sc->sc_dev,
@@ -3321,9 +3323,13 @@ static void
 wpi_set_promisc(struct wpi_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	uint32_t promisc_filter;
 
-	promisc_filter = WPI_FILTER_PROMISC | WPI_FILTER_CTL;
+	promisc_filter = WPI_FILTER_CTL;
+	if (vap != NULL && vap->iv_opmode != IEEE80211_M_HOSTAP)
+		promisc_filter |= WPI_FILTER_PROMISC;
 
 	if (ifp->if_flags & IFF_PROMISC)
 		sc->rxon.filter |= htole32(promisc_filter);
@@ -3730,9 +3736,13 @@ wpi_config(struct wpi_softc *sc)
 		sc->rxon.mode = WPI_MODE_IBSS;
 		sc->rxon.filter |= WPI_FILTER_BEACON;
 		break;
-	/* XXX workaround for passive channels selection */
-	case IEEE80211_M_AHDEMO:
 	case IEEE80211_M_HOSTAP:
+		/* XXX workaround for beaconing */
+		sc->rxon.mode = WPI_MODE_IBSS;
+		sc->rxon.filter |= WPI_FILTER_ASSOC | WPI_FILTER_PROMISC;
+		break;
+	case IEEE80211_M_AHDEMO:
+		/* XXX workaround for passive channels selection */
 		sc->rxon.mode = WPI_MODE_HOSTAP;
 		break;
 	case IEEE80211_M_MONITOR:
@@ -4275,7 +4285,8 @@ wpi_run(struct wpi_softc *sc, struct ieee80211vap *vap)
 		return error;
 	}
 
-	if (vap->iv_opmode == IEEE80211_M_IBSS) {
+	if (vap->iv_opmode == IEEE80211_M_IBSS ||
+	    vap->iv_opmode == IEEE80211_M_HOSTAP) {
 		if ((error = wpi_setup_beacon(sc, ni)) != 0) {
 			device_printf(sc->sc_dev,
 			    "%s: could not setup beacon, error %d\n", __func__,
@@ -4533,6 +4544,7 @@ wpi_process_key(struct ieee80211vap *vap, const struct ieee80211_key *k,
 
 	case IEEE80211_M_IBSS:
 	case IEEE80211_M_AHDEMO:
+	case IEEE80211_M_HOSTAP:
 		ni = ieee80211_find_vap_node(&ic->ic_sta, vap, k->wk_macaddr);
 		if (ni == NULL)
 			return 0;	/* should not happen */
