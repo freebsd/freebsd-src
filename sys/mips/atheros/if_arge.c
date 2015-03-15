@@ -96,6 +96,7 @@ MODULE_VERSION(arge, 1);
 #include <mips/atheros/if_argevar.h>
 #include <mips/atheros/ar71xx_setup.h>
 #include <mips/atheros/ar71xx_cpudef.h>
+#include <mips/atheros/ar71xx_macaddr.h>
 
 typedef enum {
 	ARGE_DBG_MII 	=	0x00000001,
@@ -567,7 +568,6 @@ arge_attach(device_t dev)
 	struct ifnet		*ifp;
 	struct arge_softc	*sc;
 	int			error = 0, rid;
-	uint32_t		rnd;
 	int			is_base_mac_empty, i;
 	uint32_t		hint;
 	long			eeprom_mac_addr = 0;
@@ -746,14 +746,7 @@ arge_attach(device_t dev)
 		if  (bootverbose)
 			device_printf(dev,
 			    "Generating random ethernet address.\n");
-
-		rnd = arc4random();
-		sc->arge_eaddr[0] = 'b';
-		sc->arge_eaddr[1] = 's';
-		sc->arge_eaddr[2] = 'd';
-		sc->arge_eaddr[3] = (rnd >> 24) & 0xff;
-		sc->arge_eaddr[4] = (rnd >> 16) & 0xff;
-		sc->arge_eaddr[5] = (rnd >> 8) & 0xff;
+		(void) ar71xx_mac_addr_random_init(sc->arge_eaddr);
 	}
 
 	/*
