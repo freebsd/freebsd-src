@@ -227,8 +227,9 @@ static uint16_t	wpi_get_passive_dwell_time(struct wpi_softc *,
 		    struct ieee80211_channel *);
 static int	wpi_scan(struct wpi_softc *, struct ieee80211_channel *);
 static int	wpi_auth(struct wpi_softc *, struct ieee80211vap *);
-static void	wpi_update_beacon(struct ieee80211vap *, int);
+static int	wpi_config_beacon(struct wpi_vap *);
 static int	wpi_setup_beacon(struct wpi_softc *, struct ieee80211_node *);
+static void	wpi_update_beacon(struct ieee80211vap *, int);
 static void	wpi_newassoc(struct ieee80211_node *, int);
 static int	wpi_run(struct wpi_softc *, struct ieee80211vap *);
 static int	wpi_key_alloc(struct ieee80211vap *, struct ieee80211_key *,
@@ -639,9 +640,16 @@ static void
 wpi_vap_delete(struct ieee80211vap *vap)
 {
 	struct wpi_vap *wvp = WPI_VAP(vap);
+	struct wpi_buf *bcn = &wvp->wv_bcbuf;
+	enum ieee80211_opmode opmode = vap->iv_opmode;
 
 	ieee80211_ratectl_deinit(vap);
 	ieee80211_vap_detach(vap);
+
+	if (opmode == IEEE80211_M_IBSS) {
+		if (bcn->m != NULL)
+			m_freem(bcn->m);
+	}
 
 	free(wvp, M_80211_VAP);
 }
@@ -3945,51 +3953,127 @@ wpi_auth(struct wpi_softc *sc, struct ieee80211vap *vap)
 }
 
 static int
+wpi_config_beacon(struct wpi_vap *wvp)
+{
+	struct ieee80211com *ic = wvp->vap.iv_ic;
+	struct ieee80211_beacon_offsets *bo = &wvp->wv_boff;
+	struct wpi_buf *bcn = &wvp->wv_bcbuf;
+	struct wpi_softc *sc = ic->ic_ifp->if_softc;
+	struct wpi_cmd_beacon *cmd = (struct wpi_cmd_beacon *)&bcn->data;
+	struct ieee80211_tim_ie *tie;
+	struct mbuf *m;
+	uint8_t *ptr;
+	int error;
+
+	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_DOING, __func__);
+
+	WPI_LOCK_ASSERT(sc);
+
+	cmd->len = htole16(bcn->m->m_pkthdr.len);
+	cmd->plcp = (ic->ic_curmode == IEEE80211_MODE_11A) ?
+	    wpi_ridx_to_plcp[WPI_RIDX_OFDM6] : wpi_ridx_to_plcp[WPI_RIDX_CCK1];
+
+	/* XXX seems to be unused */
+	if (*(bo->bo_tim) == IEEE80211_ELEMID_TIM) {
+		tie = (struct ieee80211_tim_ie *) bo->bo_tim;
+		ptr = mtod(bcn->m, uint8_t *);
+
+		cmd->tim = htole16(bo->bo_tim - ptr);
+		cmd->timsz = tie->tim_len;
+	}
+
+	/* Necessary for recursion in ieee80211_beacon_update(). */
+	m = bcn->m;
+	bcn->m = m_dup(m, M_NOWAIT);
+	if (bcn->m == NULL) {
+		device_printf(sc->sc_dev,
+		    "%s: could not copy beacon frame\n", __func__);
+		error = ENOMEM;
+		goto end;
+	}
+
+	if ((error = wpi_cmd2(sc, bcn)) != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: could not update beacon frame, error %d", __func__,
+		    error);
+	}
+
+	/* Restore mbuf. */
+end:	bcn->m = m;
+
+	return error;
+}
+
+static int
 wpi_setup_beacon(struct wpi_softc *sc, struct ieee80211_node *ni)
 {
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 	struct wpi_vap *wvp = WPI_VAP(ni->ni_vap);
 	struct wpi_buf *bcn = &wvp->wv_bcbuf;
-	struct ieee80211_beacon_offsets bo;
-	struct wpi_cmd_beacon *cmd = (struct wpi_cmd_beacon *)&bcn->data;
+	struct ieee80211_beacon_offsets *bo = &wvp->wv_boff;
 	struct mbuf *m;
+	int error;
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_DOING, __func__);
 
 	if (ni->ni_chan == IEEE80211_CHAN_ANYC)
 		return EINVAL;
 
-	m = ieee80211_beacon_alloc(ni, &bo);
+	m = ieee80211_beacon_alloc(ni, bo);
 	if (m == NULL) {
 		device_printf(sc->sc_dev,
 		    "%s: could not allocate beacon frame\n", __func__);
 		return ENOMEM;
 	}
 
-	cmd->len = htole16(m->m_pkthdr.len);
-	cmd->plcp = (ic->ic_curmode == IEEE80211_MODE_11A) ?
-	    wpi_ridx_to_plcp[WPI_RIDX_OFDM6] : wpi_ridx_to_plcp[WPI_RIDX_CCK1];
+	if (bcn->m != NULL)
+		m_freem(bcn->m);
 
-	/* NB: m will be freed in wpi_cmd_done() */
 	bcn->m = m;
 
-	return wpi_cmd2(sc, bcn);
+	error = wpi_config_beacon(wvp);
+
+	return error;
 }
 
 static void
 wpi_update_beacon(struct ieee80211vap *vap, int item)
 {
 	struct wpi_softc *sc = vap->iv_ic->ic_ifp->if_softc;
+	struct wpi_vap *wvp = WPI_VAP(vap);
+	struct wpi_buf *bcn = &wvp->wv_bcbuf;
+	struct ieee80211_beacon_offsets *bo = &wvp->wv_boff;
 	struct ieee80211_node *ni = vap->iv_bss;
-	int error;
+	int mcast = 0;
+
+	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_BEGIN, __func__);
 
 	WPI_LOCK(sc);
-	if ((error = wpi_setup_beacon(sc, ni)) != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: could not update beacon frame, error %d", __func__,
-		    error);
+	if (bcn->m == NULL) {
+		bcn->m = ieee80211_beacon_alloc(ni, bo);
+		if (bcn->m == NULL) {
+			device_printf(sc->sc_dev,
+			    "%s: could not allocate beacon frame\n", __func__);
+			WPI_UNLOCK(sc);
+
+			DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END_ERR,
+			    __func__);
+
+			return;
+		}
 	}
 	WPI_UNLOCK(sc);
+
+	if (item == IEEE80211_BEACON_TIM)
+		mcast = 1;	/* TODO */
+
+	setbit(bo->bo_flags, item);
+	ieee80211_beacon_update(ni, bo, bcn->m, mcast);
+
+	WPI_LOCK(sc);
+	wpi_config_beacon(wvp);
+	WPI_UNLOCK(sc);
+
+	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
 }
 
 static void
