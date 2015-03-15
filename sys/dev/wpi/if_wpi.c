@@ -263,7 +263,6 @@ static int	wpi_hw_init(struct wpi_softc *);
 static void	wpi_hw_stop(struct wpi_softc *);
 static void	wpi_radio_on(void *, int);
 static void	wpi_radio_off(void *, int);
-static void	wpi_init_locked(struct wpi_softc *);
 static void	wpi_init(void *);
 static void	wpi_stop_locked(struct wpi_softc *);
 static void	wpi_stop(struct wpi_softc *);
@@ -2972,13 +2971,11 @@ wpi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-				wpi_init(sc);
+			wpi_init(sc);
 
-				if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 &&
-				    vap != NULL)
-					ieee80211_stop(vap);
-			}
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 &&
+			    vap != NULL)
+				ieee80211_stop(vap);
 		} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 			wpi_stop(sc);
 		break;
@@ -5175,14 +5172,19 @@ wpi_radio_off(void *arg0, int pending)
 }
 
 static void
-wpi_init_locked(struct wpi_softc *sc)
+wpi_init(void *arg)
 {
+	struct wpi_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	int error;
+
+	WPI_LOCK(sc);
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_BEGIN, __func__);
 
-	WPI_LOCK_ASSERT(sc);
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		goto end;
 
 	/* Check that the radio is not disabled by hardware switch. */
 	if (!(WPI_READ(sc, WPI_GP_CNTRL) & WPI_GP_CNTRL_RFKILL)) {
@@ -5190,7 +5192,7 @@ wpi_init_locked(struct wpi_softc *sc)
 		    "RF switch: radio disabled (%s)\n", __func__);
 		callout_reset(&sc->watchdog_rfkill, hz, wpi_watchdog_rfkill,
 		    sc);
-		return;
+		goto end;
 	}
 
 	/* Read firmware images from the filesystem. */
@@ -5227,25 +5229,15 @@ wpi_init_locked(struct wpi_softc *sc)
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
 
+	WPI_UNLOCK(sc);
+
+	ieee80211_start_all(ic);
+
 	return;
 
 fail:	wpi_stop_locked(sc);
-	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END_ERR, __func__);
-}
-
-static void
-wpi_init(void *arg)
-{
-	struct wpi_softc *sc = arg;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-
-	WPI_LOCK(sc);
-	wpi_init_locked(sc);
+end:	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END_ERR, __func__);
 	WPI_UNLOCK(sc);
-
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		ieee80211_start_all(ic);
 }
 
 static void
