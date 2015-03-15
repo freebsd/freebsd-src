@@ -198,7 +198,6 @@ static int	wpi_tx_data_raw(struct wpi_softc *, struct mbuf *,
 static int	wpi_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		    const struct ieee80211_bpf_params *);
 static void	wpi_start(struct ifnet *);
-static void	wpi_start_locked(struct ifnet *);
 static void	wpi_start_task(void *, int);
 static void	wpi_watchdog_rfkill(void *);
 static void	wpi_watchdog(void *);
@@ -2860,20 +2859,8 @@ static void
 wpi_start(struct ifnet *ifp)
 {
 	struct wpi_softc *sc = ifp->if_softc;
-
-	WPI_LOCK(sc);
-	wpi_start_locked(ifp);
-	WPI_UNLOCK(sc);
-}
-
-static void
-wpi_start_locked(struct ifnet *ifp)
-{
-	struct wpi_softc *sc = ifp->if_softc;
 	struct ieee80211_node *ni;
 	struct mbuf *m;
-
-	WPI_LOCK_ASSERT(sc);
 
 	DPRINTF(sc, WPI_DEBUG_XMIT, "%s: called\n", __func__);
 
@@ -2885,6 +2872,7 @@ wpi_start_locked(struct ifnet *ifp)
 	}
 	IF_UNLOCK(&ifp->if_snd);
 
+	WPI_LOCK(sc);
 	for (;;) {
 		if (sc->qfullmsk != 0) {
 			IF_LOCK(&ifp->if_snd);
@@ -2903,6 +2891,7 @@ wpi_start_locked(struct ifnet *ifp)
 			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		}
 	}
+	WPI_UNLOCK(sc);
 
 	DPRINTF(sc, WPI_DEBUG_XMIT, "%s: done\n", __func__);
 }
