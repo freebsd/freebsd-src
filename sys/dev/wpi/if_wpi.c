@@ -3189,8 +3189,7 @@ wpi_power_calibration(struct wpi_softc *sc)
 static int
 wpi_set_txpower(struct wpi_softc *sc, int async)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 	struct ieee80211_channel *ch;
 	struct wpi_power_group *group;
 	struct wpi_cmd_txpower cmd;
@@ -3251,8 +3250,7 @@ wpi_get_power_index(struct wpi_softc *sc, struct wpi_power_group *group,
 #define interpolate(x, x1, y1, x2, y2, n)	\
 	((y1) + fdivround(((x) - (x1)) * ((y2) - (y1)), (x2) - (x1), n))
 
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 	struct wpi_power_sample *sample;
 	int pwr, idx;
 	u_int chan;
@@ -4807,8 +4805,7 @@ wpi_stop(struct wpi_softc *sc)
 static void
 wpi_scan_start(struct ieee80211com *ic)
 {
-	struct ifnet *ifp = ic->ic_ifp;
-	struct wpi_softc *sc = ifp->if_softc;
+	struct wpi_softc *sc = ic->ic_ifp->if_softc;
 
 	WPI_LOCK(sc);
 	wpi_set_led(sc, WPI_LED_LINK, 20, 2);
@@ -4883,8 +4880,7 @@ wpi_scan_curchan(struct ieee80211_scan_state *ss, unsigned long maxdwell)
 {
 	struct ieee80211vap *vap = ss->ss_vap;
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ifnet *ifp = ic->ic_ifp;
-	struct wpi_softc *sc = ifp->if_softc;
+	struct wpi_softc *sc = ic->ic_ifp->if_softc;
 	int error;
 
 	if (sc->rxon.chan != ieee80211_chan2ieee(ic, ic->ic_curchan)) {
