@@ -2195,10 +2195,8 @@ wpi_intr(void *arg)
 
 	r1 = WPI_READ(sc, WPI_INT);
 
-	if (r1 == 0xffffffff || (r1 & 0xfffffff0) == 0xa5a5a5a0) {
-		WPI_UNLOCK(sc);
-		return;	/* Hardware gone! */
-	}
+	if (r1 == 0xffffffff || (r1 & 0xfffffff0) == 0xa5a5a5a0)
+		goto end;	/* Hardware gone! */
 
 	r2 = WPI_READ(sc, WPI_FH_INT);
 
@@ -2222,8 +2220,7 @@ wpi_intr(void *arg)
 		    "(Hardware Error)");
 		ieee80211_runtask(ic, &sc->sc_reinittask);
 		sc->flags &= ~WPI_FLAG_BUSY;
-		WPI_UNLOCK(sc);
-		return;
+		goto end;
 	}
 
 	if ((r1 & (WPI_INT_FH_RX | WPI_INT_SW_RX)) ||
@@ -2241,7 +2238,7 @@ done:
 	if (ifp->if_flags & IFF_UP)
 		WPI_WRITE(sc, WPI_INT_MASK, WPI_INT_MASK_DEF);
 
-	WPI_UNLOCK(sc);
+end:	WPI_UNLOCK(sc);
 }
 
 static int
