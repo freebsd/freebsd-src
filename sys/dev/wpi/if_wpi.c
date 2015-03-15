@@ -532,6 +532,14 @@ wpi_attach(device_t dev)
 	TASK_INIT(&sc->sc_radioon_task, 0, wpi_radio_on, sc);
 	TASK_INIT(&sc->sc_start_task, 0, wpi_start_task, sc);
 
+	sc->sc_tq = taskqueue_create("wpi_taskq", M_WAITOK,
+	    taskqueue_thread_enqueue, &sc->sc_tq);
+	error = taskqueue_start_threads(&sc->sc_tq, 1, 0, "wpi_taskq");
+	if (error != 0) {
+		device_printf(dev, "can't start threads, error %d\n", error);
+		goto fail;
+	}
+
 	wpi_sysctlattach(sc);
 
 	/*
@@ -687,6 +695,9 @@ wpi_detach(device_t dev)
 		ieee80211_draintask(ic, &sc->sc_start_task);
 
 		wpi_stop(sc);
+
+		taskqueue_drain_all(sc->sc_tq);
+		taskqueue_free(sc->sc_tq);
 
 		callout_drain(&sc->watchdog_rfkill);
 		callout_drain(&sc->tx_timeout);
@@ -2387,8 +2398,6 @@ wpi_intr(void *arg)
 	WPI_WRITE(sc, WPI_FH_INT, r2);
 
 	if (r1 & (WPI_INT_SW_ERR | WPI_INT_HW_ERR)) {
-		struct ieee80211com *ic = ifp->if_l2com;
-
 		device_printf(sc->sc_dev, "fatal firmware error\n");
 #ifdef WPI_DEBUG
 		wpi_debug_registers(sc);
@@ -2397,7 +2406,7 @@ wpi_intr(void *arg)
 		DPRINTF(sc, WPI_DEBUG_HW,
 		    "(%s)\n", (r1 & WPI_INT_SW_ERR) ? "(Software Error)" :
 		    "(Hardware Error)");
-		ieee80211_runtask(ic, &sc->sc_reinittask);
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_reinittask);
 		goto end;
 	}
 
@@ -2950,10 +2959,9 @@ wpi_scan_timeout(void *arg)
 {
 	struct wpi_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
 
 	if_printf(ifp, "scan timeout\n");
-	ieee80211_runtask(ic, &sc->sc_reinittask);
+	taskqueue_enqueue(sc->sc_tq, &sc->sc_reinittask);
 }
 
 static void
@@ -2961,11 +2969,10 @@ wpi_tx_timeout(void *arg)
 {
 	struct wpi_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
 
 	if_printf(ifp, "device timeout\n");
 	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-	ieee80211_runtask(ic, &sc->sc_reinittask);
+	taskqueue_enqueue(sc->sc_tq, &sc->sc_reinittask);
 }
 
 static int
