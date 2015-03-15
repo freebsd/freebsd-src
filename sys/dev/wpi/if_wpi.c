@@ -4197,8 +4197,6 @@ wpi_run(struct wpi_softc *sc, struct ieee80211vap *vap)
 	}
 	sc->rxon.filter |= htole32(WPI_FILTER_BSS);
 
-	/* XXX put somewhere HC_QOS_SUPPORT_ASSOC + HC_IBSS_START */
-
 	DPRINTF(sc, WPI_DEBUG_STATE, "rxon chan %d flags %x\n",
 	    sc->rxon.chan, sc->rxon.flags);
 
