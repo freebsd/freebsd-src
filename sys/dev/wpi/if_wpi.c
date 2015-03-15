@@ -2411,6 +2411,7 @@ end:	WPI_UNLOCK(sc);
 static int
 wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 {
+	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211_frame *wh;
 	struct wpi_tx_cmd *cmd;
 	struct wpi_tx_data *data;
@@ -2522,8 +2523,13 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 
 	if (ring->qid < WPI_CMD_QUEUE_NUM) {
 		/* Mark TX ring as full if we reach a certain threshold. */
-		if (++ring->queued > WPI_TX_RING_HIMARK)
+		if (++ring->queued > WPI_TX_RING_HIMARK) {
 			sc->qfullmsk |= 1 << ring->qid;
+
+			IF_LOCK(&ifp->if_snd);
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			IF_UNLOCK(&ifp->if_snd);
+		}
 
 		callout_reset(&sc->tx_timeout, 5*hz, wpi_tx_timeout, sc);
 	}
@@ -2873,24 +2879,18 @@ wpi_start(struct ifnet *ifp)
 	struct ieee80211_node *ni;
 	struct mbuf *m;
 
+	WPI_LOCK(sc);
 	DPRINTF(sc, WPI_DEBUG_XMIT, "%s: called\n", __func__);
 
-	IF_LOCK(&ifp->if_snd);
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
-	    (ifp->if_drv_flags & IFF_DRV_OACTIVE)) {
-		IF_UNLOCK(&ifp->if_snd);
-		return;
-	}
-	IF_UNLOCK(&ifp->if_snd);
-
-	WPI_LOCK(sc);
 	for (;;) {
-		if (sc->qfullmsk != 0) {
-			IF_LOCK(&ifp->if_snd);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		IF_LOCK(&ifp->if_snd);
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
+		    (ifp->if_drv_flags & IFF_DRV_OACTIVE)) {
 			IF_UNLOCK(&ifp->if_snd);
 			break;
 		}
+		IF_UNLOCK(&ifp->if_snd);
+
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL)
 			break;
@@ -2902,9 +2902,9 @@ wpi_start(struct ifnet *ifp)
 			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		}
 	}
-	WPI_UNLOCK(sc);
 
 	DPRINTF(sc, WPI_DEBUG_XMIT, "%s: done\n", __func__);
+	WPI_UNLOCK(sc);
 }
 
 static void
