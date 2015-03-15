@@ -1967,11 +1967,14 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	sc->sc_tx_timer = 0;
 	if (--ring->queued < WPI_TX_RING_LOMARK) {
 		sc->qfullmsk &= ~(1 << ring->qid);
+		IF_LOCK(&ifp->if_snd);
 		if (sc->qfullmsk == 0 &&
 		    (ifp->if_drv_flags & IFF_DRV_OACTIVE)) {
 			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+			IF_UNLOCK(&ifp->if_snd);
 			ieee80211_runtask(ic, &sc->sc_start_task);
-		}
+		} else
+			IF_UNLOCK(&ifp->if_snd);
 	}
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
@@ -2871,13 +2874,19 @@ wpi_start_locked(struct ifnet *ifp)
 
 	DPRINTF(sc, WPI_DEBUG_XMIT, "%s: called\n", __func__);
 
+	IF_LOCK(&ifp->if_snd);
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
-	    (ifp->if_drv_flags & IFF_DRV_OACTIVE))
+	    (ifp->if_drv_flags & IFF_DRV_OACTIVE)) {
+		IF_UNLOCK(&ifp->if_snd);
 		return;
+	}
+	IF_UNLOCK(&ifp->if_snd);
 
 	for (;;) {
 		if (sc->qfullmsk != 0) {
+			IF_LOCK(&ifp->if_snd);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			IF_UNLOCK(&ifp->if_snd);
 			break;
 		}
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
@@ -5222,8 +5231,10 @@ wpi_init(void *arg)
 		goto fail;
 	}
 
+	IF_LOCK(&ifp->if_snd);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	IF_UNLOCK(&ifp->if_snd);
 
 	callout_reset(&sc->watchdog_to, hz, wpi_watchdog, sc);
 
@@ -5255,7 +5266,10 @@ wpi_stop_locked(struct wpi_softc *sc)
 	sc->sc_tx_timer = 0;
 	callout_stop(&sc->watchdog_to);
 	callout_stop(&sc->calib_to);
+
+	IF_LOCK(&ifp->if_snd);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	IF_UNLOCK(&ifp->if_snd);
 
 	/* Power OFF hardware. */
 	wpi_hw_stop(sc);
