@@ -4660,7 +4660,9 @@ wpi_radio_off(void *arg0, int pending)
 	if (vap != NULL)
 		ieee80211_stop(vap);
 
+	WPI_LOCK(sc);
 	callout_reset(&sc->watchdog_rfkill, hz, wpi_watchdog_rfkill, sc);
+	WPI_UNLOCK(sc);
 }
 
 static void
