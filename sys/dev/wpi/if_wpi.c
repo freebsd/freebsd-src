@@ -1527,6 +1527,14 @@ wpi_add_node_entry_adhoc(struct wpi_softc *sc)
 }
 
 static __inline int
+wpi_add_node_entry_sta(struct wpi_softc *sc)
+{
+	sc->nodesmsk |= 1 << WPI_ID_BSS;
+
+	return WPI_ID_BSS;
+}
+
+static __inline int
 wpi_check_node_entry(struct wpi_softc *sc, uint8_t id)
 {
 	if (id == WPI_ID_UNDEFINED)
@@ -1570,7 +1578,7 @@ wpi_node_free(struct ieee80211_node *ni)
 	struct wpi_softc *sc = ic->ic_ifp->if_softc;
 	struct wpi_node *wn = WPI_NODE(ni);
 
-	if (wn->id >= WPI_ID_IBSS_MIN && wn->id <= WPI_ID_IBSS_MAX) {
+	if (wn->id != WPI_ID_UNDEFINED) {
 		WPI_LOCK(sc);
 		if (wpi_check_node_entry(sc, wn->id)) {
 			wpi_del_node_entry(sc, wn->id);
@@ -3032,6 +3040,25 @@ wpi_add_broadcast_node(struct wpi_softc *sc, int async)
 }
 
 static int
+wpi_add_sta_node(struct wpi_softc *sc, struct ieee80211_node *ni)
+{
+	struct wpi_node *wn = WPI_NODE(ni);
+	int error;
+
+	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_DOING, __func__);
+
+	wn->id = wpi_add_node_entry_sta(sc);
+
+	if ((error = wpi_add_node(sc, ni)) != 0) {
+		wpi_del_node_entry(sc, wn->id);
+		wn->id = WPI_ID_UNDEFINED;
+		return error;
+	}
+
+	return 0;
+}
+
+static int
 wpi_add_ibss_node(struct wpi_softc *sc, struct ieee80211_node *ni)
 {
 	struct wpi_node *wn = WPI_NODE(ni);
@@ -4011,8 +4038,8 @@ wpi_run(struct wpi_softc *sc, struct ieee80211vap *vap)
 
 	if (vap->iv_opmode == IEEE80211_M_STA) {
 		/* Add BSS node. */
-		((struct wpi_node *)ni)->id = WPI_ID_BSS;
-		if ((error = wpi_add_node(sc, ni)) != 0) {
+		error = wpi_add_sta_node(sc, ni);
+		if (error != 0) {
 			device_printf(sc->sc_dev,
 			    "%s: could not add BSS node, error %d\n", __func__,
 			    error);
