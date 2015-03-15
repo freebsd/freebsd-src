@@ -557,7 +557,8 @@ main(int argc, char *argv[])
 	if (finet) {
 		if (SecureMode) {
 			for (i = 0; i < *finet; i++) {
-				if (shutdown(finet[i+1], SHUT_RD) < 0) {
+				if (shutdown(finet[i+1], SHUT_RD) < 0 &&
+				    errno != ENOTCONN) {
 					logerror("shutdown");
 					if (!Debug)
 						die(0);
