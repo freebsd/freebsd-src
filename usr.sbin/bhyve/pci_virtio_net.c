@@ -288,6 +288,7 @@ pci_vtnet_tap_rx(struct pci_vtnet_softc *sc)
 	struct vqueue_info *vq;
 	void *vrx;
 	int len, n;
+	uint16_t idx;
 
 	/*
 	 * Should never be called without a valid tap fd
@@ -310,7 +311,6 @@ pci_vtnet_tap_rx(struct pci_vtnet_softc *sc)
 	 * Check for available rx buffers
 	 */
 	vq = &sc->vsc_queues[VTNET_RXQ];
-	vq_startchains(vq);
 	if (!vq_has_descs(vq)) {
 		/*
 		 * Drop the packet and try later.  Interrupt on
@@ -325,7 +325,7 @@ pci_vtnet_tap_rx(struct pci_vtnet_softc *sc)
 		/*
 		 * Get descriptor chain.
 		 */
-		n = vq_getchain(vq, iov, VTNET_MAXSEGS, NULL);
+		n = vq_getchain(vq, &idx, iov, VTNET_MAXSEGS, NULL);
 		assert(n >= 1 && n <= VTNET_MAXSEGS);
 
 		/*
@@ -362,7 +362,7 @@ pci_vtnet_tap_rx(struct pci_vtnet_softc *sc)
 		/*
 		 * Release this chain and handle more chains.
 		 */
-		vq_relchain(vq, len + sc->rx_vhdrlen);
+		vq_relchain(vq, idx, len + sc->rx_vhdrlen);
 	} while (vq_has_descs(vq));
 
 	/* Interrupt if needed, including for NOTIFY_ON_EMPTY. */
@@ -401,13 +401,14 @@ pci_vtnet_proctx(struct pci_vtnet_softc *sc, struct vqueue_info *vq)
 	struct iovec iov[VTNET_MAXSEGS + 1];
 	int i, n;
 	int plen, tlen;
+	uint16_t idx;
 
 	/*
 	 * Obtain chain of descriptors.  The first one is
 	 * really the header descriptor, so we need to sum
 	 * up two lengths: packet length and transfer length.
 	 */
-	n = vq_getchain(vq, iov, VTNET_MAXSEGS, NULL);
+	n = vq_getchain(vq, &idx, iov, VTNET_MAXSEGS, NULL);
 	assert(n >= 1 && n <= VTNET_MAXSEGS);
 	plen = 0;
 	tlen = iov[0].iov_len;
@@ -420,7 +421,7 @@ pci_vtnet_proctx(struct pci_vtnet_softc *sc, struct vqueue_info *vq)
 	pci_vtnet_tap_tx(sc, &iov[1], n - 1, plen);
 
 	/* chain is processed, release it and set tlen */
-	vq_relchain(vq, tlen);
+	vq_relchain(vq, idx, tlen);
 }
 
 static void
@@ -479,7 +480,6 @@ pci_vtnet_tx_thread(void *param)
 		sc->tx_in_progress = 1;
 		pthread_mutex_unlock(&sc->tx_mtx);
 
-		vq_startchains(vq);
 		do {
 			/*
 			 * Run through entries, placing them into

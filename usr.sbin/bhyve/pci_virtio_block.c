@@ -170,9 +170,9 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vqueue_info *vq)
 	int writeop, type;
 	off_t offset;
 	struct iovec iov[VTBLK_MAXSEGS + 2];
-	uint16_t flags[VTBLK_MAXSEGS + 2];
+	uint16_t idx, flags[VTBLK_MAXSEGS + 2];
 
-	n = vq_getchain(vq, iov, VTBLK_MAXSEGS + 2, flags);
+	n = vq_getchain(vq, &idx, iov, VTBLK_MAXSEGS + 2, flags);
 
 	/*
 	 * The first descriptor will be the read-only fixed header,
@@ -258,7 +258,7 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vqueue_info *vq)
 	 * Return the descriptor back to the host.
 	 * We wrote 1 byte (our status) to host.
 	 */
-	vq_relchain(vq, 1);
+	vq_relchain(vq, idx, 1);
 }
 
 static void
@@ -266,7 +266,6 @@ pci_vtblk_notify(void *vsc, struct vqueue_info *vq)
 {
 	struct pci_vtblk_softc *sc = vsc;
 
-	vq_startchains(vq);
 	while (vq_has_descs(vq))
 		pci_vtblk_proc(sc, vq);
 	vq_endchains(vq, 1);	/* Generate interrupt if appropriate. */
