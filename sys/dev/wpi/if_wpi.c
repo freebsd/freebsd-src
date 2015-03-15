@@ -1952,6 +1952,12 @@ wpi_notif_intr(struct wpi_softc *sc)
 		case WPI_RX_DONE:
 			/* An 802.11 frame has been received. */
 			wpi_rx_done(sc, desc, data);
+
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+				/* wpi_stop() was called. */
+				return;
+			}
+
 			break;
 
 		case WPI_TX_DONE:
