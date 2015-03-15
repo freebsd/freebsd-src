@@ -230,6 +230,8 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be)
 	case BOP_DELETE:
 		if (!bc->bc_candelete)
 			err = EOPNOTSUPP;
+		else if (bc->bc_rdonly)
+			err = EROFS;
 		else if (bc->bc_ischr) {
 			arg[0] = br->br_offset;
 			arg[1] = br->br_iov[0].iov_len;
