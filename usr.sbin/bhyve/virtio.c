@@ -372,8 +372,21 @@ loopy:
 }
 
 /*
- * Return the currently-first request chain to the guest, setting
- * its I/O length to the provided value.
+ * Return the currently-first request chain back to the available queue.
+ *
+ * (This chain is the one you handled when you called vq_getchain()
+ * and used its positive return value.)
+ */
+void
+vq_retchain(struct vqueue_info *vq)
+{
+
+	vq->vq_last_avail--;
+}
+
+/*
+ * Return specified request chain to the guest, setting its I/O length
+ * to the provided value.
  *
  * (This chain is the one you handled when you called vq_getchain()
  * and used its positive return value.)
