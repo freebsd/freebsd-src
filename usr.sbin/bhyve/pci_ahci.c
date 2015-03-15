@@ -840,10 +840,11 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 	} else {
 		uint16_t buf[256];
 		uint64_t sectors;
-		int sectsz, psectsz, psectoff, candelete;
+		int sectsz, psectsz, psectoff, candelete, ro;
 		uint16_t cyl;
 		uint8_t sech, heads;
 
+		ro = blockif_is_ro(p->bctx);
 		candelete = blockif_candelete(p->bctx);
 		sectsz = blockif_sectsz(p->bctx);
 		sectors = blockif_size(p->bctx) / sectsz;
@@ -906,7 +907,7 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		buf[101] = (sectors >> 16);
 		buf[102] = (sectors >> 32);
 		buf[103] = (sectors >> 48);
-		if (candelete) {
+		if (candelete && !ro) {
 			buf[69] |= ATA_SUPPORT_RZAT | ATA_SUPPORT_DRAT;
 			buf[105] = 1;
 			buf[169] = ATA_SUPPORT_DSM_TRIM;
