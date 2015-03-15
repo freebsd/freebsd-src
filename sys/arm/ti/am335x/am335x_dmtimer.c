@@ -200,7 +200,7 @@ am335x_dmtimer_et_write_4(struct am335x_dmtimer_softc *sc, uint32_t reg,
  */
 #ifdef PPS_SYNC
 
-#define	PPS_CDEV_NAME	"pps"
+#define	PPS_CDEV_NAME	"dmtpps"
 
 static void
 am335x_dmtimer_set_capture_mode(struct am335x_dmtimer_softc *sc, bool force_off)
