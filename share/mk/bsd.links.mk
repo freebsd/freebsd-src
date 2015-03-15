@@ -9,9 +9,9 @@ afterinstall: _installlinks
 _installlinks:
 .for s t in ${LINKS}
 	@${ECHO} "$t -> $s" ;\
-	${INSTALL_LINK} $s $t
+	${INSTALL_LINK} ${DESTDIR}$s ${DESTDIR}$t
 .endfor
 .for s t in ${SYMLINKS}
 	@${ECHO} "$t -> $s" ;\
-	${INSTALL_SYMLINK} $s $t
+	${INSTALL_SYMLINK} $s ${DESTDIR}/$t
 .endfor
