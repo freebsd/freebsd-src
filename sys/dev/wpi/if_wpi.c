@@ -1936,8 +1936,8 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	struct ieee80211_node *ni;
 	struct ieee80211vap *vap;
 	struct ieee80211com *ic;
+	uint32_t status = le32toh(stat->status);
 	int ackfailcnt = stat->ackfailcnt / 2;	/* wpi_mrr_setup() */
-	int status = le32toh(stat->status);
 
 	KASSERT(data->ni != NULL, ("no node"));
 	KASSERT(data->m != NULL, ("no mbuf"));
@@ -2038,7 +2038,7 @@ wpi_notif_intr(struct wpi_softc *sc)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-	int hw;
+	uint32_t hw;
 
 	bus_dmamap_sync(sc->shared_dma.tag, sc->shared_dma.map,
 	    BUS_DMASYNC_POSTREAD);
@@ -2092,7 +2092,7 @@ wpi_notif_intr(struct wpi_softc *sc)
 		{
 			struct wpi_beacon_missed *miss =
 			    (struct wpi_beacon_missed *)(desc + 1);
-			int misses;
+			uint32_t misses;
 
 			bus_dmamap_sync(sc->rxq.data_dmat, data->map,
 			    BUS_DMASYNC_POSTREAD);
