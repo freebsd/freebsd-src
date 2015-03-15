@@ -2096,7 +2096,7 @@ wpi_wakeup_intr(struct wpi_softc *sc)
 		sc->rxq.update = 0;
 		wpi_update_rx_ring(sc);
 	}
-	for (qid = 0; qid < WPI_NTXQUEUES; qid++) {
+	for (qid = 0; qid < WPI_DRV_NTXQUEUES; qid++) {
 		struct wpi_tx_ring *ring = &sc->txq[qid];
 
 		if (ring->update) {
@@ -2165,7 +2165,7 @@ wpi_fatal_intr(struct wpi_softc *sc)
 	wpi_nic_unlock(sc);
 	/* Dump driver status (TX and RX rings) while we're here. */
 	printf("driver status:\n");
-	for (i = 0; i < WPI_NTXQUEUES; i++) {
+	for (i = 0; i < WPI_DRV_NTXQUEUES; i++) {
 		struct wpi_tx_ring *ring = &sc->txq[i];
 		printf("  tx ring %2d: qid=%-2d cur=%-3d queued=%-3d\n",
 		    i, ring->qid, ring->cur, ring->queued);
