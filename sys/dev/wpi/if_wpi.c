@@ -1138,7 +1138,7 @@ wpi_alloc_tx_ring(struct wpi_softc *sc, struct wpi_tx_ring *ring, int qid)
 	 * to allocate commands space for other rings.
 	 * XXX Do we really need to allocate descriptors for other rings?
 	 */
-	if (qid > 4)
+	if (qid > WPI_CMD_QUEUE_NUM)
 		return 0;
 
 	size = WPI_TX_RING_COUNT * sizeof (struct wpi_tx_cmd);
@@ -1806,7 +1806,7 @@ wpi_rx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 		tap->wr_flags = 0;
 		if (head->flags & htole16(WPI_STAT_FLAG_SHPREAMBLE))
 			tap->wr_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
-		tap->wr_dbm_antsignal = (int8_t)(stat->rssi - WPI_RSSI_OFFSET);
+		tap->wr_dbm_antsignal = (int8_t)(stat->rssi + WPI_RSSI_OFFSET);
 		tap->wr_dbm_antnoise = (int8_t)le16toh(stat->noise);
 		tap->wr_tsft = tail->tstamp;
 		tap->wr_antenna = (le16toh(head->flags) >> 4) & 0xf;
@@ -1817,11 +1817,11 @@ wpi_rx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 
 	/* Send the frame to the 802.11 layer. */
 	if (ni != NULL) {
-		(void)ieee80211_input(ni, m, stat->rssi, -WPI_RSSI_OFFSET);
+		(void)ieee80211_input(ni, m, stat->rssi, WPI_RSSI_OFFSET);
 		/* Node is no longer needed. */
 		ieee80211_free_node(ni);
 	} else
-		(void)ieee80211_input_all(ic, m, stat->rssi, -WPI_RSSI_OFFSET);
+		(void)ieee80211_input_all(ic, m, stat->rssi, WPI_RSSI_OFFSET);
 
 	WPI_LOCK(sc);
 
@@ -1906,7 +1906,7 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 static void
 wpi_cmd_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 {
-	struct wpi_tx_ring *ring = &sc->txq[4];
+	struct wpi_tx_ring *ring = &sc->txq[WPI_CMD_QUEUE_NUM];
 	struct wpi_tx_data *data;
 
 	DPRINTF(sc, WPI_DEBUG_CMD, "cmd notification qid=%x idx=%d flags=%x "
@@ -1914,7 +1914,7 @@ wpi_cmd_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 				   desc->flags, wpi_cmd_str(desc->type),
 				   le32toh(desc->len));
 
-	if ((desc->qid & 7) != 4)
+	if ((desc->qid & WPI_RX_DESC_QID_MSK) != WPI_CMD_QUEUE_NUM)
 		return;	/* Not a command ack. */
 
 	data = &ring->data[desc->idx];
@@ -1961,8 +1961,10 @@ wpi_notif_intr(struct wpi_softc *sc)
 		    __func__, sc->rxq.cur, desc->qid, desc->idx, desc->flags,
 		    desc->type, wpi_cmd_str(desc->type), le32toh(desc->len));
 
-		if (!(desc->qid & 0x80))	/* Reply to a command. */
+		if (!(desc->qid & WPI_UNSOLICITED_RX_NOTIF)) {
+			/* Reply to a command. */
 			wpi_cmd_done(sc, desc);
+		}
 
 		switch (desc->type) {
 		case WPI_RX_DONE:
@@ -2804,7 +2806,7 @@ static int
 wpi_cmd(struct wpi_softc *sc, int code, const void *buf, size_t size,
     int async)
 {
-	struct wpi_tx_ring *ring = &sc->txq[4];
+	struct wpi_tx_ring *ring = &sc->txq[WPI_CMD_QUEUE_NUM];
 	struct wpi_tx_desc *desc;
 	struct wpi_tx_data *data;
 	struct wpi_tx_cmd *cmd;
