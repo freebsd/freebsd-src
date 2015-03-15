@@ -3810,14 +3810,12 @@ static uint16_t
 wpi_limit_dwell(struct wpi_softc *sc, uint16_t dwell_time)
 {
 	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
-	struct ieee80211vap *vap = NULL;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	int bintval = 0;
 
 	/* bintval is in TU (1.024mS) */
-	if (! TAILQ_EMPTY(&ic->ic_vaps)) {
-		vap = TAILQ_FIRST(&ic->ic_vaps);
+	if (vap != NULL)
 		bintval = vap->iv_bss->ni_intval;
-	}
 
 	/*
 	 * If it's non-zero, we should calculate the minimum of
