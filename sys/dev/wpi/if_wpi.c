@@ -1100,12 +1100,6 @@ wpi_reset_rx_ring(struct wpi_softc *sc)
 				break;
 			DELAY(10);
 		}
-#ifdef WPI_DEBUG
-		if (ntries == 1000) {
-			device_printf(sc->sc_dev,
-			    "timeout resetting Rx ring\n");
-		}
-#endif
 		wpi_nic_unlock(sc);
 	}
 
