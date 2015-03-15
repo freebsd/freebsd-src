@@ -384,6 +384,7 @@ wpi_attach(device_t dev)
 	}
 
 	WPI_LOCK_INIT(sc);
+	WPI_NT_LOCK_INIT(sc);
 	WPI_TXQ_LOCK_INIT(sc);
 
 	/* Allocate DMA memory for firmware transfers. */
@@ -681,6 +682,7 @@ wpi_detach(device_t dev)
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
 	WPI_TXQ_LOCK_DESTROY(sc);
+	WPI_NT_LOCK_DESTROY(sc);
 	WPI_LOCK_DESTROY(sc);
 	return 0;
 }
@@ -1582,12 +1584,12 @@ wpi_node_free(struct ieee80211_node *ni)
 	struct wpi_node *wn = WPI_NODE(ni);
 
 	if (wn->id != WPI_ID_UNDEFINED) {
-		WPI_LOCK(sc);
+		WPI_NT_LOCK(sc);
 		if (wpi_check_node_entry(sc, wn->id)) {
 			wpi_del_node_entry(sc, wn->id);
 			wpi_del_node(sc, ni);
 		}
-		WPI_UNLOCK(sc);
+		WPI_NT_UNLOCK(sc);
 	}
 
 	sc->sc_node_free(ni);
@@ -2095,7 +2097,9 @@ wpi_notif_intr(struct wpi_softc *sc)
 			    le32toh(*status));
 
 			if (le32toh(*status) & 1) {
+				WPI_NT_LOCK(sc);
 				wpi_clear_node_table(sc);
+				WPI_NT_UNLOCK(sc);
 				ieee80211_runtask(ic, &sc->sc_radiooff_task);
 				return;
 			}
@@ -2557,7 +2561,9 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		if (wn->id == WPI_ID_UNDEFINED &&
 		    (vap->iv_opmode == IEEE80211_M_IBSS ||
 		    vap->iv_opmode == IEEE80211_M_AHDEMO)) {
+			WPI_NT_LOCK(sc);
 			error = wpi_add_ibss_node(sc, ni);
+			WPI_NT_UNLOCK(sc);
 			if (error != 0) {
 				device_printf(sc->sc_dev,
 				    "%s: could not add IBSS node, error %d\n",
@@ -3501,10 +3507,16 @@ wpi_send_rxon(struct wpi_softc *sc, int assoc, int async)
 		error = wpi_cmd(sc, WPI_CMD_RXON_ASSOC, &rxon_assoc,
 		    sizeof (struct wpi_assoc), async);
 	} else {
+		if (async)
+			WPI_NT_LOCK(sc);
+
 		error = wpi_cmd(sc, WPI_CMD_RXON, &sc->rxon,
 		    sizeof (struct wpi_rxon), async);
 
 		wpi_clear_node_table(sc);
+
+		if (async)
+			WPI_NT_UNLOCK(sc);
 	}
 	if (error != 0) {
 		device_printf(sc->sc_dev, "RXON command failed, error %d\n",
@@ -4069,7 +4081,9 @@ wpi_run(struct wpi_softc *sc, struct ieee80211vap *vap)
 
 	if (vap->iv_opmode == IEEE80211_M_STA) {
 		/* Add BSS node. */
+		WPI_NT_LOCK(sc);
 		error = wpi_add_sta_node(sc, ni);
+		WPI_NT_UNLOCK(sc);
 		if (error != 0) {
 			device_printf(sc->sc_dev,
 			    "%s: could not add BSS node, error %d\n", __func__,
