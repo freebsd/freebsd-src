@@ -152,12 +152,6 @@ struct wpi_softc {
 
 	struct mtx		sc_mtx;
 
-	/* Flags indicating the current state the driver
-	 * expects the hardware to be in
-	 */
-	uint32_t		flags;
-#define WPI_FLAG_BUSY		(1 << 0)
-
 	/* Shared area. */
 	struct wpi_dma_info	shared_dma;
 	struct wpi_shared	*shared;

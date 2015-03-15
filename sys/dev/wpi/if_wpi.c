@@ -1976,7 +1976,6 @@ wpi_cmd_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 		data->m = NULL;
 	}
 
-	sc->flags &= ~WPI_FLAG_BUSY;
 	wakeup(&ring->cmd[desc->idx]);
 }
 
@@ -2272,7 +2271,6 @@ wpi_intr(void *arg)
 		    "(%s)\n", (r1 & WPI_INT_SW_ERR) ? "(Software Error)" :
 		    "(Hardware Error)");
 		ieee80211_runtask(ic, &sc->sc_reinittask);
-		sc->flags &= ~WPI_FLAG_BUSY;
 		goto end;
 	}
 
@@ -2905,13 +2903,6 @@ wpi_cmd(struct wpi_softc *sc, int code, const void *buf, size_t size,
 	DPRINTF(sc, WPI_DEBUG_CMD, "wpi_cmd %s size %zu async %d\n",
 	    wpi_cmd_str(code), size, async);
 
-	if (sc->flags & WPI_FLAG_BUSY) {
-		device_printf(sc->sc_dev, "%s: cmd %d not sent, busy\n",
-		    __func__, code);
-		return EAGAIN;
-	}
-	sc->flags |= WPI_FLAG_BUSY;
-
 	desc = &ring->desc[ring->cur];
 	data = &ring->data[ring->cur];
 	totlen = 4 + size;
@@ -2968,10 +2959,8 @@ wpi_cmd(struct wpi_softc *sc, int code, const void *buf, size_t size,
 
 	WPI_TXQ_UNLOCK(sc);
 
-	if (async) {
-		sc->flags &= ~WPI_FLAG_BUSY;
+	if (async)
 		return 0;
-	}
 
 	return mtx_sleep(cmd, &sc->sc_mtx, PCATCH, "wpicmd", hz);
 
