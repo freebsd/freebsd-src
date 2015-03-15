@@ -201,7 +201,7 @@ static void	wpi_start(struct ifnet *);
 static void	wpi_start_task(void *, int);
 static void	wpi_watchdog_rfkill(void *);
 static void	wpi_scan_timeout(void *);
-static void	wpi_watchdog(void *);
+static void	wpi_tx_timeout(void *);
 static int	wpi_ioctl(struct ifnet *, u_long, caddr_t);
 static int	wpi_cmd(struct wpi_softc *, int, const void *, size_t, int);
 static int	wpi_mrr_setup(struct wpi_softc *);
@@ -523,7 +523,7 @@ wpi_attach(device_t dev)
 
 	callout_init_mtx(&sc->calib_to, &sc->rxon_mtx, 0);
 	callout_init_mtx(&sc->scan_timeout, &sc->rxon_mtx, 0);
-	callout_init_mtx(&sc->watchdog_to, &sc->sc_mtx, 0);
+	callout_init_mtx(&sc->tx_timeout, &sc->sc_mtx, 0);
 	callout_init_mtx(&sc->watchdog_rfkill, &sc->sc_mtx, 0);
 	TASK_INIT(&sc->sc_reinittask, 0, wpi_hw_reset, sc);
 	TASK_INIT(&sc->sc_radiooff_task, 0, wpi_radio_off, sc);
@@ -687,7 +687,7 @@ wpi_detach(device_t dev)
 		wpi_stop(sc);
 
 		callout_drain(&sc->watchdog_rfkill);
-		callout_drain(&sc->watchdog_to);
+		callout_drain(&sc->tx_timeout);
 		callout_drain(&sc->scan_timeout);
 		callout_drain(&sc->calib_to);
 		ieee80211_ifdetach(ic);
@@ -1970,8 +1970,13 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	ieee80211_tx_complete(ni, m, (status & 0xff) != 1);
 	WPI_LOCK(sc);
 
-	sc->sc_tx_timer = 0;
-	if (--ring->queued < WPI_TX_RING_LOMARK) {
+	ring->queued -= 1;
+	if (ring->queued > 0)
+		callout_reset(&sc->tx_timeout, 5*hz, wpi_tx_timeout, sc);
+	else
+		callout_stop(&sc->tx_timeout);
+
+	if (ring->queued < WPI_TX_RING_LOMARK) {
 		sc->qfullmsk &= ~(1 << ring->qid);
 		IF_LOCK(&ifp->if_snd);
 		if (sc->qfullmsk == 0 &&
@@ -2520,7 +2525,7 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 		if (++ring->queued > WPI_TX_RING_HIMARK)
 			sc->qfullmsk |= 1 << ring->qid;
 
-		sc->sc_tx_timer = 5;
+		callout_reset(&sc->tx_timeout, 5*hz, wpi_tx_timeout, sc);
 	}
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
@@ -2940,29 +2945,16 @@ wpi_scan_timeout(void *arg)
 	ieee80211_runtask(ic, &sc->sc_reinittask);
 }
 
-/**
- * Called every second, wpi_watchdog used by the watch dog timer
- * to check that the card is still alive
- */
 static void
-wpi_watchdog(void *arg)
+wpi_tx_timeout(void *arg)
 {
 	struct wpi_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 
-	DPRINTF(sc, WPI_DEBUG_WATCHDOG, "Watchdog: tick\n");
-
-	if (sc->sc_tx_timer > 0) {
-		if (--sc->sc_tx_timer == 0) {
-			if_printf(ifp, "device timeout\n");
-			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-			ieee80211_runtask(ic, &sc->sc_reinittask);
-		}
-	}
-
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		callout_reset(&sc->watchdog_to, hz, wpi_watchdog, sc);
+	if_printf(ifp, "device timeout\n");
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+	ieee80211_runtask(ic, &sc->sc_reinittask);
 }
 
 static int
@@ -5260,8 +5252,6 @@ wpi_init(void *arg)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	IF_UNLOCK(&ifp->if_snd);
 
-	callout_reset(&sc->watchdog_to, hz, wpi_watchdog, sc);
-
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
 
 	WPI_UNLOCK(sc);
@@ -5286,8 +5276,7 @@ wpi_stop_locked(struct wpi_softc *sc)
 	sc->txq_active = 0;
 	WPI_TXQ_UNLOCK(sc);
 
-	sc->sc_tx_timer = 0;
-	callout_stop(&sc->watchdog_to);
+	callout_stop(&sc->tx_timeout);
 
 	WPI_RXON_LOCK(sc);
 	callout_stop(&sc->scan_timeout);
