@@ -24,6 +24,7 @@
 #include "ObjDumper.h"
 #include "StreamWriter.h"
 #include "llvm/Object/Archive.h"
+#include "llvm/Object/ELFObjectFile.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
@@ -140,6 +141,24 @@ namespace opts {
   cl::opt<bool>
   MipsPLTGOT("mips-plt-got",
              cl::desc("Display the MIPS GOT and PLT GOT sections"));
+
+  // -coff-imports
+  cl::opt<bool>
+  COFFImports("coff-imports", cl::desc("Display the PE/COFF import table"));
+
+  // -coff-exports
+  cl::opt<bool>
+  COFFExports("coff-exports", cl::desc("Display the PE/COFF export table"));
+
+  // -coff-directives
+  cl::opt<bool>
+  COFFDirectives("coff-directives",
+                 cl::desc("Display the PE/COFF .drectve section"));
+
+  // -coff-basereloc
+  cl::opt<bool>
+  COFFBaseRelocs("coff-basereloc",
+                 cl::desc("Display the PE/COFF .reloc section"));
 } // namespace opts
 
 static int ReturnValue = EXIT_SUCCESS;
@@ -158,8 +177,8 @@ bool error(std::error_code EC) {
 
 bool relocAddressLess(RelocationRef a, RelocationRef b) {
   uint64_t a_addr, b_addr;
-  if (error(a.getOffset(a_addr))) return false;
-  if (error(b.getOffset(b_addr))) return false;
+  if (error(a.getOffset(a_addr))) exit(ReturnValue);
+  if (error(b.getOffset(b_addr))) exit(ReturnValue);
   return a_addr < b_addr;
 }
 
@@ -210,6 +229,17 @@ static std::error_code createDumper(const ObjectFile *Obj, StreamWriter &Writer,
   return readobj_error::unsupported_obj_file_format;
 }
 
+static StringRef getLoadName(const ObjectFile *Obj) {
+  if (auto *ELF = dyn_cast<ELF32LEObjectFile>(Obj))
+    return ELF->getLoadName();
+  if (auto *ELF = dyn_cast<ELF64LEObjectFile>(Obj))
+    return ELF->getLoadName();
+  if (auto *ELF = dyn_cast<ELF32BEObjectFile>(Obj))
+    return ELF->getLoadName();
+  if (auto *ELF = dyn_cast<ELF64BEObjectFile>(Obj))
+    return ELF->getLoadName();
+  llvm_unreachable("Not ELF");
+}
 
 /// @brief Dumps the specified object file.
 static void dumpObject(const ObjectFile *Obj) {
@@ -228,7 +258,7 @@ static void dumpObject(const ObjectFile *Obj) {
          << "\n";
   outs() << "AddressSize: " << (8*Obj->getBytesInAddress()) << "bit\n";
   if (Obj->isELF())
-    outs() << "LoadName: " << Obj->getLoadName() << "\n";
+    outs() << "LoadName: " << getLoadName(Obj) << "\n";
 
   if (opts::FileHeaders)
     Dumper->printFileHeaders();
@@ -254,6 +284,14 @@ static void dumpObject(const ObjectFile *Obj) {
   if (isMipsArch(Obj->getArch()) && Obj->isELF())
     if (opts::MipsPLTGOT)
       Dumper->printMipsPLTGOT();
+  if (opts::COFFImports)
+    Dumper->printCOFFImports();
+  if (opts::COFFExports)
+    Dumper->printCOFFExports();
+  if (opts::COFFDirectives)
+    Dumper->printCOFFDirectives();
+  if (opts::COFFBaseRelocs)
+    Dumper->printCOFFBaseReloc();
 }
 
 
@@ -287,16 +325,16 @@ static void dumpInput(StringRef File) {
   }
 
   // Attempt to open the binary.
-  ErrorOr<Binary *> BinaryOrErr = createBinary(File);
+  ErrorOr<OwningBinary<Binary>> BinaryOrErr = createBinary(File);
   if (std::error_code EC = BinaryOrErr.getError()) {
     reportError(File, EC);
     return;
   }
-  std::unique_ptr<Binary> Binary(BinaryOrErr.get());
+  Binary &Binary = *BinaryOrErr.get().getBinary();
 
-  if (Archive *Arc = dyn_cast<Archive>(Binary.get()))
+  if (Archive *Arc = dyn_cast<Archive>(&Binary))
     dumpArchive(Arc);
-  else if (ObjectFile *Obj = dyn_cast<ObjectFile>(Binary.get()))
+  else if (ObjectFile *Obj = dyn_cast<ObjectFile>(&Binary))
     dumpObject(Obj);
   else
     reportError(File, readobj_error::unrecognized_file_format);

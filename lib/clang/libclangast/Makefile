@@ -39,7 +39,6 @@ SRCS=	APValue.cpp \
 	ItaniumCXXABI.cpp \
 	ItaniumMangle.cpp \
 	Mangle.cpp \
-	MangleNumberingContext.cpp \
 	MicrosoftCXXABI.cpp \
 	MicrosoftMangle.cpp \
 	NSAPI.cpp \
@@ -77,6 +76,7 @@ TGHDRS=	AttrDump \
 	DiagnosticASTKinds \
 	DiagnosticCommentKinds \
 	DiagnosticCommonKinds \
+	DiagnosticFrontendKinds \
 	DiagnosticSemaKinds \
 	StmtNodes
 

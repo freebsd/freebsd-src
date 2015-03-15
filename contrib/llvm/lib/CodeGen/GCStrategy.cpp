@@ -31,6 +31,7 @@
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 
 using namespace llvm;
 
@@ -92,6 +93,7 @@ namespace {
 // -----------------------------------------------------------------------------
 
 GCStrategy::GCStrategy() :
+  UseStatepoints(false),
   NeededSafePoints(0),
   CustomReadBarriers(false),
   CustomWriteBarriers(false),
@@ -100,25 +102,6 @@ GCStrategy::GCStrategy() :
   InitRoots(true),
   UsesMetadata(false)
 {}
-
-bool GCStrategy::initializeCustomLowering(Module &M) { return false; }
-
-bool GCStrategy::performCustomLowering(Function &F) {
-  dbgs() << "gc " << getName() << " must override performCustomLowering.\n";
-  llvm_unreachable("must override performCustomLowering");
-}
-
-
-bool GCStrategy::findCustomSafePoints(GCFunctionInfo& FI, MachineFunction &F) {
-  dbgs() << "gc " << getName() << " must override findCustomSafePoints.\n";
-  llvm_unreachable(nullptr);
-}
-
-
-GCFunctionInfo *GCStrategy::insertFunctionInfo(const Function &F) {
-  Functions.push_back(make_unique<GCFunctionInfo>(F, *this));
-  return Functions.back().get();
-}
 
 // -----------------------------------------------------------------------------
 
@@ -377,7 +360,7 @@ void GCMachineCodeAnalysis::FindSafePoints(MachineFunction &MF) {
 }
 
 void GCMachineCodeAnalysis::FindStackOffsets(MachineFunction &MF) {
-  const TargetFrameLowering *TFI = TM->getFrameLowering();
+  const TargetFrameLowering *TFI = TM->getSubtargetImpl()->getFrameLowering();
   assert(TFI && "TargetRegisterInfo not available!");
 
   for (GCFunctionInfo::roots_iterator RI = FI->roots_begin();
@@ -403,7 +386,7 @@ bool GCMachineCodeAnalysis::runOnMachineFunction(MachineFunction &MF) {
 
   TM = &MF.getTarget();
   MMI = &getAnalysis<MachineModuleInfo>();
-  TII = TM->getInstrInfo();
+  TII = TM->getSubtargetImpl()->getInstrInfo();
 
   // Find the size of the stack frame.
   FI->setFrameSize(MF.getFrameInfo()->getStackSize());

@@ -28,6 +28,7 @@ using namespace llvm;
 /// ScalarOpts library.
 void llvm::initializeScalarOpts(PassRegistry &Registry) {
   initializeADCEPass(Registry);
+  initializeAlignmentFromAssumptionsPass(Registry);
   initializeSampleProfileLoaderPass(Registry);
   initializeConstantHoistingPass(Registry);
   initializeConstantPropagationPass(Registry);
@@ -38,6 +39,7 @@ void llvm::initializeScalarOpts(PassRegistry &Registry) {
   initializeDSEPass(Registry);
   initializeGVNPass(Registry);
   initializeEarlyCSEPass(Registry);
+  initializeFlattenCFGPassPass(Registry);
   initializeIndVarSimplifyPass(Registry);
   initializeJumpThreadingPass(Registry);
   initializeLICMPass(Registry);
@@ -75,6 +77,10 @@ void LLVMInitializeScalarOpts(LLVMPassRegistryRef R) {
 
 void LLVMAddAggressiveDCEPass(LLVMPassManagerRef PM) {
   unwrap(PM)->add(createAggressiveDCEPass());
+}
+
+void LLVMAddAlignmentFromAssumptionsPass(LLVMPassManagerRef PM) {
+  unwrap(PM)->add(createAlignmentFromAssumptionsPass());
 }
 
 void LLVMAddCFGSimplificationPass(LLVMPassManagerRef PM) {
@@ -145,6 +151,10 @@ void LLVMAddPartiallyInlineLibCallsPass(LLVMPassManagerRef PM) {
   unwrap(PM)->add(createPartiallyInlineLibCallsPass());
 }
 
+void LLVMAddLowerSwitchPass(LLVMPassManagerRef PM) {
+  unwrap(PM)->add(createLowerSwitchPass());
+}
+
 void LLVMAddPromoteMemoryToRegisterPass(LLVMPassManagerRef PM) {
   unwrap(PM)->add(createPromoteMemoryToRegisterPass());
 }
@@ -201,6 +211,10 @@ void LLVMAddEarlyCSEPass(LLVMPassManagerRef PM) {
 
 void LLVMAddTypeBasedAliasAnalysisPass(LLVMPassManagerRef PM) {
   unwrap(PM)->add(createTypeBasedAliasAnalysisPass());
+}
+
+void LLVMAddScopedNoAliasAAPass(LLVMPassManagerRef PM) {
+  unwrap(PM)->add(createScopedNoAliasAAPass());
 }
 
 void LLVMAddBasicAliasAnalysisPass(LLVMPassManagerRef PM) {

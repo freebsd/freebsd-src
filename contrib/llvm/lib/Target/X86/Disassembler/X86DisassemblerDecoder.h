@@ -13,8 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86DISASSEMBLERDECODER_H
-#define X86DISASSEMBLERDECODER_H
+#ifndef LLVM_LIB_TARGET_X86_DISASSEMBLER_X86DISASSEMBLERDECODER_H
+#define LLVM_LIB_TARGET_X86_DISASSEMBLER_X86DISASSEMBLERDECODER_H
 
 #include "X86DisassemblerDecoderCommon.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -341,7 +341,15 @@ namespace X86Disassembler {
   ENTRY(DR4)        \
   ENTRY(DR5)        \
   ENTRY(DR6)        \
-  ENTRY(DR7)
+  ENTRY(DR7)        \
+  ENTRY(DR8)        \
+  ENTRY(DR9)        \
+  ENTRY(DR10)       \
+  ENTRY(DR11)       \
+  ENTRY(DR12)       \
+  ENTRY(DR13)       \
+  ENTRY(DR14)       \
+  ENTRY(DR15)
 
 #define REGS_CONTROL  \
   ENTRY(CR0)          \
@@ -352,7 +360,14 @@ namespace X86Disassembler {
   ENTRY(CR5)          \
   ENTRY(CR6)          \
   ENTRY(CR7)          \
-  ENTRY(CR8)
+  ENTRY(CR8)          \
+  ENTRY(CR9)          \
+  ENTRY(CR10)         \
+  ENTRY(CR11)         \
+  ENTRY(CR12)         \
+  ENTRY(CR13)         \
+  ENTRY(CR14)         \
+  ENTRY(CR15)
 
 #define ALL_EA_BASES  \
   EA_BASES_16BIT      \

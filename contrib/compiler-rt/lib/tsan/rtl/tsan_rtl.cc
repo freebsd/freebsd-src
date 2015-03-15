@@ -67,8 +67,17 @@ static char thread_registry_placeholder[sizeof(ThreadRegistry)];
 static ThreadContextBase *CreateThreadContext(u32 tid) {
   // Map thread trace when context is created.
   MapThreadTrace(GetThreadTrace(tid), TraceSize() * sizeof(Event));
-  MapThreadTrace(GetThreadTraceHeader(tid), sizeof(Trace));
-  new(ThreadTrace(tid)) Trace();
+  const uptr hdr = GetThreadTraceHeader(tid);
+  MapThreadTrace(hdr, sizeof(Trace));
+  new((void*)hdr) Trace();
+  // We are going to use only a small part of the trace with the default
+  // value of history_size. However, the constructor writes to the whole trace.
+  // Unmap the unused part.
+  uptr hdr_end = hdr + sizeof(Trace);
+  hdr_end -= sizeof(TraceHeader) * (kTraceParts - TraceParts());
+  hdr_end = RoundUp(hdr_end, GetPageSizeCached());
+  if (hdr_end < hdr + sizeof(Trace))
+    UnmapOrDie((void*)hdr_end, hdr + sizeof(Trace) - hdr_end);
   void *mem = internal_alloc(MBlockThreadContex, sizeof(ThreadContext));
   return new(mem) ThreadContext(tid);
 }
@@ -117,6 +126,7 @@ ThreadState::ThreadState(Context *ctx, int tid, int unique_id, u64 epoch,
 {
 }
 
+#ifndef SANITIZER_GO
 static void MemoryProfiler(Context *ctx, fd_t fd, int i) {
   uptr n_threads;
   uptr n_running_threads;
@@ -127,13 +137,11 @@ static void MemoryProfiler(Context *ctx, fd_t fd, int i) {
 }
 
 static void BackgroundThread(void *arg) {
-#ifndef SANITIZER_GO
   // This is a non-initialized non-user thread, nothing to see here.
   // We don't use ScopedIgnoreInterceptors, because we want ignores to be
   // enabled even when the thread function exits (e.g. during pthread thread
   // shutdown code).
   cur_thread()->ignore_interceptors++;
-#endif
   const u64 kMs2Ns = 1000 * 1000;
 
   fd_t mprof_fd = kInvalidFd;
@@ -191,7 +199,6 @@ static void BackgroundThread(void *arg) {
     if (mprof_fd != kInvalidFd)
       MemoryProfiler(ctx, mprof_fd, i);
 
-#ifndef SANITIZER_GO
     // Flush symbolizer cache if requested.
     if (flags()->flush_symbolizer_ms > 0) {
       u64 last = atomic_load(&ctx->last_symbolize_time_ns,
@@ -203,7 +210,6 @@ static void BackgroundThread(void *arg) {
         atomic_store(&ctx->last_symbolize_time_ns, 0, memory_order_relaxed);
       }
     }
-#endif
   }
 }
 
@@ -211,12 +217,13 @@ static void StartBackgroundThread() {
   ctx->background_thread = internal_start_thread(&BackgroundThread, 0);
 }
 
-#ifndef SANITIZER_GO
+#ifndef __mips__
 static void StopBackgroundThread() {
   atomic_store(&ctx->stop_background_thread, 1, memory_order_relaxed);
   internal_join_thread(ctx->background_thread);
   ctx->background_thread = 0;
 }
+#endif
 #endif
 
 void DontNeedShadowFor(uptr addr, uptr size) {
@@ -282,11 +289,11 @@ static void CheckShadowMapping() {
         if (p < beg || p >= end)
           continue;
         const uptr s = MemToShadow(p);
-        VPrintf(3, "  checking pointer %p -> %p\n", p, s);
+        const uptr m = (uptr)MemToMeta(p);
+        VPrintf(3, "  checking pointer %p: shadow=%p meta=%p\n", p, s, m);
         CHECK(IsAppMem(p));
         CHECK(IsShadowMem(s));
         CHECK_EQ(p & ~(kShadowCell - 1), ShadowToMem(s));
-        const uptr m = (uptr)MemToMeta(p);
         CHECK(IsMetaMem(m));
       }
     }
@@ -325,10 +332,13 @@ void Initialize(ThreadState *thr) {
 #ifndef SANITIZER_GO
   InitializeLibIgnore();
   Symbolizer::GetOrInit()->AddHooks(EnterSymbolizer, ExitSymbolizer);
-#endif
+  // On MIPS, TSan initialization is run before
+  // __pthread_initialize_minimal_internal() is finished, so we can not spawn
+  // new threads.
+#ifndef __mips__
   StartBackgroundThread();
-#ifndef SANITIZER_GO
   SetSandboxingCallback(StopBackgroundThread);
+#endif
 #endif
   if (common_flags()->detect_deadlocks)
     ctx->dd = DDetector::Create(flags());
@@ -365,8 +375,7 @@ int Finalize(ThreadState *thr) {
   ctx->report_mtx.Unlock();
 
 #ifndef SANITIZER_GO
-  if (common_flags()->verbosity)
-    AllocatorPrintStats();
+  if (Verbosity()) AllocatorPrintStats();
 #endif
 
   ThreadFinalize(thr);
@@ -395,8 +404,11 @@ int Finalize(ThreadState *thr) {
 
   failed = OnFinalize(failed);
 
+#if TSAN_COLLECT_STATS
   StatAggregate(ctx->stat, thr->stat);
   StatOutput(ctx->stat);
+#endif
+
   return failed ? flags()->exitcode : 0;
 }
 
@@ -420,7 +432,7 @@ void ForkChildAfter(ThreadState *thr, uptr pc) {
   VPrintf(1, "ThreadSanitizer: forked new process with pid %d,"
       " parent had %d threads\n", (int)internal_getpid(), (int)nthread);
   if (nthread == 1) {
-    internal_start_thread(&BackgroundThread, 0);
+    StartBackgroundThread();
   } else {
     // We've just forked a multi-threaded process. We cannot reasonably function
     // after that (some mutexes may be locked before fork). So just enable
@@ -565,43 +577,26 @@ void MemoryAccessImpl1(ThreadState *thr, uptr addr,
   // it's just not worth it (performance- and complexity-wise).
 
   Shadow old(0);
-  if (kShadowCnt == 1) {
-    int idx = 0;
+
+  // It release mode we manually unroll the loop,
+  // because empirically gcc generates better code this way.
+  // However, we can't afford unrolling in debug mode, because the function
+  // consumes almost 4K of stack. Gtest gives only 4K of stack to death test
+  // threads, which is not enough for the unrolled loop.
+#if SANITIZER_DEBUG
+  for (int idx = 0; idx < 4; idx++) {
 #include "tsan_update_shadow_word_inl.h"
-  } else if (kShadowCnt == 2) {
-    int idx = 0;
-#include "tsan_update_shadow_word_inl.h"
-    idx = 1;
-#include "tsan_update_shadow_word_inl.h"
-  } else if (kShadowCnt == 4) {
-    int idx = 0;
-#include "tsan_update_shadow_word_inl.h"
-    idx = 1;
-#include "tsan_update_shadow_word_inl.h"
-    idx = 2;
-#include "tsan_update_shadow_word_inl.h"
-    idx = 3;
-#include "tsan_update_shadow_word_inl.h"
-  } else if (kShadowCnt == 8) {
-    int idx = 0;
-#include "tsan_update_shadow_word_inl.h"
-    idx = 1;
-#include "tsan_update_shadow_word_inl.h"
-    idx = 2;
-#include "tsan_update_shadow_word_inl.h"
-    idx = 3;
-#include "tsan_update_shadow_word_inl.h"
-    idx = 4;
-#include "tsan_update_shadow_word_inl.h"
-    idx = 5;
-#include "tsan_update_shadow_word_inl.h"
-    idx = 6;
-#include "tsan_update_shadow_word_inl.h"
-    idx = 7;
-#include "tsan_update_shadow_word_inl.h"
-  } else {
-    CHECK(false);
   }
+#else
+  int idx = 0;
+#include "tsan_update_shadow_word_inl.h"
+  idx = 1;
+#include "tsan_update_shadow_word_inl.h"
+  idx = 2;
+#include "tsan_update_shadow_word_inl.h"
+  idx = 3;
+#include "tsan_update_shadow_word_inl.h"
+#endif
 
   // we did not find any races and had already stored
   // the current access info, so we are done
@@ -652,7 +647,7 @@ bool ContainsSameAccessSlow(u64 *s, u64 a, u64 sync_epoch, bool is_write) {
   return false;
 }
 
-#if defined(__SSE3__) && TSAN_SHADOW_COUNT == 4
+#if defined(__SSE3__)
 #define SHUF(v0, v1, i0, i1, i2, i3) _mm_castps_si128(_mm_shuffle_ps( \
     _mm_castsi128_ps(v0), _mm_castsi128_ps(v1), \
     (i0)*1 + (i1)*4 + (i2)*16 + (i3)*64))
@@ -712,11 +707,12 @@ bool ContainsSameAccessFast(u64 *s, u64 a, u64 sync_epoch, bool is_write) {
 
 ALWAYS_INLINE
 bool ContainsSameAccess(u64 *s, u64 a, u64 sync_epoch, bool is_write) {
-#if defined(__SSE3__) && TSAN_SHADOW_COUNT == 4
+#if defined(__SSE3__)
   bool res = ContainsSameAccessFast(s, a, sync_epoch, is_write);
   // NOTE: this check can fail if the shadow is concurrently mutated
-  // by other threads.
-  DCHECK_EQ(res, ContainsSameAccessSlow(s, a, sync_epoch, is_write));
+  // by other threads. But it still can be useful if you modify
+  // ContainsSameAccessFast and want to ensure that it's not completely broken.
+  // DCHECK_EQ(res, ContainsSameAccessSlow(s, a, sync_epoch, is_write));
   return res;
 #else
   return ContainsSameAccessSlow(s, a, sync_epoch, is_write);
@@ -733,7 +729,7 @@ void MemoryAccess(ThreadState *thr, uptr pc, uptr addr,
       (int)(1 << kAccessSizeLog), kAccessIsWrite, shadow_mem,
       (uptr)shadow_mem[0], (uptr)shadow_mem[1],
       (uptr)shadow_mem[2], (uptr)shadow_mem[3]);
-#if TSAN_DEBUG
+#if SANITIZER_DEBUG
   if (!IsAppMem(addr)) {
     Printf("Access to non app mem %zx\n", addr);
     DCHECK(IsAppMem(addr));
@@ -843,7 +839,7 @@ static void MemoryRangeSet(ThreadState *thr, uptr pc, uptr addr, uptr size,
     }
   } else {
     // The region is big, reset only beginning and end.
-    const uptr kPageSize = 4096;
+    const uptr kPageSize = GetPageSizeCached();
     u64 *begin = (u64*)MemToShadow(addr);
     u64 *end = begin + size / kShadowCell * kShadowCnt;
     u64 *p = begin;
@@ -990,7 +986,7 @@ bool MD5Hash::operator==(const MD5Hash &other) const {
   return hash[0] == other.hash[0] && hash[1] == other.hash[1];
 }
 
-#if TSAN_DEBUG
+#if SANITIZER_DEBUG
 void build_consistency_debug() {}
 #else
 void build_consistency_release() {}
@@ -1000,16 +996,6 @@ void build_consistency_release() {}
 void build_consistency_stats() {}
 #else
 void build_consistency_nostats() {}
-#endif
-
-#if TSAN_SHADOW_COUNT == 1
-void build_consistency_shadow1() {}
-#elif TSAN_SHADOW_COUNT == 2
-void build_consistency_shadow2() {}
-#elif TSAN_SHADOW_COUNT == 4
-void build_consistency_shadow4() {}
-#else
-void build_consistency_shadow8() {}
 #endif
 
 }  // namespace __tsan

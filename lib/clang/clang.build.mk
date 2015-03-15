@@ -58,7 +58,7 @@ Intrinsics.inc.h: ${LLVM_SRCS}/include/llvm/IR/Intrinsics.td
 	DisassemblerTables/-gen-disassembler \
 	FastISel/-gen-fast-isel \
 	InstrInfo/-gen-instr-info \
-	MCCodeEmitter/-gen-emitter,-mc-emitter \
+	MCCodeEmitter/-gen-emitter \
 	MCPseudoLowering/-gen-pseudo-lowering \
 	RegisterInfo/-gen-register-info \
 	SubtargetInfo/-gen-subtarget

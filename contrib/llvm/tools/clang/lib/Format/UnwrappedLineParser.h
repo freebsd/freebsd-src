@@ -13,13 +13,14 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FORMAT_UNWRAPPED_LINE_PARSER_H
-#define LLVM_CLANG_FORMAT_UNWRAPPED_LINE_PARSER_H
+#ifndef LLVM_CLANG_LIB_FORMAT_UNWRAPPEDLINEPARSER_H
+#define LLVM_CLANG_LIB_FORMAT_UNWRAPPEDLINEPARSER_H
 
 #include "FormatToken.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Format/Format.h"
 #include <list>
+#include <stack>
 
 namespace clang {
 namespace format {
@@ -59,7 +60,9 @@ class FormatTokenSource;
 
 class UnwrappedLineParser {
 public:
-  UnwrappedLineParser(const FormatStyle &Style, ArrayRef<FormatToken *> Tokens,
+  UnwrappedLineParser(const FormatStyle &Style,
+                      const AdditionalKeywords &Keywords,
+                      ArrayRef<FormatToken *> Tokens,
                       UnwrappedLineConsumer &Callback);
 
   /// Returns true in case of a structural error.
@@ -94,6 +97,7 @@ private:
   void parseNamespace();
   void parseAccessSpecifier();
   void parseEnum();
+  void parseJavaEnumBody();
   void parseRecord();
   void parseObjCProtocolList();
   void parseObjCUntilAtEnd();
@@ -157,6 +161,8 @@ private:
   bool StructuralError;
 
   const FormatStyle &Style;
+  const AdditionalKeywords &Keywords;
+
   FormatTokenSource *Tokens;
   UnwrappedLineConsumer &Callback;
 
@@ -214,4 +220,4 @@ inline UnwrappedLine::UnwrappedLine()
 } // end namespace format
 } // end namespace clang
 
-#endif // LLVM_CLANG_FORMAT_UNWRAPPED_LINE_PARSER_H
+#endif

@@ -20,8 +20,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TRANSFORMS_SCALAR_OBJCARC_H
-#define LLVM_TRANSFORMS_SCALAR_OBJCARC_H
+#ifndef LLVM_LIB_TRANSFORMS_OBJCARC_OBJCARC_H
+#define LLVM_LIB_TRANSFORMS_OBJCARC_OBJCARC_H
 
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Analysis/AliasAnalysis.h"
@@ -380,11 +380,15 @@ static inline bool IsObjCIdentifiedObject(const Value *V) {
       StringRef Name = GV->getName();
       // These special variables are known to hold values which are not
       // reference-counted pointers.
-      if (Name.startswith("\01L_OBJC_SELECTOR_REFERENCES_") ||
-          Name.startswith("\01L_OBJC_CLASSLIST_REFERENCES_") ||
-          Name.startswith("\01L_OBJC_CLASSLIST_SUP_REFS_$_") ||
-          Name.startswith("\01L_OBJC_METH_VAR_NAME_") ||
-          Name.startswith("\01l_objc_msgSend_fixup_"))
+      if (Name.startswith("\01l_objc_msgSend_fixup_"))
+        return true;
+
+      StringRef Section = GV->getSection();
+      if (Section.find("__message_refs") != StringRef::npos ||
+          Section.find("__objc_classrefs") != StringRef::npos ||
+          Section.find("__objc_superrefs") != StringRef::npos ||
+          Section.find("__objc_methname") != StringRef::npos ||
+          Section.find("__cstring") != StringRef::npos)
         return true;
     }
   }
@@ -395,4 +399,4 @@ static inline bool IsObjCIdentifiedObject(const Value *V) {
 } // end namespace objcarc
 } // end namespace llvm
 
-#endif // LLVM_TRANSFORMS_SCALAR_OBJCARC_H
+#endif
