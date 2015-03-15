@@ -461,7 +461,7 @@ sys_auditon(struct thread *td, struct auditon_args *uap)
 		    udata.au_aupinfo.ap_mask.am_success;
 		newcred->cr_audit.ai_mask.am_failure =
 		    udata.au_aupinfo.ap_mask.am_failure;
-		td->td_proc->p_ucred = newcred;
+		tp->p_ucred = newcred;
 		PROC_UNLOCK(tp);
 		crfree(oldcred);
 		break;
