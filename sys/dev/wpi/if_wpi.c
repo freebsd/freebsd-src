@@ -4555,7 +4555,8 @@ wpi_process_key(struct ieee80211vap *vap, const struct ieee80211_key *k,
 
 		if (vap->iv_state == IEEE80211_S_RUN) {
 			ieee80211_iterate_nodes(&ic->ic_sta,
-			    set ? wpi_load_key_cb : wpi_del_key_cb, (void *)k);
+			    set ? wpi_load_key_cb : wpi_del_key_cb,
+			    __DECONST(void *, k));
 		}
 
 		return 1;
