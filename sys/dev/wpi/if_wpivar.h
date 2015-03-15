@@ -185,7 +185,9 @@ struct wpi_softc {
 	struct wpi_rxon		rxon;
 	int			temp;
 	uint32_t		qfullmsk;
+
 	uint32_t		nodesmsk;
+	struct mtx		nt_mtx;
 
 	int			sc_tx_timer;
 	int			sc_scan_timer;
@@ -219,7 +221,7 @@ struct wpi_softc {
 	char			domain[4];	/* Regulatory domain. */
 };
 
-/* WPI_LOCK > WPI_TXQ_LOCK */
+/* WPI_LOCK > WPI_NT_LOCK > WPI_TXQ_LOCK */
 
 #define WPI_LOCK_INIT(_sc) \
 	mtx_init(&(_sc)->sc_mtx, device_get_nameunit((_sc)->sc_dev), \
@@ -228,6 +230,12 @@ struct wpi_softc {
 #define WPI_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #define WPI_LOCK_ASSERT(sc)	mtx_assert(&(sc)->sc_mtx, MA_OWNED)
 #define WPI_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
+
+#define WPI_NT_LOCK_INIT(_sc) \
+	mtx_init(&(_sc)->nt_mtx, "node table lock", NULL, MTX_DEF)
+#define WPI_NT_LOCK(_sc)		mtx_lock(&(_sc)->nt_mtx)
+#define WPI_NT_UNLOCK(_sc)		mtx_unlock(&(_sc)->nt_mtx)
+#define WPI_NT_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->nt_mtx)
 
 #define WPI_TXQ_LOCK_INIT(_sc) \
 	mtx_init(&(_sc)->txq_mtx, "txq/cmdq lock", NULL, MTX_DEF)
