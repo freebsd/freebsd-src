@@ -1,4 +1,4 @@
-/*	$Id: mansearch.c,v 1.54 2015/02/27 16:02:10 schwarze Exp $ */
+/*	$Id: mansearch.c,v 1.55 2015/03/11 13:11:22 schwarze Exp $ */
 /*
  * Copyright (c) 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -195,8 +195,8 @@ mansearch(const struct mansearch *search,
 	if (NULL == (e = exprcomp(search, argc, argv)))
 		goto out;
 
-	outbit = 0;
 	if (NULL != search->outkey) {
+		outbit = TYPE_Nd;
 		for (indexbit = 0, iterbit = 1;
 		     indexbit < mansearch_keymax;
 		     indexbit++, iterbit <<= 1) {
@@ -206,7 +206,8 @@ mansearch(const struct mansearch *search,
 				break;
 			}
 		}
-	}
+	} else
+		outbit = 0;
 
 	/*
 	 * Save a descriptor to the current working directory.

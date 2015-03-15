@@ -1,4 +1,4 @@
-/*	$Id: man_html.c,v 1.111 2015/02/10 08:05:30 schwarze Exp $ */
+/*	$Id: man_html.c,v 1.112 2015/03/03 21:11:34 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2012, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -223,6 +223,8 @@ print_man_node(MAN_ARGS)
 		print_text(h, n->string);
 		return;
 	case MAN_EQN:
+		if (n->flags & MAN_LINE)
+			putchar('\n');
 		print_eqn(h, n->eqn);
 		break;
 	case MAN_TBL:
