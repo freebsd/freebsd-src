@@ -228,6 +228,7 @@ static int	wpi_scan(struct wpi_softc *, struct ieee80211_channel *);
 static int	wpi_auth(struct wpi_softc *, struct ieee80211vap *);
 static void	wpi_update_beacon(struct ieee80211vap *, int);
 static int	wpi_setup_beacon(struct wpi_softc *, struct ieee80211_node *);
+static void	wpi_newassoc(struct ieee80211_node *, int);
 static int	wpi_run(struct wpi_softc *, struct ieee80211vap *);
 static int	wpi_key_alloc(struct ieee80211vap *, struct ieee80211_key *,
 		    ieee80211_keyix *, ieee80211_keyix *);
@@ -500,6 +501,7 @@ wpi_attach(device_t dev)
 	ic->ic_wme.wme_update = wpi_updateedca;
 	ic->ic_update_promisc = wpi_update_promisc;
 	ic->ic_update_mcast = wpi_update_mcast;
+	ic->ic_newassoc = wpi_newassoc;
 	ic->ic_scan_start = wpi_scan_start;
 	ic->ic_scan_end = wpi_scan_end;
 	ic->ic_set_channel = wpi_set_channel;
@@ -2563,20 +2565,6 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	if (ismcast || type != IEEE80211_FC0_TYPE_DATA)
 		tx.id = WPI_ID_BROADCAST;
 	else {
-		if (wn->id == WPI_ID_UNDEFINED &&
-		    (vap->iv_opmode == IEEE80211_M_IBSS ||
-		    vap->iv_opmode == IEEE80211_M_AHDEMO)) {
-			WPI_NT_LOCK(sc);
-			error = wpi_add_ibss_node(sc, ni);
-			WPI_NT_UNLOCK(sc);
-			if (error != 0) {
-				device_printf(sc->sc_dev,
-				    "%s: could not add IBSS node, error %d\n",
-				    __func__, error);
-				goto fail;
-			}
-		}
-
 		if (wn->id == WPI_ID_UNDEFINED) {
 			device_printf(sc->sc_dev,
 			    "%s: undefined node id\n", __func__);
@@ -4017,6 +4005,28 @@ wpi_update_beacon(struct ieee80211vap *vap, int item)
 		    error);
 	}
 	WPI_UNLOCK(sc);
+}
+
+static void
+wpi_newassoc(struct ieee80211_node *ni, int isnew)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct wpi_softc *sc = ni->ni_ic->ic_ifp->if_softc;
+	struct wpi_node *wn = WPI_NODE(ni);
+	int error;
+
+	WPI_NT_LOCK(sc);
+
+	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_DOING, __func__);
+
+	if (vap->iv_opmode != IEEE80211_M_STA && wn->id == WPI_ID_UNDEFINED) {
+		if ((error = wpi_add_ibss_node(sc, ni)) != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: could not add IBSS node, error %d\n",
+			    __func__, error);
+		}
+	}
+	WPI_NT_UNLOCK(sc);
 }
 
 static int
