@@ -1960,7 +1960,6 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	/*
 	 * Update rate control statistics for the node.
 	 */
-	WPI_UNLOCK(sc);
 	if ((status & 0xff) != 1) {
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		ieee80211_ratectl_tx_complete(vap, ni,
@@ -1972,7 +1971,6 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	}
 
 	ieee80211_tx_complete(ni, m, (status & 0xff) != 1);
-	WPI_LOCK(sc);
 
 	WPI_TXQ_STATE_LOCK(sc);
 	ring->queued -= 1;
@@ -2103,13 +2101,10 @@ wpi_notif_intr(struct wpi_softc *sc)
 			    le32toh(miss->total));
 
 			if (vap->iv_state == IEEE80211_S_RUN &&
-			    (ic->ic_flags & IEEE80211_F_SCAN) == 0) {
-				if (misses >=  vap->iv_bmissthreshold) {
-					WPI_UNLOCK(sc);
-					ieee80211_beacon_miss(ic);
-					WPI_LOCK(sc);
-				}
-			}
+			    (ic->ic_flags & IEEE80211_F_SCAN) == 0 &&
+			    misses >= vap->iv_bmissthreshold)
+				ieee80211_beacon_miss(ic);
+
 			break;
 		}
 		case WPI_UC_READY:
@@ -2180,9 +2175,7 @@ wpi_notif_intr(struct wpi_softc *sc)
 			WPI_RXON_LOCK(sc);
 			callout_stop(&sc->scan_timeout);
 			WPI_RXON_UNLOCK(sc);
-			WPI_UNLOCK(sc);
 			ieee80211_scan_next(vap);
-			WPI_LOCK(sc);
 			break;
 		}
 		}
