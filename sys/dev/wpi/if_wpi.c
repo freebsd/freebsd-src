@@ -1024,6 +1024,11 @@ wpi_update_rx_ring(struct wpi_softc *sc)
 {
 	struct wpi_rx_ring *ring = &sc->rxq;
 
+	if (ring->update != 0) {
+		/* Wait for INT_WAKEUP event. */
+		return;
+	}
+
 	if (WPI_READ(sc, WPI_UCODE_GP1) & WPI_UCODE_GP1_MAC_SLEEP) {
 		DPRINTF(sc, WPI_DEBUG_PWRSAVE, "%s: wakeup request\n",
 		    __func__);
@@ -1179,6 +1184,11 @@ fail:	wpi_free_tx_ring(sc, ring);
 static void
 wpi_update_tx_ring(struct wpi_softc *sc, struct wpi_tx_ring *ring)
 {
+	if (ring->update != 0) {
+		/* Wait for INT_WAKEUP event. */
+		return;
+	}
+
 	if (WPI_READ(sc, WPI_UCODE_GP1) & WPI_UCODE_GP1_MAC_SLEEP) {
 		DPRINTF(sc, WPI_DEBUG_PWRSAVE, "%s (%d): requesting wakeup\n",
 		    __func__, ring->qid);
