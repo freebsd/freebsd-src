@@ -20,7 +20,13 @@
 #define WPI_TX_RING_COUNT	256
 #define WPI_TX_RING_LOMARK	192
 #define WPI_TX_RING_HIMARK	224
+
+#ifdef DIAGNOSTIC
+#define WPI_RX_RING_COUNT_LOG	8
+#else
 #define WPI_RX_RING_COUNT_LOG	6
+#endif
+
 #define WPI_RX_RING_COUNT	(1 << WPI_RX_RING_COUNT_LOG)
 
 #define WPI_NTXQUEUES		8
