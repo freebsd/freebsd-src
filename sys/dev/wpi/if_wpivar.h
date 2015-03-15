@@ -228,6 +228,9 @@ struct wpi_softc {
 	struct task		sc_radioon_task;
 	struct task		sc_start_task;
 
+	/* Taskqueue */
+	struct taskqueue	*sc_tq;
+
 	/* Eeprom info. */
 	uint8_t			cap;
 	uint16_t		rev;
