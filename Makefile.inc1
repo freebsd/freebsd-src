@@ -155,8 +155,8 @@ BRANCH!=	${MAKE} -C ${SRCDIR}/release -V BRANCH
 SRCRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 		${SRCDIR}/sys/sys/param.h
 .if ${BRANCH:MSTABLE*} || ${BRANCH:MCURRENT*}
-TIMENOW!=	TZ=UTC date +%Y%m%d%H%M%S
-EXTRA_REVISION=	.s${TIMENOW}
+TIMENOW=	%Y%m%d%H%M%S
+EXTRA_REVISION=	.s${TIMENOW:gmtime}
 .endif
 .if ${BRANCH:M*-p*}
 EXTRA_REVISION=	_${BRANCH:C/.*-p([0-9]+$)/\1/}
