@@ -96,6 +96,7 @@ struct wpi_node {
 	struct ieee80211_node	ni;	/* must be the first */
 	uint8_t			id;
 };
+#define WPI_NODE(ni)	((struct wpi_node *)(ni))
 
 struct wpi_power_sample {
 	uint8_t	index;
