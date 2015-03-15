@@ -2882,7 +2882,7 @@ wpi_cmd(struct wpi_softc *sc, int code, const void *buf, size_t size,
 		return 0;
 	}
 
-	return msleep(cmd, &sc->sc_mtx, PCATCH, "wpicmd", hz);
+	return mtx_sleep(cmd, &sc->sc_mtx, PCATCH, "wpicmd", hz);
 }
 
 /*
@@ -4228,7 +4228,7 @@ wpi_load_firmware(struct wpi_softc *sc)
 	WPI_WRITE(sc, WPI_RESET, 0);
 
 	/* Wait at most one second for first alive notification. */
-	if ((error = msleep(sc, &sc->sc_mtx, PCATCH, "wpiinit", hz)) != 0) {
+	if ((error = mtx_sleep(sc, &sc->sc_mtx, PCATCH, "wpiinit", hz)) != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: timeout waiting for adapter to initialize, error %d\n",
 		    __func__, error);
@@ -4587,7 +4587,7 @@ wpi_hw_init(struct wpi_softc *sc)
 		return error;
 	}
 	/* Wait at most one second for firmware alive notification. */
-	if ((error = msleep(sc, &sc->sc_mtx, PCATCH, "wpiinit", hz)) != 0) {
+	if ((error = mtx_sleep(sc, &sc->sc_mtx, PCATCH, "wpiinit", hz)) != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: timeout waiting for adapter to initialize, error %d\n",
 		    __func__, error);
