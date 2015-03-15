@@ -3648,32 +3648,32 @@ wpi_send_rxon(struct wpi_softc *sc, int assoc, int async)
 
 		error = wpi_cmd(sc, WPI_CMD_RXON_ASSOC, &rxon_assoc,
 		    sizeof (struct wpi_assoc), async);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "RXON_ASSOC command failed, error %d\n", error);
+			return error;
+		}
 	} else {
-		if (async)
+		if (async) {
 			WPI_NT_LOCK(sc);
-
-		error = wpi_cmd(sc, WPI_CMD_RXON, &sc->rxon,
-		    sizeof (struct wpi_rxon), async);
-
-		wpi_clear_node_table(sc);
-
-		if (async)
+			error = wpi_cmd(sc, WPI_CMD_RXON, &sc->rxon,
+			    sizeof (struct wpi_rxon), async);
+			if (error == 0)
+				wpi_clear_node_table(sc);
 			WPI_NT_UNLOCK(sc);
-	}
-	if (error != 0) {
-		device_printf(sc->sc_dev, "RXON command failed, error %d\n",
-		    error);
-		return error;
-	}
+		} else {
+			error = wpi_cmd(sc, WPI_CMD_RXON, &sc->rxon,
+			    sizeof (struct wpi_rxon), async);
+			if (error == 0)
+				wpi_clear_node_table(sc);
+		}
 
-	/* Configuration has changed, set Tx power accordingly. */
-	if ((error = wpi_set_txpower(sc, async)) != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: could not set TX power, error %d\n", __func__, error);
-		return error;
-	}
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "RXON command failed, error %d\n", error);
+			return error;
+		}
 
-	if (!(sc->rxon.filter & htole32(WPI_FILTER_BSS))) {
 		/* Add broadcast node. */
 		error = wpi_add_broadcast_node(sc, async);
 		if (error != 0) {
@@ -3681,6 +3681,13 @@ wpi_send_rxon(struct wpi_softc *sc, int assoc, int async)
 			    "could not add broadcast node, error %d\n", error);
 			return error;
 		}
+	}
+
+	/* Configuration has changed, set Tx power accordingly. */
+	if ((error = wpi_set_txpower(sc, async)) != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: could not set TX power, error %d\n", __func__, error);
+		return error;
 	}
 
 	return 0;
