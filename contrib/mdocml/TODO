@@ -1,6 +1,6 @@
 ************************************************************************
 * Official mandoc TODO.
-* $Id: TODO,v 1.201 2015/02/20 13:47:28 schwarze Exp $
+* $Id: TODO,v 1.202 2015/03/11 13:11:22 schwarze Exp $
 ************************************************************************
 
 Many issues are annotated for difficulty as follows:
@@ -556,6 +556,11 @@ Several areas can be cleaned up to make mandoc even faster.  These are
 ************************************************************************
 * structural issues
 ************************************************************************
+
+- Improve -O suboption parsing.  Do it in the main program such that
+  errors can be reported.  Pay attention to distinguishing the
+  mandoc(1) and apropos(1) styles of both options.
+  loc **  exist *  algo **  size **  imp ***
 
 - Use libz directly instead of forking gunzip(1).
   Suggested by bapt at FreeBSD among others.

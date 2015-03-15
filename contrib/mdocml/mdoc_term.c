@@ -1,4 +1,4 @@
-/*	$Id: mdoc_term.c,v 1.311 2015/02/17 20:37:17 schwarze Exp $ */
+/*	$Id: mdoc_term.c,v 1.313 2015/03/06 15:48:52 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010, 2012-2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -348,6 +348,8 @@ print_mdoc_node(DECL_ARGS)
 			p->flags |= TERMP_NOSPACE;
 		break;
 	case MDOC_TBL:
+		if (p->tbl.cols == NULL)
+			term_newln(p);
 		term_tbl(p, n->span);
 		break;
 	default:
@@ -1808,7 +1810,7 @@ static int
 termp_sp_pre(DECL_ARGS)
 {
 	struct roffsu	 su;
-	size_t		 i, len;
+	int		 i, len;
 
 	switch (n->tok) {
 	case MDOC_sp:
@@ -1829,8 +1831,11 @@ termp_sp_pre(DECL_ARGS)
 
 	if (0 == len)
 		term_newln(p);
-	for (i = 0; i < len; i++)
-		term_vspace(p);
+	else if (len < 0)
+		p->skipvsp -= len;
+	else
+		for (i = 0; i < len; i++)
+			term_vspace(p);
 
 	return(0);
 }

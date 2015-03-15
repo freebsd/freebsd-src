@@ -1,4 +1,4 @@
-/*	$Id: tbl_term.c,v 1.38 2015/01/31 00:12:41 schwarze Exp $ */
+/*	$Id: tbl_term.c,v 1.40 2015/03/06 15:48:53 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011, 2012, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -82,8 +82,6 @@ term_tbl(struct termp *tp, const struct tbl_span *sp)
 	 */
 
 	if (tp->tbl.cols == NULL) {
-		term_flushln(tp);
-
 		tp->tbl.len = term_tbl_len;
 		tp->tbl.slen = term_tbl_strlen;
 		tp->tbl.arg = tp;

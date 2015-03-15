@@ -1,7 +1,7 @@
-# $Id: Makefile,v 1.456 2015/02/16 16:23:54 schwarze Exp $
+# $Id: Makefile,v 1.457 2015/03/13 12:35:32 schwarze Exp $
 #
 # Copyright (c) 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
-# Copyright (c) 2011, 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
+# Copyright (c) 2011, 2013, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-VERSION = 1.13.2
+VERSION = 1.13.3
 
 # === LIST OF FILES ====================================================
 

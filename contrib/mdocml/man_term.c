@@ -1,4 +1,4 @@
-/*	$Id: man_term.c,v 1.168 2015/01/30 22:04:44 schwarze Exp $ */
+/*	$Id: man_term.c,v 1.169 2015/03/06 15:48:52 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010-2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -945,12 +945,8 @@ print_man_node(DECL_ARGS)
 			p->flags |= TERMP_NOSPACE;
 		return;
 	case MAN_TBL:
-		/*
-		 * Tables are preceded by a newline.  Then process a
-		 * table line, which will cause line termination,
-		 */
-		if (n->span->prev == NULL)
-			term_newln(p);
+		if (p->tbl.cols == NULL)
+			term_vspace(p);
 		term_tbl(p, n->span);
 		return;
 	default:
