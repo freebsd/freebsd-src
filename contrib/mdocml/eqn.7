@@ -1,4 +1,4 @@
-.\"	$Id: eqn.7,v 1.33 2015/01/29 00:33:57 schwarze Exp $
+.\"	$Id: eqn.7,v 1.34 2015/03/09 20:17:23 schwarze Exp $
 .\"
 .\" Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: January 29 2015 $
+.Dd $Mdocdate: March 9 2015 $
 .Dt EQN 7
 .Os
 .Sh NAME
@@ -72,31 +72,31 @@ case-sensitive literals in the input:
 .Bd -literal -offset indent
 eqn     : box | eqn box
 box     : text
-        | \*q{\*q eqn \*q}\*q
-        | \*qdefine\*q text text
-        | \*qndefine\*q text text
-        | \*qtdefine\*q text text
-        | \*qgfont\*q text
-        | \*qgsize\*q text
-        | \*qset\*q text text
-        | \*qundef\*q text
-        | \*qsqrt\*q box
+        | \(dq{\(dq eqn \(dq}\(dq
+        | \(dqdefine\(dq text text
+        | \(dqndefine\(dq text text
+        | \(dqtdefine\(dq text text
+        | \(dqgfont\(dq text
+        | \(dqgsize\(dq text
+        | \(dqset\(dq text text
+        | \(dqundef\(dq text
+        | \(dqsqrt\(dq box
         | box pos box
         | box mark
-        | \*qmatrix\*q \*q{\*q [col \*q{\*q list \*q}\*q ]*
-        | pile \*q{\*q list \*q}\*q
+        | \(dqmatrix\(dq \(dq{\(dq [col \(dq{\(dq list \(dq}\(dq ]*
+        | pile \(dq{\(dq list \(dq}\(dq
         | font box
-        | \*qsize\*q text box
-        | \*qleft\*q text eqn [\*qright\*q text]
-col     : \*qlcol\*q | \*qrcol\*q | \*qccol\*q | \*qcol\*q
-text    : [^space\e\*q]+ | \e\*q.*\e\*q
-pile    : \*qlpile\*q | \*qcpile\*q | \*qrpile\*q | \*qpile\*q
-pos     : \*qover\*q | \*qsup\*q | \*qsub\*q | \*qto\*q | \*qfrom\*q
-mark	: \*qdot\*q | \*qdotdot\*q | \*qhat\*q | \*qtilde\*q | \*qvec\*q
-        | \*qdyad\*q | \*qbar\*q | \*qunder\*q
-font    : \*qroman\*q | \*qitalic\*q | \*qbold\*q | \*qfat\*q
+        | \(dqsize\(dq text box
+        | \(dqleft\(dq text eqn [\(dqright\(dq text]
+col     : \(dqlcol\(dq | \(dqrcol\(dq | \(dqccol\(dq | \(dqcol\(dq
+text    : [^space\e\(dq]+ | \e\(dq.*\e\(dq
+pile    : \(dqlpile\(dq | \(dqcpile\(dq | \(dqrpile\(dq | \(dqpile\(dq
+pos     : \(dqover\(dq | \(dqsup\(dq | \(dqsub\(dq | \(dqto\(dq | \(dqfrom\(dq
+mark	: \(dqdot\(dq | \(dqdotdot\(dq | \(dqhat\(dq | \(dqtilde\(dq | \(dqvec\(dq
+        | \(dqdyad\(dq | \(dqbar\(dq | \(dqunder\(dq
+font    : \(dqroman\(dq | \(dqitalic\(dq | \(dqbold\(dq | \(dqfat\(dq
 list    : eqn
-        | list \*qabove\*q eqn
+        | list \(dqabove\(dq eqn
 space   : [\e^~ \et]
 .Ed
 .Pp
@@ -434,7 +434,7 @@ implementation (including GNU troff).
 .Bl -dash -compact
 .It
 The text string
-.Sq \e\*q
+.Sq \e\(dq
 is interpreted as a literal quote in troff.
 In mandoc, this is interpreted as a comment.
 .It
