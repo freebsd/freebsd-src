@@ -2272,7 +2272,7 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 	}
 	if (error != 0) {
 		/* Too many DMA segments, linearize mbuf. */
-		m1 = m_collapse(buf->m, M_NOWAIT, WPI_MAX_SCATTER);
+		m1 = m_collapse(buf->m, M_NOWAIT, WPI_MAX_SCATTER - 1);
 		if (m1 == NULL) {
 			device_printf(sc->sc_dev,
 			    "%s: could not defrag mbuf\n", __func__);
@@ -2290,6 +2290,10 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 			return error;
 		}
 	}
+
+	KASSERT(nsegs < WPI_MAX_SCATTER,
+	    ("too many DMA segments, nsegs (%d) should be less than %d",
+	     nsegs, WPI_MAX_SCATTER));
 
 	data->m = buf->m;
 	data->ni = buf->ni;
