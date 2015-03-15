@@ -453,6 +453,7 @@ void	vi_set_io_bar(struct virtio_softc *, int);
 
 int	vq_getchain(struct vqueue_info *vq, uint16_t *pidx,
 		    struct iovec *iov, int n_iov, uint16_t *flags);
+void	vq_retchain(struct vqueue_info *vq);
 void	vq_relchain(struct vqueue_info *vq, uint16_t idx, uint32_t iolen);
 void	vq_endchains(struct vqueue_info *vq, int used_all_avail);
 

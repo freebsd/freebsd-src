@@ -342,6 +342,7 @@ pci_vtnet_tap_rx(struct pci_vtnet_softc *sc)
 			 * No more packets, but still some avail ring
 			 * entries.  Interrupt if needed/appropriate.
 			 */
+			vq_retchain(vq);
 			vq_endchains(vq, 0);
 			return;
 		}
