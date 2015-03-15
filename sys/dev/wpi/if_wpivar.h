@@ -125,11 +125,20 @@ struct wpi_vap {
 
 	struct wpi_buf			wv_bcbuf;
 	struct ieee80211_beacon_offsets	wv_boff;
+	struct mtx			wv_mtx;
 
 	int				(*wv_newstate)(struct ieee80211vap *,
 					    enum ieee80211_state, int);
 };
 #define	WPI_VAP(vap)	((struct wpi_vap *)(vap))
+
+#define WPI_VAP_LOCK_INIT(_wvp)	\
+	mtx_init(&(_wvp)->wv_mtx, "lock for wv_bcbuf/wv_boff structures", \
+	    NULL, MTX_DEF)
+#define WPI_VAP_LOCK(_wvp)		mtx_lock(&(_wvp)->wv_mtx)
+#define WPI_VAP_UNLOCK(_wvp)		mtx_unlock(&(_wvp)->wv_mtx)
+#define WPI_VAP_LOCK_ASSERT(_wvp)	mtx_assert(&(_wvp)->wv_mtx, MA_OWNED)
+#define WPI_VAP_LOCK_DESTROY(_wvp)	mtx_destroy(&(_wvp)->wv_mtx)
 
 struct wpi_fw_part {
 	const uint8_t	*text;
@@ -224,7 +233,7 @@ struct wpi_softc {
 	char			domain[4];	/* Regulatory domain. */
 };
 
-/* WPI_LOCK > WPI_NT_LOCK > WPI_TXQ_LOCK */
+/* WPI_LOCK > WPI_NT_LOCK / WPI_VAP_LOCK > WPI_TXQ_LOCK */
 
 #define WPI_LOCK_INIT(_sc) \
 	mtx_init(&(_sc)->sc_mtx, device_get_nameunit((_sc)->sc_dev), \
