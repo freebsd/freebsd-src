@@ -195,6 +195,7 @@ static int	wpi_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		    const struct ieee80211_bpf_params *);
 static void	wpi_start(struct ifnet *);
 static void	wpi_start_locked(struct ifnet *);
+static void	wpi_start_task(void *, int);
 static void	wpi_watchdog_rfkill(void *);
 static void	wpi_watchdog(void *);
 static int	wpi_ioctl(struct ifnet *, u_long, caddr_t);
@@ -515,6 +516,7 @@ wpi_attach(device_t dev)
 	TASK_INIT(&sc->sc_reinittask, 0, wpi_hw_reset, sc);
 	TASK_INIT(&sc->sc_radiooff_task, 0, wpi_radio_off, sc);
 	TASK_INIT(&sc->sc_radioon_task, 0, wpi_radio_on, sc);
+	TASK_INIT(&sc->sc_start_task, 0, wpi_start_task, sc);
 
 	wpi_sysctlattach(sc);
 
@@ -644,6 +646,7 @@ wpi_detach(device_t dev)
 		ieee80211_draintask(ic, &sc->sc_reinittask);
 		ieee80211_draintask(ic, &sc->sc_radiooff_task);
 		ieee80211_draintask(ic, &sc->sc_radioon_task);
+		ieee80211_draintask(ic, &sc->sc_start_task);
 
 		wpi_stop(sc);
 
@@ -1901,6 +1904,7 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	struct mbuf *m;
 	struct ieee80211_node *ni;
 	struct ieee80211vap *vap;
+	struct ieee80211com *ic;
 	int ackfailcnt = stat->ackfailcnt / 2;	/* wpi_mrr_setup() */
 	int status = le32toh(stat->status);
 
@@ -1919,6 +1923,7 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	m = data->m, data->m = NULL;
 	ni = data->ni, data->ni = NULL;
 	vap = ni->ni_vap;
+	ic = vap->iv_ic;
 
 	/*
 	 * Update rate control statistics for the node.
@@ -1943,7 +1948,7 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 		if (sc->qfullmsk == 0 &&
 		    (ifp->if_drv_flags & IFF_DRV_OACTIVE)) {
 			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-			wpi_start_locked(ifp);
+			ieee80211_runtask(ic, &sc->sc_start_task);
 		}
 	}
 
@@ -2786,6 +2791,15 @@ wpi_start_locked(struct ifnet *ifp)
 	}
 
 	DPRINTF(sc, WPI_DEBUG_XMIT, "%s: done\n", __func__);
+}
+
+static void
+wpi_start_task(void *arg0, int pending)
+{
+	struct wpi_softc *sc = arg0;
+	struct ifnet *ifp = sc->sc_ifp;
+
+	wpi_start(ifp);
 }
 
 static void
