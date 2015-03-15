@@ -213,8 +213,8 @@ struct wpi_softc {
 	void			(*sc_scan_curchan)(struct ieee80211_scan_state *,
 				    unsigned long);
 
-	struct wpi_rx_radiotap_header sc_rxtap;
-	struct wpi_tx_radiotap_header sc_txtap;
+	struct wpi_rx_radiotap_header	sc_rxtap;
+	struct wpi_tx_radiotap_header	sc_txtap;
 
 	/* Firmware image. */
 	const struct firmware	*fw_fp;
@@ -254,7 +254,7 @@ struct wpi_softc {
 	    MTX_NETWORK_LOCK, MTX_DEF)
 #define WPI_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define WPI_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#define WPI_LOCK_ASSERT(sc)	mtx_assert(&(sc)->sc_mtx, MA_OWNED)
+#define WPI_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
 #define WPI_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
 
 #define WPI_RXON_LOCK_INIT(_sc) \
