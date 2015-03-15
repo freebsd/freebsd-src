@@ -3149,9 +3149,6 @@ t3_dump_rspq(SYSCTL_HANDLER_ARGS)
 	}
 
 	err = sbuf_finish(sb);
-	/* Output a trailing NUL. */
-	if (err == 0)
-		err = SYSCTL_OUT(req, "", 1);
 	sbuf_delete(sb);
 	return (err);
 }	
@@ -3219,9 +3216,6 @@ t3_dump_txq_eth(SYSCTL_HANDLER_ARGS)
 
 	}
 	err = sbuf_finish(sb);
-	/* Output a trailing NUL. */
-	if (err == 0)
-		err = SYSCTL_OUT(req, "", 1);
 	sbuf_delete(sb);
 	return (err);
 }
@@ -3279,9 +3273,6 @@ t3_dump_txq_ctrl(SYSCTL_HANDLER_ARGS)
 
 	}
 	err = sbuf_finish(sb);
-	/* Output a trailing NUL. */
-	if (err == 0)
-		err = SYSCTL_OUT(req, "", 1);
 	sbuf_delete(sb);
 	return (err);
 }

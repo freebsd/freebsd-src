@@ -76,7 +76,9 @@ drm_pci_alloc(struct drm_device *dev, size_t size,
 	if (mtx_owned(&dev->dma_lock))
 	    DRM_ERROR("called while holding dma_lock\n");
 
-	ret = bus_dma_tag_create(NULL, align, 0, /* tag, align, boundary */
+	ret = bus_dma_tag_create(
+	    bus_get_dma_tag(dev->device), /* parent */
+	    align, 0, /* align, boundary */
 	    maxaddr, BUS_SPACE_MAXADDR, /* lowaddr, highaddr */
 	    NULL, NULL, /* filtfunc, filtfuncargs */
 	    size, 1, size, /* maxsize, nsegs, maxsegsize */

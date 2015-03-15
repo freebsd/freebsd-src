@@ -333,6 +333,19 @@ LOCALBASE?=	/usr/local
 CROSS_COMPILER_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
 CROSS_BINUTILS_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
 .endif
+
+# If we do not have a bootstrap binutils (because the in-tree one does not
+# support the target architecture), provide a default cross-binutils prefix.
+# This allows aarch64 builds, for example, to automatically use the
+# aarch64-binutils port or package.
+.if !empty(BROKEN_OPTIONS:MBINUTILS_BOOTSTRAP) && \
+    !defined(CROSS_BINUTILS_PREFIX)
+CROSS_BINUTILS_PREFIX=/usr/local/${TARGET_ARCH}-freebsd/bin/
+.if !exists(${CROSS_BINUTILS_PREFIX})
+.error In-tree binutils does not support the ${TARGET_ARCH} architecture. Install the ${TARGET_ARCH}-binutils port or package or set CROSS_BINUTILS_PREFIX.
+.endif
+.endif
+
 XCOMPILERS=	CC CXX CPP
 .for COMPILER in ${XCOMPILERS}
 .if defined(CROSS_COMPILER_PREFIX)
@@ -1599,7 +1612,6 @@ cross-tools: .MAKE
     ${_binutils} \
     ${_elftctools} \
     ${_cc} \
-    usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint \
     ${_btxld} \
     ${_crunchide} \
     ${_kgzip} \

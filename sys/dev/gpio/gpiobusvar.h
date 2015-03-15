@@ -60,6 +60,12 @@
 #define	GPIOBUS_WAIT		1
 #define	GPIOBUS_DONTWAIT	2
 
+struct gpiobus_pin_data
+{
+	int		mapped;		/* pin is mapped/reserved. */
+	char		*name;		/* pin name. */
+};
+
 struct gpiobus_softc
 {
 	struct mtx	sc_mtx;		/* bus mutex */
@@ -68,7 +74,7 @@ struct gpiobus_softc
 	device_t	sc_owner;	/* bus owner */
 	device_t	sc_dev;		/* driver device */
 	int		sc_npins;	/* total pins on bus */
-	int		*sc_pins_mapped; /* mark mapped pins */
+	struct gpiobus_pin_data	*sc_pins; /* pin data */
 };
 
 struct gpiobus_pin
@@ -110,7 +116,7 @@ int gpiobus_detach_bus(device_t);
 int gpiobus_init_softc(device_t);
 int gpiobus_alloc_ivars(struct gpiobus_ivar *);
 void gpiobus_free_ivars(struct gpiobus_ivar *);
-int gpiobus_map_pin(device_t, device_t, uint32_t);
+int gpiobus_map_pin(device_t, uint32_t);
 
 extern driver_t gpiobus_driver;
 
