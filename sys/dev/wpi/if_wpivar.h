@@ -209,6 +209,7 @@ struct wpi_softc {
 	struct task		sc_reinittask;
 	struct task		sc_radiooff_task;
 	struct task		sc_radioon_task;
+	struct task		sc_start_task;
 
 	/* Eeprom info. */
 	uint8_t			cap;
