@@ -1965,6 +1965,8 @@ wpi_cmd_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	if ((desc->qid & WPI_RX_DESC_QID_MSK) != WPI_CMD_QUEUE_NUM)
 		return;	/* Not a command ack. */
 
+	KASSERT(ring->queued == 0, ("ring->queued must be 0"));
+
 	data = &ring->data[desc->idx];
 
 	/* If the command was mapped in an mbuf, free it. */
@@ -2404,12 +2406,13 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 	ring->cur = (ring->cur + 1) % WPI_TX_RING_COUNT;
 	wpi_update_tx_ring(sc, ring);
 
-	/* Mark TX ring as full if we reach a certain threshold. */
-	if (++ring->queued > WPI_TX_RING_HIMARK)
-		sc->qfullmsk |= 1 << ring->qid;
+	if (ring->qid < WPI_CMD_QUEUE_NUM) {
+		/* Mark TX ring as full if we reach a certain threshold. */
+		if (++ring->queued > WPI_TX_RING_HIMARK)
+			sc->qfullmsk |= 1 << ring->qid;
 
-	if (ring->qid < WPI_CMD_QUEUE_NUM)
 		sc->sc_tx_timer = 5;
+	}
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
 
