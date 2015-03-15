@@ -3173,6 +3173,9 @@ wpi_add_node(struct wpi_softc *sc, struct ieee80211_node *ni)
 	node.action = htole32(WPI_ACTION_SET_RATE);
 	node.antenna = WPI_ANTENNA_BOTH;
 
+	DPRINTF(sc, WPI_DEBUG_NODE, "%s: adding node %d (%s)\n", __func__,
+	    wn->id, ether_sprintf(ni->ni_macaddr));
+
 	error = wpi_cmd(sc, WPI_CMD_ADD_NODE, &node, sizeof node, 1);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
@@ -3212,6 +3215,8 @@ wpi_add_broadcast_node(struct wpi_softc *sc, int async)
 	    wpi_ridx_to_plcp[WPI_RIDX_OFDM6] : wpi_ridx_to_plcp[WPI_RIDX_CCK1];
 	node.action = htole32(WPI_ACTION_SET_RATE);
 	node.antenna = WPI_ANTENNA_BOTH;
+
+	DPRINTF(sc, WPI_DEBUG_NODE, "%s: adding broadcast node\n", __func__);
 
 	return wpi_cmd(sc, WPI_CMD_ADD_NODE, &node, sizeof node, async);
 }
@@ -3278,6 +3283,9 @@ wpi_del_node(struct wpi_softc *sc, struct ieee80211_node *ni)
 	memset(&node, 0, sizeof node);
 	IEEE80211_ADDR_COPY(node.macaddr, ni->ni_macaddr);
 	node.count = 1;
+
+	DPRINTF(sc, WPI_DEBUG_NODE, "%s: deleting node %d (%s)\n", __func__,
+	    wn->id, ether_sprintf(ni->ni_macaddr));
 
 	error = wpi_cmd(sc, WPI_CMD_DEL_NODE, &node, sizeof node, 1);
 	if (error != 0) {
