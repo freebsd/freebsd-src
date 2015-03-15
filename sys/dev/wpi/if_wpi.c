@@ -169,6 +169,7 @@ static int	wpi_setregdomain(struct ieee80211com *,
 		    struct ieee80211_regdomain *, int,
 		    struct ieee80211_channel[]);
 static int	wpi_read_eeprom_group(struct wpi_softc *, int);
+static int	wpi_add_node_entry_adhoc(struct wpi_softc *);
 static void	wpi_node_free(struct ieee80211_node *);
 static struct ieee80211_node *wpi_node_alloc(struct ieee80211vap *,
 		    const uint8_t mac[IEEE80211_ADDR_LEN]);
@@ -383,8 +384,6 @@ wpi_attach(device_t dev)
 	}
 
 	WPI_LOCK_INIT(sc);
-
-	sc->sc_unr = new_unrhdr(WPI_ID_IBSS_MIN, WPI_ID_IBSS_MAX, &sc->sc_mtx);
 
 	/* Allocate DMA memory for firmware transfers. */
 	if ((error = wpi_alloc_fwmem(sc)) != 0) {
@@ -678,8 +677,6 @@ wpi_detach(device_t dev)
 
 	if (ifp != NULL)
 		if_free(ifp);
-
-	delete_unrhdr(sc->sc_unr);
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
 	WPI_LOCK_DESTROY(sc);
@@ -1514,6 +1511,42 @@ wpi_read_eeprom_group(struct wpi_softc *sc, int n)
 	return 0;
 }
 
+static int
+wpi_add_node_entry_adhoc(struct wpi_softc *sc)
+{
+	int newid = WPI_ID_IBSS_MIN;
+
+	for (; newid <= WPI_ID_IBSS_MAX; newid++) {
+		if ((sc->nodesmsk & (1 << newid)) == 0) {
+			sc->nodesmsk |= 1 << newid;
+			return newid;
+		}
+	}
+
+	return WPI_ID_UNDEFINED;
+}
+
+static __inline int
+wpi_check_node_entry(struct wpi_softc *sc, uint8_t id)
+{
+	if (id == WPI_ID_UNDEFINED)
+		return 0;
+
+	return (sc->nodesmsk >> id) & 1;
+}
+
+static __inline void
+wpi_clear_node_table(struct wpi_softc *sc)
+{
+	sc->nodesmsk = 0;
+}
+
+static __inline void
+wpi_del_node_entry(struct wpi_softc *sc, uint8_t id)
+{
+	sc->nodesmsk &= ~(1 << id);
+}
+
 static struct ieee80211_node *
 wpi_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 {
@@ -1538,11 +1571,11 @@ wpi_node_free(struct ieee80211_node *ni)
 	struct wpi_node *wn = WPI_NODE(ni);
 
 	if (wn->id >= WPI_ID_IBSS_MIN && wn->id <= WPI_ID_IBSS_MAX) {
-		free_unr(sc->sc_unr, wn->id);
-
 		WPI_LOCK(sc);
-		if (sc->rxon.filter & htole32(WPI_FILTER_BSS))
+		if (wpi_check_node_entry(sc, wn->id)) {
+			wpi_del_node_entry(sc, wn->id);
 			wpi_del_node(sc, ni);
+		}
 		WPI_UNLOCK(sc);
 	}
 
@@ -2050,6 +2083,7 @@ wpi_notif_intr(struct wpi_softc *sc)
 			    le32toh(*status));
 
 			if (le32toh(*status) & 1) {
+				wpi_clear_node_table(sc);
 				ieee80211_runtask(ic, &sc->sc_radiooff_task);
 				return;
 			}
@@ -3001,18 +3035,25 @@ static int
 wpi_add_ibss_node(struct wpi_softc *sc, struct ieee80211_node *ni)
 {
 	struct wpi_node *wn = WPI_NODE(ni);
+	int error;
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_DOING, __func__);
 
 	if (wn->id != WPI_ID_UNDEFINED)
 		return EINVAL;
 
-	wn->id = alloc_unrl(sc->sc_unr);
+	if ((wn->id = wpi_add_node_entry_adhoc(sc)) == WPI_ID_UNDEFINED) {
+		device_printf(sc->sc_dev, "%s: h/w table is full\n", __func__);
+		return ENOMEM;
+	}
 
-	if (wn->id == (uint8_t)-1)
-		return ENOBUFS;
+	if ((error = wpi_add_node(sc, ni)) != 0) {
+		wpi_del_node_entry(sc, wn->id);
+		wn->id = WPI_ID_UNDEFINED;
+		return error;
+	}
 
-	return wpi_add_node(sc, ni);
+	return 0;
 }
 
 static void
@@ -3404,6 +3445,8 @@ wpi_send_rxon(struct wpi_softc *sc, int assoc, int async)
 	} else {
 		error = wpi_cmd(sc, WPI_CMD_RXON, &sc->rxon,
 		    sizeof (struct wpi_rxon), async);
+
+		wpi_clear_node_table(sc);
 	}
 	if (error != 0) {
 		device_printf(sc->sc_dev, "RXON command failed, error %d\n",

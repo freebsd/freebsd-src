@@ -151,7 +151,6 @@ struct wpi_softc {
 	int			sc_debug;
 
 	struct mtx		sc_mtx;
-	struct unrhdr		*sc_unr;
 
 	/* Flags indicating the current state the driver
 	 * expects the hardware to be in
@@ -189,6 +188,7 @@ struct wpi_softc {
 	struct wpi_rxon		rxon;
 	int			temp;
 	uint32_t		qfullmsk;
+	uint32_t		nodesmsk;
 
 	int			sc_tx_timer;
 	int			sc_scan_timer;
