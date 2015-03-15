@@ -469,7 +469,7 @@ wpi_attach(device_t dev)
 		device_printf(sc->sc_dev, "Hardware Type: %c\n",
 		    sc->type > 1 ? 'B': '?');
 		device_printf(sc->sc_dev, "Hardware Revision: %c\n",
-		    ((le16toh(sc->rev) & 0xf0) == 0xd0) ? 'D': '?');
+		    ((sc->rev & 0xf0) == 0xd0) ? 'D': '?');
 		device_printf(sc->sc_dev, "SKU %s support 802.11a\n",
 		    supportsa ? "does" : "does not");
 
@@ -1299,8 +1299,9 @@ wpi_read_eeprom(struct wpi_softc *sc, uint8_t macaddr[IEEE80211_ADDR_LEN])
 	WPI_CHK(wpi_read_prom_data(sc, WPI_EEPROM_TYPE, &sc->type,
 	    sizeof(sc->type)));
 
+	sc->rev = le16toh(sc->rev);
 	DPRINTF(sc, WPI_DEBUG_EEPROM, "cap=%x rev=%x type=%x\n", sc->cap,
-	    le16toh(sc->rev), sc->type);
+	    sc->rev, sc->type);
 
 	/* Read the regulatory domain (4 ASCII characters.) */
 	WPI_CHK(wpi_read_prom_data(sc, WPI_EEPROM_DOMAIN, sc->domain,
@@ -4589,7 +4590,7 @@ wpi_nic_config(struct wpi_softc *sc)
 	if (sc->cap == 0x80)
 		WPI_SETBITS(sc, WPI_HW_IF_CONFIG, WPI_HW_IF_CONFIG_SKU_MRC);
 
-	if ((le16toh(sc->rev) & 0xf0) == 0xd0)
+	if ((sc->rev & 0xf0) == 0xd0)
 		WPI_SETBITS(sc, WPI_HW_IF_CONFIG, WPI_HW_IF_CONFIG_REV_D);
 	else
 		WPI_CLRBITS(sc, WPI_HW_IF_CONFIG, WPI_HW_IF_CONFIG_REV_D);
