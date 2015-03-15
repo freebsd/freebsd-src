@@ -2188,10 +2188,12 @@ wpi_notif_intr(struct wpi_softc *sc)
 			break;
 		}
 		}
-	}
 
-	/* Tell the firmware what we have processed. */
-	wpi_update_rx_ring(sc);
+		if (sc->rxq.cur % 8 == 0) {
+			/* Tell the firmware what we have processed. */
+			wpi_update_rx_ring(sc);
+		}
+	}
 }
 
 /*
