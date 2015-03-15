@@ -3600,6 +3600,9 @@ wpi_scan(struct wpi_softc *sc, struct ieee80211_channel *c)
 	if (sc->sc_scan_timer) {
 		device_printf(sc->sc_dev, "%s: called whilst scanning!\n",
 		    __func__);
+
+		DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END_ERR, __func__);
+
 		return (EAGAIN);
 	}
 
@@ -3608,7 +3611,8 @@ wpi_scan(struct wpi_softc *sc, struct ieee80211_channel *c)
 		device_printf(sc->sc_dev,
 		    "%s: could not allocate buffer for scan command\n",
 		    __func__);
-		return ENOMEM;
+		error = ENOMEM;
+		goto fail;
 	}
 	hdr = (struct wpi_scan_hdr *)buf;
 
@@ -3733,9 +3737,16 @@ wpi_scan(struct wpi_softc *sc, struct ieee80211_channel *c)
 	error = wpi_cmd(sc, WPI_CMD_SCAN, buf, buflen, 1);
 	free(buf, M_DEVBUF);
 
+	if (error != 0)
+		goto fail;
+
 	sc->sc_scan_timer = 5;
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
+
+	return 0;
+
+fail:	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END_ERR, __func__);
 
 	return error;
 }
