@@ -263,7 +263,9 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vqueue_info *vq)
 		break;
 	case VBH_OP_IDENT:
 		/* Assume a single buffer */
-		strlcpy(iov[1].iov_base, sc->vbsc_ident,
+		/* S/n equal to buffer is not zero-terminated. */
+		memset(iov[1].iov_base, 0, iov[1].iov_len);
+		strncpy(iov[1].iov_base, sc->vbsc_ident,
 		    MIN(iov[1].iov_len, sizeof(sc->vbsc_ident)));
 		pci_vtblk_done(&io->io_req, 0);
 		return;
