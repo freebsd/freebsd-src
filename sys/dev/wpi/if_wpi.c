@@ -4881,6 +4881,10 @@ wpi_apm_init(struct wpi_softc *sc)
 	/* Set FH wait threshold to max (HW bug under stress workaround). */
 	WPI_SETBITS(sc, WPI_DBG_HPET_MEM, 0xffff0000);
 
+	/* Cleanup. */
+	wpi_prph_write(sc, WPI_APMG_CLK_DIS, 0x00000400);
+	wpi_prph_clrbits(sc, WPI_APMG_PS, 0x00000E00);
+
 	/* Retrieve PCIe Active State Power Management (ASPM). */
 	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + 0x10, 1);
 	/* Workaround for HW instability in PCIe L0->L0s->L1 transition. */
@@ -4903,8 +4907,6 @@ wpi_apm_init(struct wpi_softc *sc)
 	DELAY(20);
 	/* Disable L1-Active. */
 	wpi_prph_setbits(sc, WPI_APMG_PCI_STT, WPI_APMG_PCI_STT_L1A_DIS);
-	/* ??? */
-	wpi_prph_clrbits(sc, WPI_APMG_PS, 0x00000E00);
 	wpi_nic_unlock(sc);
 
 	return 0;
