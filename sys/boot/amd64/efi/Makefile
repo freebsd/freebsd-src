@@ -25,6 +25,9 @@ SRCS=	autoload.c \
 	vers.c
 SRCS+=	amd64_tramp.S \
 	start.S
+.PATH:	${.CURDIR}/../../i386/libi386
+SRCS+=	nullconsole.c \
+	comconsole.c
 
 CFLAGS+=	-fPIC
 CFLAGS+=	-I.
@@ -32,6 +35,7 @@ CFLAGS+=	-I${.CURDIR}/../../efi/include
 CFLAGS+=	-I${.CURDIR}/../../efi/include/${MACHINE_CPUARCH}
 CFLAGS+=	-I${.CURDIR}/../../../contrib/dev/acpica/include
 CFLAGS+=	-I${.CURDIR}/../../..
+CFLAGS+=	-DNO_PCI
 
 .if ${MK_FORTH} != "no"
 BOOT_FORTH=	yes
