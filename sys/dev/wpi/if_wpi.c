@@ -2379,7 +2379,7 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	uint32_t flags;
 	uint16_t qos;
 	uint8_t tid, type;
-	int ac, error, rate, ismcast, totlen;
+	int ac, error, swcrypt, rate, ismcast, totlen;
 
 	wh = mtod(m, struct ieee80211_frame *);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
@@ -2422,6 +2422,8 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 			error = ENOBUFS;
 			goto fail;
 		}
+		swcrypt = k->wk_flags & IEEE80211_KEY_SWCRYPT;
+
 		/* 802.11 header may have moved. */
 		wh = mtod(m, struct ieee80211_frame *);
 	}
@@ -2508,6 +2510,19 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	if (type != IEEE80211_FC0_TYPE_MGT)
 		tx.data_ntries = tp->maxretry;
 
+	if (k != NULL && !swcrypt) {
+		switch (k->wk_cipher->ic_cipher) {
+		case IEEE80211_CIPHER_AES_CCM:
+			tx.security = WPI_CIPHER_CCMP;
+			break;
+
+		default:
+			break;
+		}
+
+		memcpy(tx.key, k->wk_key, k->wk_keylen);
+	}
+
 	tx.len = htole16(totlen);
 	tx.flags = htole32(flags);
 	tx.plcp = rate2plcp(rate);
@@ -2516,13 +2531,6 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	tx.ofdm_mask = 0xff;
 	tx.cck_mask = 0x0f;
 	tx.rts_ntries = 7;
-
-	if (k != NULL && k->wk_cipher->ic_cipher == IEEE80211_CIPHER_AES_CCM) {
-		if (!(k->wk_flags & IEEE80211_KEY_SWCRYPT)) {
-			tx.security = WPI_CIPHER_CCMP;
-			memcpy(tx.key, k->wk_key, k->wk_keylen);
-		}
-	}
 
 	tx_data.data = &tx;
 	tx_data.ni = ni;
