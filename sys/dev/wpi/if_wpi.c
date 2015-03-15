@@ -1971,22 +1971,23 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	WPI_LOCK(sc);
 
 	ring->queued -= 1;
-	if (ring->queued > 0)
+	if (ring->queued > 0) {
 		callout_reset(&sc->tx_timeout, 5*hz, wpi_tx_timeout, sc);
-	else
-		callout_stop(&sc->tx_timeout);
 
-	if (ring->queued < WPI_TX_RING_LOMARK) {
-		sc->qfullmsk &= ~(1 << ring->qid);
-		IF_LOCK(&ifp->if_snd);
-		if (sc->qfullmsk == 0 &&
-		    (ifp->if_drv_flags & IFF_DRV_OACTIVE)) {
-			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-			IF_UNLOCK(&ifp->if_snd);
-			ieee80211_runtask(ic, &sc->sc_start_task);
-		} else
-			IF_UNLOCK(&ifp->if_snd);
-	}
+		if (sc->qfullmsk != 0 &&
+		    ring->queued < WPI_TX_RING_LOMARK) {
+			sc->qfullmsk &= ~(1 << ring->qid);
+			IF_LOCK(&ifp->if_snd);
+			if (sc->qfullmsk == 0 &&
+			    (ifp->if_drv_flags & IFF_DRV_OACTIVE)) {
+				ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+				IF_UNLOCK(&ifp->if_snd);
+				ieee80211_runtask(ic, &sc->sc_start_task);
+			} else
+				IF_UNLOCK(&ifp->if_snd);
+		}
+	} else
+		callout_stop(&sc->tx_timeout);
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
 }
