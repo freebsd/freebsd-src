@@ -184,6 +184,9 @@ static void	wpi_tx_done(struct wpi_softc *, struct wpi_rx_desc *);
 static void	wpi_cmd_done(struct wpi_softc *, struct wpi_rx_desc *);
 static void	wpi_notif_intr(struct wpi_softc *);
 static void	wpi_wakeup_intr(struct wpi_softc *);
+#ifdef WPI_DEBUG
+static void	wpi_debug_registers(struct wpi_softc *);
+#endif
 static void	wpi_fatal_intr(struct wpi_softc *);
 static void	wpi_intr(void *);
 static int	wpi_cmd2(struct wpi_softc *, struct wpi_buf *);
@@ -2199,6 +2202,69 @@ wpi_wakeup_intr(struct wpi_softc *sc)
 }
 
 /*
+ * This function prints firmware registers
+ */
+#ifdef WPI_DEBUG
+static void
+wpi_debug_registers(struct wpi_softc *sc)
+{
+#define COUNTOF(array) (sizeof(array) / sizeof(array[0]))
+	int i;
+	static const uint32_t csr_tbl[] = {
+		WPI_HW_IF_CONFIG,
+		WPI_INT,
+		WPI_INT_MASK,
+		WPI_FH_INT,
+		WPI_GPIO_IN,
+		WPI_RESET,
+		WPI_GP_CNTRL,
+		WPI_EEPROM,
+		WPI_EEPROM_GP,
+		WPI_GIO,
+		WPI_UCODE_GP1,
+		WPI_UCODE_GP2,
+		WPI_GIO_CHICKEN,
+		WPI_ANA_PLL,
+		WPI_DBG_HPET_MEM,
+	};
+	static const uint32_t prph_tbl[] = {
+		WPI_APMG_CLK_CTRL,
+		WPI_APMG_PS,
+		WPI_APMG_PCI_STT,
+		WPI_APMG_RFKILL,
+	};
+
+	DPRINTF(sc, WPI_DEBUG_REGISTER,"%s","\n");
+
+	for (i = 0; i <  COUNTOF(csr_tbl); i++) {
+		DPRINTF(sc, WPI_DEBUG_REGISTER, "  %-18s: 0x%08x ",
+		    wpi_get_csr_string(csr_tbl[i]), WPI_READ(sc, csr_tbl[i]));
+
+		if ((i + 1) % 2 == 0)
+			DPRINTF(sc, WPI_DEBUG_REGISTER, "\n");
+	}
+	DPRINTF(sc, WPI_DEBUG_REGISTER, "\n\n");
+
+	if (wpi_nic_lock(sc) == 0) {
+		for (i = 0; i < COUNTOF(prph_tbl); i++) {
+			DPRINTF(sc, WPI_DEBUG_REGISTER, "  %-18s: 0x%08x ",
+			    wpi_get_prph_string(prph_tbl[i]),
+			    wpi_prph_read(sc, prph_tbl[i]));
+
+			if ((i + 1) % 2 == 0)
+				DPRINTF(sc, WPI_DEBUG_REGISTER, "\n");
+		}
+		DPRINTF(sc, WPI_DEBUG_REGISTER, "\n");
+		wpi_nic_unlock(sc);
+	} else {
+		DPRINTF(sc, WPI_DEBUG_REGISTER,
+		    "Cannot access internal registers.\n");
+	}
+#undef COUNTOF
+}
+#endif
+
+/*
  * Dump the error log of the firmware when a firmware panic occurs.  Although
  * we can't debug the firmware because it is neither open source nor free, it
  * can help us to identify certain classes of problems.
@@ -2298,6 +2364,9 @@ wpi_intr(void *arg)
 		struct ieee80211com *ic = ifp->if_l2com;
 
 		device_printf(sc->sc_dev, "fatal firmware error\n");
+#ifdef WPI_DEBUG
+		wpi_debug_registers(sc);
+#endif
 		wpi_fatal_intr(sc);
 		DPRINTF(sc, WPI_DEBUG_HW,
 		    "(%s)\n", (r1 & WPI_INT_SW_ERR) ? "(Software Error)" :
