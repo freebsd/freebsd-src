@@ -1834,7 +1834,7 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	struct mbuf *m;
 	struct ieee80211_node *ni;
 	struct ieee80211vap *vap;
-	int ackfailcnt = stat->ackfailcnt;
+	int ackfailcnt = stat->ackfailcnt / 2;	/* wpi_mrr_setup() */
 	int status = le32toh(stat->status);
 
 	KASSERT(data->ni != NULL, ("no node"));
