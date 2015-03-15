@@ -1863,7 +1863,7 @@ wpi_rx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 		if (head->flags & htole16(WPI_STAT_FLAG_SHPREAMBLE))
 			tap->wr_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
 		tap->wr_dbm_antsignal = (int8_t)(stat->rssi + WPI_RSSI_OFFSET);
-		tap->wr_dbm_antnoise = (int8_t)le16toh(stat->noise);
+		tap->wr_dbm_antnoise = WPI_RSSI_OFFSET;
 		tap->wr_tsft = tail->tstamp;
 		tap->wr_antenna = (le16toh(head->flags) >> 4) & 0xf;
 		tap->wr_rate = plcp2rate(head->plcp);
