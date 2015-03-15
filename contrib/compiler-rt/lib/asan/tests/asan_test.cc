@@ -603,7 +603,8 @@ NOINLINE void SigLongJmpFunc1(sigjmp_buf buf) {
 }
 
 #if !defined(__ANDROID__) && !defined(__arm__) && \
-    !defined(__powerpc64__) && !defined(__powerpc__)
+    !defined(__powerpc64__) && !defined(__powerpc__) && \
+    !defined(__aarch64__)
 // Does not work on Power and ARM:
 // https://code.google.com/p/address-sanitizer/issues/detail?id=185
 TEST(AddressSanitizer, BuiltinLongJmpTest) {
@@ -1282,5 +1283,35 @@ TEST(AddressSanitizer, pthread_getschedparam) {
       "AddressSanitizer: stack-buffer-.*flow");
   int res = pthread_getschedparam(pthread_self(), &policy, &param);
   ASSERT_EQ(0, res);
+}
+#endif
+
+#if SANITIZER_TEST_HAS_PRINTF_L
+static int vsnprintf_l_wrapper(char *s, size_t n,
+                               locale_t l, const char *format, ...) {
+  va_list va;
+  va_start(va, format);
+  int res = vsnprintf_l(s, n , l, format, va);
+  va_end(va);
+  return res;
+}
+
+TEST(AddressSanitizer, snprintf_l) {
+  char buff[5];
+  // Check that snprintf_l() works fine with Asan.
+  int res = snprintf_l(buff, 5,
+                       _LIBCPP_GET_C_LOCALE, "%s", "snprintf_l()");
+  EXPECT_EQ(12, res);
+  // Check that vsnprintf_l() works fine with Asan.
+  res = vsnprintf_l_wrapper(buff, 5,
+                            _LIBCPP_GET_C_LOCALE, "%s", "vsnprintf_l()");
+  EXPECT_EQ(13, res);
+
+  EXPECT_DEATH(snprintf_l(buff, 10,
+                          _LIBCPP_GET_C_LOCALE, "%s", "snprintf_l()"),
+                "AddressSanitizer: stack-buffer-overflow");
+  EXPECT_DEATH(vsnprintf_l_wrapper(buff, 10,
+                                  _LIBCPP_GET_C_LOCALE, "%s", "vsnprintf_l()"),
+                "AddressSanitizer: stack-buffer-overflow");
 }
 #endif

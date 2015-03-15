@@ -160,17 +160,17 @@ void Preprocessor::EnterSourceFileWithPTH(PTHLexer *PL,
 /// tokens from it instead of the current buffer.
 void Preprocessor::EnterMacro(Token &Tok, SourceLocation ILEnd,
                               MacroInfo *Macro, MacroArgs *Args) {
-  TokenLexer *TokLexer;
+  std::unique_ptr<TokenLexer> TokLexer;
   if (NumCachedTokenLexers == 0) {
-    TokLexer = new TokenLexer(Tok, ILEnd, Macro, Args, *this);
+    TokLexer = llvm::make_unique<TokenLexer>(Tok, ILEnd, Macro, Args, *this);
   } else {
-    TokLexer = TokenLexerCache[--NumCachedTokenLexers];
+    TokLexer = std::move(TokenLexerCache[--NumCachedTokenLexers]);
     TokLexer->Init(Tok, ILEnd, Macro, Args);
   }
 
   PushIncludeMacroStack();
   CurDirLookup = nullptr;
-  CurTokenLexer.reset(TokLexer);
+  CurTokenLexer = std::move(TokLexer);
   if (CurLexerKind != CLK_LexAfterModuleImport)
     CurLexerKind = CLK_TokenLexer;
 }
@@ -190,20 +190,39 @@ void Preprocessor::EnterMacro(Token &Tok, SourceLocation ILEnd,
 void Preprocessor::EnterTokenStream(const Token *Toks, unsigned NumToks,
                                     bool DisableMacroExpansion,
                                     bool OwnsTokens) {
+  if (CurLexerKind == CLK_CachingLexer) {
+    if (CachedLexPos < CachedTokens.size()) {
+      // We're entering tokens into the middle of our cached token stream. We
+      // can't represent that, so just insert the tokens into the buffer.
+      CachedTokens.insert(CachedTokens.begin() + CachedLexPos,
+                          Toks, Toks + NumToks);
+      if (OwnsTokens)
+        delete [] Toks;
+      return;
+    }
+
+    // New tokens are at the end of the cached token sequnece; insert the
+    // token stream underneath the caching lexer.
+    ExitCachingLexMode();
+    EnterTokenStream(Toks, NumToks, DisableMacroExpansion, OwnsTokens);
+    EnterCachingLexMode();
+    return;
+  }
+
   // Create a macro expander to expand from the specified token stream.
-  TokenLexer *TokLexer;
+  std::unique_ptr<TokenLexer> TokLexer;
   if (NumCachedTokenLexers == 0) {
-    TokLexer = new TokenLexer(Toks, NumToks, DisableMacroExpansion,
-                              OwnsTokens, *this);
+    TokLexer = llvm::make_unique<TokenLexer>(
+        Toks, NumToks, DisableMacroExpansion, OwnsTokens, *this);
   } else {
-    TokLexer = TokenLexerCache[--NumCachedTokenLexers];
+    TokLexer = std::move(TokenLexerCache[--NumCachedTokenLexers]);
     TokLexer->Init(Toks, NumToks, DisableMacroExpansion, OwnsTokens);
   }
 
   // Save our current state.
   PushIncludeMacroStack();
   CurDirLookup = nullptr;
-  CurTokenLexer.reset(TokLexer);
+  CurTokenLexer = std::move(TokLexer);
   if (CurLexerKind != CLK_LexAfterModuleImport)
     CurLexerKind = CLK_TokenLexer;
 }
@@ -480,33 +499,6 @@ bool Preprocessor::HandleEndOfFile(Token &Result, bool isEndOfMacro) {
         }
       }
     }
-
-    // Check whether there are any headers that were included, but not
-    // mentioned at all in the module map. Such headers 
-    SourceLocation StartLoc
-      = SourceMgr.getLocForStartOfFile(SourceMgr.getMainFileID());
-    if (!getDiagnostics().isIgnored(diag::warn_forgotten_module_header,
-                                    StartLoc)) {
-      ModuleMap &ModMap = getHeaderSearchInfo().getModuleMap();
-      for (unsigned I = 0, N = SourceMgr.local_sloc_entry_size(); I != N; ++I) {
-        // We only care about file entries.
-        const SrcMgr::SLocEntry &Entry = SourceMgr.getLocalSLocEntry(I);
-        if (!Entry.isFile())
-          continue;
-
-        // Dig out the actual file.
-        const FileEntry *File = Entry.getFile().getContentCache()->OrigEntry;
-        if (!File)
-          continue;
-
-        // If it's not part of a module and not unknown, complain.
-        if (!ModMap.findModuleForHeader(File) &&
-            !ModMap.isHeaderInUnavailableModule(File)) {
-          Diag(StartLoc, diag::warn_forgotten_module_header)
-            << File->getName() << Mod->getFullModuleName();
-        }
-      }
-    }
   }
 
   return true;
@@ -526,7 +518,7 @@ bool Preprocessor::HandleEndOfTokenLexer(Token &Result) {
   if (NumCachedTokenLexers == TokenLexerCacheSize)
     CurTokenLexer.reset();
   else
-    TokenLexerCache[NumCachedTokenLexers++] = CurTokenLexer.release();
+    TokenLexerCache[NumCachedTokenLexers++] = std::move(CurTokenLexer);
 
   // Handle this like a #include file being popped off the stack.
   return HandleEndOfFile(Result, true);
@@ -543,7 +535,7 @@ void Preprocessor::RemoveTopOfLexerStack() {
     if (NumCachedTokenLexers == TokenLexerCacheSize)
       CurTokenLexer.reset();
     else
-      TokenLexerCache[NumCachedTokenLexers++] = CurTokenLexer.release();
+      TokenLexerCache[NumCachedTokenLexers++] = std::move(CurTokenLexer);
   }
 
   PopIncludeMacroStack();

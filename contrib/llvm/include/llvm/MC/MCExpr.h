@@ -19,6 +19,7 @@ class MCAsmInfo;
 class MCAsmLayout;
 class MCAssembler;
 class MCContext;
+class MCFixup;
 class MCSection;
 class MCSectionData;
 class MCStreamer;
@@ -49,11 +50,17 @@ private:
   bool EvaluateAsAbsolute(int64_t &Res, const MCAssembler *Asm,
                           const MCAsmLayout *Layout,
                           const SectionAddrMap *Addrs) const;
+
+  bool evaluateAsAbsolute(int64_t &Res, const MCAssembler *Asm,
+                          const MCAsmLayout *Layout,
+                          const SectionAddrMap *Addrs, bool InSet) const;
+
 protected:
   explicit MCExpr(ExprKind _Kind) : Kind(_Kind) {}
 
   bool EvaluateAsRelocatableImpl(MCValue &Res, const MCAssembler *Asm,
                                  const MCAsmLayout *Layout,
+                                 const MCFixup *Fixup,
                                  const SectionAddrMap *Addrs, bool InSet,
                                  bool ForceVarExpansion) const;
 
@@ -87,13 +94,17 @@ public:
   bool EvaluateAsAbsolute(int64_t &Res, const MCAssembler &Asm) const;
   bool EvaluateAsAbsolute(int64_t &Res, const MCAsmLayout &Layout) const;
 
+  int64_t evaluateKnownAbsolute(const MCAsmLayout &Layout) const;
+
   /// EvaluateAsRelocatable - Try to evaluate the expression to a relocatable
   /// value, i.e. an expression of the fixed form (a - b + constant).
   ///
   /// @param Res - The relocatable value, if evaluation succeeds.
   /// @param Layout - The assembler layout object to use for evaluating values.
+  /// @param Fixup - The Fixup object if available.
   /// @result - True on success.
-  bool EvaluateAsRelocatable(MCValue &Res, const MCAsmLayout *Layout) const;
+  bool EvaluateAsRelocatable(MCValue &Res, const MCAsmLayout *Layout,
+                             const MCFixup *Fixup) const;
 
   /// \brief Try to evaluate the expression to the form (a - b + constant) where
   /// neither a nor b are variables.
@@ -101,7 +112,8 @@ public:
   /// This is a more aggressive variant of EvaluateAsRelocatable. The intended
   /// use is for when relocations are not available, like the symbol value in
   /// the symbol table.
-  bool EvaluateAsValue(MCValue &Res, const MCAsmLayout *Layout) const;
+  bool EvaluateAsValue(MCValue &Res, const MCAsmLayout *Layout,
+                       const MCFixup *Fixup) const;
 
   /// FindAssociatedSection - Find the "associated section" for this expression,
   /// which is currently defined as the absolute section for constants, or
@@ -182,6 +194,7 @@ public:
     VK_ARM_TARGET1,
     VK_ARM_TARGET2,
     VK_ARM_PREL31,
+    VK_ARM_SBREL,          // symbol(sbrel)
     VK_ARM_TLSLDO,         // symbol(tlsldo)
     VK_ARM_TLSCALL,        // symbol(tlscall)
     VK_ARM_TLSDESC,        // symbol(tlsdesc)
@@ -271,21 +284,20 @@ public:
   };
 
 private:
+  /// The symbol reference modifier.
+  const unsigned Kind : 16;
+
+  /// Specifies how the variant kind should be printed.
+  const unsigned UseParensForSymbolVariant : 1;
+
+  // FIXME: Remove this bit.
+  const unsigned HasSubsectionsViaSymbols : 1;
+
   /// The symbol being referenced.
   const MCSymbol *Symbol;
 
-  /// The symbol reference modifier.
-  const VariantKind Kind;
-
-  /// MCAsmInfo that is used to print symbol variants correctly.
-  const MCAsmInfo *MAI;
-
-  explicit MCSymbolRefExpr(const MCSymbol *_Symbol, VariantKind _Kind,
-                           const MCAsmInfo *_MAI)
-    : MCExpr(MCExpr::SymbolRef), Symbol(_Symbol), Kind(_Kind), MAI(_MAI) {
-    assert(Symbol);
-    assert(MAI);
-  }
+  explicit MCSymbolRefExpr(const MCSymbol *Symbol, VariantKind Kind,
+                           const MCAsmInfo *MAI);
 
 public:
   /// @name Construction
@@ -305,9 +317,12 @@ public:
   /// @{
 
   const MCSymbol &getSymbol() const { return *Symbol; }
-  const MCAsmInfo &getMCAsmInfo() const { return *MAI; }
 
-  VariantKind getKind() const { return Kind; }
+  VariantKind getKind() const { return static_cast<VariantKind>(Kind); }
+
+  void printVariantKind(raw_ostream &OS) const;
+
+  bool hasSubsectionsViaSymbols() const { return HasSubsectionsViaSymbols; }
 
   /// @}
   /// @name Static Utility Functions
@@ -525,7 +540,8 @@ public:
 
   virtual void PrintImpl(raw_ostream &OS) const = 0;
   virtual bool EvaluateAsRelocatableImpl(MCValue &Res,
-                                         const MCAsmLayout *Layout) const = 0;
+                                         const MCAsmLayout *Layout,
+                                         const MCFixup *Fixup) const = 0;
   virtual void visitUsedExpr(MCStreamer& Streamer) const = 0;
   virtual const MCSection *FindAssociatedSection() const = 0;
 

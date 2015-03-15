@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef ARMCALLINGCONV_H
-#define ARMCALLINGCONV_H
+#ifndef LLVM_LIB_TARGET_ARM_ARMCALLINGCONV_H
+#define LLVM_LIB_TARGET_ARM_ARMCALLINGCONV_H
 
 #include "ARM.h"
 #include "ARMBaseInstrInfo.h"
@@ -177,8 +177,9 @@ static bool CC_ARM_AAPCS_Custom_HA(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
                                    CCValAssign::LocInfo &LocInfo,
                                    ISD::ArgFlagsTy &ArgFlags, CCState &State) {
   SmallVectorImpl<CCValAssign> &PendingHAMembers = State.getPendingLocs();
+
   // AAPCS HFAs must have 1-4 elements, all of the same type
-  assert(PendingHAMembers.size() < 8);
+  assert(PendingHAMembers.size() < 4);
   if (PendingHAMembers.size() > 0)
     assert(PendingHAMembers[0].getLocVT() == LocVT);
 
@@ -188,26 +189,21 @@ static bool CC_ARM_AAPCS_Custom_HA(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
       CCValAssign::getPending(ValNo, ValVT, LocVT, LocInfo));
 
   if (ArgFlags.isInConsecutiveRegsLast()) {
-    assert(PendingHAMembers.size() > 0 && PendingHAMembers.size() <= 8 &&
+    assert(PendingHAMembers.size() > 0 && PendingHAMembers.size() <= 4 &&
            "Homogeneous aggregates must have between 1 and 4 members");
 
     // Try to allocate a contiguous block of registers, each of the correct
     // size to hold one member.
-    const uint16_t *RegList;
-    unsigned NumRegs;
+    ArrayRef<uint16_t> RegList;
     switch (LocVT.SimpleTy) {
-    case MVT::i32:
     case MVT::f32:
       RegList = SRegList;
-      NumRegs = 16;
       break;
     case MVT::f64:
       RegList = DRegList;
-      NumRegs = 8;
       break;
     case MVT::v2f64:
       RegList = QRegList;
-      NumRegs = 4;
       break;
     default:
       llvm_unreachable("Unexpected member type for HA");
@@ -215,7 +211,7 @@ static bool CC_ARM_AAPCS_Custom_HA(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
     }
 
     unsigned RegResult =
-        State.AllocateRegBlock(RegList, NumRegs, PendingHAMembers.size());
+        State.AllocateRegBlock(RegList, PendingHAMembers.size());
 
     if (RegResult) {
       for (SmallVectorImpl<CCValAssign>::iterator It = PendingHAMembers.begin();
@@ -235,20 +231,11 @@ static bool CC_ARM_AAPCS_Custom_HA(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
       State.AllocateReg(SRegList[regNo]);
 
     unsigned Size = LocVT.getSizeInBits() / 8;
-    unsigned Align = Size;
-
-    if (LocVT.SimpleTy == MVT::v2f64 || LocVT.SimpleTy == MVT::i32) {
-      // Vectors are always aligned to 8 bytes. If we've seen an i32 here
-      // it's because it's been split from a larger type, also with align 8.
-      Align = 8;
-    }
+    unsigned Align = std::min(Size, 8U);
 
     for (auto It : PendingHAMembers) {
       It.convertToMem(State.AllocateStack(Size, Align));
       State.addLoc(It);
-
-      // Only the first member needs to be aligned.
-      Align = 1;
     }
 
     // All pending members have now been allocated

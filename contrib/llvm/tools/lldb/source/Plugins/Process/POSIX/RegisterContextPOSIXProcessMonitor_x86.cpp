@@ -10,9 +10,13 @@
 #include "lldb/Target/Thread.h"
 #include "lldb/Core/RegisterValue.h"
 
-#include "ProcessPOSIX.h"
+#include "Plugins/Process/POSIX/ProcessPOSIX.h"
 #include "RegisterContextPOSIXProcessMonitor_x86.h"
-#include "ProcessMonitor.h"
+#if defined(__FreeBSD__)
+#include "Plugins/Process/FreeBSD/ProcessMonitor.h"
+#else
+#include "Plugins/Process/Linux/ProcessMonitor.h"
+#endif
 
 using namespace lldb_private;
 using namespace lldb;
@@ -48,6 +52,7 @@ size_and_rw_bits(size_t size, bool read, bool write)
         return (0x2 << 2) | rw;
     default:
         assert(0 && "invalid size, must be one of 1, 2, 4, or 8");
+        return 0; // Unreachable. Just to silence compiler.
     }
 }
 

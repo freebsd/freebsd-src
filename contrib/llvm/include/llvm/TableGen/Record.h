@@ -432,8 +432,8 @@ protected:
   /// readability for really no benefit.
   enum InitKind {
     IK_BitInit,
-    IK_BitsInit,
     IK_FirstTypedInit,
+    IK_BitsInit,
     IK_DagInit,
     IK_DefInit,
     IK_FieldInit,
@@ -651,11 +651,12 @@ public:
 /// BitsInit - { a, b, c } - Represents an initializer for a BitsRecTy value.
 /// It contains a vector of bits, whose size is determined by the type.
 ///
-class BitsInit : public Init, public FoldingSetNode {
+class BitsInit : public TypedInit, public FoldingSetNode {
   std::vector<Init*> Bits;
 
   BitsInit(ArrayRef<Init *> Range)
-    : Init(IK_BitsInit), Bits(Range.begin(), Range.end()) {}
+    : TypedInit(IK_BitsInit, BitsRecTy::get(Range.size())),
+      Bits(Range.begin(), Range.end()) {}
 
   BitsInit(const BitsInit &Other) LLVM_DELETED_FUNCTION;
   BitsInit &operator=(const BitsInit &Other) LLVM_DELETED_FUNCTION;
@@ -687,6 +688,14 @@ public:
     return true;
   }
   std::string getAsString() const override;
+
+  /// resolveListElementReference - This method is used to implement
+  /// VarListElementInit::resolveReferences.  If the list element is resolvable
+  /// now, we return the resolved value, otherwise we return null.
+  Init *resolveListElementReference(Record &R, const RecordVal *RV,
+                                    unsigned Elt) const override {
+    llvm_unreachable("Illegal element reference off bits<n>");
+  }
 
   Init *resolveReferences(Record &R, const RecordVal *RV) const override;
 
@@ -928,7 +937,7 @@ public:
 ///
 class BinOpInit : public OpInit {
 public:
-  enum BinaryOp { ADD, SHL, SRA, SRL, LISTCONCAT, STRCONCAT, CONCAT, EQ };
+  enum BinaryOp { ADD, AND, SHL, SRA, SRL, LISTCONCAT, STRCONCAT, CONCAT, EQ };
 
 private:
   BinaryOp Opc;
@@ -1392,6 +1401,18 @@ class Record {
   DefInit *TheInit;
   bool IsAnonymous;
 
+  // Class-instance values can be used by other defs.  For example, Struct<i>
+  // is used here as a template argument to another class:
+  //
+  //   multiclass MultiClass<int i> {
+  //     def Def : Class<Struct<i>>;
+  //
+  // These need to get fully resolved before instantiating any other
+  // definitions that usie them (e.g. Def).  However, inside a multiclass they
+  // can't be immediately resolved so we mark them ResolveFirst to fully
+  // resolve them later as soon as the multiclass is instantiated.
+  bool ResolveFirst;
+
   void init();
   void checkName();
 
@@ -1400,13 +1421,15 @@ public:
   explicit Record(const std::string &N, ArrayRef<SMLoc> locs,
                   RecordKeeper &records, bool Anonymous = false) :
     ID(LastID++), Name(StringInit::get(N)), Locs(locs.begin(), locs.end()),
-    TrackedRecords(records), TheInit(nullptr), IsAnonymous(Anonymous) {
+    TrackedRecords(records), TheInit(nullptr), IsAnonymous(Anonymous),
+    ResolveFirst(false) {
     init();
   }
   explicit Record(Init *N, ArrayRef<SMLoc> locs, RecordKeeper &records,
                   bool Anonymous = false) :
     ID(LastID++), Name(N), Locs(locs.begin(), locs.end()),
-    TrackedRecords(records), TheInit(nullptr), IsAnonymous(Anonymous) {
+    TrackedRecords(records), TheInit(nullptr), IsAnonymous(Anonymous),
+    ResolveFirst(false) {
     init();
   }
 
@@ -1416,7 +1439,8 @@ public:
     ID(LastID++), Name(O.Name), Locs(O.Locs), TemplateArgs(O.TemplateArgs),
     Values(O.Values), SuperClasses(O.SuperClasses),
     SuperClassRanges(O.SuperClassRanges), TrackedRecords(O.TrackedRecords),
-    TheInit(O.TheInit), IsAnonymous(O.IsAnonymous) { }
+    TheInit(O.TheInit), IsAnonymous(O.IsAnonymous),
+    ResolveFirst(O.ResolveFirst) { }
 
   ~Record() {}
 
@@ -1544,6 +1568,14 @@ public:
     return IsAnonymous;
   }
 
+  bool isResolveFirst() const {
+    return ResolveFirst;
+  }
+
+  void setResolveFirst(bool b) {
+    ResolveFirst = b;
+  }
+
   void dump() const;
 
   //===--------------------------------------------------------------------===//
@@ -1631,7 +1663,7 @@ raw_ostream &operator<<(raw_ostream &OS, const Record &R);
 
 struct MultiClass {
   Record Rec;  // Placeholder for template args and Name.
-  typedef std::vector<Record*> RecordVector;
+  typedef std::vector<std::unique_ptr<Record>> RecordVector;
   RecordVector DefPrototypes;
 
   void dump() const;
@@ -1641,51 +1673,32 @@ struct MultiClass {
 };
 
 class RecordKeeper {
-  std::map<std::string, Record*> Classes, Defs;
+  typedef std::map<std::string, std::unique_ptr<Record>> RecordMap;
+  RecordMap Classes, Defs;
 
 public:
-  ~RecordKeeper() {
-    for (std::map<std::string, Record*>::iterator I = Classes.begin(),
-           E = Classes.end(); I != E; ++I)
-      delete I->second;
-    for (std::map<std::string, Record*>::iterator I = Defs.begin(),
-           E = Defs.end(); I != E; ++I)
-      delete I->second;
-  }
-
-  const std::map<std::string, Record*> &getClasses() const { return Classes; }
-  const std::map<std::string, Record*> &getDefs() const { return Defs; }
+  const RecordMap &getClasses() const { return Classes; }
+  const RecordMap &getDefs() const { return Defs; }
 
   Record *getClass(const std::string &Name) const {
-    std::map<std::string, Record*>::const_iterator I = Classes.find(Name);
-    return I == Classes.end() ? nullptr : I->second;
+    auto I = Classes.find(Name);
+    return I == Classes.end() ? nullptr : I->second.get();
   }
   Record *getDef(const std::string &Name) const {
-    std::map<std::string, Record*>::const_iterator I = Defs.find(Name);
-    return I == Defs.end() ? nullptr : I->second;
+    auto I = Defs.find(Name);
+    return I == Defs.end() ? nullptr : I->second.get();
   }
-  void addClass(Record *R) {
-    bool Ins = Classes.insert(std::make_pair(R->getName(), R)).second;
+  void addClass(std::unique_ptr<Record> R) {
+    bool Ins = Classes.insert(std::make_pair(R->getName(),
+                                             std::move(R))).second;
     (void)Ins;
     assert(Ins && "Class already exists");
   }
-  void addDef(Record *R) {
-    bool Ins = Defs.insert(std::make_pair(R->getName(), R)).second;
+  void addDef(std::unique_ptr<Record> R) {
+    bool Ins = Defs.insert(std::make_pair(R->getName(),
+                                          std::move(R))).second;
     (void)Ins;
     assert(Ins && "Record already exists");
-  }
-
-  /// removeClass - Remove, but do not delete, the specified record.
-  ///
-  void removeClass(const std::string &Name) {
-    assert(Classes.count(Name) && "Class does not exist!");
-    Classes.erase(Name);
-  }
-  /// removeDef - Remove, but do not delete, the specified record.
-  ///
-  void removeDef(const std::string &Name) {
-    assert(Defs.count(Name) && "Def does not exist!");
-    Defs.erase(Name);
   }
 
   //===--------------------------------------------------------------------===//

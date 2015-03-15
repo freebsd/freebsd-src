@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CODEGEN_DAGPATTERNS_H
-#define CODEGEN_DAGPATTERNS_H
+#ifndef LLVM_UTILS_TABLEGEN_CODEGENDAGPATTERNS_H
+#define LLVM_UTILS_TABLEGEN_CODEGENDAGPATTERNS_H
 
 #include "CodeGenIntrinsics.h"
 #include "CodeGenTarget.h"
@@ -597,7 +597,7 @@ public:
 
   /// error - If this is the first error in the current resolution step,
   /// print it and set the error flag.  Otherwise, continue silently.
-  void error(const std::string &Msg);
+  void error(const Twine &Msg);
   bool hasError() const {
     return HasError;
   }
@@ -667,7 +667,7 @@ public:
   PatternToMatch(Record *srcrecord, ListInit *preds,
                  TreePatternNode *src, TreePatternNode *dst,
                  const std::vector<Record*> &dstregs,
-                 unsigned complexity, unsigned uid)
+                 int complexity, unsigned uid)
     : SrcRecord(srcrecord), Predicates(preds), SrcPattern(src), DstPattern(dst),
       Dstregs(dstregs), AddedComplexity(complexity), ID(uid) {}
 
@@ -676,7 +676,7 @@ public:
   TreePatternNode *SrcPattern;  // Source pattern to match.
   TreePatternNode *DstPattern;  // Resulting pattern.
   std::vector<Record*> Dstregs; // Physical register defs being matched.
-  unsigned         AddedComplexity; // Add to matching pattern complexity.
+  int              AddedComplexity; // Add to matching pattern complexity.
   unsigned         ID;          // Unique ID for the record.
 
   Record          *getSrcRecord()  const { return SrcRecord; }
@@ -684,13 +684,13 @@ public:
   TreePatternNode *getSrcPattern() const { return SrcPattern; }
   TreePatternNode *getDstPattern() const { return DstPattern; }
   const std::vector<Record*> &getDstRegs() const { return Dstregs; }
-  unsigned         getAddedComplexity() const { return AddedComplexity; }
+  int         getAddedComplexity() const { return AddedComplexity; }
 
   std::string getPredicateCheck() const;
 
   /// Compute the complexity metric for the input pattern.  This roughly
   /// corresponds to the number of nodes that are covered.
-  unsigned getPatternComplexity(const CodeGenDAGPatterns &CGP) const;
+  int getPatternComplexity(const CodeGenDAGPatterns &CGP) const;
 };
 
 class CodeGenDAGPatterns {
@@ -702,7 +702,8 @@ class CodeGenDAGPatterns {
   std::map<Record*, SDNodeInfo, LessRecordByID> SDNodes;
   std::map<Record*, std::pair<Record*, std::string>, LessRecordByID> SDNodeXForms;
   std::map<Record*, ComplexPattern, LessRecordByID> ComplexPatterns;
-  std::map<Record*, TreePattern*, LessRecordByID> PatternFragments;
+  std::map<Record *, std::unique_ptr<TreePattern>, LessRecordByID>
+      PatternFragments;
   std::map<Record*, DAGDefaultOperand, LessRecordByID> DefaultOperands;
   std::map<Record*, DAGInstruction, LessRecordByID> Instructions;
 
@@ -716,7 +717,6 @@ class CodeGenDAGPatterns {
   std::vector<PatternToMatch> PatternsToMatch;
 public:
   CodeGenDAGPatterns(RecordKeeper &R);
-  ~CodeGenDAGPatterns();
 
   CodeGenTarget &getTargetInfo() { return Target; }
   const CodeGenTarget &getTargetInfo() const { return Target; }
@@ -778,15 +778,16 @@ public:
   // Pattern Fragment information.
   TreePattern *getPatternFragment(Record *R) const {
     assert(PatternFragments.count(R) && "Invalid pattern fragment request!");
-    return PatternFragments.find(R)->second;
+    return PatternFragments.find(R)->second.get();
   }
   TreePattern *getPatternFragmentIfRead(Record *R) const {
-    if (!PatternFragments.count(R)) return nullptr;
-    return PatternFragments.find(R)->second;
+    if (!PatternFragments.count(R))
+      return nullptr;
+    return PatternFragments.find(R)->second.get();
   }
 
-  typedef std::map<Record*, TreePattern*, LessRecordByID>::const_iterator
-          pf_iterator;
+  typedef std::map<Record *, std::unique_ptr<TreePattern>,
+                   LessRecordByID>::const_iterator pf_iterator;
   pf_iterator pf_begin() const { return PatternFragments.begin(); }
   pf_iterator pf_end() const { return PatternFragments.end(); }
 

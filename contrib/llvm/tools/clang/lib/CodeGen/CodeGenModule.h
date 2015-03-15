@@ -11,12 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_CODEGEN_CODEGENMODULE_H
-#define CLANG_CODEGEN_CODEGENMODULE_H
+#ifndef LLVM_CLANG_LIB_CODEGEN_CODEGENMODULE_H
+#define LLVM_CLANG_LIB_CODEGEN_CODEGENMODULE_H
 
 #include "CGVTables.h"
 #include "CodeGenTypes.h"
-#include "SanitizerBlacklist.h"
+#include "SanitizerMetadata.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
@@ -25,6 +25,7 @@
 #include "clang/Basic/ABI.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/Module.h"
+#include "clang/Basic/SanitizerBlacklist.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
@@ -72,6 +73,7 @@ class DiagnosticsEngine;
 class AnnotateAttr;
 class CXXDestructorDecl;
 class Module;
+class CoverageSourceInfo;
 
 namespace CodeGen {
 
@@ -86,6 +88,7 @@ class CGOpenMPRuntime;
 class CGCUDARuntime;
 class BlockFieldFlags;
 class FunctionArgList;
+class CoverageMappingModuleGen;
 
 struct OrderGlobalInits {
   unsigned int priority;
@@ -147,6 +150,8 @@ struct CodeGenTypeCache {
 
   llvm::CallingConv::ID RuntimeCC;
   llvm::CallingConv::ID getRuntimeCC() const { return RuntimeCC; }
+  llvm::CallingConv::ID BuiltinCC;
+  llvm::CallingConv::ID getBuiltinCC() const { return BuiltinCC; }
 };
 
 struct RREntrypoints {
@@ -256,6 +261,7 @@ class CodeGenModule : public CodeGenTypeCache {
   CodeGenModule(const CodeGenModule &) LLVM_DELETED_FUNCTION;
   void operator=(const CodeGenModule &) LLVM_DELETED_FUNCTION;
 
+public:
   struct Structor {
     Structor() : Priority(0), Initializer(nullptr), AssociatedData(nullptr) {}
     Structor(int Priority, llvm::Constant *Initializer,
@@ -269,6 +275,7 @@ class CodeGenModule : public CodeGenTypeCache {
 
   typedef std::vector<Structor> CtorList;
 
+private:
   ASTContext &Context;
   const LangOptions &LangOpts;
   const CodeGenOptions &CodeGenOpts;
@@ -317,7 +324,7 @@ class CodeGenModule : public CodeGenTypeCache {
   /// referenced. These get code generated when the module is done.
   struct DeferredGlobal {
     DeferredGlobal(llvm::GlobalValue *GV, GlobalDecl GD) : GV(GV), GD(GD) {}
-    llvm::AssertingVH<llvm::GlobalValue> GV;
+    llvm::TrackingVH<llvm::GlobalValue> GV;
     GlobalDecl GD;
   };
   std::vector<DeferredGlobal> DeferredDeclsToEmit;
@@ -384,10 +391,11 @@ class CodeGenModule : public CodeGenTypeCache {
 
   /// \brief thread_local variables with initializers that need to run
   /// before any thread_local variable in this TU is odr-used.
-  std::vector<llvm::Constant*> CXXThreadLocalInits;
+  std::vector<llvm::Function *> CXXThreadLocalInits;
+  std::vector<llvm::GlobalVariable *> CXXThreadLocalInitVars;
 
   /// Global variables with initializers that need to run before main.
-  std::vector<llvm::Constant*> CXXGlobalInits;
+  std::vector<llvm::Function *> CXXGlobalInits;
 
   /// When a C++ decl with an initializer is deferred, null is
   /// appended to CXXGlobalInits, and the index of that null is placed
@@ -415,7 +423,7 @@ class CodeGenModule : public CodeGenTypeCache {
   llvm::SetVector<clang::Module *> ImportedModules;
 
   /// \brief A vector of metadata strings.
-  SmallVector<llvm::Value *, 16> LinkerOptionsMetadata;
+  SmallVector<llvm::Metadata *, 16> LinkerOptionsMetadata;
 
   /// @name Cache for Objective-C runtime types
   /// @{
@@ -471,13 +479,18 @@ class CodeGenModule : public CodeGenTypeCache {
 
   GlobalDecl initializedGlobalDecl;
 
-  SanitizerBlacklist SanitizerBL;
+  std::unique_ptr<SanitizerMetadata> SanitizerMD;
 
   /// @}
+
+  llvm::DenseMap<const Decl *, bool> DeferredEmptyCoverageMappingDecls;
+
+  std::unique_ptr<CoverageMappingModuleGen> CoverageMapping;
 public:
   CodeGenModule(ASTContext &C, const CodeGenOptions &CodeGenOpts,
                 llvm::Module &M, const llvm::DataLayout &TD,
-                DiagnosticsEngine &Diags);
+                DiagnosticsEngine &Diags,
+                CoverageSourceInfo *CoverageInfo = nullptr);
 
   ~CodeGenModule();
 
@@ -526,6 +539,10 @@ public:
   InstrProfStats &getPGOStats() { return PGOStats; }
   llvm::IndexedInstrProfReader *getPGOReader() const { return PGOReader.get(); }
 
+  CoverageMappingModuleGen *getCoverageMapping() const {
+    return CoverageMapping.get();
+  }
+
   llvm::Constant *getStaticLocalDeclAddress(const VarDecl *D) {
     return StaticLocalDeclMap[D];
   }
@@ -533,6 +550,10 @@ public:
                                  llvm::Constant *C) {
     StaticLocalDeclMap[D] = C;
   }
+
+  llvm::Constant *
+  getOrCreateStaticVarDecl(const VarDecl &D,
+                           llvm::GlobalValue::LinkageTypes Linkage);
 
   llvm::GlobalVariable *getStaticLocalDeclGuardAddress(const VarDecl *D) {
     return StaticLocalDeclGuardMap[D];
@@ -572,9 +593,7 @@ public:
 
   llvm::MDNode *getNoObjCARCExceptionsMetadata() {
     if (!NoObjCARCExceptionsMetadata)
-      NoObjCARCExceptionsMetadata =
-        llvm::MDNode::get(getLLVMContext(),
-                          SmallVector<llvm::Value*,1>());
+      NoObjCARCExceptionsMetadata = llvm::MDNode::get(getLLVMContext(), None);
     return NoObjCARCExceptionsMetadata;
   }
 
@@ -585,6 +604,9 @@ public:
   DiagnosticsEngine &getDiags() const { return Diags; }
   const llvm::DataLayout &getDataLayout() const { return TheDataLayout; }
   const TargetInfo &getTarget() const { return Target; }
+  const llvm::Triple &getTriple() const;
+  bool supportsCOMDAT() const;
+
   CGCXXABI &getCXXABI() const { return *ABI; }
   llvm::LLVMContext &getLLVMContext() { return VMContext; }
 
@@ -603,6 +625,9 @@ public:
   MicrosoftVTableContext &getMicrosoftVTableContext() {
     return VTables.getMicrosoftVTableContext();
   }
+
+  CtorList &getGlobalCtors() { return GlobalCtors; }
+  CtorList &getGlobalDtors() { return GlobalDtors; }
 
   llvm::MDNode *getTBAAInfo(QualType QTy);
   llvm::MDNode *getTBAAInfoForVTablePtr();
@@ -632,9 +657,9 @@ public:
   /// Set the visibility for the given LLVM GlobalValue.
   void setGlobalVisibility(llvm::GlobalValue *GV, const NamedDecl *D) const;
 
-  /// Set the TLS mode for the given LLVM GlobalVariable for the thread-local
+  /// Set the TLS mode for the given LLVM GlobalValue for the thread-local
   /// variable declaration D.
-  void setTLSMode(llvm::GlobalVariable *GV, const VarDecl &D) const;
+  void setTLSMode(llvm::GlobalValue *GV, const VarDecl &D) const;
 
   static llvm::GlobalValue::VisibilityTypes GetLLVMVisibility(Visibility V) {
     switch (V) {
@@ -647,11 +672,11 @@ public:
 
   llvm::Constant *GetAddrOfGlobal(GlobalDecl GD) {
     if (isa<CXXConstructorDecl>(GD.getDecl()))
-      return GetAddrOfCXXConstructor(cast<CXXConstructorDecl>(GD.getDecl()),
-                                     GD.getCtorType());
+      return getAddrOfCXXStructor(cast<CXXConstructorDecl>(GD.getDecl()),
+                                  getFromCtorType(GD.getCtorType()));
     else if (isa<CXXDestructorDecl>(GD.getDecl()))
-      return GetAddrOfCXXDestructor(cast<CXXDestructorDecl>(GD.getDecl()),
-                                     GD.getDtorType());
+      return getAddrOfCXXStructor(cast<CXXDestructorDecl>(GD.getDecl()),
+                                  getFromDtorType(GD.getDtorType()));
     else if (isa<FunctionDecl>(GD.getDecl()))
       return GetAddrOfFunction(GD);
     else
@@ -665,6 +690,11 @@ public:
   llvm::GlobalVariable *
   CreateOrReplaceCXXRuntimeVariable(StringRef Name, llvm::Type *Ty,
                                     llvm::GlobalValue::LinkageTypes Linkage);
+
+  llvm::Function *
+  CreateGlobalInitOrDestructFunction(llvm::FunctionType *ty, const Twine &name,
+                                     SourceLocation Loc = SourceLocation(),
+                                     bool TLS = false);
 
   /// Return the address space of the underlying global variable for D, as
   /// determined by its declaration. Normally this is the same as the address
@@ -759,7 +789,8 @@ public:
 
   /// Return a pointer to a constant array for the given string literal.
   llvm::GlobalVariable *
-  GetAddrOfConstantStringFromLiteral(const StringLiteral *S);
+  GetAddrOfConstantStringFromLiteral(const StringLiteral *S,
+                                     StringRef Name = ".str");
 
   /// Return a pointer to a constant array for the given ObjCEncodeExpr node.
   llvm::GlobalVariable *
@@ -787,20 +818,19 @@ public:
   /// \brief Retrieve the record type that describes the state of an
   /// Objective-C fast enumeration loop (for..in).
   QualType getObjCFastEnumerationStateType();
-  
-  /// Return the address of the constructor of the given type.
-  llvm::GlobalValue *
-  GetAddrOfCXXConstructor(const CXXConstructorDecl *ctor, CXXCtorType ctorType,
-                          const CGFunctionInfo *fnInfo = nullptr,
-                          bool DontDefer = false);
 
-  /// Return the address of the constructor of the given type.
+  // Produce code for this constructor/destructor. This method doesn't try
+  // to apply any ABI rules about which other constructors/destructors
+  // are needed or if they are alias to each other.
+  llvm::Function *codegenCXXStructor(const CXXMethodDecl *MD,
+                                     StructorType Type);
+
+  /// Return the address of the constructor/destructor of the given type.
   llvm::GlobalValue *
-  GetAddrOfCXXDestructor(const CXXDestructorDecl *dtor,
-                         CXXDtorType dtorType,
-                         const CGFunctionInfo *fnInfo = nullptr,
-                         llvm::FunctionType *fnType = nullptr,
-                         bool DontDefer = false);
+  getAddrOfCXXStructor(const CXXMethodDecl *MD, StructorType Type,
+                       const CGFunctionInfo *FnInfo = nullptr,
+                       llvm::FunctionType *FnType = nullptr,
+                       bool DontDefer = false);
 
   /// Given a builtin id for a function like "__builtin_fabsf", return a
   /// Function* for "fabsf".
@@ -811,6 +841,18 @@ public:
 
   /// Emit code for a single top level declaration.
   void EmitTopLevelDecl(Decl *D);
+
+  /// \brief Stored a deferred empty coverage mapping for an unused
+  /// and thus uninstrumented top level declaration.
+  void AddDeferredUnusedCoverageMapping(Decl *D);
+
+  /// \brief Remove the deferred empty coverage mapping as this
+  /// declaration is actually instrumented.
+  void ClearUnusedCoverageMapping(const Decl *D);
+
+  /// \brief Emit all the deferred coverage mappings
+  /// for the uninstrumented functions.
+  void EmitDeferredUnusedCoverageMappings();
 
   /// Tell the consumer that this variable has been instantiated.
   void HandleCXXStaticMemberVarInstantiation(VarDecl *VD);
@@ -834,6 +876,11 @@ public:
 
   /// Create a new runtime function with the specified type and name.
   llvm::Constant *CreateRuntimeFunction(llvm::FunctionType *Ty,
+                                        StringRef Name,
+                                        llvm::AttributeSet ExtraAttrs =
+                                          llvm::AttributeSet());
+  /// Create a new compiler builtin function with the specified type and name.
+  llvm::Constant *CreateBuiltinFunction(llvm::FunctionType *Ty,
                                         StringRef Name,
                                         llvm::AttributeSet ExtraAttrs =
                                           llvm::AttributeSet());
@@ -910,7 +957,7 @@ public:
                                  llvm::Function *F);
 
   /// Set the LLVM function attributes which only apply to a function
-  /// definintion.
+  /// definition.
   void SetLLVMFunctionAttributesForDefinition(const Decl *D, llvm::Function *F);
 
   /// Return true iff the given type uses 'sret' when used as a return type.
@@ -1009,18 +1056,15 @@ public:
   /// annotations are emitted during finalization of the LLVM code.
   void AddGlobalAnnotations(const ValueDecl *D, llvm::GlobalValue *GV);
 
-  const SanitizerBlacklist &getSanitizerBlacklist() const {
-    return SanitizerBL;
+  bool isInSanitizerBlacklist(llvm::Function *Fn, SourceLocation Loc) const;
+
+  bool isInSanitizerBlacklist(llvm::GlobalVariable *GV, SourceLocation Loc,
+                              QualType Ty,
+                              StringRef Category = StringRef()) const;
+
+  SanitizerMetadata *getSanitizerMetadata() {
+    return SanitizerMD.get();
   }
-
-  void reportGlobalToASan(llvm::GlobalVariable *GV, const VarDecl &D,
-                          bool IsDynInit = false);
-  void reportGlobalToASan(llvm::GlobalVariable *GV, SourceLocation Loc,
-                          StringRef Name, bool IsDynInit = false,
-                          bool IsBlacklisted = false);
-
-  /// Disable sanitizer instrumentation for this global.
-  void disableSanitizerForGlobal(llvm::GlobalVariable *GV);
 
   void addDeferredVTable(const CXXRecordDecl *RD) {
     DeferredVTables.push_back(RD);
@@ -1030,17 +1074,15 @@ public:
   /// are emitted lazily.
   void EmitGlobal(GlobalDecl D);
 
-private:
+  bool TryEmitDefinitionAsAlias(GlobalDecl Alias, GlobalDecl Target,
+                                bool InEveryTU);
+  bool TryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D);
+
+  /// Set attributes for a global definition.
+  void setFunctionDefinitionAttributes(const FunctionDecl *D,
+                                       llvm::Function *F);
+
   llvm::GlobalValue *GetGlobalValue(StringRef Ref);
-
-  llvm::Constant *
-  GetOrCreateLLVMFunction(StringRef MangledName, llvm::Type *Ty, GlobalDecl D,
-                          bool ForVTable, bool DontDefer = false,
-                          llvm::AttributeSet ExtraAttrs = llvm::AttributeSet());
-
-  llvm::Constant *GetOrCreateLLVMGlobal(StringRef MangledName,
-                                        llvm::PointerType *PTy,
-                                        const VarDecl *D);
 
   /// Set attributes which are common to any form of a global definition (alias,
   /// Objective-C method, function, global variable).
@@ -1048,16 +1090,34 @@ private:
   /// NOTE: This should only be called for definitions.
   void SetCommonAttributes(const Decl *D, llvm::GlobalValue *GV);
 
+  /// Set attributes which must be preserved by an alias. This includes common
+  /// attributes (i.e. it includes a call to SetCommonAttributes).
+  ///
+  /// NOTE: This should only be called for definitions.
+  void setAliasAttributes(const Decl *D, llvm::GlobalValue *GV);
+
+  void addReplacement(StringRef Name, llvm::Constant *C);
+
+  /// \brief Emit a code for threadprivate directive.
+  /// \param D Threadprivate declaration.
+  void EmitOMPThreadPrivateDecl(const OMPThreadPrivateDecl *D);
+
+private:
+  llvm::Constant *
+  GetOrCreateLLVMFunction(StringRef MangledName, llvm::Type *Ty, GlobalDecl D,
+                          bool ForVTable, bool DontDefer = false,
+                          bool IsThunk = false,
+                          llvm::AttributeSet ExtraAttrs = llvm::AttributeSet());
+
+  llvm::Constant *GetOrCreateLLVMGlobal(StringRef MangledName,
+                                        llvm::PointerType *PTy,
+                                        const VarDecl *D);
+
   void setNonAliasAttributes(const Decl *D, llvm::GlobalObject *GO);
 
-  /// Set attributes for a global definition.
-  void setFunctionDefinitionAttributes(const FunctionDecl *D,
-                                       llvm::Function *F);
-
   /// Set function attributes for a function declaration.
-  void SetFunctionAttributes(GlobalDecl GD,
-                             llvm::Function *F,
-                             bool IsIncompleteFunction);
+  void SetFunctionAttributes(GlobalDecl GD, llvm::Function *F,
+                             bool IsIncompleteFunction, bool IsThunk);
 
   void EmitGlobalDefinition(GlobalDecl D, llvm::GlobalValue *GV = nullptr);
 
@@ -1069,19 +1129,9 @@ private:
   
   // C++ related functions.
 
-  bool TryEmitDefinitionAsAlias(GlobalDecl Alias, GlobalDecl Target,
-                                bool InEveryTU);
-  bool TryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D);
-
   void EmitNamespace(const NamespaceDecl *D);
   void EmitLinkageSpec(const LinkageSpecDecl *D);
   void CompleteDIClassType(const CXXMethodDecl* D);
-
-  /// Emit a single constructor with the given type from a C++ constructor Decl.
-  void EmitCXXConstructor(const CXXConstructorDecl *D, CXXCtorType Type);
-
-  /// Emit a single destructor with the given type from a C++ destructor Decl.
-  void EmitCXXDestructor(const CXXDestructorDecl *D, CXXDtorType Type);
 
   /// \brief Emit the function that initializes C++ thread_local variables.
   void EmitCXXThreadLocalInitFunc();
@@ -1148,11 +1198,17 @@ private:
   void EmitCoverageFile();
 
   /// Emits the initializer for a uuidof string.
-  llvm::Constant *EmitUuidofInitializer(StringRef uuidstr, QualType IIDType);
+  llvm::Constant *EmitUuidofInitializer(StringRef uuidstr);
 
-  /// Determine if the given decl can be emitted lazily; this is only relevant
-  /// for definitions. The given decl must be either a function or var decl.
-  bool MayDeferGeneration(const ValueDecl *D);
+  /// Determine whether the definition must be emitted; if this returns \c
+  /// false, the definition can be emitted lazily if it's used.
+  bool MustBeEmitted(const ValueDecl *D);
+
+  /// Determine whether the definition can be emitted eagerly, or should be
+  /// delayed until the end of the translation unit. This is relevant for
+  /// definitions whose linkage can change, e.g. implicit function instantions
+  /// which may later be explicitly instantiated.
+  bool MayBeEmittedEagerly(const ValueDecl *D);
 
   /// Check whether we can use a "simpler", more core exceptions personality
   /// function.

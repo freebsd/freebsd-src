@@ -9,10 +9,8 @@
 
 #include "lldb/Host/Config.h"
 
-#ifndef LLDB_DISABLE_POSIX
-#include <spawn.h>
-#endif
-
+#include "lldb/Core/Debugger.h"
+#include "lldb/Core/Log.h"
 #include "lldb/Target/ProcessLaunchInfo.h"
 #include "lldb/Target/FileAction.h"
 #include "lldb/Target/Target.h"
@@ -28,32 +26,32 @@ ProcessLaunchInfo::ProcessLaunchInfo () :
     ProcessInfo(),
     m_working_dir (),
     m_plugin_name (),
-    m_shell (),
     m_flags (0),
     m_file_actions (),
-    m_pty (),
+    m_pty (new lldb_utility::PseudoTerminal),
     m_resume_count (0),
     m_monitor_callback (NULL),
     m_monitor_callback_baton (NULL),
     m_monitor_signals (false),
+    m_listener_sp (),
     m_hijack_listener_sp ()
 {
 }
 
 ProcessLaunchInfo::ProcessLaunchInfo(const char *stdin_path, const char *stdout_path, const char *stderr_path,
-                                     const char *working_directory, uint32_t launch_flags)
-    : ProcessInfo()
-    , m_working_dir()
-    , m_plugin_name()
-    , m_shell()
-    , m_flags(launch_flags)
-    , m_file_actions()
-    , m_pty()
-    , m_resume_count(0)
-    , m_monitor_callback(NULL)
-    , m_monitor_callback_baton(NULL)
-    , m_monitor_signals(false)
-    , m_hijack_listener_sp()
+                                     const char *working_directory, uint32_t launch_flags) :
+    ProcessInfo(),
+    m_working_dir(),
+    m_plugin_name(),
+    m_flags(launch_flags),
+    m_file_actions(),
+    m_pty(new lldb_utility::PseudoTerminal),
+    m_resume_count(0),
+    m_monitor_callback(NULL),
+    m_monitor_callback_baton(NULL),
+    m_monitor_signals(false),
+    m_listener_sp (),
+    m_hijack_listener_sp()
 {
     if (stdin_path)
     {
@@ -184,27 +182,23 @@ ProcessLaunchInfo::SetProcessPluginName (const char *plugin)
         m_plugin_name.clear();
 }
 
-const char *
+const FileSpec &
 ProcessLaunchInfo::GetShell () const
 {
-    if (m_shell.empty())
-        return NULL;
-    return m_shell.c_str();
+    return m_shell;
 }
 
 void
-ProcessLaunchInfo::SetShell (const char * path)
+ProcessLaunchInfo::SetShell (const FileSpec &shell)
 {
-    if (path && path[0])
+    m_shell = shell;
+    if (m_shell)
     {
-        m_shell.assign (path);
+        m_shell.ResolveExecutableLocation();
         m_flags.Set (lldb::eLaunchFlagLaunchInShell);
     }
     else
-    {
-        m_shell.clear();
         m_flags.Clear (lldb::eLaunchFlagLaunchInShell);
-    }
 }
 
 void
@@ -223,10 +217,11 @@ ProcessLaunchInfo::Clear ()
     ProcessInfo::Clear();
     m_working_dir.clear();
     m_plugin_name.clear();
-    m_shell.clear();
+    m_shell.Clear();
     m_flags.Clear();
     m_file_actions.clear();
     m_resume_count = 0;
+    m_listener_sp.reset();
     m_hijack_listener_sp.reset();
 }
 
@@ -266,13 +261,23 @@ ProcessLaunchInfo::SetDetachOnError (bool enable)
 void
 ProcessLaunchInfo::FinalizeFileActions (Target *target, bool default_to_use_pty)
 {
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_PROCESS));
+
     // If nothing for stdin or stdout or stderr was specified, then check the process for any default
     // settings that were set with "settings set"
-    if (GetFileActionForFD(STDIN_FILENO) == NULL || GetFileActionForFD(STDOUT_FILENO) == NULL ||
+    if (GetFileActionForFD(STDIN_FILENO) == NULL ||
+        GetFileActionForFD(STDOUT_FILENO) == NULL ||
         GetFileActionForFD(STDERR_FILENO) == NULL)
     {
+        if (log)
+            log->Printf ("ProcessLaunchInfo::%s at least one of stdin/stdout/stderr was not set, evaluating default handling",
+                         __FUNCTION__);
+
         if (m_flags.Test(eLaunchFlagDisableSTDIO))
         {
+            if (log)
+                log->Printf ("ProcessLaunchInfo::%s eLaunchFlagDisableSTDIO set, adding suppression action for stdin, stdout and stderr",
+                             __FUNCTION__);
             AppendSuppressFileAction (STDIN_FILENO , true, false);
             AppendSuppressFileAction (STDOUT_FILENO, false, true);
             AppendSuppressFileAction (STDERR_FILENO, false, true);
@@ -288,34 +293,79 @@ ProcessLaunchInfo::FinalizeFileActions (Target *target, bool default_to_use_pty)
             FileSpec err_path;
             if (target)
             {
-                in_path = target->GetStandardInputPath();
-                out_path = target->GetStandardOutputPath();
-                err_path = target->GetStandardErrorPath();
+                // Only override with the target settings if we don't already have
+                // an action for in, out or error
+                if (GetFileActionForFD(STDIN_FILENO) == NULL)
+                    in_path = target->GetStandardInputPath();
+                if (GetFileActionForFD(STDOUT_FILENO) == NULL)
+                    out_path = target->GetStandardOutputPath();
+                if (GetFileActionForFD(STDERR_FILENO) == NULL)
+                    err_path = target->GetStandardErrorPath();
             }
+
+            if (log)
+                log->Printf ("ProcessLaunchInfo::%s target stdin='%s', target stdout='%s', stderr='%s'",
+                             __FUNCTION__,
+                              in_path ?  in_path.GetPath().c_str () : "<null>",
+                             out_path ? out_path.GetPath().c_str () : "<null>",
+                             err_path ? err_path.GetPath().c_str () : "<null>");
 
             char path[PATH_MAX];
             if (in_path && in_path.GetPath(path, sizeof(path)))
+            {
                 AppendOpenFileAction(STDIN_FILENO, path, true, false);
+                if (log)
+                    log->Printf ("ProcessLaunchInfo::%s appended stdin open file action for %s",
+                                 __FUNCTION__,
+                                 in_path.GetPath().c_str ());
+            }
 
             if (out_path && out_path.GetPath(path, sizeof(path)))
+            {
                 AppendOpenFileAction(STDOUT_FILENO, path, false, true);
+                if (log)
+                    log->Printf ("ProcessLaunchInfo::%s appended stdout open file action for %s",
+                                 __FUNCTION__,
+                                 out_path.GetPath().c_str ());
+            }
 
             if (err_path && err_path.GetPath(path, sizeof(path)))
+            {
+                if (log)
+                    log->Printf ("ProcessLaunchInfo::%s appended stderr open file action for %s",
+                                 __FUNCTION__,
+                                 err_path.GetPath().c_str ());
                 AppendOpenFileAction(STDERR_FILENO, path, false, true);
+            }
 
-            if (default_to_use_pty && (!in_path || !out_path || !err_path)) {
-                if (m_pty.OpenFirstAvailableMaster(O_RDWR| O_NOCTTY, NULL, 0)) {
-                    const char *slave_path = m_pty.GetSlaveName(NULL, 0);
+            if (default_to_use_pty && (!in_path || !out_path || !err_path))
+            {
+                if (log)
+                    log->Printf ("ProcessLaunchInfo::%s default_to_use_pty is set, and at least one stdin/stderr/stdout is unset, so generating a pty to use for it",
+                                 __FUNCTION__);
 
-                    if (!in_path) {
+                if (m_pty->OpenFirstAvailableMaster(O_RDWR| O_NOCTTY, NULL, 0))
+                {
+                    const char *slave_path = m_pty->GetSlaveName(NULL, 0);
+
+                    // Only use the slave tty if we don't have anything specified for
+                    // input and don't have an action for stdin
+                    if (!in_path && GetFileActionForFD(STDIN_FILENO) == NULL)
+                    {
                         AppendOpenFileAction(STDIN_FILENO, slave_path, true, false);
                     }
 
-                    if (!out_path) {
+                    // Only use the slave tty if we don't have anything specified for
+                    // output and don't have an action for stdout
+                    if (!out_path && GetFileActionForFD(STDOUT_FILENO) == NULL)
+                    {
                         AppendOpenFileAction(STDOUT_FILENO, slave_path, false, true);
                     }
 
-                    if (!err_path) {
+                    // Only use the slave tty if we don't have anything specified for
+                    // error and don't have an action for stderr
+                    if (!err_path && GetFileActionForFD(STDERR_FILENO) == NULL)
+                    {
                         AppendOpenFileAction(STDERR_FILENO, slave_path, false, true);
                     }
                 }
@@ -336,42 +386,30 @@ ProcessLaunchInfo::ConvertArgumentsForLaunchingInShell (Error &error,
 
     if (GetFlags().Test (eLaunchFlagLaunchInShell))
     {
-        const char *shell_executable = GetShell();
-        if (shell_executable)
+        if (m_shell)
         {
-            char shell_resolved_path[PATH_MAX];
-
-            if (localhost)
-            {
-                FileSpec shell_filespec (shell_executable, true);
-
-                if (!shell_filespec.Exists())
-                {
-                    // Resolve the path in case we just got "bash", "sh" or "tcsh"
-                    if (!shell_filespec.ResolveExecutableLocation ())
-                    {
-                        error.SetErrorStringWithFormat("invalid shell path '%s'", shell_executable);
-                        return false;
-                    }
-                }
-                shell_filespec.GetPath (shell_resolved_path, sizeof(shell_resolved_path));
-                shell_executable = shell_resolved_path;
-            }
+            std::string shell_executable = m_shell.GetPath();
 
             const char **argv = GetArguments().GetConstArgumentVector ();
             if (argv == NULL || argv[0] == NULL)
                 return false;
             Args shell_arguments;
             std::string safe_arg;
-            shell_arguments.AppendArgument (shell_executable);
-            shell_arguments.AppendArgument ("-c");
+            shell_arguments.AppendArgument (shell_executable.c_str());
+            const llvm::Triple &triple = GetArchitecture().GetTriple();
+            if (triple.getOS() == llvm::Triple::Win32 && !triple.isWindowsCygwinEnvironment())
+                shell_arguments.AppendArgument("/C");
+            else
+                shell_arguments.AppendArgument("-c");
+
             StreamString shell_command;
             if (will_debug)
             {
                 // Add a modified PATH environment variable in case argv[0]
-                // is a relative path
+                // is a relative path.
                 const char *argv0 = argv[0];
-                if (argv0 && (argv0[0] != '/' && argv0[0] != '~'))
+                FileSpec arg_spec(argv0, false);
+                if (arg_spec.IsRelativeToCurrentWorkingDirectory())
                 {
                     // We have a relative path to our executable which may not work if
                     // we just try to run "a.out" (without it being converted to "./a.out")
@@ -402,7 +440,8 @@ ProcessLaunchInfo::ConvertArgumentsForLaunchingInShell (Error &error,
                     shell_command.PutCString(new_path.c_str());
                 }
 
-                shell_command.PutCString ("exec");
+                if (triple.getOS() != llvm::Triple::Win32 || triple.isWindowsCygwinEnvironment())
+                    shell_command.PutCString("exec");
 
                 // Only Apple supports /usr/bin/arch being able to specify the architecture
                 if (GetArchitecture().IsValid() &&                                          // Valid architecture
@@ -442,7 +481,7 @@ ProcessLaunchInfo::ConvertArgumentsForLaunchingInShell (Error &error,
                 }
             }
             shell_arguments.AppendArgument (shell_command.GetString().c_str());
-            m_executable.SetFile(shell_executable, false);
+            m_executable = m_shell;
             m_arguments = shell_arguments;
             return true;
         }
@@ -456,4 +495,13 @@ ProcessLaunchInfo::ConvertArgumentsForLaunchingInShell (Error &error,
         error.SetErrorString ("not launching in shell");
     }
     return false;
+}
+
+Listener &
+ProcessLaunchInfo::GetListenerForProcess (Debugger &debugger)
+{
+    if (m_listener_sp)
+        return *m_listener_sp;
+    else
+        return debugger.GetListener();
 }

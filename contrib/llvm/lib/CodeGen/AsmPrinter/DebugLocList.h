@@ -7,16 +7,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CODEGEN_ASMPRINTER_DEBUGLOCLIST_H__
-#define CODEGEN_ASMPRINTER_DEBUGLOCLIST_H__
+#ifndef LLVM_LIB_CODEGEN_ASMPRINTER_DEBUGLOCLIST_H
+#define LLVM_LIB_CODEGEN_ASMPRINTER_DEBUGLOCLIST_H
 
-#include "llvm/MC/MCSymbol.h"
-#include "llvm/ADT/SmallVector.h"
 #include "DebugLocEntry.h"
+#include "llvm/ADT/SmallVector.h"
 
 namespace llvm {
+class DwarfCompileUnit;
+class MCSymbol;
 struct DebugLocList {
   MCSymbol *Label;
+  DwarfCompileUnit *CU;
   SmallVector<DebugLocEntry, 4> List;
 };
 }

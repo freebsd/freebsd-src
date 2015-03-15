@@ -13,10 +13,11 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FORMAT_CONTINUATION_INDENTER_H
-#define LLVM_CLANG_FORMAT_CONTINUATION_INDENTER_H
+#ifndef LLVM_CLANG_LIB_FORMAT_CONTINUATIONINDENTER_H
+#define LLVM_CLANG_LIB_FORMAT_CONTINUATIONINDENTER_H
 
 #include "Encoding.h"
+#include "FormatToken.h"
 #include "clang/Format/Format.h"
 #include "llvm/Support/Regex.h"
 
@@ -35,8 +36,9 @@ class ContinuationIndenter {
 public:
   /// \brief Constructs a \c ContinuationIndenter to format \p Line starting in
   /// column \p FirstIndent.
-  ContinuationIndenter(const FormatStyle &Style, SourceManager &SourceMgr,
-                       WhitespaceManager &Whitespaces,
+  ContinuationIndenter(const FormatStyle &Style,
+                       const AdditionalKeywords &Keywords,
+                       SourceManager &SourceMgr, WhitespaceManager &Whitespaces,
                        encoding::Encoding Encoding,
                        bool BinPackInconclusiveFunctions);
 
@@ -134,6 +136,7 @@ private:
   bool nextIsMultilineString(const LineState &State);
 
   FormatStyle Style;
+  const AdditionalKeywords &Keywords;
   SourceManager &SourceMgr;
   WhitespaceManager &Whitespaces;
   encoding::Encoding Encoding;
@@ -145,14 +148,15 @@ struct ParenState {
   ParenState(unsigned Indent, unsigned IndentLevel, unsigned LastSpace,
              bool AvoidBinPacking, bool NoLineBreak)
       : Indent(Indent), IndentLevel(IndentLevel), LastSpace(LastSpace),
-        FirstLessLess(0), BreakBeforeClosingBrace(false), QuestionColumn(0),
+        NestedBlockIndent(Indent), FirstLessLess(0),
+        BreakBeforeClosingBrace(false), QuestionColumn(0),
         AvoidBinPacking(AvoidBinPacking), BreakBeforeParameter(false),
         NoLineBreak(NoLineBreak), LastOperatorWrapped(true), ColonPos(0),
         StartOfFunctionCall(0), StartOfArraySubscripts(0),
         NestedNameSpecifierContinuation(0), CallContinuation(0), VariablePos(0),
         ContainsLineBreak(false), ContainsUnwrappedBuilder(0),
         AlignColons(true), ObjCSelectorNameFound(false),
-        HasMultipleNestedBlocks(false), JSFunctionInlined(false) {}
+        HasMultipleNestedBlocks(false), NestedBlockInlined(false) {}
 
   /// \brief The position to which a specific parenthesis level needs to be
   /// indented.
@@ -167,6 +171,10 @@ struct ParenState {
   /// functionCall(Parameter, otherCall(
   ///                             OtherParameter));
   unsigned LastSpace;
+
+  /// \brief If a block relative to this parenthesis level gets wrapped, indent
+  /// it this much.
+  unsigned NestedBlockIndent;
 
   /// \brief The position the first "<<" operator encountered on each level.
   ///
@@ -253,15 +261,17 @@ struct ParenState {
   /// the same token.
   bool HasMultipleNestedBlocks;
 
-  // \brief The previous JavaScript 'function' keyword is not wrapped to a new
-  // line.
-  bool JSFunctionInlined;
+  // \brief The start of a nested block (e.g. lambda introducer in C++ or
+  // "function" in JavaScript) is not wrapped to a new line.
+  bool NestedBlockInlined;
 
   bool operator<(const ParenState &Other) const {
     if (Indent != Other.Indent)
       return Indent < Other.Indent;
     if (LastSpace != Other.LastSpace)
       return LastSpace < Other.LastSpace;
+    if (NestedBlockIndent != Other.NestedBlockIndent)
+      return NestedBlockIndent < Other.NestedBlockIndent;
     if (FirstLessLess != Other.FirstLessLess)
       return FirstLessLess < Other.FirstLessLess;
     if (BreakBeforeClosingBrace != Other.BreakBeforeClosingBrace)
@@ -290,8 +300,8 @@ struct ParenState {
       return ContainsLineBreak < Other.ContainsLineBreak;
     if (ContainsUnwrappedBuilder != Other.ContainsUnwrappedBuilder)
       return ContainsUnwrappedBuilder < Other.ContainsUnwrappedBuilder;
-    if (JSFunctionInlined != Other.JSFunctionInlined)
-      return JSFunctionInlined < Other.JSFunctionInlined;
+    if (NestedBlockInlined != Other.NestedBlockInlined)
+      return NestedBlockInlined < Other.NestedBlockInlined;
     return false;
   }
 };
@@ -370,4 +380,4 @@ struct LineState {
 } // end namespace format
 } // end namespace clang
 
-#endif // LLVM_CLANG_FORMAT_CONTINUATION_INDENTER_H
+#endif

@@ -44,6 +44,10 @@ AArch64RegisterInfo::AArch64RegisterInfo(const AArch64InstrInfo *tii,
 const MCPhysReg *
 AArch64RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   assert(MF && "Invalid MachineFunction pointer.");
+  if (MF->getFunction()->getCallingConv() == CallingConv::GHC)
+    // GHC set of callee saved regs is empty as all those regs are
+    // used for passing STG regs around
+    return CSR_AArch64_NoRegs_SaveList;
   if (MF->getFunction()->getCallingConv() == CallingConv::AnyReg)
     return CSR_AArch64_AllRegs_SaveList;
   else
@@ -52,6 +56,9 @@ AArch64RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
 
 const uint32_t *
 AArch64RegisterInfo::getCallPreservedMask(CallingConv::ID CC) const {
+  if (CC == CallingConv::GHC)
+    // This is academic becase all GHC calls are (supposed to be) tail calls
+    return CSR_AArch64_NoRegs_RegMask;
   if (CC == CallingConv::AnyReg)
     return CSR_AArch64_AllRegs_RegMask;
   else
@@ -67,7 +74,7 @@ const uint32_t *AArch64RegisterInfo::getTLSCallPreservedMask() const {
 }
 
 const uint32_t *
-AArch64RegisterInfo::getThisReturnPreservedMask(CallingConv::ID) const {
+AArch64RegisterInfo::getThisReturnPreservedMask(CallingConv::ID CC) const {
   // This should return a register mask that is the same as that returned by
   // getCallPreservedMask but that additionally preserves the register used for
   // the first i64 argument (which must also be the register used to return a
@@ -75,12 +82,13 @@ AArch64RegisterInfo::getThisReturnPreservedMask(CallingConv::ID) const {
   //
   // In case that the calling convention does not use the same register for
   // both, the function should return NULL (does not currently apply)
+  assert(CC != CallingConv::GHC && "should not be GHC calling convention.");
   return CSR_AArch64_AAPCS_ThisReturn_RegMask;
 }
 
 BitVector
 AArch64RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
 
   // FIXME: avoid re-calculating this every time.
   BitVector Reserved(getNumRegs());
@@ -109,7 +117,7 @@ AArch64RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
 
 bool AArch64RegisterInfo::isReservedReg(const MachineFunction &MF,
                                       unsigned Reg) const {
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
 
   switch (Reg) {
   default:
@@ -173,7 +181,7 @@ bool AArch64RegisterInfo::hasBasePointer(const MachineFunction &MF) const {
 
 unsigned
 AArch64RegisterInfo::getFrameRegister(const MachineFunction &MF) const {
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
 
   return TFI->hasFP(MF) ? AArch64::FP : AArch64::SP;
 }
@@ -240,7 +248,7 @@ bool AArch64RegisterInfo::needsFrameBaseReg(MachineInstr *MI,
   // Note that the incoming offset is based on the SP value at function entry,
   // so it'll be negative.
   MachineFunction &MF = *MI->getParent()->getParent();
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
   MachineFrameInfo *MFI = MF.getFrameInfo();
 
   // Estimate an offset from the frame pointer.
@@ -330,7 +338,7 @@ void AArch64RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   MachineBasicBlock &MBB = *MI.getParent();
   MachineFunction &MF = *MBB.getParent();
   const AArch64FrameLowering *TFI = static_cast<const AArch64FrameLowering *>(
-      MF.getTarget().getFrameLowering());
+      MF.getSubtarget().getFrameLowering());
 
   int FrameIndex = MI.getOperand(FIOperandNum).getIndex();
   unsigned FrameReg;
@@ -368,7 +376,7 @@ namespace llvm {
 
 unsigned AArch64RegisterInfo::getRegPressureLimit(const TargetRegisterClass *RC,
                                                   MachineFunction &MF) const {
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
 
   switch (RC->getID()) {
   default:

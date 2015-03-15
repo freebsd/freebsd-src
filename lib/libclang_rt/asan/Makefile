@@ -10,10 +10,11 @@ LIB=	clang_rt.asan-${CRTARCH}
 	${CRTSRC}/lib/lsan
 
 SRCS=	asan_preinit.cc\
-	asan_allocator2.cc\
+	asan_allocator.cc\
 	asan_activation.cc\
 	asan_debugging.cc\
 	asan_fake_stack.cc\
+	asan_flags.cc\
 	asan_globals.cc\
 	asan_interceptors.cc\
 	asan_linux.cc\
@@ -39,6 +40,7 @@ SRCS=	asan_preinit.cc\
 	sanitizer_deadlock_detector1.cc\
 	sanitizer_deadlock_detector2.cc\
 	sanitizer_flags.cc\
+	sanitizer_flag_parser.cc\
 	sanitizer_libc.cc\
 	sanitizer_libignore.cc\
 	sanitizer_linux.cc\

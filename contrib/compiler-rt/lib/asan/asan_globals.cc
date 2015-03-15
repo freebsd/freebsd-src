@@ -164,7 +164,7 @@ static void RegisterGlobal(const Global *g) {
       }
     }
   }
-  if (flags()->poison_heap)
+  if (CanPoisonMemory())
     PoisonRedZones(*g);
   ListOfGlobals *l = new(allocator_for_globals) ListOfGlobals;
   l->g = g;
@@ -182,11 +182,13 @@ static void RegisterGlobal(const Global *g) {
 
 static void UnregisterGlobal(const Global *g) {
   CHECK(asan_inited);
+  if (flags()->report_globals >= 2)
+    ReportGlobal(*g, "Removed");
   CHECK(flags()->report_globals);
   CHECK(AddrIsInMem(g->beg));
   CHECK(AddrIsAlignedByGranularity(g->beg));
   CHECK(AddrIsAlignedByGranularity(g->size_with_redzone));
-  if (flags()->poison_heap)
+  if (CanPoisonMemory())
     PoisonShadowForGlobal(g, 0);
   // We unpoison the shadow memory for the global but we do not remove it from
   // the list because that would require O(n^2) time with the current list
@@ -207,6 +209,20 @@ void StopInitOrderChecking() {
     PoisonRedZones(*g);
   }
 }
+
+#if SANITIZER_WINDOWS  // Should only be called on Windows.
+SANITIZER_INTERFACE_ATTRIBUTE
+void UnregisterGlobalsInRange(void *beg, void *end) {
+  if (!flags()->report_globals)
+    return;
+  BlockingMutexLock lock(&mu_for_globals);
+  for (ListOfGlobals *l = list_of_all_globals; l; l = l->next) {
+    void *address = (void *)l->g->beg;
+    if (beg <= address && address < end)
+      UnregisterGlobal(l->g);
+  }
+}
+#endif
 
 }  // namespace __asan
 
@@ -249,7 +265,7 @@ void __asan_unregister_globals(__asan_global *globals, uptr n) {
 // initializer can only touch global variables in the same TU.
 void __asan_before_dynamic_init(const char *module_name) {
   if (!flags()->check_initialization_order ||
-      !flags()->poison_heap)
+      !CanPoisonMemory())
     return;
   bool strict_init_order = flags()->strict_init_order;
   CHECK(dynamic_init_globals);
@@ -275,7 +291,7 @@ void __asan_before_dynamic_init(const char *module_name) {
 // TU are poisoned.  It simply unpoisons all dynamically initialized globals.
 void __asan_after_dynamic_init() {
   if (!flags()->check_initialization_order ||
-      !flags()->poison_heap)
+      !CanPoisonMemory())
     return;
   CHECK(asan_inited);
   BlockingMutexLock lock(&mu_for_globals);

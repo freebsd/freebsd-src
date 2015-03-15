@@ -15,7 +15,6 @@
 #include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/IR/LeakDetector.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Operator.h"
 #include "llvm/IR/Type.h"
@@ -24,8 +23,6 @@ using namespace llvm;
 Instruction::Instruction(Type *ty, unsigned it, Use *Ops, unsigned NumOps,
                          Instruction *InsertBefore)
   : User(ty, Value::InstructionVal + it, Ops, NumOps), Parent(nullptr) {
-  // Make sure that we get added to a basicblock
-  LeakDetector::addGarbageObject(this);
 
   // If requested, insert this instruction into a basic block...
   if (InsertBefore) {
@@ -42,8 +39,6 @@ const DataLayout *Instruction::getDataLayout() const {
 Instruction::Instruction(Type *ty, unsigned it, Use *Ops, unsigned NumOps,
                          BasicBlock *InsertAtEnd)
   : User(ty, Value::InstructionVal + it, Ops, NumOps), Parent(nullptr) {
-  // Make sure that we get added to a basicblock
-  LeakDetector::addGarbageObject(this);
 
   // append this instruction into the basic block
   assert(InsertAtEnd && "Basic block to append to may not be NULL!");
@@ -60,12 +55,6 @@ Instruction::~Instruction() {
 
 
 void Instruction::setParent(BasicBlock *P) {
-  if (getParent()) {
-    if (!P) LeakDetector::addGarbageObject(this);
-  } else {
-    if (P) LeakDetector::removeGarbageObject(this);
-  }
-
   Parent = P;
 }
 
@@ -143,6 +132,11 @@ void Instruction::setFastMathFlags(FastMathFlags FMF) {
   cast<FPMathOperator>(this)->setFastMathFlags(FMF);
 }
 
+void Instruction::copyFastMathFlags(FastMathFlags FMF) {
+  assert(isa<FPMathOperator>(this) && "copying fast-math flag on invalid op");
+  cast<FPMathOperator>(this)->copyFastMathFlags(FMF);
+}
+
 /// Determine whether the unsafe-algebra flag is set.
 bool Instruction::hasUnsafeAlgebra() const {
   assert(isa<FPMathOperator>(this) && "getting fast-math flag on invalid op");
@@ -175,7 +169,7 @@ bool Instruction::hasAllowReciprocal() const {
 
 /// Convenience function for getting all the fast-math flags, which must be an
 /// operator which supports these flags. See LangRef.html for the meaning of
-/// these flats.
+/// these flags.
 FastMathFlags Instruction::getFastMathFlags() const {
   assert(isa<FPMathOperator>(this) && "getting fast-math flag on invalid op");
   return cast<FPMathOperator>(this)->getFastMathFlags();
@@ -183,7 +177,7 @@ FastMathFlags Instruction::getFastMathFlags() const {
 
 /// Copy I's fast-math flags
 void Instruction::copyFastMathFlags(const Instruction *I) {
-  setFastMathFlags(I->getFastMathFlags());
+  copyFastMathFlags(I->getFastMathFlags());
 }
 
 
@@ -438,6 +432,21 @@ bool Instruction::mayWriteToMemory() const {
   }
 }
 
+bool Instruction::isAtomic() const {
+  switch (getOpcode()) {
+  default:
+    return false;
+  case Instruction::AtomicCmpXchg:
+  case Instruction::AtomicRMW:
+  case Instruction::Fence:
+    return true;
+  case Instruction::Load:
+    return cast<LoadInst>(this)->getOrdering() != NotAtomic;
+  case Instruction::Store:
+    return cast<StoreInst>(this)->getOrdering() != NotAtomic;
+  }
+}
+
 bool Instruction::mayThrow() const {
   if (const CallInst *CI = dyn_cast<CallInst>(this))
     return !CI->doesNotThrow();
@@ -528,7 +537,7 @@ Instruction *Instruction::clone() const {
 
   // Otherwise, enumerate and copy over metadata from the old instruction to the
   // new one.
-  SmallVector<std::pair<unsigned, MDNode*>, 4> TheMDs;
+  SmallVector<std::pair<unsigned, MDNode *>, 4> TheMDs;
   getAllMetadataOtherThanDebugLoc(TheMDs);
   for (const auto &MD : TheMDs)
     New->setMetadata(MD.first, MD.second);

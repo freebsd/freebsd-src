@@ -12,10 +12,12 @@
 //===----------------------------------------------------------------------===//
 
 
-#ifndef LLVM_MC_CONSTANTPOOL_H
-#define LLVM_MC_CONSTANTPOOL_H
+#ifndef LLVM_MC_CONSTANTPOOLS_H
+#define LLVM_MC_CONSTANTPOOLS_H
 
+#include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/SmallVector.h"
+
 namespace llvm {
 class MCContext;
 class MCExpr;

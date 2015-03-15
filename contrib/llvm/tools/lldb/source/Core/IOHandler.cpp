@@ -19,7 +19,9 @@
 #include "lldb/Core/State.h"
 #include "lldb/Core/StreamFile.h"
 #include "lldb/Core/ValueObjectRegister.h"
+#ifndef LLDB_DISABLE_LIBEDIT
 #include "lldb/Host/Editline.h"
+#endif
 #include "lldb/Interpreter/CommandCompletions.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Symbol/Block.h"
@@ -36,8 +38,9 @@
 using namespace lldb;
 using namespace lldb_private;
 
-IOHandler::IOHandler (Debugger &debugger) :
+IOHandler::IOHandler (Debugger &debugger, IOHandler::Type type) :
     IOHandler (debugger,
+               type,
                StreamFileSP(),  // Adopt STDIN from top input reader
                StreamFileSP(),  // Adopt STDOUT from top input reader
                StreamFileSP(),  // Adopt STDERR from top input reader
@@ -47,6 +50,7 @@ IOHandler::IOHandler (Debugger &debugger) :
 
 
 IOHandler::IOHandler (Debugger &debugger,
+                      IOHandler::Type type,
                       const lldb::StreamFileSP &input_sp,
                       const lldb::StreamFileSP &output_sp,
                       const lldb::StreamFileSP &error_sp,
@@ -55,7 +59,9 @@ IOHandler::IOHandler (Debugger &debugger,
     m_input_sp (input_sp),
     m_output_sp (output_sp),
     m_error_sp (error_sp),
+    m_popped (false),
     m_flags (flags),
+    m_type (type),
     m_user_data (NULL),
     m_done (false),
     m_active (false)
@@ -151,13 +157,28 @@ IOHandler::GetIsRealTerminal ()
     return GetInputStreamFile()->GetFile().GetIsRealTerminal();
 }
 
+void
+IOHandler::SetPopped (bool b)
+{
+    m_popped.SetValue(b, eBroadcastOnChange);
+}
+
+void
+IOHandler::WaitForPop ()
+{
+    m_popped.WaitForValueEqualTo(true);
+}
+
 IOHandlerConfirm::IOHandlerConfirm (Debugger &debugger,
                                     const char *prompt,
                                     bool default_response) :
     IOHandlerEditline(debugger,
+                      IOHandler::Type::Confirm,
                       NULL,     // NULL editline_name means no history loaded/saved
-                      NULL,
+                      NULL,     // No prompt
+                      NULL,     // No continuation prompt
                       false,    // Multi-line
+                      false,    // Don't colorize the prompt (i.e. the confirm message.)
                       0,
                       *this),
     m_default_response (default_response),
@@ -310,83 +331,121 @@ IOHandlerDelegate::IOHandlerComplete (IOHandler &io_handler,
 
 
 IOHandlerEditline::IOHandlerEditline (Debugger &debugger,
+                                      IOHandler::Type type,
                                       const char *editline_name, // Used for saving history files
                                       const char *prompt,
+                                      const char *continuation_prompt,
                                       bool multi_line,
+                                      bool color_prompts,
                                       uint32_t line_number_start,
                                       IOHandlerDelegate &delegate) :
     IOHandlerEditline(debugger,
+                      type,
                       StreamFileSP(), // Inherit input from top input reader
                       StreamFileSP(), // Inherit output from top input reader
                       StreamFileSP(), // Inherit error from top input reader
                       0,              // Flags
                       editline_name,  // Used for saving history files
                       prompt,
+                      continuation_prompt,
                       multi_line,
+                      color_prompts,
                       line_number_start,
                       delegate)
 {
 }
 
 IOHandlerEditline::IOHandlerEditline (Debugger &debugger,
+                                      IOHandler::Type type,
                                       const lldb::StreamFileSP &input_sp,
                                       const lldb::StreamFileSP &output_sp,
                                       const lldb::StreamFileSP &error_sp,
                                       uint32_t flags,
                                       const char *editline_name, // Used for saving history files
                                       const char *prompt,
+                                      const char *continuation_prompt,
                                       bool multi_line,
+                                      bool color_prompts,
                                       uint32_t line_number_start,
                                       IOHandlerDelegate &delegate) :
-    IOHandler (debugger, input_sp, output_sp, error_sp, flags),
+    IOHandler (debugger, type, input_sp, output_sp, error_sp, flags),
+#ifndef LLDB_DISABLE_LIBEDIT
     m_editline_ap (),
+#endif
     m_delegate (delegate),
     m_prompt (),
+    m_continuation_prompt(),
+    m_current_lines_ptr (NULL),
     m_base_line_number (line_number_start),
-    m_multi_line (multi_line)
+    m_curr_line_idx (UINT32_MAX),
+    m_multi_line (multi_line),
+    m_color_prompts (color_prompts),
+    m_interrupt_exits (true)
 {
     SetPrompt(prompt);
 
+#ifndef LLDB_DISABLE_LIBEDIT
     bool use_editline = false;
     
-#ifndef _MSC_VER
     use_editline = m_input_sp->GetFile().GetIsRealTerminal();
-#else
-    // Editline is causing issues on Windows, so use the fallback.
-    use_editline = false;
-#endif
 
     if (use_editline)
     {
         m_editline_ap.reset(new Editline (editline_name,
-                                          prompt ? prompt : "",
-                                          multi_line,
                                           GetInputFILE (),
                                           GetOutputFILE (),
-                                          GetErrorFILE ()));
-        if (m_base_line_number > 0)
-            m_editline_ap->ShowLineNumbers(true, m_base_line_number);
-        m_editline_ap->SetLineCompleteCallback (LineCompletedCallback, this);
+                                          GetErrorFILE (),
+                                          m_color_prompts));
+        m_editline_ap->SetIsInputCompleteCallback (IsInputCompleteCallback, this);
         m_editline_ap->SetAutoCompleteCallback (AutoCompleteCallback, this);
+        // See if the delegate supports fixing indentation
+        const char *indent_chars = delegate.IOHandlerGetFixIndentationCharacters();
+        if (indent_chars)
+        {
+            // The delegate does support indentation, hook it up so when any indentation
+            // character is typed, the delegate gets a chance to fix it
+            m_editline_ap->SetFixIndentationCallback (FixIndentationCallback, this, indent_chars);
+        }
     }
-    
+#endif
+    SetBaseLineNumber (m_base_line_number);
+    SetPrompt(prompt ? prompt : "");
+    SetContinuationPrompt(continuation_prompt);    
 }
 
 IOHandlerEditline::~IOHandlerEditline ()
 {
+#ifndef LLDB_DISABLE_LIBEDIT
     m_editline_ap.reset();
+#endif
+}
+
+void
+IOHandlerEditline::Activate ()
+{
+    IOHandler::Activate();
+    m_delegate.IOHandlerActivated(*this);
+}
+
+void
+IOHandlerEditline::Deactivate ()
+{
+    IOHandler::Deactivate();
+    m_delegate.IOHandlerDeactivated(*this);
 }
 
 
 bool
 IOHandlerEditline::GetLine (std::string &line, bool &interrupted)
 {
+#ifndef LLDB_DISABLE_LIBEDIT
     if (m_editline_ap)
     {
-        return m_editline_ap->GetLine(line, interrupted).Success();
+        return m_editline_ap->GetLine (line, interrupted);
     }
     else
     {
+#endif
         line.clear();
 
         FILE *in = GetInputFILE();
@@ -394,7 +453,14 @@ IOHandlerEditline::GetLine (std::string &line, bool &interrupted)
         {
             if (GetIsInteractive())
             {
-                const char *prompt = GetPrompt();
+                const char *prompt = NULL;
+                
+                if (m_multi_line && m_curr_line_idx > 0)
+                    prompt = GetContinuationPrompt();
+                
+                if (prompt == NULL)
+                    prompt = GetPrompt();
+                
                 if (prompt && prompt[0])
                 {
                     FILE *out = GetOutputFILE();
@@ -452,19 +518,30 @@ IOHandlerEditline::GetLine (std::string &line, bool &interrupted)
             SetIsDone(true);
         }
         return false;
+#ifndef LLDB_DISABLE_LIBEDIT
     }
+#endif
 }
 
 
-LineStatus
-IOHandlerEditline::LineCompletedCallback (Editline *editline,
+#ifndef LLDB_DISABLE_LIBEDIT
+bool
+IOHandlerEditline::IsInputCompleteCallback (Editline *editline,
                                           StringList &lines,
-                                          uint32_t line_idx,
-                                          Error &error,
                                           void *baton)
 {
     IOHandlerEditline *editline_reader = (IOHandlerEditline *) baton;
-    return editline_reader->m_delegate.IOHandlerLinesUpdated(*editline_reader, lines, line_idx, error);
+    return editline_reader->m_delegate.IOHandlerIsInputComplete(*editline_reader, lines);
+}
+
+int
+IOHandlerEditline::FixIndentationCallback (Editline *editline,
+                                           const StringList &lines,
+                                           int cursor_position,
+                                           void *baton)
+{
+    IOHandlerEditline *editline_reader = (IOHandlerEditline *) baton;
+    return editline_reader->m_delegate.IOHandlerFixIndentation(*editline_reader, lines, cursor_position);
 }
 
 int
@@ -487,14 +564,24 @@ IOHandlerEditline::AutoCompleteCallback (const char *current_line,
                                                               matches);
     return 0;
 }
+#endif
 
 const char *
 IOHandlerEditline::GetPrompt ()
 {
+#ifndef LLDB_DISABLE_LIBEDIT
     if (m_editline_ap)
+    {
         return m_editline_ap->GetPrompt ();
-    else if (m_prompt.empty())
-        return NULL;
+    }
+    else
+    {
+#endif
+        if (m_prompt.empty())
+            return NULL;
+#ifndef LLDB_DISABLE_LIBEDIT
+    }
+#endif
     return m_prompt.c_str();
 }
 
@@ -505,34 +592,71 @@ IOHandlerEditline::SetPrompt (const char *p)
         m_prompt = p;
     else
         m_prompt.clear();
+#ifndef LLDB_DISABLE_LIBEDIT
     if (m_editline_ap)
         m_editline_ap->SetPrompt (m_prompt.empty() ? NULL : m_prompt.c_str());
+#endif
     return true;
 }
+
+const char *
+IOHandlerEditline::GetContinuationPrompt ()
+{
+    if (m_continuation_prompt.empty())
+        return NULL;
+    return m_continuation_prompt.c_str();
+}
+
+
+void
+IOHandlerEditline::SetContinuationPrompt (const char *p)
+{
+    if (p && p[0])
+        m_continuation_prompt = p;
+    else
+        m_continuation_prompt.clear();
+
+#ifndef LLDB_DISABLE_LIBEDIT
+    if (m_editline_ap)
+        m_editline_ap->SetContinuationPrompt (m_continuation_prompt.empty() ? NULL : m_continuation_prompt.c_str());
+#endif
+}
+
 
 void
 IOHandlerEditline::SetBaseLineNumber (uint32_t line)
 {
     m_base_line_number = line;
-    if (m_editline_ap)
-        m_editline_ap->ShowLineNumbers (true, line);
-    
 }
+
+uint32_t
+IOHandlerEditline::GetCurrentLineIndex () const
+{
+#ifndef LLDB_DISABLE_LIBEDIT
+    if (m_editline_ap)
+        return m_editline_ap->GetCurrentLine();
+#endif
+    return m_curr_line_idx;
+}
+
 bool
 IOHandlerEditline::GetLines (StringList &lines, bool &interrupted)
 {
+    m_current_lines_ptr = &lines;
+    
     bool success = false;
+#ifndef LLDB_DISABLE_LIBEDIT
     if (m_editline_ap)
     {
-        std::string end_token;
-        success = m_editline_ap->GetLines(end_token, lines, interrupted).Success();
+        return m_editline_ap->GetLines (m_base_line_number, lines, interrupted);
     }
     else
     {
-        LineStatus lines_status = LineStatus::Success;
+#endif
+        bool done = false;
         Error error;
 
-        while (lines_status == LineStatus::Success)
+        while (!done)
         {
             // Show line numbers if we are asked to
             std::string line;
@@ -543,31 +667,23 @@ IOHandlerEditline::GetLines (StringList &lines, bool &interrupted)
                     ::fprintf(out, "%u%s", m_base_line_number + (uint32_t)lines.GetSize(), GetPrompt() == NULL ? " " : "");
             }
             
+            m_curr_line_idx = lines.GetSize();
+            
             bool interrupted = false;
-            if (GetLine(line, interrupted))
+            if (GetLine(line, interrupted) && !interrupted)
             {
-                if (interrupted)
-                {
-                    lines_status = LineStatus::Done;
-                }
-                else
-                {
-                    lines.AppendString(line);
-                    lines_status = m_delegate.IOHandlerLinesUpdated(*this, lines, lines.GetSize() - 1, error);
-                }
+                lines.AppendString(line);
+                done = m_delegate.IOHandlerIsInputComplete(*this, lines);
             }
             else
             {
-                lines_status = LineStatus::Done;
+                done = true;
             }
         }
-        
-        // Call the IOHandlerLinesUpdated function with UINT32_MAX as the line
-        // number to indicate all lines are complete
-        m_delegate.IOHandlerLinesUpdated(*this, lines, UINT32_MAX, error);
-
         success = lines.GetSize() > 0;
+#ifndef LLDB_DISABLE_LIBEDIT
     }
+#endif
     return success;
 }
 
@@ -588,12 +704,14 @@ IOHandlerEditline::Run ()
             {
                 if (interrupted)
                 {
-                    m_done = true;
+                    m_done = m_interrupt_exits;
+                    m_delegate.IOHandlerInputInterrupted (*this, line);
+
                 }
                 else
                 {
                     line = lines.CopyList();
-                    m_delegate.IOHandlerInputComplete(*this, line);
+                    m_delegate.IOHandlerInputComplete (*this, line);
                 }
             }
             else
@@ -605,8 +723,10 @@ IOHandlerEditline::Run ()
         {
             if (GetLine(line, interrupted))
             {
-                if (!interrupted)
-                    m_delegate.IOHandlerInputComplete(*this, line);
+                if (interrupted)
+                    m_delegate.IOHandlerInputInterrupted (*this, line);
+                else
+                    m_delegate.IOHandlerInputComplete (*this, line);
             }
             else
             {
@@ -619,20 +739,24 @@ IOHandlerEditline::Run ()
 void
 IOHandlerEditline::Hide ()
 {
+#ifndef LLDB_DISABLE_LIBEDIT
     if (m_editline_ap)
         m_editline_ap->Hide();
+#endif
 }
 
 
 void
 IOHandlerEditline::Refresh ()
 {
+#ifndef LLDB_DISABLE_LIBEDIT
     if (m_editline_ap)
     {
         m_editline_ap->Refresh();
     }
     else
     {
+#endif
         const char *prompt = GetPrompt();
         if (prompt && prompt[0])
         {
@@ -643,14 +767,18 @@ IOHandlerEditline::Refresh ()
                 ::fflush(out);
             }
         }
+#ifndef LLDB_DISABLE_LIBEDIT
     }
+#endif
 }
 
 void
 IOHandlerEditline::Cancel ()
 {
+#ifndef LLDB_DISABLE_LIBEDIT
     if (m_editline_ap)
         m_editline_ap->Interrupt ();
+#endif
 }
 
 bool
@@ -660,16 +788,20 @@ IOHandlerEditline::Interrupt ()
     if (m_delegate.IOHandlerInterrupt(*this))
         return true;
 
+#ifndef LLDB_DISABLE_LIBEDIT
     if (m_editline_ap)
         return m_editline_ap->Interrupt();
+#endif
     return false;
 }
 
 void
 IOHandlerEditline::GotEOF()
 {
+#ifndef LLDB_DISABLE_LIBEDIT
     if (m_editline_ap)
         m_editline_ap->Interrupt();
+#endif
 }
 
 // we may want curses to be disabled for some builds
@@ -5333,7 +5465,7 @@ protected:
 DisplayOptions ValueObjectListDelegate::g_options = { true };
 
 IOHandlerCursesGUI::IOHandlerCursesGUI (Debugger &debugger) :
-    IOHandler (debugger)
+    IOHandler (debugger, IOHandler::Type::Curses)
 {
 }
 

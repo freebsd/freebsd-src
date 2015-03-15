@@ -15,7 +15,9 @@ SRCS=	ARMException.cpp \
 	DbgValueHistoryCalculator.cpp \
 	DwarfAccelTable.cpp \
 	DwarfCFIException.cpp \
+	DwarfCompileUnit.cpp \
 	DwarfDebug.cpp \
+	DwarfExpression.cpp \
 	DwarfFile.cpp \
 	DwarfStringPool.cpp \
 	DwarfUnit.cpp \

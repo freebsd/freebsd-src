@@ -101,9 +101,12 @@
     #include <termios.h>
     #include <unistd.h>
 
-    #include <histedit.h>
     #include <pthread.h>
     #include <sys/time.h>
+
+#if !defined(__ANDROID_NDK__)
+	#include <histedit.h>
+#endif
 
 #endif
 

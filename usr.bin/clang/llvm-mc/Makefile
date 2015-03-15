@@ -9,8 +9,7 @@ SRCDIR=	tools/llvm-mc
 SRCS=	llvm-mc.cpp \
 	Disassembler.cpp
 
-LIBDEPS=llvmmcdisassembler \
-	llvmaarch64disassembler \
+LIBDEPS=llvmaarch64disassembler \
 	llvmaarch64codegen \
 	llvmaarch64asmparser \
 	llvmaarch64desc \
@@ -48,6 +47,7 @@ LIBDEPS=llvmmcdisassembler \
 	llvmasmprinter \
 	llvmcodegen \
 	llvmscalaropts \
+	llvmprofiledata \
 	llvminstcombine \
 	llvmtransformutils \
 	llvmipa \
@@ -57,11 +57,12 @@ LIBDEPS=llvmmcdisassembler \
 	llvmobject \
 	llvmmcparser \
 	llvmbitreader \
-	llvmcore \
+	llvmmcdisassembler \
 	llvmx86info \
 	llvmx86instprinter \
 	llvmmc \
 	llvmx86utils \
+	llvmcore \
 	llvmsupport
 
 .include "../clang.prog.mk"

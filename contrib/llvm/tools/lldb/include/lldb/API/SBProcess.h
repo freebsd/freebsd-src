@@ -316,6 +316,12 @@ public:
     //------------------------------------------------------------------
     const char *
     GetExtendedBacktraceTypeAtIndex (uint32_t idx);
+    
+    lldb::SBThreadCollection
+    GetHistoryThreads (addr_t addr);
+    
+    bool
+    IsInstrumentationRuntimePresent(InstrumentationRuntimeType type);
 
 protected:
     friend class SBAddress;
@@ -323,6 +329,7 @@ protected:
     friend class SBBreakpointLocation;
     friend class SBCommandInterpreter;
     friend class SBDebugger;
+    friend class SBExecutionContext;
     friend class SBFunction;
     friend class SBModule;
     friend class SBTarget;

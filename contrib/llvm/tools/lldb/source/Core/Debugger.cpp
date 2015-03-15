@@ -18,7 +18,6 @@
 #include "llvm/ADT/StringRef.h"
 
 #include "lldb/lldb-private.h"
-#include "lldb/Core/ConnectionFileDescriptor.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Core/RegisterValue.h"
@@ -34,8 +33,10 @@
 #include "lldb/DataFormatters/DataVisualization.h"
 #include "lldb/DataFormatters/FormatManager.h"
 #include "lldb/DataFormatters/TypeSummary.h"
+#include "lldb/Host/ConnectionFileDescriptor.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Host/Terminal.h"
+#include "lldb/Host/ThreadLauncher.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/OptionValueSInt64.h"
 #include "lldb/Interpreter/OptionValueString.h"
@@ -44,6 +45,8 @@
 #include "lldb/Symbol/Function.h"
 #include "lldb/Symbol/Symbol.h"
 #include "lldb/Symbol/VariableList.h"
+#include "lldb/Target/CPPLanguageRuntime.h"
+#include "lldb/Target/ObjCLanguageRuntime.h"
 #include "lldb/Target/TargetList.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
@@ -61,6 +64,7 @@ using namespace lldb_private;
 
 static uint32_t g_shared_debugger_refcount = 0;
 static lldb::user_id_t g_unique_id = 1;
+static size_t g_debugger_event_thread_stack_bytes = 8 * 1024 * 1024;
 
 #pragma mark Static Functions
 
@@ -121,12 +125,13 @@ g_language_enumerators[] =
     FILE_AND_LINE\
     "\\n"
 
-
+#define DEFAULT_DISASSEMBLY_FORMAT "${current-pc-arrow}${addr-file-or-load}{ <${function.name-without-args}${function.concrete-only-addr-offset-no-padding}>}: "
 
 static PropertyDefinition
 g_properties[] =
 {
 {   "auto-confirm",             OptionValue::eTypeBoolean, true, false, NULL, NULL, "If true all confirmation prompts will receive their default reply." },
+{   "disassembly-format",       OptionValue::eTypeString , true, 0    , DEFAULT_DISASSEMBLY_FORMAT, NULL, "The default disassembly format string to use when disassembling instruction sequences." },
 {   "frame-format",             OptionValue::eTypeString , true, 0    , DEFAULT_FRAME_FORMAT, NULL, "The default frame format string to use when displaying stack frame information for threads." },
 {   "notify-void",              OptionValue::eTypeBoolean, true, false, NULL, NULL, "Notify the user explicitly if an expression returns void (default: false)." },
 {   "prompt",                   OptionValue::eTypeString , true, OptionValueString::eOptionEncodeCharacterEscapeSequences, "(lldb) ", NULL, "The debugger command line prompt displayed for the user." },
@@ -139,7 +144,8 @@ g_properties[] =
 {   "thread-format",            OptionValue::eTypeString , true, 0    , DEFAULT_THREAD_FORMAT, NULL, "The default thread format string to use when displaying thread information." },
 {   "use-external-editor",      OptionValue::eTypeBoolean, true, false, NULL, NULL, "Whether to use an external editor or not." },
 {   "use-color",                OptionValue::eTypeBoolean, true, true , NULL, NULL, "Whether to use Ansi color codes or not." },
-{   "auto-one-line-summaries",     OptionValue::eTypeBoolean, true, true, NULL, NULL, "If true, LLDB will automatically display small structs in one-liner format (default: true)." },
+{   "auto-one-line-summaries",  OptionValue::eTypeBoolean, true, true, NULL, NULL, "If true, LLDB will automatically display small structs in one-liner format (default: true)." },
+{   "escape-non-printables",    OptionValue::eTypeBoolean, true, true, NULL, NULL, "If true, LLDB will automatically escape non-printable and escape characters when formatting strings." },
 
     {   NULL,                       OptionValue::eTypeInvalid, true, 0    , NULL, NULL, NULL }
 };
@@ -147,6 +153,7 @@ g_properties[] =
 enum
 {
     ePropertyAutoConfirm = 0,
+    ePropertyDisassemblyFormat,
     ePropertyFrameFormat,
     ePropertyNotiftVoid,
     ePropertyPrompt,
@@ -159,7 +166,8 @@ enum
     ePropertyThreadFormat,
     ePropertyUseExternalEditor,
     ePropertyUseColor,
-    ePropertyAutoOneLineSummaries
+    ePropertyAutoOneLineSummaries,
+    ePropertyEscapeNonPrintables
 };
 
 Debugger::LoadPluginCallbackType Debugger::g_load_plugin_callback = NULL;
@@ -171,6 +179,7 @@ Debugger::SetPropertyValue (const ExecutionContext *exe_ctx,
                             const char *value)
 {
     bool is_load_script = strcmp(property_path,"target.load-script-from-symbol-file") == 0;
+    bool is_escape_non_printables = strcmp(property_path, "escape-non-printables") == 0;
     TargetSP target_sp;
     LoadScriptFromSymFile load_script_old_value;
     if (is_load_script && exe_ctx->GetTargetSP())
@@ -218,6 +227,10 @@ Debugger::SetPropertyValue (const ExecutionContext *exe_ctx,
                 }
             }
         }
+        else if (is_escape_non_printables)
+        {
+            DataVisualization::ForceUpdate();
+        }
     }
     return error;
 }
@@ -227,6 +240,13 @@ Debugger::GetAutoConfirm () const
 {
     const uint32_t idx = ePropertyAutoConfirm;
     return m_collection_sp->GetPropertyAtIndexAsBoolean (NULL, idx, g_properties[idx].default_uint_value != 0);
+}
+
+const char *
+Debugger::GetDisassemblyFormat() const
+{
+    const uint32_t idx = ePropertyDisassemblyFormat;
+    return m_collection_sp->GetPropertyAtIndexAsString (NULL, idx, g_properties[idx].default_cstr_value);
 }
 
 const char *
@@ -353,7 +373,13 @@ Debugger::GetAutoOneLineSummaries () const
 {
     const uint32_t idx = ePropertyAutoOneLineSummaries;
     return m_collection_sp->GetPropertyAtIndexAsBoolean (NULL, idx, true);
+}
 
+bool
+Debugger::GetEscapeNonPrintables () const
+{
+    const uint32_t idx = ePropertyEscapeNonPrintables;
+    return m_collection_sp->GetPropertyAtIndexAsBoolean (NULL, idx, true);
 }
 
 #pragma mark Debugger
@@ -620,24 +646,25 @@ Debugger::FindTargetWithProcess (Process *process)
     return target_sp;
 }
 
-Debugger::Debugger (lldb::LogOutputCallback log_callback, void *baton) :
-    UserID (g_unique_id++),
-    Properties(OptionValuePropertiesSP(new OptionValueProperties())), 
-    m_input_file_sp (new StreamFile (stdin, false)),
-    m_output_file_sp (new StreamFile (stdout, false)),
-    m_error_file_sp (new StreamFile (stderr, false)),
-    m_terminal_state (),
-    m_target_list (*this),
-    m_platform_list (),
-    m_listener ("lldb.Debugger"),
+Debugger::Debugger(lldb::LogOutputCallback log_callback, void *baton) :
+    UserID(g_unique_id++),
+    Properties(OptionValuePropertiesSP(new OptionValueProperties())),
+    m_input_file_sp(new StreamFile(stdin, false)),
+    m_output_file_sp(new StreamFile(stdout, false)),
+    m_error_file_sp(new StreamFile(stderr, false)),
+    m_terminal_state(),
+    m_target_list(*this),
+    m_platform_list(),
+    m_listener("lldb.Debugger"),
     m_source_manager_ap(),
     m_source_file_cache(),
-    m_command_interpreter_ap (new CommandInterpreter (*this, eScriptLanguageDefault, false)),
-    m_input_reader_stack (),
-    m_instance_name (),
-    m_loaded_plugins (),
-    m_event_handler_thread (LLDB_INVALID_HOST_THREAD),
-    m_io_handler_thread (LLDB_INVALID_HOST_THREAD)
+    m_command_interpreter_ap(new CommandInterpreter(*this, eScriptLanguageDefault, false)),
+    m_input_reader_stack(),
+    m_instance_name(),
+    m_loaded_plugins(),
+    m_event_handler_thread (),
+    m_io_handler_thread (),
+    m_sync_broadcaster (NULL, "lldb.debugger.sync")
 {
     char instance_cstr[256];
     snprintf(instance_cstr, sizeof(instance_cstr), "debugger_%d", (int)GetID());
@@ -646,7 +673,7 @@ Debugger::Debugger (lldb::LogOutputCallback log_callback, void *baton) :
         m_log_callback_stream_sp.reset (new StreamCallback (log_callback, baton));
     m_command_interpreter_ap->Initialize ();
     // Always add our default platform to the platform list
-    PlatformSP default_platform_sp (Platform::GetDefaultPlatform());
+    PlatformSP default_platform_sp (Platform::GetHostPlatform());
     assert (default_platform_sp.get());
     m_platform_list.Append (default_platform_sp, true);
     
@@ -903,7 +930,6 @@ Debugger::GetTopIOHandlerControlSequence(char ch)
 void
 Debugger::RunIOHandler (const IOHandlerSP& reader_sp)
 {
-    Mutex::Locker locker (m_input_reader_stack.GetMutex());
     PushIOHandler (reader_sp);
     
     IOHandlerSP top_reader_sp = reader_sp;
@@ -1129,6 +1155,8 @@ TestPromptFormats (StackFrame *frame)
     StreamString s;
     const char *prompt_format =         
     "{addr = '${addr}'\n}"
+    "{addr-file-or-load = '${addr-file-or-load}'\n}"
+    "{current-pc-arrow = '${current-pc-arrow}'\n}"
     "{process.id = '${process.id}'\n}"
     "{process.name = '${process.name}'\n}"
     "{process.file.basename = '${process.file.basename}'\n}"
@@ -1156,9 +1184,13 @@ TestPromptFormats (StackFrame *frame)
     "{frame.reg.xmm0 = '${frame.reg.xmm0}'\n}"
     "{frame.reg.carp = '${frame.reg.carp}'\n}"
     "{function.id = '${function.id}'\n}"
+    "{function.changed = '${function.changed}'\n}"
+    "{function.initial-function = '${function.initial-function}'\n}"
     "{function.name = '${function.name}'\n}"
+    "{function.name-without-args = '${function.name-without-args}'\n}"
     "{function.name-with-args = '${function.name-with-args}'\n}"
     "{function.addr-offset = '${function.addr-offset}'\n}"
+    "{function.concrete-only-addr-offset-no-padding = '${function.concrete-only-addr-offset-no-padding}'\n}"
     "{function.line-offset = '${function.line-offset}'\n}"
     "{function.pc-offset = '${function.pc-offset}'\n}"
     "{line.file.basename = '${line.file.basename}'\n}"
@@ -1556,7 +1588,9 @@ FormatPromptRecurse
     const Address *addr,
     Stream &s,
     const char **end,
-    ValueObject* valobj
+    ValueObject* valobj,
+    bool function_changed,
+    bool initial_function
 )
 {
     ValueObject* realvalobj = NULL; // makes it super-easy to parse pointers
@@ -1598,7 +1632,7 @@ FormatPromptRecurse
 
             ++p;  // Skip the '{'
 
-            if (FormatPromptRecurse (p, sc, exe_ctx, addr, sub_strm, &p, valobj))
+            if (FormatPromptRecurse (p, sc, exe_ctx, addr, sub_strm, &p, valobj, function_changed, initial_function))
             {
                 // The stream had all it needed
                 s.Write(sub_strm.GetData(), sub_strm.GetSize());
@@ -1632,6 +1666,12 @@ FormatPromptRecurse
                         const char *cstr = NULL;
                         std::string token_format;
                         Address format_addr;
+
+                        // normally "addr" means print a raw address but 
+                        // "file-addr-or-load-addr" means print a module + file addr if there's no load addr
+                        bool print_file_addr_or_load_addr = false;
+                        bool addr_offset_concrete_func_only = false;
+                        bool addr_offset_print_with_no_padding = false;
                         bool calculate_format_addr_function_offset = false;
                         // Set reg_kind and reg_num to invalid values
                         RegisterKind reg_kind = kNumRegisterKinds; 
@@ -1710,6 +1750,15 @@ FormatPromptRecurse
                                     target = valobj;
                                     val_obj_display = ValueObject::eValueObjectRepresentationStyleValue;
                                 }
+                                else if (IsToken (var_name_begin, "var.script:"))
+                                {
+                                    var_name_begin += ::strlen("var.script:");
+                                    std::string script_name(var_name_begin,var_name_end);
+                                    ScriptInterpreter* script_interpreter = valobj->GetTargetSP()->GetDebugger().GetCommandInterpreter().GetScriptInterpreter();
+                                    if (RunScriptFormatKeyword (s, script_interpreter, valobj, script_name))
+                                        var_success = true;
+                                    break;
+                                }
                                 else if (IsToken (var_name_begin,"var%"))
                                 {
                                     was_var_format = true;
@@ -1778,6 +1827,7 @@ FormatPromptRecurse
                                             log->Printf("[Debugger::FormatPrompt] ALL RIGHT: unparsed portion = %s, why stopping = %d,"
                                                " final_value_type %d",
                                                first_unparsed, reason_to_stop, final_value_type);
+                                        target = target->GetQualifiedRepresentationIfAvailable(target->GetDynamicValueType(), true).get();
                                     }
                                 }
                                 else
@@ -1826,8 +1876,8 @@ FormatPromptRecurse
                                 
                                 // TODO use flags for these
                                 const uint32_t type_info_flags = target->GetClangType().GetTypeInfo(NULL);
-                                bool is_array = (type_info_flags & ClangASTType::eTypeIsArray) != 0;
-                                bool is_pointer = (type_info_flags & ClangASTType::eTypeIsPointer) != 0;
+                                bool is_array = (type_info_flags & eTypeIsArray) != 0;
+                                bool is_pointer = (type_info_flags & eTypeIsPointer) != 0;
                                 bool is_aggregate = target->GetClangType().IsAggregateType();
                                 
                                 if ((is_array || is_pointer) && (!is_array_range) && val_obj_display == ValueObject::eValueObjectRepresentationStyleValue) // this should be wrong, but there are some exceptions
@@ -1942,7 +1992,7 @@ FormatPromptRecurse
                                         if (!special_directions)
                                             var_success &= item->DumpPrintableRepresentation(s,val_obj_display, custom_format);
                                         else
-                                            var_success &= FormatPromptRecurse(special_directions, sc, exe_ctx, addr, s, NULL, item);
+                                            var_success &= FormatPromptRecurse(special_directions, sc, exe_ctx, addr, s, NULL, item, function_changed, initial_function);
                                         
                                         if (--max_num_children == 0)
                                         {
@@ -1958,7 +2008,12 @@ FormatPromptRecurse
                             }
                             break;
                         case 'a':
-                            if (IsToken (var_name_begin, "addr}"))
+                            if (IsToken (var_name_begin, "addr-file-or-load}"))
+                            {
+                                print_file_addr_or_load_addr = true;
+                            }
+                            if (IsToken (var_name_begin, "addr}")
+                                || IsToken (var_name_begin, "addr-file-or-load}"))
                             {
                                 if (addr && addr->IsValid())
                                 {
@@ -2160,8 +2215,7 @@ FormatPromptRecurse
                                 }
                             }
                             break;
-                            
-                            
+
                         case 'm':
                            if (IsToken (var_name_begin, "module."))
                             {
@@ -2289,6 +2343,14 @@ FormatPromptRecurse
 
                                         var_success = true;
                                     }
+                                    if (IsToken (var_name_begin, "changed}") && function_changed)
+                                    {
+                                        var_success = true;
+                                    }
+                                    if (IsToken (var_name_begin, "initial-function}") && initial_function)
+                                    {
+                                        var_success = true;
+                                    }
                                     else if (IsToken (var_name_begin, "name}"))
                                     {
                                         if (sc->function)
@@ -2312,6 +2374,19 @@ FormatPromptRecurse
                                                     }
                                                 }
                                             }
+                                            var_success = true;
+                                        }
+                                    }
+                                    else if (IsToken (var_name_begin, "name-without-args}"))
+                                    {
+                                        ConstString name;
+                                        if (sc->function)
+                                            name = sc->function->GetMangled().GetName (Mangled::ePreferDemangledWithoutArguments);
+                                        else if (sc->symbol)
+                                            name = sc->symbol->GetMangled().GetName (Mangled::ePreferDemangledWithoutArguments);
+                                        if (name)
+                                        {
+                                            s.PutCString(name.GetCString());
                                             var_success = true;
                                         }
                                     }
@@ -2418,7 +2493,7 @@ FormatPromptRecurse
                                                                                               .SetHideItemNames(false)
                                                                                               .SetShowMembersOneLiner(true),
                                                                                               "");
-                                                            format.FormatObject(var_value_sp.get(), buffer);
+                                                            format.FormatObject(var_value_sp.get(), buffer, TypeSummaryOptions());
                                                             var_representation = buffer.c_str();
                                                         }
                                                         else
@@ -2458,8 +2533,14 @@ FormatPromptRecurse
                                             }
                                         }
                                     }
-                                    else if (IsToken (var_name_begin, "addr-offset}"))
+                                    else if (IsToken (var_name_begin, "addr-offset}")
+                                            || IsToken (var_name_begin, "concrete-only-addr-offset-no-padding}"))
                                     {
+                                        if (IsToken (var_name_begin, "concrete-only-addr-offset-no-padding}"))
+                                        {
+                                            addr_offset_print_with_no_padding = true;
+                                            addr_offset_concrete_func_only = true;
+                                        }
                                         var_success = addr != NULL;
                                         if (var_success)
                                         {
@@ -2530,6 +2611,35 @@ FormatPromptRecurse
                                 }
                             }
                             break;
+                        case 'c':
+                            if (IsToken (var_name_begin, "current-pc-arrow"))
+                            {
+                                if (addr && exe_ctx && exe_ctx->GetFramePtr())
+                                {
+                                    RegisterContextSP reg_ctx = exe_ctx->GetFramePtr()->GetRegisterContextSP();
+                                    if (reg_ctx.get())
+                                    {
+                                        addr_t pc_loadaddr = reg_ctx->GetPC();
+                                        if (pc_loadaddr != LLDB_INVALID_ADDRESS)
+                                        {
+                                            Address pc;
+                                            pc.SetLoadAddress (pc_loadaddr, exe_ctx->GetTargetPtr());
+                                            if (pc == *addr)
+                                            {
+                                                s.Printf ("-> ");
+                                                var_success = true;
+                                            }
+                                        }
+                                    }
+                                    if (var_success == false)
+                                    {
+                                        s.Printf("   ");
+                                        var_success = true;
+                                    }
+                                }
+                                var_success = true;
+                            }
+                            break;
                         }
                         
                         if (var_success)
@@ -2587,7 +2697,7 @@ FormatPromptRecurse
                                         if (sc->function)
                                         {
                                             func_addr = sc->function->GetAddressRange().GetBaseAddress();
-                                            if (sc->block)
+                                            if (sc->block && addr_offset_concrete_func_only == false)
                                             {
                                                 // Check to make sure we aren't in an inline
                                                 // function. If we are, use the inline block
@@ -2605,14 +2715,19 @@ FormatPromptRecurse
                                     
                                     if (func_addr.IsValid())
                                     {
+                                        const char *addr_offset_padding  =  " ";
+                                        if (addr_offset_print_with_no_padding)
+                                        {
+                                            addr_offset_padding = "";
+                                        }
                                         if (func_addr.GetSection() == format_addr.GetSection())
                                         {
                                             addr_t func_file_addr = func_addr.GetFileAddress();
                                             addr_t addr_file_addr = format_addr.GetFileAddress();
                                             if (addr_file_addr > func_file_addr)
-                                                s.Printf(" + %" PRIu64, addr_file_addr - func_file_addr);
+                                                s.Printf("%s+%s%" PRIu64, addr_offset_padding, addr_offset_padding, addr_file_addr - func_file_addr);
                                             else if (addr_file_addr < func_file_addr)
-                                                s.Printf(" - %" PRIu64, func_file_addr - addr_file_addr);
+                                                s.Printf("%s-%s%" PRIu64, addr_offset_padding, addr_offset_padding, func_file_addr - addr_file_addr);
                                             var_success = true;
                                         }
                                         else
@@ -2623,9 +2738,9 @@ FormatPromptRecurse
                                                 addr_t func_load_addr = func_addr.GetLoadAddress (target);
                                                 addr_t addr_load_addr = format_addr.GetLoadAddress (target);
                                                 if (addr_load_addr > func_load_addr)
-                                                    s.Printf(" + %" PRIu64, addr_load_addr - func_load_addr);
+                                                    s.Printf("%s+%s%" PRIu64, addr_offset_padding, addr_offset_padding, addr_load_addr - func_load_addr);
                                                 else if (addr_load_addr < func_load_addr)
-                                                    s.Printf(" - %" PRIu64, func_load_addr - addr_load_addr);
+                                                    s.Printf("%s-%s%" PRIu64, addr_offset_padding, addr_offset_padding, func_load_addr - addr_load_addr);
                                                 var_success = true;
                                             }
                                         }
@@ -2642,10 +2757,21 @@ FormatPromptRecurse
 
                                     if (vaddr != LLDB_INVALID_ADDRESS)
                                     {
-                                        int addr_width = target->GetArchitecture().GetAddressByteSize() * 2;
+                                        int addr_width = 0;
+                                        if (exe_ctx && target)
+                                        {
+                                            addr_width = target->GetArchitecture().GetAddressByteSize() * 2;
+                                        }
                                         if (addr_width == 0)
                                             addr_width = 16;
-                                        s.Printf("0x%*.*" PRIx64, addr_width, addr_width, vaddr);
+                                        if (print_file_addr_or_load_addr)
+                                        {
+                                            format_addr.Dump (&s, exe_ctx ? exe_ctx->GetBestExecutionContextScope() : NULL, Address::DumpStyleLoadAddress, Address::DumpStyleModuleWithFileAddress, 0);
+                                        }
+                                        else
+                                        {
+                                            s.Printf("0x%*.*" PRIx64, addr_width, addr_width, vaddr);
+                                        }
                                         var_success = true;
                                     }
                                 }
@@ -2759,8 +2885,54 @@ Debugger::FormatPrompt
     std::string format_str = lldb_utility::ansi::FormatAnsiTerminalCodes (format, use_color);
     if (format_str.length())
         format = format_str.c_str();
-    return FormatPromptRecurse (format, sc, exe_ctx, addr, s, NULL, valobj);
+    return FormatPromptRecurse (format, sc, exe_ctx, addr, s, NULL, valobj, false, false);
 }
+
+bool
+Debugger::FormatDisassemblerAddress (const char *format,
+                                     const SymbolContext *sc,
+                                     const SymbolContext *prev_sc,
+                                     const ExecutionContext *exe_ctx,
+                                     const Address *addr,
+                                     Stream &s)
+{
+    if (format == NULL && exe_ctx != NULL && exe_ctx->HasTargetScope())
+    {
+        format = exe_ctx->GetTargetRef().GetDebugger().GetDisassemblyFormat();
+    }
+    bool function_changed = false;
+    bool initial_function = false;
+    if (prev_sc && (prev_sc->function || prev_sc->symbol))
+    {
+        if (sc && (sc->function || sc->symbol))
+        {
+            if (prev_sc->symbol && sc->symbol)
+            {
+                if (!sc->symbol->Compare (prev_sc->symbol->GetName(), prev_sc->symbol->GetType()))
+                {
+                    function_changed = true;
+                }
+            }
+            else if (prev_sc->function && sc->function)
+            {
+                if (prev_sc->function->GetMangled() != sc->function->GetMangled())
+                {
+                    function_changed = true;
+                }
+            }
+        }
+    }
+    // The first context on a list of instructions will have a prev_sc that
+    // has no Function or Symbol -- if SymbolContext had an IsValid() method, it
+    // would return false.  But we do get a prev_sc pointer.
+    if ((sc && (sc->function || sc->symbol))
+        && prev_sc && (prev_sc->function == NULL && prev_sc->symbol == NULL))
+    {
+        initial_function = true;
+    }
+    return FormatPromptRecurse (format, sc, exe_ctx, addr, s, NULL, NULL, function_changed, initial_function);
+}
+
 
 void
 Debugger::SetLoggingCallback (lldb::LogOutputCallback log_callback, void *baton)
@@ -2952,6 +3124,7 @@ Debugger::GetProcessSTDERR (Process *process, Stream *stream)
     return total_bytes;
 }
 
+
 // This function handles events that were broadcast by the process.
 void
 Debugger::HandleProcessEvent (const EventSP &event_sp)
@@ -2959,7 +3132,7 @@ Debugger::HandleProcessEvent (const EventSP &event_sp)
     using namespace lldb;
     const uint32_t event_type = event_sp->GetType();
     ProcessSP process_sp = Process::ProcessEventData::GetProcessFromEvent(event_sp.get());
-    
+
     StreamString output_stream;
     StreamString error_stream;
     const bool gui_enabled = IsForwardingEvents();
@@ -2968,191 +3141,27 @@ Debugger::HandleProcessEvent (const EventSP &event_sp)
     {
         bool pop_process_io_handler = false;
         assert (process_sp);
-    
+
         if (event_type & Process::eBroadcastBitSTDOUT || event_type & Process::eBroadcastBitStateChanged)
         {
             GetProcessSTDOUT (process_sp.get(), &output_stream);
         }
-        
+
         if (event_type & Process::eBroadcastBitSTDERR || event_type & Process::eBroadcastBitStateChanged)
         {
             GetProcessSTDERR (process_sp.get(), &error_stream);
         }
-    
+
         if (event_type & Process::eBroadcastBitStateChanged)
         {
-
-            // Drain all stout and stderr so we don't see any output come after
-            // we print our prompts
-            // Something changed in the process;  get the event and report the process's current status and location to
-            // the user.
-            StateType event_state = Process::ProcessEventData::GetStateFromEvent (event_sp.get());
-            if (event_state == eStateInvalid)
-                return;
-            
-            switch (event_state)
-            {
-                case eStateInvalid:
-                case eStateUnloaded:
-                case eStateConnected:
-                case eStateAttaching:
-                case eStateLaunching:
-                case eStateStepping:
-                case eStateDetached:
-                    {
-                        output_stream.Printf("Process %" PRIu64 " %s\n",
-                                             process_sp->GetID(),
-                                             StateAsCString (event_state));
-                        
-                        if (event_state == eStateDetached)
-                            pop_process_io_handler = true;
-                    }
-                    break;
-                    
-                case eStateRunning:
-                    // Don't be chatty when we run...
-                    break;
-                    
-                case eStateExited:
-                    process_sp->GetStatus(output_stream);
-                    pop_process_io_handler = true;
-                    break;
-                    
-                case eStateStopped:
-                case eStateCrashed:
-                case eStateSuspended:
-                    // Make sure the program hasn't been auto-restarted:
-                    if (Process::ProcessEventData::GetRestartedFromEvent (event_sp.get()))
-                    {
-                        size_t num_reasons = Process::ProcessEventData::GetNumRestartedReasons(event_sp.get());
-                        if (num_reasons > 0)
-                        {
-                            // FIXME: Do we want to report this, or would that just be annoyingly chatty?
-                            if (num_reasons == 1)
-                            {
-                                const char *reason = Process::ProcessEventData::GetRestartedReasonAtIndex (event_sp.get(), 0);
-                                output_stream.Printf("Process %" PRIu64 " stopped and restarted: %s\n",
-                                                     process_sp->GetID(),
-                                                     reason ? reason : "<UNKNOWN REASON>");
-                            }
-                            else
-                            {
-                                output_stream.Printf("Process %" PRIu64 " stopped and restarted, reasons:\n",
-                                                     process_sp->GetID());
-                                
-
-                                for (size_t i = 0; i < num_reasons; i++)
-                                {
-                                    const char *reason = Process::ProcessEventData::GetRestartedReasonAtIndex (event_sp.get(), i);
-                                    output_stream.Printf("\t%s\n", reason ? reason : "<UNKNOWN REASON>");
-                                }
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // Lock the thread list so it doesn't change on us, this is the scope for the locker:
-                        {
-                            ThreadList &thread_list = process_sp->GetThreadList();
-                            Mutex::Locker locker (thread_list.GetMutex());
-                            
-                            ThreadSP curr_thread (thread_list.GetSelectedThread());
-                            ThreadSP thread;
-                            StopReason curr_thread_stop_reason = eStopReasonInvalid;
-                            if (curr_thread)
-                                curr_thread_stop_reason = curr_thread->GetStopReason();
-                            if (!curr_thread ||
-                                !curr_thread->IsValid() ||
-                                curr_thread_stop_reason == eStopReasonInvalid ||
-                                curr_thread_stop_reason == eStopReasonNone)
-                            {
-                                // Prefer a thread that has just completed its plan over another thread as current thread.
-                                ThreadSP plan_thread;
-                                ThreadSP other_thread;
-                                const size_t num_threads = thread_list.GetSize();
-                                size_t i;
-                                for (i = 0; i < num_threads; ++i)
-                                {
-                                    thread = thread_list.GetThreadAtIndex(i);
-                                    StopReason thread_stop_reason = thread->GetStopReason();
-                                    switch (thread_stop_reason)
-                                    {
-                                        case eStopReasonInvalid:
-                                        case eStopReasonNone:
-                                            break;
-                                            
-                                        case eStopReasonTrace:
-                                        case eStopReasonBreakpoint:
-                                        case eStopReasonWatchpoint:
-                                        case eStopReasonSignal:
-                                        case eStopReasonException:
-                                        case eStopReasonExec:
-                                        case eStopReasonThreadExiting:
-                                            if (!other_thread)
-                                                other_thread = thread;
-                                            break;
-                                        case eStopReasonPlanComplete:
-                                            if (!plan_thread)
-                                                plan_thread = thread;
-                                            break;
-                                    }
-                                }
-                                if (plan_thread)
-                                    thread_list.SetSelectedThreadByID (plan_thread->GetID());
-                                else if (other_thread)
-                                    thread_list.SetSelectedThreadByID (other_thread->GetID());
-                                else
-                                {
-                                    if (curr_thread && curr_thread->IsValid())
-                                        thread = curr_thread;
-                                    else
-                                        thread = thread_list.GetThreadAtIndex(0);
-                                    
-                                    if (thread)
-                                        thread_list.SetSelectedThreadByID (thread->GetID());
-                                }
-                            }
-                        }
-                        // Drop the ThreadList mutex by here, since GetThreadStatus below might have to run code,
-                        // e.g. for Data formatters, and if we hold the ThreadList mutex, then the process is going to
-                        // have a hard time restarting the process.
-
-                        if (GetTargetList().GetSelectedTarget().get() == &process_sp->GetTarget())
-                        {
-                            const bool only_threads_with_stop_reason = true;
-                            const uint32_t start_frame = 0;
-                            const uint32_t num_frames = 1;
-                            const uint32_t num_frames_with_source = 1;
-                            process_sp->GetStatus(output_stream);
-                            process_sp->GetThreadStatus (output_stream,
-                                                         only_threads_with_stop_reason,
-                                                         start_frame,
-                                                         num_frames,
-                                                         num_frames_with_source);
-                        }
-                        else
-                        {
-                            uint32_t target_idx = GetTargetList().GetIndexOfTarget(process_sp->GetTarget().shared_from_this());
-                            if (target_idx != UINT32_MAX)
-                                output_stream.Printf ("Target %d: (", target_idx);
-                            else
-                                output_stream.Printf ("Target <unknown index>: (");
-                            process_sp->GetTarget().Dump (&output_stream, eDescriptionLevelBrief);
-                            output_stream.Printf (") stopped.\n");
-                        }
-                        
-                        // Pop the process IO handler
-                        pop_process_io_handler = true;
-                    }
-                    break;
-            }
+            Process::HandleProcessStateChangedEvent (event_sp, &output_stream, pop_process_io_handler);
         }
-    
+
         if (output_stream.GetSize() || error_stream.GetSize())
         {
             StreamFileSP error_stream_sp (GetOutputFile());
             bool top_io_handler_hid = false;
-            
+
             if (process_sp->ProcessIOHandlerIsActive() == false)
                 top_io_handler_hid = HideTopIOHandler();
 
@@ -3245,17 +3254,14 @@ Debugger::DefaultEventHandler()
                                       CommandInterpreter::eBroadcastBitQuitCommandReceived      |
                                       CommandInterpreter::eBroadcastBitAsynchronousOutputData   |
                                       CommandInterpreter::eBroadcastBitAsynchronousErrorData    );
-    
+
+    // Let the thread that spawned us know that we have started up and
+    // that we are now listening to all required events so no events get missed
+    m_sync_broadcaster.BroadcastEvent(eBroadcastBitEventThreadIsListening);
+
     bool done = false;
     while (!done)
     {
-//        Mutex::Locker locker;
-//        if (locker.TryLock(m_input_reader_stack.GetMutex()))
-//        {
-//            if (m_input_reader_stack.IsEmpty())
-//                break;
-//        }
-//
         EventSP event_sp;
         if (listener.WaitForEvent(NULL, event_sp))
         {
@@ -3337,19 +3343,38 @@ Debugger::EventHandlerThread (lldb::thread_arg_t arg)
 bool
 Debugger::StartEventHandlerThread()
 {
-    if (!IS_VALID_LLDB_HOST_THREAD(m_event_handler_thread))
-        m_event_handler_thread = Host::ThreadCreate("lldb.debugger.event-handler", EventHandlerThread, this, NULL);
-    return IS_VALID_LLDB_HOST_THREAD(m_event_handler_thread);
+    if (!m_event_handler_thread.IsJoinable())
+    {
+        // We must synchronize with the DefaultEventHandler() thread to ensure
+        // it is up and running and listening to events before we return from
+        // this function. We do this by listening to events for the
+        // eBroadcastBitEventThreadIsListening from the m_sync_broadcaster
+        Listener listener("lldb.debugger.event-handler");
+        listener.StartListeningForEvents(&m_sync_broadcaster, eBroadcastBitEventThreadIsListening);
+
+        // Use larger 8MB stack for this thread
+        m_event_handler_thread = ThreadLauncher::LaunchThread("lldb.debugger.event-handler", EventHandlerThread,
+                                                              this,
+                                                              NULL,
+                                                              g_debugger_event_thread_stack_bytes);
+
+        // Make sure DefaultEventHandler() is running and listening to events before we return
+        // from this function. We are only listening for events of type
+        // eBroadcastBitEventThreadIsListening so we don't need to check the event, we just need
+        // to wait an infinite amount of time for it (NULL timeout as the first parameter)
+        lldb::EventSP event_sp;
+        listener.WaitForEvent(NULL, event_sp);
+    }
+    return m_event_handler_thread.IsJoinable();
 }
 
 void
 Debugger::StopEventHandlerThread()
 {
-    if (IS_VALID_LLDB_HOST_THREAD(m_event_handler_thread))
+    if (m_event_handler_thread.IsJoinable())
     {
         GetCommandInterpreter().BroadcastEvent(CommandInterpreter::eBroadcastBitQuitCommandReceived);
-        Host::ThreadJoin(m_event_handler_thread, NULL, NULL);
-        m_event_handler_thread = LLDB_INVALID_HOST_THREAD;
+        m_event_handler_thread.Join(nullptr);
     }
 }
 
@@ -3366,21 +3391,43 @@ Debugger::IOHandlerThread (lldb::thread_arg_t arg)
 bool
 Debugger::StartIOHandlerThread()
 {
-    if (!IS_VALID_LLDB_HOST_THREAD(m_io_handler_thread))
-        m_io_handler_thread = Host::ThreadCreate("lldb.debugger.io-handler", IOHandlerThread, this, NULL);
-    return IS_VALID_LLDB_HOST_THREAD(m_io_handler_thread);
+    if (!m_io_handler_thread.IsJoinable())
+        m_io_handler_thread = ThreadLauncher::LaunchThread ("lldb.debugger.io-handler",
+                                                            IOHandlerThread,
+                                                            this,
+                                                            NULL,
+                                                            8*1024*1024); // Use larger 8MB stack for this thread
+    return m_io_handler_thread.IsJoinable();
 }
 
 void
 Debugger::StopIOHandlerThread()
 {
-    if (IS_VALID_LLDB_HOST_THREAD(m_io_handler_thread))
+    if (m_io_handler_thread.IsJoinable())
     {
         if (m_input_file_sp)
             m_input_file_sp->GetFile().Close();
-        Host::ThreadJoin(m_io_handler_thread, NULL, NULL);
-        m_io_handler_thread = LLDB_INVALID_HOST_THREAD;
+        m_io_handler_thread.Join(nullptr);
     }
 }
 
+Target *
+Debugger::GetDummyTarget()
+{
+    return m_target_list.GetDummyTarget (*this).get();
+}
+
+Target *
+Debugger::GetSelectedOrDummyTarget(bool prefer_dummy)
+{
+    Target *target = nullptr;
+    if (!prefer_dummy)
+    {
+        target = m_target_list.GetSelectedTarget().get();
+        if (target)
+            return target;
+    }
+    
+    return GetDummyTarget();
+}
 

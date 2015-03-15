@@ -142,9 +142,6 @@ namespace {
   };
 }
 
-static bool CastsAwayConstness(Sema &Self, QualType SrcType, QualType DestType,
-                               bool CheckCVR, bool CheckObjCLifetime);
-
 // The Try functions attempt a specific way of casting. If they succeed, they
 // return TC_Success. If their way of casting is not appropriate for the given
 // arguments, they return TC_NotApplicable and *may* set diag to a diagnostic
@@ -243,10 +240,8 @@ Sema::BuildCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
   QualType DestType = DestTInfo->getType();
 
   // If the type is dependent, we won't do the semantic analysis now.
-  // FIXME: should we check this in a more fine-grained manner?
-  bool TypeDependent = DestType->isDependentType() ||
-                       Ex.get()->isTypeDependent() ||
-                       Ex.get()->isValueDependent();
+  bool TypeDependent =
+      DestType->isDependentType() || Ex.get()->isTypeDependent();
 
   CastOperation Op(*this, DestType, E);
   Op.OpRange = SourceRange(OpLoc, Parens.getEnd());
@@ -462,7 +457,10 @@ static bool UnwrapDissimilarPointerTypes(QualType& T1, QualType& T2) {
 /// \param CheckObjCLifetime Whether to check Objective-C lifetime qualifiers.
 static bool
 CastsAwayConstness(Sema &Self, QualType SrcType, QualType DestType,
-                   bool CheckCVR, bool CheckObjCLifetime) {
+                   bool CheckCVR, bool CheckObjCLifetime,
+                   QualType *TheOffendingSrcType = nullptr,
+                   QualType *TheOffendingDestType = nullptr,
+                   Qualifiers *CastAwayQualifiers = nullptr) {
   // If the only checking we care about is for Objective-C lifetime qualifiers,
   // and we're not in ARC mode, there's nothing to check.
   if (!CheckCVR && CheckObjCLifetime && 
@@ -487,6 +485,8 @@ CastsAwayConstness(Sema &Self, QualType SrcType, QualType DestType,
   // Find the qualifiers. We only care about cvr-qualifiers for the 
   // purpose of this check, because other qualifiers (address spaces, 
   // Objective-C GC, etc.) are part of the type's identity.
+  QualType PrevUnwrappedSrcType = UnwrappedSrcType;
+  QualType PrevUnwrappedDestType = UnwrappedDestType;
   while (UnwrapDissimilarPointerTypes(UnwrappedSrcType, UnwrappedDestType)) {
     // Determine the relevant qualifiers at this level.
     Qualifiers SrcQuals, DestQuals;
@@ -497,6 +497,13 @@ CastsAwayConstness(Sema &Self, QualType SrcType, QualType DestType,
     if (CheckCVR) {
       RetainedSrcQuals.setCVRQualifiers(SrcQuals.getCVRQualifiers());
       RetainedDestQuals.setCVRQualifiers(DestQuals.getCVRQualifiers());
+
+      if (RetainedSrcQuals != RetainedDestQuals && TheOffendingSrcType &&
+          TheOffendingDestType && CastAwayQualifiers) {
+        *TheOffendingSrcType = PrevUnwrappedSrcType;
+        *TheOffendingDestType = PrevUnwrappedDestType;
+        *CastAwayQualifiers = RetainedSrcQuals - RetainedDestQuals;
+      }
     }
     
     if (CheckObjCLifetime &&
@@ -505,6 +512,9 @@ CastsAwayConstness(Sema &Self, QualType SrcType, QualType DestType,
     
     cv1.push_back(RetainedSrcQuals);
     cv2.push_back(RetainedDestQuals);
+
+    PrevUnwrappedSrcType = UnwrappedSrcType;
+    PrevUnwrappedDestType = UnwrappedDestType;
   }
   if (cv1.empty())
     return false;
@@ -2200,8 +2210,8 @@ void CastOperation::CheckCStyleCast() {
   // address space B is illegal.
   if (Self.getLangOpts().OpenCL && DestType->isPointerType() &&
       SrcType->isPointerType()) {
-    if (DestType->getPointeeType().getAddressSpace() !=
-        SrcType->getPointeeType().getAddressSpace()) {
+    const PointerType *DestPtr = DestType->getAs<PointerType>();
+    if (!DestPtr->isAddressSpaceOverlapping(*SrcType->getAs<PointerType>())) {
       Self.Diag(OpRange.getBegin(),
                 diag::err_typecheck_incompatible_address_space)
           << SrcType << DestType << Sema::AA_Casting
@@ -2371,6 +2381,30 @@ void CastOperation::CheckCStyleCast() {
 
   if (Kind == CK_BitCast)
     checkCastAlign();
+
+  // -Wcast-qual
+  QualType TheOffendingSrcType, TheOffendingDestType;
+  Qualifiers CastAwayQualifiers;
+  if (SrcType->isAnyPointerType() && DestType->isAnyPointerType() &&
+      CastsAwayConstness(Self, SrcType, DestType, true, false,
+                         &TheOffendingSrcType, &TheOffendingDestType,
+                         &CastAwayQualifiers)) {
+    int qualifiers = -1;
+    if (CastAwayQualifiers.hasConst() && CastAwayQualifiers.hasVolatile()) {
+      qualifiers = 0;
+    } else if (CastAwayQualifiers.hasConst()) {
+      qualifiers = 1;
+    } else if (CastAwayQualifiers.hasVolatile()) {
+      qualifiers = 2;
+    }
+    // This is a variant of int **x; const int **y = (const int **)x;
+    if (qualifiers == -1)
+      Self.Diag(SrcExpr.get()->getLocStart(), diag::warn_cast_qual2) <<
+        SrcType << DestType;
+    else
+      Self.Diag(SrcExpr.get()->getLocStart(), diag::warn_cast_qual) <<
+        TheOffendingSrcType << TheOffendingDestType << qualifiers;
+  }
 }
 
 ExprResult Sema::BuildCStyleCastExpr(SourceLocation LPLoc,

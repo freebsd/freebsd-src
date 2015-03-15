@@ -39,11 +39,11 @@ LockFileManager::readLockFile(StringRef LockFileName) {
     sys::fs::remove(LockFileName);
     return None;
   }
-  std::unique_ptr<MemoryBuffer> MB = std::move(MBOrErr.get());
+  MemoryBuffer &MB = *MBOrErr.get();
 
   StringRef Hostname;
   StringRef PIDStr;
-  std::tie(Hostname, PIDStr) = getToken(MB->getBuffer(), " ");
+  std::tie(Hostname, PIDStr) = getToken(MB.getBuffer(), " ");
   PIDStr = PIDStr.substr(PIDStr.find_first_not_of(" "));
   int PID;
   if (!PIDStr.getAsInteger(10, PID)) {
@@ -204,8 +204,8 @@ LockFileManager::WaitForUnlockResult LockFileManager::waitForUnlock() {
     // If the lock file is still expected to be there, check whether it still
     // is.
     if (!LockFileGone) {
-      bool Exists;
-      if (!sys::fs::exists(LockFileName.str(), Exists) && !Exists) {
+      if (sys::fs::access(LockFileName.c_str(), sys::fs::AccessMode::Exist) ==
+          errc::no_such_file_or_directory) {
         LockFileGone = true;
         LockFileJustDisappeared = true;
       }

@@ -21,8 +21,8 @@
 #include "lldb/lldb-private.h"
 #include "lldb/Core/PluginInterface.h"
 #include "lldb/Symbol/ClangASTType.h"
+#include "lldb/Symbol/DeclVendor.h"
 #include "lldb/Symbol/Type.h"
-#include "lldb/Symbol/TypeVendor.h"
 #include "lldb/Target/LanguageRuntime.h"
 
 namespace lldb_private {
@@ -166,6 +166,9 @@ public:
         virtual ClassDescriptorSP
         GetSuperclass () = 0;
         
+        virtual ClassDescriptorSP
+        GetMetaclass () const = 0;
+        
         // virtual if any implementation has some other version-specific rules
         // but for the known v1/v2 this is all that needs to be done
         virtual bool
@@ -275,10 +278,10 @@ public:
     class EncodingToType
     {
     public:
-        virtual ClangASTType RealizeType (ClangASTContext& ast_ctx, const char* name, bool allow_unknownanytype);
-        virtual ClangASTType RealizeType (const char* name, bool allow_unknownanytype);
+        virtual ClangASTType RealizeType (ClangASTContext& ast_ctx, const char* name, bool for_expression);
+        virtual ClangASTType RealizeType (const char* name, bool for_expression);
         
-        virtual ClangASTType RealizeType (clang::ASTContext& ast_ctx, const char* name, bool allow_unknownanytype) = 0;
+        virtual ClangASTType RealizeType (clang::ASTContext& ast_ctx, const char* name, bool for_expression) = 0;
         
         virtual ~EncodingToType();
         
@@ -382,8 +385,8 @@ public:
     virtual ObjCISA
     GetParentClass(ObjCISA isa);
     
-    virtual TypeVendor *
-    GetTypeVendor()
+    virtual DeclVendor *
+    GetDeclVendor()
     {
         return NULL;
     }

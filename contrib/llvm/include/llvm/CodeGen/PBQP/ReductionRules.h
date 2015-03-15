@@ -11,13 +11,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_REDUCTIONRULES_H
-#define LLVM_REDUCTIONRULES_H
+#ifndef LLVM_CODEGEN_PBQP_REDUCTIONRULES_H
+#define LLVM_CODEGEN_PBQP_REDUCTIONRULES_H
 
 #include "Graph.h"
 #include "Math.h"
 #include "Solution.h"
 
+namespace llvm {
 namespace PBQP {
 
   /// \brief Reduce a node of degree one.
@@ -186,6 +187,7 @@ namespace PBQP {
     return s;
   }
 
-}
+} // namespace PBQP
+} // namespace llvm
 
-#endif // LLVM_REDUCTIONRULES_H
+#endif

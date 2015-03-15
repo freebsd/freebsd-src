@@ -44,6 +44,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/DependenceAnalysis.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LoopInfo.h"
@@ -173,8 +174,7 @@ static BasicBlock *rewriteLoopExitBlock(Loop *L, BasicBlock *Exit, Pass *PP) {
 
   if (Exit->isLandingPad()) {
     SmallVector<BasicBlock*, 2> NewBBs;
-    SplitLandingPadPredecessors(Exit, ArrayRef<BasicBlock*>(&LoopBlocks[0],
-                                                            LoopBlocks.size()),
+    SplitLandingPadPredecessors(Exit, LoopBlocks,
                                 ".loopexit", ".nonloopexit",
                                 PP, NewBBs);
     NewExitBB = NewBBs[0];
@@ -209,11 +209,12 @@ static void addBlockAndPredsToSet(BasicBlock *InputBB, BasicBlock *StopBlock,
 /// \brief The first part of loop-nestification is to find a PHI node that tells
 /// us how to partition the loops.
 static PHINode *findPHIToPartitionLoops(Loop *L, AliasAnalysis *AA,
-                                        DominatorTree *DT) {
+                                        DominatorTree *DT,
+                                        AssumptionCache *AC) {
   for (BasicBlock::iterator I = L->getHeader()->begin(); isa<PHINode>(I); ) {
     PHINode *PN = cast<PHINode>(I);
     ++I;
-    if (Value *V = SimplifyInstruction(PN, nullptr, nullptr, DT)) {
+    if (Value *V = SimplifyInstruction(PN, nullptr, nullptr, DT, AC)) {
       // This is a degenerate PHI already, don't modify it!
       PN->replaceAllUsesWith(V);
       if (AA) AA->deleteValue(PN);
@@ -252,7 +253,8 @@ static PHINode *findPHIToPartitionLoops(Loop *L, AliasAnalysis *AA,
 ///
 static Loop *separateNestedLoop(Loop *L, BasicBlock *Preheader,
                                 AliasAnalysis *AA, DominatorTree *DT,
-                                LoopInfo *LI, ScalarEvolution *SE, Pass *PP) {
+                                LoopInfo *LI, ScalarEvolution *SE, Pass *PP,
+                                AssumptionCache *AC) {
   // Don't try to separate loops without a preheader.
   if (!Preheader)
     return nullptr;
@@ -261,7 +263,7 @@ static Loop *separateNestedLoop(Loop *L, BasicBlock *Preheader,
   assert(!L->getHeader()->isLandingPad() &&
          "Can't insert backedge to landing pad");
 
-  PHINode *PN = findPHIToPartitionLoops(L, AA, DT);
+  PHINode *PN = findPHIToPartitionLoops(L, AA, DT, AC);
   if (!PN) return nullptr;  // No known way to partition.
 
   // Pull out all predecessors that have varying values in the loop.  This
@@ -474,8 +476,8 @@ static BasicBlock *insertUniqueBackedgeBlock(Loop *L, BasicBlock *Preheader,
 /// explicit if they accepted the analysis directly and then updated it.
 static bool simplifyOneLoop(Loop *L, SmallVectorImpl<Loop *> &Worklist,
                             AliasAnalysis *AA, DominatorTree *DT, LoopInfo *LI,
-                            ScalarEvolution *SE, Pass *PP,
-                            const DataLayout *DL) {
+                            ScalarEvolution *SE, Pass *PP, const DataLayout *DL,
+                            AssumptionCache *AC) {
   bool Changed = false;
 ReprocessLoop:
 
@@ -496,20 +498,19 @@ ReprocessLoop:
     }
 
     // Delete each unique out-of-loop (and thus dead) predecessor.
-    for (SmallPtrSet<BasicBlock*, 4>::iterator I = BadPreds.begin(),
-         E = BadPreds.end(); I != E; ++I) {
+    for (BasicBlock *P : BadPreds) {
 
       DEBUG(dbgs() << "LoopSimplify: Deleting edge from dead predecessor "
-                   << (*I)->getName() << "\n");
+                   << P->getName() << "\n");
 
       // Inform each successor of each dead pred.
-      for (succ_iterator SI = succ_begin(*I), SE = succ_end(*I); SI != SE; ++SI)
-        (*SI)->removePredecessor(*I);
+      for (succ_iterator SI = succ_begin(P), SE = succ_end(P); SI != SE; ++SI)
+        (*SI)->removePredecessor(P);
       // Zap the dead pred's terminator and replace it with unreachable.
-      TerminatorInst *TI = (*I)->getTerminator();
+      TerminatorInst *TI = P->getTerminator();
        TI->replaceAllUsesWith(UndefValue::get(TI->getType()));
-      (*I)->getTerminator()->eraseFromParent();
-      new UnreachableInst((*I)->getContext(), *I);
+      P->getTerminator()->eraseFromParent();
+      new UnreachableInst(P->getContext(), P);
       Changed = true;
     }
   }
@@ -582,7 +583,8 @@ ReprocessLoop:
     // this for loops with a giant number of backedges, just factor them into a
     // common backedge instead.
     if (L->getNumBackEdges() < 8) {
-      if (Loop *OuterL = separateNestedLoop(L, Preheader, AA, DT, LI, SE, PP)) {
+      if (Loop *OuterL =
+              separateNestedLoop(L, Preheader, AA, DT, LI, SE, PP, AC)) {
         ++NumNested;
         // Enqueue the outer loop as it should be processed next in our
         // depth-first nest walk.
@@ -612,7 +614,7 @@ ReprocessLoop:
   PHINode *PN;
   for (BasicBlock::iterator I = L->getHeader()->begin();
        (PN = dyn_cast<PHINode>(I++)); )
-    if (Value *V = SimplifyInstruction(PN, nullptr, nullptr, DT)) {
+    if (Value *V = SimplifyInstruction(PN, nullptr, nullptr, DT, AC)) {
       if (AA) AA->deleteValue(PN);
       if (SE) SE->forgetValue(PN);
       PN->replaceAllUsesWith(V);
@@ -712,7 +714,7 @@ ReprocessLoop:
 
 bool llvm::simplifyLoop(Loop *L, DominatorTree *DT, LoopInfo *LI, Pass *PP,
                         AliasAnalysis *AA, ScalarEvolution *SE,
-                        const DataLayout *DL) {
+                        const DataLayout *DL, AssumptionCache *AC) {
   bool Changed = false;
 
   // Worklist maintains our depth-first queue of loops in this nest to process.
@@ -730,7 +732,7 @@ bool llvm::simplifyLoop(Loop *L, DominatorTree *DT, LoopInfo *LI, Pass *PP,
 
   while (!Worklist.empty())
     Changed |= simplifyOneLoop(Worklist.pop_back_val(), Worklist, AA, DT, LI,
-                               SE, PP, DL);
+                               SE, PP, DL, AC);
 
   return Changed;
 }
@@ -749,10 +751,13 @@ namespace {
     LoopInfo *LI;
     ScalarEvolution *SE;
     const DataLayout *DL;
+    AssumptionCache *AC;
 
     bool runOnFunction(Function &F) override;
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {
+      AU.addRequired<AssumptionCacheTracker>();
+
       // We need loop information to identify the loops...
       AU.addRequired<DominatorTreeWrapperPass>();
       AU.addPreserved<DominatorTreeWrapperPass>();
@@ -773,11 +778,12 @@ namespace {
 
 char LoopSimplify::ID = 0;
 INITIALIZE_PASS_BEGIN(LoopSimplify, "loop-simplify",
-                "Canonicalize natural loops", true, false)
+                "Canonicalize natural loops", false, false)
+INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(LoopInfo)
 INITIALIZE_PASS_END(LoopSimplify, "loop-simplify",
-                "Canonicalize natural loops", true, false)
+                "Canonicalize natural loops", false, false)
 
 // Publicly exposed interface to pass...
 char &llvm::LoopSimplifyID = LoopSimplify::ID;
@@ -794,10 +800,11 @@ bool LoopSimplify::runOnFunction(Function &F) {
   SE = getAnalysisIfAvailable<ScalarEvolution>();
   DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
   DL = DLP ? &DLP->getDataLayout() : nullptr;
+  AC = &getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
 
   // Simplify each loop nest in the function.
   for (LoopInfo::iterator I = LI->begin(), E = LI->end(); I != E; ++I)
-    Changed |= simplifyLoop(*I, DT, LI, this, AA, SE, DL);
+    Changed |= simplifyLoop(*I, DT, LI, this, AA, SE, DL, AC);
 
   return Changed;
 }

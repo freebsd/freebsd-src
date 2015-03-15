@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_RUNTIMEDYLDMACHOI386_H
-#define LLVM_RUNTIMEDYLDMACHOI386_H
+#ifndef LLVM_LIB_EXECUTIONENGINE_RUNTIMEDYLD_TARGETS_RUNTIMEDYLDMACHOI386_H
+#define LLVM_LIB_EXECUTIONENGINE_RUNTIMEDYLD_TARGETS_RUNTIMEDYLDMACHOI386_H
 
 #include "../RuntimeDyldMachO.h"
 
@@ -19,6 +19,9 @@ namespace llvm {
 class RuntimeDyldMachOI386
     : public RuntimeDyldMachOCRTPBase<RuntimeDyldMachOI386> {
 public:
+
+  typedef uint32_t TargetPtrT;
+
   RuntimeDyldMachOI386(RTDyldMemoryManager *MM)
       : RuntimeDyldMachOCRTPBase(MM) {}
 
@@ -28,10 +31,11 @@ public:
 
   relocation_iterator
   processRelocationRef(unsigned SectionID, relocation_iterator RelI,
-                       ObjectImage &ObjImg, ObjSectionToIDMap &ObjSectionToID,
-                       const SymbolTableMap &Symbols, StubMap &Stubs) override {
+                       const ObjectFile &BaseObjT,
+                       ObjSectionToIDMap &ObjSectionToID,
+                       StubMap &Stubs) override {
     const MachOObjectFile &Obj =
-        static_cast<const MachOObjectFile &>(*ObjImg.getObjectFile());
+        static_cast<const MachOObjectFile &>(BaseObjT);
     MachO::any_relocation_info RelInfo =
         Obj.getRelocation(RelI->getRawDataRefImpl());
     uint32_t RelType = Obj.getAnyRelocationType(RelInfo);
@@ -39,17 +43,18 @@ public:
     if (Obj.isRelocationScattered(RelInfo)) {
       if (RelType == MachO::GENERIC_RELOC_SECTDIFF ||
           RelType == MachO::GENERIC_RELOC_LOCAL_SECTDIFF)
-        return processSECTDIFFRelocation(SectionID, RelI, ObjImg,
+        return processSECTDIFFRelocation(SectionID, RelI, Obj,
                                          ObjSectionToID);
-      else if (Arch == Triple::x86 && RelType == MachO::GENERIC_RELOC_VANILLA)
-        return processI386ScatteredVANILLA(SectionID, RelI, ObjImg,
+      else if (RelType == MachO::GENERIC_RELOC_VANILLA)
+        return processI386ScatteredVANILLA(SectionID, RelI, Obj,
                                            ObjSectionToID);
       llvm_unreachable("Unhandled scattered relocation.");
     }
 
-    RelocationEntry RE(getBasicRelocationEntry(SectionID, ObjImg, RelI));
+    RelocationEntry RE(getRelocationEntry(SectionID, Obj, RelI));
+    RE.Addend = memcpyAddend(RE);
     RelocationValueRef Value(
-        getRelocationValueRef(ObjImg, RelI, RE, ObjSectionToID, Symbols));
+        getRelocationValueRef(Obj, RelI, RE, ObjSectionToID));
 
     // Addends for external, PC-rel relocations on i386 point back to the zero
     // offset. Calculate the final offset from the relocation target instead.
@@ -62,9 +67,9 @@ public:
     //   Value.Addend += RelocAddr + 4;
     // }
     if (RE.IsPCRel)
-      makeValueAddendPCRel(Value, ObjImg, RelI);
+      makeValueAddendPCRel(Value, Obj, RelI, 1 << RE.Size);
 
-    RE.Addend = Value.Addend;
+    RE.Addend = Value.Offset;
 
     if (Value.SymbolName)
       addRelocationForSymbol(RE, Value.SymbolName);
@@ -74,7 +79,7 @@ public:
     return ++RelI;
   }
 
-  void resolveRelocation(const RelocationEntry &RE, uint64_t Value) {
+  void resolveRelocation(const RelocationEntry &RE, uint64_t Value) override {
     DEBUG(dumpRelocationToResolve(RE, Value));
 
     const SectionEntry &Section = Sections[RE.SectionID];
@@ -89,7 +94,7 @@ public:
     default:
       llvm_unreachable("Invalid relocation type!");
     case MachO::GENERIC_RELOC_VANILLA:
-      writeBytesUnaligned(LocalAddress, Value + RE.Addend, 1 << RE.Size);
+      writeBytesUnaligned(Value + RE.Addend, LocalAddress, 1 << RE.Size);
       break;
     case MachO::GENERIC_RELOC_SECTDIFF:
     case MachO::GENERIC_RELOC_LOCAL_SECTDIFF: {
@@ -98,7 +103,7 @@ public:
       assert((Value == SectionABase || Value == SectionBBase) &&
              "Unexpected SECTDIFF relocation value.");
       Value = SectionABase - SectionBBase + RE.Addend;
-      writeBytesUnaligned(LocalAddress, Value, 1 << RE.Size);
+      writeBytesUnaligned(Value, LocalAddress, 1 << RE.Size);
       break;
     }
     case MachO::GENERIC_RELOC_PB_LA_PTR:
@@ -106,61 +111,56 @@ public:
     }
   }
 
-  void finalizeSection(ObjectImage &ObjImg, unsigned SectionID,
+  void finalizeSection(const ObjectFile &Obj, unsigned SectionID,
                        const SectionRef &Section) {
     StringRef Name;
     Section.getName(Name);
 
     if (Name == "__jump_table")
-      populateJumpTable(cast<MachOObjectFile>(*ObjImg.getObjectFile()), Section,
-                        SectionID);
+      populateJumpTable(cast<MachOObjectFile>(Obj), Section, SectionID);
     else if (Name == "__pointers")
-      populatePointersSection(cast<MachOObjectFile>(*ObjImg.getObjectFile()),
-                              Section, SectionID);
+      populateIndirectSymbolPointersSection(cast<MachOObjectFile>(Obj),
+                                            Section, SectionID);
   }
 
 private:
   relocation_iterator
   processSECTDIFFRelocation(unsigned SectionID, relocation_iterator RelI,
-                            ObjectImage &Obj,
+                            const ObjectFile &BaseObjT,
                             ObjSectionToIDMap &ObjSectionToID) {
-    const MachOObjectFile *MachO =
-        static_cast<const MachOObjectFile *>(Obj.getObjectFile());
+    const MachOObjectFile &Obj =
+        static_cast<const MachOObjectFile&>(BaseObjT);
     MachO::any_relocation_info RE =
-        MachO->getRelocation(RelI->getRawDataRefImpl());
+        Obj.getRelocation(RelI->getRawDataRefImpl());
 
     SectionEntry &Section = Sections[SectionID];
-    uint32_t RelocType = MachO->getAnyRelocationType(RE);
-    bool IsPCRel = MachO->getAnyRelocationPCRel(RE);
-    unsigned Size = MachO->getAnyRelocationLength(RE);
+    uint32_t RelocType = Obj.getAnyRelocationType(RE);
+    bool IsPCRel = Obj.getAnyRelocationPCRel(RE);
+    unsigned Size = Obj.getAnyRelocationLength(RE);
     uint64_t Offset;
     RelI->getOffset(Offset);
     uint8_t *LocalAddress = Section.Address + Offset;
     unsigned NumBytes = 1 << Size;
-    int64_t Addend = 0;
-    memcpy(&Addend, LocalAddress, NumBytes);
+    uint64_t Addend = readBytesUnaligned(LocalAddress, NumBytes);
 
     ++RelI;
     MachO::any_relocation_info RE2 =
-        MachO->getRelocation(RelI->getRawDataRefImpl());
+        Obj.getRelocation(RelI->getRawDataRefImpl());
 
-    uint32_t AddrA = MachO->getScatteredRelocationValue(RE);
-    section_iterator SAI = getSectionByAddress(*MachO, AddrA);
-    assert(SAI != MachO->section_end() && "Can't find section for address A");
-    uint64_t SectionABase;
-    SAI->getAddress(SectionABase);
+    uint32_t AddrA = Obj.getScatteredRelocationValue(RE);
+    section_iterator SAI = getSectionByAddress(Obj, AddrA);
+    assert(SAI != Obj.section_end() && "Can't find section for address A");
+    uint64_t SectionABase = SAI->getAddress();
     uint64_t SectionAOffset = AddrA - SectionABase;
     SectionRef SectionA = *SAI;
-    bool IsCode;
-    SectionA.isText(IsCode);
+    bool IsCode = SectionA.isText();
     uint32_t SectionAID =
         findOrEmitSection(Obj, SectionA, IsCode, ObjSectionToID);
 
-    uint32_t AddrB = MachO->getScatteredRelocationValue(RE2);
-    section_iterator SBI = getSectionByAddress(*MachO, AddrB);
-    assert(SBI != MachO->section_end() && "Can't find section for address B");
-    uint64_t SectionBBase;
-    SBI->getAddress(SectionBBase);
+    uint32_t AddrB = Obj.getScatteredRelocationValue(RE2);
+    section_iterator SBI = getSectionByAddress(Obj, AddrB);
+    assert(SBI != Obj.section_end() && "Can't find section for address B");
+    uint64_t SectionBBase = SBI->getAddress();
     uint64_t SectionBOffset = AddrB - SectionBBase;
     SectionRef SectionB = *SBI;
     uint32_t SectionBID =
@@ -185,32 +185,30 @@ private:
   }
 
   relocation_iterator processI386ScatteredVANILLA(
-      unsigned SectionID, relocation_iterator RelI, ObjectImage &Obj,
+      unsigned SectionID, relocation_iterator RelI,
+      const ObjectFile &BaseObjT,
       RuntimeDyldMachO::ObjSectionToIDMap &ObjSectionToID) {
-    const MachOObjectFile *MachO =
-        static_cast<const MachOObjectFile *>(Obj.getObjectFile());
+    const MachOObjectFile &Obj =
+        static_cast<const MachOObjectFile&>(BaseObjT);
     MachO::any_relocation_info RE =
-        MachO->getRelocation(RelI->getRawDataRefImpl());
+        Obj.getRelocation(RelI->getRawDataRefImpl());
 
     SectionEntry &Section = Sections[SectionID];
-    uint32_t RelocType = MachO->getAnyRelocationType(RE);
-    bool IsPCRel = MachO->getAnyRelocationPCRel(RE);
-    unsigned Size = MachO->getAnyRelocationLength(RE);
+    uint32_t RelocType = Obj.getAnyRelocationType(RE);
+    bool IsPCRel = Obj.getAnyRelocationPCRel(RE);
+    unsigned Size = Obj.getAnyRelocationLength(RE);
     uint64_t Offset;
     RelI->getOffset(Offset);
     uint8_t *LocalAddress = Section.Address + Offset;
     unsigned NumBytes = 1 << Size;
-    int64_t Addend = 0;
-    memcpy(&Addend, LocalAddress, NumBytes);
+    int64_t Addend = readBytesUnaligned(LocalAddress, NumBytes);
 
-    unsigned SymbolBaseAddr = MachO->getScatteredRelocationValue(RE);
-    section_iterator TargetSI = getSectionByAddress(*MachO, SymbolBaseAddr);
-    assert(TargetSI != MachO->section_end() && "Can't find section for symbol");
-    uint64_t SectionBaseAddr;
-    TargetSI->getAddress(SectionBaseAddr);
+    unsigned SymbolBaseAddr = Obj.getScatteredRelocationValue(RE);
+    section_iterator TargetSI = getSectionByAddress(Obj, SymbolBaseAddr);
+    assert(TargetSI != Obj.section_end() && "Can't find section for symbol");
+    uint64_t SectionBaseAddr = TargetSI->getAddress();
     SectionRef TargetSection = *TargetSI;
-    bool IsCode;
-    TargetSection.isText(IsCode);
+    bool IsCode = TargetSection.isText();
     uint32_t TargetSectionID =
         findOrEmitSection(Obj, TargetSection, IsCode, ObjSectionToID);
 
@@ -223,7 +221,7 @@ private:
   }
 
   // Populate stubs in __jump_table section.
-  void populateJumpTable(MachOObjectFile &Obj, const SectionRef &JTSection,
+  void populateJumpTable(const MachOObjectFile &Obj, const SectionRef &JTSection,
                          unsigned JTSectionID) {
     assert(!Obj.is64Bit() &&
            "__jump_table section not supported in 64-bit MachO.");
@@ -255,61 +253,9 @@ private:
     }
   }
 
-  // Populate __pointers section.
-  void populatePointersSection(MachOObjectFile &Obj,
-                               const SectionRef &PTSection,
-                               unsigned PTSectionID) {
-    assert(!Obj.is64Bit() &&
-           "__pointers section not supported in 64-bit MachO.");
-
-    MachO::dysymtab_command DySymTabCmd = Obj.getDysymtabLoadCommand();
-    MachO::section Sec32 = Obj.getSection(PTSection.getRawDataRefImpl());
-    uint32_t PTSectionSize = Sec32.size;
-    unsigned FirstIndirectSymbol = Sec32.reserved1;
-    const unsigned PTEntrySize = 4;
-    unsigned NumPTEntries = PTSectionSize / PTEntrySize;
-    unsigned PTEntryOffset = 0;
-
-    assert((PTSectionSize % PTEntrySize) == 0 &&
-           "Pointers section does not contain a whole number of stubs?");
-
-    DEBUG(dbgs() << "Populating __pointers, Section ID " << PTSectionID << ", "
-                 << NumPTEntries << " entries, " << PTEntrySize
-                 << " bytes each:\n");
-
-    for (unsigned i = 0; i < NumPTEntries; ++i) {
-      unsigned SymbolIndex =
-          Obj.getIndirectSymbolTableEntry(DySymTabCmd, FirstIndirectSymbol + i);
-      symbol_iterator SI = Obj.getSymbolByIndex(SymbolIndex);
-      StringRef IndirectSymbolName;
-      SI->getName(IndirectSymbolName);
-      DEBUG(dbgs() << "  " << IndirectSymbolName << ": index " << SymbolIndex
-                   << ", PT offset: " << PTEntryOffset << "\n");
-      RelocationEntry RE(PTSectionID, PTEntryOffset,
-                         MachO::GENERIC_RELOC_VANILLA, 0, false, 2);
-      addRelocationForSymbol(RE, IndirectSymbolName);
-      PTEntryOffset += PTEntrySize;
-    }
-  }
-
-  static section_iterator getSectionByAddress(const MachOObjectFile &Obj,
-                                              uint64_t Addr) {
-    section_iterator SI = Obj.section_begin();
-    section_iterator SE = Obj.section_end();
-
-    for (; SI != SE; ++SI) {
-      uint64_t SAddr, SSize;
-      SI->getAddress(SAddr);
-      SI->getSize(SSize);
-      if ((Addr >= SAddr) && (Addr < SAddr + SSize))
-        return SI;
-    }
-
-    return SE;
-  }
 };
 }
 
 #undef DEBUG_TYPE
 
-#endif // LLVM_RUNTIMEDYLDMACHOI386_H
+#endif

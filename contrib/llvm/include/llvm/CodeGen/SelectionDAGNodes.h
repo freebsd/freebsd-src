@@ -19,7 +19,6 @@
 #ifndef LLVM_CODEGEN_SELECTIONDAGNODES_H
 #define LLVM_CODEGEN_SELECTIONDAGNODES_H
 
-#include "llvm/ADT/iterator_range.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/GraphTraits.h"
@@ -27,6 +26,7 @@
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/ilist_node.h"
+#include "llvm/ADT/iterator_range.h"
 #include "llvm/CodeGen/ISDOpcodes.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/ValueTypes.h"
@@ -117,11 +117,13 @@ namespace ISD {
 /// of information is represented with the SDValue value type.
 ///
 class SDValue {
+  friend struct DenseMapInfo<SDValue>;
+
   SDNode *Node;       // The node defining the value we are using.
   unsigned ResNo;     // Which return value of the node we are using.
 public:
   SDValue() : Node(nullptr), ResNo(0) {}
-  SDValue(SDNode *node, unsigned resno) : Node(node), ResNo(resno) {}
+  SDValue(SDNode *node, unsigned resno);
 
   /// get the index which selects a specific result in the SDNode
   unsigned getResNo() const { return ResNo; }
@@ -208,10 +210,14 @@ public:
 
 template<> struct DenseMapInfo<SDValue> {
   static inline SDValue getEmptyKey() {
-    return SDValue((SDNode*)-1, -1U);
+    SDValue V;
+    V.ResNo = -1U;
+    return V;
   }
   static inline SDValue getTombstoneKey() {
-    return SDValue((SDNode*)-1, 0);
+    SDValue V;
+    V.ResNo = -2U;
+    return V;
   }
   static unsigned getHashValue(const SDValue &Val) {
     return ((unsigned)((uintptr_t)Val.getNode() >> 4) ^
@@ -411,6 +417,16 @@ public:
     return NodeType >= ISD::FIRST_TARGET_MEMORY_OPCODE;
   }
 
+  /// Test if this node is a memory intrinsic (with valid pointer information).
+  /// INTRINSIC_W_CHAIN and INTRINSIC_VOID nodes are sometimes created for
+  /// non-memory intrinsics (with chains) that are not really instances of
+  /// MemSDNode. For such nodes, we need some extra state to determine the
+  /// proper classof relationship.
+  bool isMemIntrinsic() const {
+    return (NodeType == ISD::INTRINSIC_W_CHAIN ||
+            NodeType == ISD::INTRINSIC_VOID) && ((SubclassData >> 13) & 1);
+  }
+
   /// isMachineOpcode - Test if this node has a post-isel opcode, directly
   /// corresponding to a MachineInstr opcode.
   bool isMachineOpcode() const { return NodeType < 0; }
@@ -578,7 +594,7 @@ public:
   /// changes.
   /// NOTE: This is still very expensive. Use carefully.
   bool hasPredecessorHelper(const SDNode *N,
-                            SmallPtrSet<const SDNode *, 32> &Visited,
+                            SmallPtrSetImpl<const SDNode *> &Visited,
                             SmallVectorImpl<const SDNode *> &Worklist) const;
 
   /// getNumOperands - Return the number of values used by this operation.
@@ -746,7 +762,13 @@ protected:
       ValueList(VTs.VTs), UseList(nullptr),
       NumOperands(Ops.size()), NumValues(VTs.NumVTs),
       debugLoc(dl), IROrder(Order) {
+    assert(debugLoc.hasTrivialDestructor() && "Expected trivial destructor");
+    assert(NumOperands == Ops.size() &&
+           "NumOperands wasn't wide enough for its operands!");
+    assert(NumValues == VTs.NumVTs &&
+           "NumValues wasn't wide enough for its operands!");
     for (unsigned i = 0; i != Ops.size(); ++i) {
+      assert(OperandList && "no operands available");
       OperandList[i].setUser(this);
       OperandList[i].setInitial(Ops[i]);
     }
@@ -759,7 +781,11 @@ protected:
     : NodeType(Opc), OperandsNeedDelete(false), HasDebugValue(false),
       SubclassData(0), NodeId(-1), OperandList(nullptr), ValueList(VTs.VTs),
       UseList(nullptr), NumOperands(0), NumValues(VTs.NumVTs), debugLoc(dl),
-      IROrder(Order) {}
+      IROrder(Order) {
+    assert(debugLoc.hasTrivialDestructor() && "Expected trivial destructor");
+    assert(NumValues == VTs.NumVTs &&
+           "NumValues wasn't wide enough for its operands!");
+  }
 
   /// InitOperands - Initialize the operands list of this with 1 operand.
   void InitOperands(SDUse *Ops, const SDValue &Op0) {
@@ -818,6 +844,8 @@ protected:
       Ops[i].setInitial(Vals[i]);
     }
     NumOperands = N;
+    assert(NumOperands == N &&
+           "NumOperands wasn't wide enough for its operands!");
     OperandList = Ops;
     checkForCycles(this);
   }
@@ -876,6 +904,13 @@ public:
 
 
 // Define inline functions from the SDValue class.
+
+inline SDValue::SDValue(SDNode *node, unsigned resno)
+    : Node(node), ResNo(resno) {
+  assert((!Node || ResNo < Node->getNumValues()) &&
+         "Invalid result number for the given node!");
+  assert(ResNo < -2U && "Cannot use result numbers reserved for DenseMaps.");
+}
 
 inline unsigned SDValue::getOpcode() const {
   return Node->getOpcode();
@@ -1088,8 +1123,8 @@ public:
   // Returns the offset from the location of the access.
   int64_t getSrcValueOffset() const { return MMO->getOffset(); }
 
-  /// Returns the TBAAInfo that describes the dereference.
-  const MDNode *getTBAAInfo() const { return MMO->getTBAAInfo(); }
+  /// Returns the AA info that describes the dereference.
+  AAMDNodes getAAInfo() const { return MMO->getAAInfo(); }
 
   /// Returns the Ranges that describes the dereference.
   const MDNode *getRanges() const { return MMO->getRanges(); }
@@ -1145,6 +1180,9 @@ public:
            N->getOpcode() == ISD::ATOMIC_LOAD_UMAX    ||
            N->getOpcode() == ISD::ATOMIC_LOAD         ||
            N->getOpcode() == ISD::ATOMIC_STORE        ||
+           N->getOpcode() == ISD::MLOAD               ||
+           N->getOpcode() == ISD::MSTORE              ||
+           N->isMemIntrinsic()                        ||
            N->isTargetMemoryOpcode();
   }
 };
@@ -1273,14 +1311,14 @@ public:
                      ArrayRef<SDValue> Ops, EVT MemoryVT,
                      MachineMemOperand *MMO)
     : MemSDNode(Opc, Order, dl, VTs, Ops, MemoryVT, MMO) {
+    SubclassData |= 1u << 13;
   }
 
   // Methods to support isa and dyn_cast
   static bool classof(const SDNode *N) {
     // We lower some target intrinsics to their target opcode
     // early a node with a target opcode can be of this class
-    return N->getOpcode() == ISD::INTRINSIC_W_CHAIN ||
-           N->getOpcode() == ISD::INTRINSIC_VOID ||
+    return N->isMemIntrinsic()             ||
            N->getOpcode() == ISD::PREFETCH ||
            N->isTargetMemoryOpcode();
   }
@@ -1379,6 +1417,12 @@ public:
 
   /// isNaN - Return true if the value is a NaN.
   bool isNaN() const { return Value->isNaN(); }
+
+  /// isInfinity - Return true if the value is an infinity
+  bool isInfinity() const { return Value->isInfinity(); }
+
+  /// isNegative - Return true if the value is negative.
+  bool isNegative() const { return Value->isNegative(); }
 
   /// isExactlyValue - We don't rely on operator== working on double values, as
   /// it returns true for things that are clearly not equal, like -0.0 and 0.0.
@@ -1890,6 +1934,81 @@ public:
 
   static bool classof(const SDNode *N) {
     return N->getOpcode() == ISD::STORE;
+  }
+};
+
+/// MaskedLoadStoreSDNode - This is a base class is used to represent MLOAD and
+/// MSTORE nodes
+///
+class MaskedLoadStoreSDNode : public MemSDNode {
+  // Operands
+  SDUse Ops[4];
+public:
+  friend class SelectionDAG;
+  MaskedLoadStoreSDNode(ISD::NodeType NodeTy, unsigned Order, DebugLoc dl,
+                   SDValue *Operands, unsigned numOperands, 
+                   SDVTList VTs, EVT MemVT, MachineMemOperand *MMO)
+    : MemSDNode(NodeTy, Order, dl, VTs, MemVT, MMO) {
+    InitOperands(Ops, Operands, numOperands);
+  }
+
+  // In the both nodes address is Op1, mask is Op2:
+  // MaskedLoadSDNode (Chain, ptr, mask, src0), src0 is a passthru value
+  // MaskedStoreSDNode (Chain, ptr, mask, data)
+  // Mask is a vector of i1 elements
+  const SDValue &getBasePtr() const { return getOperand(1); }
+  const SDValue &getMask() const    { return getOperand(2); }
+
+  static bool classof(const SDNode *N) {
+    return N->getOpcode() == ISD::MLOAD ||
+           N->getOpcode() == ISD::MSTORE;
+  }
+};
+
+/// MaskedLoadSDNode - This class is used to represent an MLOAD node
+///
+class MaskedLoadSDNode : public MaskedLoadStoreSDNode {
+public:
+  friend class SelectionDAG;
+  MaskedLoadSDNode(unsigned Order, DebugLoc dl, SDValue *Operands,
+                   unsigned numOperands, SDVTList VTs, ISD::LoadExtType ETy,
+                   EVT MemVT, MachineMemOperand *MMO)
+    : MaskedLoadStoreSDNode(ISD::MLOAD, Order, dl, Operands, numOperands,
+                            VTs, MemVT, MMO) {
+    SubclassData |= (unsigned short)ETy;
+  }
+
+  ISD::LoadExtType getExtensionType() const {
+    return ISD::LoadExtType(SubclassData & 3);
+  } 
+  const SDValue &getSrc0() const { return getOperand(3); }
+  static bool classof(const SDNode *N) {
+    return N->getOpcode() == ISD::MLOAD;
+  }
+};
+
+/// MaskedStoreSDNode - This class is used to represent an MSTORE node
+///
+class MaskedStoreSDNode : public MaskedLoadStoreSDNode {
+
+public:
+  friend class SelectionDAG;
+  MaskedStoreSDNode(unsigned Order, DebugLoc dl, SDValue *Operands,
+                    unsigned numOperands, SDVTList VTs, bool isTrunc, EVT MemVT,
+                    MachineMemOperand *MMO)
+    : MaskedLoadStoreSDNode(ISD::MSTORE, Order, dl, Operands, numOperands,
+                            VTs, MemVT, MMO) {
+      SubclassData |= (unsigned short)isTrunc;
+  }
+  /// isTruncatingStore - Return true if the op does a truncation before store.
+  /// For integers this is the same as doing a TRUNCATE and storing the result.
+  /// For floats, it is the same as doing an FP_ROUND and storing the result.
+  bool isTruncatingStore() const { return SubclassData & 1; }
+
+  const SDValue &getValue() const { return getOperand(3); }
+
+  static bool classof(const SDNode *N) {
+    return N->getOpcode() == ISD::MSTORE;
   }
 };
 

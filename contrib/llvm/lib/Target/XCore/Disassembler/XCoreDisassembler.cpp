@@ -19,7 +19,6 @@
 #include "llvm/MC/MCFixedLenDisassembler.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/Support/MemoryObject.h"
 #include "llvm/Support/TargetRegistry.h"
 
 using namespace llvm;
@@ -36,47 +35,35 @@ public:
   XCoreDisassembler(const MCSubtargetInfo &STI, MCContext &Ctx) :
     MCDisassembler(STI, Ctx) {}
 
-  /// \brief See MCDisassembler.
-  virtual DecodeStatus getInstruction(MCInst &instr,
-                                      uint64_t &size,
-                                      const MemoryObject &region,
-                                      uint64_t address,
-                                      raw_ostream &vStream,
-                                      raw_ostream &cStream) const override;
-
+  DecodeStatus getInstruction(MCInst &Instr, uint64_t &Size,
+                              ArrayRef<uint8_t> Bytes, uint64_t Address,
+                              raw_ostream &VStream,
+                              raw_ostream &CStream) const override;
 };
 }
 
-static bool readInstruction16(const MemoryObject &region,
-                              uint64_t address,
-                              uint64_t &size,
-                              uint16_t &insn) {
-  uint8_t Bytes[4];
-
+static bool readInstruction16(ArrayRef<uint8_t> Bytes, uint64_t Address,
+                              uint64_t &Size, uint16_t &Insn) {
   // We want to read exactly 2 Bytes of data.
-  if (region.readBytes(address, 2, Bytes) == -1) {
-    size = 0;
+  if (Bytes.size() < 2) {
+    Size = 0;
     return false;
   }
   // Encoded as a little-endian 16-bit word in the stream.
-  insn = (Bytes[0] <<  0) | (Bytes[1] <<  8);
+  Insn = (Bytes[0] << 0) | (Bytes[1] << 8);
   return true;
 }
 
-static bool readInstruction32(const MemoryObject &region,
-                              uint64_t address,
-                              uint64_t &size,
-                              uint32_t &insn) {
-  uint8_t Bytes[4];
-
+static bool readInstruction32(ArrayRef<uint8_t> Bytes, uint64_t Address,
+                              uint64_t &Size, uint32_t &Insn) {
   // We want to read exactly 4 Bytes of data.
-  if (region.readBytes(address, 4, Bytes) == -1) {
-    size = 0;
+  if (Bytes.size() < 4) {
+    Size = 0;
     return false;
   }
   // Encoded as a little-endian 32-bit word in the stream.
-  insn = (Bytes[0] << 0) | (Bytes[1] << 8) | (Bytes[2] << 16) |
-         (Bytes[3] << 24);
+  Insn =
+      (Bytes[0] << 0) | (Bytes[1] << 8) | (Bytes[2] << 16) | (Bytes[3] << 24);
   return true;
 }
 
@@ -748,16 +735,12 @@ DecodeL4RSrcDstSrcDstInstruction(MCInst &Inst, unsigned Insn, uint64_t Address,
   return S;
 }
 
-MCDisassembler::DecodeStatus
-XCoreDisassembler::getInstruction(MCInst &instr,
-                                  uint64_t &Size,
-                                  const MemoryObject &Region,
-                                  uint64_t Address,
-                                  raw_ostream &vStream,
-                                  raw_ostream &cStream) const {
+MCDisassembler::DecodeStatus XCoreDisassembler::getInstruction(
+    MCInst &instr, uint64_t &Size, ArrayRef<uint8_t> Bytes, uint64_t Address,
+    raw_ostream &vStream, raw_ostream &cStream) const {
   uint16_t insn16;
 
-  if (!readInstruction16(Region, Address, Size, insn16)) {
+  if (!readInstruction16(Bytes, Address, Size, insn16)) {
     return Fail;
   }
 
@@ -771,7 +754,7 @@ XCoreDisassembler::getInstruction(MCInst &instr,
 
   uint32_t insn32;
 
-  if (!readInstruction32(Region, Address, Size, insn32)) {
+  if (!readInstruction32(Bytes, Address, Size, insn32)) {
     return Fail;
   }
 

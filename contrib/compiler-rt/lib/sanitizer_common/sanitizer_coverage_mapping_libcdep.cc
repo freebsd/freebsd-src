@@ -62,8 +62,8 @@ struct CachedMapping {
 static CachedMapping cached_mapping;
 static StaticSpinMutex mapping_mu;
 
-void CovUpdateMapping(uptr caller_pc) {
-  if (!common_flags()->coverage || !common_flags()->coverage_direct) return;
+void CovUpdateMapping(const char *coverage_dir, uptr caller_pc) {
+  if (!common_flags()->coverage_direct) return;
 
   SpinMutexLock l(&mapping_mu);
 
@@ -71,36 +71,41 @@ void CovUpdateMapping(uptr caller_pc) {
     return;
 
   InternalScopedString text(kMaxTextSize);
-  InternalScopedBuffer<LoadedModule> modules(kMaxNumberOfModules);
-  CHECK(modules.data());
-  int n_modules = GetListOfModules(modules.data(), kMaxNumberOfModules,
-                                   /* filter */ 0);
 
-  text.append("%d\n", sizeof(uptr) * 8);
-  for (int i = 0; i < n_modules; ++i) {
-    const char *module_name = StripModuleName(modules[i].full_name());
-    for (unsigned j = 0; j < modules[i].n_ranges(); ++j) {
-      if (modules[i].address_range_executable(j)) {
-        uptr start = modules[i].address_range_start(j);
-        uptr end = modules[i].address_range_end(j);
-        uptr base = modules[i].base_address();
-        text.append("%zx %zx %zx %s\n", start, end, base, module_name);
-        if (caller_pc && caller_pc >= start && caller_pc < end)
-          cached_mapping.SetModuleRange(start, end);
+  {
+    InternalScopedBuffer<LoadedModule> modules(kMaxNumberOfModules);
+    CHECK(modules.data());
+    int n_modules = GetListOfModules(modules.data(), kMaxNumberOfModules,
+                                     /* filter */ 0);
+
+    text.append("%d\n", sizeof(uptr) * 8);
+    for (int i = 0; i < n_modules; ++i) {
+      const char *module_name = StripModuleName(modules[i].full_name());
+      uptr base = modules[i].base_address();
+      for (auto iter = modules[i].ranges(); iter.hasNext();) {
+        const auto *range = iter.next();
+        if (range->executable) {
+          uptr start = range->beg;
+          uptr end = range->end;
+          text.append("%zx %zx %zx %s\n", start, end, base, module_name);
+          if (caller_pc && caller_pc >= start && caller_pc < end)
+            cached_mapping.SetModuleRange(start, end);
+        }
       }
+      modules[i].clear();
     }
   }
 
   int err;
-  InternalScopedString tmp_path(64 +
-                                internal_strlen(common_flags()->coverage_dir));
+  InternalScopedString tmp_path(64 + internal_strlen(coverage_dir));
   uptr res = internal_snprintf((char *)tmp_path.data(), tmp_path.size(),
-                    "%s/%zd.sancov.map.tmp", common_flags()->coverage_dir,
-                    internal_getpid());
+                               "%s/%zd.sancov.map.tmp", coverage_dir,
+                               internal_getpid());
   CHECK_LE(res, tmp_path.size());
   uptr map_fd = OpenFile(tmp_path.data(), true);
-  if (internal_iserror(map_fd)) {
-    Report(" Coverage: failed to open %s for writing\n", tmp_path.data());
+  if (internal_iserror(map_fd, &err)) {
+    Report(" Coverage: failed to open %s for writing: %d\n", tmp_path.data(),
+           err);
     Die();
   }
 
@@ -111,9 +116,9 @@ void CovUpdateMapping(uptr caller_pc) {
   }
   internal_close(map_fd);
 
-  InternalScopedString path(64 + internal_strlen(common_flags()->coverage_dir));
+  InternalScopedString path(64 + internal_strlen(coverage_dir));
   res = internal_snprintf((char *)path.data(), path.size(), "%s/%zd.sancov.map",
-                    common_flags()->coverage_dir, internal_getpid());
+                          coverage_dir, internal_getpid());
   CHECK_LE(res, path.size());
   res = internal_rename(tmp_path.data(), path.data());
   if (internal_iserror(res, &err)) {

@@ -10,16 +10,16 @@
 /// \brief Defines the virtual file system interface vfs::FileSystem.
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_BASIC_VIRTUAL_FILE_SYSTEM_H
-#define LLVM_CLANG_BASIC_VIRTUAL_FILE_SYSTEM_H
+#ifndef LLVM_CLANG_BASIC_VIRTUALFILESYSTEM_H
+#define LLVM_CLANG_BASIC_VIRTUALFILESYSTEM_H
 
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/FileSystem.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace llvm {
 class MemoryBuffer;
@@ -89,11 +89,9 @@ public:
   /// \brief Get the status of the file.
   virtual llvm::ErrorOr<Status> status() = 0;
   /// \brief Get the contents of the file as a \p MemoryBuffer.
-  virtual std::error_code getBuffer(const Twine &Name,
-                                    std::unique_ptr<llvm::MemoryBuffer> &Result,
-                                    int64_t FileSize = -1,
-                                    bool RequiresNullTerminator = true,
-                                    bool IsVolatile = false) = 0;
+  virtual llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>>
+  getBuffer(const Twine &Name, int64_t FileSize = -1,
+            bool RequiresNullTerminator = true, bool IsVolatile = false) = 0;
   /// \brief Closes the file.
   virtual std::error_code close() = 0;
   /// \brief Sets the name to use for this file.
@@ -188,16 +186,14 @@ public:
   /// \brief Get the status of the entry at \p Path, if one exists.
   virtual llvm::ErrorOr<Status> status(const Twine &Path) = 0;
   /// \brief Get a \p File object for the file at \p Path, if one exists.
-  virtual std::error_code openFileForRead(const Twine &Path,
-                                          std::unique_ptr<File> &Result) = 0;
+  virtual llvm::ErrorOr<std::unique_ptr<File>>
+  openFileForRead(const Twine &Path) = 0;
 
   /// This is a convenience method that opens a file, gets its content and then
   /// closes the file.
-  std::error_code getBufferForFile(const Twine &Name,
-                                   std::unique_ptr<llvm::MemoryBuffer> &Result,
-                                   int64_t FileSize = -1,
-                                   bool RequiresNullTerminator = true,
-                                   bool IsVolatile = false);
+  llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>>
+  getBufferForFile(const Twine &Name, int64_t FileSize = -1,
+                   bool RequiresNullTerminator = true, bool IsVolatile = false);
 
   /// \brief Get a directory_iterator for \p Dir.
   /// \note The 'end' iterator is directory_iterator().
@@ -231,8 +227,8 @@ public:
   void pushOverlay(IntrusiveRefCntPtr<FileSystem> FS);
 
   llvm::ErrorOr<Status> status(const Twine &Path) override;
-  std::error_code openFileForRead(const Twine &Path,
-                                  std::unique_ptr<File> &Result) override;
+  llvm::ErrorOr<std::unique_ptr<File>>
+  openFileForRead(const Twine &Path) override;
   directory_iterator dir_begin(const Twine &Dir, std::error_code &EC) override;
 
   typedef FileSystemList::reverse_iterator iterator;
@@ -250,10 +246,8 @@ llvm::sys::fs::UniqueID getNextVirtualUniqueID();
 
 /// \brief Gets a \p FileSystem for a virtual file system described in YAML
 /// format.
-///
-/// Takes ownership of \p Buffer.
 IntrusiveRefCntPtr<FileSystem>
-getVFSFromYAML(llvm::MemoryBuffer *Buffer,
+getVFSFromYAML(std::unique_ptr<llvm::MemoryBuffer> Buffer,
                llvm::SourceMgr::DiagHandlerTy DiagHandler,
                void *DiagContext = nullptr,
                IntrusiveRefCntPtr<FileSystem> ExternalFS = getRealFileSystem());
@@ -280,4 +274,4 @@ public:
 
 } // end namespace vfs
 } // end namespace clang
-#endif // LLVM_CLANG_BASIC_VIRTUAL_FILE_SYSTEM_H
+#endif

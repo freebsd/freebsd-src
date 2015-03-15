@@ -23,7 +23,7 @@
             ..
             lib
                 clang
-                    3.5.1
+                    3.6.0
                         lib
                             freebsd
                             ..

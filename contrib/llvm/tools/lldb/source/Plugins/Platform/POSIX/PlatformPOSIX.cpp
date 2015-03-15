@@ -15,7 +15,9 @@
 // Project includes
 
 #include "lldb/Core/DataBufferHeap.h"
+#include "lldb/Core/Debugger.h"
 #include "lldb/Core/Log.h"
+#include "lldb/Core/Module.h"
 #include "lldb/Core/StreamString.h"
 #include "lldb/Host/File.h"
 #include "lldb/Host/FileCache.h"
@@ -330,8 +332,14 @@ PlatformPOSIX::PutFile (const lldb_private::FileSpec& source,
             error = source_file.Read(buffer_sp->GetBytes(), bytes_read);
             if (bytes_read)
             {
-                WriteFile(dest_file, offset, buffer_sp->GetBytes(), bytes_read, error);
-                offset += bytes_read;
+                const uint64_t bytes_written = WriteFile(dest_file, offset, buffer_sp->GetBytes(), bytes_read, error);
+                offset += bytes_written;
+                if (bytes_written != bytes_read)
+                {
+                    // We didn't write the correct numbe of bytes, so adjust
+                    // the file position in the source file we are reading from...
+                    source_file.SeekFromStart(offset);
+                }
             }
             else
                 break;
@@ -343,6 +351,18 @@ PlatformPOSIX::PutFile (const lldb_private::FileSpec& source,
 //        std::string dst_path (destination.GetPath());
 //        if (chown_file(this,dst_path.c_str(),uid,gid) != 0)
 //            return Error("unable to perform chown");
+
+
+        uint64_t src_md5[2];
+        uint64_t dst_md5[2];
+
+        if (FileSystem::CalculateMD5 (source, src_md5[0], src_md5[1]) && CalculateMD5 (destination, dst_md5[0], dst_md5[1]))
+        {
+            if (src_md5[0] != dst_md5[0] || src_md5[1] != dst_md5[1])
+            {
+                error.SetErrorString("md5 checksum of installed file doesn't match, installation failed");
+            }
+        }
         return error;
     }
     return Platform::PutFile(source,destination,uid,gid);
@@ -616,6 +636,18 @@ PlatformPOSIX::GetRemoteOSBuildString (std::string &s)
     return false;
 }
 
+size_t
+PlatformPOSIX::GetEnvironment (StringList &env)
+{
+    if (IsRemote())
+    {
+        if (m_remote_platform_sp)
+            return m_remote_platform_sp->GetEnvironment(env);
+        return 0;
+    }
+    return Host::GetEnvironment(env);
+}
+
 bool
 PlatformPOSIX::GetRemoteOSKernelDescription (std::string &s)
 {
@@ -681,7 +713,7 @@ PlatformPOSIX::ConnectRemote (Args& args)
     else
     {
         if (!m_remote_platform_sp)
-            m_remote_platform_sp = Platform::Create ("remote-gdb-server", error);
+            m_remote_platform_sp = Platform::Create (ConstString("remote-gdb-server"), error);
 
         if (m_remote_platform_sp && error.Success())
             error = m_remote_platform_sp->ConnectRemote (args);
@@ -739,11 +771,97 @@ PlatformPOSIX::DisconnectRemote ()
     return error;
 }
 
+Error
+PlatformPOSIX::LaunchProcess (ProcessLaunchInfo &launch_info)
+{
+    Error error;
+
+    if (IsHost())
+    {
+        error = Platform::LaunchProcess (launch_info);
+    }
+    else
+    {
+        if (m_remote_platform_sp)
+            error = m_remote_platform_sp->LaunchProcess (launch_info);
+        else
+            error.SetErrorString ("the platform is not currently connected");
+    }
+    return error;
+}
+
+lldb::ProcessSP
+PlatformPOSIX::Attach (ProcessAttachInfo &attach_info,
+                       Debugger &debugger,
+                       Target *target,
+                       Error &error)
+{
+    lldb::ProcessSP process_sp;
+    Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_PLATFORM));
+
+    if (IsHost())
+    {
+        if (target == NULL)
+        {
+            TargetSP new_target_sp;
+
+            error = debugger.GetTargetList().CreateTarget (debugger,
+                                                           NULL,
+                                                           NULL,
+                                                           false,
+                                                           NULL,
+                                                           new_target_sp);
+            target = new_target_sp.get();
+            if (log)
+                log->Printf ("PlatformPOSIX::%s created new target", __FUNCTION__);
+        }
+        else
+        {
+            error.Clear();
+            if (log)
+                log->Printf ("PlatformPOSIX::%s target already existed, setting target", __FUNCTION__);
+        }
+
+        if (target && error.Success())
+        {
+            debugger.GetTargetList().SetSelectedTarget(target);
+            if (log)
+            {
+                ModuleSP exe_module_sp = target->GetExecutableModule ();
+                log->Printf ("PlatformPOSIX::%s set selected target to %p %s", __FUNCTION__,
+                             target,
+                             exe_module_sp ? exe_module_sp->GetFileSpec().GetPath().c_str () : "<null>" );
+            }
+
+
+            process_sp = target->CreateProcess (attach_info.GetListenerForProcess(debugger), attach_info.GetProcessPluginName(), NULL);
+
+            if (process_sp)
+            {
+                // Set UnixSignals appropriately.
+                process_sp->SetUnixSignals (Host::GetUnixSignals ());
+
+                ListenerSP listener_sp (new Listener("lldb.PlatformPOSIX.attach.hijack"));
+                attach_info.SetHijackListener(listener_sp);
+                process_sp->HijackProcessEvents(listener_sp.get());
+                error = process_sp->Attach (attach_info);
+            }
+        }
+    }
+    else
+    {
+        if (m_remote_platform_sp)
+            process_sp = m_remote_platform_sp->Attach (attach_info, debugger, target, error);
+        else
+            error.SetErrorString ("the platform is not currently connected");
+    }
+    return process_sp;
+}
+
 lldb::ProcessSP
 PlatformPOSIX::DebugProcess (ProcessLaunchInfo &launch_info,
                               Debugger &debugger,
                               Target *target,       // Can be NULL, if NULL create a new target, else use existing one
-                              Listener &listener,
                               Error &error)
 {
     ProcessSP process_sp;
@@ -754,12 +872,12 @@ PlatformPOSIX::DebugProcess (ProcessLaunchInfo &launch_info,
         // We still need to reap it from lldb but if we let the monitor thread also set the exit status, we set up a
         // race between debugserver & us for who will find out about the debugged process's death.
         launch_info.GetFlags().Set(eLaunchFlagDontSetExitStatus);
-        process_sp = Platform::DebugProcess (launch_info, debugger, target, listener, error);
+        process_sp = Platform::DebugProcess (launch_info, debugger, target, error);
     }
     else
     {
         if (m_remote_platform_sp)
-            process_sp = m_remote_platform_sp->DebugProcess (launch_info, debugger, target, listener, error);
+            process_sp = m_remote_platform_sp->DebugProcess (launch_info, debugger, target, error);
         else
             error.SetErrorString ("the platform is not currently connected");
     }

@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150315:
+	Clang, llvm and lldb have been upgraded to 3.6.0 release.  Please see
+	the 20141231 entry below for information about prerequisites and
+	upgrading, if you are not already using 3.5.0 or higher.
+
 20150307:
 	The 32-bit PowerPC kernel has been changed to a position-independent
 	executable. This can only be booted with a version of loader(8)

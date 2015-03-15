@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef ARMBASEREGISTERINFO_H
-#define ARMBASEREGISTERINFO_H
+#ifndef LLVM_LIB_TARGET_ARM_ARMBASEREGISTERINFO_H
+#define LLVM_LIB_TARGET_ARM_ARMBASEREGISTERINFO_H
 
 #include "MCTargetDesc/ARMBaseInfo.h"
 #include "llvm/Target/TargetRegisterInfo.h"
@@ -174,8 +174,6 @@ public:
                                  unsigned MIFlags = MachineInstr::NoFlags)const;
 
   /// Code Generation virtual methods...
-  bool mayOverrideLocalAssignment() const override;
-
   bool requiresRegisterScavenging(const MachineFunction &MF) const override;
 
   bool trackLivenessAfterRegAlloc(const MachineFunction &MF) const override;

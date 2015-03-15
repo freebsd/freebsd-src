@@ -56,19 +56,16 @@ static int createDependencyFile(const TGParser &Parser, const char *argv0) {
     errs() << argv0 << ": the option -d must be used together with -o\n";
     return 1;
   }
-  std::string Error;
-  tool_output_file DepOut(DependFilename.c_str(), Error, sys::fs::F_Text);
-  if (!Error.empty()) {
-    errs() << argv0 << ": error opening " << DependFilename
-      << ":" << Error << "\n";
+  std::error_code EC;
+  tool_output_file DepOut(DependFilename, EC, sys::fs::F_Text);
+  if (EC) {
+    errs() << argv0 << ": error opening " << DependFilename << ":"
+           << EC.message() << "\n";
     return 1;
   }
   DepOut.os() << OutputFilename << ":";
-  const TGLexer::DependenciesMapTy &Dependencies = Parser.getDependencies();
-  for (TGLexer::DependenciesMapTy::const_iterator I = Dependencies.begin(),
-                                                  E = Dependencies.end();
-       I != E; ++I) {
-    DepOut.os() << " " << I->first;
+  for (const auto &Dep : Parser.getDependencies()) {
+    DepOut.os() << ' ' << Dep.first;
   }
   DepOut.os() << "\n";
   DepOut.keep();
@@ -88,10 +85,9 @@ int TableGenMain(char *argv0, TableGenMainFn *MainFn) {
            << "': " << EC.message() << "\n";
     return 1;
   }
-  MemoryBuffer *F = FileOrErr.get().release();
 
   // Tell SrcMgr about this buffer, which is what TGParser will pick up.
-  SrcMgr.AddNewSourceBuffer(F, SMLoc());
+  SrcMgr.AddNewSourceBuffer(std::move(*FileOrErr), SMLoc());
 
   // Record the location of the include directory so that the lexer can find
   // it later.
@@ -102,11 +98,11 @@ int TableGenMain(char *argv0, TableGenMainFn *MainFn) {
   if (Parser.ParseFile())
     return 1;
 
-  std::string Error;
-  tool_output_file Out(OutputFilename.c_str(), Error, sys::fs::F_Text);
-  if (!Error.empty()) {
-    errs() << argv0 << ": error opening " << OutputFilename
-      << ":" << Error << "\n";
+  std::error_code EC;
+  tool_output_file Out(OutputFilename, EC, sys::fs::F_Text);
+  if (EC) {
+    errs() << argv0 << ": error opening " << OutputFilename << ":"
+           << EC.message() << "\n";
     return 1;
   }
   if (!DependFilename.empty()) {

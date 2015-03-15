@@ -267,10 +267,14 @@ kalimbaVariantFromElfFlags(const elf::elf_word e_flags)
     {
         // TODO(mg11) Support more variants
         case 10:
-            kal_arch_variant = 3;
+            kal_arch_variant = llvm::Triple::KalimbaSubArch_v3;
             break;
         case 14:
-            kal_arch_variant = 4;
+            kal_arch_variant = llvm::Triple::KalimbaSubArch_v4;
+            break;
+        case 17:
+        case 20:
+            kal_arch_variant = llvm::Triple::KalimbaSubArch_v5;
             break;
         default:
             break;           
@@ -285,6 +289,34 @@ subTypeFromElfHeader(const elf::ELFHeader& header)
         llvm::ELF::EM_CSR_KALIMBA == header.e_machine ?
         kalimbaVariantFromElfFlags(header.e_flags) :
         LLDB_INVALID_CPUTYPE;
+}
+
+//! The kalimba toolchain identifies a code section as being
+//! one with the SHT_PROGBITS set in the section sh_type and the top
+//! bit in the 32-bit address field set.
+static lldb::SectionType
+kalimbaSectionType(
+    const elf::ELFHeader& header,
+    const elf::ELFSectionHeader& sect_hdr)
+{
+    if (llvm::ELF::EM_CSR_KALIMBA != header.e_machine)
+    {
+        return eSectionTypeOther;
+    }
+
+    if (llvm::ELF::SHT_NOBITS == sect_hdr.sh_type)
+    {
+        return eSectionTypeZeroFill;
+    }
+
+    if (llvm::ELF::SHT_PROGBITS == sect_hdr.sh_type)
+    {
+        const lldb::addr_t KAL_CODE_BIT = 1 << 31;
+        return KAL_CODE_BIT & sect_hdr.sh_addr ?
+             eSectionTypeCode  : eSectionTypeData;
+    }
+
+    return eSectionTypeOther;
 }
 
 // Arbitrary constant used as UUID prefix for core files.
@@ -824,6 +856,38 @@ uint32_t
 ObjectFileELF::GetAddressByteSize() const
 {
     return m_data.GetAddressByteSize();
+}
+
+// Top 16 bits of the `Symbol` flags are available.
+#define ARM_ELF_SYM_IS_THUMB    (1 << 16)
+
+AddressClass
+ObjectFileELF::GetAddressClass (addr_t file_addr)
+{
+    auto res = ObjectFile::GetAddressClass (file_addr);
+
+    if (res != eAddressClassCode)
+        return res;
+
+    ArchSpec arch_spec;
+    GetArchitecture(arch_spec);
+    if (arch_spec.GetMachine() != llvm::Triple::arm)
+        return res;
+
+    auto symtab = GetSymtab();
+    if (symtab == nullptr)
+        return res;
+
+    auto symbol = symtab->FindSymbolContainingFileAddress(file_addr);
+    if (symbol == nullptr)
+        return res;
+
+    // Thumb symbols have the lower bit set in the flags field so we just check
+    // for that.
+    if (symbol->GetFlags() & ARM_ELF_SYM_IS_THUMB)
+        res = eAddressClassCodeAlternateISA;
+
+    return res;
 }
 
 size_t
@@ -1563,6 +1627,20 @@ ObjectFileELF::CreateSections(SectionList &unified_section_list)
                     break;
             }
 
+            if (eSectionTypeOther == sect_type)
+            {
+                // the kalimba toolchain assumes that ELF section names are free-form. It does
+                // supports linkscripts which (can) give rise to various arbitarily named
+                // sections being "Code" or "Data". 
+                sect_type = kalimbaSectionType(m_header, header);
+            }
+
+            const uint32_t target_bytes_size =
+                (eSectionTypeData == sect_type || eSectionTypeZeroFill == sect_type) ? 
+                m_arch_spec.GetDataByteSize() :
+                    eSectionTypeCode == sect_type ?
+                    m_arch_spec.GetCodeByteSize() : 1;
+
             elf::elf_xword log2align = (header.sh_addralign==0)
                                         ? 0
                                         : llvm::Log2_64(header.sh_addralign);
@@ -1576,7 +1654,8 @@ ObjectFileELF::CreateSections(SectionList &unified_section_list)
                                               header.sh_offset,   // Offset of this section in the file.
                                               file_size,          // Size of the section as found in the file.
                                               log2align,          // Alignment of the section
-                                              header.sh_flags));  // Flags for this section.
+                                              header.sh_flags,    // Flags for this section.
+                                              target_bytes_size));// Number of host bytes per target byte
 
             if (is_thread_specific)
                 section_sp->SetIsThreadSpecific (is_thread_specific);
@@ -1648,6 +1727,7 @@ ObjectFileELF::ParseSymbols (Symtab *symtab,
     static ConstString rodata1_section_name(".rodata1");
     static ConstString data2_section_name(".data1");
     static ConstString bss_section_name(".bss");
+    static ConstString opd_section_name(".opd");    // For ppc64
 
     //StreamFile strm(stdout, false);
     unsigned i;
@@ -1749,6 +1829,48 @@ ObjectFileELF::ParseSymbols (Symtab *symtab,
             }
         }
 
+        ArchSpec arch;
+        int64_t symbol_value_offset = 0;
+        uint32_t additional_flags = 0;
+
+        if (GetArchitecture(arch) &&
+            arch.GetMachine() == llvm::Triple::arm)
+        {
+            // ELF symbol tables may contain some mapping symbols. They provide
+            // information about the underlying data. There are three of them
+            // currently defined:
+            //   $a[.<any>]* - marks an ARM instruction sequence
+            //   $t[.<any>]* - marks a THUMB instruction sequence
+            //   $d[.<any>]* - marks a data item sequence (e.g. lit pool)
+            // These symbols interfere with normal debugger operations and we
+            // don't need them. We can drop them here.
+
+            static const llvm::StringRef g_armelf_arm_marker("$a");
+            static const llvm::StringRef g_armelf_thumb_marker("$t");
+            static const llvm::StringRef g_armelf_data_marker("$d");
+            llvm::StringRef symbol_name_ref(symbol_name);
+
+            if (symbol_name &&
+                (symbol_name_ref.startswith(g_armelf_arm_marker) ||
+                 symbol_name_ref.startswith(g_armelf_thumb_marker) ||
+                 symbol_name_ref.startswith(g_armelf_data_marker)))
+                continue;
+
+            // THUMB functions have the lower bit of their address set. Fixup
+            // the actual address and mark the symbol as THUMB.
+            if (symbol_type == eSymbolTypeCode && symbol.st_value & 1)
+            {
+                // Substracting 1 from the address effectively unsets
+                // the low order bit, which results in the address
+                // actually pointing to the beginning of the symbol.
+                // This delta will be used below in conjuction with
+                // symbol.st_value to produce the final symbol_value
+                // that we store in the symtab.
+                symbol_value_offset = -1;
+                additional_flags = ARM_ELF_SYM_IS_THUMB;
+            }
+        }
+
         // If the symbol section we've found has no data (SHT_NOBITS), then check the module section
         // list. This can happen if we're parsing the debug file and it has no .text section, for example.
         if (symbol_section_sp && (symbol_section_sp->GetFileSize() == 0))
@@ -1769,12 +1891,15 @@ ObjectFileELF::ParseSymbols (Symtab *symtab,
             }
         }
 
-        uint64_t symbol_value = symbol.st_value;
+        // symbol_value_offset may contain 0 for ARM symbols or -1 for
+        // THUMB symbols. See above for more details.
+        uint64_t symbol_value = symbol.st_value | symbol_value_offset;
         if (symbol_section_sp && CalculateType() != ObjectFile::Type::eTypeObjectFile)
             symbol_value -= symbol_section_sp->GetFileAddress();
         bool is_global = symbol.getBinding() == STB_GLOBAL;
-        uint32_t flags = symbol.st_other << 8 | symbol.st_info;
+        uint32_t flags = symbol.st_other << 8 | symbol.st_info | additional_flags;
         bool is_mangled = symbol_name ? (symbol_name[0] == '_' && symbol_name[1] == 'Z') : false;
+
         Symbol dc_symbol(
             i + start_id,       // ID is the original symbol table index.
             symbol_name,        // Symbol name.

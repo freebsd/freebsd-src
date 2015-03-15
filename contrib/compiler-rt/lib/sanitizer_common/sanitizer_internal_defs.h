@@ -15,6 +15,10 @@
 
 #include "sanitizer_platform.h"
 
+#ifndef SANITIZER_DEBUG
+# define SANITIZER_DEBUG 0
+#endif
+
 // Only use SANITIZER_*ATTRIBUTE* before the function return type!
 #if SANITIZER_WINDOWS
 # define SANITIZER_INTERFACE_ATTRIBUTE __declspec(dllexport)
@@ -46,11 +50,6 @@
 // GCC does not understand __has_feature
 #if !defined(__has_feature)
 # define __has_feature(x) 0
-#endif
-
-// Enable sanitizer compilation for pre-C++11
-#if __cplusplus < 201103L
-#define nullptr 0
 #endif
 
 // For portability reasons we do not include stddef.h, stdint.h or any other
@@ -86,8 +85,9 @@ typedef int fd_t;
 // WARNING: OFF_T may be different from OS type off_t, depending on the value of
 // _FILE_OFFSET_BITS. This definition of OFF_T matches the ABI of system calls
 // like pread and mmap, as opposed to pread64 and mmap64.
-// Mac and Linux/x86-64 are special.
-#if SANITIZER_MAC || (SANITIZER_LINUX && defined(__x86_64__))
+// FreeBSD, Mac and Linux/x86-64 are special.
+#if SANITIZER_FREEBSD || SANITIZER_MAC || \
+  (SANITIZER_LINUX && defined(__x86_64__))
 typedef u64 OFF_T;
 #else
 typedef uptr OFF_T;
@@ -100,41 +100,6 @@ typedef uptr operator_new_size_type;
 typedef u32 operator_new_size_type;
 #endif
 }  // namespace __sanitizer
-
-extern "C" {
-  // Tell the tools to write their reports to "path.<pid>" instead of stderr.
-  // The special values are "stdout" and "stderr".
-  SANITIZER_INTERFACE_ATTRIBUTE
-  void __sanitizer_set_report_path(const char *path);
-
-  typedef struct {
-      int coverage_sandboxed;
-      __sanitizer::sptr coverage_fd;
-      unsigned int coverage_max_block_size;
-  } __sanitizer_sandbox_arguments;
-
-  // Notify the tools that the sandbox is going to be turned on.
-  SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE void
-      __sanitizer_sandbox_on_notify(__sanitizer_sandbox_arguments *args);
-
-  // This function is called by the tool when it has just finished reporting
-  // an error. 'error_summary' is a one-line string that summarizes
-  // the error message. This function can be overridden by the client.
-  SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
-  void __sanitizer_report_error_summary(const char *error_summary);
-
-  SANITIZER_INTERFACE_ATTRIBUTE void __sanitizer_cov_dump();
-  SANITIZER_INTERFACE_ATTRIBUTE void __sanitizer_cov_init();
-  SANITIZER_INTERFACE_ATTRIBUTE void __sanitizer_cov(__sanitizer::u8 *guard);
-  SANITIZER_INTERFACE_ATTRIBUTE
-  void __sanitizer_annotate_contiguous_container(const void *beg,
-                                                 const void *end,
-                                                 const void *old_mid,
-                                                 const void *new_mid);
-  SANITIZER_INTERFACE_ATTRIBUTE
-  int __sanitizer_verify_contiguous_container(const void *beg, const void *mid,
-                                              const void *end);
-}  // extern "C"
 
 
 using namespace __sanitizer;  // NOLINT
@@ -245,7 +210,7 @@ void NORETURN CheckFailed(const char *file, int line, const char *cond,
 #define CHECK_GT(a, b) CHECK_IMPL((a), >,  (b))
 #define CHECK_GE(a, b) CHECK_IMPL((a), >=, (b))
 
-#if TSAN_DEBUG
+#if SANITIZER_DEBUG
 #define DCHECK(a)       CHECK(a)
 #define DCHECK_EQ(a, b) CHECK_EQ(a, b)
 #define DCHECK_NE(a, b) CHECK_NE(a, b)
@@ -324,5 +289,12 @@ extern "C" void* _ReturnAddress(void);
       res = (f);                                                   \
     } while (internal_iserror(res, &rverrno) && rverrno == EINTR); \
   }
+
+// Forces the compiler to generate a frame pointer in the function.
+#define ENABLE_FRAME_POINTER                                       \
+  do {                                                             \
+    volatile uptr enable_fp;                                       \
+    enable_fp = GET_CURRENT_FRAME();                               \
+  } while (0)
 
 #endif  // SANITIZER_DEFS_H

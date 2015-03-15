@@ -7,16 +7,19 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef INSTCOMBINE_INSTCOMBINE_H
-#define INSTCOMBINE_INSTCOMBINE_H
+#ifndef LLVM_LIB_TRANSFORMS_INSTCOMBINE_INSTCOMBINE_H
+#define LLVM_LIB_TRANSFORMS_INSTCOMBINE_INSTCOMBINE_H
 
 #include "InstCombineWorklist.h"
+#include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/TargetFolder.h"
 #include "llvm/Analysis/ValueTracking.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstVisitor.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Operator.h"
+#include "llvm/IR/PatternMatch.h"
 #include "llvm/Pass.h"
 #include "llvm/Transforms/Utils/SimplifyLibCalls.h"
 
@@ -25,6 +28,7 @@
 namespace llvm {
 class CallSite;
 class DataLayout;
+class DominatorTree;
 class TargetLibraryInfo;
 class DbgDeclareInst;
 class MemIntrinsic;
@@ -71,14 +75,20 @@ static inline Constant *SubOne(Constant *C) {
 class LLVM_LIBRARY_VISIBILITY InstCombineIRInserter
     : public IRBuilderDefaultInserter<true> {
   InstCombineWorklist &Worklist;
+  AssumptionCache *AC;
 
 public:
-  InstCombineIRInserter(InstCombineWorklist &WL) : Worklist(WL) {}
+  InstCombineIRInserter(InstCombineWorklist &WL, AssumptionCache *AC)
+      : Worklist(WL), AC(AC) {}
 
   void InsertHelper(Instruction *I, const Twine &Name, BasicBlock *BB,
                     BasicBlock::iterator InsertPt) const {
     IRBuilderDefaultInserter<true>::InsertHelper(I, Name, BB, InsertPt);
     Worklist.Add(I);
+
+    using namespace llvm::PatternMatch;
+    if (match(I, m_Intrinsic<Intrinsic::assume>()))
+      AC->registerAssumption(cast<CallInst>(I));
   }
 };
 
@@ -86,8 +96,10 @@ public:
 class LLVM_LIBRARY_VISIBILITY InstCombiner
     : public FunctionPass,
       public InstVisitor<InstCombiner, Instruction *> {
+  AssumptionCache *AC;
   const DataLayout *DL;
   TargetLibraryInfo *TLI;
+  DominatorTree *DT;
   bool MadeIRChange;
   LibCallSimplifier *Simplifier;
   bool MinimizeSize;
@@ -102,7 +114,8 @@ public:
   BuilderTy *Builder;
 
   static char ID; // Pass identification, replacement for typeid
-  InstCombiner() : FunctionPass(ID), DL(nullptr), Builder(nullptr) {
+  InstCombiner()
+      : FunctionPass(ID), DL(nullptr), DT(nullptr), Builder(nullptr) {
     MinimizeSize = false;
     initializeInstCombinerPass(*PassRegistry::getPassRegistry());
   }
@@ -114,7 +127,11 @@ public:
 
   void getAnalysisUsage(AnalysisUsage &AU) const override;
 
+  AssumptionCache *getAssumptionCache() const { return AC; }
+
   const DataLayout *getDataLayout() const { return DL; }
+  
+  DominatorTree *getDominatorTree() const { return DT; }
 
   TargetLibraryInfo *getTargetLibraryInfo() const { return TLI; }
 
@@ -145,13 +162,16 @@ public:
   Instruction *visitUDiv(BinaryOperator &I);
   Instruction *visitSDiv(BinaryOperator &I);
   Instruction *visitFDiv(BinaryOperator &I);
+  Value *simplifyRangeCheck(ICmpInst *Cmp0, ICmpInst *Cmp1, bool Inverted);
   Value *FoldAndOfICmps(ICmpInst *LHS, ICmpInst *RHS);
   Value *FoldAndOfFCmps(FCmpInst *LHS, FCmpInst *RHS);
   Instruction *visitAnd(BinaryOperator &I);
-  Value *FoldOrOfICmps(ICmpInst *LHS, ICmpInst *RHS);
+  Value *FoldOrOfICmps(ICmpInst *LHS, ICmpInst *RHS, Instruction *CxtI);
   Value *FoldOrOfFCmps(FCmpInst *LHS, FCmpInst *RHS);
   Instruction *FoldOrWithConstants(BinaryOperator &I, Value *Op, Value *A,
                                    Value *B, Value *C);
+  Instruction *FoldXorWithConstants(BinaryOperator &I, Value *Op, Value *A,
+                                    Value *B, Value *C);
   Instruction *visitOr(BinaryOperator &I);
   Instruction *visitXor(BinaryOperator &I);
   Instruction *visitShl(BinaryOperator &I);
@@ -172,6 +192,10 @@ public:
                               ConstantInt *DivRHS);
   Instruction *FoldICmpShrCst(ICmpInst &ICI, BinaryOperator *DivI,
                               ConstantInt *DivRHS);
+  Instruction *FoldICmpCstShrCst(ICmpInst &I, Value *Op, Value *A,
+                                 ConstantInt *CI1, ConstantInt *CI2);
+  Instruction *FoldICmpCstShlCst(ICmpInst &I, Value *Op, Value *A,
+                                 ConstantInt *CI1, ConstantInt *CI2);
   Instruction *FoldICmpAddOpCst(Instruction &ICI, Value *X, ConstantInt *CI,
                                 ICmpInst::Predicate Pred);
   Instruction *FoldGEPICmp(GEPOperator *GEPLHS, Value *RHS,
@@ -213,6 +237,7 @@ public:
   Instruction *visitStoreInst(StoreInst &SI);
   Instruction *visitBranchInst(BranchInst &BI);
   Instruction *visitSwitchInst(SwitchInst &SI);
+  Instruction *visitReturnInst(ReturnInst &RI);
   Instruction *visitInsertValueInst(InsertValueInst &IV);
   Instruction *visitInsertElementInst(InsertElementInst &IE);
   Instruction *visitExtractElementInst(ExtractElementInst &EI);
@@ -222,6 +247,16 @@ public:
 
   // visitInstruction - Specify what to return for unhandled instructions...
   Instruction *visitInstruction(Instruction &I) { return nullptr; }
+
+  // True when DB dominates all uses of DI execpt UI.
+  // UI must be in the same block as DI.
+  // The routine checks that the DI parent and DB are different.
+  bool dominatesAllUses(const Instruction *DI, const Instruction *UI,
+                        const BasicBlock *DB) const;
+
+  // Replace select with select operand SIOpd in SI-ICmp sequence when possible
+  bool replacedSelectWithOperand(SelectInst *SI, const ICmpInst *Icmp,
+                                 const unsigned SIOpd);
 
 private:
   bool ShouldChangeType(Type *From, Type *To) const;
@@ -246,8 +281,10 @@ private:
   Instruction *transformZExtICmp(ICmpInst *ICI, Instruction &CI,
                                  bool DoXform = true);
   Instruction *transformSExtICmp(ICmpInst *ICI, Instruction &CI);
-  bool WillNotOverflowSignedAdd(Value *LHS, Value *RHS);
-  bool WillNotOverflowUnsignedAdd(Value *LHS, Value *RHS);
+  bool WillNotOverflowSignedAdd(Value *LHS, Value *RHS, Instruction *CxtI);
+  bool WillNotOverflowSignedSub(Value *LHS, Value *RHS, Instruction *CxtI);
+  bool WillNotOverflowUnsignedSub(Value *LHS, Value *RHS, Instruction *CxtI);
+  bool WillNotOverflowSignedMul(Value *LHS, Value *RHS, Instruction *CxtI);
   Value *EmitGEPOffset(User *GEP);
   Instruction *scalarizePHI(ExtractElementInst &EI, PHINode *PN);
   Value *EvaluateInDifferentElementOrder(Value *V, ArrayRef<int> Mask);
@@ -294,6 +331,20 @@ public:
     return &I;
   }
 
+  /// Creates a result tuple for an overflow intrinsic \p II with a given
+  /// \p Result and a constant \p Overflow value. If \p ReUseName is true the
+  /// \p Result's name is taken from \p II.
+  Instruction *CreateOverflowTuple(IntrinsicInst *II, Value *Result,
+                                    bool Overflow, bool ReUseName = true) {
+    if (ReUseName)
+      Result->takeName(II);
+    Constant *V[] = { UndefValue::get(Result->getType()),
+                      Overflow ? Builder->getTrue() : Builder->getFalse() };
+    StructType *ST = cast<StructType>(II->getType());
+    Constant *Struct = ConstantStruct::get(ST, V);
+    return InsertValueInst::Create(Struct, Result, 0);
+  }
+        
   // EraseInstFromFunction - When dealing with an instruction that has side
   // effects or produces a void value, we can't rely on DCE to delete the
   // instruction.  Instead, visit methods should return the value returned by
@@ -316,16 +367,32 @@ public:
   }
 
   void computeKnownBits(Value *V, APInt &KnownZero, APInt &KnownOne,
-                        unsigned Depth = 0) const {
-    return llvm::computeKnownBits(V, KnownZero, KnownOne, DL, Depth);
+                        unsigned Depth = 0, Instruction *CxtI = nullptr) const {
+    return llvm::computeKnownBits(V, KnownZero, KnownOne, DL, Depth, AC, CxtI,
+                                  DT);
   }
 
   bool MaskedValueIsZero(Value *V, const APInt &Mask,
-                         unsigned Depth = 0) const {
-    return llvm::MaskedValueIsZero(V, Mask, DL, Depth);
+                         unsigned Depth = 0,
+                         Instruction *CxtI = nullptr) const {
+    return llvm::MaskedValueIsZero(V, Mask, DL, Depth, AC, CxtI, DT);
   }
-  unsigned ComputeNumSignBits(Value *Op, unsigned Depth = 0) const {
-    return llvm::ComputeNumSignBits(Op, DL, Depth);
+  unsigned ComputeNumSignBits(Value *Op, unsigned Depth = 0,
+                              Instruction *CxtI = nullptr) const {
+    return llvm::ComputeNumSignBits(Op, DL, Depth, AC, CxtI, DT);
+  }
+  void ComputeSignBit(Value *V, bool &KnownZero, bool &KnownOne,
+                      unsigned Depth = 0, Instruction *CxtI = nullptr) const {
+    return llvm::ComputeSignBit(V, KnownZero, KnownOne, DL, Depth, AC, CxtI,
+                                DT);
+  }
+  OverflowResult computeOverflowForUnsignedMul(Value *LHS, Value *RHS,
+                                               const Instruction *CxtI) {
+    return llvm::computeOverflowForUnsignedMul(LHS, RHS, DL, AC, CxtI, DT);
+  }
+  OverflowResult computeOverflowForUnsignedAdd(Value *LHS, Value *RHS,
+                                               const Instruction *CxtI) {
+    return llvm::computeOverflowForUnsignedAdd(LHS, RHS, DL, AC, CxtI, DT);
   }
 
 private:
@@ -343,7 +410,8 @@ private:
   /// SimplifyDemandedUseBits - Attempts to replace V with a simpler value
   /// based on the demanded bits.
   Value *SimplifyDemandedUseBits(Value *V, APInt DemandedMask, APInt &KnownZero,
-                                 APInt &KnownOne, unsigned Depth);
+                                 APInt &KnownOne, unsigned Depth,
+                                 Instruction *CxtI = nullptr);
   bool SimplifyDemandedBits(Use &U, APInt DemandedMask, APInt &KnownZero,
                             APInt &KnownOne, unsigned Depth = 0);
   /// Helper routine of SimplifyDemandedUseBits. It tries to simplify demanded
@@ -361,6 +429,7 @@ private:
                                     APInt &UndefElts, unsigned Depth = 0);
 
   Value *SimplifyVectorOp(BinaryOperator &Inst);
+  Value *SimplifyBSwap(BinaryOperator &Inst);
 
   // FoldOpIntoPhi - Given a binary operator, cast instruction, or select
   // which has a PHI node as operand #0, see if we can fold the instruction

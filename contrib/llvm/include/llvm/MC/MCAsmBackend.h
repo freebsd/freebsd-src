@@ -1,4 +1,4 @@
-//===-- llvm/MC/MCAsmBack.h - MC Asm Backend --------------------*- C++ -*-===//
+//===-- llvm/MC/MCAsmBackend.h - MC Asm Backend -----------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -65,14 +65,6 @@ public:
   /// all symbols (even temporaries) have symbol table entries.
   virtual bool doesSectionRequireSymbols(const MCSection &Section) const {
     return false;
-  }
-
-  /// isSectionAtomizable - Check whether the given section can be split into
-  /// atoms.
-  ///
-  /// \see MCAssembler::isSymbolLinkerVisible().
-  virtual bool isSectionAtomizable(const MCSection &Section) const {
-    return true;
   }
 
   /// @name Target Fixup Interfaces
@@ -146,7 +138,7 @@ public:
 
   /// \brief Generate the compact unwind encoding for the CFI instructions.
   virtual uint32_t
-  generateCompactUnwindEncoding(ArrayRef<MCCFIInstruction>) const {
+      generateCompactUnwindEncoding(ArrayRef<MCCFIInstruction>) const {
     return 0;
   }
 };

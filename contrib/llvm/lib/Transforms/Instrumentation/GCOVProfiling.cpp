@@ -285,6 +285,14 @@ namespace {
       DeleteContainerSeconds(LinesByFile);
     }
 
+    GCOVBlock(const GCOVBlock &RHS) : GCOVRecord(RHS), Number(RHS.Number) {
+      // Only allow copy before edges and lines have been added. After that,
+      // there are inter-block pointers (eg: edges) that won't take kindly to
+      // blocks being copied or moved around.
+      assert(LinesByFile.empty());
+      assert(OutEdges.empty());
+    }
+
    private:
     friend class GCOVFunction;
 
@@ -303,18 +311,22 @@ namespace {
   // object users can construct, the blocks and lines will be rooted here.
   class GCOVFunction : public GCOVRecord {
    public:
-    GCOVFunction(DISubprogram SP, raw_ostream *os, uint32_t Ident,
-                 bool UseCfgChecksum) :
-        SP(SP), Ident(Ident), UseCfgChecksum(UseCfgChecksum), CfgChecksum(0) {
+     GCOVFunction(DISubprogram SP, raw_ostream *os, uint32_t Ident,
+                  bool UseCfgChecksum)
+         : SP(SP), Ident(Ident), UseCfgChecksum(UseCfgChecksum), CfgChecksum(0),
+           ReturnBlock(1, os) {
       this->os = os;
 
       Function *F = SP.getFunction();
       DEBUG(dbgs() << "Function: " << getFunctionName(SP) << "\n");
+
       uint32_t i = 0;
-      for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB) {
-        Blocks[BB] = new GCOVBlock(i++, os);
+      for (auto &BB : *F) {
+        // Skip index 1 (0, 2, 3, 4, ...) because that's assigned to the
+        // ReturnBlock.
+        bool first = i == 0;
+        Blocks.insert(std::make_pair(&BB, GCOVBlock(i++ + !first, os)));
       }
-      ReturnBlock = new GCOVBlock(i++, os);
 
       std::string FunctionNameAndLine;
       raw_string_ostream FNLOS(FunctionNameAndLine);
@@ -323,17 +335,12 @@ namespace {
       FuncChecksum = hash_value(FunctionNameAndLine);
     }
 
-    ~GCOVFunction() {
-      DeleteContainerSeconds(Blocks);
-      delete ReturnBlock;
-    }
-
     GCOVBlock &getBlock(BasicBlock *BB) {
-      return *Blocks[BB];
+      return Blocks.find(BB)->second;
     }
 
     GCOVBlock &getReturnBlock() {
-      return *ReturnBlock;
+      return ReturnBlock;
     }
 
     std::string getEdgeDestinations() {
@@ -341,7 +348,7 @@ namespace {
       raw_string_ostream EDOS(EdgeDestinations);
       Function *F = Blocks.begin()->first->getParent();
       for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
-        GCOVBlock &Block = *Blocks[I];
+        GCOVBlock &Block = getBlock(I);
         for (int i = 0, e = Block.OutEdges.size(); i != e; ++i)
           EDOS << Block.OutEdges[i]->Number;
       }
@@ -383,7 +390,7 @@ namespace {
       if (Blocks.empty()) return;
       Function *F = Blocks.begin()->first->getParent();
       for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
-        GCOVBlock &Block = *Blocks[I];
+        GCOVBlock &Block = getBlock(I);
         if (Block.OutEdges.empty()) continue;
 
         writeBytes(EdgeTag, 4);
@@ -399,7 +406,7 @@ namespace {
 
       // Emit lines for each block.
       for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
-        Blocks[I]->writeOut();
+        getBlock(I).writeOut();
       }
     }
 
@@ -409,8 +416,8 @@ namespace {
     uint32_t FuncChecksum;
     bool UseCfgChecksum;
     uint32_t CfgChecksum;
-    DenseMap<BasicBlock *, GCOVBlock *> Blocks;
-    GCOVBlock *ReturnBlock;
+    DenseMap<BasicBlock *, GCOVBlock> Blocks;
+    GCOVBlock ReturnBlock;
   };
 }
 
@@ -480,12 +487,12 @@ void GCOVProfiler::emitProfileNotes() {
     // LTO, we'll generate the same .gcno files.
 
     DICompileUnit CU(CU_Nodes->getOperand(i));
-    std::string ErrorInfo;
-    raw_fd_ostream out(mangleName(CU, "gcno").c_str(), ErrorInfo,
-                       sys::fs::F_None);
+    std::error_code EC;
+    raw_fd_ostream out(mangleName(CU, "gcno"), EC, sys::fs::F_None);
     std::string EdgeDestinations;
 
     DIArray SPs = CU.getSubprograms();
+    unsigned FunctionIdent = 0;
     for (unsigned i = 0, e = SPs.getNumElements(); i != e; ++i) {
       DISubprogram SP(SPs.getElement(i));
       assert((!SP || SP.isSubprogram()) &&
@@ -505,8 +512,8 @@ void GCOVProfiler::emitProfileNotes() {
         ++It;
       EntryBlock.splitBasicBlock(It);
 
-      Funcs.push_back(
-          make_unique<GCOVFunction>(SP, &out, i, Options.UseCfgChecksum));
+      Funcs.push_back(make_unique<GCOVFunction>(SP, &out, FunctionIdent++,
+                                                Options.UseCfgChecksum));
       GCOVFunction &Func = *Funcs.back();
 
       for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB) {
@@ -738,11 +745,11 @@ GlobalVariable *GCOVProfiler::buildEdgeLookupTable(
     Edge += Successors;
   }
 
-  ArrayRef<Constant*> V(&EdgeTable[0], TableSize);
   GlobalVariable *EdgeTableGV =
       new GlobalVariable(
           *M, EdgeTableTy, true, GlobalValue::InternalLinkage,
-          ConstantArray::get(EdgeTableTy, V),
+          ConstantArray::get(EdgeTableTy,
+                             makeArrayRef(&EdgeTable[0],TableSize)),
           "__llvm_gcda_edge_table");
   EdgeTableGV->setUnnamedAddr(true);
   return EdgeTableGV;

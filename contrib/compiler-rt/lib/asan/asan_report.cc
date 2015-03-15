@@ -53,7 +53,7 @@ void AppendToErrorMessageBuffer(const char *buffer) {
                      buffer, remaining);
     error_message_buffer[error_message_buffer_size - 1] = '\0';
     // FIXME: reallocate the buffer instead of truncating the message.
-    error_message_buffer_pos += remaining > length ? length : remaining;
+    error_message_buffer_pos += Min(remaining, length);
   }
 }
 
@@ -937,6 +937,8 @@ using namespace __asan;  // NOLINT
 
 void __asan_report_error(uptr pc, uptr bp, uptr sp, uptr addr, int is_write,
                          uptr access_size) {
+  ENABLE_FRAME_POINTER;
+
   // Determine the error type.
   const char *bug_descr = "unknown-crash";
   if (AddrIsInMem(addr)) {

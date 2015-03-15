@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TARGET_POWERPC_H
-#define LLVM_TARGET_POWERPC_H
+#ifndef LLVM_LIB_TARGET_POWERPC_PPC_H
+#define LLVM_LIB_TARGET_POWERPC_PPC_H
 
 #include "MCTargetDesc/PPCMCTargetDesc.h"
 #include <string>
@@ -26,7 +26,6 @@ namespace llvm {
   class PassRegistry;
   class FunctionPass;
   class ImmutablePass;
-  class JITCodeEmitter;
   class MachineInstr;
   class AsmPrinter;
   class MCInst;
@@ -41,8 +40,6 @@ namespace llvm {
   FunctionPass *createPPCVSXFMAMutatePass();
   FunctionPass *createPPCBranchSelectionPass();
   FunctionPass *createPPCISelDag(PPCTargetMachine &TM);
-  FunctionPass *createPPCJITCodeEmitterPass(PPCTargetMachine &TM,
-                                            JITCodeEmitter &MCE);
   void LowerPPCMachineInstrToMCInst(const MachineInstr *MI, MCInst &OutMI,
                                     AsmPrinter &AP, bool isDarwin);
 

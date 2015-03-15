@@ -13,9 +13,10 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FORMAT_FORMAT_TOKEN_H
-#define LLVM_CLANG_FORMAT_FORMAT_TOKEN_H
+#ifndef LLVM_CLANG_LIB_FORMAT_FORMATTOKEN_H
+#define LLVM_CLANG_LIB_FORMAT_FORMATTOKEN_H
 
+#include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/OperatorPrecedence.h"
 #include "clang/Format/Format.h"
 #include "clang/Lex/Lexer.h"
@@ -46,7 +47,10 @@ enum TokenType {
   TT_ImplicitStringLiteral,
   TT_InheritanceColon,
   TT_InlineASMColon,
+  TT_JavaAnnotation,
+  TT_LambdaArrow,
   TT_LambdaLSquare,
+  TT_LeadingJavaAnnotation,
   TT_LineComment,
   TT_ObjCBlockLBrace,
   TT_ObjCBlockLParen,
@@ -267,29 +271,36 @@ struct FormatToken {
   bool IsForEachMacro;
 
   bool is(tok::TokenKind Kind) const { return Tok.is(Kind); }
-
-  bool isOneOf(tok::TokenKind K1, tok::TokenKind K2) const {
+  bool is(TokenType TT) const { return Type == TT; }
+  bool is(const IdentifierInfo *II) const {
+    return II && II == Tok.getIdentifierInfo();
+  }
+  template <typename A, typename B> bool isOneOf(A K1, B K2) const {
     return is(K1) || is(K2);
   }
-
-  bool isOneOf(tok::TokenKind K1, tok::TokenKind K2, tok::TokenKind K3) const {
+  template <typename A, typename B, typename C>
+  bool isOneOf(A K1, B K2, C K3) const {
     return is(K1) || is(K2) || is(K3);
   }
-
-  bool isOneOf(tok::TokenKind K1, tok::TokenKind K2, tok::TokenKind K3,
-               tok::TokenKind K4, tok::TokenKind K5 = tok::NUM_TOKENS,
-               tok::TokenKind K6 = tok::NUM_TOKENS,
-               tok::TokenKind K7 = tok::NUM_TOKENS,
-               tok::TokenKind K8 = tok::NUM_TOKENS,
-               tok::TokenKind K9 = tok::NUM_TOKENS,
-               tok::TokenKind K10 = tok::NUM_TOKENS,
-               tok::TokenKind K11 = tok::NUM_TOKENS,
-               tok::TokenKind K12 = tok::NUM_TOKENS) const {
+  template <typename A, typename B, typename C, typename D>
+  bool isOneOf(A K1, B K2, C K3, D K4) const {
+    return is(K1) || is(K2) || is(K3) || is(K4);
+  }
+  template <typename A, typename B, typename C, typename D, typename E>
+  bool isOneOf(A K1, B K2, C K3, D K4, E K5) const {
+    return is(K1) || is(K2) || is(K3) || is(K4) || is(K5);
+  }
+  template <typename T>
+  bool isOneOf(T K1, T K2, T K3, T K4, T K5, T K6, T K7 = tok::NUM_TOKENS,
+               T K8 = tok::NUM_TOKENS, T K9 = tok::NUM_TOKENS,
+               T K10 = tok::NUM_TOKENS, T K11 = tok::NUM_TOKENS,
+               T K12 = tok::NUM_TOKENS) const {
     return is(K1) || is(K2) || is(K3) || is(K4) || is(K5) || is(K6) || is(K7) ||
            is(K8) || is(K9) || is(K10) || is(K11) || is(K12);
   }
 
-  bool isNot(tok::TokenKind Kind) const { return Tok.isNot(Kind); }
+  template <typename T> bool isNot(T Kind) const { return !is(Kind); }
+
   bool isStringLiteral() const { return tok::isStringLiteral(Tok.getKind()); }
 
   bool isObjCAtKeyword(tok::ObjCKeywordKind Kind) const {
@@ -313,19 +324,19 @@ struct FormatToken {
 
   /// \brief Returns whether \p Tok is ([{ or a template opening <.
   bool opensScope() const {
-    return isOneOf(tok::l_paren, tok::l_brace, tok::l_square) ||
-           Type == TT_TemplateOpener;
+    return isOneOf(tok::l_paren, tok::l_brace, tok::l_square,
+                   TT_TemplateOpener);
   }
   /// \brief Returns whether \p Tok is )]} or a template closing >.
   bool closesScope() const {
-    return isOneOf(tok::r_paren, tok::r_brace, tok::r_square) ||
-           Type == TT_TemplateCloser;
+    return isOneOf(tok::r_paren, tok::r_brace, tok::r_square,
+                   TT_TemplateCloser);
   }
 
   /// \brief Returns \c true if this is a "." or "->" accessing a member.
   bool isMemberAccess() const {
     return isOneOf(tok::arrow, tok::period, tok::arrowstar) &&
-           Type != TT_DesignatedInitializerPeriod;
+           !isOneOf(TT_DesignatedInitializerPeriod, TT_TrailingReturnArrow);
   }
 
   bool isUnaryOperator() const {
@@ -350,7 +361,28 @@ struct FormatToken {
   }
 
   bool isTrailingComment() const {
-    return is(tok::comment) && (!Next || Next->NewlinesBefore > 0);
+    return is(tok::comment) &&
+           (is(TT_LineComment) || !Next || Next->NewlinesBefore > 0);
+  }
+
+  /// \brief Returns \c true if this is a keyword that can be used
+  /// like a function call (e.g. sizeof, typeid, ...).
+  bool isFunctionLikeKeyword() const {
+    switch (Tok.getKind()) {
+    case tok::kw_throw:
+    case tok::kw_typeid:
+    case tok::kw_return:
+    case tok::kw_sizeof:
+    case tok::kw_alignof:
+    case tok::kw_alignas:
+    case tok::kw_decltype:
+    case tok::kw_noexcept:
+    case tok::kw_static_assert:
+    case tok::kw___attribute:
+      return true;
+    default:
+      return false;
+    }
   }
 
   prec::Level getPrecedence() const {
@@ -376,10 +408,10 @@ struct FormatToken {
   /// \brief Returns \c true if this tokens starts a block-type list, i.e. a
   /// list that should be indented with a block indent.
   bool opensBlockTypeList(const FormatStyle &Style) const {
-    return Type == TT_ArrayInitializerLSquare ||
+    return is(TT_ArrayInitializerLSquare) ||
            (is(tok::l_brace) &&
-            (BlockKind == BK_Block || Type == TT_DictLiteral ||
-             !Style.Cpp11BracedListStyle));
+            (BlockKind == BK_Block || is(TT_DictLiteral) ||
+             (!Style.Cpp11BracedListStyle && NestingLevel == 0)));
   }
 
   /// \brief Same as opensBlockTypeList, but for the closing token.
@@ -499,7 +531,71 @@ private:
   bool HasNestedBracedList;
 };
 
+/// \brief Encapsulates keywords that are context sensitive or for languages not
+/// properly supported by Clang's lexer.
+struct AdditionalKeywords {
+  AdditionalKeywords(IdentifierTable &IdentTable) {
+    kw_in = &IdentTable.get("in");
+    kw_CF_ENUM = &IdentTable.get("CF_ENUM");
+    kw_CF_OPTIONS = &IdentTable.get("CF_OPTIONS");
+    kw_NS_ENUM = &IdentTable.get("NS_ENUM");
+    kw_NS_OPTIONS = &IdentTable.get("NS_OPTIONS");
+
+    kw_finally = &IdentTable.get("finally");
+    kw_function = &IdentTable.get("function");
+    kw_var = &IdentTable.get("var");
+
+    kw_abstract = &IdentTable.get("abstract");
+    kw_extends = &IdentTable.get("extends");
+    kw_final = &IdentTable.get("final");
+    kw_implements = &IdentTable.get("implements");
+    kw_instanceof = &IdentTable.get("instanceof");
+    kw_interface = &IdentTable.get("interface");
+    kw_native = &IdentTable.get("native");
+    kw_package = &IdentTable.get("package");
+    kw_synchronized = &IdentTable.get("synchronized");
+    kw_throws = &IdentTable.get("throws");
+
+    kw_option = &IdentTable.get("option");
+    kw_optional = &IdentTable.get("optional");
+    kw_repeated = &IdentTable.get("repeated");
+    kw_required = &IdentTable.get("required");
+    kw_returns = &IdentTable.get("returns");
+  }
+
+  // ObjC context sensitive keywords.
+  IdentifierInfo *kw_in;
+  IdentifierInfo *kw_CF_ENUM;
+  IdentifierInfo *kw_CF_OPTIONS;
+  IdentifierInfo *kw_NS_ENUM;
+  IdentifierInfo *kw_NS_OPTIONS;
+
+  // JavaScript keywords.
+  IdentifierInfo *kw_finally;
+  IdentifierInfo *kw_function;
+  IdentifierInfo *kw_var;
+
+  // Java keywords.
+  IdentifierInfo *kw_abstract;
+  IdentifierInfo *kw_extends;
+  IdentifierInfo *kw_final;
+  IdentifierInfo *kw_implements;
+  IdentifierInfo *kw_instanceof;
+  IdentifierInfo *kw_interface;
+  IdentifierInfo *kw_native;
+  IdentifierInfo *kw_package;
+  IdentifierInfo *kw_synchronized;
+  IdentifierInfo *kw_throws;
+
+  // Proto keywords.
+  IdentifierInfo *kw_option;
+  IdentifierInfo *kw_optional;
+  IdentifierInfo *kw_repeated;
+  IdentifierInfo *kw_required;
+  IdentifierInfo *kw_returns;
+};
+
 } // namespace format
 } // namespace clang
 
-#endif // LLVM_CLANG_FORMAT_FORMAT_TOKEN_H
+#endif

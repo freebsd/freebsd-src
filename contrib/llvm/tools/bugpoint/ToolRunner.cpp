@@ -141,20 +141,12 @@ static std::string ProcessFailure(StringRef ProgPath, const char** Args,
 
   // Rerun the compiler, capturing any error messages to print them.
   SmallString<128> ErrorFilename;
-  int ErrorFD;
   std::error_code EC = sys::fs::createTemporaryFile(
-      "bugpoint.program_error_messages", "", ErrorFD, ErrorFilename);
+      "bugpoint.program_error_messages", "", ErrorFilename);
   if (EC) {
     errs() << "Error making unique filename: " << EC.message() << "\n";
     exit(1);
   }
-
-#ifdef _WIN32
-  // Close ErrorFD immediately, or it couldn't be reopened on Win32.
-  // FIXME: We may have an option in openFileForWrite(), not to use ResultFD
-  // but to close it.
-  delete new raw_fd_ostream(ErrorFD, true);
-#endif
 
   RunProgramWithTimeout(ProgPath, Args, "", ErrorFilename.str(),
                         ErrorFilename.str(), Timeout, MemoryLimit);
@@ -435,13 +427,14 @@ static void lexCommand(std::string &Message, const std::string &CommandLine,
     pos = CommandLine.find_first_of(delimiters, lastPos);
   }
 
-  CmdPath = sys::FindProgramByName(Command);
-  if (CmdPath.empty()) {
+  auto Path = sys::findProgramByName(Command);
+  if (!Path) {
     Message =
       std::string("Cannot find '") + Command +
-      "' in PATH!\n";
+      "' in PATH: " + Path.getError().message() + "\n";
     return;
   }
+  CmdPath = *Path;
 
   Message = "Found command in: " + CmdPath + "\n";
 }
@@ -915,16 +908,24 @@ int GCC::MakeSharedObject(const std::string &InputFile, FileType fileType,
 GCC *GCC::create(std::string &Message,
                  const std::string &GCCBinary,
                  const std::vector<std::string> *Args) {
-  std::string GCCPath = sys::FindProgramByName(GCCBinary);
-  if (GCCPath.empty()) {
-    Message = "Cannot find `"+ GCCBinary +"' in PATH!\n";
+  auto GCCPath = sys::findProgramByName(GCCBinary);
+  if (!GCCPath) {
+    Message = "Cannot find `" + GCCBinary + "' in PATH: " +
+              GCCPath.getError().message() + "\n";
     return nullptr;
   }
 
   std::string RemoteClientPath;
-  if (!RemoteClient.empty())
-    RemoteClientPath = sys::FindProgramByName(RemoteClient);
+  if (!RemoteClient.empty()) {
+    auto Path = sys::findProgramByName(RemoteClient);
+    if (!Path) {
+      Message = "Cannot find `" + RemoteClient + "' in PATH: " +
+                Path.getError().message() + "\n";
+      return nullptr;
+    }
+    RemoteClientPath = *Path;
+  }
 
-  Message = "Found gcc: " + GCCPath + "\n";
-  return new GCC(GCCPath, RemoteClientPath, Args);
+  Message = "Found gcc: " + *GCCPath + "\n";
+  return new GCC(*GCCPath, RemoteClientPath, Args);
 }

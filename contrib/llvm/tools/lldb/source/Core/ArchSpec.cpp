@@ -24,6 +24,11 @@
 #include "lldb/Host/Endian.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Target/Platform.h"
+#include "lldb/Target/Process.h"
+#include "lldb/Target/RegisterContext.h"
+#include "lldb/Target/Thread.h"
+#include "Plugins/Process/Utility/ARMDefines.h"
+#include "Plugins/Process/Utility/InstructionUtils.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -84,7 +89,7 @@ static const CoreDefinition g_core_definitions[] =
 
     { eByteOrderBig   , 8, 4, 4, llvm::Triple::mips64 , ArchSpec::eCore_mips64          , "mips64"    },
     
-    { eByteOrderBig   , 4, 4, 4, llvm::Triple::ppc    , ArchSpec::eCore_ppc_generic     , "ppc"       },
+    { eByteOrderBig   , 4, 4, 4, llvm::Triple::ppc    , ArchSpec::eCore_ppc_generic     , "powerpc"   },
     { eByteOrderBig   , 4, 4, 4, llvm::Triple::ppc    , ArchSpec::eCore_ppc_ppc601      , "ppc601"    },
     { eByteOrderBig   , 4, 4, 4, llvm::Triple::ppc    , ArchSpec::eCore_ppc_ppc602      , "ppc602"    },
     { eByteOrderBig   , 4, 4, 4, llvm::Triple::ppc    , ArchSpec::eCore_ppc_ppc603      , "ppc603"    },
@@ -98,7 +103,7 @@ static const CoreDefinition g_core_definitions[] =
     { eByteOrderBig   , 4, 4, 4, llvm::Triple::ppc    , ArchSpec::eCore_ppc_ppc7450     , "ppc7450"   },
     { eByteOrderBig   , 4, 4, 4, llvm::Triple::ppc    , ArchSpec::eCore_ppc_ppc970      , "ppc970"    },
     
-    { eByteOrderBig   , 8, 4, 4, llvm::Triple::ppc64  , ArchSpec::eCore_ppc64_generic   , "ppc64"     },
+    { eByteOrderBig   , 8, 4, 4, llvm::Triple::ppc64  , ArchSpec::eCore_ppc64_generic   , "powerpc64" },
     { eByteOrderBig   , 8, 4, 4, llvm::Triple::ppc64  , ArchSpec::eCore_ppc64_ppc970_64 , "ppc970-64" },
     
     { eByteOrderLittle, 4, 4, 4, llvm::Triple::sparc  , ArchSpec::eCore_sparc_generic   , "sparc"     },
@@ -118,7 +123,6 @@ static const CoreDefinition g_core_definitions[] =
     { eByteOrderLittle, 4, 4, 4 , llvm::Triple::UnknownArch , ArchSpec::eCore_uknownMach32  , "unknown-mach-32" },
     { eByteOrderLittle, 8, 4, 4 , llvm::Triple::UnknownArch , ArchSpec::eCore_uknownMach64  , "unknown-mach-64" },
 
-    { eByteOrderLittle, 4, 1, 1 , llvm::Triple::kalimba , ArchSpec::eCore_kalimba  , "kalimba" },
     { eByteOrderBig   , 4, 1, 1 , llvm::Triple::kalimba , ArchSpec::eCore_kalimba3  , "kalimba3" },
     { eByteOrderLittle, 4, 1, 1 , llvm::Triple::kalimba , ArchSpec::eCore_kalimba4  , "kalimba4" },
     { eByteOrderLittle, 4, 1, 1 , llvm::Triple::kalimba , ArchSpec::eCore_kalimba5  , "kalimba5" }
@@ -195,10 +199,10 @@ static const ArchDefinitionEntry g_macho_arch_entries[] =
     { ArchSpec::eCore_arm_armv7k      , llvm::MachO::CPU_TYPE_ARM       , 12     , UINT32_MAX , SUBTYPE_MASK },
     { ArchSpec::eCore_arm_armv7m      , llvm::MachO::CPU_TYPE_ARM       , 15     , UINT32_MAX , SUBTYPE_MASK },
     { ArchSpec::eCore_arm_armv7em     , llvm::MachO::CPU_TYPE_ARM       , 16     , UINT32_MAX , SUBTYPE_MASK },
-    { ArchSpec::eCore_arm_arm64       , llvm::MachO::CPU_TYPE_ARM64     , CPU_ANY, UINT32_MAX , SUBTYPE_MASK },
-    { ArchSpec::eCore_arm_arm64       , llvm::MachO::CPU_TYPE_ARM64     , 0      , UINT32_MAX , SUBTYPE_MASK },
     { ArchSpec::eCore_arm_arm64       , llvm::MachO::CPU_TYPE_ARM64     , 1      , UINT32_MAX , SUBTYPE_MASK },
+    { ArchSpec::eCore_arm_arm64       , llvm::MachO::CPU_TYPE_ARM64     , 0      , UINT32_MAX , SUBTYPE_MASK },
     { ArchSpec::eCore_arm_arm64       , llvm::MachO::CPU_TYPE_ARM64     , 13     , UINT32_MAX , SUBTYPE_MASK },
+    { ArchSpec::eCore_arm_arm64       , llvm::MachO::CPU_TYPE_ARM64     , CPU_ANY, UINT32_MAX , SUBTYPE_MASK },
     { ArchSpec::eCore_thumb           , llvm::MachO::CPU_TYPE_ARM       , 0      , UINT32_MAX , SUBTYPE_MASK },
     { ArchSpec::eCore_thumbv4t        , llvm::MachO::CPU_TYPE_ARM       , 5      , UINT32_MAX , SUBTYPE_MASK },
     { ArchSpec::eCore_thumbv5         , llvm::MachO::CPU_TYPE_ARM       , 7      , UINT32_MAX , SUBTYPE_MASK },
@@ -264,11 +268,9 @@ static const ArchDefinitionEntry g_elf_arch_entries[] =
     { ArchSpec::eCore_x86_64_x86_64   , llvm::ELF::EM_X86_64 , LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu }, // AMD64
     { ArchSpec::eCore_mips64          , llvm::ELF::EM_MIPS   , LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu }, // MIPS
     { ArchSpec::eCore_hexagon_generic , llvm::ELF::EM_HEXAGON, LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu }, // HEXAGON
-    { ArchSpec::eCore_kalimba ,         llvm::ELF::EM_CSR_KALIMBA, LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu },  // KALIMBA
-    { ArchSpec::eCore_kalimba3 ,        llvm::ELF::EM_CSR_KALIMBA, 3, 0xFFFFFFFFu, 0xFFFFFFFFu },  // KALIMBA
-    { ArchSpec::eCore_kalimba4 ,        llvm::ELF::EM_CSR_KALIMBA, 4, 0xFFFFFFFFu, 0xFFFFFFFFu },  // KALIMBA
-    { ArchSpec::eCore_kalimba5 ,        llvm::ELF::EM_CSR_KALIMBA, 5, 0xFFFFFFFFu, 0xFFFFFFFFu }  // KALIMBA
-
+    { ArchSpec::eCore_kalimba3 ,        llvm::ELF::EM_CSR_KALIMBA, llvm::Triple::KalimbaSubArch_v3, 0xFFFFFFFFu, 0xFFFFFFFFu },  // KALIMBA
+    { ArchSpec::eCore_kalimba4 ,        llvm::ELF::EM_CSR_KALIMBA, llvm::Triple::KalimbaSubArch_v4, 0xFFFFFFFFu, 0xFFFFFFFFu },  // KALIMBA
+    { ArchSpec::eCore_kalimba5 ,        llvm::ELF::EM_CSR_KALIMBA, llvm::Triple::KalimbaSubArch_v5, 0xFFFFFFFFu, 0xFFFFFFFFu }  // KALIMBA
 };
 
 static const ArchDefinition g_elf_arch_def = {
@@ -503,11 +505,11 @@ ArchSpec::GetDataByteSize () const
     switch (m_core)
     {
     case eCore_kalimba3:
-        return 3;        
+        return 4;        
     case eCore_kalimba4:
         return 1;        
     case eCore_kalimba5:
-        return 3;
+        return 4;
     default:        
         return 1;        
     }
@@ -1036,16 +1038,6 @@ cores_match (const ArchSpec::Core core1, const ArchSpec::Core core2, bool try_in
         }
         break;
 
-    case ArchSpec::eCore_kalimba:
-    case ArchSpec::eCore_kalimba3:
-    case ArchSpec::eCore_kalimba4:
-    case ArchSpec::eCore_kalimba5:
-        if (core2 >= ArchSpec::kCore_kalimba_first && core2 <= ArchSpec::kCore_kalimba_last)
-        {
-            return true;
-        }
-        break;
-
     case ArchSpec::eCore_arm_armv8:
         if (!enforce_exact_match)
         {
@@ -1093,4 +1085,109 @@ lldb_private::operator<(const ArchSpec& lhs, const ArchSpec& rhs)
     const ArchSpec::Core lhs_core = lhs.GetCore ();
     const ArchSpec::Core rhs_core = rhs.GetCore ();
     return lhs_core < rhs_core;
+}
+
+static void
+StopInfoOverrideCallbackTypeARM(lldb_private::Thread &thread)
+{
+    // We need to check if we are stopped in Thumb mode in a IT instruction
+    // and detect if the condition doesn't pass. If this is the case it means
+    // we won't actually execute this instruction. If this happens we need to
+    // clear the stop reason to no thread plans think we are stopped for a
+    // reason and the plans should keep going.
+    //
+    // We do this because when single stepping many ARM processes, debuggers
+    // often use the BVR/BCR registers that says "stop when the PC is not
+    // equal to its current value". This method of stepping means we can end
+    // up stopping on instructions inside an if/then block that wouldn't get
+    // executed. By fixing this we can stop the debugger from seeming like
+    // you stepped through both the "if" _and_ the "else" clause when source
+    // level stepping because the debugger stops regardless due to the BVR/BCR
+    // triggering a stop.
+    //
+    // It also means we can set breakpoints on instructions inside an an
+    // if/then block and correctly skip them if we use the BKPT instruction.
+    // The ARM and Thumb BKPT instructions are unconditional even when executed
+    // in a Thumb IT block.
+    //
+    // If your debugger inserts software traps in ARM/Thumb code, it will
+    // need to use 16 and 32 bit instruction for 16 and 32 bit thumb
+    // instructions respectively. If your debugger inserts a 16 bit thumb
+    // trap on top of a 32 bit thumb instruction for an opcode that is inside
+    // an if/then, it will change the it/then to conditionally execute your
+    // 16 bit trap and then cause your program to crash if it executes the
+    // trailing 16 bits (the second half of the 32 bit thumb instruction you
+    // partially overwrote).
+
+    RegisterContextSP reg_ctx_sp (thread.GetRegisterContext());
+    if (reg_ctx_sp)
+    {
+        const uint32_t cpsr = reg_ctx_sp->GetFlags(0);
+        if (cpsr != 0)
+        {
+            // Read the J and T bits to get the ISETSTATE
+            const uint32_t J = Bit32(cpsr, 24);
+            const uint32_t T = Bit32(cpsr, 5);
+            const uint32_t ISETSTATE = J << 1 | T;
+            if (ISETSTATE == 0)
+            {
+                // NOTE: I am pretty sure we want to enable the code below
+                // that detects when we stop on an instruction in ARM mode
+                // that is conditional and the condition doesn't pass. This
+                // can happen if you set a breakpoint on an instruction that
+                // is conditional. We currently will _always_ stop on the
+                // instruction which is bad. You can also run into this while
+                // single stepping and you could appear to run code in the "if"
+                // and in the "else" clause because it would stop at all of the
+                // conditional instructions in both.
+                // In such cases, we really don't want to stop at this location.
+                // I will check with the lldb-dev list first before I enable this.
+#if 0
+                // ARM mode: check for condition on intsruction
+                const addr_t pc = reg_ctx_sp->GetPC();
+                Error error;
+                // If we fail to read the opcode we will get UINT64_MAX as the
+                // result in "opcode" which we can use to detect if we read a
+                // valid opcode.
+                const uint64_t opcode = thread.GetProcess()->ReadUnsignedIntegerFromMemory(pc, 4, UINT64_MAX, error);
+                if (opcode <= UINT32_MAX)
+                {
+                    const uint32_t condition = Bits32((uint32_t)opcode, 31, 28);
+                    if (ARMConditionPassed(condition, cpsr) == false)
+                    {
+                        // We ARE stopped on an ARM instruction whose condition doesn't
+                        // pass so this instruction won't get executed.
+                        // Regardless of why it stopped, we need to clear the stop info
+                        thread.SetStopInfo (StopInfoSP());
+                    }
+                }
+#endif
+            }
+            else if (ISETSTATE == 1)
+            {
+                // Thumb mode
+                const uint32_t ITSTATE = Bits32 (cpsr, 15, 10) << 2 | Bits32 (cpsr, 26, 25);
+                if (ITSTATE != 0)
+                {
+                    const uint32_t condition = Bits32(ITSTATE, 7, 4);
+                    if (ARMConditionPassed(condition, cpsr) == false)
+                    {
+                        // We ARE stopped in a Thumb IT instruction on an instruction whose
+                        // condition doesn't pass so this instruction won't get executed.
+                        // Regardless of why it stopped, we need to clear the stop info
+                        thread.SetStopInfo (StopInfoSP());
+                    }
+                }
+            }
+        }
+    }
+}
+
+ArchSpec::StopInfoOverrideCallbackType
+ArchSpec::GetStopInfoOverrideCallback () const
+{
+    const llvm::Triple::ArchType machine = GetMachine();
+    if (machine == llvm::Triple::arm)
+        return StopInfoOverrideCallbackTypeARM;
+    return NULL;
 }

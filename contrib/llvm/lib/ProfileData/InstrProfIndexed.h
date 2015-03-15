@@ -11,9 +11,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_PROFILEDATA_INSTRPROF_INDEXED_H_
-#define LLVM_PROFILEDATA_INSTRPROF_INDEXED_H_
+#ifndef LLVM_LIB_PROFILEDATA_INSTRPROFINDEXED_H
+#define LLVM_LIB_PROFILEDATA_INSTRPROFINDEXED_H
 
+#include "llvm/Support/Endian.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MD5.h"
 
@@ -46,10 +47,10 @@ static inline uint64_t ComputeHash(HashT Type, StringRef K) {
 }
 
 const uint64_t Magic = 0x8169666f72706cff; // "\xfflprofi\x81"
-const uint64_t Version = 1;
+const uint64_t Version = 2;
 const HashT HashType = HashT::MD5;
 }
 
 } // end namespace llvm
 
-#endif // LLVM_PROFILEDATA_INSTRPROF_INDEXED_H_
+#endif

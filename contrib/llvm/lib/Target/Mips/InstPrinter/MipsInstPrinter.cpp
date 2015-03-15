@@ -134,8 +134,8 @@ static void printExpr(const MCExpr *Expr, raw_ostream &OS) {
   } else if (const MipsMCExpr *ME = dyn_cast<MipsMCExpr>(Expr)) {
     ME->print(OS);
     return;
-  } else if (!(SRE = dyn_cast<MCSymbolRefExpr>(Expr)))
-    assert(false && "Unexpected MCExpr type.");
+  } else
+    SRE = cast<MCSymbolRefExpr>(Expr);
 
   MCSymbolRefExpr::VariantKind Kind = SRE->getKind();
 
@@ -225,6 +225,20 @@ printMemOperand(const MCInst *MI, int opNum, raw_ostream &O) {
   // Load/Store memory operands -- imm($reg)
   // If PIC target the target is loaded as the
   // pattern lw $25,%call16($28)
+
+  // opNum can be invalid if instruction had reglist as operand.
+  // MemOperand is always last operand of instruction (base + offset).
+  switch (MI->getOpcode()) {
+  default:
+    break;
+  case Mips::SWM32_MM:
+  case Mips::LWM32_MM:
+  case Mips::SWM16_MM:
+  case Mips::LWM16_MM:
+    opNum = MI->getNumOperands() - 2;
+    break;
+  }
+
   printOperand(MI, opNum+1, O);
   O << "(";
   printOperand(MI, opNum, O);
@@ -245,6 +259,11 @@ void MipsInstPrinter::
 printFCCOperand(const MCInst *MI, int opNum, raw_ostream &O) {
   const MCOperand& MO = MI->getOperand(opNum);
   O << MipsFCCToString((Mips::CondCode)MO.getImm());
+}
+
+void MipsInstPrinter::
+printRegisterPair(const MCInst *MI, int opNum, raw_ostream &O) {
+  printRegName(O, MI->getOperand(opNum).getReg());
 }
 
 void MipsInstPrinter::
@@ -324,3 +343,13 @@ void MipsInstPrinter::printSaveRestore(const MCInst *MI, raw_ostream &O) {
   }
 }
 
+void MipsInstPrinter::
+printRegisterList(const MCInst *MI, int opNum, raw_ostream &O) {
+  // - 2 because register List is always first operand of instruction and it is
+  // always followed by memory operand (base + offset).
+  for (int i = opNum, e = MI->getNumOperands() - 2; i != e; ++i) {
+    if (i != opNum)
+      O << ", ";
+    printRegName(O, MI->getOperand(i).getReg());
+  }
+}

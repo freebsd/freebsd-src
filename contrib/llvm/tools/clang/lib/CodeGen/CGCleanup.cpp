@@ -184,7 +184,7 @@ void EHScopeStack::popCleanup() {
   StartOfData += Cleanup.getAllocatedSize();
 
   // Destroy the cleanup.
-  Cleanup.~EHCleanupScope();
+  Cleanup.Destroy();
 
   // Check whether we can shrink the branch-fixups stack.
   if (!BranchFixups.empty()) {
@@ -301,7 +301,8 @@ static void ResolveAllBranchFixups(CodeGenFunction &CGF,
     }
 
     // Don't add this case to the switch statement twice.
-    if (!CasesAdded.insert(Fixup.Destination)) continue;
+    if (!CasesAdded.insert(Fixup.Destination).second)
+      continue;
 
     Switch->addCase(CGF.Builder.getInt32(Fixup.DestinationIndex),
                     Fixup.Destination);
@@ -357,7 +358,7 @@ void CodeGenFunction::ResolveBranchFixups(llvm::BasicBlock *Block) {
       continue;
 
     // Don't process the same optimistic branch block twice.
-    if (!ModifiedOptimisticBlocks.insert(BranchBB))
+    if (!ModifiedOptimisticBlocks.insert(BranchBB).second)
       continue;
 
     llvm::SwitchInst *Switch = TransitionToCleanupSwitch(*this, BranchBB);
@@ -860,10 +861,7 @@ void CodeGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
 
   // Emit the EH cleanup if required.
   if (RequiresEHCleanup) {
-    CGDebugInfo *DI = getDebugInfo();
-    SaveAndRestoreLocation AutoRestoreLocation(*this, Builder);
-    if (DI)
-      DI->EmitLocation(Builder, CurEHLocation);
+    ApplyDebugLocation AutoRestoreLocation(*this, CurEHLocation);
 
     CGBuilderTy::InsertPoint SavedIP = Builder.saveAndClearIP();
 

@@ -131,9 +131,15 @@ void CommaSeparatedList::precomputeFormattingInfos(const FormatToken *Token) {
   if (!Token->MatchingParen || Token->isNot(tok::l_brace))
     return;
 
-  // In C++11 braced list style, we should not format in columns unless we allow
-  // bin-packing of function parameters.
-  if (Style.Cpp11BracedListStyle && !Style.BinPackParameters)
+  // In C++11 braced list style, we should not format in columns unless they
+  // have many items (20 or more) or we allow bin-packing of function
+  // parameters.
+  if (Style.Cpp11BracedListStyle && !Style.BinPackParameters &&
+      Commas.size() < 19)
+    return;
+
+  // Column format doesn't really make sense if we don't align after brackets.
+  if (!Style.AlignAfterOpenBracket)
     return;
 
   FormatToken *ItemBegin = Token->Next;
@@ -142,6 +148,9 @@ void CommaSeparatedList::precomputeFormattingInfos(const FormatToken *Token) {
   // The lengths of an item if it is put at the end of the line. This includes
   // trailing comments which are otherwise ignored for column alignment.
   SmallVector<unsigned, 8> EndOfLineItemLength;
+
+  unsigned MinItemLength = Style.ColumnLimit;
+  unsigned MaxItemLength = 0;
 
   for (unsigned i = 0, e = Commas.size() + 1; i != e; ++i) {
     // Skip comments on their own line.
@@ -169,6 +178,9 @@ void CommaSeparatedList::precomputeFormattingInfos(const FormatToken *Token) {
       ItemEnd = Commas[i];
       // The comma is counted as part of the item when calculating the length.
       ItemLengths.push_back(CodePointsBetween(ItemBegin, ItemEnd));
+      MinItemLength = std::min(MinItemLength, ItemLengths.back());
+      MaxItemLength = std::max(MaxItemLength, ItemLengths.back());
+
       // Consume trailing comments so the are included in EndOfLineItemLength.
       if (ItemEnd->Next && !ItemEnd->Next->HasUnescapedNewline &&
           ItemEnd->Next->isTrailingComment())
@@ -184,8 +196,10 @@ void CommaSeparatedList::precomputeFormattingInfos(const FormatToken *Token) {
 
   // If this doesn't have a nested list, we require at least 6 elements in order
   // create a column layout. If it has a nested list, column layout ensures one
-  // list element per line.
-  if (HasNestedBracedList || Commas.size() < 5 || Token->NestingLevel != 0)
+  // list element per line. If the difference between the shortest and longest
+  // element is too large, column layout would create too much whitespace.
+  if (HasNestedBracedList || Commas.size() < 5 || Token->NestingLevel != 0 ||
+      MaxItemLength - MinItemLength > 10)
     return;
 
   // We can never place more than ColumnLimit / 3 items in a row (because of the

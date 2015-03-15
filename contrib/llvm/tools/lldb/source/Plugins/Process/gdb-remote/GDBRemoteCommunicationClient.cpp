@@ -20,11 +20,11 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Triple.h"
 #include "lldb/Interpreter/Args.h"
-#include "lldb/Core/ConnectionFileDescriptor.h"
 #include "lldb/Core/Log.h"
 #include "lldb/Core/State.h"
 #include "lldb/Core/StreamGDBRemote.h"
 #include "lldb/Core/StreamString.h"
+#include "lldb/Host/ConnectionFileDescriptor.h"
 #include "lldb/Host/Endian.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Host/HostInfo.h"
@@ -1643,7 +1643,9 @@ GDBRemoteCommunicationClient::GetHostInfo (bool force)
                     }
                     else if (name.compare("triple") == 0)
                     {
-                        triple.swap(value);
+                        extractor.GetStringRef ().swap (value);
+                        extractor.SetFilePos(0);
+                        extractor.GetHexByteString (triple);
                         ++num_keys_decoded;
                     }
                     else if (name.compare ("distribution_id") == 0)
@@ -2331,6 +2333,10 @@ GDBRemoteCommunicationClient::DecodeProcessInfoResponse (StringExtractorGDBRemot
             }
             else if (name.compare("triple") == 0)
             {
+                StringExtractor extractor;
+                extractor.GetStringRef().swap(value);
+                extractor.SetFilePos(0);
+                extractor.GetHexByteString (value);
                 process_info.GetArchitecture ().SetTriple (value.c_str());
             }
             else if (name.compare("name") == 0)
@@ -2404,6 +2410,8 @@ GDBRemoteCommunicationClient::GetProcessInfo (lldb::pid_t pid, ProcessInstanceIn
 bool
 GDBRemoteCommunicationClient::GetCurrentProcessInfo ()
 {
+    Log *log (ProcessGDBRemoteLog::GetLogIfAnyCategoryIsSet (GDBR_LOG_PROCESS | GDBR_LOG_PACKETS));
+
     if (m_qProcessInfo_is_valid == eLazyBoolYes)
         return true;
     if (m_qProcessInfo_is_valid == eLazyBoolNo)
@@ -2426,6 +2434,7 @@ GDBRemoteCommunicationClient::GetCurrentProcessInfo ()
             std::string triple;
             uint32_t pointer_byte_size = 0;
             StringExtractor extractor;
+            ByteOrder byte_order = eByteOrderInvalid;
             uint32_t num_keys_decoded = 0;
             lldb::pid_t pid = LLDB_INVALID_PROCESS_ID;
             while (response.GetNameColonValue(name, value))
@@ -2444,7 +2453,10 @@ GDBRemoteCommunicationClient::GetCurrentProcessInfo ()
                 }
                 else if (name.compare("triple") == 0)
                 {
-                    triple = value;
+                    StringExtractor extractor;
+                    extractor.GetStringRef().swap(value);
+                    extractor.SetFilePos(0);
+                    extractor.GetHexByteString (triple);
                     ++num_keys_decoded;
                 }
                 else if (name.compare("ostype") == 0)
@@ -2459,10 +2471,15 @@ GDBRemoteCommunicationClient::GetCurrentProcessInfo ()
                 }
                 else if (name.compare("endian") == 0)
                 {
-                    if (value.compare("little") == 0 ||
-                        value.compare("big") == 0 ||
-                        value.compare("pdp") == 0)
-                        ++num_keys_decoded;
+                    ++num_keys_decoded;
+                    if (value.compare("little") == 0)
+                        byte_order = eByteOrderLittle;
+                    else if (value.compare("big") == 0)
+                        byte_order = eByteOrderBig;
+                    else if (value.compare("pdp") == 0)
+                        byte_order = eByteOrderPDP;
+                    else
+                        --num_keys_decoded;
                 }
                 else if (name.compare("ptrsize") == 0)
                 {
@@ -2496,11 +2513,34 @@ GDBRemoteCommunicationClient::GetCurrentProcessInfo ()
             }
             else if (cpu != LLDB_INVALID_CPUTYPE && !os_name.empty() && !vendor_name.empty())
             {
-                m_process_arch.SetArchitecture (eArchTypeMachO, cpu, sub);
+                llvm::Triple triple(llvm::Twine("-") + vendor_name + "-" + os_name);
+
+                assert(triple.getObjectFormat() != llvm::Triple::UnknownObjectFormat);
+                switch (triple.getObjectFormat()) {
+                    case llvm::Triple::MachO:
+                        m_process_arch.SetArchitecture (eArchTypeMachO, cpu, sub);
+                        break;
+                    case llvm::Triple::ELF:
+                        m_process_arch.SetArchitecture (eArchTypeELF, cpu, sub);
+                        break;
+                    case llvm::Triple::COFF:
+                        m_process_arch.SetArchitecture (eArchTypeCOFF, cpu, sub);
+                        break;
+                    case llvm::Triple::UnknownObjectFormat:
+                        if (log)
+                            log->Printf("error: failed to determine target architecture");
+                        return false;
+                }
+
                 if (pointer_byte_size)
                 {
                     assert (pointer_byte_size == m_process_arch.GetAddressByteSize());
                 }
+                if (byte_order != eByteOrderInvalid)
+                {
+                    assert (byte_order == m_process_arch.GetByteOrder());
+                }
+                m_process_arch.GetTriple().setVendorName (llvm::StringRef (vendor_name));
                 m_process_arch.GetTriple().setOSName(llvm::StringRef (os_name));
                 m_host_arch.GetTriple().setVendorName (llvm::StringRef (vendor_name));
                 m_host_arch.GetTriple().setOSName (llvm::StringRef (os_name));
@@ -2931,6 +2971,11 @@ GDBRemoteCommunicationClient::GetThreadStopInfo (lldb::tid_t tid, StringExtracto
 uint8_t
 GDBRemoteCommunicationClient::SendGDBStoppointTypePacket (GDBStoppointType type, bool insert,  addr_t addr, uint32_t length)
 {
+    Log *log (GetLogIfAnyCategoriesSet (LIBLLDB_LOG_BREAKPOINTS));
+    if (log)
+        log->Printf ("GDBRemoteCommunicationClient::%s() %s at addr = 0x%" PRIx64,
+                     __FUNCTION__, insert ? "add" : "remove", addr);
+
     // Check if the stub is known not to support this breakpoint type
     if (!SupportsGDBStoppointPacket(type))
         return UINT8_MAX;

@@ -61,418 +61,138 @@ namespace lldb_private {
         GetOSXEpoch ();
         
         bool
-        Char16StringSummaryProvider (ValueObject& valobj, Stream& stream); // char16_t* and unichar*
+        FunctionPointerSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options); // C++ function pointer
         
         bool
-        Char32StringSummaryProvider (ValueObject& valobj, Stream& stream); // char32_t*
+        Char16StringSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options); // char16_t* and unichar*
         
         bool
-        WCharStringSummaryProvider (ValueObject& valobj, Stream& stream); // wchar_t*
+        Char32StringSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options); // char32_t*
         
         bool
-        Char16SummaryProvider (ValueObject& valobj, Stream& stream); // char16_t and unichar
+        WCharStringSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options); // wchar_t*
         
         bool
-        Char32SummaryProvider (ValueObject& valobj, Stream& stream); // char32_t
+        Char16SummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options); // char16_t and unichar
         
         bool
-        WCharSummaryProvider (ValueObject& valobj, Stream& stream); // wchar_t
+        Char32SummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options); // char32_t
         
         bool
-        LibcxxStringSummaryProvider (ValueObject& valobj, Stream& stream); // libc++ std::string
+        WCharSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options); // wchar_t
+        
+        bool
+        LibcxxStringSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options); // libc++ std::string
 
         bool
-        LibcxxWStringSummaryProvider (ValueObject& valobj, Stream& stream); // libc++ std::wstring
+        LibcxxWStringSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options); // libc++ std::wstring
 
         bool
-        LibcxxSmartPointerSummaryProvider (ValueObject& valobj, Stream& stream); // libc++ std::shared_ptr<> and std::weak_ptr<>
+        LibcxxSmartPointerSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options); // libc++ std::shared_ptr<> and std::weak_ptr<>
         
         bool
-        ObjCClassSummaryProvider (ValueObject& valobj, Stream& stream);
+        ObjCClassSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
         
         SyntheticChildrenFrontEnd* ObjCClassSyntheticFrontEndCreator (CXXSyntheticChildren*, lldb::ValueObjectSP);
         
         template<bool name_entries>
         bool
-        NSDictionarySummaryProvider (ValueObject& valobj, Stream& stream);
+        NSDictionarySummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
         
         bool
-        NSIndexSetSummaryProvider (ValueObject& valobj, Stream& stream);
+        NSIndexSetSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
         
         bool
-        NSArraySummaryProvider (ValueObject& valobj, Stream& stream);
+        NSArraySummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
         
         template<bool cf_style>
         bool
-        NSSetSummaryProvider (ValueObject& valobj, Stream& stream);
+        NSSetSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
         
         template<bool needs_at>
         bool
-        NSDataSummaryProvider (ValueObject& valobj, Stream& stream);
+        NSDataSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
         
         bool
-        NSNumberSummaryProvider (ValueObject& valobj, Stream& stream);
+        NSNumberSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
 
         bool
-        NSNotificationSummaryProvider (ValueObject& valobj, Stream& stream);
+        NSNotificationSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
         
         bool
-        NSTimeZoneSummaryProvider (ValueObject& valobj, Stream& stream);
+        NSTimeZoneSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
         
         bool
-        NSMachPortSummaryProvider (ValueObject& valobj, Stream& stream);
+        NSMachPortSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
         
         bool
-        CFBagSummaryProvider (ValueObject& valobj, Stream& stream);
+        CFBagSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
         
         bool
-        CFBinaryHeapSummaryProvider (ValueObject& valobj, Stream& stream);
+        CFBinaryHeapSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
         
         bool
-        CFBitVectorSummaryProvider (ValueObject& valobj, Stream& stream);
+        CFBitVectorSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
         
         bool
-        NSDateSummaryProvider (ValueObject& valobj, Stream& stream);
+        NSDateSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
         
         bool
-        CFAbsoluteTimeSummaryProvider (ValueObject& valobj, Stream& stream);
+        CFAbsoluteTimeSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
         
         bool
-        NSBundleSummaryProvider (ValueObject& valobj, Stream& stream);
+        NSBundleSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
         
         bool
-        NSStringSummaryProvider (ValueObject& valobj, Stream& stream);
+        NSStringSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
         
         bool
         NSTaggedString_SummaryProvider (ObjCLanguageRuntime::ClassDescriptorSP descriptor, Stream& stream);
         
         bool
-        NSAttributedStringSummaryProvider (ValueObject& valobj, Stream& stream);
+        NSAttributedStringSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
         
         bool
-        NSMutableAttributedStringSummaryProvider (ValueObject& valobj, Stream& stream);
+        NSMutableAttributedStringSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
         
         bool
-        NSURLSummaryProvider (ValueObject& valobj, Stream& stream);
+        NSURLSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
         
         bool
-        ObjCBOOLSummaryProvider (ValueObject& valobj, Stream& stream);
+        ObjCBOOLSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
         
         template <bool is_sel_ptr>
         bool
-        ObjCSELSummaryProvider (ValueObject& valobj, Stream& stream);
+        ObjCSELSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
         
         bool
-        RuntimeSpecificDescriptionSummaryProvider (ValueObject& valobj, Stream& stream);
+        RuntimeSpecificDescriptionSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
         
         extern template bool
-        NSDictionarySummaryProvider<true> (ValueObject&, Stream&) ;
+        NSDictionarySummaryProvider<true> (ValueObject&, Stream&, const TypeSummaryOptions&) ;
         
         extern template bool
-        NSDictionarySummaryProvider<false> (ValueObject&, Stream&) ;
+        NSDictionarySummaryProvider<false> (ValueObject&, Stream&, const TypeSummaryOptions&) ;
         
         extern template bool
-        NSDataSummaryProvider<true> (ValueObject&, Stream&) ;
+        NSDataSummaryProvider<true> (ValueObject&, Stream&, const TypeSummaryOptions&) ;
         
         extern template bool
-        NSDataSummaryProvider<false> (ValueObject&, Stream&) ;
+        NSDataSummaryProvider<false> (ValueObject&, Stream&, const TypeSummaryOptions&) ;
         
         extern template bool
-        ObjCSELSummaryProvider<true> (ValueObject&, Stream&);
+        ObjCSELSummaryProvider<true> (ValueObject&, Stream&, const TypeSummaryOptions&);
 
         extern template bool
-        ObjCSELSummaryProvider<false> (ValueObject&, Stream&);
+        ObjCSELSummaryProvider<false> (ValueObject&, Stream&, const TypeSummaryOptions&);
         
         SyntheticChildrenFrontEnd* NSArraySyntheticFrontEndCreator (CXXSyntheticChildren*, lldb::ValueObjectSP);
         
-        class NSDictionaryISyntheticFrontEnd : public SyntheticChildrenFrontEnd
-        {
-        private:
-            struct DataDescriptor_32
-            {
-                uint32_t _used : 26;
-                uint32_t _szidx : 6;
-            };
-            struct DataDescriptor_64
-            {
-                uint64_t _used : 58;
-                uint32_t _szidx : 6;
-            };
-            
-            struct DictionaryItemDescriptor
-            {
-                lldb::addr_t key_ptr;
-                lldb::addr_t val_ptr;
-                lldb::ValueObjectSP valobj_sp;
-            };
-            
-        public:
-            NSDictionaryISyntheticFrontEnd (lldb::ValueObjectSP valobj_sp);
-            
-            virtual size_t
-            CalculateNumChildren ();
-            
-            virtual lldb::ValueObjectSP
-            GetChildAtIndex (size_t idx);
-            
-            virtual bool
-            Update();
-            
-            virtual bool
-            MightHaveChildren ();
-            
-            virtual size_t
-            GetIndexOfChildWithName (const ConstString &name);
-            
-            virtual
-            ~NSDictionaryISyntheticFrontEnd ();
-        private:
-            ExecutionContextRef m_exe_ctx_ref;
-            uint8_t m_ptr_size;
-            lldb::ByteOrder m_order;
-            DataDescriptor_32 *m_data_32;
-            DataDescriptor_64 *m_data_64;
-            lldb::addr_t m_data_ptr;
-            ClangASTType m_pair_type;
-            std::vector<DictionaryItemDescriptor> m_children;
-        };
-        
-        class NSDictionaryMSyntheticFrontEnd : public SyntheticChildrenFrontEnd
-        {
-        private:
-            struct DataDescriptor_32
-            {
-                uint32_t _used : 26;
-                uint32_t _kvo : 1;
-                uint32_t _size;
-                uint32_t _mutations;
-                uint32_t _objs_addr;
-                uint32_t _keys_addr;
-            };
-            struct DataDescriptor_64
-            {
-                uint64_t _used : 58;
-                uint32_t _kvo : 1;
-                uint64_t _size;
-                uint64_t _mutations;
-                uint64_t _objs_addr;
-                uint64_t _keys_addr;
-            };
-            struct DictionaryItemDescriptor
-            {
-                lldb::addr_t key_ptr;
-                lldb::addr_t val_ptr;
-                lldb::ValueObjectSP valobj_sp;
-            };
-        public:
-            NSDictionaryMSyntheticFrontEnd (lldb::ValueObjectSP valobj_sp);
-            
-            virtual size_t
-            CalculateNumChildren ();
-            
-            virtual lldb::ValueObjectSP
-            GetChildAtIndex (size_t idx);
-            
-            virtual bool
-            Update();
-            
-            virtual bool
-            MightHaveChildren ();
-            
-            virtual size_t
-            GetIndexOfChildWithName (const ConstString &name);
-            
-            virtual
-            ~NSDictionaryMSyntheticFrontEnd ();
-        private:
-            ExecutionContextRef m_exe_ctx_ref;
-            uint8_t m_ptr_size;
-            lldb::ByteOrder m_order;
-            DataDescriptor_32 *m_data_32;
-            DataDescriptor_64 *m_data_64;
-            ClangASTType m_pair_type;
-            std::vector<DictionaryItemDescriptor> m_children;
-        };
-        
-        class NSDictionaryCodeRunningSyntheticFrontEnd : public SyntheticChildrenFrontEnd
-        {
-        public:
-            NSDictionaryCodeRunningSyntheticFrontEnd (lldb::ValueObjectSP valobj_sp);
-            
-            virtual size_t
-            CalculateNumChildren ();
-            
-            virtual lldb::ValueObjectSP
-            GetChildAtIndex (size_t idx);
-            
-            virtual bool
-            Update();
-            
-            virtual bool
-            MightHaveChildren ();
-            
-            virtual size_t
-            GetIndexOfChildWithName (const ConstString &name);
-            
-            virtual
-            ~NSDictionaryCodeRunningSyntheticFrontEnd ();
-        };
-        
         SyntheticChildrenFrontEnd* NSDictionarySyntheticFrontEndCreator (CXXSyntheticChildren*, lldb::ValueObjectSP);
         
-        class NSSetISyntheticFrontEnd : public SyntheticChildrenFrontEnd
-        {
-        private:
-            struct DataDescriptor_32
-            {
-                uint32_t _used : 26;
-                uint32_t _szidx : 6;
-            };
-            struct DataDescriptor_64
-            {
-                uint64_t _used : 58;
-                uint32_t _szidx : 6;
-            };
-            
-            struct SetItemDescriptor
-            {
-                lldb::addr_t item_ptr;
-                lldb::ValueObjectSP valobj_sp;
-            };
-            
-        public:
-            NSSetISyntheticFrontEnd (lldb::ValueObjectSP valobj_sp);
-            
-            virtual size_t
-            CalculateNumChildren ();
-            
-            virtual lldb::ValueObjectSP
-            GetChildAtIndex (size_t idx);
-            
-            virtual bool
-            Update();
-            
-            virtual bool
-            MightHaveChildren ();
-            
-            virtual size_t
-            GetIndexOfChildWithName (const ConstString &name);
-            
-            virtual
-            ~NSSetISyntheticFrontEnd ();
-        private:
-            ExecutionContextRef m_exe_ctx_ref;
-            uint8_t m_ptr_size;
-            DataDescriptor_32 *m_data_32;
-            DataDescriptor_64 *m_data_64;
-            lldb::addr_t m_data_ptr;
-            std::vector<SetItemDescriptor> m_children;
-        };
-        
-        class NSOrderedSetSyntheticFrontEnd : public SyntheticChildrenFrontEnd
-        {
-        private:
-            
-        public:
-            NSOrderedSetSyntheticFrontEnd (lldb::ValueObjectSP valobj_sp);
-            
-            virtual size_t
-            CalculateNumChildren ();
-            
-            virtual lldb::ValueObjectSP
-            GetChildAtIndex (size_t idx);
-            
-            virtual bool
-            Update();
-            
-            virtual bool
-            MightHaveChildren ();
-            
-            virtual size_t
-            GetIndexOfChildWithName (const ConstString &name);
-            
-            virtual
-            ~NSOrderedSetSyntheticFrontEnd ();
-        private:
-            uint32_t m_count;
-            std::map<uint32_t,lldb::ValueObjectSP> m_children;
-        };
-        
-        class NSSetMSyntheticFrontEnd : public SyntheticChildrenFrontEnd
-        {
-        private:
-            struct DataDescriptor_32
-            {
-                uint32_t _used : 26;
-                uint32_t _size;
-                uint32_t _mutations;
-                uint32_t _objs_addr;
-            };
-            struct DataDescriptor_64
-            {
-                uint64_t _used : 58;
-                uint64_t _size;
-                uint64_t _mutations;
-                uint64_t _objs_addr;
-            };
-            struct SetItemDescriptor
-            {
-                lldb::addr_t item_ptr;
-                lldb::ValueObjectSP valobj_sp;
-            };
-        public:
-            NSSetMSyntheticFrontEnd (lldb::ValueObjectSP valobj_sp);
-            
-            virtual size_t
-            CalculateNumChildren ();
-            
-            virtual lldb::ValueObjectSP
-            GetChildAtIndex (size_t idx);
-            
-            virtual bool
-            Update();
-            
-            virtual bool
-            MightHaveChildren ();
-            
-            virtual size_t
-            GetIndexOfChildWithName (const ConstString &name);
-            
-            virtual
-            ~NSSetMSyntheticFrontEnd ();
-        private:
-            ExecutionContextRef m_exe_ctx_ref;
-            uint8_t m_ptr_size;
-            DataDescriptor_32 *m_data_32;
-            DataDescriptor_64 *m_data_64;
-            std::vector<SetItemDescriptor> m_children;
-        };
-                
-        class NSSetCodeRunningSyntheticFrontEnd : public SyntheticChildrenFrontEnd
-        {
-        public:
-            NSSetCodeRunningSyntheticFrontEnd (lldb::ValueObjectSP valobj_sp);
-            
-            virtual size_t
-            CalculateNumChildren ();
-            
-            virtual lldb::ValueObjectSP
-            GetChildAtIndex (size_t idx);
-            
-            virtual bool
-            Update();
-            
-            virtual bool
-            MightHaveChildren ();
-            
-            virtual size_t
-            GetIndexOfChildWithName (const ConstString &name);
-            
-            virtual
-            ~NSSetCodeRunningSyntheticFrontEnd ();
-        };
-        
         SyntheticChildrenFrontEnd* NSSetSyntheticFrontEndCreator (CXXSyntheticChildren*, lldb::ValueObjectSP);
+        
+        SyntheticChildrenFrontEnd* NSIndexPathSyntheticFrontEndCreator (CXXSyntheticChildren*, lldb::ValueObjectSP);
         
         class LibcxxVectorBoolSyntheticFrontEnd : public SyntheticChildrenFrontEnd
         {
@@ -507,7 +227,7 @@ namespace lldb_private {
         SyntheticChildrenFrontEnd* LibcxxVectorBoolSyntheticFrontEndCreator (CXXSyntheticChildren*, lldb::ValueObjectSP);
         
         bool
-        LibcxxContainerSummaryProvider (ValueObject& valobj, Stream& stream);
+        LibcxxContainerSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
         
         class LibstdcppVectorBoolSyntheticFrontEnd : public SyntheticChildrenFrontEnd
         {
@@ -665,147 +385,15 @@ namespace lldb_private {
         
         SyntheticChildrenFrontEnd* LibcxxSharedPtrSyntheticFrontEndCreator (CXXSyntheticChildren*, lldb::ValueObjectSP);
         
-        class LibcxxStdVectorSyntheticFrontEnd : public SyntheticChildrenFrontEnd
-        {
-        public:
-            LibcxxStdVectorSyntheticFrontEnd (lldb::ValueObjectSP valobj_sp);
-            
-            virtual size_t
-            CalculateNumChildren ();
-            
-            virtual lldb::ValueObjectSP
-            GetChildAtIndex (size_t idx);
-            
-            virtual bool
-            Update();
-            
-            virtual bool
-            MightHaveChildren ();
-            
-            virtual size_t
-            GetIndexOfChildWithName (const ConstString &name);
-            
-            virtual
-            ~LibcxxStdVectorSyntheticFrontEnd ();
-        private:
-            ValueObject* m_start;
-            ValueObject* m_finish;
-            ClangASTType m_element_type;
-            uint32_t m_element_size;
-            std::map<size_t,lldb::ValueObjectSP> m_children;
-        };
-        
         SyntheticChildrenFrontEnd* LibcxxStdVectorSyntheticFrontEndCreator (CXXSyntheticChildren*, lldb::ValueObjectSP);
-        
-        class LibcxxStdListSyntheticFrontEnd : public SyntheticChildrenFrontEnd
-        {
-        public:
-            LibcxxStdListSyntheticFrontEnd (lldb::ValueObjectSP valobj_sp);
-            
-            virtual size_t
-            CalculateNumChildren ();
-            
-            virtual lldb::ValueObjectSP
-            GetChildAtIndex (size_t idx);
-            
-            virtual bool
-            Update();
-            
-            virtual bool
-            MightHaveChildren ();
-            
-            virtual size_t
-            GetIndexOfChildWithName (const ConstString &name);
-            
-            virtual
-            ~LibcxxStdListSyntheticFrontEnd ();
-        private:
-            bool
-            HasLoop();
-            
-            size_t m_list_capping_size;
-            static const bool g_use_loop_detect = true;
-            lldb::addr_t m_node_address;
-            ValueObject* m_head;
-            ValueObject* m_tail;
-            ClangASTType m_element_type;
-            size_t m_count;
-            std::map<size_t,lldb::ValueObjectSP> m_children;
-        };
         
         SyntheticChildrenFrontEnd* LibcxxStdListSyntheticFrontEndCreator (CXXSyntheticChildren*, lldb::ValueObjectSP);
         
-        class LibcxxStdMapSyntheticFrontEnd : public SyntheticChildrenFrontEnd
-        {
-        public:
-            LibcxxStdMapSyntheticFrontEnd (lldb::ValueObjectSP valobj_sp);
-            
-            virtual size_t
-            CalculateNumChildren ();
-            
-            virtual lldb::ValueObjectSP
-            GetChildAtIndex (size_t idx);
-            
-            virtual bool
-            Update();
-            
-            virtual bool
-            MightHaveChildren ();
-            
-            virtual size_t
-            GetIndexOfChildWithName (const ConstString &name);
-            
-            virtual
-            ~LibcxxStdMapSyntheticFrontEnd ();
-        private:
-            bool
-            GetDataType();
-            
-            void
-            GetValueOffset (const lldb::ValueObjectSP& node);
-            
-            ValueObject* m_tree;
-            ValueObject* m_root_node;
-            ClangASTType m_element_type;
-            uint32_t m_skip_size;
-            size_t m_count;
-            std::map<size_t,lldb::ValueObjectSP> m_children;
-        };
-        
         SyntheticChildrenFrontEnd* LibcxxStdMapSyntheticFrontEndCreator (CXXSyntheticChildren*, lldb::ValueObjectSP);
         
-        class LibcxxStdUnorderedMapSyntheticFrontEnd : public SyntheticChildrenFrontEnd
-        {
-        public:
-            LibcxxStdUnorderedMapSyntheticFrontEnd (lldb::ValueObjectSP valobj_sp);
-            
-            virtual size_t
-            CalculateNumChildren ();
-            
-            virtual lldb::ValueObjectSP
-            GetChildAtIndex (size_t idx);
-            
-            virtual bool
-            Update();
-            
-            virtual bool
-            MightHaveChildren ();
-            
-            virtual size_t
-            GetIndexOfChildWithName (const ConstString &name);
-            
-            virtual
-            ~LibcxxStdUnorderedMapSyntheticFrontEnd ();
-        private:
-            
-            ValueObject* m_tree;
-            size_t m_num_elements;
-            ValueObject* m_next_element;
-            std::map<size_t,lldb::ValueObjectSP> m_children;
-            std::vector<std::pair<ValueObject*, uint64_t> > m_elements_cache;
-        };
-        
         SyntheticChildrenFrontEnd* LibcxxStdUnorderedMapSyntheticFrontEndCreator (CXXSyntheticChildren*, lldb::ValueObjectSP);
+        
+        SyntheticChildrenFrontEnd* LibcxxInitializerListSyntheticFrontEndCreator (CXXSyntheticChildren*, lldb::ValueObjectSP);
         
     } // namespace formatters
 } // namespace lldb_private

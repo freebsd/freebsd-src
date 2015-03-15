@@ -72,7 +72,7 @@ ReducePassList::doTest(std::vector<std::string> &Prefix,
 
     OrigProgram = BD.Program;
 
-    BD.Program = ParseInputFile(PrefixOutput, BD.getContext());
+    BD.Program = parseInputFile(PrefixOutput, BD.getContext()).release();
     if (BD.Program == nullptr) {
       errs() << BD.getToolName() << ": Error reading bitcode file '"
              << PrefixOutput << "'!\n";
@@ -312,22 +312,21 @@ bool ReduceCrashingBlocks::TestBlocks(std::vector<const BasicBlock*> &BBs) {
   // have to take.
   std::vector<std::pair<std::string, std::string> > BlockInfo;
 
-  for (SmallPtrSet<BasicBlock*, 8>::iterator I = Blocks.begin(),
-         E = Blocks.end(); I != E; ++I)
-    BlockInfo.push_back(std::make_pair((*I)->getParent()->getName(),
-                                       (*I)->getName()));
+  for (BasicBlock *BB : Blocks)
+    BlockInfo.push_back(std::make_pair(BB->getParent()->getName(),
+                                       BB->getName()));
 
   // Now run the CFG simplify pass on the function...
   std::vector<std::string> Passes;
   Passes.push_back("simplifycfg");
   Passes.push_back("verify");
-  Module *New = BD.runPassesOn(M, Passes);
+  std::unique_ptr<Module> New = BD.runPassesOn(M, Passes);
   delete M;
   if (!New) {
     errs() << "simplifycfg failed!\n";
     exit(1);
   }
-  M = New;
+  M = New.release();
 
   // Try running on the hacked up program...
   if (TestFn(BD, M)) {
@@ -420,9 +419,8 @@ bool ReduceCrashingInstructions::TestInsts(std::vector<const Instruction*>
     // Make sure to use instruction pointers that point into the now-current
     // module, and that they don't include any deleted blocks.
     Insts.clear();
-    for (SmallPtrSet<Instruction*, 64>::const_iterator I = Instructions.begin(),
-             E = Instructions.end(); I != E; ++I)
-      Insts.push_back(*I);
+    for (Instruction *Inst : Instructions)
+      Insts.push_back(Inst);
     return true;
   }
   delete M;  // It didn't crash, try something else.
@@ -578,20 +576,17 @@ static bool DebugACrash(BugDriver &BD,
                 continue;
 
               outs() << "Checking instruction: " << *I;
-              Module *M = BD.deleteInstructionFromProgram(I, Simplification);
+              std::unique_ptr<Module> M =
+                  BD.deleteInstructionFromProgram(I, Simplification);
 
               // Find out if the pass still crashes on this pass...
-              if (TestFn(BD, M)) {
+              if (TestFn(BD, M.get())) {
                 // Yup, it does, we delete the old module, and continue trying
                 // to reduce the testcase...
-                BD.setNewProgram(M);
+                BD.setNewProgram(M.release());
                 InstructionsToSkipBeforeDeleting = CurInstructionNum;
                 goto TryAgain;  // I wish I had a multi-level break here!
               }
-
-              // This pass didn't crash without this instruction, try the next
-              // one.
-              delete M;
             }
           }
 
@@ -607,7 +602,7 @@ ExitLoops:
   if (!BugpointIsInterrupted) {
     outs() << "\n*** Attempting to perform final cleanups: ";
     Module *M = CloneModule(BD.getProgram());
-    M = BD.performFinalCleanups(M, true);
+    M = BD.performFinalCleanups(M, true).release();
 
     // Find out if the pass still crashes on the cleaned up program...
     if (TestFn(BD, M)) {

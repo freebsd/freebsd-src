@@ -332,7 +332,10 @@ void PrintPPOutputPPCallbacks::InclusionDirective(SourceLocation HashLoc,
     MoveToLine(HashLoc);
     OS << "@import " << Imported->getFullModuleName() << ";"
        << " /* clang -E: implicit import for \"" << File->getName() << "\" */";
+    // Since we want a newline after the @import, but not a #<line>, start a new
+    // line immediately.
     EmittedTokensOnThisLine = true;
+    startNewLineIfNeeded();
   }
 }
 
@@ -724,7 +727,7 @@ void clang::DoPrintPreprocessedInput(Preprocessor &PP, raw_ostream *OS,
   PP.AddPragmaHandler("clang",
                       new UnknownPragmaHandler("#pragma clang", Callbacks));
 
-  PP.addPPCallbacks(Callbacks);
+  PP.addPPCallbacks(std::unique_ptr<PPCallbacks>(Callbacks));
 
   // After we have configured the preprocessor, enter the main file.
   PP.EnterMainSourceFile();

@@ -11,13 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86SUBTARGET_H
-#define X86SUBTARGET_H
+#ifndef LLVM_LIB_TARGET_X86_X86SUBTARGET_H
+#define LLVM_LIB_TARGET_X86_X86SUBTARGET_H
 
 #include "X86FrameLowering.h"
 #include "X86ISelLowering.h"
 #include "X86InstrInfo.h"
-#include "X86JITInfo.h"
 #include "X86SelectionDAGInfo.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/IR/CallingConv.h"
@@ -139,11 +138,17 @@ protected:
   /// HasSHA - Processor has SHA instructions.
   bool HasSHA;
 
+  /// HasSGX - Processor has SGX instructions.
+  bool HasSGX;
+
   /// HasPRFCHW - Processor has PRFCHW instructions.
   bool HasPRFCHW;
 
   /// HasRDSEED - Processor has RDSEED instructions.
   bool HasRDSEED;
+
+  /// HasSMAP - Processor has SMAP instructions.
+  bool HasSMAP;
 
   /// IsBTMemSlow - True if BT (bit test) of memory instructions are slow.
   bool IsBTMemSlow;
@@ -154,9 +159,12 @@ protected:
   /// IsUAMemFast - True if unaligned memory access is fast.
   bool IsUAMemFast;
 
-  /// HasVectorUAMem - True if SIMD operations can have unaligned memory
-  /// operands. This may require setting a feature bit in the processor.
-  bool HasVectorUAMem;
+  /// True if unaligned 32-byte memory accesses are slow.
+  bool IsUAMem32Slow;
+
+  /// True if SSE operations can have unaligned memory operands.
+  /// This may require setting a configuration bit in the processor.
+  bool HasSSEUnalignedMem;
 
   /// HasCmpxchg16b - True if this processor has the CMPXCHG16B instruction;
   /// this is true for most x86-64 chips, but not the first AMD chips.
@@ -166,9 +174,13 @@ protected:
   /// the stack pointer. This is an optimization for Intel Atom processors.
   bool UseLeaForSP;
 
-  /// HasSlowDivide - True if smaller divides are significantly faster than
-  /// full divides and should be used when possible.
-  bool HasSlowDivide;
+  /// HasSlowDivide32 - True if 8-bit divisions are significantly faster than
+  /// 32-bit divisions and should be used when possible.
+  bool HasSlowDivide32;
+
+  /// HasSlowDivide64 - True if 16-bit divides are significantly faster than
+  /// 64-bit divisions and should be used when possible.
+  bool HasSlowDivide64;
 
   /// PadShortFunctions - True if the short functions should be padded to prevent
   /// a stall when returning too early.
@@ -186,6 +198,16 @@ protected:
 
   /// SlowIncDec - True if INC and DEC instructions are slow when writing to flags
   bool SlowIncDec;
+
+  /// Use the RSQRT* instructions to optimize square root calculations.
+  /// For this to be profitable, the cost of FSQRT and FDIV must be
+  /// substantially higher than normal FP ops like FADD and FMUL.
+  bool UseSqrtEst;
+
+  /// Use the RCP* instructions to optimize FP division calculations.
+  /// For this to be profitable, the cost of FDIV must be
+  /// substantially higher than normal FP ops like FADD and FMUL.
+  bool UseReciprocalEst;
 
   /// Processor has AVX-512 PreFetch Instructions
   bool HasPFI;
@@ -220,6 +242,9 @@ protected:
   InstrItineraryData InstrItins;
 
 private:
+  // Calculates type size & alignment
+  const DataLayout DL;
+
   /// StackAlignOverride - Override the stack alignment.
   unsigned StackAlignOverride;
 
@@ -232,30 +257,35 @@ private:
   /// In16BitMode - True if compiling for 16-bit, false for 32-bit or 64-bit.
   bool In16BitMode;
 
-  // Calculates type size & alignment
-  const DataLayout DL;
   X86SelectionDAGInfo TSInfo;
   // Ordering here is important. X86InstrInfo initializes X86RegisterInfo which
   // X86TargetLowering needs.
   X86InstrInfo InstrInfo;
   X86TargetLowering TLInfo;
   X86FrameLowering FrameLowering;
-  X86JITInfo JITInfo;
 
 public:
   /// This constructor initializes the data members to match that
   /// of the specified triple.
   ///
   X86Subtarget(const std::string &TT, const std::string &CPU,
-               const std::string &FS, X86TargetMachine &TM,
+               const std::string &FS, const X86TargetMachine &TM,
                unsigned StackAlignOverride);
 
-  const X86TargetLowering *getTargetLowering() const { return &TLInfo; }
-  const X86InstrInfo *getInstrInfo() const { return &InstrInfo; }
-  const DataLayout *getDataLayout() const { return &DL; }
-  const X86FrameLowering *getFrameLowering() const { return &FrameLowering; }
-  const X86SelectionDAGInfo *getSelectionDAGInfo() const { return &TSInfo; }
-  X86JITInfo *getJITInfo() { return &JITInfo; }
+  const X86TargetLowering *getTargetLowering() const override {
+    return &TLInfo;
+  }
+  const X86InstrInfo *getInstrInfo() const override { return &InstrInfo; }
+  const DataLayout *getDataLayout() const override { return &DL; }
+  const X86FrameLowering *getFrameLowering() const override {
+    return &FrameLowering;
+  }
+  const X86SelectionDAGInfo *getSelectionDAGInfo() const override {
+    return &TSInfo;
+  }
+  const X86RegisterInfo *getRegisterInfo() const override {
+    return &getInstrInfo()->getRegisterInfo();
+  }
 
   /// getStackAlignment - Returns the minimum alignment known to hold of the
   /// stack frame on entry to the function and which must be maintained by every
@@ -270,14 +300,12 @@ public:
   /// subtarget options.  Definition of function is auto generated by tblgen.
   void ParseSubtargetFeatures(StringRef CPU, StringRef FS);
 
-  /// \brief Reset the features for the X86 target.
-  void resetSubtargetFeatures(const MachineFunction *MF) override;
 private:
   /// \brief Initialize the full set of dependencies so we can use an initializer
   /// list for X86Subtarget.
   X86Subtarget &initializeSubtargetDependencies(StringRef CPU, StringRef FS);
   void initializeEnvironment();
-  void resetSubtargetFeatures(StringRef CPU, StringRef FS);
+  void initSubtargetFeatures(StringRef CPU, StringRef FS);
 public:
   /// Is this x86_64? (disregarding specific ABI / programming model)
   bool is64Bit() const {
@@ -295,12 +323,13 @@ public:
   /// Is this x86_64 with the ILP32 programming model (x32 ABI)?
   bool isTarget64BitILP32() const {
     return In64BitMode && (TargetTriple.getEnvironment() == Triple::GNUX32 ||
-                           TargetTriple.getOS() == Triple::NaCl);
+                           TargetTriple.isOSNaCl());
   }
 
   /// Is this x86_64 with the LP64 programming model (standard AMD64, no x32)?
   bool isTarget64BitLP64() const {
-    return In64BitMode && (TargetTriple.getEnvironment() != Triple::GNUX32);
+    return In64BitMode && (TargetTriple.getEnvironment() != Triple::GNUX32 &&
+                           !TargetTriple.isOSNaCl());
   }
 
   PICStyles::Style getPICStyle() const { return PICStyle; }
@@ -341,20 +370,26 @@ public:
   bool hasHLE() const { return HasHLE; }
   bool hasADX() const { return HasADX; }
   bool hasSHA() const { return HasSHA; }
+  bool hasSGX() const { return HasSGX; }
   bool hasPRFCHW() const { return HasPRFCHW; }
   bool hasRDSEED() const { return HasRDSEED; }
+  bool hasSMAP() const { return HasSMAP; }
   bool isBTMemSlow() const { return IsBTMemSlow; }
   bool isSHLDSlow() const { return IsSHLDSlow; }
   bool isUnalignedMemAccessFast() const { return IsUAMemFast; }
-  bool hasVectorUAMem() const { return HasVectorUAMem; }
+  bool isUnalignedMem32Slow() const { return IsUAMem32Slow; }
+  bool hasSSEUnalignedMem() const { return HasSSEUnalignedMem; }
   bool hasCmpxchg16b() const { return HasCmpxchg16b; }
   bool useLeaForSP() const { return UseLeaForSP; }
-  bool hasSlowDivide() const { return HasSlowDivide; }
+  bool hasSlowDivide32() const { return HasSlowDivide32; }
+  bool hasSlowDivide64() const { return HasSlowDivide64; }
   bool padShortFunctions() const { return PadShortFunctions; }
   bool callRegIndirect() const { return CallRegIndirect; }
   bool LEAusesAG() const { return LEAUsesAG; }
   bool slowLEA() const { return SlowLEA; }
   bool slowIncDec() const { return SlowIncDec; }
+  bool useSqrtEst() const { return UseSqrtEst; }
+  bool useReciprocalEst() const { return UseReciprocalEst; }
   bool hasCDI() const { return HasCDI; }
   bool hasPFI() const { return HasPFI; }
   bool hasERI() const { return HasERI; }
@@ -368,16 +403,13 @@ public:
   const Triple &getTargetTriple() const { return TargetTriple; }
 
   bool isTargetDarwin() const { return TargetTriple.isOSDarwin(); }
-  bool isTargetFreeBSD() const {
-    return TargetTriple.getOS() == Triple::FreeBSD;
-  }
-  bool isTargetSolaris() const {
-    return TargetTriple.getOS() == Triple::Solaris;
-  }
+  bool isTargetFreeBSD() const { return TargetTriple.isOSFreeBSD(); }
+  bool isTargetDragonFly() const { return TargetTriple.isOSDragonFly(); }
+  bool isTargetSolaris() const { return TargetTriple.isOSSolaris(); }
 
   bool isTargetELF() const { return TargetTriple.isOSBinFormatELF(); }
   bool isTargetCOFF() const { return TargetTriple.isOSBinFormatCOFF(); }
-  bool isTargetMacho() const { return TargetTriple.isOSBinFormatMachO(); }
+  bool isTargetMachO() const { return TargetTriple.isOSBinFormatMachO(); }
 
   bool isTargetLinux() const { return TargetTriple.isOSLinux(); }
   bool isTargetNaCl() const { return TargetTriple.isOSNaCl(); }
@@ -398,6 +430,10 @@ public:
 
   bool isTargetWindowsGNU() const {
     return TargetTriple.isWindowsGNUEnvironment();
+  }
+
+  bool isTargetWindowsItanium() const {
+    return TargetTriple.isWindowsItaniumEnvironment();
   }
 
   bool isTargetCygMing() const { return TargetTriple.isOSCygMing(); }
@@ -466,7 +502,9 @@ public:
 
   /// getInstrItins = Return the instruction itineraries based on the
   /// subtarget selection.
-  const InstrItineraryData &getInstrItineraryData() const { return InstrItins; }
+  const InstrItineraryData *getInstrItineraryData() const override {
+    return &InstrItins;
+  }
 
   AntiDepBreakMode getAntiDepBreakMode() const override {
     return TargetSubtargetInfo::ANTIDEP_CRITICAL;
