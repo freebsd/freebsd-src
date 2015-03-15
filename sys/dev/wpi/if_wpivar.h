@@ -52,7 +52,7 @@ struct wpi_tx_radiotap_header {
 
 struct wpi_dma_info {
 	bus_dma_tag_t		tag;
-	bus_dmamap_t            map;
+	bus_dmamap_t		map;
 	bus_addr_t		paddr;
 	caddr_t			vaddr;
 	bus_size_t		size;
@@ -183,7 +183,7 @@ struct wpi_softc {
 	bus_space_handle_t	sc_sh;
 	void			*sc_ih;
 	bus_size_t		sc_sz;
-	int			sc_cap_off;     /* PCIe Capabilities. */
+	int			sc_cap_off;	/* PCIe Capabilities. */
 
 	struct wpi_rxon		rxon;
 	int			temp;
@@ -223,8 +223,8 @@ struct wpi_softc {
 
 #define WPI_LOCK_INIT(_sc) \
 	mtx_init(&(_sc)->sc_mtx, device_get_nameunit((_sc)->sc_dev), \
-            MTX_NETWORK_LOCK, MTX_DEF)
+	    MTX_NETWORK_LOCK, MTX_DEF)
 #define WPI_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define WPI_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#define WPI_LOCK_ASSERT(sc)     mtx_assert(&(sc)->sc_mtx, MA_OWNED)
+#define WPI_LOCK_ASSERT(sc)	mtx_assert(&(sc)->sc_mtx, MA_OWNED)
 #define WPI_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
