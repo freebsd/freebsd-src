@@ -2408,6 +2408,9 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 	if (++ring->queued > WPI_TX_RING_HIMARK)
 		sc->qfullmsk |= 1 << ring->qid;
 
+	if (ring->qid < WPI_CMD_QUEUE_NUM)
+		sc->sc_tx_timer = 5;
+
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
 
 	WPI_TXQ_UNLOCK(sc);
@@ -2722,8 +2725,6 @@ wpi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		return error;
 	}
 
-	sc->sc_tx_timer = 5;
-
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
 
 	return 0;
@@ -2771,8 +2772,7 @@ wpi_start_locked(struct ifnet *ifp)
 			ieee80211_free_node(ni);
 			WPI_LOCK(sc);
 			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-		} else
-			sc->sc_tx_timer = 5;
+		}
 	}
 
 	DPRINTF(sc, WPI_DEBUG_XMIT, "%s: done\n", __func__);
@@ -3195,9 +3195,9 @@ wpi_update_promisc(struct ifnet *ifp)
 {
 	struct wpi_softc *sc = ifp->if_softc;
 
+	WPI_LOCK(sc);
 	wpi_set_promisc(sc);
 
-	WPI_LOCK(sc);
 	if (wpi_send_rxon(sc, 1, 1) != 0) {
 		device_printf(sc->sc_dev, "%s: could not send RXON\n",
 		    __func__);
