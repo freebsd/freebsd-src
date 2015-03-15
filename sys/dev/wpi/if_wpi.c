@@ -1931,6 +1931,7 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	int status = le32toh(stat->status);
 
 	KASSERT(data->ni != NULL, ("no node"));
+	KASSERT(data->m != NULL, ("no mbuf"));
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_BEGIN, __func__);
 
@@ -3245,10 +3246,10 @@ wpi_add_ibss_node(struct wpi_softc *sc, struct ieee80211_node *ni)
 	struct wpi_node *wn = WPI_NODE(ni);
 	int error;
 
-	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_DOING, __func__);
+	KASSERT(wn->id == WPI_ID_UNDEFINED,
+	    ("the node %d was added before", wn->id));
 
-	if (wn->id != WPI_ID_UNDEFINED)
-		return EINVAL;
+	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_DOING, __func__);
 
 	if ((wn->id = wpi_add_node_entry_adhoc(sc)) == WPI_ID_UNDEFINED) {
 		device_printf(sc->sc_dev, "%s: h/w table is full\n", __func__);
@@ -3271,13 +3272,9 @@ wpi_del_node(struct wpi_softc *sc, struct ieee80211_node *ni)
 	struct wpi_cmd_del_node node;
 	int error;
 
-	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_DOING, __func__);
+	KASSERT(wn->id != WPI_ID_UNDEFINED, ("undefined node id passed"));
 
-	if (wn->id == WPI_ID_UNDEFINED) {
-		device_printf(sc->sc_dev, "%s: undefined node id passed\n",
-		    __func__);
-		return;
-	}
+	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_DOING, __func__);
 
 	memset(&node, 0, sizeof node);
 	IEEE80211_ADDR_COPY(node.macaddr, ni->ni_macaddr);
