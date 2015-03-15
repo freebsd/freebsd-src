@@ -127,6 +127,9 @@ struct wpi_vap {
 	struct ieee80211_beacon_offsets	wv_boff;
 	struct mtx			wv_mtx;
 
+	uint32_t			wv_gtk;
+#define WPI_VAP_KEY(kid)		(1 << kid)
+
 	int				(*wv_newstate)(struct ieee80211vap *,
 					    enum ieee80211_state, int);
 };

@@ -232,8 +232,15 @@ static int	wpi_setup_beacon(struct wpi_softc *, struct ieee80211_node *);
 static void	wpi_update_beacon(struct ieee80211vap *, int);
 static void	wpi_newassoc(struct ieee80211_node *, int);
 static int	wpi_run(struct wpi_softc *, struct ieee80211vap *);
-static int	wpi_key_alloc(struct ieee80211vap *, struct ieee80211_key *,
-		    ieee80211_keyix *, ieee80211_keyix *);
+static int	wpi_load_key(struct ieee80211_node *,
+		    const struct ieee80211_key *);
+static void	wpi_load_key_cb(void *, struct ieee80211_node *);
+static int	wpi_set_global_keys(struct ieee80211_node *);
+static int	wpi_del_key(struct ieee80211_node *,
+		    const struct ieee80211_key *);
+static void	wpi_del_key_cb(void *, struct ieee80211_node *);
+static int	wpi_process_key(struct ieee80211vap *,
+		    const struct ieee80211_key *, int);
 static int	wpi_key_set(struct ieee80211vap *,
 		    const struct ieee80211_key *,
 		    const uint8_t mac[IEEE80211_ADDR_LEN]);
@@ -623,7 +630,6 @@ wpi_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	}
 
 	/* Override with driver methods. */
-	vap->iv_key_alloc = wpi_key_alloc;
 	vap->iv_key_set = wpi_key_set;
 	vap->iv_key_delete = wpi_key_delete;
 	wvp->wv_newstate = vap->iv_newstate;
@@ -1775,7 +1781,6 @@ wpi_rx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc,
     struct wpi_rx_data *data)
 {
 	struct ifnet *ifp = sc->sc_ifp;
-	const struct ieee80211_cipher *cip = NULL;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct wpi_rx_ring *ring = &sc->rxq;
 	struct wpi_rx_stat *stat;
@@ -1863,16 +1868,9 @@ wpi_rx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 
 	/* Grab a reference to the source node. */
 	wh = mtod(m, struct ieee80211_frame *);
-	ni = ieee80211_find_rxnode(ic, (struct ieee80211_frame_min *)wh);
 
-	if (ni != NULL)
-		cip = ni->ni_ucastkey.wk_cipher;
 	if ((wh->i_fc[1] & IEEE80211_FC1_PROTECTED) &&
-	    !IEEE80211_IS_MULTICAST(wh->i_addr1) &&
-	    cip != NULL && cip->ic_cipher == IEEE80211_CIPHER_AES_CCM) {
-		if ((flags & WPI_RX_CIPHER_MASK) != WPI_RX_CIPHER_CCMP)
-			goto fail2;
-
+	    (flags & WPI_RX_CIPHER_MASK) == WPI_RX_CIPHER_CCMP) {
 		/* Check whether decryption was successful or not. */
 		if ((flags & WPI_RX_DECRYPT_MASK) != WPI_RX_DECRYPT_OK) {
 			DPRINTF(sc, WPI_DEBUG_RECV,
@@ -1881,6 +1879,8 @@ wpi_rx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 		}
 		m->m_flags |= M_WEP;
 	}
+
+	ni = ieee80211_find_rxnode(ic, (struct ieee80211_frame_min *)wh);
 
 	if (ieee80211_radiotap_active(ic)) {
 		struct wpi_rx_radiotap_header *tap = &sc->sc_rxtap;
@@ -1909,8 +1909,7 @@ wpi_rx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 
 	return;
 
-fail2:	ieee80211_free_node(ni);
-	m_freem(m);
+fail2:	m_freem(m);
 
 fail1:	if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 }
@@ -3094,8 +3093,10 @@ static int
 wpi_add_node(struct wpi_softc *sc, struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = ni->ni_ic;
+	struct wpi_vap *wvp = WPI_VAP(ni->ni_vap);
 	struct wpi_node *wn = WPI_NODE(ni);
 	struct wpi_node_info node;
+	int error;
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_DOING, __func__);
 
@@ -3110,7 +3111,24 @@ wpi_add_node(struct wpi_softc *sc, struct ieee80211_node *ni)
 	node.action = htole32(WPI_ACTION_SET_RATE);
 	node.antenna = WPI_ANTENNA_BOTH;
 
-	return wpi_cmd(sc, WPI_CMD_ADD_NODE, &node, sizeof node, 1);
+	error = wpi_cmd(sc, WPI_CMD_ADD_NODE, &node, sizeof node, 1);
+	if (error != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: wpi_cmd() call failed with error code %d\n", __func__,
+		    error);
+		return error;
+	}
+
+	if (wvp->wv_gtk != 0) {
+		error = wpi_set_global_keys(ni);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: error while setting global keys\n", __func__);
+			return ENXIO;
+		}
+	}
+
+	return 0;
 }
 
 /*
@@ -4237,37 +4255,11 @@ wpi_run(struct wpi_softc *sc, struct ieee80211vap *vap)
 }
 
 static int
-wpi_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
-    ieee80211_keyix *keyix, ieee80211_keyix *rxkeyix)
-{
-	struct wpi_softc *sc = vap->iv_ic->ic_ifp->if_softc;
-
-	if (!(&vap->iv_nw_keys[0] <= k &&
-	    k < &vap->iv_nw_keys[IEEE80211_WEP_NKID])) {
-		if (k->wk_flags & IEEE80211_KEY_GROUP) {
-			/* should not happen */
-			DPRINTF(sc, WPI_DEBUG_KEY, "%s: bogus group key\n",
-			    __func__);
-			return 0;
-		}
-		*keyix = 0;	/* NB: use key index 0 for ucast key */
-	} else {
-		*keyix = *rxkeyix = k - vap->iv_nw_keys;
-
-		if (k->wk_cipher->ic_cipher == IEEE80211_CIPHER_AES_CCM)
-			k->wk_flags |= IEEE80211_KEY_SWCRYPT;
-	}
-	return 1;
-}
-
-static int
-wpi_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k,
-    const uint8_t mac[IEEE80211_ADDR_LEN])
+wpi_load_key(struct ieee80211_node *ni, const struct ieee80211_key *k)
 {
 	const struct ieee80211_cipher *cip = k->wk_cipher;
-	struct ieee80211com *ic = vap->iv_ic;
-	struct ieee80211_node *ni = vap->iv_bss;
-	struct wpi_softc *sc = ic->ic_ifp->if_softc;
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct wpi_softc *sc = ni->ni_ic->ic_ifp->if_softc;
 	struct wpi_node *wn = WPI_NODE(ni);
 	struct wpi_node_info node;
 	uint16_t kflags;
@@ -4275,20 +4267,22 @@ wpi_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k,
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_DOING, __func__);
 
-	switch (cip->ic_cipher) {
-	case IEEE80211_CIPHER_AES_CCM:
-		if (k->wk_flags & IEEE80211_KEY_GROUP)
-			return 1;
-
-		kflags = WPI_KFLAG_CCMP;
-		break;
-	default:
-		/* null_key_set() */
-		return 1;
+	if (wpi_check_node_entry(sc, wn->id) == 0) {
+		device_printf(sc->sc_dev, "%s: node does not exist\n",
+		    __func__);
+		return 0;
 	}
 
-	if (wn->id == WPI_ID_UNDEFINED)
+	switch (cip->ic_cipher) {
+	case IEEE80211_CIPHER_AES_CCM:
+		kflags = WPI_KFLAG_CCMP;
+		break;
+
+	default:
+		device_printf(sc->sc_dev, "%s: unknown cipher %d\n", __func__,
+		    cip->ic_cipher);
 		return 0;
+	}
 
 	kflags |= WPI_KFLAG_KID(k->wk_keyix);
 	if (k->wk_flags & IEEE80211_KEY_GROUP)
@@ -4300,53 +4294,221 @@ wpi_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k,
 	node.flags = WPI_FLAG_KEY_SET;
 	node.kflags = htole16(kflags);
 	memcpy(node.key, k->wk_key, k->wk_keylen);
-
-	DPRINTF(sc, WPI_DEBUG_KEY, "set key id=%d for node %d\n", k->wk_keyix,
-	    node.id);
+again:
+	DPRINTF(sc, WPI_DEBUG_KEY,
+	    "%s: setting %s key id %d for node %d (%s)\n", __func__,
+	    (kflags & WPI_KFLAG_MULTICAST) ? "group" : "ucast", k->wk_keyix,
+	    node.id, ether_sprintf(ni->ni_macaddr));
 
 	error = wpi_cmd(sc, WPI_CMD_ADD_NODE, &node, sizeof node, 1);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "can't update node info, error %d\n",
 		    error);
-		return 0;
+		return !error;
+	}
+
+	if (!(kflags & WPI_KFLAG_MULTICAST) && &vap->iv_nw_keys[0] <= k &&
+	    k < &vap->iv_nw_keys[IEEE80211_WEP_NKID]) {
+		kflags |= WPI_KFLAG_MULTICAST;
+		node.kflags = htole16(kflags);
+
+		goto again;
 	}
 
 	return 1;
 }
 
-static int
-wpi_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
+static void
+wpi_load_key_cb(void *arg, struct ieee80211_node *ni)
 {
-	const struct ieee80211_cipher *cip = k->wk_cipher;
-	struct ieee80211com *ic = vap->iv_ic;
-	struct ieee80211_node *ni = vap->iv_bss;
-	struct wpi_softc *sc = ic->ic_ifp->if_softc;
+	const struct ieee80211_key *k = arg;
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct wpi_softc *sc = ni->ni_ic->ic_ifp->if_softc;
+	struct wpi_node *wn = WPI_NODE(ni);
+	int error;
+
+	if (vap->iv_bss == ni && wn->id == WPI_ID_UNDEFINED)
+		return;
+
+	WPI_NT_LOCK(sc);
+	error = wpi_load_key(ni, k);
+	WPI_NT_UNLOCK(sc);
+
+	if (error == 0) {
+		device_printf(sc->sc_dev, "%s: error while setting key\n",
+		    __func__);
+	}
+}
+
+static int
+wpi_set_global_keys(struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211_key *wk = &vap->iv_nw_keys[0];
+	int error = 1;
+
+	for (; wk < &vap->iv_nw_keys[IEEE80211_WEP_NKID] && error; wk++)
+		if (wk->wk_keyix != IEEE80211_KEYIX_NONE)
+			error = wpi_load_key(ni, wk);
+
+	return !error;
+}
+
+static int
+wpi_del_key(struct ieee80211_node *ni, const struct ieee80211_key *k)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct wpi_softc *sc = ni->ni_ic->ic_ifp->if_softc;
 	struct wpi_node *wn = WPI_NODE(ni);
 	struct wpi_node_info node;
+	uint16_t kflags;
+	int error;
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_DOING, __func__);
 
-	switch (cip->ic_cipher) {
-	case IEEE80211_CIPHER_AES_CCM:
-		break;
-	default:
-		/* null_key_delete() */
-		return 1;
+	if (wpi_check_node_entry(sc, wn->id) == 0) {
+		DPRINTF(sc, WPI_DEBUG_KEY, "%s: node was removed\n", __func__);
+		return 1;	/* Nothing to do. */
 	}
 
-	if (vap->iv_state != IEEE80211_S_RUN ||
-	    (k->wk_flags & IEEE80211_KEY_GROUP))
-		return 1; /* Nothing to do. */
+	kflags = WPI_KFLAG_KID(k->wk_keyix);
+	if (k->wk_flags & IEEE80211_KEY_GROUP)
+		kflags |= WPI_KFLAG_MULTICAST;
 
 	memset(&node, 0, sizeof node);
 	node.id = wn->id;
 	node.control = WPI_NODE_UPDATE;
 	node.flags = WPI_FLAG_KEY_SET;
+	node.kflags = htole16(kflags);
+again:
+	DPRINTF(sc, WPI_DEBUG_KEY, "%s: deleting %s key %d for node %d (%s)\n",
+	    __func__, (kflags & WPI_KFLAG_MULTICAST) ? "group" : "ucast",
+	    k->wk_keyix, node.id, ether_sprintf(ni->ni_macaddr));
 
-	DPRINTF(sc, WPI_DEBUG_KEY, "delete keys for node %d\n", node.id);
-	(void)wpi_cmd(sc, WPI_CMD_ADD_NODE, &node, sizeof node, 1);
+	error = wpi_cmd(sc, WPI_CMD_ADD_NODE, &node, sizeof node, 1);
+	if (error != 0) {
+		device_printf(sc->sc_dev, "can't update node info, error %d\n",
+		    error);
+		return !error;
+	}
+
+	if (!(kflags & WPI_KFLAG_MULTICAST) && &vap->iv_nw_keys[0] <= k &&
+	    k < &vap->iv_nw_keys[IEEE80211_WEP_NKID]) {
+		kflags |= WPI_KFLAG_MULTICAST;
+		node.kflags = htole16(kflags);
+
+		goto again;
+	}
 
 	return 1;
+}
+
+static void
+wpi_del_key_cb(void *arg, struct ieee80211_node *ni)
+{
+	const struct ieee80211_key *k = arg;
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct wpi_softc *sc = ni->ni_ic->ic_ifp->if_softc;
+	struct wpi_node *wn = WPI_NODE(ni);
+	int error;
+
+	if (vap->iv_bss == ni && wn->id == WPI_ID_UNDEFINED)
+		return;
+
+	WPI_NT_LOCK(sc);
+	error = wpi_del_key(ni, k);
+	WPI_NT_UNLOCK(sc);
+
+	if (error == 0) {
+		device_printf(sc->sc_dev, "%s: error while deleting key\n",
+		    __func__);
+	}
+}
+
+static int
+wpi_process_key(struct ieee80211vap *vap, const struct ieee80211_key *k,
+    int set)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+	struct wpi_softc *sc = ic->ic_ifp->if_softc;
+	struct wpi_vap *wvp = WPI_VAP(vap);
+	struct ieee80211_node *ni;
+	int error, ni_ref = 0;
+
+	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_DOING, __func__);
+
+	if (k->wk_flags & IEEE80211_KEY_SWCRYPT) {
+		/* Not for us. */
+		return 1;
+	}
+
+	if (!(k->wk_flags & IEEE80211_KEY_RECV)) {
+		/* XMIT keys are handled in wpi_tx_data(). */
+		return 1;
+	}
+
+	/* Handle group keys. */
+	if (&vap->iv_nw_keys[0] <= k &&
+	    k < &vap->iv_nw_keys[IEEE80211_WEP_NKID]) {
+		WPI_NT_LOCK(sc);
+		if (set)
+			wvp->wv_gtk |= WPI_VAP_KEY(k->wk_keyix);
+		else
+			wvp->wv_gtk &= ~WPI_VAP_KEY(k->wk_keyix);
+		WPI_NT_UNLOCK(sc);
+
+		if (vap->iv_state == IEEE80211_S_RUN) {
+			ieee80211_iterate_nodes(&ic->ic_sta,
+			    set ? wpi_load_key_cb : wpi_del_key_cb, (void *)k);
+		}
+
+		return 1;
+	}
+
+	switch (vap->iv_opmode) {
+	case IEEE80211_M_STA:
+		ni = vap->iv_bss;
+		break;
+
+	case IEEE80211_M_IBSS:
+	case IEEE80211_M_AHDEMO:
+		ni = ieee80211_find_vap_node(&ic->ic_sta, vap, k->wk_macaddr);
+		if (ni == NULL)
+			return 0;	/* should not happen */
+
+		ni_ref = 1;
+		break;
+
+	default:
+		device_printf(sc->sc_dev, "%s: unknown opmode %d\n", __func__,
+		    vap->iv_opmode);
+		return 0;
+	}
+
+	WPI_NT_LOCK(sc);
+	if (set)
+		error = wpi_load_key(ni, k);
+	else
+		error = wpi_del_key(ni, k);
+	WPI_NT_UNLOCK(sc);
+
+	if (ni_ref)
+		ieee80211_node_decref(ni);
+
+	return error;
+}
+
+static int
+wpi_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k,
+    const uint8_t mac[IEEE80211_ADDR_LEN])
+{
+	return wpi_process_key(vap, k, 1);
+}
+
+static int
+wpi_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
+{
+	return wpi_process_key(vap, k, 0);
 }
 
 /*
