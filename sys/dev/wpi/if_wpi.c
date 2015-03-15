@@ -614,17 +614,17 @@ wpi_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	    M_80211_VAP, M_NOWAIT | M_ZERO);
 	if (wvp == NULL)
 		return NULL;
-	vap = &wvp->vap;
+	vap = &wvp->wv_vap;
 	ieee80211_vap_setup(ic, vap, name, unit, opmode, flags, bssid, mac);
 
 	if (opmode == IEEE80211_M_IBSS)
 		wpi_init_beacon(wvp);
 
 	/* Override with driver methods. */
-	wvp->newstate = vap->iv_newstate;
 	vap->iv_key_alloc = wpi_key_alloc;
 	vap->iv_key_set = wpi_key_set;
 	vap->iv_key_delete = wpi_key_delete;
+	wvp->wv_newstate = vap->iv_newstate;
 	vap->iv_newstate = wpi_newstate;
 	vap->iv_update_beacon = wpi_update_beacon;
 
@@ -1704,7 +1704,7 @@ wpi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
 
-	return wvp->newstate(vap, nstate, arg);
+	return wvp->wv_newstate(vap, nstate, arg);
 }
 
 static void
@@ -3955,7 +3955,7 @@ wpi_auth(struct wpi_softc *sc, struct ieee80211vap *vap)
 static int
 wpi_config_beacon(struct wpi_vap *wvp)
 {
-	struct ieee80211com *ic = wvp->vap.iv_ic;
+	struct ieee80211com *ic = wvp->wv_vap.iv_ic;
 	struct ieee80211_beacon_offsets *bo = &wvp->wv_boff;
 	struct wpi_buf *bcn = &wvp->wv_bcbuf;
 	struct wpi_softc *sc = ic->ic_ifp->if_softc;
