@@ -313,7 +313,7 @@ wpi_attach(device_t dev)
 
 	sc->sc_dev = dev;
 
-#ifdef	WPI_DEBUG
+#ifdef WPI_DEBUG
 	error = resource_int_value(device_get_name(sc->sc_dev),
 	    device_get_unit(sc->sc_dev), "debug", &(sc->sc_debug));
 	if (error != 0)
@@ -455,20 +455,21 @@ wpi_attach(device_t dev)
 		device_printf(dev, "could not read EEPROM, error %d\n",
 		    error);
 		goto fail;
-        }
+	}
 
-#ifdef	WPI_DEBUG
+#ifdef WPI_DEBUG
 	if (bootverbose) {
-	    device_printf(sc->sc_dev, "Regulatory Domain: %.4s\n", sc->domain);
-	    device_printf(sc->sc_dev, "Hardware Type: %c\n",
-			  sc->type > 1 ? 'B': '?');
-	    device_printf(sc->sc_dev, "Hardware Revision: %c\n",
-			  ((le16toh(sc->rev) & 0xf0) == 0xd0) ? 'D': '?');
-	    device_printf(sc->sc_dev, "SKU %s support 802.11a\n",
-			  supportsa ? "does" : "does not");
+		device_printf(sc->sc_dev, "Regulatory Domain: %.4s\n",
+		    sc->domain);
+		device_printf(sc->sc_dev, "Hardware Type: %c\n",
+		    sc->type > 1 ? 'B': '?');
+		device_printf(sc->sc_dev, "Hardware Revision: %c\n",
+		    ((le16toh(sc->rev) & 0xf0) == 0xd0) ? 'D': '?');
+		device_printf(sc->sc_dev, "SKU %s support 802.11a\n",
+		    supportsa ? "does" : "does not");
 
-	    /* XXX hw_config uses the PCIDEV for the Hardware rev. Must check
-	       what sc->rev really represents - benjsc 20070615 */
+		/* XXX hw_config uses the PCIDEV for the Hardware rev. Must
+		   check what sc->rev really represents - benjsc 20070615 */
 	}
 #endif
 
@@ -558,7 +559,7 @@ wpi_radiotap_attach(struct wpi_softc *sc)
 static void
 wpi_sysctlattach(struct wpi_softc *sc)
 {
-#ifdef  WPI_DEBUG
+#ifdef WPI_DEBUG
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
 	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
 
@@ -725,7 +726,7 @@ wpi_nic_lock(struct wpi_softc *sc)
 	/* Spin until we actually get the lock. */
 	for (ntries = 0; ntries < 1000; ntries++) {
 		if ((WPI_READ(sc, WPI_GP_CNTRL) &
-		     (WPI_GP_CNTRL_MAC_ACCESS_ENA | WPI_GP_CNTRL_SLEEP)) ==
+		    (WPI_GP_CNTRL_MAC_ACCESS_ENA | WPI_GP_CNTRL_SLEEP)) ==
 		    WPI_GP_CNTRL_MAC_ACCESS_ENA)
 			return 0;
 		DELAY(10);
@@ -957,16 +958,16 @@ wpi_alloc_rx_ring(struct wpi_softc *sc)
 	}
 
 	/* Create RX buffer DMA tag. */
-        error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0, 
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0, 
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    MJUMPAGESIZE, 1, MJUMPAGESIZE, BUS_DMA_NOWAIT, NULL, NULL,
 	    &ring->data_dmat);
-        if (error != 0) {
-                device_printf(sc->sc_dev,
+	if (error != 0) {
+		device_printf(sc->sc_dev,
 		    "%s: could not create RX buf DMA tag, error %d\n",
 		    __func__, error);
-                goto fail;
-        }
+		goto fail;
+	}
 
 	/*
 	 * Allocate and map RX buffers.
@@ -2028,8 +2029,8 @@ wpi_notif_intr(struct wpi_softc *sc)
 		}
 		case WPI_STATE_CHANGED:
 		{
-                        bus_dmamap_sync(sc->rxq.data_dmat, data->map,
-                            BUS_DMASYNC_POSTREAD);
+			bus_dmamap_sync(sc->rxq.data_dmat, data->map,
+			    BUS_DMASYNC_POSTREAD);
 
 			uint32_t *status = (uint32_t *)(desc + 1);
 
@@ -2083,7 +2084,7 @@ wpi_notif_intr(struct wpi_softc *sc)
  * Process an INT_WAKEUP interrupt raised when the microcontroller wakes up
  * from power-down sleep mode.
  */
-static void     
+static void
 wpi_wakeup_intr(struct wpi_softc *sc)
 {
 	int qid;
@@ -2127,12 +2128,12 @@ wpi_fatal_intr(struct wpi_softc *sc)
 	    WPI_FW_DATA_BASE + WPI_FW_DATA_MAXSZ) {
 		printf("%s: bad firmware error log address 0x%08x\n", __func__,
 		    sc->errptr);
-                return;
-        }
+		return;
+	}
 	if (wpi_nic_lock(sc) != 0) {
 		printf("%s: could not read firmware error log\n", __func__);
-                return;
-        }
+		return;
+	}
 	/* Read number of entries in the log. */
 	count = wpi_mem_read(sc, sc->errptr);
 	if (count == 0 || count * sizeof (dump) > WPI_FW_DATA_MAXSZ) {
@@ -2381,7 +2382,7 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	} else {
 		qos = 0;
 		tid = 0;
-        }
+	}
 	ac = M_WME_GETAC(m);
 
 	chan = (ni->ni_chan != IEEE80211_CHAN_ANYC) ?
@@ -3233,11 +3234,11 @@ wpi_get_power_index(struct wpi_softc *sc, struct wpi_power_group *group,
     struct ieee80211_channel *c, int ridx)
 {
 /* Fixed-point arithmetic division using a n-bit fractional part. */
-#define fdivround(a, b, n)      \
+#define fdivround(a, b, n)	\
 	((((1 << n) * (a)) / (b) + (1 << n) / 2) / (1 << n))
 
 /* Linear interpolation. */
-#define interpolate(x, x1, y1, x2, y2, n)       \
+#define interpolate(x, x1, y1, x2, y2, n)	\
 	((y1) + fdivround(((x) - (x1)) * ((y2) - (y1)), (x2) - (x1), n))
 
 	struct ifnet *ifp = sc->sc_ifp;
@@ -3354,18 +3355,18 @@ wpi_set_pslevel(struct wpi_softc *sc, uint8_t dtim, int level, int async)
 	return wpi_cmd(sc, WPI_CMD_SET_POWER_MODE, &cmd, sizeof cmd, async);
 }
 
-static int      
+static int
 wpi_send_btcoex(struct wpi_softc *sc)
 {
 	struct wpi_bluetooth cmd;
 
-        memset(&cmd, 0, sizeof cmd);
-        cmd.flags = WPI_BT_COEX_MODE_4WIRE;
-        cmd.lead_time = WPI_BT_LEAD_TIME_DEF;
-        cmd.max_kill = WPI_BT_MAX_KILL_DEF;
+	memset(&cmd, 0, sizeof cmd);
+	cmd.flags = WPI_BT_COEX_MODE_4WIRE;
+	cmd.lead_time = WPI_BT_LEAD_TIME_DEF;
+	cmd.max_kill = WPI_BT_MAX_KILL_DEF;
 	DPRINTF(sc, WPI_DEBUG_RESET, "%s: configuring bluetooth coexistence\n",
 	    __func__);
-        return wpi_cmd(sc, WPI_CMD_BT_COEX, &cmd, sizeof(cmd), 0);
+	return wpi_cmd(sc, WPI_CMD_BT_COEX, &cmd, sizeof(cmd), 0);
 }
 
 static int
@@ -3719,7 +3720,7 @@ wpi_scan(struct wpi_softc *sc, struct ieee80211_channel *c)
 		chan->rf_gain = 0x28;
 
 	DPRINTF(sc, WPI_DEBUG_SCAN, "Scanning %u Passive: %d\n",
-	     chan->chan, IEEE80211_IS_CHAN_PASSIVE(c));
+	    chan->chan, IEEE80211_IS_CHAN_PASSIVE(c));
 
 	hdr->nchan++;
 	chan++;
@@ -4112,11 +4113,11 @@ wpi_post_alive(struct wpi_softc *sc)
 	if (ntries == 1000) {
 		device_printf(sc->sc_dev,
 		    "timeout waiting for thermal sensor calibration\n");
-                return ETIMEDOUT;
-        }
+		return ETIMEDOUT;
+	}
 
-        DPRINTF(sc, WPI_DEBUG_TEMP, "temperature %d\n", sc->temp);
-        return 0;
+	DPRINTF(sc, WPI_DEBUG_TEMP, "temperature %d\n", sc->temp);
+	return 0;
 }
 
 /*

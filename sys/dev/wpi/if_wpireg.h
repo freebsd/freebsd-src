@@ -28,7 +28,7 @@
 #define WPI_NDMACHNLS		6
 
 /* Maximum scatter/gather. */
-#define WPI_MAX_SCATTER	4
+#define WPI_MAX_SCATTER		4
 
 /*
  * Rings must be aligned on a 16K boundary.
@@ -466,7 +466,7 @@ struct wpi_cmd_data {
 	uint16_t	lnext;
 	uint32_t	flags;
 #define WPI_TX_NEED_RTS		(1 <<  1)
-#define WPI_TX_NEED_CTS         (1 <<  2)
+#define WPI_TX_NEED_CTS		(1 <<  2)
 #define WPI_TX_NEED_ACK		(1 <<  3)
 #define WPI_TX_FULL_TXOP	(1 <<  7)
 #define WPI_TX_BT_DISABLE	(1 << 12) 	/* bluetooth coexistence */
@@ -516,10 +516,10 @@ struct wpi_cmd_beacon {
 
 /* Structure for notification WPI_BEACON_MISSED. */
 struct wpi_beacon_missed {
-    uint32_t consecutive;
-    uint32_t total;
-    uint32_t expected;
-    uint32_t received;
+	uint32_t consecutive;
+	uint32_t total;
+	uint32_t expected;
+	uint32_t received;
 } __packed;
 
 
