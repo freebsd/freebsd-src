@@ -25,6 +25,8 @@
 
 #define WPI_NTXQUEUES		8
 #define WPI_DRV_NTXQUEUES	5
+#define WPI_CMD_QUEUE_NUM	4
+
 #define WPI_NDMACHNLS		6
 
 /* Maximum scatter/gather. */
@@ -222,7 +224,7 @@
 #define WPI_APMG_PCI_STT_L1A_DIS	(1 << 11)
 
 struct wpi_shared {
-	uint32_t	txbase[8];
+	uint32_t	txbase[WPI_NTXQUEUES];
 	uint32_t	next;
 	uint32_t	reserved[2];
 } __packed;
@@ -269,13 +271,16 @@ struct wpi_rx_desc {
 	uint8_t		qid;
 } __packed;
 
+#define WPI_RX_DESC_QID_MSK		0x07
+#define WPI_UNSOLICITED_RX_NOTIF	0x80
+
 struct wpi_rx_stat {
 	uint8_t		len;
 #define WPI_STAT_MAXLEN	20
 
 	uint8_t		id;
 	uint8_t		rssi;	/* received signal strength */
-#define WPI_RSSI_OFFSET	95
+#define WPI_RSSI_OFFSET	-95
 
 	uint8_t		agc;	/* access gain control */
 	uint16_t	signal;
