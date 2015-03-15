@@ -1172,8 +1172,10 @@ wpi_alloc_tx_ring(struct wpi_softc *sc, struct wpi_tx_ring *ring, int qid)
 	 * to allocate commands space for other rings.
 	 * XXX Do we really need to allocate descriptors for other rings?
 	 */
-	if (qid > WPI_CMD_QUEUE_NUM)
+	if (qid > WPI_CMD_QUEUE_NUM) {
+		DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
 		return 0;
+	}
 
 	size = WPI_TX_RING_COUNT * sizeof (struct wpi_tx_cmd);
 	error = wpi_dma_contig_alloc(sc, &ring->cmd_dma, (void **)&ring->cmd,
@@ -1991,8 +1993,8 @@ wpi_cmd_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	struct wpi_tx_ring *ring = &sc->txq[WPI_CMD_QUEUE_NUM];
 	struct wpi_tx_data *data;
 
-	DPRINTF(sc, WPI_DEBUG_CMD, "cmd notification qid=%x idx=%d flags=%x "
-				   "type=%s len=%d\n", desc->qid, desc->idx,
+	DPRINTF(sc, WPI_DEBUG_CMD, "cmd notification qid %x idx %d flags %x "
+				   "type %s len %d\n", desc->qid, desc->idx,
 				   desc->flags, wpi_cmd_str(desc->type),
 				   le32toh(desc->len));
 
@@ -3027,8 +3029,8 @@ wpi_cmd(struct wpi_softc *sc, int code, const void *buf, size_t size,
 	if (async == 0)
 		WPI_LOCK_ASSERT(sc);
 
-	DPRINTF(sc, WPI_DEBUG_CMD, "wpi_cmd %s size %zu async %d\n",
-	    wpi_cmd_str(code), size, async);
+	DPRINTF(sc, WPI_DEBUG_CMD, "%s: cmd %s size %zu async %d\n",
+	    __func__, wpi_cmd_str(code), size, async);
 
 	desc = &ring->desc[ring->cur];
 	data = &ring->data[ring->cur];
@@ -5343,7 +5345,7 @@ wpi_set_channel(struct ieee80211com *ic)
 		}
 		if ((error = wpi_send_rxon(sc, 0, 0)) != 0)
 			device_printf(sc->sc_dev,
-			    "%s: error %d settting channel\n", __func__,
+			    "%s: error %d setting channel\n", __func__,
 			    error);
 	}
 	WPI_UNLOCK(sc);
