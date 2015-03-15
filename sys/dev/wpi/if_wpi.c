@@ -130,6 +130,7 @@ static int	wpi_probe(device_t);
 static int	wpi_attach(device_t);
 static void	wpi_radiotap_attach(struct wpi_softc *);
 static void	wpi_sysctlattach(struct wpi_softc *);
+static void	wpi_init_beacon(struct wpi_vap *);
 static struct ieee80211vap *wpi_vap_create(struct ieee80211com *,
 		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
 		    const uint8_t [IEEE80211_ADDR_LEN],
@@ -579,6 +580,23 @@ wpi_sysctlattach(struct wpi_softc *sc)
 #endif
 }
 
+static void
+wpi_init_beacon(struct wpi_vap *wvp)
+{
+	struct wpi_buf *bcn = &wvp->wv_bcbuf;
+	struct wpi_cmd_beacon *cmd = (struct wpi_cmd_beacon *)&bcn->data;
+
+	cmd->id = WPI_ID_BROADCAST;
+	cmd->ofdm_mask = 0xff;
+	cmd->cck_mask = 0x0f;
+	cmd->lifetime = htole32(WPI_LIFETIME_INFINITE);
+	cmd->flags = htole32(WPI_TX_AUTO_SEQ | WPI_TX_INSERT_TSTAMP);
+
+	bcn->code = WPI_CMD_SET_BEACON;
+	bcn->ac = WPI_CMD_QUEUE_NUM;
+	bcn->size = sizeof(struct wpi_cmd_beacon);
+}
+
 static struct ieee80211vap *
 wpi_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
     enum ieee80211_opmode opmode, int flags,
@@ -597,6 +615,9 @@ wpi_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 		return NULL;
 	vap = &wvp->vap;
 	ieee80211_vap_setup(ic, vap, name, unit, opmode, flags, bssid, mac);
+
+	if (opmode == IEEE80211_M_IBSS)
+		wpi_init_beacon(wvp);
 
 	/* Override with driver methods. */
 	wvp->newstate = vap->iv_newstate;
@@ -3932,7 +3953,6 @@ wpi_setup_beacon(struct wpi_softc *sc, struct ieee80211_node *ni)
 	struct ieee80211_beacon_offsets bo;
 	struct wpi_cmd_beacon *cmd = (struct wpi_cmd_beacon *)&bcn->data;
 	struct mbuf *m;
-	int totlen;
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_DOING, __func__);
 
@@ -3945,20 +3965,8 @@ wpi_setup_beacon(struct wpi_softc *sc, struct ieee80211_node *ni)
 		    "%s: could not allocate beacon frame\n", __func__);
 		return ENOMEM;
 	}
-	totlen = m->m_pkthdr.len;
 
-	cmd->id = WPI_ID_BROADCAST;
-	cmd->ofdm_mask = 0xff;
-	cmd->cck_mask = 0x0f;
-	cmd->lifetime = htole32(WPI_LIFETIME_INFINITE);
-	cmd->flags = htole32(WPI_TX_AUTO_SEQ | WPI_TX_INSERT_TSTAMP);
-
-	bcn->ni = NULL;
-	bcn->code = WPI_CMD_SET_BEACON;
-	bcn->ac = 4;
-	bcn->size = sizeof(struct wpi_cmd_beacon);
-
-	cmd->len = htole16(totlen);
+	cmd->len = htole16(m->m_pkthdr.len);
 	cmd->plcp = (ic->ic_curmode == IEEE80211_MODE_11A) ?
 	    wpi_ridx_to_plcp[WPI_RIDX_OFDM6] : wpi_ridx_to_plcp[WPI_RIDX_CCK1];
 
