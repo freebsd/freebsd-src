@@ -165,6 +165,7 @@ struct wpi_softc {
 	int			sc_debug;
 
 	struct mtx		sc_mtx;
+	struct mtx		tx_mtx;
 
 	/* Shared area. */
 	struct wpi_dma_info	shared_dma;
@@ -242,9 +243,10 @@ struct wpi_softc {
  * Locking order:
  * 1. WPI_LOCK;
  * 2. WPI_RXON_LOCK;
- * 3. WPI_NT_LOCK / WPI_VAP_LOCK;
- * 4. WPI_TXQ_LOCK;
- * 5. WPI_TXQ_STATE_LOCK;
+ * 3. WPI_TX_LOCK;
+ * 4. WPI_NT_LOCK / WPI_VAP_LOCK;
+ * 5. WPI_TXQ_LOCK;
+ * 6. WPI_TXQ_STATE_LOCK;
  */
 
 #define WPI_LOCK_INIT(_sc) \
@@ -261,6 +263,12 @@ struct wpi_softc {
 #define WPI_RXON_UNLOCK(_sc)		mtx_unlock(&(_sc)->rxon_mtx)
 #define WPI_RXON_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->rxon_mtx, MA_OWNED)
 #define WPI_RXON_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->rxon_mtx)
+
+#define WPI_TX_LOCK_INIT(_sc) \
+	mtx_init(&(_sc)->tx_mtx, "tx path lock", NULL, MTX_DEF)
+#define WPI_TX_LOCK(_sc)		mtx_lock(&(_sc)->tx_mtx)
+#define WPI_TX_UNLOCK(_sc)		mtx_unlock(&(_sc)->tx_mtx)
+#define WPI_TX_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->tx_mtx)
 
 #define WPI_NT_LOCK_INIT(_sc) \
 	mtx_init(&(_sc)->nt_mtx, "node table lock", NULL, MTX_DEF)
