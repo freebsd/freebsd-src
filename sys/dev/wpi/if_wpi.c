@@ -396,6 +396,7 @@ wpi_attach(device_t dev)
 	}
 
 	WPI_LOCK_INIT(sc);
+	WPI_TX_LOCK_INIT(sc);
 	WPI_RXON_LOCK_INIT(sc);
 	WPI_NT_LOCK_INIT(sc);
 	WPI_TXQ_LOCK_INIT(sc);
@@ -726,6 +727,7 @@ wpi_detach(device_t dev)
 	WPI_TXQ_LOCK_DESTROY(sc);
 	WPI_NT_LOCK_DESTROY(sc);
 	WPI_RXON_LOCK_DESTROY(sc);
+	WPI_TX_LOCK_DESTROY(sc);
 	WPI_LOCK_DESTROY(sc);
 	return 0;
 }
@@ -2845,7 +2847,7 @@ wpi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		return ENETDOWN;
 	}
 
-	WPI_LOCK(sc);
+	WPI_TX_LOCK(sc);
 	if (params == NULL) {
 		/*
 		 * Legacy path; interpret frame contents to decide
@@ -2859,7 +2861,7 @@ wpi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		 */
 		error = wpi_tx_data_raw(sc, m, ni, params);
 	}
-	WPI_UNLOCK(sc);
+	WPI_TX_UNLOCK(sc);
 
 	if (error != 0) {
 		/* NB: m is reclaimed on tx failure */
@@ -2886,7 +2888,7 @@ wpi_start(struct ifnet *ifp)
 	struct ieee80211_node *ni;
 	struct mbuf *m;
 
-	WPI_LOCK(sc);
+	WPI_TX_LOCK(sc);
 	DPRINTF(sc, WPI_DEBUG_XMIT, "%s: called\n", __func__);
 
 	for (;;) {
@@ -2903,15 +2905,13 @@ wpi_start(struct ifnet *ifp)
 			break;
 		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
 		if (wpi_tx_data(sc, m, ni) != 0) {
-			WPI_UNLOCK(sc);
 			ieee80211_free_node(ni);
-			WPI_LOCK(sc);
 			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		}
 	}
 
 	DPRINTF(sc, WPI_DEBUG_XMIT, "%s: done\n", __func__);
-	WPI_UNLOCK(sc);
+	WPI_TX_UNLOCK(sc);
 }
 
 static void
@@ -5350,9 +5350,11 @@ wpi_set_channel(struct ieee80211com *ic)
 	WPI_LOCK(sc);
 	sc->sc_rxtap.wr_chan_freq = htole16(c->ic_freq);
 	sc->sc_rxtap.wr_chan_flags = htole16(c->ic_flags);
+	WPI_UNLOCK(sc);
+	WPI_TX_LOCK(sc);
 	sc->sc_txtap.wt_chan_freq = htole16(c->ic_freq);
 	sc->sc_txtap.wt_chan_flags = htole16(c->ic_flags);
-	WPI_UNLOCK(sc);
+	WPI_TX_UNLOCK(sc);
 
 	/*
 	 * Only need to set the channel in Monitor mode. AP scanning and auth
