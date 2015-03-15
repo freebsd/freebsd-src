@@ -384,6 +384,7 @@ wpi_attach(device_t dev)
 	}
 
 	WPI_LOCK_INIT(sc);
+	WPI_TXQ_LOCK_INIT(sc);
 
 	/* Allocate DMA memory for firmware transfers. */
 	if ((error = wpi_alloc_fwmem(sc)) != 0) {
@@ -679,6 +680,7 @@ wpi_detach(device_t dev)
 		if_free(ifp);
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
+	WPI_TXQ_LOCK_DESTROY(sc);
 	WPI_LOCK_DESTROY(sc);
 	return 0;
 }
@@ -2151,6 +2153,7 @@ wpi_wakeup_intr(struct wpi_softc *sc)
 		sc->rxq.update = 0;
 		wpi_update_rx_ring(sc);
 	}
+	WPI_TXQ_LOCK(sc);
 	for (qid = 0; qid < WPI_DRV_NTXQUEUES; qid++) {
 		struct wpi_tx_ring *ring = &sc->txq[qid];
 
@@ -2159,6 +2162,7 @@ wpi_wakeup_intr(struct wpi_softc *sc)
 			wpi_update_tx_ring(sc, ring);
 		}
 	}
+	WPI_TXQ_UNLOCK(sc);
 
 	WPI_CLRBITS(sc, WPI_GP_CNTRL, WPI_GP_CNTRL_MAC_ACCESS_REQ);
 }
@@ -2220,11 +2224,13 @@ wpi_fatal_intr(struct wpi_softc *sc)
 	wpi_nic_unlock(sc);
 	/* Dump driver status (TX and RX rings) while we're here. */
 	printf("driver status:\n");
+	WPI_TXQ_LOCK(sc);
 	for (i = 0; i < WPI_DRV_NTXQUEUES; i++) {
 		struct wpi_tx_ring *ring = &sc->txq[i];
 		printf("  tx ring %2d: qid=%-2d cur=%-3d queued=%-3d\n",
 		    i, ring->qid, ring->cur, ring->queued);
 	}
+	WPI_TXQ_UNLOCK(sc);
 	printf("  rx ring: cur=%d\n", sc->rxq.cur);
 }
 
@@ -2302,7 +2308,15 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 
 	WPI_LOCK_ASSERT(sc);
 
+	WPI_TXQ_LOCK(sc);
+
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_BEGIN, __func__);
+
+	if (sc->txq_active == 0) {
+		/* wpi_stop() was called */
+		error = ENETDOWN;
+		goto fail;
+	}
 
 	wh = mtod(buf->m, struct ieee80211_frame *);
 	hdrlen = ieee80211_anyhdrsize(wh);
@@ -2336,8 +2350,7 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 	if (error != 0 && error != EFBIG) {
 		device_printf(sc->sc_dev,
 		    "%s: can't map mbuf (error %d)\n", __func__, error);
-		m_freem(buf->m);
-		return error;
+		goto fail;
 	}
 	if (error != 0) {
 		/* Too many DMA segments, linearize mbuf. */
@@ -2345,8 +2358,8 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 		if (m1 == NULL) {
 			device_printf(sc->sc_dev,
 			    "%s: could not defrag mbuf\n", __func__);
-			m_freem(buf->m);
-			return ENOBUFS;
+			error = ENOBUFS;
+			goto fail;
 		}
 		buf->m = m1;
 
@@ -2356,8 +2369,7 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 			device_printf(sc->sc_dev,
 			    "%s: can't map mbuf (error %d)\n", __func__,
 			    error);
-			m_freem(buf->m);
-			return error;
+			goto fail;
 		}
 	}
 
@@ -2400,7 +2412,17 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
 
+	WPI_TXQ_UNLOCK(sc);
+
 	return 0;
+
+fail:	m_freem(buf->m);
+
+	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END_ERR, __func__);
+
+	WPI_TXQ_UNLOCK(sc);
+
+	return error;
 }
 
 /*
@@ -2867,7 +2889,15 @@ wpi_cmd(struct wpi_softc *sc, int code, const void *buf, size_t size,
 	bus_addr_t paddr;
 	int totlen, error;
 
+	WPI_TXQ_LOCK(sc);
+
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_BEGIN, __func__);
+
+	if (sc->txq_active == 0) {
+		/* wpi_stop() was called */
+		error = 0;
+		goto fail;
+	}
 
 	if (async == 0)
 		WPI_LOCK_ASSERT(sc);
@@ -2888,17 +2918,21 @@ wpi_cmd(struct wpi_softc *sc, int code, const void *buf, size_t size,
 
 	if (size > sizeof cmd->data) {
 		/* Command is too large to fit in a descriptor. */
-		if (totlen > MCLBYTES)
-			return EINVAL;
+		if (totlen > MCLBYTES) {
+			error = EINVAL;
+			goto fail;
+		}
 		m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
-		if (m == NULL)
-			return ENOMEM;
+		if (m == NULL) {
+			error = ENOMEM;
+			goto fail;
+		}
 		cmd = mtod(m, struct wpi_tx_cmd *);
 		error = bus_dmamap_load(ring->data_dmat, data->map, cmd,
 		    totlen, wpi_dma_map_addr, &paddr, BUS_DMA_NOWAIT);
 		if (error != 0) {
 			m_freem(m);
-			return error;
+			goto fail;
 		}
 		data->m = m;
 	} else {
@@ -2932,12 +2966,20 @@ wpi_cmd(struct wpi_softc *sc, int code, const void *buf, size_t size,
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
 
+	WPI_TXQ_UNLOCK(sc);
+
 	if (async) {
 		sc->flags &= ~WPI_FLAG_BUSY;
 		return 0;
 	}
 
 	return mtx_sleep(cmd, &sc->sc_mtx, PCATCH, "wpicmd", hz);
+
+fail:	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END_ERR, __func__);
+
+	WPI_TXQ_UNLOCK(sc);
+
+	return error;
 }
 
 /*
@@ -4817,6 +4859,7 @@ wpi_init_locked(struct wpi_softc *sc)
 	}
 
 	/* Configure adapter now that it is ready. */
+	sc->txq_active = 1;
 	if ((error = wpi_config(sc)) != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: could not configure device, error %d\n", __func__,
@@ -4858,6 +4901,10 @@ wpi_stop_locked(struct wpi_softc *sc)
 	struct ifnet *ifp = sc->sc_ifp;
 
 	WPI_LOCK_ASSERT(sc);
+
+	WPI_TXQ_LOCK(sc);
+	sc->txq_active = 0;
+	WPI_TXQ_UNLOCK(sc);
 
 	sc->sc_scan_timer = 0;
 	sc->sc_tx_timer = 0;

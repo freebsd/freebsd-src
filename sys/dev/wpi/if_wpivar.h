@@ -163,6 +163,9 @@ struct wpi_softc {
 	struct wpi_shared	*shared;
 
 	struct wpi_tx_ring	txq[WPI_NTXQUEUES];
+	struct mtx		txq_mtx;
+	uint32_t		txq_active;
+
 	struct wpi_rx_ring	rxq;
 
 	/* TX Thermal Callibration. */
@@ -222,6 +225,8 @@ struct wpi_softc {
 	char			domain[4];	/* Regulatory domain. */
 };
 
+/* WPI_LOCK > WPI_TXQ_LOCK */
+
 #define WPI_LOCK_INIT(_sc) \
 	mtx_init(&(_sc)->sc_mtx, device_get_nameunit((_sc)->sc_dev), \
 	    MTX_NETWORK_LOCK, MTX_DEF)
@@ -229,3 +234,9 @@ struct wpi_softc {
 #define WPI_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #define WPI_LOCK_ASSERT(sc)	mtx_assert(&(sc)->sc_mtx, MA_OWNED)
 #define WPI_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
+
+#define WPI_TXQ_LOCK_INIT(_sc) \
+	mtx_init(&(_sc)->txq_mtx, "txq/cmdq lock", NULL, MTX_DEF)
+#define WPI_TXQ_LOCK(_sc)		mtx_lock(&(_sc)->txq_mtx)
+#define WPI_TXQ_UNLOCK(_sc)		mtx_unlock(&(_sc)->txq_mtx)
+#define WPI_TXQ_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->txq_mtx)
