@@ -172,6 +172,7 @@ struct wpi_softc {
 
 	struct wpi_tx_ring	txq[WPI_NTXQUEUES];
 	struct mtx		txq_mtx;
+	struct mtx		txq_state_mtx;
 	uint32_t		txq_active;
 
 	struct wpi_rx_ring	rxq;
@@ -237,7 +238,14 @@ struct wpi_softc {
 	char			domain[4];	/* Regulatory domain. */
 };
 
-/* WPI_LOCK > WPI_RXON_LOCK > WPI_NT_LOCK / WPI_VAP_LOCK > WPI_TXQ_LOCK */
+/*
+ * Locking order:
+ * 1. WPI_LOCK;
+ * 2. WPI_RXON_LOCK;
+ * 3. WPI_NT_LOCK / WPI_VAP_LOCK;
+ * 4. WPI_TXQ_LOCK;
+ * 5. WPI_TXQ_STATE_LOCK;
+ */
 
 #define WPI_LOCK_INIT(_sc) \
 	mtx_init(&(_sc)->sc_mtx, device_get_nameunit((_sc)->sc_dev), \
@@ -265,3 +273,9 @@ struct wpi_softc {
 #define WPI_TXQ_LOCK(_sc)		mtx_lock(&(_sc)->txq_mtx)
 #define WPI_TXQ_UNLOCK(_sc)		mtx_unlock(&(_sc)->txq_mtx)
 #define WPI_TXQ_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->txq_mtx)
+
+#define WPI_TXQ_STATE_LOCK_INIT(_sc) \
+	mtx_init(&(_sc)->txq_state_mtx, "txq state lock", NULL, MTX_DEF)
+#define WPI_TXQ_STATE_LOCK(_sc)		mtx_lock(&(_sc)->txq_state_mtx)
+#define WPI_TXQ_STATE_UNLOCK(_sc)	mtx_unlock(&(_sc)->txq_state_mtx)
+#define WPI_TXQ_STATE_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->txq_state_mtx)

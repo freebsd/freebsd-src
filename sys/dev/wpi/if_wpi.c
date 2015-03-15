@@ -399,6 +399,7 @@ wpi_attach(device_t dev)
 	WPI_RXON_LOCK_INIT(sc);
 	WPI_NT_LOCK_INIT(sc);
 	WPI_TXQ_LOCK_INIT(sc);
+	WPI_TXQ_STATE_LOCK_INIT(sc);
 
 	/* Allocate DMA memory for firmware transfers. */
 	if ((error = wpi_alloc_fwmem(sc)) != 0) {
@@ -523,7 +524,7 @@ wpi_attach(device_t dev)
 
 	callout_init_mtx(&sc->calib_to, &sc->rxon_mtx, 0);
 	callout_init_mtx(&sc->scan_timeout, &sc->rxon_mtx, 0);
-	callout_init_mtx(&sc->tx_timeout, &sc->sc_mtx, 0);
+	callout_init_mtx(&sc->tx_timeout, &sc->txq_state_mtx, 0);
 	callout_init_mtx(&sc->watchdog_rfkill, &sc->sc_mtx, 0);
 	TASK_INIT(&sc->sc_reinittask, 0, wpi_hw_reset, sc);
 	TASK_INIT(&sc->sc_radiooff_task, 0, wpi_radio_off, sc);
@@ -721,6 +722,7 @@ wpi_detach(device_t dev)
 		if_free(ifp);
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
+	WPI_TXQ_STATE_LOCK_DESTROY(sc);
 	WPI_TXQ_LOCK_DESTROY(sc);
 	WPI_NT_LOCK_DESTROY(sc);
 	WPI_RXON_LOCK_DESTROY(sc);
@@ -1970,6 +1972,7 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	ieee80211_tx_complete(ni, m, (status & 0xff) != 1);
 	WPI_LOCK(sc);
 
+	WPI_TXQ_STATE_LOCK(sc);
 	ring->queued -= 1;
 	if (ring->queued > 0) {
 		callout_reset(&sc->tx_timeout, 5*hz, wpi_tx_timeout, sc);
@@ -1988,6 +1991,7 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 		}
 	} else
 		callout_stop(&sc->tx_timeout);
+	WPI_TXQ_STATE_UNLOCK(sc);
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
 }
@@ -2524,6 +2528,7 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 
 	if (ring->qid < WPI_CMD_QUEUE_NUM) {
 		/* Mark TX ring as full if we reach a certain threshold. */
+		WPI_TXQ_STATE_LOCK(sc);
 		if (++ring->queued > WPI_TX_RING_HIMARK) {
 			sc->qfullmsk |= 1 << ring->qid;
 
@@ -2533,6 +2538,7 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 		}
 
 		callout_reset(&sc->tx_timeout, 5*hz, wpi_tx_timeout, sc);
+		WPI_TXQ_STATE_UNLOCK(sc);
 	}
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
@@ -5277,7 +5283,9 @@ wpi_stop_locked(struct wpi_softc *sc)
 	sc->txq_active = 0;
 	WPI_TXQ_UNLOCK(sc);
 
+	WPI_TXQ_STATE_LOCK(sc);
 	callout_stop(&sc->tx_timeout);
+	WPI_TXQ_STATE_UNLOCK(sc);
 
 	WPI_RXON_LOCK(sc);
 	callout_stop(&sc->scan_timeout);
