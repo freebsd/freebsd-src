@@ -2643,16 +2643,16 @@ wpi_tx_data_raw(struct wpi_softc *sc, struct mbuf *m,
     struct ieee80211_node *ni, const struct ieee80211_bpf_params *params)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211_key *k = NULL;
 	struct ieee80211_frame *wh;
 	struct wpi_buf tx_data;
 	struct wpi_cmd_data *tx = (struct wpi_cmd_data *)&tx_data.data;
 	uint32_t flags;
 	uint8_t type;
-	int ac, rate, totlen;
+	int ac, rate, swcrypt, totlen;
 
 	wh = mtod(m, struct ieee80211_frame *);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
-	totlen = m->m_pkthdr.len;
 
 	ac = params->ibp_pri & 3;
 
@@ -2669,11 +2669,28 @@ wpi_tx_data_raw(struct wpi_softc *sc, struct mbuf *m,
 	if (flags & (WPI_TX_NEED_RTS | WPI_TX_NEED_CTS))
 		flags |= WPI_TX_FULL_TXOP;
 
+	/* Encrypt the frame if need be. */
+	if (params->ibp_flags & IEEE80211_BPF_CRYPTO) {
+		/* Retrieve key for TX. */
+		k = ieee80211_crypto_encap(ni, m);
+		if (k == NULL) {
+			m_freem(m);
+			return ENOBUFS;
+		}
+		swcrypt = k->wk_flags & IEEE80211_KEY_SWCRYPT;
+
+		/* 802.11 header may have moved. */
+		wh = mtod(m, struct ieee80211_frame *);
+	}
+	totlen = m->m_pkthdr.len;
+
 	if (ieee80211_radiotap_active_vap(vap)) {
 		struct wpi_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
 		tap->wt_rate = rate;
+		if (params->ibp_flags & IEEE80211_BPF_CRYPTO)
+			tap->wt_flags |= IEEE80211_RADIOTAP_F_WEP;
 
 		ieee80211_radiotap_tx(vap, m);
 	}
@@ -2690,6 +2707,19 @@ wpi_tx_data_raw(struct wpi_softc *sc, struct mbuf *m,
 			tx->timeout = htole16(3);
 		else
 			tx->timeout = htole16(2);
+	}
+
+	if (k != NULL && !swcrypt) {
+		switch (k->wk_cipher->ic_cipher) {
+		case IEEE80211_CIPHER_AES_CCM:
+			tx->security = WPI_CIPHER_CCMP;
+			break;
+
+		default:
+			break;
+		}
+
+		memcpy(tx->key, k->wk_key, k->wk_keylen);
 	}
 
 	tx->len = htole16(totlen);
