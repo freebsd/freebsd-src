@@ -48,7 +48,6 @@
  */
 struct sandbox_provided_method {
 	char		*spm_method;		/* Method name */
-	intptr_t	 spm_offset;		/* Offset ($pcc relative) */
 	intptr_t	 spm_index_offset;	/* Offset of callee variable */
 };
 
@@ -98,8 +97,6 @@ void	sandbox_free_provided_methods(
 void	sandbox_warn_unresolved_methods(
 	    struct sandbox_required_methods *required_methods);
 
-int	sandbox_set_provided_method_variables(__capability void *datacap,
-	    struct sandbox_provided_methods *provided_methods);
 int	sandbox_set_required_method_variables(__capability void *datacap,
 	    struct sandbox_required_methods *required_methods);
 

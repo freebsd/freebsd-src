@@ -59,7 +59,7 @@ sandbox_parse_ccall_methods(int fd,
     struct sandbox_provided_methods **provided_methodsp,
     struct sandbox_required_methods **required_methodsp)
 {
-	size_t i, j, nsyms;
+	size_t i, nsyms;
 	int cheri_caller_idx, cheri_callee_idx;
 	size_t maxpmethods, npmethods;
 	struct sandbox_provided_method *pmethods = NULL;
@@ -76,6 +76,7 @@ sandbox_parse_ccall_methods(int fd,
 	char *strtab = NULL;
 	int maxoffset = 0;
 	ssize_t rlen;
+	intptr_t cheri_callee_offset;
 	Elf64_Ehdr ehdr;
 	Elf64_Shdr shdr, shstrtabhdr;
 	Elf64_Sym *symtab = NULL;
@@ -188,6 +189,7 @@ sandbox_parse_ccall_methods(int fd,
 #endif
 		} else if (shdr.sh_type == SHT_PROGBITS &&
 		    strcmp(".CHERI_CALLEE", sname) == 0) {
+			cheri_callee_offset = shdr.sh_addr;
 			cheri_callee_idx = i;
 #ifdef DEBUG
 			printf("found .CHERI_CALLEE\n");
@@ -364,42 +366,6 @@ sandbox_parse_ccall_methods(int fd,
 		printf("%zu methods required\n", nrmethods);
 #endif
 
-	/*
-	 * Walk the symbol table again, finding each method we provide and
-	 * recording is offset in memory.
-	 */
-	if (npmethods > 0) {
-#ifdef DEBUG
-		printf("class %s provides %zu methods\n", class_name, npmethods);
-#endif
-		for (i = 1; i < nsyms; i++) {
-			sname = strtab + symtab[i].st_name;
-			for (j = 0; j < npmethods; j++) {
-				if (strcmp(sname, pmethods[j].spm_method) != 0)
-					continue;
-				if (pmethods[j].spm_offset != 0) {
-					warnx("%s: multiple implementations of "
-					    "method %s in class %s", __func__,
-					    sname, class_name);
-					goto bad;
-				}
-				pmethods[j].spm_offset = symtab[i].st_value;
-#ifdef DEBUG
-				printf("method %s at 0x%lx\n", sname,
-				    pmethods[j].spm_offset);
-#endif
-			}
-		}
-		for (i = 0; i < npmethods; i++) {
-			if (pmethods[i].spm_offset == 0) {
-				warnx("%s: no implementation found for method "
-				    "%s declared in class %s\n", __func__,
-				    pmethods[i].spm_method, class_name);
-				goto bad;
-			}
-		}
-	}
-
 good:
 	if ((provided_methods = calloc(1, sizeof(*provided_methods))) == NULL) {
 		warn("%s: calloc provided_methods", __func__);
@@ -407,15 +373,10 @@ good:
 	}
 	provided_methods->spms_class = class_name;
 	provided_methods->spms_nmethods = npmethods;
-	/* Find the base of the callee vtable. */
-	provided_methods->spms_base = (intptr_t)-1;
-	for (i = 0; i < npmethods; i++) {
-		if (provided_methods->spms_base < pmethods[i].spm_index_offset)
-			provided_methods->spms_base = pmethods[i].spm_index_offset;
-	}
+	provided_methods->spms_base = cheri_callee_offset;
 #ifdef DEBUG
 	printf("[%s]->spms_base = %p\n", provided_methods->spms_class,
-	    provided_methods->spms_base);
+	    (void *)provided_methods->spms_base);
 #endif
 	if (npmethods > 0)
 		provided_methods->spms_methods = pmethods;
@@ -612,31 +573,6 @@ sandbox_set_required_method_variables(__capability void *datacap,
 		method_var_p = cheri_setoffset(datacap,
 		    rmethods[i].srm_index_offset);
 		*method_var_p = rmethods[i].srm_vtable_offset;
-	}
-	return(0);
-}
-
-int
-sandbox_set_provided_method_variables(__capability void *datacap,
-    struct sandbox_provided_methods *provided_methods)
-{
-	size_t i;
-	__capability intptr_t *method_var_p;
-	struct sandbox_provided_method *pmethods;
-
-	assert(provided_methods != NULL);
-	pmethods = provided_methods->spms_methods;
-
-	/* Ensure the capability is capability aligned. */
-	assert(!(cheri_getbase(datacap) & (sizeof(datacap) - 1)));
-
-	for (i = 0; i < provided_methods->spms_nmethods; i++) {
-		/* Zero offsets can't be sane. */
-		assert(pmethods[i].spm_index_offset != 0);
-
-		method_var_p = cheri_setoffset(datacap,
-		    pmethods[i].spm_index_offset);
-		*method_var_p = pmethods[i].spm_offset;
 	}
 	return(0);
 }

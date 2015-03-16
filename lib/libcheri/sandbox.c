@@ -151,12 +151,6 @@ sandbox_program_finalize(void)
 	/*
 	 * Update main program method variables.
 	 */
-	if (sandbox_set_provided_method_variables(cheri_getdefault(),
-	    main_provided_methods) == -1) {
-		warnx("%s: sandbox_set_provided_method_variables for main "
-		    "program", __func__);
-		return (-1);
-	}
 	if (sandbox_set_required_method_variables(cheri_getdefault(),
 	    main_required_methods) == -1) {
 		warnx("%s: sandbox_set_required_method_variables for main "
