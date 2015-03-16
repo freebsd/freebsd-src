@@ -584,6 +584,10 @@
 	&man.hwpmc.4; default and maximum callchain depths have been
 	increased.  The default has been increased from 16 to 32, and
 	the maximum increased from 32 to 128.</para>
+
+      <para revision="279361">The <literal>kern.osrelease</literal>
+	and <literal>kern.osreldate</literal> are now configurable
+	&man.jail.8; parameters.</para>
     </sect2>
   </sect1>
 
