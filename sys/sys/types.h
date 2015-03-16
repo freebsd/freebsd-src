@@ -232,6 +232,11 @@ typedef	__useconds_t	useconds_t;	/* microseconds (unsigned) */
 #define	_USECONDS_T_DECLARED
 #endif
 
+#ifndef _CAP_IOCTL_T_DECLARED
+#define	_CAP_IOCTL_T_DECLARED
+typedef	unsigned long	cap_ioctl_t;
+#endif
+
 #ifndef _CAP_RIGHTS_T_DECLARED
 #define	_CAP_RIGHTS_T_DECLARED
 struct cap_rights;
