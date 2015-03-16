@@ -34,6 +34,11 @@
 #define __attribute__(x)
 #endif
 
+#if __has_feature(capabilities)
+#include <machine/cheri.h>
+#include <machine/cheric.h>
+#endif
+
 /* snprintf et al */
 
 #include <stdarg.h>
@@ -362,6 +367,24 @@ invoke_dissector(void *func, u_int length, register_t arg2,
     void *carg1, void *carg2);
 #endif
 
+#if __has_feature(capabilities)
+extern struct cheri_object cheri_tcpdump;
+extern struct cheri_object gnext_sandbox;
+#ifdef CHERI_TCPDUMP_INTERNAL
+#define CHERI_TCPDUMP_CCALL					\
+    __attribute__((cheri_ccallee))				\
+    __attribute__((cheri_method_suffix("_cap")))		\
+    __attribute__((cheri_method_class(cheri_tcpdump)))
+#else
+#define CHERI_TCPDUMP_CCALL					\
+    __attribute__((cheri_ccall))				\
+    __attribute__((cheri_method_suffix("_cap")))		\
+    __attribute__((cheri_method_class(cheri_tcpdump)))
+#endif
+#else
+#define CHERI_TCPDUMP_CCALL
+#endif
+
 #define ND_DECLARE(name, ...)		\
 	extern void name(netdissect_options *, __VA_ARGS__);		\
 	extern void _##name(netdissect_options *, __VA_ARGS__)
@@ -624,9 +647,5 @@ extern int esp_print_decrypt_buffer_by_ikev2(netdissect_options *ndo,
 
 extern void geonet_print(netdissect_options *ndo,const u_char *eth_hdr,const u_char *geo_pck, u_int len);
 extern void calm_fast_print(netdissect_options *ndo,const u_char *eth_hdr,const u_char *calm_pck, u_int len);
-
-#ifdef __CHERI_SANDBOX__
-extern struct cheri_object *gpso;
-#endif
 
 #endif  /* netdissect_h */

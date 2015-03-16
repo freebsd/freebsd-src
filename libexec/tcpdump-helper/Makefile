@@ -22,6 +22,7 @@ CFLAGS+=	-DHAVE_CONFIG_H \
 		-DTCPDUMP_PRINT_ONLY \
 		-DTCPDUMP_HELPER \
 		-DCHERI_TCPDUMP_VULNERABILITY \
+		-DCHERI_TCPDUMP_INTERNAL \
 		-D_U_="__attribute__((unused))" \
 		-I${.CURDIR}/../../contrib/tcpdump \
 		-I${.CURDIR}/../../lib/libcheri \

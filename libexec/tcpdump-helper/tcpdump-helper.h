@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 SRI International
+ * Copyright (c) 2014-2015 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -30,10 +30,6 @@
 
 #ifndef _LIBEXEC_TCPDUMP_HELPER_H_
 #define _LIBEXEC_TCPDUMP_HELPER_H_
-
-#define	TCPDUMP_HELPER_OP_INIT		0
-#define	TCPDUMP_HELPER_OP_PRINT_PACKET	1
-#define TCPDUMP_HELPER_OP_HAS_PRINTER	2
 
 /* Netdissect dissectors */
 #define TCPDUMP_HELPER_OP_EAP_PRINT		1000
@@ -150,5 +146,16 @@
 #define	TCPDUMP_HELPER_OP_OSPF6_PRINT 		 1201
 #define	TCPDUMP_HELPER_OP_DHCP6_PRINT 		 1202
 #define	TCPDUMP_HELPER_OP_BABEL_PRINT 		 1203
+
+CHERI_TCPDUMP_CCALL
+int	cheri_tcpdump_sandbox_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
+	    uint32_t timezone_offset, __capability const netdissect_options *ndo,
+	    struct cheri_object next_sandbox);
+CHERI_TCPDUMP_CCALL
+int	cheri_sandbox_has_printer(int type);
+CHERI_TCPDUMP_CCALL
+int	cheri_sandbox_pretty_print_packet(
+	    __capability const struct pcap_pkthdr *h,
+	    __capability const u_char *sp);
 
 #endif /* _LIBEXEC_TCPDUMP_HELPER_H_ */

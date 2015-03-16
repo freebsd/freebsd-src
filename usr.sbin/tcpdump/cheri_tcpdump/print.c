@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 SRI International
+ * Copyright (c) 2014-2015 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -46,8 +46,6 @@
 #include <cheri/cheri_enter.h>
 #include <cheri/sandbox.h>
 
-#include <tcpdump-helper.h>
-
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
@@ -65,6 +63,11 @@
 #include "netdissect.h"
 #include "interface.h"
 #include "print.h"
+
+/* Needs CHERI_TCPDUMP_CCALL from netdissect.h */
+#include <tcpdump-helper.h>
+
+struct cheri_object cheri_tcpdump;
 
 typedef int(*sandbox_selector)(int dlt, size_t len,
 	    __capability const u_char *data, void *selector_dta);
@@ -365,6 +368,9 @@ tcpdump_sandboxes_init(struct tcpdump_sandbox_list *list, int mode)
 	default:
 		error("unknown sandbox mode %d", mode);
 	}
+	/* Given non _cap ccalls somewhere to go. */
+	cheri_tcpdump = sandbox_object_getobject(
+	    default_sandbox->tds_sandbox_object);
 
 	return (0);
 }
@@ -413,6 +419,7 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 
 	/* If the sandbox hasn't been invoked yet, call the init routine */
 	if (sb->tds_current_invokes == 0) {
+		struct cheri_object null_sandbox = CHERI_OBJECT_INIT_NULL;
 		if (ctdc->ctdc_sb_max_lifetime > 0)
 			gettimeofday(&sb->tds_current_start, NULL);
 
@@ -420,27 +427,35 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 		save_snapend = gndo->ndo_snapend;
 		gndo->ndo_packetp = NULL;
 		gndo->ndo_snapend = NULL;
-		ret = sandbox_object_cinvoke(sb->tds_sandbox_object,
-		    TCPDUMP_HELPER_OP_INIT,
-		    g_localnet, g_mask, g_timezone_offset, 0, 0, 0, 0,
+
+		ret = cheri_tcpdump_sandbox_init_cap(
+		    sandbox_object_getobject(sb->tds_sandbox_object),
+		    g_localnet, g_mask, g_timezone_offset,
 		    cheri_ptrperm(gndo, sizeof(netdissect_options),
-			CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
-		    NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+		    CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
+		    sb->tds_num_proto_sandboxes == 0 ? null_sandbox :
+		    sandbox_object_getobject(
+		    sb->tds_proto_sandboxes[0]->tds_sandbox_object));
 		if (ret != 0)
 			error("failed to initialize sandbox: %d \n",
 			    ret);
 		if (sb->tds_proto_sandboxes != NULL) {
 			for (i = 0; i < sb->tds_num_proto_sandboxes; i++) {
-				ret = sandbox_object_cinvoke(
-				    sb->tds_proto_sandboxes[i]->tds_sandbox_object,
-				    TCPDUMP_HELPER_OP_INIT,
-				    g_localnet, g_mask, 0, 0, 0, 0, 0,
+				struct cheri_object sobj;
+				sobj = sandbox_object_getobject(
+				    sb->tds_proto_sandboxes[i]->tds_sandbox_object);
+				ret = cheri_tcpdump_sandbox_init_cap(sobj,
+				    g_localnet, g_mask, g_timezone_offset,
 				    cheri_ptrperm(gndo, sizeof(netdissect_options),
-					CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
-				    NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+				    CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
+				    i + 1 >= sb->tds_num_proto_sandboxes ?
+				    null_sandbox :
+				    sandbox_object_getobject(
+				    sb->tds_proto_sandboxes[i+1]->tds_sandbox_object));
 				if (ret != 0)
-					error("failed to initialize sandbox: %d \n",
-					    ret);
+					error("failed to initialize "
+					    "per-protocol sandbox %d: %d \n",
+					    i, ret);
 			}
 		}
 		gndo->ndo_snapend = save_snapend;
@@ -452,22 +467,19 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 	sb->tds_current_invokes++;
 	if (g_timeout != 0)
 		ualarm(g_timeout, 0);
-	ret = sandbox_object_cinvoke(sb->tds_sandbox_object,
-	    TCPDUMP_HELPER_OP_PRINT_PACKET,
-	    0, 0, 0, 0, 0, 0, 0,
-	    NULL,
+	ret = cheri_sandbox_pretty_print_packet_cap(
+	    sandbox_object_getobject(sb->tds_sandbox_object),
 	    cheri_ptrperm((void *)hdr, sizeof(*hdr),
 		CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
 	    cheri_ptrperm((void *)data, hdr->caplen,
-		CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
-	    sb->tds_proto_sandbox_objects, NULL, NULL, NULL, NULL);
+		CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP));
 	if (g_timeout_occured) {
 		/* XXX: dump hex here? */
 		printf("dissection terminated due to timeout (ret = %d)\n", ret);
-		g_timeout_occured = 0;
 		tcpdump_sandbox_reset(sb);
 	} else if (g_timeout != 0)
 		ualarm(0, 0);
+	g_timeout_occured = 0;
 
 	/* If it fails, reset it */
 	if (ret < 0) {
@@ -488,13 +500,6 @@ tcpdump_sandbox_object_setup()
 		    strerror(errno));
 		return (-1);
 	}
-
-	(void)sandbox_class_method_declare(tcpdump_classp,
-	    TCPDUMP_HELPER_OP_INIT, "init");
-	(void)sandbox_class_method_declare(tcpdump_classp,
-	    TCPDUMP_HELPER_OP_PRINT_PACKET, "print_packet");
-	(void)sandbox_class_method_declare(tcpdump_classp,
-	    TCPDUMP_HELPER_OP_HAS_PRINTER, "has_printer");
 
 	return (tcpdump_sandboxes_init(&sandboxes,
 	    ctdc->ctdc_sb_mode == 0 ?
@@ -598,9 +603,14 @@ init_print(uint32_t localnet, uint32_t mask, uint32_t timezone_offset)
 
 	cheri_system_user_register_fn(&cheri_tcpdump_system);
 
-	if (tcpdump_classp == NULL &&
-	    tcpdump_sandbox_object_setup() != 0)
-		error("failure setting up sandbox object");
+	if (tcpdump_classp == NULL) {
+		if (sandbox_program_init(0, NULL) == -1)
+			error("%s: sandbox_program_init", __func__);
+		if (tcpdump_sandbox_object_setup() != 0)
+			error("failure setting up sandbox object");
+		if (sandbox_program_finalize() == -1)
+			error("%s: sandbox_program_finalize", __func__);
+	}
 
 	signal(SIGALRM, handle_alarm);
 	if ((sigstk.ss_sp = malloc(SIGSTKSZ)) == NULL)
@@ -620,10 +630,7 @@ has_printer(int type)
 	    tcpdump_sandbox_object_setup() != 0)
 		return (0);	/* XXX: should error? */
 
-	return (sandbox_object_cinvoke(default_sandbox->tds_sandbox_object,
-	    TCPDUMP_HELPER_OP_HAS_PRINTER,
-	    type, 0, 0, 0, 0, 0, 0,
-	    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
+	return (cheri_sandbox_has_printer(type));
 }
 
 struct print_info

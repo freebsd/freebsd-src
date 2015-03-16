@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 SRI International
+ * Copyright (c) 2014-2015 SRI International
  * Copyright (c) 2012-2015 Robert N. M. Watson
  * All rights reserved.
  *
@@ -68,18 +68,19 @@
 #include <string.h>
 #include <md5.h>
 
-#include "cheri_tcpdump_system.h"
-#include "tcpdump-helper.h"
-
 #include "tcpdump-stdinc.h"
 #include "netdissect.h"
 #include "interface.h"
 #include "print.h"
 
+#include "cheri_tcpdump_system.h"
+#include "tcpdump-helper.h"
+
 struct print_info printinfo;
 netdissect_options Gndo;
 netdissect_options *gndo = &Gndo;
-struct cheri_object *gpso;
+struct cheri_object gnext_sandbox;
+struct cheri_object cheri_tcpdump;
 
 const char *program_name;
 
@@ -93,9 +94,7 @@ int	invoke(struct cheri_object co __unused, register_t v0 __unused,
 	    register_t arg1, register_t arg2,
 	    register_t arg3, register_t arg4, register_t arg5,
 	    netdissect_options *ndo,
-	    const struct pcap_pkthdr *h,
 	    const u_char *sp,
-	    struct cheri_object *proto_sandbox_objects,
 	    const u_char *sp2,
 	    void* carg1, void *carg2)
 	    __attribute__((cheri_ccall)); /* XXXRW: Will be ccheri_ccallee. */
@@ -105,9 +104,10 @@ static void	dispatch_dissector(register_t methodnum, u_int length,
     netdissect_options *ndo, const u_char *bp, const u_char *bp2,
     void *carg1, void *carg2);
 
-static int
-invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask, uint32_t timezone_offset,
-    const netdissect_options *ndo)
+int
+cheri_tcpdump_sandbox_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
+    uint32_t timezone_offset, const netdissect_options *ndo,
+    struct cheri_object next_sandbox)
 {
 
 /* XXXBD: broken, use system default
@@ -146,84 +146,71 @@ invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask, uint32_t timezone_offset,
 		}
 	}
 
+	gnext_sandbox = next_sandbox;
+
 	return (0);
 }
 
-/*
- * Sandbox entry point.  An init method sets up global state.  
- * The print_packet method invokes the top level packet printing method
- * selected by init.
- *
- * c1 and c2 hold the system code and data capablities.  c3 holds the
- * parent's netdissect_options structure and c4 holes IPSec decryption
- * keys.  They are only used for init.  c5 holds a struct pcap_pkthdr and
- * c6 the packet body.   They are used only by print_packet.
- */
+int
+cheri_sandbox_has_printer(int type)
+{
+
+	return (has_printer(type));
+}
+
 int
 invoke(struct cheri_object co __unused, register_t v0 __unused,
     register_t methodnum, register_t arg1,
     register_t arg2, register_t arg3, register_t arg4, register_t arg5,
     netdissect_options *ndo,
-    const struct pcap_pkthdr *h, const u_char *sp,
-    struct cheri_object *proto_sandbox_objects, const u_char *sp2,
-    void * carg1, void *carg2)
+    const u_char *sp,
+    const u_char *sp2, void * carg1, void *carg2)
+{
+
+	dispatch_dissector(methodnum, arg1, arg2, arg3, arg4, arg5,
+	    ndo, sp, sp2, carg1, carg2);
+
+	return (0);
+}
+
+int
+cheri_sandbox_pretty_print_packet(const struct pcap_pkthdr *h,
+    const u_char *sp)
 {
 	int ret;
 
-	gpso = proto_sandbox_objects;
-
 	ret = 0;
 
-	switch (methodnum) {
-	case TCPDUMP_HELPER_OP_INIT:
 #ifdef DEBUG
-		printf("calling invoke_init\n");
+	printf("printing a packet of length 0x%x\n", h->caplen);
+	printf("sp b:%016jx l:%016zx o:%jx\n",
+	    cheri_getbase((void *)sp),
+	    cheri_getlen((void *)sp),
+	    cheri_getoffset((void *)sp));
 #endif
-		return (invoke_init(arg1, arg2, arg3, ndo));
+	assert(h->caplen == cheri_getlen((void *)sp));
 
-	case TCPDUMP_HELPER_OP_PRINT_PACKET:
-#ifdef DEBUG
-		/* XXX printf broken here */
-		printf("printing a packet of length 0x%x\n", h->caplen);
-		printf("sp b:%016jx l:%016zx o:%jx\n",
-		    cheri_getbase((void *)sp),
-		    cheri_getlen((void *)sp),
-		    cheri_getoffset((void *)sp));
-#endif
-		assert(h->caplen == cheri_getlen((void *)sp));
+	/*
+	 * XXXBD: Hack around the need to not store the packet except
+	 * on the stack.  Should really avoid this somehow...
+	 */
+	gndo->ndo_packetp = malloc(h->caplen);
+	if (gndo->ndo_packetp == NULL)
+		error("failed to malloc packet space\n");
+	/* XXXBD: void* cast works around type bug */
+	memcpy((void *)gndo->ndo_packetp, sp, h->caplen);
+	gndo->ndo_snapend = gndo->ndo_packetp + h->caplen;
 
-		/*
-		 * XXXBD: Hack around the need to not store the packet except
-		 * on the stack.  Should really avoid this somehow...
-		 */
-		gndo->ndo_packetp = malloc(h->caplen);
-		if (gndo->ndo_packetp == NULL)
-			error("failed to malloc packet space\n");
-		/* XXXBD: void* cast works around type bug */
-		memcpy_c((void *)gndo->ndo_packetp, sp, h->caplen);
-		gndo->ndo_snapend = gndo->ndo_packetp + h->caplen;
+	if (printinfo.ndo_type)
+		ret = (*printinfo.p.ndo_printer)(printinfo.ndo,
+		     h, gndo->ndo_packetp);
+	else
+		ret = (*printinfo.p.printer)(h, gndo->ndo_packetp);
 
-		if (printinfo.ndo_type)
-			ret = (*printinfo.p.ndo_printer)(printinfo.ndo,
-			     h, gndo->ndo_packetp);
-		else
-			ret = (*printinfo.p.printer)(h, gndo->ndo_packetp);
-
-		/* XXX: what else to reset? */
-		free((void*)(gndo->ndo_packetp));
-		gndo->ndo_packetp = NULL;
-		snapend = NULL;
-		break;
-
-	case TCPDUMP_HELPER_OP_HAS_PRINTER:
-		return (has_printer(arg1));
-
-	default:
-		dispatch_dissector(methodnum, arg1, arg2, arg3, arg4, arg5,
-		    ndo, sp, sp2, carg1, carg2);
-		break;
-
-	}
+	/* XXX: what else to reset? */
+	free((void*)(gndo->ndo_packetp));
+	gndo->ndo_packetp = NULL;
+	snapend = NULL;
 
 	return (ret);
 }
@@ -914,14 +901,13 @@ invoke_dissector(void *func, u_int length, register_t arg2,
 	else
 		return (0);
 
-	if (gpso != NULL &&
-	    cheri_getlen(gpso) != 0) {
-		if (0 != cheri_invoke(*gpso, methodnum,
-		    length, arg2, arg3, arg4, arg5, 0, 0, 0,
-		    ndo, NULL, NULL, (void *)bp,
-		    cheri_incbase(gpso, sizeof(struct cheri_object)),
-		    (void *)bp2,
-		    carg1, carg2)) {
+	if (!CHERI_OBJECT_ISNULL(gnext_sandbox)) {
+		if (0 != cheri_invoke(gnext_sandbox,
+		    CHERI_INVOKE_METHOD_LEGACY_INVOKE,
+		    methodnum,
+		    length, arg2, arg3, arg4, arg5, 0, 0,
+		    ndo, (void *)bp, (void *)bp2, carg1, carg2,
+		    NULL, NULL, NULL)) {
 			printf("failure in sandbox op=%d\n", (int)methodnum);
 			abort();
 		}
