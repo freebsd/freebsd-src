@@ -2895,9 +2895,6 @@ build_medialist(struct port_info *pi, struct ifmedia *media)
 
 	switch(pi->port_type) {
 	case FW_PORT_TYPE_BT_XFI:
-		ifmedia_add(media, m | IFM_10G_T, data, NULL);
-		break;
-
 	case FW_PORT_TYPE_BT_XAUI:
 		ifmedia_add(media, m | IFM_10G_T, data, NULL);
 		/* fall through */
@@ -5086,12 +5083,11 @@ sysctl_int_array(SYSCTL_HANDLER_ARGS)
 	int rc, *i;
 	struct sbuf sb;
 
-	sbuf_new(&sb, NULL, 32, SBUF_AUTOEXTEND);
+	sbuf_new_for_sysctl(&sb, NULL, 64, req);
 	for (i = arg1; arg2; arg2 -= sizeof(int), i++)
 		sbuf_printf(&sb, "%d ", *i);
 	sbuf_trim(&sb);
-	sbuf_finish(&sb);
-	rc = sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
+	rc = sbuf_finish(&sb);
 	sbuf_delete(&sb);
 	return (rc);
 }

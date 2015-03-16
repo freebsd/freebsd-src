@@ -459,9 +459,10 @@ void IntrinsicLowering::LowerIntrinsicCall(CallInst *CI) {
     CI->replaceAllUsesWith(CI->getOperand(0));
     break;
 
+  case Intrinsic::assume:
   case Intrinsic::var_annotation:
-    break;   // Strip out annotate intrinsic
-    
+    break;   // Strip out these intrinsics
+ 
   case Intrinsic::memcpy: {
     Type *IntPtr = DL.getIntPtrType(Context);
     Value *Size = Builder.CreateIntCast(CI->getArgOperand(2), IntPtr,
@@ -525,6 +526,34 @@ void IntrinsicLowering::LowerIntrinsicCall(CallInst *CI) {
   }
   case Intrinsic::pow: {
     ReplaceFPIntrinsicWithCall(CI, "powf", "pow", "powl");
+    break;
+  }
+  case Intrinsic::sin: {
+    ReplaceFPIntrinsicWithCall(CI, "sinf", "sin", "sinl");
+    break;
+  }
+  case Intrinsic::cos: {
+    ReplaceFPIntrinsicWithCall(CI, "cosf", "cos", "cosl");
+    break;
+  }
+  case Intrinsic::floor: {
+    ReplaceFPIntrinsicWithCall(CI, "floorf", "floor", "floorl");
+    break;
+  }
+  case Intrinsic::ceil: {
+    ReplaceFPIntrinsicWithCall(CI, "ceilf", "ceil", "ceill");
+    break;
+  }
+  case Intrinsic::trunc: {
+    ReplaceFPIntrinsicWithCall(CI, "truncf", "trunc", "truncl");
+    break;
+  }
+  case Intrinsic::round: {
+    ReplaceFPIntrinsicWithCall(CI, "roundf", "round", "roundl");
+    break;
+  }
+  case Intrinsic::copysign: {
+    ReplaceFPIntrinsicWithCall(CI, "copysignf", "copysign", "copysignl");
     break;
   }
   case Intrinsic::flt_rounds:

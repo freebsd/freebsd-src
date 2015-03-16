@@ -22,7 +22,6 @@ SRCS=	ConstantPools.cpp \
 	MCELFObjectTargetWriter.cpp \
 	MCELFStreamer.cpp \
 	MCExpr.cpp \
-	MCExternalSymbolizer.cpp \
 	MCInst.cpp \
 	MCInstPrinter.cpp \
 	MCInstrAnalysis.cpp \
@@ -35,7 +34,6 @@ SRCS=	ConstantPools.cpp \
 	MCObjectStreamer.cpp \
 	MCObjectWriter.cpp \
 	MCRegisterInfo.cpp \
-	MCRelocationInfo.cpp \
 	MCSection.cpp \
 	MCSectionCOFF.cpp \
 	MCSectionELF.cpp \
@@ -47,15 +45,12 @@ SRCS=	ConstantPools.cpp \
 	MCTargetOptions.cpp \
 	MCValue.cpp \
 	MCWin64EH.cpp \
+	MCWinEH.cpp \
 	MachObjectWriter.cpp \
 	StringTableBuilder.cpp \
 	SubtargetFeature.cpp \
 	WinCOFFObjectWriter.cpp \
 	WinCOFFStreamer.cpp \
 	YAML.cpp
-
-.if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
-SRCS+=	MCDisassembler.cpp
-.endif
 
 .include "../clang.lib.mk"

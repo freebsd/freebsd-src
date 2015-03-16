@@ -5470,6 +5470,7 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 			PF_STATE_UNLOCK(s);
 		m0->m_flags |= M_SKIP_FIREWALL;
 		ip6_output(m0, NULL, NULL, 0, NULL, NULL, NULL);
+		*m = NULL;
 		return;
 	}
 

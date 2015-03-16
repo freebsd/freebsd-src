@@ -28,6 +28,13 @@ class IOChannel;
 class Driver : public lldb::SBBroadcaster
 {
 public:
+    typedef enum CommandPlacement
+    {
+        eCommandPlacementBeforeFile,
+        eCommandPlacementAfterFile,
+        eCommandPlacementAfterCrash,
+    } CommandPlacement;
+
     Driver ();
 
     virtual
@@ -52,7 +59,7 @@ public:
     GetScriptLanguage() const;
 
     void
-    WriteInitialCommands (bool before_file, lldb::SBStream &strm);
+    WriteCommandsForSourcing (CommandPlacement placement, lldb::SBStream &strm);
     
     bool
     GetDebugMode() const;
@@ -68,16 +75,30 @@ public:
         Clear();
 
         void
-        AddInitialCommand (const char *command, bool before_file, bool is_file, lldb::SBError &error);
+        AddInitialCommand (const char *command, CommandPlacement placement, bool is_file, bool quietly, lldb::SBError &error);
     
         //static OptionDefinition m_cmd_option_table[];
+
+        struct InitialCmdEntry
+        {
+            InitialCmdEntry (const char *in_contents, bool in_is_file, bool in_quiet = false) :
+                contents (in_contents),
+                is_file  (in_is_file),
+                source_quietly(in_quiet)
+            {}
+
+            std::string contents;
+            bool        is_file;
+            bool        source_quietly;
+        };
 
         std::vector<std::string> m_args;
         lldb::ScriptLanguage m_script_lang;
         std::string m_core_file;
         std::string m_crash_log;
-        std::vector<std::pair<bool,std::string> > m_initial_commands;
-        std::vector<std::pair<bool,std::string> > m_after_file_commands;
+        std::vector<InitialCmdEntry> m_initial_commands;
+        std::vector<InitialCmdEntry> m_after_file_commands;
+        std::vector<InitialCmdEntry> m_after_crash_commands;
         bool m_debug_mode;
         bool m_source_quietly;
         bool m_print_version;
@@ -87,6 +108,7 @@ public:
         std::string m_process_name;
         lldb::pid_t m_process_pid;
         bool m_use_external_editor;  // FIXME: When we have set/show variables we can remove this from here.
+        bool m_batch;
         typedef std::set<char> OptionSet;
         OptionSet m_seen_options;
     };

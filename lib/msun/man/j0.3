@@ -28,7 +28,7 @@
 .\"     from: @(#)j0.3	6.7 (Berkeley) 4/19/91
 .\" $FreeBSD$
 .\"
-.Dd February 18, 2008
+.Dd March 10, 2015
 .Dt J0 3
 .Os
 .Sh NAME
@@ -77,24 +77,17 @@
 The functions
 .Fn j0 ,
 .Fn j0f ,
-.Fn j1
+.Fn j1 ,
 and
 .Fn j1f
-compute the
-.Em Bessel function of the first kind of the order
-0 and the
-.Em order
-1, respectively,
-for the
-real value
+compute the Bessel function of the first kind of orders
+0 and 1 for the real value
 .Fa x ;
 the functions
 .Fn jn
 and
 .Fn jnf
-compute the
-.Em Bessel function of the first kind of the integer
-.Em order
+compute the Bessel function of the first kind of the integer order
 .Fa n
 for the real value
 .Fa x .
@@ -105,13 +98,8 @@ The functions
 .Fn y1 ,
 and
 .Fn y1f
-compute the linearly independent
-.Em Bessel function of the second kind of the order
-0 and the
-.Em order
-1, respectively,
-for the
-positive
+compute the linearly independent Bessel function of the second kind 
+of orders 0 and 1 for the positive
 .Em real
 value
 .Fa x ;
@@ -119,9 +107,7 @@ the functions
 .Fn yn
 and
 .Fn ynf
-compute the
-.Em Bessel function of the second kind for the integer
-.Em order
+compute the Bessel function of the second kind for the integer order
 .Fa n
 for the positive
 .Em real
@@ -141,11 +127,20 @@ and
 .Fn ynf .
 If
 .Fa x
-is negative, these routines will generate an invalid exception and
-return \*(Na.
+is negative, including -\*(If, these routines will generate an invalid
+exception and return \*(Na.
 If
 .Fa x
-is 0 or a sufficiently small positive number, these routines
+is \*(Pm0, these routines
+will generate a divide-by-zero exception and return -\*(If.
+If
+.Fa x
+is a sufficiently small positive number, then 
+.Fn y1 ,
+.Fn y1f ,
+.Fn yn ,
+and
+.Fn ynf 
 will generate an overflow exception and return -\*(If.
 .Sh SEE ALSO
 .Xr math 3

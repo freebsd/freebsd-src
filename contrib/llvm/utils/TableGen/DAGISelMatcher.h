@@ -1,4 +1,4 @@
-//===- DAGISelMatcher.h - Representation of DAG pattern matcher -----------===//
+//===- DAGISelMatcher.h - Representation of DAG pattern matcher -*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef TBLGEN_DAGISELMATCHER_H
-#define TBLGEN_DAGISELMATCHER_H
+#ifndef LLVM_UTILS_TABLEGEN_DAGISELMATCHER_H
+#define LLVM_UTILS_TABLEGEN_DAGISELMATCHER_H
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
@@ -30,7 +30,8 @@ namespace llvm {
 
 Matcher *ConvertPatternToMatcher(const PatternToMatch &Pattern,unsigned Variant,
                                  const CodeGenDAGPatterns &CGP);
-Matcher *OptimizeMatcher(Matcher *Matcher, const CodeGenDAGPatterns &CGP);
+void OptimizeMatcher(std::unique_ptr<Matcher> &Matcher,
+                     const CodeGenDAGPatterns &CGP);
 void EmitMatcherTable(const Matcher *Matcher, const CodeGenDAGPatterns &CGP,
                       raw_ostream &OS);
 

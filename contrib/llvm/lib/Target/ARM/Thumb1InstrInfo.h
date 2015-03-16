@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef THUMB1INSTRUCTIONINFO_H
-#define THUMB1INSTRUCTIONINFO_H
+#ifndef LLVM_LIB_TARGET_ARM_THUMB1INSTRINFO_H
+#define LLVM_LIB_TARGET_ARM_THUMB1INSTRINFO_H
 
 #include "ARMBaseInstrInfo.h"
 #include "Thumb1RegisterInfo.h"
@@ -54,7 +54,10 @@ public:
                             const TargetRegisterClass *RC,
                             const TargetRegisterInfo *TRI) const override;
 
+private:
+  void expandLoadStackGuard(MachineBasicBlock::iterator MI,
+                            Reloc::Model RM) const override;
 };
 }
 
-#endif // THUMB1INSTRUCTIONINFO_H
+#endif

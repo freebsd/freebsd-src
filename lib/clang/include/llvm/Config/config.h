@@ -14,6 +14,9 @@
 /* Define if we have libxml2 */
 /* #undef CLANG_HAVE_LIBXML */
 
+/* Multilib suffix for libdir. */
+/* #undef CLANG_LIBDIR_SUFFIX */
+
 /* Relative directory for resource files */
 #define CLANG_RESOURCE_DIR ""
 
@@ -86,7 +89,9 @@
 #define HAVE_ERRNO_H 1
 
 /* Define to 1 if you have the <execinfo.h> header file. */
-/* #undef HAVE_EXECINFO_H */
+#if __FreeBSD_version >= 1000052
+#define HAVE_EXECINFO_H 1
+#endif
 
 /* Define to 1 if you have the `exp' function. */
 #define HAVE_EXP 1
@@ -119,7 +124,9 @@
 #define HAVE_FMODF 1
 
 /* Define to 1 if you have the `futimens' function. */
-/* #undef HAVE_FUTIMENS */
+#if __FreeBSD_version >= 1100056
+#define HAVE_FUTIMENS 1
+#endif
 
 /* Define to 1 if you have the `futimes' function. */
 #define HAVE_FUTIMES 1
@@ -545,10 +552,13 @@
 #define LLVM_VERSION_MAJOR 3
 
 /* Minor version of the LLVM API */
-#define LLVM_VERSION_MINOR 5
+#define LLVM_VERSION_MINOR 6
 
 /* Patch version of the LLVM API */
 #define LLVM_VERSION_PATCH 0
+
+/* LLVM version string */
+#define LLVM_VERSION_STRING "3.6.0"
 
 /* The shared library extension */
 #define LTDL_SHLIB_EXT ".so"
@@ -564,13 +574,13 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 3.5.1"
+#define PACKAGE_STRING "LLVM 3.6.0"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "llvm"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.5.1"
+#define PACKAGE_VERSION "3.6.0"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void

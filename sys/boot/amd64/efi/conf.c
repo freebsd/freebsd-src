@@ -44,6 +44,7 @@ struct fs_ops *file_system[] = {
 	&cd9660_fsops,
 	&nfs_fsops,
 	&gzipfs_fsops,
+	&bzipfs_fsops,
 	NULL
 };
 

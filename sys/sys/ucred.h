@@ -106,6 +106,7 @@ void	crcopy(struct ucred *dest, struct ucred *src);
 struct ucred	*crcopysafe(struct proc *p, struct ucred *cr);
 struct ucred	*crdup(struct ucred *cr);
 void	cred_update_thread(struct thread *td);
+struct ucred	*proc_set_cred(struct proc *p, struct ucred *cr);
 void	crfree(struct ucred *cr);
 struct ucred	*crget(void);
 struct ucred	*crhold(struct ucred *cr);

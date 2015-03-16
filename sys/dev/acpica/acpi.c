@@ -1071,7 +1071,7 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
 }
 
 /*
- * Fech the NUMA domain for the given device.
+ * Fetch the NUMA domain for the given device.
  *
  * If a device has a _PXM method, map that to a NUMA domain.
  *
