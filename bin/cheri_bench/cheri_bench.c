@@ -40,6 +40,7 @@
 #include <sys/socket.h>
 #include <sys/mman.h>
 #include <assert.h>
+#include <sys/uio.h>
 
 #include <machine/cheri.h>
 #include <machine/cheric.h>
@@ -51,12 +52,10 @@
 #define get_cyclecount cheri_get_cyclecount
 
 static struct cheri_object objectp;
-static int fd_socket_pair[2];
-static int shmem_socket_pair[2];
 
-typedef uint64_t memcpy_t(__capability char *, __capability char *, size_t);
+typedef uint64_t memcpy_t(__capability char *, __capability char *, size_t, int fd);
 
-static uint64_t do_memcpy (__capability char *dataout, __capability char *datain, size_t len)
+static uint64_t do_memcpy (__capability char *dataout, __capability char *datain, size_t len, int fd)
 {
   uint32_t start_count, end_count;
   start_count = get_cyclecount();
@@ -65,7 +64,7 @@ static uint64_t do_memcpy (__capability char *dataout, __capability char *datain
   return end_count - start_count;
 }
 
-static uint64_t invoke_memcpy(__capability char *dataout, __capability char *datain, size_t len)
+static uint64_t invoke_memcpy(__capability char *dataout, __capability char *datain, size_t len, int fd)
 {
   int ret;
   uint32_t start_count, end_count;
@@ -86,55 +85,63 @@ static uint64_t invoke_memcpy(__capability char *dataout, __capability char *dat
   return end_count - start_count;
 }
 
+static inline void read_retry(int fd, char *buf, size_t len)
+{
+  ssize_t io_len;
+  while(len > 0)
+    {
+      io_len = read(fd, buf, len);
+      if (io_len < 0)
+	err(1, "read_retry");
+      len -= io_len;
+      buf += io_len;
+    }
+}
 
-static uint64_t socket_memcpy(__capability char *dataout, __capability char *datain, size_t len)
+static uint64_t socket_memcpy(__capability char *dataout, __capability char *datain, size_t len, int fd)
 {
   ssize_t  io_len;
   uint32_t start_count = get_cyclecount();
 
-  io_len = send(fd_socket_pair[0], &len, sizeof(len), 0);
-  if(io_len != sizeof(len))
-    err(1, "socket parent send len");
+  struct iovec iovs[2];
+  iovs[0].iov_base = &len;
+  iovs[0].iov_len  = sizeof(len);
+  iovs[1].iov_base = (void *) datain;
+  iovs[1].iov_len  = len;
+  
+  io_len = writev(fd, iovs, 2);
+  if(io_len != (ssize_t)(sizeof(len) + len))
+    err(1, "socket parent write");
 
-  io_len = send(fd_socket_pair[0], (char *) datain, len, 0);
-  if(io_len != (ssize_t) len)
-    err(1, "socket parent send data");
-  io_len = recv(fd_socket_pair[0], (char *) dataout, len, MSG_WAITALL);
-  if (io_len != (ssize_t) len)
-    err(1, "parent receive");
+  read_retry(fd, (char *) dataout, len);
+  
   return get_cyclecount() - start_count;
 }
-
 
 static void socket_sandbox_func(int fd, size_t max_size)
 {
   char*   buf = malloc(max_size);
-  ssize_t io_len;
-  ssize_t msg_len;
+  ssize_t io_len, msg_len;
   while(1)
     {
       /* Read length of message*/
-      io_len = recv(fd, &msg_len, sizeof(msg_len), 0);
+      io_len = read(fd, &msg_len, sizeof(msg_len));
       if (io_len != sizeof(msg_len))
 	exit(0); // XXX don't complain when parent dies err(1, "socket recv child len");
-      /* read message from stream */
-      io_len = recv(fd, buf, msg_len, MSG_WAITALL);
-      if (io_len != msg_len)
-	err(1, "socket recv child msg");
-      /* echo message back */
-      io_len = send(fd, buf, msg_len, 0);
-      if (io_len != msg_len)
-	err(1, "socket send child msg");
+      read_retry(fd, buf, msg_len);
+      io_len = write(fd, buf, msg_len);
+      if (io_len < 0)
+	err(1, "socket child write msg");
     }
 }
 
-static uint64_t shmem_memcpy(__capability char *dataout __unused, __capability char *datain __unused, size_t len)
+static uint64_t shmem_memcpy(__capability char *dataout __unused, __capability char *datain __unused, size_t len, int fd)
 {
   ssize_t  io_len;
   uint32_t start_count = get_cyclecount();
-  io_len = send(shmem_socket_pair[0], &len, sizeof(len), MSG_WAITALL);
+  io_len = write(fd, &len, sizeof(len));
   assert(io_len == sizeof(len)); // XXX rmn30 lazy
-  io_len = recv(shmem_socket_pair[0], &len, sizeof(len), MSG_WAITALL);
+  io_len = read(fd, &len, sizeof(len));
   assert(io_len == sizeof(len));
   return get_cyclecount() - start_count;
 }
@@ -145,20 +152,19 @@ static void shmem_sandbox_func(int fd, __capability char *datain, __capability c
   ssize_t io_len;
   while(1)
     {
-      io_len = recv(fd, &len, sizeof(len), MSG_WAITALL);
+      io_len = read(fd, &len, sizeof(len));
       if (io_len != sizeof(len))
         exit(0); // XXX don't complain when parent dies err(1, "shm child recv");
       memcpy_c(dataout, datain, len);
-      io_len = send(fd, &len, sizeof(len), MSG_WAITALL);
+      io_len = write(fd, &len, sizeof(len));
       if (io_len != sizeof(len))
-        err(1, "shm child send");
+        err(1, "shm child write");
     }
 }
 
-int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capability char *datain, size_t size, uint reps) __attribute__((__noinline__))
+int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capability char *datain, size_t size, uint reps, uint64_t *samples, int fd) __attribute__((__noinline__));
+int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capability char *datain, size_t size, uint reps, uint64_t *samples, int fd)
 {
-      uint64_t total_cycles = 0;
-
       // Initialise arrays
       for (uint i=0; i < size; i++) 
 	{
@@ -166,28 +172,25 @@ int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capability ch
 	  dataout[i] = 0;
 	}
 
-      reps += 1;      
       for (uint rep = 0; rep < reps; rep++) 
 	{
-	  total_cycles += memcpy_func(dataout, datain, size);
-	  if (rep == 0)
-	    total_cycles = 0; // throw away the first rep because of startup costs.
-	  for (uint i=0; i < size; i++)
+	  samples[rep] = memcpy_func(dataout, datain, size, fd);
+	  for (uint i=0; i < size; i+=8)
 	    {
 	      assert(dataout[i] == (char) i);
-	      datain[i]  = (char) i;
-	      dataout[i] = 0;
+	      //datain[i]  = (char) i;
+	      //dataout[i] = 0;
 	    }
 	}
 
-      printf(",%lu", total_cycles);
-  return 0;
+      for (uint rep = 0; rep < reps; rep++)
+	printf(",%lu", samples[rep]);
+      return 0;
 }
 
-#define USAGE
 static void usage(void)
 {
-  errx(1,  "usage: cheri_bench [-fips] -t <trials> -r <reps> -o <in offset> -O <out offset> <size>...\n");
+  errx(1,  "usage: cheri_bench [-fipsS] -r <reps> -o <in offset> -O <out offset> <size>...\n");
 }
 
 int
@@ -197,21 +200,21 @@ main(int argc, char *argv[])
 	struct sandbox_object *sandboxp;
 	char *datain, *dataout;
 	__capability char *datain_cap, *dataout_cap;
+	int socket_pair[2], pipe_pair[2], shmem_socket_pair[2];
 	int arg;
-	long trials = 100;
 	uint reps = 100;
 	pid_t child_pid;
 	size_t size, max_size = 0;
 	char *endp;
-	void * shmem_p;
 	int ch;
-	int func = 0, invoke = 0, socket = 0, shared = 0;
+	int func = 0, invoke = 0, socket = 0, do_pipe=0, shared = 0;
 	int inOffset = 0, outOffset = 0;
-
+	uint64_t *samples;
+	
 	// use unbuffered output to avoid dropped characters on uart
 	setbuf(stdout, NULL);
 
-	while ((ch = getopt(argc, argv, "fipst:r:o:O:")) != -1) {
+	while ((ch = getopt(argc, argv, "fipsSr:o:O:")) != -1) {
 	  switch (ch) {
 	  case 'f':
 	    func = 1;
@@ -220,20 +223,18 @@ main(int argc, char *argv[])
 	    invoke = 1;
 	    break;
 	  case 'p':
-	    socket = 1;
+	    do_pipe = 1;
 	    break;
 	  case 's':
+	    socket = 1;
+	    break;
+	  case 'S':
 	    shared = 1;
 	    break;
 	  case 'r':
 	    reps = strtol(optarg, &endp, 0);
 	    if (*endp != '\0')
 		printf("Invalid rep count: %s\n", optarg);
-	    break;
-	  case 't':
-	    trials = strtol(optarg, &endp, 0);
-	    if (*endp != '\0')
-		printf("Invalid trial count: %s\n", optarg);
 	    break;
 	  case 'o':
 	    inOffset = strtol(optarg, &endp, 0);
@@ -291,22 +292,37 @@ main(int argc, char *argv[])
 
 	if (socket)
 	  {
-	    if (socketpair(PF_LOCAL, SOCK_STREAM, 0, fd_socket_pair) < 0)
+	    if (socketpair(PF_LOCAL, SOCK_STREAM, 0, socket_pair) < 0)
 	      err(1, NULL);
 	    child_pid = fork();
 	    if (child_pid < 0)
 	      err(1, "fork socket");
 	    if (!child_pid)
 	      {
-		close(fd_socket_pair[0]);
-		socket_sandbox_func(fd_socket_pair[1], max_size);
+		close(socket_pair[0]);
+		socket_sandbox_func(socket_pair[1], max_size);
 	      }
-	    close(fd_socket_pair[1]);
+	    close(socket_pair[1]);
 	  }
 
+	if (do_pipe)
+	  {
+	    if (pipe(pipe_pair))
+	      err(1, NULL);
+	    child_pid = fork();
+	    if (child_pid < 0)
+	      err(1, "fork pipe");
+	    if (!child_pid)
+	      {
+		close(pipe_pair[0]);
+		socket_sandbox_func(pipe_pair[1], max_size);
+	      }
+	    close(pipe_pair[1]);
+	  }
+	
 	if (shared)
 	  {
-	    if (socketpair(PF_LOCAL, SOCK_STREAM, 0, shmem_socket_pair) < 0)
+	    if (pipe(shmem_socket_pair) < 0)
 	      err(1, NULL);
 	    child_pid = fork();
 	    if (child_pid < 0)
@@ -320,46 +336,42 @@ main(int argc, char *argv[])
 	    close(shmem_socket_pair[1]);
 	  }
 
-	printf("#trials=%lu reps=%u inOffset=%u outOffset=%u datain=%p dataout=%p\n", trials, reps, inOffset, outOffset, (void *) (datain + inOffset), (void*) (dataout + outOffset));
+	printf("#reps=%u inOffset=%u outOffset=%u datain=%p dataout=%p\n", reps, inOffset, outOffset, (void *) (datain + inOffset), (void*) (dataout + outOffset));
 
-	//for (uint s = 0; s < sizeof(sizes)/sizeof(sizes[0]); s++)
-	//  {
+	samples = malloc(sizeof(uint64_t) * reps);
+	if (samples == NULL)
+	  err(1, "malloc samples");
 	for(arg = 0; arg < argc; arg++)
 	  {
 	    size = strtol(argv[arg], &endp, 0);
 	    if(func)
 	      {
-		printf("\n#func %zu\n%zu,%u", size, size,reps);
-		for (uint rep = 0; rep < trials; rep++)
-		  {
-		    benchmark(do_memcpy, dataout_cap, datain_cap, size, reps);
-		  }
+		printf("\n#func %zu\n%zu", size, size);
+		benchmark(do_memcpy, dataout_cap, datain_cap, size, reps, samples, 0);
 	      }
 	    if (invoke)
 	      {
-		printf("\n#invoke %zu\n%zu,%u", size, size, reps);
-		for (uint rep = 0; rep < trials; rep++)
-		  {
-		    benchmark(invoke_memcpy, dataout_cap, datain_cap, size, reps);
-		  }
+		printf("\n#invoke %zu\n%zu", size, size);
+		benchmark(invoke_memcpy, dataout_cap, datain_cap, size, reps, samples, 0);
 	      }
 	    if(shared)
 	      {
-		printf("\n#shmem %zu\n%zu,%u", size, size, reps);
-		for (uint rep = 0; rep < trials; rep++)
-		  {
-		    benchmark(shmem_memcpy, dataout_cap, datain_cap, size, reps);
-		  }
+		printf("\n#shmem %zu\n%zu", size, size);
+		benchmark(shmem_memcpy, dataout_cap, datain_cap, size, reps, samples, shmem_socket_pair[0]);
 	      }
 	    if(socket)
 	      {
-		printf("\n#socket %zu\n%zu,%u", size, size, reps);
-		for (uint rep = 0; rep < trials; rep++)
-		  {
-		    benchmark(socket_memcpy, dataout_cap, datain_cap, size, reps);
-		  }
+		printf("\n#socket %zu\n%zu", size, size);
+		benchmark(socket_memcpy, dataout_cap, datain_cap, size, reps, samples, socket_pair[0]);
+	      }
+	    if(do_pipe)
+	      {
+		printf("\n#pipe %zu\n%zu", size, size);
+		benchmark(socket_memcpy, dataout_cap, datain_cap, size, reps, samples, pipe_pair[0]);
 	      }
 	  }
+	if (samples != NULL)
+	  free(samples);
 	putchar('\n');
 	
 	munmap(datain, max_size + inOffset);
