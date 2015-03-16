@@ -612,14 +612,15 @@ init_print(uint32_t localnet, uint32_t mask, uint32_t timezone_offset)
 			error("%s: sandbox_program_finalize", __func__);
 	}
 
-	signal(SIGALRM, handle_alarm);
-	if ((sigstk.ss_sp = malloc(SIGSTKSZ)) == NULL)
+	sigstk.ss_size = max(getpagesize(), SIGSTKSZ);
+	if ((sigstk.ss_sp = mmap(NULL, sigstk.ss_size, PROT_READ | PROT_WRITE,
+	    MAP_ANON, -1, 0)) == MAP_FAILED)
 		error("failure allocating alternative signal stack");
-	sigstk.ss_size = SIGSTKSZ;
 	sigstk.ss_flags = 0;
 	if (sigaltstack(&sigstk, NULL) < 0)
 		error("sigaltstack");
 
+	signal(SIGALRM, handle_alarm);
 }
 
 int
