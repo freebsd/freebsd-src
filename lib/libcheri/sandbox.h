@@ -49,9 +49,14 @@
 struct sandbox_metadata {
 	register_t	sbm_heapbase;			/* Offset: 0 */
 	register_t	sbm_heaplen;			/* Offset: 8 */
-	uint64_t	sbm_vtablebase;			/* Offset: 16 */
-	uint64_t	_sbm_reserved0;			/* Offset: 24 */
+	uint64_t	_sbm_reserved0;			/* Offset: 16 */
+	uint64_t	_sbm_reserved1;			/* Offset: 24 */
 	struct cheri_object	sbm_system_object;	/* Offset: 32 */
+#if __has_feature(capabilities)
+	__capability intptr_t	*sbm_vtable;		/* Cap-offset: 2 */
+#else
+	struct chericap	sbm_vtable;
+#endif
 };
 
 /*

@@ -127,10 +127,9 @@ __invoke_vector:
 	#
 	# XXXBD: See XXXRW comment in crt_rtld.S constructors
 	#
-	dli	$t0, 0x1000
-	ld	$t1, 16($t0)
-	daddu	$t0, $t1, $v0
-	ld	$t9, 0($t0)
+	dli	$t0, 0x1020
+	clc	$c12, $t0, 2*CHERICAP_SIZE($c26)
+	cld	$t9, $v0, 0($c12)
 	jalr	$t9
 	nop			# Branch-delay slot
 	b	creturn_target
