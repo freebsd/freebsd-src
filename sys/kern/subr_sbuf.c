@@ -70,6 +70,7 @@ static MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
 #define	SBUF_FREESPACE(s)	((s)->s_size - ((s)->s_len + 1))
 #define	SBUF_CANEXTEND(s)	((s)->s_flags & SBUF_AUTOEXTEND)
 #define	SBUF_ISSECTION(s)	((s)->s_flags & SBUF_INSECTION)
+#define	SBUF_NULINCLUDED(s)	((s)->s_flags & SBUF_INCLUDENUL)
 
 /*
  * Set / clear flags
@@ -100,9 +101,15 @@ _assert_sbuf_integrity(const char *fun, struct sbuf *s)
 	    ("%s called with a NULL sbuf pointer", fun));
 	KASSERT(s->s_buf != NULL,
 	    ("%s called with uninitialized or corrupt sbuf", fun));
-	KASSERT(s->s_len < s->s_size,
-	    ("wrote past end of sbuf (%jd >= %jd)",
-	    (intmax_t)s->s_len, (intmax_t)s->s_size));
+        if (SBUF_ISFINISHED(s) && SBUF_NULINCLUDED(s)) {
+		KASSERT(s->s_len <= s->s_size,
+		    ("wrote past end of sbuf (%jd >= %jd)",
+		    (intmax_t)s->s_len, (intmax_t)s->s_size));
+	} else {
+		KASSERT(s->s_len < s->s_size,
+		    ("wrote past end of sbuf (%jd >= %jd)",
+		    (intmax_t)s->s_len, (intmax_t)s->s_size));
+	}
 }
 
 static void
@@ -720,7 +727,7 @@ sbuf_finish(struct sbuf *s)
 	assert_sbuf_state(s, 0);
 
 	s->s_buf[s->s_len] = '\0';
-	if (s->s_flags & SBUF_INCLUDENUL)
+	if (SBUF_NULINCLUDED(s))
 		s->s_len++;
 	if (s->s_drain_func != NULL) {
 		while (s->s_len > 0 && s->s_error == 0)
@@ -769,7 +776,7 @@ sbuf_len(struct sbuf *s)
 		return (-1);
 
 	/* If finished, nulterm is already in len, else add one. */
-	if ((s->s_flags & (SBUF_INCLUDENUL | SBUF_FINISHED)) == SBUF_INCLUDENUL)
+	if (SBUF_NULINCLUDED(s) && !SBUF_ISFINISHED(s))
 		return (s->s_len + 1);
 	return (s->s_len);
 }
