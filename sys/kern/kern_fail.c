@@ -394,10 +394,12 @@ fail_point_sysctl(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	/* Retrieving */
-	sbuf_new_for_sysctl(&sb, NULL, 128, req);
+	sbuf_new(&sb, NULL, 128, SBUF_AUTOEXTEND | SBUF_INCLUDENUL);
 	fail_point_get(fp, &sb);
 	sbuf_trim(&sb);
 	error = sbuf_finish(&sb);
+	if (error == 0)
+		error = SYSCTL_OUT(req, sbuf_data(&sb), sbuf_len(&sb));
 	sbuf_delete(&sb);
 
 	/* Setting */
