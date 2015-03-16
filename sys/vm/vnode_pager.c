@@ -772,6 +772,14 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	bsize = vp->v_mount->mnt_stat.f_iosize;
 	foff = IDX_TO_OFF(m[reqpage]->pindex);
 
+	/*
+	 * Synchronous and asynchronous paging operations use different
+	 * free pbuf counters.  This is done to avoid asynchronous requests
+	 * to consume all pbufs.
+	 * Allocate the pbuf at the very beginning of the function, so that
+	 * if we are low on certain kind of pbufs don't even proceed to BMAP,
+	 * but sleep.
+	 */
 	freecnt = iodone != NULL ?
 	    &vnode_async_pbuf_freecnt : &vnode_pbuf_freecnt;
 	bp = getpbuf(freecnt);
