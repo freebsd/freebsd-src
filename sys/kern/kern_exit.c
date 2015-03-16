@@ -887,12 +887,13 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	sx_xunlock(&proctree_lock);
 
 	/*
-	 * As a side effect of this lock, we know that all other writes to
-	 * this proc are visible now, so no more locking is needed for p.
+	 * Removal from allproc list and process group list paired with
+	 * PROC_LOCK which was executed during that time should guarantee
+	 * nothing can reach this process anymore. As such further locking
+	 * is unnecessary.
 	 */
-	PROC_LOCK(p);
 	p->p_xstat = 0;		/* XXX: why? */
-	PROC_UNLOCK(p);
+
 	PROC_LOCK(q);
 	ruadd(&q->p_stats->p_cru, &q->p_crux, &p->p_ru, &p->p_rux);
 	PROC_UNLOCK(q);
