@@ -243,9 +243,7 @@ sysctl_kern_eventtimer_choice(SYSCTL_HANDLER_ARGS)
 	struct eventtimer *et;
 	int error;
 
-	if ((error = sysctl_wire_old_buffer(req, 0)) != 0)
-		return (error);
-	sbuf_new_for_sysctl(&sb, NULL, 0, req);
+	sbuf_new(&sb, NULL, 256, SBUF_AUTOEXTEND | SBUF_INCLUDENUL);
 
 	ET_LOCK();
 	SLIST_FOREACH(et, &eventtimers, et_all) {
@@ -256,6 +254,8 @@ sysctl_kern_eventtimer_choice(SYSCTL_HANDLER_ARGS)
 	ET_UNLOCK();
 
 	error = sbuf_finish(&sb);
+	if (error == 0)
+		error = SYSCTL_OUT(req, sbuf_data(&sb), sbuf_len(&sb));
 	sbuf_delete(&sb);
 	return (error);
 }
