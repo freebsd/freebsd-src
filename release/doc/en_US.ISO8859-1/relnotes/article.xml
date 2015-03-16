@@ -504,6 +504,11 @@
       <para revision="279186">The &man.setmode.3; function has been
 	updated to consistently set <literal>errno</literal> on
 	failure.</para>
+
+      <para revision="279663">The &man.qsort.3; functions have been
+	updated to be able to handle 32-bit aligned data on 64-bit
+	platforms, also providing a significant improvement in 32-bit
+	workloads.</para>
     </sect2>
 
     <sect2 xml:id="userland-abi">
