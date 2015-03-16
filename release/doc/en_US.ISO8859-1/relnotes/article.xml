@@ -388,6 +388,9 @@
 
       <para revision="278433">The &man.xz.1; utility has been updated
 	to support multi-threaded compression.</para>
+
+      <para revision="278970">The &man.acpi.4; subsystem has been
+	updated to version 20150204.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
