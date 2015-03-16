@@ -309,6 +309,9 @@
 	attaching and detaching drivers, and enabling and disabling
 	devices.  The &man.devctl.8; utility uses the new
 	&man.devctl.3; library.</para>
+
+      <para revision="279315" contrib="sponsor" sponsor="&ff;">The
+	&man.uefisign.8; utility has been added.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
