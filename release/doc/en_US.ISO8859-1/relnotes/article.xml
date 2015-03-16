@@ -439,6 +439,12 @@
 	&man.rc.8; script has been removed from the base system.  An
 	equivalent script is available from the <filename
 	  role="package">net/mrouted</filename> port.</para>
+
+      <para revision="279463" contrib="sponsor"
+	sponsor="&sandvine;">A new &man.rc.8; script,
+	<filename>iovctl</filename>, has been added, which allows
+	automatically starting the &man.iovctl.8; utility at
+	boot.</para>
     </sect2>
 
     <sect2 xml:id="userland-periodic">
