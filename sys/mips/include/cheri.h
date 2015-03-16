@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2011-2015 Robert N. M. Watson
+ * Copyright (c) 2015 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -67,6 +68,12 @@ struct cheri_object {
 	struct chericap		 co_datacap;
 #endif
 };
+
+#if !defined(_KERNEL) && __has_feature(capabilities)
+#define	CHERI_OBJECT_INIT_NULL	{NULL, NULL}
+#define	CHERI_OBJECT_ISNULL(co)	\
+    ((co).co_codecap == NULL && (co).co_datacap == NULL)
+#endif
 
 /*
  * Register frame to be preserved on context switching -- very similar to
