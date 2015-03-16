@@ -695,7 +695,7 @@ list_tests(void)
 				xo_emit("{e:expected-failure-reason/%s}",
 				    cheri_tests[i].ct_xfail_reason);
 			if (cheri_tests[i].ct_flags & CT_FLAG_SLOW)
-				xo_emit("{:timeout/%s}", "LONG");
+				xo_emit("{e:timeout/%s}", "LONG");
 			xo_emit("\n");
 			xo_close_instance("test");
 		}
