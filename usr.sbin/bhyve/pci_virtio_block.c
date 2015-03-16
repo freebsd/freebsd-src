@@ -55,8 +55,6 @@ __FBSDID("$FreeBSD$");
 
 #define VTBLK_RINGSZ	64
 
-#define VTBLK_MAXSEGS	32
-
 #define VTBLK_S_OK	0
 #define VTBLK_S_IOERR	1
 #define	VTBLK_S_UNSUPP	2
@@ -201,10 +199,10 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vqueue_info *vq)
 	int iolen;
 	int writeop, type;
 	off_t offset;
-	struct iovec iov[VTBLK_MAXSEGS + 2];
-	uint16_t idx, flags[VTBLK_MAXSEGS + 2];
+	struct iovec iov[BLOCKIF_IOV_MAX + 2];
+	uint16_t idx, flags[BLOCKIF_IOV_MAX + 2];
 
-	n = vq_getchain(vq, &idx, iov, VTBLK_MAXSEGS + 2, flags);
+	n = vq_getchain(vq, &idx, iov, BLOCKIF_IOV_MAX + 2, flags);
 
 	/*
 	 * The first descriptor will be the read-only fixed header,
@@ -214,7 +212,7 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vqueue_info *vq)
 	 * XXX - note - this fails on crash dump, which does a
 	 * VIRTIO_BLK_T_FLUSH with a zero transfer length
 	 */
-	assert(n >= 2 && n <= VTBLK_MAXSEGS + 2);
+	assert(n >= 2 && n <= BLOCKIF_IOV_MAX + 2);
 
 	io = &sc->vbsc_ios[idx];
 	assert((flags[0] & VRING_DESC_F_WRITE) == 0);
@@ -347,7 +345,7 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	/* setup virtio block config space */
 	sc->vbsc_cfg.vbc_capacity = size / DEV_BSIZE; /* 512-byte units */
 	sc->vbsc_cfg.vbc_size_max = 0;	/* not negotiated */
-	sc->vbsc_cfg.vbc_seg_max = VTBLK_MAXSEGS;
+	sc->vbsc_cfg.vbc_seg_max = BLOCKIF_IOV_MAX;
 	sc->vbsc_cfg.vbc_geometry.cylinders = 0;	/* no geometry */
 	sc->vbsc_cfg.vbc_geometry.heads = 0;
 	sc->vbsc_cfg.vbc_geometry.sectors = 0;
