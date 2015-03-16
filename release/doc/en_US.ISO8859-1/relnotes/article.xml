@@ -562,6 +562,11 @@
 	  The userland and kernel must be updated before rebooting the
 	  system.</para>
       </important>
+
+      <para revision="279189" contrib="sponsor" sponsor="&ff;"
+	arch="powerpc">Kernel support for Vector-Scalar eXtension
+	(<acronym>VSX</acronym>) found on POWER7 and POWER8 hardware
+	has been added.</para>
     </sect2>
 
     <sect2 xml:id="kernel-sysctl">
