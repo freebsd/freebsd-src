@@ -235,7 +235,7 @@ et_free(struct eventtimer *et)
 	return (0);
 }
 
-/* Report list of supported event timers hardware via sysctl. */
+/* Report list of supported event timer hardware via sysctl. */
 static int
 sysctl_kern_eventtimer_choice(SYSCTL_HANDLER_ARGS)
 {
