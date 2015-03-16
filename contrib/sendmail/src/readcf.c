@@ -124,6 +124,11 @@ readcf(cfname, safe, e)
 		| SSL_OP_NO_TICKET
 #endif
 		;
+# ifdef SSL_OP_TLSEXT_PADDING
+	/* SSL_OP_TLSEXT_PADDING breaks compatibility with some sites */
+	Srv_SSL_Options &= ~SSL_OP_TLSEXT_PADDING;
+	Clt_SSL_Options &= ~SSL_OP_TLSEXT_PADDING;
+# endif /* SSL_OP_TLSEXT_PADDING */
 #endif /* STARTTLS */
 	if (DontLockReadFiles)
 		sff |= SFF_NOLOCK;
@@ -2405,6 +2410,9 @@ static struct ssl_options
 #endif
 #ifdef SSL_OP_CRYPTOPRO_TLSEXT_BUG
 	{ "SSL_OP_CRYPTOPRO_TLSEXT_BUG",	SSL_OP_CRYPTOPRO_TLSEXT_BUG	},
+#endif
+#ifdef SSL_OP_TLSEXT_PADDING
+	{ "SSL_OP_TLSEXT_PADDING",	SSL_OP_TLSEXT_PADDING	},
 #endif
 	{ NULL,		0		}
 };
