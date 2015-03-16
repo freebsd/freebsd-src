@@ -567,6 +567,11 @@
 	arch="powerpc">Kernel support for Vector-Scalar eXtension
 	(<acronym>VSX</acronym>) found on POWER7 and POWER8 hardware
 	has been added.</para>
+
+      <para revision="279252" contrib="sponsor" sponsor="&ff;"
+	arch="powerpc">The &man.pmap.9; implementation for 64-bit
+	&powerpc; processors has been overhaulded to improve
+	concurrency.</para>
     </sect2>
 
     <sect2 xml:id="kernel-sysctl">
