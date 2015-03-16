@@ -361,6 +361,12 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			break;
 
 		case CPUID_0000_0006:
+			regs[0] = CPUTPM1_ARAT;
+			regs[1] = 0;
+			regs[2] = 0;
+			regs[3] = 0;
+			break;
+
 		case CPUID_0000_000A:
 			/*
 			 * Handle the access, but report 0 for
