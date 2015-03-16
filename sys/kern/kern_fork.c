@@ -410,7 +410,8 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	bzero(&p2->p_startzero,
 	    __rangeof(struct proc, p_startzero, p_endzero));
 
-	p2->p_ucred = crhold(td->td_ucred);
+	crhold(td->td_ucred);
+	proc_set_cred(p2, td->td_ucred);
 
 	/* Tell the prison that we exist. */
 	prison_proc_hold(p2->p_ucred->cr_prison);
@@ -869,7 +870,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	 * XXX: This is ugly; when we copy resource usage, we need to bump
 	 *      per-cred resource counters.
 	 */
-	newproc->p_ucred = p1->p_ucred;
+	proc_set_cred(newproc, p1->p_ucred);
 
 	/*
 	 * Initialize resource accounting for the child process.
