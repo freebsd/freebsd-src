@@ -732,7 +732,7 @@ vnode_pager_local_getpages0(struct vnode *vp, vm_page_t *m, int bytecount,
 	 */
 	if (mreq->valid != 0) {
 		vm_pager_free_nonreq(mreq->object, m, reqpage,
-		    round_page(bytecount) / PAGE_SIZE);
+		    round_page(bytecount) / PAGE_SIZE, FALSE);
 		if (iodone != NULL)
 			iodone(arg, m, reqpage, 0);
 		return (VM_PAGER_OK);
@@ -806,7 +806,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 		return (error);
 	} else if (error != 0) {
 		relpbuf(bp, freecnt);
-		vm_pager_free_nonreq(object, m, reqpage, count);
+		vm_pager_free_nonreq(object, m, reqpage, count, FALSE);
 		return (VM_PAGER_ERROR);
 
 		/*
@@ -817,7 +817,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	} else if ((PAGE_SIZE / bsize) > 1 &&
 	    (vp->v_mount->mnt_stat.f_type != nfs_mount_type)) {
 		relpbuf(bp, freecnt);
-		vm_pager_free_nonreq(object, m, reqpage, count);
+		vm_pager_free_nonreq(object, m, reqpage, count, FALSE);
 		PCPU_INC(cnt.v_vnodein);
 		PCPU_INC(cnt.v_vnodepgsin);
 		return vnode_pager_input_smlfs(object, m[reqpage]);
@@ -836,7 +836,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	 */
 	if (m[reqpage]->valid == VM_PAGE_BITS_ALL) {
 		relpbuf(bp, freecnt);
-		vm_pager_free_nonreq(object, m, reqpage, count);
+		vm_pager_free_nonreq(object, m, reqpage, count, FALSE);
 		return (VM_PAGER_OK);
 	} else if (reqblock == -1) {
 		relpbuf(bp, freecnt);
@@ -845,12 +845,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 		    ("vnode_pager_generic_getpages: page %p is dirty", m));
 		VM_OBJECT_WLOCK(object);
 		m[reqpage]->valid = VM_PAGE_BITS_ALL;
-		for (i = 0; i < count; i++)
-			if (i != reqpage) {
-				vm_page_lock(m[i]);
-				vm_page_free(m[i]);
-				vm_page_unlock(m[i]);
-			}
+		vm_pager_free_nonreq(object, m, reqpage, count, TRUE);
 		VM_OBJECT_WUNLOCK(object);
 		return (VM_PAGER_OK);
 	} else if (m[reqpage]->valid != 0) {
@@ -871,14 +866,9 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 		if (vnode_pager_addr(vp, IDX_TO_OFF(m[i]->pindex), &firstaddr,
 		    &runpg) != 0) {
 			relpbuf(bp, freecnt);
-			VM_OBJECT_WLOCK(object);
-			for (; i < count; i++)
-				if (i != reqpage) {
-					vm_page_lock(m[i]);
-					vm_page_free(m[i]);
-					vm_page_unlock(m[i]);
-				}
-			VM_OBJECT_WUNLOCK(object);
+			/* The requested page may be out of range. */
+			vm_pager_free_nonreq(object, m + i, reqpage - i,
+			    count - i, FALSE);
 			return (VM_PAGER_ERROR);
 		}
 		if (firstaddr == -1) {
