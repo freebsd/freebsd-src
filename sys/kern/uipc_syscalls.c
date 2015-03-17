@@ -2192,8 +2192,8 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 		 *
 		 * If calculated count yields in value greater than npages,
 		 * then we are doing optional readahead, and we need to grab
-		 * and wire pages for it.  Since readahead is optional, we
-		 * prefer failure over sleep and thus say VM_ALLOC_NOWAIT.
+		 * pages for it.  Since readahead is optional, we prefer
+		 * failure over sleep and thus say VM_ALLOC_NOWAIT.
 		 */
 		count = min(a + 1, npages + rhpages - i);
 		for (j = npages; j < i + count; j++) {
