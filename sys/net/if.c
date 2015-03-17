@@ -31,6 +31,7 @@
  */
 
 #include "opt_compat.h"
+#include "opt_device_polling.h"
 #include "opt_inet6.h"
 #include "opt_inet.h"
 
