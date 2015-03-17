@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_ANALYZEROPTIONS_H
-#define LLVM_CLANG_ANALYZEROPTIONS_H
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_ANALYZEROPTIONS_H
+#define LLVM_CLANG_STATICANALYZER_CORE_ANALYZEROPTIONS_H
 
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
@@ -137,6 +137,13 @@ public:
   unsigned maxBlockVisitOnPath;
   
   
+  /// \brief Disable all analyzer checks.
+  ///
+  /// This flag allows one to disable analyzer checks on the code processed by
+  /// the given analysis consumer. Note, the code will get parsed and the
+  /// command-line options will get checked.
+  unsigned DisableAllChecks : 1;
+
   unsigned ShowCheckerHelp : 1;
   unsigned AnalyzeAll : 1;
   unsigned AnalyzerDisplayProgress : 1;
@@ -420,6 +427,7 @@ public:
     AnalysisConstraintsOpt(RangeConstraintsModel),
     AnalysisDiagOpt(PD_HTML),
     AnalysisPurgeOpt(PurgeStmt),
+    DisableAllChecks(0),
     ShowCheckerHelp(0),
     AnalyzeAll(0),
     AnalyzerDisplayProgress(0),

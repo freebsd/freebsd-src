@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86_ASM_INSTRUMENTATION_H
-#define X86_ASM_INSTRUMENTATION_H
+#ifndef LLVM_LIB_TARGET_X86_ASMPARSER_X86ASMINSTRUMENTATION_H
+#define LLVM_LIB_TARGET_X86_ASMPARSER_X86ASMINSTRUMENTATION_H
 
 #include "llvm/ADT/SmallVector.h"
 
@@ -34,11 +34,15 @@ class X86AsmInstrumentation {
 public:
   virtual ~X86AsmInstrumentation();
 
-  // Instruments Inst. Should be called just before the original
-  // instruction is sent to Out.
-  virtual void InstrumentInstruction(
+  // Sets frame register corresponding to a current frame.
+  void SetInitialFrameRegister(unsigned RegNo) {
+    InitialFrameReg = RegNo;
+  }
+
+  // Tries to instrument and emit instruction.
+  virtual void InstrumentAndEmitInstruction(
       const MCInst &Inst,
-      SmallVectorImpl<std::unique_ptr<MCParsedAsmOperand>> &Operands,
+      SmallVectorImpl<std::unique_ptr<MCParsedAsmOperand> > &Operands,
       MCContext &Ctx, const MCInstrInfo &MII, MCStreamer &Out);
 
 protected:
@@ -46,9 +50,17 @@ protected:
   CreateX86AsmInstrumentation(const MCTargetOptions &MCOptions,
                               const MCContext &Ctx, const MCSubtargetInfo &STI);
 
-  X86AsmInstrumentation();
+  X86AsmInstrumentation(const MCSubtargetInfo &STI);
+
+  unsigned GetFrameRegGeneric(const MCContext &Ctx, MCStreamer &Out);
+
+  void EmitInstruction(MCStreamer &Out, const MCInst &Inst);
+
+  const MCSubtargetInfo &STI;
+
+  unsigned InitialFrameReg;
 };
 
 } // End llvm namespace
 
-#endif // X86_ASM_INSTRUMENTATION_H
+#endif

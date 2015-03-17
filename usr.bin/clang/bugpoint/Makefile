@@ -20,11 +20,14 @@ LIBDEPS=llvmcodegen \
 	llvmobjcarcopts \
 	llvmirreader \
 	llvmbitwriter \
-	llvmbitreader \
 	llvmlinker \
 	llvmipo \
 	llvmvectorize \
 	llvmscalaropts \
+	llvmprofiledata \
+	llvmobject \
+	llvmmcparser \
+	llvmbitreader \
 	llvminstcombine \
 	llvminstrumentation \
 	llvmtransformutils \

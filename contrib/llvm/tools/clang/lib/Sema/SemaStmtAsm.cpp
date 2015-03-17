@@ -15,6 +15,7 @@
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/TypeLoc.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/Lex/Preprocessor.h"
 #include "clang/Sema/Initialization.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Scope.h"
@@ -74,6 +75,32 @@ static bool isOperandMentioned(unsigned OpNo,
   return false;
 }
 
+static bool CheckNakedParmReference(Expr *E, Sema &S) {
+  FunctionDecl *Func = dyn_cast<FunctionDecl>(S.CurContext);
+  if (!Func)
+    return false;
+  if (!Func->hasAttr<NakedAttr>())
+    return false;
+
+  SmallVector<Expr*, 4> WorkList;
+  WorkList.push_back(E);
+  while (WorkList.size()) {
+    Expr *E = WorkList.pop_back_val();
+    if (DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(E)) {
+      if (isa<ParmVarDecl>(DRE->getDecl())) {
+        S.Diag(DRE->getLocStart(), diag::err_asm_naked_parm_ref);
+        S.Diag(Func->getAttr<NakedAttr>()->getLocation(), diag::note_attribute);
+        return true;
+      }
+    }
+    for (Stmt *Child : E->children()) {
+      if (Expr *E = dyn_cast_or_null<Expr>(Child))
+        WorkList.push_back(E);
+    }
+  }
+  return false;
+}
+
 StmtResult Sema::ActOnGCCAsmStmt(SourceLocation AsmLoc, bool IsSimple,
                                  bool IsVolatile, unsigned NumOutputs,
                                  unsigned NumInputs, IdentifierInfo **Names,
@@ -89,15 +116,11 @@ StmtResult Sema::ActOnGCCAsmStmt(SourceLocation AsmLoc, bool IsSimple,
   SmallVector<TargetInfo::ConstraintInfo, 4> OutputConstraintInfos;
 
   // The parser verifies that there is a string literal here.
-  if (!AsmString->isAscii())
-    return StmtError(Diag(AsmString->getLocStart(),diag::err_asm_wide_character)
-      << AsmString->getSourceRange());
+  assert(AsmString->isAscii());
 
   for (unsigned i = 0; i != NumOutputs; i++) {
     StringLiteral *Literal = Constraints[i];
-    if (!Literal->isAscii())
-      return StmtError(Diag(Literal->getLocStart(),diag::err_asm_wide_character)
-        << Literal->getSourceRange());
+    assert(Literal->isAscii());
 
     StringRef OutputName;
     if (Names[i])
@@ -109,27 +132,69 @@ StmtResult Sema::ActOnGCCAsmStmt(SourceLocation AsmLoc, bool IsSimple,
                             diag::err_asm_invalid_output_constraint)
                        << Info.getConstraintStr());
 
+    ExprResult ER = CheckPlaceholderExpr(Exprs[i]);
+    if (ER.isInvalid())
+      return StmtError();
+    Exprs[i] = ER.get();
+
     // Check that the output exprs are valid lvalues.
     Expr *OutputExpr = Exprs[i];
-    if (CheckAsmLValue(OutputExpr, *this))
-      return StmtError(Diag(OutputExpr->getLocStart(),
-                            diag::err_asm_invalid_lvalue_in_output)
-                       << OutputExpr->getSourceRange());
 
-    if (RequireCompleteType(OutputExpr->getLocStart(), Exprs[i]->getType(),
-                            diag::err_dereference_incomplete_type))
+    // Referring to parameters is not allowed in naked functions.
+    if (CheckNakedParmReference(OutputExpr, *this))
       return StmtError();
 
     OutputConstraintInfos.push_back(Info);
+
+    // If this is dependent, just continue.
+    if (OutputExpr->isTypeDependent())
+      continue;
+
+    Expr::isModifiableLvalueResult IsLV =
+        OutputExpr->isModifiableLvalue(Context, /*Loc=*/nullptr);
+    switch (IsLV) {
+    case Expr::MLV_Valid:
+      // Cool, this is an lvalue.
+      break;
+    case Expr::MLV_ArrayType:
+      // This is OK too.
+      break;
+    case Expr::MLV_LValueCast: {
+      const Expr *LVal = OutputExpr->IgnoreParenNoopCasts(Context);
+      if (!getLangOpts().HeinousExtensions) {
+        Diag(LVal->getLocStart(), diag::err_invalid_asm_cast_lvalue)
+            << OutputExpr->getSourceRange();
+      } else {
+        Diag(LVal->getLocStart(), diag::warn_invalid_asm_cast_lvalue)
+            << OutputExpr->getSourceRange();
+      }
+      // Accept, even if we emitted an error diagnostic.
+      break;
+    }
+    case Expr::MLV_IncompleteType:
+    case Expr::MLV_IncompleteVoidType:
+      if (RequireCompleteType(OutputExpr->getLocStart(), Exprs[i]->getType(),
+                              diag::err_dereference_incomplete_type))
+        return StmtError();
+    default:
+      return StmtError(Diag(OutputExpr->getLocStart(),
+                            diag::err_asm_invalid_lvalue_in_output)
+                       << OutputExpr->getSourceRange());
+    }
+
+    unsigned Size = Context.getTypeSize(OutputExpr->getType());
+    if (!Context.getTargetInfo().validateOutputSize(Literal->getString(),
+                                                    Size))
+      return StmtError(Diag(OutputExpr->getLocStart(),
+                            diag::err_asm_invalid_output_size)
+                       << Info.getConstraintStr());
   }
 
   SmallVector<TargetInfo::ConstraintInfo, 4> InputConstraintInfos;
 
   for (unsigned i = NumOutputs, e = NumOutputs + NumInputs; i != e; i++) {
     StringLiteral *Literal = Constraints[i];
-    if (!Literal->isAscii())
-      return StmtError(Diag(Literal->getLocStart(),diag::err_asm_wide_character)
-        << Literal->getSourceRange());
+    assert(Literal->isAscii());
 
     StringRef InputName;
     if (Names[i])
@@ -143,7 +208,16 @@ StmtResult Sema::ActOnGCCAsmStmt(SourceLocation AsmLoc, bool IsSimple,
                        << Info.getConstraintStr());
     }
 
+    ExprResult ER = CheckPlaceholderExpr(Exprs[i]);
+    if (ER.isInvalid())
+      return StmtError();
+    Exprs[i] = ER.get();
+
     Expr *InputExpr = Exprs[i];
+
+    // Referring to parameters is not allowed in naked functions.
+    if (CheckNakedParmReference(InputExpr, *this))
+      return StmtError();
 
     // Only allow void types for memory constraints.
     if (Info.allowsMemory() && !Info.allowsRegister()) {
@@ -152,6 +226,19 @@ StmtResult Sema::ActOnGCCAsmStmt(SourceLocation AsmLoc, bool IsSimple,
                               diag::err_asm_invalid_lvalue_in_input)
                          << Info.getConstraintStr()
                          << InputExpr->getSourceRange());
+    } else if (Info.requiresImmediateConstant() && !Info.allowsRegister()) {
+      llvm::APSInt Result;
+      if (!InputExpr->EvaluateAsInt(Result, Context))
+        return StmtError(
+            Diag(InputExpr->getLocStart(), diag::err_asm_immediate_expected)
+            << Info.getConstraintStr() << InputExpr->getSourceRange());
+      if (Result.slt(Info.getImmConstantMin()) ||
+          Result.sgt(Info.getImmConstantMax()))
+        return StmtError(Diag(InputExpr->getLocStart(),
+                              diag::err_invalid_asm_value_for_constraint)
+                         << Result.toString(10) << Info.getConstraintStr()
+                         << InputExpr->getSourceRange());
+
     } else {
       ExprResult Result = DefaultFunctionArrayLvalueConversion(Exprs[i]);
       if (Result.isInvalid())
@@ -191,9 +278,7 @@ StmtResult Sema::ActOnGCCAsmStmt(SourceLocation AsmLoc, bool IsSimple,
   // Check that the clobbers are valid.
   for (unsigned i = 0; i != NumClobbers; i++) {
     StringLiteral *Literal = Clobbers[i];
-    if (!Literal->isAscii())
-      return StmtError(Diag(Literal->getLocStart(),diag::err_asm_wide_character)
-        << Literal->getSourceRange());
+    assert(Literal->isAscii());
 
     StringRef Clobber = Literal->getString();
 
@@ -257,16 +342,47 @@ StmtResult Sema::ActOnGCCAsmStmt(SourceLocation AsmLoc, bool IsSimple,
       continue;
 
     unsigned Size = Context.getTypeSize(Ty);
-    if (!Context.getTargetInfo()
-          .validateConstraintModifier(Literal->getString(), Piece.getModifier(),
-                                      Size))
+    std::string SuggestedModifier;
+    if (!Context.getTargetInfo().validateConstraintModifier(
+            Literal->getString(), Piece.getModifier(), Size,
+            SuggestedModifier)) {
       Diag(Exprs[ConstraintIdx]->getLocStart(),
            diag::warn_asm_mismatched_size_modifier);
+
+      if (!SuggestedModifier.empty()) {
+        auto B = Diag(Piece.getRange().getBegin(),
+                      diag::note_asm_missing_constraint_modifier)
+                 << SuggestedModifier;
+        SuggestedModifier = "%" + SuggestedModifier + Piece.getString();
+        B.AddFixItHint(FixItHint::CreateReplacement(Piece.getRange(),
+                                                    SuggestedModifier));
+      }
+    }
   }
 
   // Validate tied input operands for type mismatches.
+  unsigned NumAlternatives = ~0U;
+  for (unsigned i = 0, e = OutputConstraintInfos.size(); i != e; ++i) {
+    TargetInfo::ConstraintInfo &Info = OutputConstraintInfos[i];
+    StringRef ConstraintStr = Info.getConstraintStr();
+    unsigned AltCount = ConstraintStr.count(',') + 1;
+    if (NumAlternatives == ~0U)
+      NumAlternatives = AltCount;
+    else if (NumAlternatives != AltCount)
+      return StmtError(Diag(NS->getOutputExpr(i)->getLocStart(),
+                            diag::err_asm_unexpected_constraint_alternatives)
+                       << NumAlternatives << AltCount);
+  }
   for (unsigned i = 0, e = InputConstraintInfos.size(); i != e; ++i) {
     TargetInfo::ConstraintInfo &Info = InputConstraintInfos[i];
+    StringRef ConstraintStr = Info.getConstraintStr();
+    unsigned AltCount = ConstraintStr.count(',') + 1;
+    if (NumAlternatives == ~0U)
+      NumAlternatives = AltCount;
+    else if (NumAlternatives != AltCount)
+      return StmtError(Diag(NS->getInputExpr(i)->getLocStart(),
+                            diag::err_asm_unexpected_constraint_alternatives)
+                       << NumAlternatives << AltCount);
 
     // If this is a tied constraint, verify that the output and input have
     // either exactly the same type, or that they are int/ptr operands with the
@@ -394,6 +510,10 @@ ExprResult Sema::LookupInlineAsmIdentifier(CXXScopeSpec &SS,
   Result = CheckPlaceholderExpr(Result.get());
   if (!Result.isUsable()) return Result;
 
+  // Referring to parameters is not allowed in naked functions.
+  if (CheckNakedParmReference(Result.get(), *this))
+    return ExprError();
+
   QualType T = Result.get()->getType();
 
   // For now, reject dependent types.
@@ -443,9 +563,10 @@ bool Sema::LookupInlineAsmField(StringRef Base, StringRef Member,
   NamedDecl *FoundDecl = BaseResult.getFoundDecl();
   if (VarDecl *VD = dyn_cast<VarDecl>(FoundDecl))
     RT = VD->getType()->getAs<RecordType>();
-  else if (TypedefNameDecl *TD = dyn_cast<TypedefNameDecl>(FoundDecl))
+  else if (TypedefNameDecl *TD = dyn_cast<TypedefNameDecl>(FoundDecl)) {
+    MarkAnyDeclReferenced(TD->getLocation(), TD, /*OdrUse=*/false);
     RT = TD->getUnderlyingType()->getAs<RecordType>();
-  else if (TypeDecl *TD = dyn_cast<TypeDecl>(FoundDecl))
+  } else if (TypeDecl *TD = dyn_cast<TypeDecl>(FoundDecl))
     RT = TD->getTypeForDecl()->getAs<RecordType>();
   if (!RT)
     return true;
@@ -481,10 +602,42 @@ StmtResult Sema::ActOnMSAsmStmt(SourceLocation AsmLoc, SourceLocation LBraceLoc,
                                 ArrayRef<Expr*> Exprs,
                                 SourceLocation EndLoc) {
   bool IsSimple = (NumOutputs != 0 || NumInputs != 0);
+  getCurFunction()->setHasBranchProtectedScope();
   MSAsmStmt *NS =
     new (Context) MSAsmStmt(Context, AsmLoc, LBraceLoc, IsSimple,
                             /*IsVolatile*/ true, AsmToks, NumOutputs, NumInputs,
                             Constraints, Exprs, AsmString,
                             Clobbers, EndLoc);
   return NS;
+}
+
+LabelDecl *Sema::GetOrCreateMSAsmLabel(StringRef ExternalLabelName,
+                                       SourceLocation Location,
+                                       bool AlwaysCreate) {
+  LabelDecl* Label = LookupOrCreateLabel(PP.getIdentifierInfo(ExternalLabelName),
+                                         Location);
+
+  if (Label->isMSAsmLabel()) {
+    // If we have previously created this label implicitly, mark it as used.
+    Label->markUsed(Context);
+  } else {
+    // Otherwise, insert it, but only resolve it if we have seen the label itself.
+    std::string InternalName;
+    llvm::raw_string_ostream OS(InternalName);
+    // Create an internal name for the label.  The name should not be a valid mangled
+    // name, and should be unique.  We use a dot to make the name an invalid mangled
+    // name.
+    OS << "__MSASMLABEL_." << MSAsmLabelNameCounter++ << "__" << ExternalLabelName;
+    Label->setMSAsmLabel(OS.str());
+  }
+  if (AlwaysCreate) {
+    // The label might have been created implicitly from a previously encountered
+    // goto statement.  So, for both newly created and looked up labels, we mark
+    // them as resolved.
+    Label->setMSAsmLabelResolved();
+  }
+  // Adjust their location for being able to generate accurate diagnostics.
+  Label->setLocation(Location);
+
+  return Label;
 }

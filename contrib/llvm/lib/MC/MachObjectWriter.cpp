@@ -41,7 +41,7 @@ void MachObjectWriter::reset() {
 bool MachObjectWriter::
 doesSymbolRequireExternRelocation(const MCSymbolData *SD) {
   // Undefined symbols are always extern.
-  if (SD->Symbol->isUndefined())
+  if (SD->getSymbol().isUndefined())
     return true;
 
   // References to weak definitions require external relocation entries; the
@@ -84,7 +84,7 @@ uint64_t MachObjectWriter::getSymbolAddress(const MCSymbolData* SD,
 
 
     MCValue Target;
-    if (!S.getVariableValue()->EvaluateAsRelocatable(Target, &Layout))
+    if (!S.getVariableValue()->EvaluateAsRelocatable(Target, &Layout, nullptr))
       report_fatal_error("unable to evaluate offset for variable '" +
                          S.getName() + "'");
 
@@ -418,7 +418,7 @@ void MachObjectWriter::WriteLinkeditLoadCommand(uint32_t Type,
 static unsigned ComputeLinkerOptionsLoadCommandSize(
   const std::vector<std::string> &Options, bool is64Bit)
 {
-  unsigned Size = sizeof(MachO::linker_options_command);
+  unsigned Size = sizeof(MachO::linker_option_command);
   for (unsigned i = 0, e = Options.size(); i != e; ++i)
     Size += Options[i].size() + 1;
   return RoundUpToAlignment(Size, is64Bit ? 8 : 4);
@@ -431,10 +431,10 @@ void MachObjectWriter::WriteLinkerOptionsLoadCommand(
   uint64_t Start = OS.tell();
   (void) Start;
 
-  Write32(MachO::LC_LINKER_OPTIONS);
+  Write32(MachO::LC_LINKER_OPTION);
   Write32(Size);
   Write32(Options.size());
-  uint64_t BytesWritten = sizeof(MachO::linker_options_command);
+  uint64_t BytesWritten = sizeof(MachO::linker_option_command);
   for (unsigned i = 0, e = Options.size(); i != e; ++i) {
     // Write each string, including the null byte.
     const std::string &Option = Options[i];
@@ -525,15 +525,10 @@ void MachObjectWriter::BindIndirectSymbols(MCAssembler &Asm) {
 }
 
 /// ComputeSymbolTable - Compute the symbol table data
-///
-/// \param StringTable [out] - The string table data.
-/// \param StringIndexMap [out] - Map from symbol names to offsets in the
-/// string table.
-void MachObjectWriter::
-ComputeSymbolTable(MCAssembler &Asm, SmallString<256> &StringTable,
-                   std::vector<MachSymbolData> &LocalSymbolData,
-                   std::vector<MachSymbolData> &ExternalSymbolData,
-                   std::vector<MachSymbolData> &UndefinedSymbolData) {
+void MachObjectWriter::ComputeSymbolTable(
+    MCAssembler &Asm, std::vector<MachSymbolData> &LocalSymbolData,
+    std::vector<MachSymbolData> &ExternalSymbolData,
+    std::vector<MachSymbolData> &UndefinedSymbolData) {
   // Build section lookup table.
   DenseMap<const MCSection*, uint8_t> SectionIndexMap;
   unsigned Index = 1;
@@ -542,37 +537,34 @@ ComputeSymbolTable(MCAssembler &Asm, SmallString<256> &StringTable,
     SectionIndexMap[&it->getSection()] = Index;
   assert(Index <= 256 && "Too many sections!");
 
-  // Index 0 is always the empty string.
-  StringMap<uint64_t> StringIndexMap;
-  StringTable += '\x00';
+  // Build the string table.
+  for (MCSymbolData &SD : Asm.symbols()) {
+    const MCSymbol &Symbol = SD.getSymbol();
+    if (!Asm.isSymbolLinkerVisible(Symbol))
+      continue;
 
-  // Build the symbol arrays and the string table, but only for non-local
-  // symbols.
+    StringTable.add(Symbol.getName());
+  }
+  StringTable.finalize(StringTableBuilder::MachO);
+
+  // Build the symbol arrays but only for non-local symbols.
   //
-  // The particular order that we collect the symbols and create the string
-  // table, then sort the symbols is chosen to match 'as'. Even though it
-  // doesn't matter for correctness, this is important for letting us diff .o
-  // files.
+  // The particular order that we collect and then sort the symbols is chosen to
+  // match 'as'. Even though it doesn't matter for correctness, this is
+  // important for letting us diff .o files.
   for (MCSymbolData &SD : Asm.symbols()) {
     const MCSymbol &Symbol = SD.getSymbol();
 
     // Ignore non-linker visible symbols.
-    if (!Asm.isSymbolLinkerVisible(SD.getSymbol()))
+    if (!Asm.isSymbolLinkerVisible(Symbol))
       continue;
 
     if (!SD.isExternal() && !Symbol.isUndefined())
       continue;
 
-    uint64_t &Entry = StringIndexMap[Symbol.getName()];
-    if (!Entry) {
-      Entry = StringTable.size();
-      StringTable += Symbol.getName();
-      StringTable += '\x00';
-    }
-
     MachSymbolData MSD;
     MSD.SymbolData = &SD;
-    MSD.StringIndex = Entry;
+    MSD.StringIndex = StringTable.getOffset(Symbol.getName());
 
     if (Symbol.isUndefined()) {
       MSD.SectionIndex = 0;
@@ -592,22 +584,15 @@ ComputeSymbolTable(MCAssembler &Asm, SmallString<256> &StringTable,
     const MCSymbol &Symbol = SD.getSymbol();
 
     // Ignore non-linker visible symbols.
-    if (!Asm.isSymbolLinkerVisible(SD.getSymbol()))
+    if (!Asm.isSymbolLinkerVisible(Symbol))
       continue;
 
     if (SD.isExternal() || Symbol.isUndefined())
       continue;
 
-    uint64_t &Entry = StringIndexMap[Symbol.getName()];
-    if (!Entry) {
-      Entry = StringTable.size();
-      StringTable += Symbol.getName();
-      StringTable += '\x00';
-    }
-
     MachSymbolData MSD;
     MSD.SymbolData = &SD;
-    MSD.StringIndex = Entry;
+    MSD.StringIndex = StringTable.getOffset(Symbol.getName());
 
     if (Symbol.isAbsolute()) {
       MSD.SectionIndex = 0;
@@ -631,10 +616,6 @@ ComputeSymbolTable(MCAssembler &Asm, SmallString<256> &StringTable,
     ExternalSymbolData[i].SymbolData->setIndex(Index++);
   for (unsigned i = 0, e = UndefinedSymbolData.size(); i != e; ++i)
     UndefinedSymbolData[i].SymbolData->setIndex(Index++);
-
-  // The string table is padded to a multiple of 4.
-  while (StringTable.size() % 4)
-    StringTable += '\x00';
 }
 
 void MachObjectWriter::computeSectionAddresses(const MCAssembler &Asm,
@@ -664,7 +645,7 @@ void MachObjectWriter::markAbsoluteVariableSymbols(MCAssembler &Asm,
     // and neither symbol is external, mark the variable as absolute.
     const MCExpr *Expr = SD.getSymbol().getVariableValue();
     MCValue Value;
-    if (Expr->EvaluateAsRelocatable(Value, &Layout)) {
+    if (Expr->EvaluateAsRelocatable(Value, &Layout, nullptr)) {
       if (Value.getSymA() && Value.getSymB())
         const_cast<MCSymbol*>(&SD.getSymbol())->setAbsolute();
     }
@@ -683,7 +664,7 @@ void MachObjectWriter::ExecutePostLayoutBinding(MCAssembler &Asm,
   markAbsoluteVariableSymbols(Asm, Layout);
 
   // Compute symbol table information and bind symbol indices.
-  ComputeSymbolTable(Asm, StringTable, LocalSymbolData, ExternalSymbolData,
+  ComputeSymbolTable(Asm, LocalSymbolData, ExternalSymbolData,
                      UndefinedSymbolData);
 }
 
@@ -745,6 +726,10 @@ IsSymbolRefDifferenceFullyResolvedImpl(const MCAssembler &Asm,
       return false;
   }
 
+  // If they are not in the same section, we can't compute the diff.
+  if (&SecA != &SecB)
+    return false;
+
   const MCFragment *FA = Asm.getSymbolData(SA).getFragment();
 
   // Bail if the symbol has no fragment.
@@ -752,12 +737,7 @@ IsSymbolRefDifferenceFullyResolvedImpl(const MCAssembler &Asm,
     return false;
 
   A_Base = FA->getAtom();
-  if (!A_Base)
-    return false;
-
   B_Base = FB.getAtom();
-  if (!B_Base)
-    return false;
 
   // If the atoms are the same, they are guaranteed to have the same address.
   if (A_Base == B_Base)
@@ -922,7 +902,7 @@ void MachObjectWriter::WriteObject(MCAssembler &Asm,
                                               sizeof(MachO::nlist_64) :
                                               sizeof(MachO::nlist));
     WriteSymtabLoadCommand(SymbolTableOffset, NumSymTabSymbols,
-                           StringTableOffset, StringTable.size());
+                           StringTableOffset, StringTable.data().size());
 
     WriteDysymtabLoadCommand(FirstLocalSymbol, NumLocalSymbols,
                              FirstExternalSymbol, NumExternalSymbols,
@@ -1028,7 +1008,7 @@ void MachObjectWriter::WriteObject(MCAssembler &Asm,
       WriteNlist(UndefinedSymbolData[i], Layout);
 
     // Write the string table.
-    OS << StringTable.str();
+    OS << StringTable.data();
   }
 }
 

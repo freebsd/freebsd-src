@@ -17,6 +17,8 @@
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/AssumptionCache.h"
+#include "llvm/Analysis/CodeMetrics.h"
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
@@ -48,6 +50,9 @@ class CallAnalyzer : public InstVisitor<CallAnalyzer, bool> {
 
   /// The TargetTransformInfo available for this compilation.
   const TargetTransformInfo &TTI;
+
+  /// The cache of @llvm.assume intrinsics.
+  AssumptionCacheTracker *ACT;
 
   // The called function.
   Function &F;
@@ -104,7 +109,7 @@ class CallAnalyzer : public InstVisitor<CallAnalyzer, bool> {
   ConstantInt *stripAndComputeInBoundsConstantOffsets(Value *&V);
 
   // Custom analysis routines.
-  bool analyzeBlock(BasicBlock *BB);
+  bool analyzeBlock(BasicBlock *BB, SmallPtrSetImpl<const Value *> &EphValues);
 
   // Disable several entry points to the visitor so we don't accidentally use
   // them by declaring but not defining them here.
@@ -141,8 +146,8 @@ class CallAnalyzer : public InstVisitor<CallAnalyzer, bool> {
 
 public:
   CallAnalyzer(const DataLayout *DL, const TargetTransformInfo &TTI,
-               Function &Callee, int Threshold)
-      : DL(DL), TTI(TTI), F(Callee), Threshold(Threshold), Cost(0),
+               AssumptionCacheTracker *ACT, Function &Callee, int Threshold)
+      : DL(DL), TTI(TTI), ACT(ACT), F(Callee), Threshold(Threshold), Cost(0),
         IsCallerRecursive(false), IsRecursiveCall(false),
         ExposesReturnsTwice(false), HasDynamicAlloca(false),
         ContainsNoDuplicateCall(false), HasReturn(false), HasIndirectBr(false),
@@ -778,7 +783,7 @@ bool CallAnalyzer::visitCallSite(CallSite CS) {
   // during devirtualization and so we want to give it a hefty bonus for
   // inlining, but cap that bonus in the event that inlining wouldn't pan
   // out. Pretend to inline the function, with a custom threshold.
-  CallAnalyzer CA(DL, TTI, *F, InlineConstants::IndirectCallThreshold);
+  CallAnalyzer CA(DL, TTI, ACT, *F, InlineConstants::IndirectCallThreshold);
   if (CA.analyzeCall(CS)) {
     // We were able to inline the indirect call! Subtract the cost from the
     // bonus we want to apply, but don't go below zero.
@@ -881,7 +886,8 @@ bool CallAnalyzer::visitInstruction(Instruction &I) {
 /// aborts early if the threshold has been exceeded or an impossible to inline
 /// construct has been detected. It returns false if inlining is no longer
 /// viable, and true if inlining remains viable.
-bool CallAnalyzer::analyzeBlock(BasicBlock *BB) {
+bool CallAnalyzer::analyzeBlock(BasicBlock *BB,
+                                SmallPtrSetImpl<const Value *> &EphValues) {
   for (BasicBlock::iterator I = BB->begin(), E = BB->end(); I != E; ++I) {
     // FIXME: Currently, the number of instructions in a function regardless of
     // our ability to simplify them during inline to constants or dead code,
@@ -891,6 +897,10 @@ bool CallAnalyzer::analyzeBlock(BasicBlock *BB) {
     // instructions shouldn't factor into the cost computation, but until then,
     // hack around it here.
     if (isa<DbgInfoIntrinsic>(I))
+      continue;
+
+    // Skip ephemeral values.
+    if (EphValues.count(I))
       continue;
 
     ++NumInstructions;
@@ -967,7 +977,7 @@ ConstantInt *CallAnalyzer::stripAndComputeInBoundsConstantOffsets(Value *&V) {
       break;
     }
     assert(V->getType()->isPointerTy() && "Unexpected operand type!");
-  } while (Visited.insert(V));
+  } while (Visited.insert(V).second);
 
   Type *IntPtrTy = DL->getIntPtrType(V->getContext());
   return cast<ConstantInt>(ConstantInt::get(IntPtrTy, Offset));
@@ -1096,6 +1106,12 @@ bool CallAnalyzer::analyzeCall(CallSite CS) {
   NumConstantOffsetPtrArgs = ConstantOffsetPtrs.size();
   NumAllocaArgs = SROAArgValues.size();
 
+  // FIXME: If a caller has multiple calls to a callee, we end up recomputing
+  // the ephemeral values multiple times (and they're completely determined by
+  // the callee, so this is purely duplicate work).
+  SmallPtrSet<const Value *, 32> EphValues;
+  CodeMetrics::collectEphemeralValues(&F, &ACT->getAssumptionCache(F), EphValues);
+
   // The worklist of live basic blocks in the callee *after* inlining. We avoid
   // adding basic blocks of the callee which can be proven to be dead for this
   // particular call site in order to get more accurate cost estimates. This
@@ -1129,7 +1145,7 @@ bool CallAnalyzer::analyzeCall(CallSite CS) {
 
     // Analyze the cost of this block. If we blow through the threshold, this
     // returns false, and we can bail on out.
-    if (!analyzeBlock(BB)) {
+    if (!analyzeBlock(BB, EphValues)) {
       if (IsRecursiveCall || ExposesReturnsTwice || HasDynamicAlloca ||
           HasIndirectBr)
         return false;
@@ -1217,6 +1233,7 @@ void CallAnalyzer::dump() {
 INITIALIZE_PASS_BEGIN(InlineCostAnalysis, "inline-cost", "Inline Cost Analysis",
                       true, true)
 INITIALIZE_AG_DEPENDENCY(TargetTransformInfo)
+INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
 INITIALIZE_PASS_END(InlineCostAnalysis, "inline-cost", "Inline Cost Analysis",
                     true, true)
 
@@ -1228,12 +1245,14 @@ InlineCostAnalysis::~InlineCostAnalysis() {}
 
 void InlineCostAnalysis::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesAll();
+  AU.addRequired<AssumptionCacheTracker>();
   AU.addRequired<TargetTransformInfo>();
   CallGraphSCCPass::getAnalysisUsage(AU);
 }
 
 bool InlineCostAnalysis::runOnSCC(CallGraphSCC &SCC) {
   TTI = &getAnalysis<TargetTransformInfo>();
+  ACT = &getAnalysis<AssumptionCacheTracker>();
   return false;
 }
 
@@ -1290,7 +1309,8 @@ InlineCost InlineCostAnalysis::getInlineCost(CallSite CS, Function *Callee,
   DEBUG(llvm::dbgs() << "      Analyzing call of " << Callee->getName()
         << "...\n");
 
-  CallAnalyzer CA(Callee->getDataLayout(), *TTI, *Callee, Threshold);
+  CallAnalyzer CA(Callee->getDataLayout(), *TTI,
+                  ACT, *Callee, Threshold);
   bool ShouldInline = CA.analyzeCall(CS);
 
   DEBUG(CA.dump());

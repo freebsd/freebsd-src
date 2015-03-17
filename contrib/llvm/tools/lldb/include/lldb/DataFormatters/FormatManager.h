@@ -86,6 +86,18 @@ public:
         m_categories_map.Disable(category);
     }
     
+    void
+    EnableAllCategories ()
+    {
+        m_categories_map.EnableAllCategories ();
+    }
+    
+    void
+    DisableAllCategories ()
+    {
+        m_categories_map.DisableAllCategories ();
+    }
+    
     bool
     DeleteCategory (const ConstString& category_name)
     {
@@ -148,6 +160,9 @@ public:
     GetSyntheticChildrenForType (lldb::TypeNameSpecifierImplSP type_sp);
 #endif
     
+    lldb::TypeValidatorImplSP
+    GetValidatorForType (lldb::TypeNameSpecifierImplSP type_sp);
+    
     lldb::TypeFormatImplSP
     GetFormat (ValueObject& valobj,
                lldb::DynamicValueType use_dynamic);
@@ -161,6 +176,10 @@ public:
     GetSyntheticChildren (ValueObject& valobj,
                           lldb::DynamicValueType use_dynamic);
 #endif
+    
+    lldb::TypeValidatorImplSP
+    GetValidator (ValueObject& valobj,
+                  lldb::DynamicValueType use_dynamic);
     
     bool
     AnyMatches (ConstString type_name,
@@ -272,6 +291,7 @@ private:
     HardcodedFormatterFinders<TypeFormatImpl> m_hardcoded_formats;
     HardcodedFormatterFinders<TypeSummaryImpl> m_hardcoded_summaries;
     HardcodedFormatterFinders<SyntheticChildren> m_hardcoded_synthetics;
+    HardcodedFormatterFinders<TypeValidatorImpl> m_hardcoded_validators;
     
     lldb::TypeFormatImplSP
     GetHardcodedFormat (ValueObject&,lldb::DynamicValueType);
@@ -281,6 +301,9 @@ private:
 
     lldb::SyntheticChildrenSP
     GetHardcodedSyntheticChildren (ValueObject&,lldb::DynamicValueType);
+    
+    lldb::TypeValidatorImplSP
+    GetHardcodedValidator (ValueObject&,lldb::DynamicValueType);
     
     TypeCategoryMap&
     GetCategories ()

@@ -33,8 +33,10 @@
 #include "lldb/Interpreter/OptionGroupValueObjectDisplay.h"
 #include "lldb/Interpreter/OptionValueString.h"
 #include "lldb/Symbol/TypeList.h"
+#include "lldb/Target/MemoryHistory.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/StackFrame.h"
+#include "lldb/Target/Thread.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -612,7 +614,16 @@ protected:
         }
 
         size_t item_count = m_format_options.GetCountValue().GetCurrentValue();
-        size_t item_byte_size = m_format_options.GetByteSizeValue().GetCurrentValue();
+
+        // TODO For non-8-bit byte addressable architectures this needs to be
+        // revisited to fully support all lldb's range of formatting options.
+        // Furthermore code memory reads (for those architectures) will not
+        // be correctly formatted even w/o formatting options.
+        size_t item_byte_size =
+            target->GetArchitecture().GetDataByteSize() > 1 ?
+            target->GetArchitecture().GetDataByteSize() :
+            m_format_options.GetByteSizeValue().GetCurrentValue();
+
         const size_t num_per_line = m_memory_options.m_num_per_line.GetCurrentValue();
 
         if (total_byte_size == 0)
@@ -659,7 +670,7 @@ protected:
             total_byte_size = end_addr - addr;
             item_count = total_byte_size / item_byte_size;
         }
-        
+
         uint32_t max_unforced_size = target->GetMaximumMemReadSize();
         
         if (total_byte_size > max_unforced_size && !m_memory_options.m_force)
@@ -856,7 +867,8 @@ protected:
         result.SetStatus(eReturnStatusSuccessFinishResult);
         DataExtractor data (data_sp, 
                             target->GetArchitecture().GetByteOrder(), 
-                            target->GetArchitecture().GetAddressByteSize());
+                            target->GetArchitecture().GetAddressByteSize(),
+                            target->GetArchitecture().GetDataByteSize());
         
         Format format = m_format_options.GetFormat();
         if ( ( (format == eFormatChar) || (format == eFormatCharPrintable) )
@@ -890,7 +902,7 @@ protected:
                                          format,
                                          item_byte_size,
                                          item_count,
-                                         num_per_line,
+                                         num_per_line / target->GetArchitecture().GetDataByteSize(),
                                          addr,
                                          0,
                                          0,
@@ -1078,7 +1090,7 @@ protected:
       lldb::addr_t high_addr = Args::StringToAddress(&m_exe_ctx, command.GetArgumentAtIndex(1),LLDB_INVALID_ADDRESS,&error);
       if (high_addr == LLDB_INVALID_ADDRESS || error.Fail())
       {
-          result.AppendError("invalid low address");
+          result.AppendError("invalid high address");
           return false;
       }
 
@@ -1667,6 +1679,96 @@ protected:
     OptionGroupWriteMemory m_memory_options;
 };
 
+//----------------------------------------------------------------------
+// Get malloc/free history of a memory address.
+//----------------------------------------------------------------------
+class CommandObjectMemoryHistory : public CommandObjectParsed
+{
+public:
+    
+    CommandObjectMemoryHistory (CommandInterpreter &interpreter) :
+    CommandObjectParsed (interpreter,
+                         "memory history",
+                         "Prints out the recorded stack traces for allocation/deallocation of a memory address.",
+                         NULL,
+                         eFlagRequiresTarget | eFlagRequiresProcess | eFlagProcessMustBePaused | eFlagProcessMustBeLaunched)
+    {
+        CommandArgumentEntry arg1;
+        CommandArgumentData addr_arg;
+        
+        // Define the first (and only) variant of this arg.
+        addr_arg.arg_type = eArgTypeAddress;
+        addr_arg.arg_repetition = eArgRepeatPlain;
+        
+        // There is only one variant this argument could be; put it into the argument entry.
+        arg1.push_back (addr_arg);
+        
+        // Push the data for the first argument into the m_arguments vector.
+        m_arguments.push_back (arg1);
+    }
+    
+    virtual
+    ~CommandObjectMemoryHistory ()
+    {
+    }
+    
+    virtual const char *GetRepeatCommand (Args &current_command_args, uint32_t index)
+    {
+        return m_cmd_name.c_str();
+    }
+    
+protected:
+    virtual bool
+    DoExecute (Args& command, CommandReturnObject &result)
+    {
+        const size_t argc = command.GetArgumentCount();
+        
+        if (argc == 0 || argc > 1)
+        {
+            result.AppendErrorWithFormat ("%s takes an address expression", m_cmd_name.c_str());
+            result.SetStatus(eReturnStatusFailed);
+            return false;
+        }
+        
+        Error error;
+        lldb::addr_t addr = Args::StringToAddress (&m_exe_ctx,
+                                                   command.GetArgumentAtIndex(0),
+                                                   LLDB_INVALID_ADDRESS,
+                                                   &error);
+        
+        if (addr == LLDB_INVALID_ADDRESS)
+        {
+            result.AppendError("invalid address expression");
+            result.AppendError(error.AsCString());
+            result.SetStatus(eReturnStatusFailed);
+            return false;
+        }
+        
+        Stream *output_stream = &result.GetOutputStream();
+        
+        const ProcessSP &process_sp = m_exe_ctx.GetProcessSP();
+        const MemoryHistorySP &memory_history = MemoryHistory::FindPlugin(process_sp);
+        
+        if (! memory_history.get())
+        {
+            result.AppendError("no available memory history provider");
+            result.SetStatus(eReturnStatusFailed);
+            return false;
+        }
+        
+        HistoryThreads thread_list = memory_history->GetHistoryThreads(addr);
+        
+        for (auto thread : thread_list) {
+            thread->GetStatus(*output_stream, 0, UINT32_MAX, 0);
+        }
+        
+        result.SetStatus(eReturnStatusSuccessFinishResult);
+        
+        return true;
+    }
+    
+};
+
 
 //-------------------------------------------------------------------------
 // CommandObjectMemory
@@ -1681,6 +1783,7 @@ CommandObjectMemory::CommandObjectMemory (CommandInterpreter &interpreter) :
     LoadSubCommand ("find", CommandObjectSP (new CommandObjectMemoryFind (interpreter)));
     LoadSubCommand ("read",  CommandObjectSP (new CommandObjectMemoryRead (interpreter)));
     LoadSubCommand ("write", CommandObjectSP (new CommandObjectMemoryWrite (interpreter)));
+    LoadSubCommand ("history", CommandObjectSP (new CommandObjectMemoryHistory (interpreter)));
 }
 
 CommandObjectMemory::~CommandObjectMemory ()

@@ -6,7 +6,6 @@ MDOCMLDIR=	${.CURDIR}/../../contrib/mdocml
 PROG=	mandoc
 FILES=	example.style.css style.css
 FILESDIR=	${SHAREDIR}/mdocml
-LINKS=	mdocml
 MAN=	mandoc.1 eqn.7 mandoc_char.7 tbl.7 man.7 mdoc.7 # roff.7
 MLINKS= mandoc.1 mdocml.1
 

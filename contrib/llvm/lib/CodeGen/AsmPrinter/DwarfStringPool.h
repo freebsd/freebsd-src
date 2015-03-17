@@ -7,13 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CODEGEN_ASMPRINTER_STRINGPOOL_H__
-#define CODEGEN_ASMPRINTER_STRINGPOOL_H__
+#ifndef LLVM_LIB_CODEGEN_ASMPRINTER_DWARFSTRINGPOOL_H
+#define LLVM_LIB_CODEGEN_ASMPRINTER_DWARFSTRINGPOOL_H
 
 #include "llvm/ADT/StringMap.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/Support/Allocator.h"
-
 #include <utility>
 
 namespace llvm {
@@ -28,18 +27,13 @@ class StringRef;
 class DwarfStringPool {
   StringMap<std::pair<MCSymbol *, unsigned>, BumpPtrAllocator &> Pool;
   StringRef Prefix;
-  MCSymbol *SectionSymbol;
 
 public:
   DwarfStringPool(BumpPtrAllocator &A, AsmPrinter &Asm, StringRef Prefix)
-      : Pool(A), Prefix(Prefix), SectionSymbol(Asm.GetTempSymbol(Prefix)) {}
+      : Pool(A), Prefix(Prefix) {}
 
   void emit(AsmPrinter &Asm, const MCSection *StrSection,
-            const MCSection *OffsetSection = nullptr,
-            const MCSymbol *StrSecSym = nullptr);
-
-  /// \brief Returns the entry into the start of the pool.
-  MCSymbol *getSectionSymbol();
+            const MCSection *OffsetSection = nullptr);
 
   /// \brief Returns an entry into the string pool with the given
   /// string text.

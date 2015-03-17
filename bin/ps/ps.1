@@ -381,12 +381,12 @@ the real memory (resident set) size of the process (in 1024 byte units).
 The time the command started.
 If the command started less than 24 hours ago, the start time is
 displayed using the
-.Dq Li %l:ps.1p
+.Dq Li %H:%M
 format described in
 .Xr strftime 3 .
 If the command started less than 7 days ago, the start time is
 displayed using the
-.Dq Li %a6.15p
+.Dq Li %a%H
 format.
 Otherwise, the start time is displayed using the
 .Dq Li %e%b%y

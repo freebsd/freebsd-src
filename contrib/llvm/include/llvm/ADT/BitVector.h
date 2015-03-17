@@ -239,6 +239,7 @@ public:
   }
 
   BitVector &set(unsigned Idx) {
+    assert(Bits && "Bits never allocated");
     Bits[Idx / BITWORD_SIZE] |= BitWord(1) << (Idx % BITWORD_SIZE);
     return *this;
   }
@@ -450,6 +451,7 @@ public:
 
     // Grow the bitvector to have enough elements.
     Capacity = RHSWords;
+    assert(Capacity > 0 && "negative capacity?");
     BitWord *NewBits = (BitWord *)std::malloc(Capacity * sizeof(BitWord));
     std::memcpy(NewBits, RHS.Bits, Capacity * sizeof(BitWord));
 
@@ -545,6 +547,7 @@ private:
 
   void grow(unsigned NewSize) {
     Capacity = std::max(NumBitWords(NewSize), Capacity * 2);
+    assert(Capacity > 0 && "realloc-ing zero space");
     Bits = (BitWord *)std::realloc(Bits, Capacity * sizeof(BitWord));
 
     clear_unused_bits();

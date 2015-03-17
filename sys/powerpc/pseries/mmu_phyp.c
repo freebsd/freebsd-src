@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
-#include <sys/rwlock.h>
+#include <sys/rmlock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 
 extern int n_slbs;
 
-static struct rwlock mphyp_eviction_lock;
+static struct rmlock mphyp_eviction_lock;
 
 /*
  * Kernel MMU interface
@@ -119,7 +119,7 @@ mphyp_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	phandle_t dev, node, root;
 	int idx, len, res;
 
-	rw_init(&mphyp_eviction_lock, "pte eviction");
+	rm_init(&mphyp_eviction_lock, "pte eviction");
 
 	moea64_early_bootstrap(mmup, kernelstart, kernelend);
 
@@ -262,6 +262,7 @@ mphyp_pte_synch(mmu_t mmu, struct pvo_entry *pvo)
 static int64_t
 mphyp_pte_clear(mmu_t mmu, struct pvo_entry *pvo, uint64_t ptebit)
 {
+	struct rm_priotracker track;
 	int64_t refchg;
 	uint64_t ptelo, junk;
 	int err;
@@ -274,11 +275,11 @@ mphyp_pte_clear(mmu_t mmu, struct pvo_entry *pvo, uint64_t ptebit)
 	 * shared eviction lock.
 	 */
 	PMAP_LOCK_ASSERT(pvo->pvo_pmap, MA_OWNED);
-	rw_rlock(&mphyp_eviction_lock);
+	rm_rlock(&mphyp_eviction_lock, &track);
 
 	refchg = mphyp_pte_synch(mmu, pvo);
 	if (refchg < 0) {
-		rw_runlock(&mphyp_eviction_lock);
+		rm_runlock(&mphyp_eviction_lock, &track);
 		return (refchg);
 	}
 
@@ -288,7 +289,7 @@ mphyp_pte_clear(mmu_t mmu, struct pvo_entry *pvo, uint64_t ptebit)
 		 * Pessimistically claim that, once modified, it stays so
 		 * forever and that it is never referenced.
 		 */
-		rw_runlock(&mphyp_eviction_lock);
+		rm_runlock(&mphyp_eviction_lock, &track);
 		return (refchg & ~LPTE_REF);
 	}
 
@@ -307,7 +308,7 @@ mphyp_pte_clear(mmu_t mmu, struct pvo_entry *pvo, uint64_t ptebit)
 		refchg |= (ptelo & LPTE_REF);
 	}
 
-	rw_runlock(&mphyp_eviction_lock);
+	rm_runlock(&mphyp_eviction_lock, &track);
 
 	return (refchg);
 }
@@ -376,6 +377,7 @@ mphyp_pte_spillable_ident(uintptr_t ptegbase, struct lpte *to_evict)
 static int
 mphyp_pte_insert(mmu_t mmu, struct pvo_entry *pvo)
 {
+	struct rm_priotracker track;
 	int64_t result;
 	struct lpte evicted, pte;
 	uint64_t index, junk, lastptelo;
@@ -387,7 +389,7 @@ mphyp_pte_insert(mmu_t mmu, struct pvo_entry *pvo)
 	evicted.pte_hi = 0;
 
 	/* Make sure further insertion is locked out during evictions */
-	rw_rlock(&mphyp_eviction_lock);
+	rm_rlock(&mphyp_eviction_lock, &track);
 
 	/*
 	 * First try primary hash.
@@ -396,7 +398,7 @@ mphyp_pte_insert(mmu_t mmu, struct pvo_entry *pvo)
 	result = phyp_pft_hcall(H_ENTER, 0, pvo->pvo_pte.slot, pte.pte_hi,
 	    pte.pte_lo, &index, &evicted.pte_lo, &junk);
 	if (result == H_SUCCESS) {
-		rw_runlock(&mphyp_eviction_lock);
+		rm_runlock(&mphyp_eviction_lock, &track);
 		pvo->pvo_pte.slot = index;
 		return (0);
 	}
@@ -414,7 +416,7 @@ mphyp_pte_insert(mmu_t mmu, struct pvo_entry *pvo)
 	result = phyp_pft_hcall(H_ENTER, 0, pvo->pvo_pte.slot,
 	    pte.pte_hi, pte.pte_lo, &index, &evicted.pte_lo, &junk);
 	if (result == H_SUCCESS) {
-		rw_runlock(&mphyp_eviction_lock);
+		rm_runlock(&mphyp_eviction_lock, &track);
 		pvo->pvo_pte.slot = index;
 		return (0);
 	}
@@ -426,10 +428,8 @@ mphyp_pte_insert(mmu_t mmu, struct pvo_entry *pvo)
 	 */
 
 	/* Lock out all insertions for a bit */
-	if (!rw_try_upgrade(&mphyp_eviction_lock)) {
-		rw_runlock(&mphyp_eviction_lock);
-		rw_wlock(&mphyp_eviction_lock);
-	}
+	rm_runlock(&mphyp_eviction_lock, &track);
+	rm_wlock(&mphyp_eviction_lock);
 
 	index = mphyp_pte_spillable_ident(pvo->pvo_pte.slot, &evicted);
 	if (index == -1L) {
@@ -442,7 +442,7 @@ mphyp_pte_insert(mmu_t mmu, struct pvo_entry *pvo)
 
 	if (index == -1L) {
 		/* No freeable slots in either PTEG? We're hosed. */
-		rw_wunlock(&mphyp_eviction_lock);
+		rm_wunlock(&mphyp_eviction_lock);
 		panic("mphyp_pte_insert: overflow");
 		return (-1);
 	}
@@ -462,7 +462,7 @@ mphyp_pte_insert(mmu_t mmu, struct pvo_entry *pvo)
 	 */
 	result = phyp_pft_hcall(H_ENTER, H_EXACT, index, pte.pte_hi,
 	    pte.pte_lo, &index, &evicted.pte_lo, &junk);
-	rw_wunlock(&mphyp_eviction_lock); /* All clear */
+	rm_wunlock(&mphyp_eviction_lock); /* All clear */
 
 	pvo->pvo_pte.slot = index;
 	if (result == H_SUCCESS)

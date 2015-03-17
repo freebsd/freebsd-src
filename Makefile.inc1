@@ -1240,8 +1240,8 @@ STAGEDIR=	${MAKEOBJDIRPREFIX}${.CURDIR}/stage
 packages:
 	@mkdir -p ${MAKEOBJDIRPREFIX}${.CURDIR}/stage
 	${_+_}@cd ${.CURDIR}; \
-		${MAKE} buildworld >/dev/null ; \
-		${MAKE} DESTDIR=${DESTDIR:U${STAGEDIR}} -DNO_ROOT stageworld >/dev/null ; \
+		${MAKE} buildworld ; \
+		${MAKE} DESTDIR=${DESTDIR:U${STAGEDIR}} -DNO_ROOT stageworld ; \
 		${MAKE} DESTDIR=${DESTDIR:U${STAGEDIR}} create-world-packages
 
 kernel-pkgs:
@@ -1803,6 +1803,10 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 _prebuild_libs+= gnu/lib/libstdc++ gnu/lib/libsupc++
 gnu/lib/libstdc++__L: lib/msun__L
 gnu/lib/libsupc++__L: gnu/lib/libstdc++__L
+.endif
+
+.if ${MK_LIBCPLUSPLUS} != "no"
+_prebuild_libs+= lib/libc++
 .endif
 
 lib/libgeom__L: lib/libexpat__L

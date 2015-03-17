@@ -44,6 +44,18 @@ void FlushUnneededShadowMemory(uptr addr, uptr size) {
   madvise((void*)addr, size, MADV_DONTNEED);
 }
 
+void NoHugePagesInRegion(uptr addr, uptr size) {
+#ifdef MADV_NOHUGEPAGE  // May not be defined on old systems.
+  madvise((void *)addr, size, MADV_NOHUGEPAGE);
+#endif  // MADV_NOHUGEPAGE
+}
+
+void DontDumpShadowMemory(uptr addr, uptr length) {
+#ifdef MADV_DONTDUMP
+  madvise((void *)addr, length, MADV_DONTDUMP);
+#endif
+}
+
 static rlim_t getlim(int res) {
   rlimit rlim;
   CHECK_EQ(0, getrlimit(res, &rlim));
