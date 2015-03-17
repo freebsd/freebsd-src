@@ -45,6 +45,12 @@
 #include <netinet/in_rss.h>
 #endif
 
+#ifdef DEV_NETMAP
+#include <net/netmap.h>
+#include <sys/selinfo.h>
+#include <dev/netmap/netmap_kern.h>
+#endif
+
 /*
 ** HW RSC control:
 **  this feature only works with
@@ -1233,6 +1239,7 @@ ixgbe_setup_hw_rsc(struct rx_ring *rxr)
 	rdrxctl = IXGBE_READ_REG(hw, IXGBE_RDRXCTL);
 	rdrxctl &= ~IXGBE_RDRXCTL_RSCFRSTSIZE;
 #ifdef DEV_NETMAP /* crcstrip is optional in netmap */
+	extern int ix_crcstrip;
 	if (adapter->ifp->if_capenable & IFCAP_NETMAP && !ix_crcstrip)
 #endif /* DEV_NETMAP */
 	rdrxctl |= IXGBE_RDRXCTL_CRCSTRIP;
