@@ -774,7 +774,6 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 
 	KASSERT(overlay != NULL, ("No overlay ?"));
 	DRM_LOCK_ASSERT(overlay->dev);
-	DRM_MODE_CONFIG_ASSERT_LOCKED(overlay->dev);
 
 	ret = intel_overlay_release_old_vid(overlay);
 	if (ret != 0)
@@ -877,7 +876,6 @@ int intel_overlay_switch_off(struct intel_overlay *overlay)
 	int ret;
 
 	DRM_LOCK_ASSERT(overlay->dev);
-	DRM_MODE_CONFIG_ASSERT_LOCKED(overlay->dev);
 
 	ret = intel_overlay_recover_from_interrupt(overlay);
 	if (ret != 0)
@@ -1458,8 +1456,8 @@ void intel_setup_overlay(struct drm_device *dev)
 	intel_overlay_unmap_regs(overlay, regs);
 
 	dev_priv->overlay = overlay;
-	DRM_INFO("initialized overlay support\n");
 	DRM_UNLOCK(dev);
+	DRM_INFO("initialized overlay support\n");
 	return;
 
 out_unpin_bo:
