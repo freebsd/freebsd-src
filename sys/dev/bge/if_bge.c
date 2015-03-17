@@ -3934,7 +3934,7 @@ again:
 		ifat.ifat_capenable &= ~IFCAP_HWCSUM;
 		ifat.ifat_hwassist = 0;
 	}
-	sc->bge_capenable = ifat.ifat_capenable;
+	sc->bge_capenable = ifat.ifat_capenable & ~(IFCAP_POLLING);
 	sc->bge_mtu = ETHERMTU;
 	sc->bge_ifp = if_attach(&ifat);
 

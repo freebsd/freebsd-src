@@ -2963,7 +2963,8 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 	** Don't enable LRO by default.
         */
 	adapter->if_capenable = ifat.ifat_capenable =
-	    ifat.ifat_capabilities & ~(IFCAP_LRO | IFCAP_VLAN_HWFILTER);
+	    ifat.ifat_capabilities &
+	    ~(IFCAP_LRO | IFCAP_VLAN_HWFILTER | IFCAP_POLLING);
 
 	adapter->ifp = if_attach(&ifat);
 
