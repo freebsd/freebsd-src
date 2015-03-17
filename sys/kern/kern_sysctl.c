@@ -1807,6 +1807,9 @@ sbuf_new_for_sysctl(struct sbuf *s, char *buf, int length,
     struct sysctl_req *req)
 {
 
+	/* Supply a default buffer size if none given. */
+	if (buf == NULL && length == 0)
+		length = 64;
 	s = sbuf_new(s, buf, length, SBUF_FIXEDLEN | SBUF_INCLUDENUL);
 	sbuf_set_drain(s, sbuf_sysctl_drain, req);
 	return (s);
