@@ -175,6 +175,8 @@ SUBDIR=	\
 	${_iwn} \
 	${_iwnfw} \
 	${_ixgb} \
+	${_ix} \
+	${_ixv} \
 	${_ixl} \
 	${_ixlv} \
 	jme \

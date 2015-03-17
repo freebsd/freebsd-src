@@ -285,7 +285,7 @@ ixv_attach(device_t dev)
 
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-			OID_AUTO, "enable_aim", CTLTYPE_INT|CTLFLAG_RW,
+			OID_AUTO, "enable_aim", CTLFLAG_RW,
 			&ixv_enable_aim, 1, "Interrupt Moderation");
 
 	/* Set up the timer callout */
