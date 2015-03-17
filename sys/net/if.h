@@ -592,10 +592,8 @@ typedef void	(*if_qflush_t)(if_t);
 typedef int	(*if_resolvemulti_t)(if_t, struct sockaddr **,
     struct sockaddr *);
 typedef void	(*if_reassign_t)(if_t, struct vnet *);
-#ifdef DEVICE_POLLING
 enum poll_cmd { POLL_ONLY, POLL_AND_CHECK_STATUS };
-typedef int	(*if_poll_t)(if_t ifp, enum poll_cmd cmd, int count);
-#endif
+typedef int	(*if_poll_t)(if_t, enum poll_cmd, int);
 
 /*
  * Interface methods.  Usually stored in ifdriver definition, however
@@ -606,9 +604,7 @@ struct ifops {
 	if_input_t	ifop_input;	/* input routine (from h/w driver) */
 	if_transmit_t	ifop_transmit;	/* initiate output routine */
 	if_output_t	ifop_output;
-#ifdef DEVICE_POLLING
 	if_poll_t	ifop_poll;
-#endif
 	if_ioctl_t	ifop_ioctl;	/* ioctl routine */
 	if_get_counter_t ifop_get_counter; /* get counter values */
 	if_qflush_t	ifop_qflush;	/* flush any queue */	
