@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/limits.h>
+#include <sys/syslog.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -58,20 +59,38 @@ __FBSDID("$FreeBSD$");
 
 #ifdef SFXGE_LRO
 
+SYSCTL_NODE(_hw_sfxge, OID_AUTO, lro, CTLFLAG_RD, NULL,
+	    "Large receive offload (LRO) parameters");
+
+#define	SFXGE_LRO_PARAM(_param)	SFXGE_PARAM(lro._param)
+
 /* Size of the LRO hash table.  Must be a power of 2.  A larger table
  * means we can accelerate a larger number of streams.
  */
 static unsigned lro_table_size = 128;
+TUNABLE_INT(SFXGE_LRO_PARAM(table_size), &lro_table_size);
+SYSCTL_UINT(_hw_sfxge_lro, OID_AUTO, table_size, CTLFLAG_RDTUN,
+	    &lro_table_size, 0,
+	    "Size of the LRO hash table (must be a power of 2)");
 
 /* Maximum length of a hash chain.  If chains get too long then the lookup
  * time increases and may exceed the benefit of LRO.
  */
 static unsigned lro_chain_max = 20;
+TUNABLE_INT(SFXGE_LRO_PARAM(chain_max), &lro_chain_max);
+SYSCTL_UINT(_hw_sfxge_lro, OID_AUTO, chain_max, CTLFLAG_RDTUN,
+	    &lro_chain_max, 0,
+	    "The maximum length of a hash chain");
 
 /* Maximum time (in ticks) that a connection can be idle before it's LRO
  * state is discarded.
  */
 static unsigned lro_idle_ticks; /* initialised in sfxge_rx_init() */
+TUNABLE_INT(SFXGE_LRO_PARAM(idle_ticks), &lro_idle_ticks);
+SYSCTL_UINT(_hw_sfxge_lro, OID_AUTO, idle_ticks, CTLFLAG_RDTUN,
+	    &lro_idle_ticks, 0,
+	    "The maximum time (in ticks) that a connection can be idle "
+	    "before it's LRO state is discarded");
 
 /* Number of packets with payload that must arrive in-order before a
  * connection is eligible for LRO.  The idea is we should avoid coalescing
@@ -79,6 +98,11 @@ static unsigned lro_idle_ticks; /* initialised in sfxge_rx_init() */
  * can damage performance.
  */
 static int lro_slow_start_packets = 2000;
+TUNABLE_INT(SFXGE_LRO_PARAM(slow_start_packets), &lro_slow_start_packets);
+SYSCTL_UINT(_hw_sfxge_lro, OID_AUTO, slow_start_packets, CTLFLAG_RDTUN,
+	    &lro_slow_start_packets, 0,
+	    "Number of packets with payload that must arrive in-order before "
+	    "a connection is eligible for LRO");
 
 /* Number of packets with payload that must arrive in-order following loss
  * before a connection is eligible for LRO.  The idea is we should avoid
@@ -86,6 +110,11 @@ static int lro_slow_start_packets = 2000;
  * reducing the ACK rate can damage performance.
  */
 static int lro_loss_packets = 20;
+TUNABLE_INT(SFXGE_LRO_PARAM(loss_packets), &lro_loss_packets);
+SYSCTL_UINT(_hw_sfxge_lro, OID_AUTO, loss_packets, CTLFLAG_RDTUN,
+	    &lro_loss_packets, 0,
+	    "Number of packets with payload that must arrive in-order "
+	    "following loss before a connection is eligible for LRO");
 
 /* Flags for sfxge_lro_conn::l2_id; must not collide with EVL_VLID_MASK */
 #define	SFXGE_LRO_L2_ID_VLAN 0x4000
@@ -1239,6 +1268,13 @@ sfxge_rx_init(struct sfxge_softc *sc)
 	int rc;
 
 #ifdef SFXGE_LRO
+	if (!ISP2(lro_table_size)) {
+		log(LOG_ERR, "%s=%u must be power of 2",
+		    SFXGE_LRO_PARAM(table_size), lro_table_size);
+		rc = EINVAL;
+		goto fail_lro_table_size;
+	}
+
 	if (lro_idle_ticks == 0)
 		lro_idle_ticks = hz / 10 + 1; /* 100 ms */
 #endif
@@ -1266,5 +1302,9 @@ fail:
 		sfxge_rx_qfini(sc, index);
 
 	sc->rxq_count = 0;
+
+#ifdef SFXGE_LRO
+fail_lro_table_size:
+#endif
 	return (rc);
 }
