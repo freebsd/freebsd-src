@@ -11,7 +11,7 @@ SRCS+=	opt_inet.h opt_inet6.h opt_sched.h
 SRCS+=	sfxge.c sfxge_dma.c sfxge_ev.c
 SRCS+=	sfxge_intr.c sfxge_mcdi.c
 SRCS+=	sfxge_port.c sfxge_rx.c sfxge_tx.c
-SRCS+=	sfxge.h sfxge_rx.h sfxge_tx.h
+SRCS+=	sfxge.h sfxge_rx.h sfxge_tx.h sfxge_version.h
 
 .PATH: ${.CURDIR}/../../dev/sfxge/common
 SRCS+=	efx_ev.c efx_intr.c efx_mac.c efx_mcdi.c efx_nic.c 

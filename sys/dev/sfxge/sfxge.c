@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include "sfxge.h"
 #include "sfxge_rx.h"
+#include "sfxge_version.h"
 
 #define	SFXGE_CAP (IFCAP_VLAN_MTU | \
 		   IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM | IFCAP_TSO |	\
@@ -474,6 +475,12 @@ sfxge_create(struct sfxge_softc *sc)
 	/* Probe the NIC and build the configuration data area. */
 	if ((error = efx_nic_probe(enp)) != 0)
 		goto fail5;
+
+	SYSCTL_ADD_STRING(device_get_sysctl_ctx(dev),
+			  SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+			  OID_AUTO, "version", CTLFLAG_RD,
+			  SFXGE_VERSION_STRING, 0,
+			  "Driver version");
 
 	/* Initialize the NVRAM. */
 	if ((error = efx_nvram_init(enp)) != 0)
