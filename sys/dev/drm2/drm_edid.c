@@ -1536,11 +1536,11 @@ EXPORT_SYMBOL(drm_find_cea_extension);
  */
 u8 drm_match_cea_mode(struct drm_display_mode *to_match)
 {
-	struct drm_display_mode *cea_mode;
+	const struct drm_display_mode *cea_mode;
 	u8 mode;
 
 	for (mode = 0; mode < drm_num_cea_modes; mode++) {
-		cea_mode = (struct drm_display_mode *)&edid_cea_modes[mode];
+		cea_mode = (const struct drm_display_mode *)&edid_cea_modes[mode];
 
 		if (drm_mode_equal(to_match, cea_mode))
 			return mode + 1;
