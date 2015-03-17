@@ -665,7 +665,7 @@ intel_dp_i2c_init(struct intel_dp *intel_dp,
 	DRM_DEBUG_KMS("i2c_init %s\n", name);
 
 	ironlake_edp_panel_vdd_on(intel_dp);
-	ret = iic_dp_aux_add_bus(intel_connector->base.dev->device, name,
+	ret = iic_dp_aux_add_bus(intel_connector->base.dev->dev, name,
 	    intel_dp_i2c_aux_ch, intel_dp, &intel_dp->dp_iic_bus,
 	    &intel_dp->adapter);
 	ironlake_edp_panel_vdd_off(intel_dp, false);
@@ -673,7 +673,7 @@ intel_dp_i2c_init(struct intel_dp *intel_dp,
 }
 
 static bool
-intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
+intel_dp_mode_fixup(struct drm_encoder *encoder, const struct drm_display_mode *mode,
 		    struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
@@ -688,11 +688,6 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		intel_fixed_panel_mode(intel_dp->panel_fixed_mode, adjusted_mode);
 		intel_pch_panel_fitting(dev, DRM_MODE_SCALE_FULLSCREEN,
 					mode, adjusted_mode);
-		/*
-		 * the mode->clock is used to calculate the Data&Link M/N
-		 * of the pipe. For the eDP the fixed clock should be used.
-		 */
-		mode->clock = intel_dp->panel_fixed_mode->clock;
 	}
 
 	DRM_DEBUG_KMS("DP link computation with max lane count %i "
@@ -703,7 +698,7 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		return false;
 
 	bpp = adjusted_mode->private_flags & INTEL_MODE_DP_FORCE_6BPC ? 18 : 24;
-	mode_rate = intel_dp_link_required(mode->clock, bpp);
+	mode_rate = intel_dp_link_required(adjusted_mode->clock, bpp);
 
 	for (lane_count = 1; lane_count <= max_lane_count; lane_count <<= 1) {
 		for (clock = 0; clock <= max_clock; clock++) {
@@ -2151,7 +2146,6 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 		edid = intel_dp_get_edid(connector, intel_dp->adapter);
 		if (edid) {
 			intel_dp->has_audio = drm_detect_monitor_audio(edid);
-			connector->display_info.raw_edid = NULL;
 			free(edid, DRM_MEM_KMS);
 		}
 	}
@@ -2217,7 +2211,6 @@ intel_dp_detect_audio(struct drm_connector *connector)
 	if (edid) {
 		has_audio = drm_detect_monitor_audio(edid);
 
-		connector->display_info.raw_edid = NULL;
 		free(edid, DRM_MEM_KMS);
 	}
 
@@ -2233,7 +2226,7 @@ intel_dp_set_property(struct drm_connector *connector,
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	int ret;
 
-	ret = drm_connector_property_set_value(connector, property, val);
+	ret = drm_object_property_set_value(&connector->base, property, val);
 	if (ret)
 		return ret;
 
@@ -2307,7 +2300,7 @@ static void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 			device_delete_child(intel_dp->dp_iic_bus,
 			    intel_dp->adapter);
 		}
-		device_delete_child(dev->device, intel_dp->dp_iic_bus);
+		device_delete_child(dev->dev, intel_dp->dp_iic_bus);
 	}
 	drm_encoder_cleanup(encoder);
 	if (is_edp(intel_dp)) {
