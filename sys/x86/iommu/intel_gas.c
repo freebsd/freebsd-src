@@ -366,7 +366,8 @@ dmar_gas_match_insert(struct dmar_gas_match_args *a,
 
 	next = RB_NEXT(dmar_gas_entries_tree, &a->ctx->rb_root, prev);
 	KASSERT(next->start >= a->entry->end &&
-	    next->start - a->entry->start >= a->size,
+	    next->start - a->entry->start >= a->size &&
+	    prev->end <= a->entry->end,
 	    ("dmar_gas_match_insert hole failed %p prev (%jx, %jx) "
 	    "free_after %jx next (%jx, %jx) entry (%jx, %jx)", a->ctx,
 	    (uintmax_t)prev->start, (uintmax_t)prev->end,
