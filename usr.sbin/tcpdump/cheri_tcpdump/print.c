@@ -44,6 +44,7 @@
 #include <netinet/in.h>
 
 #include <cheri/cheri_enter.h>
+#include <cheri/cheri_stack.h>
 #include <cheri/sandbox.h>
 
 #include <assert.h>
@@ -157,10 +158,13 @@ static struct tcpdump_sandbox *default_sandbox;
 static struct sandbox_class	*tcpdump_classp;
 
 static void
-handle_alarm(int sig)
+handle_alarm(int sig, siginfo_t *info __unused, void *vuap __unused)
 {
+
 	assert(sig == SIGALRM);
 	g_timeout_occured = 1;
+
+	cheri_unwind_stack();
 }
 
 static void
@@ -354,6 +358,9 @@ tcpdump_sandboxes_init(struct tcpdump_sandbox_list *list, int mode)
 		}
 		break;
 	case TDS_MODE_HASH_TCP:
+#ifdef TCPDUMP_BENCHMARKING
+		fprintf(stderr, "creating %d IP sandboxes\n", g_sandboxes);
+#endif
 		for (i = 0; i < g_sandboxes; i++) {
 			sb = tcpdump_sandbox_new(hash_names[i],
 			    hash_colors[i % N_HASH_COLORS],
@@ -474,8 +481,8 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 	    cheri_ptrperm((void *)data, hdr->caplen,
 		CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP));
 	if (g_timeout_occured) {
+		printf("<sandbox-timeout>");
 		/* XXX: dump hex here? */
-		printf("dissection terminated due to timeout (ret = %d)\n", ret);
 		tcpdump_sandbox_reset(sb);
 	} else if (g_timeout != 0)
 		ualarm(0, 0);
@@ -573,6 +580,7 @@ init_print(uint32_t localnet, uint32_t mask, uint32_t timezone_offset)
 	char *control_file;
 	int control_fd = -1, i;
 	stack_t sigstk;
+	struct sigaction sa;
 
 	if ((control_file = getenv("DEMO_CONTROL")) == NULL ||
 	    (control_fd = open(control_file, O_RDONLY)) == -1 ||
@@ -620,7 +628,11 @@ init_print(uint32_t localnet, uint32_t mask, uint32_t timezone_offset)
 	if (sigaltstack(&sigstk, NULL) < 0)
 		error("sigaltstack");
 
-	signal(SIGALRM, handle_alarm);
+	sa.sa_sigaction = handle_alarm;
+	sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
+	sigemptyset(&sa.sa_mask);
+	if (sigaction(SIGALRM, &sa, NULL) < 0)
+		error("sigaction(SIGALRM)");
 }
 
 int
