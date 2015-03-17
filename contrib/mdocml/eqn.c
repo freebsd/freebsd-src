@@ -1,4 +1,4 @@
-/*	$Id: eqn.c,v 1.57 2015/01/28 21:11:53 schwarze Exp $ */
+/*	$Id: eqn.c,v 1.58 2015/03/04 12:19:49 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -194,6 +194,7 @@ enum	eqn_symt {
 	EQNSYM_equiv,
 	EQNSYM_lessequal,
 	EQNSYM_moreequal,
+	EQNSYM_minus,
 	EQNSYM__MAX
 };
 
@@ -249,7 +250,7 @@ static	const struct eqnsym eqnsyms[EQNSYM__MAX] = {
 	{ "cdot", "pc" }, /* EQNSYM_cdot */
 	{ "nothing", "&" }, /* EQNSYM_nothing */
 	{ "approx", "~~" }, /* EQNSYM_approx */
-	{ "prime", "aq" }, /* EQNSYM_prime */
+	{ "prime", "fm" }, /* EQNSYM_prime */
 	{ "half", "12" }, /* EQNSYM_half */
 	{ "partial", "pd" }, /* EQNSYM_partial */
 	{ "inf", "if" }, /* EQNSYM_inf */
@@ -262,6 +263,7 @@ static	const struct eqnsym eqnsyms[EQNSYM__MAX] = {
 	{ "==", "==" }, /* EQNSYM_equiv */
 	{ "<=", "<=" }, /* EQNSYM_lessequal */
 	{ ">=", ">=" }, /* EQNSYM_moreequal */
+	{ "-", "mi" }, /* EQNSYM_minus */
 };
 
 static	struct eqn_box	*eqn_box_alloc(struct eqn_node *, struct eqn_box *);

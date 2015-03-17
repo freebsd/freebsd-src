@@ -6,33 +6,19 @@
 
 .if defined(NO_ROOT)
 .if !defined(TAGS) || ! ${TAGS:Mpackage=*}
-TAGS+=		package=${PACKAGE}
+TAGS+=         package=${PACKAGE}
 .endif
-TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
+TAG_ARGS=      -T ${TAGS:[*]:S/ /,/g}
 .endif
 
 afterinstall: _installlinks
 .ORDER: realinstall _installlinks
 _installlinks:
-.if defined(LINKS) && !empty(LINKS)
-	@set ${LINKS}; \
-	while test $$# -ge 2; do \
-		l=${DESTDIR}$$1; \
-		shift; \
-		t=${DESTDIR}$$1; \
-		shift; \
-		${ECHO} $$t -\> $$l; \
-		${INSTALL_LINK} ${TAG_ARGS} $$l $$t; \
-	done; true
-.endif
-.if defined(SYMLINKS) && !empty(SYMLINKS)
-	@set ${SYMLINKS}; \
-	while test $$# -ge 2; do \
-		l=$$1; \
-		shift; \
-		t=${DESTDIR}$$1; \
-		shift; \
-		${ECHO} $$t -\> $$l; \
-		${INSTALL_SYMLINK} ${TAG_ARGS} $$l $$t; \
-	done; true
-.endif
+.for s t in ${LINKS}
+	@${ECHO} "$t -> $s" ;\
+	${INSTALL_LINK} ${TAG_ARGS} ${DESTDIR}$s ${DESTDIR}$t
+.endfor
+.for s t in ${SYMLINKS}
+	@${ECHO} "$t -> $s" ;\
+	${INSTALL_SYMLINK} ${TAG_ARGS} $s ${DESTDIR}/$t
+.endfor

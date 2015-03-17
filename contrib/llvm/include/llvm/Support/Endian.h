@@ -93,14 +93,39 @@ struct packed_endian_specific_integral {
       (void*)Value.buffer, newValue);
   }
 
+  packed_endian_specific_integral &operator+=(value_type newValue) {
+    *this = *this + newValue;
+    return *this;
+  }
+
+  packed_endian_specific_integral &operator-=(value_type newValue) {
+    *this = *this - newValue;
+    return *this;
+  }
+
 private:
   AlignedCharArray<PickAlignment<value_type, alignment>::value,
                    sizeof(value_type)> Value;
+
+public:
+  struct ref {
+    explicit ref(void *Ptr) : Ptr(Ptr) {}
+
+    operator value_type() const {
+      return endian::read<value_type, endian, alignment>(Ptr);
+    }
+
+    void operator=(value_type NewValue) {
+      endian::write<value_type, endian, alignment>(Ptr, NewValue);
+    }
+
+  private:
+    void *Ptr;
+  };
 };
+
 } // end namespace detail
 
-typedef detail::packed_endian_specific_integral
-                  <uint8_t, little, unaligned>  ulittle8_t;
 typedef detail::packed_endian_specific_integral
                   <uint16_t, little, unaligned> ulittle16_t;
 typedef detail::packed_endian_specific_integral
@@ -109,16 +134,12 @@ typedef detail::packed_endian_specific_integral
                   <uint64_t, little, unaligned> ulittle64_t;
 
 typedef detail::packed_endian_specific_integral
-                   <int8_t, little, unaligned>  little8_t;
-typedef detail::packed_endian_specific_integral
                    <int16_t, little, unaligned> little16_t;
 typedef detail::packed_endian_specific_integral
                    <int32_t, little, unaligned> little32_t;
 typedef detail::packed_endian_specific_integral
                    <int64_t, little, unaligned> little64_t;
 
-typedef detail::packed_endian_specific_integral
-                    <uint8_t, little, aligned>  aligned_ulittle8_t;
 typedef detail::packed_endian_specific_integral
                     <uint16_t, little, aligned> aligned_ulittle16_t;
 typedef detail::packed_endian_specific_integral
@@ -127,16 +148,12 @@ typedef detail::packed_endian_specific_integral
                     <uint64_t, little, aligned> aligned_ulittle64_t;
 
 typedef detail::packed_endian_specific_integral
-                     <int8_t, little, aligned>  aligned_little8_t;
-typedef detail::packed_endian_specific_integral
                      <int16_t, little, aligned> aligned_little16_t;
 typedef detail::packed_endian_specific_integral
                      <int32_t, little, aligned> aligned_little32_t;
 typedef detail::packed_endian_specific_integral
                      <int64_t, little, aligned> aligned_little64_t;
 
-typedef detail::packed_endian_specific_integral
-                  <uint8_t, big, unaligned>     ubig8_t;
 typedef detail::packed_endian_specific_integral
                   <uint16_t, big, unaligned>    ubig16_t;
 typedef detail::packed_endian_specific_integral
@@ -145,8 +162,6 @@ typedef detail::packed_endian_specific_integral
                   <uint64_t, big, unaligned>    ubig64_t;
 
 typedef detail::packed_endian_specific_integral
-                   <int8_t, big, unaligned>     big8_t;
-typedef detail::packed_endian_specific_integral
                    <int16_t, big, unaligned>    big16_t;
 typedef detail::packed_endian_specific_integral
                    <int32_t, big, unaligned>    big32_t;
@@ -154,16 +169,12 @@ typedef detail::packed_endian_specific_integral
                    <int64_t, big, unaligned>    big64_t;
 
 typedef detail::packed_endian_specific_integral
-                    <uint8_t, big, aligned>     aligned_ubig8_t;
-typedef detail::packed_endian_specific_integral
                     <uint16_t, big, aligned>    aligned_ubig16_t;
 typedef detail::packed_endian_specific_integral
                     <uint32_t, big, aligned>    aligned_ubig32_t;
 typedef detail::packed_endian_specific_integral
                     <uint64_t, big, aligned>    aligned_ubig64_t;
 
-typedef detail::packed_endian_specific_integral
-                     <int8_t, big, aligned>     aligned_big8_t;
 typedef detail::packed_endian_specific_integral
                      <int16_t, big, aligned>    aligned_big16_t;
 typedef detail::packed_endian_specific_integral

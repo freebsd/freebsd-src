@@ -19,7 +19,7 @@
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Target/TargetLowering.h"
-#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "expand-isel-pseudos"
@@ -46,7 +46,7 @@ INITIALIZE_PASS(ExpandISelPseudos, "expand-isel-pseudos",
 
 bool ExpandISelPseudos::runOnMachineFunction(MachineFunction &MF) {
   bool Changed = false;
-  const TargetLowering *TLI = MF.getTarget().getTargetLowering();
+  const TargetLowering *TLI = MF.getSubtarget().getTargetLowering();
 
   // Iterate through each instruction in the function, looking for pseudos.
   for (MachineFunction::iterator I = MF.begin(), E = MF.end(); I != E; ++I) {

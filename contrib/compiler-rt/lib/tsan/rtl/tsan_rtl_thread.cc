@@ -111,12 +111,13 @@ void ThreadContext::OnStarted(void *arg) {
     thr->dd_pt = ctx->dd->CreatePhysicalThread();
     thr->dd_lt = ctx->dd->CreateLogicalThread(unique_id);
   }
+  thr->fast_state.SetHistorySize(flags()->history_size);
+  // Commit switch to the new part of the trace.
+  // TraceAddEvent will reset stack0/mset0 in the new part for us.
+  TraceAddEvent(thr, thr->fast_state, EventTypeMop, 0);
+
   thr->fast_synch_epoch = epoch0;
   AcquireImpl(thr, 0, &sync);
-  thr->fast_state.SetHistorySize(flags()->history_size);
-  const uptr trace = (epoch0 / kTracePartSize) % TraceParts();
-  Trace *thr_trace = ThreadTrace(thr->tid);
-  thr_trace->headers[trace].epoch0 = epoch0;
   StatInc(thr, StatSyncAcquire);
   sync.Reset(&thr->clock_cache);
   DPrintf("#%d: ThreadStart epoch=%zu stk_addr=%zx stk_size=%zx "
@@ -144,7 +145,9 @@ void ThreadContext::OnFinished() {
   AllocatorThreadFinish(thr);
 #endif
   thr->~ThreadState();
+#if TSAN_COLLECT_STATS
   StatAggregate(ctx->stat, thr->stat);
+#endif
   thr = 0;
 }
 
@@ -238,6 +241,7 @@ void ThreadStart(ThreadState *thr, int tid, uptr os_id) {
   uptr stk_size = 0;
   uptr tls_addr = 0;
   uptr tls_size = 0;
+#ifndef SANITIZER_GO
   GetThreadStackAndTls(tid == 0, &stk_addr, &stk_size, &tls_addr, &tls_size);
 
   if (tid) {
@@ -258,6 +262,7 @@ void ThreadStart(ThreadState *thr, int tid, uptr os_id) {
           thr_end, tls_addr + tls_size - thr_end);
     }
   }
+#endif
 
   ThreadRegistry *tr = ctx->thread_registry;
   OnStartedArgs args = { thr, stk_addr, stk_size, tls_addr, tls_size };
@@ -329,7 +334,7 @@ void MemoryAccessRange(ThreadState *thr, uptr pc, uptr addr,
       thr->tid, (void*)pc, (void*)addr,
       (int)size, is_write);
 
-#if TSAN_DEBUG
+#if SANITIZER_DEBUG
   if (!IsAppMem(addr)) {
     Printf("Access to non app mem %zx\n", addr);
     DCHECK(IsAppMem(addr));

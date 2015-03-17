@@ -15,13 +15,24 @@
 #include "asan_poisoning.h"
 #include "asan_report.h"
 #include "asan_stack.h"
+#include "sanitizer_common/sanitizer_atomic.h"
 #include "sanitizer_common/sanitizer_libc.h"
 #include "sanitizer_common/sanitizer_flags.h"
 
 namespace __asan {
 
+static atomic_uint8_t can_poison_memory;
+
+void SetCanPoisonMemory(bool value) {
+  atomic_store(&can_poison_memory, value, memory_order_release);
+}
+
+bool CanPoisonMemory() {
+  return atomic_load(&can_poison_memory, memory_order_acquire);
+}
+
 void PoisonShadow(uptr addr, uptr size, u8 value) {
-  if (!flags()->poison_heap) return;
+  if (!CanPoisonMemory()) return;
   CHECK(AddrIsAlignedByGranularity(addr));
   CHECK(AddrIsInMem(addr));
   CHECK(AddrIsAlignedByGranularity(addr + size));
@@ -34,7 +45,7 @@ void PoisonShadowPartialRightRedzone(uptr addr,
                                      uptr size,
                                      uptr redzone_size,
                                      u8 value) {
-  if (!flags()->poison_heap) return;
+  if (!CanPoisonMemory()) return;
   CHECK(AddrIsAlignedByGranularity(addr));
   CHECK(AddrIsInMem(addr));
   FastPoisonShadowPartialRightRedzone(addr, size, redzone_size, value);
@@ -63,10 +74,10 @@ void FlushUnneededASanShadowMemory(uptr p, uptr size) {
 
 void AsanPoisonOrUnpoisonIntraObjectRedzone(uptr ptr, uptr size, bool poison) {
   uptr end = ptr + size;
-  if (common_flags()->verbosity) {
+  if (Verbosity()) {
     Printf("__asan_%spoison_intra_object_redzone [%p,%p) %zd\n",
            poison ? "" : "un", ptr, end, size);
-    if (common_flags()->verbosity >= 2)
+    if (Verbosity() >= 2)
       PRINT_CURRENT_STACK();
   }
   CHECK(size);

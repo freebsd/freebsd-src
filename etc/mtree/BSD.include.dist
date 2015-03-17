@@ -95,10 +95,6 @@
         scsi
         ..
     ..
-    clang
-        3.5.1
-        ..
-    ..
     crypto
     ..
     dev

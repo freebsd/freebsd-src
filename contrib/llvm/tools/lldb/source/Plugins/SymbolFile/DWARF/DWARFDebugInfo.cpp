@@ -555,8 +555,15 @@ static dw_offset_t DumpCallback
         if (dumpInfo->die_offset == DW_INVALID_OFFSET)
         {
             // We are dumping everything
-            cu->Dump(s);
-            return cu->GetFirstDIEOffset(); // Return true to parse all DIEs in this Compile Unit
+            if (cu)
+            {
+                cu->Dump(s);
+                return cu->GetFirstDIEOffset(); // Return true to parse all DIEs in this Compile Unit
+            }
+            else
+            {
+                return DW_INVALID_OFFSET;
+            }
         }
         else
         {
@@ -568,7 +575,7 @@ static dw_offset_t DumpCallback
 
             // We are dumping only a single DIE possibly with it's children and
             // we must find it's compile unit before we can dump it properly
-            if (dumpInfo->die_offset < cu->GetFirstDIEOffset())
+            if (cu && dumpInfo->die_offset < cu->GetFirstDIEOffset())
             {
                 // Not found, maybe the DIE offset provided wasn't correct?
             //  *ostrm_ptr << "DIE at offset " << HEX32 << dumpInfo->die_offset << " was not found." << endl;
@@ -577,7 +584,7 @@ static dw_offset_t DumpCallback
             else
             {
                 // See if the DIE is in this compile unit?
-                if (dumpInfo->die_offset < cu->GetNextCompileUnitOffset())
+                if (cu && dumpInfo->die_offset < cu->GetNextCompileUnitOffset())
                 {
                     // This DIE is in this compile unit!
                     if (s->GetVerbose())
@@ -590,7 +597,14 @@ static dw_offset_t DumpCallback
                 else
                 {
                     // Skip to the next compile unit as the DIE isn't in the current one!
-                    return cu->GetNextCompileUnitOffset();
+                    if (cu)
+                    {
+                        return cu->GetNextCompileUnitOffset();
+                    }
+                    else
+                    {
+                        return DW_INVALID_OFFSET;
+                    }
                 }
             }
         }

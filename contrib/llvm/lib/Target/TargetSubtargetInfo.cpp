@@ -39,7 +39,7 @@ bool TargetSubtargetInfo::useMachineScheduler() const {
   return enableMachineScheduler();
 }
 
-bool TargetSubtargetInfo::enableAtomicExpandLoadLinked() const {
+bool TargetSubtargetInfo::enableAtomicExpand() const {
   return true;
 }
 
@@ -53,7 +53,7 @@ bool TargetSubtargetInfo::enableRALocalReassignment(
 }
 
 bool TargetSubtargetInfo::enablePostMachineScheduler() const {
-  return getSchedModel()->PostRAScheduler;
+  return getSchedModel().PostRAScheduler;
 }
 
 bool TargetSubtargetInfo::useAA() const {

@@ -17,24 +17,58 @@ class InstSI <dag outs, dag ins, string asm, list<dag> pattern> :
   field bits<1> VM_CNT = 0;
   field bits<1> EXP_CNT = 0;
   field bits<1> LGKM_CNT = 0;
-  field bits<1> MIMG = 0;
-  field bits<1> SMRD = 0;
+
+  field bits<1> SALU = 0;
+  field bits<1> VALU = 0;
+
+  field bits<1> SOP1 = 0;
+  field bits<1> SOP2 = 0;
+  field bits<1> SOPC = 0;
+  field bits<1> SOPK = 0;
+  field bits<1> SOPP = 0;
+
   field bits<1> VOP1 = 0;
   field bits<1> VOP2 = 0;
   field bits<1> VOP3 = 0;
   field bits<1> VOPC = 0;
-  field bits<1> SALU = 0;
 
+  field bits<1> MUBUF = 0;
+  field bits<1> MTBUF = 0;
+  field bits<1> SMRD = 0;
+  field bits<1> DS = 0;
+  field bits<1> MIMG = 0;
+  field bits<1> FLAT = 0;
+
+  // These need to be kept in sync with the enum in SIInstrFlags.
   let TSFlags{0} = VM_CNT;
   let TSFlags{1} = EXP_CNT;
   let TSFlags{2} = LGKM_CNT;
-  let TSFlags{3} = MIMG;
-  let TSFlags{4} = SMRD;
-  let TSFlags{5} = VOP1;
-  let TSFlags{6} = VOP2;
-  let TSFlags{7} = VOP3;
-  let TSFlags{8} = VOPC;
-  let TSFlags{9} = SALU;
+
+  let TSFlags{3} = SALU;
+  let TSFlags{4} = VALU;
+
+  let TSFlags{5} = SOP1;
+  let TSFlags{6} = SOP2;
+  let TSFlags{7} = SOPC;
+  let TSFlags{8} = SOPK;
+  let TSFlags{9} = SOPP;
+
+  let TSFlags{10} = VOP1;
+  let TSFlags{11} = VOP2;
+  let TSFlags{12} = VOP3;
+  let TSFlags{13} = VOPC;
+
+  let TSFlags{14} = MUBUF;
+  let TSFlags{15} = MTBUF;
+  let TSFlags{16} = SMRD;
+  let TSFlags{17} = DS;
+  let TSFlags{18} = MIMG;
+  let TSFlags{19} = FLAT;
+
+  // Most instructions require adjustments after selection to satisfy
+  // operand requirements.
+  let hasPostISelHook = 1;
+  let SchedRW = [Write32Bit];
 }
 
 class Enc32 {
@@ -49,17 +83,54 @@ class Enc64 {
   int Size = 8;
 }
 
-class VOP3Common <dag outs, dag ins, string asm, list<dag> pattern> :
+let Uses = [EXEC] in {
+
+class VOPAnyCommon <dag outs, dag ins, string asm, list<dag> pattern> :
     InstSI <outs, ins, asm, pattern> {
 
   let mayLoad = 0;
   let mayStore = 0;
   let hasSideEffects = 0;
   let UseNamedOperandTable = 1;
-  let VOP3 = 1;
+  let VALU = 1;
+}
 
+class VOPCCommon <dag ins, string asm, list<dag> pattern> :
+    VOPAnyCommon <(outs VCCReg:$dst), ins, asm, pattern> {
+
+  let DisableEncoding = "$dst";
+  let VOPC = 1;
+  let Size = 4;
+}
+
+class VOP1Common <dag outs, dag ins, string asm, list<dag> pattern> :
+    VOPAnyCommon <outs, ins, asm, pattern> {
+
+  let VOP1 = 1;
+  let Size = 4;
+}
+
+class VOP2Common <dag outs, dag ins, string asm, list<dag> pattern> :
+    VOPAnyCommon <outs, ins, asm, pattern> {
+
+  let VOP2 = 1;
+  let Size = 4;
+}
+
+class VOP3Common <dag outs, dag ins, string asm, list<dag> pattern> :
+    VOPAnyCommon <outs, ins, asm, pattern> {
+
+  // Using complex patterns gives VOP3 patterns a very high complexity rating,
+  // but standalone patterns are almost always prefered, so we need to adjust the
+  // priority lower.  The goal is to use a high number to reduce complexity to
+  // zero (or less than zero).
+  let AddedComplexity = -1000;
+
+  let VOP3 = 1;
   int Size = 8;
 }
+
+} // End Uses = [EXEC]
 
 //===----------------------------------------------------------------------===//
 // Scalar operations
@@ -134,22 +205,26 @@ class SMRDe <bits<5> op, bits<1> imm> : Enc32 {
   let Inst{31-27} = 0x18; //encoding
 }
 
-class SOP1 <bits<8> op, dag outs, dag ins, string asm, list<dag> pattern> :
-    InstSI<outs, ins, asm, pattern>, SOP1e <op> {
-
+let SchedRW = [WriteSALU] in {
+class SOP1 <dag outs, dag ins, string asm, list<dag> pattern> :
+    InstSI<outs, ins, asm, pattern> {
   let mayLoad = 0;
   let mayStore = 0;
   let hasSideEffects = 0;
   let SALU = 1;
+  let SOP1 = 1;
 }
 
-class SOP2 <bits<7> op, dag outs, dag ins, string asm, list<dag> pattern> :
-    InstSI <outs, ins, asm, pattern>, SOP2e<op> {
+class SOP2 <dag outs, dag ins, string asm, list<dag> pattern> :
+    InstSI <outs, ins, asm, pattern> {
 
   let mayLoad = 0;
   let mayStore = 0;
   let hasSideEffects = 0;
   let SALU = 1;
+  let SOP2 = 1;
+
+  let UseNamedOperandTable = 1;
 }
 
 class SOPC <bits<7> op, dag outs, dag ins, string asm, list<dag> pattern> :
@@ -160,31 +235,48 @@ class SOPC <bits<7> op, dag outs, dag ins, string asm, list<dag> pattern> :
   let mayStore = 0;
   let hasSideEffects = 0;
   let SALU = 1;
+  let SOPC = 1;
+
+  let UseNamedOperandTable = 1;
 }
 
-class SOPK <bits<5> op, dag outs, dag ins, string asm, list<dag> pattern> :
-   InstSI <outs, ins , asm, pattern>, SOPKe<op> {
+class SOPK <dag outs, dag ins, string asm, list<dag> pattern> :
+   InstSI <outs, ins , asm, pattern> {
 
   let mayLoad = 0;
   let mayStore = 0;
   let hasSideEffects = 0;
   let SALU = 1;
+  let SOPK = 1;
+
+  let UseNamedOperandTable = 1;
 }
 
-class SOPP <bits<7> op, dag ins, string asm, list<dag> pattern> :
+class SOPP <bits<7> op, dag ins, string asm, list<dag> pattern = []> :
 		InstSI <(outs), ins, asm, pattern >, SOPPe <op> {
 
   let mayLoad = 0;
   let mayStore = 0;
   let hasSideEffects = 0;
+  let isCodeGenOnly = 0;
   let SALU = 1;
+  let SOPP = 1;
+
+  let UseNamedOperandTable = 1;
 }
 
-class SMRD <bits<5> op, bits<1> imm, dag outs, dag ins, string asm,
-            list<dag> pattern> : InstSI<outs, ins, asm, pattern>, SMRDe<op, imm> {
+} // let SchedRW = [WriteSALU]
+
+class SMRD <dag outs, dag ins, string asm, list<dag> pattern> :
+    InstSI<outs, ins, asm, pattern> {
 
   let LGKM_CNT = 1;
   let SMRD = 1;
+  let mayStore = 0;
+  let mayLoad = 1;
+  let hasSideEffects = 0;
+  let UseNamedOperandTable = 1;
+  let SchedRW = [WriteSMEM];
 }
 
 //===----------------------------------------------------------------------===//
@@ -410,8 +502,27 @@ class MIMGe <bits<7> op> : Enc64 {
   let Inst{57-53} = SSAMP{6-2};
 }
 
-class EXPe : Enc64 {
+class FLATe<bits<7> op> : Enc64 {
+  bits<8> addr;
+  bits<8> data;
+  bits<8> vdst;
+  bits<1> slc;
+  bits<1> glc;
+  bits<1> tfe;
 
+  // 15-0 is reserved.
+  let Inst{16} = glc;
+  let Inst{17} = slc;
+  let Inst{24-18} = op;
+  let Inst{31-26} = 0x37; // Encoding.
+  let Inst{39-32} = addr;
+  let Inst{47-40} = data;
+  // 54-48 is reserved.
+  let Inst{55} = tfe;
+  let Inst{63-56} = vdst;
+}
+
+class EXPe : Enc64 {
   bits<4> EN;
   bits<6> TGT;
   bits<1> COMPR;
@@ -437,48 +548,23 @@ class EXPe : Enc64 {
 let Uses = [EXEC] in {
 
 class VOP1 <bits<8> op, dag outs, dag ins, string asm, list<dag> pattern> :
-    InstSI <outs, ins, asm, pattern>, VOP1e<op> {
-
-  let mayLoad = 0;
-  let mayStore = 0;
-  let hasSideEffects = 0;
-  let UseNamedOperandTable = 1;
-  let VOP1 = 1;
-}
+    VOP1Common <outs, ins, asm, pattern>,
+    VOP1e<op>;
 
 class VOP2 <bits<6> op, dag outs, dag ins, string asm, list<dag> pattern> :
-    InstSI <outs, ins, asm, pattern>, VOP2e<op> {
-
-  let mayLoad = 0;
-  let mayStore = 0;
-  let hasSideEffects = 0;
-  let UseNamedOperandTable = 1;
-  let VOP2 = 1;
-}
-
-class VOP3 <bits<9> op, dag outs, dag ins, string asm, list<dag> pattern> :
-    VOP3Common <outs, ins, asm, pattern>, VOP3e<op>;
+    VOP2Common <outs, ins, asm, pattern>, VOP2e<op>;
 
 class VOP3b <bits<9> op, dag outs, dag ins, string asm, list<dag> pattern> :
     VOP3Common <outs, ins, asm, pattern>, VOP3be<op>;
 
 class VOPC <bits<8> op, dag ins, string asm, list<dag> pattern> :
-    InstSI <(outs VCCReg:$dst), ins, asm, pattern>, VOPCe <op> {
+    VOPCCommon <ins, asm, pattern>, VOPCe <op>;
 
-  let DisableEncoding = "$dst";
-  let mayLoad = 0;
-  let mayStore = 0;
-  let hasSideEffects = 0;
-  let UseNamedOperandTable = 1;
-  let VOPC = 1;
-}
-
-class VINTRP <bits <2> op, dag outs, dag ins, string asm, list<dag> pattern> :
-    InstSI <outs, ins, asm, pattern>, VINTRPe<op> {
-
-  let neverHasSideEffects = 1;
+class VINTRPCommon <dag outs, dag ins, string asm, list<dag> pattern> :
+    InstSI <outs, ins, asm, pattern> {
   let mayLoad = 1;
   let mayStore = 0;
+  let hasSideEffects = 0;
 }
 
 } // End Uses = [EXEC]
@@ -489,29 +575,56 @@ class VINTRP <bits <2> op, dag outs, dag ins, string asm, list<dag> pattern> :
 
 let Uses = [EXEC] in {
 
-class DS <bits<8> op, dag outs, dag ins, string asm, list<dag> pattern> :
-    InstSI <outs, ins, asm, pattern> , DSe<op> {
+class DS <dag outs, dag ins, string asm, list<dag> pattern> :
+    InstSI <outs, ins, asm, pattern> {
 
   let LGKM_CNT = 1;
-}
-
-class MUBUF <bits<7> op, dag outs, dag ins, string asm, list<dag> pattern> :
-    InstSI<outs, ins, asm, pattern>, MUBUFe <op> {
-
-  let VM_CNT = 1;
-  let EXP_CNT = 1;
-
-  let neverHasSideEffects = 1;
+  let DS = 1;
   let UseNamedOperandTable = 1;
+  let DisableEncoding = "$m0";
+  let SchedRW = [WriteLDS];
 }
 
-class MTBUF <bits<3> op, dag outs, dag ins, string asm, list<dag> pattern> :
-    InstSI<outs, ins, asm, pattern>, MTBUFe <op> {
+class DS_si <bits<8> op, dag outs, dag ins, string asm, list<dag> pattern> :
+    DS <outs, ins, asm, pattern>, DSe<op>;
+
+class MUBUF <dag outs, dag ins, string asm, list<dag> pattern> :
+    InstSI<outs, ins, asm, pattern> {
 
   let VM_CNT = 1;
   let EXP_CNT = 1;
+  let MUBUF = 1;
 
-  let neverHasSideEffects = 1;
+  let hasSideEffects = 0;
+  let UseNamedOperandTable = 1;
+  let SchedRW = [WriteVMEM];
+}
+
+class MTBUF <dag outs, dag ins, string asm, list<dag> pattern> :
+    InstSI<outs, ins, asm, pattern> {
+
+  let VM_CNT = 1;
+  let EXP_CNT = 1;
+  let MTBUF = 1;
+
+  let hasSideEffects = 0;
+  let UseNamedOperandTable = 1;
+  let SchedRW = [WriteVMEM];
+}
+
+class FLAT <bits<7> op, dag outs, dag ins, string asm, list<dag> pattern> :
+    InstSI<outs, ins, asm, pattern>, FLATe <op> {
+  let FLAT = 1;
+  // Internally, FLAT instruction are executed as both an LDS and a
+  // Buffer instruction; so, they increment both VM_CNT and LGKM_CNT
+  // and are not considered done until both have been decremented.
+  let VM_CNT = 1;
+  let LGKM_CNT = 1;
+
+  let Uses = [EXEC, FLAT_SCR]; // M0
+
+  let UseNamedOperandTable = 1;
+  let hasSideEffects = 0;
 }
 
 class MIMG <bits<7> op, dag outs, dag ins, string asm, list<dag> pattern> :
@@ -520,16 +633,9 @@ class MIMG <bits<7> op, dag outs, dag ins, string asm, list<dag> pattern> :
   let VM_CNT = 1;
   let EXP_CNT = 1;
   let MIMG = 1;
+
+  let hasSideEffects = 0; // XXX ????
 }
 
-def EXP : InstSI<
-  (outs),
-  (ins i32imm:$en, i32imm:$tgt, i32imm:$compr, i32imm:$done, i32imm:$vm,
-       VReg_32:$src0, VReg_32:$src1, VReg_32:$src2, VReg_32:$src3),
-  "EXP $en, $tgt, $compr, $done, $vm, $src0, $src1, $src2, $src3",
-  [] >, EXPe {
-
-  let EXP_CNT = 1;
-}
 
 } // End Uses = [EXEC]

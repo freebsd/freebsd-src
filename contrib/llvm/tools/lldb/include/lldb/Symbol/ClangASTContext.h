@@ -14,17 +14,21 @@
 #include <stdint.h>
 
 // C++ Includes
+#include <initializer_list>
 #include <string>
 #include <vector>
+#include <utility>
 
 // Other libraries and framework includes
 #include "llvm/ADT/SmallVector.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/TemplateBase.h"
 
 
 // Project includes
 #include "lldb/lldb-enumerations.h"
 #include "lldb/Core/ClangForward.h"
+#include "lldb/Core/ConstString.h"
 #include "lldb/Symbol/ClangASTType.h"
 
 namespace lldb_private {
@@ -208,11 +212,47 @@ public:
                  ClangASTType type2,
                  bool ignore_qualifiers = false);
     
-    ClangASTType
+    static ClangASTType
+    GetTypeForDecl (clang::NamedDecl *decl);
+    
+    static ClangASTType
     GetTypeForDecl (clang::TagDecl *decl);
     
-    ClangASTType
+    static ClangASTType
     GetTypeForDecl (clang::ObjCInterfaceDecl *objc_decl);
+    
+    template <typename RecordDeclType>
+    ClangASTType
+    GetTypeForIdentifier (const ConstString &type_name)
+    {
+        ClangASTType clang_type;
+        
+        if (type_name.GetLength())
+        {
+            clang::ASTContext *ast = getASTContext();
+            if (ast)
+            {
+                clang::IdentifierInfo &myIdent = ast->Idents.get(type_name.GetCString());
+                clang::DeclarationName myName = ast->DeclarationNames.getIdentifier(&myIdent);
+                
+                clang::DeclContext::lookup_const_result result = ast->getTranslationUnitDecl()->lookup(myName);
+                
+                if (!result.empty())
+                {
+                    clang::NamedDecl *named_decl = result[0];
+                    if (const RecordDeclType *record_decl = llvm::dyn_cast<RecordDeclType>(named_decl))
+                        clang_type.SetClangType(ast, clang::QualType(record_decl->getTypeForDecl(), 0));
+                }
+            }
+        }
+        
+        return clang_type;
+    }
+    
+    ClangASTType
+    GetOrCreateStructForIdentifier (const ConstString &type_name,
+                                    const std::initializer_list< std::pair < const char *, ClangASTType > >& type_fields,
+                                    bool packed = false);
 
     //------------------------------------------------------------------
     // Structure, Unions, Classes

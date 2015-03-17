@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2008-2010 Robert N. M. Watson
+ * Copyright (c) 2008-2010, 2015 Robert N. M. Watson
  * Copyright (c) 2012 FreeBSD Foundation
  * All rights reserved.
  *
@@ -398,13 +398,13 @@ int __cap_rights_get(int version, int fd, cap_rights_t *rights);
 /*
  * Limits allowed ioctls for the given descriptor.
  */
-int cap_ioctls_limit(int fd, const unsigned long *cmds, size_t ncmds);
+int cap_ioctls_limit(int fd, const cap_ioctl_t *cmds, size_t ncmds);
 /*
  * Returns array of allowed ioctls for the given descriptor.
  * If all ioctls are allowed, the cmds array is not populated and
  * the function returns CAP_IOCTLS_ALL.
  */
-ssize_t cap_ioctls_get(int fd, unsigned long *cmds, size_t maxcmds);
+ssize_t cap_ioctls_get(int fd, cap_ioctl_t *cmds, size_t maxcmds);
 /*
  * Limits allowed fcntls for the given descriptor (CAP_FCNTL_*).
  */

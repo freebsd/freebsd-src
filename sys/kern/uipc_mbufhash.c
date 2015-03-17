@@ -24,13 +24,8 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/fnv_hash.h>
-#include <sys/socket.h>
-
-#include <net/if.h>
-#include <net/if_var.h>
 
 #include <net/ethernet.h>
 
@@ -45,8 +40,6 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <netinet/ip6.h>
 #endif
-
-#include <net/if_vlan_var.h>
 
 static const void *
 m_ether_tcpip_hash_gethdr(const struct mbuf *m, const u_int off,
