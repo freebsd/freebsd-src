@@ -217,7 +217,7 @@ ${SHLIB_NAME_FULL}: ${SOBJS}
 .if defined(SHLIB_LINK)
 	@${INSTALL_SYMLINK} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
-	@${CC} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
+	${CC} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
 	    `NM='${NM}' lorder ${SOBJS} | tsort -q` ${LDADD}
 .if ${MK_CTF} != "no"
