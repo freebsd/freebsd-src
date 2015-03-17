@@ -151,7 +151,7 @@ drm_gem_name_create(struct drm_gem_names *names, void *p, uint32_t *name)
 	struct drm_gem_name *np;
 
 	if (*name != 0) {
-		return (EALREADY);
+		return (-EALREADY);
 	}
 
 	np = malloc(sizeof(struct drm_gem_name), M_GEM_NAMES, M_WAITOK);
@@ -160,7 +160,7 @@ drm_gem_name_create(struct drm_gem_names *names, void *p, uint32_t *name)
 	if (np->name == -1) {
 		mtx_unlock(&names->lock);
 		free(np, M_GEM_NAMES);
-		return (ENOMEM);
+		return (-ENOMEM);
 	}
 	*name = np->name;
 	np->ptr = p;

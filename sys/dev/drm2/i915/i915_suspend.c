@@ -460,19 +460,19 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 		I915_WRITE(dpll_a_reg, dev_priv->saveDPLL_A &
 			   ~DPLL_VCO_ENABLE);
 		POSTING_READ(dpll_a_reg);
-		DRM_UDELAY(150);
+		udelay(150);
 	}
 	I915_WRITE(fpa0_reg, dev_priv->saveFPA0);
 	I915_WRITE(fpa1_reg, dev_priv->saveFPA1);
 	/* Actually enable it */
 	I915_WRITE(dpll_a_reg, dev_priv->saveDPLL_A);
 	POSTING_READ(dpll_a_reg);
-	DRM_UDELAY(150);
+	udelay(150);
 	if (INTEL_INFO(dev)->gen >= 4 && !HAS_PCH_SPLIT(dev)) {
 		I915_WRITE(_DPLL_A_MD, dev_priv->saveDPLL_A_MD);
 		POSTING_READ(_DPLL_A_MD);
 	}
-	DRM_UDELAY(150);
+	udelay(150);
 
 	/* Restore mode */
 	I915_WRITE(_HTOTAL_A, dev_priv->saveHTOTAL_A);
@@ -529,19 +529,19 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 		I915_WRITE(dpll_b_reg, dev_priv->saveDPLL_B &
 			   ~DPLL_VCO_ENABLE);
 		POSTING_READ(dpll_b_reg);
-		DRM_UDELAY(150);
+		udelay(150);
 	}
 	I915_WRITE(fpb0_reg, dev_priv->saveFPB0);
 	I915_WRITE(fpb1_reg, dev_priv->saveFPB1);
 	/* Actually enable it */
 	I915_WRITE(dpll_b_reg, dev_priv->saveDPLL_B);
 	POSTING_READ(dpll_b_reg);
-	DRM_UDELAY(150);
+	udelay(150);
 	if (INTEL_INFO(dev)->gen >= 4 && !HAS_PCH_SPLIT(dev)) {
 		I915_WRITE(_DPLL_B_MD, dev_priv->saveDPLL_B_MD);
 		POSTING_READ(_DPLL_B_MD);
 	}
-	DRM_UDELAY(150);
+	udelay(150);
 
 	/* Restore mode */
 	I915_WRITE(_HTOTAL_B, dev_priv->saveHTOTAL_B);
@@ -792,7 +792,7 @@ static void i915_restore_display(struct drm_device *dev)
 	I915_WRITE(VGA1, dev_priv->saveVGA1);
 	I915_WRITE(VGA_PD, dev_priv->saveVGA_PD);
 	POSTING_READ(VGA_PD);
-	DRM_UDELAY(150);
+	udelay(150);
 
 	i915_restore_vga(dev);
 }
@@ -802,10 +802,12 @@ int i915_save_state(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 
-	dev_priv->saveLBB = pci_read_config(dev->device, LBB, 1);
+	dev_priv->saveLBB = pci_read_config(dev->dev, LBB, 1);
 
 	/* Hardware status page */
 	dev_priv->saveHWS = I915_READ(HWS_PGA);
+
+	DRM_LOCK(dev);
 
 	i915_save_display(dev);
 
@@ -844,6 +846,8 @@ int i915_save_state(struct drm_device *dev)
 	for (i = 0; i < 3; i++)
 		dev_priv->saveSWF2[i] = I915_READ(SWF30 + (i << 2));
 
+	DRM_UNLOCK(dev);
+
 	return 0;
 }
 
@@ -852,8 +856,9 @@ int i915_restore_state(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 
-	pci_write_config(dev->device, LBB, dev_priv->saveLBB, 1);
+	pci_write_config(dev->dev, LBB, dev_priv->saveLBB, 1);
 
+	DRM_LOCK(dev);
 
 	/* Hardware status page */
 	I915_WRITE(HWS_PGA, dev_priv->saveHWS);
@@ -886,6 +891,8 @@ int i915_restore_state(struct drm_device *dev)
 	}
 	for (i = 0; i < 3; i++)
 		I915_WRITE(SWF30 + (i << 2), dev_priv->saveSWF2[i]);
+
+	DRM_UNLOCK(dev);
 
 	intel_iic_reset(dev);
 
