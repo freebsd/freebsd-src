@@ -1685,6 +1685,10 @@ gnu/lib/libstdc++__L: lib/msun__L
 gnu/lib/libsupc++__L: gnu/lib/libstdc++__L
 .endif
 
+.if ${MK_LIBCPLUSPLUS} != "no"
+_prebuild_libs+= lib/libc++
+.endif
+
 lib/libgeom__L: lib/libexpat__L
 
 .if ${MK_LIBTHR} != "no"
