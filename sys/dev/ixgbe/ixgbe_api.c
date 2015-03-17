@@ -81,6 +81,7 @@ s32 ixgbe_init_shared_code(struct ixgbe_hw *hw)
 	case ixgbe_mac_X540:
 		status = ixgbe_init_ops_X540(hw);
 		break;
+#if 0 //JFV temporary disable
 	case ixgbe_mac_X550:
 		status = ixgbe_init_ops_X550(hw);
 		break;
@@ -88,6 +89,7 @@ s32 ixgbe_init_shared_code(struct ixgbe_hw *hw)
 	case ixgbe_mac_X550EM_a:
 		status = ixgbe_init_ops_X550EM(hw);
 		break;
+#endif
 	case ixgbe_mac_82599_vf:
 	case ixgbe_mac_X540_vf:
 	case ixgbe_mac_X550_vf:
