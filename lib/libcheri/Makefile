@@ -4,6 +4,7 @@ LIB=	cheri
 SRCS=	cheri_invoke.S			\
 	cheri_enter.c			\
 	cheri_fd.c			\
+	cheri_stack.c			\
 	cheri_system.c			\
 	cheri_type.c			\
 	libcheri_classes.S		\
@@ -18,6 +19,7 @@ INCS=	cheri_class.h			\
 	cheri_fd.h			\
 	cheri_invoke.h			\
 	cheri_memcpy.h			\
+	cheri_stack.h			\
 	cheri_system.h			\
 	cheri_type.h			\
 	sandbox.h			\
