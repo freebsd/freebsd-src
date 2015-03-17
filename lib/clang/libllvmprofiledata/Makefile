@@ -5,8 +5,14 @@
 LIB=	llvmprofiledata
 
 SRCDIR=	lib/ProfileData
-SRCS=	InstrProf.cpp \
+SRCS=	CoverageMapping.cpp \
+	CoverageMappingReader.cpp \
+	CoverageMappingWriter.cpp \
+	InstrProf.cpp \
 	InstrProfReader.cpp \
-	InstrProfWriter.cpp
+	InstrProfWriter.cpp \
+	SampleProf.cpp \
+	SampleProfReader.cpp \
+	SampleProfWriter.cpp
 
 .include "../clang.lib.mk"

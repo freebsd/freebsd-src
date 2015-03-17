@@ -371,6 +371,7 @@ ObjectFile::GetAddressClass (addr_t file_addr)
                     case eSectionTypeDWARFAppleObjC:
                         return eAddressClassDebug;
                     case eSectionTypeEHFrame:
+                    case eSectionTypeCompactUnwind:
                         return eAddressClassRuntime;
                     case eSectionTypeELFSymbolTable:
                     case eSectionTypeELFDynamicSymbols:
@@ -458,6 +459,9 @@ ObjectFile::CopyData (lldb::offset_t offset, size_t length, void *dst) const
 size_t
 ObjectFile::ReadSectionData (const Section *section, lldb::offset_t section_offset, void *dst, size_t dst_len) const
 {
+    assert(section);
+    section_offset *= section->GetTargetByteSize();
+
     // If some other objectfile owns this data, pass this to them.
     if (section->GetObjectFile() != this)
         return section->GetObjectFile()->ReadSectionData (section, section_offset, dst, dst_len);
@@ -555,8 +559,6 @@ ObjectFile::MemoryMapSectionData (const Section *section, DataExtractor& section
         // The object file now contains a full mmap'ed copy of the object file data, so just use this
         return GetData(section->GetFileOffset(), section->GetFileSize(), section_data);
     }
-    section_data.Clear();
-    return 0;
 }
 
 

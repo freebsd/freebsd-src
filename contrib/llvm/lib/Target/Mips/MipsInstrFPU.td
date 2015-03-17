@@ -178,38 +178,6 @@ class SW_FT<string opstr, RegisterOperand RC, InstrItinClass Itin,
   let mayStore = 1;
 }
 
-class SW_FT2<string opstr, RegisterOperand RC, InstrItinClass Itin,
-            SDPatternOperator OpNode= null_frag> :
-  InstSE<(outs), (ins RC:$rt, mem:$addr), !strconcat(opstr, "\t$rt, $addr"),
-         [(OpNode RC:$rt, addrDefault:$addr)], Itin, FrmFI, opstr> {
-  let DecoderMethod = "DecodeFMem2";
-  let mayStore = 1;
-}
-
-class LW_FT2<string opstr, RegisterOperand RC, InstrItinClass Itin,
-            SDPatternOperator OpNode= null_frag> :
-  InstSE<(outs RC:$rt), (ins mem:$addr), !strconcat(opstr, "\t$rt, $addr"),
-         [(set RC:$rt, (OpNode addrDefault:$addr))], Itin, FrmFI, opstr> {
-  let DecoderMethod = "DecodeFMem2";
-  let mayLoad = 1;
-}
-
-class SW_FT3<string opstr, RegisterOperand RC, InstrItinClass Itin,
-            SDPatternOperator OpNode= null_frag> :
-  InstSE<(outs), (ins RC:$rt, mem:$addr), !strconcat(opstr, "\t$rt, $addr"),
-         [(OpNode RC:$rt, addrDefault:$addr)], Itin, FrmFI, opstr> {
-  let DecoderMethod = "DecodeFMem3";
-  let mayStore = 1;
-}
-
-class LW_FT3<string opstr, RegisterOperand RC, InstrItinClass Itin,
-            SDPatternOperator OpNode= null_frag> :
-  InstSE<(outs RC:$rt), (ins mem:$addr), !strconcat(opstr, "\t$rt, $addr"),
-         [(set RC:$rt, (OpNode addrDefault:$addr))], Itin, FrmFI, opstr> {
-  let DecoderMethod = "DecodeFMem3";
-  let mayLoad = 1;
-}
-
 class MADDS_FT<string opstr, RegisterOperand RC, InstrItinClass Itin,
                SDPatternOperator OpNode = null_frag> :
   InstSE<(outs RC:$fd), (ins RC:$fr, RC:$fs, RC:$ft),
@@ -243,14 +211,14 @@ class SWXC1_FT<string opstr, RegisterOperand DRC,
 }
 
 class BC1F_FT<string opstr, DAGOperand opnd, InstrItinClass Itin,
-              SDPatternOperator Op = null_frag>  :
+              SDPatternOperator Op = null_frag, bit DelaySlot = 1> :
   InstSE<(outs), (ins FCCRegsOpnd:$fcc, opnd:$offset),
          !strconcat(opstr, "\t$fcc, $offset"),
          [(MipsFPBrcond Op, FCCRegsOpnd:$fcc, bb:$offset)], Itin,
          FrmFI, opstr> {
   let isBranch = 1;
   let isTerminator = 1;
-  let hasDelaySlot = 1;
+  let hasDelaySlot = DelaySlot;
   let Defs = [AT];
 }
 
@@ -436,30 +404,6 @@ def LDC1 : MMRel, LW_FT<"ldc1", AFGR64Opnd, II_LDC1, load>, LW_FM<0x35>,
 def SDC1 : MMRel, SW_FT<"sdc1", AFGR64Opnd, II_SDC1, store>, LW_FM<0x3d>,
            ISA_MIPS2, FGR_32;
 
-// Cop2 Memory Instructions
-// FIXME: These aren't really FPU instructions and as such don't belong in this
-//        file
-def LWC2 : LW_FT2<"lwc2", COP2Opnd, NoItinerary, load>, LW_FM<0x32>,
-           ISA_MIPS1_NOT_32R6_64R6;
-def SWC2 : SW_FT2<"swc2", COP2Opnd, NoItinerary, store>, LW_FM<0x3a>,
-           ISA_MIPS1_NOT_32R6_64R6;
-def LDC2 : LW_FT2<"ldc2", COP2Opnd, NoItinerary, load>, LW_FM<0x36>,
-           ISA_MIPS2_NOT_32R6_64R6;
-def SDC2 : SW_FT2<"sdc2", COP2Opnd, NoItinerary, store>, LW_FM<0x3e>,
-           ISA_MIPS2_NOT_32R6_64R6;
-
-// Cop3 Memory Instructions
-// FIXME: These aren't really FPU instructions and as such don't belong in this
-//        file
-let DecoderNamespace = "COP3_" in {
-  def LWC3 : LW_FT3<"lwc3", COP3Opnd, NoItinerary, load>, LW_FM<0x33>;
-  def SWC3 : SW_FT3<"swc3", COP3Opnd, NoItinerary, store>, LW_FM<0x3b>;
-  def LDC3 : LW_FT3<"ldc3", COP3Opnd, NoItinerary, load>, LW_FM<0x37>,
-             ISA_MIPS2;
-  def SDC3 : SW_FT3<"sdc3", COP3Opnd, NoItinerary, store>, LW_FM<0x3f>,
-             ISA_MIPS2;
-}
-
 // Indexed loads and stores.
 // Base register + offset register addressing mode (indicated by "x" in the
 // instruction mnemonic) is disallowed under NaCl.
@@ -562,8 +506,12 @@ def MIPS_BRANCH_T  : PatLeaf<(i32 1)>;
 
 def BC1F : MMRel, BC1F_FT<"bc1f", brtarget, IIBranch, MIPS_BRANCH_F>,
            BC1F_FM<0, 0>, ISA_MIPS1_NOT_32R6_64R6;
+def BC1FL : MMRel, BC1F_FT<"bc1fl", brtarget, IIBranch, MIPS_BRANCH_F, 0>,
+            BC1F_FM<1, 0>, ISA_MIPS2_NOT_32R6_64R6;
 def BC1T : MMRel, BC1F_FT<"bc1t", brtarget, IIBranch, MIPS_BRANCH_T>,
            BC1F_FM<0, 1>, ISA_MIPS1_NOT_32R6_64R6;
+def BC1TL : MMRel, BC1F_FT<"bc1tl", brtarget, IIBranch, MIPS_BRANCH_T, 0>,
+            BC1F_FM<1, 1>, ISA_MIPS2_NOT_32R6_64R6;
 
 //===----------------------------------------------------------------------===//
 // Floating Point Flag Conditions
@@ -629,8 +577,12 @@ def ExtractElementF64_64 : ExtractElementF64Base<FGR64Opnd>,
 //===----------------------------------------------------------------------===//
 def : MipsInstAlias<"bc1t $offset", (BC1T FCC0, brtarget:$offset)>,
       ISA_MIPS1_NOT_32R6_64R6;
+def : MipsInstAlias<"bc1tl $offset", (BC1TL FCC0, brtarget:$offset)>,
+      ISA_MIPS2_NOT_32R6_64R6;
 def : MipsInstAlias<"bc1f $offset", (BC1F FCC0, brtarget:$offset)>,
       ISA_MIPS1_NOT_32R6_64R6;
+def : MipsInstAlias<"bc1fl $offset", (BC1FL FCC0, brtarget:$offset)>,
+      ISA_MIPS2_NOT_32R6_64R6;
 
 //===----------------------------------------------------------------------===//
 // Floating Point Patterns

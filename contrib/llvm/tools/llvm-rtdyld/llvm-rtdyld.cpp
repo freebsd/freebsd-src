@@ -13,15 +13,13 @@
 
 #include "llvm/ADT/StringMap.h"
 #include "llvm/DebugInfo/DIContext.h"
-#include "llvm/ExecutionEngine/ObjectBuffer.h"
-#include "llvm/ExecutionEngine/ObjectImage.h"
 #include "llvm/ExecutionEngine/RuntimeDyld.h"
 #include "llvm/ExecutionEngine/RuntimeDyldChecker.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCDisassembler.h"
-#include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCInstPrinter.h"
+#include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Object/MachO.h"
 #include "llvm/Support/CommandLine.h"
@@ -30,10 +28,11 @@
 #include "llvm/Support/Memory.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/PrettyStackTrace.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/raw_ostream.h"
+#include <list>
 #include <system_error>
 
 using namespace llvm;
@@ -77,6 +76,31 @@ static cl::list<std::string>
 CheckFiles("check",
            cl::desc("File containing RuntimeDyld verifier checks."),
            cl::ZeroOrMore);
+
+static cl::opt<uint64_t>
+TargetAddrStart("target-addr-start",
+                cl::desc("For -verify only: start of phony target address "
+                         "range."),
+                cl::init(4096), // Start at "page 1" - no allocating at "null".
+                cl::Hidden);
+
+static cl::opt<uint64_t>
+TargetAddrEnd("target-addr-end",
+              cl::desc("For -verify only: end of phony target address range."),
+              cl::init(~0ULL),
+              cl::Hidden);
+
+static cl::opt<uint64_t>
+TargetSectionSep("target-section-sep",
+                 cl::desc("For -verify only: Separation between sections in "
+                          "phony target address space."),
+                 cl::init(0),
+                 cl::Hidden);
+
+static cl::list<std::string>
+SpecificSectionMappings("map-section",
+                        cl::desc("Map a section to a specific address."),
+                        cl::ZeroOrMore);
 
 /* *** */
 
@@ -181,23 +205,32 @@ static int printLineInfoForInput() {
     if (std::error_code EC = InputBuffer.getError())
       return Error("unable to read input: '" + EC.message() + "'");
 
-    std::unique_ptr<ObjectImage> LoadedObject;
+    ErrorOr<std::unique_ptr<ObjectFile>> MaybeObj(
+      ObjectFile::createObjectFile((*InputBuffer)->getMemBufferRef()));
+
+    if (std::error_code EC = MaybeObj.getError())
+      return Error("unable to create object file: '" + EC.message() + "'");
+
+    ObjectFile &Obj = **MaybeObj;
+
     // Load the object file
-    LoadedObject.reset(
-        Dyld.loadObject(new ObjectBuffer(InputBuffer.get().release())));
-    if (!LoadedObject) {
+    std::unique_ptr<RuntimeDyld::LoadedObjectInfo> LoadedObjInfo =
+      Dyld.loadObject(Obj);
+
+    if (Dyld.hasError())
       return Error(Dyld.getErrorString());
-    }
 
     // Resolve all the relocations we can.
     Dyld.resolveRelocations();
 
+    OwningBinary<ObjectFile> DebugObj = LoadedObjInfo->getObjectForDebug(Obj);
+
     std::unique_ptr<DIContext> Context(
-        DIContext::getDWARFContext(LoadedObject->getObjectFile()));
+      DIContext::getDWARFContext(*DebugObj.getBinary()));
 
     // Use symbol info to iterate functions in the object.
-    for (object::symbol_iterator I = LoadedObject->begin_symbols(),
-                                 E = LoadedObject->end_symbols();
+    for (object::symbol_iterator I = DebugObj.getBinary()->symbol_begin(),
+                                 E = DebugObj.getBinary()->symbol_end();
          I != E; ++I) {
       object::SymbolRef::Type SymType;
       if (I->getType(SymType)) continue;
@@ -242,11 +275,17 @@ static int executeInput() {
         MemoryBuffer::getFileOrSTDIN(InputFileList[i]);
     if (std::error_code EC = InputBuffer.getError())
       return Error("unable to read input: '" + EC.message() + "'");
-    std::unique_ptr<ObjectImage> LoadedObject;
+    ErrorOr<std::unique_ptr<ObjectFile>> MaybeObj(
+      ObjectFile::createObjectFile((*InputBuffer)->getMemBufferRef()));
+
+    if (std::error_code EC = MaybeObj.getError())
+      return Error("unable to create object file: '" + EC.message() + "'");
+
+    ObjectFile &Obj = **MaybeObj;
+
     // Load the object file
-    LoadedObject.reset(
-        Dyld.loadObject(new ObjectBuffer(InputBuffer.get().release())));
-    if (!LoadedObject) {
+    Dyld.loadObject(Obj);
+    if (Dyld.hasError()) {
       return Error(Dyld.getErrorString());
     }
   }
@@ -300,6 +339,134 @@ static int checkAllExpressions(RuntimeDyldChecker &Checker) {
   return 0;
 }
 
+std::map<void*, uint64_t>
+applySpecificSectionMappings(RuntimeDyldChecker &Checker) {
+
+  std::map<void*, uint64_t> SpecificMappings;
+
+  for (StringRef Mapping : SpecificSectionMappings) {
+
+    size_t EqualsIdx = Mapping.find_first_of("=");
+    StringRef SectionIDStr = Mapping.substr(0, EqualsIdx);
+    size_t ComaIdx = Mapping.find_first_of(",");
+
+    if (ComaIdx == StringRef::npos) {
+      errs() << "Invalid section specification '" << Mapping
+             << "'. Should be '<file name>,<section name>=<addr>'\n";
+      exit(1);
+    }
+
+    StringRef FileName = SectionIDStr.substr(0, ComaIdx);
+    StringRef SectionName = SectionIDStr.substr(ComaIdx + 1);
+
+    uint64_t OldAddrInt;
+    std::string ErrorMsg;
+    std::tie(OldAddrInt, ErrorMsg) =
+      Checker.getSectionAddr(FileName, SectionName, true);
+
+    if (ErrorMsg != "") {
+      errs() << ErrorMsg;
+      exit(1);
+    }
+
+    void* OldAddr = reinterpret_cast<void*>(static_cast<uintptr_t>(OldAddrInt));
+
+    StringRef NewAddrStr = Mapping.substr(EqualsIdx + 1);
+    uint64_t NewAddr;
+
+    if (NewAddrStr.getAsInteger(0, NewAddr)) {
+      errs() << "Invalid section address in mapping: " << Mapping << "\n";
+      exit(1);
+    }
+
+    Checker.getRTDyld().mapSectionAddress(OldAddr, NewAddr);
+    SpecificMappings[OldAddr] = NewAddr;
+  }
+
+  return SpecificMappings;
+}
+
+// Scatter sections in all directions!
+// Remaps section addresses for -verify mode. The following command line options
+// can be used to customize the layout of the memory within the phony target's
+// address space:
+// -target-addr-start <s> -- Specify where the phony target addres range starts.
+// -target-addr-end   <e> -- Specify where the phony target address range ends.
+// -target-section-sep <d> -- Specify how big a gap should be left between the
+//                            end of one section and the start of the next.
+//                            Defaults to zero. Set to something big
+//                            (e.g. 1 << 32) to stress-test stubs, GOTs, etc.
+//
+void remapSections(const llvm::Triple &TargetTriple,
+                   const TrivialMemoryManager &MemMgr,
+                   RuntimeDyldChecker &Checker) {
+
+  // Set up a work list (section addr/size pairs).
+  typedef std::list<std::pair<void*, uint64_t>> WorklistT;
+  WorklistT Worklist;
+
+  for (const auto& CodeSection : MemMgr.FunctionMemory)
+    Worklist.push_back(std::make_pair(CodeSection.base(), CodeSection.size()));
+  for (const auto& DataSection : MemMgr.DataMemory)
+    Worklist.push_back(std::make_pair(DataSection.base(), DataSection.size()));
+
+  // Apply any section-specific mappings that were requested on the command
+  // line.
+  typedef std::map<void*, uint64_t> AppliedMappingsT;
+  AppliedMappingsT AppliedMappings = applySpecificSectionMappings(Checker);
+
+  // Keep an "already allocated" mapping of section target addresses to sizes.
+  // Sections whose address mappings aren't specified on the command line will
+  // allocated around the explicitly mapped sections while maintaining the
+  // minimum separation.
+  std::map<uint64_t, uint64_t> AlreadyAllocated;
+
+  // Move the previously applied mappings into the already-allocated map.
+  for (WorklistT::iterator I = Worklist.begin(), E = Worklist.end();
+       I != E;) {
+    WorklistT::iterator Tmp = I;
+    ++I;
+    AppliedMappingsT::iterator AI = AppliedMappings.find(Tmp->first);
+
+    if (AI != AppliedMappings.end()) {
+      AlreadyAllocated[AI->second] = Tmp->second;
+      Worklist.erase(Tmp);
+    }
+  }
+
+  // If the -target-addr-end option wasn't explicitly passed, then set it to a
+  // sensible default based on the target triple.
+  if (TargetAddrEnd.getNumOccurrences() == 0) {
+    if (TargetTriple.isArch16Bit())
+      TargetAddrEnd = (1ULL << 16) - 1;
+    else if (TargetTriple.isArch32Bit())
+      TargetAddrEnd = (1ULL << 32) - 1;
+    // TargetAddrEnd already has a sensible default for 64-bit systems, so
+    // there's nothing to do in the 64-bit case.
+  }
+
+  // Process any elements remaining in the worklist.
+  while (!Worklist.empty()) {
+    std::pair<void*, uint64_t> CurEntry = Worklist.front();
+    Worklist.pop_front();
+
+    uint64_t NextSectionAddr = TargetAddrStart;
+
+    for (const auto &Alloc : AlreadyAllocated)
+      if (NextSectionAddr + CurEntry.second + TargetSectionSep <= Alloc.first)
+        break;
+      else
+        NextSectionAddr = Alloc.first + Alloc.second + TargetSectionSep;
+
+    AlreadyAllocated[NextSectionAddr] = CurEntry.second;
+    Checker.getRTDyld().mapSectionAddress(CurEntry.first, NextSectionAddr);
+  }
+
+}
+
+// Load and link the objects specified on the command line, but do not execute
+// anything. Instead, attach a RuntimeDyldChecker instance and call it to
+// verify the correctness of the linked memory.
 static int linkAndVerify() {
 
   // Check for missing triple.
@@ -347,6 +514,9 @@ static int linkAndVerify() {
   // Instantiate a dynamic linker.
   TrivialMemoryManager MemMgr;
   RuntimeDyld Dyld(&MemMgr);
+  Dyld.setProcessAllSections(true);
+  RuntimeDyldChecker Checker(Dyld, Disassembler.get(), InstPrinter.get(),
+                             llvm::dbgs());
 
   // If we don't have any input files, read from stdin.
   if (!InputFileList.size())
@@ -355,24 +525,42 @@ static int linkAndVerify() {
     // Load the input memory buffer.
     ErrorOr<std::unique_ptr<MemoryBuffer>> InputBuffer =
         MemoryBuffer::getFileOrSTDIN(InputFileList[i]);
+
     if (std::error_code EC = InputBuffer.getError())
       return Error("unable to read input: '" + EC.message() + "'");
 
-    std::unique_ptr<ObjectImage> LoadedObject;
+    ErrorOr<std::unique_ptr<ObjectFile>> MaybeObj(
+      ObjectFile::createObjectFile((*InputBuffer)->getMemBufferRef()));
+
+    if (std::error_code EC = MaybeObj.getError())
+      return Error("unable to create object file: '" + EC.message() + "'");
+
+    ObjectFile &Obj = **MaybeObj;
+
     // Load the object file
-    LoadedObject.reset(
-        Dyld.loadObject(new ObjectBuffer(InputBuffer.get().release())));
-    if (!LoadedObject) {
+    Dyld.loadObject(Obj);
+    if (Dyld.hasError()) {
       return Error(Dyld.getErrorString());
     }
   }
 
+  // Re-map the section addresses into the phony target address space.
+  remapSections(TheTriple, MemMgr, Checker);
+
   // Resolve all the relocations we can.
   Dyld.resolveRelocations();
 
-  RuntimeDyldChecker Checker(Dyld, Disassembler.get(), InstPrinter.get(),
-                             llvm::dbgs());
-  return checkAllExpressions(Checker);
+  // Register EH frames.
+  Dyld.registerEHFrames();
+
+  int ErrorCode = checkAllExpressions(Checker);
+  if (Dyld.hasError()) {
+    errs() << "RTDyld reported an error applying relocations:\n  "
+           << Dyld.getErrorString() << "\n";
+    ErrorCode = 1;
+  }
+
+  return ErrorCode;
 }
 
 int main(int argc, char **argv) {

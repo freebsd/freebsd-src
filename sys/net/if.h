@@ -577,6 +577,7 @@ typedef enum {
 	IF_LLADDR,
 	IF_BPF,
 	IF_NAME,
+	IF_VLAN,
 } ift_feature;
 
 typedef struct ifnet * if_t;

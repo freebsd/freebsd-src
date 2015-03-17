@@ -1534,6 +1534,8 @@ if_getsoftc(struct ifnet *ifp, ift_feature f)
 		return (ifp->if_bpf);
 	case IF_NAME:
 		return (ifp->if_xname);
+	case IF_VLAN:
+		return (ifp->if_vlantrunk);
 	default:
 		panic("%s: unknown feature %d", __func__, f);
 	};

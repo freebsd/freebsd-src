@@ -169,7 +169,7 @@ filemon_read(FILE *mfp, int fd)
     if ((fp = fdopen(fd, "r")) == NULL)
 	err(1, "Could not read build monitor file '%d'", fd);
 
-    fprintf(mfp, "-- filemon acquired metadata --\n");
+    fprintf(mfp, "\n-- filemon acquired metadata --\n");
 
     while (fgets(buf, sizeof(buf), fp)) {
 	fprintf(mfp, "%s", buf);

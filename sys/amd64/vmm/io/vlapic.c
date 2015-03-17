@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/vmm.h>
 
-#include "vmm_ipi.h"
 #include "vmm_lapic.h"
 #include "vmm_ktr.h"
 #include "vmm_stat.h"

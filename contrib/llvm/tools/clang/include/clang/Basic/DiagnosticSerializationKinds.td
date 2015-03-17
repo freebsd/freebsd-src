@@ -52,10 +52,18 @@ def err_pch_with_compiler_errors : Error<
     "PCH file contains compiler errors">;
 
 def err_imported_module_not_found : Error<
-    "module '%0' imported by AST file '%1' not found">, DefaultFatal;
+    "module '%0' in AST file '%1' (imported by AST file '%2') "
+    "is not defined in any loaded module map file; "
+    "maybe you need to load '%3'?">, DefaultFatal;
 def err_imported_module_modmap_changed : Error<
     "module '%0' imported by AST file '%1' found in a different module map file"
     " (%2) than when the importing AST file was built (%3)">, DefaultFatal;
+def err_imported_module_relocated : Error<
+    "module '%0' was built in directory '%1' but now resides in "
+    "directory '%2'">, DefaultFatal;
+def err_module_different_modmap : Error<
+    "module '%0' %select{uses|does not use}1 additional module map '%2'"
+    "%select{| not}1 used when the module was built">;
 def warn_module_conflict : Warning<
     "module '%0' conflicts with already-imported module '%1': %2">, 
     InGroup<ModuleConflict>;

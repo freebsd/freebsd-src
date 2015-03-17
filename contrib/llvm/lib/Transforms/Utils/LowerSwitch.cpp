@@ -46,7 +46,6 @@ namespace {
     void getAnalysisUsage(AnalysisUsage &AU) const override {
       // This is a cluster of orthogonal Transforms
       AU.addPreserved<UnifyFunctionExitNodes>();
-      AU.addPreserved("mem2reg");
       AU.addPreservedID(LowerInvokePassID);
     }
 
@@ -131,18 +130,39 @@ static raw_ostream& operator<<(raw_ostream &O,
   return O << "]";
 }
 
-static void fixPhis(BasicBlock *Succ,
-                    BasicBlock *OrigBlock,
-                    BasicBlock *NewNode) {
-  for (BasicBlock::iterator I = Succ->begin(),
-                            E = Succ->getFirstNonPHI();
-       I != E; ++I) {
+// \brief Update the first occurrence of the "switch statement" BB in the PHI
+// node with the "new" BB. The other occurrences will:
+//
+// 1) Be updated by subsequent calls to this function.  Switch statements may
+// have more than one outcoming edge into the same BB if they all have the same
+// value. When the switch statement is converted these incoming edges are now
+// coming from multiple BBs.
+// 2) Removed if subsequent incoming values now share the same case, i.e.,
+// multiple outcome edges are condensed into one. This is necessary to keep the
+// number of phi values equal to the number of branches to SuccBB.
+static void fixPhis(BasicBlock *SuccBB, BasicBlock *OrigBB, BasicBlock *NewBB,
+                    unsigned NumMergedCases) {
+  for (BasicBlock::iterator I = SuccBB->begin(), IE = SuccBB->getFirstNonPHI();
+       I != IE; ++I) {
     PHINode *PN = cast<PHINode>(I);
 
-    for (unsigned I = 0, E = PN->getNumIncomingValues(); I != E; ++I) {
-      if (PN->getIncomingBlock(I) == OrigBlock)
-        PN->setIncomingBlock(I, NewNode);
+    // Only update the first occurence.
+    unsigned Idx = 0, E = PN->getNumIncomingValues();
+    unsigned LocalNumMergedCases = NumMergedCases;
+    for (; Idx != E; ++Idx) {
+      if (PN->getIncomingBlock(Idx) == OrigBB) {
+        PN->setIncomingBlock(Idx, NewBB);
+        break;
+      }
     }
+
+    // Remove additional occurences coming from condensed cases and keep the
+    // number of incoming values equal to the number of branches to SuccBB.
+    for (++Idx; LocalNumMergedCases > 0 && Idx < E; ++Idx)
+      if (PN->getIncomingBlock(Idx) == OrigBB) {
+        PN->removeIncomingValue(Idx);
+        LocalNumMergedCases--;
+      }
   }
 }
 
@@ -165,7 +185,11 @@ BasicBlock *LowerSwitch::switchConvert(CaseItr Begin, CaseItr End,
     // emitting the code that checks if the value actually falls in the range
     // because the bounds already tell us so.
     if (Begin->Low == LowerBound && Begin->High == UpperBound) {
-      fixPhis(Begin->BB, OrigBlock, Predecessor);
+      unsigned NumMergedCases = 0;
+      if (LowerBound && UpperBound)
+        NumMergedCases =
+            UpperBound->getSExtValue() - LowerBound->getSExtValue();
+      fixPhis(Begin->BB, OrigBlock, Predecessor, NumMergedCases);
       return Begin->BB;
     }
     return newLeafBlock(*Begin, Val, OrigBlock, Default);

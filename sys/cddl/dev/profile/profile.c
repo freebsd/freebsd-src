@@ -135,7 +135,7 @@ struct profile_probe_percpu;
 
 #ifdef __arm__
 /* bogus */
-#define	PROF_ARTIFICIAL_FRAMES	3
+#define	PROF_ARTIFICIAL_FRAMES	9
 #endif
 
 typedef struct profile_probe {

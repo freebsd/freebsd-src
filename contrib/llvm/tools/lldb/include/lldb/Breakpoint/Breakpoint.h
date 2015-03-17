@@ -12,8 +12,11 @@
 
 // C Includes
 // C++ Includes
+#include <unordered_set>
+
 // Other libraries and framework includes
 // Project includes
+#include "lldb/Breakpoint/BreakpointID.h"
 #include "lldb/Breakpoint/BreakpointLocationList.h"
 #include "lldb/Breakpoint/BreakpointOptions.h"
 #include "lldb/Breakpoint/BreakpointLocationCollection.h"
@@ -203,13 +206,28 @@ public:
     /// Tell this breakpoint to scan a given module list and resolve any
     /// new locations that match the breakpoint's specifications.
     ///
-    /// @param[in] changed_modules
+    /// @param[in] module_list
     ///    The list of modules to look in for new locations.
+    ///
+    /// @param[in]  send_event
+    ///     If \b true, send a breakpoint location added event for non-internal breakpoints.
     //------------------------------------------------------------------
     void
-    ResolveBreakpointInModules (ModuleList &changed_modules);
+    ResolveBreakpointInModules (ModuleList &module_list, bool send_event = true);
 
-
+    //------------------------------------------------------------------
+    /// Tell this breakpoint to scan a given module list and resolve any
+    /// new locations that match the breakpoint's specifications.
+    ///
+    /// @param[in] changed_modules
+    ///    The list of modules to look in for new locations.
+    ///
+    /// @param[in]  new_locations
+    ///     Fills new_locations with the new locations that were made.
+    //------------------------------------------------------------------
+    void
+    ResolveBreakpointInModules (ModuleList &module_list, BreakpointLocationCollection &new_locations);
+    
     //------------------------------------------------------------------
     /// Like ResolveBreakpointInModules, but allows for "unload" events, in
     /// which case we will remove any locations that are in modules that got
@@ -538,10 +556,19 @@ public:
     ///     This breakpoint's Target.
     //------------------------------------------------------------------
     Target &
-    GetTarget ();
+    GetTarget ()
+    {
+        return m_target;
+    }
 
     const Target &
-    GetTarget () const;
+    GetTarget () const
+    {
+        return m_target;
+    }
+
+    const lldb::TargetSP
+    GetTargetSP ();
 
     void
     GetResolverDescription (Stream *s);
@@ -600,6 +627,44 @@ public:
         return m_hardware;
     }
 
+    lldb::BreakpointResolverSP
+    GetResolver()
+    {
+        return m_resolver_sp;
+    }
+
+    lldb::SearchFilterSP
+    GetSearchFilter()
+    {
+        return m_filter_sp;
+    }
+
+    bool
+    AddName (const char *new_name, Error &error);
+
+    void
+    RemoveName (const char *name_to_remove)
+    {
+        if (name_to_remove)
+            m_name_list.erase(name_to_remove);
+    }
+
+    bool
+    MatchesName (const char *name)
+    {
+        return m_name_list.find(name) != m_name_list.end();
+    }
+
+    void
+    GetNames (std::vector<std::string> &names)
+    {
+        names.clear();
+        for (auto name : m_name_list)
+        {
+            names.push_back(name);
+        }
+    }
+
 protected:
     friend class Target;
     //------------------------------------------------------------------
@@ -650,12 +715,18 @@ protected:
     IgnoreCountShouldStop ();
 
 private:
+    // This one should only be used by Target to copy breakpoints from target to target - primarily from the dummy
+    // target to prime new targets.
+    Breakpoint (Target &new_target,
+                Breakpoint &bp_to_copy_from);
+
     //------------------------------------------------------------------
     // For Breakpoint only
     //------------------------------------------------------------------
     bool m_being_created;
     bool m_hardware;                          // If this breakpoint is required to use a hardware breakpoint
     Target &m_target;                         // The target that holds this breakpoint.
+    std::unordered_set<std::string> m_name_list; // If not empty, this is the name of this breakpoint (many breakpoints can share the same name.)
     lldb::SearchFilterSP m_filter_sp;         // The filter that constrains the breakpoint's domain.
     lldb::BreakpointResolverSP m_resolver_sp; // The resolver that defines this breakpoint.
     BreakpointOptions m_options;              // Settable breakpoint options

@@ -2445,7 +2445,7 @@ do_jail_attach(struct thread *td, struct prison *pr)
 	setsugid(p);
 	crcopy(newcred, oldcred);
 	newcred->cr_prison = pr;
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
 #ifdef RACCT
 	racct_proc_ucred_changed(p, oldcred, newcred);

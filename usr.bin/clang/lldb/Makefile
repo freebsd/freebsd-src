@@ -36,16 +36,20 @@ LLDB_LIBS=\
 	lldbTarget \
 	lldbUtility \
 	\
+	lldbPluginABISysV_ppc \
+	lldbPluginABISysV_ppc64 \
 	lldbPluginABISysV_x86_64 \
 	lldbPluginCXXItaniumABI \
 	lldbPluginDisassemblerLLVM \
 	lldbPluginInstructionARM \
 	lldbPluginInstructionARM64 \
+	lldbPluginInstrumentationRuntimeAddressSanitizer \
 	lldbPluginJITLoaderGDB \
 	lldbPluginSymbolFileDWARF \
 	lldbPluginSymbolFileSymtab \
 	lldbPluginDynamicLoaderStatic \
 	lldbPluginDynamicLoaderPosixDYLD \
+	lldbPluginMemoryHistoryASan \
 	lldbPluginObjectContainerBSDArchive \
 	lldbPluginObjectFileELF \
 	lldbPluginObjectFileJIT \
@@ -89,7 +93,6 @@ LIBDEPS=\
 	llvmlinker \
 	llvmmcjit \
 	llvmruntimedyld \
-	llvmjit \
 	llvmexecutionengine \
 	llvmirreader \
 	llvmipo \

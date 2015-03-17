@@ -16,7 +16,9 @@
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/IR/CallSite.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/PatternMatch.h"
+#include "llvm/IR/Statepoint.h"
 #include "llvm/Transforms/Utils/BuildLibCalls.h"
 #include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
@@ -58,8 +60,8 @@ static Type *reduceToSingleValueType(Type *T) {
 }
 
 Instruction *InstCombiner::SimplifyMemTransfer(MemIntrinsic *MI) {
-  unsigned DstAlign = getKnownAlignment(MI->getArgOperand(0), DL);
-  unsigned SrcAlign = getKnownAlignment(MI->getArgOperand(1), DL);
+  unsigned DstAlign = getKnownAlignment(MI->getArgOperand(0), DL, AC, MI, DT);
+  unsigned SrcAlign = getKnownAlignment(MI->getArgOperand(1), DL, AC, MI, DT);
   unsigned MinAlign = std::min(DstAlign, SrcAlign);
   unsigned CopyAlign = MI->getAlignment();
 
@@ -117,15 +119,14 @@ Instruction *InstCombiner::SimplifyMemTransfer(MemIntrinsic *MI) {
         // If the memcpy has metadata describing the members, see if we can
         // get the TBAA tag describing our copy.
         if (MDNode *M = MI->getMetadata(LLVMContext::MD_tbaa_struct)) {
-          if (M->getNumOperands() == 3 &&
-              M->getOperand(0) &&
-              isa<ConstantInt>(M->getOperand(0)) &&
-              cast<ConstantInt>(M->getOperand(0))->isNullValue() &&
+          if (M->getNumOperands() == 3 && M->getOperand(0) &&
+              mdconst::hasa<ConstantInt>(M->getOperand(0)) &&
+              mdconst::extract<ConstantInt>(M->getOperand(0))->isNullValue() &&
               M->getOperand(1) &&
-              isa<ConstantInt>(M->getOperand(1)) &&
-              cast<ConstantInt>(M->getOperand(1))->getValue() == Size &&
-              M->getOperand(2) &&
-              isa<MDNode>(M->getOperand(2)))
+              mdconst::hasa<ConstantInt>(M->getOperand(1)) &&
+              mdconst::extract<ConstantInt>(M->getOperand(1))->getValue() ==
+                  Size &&
+              M->getOperand(2) && isa<MDNode>(M->getOperand(2)))
             CopyMD = cast<MDNode>(M->getOperand(2));
         }
       }
@@ -154,7 +155,7 @@ Instruction *InstCombiner::SimplifyMemTransfer(MemIntrinsic *MI) {
 }
 
 Instruction *InstCombiner::SimplifyMemSet(MemSetInst *MI) {
-  unsigned Alignment = getKnownAlignment(MI->getDest(), DL);
+  unsigned Alignment = getKnownAlignment(MI->getDest(), DL, AC, MI, DT);
   if (MI->getAlignment() < Alignment) {
     MI->setAlignment(ConstantInt::get(MI->getAlignmentType(),
                                              Alignment, false));
@@ -322,7 +323,7 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
     uint32_t BitWidth = IT->getBitWidth();
     APInt KnownZero(BitWidth, 0);
     APInt KnownOne(BitWidth, 0);
-    computeKnownBits(II->getArgOperand(0), KnownZero, KnownOne);
+    computeKnownBits(II->getArgOperand(0), KnownZero, KnownOne, 0, II);
     unsigned TrailingZeros = KnownOne.countTrailingZeros();
     APInt Mask(APInt::getLowBitsSet(BitWidth, TrailingZeros));
     if ((Mask & KnownZero) == Mask)
@@ -340,7 +341,7 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
     uint32_t BitWidth = IT->getBitWidth();
     APInt KnownZero(BitWidth, 0);
     APInt KnownOne(BitWidth, 0);
-    computeKnownBits(II->getArgOperand(0), KnownZero, KnownOne);
+    computeKnownBits(II->getArgOperand(0), KnownZero, KnownOne, 0, II);
     unsigned LeadingZeros = KnownOne.countLeadingZeros();
     APInt Mask(APInt::getHighBitsSet(BitWidth, LeadingZeros));
     if ((Mask & KnownZero) == Mask)
@@ -351,48 +352,11 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
     break;
   case Intrinsic::uadd_with_overflow: {
     Value *LHS = II->getArgOperand(0), *RHS = II->getArgOperand(1);
-    IntegerType *IT = cast<IntegerType>(II->getArgOperand(0)->getType());
-    uint32_t BitWidth = IT->getBitWidth();
-    APInt LHSKnownZero(BitWidth, 0);
-    APInt LHSKnownOne(BitWidth, 0);
-    computeKnownBits(LHS, LHSKnownZero, LHSKnownOne);
-    bool LHSKnownNegative = LHSKnownOne[BitWidth - 1];
-    bool LHSKnownPositive = LHSKnownZero[BitWidth - 1];
-
-    if (LHSKnownNegative || LHSKnownPositive) {
-      APInt RHSKnownZero(BitWidth, 0);
-      APInt RHSKnownOne(BitWidth, 0);
-      computeKnownBits(RHS, RHSKnownZero, RHSKnownOne);
-      bool RHSKnownNegative = RHSKnownOne[BitWidth - 1];
-      bool RHSKnownPositive = RHSKnownZero[BitWidth - 1];
-      if (LHSKnownNegative && RHSKnownNegative) {
-        // The sign bit is set in both cases: this MUST overflow.
-        // Create a simple add instruction, and insert it into the struct.
-        Value *Add = Builder->CreateAdd(LHS, RHS);
-        Add->takeName(&CI);
-        Constant *V[] = {
-          UndefValue::get(LHS->getType()),
-          ConstantInt::getTrue(II->getContext())
-        };
-        StructType *ST = cast<StructType>(II->getType());
-        Constant *Struct = ConstantStruct::get(ST, V);
-        return InsertValueInst::Create(Struct, Add, 0);
-      }
-
-      if (LHSKnownPositive && RHSKnownPositive) {
-        // The sign bit is clear in both cases: this CANNOT overflow.
-        // Create a simple add instruction, and insert it into the struct.
-        Value *Add = Builder->CreateNUWAdd(LHS, RHS);
-        Add->takeName(&CI);
-        Constant *V[] = {
-          UndefValue::get(LHS->getType()),
-          ConstantInt::getFalse(II->getContext())
-        };
-        StructType *ST = cast<StructType>(II->getType());
-        Constant *Struct = ConstantStruct::get(ST, V);
-        return InsertValueInst::Create(Struct, Add, 0);
-      }
-    }
+    OverflowResult OR = computeOverflowForUnsignedAdd(LHS, RHS, II);
+    if (OR == OverflowResult::NeverOverflows)
+      return CreateOverflowTuple(II, Builder->CreateNUWAdd(LHS, RHS), false);
+    if (OR == OverflowResult::AlwaysOverflows)
+      return CreateOverflowTuple(II, Builder->CreateAdd(LHS, RHS), true);
   }
   // FALL THROUGH uadd into sadd
   case Intrinsic::sadd_with_overflow:
@@ -412,13 +376,8 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
     if (ConstantInt *RHS = dyn_cast<ConstantInt>(II->getArgOperand(1))) {
       // X + 0 -> {X, false}
       if (RHS->isZero()) {
-        Constant *V[] = {
-          UndefValue::get(II->getArgOperand(0)->getType()),
-          ConstantInt::getFalse(II->getContext())
-        };
-        Constant *Struct =
-          ConstantStruct::get(cast<StructType>(II->getType()), V);
-        return InsertValueInst::Create(Struct, II->getArgOperand(0), 0);
+        return CreateOverflowTuple(II, II->getArgOperand(0), false,
+                                    /*ReUseName*/false);
       }
     }
 
@@ -426,66 +385,44 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
     // can prove that it will never overflow.
     if (II->getIntrinsicID() == Intrinsic::sadd_with_overflow) {
       Value *LHS = II->getArgOperand(0), *RHS = II->getArgOperand(1);
-      if (WillNotOverflowSignedAdd(LHS, RHS)) {
-        Value *Add = Builder->CreateNSWAdd(LHS, RHS);
-        Add->takeName(&CI);
-        Constant *V[] = {UndefValue::get(Add->getType()), Builder->getFalse()};
-        StructType *ST = cast<StructType>(II->getType());
-        Constant *Struct = ConstantStruct::get(ST, V);
-        return InsertValueInst::Create(Struct, Add, 0);
+      if (WillNotOverflowSignedAdd(LHS, RHS, II)) {
+        return CreateOverflowTuple(II, Builder->CreateNSWAdd(LHS, RHS), false);
       }
     }
 
     break;
   case Intrinsic::usub_with_overflow:
-  case Intrinsic::ssub_with_overflow:
+  case Intrinsic::ssub_with_overflow: {
+    Value *LHS = II->getArgOperand(0), *RHS = II->getArgOperand(1);
     // undef - X -> undef
     // X - undef -> undef
-    if (isa<UndefValue>(II->getArgOperand(0)) ||
-        isa<UndefValue>(II->getArgOperand(1)))
+    if (isa<UndefValue>(LHS) || isa<UndefValue>(RHS))
       return ReplaceInstUsesWith(CI, UndefValue::get(II->getType()));
 
-    if (ConstantInt *RHS = dyn_cast<ConstantInt>(II->getArgOperand(1))) {
+    if (ConstantInt *ConstRHS = dyn_cast<ConstantInt>(RHS)) {
       // X - 0 -> {X, false}
-      if (RHS->isZero()) {
-        Constant *V[] = {
-          UndefValue::get(II->getArgOperand(0)->getType()),
-          ConstantInt::getFalse(II->getContext())
-        };
-        Constant *Struct =
-          ConstantStruct::get(cast<StructType>(II->getType()), V);
-        return InsertValueInst::Create(Struct, II->getArgOperand(0), 0);
+      if (ConstRHS->isZero()) {
+        return CreateOverflowTuple(II, LHS, false, /*ReUseName*/false);
+      }
+    }
+    if (II->getIntrinsicID() == Intrinsic::ssub_with_overflow) {
+      if (WillNotOverflowSignedSub(LHS, RHS, II)) {
+        return CreateOverflowTuple(II, Builder->CreateNSWSub(LHS, RHS), false);
+      }
+    } else {
+      if (WillNotOverflowUnsignedSub(LHS, RHS, II)) {
+        return CreateOverflowTuple(II, Builder->CreateNUWSub(LHS, RHS), false);
       }
     }
     break;
+  }
   case Intrinsic::umul_with_overflow: {
     Value *LHS = II->getArgOperand(0), *RHS = II->getArgOperand(1);
-    unsigned BitWidth = cast<IntegerType>(LHS->getType())->getBitWidth();
-
-    APInt LHSKnownZero(BitWidth, 0);
-    APInt LHSKnownOne(BitWidth, 0);
-    computeKnownBits(LHS, LHSKnownZero, LHSKnownOne);
-    APInt RHSKnownZero(BitWidth, 0);
-    APInt RHSKnownOne(BitWidth, 0);
-    computeKnownBits(RHS, RHSKnownZero, RHSKnownOne);
-
-    // Get the largest possible values for each operand.
-    APInt LHSMax = ~LHSKnownZero;
-    APInt RHSMax = ~RHSKnownZero;
-
-    // If multiplying the maximum values does not overflow then we can turn
-    // this into a plain NUW mul.
-    bool Overflow;
-    LHSMax.umul_ov(RHSMax, Overflow);
-    if (!Overflow) {
-      Value *Mul = Builder->CreateNUWMul(LHS, RHS, "umul_with_overflow");
-      Constant *V[] = {
-        UndefValue::get(LHS->getType()),
-        Builder->getFalse()
-      };
-      Constant *Struct = ConstantStruct::get(cast<StructType>(II->getType()),V);
-      return InsertValueInst::Create(Struct, Mul, 0);
-    }
+    OverflowResult OR = computeOverflowForUnsignedMul(LHS, RHS, II);
+    if (OR == OverflowResult::NeverOverflows)
+      return CreateOverflowTuple(II, Builder->CreateNUWMul(LHS, RHS), false);
+    if (OR == OverflowResult::AlwaysOverflows)
+      return CreateOverflowTuple(II, Builder->CreateMul(LHS, RHS), true);
   } // FALL THROUGH
   case Intrinsic::smul_with_overflow:
     // Canonicalize constants into the RHS.
@@ -508,40 +445,142 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
 
       // X * 1 -> {X, false}
       if (RHSI->equalsInt(1)) {
-        Constant *V[] = {
-          UndefValue::get(II->getArgOperand(0)->getType()),
-          ConstantInt::getFalse(II->getContext())
-        };
-        Constant *Struct =
-          ConstantStruct::get(cast<StructType>(II->getType()), V);
-        return InsertValueInst::Create(Struct, II->getArgOperand(0), 0);
+        return CreateOverflowTuple(II, II->getArgOperand(0), false,
+                                    /*ReUseName*/false);
+      }
+    }
+    if (II->getIntrinsicID() == Intrinsic::smul_with_overflow) {
+      Value *LHS = II->getArgOperand(0), *RHS = II->getArgOperand(1);
+      if (WillNotOverflowSignedMul(LHS, RHS, II)) {
+        return CreateOverflowTuple(II, Builder->CreateNSWMul(LHS, RHS), false);
       }
     }
     break;
+  case Intrinsic::minnum:
+  case Intrinsic::maxnum: {
+    Value *Arg0 = II->getArgOperand(0);
+    Value *Arg1 = II->getArgOperand(1);
+
+    // fmin(x, x) -> x
+    if (Arg0 == Arg1)
+      return ReplaceInstUsesWith(CI, Arg0);
+
+    const ConstantFP *C0 = dyn_cast<ConstantFP>(Arg0);
+    const ConstantFP *C1 = dyn_cast<ConstantFP>(Arg1);
+
+    // Canonicalize constants into the RHS.
+    if (C0 && !C1) {
+      II->setArgOperand(0, Arg1);
+      II->setArgOperand(1, Arg0);
+      return II;
+    }
+
+    // fmin(x, nan) -> x
+    if (C1 && C1->isNaN())
+      return ReplaceInstUsesWith(CI, Arg0);
+
+    // This is the value because if undef were NaN, we would return the other
+    // value and cannot return a NaN unless both operands are.
+    //
+    // fmin(undef, x) -> x
+    if (isa<UndefValue>(Arg0))
+      return ReplaceInstUsesWith(CI, Arg1);
+
+    // fmin(x, undef) -> x
+    if (isa<UndefValue>(Arg1))
+      return ReplaceInstUsesWith(CI, Arg0);
+
+    Value *X = nullptr;
+    Value *Y = nullptr;
+    if (II->getIntrinsicID() == Intrinsic::minnum) {
+      // fmin(x, fmin(x, y)) -> fmin(x, y)
+      // fmin(y, fmin(x, y)) -> fmin(x, y)
+      if (match(Arg1, m_FMin(m_Value(X), m_Value(Y)))) {
+        if (Arg0 == X || Arg0 == Y)
+          return ReplaceInstUsesWith(CI, Arg1);
+      }
+
+      // fmin(fmin(x, y), x) -> fmin(x, y)
+      // fmin(fmin(x, y), y) -> fmin(x, y)
+      if (match(Arg0, m_FMin(m_Value(X), m_Value(Y)))) {
+        if (Arg1 == X || Arg1 == Y)
+          return ReplaceInstUsesWith(CI, Arg0);
+      }
+
+      // TODO: fmin(nnan x, inf) -> x
+      // TODO: fmin(nnan ninf x, flt_max) -> x
+      if (C1 && C1->isInfinity()) {
+        // fmin(x, -inf) -> -inf
+        if (C1->isNegative())
+          return ReplaceInstUsesWith(CI, Arg1);
+      }
+    } else {
+      assert(II->getIntrinsicID() == Intrinsic::maxnum);
+      // fmax(x, fmax(x, y)) -> fmax(x, y)
+      // fmax(y, fmax(x, y)) -> fmax(x, y)
+      if (match(Arg1, m_FMax(m_Value(X), m_Value(Y)))) {
+        if (Arg0 == X || Arg0 == Y)
+          return ReplaceInstUsesWith(CI, Arg1);
+      }
+
+      // fmax(fmax(x, y), x) -> fmax(x, y)
+      // fmax(fmax(x, y), y) -> fmax(x, y)
+      if (match(Arg0, m_FMax(m_Value(X), m_Value(Y)))) {
+        if (Arg1 == X || Arg1 == Y)
+          return ReplaceInstUsesWith(CI, Arg0);
+      }
+
+      // TODO: fmax(nnan x, -inf) -> x
+      // TODO: fmax(nnan ninf x, -flt_max) -> x
+      if (C1 && C1->isInfinity()) {
+        // fmax(x, inf) -> inf
+        if (!C1->isNegative())
+          return ReplaceInstUsesWith(CI, Arg1);
+      }
+    }
+    break;
+  }
   case Intrinsic::ppc_altivec_lvx:
   case Intrinsic::ppc_altivec_lvxl:
     // Turn PPC lvx -> load if the pointer is known aligned.
-    if (getOrEnforceKnownAlignment(II->getArgOperand(0), 16, DL) >= 16) {
+    if (getOrEnforceKnownAlignment(II->getArgOperand(0), 16, DL, AC, II, DT) >=
+        16) {
       Value *Ptr = Builder->CreateBitCast(II->getArgOperand(0),
                                          PointerType::getUnqual(II->getType()));
       return new LoadInst(Ptr);
     }
     break;
+  case Intrinsic::ppc_vsx_lxvw4x:
+  case Intrinsic::ppc_vsx_lxvd2x: {
+    // Turn PPC VSX loads into normal loads.
+    Value *Ptr = Builder->CreateBitCast(II->getArgOperand(0),
+                                        PointerType::getUnqual(II->getType()));
+    return new LoadInst(Ptr, Twine(""), false, 1);
+  }
   case Intrinsic::ppc_altivec_stvx:
   case Intrinsic::ppc_altivec_stvxl:
     // Turn stvx -> store if the pointer is known aligned.
-    if (getOrEnforceKnownAlignment(II->getArgOperand(1), 16, DL) >= 16) {
+    if (getOrEnforceKnownAlignment(II->getArgOperand(1), 16, DL, AC, II, DT) >=
+        16) {
       Type *OpPtrTy =
         PointerType::getUnqual(II->getArgOperand(0)->getType());
       Value *Ptr = Builder->CreateBitCast(II->getArgOperand(1), OpPtrTy);
       return new StoreInst(II->getArgOperand(0), Ptr);
     }
     break;
+  case Intrinsic::ppc_vsx_stxvw4x:
+  case Intrinsic::ppc_vsx_stxvd2x: {
+    // Turn PPC VSX stores into normal stores.
+    Type *OpPtrTy = PointerType::getUnqual(II->getArgOperand(0)->getType());
+    Value *Ptr = Builder->CreateBitCast(II->getArgOperand(1), OpPtrTy);
+    return new StoreInst(II->getArgOperand(0), Ptr, false, 1);
+  }
   case Intrinsic::x86_sse_storeu_ps:
   case Intrinsic::x86_sse2_storeu_pd:
   case Intrinsic::x86_sse2_storeu_dq:
     // Turn X86 storeu -> store if the pointer is known aligned.
-    if (getOrEnforceKnownAlignment(II->getArgOperand(0), 16, DL) >= 16) {
+    if (getOrEnforceKnownAlignment(II->getArgOperand(0), 16, DL, AC, II, DT) >=
+        16) {
       Type *OpPtrTy =
         PointerType::getUnqual(II->getArgOperand(1)->getType());
       Value *Ptr = Builder->CreateBitCast(II->getArgOperand(0), OpPtrTy);
@@ -672,7 +711,22 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
     // TODO: eventually we should lower this intrinsic to IR
     if (auto CIWidth = dyn_cast<ConstantInt>(II->getArgOperand(2))) {
       if (auto CIStart = dyn_cast<ConstantInt>(II->getArgOperand(3))) {
-        if (CIWidth->equalsInt(64) && CIStart->isZero()) {
+        unsigned Index = CIStart->getZExtValue();
+        // From AMD documentation: "a value of zero in the field length is
+        // defined as length of 64".
+        unsigned Length = CIWidth->equalsInt(0) ? 64 : CIWidth->getZExtValue();
+
+        // From AMD documentation: "If the sum of the bit index + length field
+        // is greater than 64, the results are undefined".
+
+        // Note that both field index and field length are 8-bit quantities.
+        // Since variables 'Index' and 'Length' are unsigned values
+        // obtained from zero-extending field index and field length
+        // respectively, their sum should never wrap around.
+        if ((Index + Length) > 64)
+          return ReplaceInstUsesWith(CI, UndefValue::get(II->getType()));
+
+        if (Length == 64 && Index == 0) {
           Value *Vec = II->getArgOperand(1);
           Value *Undef = UndefValue::get(Vec->getType());
           const uint32_t Mask[] = { 0, 2 };
@@ -680,7 +734,7 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
               CI,
               Builder->CreateShuffleVector(
                   Vec, Undef, ConstantDataVector::get(
-                                  II->getContext(), ArrayRef<uint32_t>(Mask))));
+                                  II->getContext(), makeArrayRef(Mask))));
 
         } else if (auto Source =
                        dyn_cast<IntrinsicInst>(II->getArgOperand(0))) {
@@ -886,7 +940,7 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
   case Intrinsic::arm_neon_vst2lane:
   case Intrinsic::arm_neon_vst3lane:
   case Intrinsic::arm_neon_vst4lane: {
-    unsigned MemAlign = getKnownAlignment(II->getArgOperand(0), DL);
+    unsigned MemAlign = getKnownAlignment(II->getArgOperand(0), DL, AC, II, DT);
     unsigned AlignArg = II->getNumArgOperands() - 1;
     ConstantInt *IntrAlign = dyn_cast<ConstantInt>(II->getArgOperand(AlignArg));
     if (IntrAlign && IntrAlign->getZExtValue() < MemAlign) {
@@ -994,6 +1048,91 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
       return EraseInstFromFunction(CI);
     break;
   }
+  case Intrinsic::assume: {
+    // Canonicalize assume(a && b) -> assume(a); assume(b);
+    // Note: New assumption intrinsics created here are registered by
+    // the InstCombineIRInserter object.
+    Value *IIOperand = II->getArgOperand(0), *A, *B,
+          *AssumeIntrinsic = II->getCalledValue();
+    if (match(IIOperand, m_And(m_Value(A), m_Value(B)))) {
+      Builder->CreateCall(AssumeIntrinsic, A, II->getName());
+      Builder->CreateCall(AssumeIntrinsic, B, II->getName());
+      return EraseInstFromFunction(*II);
+    }
+    // assume(!(a || b)) -> assume(!a); assume(!b);
+    if (match(IIOperand, m_Not(m_Or(m_Value(A), m_Value(B))))) {
+      Builder->CreateCall(AssumeIntrinsic, Builder->CreateNot(A),
+                          II->getName());
+      Builder->CreateCall(AssumeIntrinsic, Builder->CreateNot(B),
+                          II->getName());
+      return EraseInstFromFunction(*II);
+    }
+
+    // assume( (load addr) != null ) -> add 'nonnull' metadata to load
+    // (if assume is valid at the load)
+    if (ICmpInst* ICmp = dyn_cast<ICmpInst>(IIOperand)) {
+      Value *LHS = ICmp->getOperand(0);
+      Value *RHS = ICmp->getOperand(1);
+      if (ICmpInst::ICMP_NE == ICmp->getPredicate() &&
+          isa<LoadInst>(LHS) &&
+          isa<Constant>(RHS) &&
+          RHS->getType()->isPointerTy() &&
+          cast<Constant>(RHS)->isNullValue()) {
+        LoadInst* LI = cast<LoadInst>(LHS);
+        if (isValidAssumeForContext(II, LI, DL, DT)) {
+          MDNode *MD = MDNode::get(II->getContext(), None);
+          LI->setMetadata(LLVMContext::MD_nonnull, MD);
+          return EraseInstFromFunction(*II);
+        }
+      }
+      // TODO: apply nonnull return attributes to calls and invokes
+      // TODO: apply range metadata for range check patterns?
+    }
+    // If there is a dominating assume with the same condition as this one,
+    // then this one is redundant, and should be removed.
+    APInt KnownZero(1, 0), KnownOne(1, 0);
+    computeKnownBits(IIOperand, KnownZero, KnownOne, 0, II);
+    if (KnownOne.isAllOnesValue())
+      return EraseInstFromFunction(*II);
+
+    break;
+  }
+  case Intrinsic::experimental_gc_relocate: {
+    // Translate facts known about a pointer before relocating into
+    // facts about the relocate value, while being careful to
+    // preserve relocation semantics.
+    GCRelocateOperands Operands(II);
+    Value *DerivedPtr = Operands.derivedPtr();
+
+    // Remove the relocation if unused, note that this check is required
+    // to prevent the cases below from looping forever.
+    if (II->use_empty())
+      return EraseInstFromFunction(*II);
+
+    // Undef is undef, even after relocation.
+    // TODO: provide a hook for this in GCStrategy.  This is clearly legal for
+    // most practical collectors, but there was discussion in the review thread
+    // about whether it was legal for all possible collectors.
+    if (isa<UndefValue>(DerivedPtr))
+      return ReplaceInstUsesWith(*II, DerivedPtr);
+
+    // The relocation of null will be null for most any collector.
+    // TODO: provide a hook for this in GCStrategy.  There might be some weird
+    // collector this property does not hold for.
+    if (isa<ConstantPointerNull>(DerivedPtr))
+      return ReplaceInstUsesWith(*II, DerivedPtr);
+
+    // isKnownNonNull -> nonnull attribute
+    if (isKnownNonNull(DerivedPtr))
+      II->addAttribute(AttributeSet::ReturnIndex, Attribute::NonNull);
+
+    // TODO: dereferenceable -> deref attribute
+
+    // TODO: bitcast(relocate(p)) -> relocate(bitcast(p))
+    // Canonicalize on the type from the uses to the defs
+    
+    // TODO: relocate((gep p, C, C2, ...)) -> gep(relocate(p), C, C2, ...)
+  }
   }
 
   return visitCallSite(II);
@@ -1012,6 +1151,14 @@ static bool isSafeToEliminateVarargsCast(const CallSite CS,
                                          const DataLayout * const DL,
                                          const int ix) {
   if (!CI->isLosslessCast())
+    return false;
+
+  // If this is a GC intrinsic, avoid munging types.  We need types for
+  // statepoint reconstruction in SelectionDAG.
+  // TODO: This is probably something which should be expanded to all
+  // intrinsics since the entire point of intrinsics is that
+  // they are understandable by the optimizer.
+  if (isStatepoint(CS) || isGCRelocate(CS) || isGCResult(CS))
     return false;
 
   // The size of ByVal or InAlloca arguments is derived from the type, so we
@@ -1229,6 +1376,10 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
     dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts());
   if (!Callee)
     return false;
+  // The prototype of thunks are a lie, don't try to directly call such
+  // functions.
+  if (Callee->hasFnAttribute("thunk"))
+    return false;
   Instruction *Caller = CS.getInstruction();
   const AttributeSet &CallerPAL = CS.getAttributes();
 
@@ -1246,14 +1397,14 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
     if (NewRetTy->isStructTy())
       return false; // TODO: Handle multiple return values.
 
-    if (!CastInst::isBitCastable(NewRetTy, OldRetTy)) {
+    if (!CastInst::isBitOrNoopPointerCastable(NewRetTy, OldRetTy, DL)) {
       if (Callee->isDeclaration())
         return false;   // Cannot transform this return value.
 
       if (!Caller->use_empty() &&
           // void -> non-void is handled specially
           !NewRetTy->isVoidTy())
-      return false;   // Cannot transform this return value.
+        return false;   // Cannot transform this return value.
     }
 
     if (!CallerPAL.isEmpty() && !Caller->use_empty()) {
@@ -1281,12 +1432,21 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
   unsigned NumActualArgs = CS.arg_size();
   unsigned NumCommonArgs = std::min(FT->getNumParams(), NumActualArgs);
 
+  // Prevent us turning:
+  // declare void @takes_i32_inalloca(i32* inalloca)
+  //  call void bitcast (void (i32*)* @takes_i32_inalloca to void (i32)*)(i32 0)
+  //
+  // into:
+  //  call void @takes_i32_inalloca(i32* null)
+  if (Callee->getAttributes().hasAttrSomewhere(Attribute::InAlloca))
+    return false;
+
   CallSite::arg_iterator AI = CS.arg_begin();
   for (unsigned i = 0, e = NumCommonArgs; i != e; ++i, ++AI) {
     Type *ParamTy = FT->getParamType(i);
     Type *ActTy = (*AI)->getType();
 
-    if (!CastInst::isBitCastable(ActTy, ParamTy))
+    if (!CastInst::isBitOrNoopPointerCastable(ActTy, ParamTy, DL))
       return false;   // Cannot transform this parameter value.
 
     if (AttrBuilder(CallerPAL.getParamAttributes(i + 1), i + 1).
@@ -1381,7 +1541,7 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
     if ((*AI)->getType() == ParamTy) {
       Args.push_back(*AI);
     } else {
-      Args.push_back(Builder->CreateBitCast(*AI, ParamTy));
+      Args.push_back(Builder->CreateBitOrPointerCast(*AI, ParamTy));
     }
 
     // Add any parameter attributes.
@@ -1452,7 +1612,7 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
   Value *NV = NC;
   if (OldRetTy != NV->getType() && !Caller->use_empty()) {
     if (!NV->getType()->isVoidTy()) {
-      NV = NC = CastInst::Create(CastInst::BitCast, NC, OldRetTy);
+      NV = NC = CastInst::CreateBitOrPointerCast(NC, OldRetTy);
       NC->setDebugLoc(Caller->getDebugLoc());
 
       // If this is an invoke instruction, we should insert it after the first
@@ -1472,8 +1632,14 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
 
   if (!Caller->use_empty())
     ReplaceInstUsesWith(*Caller, NV);
-  else if (Caller->hasValueHandle())
-    ValueHandleBase::ValueIsRAUWd(Caller, NV);
+  else if (Caller->hasValueHandle()) {
+    if (OldRetTy == NV->getType())
+      ValueHandleBase::ValueIsRAUWd(Caller, NV);
+    else
+      // We cannot call ValueIsRAUWd with a different type, and the
+      // actual tracked value will disappear.
+      ValueHandleBase::ValueIsDeleted(Caller);
+  }
 
   EraseInstFromFunction(*Caller);
   return true;
