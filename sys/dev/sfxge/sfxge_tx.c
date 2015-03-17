@@ -423,8 +423,10 @@ sfxge_tx_qdpl_drain(struct sfxge_txq *txq)
 	stdp = &txq->dpl;
 	pushed = txq->added;
 
-	prefetch_read_many(sc->enp);
-	prefetch_read_many(txq->common);
+	if (__predict_true(txq->init_state == SFXGE_TXQ_STARTED)) {
+		prefetch_read_many(sc->enp);
+		prefetch_read_many(txq->common);
+	}
 
 	mbuf = stdp->std_get;
 	count = stdp->std_get_count;
