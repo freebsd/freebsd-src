@@ -411,7 +411,7 @@ write_type(void *arg1, void *arg2)
 
 		if (i > CTF_MAX_VLEN) {
 			terminate("function %s has too many args: %d > %d\n",
-			    i, CTF_MAX_VLEN);
+			    tdesc_name(tp), i, CTF_MAX_VLEN);
 		}
 
 		ctt.ctt_info = CTF_TYPE_INFO(CTF_K_FUNCTION, isroot, i);
