@@ -48,7 +48,7 @@
 #include <inttypes.h>
 
 int
-cheri_unwind_stack(void)
+cheri_stack_unwind(void)
 {
 	struct cheri_stack cs;
 	struct cheri_stack_frame *csfp;
@@ -86,5 +86,5 @@ cheri_unwind_stack(void)
 	if (retval != 0)
 		return (-1);
 
-	return (0);
+	return (stack_frames - 1);
 }

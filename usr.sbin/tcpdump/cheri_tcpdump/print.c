@@ -164,7 +164,7 @@ handle_alarm(int sig, siginfo_t *info __unused, void *vuap __unused)
 	assert(sig == SIGALRM);
 	g_timeout_occured = 1;
 
-	cheri_unwind_stack();
+	cheri_stack_unwind();
 }
 
 static void
