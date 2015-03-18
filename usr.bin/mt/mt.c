@@ -119,6 +119,7 @@ __FBSDID("$FreeBSD$");
 #ifndef MAX
 #define	MAX(a, b) (a > b) ? a : b
 #endif
+#define MT_PLURAL(a) (a == 1) ? "" : "s"
 
 typedef enum {
 	MT_CMD_NONE	= MTLOAD + 1,
@@ -384,10 +385,16 @@ main(int argc, char *argv[])
 
 			if (ioctl(mtfd, MTIOCRBLIM, (caddr_t)&rblim) < 0)
 				err(2, "%s", tape);
-			(void)printf("%s: min blocksize %u bytes, "
-			    "max blocksize %u bytes, granularity %u bytes\n",
+			(void)printf("%s:\n"
+			    "    min blocksize %u byte%s\n"
+			    "    max blocksize %u byte%s\n"
+			    "    granularity %u byte%s\n",
 			    tape, rblim.min_block_length,
-			    rblim.max_block_length, rblim.granularity);
+			    MT_PLURAL(rblim.min_block_length),
+			    rblim.max_block_length,
+			    MT_PLURAL(rblim.max_block_length),
+			    (1 << rblim.granularity),
+			    MT_PLURAL((1 << rblim.granularity)));
 			exit(0);
 			/* NOTREACHED */
 		}
