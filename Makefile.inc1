@@ -1227,7 +1227,7 @@ create-world-packages:
 			${SRCDIR}/release/packages/$${pkgname}.ucl \
 			> ${DESTDIR}/$${pkgname}.ucl ; \
 		awk -F\" '/name/ { printf("===> Creating %s-", $$2) } /version/ {print $$2 }' \
-			${DESTDIR}/$${pkgname}-manifestdir/+MANIFEST ; \
+			${DESTDIR}/$${pkgname}.ucl ; \
 		pkg -o ABI_FILE=${DESTDIR}/bin/sh \
 			create -M ${DESTDIR}/$${pkgname}.ucl \
 			-p ${DESTDIR}/$${pkgname}.plist \
