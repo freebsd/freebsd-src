@@ -241,16 +241,7 @@ ValueObjectDynamicValue::UpdateValue ()
     {
         if (class_type_or_name.HasType())
         {
-            // TypeSP are always generated from debug info
-            if (!class_type_or_name.HasTypeSP() && class_type_or_name.GetClangASTType().IsRuntimeGeneratedType())
-            {
-                m_type_impl = TypeImpl(m_parent->GetClangType(),FixupTypeAndOrName(class_type_or_name, *m_parent).GetClangASTType());
-                class_type_or_name.SetClangASTType(ClangASTType());
-            }
-            else
-            {
-                m_type_impl = TypeImpl(FixupTypeAndOrName(class_type_or_name, *m_parent).GetClangASTType());
-            }
+            m_type_impl = TypeImpl(m_parent->GetClangType(),FixupTypeAndOrName(class_type_or_name, *m_parent).GetClangASTType());
         }
         else
         {
@@ -329,7 +320,7 @@ ValueObjectDynamicValue::UpdateValue ()
         m_error = m_value.GetValueAsData (&exe_ctx, m_data, 0, GetModule().get());
         if (m_error.Success())
         {
-            if (GetClangType().IsAggregateType ())
+            if (!CanProvideValue())
             {
                 // this value object represents an aggregate type whose
                 // children have values, but this object does not. So we

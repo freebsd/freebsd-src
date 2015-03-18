@@ -3451,6 +3451,7 @@ sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS)
 	if (error != 0)
 		return (error);
 	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+	sbuf_clear_flags(&sbuf, SBUF_INCLUDENUL);
 
 	count = 0;
 	rw_rlock(&uma_rwlock);

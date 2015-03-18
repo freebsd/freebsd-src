@@ -235,10 +235,13 @@ extern void	*testppc64, *testppc64size;
 extern void	*restorebridge, *restorebridgesize;
 extern void	*rfid_patch, *rfi_patch1, *rfi_patch2;
 extern void	*trapcode64;
+
+extern Elf_Addr	_GLOBAL_OFFSET_TABLE_[];
 #endif
 
 extern void	*rstcode, *rstcodeend;
-extern void	*trapcode, *trapcodeend, *trapcode2;
+extern void	*trapcode, *trapcodeend;
+extern void	*generictrap, *generictrap64;
 extern void	*slbtrap, *slbtrapend;
 extern void	*alitrap, *aliend;
 extern void	*dsitrap, *dsiend;
@@ -254,7 +257,6 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 {
 	struct		pcpu *pc;
 	vm_offset_t	startkernel, endkernel;
-	void		*generictrap;
 	size_t		trap_offset, trapsize;
 	vm_offset_t	trap;
 	void		*kmdp;
@@ -467,20 +469,9 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 		/* rfi_patch2 is at the end of dbleave */
 		bcopy(&rfid_patch,&rfi_patch2,4);
 	#endif
-
-		/*
-		 * Set the common trap entry point to the one that
-		 * knows to restore 32-bit operation on execution.
-		 */
-
-		generictrap = &trapcode64;
-	} else {
-		generictrap = &trapcode;
 	}
-
 	#else /* powerpc64 */
 	cpu_features |= PPC_FEATURE_64;
-	generictrap = &trapcode;
 	#endif
 
 	trapsize = (size_t)&trapcodeend - (size_t)&trapcode;
@@ -490,7 +481,7 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	 * different ones in a minute.
 	 */
 	for (trap = EXC_RST; trap < EXC_LAST; trap += 0x20)
-		bcopy(generictrap, (void *)trap, trapsize);
+		bcopy(&trapcode, (void *)trap, trapsize);
 
 	#ifndef __powerpc64__
 	if (cpu_features & PPC_FEATURE_64) {
@@ -530,12 +521,19 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 
 	#ifdef __powerpc64__
 	/* Set TOC base so that the interrupt code can get at it */
-	*((void **)TRAP_GENTRAP) = &trapcode2;
+	*((void **)TRAP_GENTRAP) = &generictrap;
 	*((register_t *)TRAP_TOCBASE) = toc;
 
 	bcopy(&slbtrap, (void *)EXC_DSE,(size_t)&slbtrapend - (size_t)&slbtrap);
 	bcopy(&slbtrap, (void *)EXC_ISE,(size_t)&slbtrapend - (size_t)&slbtrap);
 	#else
+	/* Set branch address for trap code */
+	if (cpu_features & PPC_FEATURE_64)
+		*((void **)TRAP_GENTRAP) = &generictrap64;
+	else
+		*((void **)TRAP_GENTRAP) = &generictrap;
+	*((void **)TRAP_TOCBASE) = _GLOBAL_OFFSET_TABLE_;
+
 	/* G2-specific TLB miss helper handlers */
 	bcopy(&imisstrap, (void *)EXC_IMISS,  (size_t)&imisssize);
 	bcopy(&dlmisstrap, (void *)EXC_DLMISS,  (size_t)&dlmisssize);

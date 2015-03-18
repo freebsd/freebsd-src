@@ -39,8 +39,10 @@ enum {
 	WPI_DEBUG_TRACE		= 0x00002000,	/* Print begin and start driver function */
 	WPI_DEBUG_PWRSAVE	= 0x00004000,	/* Power save operations */
 	WPI_DEBUG_EEPROM	= 0x00008000,	/* EEPROM info */
-	WPI_DEBUG_KEY		= 0x00010000,	/* node key management */
-	WPI_DEBUG_EDCA		= 0x00020000,	/* WME info */
+	WPI_DEBUG_NODE		= 0x00010000,	/* node addition/removal */
+	WPI_DEBUG_KEY		= 0x00020000,	/* node key management */
+	WPI_DEBUG_EDCA		= 0x00040000,	/* WME info */
+	WPI_DEBUG_REGISTER	= 0x00080000,	/* print chipset register */
 	WPI_DEBUG_ANY		= 0xffffffff
 };
 
@@ -54,40 +56,82 @@ enum {
 #define TRACE_STR_END		"->%s: end\n"
 #define TRACE_STR_END_ERR	"->%s: end in error\n"
 
+#define WPI_DESC(x) case x:	return #x
+
 static const char *wpi_cmd_str(int cmd)
 {
 	switch (cmd) {
-	/* Notifications */
-	case WPI_UC_READY:		return "UC_READY";
-	case WPI_RX_DONE:		return "RX_DONE";
-	case WPI_START_SCAN:		return "START_SCAN";
-	case WPI_SCAN_RESULTS:		return "SCAN_RESULTS";
-	case WPI_STOP_SCAN:		return "STOP_SCAN";
-	case WPI_BEACON_SENT:		return "BEACON_SENT";
-	case WPI_RX_STATISTICS:		return "RX_STATS";
-	case WPI_BEACON_STATISTICS:	return "BEACON_STATS";
-	case WPI_STATE_CHANGED:		return "STATE_CHANGED";
-	case WPI_BEACON_MISSED:		return "BEACON_MISSED";
+		/* Notifications. */
+		WPI_DESC(WPI_UC_READY);
+		WPI_DESC(WPI_RX_DONE);
+		WPI_DESC(WPI_START_SCAN);
+		WPI_DESC(WPI_SCAN_RESULTS);
+		WPI_DESC(WPI_STOP_SCAN);
+		WPI_DESC(WPI_BEACON_SENT);
+		WPI_DESC(WPI_RX_STATISTICS);
+		WPI_DESC(WPI_BEACON_STATISTICS);
+		WPI_DESC(WPI_STATE_CHANGED);
+		WPI_DESC(WPI_BEACON_MISSED);
 
-	/* Command notifications */
-	case WPI_CMD_RXON:		return "WPI_CMD_RXON";
-	case WPI_CMD_RXON_ASSOC:	return "WPI_CMD_RXON_ASSOC";
-	case WPI_CMD_EDCA_PARAMS:	return "WPI_CMD_EDCA_PARAMS";
-	case WPI_CMD_TIMING:		return "WPI_CMD_TIMING";
-	case WPI_CMD_ADD_NODE:		return "WPI_CMD_ADD_NODE";
-	case WPI_CMD_DEL_NODE:		return "WPI_CMD_DEL_NODE";
-	case WPI_CMD_TX_DATA:		return "WPI_CMD_TX_DATA";
-	case WPI_CMD_MRR_SETUP:		return "WPI_CMD_MRR_SETUP";
-	case WPI_CMD_SET_LED:		return "WPI_CMD_SET_LED";
-	case WPI_CMD_SET_POWER_MODE:	return "WPI_CMD_SET_POWER_MODE";
-	case WPI_CMD_SCAN:		return "WPI_CMD_SCAN";
-	case WPI_CMD_SET_BEACON:	return "WPI_CMD_SET_BEACON";
-	case WPI_CMD_TXPOWER:		return "WPI_CMD_TXPOWER";
-	case WPI_CMD_BT_COEX:		return "WPI_CMD_BT_COEX";
+		/* Command notifications. */
+		WPI_DESC(WPI_CMD_RXON);
+		WPI_DESC(WPI_CMD_RXON_ASSOC);
+		WPI_DESC(WPI_CMD_EDCA_PARAMS);
+		WPI_DESC(WPI_CMD_TIMING);
+		WPI_DESC(WPI_CMD_ADD_NODE);
+		WPI_DESC(WPI_CMD_DEL_NODE);
+		WPI_DESC(WPI_CMD_TX_DATA);
+		WPI_DESC(WPI_CMD_MRR_SETUP);
+		WPI_DESC(WPI_CMD_SET_LED);
+		WPI_DESC(WPI_CMD_SET_POWER_MODE);
+		WPI_DESC(WPI_CMD_SCAN);
+		WPI_DESC(WPI_CMD_SET_BEACON);
+		WPI_DESC(WPI_CMD_TXPOWER);
+		WPI_DESC(WPI_CMD_BT_COEX);
 
 	default:
 		KASSERT(1, ("Unknown Command: %d\n", cmd));
 		return "UNKNOWN CMD";
+	}
+}
+
+/*
+ * Translate CSR code to string
+ */
+static const char *wpi_get_csr_string(int csr)
+{
+	switch (csr) {
+		WPI_DESC(WPI_HW_IF_CONFIG);
+		WPI_DESC(WPI_INT);
+		WPI_DESC(WPI_INT_MASK);
+		WPI_DESC(WPI_FH_INT);
+		WPI_DESC(WPI_GPIO_IN);
+		WPI_DESC(WPI_RESET);
+		WPI_DESC(WPI_GP_CNTRL);
+		WPI_DESC(WPI_EEPROM);
+		WPI_DESC(WPI_EEPROM_GP);
+		WPI_DESC(WPI_GIO);
+		WPI_DESC(WPI_UCODE_GP1);
+		WPI_DESC(WPI_UCODE_GP2);
+		WPI_DESC(WPI_GIO_CHICKEN);
+		WPI_DESC(WPI_ANA_PLL);
+		WPI_DESC(WPI_DBG_HPET_MEM);
+	default:
+		KASSERT(1, ("Unknown CSR: %d\n", csr));
+		return "UNKNOWN CSR";
+	}
+}
+
+static const char *wpi_get_prph_string(int prph)
+{
+	switch (prph) {
+		WPI_DESC(WPI_APMG_CLK_CTRL);
+		WPI_DESC(WPI_APMG_PS);
+		WPI_DESC(WPI_APMG_PCI_STT);
+		WPI_DESC(WPI_APMG_RFKILL);
+	default:
+		KASSERT(1, ("Unknown register: %d\n", prph));
+		return "UNKNOWN PRPH";
 	}
 }
 

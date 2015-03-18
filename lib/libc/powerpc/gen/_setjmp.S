@@ -56,12 +56,54 @@ ENTRY(_setjmp)
 	mr	%r10,%r1
 	mr	%r9,%r2
 	stmw	%r9,20(%r3)
+
+	/* FPRs */
+	stfd	%f14,92+0*8(%r3)
+	stfd	%f15,92+1*8(%r3)
+	stfd	%f16,92+2*8(%r3)
+	stfd	%f17,92+3*8(%r3)
+	stfd	%f18,92+4*8(%r3)
+	stfd	%f19,92+5*8(%r3)
+	stfd	%f20,92+6*8(%r3)
+	stfd	%f21,92+7*8(%r3)
+	stfd	%f22,92+8*8(%r3)
+	stfd	%f23,92+9*8(%r3)
+	stfd	%f24,92+10*8(%r3)
+	stfd	%f25,92+11*8(%r3)
+	stfd	%f26,92+12*8(%r3)
+	stfd	%f27,92+13*8(%r3)
+	stfd	%f28,93+13*8(%r3)
+	stfd	%f29,93+14*8(%r3)
+	stfd	%f30,93+15*8(%r3)
+	stfd	%f31,93+16*8(%r3)
+
 	li	%r3,0
 	blr
 END(_setjmp)
 
 ENTRY(_longjmp)
 	lmw	%r9,20(%r3)
+
+	/* FPRs */
+	lfd	%f14,92+0*8(%r3)
+	lfd	%f15,92+1*8(%r3)
+	lfd	%f16,92+2*8(%r3)
+	lfd	%f17,92+3*8(%r3)
+	lfd	%f18,92+4*8(%r3)
+	lfd	%f19,92+5*8(%r3)
+	lfd	%f20,92+6*8(%r3)
+	lfd	%f21,92+7*8(%r3)
+	lfd	%f22,92+8*8(%r3)
+	lfd	%f23,92+9*8(%r3)
+	lfd	%f24,92+10*8(%r3)
+	lfd	%f25,92+11*8(%r3)
+	lfd	%f26,92+12*8(%r3)
+	lfd	%f27,92+13*8(%r3)
+	lfd	%f28,93+13*8(%r3)
+	lfd	%f29,93+14*8(%r3)
+	lfd	%f30,93+15*8(%r3)
+	lfd	%f31,93+16*8(%r3)
+
 	mtlr	%r11
 	mtcr	%r12
 	mr	%r1,%r10

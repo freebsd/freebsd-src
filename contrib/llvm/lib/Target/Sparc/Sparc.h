@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef TARGET_SPARC_H
-#define TARGET_SPARC_H
+#ifndef LLVM_LIB_TARGET_SPARC_SPARC_H
+#define LLVM_LIB_TARGET_SPARC_SPARC_H
 
 #include "MCTargetDesc/SparcMCTargetDesc.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -29,8 +29,6 @@ namespace llvm {
 
   FunctionPass *createSparcISelDag(SparcTargetMachine &TM);
   FunctionPass *createSparcDelaySlotFillerPass(TargetMachine &TM);
-  FunctionPass *createSparcJITCodeEmitterPass(SparcTargetMachine &TM,
-                                              JITCodeEmitter &JCE);
 
   void LowerSparcMachineInstrToMCInst(const MachineInstr *MI,
                                       MCInst &OutMI,

@@ -6,6 +6,7 @@ LIB=	llvmscalaropts
 
 SRCDIR=	lib/Transforms/Scalar
 SRCS=	ADCE.cpp \
+	AlignmentFromAssumptions.cpp \
 	ConstantHoisting.cpp \
 	ConstantProp.cpp \
 	CorrelatedValuePropagation.cpp \

@@ -51,6 +51,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/vt/vt.h>
 #include <dev/vt/hw/fb/vt_fb.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include "fb_if.h"
 
 LIST_HEAD(fb_list_head_t, fb_list_entry) fb_list_head =
@@ -167,11 +170,14 @@ fb_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr, int nprot,
 
 	info = dev->si_drv1;
 
-	if ((info->fb_flags & FB_FLAG_NOMMAP) || info->fb_pbase == 0)
+	if (info->fb_flags & FB_FLAG_NOMMAP)
 		return (ENODEV);
 
-	if (offset < info->fb_size) {
-		*paddr = info->fb_pbase + offset;
+	if (offset >= 0 && offset < info->fb_size) {
+		if (info->fb_pbase == 0)
+			*paddr = vtophys((uint8_t *)info->fb_vbase + offset);
+		else
+			*paddr = info->fb_pbase + offset;
 		return (0);
 	}
 	return (EINVAL);
@@ -356,5 +362,6 @@ devclass_t	fbd_devclass;
 
 DRIVER_MODULE(fbd, fb, fbd_driver, fbd_devclass, 0, 0);
 DRIVER_MODULE(fbd, drmn, fbd_driver, fbd_devclass, 0, 0);
+DRIVER_MODULE(fbd, udl, fbd_driver, fbd_devclass, 0, 0);
 MODULE_VERSION(fbd, 1);
 

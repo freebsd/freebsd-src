@@ -411,7 +411,7 @@ tgtok::TokKind TGLexer::LexNumber() {
       if (CurPtr == NumStart)
         return ReturnError(CurPtr-2, "Invalid binary number");
       CurIntVal = strtoll(NumStart, nullptr, 2);
-      return tgtok::IntVal;
+      return tgtok::BinaryIntVal;
     }
   }
 
@@ -471,6 +471,7 @@ tgtok::TokKind TGLexer::LexExclaim() {
     .Case("tail", tgtok::XTail)
     .Case("con", tgtok::XConcat)
     .Case("add", tgtok::XADD)
+    .Case("and", tgtok::XAND)
     .Case("shl", tgtok::XSHL)
     .Case("sra", tgtok::XSRA)
     .Case("srl", tgtok::XSRL)

@@ -35,6 +35,34 @@ __FBSDID("$FreeBSD$");
 #include "atom.h"
 #include "atom-bits.h"
 
+#ifdef FREEBSD_WIP /* FreeBSD: to please GCC 4.2. */
+/* from radeon_encoder.c */
+extern uint32_t
+radeon_get_encoder_enum(struct drm_device *dev, uint32_t supported_device,
+			uint8_t dac);
+extern void radeon_link_encoder_connector(struct drm_device *dev);
+extern void
+radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_enum,
+			uint32_t supported_device, u16 caps);
+
+/* from radeon_connector.c */
+extern void
+radeon_add_atom_connector(struct drm_device *dev,
+			  uint32_t connector_id,
+			  uint32_t supported_device,
+			  int connector_type,
+			  struct radeon_i2c_bus_rec *i2c_bus,
+			  uint32_t igp_lane_info,
+			  uint16_t connector_object_id,
+			  struct radeon_hpd *hpd,
+			  struct radeon_router *router);
+
+/* from radeon_legacy_encoder.c */
+extern void
+radeon_add_legacy_encoder(struct drm_device *dev, uint32_t encoder_enum,
+			  uint32_t supported_device);
+#endif
+
 /* local */
 static int radeon_atom_get_max_vddc(struct radeon_device *rdev, u8 voltage_type,
 				    u16 voltage_id, u16 *voltage);
@@ -904,7 +932,7 @@ bool radeon_get_atom_connector_info_from_supported_devices_table(struct
 	router.ddc_valid = false;
 	router.cd_valid = false;
 
-	bios_connectors = malloc(bc_size, DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+	bios_connectors = malloc(bc_size, DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (!bios_connectors)
 		return false;
 
@@ -1532,7 +1560,7 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 			(union lvds_info *)((char *)mode_info->atom_context->bios + data_offset);
 		lvds =
 		    malloc(sizeof(struct radeon_encoder_atom_dig),
-			DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+			DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 
 		if (!lvds)
 			return NULL;
@@ -1619,7 +1647,7 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 						struct edid *edid;
 						int edid_size =
 							max((int)EDID_LENGTH, (int)fake_edid_record->ucFakeEDIDLength);
-						edid = malloc(edid_size, DRM_MEM_KMS, M_WAITOK);
+						edid = malloc(edid_size, DRM_MEM_KMS, M_NOWAIT);
 						if (edid) {
 							memcpy((u8 *)edid, (u8 *)&fake_edid_record->ucFakeEDIDString[0],
 							       fake_edid_record->ucFakeEDIDLength);
@@ -1671,7 +1699,7 @@ radeon_atombios_get_primary_dac_info(struct radeon_encoder *encoder)
 			((char *)mode_info->atom_context->bios + data_offset);
 
 		p_dac = malloc(sizeof(struct radeon_encoder_primary_dac),
-		    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+		    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 
 		if (!p_dac)
 			return NULL;
@@ -1857,7 +1885,7 @@ radeon_atombios_get_tv_dac_info(struct radeon_encoder *encoder)
 			((char *)mode_info->atom_context->bios + data_offset);
 
 		tv_dac = malloc(sizeof(struct radeon_encoder_tv_dac),
-		    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+		    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 
 		if (!tv_dac)
 			return NULL;
@@ -1992,13 +2020,13 @@ static int radeon_atombios_parse_power_table_1_3(struct radeon_device *rdev)
 
 	/* add the i2c bus for thermal/fan chip */
 	if ((power_info->info.ucOverdriveThermalController > 0) &&
-	    (power_info->info.ucOverdriveThermalController < DRM_ARRAY_SIZE(thermal_controller_names))) {
+	    (power_info->info.ucOverdriveThermalController < ARRAY_SIZE(thermal_controller_names))) {
 		DRM_INFO("Possible %s thermal controller at 0x%02x\n",
 			 thermal_controller_names[power_info->info.ucOverdriveThermalController],
 			 power_info->info.ucOverdriveControllerAddress >> 1);
 		i2c_bus = radeon_lookup_i2c_gpio(rdev, power_info->info.ucOverdriveI2cLine);
 		rdev->pm.i2c_bus = radeon_i2c_lookup(rdev, &i2c_bus);
-#ifdef DUMBBELL_WIP
+#ifdef FREEBSD_WIP
 		if (rdev->pm.i2c_bus) {
 			struct i2c_board_info info = { };
 			const char *name = thermal_controller_names[power_info->info.
@@ -2007,20 +2035,22 @@ static int radeon_atombios_parse_power_table_1_3(struct radeon_device *rdev)
 			strlcpy(info.type, name, sizeof(info.type));
 			i2c_new_device(&rdev->pm.i2c_bus->adapter, &info);
 		}
-#endif /* DUMBBELL_WIP */
+#endif /* FREEBSD_WIP */
 	}
 	num_modes = power_info->info.ucNumOfPowerModeEntries;
 	if (num_modes > ATOM_MAX_NUMBEROF_POWER_BLOCK)
 		num_modes = ATOM_MAX_NUMBEROF_POWER_BLOCK;
+	if (num_modes == 0)
+		return state_index;
 	rdev->pm.power_state = malloc(sizeof(struct radeon_power_state) * num_modes,
-	    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+	    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (!rdev->pm.power_state)
 		return state_index;
 	/* last mode is usually default, array is low to high */
 	for (i = 0; i < num_modes; i++) {
 		rdev->pm.power_state[state_index].clock_info =
 			malloc(sizeof(struct radeon_pm_clock_info) * 1,
-			    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+			    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 		if (!rdev->pm.power_state[state_index].clock_info)
 			return state_index;
 		rdev->pm.power_state[state_index].num_clock_modes = 1;
@@ -2200,7 +2230,7 @@ static void radeon_atombios_add_pplib_thermal_controller(struct radeon_device *r
 			   (controller->ucType ==
 			    ATOM_PP_THERMALCONTROLLER_EMC2103_WITH_INTERNAL)) {
 			DRM_INFO("Special thermal controller config\n");
-		} else if (controller->ucType < DRM_ARRAY_SIZE(pp_lib_thermal_controller_names)) {
+		} else if (controller->ucType < ARRAY_SIZE(pp_lib_thermal_controller_names)) {
 			DRM_INFO("Possible %s thermal controller at 0x%02x %s fan control\n",
 				 pp_lib_thermal_controller_names[controller->ucType],
 				 controller->ucI2cAddress >> 1,
@@ -2208,7 +2238,7 @@ static void radeon_atombios_add_pplib_thermal_controller(struct radeon_device *r
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			i2c_bus = radeon_lookup_i2c_gpio(rdev, controller->ucI2cLine);
 			rdev->pm.i2c_bus = radeon_i2c_lookup(rdev, &i2c_bus);
-#ifdef DUMBBELL_WIP
+#ifdef FREEBSD_WIP
 			if (rdev->pm.i2c_bus) {
 				struct i2c_board_info info = { };
 				const char *name = pp_lib_thermal_controller_names[controller->ucType];
@@ -2216,7 +2246,7 @@ static void radeon_atombios_add_pplib_thermal_controller(struct radeon_device *r
 				strlcpy(info.type, name, sizeof(info.type));
 				i2c_new_device(&rdev->pm.i2c_bus->adapter, &info);
 			}
-#endif /* DUMBBELL_WIP */
+#endif /* FREEBSD_WIP */
 		} else {
 			DRM_INFO("Unknown thermal controller type %d at 0x%02x %s fan control\n",
 				 controller->ucType,
@@ -2420,9 +2450,11 @@ static int radeon_atombios_parse_power_table_4_5(struct radeon_device *rdev)
 	power_info = (union power_info *)((char *)mode_info->atom_context->bios + data_offset);
 
 	radeon_atombios_add_pplib_thermal_controller(rdev, &power_info->pplib.sThermalController);
+	if (power_info->pplib.ucNumStates == 0)
+		return state_index;
 	rdev->pm.power_state = malloc(sizeof(struct radeon_power_state) *
 				       power_info->pplib.ucNumStates,
-				       DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+				       DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (!rdev->pm.power_state)
 		return state_index;
 	/* first mode is usually default, followed by low to high */
@@ -2440,7 +2472,7 @@ static int radeon_atombios_parse_power_table_4_5(struct radeon_device *rdev)
 		rdev->pm.power_state[i].clock_info = malloc(sizeof(struct radeon_pm_clock_info) *
 							     ((power_info->pplib.ucStateEntrySize - 1) ?
 							      (power_info->pplib.ucStateEntrySize - 1) : 1),
-							     DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+							     DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 		if (!rdev->pm.power_state[i].clock_info)
 			return state_index;
 		if (power_info->pplib.ucStateEntrySize - 1) {
@@ -2503,6 +2535,7 @@ static int radeon_atombios_parse_power_table_6(struct radeon_device *rdev)
 	int index = GetIndexIntoMasterTable(DATA, PowerPlayInfo);
         u16 data_offset;
 	u8 frev, crev;
+	u8 *power_state_offset;
 
 	if (!atom_parse_data_header(mode_info->atom_context, index, NULL,
 				   &frev, &crev, &data_offset))
@@ -2519,30 +2552,29 @@ static int radeon_atombios_parse_power_table_6(struct radeon_device *rdev)
 	non_clock_info_array = (struct _NonClockInfoArray *)
 		((char *)mode_info->atom_context->bios + data_offset +
 		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
+	if (state_array->ucNumEntries == 0)
+		return state_index;
 	rdev->pm.power_state = malloc(sizeof(struct radeon_power_state) *
 				       state_array->ucNumEntries,
-				       DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+				       DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (!rdev->pm.power_state)
 		return state_index;
+	power_state_offset = (u8 *)state_array->states;
 	for (i = 0; i < state_array->ucNumEntries; i++) {
 		mode_index = 0;
-		power_state = (union pplib_power_state *)&state_array->states[i];
-		/* XXX this might be an inagua bug... */
-		non_clock_array_index = i; /* power_state->v2.nonClockInfoIndex */
+		power_state = (union pplib_power_state *)power_state_offset;
+		non_clock_array_index = power_state->v2.nonClockInfoIndex;
 		non_clock_info = (struct _ATOM_PPLIB_NONCLOCK_INFO *)
 			&non_clock_info_array->nonClockInfo[non_clock_array_index];
 		rdev->pm.power_state[i].clock_info = malloc(sizeof(struct radeon_pm_clock_info) *
 							     (power_state->v2.ucNumDPMLevels ?
 							      power_state->v2.ucNumDPMLevels : 1),
-							     DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+							     DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 		if (!rdev->pm.power_state[i].clock_info)
 			return state_index;
 		if (power_state->v2.ucNumDPMLevels) {
 			for (j = 0; j < power_state->v2.ucNumDPMLevels; j++) {
 				clock_array_index = power_state->v2.clockInfoIndex[j];
-				/* XXX this might be an inagua bug... */
-				if (clock_array_index >= clock_info_array->ucNumEntries)
-					continue;
 				clock_info = (union pplib_clock_info *)
 					&clock_info_array->clockInfo[clock_array_index * clock_info_array->ucEntrySize];
 				valid = radeon_atombios_parse_pplib_clock_info(rdev,
@@ -2564,6 +2596,7 @@ static int radeon_atombios_parse_power_table_6(struct radeon_device *rdev)
 								   non_clock_info);
 			state_index++;
 		}
+		power_state_offset += 2 + power_state->v2.ucNumDPMLevels;
 	}
 	/* if multiple clock modes, mark the lowest as no display */
 	for (i = 0; i < state_index; i++) {
@@ -2610,13 +2643,15 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 		default:
 			break;
 		}
-	} else {
+	}
+
+	if (state_index == 0) {
 		rdev->pm.power_state = malloc(sizeof(struct radeon_power_state),
-		    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+		    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 		if (rdev->pm.power_state) {
 			rdev->pm.power_state[0].clock_info =
 				malloc(sizeof(struct radeon_pm_clock_info) * 1,
-				    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+				    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 			if (rdev->pm.power_state[0].clock_info) {
 				/* add the default mode */
 				rdev->pm.power_state[state_index].type =

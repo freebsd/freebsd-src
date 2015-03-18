@@ -166,6 +166,7 @@ def FP3 : X86Reg<"fp3", 0>;
 def FP4 : X86Reg<"fp4", 0>;
 def FP5 : X86Reg<"fp5", 0>;
 def FP6 : X86Reg<"fp6", 0>;
+def FP7 : X86Reg<"fp7", 0>;
 
 // XMM Registers, used by the various SSE instruction set extensions.
 def XMM0: X86Reg<"xmm0", 0>, DwarfRegNum<[17, 21, 21]>;
@@ -234,22 +235,18 @@ let SubRegIndices = [sub_ymm] in {
   def K6 : X86Reg<"k6", 6>, DwarfRegNum<[124, -2, -2]>;
   def K7 : X86Reg<"k7", 7>, DwarfRegNum<[125, -2, -2]>;
 
-class STRegister<string n, bits<16> Enc, list<Register> A> : X86Reg<n, Enc> {
-  let Aliases = A;
-}
-
 // Floating point stack registers. These don't map one-to-one to the FP
 // pseudo registers, but we still mark them as aliasing FP registers. That
 // way both kinds can be live without exceeding the stack depth. ST registers
 // are only live around inline assembly.
-def ST0 : STRegister<"st(0)", 0, []>,    DwarfRegNum<[33, 12, 11]>;
-def ST1 : STRegister<"st(1)", 1, [FP6]>, DwarfRegNum<[34, 13, 12]>;
-def ST2 : STRegister<"st(2)", 2, [FP5]>, DwarfRegNum<[35, 14, 13]>;
-def ST3 : STRegister<"st(3)", 3, [FP4]>, DwarfRegNum<[36, 15, 14]>;
-def ST4 : STRegister<"st(4)", 4, [FP3]>, DwarfRegNum<[37, 16, 15]>;
-def ST5 : STRegister<"st(5)", 5, [FP2]>, DwarfRegNum<[38, 17, 16]>;
-def ST6 : STRegister<"st(6)", 6, [FP1]>, DwarfRegNum<[39, 18, 17]>;
-def ST7 : STRegister<"st(7)", 7, [FP0]>, DwarfRegNum<[40, 19, 18]>;
+def ST0 : X86Reg<"st(0)", 0>, DwarfRegNum<[33, 12, 11]>;
+def ST1 : X86Reg<"st(1)", 1>, DwarfRegNum<[34, 13, 12]>;
+def ST2 : X86Reg<"st(2)", 2>, DwarfRegNum<[35, 14, 13]>;
+def ST3 : X86Reg<"st(3)", 3>, DwarfRegNum<[36, 15, 14]>;
+def ST4 : X86Reg<"st(4)", 4>, DwarfRegNum<[37, 16, 15]>;
+def ST5 : X86Reg<"st(5)", 5>, DwarfRegNum<[38, 17, 16]>;
+def ST6 : X86Reg<"st(6)", 6>, DwarfRegNum<[39, 18, 17]>;
+def ST7 : X86Reg<"st(7)", 7>, DwarfRegNum<[40, 19, 18]>;
 
 // Floating-point status word
 def FPSW : X86Reg<"fpsw", 0>;
@@ -266,14 +263,22 @@ def FS : X86Reg<"fs", 4>;
 def GS : X86Reg<"gs", 5>;
 
 // Debug registers
-def DR0 : X86Reg<"dr0", 0>;
-def DR1 : X86Reg<"dr1", 1>;
-def DR2 : X86Reg<"dr2", 2>;
-def DR3 : X86Reg<"dr3", 3>;
-def DR4 : X86Reg<"dr4", 4>;
-def DR5 : X86Reg<"dr5", 5>;
-def DR6 : X86Reg<"dr6", 6>;
-def DR7 : X86Reg<"dr7", 7>;
+def DR0  : X86Reg<"dr0",   0>;
+def DR1  : X86Reg<"dr1",   1>;
+def DR2  : X86Reg<"dr2",   2>;
+def DR3  : X86Reg<"dr3",   3>;
+def DR4  : X86Reg<"dr4",   4>;
+def DR5  : X86Reg<"dr5",   5>;
+def DR6  : X86Reg<"dr6",   6>;
+def DR7  : X86Reg<"dr7",   7>;
+def DR8  : X86Reg<"dr8",   8>;
+def DR9  : X86Reg<"dr9",   9>;
+def DR10 : X86Reg<"dr10", 10>;
+def DR11 : X86Reg<"dr11", 11>;
+def DR12 : X86Reg<"dr12", 12>;
+def DR13 : X86Reg<"dr13", 13>;
+def DR14 : X86Reg<"dr14", 14>;
+def DR15 : X86Reg<"dr15", 15>;
 
 // Control registers
 def CR0  : X86Reg<"cr0",   0>;

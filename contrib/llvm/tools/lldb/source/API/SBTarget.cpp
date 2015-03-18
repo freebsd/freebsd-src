@@ -58,6 +58,7 @@
 
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "../source/Commands/CommandObjectBreakpoint.h"
+#include "llvm/Support/Regex.h"
 
 
 using namespace lldb;
@@ -130,6 +131,18 @@ void
 SBLaunchInfo::SetExecutableFile (SBFileSpec exe_file, bool add_as_first_arg)
 {
     m_opaque_sp->SetExecutableFile(exe_file.ref(), add_as_first_arg);
+}
+
+SBListener
+SBLaunchInfo::GetListener ()
+{
+    return SBListener(m_opaque_sp->GetListener());
+}
+
+void
+SBLaunchInfo::SetListener (SBListener &listener)
+{
+    m_opaque_sp->SetListener(listener.GetSP());
 }
 
 uint32_t
@@ -235,13 +248,16 @@ SBLaunchInfo::SetProcessPluginName (const char *plugin_name)
 const char *
 SBLaunchInfo::GetShell ()
 {
-    return m_opaque_sp->GetShell();
+    // Constify this string so that it is saved in the string pool.  Otherwise
+    // it would be freed when this function goes out of scope.
+    ConstString shell(m_opaque_sp->GetShell().GetPath().c_str());
+    return shell.AsCString();
 }
 
 void
 SBLaunchInfo::SetShell (const char * path)
 {
-    m_opaque_sp->SetShell (path);
+    m_opaque_sp->SetShell (FileSpec(path, false));
 }
 
 uint32_t
@@ -516,6 +532,17 @@ SBAttachInfo::ParentProcessIDIsValid()
     return m_opaque_sp->ParentProcessIDIsValid();
 }
 
+SBListener
+SBAttachInfo::GetListener ()
+{
+    return SBListener(m_opaque_sp->GetListener());
+}
+
+void
+SBAttachInfo::SetListener (SBListener &listener)
+{
+    m_opaque_sp->SetListener(listener.GetSP());
+}
 
 //----------------------------------------------------------------------
 // SBTarget constructor
@@ -581,6 +608,19 @@ SBTarget::GetProcess ()
                      static_cast<void*>(process_sp.get()));
 
     return sb_process;
+}
+
+SBPlatform
+SBTarget::GetPlatform ()
+{
+    TargetSP target_sp(GetSP());
+    if (!target_sp)
+        return SBPlatform();
+
+    SBPlatform platform;
+    platform.m_opaque_sp = target_sp->GetPlatform();
+
+    return platform;
 }
 
 SBDebugger
@@ -734,9 +774,9 @@ SBTarget::Launch
             launch_info.GetEnvironmentEntries ().SetArguments (envp);
 
         if (listener.IsValid())
-            error.SetError (target_sp->Launch(listener.ref(), launch_info));
-        else
-            error.SetError (target_sp->Launch(target_sp->GetDebugger().GetListener(), launch_info));
+            launch_info.SetListener(listener.GetSP());
+
+        error.SetError (target_sp->Launch(launch_info, NULL));
 
         sb_process.SetSP(target_sp->GetProcessSP());
     }
@@ -800,7 +840,7 @@ SBTarget::Launch (SBLaunchInfo &sb_launch_info, SBError& error)
         if (arch_spec.IsValid())
             launch_info.GetArchitecture () = arch_spec;
 
-        error.SetError (target_sp->Launch (target_sp->GetDebugger().GetListener(), launch_info));
+        error.SetError (target_sp->Launch (launch_info, NULL));
         sb_process.SetSP(target_sp->GetProcessSP());
     }
     else
@@ -1000,7 +1040,7 @@ SBTarget::AttachToProcessWithID
                 // If we are doing synchronous mode, then wait for the
                 // process to stop!
                 if (target_sp->GetDebugger().GetAsyncExecution () == false)
-                process_sp->WaitForProcessToStop (NULL);
+                    process_sp->WaitForProcessToStop (NULL);
             }
         }
         else
@@ -1227,6 +1267,22 @@ SBTarget::ResolveLoadAddress (lldb::addr_t vm_addr)
     return sb_addr;
 }
 
+lldb::SBAddress
+SBTarget::ResolveFileAddress (lldb::addr_t file_addr)
+{
+    lldb::SBAddress sb_addr;
+    Address &addr = sb_addr.ref();
+    TargetSP target_sp(GetSP());
+    if (target_sp)
+    {
+        Mutex::Locker api_locker (target_sp->GetAPIMutex());
+        if (target_sp->ResolveFileAddress (file_addr, addr))
+            return sb_addr;
+    }
+
+    addr.SetRawAddress(file_addr);
+    return sb_addr;
+}
 
 lldb::SBAddress
 SBTarget::ResolvePastLoadAddress (uint32_t stop_id, lldb::addr_t vm_addr)
@@ -1261,6 +1317,27 @@ SBTarget::ResolveSymbolContextForAddress (const SBAddress& addr,
     return sc;
 }
 
+size_t
+SBTarget::ReadMemory (const SBAddress addr,
+                      void *buf,
+                      size_t size,
+                      lldb::SBError &error)
+{
+    SBError sb_error;
+    size_t bytes_read = 0;
+    TargetSP target_sp(GetSP());
+    if (target_sp)
+    {
+        Mutex::Locker api_locker (target_sp->GetAPIMutex());
+        bytes_read = target_sp->ReadMemory(addr.ref(), false, buf, size, sb_error.ref());
+    }
+    else
+    {
+        sb_error.SetErrorString("invalid target");
+    }
+
+    return bytes_read;
+}
 
 SBBreakpoint
 SBTarget::BreakpointCreateByLocation (const char *file,
@@ -1868,30 +1945,10 @@ SBTarget::CreateValueFromAddress (const char *name, SBAddress addr, SBType type)
     lldb::ValueObjectSP new_value_sp;
     if (IsValid() && name && *name && addr.IsValid() && type.IsValid())
     {
-        lldb::addr_t address(addr.GetLoadAddress(*this));
-        lldb::TypeImplSP type_impl_sp (type.GetSP());
-        ClangASTType pointer_ast_type(type_impl_sp->GetClangASTType(true).GetPointerType ());
-        if (pointer_ast_type)
-        {
-            lldb::DataBufferSP buffer(new lldb_private::DataBufferHeap(&address,sizeof(lldb::addr_t)));
-
-            ExecutionContext exe_ctx (ExecutionContextRef(ExecutionContext(m_opaque_sp.get(),false)));
-            ValueObjectSP ptr_result_valobj_sp(ValueObjectConstResult::Create (exe_ctx.GetBestExecutionContextScope(),
-                                                                               pointer_ast_type,
-                                                                               ConstString(name),
-                                                                               buffer,
-                                                                               exe_ctx.GetByteOrder(),
-                                                                               exe_ctx.GetAddressByteSize()));
-
-            if (ptr_result_valobj_sp)
-            {
-                ptr_result_valobj_sp->GetValue().SetValueType(Value::eValueTypeLoadAddress);
-                Error err;
-                new_value_sp = ptr_result_valobj_sp->Dereference(err);
-                if (new_value_sp)
-                    new_value_sp->SetName(ConstString(name));
-            }
-        }
+        lldb::addr_t load_addr(addr.GetLoadAddress(*this));
+        ExecutionContext exe_ctx (ExecutionContextRef(ExecutionContext(m_opaque_sp.get(),false)));
+        ClangASTType ast_type(type.GetSP()->GetClangASTType(true));
+        new_value_sp = ValueObject::CreateValueObjectFromAddress(name, load_addr, exe_ctx, ast_type);
     }
     sb_value.SetSP(new_value_sp);
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
@@ -1903,6 +1960,58 @@ SBTarget::CreateValueFromAddress (const char *name, SBAddress addr, SBType type)
                          new_value_sp->GetName().AsCString());
         else
             log->Printf ("SBTarget(%p)::CreateValueFromAddress => NULL",
+                         static_cast<void*>(m_opaque_sp.get()));
+    }
+    return sb_value;
+}
+
+lldb::SBValue
+SBTarget::CreateValueFromData (const char *name, lldb::SBData data, lldb::SBType type)
+{
+    SBValue sb_value;
+    lldb::ValueObjectSP new_value_sp;
+    if (IsValid() && name && *name && data.IsValid() && type.IsValid())
+    {
+        DataExtractorSP extractor(*data);
+        ExecutionContext exe_ctx (ExecutionContextRef(ExecutionContext(m_opaque_sp.get(),false)));
+        ClangASTType ast_type(type.GetSP()->GetClangASTType(true));
+        new_value_sp = ValueObject::CreateValueObjectFromData(name, *extractor, exe_ctx, ast_type);
+    }
+    sb_value.SetSP(new_value_sp);
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
+    if (log)
+    {
+        if (new_value_sp)
+            log->Printf ("SBTarget(%p)::CreateValueFromData => \"%s\"",
+                         static_cast<void*>(m_opaque_sp.get()),
+                         new_value_sp->GetName().AsCString());
+        else
+            log->Printf ("SBTarget(%p)::CreateValueFromData => NULL",
+                         static_cast<void*>(m_opaque_sp.get()));
+    }
+    return sb_value;
+}
+
+lldb::SBValue
+SBTarget::CreateValueFromExpression (const char *name, const char* expr)
+{
+    SBValue sb_value;
+    lldb::ValueObjectSP new_value_sp;
+    if (IsValid() && name && *name && expr && *expr)
+    {
+        ExecutionContext exe_ctx (ExecutionContextRef(ExecutionContext(m_opaque_sp.get(),false)));
+        new_value_sp = ValueObject::CreateValueObjectFromExpression(name, expr, exe_ctx);
+    }
+    sb_value.SetSP(new_value_sp);
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
+    if (log)
+    {
+        if (new_value_sp)
+            log->Printf ("SBTarget(%p)::CreateValueFromExpression => \"%s\"",
+                         static_cast<void*>(m_opaque_sp.get()),
+                         new_value_sp->GetName().AsCString());
+        else
+            log->Printf ("SBTarget(%p)::CreateValueFromExpression => NULL",
                          static_cast<void*>(m_opaque_sp.get()));
     }
     return sb_value;
@@ -2057,6 +2166,28 @@ SBTarget::GetTriple ()
 }
 
 uint32_t
+SBTarget::GetDataByteSize ()
+{
+    TargetSP target_sp(GetSP());
+    if (target_sp)
+    {
+        return target_sp->GetArchitecture().GetDataByteSize() ;
+    }
+    return 0;
+}
+
+uint32_t
+SBTarget::GetCodeByteSize ()
+{
+    TargetSP target_sp(GetSP());
+    if (target_sp)
+    {
+        return target_sp->GetArchitecture().GetCodeByteSize() ;
+    }
+    return 0;
+}
+
+uint32_t
 SBTarget::GetAddressByteSize()
 {
     TargetSP target_sp(GetSP());
@@ -2154,6 +2285,34 @@ SBTarget::FindFunctions (const char *name, uint32_t name_type_mask)
     return sb_sc_list;
 }
 
+lldb::SBSymbolContextList 
+SBTarget::FindGlobalFunctions(const char *name, uint32_t max_matches, MatchType matchtype)
+{
+    lldb::SBSymbolContextList sb_sc_list;
+    if (name && name[0])
+    {
+        TargetSP target_sp(GetSP());
+        if (target_sp)
+        {
+            std::string regexstr;
+            switch (matchtype)
+            {
+            case eMatchTypeRegex:
+                target_sp->GetImages().FindFunctions(RegularExpression(name), true, true, true, *sb_sc_list);
+                break;
+            case eMatchTypeStartsWith:
+                regexstr = llvm::Regex::escape(name) + ".*";
+                target_sp->GetImages().FindFunctions(RegularExpression(regexstr.c_str()), true, true, true, *sb_sc_list);
+                break;
+            default:
+                target_sp->GetImages().FindFunctions(ConstString(name), eFunctionNameTypeAny, true, true, true, *sb_sc_list);
+                break;
+            }
+        }
+    }
+    return sb_sc_list;
+}
+
 lldb::SBType
 SBTarget::FindFirstType (const char* typename_cstr)
 {
@@ -2188,14 +2347,19 @@ SBTarget::FindFirstType (const char* typename_cstr)
             
             if (objc_language_runtime)
             {
-                TypeVendor *objc_type_vendor = objc_language_runtime->GetTypeVendor();
+                DeclVendor *objc_decl_vendor = objc_language_runtime->GetDeclVendor();
                 
-                if (objc_type_vendor)
+                if (objc_decl_vendor)
                 {
-                    std::vector <ClangASTType> types;
+                    std::vector <clang::NamedDecl *> decls;
                     
-                    if (objc_type_vendor->FindTypes(const_typename, true, 1, types) > 0)
-                        return SBType(types[0]);
+                    if (objc_decl_vendor->FindDecls(const_typename, true, 1, decls) > 0)
+                    {
+                        if (ClangASTType type = ClangASTContext::GetTypeForDecl(decls[0]))
+                        {
+                            return SBType(type);
+                        }
+                    }
                 }
             }
         }
@@ -2261,17 +2425,20 @@ SBTarget::FindTypes (const char* typename_cstr)
             
             if (objc_language_runtime)
             {
-                TypeVendor *objc_type_vendor = objc_language_runtime->GetTypeVendor();
+                DeclVendor *objc_decl_vendor = objc_language_runtime->GetDeclVendor();
                 
-                if (objc_type_vendor)
+                if (objc_decl_vendor)
                 {
-                    std::vector <ClangASTType> types;
+                    std::vector <clang::NamedDecl *> decls;
                     
-                    if (objc_type_vendor->FindTypes(const_typename, true, UINT32_MAX, types))
+                    if (objc_decl_vendor->FindDecls(const_typename, true, 1, decls) > 0)
                     {
-                        for (ClangASTType &type : types)
+                        for (clang::NamedDecl *decl : decls)
                         {
-                            sb_type_list.Append(SBType(type));
+                            if (ClangASTType type = ClangASTContext::GetTypeForDecl(decl))
+                            {
+                                sb_type_list.Append(SBType(type));
+                            }
                         }
                     }
                 }
@@ -2320,6 +2487,61 @@ SBTarget::FindGlobalVariables (const char *name, uint32_t max_matches)
 
     return sb_value_list;
 }
+
+SBValueList
+SBTarget::FindGlobalVariables(const char *name, uint32_t max_matches, MatchType matchtype)
+{
+    SBValueList sb_value_list;
+
+    TargetSP target_sp(GetSP());
+    if (name && target_sp)
+    {
+        VariableList variable_list;
+        const bool append = true;
+
+        std::string regexstr;
+        uint32_t match_count;
+        switch (matchtype)
+        {
+        case eMatchTypeNormal:
+            match_count = target_sp->GetImages().FindGlobalVariables(ConstString(name),
+                append,
+                max_matches,
+                variable_list);
+            break;
+        case eMatchTypeRegex:
+            match_count = target_sp->GetImages().FindGlobalVariables(RegularExpression(name),
+                append,
+                max_matches,
+                variable_list);
+            break;
+        case eMatchTypeStartsWith:
+            regexstr = llvm::Regex::escape(name) + ".*";
+            match_count = target_sp->GetImages().FindGlobalVariables(RegularExpression(regexstr.c_str()),
+                append,
+                max_matches,
+                variable_list);
+            break;
+        }
+
+
+        if (match_count > 0)
+        {
+            ExecutionContextScope *exe_scope = target_sp->GetProcessSP().get();
+            if (exe_scope == NULL)
+                exe_scope = target_sp.get();
+            for (uint32_t i = 0; i<match_count; ++i)
+            {
+                lldb::ValueObjectSP valobj_sp(ValueObjectVariable::Create(exe_scope, variable_list.GetVariableAtIndex(i)));
+                if (valobj_sp)
+                    sb_value_list.Append(SBValue(valobj_sp));
+            }
+        }
+    }
+
+    return sb_value_list;
+}
+
 
 lldb::SBValue
 SBTarget::FindFirstGlobalVariable (const char* name)
