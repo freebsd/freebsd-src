@@ -57,6 +57,7 @@
 #include <linux/io.h>
 #include <linux/vmalloc.h>
 #include <linux/netdevice.h>
+#include <linux/timer.h>
 
 #include <vm/vm_pager.h>
 
@@ -76,6 +77,8 @@ struct list_head pci_drivers;
 struct list_head pci_devices;
 struct net init_net;
 spinlock_t pci_lock;
+
+unsigned long linux_timer_hz_mask;
 
 int
 panic_cmp(struct rb_node *one, struct rb_node *two)
@@ -723,6 +726,60 @@ kasprintf(gfp_t gfp, const char *fmt, ...)
 
 	return p;
 }
+
+static int
+linux_timer_jiffies_until(unsigned long expires)
+{
+	int delta = expires - jiffies;
+	/* guard against already expired values */
+	if (delta < 1)
+		delta = 1;
+	return (delta);
+}
+
+static void
+linux_timer_callback_wrapper(void *context)
+{
+	struct timer_list *timer;
+
+	timer = context;
+	timer->function(timer->data);
+}
+
+void
+mod_timer(struct timer_list *timer, unsigned long expires)
+{
+
+	timer->expires = expires;
+	callout_reset(&timer->timer_callout,		      
+	    linux_timer_jiffies_until(expires),
+	    &linux_timer_callback_wrapper, timer);
+}
+
+void
+add_timer(struct timer_list *timer)
+{
+
+	callout_reset(&timer->timer_callout,
+	    linux_timer_jiffies_until(timer->expires),
+	    &linux_timer_callback_wrapper, timer);
+}
+
+static void
+linux_timer_init(void *arg)
+{
+
+	/*
+	 * Compute an internal HZ value which can divide 2**32 to
+	 * avoid timer rounding problems when the tick value wraps
+	 * around 2**32:
+	 */
+	linux_timer_hz_mask = 1;
+	while (linux_timer_hz_mask < (unsigned long)hz)
+		linux_timer_hz_mask *= 2;
+	linux_timer_hz_mask--;
+}
+SYSINIT(linux_timer, SI_SUB_DRIVERS, SI_ORDER_FIRST, linux_timer_init, NULL);
 
 static void
 linux_compat_init(void)
