@@ -56,6 +56,7 @@
 #include <linux/mm.h>
 #include <linux/io.h>
 #include <linux/vmalloc.h>
+#include <linux/netdevice.h>
 
 #include <vm/vm_pager.h>
 
@@ -67,18 +68,13 @@ MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 #undef file
 #undef cdev
 #define	RB_ROOT(head)	(head)->rbh_root
-#undef LIST_HEAD
-/* From sys/queue.h */
-#define LIST_HEAD(name, type)						\
-struct name {								\
-	struct type *lh_first;	/* first element */			\
-}
 
 struct kobject class_root;
 struct device linux_rootdev;
 struct class miscclass;
 struct list_head pci_drivers;
 struct list_head pci_devices;
+struct net init_net;
 spinlock_t pci_lock;
 
 int
@@ -621,7 +617,9 @@ struct vmmap {
 	unsigned long		vm_size;
 };
 
-LIST_HEAD(vmmaphd, vmmap);
+struct vmmaphd {
+	struct vmmap *lh_first;
+};
 #define	VMMAP_HASH_SIZE	64
 #define	VMMAP_HASH_MASK	(VMMAP_HASH_SIZE - 1)
 #define	VM_HASH(addr)	((uintptr_t)(addr) >> PAGE_SHIFT) & VMMAP_HASH_MASK
