@@ -1,4 +1,4 @@
-name = "FreeBSD-lib32"
+name = "FreeBSD-lib32-profile"
 origin = "base"
 version = "%VERSION%"
 comment = "32bits libraries"
