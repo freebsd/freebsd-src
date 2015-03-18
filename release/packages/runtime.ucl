@@ -11,3 +11,7 @@ licenses = [ BSD2CLAUSE ]
 desc = <<EOD
 %DESC%
 EOD
+post-install = <<EOD
+	cap_mkdb %CAP_MKDB_ENDIAN% ${ROOTDIR}/etc/login.conf
+	pwd_mkdb %PWD_MKDB_ENDIAN% -i -p -d  ${ROOTDIR}/etc ${ROOTDIR}/etc/master.passwd
+EOD
