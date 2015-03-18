@@ -1209,6 +1209,7 @@ packagekernel:
 .endif
 
 create-world-packages:
+	@rm -f ${DESTDIR}/*.plist 2>/dev/null || :
 	@cd ${DESTDIR} ; \
 		awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		${DESTDIR}/METALOG
