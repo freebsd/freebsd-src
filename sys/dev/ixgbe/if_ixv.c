@@ -142,10 +142,11 @@ static driver_t ixv_driver = {
 	"ixv", ixv_methods, sizeof(struct adapter),
 };
 
-devclass_t ixgbe_devclass;
-DRIVER_MODULE(ixv, pci, ixv_driver, ixgbe_devclass, 0, 0);
+devclass_t ixv_devclass;
+DRIVER_MODULE(ixv, pci, ixv_driver, ixv_devclass, 0, 0);
 MODULE_DEPEND(ixv, pci, 1, 1, 1);
 MODULE_DEPEND(ixv, ether, 1, 1, 1);
+/* XXX depend on 'ix' ? */
 
 /*
 ** TUNEABLE PARAMETERS:

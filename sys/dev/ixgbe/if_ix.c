@@ -42,6 +42,7 @@
 #include "ixgbe.h"
 
 #ifdef	RSS
+#include <net/rss_config.h>
 #include <netinet/in_rss.h>
 #endif
 
@@ -191,7 +192,7 @@ extern void ixgbe_stop_mac_link_on_d3_82599(struct ixgbe_hw *hw);
  *  FreeBSD Device Interface Entry Points
  *********************************************************************/
 
-static device_method_t ixgbe_methods[] = {
+static device_method_t ix_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, ixgbe_probe),
 	DEVMETHOD(device_attach, ixgbe_attach),
@@ -200,15 +201,15 @@ static device_method_t ixgbe_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t ixgbe_driver = {
-	"ix", ixgbe_methods, sizeof(struct adapter),
+static driver_t ix_driver = {
+	"ix", ix_methods, sizeof(struct adapter),
 };
 
-devclass_t ixgbe_devclass;
-DRIVER_MODULE(ixgbe, pci, ixgbe_driver, ixgbe_devclass, 0, 0);
+devclass_t ix_devclass;
+DRIVER_MODULE(ix, pci, ix_driver, ix_devclass, 0, 0);
 
-MODULE_DEPEND(ixgbe, pci, 1, 1, 1);
-MODULE_DEPEND(ixgbe, ether, 1, 1, 1);
+MODULE_DEPEND(ix, pci, 1, 1, 1);
+MODULE_DEPEND(ix, ether, 1, 1, 1);
 
 /*
 ** TUNEABLE PARAMETERS:
@@ -2110,6 +2111,9 @@ ixgbe_allocate_msix(struct adapter *adapter)
 	struct  	tx_ring *txr = adapter->tx_rings;
 	int 		error, rid, vector = 0;
 	int		cpu_id = 0;
+#ifdef	RSS
+	cpuset_t	cpu_mask;
+#endif
 
 #ifdef	RSS
 	/*
@@ -2199,8 +2203,9 @@ ixgbe_allocate_msix(struct adapter *adapter)
 		que->tq = taskqueue_create_fast("ixgbe_que", M_NOWAIT,
 		    taskqueue_thread_enqueue, &que->tq);
 #ifdef	RSS
-		taskqueue_start_threads_pinned(&que->tq, 1, PI_NET,
-		    cpu_id,
+		CPU_SETOF(cpu_id, &cpu_mask);
+		taskqueue_start_threads_cpuset(&que->tq, 1, PI_NET,
+		    &cpu_mask,
 		    "%s (bucket %d)",
 		    device_get_nameunit(adapter->dev),
 		    cpu_id);
