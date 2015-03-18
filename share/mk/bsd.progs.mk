@@ -115,15 +115,4 @@ $t: ${PROGS:%=%.$t}
 .endfor
 .endif
 
-.if empty(PROGS) && !empty(SCRIPTS)
-
-.for t in ${PROGS_TARGETS:O:u}
-scripts.$t: .PHONY .MAKE
-	(cd ${.CURDIR} && ${MAKE} -f ${MAKEFILE} SUBDIR= _RECURSING_PROGS= \
-	    $t)
-$t: scripts.$t
-.endfor
-
-.endif
-
 .endif
