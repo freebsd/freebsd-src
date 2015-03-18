@@ -11,3 +11,6 @@ licenses = [ BSD2CLAUSE ]
 desc = <<EOD
 %DESC%
 EOD
+post-install = <<EOD
+/usr/sbin/kldxref /boot/kernel
+EOD
