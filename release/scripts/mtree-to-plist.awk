@@ -25,7 +25,7 @@
 	if (length(tags) == 0)
 		next
 	if (tags ~ /package=/) {
-		ext = pkgname = ""
+		ext = pkgname = pkgend = ""
 		split(tags, a, ",");
 		for (i in a) {
 			if (a[i] ~ /^package=/) {
@@ -33,15 +33,27 @@
 				gsub(/package=/, "", pkgname)
 			} else if (a[i] == "config") {
 				type="config"
+			} else if (a[i] == "development" || a[i] == "profile") {
+				pkgend=a[i]
 			} else {
-				ext=a[i]
+				if (ext != "")
+					ext=ext"-"a[i]
+				else
+					ext=a[i]
 			}
 		}
-		if (length(ext) > 0) {
+		if (ext != "") {
 			if (pkgname == "runtime") {
 				pkgname=ext
 			} else {
 				pkgname=pkgname"-"ext
+			}
+		}
+		if (pkgend != "") {
+			if (pkgname == "runtime") {
+				pkgname=pkgend
+			} else {
+				pkgname=pkgname"-"pkgend
 			}
 		}
 	} else {
