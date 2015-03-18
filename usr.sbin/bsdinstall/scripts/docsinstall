@@ -151,10 +151,6 @@ f_dialog_menutag_fetch selected
 # Let pkg_add be able to use name servers
 f_quietly cp -f $BSDINSTALL_TMPETC/resolv.conf $BSDINSTALL_CHROOT/etc/
 
-if [ ! -x $BSDINSTALL_CHROOT ]; then
-	ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT pkg bootstrap
-fi
-
 #
 # Install each of the selected packages
 #
