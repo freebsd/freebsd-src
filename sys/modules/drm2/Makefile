@@ -23,6 +23,13 @@ _radeonkmsfw=	radeonkmsfw
 . endif
 .endif
 
+.if ${MACHINE_CPUARCH} == "powerpc"
+_radeonkms=	radeonkms
+. if ${MK_SOURCELESS_UCODE} != "no"
+_radeonkmsfw=	radeonkmsfw
+. endif
+.endif
+
 SUBDIR = \
 	drm2 \
 	${_i915kms} \

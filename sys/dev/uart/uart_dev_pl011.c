@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
+#include <dev/uart/uart_cpu_fdt.h>
 #include <dev/uart/uart_bus.h>
 #include "uart_if.h"
 
@@ -266,7 +267,7 @@ static kobj_method_t uart_pl011_methods[] = {
 	{ 0, 0 }
 };
 
-struct uart_class uart_pl011_class = {
+static struct uart_class uart_pl011_class = {
 	"uart_pl011",
 	uart_pl011_methods,
 	sizeof(struct uart_pl011_softc),
@@ -274,6 +275,12 @@ struct uart_class uart_pl011_class = {
 	.uc_range = 0x48,
 	.uc_rclk = 0
 };
+
+static struct ofw_compat_data compat_data[] = {
+	{"arm,pl011",		(uintptr_t)&uart_pl011_class},
+	{NULL,			(uintptr_t)NULL},
+};
+UART_FDT_CLASS_AND_DEVICE(compat_data);
 
 static int
 uart_pl011_bus_attach(struct uart_softc *sc)

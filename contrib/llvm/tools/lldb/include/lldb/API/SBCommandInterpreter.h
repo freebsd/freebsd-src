@@ -15,6 +15,61 @@
 
 namespace lldb {
 
+class SBCommandInterpreterRunOptions
+{
+friend class SBDebugger;
+friend class SBCommandInterpreter;
+
+public:
+    SBCommandInterpreterRunOptions();
+    ~SBCommandInterpreterRunOptions();
+
+    bool
+    GetStopOnContinue () const;
+
+    void
+    SetStopOnContinue (bool);
+
+    bool
+    GetStopOnError () const;
+
+    void
+    SetStopOnError (bool);
+
+    bool
+    GetStopOnCrash () const;
+
+    void
+    SetStopOnCrash (bool);
+
+    bool
+    GetEchoCommands () const;
+
+    void
+    SetEchoCommands (bool);
+
+    bool
+    GetPrintResults () const;
+
+    void
+    SetPrintResults (bool);
+
+    bool
+    GetAddToHistory () const;
+
+    void
+    SetAddToHistory (bool);
+private:
+    lldb_private::CommandInterpreterRunOptions *
+    get () const;
+
+    lldb_private::CommandInterpreterRunOptions &
+    ref () const;
+
+    // This is set in the constructor and will always be valid.
+    mutable std::unique_ptr<lldb_private::CommandInterpreterRunOptions> m_opaque_up;
+};
+
 class SBCommandInterpreter
 {
 public:
@@ -84,6 +139,15 @@ public:
 
     lldb::ReturnStatus
     HandleCommand (const char *command_line, lldb::SBCommandReturnObject &result, bool add_to_history = false);
+
+    lldb::ReturnStatus
+    HandleCommand (const char *command_line, SBExecutionContext &exe_ctx, SBCommandReturnObject &result, bool add_to_history = false);
+
+    void
+    HandleCommandsFromFile (lldb::SBFileSpec &file,
+                            lldb::SBExecutionContext &override_context,
+                            lldb::SBCommandInterpreterRunOptions &options,
+                            lldb::SBCommandReturnObject result);
 
     // The pointer based interface is not useful in SWIG, since the cursor & last_char arguments are string pointers INTO current_line
     // and you can't do that in a scripting language interface in general...
@@ -175,9 +239,9 @@ class SBCommandPluginInterface
 {
 public:
     virtual bool
-    DoExecute (lldb::SBDebugger debugger,
-               char** command,
-               lldb::SBCommandReturnObject &result)
+    DoExecute (lldb::SBDebugger /*debugger*/,
+               char** /*command*/,
+               lldb::SBCommandReturnObject & /*result*/)
     {
         return false;
     }

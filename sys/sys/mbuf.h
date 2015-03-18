@@ -578,6 +578,7 @@ m_extaddref(struct mbuf *m, caddr_t buf, u_int size, u_int *ref_cnt,
 	m->m_ext.ext_arg1 = arg1;
 	m->m_ext.ext_arg2 = arg2;
 	m->m_ext.ext_type = EXT_EXTREF;
+	m->m_ext.ext_flags = 0;
 }
 
 static __inline uma_zone_t
@@ -1189,6 +1190,15 @@ rt_m_getfib(struct mbuf *m)
         KASSERT((_m)->m_flags & M_PKTHDR, ("Attempt to set FIB on non header mbuf."));	\
 	((_m)->m_pkthdr.fibnum) = (_fib);				\
 } while (0)
+
+/* flags passed as first argument for "m_ether_tcpip_hash()" */
+#define	MBUF_HASHFLAG_L2	(1 << 2)
+#define	MBUF_HASHFLAG_L3	(1 << 3)
+#define	MBUF_HASHFLAG_L4	(1 << 4)
+
+/* mbuf hashing helper routines */
+uint32_t	m_ether_tcpip_hash_init(void);
+uint32_t	m_ether_tcpip_hash(const uint32_t, const struct mbuf *, const uint32_t);
 
 #ifdef MBUF_PROFILING
  void m_profile(struct mbuf *m);

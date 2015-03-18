@@ -93,6 +93,15 @@ public:
     return Info.OpDecl;
   }
 
+  StringRef LookupInlineAsmLabel(StringRef Identifier, llvm::SourceMgr &LSM,
+                                 llvm::SMLoc Location,
+                                 bool Create) override {
+    SourceLocation Loc = translateLocation(LSM, Location);
+    LabelDecl *Label =
+      TheParser.getActions().GetOrCreateMSAsmLabel(Identifier, Loc, Create);
+    return Label->getMSAsmLabel();
+  }
+
   bool LookupInlineAsmField(StringRef Base, StringRef Member,
                             unsigned &Offset) override {
     return TheParser.getActions().LookupInlineAsmField(Base, Member, Offset,
@@ -133,14 +142,13 @@ private:
     }
   }
 
-  void handleDiagnostic(const llvm::SMDiagnostic &D) {
+  SourceLocation translateLocation(const llvm::SourceMgr &LSM, llvm::SMLoc SMLoc) {
     // Compute an offset into the inline asm buffer.
     // FIXME: This isn't right if .macro is involved (but hopefully, no
     // real-world code does that).
-    const llvm::SourceMgr &LSM = *D.getSourceMgr();
     const llvm::MemoryBuffer *LBuf =
-        LSM.getMemoryBuffer(LSM.FindBufferContainingLoc(D.getLoc()));
-    unsigned Offset = D.getLoc().getPointer() - LBuf->getBufferStart();
+        LSM.getMemoryBuffer(LSM.FindBufferContainingLoc(SMLoc));
+    unsigned Offset = SMLoc.getPointer() - LBuf->getBufferStart();
 
     // Figure out which token that offset points into.
     const unsigned *TokOffsetPtr =
@@ -157,6 +165,12 @@ private:
       Loc = Tok.getLocation();
       Loc = Loc.getLocWithOffset(Offset - TokOffset);
     }
+    return Loc;
+  }
+
+  void handleDiagnostic(const llvm::SMDiagnostic &D) {
+    const llvm::SourceMgr &LSM = *D.getSourceMgr();
+    SourceLocation Loc = translateLocation(LSM, D.getLoc());
     TheParser.Diag(Loc, diag::err_inline_ms_asm_parsing) << D.getMessage();
   }
 };
@@ -322,6 +336,7 @@ StmtResult Parser::ParseMicrosoftAsmStatement(SourceLocation AsmLoc) {
   SourceLocation EndLoc = AsmLoc;
   SmallVector<Token, 4> AsmToks;
 
+  bool SingleLineMode = true;
   unsigned BraceNesting = 0;
   unsigned short savedBraceCount = BraceCount;
   bool InAsmComment = false;
@@ -333,6 +348,7 @@ StmtResult Parser::ParseMicrosoftAsmStatement(SourceLocation AsmLoc) {
 
   if (Tok.is(tok::l_brace)) {
     // Braced inline asm: consume the opening brace.
+    SingleLineMode = false;
     BraceNesting = 1;
     EndLoc = ConsumeBrace();
     LBraceLocs.push_back(EndLoc);
@@ -364,30 +380,39 @@ StmtResult Parser::ParseMicrosoftAsmStatement(SourceLocation AsmLoc) {
     } else if (!InAsmComment && Tok.is(tok::semi)) {
       // A semicolon in an asm is the start of a comment.
       InAsmComment = true;
-      if (BraceNesting) {
+      if (!SingleLineMode) {
         // Compute which line the comment is on.
         std::pair<FileID, unsigned> ExpSemiLoc =
             SrcMgr.getDecomposedExpansionLoc(TokLoc);
         FID = ExpSemiLoc.first;
         LineNo = SrcMgr.getLineNumber(FID, ExpSemiLoc.second);
       }
-    } else if (!BraceNesting || InAsmComment) {
+    } else if (SingleLineMode || InAsmComment) {
       // If end-of-line is significant, check whether this token is on a
       // new line.
       std::pair<FileID, unsigned> ExpLoc =
           SrcMgr.getDecomposedExpansionLoc(TokLoc);
       if (ExpLoc.first != FID ||
           SrcMgr.getLineNumber(ExpLoc.first, ExpLoc.second) != LineNo) {
-        // If this is a single-line __asm, we're done.
-        if (!BraceNesting)
+        // If this is a single-line __asm, we're done, except if the next
+        // line begins with an __asm too, in which case we finish a comment
+        // if needed and then keep processing the next line as a single
+        // line __asm.
+        bool isAsm = Tok.is(tok::kw_asm);
+        if (SingleLineMode && !isAsm)
           break;
         // We're no longer in a comment.
         InAsmComment = false;
+        if (isAsm) {
+          LineNo = SrcMgr.getLineNumber(ExpLoc.first, ExpLoc.second);
+          SkippedStartOfLine = Tok.isAtStartOfLine();
+        }
       } else if (!InAsmComment && Tok.is(tok::r_brace)) {
-        // Single-line asm always ends when a closing brace is seen.
-        // FIXME: This is compatible with Apple gcc's -fasm-blocks; what
-        // does MSVC do here?
-        break;
+        // In MSVC mode, braces only participate in brace matching and
+        // separating the asm statements.  This is an intentional
+        // departure from the Apple gcc behavior.
+        if (!BraceNesting)
+          break;
       }
     }
     if (!InAsmComment && BraceNesting && Tok.is(tok::r_brace) &&
@@ -398,7 +423,7 @@ StmtResult Parser::ParseMicrosoftAsmStatement(SourceLocation AsmLoc) {
       BraceNesting--;
       // Finish if all of the opened braces in the inline asm section were
       // consumed.
-      if (BraceNesting == 0)
+      if (BraceNesting == 0 && !SingleLineMode)
         break;
       else {
         LBraceLocs.pop_back();
@@ -487,11 +512,13 @@ StmtResult Parser::ParseMicrosoftAsmStatement(SourceLocation AsmLoc) {
 
   llvm::SourceMgr TempSrcMgr;
   llvm::MCContext Ctx(MAI.get(), MRI.get(), MOFI.get(), &TempSrcMgr);
-  llvm::MemoryBuffer *Buffer =
+  MOFI->InitMCObjectFileInfo(TT, llvm::Reloc::Default, llvm::CodeModel::Default,
+                             Ctx);
+  std::unique_ptr<llvm::MemoryBuffer> Buffer =
       llvm::MemoryBuffer::getMemBuffer(AsmString, "<MS inline asm>");
 
   // Tell SrcMgr about this buffer, which is what the parser will pick up.
-  TempSrcMgr.AddNewSourceBuffer(Buffer, llvm::SMLoc());
+  TempSrcMgr.AddNewSourceBuffer(std::move(Buffer), llvm::SMLoc());
 
   std::unique_ptr<llvm::MCStreamer> Str(createNullStreamer(Ctx));
   std::unique_ptr<llvm::MCAsmParser> Parser(
@@ -590,7 +617,7 @@ StmtResult Parser::ParseAsmStatement(bool &msAsm) {
   }
   DeclSpec DS(AttrFactory);
   SourceLocation Loc = Tok.getLocation();
-  ParseTypeQualifierListOpt(DS, true, false);
+  ParseTypeQualifierListOpt(DS, AR_VendorAttributesParsed);
 
   // GNU asms accept, but warn, about type-qualifiers other than volatile.
   if (DS.getTypeQualifiers() & DeclSpec::TQ_const)
@@ -747,7 +774,7 @@ bool Parser::ParseAsmOperandsOpt(SmallVectorImpl<IdentifierInfo *> &Names,
     // Read the parenthesized expression.
     BalancedDelimiterTracker T(*this, tok::l_paren);
     T.consumeOpen();
-    ExprResult Res(ParseExpression());
+    ExprResult Res = Actions.CorrectDelayedTyposInExpr(ParseExpression());
     T.consumeClose();
     if (Res.isInvalid()) {
       SkipUntil(tok::r_paren, StopAtSemi);

@@ -209,7 +209,7 @@ CXXRecordDecl::setBases(CXXBaseSpecifier const * const *Bases,
     // Now go through all virtual bases of this base and add them.
     for (const auto &VBase : BaseClassDecl->vbases()) {
       // Add this base if it's not already in the list.
-      if (SeenVBaseTypes.insert(C.getCanonicalType(VBase.getType()))) {
+      if (SeenVBaseTypes.insert(C.getCanonicalType(VBase.getType())).second) {
         VBases.push_back(&VBase);
 
         // C++11 [class.copy]p8:
@@ -225,7 +225,7 @@ CXXRecordDecl::setBases(CXXBaseSpecifier const * const *Bases,
 
     if (Base->isVirtual()) {
       // Add this base if it's not already in the list.
-      if (SeenVBaseTypes.insert(C.getCanonicalType(BaseType)))
+      if (SeenVBaseTypes.insert(C.getCanonicalType(BaseType)).second)
         VBases.push_back(Base);
 
       // C++0x [meta.unary.prop] is_empty:
@@ -677,17 +677,24 @@ void CXXRecordDecl::addedMember(Decl *D) {
     //
     // Automatic Reference Counting: the presence of a member of Objective-C pointer type
     // that does not explicitly have no lifetime makes the class a non-POD.
-    // However, we delay setting PlainOldData to false in this case so that
-    // Sema has a chance to diagnostic causes where the same class will be
-    // non-POD with Automatic Reference Counting but a POD without ARC.
-    // In this case, the class will become a non-POD class when we complete
-    // the definition.
     ASTContext &Context = getASTContext();
     QualType T = Context.getBaseElementType(Field->getType());
     if (T->isObjCRetainableType() || T.isObjCGCStrong()) {
-      if (!Context.getLangOpts().ObjCAutoRefCount ||
-          T.getObjCLifetime() != Qualifiers::OCL_ExplicitNone)
+      if (!Context.getLangOpts().ObjCAutoRefCount) {
         setHasObjectMember(true);
+      } else if (T.getObjCLifetime() != Qualifiers::OCL_ExplicitNone) {
+        // Objective-C Automatic Reference Counting:
+        //   If a class has a non-static data member of Objective-C pointer
+        //   type (or array thereof), it is a non-POD type and its
+        //   default constructor (if any), copy constructor, move constructor,
+        //   copy assignment operator, move assignment operator, and destructor are
+        //   non-trivial.
+        setHasObjectMember(true);
+        struct DefinitionData &Data = data();
+        Data.PlainOldData = false;
+        Data.HasTrivialSpecialMembers = 0;
+        Data.HasIrrelevantDestructor = false;
+      }
     } else if (!T.isCXX98PODType(Context))
       data().PlainOldData = false;
     
@@ -720,7 +727,7 @@ void CXXRecordDecl::addedMember(Decl *D) {
       //   brace-or-equal-initializers for non-static data members.
       //
       // This rule was removed in C++1y.
-      if (!getASTContext().getLangOpts().CPlusPlus1y)
+      if (!getASTContext().getLangOpts().CPlusPlus14)
         data().Aggregate = false;
 
       // C++11 [class]p10:
@@ -1254,6 +1261,44 @@ CXXRecordDecl::setTemplateSpecializationKind(TemplateSpecializationKind TSK) {
   llvm_unreachable("Not a class template or member class specialization");
 }
 
+const CXXRecordDecl *CXXRecordDecl::getTemplateInstantiationPattern() const {
+  // If it's a class template specialization, find the template or partial
+  // specialization from which it was instantiated.
+  if (auto *TD = dyn_cast<ClassTemplateSpecializationDecl>(this)) {
+    auto From = TD->getInstantiatedFrom();
+    if (auto *CTD = From.dyn_cast<ClassTemplateDecl *>()) {
+      while (auto *NewCTD = CTD->getInstantiatedFromMemberTemplate()) {
+        if (NewCTD->isMemberSpecialization())
+          break;
+        CTD = NewCTD;
+      }
+      return CTD->getTemplatedDecl();
+    }
+    if (auto *CTPSD =
+            From.dyn_cast<ClassTemplatePartialSpecializationDecl *>()) {
+      while (auto *NewCTPSD = CTPSD->getInstantiatedFromMember()) {
+        if (NewCTPSD->isMemberSpecialization())
+          break;
+        CTPSD = NewCTPSD;
+      }
+      return CTPSD;
+    }
+  }
+
+  if (MemberSpecializationInfo *MSInfo = getMemberSpecializationInfo()) {
+    if (isTemplateInstantiation(MSInfo->getTemplateSpecializationKind())) {
+      const CXXRecordDecl *RD = this;
+      while (auto *NewRD = RD->getInstantiatedFromMemberClass())
+        RD = NewRD;
+      return RD;
+    }
+  }
+
+  assert(!isTemplateInstantiation(this->getTemplateSpecializationKind()) &&
+         "couldn't find pattern for class template instantiation");
+  return nullptr;
+}
+
 CXXDestructorDecl *CXXRecordDecl::getDestructor() const {
   ASTContext &Context = getASTContext();
   QualType ClassType = Context.getTypeDeclType(this);
@@ -1276,19 +1321,6 @@ void CXXRecordDecl::completeDefinition() {
 
 void CXXRecordDecl::completeDefinition(CXXFinalOverriderMap *FinalOverriders) {
   RecordDecl::completeDefinition();
-  
-  if (hasObjectMember() && getASTContext().getLangOpts().ObjCAutoRefCount) {
-    // Objective-C Automatic Reference Counting:
-    //   If a class has a non-static data member of Objective-C pointer
-    //   type (or array thereof), it is a non-POD type and its
-    //   default constructor (if any), copy constructor, move constructor,
-    //   copy assignment operator, move assignment operator, and destructor are
-    //   non-trivial.
-    struct DefinitionData &Data = data();
-    Data.PlainOldData = false;
-    Data.HasTrivialSpecialMembers = 0;
-    Data.HasIrrelevantDestructor = false;
-  }
   
   // If the class may be abstract (but hasn't been marked as such), check for
   // any pure final overriders.
@@ -1661,12 +1693,12 @@ const Type *CXXCtorInitializer::getBaseClass() const {
 }
 
 SourceLocation CXXCtorInitializer::getSourceLocation() const {
-  if (isAnyMemberInitializer())
-    return getMemberLocation();
-
   if (isInClassMemberInitializer())
     return getAnyMember()->getLocation();
   
+  if (isAnyMemberInitializer())
+    return getMemberLocation();
+
   if (TypeSourceInfo *TSInfo = Initializee.get<TypeSourceInfo*>())
     return TSInfo->getTypeLoc().getLocalSourceRange().getBegin();
   
@@ -1799,7 +1831,6 @@ bool CXXConstructorDecl::isConvertingConstructor(bool AllowExplicit) const {
 bool CXXConstructorDecl::isSpecializationCopyingObject() const {
   if ((getNumParams() < 1) ||
       (getNumParams() > 1 && !getParamDecl(1)->hasDefaultArg()) ||
-      (getPrimaryTemplate() == nullptr) ||
       (getDescribedFunctionTemplate() != nullptr))
     return false;
 
@@ -1970,6 +2001,16 @@ NamespaceDecl *NamespaceDecl::getMostRecentDeclImpl() {
 
 void NamespaceAliasDecl::anchor() { }
 
+NamespaceAliasDecl *NamespaceAliasDecl::getNextRedeclarationImpl() {
+  return getNextRedeclaration();
+}
+NamespaceAliasDecl *NamespaceAliasDecl::getPreviousDeclImpl() {
+  return getPreviousDecl();
+}
+NamespaceAliasDecl *NamespaceAliasDecl::getMostRecentDeclImpl() {
+  return getMostRecentDecl();
+}
+
 NamespaceAliasDecl *NamespaceAliasDecl::Create(ASTContext &C, DeclContext *DC,
                                                SourceLocation UsingLoc,
                                                SourceLocation AliasLoc,
@@ -1977,15 +2018,16 @@ NamespaceAliasDecl *NamespaceAliasDecl::Create(ASTContext &C, DeclContext *DC,
                                            NestedNameSpecifierLoc QualifierLoc,
                                                SourceLocation IdentLoc,
                                                NamedDecl *Namespace) {
+  // FIXME: Preserve the aliased namespace as written.
   if (NamespaceDecl *NS = dyn_cast_or_null<NamespaceDecl>(Namespace))
     Namespace = NS->getOriginalNamespace();
-  return new (C, DC) NamespaceAliasDecl(DC, UsingLoc, AliasLoc, Alias,
+  return new (C, DC) NamespaceAliasDecl(C, DC, UsingLoc, AliasLoc, Alias,
                                         QualifierLoc, IdentLoc, Namespace);
 }
 
 NamespaceAliasDecl *
 NamespaceAliasDecl::CreateDeserialized(ASTContext &C, unsigned ID) {
-  return new (C, ID) NamespaceAliasDecl(nullptr, SourceLocation(),
+  return new (C, ID) NamespaceAliasDecl(C, nullptr, SourceLocation(),
                                         SourceLocation(), nullptr,
                                         NestedNameSpecifierLoc(),
                                         SourceLocation(), nullptr);

@@ -71,9 +71,8 @@ GCStrategy *GCModuleInfo::getOrCreateStrategy(const Module *M,
                             E = GCRegistry::end(); I != E; ++I) {
     if (Name == I->getName()) {
       std::unique_ptr<GCStrategy> S = I->instantiate();
-      S->M = M;
       S->Name = Name;
-      StrategyMap.GetOrCreateValue(Name).setValue(S.get());
+      StrategyMap[Name] = S.get();
       StrategyList.push_back(std::move(S));
       return StrategyList.back().get();
     }
@@ -92,12 +91,14 @@ GCFunctionInfo &GCModuleInfo::getFunctionInfo(const Function &F) {
     return *I->second;
   
   GCStrategy *S = getOrCreateStrategy(F.getParent(), F.getGC());
-  GCFunctionInfo *GFI = S->insertFunctionInfo(F);
+  Functions.push_back(make_unique<GCFunctionInfo>(F, *S));
+  GCFunctionInfo *GFI = Functions.back().get();
   FInfoMap[&F] = GFI;
   return *GFI;
 }
 
 void GCModuleInfo::clear() {
+  Functions.clear();
   FInfoMap.clear();
   StrategyMap.clear();
   StrategyList.clear();

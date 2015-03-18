@@ -12,14 +12,11 @@
 
 using namespace llvm;
 
-MCSymbol *DwarfStringPool::getSectionSymbol() { return SectionSymbol; }
-
 static std::pair<MCSymbol *, unsigned> &
 getEntry(AsmPrinter &Asm,
          StringMap<std::pair<MCSymbol *, unsigned>, BumpPtrAllocator &> &Pool,
          StringRef Prefix, StringRef Str) {
-  std::pair<MCSymbol *, unsigned> &Entry =
-      Pool.GetOrCreateValue(Str).getValue();
+  std::pair<MCSymbol *, unsigned> &Entry = Pool[Str];
   if (!Entry.first) {
     Entry.second = Pool.size() - 1;
     Entry.first = Asm.GetTempSymbol(Prefix, Entry.second);
@@ -36,8 +33,7 @@ unsigned DwarfStringPool::getIndex(AsmPrinter &Asm, StringRef Str) {
 }
 
 void DwarfStringPool::emit(AsmPrinter &Asm, const MCSection *StrSection,
-                           const MCSection *OffsetSection,
-                           const MCSymbol *StrSecSym) {
+                           const MCSection *OffsetSection) {
   if (Pool.empty())
     return;
 

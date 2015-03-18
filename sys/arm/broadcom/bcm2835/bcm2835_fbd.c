@@ -186,17 +186,12 @@ bcm_fb_init(void *arg)
 
 		fbd = device_add_child(sc->dev, "fbd",
 		    device_get_unit(sc->dev));
-		if (fbd == NULL) {
+		if (fbd == NULL)
 			device_printf(sc->dev, "Failed to add fbd child\n");
-			return;
-		}
-		if (device_probe_and_attach(fbd) != 0) {
+		else if (device_probe_and_attach(fbd) != 0)
 			device_printf(sc->dev, "Failed to attach fbd device\n");
-			return;
-		}
 	} else {
 		device_printf(sc->dev, "Failed to set framebuffer info\n");
-		return;
 	}
 
 	config_intrhook_disestablish(&sc->init_hook);

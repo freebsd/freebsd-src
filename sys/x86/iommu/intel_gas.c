@@ -327,13 +327,15 @@ dmar_gas_match_one(struct dmar_gas_match_args *a, struct dmar_map_entry *prev,
 	start = roundup2(bs, a->common->alignment);
 	/* DMAR_PAGE_SIZE to create gap after new entry. */
 	if (start + a->size + DMAR_PAGE_SIZE <= prev->end + prev->free_after &&
-	    start + a->size <= end) {
+	    start + a->size <= end && dmar_test_boundary(start, a->size,
+	    a->common->boundary)) {
 		a->entry->start = start;
 		return (true);
 	}
 
 	/*
-	 * Not enough space to align at boundary, but allowed to split.
+	 * Not enough space to align at the requested boundary, or
+	 * boundary is smaller than the size, but allowed to split.
 	 * We already checked that start + size does not overlap end.
 	 *
 	 * XXXKIB. It is possible that bs is exactly at the start of
@@ -366,7 +368,8 @@ dmar_gas_match_insert(struct dmar_gas_match_args *a,
 
 	next = RB_NEXT(dmar_gas_entries_tree, &a->ctx->rb_root, prev);
 	KASSERT(next->start >= a->entry->end &&
-	    next->start - a->entry->start >= a->size,
+	    next->start - a->entry->start >= a->size &&
+	    prev->end <= a->entry->end,
 	    ("dmar_gas_match_insert hole failed %p prev (%jx, %jx) "
 	    "free_after %jx next (%jx, %jx) entry (%jx, %jx)", a->ctx,
 	    (uintmax_t)prev->start, (uintmax_t)prev->end,

@@ -370,6 +370,9 @@
 #define	AR8327_NUM_PHYS			5
 #define	AR8327_PORTS_ALL		0x7f
 
+#define	AR8327_PORT_GMAC0		0
+#define	AR8327_PORT_GMAC6		6
+
 #define	AR8327_REG_MASK			0x000
 
 #define	AR8327_REG_PAD0_MODE		0x004

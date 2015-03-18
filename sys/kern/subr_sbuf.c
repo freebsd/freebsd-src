@@ -70,6 +70,7 @@ static MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
 #define	SBUF_FREESPACE(s)	((s)->s_size - ((s)->s_len + 1))
 #define	SBUF_CANEXTEND(s)	((s)->s_flags & SBUF_AUTOEXTEND)
 #define	SBUF_ISSECTION(s)	((s)->s_flags & SBUF_INSECTION)
+#define	SBUF_NULINCLUDED(s)	((s)->s_flags & SBUF_INCLUDENUL)
 
 /*
  * Set / clear flags
@@ -77,6 +78,7 @@ static MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
 #define	SBUF_SETFLAG(s, f)	do { (s)->s_flags |= (f); } while (0)
 #define	SBUF_CLEARFLAG(s, f)	do { (s)->s_flags &= ~(f); } while (0)
 
+#define	SBUF_MINSIZE		 2		/* Min is 1 byte + nulterm. */
 #define	SBUF_MINEXTENDSIZE	16		/* Should be power of 2. */
 
 #ifdef PAGE_SIZE
@@ -100,9 +102,15 @@ _assert_sbuf_integrity(const char *fun, struct sbuf *s)
 	    ("%s called with a NULL sbuf pointer", fun));
 	KASSERT(s->s_buf != NULL,
 	    ("%s called with uninitialized or corrupt sbuf", fun));
-	KASSERT(s->s_len < s->s_size,
-	    ("wrote past end of sbuf (%jd >= %jd)",
-	    (intmax_t)s->s_len, (intmax_t)s->s_size));
+        if (SBUF_ISFINISHED(s) && SBUF_NULINCLUDED(s)) {
+		KASSERT(s->s_len <= s->s_size,
+		    ("wrote past end of sbuf (%jd >= %jd)",
+		    (intmax_t)s->s_len, (intmax_t)s->s_size));
+	} else {
+		KASSERT(s->s_len < s->s_size,
+		    ("wrote past end of sbuf (%jd >= %jd)",
+		    (intmax_t)s->s_len, (intmax_t)s->s_size));
+	}
 }
 
 static void
@@ -185,8 +193,9 @@ sbuf_newbuf(struct sbuf *s, char *buf, int length, int flags)
 	s->s_buf = buf;
 
 	if ((s->s_flags & SBUF_AUTOEXTEND) == 0) {
-		KASSERT(s->s_size >= 0,
-		    ("attempt to create a too small sbuf"));
+		KASSERT(s->s_size >= SBUF_MINSIZE,
+		    ("attempt to create an sbuf smaller than %d bytes",
+		    SBUF_MINSIZE));
 	}
 
 	if (s->s_buf != NULL)
@@ -261,6 +270,28 @@ sbuf_uionew(struct sbuf *s, struct uio *uio, int *error)
 	return (s);
 }
 #endif
+
+int
+sbuf_get_flags(struct sbuf *s)
+{
+
+	return (s->s_flags & SBUF_USRFLAGMSK);
+}
+
+void
+sbuf_clear_flags(struct sbuf *s, int flags)
+{
+
+	s->s_flags &= ~(flags & SBUF_USRFLAGMSK);
+}
+
+void
+sbuf_set_flags(struct sbuf *s, int flags)
+{
+
+
+	s->s_flags |= (flags & SBUF_USRFLAGMSK);
+}
 
 /*
  * Clear an sbuf and reset its position.
@@ -697,11 +728,13 @@ sbuf_finish(struct sbuf *s)
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 
+	s->s_buf[s->s_len] = '\0';
+	if (SBUF_NULINCLUDED(s))
+		s->s_len++;
 	if (s->s_drain_func != NULL) {
 		while (s->s_len > 0 && s->s_error == 0)
 			s->s_error = sbuf_drain(s);
 	}
-	s->s_buf[s->s_len] = '\0';
 	SBUF_SETFLAG(s, SBUF_FINISHED);
 #ifdef _KERNEL
 	return (s->s_error);
@@ -743,6 +776,10 @@ sbuf_len(struct sbuf *s)
 
 	if (s->s_error != 0)
 		return (-1);
+
+	/* If finished, nulterm is already in len, else add one. */
+	if (SBUF_NULINCLUDED(s) && !SBUF_ISFINISHED(s))
+		return (s->s_len + 1);
 	return (s->s_len);
 }
 

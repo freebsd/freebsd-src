@@ -212,7 +212,7 @@ protected:
     unsigned HasTemplateKWAndArgsInfo : 1;
     unsigned HasFoundDecl : 1;
     unsigned HadMultipleCandidates : 1;
-    unsigned RefersToEnclosingLocal : 1;
+    unsigned RefersToEnclosingVariableOrCapture : 1;
   };
 
   class CastExprBitfields {
@@ -393,6 +393,10 @@ public:
   /// statement, such as ExprWithCleanups or ImplicitCastExpr nodes.
   Stmt *IgnoreImplicit();
 
+  /// \brief Skip no-op (attributed, compound) container stmts and skip captured
+  /// stmt at the top, if \a IgnoreCaptured is true.
+  Stmt *IgnoreContainers(bool IgnoreCaptured = false);
+
   const Stmt *stripLabelLikeStatements() const;
   Stmt *stripLabelLikeStatements() {
     return const_cast<Stmt*>(
@@ -548,14 +552,17 @@ public:
 ///
 class CompoundStmt : public Stmt {
   Stmt** Body;
-  SourceLocation LBracLoc, RBracLoc;
+  SourceLocation LBraceLoc, RBraceLoc;
+
+  friend class ASTStmtReader;
+
 public:
   CompoundStmt(const ASTContext &C, ArrayRef<Stmt*> Stmts,
                SourceLocation LB, SourceLocation RB);
 
   // \brief Build an empty compound statement with a location.
   explicit CompoundStmt(SourceLocation Loc)
-    : Stmt(CompoundStmtClass), Body(nullptr), LBracLoc(Loc), RBracLoc(Loc) {
+    : Stmt(CompoundStmtClass), Body(nullptr), LBraceLoc(Loc), RBraceLoc(Loc) {
     CompoundStmtBits.NumStmts = 0;
   }
 
@@ -614,13 +621,11 @@ public:
     return const_reverse_body_iterator(body_begin());
   }
 
-  SourceLocation getLocStart() const LLVM_READONLY { return LBracLoc; }
-  SourceLocation getLocEnd() const LLVM_READONLY { return RBracLoc; }
+  SourceLocation getLocStart() const LLVM_READONLY { return LBraceLoc; }
+  SourceLocation getLocEnd() const LLVM_READONLY { return RBraceLoc; }
 
-  SourceLocation getLBracLoc() const { return LBracLoc; }
-  void setLBracLoc(SourceLocation L) { LBracLoc = L; }
-  SourceLocation getRBracLoc() const { return RBracLoc; }
-  void setRBracLoc(SourceLocation L) { RBracLoc = L; }
+  SourceLocation getLBracLoc() const { return LBraceLoc; }
+  SourceLocation getRBracLoc() const { return RBraceLoc; }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CompoundStmtClass;
@@ -846,7 +851,7 @@ public:
 
   SourceLocation getAttrLoc() const { return AttrLoc; }
   ArrayRef<const Attr*> getAttrs() const {
-    return ArrayRef<const Attr*>(getAttrArrayPtr(), NumAttrs);
+    return llvm::makeArrayRef(getAttrArrayPtr(), NumAttrs);
   }
   Stmt *getSubStmt() { return SubStmt; }
   const Stmt *getSubStmt() const { return SubStmt; }
@@ -1010,7 +1015,7 @@ public:
 
   SourceLocation getLocStart() const LLVM_READONLY { return SwitchLoc; }
   SourceLocation getLocEnd() const LLVM_READONLY {
-    return SubExprs[BODY]->getLocEnd();
+    return SubExprs[BODY] ? SubExprs[BODY]->getLocEnd() : SubExprs[COND]->getLocEnd();
   }
 
   // Iterators
@@ -1580,18 +1585,21 @@ public:
     Kind MyKind;
     std::string Str;
     unsigned OperandNo;
+
+    // Source range for operand references.
+    CharSourceRange Range;
   public:
     AsmStringPiece(const std::string &S) : MyKind(String), Str(S) {}
-    AsmStringPiece(unsigned OpNo, char Modifier)
-      : MyKind(Operand), Str(), OperandNo(OpNo) {
-      Str += Modifier;
+    AsmStringPiece(unsigned OpNo, const std::string &S, SourceLocation Begin,
+                   SourceLocation End)
+      : MyKind(Operand), Str(S), OperandNo(OpNo),
+        Range(CharSourceRange::getCharRange(Begin, End)) {
     }
 
     bool isString() const { return MyKind == String; }
     bool isOperand() const { return MyKind == Operand; }
 
     const std::string &getString() const {
-      assert(isString());
       return Str;
     }
 
@@ -1600,12 +1608,14 @@ public:
       return OperandNo;
     }
 
+    CharSourceRange getRange() const {
+      assert(isOperand() && "Range is currently used only for Operands.");
+      return Range;
+    }
+
     /// getModifier - Get the modifier for this operand, if present.  This
     /// returns '\0' if there was no modifier.
-    char getModifier() const {
-      assert(isOperand());
-      return Str[0];
-    }
+    char getModifier() const;
   };
 
   /// AnalyzeAsmString - Analyze the asm string of the current asm, decomposing
@@ -1780,14 +1790,14 @@ public:
   //===--- Other ---===//
 
   ArrayRef<StringRef> getAllConstraints() const {
-    return ArrayRef<StringRef>(Constraints, NumInputs + NumOutputs);
+    return llvm::makeArrayRef(Constraints, NumInputs + NumOutputs);
   }
   ArrayRef<StringRef> getClobbers() const {
-    return ArrayRef<StringRef>(Clobbers, NumClobbers);
+    return llvm::makeArrayRef(Clobbers, NumClobbers);
   }
   ArrayRef<Expr*> getAllExprs() const {
-    return ArrayRef<Expr*>(reinterpret_cast<Expr**>(Exprs),
-                           NumInputs + NumOutputs);
+    return llvm::makeArrayRef(reinterpret_cast<Expr**>(Exprs),
+                              NumInputs + NumOutputs);
   }
 
   StringRef getClobber(unsigned i) const { return getClobbers()[i]; }
@@ -1892,24 +1902,22 @@ class SEHTryStmt : public Stmt {
   bool            IsCXXTry;
   SourceLocation  TryLoc;
   Stmt           *Children[2];
-  int             HandlerIndex;
-  int             HandlerParentIndex;
 
   enum { TRY = 0, HANDLER = 1 };
 
   SEHTryStmt(bool isCXXTry, // true if 'try' otherwise '__try'
-             SourceLocation TryLoc, Stmt *TryBlock, Stmt *Handler,
-             int HandlerIndex, int HandlerParentIndex);
+             SourceLocation TryLoc,
+             Stmt *TryBlock,
+             Stmt *Handler);
 
   friend class ASTReader;
   friend class ASTStmtReader;
   explicit SEHTryStmt(EmptyShell E) : Stmt(SEHTryStmtClass, E) { }
 
 public:
-  static SEHTryStmt *Create(const ASTContext &C, bool isCXXTry,
+  static SEHTryStmt* Create(const ASTContext &C, bool isCXXTry,
                             SourceLocation TryLoc, Stmt *TryBlock,
-                            Stmt *Handler, int HandlerIndex,
-                            int HandlerParentIndex);
+                            Stmt *Handler);
 
   SourceLocation getLocStart() const LLVM_READONLY { return getTryLoc(); }
   SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
@@ -1936,9 +1944,6 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == SEHTryStmtClass;
   }
-
-  int getHandlerIndex() const { return HandlerIndex; }
-  int getHandlerParentIndex() const { return HandlerParentIndex; }
 };
 
 /// Represents a __leave statement.
@@ -1977,15 +1982,18 @@ public:
 /// @endcode
 class CapturedStmt : public Stmt {
 public:
-  /// \brief The different capture forms: by 'this' or by reference, etc.
+  /// \brief The different capture forms: by 'this', by reference, capture for
+  /// variable-length array type etc.
   enum VariableCaptureKind {
     VCK_This,
-    VCK_ByRef
+    VCK_ByRef,
+    VCK_VLAType,
   };
 
-  /// \brief Describes the capture of either a variable or 'this'.
+  /// \brief Describes the capture of either a variable, or 'this', or
+  /// variable-length array type.
   class Capture {
-    llvm::PointerIntPair<VarDecl *, 1, VariableCaptureKind> VarAndKind;
+    llvm::PointerIntPair<VarDecl *, 2, VariableCaptureKind> VarAndKind;
     SourceLocation Loc;
 
   public:
@@ -2007,6 +2015,10 @@ public:
       case VCK_ByRef:
         assert(Var && "capturing by reference must have a variable!");
         break;
+      case VCK_VLAType:
+        assert(!Var &&
+               "Variable-length array type capture cannot have a variable!");
+        break;
       }
     }
 
@@ -2021,13 +2033,20 @@ public:
     bool capturesThis() const { return getCaptureKind() == VCK_This; }
 
     /// \brief Determine whether this capture handles a variable.
-    bool capturesVariable() const { return getCaptureKind() != VCK_This; }
+    bool capturesVariable() const { return getCaptureKind() == VCK_ByRef; }
+
+    /// \brief Determine whether this capture handles a variable-length array
+    /// type.
+    bool capturesVariableArrayType() const {
+      return getCaptureKind() == VCK_VLAType;
+    }
 
     /// \brief Retrieve the declaration of the variable being captured.
     ///
-    /// This operation is only valid if this capture does not capture 'this'.
+    /// This operation is only valid if this capture captures a variable.
     VarDecl *getCapturedVar() const {
-      assert(!capturesThis() && "No variable available for 'this' capture");
+      assert(capturesVariable() &&
+             "No variable available for 'this' or VAT capture");
       return VarAndKind.getPointer();
     }
     friend class ASTStmtReader;

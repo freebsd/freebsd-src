@@ -1,4 +1,4 @@
-/*	$Id: mdoc_html.c,v 1.225 2015/02/12 12:24:33 schwarze Exp $ */
+/*	$Id: mdoc_html.c,v 1.226 2015/03/03 21:11:34 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -411,6 +411,8 @@ print_mdoc_node(MDOC_ARGS)
 			h->flags |= HTML_NOSPACE;
 		return;
 	case MDOC_EQN:
+		if (n->flags & MDOC_LINE)
+			putchar('\n');
 		print_eqn(h, n->eqn);
 		break;
 	case MDOC_TBL:

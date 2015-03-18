@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #if (__FreeBSD_version >= 1100000)
 #include <sys/capsicum.h>
+#else
+#include <sys/capability.h>
 #endif
 #include <sys/file.h>
 #include <sys/kernel.h>
@@ -570,9 +572,7 @@ pmclog_configure_log(struct pmc_mdep *md, struct pmc_owner *po, int logfd)
 {
 	int error;
 	struct proc *p;
-#if (__FreeBSD_version >= 1100000)
 	cap_rights_t rights;
-#endif
 	/*
 	 * As long as it is possible to get a LOR between pmc_sx lock and
 	 * proctree/allproc sx locks used for adding a new process, assure
@@ -595,12 +595,11 @@ pmclog_configure_log(struct pmc_mdep *md, struct pmc_owner *po, int logfd)
 		po->po_file));
 
 	/* get a reference to the file state */
-#if (__FreeBSD_version >= 1100000)
 	error = fget_write(curthread, logfd,
 	    cap_rights_init(&rights, CAP_WRITE), &po->po_file);
 	if (error)
 		goto error;
-#endif
+
 	/* mark process as owning a log file */
 	po->po_flags |= PMC_PO_OWNS_LOGFILE;
 	error = kproc_create(pmclog_loop, po, &po->po_kthread,

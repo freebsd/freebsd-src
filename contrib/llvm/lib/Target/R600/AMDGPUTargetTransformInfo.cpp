@@ -52,7 +52,7 @@ public:
 
   AMDGPUTTI(const AMDGPUTargetMachine *TM)
       : ImmutablePass(ID), TM(TM), ST(TM->getSubtargetImpl()),
-        TLI(TM->getTargetLowering()) {
+        TLI(TM->getSubtargetImpl()->getTargetLowering()) {
     initializeAMDGPUTTIPass(*PassRegistry::getPassRegistry());
   }
 
@@ -74,16 +74,14 @@ public:
 
   bool hasBranchDivergence() const override;
 
-  void getUnrollingPreferences(Loop *L,
+  void getUnrollingPreferences(const Function *F, Loop *L,
                                UnrollingPreferences &UP) const override;
 
   PopcntSupportKind getPopcntSupport(unsigned IntTyWidthInBit) const override;
 
   unsigned getNumberOfRegisters(bool Vector) const override;
   unsigned getRegisterBitWidth(bool Vector) const override;
-  unsigned getMaximumUnrollFactor() const override;
-
-  /// @}
+  unsigned getMaxInterleaveFactor() const override;
 };
 
 } // end anonymous namespace
@@ -99,8 +97,14 @@ llvm::createAMDGPUTargetTransformInfoPass(const AMDGPUTargetMachine *TM) {
 
 bool AMDGPUTTI::hasBranchDivergence() const { return true; }
 
-void AMDGPUTTI::getUnrollingPreferences(Loop *L,
+void AMDGPUTTI::getUnrollingPreferences(const Function *, Loop *L,
                                         UnrollingPreferences &UP) const {
+  UP.Threshold = 300; // Twice the default.
+  UP.MaxCount = UINT_MAX;
+  UP.Partial = true;
+
+  // TODO: Do we want runtime unrolling?
+
   for (const BasicBlock *BB : L->getBlocks()) {
     for (const Instruction &I : *BB) {
       const GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(&I);
@@ -120,7 +124,7 @@ void AMDGPUTTI::getUnrollingPreferences(Loop *L,
         //
         // Don't use the maximum allowed value here as it will make some
         // programs way too big.
-        UP.Threshold = 500;
+        UP.Threshold = 800;
       }
     }
   }
@@ -147,7 +151,7 @@ unsigned AMDGPUTTI::getRegisterBitWidth(bool) const {
   return 32;
 }
 
-unsigned AMDGPUTTI::getMaximumUnrollFactor() const {
+unsigned AMDGPUTTI::getMaxInterleaveFactor() const {
   // Semi-arbitrary large amount.
   return 64;
 }

@@ -18,6 +18,7 @@ SRCS=	AnalysisBasedWarnings.cpp \
 	Sema.cpp \
 	SemaAccess.cpp \
 	SemaAttr.cpp \
+	SemaCUDA.cpp \
 	SemaCXXScopeSpec.cpp \
 	SemaCast.cpp \
 	SemaChecking.cpp \

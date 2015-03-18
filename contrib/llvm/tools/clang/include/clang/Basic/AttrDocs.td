@@ -72,9 +72,9 @@ def ThreadDocs : Documentation {
   let Content = [{
 The ``__declspec(thread)`` attribute declares a variable with thread local
 storage.  It is available under the ``-fms-extensions`` flag for MSVC
-compatibility.  Documentation for the Visual C++ attribute is available on MSDN_.
+compatibility.  See the documentation for `__declspec(thread)`_ on MSDN.
 
-.. _MSDN: http://msdn.microsoft.com/en-us/library/9w1sdazb.aspx
+.. _`__declspec(thread)`: http://msdn.microsoft.com/en-us/library/9w1sdazb.aspx
 
 In Clang, ``__declspec(thread)`` is generally equivalent in functionality to the
 GNU ``__thread`` keyword.  The variable must not have a destructor and must have
@@ -154,6 +154,30 @@ def ReleaseCapabilityDocs : Documentation {
 Marks a function as releasing a capability.
   }];
 }
+
+def AssumeAlignedDocs : Documentation {
+  let Category = DocCatFunction;
+  let Content = [{
+Use ``__attribute__((assume_aligned(<alignment>[,<offset>]))`` on a function
+declaration to specify that the return value of the function (which must be a
+pointer type) has the specified offset, in bytes, from an address with the
+specified alignment. The offset is taken to be zero if omitted.
+
+.. code-block:: c++
+
+  // The returned pointer value has 32-byte alignment.
+  void *a() __attribute__((assume_aligned (32)));
+
+  // The returned pointer value is 4 bytes greater than an address having
+  // 32-byte alignment.
+  void *b() __attribute__((assume_aligned (32, 4)));
+
+Note that this attribute provides information to the compiler regarding a
+condition that the code already ensures is true. It does not cause the compiler
+to enforce the provided alignment assumption.
+  }];
+}
+
 def EnableIfDocs : Documentation {
   let Category = DocCatFunction;
   let Content = [{
@@ -649,12 +673,177 @@ The semantics are as follows:
   }];
 }
 
-def PcsDocs : Documentation {
-  let Category = DocCatFunction;
+def DocCatAMDGPURegisterAttributes :
+  DocumentationCategory<"AMD GPU Register Attributes"> {
   let Content = [{
-On ARM targets, this can attribute can be used to select calling conventions,
+Clang supports attributes for controlling register usage on AMD GPU
+targets. These attributes may be attached to a kernel function
+definition and is an optimization hint to the backend for the maximum
+number of registers to use. This is useful in cases where register
+limited occupancy is known to be an important factor for the
+performance for the kernel.
+
+The semantics are as follows:
+
+- The backend will attempt to limit the number of used registers to
+  the specified value, but the exact number used is not
+  guaranteed. The number used may be rounded up to satisfy the
+  allocation requirements or ABI constraints of the subtarget. For
+  example, on Southern Islands VGPRs may only be allocated in
+  increments of 4, so requesting a limit of 39 VGPRs will really
+  attempt to use up to 40. Requesting more registers than the
+  subtarget supports will truncate to the maximum allowed. The backend
+  may also use fewer registers than requested whenever possible.
+
+- 0 implies the default no limit on register usage.
+
+- Ignored on older VLIW subtargets which did not have separate scalar
+  and vector registers, R600 through Northern Islands.
+
+}];
+}
+
+
+def AMDGPUNumVGPRDocs : Documentation {
+  let Category = DocCatAMDGPURegisterAttributes;
+  let Content = [{
+Clang supports the
+``__attribute__((amdgpu_num_vgpr(<num_registers>)))`` attribute on AMD
+Southern Islands GPUs and later for controlling the number of vector
+registers. A typical value would be between 4 and 256 in increments
+of 4.
+}];
+}
+
+def AMDGPUNumSGPRDocs : Documentation {
+  let Category = DocCatAMDGPURegisterAttributes;
+  let Content = [{
+
+Clang supports the
+``__attribute__((amdgpu_num_sgpr(<num_registers>)))`` attribute on AMD
+Southern Islands GPUs and later for controlling the number of scalar
+registers. A typical value would be between 8 and 104 in increments of
+8.
+
+Due to common instruction constraints, an additional 2-4 SGPRs are
+typically required for internal use depending on features used. This
+value is a hint for the total number of SGPRs to use, and not the
+number of user SGPRs, so no special consideration needs to be given
+for these.
+}];
+}
+
+def DocCatCallingConvs : DocumentationCategory<"Calling Conventions"> {
+  let Content = [{
+Clang supports several different calling conventions, depending on the target
+platform and architecture. The calling convention used for a function determines
+how parameters are passed, how results are returned to the caller, and other
+low-level details of calling a function.
+  }];
+}
+
+def PcsDocs : Documentation {
+  let Category = DocCatCallingConvs;
+  let Content = [{
+On ARM targets, this attribute can be used to select calling conventions
 similar to ``stdcall`` on x86. Valid parameter values are "aapcs" and
 "aapcs-vfp".
+  }];
+}
+
+def RegparmDocs : Documentation {
+  let Category = DocCatCallingConvs;
+  let Content = [{
+On 32-bit x86 targets, the regparm attribute causes the compiler to pass
+the first three integer parameters in EAX, EDX, and ECX instead of on the
+stack. This attribute has no effect on variadic functions, and all parameters
+are passed via the stack as normal.
+  }];
+}
+
+def SysVABIDocs : Documentation {
+  let Category = DocCatCallingConvs;
+  let Content = [{
+On Windows x86_64 targets, this attribute changes the calling convention of a
+function to match the default convention used on Sys V targets such as Linux,
+Mac, and BSD. This attribute has no effect on other targets.
+  }];
+}
+
+def MSABIDocs : Documentation {
+  let Category = DocCatCallingConvs;
+  let Content = [{
+On non-Windows x86_64 targets, this attribute changes the calling convention of
+a function to match the default convention used on Windows x86_64. This
+attribute has no effect on Windows targets or non-x86_64 targets.
+  }];
+}
+
+def StdCallDocs : Documentation {
+  let Category = DocCatCallingConvs;
+  let Content = [{
+On 32-bit x86 targets, this attribute changes the calling convention of a
+function to clear parameters off of the stack on return. This convention does
+not support variadic calls or unprototyped functions in C, and has no effect on
+x86_64 targets. This calling convention is used widely by the Windows API and
+COM applications.  See the documentation for `__stdcall`_ on MSDN.
+
+.. _`__stdcall`: http://msdn.microsoft.com/en-us/library/zxk0tw93.aspx
+  }];
+}
+
+def FastCallDocs : Documentation {
+  let Category = DocCatCallingConvs;
+  let Content = [{
+On 32-bit x86 targets, this attribute changes the calling convention of a
+function to use ECX and EDX as register parameters and clear parameters off of
+the stack on return. This convention does not support variadic calls or
+unprototyped functions in C, and has no effect on x86_64 targets. This calling
+convention is supported primarily for compatibility with existing code. Users
+seeking register parameters should use the ``regparm`` attribute, which does
+not require callee-cleanup.  See the documentation for `__fastcall`_ on MSDN.
+
+.. _`__fastcall`: http://msdn.microsoft.com/en-us/library/6xa169sk.aspx
+  }];
+}
+
+def ThisCallDocs : Documentation {
+  let Category = DocCatCallingConvs;
+  let Content = [{
+On 32-bit x86 targets, this attribute changes the calling convention of a
+function to use ECX for the first parameter (typically the implicit ``this``
+parameter of C++ methods) and clear parameters off of the stack on return. This
+convention does not support variadic calls or unprototyped functions in C, and
+has no effect on x86_64 targets. See the documentation for `__thiscall`_ on
+MSDN.
+
+.. _`__thiscall`: http://msdn.microsoft.com/en-us/library/ek8tkfbw.aspx
+  }];
+}
+
+def VectorCallDocs : Documentation {
+  let Category = DocCatCallingConvs;
+  let Content = [{
+On 32-bit x86 *and* x86_64 targets, this attribute changes the calling
+convention of a function to pass vector parameters in SSE registers.
+
+On 32-bit x86 targets, this calling convention is similar to ``__fastcall``.
+The first two integer parameters are passed in ECX and EDX. Subsequent integer
+parameters are passed in memory, and callee clears the stack.  On x86_64
+targets, the callee does *not* clear the stack, and integer parameters are
+passed in RCX, RDX, R8, and R9 as is done for the default Windows x64 calling
+convention.
+
+On both 32-bit x86 and x86_64 targets, vector and floating point arguments are
+passed in XMM0-XMM5. Homogenous vector aggregates of up to four elements are
+passed in sequential SSE registers if enough are available. If AVX is enabled,
+256 bit vectors are passed in YMM0-YMM5. Any vector or aggregate type that
+cannot be passed in registers for any reason is passed by reference, which
+allows the caller to align the parameter memory.
+
+See the documentation for `__vectorcall`_ on MSDN for more details.
+
+.. _`__vectorcall`: http://msdn.microsoft.com/en-us/library/dn375768.aspx
   }];
 }
 
@@ -987,6 +1176,26 @@ Clang implements two kinds of checks with this attribute.
   }];
 }
 
+def AlignValueDocs : Documentation {
+  let Category = DocCatType;
+  let Content = [{
+The align_value attribute can be added to the typedef of a pointer type or the
+declaration of a variable of pointer or reference type. It specifies that the
+pointer will point to, or the reference will bind to, only objects with at
+least the provided alignment. This alignment value must be some positive power
+of 2.
+
+   .. code-block:: c
+
+     typedef double * aligned_double_ptr __attribute__((align_value(64)));
+     void foo(double & x  __attribute__((align_value(128)),
+              aligned_double_ptr y) { ... }
+
+If the pointer value does not have the specified alignment at runtime, the
+behavior of the program is undefined.
+  }];
+}
+
 def MSInheritanceDocs : Documentation {
   let Category = DocCatType;
   let Heading = "__single_inhertiance, __multiple_inheritance, __virtual_inheritance";
@@ -1045,12 +1254,14 @@ entire application without optimization.  Avoiding optimization on the
 specified function can improve the quality of the debugging information
 for that function.
 
-This attribute is incompatible with the ``always_inline`` attribute.
+This attribute is incompatible with the ``always_inline`` and ``minsize``
+attributes.
   }];
 }
 
 def LoopHintDocs : Documentation {
   let Category = DocCatStmt;
+  let Heading = "#pragma clang loop";
   let Content = [{
 The ``#pragma clang loop`` directive allows loop optimization hints to be
 specified for the subsequent loop. The directive allows vectorization,
@@ -1064,10 +1275,11 @@ for details.
 
 def UnrollHintDocs : Documentation {
   let Category = DocCatStmt;
+  let Heading = "#pragma unroll, #pragma nounroll";
   let Content = [{
-Loop unrolling optimization hints can be specified with ``#pragma unroll``. The
-pragma is placed immediately before a for, while, do-while, or c++11 range-based
-for loop.
+Loop unrolling optimization hints can be specified with ``#pragma unroll`` and
+``#pragma nounroll``. The pragma is placed immediately before a for, while,
+do-while, or c++11 range-based for loop.
 
 Specifying ``#pragma unroll`` without a parameter directs the loop unroller to
 attempt to fully unroll the loop if the trip count is known at compile time:
@@ -1095,11 +1307,107 @@ enclosed in parentheses:
     ...
   }
 
+Specifying ``#pragma nounroll`` indicates that the loop should not be unrolled:
+
+.. code-block:: c++
+
+  #pragma nounroll
+  for (...) {
+    ...
+  }
+
 ``#pragma unroll`` and ``#pragma unroll _value_`` have identical semantics to
-``#pragma clang loop unroll(enable)`` and ``#pragma clang loop
-unroll_count(_value_)`` respectively. See `language extensions
+``#pragma clang loop unroll(full)`` and
+``#pragma clang loop unroll_count(_value_)`` respectively. ``#pragma nounroll``
+is equivalent to ``#pragma clang loop unroll(disable)``.  See
+`language extensions
 <http://clang.llvm.org/docs/LanguageExtensions.html#extensions-for-loop-hint-optimizations>`_
 for further details including limitations of the unroll hints.
   }];
 }
 
+def DocOpenCLAddressSpaces : DocumentationCategory<"OpenCL Address Spaces"> {
+  let Content = [{
+The address space qualifier may be used to specify the region of memory that is
+used to allocate the object. OpenCL supports the following address spaces:
+__generic(generic), __global(global), __local(local), __private(private),
+__constant(constant).
+
+  .. code-block:: c
+
+    __constant int c = ...;
+
+    __generic int* foo(global int* g) {
+      __local int* l;
+      private int p;
+      ...
+      return l;
+    }
+
+More details can be found in the OpenCL C language Spec v2.0, Section 6.5.
+  }];
+}
+
+def OpenCLAddressSpaceGenericDocs : Documentation {
+  let Category = DocOpenCLAddressSpaces;
+  let Heading = "__generic(generic)";
+  let Content = [{
+The generic address space attribute is only available with OpenCL v2.0 and later.
+It can be used with pointer types. Variables in global and local scope and
+function parameters in non-kernel functions can have the generic address space
+type attribute. It is intended to be a placeholder for any other address space
+except for '__constant' in OpenCL code which can be used with multiple address
+spaces.
+  }];
+}
+
+def OpenCLAddressSpaceConstantDocs : Documentation {
+  let Category = DocOpenCLAddressSpaces;
+  let Heading = "__constant(constant)";
+  let Content = [{
+The constant address space attribute signals that an object is located in
+a constant (non-modifiable) memory region. It is available to all work items.
+Any type can be annotated with the constant address space attribute. Objects
+with the constant address space qualifier can be declared in any scope and must
+have an initializer.
+  }];
+}
+
+def OpenCLAddressSpaceGlobalDocs : Documentation {
+  let Category = DocOpenCLAddressSpaces;
+  let Heading = "__global(global)";
+  let Content = [{
+The global address space attribute specifies that an object is allocated in
+global memory, which is accessible by all work items. The content stored in this
+memory area persists between kernel executions. Pointer types to the global
+address space are allowed as function parameters or local variables. Starting
+with OpenCL v2.0, the global address space can be used with global (program
+scope) variables and static local variable as well.
+  }];
+}
+
+def OpenCLAddressSpaceLocalDocs : Documentation {
+  let Category = DocOpenCLAddressSpaces;
+  let Heading = "__local(local)";
+  let Content = [{
+The local address space specifies that an object is allocated in the local (work
+group) memory area, which is accessible to all work items in the same work
+group. The content stored in this memory region is not accessible after
+the kernel execution ends. In a kernel function scope, any variable can be in
+the local address space. In other scopes, only pointer types to the local address
+space are allowed. Local address space variables cannot have an initializer.
+  }];
+}
+
+def OpenCLAddressSpacePrivateDocs : Documentation {
+  let Category = DocOpenCLAddressSpaces;
+  let Heading = "__private(private)";
+  let Content = [{
+The private address space specifies that an object is allocated in the private
+(work item) memory. Other work items cannot access the same memory area and its
+content is destroyed after work item execution ends. Local variables can be
+declared in the private address space. Function arguments are always in the
+private address space. Kernel function arguments of a pointer or an array type
+cannot point to the private address space.
+  }];
+}

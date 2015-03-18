@@ -1458,11 +1458,11 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 	dev_priv->pipestat[1] = 0;
 
 	/* Hack for broken MSIs on VLV */
-	pci_write_config(dev->device, 0x94, 0xfee00000, 4);
-	msid = pci_read_config(dev->device, 0x98, 2);
+	pci_write_config(dev->dev, 0x94, 0xfee00000, 4);
+	msid = pci_read_config(dev->dev, 0x98, 2);
 	msid &= 0xff; /* mask out delivery bits */
 	msid |= (1<<14);
-	pci_write_config(dev->device, 0x98, msid, 2);
+	pci_write_config(dev->dev, 0x98, msid, 2);
 
 	I915_WRITE(VLV_IMR, dev_priv->irq_mask);
 	I915_WRITE(VLV_IER, enable_mask);
@@ -2329,7 +2329,7 @@ i915_error_state_free(struct drm_i915_error_state *error)
 {
 	int i;
 
-	for (i = 0; i < DRM_ARRAY_SIZE(error->ring); i++) {
+	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
 		i915_error_object_free(error->ring[i].batchbuffer);
 		i915_error_object_free(error->ring[i].ringbuffer);
 		free(error->ring[i].requests, DRM_I915_GEM);

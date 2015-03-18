@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file is shared between AddressSanitizer and ThreadSanitizer
-// run-time libraries.
+// This file is shared between run-time libraries of sanitizers.
+//
 // It declares common functions and classes that are used in both runtimes.
 // Implementation of some functions are provided in sanitizer_common, while
 // others must be defined by run-time library itself.
@@ -16,10 +16,12 @@
 #ifndef SANITIZER_COMMON_H
 #define SANITIZER_COMMON_H
 
+#include "sanitizer_flags.h"
+#include "sanitizer_interface_internal.h"
 #include "sanitizer_internal_defs.h"
 #include "sanitizer_libc.h"
+#include "sanitizer_list.h"
 #include "sanitizer_mutex.h"
-#include "sanitizer_flags.h"
 
 namespace __sanitizer {
 struct StackTrace;
@@ -39,6 +41,14 @@ const uptr kMaxPathLength = 4096;
 const uptr kMaxThreadStackSize = 1 << 30;  // 1Gb
 
 extern const char *SanitizerToolName;  // Can be changed by the tool.
+
+extern atomic_uint32_t current_verbosity;
+INLINE void SetVerbosity(int verbosity) {
+  atomic_store(&current_verbosity, verbosity, memory_order_relaxed);
+}
+INLINE int Verbosity() {
+  return atomic_load(&current_verbosity, memory_order_relaxed);
+}
 
 uptr GetPageSize();
 uptr GetPageSizeCached();
@@ -67,6 +77,8 @@ void FlushUnneededShadowMemory(uptr addr, uptr size);
 void IncreaseTotalMmap(uptr size);
 void DecreaseTotalMmap(uptr size);
 uptr GetRSS();
+void NoHugePagesInRegion(uptr addr, uptr length);
+void DontDumpShadowMemory(uptr addr, uptr length);
 
 // InternalScopedBuffer can be used instead of large stack arrays to
 // keep frame size low.
@@ -135,11 +147,11 @@ void Report(const char *format, ...);
 void SetPrintfAndReportCallback(void (*callback)(const char *));
 #define VReport(level, ...)                                              \
   do {                                                                   \
-    if ((uptr)common_flags()->verbosity >= (level)) Report(__VA_ARGS__); \
+    if ((uptr)Verbosity() >= (level)) Report(__VA_ARGS__); \
   } while (0)
 #define VPrintf(level, ...)                                              \
   do {                                                                   \
-    if ((uptr)common_flags()->verbosity >= (level)) Printf(__VA_ARGS__); \
+    if ((uptr)Verbosity() >= (level)) Printf(__VA_ARGS__); \
   } while (0)
 
 // Can be used to prevent mixing error reports from different sanitizers.
@@ -179,8 +191,8 @@ uptr OpenFile(const char *filename, bool write);
 // The resulting buffer is mmaped and stored in '*buff'.
 // The size of the mmaped region is stored in '*buff_size',
 // Returns the number of read bytes or 0 if file can not be opened.
-uptr ReadFileToBuffer(const char *file_name, char **buff,
-                      uptr *buff_size, uptr max_len);
+uptr ReadFileToBuffer(const char *file_name, char **buff, uptr *buff_size,
+                      uptr max_len, int *errno_p = nullptr);
 // Maps given file to virtual memory, and returns pointer to it
 // (or NULL if the mapping failes). Stores the size of mmaped region
 // in '*buff_size'.
@@ -214,9 +226,12 @@ void PrepareForSandboxing(__sanitizer_sandbox_arguments *args);
 void CovPrepareForSandboxing(__sanitizer_sandbox_arguments *args);
 void SetSandboxingCallback(void (*f)());
 
-void CovUpdateMapping(uptr caller_pc = 0);
+void CoverageUpdateMapping();
 void CovBeforeFork();
 void CovAfterFork(int child_pid);
+
+void InitializeCoverage(bool enabled, const char *coverage_dir);
+void ReInitializeCoverage(bool enabled, const char *coverage_dir);
 
 void InitTlsSize();
 uptr GetTlsSize();
@@ -227,6 +242,7 @@ void SleepForMillis(int millis);
 u64 NanoTime();
 int Atexit(void (*function)(void));
 void SortArray(uptr *array, uptr size);
+bool TemplateMatch(const char *templ, const char *str);
 
 // Exit
 void NORETURN Abort();
@@ -245,10 +261,17 @@ bool SanitizerGetThreadName(char *name, int max_len);
 // to do tool-specific job.
 typedef void (*DieCallbackType)(void);
 void SetDieCallback(DieCallbackType);
+void SetUserDieCallback(DieCallbackType);
 DieCallbackType GetDieCallback();
 typedef void (*CheckFailedCallbackType)(const char *, int, const char *,
                                        u64, u64);
 void SetCheckFailedCallback(CheckFailedCallbackType callback);
+
+// Callback will be called if soft_rss_limit_mb is given and the limit is
+// exceeded (exceeded==true) or if rss went down below the limit
+// (exceeded==false).
+// The callback should be registered once at the tool init time.
+void SetSoftRssLimitExceededCallback(void (*Callback)(bool exceeded));
 
 // Functions related to signal handling.
 typedef void (*SignalHandlerType)(int, void *, void *);
@@ -376,14 +399,14 @@ INLINE int ToLower(int c) {
 // small vectors.
 // WARNING: The current implementation supports only POD types.
 template<typename T>
-class InternalMmapVector {
+class InternalMmapVectorNoCtor {
  public:
-  explicit InternalMmapVector(uptr initial_capacity) {
+  void Initialize(uptr initial_capacity) {
     capacity_ = Max(initial_capacity, (uptr)1);
     size_ = 0;
-    data_ = (T *)MmapOrDie(capacity_ * sizeof(T), "InternalMmapVector");
+    data_ = (T *)MmapOrDie(capacity_ * sizeof(T), "InternalMmapVectorNoCtor");
   }
-  ~InternalMmapVector() {
+  void Destroy() {
     UnmapOrDie(data_, capacity_ * sizeof(T));
   }
   T &operator[](uptr i) {
@@ -434,13 +457,22 @@ class InternalMmapVector {
     UnmapOrDie(old_data, capacity_ * sizeof(T));
     capacity_ = new_capacity;
   }
-  // Disallow evil constructors.
-  InternalMmapVector(const InternalMmapVector&);
-  void operator=(const InternalMmapVector&);
 
   T *data_;
   uptr capacity_;
   uptr size_;
+};
+
+template<typename T>
+class InternalMmapVector : public InternalMmapVectorNoCtor<T> {
+ public:
+  explicit InternalMmapVector(uptr initial_capacity) {
+    InternalMmapVectorNoCtor<T>::Initialize(initial_capacity);
+  }
+  ~InternalMmapVector() { InternalMmapVectorNoCtor<T>::Destroy(); }
+  // Disallow evil constructors.
+  InternalMmapVector(const InternalMmapVector&);
+  void operator=(const InternalMmapVector&);
 };
 
 // HeapSort for arrays and InternalMmapVector.
@@ -501,28 +533,30 @@ uptr InternalBinarySearch(const Container &v, uptr first, uptr last,
 class LoadedModule {
  public:
   LoadedModule(const char *module_name, uptr base_address);
+  void clear();
   void addAddressRange(uptr beg, uptr end, bool executable);
   bool containsAddress(uptr address) const;
 
   const char *full_name() const { return full_name_; }
   uptr base_address() const { return base_address_; }
 
-  uptr n_ranges() const { return n_ranges_; }
-  uptr address_range_start(int i) const { return ranges_[i].beg; }
-  uptr address_range_end(int i) const { return ranges_[i].end; }
-  bool address_range_executable(int i) const { return exec_[i]; }
-
- private:
   struct AddressRange {
+    AddressRange *next;
     uptr beg;
     uptr end;
+    bool executable;
+
+    AddressRange(uptr beg, uptr end, bool executable)
+        : next(nullptr), beg(beg), end(end), executable(executable) {}
   };
-  char *full_name_;
+
+  typedef IntrusiveList<AddressRange>::ConstIterator Iterator;
+  Iterator ranges() const { return Iterator(&ranges_); }
+
+ private:
+  char *full_name_;  // Owned.
   uptr base_address_;
-  static const uptr kMaxNumberOfAddressRanges = 6;
-  AddressRange ranges_[kMaxNumberOfAddressRanges];
-  bool exec_[kMaxNumberOfAddressRanges];
-  uptr n_ranges_;
+  IntrusiveList<AddressRange> ranges_;
 };
 
 // OS-dependent function that fills array with descriptions of at most
@@ -555,6 +589,10 @@ INLINE void AndroidLogWrite(const char *buffer_unused) {}
 INLINE void GetExtraActivationFlags(char *buf, uptr size) { *buf = '\0'; }
 INLINE void SanitizerInitializeUnwinder() {}
 #endif
+
+void *internal_start_thread(void(*func)(void*), void *arg);
+void internal_join_thread(void *th);
+void MaybeStartBackgroudThread();
 
 // Make the compiler think that something is going on there.
 // Use this inside a loop that looks like memset/memcpy/etc to prevent the
