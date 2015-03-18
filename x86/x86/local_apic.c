@@ -159,11 +159,14 @@ extern inthand_t IDTVEC(rsvd);
 volatile char *lapic_map;
 vm_paddr_t lapic_paddr;
 int x2apic_mode;
+int lapic_eoi_suppression;
 static u_long lapic_timer_divisor;
 static struct eventtimer lapic_et;
 
 SYSCTL_NODE(_hw, OID_AUTO, apic, CTLFLAG_RD, 0, "APIC options");
 SYSCTL_INT(_hw_apic, OID_AUTO, x2apic_mode, CTLFLAG_RD, &x2apic_mode, 0, "");
+SYSCTL_INT(_hw_apic, OID_AUTO, eoi_suppression, CTLFLAG_RD,
+    &lapic_eoi_suppression, 0, "");
 
 static uint32_t
 lapic_read32(enum LAPIC_REGISTERS reg)
@@ -300,6 +303,8 @@ static int 	native_lapic_set_lvt_polarity(u_int apic_id, u_int lvt,
 		    enum intr_polarity pol);
 static int 	native_lapic_set_lvt_triggermode(u_int apic_id, u_int lvt,
 		    enum intr_trigger trigger);
+static int	native_lapic_ipi_alloc(inthand_t *ipifunc);
+static void	native_lapic_ipi_free(int vector);
 
 struct apic_ops apic_ops = {
 	.create			= native_lapic_create,
@@ -326,6 +331,8 @@ struct apic_ops apic_ops = {
 	.ipi_raw		= native_lapic_ipi_raw,
 	.ipi_vectored		= native_lapic_ipi_vectored,
 	.ipi_wait		= native_lapic_ipi_wait,
+	.ipi_alloc		= native_lapic_ipi_alloc,
+	.ipi_free		= native_lapic_ipi_free,
 #endif
 	.set_lvt_mask		= native_lapic_set_lvt_mask,
 	.set_lvt_mode		= native_lapic_set_lvt_mode,
@@ -380,20 +387,26 @@ lvt_mode(struct lapic *la, u_int pin, uint32_t value)
 static void
 native_lapic_init(vm_paddr_t addr)
 {
+	uint32_t ver;
 	u_int regs[4];
 	int i, arat;
 
 	/*
-	 * Enable x2APIC mode if possible, otherwise map the local
-	 * APIC registers page.
+	 * Enable x2APIC mode if possible. Map the local APIC
+	 * registers page.
+	 *
+	 * Keep the LAPIC registers page mapped uncached for x2APIC
+	 * mode too, to have direct map page attribute set to
+	 * uncached.  This is needed to work around CPU errata present
+	 * on all Intel processors.
 	 */
 	KASSERT(trunc_page(addr) == addr,
 	    ("local APIC not aligned on a page boundary"));
+	lapic_paddr = addr;
+	lapic_map = pmap_mapdev(addr, PAGE_SIZE);
 	if (x2apic_mode) {
 		native_lapic_enable_x2apic();
-	} else {
-		lapic_paddr = addr;
-		lapic_map = pmap_mapdev(addr, PAGE_SIZE);
+		lapic_map = NULL;
 	}
 
 	/* Setup the spurious interrupt handler. */
@@ -442,6 +455,20 @@ native_lapic_init(vm_paddr_t addr)
 		lapic_et.et_stop = lapic_et_stop;
 		lapic_et.et_priv = NULL;
 		et_register(&lapic_et);
+	}
+
+	/*
+	 * Set lapic_eoi_suppression after lapic_enable(), to not
+	 * enable suppression in the hardware prematurely.  Note that
+	 * we by default enable suppression even when system only has
+	 * one IO-APIC, since EOI is broadcasted to all APIC agents,
+	 * including CPUs, otherwise.
+	 */
+	ver = lapic_read32(LAPIC_VERSION);
+	if ((ver & APIC_VER_EOI_SUPPRESSION) != 0) {
+		lapic_eoi_suppression = 1;
+		TUNABLE_INT_FETCH("hw.lapic_eoi_suppression",
+		    &lapic_eoi_suppression);
 	}
 }
 
@@ -755,6 +782,8 @@ lapic_enable(void)
 	value = lapic_read32(LAPIC_SVR);
 	value &= ~(APIC_SVR_VECTOR | APIC_SVR_FOCUS);
 	value |= APIC_SVR_FEN | APIC_SVR_SWEN | APIC_SPURIOUS_INT;
+	if (lapic_eoi_suppression)
+		value |= APIC_SVR_EOI_SUPPRESSION;
 	lapic_write32(LAPIC_SVR, value);
 }
 
@@ -1562,8 +1591,10 @@ apic_setup_io(void *dummy __unused)
 	return;
 #endif
 	/*
-	 * Finish setting up the local APIC on the BSP once we know how to
-	 * properly program the LINT pins.
+	 * Finish setting up the local APIC on the BSP once we know
+	 * how to properly program the LINT pins.  In particular, this
+	 * enables the EOI suppression mode, if LAPIC support it and
+	 * user did not disabled the mode.
 	 */
 	lapic_setup(1);
 	if (bootverbose)
@@ -1734,4 +1765,60 @@ native_lapic_ipi_vectored(u_int vector, int dest)
 	}
 #endif /* DETECT_DEADLOCK */
 }
+
+/*
+ * Since the IDT is shared by all CPUs the IPI slot update needs to be globally
+ * visible.
+ *
+ * Consider the case where an IPI is generated immediately after allocation:
+ *     vector = lapic_ipi_alloc(ipifunc);
+ *     ipi_selected(other_cpus, vector);
+ *
+ * In xAPIC mode a write to ICR_LO has serializing semantics because the
+ * APIC page is mapped as an uncached region. In x2APIC mode there is an
+ * explicit 'mfence' before the ICR MSR is written. Therefore in both cases
+ * the IDT slot update is globally visible before the IPI is delivered.
+ */
+static int
+native_lapic_ipi_alloc(inthand_t *ipifunc)
+{
+	struct gate_descriptor *ip;
+	long func;
+	int idx, vector;
+
+	KASSERT(ipifunc != &IDTVEC(rsvd), ("invalid ipifunc %p", ipifunc));
+
+	vector = -1;
+	mtx_lock_spin(&icu_lock);
+	for (idx = IPI_DYN_FIRST; idx <= IPI_DYN_LAST; idx++) {
+		ip = &idt[idx];
+		func = (ip->gd_hioffset << 16) | ip->gd_looffset;
+		if (func == (uintptr_t)&IDTVEC(rsvd)) {
+			vector = idx;
+			setidt(vector, ipifunc, SDT_APIC, SEL_KPL, GSEL_APIC);
+			break;
+		}
+	}
+	mtx_unlock_spin(&icu_lock);
+	return (vector);
+}
+
+static void
+native_lapic_ipi_free(int vector)
+{
+	struct gate_descriptor *ip;
+	long func;
+
+	KASSERT(vector >= IPI_DYN_FIRST && vector <= IPI_DYN_LAST,
+	    ("%s: invalid vector %d", __func__, vector));
+
+	mtx_lock_spin(&icu_lock);
+	ip = &idt[vector];
+	func = (ip->gd_hioffset << 16) | ip->gd_looffset;
+	KASSERT(func != (uintptr_t)&IDTVEC(rsvd),
+	    ("invalid idtfunc %#lx", func));
+	setidt(vector, &IDTVEC(rsvd), SDT_APICT, SEL_KPL, GSEL_APIC);
+	mtx_unlock_spin(&icu_lock);
+}
+
 #endif /* SMP */

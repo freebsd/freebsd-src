@@ -3277,7 +3277,8 @@ mpssas_async(void *callback_arg, uint32_t code, struct cam_path *path,
 		cdai.ccb_h.func_code = XPT_DEV_ADVINFO;
 		cdai.ccb_h.flags = CAM_DIR_IN;
 		cdai.buftype = CDAI_TYPE_RCAPLONG;
-#if __FreeBSD_version >= 1100061
+#if (__FreeBSD_version >= 1100061) || \
+    ((__FreeBSD_version >= 1001510) && (__FreeBSD_version < 1100000))
 		cdai.flags = CDAI_FLAG_NONE;
 #else
 		cdai.flags = 0;
@@ -3404,19 +3405,6 @@ mpssas_check_eedp(struct mps_softc *sc, struct cam_path *path,
 	}
 
 	xpt_path_string(local_path, path_str, sizeof(path_str));
-
-	/*
-	 * If this is a SATA direct-access end device,
-	 * mark it so that a SCSI StartStopUnit command
-	 * will be sent to it when the driver is being
-	 * shutdown.
-	 */
-	if ((cgd.inq_data.device == T_DIRECT) && 
-	    (target->devinfo & MPI2_SAS_DEVICE_INFO_SATA_DEVICE) &&
-	    ((target->devinfo & MPI2_SAS_DEVICE_INFO_MASK_DEVICE_TYPE) ==
-	    MPI2_SAS_DEVICE_INFO_END_DEVICE)) {
-		lun->stop_at_shutdown = TRUE;
-	}
 
 	mps_dprint(sc, MPS_INFO, "Sending read cap: path %s handle %d\n",
 	    path_str, target->handle);

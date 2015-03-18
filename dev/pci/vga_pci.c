@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
+#include <compat/x86bios/x86bios.h> /* To re-POST the card. */
+
 struct vga_resource {
 	struct resource	*vr_res;
 	int	vr_refs;
@@ -192,6 +194,36 @@ vga_pci_unmap_bios(device_t dev, void *bios)
 	    ("vga_pci_unmap_bios: mismatch"));
 	vga_pci_release_resource(dev, NULL, SYS_RES_MEMORY, PCIR_BIOS,
 	    vr->vr_res);
+}
+
+int
+vga_pci_repost(device_t dev)
+{
+#if defined(__amd64__) || (defined(__i386__) && !defined(PC98))
+	x86regs_t regs;
+
+	if (!vga_pci_is_boot_display(dev))
+		return (EINVAL);
+
+	if (x86bios_get_orm(VGA_PCI_BIOS_SHADOW_ADDR) == NULL)
+		return (ENOTSUP);
+
+	x86bios_init_regs(&regs);
+
+	regs.R_AH = pci_get_bus(dev);
+	regs.R_AL = (pci_get_slot(dev) << 3) | (pci_get_function(dev) & 0x07);
+	regs.R_DL = 0x80;
+
+	device_printf(dev, "REPOSTing\n");
+	x86bios_call(&regs, X86BIOS_PHYSTOSEG(VGA_PCI_BIOS_SHADOW_ADDR + 3),
+	    X86BIOS_PHYSTOOFF(VGA_PCI_BIOS_SHADOW_ADDR + 3));
+
+	x86bios_get_intr(0x10);
+
+	return (0);
+#else
+	return (ENOTSUP);
+#endif
 }
 
 static int
@@ -601,3 +633,4 @@ static driver_t vga_pci_driver = {
 static devclass_t vga_devclass;
 
 DRIVER_MODULE(vgapci, pci, vga_pci_driver, vga_devclass, 0, 0);
+MODULE_DEPEND(vgapci, x86bios, 1, 1, 1);

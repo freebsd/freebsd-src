@@ -44,6 +44,37 @@ __FBSDID("$FreeBSD$");
 #define R700_PFP_UCODE_SIZE 848
 #define R700_PM4_UCODE_SIZE 1360
 
+#ifdef __linux__
+/* Firmware Names */
+MODULE_FIRMWARE("radeon/R600_pfp.bin");
+MODULE_FIRMWARE("radeon/R600_me.bin");
+MODULE_FIRMWARE("radeon/RV610_pfp.bin");
+MODULE_FIRMWARE("radeon/RV610_me.bin");
+MODULE_FIRMWARE("radeon/RV630_pfp.bin");
+MODULE_FIRMWARE("radeon/RV630_me.bin");
+MODULE_FIRMWARE("radeon/RV620_pfp.bin");
+MODULE_FIRMWARE("radeon/RV620_me.bin");
+MODULE_FIRMWARE("radeon/RV635_pfp.bin");
+MODULE_FIRMWARE("radeon/RV635_me.bin");
+MODULE_FIRMWARE("radeon/RV670_pfp.bin");
+MODULE_FIRMWARE("radeon/RV670_me.bin");
+MODULE_FIRMWARE("radeon/RS780_pfp.bin");
+MODULE_FIRMWARE("radeon/RS780_me.bin");
+MODULE_FIRMWARE("radeon/RV770_pfp.bin");
+MODULE_FIRMWARE("radeon/RV770_me.bin");
+MODULE_FIRMWARE("radeon/RV730_pfp.bin");
+MODULE_FIRMWARE("radeon/RV730_me.bin");
+MODULE_FIRMWARE("radeon/RV710_pfp.bin");
+MODULE_FIRMWARE("radeon/RV710_me.bin");
+#endif
+
+
+#ifdef FREEBSD_WIP /* FreeBSD: to please GCC 4.2. */
+int r600_cs_legacy(struct drm_device *dev, void *data, struct drm_file *filp,
+			unsigned family, u32 *ib, int *l);
+void r600_cs_legacy_init(void);
+#endif
+
 # define ATI_PCIGART_PAGE_SIZE		4096	/**< PCI GART page size */
 # define ATI_PCIGART_PAGE_MASK		(~(ATI_PCIGART_PAGE_SIZE-1))
 
@@ -392,7 +423,7 @@ static void r600_cp_load_microcode(drm_radeon_private_t *dev_priv)
 
 	RADEON_WRITE(R600_GRBM_SOFT_RESET, R600_SOFT_RESET_CP);
 	RADEON_READ(R600_GRBM_SOFT_RESET);
-	DRM_MDELAY(15);
+	mdelay(15);
 	RADEON_WRITE(R600_GRBM_SOFT_RESET, 0);
 
 	fw_data = (const __be32 *)dev_priv->me_fw->data;
@@ -485,7 +516,7 @@ static void r700_cp_load_microcode(drm_radeon_private_t *dev_priv)
 
 	RADEON_WRITE(R600_GRBM_SOFT_RESET, R600_SOFT_RESET_CP);
 	RADEON_READ(R600_GRBM_SOFT_RESET);
-	DRM_MDELAY(15);
+	mdelay(15);
 	RADEON_WRITE(R600_GRBM_SOFT_RESET, 0);
 
 	fw_data = (const __be32 *)dev_priv->pfp_fw->data;
@@ -1777,7 +1808,7 @@ static void r600_cp_init_ring_buffer(struct drm_device *dev,
 
 	RADEON_WRITE(R600_GRBM_SOFT_RESET, R600_SOFT_RESET_CP);
 	RADEON_READ(R600_GRBM_SOFT_RESET);
-	DRM_MDELAY(15);
+	mdelay(15);
 	RADEON_WRITE(R600_GRBM_SOFT_RESET, 0);
 
 
@@ -1907,7 +1938,7 @@ static void r600_cp_init_ring_buffer(struct drm_device *dev,
 	RADEON_WRITE(R600_LAST_CLEAR_REG, 0);
 
 	/* reset sarea copies of these */
-	master_priv = file_priv->masterp->driver_priv;
+	master_priv = file_priv->master->driver_priv;
 	if (master_priv->sarea_priv) {
 		master_priv->sarea_priv->last_frame = 0;
 		master_priv->sarea_priv->last_dispatch = 0;
@@ -1966,7 +1997,7 @@ int r600_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 		    struct drm_file *file_priv)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	struct drm_radeon_master_private *master_priv = file_priv->masterp->driver_priv;
+	struct drm_radeon_master_private *master_priv = file_priv->master->driver_priv;
 
 	DRM_DEBUG("\n");
 
@@ -2401,7 +2432,7 @@ int r600_cp_dispatch_indirect(struct drm_device *dev,
 void r600_cp_dispatch_swap(struct drm_device *dev, struct drm_file *file_priv)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	struct drm_master *master = file_priv->masterp;
+	struct drm_master *master = file_priv->master;
 	struct drm_radeon_master_private *master_priv = master->driver_priv;
 	drm_radeon_sarea_t *sarea_priv = master_priv->sarea_priv;
 	int nbox = sarea_priv->nbox;
@@ -2523,7 +2554,7 @@ int r600_cp_dispatch_texture(struct drm_device *dev,
 
 		r600_blit_copy(dev, src_offset, dst_offset, pass_size);
 
-		radeon_cp_discard_buffer(dev, file_priv->masterp, buf);
+		radeon_cp_discard_buffer(dev, file_priv->master, buf);
 
 		/* Update the input parameters for next time */
 		image->data = (const u8 __user *)image->data + pass_size;
@@ -2588,7 +2619,7 @@ static void r600_ib_free(struct drm_device *dev, struct drm_buf *buf,
 	if (buf) {
 		if (!r)
 			r600_cp_dispatch_indirect(dev, buf, 0, l * 4);
-		radeon_cp_discard_buffer(dev, fpriv->masterp, buf);
+		radeon_cp_discard_buffer(dev, fpriv->master, buf);
 		COMMIT_RING();
 	}
 }

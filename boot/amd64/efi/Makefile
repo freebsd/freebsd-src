@@ -25,6 +25,9 @@ SRCS=	autoload.c \
 	vers.c
 SRCS+=	amd64_tramp.S \
 	start.S
+.PATH:	${.CURDIR}/../../i386/libi386
+SRCS+=	nullconsole.c \
+	comconsole.c
 
 CFLAGS+=	-fPIC
 CFLAGS+=	-I.
@@ -32,6 +35,7 @@ CFLAGS+=	-I${.CURDIR}/../../efi/include
 CFLAGS+=	-I${.CURDIR}/../../efi/include/${MACHINE_CPUARCH}
 CFLAGS+=	-I${.CURDIR}/../../../contrib/dev/acpica/include
 CFLAGS+=	-I${.CURDIR}/../../..
+CFLAGS+=	-DNO_PCI
 
 .if ${MK_FORTH} != "no"
 BOOT_FORTH=	yes
@@ -44,6 +48,10 @@ LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 # Include bcache code.
 HAVE_BCACHE=    yes
 
+.if defined(EFI_STAGING_SIZE)
+CFLAGS+=	-DEFI_STAGING_SIZE=${EFI_STAGING_SIZE}
+.endif
+
 # Always add MI sources 
 .PATH:		${.CURDIR}/../../common
 .include	"${.CURDIR}/../../common/Makefile.inc"
@@ -54,8 +62,6 @@ FILESMODE_loader.efi=	${BINMODE}
 
 LDSCRIPT=	${.CURDIR}/ldscript.${MACHINE_CPUARCH}
 LDFLAGS=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared -Wl,-znocombreloc
-
-${PROG}:	${LDSCRIPT}
 
 CLEANFILES=	vers.c loader.efi
 
@@ -84,9 +90,8 @@ loader.efi: loader.sym
 		--output-target=${EFI_TARGET} ${.ALLSRC} ${.TARGET}
 
 LIBEFI=		${.OBJDIR}/../../efi/libefi/libefi.a
-CFLAGS+=	-I${.CURDIR}/../../common
 
-DPADD=		${LIBFICL} ${LIBEFI} ${LIBSTAND}
+DPADD=		${LIBFICL} ${LIBEFI} ${LIBSTAND} ${LDSCRIPT}
 LDADD=		${LIBFICL} ${LIBEFI} ${LIBSTAND}
 
 .endif # ${COMPILER_TYPE} != "gcc"

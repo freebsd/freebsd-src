@@ -1637,6 +1637,7 @@ bge_setmulti(struct bge_softc *sc)
 	if (if_getflags(ifp) & IFF_ALLMULTI || if_getflags(ifp) & IFF_PROMISC) {
 		for (i = 0; i < 4; i++)
 			CSR_WRITE_4(sc, BGE_MAR0 + (i * 4), 0xFFFFFFFF);
+		free(mta, M_DEVBUF);
 		return;
 	}
 

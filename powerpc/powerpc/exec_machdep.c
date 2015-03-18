@@ -152,13 +152,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 * Fill siginfo structure.
 	 */
 	ksi->ksi_info.si_signo = ksi->ksi_signo;
-	#ifdef AIM
 	ksi->ksi_info.si_addr = (void *)((tf->exc == EXC_DSI) ? 
-	    tf->cpu.aim.dar : tf->srr0);
-	#else
-	ksi->ksi_info.si_addr = (void *)((tf->exc == EXC_DSI) ? 
-	    tf->cpu.booke.dear : tf->srr0);
-	#endif
+	    tf->dar : tf->srr0);
 
 	#ifdef COMPAT_FREEBSD32
 	if (SV_PROC_FLAG(p, SV_ILP32)) {
@@ -284,13 +279,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	} else {
 		/* Old FreeBSD-style arguments. */
 		tf->fixreg[FIRSTARG+1] = code;
-		#ifdef AIM
 		tf->fixreg[FIRSTARG+3] = (tf->exc == EXC_DSI) ? 
-		    tf->cpu.aim.dar : tf->srr0;
-		#else
-		tf->fixreg[FIRSTARG+3] = (tf->exc == EXC_DSI) ? 
-		    tf->cpu.booke.dear : tf->srr0;
-		#endif
+		    tf->dar : tf->srr0;
 	}
 	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);
@@ -403,10 +393,15 @@ grab_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 		}
 		mcp->mc_flags |= _MC_FP_VALID;
 		memcpy(&mcp->mc_fpscr, &pcb->pcb_fpu.fpscr, sizeof(double));
-		memcpy(mcp->mc_fpreg, pcb->pcb_fpu.fpr, 32*sizeof(double));
 		for (i = 0; i < 32; i++)
 			memcpy(&mcp->mc_fpreg[i], &pcb->pcb_fpu.fpr[i].fpr,
 			    sizeof(double));
+	}
+
+	if (pcb->pcb_flags & PCB_VSX) {
+		for (i = 0; i < 32; i++)
+			memcpy(&mcp->mc_vsxfpreg[i],
+			    &pcb->pcb_fpu.fpr[i].vsr[2], sizeof(double));
 	}
 
 	/*
@@ -424,8 +419,6 @@ grab_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 		mcp->mc_vrsave =  pcb->pcb_vec.vrsave;
 		memcpy(mcp->mc_avec, pcb->pcb_vec.vr, sizeof(mcp->mc_avec));
 	}
-
-	/* XXX VSX context */
 
 	mcp->mc_len = sizeof(*mcp);
 
@@ -484,9 +477,12 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 		pcb->pcb_flags |= PCB_FPREGS;
 		memcpy(&pcb->pcb_fpu.fpscr, &mcp->mc_fpscr, sizeof(double));
 		bzero(pcb->pcb_fpu.fpr, sizeof(pcb->pcb_fpu.fpr));
-		for (i = 0; i < 32; i++)
+		for (i = 0; i < 32; i++) {
 			memcpy(&pcb->pcb_fpu.fpr[i].fpr, &mcp->mc_fpreg[i],
 			    sizeof(double));
+			memcpy(&pcb->pcb_fpu.fpr[i].vsr[2],
+			    &mcp->mc_vsxfpreg[i], sizeof(double));
+		}
 	}
 
 	if (mcp->mc_flags & _MC_AV_VALID) {
@@ -499,8 +495,6 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 		pcb->pcb_vec.vrsave = mcp->mc_vrsave;
 		memcpy(pcb->pcb_vec.vr, mcp->mc_avec, sizeof(mcp->mc_avec));
 	}
-
-	/* XXX VSX context */
 
 	return (0);
 }
@@ -731,6 +725,7 @@ grab_mcontext32(struct thread *td, mcontext32_t *mcp, int flags)
 	for (i = 0; i < 42; i++)
 		mcp->mc_frame[i] = mcp64.mc_frame[i];
 	memcpy(mcp->mc_fpreg,mcp64.mc_fpreg,sizeof(mcp64.mc_fpreg));
+	memcpy(mcp->mc_vsxfpreg,mcp64.mc_vsxfpreg,sizeof(mcp64.mc_vsxfpreg));
 
 	return (0);
 }
@@ -766,6 +761,7 @@ set_mcontext32(struct thread *td, mcontext32_t *mcp)
 		mcp64.mc_frame[i] = mcp->mc_frame[i];
 	mcp64.mc_srr1 |= (td->td_frame->srr1 & 0xFFFFFFFF00000000ULL);
 	memcpy(mcp64.mc_fpreg,mcp->mc_fpreg,sizeof(mcp64.mc_fpreg));
+	memcpy(mcp64.mc_vsxfpreg,mcp->mc_vsxfpreg,sizeof(mcp64.mc_vsxfpreg));
 
 	error = set_mcontext(td, &mcp64);
 

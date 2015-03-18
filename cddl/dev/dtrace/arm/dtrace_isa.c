@@ -73,7 +73,6 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 	register_t sp;
 	int scp_offset;
 	int depth = 0;
-	pc_t caller = (pc_t) solaris_cpu[curcpu].cpu_dtrace_caller;
 
 	if (intrpc != 0)
 		pcstack[depth++] = (pc_t) intrpc;
@@ -92,13 +91,14 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 
 		done = unwind_stack_one(&state, 1);
 
+		/*
+		 * NB: Unlike some other architectures, we don't need to
+		 * explicitly insert cpu_dtrace_caller as it appears in the
+		 * normal kernel stack trace rather than a special trap frame.
+		 */
 		if (aframes > 0) {
 			aframes--;
-			if ((aframes == 0) && (caller != 0)) {
-				pcstack[depth++] = caller;
-			}
-		}
-		else {
+		} else {
 			pcstack[depth++] = state.registers[PC];
 		}
 
@@ -262,34 +262,3 @@ dtrace_fuword64(void *uaddr)
 	}
 	return (dtrace_fuword64_nocheck(uaddr));
 }
-
-#define __with_interrupts_disabled(expr) \
-	do {						\
-		u_int cpsr_save, tmp;			\
-							\
-		__asm __volatile(			\
-			"mrs  %0, cpsr;"		\
-			"orr  %1, %0, %2;"		\
-			"msr  cpsr_fsxc, %1;"		\
-			: "=r" (cpsr_save), "=r" (tmp)	\
-			: "I" (PSR_I | PSR_F)		    \
-			: "cc" );		\
-		(expr);				\
-		 __asm __volatile(		\
-			"msr  cpsr_fsxc, %0"	\
-			: /* no output */	\
-			: "r" (cpsr_save)	\
-			: "cc" );		\
-	} while(0)
-
-uint32_t dtrace_cas32(uint32_t *target, uint32_t cmp, uint32_t new)
-{
-	return atomic_cmpset_32((uint32_t*)target, (uint32_t)cmp, (uint32_t)new);
-
-}
-
-void * dtrace_casptr(volatile void *target, volatile void *cmp, volatile void *new)
-{
-        return (void*)dtrace_cas32((uint32_t*)target, (uint32_t)cmp, (uint32_t)new);
-}
-

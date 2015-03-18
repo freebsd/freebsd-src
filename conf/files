@@ -1452,6 +1452,7 @@ dev/iicbus/ad7418.c		optional ad7418
 dev/iicbus/ds133x.c		optional ds133x
 dev/iicbus/ds1374.c		optional ds1374
 dev/iicbus/ds1672.c		optional ds1672
+dev/iicbus/ds3231.c		optional ds3231
 dev/iicbus/icee.c		optional icee
 dev/iicbus/if_ic.c		optional ic
 dev/iicbus/iic.c		optional iic
@@ -1768,31 +1769,33 @@ iwn6050.fw			optional iwn6050fw | iwnfw		\
 dev/ixgb/if_ixgb.c		optional ixgb
 dev/ixgb/ixgb_ee.c		optional ixgb
 dev/ixgb/ixgb_hw.c		optional ixgb
-dev/ixgbe/ixgbe.c		optional ixgbe inet \
+dev/ixgbe/if_ix.c		optional ix inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe -DSMP"
-dev/ixgbe/ixv.c			optional ixgbe inet \
+dev/ixgbe/if_ixv.c		optional ixv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe -DSMP"
+dev/ixgbe/ix_txrx.c		optional ix ixv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe -DSMP"
+dev/ixgbe/ixgbe_phy.c		optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_phy.c		optional ixgbe inet \
+dev/ixgbe/ixgbe_api.c		optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_api.c		optional ixgbe inet \
+dev/ixgbe/ixgbe_common.c	optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_common.c	optional ixgbe inet \
+dev/ixgbe/ixgbe_mbx.c		optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_mbx.c		optional ixgbe inet \
+dev/ixgbe/ixgbe_vf.c		optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_vf.c		optional ixgbe inet \
+dev/ixgbe/ixgbe_82598.c		optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_82598.c		optional ixgbe inet \
+dev/ixgbe/ixgbe_82599.c		optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_82599.c		optional ixgbe inet \
+dev/ixgbe/ixgbe_x540.c		optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_x540.c		optional ixgbe inet \
+dev/ixgbe/ixgbe_dcb.c		optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_dcb.c		optional ixgbe inet \
+dev/ixgbe/ixgbe_dcb_82598.c	optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_dcb_82598.c	optional ixgbe inet \
-	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_dcb_82599.c	optional ixgbe inet \
+dev/ixgbe/ixgbe_dcb_82599.c	optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/jme/if_jme.c		optional jme pci
 dev/joy/joy.c			optional joy
@@ -2030,6 +2033,8 @@ dev/pci/ignore_pci.c		optional pci
 dev/pci/isa_pci.c		optional pci isa
 dev/pci/pci.c			optional pci
 dev/pci/pci_if.m		standard
+dev/pci/pci_iov.c		optional pci pci_iov
+dev/pci/pci_iov_schema.c	optional pci pci_iov
 dev/pci/pci_pci.c		optional pci
 dev/pci/pci_subr.c		optional pci
 dev/pci/pci_user.c		optional pci
@@ -2161,6 +2166,37 @@ dev/sdhci/sdhci.c		optional sdhci
 dev/sdhci/sdhci_if.m		optional sdhci
 dev/sdhci/sdhci_pci.c		optional sdhci pci
 dev/sf/if_sf.c			optional sf pci
+dev/sfxge/common/efx_bootcfg.c	optional sfxge pci
+dev/sfxge/common/efx_ev.c	optional sfxge pci
+dev/sfxge/common/efx_filter.c	optional sfxge pci
+dev/sfxge/common/efx_intr.c	optional sfxge pci
+dev/sfxge/common/efx_mac.c	optional sfxge pci
+dev/sfxge/common/efx_mcdi.c	optional sfxge pci
+dev/sfxge/common/efx_mon.c	optional sfxge pci
+dev/sfxge/common/efx_nic.c	optional sfxge pci
+dev/sfxge/common/efx_nvram.c	optional sfxge pci
+dev/sfxge/common/efx_phy.c	optional sfxge pci
+dev/sfxge/common/efx_port.c	optional sfxge pci
+dev/sfxge/common/efx_rx.c	optional sfxge pci
+dev/sfxge/common/efx_sram.c	optional sfxge pci
+dev/sfxge/common/efx_tx.c	optional sfxge pci
+dev/sfxge/common/efx_vpd.c	optional sfxge pci
+dev/sfxge/common/efx_wol.c	optional sfxge pci
+dev/sfxge/common/siena_mac.c	optional sfxge pci
+dev/sfxge/common/siena_mon.c	optional sfxge pci
+dev/sfxge/common/siena_nic.c	optional sfxge pci
+dev/sfxge/common/siena_nvram.c	optional sfxge pci
+dev/sfxge/common/siena_phy.c	optional sfxge pci
+dev/sfxge/common/siena_sram.c	optional sfxge pci
+dev/sfxge/common/siena_vpd.c	optional sfxge pci
+dev/sfxge/sfxge.c		optional sfxge pci
+dev/sfxge/sfxge_dma.c		optional sfxge pci
+dev/sfxge/sfxge_ev.c		optional sfxge pci
+dev/sfxge/sfxge_intr.c		optional sfxge pci
+dev/sfxge/sfxge_mcdi.c		optional sfxge pci
+dev/sfxge/sfxge_port.c		optional sfxge pci
+dev/sfxge/sfxge_rx.c		optional sfxge pci
+dev/sfxge/sfxge_tx.c		optional sfxge pci
 dev/sge/if_sge.c		optional sge pci
 dev/si/si.c			optional si
 dev/si/si2_z280.c		optional si
@@ -3044,6 +3080,7 @@ kern/subr_clock.c		standard
 kern/subr_counter.c		standard
 kern/subr_devstat.c		standard
 kern/subr_disk.c		standard
+kern/subr_dnvlist.c		standard
 kern/subr_eventhandler.c	standard
 kern/subr_fattime.c		standard
 kern/subr_firmware.c		optional firmware
@@ -3057,6 +3094,8 @@ kern/subr_mbpool.c		optional libmbpool
 kern/subr_mchain.c		optional libmchain
 kern/subr_module.c		standard
 kern/subr_msgbuf.c		standard
+kern/subr_nvlist.c		standard
+kern/subr_nvpair.c		standard
 kern/subr_param.c		standard
 kern/subr_pcpu.c		standard
 kern/subr_pctrie.c		standard
@@ -3103,6 +3142,7 @@ kern/uipc_debug.c		optional ddb
 kern/uipc_domain.c		standard
 kern/uipc_mbuf.c		standard
 kern/uipc_mbuf2.c		standard
+kern/uipc_mbufhash.c		standard
 kern/uipc_mqueue.c		optional p1003_1b_mqueue
 kern/uipc_sem.c			optional p1003_1b_semaphores
 kern/uipc_shm.c			standard
@@ -3184,6 +3224,7 @@ kgssapi/gsstest.c		optional kgssapi_debug
 # the file should be moved to conf/files.<arch> from here.
 #
 libkern/arc4random.c		standard
+libkern/asprintf.c		standard
 libkern/bcd.c			standard
 libkern/bsearch.c		standard
 libkern/crc32.c			standard
@@ -3817,9 +3858,6 @@ ofed/drivers/net/mlx4/sys_tune.c		optional mlx4ib | mlxen	\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
 
 ofed/drivers/net/mlx4/en_cq.c			optional mlxen		\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/utils.c			optional mlxen		\
 	no-depend obj-prefix "mlx4_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
 ofed/drivers/net/mlx4/en_main.c			optional mlxen		\

@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sdt.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
+#include <sys/umtx.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
@@ -633,6 +634,7 @@ exit1(struct thread *td, int rv)
 	wakeup(p->p_pptr);
 	cv_broadcast(&p->p_pwait);
 	sched_exit(p->p_pptr, td);
+	umtx_thread_exit(td);
 	PROC_SLOCK(p);
 	p->p_state = PRS_ZOMBIE;
 	PROC_UNLOCK(p->p_pptr);
@@ -885,12 +887,13 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	sx_xunlock(&proctree_lock);
 
 	/*
-	 * As a side effect of this lock, we know that all other writes to
-	 * this proc are visible now, so no more locking is needed for p.
+	 * Removal from allproc list and process group list paired with
+	 * PROC_LOCK which was executed during that time should guarantee
+	 * nothing can reach this process anymore. As such further locking
+	 * is unnecessary.
 	 */
-	PROC_LOCK(p);
 	p->p_xstat = 0;		/* XXX: why? */
-	PROC_UNLOCK(p);
+
 	PROC_LOCK(q);
 	ruadd(&q->p_stats->p_cru, &q->p_crux, &p->p_ru, &p->p_rux);
 	PROC_UNLOCK(q);
@@ -914,7 +917,7 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	 * Free credentials, arguments, and sigacts.
 	 */
 	crfree(p->p_ucred);
-	p->p_ucred = NULL;
+	proc_set_cred(p, NULL);
 	pargs_drop(p->p_args);
 	p->p_args = NULL;
 	sigacts_free(p->p_sigacts);

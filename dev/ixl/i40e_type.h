@@ -287,17 +287,7 @@ struct i40e_hw_capabilities {
 	bool dcb;
 	bool fcoe;
 	bool iscsi; /* Indicates iSCSI enabled */
-	bool flex10_enable;
-	bool flex10_capable;
-	u32  flex10_mode;
-#define I40E_FLEX10_MODE_UNKNOWN	0x0
-#define I40E_FLEX10_MODE_DCC		0x1
-#define I40E_FLEX10_MODE_DCI		0x2
-
-	u32 flex10_status;
-#define I40E_FLEX10_STATUS_DCC_ERROR	0x1
-#define I40E_FLEX10_STATUS_VC_MODE	0x2
-
+	bool mfp_mode_1;
 	bool mgmt_cem;
 	bool ieee_1588;
 	bool iwarp;
@@ -326,7 +316,6 @@ struct i40e_hw_capabilities {
 	u8 rx_buf_chain_len;
 	u32 enabled_tcmap;
 	u32 maxtc;
-	u64 wr_csr_prot;
 };
 
 struct i40e_mac_info {
@@ -573,7 +562,7 @@ struct i40e_hw {
 	u32 debug_mask;
 };
 
-static INLINE bool i40e_is_vf(struct i40e_hw *hw)
+static inline bool i40e_is_vf(struct i40e_hw *hw)
 {
 	return hw->mac.type == I40E_MAC_VF;
 }
@@ -1274,9 +1263,6 @@ struct i40e_hw_port_stats {
 	/* flow director stats */
 	u64 fd_atr_match;
 	u64 fd_sb_match;
-	u64 fd_atr_tunnel_match;
-	u32 fd_atr_status;
-	u32 fd_sb_status;
 	/* EEE LPI */
 	u32 tx_lpi_status;
 	u32 rx_lpi_status;

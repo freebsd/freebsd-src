@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/limits.h>
+#include <sys/syslog.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -56,20 +57,40 @@ __FBSDID("$FreeBSD$");
 
 #define	RX_REFILL_THRESHOLD(_entries)	(EFX_RXQ_LIMIT(_entries) * 9 / 10)
 
+#ifdef SFXGE_LRO
+
+SYSCTL_NODE(_hw_sfxge, OID_AUTO, lro, CTLFLAG_RD, NULL,
+	    "Large receive offload (LRO) parameters");
+
+#define	SFXGE_LRO_PARAM(_param)	SFXGE_PARAM(lro._param)
+
 /* Size of the LRO hash table.  Must be a power of 2.  A larger table
  * means we can accelerate a larger number of streams.
  */
 static unsigned lro_table_size = 128;
+TUNABLE_INT(SFXGE_LRO_PARAM(table_size), &lro_table_size);
+SYSCTL_UINT(_hw_sfxge_lro, OID_AUTO, table_size, CTLFLAG_RDTUN,
+	    &lro_table_size, 0,
+	    "Size of the LRO hash table (must be a power of 2)");
 
 /* Maximum length of a hash chain.  If chains get too long then the lookup
  * time increases and may exceed the benefit of LRO.
  */
 static unsigned lro_chain_max = 20;
+TUNABLE_INT(SFXGE_LRO_PARAM(chain_max), &lro_chain_max);
+SYSCTL_UINT(_hw_sfxge_lro, OID_AUTO, chain_max, CTLFLAG_RDTUN,
+	    &lro_chain_max, 0,
+	    "The maximum length of a hash chain");
 
 /* Maximum time (in ticks) that a connection can be idle before it's LRO
  * state is discarded.
  */
 static unsigned lro_idle_ticks; /* initialised in sfxge_rx_init() */
+TUNABLE_INT(SFXGE_LRO_PARAM(idle_ticks), &lro_idle_ticks);
+SYSCTL_UINT(_hw_sfxge_lro, OID_AUTO, idle_ticks, CTLFLAG_RDTUN,
+	    &lro_idle_ticks, 0,
+	    "The maximum time (in ticks) that a connection can be idle "
+	    "before it's LRO state is discarded");
 
 /* Number of packets with payload that must arrive in-order before a
  * connection is eligible for LRO.  The idea is we should avoid coalescing
@@ -77,6 +98,11 @@ static unsigned lro_idle_ticks; /* initialised in sfxge_rx_init() */
  * can damage performance.
  */
 static int lro_slow_start_packets = 2000;
+TUNABLE_INT(SFXGE_LRO_PARAM(slow_start_packets), &lro_slow_start_packets);
+SYSCTL_UINT(_hw_sfxge_lro, OID_AUTO, slow_start_packets, CTLFLAG_RDTUN,
+	    &lro_slow_start_packets, 0,
+	    "Number of packets with payload that must arrive in-order before "
+	    "a connection is eligible for LRO");
 
 /* Number of packets with payload that must arrive in-order following loss
  * before a connection is eligible for LRO.  The idea is we should avoid
@@ -84,6 +110,11 @@ static int lro_slow_start_packets = 2000;
  * reducing the ACK rate can damage performance.
  */
 static int lro_loss_packets = 20;
+TUNABLE_INT(SFXGE_LRO_PARAM(loss_packets), &lro_loss_packets);
+SYSCTL_UINT(_hw_sfxge_lro, OID_AUTO, loss_packets, CTLFLAG_RDTUN,
+	    &lro_loss_packets, 0,
+	    "Number of packets with payload that must arrive in-order "
+	    "following loss before a connection is eligible for LRO");
 
 /* Flags for sfxge_lro_conn::l2_id; must not collide with EVL_VLID_MASK */
 #define	SFXGE_LRO_L2_ID_VLAN 0x4000
@@ -106,6 +137,8 @@ static unsigned long ipv6_addr_cmp(const struct in6_addr *left,
 	       (left->s6_addr32[3] - right->s6_addr32[3]);
 #endif
 }
+
+#endif	/* SFXGE_LRO */
 
 void
 sfxge_rx_qflush_done(struct sfxge_rxq *rxq)
@@ -209,7 +242,7 @@ sfxge_rx_qfill(struct sfxge_rxq *rxq, unsigned int target, boolean_t retrying)
 
 	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
 
-	if (rxq->init_state != SFXGE_RXQ_STARTED)
+	if (__predict_false(rxq->init_state != SFXGE_RXQ_STARTED))
 		return;
 
 	rxfill = rxq->added - rxq->completed;
@@ -269,7 +302,7 @@ void
 sfxge_rx_qrefill(struct sfxge_rxq *rxq)
 {
 
-	if (rxq->init_state != SFXGE_RXQ_STARTED)
+	if (__predict_false(rxq->init_state != SFXGE_RXQ_STARTED))
 		return;
 
 	/* Make sure the queue is full */
@@ -314,6 +347,8 @@ sfxge_rx_deliver(struct sfxge_softc *sc, struct sfxge_rx_sw_desc *rx_desc)
 	rx_desc->flags = EFX_DISCARD;
 	rx_desc->mbuf = NULL;
 }
+
+#ifdef SFXGE_LRO
 
 static void
 sfxge_lro_deliver(struct sfxge_lro_state *st, struct sfxge_lro_conn *c)
@@ -734,6 +769,20 @@ static void sfxge_lro_end_of_burst(struct sfxge_rxq *rxq)
 		sfxge_lro_purge_idle(rxq, t);
 }
 
+#else	/* !SFXGE_LRO */
+
+static void
+sfxge_lro(struct sfxge_rxq *rxq, struct sfxge_rx_sw_desc *rx_buf)
+{
+}
+
+static void
+sfxge_lro_end_of_burst(struct sfxge_rxq *rxq)
+{
+}
+
+#endif	/* SFXGE_LRO */
+
 void
 sfxge_rx_qcomplete(struct sfxge_rxq *rxq, boolean_t eop)
 {
@@ -760,7 +809,7 @@ sfxge_rx_qcomplete(struct sfxge_rxq *rxq, boolean_t eop)
 		rx_desc = &rxq->queue[id];
 		m = rx_desc->mbuf;
 
-		if (rxq->init_state != SFXGE_RXQ_STARTED)
+		if (__predict_false(rxq->init_state != SFXGE_RXQ_STARTED))
 			goto discard;
 
 		if (rx_desc->flags & (EFX_ADDR_MISMATCH | EFX_DISCARD))
@@ -1014,6 +1063,8 @@ fail:
 	return (rc);
 }
 
+#ifdef SFXGE_LRO
+
 static void sfxge_lro_init(struct sfxge_rxq *rxq)
 {
 	struct sfxge_lro_state *st = &rxq->lro;
@@ -1065,6 +1116,20 @@ static void sfxge_lro_fini(struct sfxge_rxq *rxq)
 	free(st->conns, M_SFXGE);
 	st->conns = NULL;
 }
+
+#else
+
+static void
+sfxge_lro_init(struct sfxge_rxq *rxq)
+{
+}
+
+static void
+sfxge_lro_fini(struct sfxge_rxq *rxq)
+{
+}
+
+#endif	/* SFXGE_LRO */
 
 static void
 sfxge_rx_qfini(struct sfxge_softc *sc, unsigned int index)
@@ -1136,6 +1201,7 @@ static const struct {
 } sfxge_rx_stats[] = {
 #define	SFXGE_RX_STAT(name, member) \
 	{ #name, offsetof(struct sfxge_rxq, member) }
+#ifdef SFXGE_LRO
 	SFXGE_RX_STAT(lro_merges, lro.n_merges),
 	SFXGE_RX_STAT(lro_bursts, lro.n_bursts),
 	SFXGE_RX_STAT(lro_slow_start, lro.n_slow_start),
@@ -1144,6 +1210,7 @@ static const struct {
 	SFXGE_RX_STAT(lro_new_stream, lro.n_new_stream),
 	SFXGE_RX_STAT(lro_drop_idle, lro.n_drop_idle),
 	SFXGE_RX_STAT(lro_drop_closed, lro.n_drop_closed)
+#endif
 };
 
 static int
@@ -1200,8 +1267,17 @@ sfxge_rx_init(struct sfxge_softc *sc)
 	int index;
 	int rc;
 
+#ifdef SFXGE_LRO
+	if (!ISP2(lro_table_size)) {
+		log(LOG_ERR, "%s=%u must be power of 2",
+		    SFXGE_LRO_PARAM(table_size), lro_table_size);
+		rc = EINVAL;
+		goto fail_lro_table_size;
+	}
+
 	if (lro_idle_ticks == 0)
 		lro_idle_ticks = hz / 10 + 1; /* 100 ms */
+#endif
 
 	intr = &sc->intr;
 
@@ -1226,5 +1302,9 @@ fail:
 		sfxge_rx_qfini(sc, index);
 
 	sc->rxq_count = 0;
+
+#ifdef SFXGE_LRO
+fail_lro_table_size:
+#endif
 	return (rc);
 }
