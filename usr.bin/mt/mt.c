@@ -1406,9 +1406,9 @@ mt_print_density_entry(struct mt_status_entry *density_root, int indent)
 				continue;
 		}
 		if ((strcmp(entry->entry_name, "primary_density_code") == 0)
-		 || (strcmp(entry->entry_name, "secondary_density_code") == 0)){
+		 || (strcmp(entry->entry_name, "secondary_density_code") == 0)
+		 || (strcmp(entry->entry_name, "density_code") == 0)) {
 
-			/* XXX KDM this should really be unsigned */
 			printf("%*s%s (%s): %s\n", indent, "", entry->desc ?
 			    entry->desc : "", entry->entry_name,
 			    denstostring(entry->value_unsigned));
