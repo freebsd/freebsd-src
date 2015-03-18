@@ -174,7 +174,8 @@ FILES+=		bootparams
 .endif
 
 .if ${MK_BSNMP} != "no"
-FILES+=		bsnmpd
+FILESGROUPS+=	BSNMP
+BSNMP+=		bsnmpd
 .endif
 
 .if ${MK_CASPER} != "no"
@@ -301,5 +302,9 @@ ACPIPACKAGE=	acpi
 SSHDIR=		/etc/rc.d
 SSHMODE=	${BINMODE}
 SSHPACKAGE=	ssh
+
+BSNMPDIR=	/etc/rc.d
+BSNMPMODE=	${BINMODE}
+BSNMPPACKAGE=	bsnmp
 
 .include <bsd.prog.mk>
