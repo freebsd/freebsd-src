@@ -50,6 +50,10 @@ CTFFLAGS+= -g
 STRIP?=	-s
 .endif
 
+.if ${SHLIBDIR:M*lib32*}
+TAGS+=	lib32
+.endif
+
 .if defined(NO_ROOT)
 .if !defined(TAGS) || ! ${TAGS:Mpackage=*}
 TAGS+=		package=${PACKAGE:Uruntime}
