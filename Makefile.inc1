@@ -1214,24 +1214,22 @@ create-world-packages:
 		${DESTDIR}/METALOG
 	@for plist in ${DESTDIR}/*.plist; do \
 		plist=$${plist##*/} ; \
-		test -d ${SRCDIR}/release/packages/$${plist%.plist} || \
+		test -f ${SRCDIR}/release/packages/$${plist%.plist}.ucl || \
 			( echo "Unkown package FreeBSD-$${plist%.plist}" ; false ) ; \
 	done
 	@for plist in ${DESTDIR}/*.plist; do \
 		plist=$${plist##*/} ; \
 		pkgname=$${plist%.plist} ; \
-		rm -rf ${DESTDIR}/$${pkgname}-manifestdir ; \
-		cp -r ${SRCDIR}/release/packages/$${pkgname} \
-			${DESTDIR}/$${pkgname}-manifestdir ; \
-		sed -i '' -e "s/%VERSION%/${PKG_VERSION}/" \
+		sed -e "s/%VERSION%/${PKG_VERSION}/" \
 			-e "s/%PKGNAME%/$${pkgname}/" \
 			-e "s/%COMMENT%/Generic comment for $${pkgname}/" \
 			-e "s/%DESC%/Generic description for $${pkgname}/" \
-			${DESTDIR}/$${pkgname}-manifestdir/+MANIFEST ; \
+			${SRCDIR}/release/packages/$${pkgname}.ucl \
+			> ${DESTDIR}/$${pkgname}.ucl ; \
 		awk -F\" '/name/ { printf("===> Creating %s-", $$2) } /version/ {print $$2 }' \
 			${DESTDIR}/$${pkgname}-manifestdir/+MANIFEST ; \
 		pkg -o ABI_FILE=${DESTDIR}/bin/sh \
-			create -m ${DESTDIR}/$${pkgname}-manifestdir \
+			create -M ${DESTDIR}/$${pkgname}.ucl \
 			-p ${DESTDIR}/$${pkgname}.plist \
 			-r ${DESTDIR} -o ${DESTDIR} ; \
 	done
