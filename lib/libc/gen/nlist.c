@@ -47,7 +47,10 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "un-namespace.h"
 
+/* There is no a.out support on arm64 */
+#ifndef __aarch64__
 #define _NLIST_DO_AOUT
+#endif
 #define _NLIST_DO_ELF
 
 #ifdef _NLIST_DO_ELF
