@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 #include "opt_kdtrace.h"
 
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 
 /*
  * generally, I don't like #includes inside .h files, but it seems to

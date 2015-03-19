@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_posix.h"
 
 #include <sys/param.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/condvar.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>

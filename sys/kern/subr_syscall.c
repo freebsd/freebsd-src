@@ -44,7 +44,7 @@
 
 __FBSDID("$FreeBSD$");
 
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/ktr.h>
 #ifdef KTRACE
 #include <sys/uio.h>
