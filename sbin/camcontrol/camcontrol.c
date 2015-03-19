@@ -96,7 +96,9 @@ typedef enum {
 	CAM_CMD_SECURITY	= 0x0000001d,
 	CAM_CMD_HPA		= 0x0000001e,
 	CAM_CMD_SANITIZE	= 0x0000001f,
-	CAM_CMD_PERSIST		= 0x00000020
+	CAM_CMD_PERSIST		= 0x00000020,
+	CAM_CMD_APM		= 0x00000021,
+	CAM_CMD_AAM		= 0x00000022
 } cam_cmdmask;
 
 typedef enum {
@@ -216,6 +218,8 @@ static struct camcontrol_opts option_table[] = {
 	{"idle", CAM_CMD_IDLE, CAM_ARG_NONE, "t:"},
 	{"standby", CAM_CMD_STANDBY, CAM_ARG_NONE, "t:"},
 	{"sleep", CAM_CMD_SLEEP, CAM_ARG_NONE, ""},
+	{"apm", CAM_CMD_APM, CAM_ARG_NONE, "l:"},
+	{"aam", CAM_CMD_AAM, CAM_ARG_NONE, "l:"},
 	{"fwdownload", CAM_CMD_DOWNLOAD_FW, CAM_ARG_NONE, "f:ys"},
 	{"security", CAM_CMD_SECURITY, CAM_ARG_NONE, "d:e:fh:k:l:qs:T:U:y"},
 	{"hpa", CAM_CMD_HPA, CAM_ARG_NONE, "Pflp:qs:U:y"},
@@ -1406,7 +1410,7 @@ atacapprint(struct ata_params *parm)
 		parm->enabled.command2 & ATA_SUPPORT_APM ? "yes" : "no");
 		if (parm->support.command2 & ATA_SUPPORT_APM) {
 			printf("	%d/0x%02X\n",
-			    parm->apm_value, parm->apm_value);
+			    parm->apm_value & 0xff, parm->apm_value & 0xff);
 		} else
 			printf("\n");
 	printf("automatic acoustic management  %s	%s",
@@ -7983,6 +7987,68 @@ atapm(struct cam_device *device, int argc, char **argv,
 	return (retval);
 }
 
+static int
+ataaxm(struct cam_device *device, int argc, char **argv,
+		 char *combinedopt, int retry_count, int timeout)
+{
+	union ccb *ccb;
+	int retval = 0;
+	int l = -1;
+	int c;
+	u_char cmd, sc;
+
+	ccb = cam_getccb(device);
+
+	if (ccb == NULL) {
+		warnx("%s: error allocating ccb", __func__);
+		return (1);
+	}
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch (c) {
+		case 'l':
+			l = atoi(optarg);
+			break;
+		default:
+			break;
+		}
+	}
+	sc = 0;
+	if (strcmp(argv[1], "apm") == 0) {
+		if (l == -1)
+			cmd = 0x85;
+		else {
+			cmd = 0x05;
+			sc = l;
+		}
+	} else /* aam */ {
+		if (l == -1)
+			cmd = 0xC2;
+		else {
+			cmd = 0x42;
+			sc = l;
+		}
+	}
+
+	retval = ata_do_28bit_cmd(device,
+	    ccb,
+	    /*retries*/retry_count,
+	    /*flags*/CAM_DIR_NONE,
+	    /*protocol*/AP_PROTO_NON_DATA,
+	    /*tag_action*/MSG_SIMPLE_Q_TAG,
+	    /*command*/ATA_SETFEATURES,
+	    /*features*/cmd,
+	    /*lba*/0,
+	    /*sector_count*/sc,
+	    /*data_ptr*/NULL,
+	    /*dxfer_len*/0,
+	    /*timeout*/timeout ? timeout : 30 * 1000,
+	    /*quiet*/1);
+
+	cam_freeccb(ccb);
+	return (retval);
+}
+
 #endif /* MINIMALISTIC */
 
 void
@@ -8040,6 +8106,8 @@ usage(int printlong)
 "        camcontrol idle       [dev_id][generic args][-t time]\n"
 "        camcontrol standby    [dev_id][generic args][-t time]\n"
 "        camcontrol sleep      [dev_id][generic args]\n"
+"        camcontrol apm        [dev_id][generic args][-l level]\n"
+"        camcontrol aam        [dev_id][generic args][-l level]\n"
 "        camcontrol fwdownload [dev_id][generic args] <-f fw_image> [-y][-s]\n"
 "        camcontrol security   [dev_id][generic args]\n"
 "                              <-d pwd | -e pwd | -f | -h pwd | -k pwd>\n"
@@ -8558,6 +8626,11 @@ main(int argc, char **argv)
 		case CAM_CMD_STANDBY:
 		case CAM_CMD_SLEEP:
 			error = atapm(cam_dev, argc, argv,
+				      combinedopt, retry_count, timeout);
+			break;
+		case CAM_CMD_APM:
+		case CAM_CMD_AAM:
+			error = ataaxm(cam_dev, argc, argv,
 				      combinedopt, retry_count, timeout);
 			break;
 		case CAM_CMD_SECURITY:
