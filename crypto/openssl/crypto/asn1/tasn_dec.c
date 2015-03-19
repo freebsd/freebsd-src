@@ -125,16 +125,23 @@ unsigned long ASN1_tag2bit(int tag)
 
 ASN1_VALUE *ASN1_item_d2i(ASN1_VALUE **pval,
 		const unsigned char **in, long len, const ASN1_ITEM *it)
-	{
+{
 	ASN1_TLC c;
 	ASN1_VALUE *ptmpval = NULL;
-	if (!pval)
-		pval = &ptmpval;
 	c.valid = 0;
-	if (ASN1_item_ex_d2i(pval, in, len, it, -1, 0, 0, &c) > 0) 
-		return *pval;
-	return NULL;
+	if (pval && *pval && it->itype == ASN1_ITYPE_PRIMITIVE)
+		ptmpval = *pval;
+
+	if (ASN1_item_ex_d2i(&ptmpval, in, len, it, -1, 0, 0, &c) > 0) {
+		if (pval && it->itype != ASN1_ITYPE_PRIMITIVE) {
+			if (*pval)
+				ASN1_item_free(*pval, it);
+			*pval = ptmpval;
+		}
+		return ptmpval;
 	}
+	return NULL;
+}
 
 int ASN1_template_d2i(ASN1_VALUE **pval,
 		const unsigned char **in, long len, const ASN1_TEMPLATE *tt)
@@ -309,13 +316,20 @@ int ASN1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in, long len,
 		if (asn1_cb && !asn1_cb(ASN1_OP_D2I_PRE, pval, it))
 				goto auxerr;
 
-		/* Allocate structure */
-		if (!*pval && !ASN1_item_ex_new(pval, it))
-			{
+		if (*pval) {
+			/* Free up and zero CHOICE value if initialised */
+			i = asn1_get_choice_selector(pval, it);
+			if ((i >= 0) && (i < it->tcount)) {
+				tt = it->templates + i;
+				pchptr = asn1_get_field_ptr(pval, tt);
+				ASN1_template_free(pchptr, tt);
+				asn1_set_choice_selector(pval, -1, it);
+			}
+		} else if (!ASN1_item_ex_new(pval, it)) {
 			ASN1err(ASN1_F_ASN1_ITEM_EX_D2I,
 						ERR_R_NESTED_ASN1_ERROR);
 			goto err;
-			}
+		}
 		/* CHOICE type, try each possibility in turn */
 		p = *in;
 		for (i = 0, tt=it->templates; i < it->tcount; i++, tt++)
@@ -404,6 +418,17 @@ int ASN1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in, long len,
 
 		if (asn1_cb && !asn1_cb(ASN1_OP_D2I_PRE, pval, it))
 				goto auxerr;
+
+		/* Free up and zero any ADB found */
+		for (i = 0, tt = it->templates; i < it->tcount; i++, tt++) {
+			if (tt->flags & ASN1_TFLG_ADB_MASK) {
+				const ASN1_TEMPLATE *seqtt;
+				ASN1_VALUE **pseqval;
+				seqtt = asn1_do_adb(pval, tt, 1);
+				pseqval = asn1_get_field_ptr(pval, seqtt);
+				ASN1_template_free(pseqval, seqtt);
+			}
+		}
 
 		/* Get each field entry */
 		for (i = 0, tt = it->templates; i < it->tcount; i++, tt++)
