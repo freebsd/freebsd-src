@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/stat.h>
 #ifdef HAVE_CAPSICUM
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <geom/gate/g_gate.h>
 #endif
 

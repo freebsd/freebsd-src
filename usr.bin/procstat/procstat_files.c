@@ -27,7 +27,7 @@
  */
 
 #include <sys/param.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/un.h>
