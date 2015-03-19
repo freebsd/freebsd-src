@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/callout.h>
 #include <sys/sbuf.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <assert.h>
 #include <bsdxml.h>
 #include <ctype.h>

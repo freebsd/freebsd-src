@@ -23,7 +23,7 @@ __RCSID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 
 #include <errno.h>
 #include <stdarg.h>
