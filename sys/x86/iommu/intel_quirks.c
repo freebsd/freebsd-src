@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 The FreeBSD Foundation
+ * Copyright (c) 2013, 2015 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed by Konstantin Belousov <kib@FreeBSD.org>
@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
+#include <sys/vmem.h>
 #include <machine/bus.h>
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -59,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <x86/iommu/intel_dmar.h>
 #include <dev/pci/pcivar.h>
 
-typedef void (*dmar_quirk_fun)(struct dmar_unit *);
+typedef void (*dmar_quirk_cpu_fun)(struct dmar_unit *);
 
 struct intel_dmar_quirk_cpu {
 	u_int ext_family;
@@ -67,16 +68,20 @@ struct intel_dmar_quirk_cpu {
 	u_int family_code;
 	u_int model;
 	u_int stepping;
-	dmar_quirk_fun quirk;
+	dmar_quirk_cpu_fun quirk;
 	const char *descr;
 };
+
+typedef void (*dmar_quirk_nb_fun)(struct dmar_unit *, device_t nb);
 
 struct intel_dmar_quirk_nb {
 	u_int dev_id;
 	u_int rev_no;
-	dmar_quirk_fun quirk;
+	dmar_quirk_nb_fun quirk;
 	const char *descr;
 };
+
+#define	QUIRK_NB_ALL_REV	0xffffffff
 
 static void
 dmar_match_quirks(struct dmar_unit *dmar,
@@ -99,13 +104,14 @@ dmar_match_quirks(struct dmar_unit *dmar,
 			for (i = 0; i < nb_quirks_len; i++) {
 				nb_quirk = &nb_quirks[i];
 				if (nb_quirk->dev_id == dev_id &&
-				    nb_quirk->rev_no == rev_no) {
+				    (nb_quirk->rev_no == rev_no ||
+				    nb_quirk->rev_no == QUIRK_NB_ALL_REV)) {
 					if (bootverbose) {
 						device_printf(dmar->dev,
 						    "NB IOMMU quirk %s\n",
 						    nb_quirk->descr);
 					}
-					nb_quirk->quirk(dmar);
+					nb_quirk->quirk(dmar, nb);
 				}
 			}
 		} else {
@@ -139,10 +145,27 @@ dmar_match_quirks(struct dmar_unit *dmar,
 }
 
 static void
-nb_5400_no_low_high_prot_mem(struct dmar_unit *unit)
+nb_5400_no_low_high_prot_mem(struct dmar_unit *unit, device_t nb __unused)
 {
 
 	unit->hw_cap &= ~(DMAR_CAP_PHMR | DMAR_CAP_PLMR);
+}
+
+static void
+nb_no_ir(struct dmar_unit *unit, device_t nb __unused)
+{
+
+	unit->hw_ecap &= ~(DMAR_ECAP_IR | DMAR_ECAP_EIM);
+}
+
+static void
+nb_5500_no_ir_rev13(struct dmar_unit *unit, device_t nb)
+{
+	u_int rev_no;
+
+	rev_no = pci_get_revid(nb);
+	if (rev_no <= 0x13)
+		nb_no_ir(unit, nb);
 }
 
 static const struct intel_dmar_quirk_nb pre_use_nb[] = {
@@ -155,6 +178,26 @@ static const struct intel_dmar_quirk_nb pre_use_nb[] = {
 	    .dev_id = 0x4003, .rev_no = 0x20,
 	    .quirk = nb_5400_no_low_high_prot_mem,
 	    .descr = "5400 E23" /* no low/high protected memory */
+	},
+	{
+	    .dev_id = 0x3403, .rev_no = QUIRK_NB_ALL_REV,
+	    .quirk = nb_5500_no_ir_rev13,
+	    .descr = "5500 E47, E53" /* interrupt remapping does not work */
+	},
+	{
+	    .dev_id = 0x3405, .rev_no = QUIRK_NB_ALL_REV,
+	    .quirk = nb_5500_no_ir_rev13,
+	    .descr = "5500 E47, E53" /* interrupt remapping does not work */
+	},
+	{
+	    .dev_id = 0x3405, .rev_no = 0x22,
+	    .quirk = nb_no_ir,
+	    .descr = "5500 E47, E53" /* interrupt remapping does not work */
+	},
+	{
+	    .dev_id = 0x3406, .rev_no = QUIRK_NB_ALL_REV,
+	    .quirk = nb_5500_no_ir_rev13,
+	    .descr = "5500 E47, E53" /* interrupt remapping does not work */
 	},
 };
 

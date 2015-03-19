@@ -112,6 +112,7 @@ struct pic {
 	int (*pic_config_intr)(struct intsrc *, enum intr_trigger,
 	    enum intr_polarity);
 	int (*pic_assign_cpu)(struct intsrc *, u_int apic_id);
+	void (*pic_reprogram_pin)(struct intsrc *);
 	TAILQ_ENTRY(pic) pics;
 };
 
@@ -168,6 +169,7 @@ int	intr_register_source(struct intsrc *isrc);
 int	intr_remove_handler(void *cookie);
 void	intr_resume(bool suspend_cancelled);
 void	intr_suspend(void);
+void	intr_reprogram(void);
 void	intrcnt_add(const char *name, u_long **countp);
 void	nexus_add_irq(u_long irq);
 int	msi_alloc(device_t dev, int count, int maxcount, int *irqs);
