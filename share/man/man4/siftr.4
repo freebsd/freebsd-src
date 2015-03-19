@@ -342,6 +342,15 @@ A caveat: Zero '0' either represents a valid flowid or a default value when it's
 not being set. There is no easy way to differentiate without looking at actual
 network interface card and drivers being used.
 .El
+.Bl -tag -offset indent -width Va
+.It Va 28
+Flow type for the connection.
+Flowtype defines which protocol fields are hashed to produce the flowid. 
+A complete listing is available in
+.Pa sys/mbuf.h
+under
+.Dv M_HASHTYPE_* .
+.El
 .Pp
 The third type of log message is written to the file when the module is disabled
 and ceases collecting data from the running kernel.
