@@ -747,8 +747,8 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	 */
 	if (ifa
 	 && (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_TENTATIVE)) {
-		ifa_free(ifa);
 		nd6_dad_na_input(ifa);
+		ifa_free(ifa);
 		goto freeit;
 	}
 
