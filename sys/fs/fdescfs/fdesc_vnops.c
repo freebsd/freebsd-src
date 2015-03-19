@@ -40,7 +40,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/conf.h>
 #include <sys/dirent.h>
 #include <sys/filedesc.h>

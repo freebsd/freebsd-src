@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #if __FreeBSD_version >= 900000
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #endif
 #include <sys/systm.h>
 #include <sys/conf.h>
