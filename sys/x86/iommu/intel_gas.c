@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <sys/uio.h>
+#include <sys/vmem.h>
 #include <dev/pci/pcivar.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
