@@ -64,7 +64,8 @@ __FBSDID("$FreeBSD$");
 
 /* Capability bits */
 #define	VTBLK_F_SEG_MAX		(1 << 2)	/* Maximum request segments */
-#define	VTBLK_F_BLK_SIZE       	(1 << 6)	/* cfg block size valid */
+#define	VTBLK_F_BLK_SIZE	(1 << 6)	/* cfg block size valid */
+#define	VTBLK_F_TOPOLOGY	(1 << 10)	/* Optimal I/O alignment */
 
 /*
  * Host capabilities
@@ -72,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #define VTBLK_S_HOSTCAPS      \
   ( VTBLK_F_SEG_MAX  |						    \
     VTBLK_F_BLK_SIZE |						    \
+    VTBLK_F_TOPOLOGY |						    \
     VIRTIO_RING_F_INDIRECT_DESC )	/* indirect descriptors */
 
 /*
@@ -81,11 +83,19 @@ struct vtblk_config {
 	uint64_t	vbc_capacity;
 	uint32_t	vbc_size_max;
 	uint32_t	vbc_seg_max;
-	uint16_t	vbc_geom_c;
-	uint8_t		vbc_geom_h;
-	uint8_t		vbc_geom_s;
+	struct {
+		uint16_t cylinders;
+		uint8_t heads;
+		uint8_t sectors;
+	} vbc_geometry;
 	uint32_t	vbc_blk_size;
-	uint32_t	vbc_sectors_max;
+	struct {
+		uint8_t physical_block_exp;
+		uint8_t alignment_offset;
+		uint16_t min_io_size;
+		uint32_t opt_io_size;
+	} vbc_topology;
+	uint8_t		vbc_writeback;
 } __packed;
 
 /*
@@ -262,7 +272,7 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	MD5_CTX mdctx;
 	u_char digest[16];
 	struct pci_vtblk_softc *sc;
-	off_t size;	
+	off_t size, sts, sto;
 	int fd;
 	int sectsz;
 
@@ -291,6 +301,7 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	 */
 	size = sbuf.st_size;
 	sectsz = DEV_BSIZE;
+	sts = sto = 0;
 	if (S_ISCHR(sbuf.st_mode)) {
 		if (ioctl(fd, DIOCGMEDIASIZE, &size) < 0 ||
 		    ioctl(fd, DIOCGSECTORSIZE, &sectsz)) {
@@ -300,7 +311,10 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 		}
 		assert(size != 0);
 		assert(sectsz != 0);
-	}
+		if (ioctl(fd, DIOCGSTRIPESIZE, &sts) == 0 && sts > 0)
+			ioctl(fd, DIOCGSTRIPEOFFSET, &sto);
+	} else
+		sts = sbuf.st_blksize;
 
 	sc = calloc(1, sizeof(struct pci_vtblk_softc));
 
@@ -328,13 +342,19 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 
 	/* setup virtio block config space */
 	sc->vbsc_cfg.vbc_capacity = size / DEV_BSIZE; /* 512-byte units */
-	sc->vbsc_cfg.vbc_seg_max = VTBLK_MAXSEGS;
-	sc->vbsc_cfg.vbc_blk_size = sectsz;
 	sc->vbsc_cfg.vbc_size_max = 0;	/* not negotiated */
-	sc->vbsc_cfg.vbc_geom_c = 0;	/* no geometry */
-	sc->vbsc_cfg.vbc_geom_h = 0;
-	sc->vbsc_cfg.vbc_geom_s = 0;
-	sc->vbsc_cfg.vbc_sectors_max = 0;
+	sc->vbsc_cfg.vbc_seg_max = VTBLK_MAXSEGS;
+	sc->vbsc_cfg.vbc_geometry.cylinders = 0;	/* no geometry */
+	sc->vbsc_cfg.vbc_geometry.heads = 0;
+	sc->vbsc_cfg.vbc_geometry.sectors = 0;
+	sc->vbsc_cfg.vbc_blk_size = sectsz;
+	sc->vbsc_cfg.vbc_topology.physical_block_exp =
+	    (sts > sectsz) ? (ffsll(sts / sectsz) - 1) : 0;
+	sc->vbsc_cfg.vbc_topology.alignment_offset =
+	    (sto != 0) ? ((sts - sto) / sectsz) : 0;
+	sc->vbsc_cfg.vbc_topology.min_io_size = 0;
+	sc->vbsc_cfg.vbc_topology.opt_io_size = 0;
+	sc->vbsc_cfg.vbc_writeback = 0;
 
 	/*
 	 * Should we move some of this into virtio.c?  Could
