@@ -684,11 +684,14 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 	} else {
 		uint16_t buf[256];
 		uint64_t sectors;
+		int sectsz, psectsz, psectoff;
 		uint16_t cyl;
 		uint8_t sech, heads;
 
-		sectors = blockif_size(p->bctx) / blockif_sectsz(p->bctx);
+		sectsz = blockif_sectsz(p->bctx);
+		sectors = blockif_size(p->bctx) / sectsz;
 		blockif_chs(p->bctx, &cyl, &heads, &sech);
+		blockif_psectsz(p->bctx, &psectsz, &psectoff);
 		memset(buf, 0, sizeof(buf));
 		buf[0] = 0x0040;
 		buf[1] = cyl;
@@ -733,6 +736,18 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		buf[101] = (sectors >> 16);
 		buf[102] = (sectors >> 32);
 		buf[103] = (sectors >> 48);
+		buf[106] = 0x4000;
+		buf[209] = 0x4000;
+		if (psectsz > sectsz) {
+			buf[106] |= 0x2000;
+			buf[106] |= ffsl(psectsz / sectsz) - 1;
+			buf[209] |= (psectoff / sectsz);
+		}
+		if (sectsz > 512) {
+			buf[106] |= 0x1000;
+			buf[117] = sectsz / 2;
+			buf[118] = ((sectsz / 2) >> 16);
+		}
 		ahci_write_fis_piosetup(p);
 		write_prdt(p, slot, cfis, (void *)buf, sizeof(buf));
 		p->tfd = ATA_S_DSC | ATA_S_READY;
