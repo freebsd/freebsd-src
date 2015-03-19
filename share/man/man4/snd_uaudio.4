@@ -101,7 +101,8 @@ enumeration of new devices on the parenting USB controller.
 .Pp
 Some USB audio devices might refuse to work properly unless the sample
 rate is configured the same for both recording and playback, even if
-only simplex is used. See the
+only simplex is used.
+See the
 .Va dev.pcm.%d.[play|rec].vchanrate
 sysctls.
 .Pp
@@ -110,6 +111,7 @@ The
 framework in
 .Fx
 currently doesn't support the full set of USB audio mixer
-controls. Some mixer controls are only available as
+controls.
+Some mixer controls are only available as
 .Va dev.pcm.%d.mixer
 sysctls.
