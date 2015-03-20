@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm/broadcom/bcm2835/bcm2835_mbox.h>
+#include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>
+#include <arm/broadcom/bcm2835/bcm2835_vcbus.h>
 
 #include "mbox_if.h"
 
@@ -270,3 +272,86 @@ static driver_t bcm_mbox_driver = {
 static devclass_t bcm_mbox_devclass;
 
 DRIVER_MODULE(mbox, simplebus, bcm_mbox_driver, bcm_mbox_devclass, 0, 0);
+
+static void
+bcm2835_mbox_dma_cb(void *arg, bus_dma_segment_t *segs, int nseg, int err)
+{
+	bus_addr_t *addr;
+
+	if (err)
+		return;
+	addr = (bus_addr_t *)arg;
+	*addr = PHYS_TO_VCBUS(segs[0].ds_addr);
+}
+
+int
+bcm2835_mbox_set_power_state(device_t dev, uint32_t device_id, boolean_t on)
+{
+	struct msg_set_power_state *msg;
+	bus_dma_tag_t msg_tag;
+	bus_dmamap_t msg_map;
+	bus_addr_t msg_phys;
+	void *msg_buf;
+	uint32_t reg;
+	device_t mbox;
+	int err;
+
+	/* get mbox device */
+	mbox = devclass_get_device(devclass_find("mbox"), 0);
+	if (mbox == NULL) {
+		device_printf(dev, "can't find mbox\n");
+		return (ENXIO);
+	}
+
+	err = bus_dma_tag_create(bus_get_dma_tag(dev), 16, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    sizeof(struct msg_set_power_state), 1,
+	    sizeof(struct msg_set_power_state), 0,
+	    NULL, NULL, &msg_tag);
+	if (err != 0) {
+		device_printf(dev, "can't create DMA tag\n");
+		return (ENXIO);
+	}
+
+	err = bus_dmamem_alloc(msg_tag, (void **)&msg_buf, 0, &msg_map);
+	if (err != 0) {
+		bus_dma_tag_destroy(msg_tag);
+		device_printf(dev, "can't allocate dmamem\n");
+		return (ENXIO);
+	}
+
+	err = bus_dmamap_load(msg_tag, msg_map, msg_buf,
+	    sizeof(struct msg_set_power_state), bcm2835_mbox_dma_cb,
+	    &msg_phys, 0);
+	if (err != 0) {
+		bus_dmamem_free(msg_tag, msg_buf, msg_map);
+		bus_dma_tag_destroy(msg_tag);
+		device_printf(dev, "can't load DMA map\n");
+		return (ENXIO);
+	}
+
+	msg = msg_buf;
+
+	memset(msg, 0, sizeof(*msg));
+	msg->hdr.buf_size = sizeof(*msg);
+	msg->hdr.code = BCM2835_MBOX_CODE_REQ;
+	msg->tag_hdr.tag = BCM2835_MBOX_TAG_SET_POWER_STATE;
+	msg->tag_hdr.val_buf_size = sizeof(msg->body);
+	msg->tag_hdr.val_len = sizeof(msg->body.req);
+	msg->body.req.device_id = device_id;
+	msg->body.req.state = (on ? BCM2835_MBOX_POWER_ON : 0) |
+	    BCM2835_MBOX_POWER_WAIT;
+	msg->end_tag = 0;
+
+	bus_dmamap_sync(msg_tag, msg_map,
+	    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
+
+	MBOX_WRITE(mbox, BCM2835_MBOX_CHAN_PROP, (uint32_t)msg_phys);
+	MBOX_READ(mbox, BCM2835_MBOX_CHAN_PROP, &reg);
+
+	bus_dmamap_unload(msg_tag, msg_map);
+	bus_dmamem_free(msg_tag, msg_buf, msg_map);
+	bus_dma_tag_destroy(msg_tag);
+
+	return (0);
+}
