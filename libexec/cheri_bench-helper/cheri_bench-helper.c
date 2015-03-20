@@ -42,34 +42,18 @@
 #include <stdio.h>
 #include <string.h>
 
+#define CHERI_BENCH_INTERNAL
 #include "cheri_bench-helper.h"
 
-int
-invoke(struct cheri_object co, register_t methodnum,
-    register_t len,
-    __capability void *dataout, __capability void *datain)
-    __attribute__((cheri_ccall)); /* XXXRW: Will be ccheri_ccallee. */;
+/* XXX rmn30 This should probably not be required. */
+int invoke (void);
+int invoke (void) {
+  return -1;
+}
 
-/*
- * Print "hello world" in one of three ways, depending on the "op" argument:
- * via the system-class hello-world service, via the system-class puts
- * service, and by writing it to a cheri_fd object passed as an argument.
- */
 int
-invoke(struct cheri_object co __unused, register_t methodnum,
-    register_t len, __capability void *dataout,  __capability void *datain)
+cheri_bench_memcpy(__capability void *dataout,  __capability void *datain, register_t len)
 {
-	switch (methodnum) {
-	case CHERI_BENCH_HELPER_OP_BENCH:
-	  return -1;
-	case CHERI_BENCH_HELPER_OP_PUTS:
-	  return -1;
-	case CHERI_BENCH_HELPER_OP_FD_WRITE_C:
-	  return -1;
-	case CHERI_BENCH_HELPER_OP_MEMCPY:
-	  memcpy_c(dataout, datain, len); 
-	  return 0;
-	default:
-	  return (-1);
-	}
+  memcpy_c(dataout, datain, len);
+  return 0;
 }

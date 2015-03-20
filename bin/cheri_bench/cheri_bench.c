@@ -51,7 +51,7 @@
 
 #define get_cyclecount cheri_get_cyclecount
 
-static struct cheri_object objectp;
+struct cheri_object cheri_bench;
 
 typedef uint64_t memcpy_t(__capability char *, __capability char *, size_t, int fd);
 
@@ -69,17 +69,11 @@ static uint64_t invoke_memcpy(__capability char *dataout, __capability char *dat
   int ret;
   uint32_t start_count, end_count;
   start_count = get_cyclecount();
-  ret = cheri_invoke(objectp,
-		     CHERI_BENCH_HELPER_OP_MEMCPY,
-		     len, 0, 0, 0, 0, 0, 0, 0,
+  ret = cheri_bench_memcpy_cap(
+			cheri_bench,
 		     (__capability void *) dataout,
 		     (__capability void *) datain,
-		     cheri_zerocap(),
-		     cheri_zerocap(),
-		     cheri_zerocap(),
-		     cheri_zerocap(),
-		     cheri_zerocap(),
-		     cheri_zerocap());
+		     len);
   end_count = get_cyclecount();
   if (ret != 0) err(1, "Invoke failed.");
   return end_count - start_count;
@@ -281,13 +275,7 @@ main(int argc, char *argv[])
 	      err(EX_OSFILE, "sandbox_class_new");
 	    if (sandbox_object_new(classp, 2*1024*1024, &sandboxp) < 0)
 	      err(EX_OSFILE, "sandbox_object_new");
-
-	    /*
-	     * Ideally, this information would be sucked out of ELF.
-	     */
-	    (void)sandbox_class_method_declare(classp,
-	       CHERI_BENCH_HELPER_OP_MEMCPY, "memcpy");
-	    objectp = sandbox_object_getobject(sandboxp);
+	    cheri_bench = sandbox_object_getobject(sandboxp);
 	  }
 
 	if (socket)

@@ -32,9 +32,16 @@
 #ifndef _LIBEXEC_CHERI_BENCH_HELPER_H_
 #define	_LIBEXEC_CHERI_BENCH_HELPER_H_
 
-#define	CHERI_BENCH_HELPER_OP_BENCH	1
-#define	CHERI_BENCH_HELPER_OP_PUTS		2
-#define	CHERI_BENCH_HELPER_OP_FD_WRITE_C	3
-#define	CHERI_BENCH_HELPER_OP_MEMCPY	4
+extern struct cheri_object cheri_bench;
+
+#ifdef CHERI_BENCH_INTERNAL
+__attribute__((cheri_ccallee))
+#else
+__attribute__((cheri_ccall))
+#endif
+__attribute__((cheri_method_suffix("_cap"))) /* XXX rmn30 should this attribute be required in the callee? */
+__attribute__((cheri_method_class(cheri_bench)))
+int
+cheri_bench_memcpy(__capability void *dataout,  __capability void *datain, register_t len);
 
 #endif /* !_LIBEXEC_CHERI_BENCH_HELPER_H_ */

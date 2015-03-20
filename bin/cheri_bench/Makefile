@@ -8,6 +8,7 @@ USE_CHERI=	yes
 WANT_DUMP=	yes
 
 LIBADD=  cheri
+LDADD=  -static -lcheri
 
 NO_SHARED?=	YES
 
