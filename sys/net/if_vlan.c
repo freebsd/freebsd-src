@@ -817,14 +817,6 @@ vlan_clone_match_ethervid(const char *name, int *vidp)
 	*cp = '\0';
 	if ((ifp = ifunit(ifname)) == NULL)
 		return (NULL);
-	/*
-	 * We can handle non-ethernet hardware types as long as
-	 * they handle the tagging and headers themselves.
-	 */
-	if (ifp->if_type != IFT_ETHER &&
-	    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
-		return (NULL);
-
 	/* Parse VID. */
 	if (*++cp == '\0')
 		return (NULL);
@@ -892,13 +884,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 			return error;
 		p = ifunit(vlr.vlr_parent);
 		if (p == NULL)
-			return ENXIO;
-		/*
-		 * Don't let the caller set up a VLAN VID with
-		 * anything except VLID bits.
-		 */
-		if (vlr.vlr_tag & ~EVL_VLID_MASK)
-			return (EINVAL);
+			return (ENXIO);
 		error = ifc_name2unit(name, &unit);
 		if (error != 0)
 			return (error);
@@ -910,13 +896,6 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 		ethertag = 1;
 		unit = -1;
 		wildcard = 0;
-
-		/*
-		 * Don't let the caller set up a VLAN VID with
-		 * anything except VLID bits.
-		 */
-		if (vid & ~EVL_VLID_MASK)
-			return (EINVAL);
 	} else {
 		ethertag = 0;
 
@@ -1198,14 +1177,22 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t vid)
 	struct ifnet *ifp;
 	int error = 0;
 
-	/* VID numbers 0x0 and 0xFFF are reserved */
-	if (vid == 0 || vid == 0xFFF)
-		return (EINVAL);
+	/*
+	 * We can handle non-ethernet hardware types as long as
+	 * they handle the tagging and headers themselves.
+	 */
 	if (p->if_type != IFT_ETHER &&
 	    (p->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
 		return (EPROTONOSUPPORT);
 	if ((p->if_flags & VLAN_IFFLAGS) != VLAN_IFFLAGS)
 		return (EPROTONOSUPPORT);
+	/*
+	 * Don't let the caller set up a VLAN VID with
+	 * anything except VLID bits.
+	 * VID numbers 0x0 and 0xFFF are reserved.
+	 */
+	if (vid == 0 || vid == 0xFFF || (vid & ~EVL_VLID_MASK))
+		return (EINVAL);
 	if (ifv->ifv_trunk)
 		return (EBUSY);
 
@@ -1668,14 +1655,6 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		p = ifunit(vlr.vlr_parent);
 		if (p == NULL) {
 			error = ENOENT;
-			break;
-		}
-		/*
-		 * Don't let the caller set up a VLAN VID with
-		 * anything except VLID bits.
-		 */
-		if (vlr.vlr_tag & ~EVL_VLID_MASK) {
-			error = EINVAL;
 			break;
 		}
 		error = vlan_config(ifv, p, vlr.vlr_tag);
