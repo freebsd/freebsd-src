@@ -11,6 +11,9 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20150320:	p12
+	Fix patch for SA-15:06.openssl.
+
 20150319:	p11	FreeBSD-SA-15:06.openssl
 	Fix multiple vulnerabilities in OpenSSL.  [SA-15:06]
 
