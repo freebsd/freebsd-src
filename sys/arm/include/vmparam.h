@@ -68,7 +68,9 @@
  * The line between user space and kernel space
  * Mappings >= KERNEL_BASE are constant across all processes
  */
+#ifndef KERNBASE
 #define	KERNBASE		0xc0000000
+#endif
 
 /*
  * max number of non-contig chunks of physical RAM you can have
