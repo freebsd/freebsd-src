@@ -208,8 +208,7 @@ static	void vlan_link_state(struct ifnet *ifp);
 static	void vlan_capabilities(struct ifvlan *ifv);
 static	void vlan_trunk_capabilities(struct ifnet *ifp);
 
-static	struct ifnet *vlan_clone_match_ethervid(struct if_clone *,
-    const char *, int *);
+static	struct ifnet *vlan_clone_match_ethervid(const char *, int *);
 static	int vlan_clone_match(struct if_clone *, const char *);
 static	int vlan_clone_create(struct if_clone *, char *, size_t, caddr_t);
 static	int vlan_clone_destroy(struct if_clone *, struct ifnet *);
@@ -801,40 +800,41 @@ VNET_SYSUNINIT(vnet_vlan_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST,
     vnet_vlan_uninit, NULL);
 #endif
 
+/*
+ * Check for <etherif>.<vlan> style interface names.
+ */
 static struct ifnet *
-vlan_clone_match_ethervid(struct if_clone *ifc, const char *name, int *vidp)
+vlan_clone_match_ethervid(const char *name, int *vidp)
 {
-	const char *cp;
+	char ifname[IFNAMSIZ];
+	char *cp;
 	struct ifnet *ifp;
 	int vid;
 
-	/* Check for <etherif>.<vlan> style interface names. */
-	IFNET_RLOCK_NOSLEEP();
-	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		/*
-		 * We can handle non-ethernet hardware types as long as
-		 * they handle the tagging and headers themselves.
-		 */
-		if (ifp->if_type != IFT_ETHER &&
-		    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
-			continue;
-		if (strncmp(ifp->if_xname, name, strlen(ifp->if_xname)) != 0)
-			continue;
-		cp = name + strlen(ifp->if_xname);
-		if (*cp++ != '.')
-			continue;
-		if (*cp == '\0')
-			continue;
-		vid = 0;
-		for(; *cp >= '0' && *cp <= '9'; cp++)
-			vid = (vid * 10) + (*cp - '0');
-		if (*cp != '\0')
-			continue;
-		if (vidp != NULL)
-			*vidp = vid;
-		break;
-	}
-	IFNET_RUNLOCK_NOSLEEP();
+	strlcpy(ifname, name, IFNAMSIZ);
+	if ((cp = strchr(ifname, '.')) == NULL)
+		return (NULL);
+	*cp = '\0';
+	if ((ifp = ifunit(ifname)) == NULL)
+		return (NULL);
+	/*
+	 * We can handle non-ethernet hardware types as long as
+	 * they handle the tagging and headers themselves.
+	 */
+	if (ifp->if_type != IFT_ETHER &&
+	    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
+		return (NULL);
+
+	/* Parse VID. */
+	if (*++cp == '\0')
+		return (NULL);
+	vid = 0;
+	for(; *cp >= '0' && *cp <= '9'; cp++)
+		vid = (vid * 10) + (*cp - '0');
+	if (*cp != '\0')
+		return (NULL);
+	if (vidp != NULL)
+		*vidp = vid;
 
 	return (ifp);
 }
@@ -844,7 +844,7 @@ vlan_clone_match(struct if_clone *ifc, const char *name)
 {
 	const char *cp;
 
-	if (vlan_clone_match_ethervid(ifc, name, NULL) != NULL)
+	if (vlan_clone_match_ethervid(name, NULL) != NULL)
 		return (1);
 
 	if (strncmp(vlanname, name, strlen(vlanname)) != 0)
@@ -906,7 +906,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 		ethertag = 1;
 		vid = vlr.vlr_tag;
 		wildcard = (unit < 0);
-	} else if ((p = vlan_clone_match_ethervid(ifc, name, &vid)) != NULL) {
+	} else if ((p = vlan_clone_match_ethervid(name, &vid)) != NULL) {
 		ethertag = 1;
 		unit = -1;
 		wildcard = 0;
