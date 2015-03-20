@@ -157,7 +157,7 @@ static eventhandler_tag iflladdr_tag;
  * We have a global mutex, that is used to serialize configuration
  * changes and isn't used in normal packet delivery.
  *
- * We also have a per-trunk rwlock, that is locked shared on packet
+ * We also have a per-trunk rmlock(9), that is locked shared on packet
  * processing and exclusive when configuration is changed.
  *
  * The VLAN_ARRAY substitutes the dynamic hash with a static array
