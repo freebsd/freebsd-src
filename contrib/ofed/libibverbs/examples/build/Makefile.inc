@@ -1,3 +1,5 @@
+BINDIR?= /usr/bin
+
 CFLAGS+= \
 	-I../../../../../../sys/ofed/include \
 	-I../../../../libibverbs/include \

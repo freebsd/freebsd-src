@@ -173,12 +173,9 @@ int rs400_gart_enable(struct radeon_device *rdev)
 	WREG32_MC(RS480_AGP_MODE_CNTL,
 		  (1 << RS480_REQ_TYPE_SNOOP_SHIFT) | RS480_REQ_TYPE_SNOOP_DIS);
 	/* Disable AGP mode */
+	/* FIXME: according to doc we should set HIDE_MMCFG_BAR=0,
+	 * AGPMODE30=0 & AGP30ENHANCED=0 in NB_CNTL */
 	if ((rdev->family == CHIP_RS690) || (rdev->family == CHIP_RS740)) {
-		tmp = RREG32_MC(RS690_MC_NB_CNTL);
-		tmp &= ~(RS690_HIDE_MMCFG_BAR |
-		    RS690_AGPMODE30 |
-		    RS690_AGP30ENHANCED);
-		WREG32_MC(RS690_MC_NB_CNTL, tmp);
 		WREG32_MC(RS480_MC_MISC_CNTL,
 			  (RS480_GART_INDEX_REG_EN | RS690_BLOCK_GFX_D3_EN));
 	} else {
@@ -223,7 +220,7 @@ int rs400_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
 		return -EINVAL;
 	}
 
-	entry = (lower_32_bits(addr) & 0xfffff000) |
+	entry = (lower_32_bits(addr) & ~PAGE_MASK) |
 		((upper_32_bits(addr) & 0xff) << 4) |
 		RS400_PTE_WRITEABLE | RS400_PTE_READABLE;
 	entry = cpu_to_le32(entry);
