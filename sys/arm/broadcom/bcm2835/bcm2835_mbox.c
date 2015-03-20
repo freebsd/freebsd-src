@@ -284,6 +284,41 @@ bcm2835_mbox_dma_cb(void *arg, bus_dma_segment_t *segs, int nseg, int err)
 	*addr = PHYS_TO_VCBUS(segs[0].ds_addr);
 }
 
+static void *
+bcm2835_mbox_init_dma(device_t dev, size_t len, bus_dma_tag_t *tag,
+    bus_dmamap_t *map, bus_addr_t *phys)
+{
+	void *buf;
+	int err;
+
+	err = bus_dma_tag_create(bus_get_dma_tag(dev), 16, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    len, 1, len, 0, NULL, NULL, tag);
+	if (err != 0) {
+		device_printf(dev, "can't create DMA tag\n");
+		return (NULL);
+	}
+
+	err = bus_dmamem_alloc(*tag, &buf, 0, map);
+	if (err != 0) {
+		bus_dma_tag_destroy(*tag);
+		device_printf(dev, "can't allocate dmamem\n");
+		return (NULL);
+	}
+
+	err = bus_dmamap_load(*tag, *map, buf,
+	    sizeof(struct msg_set_power_state), bcm2835_mbox_dma_cb,
+	    phys, 0);
+	if (err != 0) {
+		bus_dmamem_free(*tag, buf, *map);
+		bus_dma_tag_destroy(*tag);
+		device_printf(dev, "can't load DMA map\n");
+		return (NULL);
+	}
+
+	return (buf);
+}
+
 int
 bcm2835_mbox_set_power_state(device_t dev, uint32_t device_id, boolean_t on)
 {
@@ -291,10 +326,8 @@ bcm2835_mbox_set_power_state(device_t dev, uint32_t device_id, boolean_t on)
 	bus_dma_tag_t msg_tag;
 	bus_dmamap_t msg_map;
 	bus_addr_t msg_phys;
-	void *msg_buf;
 	uint32_t reg;
 	device_t mbox;
-	int err;
 
 	/* get mbox device */
 	mbox = devclass_get_device(devclass_find("mbox"), 0);
@@ -303,34 +336,11 @@ bcm2835_mbox_set_power_state(device_t dev, uint32_t device_id, boolean_t on)
 		return (ENXIO);
 	}
 
-	err = bus_dma_tag_create(bus_get_dma_tag(dev), 16, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    sizeof(struct msg_set_power_state), 1,
-	    sizeof(struct msg_set_power_state), 0,
-	    NULL, NULL, &msg_tag);
-	if (err != 0) {
-		device_printf(dev, "can't create DMA tag\n");
-		return (ENXIO);
-	}
-
-	err = bus_dmamem_alloc(msg_tag, (void **)&msg_buf, 0, &msg_map);
-	if (err != 0) {
-		bus_dma_tag_destroy(msg_tag);
-		device_printf(dev, "can't allocate dmamem\n");
-		return (ENXIO);
-	}
-
-	err = bus_dmamap_load(msg_tag, msg_map, msg_buf,
-	    sizeof(struct msg_set_power_state), bcm2835_mbox_dma_cb,
-	    &msg_phys, 0);
-	if (err != 0) {
-		bus_dmamem_free(msg_tag, msg_buf, msg_map);
-		bus_dma_tag_destroy(msg_tag);
-		device_printf(dev, "can't load DMA map\n");
-		return (ENXIO);
-	}
-
-	msg = msg_buf;
+	/* Allocate memory for the message */
+	msg = bcm2835_mbox_init_dma(dev, sizeof(*msg), &msg_tag, &msg_map,
+	    &msg_phys);
+	if (msg == NULL)
+		return (ENOMEM);
 
 	memset(msg, 0, sizeof(*msg));
 	msg->hdr.buf_size = sizeof(*msg);
@@ -350,7 +360,56 @@ bcm2835_mbox_set_power_state(device_t dev, uint32_t device_id, boolean_t on)
 	MBOX_READ(mbox, BCM2835_MBOX_CHAN_PROP, &reg);
 
 	bus_dmamap_unload(msg_tag, msg_map);
-	bus_dmamem_free(msg_tag, msg_buf, msg_map);
+	bus_dmamem_free(msg_tag, msg, msg_map);
+	bus_dma_tag_destroy(msg_tag);
+
+	return (0);
+}
+
+int
+bcm2835_mbox_get_clock_rate(device_t dev, uint32_t clock_id, uint32_t *hz)
+{
+	struct msg_get_clock_rate *msg;
+	bus_dma_tag_t msg_tag;
+	bus_dmamap_t msg_map;
+	bus_addr_t msg_phys;
+	uint32_t reg;
+	device_t mbox;
+
+	/* get mbox device */
+	mbox = devclass_get_device(devclass_find("mbox"), 0);
+	if (mbox == NULL) {
+		device_printf(dev, "can't find mbox\n");
+		return (ENXIO);
+	}
+
+	/* Allocate memory for the message */
+	msg = bcm2835_mbox_init_dma(dev, sizeof(*msg), &msg_tag, &msg_map,
+	    &msg_phys);
+	if (msg == NULL)
+		return (ENOMEM);
+
+	memset(msg, 0, sizeof(*msg));
+	msg->hdr.buf_size = sizeof(*msg);
+	msg->hdr.code = BCM2835_MBOX_CODE_REQ;
+	msg->tag_hdr.tag = BCM2835_MBOX_TAG_GET_CLOCK_RATE;
+	msg->tag_hdr.val_buf_size = sizeof(msg->body);
+	msg->tag_hdr.val_len = sizeof(msg->body.req);
+	msg->body.req.clock_id = clock_id;
+	msg->end_tag = 0;
+
+	bus_dmamap_sync(msg_tag, msg_map, BUS_DMASYNC_PREWRITE);
+	MBOX_WRITE(mbox, BCM2835_MBOX_CHAN_PROP, (uint32_t)msg_phys);
+	bus_dmamap_sync(msg_tag, msg_map, BUS_DMASYNC_POSTWRITE);
+
+	bus_dmamap_sync(msg_tag, msg_map, BUS_DMASYNC_PREREAD);
+	MBOX_READ(mbox, BCM2835_MBOX_CHAN_PROP, &reg);
+	bus_dmamap_sync(msg_tag, msg_map, BUS_DMASYNC_POSTREAD);
+
+	*hz = msg->body.resp.rate_hz;
+
+	bus_dmamap_unload(msg_tag, msg_map);
+	bus_dmamem_free(msg_tag, msg, msg_map);
 	bus_dma_tag_destroy(msg_tag);
 
 	return (0);
