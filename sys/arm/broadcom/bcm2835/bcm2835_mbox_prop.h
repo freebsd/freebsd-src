@@ -179,6 +179,8 @@ struct msg_get_min_clock_rate {
 	uint32_t end_tag;
 };
 
+int bcm2835_mbox_get_clock_rate(device_t, uint32_t, uint32_t *);
+
 #define BCM2835_MBOX_TURBO_ON			1
 #define BCM2835_MBOX_TURBO_OFF			0
 
