@@ -1142,8 +1142,6 @@ EC_KEY *d2i_ECPrivateKey(EC_KEY **a, const unsigned char **in, long len)
                                  ERR_R_MALLOC_FAILURE);
 			goto err;
 			}
-		if (a)
-			*a = ret;
 		}
 	else
 		ret = *a;
@@ -1225,11 +1223,13 @@ EC_KEY *d2i_ECPrivateKey(EC_KEY **a, const unsigned char **in, long len)
 		ret->enc_flag |= EC_PKEY_NO_PUBKEY;
 		}
 
+	if (a)
+		*a = ret;
 	ok = 1;
 err:
 	if (!ok)
 		{
-		if (ret)
+		if (ret && (a == NULL || *a != ret))
 			EC_KEY_free(ret);
 		ret = NULL;
 		}
