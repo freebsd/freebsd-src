@@ -77,85 +77,11 @@ bcm283x_dwc_otg_probe(device_t dev)
 	return (BUS_PROBE_VENDOR);
 }
 
-static void
-bcm283x_dwc_otg_cb(void *arg, bus_dma_segment_t *segs, int nseg, int err)
-{
-	bus_addr_t *addr;
-
-	if (err)
-		return;
-	addr = (bus_addr_t *)arg;
-	*addr = PHYS_TO_VCBUS(segs[0].ds_addr);
-}
-
 static int
 bcm283x_dwc_otg_attach(device_t dev)
 {
-	struct msg_set_power_state *msg;
-	bus_dma_tag_t msg_tag;
-	bus_dmamap_t msg_map;
-	bus_addr_t msg_phys;
-	void *msg_buf;
-	uint32_t reg;
-	device_t mbox;
-	int err;
 
-	/* get mbox device */
-	mbox = devclass_get_device(devclass_find("mbox"), 0);
-	if (mbox == NULL) {
-		device_printf(dev, "can't find mbox\n");
-		return (ENXIO);
-	}
-
-	err = bus_dma_tag_create(bus_get_dma_tag(dev), 16, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    sizeof(struct msg_set_power_state), 1,
-	    sizeof(struct msg_set_power_state), 0,
-	    NULL, NULL, &msg_tag);
-	if (err != 0) {
-		device_printf(dev, "can't create DMA tag\n");
-		return (ENXIO);
-	}
-
-	err = bus_dmamem_alloc(msg_tag, (void **)&msg_buf, 0, &msg_map);
-	if (err != 0) {
-		bus_dma_tag_destroy(msg_tag);
-		device_printf(dev, "can't allocate dmamem\n");
-		return (ENXIO);
-	}
-
-	err = bus_dmamap_load(msg_tag, msg_map, msg_buf,
-	    sizeof(struct msg_set_power_state), bcm283x_dwc_otg_cb,
-	    &msg_phys, 0);
-	if (err != 0) {
-		bus_dmamem_free(msg_tag, msg_buf, msg_map);
-		bus_dma_tag_destroy(msg_tag);
-		device_printf(dev, "can't load DMA map\n");
-		return (ENXIO);
-	}
-
-	msg = msg_buf;
-
-	memset(msg, 0, sizeof(*msg));
-	msg->hdr.buf_size = sizeof(*msg);
-	msg->hdr.code = BCM2835_MBOX_CODE_REQ;
-	msg->tag_hdr.tag = BCM2835_MBOX_TAG_SET_POWER_STATE;
-	msg->tag_hdr.val_buf_size = sizeof(msg->body);
-	msg->tag_hdr.val_len = sizeof(msg->body.req);
-	msg->body.req.device_id = BCM2835_MBOX_POWER_ID_USB_HCD;
-	msg->body.req.state = BCM2835_MBOX_POWER_ON | BCM2835_MBOX_POWER_WAIT;
-	msg->end_tag = 0;
-
-	bus_dmamap_sync(msg_tag, msg_map,
-	    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
-
-	MBOX_WRITE(mbox, BCM2835_MBOX_CHAN_PROP, (uint32_t)msg_phys);
-	MBOX_READ(mbox, BCM2835_MBOX_CHAN_PROP, &reg);
-
-	bus_dmamap_unload(msg_tag, msg_map);
-	bus_dmamem_free(msg_tag, msg_buf, msg_map);
-	bus_dma_tag_destroy(msg_tag);
-
+	bcm2835_mbox_set_power_state(dev, BCM2835_MBOX_POWER_ID_USB_HCD, TRUE);
 	return (dwc_otg_attach(dev));
 }
 

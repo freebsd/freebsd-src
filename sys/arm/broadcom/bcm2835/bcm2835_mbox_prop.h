@@ -99,6 +99,9 @@ struct msg_set_power_state {
 	uint32_t end_tag;
 };
 
+/* Sets the power state for a given device */
+int bcm2835_mbox_set_power_state(device_t, uint32_t, boolean_t);
+
 #define BCM2835_MBOX_CLOCK_ID_EMMC		0x00000001
 #define BCM2835_MBOX_CLOCK_ID_UART		0x00000002
 #define BCM2835_MBOX_CLOCK_ID_ARM		0x00000003
