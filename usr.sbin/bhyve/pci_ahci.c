@@ -1759,7 +1759,7 @@ ata_ioreq_cb(struct blockif_req *br, int err)
 
 	DPRINTF("%s %d\n", __func__, err);
 
-	ncq = 0;
+	ncq = dsm = 0;
 	aior = br->br_param;
 	p = aior->io_pr;
 	cfis = aior->cfis;
