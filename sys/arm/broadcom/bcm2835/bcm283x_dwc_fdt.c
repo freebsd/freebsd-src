@@ -49,15 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/dwc_otg.h>
 #include <dev/usb/controller/dwc_otg_fdt.h>
 
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#include <machine/pmap.h>
-
-#include <arm/broadcom/bcm2835/bcm2835_mbox.h>
 #include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>
-#include <arm/broadcom/bcm2835/bcm2835_vcbus.h>
-
-#include "mbox_if.h"
 
 static device_probe_t bcm283x_dwc_otg_probe;
 static device_attach_t bcm283x_dwc_otg_attach;
