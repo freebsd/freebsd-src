@@ -596,7 +596,9 @@ shmget_existing(struct thread *td, struct shmget_args *uap, int mode,
     int segnum)
 {
 	struct shmid_kernel *shmseg;
+#ifdef MAC
 	int error;
+#endif
 
 	SYSVSHM_ASSERT_LOCKED();
 	KASSERT(segnum >= 0 && segnum < shmalloced,
