@@ -42,10 +42,10 @@ hint.arswitch.0.pad.0.txclk_delay_sel=1
 hint.arswitch.0.pad.0.rxclk_delay_sel=2
 
 # XXX there's no LED management just yet!
-hint.arswitch.0.led.ctrl0=0x00000000
-hint.arswitch.0.led.ctrl1=0xc737c737
+hint.arswitch.0.led.ctrl0=0xc737c737
+hint.arswitch.0.led.ctrl1=0x00000000
 hint.arswitch.0.led.ctrl2=0x00000000
-hint.arswitch.0.led.ctrl3=0x00c30c00
+hint.arswitch.0.led.ctrl3=0x0030c300
 hint.arswitch.0.led.open_drain=0
 
 # force_link=1 is required for the rest of the parameters
