@@ -522,11 +522,8 @@ fast_failed:
 			fs.m = NULL;
 			if (!vm_page_count_severe() || P_KILLED(curproc)) {
 #if VM_NRESERVLEVEL > 0
-				if ((fs.object->flags & OBJ_COLORED) == 0) {
-					fs.object->flags |= OBJ_COLORED;
-					fs.object->pg_color = atop(vaddr) -
-					    fs.pindex;
-				}
+				vm_object_color(fs.object, atop(vaddr) -
+				    fs.pindex);
 #endif
 				alloc_req = P_KILLED(curproc) ?
 				    VM_ALLOC_SYSTEM : VM_ALLOC_NORMAL;

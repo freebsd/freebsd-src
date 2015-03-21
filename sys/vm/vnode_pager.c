@@ -53,6 +53,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_vm.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
@@ -242,6 +244,9 @@ retry:
 		VI_UNLOCK(vp);
 	} else {
 		object->ref_count++;
+#if VM_NRESERVLEVEL > 0
+		vm_object_color(object, 0);
+#endif
 		VM_OBJECT_WUNLOCK(object);
 	}
 	vref(vp);
