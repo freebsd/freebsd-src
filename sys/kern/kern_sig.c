@@ -3089,9 +3089,28 @@ SYSCTL_INT(_kern, OID_AUTO, compress_user_cores_gzlevel, CTLFLAG_RWTUN,
 static int compress_user_cores = 0;
 #endif
 
+/*
+ * Protect the access to corefilename[] by allproc_lock.
+ */
+#define	corefilename_lock	allproc_lock
+
 static char corefilename[MAXPATHLEN] = {"%N.core"};
-SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RWTUN, corefilename,
-    sizeof(corefilename), "Process corefile name format string");
+
+static int
+sysctl_kern_corefile(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	sx_xlock(&corefilename_lock);
+	error = sysctl_handle_string(oidp, corefilename, sizeof(corefilename),
+	    req);
+	sx_xunlock(&corefilename_lock);
+
+	return (error);
+}
+SYSCTL_PROC(_kern, OID_AUTO, corefile, CTLTYPE_STRING | CTLFLAG_RWTUN |
+    CTLFLAG_MPSAFE, 0, 0, sysctl_kern_corefile, "A",
+    "Process corefile name format string");
 
 /*
  * corefile_open(comm, uid, pid, td, compress, vpp, namep)
@@ -3120,6 +3139,7 @@ corefile_open(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 	name = malloc(MAXPATHLEN, M_TEMP, M_WAITOK | M_ZERO);
 	indexpos = -1;
 	(void)sbuf_new(&sb, name, MAXPATHLEN, SBUF_FIXEDLEN);
+	sx_slock(&corefilename_lock);
 	for (i = 0; format[i] != '\0'; i++) {
 		switch (format[i]) {
 		case '%':	/* Format character */
@@ -3162,6 +3182,7 @@ corefile_open(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 			break;
 		}
 	}
+	sx_sunlock(&corefilename_lock);
 	free(hostname, M_TEMP);
 	if (compress)
 		sbuf_printf(&sb, GZ_SUFFIX);
