@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sdt.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
+#include <sys/umtx.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
@@ -637,6 +638,7 @@ exit1(struct thread *td, int rv)
 	wakeup(p->p_pptr);
 	cv_broadcast(&p->p_pwait);
 	sched_exit(p->p_pptr, td);
+	umtx_thread_exit(td);
 	PROC_SLOCK(p);
 	p->p_state = PRS_ZOMBIE;
 	PROC_UNLOCK(p->p_pptr);
