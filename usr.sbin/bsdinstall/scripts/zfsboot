@@ -320,31 +320,34 @@ dialog_menu_main()
 	[ "$ZFSBOOT_SWAP_MIRROR" ] && swapmirror="$msg_yes"
 	local disks n disks_grammar
 	f_count n $ZFSBOOT_DISKS
-	{ [ $n -eq 1 ] && disks_grammar=$msg_disk_singular; } || 
+	{ [ $n -eq 1 ] && disks_grammar=$msg_disk_singular; } ||
 		disks_grammar=$msg_disk_plural # grammar
 	local menu_list="
-		'>>> $msg_install'        '$msg_install_desc'
-		                          '$msg_install_help'
-		'T $msg_pool_type_disks'  '$ZFSBOOT_VDEV_TYPE: $n $disks_grammar'
-                                          '$msg_pool_type_disks_help'
-		'- $msg_rescan_devices'   '*'
-		                          '$msg_rescan_devices_help'
-		'- $msg_disk_info'        '*'
-		                          '$msg_disk_info_help'
-		'N $msg_pool_name'        '$ZFSBOOT_POOL_NAME'
-		                          '$msg_pool_name_help'
-		'4 $msg_force_4k_sectors' '$force4k'
-		                          '$msg_force_4k_sectors_help'
-		'E $msg_encrypt_disks'    '$usegeli'
-		                          '$msg_encrypt_disks_help'
-		'P $msg_partition_scheme' '$ZFSBOOT_PARTITION_SCHEME'
-		                          '$msg_partition_scheme_help'
-		'S $msg_swap_size'        '$ZFSBOOT_SWAP_SIZE'
-		                          '$msg_swap_size_help'
-		'M $msg_swap_mirror'      '$swapmirror'
-		                          '$msg_swap_mirror_help'
-		'W $msg_swap_encrypt'     '$swapgeli'
-		                          '$msg_swap_encrypt_help'
+		'>>> $msg_install'      '$msg_install_desc'
+		                        '$msg_install_help'
+		'T $msg_pool_type_disks'
+		                        '$ZFSBOOT_VDEV_TYPE: $n $disks_grammar'
+		                        '$msg_pool_type_disks_help'
+		'- $msg_rescan_devices' '*'
+		                        '$msg_rescan_devices_help'
+		'- $msg_disk_info'      '*'
+		                        '$msg_disk_info_help'
+		'N $msg_pool_name'      '$ZFSBOOT_POOL_NAME'
+		                        '$msg_pool_name_help'
+		'4 $msg_force_4k_sectors'
+		                        '$force4k'
+		                        '$msg_force_4k_sectors_help'
+		'E $msg_encrypt_disks'  '$usegeli'
+		                        '$msg_encrypt_disks_help'
+		'P $msg_partition_scheme'
+		                        '$ZFSBOOT_PARTITION_SCHEME'
+		                        '$msg_partition_scheme_help'
+		'S $msg_swap_size'      '$ZFSBOOT_SWAP_SIZE'
+		                        '$msg_swap_size_help'
+		'M $msg_swap_mirror'    '$swapmirror'
+		                        '$msg_swap_mirror_help'
+		'W $msg_swap_encrypt'   '$swapgeli'
+		                        '$msg_swap_encrypt_help'
 	" # END-QUOTE
 	local defaultitem= # Calculated below
 	local hline="$hline_alnum_arrows_punc_tab_enter"
@@ -937,12 +940,12 @@ zfs_create_diskpart()
 		# 5. Add freebsd-zfs partition for zroot
 		#
 		f_eval_catch $funcname gpart "$GPART_ADD_INDEX" \
-			     $mbrindex freebsd-zfs ${disk}s1 || return $FAILURE
+		             $mbrindex freebsd-zfs ${disk}s1 || return $FAILURE
 		f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \
-				/dev/$disk$targetpart # Pedantic
+		                /dev/$disk$targetpart # Pedantic
 		f_eval_catch $funcname dd "$DD_WITH_OPTIONS" \
-			     /boot/zfsboot /dev/${disk}s1 count=1 ||
-			     return $FAILURE
+		             /boot/zfsboot /dev/${disk}s1 count=1 ||
+		             return $FAILURE
 		;;
 
 	esac # $ZFSBOOT_PARTITION_SCHEME
@@ -1123,7 +1126,7 @@ zfs_create_boot()
 		if [ "$ZFSBOOT_GELI_ENCRYPTION" ]; then
 			# Generate an encryption key using random(4)
 			f_eval_catch $funcname dd "$DD_WITH_OPTIONS" \
-				     /dev/random "$bootpool/$zroot_key" \
+			             /dev/random "$bootpool/$zroot_key" \
 			             "bs=4096 count=1" || return $FAILURE
 		else
 			# Clean up
@@ -1177,6 +1180,7 @@ zfs_create_boot()
 			return $FAILURE
 		f_eval_catch -d $funcname umount "$UMOUNT" /mnt # tmpfs
 	fi
+
 	#
 	# Create the gmirror(8) GEOMS for swap
 	#
@@ -1257,7 +1261,7 @@ zfs_create_boot()
 	# MBR boot loader touch-up
 	if [ "$ZFSBOOT_PARTITION_SCHEME" = "MBR" ]; then
 		f_dprintf "$funcname: Updating MBR boot loader on disks..."
-		# Stick the ZFS boot loader in the "convienient hole" after 
+		# Stick the ZFS boot loader in the "convienient hole" after
 		# the ZFS internal metadata
 		for disk in $disks; do
 			f_eval_catch $funcname dd "$DD_WITH_OPTIONS" \
@@ -1299,8 +1303,10 @@ zfs_create_boot()
 	             $BSDINSTALL_TMPBOOT/loader.conf.zfs || return $FAILURE
 
 	if [ "$ZFSBOOT_SWAP_MIRROR" ]; then
-		f_eval_catch $funcname echo "$ECHO_APPEND" 'geom_mirror_load=\"YES\"' \
-		             $BSDINSTALL_TMPBOOT/loader.conf.gmirror || return $FAILURE
+		f_eval_catch $funcname echo "$ECHO_APPEND" \
+		             'geom_mirror_load=\"YES\"' \
+		             $BSDINSTALL_TMPBOOT/loader.conf.gmirror ||
+		             return $FAILURE
 	fi
 
 	# We're all done unless we should go on for boot pool
@@ -1323,8 +1329,8 @@ zfs_create_boot()
 		             return $FAILURE
 	done
 	f_eval_catch $funcname printf "$PRINTF_CONF" vfs.root.mountfrom \
-	    "\"zfs:$zroot_name/$zroot_bootfs\"" \
-	    $BSDINSTALL_TMPBOOT/loader.conf.root || return $FAILURE
+		"\"zfs:$zroot_name/$zroot_bootfs\"" \
+		$BSDINSTALL_TMPBOOT/loader.conf.root || return $FAILURE
 
 	# We're all done unless we should go on to do encryption
 	[ "$ZFSBOOT_GELI_ENCRYPTION" ] || return $SUCCESS
@@ -1334,9 +1340,9 @@ zfs_create_boot()
 	#
 	f_dprintf "$funcname: Configuring disk encryption..."
 	f_eval_catch $funcname echo "$ECHO_APPEND" 'aesni_load=\"YES\"' \
-	    $BSDINSTALL_TMPBOOT/loader.conf.aesni || return $FAILURE
+		$BSDINSTALL_TMPBOOT/loader.conf.aesni || return $FAILURE
 	f_eval_catch $funcname echo "$ECHO_APPEND" 'geom_eli_load=\"YES\"' \
-	    $BSDINSTALL_TMPBOOT/loader.conf.geli || return $FAILURE
+		$BSDINSTALL_TMPBOOT/loader.conf.geli || return $FAILURE
 	for disk in $disks; do
 		f_eval_catch $funcname printf "$PRINTF_CONF" \
 			geli_%s_keyfile0_load "$disk$targetpart YES" \
@@ -1407,14 +1413,14 @@ f_dprintf "FSTAB_FMT=[%s]" "$FSTAB_FMT"
 # ZFS with UEFI yet
 #
 if f_interactive; then
-    bootmethod=$(sysctl -n machdep.bootmethod)
-    f_dprintf "machdep.bootmethod=[%s]" "$bootmethod"
-    if [ "$bootmethod" != "BIOS" ]; then
-	dialog_uefi_prompt
-	retval=$?
-	f_dprintf "uefi_prompt=[%s]" "$retval"
-	[ $retval -eq $DIALOG_OK ] || f_die
-    fi
+	bootmethod=$( sysctl -n machdep.bootmethod )
+	f_dprintf "machdep.bootmethod=[%s]" "$bootmethod"
+	if [ "$bootmethod" != "BIOS" ]; then
+		dialog_uefi_prompt
+		retval=$?
+		f_dprintf "uefi_prompt=[%s]" "$retval"
+		[ $retval -eq $DIALOG_OK ] || f_die
+	fi
 fi
 
 #
