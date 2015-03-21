@@ -69,6 +69,34 @@ ar9300_get_next_tbtt(struct ath_hal *ah)
 	return (OS_REG_READ(ah, AR_NEXT_TBTT_TIMER));
 }
 
+
+/*
+ * TODO: implement the antenna diversity control for AR9485 and
+ * other LNA mixing based NICs.
+ *
+ * For now we'll just go with the HAL default and make these no-ops.
+ */
+static HAL_ANT_SETTING
+ar9300_freebsd_get_antenna_switch(struct ath_hal *ah)
+{
+
+	return (HAL_ANT_VARIABLE);
+}
+
+static HAL_BOOL
+ar9300_freebsd_set_antenna_switch(struct ath_hal *ah, HAL_ANT_SETTING setting)
+{
+
+	return (AH_TRUE);
+}
+
+static u_int
+ar9300_freebsd_get_cts_timeout(struct ath_hal *ah)
+{
+    u_int clks = MS(OS_REG_READ(ah, AR_TIME_OUT), AR_TIME_OUT_CTS);
+    return ath_hal_mac_usec(ah, clks);      /* convert from system clocks */
+}
+
 void
 ar9300_attach_freebsd_ops(struct ath_hal *ah)
 {
@@ -159,8 +187,8 @@ ar9300_attach_freebsd_ops(struct ath_hal *ah)
 	ah->ah_getRfGain		= ar9300_get_rfgain;
 	ah->ah_getDefAntenna	= ar9300_get_def_antenna;
 	ah->ah_setDefAntenna	= ar9300_set_def_antenna;
-	// ah->ah_getAntennaSwitch	= ar9300_get_antenna_switch;
-	// ah->ah_setAntennaSwitch	= ar9300_set_antenna_switch;
+	ah->ah_getAntennaSwitch	= ar9300_freebsd_get_antenna_switch;
+	ah->ah_setAntennaSwitch	= ar9300_freebsd_set_antenna_switch;
 	// ah->ah_setSifsTime		= ar9300_set_sifs_time;
 	// ah->ah_getSifsTime		= ar9300_get_sifs_time;
 	ah->ah_setSlotTime		= ar9300_set_slot_time;
@@ -169,6 +197,7 @@ ar9300_attach_freebsd_ops(struct ath_hal *ah)
 	ah->ah_setAckTimeout	= ar9300_set_ack_timeout;
 	// XXX ack/ctsrate
 	// XXX CTS timeout
+	ah->ah_getCTSTimeout = ar9300_freebsd_get_cts_timeout;
 	// XXX decompmask
 	// coverageclass
 	ah->ah_setQuiet		= ar9300_set_quiet;
