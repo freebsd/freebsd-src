@@ -1333,6 +1333,9 @@ ${_bt}-kerberos5/tools/asn1_compile: ${_bt}-kerberos5/lib/libroken
 _texinfo=	gnu/usr.bin/texinfo/libtxi \
 		gnu/usr.bin/texinfo/makeinfo \
 		gnu/usr.bin/texinfo/install-info
+
+${_bt}-gnu/usr.bin/texinfo/install-info: ${_bt}-gnu/usr.bin/texinfo/libtxi
+${_bt}-gnu/usr.bin/texinfo/makeinfo: ${_bt}-gnu/usr.bin/texinfo/libtxi
 .endif
 bootstrap-tools: .PHONY
 
