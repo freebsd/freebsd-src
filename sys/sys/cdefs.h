@@ -80,23 +80,23 @@
 #define	__GNUCLIKE___SECTION 1
 
 #ifndef __INTEL_COMPILER
-# define __GNUCLIKE_CTOR_SECTION_HANDLING 1
+#define	__GNUCLIKE_CTOR_SECTION_HANDLING 1
 #endif
 
 #define	__GNUCLIKE_BUILTIN_CONSTANT_P 1
-# if defined(__INTEL_COMPILER) && defined(__cplusplus) \
-    && __INTEL_COMPILER < 800
-#  undef __GNUCLIKE_BUILTIN_CONSTANT_P
-# endif
+#if defined(__INTEL_COMPILER) && defined(__cplusplus) && \
+   __INTEL_COMPILER < 800
+#undef __GNUCLIKE_BUILTIN_CONSTANT_P
+#endif
 
 #if (__GNUC_MINOR__ > 95 || __GNUC__ >= 3) && !defined(__INTEL_COMPILER)
-# define __GNUCLIKE_BUILTIN_VARARGS 1
-# define __GNUCLIKE_BUILTIN_STDARG 1
-# define __GNUCLIKE_BUILTIN_VAALIST 1
+#define	__GNUCLIKE_BUILTIN_VARARGS 1
+#define	__GNUCLIKE_BUILTIN_STDARG 1
+#define	__GNUCLIKE_BUILTIN_VAALIST 1
 #endif
 
 #if defined(__GNUC__)
-# define __GNUC_VA_LIST_COMPATIBILITY 1
+#define	__GNUC_VA_LIST_COMPATIBILITY 1
 #endif
 
 /*
@@ -107,8 +107,8 @@
 #endif
 
 #ifndef __INTEL_COMPILER
-# define __GNUCLIKE_BUILTIN_NEXT_ARG 1
-# define __GNUCLIKE_MATH_BUILTIN_RELOPS
+#define	__GNUCLIKE_BUILTIN_NEXT_ARG 1
+#define	__GNUCLIKE_MATH_BUILTIN_RELOPS
 #endif
 
 #define	__GNUCLIKE_BUILTIN_MEMCPY 1
@@ -139,7 +139,7 @@
 
 /*
  * The __CONCAT macro is used to concatenate parts of symbol names, e.g.
- * with "#define	OLD(foo) __CONCAT(old,foo)", OLD(foo) produces oldfoo.
+ * with "#define OLD(foo) __CONCAT(old,foo)", OLD(foo) produces oldfoo.
  * The __CONCAT macro is a bit tricky to use if it must work in non-ANSI
  * mode -- there must be no spaces between its arguments, and for nested
  * __CONCAT's, all the __CONCAT's must be at the left.  __CONCAT can also
