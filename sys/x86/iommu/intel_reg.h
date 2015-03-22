@@ -103,7 +103,7 @@ typedef struct dmar_irte {
 #define	DMAR_IRTE1_IM_POSTED	(1ULL << 15)	/* Posted */
 /* Delivery Mode */
 #define	DMAR_IRTE1_DLM_FM	(0ULL << 5)
-#define	DMAR_IRTE1_DLM_LP	(1ULL << 5
+#define	DMAR_IRTE1_DLM_LP	(1ULL << 5)
 #define	DMAR_IRTE1_DLM_SMI	(2ULL << 5)
 #define	DMAR_IRTE1_DLM_NMI	(4ULL << 5)
 #define	DMAR_IRTE1_DLM_INIT	(5ULL << 5)
