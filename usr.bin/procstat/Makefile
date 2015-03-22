@@ -8,6 +8,7 @@ SRCS=	procstat.c		\
 	procstat_basic.c	\
 	procstat_bin.c		\
 	procstat_cred.c		\
+	procstat_cs.c		\
 	procstat_files.c	\
 	procstat_kstack.c	\
 	procstat_rlimit.c	\
