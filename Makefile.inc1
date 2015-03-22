@@ -1094,6 +1094,8 @@ legacy:
 #
 # bootstrap-tools: Build tools needed for compatibility
 #
+_bt=		_bootstrap-tools	
+
 .if ${MK_GAMES} != "no"
 _strfile=	games/fortune/strfile
 .endif
@@ -1125,11 +1127,15 @@ _lex=		usr.bin/lex
 .if ${BOOTSTRAPPING} < 900006 || ${BOOTSTRAPPING} >= 1000013
 _yacc=		lib/liby \
 		usr.bin/yacc
+
+${_bt}-usr.bin/yacc: ${_bt}-lib/liby
 .endif
 
 .if ${BOOTSTRAPPING} < 1000026
 _nmtree=	lib/libnetbsd \
 		usr.sbin/nmtree
+
+${_bt}-usr.sbin/nmtree: ${_bt}-lib/libnetbsd
 .endif
 
 .if ${BOOTSTRAPPING} < 1000027
@@ -1156,6 +1162,9 @@ _clang_tblgen= \
 	lib/clang/libllvmtablegen \
 	usr.bin/clang/tblgen \
 	usr.bin/clang/clang-tblgen
+
+${_bt}-usr.bin/clang/clang-tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/libllvmsupport
+${_bt}-usr.bin/clang/tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/libllvmsupport
 .endif
 
 .if ${MK_CDDL} != "no" && \
@@ -1164,6 +1173,9 @@ _clang_tblgen= \
       || (${MACHINE} != ${TARGET} || ${MACHINE_ARCH} != ${TARGET_ARCH}))
 _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
     lib/libdwarf cddl/usr.bin/ctfconvert cddl/usr.bin/ctfmerge
+
+${_bt}-cddl/usr.bin/ctfconvert: ${_bt}-lib/libelf ${_bt}-lib/libdwarf ${_bt}-cddl/lib/libctf
+${_bt}-cddl/usr.bin/ctfmerge: ${_bt}-lib/libelf ${_bt}-lib/libdwarf ${_bt}-cddl/lib/libctf
 .endif
 
 .if ${MK_FDT} != "no"
@@ -1174,11 +1186,15 @@ _dtc= gnu/usr.bin/dtc
 _texinfo=	gnu/usr.bin/texinfo/libtxi \
 		gnu/usr.bin/texinfo/makeinfo \
 		gnu/usr.bin/texinfo/install-info
+
+${_bt}-gnu/usr.bin/texinfo/install-info: ${_bt}-gnu/usr.bin/texinfo/libtxi
+${_bt}-gnu/usr.bin/texinfo/makeinfo: ${_bt}-gnu/usr.bin/texinfo/libtxi
 .endif
+bootstrap-tools: .PHONY
+
 #	Please document (add comment) why something is in 'bootstrap-tools'.
 #	Try to bound the building of the bootstrap-tool to just the
 #	FreeBSD versions that need the tool built at this stage of the build.
-bootstrap-tools:
 .for _tool in \
     ${_clang_tblgen} \
     ${_dtrace_tools} \
@@ -1203,12 +1219,15 @@ bootstrap-tools:
     ${_crunchgen} \
     ${_nmtree} \
     ${_texinfo}
+${_bt}-${_tool}: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
 		${MAKE} DIRPRFX=${_tool}/ depend; \
 		${MAKE} DIRPRFX=${_tool}/ all; \
 		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy install
+
+bootstrap-tools: ${_bt}-${_tool}
 .endfor
 
 #
