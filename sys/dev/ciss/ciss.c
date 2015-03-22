@@ -833,7 +833,7 @@ setup:
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
-			   CISS_MAX_SG_ELEMENTS,	/* nsegments */
+			   BUS_SPACE_UNRESTRICTED,	/* nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,				/* flags */
 			   NULL, NULL,			/* lockfunc, lockarg */
@@ -851,7 +851,8 @@ setup:
 			   BUS_SPACE_MAXADDR,		/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
-			   MAXBSIZE, CISS_MAX_SG_ELEMENTS,	/* maxsize, nsegments */
+			   (CISS_MAX_SG_ELEMENTS - 1) * PAGE_SIZE, /* maxsize */
+			   CISS_MAX_SG_ELEMENTS,	/* nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   BUS_DMA_ALLOCNOW,		/* flags */
 			   busdma_lock_mutex, &sc->ciss_mtx,	/* lockfunc, lockarg */
