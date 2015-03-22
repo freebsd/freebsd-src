@@ -114,24 +114,24 @@ bi_copyenv(vm_offset_t start)
 	/* Traverse the environment. */
 	for (ep = environ; ep != NULL; ep = ep->ev_next) {
 		len = strlen(ep->ev_name);
-		if (x86_efi_copyin(ep->ev_name, addr, len) != len)
+		if (archsw.arch_copyin(ep->ev_name, addr, len) != len)
 			break;
 		addr += len;
-		if (x86_efi_copyin("=", addr, 1) != 1)
+		if (archsw.arch_copyin("=", addr, 1) != 1)
 			break;
 		addr++;
 		if (ep->ev_value != NULL) {
 			len = strlen(ep->ev_value);
-			if (x86_efi_copyin(ep->ev_value, addr, len) != len)
+			if (archsw.arch_copyin(ep->ev_value, addr, len) != len)
 				break;
 			addr += len;
 		}
-		if (x86_efi_copyin("", addr, 1) != 1)
+		if (archsw.arch_copyin("", addr, 1) != 1)
 			break;
 		last = ++addr;
 	}
 
-	if (x86_efi_copyin("", last++, 1) != 1)
+	if (archsw.arch_copyin("", last++, 1) != 1)
 		last = start;
 	return(last);
 }
@@ -155,7 +155,7 @@ bi_copyenv(vm_offset_t start)
 #define	COPY32(v, a, c) {					\
 	uint32_t x = (v);					\
 	if (c)							\
-		x86_efi_copyin(&x, a, sizeof(x));		\
+		archsw.arch_copyin(&x, a, sizeof(x));		\
 	a += sizeof(x);						\
 }
 
@@ -163,8 +163,8 @@ bi_copyenv(vm_offset_t start)
 	COPY32(t, a, c);					\
 	COPY32(strlen(s) + 1, a, c);				\
 	if (c)							\
-		x86_efi_copyin(s, a, strlen(s) + 1);		\
-	a += roundup(strlen(s) + 1, sizeof(uint64_t));		\
+		archsw.arch_copyin(s, a, strlen(s) + 1);	\
+	a += roundup(strlen(s) + 1, sizeof(u_long));		\
 }
 
 #define	MOD_NAME(a, s, c)	MOD_STR(MODINFO_NAME, a, s, c)
@@ -175,8 +175,8 @@ bi_copyenv(vm_offset_t start)
 	COPY32(t, a, c);					\
 	COPY32(sizeof(s), a, c);				\
 	if (c)							\
-		x86_efi_copyin(&s, a, sizeof(s));		\
-	a += roundup(sizeof(s), sizeof(uint64_t));		\
+		archsw.arch_copyin(&s, a, sizeof(s));		\
+	a += roundup(sizeof(s), sizeof(u_long));		\
 }
 
 #define	MOD_ADDR(a, s, c)	MOD_VAR(MODINFO_ADDR, a, s, c)
@@ -186,8 +186,8 @@ bi_copyenv(vm_offset_t start)
 	COPY32(MODINFO_METADATA | mm->md_type, a, c);		\
 	COPY32(mm->md_size, a, c);				\
 	if (c)							\
-		x86_efi_copyin(mm->md_data, a, mm->md_size);	\
-	a += roundup(mm->md_size, sizeof(uint64_t));		\
+		archsw.arch_copyin(mm->md_data, a, mm->md_size);	\
+	a += roundup(mm->md_size, sizeof(u_long));		\
 }
 
 #define	MOD_END(a, c) {						\
@@ -326,7 +326,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 	 * tested/set by MI code before launching the kernel.
 	 */
 	rootdevname = getenv("rootdev");
-	x86_efi_getdev((void**)(&rootdev), rootdevname, NULL);
+	archsw.arch_getdev((void**)(&rootdev), rootdevname, NULL);
 	if (rootdev == NULL) {
 		printf("Can't determine root device.\n");
 		return(EINVAL);
