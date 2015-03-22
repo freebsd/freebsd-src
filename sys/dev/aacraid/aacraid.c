@@ -597,9 +597,9 @@ aac_alloc(struct aac_softc *sc)
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR, 	/* highaddr */
 			       NULL, NULL, 		/* filter, filterarg */
-			       MAXBSIZE,		/* maxsize */
+			       sc->aac_max_sectors << 9, /* maxsize */
 			       sc->aac_sg_tablesize,	/* nsegments */
-			       MAXBSIZE,		/* maxsegsize */
+			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			       BUS_DMA_ALLOCNOW,	/* flags */
 			       busdma_lock_mutex,	/* lockfunc */
 			       &sc->aac_io_lock,	/* lockfuncarg */
