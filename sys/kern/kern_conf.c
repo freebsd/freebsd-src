@@ -1093,9 +1093,12 @@ destroy_devl(struct cdev *dev)
 	}
 
 	dev_unlock();
-	notify_destroy(dev);
+	if ((cdp->cdp_flags & CDP_UNREF_DTR) == 0) {
+		/* avoid out of order notify events */
+		notify_destroy(dev);
+	}
 	mtx_lock(&cdevpriv_mtx);
-	while ((p = LIST_FIRST(&cdev2priv(dev)->cdp_fdpriv)) != NULL) {
+	while ((p = LIST_FIRST(&cdp->cdp_fdpriv)) != NULL) {
 		devfs_destroy_cdevpriv(p);
 		mtx_lock(&cdevpriv_mtx);
 	}
@@ -1141,12 +1144,25 @@ delist_dev_locked(struct cdev *dev)
 	devfs_destroy(dev);
 	LIST_FOREACH(child, &dev->si_children, si_siblings)
 		delist_dev_locked(child);
+	dev_unlock();	
+	/* ensure the destroy event is queued in order */
+	notify_destroy(dev);
+	dev_lock();
 }
 
+/*
+ * This function will delist a character device and its children from
+ * the directory listing and create a destroy event without waiting
+ * for all character device references to go away. At some later point
+ * destroy_dev() must be called to complete the character device
+ * destruction. After calling this function the character device name
+ * can instantly be re-used.
+ */
 void
 delist_dev(struct cdev *dev)
 {
 
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "delist_dev");
 	dev_lock();
 	delist_dev_locked(dev);
 	dev_unlock();
