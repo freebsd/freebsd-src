@@ -1851,6 +1851,7 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 		_PHOLD(p);
 		PROC_UNLOCK(p);
 		sbuf_new_for_sysctl(&sb, NULL, GET_PS_STRINGS_CHUNK_SZ, req);
+		sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
 		error = proc_getargv(curthread, p, &sb);
 		error2 = sbuf_finish(&sb);
 		PRELE(p);
@@ -1903,6 +1904,7 @@ sysctl_kern_proc_env(SYSCTL_HANDLER_ARGS)
 	}
 
 	sbuf_new_for_sysctl(&sb, NULL, GET_PS_STRINGS_CHUNK_SZ, req);
+	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
 	error = proc_getenvv(curthread, p, &sb);
 	error2 = sbuf_finish(&sb);
 	PRELE(p);
