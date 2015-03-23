@@ -26,7 +26,7 @@
 #endif
 
 #include <libevdev/libevdev.h>
-#include <sys/signalfd.h>
+#include <sys/select.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -42,8 +42,8 @@
 #define max(a, b) (((a) > (b)) ? (a) : (b))
 
 static int
-usage(void) {
-	printf("Usage: %s /dev/input/event0\n", program_invocation_short_name);
+usage(const char *name) {
+	printf("Usage: %s /dev/input/event0\n", name);
 	printf("\n");
 	printf("This tool reads the touchpad events from the kernel and calculates\n "
 	       "the minimum and maximum for the x and y coordinates, respectively.\n");
@@ -99,24 +99,23 @@ handle_event(struct dimensions *d, const struct input_event *ev) {
 
 static int
 mainloop(struct libevdev *dev, struct dimensions *dim) {
-	struct pollfd fds[2];
+	fd_set fds;
 	sigset_t mask;
+	int ev_fd = libevdev_get_fd(dev);
 
-	fds[0].fd = libevdev_get_fd(dev);
-	fds[0].events = POLLIN;
+	FD_ZERO(&fds);
+	FD_SET(ev_fd, &fds);
 
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGINT);
-	fds[1].fd = signalfd(-1, &mask, SFD_NONBLOCK);
-	fds[1].events = POLLIN;
 
 	sigprocmask(SIG_BLOCK, &mask, NULL);
 
-	while (poll(fds, 2, -1)) {
+	while (pselect(ev_fd + 1, &fds, NULL, NULL, NULL, &mask)) {
 		struct input_event ev;
 		int rc;
 
-		if (fds[1].revents)
+		if (FD_ISSET(ev_fd, &fds))
 			break;
 
 		do {
@@ -144,11 +143,11 @@ int main (int argc, char **argv) {
 	struct dimensions dim;
 
 	if (argc < 2)
-		return usage();
+		return usage(argv[0]);
 
 	path = argv[1];
 	if (path[0] == '-')
-		return usage();
+		return usage(argv[0]);
 
 	fd = open(path, O_RDONLY|O_NONBLOCK);
 	if (fd < 0) {
