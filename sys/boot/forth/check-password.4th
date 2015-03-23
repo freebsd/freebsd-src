@@ -1,4 +1,4 @@
-\ Copyright (c) 2006-2012 Devin Teske <dteske@FreeBSD.org>
+\ Copyright (c) 2006-2015 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
@@ -48,33 +48,29 @@ variable readlen        \ input length
 \ 
 : sgetkey ( -- )
 
-   begin \ Loop forever
-      key? if \ Was a key pressed? (see loader(8))
+	begin \ Loop forever
+		key? if \ Was a key pressed? (see loader(8))
+			drop \ Remove stack-cruft
+			key  \ Get the key that was pressed
 
-         drop \ Remove stack-cruft
-         key  \ Get the key that was pressed
+			\ Check key pressed (see loader(8)) and input limit
+			dup 0<> if ( and ) readlen @ readmax < if
+				\ Echo an asterisk (unless Backspace/Enter)
+				dup bs_key <> if ( and ) dup enter_key <> if
+				      ." *" \ Echo an asterisk
+				then then
+				exit
+			then then
 
-         \ Check key pressed (see loader(8)) and input limit
-         dup 0<> if ( and ) readlen @ readmax < if
-
-            \ Echo an asterisk (unless Backspace/Enter)
-            dup bs_key <> if ( and ) dup enter_key <> if
-                  ." *" \ Echo an asterisk
-            then then
-
-            exit \ Exit from the function
-         then then
-
-         \ Always allow Backspace and Enter
-         dup bs_key = if exit then
-         dup enter_key = if exit then
-
-      then
-      50 ms \ Sleep for 50 milliseconds (see loader(8))
-   again
+			\ Always allow Backspace and Enter
+			dup bs_key = if exit then
+			dup enter_key = if exit then
+		then
+		50 ms \ Sleep for 50 milliseconds (see loader(8))
+	again
 ;
 
-: read ( String prompt -- )
+: read ( c-addr/u -- ) \ Expects string prompt as stack input
 
 	0 25 at-xy           \ Move the cursor to the bottom-left
 	dup 1+ read-start !  \ Store X offset after the prompt
@@ -127,8 +123,7 @@ variable readlen        \ input length
 
 		then then
 
-		drop \ drop the last key that was entered
-
+		drop \ last key pressed
 	again \ Enter was not pressed; repeat
 ;
 
