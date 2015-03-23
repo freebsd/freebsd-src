@@ -255,7 +255,7 @@ ENTRY(cpu_switch)
 	mov	r4, r0 /* Save the old thread. */
 
 #ifdef ARM_TP_ADDRESS
-	/* Store the old tp */
+	/* Store the old tp; userland can change it on armv4. */
 	ldr	r3, =ARM_TP_ADDRESS
 	ldr	r9, [r3]
 	str	r9, [r0, #(TD_MD + MD_TP)]
@@ -272,11 +272,10 @@ ENTRY(cpu_switch)
 	ldr	r9, [r1, #(TD_MD + MD_RAS_END)]
 	str	r9, [r3, #8]
 #else
-	/* Store the old tp */
-	mrc p15, 0, r9, c13, c0, 3
-	str	r9, [r0, #(TD_MD + MD_TP)]
-
-	/* Set the new tp */
+	/* 
+	 * Set new tp.  No need to store the old one first, userland can't 
+	 * change it directly on armv6.
+	 */
 	ldr	r9, [r1, #(TD_MD + MD_TP)]
 	mcr p15, 0, r9, c13, c0, 3
 #endif
