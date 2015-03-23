@@ -51,7 +51,7 @@ public:
     RedirectToFileDescriptor (int fd, bool transfer_fh_ownership);
 
     // If the stream is redirected to a file, forget about the file and if
-    // ownership of the file was transfered to this object, close the file.
+    // ownership of the file was transferred to this object, close the file.
     // If the stream is backed by a local cache, clear this cache.
     void
     Clear ();
@@ -85,7 +85,10 @@ protected:
     friend class SBSymbolContextList;
     friend class SBTarget;
     friend class SBThread;
+    friend class SBThreadPlan;
     friend class SBType;
+    friend class SBTypeEnumMember;
+    friend class SBTypeMemberFunction;
     friend class SBTypeMember;
     friend class SBValue;
     friend class SBWatchpoint;

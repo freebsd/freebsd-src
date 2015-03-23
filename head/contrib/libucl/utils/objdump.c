@@ -46,13 +46,14 @@ ucl_obj_dump (const ucl_object_t *obj, unsigned int shift)
 		if (obj->key != NULL) {
 			printf ("%skey: \"%s\"\n", pre, ucl_object_key (obj));
 		}
-		printf ("%sref: %hd\n", pre, obj->ref);
+		printf ("%sref: %u\n", pre, obj->ref);
 		printf ("%slen: %u\n", pre, obj->len);
 		printf ("%sprev: %p\n", pre, obj->prev);
 		printf ("%snext: %p\n", pre, obj->next);
 		if (obj->type == UCL_OBJECT) {
 			printf ("%stype: UCL_OBJECT\n", pre);
 			printf ("%svalue: %p\n", pre, obj->value.ov);
+			it_obj = NULL;
 			while ((cur = ucl_iterate_object (obj, &it_obj, true))) {
 				ucl_obj_dump (cur, shift + 2);
 			}
@@ -60,7 +61,10 @@ ucl_obj_dump (const ucl_object_t *obj, unsigned int shift)
 		else if (obj->type == UCL_ARRAY) {
 			printf ("%stype: UCL_ARRAY\n", pre);
 			printf ("%svalue: %p\n", pre, obj->value.av);
-			ucl_obj_dump (obj->value.av, shift + 2);
+			it_obj = NULL;
+			while ((cur = ucl_iterate_object (obj, &it_obj, true))) {
+				ucl_obj_dump (cur, shift + 2);
+			}
 		}
 		else if (obj->type == UCL_INT) {
 			printf ("%stype: UCL_INT\n", pre);
@@ -95,7 +99,7 @@ int
 main(int argc, char **argv)
 {
 	const char *fn = NULL;
-	char inbuf[8192];
+	unsigned char inbuf[8192];
 	struct ucl_parser *parser;
 	int k, ret = 0, r = 0;
 	ucl_object_t *obj = NULL;

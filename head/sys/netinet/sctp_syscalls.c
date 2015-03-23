@@ -94,11 +94,11 @@ sctp_syscalls_init(void *unused __unused)
 {
 	int error;
 
-	error = syscall_helper_register(sctp_syscalls);
+	error = syscall_helper_register(sctp_syscalls, SY_THR_STATIC);
 	KASSERT((error == 0),
 	    ("%s: syscall_helper_register failed for sctp syscalls", __func__));
 #ifdef COMPAT_FREEBSD32
-	error = syscall32_helper_register(sctp_syscalls);
+	error = syscall32_helper_register(sctp_syscalls, SY_THR_STATIC);
 	KASSERT((error == 0),
 	    ("%s: syscall32_helper_register failed for sctp syscalls",
 	    __func__));

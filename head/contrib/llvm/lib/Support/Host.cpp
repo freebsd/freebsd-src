@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-//  This header file implements the operating system Host concept.
+//  This file implements the operating system Host concept.
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,8 +17,8 @@
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Config/config.h"
-#include "llvm/Support/DataStream.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/raw_ostream.h"
 #include <string.h>
 
@@ -39,6 +39,8 @@
 #include <mach/machine.h>
 #endif
 
+#define DEBUG_TYPE "host-detection"
+
 //===----------------------------------------------------------------------===//
 //
 //  Implementations of the CPU detection routines
@@ -46,6 +48,26 @@
 //===----------------------------------------------------------------------===//
 
 using namespace llvm;
+
+#if defined(__linux__)
+static ssize_t LLVM_ATTRIBUTE_UNUSED readCpuInfo(void *Buf, size_t Size) {
+  // Note: We cannot mmap /proc/cpuinfo here and then process the resulting
+  // memory buffer because the 'file' has 0 size (it can be read from only
+  // as a stream).
+
+  int FD;
+  std::error_code EC = sys::fs::openFileForRead("/proc/cpuinfo", FD);
+  if (EC) {
+    DEBUG(dbgs() << "Unable to open /proc/cpuinfo: " << EC.message() << "\n");
+    return -1;
+  }
+  int Ret = read(FD, Buf, Size);
+  int CloseStatus = close(FD);
+  if (CloseStatus)
+    return -1;
+  return Ret;
+}
+#endif
 
 #if defined(i386) || defined(__i386__) || defined(__x86__) || defined(_M_IX86)\
  || defined(__x86_64__) || defined(_M_AMD64) || defined (_M_X64)
@@ -98,8 +120,9 @@ static bool GetX86CpuIDAndInfo(unsigned value, unsigned *rEAX, unsigned *rEBX,
 /// GetX86CpuIDAndInfoEx - Execute the specified cpuid with subleaf and return the
 /// 4 values in the specified arguments.  If we can't run cpuid on the host,
 /// return true.
-bool GetX86CpuIDAndInfoEx(unsigned value, unsigned subleaf, unsigned *rEAX,
-                          unsigned *rEBX, unsigned *rECX, unsigned *rEDX) {
+static bool GetX86CpuIDAndInfoEx(unsigned value, unsigned subleaf,
+                                 unsigned *rEAX, unsigned *rEBX, unsigned *rECX,
+                                 unsigned *rEDX) {
 #if defined(__x86_64__) || defined(_M_AMD64) || defined (_M_X64)
   #if defined(__GNUC__)
     // gcc doesn't know cpuid would clobber ebx/rbx. Preseve it manually.
@@ -192,7 +215,7 @@ static void DetectX86FamilyModel(unsigned EAX, unsigned &Family,
   }
 }
 
-std::string sys::getHostCPUName() {
+StringRef sys::getHostCPUName() {
   unsigned EAX = 0, EBX = 0, ECX = 0, EDX = 0;
   if (GetX86CpuIDAndInfo(0x1, &EAX, &EBX, &ECX, &EDX))
     return "generic";
@@ -220,6 +243,7 @@ std::string sys::getHostCPUName() {
                  (EBX & 0x20);
   GetX86CpuIDAndInfo(0x80000001, &EAX, &EBX, &ECX, &EDX);
   bool Em64T = (EDX >> 29) & 0x1;
+  bool HasTBM = (ECX >> 21) & 0x1;
 
   if (memcmp(text.c, "GenuineIntel", 12) == 0) {
     switch (Family) {
@@ -432,9 +456,11 @@ std::string sys::getHostCPUName() {
       case 21:
         if (!HasAVX) // If the OS doesn't support AVX provide a sane fallback.
           return "btver1";
+        if (Model >= 0x50)
+          return "bdver4"; // 50h-6Fh: Excavator
         if (Model >= 0x30)
           return "bdver3"; // 30h-3Fh: Steamroller
-        if (Model >= 0x10)
+        if (Model >= 0x10 || HasTBM)
           return "bdver2"; // 10h-1Fh: Piledriver
         return "bdver1";   // 00h-0Fh: Bulldozer
       case 22:
@@ -448,7 +474,7 @@ std::string sys::getHostCPUName() {
   return "generic";
 }
 #elif defined(__APPLE__) && (defined(__ppc__) || defined(__powerpc__))
-std::string sys::getHostCPUName() {
+StringRef sys::getHostCPUName() {
   host_basic_info_data_t hostInfo;
   mach_msg_type_number_t infoCount;
 
@@ -477,28 +503,18 @@ std::string sys::getHostCPUName() {
   return "generic";
 }
 #elif defined(__linux__) && (defined(__ppc__) || defined(__powerpc__))
-std::string sys::getHostCPUName() {
+StringRef sys::getHostCPUName() {
   // Access to the Processor Version Register (PVR) on PowerPC is privileged,
   // and so we must use an operating-system interface to determine the current
   // processor type. On Linux, this is exposed through the /proc/cpuinfo file.
   const char *generic = "generic";
 
-  // Note: We cannot mmap /proc/cpuinfo here and then process the resulting
-  // memory buffer because the 'file' has 0 size (it can be read from only
-  // as a stream).
-
-  std::string Err;
-  DataStreamer *DS = getDataFileStreamer("/proc/cpuinfo", &Err);
-  if (!DS) {
-    DEBUG(dbgs() << "Unable to open /proc/cpuinfo: " << Err << "\n");
-    return generic;
-  }
-
   // The cpu line is second (after the 'processor: 0' line), so if this
   // buffer is too small then something has changed (or is wrong).
   char buffer[1024];
-  size_t CPUInfoSize = DS->GetBytes((unsigned char*) buffer, sizeof(buffer));
-  delete DS;
+  ssize_t CPUInfoSize = readCpuInfo(buffer, sizeof(buffer));
+  if (CPUInfoSize == -1)
+    return generic;
 
   const char *CPUInfoStart = buffer;
   const char *CPUInfoEnd = buffer + CPUInfoSize;
@@ -564,28 +580,21 @@ std::string sys::getHostCPUName() {
     .Case("A2", "a2")
     .Case("POWER6", "pwr6")
     .Case("POWER7", "pwr7")
+    .Case("POWER8", "pwr8")
+    .Case("POWER8E", "pwr8")
     .Default(generic);
 }
 #elif defined(__linux__) && defined(__arm__)
-std::string sys::getHostCPUName() {
+StringRef sys::getHostCPUName() {
   // The cpuid register on arm is not accessible from user space. On Linux,
   // it is exposed through the /proc/cpuinfo file.
-  // Note: We cannot mmap /proc/cpuinfo here and then process the resulting
-  // memory buffer because the 'file' has 0 size (it can be read from only
-  // as a stream).
-
-  std::string Err;
-  DataStreamer *DS = getDataFileStreamer("/proc/cpuinfo", &Err);
-  if (!DS) {
-    DEBUG(dbgs() << "Unable to open /proc/cpuinfo: " << Err << "\n");
-    return "generic";
-  }
 
   // Read 1024 bytes from /proc/cpuinfo, which should contain the CPU part line
   // in all cases.
   char buffer[1024];
-  size_t CPUInfoSize = DS->GetBytes((unsigned char*) buffer, sizeof(buffer));
-  delete DS;
+  ssize_t CPUInfoSize = readCpuInfo(buffer, sizeof(buffer));
+  if (CPUInfoSize == -1)
+    return "generic";
 
   StringRef Str(buffer, CPUInfoSize);
 
@@ -619,27 +628,29 @@ std::string sys::getHostCPUName() {
           .Case("0xc24", "cortex-m4")
           .Default("generic");
 
+  if (Implementer == "0x51") // Qualcomm Technologies, Inc.
+    // Look for the CPU part line.
+    for (unsigned I = 0, E = Lines.size(); I != E; ++I)
+      if (Lines[I].startswith("CPU part"))
+        // The CPU part is a 3 digit hexadecimal number with a 0x prefix. The
+        // values correspond to the "Part number" in the CP15/c0 register. The
+        // contents are specified in the various processor manuals.
+        return StringSwitch<const char *>(Lines[I].substr(8).ltrim("\t :"))
+          .Case("0x06f", "krait") // APQ8064
+          .Default("generic");
+
   return "generic";
 }
 #elif defined(__linux__) && defined(__s390x__)
-std::string sys::getHostCPUName() {
+StringRef sys::getHostCPUName() {
   // STIDP is a privileged operation, so use /proc/cpuinfo instead.
-  // Note: We cannot mmap /proc/cpuinfo here and then process the resulting
-  // memory buffer because the 'file' has 0 size (it can be read from only
-  // as a stream).
-
-  std::string Err;
-  DataStreamer *DS = getDataFileStreamer("/proc/cpuinfo", &Err);
-  if (!DS) {
-    DEBUG(dbgs() << "Unable to open /proc/cpuinfo: " << Err << "\n");
-    return "generic";
-  }
 
   // The "processor 0:" line comes after a fair amount of other information,
   // including a cache breakdown, but this should be plenty.
   char buffer[2048];
-  size_t CPUInfoSize = DS->GetBytes((unsigned char*) buffer, sizeof(buffer));
-  delete DS;
+  ssize_t CPUInfoSize = readCpuInfo(buffer, sizeof(buffer));
+  if (CPUInfoSize == -1)
+    return "generic";
 
   StringRef Str(buffer, CPUInfoSize);
   SmallVector<StringRef, 32> Lines;
@@ -664,25 +675,19 @@ std::string sys::getHostCPUName() {
   return "generic";
 }
 #else
-std::string sys::getHostCPUName() {
+StringRef sys::getHostCPUName() {
   return "generic";
 }
 #endif
 
-#if defined(__linux__) && defined(__arm__)
+#if defined(__linux__) && (defined(__arm__) || defined(__aarch64__))
 bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
-  std::string Err;
-  DataStreamer *DS = getDataFileStreamer("/proc/cpuinfo", &Err);
-  if (!DS) {
-    DEBUG(dbgs() << "Unable to open /proc/cpuinfo: " << Err << "\n");
-    return false;
-  }
-
   // Read 1024 bytes from /proc/cpuinfo, which should contain the Features line
   // in all cases.
   char buffer[1024];
-  size_t CPUInfoSize = DS->GetBytes((unsigned char*) buffer, sizeof(buffer));
-  delete DS;
+  ssize_t CPUInfoSize = readCpuInfo(buffer, sizeof(buffer));
+  if (CPUInfoSize == -1)
+    return false;
 
   StringRef Str(buffer, CPUInfoSize);
 
@@ -698,8 +703,24 @@ bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
       break;
     }
 
+#if defined(__aarch64__)
+  // Keep track of which crypto features we have seen
+  enum {
+    CAP_AES   = 0x1,
+    CAP_PMULL = 0x2,
+    CAP_SHA1  = 0x4,
+    CAP_SHA2  = 0x8
+  };
+  uint32_t crypto = 0;
+#endif
+
   for (unsigned I = 0, E = CPUFeatures.size(); I != E; ++I) {
     StringRef LLVMFeatureStr = StringSwitch<StringRef>(CPUFeatures[I])
+#if defined(__aarch64__)
+      .Case("asimd", "neon")
+      .Case("fp", "fp-armv8")
+      .Case("crc32", "crc")
+#else
       .Case("half", "fp16")
       .Case("neon", "neon")
       .Case("vfpv3", "vfp3")
@@ -707,11 +728,31 @@ bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
       .Case("vfpv4", "vfp4")
       .Case("idiva", "hwdiv-arm")
       .Case("idivt", "hwdiv")
+#endif
       .Default("");
 
+#if defined(__aarch64__)
+    // We need to check crypto separately since we need all of the crypto
+    // extensions to enable the subtarget feature
+    if (CPUFeatures[I] == "aes")
+      crypto |= CAP_AES;
+    else if (CPUFeatures[I] == "pmull")
+      crypto |= CAP_PMULL;
+    else if (CPUFeatures[I] == "sha1")
+      crypto |= CAP_SHA1;
+    else if (CPUFeatures[I] == "sha2")
+      crypto |= CAP_SHA2;
+#endif
+
     if (LLVMFeatureStr != "")
-      Features.GetOrCreateValue(LLVMFeatureStr).setValue(true);
+      Features[LLVMFeatureStr] = true;
   }
+
+#if defined(__aarch64__)
+  // If we have all crypto bits we can add the feature
+  if (crypto == (CAP_AES | CAP_PMULL | CAP_SHA1 | CAP_SHA2))
+    Features["crypto"] = true;
+#endif
 
   return true;
 }

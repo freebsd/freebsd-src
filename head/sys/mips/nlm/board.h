@@ -5,7 +5,7 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
@@ -40,7 +40,7 @@
  */
 #define	EEPROM_I2CBUS		1
 #define	EEPROM_I2CADDR		0xAE
-#define	EEPROM_SIZE	 	48
+#define	EEPROM_SIZE		48
 #define	EEPROM_MACADDR_OFFSET	2
 
 /* used if there is no FDT */
@@ -113,7 +113,7 @@ struct xlp_block_ivars {
 };
 
 struct xlp_nae_ivars {
-	int 	node;
+	int	node;
 	int	nblocks;
 	u_int	blockmask;
 	u_int	ilmask;

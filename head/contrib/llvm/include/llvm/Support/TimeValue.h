@@ -38,28 +38,38 @@ namespace sys {
     /// value permissible by the class. MinTime is some point
     /// in the distant past, about 300 billion years BCE.
     /// @brief The smallest possible time value.
-    static const TimeValue MinTime;
+    static TimeValue MinTime() {
+      return TimeValue ( INT64_MIN,0 );
+    }
 
     /// A constant TimeValue representing the largest time
     /// value permissible by the class. MaxTime is some point
     /// in the distant future, about 300 billion years AD.
     /// @brief The largest possible time value.
-    static const TimeValue MaxTime;
+    static TimeValue MaxTime() {
+      return TimeValue ( INT64_MAX,0 );
+    }
 
     /// A constant TimeValue representing the base time,
     /// or zero time of 00:00:00 (midnight) January 1st, 2000.
     /// @brief 00:00:00 Jan 1, 2000 UTC.
-    static const TimeValue ZeroTime;
+    static TimeValue ZeroTime() {
+      return TimeValue ( 0,0 );
+    }
 
     /// A constant TimeValue for the Posix base time which is
     /// 00:00:00 (midnight) January 1st, 1970.
     /// @brief 00:00:00 Jan 1, 1970 UTC.
-    static const TimeValue PosixZeroTime;
+    static TimeValue PosixZeroTime() {
+      return TimeValue ( PosixZeroTimeSeconds,0 );
+    }
 
     /// A constant TimeValue for the Win32 base time which is
     /// 00:00:00 (midnight) January 1st, 1601.
     /// @brief 00:00:00 Jan 1, 1601 UTC.
-    static const TimeValue Win32ZeroTime;
+    static TimeValue Win32ZeroTime() {
+      return TimeValue ( Win32ZeroTimeSeconds,0 );
+    }
 
   /// @}
   /// @name Types
@@ -74,8 +84,7 @@ namespace sys {
       MILLISECONDS_PER_SECOND = 1000,       ///< One Thousand
       NANOSECONDS_PER_MICROSECOND = 1000,   ///< One Thousand
       NANOSECONDS_PER_MILLISECOND = 1000000,///< One Million
-      NANOSECONDS_PER_POSIX_TICK = 100,     ///< Posix tick is 100 Hz (10ms)
-      NANOSECONDS_PER_WIN32_TICK = 100      ///< Win32 tick is 100 Hz (10ms)
+      NANOSECONDS_PER_WIN32_TICK = 100      ///< Win32 tick is 10^7 Hz (10ns)
     };
 
   /// @}
@@ -234,15 +243,6 @@ namespace sys {
     uint64_t msec() const {
       return seconds_ * MILLISECONDS_PER_SECOND +
              ( nanos_ / NANOSECONDS_PER_MILLISECOND );
-    }
-
-    /// Converts the TimeValue into the corresponding number of "ticks" for
-    /// Posix, correcting for the difference in Posix zero time.
-    /// @brief Convert to unix time (100 nanoseconds since 12:00:00a Jan 1,1970)
-    uint64_t toPosixTime() const {
-      uint64_t result = seconds_ - PosixZeroTimeSeconds;
-      result += nanos_ / NANOSECONDS_PER_POSIX_TICK;
-      return result;
     }
 
     /// Converts the TimeValue into the corresponding number of seconds

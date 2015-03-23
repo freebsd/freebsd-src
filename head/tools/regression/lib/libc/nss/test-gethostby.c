@@ -109,7 +109,7 @@ __gethostbyname2(const char *name, int af)
 	else {
 		error = 0;
 		he = getipnodebyname(name, af, ipnode_flags, &error);
-		if (he == NULL);
+		if (he == NULL)
 			errno = error;
 	}
 	

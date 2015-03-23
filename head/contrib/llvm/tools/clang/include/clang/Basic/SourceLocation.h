@@ -12,8 +12,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SOURCELOCATION_H
-#define LLVM_CLANG_SOURCELOCATION_H
+#ifndef LLVM_CLANG_BASIC_SOURCELOCATION_H
+#define LLVM_CLANG_BASIC_SOURCELOCATION_H
 
 #include "clang/Basic/LLVM.h"
 #include "llvm/Support/Compiler.h"
@@ -89,7 +89,7 @@ class SourceLocation {
   friend class SourceManager;
   friend class ASTReader;
   friend class ASTWriter;
-  enum LLVM_ENUM_INT_TYPE(unsigned) {
+  enum : unsigned {
     MacroIDBit = 1U << 31
   };
 public:
@@ -172,7 +172,7 @@ public:
   }
 
   void print(raw_ostream &OS, const SourceManager &SM) const;
-  LLVM_ATTRIBUTE_USED std::string printToString(const SourceManager &SM) const;
+  std::string printToString(const SourceManager &SM) const;
   void dump(const SourceManager &SM) const;
 };
 
@@ -188,7 +188,7 @@ inline bool operator<(const SourceLocation &LHS, const SourceLocation &RHS) {
   return LHS.getRawEncoding() < RHS.getRawEncoding();
 }
 
-/// \brief A trival tuple used to represent a source range.
+/// \brief A trivial tuple used to represent a source range.
 class SourceRange {
   SourceLocation B;
   SourceLocation E;
@@ -268,7 +268,7 @@ class FullSourceLoc : public SourceLocation {
   const SourceManager *SrcMgr;
 public:
   /// \brief Creates a FullSourceLoc where isValid() returns \c false.
-  explicit FullSourceLoc() : SrcMgr(0) {}
+  explicit FullSourceLoc() : SrcMgr(nullptr) {}
 
   explicit FullSourceLoc(SourceLocation Loc, const SourceManager &SM)
     : SourceLocation(Loc), SrcMgr(&SM) {}
@@ -284,19 +284,18 @@ public:
   FullSourceLoc getExpansionLoc() const;
   FullSourceLoc getSpellingLoc() const;
 
-  unsigned getExpansionLineNumber(bool *Invalid = 0) const;
-  unsigned getExpansionColumnNumber(bool *Invalid = 0) const;
+  unsigned getExpansionLineNumber(bool *Invalid = nullptr) const;
+  unsigned getExpansionColumnNumber(bool *Invalid = nullptr) const;
 
-  unsigned getSpellingLineNumber(bool *Invalid = 0) const;
-  unsigned getSpellingColumnNumber(bool *Invalid = 0) const;
+  unsigned getSpellingLineNumber(bool *Invalid = nullptr) const;
+  unsigned getSpellingColumnNumber(bool *Invalid = nullptr) const;
 
-  const char *getCharacterData(bool *Invalid = 0) const;
+  const char *getCharacterData(bool *Invalid = nullptr) const;
 
-  const llvm::MemoryBuffer* getBuffer(bool *Invalid = 0) const;
 
   /// \brief Return a StringRef to the source buffer data for the
   /// specified FileID.
-  StringRef getBufferData(bool *Invalid = 0) const;
+  StringRef getBufferData(bool *Invalid = nullptr) const;
 
   /// \brief Decompose the specified location into a raw FileID + Offset pair.
   ///
@@ -331,7 +330,7 @@ public:
   /// \brief Prints information about this FullSourceLoc to stderr.
   ///
   /// This is useful for debugging.
-  LLVM_ATTRIBUTE_USED void dump() const;
+  void dump() const;
 
   friend inline bool
   operator==(const FullSourceLoc &LHS, const FullSourceLoc &RHS) {
@@ -358,7 +357,7 @@ class PresumedLoc {
   unsigned Line, Col;
   SourceLocation IncludeLoc;
 public:
-  PresumedLoc() : Filename(0) {}
+  PresumedLoc() : Filename(nullptr) {}
   PresumedLoc(const char *FN, unsigned Ln, unsigned Co, SourceLocation IL)
     : Filename(FN), Line(Ln), Col(Co), IncludeLoc(IL) {
   }
@@ -367,8 +366,8 @@ public:
   ///
   /// This occurs when created with invalid source locations or when walking
   /// off the top of a \#include stack.
-  bool isInvalid() const { return Filename == 0; }
-  bool isValid() const { return Filename != 0; }
+  bool isInvalid() const { return Filename == nullptr; }
+  bool isValid() const { return Filename != nullptr; }
 
   /// \brief Return the presumed filename of this location.
   ///

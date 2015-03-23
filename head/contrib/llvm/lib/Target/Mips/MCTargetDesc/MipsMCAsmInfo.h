@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MIPSTARGETASMINFO_H
-#define MIPSTARGETASMINFO_H
+#ifndef LLVM_LIB_TARGET_MIPS_MCTARGETDESC_MIPSMCASMINFO_H
+#define LLVM_LIB_TARGET_MIPS_MCTARGETDESC_MIPSMCASMINFO_H
 
 #include "llvm/MC/MCAsmInfoELF.h"
 
@@ -20,7 +20,7 @@ namespace llvm {
   class StringRef;
 
   class MipsMCAsmInfo : public MCAsmInfoELF {
-    virtual void anchor();
+    void anchor() override;
   public:
     explicit MipsMCAsmInfo(StringRef TT);
   };

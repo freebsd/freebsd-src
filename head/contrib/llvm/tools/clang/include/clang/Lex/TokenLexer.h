@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_TOKENLEXER_H
-#define LLVM_CLANG_TOKENLEXER_H
+#ifndef LLVM_CLANG_LEX_TOKENLEXER_H
+#define LLVM_CLANG_LEX_TOKENLEXER_H
 
 #include "clang/Basic/SourceLocation.h"
 
@@ -81,6 +81,14 @@ class TokenLexer {
   bool AtStartOfLine : 1;
   bool HasLeadingSpace : 1;
 
+  // NextTokGetsSpace - When this is true, the next token appended to the
+  // output list during function argument expansion will get a leading space,
+  // regardless of whether it had one to begin with or not. This is used for
+  // placemarker support. If still true after function argument expansion, the
+  // leading space will be applied to the first token following the macro
+  // expansion.
+  bool NextTokGetsSpace : 1;
+
   /// OwnsTokens - This is true if this TokenLexer allocated the Tokens
   /// array, and thus needs to free it when destroyed.  For simple object-like
   /// macros (for example) we just point into the token buffer of the macro
@@ -100,7 +108,7 @@ public:
   /// identifier for an object-like macro.
   TokenLexer(Token &Tok, SourceLocation ILEnd, MacroInfo *MI,
              MacroArgs *ActualArgs, Preprocessor &pp)
-    : Macro(0), ActualArgs(0), PP(pp), OwnsTokens(false) {
+    : Macro(nullptr), ActualArgs(nullptr), PP(pp), OwnsTokens(false) {
     Init(Tok, ILEnd, MI, ActualArgs);
   }
 
@@ -116,7 +124,7 @@ public:
   /// the token lexer is empty.
   TokenLexer(const Token *TokArray, unsigned NumToks, bool DisableExpansion,
              bool ownsTokens, Preprocessor &pp)
-    : Macro(0), ActualArgs(0), PP(pp), OwnsTokens(false) {
+    : Macro(nullptr), ActualArgs(nullptr), PP(pp), OwnsTokens(false) {
     Init(TokArray, NumToks, DisableExpansion, ownsTokens);
   }
 
@@ -181,6 +189,13 @@ private:
   /// macro definition.
   void updateLocForMacroArgTokens(SourceLocation ArgIdSpellLoc,
                                   Token *begin_tokens, Token *end_tokens);
+
+  /// Remove comma ahead of __VA_ARGS__, if present, according to compiler
+  /// dialect settings.  Returns true if the comma is removed.
+  bool MaybeRemoveCommaBeforeVaArgs(SmallVectorImpl<Token> &ResultToks,
+                                    bool HasPasteOperator,
+                                    MacroInfo *Macro, unsigned MacroArgNo,
+                                    Preprocessor &PP);
 
   void PropagateLineStartLeadingSpaceInfo(Token &Result);
 };

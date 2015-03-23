@@ -57,7 +57,7 @@ public:
   // Return true if edge destination should be visited.
   template<typename NodeType>
   bool insertEdge(NodeType *From, NodeType *To) {
-    return Visited.insert(To);
+    return Visited.insert(To).second;
   }
 
   // Called after all children of BB have been visited.
@@ -76,8 +76,9 @@ public:
   // Return true if edge destination should be visited, called with From = 0 for
   // the root node.
   // Graph edges can be pruned by specializing this function.
-  template<class NodeType>
-  bool insertEdge(NodeType *From, NodeType *To) { return Visited.insert(To); }
+  template <class NodeType> bool insertEdge(NodeType *From, NodeType *To) {
+    return Visited.insert(To).second;
+  }
 
   // Called after all children of BB have been visited.
   template<class NodeType>
@@ -111,7 +112,7 @@ class po_iterator : public std::iterator<std::forward_iterator_tag,
   }
 
   inline po_iterator(NodeType *BB) {
-    this->insertEdge((NodeType*)0, BB);
+    this->insertEdge((NodeType*)nullptr, BB);
     VisitStack.push_back(std::make_pair(BB, GT::child_begin(BB)));
     traverseChild();
   }
@@ -119,7 +120,7 @@ class po_iterator : public std::iterator<std::forward_iterator_tag,
 
   inline po_iterator(NodeType *BB, SetType &S) :
     po_iterator_storage<SetType, ExtStorage>(S) {
-    if (this->insertEdge((NodeType*)0, BB)) {
+    if (this->insertEdge((NodeType*)nullptr, BB)) {
       VisitStack.push_back(std::make_pair(BB, GT::child_begin(BB)));
       traverseChild();
     }

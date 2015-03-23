@@ -214,8 +214,7 @@ public:
 
   /// \brief Callback invoked when a \#pragma gcc dianostic directive is read.
   virtual void PragmaDiagnostic(SourceLocation Loc, StringRef Namespace,
-                                diag::Mapping mapping, StringRef Str) {
-  }
+                                diag::Severity mapping, StringRef Str) {}
 
   /// \brief Called when an OpenCL extension is either disabled or
   /// enabled with a pragma.
@@ -267,6 +266,10 @@ public:
   virtual void SourceRangeSkipped(SourceRange Range) {
   }
 
+  enum ConditionValueKind {
+    CVK_NotEvaluated, CVK_False, CVK_True
+  };
+
   /// \brief Hook called whenever an \#if is seen.
   /// \param Loc the source location of the directive.
   /// \param ConditionRange The SourceRange of the expression being tested.
@@ -274,7 +277,7 @@ public:
   ///
   // FIXME: better to pass in a list (or tree!) of Tokens.
   virtual void If(SourceLocation Loc, SourceRange ConditionRange,
-                  bool ConditionValue) {
+                  ConditionValueKind ConditionValue) {
   }
 
   /// \brief Hook called whenever an \#elif is seen.
@@ -284,7 +287,7 @@ public:
   /// \param IfLoc the source location of the \#if/\#ifdef/\#ifndef directive.
   // FIXME: better to pass in a list (or tree!) of Tokens.
   virtual void Elif(SourceLocation Loc, SourceRange ConditionRange,
-                    bool ConditionValue, SourceLocation IfLoc) {
+                    ConditionValueKind ConditionValue, SourceLocation IfLoc) {
   }
 
   /// \brief Hook called whenever an \#ifdef is seen.
@@ -319,45 +322,38 @@ public:
 /// \brief Simple wrapper class for chaining callbacks.
 class PPChainedCallbacks : public PPCallbacks {
   virtual void anchor();
-  PPCallbacks *First, *Second;
+  std::unique_ptr<PPCallbacks> First, Second;
 
 public:
-  PPChainedCallbacks(PPCallbacks *_First, PPCallbacks *_Second)
-    : First(_First), Second(_Second) {}
-  ~PPChainedCallbacks() {
-    delete Second;
-    delete First;
-  }
+  PPChainedCallbacks(std::unique_ptr<PPCallbacks> _First,
+                     std::unique_ptr<PPCallbacks> _Second)
+    : First(std::move(_First)), Second(std::move(_Second)) {}
 
-  virtual void FileChanged(SourceLocation Loc, FileChangeReason Reason,
-                           SrcMgr::CharacteristicKind FileType,
-                           FileID PrevFID) {
+  void FileChanged(SourceLocation Loc, FileChangeReason Reason,
+                   SrcMgr::CharacteristicKind FileType,
+                   FileID PrevFID) override {
     First->FileChanged(Loc, Reason, FileType, PrevFID);
     Second->FileChanged(Loc, Reason, FileType, PrevFID);
   }
 
-  virtual void FileSkipped(const FileEntry &ParentFile,
-                           const Token &FilenameTok,
-                           SrcMgr::CharacteristicKind FileType) {
+  void FileSkipped(const FileEntry &ParentFile,
+                   const Token &FilenameTok,
+                   SrcMgr::CharacteristicKind FileType) override {
     First->FileSkipped(ParentFile, FilenameTok, FileType);
     Second->FileSkipped(ParentFile, FilenameTok, FileType);
   }
 
-  virtual bool FileNotFound(StringRef FileName,
-                            SmallVectorImpl<char> &RecoveryPath) {
+  bool FileNotFound(StringRef FileName,
+                    SmallVectorImpl<char> &RecoveryPath) override {
     return First->FileNotFound(FileName, RecoveryPath) ||
            Second->FileNotFound(FileName, RecoveryPath);
   }
 
-  virtual void InclusionDirective(SourceLocation HashLoc,
-                                  const Token &IncludeTok,
-                                  StringRef FileName,
-                                  bool IsAngled,
-                                  CharSourceRange FilenameRange,
-                                  const FileEntry *File,
-                                  StringRef SearchPath,
-                                  StringRef RelativePath,
-                                  const Module *Imported) {
+  void InclusionDirective(SourceLocation HashLoc, const Token &IncludeTok,
+                          StringRef FileName, bool IsAngled,
+                          CharSourceRange FilenameRange, const FileEntry *File,
+                          StringRef SearchPath, StringRef RelativePath,
+                          const Module *Imported) override {
     First->InclusionDirective(HashLoc, IncludeTok, FileName, IsAngled,
                               FilenameRange, File, SearchPath, RelativePath,
                               Imported);
@@ -366,147 +362,142 @@ public:
                                Imported);
   }
 
-  virtual void moduleImport(SourceLocation ImportLoc,
-                            ModuleIdPath Path,
-                            const Module *Imported) {
+  void moduleImport(SourceLocation ImportLoc, ModuleIdPath Path,
+                    const Module *Imported) override {
     First->moduleImport(ImportLoc, Path, Imported);
     Second->moduleImport(ImportLoc, Path, Imported);
   }
 
-  virtual void EndOfMainFile() {
+  void EndOfMainFile() override {
     First->EndOfMainFile();
     Second->EndOfMainFile();
   }
 
-  virtual void Ident(SourceLocation Loc, const std::string &str) {
+  void Ident(SourceLocation Loc, const std::string &str) override {
     First->Ident(Loc, str);
     Second->Ident(Loc, str);
   }
 
-  virtual void PragmaComment(SourceLocation Loc, const IdentifierInfo *Kind,
-                             const std::string &Str) {
+  void PragmaComment(SourceLocation Loc, const IdentifierInfo *Kind,
+                     const std::string &Str) override {
     First->PragmaComment(Loc, Kind, Str);
     Second->PragmaComment(Loc, Kind, Str);
   }
 
-  virtual void PragmaDetectMismatch(SourceLocation Loc,
-                                    const std::string &Name,
-                                    const std::string &Value) {
+  void PragmaDetectMismatch(SourceLocation Loc, const std::string &Name,
+                            const std::string &Value) override {
     First->PragmaDetectMismatch(Loc, Name, Value);
     Second->PragmaDetectMismatch(Loc, Name, Value);
   }
 
-  virtual void PragmaMessage(SourceLocation Loc, StringRef Namespace,
-                             PragmaMessageKind Kind, StringRef Str) {
+  void PragmaMessage(SourceLocation Loc, StringRef Namespace,
+                     PragmaMessageKind Kind, StringRef Str) override {
     First->PragmaMessage(Loc, Namespace, Kind, Str);
     Second->PragmaMessage(Loc, Namespace, Kind, Str);
   }
 
-  virtual void PragmaDiagnosticPush(SourceLocation Loc,
-                                    StringRef Namespace) {
+  void PragmaDiagnosticPush(SourceLocation Loc, StringRef Namespace) override {
     First->PragmaDiagnosticPush(Loc, Namespace);
     Second->PragmaDiagnosticPush(Loc, Namespace);
   }
 
-  virtual void PragmaDiagnosticPop(SourceLocation Loc,
-                                    StringRef Namespace) {
+  void PragmaDiagnosticPop(SourceLocation Loc, StringRef Namespace) override {
     First->PragmaDiagnosticPop(Loc, Namespace);
     Second->PragmaDiagnosticPop(Loc, Namespace);
   }
 
-  virtual void PragmaDiagnostic(SourceLocation Loc, StringRef Namespace,
-                                diag::Mapping mapping, StringRef Str) {
+  void PragmaDiagnostic(SourceLocation Loc, StringRef Namespace,
+                        diag::Severity mapping, StringRef Str) override {
     First->PragmaDiagnostic(Loc, Namespace, mapping, Str);
     Second->PragmaDiagnostic(Loc, Namespace, mapping, Str);
   }
 
-  virtual void PragmaOpenCLExtension(SourceLocation NameLoc, 
-                                     const IdentifierInfo *Name,
-                                     SourceLocation StateLoc, unsigned State) {
+  void PragmaOpenCLExtension(SourceLocation NameLoc, const IdentifierInfo *Name,
+                             SourceLocation StateLoc, unsigned State) override {
     First->PragmaOpenCLExtension(NameLoc, Name, StateLoc, State);
     Second->PragmaOpenCLExtension(NameLoc, Name, StateLoc, State);
   }
 
-  virtual void PragmaWarning(SourceLocation Loc, StringRef WarningSpec,
-                             ArrayRef<int> Ids) {
+  void PragmaWarning(SourceLocation Loc, StringRef WarningSpec,
+                     ArrayRef<int> Ids) override {
     First->PragmaWarning(Loc, WarningSpec, Ids);
     Second->PragmaWarning(Loc, WarningSpec, Ids);
   }
 
-  virtual void PragmaWarningPush(SourceLocation Loc, int Level) {
+  void PragmaWarningPush(SourceLocation Loc, int Level) override {
     First->PragmaWarningPush(Loc, Level);
     Second->PragmaWarningPush(Loc, Level);
   }
 
-  virtual void PragmaWarningPop(SourceLocation Loc) {
+  void PragmaWarningPop(SourceLocation Loc) override {
     First->PragmaWarningPop(Loc);
     Second->PragmaWarningPop(Loc);
   }
 
-  virtual void MacroExpands(const Token &MacroNameTok, const MacroDirective *MD,
-                            SourceRange Range, const MacroArgs *Args) {
+  void MacroExpands(const Token &MacroNameTok, const MacroDirective *MD,
+                    SourceRange Range, const MacroArgs *Args) override {
     First->MacroExpands(MacroNameTok, MD, Range, Args);
     Second->MacroExpands(MacroNameTok, MD, Range, Args);
   }
 
-  virtual void MacroDefined(const Token &MacroNameTok, const MacroDirective *MD) {
+  void MacroDefined(const Token &MacroNameTok, const MacroDirective *MD) override {
     First->MacroDefined(MacroNameTok, MD);
     Second->MacroDefined(MacroNameTok, MD);
   }
 
-  virtual void MacroUndefined(const Token &MacroNameTok,
-                              const MacroDirective *MD) {
+  void MacroUndefined(const Token &MacroNameTok,
+                      const MacroDirective *MD) override {
     First->MacroUndefined(MacroNameTok, MD);
     Second->MacroUndefined(MacroNameTok, MD);
   }
 
-  virtual void Defined(const Token &MacroNameTok, const MacroDirective *MD,
-                       SourceRange Range) {
+  void Defined(const Token &MacroNameTok, const MacroDirective *MD,
+               SourceRange Range) override {
     First->Defined(MacroNameTok, MD, Range);
     Second->Defined(MacroNameTok, MD, Range);
   }
 
-  virtual void SourceRangeSkipped(SourceRange Range) {
+  void SourceRangeSkipped(SourceRange Range) override {
     First->SourceRangeSkipped(Range);
     Second->SourceRangeSkipped(Range);
   }
 
   /// \brief Hook called whenever an \#if is seen.
-  virtual void If(SourceLocation Loc, SourceRange ConditionRange,
-                  bool ConditionValue) {
+  void If(SourceLocation Loc, SourceRange ConditionRange,
+          ConditionValueKind ConditionValue) override {
     First->If(Loc, ConditionRange, ConditionValue);
     Second->If(Loc, ConditionRange, ConditionValue);
   }
 
   /// \brief Hook called whenever an \#elif is seen.
-  virtual void Elif(SourceLocation Loc, SourceRange ConditionRange,
-                    bool ConditionValue, SourceLocation IfLoc) {
+  void Elif(SourceLocation Loc, SourceRange ConditionRange,
+            ConditionValueKind ConditionValue, SourceLocation IfLoc) override {
     First->Elif(Loc, ConditionRange, ConditionValue, IfLoc);
     Second->Elif(Loc, ConditionRange, ConditionValue, IfLoc);
   }
 
   /// \brief Hook called whenever an \#ifdef is seen.
-  virtual void Ifdef(SourceLocation Loc, const Token &MacroNameTok,
-                     const MacroDirective *MD) {
+  void Ifdef(SourceLocation Loc, const Token &MacroNameTok,
+             const MacroDirective *MD) override {
     First->Ifdef(Loc, MacroNameTok, MD);
     Second->Ifdef(Loc, MacroNameTok, MD);
   }
 
   /// \brief Hook called whenever an \#ifndef is seen.
-  virtual void Ifndef(SourceLocation Loc, const Token &MacroNameTok,
-                      const MacroDirective *MD) {
+  void Ifndef(SourceLocation Loc, const Token &MacroNameTok,
+              const MacroDirective *MD) override {
     First->Ifndef(Loc, MacroNameTok, MD);
     Second->Ifndef(Loc, MacroNameTok, MD);
   }
 
   /// \brief Hook called whenever an \#else is seen.
-  virtual void Else(SourceLocation Loc, SourceLocation IfLoc) {
+  void Else(SourceLocation Loc, SourceLocation IfLoc) override {
     First->Else(Loc, IfLoc);
     Second->Else(Loc, IfLoc);
   }
 
   /// \brief Hook called whenever an \#endif is seen.
-  virtual void Endif(SourceLocation Loc, SourceLocation IfLoc) {
+  void Endif(SourceLocation Loc, SourceLocation IfLoc) override {
     First->Endif(Loc, IfLoc);
     Second->Endif(Loc, IfLoc);
   }

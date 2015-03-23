@@ -14,8 +14,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef ARMBASEINFO_H
-#define ARMBASEINFO_H
+#ifndef LLVM_LIB_TARGET_ARM_MCTARGETDESC_ARMBASEINFO_H
+#define LLVM_LIB_TARGET_ARM_MCTARGETDESC_ARMBASEINFO_H
 
 #include "ARMMCTargetDesc.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -183,7 +183,8 @@ namespace ARM_ISB {
 
   inline static const char *InstSyncBOptToString(unsigned val) {
     switch (val) {
-      default: llvm_unreachable("Unkown memory operation");
+    default:
+      llvm_unreachable("Unknown memory operation");
       case RESERVED_0:  return "#0x0";
       case RESERVED_1:  return "#0x1";
       case RESERVED_2:  return "#0x2";
@@ -278,42 +279,41 @@ namespace ARMII {
     //===------------------------------------------------------------------===//
     // ARM Specific MachineOperand flags.
 
-    MO_NO_FLAG,
+    MO_NO_FLAG = 0,
 
     /// MO_LO16 - On a symbol operand, this represents a relocation containing
     /// lower 16 bit of the address. Used only via movw instruction.
-    MO_LO16,
+    MO_LO16 = 0x1,
 
     /// MO_HI16 - On a symbol operand, this represents a relocation containing
     /// higher 16 bit of the address. Used only via movt instruction.
-    MO_HI16,
-
-    /// MO_LO16_NONLAZY - On a symbol operand "FOO", this represents a
-    /// relocation containing lower 16 bit of the non-lazy-ptr indirect symbol,
-    /// i.e. "FOO$non_lazy_ptr".
-    /// Used only via movw instruction.
-    MO_LO16_NONLAZY,
-
-    /// MO_HI16_NONLAZY - On a symbol operand "FOO", this represents a
-    /// relocation containing lower 16 bit of the non-lazy-ptr indirect symbol,
-    /// i.e. "FOO$non_lazy_ptr". Used only via movt instruction.
-    MO_HI16_NONLAZY,
-
-    /// MO_LO16_NONLAZY_PIC - On a symbol operand "FOO", this represents a
-    /// relocation containing lower 16 bit of the PC relative address of the
-    /// non-lazy-ptr indirect symbol, i.e. "FOO$non_lazy_ptr - LABEL".
-    /// Used only via movw instruction.
-    MO_LO16_NONLAZY_PIC,
-
-    /// MO_HI16_NONLAZY_PIC - On a symbol operand "FOO", this represents a
-    /// relocation containing lower 16 bit of the PC relative address of the
-    /// non-lazy-ptr indirect symbol, i.e. "FOO$non_lazy_ptr - LABEL".
-    /// Used only via movt instruction.
-    MO_HI16_NONLAZY_PIC,
+    MO_HI16 = 0x2,
 
     /// MO_PLT - On a symbol operand, this represents an ELF PLT reference on a
     /// call operand.
-    MO_PLT
+    MO_PLT = 0x3,
+
+    /// MO_OPTION_MASK - Most flags are mutually exclusive; this mask selects
+    /// just that part of the flag set.
+    MO_OPTION_MASK = 0x3f,
+
+    /// MO_DLLIMPORT - On a symbol operand, this represents that the reference
+    /// to the symbol is for an import stub.  This is used for DLL import
+    /// storage class indication on Windows.
+    MO_DLLIMPORT = 0x40,
+
+    /// MO_NONLAZY - This is an independent flag, on a symbol operand "FOO" it
+    /// represents a symbol which, if indirect, will get special Darwin mangling
+    /// as a non-lazy-ptr indirect symbol (i.e. "L_FOO$non_lazy_ptr"). Can be
+    /// combined with MO_LO16, MO_HI16 or MO_NO_FLAG (in a constant-pool, for
+    /// example).
+    MO_NONLAZY = 0x80,
+
+    // It's undefined behaviour if an enum overflows the range between its
+    // smallest and largest values, but since these are |ed together, it can
+    // happen. Put a sentinel in (values of this enum are stored as "unsigned
+    // char").
+    MO_UNUSED_MAXIMUM = 0xff
   };
 
   enum {

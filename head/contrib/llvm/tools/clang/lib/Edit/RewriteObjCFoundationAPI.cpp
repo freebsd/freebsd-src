@@ -58,7 +58,7 @@ static bool checkForLiteralCreation(const ObjCMessageExpr *Msg,
 
 bool edit::rewriteObjCRedundantCallWithLiteral(const ObjCMessageExpr *Msg,
                                               const NSAPI &NS, Commit &commit) {
-  IdentifierInfo *II = 0;
+  IdentifierInfo *II = nullptr;
   if (!checkForLiteralCreation(Msg, II, NS.getASTContext().getLangOpts()))
     return false;
   if (Msg->getNumArgs() != 1)
@@ -339,7 +339,7 @@ static bool rewriteToStringBoxedExpression(const ObjCMessageExpr *Msg,
 bool edit::rewriteToObjCLiteralSyntax(const ObjCMessageExpr *Msg,
                                       const NSAPI &NS, Commit &commit,
                                       const ParentMap *PMap) {
-  IdentifierInfo *II = 0;
+  IdentifierInfo *II = nullptr;
   if (!checkForLiteralCreation(Msg, II, NS.getASTContext().getLangOpts()))
     return false;
 
@@ -447,7 +447,7 @@ static bool getNSArrayObjects(const Expr *E, const NSAPI &NS,
     return false;
 
   if (const ObjCMessageExpr *Msg = dyn_cast<ObjCMessageExpr>(E)) {
-    IdentifierInfo *Cls = 0;
+    IdentifierInfo *Cls = nullptr;
     if (!checkForLiteralCreation(Msg, Cls, NS.getASTContext().getLangOpts()))
       return false;
 
@@ -606,7 +606,7 @@ static bool shouldNotRewriteImmediateMessageArgs(const ObjCMessageExpr *Msg,
   if (!Msg)
     return false;
 
-  IdentifierInfo *II = 0;
+  IdentifierInfo *II = nullptr;
   if (!checkForLiteralCreation(Msg, II, NS.getASTContext().getLangOpts()))
     return false;
 
@@ -1033,6 +1033,7 @@ static bool rewriteToNumericBoxedExpression(const ObjCMessageExpr *Msg,
     case CK_IntegralComplexToReal:
     case CK_IntegralComplexToBoolean:
     case CK_AtomicToNonAtomic:
+    case CK_AddressSpaceConversion:
       needsCast = true;
       break;
 
@@ -1148,7 +1149,8 @@ static bool rewriteToStringBoxedExpression(const ObjCMessageExpr *Msg,
   Selector Sel = Msg->getSelector();
 
   if (Sel == NS.getNSStringSelector(NSAPI::NSStr_stringWithUTF8String) ||
-      Sel == NS.getNSStringSelector(NSAPI::NSStr_stringWithCString)) {
+      Sel == NS.getNSStringSelector(NSAPI::NSStr_stringWithCString) ||
+      Sel == NS.getNSStringSelector(NSAPI::NSStr_initWithUTF8String)) {
     if (Msg->getNumArgs() != 1)
       return false;
     return doRewriteToUTF8StringBoxedExpressionHelper(Msg, NS, commit);

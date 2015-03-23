@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 The FreeBSD Foundation
+ * Copyright (c) 2013-2015 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed by Konstantin Belousov <kib@FreeBSD.org>
@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
+#include <sys/vmem.h>
 #include <machine/bus.h>
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -65,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <x86/iommu/intel_reg.h>
 #include <x86/iommu/busdma_dmar.h>
 #include <x86/iommu/intel_dmar.h>
+#include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
 #ifdef DEV_APIC
@@ -243,6 +245,7 @@ dmar_release_resources(device_t dev, struct dmar_unit *unit)
 	int i;
 
 	dmar_fini_busdma(unit);
+	dmar_fini_irt(unit);
 	dmar_fini_qi(unit);
 	dmar_fini_fault_log(unit);
 	for (i = 0; i < DMAR_INTR_TOTAL; i++)
@@ -375,7 +378,7 @@ dmar_print_caps(device_t dev, struct dmar_unit *unit,
 	caphi = unit->hw_cap >> 32;
 	device_printf(dev, "cap=%b,", (u_int)unit->hw_cap,
 	    "\020\004AFL\005WBF\006PLMR\007PHMR\010CM\027ZLR\030ISOCH");
-	printf("%b, ", caphi, "\020\010PSI\027DWD\030DRD");
+	printf("%b, ", caphi, "\020\010PSI\027DWD\030DRD\031FL1GP\034PSI");
 	printf("ndoms=%d, sagaw=%d, mgaw=%d, fro=%d, nfr=%d, superp=%d",
 	    DMAR_CAP_ND(unit->hw_cap), DMAR_CAP_SAGAW(unit->hw_cap),
 	    DMAR_CAP_MGAW(unit->hw_cap), DMAR_CAP_FRO(unit->hw_cap),
@@ -385,8 +388,9 @@ dmar_print_caps(device_t dev, struct dmar_unit *unit,
 	printf("\n");
 	ecaphi = unit->hw_ecap >> 32;
 	device_printf(dev, "ecap=%b,", (u_int)unit->hw_ecap,
-	    "\020\001C\002QI\003DI\004IR\005EIM\007PT\010SC");
-	printf("%b, ", ecaphi, "\020");
+	    "\020\001C\002QI\003DI\004IR\005EIM\007PT\010SC\031ECS\032MTS"
+	    "\033NEST\034DIS\035PASID\036PRS\037ERS\040SRS");
+	printf("%b, ", ecaphi, "\020\002NWFS\003EAFS");
 	printf("mhmw=%d, iro=%d\n", DMAR_ECAP_MHMV(unit->hw_ecap),
 	    DMAR_ECAP_IRO(unit->hw_ecap));
 }
@@ -504,6 +508,11 @@ dmar_attach(device_t dev)
 		return (error);
 	}
 	error = dmar_init_qi(unit);
+	if (error != 0) {
+		dmar_release_resources(dev, unit);
+		return (error);
+	}
+	error = dmar_init_irt(unit);
 	if (error != 0) {
 		dmar_release_resources(dev, unit);
 		return (error);
@@ -760,6 +769,76 @@ dmar_find(device_t dev)
 	return (NULL);
 found:
 	return (device_get_softc(dmar_dev));
+}
+
+static struct dmar_unit *
+dmar_find_nonpci(u_int id, u_int entry_type, uint16_t *rid)
+{
+	device_t dmar_dev;
+	struct dmar_unit *unit;
+	ACPI_DMAR_HARDWARE_UNIT *dmarh;
+	ACPI_DMAR_DEVICE_SCOPE *devscope;
+	ACPI_DMAR_PCI_PATH *path;
+	char *ptr, *ptrend;
+	int i;
+
+	for (i = 0; i < dmar_devcnt; i++) {
+		dmar_dev = dmar_devs[i];
+		if (dmar_dev == NULL)
+			continue;
+		unit = (struct dmar_unit *)device_get_softc(dmar_dev);
+		dmarh = dmar_find_by_index(i);
+		if (dmarh == NULL)
+			continue;
+		ptr = (char *)dmarh + sizeof(*dmarh);
+		ptrend = (char *)dmarh + dmarh->Header.Length;
+		for (;;) {
+			if (ptr >= ptrend)
+				break;
+			devscope = (ACPI_DMAR_DEVICE_SCOPE *)ptr;
+			ptr += devscope->Length;
+			if (devscope->EntryType != entry_type)
+				continue;
+			if (devscope->EnumerationId != id)
+				continue;
+			if (devscope->Length - sizeof(ACPI_DMAR_DEVICE_SCOPE)
+			    == 2) {
+				if (rid != NULL) {
+					path = (ACPI_DMAR_PCI_PATH *)
+					    (devscope + 1);
+					*rid = PCI_RID(devscope->Bus,
+					    path->Device, path->Function);
+				}
+				return (unit);
+			} else {
+				/* XXXKIB */
+				printf(
+		       "dmar_find_nonpci: id %d type %d path length != 2\n",
+				    id, entry_type);
+			}
+		}
+	}
+	return (NULL);
+}
+
+
+struct dmar_unit *
+dmar_find_hpet(device_t dev, uint16_t *rid)
+{
+	ACPI_HANDLE handle;
+	uint32_t hpet_id;
+
+	handle = acpi_get_handle(dev);
+	if (ACPI_FAILURE(acpi_GetInteger(handle, "_UID", &hpet_id)))
+		return (NULL);
+	return (dmar_find_nonpci(hpet_id, ACPI_DMAR_SCOPE_TYPE_HPET, rid));
+}
+
+struct dmar_unit *
+dmar_find_ioapic(u_int apic_id, uint16_t *rid)
+{
+
+	return (dmar_find_nonpci(apic_id, ACPI_DMAR_SCOPE_TYPE_IOAPIC, rid));
 }
 
 struct rmrr_iter_args {

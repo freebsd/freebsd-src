@@ -39,23 +39,14 @@ struct vattr;
 struct vnode;
 struct reg;
 
-/*
- * Cyclic clock function type definition used to hook the cyclic
- * subsystem into the appropriate timer interrupt.
- */
-typedef	void (*cyclic_clock_func_t)(struct trapframe *);
-extern cyclic_clock_func_t	cyclic_clock_func;
-
-void clocksource_cyc_set(const struct bintime *t);
-
-int dtrace_trap(struct trapframe *);
+int dtrace_trap(struct trapframe *, u_int);
 
 /*
  * The dtrace module handles traps that occur during a DTrace probe.
  * This type definition is used in the trap handler to provide a
  * hook for the dtrace module to register its handler with.
  */
-typedef int (*dtrace_trap_func_t)(struct trapframe *);
+typedef int (*dtrace_trap_func_t)(struct trapframe *, u_int);
 extern dtrace_trap_func_t	dtrace_trap_func;
 
 /*

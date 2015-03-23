@@ -12,6 +12,7 @@
 
 // C Includes
 // C++ Includes
+#include <atomic>
 #include <string>
 
 // Other libraries and framework includes
@@ -19,6 +20,7 @@
 #include "lldb/lldb-private.h"
 #include "lldb/Core/Broadcaster.h"
 #include "lldb/Core/Error.h"
+#include "lldb/Host/HostThread.h"
 #include "lldb/Host/Mutex.h"
 #include "lldb/lldb-private.h"
 
@@ -59,7 +61,7 @@ namespace lldb_private {
 ///
 ///     bool Communication::StartReadThread (Error *);
 ///
-/// If true is returned a read thead has been spawned that will
+/// If true is returned a read thread has been spawned that will
 /// continually execute a call to the pure virtual DoRead function:
 ///
 ///     size_t Communication::ReadFromConnection (void *, size_t, uint32_t);
@@ -300,7 +302,7 @@ public:
     //------------------------------------------------------------------
     /// The static read thread function. This function will call
     /// the "DoRead" function continuously and wait for data to become
-    /// avaialble. When data is received it will append the available
+    /// available. When data is received it will append the available
     /// data to the internal cache and broadcast a
     /// \b eBroadcastBitReadThreadGotBytes event.
     ///
@@ -350,8 +352,8 @@ private:
 
 protected:
     lldb::ConnectionSP m_connection_sp; ///< The connection that is current in use by this communications class.
-    lldb::thread_t m_read_thread; ///< The read thread handle in case we need to cancel the thread.
-    bool m_read_thread_enabled;
+    HostThread m_read_thread;           ///< The read thread handle in case we need to cancel the thread.
+    std::atomic<bool> m_read_thread_enabled;
     std::string m_bytes;    ///< A buffer to cache bytes read in the ReadThread function.
     Mutex m_bytes_mutex;    ///< A mutex to protect multi-threaded access to the cached bytes.
     Mutex m_write_mutex;    ///< Don't let multiple threads write at the same time...

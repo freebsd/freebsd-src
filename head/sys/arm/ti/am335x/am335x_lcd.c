@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_syscons.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -41,8 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-
-/* syscons bits */
 #include <sys/fbio.h>
 #include <sys/consio.h>
 
@@ -54,13 +53,19 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/fb/fbreg.h>
+#ifdef DEV_SC
 #include <dev/syscons/syscons.h>
+#else /* VT */
+#include <dev/vt/vt.h>
+#endif
 
 #include <arm/ti/ti_prcm.h>
 #include <arm/ti/ti_scm.h>
 
 #include "am335x_lcd.h"
 #include "am335x_pwm.h"
+
+#include "fb_if.h"
 
 #define	LCD_PID			0x00
 #define	LCD_CTRL		0x04
@@ -150,6 +155,7 @@ __FBSDID("$FreeBSD$");
 #define		IRQ_SYNC_LOST		(1 << 2)
 #define		IRQ_RASTER_DONE		(1 << 1)
 #define		IRQ_FRAME_DONE		(1 << 0)
+#define	LCD_END_OF_INT_IND	0x68
 #define	LCD_CLKC_ENABLE		0x6C
 #define		CLKC_ENABLE_DMA		(1 << 2)
 #define		CLKC_ENABLE_LDID	(1 << 1)
@@ -177,6 +183,7 @@ __FBSDID("$FreeBSD$");
 
 struct am335x_lcd_softc {
 	device_t		sc_dev;
+	struct fb_info		sc_fb_info;
 	struct resource		*sc_mem_res;
 	struct resource		*sc_irq_res;
 	void			*sc_intr_hl;
@@ -355,6 +362,8 @@ am335x_lcd_intr(void *arg)
 
 	reg = LCD_READ4(sc, LCD_IRQSTATUS);
 	LCD_WRITE4(sc, LCD_IRQSTATUS, reg);
+	/* Read value back to make sure it reached the hardware */
+	reg = LCD_READ4(sc, LCD_IRQSTATUS);
 
 	if (reg & IRQ_SYNC_LOST) {
 		reg = LCD_READ4(sc, LCD_RASTER_CTRL);
@@ -364,7 +373,7 @@ am335x_lcd_intr(void *arg)
 		reg = LCD_READ4(sc, LCD_RASTER_CTRL);
 		reg |= RASTER_CTRL_LCDEN;
 		LCD_WRITE4(sc, LCD_RASTER_CTRL, reg); 
-		return;
+		goto done;
 	}
 
 	if (reg & IRQ_PL) {
@@ -375,7 +384,7 @@ am335x_lcd_intr(void *arg)
 		reg = LCD_READ4(sc, LCD_RASTER_CTRL);
 		reg |= RASTER_CTRL_LCDEN;
 		LCD_WRITE4(sc, LCD_RASTER_CTRL, reg); 
-		return;
+		goto done;
 	}
 
 	if (reg & IRQ_EOF0) {
@@ -397,12 +406,19 @@ am335x_lcd_intr(void *arg)
 	if (reg & IRQ_ACB) {
 		/* TODO: Handle ACB */
 	}
+
+done:
+	LCD_WRITE4(sc, LCD_END_OF_INT_IND, 0);
+	/* Read value back to make sure it reached the hardware */
+	reg = LCD_READ4(sc, LCD_END_OF_INT_IND);
 }
 
 static int
 am335x_lcd_probe(device_t dev)
 {
+#ifdef DEV_SC
 	int err;
+#endif
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
@@ -412,10 +428,12 @@ am335x_lcd_probe(device_t dev)
 
 	device_set_desc(dev, "AM335x LCD controller");
 
+#ifdef DEV_SC
 	err = sc_probe_unit(device_get_unit(dev), 
 	    device_get_flags(dev) | SC_AUTODETECT_KBD);
 	if (err != 0)
 		return (err);
+#endif
 
 	return (BUS_PROBE_DEFAULT);
 }
@@ -433,6 +451,9 @@ am335x_lcd_attach(device_t dev)
 	uint32_t burst_log;
 	int err;
 	size_t dma_size;
+	uint32_t hbp, hfp, hsw;
+	uint32_t vbp, vfp, vsw;
+	uint32_t width, height;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -527,31 +548,42 @@ am335x_lcd_attach(device_t dev)
 	/* Set timing */
 	timing0 = timing1 = timing2 = 0;
 
+	hbp = panel.panel_hbp - 1;
+	hfp = panel.panel_hfp - 1;
+	hsw = panel.panel_hsw - 1;
+
+	vbp = panel.panel_vbp;
+	vfp = panel.panel_vfp;
+	vsw = panel.panel_vsw - 1;
+
+	height = panel.panel_height - 1;
+	width = panel.panel_width - 1;
+
 	/* Horizontal back porch */
-	timing0 |= (panel.panel_hbp & 0xff) << RASTER_TIMING_0_HBP_SHIFT;
-	timing2 |= ((panel.panel_hbp >> 8) & 3) << RASTER_TIMING_2_HBPHI_SHIFT;
+	timing0 |= (hbp & 0xff) << RASTER_TIMING_0_HBP_SHIFT;
+	timing2 |= ((hbp >> 8) & 3) << RASTER_TIMING_2_HBPHI_SHIFT;
 	/* Horizontal front porch */
-	timing0 |= (panel.panel_hfp & 0xff) << RASTER_TIMING_0_HFP_SHIFT;
-	timing2 |= ((panel.panel_hfp >> 8) & 3) << RASTER_TIMING_2_HFPHI_SHIFT;
+	timing0 |= (hfp & 0xff) << RASTER_TIMING_0_HFP_SHIFT;
+	timing2 |= ((hfp >> 8) & 3) << RASTER_TIMING_2_HFPHI_SHIFT;
 	/* Horizontal sync width */
-	timing0 |= (panel.panel_hsw & 0x3f) << RASTER_TIMING_0_HSW_SHIFT;
-	timing2 |= ((panel.panel_hsw >> 6) & 0xf) << RASTER_TIMING_2_HSWHI_SHIFT;
+	timing0 |= (hsw & 0x3f) << RASTER_TIMING_0_HSW_SHIFT;
+	timing2 |= ((hsw >> 6) & 0xf) << RASTER_TIMING_2_HSWHI_SHIFT;
 
 	/* Vertical back porch, front porch, sync width */
-	timing1 |= (panel.panel_vbp & 0xff) << RASTER_TIMING_1_VBP_SHIFT;
-	timing1 |= (panel.panel_vfp & 0xff) << RASTER_TIMING_1_VFP_SHIFT;
-	timing1 |= (panel.panel_vsw & 0x3f) << RASTER_TIMING_1_VSW_SHIFT;
+	timing1 |= (vbp & 0xff) << RASTER_TIMING_1_VBP_SHIFT;
+	timing1 |= (vfp & 0xff) << RASTER_TIMING_1_VFP_SHIFT;
+	timing1 |= (vsw & 0x3f) << RASTER_TIMING_1_VSW_SHIFT;
 
 	/* Pixels per line */
-	timing0 |= (((panel.panel_width - 1) >> 10) & 1)
+	timing0 |= ((width >> 10) & 1)
 	    << RASTER_TIMING_0_PPLMSB_SHIFT;
-	timing0 |= (((panel.panel_width - 1) >> 4) & 0x3f)
+	timing0 |= ((width >> 4) & 0x3f)
 	    << RASTER_TIMING_0_PPLLSB_SHIFT;
 
 	/* Lines per panel */
-	timing1 |= ((panel.panel_height - 1) & 0x3ff) 
+	timing1 |= (height & 0x3ff) 
 	    << RASTER_TIMING_1_LPP_SHIFT;
-	timing2 |= (((panel.panel_height - 1) >> 10 ) & 1) 
+	timing2 |= ((height >> 10 ) & 1) 
 	    << RASTER_TIMING_2_LPP_B10_SHIFT;
 
 	/* clock signal settings */
@@ -648,6 +680,16 @@ am335x_lcd_attach(device_t dev)
 	    PWM_PERIOD, PWM_PERIOD) == 0)
 		sc->sc_backlight = 100;
 
+	sc->sc_fb_info.fb_name = device_get_nameunit(sc->sc_dev);
+	sc->sc_fb_info.fb_vbase = (intptr_t)sc->sc_fb_base;
+	sc->sc_fb_info.fb_pbase = sc->sc_fb_phys;
+	sc->sc_fb_info.fb_size = sc->sc_fb_size;
+	sc->sc_fb_info.fb_bpp = sc->sc_fb_info.fb_depth = panel.bpp;
+	sc->sc_fb_info.fb_stride = panel.panel_width*panel.bpp / 8;
+	sc->sc_fb_info.fb_width = panel.panel_width;
+	sc->sc_fb_info.fb_height = panel.panel_height;
+
+#ifdef	DEV_SC
 	err = (sc_attach_unit(device_get_unit(dev),
 	    device_get_flags(dev) | SC_AUTODETECT_KBD));
 
@@ -657,6 +699,18 @@ am335x_lcd_attach(device_t dev)
 	}
 
 	am335x_lcd_syscons_setup((vm_offset_t)sc->sc_fb_base, sc->sc_fb_phys, &panel);
+#else /* VT */
+	device_t fbd = device_add_child(dev, "fbd",
+	device_get_unit(dev));
+	if (fbd == NULL) {
+		device_printf(dev, "Failed to add fbd child\n");
+		goto fail;
+	}
+	if (device_probe_and_attach(fbd) != 0) {
+		device_printf(dev, "Failed to attach fbd device\n");
+		goto fail;
+	}
+#endif
 
 	return (0);
 
@@ -671,16 +725,29 @@ am335x_lcd_detach(device_t dev)
 	return (EBUSY);
 }
 
+static struct fb_info *
+am335x_lcd_fb_getinfo(device_t dev)
+{
+	struct am335x_lcd_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	return (&sc->sc_fb_info);
+}
+
 static device_method_t am335x_lcd_methods[] = {
 	DEVMETHOD(device_probe,		am335x_lcd_probe),
 	DEVMETHOD(device_attach,	am335x_lcd_attach),
 	DEVMETHOD(device_detach,	am335x_lcd_detach),
 
+	/* Framebuffer service methods */
+	DEVMETHOD(fb_getinfo,		am335x_lcd_fb_getinfo),
+
 	DEVMETHOD_END
 };
 
 static driver_t am335x_lcd_driver = {
-	"am335x_lcd",
+	"fb",
 	am335x_lcd_methods,
 	sizeof(struct am335x_lcd_softc),
 };

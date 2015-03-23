@@ -66,11 +66,13 @@ ValueObjectPrinter::Init (ValueObject* valobj,
 bool
 ValueObjectPrinter::PrintValueObject ()
 {
-    if (!GetDynamicValueIfNeeded () || m_valobj == nullptr)
+    if (!GetMostSpecializedValue () || m_valobj == nullptr)
         return false;
     
     if (ShouldPrintValueObject())
     {
+        PrintValidationMarkerIfNeeded();
+        
         PrintLocationIfNeeded();
         m_stream->Indent();
         
@@ -89,11 +91,13 @@ ValueObjectPrinter::PrintValueObject ()
     else
         m_stream->EOL();
     
+    PrintValidationErrorIfNeeded();
+    
     return true;
 }
 
 bool
-ValueObjectPrinter::GetDynamicValueIfNeeded ()
+ValueObjectPrinter::GetMostSpecializedValue ()
 {
     if (m_valobj)
         return true;
@@ -130,6 +134,25 @@ ValueObjectPrinter::GetDynamicValueIfNeeded ()
             else
                 m_valobj = m_orig_valobj;
         }
+        
+        if (m_valobj->IsSynthetic())
+        {
+            if (options.m_use_synthetic == false)
+            {
+                ValueObject *non_synthetic = m_valobj->GetNonSyntheticValue().get();
+                if (non_synthetic)
+                    m_valobj = non_synthetic;
+            }
+        }
+        else
+        {
+            if (options.m_use_synthetic == true)
+            {
+                ValueObject *synthetic = m_valobj->GetSyntheticValue().get();
+                if (synthetic)
+                    m_valobj = synthetic;
+            }
+        }
     }
     m_clang_type = m_valobj->GetClangType();
     m_type_flags = m_clang_type.GetTypeInfo ();
@@ -160,7 +183,7 @@ bool
 ValueObjectPrinter::ShouldPrintValueObject ()
 {
     if (m_should_print == eLazyBoolCalculate)
-        m_should_print = (options.m_flat_output == false || m_type_flags.Test (ClangASTType::eTypeHasValue)) ? eLazyBoolYes : eLazyBoolNo;
+        m_should_print = (options.m_flat_output == false || m_type_flags.Test (eTypeHasValue)) ? eLazyBoolYes : eLazyBoolNo;
     return m_should_print == eLazyBoolYes;
 }
 
@@ -176,7 +199,7 @@ bool
 ValueObjectPrinter::IsPtr ()
 {
     if (m_is_ptr == eLazyBoolCalculate)
-        m_is_ptr = m_type_flags.Test (ClangASTType::eTypeIsPointer) ? eLazyBoolYes : eLazyBoolNo;
+        m_is_ptr = m_type_flags.Test (eTypeIsPointer) ? eLazyBoolYes : eLazyBoolNo;
     return m_is_ptr == eLazyBoolYes;
 }
 
@@ -184,7 +207,7 @@ bool
 ValueObjectPrinter::IsRef ()
 {
     if (m_is_ref == eLazyBoolCalculate)
-        m_is_ref = m_type_flags.Test (ClangASTType::eTypeIsReference) ? eLazyBoolYes : eLazyBoolNo;
+        m_is_ref = m_type_flags.Test (eTypeIsReference) ? eLazyBoolYes : eLazyBoolNo;
     return m_is_ref == eLazyBoolYes;
 }
 
@@ -192,7 +215,7 @@ bool
 ValueObjectPrinter::IsAggregate ()
 {
     if (m_is_aggregate == eLazyBoolCalculate)
-        m_is_aggregate = m_type_flags.Test (ClangASTType::eTypeHasChildren) ? eLazyBoolYes : eLazyBoolNo;
+        m_is_aggregate = m_type_flags.Test (eTypeHasChildren) ? eLazyBoolYes : eLazyBoolNo;
     return m_is_aggregate == eLazyBoolYes;
 }
 
@@ -222,9 +245,13 @@ ValueObjectPrinter::PrintTypeIfNeeded ()
     {
         // Some ValueObjects don't have types (like registers sets). Only print
         // the type if there is one to print
-        ConstString qualified_type_name(m_valobj->GetQualifiedTypeName());
-        if (qualified_type_name)
-            m_stream->Printf("(%s) ", qualified_type_name.GetCString());
+        ConstString type_name;
+        if (options.m_use_type_display_name)
+            type_name = m_valobj->GetDisplayTypeName();
+        else
+            type_name = m_valobj->GetQualifiedTypeName();
+        if (type_name)
+            m_stream->Printf("(%s) ", type_name.GetCString());
         else
             show_type = false;
     }
@@ -341,7 +368,7 @@ ValueObjectPrinter::PrintValueAndSummaryIfNeeded (bool& value_printed,
             // the value if this thing is nil
             // (but show the value if the user passes a format explicitly)
             TypeSummaryImpl* entry = GetSummaryFormatter();
-            if (!IsNil() && !m_value.empty() && (entry == NULL || (entry->DoesPrintValue() || options.m_format != eFormatDefault) || m_summary.empty()) && !options.m_hide_value)
+            if (!IsNil() && !m_value.empty() && (entry == NULL || (entry->DoesPrintValue(m_valobj) || options.m_format != eFormatDefault) || m_summary.empty()) && !options.m_hide_value)
             {
                 m_stream->Printf(" %s", m_value.c_str());
                 value_printed = true;
@@ -426,7 +453,7 @@ ValueObjectPrinter::ShouldPrintChildren (bool is_failed_description,
         
         TypeSummaryImpl* entry = GetSummaryFormatter();
 
-        return (!entry || entry->DoesPrintChildren() || m_summary.empty());
+        return (!entry || entry->DoesPrintChildren(m_valobj) || m_summary.empty());
     }
     return false;
 }
@@ -434,8 +461,7 @@ ValueObjectPrinter::ShouldPrintChildren (bool is_failed_description,
 ValueObject*
 ValueObjectPrinter::GetValueObjectForChildrenGeneration ()
 {
-    ValueObjectSP synth_valobj_sp = m_valobj->GetSyntheticValue (options.m_use_synthetic);
-    return (synth_valobj_sp ? synth_valobj_sp.get() : m_valobj);
+    return m_valobj;
 }
 
 void
@@ -532,7 +558,13 @@ ValueObjectPrinter::PrintChildren (uint32_t curr_ptr_depth)
     {
         // Aggregate, no children...
         if (ShouldPrintValueObject())
-            m_stream->PutCString(" {}\n");
+        {
+            // if it has a synthetic value, then don't print {}, the synthetic children are probably only being used to vend a value
+            if (m_valobj->DoesProvideSyntheticValue())
+                m_stream->PutCString( "\n");
+            else
+                m_stream->PutCString(" {}\n");
+        }
     }
     else
     {
@@ -544,7 +576,7 @@ ValueObjectPrinter::PrintChildren (uint32_t curr_ptr_depth)
 bool
 ValueObjectPrinter::PrintChildrenOneLiner (bool hide_names)
 {
-    if (!GetDynamicValueIfNeeded () || m_valobj == nullptr)
+    if (!GetMostSpecializedValue () || m_valobj == nullptr)
         return false;
     
     ValueObject* synth_m_valobj = GetValueObjectForChildrenGeneration();
@@ -559,9 +591,8 @@ ValueObjectPrinter::PrintChildrenOneLiner (bool hide_names)
         for (uint32_t idx=0; idx<num_children; ++idx)
         {
             lldb::ValueObjectSP child_sp(synth_m_valobj->GetChildAtIndex(idx, true));
-            lldb::ValueObjectSP child_dyn_sp = child_sp.get() ? child_sp->GetDynamicValue(options.m_use_dynamic) : child_sp;
-            if (child_dyn_sp)
-                child_sp = child_dyn_sp;
+            if (child_sp)
+                child_sp = child_sp->GetQualifiedRepresentationIfAvailable(options.m_use_dynamic, options.m_use_synthetic);
             if (child_sp)
             {
                 if (idx)
@@ -600,7 +631,7 @@ ValueObjectPrinter::PrintChildrenIfNeeded (bool value_printed,
     
     uint32_t curr_ptr_depth = m_ptr_depth;
     bool print_children = ShouldPrintChildren (is_failed_description,curr_ptr_depth);
-    bool print_oneline = (curr_ptr_depth > 0 || options.m_show_types || options.m_be_raw) ? false : DataVisualization::ShouldPrintAsOneLiner(*m_valobj);
+    bool print_oneline = (curr_ptr_depth > 0 || options.m_show_types || !options.m_allow_oneliner_mode) ? false : DataVisualization::ShouldPrintAsOneLiner(*m_valobj);
     
     if (print_children)
     {
@@ -619,4 +650,45 @@ ValueObjectPrinter::PrintChildrenIfNeeded (bool value_printed,
     }
     else
         m_stream->EOL();
+}
+
+bool
+ValueObjectPrinter::ShouldPrintValidation ()
+{
+    return options.m_run_validator;
+}
+
+bool
+ValueObjectPrinter::PrintValidationMarkerIfNeeded ()
+{
+    if (!ShouldPrintValidation())
+        return false;
+    
+    m_validation = m_valobj->GetValidationStatus();
+    
+    if (TypeValidatorResult::Failure == m_validation.first)
+    {
+        m_stream->Printf("! ");
+        return true;
+    }
+    
+    return false;
+}
+
+bool
+ValueObjectPrinter::PrintValidationErrorIfNeeded ()
+{
+    if (!ShouldPrintValidation())
+        return false;
+    
+    if (TypeValidatorResult::Success == m_validation.first)
+        return false;
+    
+    if (m_validation.second.empty())
+        m_validation.second.assign("unknown error");
+    
+    m_stream->Printf(" ! validation error: %s", m_validation.second.c_str());
+    m_stream->EOL();
+    
+    return true;
 }

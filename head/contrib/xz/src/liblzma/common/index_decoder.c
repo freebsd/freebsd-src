@@ -54,7 +54,7 @@ struct lzma_coder_s {
 
 
 static lzma_ret
-index_decode(lzma_coder *coder, lzma_allocator *allocator,
+index_decode(lzma_coder *coder, const lzma_allocator *allocator,
 		const uint8_t *restrict in, size_t *restrict in_pos,
 		size_t in_size,
 		uint8_t *restrict out lzma_attribute((__unused__)),
@@ -207,7 +207,7 @@ out:
 
 
 static void
-index_decoder_end(lzma_coder *coder, lzma_allocator *allocator)
+index_decoder_end(lzma_coder *coder, const lzma_allocator *allocator)
 {
 	lzma_index_end(coder->index, allocator);
 	lzma_free(coder, allocator);
@@ -234,7 +234,7 @@ index_decoder_memconfig(lzma_coder *coder, uint64_t *memusage,
 
 
 static lzma_ret
-index_decoder_reset(lzma_coder *coder, lzma_allocator *allocator,
+index_decoder_reset(lzma_coder *coder, const lzma_allocator *allocator,
 		lzma_index **i, uint64_t memlimit)
 {
 	// Remember the pointer given by the application. We will set it
@@ -261,7 +261,7 @@ index_decoder_reset(lzma_coder *coder, lzma_allocator *allocator,
 
 
 static lzma_ret
-index_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+index_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		lzma_index **i, uint64_t memlimit)
 {
 	lzma_next_coder_init(&index_decoder_init, next, allocator);
@@ -299,8 +299,8 @@ lzma_index_decoder(lzma_stream *strm, lzma_index **i, uint64_t memlimit)
 
 
 extern LZMA_API(lzma_ret)
-lzma_index_buffer_decode(
-		lzma_index **i, uint64_t *memlimit, lzma_allocator *allocator,
+lzma_index_buffer_decode(lzma_index **i, uint64_t *memlimit,
+		const lzma_allocator *allocator,
 		const uint8_t *in, size_t *in_pos, size_t in_size)
 {
 	// Sanity checks

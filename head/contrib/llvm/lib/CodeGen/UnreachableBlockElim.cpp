@@ -23,32 +23,32 @@
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/Analysis/Dominators.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/IR/Constant.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Type.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/CFG.h"
 #include "llvm/Target/TargetInstrInfo.h"
 using namespace llvm;
 
 namespace {
   class UnreachableBlockElim : public FunctionPass {
-    virtual bool runOnFunction(Function &F);
+    bool runOnFunction(Function &F) override;
   public:
     static char ID; // Pass identification, replacement for typeid
     UnreachableBlockElim() : FunctionPass(ID) {
       initializeUnreachableBlockElimPass(*PassRegistry::getPassRegistry());
     }
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-      AU.addPreserved<DominatorTree>();
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
+      AU.addPreserved<DominatorTreeWrapperPass>();
     }
   };
 }
@@ -64,9 +64,8 @@ bool UnreachableBlockElim::runOnFunction(Function &F) {
   SmallPtrSet<BasicBlock*, 8> Reachable;
 
   // Mark all reachable blocks.
-  for (df_ext_iterator<Function*, SmallPtrSet<BasicBlock*, 8> > I =
-       df_ext_begin(&F, Reachable), E = df_ext_end(&F, Reachable); I != E; ++I)
-    /* Mark all reachable blocks */;
+  for (BasicBlock *BB : depth_first_ext(&F, Reachable))
+    (void)BB/* Mark all reachable blocks */;
 
   // Loop over all dead blocks, remembering them and deleting all instructions
   // in them.
@@ -95,8 +94,8 @@ bool UnreachableBlockElim::runOnFunction(Function &F) {
 
 namespace {
   class UnreachableMachineBlockElim : public MachineFunctionPass {
-    virtual bool runOnMachineFunction(MachineFunction &F);
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const;
+    bool runOnMachineFunction(MachineFunction &F) override;
+    void getAnalysisUsage(AnalysisUsage &AU) const override;
     MachineModuleInfo *MMI;
   public:
     static char ID; // Pass identification, replacement for typeid
@@ -125,10 +124,8 @@ bool UnreachableMachineBlockElim::runOnMachineFunction(MachineFunction &F) {
   MachineLoopInfo *MLI = getAnalysisIfAvailable<MachineLoopInfo>();
 
   // Mark all reachable blocks.
-  for (df_ext_iterator<MachineFunction*, SmallPtrSet<MachineBasicBlock*, 8> >
-       I = df_ext_begin(&F, Reachable), E = df_ext_end(&F, Reachable);
-       I != E; ++I)
-    /* Mark all reachable blocks */;
+  for (MachineBasicBlock *BB : depth_first_ext(&F, Reachable))
+    (void)BB/* Mark all reachable blocks */;
 
   // Loop over all dead blocks, remembering them and deleting all instructions
   // in them.

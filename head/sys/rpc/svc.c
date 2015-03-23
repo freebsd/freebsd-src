@@ -1101,6 +1101,7 @@ svc_run_internal(SVCGROUP *grp, bool_t ismaster)
 	SVCXPRT *xprt;
 	enum xprt_stat stat;
 	struct svc_req *rqstp;
+	struct proc *p;
 	size_t sz;
 	int error;
 
@@ -1183,11 +1184,23 @@ svc_run_internal(SVCGROUP *grp, bool_t ismaster)
 					> grp->sg_minthreads)
 					&& !st->st_xprt)
 					break;
-			} else if (error) {
+			} else if (error != 0) {
+				KASSERT(error == EINTR || error == ERESTART,
+				    ("non-signal error %d", error));
 				mtx_unlock(&grp->sg_lock);
-				svc_exit(pool);
-				mtx_lock(&grp->sg_lock);
-				break;
+				p = curproc;
+				PROC_LOCK(p);
+				if (P_SHOULDSTOP(p) ||
+				    (p->p_flag & P_TOTAL_STOP) != 0) {
+					thread_suspend_check(0);
+					PROC_UNLOCK(p);
+					mtx_lock(&grp->sg_lock);
+				} else {
+					PROC_UNLOCK(p);
+					svc_exit(pool);
+					mtx_lock(&grp->sg_lock);
+					break;
+				}
 			}
 			continue;
 		}

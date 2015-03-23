@@ -36,9 +36,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/module.h>
+#include <sys/rman.h>
 
 #include <dev/vt/vt.h>
 #include <dev/vt/hw/vga/vt_vga_reg.h>
+#include <dev/pci/pcivar.h>
 
 #include <machine/bus.h>
 
@@ -56,6 +60,7 @@ struct vga_softc {
 	bus_space_handle_t	 vga_reg_handle;
 	int			 vga_wmode;
 	term_color_t		 vga_curfg, vga_curbg;
+	boolean_t		 vga_enabled;
 };
 
 /* Convenience macros. */
@@ -1209,6 +1214,9 @@ vga_init(struct vt_device *vd)
 	sc = vd->vd_softc;
 	textmode = 0;
 
+	if (vd->vd_flags & VDF_DOWNGRADE && vd->vd_video_dev != NULL)
+		vga_pci_repost(vd->vd_video_dev);
+
 #if defined(__amd64__) || defined(__i386__)
 	sc->vga_fb_tag = X86_BUS_SPACE_MEM;
 	sc->vga_fb_handle = KERNBASE + VGA_MEM_BASE;
@@ -1228,6 +1236,7 @@ vga_init(struct vt_device *vd)
 		vd->vd_height = VT_VGA_HEIGHT;
 	}
 	vga_initialize(vd, textmode);
+	sc->vga_enabled = true;
 
 	return (CN_INTERNAL);
 }
@@ -1241,3 +1250,54 @@ vga_postswitch(struct vt_device *vd)
 	/* Ask vt(9) to update chars on visible area. */
 	vd->vd_flags |= VDF_INVALID;
 }
+
+/* Dummy NewBus functions to reserve the resources used by the vt_vga driver */
+static void
+vtvga_identify(driver_t *driver, device_t parent)
+{
+
+	if (!vga_conssoftc.vga_enabled)
+		return;
+
+	if (BUS_ADD_CHILD(parent, 0, driver->name, 0) == NULL)
+		panic("Unable to attach vt_vga console");
+}
+
+static int
+vtvga_probe(device_t dev)
+{
+
+	device_set_desc(dev, "VT VGA driver");
+
+	return (BUS_PROBE_NOWILDCARD);
+}
+
+static int
+vtvga_attach(device_t dev)
+{
+	struct resource *pseudo_phys_res;
+	int res_id;
+
+	res_id = 0;
+	pseudo_phys_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
+	    &res_id, VGA_MEM_BASE, VGA_MEM_BASE + VGA_MEM_SIZE - 1,
+	    VGA_MEM_SIZE, RF_ACTIVE);
+	if (pseudo_phys_res == NULL)
+		panic("Unable to reserve vt_vga memory");
+	return (0);
+}
+
+/*-------------------- Private Device Attachment Data  -----------------------*/
+static device_method_t vtvga_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_identify,	vtvga_identify),
+	DEVMETHOD(device_probe,         vtvga_probe),
+	DEVMETHOD(device_attach,        vtvga_attach),
+
+	DEVMETHOD_END
+};
+
+DEFINE_CLASS_0(vtvga, vtvga_driver, vtvga_methods, 0);
+devclass_t vtvga_devclass;
+
+DRIVER_MODULE(vtvga, nexus, vtvga_driver, vtvga_devclass, NULL, NULL);

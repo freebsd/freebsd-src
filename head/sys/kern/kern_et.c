@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/queue.h>
@@ -234,26 +235,28 @@ et_free(struct eventtimer *et)
 	return (0);
 }
 
-/* Report list of supported event timers hardware via sysctl. */
+/* Report list of supported event timer hardware via sysctl. */
 static int
 sysctl_kern_eventtimer_choice(SYSCTL_HANDLER_ARGS)
 {
-	char buf[512], *spc;
+	struct sbuf sb;
 	struct eventtimer *et;
-	int error, off;
+	int error;
 
-	spc = "";
-	error = 0;
-	buf[0] = 0;
-	off = 0;
+	sbuf_new(&sb, NULL, 256, SBUF_AUTOEXTEND | SBUF_INCLUDENUL);
+
 	ET_LOCK();
 	SLIST_FOREACH(et, &eventtimers, et_all) {
-		off += snprintf(buf + off, sizeof(buf) - off, "%s%s(%d)",
-		    spc, et->et_name, et->et_quality);
-		spc = " ";
+		if (et != SLIST_FIRST(&eventtimers))
+			sbuf_putc(&sb, ' ');
+		sbuf_printf(&sb, "%s(%d)", et->et_name, et->et_quality);
 	}
 	ET_UNLOCK();
-	error = SYSCTL_OUT(req, buf, strlen(buf));
+
+	error = sbuf_finish(&sb);
+	if (error == 0)
+		error = SYSCTL_OUT(req, sbuf_data(&sb), sbuf_len(&sb));
+	sbuf_delete(&sb);
 	return (error);
 }
 SYSCTL_PROC(_kern_eventtimer, OID_AUTO, choice,

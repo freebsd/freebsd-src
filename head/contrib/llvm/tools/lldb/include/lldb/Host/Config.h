@@ -14,11 +14,15 @@
 
 #include "lldb/Host/macosx/Config.h"
 
+#elif defined(__ANDROID_NDK__)
+
+#include "lldb/Host/android/Config.h"
+
 #elif defined(__linux__) || defined(__GNU__)
 
 #include "lldb/Host/linux/Config.h"
 
-#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__OpenBSD__)
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__OpenBSD__) || defined(__NetBSD__)
 
 #include "lldb/Host/freebsd/Config.h"
 

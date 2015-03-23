@@ -95,6 +95,7 @@ struct ti_i2c_softc
 	int			sc_buffer_pos;
 	int			sc_error;
 	int			sc_fifo_trsh;
+	int			sc_timeout;
 
 	uint16_t		sc_con_reg;
 	uint16_t		sc_rev;
@@ -102,8 +103,7 @@ struct ti_i2c_softc
 
 struct ti_i2c_clock_config
 {
-	int speed;
-	int bitrate;
+	u_int   frequency;	/* Bus frequency in Hz */
 	uint8_t psc;		/* Fast/Standard mode prescale divider */
 	uint8_t scll;		/* Fast/Standard mode SCL low time */
 	uint8_t sclh;		/* Fast/Standard mode SCL high time */
@@ -112,27 +112,30 @@ struct ti_i2c_clock_config
 };
 
 #if defined(SOC_OMAP4)
+/*
+ * OMAP4 i2c bus clock is 96MHz / ((psc + 1) * (scll + 7 + sclh + 5)).
+ * The prescaler values for 100KHz and 400KHz modes come from the table in the
+ * OMAP4 TRM.  The table doesn't list 1MHz; these values should give that speed.
+ */
 static struct ti_i2c_clock_config ti_omap4_i2c_clock_configs[] = {
-	{ IIC_UNKNOWN,	 100000, 23, 13, 15,  0, 0},
-	{ IIC_SLOW,	 100000, 23, 13, 15,  0, 0},
-	{ IIC_FAST,	 400000,  9,  5,  7,  0, 0},
-	{ IIC_FASTEST,	1000000,  5,  3,  4,  0, 0},
-	/* { IIC_FASTEST, 3200000,  1, 113, 115, 7, 10}, - HS mode */
-	{ -1, 0 }
+	{  100000, 23,  13,  15,  0,  0},
+	{  400000,  9,   5,   7,  0,  0},
+	{ 1000000,  3,   5,   7,  0,  0},
+/*	{ 3200000,  1, 113, 115,  7, 10}, - HS mode */
+	{       0 /* Table terminator */ }
 };
 #endif
 
 #if defined(SOC_TI_AM335X)
 /*
- * AM335X doesn't support HS mode.  For 100kHz I2C clock set the internal
- * clock to 12Mhz, for 400kHz I2C clock set the internal clock to 24Mhz.
+ * AM335x i2c bus clock is 48MHZ / ((psc + 1) * (scll + 7 + sclh + 5))
+ * In all cases we prescale the clock to 24MHz as recommended in the manual.
  */
 static struct ti_i2c_clock_config ti_am335x_i2c_clock_configs[] = {
-	{ IIC_UNKNOWN,	 100000, 7, 59, 61, 0, 0},
-	{ IIC_SLOW,	 100000, 7, 59, 61, 0, 0},
-	{ IIC_FAST,	 400000, 3, 23, 25, 0, 0},
-	{ IIC_FASTEST,	 400000, 3, 23, 25, 0, 0},
-	{ -1, 0 }
+	{  100000, 1, 111, 117, 0, 0},
+	{  400000, 1,  23,  25, 0, 0},
+	{ 1000000, 1,   5,   7, 0, 0},
+	{       0 /* Table terminator */ }
 };
 #endif
 
@@ -440,7 +443,7 @@ ti_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		ti_i2c_write_2(sc, I2C_REG_CON, reg);
 
 		/* Wait for an event. */
-		err = mtx_sleep(sc, &sc->sc_mtx, 0, "i2ciowait", hz);
+		err = mtx_sleep(sc, &sc->sc_mtx, 0, "i2ciowait", sc->sc_timeout);
 		if (err == 0)
 			err = sc->sc_error;
 
@@ -471,43 +474,12 @@ out:
 	return (err);
 }
 
-/**
- *	ti_i2c_callback - as we only provide iicbus_transfer() interface
- * 		we don't need to implement the serialization here.
- *	@dev: i2c device handle
- *
- *
- *
- *	LOCKING:
- *	Called from timer context
- *
- *	RETURNS:
- *	EH_HANDLED or EH_NOT_HANDLED
- */
-static int
-ti_i2c_callback(device_t dev, int index, caddr_t data)
-{
-	int error = 0;
-
-	switch (index) {
-		case IIC_REQUEST_BUS:
-			break;
-
-		case IIC_RELEASE_BUS:
-			break;
-
-		default:
-			error = EINVAL;
-	}
-
-	return (error);
-}
-
 static int
 ti_i2c_reset(struct ti_i2c_softc *sc, u_char speed)
 {
 	int timeout;
 	struct ti_i2c_clock_config *clkcfg;
+	u_int busfreq;
 	uint16_t fifo_trsh, reg, scll, sclh;
 
 	switch (ti_chip()) {
@@ -524,13 +496,24 @@ ti_i2c_reset(struct ti_i2c_softc *sc, u_char speed)
 	default:
 		panic("Unknown Ti SoC, unable to reset the i2c");
 	}
-	while (clkcfg->speed != -1) {
-		if (clkcfg->speed == speed)
+
+	/*
+	 * If we haven't attached the bus yet, just init at the default slow
+	 * speed.  This lets us get the hardware initialized enough to attach
+	 * the bus which is where the real speed configuration is handled. After
+	 * the bus is attached, get the configured speed from it.  Search the
+	 * configuration table for the best speed we can do that doesn't exceed
+	 * the requested speed.
+	 */
+	if (sc->sc_iicbus == NULL)
+		busfreq = 100000;
+	else
+		busfreq = IICBUS_GET_FREQUENCY(sc->sc_iicbus, speed);
+	for (;;) {
+		if (clkcfg[1].frequency == 0 || clkcfg[1].frequency > busfreq)
 			break;
 		clkcfg++;
 	}
-	if (clkcfg->speed == -1)
-		return (EINVAL);
 
 	/*
 	 * 23.1.4.3 - HS I2C Software Reset
@@ -779,12 +762,10 @@ ti_i2c_deactivate(device_t dev)
 static int
 ti_i2c_sysctl_clk(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev;
 	int clk, psc, sclh, scll;
 	struct ti_i2c_softc *sc;
 
-	dev = (device_t)arg1;
-	sc = device_get_softc(dev);
+	sc = arg1;
 
 	TI_I2C_LOCK(sc);
 	/* Get the system prescaler value. */
@@ -798,6 +779,34 @@ ti_i2c_sysctl_clk(SYSCTL_HANDLER_ARGS)
 	TI_I2C_UNLOCK(sc);
 
 	return (sysctl_handle_int(oidp, &clk, 0, req));
+}
+
+static int
+ti_i2c_sysctl_timeout(SYSCTL_HANDLER_ARGS)
+{
+	struct ti_i2c_softc *sc;
+	unsigned int val;
+	int err;
+
+	sc = arg1;
+
+	/* 
+	 * MTX_DEF lock can't be held while doing uimove in
+	 * sysctl_handle_int
+	 */
+	TI_I2C_LOCK(sc);
+	val = sc->sc_timeout;
+	TI_I2C_UNLOCK(sc);
+
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	/* Write request? */
+	if ((err == 0) && (req->newptr != NULL)) {
+		TI_I2C_LOCK(sc);
+		sc->sc_timeout = val;
+		TI_I2C_UNLOCK(sc);
+	}
+
+	return (err);
 }
 
 static int
@@ -876,11 +885,18 @@ ti_i2c_attach(device_t dev)
 	/* Set the FIFO threshold to 5 for now. */
 	sc->sc_fifo_trsh = 5;
 
+	/* Set I2C bus timeout */
+	sc->sc_timeout = 5*hz;
+
 	ctx = device_get_sysctl_ctx(dev);
 	tree = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "i2c_clock",
-	    CTLFLAG_RD | CTLTYPE_UINT | CTLFLAG_MPSAFE, dev, 0,
+	    CTLFLAG_RD | CTLTYPE_UINT | CTLFLAG_MPSAFE, sc, 0,
 	    ti_i2c_sysctl_clk, "IU", "I2C bus clock");
+
+	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "i2c_timeout",
+	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_MPSAFE, sc, 0,
+	    ti_i2c_sysctl_timeout, "IU", "I2C bus timeout (in ticks)");
 
 	/* Activate the interrupt. */
 	err = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
@@ -941,7 +957,7 @@ static device_method_t ti_i2c_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ti_i2c_get_node),
 
 	/* iicbus interface */
-	DEVMETHOD(iicbus_callback,	ti_i2c_callback),
+	DEVMETHOD(iicbus_callback,	iicbus_null_callback),
 	DEVMETHOD(iicbus_reset,		ti_i2c_iicbus_reset),
 	DEVMETHOD(iicbus_transfer,	ti_i2c_transfer),
 

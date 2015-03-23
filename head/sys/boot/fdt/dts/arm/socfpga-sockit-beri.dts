@@ -38,8 +38,9 @@
 	model = "Terasic SoCKit";
 	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
 
-	/* Reserve first page for secondary CPU trampoline code */
-	memreserve = < 0x00000000 0x1000 >;
+	memreserve = < 0x00000000 0x1000 >, /* SMP trampoline */
+		     < 0x00001000 0x1000 >, /* virtio block */
+		     < 0x00002000 0x1000 >; /* virtio net */
 
 	memory {
 		device_type = "memory";
@@ -69,6 +70,8 @@
 		};
 
 		mmc: dwmmc@ff704000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "okay";
 			num-slots = <1>;
 			supports-highspeed;
@@ -81,9 +84,59 @@
 			};
 		};
 
-		beri_mem: mem@d0000000 {
+		beri_mem0: mem@d0000000 {
 			compatible = "sri-cambridge,beri-mem";
-			reg = <0xd0000000 0x10000000>;
+			reg = <0xd0000000 0x10000000>; /* 256mb */
+			status = "okay";
+		};
+
+		pio0: pio@c0020000 {
+			compatible = "altr,pio";
+			reg = <0xc0020000 0x1000>; /* recv */
+			interrupts = < 76 >;
+			interrupt-parent = <&GIC>;
+			status = "okay";
+		};
+
+		pio1: pio@c0021000 {
+			compatible = "altr,pio";
+			reg = <0xc0021000 0x1000>; /* send */
+			interrupts = < 82 >; /* not in use on arm side */
+			interrupt-parent = <&GIC>;
+			status = "okay";
+		};
+
+		pio2: pio@c0022000 {
+			compatible = "altr,pio";
+			reg = <0xc0022000 0x1000>; /* recv */
+			interrupts = < 77 >;
+			interrupt-parent = <&GIC>;
+			status = "okay";
+		};
+
+		pio3: pio@c0023000 {
+			compatible = "altr,pio";
+			reg = <0xc0023000 0x1000>; /* send */
+			interrupts = < 83 >; /* not in use on arm side */
+			interrupt-parent = <&GIC>;
+			status = "okay";
+		};
+
+		beri_vtblk: vtblk@00001000 {
+			compatible = "sri-cambridge,beri-vtblk";
+			reg = <0x00001000 0x1000>;
+			pio-recv = <&pio0>;
+			pio-send = <&pio1>;
+			beri-mem = <&beri_mem0>;
+			status = "okay";
+		};
+
+		beri_vtnet: vtnet@00002000 {
+			compatible = "sri-cambridge,beri-vtnet";
+			reg = <0x00002000 0x1000>;
+			pio-recv = <&pio2>;
+			pio-send = <&pio3>;
+			beri-mem = <&beri_mem0>;
 			status = "okay";
 		};
 

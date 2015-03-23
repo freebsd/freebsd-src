@@ -7,79 +7,122 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86ASMPRINTER_H
-#define X86ASMPRINTER_H
+#ifndef LLVM_LIB_TARGET_X86_X86ASMPRINTER_H
+#define LLVM_LIB_TARGET_X86_X86ASMPRINTER_H
 
-#include "X86.h"
-#include "X86MachineFunctionInfo.h"
-#include "X86TargetMachine.h"
+#include "X86Subtarget.h"
 #include "llvm/CodeGen/AsmPrinter.h"
-#include "llvm/CodeGen/MachineModuleInfo.h"
-#include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/CodeGen/StackMaps.h"
-#include "llvm/Support/Compiler.h"
+#include "llvm/Target/TargetMachine.h"
+
+// Implemented in X86MCInstLower.cpp
+namespace {
+  class X86MCInstLower;
+}
 
 namespace llvm {
-
 class MCStreamer;
+class MCSymbol;
 
 class LLVM_LIBRARY_VISIBILITY X86AsmPrinter : public AsmPrinter {
   const X86Subtarget *Subtarget;
   StackMaps SM;
 
-  // Parses operands of PATCHPOINT and STACKMAP to produce stack map Location
-  // structures. Returns a result location and an iterator to the operand
-  // immediately following the operands consumed.
+  void GenerateExportDirective(const MCSymbol *Sym, bool IsData);
+
+  // This utility class tracks the length of a stackmap instruction's 'shadow'.
+  // It is used by the X86AsmPrinter to ensure that the stackmap shadow
+  // invariants (i.e. no other stackmaps, patchpoints, or control flow within
+  // the shadow) are met, while outputting a minimal number of NOPs for padding.
   //
-  // This method is implemented in X86MCInstLower.cpp.
-  static std::pair<StackMaps::Location, MachineInstr::const_mop_iterator>
-    stackmapOperandParser(MachineInstr::const_mop_iterator MOI,
-                          MachineInstr::const_mop_iterator MOE,
-                          const TargetMachine &TM);
+  // To minimise the number of NOPs used, the shadow tracker counts the number
+  // of instruction bytes output since the last stackmap. Only if there are too
+  // few instruction bytes to cover the shadow are NOPs used for padding.
+  class StackMapShadowTracker {
+  public:
+    StackMapShadowTracker(TargetMachine &TM);
+    ~StackMapShadowTracker();
+    void startFunction(MachineFunction &MF);
+    void count(MCInst &Inst, const MCSubtargetInfo &STI);
+
+    // Called to signal the start of a shadow of RequiredSize bytes.
+    void reset(unsigned RequiredSize) {
+      RequiredShadowSize = RequiredSize;
+      CurrentShadowSize = 0;
+      InShadow = true;
+    }
+
+    // Called before every stackmap/patchpoint, and at the end of basic blocks,
+    // to emit any necessary padding-NOPs.
+    void emitShadowPadding(MCStreamer &OutStreamer, const MCSubtargetInfo &STI);
+  private:
+    TargetMachine &TM;
+    std::unique_ptr<MCCodeEmitter> CodeEmitter;
+    bool InShadow;
+
+    // RequiredShadowSize holds the length of the shadow specified in the most
+    // recently encountered STACKMAP instruction.
+    // CurrentShadowSize counts the number of bytes encoded since the most
+    // recently encountered STACKMAP, stopping when that number is greater than
+    // or equal to RequiredShadowSize.
+    unsigned RequiredShadowSize, CurrentShadowSize;
+  };
+
+  StackMapShadowTracker SMShadowTracker;
+
+  // All instructions emitted by the X86AsmPrinter should use this helper
+  // method.
+  //
+  // This helper function invokes the SMShadowTracker on each instruction before
+  // outputting it to the OutStream. This allows the shadow tracker to minimise
+  // the number of NOPs used for stackmap padding.
+  void EmitAndCountInstruction(MCInst &Inst);
+
+  void InsertStackMapShadows(MachineFunction &MF);
+  void LowerSTACKMAP(const MachineInstr &MI);
+  void LowerPATCHPOINT(const MachineInstr &MI);
+
+  void LowerTlsAddr(X86MCInstLower &MCInstLowering, const MachineInstr &MI);
 
  public:
   explicit X86AsmPrinter(TargetMachine &TM, MCStreamer &Streamer)
-    : AsmPrinter(TM, Streamer), SM(*this, stackmapOperandParser) {
+    : AsmPrinter(TM, Streamer), SM(*this), SMShadowTracker(TM) {
     Subtarget = &TM.getSubtarget<X86Subtarget>();
   }
 
-  virtual const char *getPassName() const LLVM_OVERRIDE {
+  const char *getPassName() const override {
     return "X86 Assembly / Object Emitter";
   }
 
   const X86Subtarget &getSubtarget() const { return *Subtarget; }
 
-  virtual void EmitStartOfAsmFile(Module &M) LLVM_OVERRIDE;
+  void EmitStartOfAsmFile(Module &M) override;
 
-  virtual void EmitEndOfAsmFile(Module &M) LLVM_OVERRIDE;
+  void EmitEndOfAsmFile(Module &M) override;
 
-  virtual void EmitInstruction(const MachineInstr *MI) LLVM_OVERRIDE;
+  void EmitInstruction(const MachineInstr *MI) override;
 
-  void printSymbolOperand(const MachineOperand &MO, raw_ostream &O);
+  void EmitBasicBlockEnd(const MachineBasicBlock &MBB) override {
+    SMShadowTracker.emitShadowPadding(OutStreamer, getSubtargetInfo());
+  }
 
-  // These methods are used by the tablegen'erated instruction printer.
-  void printOperand(const MachineInstr *MI, unsigned OpNo, raw_ostream &O,
-                    const char *Modifier = 0, unsigned AsmVariant = 0);
-  void printPCRelImm(const MachineInstr *MI, unsigned OpNo, raw_ostream &O);
+  bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
+                       unsigned AsmVariant, const char *ExtraCode,
+                       raw_ostream &OS) override;
+  bool PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNo,
+                             unsigned AsmVariant, const char *ExtraCode,
+                             raw_ostream &OS) override;
 
-  bool printAsmMRegister(const MachineOperand &MO, char Mode, raw_ostream &O);
-  virtual bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
-                               unsigned AsmVariant, const char *ExtraCode,
-                               raw_ostream &OS) LLVM_OVERRIDE;
-  virtual bool PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNo,
-                                     unsigned AsmVariant, const char *ExtraCode,
-                                     raw_ostream &OS) LLVM_OVERRIDE;
+  /// \brief Return the symbol for the specified constant pool entry.
+  MCSymbol *GetCPISymbol(unsigned CPID) const override;
 
-  void printMemReference(const MachineInstr *MI, unsigned Op, raw_ostream &O,
-                         const char *Modifier=NULL);
-  void printLeaMemReference(const MachineInstr *MI, unsigned Op, raw_ostream &O,
-                            const char *Modifier=NULL);
+  bool doInitialization(Module &M) override {
+    SMShadowTracker.reset(0);
+    SM.reset();
+    return AsmPrinter::doInitialization(M);
+  }
 
-  void printIntelMemReference(const MachineInstr *MI, unsigned Op,
-                              raw_ostream &O, const char *Modifier=NULL,
-                              unsigned AsmVariant = 1);
-
-  virtual bool runOnMachineFunction(MachineFunction &F) LLVM_OVERRIDE;
+  bool runOnMachineFunction(MachineFunction &F) override;
 };
 
 } // end namespace llvm

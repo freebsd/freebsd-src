@@ -39,7 +39,13 @@ DEFAULT_CONSOLE=stdio
 DEFAULT_VIRTIO_DISK="./diskdev"
 DEFAULT_ISOFILE="./release.iso"
 
+errmsg() {
+	echo "*** $1"
+}
+
 usage() {
+	local msg=$1
+
 	echo "Usage: vmrun.sh [-ahi] [-c <CPUs>] [-C <console>] [-d <disk file>]"
 	echo "                [-e <name=value>] [-g <gdbport> ] [-H <directory>]"
 	echo "                [-I <location of installation iso>] [-m <memsize>]"
@@ -56,20 +62,21 @@ usage() {
 	echo "       -i: force boot of the Installation CDROM image"
 	echo "       -I: Installation CDROM image location (default is ${DEFAULT_ISOFILE})"
 	echo "       -m: memory size (default is ${DEFAULT_MEMSIZE})"
+	echo "       -p: pass-through a host PCI device at bus/slot/func (e.g. 10/0/0)"
 	echo "       -t: tap device for virtio-net (default is $DEFAULT_TAPDEV)"
 	echo ""
-	echo "       This script needs to be executed with superuser privileges"
-	echo ""
+	[ -n "$msg" ] && errmsg "$msg"
 	exit 1
 }
 
 if [ `id -u` -ne 0 ]; then
-	usage
+	errmsg "This script must be executed with superuser privileges"
+	exit 1
 fi
 
 kldstat -n vmm > /dev/null 2>&1 
 if [ $? -ne 0 ]; then
-	echo "vmm.ko is not loaded!"
+	errmsg "vmm.ko is not loaded"
 	exit 1
 fi
 
@@ -83,8 +90,9 @@ disk_total=0
 apic_opt=""
 gdbport=0
 loader_opt=""
+pass_total=0
 
-while getopts ac:C:d:e:g:hH:iI:m:t: c ; do
+while getopts ac:C:d:e:g:hH:iI:m:p:t: c ; do
 	case $c in
 	a)
 		apic_opt="-a"
@@ -117,6 +125,10 @@ while getopts ac:C:d:e:g:hH:iI:m:t: c ; do
 	m)
 		memsize=${OPTARG}
 		;;
+	p)
+		eval "pass_dev${pass_total}=\"${OPTARG}\""
+		pass_total=$(($pass_total + 1))
+		;;
 	t)
 		eval "tap_dev${tap_total}=\"${OPTARG}\""
 		tap_total=$(($tap_total + 1))
@@ -140,7 +152,7 @@ fi
 shift $((${OPTIND} - 1))
 
 if [ $# -ne 1 ]; then
-	usage
+	usage "virtual machine name not specified"
 fi
 
 vmname="$1"
@@ -230,6 +242,14 @@ while [ 1 ]; do
 	    nextslot=$(($nextslot + 1))
 	    i=$(($i + 1))
 	done
+
+	i=0
+	while [ $i -lt $pass_total ] ; do
+	    eval "pass=\$pass_dev${i}"
+	    devargs="$devargs -s $nextslot:0,passthru,${pass} "
+	    nextslot=$(($nextslot + 1))
+	    i=$(($i + 1))
+        done
 
 	${FBSDRUN} -c ${cpus} -m ${memsize} ${apic_opt} -A -H -P	\
 		-g ${gdbport}						\

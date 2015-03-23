@@ -23,8 +23,15 @@
 
 <!ENTITY google		"Google">
 
+<!ENTITY ix		"iXsystems">
+
+<!ENTITY limelight	"Limelight Networks">
 <!ENTITY lsi		"LSI">
 
 <!ENTITY netgate	"Netgate">
 
+<!ENTITY sandvine	"Sandvine, Inc.">
+<!ENTITY scaleengine	"ScaleEngine, Inc.">
 <!ENTITY spectralogic	"Spectra Logic">
+
+<!ENTITY yandex		"Yandex LLC">

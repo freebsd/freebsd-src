@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
+#include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/turnstile.h>
@@ -186,7 +187,7 @@ _rw_init_flags(volatile uintptr_t *c, const char *name, int opts)
 	rw = rwlock2rw(c);
 
 	MPASS((opts & ~(RW_DUPOK | RW_NOPROFILE | RW_NOWITNESS | RW_QUIET |
-	    RW_RECURSE)) == 0);
+	    RW_RECURSE | RW_NEW)) == 0);
 	ASSERT_ATOMIC_LOAD_PTR(rw->rw_lock,
 	    ("%s: rw_lock not aligned for %s: %p", __func__, name,
 	    &rw->rw_lock));
@@ -202,6 +203,8 @@ _rw_init_flags(volatile uintptr_t *c, const char *name, int opts)
 		flags |= LO_RECURSABLE;
 	if (opts & RW_QUIET)
 		flags |= LO_QUIET;
+	if (opts & RW_NEW)
+		flags |= LO_NEW;
 
 	lock_init(&rw->lock_object, &lock_class_rw, name, NULL, flags);
 	rw->rw_lock = RW_UNLOCKED;
@@ -420,6 +423,9 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 					CTR3(KTR_LOCK,
 					    "%s: spinning on %p held by %p",
 					    __func__, rw, owner);
+				KTR_STATE1(KTR_SCHED, "thread",
+				    sched_tdname(curthread), "spinning",
+				    "lockname:\"%s\"", rw->lock_object.lo_name);
 				while ((struct thread*)RW_OWNER(rw->rw_lock) ==
 				    owner && TD_IS_RUNNING(owner)) {
 					cpu_spinwait();
@@ -427,10 +433,15 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 					spin_cnt++;
 #endif
 				}
+				KTR_STATE0(KTR_SCHED, "thread",
+				    sched_tdname(curthread), "running");
 				continue;
 			}
 		} else if (spintries < rowner_retries) {
 			spintries++;
+			KTR_STATE1(KTR_SCHED, "thread", sched_tdname(curthread),
+			    "spinning", "lockname:\"%s\"",
+			    rw->lock_object.lo_name);
 			for (i = 0; i < rowner_loops; i++) {
 				v = rw->rw_lock;
 				if ((v & RW_LOCK_READ) == 0 || RW_CAN_READ(v))
@@ -440,6 +451,8 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 #ifdef KDTRACE_HOOKS
 			spin_cnt += rowner_loops - i;
 #endif
+			KTR_STATE0(KTR_SCHED, "thread", sched_tdname(curthread),
+			    "running");
 			if (i != rowner_loops)
 				continue;
 		}
@@ -759,6 +772,9 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 			if (LOCK_LOG_TEST(&rw->lock_object, 0))
 				CTR3(KTR_LOCK, "%s: spinning on %p held by %p",
 				    __func__, rw, owner);
+			KTR_STATE1(KTR_SCHED, "thread", sched_tdname(curthread),
+			    "spinning", "lockname:\"%s\"",
+			    rw->lock_object.lo_name);
 			while ((struct thread*)RW_OWNER(rw->rw_lock) == owner &&
 			    TD_IS_RUNNING(owner)) {
 				cpu_spinwait();
@@ -766,6 +782,8 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 				spin_cnt++;
 #endif
 			}
+			KTR_STATE0(KTR_SCHED, "thread", sched_tdname(curthread),
+			    "running");
 			continue;
 		}
 		if ((v & RW_LOCK_READ) && RW_READERS(v) &&
@@ -777,11 +795,16 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 				}
 			}
 			spintries++;
+			KTR_STATE1(KTR_SCHED, "thread", sched_tdname(curthread),
+			    "spinning", "lockname:\"%s\"",
+			    rw->lock_object.lo_name);
 			for (i = 0; i < rowner_loops; i++) {
 				if ((rw->rw_lock & RW_LOCK_WRITE_SPINNER) == 0)
 					break;
 				cpu_spinwait();
 			}
+			KTR_STATE0(KTR_SCHED, "thread", sched_tdname(curthread),
+			    "running");
 #ifdef KDTRACE_HOOKS
 			spin_cnt += rowner_loops - i;
 #endif

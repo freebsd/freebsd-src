@@ -17,6 +17,7 @@
 
 #include "clang/AST/DeclCXX.h"
 #include "clang/Sema/DeclSpec.h"
+#include "clang/Sema/Ownership.h"
 #include "llvm/ADT/SmallVector.h"
 
 namespace clang {
@@ -39,7 +40,7 @@ public:
   static const unsigned CallbackDistanceWeight = 150U;
 
   TypoCorrection(const DeclarationName &Name, NamedDecl *NameDecl,
-                 NestedNameSpecifier *NNS = 0, unsigned CharDistance = 0,
+                 NestedNameSpecifier *NNS = nullptr, unsigned CharDistance = 0,
                  unsigned QualifierDistance = 0)
       : CorrectionName(Name), CorrectionNameSpec(NNS),
         CharDistance(CharDistance), QualifierDistance(QualifierDistance),
@@ -49,7 +50,7 @@ public:
       CorrectionDecls.push_back(NameDecl);
   }
 
-  TypoCorrection(NamedDecl *Name, NestedNameSpecifier *NNS = 0,
+  TypoCorrection(NamedDecl *Name, NestedNameSpecifier *NNS = nullptr,
                  unsigned CharDistance = 0)
       : CorrectionName(Name->getDeclName()), CorrectionNameSpec(NNS),
         CharDistance(CharDistance), QualifierDistance(0), CallbackDistance(0),
@@ -58,14 +59,14 @@ public:
       CorrectionDecls.push_back(Name);
   }
 
-  TypoCorrection(DeclarationName Name, NestedNameSpecifier *NNS = 0,
+  TypoCorrection(DeclarationName Name, NestedNameSpecifier *NNS = nullptr,
                  unsigned CharDistance = 0)
       : CorrectionName(Name), CorrectionNameSpec(NNS),
         CharDistance(CharDistance), QualifierDistance(0), CallbackDistance(0),
         ForceSpecifierReplacement(false), RequiresImport(false) {}
 
   TypoCorrection()
-      : CorrectionNameSpec(0), CharDistance(0), QualifierDistance(0),
+      : CorrectionNameSpec(nullptr), CharDistance(0), QualifierDistance(0),
         CallbackDistance(0), ForceSpecifierReplacement(false),
         RequiresImport(false) {}
 
@@ -81,7 +82,7 @@ public:
   }
   void setCorrectionSpecifier(NestedNameSpecifier* NNS) {
     CorrectionNameSpec = NNS;
-    ForceSpecifierReplacement = (NNS != 0);
+    ForceSpecifierReplacement = (NNS != nullptr);
   }
 
   void WillReplaceSpecifier(bool ForceReplacement) {
@@ -130,7 +131,7 @@ public:
 
   /// \brief Gets the pointer to the declaration of the typo correction
   NamedDecl *getCorrectionDecl() const {
-    return hasCorrectionDecl() ? *(CorrectionDecls.begin()) : 0;
+    return hasCorrectionDecl() ? *(CorrectionDecls.begin()) : nullptr;
   }
   template <class DeclClass>
   DeclClass *getCorrectionDeclAs() const {
@@ -172,7 +173,7 @@ public:
   /// as the only element in the list to mark this TypoCorrection as a keyword.
   void makeKeyword() {
     CorrectionDecls.clear();
-    CorrectionDecls.push_back(0);
+    CorrectionDecls.push_back(nullptr);
     ForceSpecifierReplacement = true;
   }
 
@@ -180,7 +181,7 @@ public:
   // item in CorrectionDecls is NULL.
   bool isKeyword() const {
     return !CorrectionDecls.empty() &&
-        CorrectionDecls.front() == 0;
+        CorrectionDecls.front() == nullptr;
   }
 
   // Check if this TypoCorrection is the given keyword.
@@ -198,10 +199,9 @@ public:
 
   void setCorrectionRange(CXXScopeSpec *SS,
                           const DeclarationNameInfo &TypoName) {
-    CorrectionRange.setBegin(ForceSpecifierReplacement && SS && !SS->isEmpty()
-                                 ? SS->getBeginLoc()
-                                 : TypoName.getLoc());
-    CorrectionRange.setEnd(TypoName.getLoc());
+    CorrectionRange = TypoName.getSourceRange();
+    if (ForceSpecifierReplacement && SS && !SS->isEmpty())
+      CorrectionRange.setBegin(SS->getBeginLoc());
   }
 
   SourceRange getCorrectionRange() const {
@@ -247,11 +247,13 @@ class CorrectionCandidateCallback {
 public:
   static const unsigned InvalidDistance = TypoCorrection::InvalidDistance;
 
-  CorrectionCandidateCallback()
+  explicit CorrectionCandidateCallback(IdentifierInfo *Typo = nullptr,
+                                       NestedNameSpecifier *TypoNNS = nullptr)
       : WantTypeSpecifiers(true), WantExpressionKeywords(true),
-        WantCXXNamedCasts(true), WantRemainingKeywords(true),
-        WantObjCSuper(false),
-        IsObjCIvarLookup(false) {}
+        WantCXXNamedCasts(true), WantFunctionLikeCasts(true),
+        WantRemainingKeywords(true), WantObjCSuper(false),
+        IsObjCIvarLookup(false), IsAddressOfOperand(false), Typo(Typo),
+        TypoNNS(TypoNNS) {}
 
   virtual ~CorrectionCandidateCallback() {}
 
@@ -274,19 +276,39 @@ public:
   /// the default RankCandidate returns either 0 or InvalidDistance depending
   /// whether ValidateCandidate returns true or false.
   virtual unsigned RankCandidate(const TypoCorrection &candidate) {
-    return ValidateCandidate(candidate) ? 0 : InvalidDistance;
+    return (!MatchesTypo(candidate) && ValidateCandidate(candidate))
+               ? 0
+               : InvalidDistance;
   }
 
-  // Flags for context-dependent keywords.
+  void setTypoName(IdentifierInfo *II) { Typo = II; }
+  void setTypoNNS(NestedNameSpecifier *NNS) { TypoNNS = NNS; }
+
+  // Flags for context-dependent keywords. WantFunctionLikeCasts is only
+  // used/meaningful when WantCXXNamedCasts is false.
   // TODO: Expand these to apply to non-keywords or possibly remove them.
   bool WantTypeSpecifiers;
   bool WantExpressionKeywords;
   bool WantCXXNamedCasts;
+  bool WantFunctionLikeCasts;
   bool WantRemainingKeywords;
   bool WantObjCSuper;
   // Temporary hack for the one case where a CorrectTypoContext enum is used
   // when looking up results.
   bool IsObjCIvarLookup;
+  bool IsAddressOfOperand;
+
+protected:
+  bool MatchesTypo(const TypoCorrection &candidate) {
+    return Typo && candidate.isResolved() && !candidate.requiresImport() &&
+           candidate.getCorrectionAsIdentifierInfo() == Typo &&
+           // FIXME: This probably does not return true when both
+           // NestedNameSpecifiers have the same textual representation.
+           candidate.getCorrectionSpecifier() == TypoNNS;
+  }
+
+  IdentifierInfo *Typo;
+  NestedNameSpecifier *TypoNNS;
 };
 
 /// @brief Simple template class for restricting typo correction candidates
@@ -294,7 +316,7 @@ public:
 template <class C>
 class DeclFilterCCC : public CorrectionCandidateCallback {
 public:
-  virtual bool ValidateCandidate(const TypoCorrection &candidate) {
+  bool ValidateCandidate(const TypoCorrection &candidate) override {
     return candidate.getCorrectionDeclAs<C>();
   }
 };
@@ -305,13 +327,16 @@ public:
 class FunctionCallFilterCCC : public CorrectionCandidateCallback {
 public:
   FunctionCallFilterCCC(Sema &SemaRef, unsigned NumArgs,
-                        bool HasExplicitTemplateArgs);
+                        bool HasExplicitTemplateArgs,
+                        MemberExpr *ME = nullptr);
 
-  virtual bool ValidateCandidate(const TypoCorrection &candidate);
+  bool ValidateCandidate(const TypoCorrection &candidate) override;
 
  private:
   unsigned NumArgs;
   bool HasExplicitTemplateArgs;
+  DeclContext *CurContext;
+  MemberExpr *MemberFn;
 };
 
 // @brief Callback class that effectively disabled typo correction
@@ -321,10 +346,11 @@ public:
     WantTypeSpecifiers = false;
     WantExpressionKeywords = false;
     WantCXXNamedCasts = false;
+    WantFunctionLikeCasts = false;
     WantRemainingKeywords = false;
   }
 
-  virtual bool ValidateCandidate(const TypoCorrection &candidate) {
+  bool ValidateCandidate(const TypoCorrection &candidate) override {
     return false;
   }
 };

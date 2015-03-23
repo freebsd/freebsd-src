@@ -32,9 +32,14 @@
 INTERFACE gpio;
 
 CODE {
-	static gpio_map_gpios_t gpio_default_map_gpios;
+	static device_t
+	gpio_default_get_bus(void)
+	{
 
-	int
+		return (NULL);
+	}
+
+	static int
 	gpio_default_map_gpios(device_t bus, phandle_t dev,
 	    phandle_t gparent, int gcells, pcell_t *gpios, uint32_t *pin,
 	    uint32_t *flags)
@@ -58,11 +63,18 @@ HEADER {
 };
 
 #
-# Get total number of pins
+# Return the gpiobus device reference
+#
+METHOD device_t get_bus {
+	device_t dev;
+} DEFAULT gpio_default_get_bus;
+
+#
+# Get maximum pin number
 #
 METHOD int pin_max {
 	device_t dev;
-	int *npins;
+	int *maxpin;
 };
 
 #

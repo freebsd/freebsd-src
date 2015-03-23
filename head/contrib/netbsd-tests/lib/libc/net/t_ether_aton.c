@@ -46,9 +46,18 @@ __RCSID("$NetBSD: t_ether_aton.c,v 1.1 2011/11/01 22:36:53 pgoyette Exp $");
 #include <string.h>
 #include <errno.h>
 
+#ifndef __NetBSD__
+#ifdef __linux__
+#include <netinet/ether.h>
+#endif
+#include <net/ethernet.h>
+#endif
+
+#ifdef __NetBSD__
 #define ETHER_ADDR_LEN 6
 
 int ether_aton_r(u_char *dest, size_t len, const char *str);
+#endif
 
 static const struct {
 	u_char res[ETHER_ADDR_LEN];
@@ -56,9 +65,11 @@ static const struct {
 	int error;
 } tests[] = {
 	{ { 0x01, 0x23, 0x45, 0x67, 0x89, 0xab }, "01:23:45:67:89:ab", 0 },
+#ifdef __NetBSD__
 	{ { 0x00, 0x01, 0x22, 0x03, 0x14, 0x05 }, "0:1:22-3:14:05", 0 },
 	{ { 0x00, 0x01, 0x22, 0x03, 0x14, 0x05 }, "000122031405", 0 },
 	{ { 0x0a, 0x0B, 0xcc, 0xdD, 0xEE, 0x0f }, "0a0BccdDEE0f", 0 },
+#endif
 #define ZERO { 0, 0, 0, 0, 0, 0 }
 	{ ZERO,	"0:1:2-3:04:05:06", ENAMETOOLONG },
 	{ ZERO,	"0:1:2-3:04:", ENOBUFS },
@@ -75,22 +86,44 @@ ATF_TC_HEAD(tc_ether_aton, tc)
  
 ATF_TC_BODY(tc_ether_aton, tc)
 {
+#ifdef __NetBSD__
 	u_char dest[ETHER_ADDR_LEN];
+#else
+	struct ether_addr dest;
+#endif
 	size_t t;
+#ifdef __NetBSD__
 	int e, r;
+#else
+	int e;
+	struct ether_addr *r;
+#endif
 	const char *s;
 
 	for (t = 0; tests[t].str; t++) {
 		s = tests[t].str;
 		if ((e = tests[t].error) == 0) {
+#ifdef __NetBSD__
 			if (ether_aton_r(dest, sizeof(dest), s) != e)
 				atf_tc_fail("failed on `%s'", s);
 			if (memcmp(dest, tests[t].res, sizeof(dest)) != 0)
 				atf_tc_fail("unexpected result on `%s'", s);
+#else
+			if (ether_aton_r(s, &dest) == NULL && e == 0)
+				atf_tc_fail("failed on `%s'", s);
+			if (memcmp(&dest, tests[t].res, sizeof(dest)) != 0)
+				atf_tc_fail("unexpected result on `%s'", s);
+#endif
 		} else {
+#ifdef __NetBSD__
 			if ((r = ether_aton_r(dest, sizeof(dest), s)) != e)
 				atf_tc_fail("unexpectedly succeeded on `%s' "
 				    "(%d != %d)", s, r, e);
+#else
+			if ((r = ether_aton_r(s, &dest)) != NULL && e != 0)
+				atf_tc_fail("unexpectedly succeeded on `%s' "
+				    "(%p != %d)", s, r, e);
+#endif
 		}
 	}
 }

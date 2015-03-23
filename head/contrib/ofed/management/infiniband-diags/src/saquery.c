@@ -50,12 +50,12 @@
 #include <getopt.h>
 
 #include <infiniband/mad.h>
-#include <infiniband/opensm/osm_log.h>
-#include <infiniband/vendor/osm_vendor_api.h>
-#include <infiniband/vendor/osm_vendor_sa_api.h>
-#include <infiniband/opensm/osm_mad_pool.h>
-#include <infiniband/complib/cl_debug.h>
-#include <infiniband/complib/cl_nodenamemap.h>
+#include <opensm/osm_log.h>
+#include <vendor/osm_vendor_api.h>
+#include <vendor/osm_vendor_sa_api.h>
+#include <opensm/osm_mad_pool.h>
+#include <complib/cl_debug.h>
+#include <complib/cl_nodenamemap.h>
 
 #include <netinet/in.h>
 

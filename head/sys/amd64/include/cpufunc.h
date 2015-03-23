@@ -343,6 +343,15 @@ rdmsr(u_int msr)
 	return (low | ((uint64_t)high << 32));
 }
 
+static __inline uint32_t
+rdmsr32(u_int msr)
+{
+	uint32_t low;
+
+	__asm __volatile("rdmsr" : "=a" (low) : "c" (msr) : "rdx");
+	return (low);
+}
+
 static __inline uint64_t
 rdpmc(u_int pmc)
 {
@@ -826,6 +835,7 @@ u_long	rcr2(void);
 u_long	rcr3(void);
 u_long	rcr4(void);
 uint64_t rdmsr(u_int msr);
+uint32_t rdmsr32(u_int msr);
 uint64_t rdpmc(u_int pmc);
 uint64_t rdr0(void);
 uint64_t rdr1(void);

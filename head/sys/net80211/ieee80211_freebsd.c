@@ -209,7 +209,7 @@ ieee80211_sysctl_parent(SYSCTL_HANDLER_ARGS)
 	struct ieee80211com *ic = arg1;
 	const char *name = ic->ic_ifp->if_xname;
 
-	return SYSCTL_OUT(req, name, strlen(name));
+	return SYSCTL_OUT_STR(req, name);
 }
 
 static int
@@ -420,7 +420,7 @@ ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen)
 		 * frames which all fit in MHLEN.
 		 */
 		if (m != NULL)
-			MH_ALIGN(m, len);
+			M_ALIGN(m, len);
 	} else {
 		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m != NULL)

@@ -17,8 +17,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "Unix.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/raw_ostream.h"
 #include <llvm/Config/config.h>
 #if HAVE_SYS_STAT_H
 #include <sys/stat.h>
@@ -48,58 +50,41 @@
 #endif
 
 namespace llvm {
+
 using namespace sys;
 
 ProcessInfo::ProcessInfo() : Pid(0), ReturnCode(0) {}
 
-// This function just uses the PATH environment variable to find the program.
-std::string
-sys::FindProgramByName(const std::string& progName) {
-
-  // Check some degenerate cases
-  if (progName.length() == 0) // no program
-    return "";
-  std::string temp = progName;
+ErrorOr<std::string> sys::findProgramByName(StringRef Name,
+                                            ArrayRef<StringRef> Paths) {
+  assert(!Name.empty() && "Must have a name!");
   // Use the given path verbatim if it contains any slashes; this matches
   // the behavior of sh(1) and friends.
-  if (progName.find('/') != std::string::npos)
-    return temp;
+  if (Name.find('/') != StringRef::npos)
+    return std::string(Name);
 
-  // At this point, the file name is valid and does not contain slashes. Search
-  // for it through the directories specified in the PATH environment variable.
+  SmallVector<StringRef, 16> EnvironmentPaths;
+  if (Paths.empty())
+    if (const char *PathEnv = std::getenv("PATH")) {
+      SplitString(PathEnv, EnvironmentPaths, ":");
+      Paths = EnvironmentPaths;
+    }
 
-  // Get the path. If its empty, we can't do anything to find it.
-  const char *PathStr = getenv("PATH");
-  if (PathStr == 0)
-    return "";
-
-  // Now we have a colon separated list of directories to search; try them.
-  size_t PathLen = strlen(PathStr);
-  while (PathLen) {
-    // Find the first colon...
-    const char *Colon = std::find(PathStr, PathStr+PathLen, ':');
+  for (auto Path : Paths) {
+    if (Path.empty())
+      continue;
 
     // Check to see if this first directory contains the executable...
-    SmallString<128> FilePath(PathStr,Colon);
-    sys::path::append(FilePath, progName);
-    if (sys::fs::can_execute(Twine(FilePath)))
-      return FilePath.str();                    // Found the executable!
-
-    // Nope it wasn't in this directory, check the next path in the list!
-    PathLen -= Colon-PathStr;
-    PathStr = Colon;
-
-    // Advance past duplicate colons
-    while (*PathStr == ':') {
-      PathStr++;
-      PathLen--;
-    }
+    SmallString<128> FilePath(Path);
+    sys::path::append(FilePath, Name);
+    if (sys::fs::can_execute(FilePath.c_str()))
+      return std::string(FilePath.str()); // Found the executable!
   }
-  return "";
+  return std::errc::no_such_file_or_directory;
 }
 
 static bool RedirectIO(const StringRef *Path, int FD, std::string* ErrMsg) {
-  if (Path == 0) // Noop
+  if (!Path) // Noop
     return false;
   std::string File;
   if (Path->empty())
@@ -129,7 +114,7 @@ static bool RedirectIO(const StringRef *Path, int FD, std::string* ErrMsg) {
 #ifdef HAVE_POSIX_SPAWN
 static bool RedirectIO_PS(const std::string *Path, int FD, std::string *ErrMsg,
                           posix_spawn_file_actions_t *FileActions) {
-  if (Path == 0) // Noop
+  if (!Path) // Noop
     return false;
   const char *File;
   if (Path->empty())
@@ -195,7 +180,7 @@ static bool Execute(ProcessInfo &PI, StringRef Program, const char **args,
 #ifdef HAVE_POSIX_SPAWN
   if (memoryLimit == 0) {
     posix_spawn_file_actions_t FileActionsStore;
-    posix_spawn_file_actions_t *FileActions = 0;
+    posix_spawn_file_actions_t *FileActions = nullptr;
 
     // If we call posix_spawn_file_actions_addopen we have to make sure the
     // c strings we pass to it stay alive until the call to posix_spawn,
@@ -203,7 +188,7 @@ static bool Execute(ProcessInfo &PI, StringRef Program, const char **args,
     std::string RedirectsStorage[3];
 
     if (redirects) {
-      std::string *RedirectsStr[3] = {0, 0, 0};
+      std::string *RedirectsStr[3] = {nullptr, nullptr, nullptr};
       for (int I = 0; I < 3; ++I) {
         if (redirects[I]) {
           RedirectsStorage[I] = *redirects[I];
@@ -218,7 +203,7 @@ static bool Execute(ProcessInfo &PI, StringRef Program, const char **args,
       if (RedirectIO_PS(RedirectsStr[0], 0, ErrMsg, FileActions) ||
           RedirectIO_PS(RedirectsStr[1], 1, ErrMsg, FileActions))
         return false;
-      if (redirects[1] == 0 || redirects[2] == 0 ||
+      if (redirects[1] == nullptr || redirects[2] == nullptr ||
           *redirects[1] != *redirects[2]) {
         // Just redirect stderr
         if (RedirectIO_PS(RedirectsStr[2], 2, ErrMsg, FileActions))
@@ -242,8 +227,9 @@ static bool Execute(ProcessInfo &PI, StringRef Program, const char **args,
     // Explicitly initialized to prevent what appears to be a valgrind false
     // positive.
     pid_t PID = 0;
-    int Err = posix_spawn(&PID, Program.str().c_str(), FileActions, /*attrp*/0,
-                          const_cast<char **>(args), const_cast<char **>(envp));
+    int Err = posix_spawn(&PID, Program.str().c_str(), FileActions,
+                          /*attrp*/nullptr, const_cast<char **>(args),
+                          const_cast<char **>(envp));
 
     if (FileActions)
       posix_spawn_file_actions_destroy(FileActions);
@@ -294,7 +280,7 @@ static bool Execute(ProcessInfo &PI, StringRef Program, const char **args,
 
       // Execute!
       std::string PathStr = Program;
-      if (envp != 0)
+      if (envp != nullptr)
         execve(PathStr.c_str(),
                const_cast<char **>(args),
                const_cast<char **>(envp));
@@ -332,7 +318,6 @@ ProcessInfo sys::Wait(const ProcessInfo &PI, unsigned SecondsToWait,
   pid_t ChildPid = PI.Pid;
   if (WaitUntilTerminates) {
     SecondsToWait = 0;
-    ChildPid = -1; // mimic a wait() using waitpid()
   } else if (SecondsToWait) {
     // Install a timeout handler.  The handler itself does nothing, but the
     // simple fact of having a handler at all causes the wait below to return
@@ -348,7 +333,11 @@ ProcessInfo sys::Wait(const ProcessInfo &PI, unsigned SecondsToWait,
   // Parent process: Wait for the child process to terminate.
   int status;
   ProcessInfo WaitResult;
-  WaitResult.Pid = waitpid(ChildPid, &status, WaitPidOptions);
+
+  do {
+    WaitResult.Pid = waitpid(ChildPid, &status, WaitPidOptions);
+  } while (WaitUntilTerminates && WaitResult.Pid == -1 && errno == EINTR);
+
   if (WaitResult.Pid != PI.Pid) {
     if (WaitResult.Pid == 0) {
       // Non-blocking wait.
@@ -360,7 +349,7 @@ ProcessInfo sys::Wait(const ProcessInfo &PI, unsigned SecondsToWait,
 
         // Turn off the alarm and restore the signal handler
         alarm(0);
-        sigaction(SIGALRM, &Old, 0);
+        sigaction(SIGALRM, &Old, nullptr);
 
         // Wait for child to die
         if (wait(&status) != ChildPid)
@@ -381,7 +370,7 @@ ProcessInfo sys::Wait(const ProcessInfo &PI, unsigned SecondsToWait,
   // We exited normally without timeout, so turn off the timer.
   if (SecondsToWait && !WaitUntilTerminates) {
     alarm(0);
-    sigaction(SIGALRM, &Old, 0);
+    sigaction(SIGALRM, &Old, nullptr);
   }
 
   // Return the proper exit status. Detect error conditions
@@ -418,24 +407,37 @@ ProcessInfo sys::Wait(const ProcessInfo &PI, unsigned SecondsToWait,
 #else
   if (ErrMsg)
     *ErrMsg = "Program::Wait is not implemented on this platform yet!";
+  ProcessInfo WaitResult;
   WaitResult.ReturnCode = -2;
 #endif
   return WaitResult;
 }
 
-error_code sys::ChangeStdinToBinary(){
+  std::error_code sys::ChangeStdinToBinary(){
   // Do nothing, as Unix doesn't differentiate between text and binary.
-  return make_error_code(errc::success);
+    return std::error_code();
 }
 
-error_code sys::ChangeStdoutToBinary(){
+  std::error_code sys::ChangeStdoutToBinary(){
   // Do nothing, as Unix doesn't differentiate between text and binary.
-  return make_error_code(errc::success);
+    return std::error_code();
 }
 
-error_code sys::ChangeStderrToBinary(){
-  // Do nothing, as Unix doesn't differentiate between text and binary.
-  return make_error_code(errc::success);
+std::error_code
+llvm::sys::writeFileWithEncoding(StringRef FileName, StringRef Contents,
+                                 WindowsEncodingMethod Encoding /*unused*/) {
+  std::error_code EC;
+  llvm::raw_fd_ostream OS(FileName, EC, llvm::sys::fs::OpenFlags::F_Text);
+
+  if (EC)
+    return EC;
+
+  OS << Contents;
+
+  if (OS.has_error())
+    return std::make_error_code(std::errc::io_error);
+
+  return EC;
 }
 
 bool llvm::sys::argumentsFitWithinSystemLimits(ArrayRef<const char*> Args) {
@@ -446,13 +448,13 @@ bool llvm::sys::argumentsFitWithinSystemLimits(ArrayRef<const char*> Args) {
     return true;
 
   // Conservatively account for space required by environment variables.
-  ArgMax /= 2;
+  long HalfArgMax = ArgMax / 2;
 
   size_t ArgLength = 0;
   for (ArrayRef<const char*>::iterator I = Args.begin(), E = Args.end();
        I != E; ++I) {
     ArgLength += strlen(*I) + 1;
-    if (ArgLength > size_t(ArgMax)) {
+    if (ArgLength > size_t(HalfArgMax)) {
       return false;
     }
   }

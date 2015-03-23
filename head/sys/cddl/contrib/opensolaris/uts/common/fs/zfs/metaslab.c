@@ -153,7 +153,7 @@ SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, debug_unload, CTLFLAG_RWTUN,
  * an allocation of this size then it switches to using more
  * aggressive strategy (i.e search by size rather than offset).
  */
-uint64_t metaslab_df_alloc_threshold = SPA_MAXBLOCKSIZE;
+uint64_t metaslab_df_alloc_threshold = SPA_OLD_MAXBLOCKSIZE;
 SYSCTL_QUAD(_vfs_zfs_metaslab, OID_AUTO, df_alloc_threshold, CTLFLAG_RWTUN,
     &metaslab_df_alloc_threshold, 0,
     "Minimum size which forces the dynamic allocator to change it's allocation strategy");
@@ -1297,28 +1297,36 @@ metaslab_unload(metaslab_t *msp)
 	msp->ms_weight &= ~METASLAB_ACTIVE_MASK;
 }
 
-metaslab_t *
-metaslab_init(metaslab_group_t *mg, uint64_t id, uint64_t object, uint64_t txg)
+int
+metaslab_init(metaslab_group_t *mg, uint64_t id, uint64_t object, uint64_t txg,
+    metaslab_t **msp)
 {
 	vdev_t *vd = mg->mg_vd;
 	objset_t *mos = vd->vdev_spa->spa_meta_objset;
-	metaslab_t *msp;
+	metaslab_t *ms;
+	int error;
 
-	msp = kmem_zalloc(sizeof (metaslab_t), KM_SLEEP);
-	mutex_init(&msp->ms_lock, NULL, MUTEX_DEFAULT, NULL);
-	cv_init(&msp->ms_load_cv, NULL, CV_DEFAULT, NULL);
-	msp->ms_id = id;
-	msp->ms_start = id << vd->vdev_ms_shift;
-	msp->ms_size = 1ULL << vd->vdev_ms_shift;
+	ms = kmem_zalloc(sizeof (metaslab_t), KM_SLEEP);
+	mutex_init(&ms->ms_lock, NULL, MUTEX_DEFAULT, NULL);
+	cv_init(&ms->ms_load_cv, NULL, CV_DEFAULT, NULL);
+	ms->ms_id = id;
+	ms->ms_start = id << vd->vdev_ms_shift;
+	ms->ms_size = 1ULL << vd->vdev_ms_shift;
 
 	/*
 	 * We only open space map objects that already exist. All others
 	 * will be opened when we finally allocate an object for it.
 	 */
 	if (object != 0) {
-		VERIFY0(space_map_open(&msp->ms_sm, mos, object, msp->ms_start,
-		    msp->ms_size, vd->vdev_ashift, &msp->ms_lock));
-		ASSERT(msp->ms_sm != NULL);
+		error = space_map_open(&ms->ms_sm, mos, object, ms->ms_start,
+		    ms->ms_size, vd->vdev_ashift, &ms->ms_lock);
+
+		if (error != 0) {
+			kmem_free(ms, sizeof (metaslab_t));
+			return (error);
+		}
+
+		ASSERT(ms->ms_sm != NULL);
 	}
 
 	/*
@@ -1328,11 +1336,11 @@ metaslab_init(metaslab_group_t *mg, uint64_t id, uint64_t object, uint64_t txg)
 	 * addition of new space; and for debugging, it ensures that we'd
 	 * data fault on any attempt to use this metaslab before it's ready.
 	 */
-	msp->ms_tree = range_tree_create(&metaslab_rt_ops, msp, &msp->ms_lock);
-	metaslab_group_add(mg, msp);
+	ms->ms_tree = range_tree_create(&metaslab_rt_ops, ms, &ms->ms_lock);
+	metaslab_group_add(mg, ms);
 
-	msp->ms_fragmentation = metaslab_fragmentation(msp);
-	msp->ms_ops = mg->mg_class->mc_ops;
+	ms->ms_fragmentation = metaslab_fragmentation(ms);
+	ms->ms_ops = mg->mg_class->mc_ops;
 
 	/*
 	 * If we're opening an existing pool (txg == 0) or creating
@@ -1341,25 +1349,27 @@ metaslab_init(metaslab_group_t *mg, uint64_t id, uint64_t object, uint64_t txg)
 	 * does not become available until after this txg has synced.
 	 */
 	if (txg <= TXG_INITIAL)
-		metaslab_sync_done(msp, 0);
+		metaslab_sync_done(ms, 0);
 
 	/*
 	 * If metaslab_debug_load is set and we're initializing a metaslab
 	 * that has an allocated space_map object then load the its space
 	 * map so that can verify frees.
 	 */
-	if (metaslab_debug_load && msp->ms_sm != NULL) {
-		mutex_enter(&msp->ms_lock);
-		VERIFY0(metaslab_load(msp));
-		mutex_exit(&msp->ms_lock);
+	if (metaslab_debug_load && ms->ms_sm != NULL) {
+		mutex_enter(&ms->ms_lock);
+		VERIFY0(metaslab_load(ms));
+		mutex_exit(&ms->ms_lock);
 	}
 
 	if (txg != 0) {
 		vdev_dirty(vd, 0, NULL, txg);
-		vdev_dirty(vd, VDD_METASLAB, msp, txg);
+		vdev_dirty(vd, VDD_METASLAB, ms, txg);
 	}
 
-	return (msp);
+	*msp = ms;
+
+	return (0);
 }
 
 void

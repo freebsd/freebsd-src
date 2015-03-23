@@ -288,6 +288,10 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 				/* Answer a query from a utility program
 				 * with all we know.
 				 */
+				if (aifp == NULL) {
+					trace_pkt("ignore remote query");
+					return;
+				}
 				if (from->sin_port != htons(RIP_PORT)) {
 					/*
 					 * insecure: query from non-router node

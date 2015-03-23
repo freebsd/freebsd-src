@@ -33,6 +33,9 @@ static const char rcsid[] = "@(#)$Id$";
 #include <sys/time.h>
 #include <sys/systm.h>
 # include <sys/dirent.h>
+#if defined(__FreeBSD_version) && (__FreeBSD_version >= 800000)
+#include <sys/jail.h>
+#endif
 # include <sys/mbuf.h>
 # include <sys/sockopt.h>
 #if !defined(__hpux)
@@ -52,6 +55,12 @@ static const char rcsid[] = "@(#)$Id$";
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
+#if defined(__FreeBSD_version) && (__FreeBSD_version >= 800000)
+#include <net/vnet.h>
+#else
+#define CURVNET_SET(arg)
+#define CURVNET_RESTORE()
+#endif
 #if defined(__osf__)
 # include <netinet/tcp_timer.h>
 #endif
@@ -323,7 +332,9 @@ ipfioctl(dev, cmd, data, mode
 
 	SPL_NET(s);
 
+	CURVNET_SET(TD_TO_VNET(p));
 	error = ipf_ioctlswitch(&ipfmain, unit, data, cmd, mode, p->p_uid, p);
+	CURVNET_RESTORE();
 	if (error != -1) {
 		SPL_X(s);
 		return error;
@@ -375,8 +386,7 @@ ipf_send_reset(fin)
 	if (m == NULL)
 		return -1;
 	if (sizeof(*tcp2) + hlen > MLEN) {
-		MCLGET(m, M_NOWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
+		if (!(MCLGET(m, M_NOWAIT))) {
 			FREE_MB_T(m);
 			return -1;
 		}
@@ -599,8 +609,7 @@ ipf_send_icmp_err(type, fin, dst)
 			code = icmptoicmp6unreach[code];
 
 		if (iclen + max_linkhdr + fin->fin_plen > avail) {
-			MCLGET(m, M_NOWAIT);
-			if ((m->m_flags & M_EXT) == 0) {
+			if (!(MCLGET(m, M_NOWAIT))) {
 				FREE_MB_T(m);
 				return -1;
 			}

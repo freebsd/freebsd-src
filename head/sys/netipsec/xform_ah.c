@@ -58,7 +58,6 @@
 #include <netinet/ip_ecn.h>
 #include <netinet/ip6.h>
 
-#include <net/route.h>
 #include <netipsec/ipsec.h>
 #include <netipsec/ah.h>
 #include <netipsec/ah_var.h>
@@ -100,10 +99,10 @@ VNET_PCPUSTAT_SYSUNINIT(ahstat);
 
 #ifdef INET
 SYSCTL_DECL(_net_inet_ah);
-SYSCTL_VNET_INT(_net_inet_ah, OID_AUTO,
-	ah_enable,	CTLFLAG_RW,	&VNET_NAME(ah_enable),	0, "");
-SYSCTL_VNET_INT(_net_inet_ah, OID_AUTO,
-	ah_cleartos,	CTLFLAG_RW,	&VNET_NAME(ah_cleartos), 0, "");
+SYSCTL_INT(_net_inet_ah, OID_AUTO, ah_enable,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ah_enable), 0, "");
+SYSCTL_INT(_net_inet_ah, OID_AUTO, ah_cleartos,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ah_cleartos), 0, "");
 SYSCTL_VNET_PCPUSTAT(_net_inet_ah, IPSECCTL_STATS, stats, struct ahstat,
     ahstat, "AH statistics (struct ahstat, netipsec/ah_var.h)");
 #endif
@@ -569,11 +568,9 @@ static int
 ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 {
 	struct auth_hash *ahx;
-	struct tdb_ident *tdbi;
 	struct tdb_crypto *tc;
-	struct m_tag *mtag;
 	struct newah *ah;
-	int hl, rplen, authsize;
+	int hl, rplen, authsize, error;
 
 	struct cryptodesc *crda;
 	struct cryptop *crp;
@@ -641,27 +638,9 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	crda->crd_klen = _KEYBITS(sav->key_auth);
 	crda->crd_key = sav->key_auth->key_data;
 
-	/* Find out if we've already done crypto. */
-	for (mtag = m_tag_find(m, PACKET_TAG_IPSEC_IN_CRYPTO_DONE, NULL);
-	     mtag != NULL;
-	     mtag = m_tag_find(m, PACKET_TAG_IPSEC_IN_CRYPTO_DONE, mtag)) {
-		tdbi = (struct tdb_ident *) (mtag + 1);
-		if (tdbi->proto == sav->sah->saidx.proto &&
-		    tdbi->spi == sav->spi &&
-		    !bcmp(&tdbi->dst, &sav->sah->saidx.dst,
-			  sizeof (union sockaddr_union)))
-			break;
-	}
-
 	/* Allocate IPsec-specific opaque crypto info. */
-	if (mtag == NULL) {
-		tc = (struct tdb_crypto *) malloc(sizeof (struct tdb_crypto) +
-			skip + rplen + authsize, M_XDATA, M_NOWAIT|M_ZERO);
-	} else {
-		/* Hash verification has already been done successfully. */
-		tc = (struct tdb_crypto *) malloc(sizeof (struct tdb_crypto),
-						    M_XDATA, M_NOWAIT|M_ZERO);
-	}
+	tc = (struct tdb_crypto *) malloc(sizeof (struct tdb_crypto) +
+	    skip + rplen + authsize, M_XDATA, M_NOWAIT | M_ZERO);
 	if (tc == NULL) {
 		DPRINTF(("%s: failed to allocate tdb_crypto\n", __func__));
 		AHSTAT_INC(ahs_crypto);
@@ -670,29 +649,24 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 		return ENOBUFS;
 	}
 
-	/* Only save information if crypto processing is needed. */
-	if (mtag == NULL) {
-		int error;
+	/*
+	 * Save the authenticator, the skipped portion of the packet,
+	 * and the AH header.
+	 */
+	m_copydata(m, 0, skip + rplen + authsize, (caddr_t)(tc+1));
 
-		/*
-		 * Save the authenticator, the skipped portion of the packet,
-		 * and the AH header.
-		 */
-		m_copydata(m, 0, skip + rplen + authsize, (caddr_t)(tc+1));
+	/* Zeroize the authenticator on the packet. */
+	m_copyback(m, skip + rplen, authsize, ipseczeroes);
 
-		/* Zeroize the authenticator on the packet. */
-		m_copyback(m, skip + rplen, authsize, ipseczeroes);
-
-		/* "Massage" the packet headers for crypto processing. */
-		error = ah_massage_headers(&m, sav->sah->saidx.dst.sa.sa_family,
-		    skip, ahx->type, 0);
-		if (error != 0) {
-			/* NB: mbuf is free'd by ah_massage_headers */
-			AHSTAT_INC(ahs_hdrops);
-			free(tc, M_XDATA);
-			crypto_freereq(crp);
-			return error;
-		}
+	/* "Massage" the packet headers for crypto processing. */
+	error = ah_massage_headers(&m, sav->sah->saidx.dst.sa.sa_family,
+	    skip, ahx->type, 0);
+	if (error != 0) {
+		/* NB: mbuf is free'd by ah_massage_headers */
+		AHSTAT_INC(ahs_hdrops);
+		free(tc, M_XDATA);
+		crypto_freereq(crp);
+		return (error);
 	}
 
 	/* Crypto operation descriptor. */
@@ -710,14 +684,9 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	tc->tc_nxt = ah->ah_nxt;
 	tc->tc_protoff = protoff;
 	tc->tc_skip = skip;
-	tc->tc_ptr = (caddr_t) mtag; /* Save the mtag we've identified. */
 	KEY_ADDREFSA(sav);
 	tc->tc_sav = sav;
-
-	if (mtag == NULL)
-		return crypto_dispatch(crp);
-	else
-		return ah_input_cb(crp);
+	return (crypto_dispatch(crp));
 }
 
 /*
@@ -732,7 +701,6 @@ ah_input_cb(struct cryptop *crp)
 	struct cryptodesc *crd;
 	struct auth_hash *ahx;
 	struct tdb_crypto *tc;
-	struct m_tag *mtag;
 	struct secasvar *sav;
 	struct secasindex *saidx;
 	u_int8_t nxt;
@@ -746,7 +714,6 @@ ah_input_cb(struct cryptop *crp)
 	skip = tc->tc_skip;
 	nxt = tc->tc_nxt;
 	protoff = tc->tc_protoff;
-	mtag = (struct m_tag *) tc->tc_ptr;
 	m = (struct mbuf *) crp->crp_buf;
 
 	sav = tc->tc_sav;
@@ -792,34 +759,22 @@ ah_input_cb(struct cryptop *crp)
 	/* Copy authenticator off the packet. */
 	m_copydata(m, skip + rplen, authsize, calc);
 
-	/*
-	 * If we have an mtag, we don't need to verify the authenticator --
-	 * it has been verified by an IPsec-aware NIC.
-	 */
-	if (mtag == NULL) {
-		ptr = (caddr_t) (tc + 1);
-
-		/* Verify authenticator. */
-		if (bcmp(ptr + skip + rplen, calc, authsize)) {
-			DPRINTF(("%s: authentication hash mismatch for packet "
-			    "in SA %s/%08lx\n", __func__,
-			    ipsec_address(&saidx->dst),
-			    (u_long) ntohl(sav->spi)));
-			AHSTAT_INC(ahs_badauth);
-			error = EACCES;
-			goto bad;
-		}
-
-		/* Fix the Next Protocol field. */
-		((u_int8_t *) ptr)[protoff] = nxt;
-
-		/* Copyback the saved (uncooked) network headers. */
-		m_copyback(m, 0, skip, ptr);
-	} else {
-		/* Fix the Next Protocol field. */
-		m_copyback(m, protoff, sizeof(u_int8_t), &nxt);
+	/* Verify authenticator. */
+	ptr = (caddr_t) (tc + 1);
+	if (bcmp(ptr + skip + rplen, calc, authsize)) {
+		DPRINTF(("%s: authentication hash mismatch for packet "
+		    "in SA %s/%08lx\n", __func__,
+		    ipsec_address(&saidx->dst),
+		    (u_long) ntohl(sav->spi)));
+		AHSTAT_INC(ahs_badauth);
+		error = EACCES;
+		goto bad;
 	}
+	/* Fix the Next Protocol field. */
+	((u_int8_t *) ptr)[protoff] = nxt;
 
+	/* Copyback the saved (uncooked) network headers. */
+	m_copyback(m, 0, skip, ptr);
 	free(tc, M_XDATA), tc = NULL;			/* No longer needed */
 
 	/*
@@ -857,12 +812,12 @@ ah_input_cb(struct cryptop *crp)
 	switch (saidx->dst.sa.sa_family) {
 #ifdef INET6
 	case AF_INET6:
-		error = ipsec6_common_input_cb(m, sav, skip, protoff, mtag);
+		error = ipsec6_common_input_cb(m, sav, skip, protoff);
 		break;
 #endif
 #ifdef INET
 	case AF_INET:
-		error = ipsec4_common_input_cb(m, sav, skip, protoff, mtag);
+		error = ipsec4_common_input_cb(m, sav, skip, protoff);
 		break;
 #endif
 	default:

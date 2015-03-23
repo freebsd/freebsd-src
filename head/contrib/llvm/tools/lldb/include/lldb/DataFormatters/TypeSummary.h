@@ -28,6 +28,32 @@
 #include "lldb/Symbol/Type.h"
 
 namespace lldb_private {
+    class TypeSummaryOptions
+    {
+    public:
+        TypeSummaryOptions ();
+        TypeSummaryOptions (const TypeSummaryOptions& rhs);
+        
+        TypeSummaryOptions&
+        operator = (const TypeSummaryOptions& rhs);
+        
+        lldb::LanguageType
+        GetLanguage () const;
+        
+        lldb::TypeSummaryCapping
+        GetCapping () const;
+        
+        TypeSummaryOptions&
+        SetLanguage (lldb::LanguageType);
+        
+        TypeSummaryOptions&
+        SetCapping (lldb::TypeSummaryCapping);
+        
+        ~TypeSummaryOptions() = default;
+    private:
+        lldb::LanguageType m_lang;
+        lldb::TypeSummaryCapping m_capping;
+    };
     
     class TypeSummaryImpl
     {
@@ -225,14 +251,14 @@ namespace lldb_private {
             return m_flags.GetSkipReferences();
         }
         
-        bool
-        DoesPrintChildren () const
+        virtual bool
+        DoesPrintChildren (ValueObject* valobj) const
         {
             return !m_flags.GetDontShowChildren();
         }
         
-        bool
-        DoesPrintValue () const
+        virtual bool
+        DoesPrintValue (ValueObject* valobj) const
         {
             return !m_flags.GetDontShowValue();
         }
@@ -243,8 +269,8 @@ namespace lldb_private {
             return m_flags.GetShowMembersOneLiner();
         }
         
-        bool
-        HideNames () const
+        virtual bool
+        HideNames (ValueObject* valobj) const
         {
             return m_flags.GetHideItemNames();
         }
@@ -267,13 +293,13 @@ namespace lldb_private {
             m_flags.SetSkipReferences(value);
         }
         
-        void
+        virtual void
         SetDoesPrintChildren (bool value)
         {
             m_flags.SetDontShowChildren(!value);
         }
         
-        void
+        virtual void
         SetDoesPrintValue (bool value)
         {
             m_flags.SetDontShowValue(!value);
@@ -285,7 +311,7 @@ namespace lldb_private {
             m_flags.SetShowMembersOneLiner(value);
         }
         
-        void
+        virtual void
         SetHideNames (bool value)
         {
             m_flags.SetHideItemNames(value);
@@ -313,7 +339,8 @@ namespace lldb_private {
         // for us to generate its summary
         virtual bool
         FormatObject (ValueObject *valobj,
-                      std::string& dest) = 0;
+                      std::string& dest,
+                      const TypeSummaryOptions& options) = 0;
         
         virtual std::string
         GetDescription () = 0;
@@ -372,7 +399,8 @@ namespace lldb_private {
         
         virtual bool
         FormatObject(ValueObject *valobj,
-                     std::string& dest);
+                     std::string& dest,
+                     const TypeSummaryOptions& options);
         
         virtual std::string
         GetDescription();
@@ -397,10 +425,11 @@ namespace lldb_private {
     // summaries implemented via a C++ function
     struct CXXFunctionSummaryFormat : public TypeSummaryImpl
     {
-        
         // we should convert these to SBValue and SBStream if we ever cross
         // the boundary towards the external world
-        typedef bool (*Callback)(ValueObject& valobj, Stream& dest);
+        typedef bool (*Callback)(ValueObject&,
+                                 Stream&,
+                                 const TypeSummaryOptions&);
         
         Callback m_impl;
         std::string m_description;
@@ -443,7 +472,8 @@ namespace lldb_private {
         
         virtual bool
         FormatObject (ValueObject *valobj,
-                      std::string& dest);
+                      std::string& dest,
+                      const TypeSummaryOptions& options);
         
         virtual std::string
         GetDescription ();
@@ -517,7 +547,8 @@ namespace lldb_private {
         
         virtual bool
         FormatObject (ValueObject *valobj,
-                      std::string& dest);
+                      std::string& dest,
+                      const TypeSummaryOptions& options);
         
         virtual std::string
         GetDescription ();

@@ -6,8 +6,8 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-#ifndef CLANG_LEX_UNICODECHARSETS_H
-#define CLANG_LEX_UNICODECHARSETS_H
+#ifndef LLVM_CLANG_LIB_LEX_UNICODECHARSETS_H
+#define LLVM_CLANG_LIB_LEX_UNICODECHARSETS_H
 
 #include "llvm/Support/UnicodeCharRanges.h"
 
@@ -298,7 +298,7 @@ static const llvm::sys::UnicodeCharRange C99AllowedIDCharRanges[] = {
   // Malayam
   { 0x0D02, 0x0D03 }, { 0x0D05, 0x0D0C }, { 0x0D0E, 0x0D10 },
   { 0x0D12, 0x0D28 }, { 0x0D2A, 0x0D39 }, { 0x0D3E, 0x0D43 },
-  { 0x0D46, 0x0D48 }, { 0x0D4A, 0x0D4D }, { 0x0D60, 0x0D60 },
+  { 0x0D46, 0x0D48 }, { 0x0D4A, 0x0D4D }, { 0x0D60, 0x0D61 },
 
   // Digits (11)
   { 0x0D66, 0x0D6F },

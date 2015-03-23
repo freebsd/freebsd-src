@@ -99,7 +99,6 @@
 #include <net/route.h>
 #include <net/netisr.h>
 #include <net/if_types.h>
-#include <net/if_stf.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -156,7 +155,8 @@ static MALLOC_DEFINE(M_STF, stfname, "6to4 Tunnel Interface");
 static const int ip_stf_ttl = 40;
 
 extern  struct domain inetdomain;
-struct protosw in_stf_protosw = {
+static int in_stf_input(struct mbuf **, int *, int);
+static struct protosw in_stf_protosw = {
 	.pr_type =		SOCK_RAW,
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_IPV6,
@@ -179,7 +179,6 @@ static int stf_checkaddr4(struct stf_softc *, struct in_addr *,
 	struct ifnet *);
 static int stf_checkaddr6(struct stf_softc *, struct in6_addr *,
 	struct ifnet *);
-static void stf_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int stf_ioctl(struct ifnet *, u_long, caddr_t);
 
 static int stf_clone_match(struct if_clone *, const char *);
@@ -483,8 +482,6 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	}
 
 	M_PREPEND(m, sizeof(struct ip), M_NOWAIT);
-	if (m && m->m_len < sizeof(struct ip))
-		m = m_pullup(m, sizeof(struct ip));
 	if (m == NULL) {
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return ENOBUFS;
@@ -623,7 +620,7 @@ stf_checkaddr6(sc, in6, inifp)
 	return 0;
 }
 
-int
+static int
 in_stf_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct stf_softc *sc;
@@ -722,17 +719,6 @@ in_stf_input(struct mbuf **mp, int *offp, int proto)
 	return (IPPROTO_DONE);
 }
 
-/* ARGSUSED */
-static void
-stf_rtrequest(cmd, rt, info)
-	int cmd;
-	struct rtentry *rt;
-	struct rt_addrinfo *info;
-{
-	RT_LOCK_ASSERT(rt);
-	rt->rt_mtu = rt->rt_ifp->if_mtu;
-}
-
 static int
 stf_ioctl(ifp, cmd, data)
 	struct ifnet *ifp;
@@ -764,7 +750,6 @@ stf_ioctl(ifp, cmd, data)
 			break;
 		}
 
-		ifa->ifa_rtrequest = stf_rtrequest;
 		ifp->if_flags |= IFF_UP;
 		break;
 

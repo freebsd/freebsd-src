@@ -140,6 +140,8 @@ struct svm_softc;
 #define	VMCB_EXIT_MSR			0x7C
 #define	VMCB_EXIT_SHUTDOWN		0x7F
 #define	VMCB_EXIT_VMSAVE		0x83
+#define	VMCB_EXIT_MONITOR		0x8A
+#define	VMCB_EXIT_MWAIT			0x8B
 #define	VMCB_EXIT_NPF			0x400
 #define	VMCB_EXIT_INVALID		-1
 

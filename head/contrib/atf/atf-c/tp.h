@@ -1,7 +1,4 @@
-/*
- * Automated Testing Framework (atf)
- *
- * Copyright (c) 2008 The NetBSD Foundation, Inc.
+/* Copyright (c) 2008 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,8 +21,7 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
 #if !defined(ATF_C_TP_H)
 #define ATF_C_TP_H
@@ -66,4 +62,4 @@ atf_error_t atf_tp_add_tc(atf_tp_t *, struct atf_tc *);
 atf_error_t atf_tp_run(const atf_tp_t *, const char *, const char *);
 atf_error_t atf_tp_cleanup(const atf_tp_t *, const char *);
 
-#endif /* ATF_C_TP_H */
+#endif /* !defined(ATF_C_TP_H) */

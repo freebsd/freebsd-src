@@ -42,7 +42,7 @@ UnwindAssemblyInstEmulation::GetNonCallSiteUnwindPlanFromAssembly (AddressRange&
         m_inst_emulator_ap.get())
     {
      
-        // The the instruction emulation subclass setup the unwind plan for the
+        // The instruction emulation subclass setup the unwind plan for the
         // first instruction.
         m_inst_emulator_ap->CreateFunctionEntryUnwind (unwind_plan);
 
@@ -83,7 +83,7 @@ UnwindAssemblyInstEmulation::GetNonCallSiteUnwindPlanFromAssembly (AddressRange&
 
             // Initialize the CFA with a known value. In the 32 bit case
             // it will be 0x80000000, and in the 64 bit case 0x8000000000000000.
-            // We use the address byte size to be safe for any future addresss sizes
+            // We use the address byte size to be safe for any future address sizes
             m_initial_sp = (1ull << ((addr_byte_size * 8) - 1));
             RegisterValue cfa_reg_value;
             cfa_reg_value.SetUInt (m_initial_sp, m_cfa_reg_info.byte_size);
@@ -146,7 +146,8 @@ UnwindAssemblyInstEmulation::GetNonCallSiteUnwindPlanFromAssembly (AddressRange&
                         if (log && log->GetVerbose ())
                         {
                             StreamString strm;
-                            inst->Dump(&strm, inst_list.GetMaxOpcocdeByteSize (), show_address, show_bytes, NULL);
+                            const char *disassemble_format = "${frame.pc}: ";
+                            inst->Dump(&strm, inst_list.GetMaxOpcocdeByteSize (), show_address, show_bytes, NULL, NULL, NULL, disassemble_format);
                             log->PutCString (strm.GetData());
                         }
 
@@ -182,7 +183,7 @@ UnwindAssemblyInstEmulation::GetNonCallSiteUnwindPlanFromAssembly (AddressRange&
 
                             // While parsing the instructions of this function, if we've ever
                             // seen the return address register (aka lr on arm) in a non-IsSame() state,
-                            // it has been saved on the stack.  If it's evern back to IsSame(), we've
+                            // it has been saved on the stack.  If it's ever back to IsSame(), we've
                             // executed an epilogue.
                             if (ra_reg_num != LLDB_INVALID_REGNUM
                                 && m_curr_row->GetRegisterInfo (ra_reg_num, ra_regloc)
@@ -285,6 +286,14 @@ UnwindAssemblyInstEmulation::GetNonCallSiteUnwindPlanFromAssembly (AddressRange&
 }
 
 bool
+UnwindAssemblyInstEmulation::AugmentUnwindPlanFromCallSite (AddressRange& func,
+                                                            Thread& thread,
+                                                            UnwindPlan& unwind_plan)
+{
+    return false;
+}
+
+bool
 UnwindAssemblyInstEmulation::GetFastUnwindPlan (AddressRange& func, 
                                                 Thread& thread, 
                                                 UnwindPlan &unwind_plan)
@@ -358,7 +367,8 @@ UnwindAssemblyInstEmulation::GetPluginDescriptionStatic()
 uint64_t 
 UnwindAssemblyInstEmulation::MakeRegisterKindValuePair (const RegisterInfo &reg_info)
 {
-    uint32_t reg_kind, reg_num;
+    lldb::RegisterKind reg_kind;
+    uint32_t reg_num;
     if (EmulateInstruction::GetBestRegisterKindAndNumber (&reg_info, reg_kind, reg_num))
         return (uint64_t)reg_kind << 24 | reg_num;
     return 0ull;

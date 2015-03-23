@@ -173,43 +173,46 @@ static int sysctl_ipfw_tables_sets(SYSCTL_HANDLER_ARGS);
 SYSBEGIN(f3)
 
 SYSCTL_NODE(_net_inet_ip, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, one_pass,
-    CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fw_one_pass), 0,
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, one_pass,
+    CTLFLAG_VNET | CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fw_one_pass), 0,
     "Only do a single pass through ipfw when using dummynet(4)");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, autoinc_step,
-    CTLFLAG_RW, &VNET_NAME(autoinc_step), 0,
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, autoinc_step,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(autoinc_step), 0,
     "Rule number auto-increment step");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, verbose,
-    CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fw_verbose), 0,
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose,
+    CTLFLAG_VNET | CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fw_verbose), 0,
     "Log matches to ipfw rules");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, verbose_limit,
-    CTLFLAG_RW, &VNET_NAME(verbose_limit), 0,
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose_limit,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(verbose_limit), 0,
     "Set upper limit of matches of ipfw rules logged");
 SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, default_rule, CTLFLAG_RD,
     &dummy_def, 0,
     "The default/max possible rule number.");
-SYSCTL_VNET_PROC(_net_inet_ip_fw, OID_AUTO, tables_max,
-    CTLTYPE_UINT|CTLFLAG_RW, 0, 0, sysctl_ipfw_table_num, "IU",
+SYSCTL_PROC(_net_inet_ip_fw, OID_AUTO, tables_max,
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW, 0, 0, sysctl_ipfw_table_num, "IU",
     "Maximum number of concurrently used tables");
-SYSCTL_VNET_PROC(_net_inet_ip_fw, OID_AUTO, tables_sets,
-    CTLTYPE_UINT|CTLFLAG_RW, 0, 0, sysctl_ipfw_tables_sets, "IU",
+SYSCTL_PROC(_net_inet_ip_fw, OID_AUTO, tables_sets,
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW,
+    0, 0, sysctl_ipfw_tables_sets, "IU",
     "Use per-set namespace for tables");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, default_to_accept, CTLFLAG_RDTUN,
     &default_to_accept, 0,
     "Make the default rule accept all packets.");
 TUNABLE_INT("net.inet.ip.fw.tables_max", (int *)&default_fw_tables);
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, static_count,
-    CTLFLAG_RD, &VNET_NAME(layer3_chain.n_rules), 0,
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, static_count,
+    CTLFLAG_VNET | CTLFLAG_RD, &VNET_NAME(layer3_chain.n_rules), 0,
     "Number of static rules");
 
 #ifdef INET6
 SYSCTL_DECL(_net_inet6_ip6);
 SYSCTL_NODE(_net_inet6_ip6, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
-SYSCTL_VNET_INT(_net_inet6_ip6_fw, OID_AUTO, deny_unknown_exthdrs,
-    CTLFLAG_RW | CTLFLAG_SECURE, &VNET_NAME(fw_deny_unknown_exthdrs), 0,
+SYSCTL_INT(_net_inet6_ip6_fw, OID_AUTO, deny_unknown_exthdrs,
+    CTLFLAG_VNET | CTLFLAG_RW | CTLFLAG_SECURE,
+    &VNET_NAME(fw_deny_unknown_exthdrs), 0,
     "Deny packets with unknown IPv6 Extension Headers");
-SYSCTL_VNET_INT(_net_inet6_ip6_fw, OID_AUTO, permit_single_frag6,
-    CTLFLAG_RW | CTLFLAG_SECURE, &VNET_NAME(fw_permit_single_frag6), 0,
+SYSCTL_INT(_net_inet6_ip6_fw, OID_AUTO, permit_single_frag6,
+    CTLFLAG_VNET | CTLFLAG_RW | CTLFLAG_SECURE,
+    &VNET_NAME(fw_permit_single_frag6), 0,
     "Permit single packet IPv6 fragments");
 #endif /* INET6 */
 
@@ -2384,13 +2387,48 @@ do {								\
 				if (q == NULL || q->rule != f ||
 				    dyn_dir == MATCH_FORWARD) {
 				    struct sockaddr_in *sa;
+
 				    sa = &(((ipfw_insn_sa *)cmd)->sa);
 				    if (sa->sin_addr.s_addr == INADDR_ANY) {
-					bcopy(sa, &args->hopstore,
-							sizeof(*sa));
-					args->hopstore.sin_addr.s_addr =
-						    htonl(tablearg);
-					args->next_hop = &args->hopstore;
+#ifdef INET6
+					/*
+					 * We use O_FORWARD_IP opcode for
+					 * fwd rule with tablearg, but tables
+					 * now support IPv6 addresses. And
+					 * when we are inspecting IPv6 packet,
+					 * we can use nh6 field from
+					 * table_value as next_hop6 address.
+					 */
+					if (is_ipv6) {
+						struct sockaddr_in6 *sa6;
+
+						sa6 = args->next_hop6 =
+						    &args->hopstore6;
+						sa6->sin6_family = AF_INET6;
+						sa6->sin6_len = sizeof(*sa6);
+						sa6->sin6_addr = TARG_VAL(
+						    chain, tablearg, nh6);
+						/*
+						 * Set sin6_scope_id only for
+						 * link-local unicast addresses.
+						 */
+						if (IN6_IS_ADDR_LINKLOCAL(
+						    &sa6->sin6_addr))
+							sa6->sin6_scope_id =
+							    TARG_VAL(chain,
+								tablearg,
+								zoneid);
+					} else
+#endif
+					{
+						sa = args->next_hop =
+						    &args->hopstore;
+						sa->sin_family = AF_INET;
+						sa->sin_len = sizeof(*sa);
+						sa->sin_addr.s_addr = htonl(
+						    TARG_VAL(chain, tablearg,
+						    nh4));
+					}
 				    } else {
 					args->next_hop = sa;
 				    }

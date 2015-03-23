@@ -81,6 +81,24 @@ servent_body()
 		}
 	' | sort >exp
 
+	case "$(uname)" in
+	FreeBSD)
+		#  (3) Don't prune duplicates
+		tr '\t' ' ' < /etc/services |
+		    sed 's/#.*//;s/   */ /g; /^$/d;s#\([0-9]\)/#\1 #;s/ *$//' |
+		    sort |
+		    while read l; do
+			set $l
+			name=$1; shift
+			port=$1; shift
+			proto=$1; shift
+			alias="$@"
+			printf "name=%s, port=%s, proto=%s, aliases=%s\n" \
+			    $name $port $proto "$alias"
+		    done > exp
+		;;
+	esac
+
 	# run test program
 	"$(atf_get_srcdir)/h_servent" | sed 's/ *$//' | sort >out
 

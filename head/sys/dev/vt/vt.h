@@ -89,9 +89,8 @@ SYSCTL_INT(_kern_vt, OID_AUTO, _name, CTLFLAG_RWTUN, &vt_##_name, _default,\
 
 struct vt_driver;
 
-void vt_allocate(struct vt_driver *, void *);
-void vt_resume(void);
-void vt_suspend(void);
+void vt_allocate(const struct vt_driver *, void *);
+void vt_deallocate(const struct vt_driver *, void *);
 
 typedef unsigned int 	vt_axis_t;
 
@@ -126,6 +125,9 @@ struct vt_device {
 	struct vt_pastebuf	 vd_pastebuf;	/* (?) Copy/paste buf. */
 	const struct vt_driver	*vd_driver;	/* (c) Graphics driver. */
 	void			*vd_softc;	/* (u) Driver data. */
+	const struct vt_driver	*vd_prev_driver;/* (?) Previous driver. */
+	void			*vd_prev_softc;	/* (?) Previous driver data. */
+	device_t		 vd_video_dev;	/* (?) Video adapter. */
 #ifndef SC_NO_CUTPASTE
 	struct vt_mouse_cursor	*vd_mcursor;	/* (?) Cursor bitmap. */
 	term_color_t		 vd_mcursor_fg;	/* (?) Cursor fg color. */
@@ -152,14 +154,19 @@ struct vt_device {
 #define	VDF_INITIALIZED	0x20	/* vtterm_cnprobe already done. */
 #define	VDF_MOUSECURSOR	0x40	/* Mouse cursor visible. */
 #define	VDF_QUIET_BELL	0x80	/* Disable bell. */
+#define	VDF_DOWNGRADE	0x8000	/* The driver is being downgraded. */
 	int			 vd_keyboard;	/* (G) Keyboard index. */
 	unsigned int		 vd_kbstate;	/* (?) Device unit. */
 	unsigned int		 vd_unit;	/* (c) Device unit. */
+	int			 vd_altbrk;	/* (?) Alt break seq. state */
 };
 
 #define	VD_PASTEBUF(vd)	((vd)->vd_pastebuf.vpb_buf)
 #define	VD_PASTEBUFSZ(vd)	((vd)->vd_pastebuf.vpb_bufsz)
 #define	VD_PASTEBUFLEN(vd)	((vd)->vd_pastebuf.vpb_len)
+
+void vt_resume(struct vt_device *vd);
+void vt_suspend(struct vt_device *vd);
 
 /*
  * Per-window terminal screen buffer.
@@ -182,7 +189,6 @@ struct vt_buf {
 #define	VBF_SCROLL	0x8	/* scroll locked mode. */
 #define	VBF_HISTORY_FULL 0x10	/* All rows filled. */
 	unsigned int		 vb_history_size;
-#define	VBF_DEFAULT_HISTORY_SIZE	500
 	int			 vb_roffset;	/* (b) History rows offset. */
 	int			 vb_curroffset;	/* (b) Saved rows offset. */
 	term_pos_t		 vb_cursor;	/* (u) Cursor position. */
@@ -193,6 +199,12 @@ struct vt_buf {
 	term_char_t		*vb_buffer;	/* (u) Data buffer. */
 	term_char_t		**vb_rows;	/* (u) Array of rows */
 };
+
+#ifdef SC_HISTORY_SIZE
+#define	VBF_DEFAULT_HISTORY_SIZE	SC_HISTORY_SIZE
+#else
+#define	VBF_DEFAULT_HISTORY_SIZE	500
+#endif
 
 void vtbuf_copy(struct vt_buf *, const term_rect_t *, const term_pos_t *);
 void vtbuf_fill_locked(struct vt_buf *, const term_rect_t *, term_char_t);
@@ -294,6 +306,7 @@ struct vt_window {
 
 typedef int vd_init_t(struct vt_device *vd);
 typedef int vd_probe_t(struct vt_device *vd);
+typedef void vd_fini_t(struct vt_device *vd, void *softc);
 typedef void vd_postswitch_t(struct vt_device *vd);
 typedef void vd_blank_t(struct vt_device *vd, term_color_t color);
 typedef void vd_bitblt_text_t(struct vt_device *vd, const struct vt_window *vw,
@@ -308,12 +321,15 @@ typedef int vd_fb_mmap_t(struct vt_device *, vm_ooffset_t, vm_paddr_t *, int,
 typedef void vd_drawrect_t(struct vt_device *, int, int, int, int, int,
     term_color_t);
 typedef void vd_setpixel_t(struct vt_device *, int, int, term_color_t);
+typedef void vd_suspend_t(struct vt_device *);
+typedef void vd_resume_t(struct vt_device *);
 
 struct vt_driver {
 	char		 vd_name[16];
 	/* Console attachment. */
 	vd_probe_t	*vd_probe;
 	vd_init_t	*vd_init;
+	vd_fini_t	*vd_fini;
 
 	/* Drawing. */
 	vd_blank_t	*vd_blank;
@@ -330,6 +346,10 @@ struct vt_driver {
 
 	/* Update display setting on vt switch. */
 	vd_postswitch_t	*vd_postswitch;
+
+	/* Suspend/resume handlers. */
+	vd_suspend_t	*vd_suspend;
+	vd_resume_t	*vd_resume;
 
 	/* Priority to know which one can override */
 	int		vd_priority;

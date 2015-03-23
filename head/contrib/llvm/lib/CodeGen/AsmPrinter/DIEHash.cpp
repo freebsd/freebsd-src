@@ -11,14 +11,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "dwarfdebug"
-
+#include "ByteStreamer.h"
 #include "DIEHash.h"
-
-#include "DIE.h"
-#include "DwarfCompileUnit.h"
+#include "DwarfDebug.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/CodeGen/AsmPrinter.h"
+#include "llvm/CodeGen/DIE.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/Endian.h"
@@ -26,6 +25,8 @@
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
+
+#define DEBUG_TYPE "dwarfdebug"
 
 /// \brief Grabs the string in whichever attribute is passed in and returns
 /// a reference to it.
@@ -75,7 +76,7 @@ void DIEHash::addSLEB128(int64_t Value) {
   do {
     uint8_t Byte = Value & 0x7f;
     Value >>= 7;
-    More = !((((Value == 0 ) && ((Byte & 0x40) == 0)) ||
+    More = !((((Value == 0) && ((Byte & 0x40) == 0)) ||
               ((Value == -1) && ((Byte & 0x40) != 0))));
     if (More)
       Byte |= 0x80; // Mark this byte to show that more bytes will follow.
@@ -92,10 +93,12 @@ void DIEHash::addParentContext(const DIE &Parent) {
   // outermost such construct...
   SmallVector<const DIE *, 1> Parents;
   const DIE *Cur = &Parent;
-  while (Cur->getTag() != dwarf::DW_TAG_compile_unit) {
+  while (Cur->getParent()) {
     Parents.push_back(Cur);
     Cur = Cur->getParent();
   }
+  assert(Cur->getTag() == dwarf::DW_TAG_compile_unit ||
+         Cur->getTag() == dwarf::DW_TAG_type_unit);
 
   // Reverse iterate over our list to go from the outermost construct to the
   // innermost.
@@ -134,55 +137,55 @@ void DIEHash::collectAttributes(const DIE &Die, DIEAttrs &Attrs) {
                  << dwarf::AttributeString(Abbrevs.getData()[i].getAttribute())
                  << " added.\n");
     switch (Abbrevs.getData()[i].getAttribute()) {
-    COLLECT_ATTR(DW_AT_name);
-    COLLECT_ATTR(DW_AT_accessibility);
-    COLLECT_ATTR(DW_AT_address_class);
-    COLLECT_ATTR(DW_AT_allocated);
-    COLLECT_ATTR(DW_AT_artificial);
-    COLLECT_ATTR(DW_AT_associated);
-    COLLECT_ATTR(DW_AT_binary_scale);
-    COLLECT_ATTR(DW_AT_bit_offset);
-    COLLECT_ATTR(DW_AT_bit_size);
-    COLLECT_ATTR(DW_AT_bit_stride);
-    COLLECT_ATTR(DW_AT_byte_size);
-    COLLECT_ATTR(DW_AT_byte_stride);
-    COLLECT_ATTR(DW_AT_const_expr);
-    COLLECT_ATTR(DW_AT_const_value);
-    COLLECT_ATTR(DW_AT_containing_type);
-    COLLECT_ATTR(DW_AT_count);
-    COLLECT_ATTR(DW_AT_data_bit_offset);
-    COLLECT_ATTR(DW_AT_data_location);
-    COLLECT_ATTR(DW_AT_data_member_location);
-    COLLECT_ATTR(DW_AT_decimal_scale);
-    COLLECT_ATTR(DW_AT_decimal_sign);
-    COLLECT_ATTR(DW_AT_default_value);
-    COLLECT_ATTR(DW_AT_digit_count);
-    COLLECT_ATTR(DW_AT_discr);
-    COLLECT_ATTR(DW_AT_discr_list);
-    COLLECT_ATTR(DW_AT_discr_value);
-    COLLECT_ATTR(DW_AT_encoding);
-    COLLECT_ATTR(DW_AT_enum_class);
-    COLLECT_ATTR(DW_AT_endianity);
-    COLLECT_ATTR(DW_AT_explicit);
-    COLLECT_ATTR(DW_AT_is_optional);
-    COLLECT_ATTR(DW_AT_location);
-    COLLECT_ATTR(DW_AT_lower_bound);
-    COLLECT_ATTR(DW_AT_mutable);
-    COLLECT_ATTR(DW_AT_ordering);
-    COLLECT_ATTR(DW_AT_picture_string);
-    COLLECT_ATTR(DW_AT_prototyped);
-    COLLECT_ATTR(DW_AT_small);
-    COLLECT_ATTR(DW_AT_segment);
-    COLLECT_ATTR(DW_AT_string_length);
-    COLLECT_ATTR(DW_AT_threads_scaled);
-    COLLECT_ATTR(DW_AT_upper_bound);
-    COLLECT_ATTR(DW_AT_use_location);
-    COLLECT_ATTR(DW_AT_use_UTF8);
-    COLLECT_ATTR(DW_AT_variable_parameter);
-    COLLECT_ATTR(DW_AT_virtuality);
-    COLLECT_ATTR(DW_AT_visibility);
-    COLLECT_ATTR(DW_AT_vtable_elem_location);
-    COLLECT_ATTR(DW_AT_type);
+      COLLECT_ATTR(DW_AT_name);
+      COLLECT_ATTR(DW_AT_accessibility);
+      COLLECT_ATTR(DW_AT_address_class);
+      COLLECT_ATTR(DW_AT_allocated);
+      COLLECT_ATTR(DW_AT_artificial);
+      COLLECT_ATTR(DW_AT_associated);
+      COLLECT_ATTR(DW_AT_binary_scale);
+      COLLECT_ATTR(DW_AT_bit_offset);
+      COLLECT_ATTR(DW_AT_bit_size);
+      COLLECT_ATTR(DW_AT_bit_stride);
+      COLLECT_ATTR(DW_AT_byte_size);
+      COLLECT_ATTR(DW_AT_byte_stride);
+      COLLECT_ATTR(DW_AT_const_expr);
+      COLLECT_ATTR(DW_AT_const_value);
+      COLLECT_ATTR(DW_AT_containing_type);
+      COLLECT_ATTR(DW_AT_count);
+      COLLECT_ATTR(DW_AT_data_bit_offset);
+      COLLECT_ATTR(DW_AT_data_location);
+      COLLECT_ATTR(DW_AT_data_member_location);
+      COLLECT_ATTR(DW_AT_decimal_scale);
+      COLLECT_ATTR(DW_AT_decimal_sign);
+      COLLECT_ATTR(DW_AT_default_value);
+      COLLECT_ATTR(DW_AT_digit_count);
+      COLLECT_ATTR(DW_AT_discr);
+      COLLECT_ATTR(DW_AT_discr_list);
+      COLLECT_ATTR(DW_AT_discr_value);
+      COLLECT_ATTR(DW_AT_encoding);
+      COLLECT_ATTR(DW_AT_enum_class);
+      COLLECT_ATTR(DW_AT_endianity);
+      COLLECT_ATTR(DW_AT_explicit);
+      COLLECT_ATTR(DW_AT_is_optional);
+      COLLECT_ATTR(DW_AT_location);
+      COLLECT_ATTR(DW_AT_lower_bound);
+      COLLECT_ATTR(DW_AT_mutable);
+      COLLECT_ATTR(DW_AT_ordering);
+      COLLECT_ATTR(DW_AT_picture_string);
+      COLLECT_ATTR(DW_AT_prototyped);
+      COLLECT_ATTR(DW_AT_small);
+      COLLECT_ATTR(DW_AT_segment);
+      COLLECT_ATTR(DW_AT_string_length);
+      COLLECT_ATTR(DW_AT_threads_scaled);
+      COLLECT_ATTR(DW_AT_upper_bound);
+      COLLECT_ATTR(DW_AT_use_location);
+      COLLECT_ATTR(DW_AT_use_UTF8);
+      COLLECT_ATTR(DW_AT_variable_parameter);
+      COLLECT_ATTR(DW_AT_virtuality);
+      COLLECT_ATTR(DW_AT_visibility);
+      COLLECT_ATTR(DW_AT_vtable_elem_location);
+      COLLECT_ATTR(DW_AT_type);
     default:
       break;
     }
@@ -258,7 +261,7 @@ void DIEHash::hashDIEEntry(dwarf::Attribute Attribute, dwarf::Tag Tag,
     return;
   }
 
-  // otherwise, b) use the letter 'T' as a the marker, ...
+  // otherwise, b) use the letter 'T' as the marker, ...
   addULEB128('T');
 
   addULEB128(Attribute);
@@ -269,6 +272,24 @@ void DIEHash::hashDIEEntry(dwarf::Attribute Attribute, dwarf::Tag Tag,
   computeHash(Entry);
 }
 
+// Hash all of the values in a block like set of values. This assumes that
+// all of the data is going to be added as integers.
+void DIEHash::hashBlockData(const SmallVectorImpl<DIEValue *> &Values) {
+  for (SmallVectorImpl<DIEValue *>::const_iterator I = Values.begin(),
+                                                   E = Values.end();
+       I != E; ++I)
+    Hash.update((uint64_t)cast<DIEInteger>(*I)->getValue());
+}
+
+// Hash the contents of a loclistptr class.
+void DIEHash::hashLocList(const DIELocList &LocList) {
+  HashingByteStreamer Streamer(*this);
+  DwarfDebug &DD = *AP->getDwarfDebug();
+  for (const auto &Entry :
+       DD.getDebugLocEntries()[LocList.getValue()].List)
+    DD.emitDebugLocEntry(Streamer, Entry);
+}
+
 // Hash an individual attribute \param Attr based on the type of attribute and
 // the form.
 void DIEHash::hashAttribute(AttrEntry Attr, dwarf::Tag Tag) {
@@ -276,43 +297,76 @@ void DIEHash::hashAttribute(AttrEntry Attr, dwarf::Tag Tag) {
   const DIEAbbrevData *Desc = Attr.Desc;
   dwarf::Attribute Attribute = Desc->getAttribute();
 
-  // 7.27 Step 3
-  // ... An attribute that refers to another type entry T is processed as
-  // follows:
-  if (const DIEEntry *EntryAttr = dyn_cast<DIEEntry>(Value)) {
-    hashDIEEntry(Attribute, Tag, *EntryAttr->getEntry());
-    return;
+  // Other attribute values use the letter 'A' as the marker, and the value
+  // consists of the form code (encoded as an unsigned LEB128 value) followed by
+  // the encoding of the value according to the form code. To ensure
+  // reproducibility of the signature, the set of forms used in the signature
+  // computation is limited to the following: DW_FORM_sdata, DW_FORM_flag,
+  // DW_FORM_string, and DW_FORM_block.
+
+  switch (Value->getType()) {
+    // 7.27 Step 3
+    // ... An attribute that refers to another type entry T is processed as
+    // follows:
+  case DIEValue::isEntry:
+    hashDIEEntry(Attribute, Tag, cast<DIEEntry>(Value)->getEntry());
+    break;
+  case DIEValue::isInteger: {
+    addULEB128('A');
+    addULEB128(Attribute);
+    switch (Desc->getForm()) {
+    case dwarf::DW_FORM_data1:
+    case dwarf::DW_FORM_data2:
+    case dwarf::DW_FORM_data4:
+    case dwarf::DW_FORM_data8:
+    case dwarf::DW_FORM_udata:
+    case dwarf::DW_FORM_sdata:
+      addULEB128(dwarf::DW_FORM_sdata);
+      addSLEB128((int64_t)cast<DIEInteger>(Value)->getValue());
+      break;
+    // DW_FORM_flag_present is just flag with a value of one. We still give it a
+    // value so just use the value.
+    case dwarf::DW_FORM_flag_present:
+    case dwarf::DW_FORM_flag:
+      addULEB128(dwarf::DW_FORM_flag);
+      addULEB128((int64_t)cast<DIEInteger>(Value)->getValue());
+      break;
+    default:
+      llvm_unreachable("Unknown integer form!");
+    }
+    break;
   }
-
-  // Other attribute values use the letter 'A' as the marker, ...
-  addULEB128('A');
-
-  addULEB128(Attribute);
-
-  // ... and the value consists of the form code (encoded as an unsigned LEB128
-  // value) followed by the encoding of the value according to the form code. To
-  // ensure reproducibility of the signature, the set of forms used in the
-  // signature computation is limited to the following: DW_FORM_sdata,
-  // DW_FORM_flag, DW_FORM_string, and DW_FORM_block.
-  switch (Desc->getForm()) {
-  case dwarf::DW_FORM_string:
-    llvm_unreachable(
-        "Add support for DW_FORM_string if we ever start emitting them again");
-  case dwarf::DW_FORM_GNU_str_index:
-  case dwarf::DW_FORM_strp:
+  case DIEValue::isString:
+    addULEB128('A');
+    addULEB128(Attribute);
     addULEB128(dwarf::DW_FORM_string);
     addString(cast<DIEString>(Value)->getString());
     break;
-  case dwarf::DW_FORM_data1:
-  case dwarf::DW_FORM_data2:
-  case dwarf::DW_FORM_data4:
-  case dwarf::DW_FORM_data8:
-  case dwarf::DW_FORM_udata:
-    addULEB128(dwarf::DW_FORM_sdata);
-    addSLEB128((int64_t)cast<DIEInteger>(Value)->getValue());
+  case DIEValue::isBlock:
+  case DIEValue::isLoc:
+  case DIEValue::isLocList:
+    addULEB128('A');
+    addULEB128(Attribute);
+    addULEB128(dwarf::DW_FORM_block);
+    if (isa<DIEBlock>(Value)) {
+      addULEB128(cast<DIEBlock>(Value)->ComputeSize(AP));
+      hashBlockData(cast<DIEBlock>(Value)->getValues());
+    } else if (isa<DIELoc>(Value)) {
+      addULEB128(cast<DIELoc>(Value)->ComputeSize(AP));
+      hashBlockData(cast<DIELoc>(Value)->getValues());
+    } else {
+      // We could add the block length, but that would take
+      // a bit of work and not add a lot of uniqueness
+      // to the hash in some way we could test.
+      hashLocList(*cast<DIELocList>(Value));
+    }
     break;
-  default:
-    llvm_unreachable("Add support for additional forms");
+    // FIXME: It's uncertain whether or not we should handle this at the moment.
+  case DIEValue::isExpr:
+  case DIEValue::isLabel:
+  case DIEValue::isDelta:
+  case DIEValue::isTypeSignature:
+    llvm_unreachable("Add support for additional value types.");
   }
 }
 
@@ -409,20 +463,18 @@ void DIEHash::computeHash(const DIE &Die) {
   addAttributes(Die);
 
   // Then hash each of the children of the DIE.
-  for (std::vector<DIE *>::const_iterator I = Die.getChildren().begin(),
-                                          E = Die.getChildren().end();
-       I != E; ++I) {
+  for (auto &C : Die.getChildren()) {
     // 7.27 Step 7
     // If C is a nested type entry or a member function entry, ...
-    if (isType((*I)->getTag()) || (*I)->getTag() == dwarf::DW_TAG_subprogram) {
-      StringRef Name = getDIEStringAttr(**I, dwarf::DW_AT_name);
+    if (isType(C->getTag()) || C->getTag() == dwarf::DW_TAG_subprogram) {
+      StringRef Name = getDIEStringAttr(*C, dwarf::DW_AT_name);
       // ... and has a DW_AT_name attribute
       if (!Name.empty()) {
-        hashNestedType(**I, Name);
+        hashNestedType(*C, Name);
         continue;
       }
     }
-    computeHash(**I);
+    computeHash(*C);
   }
 
   // Following the last (or if there are no children), append a zero byte.

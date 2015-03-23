@@ -31,11 +31,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/bio.h>
 #include <sys/bus.h>
-#include <sys/conf.h>
+#include <sys/gpio.h>
 #include <sys/kernel.h>
-#include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -43,12 +41,12 @@ __FBSDID("$FreeBSD$");
 
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
-#include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
 #endif
 
+#include <dev/gpio/gpiobusvar.h>
 #include <dev/led/led.h>
-#include <sys/gpio.h>
+
 #include "gpiobus_if.h"
 
 /*
@@ -79,16 +77,23 @@ static int gpioled_detach(device_t);
 static void 
 gpioled_control(void *priv, int onoff)
 {
-	struct gpioled_softc *sc = priv;
+	int error;
+	struct gpioled_softc *sc;
+
+	sc = (struct gpioled_softc *)priv;
 	GPIOLED_LOCK(sc);
-	GPIOBUS_LOCK_BUS(sc->sc_busdev);
-	GPIOBUS_ACQUIRE_BUS(sc->sc_busdev, sc->sc_dev);
-	GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, GPIOLED_PIN,
-	    GPIO_PIN_OUTPUT);
-	GPIOBUS_PIN_SET(sc->sc_busdev, sc->sc_dev, GPIOLED_PIN, 
-	    onoff ? GPIO_PIN_HIGH : GPIO_PIN_LOW);
+	error = GPIOBUS_ACQUIRE_BUS(sc->sc_busdev, sc->sc_dev,
+	    GPIOBUS_DONTWAIT);
+	if (error != 0) {
+		GPIOLED_UNLOCK(sc);
+		return;
+	}
+	error = GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev,
+	    GPIOLED_PIN, GPIO_PIN_OUTPUT);
+	if (error == 0)
+		GPIOBUS_PIN_SET(sc->sc_busdev, sc->sc_dev, GPIOLED_PIN,
+		    onoff ? GPIO_PIN_HIGH : GPIO_PIN_LOW);
 	GPIOBUS_RELEASE_BUS(sc->sc_busdev, sc->sc_dev);
-	GPIOBUS_UNLOCK_BUS(sc->sc_busdev);
 	GPIOLED_UNLOCK(sc);
 }
 
@@ -104,11 +109,13 @@ gpioled_identify(driver_t *driver, device_t bus)
 	leds = fdt_find_compatible(root, "gpio-leds", 1);
 	if (leds == 0)
 		return;
-
 	/* Traverse the 'gpio-leds' node and add its children. */
-	for (child = OF_child(leds); child != 0; child = OF_peer(child))
-		if (ofw_gpiobus_add_fdt_child(bus, child) == NULL)
+	for (child = OF_child(leds); child != 0; child = OF_peer(child)) {
+		if (!OF_hasprop(child, "gpios"))
 			continue;
+		if (ofw_gpiobus_add_fdt_child(bus, driver->name, child) == NULL)
+			continue;
+	}
 }
 #endif
 

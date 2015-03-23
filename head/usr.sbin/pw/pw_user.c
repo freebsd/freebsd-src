@@ -321,6 +321,9 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			(a_uid = a_name)->ch = 'u';
 			a_name = NULL;
 		}
+	} else {
+		if (strspn(a_uid->val, "0123456789") != strlen(a_uid->val))
+			errx(EX_USAGE, "-u expects a number");
 	}
 
 	/*
@@ -751,7 +754,25 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 */
 
 	if (mode == M_ADD || getarg(args, 'G') != NULL) {
-		int i;
+		int i, j;
+		/* First remove the user from all group */
+		SETGRENT();
+		while ((grp = GETGRENT()) != NULL) {
+			char group[MAXLOGNAME];
+			if (grp->gr_mem == NULL)
+				continue;
+			for (i = 0; grp->gr_mem[i] != NULL; i++) {
+				if (strcmp(grp->gr_mem[i] , pwd->pw_name) != 0)
+					continue;
+				for (j = i; grp->gr_mem[j] != NULL ; j++)
+					grp->gr_mem[j] = grp->gr_mem[j+1];
+				strlcpy(group, grp->gr_name, MAXLOGNAME);
+				chggrent(group, grp);
+			}
+		}
+		ENDGRENT();
+
+		/* now add to group where needed */
 		for (i = 0; cnf->groups[i] != NULL; i++) {
 			grp = GETGRNAM(cnf->groups[i]);
 			grp = gr_add(grp, pwd->pw_name);

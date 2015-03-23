@@ -7,10 +7,13 @@ SHLIBDIR?= /lib
 LIB=	nv
 SHLIB_MAJOR= 0
 
-SRCS=	dnvlist.c
+.PATH: ${.CURDIR}/../../sys/kern ${.CURDIR}/../../sys/sys
+CFLAGS+=-I${.CURDIR}/../../sys -I${.CURDIR}
+
+SRCS=	subr_dnvlist.c
 SRCS+=	msgio.c
-SRCS+=	nvlist.c
-SRCS+=	nvpair.c
+SRCS+=	subr_nvlist.c
+SRCS+=	subr_nvpair.c
 
 INCS=	dnv.h
 INCS+=	nv.h
@@ -22,6 +25,7 @@ MLINKS+=nv.3 libnv.3 \
 MLINKS+=nv.3 nvlist_create.3 \
 	nv.3 nvlist_destroy.3 \
 	nv.3 nvlist_error.3 \
+	nv.3 nvlist_set_error.3 \
 	nv.3 nvlist_empty.3 \
 	nv.3 nvlist_clone.3 \
 	nv.3 nvlist_dump.3 \
@@ -61,6 +65,7 @@ MLINKS+=nv.3 nvlist_create.3 \
 	nv.3 nvlist_get_nvlist.3 \
 	nv.3 nvlist_get_descriptor.3 \
 	nv.3 nvlist_get_binary.3 \
+	nv.3 nvlist_get_parent.3 \
 	nv.3 nvlist_take_bool.3 \
 	nv.3 nvlist_take_number.3 \
 	nv.3 nvlist_take_string.3 \
@@ -149,7 +154,7 @@ MLINKS+=nv.3 nvlist_existsv.3 \
 	nv.3 nvlist_takev_nvlist.3 \
 	nv.3 nvlist_takev_descriptor.3 \
 	nv.3 nvlist_takev_binary.3 \
-	nv.3 nvlist_freef.3 \
+	nv.3 nvlist_freev.3 \
 	nv.3 nvlist_freev_type.3 \
 	nv.3 nvlist_freev_null.3 \
 	nv.3 nvlist_freev_bool.3 \

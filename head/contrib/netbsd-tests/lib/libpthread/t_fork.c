@@ -61,7 +61,11 @@ print_pid(void *arg)
 
 	thread_survived = 1;
 	if (parent != getpid()) {
+#ifdef __FreeBSD__
+		_exit(1);
+#else
 		exit(1);
+#endif
 	}
 	return NULL;
 }
@@ -95,7 +99,11 @@ ATF_TC_BODY(fork, tc)
 		ATF_REQUIRE_EQ_MSG(WEXITSTATUS(status), 0, "thread survived in child");
 	} else {
 		sleep(5);
+#ifdef __FreeBSD__
+		_exit(thread_survived ? 1 : 0);
+#else
 		exit(thread_survived ? 1 : 0);
+#endif
 	}
 }
 

@@ -15,15 +15,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "msp430-branch-select"
 #include "MSP430.h"
 #include "MSP430InstrInfo.h"
+#include "MSP430Subtarget.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Target/TargetMachine.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "msp430-branch-select"
 
 STATISTIC(NumExpanded, "Number of branches expanded to long format");
 
@@ -35,9 +37,9 @@ namespace {
     /// BlockSizes - The sizes of the basic blocks in the function.
     std::vector<unsigned> BlockSizes;
 
-    virtual bool runOnMachineFunction(MachineFunction &Fn);
+    bool runOnMachineFunction(MachineFunction &Fn) override;
 
-    virtual const char *getPassName() const {
+    const char *getPassName() const override {
       return "MSP430 Branch Selector";
     }
   };
@@ -53,7 +55,7 @@ FunctionPass *llvm::createMSP430BranchSelectionPass() {
 
 bool MSP430BSel::runOnMachineFunction(MachineFunction &Fn) {
   const MSP430InstrInfo *TII =
-             static_cast<const MSP430InstrInfo*>(Fn.getTarget().getInstrInfo());
+      static_cast<const MSP430InstrInfo *>(Fn.getSubtarget().getInstrInfo());
   // Give the blocks of the function a dense, in-order, numbering.
   Fn.RenumberBlocks();
   BlockSizes.resize(Fn.getNumBlockIDs());

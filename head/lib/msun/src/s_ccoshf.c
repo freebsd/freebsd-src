@@ -55,50 +55,50 @@ ccoshf(float complex z)
 
 	if (ix < 0x7f800000 && iy < 0x7f800000) {
 		if (iy == 0)
-			return (cpackf(coshf(x), x * y));
+			return (CMPLXF(coshf(x), x * y));
 		if (ix < 0x41100000)	/* small x: normal case */
-			return (cpackf(coshf(x) * cosf(y), sinhf(x) * sinf(y)));
+			return (CMPLXF(coshf(x) * cosf(y), sinhf(x) * sinf(y)));
 
 		/* |x| >= 9, so cosh(x) ~= exp(|x|) */
 		if (ix < 0x42b17218) {
 			/* x < 88.7: expf(|x|) won't overflow */
 			h = expf(fabsf(x)) * 0.5f;
-			return (cpackf(h * cosf(y), copysignf(h, x) * sinf(y)));
+			return (CMPLXF(h * cosf(y), copysignf(h, x) * sinf(y)));
 		} else if (ix < 0x4340b1e7) {
 			/* x < 192.7: scale to avoid overflow */
-			z = __ldexp_cexpf(cpackf(fabsf(x), y), -1);
-			return (cpackf(crealf(z), cimagf(z) * copysignf(1, x)));
+			z = __ldexp_cexpf(CMPLXF(fabsf(x), y), -1);
+			return (CMPLXF(crealf(z), cimagf(z) * copysignf(1, x)));
 		} else {
 			/* x >= 192.7: the result always overflows */
 			h = huge * x;
-			return (cpackf(h * h * cosf(y), h * sinf(y)));
+			return (CMPLXF(h * h * cosf(y), h * sinf(y)));
 		}
 	}
 
 	if (ix == 0 && iy >= 0x7f800000)
-		return (cpackf(y - y, copysignf(0, x * (y - y))));
+		return (CMPLXF(y - y, copysignf(0, x * (y - y))));
 
 	if (iy == 0 && ix >= 0x7f800000) {
 		if ((hx & 0x7fffff) == 0)
-			return (cpackf(x * x, copysignf(0, x) * y));
-		return (cpackf(x * x, copysignf(0, (x + x) * y)));
+			return (CMPLXF(x * x, copysignf(0, x) * y));
+		return (CMPLXF(x * x, copysignf(0, (x + x) * y)));
 	}
 
 	if (ix < 0x7f800000 && iy >= 0x7f800000)
-		return (cpackf(y - y, x * (y - y)));
+		return (CMPLXF(y - y, x * (y - y)));
 
 	if (ix >= 0x7f800000 && (hx & 0x7fffff) == 0) {
 		if (iy >= 0x7f800000)
-			return (cpackf(x * x, x * (y - y)));
-		return (cpackf((x * x) * cosf(y), x * sinf(y)));
+			return (CMPLXF(x * x, x * (y - y)));
+		return (CMPLXF((x * x) * cosf(y), x * sinf(y)));
 	}
 
-	return (cpackf((x * x) * (y - y), (x + x) * (y - y)));
+	return (CMPLXF((x * x) * (y - y), (x + x) * (y - y)));
 }
 
 float complex
 ccosf(float complex z)
 {
 
-	return (ccoshf(cpackf(-cimagf(z), crealf(z))));
+	return (ccoshf(CMPLXF(-cimagf(z), crealf(z))));
 }

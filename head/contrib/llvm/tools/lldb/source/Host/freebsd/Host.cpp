@@ -13,7 +13,6 @@
 #include <execinfo.h>
 #include <sys/types.h>
 #include <sys/user.h>
-#include <sys/utsname.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
 
@@ -27,6 +26,7 @@
 #include "lldb/Core/Error.h"
 #include "lldb/Host/Endian.h"
 #include "lldb/Host/Host.h"
+#include "lldb/Host/HostInfo.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/DataExtractor.h"
 #include "lldb/Core/StreamFile.h"
@@ -39,8 +39,9 @@
 #include "lldb/Core/DataExtractor.h"
 #include "lldb/Utility/CleanUp.h"
 
-#include "llvm/Support/Host.h"
+#include "Plugins/Process/Utility/FreeBSDSignals.h"
 
+#include "llvm/Support/Host.h"
 
 extern "C" {
     extern char **environ;
@@ -48,47 +49,6 @@ extern "C" {
 
 using namespace lldb;
 using namespace lldb_private;
-
-class FreeBSDThread
-{
-public:
-    FreeBSDThread(const char *thread_name)
-    {
-        Host::SetThreadName (LLDB_INVALID_PROCESS_ID, LLDB_INVALID_THREAD_ID, thread_name);
-    }
-    static void PThreadDestructor (void *v)
-    {
-        delete (FreeBSDThread*)v;
-    }
-};
-
-static pthread_once_t g_thread_create_once = PTHREAD_ONCE_INIT;
-static pthread_key_t g_thread_create_key = 0;
-
-static void
-InitThreadCreated()
-{
-    ::pthread_key_create (&g_thread_create_key, FreeBSDThread::PThreadDestructor);
-}
-
-void
-Host::ThreadCreated (const char *thread_name)
-{
-    ::pthread_once (&g_thread_create_once, InitThreadCreated);
-    if (g_thread_create_key)
-    {
-        ::pthread_setspecific (g_thread_create_key, new FreeBSDThread(thread_name));
-    }
-
-    Host::SetShortThreadName (LLDB_INVALID_PROCESS_ID, LLDB_INVALID_THREAD_ID, thread_name, 16);
-}
-
-std::string
-Host::GetThreadName (lldb::pid_t pid, lldb::tid_t tid)
-{
-    std::string thread_name;
-    return thread_name;
-}
 
 void
 Host::Backtrace (Stream &strm, uint32_t max_frames)
@@ -132,56 +92,6 @@ Host::GetEnvironment (StringList &env)
         env.AppendString(v);
     }
     return env.GetSize();
-}
-
-bool
-Host::GetOSVersion(uint32_t &major,
-                   uint32_t &minor,
-                   uint32_t &update)
-{
-    struct utsname un;
-
-    ::memset(&un, 0, sizeof(utsname));
-    if (uname(&un) < 0)
-        return false;
-
-    int status = sscanf(un.release, "%u.%u", &major, &minor);
-    return status == 2;
-}
-
-bool
-Host::GetOSBuildString (std::string &s)
-{
-    int mib[2] = { CTL_KERN, KERN_OSREV };
-    char osrev_str[12];
-    uint32_t osrev = 0;
-    size_t osrev_len = sizeof(osrev);
-
-    if (::sysctl (mib, 2, &osrev, &osrev_len, NULL, 0) == 0)
-    {
-        ::snprintf(osrev_str, sizeof(osrev_str), "%-8.8u", osrev);
-        s.assign (osrev_str);
-        return true;
-    }
-
-    s.clear();
-    return false;
-}
-
-bool
-Host::GetOSKernelDescription (std::string &s)
-{
-    struct utsname un;
-
-    ::memset(&un, 0, sizeof(utsname));
-    s.clear();
-
-    if (uname(&un) < 0)
-    return false;
-
-    s.assign (un.version);
-
-    return true;
 }
 
 static bool
@@ -240,7 +150,7 @@ GetFreeBSDProcessCPUType (ProcessInstanceInfo &process_info)
 {
     if (process_info.ProcessIDIsValid())
     {
-        process_info.GetArchitecture() = Host::GetArchitecture (Host::eSystemDefaultArchitecture);
+        process_info.GetArchitecture() = HostInfo::GetArchitecture(HostInfo::eArchKindDefault);
         return true;
     }
     process_info.GetArchitecture().Clear();
@@ -306,9 +216,9 @@ Host::FindProcesses (const ProcessInstanceInfoMatch &match_info, ProcessInstance
     const size_t actual_pid_count = (pid_data_size / sizeof(struct kinfo_proc));
 
     bool all_users = match_info.GetMatchAllUsers();
-    const lldb::pid_t our_pid = getpid();
+    const ::pid_t our_pid = getpid();
     const uid_t our_uid = getuid();
-    for (int i = 0; i < actual_pid_count; i++)
+    for (size_t i = 0; i < actual_pid_count; i++)
     {
         const struct kinfo_proc &kinfo = kinfos[i];
         const bool kinfo_user_matches = (all_users ||
@@ -379,42 +289,26 @@ Host::GetProcessInfo (lldb::pid_t pid, ProcessInstanceInfo &process_info)
 lldb::DataBufferSP
 Host::GetAuxvData(lldb_private::Process *process)
 {
-   int mib[2] = { CTL_KERN, KERN_PS_STRINGS };
-   void *ps_strings_addr, *auxv_addr;
-   size_t ps_strings_size = sizeof(void *);
-   Elf_Auxinfo aux_info[AT_COUNT];
-   struct ps_strings ps_strings;
-   struct ptrace_io_desc pid;
+   int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_AUXV, 0 };
+   size_t auxv_size = AT_COUNT * sizeof(Elf_Auxinfo);
    DataBufferSP buf_sp;
-   std::unique_ptr<DataBufferHeap> buf_ap(new DataBufferHeap(1024, 0));
 
-   if (::sysctl(mib, 2, &ps_strings_addr, &ps_strings_size, NULL, 0) == 0) {
-           pid.piod_op = PIOD_READ_D;
-           pid.piod_addr = &ps_strings;
-           pid.piod_offs = ps_strings_addr;
-           pid.piod_len = sizeof(ps_strings);
-           if (::ptrace(PT_IO, process->GetID(), (caddr_t)&pid, 0)) {
-                   perror("failed to fetch ps_strings");
-                   buf_ap.release();
-                   goto done;
-           }
+   std::unique_ptr<DataBufferHeap> buf_ap(new DataBufferHeap(auxv_size, 0));
 
-           auxv_addr = ps_strings.ps_envstr + ps_strings.ps_nenvstr + 1;
-
-           pid.piod_addr = aux_info;
-           pid.piod_offs = auxv_addr;
-           pid.piod_len = sizeof(aux_info);
-           if (::ptrace(PT_IO, process->GetID(), (caddr_t)&pid, 0)) {
-                   perror("failed to fetch aux_info");
-                   buf_ap.release();
-                   goto done;
-           }
-           memcpy(buf_ap->GetBytes(), aux_info, pid.piod_len);
+   mib[3] = process->GetID();
+   if (::sysctl(mib, 4, buf_ap->GetBytes(), &auxv_size, NULL, 0) == 0) {
            buf_sp.reset(buf_ap.release());
    } else {
-           perror("sysctl failed on ps_strings");
+           perror("sysctl failed on auxv");
    }
 
-   done:
    return buf_sp;
 }
+
+const UnixSignalsSP&
+Host::GetUnixSignals ()
+{
+    static const lldb_private::UnixSignalsSP s_unix_signals_sp (new FreeBSDSignals ());
+    return s_unix_signals_sp;
+}
+

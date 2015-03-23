@@ -29,11 +29,13 @@ const char *Action::getClassName(ActionClass AC) {
   case AnalyzeJobClass: return "analyzer";
   case MigrateJobClass: return "migrator";
   case CompileJobClass: return "compiler";
+  case BackendJobClass: return "backend";
   case AssembleJobClass: return "assembler";
   case LinkJobClass: return "linker";
   case LipoJobClass: return "lipo";
   case DsymutilJobClass: return "dsymutil";
-  case VerifyJobClass: return "verify";
+  case VerifyDebugInfoJobClass: return "verify-debug-info";
+  case VerifyPCHJobClass: return "verify-pch";
   }
 
   llvm_unreachable("invalid class");
@@ -47,15 +49,15 @@ InputAction::InputAction(const Arg &_Input, types::ID _Type)
 
 void BindArchAction::anchor() {}
 
-BindArchAction::BindArchAction(Action *Input, const char *_ArchName)
-  : Action(BindArchClass, Input, Input->getType()), ArchName(_ArchName) {
-}
+BindArchAction::BindArchAction(std::unique_ptr<Action> Input,
+                               const char *_ArchName)
+    : Action(BindArchClass, std::move(Input)), ArchName(_ArchName) {}
 
 void JobAction::anchor() {}
 
-JobAction::JobAction(ActionClass Kind, Action *Input, types::ID Type)
-  : Action(Kind, Input, Type) {
-}
+JobAction::JobAction(ActionClass Kind, std::unique_ptr<Action> Input,
+                     types::ID Type)
+    : Action(Kind, std::move(Input), Type) {}
 
 JobAction::JobAction(ActionClass Kind, const ActionList &Inputs, types::ID Type)
   : Action(Kind, Inputs, Type) {
@@ -63,39 +65,45 @@ JobAction::JobAction(ActionClass Kind, const ActionList &Inputs, types::ID Type)
 
 void PreprocessJobAction::anchor() {}
 
-PreprocessJobAction::PreprocessJobAction(Action *Input, types::ID OutputType)
-  : JobAction(PreprocessJobClass, Input, OutputType) {
-}
+PreprocessJobAction::PreprocessJobAction(std::unique_ptr<Action> Input,
+                                         types::ID OutputType)
+    : JobAction(PreprocessJobClass, std::move(Input), OutputType) {}
 
 void PrecompileJobAction::anchor() {}
 
-PrecompileJobAction::PrecompileJobAction(Action *Input, types::ID OutputType)
-  : JobAction(PrecompileJobClass, Input, OutputType) {
-}
+PrecompileJobAction::PrecompileJobAction(std::unique_ptr<Action> Input,
+                                         types::ID OutputType)
+    : JobAction(PrecompileJobClass, std::move(Input), OutputType) {}
 
 void AnalyzeJobAction::anchor() {}
 
-AnalyzeJobAction::AnalyzeJobAction(Action *Input, types::ID OutputType)
-  : JobAction(AnalyzeJobClass, Input, OutputType) {
-}
+AnalyzeJobAction::AnalyzeJobAction(std::unique_ptr<Action> Input,
+                                   types::ID OutputType)
+    : JobAction(AnalyzeJobClass, std::move(Input), OutputType) {}
 
 void MigrateJobAction::anchor() {}
 
-MigrateJobAction::MigrateJobAction(Action *Input, types::ID OutputType)
-  : JobAction(MigrateJobClass, Input, OutputType) {
-}
+MigrateJobAction::MigrateJobAction(std::unique_ptr<Action> Input,
+                                   types::ID OutputType)
+    : JobAction(MigrateJobClass, std::move(Input), OutputType) {}
 
 void CompileJobAction::anchor() {}
 
-CompileJobAction::CompileJobAction(Action *Input, types::ID OutputType)
-  : JobAction(CompileJobClass, Input, OutputType) {
-}
+CompileJobAction::CompileJobAction(std::unique_ptr<Action> Input,
+                                   types::ID OutputType)
+    : JobAction(CompileJobClass, std::move(Input), OutputType) {}
+
+void BackendJobAction::anchor() {}
+
+BackendJobAction::BackendJobAction(std::unique_ptr<Action> Input,
+                                   types::ID OutputType)
+    : JobAction(BackendJobClass, std::move(Input), OutputType) {}
 
 void AssembleJobAction::anchor() {}
 
-AssembleJobAction::AssembleJobAction(Action *Input, types::ID OutputType)
-  : JobAction(AssembleJobClass, Input, OutputType) {
-}
+AssembleJobAction::AssembleJobAction(std::unique_ptr<Action> Input,
+                                     types::ID OutputType)
+    : JobAction(AssembleJobClass, std::move(Input), OutputType) {}
 
 void LinkJobAction::anchor() {}
 
@@ -117,6 +125,28 @@ DsymutilJobAction::DsymutilJobAction(ActionList &Inputs, types::ID Type)
 
 void VerifyJobAction::anchor() {}
 
-VerifyJobAction::VerifyJobAction(ActionList &Inputs, types::ID Type)
-  : JobAction(VerifyJobClass, Inputs, Type) {
+VerifyJobAction::VerifyJobAction(ActionClass Kind,
+                                 std::unique_ptr<Action> Input, types::ID Type)
+    : JobAction(Kind, std::move(Input), Type) {
+  assert((Kind == VerifyDebugInfoJobClass || Kind == VerifyPCHJobClass) &&
+         "ActionClass is not a valid VerifyJobAction");
 }
+
+VerifyJobAction::VerifyJobAction(ActionClass Kind, ActionList &Inputs,
+                                 types::ID Type)
+    : JobAction(Kind, Inputs, Type) {
+  assert((Kind == VerifyDebugInfoJobClass || Kind == VerifyPCHJobClass) &&
+           "ActionClass is not a valid VerifyJobAction");
+}
+
+void VerifyDebugInfoJobAction::anchor() {}
+
+VerifyDebugInfoJobAction::VerifyDebugInfoJobAction(
+    std::unique_ptr<Action> Input, types::ID Type)
+    : VerifyJobAction(VerifyDebugInfoJobClass, std::move(Input), Type) {}
+
+void VerifyPCHJobAction::anchor() {}
+
+VerifyPCHJobAction::VerifyPCHJobAction(std::unique_ptr<Action> Input,
+                                       types::ID Type)
+    : VerifyJobAction(VerifyPCHJobClass, std::move(Input), Type) {}

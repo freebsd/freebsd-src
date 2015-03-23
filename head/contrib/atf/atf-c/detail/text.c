@@ -1,7 +1,4 @@
-/*
- * Automated Testing Framework (atf)
- *
- * Copyright (c) 2008 The NetBSD Foundation, Inc.
+/* Copyright (c) 2008 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,19 +21,18 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
+
+#include "atf-c/detail/text.h"
 
 #include <errno.h>
 #include <limits.h>
 #include <string.h>
 #include <stdlib.h>
 
+#include "atf-c/detail/dynstr.h"
+#include "atf-c/detail/sanity.h"
 #include "atf-c/error.h"
-
-#include "dynstr.h"
-#include "sanity.h"
-#include "text.h"
 
 atf_error_t
 atf_text_for_each_word(const char *instr, const char *sep,

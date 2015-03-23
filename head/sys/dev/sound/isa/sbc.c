@@ -85,9 +85,7 @@ static int sbc_release_resource(device_t bus, device_t child, int type, int rid,
 				struct resource *r);
 static int sbc_setup_intr(device_t dev, device_t child, struct resource *irq,
    	       int flags,
-#if __FreeBSD_version >= 700031
 	       driver_filter_t *filter,
-#endif
 	       driver_intr_t *intr, 
    	       void *arg, void **cookiep);
 static int sbc_teardown_intr(device_t dev, device_t child, struct resource *irq,
@@ -512,9 +510,7 @@ sbc_intr(void *p)
 
 static int
 sbc_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
-#if __FreeBSD_version >= 700031
    	       driver_filter_t *filter,
-#endif
 	       driver_intr_t *intr, 
    	       void *arg, void **cookiep)
 {
@@ -522,12 +518,10 @@ sbc_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
 	struct sbc_ihl *ihl = NULL;
 	int i, ret;
 
-#if __FreeBSD_version >= 700031
 	if (filter != NULL) {
 		printf("sbc.c: we cannot use a filter here\n");
 		return (EINVAL);
 	}
-#endif
 	sbc_lock(scp);
 	i = 0;
 	while (i < IRQ_MAX) {

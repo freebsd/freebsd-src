@@ -559,11 +559,11 @@ maybe_demote(struct mac_lomac *subjlabel, struct mac_lomac *objlabel,
 	pgid = p->p_pgrp->pg_id;		/* XXX could be stale? */
 	if (vp != NULL && VOP_GETATTR(vp, &va, curthread->td_ucred) == 0) {
 		log(LOG_INFO, "LOMAC: level-%s subject p%dg%du%d:%s demoted to"
-		    " level %s after %s a level-%s %s (inode=%ld, "
+		    " level %s after %s a level-%s %s (inode=%ju, "
 		    "mountpount=%s)\n",
 		    subjlabeltext, p->p_pid, pgid, curthread->td_ucred->cr_uid,
 		    p->p_comm, subjtext, actionname, objlabeltext, objname,
-		    va.va_fileid, vp->v_mount->mnt_stat.f_mntonname);
+		    (uintmax_t)va.va_fileid, vp->v_mount->mnt_stat.f_mntonname);
 	} else {
 		log(LOG_INFO, "LOMAC: level-%s subject p%dg%du%d:%s demoted to"
 		    " level %s after %s a level-%s %s\n",
@@ -2255,7 +2255,7 @@ lomac_thread_userret(struct thread *td)
 		crcopy(newcred, oldcred);
 		crhold(newcred);
 		lomac_copy(&subj->mac_lomac, SLOT(newcred->cr_label));
-		p->p_ucred = newcred;
+		proc_set_cred(p, newcred);
 		crfree(oldcred);
 		dodrop = 1;
 	out:

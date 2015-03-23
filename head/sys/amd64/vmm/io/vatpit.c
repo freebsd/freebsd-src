@@ -317,7 +317,7 @@ vatpit_update_mode(struct vatpit *vatpit, uint8_t val)
 }
 
 int
-vatpit_handler(void *vm, int vcpuid, bool in, int port, int bytes,
+vatpit_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
     uint32_t *eax)
 {
 	struct vatpit *vatpit;
@@ -400,7 +400,7 @@ vatpit_handler(void *vm, int vcpuid, bool in, int port, int bytes,
 }
 
 int
-vatpit_nmisc_handler(void *vm, int vcpuid, bool in, int port, int bytes,
+vatpit_nmisc_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
     uint32_t *eax)
 {
 	struct vatpit *vatpit;

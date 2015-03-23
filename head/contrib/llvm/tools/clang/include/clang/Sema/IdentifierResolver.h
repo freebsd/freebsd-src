@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_AST_SEMA_IDENTIFIERRESOLVER_H
-#define LLVM_CLANG_AST_SEMA_IDENTIFIERRESOLVER_H
+#ifndef LLVM_CLANG_SEMA_IDENTIFIERRESOLVER_H
+#define LLVM_CLANG_SEMA_IDENTIFIERRESOLVER_H
 
 #include "clang/Basic/IdentifierTable.h"
 #include "llvm/ADT/SmallVector.h"
@@ -150,11 +150,14 @@ public:
   /// if 'D' is in Scope 'S', otherwise 'S' is ignored and isDeclInScope returns
   /// true if 'D' belongs to the given declaration context.
   ///
-  /// \param ExplicitInstantiationOrSpecialization When true, we are checking
-  /// whether the declaration is in scope for the purposes of explicit template
-  /// instantiation or specialization. The default is false.
-  bool isDeclInScope(Decl *D, DeclContext *Ctx, Scope *S = 0,
-                     bool ExplicitInstantiationOrSpecialization = false) const;
+  /// \param AllowInlineNamespace If \c true, we are checking whether a prior
+  ///        declaration is in scope in a declaration that requires a prior
+  ///        declaration (because it is either explicitly qualified or is a
+  ///        template instantiation or specialization). In this case, a
+  ///        declaration is in scope if it's in the inline namespace set of the
+  ///        context.
+  bool isDeclInScope(Decl *D, DeclContext *Ctx, Scope *S = nullptr,
+                     bool AllowInlineNamespace = false) const;
 
   /// AddDecl - Link the decl to its shadowed decl chain.
   void AddDecl(NamedDecl *D);

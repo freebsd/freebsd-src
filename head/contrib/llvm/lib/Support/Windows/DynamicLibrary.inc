@@ -11,7 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Windows.h"
+#include "WindowsSupport.h"
 
 #ifdef __MINGW32__
  #include <imagehlp.h>
@@ -41,32 +41,11 @@ using namespace sys;
 
 static DenseSet<HMODULE> *OpenedHandles;
 
-extern "C" {
-
-  static BOOL CALLBACK ELM_Callback(WIN32_ELMCB_PCSTR ModuleName,
-                                    ULONG_PTR ModuleBase,
-                                    ULONG ModuleSize,
-                                    PVOID UserContext)
-  {
-    // Ignore VC++ runtimes prior to 7.1.  Somehow some of them get loaded
-    // into the process.
-    if (stricmp(ModuleName, "msvci70") != 0 &&
-        stricmp(ModuleName, "msvcirt") != 0 &&
-        stricmp(ModuleName, "msvcp50") != 0 &&
-        stricmp(ModuleName, "msvcp60") != 0 &&
-        stricmp(ModuleName, "msvcp70") != 0 &&
-        stricmp(ModuleName, "msvcr70") != 0 &&
-#ifndef __MINGW32__
-        // Mingw32 uses msvcrt.dll by default. Don't ignore it.
-        // Otherwise, user should be aware, what he's doing :)
-        stricmp(ModuleName, "msvcrt") != 0 &&
-#endif
-        stricmp(ModuleName, "msvcrt20") != 0 &&
-        stricmp(ModuleName, "msvcrt40") != 0) {
-      OpenedHandles->insert((HMODULE)ModuleBase);
-    }
-    return TRUE;
-  }
+static BOOL CALLBACK
+ELM_Callback(WIN32_ELMCB_PCSTR ModuleName, ULONG_PTR ModuleBase,
+             ULONG ModuleSize, PVOID UserContext) {
+  OpenedHandles->insert((HMODULE)ModuleBase);
+  return TRUE;
 }
 
 DynamicLibrary DynamicLibrary::getPermanentLibrary(const char *filename,
@@ -85,7 +64,7 @@ DynamicLibrary DynamicLibrary::getPermanentLibrary(const char *filename,
   }
 
   SmallVector<wchar_t, MAX_PATH> filenameUnicode;
-  if (error_code ec = windows::UTF8ToUTF16(filename, filenameUnicode)) {
+  if (std::error_code ec = windows::UTF8ToUTF16(filename, filenameUnicode)) {
     SetLastError(ec.value());
     MakeErrMsg(errMsg, std::string(filename) + ": Can't convert to UTF-16: ");
     return DynamicLibrary();
@@ -115,10 +94,24 @@ DynamicLibrary DynamicLibrary::getPermanentLibrary(const char *filename,
   extern "C" { extern void *SYM; }
 #define EXPLICIT_SYMBOL2(SYMFROM, SYMTO) EXPLICIT_SYMBOL(SYMTO)
 
+#ifdef _M_IX86
+// Win32 on x86 implements certain single-precision math functions as macros.
+// These functions are not exported by the DLL, but will still be needed
+// for symbol-resolution by the JIT loader. Therefore, this Support libray
+// provides helper functions with the same implementation.
+
+#define INLINE_DEF_SYMBOL1(TYP, SYM)                                           \
+  extern "C" TYP inline_##SYM(TYP _X) { return SYM(_X); }
+#define INLINE_DEF_SYMBOL2(TYP, SYM)                                           \
+  extern "C" TYP inline_##SYM(TYP _X, TYP _Y) { return SYM(_X, _Y); }
+#endif
+
 #include "explicit_symbols.inc"
 
 #undef EXPLICIT_SYMBOL
 #undef EXPLICIT_SYMBOL2
+#undef INLINE_DEF_SYMBOL1
+#undef INLINE_DEF_SYMBOL2
 
 void* DynamicLibrary::SearchForAddressOfSymbol(const char* symbolName) {
   SmartScopedLock<true> Lock(*SymbolsMutex);
@@ -142,21 +135,31 @@ void* DynamicLibrary::SearchForAddressOfSymbol(const char* symbolName) {
     }
   }
 
-  #define EXPLICIT_SYMBOL(SYM)                    \
-    if (!strcmp(symbolName, #SYM)) return (void*)&SYM;
-  #define EXPLICIT_SYMBOL2(SYMFROM, SYMTO)        \
-    if (!strcmp(symbolName, #SYMFROM)) return (void*)&SYMTO;
+#define EXPLICIT_SYMBOL(SYM)                                                   \
+  if (!strcmp(symbolName, #SYM))                                               \
+    return (void *)&SYM;
+#define EXPLICIT_SYMBOL2(SYMFROM, SYMTO)                                       \
+  if (!strcmp(symbolName, #SYMFROM))                                           \
+    return (void *)&SYMTO;
+
+#ifdef _M_IX86
+#define INLINE_DEF_SYMBOL1(TYP, SYM)                                           \
+  if (!strcmp(symbolName, #SYM))                                               \
+    return (void *)&inline_##SYM;
+#define INLINE_DEF_SYMBOL2(TYP, SYM) INLINE_DEF_SYMBOL1(TYP, SYM)
+#endif
 
   {
-    #include "explicit_symbols.inc"
+#include "explicit_symbols.inc"
   }
 
-  #undef EXPLICIT_SYMBOL
-  #undef EXPLICIT_SYMBOL2
+#undef EXPLICIT_SYMBOL
+#undef EXPLICIT_SYMBOL2
+#undef INLINE_DEF_SYMBOL1
+#undef INLINE_DEF_SYMBOL2
 
   return 0;
 }
-
 
 void *DynamicLibrary::getAddressOfSymbol(const char *symbolName) {
   if (!isValid())
@@ -165,6 +168,5 @@ void *DynamicLibrary::getAddressOfSymbol(const char *symbolName) {
     return SearchForAddressOfSymbol(symbolName);
   return (void *)(intptr_t)GetProcAddress((HMODULE)Data, symbolName);
 }
-
 
 }

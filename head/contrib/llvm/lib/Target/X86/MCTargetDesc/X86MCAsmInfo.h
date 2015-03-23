@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86TARGETASMINFO_H
-#define X86TARGETASMINFO_H
+#ifndef LLVM_LIB_TARGET_X86_MCTARGETDESC_X86MCASMINFO_H
+#define LLVM_LIB_TARGET_X86_MCTARGETDESC_X86MCASMINFO_H
 
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCAsmInfoCOFF.h"
@@ -24,33 +24,32 @@ namespace llvm {
 
   class X86MCAsmInfoDarwin : public MCAsmInfoDarwin {
     virtual void anchor();
+
   public:
     explicit X86MCAsmInfoDarwin(const Triple &Triple);
   };
 
   struct X86_64MCAsmInfoDarwin : public X86MCAsmInfoDarwin {
     explicit X86_64MCAsmInfoDarwin(const Triple &Triple);
-    virtual const MCExpr *
-    getExprForPersonalitySymbol(const MCSymbol *Sym,
-                                unsigned Encoding,
-                                MCStreamer &Streamer) const;
+    const MCExpr *
+    getExprForPersonalitySymbol(const MCSymbol *Sym, unsigned Encoding,
+                                MCStreamer &Streamer) const override;
   };
 
   class X86ELFMCAsmInfo : public MCAsmInfoELF {
-    virtual void anchor();
+    void anchor() override;
   public:
     explicit X86ELFMCAsmInfo(const Triple &Triple);
-    virtual const MCSection *getNonexecutableStackSection(MCContext &Ctx) const;
   };
 
   class X86MCAsmInfoMicrosoft : public MCAsmInfoMicrosoft {
-    virtual void anchor();
+    void anchor() override;
   public:
     explicit X86MCAsmInfoMicrosoft(const Triple &Triple);
   };
 
   class X86MCAsmInfoGNUCOFF : public MCAsmInfoGNUCOFF {
-    virtual void anchor();
+    void anchor() override;
   public:
     explicit X86MCAsmInfoGNUCOFF(const Triple &Triple);
   };

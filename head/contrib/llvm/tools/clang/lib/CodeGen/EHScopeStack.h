@@ -13,14 +13,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_CODEGEN_EHSCOPESTACK_H
-#define CLANG_CODEGEN_EHSCOPESTACK_H
+#ifndef LLVM_CLANG_LIB_CODEGEN_EHSCOPESTACK_H
+#define LLVM_CLANG_LIB_CODEGEN_EHSCOPESTACK_H
 
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/Value.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/Value.h"
 
 namespace clang {
 namespace CodeGen {
@@ -65,16 +65,16 @@ template <class T> struct InvariantValue {
 template <class T> struct DominatingValue : InvariantValue<T> {};
 
 template <class T, bool mightBeInstruction =
-            llvm::is_base_of<llvm::Value, T>::value &&
-            !llvm::is_base_of<llvm::Constant, T>::value &&
-            !llvm::is_base_of<llvm::BasicBlock, T>::value>
+            std::is_base_of<llvm::Value, T>::value &&
+            !std::is_base_of<llvm::Constant, T>::value &&
+            !std::is_base_of<llvm::BasicBlock, T>::value>
 struct DominatingPointer;
 template <class T> struct DominatingPointer<T,false> : InvariantValue<T*> {};
 // template <class T> struct DominatingPointer<T,true> at end of file
 
 template <class T> struct DominatingValue<T*> : DominatingPointer<T> {};
 
-enum CleanupKind {
+enum CleanupKind : unsigned {
   EHCleanup = 0x1,
   NormalCleanup = 0x2,
   NormalAndEHCleanup = EHCleanup | NormalCleanup,
@@ -182,7 +182,7 @@ public:
     typedef typename DominatingValue<A0>::saved_type A0_saved;
     A0_saved a0_saved;
 
-    void Emit(CodeGenFunction &CGF, Flags flags) {
+    void Emit(CodeGenFunction &CGF, Flags flags) override {
       A0 a0 = DominatingValue<A0>::restore(CGF, a0_saved);
       T(a0).Emit(CGF, flags);
     }
@@ -199,7 +199,7 @@ public:
     A0_saved a0_saved;
     A1_saved a1_saved;
 
-    void Emit(CodeGenFunction &CGF, Flags flags) {
+    void Emit(CodeGenFunction &CGF, Flags flags) override {
       A0 a0 = DominatingValue<A0>::restore(CGF, a0_saved);
       A1 a1 = DominatingValue<A1>::restore(CGF, a1_saved);
       T(a0, a1).Emit(CGF, flags);
@@ -219,7 +219,7 @@ public:
     A1_saved a1_saved;
     A2_saved a2_saved;
 
-    void Emit(CodeGenFunction &CGF, Flags flags) {
+    void Emit(CodeGenFunction &CGF, Flags flags) override {
       A0 a0 = DominatingValue<A0>::restore(CGF, a0_saved);
       A1 a1 = DominatingValue<A1>::restore(CGF, a1_saved);
       A2 a2 = DominatingValue<A2>::restore(CGF, a2_saved);
@@ -242,7 +242,7 @@ public:
     A2_saved a2_saved;
     A3_saved a3_saved;
 
-    void Emit(CodeGenFunction &CGF, Flags flags) {
+    void Emit(CodeGenFunction &CGF, Flags flags) override {
       A0 a0 = DominatingValue<A0>::restore(CGF, a0_saved);
       A1 a1 = DominatingValue<A1>::restore(CGF, a1_saved);
       A2 a2 = DominatingValue<A2>::restore(CGF, a2_saved);
@@ -301,8 +301,8 @@ private:
   void *pushCleanup(CleanupKind K, size_t DataSize);
 
 public:
-  EHScopeStack() : StartOfBuffer(0), EndOfBuffer(0), StartOfData(0),
-                   InnermostNormalCleanup(stable_end()),
+  EHScopeStack() : StartOfBuffer(nullptr), EndOfBuffer(nullptr),
+                   StartOfData(nullptr), InnermostNormalCleanup(stable_end()),
                    InnermostEHScope(stable_end()) {}
   ~EHScopeStack() { delete[] StartOfBuffer; }
 

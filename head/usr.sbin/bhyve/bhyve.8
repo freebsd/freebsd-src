@@ -32,7 +32,7 @@
 .Nd "run a guest operating system inside a virtual machine"
 .Sh SYNOPSIS
 .Nm
-.Op Fl abehwxACHPWY
+.Op Fl abehuwxACHPWY
 .Op Fl c Ar numcpus
 .Op Fl g Ar gdbport
 .Op Fl l Ar lpcdev Ns Op , Ns Ar conf
@@ -70,7 +70,8 @@ Required for
 guests.
 .It Fl b
 Enable a low-level console device supported by
-.Fx kernels compiled with
+.Fx
+kernels compiled with
 .Cd "device bvmconsole" .
 This option will be deprecated in a future version.
 .It Fl c Ar numcpus
@@ -238,6 +239,8 @@ The host device must have been reserved at boot-time using the
 loader variable as described in
 .Xr vmm 4 .
 .El
+.It Fl u
+RTC keeps UTC time.
 .It Fl U Ar uuid
 Set the universally unique identifier
 .Pq UUID

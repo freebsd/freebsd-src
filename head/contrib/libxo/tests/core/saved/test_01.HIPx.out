@@ -236,3 +236,61 @@
   <div class="text">: </div>
   <div class="data" data-tag="sku" data-xpath="/top/data/item/sku" data-type="string" data-help="Stock Keeping Unit" data-key="key">GRO-000-533</div>
 </div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="item" data-xpath="/top/data/item">gum</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="item" data-xpath="/top/data/item">rope</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="item" data-xpath="/top/data/item">ladder</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="item" data-xpath="/top/data/item">bolt</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="item" data-xpath="/top/data/item">water</div>
+</div>
+<div class="line">
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+</div>
+<div class="line">
+  <div class="text">X</div>
+  <div class="padding">        </div>
+  <div class="text">X</div>
+  <div class="label">Cost</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="cost" data-xpath="/top/cost">425</div>
+</div>
+<div class="line">
+  <div class="text">X</div>
+  <div class="padding">                              </div>
+  <div class="text">X</div>
+  <div class="label">Cost</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="cost" data-xpath="/top/cost">455</div>
+</div>

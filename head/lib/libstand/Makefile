@@ -28,7 +28,7 @@ CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 -msoft-float
 CFLAGS.gcc+=	-mpreferred-stack-boundary=2
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
-CFLAGS+=	-fPIC
+CFLAGS+=	-fPIC -mno-red-zone
 .endif
 .if ${MACHINE} == "pc98"
 CFLAGS+=	-Os
@@ -65,14 +65,14 @@ SRCS+=	bcmp.c bcopy.c bzero.c ffs.c memccpy.c memchr.c memcmp.c memcpy.c \
 .PATH: ${.CURDIR}/../libc/arm/gen
 
 # Compiler support functions
-.PATH: ${.CURDIR}/../../contrib/compiler-rt/lib/
+.PATH: ${.CURDIR}/../../contrib/compiler-rt/lib/builtins/
 # __clzsi2 and ctzsi2 for various builtin functions
 SRCS+=	clzsi2.c ctzsi2.c
 # Divide and modulus functions called by the compiler
 SRCS+=	 divmoddi4.c  divmodsi4.c  divdi3.c  divsi3.c  moddi3.c  modsi3.c
 SRCS+=	udivmoddi4.c udivmodsi4.c udivdi3.c udivsi3.c umoddi3.c umodsi3.c
 
-.PATH: ${.CURDIR}/../../contrib/compiler-rt/lib/arm/
+.PATH: ${.CURDIR}/../../contrib/compiler-rt/lib/builtins/arm/
 SRCS+=	aeabi_idivmod.S aeabi_ldivmod.S aeabi_uidivmod.S aeabi_uldivmod.S
 SRCS+=	aeabi_memcmp.S aeabi_memcpy.S aeabi_memmove.S aeabi_memset.S
 
@@ -80,7 +80,6 @@ SRCS+=	aeabi_memcmp.S aeabi_memcpy.S aeabi_memmove.S aeabi_memset.S
 .if ${MACHINE_CPUARCH} == "powerpc"
 .PATH: ${.CURDIR}/../libc/quad
 SRCS+=	ashldi3.c ashrdi3.c
-.PATH: ${.CURDIR}/../libc/powerpc/gen
 SRCS+=	syncicache.c
 .endif
 
@@ -89,11 +88,7 @@ SRCS+=	syncicache.c
 SRCS+= uuid_equal.c uuid_is_nil.c
 
 # _setjmp/_longjmp
-.if ${MACHINE_ARCH} == "powerpc64"
-.PATH: ${.CURDIR}/powerpc
-.else
 .PATH: ${.CURDIR}/${MACHINE_CPUARCH}
-.endif
 SRCS+=	_setjmp.S
 
 # decompression functionality from libbz2

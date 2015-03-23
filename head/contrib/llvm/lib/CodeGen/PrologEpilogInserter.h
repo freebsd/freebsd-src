@@ -16,8 +16,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CODEGEN_PEI_H
-#define LLVM_CODEGEN_PEI_H
+#ifndef LLVM_LIB_CODEGEN_PROLOGEPILOGINSERTER_H
+#define LLVM_LIB_CODEGEN_PROLOGEPILOGINSERTER_H
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SparseBitVector.h"
@@ -37,12 +37,12 @@ namespace llvm {
       initializePEIPass(*PassRegistry::getPassRegistry());
     }
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const;
+    void getAnalysisUsage(AnalysisUsage &AU) const override;
 
     /// runOnMachineFunction - Insert prolog/epilog code and replace abstract
     /// frame indexes with appropriate references.
     ///
-    bool runOnMachineFunction(MachineFunction &Fn);
+    bool runOnMachineFunction(MachineFunction &Fn) override;
 
   private:
     RegScavenger *RS;

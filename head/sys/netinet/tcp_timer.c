@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/rss_config.h>
 #include <net/vnet.h>
 #include <net/netisr.h>
 
@@ -243,7 +244,7 @@ tcp_slowtimo(void)
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		tcp_tw_2msl_scan();
+		(void) tcp_tw_2msl_scan(0);
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK_NOSLEEP();

@@ -17,12 +17,9 @@
 #define LLVM_CLANG_BASIC_IDENTIFIERTABLE_H
 
 #include "clang/Basic/LLVM.h"
-#include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/TokenKinds.h"
-#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Support/PointerLikeTypeTraits.h"
 #include <cassert>
 #include <string>
 
@@ -252,6 +249,9 @@ public:
   }
   bool isCPlusPlusOperatorKeyword() const { return IsCPPOperatorKeyword; }
 
+  /// \brief Return true if this token is a keyword in the specified language.
+  bool isKeyword(const LangOptions &LangOpts);
+
   /// getFETokenInfo/setFETokenInfo - The language front-end is allowed to
   /// associate arbitrary metadata with this token.
   template<typename T>
@@ -428,7 +428,7 @@ public:
   /// \brief Create the identifier table, populating it with info about the
   /// language keywords for the language specified by \p LangOpts.
   IdentifierTable(const LangOptions &LangOpts,
-                  IdentifierInfoLookup* externalLookup = 0);
+                  IdentifierInfoLookup* externalLookup = nullptr);
 
   /// \brief Set the external identifier lookup mechanism.
   void setExternalIdentifierLookup(IdentifierInfoLookup *IILookup) {
@@ -447,26 +447,21 @@ public:
   /// \brief Return the identifier token info for the specified named
   /// identifier.
   IdentifierInfo &get(StringRef Name) {
-    llvm::StringMapEntry<IdentifierInfo*> &Entry =
-      HashTable.GetOrCreateValue(Name);
+    auto &Entry = *HashTable.insert(std::make_pair(Name, nullptr)).first;
 
-    IdentifierInfo *II = Entry.getValue();
+    IdentifierInfo *&II = Entry.second;
     if (II) return *II;
 
     // No entry; if we have an external lookup, look there first.
     if (ExternalLookup) {
       II = ExternalLookup->get(Name);
-      if (II) {
-        // Cache in the StringMap for subsequent lookups.
-        Entry.setValue(II);
+      if (II)
         return *II;
-      }
     }
 
     // Lookups failed, make a new IdentifierInfo.
     void *Mem = getAllocator().Allocate<IdentifierInfo>();
     II = new (Mem) IdentifierInfo();
-    Entry.setValue(II);
 
     // Make sure getName() knows how to find the IdentifierInfo
     // contents.
@@ -489,25 +484,23 @@ public:
   /// introduce or modify an identifier. If they called get(), they would
   /// likely end up in a recursion.
   IdentifierInfo &getOwn(StringRef Name) {
-    llvm::StringMapEntry<IdentifierInfo*> &Entry =
-      HashTable.GetOrCreateValue(Name);
+    auto &Entry = *HashTable.insert(std::make_pair(Name, nullptr)).first;
 
-    IdentifierInfo *II = Entry.getValue();
-    if (!II) {
+    IdentifierInfo *&II = Entry.second;
+    if (II)
+      return *II;
 
-      // Lookups failed, make a new IdentifierInfo.
-      void *Mem = getAllocator().Allocate<IdentifierInfo>();
-      II = new (Mem) IdentifierInfo();
-      Entry.setValue(II);
+    // Lookups failed, make a new IdentifierInfo.
+    void *Mem = getAllocator().Allocate<IdentifierInfo>();
+    II = new (Mem) IdentifierInfo();
 
-      // Make sure getName() knows how to find the IdentifierInfo
-      // contents.
-      II->Entry = &Entry;
-      
-      // If this is the 'import' contextual keyword, mark it as such.
-      if (Name.equals("import"))
-        II->setModulesImport(true);
-    }
+    // Make sure getName() knows how to find the IdentifierInfo
+    // contents.
+    II->Entry = &Entry;
+
+    // If this is the 'import' contextual keyword, mark it as such.
+    if (Name.equals("import"))
+      II->setModulesImport(true);
 
     return *II;
   }
@@ -566,6 +559,7 @@ enum ObjCMethodFamily {
   OMF_retain,
   OMF_retainCount,
   OMF_self,
+  OMF_initialize,
 
   // performSelector families
   OMF_performSelector
@@ -589,6 +583,12 @@ enum ObjCInstanceTypeFamily {
   OIT_Singleton,
   OIT_Init,
   OIT_ReturnsSelf
+};
+
+enum ObjCStringFormatFamily {
+  SFF_None,
+  SFF_NSString,
+  SFF_CFString
 };
 
 /// \brief Smart pointer class that efficiently represents Objective-C method
@@ -625,7 +625,7 @@ class Selector {
   IdentifierInfo *getAsIdentifierInfo() const {
     if (getIdentifierInfoFlag() < MultiArg)
       return reinterpret_cast<IdentifierInfo *>(InfoPtr & ~ArgFlags);
-    return 0;
+    return nullptr;
   }
   MultiKeywordSelector *getMultiKeywordSelector() const {
     return reinterpret_cast<MultiKeywordSelector *>(InfoPtr & ~ArgFlags);
@@ -636,6 +636,8 @@ class Selector {
   }
 
   static ObjCMethodFamily getMethodFamilyImpl(Selector sel);
+  
+  static ObjCStringFormatFamily getStringFormatFamilyImpl(Selector sel);
 
 public:
   friend class SelectorTable; // only the SelectorTable can create these
@@ -697,14 +699,20 @@ public:
   
   /// \brief Derive the full selector name (e.g. "foo:bar:") and return
   /// it as an std::string.
-  // FIXME: Add a print method that uses a raw_ostream.
   std::string getAsString() const;
+
+  /// \brief Prints the full selector name (e.g. "foo:bar:").
+  void print(llvm::raw_ostream &OS) const;
 
   /// \brief Derive the conventional family of this method.
   ObjCMethodFamily getMethodFamily() const {
     return getMethodFamilyImpl(*this);
   }
-
+  
+  ObjCStringFormatFamily getStringFormatFamily() const {
+    return getStringFormatFamilyImpl(*this);
+  }
+  
   static Selector getEmptyMarker() {
     return Selector(uintptr_t(-1));
   }
@@ -811,6 +819,8 @@ struct DenseMapInfo<clang::Selector> {
 
 template <>
 struct isPodLike<clang::Selector> { static const bool value = true; };
+
+template <typename T> class PointerLikeTypeTraits;
 
 template<>
 class PointerLikeTypeTraits<clang::Selector> {

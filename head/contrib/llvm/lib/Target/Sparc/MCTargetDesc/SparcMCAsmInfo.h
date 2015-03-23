@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef SPARCTARGETASMINFO_H
-#define SPARCTARGETASMINFO_H
+#ifndef LLVM_LIB_TARGET_SPARC_MCTARGETDESC_SPARCMCASMINFO_H
+#define LLVM_LIB_TARGET_SPARC_MCTARGETDESC_SPARCMCASMINFO_H
 
 #include "llvm/MC/MCAsmInfoELF.h"
 
@@ -20,15 +20,15 @@ namespace llvm {
 class StringRef;
 
 class SparcELFMCAsmInfo : public MCAsmInfoELF {
-  virtual void anchor();
+  void anchor() override;
 public:
   explicit SparcELFMCAsmInfo(StringRef TT);
-  virtual const MCExpr* getExprForPersonalitySymbol(const MCSymbol *Sym,
-                                                    unsigned Encoding,
-                                                    MCStreamer &Streamer) const;
-  virtual const MCExpr* getExprForFDESymbol(const MCSymbol *Sym,
-                                            unsigned Encoding,
-                                            MCStreamer &Streamer) const;
+  const MCExpr*
+  getExprForPersonalitySymbol(const MCSymbol *Sym, unsigned Encoding,
+                              MCStreamer &Streamer) const override;
+  const MCExpr* getExprForFDESymbol(const MCSymbol *Sym,
+                                    unsigned Encoding,
+                                    MCStreamer &Streamer) const override;
 
 };
 

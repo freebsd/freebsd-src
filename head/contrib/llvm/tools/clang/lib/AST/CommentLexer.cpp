@@ -268,6 +268,19 @@ const char *findCCommentEnd(const char *BufferPtr, const char *BufferEnd) {
     
 } // unnamed namespace
 
+void Lexer::formTokenWithChars(Token &Result, const char *TokEnd,
+                               tok::TokenKind Kind) {
+  const unsigned TokLen = TokEnd - BufferPtr;
+  Result.setLocation(getSourceLocation(BufferPtr));
+  Result.setKind(Kind);
+  Result.setLength(TokLen);
+#ifndef NDEBUG
+  Result.TextPtr = "<UNSET>";
+  Result.IntVal = 7;
+#endif
+  BufferPtr = TokEnd;
+}
+
 void Lexer::lexCommentText(Token &T) {
   assert(CommentState == LCS_InsideBCPLComment ||
          CommentState == LCS_InsideCComment);
@@ -349,7 +362,7 @@ void Lexer::lexCommentText(Token &T) {
           }
         }
 
-        const StringRef CommandName(BufferPtr + 1, Length);
+        StringRef CommandName(BufferPtr + 1, Length);
 
         const CommandInfo *Info = Traits.getCommandInfoOrNULL(CommandName);
         if (!Info) {
@@ -518,7 +531,7 @@ void Lexer::lexVerbatimLineText(Token &T) {
 
   // Extract current line.
   const char *Newline = findNewline(BufferPtr, CommentEnd);
-  const StringRef Text(BufferPtr, Newline - BufferPtr);
+  StringRef Text(BufferPtr, Newline - BufferPtr);
   formTokenWithChars(T, Newline, tok::verbatim_line_text);
   T.setVerbatimLineText(Text);
 

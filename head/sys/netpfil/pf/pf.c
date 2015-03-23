@@ -139,18 +139,11 @@ struct pf_send_entry {
 		PFSE_ICMP,
 		PFSE_ICMP6,
 	}				pfse_type;
-	union {
-		struct route		ro;
-		struct {
-			int		type;
-			int		code;
-			int		mtu;
-		} icmpopts;
-	} u;
-#define	pfse_ro		u.ro
-#define	pfse_icmp_type	u.icmpopts.type
-#define	pfse_icmp_code	u.icmpopts.code
-#define	pfse_icmp_mtu	u.icmpopts.mtu
+	struct {
+		int		type;
+		int		code;
+		int		mtu;
+	} icmpopts;
 };
 
 STAILQ_HEAD(pf_send_head, pf_send_entry);
@@ -368,6 +361,45 @@ VNET_DEFINE(void *, pf_swi_cookie);
 
 VNET_DEFINE(uint32_t, pf_hashseed);
 #define	V_pf_hashseed	VNET(pf_hashseed)
+
+int
+pf_addr_cmp(struct pf_addr *a, struct pf_addr *b, sa_family_t af)
+{
+
+	switch (af) {
+#ifdef INET
+	case AF_INET:
+		if (a->addr32[0] > b->addr32[0])
+			return (1);
+		if (a->addr32[0] < b->addr32[0])
+			return (-1);
+		break;
+#endif /* INET */
+#ifdef INET6
+	case AF_INET6:
+		if (a->addr32[3] > b->addr32[3])
+			return (1);
+		if (a->addr32[3] < b->addr32[3])
+			return (-1);
+		if (a->addr32[2] > b->addr32[2])
+			return (1);
+		if (a->addr32[2] < b->addr32[2])
+			return (-1);
+		if (a->addr32[1] > b->addr32[1])
+			return (1);
+		if (a->addr32[1] < b->addr32[1])
+			return (-1);
+		if (a->addr32[0] > b->addr32[0])
+			return (1);
+		if (a->addr32[0] < b->addr32[0])
+			return (-1);
+		break;
+#endif /* INET6 */
+	default:
+		panic("%s: unknown address family %u", __func__, af);
+	}
+	return (0);
+}
 
 static __inline uint32_t
 pf_hashkey(struct pf_state_key *sk)
@@ -617,7 +649,10 @@ pf_find_src_node(struct pf_addr *src, struct pf_rule *rule, sa_family_t af,
 		    ((af == AF_INET && n->addr.v4.s_addr == src->v4.s_addr) ||
 		    (af == AF_INET6 && bcmp(&n->addr, src, sizeof(*src)) == 0)))
 			break;
-	if (n != NULL || returnlocked == 0)
+	if (n != NULL) {
+		n->states++;
+		PF_HASHROW_UNLOCK(sh);
+	} else if (returnlocked == 0)
 		PF_HASHROW_UNLOCK(sh);
 
 	return (n);
@@ -661,6 +696,7 @@ pf_insert_src_node(struct pf_src_node **sn, struct pf_rule *rule,
 		LIST_INSERT_HEAD(&sh->nodes, *sn, entry);
 		(*sn)->creation = time_uptime;
 		(*sn)->ruletype = rule->action;
+		(*sn)->states = 1;
 		if ((*sn)->rule.ptr != NULL)
 			counter_u64_add((*sn)->rule.ptr->src_nodes, 1);
 		PF_HASHROW_UNLOCK(sh);
@@ -677,37 +713,13 @@ pf_insert_src_node(struct pf_src_node **sn, struct pf_rule *rule,
 }
 
 void
-pf_unlink_src_node_locked(struct pf_src_node *src)
+pf_unlink_src_node(struct pf_src_node *src)
 {
-#ifdef INVARIANTS
-	struct pf_srchash *sh;
 
-	sh = &V_pf_srchash[pf_hashsrc(&src->addr, src->af)];
-	PF_HASHROW_ASSERT(sh);
-#endif
+	PF_HASHROW_ASSERT(&V_pf_srchash[pf_hashsrc(&src->addr, src->af)]);
 	LIST_REMOVE(src, entry);
 	if (src->rule.ptr)
 		counter_u64_add(src->rule.ptr->src_nodes, -1);
-	counter_u64_add(V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS], 1);
-}
-
-void
-pf_unlink_src_node(struct pf_src_node *src)
-{
-	struct pf_srchash *sh;
-
-	sh = &V_pf_srchash[pf_hashsrc(&src->addr, src->af)];
-	PF_HASHROW_LOCK(sh);
-	pf_unlink_src_node_locked(src);
-	PF_HASHROW_UNLOCK(sh);
-}
-
-static void
-pf_free_src_node(struct pf_src_node *sn)
-{
-
-	KASSERT(sn->states == 0, ("%s: %p has refs", __func__, sn));
-	uma_zfree(V_pf_sources_z, sn);
 }
 
 u_int
@@ -717,9 +729,11 @@ pf_free_src_nodes(struct pf_src_node_list *head)
 	u_int count = 0;
 
 	LIST_FOREACH_SAFE(sn, head, entry, tmp) {
-		pf_free_src_node(sn);
+		uma_zfree(V_pf_sources_z, sn);
 		count++;
 	}
+
+	counter_u64_add(V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS], count);
 
 	return (count);
 }
@@ -1370,8 +1384,8 @@ pf_intr(void *v)
 			ip_output(pfse->pfse_m, NULL, NULL, 0, NULL, NULL);
 			break;
 		case PFSE_ICMP:
-			icmp_error(pfse->pfse_m, pfse->pfse_icmp_type,
-			    pfse->pfse_icmp_code, 0, pfse->pfse_icmp_mtu);
+			icmp_error(pfse->pfse_m, pfse->icmpopts.type,
+			    pfse->icmpopts.code, 0, pfse->icmpopts.mtu);
 			break;
 #endif /* INET */
 #ifdef INET6
@@ -1380,8 +1394,8 @@ pf_intr(void *v)
 			    NULL);
 			break;
 		case PFSE_ICMP6:
-			icmp6_error(pfse->pfse_m, pfse->pfse_icmp_type,
-			    pfse->pfse_icmp_code, pfse->pfse_icmp_mtu);
+			icmp6_error(pfse->pfse_m, pfse->icmpopts.type,
+			    pfse->icmpopts.code, pfse->icmpopts.mtu);
 			break;
 #endif /* INET6 */
 		default:
@@ -1510,7 +1524,7 @@ pf_purge_expired_src_nodes()
 	    PF_HASHROW_LOCK(sh);
 	    LIST_FOREACH_SAFE(cur, &sh->nodes, entry, next)
 		if (cur->states == 0 && cur->expire <= time_uptime) {
-			pf_unlink_src_node_locked(cur);
+			pf_unlink_src_node(cur);
 			LIST_INSERT_HEAD(&freelist, cur, entry);
 		} else if (cur->rule.ptr != NULL)
 			cur->rule.ptr->rule_flag |= PFRULE_REFS;
@@ -1525,27 +1539,31 @@ pf_purge_expired_src_nodes()
 static void
 pf_src_tree_remove_state(struct pf_state *s)
 {
-	u_int32_t timeout;
+	struct pf_src_node *sn;
+	struct pf_srchash *sh;
+	uint32_t timeout;
+
+	timeout = s->rule.ptr->timeout[PFTM_SRC_NODE] ?
+	    s->rule.ptr->timeout[PFTM_SRC_NODE] :
+	    V_pf_default_rule.timeout[PFTM_SRC_NODE];
 
 	if (s->src_node != NULL) {
+		sn = s->src_node;
+		sh = &V_pf_srchash[pf_hashsrc(&sn->addr, sn->af)];
+	    	PF_HASHROW_LOCK(sh);
 		if (s->src.tcp_est)
-			--s->src_node->conn;
-		if (--s->src_node->states == 0) {
-			timeout = s->rule.ptr->timeout[PFTM_SRC_NODE];
-			if (!timeout)
-				timeout =
-				    V_pf_default_rule.timeout[PFTM_SRC_NODE];
-			s->src_node->expire = time_uptime + timeout;
-		}
+			--sn->conn;
+		if (--sn->states == 0)
+			sn->expire = time_uptime + timeout;
+	    	PF_HASHROW_UNLOCK(sh);
 	}
 	if (s->nat_src_node != s->src_node && s->nat_src_node != NULL) {
-		if (--s->nat_src_node->states == 0) {
-			timeout = s->rule.ptr->timeout[PFTM_SRC_NODE];
-			if (!timeout)
-				timeout =
-				    V_pf_default_rule.timeout[PFTM_SRC_NODE];
-			s->nat_src_node->expire = time_uptime + timeout;
-		}
+		sn = s->nat_src_node;
+		sh = &V_pf_srchash[pf_hashsrc(&sn->addr, sn->af)];
+	    	PF_HASHROW_LOCK(sh);
+		if (--sn->states == 0)
+			sn->expire = time_uptime + timeout;
+	    	PF_HASHROW_UNLOCK(sh);
 	}
 	s->src_node = s->nat_src_node = NULL;
 }
@@ -2413,8 +2431,8 @@ pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
 #endif /* INET6 */
 	}
 	pfse->pfse_m = m0;
-	pfse->pfse_icmp_type = type;
-	pfse->pfse_icmp_code = code;
+	pfse->icmpopts.type = type;
+	pfse->icmpopts.code = code;
 	pf_send(pfse);
 }
 
@@ -3531,15 +3549,12 @@ pf_create_state(struct pf_rule *r, struct pf_rule *nr, struct pf_rule *a,
 	s->creation = time_uptime;
 	s->expire = time_uptime;
 
-	if (sn != NULL) {
+	if (sn != NULL)
 		s->src_node = sn;
-		s->src_node->states++;
-	}
 	if (nsn != NULL) {
 		/* XXX We only modify one side for now. */
 		PF_ACPY(&nsn->raddr, &nk->addr[1], pd->af);
 		s->nat_src_node = nsn;
-		s->nat_src_node->states++;
 	}
 	if (pd->proto == IPPROTO_TCP) {
 		if ((pd->flags & PFDESC_TCP_NORM) && pf_normalize_tcp_init(m,
@@ -3637,14 +3652,32 @@ csfailed:
 	if (nk != NULL)
 		uma_zfree(V_pf_state_key_z, nk);
 
-	if (sn != NULL && sn->states == 0 && sn->expire == 0) {
-		pf_unlink_src_node(sn);
-		pf_free_src_node(sn);
+	if (sn != NULL) {
+		struct pf_srchash *sh;
+
+		sh = &V_pf_srchash[pf_hashsrc(&sn->addr, sn->af)];
+		PF_HASHROW_LOCK(sh);
+		if (--sn->states == 0 && sn->expire == 0) {
+			pf_unlink_src_node(sn);
+			uma_zfree(V_pf_sources_z, sn);
+			counter_u64_add(
+			    V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS], 1);
+		}
+		PF_HASHROW_UNLOCK(sh);
 	}
 
-	if (nsn != sn && nsn != NULL && nsn->states == 0 && nsn->expire == 0) {
-		pf_unlink_src_node(nsn);
-		pf_free_src_node(nsn);
+	if (nsn != sn && nsn != NULL) {
+		struct pf_srchash *sh;
+
+		sh = &V_pf_srchash[pf_hashsrc(&nsn->addr, nsn->af)];
+		PF_HASHROW_LOCK(sh);
+		if (--nsn->states == 1 && nsn->expire == 0) {
+			pf_unlink_src_node(nsn);
+			uma_zfree(V_pf_sources_z, nsn);
+			counter_u64_add(
+			    V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS], 1);
+		}
+		PF_HASHROW_UNLOCK(sh);
 	}
 
 	return (PF_DROP);
@@ -5438,6 +5471,7 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 			PF_STATE_UNLOCK(s);
 		m0->m_flags |= M_SKIP_FIREWALL;
 		ip6_output(m0, NULL, NULL, 0, NULL, NULL, NULL);
+		*m = NULL;
 		return;
 	}
 
@@ -5467,7 +5501,7 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 		goto bad;
 
 	if (oifp != ifp) {
-		if (pf_test6(PF_OUT, ifp, &m0, NULL) != PF_PASS)
+		if (pf_test6(PF_FWD, ifp, &m0, NULL) != PF_PASS)
 			goto bad;
 		else if (m0 == NULL)
 			goto done;
@@ -6025,14 +6059,19 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
 	struct pfi_kif		*kif;
 	u_short			 action, reason = 0, log = 0;
 	struct mbuf		*m = *m0, *n = NULL;
+	struct m_tag		*mtag;
 	struct ip6_hdr		*h = NULL;
 	struct pf_rule		*a = NULL, *r = &V_pf_default_rule, *tr, *nr;
 	struct pf_state		*s = NULL;
 	struct pf_ruleset	*ruleset = NULL;
 	struct pf_pdesc		 pd;
 	int			 off, terminal = 0, dirndx, rh_cnt = 0;
+	int			 fwdir = dir;
 
 	M_ASSERTPKTHDR(m);
+
+	if (ifp != m->m_pkthdr.rcvif)
+		fwdir = PF_FWD;
 
 	if (!V_pf_status.running)
 		return (PF_PASS);
@@ -6394,6 +6433,11 @@ done:
 
 	if (s)
 		PF_STATE_UNLOCK(s);
+
+	/* If reassembled packet passed, create new fragments. */
+	if (action == PF_PASS && *m0 && fwdir == PF_FWD &&
+	    (mtag = m_tag_find(m, PF_REASSEMBLED, NULL)) != NULL)
+		action = pf_refragment6(ifp, m0, mtag);
 
 	return (action);
 }

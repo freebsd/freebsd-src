@@ -67,6 +67,59 @@ protected:
 
     std::unique_ptr<lldb_private::TypeMemberImpl> m_opaque_ap;
 };
+    
+class SBTypeMemberFunction
+{
+public:
+    SBTypeMemberFunction ();
+    
+    SBTypeMemberFunction (const lldb::SBTypeMemberFunction& rhs);
+    
+    ~SBTypeMemberFunction();
+    
+    lldb::SBTypeMemberFunction&
+    operator = (const lldb::SBTypeMemberFunction& rhs);
+    
+    bool
+    IsValid() const;
+    
+    const char *
+    GetName ();
+    
+    lldb::SBType
+    GetType ();
+    
+    lldb::SBType
+    GetReturnType ();
+    
+    uint32_t
+    GetNumberOfArguments ();
+    
+    lldb::SBType
+    GetArgumentTypeAtIndex (uint32_t);
+    
+    lldb::MemberFunctionKind
+    GetKind();
+    
+    bool
+    GetDescription (lldb::SBStream &description,
+                    lldb::DescriptionLevel description_level);
+    
+protected:
+    friend class SBType;
+    
+    void
+    reset (lldb_private::TypeMemberFunctionImpl *);
+    
+    lldb_private::TypeMemberFunctionImpl &
+    ref ();
+    
+    const lldb_private::TypeMemberFunctionImpl &
+    ref () const;
+    
+    lldb::TypeMemberFunctionImplSP m_opaque_sp;
+};
+
 
 class SBType
 {
@@ -96,6 +149,12 @@ public:
     bool
     IsPolymorphicClass ();
     
+    bool
+    IsArrayType ();
+    
+    bool
+    IsTypedefType ();
+    
     lldb::SBType
     GetPointerType();
     
@@ -113,6 +172,9 @@ public:
 
     lldb::SBType
     GetUnqualifiedType();
+    
+    lldb::SBType
+    GetArrayElementType ();
 
     lldb::SBType
     GetCanonicalType();
@@ -143,6 +205,9 @@ public:
     lldb::SBTypeMember
     GetVirtualBaseClassAtIndex (uint32_t idx);
 
+    lldb::SBTypeEnumMemberList
+    GetEnumMembers();
+
     uint32_t
     GetNumberOfTemplateArguments ();
     
@@ -157,15 +222,27 @@ public:
 
     lldb::SBTypeList
     GetFunctionArgumentTypes ();
+    
+    uint32_t
+    GetNumberOfMemberFunctions ();
+    
+    lldb::SBTypeMemberFunction
+    GetMemberFunctionAtIndex (uint32_t idx);
 
     const char*
     GetName();
+    
+    const char *
+    GetDisplayTypeName ();
     
     lldb::TypeClass
     GetTypeClass ();
     
     bool
     IsTypeComplete ();
+    
+    uint32_t
+    GetTypeFlags ();
 
     bool
     GetDescription (lldb::SBStream &description, 
@@ -199,8 +276,11 @@ protected:
     friend class SBFunction;
     friend class SBModule;
     friend class SBTarget;
+    friend class SBTypeEnumMember;
+    friend class SBTypeEnumMemberList;
     friend class SBTypeNameSpecifier;
     friend class SBTypeMember;
+    friend class SBTypeMemberFunction;
     friend class SBTypeList;
     friend class SBValue;
         

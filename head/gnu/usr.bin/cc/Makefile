@@ -5,7 +5,7 @@
 # The order of some of these are rather important.  Some depend on previous
 # subdirs.
 
-SUBDIR= cc_tools libiberty libcpp libdecnumber cc_int cc cc1 include doc
+SUBDIR= cc_tools libiberty libcpp libdecnumber cc_int cc cc1 include
 
 .if ${MK_CPP} != "no"
 SUBDIR+= cpp

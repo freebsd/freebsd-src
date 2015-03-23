@@ -1,6 +1,3 @@
-.\"
-.\" Automated Testing Framework (atf)
-.\"
 .\" Copyright (c) 2010 The NetBSD Foundation, Inc.
 .\" All rights reserved.
 .\"
@@ -25,24 +22,22 @@
 .\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.\"
-.Dd March 2, 2014
+.Dd September 27, 2014
 .Dt ATF-SH 1
 .Os
 .Sh NAME
 .Nm atf-sh
+.Op Fl s Ar shell
 .Nd interpreter for shell-based test programs
 .Sh SYNOPSIS
 .Nm
 .Ar script
-.Nm
-.Fl h
 .Sh DESCRIPTION
 .Nm
 is an interpreter that runs the test program given in
 .Ar script
 after loading the
-.Xr atf-sh-api 3
+.Xr atf-sh 3
 library.
 .Pp
 .Nm
@@ -51,25 +46,62 @@ the system-wide shell defined by
 .Va ATF_SHELL .
 .Nm
 executes the interpreter, loads the
-.Xr atf-sh-api 3
+.Xr atf-sh 3
 library and then runs the script.
+You must consider
+.Nm atf-sh
+to be a POSIX shell by default and thus should not use any non-standard
+extensions.
 .Pp
+The following options are available:
+.Bl -tag -width XsXshellXXX
+.It Fl s Ar shell
+Specifies the shell to use instead of the value provided by
+.Va ATF_SHELL .
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ATFXLIBEXECDIRXX -compact
+.It Va ATF_LIBEXECDIR
+Overrides the builtin directory where
+.Nm
+is located.
+Should not be overridden other than for testing purposes.
+.It Va ATF_PKGDATADIR
+Overrides the builtin directory where
+.Pa libatf-sh.subr
+is located.
+Should not be overridden other than for testing purposes.
+.It Va ATF_SHELL
+Path to the system shell to be used in the generated scripts.
+Scripts must not rely on this variable being set to select a specific
+interpreter.
+.El
+.Sh EXAMPLES
 Scripts using
-.Xr atf-sh-api 3
+.Xr atf-sh 3
 should start with:
 .Bd -literal -offset indent
 #! /usr/bin/env atf-sh
 .Ed
 .Pp
-The following options are available:
-.Bl -tag -width XhXX
-.It Fl h
-Shows a short summary of all available options and their purpose.
-.El
+Alternatively, if you want to explicitly choose a shell interpreter, you cannot
+rely on
+.Xr env 1
+to find
+.Nm .
+Instead, you have to hardcode the path to
+.Nm
+in the script and then use the
+.Fl s
+option afterwards as a
+.Em single parameter :
+.Bd -literal -offset indent
+#! /path/to/bin/atf-sh -s/bin/bash
+.Ed
 .Sh ENVIRONMENT
 .Bl -tag -width ATFXSHELLXX -compact
 .It Va ATF_SHELL
 Path to the system shell to be used in the generated scripts.
 .El
 .Sh SEE ALSO
-.Xr atf-sh-api 3
+.Xr atf-sh 3

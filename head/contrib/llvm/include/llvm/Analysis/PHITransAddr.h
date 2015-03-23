@@ -18,6 +18,7 @@
 #include "llvm/IR/Instruction.h"
 
 namespace llvm {
+  class AssumptionCache;
   class DominatorTree;
   class DataLayout;
   class TargetLibraryInfo;
@@ -36,16 +37,20 @@ class PHITransAddr {
   /// Addr - The actual address we're analyzing.
   Value *Addr;
   
-  /// TD - The target data we are playing with if known, otherwise null.
-  const DataLayout *TD;
+  /// The DataLayout we are playing with if known, otherwise null.
+  const DataLayout *DL;
 
   /// TLI - The target library info if known, otherwise null.
   const TargetLibraryInfo *TLI;
-  
+
+  /// A cache of @llvm.assume calls used by SimplifyInstruction.
+  AssumptionCache *AC;
+
   /// InstInputs - The inputs for our symbolic address.
   SmallVector<Instruction*, 4> InstInputs;
 public:
-  PHITransAddr(Value *addr, const DataLayout *td) : Addr(addr), TD(td), TLI(0) {
+  PHITransAddr(Value *addr, const DataLayout *DL, AssumptionCache *AC)
+      : Addr(addr), DL(DL), TLI(nullptr), AC(AC) {
     // If the address is an instruction, the whole thing is considered an input.
     if (Instruction *I = dyn_cast<Instruction>(Addr))
       InstInputs.push_back(I);

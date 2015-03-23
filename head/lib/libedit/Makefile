@@ -7,11 +7,10 @@ SHLIB_MAJOR=	7
 SHLIBDIR?= /lib
 
 OSRCS=	chared.c common.c el.c emacs.c fcns.c filecomplete.c help.c \
-	hist.c key.c map.c \
-	parse.c prompt.c read.c refresh.c search.c sig.c term.c tty.c vi.c
+	hist.c keymacro.c map.c chartype.c \
+	parse.c prompt.c read.c refresh.c search.c sig.c terminal.c tty.c vi.c
 
-DPADD=	${LIBNCURSESW}
-LDADD=	-lncursesw
+LIBADD=	ncursesw
 
 MAN=	editline.3 editrc.5
 
@@ -35,7 +34,10 @@ CLEANFILES+= common.h editline.c emacs.h fcns.c fcns.h help.c help.h vi.h
 
 INCS=	histedit.h
 
-CFLAGS+= -I. -I${.CURDIR} -I${.CURDIR}/edit
+OSRCS+=	eln.c
+SRCS+=	tokenizern.c historyn.c
+CLEANFILES+=	tokenizern.c historyn.c
+CFLAGS+= -I. -I${.CURDIR} -I${.CURDIR}/edit -DWIDECHAR
 CFLAGS+= #-DDEBUG_TTY -DDEBUG_KEY -DDEBUG_READ -DDEBUG -DDEBUG_REFRESH
 CFLAGS+= #-DDEBUG_PASTE -DDEBUG_EDIT
 
@@ -65,6 +67,12 @@ help.h: ${ASRC} makelist
 
 editline.c: ${OSRCS}
 	sh ${.CURDIR}/makelist -e ${.ALLSRC:T} > ${.TARGET}
+
+tokenizern.c: makelist Makefile
+	sh ${.CURDIR}/makelist -n tokenizer.c > ${.TARGET}
+
+historyn.c: makelist Makefile
+	sh ${.CURDIR}/makelist -n history.c > ${.TARGET}
 
 # minimal dependency to make "make depend" optional
 editline.o editline.po editline.So editline.ln:	\

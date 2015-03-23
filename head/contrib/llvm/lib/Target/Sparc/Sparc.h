@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef TARGET_SPARC_H
-#define TARGET_SPARC_H
+#ifndef LLVM_LIB_TARGET_SPARC_SPARC_H
+#define LLVM_LIB_TARGET_SPARC_SPARC_H
 
 #include "MCTargetDesc/SparcMCTargetDesc.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -29,8 +29,6 @@ namespace llvm {
 
   FunctionPass *createSparcISelDag(SparcTargetMachine &TM);
   FunctionPass *createSparcDelaySlotFillerPass(TargetMachine &TM);
-  FunctionPass *createSparcJITCodeEmitterPass(SparcTargetMachine &TM,
-                                              JITCodeEmitter &JCE);
 
   void LowerSparcMachineInstrToMCInst(const MachineInstr *MI,
                                       MCInst &OutMI,
@@ -42,8 +40,8 @@ namespace llvm {
   // values must be kept in sync with the ones in the .td file.
   namespace SPCC {
     enum CondCodes {
-      //ICC_A   =  8   ,  // Always
-      //ICC_N   =  0   ,  // Never
+      ICC_A   =  8   ,  // Always
+      ICC_N   =  0   ,  // Never
       ICC_NE  =  9   ,  // Not Equal
       ICC_E   =  1   ,  // Equal
       ICC_G   = 10   ,  // Greater
@@ -59,8 +57,8 @@ namespace llvm {
       ICC_VC  = 15   ,  // Overflow Clear
       ICC_VS  =  7   ,  // Overflow Set
 
-      //FCC_A   =  8+16,  // Always
-      //FCC_N   =  0+16,  // Never
+      FCC_A   =  8+16,  // Always
+      FCC_N   =  0+16,  // Never
       FCC_U   =  7+16,  // Unordered
       FCC_G   =  6+16,  // Greater
       FCC_UG  =  5+16,  // Unordered or Greater
@@ -80,6 +78,8 @@ namespace llvm {
 
   inline static const char *SPARCCondCodeToString(SPCC::CondCodes CC) {
     switch (CC) {
+    case SPCC::ICC_A:   return "a";
+    case SPCC::ICC_N:   return "n";
     case SPCC::ICC_NE:  return "ne";
     case SPCC::ICC_E:   return "e";
     case SPCC::ICC_G:   return "g";
@@ -94,6 +94,8 @@ namespace llvm {
     case SPCC::ICC_NEG: return "neg";
     case SPCC::ICC_VC:  return "vc";
     case SPCC::ICC_VS:  return "vs";
+    case SPCC::FCC_A:   return "a";
+    case SPCC::FCC_N:   return "n";
     case SPCC::FCC_U:   return "u";
     case SPCC::FCC_G:   return "g";
     case SPCC::FCC_UG:  return "ug";

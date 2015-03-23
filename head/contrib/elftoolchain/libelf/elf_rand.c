@@ -31,7 +31,7 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: elf_rand.c 2225 2011-11-26 18:55:54Z jkoshy $");
+ELFTC_VCSID("$Id: elf_rand.c 2991 2014-03-17 09:57:04Z jkoshy $");
 
 off_t
 elf_rand(Elf *ar, off_t offset)
@@ -40,7 +40,7 @@ elf_rand(Elf *ar, off_t offset)
 
 	if (ar == NULL || ar->e_kind != ELF_K_AR ||
 	    (offset & 1) || offset < SARMAG ||
-	    offset + sizeof(struct ar_hdr) >= ar->e_rawsize) {
+	    (size_t) offset + sizeof(struct ar_hdr) >= ar->e_rawsize) {
 		LIBELF_SET_ERROR(ARGUMENT, 0);
 		return 0;
 	}

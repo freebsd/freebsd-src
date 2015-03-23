@@ -177,7 +177,7 @@ public:
     ///
     /// The StackFrame maintains this SymbolContext and adds additional information
     /// to it on an as-needed basis.  This helps to avoid different functions
-    /// looking up symbolic information for a given pc value multple times.
+    /// looking up symbolic information for a given pc value multiple times.
     ///
     /// @params [in] resolve_scope
     ///   Flags from the SymbolContextItem enumerated type which specify what
@@ -261,7 +261,7 @@ public:
     ///
     /// @param[in] get_file_globals
     ///     Whether to also retrieve compilation-unit scoped variables
-    ///     that are visisble to the entire compilation unit (e.g. file
+    ///     that are visible to the entire compilation unit (e.g. file
     ///     static in C, globals that are homed in this CU).
     ///
     /// @return
@@ -279,7 +279,7 @@ public:
     ///
     /// @param[in] get_file_globals
     ///     Whether to also retrieve compilation-unit scoped variables
-    ///     that are visisble to the entire compilation unit (e.g. file
+    ///     that are visible to the entire compilation unit (e.g. file
     ///     static in C, globals that are homed in this CU).
     ///
     /// @return
@@ -519,6 +519,7 @@ private:
     lldb::VariableListSP m_variable_list_sp;
     ValueObjectList m_variable_list_value_objects;  // Value objects for each variable in m_variable_list_sp
     StreamString m_disassembly;
+    Mutex m_mutex;
     DISALLOW_COPY_AND_ASSIGN (StackFrame);
 };
 

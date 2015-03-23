@@ -71,7 +71,7 @@ struct qcow_header {
 			uint32_t	l1_entries;
 			uint64_t	l1_offset;
 			uint64_t	refcnt_offset;
-			uint32_t	refcnt_entries;
+			uint32_t	refcnt_clstrs;
 			uint32_t	snapshot_count;
 			uint64_t	snapshot_offset;
 		} v2;
@@ -139,7 +139,7 @@ qcow_write(int fd, u_int version)
 	uint64_t n, imagesz, nclstrs, ofs, ofsflags;
 	lba_t blk, blkofs, blk_imgsz;
 	u_int l1clno, l2clno, rcclno;
-	u_int blk_clstrsz;
+	u_int blk_clstrsz, refcnt_clstrs;
 	u_int clstrsz, l1idx, l2idx;
 	int error;
 
@@ -199,14 +199,15 @@ qcow_write(int fd, u_int version)
 		be32enc(&hdr->u.v2.l1_entries, clstr_l2tbls);
 		be64enc(&hdr->u.v2.l1_offset, clstrsz * l1clno);
 		be64enc(&hdr->u.v2.refcnt_offset, clstrsz * rcclno);
-		be32enc(&hdr->u.v2.refcnt_entries, clstr_rcblks);
+		refcnt_clstrs = round_clstr(clstr_rcblks * 8) >> clstr_log2sz;
+		be32enc(&hdr->u.v2.refcnt_clstrs, refcnt_clstrs);
 		break;
 	default:
 		return (EDOOFUS);
 	}
 
 	if (sparse_write(fd, hdr, clstrsz) < 0) {
-                error = errno;
+		error = errno;
 		goto out;
 	}
 

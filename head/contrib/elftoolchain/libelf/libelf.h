@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: libelf.h 2366 2011-12-29 06:12:14Z jkoshy $
+ * $Id: libelf.h 2988 2014-03-17 08:51:49Z jkoshy $
  */
 
 #ifndef	_LIBELF_H_
@@ -129,7 +129,7 @@ typedef struct {
 	/*
 	 * Members that are not part of the public API.
 	 */
-	int		ar_flags;
+	unsigned int	ar_flags;
 } Elf_Arhdr;
 
 /*

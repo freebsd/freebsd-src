@@ -87,7 +87,7 @@ static struct resource_spec timer_spec[] = {
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },	/* Secure */
 	{ SYS_RES_IRQ,		1,	RF_ACTIVE },	/* Non-secure */
 	{ SYS_RES_IRQ,		2,	RF_ACTIVE },	/* Virt */
-	{ SYS_RES_IRQ,		3,	RF_ACTIVE },	/* Hyp */
+	{ SYS_RES_IRQ,		3,	RF_ACTIVE | RF_OPTIONAL	}, /* Hyp */
 	{ -1, 0 }
 };
 
@@ -352,6 +352,8 @@ static driver_t arm_tmr_driver = {
 static devclass_t arm_tmr_devclass;
 
 EARLY_DRIVER_MODULE(timer, simplebus, arm_tmr_driver, arm_tmr_devclass, 0, 0,
+    BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(timer, ofwbus, arm_tmr_driver, arm_tmr_devclass, 0, 0,
     BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
 
 void

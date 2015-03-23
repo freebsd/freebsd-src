@@ -19,18 +19,18 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SMLoc.h"
 #include <string>
 
 namespace llvm {
-  class MemoryBuffer;
   class SourceMgr;
   class SMDiagnostic;
   class SMFixIt;
   class Twine;
   class raw_ostream;
 
-/// SourceMgr - This owns the files read by a parser, handles include stacks,
+/// This owns the files read by a parser, handles include stacks,
 /// and handles diagnostic wrangling.
 class SourceMgr {
 public:
@@ -40,47 +40,53 @@ public:
     DK_Note
   };
 
-  /// DiagHandlerTy - Clients that want to handle their own diagnostics in a
-  /// custom way can register a function pointer+context as a diagnostic
-  /// handler.  It gets called each time PrintMessage is invoked.
+  /// Clients that want to handle their own diagnostics in a custom way can
+  /// register a function pointer+context as a diagnostic handler.
+  /// It gets called each time PrintMessage is invoked.
   typedef void (*DiagHandlerTy)(const SMDiagnostic &, void *Context);
 private:
   struct SrcBuffer {
-    /// Buffer - The memory buffer for the file.
-    MemoryBuffer *Buffer;
+    /// The memory buffer for the file.
+    std::unique_ptr<MemoryBuffer> Buffer;
 
-    /// IncludeLoc - This is the location of the parent include, or null if at
-    /// the top level.
+    /// This is the location of the parent include, or null if at the top level.
     SMLoc IncludeLoc;
+
+    SrcBuffer() {}
+
+    SrcBuffer(SrcBuffer &&O)
+        : Buffer(std::move(O.Buffer)), IncludeLoc(O.IncludeLoc) {}
   };
 
-  /// Buffers - This is all of the buffers that we are reading from.
+  /// This is all of the buffers that we are reading from.
   std::vector<SrcBuffer> Buffers;
 
-  // IncludeDirectories - This is the list of directories we should search for
-  // include files in.
+  // This is the list of directories we should search for include files in.
   std::vector<std::string> IncludeDirectories;
 
-  /// LineNoCache - This is a cache for line number queries, its implementation
-  /// is really private to SourceMgr.cpp.
+  /// This is a cache for line number queries, its implementation is really
+  /// private to SourceMgr.cpp.
   mutable void *LineNoCache;
 
   DiagHandlerTy DiagHandler;
   void *DiagContext;
 
+  bool isValidBufferID(unsigned i) const { return i && i <= Buffers.size(); }
+
   SourceMgr(const SourceMgr&) LLVM_DELETED_FUNCTION;
   void operator=(const SourceMgr&) LLVM_DELETED_FUNCTION;
 public:
-  SourceMgr() : LineNoCache(0), DiagHandler(0), DiagContext(0) {}
+  SourceMgr()
+    : LineNoCache(nullptr), DiagHandler(nullptr), DiagContext(nullptr) {}
   ~SourceMgr();
 
   void setIncludeDirs(const std::vector<std::string> &Dirs) {
     IncludeDirectories = Dirs;
   }
 
-  /// setDiagHandler - Specify a diagnostic handler to be invoked every time
-  /// PrintMessage is called. Ctx is passed into the handler when it is invoked.
-  void setDiagHandler(DiagHandlerTy DH, void *Ctx = 0) {
+  /// Specify a diagnostic handler to be invoked every time PrintMessage is
+  /// called. \p Ctx is passed into the handler when it is invoked.
+  void setDiagHandler(DiagHandlerTy DH, void *Ctx = nullptr) {
     DiagHandler = DH;
     DiagContext = Ctx;
   }
@@ -89,60 +95,68 @@ public:
   void *getDiagContext() const { return DiagContext; }
 
   const SrcBuffer &getBufferInfo(unsigned i) const {
-    assert(i < Buffers.size() && "Invalid Buffer ID!");
-    return Buffers[i];
+    assert(isValidBufferID(i));
+    return Buffers[i - 1];
   }
 
   const MemoryBuffer *getMemoryBuffer(unsigned i) const {
-    assert(i < Buffers.size() && "Invalid Buffer ID!");
-    return Buffers[i].Buffer;
+    assert(isValidBufferID(i));
+    return Buffers[i - 1].Buffer.get();
   }
 
-  size_t getNumBuffers() const {
+  unsigned getNumBuffers() const {
     return Buffers.size();
   }
 
+  unsigned getMainFileID() const {
+    assert(getNumBuffers());
+    return 1;
+  }
+
   SMLoc getParentIncludeLoc(unsigned i) const {
-    assert(i < Buffers.size() && "Invalid Buffer ID!");
-    return Buffers[i].IncludeLoc;
+    assert(isValidBufferID(i));
+    return Buffers[i - 1].IncludeLoc;
   }
 
-  /// AddNewSourceBuffer - Add a new source buffer to this source manager.  This
-  /// takes ownership of the memory buffer.
-  size_t AddNewSourceBuffer(MemoryBuffer *F, SMLoc IncludeLoc) {
+  /// Add a new source buffer to this source manager. This takes ownership of
+  /// the memory buffer.
+  unsigned AddNewSourceBuffer(std::unique_ptr<MemoryBuffer> F,
+                              SMLoc IncludeLoc) {
     SrcBuffer NB;
-    NB.Buffer = F;
+    NB.Buffer = std::move(F);
     NB.IncludeLoc = IncludeLoc;
-    Buffers.push_back(NB);
-    return Buffers.size() - 1;
+    Buffers.push_back(std::move(NB));
+    return Buffers.size();
   }
 
-  /// AddIncludeFile - Search for a file with the specified name in the current
-  /// directory or in one of the IncludeDirs.  If no file is found, this returns
-  /// ~0, otherwise it returns the buffer ID of the stacked file.
-  /// The full path to the included file can be found in IncludedFile.
-  size_t AddIncludeFile(const std::string &Filename, SMLoc IncludeLoc,
-                        std::string &IncludedFile);
+  /// Search for a file with the specified name in the current directory or in
+  /// one of the IncludeDirs.
+  ///
+  /// If no file is found, this returns 0, otherwise it returns the buffer ID
+  /// of the stacked file. The full path to the included file can be found in
+  /// \p IncludedFile.
+  unsigned AddIncludeFile(const std::string &Filename, SMLoc IncludeLoc,
+                          std::string &IncludedFile);
 
-  /// FindBufferContainingLoc - Return the ID of the buffer containing the
-  /// specified location, returning -1 if not found.
-  int FindBufferContainingLoc(SMLoc Loc) const;
+  /// Return the ID of the buffer containing the specified location.
+  ///
+  /// 0 is returned if the buffer is not found.
+  unsigned FindBufferContainingLoc(SMLoc Loc) const;
 
-  /// FindLineNumber - Find the line number for the specified location in the
-  /// specified file.  This is not a fast method.
-  unsigned FindLineNumber(SMLoc Loc, int BufferID = -1) const {
+  /// Find the line number for the specified location in the specified file.
+  /// This is not a fast method.
+  unsigned FindLineNumber(SMLoc Loc, unsigned BufferID = 0) const {
     return getLineAndColumn(Loc, BufferID).first;
   }
 
-  /// getLineAndColumn - Find the line and column number for the specified
-  /// location in the specified file.  This is not a fast method.
-  std::pair<unsigned, unsigned>
-    getLineAndColumn(SMLoc Loc, int BufferID = -1) const;
+  /// Find the line and column number for the specified location in the
+  /// specified file. This is not a fast method.
+  std::pair<unsigned, unsigned> getLineAndColumn(SMLoc Loc,
+                                                 unsigned BufferID = 0) const;
 
-  /// PrintMessage - Emit a message about the specified location with the
-  /// specified string.
+  /// Emit a message about the specified location with the specified string.
   ///
-  /// @param ShowColors - Display colored messages if output is a terminal and
+  /// \param ShowColors Display colored messages if output is a terminal and
   /// the default error handler is used.
   void PrintMessage(raw_ostream &OS, SMLoc Loc, DiagKind Kind,
                     const Twine &Msg,
@@ -156,21 +170,28 @@ public:
                     ArrayRef<SMFixIt> FixIts = None,
                     bool ShowColors = true) const;
 
-  /// GetMessage - Return an SMDiagnostic at the specified location with the
-  /// specified string.
+  /// Emits a manually-constructed diagnostic to the given output stream.
   ///
-  /// @param Msg If non-null, the kind of message (e.g., "error") which is
+  /// \param ShowColors Display colored messages if output is a terminal and
+  /// the default error handler is used.
+  void PrintMessage(raw_ostream &OS, const SMDiagnostic &Diagnostic,
+                    bool ShowColors = true) const;
+
+  /// Return an SMDiagnostic at the specified location with the specified
+  /// string.
+  ///
+  /// \param Msg If non-null, the kind of message (e.g., "error") which is
   /// prefixed to the message.
   SMDiagnostic GetMessage(SMLoc Loc, DiagKind Kind, const Twine &Msg,
                           ArrayRef<SMRange> Ranges = None,
                           ArrayRef<SMFixIt> FixIts = None) const;
 
-  /// PrintIncludeStack - Prints the names of included files and the line of the
-  /// file they were included from.  A diagnostic handler can use this before
-  /// printing its custom formatted message.
+  /// Prints the names of included files and the line of the file they were
+  /// included from. A diagnostic handler can use this before printing its
+  /// custom formatted message.
   ///
-  /// @param IncludeLoc - The line of the include.
-  /// @param OS the raw_ostream to print on.
+  /// \param IncludeLoc The location of the include.
+  /// \param OS the raw_ostream to print on.
   void PrintIncludeStack(SMLoc IncludeLoc, raw_ostream &OS) const;
 };
 
@@ -207,8 +228,8 @@ public:
 };
 
 
-/// SMDiagnostic - Instances of this class encapsulate one diagnostic report,
-/// allowing printing to a raw_ostream as a caret diagnostic.
+/// Instances of this class encapsulate one diagnostic report, allowing
+/// printing to a raw_ostream as a caret diagnostic.
 class SMDiagnostic {
   const SourceMgr *SM;
   SMLoc Loc;
@@ -222,10 +243,10 @@ class SMDiagnostic {
 public:
   // Null diagnostic.
   SMDiagnostic()
-    : SM(0), LineNo(0), ColumnNo(0), Kind(SourceMgr::DK_Error) {}
+    : SM(nullptr), LineNo(0), ColumnNo(0), Kind(SourceMgr::DK_Error) {}
   // Diagnostic with no location (e.g. file not found, command line arg error).
   SMDiagnostic(StringRef filename, SourceMgr::DiagKind Knd, StringRef Msg)
-    : SM(0), Filename(filename), LineNo(-1), ColumnNo(-1), Kind(Knd),
+    : SM(nullptr), Filename(filename), LineNo(-1), ColumnNo(-1), Kind(Knd),
       Message(Msg) {}
 
   // Diagnostic with a location.

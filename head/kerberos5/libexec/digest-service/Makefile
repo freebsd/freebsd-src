@@ -8,11 +8,7 @@ CFLAGS+=	-I${KRB5DIR}/kdc \
 		-I${KRB5DIR}/lib/ipc \
 		-I${KRB5DIR}/lib/wind \
 		-I${KRB5DIR}/lib/roken
-DPADD=	${LIBHDB} ${LIBKDC} ${LIBHEIMIPCS} ${LIBKRB5} ${LIBROKEN} ${LIBASN1} \
-	${LIBCRYPTO} ${LIBCRYPT} ${LIBVERS}
-LDADD=	-lhdb -lkdc ${LDHEIMIPCS} -lkrb5 -lroken -lasn1 -lcrypto -lcrypt \
-	${LIBVERS} -lheimntlm
-USEPRIVATELIB= heimipcs
+LIBADD=	hdb kdc heimipcs krb5 roken asn1 crypto vers heimntlm
 
 .include <bsd.prog.mk>
 

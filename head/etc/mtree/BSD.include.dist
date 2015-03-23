@@ -9,6 +9,10 @@
     ..
     arpa
     ..
+    atf-c
+    ..
+    atf-c++
+    ..
     bsm
     ..
     bsnmp
@@ -91,10 +95,6 @@
         scsi
         ..
     ..
-    clang
-        3.4.1
-        ..
-    ..
     crypto
     ..
     dev
@@ -117,8 +117,6 @@
         hwpmc
         ..
         ic
-        ..
-        ieee488
         ..
         iicbus
         ..
@@ -227,8 +225,6 @@
         posix
         ..
     ..
-    gpib
-    ..
     gssapi
     ..
     infiniband
@@ -308,8 +304,6 @@
     protocols
     ..
     rdma
-    ..
-    readline
     ..
     rpc
     ..

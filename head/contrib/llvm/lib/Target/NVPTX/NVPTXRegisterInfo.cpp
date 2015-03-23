@@ -11,8 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "nvptx-reg-info"
-
 #include "NVPTXRegisterInfo.h"
 #include "NVPTX.h"
 #include "NVPTXSubtarget.h"
@@ -24,6 +22,8 @@
 #include "llvm/Target/TargetInstrInfo.h"
 
 using namespace llvm;
+
+#define DEBUG_TYPE "nvptx-reg-info"
 
 namespace llvm {
 std::string getNVPTXRegClassName(TargetRegisterClass const *RC) {
@@ -53,9 +53,9 @@ std::string getNVPTXRegClassStr(TargetRegisterClass const *RC) {
     return "%f";
   }
   if (RC == &NVPTX::Float64RegsRegClass) {
-    return "%fl";
+    return "%fd";
   } else if (RC == &NVPTX::Int64RegsRegClass) {
-    return "%rl";
+    return "%rd";
   } else if (RC == &NVPTX::Int32RegsRegClass) {
     return "%r";
   } else if (RC == &NVPTX::Int16RegsRegClass) {
@@ -78,17 +78,10 @@ NVPTXRegisterInfo::NVPTXRegisterInfo(const NVPTXSubtarget &st)
 #include "NVPTXGenRegisterInfo.inc"
 
 /// NVPTX Callee Saved Registers
-const uint16_t *
+const MCPhysReg *
 NVPTXRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
-  static const uint16_t CalleeSavedRegs[] = { 0 };
+  static const MCPhysReg CalleeSavedRegs[] = { 0 };
   return CalleeSavedRegs;
-}
-
-// NVPTX Callee Saved Reg Classes
-const TargetRegisterClass *const *
-NVPTXRegisterInfo::getCalleeSavedRegClasses(const MachineFunction *MF) const {
-  static const TargetRegisterClass *const CalleeSavedRegClasses[] = { 0 };
-  return CalleeSavedRegClasses;
 }
 
 BitVector NVPTXRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
@@ -113,12 +106,6 @@ void NVPTXRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   MI.getOperand(FIOperandNum + 1).ChangeToImmediate(Offset);
 }
 
-int NVPTXRegisterInfo::getDwarfRegNum(unsigned RegNum, bool isEH) const {
-  return 0;
-}
-
 unsigned NVPTXRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   return NVPTX::VRFrame;
 }
-
-unsigned NVPTXRegisterInfo::getRARegister() const { return 0; }

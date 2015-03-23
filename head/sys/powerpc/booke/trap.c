@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/uio.h>
 #include <sys/signalvar.h>
 #include <sys/vmmeter.h>
@@ -262,7 +263,7 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 	switch (vector) {
 	case EXC_DTMISS:
 	case EXC_DSI:
-		va = frame->cpu.booke.dear;
+		va = frame->dar;
 		break;
 
 	case EXC_ITMISS:
@@ -399,7 +400,7 @@ trap_pfault(struct trapframe *frame, int user)
 		ftype = VM_PROT_READ | VM_PROT_EXECUTE;
 
 	} else {
-		eva = frame->cpu.booke.dear;
+		eva = frame->dar;
 		if (frame->cpu.booke.esr & ESR_ST)
 			ftype = VM_PROT_WRITE;
 		else

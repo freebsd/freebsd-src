@@ -72,11 +72,6 @@ ATF_TC_BODY(nice_err, tc)
 {
 	int i;
 
-#if defined(__FreeBSD__)
-	atf_tc_expect_fail("nice(incr) with incr < 0 fails with unprivileged "
-	   "users and sets errno == EPERM; see PR # 189821 for more details");
-#endif
-
 	/*
 	 * The call should fail with EPERM if the
 	 * supplied parameter is negative and the
@@ -98,7 +93,7 @@ ATF_TC_HEAD(nice_priority, tc)
 
 ATF_TC_BODY(nice_priority, tc)
 {
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	int i, pri, pri2, nic;
 #else
 	int i, pri, nic;
@@ -115,7 +110,7 @@ ATF_TC_BODY(nice_priority, tc)
 		pri = getpriority(PRIO_PROCESS, 0);
 		ATF_REQUIRE(errno == 0);
 
-#if defined(__NetBSD__)
+#ifdef __NetBSD__
 		if (nic != pri)
 			atf_tc_fail("nice(3) and getpriority(2) conflict");
 #endif
@@ -130,14 +125,14 @@ ATF_TC_BODY(nice_priority, tc)
 		if (pid == 0) {
 
 			errno = 0;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 			pri = getpriority(PRIO_PROCESS, 0);
 #else
 			pri2 = getpriority(PRIO_PROCESS, 0);
 #endif
 			ATF_REQUIRE(errno == 0);
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 			if (pri != pri2)
 #else
 			if (nic != pri)
@@ -180,7 +175,7 @@ ATF_TC_HEAD(nice_thread, tc)
 ATF_TC_BODY(nice_thread, tc)
 {
 	pthread_t tid[5];
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	int pri, rv, val;
 #else
 	int rv, val;
@@ -196,7 +191,7 @@ ATF_TC_BODY(nice_thread, tc)
 		val = nice(i);
 		ATF_REQUIRE(val != -1);
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		pri = getpriority(PRIO_PROCESS, 0);
 		rv = pthread_create(&tid[i], NULL, threadfunc, &pri);
 #else

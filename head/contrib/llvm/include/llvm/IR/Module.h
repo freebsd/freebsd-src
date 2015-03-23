@@ -15,22 +15,24 @@
 #ifndef LLVM_IR_MODULE_H
 #define LLVM_IR_MODULE_H
 
-#include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/iterator_range.h"
+#include "llvm/IR/Comdat.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalAlias.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/Support/CBindingWrapping.h"
+#include "llvm/Support/CodeGen.h"
 #include "llvm/Support/DataTypes.h"
+#include <system_error>
 
 namespace llvm {
-
 class FunctionType;
 class GVMaterializer;
 class LLVMContext;
+class RandomNumberGenerator;
 class StructType;
-template<typename T> struct DenseMapInfo;
-template<typename KeyT, typename ValueT, typename KeyInfoT> class DenseMap;
 
 template<> struct ilist_traits<Function>
   : public SymbolTableListTraits<Function, Module> {
@@ -121,6 +123,8 @@ public:
   typedef iplist<GlobalAlias> AliasListType;
   /// The type for the list of named metadata.
   typedef ilist<NamedMDNode> NamedMDListType;
+  /// The type of the comdat "symbol" table.
+  typedef StringMap<Comdat> ComdatSymTabType;
 
   /// The Global Variable iterator.
   typedef GlobalListType::iterator                      global_iterator;
@@ -132,6 +136,11 @@ public:
   /// The Function constant iterator
   typedef FunctionListType::const_iterator               const_iterator;
 
+  /// The Function reverse iterator.
+  typedef FunctionListType::reverse_iterator             reverse_iterator;
+  /// The Function constant reverse iterator.
+  typedef FunctionListType::const_reverse_iterator const_reverse_iterator;
+
   /// The Global Alias iterators.
   typedef AliasListType::iterator                        alias_iterator;
   /// The Global Alias constant iterator
@@ -139,14 +148,8 @@ public:
 
   /// The named metadata iterators.
   typedef NamedMDListType::iterator             named_metadata_iterator;
-  /// The named metadata constant interators.
+  /// The named metadata constant iterators.
   typedef NamedMDListType::const_iterator const_named_metadata_iterator;
-
-  /// An enumeration for describing the endianess of the target machine.
-  enum Endianness  { AnyEndianness, LittleEndian, BigEndian };
-
-  /// An enumeration for describing the size of a pointer on the target machine.
-  enum PointerSize { AnyPointerSize, Pointer32, Pointer64 };
 
   /// This enumeration defines the supported behaviors of module flags.
   enum ModFlagBehavior {
@@ -156,7 +159,7 @@ public:
 
     /// Emits a warning if two values disagree. The result value will be the
     /// operand for the flag from the first module being linked.
-    Warning  = 2,
+    Warning = 2,
 
     /// Adds a requirement that another module flag be present and have a
     /// specified value after linking is performed. The value must be a metadata
@@ -178,15 +181,23 @@ public:
     /// Appends the two values, which are required to be metadata
     /// nodes. However, duplicate entries in the second list are dropped
     /// during the append operation.
-    AppendUnique = 6
+    AppendUnique = 6,
+
+    // Markers:
+    ModFlagBehaviorFirstVal = Error,
+    ModFlagBehaviorLastVal = AppendUnique
   };
+
+  /// Checks if Metadata represents a valid ModFlagBehavior, and stores the
+  /// converted result in MFB.
+  static bool isValidModFlagBehavior(Metadata *MD, ModFlagBehavior &MFB);
 
   struct ModuleFlagEntry {
     ModFlagBehavior Behavior;
     MDString *Key;
-    Value *Val;
-    ModuleFlagEntry(ModFlagBehavior B, MDString *K, Value *V)
-      : Behavior(B), Key(K), Val(V) {}
+    Metadata *Val;
+    ModuleFlagEntry(ModFlagBehavior B, MDString *K, Metadata *V)
+        : Behavior(B), Key(K), Val(V) {}
   };
 
 /// @}
@@ -201,11 +212,21 @@ private:
   NamedMDListType NamedMDList;    ///< The named metadata in the module
   std::string GlobalScopeAsm;     ///< Inline Asm at global scope.
   ValueSymbolTable *ValSymTab;    ///< Symbol table for values
-  OwningPtr<GVMaterializer> Materializer;  ///< Used to materialize GlobalValues
+  ComdatSymTabType ComdatSymTab;  ///< Symbol table for COMDATs
+  std::unique_ptr<GVMaterializer>
+  Materializer;                   ///< Used to materialize GlobalValues
   std::string ModuleID;           ///< Human readable identifier for the module
   std::string TargetTriple;       ///< Platform target triple Module compiled on
-  std::string DataLayout;         ///< Target data description
+                                  ///< Format: (arch)(sub)-(vendor)-(sys0-(abi)
   void *NamedMDSymTab;            ///< NamedMDNode names.
+
+  // We need to keep the string because the C API expects us to own the string
+  // representation.
+  // Since we have it, we also use an empty string to represent a module without
+  // a DataLayout. If it has a DataLayout, these variables are in sync and the
+  // string is just a cache of getDataLayout()->getStringRepresentation().
+  std::string DataLayoutStr;
+  DataLayout DL;
 
   friend class Constant;
 
@@ -227,22 +248,22 @@ public:
   /// @returns the module identifier as a string
   const std::string &getModuleIdentifier() const { return ModuleID; }
 
-  /// Get the data layout string for the module's target platform.  This encodes
-  /// the type sizes and alignments expected by this module.
-  /// @returns the data layout as a string
-  const std::string &getDataLayout() const { return DataLayout; }
+  /// \brief Get a short "name" for the module.
+  ///
+  /// This is useful for debugging or logging. It is essentially a convenience
+  /// wrapper around getModuleIdentifier().
+  StringRef getName() const { return ModuleID; }
+
+  /// Get the data layout string for the module's target platform. This is
+  /// equivalent to getDataLayout()->getStringRepresentation().
+  const std::string &getDataLayoutStr() const { return DataLayoutStr; }
+
+  /// Get the data layout for the module's target platform.
+  const DataLayout *getDataLayout() const;
 
   /// Get the target triple which is a string describing the target host.
   /// @returns a string containing the target triple.
   const std::string &getTargetTriple() const { return TargetTriple; }
-
-  /// Get the target endian information.
-  /// @returns Endianess - an enumeration for the endianess of the target
-  Endianness getEndianness() const;
-
-  /// Get the target pointer size.
-  /// @returns PointerSize - an enumeration for the size of the target's pointer
-  PointerSize getPointerSize() const;
 
   /// Get the global data context.
   /// @returns LLVMContext - a container for LLVM's global information
@@ -252,6 +273,17 @@ public:
   /// @returns a string containing the module-scope inline assembly blocks.
   const std::string &getModuleInlineAsm() const { return GlobalScopeAsm; }
 
+  /// Get a RandomNumberGenerator salted for use with this module. The
+  /// RNG can be seeded via -rng-seed=<uint64> and is salted with the
+  /// ModuleID and the provided pass salt. The returned RNG should not
+  /// be shared across threads or passes.
+  ///
+  /// A unique RNG per pass ensures a reproducible random stream even
+  /// when other randomness consuming passes are added or removed. In
+  /// addition, the random stream will be reproducible across LLVM
+  /// versions when the pass does not change.
+  RandomNumberGenerator *createRNG(const Pass* P) const;
+
 /// @}
 /// @name Module Level Mutators
 /// @{
@@ -260,7 +292,8 @@ public:
   void setModuleIdentifier(StringRef ID) { ModuleID = ID; }
 
   /// Set the data layout
-  void setDataLayout(StringRef DL) { DataLayout = DL; }
+  void setDataLayout(StringRef Desc);
+  void setDataLayout(const DataLayout *Other);
 
   /// Set the target triple.
   void setTargetTriple(StringRef T) { TargetTriple = T; }
@@ -286,33 +319,31 @@ public:
 /// @name Generic Value Accessors
 /// @{
 
-  /// getNamedValue - Return the global value in the module with
-  /// the specified name, of arbitrary type.  This method returns null
-  /// if a global with the specified name is not found.
+  /// Return the global value in the module with the specified name, of
+  /// arbitrary type. This method returns null if a global with the specified
+  /// name is not found.
   GlobalValue *getNamedValue(StringRef Name) const;
 
-  /// getMDKindID - Return a unique non-zero ID for the specified metadata kind.
-  /// This ID is uniqued across modules in the current LLVMContext.
+  /// Return a unique non-zero ID for the specified metadata kind. This ID is
+  /// uniqued across modules in the current LLVMContext.
   unsigned getMDKindID(StringRef Name) const;
 
-  /// getMDKindNames - Populate client supplied SmallVector with the name for
-  /// custom metadata IDs registered in this LLVMContext.
+  /// Populate client supplied SmallVector with the name for custom metadata IDs
+  /// registered in this LLVMContext.
   void getMDKindNames(SmallVectorImpl<StringRef> &Result) const;
 
-  
-  typedef DenseMap<StructType*, unsigned, DenseMapInfo<StructType*> >
-                   NumeredTypesMapTy;
-
-  /// getTypeByName - Return the type with the specified name, or null if there
-  /// is none by that name.
+  /// Return the type with the specified name, or null if there is none by that
+  /// name.
   StructType *getTypeByName(StringRef Name) const;
+
+  std::vector<StructType *> getIdentifiedStructTypes() const;
 
 /// @}
 /// @name Function Accessors
 /// @{
 
-  /// getOrInsertFunction - Look up the specified function in the module symbol
-  /// table.  Four possibilities:
+  /// Look up the specified function in the module symbol table. Four
+  /// possibilities:
   ///   1. If it does not exist, add a prototype for the function and return it.
   ///   2. If it exists, and has a local linkage, the existing function is
   ///      renamed and a new one is inserted.
@@ -325,43 +356,45 @@ public:
 
   Constant *getOrInsertFunction(StringRef Name, FunctionType *T);
 
-  /// getOrInsertFunction - Look up the specified function in the module symbol
-  /// table.  If it does not exist, add a prototype for the function and return
-  /// it.  This function guarantees to return a constant of pointer to the
-  /// specified function type or a ConstantExpr BitCast of that type if the
-  /// named function has a different type.  This version of the method takes a
-  /// null terminated list of function arguments, which makes it easier for
-  /// clients to use.
+  /// Look up the specified function in the module symbol table. If it does not
+  /// exist, add a prototype for the function and return it. This function
+  /// guarantees to return a constant of pointer to the specified function type
+  /// or a ConstantExpr BitCast of that type if the named function has a
+  /// different type. This version of the method takes a null terminated list of
+  /// function arguments, which makes it easier for clients to use.
   Constant *getOrInsertFunction(StringRef Name,
                                 AttributeSet AttributeList,
-                                Type *RetTy, ...)  END_WITH_NULL;
+                                Type *RetTy, ...) LLVM_END_WITH_NULL;
 
-  /// getOrInsertFunction - Same as above, but without the attributes.
+  /// Same as above, but without the attributes.
   Constant *getOrInsertFunction(StringRef Name, Type *RetTy, ...)
-    END_WITH_NULL;
+    LLVM_END_WITH_NULL;
 
-  /// getFunction - Look up the specified function in the module symbol table.
-  /// If it does not exist, return null.
+  /// Look up the specified function in the module symbol table. If it does not
+  /// exist, return null.
   Function *getFunction(StringRef Name) const;
 
 /// @}
 /// @name Global Variable Accessors
 /// @{
 
-  /// getGlobalVariable - Look up the specified global variable in the module
-  /// symbol table.  If it does not exist, return null. If AllowInternal is set
-  /// to true, this function will return types that have InternalLinkage. By
-  /// default, these types are not returned.
-  const GlobalVariable *getGlobalVariable(StringRef Name,
-                                          bool AllowInternal = false) const {
+  /// Look up the specified global variable in the module symbol table. If it
+  /// does not exist, return null. If AllowInternal is set to true, this
+  /// function will return types that have InternalLinkage. By default, these
+  /// types are not returned.
+  GlobalVariable *getGlobalVariable(StringRef Name) const {
+    return getGlobalVariable(Name, false);
+  }
+
+  GlobalVariable *getGlobalVariable(StringRef Name, bool AllowInternal) const {
     return const_cast<Module *>(this)->getGlobalVariable(Name, AllowInternal);
   }
 
   GlobalVariable *getGlobalVariable(StringRef Name, bool AllowInternal = false);
 
-  /// getNamedGlobal - Return the global variable in the module with the
-  /// specified name, of arbitrary type.  This method returns null if a global
-  /// with the specified name is not found.
+  /// Return the global variable in the module with the specified name, of
+  /// arbitrary type. This method returns null if a global with the specified
+  /// name is not found.
   GlobalVariable *getNamedGlobal(StringRef Name) {
     return getGlobalVariable(Name, true);
   }
@@ -369,8 +402,7 @@ public:
     return const_cast<Module *>(this)->getNamedGlobal(Name);
   }
 
-  /// getOrInsertGlobal - Look up the specified global in the module symbol
-  /// table.
+  /// Look up the specified global in the module symbol table.
   ///   1. If it does not exist, add a declaration of the global and return it.
   ///   2. Else, the global exists but has the wrong type: return the function
   ///      with a constantexpr cast to the right type.
@@ -382,54 +414,59 @@ public:
 /// @name Global Alias Accessors
 /// @{
 
-  /// getNamedAlias - Return the global alias in the module with the
-  /// specified name, of arbitrary type.  This method returns null if a global
-  /// with the specified name is not found.
+  /// Return the global alias in the module with the specified name, of
+  /// arbitrary type. This method returns null if a global with the specified
+  /// name is not found.
   GlobalAlias *getNamedAlias(StringRef Name) const;
 
 /// @}
 /// @name Named Metadata Accessors
 /// @{
 
-  /// getNamedMetadata - Return the first NamedMDNode in the module with the
-  /// specified name. This method returns null if a NamedMDNode with the
-  /// specified name is not found.
+  /// Return the first NamedMDNode in the module with the specified name. This
+  /// method returns null if a NamedMDNode with the specified name is not found.
   NamedMDNode *getNamedMetadata(const Twine &Name) const;
 
-  /// getOrInsertNamedMetadata - Return the named MDNode in the module
-  /// with the specified name. This method returns a new NamedMDNode if a
-  /// NamedMDNode with the specified name is not found.
+  /// Return the named MDNode in the module with the specified name. This method
+  /// returns a new NamedMDNode if a NamedMDNode with the specified name is not
+  /// found.
   NamedMDNode *getOrInsertNamedMetadata(StringRef Name);
 
-  /// eraseNamedMetadata - Remove the given NamedMDNode from this module
-  /// and delete it.
+  /// Remove the given NamedMDNode from this module and delete it.
   void eraseNamedMetadata(NamedMDNode *NMD);
+
+/// @}
+/// @name Comdat Accessors
+/// @{
+
+  /// Return the Comdat in the module with the specified name. It is created
+  /// if it didn't already exist.
+  Comdat *getOrInsertComdat(StringRef Name);
 
 /// @}
 /// @name Module Flags Accessors
 /// @{
 
-  /// getModuleFlagsMetadata - Returns the module flags in the provided vector.
+  /// Returns the module flags in the provided vector.
   void getModuleFlagsMetadata(SmallVectorImpl<ModuleFlagEntry> &Flags) const;
 
   /// Return the corresponding value if Key appears in module flags, otherwise
   /// return null.
-  Value *getModuleFlag(StringRef Key) const;
+  Metadata *getModuleFlag(StringRef Key) const;
 
-  /// getModuleFlagsMetadata - Returns the NamedMDNode in the module that
-  /// represents module-level flags. This method returns null if there are no
-  /// module-level flags.
+  /// Returns the NamedMDNode in the module that represents module-level flags.
+  /// This method returns null if there are no module-level flags.
   NamedMDNode *getModuleFlagsMetadata() const;
 
-  /// getOrInsertModuleFlagsMetadata - Returns the NamedMDNode in the module
-  /// that represents module-level flags. If module-level flags aren't found,
-  /// it creates the named metadata that contains them.
+  /// Returns the NamedMDNode in the module that represents module-level flags.
+  /// If module-level flags aren't found, it creates the named metadata that
+  /// contains them.
   NamedMDNode *getOrInsertModuleFlagsMetadata();
 
-  /// addModuleFlag - Add a module-level flag to the module-level flags
-  /// metadata. It will create the module-level flags named metadata if it
-  /// doesn't already exist.
-  void addModuleFlag(ModFlagBehavior Behavior, StringRef Key, Value *Val);
+  /// Add a module-level flag to the module-level flags metadata. It will create
+  /// the module-level flags named metadata if it doesn't already exist.
+  void addModuleFlag(ModFlagBehavior Behavior, StringRef Key, Metadata *Val);
+  void addModuleFlag(ModFlagBehavior Behavior, StringRef Key, Constant *Val);
   void addModuleFlag(ModFlagBehavior Behavior, StringRef Key, uint32_t Val);
   void addModuleFlag(MDNode *Node);
 
@@ -437,45 +474,37 @@ public:
 /// @name Materialization
 /// @{
 
-  /// setMaterializer - Sets the GVMaterializer to GVM.  This module must not
-  /// yet have a Materializer.  To reset the materializer for a module that
-  /// already has one, call MaterializeAllPermanently first.  Destroying this
-  /// module will destroy its materializer without materializing any more
-  /// GlobalValues.  Without destroying the Module, there is no way to detach or
-  /// destroy a materializer without materializing all the GVs it controls, to
-  /// avoid leaving orphan unmaterialized GVs.
+  /// Sets the GVMaterializer to GVM. This module must not yet have a
+  /// Materializer. To reset the materializer for a module that already has one,
+  /// call MaterializeAllPermanently first. Destroying this module will destroy
+  /// its materializer without materializing any more GlobalValues. Without
+  /// destroying the Module, there is no way to detach or destroy a materializer
+  /// without materializing all the GVs it controls, to avoid leaving orphan
+  /// unmaterialized GVs.
   void setMaterializer(GVMaterializer *GVM);
-  /// getMaterializer - Retrieves the GVMaterializer, if any, for this Module.
+  /// Retrieves the GVMaterializer, if any, for this Module.
   GVMaterializer *getMaterializer() const { return Materializer.get(); }
 
-  /// isMaterializable - True if the definition of GV has yet to be materialized
-  /// from the GVMaterializer.
-  bool isMaterializable(const GlobalValue *GV) const;
-  /// isDematerializable - Returns true if this GV was loaded from this Module's
-  /// GVMaterializer and the GVMaterializer knows how to dematerialize the GV.
+  /// Returns true if this GV was loaded from this Module's GVMaterializer and
+  /// the GVMaterializer knows how to dematerialize the GV.
   bool isDematerializable(const GlobalValue *GV) const;
 
-  /// Materialize - Make sure the GlobalValue is fully read.  If the module is
-  /// corrupt, this returns true and fills in the optional string with
-  /// information about the problem.  If successful, this returns false.
-  bool Materialize(GlobalValue *GV, std::string *ErrInfo = 0);
-  /// Dematerialize - If the GlobalValue is read in, and if the GVMaterializer
-  /// supports it, release the memory for the function, and set it up to be
-  /// materialized lazily.  If !isDematerializable(), this method is a noop.
+  /// Make sure the GlobalValue is fully read. If the module is corrupt, this
+  /// returns true and fills in the optional string with information about the
+  /// problem. If successful, this returns false.
+  std::error_code materialize(GlobalValue *GV);
+  /// If the GlobalValue is read in, and if the GVMaterializer supports it,
+  /// release the memory for the function, and set it up to be materialized
+  /// lazily. If !isDematerializable(), this method is a no-op.
   void Dematerialize(GlobalValue *GV);
 
-  /// MaterializeAll - Make sure all GlobalValues in this Module are fully read.
-  /// If the module is corrupt, this returns true and fills in the optional
-  /// string with information about the problem.  If successful, this returns
-  /// false.
-  bool MaterializeAll(std::string *ErrInfo = 0);
+  /// Make sure all GlobalValues in this Module are fully read.
+  std::error_code materializeAll();
 
-  /// MaterializeAllPermanently - Make sure all GlobalValues in this Module are
-  /// fully read and clear the Materializer.  If the module is corrupt, this
-  /// returns true, fills in the optional string with information about the
-  /// problem, and DOES NOT clear the old Materializer.  If successful, this
-  /// returns false.
-  bool MaterializeAllPermanently(std::string *ErrInfo = 0);
+  /// Make sure all GlobalValues in this Module are fully read and clear the
+  /// Materializer. If the module is corrupt, this DOES NOT clear the old
+  /// Materializer.
+  std::error_code materializeAllPermanently();
 
 /// @}
 /// @name Direct access to the globals list, functions list, and symbol table
@@ -513,6 +542,10 @@ public:
   const ValueSymbolTable &getValueSymbolTable() const { return *ValSymTab; }
   /// Get the Module's symbol table of global variable and function identifiers.
   ValueSymbolTable       &getValueSymbolTable()       { return *ValSymTab; }
+  /// Get the Module's symbol table for COMDATs (constant).
+  const ComdatSymTabType &getComdatSymbolTable() const { return ComdatSymTab; }
+  /// Get the Module's symbol table for COMDATs.
+  ComdatSymTabType &getComdatSymbolTable() { return ComdatSymTab; }
 
 /// @}
 /// @name Global Variable Iteration
@@ -524,6 +557,13 @@ public:
   const_global_iterator global_end  () const { return GlobalList.end(); }
   bool                  global_empty() const { return GlobalList.empty(); }
 
+  iterator_range<global_iterator> globals() {
+    return iterator_range<global_iterator>(global_begin(), global_end());
+  }
+  iterator_range<const_global_iterator> globals() const {
+    return iterator_range<const_global_iterator>(global_begin(), global_end());
+  }
+
 /// @}
 /// @name Function Iteration
 /// @{
@@ -532,8 +572,19 @@ public:
   const_iterator          begin() const { return FunctionList.begin(); }
   iterator                end  ()       { return FunctionList.end();   }
   const_iterator          end  () const { return FunctionList.end();   }
+  reverse_iterator        rbegin()      { return FunctionList.rbegin(); }
+  const_reverse_iterator  rbegin() const{ return FunctionList.rbegin(); }
+  reverse_iterator        rend()        { return FunctionList.rend(); }
+  const_reverse_iterator  rend() const  { return FunctionList.rend(); }
   size_t                  size() const  { return FunctionList.size(); }
   bool                    empty() const { return FunctionList.empty(); }
+
+  iterator_range<iterator> functions() {
+    return iterator_range<iterator>(begin(), end());
+  }
+  iterator_range<const_iterator> functions() const {
+    return iterator_range<const_iterator>(begin(), end());
+  }
 
 /// @}
 /// @name Alias Iteration
@@ -546,6 +597,12 @@ public:
   size_t               alias_size () const      { return AliasList.size();  }
   bool                 alias_empty() const      { return AliasList.empty(); }
 
+  iterator_range<alias_iterator> aliases() {
+    return iterator_range<alias_iterator>(alias_begin(), alias_end());
+  }
+  iterator_range<const_alias_iterator> aliases() const {
+    return iterator_range<const_alias_iterator>(alias_begin(), alias_end());
+  }
 
 /// @}
 /// @name Named Metadata Iteration
@@ -564,6 +621,14 @@ public:
   size_t named_metadata_size() const { return NamedMDList.size();  }
   bool named_metadata_empty() const { return NamedMDList.empty(); }
 
+  iterator_range<named_metadata_iterator> named_metadata() {
+    return iterator_range<named_metadata_iterator>(named_metadata_begin(),
+                                                   named_metadata_end());
+  }
+  iterator_range<const_named_metadata_iterator> named_metadata() const {
+    return iterator_range<const_named_metadata_iterator>(named_metadata_begin(),
+                                                         named_metadata_end());
+  }
 
 /// @}
 /// @name Utility functions for printing and dumping Module objects
@@ -583,12 +648,29 @@ public:
   /// is delete'd for real.  Note that no operations are valid on an object
   /// that has "dropped all references", except operator delete.
   void dropAllReferences();
+
+/// @}
+/// @name Utility functions for querying Debug information.
+/// @{
+
+  /// \brief Returns the Dwarf Version by checking module flags.
+  unsigned getDwarfVersion() const;
+
+/// @}
+/// @name Utility functions for querying and setting PIC level
+/// @{
+
+  /// \brief Returns the PIC level (small or large model)
+  PICLevel::Level getPICLevel() const;
+
+  /// \brief Set the PIC level (small or large model)
+  void setPICLevel(PICLevel::Level PL);
 /// @}
 };
 
 /// An raw_ostream inserter for modules.
 inline raw_ostream &operator<<(raw_ostream &O, const Module &M) {
-  M.print(O, 0);
+  M.print(O, nullptr);
   return O;
 }
 

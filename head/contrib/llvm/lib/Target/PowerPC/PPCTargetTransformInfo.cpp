@@ -14,17 +14,22 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "ppctti"
 #include "PPC.h"
 #include "PPCTargetMachine.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/CostTable.h"
+#include "llvm/Target/TargetLowering.h"
 using namespace llvm;
 
+#define DEBUG_TYPE "ppctti"
+
+static cl::opt<bool> DisablePPCConstHoist("disable-ppc-constant-hoisting",
+cl::desc("disable constant hoisting on PPC"), cl::init(false), cl::Hidden);
+
 // Declare the pass initialization routine locally as target-specific passes
-// don't havve a target-wide initialization entry point, and so we rely on the
+// don't have a target-wide initialization entry point, and so we rely on the
 // pass constructor initialization.
 namespace llvm {
 void initializePPCTTIPass(PassRegistry &);
@@ -32,35 +37,27 @@ void initializePPCTTIPass(PassRegistry &);
 
 namespace {
 
-class PPCTTI : public ImmutablePass, public TargetTransformInfo {
-  const PPCTargetMachine *TM;
+class PPCTTI final : public ImmutablePass, public TargetTransformInfo {
+  const TargetMachine *TM;
   const PPCSubtarget *ST;
   const PPCTargetLowering *TLI;
 
-  /// Estimate the overhead of scalarizing an instruction. Insert and Extract
-  /// are set if the result needs to be inserted and/or extracted from vectors.
-  unsigned getScalarizationOverhead(Type *Ty, bool Insert, bool Extract) const;
-
 public:
-  PPCTTI() : ImmutablePass(ID), TM(0), ST(0), TLI(0) {
+  PPCTTI() : ImmutablePass(ID), ST(nullptr), TLI(nullptr) {
     llvm_unreachable("This pass cannot be directly constructed");
   }
 
   PPCTTI(const PPCTargetMachine *TM)
       : ImmutablePass(ID), TM(TM), ST(TM->getSubtargetImpl()),
-        TLI(TM->getTargetLowering()) {
+        TLI(TM->getSubtargetImpl()->getTargetLowering()) {
     initializePPCTTIPass(*PassRegistry::getPassRegistry());
   }
 
-  virtual void initializePass() {
+  void initializePass() override {
     pushTTIStack(this);
   }
 
-  virtual void finalizePass() {
-    popTTIStack();
-  }
-
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
     TargetTransformInfo::getAnalysisUsage(AU);
   }
 
@@ -68,7 +65,7 @@ public:
   static char ID;
 
   /// Provide necessary pointer adjustments for the two base classes.
-  virtual void *getAdjustedAnalysisPointer(const void *ID) {
+  void *getAdjustedAnalysisPointer(const void *ID) override {
     if (ID == &TargetTransformInfo::ID)
       return (TargetTransformInfo*)this;
     return this;
@@ -76,31 +73,38 @@ public:
 
   /// \name Scalar TTI Implementations
   /// @{
-  virtual PopcntSupportKind getPopcntSupport(unsigned TyWidth) const;
-  virtual void getUnrollingPreferences(Loop *L, UnrollingPreferences &UP) const;
+  unsigned getIntImmCost(const APInt &Imm, Type *Ty) const override;
+
+  unsigned getIntImmCost(unsigned Opcode, unsigned Idx, const APInt &Imm,
+                         Type *Ty) const override;
+  unsigned getIntImmCost(Intrinsic::ID IID, unsigned Idx, const APInt &Imm,
+                         Type *Ty) const override;
+
+  PopcntSupportKind getPopcntSupport(unsigned TyWidth) const override;
+  void getUnrollingPreferences(const Function *F, Loop *L,
+                               UnrollingPreferences &UP) const override;
 
   /// @}
 
   /// \name Vector TTI Implementations
   /// @{
 
-  virtual unsigned getNumberOfRegisters(bool Vector) const;
-  virtual unsigned getRegisterBitWidth(bool Vector) const;
-  virtual unsigned getMaximumUnrollFactor() const;
-  virtual unsigned getArithmeticInstrCost(unsigned Opcode, Type *Ty,
-                                          OperandValueKind,
-                                          OperandValueKind) const;
-  virtual unsigned getShuffleCost(ShuffleKind Kind, Type *Tp,
-                                  int Index, Type *SubTp) const;
-  virtual unsigned getCastInstrCost(unsigned Opcode, Type *Dst,
-                                    Type *Src) const;
-  virtual unsigned getCmpSelInstrCost(unsigned Opcode, Type *ValTy,
-                                      Type *CondTy) const;
-  virtual unsigned getVectorInstrCost(unsigned Opcode, Type *Val,
-                                      unsigned Index) const;
-  virtual unsigned getMemoryOpCost(unsigned Opcode, Type *Src,
-                                   unsigned Alignment,
-                                   unsigned AddressSpace) const;
+  unsigned getNumberOfRegisters(bool Vector) const override;
+  unsigned getRegisterBitWidth(bool Vector) const override;
+  unsigned getMaxInterleaveFactor() const override;
+  unsigned getArithmeticInstrCost(unsigned Opcode, Type *Ty, OperandValueKind,
+                                  OperandValueKind, OperandValueProperties,
+                                  OperandValueProperties) const override;
+  unsigned getShuffleCost(ShuffleKind Kind, Type *Tp,
+                          int Index, Type *SubTp) const override;
+  unsigned getCastInstrCost(unsigned Opcode, Type *Dst,
+                            Type *Src) const override;
+  unsigned getCmpSelInstrCost(unsigned Opcode, Type *ValTy,
+                              Type *CondTy) const override;
+  unsigned getVectorInstrCost(unsigned Opcode, Type *Val,
+                              unsigned Index) const override;
+  unsigned getMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment,
+                           unsigned AddressSpace) const override;
 
   /// @}
 };
@@ -130,18 +134,166 @@ PPCTTI::PopcntSupportKind PPCTTI::getPopcntSupport(unsigned TyWidth) const {
   return PSK_Software;
 }
 
-void PPCTTI::getUnrollingPreferences(Loop *L, UnrollingPreferences &UP) const {
-  if (ST->getDarwinDirective() == PPC::DIR_A2) {
+unsigned PPCTTI::getIntImmCost(const APInt &Imm, Type *Ty) const {
+  if (DisablePPCConstHoist)
+    return TargetTransformInfo::getIntImmCost(Imm, Ty);
+
+  assert(Ty->isIntegerTy());
+
+  unsigned BitSize = Ty->getPrimitiveSizeInBits();
+  if (BitSize == 0)
+    return ~0U;
+
+  if (Imm == 0)
+    return TCC_Free;
+
+  if (Imm.getBitWidth() <= 64) {
+    if (isInt<16>(Imm.getSExtValue()))
+      return TCC_Basic;
+
+    if (isInt<32>(Imm.getSExtValue())) {
+      // A constant that can be materialized using lis.
+      if ((Imm.getZExtValue() & 0xFFFF) == 0)
+        return TCC_Basic;
+
+      return 2 * TCC_Basic;
+    }
+  }
+
+  return 4 * TCC_Basic;
+}
+
+unsigned PPCTTI::getIntImmCost(Intrinsic::ID IID, unsigned Idx,
+                               const APInt &Imm, Type *Ty) const {
+  if (DisablePPCConstHoist)
+    return TargetTransformInfo::getIntImmCost(IID, Idx, Imm, Ty);
+
+  assert(Ty->isIntegerTy());
+
+  unsigned BitSize = Ty->getPrimitiveSizeInBits();
+  if (BitSize == 0)
+    return ~0U;
+
+  switch (IID) {
+  default: return TCC_Free;
+  case Intrinsic::sadd_with_overflow:
+  case Intrinsic::uadd_with_overflow:
+  case Intrinsic::ssub_with_overflow:
+  case Intrinsic::usub_with_overflow:
+    if ((Idx == 1) && Imm.getBitWidth() <= 64 && isInt<16>(Imm.getSExtValue()))
+      return TCC_Free;
+    break;
+  case Intrinsic::experimental_stackmap:
+    if ((Idx < 2) || (Imm.getBitWidth() <= 64 && isInt<64>(Imm.getSExtValue())))
+      return TCC_Free;
+    break;
+  case Intrinsic::experimental_patchpoint_void:
+  case Intrinsic::experimental_patchpoint_i64:
+    if ((Idx < 4) || (Imm.getBitWidth() <= 64 && isInt<64>(Imm.getSExtValue())))
+      return TCC_Free;
+    break;
+  }
+  return PPCTTI::getIntImmCost(Imm, Ty);
+}
+
+unsigned PPCTTI::getIntImmCost(unsigned Opcode, unsigned Idx, const APInt &Imm,
+                               Type *Ty) const {
+  if (DisablePPCConstHoist)
+    return TargetTransformInfo::getIntImmCost(Opcode, Idx, Imm, Ty);
+
+  assert(Ty->isIntegerTy());
+
+  unsigned BitSize = Ty->getPrimitiveSizeInBits();
+  if (BitSize == 0)
+    return ~0U;
+
+  unsigned ImmIdx = ~0U;
+  bool ShiftedFree = false, RunFree = false, UnsignedFree = false,
+       ZeroFree = false;
+  switch (Opcode) {
+  default: return TCC_Free;
+  case Instruction::GetElementPtr:
+    // Always hoist the base address of a GetElementPtr. This prevents the
+    // creation of new constants for every base constant that gets constant
+    // folded with the offset.
+    if (Idx == 0)
+      return 2 * TCC_Basic;
+    return TCC_Free;
+  case Instruction::And:
+    RunFree = true; // (for the rotate-and-mask instructions)
+    // Fallthrough...
+  case Instruction::Add:
+  case Instruction::Or:
+  case Instruction::Xor:
+    ShiftedFree = true;
+    // Fallthrough...
+  case Instruction::Sub:
+  case Instruction::Mul:
+  case Instruction::Shl:
+  case Instruction::LShr:
+  case Instruction::AShr:
+    ImmIdx = 1;
+    break;
+  case Instruction::ICmp:
+    UnsignedFree = true;
+    ImmIdx = 1;
+    // Fallthrough... (zero comparisons can use record-form instructions)
+  case Instruction::Select:
+    ZeroFree = true;
+    break;
+  case Instruction::PHI:
+  case Instruction::Call:
+  case Instruction::Ret:
+  case Instruction::Load:
+  case Instruction::Store:
+    break;
+  }
+
+  if (ZeroFree && Imm == 0)
+    return TCC_Free;
+
+  if (Idx == ImmIdx && Imm.getBitWidth() <= 64) {
+    if (isInt<16>(Imm.getSExtValue()))
+      return TCC_Free;
+
+    if (RunFree) {
+      if (Imm.getBitWidth() <= 32 &&
+          (isShiftedMask_32(Imm.getZExtValue()) ||
+           isShiftedMask_32(~Imm.getZExtValue())))
+        return TCC_Free;
+
+
+      if (ST->isPPC64() &&
+          (isShiftedMask_64(Imm.getZExtValue()) ||
+           isShiftedMask_64(~Imm.getZExtValue())))
+        return TCC_Free;
+    }
+
+    if (UnsignedFree && isUInt<16>(Imm.getZExtValue()))
+      return TCC_Free;
+
+    if (ShiftedFree && (Imm.getZExtValue() & 0xFFFF) == 0)
+      return TCC_Free;
+  }
+
+  return PPCTTI::getIntImmCost(Imm, Ty);
+}
+
+void PPCTTI::getUnrollingPreferences(const Function *F, Loop *L,
+                                     UnrollingPreferences &UP) const {
+  if (TM->getSubtarget<PPCSubtarget>(F).getDarwinDirective() == PPC::DIR_A2) {
     // The A2 is in-order with a deep pipeline, and concatenation unrolling
     // helps expose latency-hiding opportunities to the instruction scheduler.
     UP.Partial = UP.Runtime = true;
   }
+
+  TargetTransformInfo::getUnrollingPreferences(F, L, UP);
 }
 
 unsigned PPCTTI::getNumberOfRegisters(bool Vector) const {
   if (Vector && !ST->hasAltivec())
     return 0;
-  return 32;
+  return ST->hasVSX() ? 64 : 32;
 }
 
 unsigned PPCTTI::getRegisterBitWidth(bool Vector) const {
@@ -156,7 +308,7 @@ unsigned PPCTTI::getRegisterBitWidth(bool Vector) const {
 
 }
 
-unsigned PPCTTI::getMaximumUnrollFactor() const {
+unsigned PPCTTI::getMaxInterleaveFactor() const {
   unsigned Directive = ST->getDarwinDirective();
   // The 440 has no SIMD support, but floating-point instructions
   // have a 5-cycle latency, so unroll by 5x for latency hiding.
@@ -177,14 +329,15 @@ unsigned PPCTTI::getMaximumUnrollFactor() const {
   return 2;
 }
 
-unsigned PPCTTI::getArithmeticInstrCost(unsigned Opcode, Type *Ty,
-                                        OperandValueKind Op1Info,
-                                        OperandValueKind Op2Info) const {
+unsigned PPCTTI::getArithmeticInstrCost(
+    unsigned Opcode, Type *Ty, OperandValueKind Op1Info,
+    OperandValueKind Op2Info, OperandValueProperties Opd1PropInfo,
+    OperandValueProperties Opd2PropInfo) const {
   assert(TLI->InstructionOpcodeToISD(Opcode) && "Invalid opcode");
 
   // Fallback to the default implementation.
-  return TargetTransformInfo::getArithmeticInstrCost(Opcode, Ty, Op1Info,
-                                                     Op2Info);
+  return TargetTransformInfo::getArithmeticInstrCost(
+      Opcode, Ty, Op1Info, Op2Info, Opd1PropInfo, Opd2PropInfo);
 }
 
 unsigned PPCTTI::getShuffleCost(ShuffleKind Kind, Type *Tp, int Index,
@@ -210,11 +363,21 @@ unsigned PPCTTI::getVectorInstrCost(unsigned Opcode, Type *Val,
   int ISD = TLI->InstructionOpcodeToISD(Opcode);
   assert(ISD && "Invalid opcode");
 
+  if (ST->hasVSX() && Val->getScalarType()->isDoubleTy()) {
+    // Double-precision scalars are already located in index #0.
+    if (Index == 0)
+      return 0;
+
+    return TargetTransformInfo::getVectorInstrCost(Opcode, Val, Index);
+  }
+
   // Estimated cost of a load-hit-store delay.  This was obtained
   // experimentally as a minimum needed to prevent unprofitable
   // vectorization for the paq8p benchmark.  It may need to be
   // raised further if other unprofitable cases remain.
-  unsigned LHSPenalty = 12;
+  unsigned LHSPenalty = 2;
+  if (ISD == ISD::INSERT_VECTOR_ELT)
+    LHSPenalty += 7;
 
   // Vector element insert/extract with Altivec is very expensive,
   // because they require store and reload with the attendant
@@ -235,14 +398,34 @@ unsigned PPCTTI::getMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment,
   assert((Opcode == Instruction::Load || Opcode == Instruction::Store) &&
          "Invalid Opcode");
 
-  // Each load/store unit costs 1.
-  unsigned Cost = LT.first * 1;
+  unsigned Cost =
+    TargetTransformInfo::getMemoryOpCost(Opcode, Src, Alignment, AddressSpace);
+
+  // VSX loads/stores support unaligned access.
+  if (ST->hasVSX()) {
+    if (LT.second == MVT::v2f64 || LT.second == MVT::v2i64)
+      return Cost;
+  }
+
+  bool UnalignedAltivec =
+    Src->isVectorTy() &&
+    Src->getPrimitiveSizeInBits() >= LT.second.getSizeInBits() &&
+    LT.second.getSizeInBits() == 128 &&
+    Opcode == Instruction::Load;
 
   // PPC in general does not support unaligned loads and stores. They'll need
   // to be decomposed based on the alignment factor.
   unsigned SrcBytes = LT.second.getStoreSize();
-  if (SrcBytes && Alignment && Alignment < SrcBytes)
-    Cost *= (SrcBytes/Alignment);
+  if (SrcBytes && Alignment && Alignment < SrcBytes && !UnalignedAltivec) {
+    Cost += LT.first*(SrcBytes/Alignment-1);
+
+    // For a vector type, there is also scalarization overhead (only for
+    // stores, loads are expanded using the vector-load + permutation sequence,
+    // which is much less expensive).
+    if (Src->isVectorTy() && Opcode == Instruction::Store)
+      for (int i = 0, e = Src->getVectorNumElements(); i < e; ++i)
+        Cost += getVectorInstrCost(Instruction::ExtractElement, Src, i);
+  }
 
   return Cost;
 }

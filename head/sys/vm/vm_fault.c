@@ -101,6 +101,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_reserv.h>
 
 #define PFBAK 4
 #define PFFOR 4
@@ -108,6 +109,7 @@ __FBSDID("$FreeBSD$");
 static int vm_fault_additional_pages(vm_page_t, int, int, vm_page_t *, int *);
 
 #define	VM_FAULT_READ_BEHIND	8
+#define	VM_FAULT_READ_DEFAULT	(1 + VM_FAULT_READ_AHEAD_INIT)
 #define	VM_FAULT_READ_MAX	(1 + VM_FAULT_READ_AHEAD_MAX)
 #define	VM_FAULT_NINCR		(VM_FAULT_READ_MAX / VM_FAULT_READ_BEHIND)
 #define	VM_FAULT_SUM		(VM_FAULT_NINCR * (VM_FAULT_NINCR + 1) / 2)
@@ -292,7 +294,6 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, vm_page_t *m_hold)
 {
 	vm_prot_t prot;
-	long ahead, behind;
 	int alloc_req, era, faultcount, nera, reqpage, result;
 	boolean_t growstack, is_first_object_locked, wired;
 	int map_generation;
@@ -302,7 +303,7 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	struct faultstate fs;
 	struct vnode *vp;
 	vm_page_t m;
-	int locked, error;
+	int ahead, behind, cluster_offset, error, locked;
 
 	hardfault = 0;
 	growstack = TRUE;
@@ -334,10 +335,6 @@ RetryFault:;
 	map_generation = fs.map->timestamp;
 
 	if (fs.entry->eflags & MAP_ENTRY_NOFAULT) {
-		if ((curthread->td_pflags & TDP_DEVMEMIO) != 0) {
-			vm_map_unlock_read(fs.map);
-			return (KERN_FAILURE);
-		}
 		panic("vm_fault: fault on nofault entry, addr: %lx",
 		    (u_long)vaddr);
 	}
@@ -362,11 +359,13 @@ RetryFault:;
 	    (fault_flags & (VM_FAULT_CHANGE_WIRING | VM_FAULT_DIRTY)) == 0 &&
 	    /* avoid calling vm_object_set_writeable_dirty() */
 	    ((prot & VM_PROT_WRITE) == 0 ||
-	    fs.first_object->type != OBJT_VNODE ||
+	    (fs.first_object->type != OBJT_VNODE &&
+	    (fs.first_object->flags & OBJ_TMPFS_NODE) == 0) ||
 	    (fs.first_object->flags & OBJ_MIGHTBEDIRTY) != 0)) {
 		VM_OBJECT_RLOCK(fs.first_object);
 		if ((prot & VM_PROT_WRITE) != 0 &&
-		    fs.first_object->type == OBJT_VNODE &&
+		    (fs.first_object->type == OBJT_VNODE ||
+		    (fs.first_object->flags & OBJ_TMPFS_NODE) != 0) &&
 		    (fs.first_object->flags & OBJ_MIGHTBEDIRTY) == 0)
 			goto fast_failed;
 		m = vm_page_lookup(fs.first_object, fs.first_pindex);
@@ -523,11 +522,8 @@ fast_failed:
 			fs.m = NULL;
 			if (!vm_page_count_severe() || P_KILLED(curproc)) {
 #if VM_NRESERVLEVEL > 0
-				if ((fs.object->flags & OBJ_COLORED) == 0) {
-					fs.object->flags |= OBJ_COLORED;
-					fs.object->pg_color = atop(vaddr) -
-					    fs.pindex;
-				}
+				vm_object_color(fs.object, atop(vaddr) -
+				    fs.pindex);
 #endif
 				alloc_req = P_KILLED(curproc) ?
 				    VM_ALLOC_SYSTEM : VM_ALLOC_NORMAL;
@@ -559,45 +555,59 @@ readrest:
 			int rv;
 			u_char behavior = vm_map_entry_behavior(fs.entry);
 
+			era = fs.entry->read_ahead;
 			if (behavior == MAP_ENTRY_BEHAV_RANDOM ||
 			    P_KILLED(curproc)) {
 				behind = 0;
+				nera = 0;
 				ahead = 0;
 			} else if (behavior == MAP_ENTRY_BEHAV_SEQUENTIAL) {
 				behind = 0;
-				ahead = atop(fs.entry->end - vaddr) - 1;
-				if (ahead > VM_FAULT_READ_AHEAD_MAX)
-					ahead = VM_FAULT_READ_AHEAD_MAX;
+				nera = VM_FAULT_READ_AHEAD_MAX;
+				ahead = nera;
 				if (fs.pindex == fs.entry->next_read)
 					vm_fault_cache_behind(&fs,
 					    VM_FAULT_READ_MAX);
-			} else {
+			} else if (fs.pindex == fs.entry->next_read) {
 				/*
-				 * If this is a sequential page fault, then
-				 * arithmetically increase the number of pages
-				 * in the read-ahead window.  Otherwise, reset
-				 * the read-ahead window to its smallest size.
+				 * This is a sequential fault.  Arithmetically
+				 * increase the requested number of pages in
+				 * the read-ahead window.  The requested
+				 * number of pages is "# of sequential faults
+				 * x (read ahead min + 1) + read ahead min"
 				 */
-				behind = atop(vaddr - fs.entry->start);
-				if (behind > VM_FAULT_READ_BEHIND)
-					behind = VM_FAULT_READ_BEHIND;
-				ahead = atop(fs.entry->end - vaddr) - 1;
-				era = fs.entry->read_ahead;
-				if (fs.pindex == fs.entry->next_read) {
-					nera = era + behind;
+				behind = 0;
+				nera = VM_FAULT_READ_AHEAD_MIN;
+				if (era > 0) {
+					nera += era + 1;
 					if (nera > VM_FAULT_READ_AHEAD_MAX)
 						nera = VM_FAULT_READ_AHEAD_MAX;
-					behind = 0;
-					if (ahead > nera)
-						ahead = nera;
-					if (era == VM_FAULT_READ_AHEAD_MAX)
-						vm_fault_cache_behind(&fs,
-						    VM_FAULT_CACHE_BEHIND);
-				} else if (ahead > VM_FAULT_READ_AHEAD_MIN)
-					ahead = VM_FAULT_READ_AHEAD_MIN;
-				if (era != ahead)
-					fs.entry->read_ahead = ahead;
+				}
+				ahead = nera;
+				if (era == VM_FAULT_READ_AHEAD_MAX)
+					vm_fault_cache_behind(&fs,
+					    VM_FAULT_CACHE_BEHIND);
+			} else {
+				/*
+				 * This is a non-sequential fault.  Request a
+				 * cluster of pages that is aligned to a
+				 * VM_FAULT_READ_DEFAULT page offset boundary
+				 * within the object.  Alignment to a page
+				 * offset boundary is more likely to coincide
+				 * with the underlying file system block than
+				 * alignment to a virtual address boundary.
+				 */
+				cluster_offset = fs.pindex %
+				    VM_FAULT_READ_DEFAULT;
+				behind = ulmin(cluster_offset,
+				    atop(vaddr - fs.entry->start));
+				nera = 0;
+				ahead = VM_FAULT_READ_DEFAULT - 1 -
+				    cluster_offset;
 			}
+			ahead = ulmin(ahead, atop(fs.entry->end - vaddr) - 1);
+			if (era != nera)
+				fs.entry->read_ahead = nera;
 
 			/*
 			 * Call the pager to retrieve the data, if any, after
@@ -846,6 +856,14 @@ vnode_locked:
 					unlock_and_deallocate(&fs);
 					goto RetryFault;
 				}
+#if VM_NRESERVLEVEL > 0
+				/*
+				 * Rename the reservation.
+				 */
+				vm_reserv_rename(fs.m, fs.first_object,
+				    fs.object, OFF_TO_IDX(
+				    fs.first_object->backing_object_offset));
+#endif
 				vm_page_xbusy(fs.m);
 				fs.first_m = fs.m;
 				fs.m = NULL;

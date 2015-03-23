@@ -445,8 +445,8 @@ t3_push_frames(struct socket *so, int req_completion)
 	 * Autosize the send buffer.
 	 */
 	if (snd->sb_flags & SB_AUTOSIZE && VNET(tcp_do_autosndbuf)) {
-		if (snd->sb_cc >= (snd->sb_hiwat / 8 * 7) &&
-		    snd->sb_cc < VNET(tcp_autosndbuf_max)) {
+		if (sbused(snd) >= (snd->sb_hiwat / 8 * 7) &&
+		    sbused(snd) < VNET(tcp_autosndbuf_max)) {
 			if (!sbreserve_locked(snd, min(snd->sb_hiwat +
 			    VNET(tcp_autosndbuf_inc), VNET(tcp_autosndbuf_max)),
 			    so, curthread))
@@ -597,10 +597,10 @@ t3_rcvd(struct toedev *tod, struct tcpcb *tp)
 	INP_WLOCK_ASSERT(inp);
 
 	SOCKBUF_LOCK(so_rcv);
-	KASSERT(toep->tp_enqueued >= so_rcv->sb_cc,
-	    ("%s: so_rcv->sb_cc > enqueued", __func__));
-	toep->tp_rx_credits += toep->tp_enqueued - so_rcv->sb_cc;
-	toep->tp_enqueued = so_rcv->sb_cc;
+	KASSERT(toep->tp_enqueued >= sbused(so_rcv),
+	    ("%s: sbused(so_rcv) > enqueued", __func__));
+	toep->tp_rx_credits += toep->tp_enqueued - sbused(so_rcv);
+	toep->tp_enqueued = sbused(so_rcv);
 	SOCKBUF_UNLOCK(so_rcv);
 
 	must_send = toep->tp_rx_credits + 16384 >= tp->rcv_wnd;
@@ -1088,7 +1088,7 @@ send_reset(struct toepcb *toep)
 	req->cmd = CPL_ABORT_SEND_RST;
 
 	if (tp->t_state == TCPS_SYN_SENT)
-		mbufq_tail(&toep->out_of_order_queue, m); /* defer */
+		(void )mbufq_enqueue(&toep->out_of_order_queue, m); /* defer */
 	else
 		l2t_send(sc, m, toep->tp_l2t);
 }
@@ -1199,7 +1199,7 @@ do_rx_data(struct sge_qset *qs, struct rsp_desc *r, struct mbuf *m)
 	}
 
 	toep->tp_enqueued += m->m_pkthdr.len;
-	sbappendstream_locked(so_rcv, m);
+	sbappendstream_locked(so_rcv, m, 0);
 	sorwakeup_locked(so);
 	SOCKBUF_UNLOCK_ASSERT(so_rcv);
 
@@ -1768,7 +1768,7 @@ wr_ack(struct toepcb *toep, struct mbuf *m)
 		so_sowwakeup_locked(so);
 	}
 
-	if (snd->sb_sndptroff < snd->sb_cc)
+	if (snd->sb_sndptroff < sbused(snd))
 		t3_push_frames(so, 0);
 
 out_free:

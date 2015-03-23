@@ -16,53 +16,66 @@
 
 #include "llvm/Analysis/CFGPrinter.h"
 #include "llvm/Pass.h"
+#include "llvm/Support/FileSystem.h"
 
 namespace llvm {
 
-template <class Analysis, bool Simple>
+/// \brief Default traits class for extracting a graph from an analysis pass.
+///
+/// This assumes that 'GraphT' is 'AnalysisT *' and so just passes it through.
+template <typename AnalysisT, typename GraphT = AnalysisT *>
+struct DefaultAnalysisGraphTraits {
+  static GraphT getGraph(AnalysisT *A) { return A; }
+};
+
+template <
+    typename AnalysisT, bool IsSimple, typename GraphT = AnalysisT *,
+    typename AnalysisGraphTraitsT = DefaultAnalysisGraphTraits<AnalysisT> >
 class DOTGraphTraitsViewer : public FunctionPass {
 public:
   DOTGraphTraitsViewer(StringRef GraphName, char &ID)
-    : FunctionPass(ID), Name(GraphName) {}
+      : FunctionPass(ID), Name(GraphName) {}
 
-  virtual bool runOnFunction(Function &F) {
-    Analysis *Graph = &getAnalysis<Analysis>();
-    std::string GraphName = DOTGraphTraits<Analysis*>::getGraphName(Graph);
+  bool runOnFunction(Function &F) override {
+    GraphT Graph = AnalysisGraphTraitsT::getGraph(&getAnalysis<AnalysisT>());
+    std::string GraphName = DOTGraphTraits<GraphT>::getGraphName(Graph);
     std::string Title = GraphName + " for '" + F.getName().str() + "' function";
 
-    ViewGraph(Graph, Name, Simple, Title);
+    ViewGraph(Graph, Name, IsSimple, Title);
 
     return false;
   }
 
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.setPreservesAll();
-    AU.addRequired<Analysis>();
+    AU.addRequired<AnalysisT>();
   }
 
 private:
   std::string Name;
 };
 
-template <class Analysis, bool Simple>
+template <
+    typename AnalysisT, bool IsSimple, typename GraphT = AnalysisT *,
+    typename AnalysisGraphTraitsT = DefaultAnalysisGraphTraits<AnalysisT> >
 class DOTGraphTraitsPrinter : public FunctionPass {
 public:
   DOTGraphTraitsPrinter(StringRef GraphName, char &ID)
-    : FunctionPass(ID), Name(GraphName) {}
+      : FunctionPass(ID), Name(GraphName) {}
 
-  virtual bool runOnFunction(Function &F) {
-    Analysis *Graph = &getAnalysis<Analysis>();
+  bool runOnFunction(Function &F) override {
+    GraphT Graph = AnalysisGraphTraitsT::getGraph(&getAnalysis<AnalysisT>());
     std::string Filename = Name + "." + F.getName().str() + ".dot";
-    std::string ErrorInfo;
+    std::error_code EC;
 
     errs() << "Writing '" << Filename << "'...";
 
-    raw_fd_ostream File(Filename.c_str(), ErrorInfo);
-    std::string GraphName = DOTGraphTraits<Analysis*>::getGraphName(Graph);
+    raw_fd_ostream File(Filename, EC, sys::fs::F_Text);
+    std::string GraphName = DOTGraphTraits<GraphT>::getGraphName(Graph);
     std::string Title = GraphName + " for '" + F.getName().str() + "' function";
 
-    if (ErrorInfo.empty())
-      WriteGraph(File, Graph, Simple, Title);
+    if (!EC)
+      WriteGraph(File, Graph, IsSimple, Title);
     else
       errs() << "  error opening file for writing!";
     errs() << "\n";
@@ -70,57 +83,61 @@ public:
     return false;
   }
 
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.setPreservesAll();
-    AU.addRequired<Analysis>();
+    AU.addRequired<AnalysisT>();
   }
 
 private:
   std::string Name;
 };
 
-template <class Analysis, bool Simple>
+template <
+    typename AnalysisT, bool IsSimple, typename GraphT = AnalysisT *,
+    typename AnalysisGraphTraitsT = DefaultAnalysisGraphTraits<AnalysisT> >
 class DOTGraphTraitsModuleViewer : public ModulePass {
 public:
   DOTGraphTraitsModuleViewer(StringRef GraphName, char &ID)
-    : ModulePass(ID), Name(GraphName) {}
+      : ModulePass(ID), Name(GraphName) {}
 
-  virtual bool runOnModule(Module &M) {
-    Analysis *Graph = &getAnalysis<Analysis>();
-    std::string Title = DOTGraphTraits<Analysis*>::getGraphName(Graph);
+  bool runOnModule(Module &M) override {
+    GraphT Graph = AnalysisGraphTraitsT::getGraph(&getAnalysis<AnalysisT>());
+    std::string Title = DOTGraphTraits<GraphT>::getGraphName(Graph);
 
-    ViewGraph(Graph, Name, Simple, Title);
+    ViewGraph(Graph, Name, IsSimple, Title);
 
     return false;
   }
 
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.setPreservesAll();
-    AU.addRequired<Analysis>();
+    AU.addRequired<AnalysisT>();
   }
 
 private:
   std::string Name;
 };
 
-template <class Analysis, bool Simple>
+template <
+    typename AnalysisT, bool IsSimple, typename GraphT = AnalysisT *,
+    typename AnalysisGraphTraitsT = DefaultAnalysisGraphTraits<AnalysisT> >
 class DOTGraphTraitsModulePrinter : public ModulePass {
 public:
   DOTGraphTraitsModulePrinter(StringRef GraphName, char &ID)
-    : ModulePass(ID), Name(GraphName) {}
+      : ModulePass(ID), Name(GraphName) {}
 
-  virtual bool runOnModule(Module &M) {
-    Analysis *Graph = &getAnalysis<Analysis>();
+  bool runOnModule(Module &M) override {
+    GraphT Graph = AnalysisGraphTraitsT::getGraph(&getAnalysis<AnalysisT>());
     std::string Filename = Name + ".dot";
-    std::string ErrorInfo;
+    std::error_code EC;
 
     errs() << "Writing '" << Filename << "'...";
 
-    raw_fd_ostream File(Filename.c_str(), ErrorInfo);
-    std::string Title = DOTGraphTraits<Analysis*>::getGraphName(Graph);
+    raw_fd_ostream File(Filename, EC, sys::fs::F_Text);
+    std::string Title = DOTGraphTraits<GraphT>::getGraphName(Graph);
 
-    if (ErrorInfo.empty())
-      WriteGraph(File, Graph, Simple, Title);
+    if (!EC)
+      WriteGraph(File, Graph, IsSimple, Title);
     else
       errs() << "  error opening file for writing!";
     errs() << "\n";
@@ -128,9 +145,9 @@ public:
     return false;
   }
 
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.setPreservesAll();
-    AU.addRequired<Analysis>();
+    AU.addRequired<AnalysisT>();
   }
 
 private:

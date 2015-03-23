@@ -13,7 +13,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE ::llvm::ScoreboardHazardRecognizer::DebugType
 #include "llvm/CodeGen/ScoreboardHazardRecognizer.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
 #include "llvm/MC/MCInstrItineraries.h"
@@ -23,6 +22,8 @@
 #include "llvm/Target/TargetInstrInfo.h"
 
 using namespace llvm;
+
+#define DEBUG_TYPE ::llvm::ScoreboardHazardRecognizer::DebugType
 
 #ifndef NDEBUG
 const char *ScoreboardHazardRecognizer::DebugType = "";
@@ -77,7 +78,7 @@ ScoreboardHazardRecognizer(const InstrItineraryData *II,
     DEBUG(dbgs() << "Disabled scoreboard hazard recognizer\n");
   else {
     // A nonempty itinerary must have a SchedModel.
-    IssueWidth = ItinData->SchedModel->IssueWidth;
+    IssueWidth = ItinData->SchedModel.IssueWidth;
     DEBUG(dbgs() << "Using scoreboard hazard recognizer: Depth = "
           << ScoreboardDepth << '\n');
   }
@@ -126,7 +127,7 @@ ScoreboardHazardRecognizer::getHazardType(SUnit *SU, int Stalls) {
   // free FU's in the scoreboard at the appropriate future cycles.
 
   const MCInstrDesc *MCID = DAG->getInstrDesc(SU);
-  if (MCID == NULL) {
+  if (!MCID) {
     // Don't check hazards for non-machineinstr Nodes.
     return NoHazard;
   }

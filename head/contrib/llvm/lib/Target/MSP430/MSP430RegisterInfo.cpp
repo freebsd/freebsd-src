@@ -11,8 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "msp430-reg-info"
-
 #include "MSP430RegisterInfo.h"
 #include "MSP430.h"
 #include "MSP430MachineFunctionInfo.h"
@@ -26,41 +24,41 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 
+using namespace llvm;
+
+#define DEBUG_TYPE "msp430-reg-info"
+
 #define GET_REGINFO_TARGET_DESC
 #include "MSP430GenRegisterInfo.inc"
 
-using namespace llvm;
-
 // FIXME: Provide proper call frame setup / destroy opcodes.
-MSP430RegisterInfo::MSP430RegisterInfo(MSP430TargetMachine &tm)
-  : MSP430GenRegisterInfo(MSP430::PCW), TM(tm) {
-  StackAlign = TM.getFrameLowering()->getStackAlignment();
-}
+MSP430RegisterInfo::MSP430RegisterInfo()
+  : MSP430GenRegisterInfo(MSP430::PC) {}
 
-const uint16_t*
+const MCPhysReg*
 MSP430RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
-  const TargetFrameLowering *TFI = MF->getTarget().getFrameLowering();
+  const TargetFrameLowering *TFI = MF->getSubtarget().getFrameLowering();
   const Function* F = MF->getFunction();
-  static const uint16_t CalleeSavedRegs[] = {
-    MSP430::FPW, MSP430::R5W, MSP430::R6W, MSP430::R7W,
-    MSP430::R8W, MSP430::R9W, MSP430::R10W, MSP430::R11W,
+  static const MCPhysReg CalleeSavedRegs[] = {
+    MSP430::FP, MSP430::R5, MSP430::R6, MSP430::R7,
+    MSP430::R8, MSP430::R9, MSP430::R10, MSP430::R11,
     0
   };
-  static const uint16_t CalleeSavedRegsFP[] = {
-    MSP430::R5W, MSP430::R6W, MSP430::R7W,
-    MSP430::R8W, MSP430::R9W, MSP430::R10W, MSP430::R11W,
+  static const MCPhysReg CalleeSavedRegsFP[] = {
+    MSP430::R5, MSP430::R6, MSP430::R7,
+    MSP430::R8, MSP430::R9, MSP430::R10, MSP430::R11,
     0
   };
-  static const uint16_t CalleeSavedRegsIntr[] = {
-    MSP430::FPW,  MSP430::R5W,  MSP430::R6W,  MSP430::R7W,
-    MSP430::R8W,  MSP430::R9W,  MSP430::R10W, MSP430::R11W,
-    MSP430::R12W, MSP430::R13W, MSP430::R14W, MSP430::R15W,
+  static const MCPhysReg CalleeSavedRegsIntr[] = {
+    MSP430::FP,  MSP430::R5,  MSP430::R6,  MSP430::R7,
+    MSP430::R8,  MSP430::R9,  MSP430::R10, MSP430::R11,
+    MSP430::R12, MSP430::R13, MSP430::R14, MSP430::R15,
     0
   };
-  static const uint16_t CalleeSavedRegsIntrFP[] = {
-    MSP430::R5W,  MSP430::R6W,  MSP430::R7W,
-    MSP430::R8W,  MSP430::R9W,  MSP430::R10W, MSP430::R11W,
-    MSP430::R12W, MSP430::R13W, MSP430::R14W, MSP430::R15W,
+  static const MCPhysReg CalleeSavedRegsIntrFP[] = {
+    MSP430::R5,  MSP430::R6,  MSP430::R7,
+    MSP430::R8,  MSP430::R9,  MSP430::R10, MSP430::R11,
+    MSP430::R12, MSP430::R13, MSP430::R14, MSP430::R15,
     0
   };
 
@@ -75,21 +73,23 @@ MSP430RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
 
 BitVector MSP430RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
 
   // Mark 4 special registers with subregisters as reserved.
   Reserved.set(MSP430::PCB);
   Reserved.set(MSP430::SPB);
   Reserved.set(MSP430::SRB);
   Reserved.set(MSP430::CGB);
-  Reserved.set(MSP430::PCW);
-  Reserved.set(MSP430::SPW);
-  Reserved.set(MSP430::SRW);
-  Reserved.set(MSP430::CGW);
+  Reserved.set(MSP430::PC);
+  Reserved.set(MSP430::SP);
+  Reserved.set(MSP430::SR);
+  Reserved.set(MSP430::CG);
 
   // Mark frame pointer as reserved if needed.
-  if (TFI->hasFP(MF))
-    Reserved.set(MSP430::FPW);
+  if (TFI->hasFP(MF)) {
+    Reserved.set(MSP430::FPB);
+    Reserved.set(MSP430::FP);
+  }
 
   return Reserved;
 }
@@ -109,11 +109,11 @@ MSP430RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   MachineInstr &MI = *II;
   MachineBasicBlock &MBB = *MI.getParent();
   MachineFunction &MF = *MBB.getParent();
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
   DebugLoc dl = MI.getDebugLoc();
   int FrameIndex = MI.getOperand(FIOperandNum).getIndex();
 
-  unsigned BasePtr = (TFI->hasFP(MF) ? MSP430::FPW : MSP430::SPW);
+  unsigned BasePtr = (TFI->hasFP(MF) ? MSP430::FP : MSP430::SP);
   int Offset = MF.getFrameInfo()->getObjectOffset(FrameIndex);
 
   // Skip the saved PC
@@ -122,7 +122,7 @@ MSP430RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   if (!TFI->hasFP(MF))
     Offset += MF.getFrameInfo()->getStackSize();
   else
-    Offset += 2; // Skip the saved FPW
+    Offset += 2; // Skip the saved FP
 
   // Fold imm into offset
   Offset += MI.getOperand(FIOperandNum + 1).getImm();
@@ -131,7 +131,7 @@ MSP430RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     // This is actually "load effective address" of the stack slot
     // instruction. We have only two-address instructions, thus we need to
     // expand it into mov + add
-    const TargetInstrInfo &TII = *MF.getTarget().getInstrInfo();
+    const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
 
     MI.setDesc(TII.get(MSP430::MOV16rr));
     MI.getOperand(FIOperandNum).ChangeToRegister(BasePtr, false);
@@ -142,10 +142,10 @@ MSP430RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     // We need to materialize the offset via add instruction.
     unsigned DstReg = MI.getOperand(0).getReg();
     if (Offset < 0)
-      BuildMI(MBB, llvm::next(II), dl, TII.get(MSP430::SUB16ri), DstReg)
+      BuildMI(MBB, std::next(II), dl, TII.get(MSP430::SUB16ri), DstReg)
         .addReg(DstReg).addImm(-Offset);
     else
-      BuildMI(MBB, llvm::next(II), dl, TII.get(MSP430::ADD16ri), DstReg)
+      BuildMI(MBB, std::next(II), dl, TII.get(MSP430::ADD16ri), DstReg)
         .addReg(DstReg).addImm(Offset);
 
     return;
@@ -156,7 +156,7 @@ MSP430RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 }
 
 unsigned MSP430RegisterInfo::getFrameRegister(const MachineFunction &MF) const {
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
 
-  return TFI->hasFP(MF) ? MSP430::FPW : MSP430::SPW;
+  return TFI->hasFP(MF) ? MSP430::FP : MSP430::SP;
 }

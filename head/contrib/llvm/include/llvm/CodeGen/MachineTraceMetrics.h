@@ -44,8 +44,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CODEGEN_MACHINE_TRACE_METRICS_H
-#define LLVM_CODEGEN_MACHINE_TRACE_METRICS_H
+#ifndef LLVM_CODEGEN_MACHINETRACEMETRICS_H
+#define LLVM_CODEGEN_MACHINETRACEMETRICS_H
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
@@ -77,10 +77,10 @@ public:
   class Trace;
   static char ID;
   MachineTraceMetrics();
-  void getAnalysisUsage(AnalysisUsage&) const;
-  bool runOnMachineFunction(MachineFunction&);
-  void releaseMemory();
-  void verifyAnalysis() const;
+  void getAnalysisUsage(AnalysisUsage&) const override;
+  bool runOnMachineFunction(MachineFunction&) override;
+  void releaseMemory() override;
+  void verifyAnalysis() const override;
 
   friend class Ensemble;
   friend class Trace;
@@ -154,7 +154,7 @@ public:
     unsigned InstrHeight;
 
     TraceBlockInfo() :
-      Pred(0), Succ(0),
+      Pred(nullptr), Succ(nullptr),
       InstrDepth(~0u), InstrHeight(~0u),
       HasValidInstrDepths(false), HasValidInstrHeights(false) {}
 
@@ -264,8 +264,9 @@ public:
     /// classes are included. For the caller to account for extra machine
     /// instructions, it must first resolve each instruction's scheduling class.
     unsigned getResourceLength(
-                ArrayRef<const MachineBasicBlock*> Extrablocks = None,
-                ArrayRef<const MCSchedClassDesc*> ExtraInstrs = None) const;
+        ArrayRef<const MachineBasicBlock *> Extrablocks = None,
+        ArrayRef<const MCSchedClassDesc *> ExtraInstrs = None,
+        ArrayRef<const MCSchedClassDesc *> RemoveInstrs = None) const;
 
     /// Return the length of the (data dependency) critical path through the
     /// trace.
@@ -286,6 +287,12 @@ public:
     /// Return the Depth of a PHI instruction in a trace center block successor.
     /// The PHI does not have to be part of the trace.
     unsigned getPHIDepth(const MachineInstr *PHI) const;
+
+    /// A dependence is useful if the basic block of the defining instruction
+    /// is part of the trace of the user instruction. It is assumed that DefMI
+    /// dominates UseMI (see also isUsefulDominator).
+    bool isDepInTrace(const MachineInstr *DefMI,
+                      const MachineInstr *UseMI) const;
   };
 
   /// A trace ensemble is a collection of traces selected using the same

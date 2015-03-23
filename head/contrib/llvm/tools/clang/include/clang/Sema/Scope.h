@@ -15,13 +15,21 @@
 #define LLVM_CLANG_SEMA_SCOPE_H
 
 #include "clang/Basic/Diagnostic.h"
+#include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
+
+namespace llvm {
+
+class raw_ostream;
+
+}
 
 namespace clang {
 
 class Decl;
 class UsingDirectiveDecl;
+class VarDecl;
 
 /// Scope - A scope is a transient data structure that is used while parsing the
 /// program.  It assists with resolving identifiers to the appropriate
@@ -93,21 +101,39 @@ public:
     /// \brief This is the scope for a function-level C++ try or catch scope.
     FnTryCatchScope = 0x4000,
 
-    /// \brief This is the scope of OpenMP executable directive
-    OpenMPDirectiveScope = 0x8000
+    /// \brief This is the scope of OpenMP executable directive.
+    OpenMPDirectiveScope = 0x8000,
+
+    /// \brief This is the scope of some OpenMP loop directive.
+    OpenMPLoopDirectiveScope = 0x10000,
+
+    /// \brief This is the scope of some OpenMP simd directive.
+    /// For example, it is used for 'omp simd', 'omp for simd'.
+    /// This flag is propagated to children scopes.
+    OpenMPSimdDirectiveScope = 0x20000,
+
+    /// This scope corresponds to an enum.
+    EnumScope = 0x40000,
+
+    /// This scope corresponds to a SEH try.
+    SEHTryScope = 0x80000,
   };
 private:
   /// The parent scope for this scope.  This is null for the translation-unit
   /// scope.
   Scope *AnyParent;
 
+  /// Flags - This contains a set of ScopeFlags, which indicates how the scope
+  /// interrelates with other control flow statements.
+  unsigned Flags;
+
   /// Depth - This is the depth of this scope.  The translation-unit scope has
   /// depth 0.
   unsigned short Depth;
 
-  /// Flags - This contains a set of ScopeFlags, which indicates how the scope
-  /// interrelates with other control flow statements.
-  unsigned short Flags;
+  /// \brief Declarations with static linkage are mangled with the number of
+  /// scopes seen as a component.
+  unsigned short MSLocalManglingNumber;
 
   /// PrototypeDepth - This is the number of function prototype scopes
   /// enclosing this scope, including this scope.
@@ -120,6 +146,7 @@ private:
   /// FnParent - If this scope has a parent scope that is a function body, this
   /// pointer is non-null and points to it.  This is used for label processing.
   Scope *FnParent;
+  Scope *MSLocalManglingParent;
 
   /// BreakParent/ContinueParent - This is a direct link to the innermost
   /// BreakScope/ContinueScope which contains the contents of this scope
@@ -156,7 +183,11 @@ private:
 
   /// \brief Used to determine if errors occurred in this scope.
   DiagnosticErrorTrap ErrorTrap;
-  
+
+  /// A lattice consisting of undefined, a single NRVO candidate variable in
+  /// this scope, or over-defined. The bit is true when over-defined.
+  llvm::PointerIntPair<VarDecl *, 1, bool> NRVO;
+
 public:
   Scope(Scope *Parent, unsigned ScopeFlags, DiagnosticsEngine &Diag)
     : ErrorTrap(Diag) {
@@ -180,6 +211,11 @@ public:
   ///
   const Scope *getFnParent() const { return FnParent; }
   Scope *getFnParent() { return FnParent; }
+
+  const Scope *getMSLocalManglingParent() const {
+    return MSLocalManglingParent;
+  }
+  Scope *getMSLocalManglingParent() { return MSLocalManglingParent; }
 
   /// getContinueParent - Return the closest scope that a continue statement
   /// would be affected by.
@@ -219,10 +255,11 @@ public:
     return PrototypeIndex++;
   }
 
-  typedef DeclSetTy::iterator decl_iterator;
-  decl_iterator decl_begin() const { return DeclsInScope.begin(); }
-  decl_iterator decl_end()   const { return DeclsInScope.end(); }
-  bool decl_empty()          const { return DeclsInScope.empty(); }
+  typedef llvm::iterator_range<DeclSetTy::iterator> decl_range;
+  decl_range decls() const {
+    return decl_range(DeclsInScope.begin(), DeclsInScope.end());
+  }
+  bool decl_empty() const { return DeclsInScope.empty(); }
 
   void AddDecl(Decl *D) {
     DeclsInScope.insert(D);
@@ -230,6 +267,22 @@ public:
 
   void RemoveDecl(Decl *D) {
     DeclsInScope.erase(D);
+  }
+
+  void incrementMSLocalManglingNumber() {
+    if (Scope *MSLMP = getMSLocalManglingParent())
+      MSLMP->MSLocalManglingNumber += 1;
+  }
+
+  void decrementMSLocalManglingNumber() {
+    if (Scope *MSLMP = getMSLocalManglingParent())
+      MSLMP->MSLocalManglingNumber -= 1;
+  }
+
+  unsigned getMSLocalManglingNumber() const {
+    if (const Scope *MSLMP = getMSLocalManglingParent())
+      return MSLMP->MSLocalManglingNumber;
+    return 1;
   }
 
   /// isDeclScope - Return true if this is the scope that the specified decl is
@@ -246,6 +299,9 @@ public:
   bool hasUnrecoverableErrorOccurred() const {
     return ErrorTrap.hasUnrecoverableErrorOccurred();
   }
+
+  /// isFunctionScope() - Return true if this scope is a function scope.
+  bool isFunctionScope() const { return (getFlags() & Scope::FnScope); }
 
   /// isClassScope - Return true if this scope is a class/struct/union scope.
   bool isClassScope() const {
@@ -273,6 +329,18 @@ public:
     return false;
   }
 
+  /// isInObjcMethodOuterScope - Return true if this scope is an
+  /// Objective-C method outer most body.
+  bool isInObjcMethodOuterScope() const {
+    if (const Scope *S = this) {
+      // If this scope is an objc method scope, then we succeed.
+      if (S->getFlags() & ObjCMethodScope)
+        return true;
+    }
+    return false;
+  }
+
+  
   /// isTemplateParamScope - Return true if this scope is a C++
   /// template parameter scope.
   bool isTemplateParamScope() const {
@@ -309,39 +377,81 @@ public:
     return (getFlags() & Scope::OpenMPDirectiveScope);
   }
 
+  /// \brief Determine whether this scope is some OpenMP loop directive scope
+  /// (for example, 'omp for', 'omp simd').
+  bool isOpenMPLoopDirectiveScope() const {
+    if (getFlags() & Scope::OpenMPLoopDirectiveScope) {
+      assert(isOpenMPDirectiveScope() &&
+             "OpenMP loop directive scope is not a directive scope");
+      return true;
+    }
+    return false;
+  }
+
+  /// \brief Determine whether this scope is (or is nested into) some OpenMP
+  /// loop simd directive scope (for example, 'omp simd', 'omp for simd').
+  bool isOpenMPSimdDirectiveScope() const {
+    return getFlags() & Scope::OpenMPSimdDirectiveScope;
+  }
+
+  /// \brief Determine whether this scope is a loop having OpenMP loop
+  /// directive attached.
+  bool isOpenMPLoopScope() const {
+    const Scope *P = getParent();
+    return P && P->isOpenMPLoopDirectiveScope();
+  }
+
   /// \brief Determine whether this scope is a C++ 'try' block.
   bool isTryScope() const { return getFlags() & Scope::TryScope; }
+
+  /// \brief Determine whether this scope is a SEH '__try' block.
+  bool isSEHTryScope() const { return getFlags() & Scope::SEHTryScope; }
 
   /// containedInPrototypeScope - Return true if this or a parent scope
   /// is a FunctionPrototypeScope.
   bool containedInPrototypeScope() const;
 
-  typedef UsingDirectivesTy::iterator udir_iterator;
-  typedef UsingDirectivesTy::const_iterator const_udir_iterator;
-
   void PushUsingDirective(UsingDirectiveDecl *UDir) {
     UsingDirectives.push_back(UDir);
   }
 
-  udir_iterator using_directives_begin() {
-    return UsingDirectives.begin();
+  typedef llvm::iterator_range<UsingDirectivesTy::iterator>
+    using_directives_range;
+
+  using_directives_range using_directives() {
+    return using_directives_range(UsingDirectives.begin(),
+                                  UsingDirectives.end());
   }
 
-  udir_iterator using_directives_end() {
-    return UsingDirectives.end();
+  void addNRVOCandidate(VarDecl *VD) {
+    if (NRVO.getInt())
+      return;
+    if (NRVO.getPointer() == nullptr) {
+      NRVO.setPointer(VD);
+      return;
+    }
+    if (NRVO.getPointer() != VD)
+      setNoNRVO();
   }
 
-  const_udir_iterator using_directives_begin() const {
-    return UsingDirectives.begin();
+  void setNoNRVO() {
+    NRVO.setInt(1);
+    NRVO.setPointer(nullptr);
   }
 
-  const_udir_iterator using_directives_end() const {
-    return UsingDirectives.end();
-  }
+  void mergeNRVOIntoParent();
 
   /// Init - This is used by the parser to implement scope caching.
   ///
   void Init(Scope *parent, unsigned flags);
+
+  /// \brief Sets up the specified scope flags and adjusts the scope state
+  /// variables accordingly.
+  ///
+  void AddFlags(unsigned Flags);
+
+  void dumpImpl(raw_ostream &OS) const;
+  void dump() const;
 };
 
 }  // end namespace clang

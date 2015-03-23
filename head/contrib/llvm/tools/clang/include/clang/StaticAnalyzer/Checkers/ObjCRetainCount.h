@@ -16,10 +16,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_OBJCRETAINCOUNT_H
-#define LLVM_CLANG_OBJCRETAINCOUNT_H
+#ifndef LLVM_CLANG_STATICANALYZER_CHECKERS_OBJCRETAINCOUNT_H
+#define LLVM_CLANG_STATICANALYZER_CHECKERS_OBJCRETAINCOUNT_H
 
-namespace clang { namespace ento { namespace objc_retain {
+#include "clang/Basic/LLVM.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/SmallVector.h"
+
+namespace clang {
+class FunctionDecl;
+class ObjCMethodDecl;
+
+namespace ento { namespace objc_retain {
 
 /// An ArgEffect summarizes the retain count behavior on an argument or receiver
 /// to a function or method.
@@ -114,8 +122,6 @@ public:
     /// Indicates that the object is not owned and controlled by the
     /// Garbage collector.
     GCNotOwnedSymbol,
-    /// Indicates that the object is not owned and controlled by ARC.
-    ARCNotOwnedSymbol,
     /// Indicates that the return value is an owned object when the
     /// receiver is also a tracked object.
     OwnedWhenTrackedReceiver,
@@ -154,7 +160,7 @@ public:
   }
   
   bool notOwned() const {
-    return K == NotOwnedSymbol || K == ARCNotOwnedSymbol;
+    return K == NotOwnedSymbol;
   }
   
   bool operator==(const RetEffect &Other) const {
@@ -173,9 +179,6 @@ public:
   }
   static RetEffect MakeGCNotOwned() {
     return RetEffect(GCNotOwnedSymbol, ObjC);
-  }
-  static RetEffect MakeARCNotOwned() {
-    return RetEffect(ARCNotOwnedSymbol, ObjC);
   }
   static RetEffect MakeNoRet() {
     return RetEffect(NoRet);
@@ -202,7 +205,7 @@ class CallEffects {
 
 public:
   /// Returns the argument effects for a call.
-  llvm::ArrayRef<ArgEffect> getArgs() const { return Args; }
+  ArrayRef<ArgEffect> getArgs() const { return Args; }
 
   /// Returns the effects on the receiver.
   ArgEffect getReceiver() const { return Receiver; }

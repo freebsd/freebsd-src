@@ -7,17 +7,20 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef ARMASMPRINTER_H
-#define ARMASMPRINTER_H
+#ifndef LLVM_LIB_TARGET_ARM_ARMASMPRINTER_H
+#define LLVM_LIB_TARGET_ARM_ARMASMPRINTER_H
 
-#include "ARM.h"
-#include "ARMTargetMachine.h"
+#include "ARMSubtarget.h"
 #include "llvm/CodeGen/AsmPrinter.h"
-#include "llvm/Support/Compiler.h"
+#include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
 
+class ARMFunctionInfo;
 class MCOperand;
+class MachineConstantPool;
+class MachineOperand;
+class MCSymbol;
 
 namespace ARM {
   enum DW_ISA {
@@ -43,39 +46,48 @@ class LLVM_LIBRARY_VISIBILITY ARMAsmPrinter : public AsmPrinter {
   /// InConstantPool - Maintain state when emitting a sequence of constant
   /// pool entries so we can properly mark them as data regions.
   bool InConstantPool;
+
+  /// ThumbIndirectPads - These maintain a per-function list of jump pad
+  /// labels used for ARMv4t thumb code to make register indirect calls.
+  SmallVector<std::pair<unsigned, MCSymbol*>, 4> ThumbIndirectPads;
+
 public:
   explicit ARMAsmPrinter(TargetMachine &TM, MCStreamer &Streamer)
-    : AsmPrinter(TM, Streamer), AFI(NULL), MCP(NULL), InConstantPool(false) {
-      Subtarget = &TM.getSubtarget<ARMSubtarget>();
-    }
+    : AsmPrinter(TM, Streamer), AFI(nullptr), MCP(nullptr),
+      InConstantPool(false) {
+    Subtarget = &TM.getSubtarget<ARMSubtarget>();
+  }
 
-  virtual const char *getPassName() const LLVM_OVERRIDE {
+  const char *getPassName() const override {
     return "ARM Assembly / Object Emitter";
   }
 
   void printOperand(const MachineInstr *MI, int OpNum, raw_ostream &O,
-                    const char *Modifier = 0);
+                    const char *Modifier = nullptr);
 
-  virtual bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNum,
-                               unsigned AsmVariant, const char *ExtraCode,
-                               raw_ostream &O) LLVM_OVERRIDE;
-  virtual bool PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNum,
-                                     unsigned AsmVariant, const char *ExtraCode,
-                                     raw_ostream &O) LLVM_OVERRIDE;
+  bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNum,
+                       unsigned AsmVariant, const char *ExtraCode,
+                       raw_ostream &O) override;
+  bool PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNum,
+                             unsigned AsmVariant, const char *ExtraCode,
+                             raw_ostream &O) override;
+
+  void emitInlineAsmEnd(const MCSubtargetInfo &StartInfo,
+                        const MCSubtargetInfo *EndInfo) const override;
 
   void EmitJumpTable(const MachineInstr *MI);
   void EmitJump2Table(const MachineInstr *MI);
-  virtual void EmitInstruction(const MachineInstr *MI) LLVM_OVERRIDE;
-  virtual bool runOnMachineFunction(MachineFunction &F) LLVM_OVERRIDE;
+  void EmitInstruction(const MachineInstr *MI) override;
+  bool runOnMachineFunction(MachineFunction &F) override;
 
-  virtual void EmitConstantPool() LLVM_OVERRIDE {
+  void EmitConstantPool() override {
     // we emit constant pools customly!
   }
-  virtual void EmitFunctionBodyEnd() LLVM_OVERRIDE;
-  virtual void EmitFunctionEntryLabel() LLVM_OVERRIDE;
-  virtual void EmitStartOfAsmFile(Module &M) LLVM_OVERRIDE;
-  virtual void EmitEndOfAsmFile(Module &M) LLVM_OVERRIDE;
-  virtual void EmitXXStructor(const Constant *CV) LLVM_OVERRIDE;
+  void EmitFunctionBodyEnd() override;
+  void EmitFunctionEntryLabel() override;
+  void EmitStartOfAsmFile(Module &M) override;
+  void EmitEndOfAsmFile(Module &M) override;
+  void EmitXXStructor(const Constant *CV) override;
 
   // lowerOperand - Convert a MachineOperand into the equivalent MCOperand.
   bool lowerOperand(const MachineOperand &MO, MCOperand &MCOp);
@@ -83,9 +95,6 @@ public:
 private:
   // Helpers for EmitStartOfAsmFile() and EmitEndOfAsmFile()
   void emitAttributes();
-
-  // Helper for ELF .o only
-  void emitARMAttributeSection();
 
   // Generic helper used to emit e.g. ARMv5 mul pseudos
   void EmitPatchedInstruction(const MachineInstr *MI, unsigned TargetOpc);
@@ -97,13 +106,9 @@ private:
                                    const MachineInstr *MI);
 
 public:
-  /// EmitDwarfRegOp - Emit dwarf register operation.
-  virtual void EmitDwarfRegOp(const MachineLocation &MLoc, bool Indirect) const
-      LLVM_OVERRIDE;
-
-  virtual unsigned getISAEncoding() LLVM_OVERRIDE {
+  unsigned getISAEncoding() override {
     // ARM/Darwin adds ISA to the DWARF info for each function.
-    if (!Subtarget->isTargetDarwin())
+    if (!Subtarget->isTargetMachO())
       return 0;
     return Subtarget->isThumb() ?
       ARM::DW_ISA_ARM_thumb : ARM::DW_ISA_ARM_arm;
@@ -115,13 +120,12 @@ private:
 
   MCSymbol *GetARMSJLJEHLabel() const;
 
-  MCSymbol *GetARMGVSymbol(const GlobalValue *GV);
+  MCSymbol *GetARMGVSymbol(const GlobalValue *GV, unsigned char TargetFlags);
 
 public:
   /// EmitMachineConstantPoolValue - Print a machine constantpool value to
   /// the .s file.
-  virtual void
-    EmitMachineConstantPoolValue(MachineConstantPoolValue *MCPV) LLVM_OVERRIDE;
+  void EmitMachineConstantPoolValue(MachineConstantPoolValue *MCPV) override;
 };
 } // end namespace llvm
 

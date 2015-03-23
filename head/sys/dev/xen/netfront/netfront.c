@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
+#include <sys/limits.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -86,8 +87,6 @@ __FBSDID("$FreeBSD$");
 #include <xen/xenbus/xenbusvar.h>
 
 #include <machine/xen/xenvar.h>
-
-#include <dev/xen/netfront/mbufq.h>
 
 #include "xenbus_if.h"
 
@@ -277,7 +276,7 @@ struct netfront_info {
 	int			rx_ring_ref;
 	uint8_t			mac[ETHER_ADDR_LEN];
 	struct xn_chain_data	xn_cdata;	/* mbufs */
-	struct mbuf_head	xn_rx_batch;	/* head of the batch queue */
+	struct mbufq		xn_rx_batch;	/* batch queue */
 
 	int			xn_if_flags;
 	struct callout	        xn_stat_ch;
@@ -816,18 +815,8 @@ network_alloc_rx_buffers(struct netfront_info *sc)
 	 */
 	batch_target = sc->rx_target - (req_prod - sc->rx.rsp_cons);
 	for (i = mbufq_len(&sc->xn_rx_batch); i < batch_target; i++) {
-		MGETHDR(m_new, M_NOWAIT, MT_DATA);
+		m_new = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
 		if (m_new == NULL) {
-			printf("%s: MGETHDR failed\n", __func__);
-			goto no_mbuf;
-		}
-
-		m_cljget(m_new, M_NOWAIT, MJUMPAGESIZE);
-		if ((m_new->m_flags & M_EXT) == 0) {
-			printf("%s: m_cljget failed\n", __func__);
-			m_freem(m_new);
-
-no_mbuf:
 			if (i != 0)
 				goto refill;
 			/*
@@ -838,7 +827,7 @@ no_mbuf:
 		m_new->m_len = m_new->m_pkthdr.len = MJUMPAGESIZE;
 		
 		/* queue the mbufs allocated */
-		mbufq_tail(&sc->xn_rx_batch, m_new);
+		(void )mbufq_enqueue(&sc->xn_rx_batch, m_new);
 	}
 	
 	/*
@@ -974,7 +963,7 @@ xn_rxeof(struct netfront_info *np)
 	RING_IDX i, rp;
 	multicall_entry_t *mcl;
 	struct mbuf *m;
-	struct mbuf_head rxq, errq;
+	struct mbufq rxq, errq;
 	int err, pages_flipped = 0, work_to_do;
 
 	do {
@@ -982,8 +971,9 @@ xn_rxeof(struct netfront_info *np)
 		if (!netfront_carrier_ok(np))
 			return;
 
-		mbufq_init(&errq);
-		mbufq_init(&rxq);
+		/* XXX: there should be some sane limit. */
+		mbufq_init(&errq, INT_MAX);
+		mbufq_init(&rxq, INT_MAX);
 
 		ifp = np->xn_ifp;
 	
@@ -1001,7 +991,7 @@ xn_rxeof(struct netfront_info *np)
 
 			if (__predict_false(err)) {
 				if (m)
-					mbufq_tail(&errq, m);
+					(void )mbufq_enqueue(&errq, m);
 				np->stats.rx_errors++;
 				continue;
 			}
@@ -1023,7 +1013,7 @@ xn_rxeof(struct netfront_info *np)
 			np->stats.rx_packets++;
 			np->stats.rx_bytes += m->m_pkthdr.len;
 
-			mbufq_tail(&rxq, m);
+			(void )mbufq_enqueue(&rxq, m);
 			np->rx.rsp_cons = i;
 		}
 
@@ -1047,8 +1037,7 @@ xn_rxeof(struct netfront_info *np)
 			}
 		}
 	
-		while ((m = mbufq_dequeue(&errq)))
-			m_freem(m);
+		mbufq_drain(&errq);
 
 		/* 
 		 * Process all the mbufs after the remapping is complete.
@@ -1742,7 +1731,6 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	int mask, error = 0;
 	switch(cmd) {
 	case SIOCSIFADDR:
-	case SIOCGIFADDR:
 #ifdef INET
 		XN_LOCK(sc);
 		if (ifa->ifa_addr->sa_family == AF_INET) {
@@ -2065,6 +2053,9 @@ create_netdev(device_t dev)
 		np->rx_mbufs[i] = NULL;
 		np->grant_rx_ref[i] = GRANT_REF_INVALID;
 	}
+
+	mbufq_init(&np->xn_rx_batch, INT_MAX);
+
 	/* A grant for every tx ring slot */
 	if (gnttab_alloc_grant_references(NET_TX_RING_SIZE,
 					  &np->gref_tx_head) != 0) {

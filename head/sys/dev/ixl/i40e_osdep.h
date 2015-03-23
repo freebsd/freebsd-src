@@ -147,8 +147,7 @@ void prefetch(void *x)
 #define	prefetch(x)
 #endif
 
-struct i40e_osdep
-{
+struct i40e_osdep {
 	bus_space_tag_t		mem_bus_space_tag;
 	bus_space_handle_t	mem_bus_space_handle;
 	bus_size_t		mem_bus_space_size;

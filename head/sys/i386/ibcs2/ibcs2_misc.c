@@ -646,10 +646,13 @@ ibcs2_mknod(td, uap)
 	int error;
 
         CHECKALTCREAT(td, uap->path, &path);
-	if (S_ISFIFO(uap->mode))
-		error = kern_mkfifo(td, path, UIO_SYSSPACE, uap->mode);
-	else
-		error = kern_mknod(td, path, UIO_SYSSPACE, uap->mode, uap->dev);
+	if (S_ISFIFO(uap->mode)) {
+		error = kern_mkfifoat(td, AT_FDCWD, path,
+		    UIO_SYSSPACE, uap->mode);
+	} else {
+		error = kern_mknodat(td, AT_FDCWD, path, UIO_SYSSPACE,
+		    uap->mode, uap->dev);
+	}
 	free(path, M_TEMP);
 	return (error);
 }
@@ -938,7 +941,8 @@ ibcs2_utime(td, uap)
 		tp = NULL;
 
         CHECKALTEXIST(td, uap->path, &path);
-	error = kern_utimes(td, path, UIO_SYSSPACE, tp, UIO_SYSSPACE);
+	error = kern_utimesat(td, AT_FDCWD, path, UIO_SYSSPACE,
+	    tp, UIO_SYSSPACE);
 	free(path, M_TEMP);
 	return (error);
 }
@@ -1119,7 +1123,7 @@ ibcs2_unlink(td, uap)
 	int error;
 
 	CHECKALTEXIST(td, uap->path, &path);
-	error = kern_unlink(td, path, UIO_SYSSPACE);
+	error = kern_unlinkat(td, AT_FDCWD, path, UIO_SYSSPACE, 0);
 	free(path, M_TEMP);
 	return (error);
 }
@@ -1147,7 +1151,7 @@ ibcs2_chmod(td, uap)
 	int error;
 
 	CHECKALTEXIST(td, uap->path, &path);
-	error = kern_chmod(td, path, UIO_SYSSPACE, uap->mode);
+	error = kern_fchmodat(td, AT_FDCWD, path, UIO_SYSSPACE, uap->mode, 0);
 	free(path, M_TEMP);
 	return (error);
 }
@@ -1161,7 +1165,8 @@ ibcs2_chown(td, uap)
 	int error;
 
 	CHECKALTEXIST(td, uap->path, &path);
-	error = kern_chown(td, path, UIO_SYSSPACE, uap->uid, uap->gid);
+	error = kern_fchownat(td, AT_FDCWD, path, UIO_SYSSPACE, uap->uid,
+	    uap->gid, 0);
 	free(path, M_TEMP);
 	return (error);
 }
@@ -1175,7 +1180,7 @@ ibcs2_rmdir(td, uap)
 	int error;
 
 	CHECKALTEXIST(td, uap->path, &path);
-	error = kern_rmdir(td, path, UIO_SYSSPACE);
+	error = kern_rmdirat(td, AT_FDCWD, path, UIO_SYSSPACE);
 	free(path, M_TEMP);
 	return (error);
 }
@@ -1189,7 +1194,7 @@ ibcs2_mkdir(td, uap)
 	int error;
 
 	CHECKALTEXIST(td, uap->path, &path);
-	error = kern_mkdir(td, path, UIO_SYSSPACE, uap->mode);
+	error = kern_mkdirat(td, AT_FDCWD, path, UIO_SYSSPACE, uap->mode);
 	free(path, M_TEMP);
 	return (error);
 }
@@ -1213,7 +1218,7 @@ ibcs2_symlink(td, uap)
 		free(path, M_TEMP);
 		return (error);
 	}
-	error = kern_symlink(td, path, link, UIO_SYSSPACE);
+	error = kern_symlinkat(td, path, AT_FDCWD, link, UIO_SYSSPACE);
 	free(path, M_TEMP);
 	free(link, M_TEMP);
 	return (error);
@@ -1238,7 +1243,7 @@ ibcs2_rename(td, uap)
 		free(from, M_TEMP);
 		return (error);
 	}
-	error = kern_rename(td, from, to, UIO_SYSSPACE);
+	error = kern_renameat(td, AT_FDCWD, from, AT_FDCWD, to, UIO_SYSSPACE);
 	free(from, M_TEMP);
 	free(to, M_TEMP);
 	return (error);
@@ -1253,8 +1258,8 @@ ibcs2_readlink(td, uap)
 	int error;
 
 	CHECKALTEXIST(td, uap->path, &path);
-	error = kern_readlink(td, path, UIO_SYSSPACE, uap->buf, UIO_USERSPACE,
-		uap->count);
+	error = kern_readlinkat(td, AT_FDCWD, path, UIO_SYSSPACE,
+	    uap->buf, UIO_USERSPACE, uap->count);
 	free(path, M_TEMP);
 	return (error);
 }

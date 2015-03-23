@@ -232,15 +232,26 @@ struct ifnet {
 	counter_u64_t	if_counters[IFCOUNTERS];
 
 	/* Stuff that's only temporary and doesn't belong here. */
-	u_int	if_hw_tsomax;		/* TSO total burst length
-					 * limit in bytes. A value of
-					 * zero means no limit. Have
-					 * to find a better place for
-					 * it eventually. */
 
-	/* TSO fields for segment limits. If a field is zero below, there is no limit. */
-	u_int		if_hw_tsomaxsegcount;	/* TSO maximum segment count */
-	u_int		if_hw_tsomaxsegsize;	/* TSO maximum segment size in bytes */
+	/*
+	 * Network adapter TSO limits:
+	 * ===========================
+	 *
+	 * If the "if_hw_tsomax" field is zero the maximum segment
+	 * length limit does not apply. If the "if_hw_tsomaxsegcount"
+	 * or the "if_hw_tsomaxsegsize" field is zero the TSO segment
+	 * count limit does not apply. If all three fields are zero,
+	 * there is no TSO limit.
+	 *
+	 * NOTE: The TSO limits only apply to the data payload part of
+	 * a TCP/IP packet. That means there is no need to subtract
+	 * space for ethernet-, vlan-, IP- or TCP- headers from the
+	 * TSO limits unless the hardware driver in question requires
+	 * so.
+	 */
+	u_int	if_hw_tsomax;		/* TSO maximum size in bytes */
+	u_int	if_hw_tsomaxsegcount;	/* TSO maximum segment count */
+	u_int	if_hw_tsomaxsegsize;	/* TSO maximum segment size in bytes */
 
 	/*
 	 * Spare fields to be added before branching a stable branch, so
@@ -354,8 +365,6 @@ EVENTHANDLER_DECLARE(group_change_event, group_change_event_handler_t);
 
 #define	TOEDEV(ifp)	((ifp)->if_llsoftc)
 
-#endif /* _KERNEL */
-
 /*
  * The ifaddr structure contains information about one address
  * of an interface.  They are maintained by the different address families,
@@ -366,7 +375,6 @@ EVENTHANDLER_DECLARE(group_change_event, group_change_event_handler_t);
  * chunk of malloc'ed memory, where we store the three addresses
  * (ifa_addr, ifa_dstaddr and ifa_netmask) referenced here.
  */
-#if defined(_KERNEL) || defined(_WANT_IFADDR)
 struct ifaddr {
 	struct	sockaddr *ifa_addr;	/* address of interface */
 	struct	sockaddr *ifa_dstaddr;	/* other end of p-to-p link */
@@ -378,6 +386,8 @@ struct ifaddr {
 	void	(*ifa_rtrequest)	/* check or clean routes (+ or -)'d */
 		(int, struct rtentry *, struct rt_addrinfo *);
 	u_short	ifa_flags;		/* mostly rt_flags for cloning */
+#define	IFA_ROUTE	RTF_UP		/* route installed */
+#define	IFA_RTSELF	RTF_HOST	/* loopback route to self installed */
 	u_int	ifa_refcnt;		/* references to this structure */
 
 	counter_u64_t	ifa_ipackets;
@@ -385,11 +395,6 @@ struct ifaddr {
 	counter_u64_t	ifa_ibytes;
 	counter_u64_t	ifa_obytes;
 };
-#endif
-
-#ifdef _KERNEL
-#define	IFA_ROUTE	RTF_UP		/* route installed */
-#define	IFA_RTSELF	RTF_HOST	/* loopback route to self installed */
 
 /* For compatibility with other BSDs. SCTP uses it. */
 #define	ifa_list	ifa_link
@@ -397,7 +402,6 @@ struct ifaddr {
 struct ifaddr *	ifa_alloc(size_t size, int flags);
 void	ifa_free(struct ifaddr *ifa);
 void	ifa_ref(struct ifaddr *ifa);
-#endif /* _KERNEL */
 
 /*
  * Multicast address structure.  This is analogous to the ifaddr
@@ -413,15 +417,8 @@ struct ifmultiaddr {
 	struct	ifmultiaddr *ifma_llifma; /* pointer to ifma for ifma_lladdr */
 };
 
-#ifdef _KERNEL
-
 extern	struct rwlock ifnet_rwlock;
 extern	struct sx ifnet_sxlock;
-
-#define	IFNET_LOCK_INIT() do {						\
-	rw_init_flags(&ifnet_rwlock, "ifnet_rw",  RW_RECURSE);		\
-	sx_init_flags(&ifnet_sxlock, "ifnet_sx",  SX_RECURSE);		\
-} while(0)
 
 #define	IFNET_WLOCK() do {						\
 	sx_xlock(&ifnet_sxlock);					\
@@ -553,6 +550,7 @@ void *if_getsoftc(if_t ifp);
 int if_setflags(if_t ifp, int flags);
 int if_setmtu(if_t ifp, int mtu);
 int if_getmtu(if_t ifp);
+int if_getmtu_family(if_t ifp, int family);
 int if_setflagbits(if_t ifp, int set, int clear);
 int if_getflags(if_t ifp);
 int if_sendq_empty(if_t ifp);

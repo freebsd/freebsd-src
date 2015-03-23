@@ -6,9 +6,7 @@ PROG=	ssh-keyscan
 SRCS=	ssh-keyscan.c roaming_dummy.c
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 
-DPADD=	${LIBSSH}
-LDADD=	${LDSSH}
-USEPRIVATELIB= ssh
+LIBADD=	ssh
 
 .if ${MK_LDNS} != "no"
 CFLAGS+=	-DHAVE_LDNS=1
@@ -16,9 +14,6 @@ CFLAGS+=	-DHAVE_LDNS=1
 #LDADD+=	-lldns
 #USEPRIVATELIB+= ldns
 .endif
-
-DPADD+= ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}
-LDADD+= -lcrypt -lcrypto -lz
 
 .include <bsd.prog.mk>
 

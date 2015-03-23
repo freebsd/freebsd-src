@@ -37,6 +37,9 @@ __FBSDID("$FreeBSD$");
 static bool
 mark_free(struct drm_i915_gem_object *obj, struct list_head *unwind)
 {
+	if (obj->pin_count)
+		return false;
+
 	list_add(&obj->exec_list, unwind);
 	return drm_mm_scan_add_block(obj->gtt_space);
 }
@@ -79,10 +82,10 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 	INIT_LIST_HEAD(&unwind_list);
 	if (mappable)
 		drm_mm_init_scan_with_range(&dev_priv->mm.gtt_space, min_size,
-					    alignment, 0,
+					    alignment, 0, 0,
 					    dev_priv->mm.gtt_mappable_end);
 	else
-		drm_mm_init_scan(&dev_priv->mm.gtt_space, min_size, alignment);
+		drm_mm_init_scan(&dev_priv->mm.gtt_space, min_size, alignment, 0);
 
 	/* First see if there is a large enough contiguous idle region... */
 	list_for_each_entry(obj, &dev_priv->mm.inactive_list, mm_list) {
@@ -93,7 +96,7 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 	/* Now merge in the soon-to-be-expired objects... */
 	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list) {
 		/* Does the object require an outstanding flush? */
-		if (obj->base.write_domain || obj->pin_count)
+		if (obj->base.write_domain)
 			continue;
 
 		if (mark_free(obj, &unwind_list))
@@ -102,14 +105,11 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 
 	/* Finally add anything with a pending flush (in order of retirement) */
 	list_for_each_entry(obj, &dev_priv->mm.flushing_list, mm_list) {
-		if (obj->pin_count)
-			continue;
-
 		if (mark_free(obj, &unwind_list))
 			goto found;
 	}
 	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list) {
-		if (!obj->base.write_domain || obj->pin_count)
+		if (!obj->base.write_domain)
 			continue;
 
 		if (mark_free(obj, &unwind_list))
@@ -169,8 +169,9 @@ int
 i915_gem_evict_everything(struct drm_device *dev, bool purgeable_only)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	int ret;
+	struct drm_i915_gem_object *obj, *next;
 	bool lists_empty;
+	int ret;
 
 	lists_empty = (list_empty(&dev_priv->mm.inactive_list) &&
 		       list_empty(&dev_priv->mm.flushing_list) &&
@@ -180,32 +181,25 @@ i915_gem_evict_everything(struct drm_device *dev, bool purgeable_only)
 
 	CTR2(KTR_DRM, "evict_everything %p %d", dev, purgeable_only);
 
-	/* Flush everything (on to the inactive lists) and evict */
-	ret = i915_gpu_idle(dev, true);
+	/* The gpu_idle will flush everything in the write domain to the
+	 * active list. Then we must move everything off the active list
+	 * with retire requests.
+	 */
+	ret = i915_gpu_idle(dev);
 	if (ret)
 		return ret;
+
+	i915_gem_retire_requests(dev);
 
 	KASSERT(list_empty(&dev_priv->mm.flushing_list),
 	    ("flush list not empty"));
 
-	return i915_gem_evict_inactive(dev, purgeable_only);
-}
-
-/** Unbinds all inactive objects. */
-int
-i915_gem_evict_inactive(struct drm_device *dev, bool purgeable_only)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj, *next;
-
-	CTR2(KTR_DRM, "evict_inactive %p %d", dev, purgeable_only);
-
+	/* Having flushed everything, unbind() should never raise an error */
 	list_for_each_entry_safe(obj, next,
 				 &dev_priv->mm.inactive_list, mm_list) {
 		if (!purgeable_only || obj->madv != I915_MADV_WILLNEED) {
-			int ret = i915_gem_object_unbind(obj);
-			if (ret)
-				return ret;
+			if (obj->pin_count == 0)
+				i915_gem_object_unbind(obj);
 		}
 	}
 

@@ -1,7 +1,4 @@
-/*
- * Automated Testing Framework (atf)
- *
- * Copyright (c) 2008 The NetBSD Foundation, Inc.
+/* Copyright (c) 2008 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,8 +21,7 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
 #if !defined(ATF_C_MACROS_H)
 #define ATF_C_MACROS_H
@@ -131,55 +127,63 @@
             return atfu_err; \
     } while (0)
 
-#define ATF_REQUIRE_MSG(x, fmt, ...) \
+#define ATF_REQUIRE_MSG(expression, fmt, ...) \
     do { \
-        if (!(x)) \
+        if (!(expression)) \
             atf_tc_fail_requirement(__FILE__, __LINE__, fmt, ##__VA_ARGS__); \
     } while(0)
 
-#define ATF_CHECK_MSG(x, fmt, ...) \
+#define ATF_CHECK_MSG(expression, fmt, ...) \
     do { \
-        if (!(x)) \
+        if (!(expression)) \
             atf_tc_fail_check(__FILE__, __LINE__, fmt, ##__VA_ARGS__); \
     } while(0)
 
-#define ATF_REQUIRE(x) \
+#define ATF_REQUIRE(expression) \
     do { \
-        if (!(x)) \
-            atf_tc_fail_requirement(__FILE__, __LINE__, "%s", #x " not met"); \
+        if (!(expression)) \
+            atf_tc_fail_requirement(__FILE__, __LINE__, "%s", \
+                                    #expression " not met"); \
     } while(0)
 
-#define ATF_CHECK(x) \
+#define ATF_CHECK(expression) \
     do { \
-        if (!(x)) \
-            atf_tc_fail_check(__FILE__, __LINE__, "%s", #x " not met"); \
+        if (!(expression)) \
+            atf_tc_fail_check(__FILE__, __LINE__, "%s", \
+                              #expression " not met"); \
     } while(0)
 
-#define ATF_REQUIRE_EQ(x, y) \
-    ATF_REQUIRE_MSG((x) == (y), "%s != %s", #x, #y)
+#define ATF_REQUIRE_EQ(expected, actual) \
+    ATF_REQUIRE_MSG((expected) == (actual), "%s != %s", #expected, #actual)
 
-#define ATF_CHECK_EQ(x, y) \
-    ATF_CHECK_MSG((x) == (y), "%s != %s", #x, #y)
+#define ATF_CHECK_EQ(expected, actual) \
+    ATF_CHECK_MSG((expected) == (actual), "%s != %s", #expected, #actual)
 
-#define ATF_REQUIRE_EQ_MSG(x, y, fmt, ...) \
-    ATF_REQUIRE_MSG((x) == (y), "%s != %s: " fmt, #x, #y, ##__VA_ARGS__)
+#define ATF_REQUIRE_EQ_MSG(expected, actual, fmt, ...) \
+    ATF_REQUIRE_MSG((expected) == (actual), "%s != %s: " fmt, \
+                    #expected, #actual, ##__VA_ARGS__)
 
-#define ATF_CHECK_EQ_MSG(x, y, fmt, ...) \
-    ATF_CHECK_MSG((x) == (y), "%s != %s: " fmt, #x, #y, ##__VA_ARGS__)
+#define ATF_CHECK_EQ_MSG(expected, actual, fmt, ...) \
+    ATF_CHECK_MSG((expected) == (actual), "%s != %s: " fmt, \
+                  #expected, #actual, ##__VA_ARGS__)
 
-#define ATF_REQUIRE_STREQ(x, y) \
-    ATF_REQUIRE_MSG(strcmp(x, y) == 0, "%s != %s (%s != %s)", #x, #y, x, y)
+#define ATF_REQUIRE_STREQ(expected, actual) \
+    ATF_REQUIRE_MSG(strcmp(expected, actual) == 0, "%s != %s (%s != %s)", \
+                    #expected, #actual, expected, actual)
 
-#define ATF_CHECK_STREQ(x, y) \
-    ATF_CHECK_MSG(strcmp(x, y) == 0, "%s != %s (%s != %s)", #x, #y, x, y)
+#define ATF_CHECK_STREQ(expected, actual) \
+    ATF_CHECK_MSG(strcmp(expected, actual) == 0, "%s != %s (%s != %s)", \
+                  #expected, #actual, expected, actual)
 
-#define ATF_REQUIRE_STREQ_MSG(x, y, fmt, ...) \
-    ATF_REQUIRE_MSG(strcmp(x, y) == 0, "%s != %s (%s != %s): " fmt, \
-                    #x, #y, x, y, ##__VA_ARGS__)
+#define ATF_REQUIRE_STREQ_MSG(expected, actual, fmt, ...) \
+    ATF_REQUIRE_MSG(strcmp(expected, actual) == 0, \
+                    "%s != %s (%s != %s): " fmt, \
+                    #expected, #actual, expected, actual, ##__VA_ARGS__)
 
-#define ATF_CHECK_STREQ_MSG(x, y, fmt, ...) \
-    ATF_CHECK_MSG(strcmp(x, y) == 0, "%s != %s (%s != %s): " fmt, \
-                    #x, #y, x, y, ##__VA_ARGS__)
+#define ATF_CHECK_STREQ_MSG(expected, actual, fmt, ...) \
+    ATF_CHECK_MSG(strcmp(expected, actual) == 0, \
+                  "%s != %s (%s != %s): " fmt, \
+                  #expected, #actual, expected, actual, ##__VA_ARGS__)
 
 #define ATF_REQUIRE_MATCH(regexp, string) \
     ATF_REQUIRE_MSG(atf_utils_grep_string("%s", string, regexp), \

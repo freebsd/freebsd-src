@@ -49,7 +49,13 @@ __RCSID("$NetBSD: h_dns_server.c,v 1.4 2014/03/29 16:10:54 gson Exp $");
 #include <sys/socket.h>
 
 #include <netinet/in.h>
+#ifdef __NetBSD__
 #include <netinet6/in6.h>
+#endif
+
+#ifdef __FreeBSD__
+#include <paths.h>
+#endif
 
 union sockaddr_either {
 	struct sockaddr s;
@@ -164,6 +170,106 @@ name2str(const void *v, char *buf, size_t buflen) {
 }
 #endif
 
+#ifdef __FreeBSD__
+/* XXX the daemon2_* functions should be in a library */
+
+int __daemon2_detach_pipe[2];
+
+static int
+daemon2_fork(void)
+{
+	int r;
+	int fd;
+	int i;
+
+	/*
+	 * Set up the pipe, making sure the write end does not
+	 * get allocated one of the file descriptors that will
+	 * be closed in daemon2_detach().
+	 */
+	for (i = 0; i < 3; i++) {
+	    r = pipe(__daemon2_detach_pipe);
+	    if (r < 0)
+		    return -1;
+	    if (__daemon2_detach_pipe[1] <= STDERR_FILENO &&
+		(fd = open(_PATH_DEVNULL, O_RDWR, 0)) != -1) {
+		    (void)dup2(fd, __daemon2_detach_pipe[0]);
+		    (void)dup2(fd, __daemon2_detach_pipe[1]);
+		    if (fd > STDERR_FILENO)
+			    (void)close(fd);
+		    continue;
+	    }
+	    break;
+	}
+
+	r = fork();
+	if (r < 0) {
+		return -1;
+	} else if (r == 0) {
+		/* child */
+		close(__daemon2_detach_pipe[0]);
+		return 0;
+       }
+       /* Parent */
+
+       (void) close(__daemon2_detach_pipe[1]);
+
+       for (;;) {
+	       char dummy;
+	       r = read(__daemon2_detach_pipe[0], &dummy, 1);
+	       if (r < 0) {
+		       if (errno == EINTR)
+			       continue;
+		       _exit(1);
+	       } else if (r == 0) {
+		       _exit(1);
+	       } else { /* r > 0 */
+		       _exit(0);
+	       }
+       }
+}
+
+static int
+daemon2_detach(int nochdir, int noclose)
+{
+	int r;
+	int fd;
+
+	if (setsid() == -1)
+		return -1;
+
+	if (!nochdir)
+		(void)chdir("/");
+
+	if (!noclose && (fd = open(_PATH_DEVNULL, O_RDWR, 0)) != -1) {
+		(void)dup2(fd, STDIN_FILENO);
+		(void)dup2(fd, STDOUT_FILENO);
+		(void)dup2(fd, STDERR_FILENO);
+		if (fd > STDERR_FILENO)
+			(void)close(fd);
+	}
+
+	while (1) {
+		r = write(__daemon2_detach_pipe[1], "", 1);
+		if (r < 0) {
+			if (errno == EINTR)
+				continue;
+			/* May get "broken pipe" here if parent is killed */
+			return -1;
+		} else if (r == 0) {
+			/* Should not happen */
+			return -1;
+		} else {
+			break;
+		}
+	}
+
+	(void) close(__daemon2_detach_pipe[1]);
+
+	return 0;
+}
+#endif
+
 int main(int argc, char **argv) {
 	int s, r, protocol;
 	union sockaddr_either saddr;
@@ -176,6 +282,9 @@ int main(int argc, char **argv) {
 	char buf1[1024], buf2[1024];
 #endif
 
+#ifdef __FreeBSD__
+	daemon2_fork();
+#endif
 	if (argc < 2 || ((protocol = argv[1][0]) != '4' && protocol != '6'))
 		errx(1, "usage: dns_server 4 | 6");
 	s = socket(protocol == '4' ? PF_INET : PF_INET6, SOCK_DGRAM, IPPROTO_UDP);
@@ -212,10 +321,18 @@ int main(int argc, char **argv) {
 	f = fopen(pidfile_name, "w");
 	fprintf(f, "%d", getpid());
 	fclose(f);
+#ifdef __FreeBSD__
+#ifdef DEBUG
+	daemon2_detach(0, 1);
+#else
+	daemon2_detach(0, 0);
+#endif
+#else
 #ifdef DEBUG
 	daemon(0, 1);
 #else
 	daemon(0, 0);
+#endif
 #endif
 
 	for (;;) {

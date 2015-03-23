@@ -256,7 +256,13 @@ DWARFDebugLine::DumpStatementOpcodes(Log *log, const DWARFDataExtractor& debug_l
                             prologue.file_names.push_back(fileEntry);
                         }
                         break;
-
+                            
+                    case DW_LNE_set_discriminator:
+                        {
+                            uint64_t discriminator = debug_line_data.GetULEB128(&offset);
+                            log->Printf( "0x%8.8x: DW_LNE_set_discriminator (0x%" PRIx64 ")", op_offset, discriminator);
+                        }
+                        break;
                     default:
                         log->Printf( "0x%8.8x: DW_LNE_??? (%2.2x) - Skipping unknown upcode", op_offset, opcode);
                         // Length doesn't include the zero opcode byte or the length itself, but
@@ -412,12 +418,16 @@ DWARFDebugLine::ParsePrologue(const DWARFDataExtractor& debug_line_data, lldb::o
     const char * s;
     prologue->total_length      = debug_line_data.GetDWARFInitialLength(offset_ptr);
     prologue->version           = debug_line_data.GetU16(offset_ptr);
-    if (prologue->version != 2)
+    if (prologue->version < 2 || prologue->version > 4)
       return false;
 
     prologue->prologue_length   = debug_line_data.GetDWARFOffset(offset_ptr);
     const lldb::offset_t end_prologue_offset = prologue->prologue_length + *offset_ptr;
     prologue->min_inst_length   = debug_line_data.GetU8(offset_ptr);
+    if (prologue->version >= 4)
+        prologue->maximum_operations_per_instruction = debug_line_data.GetU8(offset_ptr);
+    else
+        prologue->maximum_operations_per_instruction = 1;
     prologue->default_is_stmt   = debug_line_data.GetU8(offset_ptr);
     prologue->line_base         = debug_line_data.GetU8(offset_ptr);
     prologue->line_range        = debug_line_data.GetU8(offset_ptr);
@@ -480,13 +490,16 @@ DWARFDebugLine::ParseSupportFiles (const lldb::ModuleSP &module_sp,
     (void)debug_line_data.GetDWARFInitialLength(&offset);
     const char * s;
     uint32_t version = debug_line_data.GetU16(&offset);
-    if (version != 2)
+    if (version < 2 || version > 4)
       return false;
 
     const dw_offset_t end_prologue_offset = debug_line_data.GetDWARFOffset(&offset) + offset;
-    // Skip instruction length, default is stmt, line base, line range and
-    // opcode base, and all opcode lengths
+    // Skip instruction length, default is stmt, line base, line range
     offset += 4;
+    // For DWARF4, skip maximum operations per instruction
+    if (version >= 4)
+        offset += 1;
+    // Skip opcode base, and all opcode lengths
     const uint8_t opcode_base = debug_line_data.GetU8(&offset);
     offset += opcode_base - 1;
     std::vector<std::string> include_directories;
@@ -644,7 +657,10 @@ DWARFDebugLine::ParseStatementTable
                 // relocatable address. All of the other statement program opcodes
                 // that affect the address register add a delta to it. This instruction
                 // stores a relocatable value into it instead.
-                state.address = debug_line_data.GetAddress(offset_ptr);
+                if (arg_size == 4)
+                    state.address = debug_line_data.GetU32(offset_ptr);
+                else // arg_size == 8
+                    state.address = debug_line_data.GetU64(offset_ptr);
                 break;
 
             case DW_LNE_define_file:
@@ -666,7 +682,7 @@ DWARFDebugLine::ParseStatementTable
                 // The files are numbered, starting at 1, in the order in which they
                 // appear; the names in the prologue come before names defined by
                 // the DW_LNE_define_file instruction. These numbers are used in the
-                // the file register of the state machine.
+                // file register of the state machine.
                 {
                     FileNameEntry fileEntry;
                     fileEntry.name      = debug_line_data.GetCStr(offset_ptr);
@@ -789,7 +805,7 @@ DWARFDebugLine::ParseStatementTable
                 // as a multiple of LEB128 operands for each opcode.
                 {
                     uint8_t i;
-                    assert (opcode - 1 < prologue->standard_opcode_lengths.size());
+                    assert (static_cast<size_t>(opcode - 1) < prologue->standard_opcode_lengths.size());
                     const uint8_t opcode_length = prologue->standard_opcode_lengths[opcode - 1];
                     for (i=0; i<opcode_length; ++i)
                         debug_line_data.Skip_LEB128(offset_ptr);

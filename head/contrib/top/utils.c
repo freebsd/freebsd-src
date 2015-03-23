@@ -58,6 +58,7 @@ char *str;
 				 * ever convert will be 2^32-1, which is 10
 				 * digits.
 				 */
+_Static_assert(sizeof(int) <= 4, "buffer too small for this sized int");
 
 char *itoa(val)
 

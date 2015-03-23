@@ -45,7 +45,9 @@
 MODULE_AUTHOR("Liran Liss, Yevgeny Petrilin");
 MODULE_DESCRIPTION("Mellanox ConnectX HCA Ethernet driver");
 MODULE_LICENSE("Dual BSD/GPL");
+#ifdef __linux__
 MODULE_VERSION(DRV_VERSION " ("DRV_RELDATE")");
+#endif
 
 static const char mlx4_en_version[] =
 	DRV_NAME ": Mellanox ConnectX HCA Ethernet driver v"
@@ -239,8 +241,8 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 								 DEF_RX_RINGS)));
 		} else {
 			mdev->profile.prof[i].rx_ring_num = rounddown_pow_of_two(
-				min_t(int, dev->caps.comp_pool/
-				      dev->caps.num_ports - 1 , MAX_MSIX_P_PORT - 1));
+				min_t(int, dev->caps.comp_pool /
+				      dev->caps.num_ports, MAX_MSIX_P_PORT));
 		}
 	}
 
@@ -336,8 +338,6 @@ static void __exit mlx4_en_cleanup(void)
 module_init(mlx4_en_init);
 module_exit(mlx4_en_cleanup);
 
-#undef MODULE_VERSION
-#include <sys/module.h>
 static int
 mlxen_evhand(module_t mod, int event, void *arg)
 {
@@ -349,3 +349,4 @@ static moduledata_t mlxen_mod = {
 };
 DECLARE_MODULE(mlxen, mlxen_mod, SI_SUB_OFED_PREINIT, SI_ORDER_ANY);
 MODULE_DEPEND(mlxen, mlx4, 1, 1, 1);
+MODULE_DEPEND(mlxen, linuxapi, 1, 1, 1);

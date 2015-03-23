@@ -26,44 +26,43 @@ namespace lldb_private {
 
 struct DumpValueObjectOptions
 {
-    uint32_t m_max_ptr_depth;
-    uint32_t m_max_depth;
-    bool m_show_types;
-    bool m_show_location;
-    bool m_use_objc;
-    lldb::DynamicValueType m_use_dynamic;
-    bool m_use_synthetic;
-    bool m_scope_already_checked;
-    bool m_flat_output;
-    uint32_t m_omit_summary_depth;
-    bool m_ignore_cap;
-    lldb::Format m_format;
+    uint32_t m_max_ptr_depth = 0;
+    uint32_t m_max_depth = UINT32_MAX;
+    lldb::DynamicValueType m_use_dynamic = lldb::eNoDynamicValues;
+    uint32_t m_omit_summary_depth = 0;
+    lldb::Format m_format = lldb::eFormatDefault;
     lldb::TypeSummaryImplSP m_summary_sp;
     std::string m_root_valobj_name;
-    bool m_hide_root_type;
-    bool m_hide_name;
-    bool m_hide_value;
-    bool m_be_raw;
+    bool m_use_synthetic : 1;
+    bool m_scope_already_checked : 1;
+    bool m_flat_output : 1;
+    bool m_ignore_cap : 1;
+    bool m_show_types : 1;
+    bool m_show_location : 1;
+    bool m_use_objc : 1;
+    bool m_hide_root_type : 1;
+    bool m_hide_name : 1;
+    bool m_hide_value : 1;
+    bool m_run_validator : 1;
+    bool m_use_type_display_name : 1;
+    bool m_allow_oneliner_mode : 1;
     
     DumpValueObjectOptions() :
-    m_max_ptr_depth(0),
-    m_max_depth(UINT32_MAX),
-    m_show_types(false),
-    m_show_location(false),
-    m_use_objc(false),
-    m_use_dynamic(lldb::eNoDynamicValues),
+    m_summary_sp(),
+    m_root_valobj_name(),
     m_use_synthetic(true),
     m_scope_already_checked(false),
     m_flat_output(false),
-    m_omit_summary_depth(0),
     m_ignore_cap(false),
-    m_format (lldb::eFormatDefault),
-    m_summary_sp(),
-    m_root_valobj_name(),
-    m_hide_root_type(false),  // provide a special compact display for "po"
-    m_hide_name(false), // provide a special compact display for "po"
-    m_hide_value(false), // provide a special compact display for "po"
-    m_be_raw(false)
+    m_show_types(false),
+    m_show_location(false),
+    m_use_objc(false),
+    m_hide_root_type(false),
+    m_hide_name(false),
+    m_hide_value(false),
+    m_run_validator(false),
+    m_use_type_display_name(true),
+    m_allow_oneliner_mode(true)
     {}
     
     static const DumpValueObjectOptions
@@ -74,26 +73,7 @@ struct DumpValueObjectOptions
         return g_default_options;
     }
     
-    DumpValueObjectOptions (const DumpValueObjectOptions& rhs) :
-    m_max_ptr_depth(rhs.m_max_ptr_depth),
-    m_max_depth(rhs.m_max_depth),
-    m_show_types(rhs.m_show_types),
-    m_show_location(rhs.m_show_location),
-    m_use_objc(rhs.m_use_objc),
-    m_use_dynamic(rhs.m_use_dynamic),
-    m_use_synthetic(rhs.m_use_synthetic),
-    m_scope_already_checked(rhs.m_scope_already_checked),
-    m_flat_output(rhs.m_flat_output),
-    m_omit_summary_depth(rhs.m_omit_summary_depth),
-    m_ignore_cap(rhs.m_ignore_cap),
-    m_format(rhs.m_format),
-    m_summary_sp(rhs.m_summary_sp),
-    m_root_valobj_name(rhs.m_root_valobj_name),
-    m_hide_root_type(rhs.m_hide_root_type),
-    m_hide_name(rhs.m_hide_name),
-    m_hide_value(rhs.m_hide_value),
-    m_be_raw(rhs.m_be_raw)
-    {}
+    DumpValueObjectOptions (const DumpValueObjectOptions& rhs) = default;
     
     DumpValueObjectOptions&
     SetMaximumPointerDepth(uint32_t depth = 0)
@@ -183,26 +163,15 @@ struct DumpValueObjectOptions
     }
     
     DumpValueObjectOptions&
-    SetRawDisplay(bool raw = false)
+    SetRawDisplay()
     {
-        if (raw)
-        {
-            SetUseSyntheticValue(false);
-            SetOmitSummaryDepth(UINT32_MAX);
-            SetIgnoreCap(true);
-            SetHideName(false);
-            SetHideValue(false);
-            m_be_raw = true;
-        }
-        else
-        {
-            SetUseSyntheticValue(true);
-            SetOmitSummaryDepth(0);
-            SetIgnoreCap(false);
-            SetHideName(false);
-            SetHideValue(false);
-            m_be_raw = false;
-        }
+        SetUseSyntheticValue(false);
+        SetOmitSummaryDepth(UINT32_MAX);
+        SetIgnoreCap(true);
+        SetHideName(false);
+        SetHideValue(false);
+        SetUseTypeDisplayName(false);
+        SetAllowOnelinerMode(false);
         return *this;
     }
     
@@ -250,8 +219,30 @@ struct DumpValueObjectOptions
         m_hide_value = hide_value;
         return *this;
     }
-};
     
+    DumpValueObjectOptions&
+    SetRunValidator (bool run = true)
+    {
+        m_run_validator = run;
+        return *this;
+    }
+    
+    DumpValueObjectOptions&
+    SetUseTypeDisplayName (bool dis = false)
+    {
+        m_use_type_display_name = dis;
+        return *this;
+    }
+    
+    DumpValueObjectOptions&
+    SetAllowOnelinerMode (bool oneliner = false)
+    {
+        m_allow_oneliner_mode = oneliner;
+        return *this;
+    }
+    
+};
+
 class ValueObjectPrinter
 {
 public:
@@ -285,7 +276,7 @@ protected:
           uint32_t curr_depth);
     
     bool
-    GetDynamicValueIfNeeded ();
+    GetMostSpecializedValue ();
     
     const char*
     GetDescriptionForDisplay ();
@@ -295,6 +286,9 @@ protected:
     
     bool
     ShouldPrintValueObject ();
+    
+    bool
+    ShouldPrintValidation ();
     
     bool
     IsNil ();
@@ -307,6 +301,12 @@ protected:
     
     bool
     IsAggregate ();
+    
+    bool
+    PrintValidationMarkerIfNeeded ();
+    
+    bool
+    PrintValidationErrorIfNeeded ();
     
     bool
     PrintLocationIfNeeded ();
@@ -385,8 +385,9 @@ private:
     std::string m_value;
     std::string m_summary;
     std::string m_error;
+    std::pair<TypeValidatorResult,std::string> m_validation;
     
-    friend class StringSummaryFormat;
+    friend struct StringSummaryFormat;
     
     DISALLOW_COPY_AND_ASSIGN(ValueObjectPrinter);
 };

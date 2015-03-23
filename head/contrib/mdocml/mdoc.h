@@ -1,6 +1,7 @@
-/*	$Id: mdoc.h,v 1.125 2013/12/24 19:11:45 schwarze Exp $ */
+/*	$Id: mdoc.h,v 1.136 2015/02/12 12:24:33 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,8 +15,6 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifndef MDOC_H
-#define MDOC_H
 
 enum	mdoct {
 	MDOC_Ap = 0,
@@ -140,6 +139,7 @@ enum	mdoct {
 	MDOC_sp,
 	MDOC__U,
 	MDOC_Ta,
+	MDOC_ll,
 	MDOC_MAX
 };
 
@@ -186,7 +186,7 @@ enum	mdoc_type {
 	MDOC_ROOT
 };
 
-/* 
+/*
  * Section (named/unnamed) of `Sh'.   Note that these appear in the
  * conventional order imposed by mdoc.7.  In the case of SEC_NONE, no
  * section has been invoked (this shouldn't happen).  SEC_CUSTOM refers
@@ -198,6 +198,7 @@ enum	mdoc_sec {
 	SEC_LIBRARY, /* LIBRARY */
 	SEC_SYNOPSIS, /* SYNOPSIS */
 	SEC_DESCRIPTION, /* DESCRIPTION */
+	SEC_CONTEXT, /* CONTEXT */
 	SEC_IMPLEMENTATION, /* IMPLEMENTATION NOTES */
 	SEC_RETURN_VALUES, /* RETURN VALUES */
 	SEC_ENVIRONMENT,  /* ENVIRONMENT */
@@ -214,7 +215,7 @@ enum	mdoc_sec {
 	SEC_CAVEATS, /* CAVEATS */
 	SEC_BUGS, /* BUGS */
 	SEC_SECURITY, /* SECURITY */
-	SEC_CUSTOM, 
+	SEC_CUSTOM,
 	SEC__MAX
 };
 
@@ -228,11 +229,11 @@ struct	mdoc_meta {
 	char		 *name; /* leading `Nm' name */
 };
 
-/* 
- * An argument to a macro (multiple values = `-column xxx yyy'). 
+/*
+ * An argument to a macro (multiple values = `-column xxx yyy').
  */
 struct	mdoc_argv {
-	enum mdocargt  	  arg; /* type of argument */
+	enum mdocargt	  arg; /* type of argument */
 	int		  line;
 	int		  pos;
 	size_t		  sz; /* elements in "value" */
@@ -244,7 +245,7 @@ struct	mdoc_argv {
  * blocks have multiple instances of the same arguments spread across
  * the HEAD, BODY, TAIL, and BLOCK node types.
  */
-struct 	mdoc_arg {
+struct	mdoc_arg {
 	size_t		  argc;
 	struct mdoc_argv *argv;
 	unsigned int	  refcnt;
@@ -278,7 +279,7 @@ enum	mdoc_list {
 
 enum	mdoc_disp {
 	DISP__NONE = 0,
-	DISP_centred, /* -centered */
+	DISP_centered, /* -centered */
 	DISP_ragged, /* -ragged */
 	DISP_unfilled, /* -unfilled */
 	DISP_filled, /* -filled */
@@ -332,15 +333,16 @@ struct	mdoc_rs {
  * provided, etc.
  */
 union	mdoc_data {
-	struct mdoc_an 	  An;
+	struct mdoc_an	  An;
 	struct mdoc_bd	  Bd;
 	struct mdoc_bf	  Bf;
 	struct mdoc_bl	  Bl;
+	struct mdoc_node *Es;
 	struct mdoc_rs	  Rs;
 };
 
-/* 
- * Single node in tree-linked AST. 
+/*
+ * Single node in tree-linked AST.
  */
 struct	mdoc_node {
 	struct mdoc_node *parent; /* parent AST node */
@@ -351,25 +353,24 @@ struct	mdoc_node {
 	int		  nchild; /* number children */
 	int		  line; /* parse line */
 	int		  pos; /* parse column */
-	int		  lastline; /* the node ends on this line */
 	enum mdoct	  tok; /* tok or MDOC__MAX if none */
 	int		  flags;
 #define	MDOC_VALID	 (1 << 0) /* has been validated */
+#define	MDOC_ENDED	 (1 << 1) /* gone past body end mark */
 #define	MDOC_EOS	 (1 << 2) /* at sentence boundary */
 #define	MDOC_LINE	 (1 << 3) /* first macro/text on line */
 #define	MDOC_SYNPRETTY	 (1 << 4) /* SYNOPSIS-style formatting */
-#define	MDOC_ENDED	 (1 << 5) /* rendering has been ended */
+#define	MDOC_BROKEN	 (1 << 5) /* must validate parent when ending */
 #define	MDOC_DELIMO	 (1 << 6)
 #define	MDOC_DELIMC	 (1 << 7)
 	enum mdoc_type	  type; /* AST node type */
 	enum mdoc_sec	  sec; /* current named section */
 	union mdoc_data	 *norm; /* normalised args */
-	const void	 *prev_font; /* before entering this node */
+	int		  prev_font; /* before entering this node */
 	/* FIXME: these can be union'd to shave a few bytes. */
 	struct mdoc_arg	 *args; /* BLOCK/ELEM */
-	struct mdoc_node *pending; /* BLOCK */
 	struct mdoc_node *head; /* BLOCK */
-	struct mdoc_node *body; /* BLOCK */
+	struct mdoc_node *body; /* BLOCK/ENDBODY */
 	struct mdoc_node *tail; /* BLOCK */
 	char		 *string; /* TEXT */
 	const struct tbl_span *span; /* TBL */
@@ -389,7 +390,6 @@ struct	mdoc;
 
 const struct mdoc_node *mdoc_node(const struct mdoc *);
 const struct mdoc_meta *mdoc_meta(const struct mdoc *);
+void mdoc_deroff(char **, const struct mdoc_node *);
 
 __END_DECLS
-
-#endif /*!MDOC_H*/

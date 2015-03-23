@@ -203,6 +203,16 @@ def msr_mask : Operand<i32> {
   let ParserMatchClass = MSRMaskOperand;
 }
 
+def BankedRegOperand : AsmOperandClass {
+  let Name = "BankedReg";
+  let ParserMethod = "parseBankedRegOperand";
+}
+def banked_reg : Operand<i32> {
+  let PrintMethod = "printBankedRegOperand";
+  let DecoderMethod = "DecodeBankedReg";
+  let ParserMatchClass = BankedRegOperand;
+}
+
 // Shift Right Immediate - A shift right immediate is encoded differently from
 // other shift immediates. The imm6 field is encoded like so:
 //
@@ -212,25 +222,25 @@ def msr_mask : Operand<i32> {
 //     32       imm6<5> = '1', 32 - <imm> is encoded in imm6<4:0>
 //     64       64 - <imm> is encoded in imm6<5:0>
 def shr_imm8_asm_operand : ImmAsmOperand { let Name = "ShrImm8"; }
-def shr_imm8  : Operand<i32> {
+def shr_imm8  : Operand<i32>, ImmLeaf<i32, [{ return Imm > 0 && Imm <= 8; }]> {
   let EncoderMethod = "getShiftRight8Imm";
   let DecoderMethod = "DecodeShiftRight8Imm";
   let ParserMatchClass = shr_imm8_asm_operand;
 }
 def shr_imm16_asm_operand : ImmAsmOperand { let Name = "ShrImm16"; }
-def shr_imm16 : Operand<i32> {
+def shr_imm16 : Operand<i32>, ImmLeaf<i32, [{ return Imm > 0 && Imm <= 16; }]> {
   let EncoderMethod = "getShiftRight16Imm";
   let DecoderMethod = "DecodeShiftRight16Imm";
   let ParserMatchClass = shr_imm16_asm_operand;
 }
 def shr_imm32_asm_operand : ImmAsmOperand { let Name = "ShrImm32"; }
-def shr_imm32 : Operand<i32> {
+def shr_imm32 : Operand<i32>, ImmLeaf<i32, [{ return Imm > 0 && Imm <= 32; }]> {
   let EncoderMethod = "getShiftRight32Imm";
   let DecoderMethod = "DecodeShiftRight32Imm";
   let ParserMatchClass = shr_imm32_asm_operand;
 }
 def shr_imm64_asm_operand : ImmAsmOperand { let Name = "ShrImm64"; }
-def shr_imm64 : Operand<i32> {
+def shr_imm64 : Operand<i32>, ImmLeaf<i32, [{ return Imm > 0 && Imm <= 64; }]> {
   let EncoderMethod = "getShiftRight64Imm";
   let DecoderMethod = "DecodeShiftRight64Imm";
   let ParserMatchClass = shr_imm64_asm_operand;
@@ -329,10 +339,10 @@ class InstThumb<AddrMode am, int sz, IndexMode im,
 // Pseudo-instructions for alternate assembly syntax (never used by codegen).
 // These are aliases that require C++ handling to convert to the target
 // instruction, while InstAliases can be handled directly by tblgen.
-class AsmPseudoInst<string asm, dag iops>
+class AsmPseudoInst<string asm, dag iops, dag oops = (outs)>
   : InstTemplate<AddrModeNone, 0, IndexModeNone, Pseudo, GenericDomain,
                  "", NoItinerary> {
-  let OutOperandList = (outs);
+  let OutOperandList = oops;
   let InOperandList = iops;
   let Pattern = [];
   let isCodeGenOnly = 0; // So we get asm matcher for it.
@@ -340,16 +350,16 @@ class AsmPseudoInst<string asm, dag iops>
   let isPseudo = 1;
 }
 
-class ARMAsmPseudo<string asm, dag iops> : AsmPseudoInst<asm, iops>,
-        Requires<[IsARM]>;
-class tAsmPseudo<string asm, dag iops> : AsmPseudoInst<asm, iops>,
-        Requires<[IsThumb]>;
-class t2AsmPseudo<string asm, dag iops> : AsmPseudoInst<asm, iops>,
-        Requires<[IsThumb2]>;
-class VFP2AsmPseudo<string asm, dag iops> : AsmPseudoInst<asm, iops>,
-        Requires<[HasVFP2]>;
-class NEONAsmPseudo<string asm, dag iops> : AsmPseudoInst<asm, iops>,
-        Requires<[HasNEON]>;
+class ARMAsmPseudo<string asm, dag iops, dag oops = (outs)>
+  : AsmPseudoInst<asm, iops, oops>, Requires<[IsARM]>;
+class tAsmPseudo<string asm, dag iops, dag oops = (outs)>
+  : AsmPseudoInst<asm, iops, oops>, Requires<[IsThumb]>;
+class t2AsmPseudo<string asm, dag iops, dag oops = (outs)>
+  : AsmPseudoInst<asm, iops, oops>, Requires<[IsThumb2]>;
+class VFP2AsmPseudo<string asm, dag iops, dag oops = (outs)>
+  : AsmPseudoInst<asm, iops, oops>, Requires<[HasVFP2]>;
+class NEONAsmPseudo<string asm, dag iops, dag oops = (outs)>
+  : AsmPseudoInst<asm, iops, oops>, Requires<[HasNEON]>;
 
 // Pseudo instructions for the code generator.
 class PseudoInst<dag oops, dag iops, InstrItinClass itin, list<dag> pattern>
@@ -476,6 +486,10 @@ class AsI<dag oops, dag iops, Format f, InstrItinClass itin,
 class AXI<dag oops, dag iops, Format f, InstrItinClass itin,
           string asm, list<dag> pattern>
   : XI<oops, iops, AddrModeNone, 4, IndexModeNone, f, itin,
+       asm, "", pattern>;
+class AXIM<dag oops, dag iops, AddrMode am, Format f, InstrItinClass itin,
+          string asm, list<dag> pattern>
+  : XI<oops, iops, am, 4, IndexModeNone, f, itin,
        asm, "", pattern>;
 class AInoP<dag oops, dag iops, Format f, InstrItinClass itin,
             string opc, string asm, list<dag> pattern>
@@ -2025,7 +2039,7 @@ class N2V<bits<2> op24_23, bits<2> op21_20, bits<2> op19_18, bits<2> op17_16,
 // Same as N2V but not predicated.
 class N2Vnp<bits<2> op19_18, bits<2> op17_16, bits<3> op10_8, bit op7, bit op6,
             dag oops, dag iops, InstrItinClass itin, string OpcodeStr,
-            string Dt, ValueType ResTy, ValueType OpTy, list<dag> pattern>
+            string Dt, list<dag> pattern>
    : NeonInp<oops, iops, AddrModeNone, IndexModeNone, N2RegFrm, itin,
              OpcodeStr, Dt, "$Vd, $Vm", "", pattern> {
   bits<5> Vd;
@@ -2134,8 +2148,7 @@ class N3V<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op6, bit op4,
 
 class N3Vnp<bits<5> op27_23, bits<2> op21_20, bits<4> op11_8, bit op6,
                 bit op4, dag oops, dag iops,Format f, InstrItinClass itin,
-                string OpcodeStr, string Dt, ValueType ResTy, ValueType OpTy,
-                SDPatternOperator IntOp, bit Commutable, list<dag> pattern>
+                string OpcodeStr, string Dt, list<dag> pattern>
   : NeonInp<oops, iops, AddrModeNone, IndexModeNone, f, itin, OpcodeStr,
             Dt, "$Vd, $Vn, $Vm", "", pattern> {
   bits<5> Vd;

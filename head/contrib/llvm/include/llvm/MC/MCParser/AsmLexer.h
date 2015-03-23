@@ -28,7 +28,7 @@ class AsmLexer : public MCAsmLexer {
   const MCAsmInfo &MAI;
 
   const char *CurPtr;
-  const MemoryBuffer *CurBuf;
+  StringRef CurBuf;
   bool isAtStartOfLine;
 
   void operator=(const AsmLexer&) LLVM_DELETED_FUNCTION;
@@ -36,18 +36,20 @@ class AsmLexer : public MCAsmLexer {
 
 protected:
   /// LexToken - Read the next token and return its code.
-  virtual AsmToken LexToken();
+  AsmToken LexToken() override;
 
 public:
   AsmLexer(const MCAsmInfo &MAI);
   ~AsmLexer();
 
-  void setBuffer(const MemoryBuffer *buf, const char *ptr = NULL);
+  void setBuffer(StringRef Buf, const char *ptr = nullptr);
 
-  virtual StringRef LexUntilEndOfStatement();
+  StringRef LexUntilEndOfStatement() override;
   StringRef LexUntilEndOfLine();
 
-  bool isAtStartOfComment(char Char);
+  const AsmToken peekTok(bool ShouldSkipSpace = true) override;
+
+  bool isAtStartOfComment(const char *Ptr);
   bool isAtStatementSeparator(const char *Ptr);
 
   const MCAsmInfo &getMAI() const { return MAI; }

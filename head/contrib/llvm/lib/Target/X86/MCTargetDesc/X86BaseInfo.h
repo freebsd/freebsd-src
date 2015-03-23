@@ -14,13 +14,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86BASEINFO_H
-#define X86BASEINFO_H
+#ifndef LLVM_LIB_TARGET_X86_MCTARGETDESC_X86BASEINFO_H
+#define LLVM_LIB_TARGET_X86_MCTARGETDESC_X86BASEINFO_H
 
 #include "X86MCTargetDesc.h"
+#include "llvm/MC/MCInstrDesc.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/MC/MCInstrInfo.h"
 
 namespace llvm {
 
@@ -216,7 +216,7 @@ namespace X86II {
     MO_SECREL
   };
 
-  enum {
+  enum : uint64_t {
     //===------------------------------------------------------------------===//
     // Instruction encodings.  These are the standard/most common forms for X86
     // instructions.
@@ -255,6 +255,38 @@ namespace X86II {
     ///
     MRMSrcMem      = 6,
 
+    /// RawFrmMemOffs - This form is for instructions that store an absolute
+    /// memory offset as an immediate with a possible segment override.
+    RawFrmMemOffs  = 7,
+
+    /// RawFrmSrc - This form is for instructions that use the source index
+    /// register SI/ESI/RSI with a possible segment override.
+    RawFrmSrc      = 8,
+
+    /// RawFrmDst - This form is for instructions that use the destination index
+    /// register DI/EDI/ESI.
+    RawFrmDst      = 9,
+
+    /// RawFrmSrc - This form is for instructions that use the the source index
+    /// register SI/ESI/ERI with a possible segment override, and also the
+    /// destination index register DI/ESI/RDI.
+    RawFrmDstSrc   = 10,
+
+    /// RawFrmImm8 - This is used for the ENTER instruction, which has two
+    /// immediates, the first of which is a 16-bit immediate (specified by
+    /// the imm encoding) and the second is a 8-bit fixed value.
+    RawFrmImm8 = 11,
+
+    /// RawFrmImm16 - This is used for CALL FAR instructions, which have two
+    /// immediates, the first of which is a 16 or 32-bit immediate (specified by
+    /// the imm encoding) and the second is a 16-bit fixed value.  In the AMD
+    /// manual, this operand is described as pntr16:32 and pntr16:16
+    RawFrmImm16 = 12,
+
+    /// MRMX[rm] - The forms are used to represent instructions that use a
+    /// Mod/RM byte, and don't use the middle field for anything.
+    MRMXr = 14, MRMXm = 15,
+
     /// MRM[0-7][rm] - These forms are used to represent instructions that use
     /// a Mod/RM byte, and use the middle field to hold extended opcode
     /// information.  In the intel manual these are represented as /0, /1, ...
@@ -268,94 +300,91 @@ namespace X86II {
     MRM0m = 24,  MRM1m = 25,  MRM2m = 26,  MRM3m = 27, // Format /0 /1 /2 /3
     MRM4m = 28,  MRM5m = 29,  MRM6m = 30,  MRM7m = 31, // Format /4 /5 /6 /7
 
-    // MRMInitReg - This form is used for instructions whose source and
-    // destinations are the same register.
-    MRMInitReg = 32,
-
     //// MRM_XX - A mod/rm byte of exactly 0xXX.
-    MRM_C1 = 33, MRM_C2 = 34, MRM_C3 = 35, MRM_C4 = 36,
-    MRM_C8 = 37, MRM_C9 = 38, MRM_CA = 39, MRM_CB = 40,
-    MRM_E8 = 41, MRM_F0 = 42, MRM_F8 = 45, MRM_F9 = 46,
-    MRM_D0 = 47, MRM_D1 = 48, MRM_D4 = 49, MRM_D5 = 50,
-    MRM_D6 = 51, MRM_D8 = 52, MRM_D9 = 53, MRM_DA = 54,
-    MRM_DB = 55, MRM_DC = 56, MRM_DD = 57, MRM_DE = 58,
-    MRM_DF = 59,
+    MRM_C0 = 32, MRM_C1 = 33, MRM_C2 = 34, MRM_C3 = 35,
+    MRM_C4 = 36, MRM_C8 = 37, MRM_C9 = 38, MRM_CA = 39,
+    MRM_CB = 40, MRM_CF = 41, MRM_D0 = 42, MRM_D1 = 43,
+    MRM_D4 = 44, MRM_D5 = 45, MRM_D6 = 46, MRM_D7 = 47,
+    MRM_D8 = 48, MRM_D9 = 49, MRM_DA = 50, MRM_DB = 51,
+    MRM_DC = 52, MRM_DD = 53, MRM_DE = 54, MRM_DF = 55,
+    MRM_E0 = 56, MRM_E1 = 57, MRM_E2 = 58, MRM_E3 = 59,
+    MRM_E4 = 60, MRM_E5 = 61, MRM_E8 = 62, MRM_E9 = 63,
+    MRM_EA = 64, MRM_EB = 65, MRM_EC = 66, MRM_ED = 67,
+    MRM_EE = 68, MRM_F0 = 69, MRM_F1 = 70, MRM_F2 = 71,
+    MRM_F3 = 72, MRM_F4 = 73, MRM_F5 = 74, MRM_F6 = 75,
+    MRM_F7 = 76, MRM_F8 = 77, MRM_F9 = 78, MRM_FA = 79,
+    MRM_FB = 80, MRM_FC = 81, MRM_FD = 82, MRM_FE = 83,
+    MRM_FF = 84,
 
-    /// RawFrmImm8 - This is used for the ENTER instruction, which has two
-    /// immediates, the first of which is a 16-bit immediate (specified by
-    /// the imm encoding) and the second is a 8-bit fixed value.
-    RawFrmImm8 = 43,
-
-    /// RawFrmImm16 - This is used for CALL FAR instructions, which have two
-    /// immediates, the first of which is a 16 or 32-bit immediate (specified by
-    /// the imm encoding) and the second is a 16-bit fixed value.  In the AMD
-    /// manual, this operand is described as pntr16:32 and pntr16:16
-    RawFrmImm16 = 44,
-
-    FormMask       = 63,
+    FormMask       = 127,
 
     //===------------------------------------------------------------------===//
     // Actual flags...
 
-    // OpSize - Set if this instruction requires an operand size prefix (0x66),
-    // which most often indicates that the instruction operates on 16 bit data
-    // instead of 32 bit data.
-    OpSize      = 1 << 6,
+    // OpSize - OpSizeFixed implies instruction never needs a 0x66 prefix.
+    // OpSize16 means this is a 16-bit instruction and needs 0x66 prefix in
+    // 32-bit mode. OpSize32 means this is a 32-bit instruction needs a 0x66
+    // prefix in 16-bit mode.
+    OpSizeShift = 7,
+    OpSizeMask = 0x3 << OpSizeShift,
 
-    // AsSize - Set if this instruction requires an operand size prefix (0x67),
-    // which most often indicates that the instruction address 16 bit address
-    // instead of 32 bit address (or 32 bit address in 64 bit mode).
-    AdSize      = 1 << 7,
+    OpSizeFixed = 0 << OpSizeShift,
+    OpSize16    = 1 << OpSizeShift,
+    OpSize32    = 2 << OpSizeShift,
+
+    // AsSize - AdSizeX implies this instruction determines its need of 0x67
+    // prefix from a normal ModRM memory operand. The other types indicate that
+    // an operand is encoded with a specific width and a prefix is needed if
+    // it differs from the current mode.
+    AdSizeShift = OpSizeShift + 2,
+    AdSizeMask  = 0x3 << AdSizeShift,
+
+    AdSizeX  = 1 << AdSizeShift,
+    AdSize16 = 1 << AdSizeShift,
+    AdSize32 = 2 << AdSizeShift,
+    AdSize64 = 3 << AdSizeShift,
 
     //===------------------------------------------------------------------===//
-    // Op0Mask - There are several prefix bytes that are used to form two byte
-    // opcodes.  These are currently 0x0F, 0xF3, and 0xD8-0xDF.  This mask is
-    // used to obtain the setting of this field.  If no bits in this field is
-    // set, there is no prefix byte for obtaining a multibyte opcode.
+    // OpPrefix - There are several prefix bytes that are used as opcode
+    // extensions. These are 0x66, 0xF3, and 0xF2. If this field is 0 there is
+    // no prefix.
     //
-    Op0Shift    = 8,
-    Op0Mask     = 0x1F << Op0Shift,
+    OpPrefixShift = AdSizeShift + 2,
+    OpPrefixMask  = 0x7 << OpPrefixShift,
 
-    // TB - TwoByte - Set if this instruction has a two byte opcode, which
-    // starts with a 0x0F byte before the real opcode.
-    TB          = 1 << Op0Shift,
-
-    // REP - The 0xF3 prefix byte indicating repetition of the following
-    // instruction.
-    REP         = 2 << Op0Shift,
-
-    // D8-DF - These escape opcodes are used by the floating point unit.  These
-    // values must remain sequential.
-    D8 = 3 << Op0Shift,   D9 = 4 << Op0Shift,
-    DA = 5 << Op0Shift,   DB = 6 << Op0Shift,
-    DC = 7 << Op0Shift,   DD = 8 << Op0Shift,
-    DE = 9 << Op0Shift,   DF = 10 << Op0Shift,
+    // PS, PD - Prefix code for packed single and double precision vector
+    // floating point operations performed in the SSE registers.
+    PS = 1 << OpPrefixShift, PD = 2 << OpPrefixShift,
 
     // XS, XD - These prefix codes are for single and double precision scalar
     // floating point operations performed in the SSE registers.
-    XD = 11 << Op0Shift,  XS = 12 << Op0Shift,
+    XS = 3 << OpPrefixShift,  XD = 4 << OpPrefixShift,
 
-    // T8, TA, A6, A7 - Prefix after the 0x0F prefix.
-    T8 = 13 << Op0Shift,  TA = 14 << Op0Shift,
-    A6 = 15 << Op0Shift,  A7 = 16 << Op0Shift,
+    //===------------------------------------------------------------------===//
+    // OpMap - This field determines which opcode map this instruction
+    // belongs to. i.e. one-byte, two-byte, 0x0f 0x38, 0x0f 0x3a, etc.
+    //
+    OpMapShift = OpPrefixShift + 3,
+    OpMapMask  = 0x7 << OpMapShift,
 
-    // T8XD - Prefix before and after 0x0F. Combination of T8 and XD.
-    T8XD = 17 << Op0Shift,
+    // OB - OneByte - Set if this instruction has a one byte opcode.
+    OB = 0 << OpMapShift,
 
-    // T8XS - Prefix before and after 0x0F. Combination of T8 and XS.
-    T8XS = 18 << Op0Shift,
+    // TB - TwoByte - Set if this instruction has a two byte opcode, which
+    // starts with a 0x0F byte before the real opcode.
+    TB = 1 << OpMapShift,
 
-    // TAXD - Prefix before and after 0x0F. Combination of TA and XD.
-    TAXD = 19 << Op0Shift,
+    // T8, TA - Prefix after the 0x0F prefix.
+    T8 = 2 << OpMapShift,  TA = 3 << OpMapShift,
 
     // XOP8 - Prefix to include use of imm byte.
-    XOP8 = 20 << Op0Shift,
+    XOP8 = 4 << OpMapShift,
 
     // XOP9 - Prefix to exclude use of imm byte.
-    XOP9 = 21 << Op0Shift,
+    XOP9 = 5 << OpMapShift,
 
     // XOPA - Prefix to encode 0xA in VEX.MMMM of XOP instructions.
-    XOPA = 22 << Op0Shift,
+    XOPA = 6 << OpMapShift,
 
     //===------------------------------------------------------------------===//
     // REX_W - REX prefixes are instruction prefixes used in 64-bit mode.
@@ -363,27 +392,28 @@ namespace X86II {
     // etc. We only cares about REX.W and REX.R bits and only the former is
     // statically determined.
     //
-    REXShift    = Op0Shift + 5,
+    REXShift    = OpMapShift + 3,
     REX_W       = 1 << REXShift,
 
     //===------------------------------------------------------------------===//
     // This three-bit field describes the size of an immediate operand.  Zero is
     // unused so that we can tell if we forgot to set a value.
     ImmShift = REXShift + 1,
-    ImmMask    = 7 << ImmShift,
+    ImmMask    = 15 << ImmShift,
     Imm8       = 1 << ImmShift,
     Imm8PCRel  = 2 << ImmShift,
     Imm16      = 3 << ImmShift,
     Imm16PCRel = 4 << ImmShift,
     Imm32      = 5 << ImmShift,
     Imm32PCRel = 6 << ImmShift,
-    Imm64      = 7 << ImmShift,
+    Imm32S     = 7 << ImmShift,
+    Imm64      = 8 << ImmShift,
 
     //===------------------------------------------------------------------===//
     // FP Instruction Classification...  Zero is non-fp instruction.
 
     // FPTypeMask - Mask for all of the FP types...
-    FPTypeShift = ImmShift + 3,
+    FPTypeShift = ImmShift + 4,
     FPTypeMask  = 7 << FPTypeShift,
 
     // NotFP - The default, set for instructions that do not use FP registers.
@@ -419,51 +449,66 @@ namespace X86II {
     LOCKShift = FPTypeShift + 3,
     LOCK = 1 << LOCKShift,
 
-    // Segment override prefixes. Currently we just need ability to address
-    // stuff in gs and fs segments.
-    SegOvrShift = LOCKShift + 1,
-    SegOvrMask  = 3 << SegOvrShift,
-    FS          = 1 << SegOvrShift,
-    GS          = 2 << SegOvrShift,
+    // REP prefix
+    REPShift = LOCKShift + 1,
+    REP = 1 << REPShift,
 
-    // Execution domain for SSE instructions in bits 23, 24.
-    // 0 in bits 23-24 means normal, non-SSE instruction.
-    SSEDomainShift = SegOvrShift + 2,
+    // Execution domain for SSE instructions.
+    // 0 means normal, non-SSE instruction.
+    SSEDomainShift = REPShift + 1,
 
-    OpcodeShift   = SSEDomainShift + 2,
+    // Encoding
+    EncodingShift = SSEDomainShift + 2,
+    EncodingMask = 0x3 << EncodingShift,
 
-    //===------------------------------------------------------------------===//
-    /// VEX - The opcode prefix used by AVX instructions
-    VEXShift = OpcodeShift + 8,
-    VEX         = 1U << 0,
+    // VEX - encoding using 0xC4/0xC5
+    VEX = 1 << EncodingShift,
+
+    /// XOP - Opcode prefix used by XOP instructions.
+    XOP = 2 << EncodingShift,
+
+    // VEX_EVEX - Specifies that this instruction use EVEX form which provides
+    // syntax support up to 32 512-bit register operands and up to 7 16-bit
+    // mask operands as well as source operand data swizzling/memory operand
+    // conversion, eviction hint, and rounding mode.
+    EVEX = 3 << EncodingShift,
+
+    // Opcode
+    OpcodeShift   = EncodingShift + 2,
 
     /// VEX_W - Has a opcode specific functionality, but is used in the same
     /// way as REX_W is for regular SSE instructions.
-    VEX_W       = 1U << 1,
+    VEX_WShift  = OpcodeShift + 8,
+    VEX_W       = 1ULL << VEX_WShift,
 
     /// VEX_4V - Used to specify an additional AVX/SSE register. Several 2
     /// address instructions in SSE are represented as 3 address ones in AVX
     /// and the additional register is encoded in VEX_VVVV prefix.
-    VEX_4V      = 1U << 2,
+    VEX_4VShift = VEX_WShift + 1,
+    VEX_4V      = 1ULL << VEX_4VShift,
 
     /// VEX_4VOp3 - Similar to VEX_4V, but used on instructions that encode
     /// operand 3 with VEX.vvvv.
-    VEX_4VOp3   = 1U << 3,
+    VEX_4VOp3Shift = VEX_4VShift + 1,
+    VEX_4VOp3   = 1ULL << VEX_4VOp3Shift,
 
     /// VEX_I8IMM - Specifies that the last register used in a AVX instruction,
     /// must be encoded in the i8 immediate field. This usually happens in
     /// instructions with 4 operands.
-    VEX_I8IMM   = 1U << 4,
+    VEX_I8IMMShift = VEX_4VOp3Shift + 1,
+    VEX_I8IMM   = 1ULL << VEX_I8IMMShift,
 
     /// VEX_L - Stands for a bit in the VEX opcode prefix meaning the current
     /// instruction uses 256-bit wide registers. This is usually auto detected
     /// if a VR256 register is used, but some AVX instructions also have this
     /// field marked when using a f256 memory references.
-    VEX_L       = 1U << 5,
+    VEX_LShift = VEX_I8IMMShift + 1,
+    VEX_L       = 1ULL << VEX_LShift,
 
     // VEX_LIG - Specifies that this instruction ignores the L-bit in the VEX
     // prefix. Usually used for scalar instructions. Needed by disassembler.
-    VEX_LIG     = 1U << 6,
+    VEX_LIGShift = VEX_LShift + 1,
+    VEX_LIG     = 1ULL << VEX_LIGShift,
 
     // TODO: we should combine VEX_L and VEX_LIG together to form a 2-bit field
     // with following encoding:
@@ -473,31 +518,25 @@ namespace X86II {
     // - 11 LIG (but, in insn encoding, leave VEX.L and EVEX.L in zeros.
     // this will save 1 tsflag bit
 
-    // VEX_EVEX - Specifies that this instruction use EVEX form which provides
-    // syntax support up to 32 512-bit register operands and up to 7 16-bit
-    // mask operands as well as source operand data swizzling/memory operand
-    // conversion, eviction hint, and rounding mode.
-    EVEX        = 1U << 7,
-
     // EVEX_K - Set if this instruction requires masking
-    EVEX_K      = 1U << 8,
+    EVEX_KShift = VEX_LIGShift + 1,
+    EVEX_K      = 1ULL << EVEX_KShift,
 
     // EVEX_Z - Set if this instruction has EVEX.Z field set.
-    EVEX_Z      = 1U << 9,
+    EVEX_ZShift = EVEX_KShift + 1,
+    EVEX_Z      = 1ULL << EVEX_ZShift,
 
     // EVEX_L2 - Set if this instruction has EVEX.L' field set.
-    EVEX_L2     = 1U << 10,
+    EVEX_L2Shift = EVEX_ZShift + 1,
+    EVEX_L2     = 1ULL << EVEX_L2Shift,
 
     // EVEX_B - Set if this instruction has EVEX.B field set.
-    EVEX_B      = 1U << 11,
+    EVEX_BShift = EVEX_L2Shift + 1,
+    EVEX_B      = 1ULL << EVEX_BShift,
 
-    // EVEX_CD8E - compressed disp8 form, element-size
-    EVEX_CD8EShift = VEXShift + 12,
-    EVEX_CD8EMask = 3,
-
-    // EVEX_CD8V - compressed disp8 form, vector-width
-    EVEX_CD8VShift = EVEX_CD8EShift + 2,
-    EVEX_CD8VMask = 7,
+    // The scaling factor for the AVX512's 8-bit compressed displacement.
+    CD8_Scale_Shift = EVEX_BShift + 1,
+    CD8_Scale_Mask = 127ULL << CD8_Scale_Shift,
 
     /// Has3DNow0F0FOpcode - This flag indicates that the instruction uses the
     /// wacky 0x0F 0x0F prefix for 3DNow! instructions.  The manual documents
@@ -505,15 +544,17 @@ namespace X86II {
     /// storing a classifier in the imm8 field.  To simplify our implementation,
     /// we handle this by storeing the classifier in the opcode field and using
     /// this flag to indicate that the encoder should do the wacky 3DNow! thing.
-    Has3DNow0F0FOpcode = 1U << 17,
+    Has3DNow0F0FOpcodeShift = CD8_Scale_Shift + 7,
+    Has3DNow0F0FOpcode = 1ULL << Has3DNow0F0FOpcodeShift,
 
     /// MemOp4 - Used to indicate swapping of operand 3 and 4 to be encoded in
     /// ModRM or I8IMM. This is used for FMA4 and XOP instructions.
-    MemOp4 = 1U << 18,
+    MemOp4Shift = Has3DNow0F0FOpcodeShift + 1,
+    MemOp4 = 1ULL << MemOp4Shift,
 
-    /// XOP - Opcode prefix used by XOP instructions.
-    XOP = 1U << 19
-
+    /// Explicitly specified rounding control
+    EVEX_RCShift = MemOp4Shift + 1,
+    EVEX_RC = 1ULL << EVEX_RCShift
   };
 
   // getBaseOpcodeFor - This function returns the "base" X86 opcode for the
@@ -537,6 +578,7 @@ namespace X86II {
     case X86II::Imm16:
     case X86II::Imm16PCRel: return 2;
     case X86II::Imm32:
+    case X86II::Imm32S:
     case X86II::Imm32PCRel: return 4;
     case X86II::Imm64:      return 8;
     }
@@ -554,6 +596,25 @@ namespace X86II {
     case X86II::Imm8:
     case X86II::Imm16:
     case X86II::Imm32:
+    case X86II::Imm32S:
+    case X86II::Imm64:
+      return false;
+    }
+  }
+
+  /// isImmSigned - Return true if the immediate of the specified instruction's
+  /// TSFlags indicates that it is signed.
+  inline unsigned isImmSigned(uint64_t TSFlags) {
+    switch (TSFlags & X86II::ImmMask) {
+    default: llvm_unreachable("Unknown immediate signedness");
+    case X86II::Imm32S:
+      return true;
+    case X86II::Imm8:
+    case X86II::Imm8PCRel:
+    case X86II::Imm16:
+    case X86II::Imm16PCRel:
+    case X86II::Imm32:
+    case X86II::Imm32PCRel:
     case X86II::Imm64:
       return false;
     }
@@ -595,10 +656,11 @@ namespace X86II {
   /// counted as one operand.
   ///
   inline int getMemoryOperandNo(uint64_t TSFlags, unsigned Opcode) {
+    bool HasVEX_4V = TSFlags & X86II::VEX_4V;
+    bool HasMemOp4 = TSFlags & X86II::MemOp4;
+    bool HasEVEX_K = TSFlags & X86II::EVEX_K;
+
     switch (TSFlags & X86II::FormMask) {
-    case X86II::MRMInitReg:
-        // FIXME: Remove this form.
-        return -1;
     default: llvm_unreachable("Unknown FormMask value in getMemoryOperandNo!");
     case X86II::Pseudo:
     case X86II::RawFrm:
@@ -607,50 +669,48 @@ namespace X86II {
     case X86II::MRMSrcReg:
     case X86II::RawFrmImm8:
     case X86II::RawFrmImm16:
+    case X86II::RawFrmMemOffs:
+    case X86II::RawFrmSrc:
+    case X86II::RawFrmDst:
+    case X86II::RawFrmDstSrc:
        return -1;
     case X86II::MRMDestMem:
       return 0;
-    case X86II::MRMSrcMem: {
-      bool HasVEX_4V = (TSFlags >> X86II::VEXShift) & X86II::VEX_4V;
-      bool HasMemOp4 = (TSFlags >> X86II::VEXShift) & X86II::MemOp4;
-      bool HasEVEX = (TSFlags >> X86II::VEXShift) & X86II::EVEX;
-      bool HasEVEX_K = HasEVEX && ((TSFlags >> X86II::VEXShift) & X86II::EVEX_K);
-      unsigned FirstMemOp = 1;
-      if (HasVEX_4V)
-        ++FirstMemOp;// Skip the register source (which is encoded in VEX_VVVV).
-      if (HasMemOp4)
-        ++FirstMemOp;// Skip the register source (which is encoded in I8IMM).
-      if (HasEVEX_K)
-        ++FirstMemOp;// Skip the mask register
-      // FIXME: Maybe lea should have its own form?  This is a horrible hack.
-      //if (Opcode == X86::LEA64r || Opcode == X86::LEA64_32r ||
-      //    Opcode == X86::LEA16r || Opcode == X86::LEA32r)
-      return FirstMemOp;
-    }
+    case X86II::MRMSrcMem:
+      // Start from 1, skip any registers encoded in VEX_VVVV or I8IMM, or a
+      // mask register.
+      return 1 + HasVEX_4V + HasMemOp4 + HasEVEX_K;
+    case X86II::MRMXr:
     case X86II::MRM0r: case X86II::MRM1r:
     case X86II::MRM2r: case X86II::MRM3r:
     case X86II::MRM4r: case X86II::MRM5r:
     case X86II::MRM6r: case X86II::MRM7r:
       return -1;
+    case X86II::MRMXm:
     case X86II::MRM0m: case X86II::MRM1m:
     case X86II::MRM2m: case X86II::MRM3m:
     case X86II::MRM4m: case X86II::MRM5m:
-    case X86II::MRM6m: case X86II::MRM7m: {
-      bool HasVEX_4V = (TSFlags >> X86II::VEXShift) & X86II::VEX_4V;
-      unsigned FirstMemOp = 0;
-      if (HasVEX_4V)
-        ++FirstMemOp;// Skip the register dest (which is encoded in VEX_VVVV).
-      return FirstMemOp;
-    }
-    case X86II::MRM_C1: case X86II::MRM_C2: case X86II::MRM_C3:
-    case X86II::MRM_C4: case X86II::MRM_C8: case X86II::MRM_C9:
-    case X86II::MRM_CA: case X86II::MRM_CB: case X86II::MRM_E8:
-    case X86II::MRM_F0: case X86II::MRM_F8: case X86II::MRM_F9:
-    case X86II::MRM_D0: case X86II::MRM_D1: case X86II::MRM_D4:
-    case X86II::MRM_D5: case X86II::MRM_D6: case X86II::MRM_D8:
-    case X86II::MRM_D9: case X86II::MRM_DA: case X86II::MRM_DB:
-    case X86II::MRM_DC: case X86II::MRM_DD: case X86II::MRM_DE:
-    case X86II::MRM_DF:
+    case X86II::MRM6m: case X86II::MRM7m:
+      // Start from 0, skip registers encoded in VEX_VVVV or a mask register.
+      return 0 + HasVEX_4V + HasEVEX_K;
+    case X86II::MRM_C0: case X86II::MRM_C1: case X86II::MRM_C2:
+    case X86II::MRM_C3: case X86II::MRM_C4: case X86II::MRM_C8:
+    case X86II::MRM_C9: case X86II::MRM_CA: case X86II::MRM_CB:
+    case X86II::MRM_CF: case X86II::MRM_D0: case X86II::MRM_D1:
+    case X86II::MRM_D4: case X86II::MRM_D5: case X86II::MRM_D6:
+    case X86II::MRM_D7: case X86II::MRM_D8: case X86II::MRM_D9:
+    case X86II::MRM_DA: case X86II::MRM_DB: case X86II::MRM_DC:
+    case X86II::MRM_DD: case X86II::MRM_DE: case X86II::MRM_DF:
+    case X86II::MRM_E0: case X86II::MRM_E1: case X86II::MRM_E2:
+    case X86II::MRM_E3: case X86II::MRM_E4: case X86II::MRM_E5:
+    case X86II::MRM_E8: case X86II::MRM_E9: case X86II::MRM_EA:
+    case X86II::MRM_EB: case X86II::MRM_EC: case X86II::MRM_ED:
+    case X86II::MRM_EE: case X86II::MRM_F0: case X86II::MRM_F1:
+    case X86II::MRM_F2: case X86II::MRM_F3: case X86II::MRM_F4:
+    case X86II::MRM_F5: case X86II::MRM_F6: case X86II::MRM_F7:
+    case X86II::MRM_F8: case X86II::MRM_F9: case X86II::MRM_FA:
+    case X86II::MRM_FB: case X86II::MRM_FC: case X86II::MRM_FD:
+    case X86II::MRM_FE: case X86II::MRM_FF:
       return -1;
     }
   }
@@ -691,7 +751,7 @@ namespace X86II {
             (RegNo > X86::ZMM15 && RegNo <= X86::ZMM31));
   }
 
-  
+
   inline bool isX86_64NonExtLowByteReg(unsigned reg) {
     return (reg == X86::SPL || reg == X86::BPL ||
             reg == X86::SIL || reg == X86::DIL);

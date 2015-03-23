@@ -11,7 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "asm-printer"
 #include "ARMInstPrinter.h"
 #include "MCTargetDesc/ARMAddressingModes.h"
 #include "MCTargetDesc/ARMBaseInfo.h"
@@ -22,6 +21,8 @@
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "asm-printer"
 
 #include "ARMGenAsmWriter.inc"
 
@@ -268,7 +269,7 @@ void ARMInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
   // expressed as a GPRPair, so we have to manually merge them.
   // FIXME: We would really like to be able to tablegen'erate this.
   case ARM::LDREXD: case ARM::STREXD:
-  case ARM::LDAEXD: case ARM::STLEXD:
+  case ARM::LDAEXD: case ARM::STLEXD: {
     const MCRegisterClass& MRC = MRI.getRegClass(ARM::GPRRegClassID);
     bool isStore = Opcode == ARM::STREXD || Opcode == ARM::STLEXD;
     unsigned Reg = MI->getOperand(isStore ? 1 : 0).getReg();
@@ -289,6 +290,23 @@ void ARMInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
       printInstruction(&NewMI, O);
       return;
     }
+    break;
+  }
+    // B9.3.3 ERET (Thumb)
+    // For a target that has Virtualization Extensions, ERET is the preferred
+    // disassembly of SUBS PC, LR, #0
+  case ARM::t2SUBS_PC_LR: {
+    if (MI->getNumOperands() == 3 &&
+        MI->getOperand(0).isImm() &&
+        MI->getOperand(0).getImm() == 0 &&
+        (getAvailableFeatures() & ARM::FeatureVirtualization)) {
+      O << "\teret";
+      printPredicateOperand(MI, 1, O);
+      printAnnotation(O, Annot);
+      return;
+    }
+    break;
+  }
   }
 
   printInstruction(MI, O);
@@ -307,17 +325,30 @@ void ARMInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
       << markup(">");
   } else {
     assert(Op.isExpr() && "unknown operand kind in printOperand");
-    // If a symbolic branch target was added as a constant expression then print
-    // that address in hex. And only print 32 unsigned bits for the address.
-    const MCConstantExpr *BranchTarget = dyn_cast<MCConstantExpr>(Op.getExpr());
-    int64_t Address;
-    if (BranchTarget && BranchTarget->EvaluateAsAbsolute(Address)) {
-      O << "0x";
-      O.write_hex((uint32_t)Address);
+    const MCExpr *Expr = Op.getExpr();
+    switch (Expr->getKind()) {
+    case MCExpr::Binary:
+      O << '#' << *Expr;
+      break;
+    case MCExpr::Constant: {
+      // If a symbolic branch target was added as a constant expression then
+      // print that address in hex. And only print 32 unsigned bits for the
+      // address.
+      const MCConstantExpr *Constant = cast<MCConstantExpr>(Expr);
+      int64_t TargetAddress;
+      if (!Constant->EvaluateAsAbsolute(TargetAddress)) {
+        O << '#' << *Expr;
+      } else {
+        O << "0x";
+        O.write_hex(static_cast<uint32_t>(TargetAddress));
+      }
+      break;
     }
-    else {
-      // Otherwise, just print the expression.
-      O << *Op.getExpr();
+    default:
+      // FIXME: Should we always treat this as if it is a constant literal and
+      // prefix it with '#'?
+      O << *Expr;
+      break;
     }
   }
 }
@@ -489,30 +520,6 @@ void ARMInstPrinter::printAddrMode2OffsetOperand(const MCInst *MI,
 // Addressing Mode #3
 //===--------------------------------------------------------------------===//
 
-void ARMInstPrinter::printAM3PostIndexOp(const MCInst *MI, unsigned Op,
-                                         raw_ostream &O) {
-  const MCOperand &MO1 = MI->getOperand(Op);
-  const MCOperand &MO2 = MI->getOperand(Op+1);
-  const MCOperand &MO3 = MI->getOperand(Op+2);
-
-  O << markup("<mem:") << "[";
-  printRegName(O, MO1.getReg());
-  O << "], " << markup(">");
-
-  if (MO2.getReg()) {
-    O << (char)ARM_AM::getAM3Op(MO3.getImm());
-    printRegName(O, MO2.getReg());
-    return;
-  }
-
-  unsigned ImmOffs = ARM_AM::getAM3Offset(MO3.getImm());
-  O << markup("<imm:")
-    << '#'
-    << ARM_AM::getAddrOpcStr(ARM_AM::getAM3Op(MO3.getImm()))
-    << ImmOffs
-    << markup(">");
-}
-
 void ARMInstPrinter::printAM3PreOrOffsetIndexOp(const MCInst *MI, unsigned Op,
                                                 raw_ostream &O,
                                                 bool AlwaysPrintImm0) {
@@ -554,13 +561,9 @@ void ARMInstPrinter::printAddrMode3Operand(const MCInst *MI, unsigned Op,
     return;
   }
 
-  const MCOperand &MO3 = MI->getOperand(Op+2);
-  unsigned IdxMode = ARM_AM::getAM3IdxMode(MO3.getImm());
-
-  if (IdxMode == ARMII::IndexModePost) {
-    printAM3PostIndexOp(MI, Op, O);
-    return;
-  }
+  assert(ARM_AM::getAM3IdxMode(MI->getOperand(Op + 2).getImm()) !=
+             ARMII::IndexModePost &&
+         "unexpected idxmode");
   printAM3PreOrOffsetIndexOp(MI, Op, O, AlwaysPrintImm0);
 }
 
@@ -793,52 +796,56 @@ void ARMInstPrinter::printMSRMaskOperand(const MCInst *MI, unsigned OpNum,
   const MCOperand &Op = MI->getOperand(OpNum);
   unsigned SpecRegRBit = Op.getImm() >> 4;
   unsigned Mask = Op.getImm() & 0xf;
+  uint64_t FeatureBits = getAvailableFeatures();
 
-  if (getAvailableFeatures() & ARM::FeatureMClass) {
+  if (FeatureBits & ARM::FeatureMClass) {
     unsigned SYSm = Op.getImm();
     unsigned Opcode = MI->getOpcode();
-    // For reads of the special registers ignore the "mask encoding" bits
-    // which are only for writes.
-    if (Opcode == ARM::t2MRS_M)
-      SYSm &= 0xff;
+
+    // For writes, handle extended mask bits if the DSP extension is present.
+    if (Opcode == ARM::t2MSR_M && (FeatureBits & ARM::FeatureDSPThumb2)) {
+      switch (SYSm) {
+      case 0x400: O << "apsr_g"; return;
+      case 0xc00: O << "apsr_nzcvqg"; return;
+      case 0x401: O << "iapsr_g"; return;
+      case 0xc01: O << "iapsr_nzcvqg"; return;
+      case 0x402: O << "eapsr_g"; return;
+      case 0xc02: O << "eapsr_nzcvqg"; return;
+      case 0x403: O << "xpsr_g"; return;
+      case 0xc03: O << "xpsr_nzcvqg"; return;
+      }
+    }
+
+    // Handle the basic 8-bit mask.
+    SYSm &= 0xff;
+
+    if (Opcode == ARM::t2MSR_M && (FeatureBits & ARM::HasV7Ops)) {
+      // ARMv7-M deprecates using MSR APSR without a _<bits> qualifier as an
+      // alias for MSR APSR_nzcvq.
+      switch (SYSm) {
+      case 0: O << "apsr_nzcvq"; return;
+      case 1: O << "iapsr_nzcvq"; return;
+      case 2: O << "eapsr_nzcvq"; return;
+      case 3: O << "xpsr_nzcvq"; return;
+      }
+    }
+
     switch (SYSm) {
     default: llvm_unreachable("Unexpected mask value!");
-    case     0:
-    case 0x800: O << "apsr"; return; // with _nzcvq bits is an alias for aspr
-    case 0x400: O << "apsr_g"; return;
-    case 0xc00: O << "apsr_nzcvqg"; return;
-    case     1:
-    case 0x801: O << "iapsr"; return; // with _nzcvq bits is an alias for iapsr
-    case 0x401: O << "iapsr_g"; return;
-    case 0xc01: O << "iapsr_nzcvqg"; return;
-    case     2:
-    case 0x802: O << "eapsr"; return; // with _nzcvq bits is an alias for eapsr
-    case 0x402: O << "eapsr_g"; return;
-    case 0xc02: O << "eapsr_nzcvqg"; return;
-    case     3:
-    case 0x803: O << "xpsr"; return; // with _nzcvq bits is an alias for xpsr
-    case 0x403: O << "xpsr_g"; return;
-    case 0xc03: O << "xpsr_nzcvqg"; return;
-    case     5:
-    case 0x805: O << "ipsr"; return;
-    case     6:
-    case 0x806: O << "epsr"; return;
-    case     7:
-    case 0x807: O << "iepsr"; return;
-    case     8:
-    case 0x808: O << "msp"; return;
-    case     9:
-    case 0x809: O << "psp"; return;
-    case  0x10:
-    case 0x810: O << "primask"; return;
-    case  0x11:
-    case 0x811: O << "basepri"; return;
-    case  0x12:
-    case 0x812: O << "basepri_max"; return;
-    case  0x13:
-    case 0x813: O << "faultmask"; return;
-    case  0x14:
-    case 0x814: O << "control"; return;
+    case  0: O << "apsr"; return;
+    case  1: O << "iapsr"; return;
+    case  2: O << "eapsr"; return;
+    case  3: O << "xpsr"; return;
+    case  5: O << "ipsr"; return;
+    case  6: O << "epsr"; return;
+    case  7: O << "iepsr"; return;
+    case  8: O << "msp"; return;
+    case  9: O << "psp"; return;
+    case 16: O << "primask"; return;
+    case 17: O << "basepri"; return;
+    case 18: O << "basepri_max"; return;
+    case 19: O << "faultmask"; return;
+    case 20: O << "control"; return;
     }
   }
 
@@ -866,6 +873,42 @@ void ARMInstPrinter::printMSRMaskOperand(const MCInst *MI, unsigned OpNum,
     if (Mask & 2) O << 'x';
     if (Mask & 1) O << 'c';
   }
+}
+
+void ARMInstPrinter::printBankedRegOperand(const MCInst *MI, unsigned OpNum,
+                                           raw_ostream &O) {
+  uint32_t Banked = MI->getOperand(OpNum).getImm();
+  uint32_t R = (Banked & 0x20) >> 5;
+  uint32_t SysM = Banked & 0x1f;
+
+  // Nothing much we can do about this, the encodings are specified in B9.2.3 of
+  // the ARM ARM v7C, and are all over the shop.
+  if (R) {
+    O << "SPSR_";
+
+    switch(SysM) {
+    case 0x0e: O << "fiq"; return;
+    case 0x10: O << "irq"; return;
+    case 0x12: O << "svc"; return;
+    case 0x14: O << "abt"; return;
+    case 0x16: O << "und"; return;
+    case 0x1c: O << "mon"; return;
+    case 0x1e: O << "hyp"; return;
+    default: llvm_unreachable("Invalid banked SPSR register");
+    }
+  }
+
+  assert(!R && "should have dealt with SPSR regs");
+  const char *RegNames[] = {
+    "r8_usr", "r9_usr", "r10_usr", "r11_usr", "r12_usr", "sp_usr", "lr_usr", "",
+    "r8_fiq", "r9_fiq", "r10_fiq", "r11_fiq", "r12_fiq", "sp_fiq", "lr_fiq", "",
+    "lr_irq", "sp_irq", "lr_svc",  "sp_svc",  "lr_abt",  "sp_abt", "lr_und", "sp_und",
+    "",       "",       "",        "",        "lr_mon",  "sp_mon", "elr_hyp", "sp_hyp"
+  };
+  const char *Name = RegNames[SysM];
+  assert(Name[0] && "invalid banked register operand");
+
+  O << Name;
 }
 
 void ARMInstPrinter::printPredicateOperand(const MCInst *MI, unsigned OpNum,
@@ -1078,13 +1121,13 @@ void ARMInstPrinter::printAddrModeImm12Operand(const MCInst *MI, unsigned OpNum,
   if (isSub) {
     O << ", "
       << markup("<imm:")
-      << "#-" << -OffImm
+      << "#-" << formatImm(-OffImm)
       << markup(">");
   }
   else if (AlwaysPrintImm0 || OffImm > 0) {
     O << ", "
       << markup("<imm:")
-      << "#" << OffImm
+      << "#" << formatImm(OffImm)
       << markup(">");
   }
   O << "]" << markup(">");
@@ -1273,6 +1316,52 @@ void ARMInstPrinter::printRotImmOperand(const MCInst *MI, unsigned OpNum,
   case 3: O << "24"; break;
   }
   O << markup(">");
+}
+
+void ARMInstPrinter::printModImmOperand(const MCInst *MI, unsigned OpNum,
+                                        raw_ostream &O) {
+  MCOperand Op = MI->getOperand(OpNum);
+
+  // Support for fixups (MCFixup)
+  if (Op.isExpr())
+    return printOperand(MI, OpNum, O);
+
+  unsigned Bits = Op.getImm() & 0xFF;
+  unsigned Rot = (Op.getImm() & 0xF00) >> 7;
+
+  bool  PrintUnsigned = false;
+  switch (MI->getOpcode()){
+  case ARM::MOVi:
+    // Movs to PC should be treated unsigned
+    PrintUnsigned = (MI->getOperand(OpNum - 1).getReg() == ARM::PC);
+    break;
+  case ARM::MSRi:
+    // Movs to special registers should be treated unsigned
+    PrintUnsigned = true;
+    break;
+  }
+
+  int32_t Rotated = ARM_AM::rotr32(Bits, Rot);
+  if (ARM_AM::getSOImmVal(Rotated) == Op.getImm()) {
+    // #rot has the least possible value
+    O << "#" << markup("<imm:");
+    if (PrintUnsigned)
+      O << static_cast<uint32_t>(Rotated);
+    else
+      O << Rotated;
+    O << markup(">");
+    return;
+  }
+
+  // Explicit #bits, #rot implied
+  O << "#"
+    << markup("<imm:")
+    << Bits
+    << markup(">")
+    << ", #"
+    << markup("<imm:")
+    << Rot
+    << markup(">");
 }
 
 void ARMInstPrinter::printFBits16(const MCInst *MI, unsigned OpNum,

@@ -12,7 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Analysis/Dominators.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/Analysis/ScalarEvolutionNormalization.h"
@@ -113,7 +113,7 @@ TransformImpl(const SCEV *S, Instruction *User, Value *OperandValToReplace) {
     // Transform each operand.
     for (SCEVNAryExpr::op_iterator I = AR->op_begin(), E = AR->op_end();
          I != E; ++I) {
-      Operands.push_back(TransformSubExpr(*I, LUser, 0));
+      Operands.push_back(TransformSubExpr(*I, LUser, nullptr));
     }
     // Conservatively use AnyWrap until/unless we need FlagNW.
     const SCEV *Result = SE.getAddRecExpr(Operands, L, SCEV::FlagAnyWrap);
@@ -126,12 +126,15 @@ TransformImpl(const SCEV *S, Instruction *User, Value *OperandValToReplace) {
       // Normalized form:   {-2,+,1,+,2}
       // Denormalized form: {1,+,3,+,2}
       //
-      // However, denormalization would use the a different step expression than
+      // However, denormalization would use a different step expression than
       // normalization (see getPostIncExpr), generating the wrong final
       // expression: {-2,+,1,+,2} + {1,+,2} => {-1,+,3,+,2}
       if (AR->isAffine() &&
           IVUseShouldUsePostIncValue(User, OperandValToReplace, L, &DT)) {
-        Result = SE.getMinusSCEV(Result, AR->getStepRecurrence(SE));
+        const SCEV *TransformedStep =
+          TransformSubExpr(AR->getStepRecurrence(SE),
+                           User, OperandValToReplace);
+        Result = SE.getMinusSCEV(Result, TransformedStep);
         Loops.insert(L);
       }
 #if 0
@@ -144,6 +147,20 @@ TransformImpl(const SCEV *S, Instruction *User, Value *OperandValToReplace) {
 #endif
       break;
     case Normalize:
+      // We want to normalize step expression, because otherwise we might not be
+      // able to denormalize to the original expression.
+      //
+      // Here is an example what will happen if we don't normalize step:
+      //  ORIGINAL ISE:
+      //    {(100 /u {1,+,1}<%bb16>),+,(100 /u {1,+,1}<%bb16>)}<%bb25>
+      //  NORMALIZED ISE:
+      //    {((-1 * (100 /u {1,+,1}<%bb16>)) + (100 /u {0,+,1}<%bb16>)),+,
+      //     (100 /u {0,+,1}<%bb16>)}<%bb25>
+      //  DENORMALIZED BACK ISE:
+      //    {((2 * (100 /u {1,+,1}<%bb16>)) + (-1 * (100 /u {2,+,1}<%bb16>))),+,
+      //     (100 /u {1,+,1}<%bb16>)}<%bb25>
+      //  Note that the initial value changes after normalization +
+      //  denormalization, which isn't correct.
       if (Loops.count(L)) {
         const SCEV *TransformedStep =
           TransformSubExpr(AR->getStepRecurrence(SE),
@@ -157,8 +174,14 @@ TransformImpl(const SCEV *S, Instruction *User, Value *OperandValToReplace) {
 #endif
       break;
     case Denormalize:
-      if (Loops.count(L))
-        Result = cast<SCEVAddRecExpr>(Result)->getPostIncExpr(SE);
+      // Here we want to normalize step expressions for the same reasons, as
+      // stated above.
+      if (Loops.count(L)) {
+        const SCEV *TransformedStep =
+          TransformSubExpr(AR->getStepRecurrence(SE),
+                           User, OperandValToReplace);
+        Result = SE.getAddExpr(Result, TransformedStep);
+      }
       break;
     }
     return Result;
@@ -218,7 +241,7 @@ TransformSubExpr(const SCEV *S, Instruction *User, Value *OperandValToReplace) {
 }
 
 /// Top level driver for transforming an expression DAG into its requested
-/// post-inc form (either "Normalized" or "Denormalized".
+/// post-inc form (either "Normalized" or "Denormalized").
 const SCEV *llvm::TransformForPostIncUse(TransformKind Kind,
                                          const SCEV *S,
                                          Instruction *User,

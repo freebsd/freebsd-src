@@ -26,7 +26,7 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: dwarf_attrval.c 2072 2011-10-27 03:26:49Z jkoshy $");
+ELFTC_VCSID("$Id: dwarf_attrval.c 3159 2015-02-15 21:43:27Z emaste $");
 
 int
 dwarf_attrval_flag(Dwarf_Die die, Dwarf_Half attr, Dwarf_Bool *valp, Dwarf_Error *err)
@@ -125,6 +125,7 @@ dwarf_attrval_signed(Dwarf_Die die, Dwarf_Half attr, Dwarf_Signed *valp, Dwarf_E
 		break;
 	case DW_FORM_data4:
 		*valp = (int32_t) at->u[0].s64;
+		break;
 	case DW_FORM_data8:
 	case DW_FORM_sdata:
 		*valp = at->u[0].s64;

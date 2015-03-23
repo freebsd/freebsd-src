@@ -112,6 +112,7 @@ struct bufobj {
  */
 #define	BO_ONWORKLST	(1 << 0)	/* On syncer work-list */
 #define	BO_WWAIT	(1 << 1)	/* Wait for output to complete */
+#define	BO_DEAD		(1 << 2)	/* Dead; only with INVARIANTS */
 
 #define	BO_LOCKPTR(bo)		(&(bo)->bo_lock)
 #define	BO_LOCK(bo)		rw_wlock(BO_LOCKPTR((bo)))

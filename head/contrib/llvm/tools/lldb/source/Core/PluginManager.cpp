@@ -20,10 +20,12 @@
 #include "lldb/Core/Error.h"
 #include "lldb/Host/FileSpec.h"
 #include "lldb/Host/Host.h"
+#include "lldb/Host/HostInfo.h"
 #include "lldb/Host/Mutex.h"
 #include "lldb/Interpreter/OptionValueProperties.h"
 
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/DynamicLibrary.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -41,7 +43,12 @@ typedef void (*PluginTermCallback) (void);
 
 struct PluginInfo
 {
-    void *plugin_handle;
+    PluginInfo()
+        : plugin_init_callback(nullptr), plugin_term_callback(nullptr)
+    {
+    }
+
+    llvm::sys::DynamicLibrary library;
     PluginInitCallback plugin_init_callback;
     PluginTermCallback plugin_term_callback;
 };
@@ -79,6 +86,12 @@ SetPluginInfo (const FileSpec &plugin_file_spec, const PluginInfo &plugin_info)
     plugin_map[plugin_file_spec] = plugin_info;
 }
 
+template <typename FPtrTy>
+static FPtrTy
+CastToFPtr (void *VPtr)
+{
+    return reinterpret_cast<FPtrTy>(reinterpret_cast<intptr_t>(VPtr));
+}
 
 static FileSpec::EnumerateDirectoryResult 
 LoadPluginCallback 
@@ -106,16 +119,15 @@ LoadPluginCallback
             return FileSpec::eEnumerateDirectoryResultNext;
         else
         {
-            PluginInfo plugin_info = { NULL, NULL, NULL };
-            uint32_t flags = Host::eDynamicLibraryOpenOptionLazy |
-                             Host::eDynamicLibraryOpenOptionLocal |
-                             Host::eDynamicLibraryOpenOptionLimitGetSymbol;
+            PluginInfo plugin_info;
 
-            plugin_info.plugin_handle = Host::DynamicLibraryOpen (plugin_file_spec, flags, error);
-            if (plugin_info.plugin_handle)
+            std::string pluginLoadError;
+            plugin_info.library = llvm::sys::DynamicLibrary::getPermanentLibrary (plugin_file_spec.GetPath().c_str(), &pluginLoadError);
+            if (plugin_info.library.isValid())
             {
                 bool success = false;
-                plugin_info.plugin_init_callback = (PluginInitCallback)Host::DynamicLibraryGetSymbol (plugin_info.plugin_handle, "LLDBPluginInitialize", error);
+                plugin_info.plugin_init_callback =
+                    CastToFPtr<PluginInitCallback>(plugin_info.library.getAddressOfSymbol("LLDBPluginInitialize"));
                 if (plugin_info.plugin_init_callback)
                 {
                     // Call the plug-in "bool LLDBPluginInitialize(void)" function
@@ -125,16 +137,15 @@ LoadPluginCallback
                 if (success)
                 {
                     // It is ok for the "LLDBPluginTerminate" symbol to be NULL
-                    plugin_info.plugin_term_callback = (PluginTermCallback)Host::DynamicLibraryGetSymbol (plugin_info.plugin_handle, "LLDBPluginTerminate", error);
+                    plugin_info.plugin_term_callback =
+                        CastToFPtr<PluginTermCallback>(plugin_info.library.getAddressOfSymbol("LLDBPluginTerminate"));
                 }
                 else 
                 {
-                    // The initialize function returned FALSE which means the
-                    // plug-in might not be compatible, or might be too new or
-                    // too old, or might not want to run on this machine.
-                    Host::DynamicLibraryClose (plugin_info.plugin_handle);
-                    plugin_info.plugin_handle = NULL;
-                    plugin_info.plugin_init_callback = NULL;
+                    // The initialize function returned FALSE which means the plug-in might not be
+                    // compatible, or might be too new or too old, or might not want to run on this
+                    // machine.  Set it to a default-constructed instance to invalidate it.
+                    plugin_info = PluginInfo();
                 }
 
                 // Regardless of success or failure, cache the plug-in load
@@ -153,7 +164,7 @@ LoadPluginCallback
     {
         // Try and recurse into anything that a directory or symbolic link. 
         // We must also do this for unknown as sometimes the directory enumeration
-        // might be enurating a file system that doesn't have correct file type
+        // might be enumerating a file system that doesn't have correct file type
         // information.
         return FileSpec::eEnumerateDirectoryResultEnter;
     }
@@ -171,7 +182,7 @@ PluginManager::Initialize ()
     const bool find_files = true;
     const bool find_other = true;
     char dir_path[PATH_MAX];
-    if (Host::GetLLDBPath (ePathTypeLLDBSystemPlugins, dir_spec))
+    if (HostInfo::GetLLDBPath(ePathTypeLLDBSystemPlugins, dir_spec))
     {
         if (dir_spec.Exists() && dir_spec.GetPath(dir_path, sizeof(dir_path)))
         {
@@ -184,7 +195,7 @@ PluginManager::Initialize ()
         }
     }
 
-    if (Host::GetLLDBPath (ePathTypeLLDBUserPlugins, dir_spec))
+    if (HostInfo::GetLLDBPath(ePathTypeLLDBUserPlugins, dir_spec))
     {
         if (dir_spec.Exists() && dir_spec.GetPath(dir_path, sizeof(dir_path)))
         {
@@ -210,11 +221,10 @@ PluginManager::Terminate ()
     {
         // Call the plug-in "void LLDBPluginTerminate (void)" function if there
         // is one (if the symbol was not NULL).
-        if (pos->second.plugin_handle)
+        if (pos->second.library.isValid())
         {
             if (pos->second.plugin_term_callback)
                 pos->second.plugin_term_callback();
-            Host::DynamicLibraryClose (pos->second.plugin_handle);
         }
     }
     plugin_map.clear();
@@ -535,6 +545,116 @@ PluginManager::GetDynamicLoaderCreateCallbackForPluginName (const ConstString &n
         DynamicLoaderInstances &instances = GetDynamicLoaderInstances ();
         
         DynamicLoaderInstances::iterator pos, end = instances.end();
+        for (pos = instances.begin(); pos != end; ++ pos)
+        {
+            if (name == pos->name)
+                return pos->create_callback;
+        }
+    }
+    return NULL;
+}
+
+#pragma mark JITLoader
+
+
+struct JITLoaderInstance
+{
+    JITLoaderInstance() :
+        name(),
+        description(),
+        create_callback(NULL),
+        debugger_init_callback (NULL)
+    {
+    }
+
+    ConstString name;
+    std::string description;
+    JITLoaderCreateInstance create_callback;
+    DebuggerInitializeCallback debugger_init_callback;
+};
+
+typedef std::vector<JITLoaderInstance> JITLoaderInstances;
+
+
+static Mutex &
+GetJITLoaderMutex ()
+{
+    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    return g_instances_mutex;
+}
+
+static JITLoaderInstances &
+GetJITLoaderInstances ()
+{
+    static JITLoaderInstances g_instances;
+    return g_instances;
+}
+
+
+bool
+PluginManager::RegisterPlugin
+(
+    const ConstString &name,
+    const char *description,
+    JITLoaderCreateInstance create_callback,
+    DebuggerInitializeCallback debugger_init_callback
+)
+{
+    if (create_callback)
+    {
+        JITLoaderInstance instance;
+        assert ((bool)name);
+        instance.name = name;
+        if (description && description[0])
+            instance.description = description;
+        instance.create_callback = create_callback;
+        instance.debugger_init_callback = debugger_init_callback;
+        Mutex::Locker locker (GetJITLoaderMutex ());
+        GetJITLoaderInstances ().push_back (instance);
+    }
+    return false;
+}
+
+bool
+PluginManager::UnregisterPlugin (JITLoaderCreateInstance create_callback)
+{
+    if (create_callback)
+    {
+        Mutex::Locker locker (GetJITLoaderMutex ());
+        JITLoaderInstances &instances = GetJITLoaderInstances ();
+        
+        JITLoaderInstances::iterator pos, end = instances.end();
+        for (pos = instances.begin(); pos != end; ++ pos)
+        {
+            if (pos->create_callback == create_callback)
+            {
+                instances.erase(pos);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+JITLoaderCreateInstance
+PluginManager::GetJITLoaderCreateCallbackAtIndex (uint32_t idx)
+{
+    Mutex::Locker locker (GetJITLoaderMutex ());
+    JITLoaderInstances &instances = GetJITLoaderInstances ();
+    if (idx < instances.size())
+        return instances[idx].create_callback;
+    return NULL;
+}
+
+JITLoaderCreateInstance
+PluginManager::GetJITLoaderCreateCallbackForPluginName (const ConstString &name)
+{
+    if (name)
+    {
+        Mutex::Locker locker (GetJITLoaderMutex ());
+        JITLoaderInstances &instances = GetJITLoaderInstances ();
+        
+        JITLoaderInstances::iterator pos, end = instances.end();
         for (pos = instances.begin(); pos != end; ++ pos)
         {
             if (name == pos->name)
@@ -968,7 +1088,8 @@ struct ObjectFileInstance
         description(),
         create_callback(NULL),
         create_memory_callback (NULL),
-        get_module_specifications (NULL)
+        get_module_specifications (NULL),
+        save_core (NULL)
     {
     }
 
@@ -977,6 +1098,7 @@ struct ObjectFileInstance
     ObjectFileCreateInstance create_callback;
     ObjectFileCreateMemoryInstance create_memory_callback;
     ObjectFileGetModuleSpecifications get_module_specifications;
+    ObjectFileSaveCore save_core;
 };
 
 typedef std::vector<ObjectFileInstance> ObjectFileInstances;
@@ -1001,7 +1123,8 @@ PluginManager::RegisterPlugin (const ConstString &name,
                                const char *description,
                                ObjectFileCreateInstance create_callback,
                                ObjectFileCreateMemoryInstance create_memory_callback,
-                               ObjectFileGetModuleSpecifications get_module_specifications)
+                               ObjectFileGetModuleSpecifications get_module_specifications,
+                               ObjectFileSaveCore save_core)
 {
     if (create_callback)
     {
@@ -1012,6 +1135,7 @@ PluginManager::RegisterPlugin (const ConstString &name,
             instance.description = description;
         instance.create_callback = create_callback;
         instance.create_memory_callback = create_memory_callback;
+        instance.save_core = save_core;
         instance.get_module_specifications = get_module_specifications;
         Mutex::Locker locker (GetObjectFileMutex ());
         GetObjectFileInstances ().push_back (instance);
@@ -1108,7 +1232,22 @@ PluginManager::GetObjectFileCreateMemoryCallbackForPluginName (const ConstString
     return NULL;
 }
 
-
+Error
+PluginManager::SaveCore (const lldb::ProcessSP &process_sp, const FileSpec &outfile)
+{
+    Error error;
+    Mutex::Locker locker (GetObjectFileMutex ());
+    ObjectFileInstances &instances = GetObjectFileInstances ();
+    
+    ObjectFileInstances::iterator pos, end = instances.end();
+    for (pos = instances.begin(); pos != end; ++ pos)
+    {
+        if (pos->save_core && pos->save_core (process_sp, outfile, error))
+            return error;
+    }
+    error.SetErrorString("no ObjectFile plugins were able to save a core for this process");
+    return error;
+}
 
 #pragma mark ObjectContainer
 
@@ -1929,6 +2068,229 @@ PluginManager::GetUnwindAssemblyCreateCallbackForPluginName (const ConstString &
     return NULL;
 }
 
+#pragma mark MemoryHistory
+
+struct MemoryHistoryInstance
+{
+    MemoryHistoryInstance() :
+    name(),
+    description(),
+    create_callback(NULL)
+    {
+    }
+    
+    ConstString name;
+    std::string description;
+    MemoryHistoryCreateInstance create_callback;
+};
+
+typedef std::vector<MemoryHistoryInstance> MemoryHistoryInstances;
+
+static Mutex &
+GetMemoryHistoryMutex ()
+{
+    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    return g_instances_mutex;
+}
+
+static MemoryHistoryInstances &
+GetMemoryHistoryInstances ()
+{
+    static MemoryHistoryInstances g_instances;
+    return g_instances;
+}
+
+bool
+PluginManager::RegisterPlugin
+(
+ const ConstString &name,
+ const char *description,
+ MemoryHistoryCreateInstance create_callback
+ )
+{
+    if (create_callback)
+    {
+        MemoryHistoryInstance instance;
+        assert ((bool)name);
+        instance.name = name;
+        if (description && description[0])
+            instance.description = description;
+        instance.create_callback = create_callback;
+        Mutex::Locker locker (GetMemoryHistoryMutex ());
+        GetMemoryHistoryInstances ().push_back (instance);
+    }
+    return false;
+}
+
+bool
+PluginManager::UnregisterPlugin (MemoryHistoryCreateInstance create_callback)
+{
+    if (create_callback)
+    {
+        Mutex::Locker locker (GetMemoryHistoryMutex ());
+        MemoryHistoryInstances &instances = GetMemoryHistoryInstances ();
+        
+        MemoryHistoryInstances::iterator pos, end = instances.end();
+        for (pos = instances.begin(); pos != end; ++ pos)
+        {
+            if (pos->create_callback == create_callback)
+            {
+                instances.erase(pos);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+MemoryHistoryCreateInstance
+PluginManager::GetMemoryHistoryCreateCallbackAtIndex (uint32_t idx)
+{
+    Mutex::Locker locker (GetMemoryHistoryMutex ());
+    MemoryHistoryInstances &instances = GetMemoryHistoryInstances ();
+    if (idx < instances.size())
+        return instances[idx].create_callback;
+    return NULL;
+}
+
+
+MemoryHistoryCreateInstance
+PluginManager::GetMemoryHistoryCreateCallbackForPluginName (const ConstString &name)
+{
+    if (name)
+    {
+        Mutex::Locker locker (GetMemoryHistoryMutex ());
+        MemoryHistoryInstances &instances = GetMemoryHistoryInstances ();
+        
+        MemoryHistoryInstances::iterator pos, end = instances.end();
+        for (pos = instances.begin(); pos != end; ++ pos)
+        {
+            if (name == pos->name)
+                return pos->create_callback;
+        }
+    }
+    return NULL;
+}
+
+#pragma mark InstrumentationRuntime
+
+struct InstrumentationRuntimeInstance
+{
+    InstrumentationRuntimeInstance() :
+    name(),
+    description(),
+    create_callback(NULL)
+    {
+    }
+    
+    ConstString name;
+    std::string description;
+    InstrumentationRuntimeCreateInstance create_callback;
+    InstrumentationRuntimeGetType get_type_callback;
+};
+
+typedef std::vector<InstrumentationRuntimeInstance> InstrumentationRuntimeInstances;
+
+static Mutex &
+GetInstrumentationRuntimeMutex ()
+{
+    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    return g_instances_mutex;
+}
+
+static InstrumentationRuntimeInstances &
+GetInstrumentationRuntimeInstances ()
+{
+    static InstrumentationRuntimeInstances g_instances;
+    return g_instances;
+}
+
+bool
+PluginManager::RegisterPlugin
+(
+ const ConstString &name,
+ const char *description,
+ InstrumentationRuntimeCreateInstance create_callback,
+ InstrumentationRuntimeGetType get_type_callback
+ )
+{
+    if (create_callback)
+    {
+        InstrumentationRuntimeInstance instance;
+        assert ((bool)name);
+        instance.name = name;
+        if (description && description[0])
+            instance.description = description;
+        instance.create_callback = create_callback;
+        instance.get_type_callback = get_type_callback;
+        Mutex::Locker locker (GetInstrumentationRuntimeMutex ());
+        GetInstrumentationRuntimeInstances ().push_back (instance);
+    }
+    return false;
+}
+
+bool
+PluginManager::UnregisterPlugin (InstrumentationRuntimeCreateInstance create_callback)
+{
+    if (create_callback)
+    {
+        Mutex::Locker locker (GetInstrumentationRuntimeMutex ());
+        InstrumentationRuntimeInstances &instances = GetInstrumentationRuntimeInstances ();
+        
+        InstrumentationRuntimeInstances::iterator pos, end = instances.end();
+        for (pos = instances.begin(); pos != end; ++ pos)
+        {
+            if (pos->create_callback == create_callback)
+            {
+                instances.erase(pos);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+InstrumentationRuntimeGetType
+PluginManager::GetInstrumentationRuntimeGetTypeCallbackAtIndex (uint32_t idx)
+{
+    Mutex::Locker locker (GetInstrumentationRuntimeMutex ());
+    InstrumentationRuntimeInstances &instances = GetInstrumentationRuntimeInstances ();
+    if (idx < instances.size())
+        return instances[idx].get_type_callback;
+    return NULL;
+}
+
+InstrumentationRuntimeCreateInstance
+PluginManager::GetInstrumentationRuntimeCreateCallbackAtIndex (uint32_t idx)
+{
+    Mutex::Locker locker (GetInstrumentationRuntimeMutex ());
+    InstrumentationRuntimeInstances &instances = GetInstrumentationRuntimeInstances ();
+    if (idx < instances.size())
+        return instances[idx].create_callback;
+    return NULL;
+}
+
+
+InstrumentationRuntimeCreateInstance
+PluginManager::GetInstrumentationRuntimeCreateCallbackForPluginName (const ConstString &name)
+{
+    if (name)
+    {
+        Mutex::Locker locker (GetInstrumentationRuntimeMutex ());
+        InstrumentationRuntimeInstances &instances = GetInstrumentationRuntimeInstances ();
+        
+        InstrumentationRuntimeInstances::iterator pos, end = instances.end();
+        for (pos = instances.begin(); pos != end; ++ pos)
+        {
+            if (name == pos->name)
+                return pos->create_callback;
+        }
+    }
+    return NULL;
+}
+
+#pragma mark PluginManager
+
 void
 PluginManager::DebuggerInitialize (Debugger &debugger)
 {
@@ -1938,6 +2300,19 @@ PluginManager::DebuggerInitialize (Debugger &debugger)
         DynamicLoaderInstances &instances = GetDynamicLoaderInstances ();
     
         DynamicLoaderInstances::iterator pos, end = instances.end();
+        for (pos = instances.begin(); pos != end; ++ pos)
+        {
+            if (pos->debugger_init_callback)
+                pos->debugger_init_callback (debugger);
+        }
+    }
+
+    // Initialize the JITLoader plugins
+    {
+        Mutex::Locker locker (GetJITLoaderMutex ());
+        JITLoaderInstances &instances = GetJITLoaderInstances ();
+    
+        JITLoaderInstances::iterator pos, end = instances.end();
         for (pos = instances.begin(); pos != end; ++ pos)
         {
             if (pos->debugger_init_callback)

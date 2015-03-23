@@ -20,7 +20,7 @@
 ifdef(`__win32__', `dnl', `dnl
 ifdef(`TEMPFILE', `dnl', `define(`TEMPFILE', maketemp(/tmp/cfXXXXXX))dnl
 syscmd(sh _CF_DIR_`'sh/makeinfo.sh _CF_DIR_ > TEMPFILE)dnl
-include(TEMPFILE)dnl
+ifdef(`_NO_MAKEINFO_',, `include(TEMPFILE)')dnl
 syscmd(rm -f TEMPFILE)dnl')')
 #####
 ######################################################################

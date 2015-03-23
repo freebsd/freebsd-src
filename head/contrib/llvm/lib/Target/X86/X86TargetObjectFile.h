@@ -7,12 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TARGET_X86_TARGETOBJECTFILE_H
-#define LLVM_TARGET_X86_TARGETOBJECTFILE_H
+#ifndef LLVM_LIB_TARGET_X86_X86TARGETOBJECTFILE_H
+#define LLVM_LIB_TARGET_X86_X86TARGETOBJECTFILE_H
 
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
-#include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
 
@@ -20,25 +19,38 @@ namespace llvm {
   /// x86-64.
   class X86_64MachoTargetObjectFile : public TargetLoweringObjectFileMachO {
   public:
-    virtual const MCExpr *
-    getTTypeGlobalReference(const GlobalValue *GV, Mangler *Mang,
-                            MachineModuleInfo *MMI, unsigned Encoding,
-                            MCStreamer &Streamer) const;
+    const MCExpr *
+    getTTypeGlobalReference(const GlobalValue *GV, unsigned Encoding,
+                            Mangler &Mang, const TargetMachine &TM,
+                            MachineModuleInfo *MMI,
+                            MCStreamer &Streamer) const override;
 
     // getCFIPersonalitySymbol - The symbol that gets passed to
     // .cfi_personality.
-    virtual MCSymbol *
-    getCFIPersonalitySymbol(const GlobalValue *GV, Mangler *Mang,
-                            MachineModuleInfo *MMI) const;
+    MCSymbol *getCFIPersonalitySymbol(const GlobalValue *GV, Mangler &Mang,
+                                      const TargetMachine &TM,
+                                      MachineModuleInfo *MMI) const override;
   };
 
   /// X86LinuxTargetObjectFile - This implementation is used for linux x86
   /// and x86-64.
   class X86LinuxTargetObjectFile : public TargetLoweringObjectFileELF {
-    virtual void Initialize(MCContext &Ctx, const TargetMachine &TM);
+    void Initialize(MCContext &Ctx, const TargetMachine &TM) override;
 
     /// \brief Describe a TLS variable address within debug info.
-    virtual const MCExpr *getDebugThreadLocalSymbol(const MCSymbol *Sym) const;
+    const MCExpr *getDebugThreadLocalSymbol(const MCSymbol *Sym) const override;
+  };
+
+  /// \brief This implementation is used for Windows targets on x86 and x86-64.
+  class X86WindowsTargetObjectFile : public TargetLoweringObjectFileCOFF {
+    const MCExpr *
+    getExecutableRelativeSymbol(const ConstantExpr *CE, Mangler &Mang,
+                                const TargetMachine &TM) const override;
+
+    /// \brief Given a mergeable constant with the specified size and relocation
+    /// information, return a section that it should be placed in.
+    const MCSection *getSectionForConstant(SectionKind Kind,
+                                           const Constant *C) const override;
   };
 
 } // end namespace llvm

@@ -186,8 +186,19 @@ enum {
 	MLX4_DEV_CAP_FLAG2_ETH_BACKPL_AN_REP	= 1LL <<  10,
 	MLX4_DEV_CAP_FLAG2_FLOWSTATS_EN		= 1LL <<  11,
 	MLX4_DEV_CAP_FLAG2_RECOVERABLE_ERROR_EVENT = 1LL << 12,
-	MLX4_DEV_CAP_FLAG2_TS                   = 1LL <<  13,
-	MLX4_DEV_CAP_FLAG2_DRIVER_VERSION_TO_FW    = 1LL <<  14
+	MLX4_DEV_CAP_FLAG2_TS			= 1LL <<  13,
+	MLX4_DEV_CAP_FLAG2_DRIVER_VERSION_TO_FW	   = 1LL <<  14,
+	MLX4_DEV_CAP_FLAG2_REASSIGN_MAC_EN	= 1LL <<  15,
+	MLX4_DEV_CAP_FLAG2_VXLAN_OFFLOADS	= 1LL <<  16,
+	MLX4_DEV_CAP_FLAG2_FS_EN_NCSI		= 1LL <<  17,
+	MLX4_DEV_CAP_FLAG2_80_VFS		= 1LL <<  18,
+	MLX4_DEV_CAP_FLAG2_DMFS_TAG_MODE	= 1LL <<  19,
+	MLX4_DEV_CAP_FLAG2_ROCEV2		= 1LL <<  20,
+	MLX4_DEV_CAP_FLAG2_ETH_PROT_CTRL	= 1LL <<  21,
+	MLX4_DEV_CAP_FLAG2_CQE_STRIDE		= 1LL <<  22,
+	MLX4_DEV_CAP_FLAG2_EQE_STRIDE		= 1LL <<  23,
+	MLX4_DEV_CAP_FLAG2_UPDATE_QP_SRC_CHECK_LB = 1LL << 24,
+	MLX4_DEV_CAP_FLAG2_RX_CSUM_MODE		= 1LL <<  25,
 };
 
 /* bit enums for an 8-bit flags field indicating special use
@@ -948,9 +959,9 @@ void mlx4_buf_free(struct mlx4_dev *dev, int size, struct mlx4_buf *buf);
 static inline void *mlx4_buf_offset(struct mlx4_buf *buf, int offset)
 {
 	if (BITS_PER_LONG == 64 || buf->nbufs == 1)
-		return buf->direct.buf + offset;
+		return (u8 *)buf->direct.buf + offset;
 	else
-		return buf->page_list[offset >> PAGE_SHIFT].buf +
+		return (u8 *)buf->page_list[offset >> PAGE_SHIFT].buf +
 			(offset & (PAGE_SIZE - 1));
 }
 

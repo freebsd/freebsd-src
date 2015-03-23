@@ -65,11 +65,15 @@
 #include <machine/param.h>
 #include <machine/asm.h>
 
+TOC_ENTRY(blocked_lock)
+
 /*
  * void cpu_throw(struct thread *old, struct thread *new)
  */
 ENTRY(cpu_throw)
 	mr	%r13, %r4
+	li	%r14,0	/* Tell cpu_switchin not to release a thread */
+
 	b	cpu_switchin
 
 /*
@@ -137,29 +141,31 @@ ENTRY(cpu_switch)
 	bl	pmap_deactivate	/* Deactivate the current pmap */
 	nop
 
-	addi	%r1,%r1,48
-
 	sync				/* Make sure all of that finished */
-	std	%r16,TD_LOCK(%r14)	/* ULE:	update old thread's lock */
 
 cpu_switchin:
 #if defined(SMP) && defined(SCHED_ULE)
 	/* Wait for the new thread to become unblocked */
-	lis	%r6,blocked_lock@ha
-	addi	%r6,%r6,blocked_lock@l
+	ld	%r6,TOC_REF(blocked_lock)(%r2)
 blocked_loop:
 	ld	%r7,TD_LOCK(%r13)
 	cmpd	%r6,%r7 
 	beq-	blocked_loop
 	isync
 #endif
+	
+	ld	%r17,TD_PCB(%r13)	/* Get new PCB */
+	ld	%r1,PCB_SP(%r17)	/* Load the stack pointer */
 
-	mfsprg	%r7,0			/* Get the pcpu pointer */
+	/* Release old thread now that we have a stack pointer set up */
+	cmpdi	%r14,0
+	beq-	1f
+	std	%r16,TD_LOCK(%r14)	/* ULE:	update old thread's lock */
+
+1:	mfsprg	%r7,0			/* Get the pcpu pointer */
 	std	%r13,PC_CURTHREAD(%r7)	/* Store new current thread */
 	ld	%r17,TD_PCB(%r13)	/* Store new current PCB */
 	std	%r17,PC_CURPCB(%r7)
-
-	stdu	%r1,-48(%r1)
 
 	mr	%r3,%r13		/* Get new thread ptr */
 	bl	pmap_activate		/* Activate the new address space */
@@ -211,21 +217,6 @@ blocked_loop:
 	mtlr	%r5
 	ld	%r1,PCB_SP(%r3)		/* Load the stack pointer */
 	ld	%r2,PCB_TOC(%r3)	/* Load the TOC pointer */
-
-	lis	%r5,USER_ADDR@highesta	/* Load the copyin/out segment reg */
-	ori	%r5,%r5,USER_ADDR@highera
-	sldi	%r5,%r5,32
-	oris	%r5,%r5,USER_ADDR@ha
-	isync
-	slbie	%r5
-	lis	%r6,USER_SLB_SLBE@highesta
-	ori	%r6,%r6,USER_SLB_SLBE@highera
-	sldi	%r6,%r6,32
-	oris	%r6,%r6,USER_SLB_SLBE@ha
-	ori	%r6,%r6,USER_SLB_SLBE@l
-	ld	%r5,PCB_AIM_USR_VSID(%r3)
-	slbmte	%r5,%r6
-	isync
 
 	/*
 	 * Perform a dummy stdcx. to clear any reservations we may have

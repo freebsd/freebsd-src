@@ -2605,6 +2605,12 @@ ar5212GetTargetPowers(struct ath_hal *ah, const struct ieee80211_channel *chan,
 		powInfo[ixlo].twicePwr54, powInfo[ixhi].twicePwr54);
 }
 
+static uint32_t
+udiff(uint32_t u, uint32_t v)
+{
+	return (u >= v ? u - v : v - u);
+}
+
 /*
  * Search a list for a specified value v that is within
  * EEP_DELTA of the search values.  Return the closest
@@ -2639,7 +2645,7 @@ ar5212GetLowerUpperValues(uint16_t v, uint16_t *lp, uint16_t listSize,
 		 * If value is close to the current value of the list
 		 * then target is not between values, it is one of the values
 		 */
-		if (abs(lp[0] * EEP_SCALE - target) < EEP_DELTA) {
+		if (udiff(lp[0] * EEP_SCALE, target) < EEP_DELTA) {
 			*vlo = *vhi = lp[0];
 			return;
 		}

@@ -12,9 +12,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SEMA_SCOPE_INFO_H
-#define LLVM_CLANG_SEMA_SCOPE_INFO_H
+#ifndef LLVM_CLANG_SEMA_SCOPEINFO_H
+#define LLVM_CLANG_SEMA_SCOPEINFO_H
 
+#include "clang/AST/Expr.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/CapturedStmt.h"
 #include "clang/Basic/PartialDiagnostic.h"
@@ -41,8 +42,6 @@ class SwitchStmt;
 class TemplateTypeParmDecl;
 class TemplateParameterList;
 class VarDecl;
-class DeclRefExpr;
-class MemberExpr;
 class ObjCIvarRefExpr;
 class ObjCPropertyRefExpr;
 class ObjCMessageExpr;
@@ -110,6 +109,21 @@ public:
   /// with \c __attribute__((objc_requires_super)).
   bool ObjCShouldCallSuper;
 
+  /// True when this is a method marked as a designated initializer.
+  bool ObjCIsDesignatedInit;
+  /// This starts true for a method marked as designated initializer and will
+  /// be set to false if there is an invocation to a designated initializer of
+  /// the super class.
+  bool ObjCWarnForNoDesignatedInitChain;
+
+  /// True when this is an initializer method not marked as a designated
+  /// initializer within a class that has at least one initializer marked as a
+  /// designated initializer.
+  bool ObjCIsSecondaryInit;
+  /// This starts true for a secondary initializer method and will be set to
+  /// false if there is an invocation of an initializer on 'self'.
+  bool ObjCWarnForNoInitDelegation;
+
   /// \brief Used to determine if errors occurred in this function or block.
   DiagnosticErrorTrap ErrorTrap;
 
@@ -130,6 +144,10 @@ public:
   /// current function scope.  These diagnostics are vetted for reachability
   /// prior to being emitted.
   SmallVector<PossiblyUnreachableDiag, 4> PossiblyUnreachableDiags;
+  
+  /// \brief A list of parameters which have the nonnull attribute and are
+  /// modified in the function.
+  llvm::SmallPtrSet<const ParmVarDecl*, 8>  ModifiedNonNullParams;
 
 public:
   /// Represents a simple identification of a weak object.
@@ -172,8 +190,6 @@ public:
     /// Used to find the proper base profile for a given base expression.
     static BaseInfoTy getBaseInfo(const Expr *BaseE);
 
-    // For use in DenseMap.
-    friend class DenseMapInfo;
     inline WeakObjectProfileTy();
     static inline WeakObjectProfileTy getSentinel();
 
@@ -318,6 +334,10 @@ public:
       HasIndirectGoto(false),
       HasDroppedStmt(false),
       ObjCShouldCallSuper(false),
+      ObjCIsDesignatedInit(false),
+      ObjCWarnForNoDesignatedInitChain(false),
+      ObjCIsSecondaryInit(false),
+      ObjCWarnForNoInitDelegation(false),
       ErrorTrap(Diag) { }
 
   virtual ~FunctionScopeInfo();
@@ -362,7 +382,7 @@ public:
     /// capture (if this is a capture and not an init-capture). The expression
     /// is only required if we are capturing ByVal and the variable's type has
     /// a non-trivial copy constructor.
-    llvm::PointerIntPair<Expr*, 2, CaptureKind> InitExprAndCaptureKind;
+    llvm::PointerIntPair<void *, 2, CaptureKind> InitExprAndCaptureKind;
 
     /// \brief The source location at which the first capture occurred.
     SourceLocation Loc;
@@ -386,7 +406,7 @@ public:
     enum IsThisCapture { ThisCapture };
     Capture(IsThisCapture, bool IsNested, SourceLocation Loc,
             QualType CaptureType, Expr *Cpy)
-        : VarAndNested(0, IsNested),
+        : VarAndNested(nullptr, IsNested),
           InitExprAndCaptureKind(Cpy, Cap_This),
           Loc(Loc), EllipsisLoc(), CaptureType(CaptureType) {}
 
@@ -394,10 +414,11 @@ public:
       return InitExprAndCaptureKind.getInt() == Cap_This;
     }
     bool isVariableCapture() const {
-      return InitExprAndCaptureKind.getInt() != Cap_This;
+      return InitExprAndCaptureKind.getInt() != Cap_This && !isVLATypeCapture();
     }
     bool isCopyCapture() const {
-      return InitExprAndCaptureKind.getInt() == Cap_ByCopy;
+      return InitExprAndCaptureKind.getInt() == Cap_ByCopy &&
+             !isVLATypeCapture();
     }
     bool isReferenceCapture() const {
       return InitExprAndCaptureKind.getInt() == Cap_ByRef;
@@ -405,7 +426,11 @@ public:
     bool isBlockCapture() const {
       return InitExprAndCaptureKind.getInt() == Cap_Block;
     }
-    bool isNested() { return VarAndNested.getInt(); }
+    bool isVLATypeCapture() const {
+      return InitExprAndCaptureKind.getInt() == Cap_ByCopy &&
+             getVariable() == nullptr;
+    }
+    bool isNested() const { return VarAndNested.getInt(); }
 
     VarDecl *getVariable() const {
       return VarAndNested.getPointer();
@@ -424,7 +449,8 @@ public:
     QualType getCaptureType() const { return CaptureType; }
     
     Expr *getInitExpr() const {
-      return InitExprAndCaptureKind.getPointer();
+      assert(!isVLATypeCapture() && "no init expression for type capture");
+      return static_cast<Expr *>(InitExprAndCaptureKind.getPointer());
     }
   };
 
@@ -459,6 +485,13 @@ public:
     CaptureMap[Var] = Captures.size();
   }
 
+  void addVLATypeCapture(SourceLocation Loc, QualType CaptureType) {
+    Captures.push_back(Capture(/*Var*/ nullptr, /*isBlock*/ false,
+                               /*isByref*/ false, /*isNested*/ false, Loc,
+                               /*EllipsisLoc*/ SourceLocation(), CaptureType,
+                               /*Cpy*/ nullptr));
+  }
+
   void addThisCapture(bool isNested, SourceLocation Loc, QualType CaptureType,
                       Expr *Cpy);
 
@@ -475,7 +508,10 @@ public:
   bool isCaptured(VarDecl *Var) const {
     return CaptureMap.count(Var);
   }
-  
+
+  /// \brief Determine whether the given variable-array type has been captured.
+  bool isVLATypeCaptured(const VariableArrayType *VAT) const;
+
   /// \brief Retrieve the capture of the given variable, if it has been
   /// captured already.
   Capture &getCapture(VarDecl *Var) {
@@ -644,10 +680,10 @@ public:
   SourceLocation PotentialThisCaptureLocation;
 
   LambdaScopeInfo(DiagnosticsEngine &Diag)
-    : CapturingScopeInfo(Diag, ImpCap_None), Lambda(0),
-      CallOperator(0), NumExplicitCaptures(0), Mutable(false),
+    : CapturingScopeInfo(Diag, ImpCap_None), Lambda(nullptr),
+      CallOperator(nullptr), NumExplicitCaptures(0), Mutable(false),
       ExprNeedsCleanups(false), ContainsUnexpandedParameterPack(false),
-      AutoTemplateParameterDepth(0), GLTemplateParameterList(0)
+      AutoTemplateParameterDepth(0), GLTemplateParameterList(nullptr)
   {
     Kind = SK_Lambda;
   }
@@ -738,7 +774,7 @@ public:
         || isa<MemberExpr>(CapturingVarExpr));
     NonODRUsedCapturingExprs.insert(CapturingVarExpr);
   }
-  bool isVariableExprMarkedAsNonODRUsed(Expr *CapturingVarExpr) {
+  bool isVariableExprMarkedAsNonODRUsed(Expr *CapturingVarExpr) const {
     assert(isa<DeclRefExpr>(CapturingVarExpr) 
       || isa<MemberExpr>(CapturingVarExpr));
     return NonODRUsedCapturingExprs.count(CapturingVarExpr);
@@ -761,16 +797,14 @@ public:
     return getNumPotentialVariableCaptures() || 
                                   PotentialThisCaptureLocation.isValid(); 
   }
-  
-  // When passed the index, returns the VarDecl and Expr associated 
+
+  // When passed the index, returns the VarDecl and Expr associated
   // with the index.
-  void getPotentialVariableCapture(unsigned Idx, VarDecl *&VD, Expr *&E);
- 
+  void getPotentialVariableCapture(unsigned Idx, VarDecl *&VD, Expr *&E) const;
 };
 
-
 FunctionScopeInfo::WeakObjectProfileTy::WeakObjectProfileTy()
-  : Base(0, false), Property(0) {}
+  : Base(nullptr, false), Property(nullptr) {}
 
 FunctionScopeInfo::WeakObjectProfileTy
 FunctionScopeInfo::WeakObjectProfileTy::getSentinel() {

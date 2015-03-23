@@ -149,7 +149,8 @@ RegisterContextMacOSXFrameBackchain::ReadRegister (const RegisterInfo *reg_info,
 
             // TOOD: need a better way to detect when "long double" types are
             // the same bytes size as "double"
-#if !defined(__arm__) && !defined(_MSC_VER) && !defined(__mips__)
+#if !defined(__arm__) && !defined(__arm64__) && !defined(__aarch64__) && !defined(_MSC_VER) && \
+    !defined(__mips__) && !defined(__powerpc__) && !defined(__ANDROID_NDK__)
         case sizeof (long double):
             if (sizeof (long double) == sizeof(uint32_t))
             {
@@ -199,7 +200,7 @@ RegisterContextMacOSXFrameBackchain::WriteAllRegisterValues (const lldb::DataBuf
 
 
 uint32_t
-RegisterContextMacOSXFrameBackchain::ConvertRegisterKindToRegisterNumber (uint32_t kind, uint32_t num)
+RegisterContextMacOSXFrameBackchain::ConvertRegisterKindToRegisterNumber (lldb::RegisterKind kind, uint32_t num)
 {
     return m_thread.GetRegisterContext()->ConvertRegisterKindToRegisterNumber (kind, num);
 }

@@ -428,7 +428,7 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, u_long npages,
 		msucc = TAILQ_FIRST(&object->memq);
 	if (msucc != NULL) {
 		KASSERT(msucc->pindex > pindex,
-		    ("vm_reserv_alloc_page: pindex already allocated"));
+		    ("vm_reserv_alloc_contig: pindex already allocated"));
 		rv = vm_reserv_from_page(msucc);
 		if (rv->object == object && vm_reserv_has_pindex(rv, pindex))
 			goto found;
@@ -818,15 +818,17 @@ void
 vm_reserv_init(void)
 {
 	vm_paddr_t paddr;
-	int i;
+	struct vm_phys_seg *seg;
+	int segind;
 
 	/*
 	 * Initialize the reservation array.  Specifically, initialize the
 	 * "pages" field for every element that has an underlying superpage.
 	 */
-	for (i = 0; phys_avail[i + 1] != 0; i += 2) {
-		paddr = roundup2(phys_avail[i], VM_LEVEL_0_SIZE);
-		while (paddr + VM_LEVEL_0_SIZE <= phys_avail[i + 1]) {
+	for (segind = 0; segind < vm_phys_nsegs; segind++) {
+		seg = &vm_phys_segs[segind];
+		paddr = roundup2(seg->start, VM_LEVEL_0_SIZE);
+		while (paddr + VM_LEVEL_0_SIZE <= seg->end) {
 			vm_reserv_array[paddr >> VM_LEVEL_0_SHIFT].pages =
 			    PHYS_TO_VM_PAGE(paddr);
 			paddr += VM_LEVEL_0_SIZE;

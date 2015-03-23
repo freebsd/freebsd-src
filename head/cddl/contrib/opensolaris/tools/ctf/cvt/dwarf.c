@@ -766,7 +766,8 @@ die_array_resolve(tdesc_t *tdp, tdesc_t **tdpp __unused, void *private)
 	debug(3, "trying to resolve array %d (cont %d)\n", tdp->t_id,
 	    tdp->t_ardef->ad_contents->t_id);
 
-	if ((sz = tdesc_size(tdp->t_ardef->ad_contents)) == 0) {
+	if ((sz = tdesc_size(tdp->t_ardef->ad_contents)) == 0 &&
+	    (tdp->t_ardef->ad_contents->t_flags & TDESC_F_RESOLVED) == 0) {
 		debug(3, "unable to resolve array %s (%d) contents %d\n",
 		    tdesc_name(tdp), tdp->t_id,
 		    tdp->t_ardef->ad_contents->t_id);
@@ -1138,11 +1139,16 @@ die_sou_resolve(tdesc_t *tdp, tdesc_t **tdpp __unused, void *private)
 
 			/*
 			 * For empty members, or GCC/C99 flexible array
-			 * members, a size of 0 is correct.
+			 * members, a size of 0 is correct. Structs and unions
+			 * consisting of flexible array members will also have
+			 * size 0.
 			 */
 			if (mt->t_members == NULL)
 				continue;
 			if (mt->t_type == ARRAY && mt->t_ardef->ad_nelems == 0)
+				continue;
+			if ((mt->t_flags & TDESC_F_RESOLVED) != 0 &&
+			    (mt->t_type == STRUCT || mt->t_type == UNION))
 				continue;
 
 			dw->dw_nunres++;
@@ -1384,7 +1390,7 @@ die_base_type2enc(dwarf_t *dw, Dwarf_Off off, Dwarf_Signed enc, size_t sz)
 		mult = 2;
 		col = 1;
 	} else if (enc == DW_ATE_imaginary_float
-#if defined(sun)
+#ifdef illumos
 	    || enc == DW_ATE_SUN_imaginary_float
 #endif
 	    )
@@ -1435,7 +1441,7 @@ die_base_from_dwarf(dwarf_t *dw, Dwarf_Die base, Dwarf_Off off, size_t sz)
 	case DW_ATE_float:
 	case DW_ATE_complex_float:
 	case DW_ATE_imaginary_float:
-#if defined(sun)
+#ifdef illumos
 	case DW_ATE_SUN_imaginary_float:
 	case DW_ATE_SUN_interval_float:
 #endif

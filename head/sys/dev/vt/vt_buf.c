@@ -562,6 +562,18 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 		vb->vb_roffset = vb->vb_curroffset;
 	}
 
+	/* Adjust cursor position. */
+	if (vb->vb_cursor.tp_col > p->tp_col - 1)
+		/*
+		 * Move cursor to the last column, in case its previous
+		 * position is outside of the new screen area.
+		 */
+		vb->vb_cursor.tp_col = p->tp_col - 1;
+
+	if (vb->vb_curroffset > 0 || vb->vb_cursor.tp_row > p->tp_row - 1)
+		/* Move cursor to the last line on the screen. */
+		vb->vb_cursor.tp_row = p->tp_row - 1;
+
 	vtbuf_make_undirty(vb);
 	VTBUF_UNLOCK(vb);
 

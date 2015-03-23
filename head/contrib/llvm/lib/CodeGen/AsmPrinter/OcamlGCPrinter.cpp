@@ -16,6 +16,7 @@
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/GCMetadataPrinter.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Mangler.h"
 #include "llvm/IR/Module.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
@@ -23,9 +24,9 @@
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FormattedStream.h"
-#include "llvm/Target/Mangler.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include <cctype>
 using namespace llvm;
 
@@ -33,8 +34,10 @@ namespace {
 
   class OcamlGCMetadataPrinter : public GCMetadataPrinter {
   public:
-    void beginAssembly(AsmPrinter &AP);
-    void finishAssembly(AsmPrinter &AP);
+    void beginAssembly(Module &M, GCModuleInfo &Info,
+                       AsmPrinter &AP) override;
+    void finishAssembly(Module &M, GCModuleInfo &Info,
+                        AsmPrinter &AP) override;
   };
 
 }
@@ -66,12 +69,13 @@ static void EmitCamlGlobal(const Module &M, AsmPrinter &AP, const char *Id) {
   AP.OutStreamer.EmitLabel(Sym);
 }
 
-void OcamlGCMetadataPrinter::beginAssembly(AsmPrinter &AP) {
+void OcamlGCMetadataPrinter::beginAssembly(Module &M, GCModuleInfo &Info,
+                                           AsmPrinter &AP) {
   AP.OutStreamer.SwitchSection(AP.getObjFileLowering().getTextSection());
-  EmitCamlGlobal(getModule(), AP, "code_begin");
+  EmitCamlGlobal(M, AP, "code_begin");
 
   AP.OutStreamer.SwitchSection(AP.getObjFileLowering().getDataSection());
-  EmitCamlGlobal(getModule(), AP, "data_begin");
+  EmitCamlGlobal(M, AP, "data_begin");
 }
 
 /// emitAssembly - Print the frametable. The ocaml frametable format is thus:
@@ -90,24 +94,30 @@ void OcamlGCMetadataPrinter::beginAssembly(AsmPrinter &AP) {
 /// (FrameSize and LiveOffsets would overflow). FrameTablePrinter will abort if
 /// either condition is detected in a function which uses the GC.
 ///
-void OcamlGCMetadataPrinter::finishAssembly(AsmPrinter &AP) {
-  unsigned IntPtrSize = AP.TM.getDataLayout()->getPointerSize();
+void OcamlGCMetadataPrinter::finishAssembly(Module &M, GCModuleInfo &Info,
+                                            AsmPrinter &AP) {
+  unsigned IntPtrSize =
+      AP.TM.getSubtargetImpl()->getDataLayout()->getPointerSize();
 
   AP.OutStreamer.SwitchSection(AP.getObjFileLowering().getTextSection());
-  EmitCamlGlobal(getModule(), AP, "code_end");
+  EmitCamlGlobal(M, AP, "code_end");
 
   AP.OutStreamer.SwitchSection(AP.getObjFileLowering().getDataSection());
-  EmitCamlGlobal(getModule(), AP, "data_end");
+  EmitCamlGlobal(M, AP, "data_end");
 
   // FIXME: Why does ocaml emit this??
   AP.OutStreamer.EmitIntValue(0, IntPtrSize);
 
   AP.OutStreamer.SwitchSection(AP.getObjFileLowering().getDataSection());
-  EmitCamlGlobal(getModule(), AP, "frametable");
+  EmitCamlGlobal(M, AP, "frametable");
 
   int NumDescriptors = 0;
-  for (iterator I = begin(), IE = end(); I != IE; ++I) {
+  for (GCModuleInfo::FuncInfoVec::iterator I = Info.funcinfo_begin(),
+         IE = Info.funcinfo_end(); I != IE; ++I) {
     GCFunctionInfo &FI = **I;
+    if (FI.getStrategy().getName() != getStrategy().getName())
+      // this function is managed by some other GC
+      continue;
     for (GCFunctionInfo::iterator J = FI.begin(), JE = FI.end(); J != JE; ++J) {
       NumDescriptors++;
     }
@@ -120,8 +130,12 @@ void OcamlGCMetadataPrinter::finishAssembly(AsmPrinter &AP) {
   AP.EmitInt16(NumDescriptors);
   AP.EmitAlignment(IntPtrSize == 4 ? 2 : 3);
 
-  for (iterator I = begin(), IE = end(); I != IE; ++I) {
+  for (GCModuleInfo::FuncInfoVec::iterator I = Info.funcinfo_begin(),
+         IE = Info.funcinfo_end(); I != IE; ++I) {
     GCFunctionInfo &FI = **I;
+    if (FI.getStrategy().getName() != getStrategy().getName())
+      // this function is managed by some other GC
+      continue;
 
     uint64_t FrameSize = FI.getFrameSize();
     if (FrameSize >= 1<<16) {

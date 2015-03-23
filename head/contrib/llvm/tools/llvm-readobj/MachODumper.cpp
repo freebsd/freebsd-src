@@ -15,8 +15,8 @@
 #include "Error.h"
 #include "ObjDumper.h"
 #include "StreamWriter.h"
-
 #include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Object/MachO.h"
 #include "llvm/Support/Casting.h"
 
@@ -31,20 +31,22 @@ public:
     : ObjDumper(Writer)
     , Obj(Obj) { }
 
-  virtual void printFileHeaders() LLVM_OVERRIDE;
-  virtual void printSections() LLVM_OVERRIDE;
-  virtual void printRelocations() LLVM_OVERRIDE;
-  virtual void printSymbols() LLVM_OVERRIDE;
-  virtual void printDynamicSymbols() LLVM_OVERRIDE;
-  virtual void printUnwindInfo() LLVM_OVERRIDE;
+  void printFileHeaders() override;
+  void printSections() override;
+  void printRelocations() override;
+  void printSymbols() override;
+  void printDynamicSymbols() override;
+  void printUnwindInfo() override;
 
 private:
-  void printSymbol(symbol_iterator SymI);
+  template<class MachHeader>
+  void printFileHeaders(const MachHeader &Header);
 
-  void printRelocation(section_iterator SecI, relocation_iterator RelI);
+  void printSymbol(const SymbolRef &Symbol);
 
-  void printRelocation(const MachOObjectFile *Obj,
-                       section_iterator SecI, relocation_iterator RelI);
+  void printRelocation(const RelocationRef &Reloc);
+
+  void printRelocation(const MachOObjectFile *Obj, const RelocationRef &Reloc);
 
   void printSections(const MachOObjectFile *Obj);
 
@@ -56,9 +58,9 @@ private:
 
 namespace llvm {
 
-error_code createMachODumper(const object::ObjectFile *Obj,
-                             StreamWriter& Writer,
-                             OwningPtr<ObjDumper> &Result) {
+std::error_code createMachODumper(const object::ObjectFile *Obj,
+                                  StreamWriter &Writer,
+                                  std::unique_ptr<ObjDumper> &Result) {
   const MachOObjectFile *MachOObj = dyn_cast<MachOObjectFile>(Obj);
   if (!MachOObj)
     return readobj_error::unsupported_obj_file_format;
@@ -69,6 +71,137 @@ error_code createMachODumper(const object::ObjectFile *Obj,
 
 } // namespace llvm
 
+static const EnumEntry<uint32_t> MachOMagics[] = {
+  { "Magic",      MachO::MH_MAGIC    },
+  { "Cigam",      MachO::MH_CIGAM    },
+  { "Magic64",    MachO::MH_MAGIC_64 },
+  { "Cigam64",    MachO::MH_CIGAM_64 },
+  { "FatMagic",   MachO::FAT_MAGIC   },
+  { "FatCigam",   MachO::FAT_CIGAM   },
+};
+
+static const EnumEntry<uint32_t> MachOHeaderFileTypes[] = {
+  { "Relocatable",          MachO::MH_OBJECT      },
+  { "Executable",           MachO::MH_EXECUTE     },
+  { "FixedVMLibrary",       MachO::MH_FVMLIB      },
+  { "Core",                 MachO::MH_CORE        },
+  { "PreloadedExecutable",  MachO::MH_PRELOAD     },
+  { "DynamicLibrary",       MachO::MH_DYLIB       },
+  { "DynamicLinker",        MachO::MH_DYLINKER    },
+  { "Bundle",               MachO::MH_BUNDLE      },
+  { "DynamicLibraryStub",   MachO::MH_DYLIB_STUB  },
+  { "DWARFSymbol",          MachO::MH_DSYM        },
+  { "KextBundle",           MachO::MH_KEXT_BUNDLE },
+};
+
+static const EnumEntry<uint32_t> MachOHeaderCpuTypes[] = {
+  { "Any"       , static_cast<uint32_t>(MachO::CPU_TYPE_ANY) },
+  { "X86"       , MachO::CPU_TYPE_X86       },
+  { "X86-64"    , MachO::CPU_TYPE_X86_64    },
+  { "Mc98000"   , MachO::CPU_TYPE_MC98000   },
+  { "Arm"       , MachO::CPU_TYPE_ARM       },
+  { "Arm64"     , MachO::CPU_TYPE_ARM64     },
+  { "Sparc"     , MachO::CPU_TYPE_SPARC     },
+  { "PowerPC"   , MachO::CPU_TYPE_POWERPC   },
+  { "PowerPC64" , MachO::CPU_TYPE_POWERPC64 },
+};
+
+static const EnumEntry<uint32_t> MachOHeaderCpuSubtypesX86[] = {
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_I386_ALL),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_386),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_486),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_486SX),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_586),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_PENTPRO),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_PENTII_M3),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_PENTII_M5),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_CELERON),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_CELERON_MOBILE),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_PENTIUM_3),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_PENTIUM_3_M),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_PENTIUM_3_XEON),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_PENTIUM_M),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_PENTIUM_4),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_PENTIUM_4_M),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ITANIUM),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ITANIUM_2),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_XEON),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_XEON_MP),
+};
+
+static const EnumEntry<uint32_t> MachOHeaderCpuSubtypesX64[] = {
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_X86_64_ALL),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_X86_ARCH1),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_X86_64_H),
+};
+
+static const EnumEntry<uint32_t> MachOHeaderCpuSubtypesARM[] = {
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_ALL),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V4T),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V6),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V5),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V5TEJ),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_XSCALE),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V7),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V7S),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V7K),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V6M),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V7M),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V7EM),
+};
+
+static const EnumEntry<uint32_t> MachOHeaderCpuSubtypesARM64[] = {
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM64_ALL),
+};
+
+static const EnumEntry<uint32_t> MachOHeaderCpuSubtypesSPARC[] = {
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_SPARC_ALL),
+};
+
+static const EnumEntry<uint32_t> MachOHeaderCpuSubtypesPPC[] = {
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_POWERPC_ALL),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_POWERPC_601),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_POWERPC_602),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_POWERPC_603),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_POWERPC_603e),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_POWERPC_603ev),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_POWERPC_604),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_POWERPC_604e),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_POWERPC_620),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_POWERPC_750),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_POWERPC_7400),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_POWERPC_7450),
+  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_POWERPC_970),
+};
+
+static const EnumEntry<uint32_t> MachOHeaderFlags[] = {
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_NOUNDEFS),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_INCRLINK),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_DYLDLINK),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_BINDATLOAD),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_PREBOUND),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_SPLIT_SEGS),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_LAZY_INIT),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_TWOLEVEL),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_FORCE_FLAT),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_NOMULTIDEFS),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_NOFIXPREBINDING),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_PREBINDABLE),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_ALLMODSBOUND),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_SUBSECTIONS_VIA_SYMBOLS),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_CANONICAL),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_WEAK_DEFINES),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_BINDS_TO_WEAK),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_ALLOW_STACK_EXECUTION),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_ROOT_SAFE),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_SETUID_SAFE),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_NO_REEXPORTED_DYLIBS),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_PIE),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_DEAD_STRIPPABLE_DYLIB),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_HAS_TLV_DESCRIPTORS),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_NO_HEAP_EXECUTION),
+  LLVM_READOBJ_ENUM_ENT(MachO, MH_APP_EXTENSION_SAFE),
+};
 
 static const EnumEntry<unsigned> MachOSectionTypes[] = {
   { "Regular"                        , 0x00 },
@@ -126,19 +259,13 @@ static const EnumEntry<unsigned> MachOSymbolFlags[] = {
 
 static const EnumEntry<unsigned> MachOSymbolTypes[] = {
   { "Undef",           0x0 },
-  { "External",        0x1 },
   { "Abs",             0x2 },
   { "Indirect",        0xA },
   { "PreboundUndef",   0xC },
-  { "Section",         0xE },
-  { "PrivateExternal", 0x10 }
+  { "Section",         0xE }
 };
 
 namespace {
-  enum {
-    N_STAB = 0xE0
-  };
-
   struct MachOSection {
     ArrayRef<char> Name;
     ArrayRef<char> SegmentName;
@@ -212,7 +339,47 @@ static void getSymbol(const MachOObjectFile *Obj,
 }
 
 void MachODumper::printFileHeaders() {
-  W.startLine() << "FileHeaders not implemented.\n";
+  DictScope H(W, "MachHeader");
+  if (!Obj->is64Bit()) {
+    printFileHeaders(Obj->getHeader());
+  } else {
+    printFileHeaders(Obj->getHeader64());
+    W.printHex("Reserved", Obj->getHeader64().reserved);
+  }
+}
+
+template<class MachHeader>
+void MachODumper::printFileHeaders(const MachHeader &Header) {
+  W.printEnum("Magic", Header.magic, makeArrayRef(MachOMagics));
+  W.printEnum("CpuType", Header.cputype, makeArrayRef(MachOHeaderCpuTypes));
+  uint32_t subtype = Header.cpusubtype & ~MachO::CPU_SUBTYPE_MASK;
+  switch (Header.cputype) {
+  case MachO::CPU_TYPE_X86:
+    W.printEnum("CpuSubType", subtype, makeArrayRef(MachOHeaderCpuSubtypesX86));
+    break;
+  case MachO::CPU_TYPE_X86_64:
+    W.printEnum("CpuSubType", subtype, makeArrayRef(MachOHeaderCpuSubtypesX64));
+    break;
+  case MachO::CPU_TYPE_ARM:
+    W.printEnum("CpuSubType", subtype, makeArrayRef(MachOHeaderCpuSubtypesARM));
+    break;
+  case MachO::CPU_TYPE_POWERPC:
+    W.printEnum("CpuSubType", subtype, makeArrayRef(MachOHeaderCpuSubtypesPPC));
+    break;
+  case MachO::CPU_TYPE_SPARC:
+    W.printEnum("CpuSubType", subtype, makeArrayRef(MachOHeaderCpuSubtypesSPARC));
+    break;
+  case MachO::CPU_TYPE_ARM64:
+    W.printEnum("CpuSubType", subtype, makeArrayRef(MachOHeaderCpuSubtypesARM64));
+    break;
+  case MachO::CPU_TYPE_POWERPC64:
+  default:
+    W.printHex("CpuSubtype", subtype);
+  }
+  W.printEnum("FileType", Header.filetype, makeArrayRef(MachOHeaderFileTypes));
+  W.printNumber("NumOfLoadCommands", Header.ncmds);
+  W.printNumber("SizeOfLoadCommands", Header.sizeofcmds);
+  W.printFlags("Flags", Header.flags, makeArrayRef(MachOHeaderFlags));
 }
 
 void MachODumper::printSections() {
@@ -223,21 +390,16 @@ void MachODumper::printSections(const MachOObjectFile *Obj) {
   ListScope Group(W, "Sections");
 
   int SectionIndex = -1;
-  error_code EC;
-  for (section_iterator SecI = Obj->begin_sections(),
-                        SecE = Obj->end_sections();
-                        SecI != SecE; SecI.increment(EC)) {
-    if (error(EC)) break;
-
+  for (const SectionRef &Section : Obj->sections()) {
     ++SectionIndex;
 
-    MachOSection Section;
-    getSection(Obj, SecI->getRawDataRefImpl(), Section);
-    DataRefImpl DR = SecI->getRawDataRefImpl();
+    MachOSection MOSection;
+    getSection(Obj, Section.getRawDataRefImpl(), MOSection);
+    DataRefImpl DR = Section.getRawDataRefImpl();
 
     StringRef Name;
-    if (error(SecI->getName(Name)))
-        Name = "";
+    if (error(Section.getName(Name)))
+      Name = "";
 
     ArrayRef<char> RawName = Obj->getSectionRawName(DR);
     StringRef SegmentName = Obj->getSectionFinalSegmentName(DR);
@@ -247,50 +409,44 @@ void MachODumper::printSections(const MachOObjectFile *Obj) {
     W.printNumber("Index", SectionIndex);
     W.printBinary("Name", Name, RawName);
     W.printBinary("Segment", SegmentName, RawSegmentName);
-    W.printHex   ("Address", Section.Address);
-    W.printHex   ("Size", Section.Size);
-    W.printNumber("Offset", Section.Offset);
-    W.printNumber("Alignment", Section.Alignment);
-    W.printHex   ("RelocationOffset", Section.RelocationTableOffset);
-    W.printNumber("RelocationCount", Section.NumRelocationTableEntries);
-    W.printEnum  ("Type", Section.Flags & 0xFF,
-                  makeArrayRef(MachOSectionAttributes));
-    W.printFlags ("Attributes", Section.Flags >> 8,
-                  makeArrayRef(MachOSectionAttributes));
-    W.printHex   ("Reserved1", Section.Reserved1);
-    W.printHex   ("Reserved2", Section.Reserved2);
+    W.printHex("Address", MOSection.Address);
+    W.printHex("Size", MOSection.Size);
+    W.printNumber("Offset", MOSection.Offset);
+    W.printNumber("Alignment", MOSection.Alignment);
+    W.printHex("RelocationOffset", MOSection.RelocationTableOffset);
+    W.printNumber("RelocationCount", MOSection.NumRelocationTableEntries);
+    W.printEnum("Type", MOSection.Flags & 0xFF,
+                makeArrayRef(MachOSectionAttributes));
+    W.printFlags("Attributes", MOSection.Flags >> 8,
+                 makeArrayRef(MachOSectionAttributes));
+    W.printHex("Reserved1", MOSection.Reserved1);
+    W.printHex("Reserved2", MOSection.Reserved2);
 
     if (opts::SectionRelocations) {
       ListScope D(W, "Relocations");
-      for (relocation_iterator RelI = SecI->begin_relocations(),
-                               RelE = SecI->end_relocations();
-                               RelI != RelE; RelI.increment(EC)) {
-        if (error(EC)) break;
-
-        printRelocation(SecI, RelI);
-      }
+      for (const RelocationRef &Reloc : Section.relocations())
+        printRelocation(Reloc);
     }
 
     if (opts::SectionSymbols) {
       ListScope D(W, "Symbols");
-      for (symbol_iterator SymI = Obj->begin_symbols(),
-                           SymE = Obj->end_symbols();
-                           SymI != SymE; SymI.increment(EC)) {
-        if (error(EC)) break;
-
-        bool Contained = false;
-        if (SecI->containsSymbol(*SymI, Contained) || !Contained)
+      for (const SymbolRef &Symbol : Obj->symbols()) {
+        if (!Section.containsSymbol(Symbol))
           continue;
 
-        printSymbol(SymI);
+        printSymbol(Symbol);
       }
     }
 
     if (opts::SectionData) {
-      StringRef Data;
-      if (error(SecI->getContents(Data))) break;
+      bool IsBSS = Section.isBSS();
+      if (!IsBSS) {
+        StringRef Data;
+        if (error(Section.getContents(Data)))
+          break;
 
-      W.printBinaryBlock("SectionData", Data);
+        W.printBinaryBlock("SectionData", Data);
+      }
     }
   }
 }
@@ -298,29 +454,21 @@ void MachODumper::printSections(const MachOObjectFile *Obj) {
 void MachODumper::printRelocations() {
   ListScope D(W, "Relocations");
 
-  error_code EC;
-  for (section_iterator SecI = Obj->begin_sections(),
-                        SecE = Obj->end_sections();
-                        SecI != SecE; SecI.increment(EC)) {
-    if (error(EC)) break;
-
+  std::error_code EC;
+  for (const SectionRef &Section : Obj->sections()) {
     StringRef Name;
-    if (error(SecI->getName(Name)))
+    if (error(Section.getName(Name)))
       continue;
 
     bool PrintedGroup = false;
-    for (relocation_iterator RelI = SecI->begin_relocations(),
-                             RelE = SecI->end_relocations();
-                             RelI != RelE; RelI.increment(EC)) {
-      if (error(EC)) break;
-
+    for (const RelocationRef &Reloc : Section.relocations()) {
       if (!PrintedGroup) {
         W.startLine() << "Section " << Name << " {\n";
         W.indent();
         PrintedGroup = true;
       }
 
-      printRelocation(SecI, RelI);
+      printRelocation(Reloc);
     }
 
     if (PrintedGroup) {
@@ -330,27 +478,37 @@ void MachODumper::printRelocations() {
   }
 }
 
-void MachODumper::printRelocation(section_iterator SecI,
-                                  relocation_iterator RelI) {
-  return printRelocation(Obj, SecI, RelI);
+void MachODumper::printRelocation(const RelocationRef &Reloc) {
+  return printRelocation(Obj, Reloc);
 }
 
 void MachODumper::printRelocation(const MachOObjectFile *Obj,
-                                  section_iterator SecI,
-                                  relocation_iterator RelI) {
+                                  const RelocationRef &Reloc) {
   uint64_t Offset;
   SmallString<32> RelocName;
-  StringRef SymbolName;
-  if (error(RelI->getOffset(Offset))) return;
-  if (error(RelI->getTypeName(RelocName))) return;
-  symbol_iterator Symbol = RelI->getSymbol();
-  if (Symbol != Obj->end_symbols() &&
-      error(Symbol->getName(SymbolName)))
+  if (error(Reloc.getOffset(Offset)))
+    return;
+  if (error(Reloc.getTypeName(RelocName)))
     return;
 
-  DataRefImpl DR = RelI->getRawDataRefImpl();
+  DataRefImpl DR = Reloc.getRawDataRefImpl();
   MachO::any_relocation_info RE = Obj->getRelocation(DR);
   bool IsScattered = Obj->isRelocationScattered(RE);
+  SmallString<32> SymbolNameOrOffset("0x");
+  if (IsScattered) {
+    // Scattered relocations don't really have an associated symbol
+    // for some reason, even if one exists in the symtab at the correct address.
+    SymbolNameOrOffset += utohexstr(Obj->getScatteredRelocationValue(RE));
+  } else {
+    symbol_iterator Symbol = Reloc.getSymbol();
+    if (Symbol != Obj->symbol_end()) {
+      StringRef SymbolName;
+      if (error(Symbol->getName(SymbolName)))
+        return;
+      SymbolNameOrOffset = SymbolName;
+    } else
+      SymbolNameOrOffset += utohexstr(Obj->getPlainRelocationSymbolNum(RE));
+  }
 
   if (opts::ExpandRelocs) {
     DictScope Group(W, "Relocation");
@@ -362,7 +520,7 @@ void MachODumper::printRelocation(const MachOObjectFile *Obj,
     else
       W.printNumber("Extern", Obj->getPlainRelocationExternal(RE));
     W.printNumber("Type", RelocName, Obj->getAnyRelocationType(RE));
-    W.printString("Symbol", SymbolName.size() > 0 ? SymbolName : "-");
+    W.printString("Symbol", SymbolNameOrOffset);
     W.printNumber("Scattered", IsScattered);
   } else {
     raw_ostream& OS = W.startLine();
@@ -375,7 +533,7 @@ void MachODumper::printRelocation(const MachOObjectFile *Obj,
       OS << " " << Obj->getPlainRelocationExternal(RE);
     OS << " " << RelocName
        << " " << IsScattered
-       << " " << (SymbolName.size() > 0 ? SymbolName : "-")
+       << " " << SymbolNameOrOffset
        << "\n";
   }
 }
@@ -383,13 +541,8 @@ void MachODumper::printRelocation(const MachOObjectFile *Obj,
 void MachODumper::printSymbols() {
   ListScope Group(W, "Symbols");
 
-  error_code EC;
-  for (symbol_iterator SymI = Obj->begin_symbols(),
-                       SymE = Obj->end_symbols();
-                       SymI != SymE; SymI.increment(EC)) {
-    if (error(EC)) break;
-
-    printSymbol(SymI);
+  for (const SymbolRef &Symbol : Obj->symbols()) {
+    printSymbol(Symbol);
   }
 }
 
@@ -397,33 +550,37 @@ void MachODumper::printDynamicSymbols() {
   ListScope Group(W, "DynamicSymbols");
 }
 
-void MachODumper::printSymbol(symbol_iterator SymI) {
+void MachODumper::printSymbol(const SymbolRef &Symbol) {
   StringRef SymbolName;
-  if (SymI->getName(SymbolName))
+  if (Symbol.getName(SymbolName))
     SymbolName = "";
 
-  MachOSymbol Symbol;
-  getSymbol(Obj, SymI->getRawDataRefImpl(), Symbol);
+  MachOSymbol MOSymbol;
+  getSymbol(Obj, Symbol.getRawDataRefImpl(), MOSymbol);
 
   StringRef SectionName = "";
-  section_iterator SecI(Obj->end_sections());
-  if (!error(SymI->getSection(SecI)) &&
-      SecI != Obj->end_sections())
-      error(SecI->getName(SectionName));
+  section_iterator SecI(Obj->section_begin());
+  if (!error(Symbol.getSection(SecI)) && SecI != Obj->section_end())
+    error(SecI->getName(SectionName));
 
   DictScope D(W, "Symbol");
-  W.printNumber("Name", SymbolName, Symbol.StringIndex);
-  if (Symbol.Type & N_STAB) {
-    W.printHex ("Type", "SymDebugTable", Symbol.Type);
+  W.printNumber("Name", SymbolName, MOSymbol.StringIndex);
+  if (MOSymbol.Type & MachO::N_STAB) {
+    W.printHex("Type", "SymDebugTable", MOSymbol.Type);
   } else {
-    W.printEnum("Type", Symbol.Type, makeArrayRef(MachOSymbolTypes));
+    if (MOSymbol.Type & MachO::N_PEXT)
+      W.startLine() << "PrivateExtern\n";
+    if (MOSymbol.Type & MachO::N_EXT)
+      W.startLine() << "Extern\n";
+    W.printEnum("Type", uint8_t(MOSymbol.Type & MachO::N_TYPE),
+                makeArrayRef(MachOSymbolTypes));
   }
-  W.printHex   ("Section", SectionName, Symbol.SectionIndex);
-  W.printEnum  ("RefType", static_cast<uint16_t>(Symbol.Flags & 0xF),
-                  makeArrayRef(MachOSymbolRefTypes));
-  W.printFlags ("Flags", static_cast<uint16_t>(Symbol.Flags & ~0xF),
-                  makeArrayRef(MachOSymbolFlags));
-  W.printHex   ("Value", Symbol.Value);
+  W.printHex("Section", SectionName, MOSymbol.SectionIndex);
+  W.printEnum("RefType", static_cast<uint16_t>(MOSymbol.Flags & 0xF),
+              makeArrayRef(MachOSymbolRefTypes));
+  W.printFlags("Flags", static_cast<uint16_t>(MOSymbol.Flags & ~0xF),
+               makeArrayRef(MachOSymbolFlags));
+  W.printHex("Value", MOSymbol.Value);
 }
 
 void MachODumper::printUnwindInfo() {

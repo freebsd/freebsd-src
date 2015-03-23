@@ -73,6 +73,9 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 	u_int32_t prid;
 	u_int32_t cfg0;
 	u_int32_t cfg1;
+#ifndef CPU_CNMIPS
+	u_int32_t cfg2;
+#endif
 #if defined(CPU_CNMIPS)
 	u_int32_t cfg4;
 #endif
@@ -186,6 +189,31 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 	    * cpuinfo->l1.ic_nsets * cpuinfo->l1.ic_nways;
 	cpuinfo->l1.dc_size = cpuinfo->l1.dc_linesize 
 	    * cpuinfo->l1.dc_nsets * cpuinfo->l1.dc_nways;
+
+#ifndef CPU_CNMIPS
+	/* L2 cache */
+	if (!(cfg1 & MIPS_CONFIG_CM)) {
+		/* We don't have valid cfg2 register */
+		return;
+	}
+
+	cfg2 = mips_rd_config2();
+
+	tmp = (cfg2 >> MIPS_CONFIG2_SL_SHIFT) & MIPS_CONFIG2_SL_MASK;
+	if (0 < tmp && tmp <= 7)
+		cpuinfo->l2.dc_linesize = 2 << tmp;
+
+	tmp = (cfg2 >> MIPS_CONFIG2_SS_SHIFT) & MIPS_CONFIG2_SS_MASK;
+	if (0 <= tmp && tmp <= 7)
+		cpuinfo->l2.dc_nsets = 64 << tmp;
+
+	tmp = (cfg2 >> MIPS_CONFIG2_SA_SHIFT) & MIPS_CONFIG2_SA_MASK;
+	if (0 <= tmp && tmp <= 7)
+		cpuinfo->l2.dc_nways = tmp + 1;
+
+	cpuinfo->l2.dc_size = cpuinfo->l2.dc_linesize
+	    * cpuinfo->l2.dc_nsets * cpuinfo->l2.dc_nways;
+#endif
 }
 
 void
@@ -355,6 +383,7 @@ static driver_t cpu_driver = {
 static int
 cpu_probe(device_t dev)
 {
+
 	return (0);
 }
 

@@ -14,6 +14,7 @@
 #include "SparcFrameLowering.h"
 #include "SparcInstrInfo.h"
 #include "SparcMachineFunctionInfo.h"
+#include "SparcSubtarget.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -32,6 +33,9 @@ DisableLeafProc("disable-sparc-leaf-proc",
                 cl::desc("Disable Sparc leaf procedure optimization."),
                 cl::Hidden);
 
+SparcFrameLowering::SparcFrameLowering(const SparcSubtarget &ST)
+    : TargetFrameLowering(TargetFrameLowering::StackGrowsDown,
+                          ST.is64Bit() ? 16 : 8, 0, ST.is64Bit() ? 16 : 8) {}
 
 void SparcFrameLowering::emitSPAdjustment(MachineFunction &MF,
                                           MachineBasicBlock &MBB,
@@ -42,7 +46,7 @@ void SparcFrameLowering::emitSPAdjustment(MachineFunction &MF,
 
   DebugLoc dl = (MBBI != MBB.end()) ? MBBI->getDebugLoc() : DebugLoc();
   const SparcInstrInfo &TII =
-    *static_cast<const SparcInstrInfo*>(MF.getTarget().getInstrInfo());
+      *static_cast<const SparcInstrInfo *>(MF.getSubtarget().getInstrInfo());
 
   if (NumBytes >= -4096 && NumBytes < 4096) {
     BuildMI(MBB, MBBI, dl, TII.get(ADDri), SP::O6)
@@ -84,7 +88,7 @@ void SparcFrameLowering::emitPrologue(MachineFunction &MF) const {
   MachineBasicBlock &MBB = MF.front();
   MachineFrameInfo *MFI = MF.getFrameInfo();
   const SparcInstrInfo &TII =
-    *static_cast<const SparcInstrInfo*>(MF.getTarget().getInstrInfo());
+      *static_cast<const SparcInstrInfo *>(MF.getSubtarget().getInstrInfo());
   MachineBasicBlock::iterator MBBI = MBB.begin();
   DebugLoc dl = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
 
@@ -99,28 +103,33 @@ void SparcFrameLowering::emitPrologue(MachineFunction &MF) const {
     SAVEri = SP::ADDri;
     SAVErr = SP::ADDrr;
   }
-  NumBytes = - SubTarget.getAdjustedFrameSize(NumBytes);
+  NumBytes =
+      -MF.getTarget().getSubtarget<SparcSubtarget>().getAdjustedFrameSize(
+          NumBytes);
   emitSPAdjustment(MF, MBB, MBBI, NumBytes, SAVErr, SAVEri);
 
   MachineModuleInfo &MMI = MF.getMMI();
   const MCRegisterInfo *MRI = MMI.getContext().getRegisterInfo();
-  MCSymbol *FrameLabel = MMI.getContext().CreateTempSymbol();
-  BuildMI(MBB, MBBI, dl, TII.get(SP::PROLOG_LABEL)).addSym(FrameLabel);
-
   unsigned regFP = MRI->getDwarfRegNum(SP::I6, true);
 
   // Emit ".cfi_def_cfa_register 30".
-  MMI.addFrameInst(MCCFIInstruction::createDefCfaRegister(FrameLabel,
-                                                          regFP));
+  unsigned CFIIndex =
+      MMI.addFrameInst(MCCFIInstruction::createDefCfaRegister(nullptr, regFP));
+  BuildMI(MBB, MBBI, dl, TII.get(TargetOpcode::CFI_INSTRUCTION))
+      .addCFIIndex(CFIIndex);
+
   // Emit ".cfi_window_save".
-  MMI.addFrameInst(MCCFIInstruction::createWindowSave(FrameLabel));
+  CFIIndex = MMI.addFrameInst(MCCFIInstruction::createWindowSave(nullptr));
+  BuildMI(MBB, MBBI, dl, TII.get(TargetOpcode::CFI_INSTRUCTION))
+      .addCFIIndex(CFIIndex);
 
   unsigned regInRA = MRI->getDwarfRegNum(SP::I7, true);
   unsigned regOutRA = MRI->getDwarfRegNum(SP::O7, true);
   // Emit ".cfi_register 15, 31".
-  MMI.addFrameInst(MCCFIInstruction::createRegister(FrameLabel,
-                                                    regOutRA,
-                                                    regInRA));
+  CFIIndex = MMI.addFrameInst(
+      MCCFIInstruction::createRegister(nullptr, regOutRA, regInRA));
+  BuildMI(MBB, MBBI, dl, TII.get(TargetOpcode::CFI_INSTRUCTION))
+      .addCFIIndex(CFIIndex);
 }
 
 void SparcFrameLowering::
@@ -144,7 +153,7 @@ void SparcFrameLowering::emitEpilogue(MachineFunction &MF,
   SparcMachineFunctionInfo *FuncInfo = MF.getInfo<SparcMachineFunctionInfo>();
   MachineBasicBlock::iterator MBBI = MBB.getLastNonDebugInstr();
   const SparcInstrInfo &TII =
-    *static_cast<const SparcInstrInfo*>(MF.getTarget().getInstrInfo());
+      *static_cast<const SparcInstrInfo *>(MF.getSubtarget().getInstrInfo());
   DebugLoc dl = MBBI->getDebugLoc();
   assert(MBBI->getOpcode() == SP::RETL &&
          "Can only put epilog before 'retl' instruction!");
@@ -159,7 +168,8 @@ void SparcFrameLowering::emitEpilogue(MachineFunction &MF,
   if (NumBytes == 0)
     return;
 
-  NumBytes = SubTarget.getAdjustedFrameSize(NumBytes);
+  NumBytes = MF.getTarget().getSubtarget<SparcSubtarget>().getAdjustedFrameSize(
+      NumBytes);
   emitSPAdjustment(MF, MBB, MBBI, NumBytes, SP::ADDrr, SP::ADDri);
 }
 

@@ -2689,8 +2689,7 @@ rxintr_setup(softc_t *sc)
       printf("%s: rxintr_setup: MGETHDR() failed\n", NAME_UNIT);
     return 0;
     }
-  MCLGET(m, M_NOWAIT);
-  if ((m->m_flags & M_EXT) == 0)
+  if (!(MCLGET(m, M_NOWAIT)))
     {
     m_freem(m);
     sc->status.cntrs.rxdma++;

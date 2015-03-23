@@ -61,6 +61,7 @@ struct format_opts {
 	int bcwidth;
 	int pcwidth;
 	int show_counters;
+	int show_time;		/* show timestamp */
 	uint32_t set_mask;	/* enabled sets mask */
 	uint32_t flags;		/* request flags */
 	uint32_t first;		/* first rule to request */
@@ -1524,11 +1525,14 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 
 		case O_FORWARD_IP6:
 		    {
-			char buf[4 + INET6_ADDRSTRLEN + 1];
+			char buf[INET6_ADDRSTRLEN + IF_NAMESIZE + 2];
 			ipfw_insn_sa6 *s = (ipfw_insn_sa6 *)cmd;
 
-			bprintf(bp, "fwd %s", inet_ntop(AF_INET6,
-			    &s->sa.sin6_addr, buf, sizeof(buf)));
+			bprintf(bp, "fwd ");
+			if (getnameinfo((const struct sockaddr *)&s->sa,
+			    sizeof(struct sockaddr_in6), buf, sizeof(buf),
+			    NULL, 0, NI_NUMERICHOST) == 0)
+				bprintf(bp, "%s", buf);
 			if (s->sa.sin6_port)
 				bprintf(bp, ",%d", s->sa.sin6_port);
 		    }
@@ -2402,7 +2406,7 @@ list_static_range(struct cmdline_opts *co, struct format_opts *fo,
 	for (n = seen = 0; n < rcnt; n++,
 	    rtlv = (ipfw_obj_tlv *)((caddr_t)rtlv + rtlv->length)) {
 
-		if (fo->show_counters != 0) {
+		if ((fo->show_counters | fo->show_time) != 0) {
 			cntr = (struct ip_fw_bcounter *)(rtlv + 1);
 			r = (struct ip_fw_rule *)((caddr_t)cntr + cntr->size);
 		} else {
@@ -2504,10 +2508,11 @@ ipfw_list(int ac, char *av[], int show_counters)
 	/* get configuraion from kernel */
 	cfg = NULL;
 	sfo.show_counters = show_counters;
+	sfo.show_time = co.do_time;
 	sfo.flags = IPFW_CFG_GET_STATIC;
 	if (co.do_dynamic != 0)
 		sfo.flags |= IPFW_CFG_GET_STATES;
-	if (sfo.show_counters != 0)
+	if ((sfo.show_counters | sfo.show_time) != 0)
 		sfo.flags |= IPFW_CFG_GET_COUNTERS;
 	if (ipfw_get_config(&co, &sfo, &cfg, &sz) != 0)
 		err(EX_OSERR, "retrieving config failed");
@@ -3739,8 +3744,8 @@ chkarg:
 			p->sa.sin6_family = AF_INET6;
 			p->sa.sin6_port = port_number;
 			p->sa.sin6_flowinfo = 0;
-			p->sa.sin6_scope_id = 0;
-			/* No table support for v6 yet. */
+			p->sa.sin6_scope_id =
+			    ((struct sockaddr_in6 *)&result)->sin6_scope_id;
 			bcopy(&((struct sockaddr_in6*)&result)->sin6_addr,
 			    &p->sa.sin6_addr, sizeof(p->sa.sin6_addr));
 		} else {

@@ -19,8 +19,7 @@ BOOT2_UFS?=	UFS1_AND_UFS2
 #BOOT2_UFS?=	UFS2_ONLY
 #BOOT2_UFS?=	UFS1_ONLY
 
-CFLAGS=	-Os \
-	-fomit-frame-pointer \
+CFLAGS=	-fomit-frame-pointer \
 	-mrtd \
 	-mregparm=3 \
 	-D${BOOT2_UFS} \
@@ -37,10 +36,13 @@ CFLAGS=	-Os \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
 	-Winline
 
-CFLAGS.gcc+=	-fno-guess-branch-probability \
+CFLAGS.gcc+=	-Os \
+		-fno-guess-branch-probability \
 		-fno-unit-at-a-time \
-		-mno-align-long-strings \
 		--param max-inline-insns-single=100
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} <= 40201
+CFLAGS.gcc+=   -mno-align-long-strings
+.endif
 
 # Set machine type to PC98_SYSTEM_PARAMETER
 #CFLAGS+=	-DSET_MACHINE_TYPE
@@ -48,7 +50,7 @@ CFLAGS.gcc+=	-fno-guess-branch-probability \
 # Initialize the bi_bios_geom using the BIOS geometry
 #CFLAGS+=	-DGET_BIOSGEOM
 
-CFLAGS.clang+=${CLANG_OPT_SMALL}
+CFLAGS.clang+=	-Oz ${CLANG_OPT_SMALL}
 
 LD_FLAGS=-static -N --gc-sections
 
@@ -92,6 +94,7 @@ boot2.out: ${BTXCRT} boot2.o sio.o
 	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC}
 
 boot2.o: boot2.s
+	${CC} ${ACFLAGS} -c boot2.s
 
 SRCS=	boot2.c boot2.h
 

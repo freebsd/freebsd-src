@@ -40,13 +40,6 @@
 
 // AddressSanitizer
 SANITIZER("address", Address)
-// More features of AddressSanitizer that should be turned on explicitly.
-SANITIZER("init-order", InitOrder)
-SANITIZER("use-after-return", UseAfterReturn)
-SANITIZER("use-after-scope", UseAfterScope)
-
-SANITIZER_GROUP("address-full", AddressFull,
-                Address | InitOrder | UseAfterReturn | UseAfterScope)
 
 // MemorySanitizer
 SANITIZER("memory", Memory)
@@ -66,9 +59,11 @@ SANITIZER("float-cast-overflow", FloatCastOverflow)
 SANITIZER("float-divide-by-zero", FloatDivideByZero)
 SANITIZER("function", Function)
 SANITIZER("integer-divide-by-zero", IntegerDivideByZero)
+SANITIZER("nonnull-attribute", NonnullAttribute)
 SANITIZER("null", Null)
 SANITIZER("object-size", ObjectSize)
 SANITIZER("return", Return)
+SANITIZER("returns-nonnull-attribute", ReturnsNonnullAttribute)
 SANITIZER("shift", Shift)
 SANITIZER("signed-integer-overflow", SignedIntegerOverflow)
 SANITIZER("unreachable", Unreachable)
@@ -85,27 +80,31 @@ SANITIZER("dataflow", DataFlow)
 // ABI or address space layout implications, and only catch undefined behavior.
 SANITIZER_GROUP("undefined", Undefined,
                 Alignment | Bool | ArrayBounds | Enum | FloatCastOverflow |
-                FloatDivideByZero | Function | IntegerDivideByZero | Null |
-                ObjectSize | Return | Shift | SignedIntegerOverflow |
-                Unreachable | VLABound | Vptr)
+                    FloatDivideByZero | Function | IntegerDivideByZero |
+                    NonnullAttribute | Null | ObjectSize | Return |
+                    ReturnsNonnullAttribute | Shift | SignedIntegerOverflow |
+                    Unreachable | VLABound | Vptr)
 
-// -fsanitize=undefined-trap (and its alias -fcatch-undefined-behavior) includes
+// -fsanitize=undefined-trap includes
 // all sanitizers included by -fsanitize=undefined, except those that require
 // runtime support.  This group is generally used in conjunction with the
 // -fsanitize-undefined-trap-on-error flag.
 SANITIZER_GROUP("undefined-trap", UndefinedTrap,
                 Alignment | Bool | ArrayBounds | Enum | FloatCastOverflow |
-                FloatDivideByZero | IntegerDivideByZero | Null | ObjectSize |
-                Return | Shift | SignedIntegerOverflow | Unreachable |
-                VLABound)
+                    FloatDivideByZero | IntegerDivideByZero | NonnullAttribute |
+                    Null | ObjectSize | Return | ReturnsNonnullAttribute |
+                    Shift | SignedIntegerOverflow | Unreachable | VLABound)
 
 SANITIZER_GROUP("integer", Integer,
                 SignedIntegerOverflow | UnsignedIntegerOverflow | Shift |
                 IntegerDivideByZero)
 
-// -fbounds-checking
 SANITIZER("local-bounds", LocalBounds)
 SANITIZER_GROUP("bounds", Bounds, ArrayBounds | LocalBounds)
+
+// Magic group, containing all sanitizers. For example, "-fno-sanitize=all"
+// can be used to disable all the sanitizers.
+SANITIZER_GROUP("all", All, ~0)
 
 #undef SANITIZER
 #undef SANITIZER_GROUP

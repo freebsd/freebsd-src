@@ -90,6 +90,7 @@ ar71xx_ehci_attach(device_t self)
 	sc->sc_bus.parent = self;
 	sc->sc_bus.devices = sc->sc_devices;
 	sc->sc_bus.devices_max = EHCI_MAX_DEVICES;
+	sc->sc_bus.dma_bits = 32;
 
 	/* get all DMA memory */
 	if (usb_bus_mem_alloc_all(&sc->sc_bus,
@@ -118,7 +119,7 @@ ar71xx_ehci_attach(device_t self)
 
 	rid = 0;
 	sc->sc_irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	    RF_ACTIVE | RF_SHAREABLE);
 	if (sc->sc_irq_res == NULL) {
 		device_printf(self, "Could not allocate irq\n");
 		goto error;
@@ -161,6 +162,8 @@ ar71xx_ehci_attach(device_t self)
 		case AR71XX_SOC_AR9341:
 		case AR71XX_SOC_AR9342:
 		case AR71XX_SOC_AR9344:
+		case AR71XX_SOC_QCA9556:
+		case AR71XX_SOC_QCA9558:
 			sc->sc_flags |= EHCI_SCFLG_TT | EHCI_SCFLG_NORESTERM;
 			break;
 		default:
@@ -257,4 +260,6 @@ static driver_t ehci_driver = {
 static devclass_t ehci_devclass;
 
 DRIVER_MODULE(ehci, nexus, ehci_driver, ehci_devclass, 0, 0);
+DRIVER_MODULE(ehci, apb, ehci_driver, ehci_devclass, 0, 0);
+
 MODULE_DEPEND(ehci, usb, 1, 1, 1);

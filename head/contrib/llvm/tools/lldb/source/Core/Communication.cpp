@@ -18,6 +18,8 @@
 #include "lldb/Core/Timer.h"
 #include "lldb/Core/Event.h"
 #include "lldb/Host/Host.h"
+#include "lldb/Host/HostThread.h"
+#include "lldb/Host/ThreadLauncher.h"
 #include <string.h>
 
 using namespace lldb;
@@ -36,7 +38,6 @@ Communication::GetStaticBroadcasterClass ()
 Communication::Communication(const char *name) :
     Broadcaster (NULL, name),
     m_connection_sp (),
-    m_read_thread (LLDB_INVALID_HOST_THREAD),
     m_read_thread_enabled (false),
     m_bytes(),
     m_bytes_mutex (Mutex::eMutexTypeRecursive),
@@ -232,7 +233,7 @@ Communication::StartReadThread (Error *error_ptr)
     if (error_ptr)
         error_ptr->Clear();
 
-    if (IS_VALID_LLDB_HOST_THREAD(m_read_thread))
+    if (m_read_thread.IsJoinable())
         return true;
 
     lldb_private::LogIfAnyCategoriesSet (LIBLLDB_LOG_COMMUNICATION,
@@ -243,8 +244,8 @@ Communication::StartReadThread (Error *error_ptr)
     snprintf(thread_name, sizeof(thread_name), "<lldb.comm.%s>", m_broadcaster_name.AsCString());
 
     m_read_thread_enabled = true;
-    m_read_thread = Host::ThreadCreate (thread_name, Communication::ReadThread, this, error_ptr);
-    if (!IS_VALID_LLDB_HOST_THREAD(m_read_thread))
+    m_read_thread = ThreadLauncher::LaunchThread(thread_name, Communication::ReadThread, this, error_ptr);
+    if (!m_read_thread.IsJoinable())
         m_read_thread_enabled = false;
     return m_read_thread_enabled;
 }
@@ -252,7 +253,7 @@ Communication::StartReadThread (Error *error_ptr)
 bool
 Communication::StopReadThread (Error *error_ptr)
 {
-    if (!IS_VALID_LLDB_HOST_THREAD(m_read_thread))
+    if (!m_read_thread.IsJoinable())
         return true;
 
     lldb_private::LogIfAnyCategoriesSet (LIBLLDB_LOG_COMMUNICATION,
@@ -262,22 +263,20 @@ Communication::StopReadThread (Error *error_ptr)
 
     BroadcastEvent (eBroadcastBitReadThreadShouldExit, NULL);
 
-    //Host::ThreadCancel (m_read_thread, error_ptr);
+    // error = m_read_thread.Cancel();
 
-    bool status = Host::ThreadJoin (m_read_thread, NULL, error_ptr);
-    m_read_thread = LLDB_INVALID_HOST_THREAD;
-    return status;
+    Error error = m_read_thread.Join(nullptr);
+    return error.Success();
 }
 
 bool
 Communication::JoinReadThread (Error *error_ptr)
 {
-    if (!IS_VALID_LLDB_HOST_THREAD(m_read_thread))
+    if (!m_read_thread.IsJoinable())
         return true;
 
-    bool success = Host::ThreadJoin (m_read_thread, NULL, error_ptr);
-    m_read_thread = LLDB_INVALID_HOST_THREAD;
-    return success;
+    Error error = m_read_thread.Join(nullptr);
+    return error.Success();
 }
 
 size_t
@@ -380,11 +379,24 @@ Communication::ReadThread (lldb::thread_arg_t p)
             if (comm->GetCloseOnEOF())
                  done = true;
              break;
+        case eConnectionStatusError:            // Check GetError() for details
+            if (error.GetType() == eErrorTypePOSIX && error.GetError() == EIO)
+            {
+                // EIO on a pipe is usually caused by remote shutdown
+                comm->Disconnect ();
+                done = true;
+            }
+            if (log)
+                error.LogIfError (log,
+                                  "%p Communication::ReadFromConnection () => status = %s",
+                                  p,
+                                  Communication::ConnectionStatusAsCString (status));
+            break;
         case eConnectionStatusNoConnection:     // No connection
         case eConnectionStatusLostConnection:   // Lost connection while connected to a valid connection
+        case eConnectionStatusInterrupted:      // Interrupted
             done = true;
             // Fall through...
-        case eConnectionStatusError:            // Check GetError() for details
         case eConnectionStatusTimedOut:         // Request timed out
             if (log)
                 error.LogIfError (log,
@@ -433,6 +445,7 @@ Communication::ConnectionStatusAsCString (lldb::ConnectionStatus status)
     case eConnectionStatusNoConnection:   return "no connection";
     case eConnectionStatusLostConnection: return "lost connection";
     case eConnectionStatusEndOfFile:      return "end of file";
+    case eConnectionStatusInterrupted:    return "interrupted";
     }
 
     static char unknown_state_string[64];

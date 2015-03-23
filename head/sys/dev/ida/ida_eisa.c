@@ -296,14 +296,14 @@ ida_eisa_attach(device_t dev)
 
 	error = bus_dma_tag_create(
 		/* parent	*/	bus_get_dma_tag(dev),
-		/* alignment	*/	0,
+		/* alignment	*/	1,
 		/* boundary	*/	0,
 		/* lowaddr	*/	BUS_SPACE_MAXADDR_32BIT,
 		/* highaddr	*/	BUS_SPACE_MAXADDR,
 		/* filter	*/	NULL,
 		/* filterarg	*/	NULL,
-		/* maxsize	*/	MAXBSIZE,
-		/* nsegments	*/	IDA_NSEG,
+		/* maxsize	*/	BUS_SPACE_MAXSIZE_32BIT,
+		/* nsegments	*/	BUS_SPACE_UNRESTRICTED,
 		/* maxsegsize	*/	BUS_SPACE_MAXSIZE_32BIT,
 		/* flags	*/	BUS_DMA_ALLOCNOW,
 		/* lockfunc	*/	NULL,

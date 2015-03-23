@@ -1,7 +1,4 @@
-/*
- * Automated Testing Framework (atf)
- *
- * Copyright (c) 2008 The NetBSD Foundation, Inc.
+/* Copyright (c) 2008 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,8 +21,9 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
+
+#include "atf-c/check.h"
 
 #include <fcntl.h>
 #include <signal.h>
@@ -36,13 +34,10 @@
 
 #include <atf-c.h>
 
-#include "atf-c/check.h"
-#include "atf-c/config.h"
-
-#include "detail/fs.h"
-#include "detail/map.h"
-#include "detail/process.h"
-#include "detail/test_helpers.h"
+#include "atf-c/detail/fs.h"
+#include "atf-c/detail/map.h"
+#include "atf-c/detail/process.h"
+#include "atf-c/detail/test_helpers.h"
 
 /* ---------------------------------------------------------------------
  * Auxiliary functions.
@@ -494,12 +489,8 @@ ATF_TC_HEAD(exec_unknown, tc)
 }
 ATF_TC_BODY(exec_unknown, tc)
 {
-    char buf[1024];
-    snprintf(buf, sizeof(buf), "%s/non-existent",
-             atf_config_get("atf_workdir"));
-
     const char *argv[2];
-    argv[0] = buf;
+    argv[0] = "/foo/bar/non-existent";
     argv[1] = NULL;
 
     atf_check_result_t result;
@@ -508,12 +499,6 @@ ATF_TC_BODY(exec_unknown, tc)
     ATF_CHECK(atf_check_result_exitcode(&result) == 127);
     atf_check_result_fini(&result);
 }
-
-/* ---------------------------------------------------------------------
- * Tests cases for the header file.
- * --------------------------------------------------------------------- */
-
-HEADER_TC(include, "atf-c/check.h");
 
 /* ---------------------------------------------------------------------
  * Main.
@@ -531,9 +516,6 @@ ATF_TP_ADD_TCS(tp)
     ATF_TP_ADD_TC(tp, exec_stdout_stderr);
     ATF_TP_ADD_TC(tp, exec_umask);
     ATF_TP_ADD_TC(tp, exec_unknown);
-
-    /* Add the test cases for the header file. */
-    ATF_TP_ADD_TC(tp, include);
 
     return atf_no_error();
 }

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 30, 2014
+.Dd February 22, 2015
 .Dt SFXGE 4
 .Os
 .Sh NAME
@@ -93,10 +93,18 @@ Supported values are: 512, 1024, 2048 and 4096.
 .It Va hw.sfxge.tx_dpl_get_max
 The maximum length of the deferred packet
 .Dq get-list
-for queued transmit
-packets, used only if the transmit queue lock can be acquired.
+for queued transmit packets (TCP and non-TCP), used only if the transmit
+queue lock can be acquired.
 If a packet is dropped, the
-.Va tx_early_drops
+.Va tx_get_overflow
+counter is incremented and the local sender receives ENOBUFS.
+The value must be greater than 0.
+.It Va hw.sfxge.tx_dpl_get_non_tcp_max
+The maximum number of non-TCP packets in the deferred packet
+.Dq get-list
+, used only if the transmit queue lock can be acquired.
+If a packet is dropped, the
+.Va tx_get_non_tcp_overflow
 counter is incremented and the local sender receives ENOBUFS.
 The value must be greater than 0.
 .It Va hw.sfxge.tx_dpl_put_max
@@ -105,20 +113,45 @@ The maximum length of the deferred packet
 for queued transmit
 packets, used if the transmit queue lock cannot be acquired.
 If a packet is dropped, the
-.Va tx_early_drops
+.Va tx_put_overflow
 counter is incremented and the local sender receives ENOBUFS.
 The value must be greater than or equal to 0.
+.It Va hw.sfxge.N.max_rss_channels
+The maximum number of allocated RSS channels for the Nth adapter.
+If set to 0 or unset, the number of channels is determined by the number
+of CPU cores.
+.It Va hw.sfxge.lro.table_size
+Size of the LRO hash table.
+Must be a power of 2.
+A larger table means we can accelerate a larger number of streams.
+.It Va hw.sfxge.lro.chain_max
+The maximum length of a hash chain.
+If chains get too long then the lookup time increases and may exceed
+the benefit of LRO.
+.It Va hw.sfxge.lro.idle_ticks
+The maximum time (in ticks) that a connection can be idle before it's LRO
+state is discarded.
+.It Va hw.sfxge.lro.slow_start_packets
+Number of packets with payload that must arrive in-order before a connection
+is eligible for LRO.
+The idea is we should avoid coalescing segments when the sender is in
+slow-start because reducing the ACK rate can damage performance.
+.It Va hw.sfxge.lro.loss_packets
+Number of packets with payload that must arrive in-order following loss
+before a connection is eligible for LRO.
+The idea is we should avoid coalescing segments when the sender is recovering
+from loss, because reducing the ACK rate can damage performance.
 .El
 .Sh SUPPORT
 For general information and support,
 go to the Solarflare support website at:
 .Pa https://support.solarflare.com .
 .Sh SEE ALSO
+.Xr cpuset 1 ,
 .Xr arp 4 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr vlan 4 ,
-.Xr cpuset 1 ,
 .Xr ifconfig 8
 .Sh AUTHORS
 The

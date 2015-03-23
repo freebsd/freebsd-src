@@ -484,8 +484,7 @@ ng_vjc_rcvdata(hook_p hook, item_p item)
 		hm->m_len = 0;
 		hm->m_pkthdr.rcvif = NULL;
 		if (hlen > MHLEN) {		/* unlikely, but can happen */
-			MCLGET(hm, M_NOWAIT);
-			if ((hm->m_flags & M_EXT) == 0) {
+			if (!(MCLGET(hm, M_NOWAIT))) {
 				m_freem(hm);
 				priv->slc.sls_errorin++;
 				NG_FREE_M(m);

@@ -24,6 +24,8 @@
 #include "lldb/Interpreter/PythonDataObjects.h"
 #include "lldb/Host/Terminal.h"
 
+class IOHandlerPythonInterpreter;
+
 namespace lldb_private {
     
 class ScriptInterpreterPython :
@@ -56,7 +58,7 @@ public:
     ExecuteMultipleLines (const char *in_string,
                           const ExecuteScriptOptions &options = ExecuteScriptOptions());
 
-    bool
+    Error
     ExportFunctionDefinitionToInterpreter (StringList &function_def);
 
     bool
@@ -78,6 +80,22 @@ public:
     lldb::ScriptInterpreterObjectSP
     CreateSyntheticScriptedProvider (const char *class_name,
                                      lldb::ValueObjectSP valobj);
+
+    lldb::ScriptInterpreterObjectSP
+    virtual CreateScriptedThreadPlan (const char *class_name,
+                                      lldb::ThreadPlanSP thread_plan);
+
+    virtual bool
+    ScriptedThreadPlanExplainsStop (lldb::ScriptInterpreterObjectSP implementor_sp,
+                                    Event *event,
+                                    bool &script_error);
+    virtual bool
+    ScriptedThreadPlanShouldStop (lldb::ScriptInterpreterObjectSP implementor_sp,
+                                  Event *event,
+                                  bool &script_error);
+    virtual lldb::StateType
+    ScriptedThreadPlanGetRunState (lldb::ScriptInterpreterObjectSP implementor_sp,
+                                   bool &script_error);
     
     virtual lldb::ScriptInterpreterObjectSP
     OSPlugin_CreatePluginObject (const char *class_name,
@@ -123,17 +141,21 @@ public:
     virtual bool
     MightHaveChildrenSynthProviderInstance (const lldb::ScriptInterpreterObjectSP& implementor);
     
+    virtual lldb::ValueObjectSP
+    GetSyntheticValue (const lldb::ScriptInterpreterObjectSP& implementor);
+    
     virtual bool
     RunScriptBasedCommand(const char* impl_function,
                           const char* args,
                           ScriptedCommandSynchronicity synchronicity,
                           lldb_private::CommandReturnObject& cmd_retobj,
-                          Error& error);
+                          Error& error,
+                          const lldb_private::ExecutionContext& exe_ctx);
     
-    bool
+    Error
     GenerateFunction(const char *signature, const StringList &input);
     
-    bool
+    Error
     GenerateBreakpointCommandCallbackData (StringList &input, std::string& output);
 
     bool
@@ -168,8 +190,12 @@ public:
     GetScriptedSummary (const char *function_name,
                         lldb::ValueObjectSP valobj,
                         lldb::ScriptInterpreterObjectSP& callee_wrapper_sp,
+                        const TypeSummaryOptions& options,
                         std::string& retval);
     
+    virtual void
+    Clear ();
+
     virtual bool
     GetDocumentationForItem (const char* item, std::string& dest);
     
@@ -207,6 +233,12 @@ public:
                             Error& error);
     
     virtual bool
+    RunScriptFormatKeyword (const char* impl_function,
+                            ValueObject* value,
+                            std::string& output,
+                            Error& error);
+    
+    virtual bool
     LoadScriptingModule (const char* filename,
                          bool can_reload,
                          bool init_session,
@@ -220,17 +252,21 @@ public:
     AcquireInterpreterLock ();
     
     void
-    CollectDataForBreakpointCommandCallback (BreakpointOptions *bp_options,
+    CollectDataForBreakpointCommandCallback (std::vector<BreakpointOptions *> &bp_options_vec,
                                              CommandReturnObject &result);
 
     void 
     CollectDataForWatchpointCommandCallback (WatchpointOptions *wp_options,
                                              CommandReturnObject &result);
 
-    /// Set a Python one-liner as the callback for the breakpoint.
-    void 
+    /// Set the callback body text into the callback for the breakpoint.
+    Error
     SetBreakpointCommandCallback (BreakpointOptions *bp_options,
-                                  const char *oneliner);
+                                  const char *callback_body);
+
+    void 
+    SetBreakpointCommandCallbackFunction (BreakpointOptions *bp_options,
+                                          const char *function_name);
 
     /// Set a one-liner as the callback for the watchpoint.
     void 
@@ -259,6 +295,7 @@ public:
                            SWIGPythonGetValueObjectSPFromSBValue swig_get_valobj_sp_from_sbvalue,
                            SWIGPythonUpdateSynthProviderInstance swig_update_provider,
                            SWIGPythonMightHaveChildrenSynthProviderInstance swig_mighthavechildren_provider,
+                           SWIGPythonGetValueSynthProviderInstance swig_getvalue_provider,
                            SWIGPythonCallCommand swig_call_command,
                            SWIGPythonCallModuleInit swig_call_module_init,
                            SWIGPythonCreateOSPlugin swig_create_os_plugin,
@@ -266,7 +303,10 @@ public:
                            SWIGPythonScriptKeyword_Thread swig_run_script_keyword_thread,
                            SWIGPythonScriptKeyword_Target swig_run_script_keyword_target,
                            SWIGPythonScriptKeyword_Frame swig_run_script_keyword_frame,
-                           SWIGPython_GetDynamicSetting swig_plugin_get);
+                           SWIGPythonScriptKeyword_Value swig_run_script_keyword_value,
+                           SWIGPython_GetDynamicSetting swig_plugin_get,
+                           SWIGPythonCreateScriptedThreadPlan swig_thread_plan_script,
+                           SWIGPythonCallThreadPlan swig_call_thread_plan);
 
     const char *
     GetDictionaryName ()
@@ -275,6 +315,19 @@ public:
     }
 
     
+    PyThreadState *
+    GetThreadState()
+    {
+        return m_command_thread_state;
+    }
+
+    void
+    SetThreadState (PyThreadState *s)
+    {
+        if (s)
+            m_command_thread_state = s;
+    }
+
     //----------------------------------------------------------------------
     // IOHandlerDelegate
     //----------------------------------------------------------------------
@@ -335,7 +388,8 @@ protected:
         virtual
         ~ScriptInterpreterPythonObject()
         {
-            Py_XDECREF(m_object);
+            if (Py_IsInitialized())
+                Py_XDECREF(m_object);
             m_object = NULL;
         }
         private:
@@ -392,7 +446,7 @@ public:
 //    	FILE*                    m_tmp_fh;
         PyGILState_STATE         m_GILState;
 	};
-private:
+protected:
 
     enum ActiveIOHandler {
         eIOHandlerNone,

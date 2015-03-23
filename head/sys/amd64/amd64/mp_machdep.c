@@ -705,15 +705,20 @@ init_secondary(void)
 	wrmsr(MSR_STAR, msr);
 	wrmsr(MSR_SF_MASK, PSL_NT|PSL_T|PSL_I|PSL_C|PSL_D);
 
-	/* Disable local APIC just to be sure. */
-	lapic_disable();
-
 	/* signal our startup to the BSP. */
 	mp_naps++;
 
 	/* Spin until the BSP releases the AP's. */
 	while (!aps_ready)
 		ia32_pause();
+
+	/*
+	 * On real hardware, switch to x2apic mode if possible.  Do it
+	 * after aps_ready was signalled, to avoid manipulating the
+	 * mode while BSP might still want to send some IPI to us
+	 * (second startup IPI is ignored on modern hardware etc).
+	 */
+	lapic_xapic_mode();
 
 	/* Initialize the PAT MSR. */
 	pmap_init_pat();
@@ -823,8 +828,8 @@ set_interrupt_apic_ids(void)
 			continue;
 
 		/* Don't let hyperthreads service interrupts. */
-		if (hyperthreading_cpus > 1 &&
-		    apic_id % hyperthreading_cpus != 0)
+		if (cpu_logical > 1 &&
+		    apic_id % cpu_logical != 0)
 			continue;
 
 		intr_add_cpu(i);
@@ -1065,14 +1070,27 @@ ipi_startup(int apic_id, int vector)
 {
 
 	/*
+	 * This attempts to follow the algorithm described in the
+	 * Intel Multiprocessor Specification v1.4 in section B.4.
+	 * For each IPI, we allow the local APIC ~20us to deliver the
+	 * IPI.  If that times out, we panic.
+	 */
+
+	/*
 	 * first we do an INIT IPI: this INIT IPI might be run, resetting
 	 * and running the target CPU. OR this INIT IPI might be latched (P5
 	 * bug), CPU waiting for STARTUP IPI. OR this INIT IPI might be
 	 * ignored.
 	 */
-	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
+	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_LEVEL |
 	    APIC_LEVEL_ASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_INIT, apic_id);
-	lapic_ipi_wait(-1);
+	lapic_ipi_wait(20);
+
+	/* Explicitly deassert the INIT IPI. */
+	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_LEVEL |
+	    APIC_LEVEL_DEASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_INIT,
+	    apic_id);
+
 	DELAY(10000);		/* wait ~10mS */
 
 	/*
@@ -1084,9 +1102,11 @@ ipi_startup(int apic_id, int vector)
 	 * will run.
 	 */
 	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
-	    APIC_LEVEL_DEASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_STARTUP |
+	    APIC_LEVEL_ASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_STARTUP |
 	    vector, apic_id);
-	lapic_ipi_wait(-1);
+	if (!lapic_ipi_wait(20))
+		panic("Failed to deliver first STARTUP IPI to APIC %d",
+		    apic_id);
 	DELAY(200);		/* wait ~200uS */
 
 	/*
@@ -1096,9 +1116,12 @@ ipi_startup(int apic_id, int vector)
 	 * recognized after hardware RESET or INIT IPI.
 	 */
 	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
-	    APIC_LEVEL_DEASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_STARTUP |
+	    APIC_LEVEL_ASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_STARTUP |
 	    vector, apic_id);
-	lapic_ipi_wait(-1);
+	if (!lapic_ipi_wait(20))
+		panic("Failed to deliver second STARTUP IPI to APIC %d",
+		    apic_id);
+
 	DELAY(200);		/* wait ~200uS */
 }
 
@@ -1486,6 +1509,7 @@ cpususpend_handler(void)
 		vmm_resume_p();
 
 	/* Resume MCA and local APIC */
+	lapic_xapic_mode();
 	mca_resume();
 	lapic_setup(0);
 

@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/route.h>
 #include <net/netisr.h>
+#include <net/rss_config.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -94,30 +95,18 @@ RW_SYSINIT(in_ifaddr_lock, &in_ifaddr_lock, "in_ifaddr_lock");
 VNET_DEFINE(int, rsvp_on);
 
 VNET_DEFINE(int, ipforwarding);
-SYSCTL_VNET_INT(_net_inet_ip, IPCTL_FORWARDING, forwarding, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, IPCTL_FORWARDING, forwarding, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ipforwarding), 0,
     "Enable IP forwarding between interfaces");
 
 static VNET_DEFINE(int, ipsendredirects) = 1;	/* XXX */
 #define	V_ipsendredirects	VNET(ipsendredirects)
-SYSCTL_VNET_INT(_net_inet_ip, IPCTL_SENDREDIRECTS, redirect, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, IPCTL_SENDREDIRECTS, redirect, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ipsendredirects), 0,
     "Enable sending IP redirects");
 
-static VNET_DEFINE(int, ip_keepfaith);
-#define	V_ip_keepfaith		VNET(ip_keepfaith)
-SYSCTL_VNET_INT(_net_inet_ip, IPCTL_KEEPFAITH, keepfaith, CTLFLAG_RW,
-    &VNET_NAME(ip_keepfaith), 0,
-    "Enable packet capture for FAITH IPv4->IPv6 translater daemon");
-
-static VNET_DEFINE(int, ip_sendsourcequench);
-#define	V_ip_sendsourcequench	VNET(ip_sendsourcequench)
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, sendsourcequench, CTLFLAG_RW,
-    &VNET_NAME(ip_sendsourcequench), 0,
-    "Enable the transmission of source quench packets");
-
 VNET_DEFINE(int, ip_do_randomid);
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, random_id, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, OID_AUTO, random_id, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip_do_randomid), 0,
     "Assign random ip_id values");
 
@@ -136,7 +125,7 @@ SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, random_id, CTLFLAG_RW,
  */
 static VNET_DEFINE(int, ip_checkinterface);
 #define	V_ip_checkinterface	VNET(ip_checkinterface)
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, check_interface, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, OID_AUTO, check_interface, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip_checkinterface), 0,
     "Verify packet arrives on correct interface");
 
@@ -200,13 +189,13 @@ static VNET_DEFINE(int, maxnipq);  /* Administrative limit on # reass queues. */
 static VNET_DEFINE(int, nipq);			/* Total # of reass queues */
 #define	V_maxnipq		VNET(maxnipq)
 #define	V_nipq			VNET(nipq)
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, fragpackets, CTLFLAG_RD,
+SYSCTL_INT(_net_inet_ip, OID_AUTO, fragpackets, CTLFLAG_VNET | CTLFLAG_RD,
     &VNET_NAME(nipq), 0,
     "Current number of IPv4 fragment reassembly queue entries");
 
 static VNET_DEFINE(int, maxfragsperpacket);
 #define	V_maxfragsperpacket	VNET(maxfragsperpacket)
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, maxfragsperpacket, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, OID_AUTO, maxfragsperpacket, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(maxfragsperpacket), 0,
     "Maximum number of IPv4 fragments allowed per packet");
 
@@ -217,7 +206,7 @@ SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
 
 #ifdef IPSTEALTH
 VNET_DEFINE(int, ipstealth);
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, stealth, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, OID_AUTO, stealth, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ipstealth), 0,
     "IP stealth mode, no TTL decrementation on forwarding");
 #endif
@@ -753,28 +742,12 @@ passin:
 		goto ours;
 
 	/*
-	 * FAITH(Firewall Aided Internet Translator)
-	 */
-	if (ifp && ifp->if_type == IFT_FAITH) {
-		if (V_ip_keepfaith) {
-			if (ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_ICMP) 
-				goto ours;
-		}
-		m_freem(m);
-		return;
-	}
-
-	/*
 	 * Not for us; forward if possible and desirable.
 	 */
 	if (V_ipforwarding == 0) {
 		IPSTAT_INC(ips_cantforward);
 		m_freem(m);
 	} else {
-#ifdef IPSEC
-		if (ip_ipsec_fwd(m))
-			goto bad;
-#endif /* IPSEC */
 		ip_forward(m, dchg);
 	}
 	return;
@@ -809,7 +782,7 @@ ours:
 	 * note that we do not visit this with protocols with pcb layer
 	 * code - like udp/tcp/raw ip.
 	 */
-	if (ip_ipsec_input(m))
+	if (ip_ipsec_input(m, ip->ip_p) != 0)
 		goto bad;
 #endif /* IPSEC */
 
@@ -1220,7 +1193,6 @@ found:
 	if (rss_mbuf_software_hash_v4(m, 0, &rss_hash, &rss_type) == 0) {
 		m->m_pkthdr.flowid = rss_hash;
 		M_HASHTYPE_SET(m, rss_type);
-		m->m_flags |= M_FLOWID;
 	}
 
 	/*
@@ -1354,7 +1326,6 @@ ip_drain(void)
 	}
 	IPQ_UNLOCK();
 	VNET_LIST_RUNLOCK_NOSLEEP();
-	in_rtqdrain();
 }
 
 /*
@@ -1478,6 +1449,13 @@ ip_forward(struct mbuf *m, int srcrt)
 		m_freem(m);
 		return;
 	}
+#ifdef IPSEC
+	if (ip_ipsec_fwd(m) != 0) {
+		IPSTAT_INC(ips_cantforward);
+		m_freem(m);
+		return;
+	}
+#endif /* IPSEC */
 #ifdef IPSTEALTH
 	if (!V_ipstealth) {
 #endif
@@ -1665,25 +1643,6 @@ ip_forward(struct mbuf *m, int srcrt)
 		break;
 
 	case ENOBUFS:
-		/*
-		 * A router should not generate ICMP_SOURCEQUENCH as
-		 * required in RFC1812 Requirements for IP Version 4 Routers.
-		 * Source quench could be a big problem under DoS attacks,
-		 * or if the underlying interface is rate-limited.
-		 * Those who need source quench packets may re-enable them
-		 * via the net.inet.ip.sendsourcequench sysctl.
-		 */
-		if (V_ip_sendsourcequench == 0) {
-			m_freem(mcopy);
-			if (ia != NULL)
-				ifa_free(&ia->ia_ifa);
-			return;
-		} else {
-			type = ICMP_SOURCEQUENCH;
-			code = 0;
-		}
-		break;
-
 	case EACCES:			/* ipfw denied packet */
 		m_freem(mcopy);
 		if (ia != NULL)

@@ -168,9 +168,12 @@ static int
 dskread(void *buf, u_int64_t lba, int nblk)
 {
 	EFI_STATUS status;
+	int size;
 
+	lba = lba / (bootdev->Media->BlockSize / DEV_BSIZE);
+	size = nblk * DEV_BSIZE;
 	status = bootdev->ReadBlocks(bootdev, bootdev->Media->MediaId, lba,
-	    nblk * bootdev->Media->BlockSize, buf);
+	    size, buf);
 
 	if (EFI_ERROR(status))
 		return (-1);
@@ -304,12 +307,19 @@ load(const char *fname)
 	/* XXX: For secure boot, we need our own loader here */
 	status = systab->BootServices->LoadImage(TRUE, image, bootdevpath,
 	    buffer, bufsize, &loaderhandle);
+	if (EFI_ERROR(status))
+		printf("LoadImage failed with error %d\n", status);
 
 	status = systab->BootServices->HandleProtocol(loaderhandle,
 	    &LoadedImageGUID, (VOID**)&loaded_image);
+	if (EFI_ERROR(status))
+		printf("HandleProtocol failed with error %d\n", status);
+
 	loaded_image->DeviceHandle = bootdevhandle;
 
 	status = systab->BootServices->StartImage(loaderhandle, NULL, NULL);
+	if (EFI_ERROR(status))
+		printf("StartImage failed with error %d\n", status);
 }
 
 static void

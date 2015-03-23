@@ -143,6 +143,7 @@ types::ID types::lookupTypeForExtension(const char *Ext) {
            .Case("S", TY_Asm)
            .Case("o", TY_Object)
            .Case("obj", TY_Object)
+           .Case("lib", TY_Object)
            .Case("ii", TY_PP_CXX)
            .Case("mi", TY_PP_ObjC)
            .Case("mm", TY_ObjCXX)
@@ -174,6 +175,8 @@ types::ID types::lookupTypeForExtension(const char *Ext) {
            .Case("F95", TY_Fortran)
            .Case("mii", TY_PP_ObjCXX)
            .Case("pcm", TY_ModuleFile)
+           .Case("pch", TY_PCH)
+           .Case("gch", TY_PCH)
            .Default(TY_INVALID);
 }
 
@@ -200,6 +203,7 @@ void types::getCompilationPhases(ID Id, llvm::SmallVectorImpl<phases::ID> &P) {
     } else {
       if (!onlyAssembleType(Id)) {
         P.push_back(phases::Compile);
+        P.push_back(phases::Backend);
       }
       P.push_back(phases::Assemble);
     }

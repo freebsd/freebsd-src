@@ -76,29 +76,19 @@
         .globl  kernbase
         .set    kernbase, KERNBASE
 
-#define	TMPSTKSZ	8192		/* 8K temporary stack */
-
 /*
  * Globals
  */
 	.data
+	.align 3
+GLOBAL(__startkernel)
+	.long	begin
+GLOBAL(__endkernel)
+	.long	end
 	.align	4
+#define	TMPSTKSZ	8192		/* 8K temporary stack */
 GLOBAL(tmpstk)
 	.space	TMPSTKSZ
-GLOBAL(esym)
-	.long	0			/* end of symbol table */
-
-#define	INTRCNT_COUNT	256		/* max(HROWPIC_IRQMAX,OPENPIC_IRQMAX) */
-GLOBAL(intrnames)
-	.space	INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
-GLOBAL(sintrnames)
-	.long	INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
-
-	.align 4
-GLOBAL(intrcnt)
-	.space	INTRCNT_COUNT * 4 * 2
-GLOBAL(sintrcnt)
-	.long	INTRCNT_COUNT * 4 * 2
 
 	.text
 	.globl	btext
@@ -118,72 +108,47 @@ kernel_text:
 	.text
 	.globl	__start
 __start:
-	li	8,0
-	li	9,0x100
-	mtctr	9
-1:
-	dcbf	0,8
-	icbi	0,8
-	addi	8,8,0x20
-	bdnz	1b
-	sync
-	isync
-#ifdef WII
-#include <powerpc/wii/locore.S>
-#endif
-	/* Zero bss, in case we were started by something unhelpful */
-	li	0,0
-	lis	8,_edata@ha
-	addi	8,8,_edata@l
-	lis	9,_end@ha
-	addi	9,9,_end@l
-2:	stw     0,0(8)
-	addi	8,8,4
-	cmplw	8,9
-	blt	2b
+	/* Figure out where we are */
+	bl	1f
+	.long	_DYNAMIC-.
+	.long	_GLOBAL_OFFSET_TABLE_-.
+	.long	tmpstk-.
+1:	mflr	%r30
+
+	/* Set up temporary stack pointer */
+	lwz	%r1,8(%r30)
+	add	%r1,%r1,%r30
+	addi	%r1,%r1,(8+TMPSTKSZ-32)
+
+	/* Relocate self */
+	stw	%r3,16(%r1)
+	stw	%r4,20(%r1)
+	stw	%r5,24(%r1)
+	stw	%r6,28(%r1)
+
+	lwz	%r3,0(%r30) /* _DYNAMIC in %r3 */
+	add	%r3,%r3,%r30
+	lwz	%r4,4(%r30) /* GOT pointer */
+	add	%r4,%r4,%r30
+	lwz	%r4,4(%r4)  /* got[0] is _DYNAMIC link addr */
+	subf	%r4,%r4,%r3 /* subtract to calculate relocbase */
+	bl	elf_reloc_self
 	
-	/* Save the argument pointer and length */
-	mr	20,6
-	mr	21,7
+	lwz	%r3,16(%r1)
+	lwz	%r4,20(%r1)
+	lwz	%r5,24(%r1)
+	lwz	%r6,28(%r1)
 
-	lis	8,openfirmware_entry@ha
-	stw	5,openfirmware_entry@l(8) /* save client interface handler */
-
-	lis	1,(tmpstk+TMPSTKSZ-16)@ha
-	addi	1,1,(tmpstk+TMPSTKSZ-16)@l
-
-	mfmsr	0
-	lis	9,ofmsr@ha
-	stwu	0,ofmsr@l(9)
-
-	mfsprg0	0			/* save SPRG0-3 */
-	stw	0,4(9)			/* ofmsr[1] = sprg0 */
-	mfsprg1 0
-	stw	0,8(9)			/* ofmsr[2] = sprg1 */
-	mfsprg2 0
-	stw	0,12(9)			/* ofmsr[3] = sprg2 */
-	mfsprg3 0
-	stw	0,16(9)			/* ofmsr[4] = sprg3 */
-	
-	bl	OF_initial_setup
-
-	lis	3,kernel_text@ha
-	addi	3,3,kernel_text@l
-
-	lis	4,end@ha
-	addi	4,4,end@l
-	add	4,4,3
-	mr	5,4
-
-	/* Restore the argument pointer and length */
-	mr	6,20
-	mr	7,21
-
+	/* MD setup */
 	bl	powerpc_init
+
+	/* Set stack pointer to new value and branch to mi_startup */
 	mr	%r1, %r3
 	li	%r3, 0
 	stw	%r3, 0(%r1)
 	bl	mi_startup
+
+	/* If mi_startup somehow returns, exit. This would be bad. */
 	b	OF_exit
 
 /*

@@ -12,13 +12,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef ARM_UNWIND_OP_ASM_H
-#define ARM_UNWIND_OP_ASM_H
-
-#include "ARMUnwindOp.h"
+#ifndef LLVM_LIB_TARGET_ARM_MCTARGETDESC_ARMUNWINDOPASM_H
+#define LLVM_LIB_TARGET_ARM_MCTARGETDESC_ARMUNWINDOPASM_H
 
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/ARMEHABI.h"
 #include "llvm/Support/DataTypes.h"
 
 namespace llvm {
@@ -45,7 +43,7 @@ public:
     HasPersonality = 0;
   }
 
-  /// Set the personality index
+  /// Set the personality
   void setPersonality(const MCSymbol *Per) {
     HasPersonality = 1;
   }
@@ -61,6 +59,12 @@ public:
 
   /// Emit unwind opcodes to add $sp with an offset.
   void EmitSPOffset(int64_t Offset);
+
+  /// Emit unwind raw opcodes
+  void EmitRaw(const SmallVectorImpl<uint8_t> &Opcodes) {
+    Ops.insert(Ops.end(), Opcodes.begin(), Opcodes.end());
+    OpBegins.push_back(OpBegins.back() + Opcodes.size());
+  }
 
   /// Finalize the unwind opcode sequence for EmitBytes()
   void Finalize(unsigned &PersonalityIndex,
@@ -86,4 +90,4 @@ private:
 
 } // namespace llvm
 
-#endif // ARM_UNWIND_OP_ASM_H
+#endif

@@ -134,6 +134,7 @@ MALLOC_DECLARE(M_PRISON);
 #include <sys/osd.h>
 
 #define	HOSTUUIDLEN	64
+#define	OSRELEASELEN	32
 
 struct racct;
 struct prison_racct;
@@ -177,13 +178,15 @@ struct prison {
 	int		 pr_securelevel;		/* (p) securelevel */
 	int		 pr_enforce_statfs;		/* (p) statfs permission */
 	int		 pr_devfs_rsnum;		/* (p) devfs ruleset */
-	int		 pr_spare[4];
+	int		 pr_spare[3];
+	int		 pr_osreldate;			/* (c) kern.osreldate value */
 	unsigned long	 pr_hostid;			/* (p) jail hostid */
 	char		 pr_name[MAXHOSTNAMELEN];	/* (p) admin jail name */
 	char		 pr_path[MAXPATHLEN];		/* (c) chroot path */
 	char		 pr_hostname[MAXHOSTNAMELEN];	/* (p) jail hostname */
 	char		 pr_domainname[MAXHOSTNAMELEN];	/* (p) jail domainname */
 	char		 pr_hostuuid[HOSTUUIDLEN];	/* (p) jail hostuuid */
+	char		 pr_osrelease[OSRELEASELEN];	/* (c) kern.osrelease value */
 };
 
 struct prison_racct {
@@ -201,8 +204,6 @@ struct prison_racct {
 #define	PR_IP4_USER	0x00000004	/* Restrict IPv4 addresses */
 #define	PR_IP6_USER	0x00000008	/* Restrict IPv6 addresses */
 #define	PR_VNET		0x00000010	/* Virtual network stack */
-#define	PR_IP4_DISABLE	0x00000020	/* Disable IPv4 */
-#define	PR_IP6_DISABLE	0x00000040	/* Disable IPv6 */
 #define	PR_IP4_SADDRSEL	0x00000080	/* Do IPv4 src addr sel. or use the */
 					/* primary jail address. */
 #define	PR_IP6_SADDRSEL	0x00000100	/* Do IPv6 src addr sel. or use the */
@@ -228,7 +229,8 @@ struct prison_racct {
 #define	PR_ALLOW_MOUNT_ZFS		0x0200
 #define	PR_ALLOW_MOUNT_PROCFS		0x0400
 #define	PR_ALLOW_MOUNT_TMPFS		0x0800
-#define	PR_ALLOW_ALL			0x0fff
+#define	PR_ALLOW_MOUNT_FDESCFS		0x1000
+#define	PR_ALLOW_ALL			0x1fff
 
 /*
  * OSD methods
@@ -363,6 +365,7 @@ void getcredhostname(struct ucred *, char *, size_t);
 void getcreddomainname(struct ucred *, char *, size_t);
 void getcredhostuuid(struct ucred *, char *, size_t);
 void getcredhostid(struct ucred *, unsigned long *);
+void prison0_init(void);
 int prison_allow(struct ucred *, unsigned);
 int prison_check(struct ucred *cred1, struct ucred *cred2);
 int prison_owns_vnet(struct ucred *);

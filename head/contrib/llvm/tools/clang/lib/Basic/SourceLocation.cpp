@@ -61,14 +61,15 @@ void SourceLocation::print(raw_ostream &OS, const SourceManager &SM)const{
   OS << '>';
 }
 
-std::string SourceLocation::printToString(const SourceManager &SM) const {
+LLVM_DUMP_METHOD std::string
+SourceLocation::printToString(const SourceManager &SM) const {
   std::string S;
   llvm::raw_string_ostream OS(S);
   print(OS, SM);
   return OS.str();
 }
 
-void SourceLocation::dump(const SourceManager &SM) const {
+LLVM_DUMP_METHOD void SourceLocation::dump(const SourceManager &SM) const {
   print(llvm::errs(), SM);
 }
 
@@ -122,7 +123,7 @@ bool FullSourceLoc::isBeforeInTranslationUnitThan(SourceLocation Loc) const {
   return SrcMgr->isBeforeInTranslationUnit(*this, Loc);
 }
 
-void FullSourceLoc::dump() const {
+LLVM_DUMP_METHOD void FullSourceLoc::dump() const {
   SourceLocation::dump(*SrcMgr);
 }
 
@@ -131,13 +132,9 @@ const char *FullSourceLoc::getCharacterData(bool *Invalid) const {
   return SrcMgr->getCharacterData(*this, Invalid);
 }
 
-const llvm::MemoryBuffer* FullSourceLoc::getBuffer(bool *Invalid) const {
-  assert(isValid());
-  return SrcMgr->getBuffer(SrcMgr->getFileID(*this), Invalid);
-}
-
 StringRef FullSourceLoc::getBufferData(bool *Invalid) const {
-  return getBuffer(Invalid)->getBuffer();
+  assert(isValid());
+  return SrcMgr->getBuffer(SrcMgr->getFileID(*this), Invalid)->getBuffer();;
 }
 
 std::pair<FileID, unsigned> FullSourceLoc::getDecomposedLoc() const {

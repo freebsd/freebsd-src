@@ -4,6 +4,13 @@
 
 .include <bsd.init.mk>
 
+.if defined(LIB_CXX)
+LIB=	${LIB_CXX}
+_LD=	${CXX}
+.else
+_LD=	${CC}
+.endif
+
 # Set up the variables controlling shared libraries.  After this section,
 # SHLIB_NAME will be defined only if we are to create a shared library.
 # SHLIB_LINK will be defined only if we are to create a link to it.
@@ -170,11 +177,7 @@ _LIBS=		lib${LIB}.a
 lib${LIB}.a: ${OBJS} ${STATICOBJS}
 	@${ECHO} building static ${LIB} library
 	@rm -f ${.TARGET}
-.if !defined(NM)
-	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
-.else
 	@${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
-.endif
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
@@ -188,11 +191,7 @@ NOPATH_FILES+=	${POBJS}
 lib${LIB}_p.a: ${POBJS}
 	@${ECHO} building profiled ${LIB} library
 	@rm -f ${.TARGET}
-.if !defined(NM)
-	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${POBJS} | tsort -q` ${ARADD}
-.else
 	@${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${POBJS} | tsort -q` ${ARADD}
-.endif
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
@@ -207,7 +206,12 @@ _LIBS+=		${SHLIB_NAME}
 
 SOLINKOPTS=	-shared -Wl,-x
 .if !defined(ALLOW_SHARED_TEXTREL)
-SOLINKOPTS+=	-Wl,--fatal-warnings -Wl,--warn-shared-textrel
+.if defined(LD_FATAL_WARNINGS) && ${LD_FATAL_WARNINGS} == "no"
+SOLINKOPTS+=	-Wl,--no-fatal-warnings
+.else
+SOLINKOPTS+=	-Wl,--fatal-warnings
+.endif
+SOLINKOPTS+=	-Wl,--warn-shared-textrel
 .endif
 
 .if target(beforelinking)
@@ -220,15 +224,9 @@ ${SHLIB_NAME_FULL}: ${SOBJS}
 .if defined(SHLIB_LINK)
 	@${INSTALL_SYMLINK} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
-.if !defined(NM)
-	@${CC} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
-	    -o ${.TARGET} -Wl,-soname,${SONAME} \
-	    `lorder ${SOBJS} | tsort -q` ${LDADD}
-.else
-	@${CC} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
+	${_LD} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
 	    `NM='${NM}' lorder ${SOBJS} | tsort -q` ${LDADD}
-.endif
 .if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS}
 .endif
@@ -281,7 +279,7 @@ _EXTRADEPEND:
 	mv $$TMP ${DEPENDFILE}
 .if !defined(NO_EXTRADEPEND) && defined(SHLIB_NAME)
 .if defined(DPADD) && !empty(DPADD)
-	echo ${SHLIB_NAME}: ${DPADD} >> ${DEPENDFILE}
+	echo ${SHLIB_NAME_FULL}: ${DPADD} >> ${DEPENDFILE}
 .endif
 .endif
 

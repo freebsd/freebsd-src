@@ -43,13 +43,17 @@ struct terasic_mtl_touch_state
 	uint32_t touchpoints;
 };
 
+#include "opt_syscons.h"
+
 struct terasic_mtl_softc {
+#if defined(DEV_SC)
 	/*
 	 * syscons requires that its video_adapter_t be at the front of the
 	 * softc, so place syscons fields first, which we otherwise would
 	 * probably not do.
 	 */
 	video_adapter_t	 mtl_va;
+#endif
 
 	/*
 	 * Bus-related fields.
@@ -72,7 +76,8 @@ struct terasic_mtl_softc {
 	int		 mtl_reg_rid;
 
 	/*
-	 * Graphics frame buffer device -- mappable from userspace.
+	 * Graphics frame buffer device -- mappable from userspace, and used
+	 * by the vt framebuffer interface.
 	 */
 	struct cdev	*mtl_pixel_cdev;
 	struct resource	*mtl_pixel_res;
@@ -94,6 +99,11 @@ struct terasic_mtl_softc {
 	struct terasic_mtl_touch_state mtl_evdev_state;
 	struct callout	mtl_evdev_callout;
 	bool		mtl_evdev_opened;
+
+	/*
+	 * Framebuffer hookup for vt(4).
+	 */
+	struct fb_info	 mtl_fb_info;
 };
 
 #define	TERASIC_MTL_LOCK(sc)		mtx_lock(&(sc)->mtl_lock)
@@ -124,6 +134,7 @@ struct terasic_mtl_softc {
 /*
  * Constants to help interpret various control registers.
  */
+#define	TERASIC_MTL_BLEND_PIXEL_ENDIAN_SWAP	0x10000000
 #define	TERASIC_MTL_BLEND_DEFAULT_MASK		0x0f000000
 #define	TERASIC_MTL_BLEND_DEFAULT_SHIFT		24
 #define	TERASIC_MTL_BLEND_PIXEL_MASK		0x00ff0000
@@ -164,6 +175,12 @@ struct terasic_mtl_softc {
 #define	TERASIC_MTL_TEXTFRAMEBUF_EXPECTED_ADDR	0x0177000
 #define	TERASIC_MTL_TEXTFRAMEBUF_CHAR_SHIFT	0
 #define	TERASIC_MTL_TEXTFRAMEBUF_ATTR_SHIFT	8
+
+/*
+ * Framebuffer constants.
+ */
+#define	TERASIC_MTL_FB_WIDTH		800
+#define	TERASIC_MTL_FB_HEIGHT		640
 
 /*
  * Alpha-blending constants.
@@ -211,6 +228,8 @@ extern devclass_t	terasic_mtl_devclass;
 /*
  * Sub-driver setup routines.
  */
+int	terasic_mtl_fbd_attach(struct terasic_mtl_softc *sc);
+void	terasic_mtl_fbd_detach(struct terasic_mtl_softc *sc);
 int	terasic_mtl_pixel_attach(struct terasic_mtl_softc *sc);
 void	terasic_mtl_pixel_detach(struct terasic_mtl_softc *sc);
 int	terasic_mtl_reg_attach(struct terasic_mtl_softc *sc);
@@ -251,6 +270,8 @@ void	terasic_mtl_blend_textfg_set(struct terasic_mtl_softc *sc,
 	    uint8_t alpha);
 void	terasic_mtl_blend_textbg_set(struct terasic_mtl_softc *sc,
 	    uint8_t alpha);
+void	terasic_mtl_reg_pixel_endian_set(struct terasic_mtl_softc *sc,
+	    int endian_swap);
 
 /*
  * Text frame buffer I/O routines.

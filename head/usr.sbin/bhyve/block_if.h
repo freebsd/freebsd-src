@@ -39,7 +39,7 @@
 #include <sys/uio.h>
 #include <sys/unistd.h>
 
-#define BLOCKIF_IOV_MAX		32	/* not practical to be IOV_MAX */
+#define BLOCKIF_IOV_MAX		33	/* not practical to be IOV_MAX */
 
 struct blockif_req {
 	struct iovec	br_iov[BLOCKIF_IOV_MAX];
@@ -55,11 +55,14 @@ off_t	blockif_size(struct blockif_ctxt *bc);
 void	blockif_chs(struct blockif_ctxt *bc, uint16_t *c, uint8_t *h,
     uint8_t *s);
 int	blockif_sectsz(struct blockif_ctxt *bc);
+void	blockif_psectsz(struct blockif_ctxt *bc, int *size, int *off);
 int	blockif_queuesz(struct blockif_ctxt *bc);
 int	blockif_is_ro(struct blockif_ctxt *bc);
+int	blockif_candelete(struct blockif_ctxt *bc);
 int	blockif_read(struct blockif_ctxt *bc, struct blockif_req *breq);
 int	blockif_write(struct blockif_ctxt *bc, struct blockif_req *breq);
 int	blockif_flush(struct blockif_ctxt *bc, struct blockif_req *breq);
+int	blockif_delete(struct blockif_ctxt *bc, struct blockif_req *breq);
 int	blockif_cancel(struct blockif_ctxt *bc, struct blockif_req *breq);
 int	blockif_close(struct blockif_ctxt *bc);
 

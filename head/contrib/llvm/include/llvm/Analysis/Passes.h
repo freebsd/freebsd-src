@@ -66,6 +66,13 @@ namespace llvm {
 
   //===--------------------------------------------------------------------===//
   //
+  // createCFLAliasAnalysisPass - This pass implements a set-based approach to
+  // alias analysis.
+  //
+  ImmutablePass *createCFLAliasAnalysisPass();
+
+  //===--------------------------------------------------------------------===//
+  //
   /// createLibCallAliasAnalysisPass - Create an alias analysis pass that knows
   /// about the semantics of a set of libcalls specified by LCI.  The newly
   /// constructed pass takes ownership of the pointer that is provided.
@@ -88,31 +95,19 @@ namespace llvm {
 
   //===--------------------------------------------------------------------===//
   //
+  // createScopedNoAliasAAPass - This pass implements metadata-based
+  // scoped noalias analysis.
+  //
+  ImmutablePass *createScopedNoAliasAAPass();
+
+  //===--------------------------------------------------------------------===//
+  //
   // createObjCARCAliasAnalysisPass - This pass implements ObjC-ARC-based
   // alias analysis.
   //
   ImmutablePass *createObjCARCAliasAnalysisPass();
 
-  //===--------------------------------------------------------------------===//
-  //
-  // createDSAAPass - This pass implements simple context sensitive alias
-  // analysis.
-  //
-  ModulePass *createDSAAPass();
-
-  //===--------------------------------------------------------------------===//
-  //
-  // createDSOptPass - This pass uses DSA to do a series of simple
-  // optimizations.
-  //
-  ModulePass *createDSOptPass();
-
-  //===--------------------------------------------------------------------===//
-  //
-  // createSteensgaardPass - This pass uses the data structure graphs to do a
-  // simple context insensitive alias analysis.
-  //
-  ModulePass *createSteensgaardPass();
+  FunctionPass *createPAEvalPass();
 
   //===--------------------------------------------------------------------===//
   //
@@ -163,6 +158,10 @@ namespace llvm {
   // information and prints it with -analyze.
   //
   FunctionPass *createMemDepPrinter();
+
+  // createJumpInstrTableInfoPass - This creates a pass that stores information
+  // about the jump tables created by JumpInstrTables
+  ImmutablePass *createJumpInstrTableInfoPass();
 }
 
 #endif

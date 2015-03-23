@@ -30,6 +30,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#if defined(__amd64__)
+#define DEV_APIC
+#else
+#include "opt_apic.h"
+#endif
 #ifdef __i386__
 #include "opt_npx.h"
 #endif
@@ -55,8 +60,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/md_var.h>
 
-#ifdef SMP
+#ifdef DEV_APIC
 #include <x86/apicreg.h>
+#include <x86/apicvar.h>
+#endif
+#ifdef SMP
 #include <machine/smp.h>
 #include <machine/vmparam.h>
 #endif
@@ -211,7 +219,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 #ifdef __amd64__
 		fpususpend(susppcbs[0]->sp_fpususpend);
 #elif defined(DEV_NPX)
-		npxsuspend(&susppcbs[0]->sp_fpususpend);
+		npxsuspend(susppcbs[0]->sp_fpususpend);
 #endif
 #ifdef SMP
 		if (!CPU_EMPTY(&suspcpus) && suspend_cpus(suspcpus) == 0) {
@@ -248,7 +256,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 #ifdef __amd64__
 		fpuresume(susppcbs[0]->sp_fpususpend);
 #elif defined(DEV_NPX)
-		npxresume(&susppcbs[0]->sp_fpususpend);
+		npxresume(susppcbs[0]->sp_fpususpend);
 #endif
 	}
 
@@ -270,6 +278,9 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 			initializecpu();
 			PCPU_SET(switchtime, 0);
 			PCPU_SET(switchticks, ticks);
+#ifdef DEV_APIC
+			lapic_xapic_mode();
+#endif
 #ifdef SMP
 			if (!CPU_EMPTY(&suspcpus))
 				acpi_wakeup_cpus(sc);
@@ -327,9 +338,7 @@ acpi_alloc_wakeup_handler(void)
 	susppcbs = malloc(mp_ncpus * sizeof(*susppcbs), M_DEVBUF, M_WAITOK);
 	for (i = 0; i < mp_ncpus; i++) {
 		susppcbs[i] = malloc(sizeof(**susppcbs), M_DEVBUF, M_WAITOK);
-#ifdef __amd64__
 		susppcbs[i]->sp_fpususpend = alloc_fpusave(M_WAITOK);
-#endif
 	}
 
 	return (wakeaddr);

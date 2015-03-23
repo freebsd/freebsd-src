@@ -581,8 +581,7 @@ void TransformActionsImpl::applyRewrites(
 /// "alive". Since the vast majority of text will be the same, we also unique
 /// the strings using a StringMap.
 StringRef TransformActionsImpl::getUniqueText(StringRef text) {
-  llvm::StringMapEntry<bool> &entry = UniqueText.GetOrCreateValue(text);
-  return entry.getKey();
+  return UniqueText.insert(std::make_pair(text, false)).first->first();
 }
 
 /// \brief Computes the source location just past the end of the token at
@@ -601,7 +600,7 @@ TransformActions::RewriteReceiver::~RewriteReceiver() { }
 TransformActions::TransformActions(DiagnosticsEngine &diag,
                                    CapturedDiagList &capturedDiags,
                                    ASTContext &ctx, Preprocessor &PP)
-  : Diags(diag), CapturedDiags(capturedDiags), ReportedErrors(false) {
+    : Diags(diag), CapturedDiags(capturedDiags) {
   Impl = new TransformActionsImpl(capturedDiags, ctx, PP);
 }
 
@@ -673,60 +672,24 @@ void TransformActions::applyRewrites(RewriteReceiver &receiver) {
   static_cast<TransformActionsImpl*>(Impl)->applyRewrites(receiver);
 }
 
-void TransformActions::reportError(StringRef error, SourceLocation loc,
-                                   SourceRange range) {
-  assert(!static_cast<TransformActionsImpl*>(Impl)->isInTransaction() &&
+DiagnosticBuilder TransformActions::report(SourceLocation loc, unsigned diagId,
+                                           SourceRange range) {
+  assert(!static_cast<TransformActionsImpl *>(Impl)->isInTransaction() &&
          "Errors should be emitted out of a transaction");
-
-  SourceManager &SM = static_cast<TransformActionsImpl*>(Impl)->
-                                             getASTContext().getSourceManager();
-  if (SM.isInSystemHeader(SM.getExpansionLoc(loc)))
-    return;
-
-  // FIXME: Use a custom category name to distinguish rewriter errors.
-  std::string rewriteErr = "[rewriter] ";
-  rewriteErr += error;
-  unsigned diagID
-     = Diags.getDiagnosticIDs()->getCustomDiagID(DiagnosticIDs::Error,
-                                                 rewriteErr);
-  Diags.Report(loc, diagID) << range;
-  ReportedErrors = true;
+  return Diags.Report(loc, diagId) << range;
 }
 
-void TransformActions::reportWarning(StringRef warning, SourceLocation loc,
+void TransformActions::reportError(StringRef message, SourceLocation loc,
                                    SourceRange range) {
-  assert(!static_cast<TransformActionsImpl*>(Impl)->isInTransaction() &&
-         "Warning should be emitted out of a transaction");
-  
-  SourceManager &SM = static_cast<TransformActionsImpl*>(Impl)->
-    getASTContext().getSourceManager();
-  if (SM.isInSystemHeader(SM.getExpansionLoc(loc)))
-    return;
-  
-  // FIXME: Use a custom category name to distinguish rewriter errors.
-  std::string rewriterWarn = "[rewriter] ";
-  rewriterWarn += warning;
-  unsigned diagID
-  = Diags.getDiagnosticIDs()->getCustomDiagID(DiagnosticIDs::Warning,
-                                              rewriterWarn);
-  Diags.Report(loc, diagID) << range;
+  report(loc, diag::err_mt_message, range) << message;
 }
 
-void TransformActions::reportNote(StringRef note, SourceLocation loc,
+void TransformActions::reportWarning(StringRef message, SourceLocation loc,
+                                     SourceRange range) {
+  report(loc, diag::warn_mt_message, range) << message;
+}
+
+void TransformActions::reportNote(StringRef message, SourceLocation loc,
                                   SourceRange range) {
-  assert(!static_cast<TransformActionsImpl*>(Impl)->isInTransaction() &&
-         "Errors should be emitted out of a transaction");
-
-  SourceManager &SM = static_cast<TransformActionsImpl*>(Impl)->
-                                             getASTContext().getSourceManager();
-  if (SM.isInSystemHeader(SM.getExpansionLoc(loc)))
-    return;
-
-  // FIXME: Use a custom category name to distinguish rewriter errors.
-  std::string rewriteNote = "[rewriter] ";
-  rewriteNote += note;
-  unsigned diagID
-     = Diags.getDiagnosticIDs()->getCustomDiagID(DiagnosticIDs::Note,
-                                                 rewriteNote);
-  Diags.Report(loc, diagID) << range;
+  report(loc, diag::note_mt_message, range) << message;
 }

@@ -11,9 +11,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_ARMTARGETASMINFO_H
-#define LLVM_ARMTARGETASMINFO_H
+#ifndef LLVM_LIB_TARGET_ARM_MCTARGETDESC_ARMMCASMINFO_H
+#define LLVM_LIB_TARGET_ARM_MCTARGETDESC_ARMMCASMINFO_H
 
+#include "llvm/MC/MCAsmInfoCOFF.h"
 #include "llvm/MC/MCAsmInfoDarwin.h"
 #include "llvm/MC/MCAsmInfoELF.h"
 
@@ -21,14 +22,29 @@ namespace llvm {
 
   class ARMMCAsmInfoDarwin : public MCAsmInfoDarwin {
     virtual void anchor();
+
   public:
-    explicit ARMMCAsmInfoDarwin();
+    explicit ARMMCAsmInfoDarwin(StringRef TT);
   };
 
   class ARMELFMCAsmInfo : public MCAsmInfoELF {
-    virtual void anchor();
+    void anchor() override;
   public:
-    explicit ARMELFMCAsmInfo();
+    explicit ARMELFMCAsmInfo(StringRef TT);
+
+    void setUseIntegratedAssembler(bool Value) override;
+  };
+
+  class ARMCOFFMCAsmInfoMicrosoft : public MCAsmInfoMicrosoft {
+    void anchor() override;
+  public:
+    explicit ARMCOFFMCAsmInfoMicrosoft();
+  };
+
+  class ARMCOFFMCAsmInfoGNU : public MCAsmInfoGNUCOFF {
+    void anchor() override;
+  public:
+    explicit ARMCOFFMCAsmInfoGNU();
   };
 
 } // namespace llvm

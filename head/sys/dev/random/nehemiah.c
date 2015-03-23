@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2013 Mark R V Murray
+ * Copyright (c) 2013 David E. O'Brien <obrien@NUXI.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,11 +31,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/conf.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/random.h>
-#include <sys/selinfo.h>
 #include <sys/systm.h>
 
 #include <machine/segments.h>
@@ -44,21 +45,20 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/random/randomdev.h>
 #include <dev/random/randomdev_soft.h>
-#include <dev/random/random_harvestq.h>
-#include <dev/random/live_entropy_sources.h>
 #include <dev/random/random_adaptors.h>
+#include <dev/random/live_entropy_sources.h>
 
 static void random_nehemiah_init(void);
 static void random_nehemiah_deinit(void);
-static int random_nehemiah_read(void *, int);
+static u_int random_nehemiah_read(void *, u_int);
 
-static struct random_hardware_source random_nehemiah = {
-	.ident = "Hardware, VIA Nehemiah Padlock RNG",
-	.source = RANDOM_PURE_NEHEMIAH,
-	.read = random_nehemiah_read
+static struct live_entropy_source random_nehemiah = {
+	.les_ident = "VIA Nehemiah Padlock RNG",
+	.les_source = RANDOM_PURE_NEHEMIAH,
+	.les_read = random_nehemiah_read
 };
 
-/* TODO: now that the Davies-Meyer hash is gone and we only use
+/* XXX: FIX? Now that the Davies-Meyer hash is gone and we only use
  * the 'xstore' instruction, do we still need to preserve the
  * FPU state with fpu_kern_(enter|leave)() ?
  */
@@ -75,7 +75,7 @@ VIA_RNG_store(void *buf)
 #ifdef __GNUCLIKE_ASM
 	__asm __volatile(
 		"movl	$0,%%edx\n\t"
-		".byte	0x0f, 0xa7, 0xc0" /* xstore */
+		"xstore"
 			: "=a" (retval), "+d" (rate), "+D" (buf)
 			:
 			: "memory"
@@ -100,8 +100,9 @@ random_nehemiah_deinit(void)
 	fpu_kern_free_ctx(fpu_ctx_save);
 }
 
-static int
-random_nehemiah_read(void *buf, int c)
+/* It is specifically allowed that buf is a multiple of sizeof(long) */
+static u_int
+random_nehemiah_read(void *buf, u_int c)
 {
 	uint8_t *b;
 	size_t count, ret;
@@ -131,13 +132,9 @@ nehemiah_modevent(module_t mod, int type, void *unused)
 	case MOD_LOAD:
 		if (via_feature_rng & VIA_HAS_RNG) {
 			live_entropy_source_register(&random_nehemiah);
+			printf("random: live provider: \"%s\"\n", random_nehemiah.les_ident);
 			random_nehemiah_init();
-		} else
-#ifndef KLD_MODULE
-			if (bootverbose)
-#endif
-				printf("%s: VIA Padlock RNG not present\n",
-				    random_nehemiah.ident);
+		}
 		break;
 
 	case MOD_UNLOAD:
@@ -158,4 +155,6 @@ nehemiah_modevent(module_t mod, int type, void *unused)
 	return (error);
 }
 
-LIVE_ENTROPY_SRC_MODULE(nehemiah, nehemiah_modevent, 1);
+DEV_MODULE(nehemiah, nehemiah_modevent, NULL);
+MODULE_VERSION(nehemiah, 1);
+MODULE_DEPEND(nehemiah, randomdev, 1, 1, 1);

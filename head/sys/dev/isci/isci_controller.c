@@ -373,6 +373,8 @@ SCI_STATUS isci_controller_initialize(struct ISCI_CONTROLLER *controller)
 
 	fail_on_timeout = 1;
 	TUNABLE_INT_FETCH("hw.isci.fail_on_task_timeout", &fail_on_timeout);
+	controller->fail_on_task_timeout = fail_on_timeout;
+
 	/* Attach to CAM using xpt_bus_register now, then immediately freeze
 	 *  the simq.  It will get released later when initial domain discovery
 	 *  is complete.

@@ -174,7 +174,7 @@ Symbol::Clear()
 bool
 Symbol::ValueIsAddress() const
 {
-    return m_addr_range.GetBaseAddress().GetSection().get() != NULL;
+    return m_addr_range.GetBaseAddress().GetSection().get() != nullptr;
 }
 
 ConstString
@@ -312,7 +312,7 @@ Symbol::Dump(Stream *s, Target *target, uint32_t index) const
 
     if (ValueIsAddress())
     {
-        if (!m_addr_range.GetBaseAddress().Dump(s, NULL, Address::DumpStyleFileAddress))
+        if (!m_addr_range.GetBaseAddress().Dump(s, nullptr, Address::DumpStyleFileAddress))
             s->Printf("%*s", 18, "");
 
         s->PutChar(' ');
@@ -536,49 +536,129 @@ Symbol::GetByteSize () const
     return m_addr_range.GetByteSize();
 }
 
+
 Symbol *
-Symbol::ResolveReExportedSymbol (Target &target)
+Symbol::ResolveReExportedSymbolInModuleSpec (Target &target,
+                                             ConstString &reexport_name,
+                                             ModuleSpec &module_spec,
+                                             ModuleList &seen_modules) const
+{
+    ModuleSP module_sp;
+    if (module_spec.GetFileSpec())
+    {
+        // Try searching for the module file spec first using the full path
+        module_sp = target.GetImages().FindFirstModule(module_spec);
+        if (!module_sp)
+        {
+            // Next try and find the module by basename in case environment
+            // variables or other runtime trickery causes shared libraries
+            // to be loaded from alternate paths
+            module_spec.GetFileSpec().GetDirectory().Clear();
+            module_sp = target.GetImages().FindFirstModule(module_spec);
+        }
+    }
+
+    if (module_sp)
+    {
+        // There should not be cycles in the reexport list, but we don't want to crash if there are so make sure
+        // we haven't seen this before:
+        if (!seen_modules.AppendIfNeeded(module_sp))
+            return nullptr;
+        
+        lldb_private::SymbolContextList sc_list;
+        module_sp->FindSymbolsWithNameAndType(reexport_name, eSymbolTypeAny, sc_list);
+        const size_t num_scs = sc_list.GetSize();
+        if (num_scs > 0)
+        {
+            for (size_t i=0; i<num_scs; ++i)
+            {
+                lldb_private::SymbolContext sc;
+                if (sc_list.GetContextAtIndex(i, sc))
+                {
+                    if (sc.symbol->IsExternal())
+                        return sc.symbol;
+                }
+            }
+        }
+        // If we didn't find the symbol in this module, it may be because this module re-exports some
+        // whole other library.  We have to search those as well:
+        seen_modules.Append(module_sp);
+        
+        FileSpecList reexported_libraries = module_sp->GetObjectFile()->GetReExportedLibraries();
+        size_t num_reexported_libraries = reexported_libraries.GetSize();
+        for (size_t idx = 0; idx < num_reexported_libraries; idx++)
+        {
+            ModuleSpec reexported_module_spec;
+            reexported_module_spec.GetFileSpec() = reexported_libraries.GetFileSpecAtIndex(idx);
+            Symbol *result_symbol = ResolveReExportedSymbolInModuleSpec(target,
+                                                                        reexport_name,
+                                                                        reexported_module_spec,
+                                                                        seen_modules);
+            if (result_symbol)
+                return result_symbol;
+        }
+    }
+    return nullptr;
+}
+
+Symbol *
+Symbol::ResolveReExportedSymbol (Target &target) const
 {
     ConstString reexport_name (GetReExportedSymbolName());
     if (reexport_name)
     {
         ModuleSpec module_spec;
-        ModuleSP module_sp;
+        ModuleList seen_modules;
         module_spec.GetFileSpec() = GetReExportedSymbolSharedLibrary();
         if (module_spec.GetFileSpec())
         {
-            // Try searching for the module file spec first using the full path
-            module_sp = target.GetImages().FindFirstModule(module_spec);
-            if (!module_sp)
-            {
-                // Next try and find the module by basename in case environment
-                // variables or other runtime trickery causes shared libraries
-                // to be loaded from alternate paths
-                module_spec.GetFileSpec().GetDirectory().Clear();
-                module_sp = target.GetImages().FindFirstModule(module_spec);
-            }
-        }
-        
-        if (module_sp)
-        {
-            lldb_private::SymbolContextList sc_list;
-            module_sp->FindSymbolsWithNameAndType(reexport_name, eSymbolTypeAny, sc_list);
-            const size_t num_scs = sc_list.GetSize();
-            if (num_scs > 0)
-            {
-                for (size_t i=0; i<num_scs; ++i)
-                {
-                    lldb_private::SymbolContext sc;
-                    if (sc_list.GetContextAtIndex(i, sc))
-                    {
-                        if (sc.symbol->IsExternal())
-                            return sc.symbol;
-                    }
-                }
-            }
+            return ResolveReExportedSymbolInModuleSpec(target, reexport_name, module_spec, seen_modules);
         }
     }
-    return NULL;
+    return nullptr;
+}
+
+lldb::addr_t
+Symbol::ResolveCallableAddress(Target &target) const
+{
+    if (GetType() == lldb::eSymbolTypeUndefined)
+        return LLDB_INVALID_ADDRESS;
+    
+    Address func_so_addr;
+    
+    bool is_indirect = IsIndirect();
+    if (GetType() == eSymbolTypeReExported)
+    {
+        Symbol *reexported_symbol = ResolveReExportedSymbol(target);
+        if (reexported_symbol)
+        {
+            func_so_addr = reexported_symbol->GetAddress();
+            is_indirect = reexported_symbol->IsIndirect();
+        }
+    }
+    else
+    {
+        func_so_addr = GetAddress();
+        is_indirect = IsIndirect();
+    }
+
+    if (func_so_addr.IsValid())
+    {
+        if (!target.GetProcessSP() && is_indirect)
+        {
+            // can't resolve indirect symbols without calling a function...
+            return LLDB_INVALID_ADDRESS;
+        }
+        
+        lldb::addr_t load_addr = func_so_addr.GetCallableLoadAddress (&target, is_indirect);
+        
+        if (load_addr != LLDB_INVALID_ADDRESS)
+        {
+            return load_addr;
+        }
+    }
+    
+    return LLDB_INVALID_ADDRESS;
 }
 
 
@@ -592,7 +672,7 @@ Symbol::GetInstructions (const ExecutionContext &exe_ctx,
     {
         const bool prefer_file_cache = false;
         return Disassembler::DisassembleRange (module_sp->GetArchitecture(),
-                                               NULL,
+                                               nullptr,
                                                flavor,
                                                exe_ctx,
                                                m_addr_range,

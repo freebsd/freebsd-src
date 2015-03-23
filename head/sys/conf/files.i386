@@ -116,9 +116,14 @@ bf_enc.o			optional crypto | ipsec	\
 	no-implicit-rule
 crypto/aesni/aeskeys_i386.S	optional aesni
 crypto/aesni/aesni.c		optional aesni
+aesni_ghash.o			optional aesni				\
+	dependency	"$S/crypto/aesni/aesni_ghash.c"			\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${NO_WCAST_QUAL} ${PROF} -mmmx -msse -msse4 -maes -mpclmul ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"aesni_ghash.o"
 aesni_wrap.o			optional aesni				\
 	dependency	"$S/crypto/aesni/aesni_wrap.c"			\
-	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${PROF} -mmmx -msse -maes ${.IMPSRC}" \
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${NO_WCAST_QUAL} ${PROF} -mmmx -msse -msse4 -maes ${.IMPSRC}" \
 	no-implicit-rule						\
 	clean		"aesni_wrap.o"
 crypto/des/arch/i386/des_enc.S	optional crypto | ipsec | netsmb
@@ -392,16 +397,6 @@ dev/isci/scil/scif_sas_task_request.c				optional isci
 dev/isci/scil/scif_sas_task_request_state_handlers.c		optional isci
 dev/isci/scil/scif_sas_task_request_states.c			optional isci
 dev/isci/scil/scif_sas_timer.c					optional isci
-dev/virtio/virtio.c			optional	virtio
-dev/virtio/virtqueue.c			optional	virtio
-dev/virtio/virtio_bus_if.m		optional	virtio
-dev/virtio/virtio_if.m			optional	virtio
-dev/virtio/pci/virtio_pci.c		optional	virtio_pci
-dev/virtio/network/if_vtnet.c		optional	vtnet
-dev/virtio/block/virtio_blk.c		optional	virtio_blk
-dev/virtio/balloon/virtio_balloon.c	optional	virtio_balloon
-dev/virtio/scsi/virtio_scsi.c		optional	virtio_scsi
-dev/virtio/random/virtio_random.c	optional	virtio_random
 i386/acpica/acpi_machdep.c	optional acpi
 acpi_wakecode.o			optional acpi				\
 	dependency	"$S/i386/acpica/acpi_wakecode.S assym.s"	\
@@ -536,9 +531,9 @@ i386/xbox/xboxfb.c		optional xboxfb
 dev/fb/boot_font.c		optional xboxfb
 i386/xbox/pic16l.s		optional xbox
 #
-# x86 real mode BIOS support, required by atkbdc/dpms/vesa
+# x86 real mode BIOS support, required by atkbdc/dpms/pci/vesa
 #
-compat/x86bios/x86bios.c	optional x86bios | atkbd | dpms | vesa
+compat/x86bios/x86bios.c	optional x86bios | atkbd | dpms | pci | vesa
 #
 # bvm console
 #
@@ -565,6 +560,7 @@ x86/iommu/intel_drv.c		optional acpi acpi_dmar pci
 x86/iommu/intel_fault.c		optional acpi acpi_dmar pci
 x86/iommu/intel_gas.c		optional acpi acpi_dmar pci
 x86/iommu/intel_idpgtbl.c	optional acpi acpi_dmar pci
+x86/iommu/intel_intrmap.c	optional acpi acpi_dmar pci
 x86/iommu/intel_qi.c		optional acpi acpi_dmar pci
 x86/iommu/intel_quirks.c	optional acpi acpi_dmar pci
 x86/iommu/intel_utils.c		optional acpi acpi_dmar pci
@@ -593,6 +589,7 @@ x86/x86/mptable_pci.c		optional apic native pci
 x86/x86/msi.c			optional apic pci
 x86/x86/nexus.c			standard
 x86/x86/tsc.c			standard
+x86/x86/pvclock.c		standard
 x86/x86/delay.c			standard
 x86/xen/hvm.c			optional xenhvm
 x86/xen/xen_intr.c		optional xen | xenhvm

@@ -12,15 +12,17 @@
 //===----------------------------------------------------------------------===//
 
 #include "SparcMCTargetDesc.h"
+#include "InstPrinter/SparcInstPrinter.h"
 #include "SparcMCAsmInfo.h"
 #include "SparcTargetStreamer.h"
-#include "InstPrinter/SparcInstPrinter.h"
 #include "llvm/MC/MCCodeGenInfo.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TargetRegistry.h"
+
+using namespace llvm;
 
 #define GET_INSTRINFO_MC_DESC
 #include "SparcGenInstrInfo.inc"
@@ -31,14 +33,11 @@
 #define GET_REGINFO_MC_DESC
 #include "SparcGenRegisterInfo.inc"
 
-using namespace llvm;
-
-
 static MCAsmInfo *createSparcMCAsmInfo(const MCRegisterInfo &MRI,
                                        StringRef TT) {
   MCAsmInfo *MAI = new SparcELFMCAsmInfo(TT);
   unsigned Reg = MRI.getDwarfRegNum(SP::O6, true);
-  MCCFIInstruction Inst = MCCFIInstruction::createDefCfa(0, Reg, 0);
+  MCCFIInstruction Inst = MCCFIInstruction::createDefCfa(nullptr, Reg, 0);
   MAI->addInitialFrameState(Inst);
   return MAI;
 }
@@ -47,7 +46,7 @@ static MCAsmInfo *createSparcV9MCAsmInfo(const MCRegisterInfo &MRI,
                                        StringRef TT) {
   MCAsmInfo *MAI = new SparcELFMCAsmInfo(TT);
   unsigned Reg = MRI.getDwarfRegNum(SP::O6, true);
-  MCCFIInstruction Inst = MCCFIInstruction::createDefCfa(0, Reg, 2047);
+  MCCFIInstruction Inst = MCCFIInstruction::createDefCfa(nullptr, Reg, 2047);
   MAI->addInitialFrameState(Inst);
   return MAI;
 }
@@ -67,6 +66,9 @@ static MCRegisterInfo *createSparcMCRegisterInfo(StringRef TT) {
 static MCSubtargetInfo *createSparcMCSubtargetInfo(StringRef TT, StringRef CPU,
                                                    StringRef FS) {
   MCSubtargetInfo *X = new MCSubtargetInfo();
+  Triple TheTriple(TT);
+  if (CPU.empty())
+    CPU = (TheTriple.getArch() == Triple::sparcv9) ? "v9" : "v8";
   InitSparcMCSubtargetInfo(X, TT, CPU, FS);
   return X;
 }
@@ -123,21 +125,22 @@ static MCCodeGenInfo *createSparcV9MCCodeGenInfo(StringRef TT, Reloc::Model RM,
 static MCStreamer *createMCStreamer(const Target &T, StringRef TT,
                                     MCContext &Context, MCAsmBackend &MAB,
                                     raw_ostream &OS, MCCodeEmitter *Emitter,
-                                    bool RelaxAll, bool NoExecStack) {
-  SparcTargetELFStreamer *S = new SparcTargetELFStreamer();
-  return createELFStreamer(Context, S, MAB, OS, Emitter, RelaxAll, NoExecStack);
+                                    const MCSubtargetInfo &STI, bool RelaxAll) {
+  MCStreamer *S = createELFStreamer(Context, MAB, OS, Emitter, RelaxAll);
+  new SparcTargetELFStreamer(*S);
+  return S;
 }
 
 static MCStreamer *
 createMCAsmStreamer(MCContext &Ctx, formatted_raw_ostream &OS,
-                    bool isVerboseAsm, bool useLoc, bool useCFI,
-                    bool useDwarfDirectory, MCInstPrinter *InstPrint,
-                    MCCodeEmitter *CE, MCAsmBackend *TAB, bool ShowInst) {
-  SparcTargetAsmStreamer *S = new SparcTargetAsmStreamer(OS);
+                    bool isVerboseAsm, bool useDwarfDirectory,
+                    MCInstPrinter *InstPrint, MCCodeEmitter *CE,
+                    MCAsmBackend *TAB, bool ShowInst) {
 
-  return llvm::createAsmStreamer(Ctx, S, OS, isVerboseAsm, useLoc, useCFI,
-                                 useDwarfDirectory, InstPrint, CE, TAB,
-                                 ShowInst);
+  MCStreamer *S = llvm::createAsmStreamer(
+      Ctx, OS, isVerboseAsm, useDwarfDirectory, InstPrint, CE, TAB, ShowInst);
+  new SparcTargetAsmStreamer(*S, OS);
+  return S;
 }
 
 static MCInstPrinter *createSparcMCInstPrinter(const Target &T,
@@ -146,7 +149,7 @@ static MCInstPrinter *createSparcMCInstPrinter(const Target &T,
                                               const MCInstrInfo &MII,
                                               const MCRegisterInfo &MRI,
                                               const MCSubtargetInfo &STI) {
-  return new SparcInstPrinter(MAI, MII, MRI);
+  return new SparcInstPrinter(MAI, MII, MRI, STI);
 }
 
 extern "C" void LLVMInitializeSparcTargetMC() {

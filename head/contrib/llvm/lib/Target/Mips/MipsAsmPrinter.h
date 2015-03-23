@@ -11,9 +11,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MIPSASMPRINTER_H
-#define MIPSASMPRINTER_H
+#ifndef LLVM_LIB_TARGET_MIPS_MIPSASMPRINTER_H
+#define LLVM_LIB_TARGET_MIPS_MIPSASMPRINTER_H
 
+#include "Mips16HardFloatInfo.h"
 #include "MipsMCInstLower.h"
 #include "MipsMachineFunction.h"
 #include "MipsSubtarget.h"
@@ -30,7 +31,7 @@ class Module;
 class raw_ostream;
 
 class LLVM_LIBRARY_VISIBILITY MipsAsmPrinter : public AsmPrinter {
-  MipsTargetStreamer &getTargetStreamer();
+  MipsTargetStreamer &getTargetStreamer() const;
 
   void EmitInstrWithMacroNoAT(const MachineInstr *MI);
 
@@ -38,6 +39,12 @@ private:
   // tblgen'erated function.
   bool emitPseudoExpansionLowering(MCStreamer &OutStreamer,
                                    const MachineInstr *MI);
+
+  // Emit PseudoReturn, PseudoReturn64, PseudoIndirectBranch,
+  // and PseudoIndirectBranch64 as a JR, JR_MM, JALR, or JALR64 as appropriate
+  // for the target.
+  void emitPseudoIndirectBranch(MCStreamer &OutStreamer,
+                                const MachineInstr *MI);
 
   // lowerOperand - Convert a MachineOperand into the equivalent MCOperand.
   bool lowerOperand(const MachineOperand &MO, MCOperand &MCOp);
@@ -50,7 +57,36 @@ private:
   /// pool entries so we can properly mark them as data regions.
   bool InConstantPool;
 
-  bool UsingConstantPools;
+  std::map<const char *, const llvm::Mips16HardFloatInfo::FuncSignature *>
+  StubsNeeded;
+
+  void emitInlineAsmStart(const MCSubtargetInfo &StartInfo) const override;
+
+  void emitInlineAsmEnd(const MCSubtargetInfo &StartInfo,
+                        const MCSubtargetInfo *EndInfo) const override;
+
+  void EmitJal(MCSymbol *Symbol);
+
+  void EmitInstrReg(unsigned Opcode, unsigned Reg);
+
+  void EmitInstrRegReg(unsigned Opcode, unsigned Reg1, unsigned Reg2);
+
+  void EmitInstrRegRegReg(unsigned Opcode, unsigned Reg1, unsigned Reg2,
+                          unsigned Reg3);
+
+  void EmitMovFPIntPair(unsigned MovOpc, unsigned Reg1, unsigned Reg2,
+                        unsigned FPReg1, unsigned FPReg2, bool LE);
+
+  void EmitSwapFPIntParams(Mips16HardFloatInfo::FPParamVariant, bool LE,
+                           bool ToFP);
+
+  void EmitSwapFPIntRetval(Mips16HardFloatInfo::FPReturnVariant, bool LE);
+
+  void EmitFPCallStub(const char *, const Mips16HardFloatInfo::FuncSignature *);
+
+  void NaClAlignIndirectJumpTargets(MachineFunction &MF);
+
+  bool isLongBranchPseudo(int Opcode) const;
 
 public:
 
@@ -58,51 +94,54 @@ public:
   const MipsFunctionInfo *MipsFI;
   MipsMCInstLower MCInstLowering;
 
-  explicit MipsAsmPrinter(TargetMachine &TM,  MCStreamer &Streamer)
-    : AsmPrinter(TM, Streamer), MCP(0), InConstantPool(false),
-      MCInstLowering(*this) {
-    Subtarget = &TM.getSubtarget<MipsSubtarget>();
-    UsingConstantPools =
-      (Subtarget->inMips16Mode() && Subtarget->useConstantIslands());
-  }
+  // We initialize the subtarget here and in runOnMachineFunction
+  // since there are certain target specific flags (ABI) that could
+  // reside on the TargetMachine, but are on the subtarget currently
+  // and we need them for the beginning of file output before we've
+  // seen a single function.
+  explicit MipsAsmPrinter(TargetMachine &TM, MCStreamer &Streamer)
+      : AsmPrinter(TM, Streamer), MCP(nullptr), InConstantPool(false),
+        Subtarget(&TM.getSubtarget<MipsSubtarget>()), MCInstLowering(*this) {}
 
-  virtual const char *getPassName() const {
+  const char *getPassName() const override {
     return "Mips Assembly Printer";
   }
 
-  virtual bool runOnMachineFunction(MachineFunction &MF);
+  bool runOnMachineFunction(MachineFunction &MF) override;
 
-  virtual void EmitConstantPool() LLVM_OVERRIDE {
+  void EmitConstantPool() override {
+    bool UsingConstantPools =
+      (Subtarget->inMips16Mode() && Subtarget->useConstantIslands());
     if (!UsingConstantPools)
       AsmPrinter::EmitConstantPool();
     // we emit constant pools customly!
   }
 
-  void EmitInstruction(const MachineInstr *MI);
-  void printSavedRegsBitmask(raw_ostream &O);
-  void printHex32(unsigned int Value, raw_ostream &O);
+  void EmitInstruction(const MachineInstr *MI) override;
+  void printSavedRegsBitmask();
   void emitFrameDirective();
   const char *getCurrentABIString() const;
-  virtual void EmitFunctionEntryLabel();
-  virtual void EmitFunctionBodyStart();
-  virtual void EmitFunctionBodyEnd();
-  virtual bool isBlockOnlyReachableByFallthrough(const MachineBasicBlock*
-                                                 MBB) const;
+  void EmitFunctionEntryLabel() override;
+  void EmitFunctionBodyStart() override;
+  void EmitFunctionBodyEnd() override;
+  bool isBlockOnlyReachableByFallthrough(
+                                   const MachineBasicBlock* MBB) const override;
   bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
                        unsigned AsmVariant, const char *ExtraCode,
-                       raw_ostream &O);
+                       raw_ostream &O) override;
   bool PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNum,
                              unsigned AsmVariant, const char *ExtraCode,
-                             raw_ostream &O);
+                             raw_ostream &O) override;
   void printOperand(const MachineInstr *MI, int opNum, raw_ostream &O);
   void printUnsignedImm(const MachineInstr *MI, int opNum, raw_ostream &O);
   void printUnsignedImm8(const MachineInstr *MI, int opNum, raw_ostream &O);
   void printMemOperand(const MachineInstr *MI, int opNum, raw_ostream &O);
   void printMemOperandEA(const MachineInstr *MI, int opNum, raw_ostream &O);
   void printFCCOperand(const MachineInstr *MI, int opNum, raw_ostream &O,
-                       const char *Modifier = 0);
-  void EmitStartOfAsmFile(Module &M);
-  void EmitEndOfAsmFile(Module &M);
+                       const char *Modifier = nullptr);
+  void printRegisterList(const MachineInstr *MI, int opNum, raw_ostream &O);
+  void EmitStartOfAsmFile(Module &M) override;
+  void EmitEndOfAsmFile(Module &M) override;
   void PrintDebugValueComment(const MachineInstr *MI, raw_ostream &OS);
 };
 }

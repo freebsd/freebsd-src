@@ -28,7 +28,10 @@
 #ifndef	__ARSWITCH_PHY_H__
 #define	__ARSWITCH_PHY_H__
 
-extern	int arswitch_readphy(device_t dev, int phy, int reg);
-extern	int arswitch_writephy(device_t dev, int phy, int reg, int data);
+extern	int arswitch_readphy_external(device_t dev, int phy, int reg);
+extern	int arswitch_writephy_external(device_t dev, int phy, int reg, int data);
+
+extern	int arswitch_readphy_internal(device_t dev, int phy, int reg);
+extern	int arswitch_writephy_internal(device_t dev, int phy, int reg, int data);
 
 #endif	/* __ARSWITCH_PHY_H__ */

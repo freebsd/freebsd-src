@@ -361,6 +361,8 @@ static vm_object_t
 		    vm_prot_t prot, vm_ooffset_t offset, struct ucred *);
 static void	swap_pager_dealloc(vm_object_t object);
 static int	swap_pager_getpages(vm_object_t, vm_page_t *, int, int);
+static int	swap_pager_getpages_async(vm_object_t, vm_page_t *, int, int,
+    pgo_getpages_iodone_t, void *);
 static void	swap_pager_putpages(vm_object_t, vm_page_t *, int, boolean_t, int *);
 static boolean_t
 		swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *after);
@@ -373,6 +375,7 @@ struct pagerops swappagerops = {
 	.pgo_alloc =	swap_pager_alloc,	/* allocate an OBJT_SWAP object		*/
 	.pgo_dealloc =	swap_pager_dealloc,	/* deallocate an OBJT_SWAP object	*/
 	.pgo_getpages =	swap_pager_getpages,	/* pagein				*/
+	.pgo_getpages_async = swap_pager_getpages_async, /* pagein (async)		*/
 	.pgo_putpages =	swap_pager_putpages,	/* pageout				*/
 	.pgo_haspage =	swap_pager_haspage,	/* get backing store status for page	*/
 	.pgo_pageunswapped = swap_pager_unswapped,	/* remove swap related to page		*/
@@ -1257,6 +1260,39 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 }
 
 /*
+ * 	swap_pager_getpages_async():
+ *
+ *	Right now this is emulation of asynchronous operation on top of
+ *	swap_pager_getpages().
+ */
+static int
+swap_pager_getpages_async(vm_object_t object, vm_page_t *m, int count,
+    int reqpage, pgo_getpages_iodone_t iodone, void *arg)
+{
+	int r, error;
+
+	r = swap_pager_getpages(object, m, count, reqpage);
+	VM_OBJECT_WUNLOCK(object);
+	switch (r) {
+	case VM_PAGER_OK:
+		error = 0;
+		break;
+	case VM_PAGER_ERROR:
+		error = EIO;
+		break;
+	case VM_PAGER_FAIL:
+		error = EINVAL;
+		break;
+	default:
+		panic("unhandled swap_pager_getpages() error %d", r);
+	}
+	(iodone)(arg, m, count, error);
+	VM_OBJECT_WLOCK(object);
+
+	return (r);
+}
+
+/*
  *	swap_pager_putpages:
  *
  *	Assign swap (if necessary) and initiate I/O on the specified pages.
@@ -1280,10 +1316,10 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
  */
 void
 swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
-    boolean_t sync, int *rtvals)
+    int flags, int *rtvals)
 {
-	int i;
-	int n = 0;
+	int i, n;
+	boolean_t sync;
 
 	if (count && m[0]->object != object) {
 		panic("swap_pager_putpages: object mismatch %p/%p",
@@ -1303,8 +1339,11 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		swp_pager_meta_build(object, 0, SWAPBLK_NONE);
 	VM_OBJECT_WUNLOCK(object);
 
+	n = 0;
 	if (curproc != pageproc)
 		sync = TRUE;
+	else
+		sync = (flags & VM_PAGER_PUT_SYNC) != 0;
 
 	/*
 	 * Step 2

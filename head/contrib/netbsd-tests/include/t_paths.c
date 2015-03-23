@@ -1,4 +1,4 @@
-/*	$NetBSD: t_paths.c,v 1.13 2014/02/09 21:26:07 jmmv Exp $ */
+/*	$NetBSD: t_paths.c,v 1.14 2014/11/04 00:20:19 justin Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_paths.c,v 1.13 2014/02/09 21:26:07 jmmv Exp $");
+__RCSID("$NetBSD: t_paths.c,v 1.14 2014/11/04 00:20:19 justin Exp $");
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -42,7 +42,6 @@ __RCSID("$NetBSD: t_paths.c,v 1.13 2014/02/09 21:26:07 jmmv Exp $");
 #include <unistd.h>
 
 #include <atf-c.h>
-#include <atf-c/config.h>
 
 #define PATH_DEV	__BIT(0)	/* A device node	*/
 #define PATH_DIR	__BIT(1)	/* A directory		*/

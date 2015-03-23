@@ -1,4 +1,4 @@
-//===- llvm/Support/Win32/Host.inc -------------------------------*- C++ -*-===//
+//===- llvm/Support/Win32/Host.inc ------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,12 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Windows.h"
+#include "WindowsSupport.h"
 #include <cstdio>
 #include <string>
 
 using namespace llvm;
 
 std::string sys::getDefaultTargetTriple() {
-  return LLVM_DEFAULT_TARGET_TRIPLE;
+  return Triple::normalize(LLVM_DEFAULT_TARGET_TRIPLE);
 }

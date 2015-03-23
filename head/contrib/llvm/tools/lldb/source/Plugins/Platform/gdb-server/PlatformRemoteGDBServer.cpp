@@ -12,22 +12,19 @@
 #include "PlatformRemoteGDBServer.h"
 #include "lldb/Host/Config.h"
 
-// C Includes
-#ifndef LLDB_DISABLE_POSIX
-#include <sys/sysctl.h>
-#endif
-
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
 #include "lldb/Breakpoint/BreakpointLocation.h"
-#include "lldb/Core/ConnectionFileDescriptor.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Error.h"
+#include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleList.h"
+#include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Core/StreamString.h"
+#include "lldb/Host/ConnectionFileDescriptor.h"
 #include "lldb/Host/FileSpec.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Target/Process.h"
@@ -60,7 +57,7 @@ PlatformRemoteGDBServer::Terminate ()
     }
 }
 
-Platform* 
+PlatformSP
 PlatformRemoteGDBServer::CreateInstance (bool force, const lldb_private::ArchSpec *arch)
 {
     bool create = force;
@@ -69,8 +66,8 @@ PlatformRemoteGDBServer::CreateInstance (bool force, const lldb_private::ArchSpe
         create = !arch->TripleVendorWasSpecified() && !arch->TripleOSWasSpecified();
     }
     if (create)
-        return new PlatformRemoteGDBServer ();
-    return NULL;
+        return PlatformSP(new PlatformRemoteGDBServer());
+    return PlatformSP();
 }
 
 
@@ -104,14 +101,13 @@ PlatformRemoteGDBServer::GetDescription ()
 }
 
 Error
-PlatformRemoteGDBServer::ResolveExecutable (const FileSpec &exe_file,
-                                            const ArchSpec &exe_arch,
+PlatformRemoteGDBServer::ResolveExecutable (const ModuleSpec &module_spec,
                                             lldb::ModuleSP &exe_module_sp,
                                             const FileSpecList *module_search_paths_ptr)
 {
     Error error;
     //error.SetErrorString ("PlatformRemoteGDBServer::ResolveExecutable() is unimplemented");
-    if (m_gdb_client.GetFileExists(exe_file))
+    if (m_gdb_client.GetFileExists(module_spec.GetFileSpec()))
         return error;
     // TODO: get the remote end to somehow resolve this file
     error.SetErrorString("file not found on remote end");
@@ -346,13 +342,18 @@ PlatformRemoteGDBServer::GetProcessInfo (lldb::pid_t pid, ProcessInstanceInfo &p
 Error
 PlatformRemoteGDBServer::LaunchProcess (ProcessLaunchInfo &launch_info)
 {
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_PLATFORM));
     Error error;
     lldb::pid_t pid = LLDB_INVALID_PROCESS_ID;
-    
+
+    if (log)
+        log->Printf ("PlatformRemoteGDBServer::%s() called", __FUNCTION__);
+
     m_gdb_client.SetSTDIN ("/dev/null");
     m_gdb_client.SetSTDOUT ("/dev/null");
     m_gdb_client.SetSTDERR ("/dev/null");
     m_gdb_client.SetDisableASLR (launch_info.GetFlags().Test (eLaunchFlagDisableASLR));
+    m_gdb_client.SetDetachOnError (launch_info.GetFlags().Test (eLaunchFlagDetachOnError));
     
     const char *working_dir = launch_info.GetWorkingDirectory();
     if (working_dir && working_dir[0])
@@ -377,7 +378,9 @@ PlatformRemoteGDBServer::LaunchProcess (ProcessLaunchInfo &launch_info)
     const char *arch_triple = arch_spec.GetTriple().str().c_str();
     
     m_gdb_client.SendLaunchArchPacket(arch_triple);
-    
+    if (log)
+        log->Printf ("PlatformRemoteGDBServer::%s() set launch architecture triple to '%s'", __FUNCTION__, arch_triple ? arch_triple : "<NULL>");
+
     const uint32_t old_packet_timeout = m_gdb_client.SetPacketTimeout (5);
     int arg_packet_err = m_gdb_client.SendArgumentsPacket (launch_info);
     m_gdb_client.SetPacketTimeout (old_packet_timeout);
@@ -388,11 +391,23 @@ PlatformRemoteGDBServer::LaunchProcess (ProcessLaunchInfo &launch_info)
         {
             pid = m_gdb_client.GetCurrentProcessID ();
             if (pid != LLDB_INVALID_PROCESS_ID)
+            {
                 launch_info.SetProcessID (pid);
+                if (log)
+                    log->Printf ("PlatformRemoteGDBServer::%s() pid %" PRIu64 " launched successfully", __FUNCTION__, pid);
+            }
+            else
+            {
+                if (log)
+                    log->Printf ("PlatformRemoteGDBServer::%s() launch succeeded but we didn't get a valid process id back!", __FUNCTION__);
+                // FIXME isn't this an error condition? Do we need to set an error here?  Check with Greg.
+            }
         }
         else
         {
             error.SetErrorString (error_str.c_str());
+            if (log)
+                log->Printf ("PlatformRemoteGDBServer::%s() launch failed: %s", __FUNCTION__, error.AsCString ());
         }
     }
     else
@@ -406,7 +421,6 @@ lldb::ProcessSP
 PlatformRemoteGDBServer::DebugProcess (lldb_private::ProcessLaunchInfo &launch_info,
                                        lldb_private::Debugger &debugger,
                                        lldb_private::Target *target,       // Can be NULL, if NULL create a new target, else use existing one
-                                       lldb_private::Listener &listener,
                                        lldb_private::Error &error)
 {
     lldb::ProcessSP process_sp;
@@ -423,7 +437,7 @@ PlatformRemoteGDBServer::DebugProcess (lldb_private::ProcessLaunchInfo &launch_i
                 // When remote debugging to iOS, we use a USB mux that always talks
                 // to localhost, so we will need the remote debugserver to accept connections
                 // only from localhost, no matter what our current hostname is
-                port = m_gdb_client.LaunchGDBserverAndGetPort(debugserver_pid, "localhost");
+                port = m_gdb_client.LaunchGDBserverAndGetPort(debugserver_pid, "127.0.0.1");
             }
             else
             {
@@ -458,7 +472,7 @@ PlatformRemoteGDBServer::DebugProcess (lldb_private::ProcessLaunchInfo &launch_i
                     
                     // The darwin always currently uses the GDB remote debugger plug-in
                     // so even when debugging locally we are debugging remotely!
-                    process_sp = target->CreateProcess (listener, "gdb-remote", NULL);
+                    process_sp = target->CreateProcess (launch_info.GetListenerForProcess(debugger), "gdb-remote", NULL);
                     
                     if (process_sp)
                     {
@@ -473,10 +487,16 @@ PlatformRemoteGDBServer::DebugProcess (lldb_private::ProcessLaunchInfo &launch_i
                                                                 port + port_offset);
                         assert (connect_url_len < (int)sizeof(connect_url));
                         error = process_sp->ConnectRemote (NULL, connect_url);
+                        // Retry the connect remote one time...
+                        if (error.Fail())
+                            error = process_sp->ConnectRemote (NULL, connect_url);
                         if (error.Success())
                             error = process_sp->Launch(launch_info);
                         else if (debugserver_pid != LLDB_INVALID_PROCESS_ID)
+                        {
+                            printf ("error: connect remote failed (%s)\n", error.AsCString());
                             m_gdb_client.KillSpawnedProcess(debugserver_pid);
+                        }
                     }
                 }
             }
@@ -494,7 +514,6 @@ lldb::ProcessSP
 PlatformRemoteGDBServer::Attach (lldb_private::ProcessAttachInfo &attach_info,
                                  Debugger &debugger,
                                  Target *target,       // Can be NULL, if NULL create a new target, else use existing one
-                                 Listener &listener, 
                                  Error &error)
 {
     lldb::ProcessSP process_sp;
@@ -511,7 +530,7 @@ PlatformRemoteGDBServer::Attach (lldb_private::ProcessAttachInfo &attach_info,
                 // When remote debugging to iOS, we use a USB mux that always talks
                 // to localhost, so we will need the remote debugserver to accept connections
                 // only from localhost, no matter what our current hostname is
-                port = m_gdb_client.LaunchGDBserverAndGetPort(debugserver_pid, "localhost");
+                port = m_gdb_client.LaunchGDBserverAndGetPort(debugserver_pid, "127.0.0.1");
             }
             else
             {
@@ -546,7 +565,7 @@ PlatformRemoteGDBServer::Attach (lldb_private::ProcessAttachInfo &attach_info,
                     
                     // The darwin always currently uses the GDB remote debugger plug-in
                     // so even when debugging locally we are debugging remotely!
-                    process_sp = target->CreateProcess (listener, "gdb-remote", NULL);
+                    process_sp = target->CreateProcess (attach_info.GetListenerForProcess(debugger), "gdb-remote", NULL);
                     
                     if (process_sp)
                     {

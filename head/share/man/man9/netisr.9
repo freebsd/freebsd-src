@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 22, 2010
+.Dd January 11, 2015
 .Dt NETISR 9
 .Os
 .Sh NAME
@@ -126,13 +126,13 @@ MIB names, so should not contain whitespace.
 Protocol handler function that will be invoked on each packet received for
 the protocol.
 .It Vt netisr_m2flow_t Va nh_m2flow
-Optional protocol function to generate a flow ID and set
-.Dv M_FLOWID
-for packets that do not enter
+Optional protocol function to generate a flow ID and set a valid
+hashtype for packets that enter the
 .Nm
 with
-.Dv M_FLOWID
-defined.
+.Dv M_HASHTYPE_GET(m)
+equal to
+.Dv M_HASHTYPE_NONE .
 Will be used only with
 .Dv NETISR_POLICY_FLOW .
 .It Vt netisr_m2cpuid_t Va nh_m2cpuid

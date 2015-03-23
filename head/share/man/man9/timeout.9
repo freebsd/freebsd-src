@@ -51,6 +51,9 @@
 .Nm callout_schedule ,
 .Nm callout_schedule_curcpu ,
 .Nm callout_schedule_on ,
+.Nm callout_schedule_sbt ,
+.Nm callout_schedule_sbt_curcpu ,
+.Nm callout_schedule_sbt_on ,
 .Nm callout_stop ,
 .Nm timeout ,
 .Nm untimeout
@@ -105,6 +108,15 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle);
 .Fn callout_schedule_curcpu "struct callout *c" "int ticks"
 .Ft int
 .Fn callout_schedule_on "struct callout *c" "int ticks" "int cpu"
+.Ft int
+.Fn callout_schedule_sbt "struct callout *c" "sbintime_t sbt" \
+"sbintime_t pr" "int flags"
+.Ft int
+.Fn callout_schedule_sbt_curcpu "struct callout *c" "sbintime_t sbt" \
+"sbintime_t pr" "int flags"
+.Ft int
+.Fn callout_schedule_sbt_on "struct callout *c" "sbintime_t sbt" \
+"sbintime_t pr" "int cpu" "int flags"
 .Ft int
 .Fn callout_stop "struct callout *c"
 .Ft struct callout_handle
@@ -386,21 +398,24 @@ callouts are assigned to CPU 0.
 The
 .Fn callout_reset_on ,
 .Fn callout_reset_sbt_on ,
-and
 .Fn callout_schedule_on
+and
+.Fn callout_schedule_sbt_on
 functions assign the callout to CPU
 .Fa cpu .
 The
 .Fn callout_reset_curcpu ,
 .Fn callout_reset_sbt_curpu ,
-and
 .Fn callout_schedule_curcpu
+and
+.Fn callout_schedule_sbt_curcpu
 functions assign the callout to the current CPU.
 The
 .Fn callout_reset ,
 .Fn callout_reset_sbt ,
-and
 .Fn callout_schedule
+and
+.Fn callout_schedule_sbt
 functions schedule the callout to execute in the softclock thread of the CPU
 to which it is currently assigned.
 .Pp

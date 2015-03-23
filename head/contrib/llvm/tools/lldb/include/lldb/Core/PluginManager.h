@@ -80,6 +80,24 @@ public:
     GetDynamicLoaderCreateCallbackForPluginName (const ConstString &name);
 
     //------------------------------------------------------------------
+    // JITLoader
+    //------------------------------------------------------------------
+    static bool
+    RegisterPlugin (const ConstString &name,
+                    const char *description,
+                    JITLoaderCreateInstance create_callback,
+                    DebuggerInitializeCallback debugger_init_callback = NULL);
+
+    static bool
+    UnregisterPlugin (JITLoaderCreateInstance create_callback);
+
+    static JITLoaderCreateInstance
+    GetJITLoaderCreateCallbackAtIndex (uint32_t idx);
+
+    static JITLoaderCreateInstance
+    GetJITLoaderCreateCallbackForPluginName (const ConstString &name);
+
+    //------------------------------------------------------------------
     // EmulateInstruction
     //------------------------------------------------------------------
     static bool
@@ -157,7 +175,8 @@ public:
                     const char *description,
                     ObjectFileCreateInstance create_callback,
                     ObjectFileCreateMemoryInstance create_memory_callback,
-                    ObjectFileGetModuleSpecifications get_module_specifications);
+                    ObjectFileGetModuleSpecifications get_module_specifications,
+                    ObjectFileSaveCore save_core = NULL);
 
     static bool
     UnregisterPlugin (ObjectFileCreateInstance create_callback);
@@ -177,6 +196,8 @@ public:
     static ObjectFileCreateMemoryInstance
     GetObjectFileCreateMemoryCallbackForPluginName (const ConstString &name);
 
+    static Error
+    SaveCore (const lldb::ProcessSP &process_sp, const FileSpec &outfile);
 
     //------------------------------------------------------------------
     // ObjectContainer
@@ -321,7 +342,46 @@ public:
 
     static UnwindAssemblyCreateInstance
     GetUnwindAssemblyCreateCallbackForPluginName (const ConstString &name);
+    
+    //------------------------------------------------------------------
+    // MemoryHistory
+    //------------------------------------------------------------------
+    static bool
+    RegisterPlugin (const ConstString &name,
+                    const char *description,
+                    MemoryHistoryCreateInstance create_callback);
+    
+    static bool
+    UnregisterPlugin (MemoryHistoryCreateInstance create_callback);
+    
+    static MemoryHistoryCreateInstance
+    GetMemoryHistoryCreateCallbackAtIndex (uint32_t idx);
+    
+    static MemoryHistoryCreateInstance
+    GetMemoryHistoryCreateCallbackForPluginName (const ConstString &name);
 
+    //------------------------------------------------------------------
+    // InstrumentationRuntime
+    //------------------------------------------------------------------
+    static bool
+    RegisterPlugin (const ConstString &name,
+                    const char *description,
+                    InstrumentationRuntimeCreateInstance create_callback,
+                    InstrumentationRuntimeGetType get_type_callback);
+    
+    static bool
+    UnregisterPlugin (InstrumentationRuntimeCreateInstance create_callback);
+
+    static InstrumentationRuntimeGetType
+    GetInstrumentationRuntimeGetTypeCallbackAtIndex (uint32_t idx);
+    
+    static InstrumentationRuntimeCreateInstance
+    GetInstrumentationRuntimeCreateCallbackAtIndex (uint32_t idx);
+    
+    static InstrumentationRuntimeCreateInstance
+    GetInstrumentationRuntimeCreateCallbackForPluginName (const ConstString &name);
+
+    
     //------------------------------------------------------------------
     // Some plug-ins might register a DebuggerInitializeCallback
     // callback when registering the plug-in. After a new Debugger

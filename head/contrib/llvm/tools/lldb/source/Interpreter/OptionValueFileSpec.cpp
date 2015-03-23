@@ -78,6 +78,7 @@ OptionValueFileSpec::SetValueFromCString (const char *value_cstr,
     {
     case eVarSetOperationClear:
         Clear ();
+        NotifyValueChanged();
         break;
         
     case eVarSetOperationReplace:
@@ -99,6 +100,8 @@ OptionValueFileSpec::SetValueFromCString (const char *value_cstr,
 
             m_value_was_set = true;
             m_current_value.SetFile(filepath.c_str(), true);
+            m_data_sp.reset();
+            NotifyValueChanged();
         }
         else
         {
@@ -139,7 +142,7 @@ OptionValueFileSpec::AutoComplete (CommandInterpreter &interpreter,
                                                          s,
                                                          match_start_point,
                                                          max_return_elements,
-                                                         NULL,
+                                                         nullptr,
                                                          word_complete,
                                                          matches);
     return matches.GetSize();

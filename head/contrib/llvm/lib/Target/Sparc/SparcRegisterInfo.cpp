@@ -25,10 +25,10 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Target/TargetInstrInfo.h"
 
+using namespace llvm;
+
 #define GET_REGINFO_TARGET_DESC
 #include "SparcGenRegisterInfo.inc"
-
-using namespace llvm;
 
 static cl::opt<bool>
 ReserveAppRegisters("sparc-reserve-app-registers", cl::Hidden, cl::init(false),
@@ -38,8 +38,8 @@ SparcRegisterInfo::SparcRegisterInfo(SparcSubtarget &st)
   : SparcGenRegisterInfo(SP::O7), Subtarget(st) {
 }
 
-const uint16_t* SparcRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF)
-                                                                         const {
+const MCPhysReg*
+SparcRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   return CSR_SaveList;
 }
 
@@ -108,7 +108,7 @@ static void replaceFI(MachineFunction &MF,
     return;
   }
 
-  const TargetInstrInfo &TII = *MF.getTarget().getInstrInfo();
+  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
 
   // FIXME: it would be better to scavenge a register here instead of
   // reserving G1 all of the time.
@@ -174,7 +174,7 @@ SparcRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
   if (!Subtarget.isV9() || !Subtarget.hasHardQuad()) {
     if (MI.getOpcode() == SP::STQFri) {
-      const TargetInstrInfo &TII = *MF.getTarget().getInstrInfo();
+      const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
       unsigned SrcReg = MI.getOperand(2).getReg();
       unsigned SrcEvenReg = getSubReg(SrcReg, SP::sub_even64);
       unsigned SrcOddReg  = getSubReg(SrcReg, SP::sub_odd64);
@@ -186,7 +186,7 @@ SparcRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
       MI.getOperand(2).setReg(SrcOddReg);
       Offset += 8;
     } else if (MI.getOpcode() == SP::LDQFri) {
-      const TargetInstrInfo &TII = *MF.getTarget().getInstrInfo();
+      const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
       unsigned DestReg     = MI.getOperand(0).getReg();
       unsigned DestEvenReg = getSubReg(DestReg, SP::sub_even64);
       unsigned DestOddReg  = getSubReg(DestReg, SP::sub_odd64);

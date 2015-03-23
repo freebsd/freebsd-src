@@ -318,6 +318,18 @@ autofs_cache_callout(void *context)
 	anp->an_cached = false;
 }
 
+void
+autofs_flush(struct autofs_mount *amp)
+{
+
+	/*
+	 * XXX: This will do for now, but ideally we should iterate
+	 * 	over all the nodes.
+	 */
+	amp->am_root->an_cached = false;
+	AUTOFS_DEBUG("%s flushed", amp->am_mountpoint);
+}
+
 /*
  * The set/restore sigmask functions are used to (temporarily) overwrite
  * the thread td_sigmask during triggering.
@@ -572,6 +584,34 @@ autofs_ioctl_request(struct autofs_daemon_request *adr)
 }
 
 static int
+autofs_ioctl_done_101(struct autofs_daemon_done_101 *add)
+{
+	struct autofs_request *ar;
+
+	sx_xlock(&autofs_softc->sc_lock);
+	TAILQ_FOREACH(ar, &autofs_softc->sc_requests, ar_next) {
+		if (ar->ar_id == add->add_id)
+			break;
+	}
+
+	if (ar == NULL) {
+		sx_xunlock(&autofs_softc->sc_lock);
+		AUTOFS_DEBUG("id %d not found", add->add_id);
+		return (ESRCH);
+	}
+
+	ar->ar_error = add->add_error;
+	ar->ar_wildcards = true;
+	ar->ar_done = true;
+	ar->ar_in_progress = false;
+	cv_broadcast(&autofs_softc->sc_cv);
+
+	sx_xunlock(&autofs_softc->sc_lock);
+
+	return (0);
+}
+
+static int
 autofs_ioctl_done(struct autofs_daemon_done *add)
 {
 	struct autofs_request *ar;
@@ -646,6 +686,9 @@ autofs_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int mode,
 	case AUTOFSREQUEST:
 		return (autofs_ioctl_request(
 		    (struct autofs_daemon_request *)arg));
+	case AUTOFSDONE101:
+		return (autofs_ioctl_done_101(
+		    (struct autofs_daemon_done_101 *)arg));
 	case AUTOFSDONE:
 		return (autofs_ioctl_done(
 		    (struct autofs_daemon_done *)arg));

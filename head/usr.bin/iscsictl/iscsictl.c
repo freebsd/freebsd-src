@@ -327,6 +327,9 @@ conf_from_target(struct iscsi_session_conf *conf,
 		conf->isc_discovery = 1;
 	if (targ->t_protocol == PROTOCOL_ISER)
 		conf->isc_iser = 1;
+	if (targ->t_offload != NULL)
+		strlcpy(conf->isc_offload, targ->t_offload,
+		    sizeof(conf->isc_offload));
 	if (targ->t_header_digest == DIGEST_CRC32C)
 		conf->isc_header_digest = ISCSI_DIGEST_CRC32C;
 	else
@@ -517,6 +520,7 @@ kernel_list(int iscsi_fd, const struct target *targ __unused,
 			    state->iss_immediate_data ? "Yes" : "No");
 			printf("iSER (RDMA):      %s\n",
 			    conf->isc_iser ? "Yes" : "No");
+			printf("Offload driver:   %s\n", state->iss_offload);
 			printf("Device nodes:     ");
 			print_periphs(state->iss_id);
 			printf("\n\n");
@@ -758,14 +762,9 @@ main(int argc, char **argv)
 				errx(1, "-n and -p and mutually exclusive");
 			if (target != NULL)
 				errx(1, "-n and -t and mutually exclusive");
-		} else if (portal != NULL) {
-			if (target != NULL)
-				errx(1, "-p and -t and mutually exclusive");
-		} else if (target != NULL) {
-			if (portal != NULL)
-				errx(1, "-t and -p and mutually exclusive");
-		} else
+		} else if (target == NULL && portal == NULL) {
 			errx(1, "must specify either -a, -n, -t, or -p");
+		}
 
 		if (session_id != -1)
 			errx(1, "-i cannot be used with -R");

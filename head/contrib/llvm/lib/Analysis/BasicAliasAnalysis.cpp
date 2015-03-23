@@ -17,9 +17,9 @@
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Analysis/CaptureTracking.h"
+#include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/CFG.h"
-#include "llvm/Analysis/Dominators.h"
+#include "llvm/Analysis/CaptureTracking.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
@@ -27,7 +27,9 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/GetElementPtrTypeIterator.h"
 #include "llvm/IR/GlobalAlias.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Instructions.h"
@@ -36,7 +38,6 @@
 #include "llvm/IR/Operator.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/GetElementPtrTypeIterator.h"
 #include "llvm/Target/TargetLibraryInfo.h"
 #include <algorithm>
 using namespace llvm;
@@ -46,6 +47,11 @@ using namespace llvm;
 /// careful with value equivalence. We use reachability to make sure a value
 /// cannot be involved in a cycle.
 const unsigned MaxNumPhiBBsValueReachabilityCheck = 20;
+
+// The max limit of the search depth in DecomposeGEPExpression() and
+// GetUnderlyingObject(), both functions need to use the same search
+// depth otherwise the algorithm in aliasGEP will assert.
+static const unsigned MaxLookupSearchDepth = 6;
 
 //===----------------------------------------------------------------------===//
 // Useful predicates
@@ -93,11 +99,11 @@ static bool isEscapeSource(const Value *V) {
 
 /// getObjectSize - Return the size of the object specified by V, or
 /// UnknownSize if unknown.
-static uint64_t getObjectSize(const Value *V, const DataLayout &TD,
+static uint64_t getObjectSize(const Value *V, const DataLayout &DL,
                               const TargetLibraryInfo &TLI,
                               bool RoundToAlign = false) {
   uint64_t Size;
-  if (getObjectSize(V, Size, &TD, &TLI, RoundToAlign))
+  if (getObjectSize(V, Size, &DL, &TLI, RoundToAlign))
     return Size;
   return AliasAnalysis::UnknownSize;
 }
@@ -105,7 +111,7 @@ static uint64_t getObjectSize(const Value *V, const DataLayout &TD,
 /// isObjectSmallerThan - Return true if we can prove that the object specified
 /// by V is smaller than Size.
 static bool isObjectSmallerThan(const Value *V, uint64_t Size,
-                                const DataLayout &TD,
+                                const DataLayout &DL,
                                 const TargetLibraryInfo &TLI) {
   // Note that the meanings of the "object" are slightly different in the
   // following contexts:
@@ -138,7 +144,7 @@ static bool isObjectSmallerThan(const Value *V, uint64_t Size,
 
   // This function needs to use the aligned object size because we allow
   // reads a bit past the end given sufficient alignment.
-  uint64_t ObjectSize = getObjectSize(V, TD, TLI, /*RoundToAlign*/true);
+  uint64_t ObjectSize = getObjectSize(V, DL, TLI, /*RoundToAlign*/true);
 
   return ObjectSize != AliasAnalysis::UnknownSize && ObjectSize < Size;
 }
@@ -146,21 +152,10 @@ static bool isObjectSmallerThan(const Value *V, uint64_t Size,
 /// isObjectSize - Return true if we can prove that the object specified
 /// by V has size Size.
 static bool isObjectSize(const Value *V, uint64_t Size,
-                         const DataLayout &TD, const TargetLibraryInfo &TLI) {
-  uint64_t ObjectSize = getObjectSize(V, TD, TLI);
+                         const DataLayout &DL, const TargetLibraryInfo &TLI) {
+  uint64_t ObjectSize = getObjectSize(V, DL, TLI);
   return ObjectSize != AliasAnalysis::UnknownSize && ObjectSize == Size;
 }
-
-/// isIdentifiedFunctionLocal - Return true if V is umabigously identified
-/// at the function-level. Different IdentifiedFunctionLocals can't alias.
-/// Further, an IdentifiedFunctionLocal can not alias with any function
-/// arguments other than itself, which is not neccessarily true for
-/// IdentifiedObjects.
-static bool isIdentifiedFunctionLocal(const Value *V)
-{
-  return isa<AllocaInst>(V) || isNoAliasCall(V) || isNoAliasArgument(V);
-}
-
 
 //===----------------------------------------------------------------------===//
 // GetElementPtr Instruction Decomposition and Analysis
@@ -200,13 +195,22 @@ namespace {
 /// represented in the result.
 static Value *GetLinearExpression(Value *V, APInt &Scale, APInt &Offset,
                                   ExtensionKind &Extension,
-                                  const DataLayout &TD, unsigned Depth) {
+                                  const DataLayout &DL, unsigned Depth,
+                                  AssumptionCache *AC, DominatorTree *DT) {
   assert(V->getType()->isIntegerTy() && "Not an integer value");
 
   // Limit our recursion depth.
   if (Depth == 6) {
     Scale = 1;
     Offset = 0;
+    return V;
+  }
+
+  if (ConstantInt *Const = dyn_cast<ConstantInt>(V)) {
+    // if it's a constant, just convert it to an offset
+    // and remove the variable.
+    Offset += Const->getValue();
+    assert(Scale == 0 && "Constant values don't have a scale");
     return V;
   }
 
@@ -217,23 +221,24 @@ static Value *GetLinearExpression(Value *V, APInt &Scale, APInt &Offset,
       case Instruction::Or:
         // X|C == X+C if all the bits in C are unset in X.  Otherwise we can't
         // analyze it.
-        if (!MaskedValueIsZero(BOp->getOperand(0), RHSC->getValue(), &TD))
+        if (!MaskedValueIsZero(BOp->getOperand(0), RHSC->getValue(), &DL, 0, AC,
+                               BOp, DT))
           break;
         // FALL THROUGH.
       case Instruction::Add:
         V = GetLinearExpression(BOp->getOperand(0), Scale, Offset, Extension,
-                                TD, Depth+1);
+                                DL, Depth + 1, AC, DT);
         Offset += RHSC->getValue();
         return V;
       case Instruction::Mul:
         V = GetLinearExpression(BOp->getOperand(0), Scale, Offset, Extension,
-                                TD, Depth+1);
+                                DL, Depth + 1, AC, DT);
         Offset *= RHSC->getValue();
         Scale *= RHSC->getValue();
         return V;
       case Instruction::Shl:
         V = GetLinearExpression(BOp->getOperand(0), Scale, Offset, Extension,
-                                TD, Depth+1);
+                                DL, Depth + 1, AC, DT);
         Offset <<= RHSC->getValue().getLimitedValue();
         Scale <<= RHSC->getValue().getLimitedValue();
         return V;
@@ -253,10 +258,13 @@ static Value *GetLinearExpression(Value *V, APInt &Scale, APInt &Offset,
     Offset = Offset.trunc(SmallWidth);
     Extension = isa<SExtInst>(V) ? EK_SignExt : EK_ZeroExt;
 
-    Value *Result = GetLinearExpression(CastOp, Scale, Offset, Extension,
-                                        TD, Depth+1);
+    Value *Result = GetLinearExpression(CastOp, Scale, Offset, Extension, DL,
+                                        Depth + 1, AC, DT);
     Scale = Scale.zext(OldWidth);
-    Offset = Offset.zext(OldWidth);
+
+    // We have to sign-extend even if Extension == EK_ZeroExt as we can't
+    // decompose a sign extension (i.e. zext(x - 1) != zext(x) - zext(-1)).
+    Offset = Offset.sext(OldWidth);
 
     return Result;
   }
@@ -276,21 +284,25 @@ static Value *GetLinearExpression(Value *V, APInt &Scale, APInt &Offset,
 /// the gep cannot necessarily be reconstructed from its decomposed form.
 ///
 /// When DataLayout is around, this function is capable of analyzing everything
-/// that GetUnderlyingObject can look through.  When not, it just looks
-/// through pointer casts.
+/// that GetUnderlyingObject can look through. To be able to do that
+/// GetUnderlyingObject and DecomposeGEPExpression must use the same search
+/// depth (MaxLookupSearchDepth).
+/// When DataLayout not is around, it just looks through pointer casts.
 ///
 static const Value *
 DecomposeGEPExpression(const Value *V, int64_t &BaseOffs,
                        SmallVectorImpl<VariableGEPIndex> &VarIndices,
-                       const DataLayout *TD) {
+                       bool &MaxLookupReached, const DataLayout *DL,
+                       AssumptionCache *AC, DominatorTree *DT) {
   // Limit recursion depth to limit compile time in crazy cases.
-  unsigned MaxLookup = 6;
+  unsigned MaxLookup = MaxLookupSearchDepth;
+  MaxLookupReached = false;
 
   BaseOffs = 0;
   do {
     // See if this is a bitcast or GEP.
     const Operator *Op = dyn_cast<Operator>(V);
-    if (Op == 0) {
+    if (!Op) {
       // The only non-operator case we can handle are GlobalAliases.
       if (const GlobalAlias *GA = dyn_cast<GlobalAlias>(V)) {
         if (!GA->mayBeOverridden()) {
@@ -301,19 +313,23 @@ DecomposeGEPExpression(const Value *V, int64_t &BaseOffs,
       return V;
     }
 
-    if (Op->getOpcode() == Instruction::BitCast) {
+    if (Op->getOpcode() == Instruction::BitCast ||
+        Op->getOpcode() == Instruction::AddrSpaceCast) {
       V = Op->getOperand(0);
       continue;
     }
 
     const GEPOperator *GEPOp = dyn_cast<GEPOperator>(Op);
-    if (GEPOp == 0) {
+    if (!GEPOp) {
       // If it's not a GEP, hand it off to SimplifyInstruction to see if it
       // can come up with something. This matches what GetUnderlyingObject does.
       if (const Instruction *I = dyn_cast<Instruction>(V))
-        // TODO: Get a DominatorTree and use it here.
+        // TODO: Get a DominatorTree and AssumptionCache and use them here
+        // (these are both now available in this function, but this should be
+        // updated when GetUnderlyingObject is updated). TLI should be
+        // provided also.
         if (const Value *Simplified =
-              SimplifyInstruction(const_cast<Instruction *>(I), TD)) {
+              SimplifyInstruction(const_cast<Instruction *>(I), DL)) {
           V = Simplified;
           continue;
         }
@@ -328,7 +344,7 @@ DecomposeGEPExpression(const Value *V, int64_t &BaseOffs,
     // If we are lacking DataLayout information, we can't compute the offets of
     // elements computed by GEPs.  However, we can handle bitcast equivalent
     // GEPs.
-    if (TD == 0) {
+    if (!DL) {
       if (!GEPOp->hasAllZeroIndices())
         return V;
       V = GEPOp->getOperand(0);
@@ -347,30 +363,30 @@ DecomposeGEPExpression(const Value *V, int64_t &BaseOffs,
         unsigned FieldNo = cast<ConstantInt>(Index)->getZExtValue();
         if (FieldNo == 0) continue;
 
-        BaseOffs += TD->getStructLayout(STy)->getElementOffset(FieldNo);
+        BaseOffs += DL->getStructLayout(STy)->getElementOffset(FieldNo);
         continue;
       }
 
       // For an array/pointer, add the element offset, explicitly scaled.
       if (ConstantInt *CIdx = dyn_cast<ConstantInt>(Index)) {
         if (CIdx->isZero()) continue;
-        BaseOffs += TD->getTypeAllocSize(*GTI)*CIdx->getSExtValue();
+        BaseOffs += DL->getTypeAllocSize(*GTI)*CIdx->getSExtValue();
         continue;
       }
 
-      uint64_t Scale = TD->getTypeAllocSize(*GTI);
+      uint64_t Scale = DL->getTypeAllocSize(*GTI);
       ExtensionKind Extension = EK_NotExtended;
 
       // If the integer type is smaller than the pointer size, it is implicitly
       // sign extended to pointer size.
       unsigned Width = Index->getType()->getIntegerBitWidth();
-      if (TD->getPointerSizeInBits(AS) > Width)
+      if (DL->getPointerSizeInBits(AS) > Width)
         Extension = EK_SignExt;
 
       // Use GetLinearExpression to decompose the index into a C1*V+C2 form.
       APInt IndexScale(Width, 0), IndexOffset(Width, 0);
       Index = GetLinearExpression(Index, IndexScale, IndexOffset, Extension,
-                                  *TD, 0);
+                                  *DL, 0, AC, DT);
 
       // The GEP index scale ("Scale") scales C1*V+C2, yielding (C1*V+C2)*Scale.
       // This gives us an aggregate computation of (C1*Scale)*V + C2*Scale.
@@ -392,7 +408,7 @@ DecomposeGEPExpression(const Value *V, int64_t &BaseOffs,
 
       // Make sure that we have a scale that makes sense for this target's
       // pointer size.
-      if (unsigned ShiftBits = 64 - TD->getPointerSizeInBits(AS)) {
+      if (unsigned ShiftBits = 64 - DL->getPointerSizeInBits(AS)) {
         Scale <<= ShiftBits;
         Scale = (int64_t)Scale >> ShiftBits;
       }
@@ -409,6 +425,7 @@ DecomposeGEPExpression(const Value *V, int64_t &BaseOffs,
   } while (--MaxLookup);
 
   // If the chain of expressions is too deep, just return early.
+  MaxLookupReached = true;
   return V;
 }
 
@@ -424,7 +441,7 @@ static const Function *getParent(const Value *V) {
   if (const Argument *arg = dyn_cast<Argument>(V))
     return arg->getParent();
 
-  return NULL;
+  return nullptr;
 }
 
 static bool notDifferentParent(const Value *O1, const Value *O2) {
@@ -444,22 +461,22 @@ namespace {
       initializeBasicAliasAnalysisPass(*PassRegistry::getPassRegistry());
     }
 
-    virtual void initializePass() {
+    void initializePass() override {
       InitializeAliasAnalysis(this);
     }
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.addRequired<AliasAnalysis>();
+      AU.addRequired<AssumptionCacheTracker>();
       AU.addRequired<TargetLibraryInfo>();
     }
 
-    virtual AliasResult alias(const Location &LocA,
-                              const Location &LocB) {
+    AliasResult alias(const Location &LocA, const Location &LocB) override {
       assert(AliasCache.empty() && "AliasCache must be cleared after use!");
       assert(notDifferentParent(LocA.Ptr, LocB.Ptr) &&
              "BasicAliasAnalysis doesn't support interprocedural queries.");
-      AliasResult Alias = aliasCheck(LocA.Ptr, LocA.Size, LocA.TBAATag,
-                                     LocB.Ptr, LocB.Size, LocB.TBAATag);
+      AliasResult Alias = aliasCheck(LocA.Ptr, LocA.Size, LocA.AATags,
+                                     LocB.Ptr, LocB.Size, LocB.AATags);
       // AliasCache rarely has more than 1 or 2 elements, always use
       // shrink_and_clear so it quickly returns to the inline capacity of the
       // SmallDenseMap if it ever grows larger.
@@ -469,32 +486,33 @@ namespace {
       return Alias;
     }
 
-    virtual ModRefResult getModRefInfo(ImmutableCallSite CS,
-                                       const Location &Loc);
+    ModRefResult getModRefInfo(ImmutableCallSite CS,
+                               const Location &Loc) override;
 
-    virtual ModRefResult getModRefInfo(ImmutableCallSite CS1,
-                                       ImmutableCallSite CS2) {
-      // The AliasAnalysis base class has some smarts, lets use them.
-      return AliasAnalysis::getModRefInfo(CS1, CS2);
-    }
+    ModRefResult getModRefInfo(ImmutableCallSite CS1,
+                               ImmutableCallSite CS2) override;
 
     /// pointsToConstantMemory - Chase pointers until we find a (constant
     /// global) or not.
-    virtual bool pointsToConstantMemory(const Location &Loc, bool OrLocal);
+    bool pointsToConstantMemory(const Location &Loc, bool OrLocal) override;
+
+    /// Get the location associated with a pointer argument of a callsite.
+    Location getArgLocation(ImmutableCallSite CS, unsigned ArgIdx,
+                            ModRefResult &Mask) override;
 
     /// getModRefBehavior - Return the behavior when calling the given
     /// call site.
-    virtual ModRefBehavior getModRefBehavior(ImmutableCallSite CS);
+    ModRefBehavior getModRefBehavior(ImmutableCallSite CS) override;
 
     /// getModRefBehavior - Return the behavior when calling the given function.
     /// For use when the call site is not known.
-    virtual ModRefBehavior getModRefBehavior(const Function *F);
+    ModRefBehavior getModRefBehavior(const Function *F) override;
 
     /// getAdjustedAnalysisPointer - This method is used when a pass implements
     /// an analysis interface through multiple inheritance.  If needed, it
     /// should override this to adjust the this pointer as needed for the
     /// specified pass info.
-    virtual void *getAdjustedAnalysisPointer(const void *ID) {
+    void *getAdjustedAnalysisPointer(const void *ID) override {
       if (ID == &AliasAnalysis::ID)
         return (AliasAnalysis*)this;
       return this;
@@ -542,28 +560,28 @@ namespace {
     // aliasGEP - Provide a bunch of ad-hoc rules to disambiguate a GEP
     // instruction against another.
     AliasResult aliasGEP(const GEPOperator *V1, uint64_t V1Size,
-                         const MDNode *V1TBAAInfo,
+                         const AAMDNodes &V1AAInfo,
                          const Value *V2, uint64_t V2Size,
-                         const MDNode *V2TBAAInfo,
+                         const AAMDNodes &V2AAInfo,
                          const Value *UnderlyingV1, const Value *UnderlyingV2);
 
     // aliasPHI - Provide a bunch of ad-hoc rules to disambiguate a PHI
     // instruction against another.
     AliasResult aliasPHI(const PHINode *PN, uint64_t PNSize,
-                         const MDNode *PNTBAAInfo,
+                         const AAMDNodes &PNAAInfo,
                          const Value *V2, uint64_t V2Size,
-                         const MDNode *V2TBAAInfo);
+                         const AAMDNodes &V2AAInfo);
 
     /// aliasSelect - Disambiguate a Select instruction against another value.
     AliasResult aliasSelect(const SelectInst *SI, uint64_t SISize,
-                            const MDNode *SITBAAInfo,
+                            const AAMDNodes &SIAAInfo,
                             const Value *V2, uint64_t V2Size,
-                            const MDNode *V2TBAAInfo);
+                            const AAMDNodes &V2AAInfo);
 
     AliasResult aliasCheck(const Value *V1, uint64_t V1Size,
-                           const MDNode *V1TBAATag,
+                           AAMDNodes V1AATag,
                            const Value *V2, uint64_t V2Size,
-                           const MDNode *V2TBAATag);
+                           AAMDNodes V2AATag);
   };
 }  // End of anonymous namespace
 
@@ -572,6 +590,7 @@ char BasicAliasAnalysis::ID = 0;
 INITIALIZE_AG_PASS_BEGIN(BasicAliasAnalysis, AliasAnalysis, "basicaa",
                    "Basic Alias Analysis (stateless AA impl)",
                    false, true, false)
+INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
 INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfo)
 INITIALIZE_AG_PASS_END(BasicAliasAnalysis, AliasAnalysis, "basicaa",
                    "Basic Alias Analysis (stateless AA impl)",
@@ -593,8 +612,8 @@ BasicAliasAnalysis::pointsToConstantMemory(const Location &Loc, bool OrLocal) {
   SmallVector<const Value *, 16> Worklist;
   Worklist.push_back(Loc.Ptr);
   do {
-    const Value *V = GetUnderlyingObject(Worklist.pop_back_val(), TD);
-    if (!Visited.insert(V)) {
+    const Value *V = GetUnderlyingObject(Worklist.pop_back_val(), DL);
+    if (!Visited.insert(V).second) {
       Visited.clear();
       return AliasAnalysis::pointsToConstantMemory(Loc, OrLocal);
     }
@@ -645,6 +664,21 @@ BasicAliasAnalysis::pointsToConstantMemory(const Location &Loc, bool OrLocal) {
   return Worklist.empty();
 }
 
+static bool isMemsetPattern16(const Function *MS,
+                              const TargetLibraryInfo &TLI) {
+  if (TLI.has(LibFunc::memset_pattern16) &&
+      MS->getName() == "memset_pattern16") {
+    FunctionType *MemsetType = MS->getFunctionType();
+    if (!MemsetType->isVarArg() && MemsetType->getNumParams() == 3 &&
+        isa<PointerType>(MemsetType->getParamType(0)) &&
+        isa<PointerType>(MemsetType->getParamType(1)) &&
+        isa<IntegerType>(MemsetType->getParamType(2)))
+      return true;
+  }
+
+  return false;
+}
+
 /// getModRefBehavior - Return the behavior when calling the given call site.
 AliasAnalysis::ModRefBehavior
 BasicAliasAnalysis::getModRefBehavior(ImmutableCallSite CS) {
@@ -684,8 +718,99 @@ BasicAliasAnalysis::getModRefBehavior(const Function *F) {
   if (F->onlyReadsMemory())
     Min = OnlyReadsMemory;
 
+  const TargetLibraryInfo &TLI = getAnalysis<TargetLibraryInfo>();
+  if (isMemsetPattern16(F, TLI))
+    Min = OnlyAccessesArgumentPointees;
+
   // Otherwise be conservative.
   return ModRefBehavior(AliasAnalysis::getModRefBehavior(F) & Min);
+}
+
+AliasAnalysis::Location
+BasicAliasAnalysis::getArgLocation(ImmutableCallSite CS, unsigned ArgIdx,
+                                   ModRefResult &Mask) {
+  Location Loc = AliasAnalysis::getArgLocation(CS, ArgIdx, Mask);
+  const TargetLibraryInfo &TLI = getAnalysis<TargetLibraryInfo>();
+  const IntrinsicInst *II = dyn_cast<IntrinsicInst>(CS.getInstruction());
+  if (II != nullptr)
+    switch (II->getIntrinsicID()) {
+    default: break;
+    case Intrinsic::memset:
+    case Intrinsic::memcpy:
+    case Intrinsic::memmove: {
+      assert((ArgIdx == 0 || ArgIdx == 1) &&
+             "Invalid argument index for memory intrinsic");
+      if (ConstantInt *LenCI = dyn_cast<ConstantInt>(II->getArgOperand(2)))
+        Loc.Size = LenCI->getZExtValue();
+      assert(Loc.Ptr == II->getArgOperand(ArgIdx) &&
+             "Memory intrinsic location pointer not argument?");
+      Mask = ArgIdx ? Ref : Mod;
+      break;
+    }
+    case Intrinsic::lifetime_start:
+    case Intrinsic::lifetime_end:
+    case Intrinsic::invariant_start: {
+      assert(ArgIdx == 1 && "Invalid argument index");
+      assert(Loc.Ptr == II->getArgOperand(ArgIdx) &&
+             "Intrinsic location pointer not argument?");
+      Loc.Size = cast<ConstantInt>(II->getArgOperand(0))->getZExtValue();
+      break;
+    }
+    case Intrinsic::invariant_end: {
+      assert(ArgIdx == 2 && "Invalid argument index");
+      assert(Loc.Ptr == II->getArgOperand(ArgIdx) &&
+             "Intrinsic location pointer not argument?");
+      Loc.Size = cast<ConstantInt>(II->getArgOperand(1))->getZExtValue();
+      break;
+    }
+    case Intrinsic::arm_neon_vld1: {
+      assert(ArgIdx == 0 && "Invalid argument index");
+      assert(Loc.Ptr == II->getArgOperand(ArgIdx) &&
+             "Intrinsic location pointer not argument?");
+      // LLVM's vld1 and vst1 intrinsics currently only support a single
+      // vector register.
+      if (DL)
+        Loc.Size = DL->getTypeStoreSize(II->getType());
+      break;
+    }
+    case Intrinsic::arm_neon_vst1: {
+      assert(ArgIdx == 0 && "Invalid argument index");
+      assert(Loc.Ptr == II->getArgOperand(ArgIdx) &&
+             "Intrinsic location pointer not argument?");
+      if (DL)
+        Loc.Size = DL->getTypeStoreSize(II->getArgOperand(1)->getType());
+      break;
+    }
+    }
+
+  // We can bound the aliasing properties of memset_pattern16 just as we can
+  // for memcpy/memset.  This is particularly important because the
+  // LoopIdiomRecognizer likes to turn loops into calls to memset_pattern16
+  // whenever possible.
+  else if (CS.getCalledFunction() &&
+           isMemsetPattern16(CS.getCalledFunction(), TLI)) {
+    assert((ArgIdx == 0 || ArgIdx == 1) &&
+           "Invalid argument index for memset_pattern16");
+    if (ArgIdx == 1)
+      Loc.Size = 16;
+    else if (const ConstantInt *LenCI =
+             dyn_cast<ConstantInt>(CS.getArgument(2)))
+      Loc.Size = LenCI->getZExtValue();
+    assert(Loc.Ptr == CS.getArgument(ArgIdx) &&
+           "memset_pattern16 location pointer not argument?");
+    Mask = ArgIdx ? Ref : Mod;
+  }
+  // FIXME: Handle memset_pattern4 and memset_pattern8 also.
+
+  return Loc;
+}
+
+static bool isAssumeIntrinsic(ImmutableCallSite CS) {
+  const IntrinsicInst *II = dyn_cast<IntrinsicInst>(CS.getInstruction());
+  if (II && II->getIntrinsicID() == Intrinsic::assume)
+    return true;
+
+  return false;
 }
 
 /// getModRefInfo - Check to see if the specified callsite can clobber the
@@ -698,7 +823,7 @@ BasicAliasAnalysis::getModRefInfo(ImmutableCallSite CS,
   assert(notDifferentParent(CS.getInstruction(), Loc.Ptr) &&
          "AliasAnalysis query involving multiple functions!");
 
-  const Value *Object = GetUnderlyingObject(Loc.Ptr, TD);
+  const Value *Object = GetUnderlyingObject(Loc.Ptr, DL);
 
   // If this is a tail call and Loc.Ptr points to a stack location, we know that
   // the tail call cannot access or modify the local stack.
@@ -740,190 +865,106 @@ BasicAliasAnalysis::getModRefInfo(ImmutableCallSite CS,
       return NoModRef;
   }
 
-  const TargetLibraryInfo &TLI = getAnalysis<TargetLibraryInfo>();
-  ModRefResult Min = ModRef;
-
-  // Finally, handle specific knowledge of intrinsics.
-  const IntrinsicInst *II = dyn_cast<IntrinsicInst>(CS.getInstruction());
-  if (II != 0)
-    switch (II->getIntrinsicID()) {
-    default: break;
-    case Intrinsic::memcpy:
-    case Intrinsic::memmove: {
-      uint64_t Len = UnknownSize;
-      if (ConstantInt *LenCI = dyn_cast<ConstantInt>(II->getArgOperand(2)))
-        Len = LenCI->getZExtValue();
-      Value *Dest = II->getArgOperand(0);
-      Value *Src = II->getArgOperand(1);
-      // If it can't overlap the source dest, then it doesn't modref the loc.
-      if (isNoAlias(Location(Dest, Len), Loc)) {
-        if (isNoAlias(Location(Src, Len), Loc))
-          return NoModRef;
-        // If it can't overlap the dest, then worst case it reads the loc.
-        Min = Ref;
-      } else if (isNoAlias(Location(Src, Len), Loc)) {
-        // If it can't overlap the source, then worst case it mutates the loc.
-        Min = Mod;
-      }
-      break;
-    }
-    case Intrinsic::memset:
-      // Since memset is 'accesses arguments' only, the AliasAnalysis base class
-      // will handle it for the variable length case.
-      if (ConstantInt *LenCI = dyn_cast<ConstantInt>(II->getArgOperand(2))) {
-        uint64_t Len = LenCI->getZExtValue();
-        Value *Dest = II->getArgOperand(0);
-        if (isNoAlias(Location(Dest, Len), Loc))
-          return NoModRef;
-      }
-      // We know that memset doesn't load anything.
-      Min = Mod;
-      break;
-    case Intrinsic::lifetime_start:
-    case Intrinsic::lifetime_end:
-    case Intrinsic::invariant_start: {
-      uint64_t PtrSize =
-        cast<ConstantInt>(II->getArgOperand(0))->getZExtValue();
-      if (isNoAlias(Location(II->getArgOperand(1),
-                             PtrSize,
-                             II->getMetadata(LLVMContext::MD_tbaa)),
-                    Loc))
-        return NoModRef;
-      break;
-    }
-    case Intrinsic::invariant_end: {
-      uint64_t PtrSize =
-        cast<ConstantInt>(II->getArgOperand(1))->getZExtValue();
-      if (isNoAlias(Location(II->getArgOperand(2),
-                             PtrSize,
-                             II->getMetadata(LLVMContext::MD_tbaa)),
-                    Loc))
-        return NoModRef;
-      break;
-    }
-    case Intrinsic::arm_neon_vld1: {
-      // LLVM's vld1 and vst1 intrinsics currently only support a single
-      // vector register.
-      uint64_t Size =
-        TD ? TD->getTypeStoreSize(II->getType()) : UnknownSize;
-      if (isNoAlias(Location(II->getArgOperand(0), Size,
-                             II->getMetadata(LLVMContext::MD_tbaa)),
-                    Loc))
-        return NoModRef;
-      break;
-    }
-    case Intrinsic::arm_neon_vst1: {
-      uint64_t Size =
-        TD ? TD->getTypeStoreSize(II->getArgOperand(1)->getType()) : UnknownSize;
-      if (isNoAlias(Location(II->getArgOperand(0), Size,
-                             II->getMetadata(LLVMContext::MD_tbaa)),
-                    Loc))
-        return NoModRef;
-      break;
-    }
-    }
-
-  // We can bound the aliasing properties of memset_pattern16 just as we can
-  // for memcpy/memset.  This is particularly important because the
-  // LoopIdiomRecognizer likes to turn loops into calls to memset_pattern16
-  // whenever possible.
-  else if (TLI.has(LibFunc::memset_pattern16) &&
-           CS.getCalledFunction() &&
-           CS.getCalledFunction()->getName() == "memset_pattern16") {
-    const Function *MS = CS.getCalledFunction();
-    FunctionType *MemsetType = MS->getFunctionType();
-    if (!MemsetType->isVarArg() && MemsetType->getNumParams() == 3 &&
-        isa<PointerType>(MemsetType->getParamType(0)) &&
-        isa<PointerType>(MemsetType->getParamType(1)) &&
-        isa<IntegerType>(MemsetType->getParamType(2))) {
-      uint64_t Len = UnknownSize;
-      if (const ConstantInt *LenCI = dyn_cast<ConstantInt>(CS.getArgument(2)))
-        Len = LenCI->getZExtValue();
-      const Value *Dest = CS.getArgument(0);
-      const Value *Src = CS.getArgument(1);
-      // If it can't overlap the source dest, then it doesn't modref the loc.
-      if (isNoAlias(Location(Dest, Len), Loc)) {
-        // Always reads 16 bytes of the source.
-        if (isNoAlias(Location(Src, 16), Loc))
-          return NoModRef;
-        // If it can't overlap the dest, then worst case it reads the loc.
-        Min = Ref;
-      // Always reads 16 bytes of the source.
-      } else if (isNoAlias(Location(Src, 16), Loc)) {
-        // If it can't overlap the source, then worst case it mutates the loc.
-        Min = Mod;
-      }
-    }
-  }
+  // While the assume intrinsic is marked as arbitrarily writing so that
+  // proper control dependencies will be maintained, it never aliases any
+  // particular memory location.
+  if (isAssumeIntrinsic(CS))
+    return NoModRef;
 
   // The AliasAnalysis base class has some smarts, lets use them.
-  return ModRefResult(AliasAnalysis::getModRefInfo(CS, Loc) & Min);
+  return AliasAnalysis::getModRefInfo(CS, Loc);
 }
 
-static bool areVarIndicesEqual(SmallVectorImpl<VariableGEPIndex> &Indices1,
-                               SmallVectorImpl<VariableGEPIndex> &Indices2) {
-  unsigned Size1 = Indices1.size();
-  unsigned Size2 = Indices2.size();
+AliasAnalysis::ModRefResult
+BasicAliasAnalysis::getModRefInfo(ImmutableCallSite CS1,
+                                  ImmutableCallSite CS2) {
+  // While the assume intrinsic is marked as arbitrarily writing so that
+  // proper control dependencies will be maintained, it never aliases any
+  // particular memory location.
+  if (isAssumeIntrinsic(CS1) || isAssumeIntrinsic(CS2))
+    return NoModRef;
 
-  if (Size1 != Size2)
-    return false;
-
-  for (unsigned I = 0; I != Size1; ++I)
-    if (Indices1[I] != Indices2[I])
-      return false;
-
-  return true;
+  // The AliasAnalysis base class has some smarts, lets use them.
+  return AliasAnalysis::getModRefInfo(CS1, CS2);
 }
 
 /// aliasGEP - Provide a bunch of ad-hoc rules to disambiguate a GEP instruction
 /// against another pointer.  We know that V1 is a GEP, but we don't know
-/// anything about V2.  UnderlyingV1 is GetUnderlyingObject(GEP1, TD),
+/// anything about V2.  UnderlyingV1 is GetUnderlyingObject(GEP1, DL),
 /// UnderlyingV2 is the same for V2.
 ///
 AliasAnalysis::AliasResult
 BasicAliasAnalysis::aliasGEP(const GEPOperator *GEP1, uint64_t V1Size,
-                             const MDNode *V1TBAAInfo,
+                             const AAMDNodes &V1AAInfo,
                              const Value *V2, uint64_t V2Size,
-                             const MDNode *V2TBAAInfo,
+                             const AAMDNodes &V2AAInfo,
                              const Value *UnderlyingV1,
                              const Value *UnderlyingV2) {
   int64_t GEP1BaseOffset;
+  bool GEP1MaxLookupReached;
   SmallVector<VariableGEPIndex, 4> GEP1VariableIndices;
+
+  // We have to get two AssumptionCaches here because GEP1 and V2 may be from
+  // different functions.
+  // FIXME: This really doesn't make any sense. We get a dominator tree below
+  // that can only refer to a single function. But this function (aliasGEP) is
+  // a method on an immutable pass that can be called when there *isn't*
+  // a single function. The old pass management layer makes this "work", but
+  // this isn't really a clean solution.
+  AssumptionCacheTracker &ACT = getAnalysis<AssumptionCacheTracker>();
+  AssumptionCache *AC1 = nullptr, *AC2 = nullptr;
+  if (auto *GEP1I = dyn_cast<Instruction>(GEP1))
+    AC1 = &ACT.getAssumptionCache(
+        const_cast<Function &>(*GEP1I->getParent()->getParent()));
+  if (auto *I2 = dyn_cast<Instruction>(V2))
+    AC2 = &ACT.getAssumptionCache(
+        const_cast<Function &>(*I2->getParent()->getParent()));
+
+  DominatorTreeWrapperPass *DTWP =
+      getAnalysisIfAvailable<DominatorTreeWrapperPass>();
+  DominatorTree *DT = DTWP ? &DTWP->getDomTree() : nullptr;
 
   // If we have two gep instructions with must-alias or not-alias'ing base
   // pointers, figure out if the indexes to the GEP tell us anything about the
   // derived pointer.
   if (const GEPOperator *GEP2 = dyn_cast<GEPOperator>(V2)) {
     // Do the base pointers alias?
-    AliasResult BaseAlias = aliasCheck(UnderlyingV1, UnknownSize, 0,
-                                       UnderlyingV2, UnknownSize, 0);
+    AliasResult BaseAlias = aliasCheck(UnderlyingV1, UnknownSize, AAMDNodes(),
+                                       UnderlyingV2, UnknownSize, AAMDNodes());
 
     // Check for geps of non-aliasing underlying pointers where the offsets are
     // identical.
     if ((BaseAlias == MayAlias) && V1Size == V2Size) {
       // Do the base pointers alias assuming type and size.
       AliasResult PreciseBaseAlias = aliasCheck(UnderlyingV1, V1Size,
-                                                V1TBAAInfo, UnderlyingV2,
-                                                V2Size, V2TBAAInfo);
+                                                V1AAInfo, UnderlyingV2,
+                                                V2Size, V2AAInfo);
       if (PreciseBaseAlias == NoAlias) {
         // See if the computed offset from the common pointer tells us about the
         // relation of the resulting pointer.
         int64_t GEP2BaseOffset;
+        bool GEP2MaxLookupReached;
         SmallVector<VariableGEPIndex, 4> GEP2VariableIndices;
         const Value *GEP2BasePtr =
-          DecomposeGEPExpression(GEP2, GEP2BaseOffset, GEP2VariableIndices, TD);
+            DecomposeGEPExpression(GEP2, GEP2BaseOffset, GEP2VariableIndices,
+                                   GEP2MaxLookupReached, DL, AC2, DT);
         const Value *GEP1BasePtr =
-          DecomposeGEPExpression(GEP1, GEP1BaseOffset, GEP1VariableIndices, TD);
+            DecomposeGEPExpression(GEP1, GEP1BaseOffset, GEP1VariableIndices,
+                                   GEP1MaxLookupReached, DL, AC1, DT);
         // DecomposeGEPExpression and GetUnderlyingObject should return the
         // same result except when DecomposeGEPExpression has no DataLayout.
         if (GEP1BasePtr != UnderlyingV1 || GEP2BasePtr != UnderlyingV2) {
-          assert(TD == 0 &&
-             "DecomposeGEPExpression and GetUnderlyingObject disagree!");
+          assert(!DL &&
+                 "DecomposeGEPExpression and GetUnderlyingObject disagree!");
           return MayAlias;
         }
+        // If the max search depth is reached the result is undefined
+        if (GEP2MaxLookupReached || GEP1MaxLookupReached)
+          return MayAlias;
+
         // Same offsets.
         if (GEP1BaseOffset == GEP2BaseOffset &&
-            areVarIndicesEqual(GEP1VariableIndices, GEP2VariableIndices))
+            GEP1VariableIndices == GEP2VariableIndices)
           return NoAlias;
         GEP1VariableIndices.clear();
       }
@@ -937,20 +978,26 @@ BasicAliasAnalysis::aliasGEP(const GEPOperator *GEP1, uint64_t V1Size,
     // exactly, see if the computed offset from the common pointer tells us
     // about the relation of the resulting pointer.
     const Value *GEP1BasePtr =
-      DecomposeGEPExpression(GEP1, GEP1BaseOffset, GEP1VariableIndices, TD);
+        DecomposeGEPExpression(GEP1, GEP1BaseOffset, GEP1VariableIndices,
+                               GEP1MaxLookupReached, DL, AC1, DT);
 
     int64_t GEP2BaseOffset;
+    bool GEP2MaxLookupReached;
     SmallVector<VariableGEPIndex, 4> GEP2VariableIndices;
     const Value *GEP2BasePtr =
-      DecomposeGEPExpression(GEP2, GEP2BaseOffset, GEP2VariableIndices, TD);
+        DecomposeGEPExpression(GEP2, GEP2BaseOffset, GEP2VariableIndices,
+                               GEP2MaxLookupReached, DL, AC2, DT);
 
     // DecomposeGEPExpression and GetUnderlyingObject should return the
     // same result except when DecomposeGEPExpression has no DataLayout.
     if (GEP1BasePtr != UnderlyingV1 || GEP2BasePtr != UnderlyingV2) {
-      assert(TD == 0 &&
+      assert(!DL &&
              "DecomposeGEPExpression and GetUnderlyingObject disagree!");
       return MayAlias;
     }
+    // If the max search depth is reached the result is undefined
+    if (GEP2MaxLookupReached || GEP1MaxLookupReached)
+      return MayAlias;
 
     // Subtract the GEP2 pointer from the GEP1 pointer to find out their
     // symbolic difference.
@@ -966,8 +1013,8 @@ BasicAliasAnalysis::aliasGEP(const GEPOperator *GEP1, uint64_t V1Size,
     if (V1Size == UnknownSize && V2Size == UnknownSize)
       return MayAlias;
 
-    AliasResult R = aliasCheck(UnderlyingV1, UnknownSize, 0,
-                               V2, V2Size, V2TBAAInfo);
+    AliasResult R = aliasCheck(UnderlyingV1, UnknownSize, AAMDNodes(),
+                               V2, V2Size, V2AAInfo);
     if (R != MustAlias)
       // If V2 may alias GEP base pointer, conservatively returns MayAlias.
       // If V2 is known not to alias GEP base pointer, then the two values
@@ -977,15 +1024,19 @@ BasicAliasAnalysis::aliasGEP(const GEPOperator *GEP1, uint64_t V1Size,
       return R;
 
     const Value *GEP1BasePtr =
-      DecomposeGEPExpression(GEP1, GEP1BaseOffset, GEP1VariableIndices, TD);
+        DecomposeGEPExpression(GEP1, GEP1BaseOffset, GEP1VariableIndices,
+                               GEP1MaxLookupReached, DL, AC1, DT);
 
     // DecomposeGEPExpression and GetUnderlyingObject should return the
     // same result except when DecomposeGEPExpression has no DataLayout.
     if (GEP1BasePtr != UnderlyingV1) {
-      assert(TD == 0 &&
+      assert(!DL &&
              "DecomposeGEPExpression and GetUnderlyingObject disagree!");
       return MayAlias;
     }
+    // If the max search depth is reached the result is undefined
+    if (GEP1MaxLookupReached)
+      return MayAlias;
   }
 
   // In the two GEP Case, if there is no difference in the offsets of the
@@ -1025,12 +1076,43 @@ BasicAliasAnalysis::aliasGEP(const GEPOperator *GEP1, uint64_t V1Size,
     }
   }
 
-  // Try to distinguish something like &A[i][1] against &A[42][0].
-  // Grab the least significant bit set in any of the scales.
   if (!GEP1VariableIndices.empty()) {
     uint64_t Modulo = 0;
-    for (unsigned i = 0, e = GEP1VariableIndices.size(); i != e; ++i)
-      Modulo |= (uint64_t)GEP1VariableIndices[i].Scale;
+    bool AllPositive = true;
+    for (unsigned i = 0, e = GEP1VariableIndices.size(); i != e; ++i) {
+
+      // Try to distinguish something like &A[i][1] against &A[42][0].
+      // Grab the least significant bit set in any of the scales. We
+      // don't need std::abs here (even if the scale's negative) as we'll
+      // be ^'ing Modulo with itself later.
+      Modulo |= (uint64_t) GEP1VariableIndices[i].Scale;
+
+      if (AllPositive) {
+        // If the Value could change between cycles, then any reasoning about
+        // the Value this cycle may not hold in the next cycle. We'll just
+        // give up if we can't determine conditions that hold for every cycle:
+        const Value *V = GEP1VariableIndices[i].V;
+
+        bool SignKnownZero, SignKnownOne;
+        ComputeSignBit(const_cast<Value *>(V), SignKnownZero, SignKnownOne, DL,
+                       0, AC1, nullptr, DT);
+
+        // Zero-extension widens the variable, and so forces the sign
+        // bit to zero.
+        bool IsZExt = GEP1VariableIndices[i].Extension == EK_ZeroExt;
+        SignKnownZero |= IsZExt;
+        SignKnownOne &= !IsZExt;
+
+        // If the variable begins with a zero then we know it's
+        // positive, regardless of whether the value is signed or
+        // unsigned.
+        int64_t Scale = GEP1VariableIndices[i].Scale;
+        AllPositive =
+          (SignKnownZero && Scale >= 0) ||
+          (SignKnownOne && Scale < 0);
+      }
+    }
+
     Modulo = Modulo ^ (Modulo & (Modulo - 1));
 
     // We can compute the difference between the two addresses
@@ -1039,6 +1121,12 @@ BasicAliasAnalysis::aliasGEP(const GEPOperator *GEP1, uint64_t V1Size,
     uint64_t ModOffset = (uint64_t)GEP1BaseOffset & (Modulo - 1);
     if (V1Size != UnknownSize && V2Size != UnknownSize &&
         ModOffset >= V2Size && V1Size <= Modulo - ModOffset)
+      return NoAlias;
+
+    // If we know all the variables are positive, then GEP1 >= GEP1BasePtr.
+    // If GEP1BasePtr > V2 (GEP1BaseOffset > 0) then we know the pointers
+    // don't alias if V2Size can fit in the gap between V2 and GEP1BasePtr.
+    if (AllPositive && GEP1BaseOffset > 0 && V2Size <= (uint64_t) GEP1BaseOffset)
       return NoAlias;
   }
 
@@ -1069,33 +1157,33 @@ MergeAliasResults(AliasAnalysis::AliasResult A, AliasAnalysis::AliasResult B) {
 /// instruction against another.
 AliasAnalysis::AliasResult
 BasicAliasAnalysis::aliasSelect(const SelectInst *SI, uint64_t SISize,
-                                const MDNode *SITBAAInfo,
+                                const AAMDNodes &SIAAInfo,
                                 const Value *V2, uint64_t V2Size,
-                                const MDNode *V2TBAAInfo) {
+                                const AAMDNodes &V2AAInfo) {
   // If the values are Selects with the same condition, we can do a more precise
   // check: just check for aliases between the values on corresponding arms.
   if (const SelectInst *SI2 = dyn_cast<SelectInst>(V2))
     if (SI->getCondition() == SI2->getCondition()) {
       AliasResult Alias =
-        aliasCheck(SI->getTrueValue(), SISize, SITBAAInfo,
-                   SI2->getTrueValue(), V2Size, V2TBAAInfo);
+        aliasCheck(SI->getTrueValue(), SISize, SIAAInfo,
+                   SI2->getTrueValue(), V2Size, V2AAInfo);
       if (Alias == MayAlias)
         return MayAlias;
       AliasResult ThisAlias =
-        aliasCheck(SI->getFalseValue(), SISize, SITBAAInfo,
-                   SI2->getFalseValue(), V2Size, V2TBAAInfo);
+        aliasCheck(SI->getFalseValue(), SISize, SIAAInfo,
+                   SI2->getFalseValue(), V2Size, V2AAInfo);
       return MergeAliasResults(ThisAlias, Alias);
     }
 
   // If both arms of the Select node NoAlias or MustAlias V2, then returns
   // NoAlias / MustAlias. Otherwise, returns MayAlias.
   AliasResult Alias =
-    aliasCheck(V2, V2Size, V2TBAAInfo, SI->getTrueValue(), SISize, SITBAAInfo);
+    aliasCheck(V2, V2Size, V2AAInfo, SI->getTrueValue(), SISize, SIAAInfo);
   if (Alias == MayAlias)
     return MayAlias;
 
   AliasResult ThisAlias =
-    aliasCheck(V2, V2Size, V2TBAAInfo, SI->getFalseValue(), SISize, SITBAAInfo);
+    aliasCheck(V2, V2Size, V2AAInfo, SI->getFalseValue(), SISize, SIAAInfo);
   return MergeAliasResults(ThisAlias, Alias);
 }
 
@@ -1103,9 +1191,9 @@ BasicAliasAnalysis::aliasSelect(const SelectInst *SI, uint64_t SISize,
 // against another.
 AliasAnalysis::AliasResult
 BasicAliasAnalysis::aliasPHI(const PHINode *PN, uint64_t PNSize,
-                             const MDNode *PNTBAAInfo,
+                             const AAMDNodes &PNAAInfo,
                              const Value *V2, uint64_t V2Size,
-                             const MDNode *V2TBAAInfo) {
+                             const AAMDNodes &V2AAInfo) {
   // Track phi nodes we have visited. We use this information when we determine
   // value equivalence.
   VisitedPhiBBs.insert(PN->getParent());
@@ -1115,8 +1203,8 @@ BasicAliasAnalysis::aliasPHI(const PHINode *PN, uint64_t PNSize,
   // on corresponding edges.
   if (const PHINode *PN2 = dyn_cast<PHINode>(V2))
     if (PN2->getParent() == PN->getParent()) {
-      LocPair Locs(Location(PN, PNSize, PNTBAAInfo),
-                   Location(V2, V2Size, V2TBAAInfo));
+      LocPair Locs(Location(PN, PNSize, PNAAInfo),
+                   Location(V2, V2Size, V2AAInfo));
       if (PN > V2)
         std::swap(Locs.first, Locs.second);
       // Analyse the PHIs' inputs under the assumption that the PHIs are
@@ -1134,9 +1222,9 @@ BasicAliasAnalysis::aliasPHI(const PHINode *PN, uint64_t PNSize,
 
       for (unsigned i = 0, e = PN->getNumIncomingValues(); i != e; ++i) {
         AliasResult ThisAlias =
-          aliasCheck(PN->getIncomingValue(i), PNSize, PNTBAAInfo,
+          aliasCheck(PN->getIncomingValue(i), PNSize, PNAAInfo,
                      PN2->getIncomingValueForBlock(PN->getIncomingBlock(i)),
-                     V2Size, V2TBAAInfo);
+                     V2Size, V2AAInfo);
         Alias = MergeAliasResults(ThisAlias, Alias);
         if (Alias == MayAlias)
           break;
@@ -1159,12 +1247,12 @@ BasicAliasAnalysis::aliasPHI(const PHINode *PN, uint64_t PNSize,
       // sides are PHI nodes. In which case, this is O(m x n) time where 'm'
       // and 'n' are the number of PHI sources.
       return MayAlias;
-    if (UniqueSrc.insert(PV1))
+    if (UniqueSrc.insert(PV1).second)
       V1Srcs.push_back(PV1);
   }
 
-  AliasResult Alias = aliasCheck(V2, V2Size, V2TBAAInfo,
-                                 V1Srcs[0], PNSize, PNTBAAInfo);
+  AliasResult Alias = aliasCheck(V2, V2Size, V2AAInfo,
+                                 V1Srcs[0], PNSize, PNAAInfo);
   // Early exit if the check of the first PHI source against V2 is MayAlias.
   // Other results are not possible.
   if (Alias == MayAlias)
@@ -1175,8 +1263,8 @@ BasicAliasAnalysis::aliasPHI(const PHINode *PN, uint64_t PNSize,
   for (unsigned i = 1, e = V1Srcs.size(); i != e; ++i) {
     Value *V = V1Srcs[i];
 
-    AliasResult ThisAlias = aliasCheck(V2, V2Size, V2TBAAInfo,
-                                       V, PNSize, PNTBAAInfo);
+    AliasResult ThisAlias = aliasCheck(V2, V2Size, V2AAInfo,
+                                       V, PNSize, PNAAInfo);
     Alias = MergeAliasResults(ThisAlias, Alias);
     if (Alias == MayAlias)
       break;
@@ -1190,9 +1278,9 @@ BasicAliasAnalysis::aliasPHI(const PHINode *PN, uint64_t PNSize,
 //
 AliasAnalysis::AliasResult
 BasicAliasAnalysis::aliasCheck(const Value *V1, uint64_t V1Size,
-                               const MDNode *V1TBAAInfo,
+                               AAMDNodes V1AAInfo,
                                const Value *V2, uint64_t V2Size,
-                               const MDNode *V2TBAAInfo) {
+                               AAMDNodes V2AAInfo) {
   // If either of the memory references is empty, it doesn't matter what the
   // pointer values are.
   if (V1Size == 0 || V2Size == 0)
@@ -1215,8 +1303,8 @@ BasicAliasAnalysis::aliasCheck(const Value *V1, uint64_t V1Size,
     return NoAlias;  // Scalars cannot alias each other
 
   // Figure out what objects these things are pointing to if we can.
-  const Value *O1 = GetUnderlyingObject(V1, TD);
-  const Value *O2 = GetUnderlyingObject(V2, TD);
+  const Value *O1 = GetUnderlyingObject(V1, DL, MaxLookupSearchDepth);
+  const Value *O2 = GetUnderlyingObject(V2, DL, MaxLookupSearchDepth);
 
   // Null values in the default address space don't point to any object, so they
   // don't alias any other pointer.
@@ -1265,15 +1353,15 @@ BasicAliasAnalysis::aliasCheck(const Value *V1, uint64_t V1Size,
 
   // If the size of one access is larger than the entire object on the other
   // side, then we know such behavior is undefined and can assume no alias.
-  if (TD)
-    if ((V1Size != UnknownSize && isObjectSmallerThan(O2, V1Size, *TD, *TLI)) ||
-        (V2Size != UnknownSize && isObjectSmallerThan(O1, V2Size, *TD, *TLI)))
+  if (DL)
+    if ((V1Size != UnknownSize && isObjectSmallerThan(O2, V1Size, *DL, *TLI)) ||
+        (V2Size != UnknownSize && isObjectSmallerThan(O1, V2Size, *DL, *TLI)))
       return NoAlias;
 
   // Check the cache before climbing up use-def chains. This also terminates
   // otherwise infinitely recursive queries.
-  LocPair Locs(Location(V1, V1Size, V1TBAAInfo),
-               Location(V2, V2Size, V2TBAAInfo));
+  LocPair Locs(Location(V1, V1Size, V1AAInfo),
+               Location(V2, V2Size, V2AAInfo));
   if (V1 > V2)
     std::swap(Locs.first, Locs.second);
   std::pair<AliasCacheTy::iterator, bool> Pair =
@@ -1287,46 +1375,46 @@ BasicAliasAnalysis::aliasCheck(const Value *V1, uint64_t V1Size,
     std::swap(V1, V2);
     std::swap(V1Size, V2Size);
     std::swap(O1, O2);
-    std::swap(V1TBAAInfo, V2TBAAInfo);
+    std::swap(V1AAInfo, V2AAInfo);
   }
   if (const GEPOperator *GV1 = dyn_cast<GEPOperator>(V1)) {
-    AliasResult Result = aliasGEP(GV1, V1Size, V1TBAAInfo, V2, V2Size, V2TBAAInfo, O1, O2);
+    AliasResult Result = aliasGEP(GV1, V1Size, V1AAInfo, V2, V2Size, V2AAInfo, O1, O2);
     if (Result != MayAlias) return AliasCache[Locs] = Result;
   }
 
   if (isa<PHINode>(V2) && !isa<PHINode>(V1)) {
     std::swap(V1, V2);
     std::swap(V1Size, V2Size);
-    std::swap(V1TBAAInfo, V2TBAAInfo);
+    std::swap(V1AAInfo, V2AAInfo);
   }
   if (const PHINode *PN = dyn_cast<PHINode>(V1)) {
-    AliasResult Result = aliasPHI(PN, V1Size, V1TBAAInfo,
-                                  V2, V2Size, V2TBAAInfo);
+    AliasResult Result = aliasPHI(PN, V1Size, V1AAInfo,
+                                  V2, V2Size, V2AAInfo);
     if (Result != MayAlias) return AliasCache[Locs] = Result;
   }
 
   if (isa<SelectInst>(V2) && !isa<SelectInst>(V1)) {
     std::swap(V1, V2);
     std::swap(V1Size, V2Size);
-    std::swap(V1TBAAInfo, V2TBAAInfo);
+    std::swap(V1AAInfo, V2AAInfo);
   }
   if (const SelectInst *S1 = dyn_cast<SelectInst>(V1)) {
-    AliasResult Result = aliasSelect(S1, V1Size, V1TBAAInfo,
-                                     V2, V2Size, V2TBAAInfo);
+    AliasResult Result = aliasSelect(S1, V1Size, V1AAInfo,
+                                     V2, V2Size, V2AAInfo);
     if (Result != MayAlias) return AliasCache[Locs] = Result;
   }
 
   // If both pointers are pointing into the same object and one of them
   // accesses is accessing the entire object, then the accesses must
   // overlap in some way.
-  if (TD && O1 == O2)
-    if ((V1Size != UnknownSize && isObjectSize(O1, V1Size, *TD, *TLI)) ||
-        (V2Size != UnknownSize && isObjectSize(O2, V2Size, *TD, *TLI)))
+  if (DL && O1 == O2)
+    if ((V1Size != UnknownSize && isObjectSize(O1, V1Size, *DL, *TLI)) ||
+        (V2Size != UnknownSize && isObjectSize(O2, V2Size, *DL, *TLI)))
       return AliasCache[Locs] = PartialAlias;
 
   AliasResult Result =
-    AliasAnalysis::alias(Location(V1, V1Size, V1TBAAInfo),
-                         Location(V2, V2Size, V2TBAAInfo));
+    AliasAnalysis::alias(Location(V1, V1Size, V1AAInfo),
+                         Location(V2, V2Size, V2AAInfo));
   return AliasCache[Locs] = Result;
 }
 
@@ -1343,16 +1431,16 @@ bool BasicAliasAnalysis::isValueEqualInPotentialCycles(const Value *V,
     return false;
 
   // Use dominance or loop info if available.
-  DominatorTree *DT = getAnalysisIfAvailable<DominatorTree>();
+  DominatorTreeWrapperPass *DTWP =
+      getAnalysisIfAvailable<DominatorTreeWrapperPass>();
+  DominatorTree *DT = DTWP ? &DTWP->getDomTree() : nullptr;
   LoopInfo *LI = getAnalysisIfAvailable<LoopInfo>();
 
   // Make sure that the visited phis cannot reach the Value. This ensures that
   // the Values cannot come from different iterations of a potential cycle the
   // phi nodes could be involved in.
-  for (SmallPtrSet<const BasicBlock *, 8>::iterator PI = VisitedPhiBBs.begin(),
-                                                    PE = VisitedPhiBBs.end();
-       PI != PE; ++PI)
-    if (isPotentiallyReachable((*PI)->begin(), Inst, DT, LI))
+  for (auto *P : VisitedPhiBBs)
+    if (isPotentiallyReachable(P->begin(), Inst, DT, LI))
       return false;
 
   return true;

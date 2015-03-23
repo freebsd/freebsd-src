@@ -322,8 +322,8 @@ adwexecuteacb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	acb->state |= ACB_ACTIVE;
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 	LIST_INSERT_HEAD(&adw->pending_ccbs, &ccb->ccb_h, sim_links.le);
-	callout_reset(&acb->timer, (ccb->ccb_h.timeout * hz) / 1000,
-	    adwtimeout, acb);
+	callout_reset_sbt(&acb->timer, SBT_1MS * ccb->ccb_h.timeout, 0,
+	    adwtimeout, acb, 0);
 
 	adw_send_acb(adw, acb, acbvtob(adw, acb));
 }
@@ -961,7 +961,7 @@ adw_init(struct adw_softc *adw)
 			/* highaddr	*/ BUS_SPACE_MAXADDR,
 			/* filter	*/ NULL,
 			/* filterarg	*/ NULL,
-			/* maxsize	*/ MAXBSIZE,
+			/* maxsize	*/ DFLTPHYS,
 			/* nsegments	*/ ADW_SGSIZE,
 			/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 			/* flags	*/ BUS_DMA_ALLOCNOW,

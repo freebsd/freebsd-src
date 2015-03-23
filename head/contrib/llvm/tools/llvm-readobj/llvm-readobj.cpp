@@ -20,12 +20,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm-readobj.h"
-
 #include "Error.h"
 #include "ObjDumper.h"
 #include "StreamWriter.h"
-
 #include "llvm/Object/Archive.h"
+#include "llvm/Object/ELFObjectFile.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
@@ -37,9 +36,8 @@
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
-#include "llvm/Support/system_error.h"
-
 #include <string>
+#include <system_error>
 
 
 using namespace llvm;
@@ -128,13 +126,46 @@ namespace opts {
   // -expand-relocs
   cl::opt<bool> ExpandRelocs("expand-relocs",
     cl::desc("Expand each shown relocation to multiple lines"));
+
+  // -codeview-linetables
+  cl::opt<bool> CodeViewLineTables("codeview-linetables",
+    cl::desc("Display CodeView line table information"));
+
+  // -arm-attributes, -a
+  cl::opt<bool> ARMAttributes("arm-attributes",
+                              cl::desc("Display the ARM attributes section"));
+  cl::alias ARMAttributesShort("-a", cl::desc("Alias for --arm-attributes"),
+                               cl::aliasopt(ARMAttributes));
+
+  // -mips-plt-got
+  cl::opt<bool>
+  MipsPLTGOT("mips-plt-got",
+             cl::desc("Display the MIPS GOT and PLT GOT sections"));
+
+  // -coff-imports
+  cl::opt<bool>
+  COFFImports("coff-imports", cl::desc("Display the PE/COFF import table"));
+
+  // -coff-exports
+  cl::opt<bool>
+  COFFExports("coff-exports", cl::desc("Display the PE/COFF export table"));
+
+  // -coff-directives
+  cl::opt<bool>
+  COFFDirectives("coff-directives",
+                 cl::desc("Display the PE/COFF .drectve section"));
+
+  // -coff-basereloc
+  cl::opt<bool>
+  COFFBaseRelocs("coff-basereloc",
+                 cl::desc("Display the PE/COFF .reloc section"));
 } // namespace opts
 
 static int ReturnValue = EXIT_SUCCESS;
 
 namespace llvm {
 
-bool error(error_code EC) {
+bool error(std::error_code EC) {
   if (!EC)
     return false;
 
@@ -146,15 +177,14 @@ bool error(error_code EC) {
 
 bool relocAddressLess(RelocationRef a, RelocationRef b) {
   uint64_t a_addr, b_addr;
-  if (error(a.getOffset(a_addr))) return false;
-  if (error(b.getOffset(b_addr))) return false;
+  if (error(a.getOffset(a_addr))) exit(ReturnValue);
+  if (error(b.getOffset(b_addr))) exit(ReturnValue);
   return a_addr < b_addr;
 }
 
 } // namespace llvm
 
-
-static void reportError(StringRef Input, error_code EC) {
+static void reportError(StringRef Input, std::error_code EC) {
   if (Input == "-")
     Input = "<stdin>";
 
@@ -171,10 +201,21 @@ static void reportError(StringRef Input, StringRef Message) {
   ReturnValue = EXIT_FAILURE;
 }
 
+static bool isMipsArch(unsigned Arch) {
+  switch (Arch) {
+  case llvm::Triple::mips:
+  case llvm::Triple::mipsel:
+  case llvm::Triple::mips64:
+  case llvm::Triple::mips64el:
+    return true;
+  default:
+    return false;
+  }
+}
+
 /// @brief Creates an format-specific object file dumper.
-static error_code createDumper(const ObjectFile *Obj,
-                               StreamWriter &Writer,
-                               OwningPtr<ObjDumper> &Result) {
+static std::error_code createDumper(const ObjectFile *Obj, StreamWriter &Writer,
+                                    std::unique_ptr<ObjDumper> &Result) {
   if (!Obj)
     return readobj_error::unsupported_file_format;
 
@@ -188,12 +229,23 @@ static error_code createDumper(const ObjectFile *Obj,
   return readobj_error::unsupported_obj_file_format;
 }
 
+static StringRef getLoadName(const ObjectFile *Obj) {
+  if (auto *ELF = dyn_cast<ELF32LEObjectFile>(Obj))
+    return ELF->getLoadName();
+  if (auto *ELF = dyn_cast<ELF64LEObjectFile>(Obj))
+    return ELF->getLoadName();
+  if (auto *ELF = dyn_cast<ELF32BEObjectFile>(Obj))
+    return ELF->getLoadName();
+  if (auto *ELF = dyn_cast<ELF64BEObjectFile>(Obj))
+    return ELF->getLoadName();
+  llvm_unreachable("Not ELF");
+}
 
 /// @brief Dumps the specified object file.
 static void dumpObject(const ObjectFile *Obj) {
   StreamWriter Writer(outs());
-  OwningPtr<ObjDumper> Dumper;
-  if (error_code EC = createDumper(Obj, Writer, Dumper)) {
+  std::unique_ptr<ObjDumper> Dumper;
+  if (std::error_code EC = createDumper(Obj, Writer, Dumper)) {
     reportError(Obj->getFileName(), EC);
     return;
   }
@@ -206,7 +258,7 @@ static void dumpObject(const ObjectFile *Obj) {
          << "\n";
   outs() << "AddressSize: " << (8*Obj->getBytesInAddress()) << "bit\n";
   if (Obj->isELF())
-    outs() << "LoadName: " << Obj->getLoadName() << "\n";
+    outs() << "LoadName: " << getLoadName(Obj) << "\n";
 
   if (opts::FileHeaders)
     Dumper->printFileHeaders();
@@ -226,23 +278,37 @@ static void dumpObject(const ObjectFile *Obj) {
     Dumper->printNeededLibraries();
   if (opts::ProgramHeaders)
     Dumper->printProgramHeaders();
+  if (Obj->getArch() == llvm::Triple::arm && Obj->isELF())
+    if (opts::ARMAttributes)
+      Dumper->printAttributes();
+  if (isMipsArch(Obj->getArch()) && Obj->isELF())
+    if (opts::MipsPLTGOT)
+      Dumper->printMipsPLTGOT();
+  if (opts::COFFImports)
+    Dumper->printCOFFImports();
+  if (opts::COFFExports)
+    Dumper->printCOFFExports();
+  if (opts::COFFDirectives)
+    Dumper->printCOFFDirectives();
+  if (opts::COFFBaseRelocs)
+    Dumper->printCOFFBaseReloc();
 }
 
 
 /// @brief Dumps each object file in \a Arc;
 static void dumpArchive(const Archive *Arc) {
-  for (Archive::child_iterator ArcI = Arc->begin_children(),
-                               ArcE = Arc->end_children();
+  for (Archive::child_iterator ArcI = Arc->child_begin(),
+                               ArcE = Arc->child_end();
                                ArcI != ArcE; ++ArcI) {
-    OwningPtr<Binary> child;
-    if (error_code EC = ArcI->getAsBinary(child)) {
+    ErrorOr<std::unique_ptr<Binary>> ChildOrErr = ArcI->getAsBinary();
+    if (std::error_code EC = ChildOrErr.getError()) {
       // Ignore non-object files.
       if (EC != object_error::invalid_file_type)
         reportError(Arc->getFileName(), EC.message());
       continue;
     }
 
-    if (ObjectFile *Obj = dyn_cast<ObjectFile>(child.get()))
+    if (ObjectFile *Obj = dyn_cast<ObjectFile>(&*ChildOrErr.get()))
       dumpObject(Obj);
     else
       reportError(Arc->getFileName(), readobj_error::unrecognized_file_format);
@@ -259,15 +325,16 @@ static void dumpInput(StringRef File) {
   }
 
   // Attempt to open the binary.
-  OwningPtr<Binary> Binary;
-  if (error_code EC = createBinary(File, Binary)) {
+  ErrorOr<OwningBinary<Binary>> BinaryOrErr = createBinary(File);
+  if (std::error_code EC = BinaryOrErr.getError()) {
     reportError(File, EC);
     return;
   }
+  Binary &Binary = *BinaryOrErr.get().getBinary();
 
-  if (Archive *Arc = dyn_cast<Archive>(Binary.get()))
+  if (Archive *Arc = dyn_cast<Archive>(&Binary))
     dumpArchive(Arc);
-  else if (ObjectFile *Obj = dyn_cast<ObjectFile>(Binary.get()))
+  else if (ObjectFile *Obj = dyn_cast<ObjectFile>(&Binary))
     dumpObject(Obj);
   else
     reportError(File, readobj_error::unrecognized_file_format);

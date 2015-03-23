@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 5, 2009
+.Dd October 29, 2014
 .Dt FETCH 9
 .Os
 .Sh NAME
@@ -44,43 +44,56 @@
 .Nm fuword ,
 .Nm fuword16 ,
 .Nm fuword32 ,
-.Nm fuword64
+.Nm fuword64 ,
+.Nm fueword ,
+.Nm fueword32 ,
+.Nm fueword64
 .Nd fetch data from user-space
 .Sh SYNOPSIS
 .In sys/types.h
-.In sys/time.h
 .In sys/systm.h
 .Ft int
-.Fn fubyte "const void *base"
+.Fn fubyte "volatile const void *base"
 .Ft long
-.Fn fuword "const void *base"
+.Fn fuword "volatile const void *base"
 .Ft int
-.Fn fuword16 "void *base"
+.Fn fuword16 "volatile const void *base"
 .Ft int32_t
-.Fn fuword32 "const void *base"
+.Fn fuword32 "volatile const void *base"
 .Ft int64_t
-.Fn fuword64 "const void *base"
+.Fn fuword64 "volatile const void *base"
+.Ft long
+.Fn fueword "volatile const void *base" "long *val"
+.Ft int32_t
+.Fn fueword32 "volatile const void *base" "int32_t *val"
+.Ft int64_t
+.Fn fueword64 "volatile const void *base" "int64_t *val"
 .In sys/resourcevar.h
 .Ft int
 .Fn fuswintr "void *base"
 .Sh DESCRIPTION
 The
 .Nm
-functions are designed to copy small amounts of data from user-space.
+functions are designed to copy small amounts of data from user-space
+of the current process.
+If read is successful, it is performed atomically.
+The data read must be naturally aligned.
 .Pp
 The
 .Nm
 routines provide the following functionality:
-.Bl -tag -width "fuswintr()"
+.Bl -tag -width "fueword32()"
 .It Fn fubyte
 Fetches a byte of data from the user-space address
 .Pa base .
+The byte read is zero-extended into the results variable.
 .It Fn fuword
-Fetches a word of data from the user-space address
+Fetches a word of data (long) from the user-space address
 .Pa base .
 .It Fn fuword16
 Fetches 16 bits of data from the user-space address
 .Pa base .
+The half-word read is zero-extended into the results variable.
 .It Fn fuword32
 Fetches 32 bits of data from the user-space address
 .Pa base .
@@ -91,11 +104,46 @@ Fetches 64 bits of data from the user-space address
 Fetches a short word of data from the user-space address
 .Pa base .
 This function is safe to call during an interrupt context.
+.It Fn fueword
+Fetches a word of data (long) from the user-space address
+.Pa base
+and stores the result in the variable pointed by
+.Pa val .
+.It Fn fueword32
+Fetches 32 bits of data from the user-space address
+.Pa base
+and stores the result in the variable pointed by
+.Pa val .
+.It Fn fueword64
+Fetches 64 bits of data from the user-space address
+.Pa base
+and stores the result in the variable pointed by
+.Pa val .
 .El
+.Pp
+The callers of
+.Fn fuword ,
+.Fn fuword32
+and
+.Fn fuword64
+functions cannot distinguish between -1 read from
+userspace and function failure.
 .Sh RETURN VALUES
 The
-.Nm
+.Fn fubyte ,
+.Fn fuword ,
+.Fn fuword16 ,
+.Fn fuword32 ,
+.Fn fuword64 ,
+and
+.Fn fuswintr
 functions return the data fetched or -1 on failure.
+The
+.Fn fueword ,
+.Fn fueword32
+and
+.Fn fueword64
+functions return 0 on success and -1 on failure.
 .Sh SEE ALSO
 .Xr copy 9 ,
 .Xr store 9

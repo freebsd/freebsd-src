@@ -15,8 +15,8 @@
 // FIXME: Most of this is copy-and-paste from BumpVector.h and SmallVector.h.
 // We can refactor this core logic into something common.
 
-#ifndef LLVM_CLANG_AST_VECTOR
-#define LLVM_CLANG_AST_VECTOR
+#ifndef LLVM_CLANG_AST_ASTVECTOR_H
+#define LLVM_CLANG_AST_ASTVECTOR_H
 
 #include "clang/AST/AttrIterator.h"
 #include "llvm/ADT/PointerIntPair.h"
@@ -25,30 +25,6 @@
 #include <algorithm>
 #include <cstring>
 #include <memory>
-
-#ifdef _MSC_VER
-namespace std {
-#if _MSC_VER <= 1310
-  // Work around flawed VC++ implementation of std::uninitialized_copy.  Define
-  // additional overloads so that elements with pointer types are recognized as
-  // scalars and not objects, causing bizarre type conversion errors.
-  template<class T1, class T2>
-  inline _Scalar_ptr_iterator_tag _Ptr_cat(T1 **, T2 **) {
-    _Scalar_ptr_iterator_tag _Cat;
-    return _Cat;
-  }
-
-  template<class T1, class T2>
-  inline _Scalar_ptr_iterator_tag _Ptr_cat(T1* const *, T2 **) {
-    _Scalar_ptr_iterator_tag _Cat;
-    return _Cat;
-  }
-#else
-  // FIXME: It is not clear if the problem is fixed in VS 2005.  What is clear
-  // is that the above hack won't work if it wasn't fixed.
-#endif
-}
-#endif
 
 namespace clang {
   class ASTContext;
@@ -69,15 +45,30 @@ protected:
 
 public:
   // Default ctor - Initialize to empty.
-  ASTVector() : Begin(0), End(0), Capacity(0, false) {}
+  ASTVector() : Begin(nullptr), End(nullptr), Capacity(nullptr, false) {}
+
+  ASTVector(ASTVector &&O) : Begin(O.Begin), End(O.End), Capacity(O.Capacity) {
+    O.Begin = O.End = nullptr;
+    O.Capacity.setPointer(nullptr);
+    O.Capacity.setInt(false);
+  }
 
   ASTVector(const ASTContext &C, unsigned N)
-      : Begin(0), End(0), Capacity(0, false) {
+      : Begin(nullptr), End(nullptr), Capacity(nullptr, false) {
     reserve(C, N);
   }
 
+  ASTVector &operator=(ASTVector &&RHS) {
+    ASTVector O(std::move(RHS));
+    using std::swap;
+    swap(Begin, O.Begin);
+    swap(End, O.End);
+    swap(Capacity, O.Capacity);
+    return *this;
+  }
+
   ~ASTVector() {
-    if (llvm::is_class<T>::value) {
+    if (std::is_class<T>::value) {
       // Destroy the constructed elements in the vector.
       destroy_range(Begin, End);
     }
@@ -147,7 +138,7 @@ public:
   }
 
   void clear() {
-    if (llvm::is_class<T>::value) {
+    if (std::is_class<T>::value) {
       destroy_range(Begin, End);
     }
     End = Begin;
@@ -245,13 +236,13 @@ public:
 
   iterator insert(const ASTContext &C, iterator I, size_type NumToInsert,
                   const T &Elt) {
-    if (I == this->end()) {  // Important special case for empty vector.
-      append(C, NumToInsert, Elt);
-      return this->end()-1;
-    }
-
     // Convert iterator to elt# to avoid invalidating iterator when we reserve()
     size_t InsertElt = I - this->begin();
+
+    if (I == this->end()) { // Important special case for empty vector.
+      append(C, NumToInsert, Elt);
+      return this->begin() + InsertElt;
+    }
 
     // Ensure there is enough space.
     reserve(C, static_cast<unsigned>(this->size() + NumToInsert));
@@ -293,14 +284,15 @@ public:
 
   template<typename ItTy>
   iterator insert(const ASTContext &C, iterator I, ItTy From, ItTy To) {
-    if (I == this->end()) {  // Important special case for empty vector.
+    // Convert iterator to elt# to avoid invalidating iterator when we reserve()
+    size_t InsertElt = I - this->begin();
+
+    if (I == this->end()) { // Important special case for empty vector.
       append(C, From, To);
-      return this->end()-1;
+      return this->begin() + InsertElt;
     }
 
     size_t NumToInsert = std::distance(From, To);
-    // Convert iterator to elt# to avoid invalidating iterator when we reserve()
-    size_t InsertElt = I - this->begin();
 
     // Ensure there is enough space.
     reserve(C, static_cast<unsigned>(this->size() + NumToInsert));
@@ -392,7 +384,7 @@ void ASTVector<T>::grow(const ASTContext &C, size_t MinSize) {
   T *NewElts = new (C, llvm::alignOf<T>()) T[NewCapacity];
 
   // Copy the elements over.
-  if (llvm::is_class<T>::value) {
+  if (std::is_class<T>::value) {
     std::uninitialized_copy(Begin, End, NewElts);
     // Destroy the original elements.
     destroy_range(Begin, End);

@@ -172,6 +172,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_phys.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_reserv.h>
 
@@ -757,6 +758,7 @@ pmap_alloc_l2_bucket(pmap_t pmap, vm_offset_t va)
 		 * No L2 page table has been allocated. Chances are, this
 		 * is because we just allocated the l2_dtable, above.
 		 */
+		l2->l2_occupancy++;
 		PMAP_UNLOCK(pmap);
 		rw_wunlock(&pvh_global_lock);
 		ptep = uma_zalloc(l2zone, M_NOWAIT);
@@ -764,6 +766,7 @@ pmap_alloc_l2_bucket(pmap_t pmap, vm_offset_t va)
 		PMAP_LOCK(pmap);
 		if (l2b->l2b_kva != 0) {
 			/* We lost the race. */
+			l2->l2_occupancy--;
 			uma_zfree(l2zone, ptep);
 			return (l2b);
 		}
@@ -774,6 +777,7 @@ pmap_alloc_l2_bucket(pmap_t pmap, vm_offset_t va)
 			 * time. We may need to deallocate the l2_dtable
 			 * if we allocated a new one above.
 			 */
+			l2->l2_occupancy--;
 			if (l2->l2_occupancy == 0) {
 				pmap->pm_l2[L2_IDX(l1idx)] = NULL;
 				uma_zfree(l2table_zone, l2);
@@ -781,7 +785,6 @@ pmap_alloc_l2_bucket(pmap_t pmap, vm_offset_t va)
 			return (NULL);
 		}
 
-		l2->l2_occupancy++;
 		l2b->l2b_kva = ptep;
 		l2b->l2b_l1idx = l1idx;
 	}
@@ -1342,9 +1345,10 @@ pmap_init(void)
 
 	/*
 	 * Calculate the size of the pv head table for superpages.
+	 * Handle the possibility that "vm_phys_segs[...].end" is zero.
 	 */
-	for (i = 0; phys_avail[i + 1]; i += 2);
-	pv_npg = round_1mpage(phys_avail[(i - 2) + 1]) / NBPDR;
+	pv_npg = trunc_1mpage(vm_phys_segs[vm_phys_nsegs - 1].end -
+	    PAGE_SIZE) / NBPDR + 1;
 
 	/*
 	 * Allocate memory for the pv head table for superpages.

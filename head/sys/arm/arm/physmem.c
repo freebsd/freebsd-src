@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <vm/vm.h>
+#include <machine/md_var.h>
 #include <machine/physmem.h>
 
 /*
@@ -86,8 +87,12 @@ static size_t excnt;
 vm_paddr_t phys_avail[MAX_AVAIL_ENTRIES + 2]; /* +2 to allow for a pair  */
 vm_paddr_t dump_avail[MAX_AVAIL_ENTRIES + 2]; /* of zeroes to terminate. */
 
-/* This is the total number of hardware pages, excluded or not. */
+/*
+ * realmem is the total number of hardware pages, excluded or not.
+ * Maxmem is one greater than the last physical page number.
+ */
 long realmem;
+long Maxmem;
 
 /* The address at which the kernel was loaded.  Set early in initarm(). */
 vm_paddr_t arm_physmem_kernaddr;
@@ -148,12 +153,12 @@ arm_physmem_print_tables()
  * Walk the list of hardware regions, processing it against the list of
  * exclusions that contain the given exflags, and generating an "avail list".
  *
- * Updates the kernel global 'realmem' with the sum of all pages in hw regions.
+ * Updates the value at *pavail with the sum of all pages in all hw regions.
  *
  * Returns the number of pages of non-excluded memory added to the avail list.
  */
-static long
-regions_to_avail(vm_paddr_t *avail, uint32_t exflags)
+static size_t
+regions_to_avail(vm_paddr_t *avail, uint32_t exflags, long *pavail)
 {
 	size_t acnt, exi, hwi;
 	vm_paddr_t end, start, xend, xstart;
@@ -236,7 +241,9 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags)
 			panic("Not enough space in the dump/phys_avail arrays");
 	}
 
-	return (availmem);
+	if (pavail)
+		*pavail = availmem;
+	return (acnt);
 }
 
 /*
@@ -311,13 +318,23 @@ void arm_physmem_exclude_region(vm_paddr_t pa, vm_size_t sz, uint32_t exflags)
 
 /*
  * Process all the regions added earlier into the global avail lists.
+ *
+ * Updates the kernel global 'physmem' with the number of physical pages
+ * available for use (all pages not in any exclusion region).
+ *
+ * Updates the kernel global 'Maxmem' with the page number one greater then the
+ * last page of physical memory in the system.
  */
 void
 arm_physmem_init_kernel_globals(void)
 {
+	size_t nextidx;
 
-	regions_to_avail(dump_avail, EXFLAG_NODUMP);
-	physmem = regions_to_avail(phys_avail, EXFLAG_NOALLOC);
+	regions_to_avail(dump_avail, EXFLAG_NODUMP, NULL);
+	nextidx = regions_to_avail(phys_avail, EXFLAG_NOALLOC, &physmem);
+	if (nextidx == 0)
+		panic("No memory entries in phys_avail");
+	Maxmem = atop(phys_avail[nextidx - 1]);
 }
 
 #ifdef DDB

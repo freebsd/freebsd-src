@@ -39,36 +39,28 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/devmap.h>
 #include <machine/machdep.h>
-#include <machine/platform.h> 
+#include <machine/platformvar.h> 
 
 #include <arm/freescale/imx/imx_machdep.h>
 
-vm_offset_t
-platform_lastaddr(void)
+#include "platform_if.h"
+
+static vm_offset_t
+imx51_lastaddr(platform_t plat)
 {
 
 	return (arm_devmap_lastaddr());
 }
 
-void
-platform_probe_and_attach(void)
+static int
+imx51_attach(platform_t plat)
 {
 
 	/* XXX - Get rid of this stuff soon. */
 	boothowto |= RB_VERBOSE|RB_MULTIPLE;
 	bootverbose = 1;
-}
 
-void
-platform_gpio_init(void)
-{
-
-}
-
-void
-platform_late_init(void)
-{
-
+	return (0);
 }
 
 /*
@@ -78,8 +70,8 @@ platform_late_init(void)
  *
  * Notably missing are entries for GPU, IPU, in general anything video related.
  */
-int
-platform_devmap_init(void)
+static int
+imx51_devmap_init(platform_t plat)
 {
 
 	arm_devmap_add_entry(0x70000000, 0x00100000);
@@ -101,3 +93,12 @@ u_int imx_soc_type()
 	return (IMXSOC_51);
 }
 
+static platform_method_t imx51_methods[] = {
+	PLATFORMMETHOD(platform_attach,		imx51_attach),
+	PLATFORMMETHOD(platform_devmap_init,	imx51_devmap_init),
+	PLATFORMMETHOD(platform_lastaddr,	imx51_lastaddr),
+
+	PLATFORMMETHOD_END,
+};
+
+FDT_PLATFORM_DEF(imx51, "i.MX51", 0, "fsl,imx51");

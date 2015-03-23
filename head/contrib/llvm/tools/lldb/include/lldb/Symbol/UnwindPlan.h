@@ -58,13 +58,13 @@ public:
                     atDWARFExpression,  // reg = deref(eval(dwarf_expr))
                     isDWARFExpression   // reg = eval(dwarf_expr)
                 };
-    
+
             RegisterLocation() : 
                 m_type(unspecified), 
                 m_location() 
             {
             }
-    
+
             bool
             operator == (const RegisterLocation& rhs) const;
     
@@ -242,6 +242,7 @@ public:
     
         Row (const UnwindPlan::Row& rhs) : 
             m_offset             (rhs.m_offset),
+            m_cfa_type           (rhs.m_cfa_type),
             m_cfa_reg_num        (rhs.m_cfa_reg_num),
             m_cfa_offset         (rhs.m_cfa_offset),
             m_register_locations (rhs.m_register_locations)
@@ -256,7 +257,10 @@ public:
     
         void
         SetRegisterInfo (uint32_t reg_num, const RegisterLocation register_location);
-    
+
+        void
+        RemoveRegisterInfo (uint32_t reg_num);
+
         lldb::addr_t
         GetOffset() const
         {
@@ -275,12 +279,49 @@ public:
             m_offset += offset;
         }
 
+        // How we can reconstruct the CFA address for this stack frame, at this location
+        enum CFAType
+        {
+            CFAIsRegisterPlusOffset,   // the CFA value in a register plus (or minus) an offset
+            CFAIsRegisterDereferenced  // the address in a register is dereferenced to get CFA value
+        };
+
+        CFAType
+        GetCFAType () const
+        {
+            return m_cfa_type;
+        }
+
+        void
+        SetCFAType (CFAType cfa_type)
+        {
+            m_cfa_type = cfa_type;
+        }
+
+        // If GetCFAType() is CFAIsRegisterPlusOffset, add GetCFAOffset to the reg value to get CFA value
+        // If GetCFAType() is CFAIsRegisterDereferenced, dereference the addr in the reg to get CFA value
         uint32_t
         GetCFARegister () const
         {
             return m_cfa_reg_num;
         }
         
+        void
+        SetCFARegister (uint32_t reg_num);
+
+        // This should not be used when GetCFAType() is CFAIsRegisterDereferenced; will return 0 in that case.
+        int32_t
+        GetCFAOffset () const
+        {
+            return m_cfa_offset;
+        }
+
+        void
+        SetCFAOffset (int32_t offset)
+        {
+            m_cfa_offset = offset;
+        }
+
         bool
         SetRegisterLocationToAtCFAPlusOffset (uint32_t reg_num, 
                                               int32_t offset, 
@@ -309,23 +350,6 @@ public:
         SetRegisterLocationToSame (uint32_t reg_num, 
                                    bool must_replace);
 
-
-
-        void
-        SetCFARegister (uint32_t reg_num);
-
-        int32_t
-        GetCFAOffset () const
-        {
-            return m_cfa_offset;
-        }
-
-        void
-        SetCFAOffset (int32_t offset)
-        {
-            m_cfa_offset = offset;
-        }
-
         void
         Clear ();
 
@@ -335,8 +359,15 @@ public:
     protected:
         typedef std::map<uint32_t, RegisterLocation> collection;
         lldb::addr_t m_offset;      // Offset into the function for this row
+
+        CFAType m_cfa_type;
+
+        // If m_cfa_type == CFAIsRegisterPlusOffset, the CFA address is computed as m_cfa_reg_num + m_cfa_offset
+        // If m_cfa_type == CFAIsRegisterDereferenced, the CFA address is computed as *(m_cfa_reg_num) - i.e. the
+        // address in m_cfa_reg_num is dereferenced and the pointer value read is the CFA addr.
         uint32_t m_cfa_reg_num;     // The Call Frame Address register number
         int32_t  m_cfa_offset;      // The offset from the CFA for this row
+
         collection m_register_locations;
     }; // class Row
 
@@ -351,7 +382,9 @@ public:
         m_return_addr_register (LLDB_INVALID_REGNUM),
         m_source_name (),
         m_plan_is_sourced_from_compiler (eLazyBoolCalculate),
-        m_plan_is_valid_at_all_instruction_locations (eLazyBoolCalculate)
+        m_plan_is_valid_at_all_instruction_locations (eLazyBoolCalculate),
+        m_lsda_address (),
+        m_personality_func_addr ()
     {
     }
 
@@ -364,6 +397,9 @@ public:
 
     void 
     AppendRow (const RowSP& row_sp);
+
+    void
+    InsertRow (const RowSP& row_sp);
 
     // Returns a pointer to the best row for the given offset into the function's instructions.
     // If offset is -1 it indicates that the function start is unknown - the final row in the UnwindPlan is returned.
@@ -474,10 +510,38 @@ public:
         m_plan_valid_address_range.Clear();
         m_register_kind = lldb::eRegisterKindDWARF;
         m_source_name.Clear();
+        m_plan_is_sourced_from_compiler = eLazyBoolCalculate;
+        m_plan_is_valid_at_all_instruction_locations = eLazyBoolCalculate;
+        m_lsda_address.Clear();
+        m_personality_func_addr.Clear();
     }
 
     const RegisterInfo *
     GetRegisterInfo (Thread* thread, uint32_t reg_num) const;
+
+    Address
+    GetLSDAAddress () const
+    {
+        return m_lsda_address;
+    }
+
+    void
+    SetLSDAAddress (Address lsda_addr)
+    {
+        m_lsda_address = lsda_addr;
+    }
+
+    Address
+    GetPersonalityFunctionPtr () const
+    {
+        return m_personality_func_addr;
+    }
+
+    void
+    SetPersonalityFunctionPtr (Address presonality_func_ptr)
+    {
+        m_personality_func_addr = presonality_func_ptr;
+    }
 
 private:
 
@@ -492,6 +556,11 @@ private:
     lldb_private::ConstString m_source_name;  // for logging, where this UnwindPlan originated from
     lldb_private::LazyBool m_plan_is_sourced_from_compiler;
     lldb_private::LazyBool m_plan_is_valid_at_all_instruction_locations;
+
+    Address m_lsda_address;                 // Where the language specific data area exists in the module - used 
+                                            // in exception handling.
+    Address m_personality_func_addr;        // The address of a pointer to the personality function - used in
+                                            // exception handling.
 }; // class UnwindPlan
 
 } // namespace lldb_private

@@ -106,8 +106,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/conf.h>
 #include <sys/queue.h>
 #include <sys/cpuset.h>
+#include <sys/kerneldump.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/msgbuf.h>
@@ -162,8 +164,6 @@ struct ofw_map {
 
 extern unsigned char _etext[];
 extern unsigned char _end[];
-
-extern int dumpsys_minidump;
 
 /*
  * Map of physical memory regions.
@@ -314,9 +314,8 @@ void moea_kenter(mmu_t, vm_offset_t, vm_paddr_t);
 void moea_page_set_memattr(mmu_t mmu, vm_page_t m, vm_memattr_t ma);
 boolean_t moea_dev_direct_mapped(mmu_t, vm_paddr_t, vm_size_t);
 static void moea_sync_icache(mmu_t, pmap_t, vm_offset_t, vm_size_t);
-vm_offset_t moea_dumpsys_map(mmu_t mmu, struct pmap_md *md, vm_size_t ofs,
-    vm_size_t *sz);
-struct pmap_md * moea_scan_md(mmu_t mmu, struct pmap_md *prev);
+void moea_dumpsys_map(mmu_t mmu, vm_paddr_t pa, size_t sz, void **va);
+void moea_scan_init(mmu_t mmu);
 
 static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_clear_modify,	moea_clear_modify),
@@ -363,7 +362,7 @@ static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_kenter,		moea_kenter),
 	MMUMETHOD(mmu_kenter_attr,	moea_kenter_attr),
 	MMUMETHOD(mmu_dev_direct_mapped,moea_dev_direct_mapped),
-	MMUMETHOD(mmu_scan_md,		moea_scan_md),
+	MMUMETHOD(mmu_scan_init,	moea_scan_init),
 	MMUMETHOD(mmu_dumpsys_map,	moea_dumpsys_map),
 
 	{ 0, 0 }
@@ -421,7 +420,7 @@ static void
 tlbia(void)
 {
 	vm_offset_t va;
- 
+
 	for (va = 0; va < 0x00040000; va += 0x00001000) {
 		__asm __volatile("tlbie %0" :: "r"(va));
 		powerpc_sync();
@@ -624,17 +623,8 @@ moea_cpu_bootstrap(mmu_t mmup, int ap)
 		isync();
 	}
 
-#ifdef WII
-	/*
-	 * Special case for the Wii: don't install the PCI BAT.
-	 */
-	if (strcmp(installed_platform(), "wii") != 0) {
-#endif
-		__asm __volatile("mtdbatu 1,%0" :: "r"(battable[8].batu));
-		__asm __volatile("mtdbatl 1,%0" :: "r"(battable[8].batl));
-#ifdef WII
-	}
-#endif
+	__asm __volatile("mtdbatu 1,%0" :: "r"(battable[8].batu));
+	__asm __volatile("mtdbatl 1,%0" :: "r"(battable[8].batl));
 	isync();
 
 	__asm __volatile("mtibatu 1,%0" :: "r"(0));
@@ -707,15 +697,9 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	    :: "r"(battable[0].batu), "r"(battable[0].batl));
 	mtmsr(msr);
 
-#ifdef WII
-        if (strcmp(installed_platform(), "wii") != 0) {
-#endif
-		/* map pci space */
-		__asm __volatile("mtdbatu 1,%0" :: "r"(battable[8].batu));
-		__asm __volatile("mtdbatl 1,%0" :: "r"(battable[8].batl));
-#ifdef WII
-	}
-#endif
+	/* map pci space */
+	__asm __volatile("mtdbatu 1,%0" :: "r"(battable[8].batu));
+	__asm __volatile("mtdbatl 1,%0" :: "r"(battable[8].batl));
 	isync();
 
 	/* set global direct map flag */
@@ -886,7 +870,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	 */
 	chosen = OF_finddevice("/chosen");
 	if (chosen != -1 && OF_getprop(chosen, "mmu", &mmui, 4) != -1 &&
-	    (mmu = OF_instance_to_package(mmui)) != -1 && 
+	    (mmu = OF_instance_to_package(mmui)) != -1 &&
 	    (sz = OF_getproplen(mmu, "translations")) != -1) {
 		translations = NULL;
 		for (i = 0; phys_avail[i] != 0; i += 2) {
@@ -918,7 +902,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 			/* Enter the pages */
 			for (off = 0; off < translations[i].om_len;
 			    off += PAGE_SIZE)
-				moea_kenter(mmup, translations[i].om_va + off, 
+				moea_kenter(mmup, translations[i].om_va + off,
 					    translations[i].om_pa + off);
 		}
 	}
@@ -1002,6 +986,8 @@ moea_activate(mmu_t mmu, struct thread *td)
 
 	CPU_SET(PCPU_GET(cpuid), &pm->pm_active);
 	PCPU_SET(curpmap, pmr);
+
+	mtsrin(USER_SR << ADDR_SR_SHFT, td->td_pcb->pcb_cpu.aim.usr_vsid);
 }
 
 void
@@ -1489,7 +1475,7 @@ void
 moea_kenter_attr(mmu_t mmu, vm_offset_t va, vm_offset_t pa, vm_memattr_t ma)
 {
 	u_int		pte_lo;
-	int		error;	
+	int		error;
 
 #if 0
 	if (va < VM_MIN_KERNEL_ADDRESS)
@@ -1638,7 +1624,7 @@ moea_pinit(mmu_t mmu, pmap_t pmap)
 	    == NULL) {
 		pmap->pmap_phys = pmap;
 	}
-	
+
 
 	mtx_lock(&moea_vsid_mutex);
 	/*
@@ -1783,7 +1769,7 @@ void
 moea_release(mmu_t mmu, pmap_t pmap)
 {
         int idx, mask;
-        
+
 	/*
 	 * Free segment register's VSID
 	 */
@@ -1958,7 +1944,7 @@ moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	} else {
 		if (moea_bpvo_pool_index >= BPVO_POOL_SIZE) {
 			panic("moea_enter: bpvo pool exhausted, %d, %d, %d",
-			      moea_bpvo_pool_index, BPVO_POOL_SIZE, 
+			      moea_bpvo_pool_index, BPVO_POOL_SIZE,
 			      BPVO_POOL_SIZE * sizeof(struct pvo_entry));
 		}
 		pvo = &moea_bpvo_pool[moea_bpvo_pool_index];
@@ -2308,7 +2294,7 @@ moea_pte_spillable_ident(u_int ptegidx)
 		if (!(pt->pte_lo & PTE_REF))
 			return (pvo_walk);
 	}
-	
+
 	return (pvo);
 }
 
@@ -2505,7 +2491,7 @@ moea_bat_mapped(int idx, vm_offset_t pa, vm_size_t size)
 	 */
 	prot = battable[idx].batl & (BAT_I|BAT_G|BAT_PP_RW);
 	if (prot != (BAT_I|BAT_G|BAT_PP_RW))
-		return (EPERM);	
+		return (EPERM);
 
 	/*
 	 * The address should be within the BAT range. Assume that the
@@ -2528,7 +2514,7 @@ moea_dev_direct_mapped(mmu_t mmu, vm_paddr_t pa, vm_size_t size)
 	int i;
 
 	/*
-	 * This currently does not work for entries that 
+	 * This currently does not work for entries that
 	 * overlap 256M BAT segments.
 	 */
 
@@ -2561,7 +2547,7 @@ moea_mapdev_attr(mmu_t mmu, vm_offset_t pa, vm_size_t size, vm_memattr_t ma)
 	ppa = trunc_page(pa);
 	offset = pa & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
-	
+
 	/*
 	 * If the physical address lies within a valid BAT table entry,
 	 * return the 1:1 mapping. This currently doesn't work
@@ -2628,100 +2614,74 @@ moea_sync_icache(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_size_t sz)
 	PMAP_UNLOCK(pm);
 }
 
-vm_offset_t
-moea_dumpsys_map(mmu_t mmu, struct pmap_md *md, vm_size_t ofs,
-    vm_size_t *sz)
+void
+moea_dumpsys_map(mmu_t mmu, vm_paddr_t pa, size_t sz, void **va)
 {
-	if (md->md_vaddr == ~0UL)
-	    return (md->md_paddr + ofs);
-	else
-	    return (md->md_vaddr + ofs);
+
+	*va = (void *)pa;
 }
 
-struct pmap_md *
-moea_scan_md(mmu_t mmu, struct pmap_md *prev)
+extern struct dump_pa dump_map[PHYS_AVAIL_SZ + 1];
+
+void
+moea_scan_init(mmu_t mmu)
 {
-	static struct pmap_md md;
 	struct pvo_entry *pvo;
 	vm_offset_t va;
- 
-	if (dumpsys_minidump) {
-		md.md_paddr = ~0UL;	/* Minidumps use virtual addresses. */
-		if (prev == NULL) {
-			/* 1st: kernel .data and .bss. */
-			md.md_index = 1;
-			md.md_vaddr = trunc_page((uintptr_t)_etext);
-			md.md_size = round_page((uintptr_t)_end) - md.md_vaddr;
-			return (&md);
-		}
-		switch (prev->md_index) {
-		case 1:
-			/* 2nd: msgbuf and tables (see pmap_bootstrap()). */
-			md.md_index = 2;
-			md.md_vaddr = (vm_offset_t)msgbufp->msg_ptr;
-			md.md_size = round_page(msgbufp->msg_size);
-			break;
-		case 2:
-			/* 3rd: kernel VM. */
-			va = prev->md_vaddr + prev->md_size;
-			/* Find start of next chunk (from va). */
-			while (va < virtual_end) {
-				/* Don't dump the buffer cache. */
-				if (va >= kmi.buffer_sva &&
-				    va < kmi.buffer_eva) {
-					va = kmi.buffer_eva;
-					continue;
-				}
-				pvo = moea_pvo_find_va(kernel_pmap,
-				    va & ~ADDR_POFF, NULL);
-				if (pvo != NULL &&
-				    (pvo->pvo_pte.pte.pte_hi & PTE_VALID))
-					break;
-				va += PAGE_SIZE;
-			}
-			if (va < virtual_end) {
-				md.md_vaddr = va;
-				va += PAGE_SIZE;
-				/* Find last page in chunk. */
-				while (va < virtual_end) {
-					/* Don't run into the buffer cache. */
-					if (va == kmi.buffer_sva)
-						break;
-					pvo = moea_pvo_find_va(kernel_pmap,
-					    va & ~ADDR_POFF, NULL);
-					if (pvo == NULL ||
-					    !(pvo->pvo_pte.pte.pte_hi & PTE_VALID))
-						break;
-					va += PAGE_SIZE;
-				}
-				md.md_size = va - md.md_vaddr;
-				break;
-			}
-			md.md_index = 3;
-			/* FALLTHROUGH */
-		default:
-			return (NULL);
-		}
-	} else { /* minidumps */
-		mem_regions(&pregions, &pregions_sz,
-		    &regions, &regions_sz);
+	int i;
 
-		if (prev == NULL) {
-			/* first physical chunk. */
-			md.md_paddr = pregions[0].mr_start;
-			md.md_size = pregions[0].mr_size;
-			md.md_vaddr = ~0UL;
-			md.md_index = 1;
-		} else if (md.md_index < pregions_sz) {
-			md.md_paddr = pregions[md.md_index].mr_start;
-			md.md_size = pregions[md.md_index].mr_size;
-			md.md_vaddr = ~0UL;
-			md.md_index++;
-		} else {
-			/* There's no next physical chunk. */
-			return (NULL);
+	if (!do_minidump) {
+		/* Initialize phys. segments for dumpsys(). */
+		memset(&dump_map, 0, sizeof(dump_map));
+		mem_regions(&pregions, &pregions_sz, &regions, &regions_sz);
+		for (i = 0; i < pregions_sz; i++) {
+			dump_map[i].pa_start = pregions[i].mr_start;
+			dump_map[i].pa_size = pregions[i].mr_size;
 		}
+		return;
 	}
 
-	return (&md);
+	/* Virtual segments for minidumps: */
+	memset(&dump_map, 0, sizeof(dump_map));
+
+	/* 1st: kernel .data and .bss. */
+	dump_map[0].pa_start = trunc_page((uintptr_t)_etext);
+	dump_map[0].pa_size =
+	    round_page((uintptr_t)_end) - dump_map[0].pa_start;
+
+	/* 2nd: msgbuf and tables (see pmap_bootstrap()). */
+	dump_map[1].pa_start = (vm_paddr_t)msgbufp->msg_ptr;
+	dump_map[1].pa_size = round_page(msgbufp->msg_size);
+
+	/* 3rd: kernel VM. */
+	va = dump_map[1].pa_start + dump_map[1].pa_size;
+	/* Find start of next chunk (from va). */
+	while (va < virtual_end) {
+		/* Don't dump the buffer cache. */
+		if (va >= kmi.buffer_sva && va < kmi.buffer_eva) {
+			va = kmi.buffer_eva;
+			continue;
+		}
+		pvo = moea_pvo_find_va(kernel_pmap, va & ~ADDR_POFF, NULL);
+		if (pvo != NULL && (pvo->pvo_pte.pte.pte_hi & PTE_VALID))
+			break;
+		va += PAGE_SIZE;
+	}
+	if (va < virtual_end) {
+		dump_map[2].pa_start = va;
+		va += PAGE_SIZE;
+		/* Find last page in chunk. */
+		while (va < virtual_end) {
+			/* Don't run into the buffer cache. */
+			if (va == kmi.buffer_sva)
+				break;
+			pvo = moea_pvo_find_va(kernel_pmap, va & ~ADDR_POFF,
+			    NULL);
+			if (pvo == NULL ||
+			    !(pvo->pvo_pte.pte.pte_hi & PTE_VALID))
+				break;
+			va += PAGE_SIZE;
+		}
+		dump_map[2].pa_size = va - dump_map[2].pa_start;
+	}
 }

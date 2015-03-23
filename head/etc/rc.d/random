@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: random
-# REQUIRE: initrandom FILESYSTEMS
+# REQUIRE: FILESYSTEMS
 # BEFORE: netif
 # KEYWORD: nojail shutdown
 
@@ -17,41 +17,58 @@ stop_cmd="random_stop"
 extra_commands="saveseed"
 saveseed_cmd="${name}_stop"
 
+save_dev_random()
+{
+	for f ; do
+		if :>>"$f" ; then
+			debug "saving entropy to $f"
+			dd if=/dev/random of="$f" bs=4096 count=1 2>/dev/null
+		fi
+	done
+}
+
 feed_dev_random()
 {
-	if [ -f "${1}" -a -r "${1}" -a -s "${1}" ]; then
-		cat "${1}" | dd of=/dev/random bs=8k 2>/dev/null
-	fi
+	for f ; do
+		if [ -f "$f" -a -r "$f" -a -s "$f" ] ; then
+			if dd if="$f" of=/dev/random bs=4096 2>/dev/null ; then
+				debug "entropy read from $f"
+				rm -f "$f"
+			fi
+		fi
+	done
 }
 
 random_start()
 {
+	echo -n 'Feeding entropy:'
+
+	if [ ! -w /dev/random ] ; then
+		warn "/dev/random is not writeable"
+		return 1
+	fi
+
 	# Reseed /dev/random with previously stored entropy.
-	case ${entropy_dir} in
+	case ${entropy_dir:=/var/db/entropy} in
 	[Nn][Oo])
 		;;
 	*)
-		entropy_dir=${entropy_dir:-/var/db/entropy}
-		if [ -d "${entropy_dir}" ]; then
-			if [ -w /dev/random ]; then
-				for seedfile in ${entropy_dir}/*; do
-					feed_dev_random "${seedfile}"
-				done
-			fi
+		if [ -d "${entropy_dir}" ] ; then
+			feed_dev_random "${entropy_dir}"/*
 		fi
 		;;
 	esac
 
-	case ${entropy_file} in
+	case ${entropy_file:=/entropy} in
 	[Nn][Oo] | '')
 		;;
 	*)
-		if [ -w /dev/random ]; then
-			feed_dev_random "${entropy_file}"
-			feed_dev_random /var/db/entropy-file
-		fi
+		feed_dev_random "${entropy_file}" /var/db/entropy-file
+		save_dev_random "${entropy_file}"
 		;;
 	esac
+
+	echo '.'
 }
 
 random_stop()
@@ -59,7 +76,7 @@ random_stop()
 	# Write some entropy so when the machine reboots /dev/random
 	# can be reseeded
 	#
-	case ${entropy_file} in
+	case ${entropy_file:=/entropy} in
 	[Nn][Oo] | '')
 		;;
 	*)

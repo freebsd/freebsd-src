@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: macintosh,v 1.23 2013/11/19 18:47:58 christos Exp $
+# $File: macintosh,v 1.25 2014/09/03 13:34:16 christos Exp $
 # macintosh description
 #
 # BinHex is the Macintosh ASCII-encoded file format (see also "apple")
@@ -165,7 +165,7 @@
 #>65	string		ZSYS		(Pre-System 7 system file)
 #>65	string		acf3		(Aldus FreeHand)
 #>65	string		cdev		(control panel)
-#>65	string		dfil		(Desk Acessory suitcase)
+#>65	string		dfil		(Desk Accessory suitcase)
 #>65	string		libr		(library)
 #>65	string		nX^d		(WriteNow word processor)
 #>65	string		nX^w		(WriteNow dictionary)
@@ -288,20 +288,38 @@
 >0x412	beshort			x		number of blocks: %d,
 >0x424	pstring			x		volume name: %s
 
+# *.hfs updated by Joerg Jenderek
+# http://en.wikipedia.org/wiki/Hierarchical_File_System
 # "BD" gives many false positives
-#0x400	beshort			0x4244		Macintosh HFS data
-#>0	beshort			0x4C4B		(bootable)
-#>0x40a	beshort			&0x8000		(locked)
-#>0x40a	beshort			^0x0100		(mounted)
-#>0x40a	beshort			&0x0200		(spared blocks)
-#>0x40a	beshort			&0x0800		(unclean)
-#>0x47C	beshort			0x482B		(Embedded HFS+ Volume)
-#>0x402	beldate-0x7C25B080	x		created: %s,
-#>0x406	beldate-0x7C25B080	x		last modified: %s,
-#>0x440	beldate-0x7C25B080	>0		last backup: %s,
-#>0x414	belong			x		block size: %d,
-#>0x412	beshort			x		number of blocks: %d,
-#>0x424	pstring			x		volume name: %s
+0x400	beshort			0x4244		
+# ftp://ftp.mars.org/pub/hfs/hfsutils-3.2.6.tar.gz/hfsutils-3.2.6/libhfs/apple.h
+# first block of volume bit map (always 3)
+>0x40e	ubeshort		0x0003		
+# maximal length of volume name is 27
+>>0x424		ubyte			<28	Macintosh HFS data
+#!:mime	application/octet-stream
+# these mime and apple types are not sure
+!:mime	application/x-apple-diskimage
+#!:apple	hfsdINIT
+#!:apple	MACSdisk
+>>>0		beshort			0x4C4B	(bootable)
+#>>>0		beshort			0x0000	(not bootable)
+>>>0x40a	beshort			&0x8000	(locked)
+>>>0x40a	beshort			^0x0100	(mounted)
+>>>0x40a	beshort			&0x0200	(spared blocks)
+>>>0x40a	beshort			&0x0800	(unclean)
+>>>0x47C	beshort			0x482B	(Embedded HFS+ Volume)
+# http://www.epochconverter.com/
+# 0x7C245F00 seconds	~ 2082758400	~ 01 Jan 2036 00:00:00	~ 66 years to 1970
+# 0x7C25B080 seconds	~ 2082844800	~ 02 Jan 2036 00:00:00
+# construct not working
+#>>>0x402	beldate-0x7C25B080	x	created: %s,
+#>>>0x406	beldate-0x7C25B080	x	last modified: %s,
+#>>>0x440	beldate-0x7C25B080	>0	last backup: %s,
+# found block sizes 200h,1200h,2800h
+>>>0x414	belong			x	block size: %d,
+>>>0x412	beshort			x	number of blocks: %d,
+>>>0x424	pstring			x	volume name: %s
 
 0x400	beshort			0x482B		Macintosh HFS Extended
 >&0	beshort			x		version %d data
@@ -322,43 +340,9 @@
 >&42	belong			x		number of blocks: %d,
 >&46	belong			x		free blocks: %d
 
-# I don't think this is really necessary since it doesn't do much and 
-# anything with a valid driver descriptor will also have a valid
-# partition map
-#0		beshort		0x4552		Apple Device Driver data
-#>&24		beshort		=1		\b, MacOS
-
-# Is that the partition type a cstring or a pstring? Well, IM says "strings 
-# shorter than 32 bytes must be terminated with NULL" so I'll treat it as a 
-# cstring. Of course, partitions can contain more than four entries, but 
-# what're you gonna do?
-# GRR: This magic is too weak, it is just "PM"
-#0x200		beshort		0x504D		Apple Partition data
-#>0x2		beshort		x		(block size: %d):
-#>0x230		string		x		first type: %s,
-#>0x210		string		x		name: %s,
-#>0x254		belong		x		number of blocks: %d,
-#>0x400		beshort		0x504D		
-#>>0x430		string		x		second type: %s,
-#>>0x410		string		x		name: %s,
-#>>0x454		belong		x		number of blocks: %d,
-#>>0x600		beshort		0x504D
-#>>>0x630	string		x		third type: %s,
-#>>>0x610	string		x		name: %s,
-#>>>0x654	belong		x		number of blocks: %d,
-#>>0x800		beshort		0x504D		
-#>>>0x830	string		x		fourth type: %s,
-#>>>0x810	string		x		name: %s,
-#>>>0x854	belong		x		number of blocks: %d,
-#>>>0xa00	beshort		0x504D		
-#>>>>0xa30	string		x		fifth type: %s,
-#>>>>0xa10	string		x		name: %s,
-#>>>>0xa54	belong		x		number of blocks: %d
-#>>>0xc00	beshort		0x504D
-#>>>>0xc30	string		x		sixth type: %s,
-#>>>>0xc10	string		x		name: %s,
-#>>>>0xc54	belong		x		number of blocks: %d
 ## AFAIK, only the signature is different
+# same as Apple Partition Map
+# GRR: This magic is too weak, it is just "TS"
 #0x200		beshort		0x5453		Apple Old Partition data
 #>0x2		beshort		x		block size: %d,
 #>0x230		string		x		first type: %s,

@@ -2,8 +2,7 @@
 
 LIB=	heimntlm
 LDFLAGS=	-Wl,--no-undefined
-LDADD=	-lcrypto -lcom_err -lkrb5 -lroken
-DPADD=	${LIBCRYPTO} ${LIBCOM_ERR} ${LIBKRB5} ${LIBROKEN}
+LIBADD=	crypto com_err krb5 roken
 SRCS=	ntlm.c ntlm_err.c
 INCS=	heimntlm.h heimntlm-protos.h ntlm_err.h
 CFLAGS+=-I${KRB5DIR}/lib/ntlm -I${KRB5DIR}/lib/roken

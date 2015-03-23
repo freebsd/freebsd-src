@@ -2,8 +2,7 @@
 # $FreeBSD$
 
 PROG=	fingerd
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+LIBADD=	util
 MAN=	fingerd.8
 
 WARNS?=	2

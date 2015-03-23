@@ -12,13 +12,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_GR_BUGREPORTER
-#define LLVM_CLANG_GR_BUGREPORTER
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_BUGREPORTER_BUGREPORTER_H
+#define LLVM_CLANG_STATICANALYZER_CORE_BUGREPORTER_BUGREPORTER_H
 
 #include "clang/Basic/SourceLocation.h"
 #include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporterVisitor.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
+#include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/FoldingSet.h"
@@ -62,7 +63,7 @@ public:
   };
 
   typedef const SourceRange *ranges_iterator;
-  typedef SmallVector<BugReporterVisitor *, 8> VisitorList;
+  typedef SmallVector<std::unique_ptr<BugReporterVisitor>, 8> VisitorList;
   typedef VisitorList::iterator visitor_iterator;
   typedef SmallVector<StringRef, 2> ExtraTextList;
 
@@ -143,19 +144,18 @@ private:
 
 public:
   BugReport(BugType& bt, StringRef desc, const ExplodedNode *errornode)
-    : BT(bt), DeclWithIssue(0), Description(desc), ErrorNode(errornode),
+    : BT(bt), DeclWithIssue(nullptr), Description(desc), ErrorNode(errornode),
       ConfigurationChangeToken(0), DoNotPrunePath(false) {}
 
   BugReport(BugType& bt, StringRef shortDesc, StringRef desc,
             const ExplodedNode *errornode)
-    : BT(bt), DeclWithIssue(0), ShortDescription(shortDesc), Description(desc),
-      ErrorNode(errornode), ConfigurationChangeToken(0),
+    : BT(bt), DeclWithIssue(nullptr), ShortDescription(shortDesc),
+      Description(desc), ErrorNode(errornode), ConfigurationChangeToken(0),
       DoNotPrunePath(false) {}
 
-  BugReport(BugType& bt, StringRef desc, PathDiagnosticLocation l)
-    : BT(bt), DeclWithIssue(0), Description(desc), Location(l), ErrorNode(0),
-      ConfigurationChangeToken(0),
-      DoNotPrunePath(false) {}
+  BugReport(BugType &bt, StringRef desc, PathDiagnosticLocation l)
+    : BT(bt), DeclWithIssue(nullptr), Description(desc), Location(l),
+      ErrorNode(nullptr), ConfigurationChangeToken(0), DoNotPrunePath(false) {}
 
   /// \brief Create a BugReport with a custom uniqueing location.
   ///
@@ -166,7 +166,7 @@ public:
   /// the allocation site, rather then the location where the bug is reported.
   BugReport(BugType& bt, StringRef desc, const ExplodedNode *errornode,
             PathDiagnosticLocation LocationToUnique, const Decl *DeclToUnique)
-    : BT(bt), DeclWithIssue(0), Description(desc),
+    : BT(bt), DeclWithIssue(nullptr), Description(desc),
       UniqueingLocation(LocationToUnique),
       UniqueingDecl(DeclToUnique),
       ErrorNode(errornode), ConfigurationChangeToken(0),
@@ -179,9 +179,9 @@ public:
 
   const ExplodedNode *getErrorNode() const { return ErrorNode; }
 
-  const StringRef getDescription() const { return Description; }
+  StringRef getDescription() const { return Description; }
 
-  const StringRef getShortDescription(bool UseFallback = true) const {
+  StringRef getShortDescription(bool UseFallback = true) const {
     if (ShortDescription.empty() && UseFallback)
       return Description;
     return ShortDescription;
@@ -299,9 +299,9 @@ public:
   /// \sa registerConditionVisitor(), registerTrackNullOrUndefValue(),
   /// registerFindLastStore(), registerNilReceiverVisitor(), and
   /// registerVarDeclsLastStore().
-  void addVisitor(BugReporterVisitor *visitor);
+  void addVisitor(std::unique_ptr<BugReporterVisitor> visitor);
 
-	/// Iterators through the custom diagnostic visitors.
+  /// Iterators through the custom diagnostic visitors.
   visitor_iterator visitor_begin() { return Callbacks.begin(); }
   visitor_iterator visitor_end() { return Callbacks.end(); }
 
@@ -345,9 +345,12 @@ class BugReportEquivClass : public llvm::FoldingSetNode {
   llvm::ilist<BugReport> Reports;
 
   friend class BugReporter;
-  void AddReport(BugReport* R) { Reports.push_back(R); }
+  void AddReport(std::unique_ptr<BugReport> R) {
+    Reports.push_back(R.release());
+  }
+
 public:
-  BugReportEquivClass(BugReport* R) { Reports.push_back(R); }
+  BugReportEquivClass(std::unique_ptr<BugReport> R) { AddReport(std::move(R)); }
   ~BugReportEquivClass();
 
   void Profile(llvm::FoldingSetNodeID& ID) const {
@@ -463,7 +466,12 @@ public:
   /// reports.
   void emitReport(BugReport *R);
 
-  void EmitBasicReport(const Decl *DeclWithIssue,
+  void EmitBasicReport(const Decl *DeclWithIssue, const CheckerBase *Checker,
+                       StringRef BugName, StringRef BugCategory,
+                       StringRef BugStr, PathDiagnosticLocation Loc,
+                       ArrayRef<SourceRange> Ranges = None);
+
+  void EmitBasicReport(const Decl *DeclWithIssue, CheckName CheckName,
                        StringRef BugName, StringRef BugCategory,
                        StringRef BugStr, PathDiagnosticLocation Loc,
                        ArrayRef<SourceRange> Ranges = None);
@@ -473,7 +481,8 @@ private:
 
   /// \brief Returns a BugType that is associated with the given name and
   /// category.
-  BugType *getBugTypeForName(StringRef name, StringRef category);
+  BugType *getBugTypeForName(CheckName CheckName, StringRef name,
+                             StringRef category);
 };
 
 // FIXME: Get rid of GRBugReporter.  It's the wrong abstraction.
@@ -505,9 +514,8 @@ public:
   ///
   /// \return True if the report was valid and a path was generated,
   ///         false if the reports should be considered invalid.
-  virtual bool generatePathDiagnostic(PathDiagnostic &PD,
-                                      PathDiagnosticConsumer &PC,
-                                      ArrayRef<BugReport*> &bugReports);
+  bool generatePathDiagnostic(PathDiagnostic &PD, PathDiagnosticConsumer &PC,
+                              ArrayRef<BugReport*> &bugReports) override;
 
   /// classof - Used by isa<>, cast<>, and dyn_cast<>.
   static bool classof(const BugReporter* R) {

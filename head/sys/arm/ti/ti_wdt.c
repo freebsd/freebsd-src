@@ -95,7 +95,7 @@ static devclass_t ti_wdt_devclass;
 
 DRIVER_MODULE(ti_wdt, simplebus, ti_wdt_driver, ti_wdt_devclass, 0, 0);
 
-static volatile __inline uint32_t
+static __inline uint32_t
 ti_wdt_reg_read(struct ti_wdt_softc *sc, uint32_t reg)
 {
 

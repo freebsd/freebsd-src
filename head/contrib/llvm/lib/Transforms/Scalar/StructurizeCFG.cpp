@@ -7,19 +7,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "structurizecfg"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/SCCIterator.h"
+#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/RegionInfo.h"
 #include "llvm/Analysis/RegionIterator.h"
 #include "llvm/Analysis/RegionPass.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Support/PatternMatch.h"
+#include "llvm/IR/PatternMatch.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
 
 using namespace llvm;
 using namespace llvm::PatternMatch;
+
+#define DEBUG_TYPE "structurizecfg"
 
 namespace {
 
@@ -64,14 +66,14 @@ public:
   /// \brief Start a new query
   NearestCommonDominator(DominatorTree *DomTree) {
     DT = DomTree;
-    Result = 0;
+    Result = nullptr;
   }
 
   /// \brief Add BB to the resulting dominator
   void addBlock(BasicBlock *BB, bool Remember = true) {
     DomTreeNode *Node = DT->getNode(BB);
 
-    if (Result == 0) {
+    if (!Result) {
       unsigned Numbering = 0;
       for (;Node;Node = Node->getIDom())
         IndexMap[Node] = ++Numbering;
@@ -165,6 +167,7 @@ class StructurizeCFG : public RegionPass {
   Region *ParentRegion;
 
   DominatorTree *DT;
+  LoopInfo *LI;
 
   RNVector Order;
   BBSet Visited;
@@ -235,18 +238,19 @@ public:
   }
 
   using Pass::doInitialization;
-  virtual bool doInitialization(Region *R, RGPassManager &RGM);
+  bool doInitialization(Region *R, RGPassManager &RGM) override;
 
-  virtual bool runOnRegion(Region *R, RGPassManager &RGM);
+  bool runOnRegion(Region *R, RGPassManager &RGM) override;
 
-  virtual const char *getPassName() const {
+  const char *getPassName() const override {
     return "Structurize control flow";
   }
 
-  void getAnalysisUsage(AnalysisUsage &AU) const {
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequiredID(LowerSwitchID);
-    AU.addRequired<DominatorTree>();
-    AU.addPreserved<DominatorTree>();
+    AU.addRequired<DominatorTreeWrapperPass>();
+    AU.addRequired<LoopInfo>();
+    AU.addPreserved<DominatorTreeWrapperPass>();
     RegionPass::getAnalysisUsage(AU);
   }
 };
@@ -258,8 +262,8 @@ char StructurizeCFG::ID = 0;
 INITIALIZE_PASS_BEGIN(StructurizeCFG, "structurizecfg", "Structurize the CFG",
                       false, false)
 INITIALIZE_PASS_DEPENDENCY(LowerSwitch)
-INITIALIZE_PASS_DEPENDENCY(DominatorTree)
-INITIALIZE_PASS_DEPENDENCY(RegionInfo)
+INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(RegionInfoPass)
 INITIALIZE_PASS_END(StructurizeCFG, "structurizecfg", "Structurize the CFG",
                     false, false)
 
@@ -277,10 +281,9 @@ bool StructurizeCFG::doInitialization(Region *R, RGPassManager &RGM) {
 
 /// \brief Build up the general order of nodes
 void StructurizeCFG::orderNodes() {
-  scc_iterator<Region *> I = scc_begin(ParentRegion),
-                         E = scc_end(ParentRegion);
-  for (Order.clear(); I != E; ++I) {
-    std::vector<RegionNode *> &Nodes = *I;
+  scc_iterator<Region *> I = scc_begin(ParentRegion);
+  for (Order.clear(); !I.isAtEnd(); ++I) {
+    const std::vector<RegionNode *> &Nodes = *I;
     Order.append(Nodes.begin(), Nodes.end());
   }
 }
@@ -301,8 +304,9 @@ void StructurizeCFG::analyzeLoops(RegionNode *N) {
     for (unsigned i = 0, e = Term->getNumSuccessors(); i != e; ++i) {
       BasicBlock *Succ = Term->getSuccessor(i);
 
-      if (Visited.count(Succ))
+      if (Visited.count(Succ) && LI->isLoopHeader(Succ) ) {
         Loops[Succ] = BB;
+      }
     }
   }
 }
@@ -326,16 +330,10 @@ Value *StructurizeCFG::invert(Value *Condition) {
   if (Instruction *Inst = dyn_cast<Instruction>(Condition)) {
     // Third: Check all the users for an invert
     BasicBlock *Parent = Inst->getParent();
-    for (Value::use_iterator I = Condition->use_begin(),
-           E = Condition->use_end(); I != E; ++I) {
-
-      Instruction *User = dyn_cast<Instruction>(*I);
-      if (!User || User->getParent() != Parent)
-        continue;
-
-      if (match(*I, m_Not(m_Specific(Condition))))
-        return *I;
-    }
+    for (User *U : Condition->users())
+      if (Instruction *I = dyn_cast<Instruction>(U))
+        if (I->getParent() == Parent && match(I, m_Not(m_Specific(Condition))))
+          return I;
 
     // Last option: Create a new instruction
     return BinaryOperator::CreateNot(Condition, "", Parent->getTerminator());
@@ -412,11 +410,11 @@ void StructurizeCFG::gatherPredicates(RegionNode *N) {
     } else {
 
       // It's an exit from a sub region
-      while(R->getParent() != ParentRegion)
+      while (R->getParent() != ParentRegion)
         R = R->getParent();
 
       // Edge from inside a subregion to its entry, ignore it
-      if (R == N)
+      if (*R == *N)
         continue;
 
       BasicBlock *Entry = R->getEntry();
@@ -460,10 +458,7 @@ void StructurizeCFG::insertConditions(bool Loops) {
   Value *Default = Loops ? BoolTrue : BoolFalse;
   SSAUpdater PhiInserter;
 
-  for (BranchVector::iterator I = Conds.begin(),
-       E = Conds.end(); I != E; ++I) {
-
-    BranchInst *Term = *I;
+  for (BranchInst *Term : Conds) {
     assert(Term->isConditional());
 
     BasicBlock *Parent = Term->getParent();
@@ -479,7 +474,7 @@ void StructurizeCFG::insertConditions(bool Loops) {
     NearestCommonDominator Dominator(DT);
     Dominator.addBlock(Parent, false);
 
-    Value *ParentValue = 0;
+    Value *ParentValue = nullptr;
     for (BBPredicates::iterator PI = Preds.begin(), PE = Preds.end();
          PI != PE; ++PI) {
 
@@ -598,7 +593,7 @@ void StructurizeCFG::changeExit(RegionNode *Node, BasicBlock *NewExit,
   if (Node->isSubRegion()) {
     Region *SubRegion = Node->getNodeAs<Region>();
     BasicBlock *OldExit = SubRegion->getExit();
-    BasicBlock *Dominator = 0;
+    BasicBlock *Dominator = nullptr;
 
     // Find all the edges from the sub region to the exit
     for (pred_iterator I = pred_begin(OldExit), E = pred_end(OldExit);
@@ -685,7 +680,8 @@ BasicBlock *StructurizeCFG::needPostfix(BasicBlock *Flow,
 
 /// \brief Set the previous node
 void StructurizeCFG::setPrevNode(BasicBlock *BB) {
-  PrevNode =  ParentRegion->contains(BB) ? ParentRegion->getBBNode(BB) : 0;
+  PrevNode = ParentRegion->contains(BB) ? ParentRegion->getBBNode(BB)
+                                        : nullptr;
 }
 
 /// \brief Does BB dominate all the predicates of Node ?
@@ -706,7 +702,7 @@ bool StructurizeCFG::isPredictableTrue(RegionNode *Node) {
   bool Dominated = false;
 
   // Regionentry is always true
-  if (PrevNode == 0)
+  if (!PrevNode)
     return true;
 
   for (BBPredicates::iterator I = Preds.begin(), E = Preds.end();
@@ -813,11 +809,11 @@ void StructurizeCFG::createFlow() {
   Conditions.clear();
   LoopConds.clear();
 
-  PrevNode = 0;
+  PrevNode = nullptr;
   Visited.clear();
 
   while (!Order.empty()) {
-    handleLoops(EntryDominatesExit, 0);
+    handleLoops(EntryDominatesExit, nullptr);
   }
 
   if (PrevNode)
@@ -830,25 +826,19 @@ void StructurizeCFG::createFlow() {
 /// no longer dominate all their uses. Not sure if this is really nessasary
 void StructurizeCFG::rebuildSSA() {
   SSAUpdater Updater;
-  for (Region::block_iterator I = ParentRegion->block_begin(),
-                              E = ParentRegion->block_end();
-       I != E; ++I) {
-
-    BasicBlock *BB = *I;
+  for (const auto &BB : ParentRegion->blocks())
     for (BasicBlock::iterator II = BB->begin(), IE = BB->end();
          II != IE; ++II) {
 
       bool Initialized = false;
-      for (Use *I = &II->use_begin().getUse(), *Next; I; I = Next) {
-
-        Next = I->getNext();
-
-        Instruction *User = cast<Instruction>(I->getUser());
+      for (auto I = II->use_begin(), E = II->use_end(); I != E;) {
+        Use &U = *I++;
+        Instruction *User = cast<Instruction>(U.getUser());
         if (User->getParent() == BB) {
           continue;
 
         } else if (PHINode *UserPN = dyn_cast<PHINode>(User)) {
-          if (UserPN->getIncomingBlock(*I) == BB)
+          if (UserPN->getIncomingBlock(U) == BB)
             continue;
         }
 
@@ -862,10 +852,9 @@ void StructurizeCFG::rebuildSSA() {
           Updater.AddAvailableValue(BB, II);
           Initialized = true;
         }
-        Updater.RewriteUseAfterInsertions(*I);
+        Updater.RewriteUseAfterInsertions(U);
       }
     }
-  }
 }
 
 /// \brief Run the transformation for each region found
@@ -876,7 +865,8 @@ bool StructurizeCFG::runOnRegion(Region *R, RGPassManager &RGM) {
   Func = R->getEntry()->getParent();
   ParentRegion = R;
 
-  DT = &getAnalysis<DominatorTree>();
+  DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
+  LI = &getAnalysis<LoopInfo>();
 
   orderNodes();
   collectInfos();

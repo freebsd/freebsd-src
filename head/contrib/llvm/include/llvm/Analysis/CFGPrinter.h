@@ -15,11 +15,10 @@
 #ifndef LLVM_ANALYSIS_CFGPRINTER_H
 #define LLVM_ANALYSIS_CFGPRINTER_H
 
-#include "llvm/Assembly/Writer.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/Support/CFG.h"
 #include "llvm/Support/GraphWriter.h"
 
 namespace llvm {
@@ -40,7 +39,7 @@ struct DOTGraphTraits<const Function*> : public DefaultDOTGraphTraits {
     std::string Str;
     raw_string_ostream OS(Str);
 
-    WriteAsOperand(OS, Node, false);
+    Node->printAsOperand(OS, false);
     return OS.str();
   }
 
@@ -51,7 +50,7 @@ struct DOTGraphTraits<const Function*> : public DefaultDOTGraphTraits {
     raw_string_ostream OS(Str);
 
     if (Node->getName().empty()) {
-      WriteAsOperand(OS, Node, false);
+      Node->printAsOperand(OS, false);
       OS << ":";
     }
 
@@ -73,13 +72,13 @@ struct DOTGraphTraits<const Function*> : public DefaultDOTGraphTraits {
         OutStr.erase(OutStr.begin()+i, OutStr.begin()+Idx);
         --i;
       } else if (ColNum == MaxColumns) {                  // Wrap lines.
-        if (LastSpace) {
-          OutStr.insert(LastSpace, "\\l...");
-          ColNum = i - LastSpace;
-          LastSpace = 0;
-          i += 3; // The loop will advance 'i' again.
-        }
-        // Else keep trying to find a space.
+        // Wrap very long names even though we can't find a space.
+        if (!LastSpace)
+          LastSpace = i;
+        OutStr.insert(LastSpace, "\\l...");
+        ColNum = i - LastSpace;
+        LastSpace = 0;
+        i += 3; // The loop will advance 'i' again.
       }
       else
         ++ColNum;

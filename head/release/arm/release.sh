@@ -99,6 +99,7 @@ main() {
 	BRANCH=$(chroot ${CHROOTDIR} make -C /usr/src/release -V BRANCH)
 	UNAME_r=${REVISION}-${BRANCH}
 	export UNAME_r
+	export XZ_CMD=$(chroot ${CHROOTDIR} make -C /usr/src/release -V XZ_CMD)
 
 	# Build the 'xdev' target for crochet.
 	eval chroot ${CHROOTDIR} make -C /usr/src \
@@ -127,6 +128,14 @@ main() {
 			BATCH=1 FORCE_PKG_REGISTER=1 install clean distclean
 	done
 
+	# Certain u-boot versions hardcode the use of a host gcc, and gcc's
+	# build relies on having gperf installed.
+	eval chroot ${CHROOTDIR} make -C /usr/src/gnu/usr.bin/gperf \
+		WITH_GCC=1 ${WORLD_FLAGS} obj
+	eval chroot ${CHROOTDIR} make -C /usr/src/gnu/usr.bin/gperf \
+		WITH_GCC=1 ${WORLD_FLAGS} -j1 depend all
+	eval chroot ${CHROOTDIR} make -C /usr/src/gnu/usr.bin/gperf \
+		WITH_GCC=1 ${WORLD_FLAGS} -j1 install
 	eval chroot ${CHROOTDIR} make -C /usr/src/gnu/usr.bin/cc \
 		WITH_GCC=1 ${WORLD_FLAGS} -j1 obj depend all install
 
@@ -138,9 +147,9 @@ main() {
 		-c /tmp/external/${XDEV}/crochet-${KERNEL}.conf
 	mkdir -p ${CHROOTDIR}/R/
 	cp -p ${CHROOTDIR}/usr/obj/*.img ${CHROOTDIR}/R/
-	bzip2 ${CHROOTDIR}/R/FreeBSD*.img
-	cd ${CHROOTDIR}/R/ && sha256 FreeBSD*.img.bz2 > CHECKSUM.SHA256
-	cd ${CHROOTDIR}/R/ && md5 FreeBSD*.img.bz2 > CHECKSUM.MD5
+	${XZ_CMD} ${CHROOTDIR}/R/FreeBSD*.img
+	cd ${CHROOTDIR}/R/ && sha256 FreeBSD*.img.xz > CHECKSUM.SHA256
+	cd ${CHROOTDIR}/R/ && md5 FreeBSD*.img.xz > CHECKSUM.MD5
 }
 
 main "$@"

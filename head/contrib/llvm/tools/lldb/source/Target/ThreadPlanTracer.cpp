@@ -166,17 +166,6 @@ ThreadPlanAssemblyTracer::TracingEnded ()
     m_register_values.clear();
 }
 
-static void
-PadOutTo (StreamString &stream, int target)
-{
-    stream.Flush();
-
-    int length = stream.GetString().length();
-
-    if (length + 1 < target)
-        stream.Printf("%*s", target - (length + 1) + 1, "");
-}
-
 void 
 ThreadPlanAssemblyTracer::Log ()
 {
@@ -223,11 +212,15 @@ ThreadPlanAssemblyTracer::Log ()
                 const bool show_bytes = true;
                 const bool show_address = true;
                 Instruction *instruction = instruction_list.GetInstructionAtIndex(0).get();
+                const char *disassemble_format = "${addr-file-or-load}: ";
                 instruction->Dump (stream,
                                    max_opcode_byte_size,
                                    show_address,
                                    show_bytes,
-                                   NULL);
+                                   NULL,
+                                   NULL,
+                                   NULL,
+                                   disassemble_format);
             }
         }
     }

@@ -343,7 +343,6 @@ restart:
 	 * we watch for a place to put the new file in
 	 * case it doesn't already exist.
 	 */
-	ino = 0;
 	i_diroff = dp->i_diroff;
 	ss.slotstatus = FOUND;
 	ss.slotfreespace = ss.slotsize = ss.slotneeded = 0;
@@ -514,7 +513,7 @@ notfound:
 	/*
 	 * Insert name into cache (as non-existent) if appropriate.
 	 */
-	if ((cnp->cn_flags & MAKEENTRY) && nameiop != CREATE)
+	if ((cnp->cn_flags & MAKEENTRY) != 0)
 		cache_enter(vdp, NULL, cnp);
 	return (ENOENT);
 
@@ -801,11 +800,13 @@ ext2_dirbad(struct inode *ip, doff_t offset, char *how)
 
 	mp = ITOV(ip)->v_mount;
 	if ((mp->mnt_flag & MNT_RDONLY) == 0)
-		panic("ext2_dirbad: %s: bad dir ino %lu at offset %ld: %s\n",
-			mp->mnt_stat.f_mntonname, (u_long)ip->i_number,(long)offset, how);
+		panic("ext2_dirbad: %s: bad dir ino %ju at offset %ld: %s\n",
+		    mp->mnt_stat.f_mntonname, (uintmax_t)ip->i_number,
+		    (long)offset, how);
 	else
-	(void)printf("%s: bad dir ino %lu at offset %ld: %s\n",
-	    mp->mnt_stat.f_mntonname, (u_long)ip->i_number, (long)offset, how);
+		(void)printf("%s: bad dir ino %ju at offset %ld: %s\n",
+		    mp->mnt_stat.f_mntonname, (uintmax_t)ip->i_number,
+		    (long)offset, how);
 
 }
 

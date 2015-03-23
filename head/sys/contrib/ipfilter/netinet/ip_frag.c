@@ -112,7 +112,7 @@ static void ipf_frag_free __P((ipf_frag_softc_t *, ipfr_t *));
 
 static frentry_t ipfr_block;
 
-ipftuneable_t ipf_tuneables[] = {
+const ipftuneable_t ipf_tuneables[] = {
 	{ { (void *)offsetof(ipf_frag_softc_t, ipfr_size) },
 		"frag_size",		1,	0x7fffffff,
 		stsizeof(ipf_frag_softc_t, ipfr_size),

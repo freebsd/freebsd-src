@@ -8,7 +8,6 @@
 SUBDIR=adjkerntz \
 	badsect \
 	camcontrol \
-	ccdconfig \
 	clri \
 	comcontrol \
 	conscontrol \
@@ -31,11 +30,8 @@ SUBDIR=adjkerntz \
 	ggate \
 	growfs \
 	gvinum \
-	hastctl \
-	hastd \
 	ifconfig \
 	init \
-	iscontrol \
 	kldconfig \
 	kldload \
 	kldstat \
@@ -82,10 +78,24 @@ SUBDIR+=	atm
 SUBDIR+=	casperd
 .endif
 
+.if ${MK_CCD} != "no"
+SUBDIR+=	ccdconfig
+.endif
+
 .if ${MK_CXX} != "no"
 SUBDIR+=	devd
 .endif
 
+.if ${MK_HAST} != "no"
+SUBDIR+=	hastctl
+SUBDIR+=	hastd
+.endif
+
+.if ${MK_INET6} != "no"
+SUBDIR+=	ping6
+SUBDIR+=	rtsol
+.endif
+	
 .if ${MK_IPFILTER} != "no"
 SUBDIR+=	ipf
 .endif
@@ -93,6 +103,10 @@ SUBDIR+=	ipf
 .if ${MK_IPFW} != "no"
 SUBDIR+=	ipfw
 SUBDIR+=	natd
+.endif
+
+.if ${MK_ISCSI} != "no"
+SUBDIR+=	iscontrol
 .endif
 
 .if ${MK_NAND} != "no"
@@ -103,11 +117,6 @@ SUBDIR+=	newfs_nandfs
 .if ${MK_PF} != "no"
 SUBDIR+=	pfctl
 SUBDIR+=	pflogd
-.endif
-
-.if ${MK_INET6} != "no"
-SUBDIR+=	ping6
-SUBDIR+=	rtsol
 .endif
 
 .if ${MK_QUOTAS} != "no"

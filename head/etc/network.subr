@@ -372,7 +372,6 @@ dhcpif()
 	case $1 in
 	lo[0-9]*|\
 	stf[0-9]*|\
-	faith[0-9]*|\
 	lp[0-9]*|\
 	sl[0-9]*)
 		return 1
@@ -591,7 +590,6 @@ ipv6_autoconfif()
 	case $_if in
 	lo[0-9]*|\
 	stf[0-9]*|\
-	faith[0-9]*|\
 	lp[0-9]*|\
 	sl[0-9]*)
 		return 1
@@ -756,7 +754,7 @@ ipv6_down()
 	IFS="$_ifs"
 	for _inet6 in $inetList ; do
 		# get rid of extraneous line
-		case $_inet in
+		case $_inet6 in
 		inet6\ *)	;;
 		*)		continue ;;
 		esac

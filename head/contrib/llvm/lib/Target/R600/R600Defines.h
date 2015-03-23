@@ -8,8 +8,8 @@
 /// \file
 //===----------------------------------------------------------------------===//
 
-#ifndef R600DEFINES_H_
-#define R600DEFINES_H_
+#ifndef LLVM_LIB_TARGET_R600_R600DEFINES_H
+#define LLVM_LIB_TARGET_R600_R600DEFINES_H
 
 #include "llvm/MC/MCRegisterInfo.h"
 
@@ -52,7 +52,7 @@ namespace R600_InstFlag {
 
 #define HAS_NATIVE_OPERANDS(Flags) ((Flags) & R600_InstFlag::NATIVE_OPERANDS)
 
-/// \brief Defines for extracting register infomation from register encoding
+/// \brief Defines for extracting register information from register encoding
 #define HW_REG_MASK 0x1ff
 #define HW_CHAN_SHIFT 9
 
@@ -168,4 +168,4 @@ namespace OpName {
 
 #define R_0288E8_SQ_LDS_ALLOC                        0x0288E8
 
-#endif // R600DEFINES_H_
+#endif

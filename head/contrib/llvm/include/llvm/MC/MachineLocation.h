@@ -28,7 +28,7 @@ private:
   unsigned Register;                    // gcc/gdb register number.
   int Offset;                           // Displacement if not register.
 public:
-  enum LLVM_ENUM_INT_TYPE(uint32_t) {
+  enum : uint32_t {
     // The target register number for an abstract frame pointer. The value is
     // an arbitrary value that doesn't collide with any real target register.
     VirtualFP = ~0U
@@ -73,6 +73,11 @@ public:
   void dump();
 #endif
 };
+
+inline bool operator!=(const MachineLocation &LHS, const MachineLocation &RHS) {
+  return !(LHS == RHS);
+}
+
 } // End llvm namespace
 
 #endif

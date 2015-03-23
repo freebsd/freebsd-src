@@ -14,8 +14,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86DISASSEMBLERTABLES_H
-#define X86DISASSEMBLERTABLES_H
+#ifndef LLVM_UTILS_TABLEGEN_X86DISASSEMBLERTABLES_H
+#define LLVM_UTILS_TABLEGEN_X86DISASSEMBLERTABLES_H
 
 #include "X86DisassemblerShared.h"
 #include "X86ModRMFilters.h"
@@ -38,12 +38,10 @@ private:
   /// [1] two-byte opcodes of the form 0f __
   /// [2] three-byte opcodes of the form 0f 38 __
   /// [3] three-byte opcodes of the form 0f 3a __
-  /// [4] three-byte opcodes of the form 0f a6 __
-  /// [5] three-byte opcodes of the form 0f a7 __
-  /// [6] XOP8 map opcode
-  /// [7] XOP9 map opcode
-  /// [8] XOPA map opcode
-  ContextDecision* Tables[9];
+  /// [4] XOP8 map opcode
+  /// [5] XOP9 map opcode
+  /// [6] XOPA map opcode
+  ContextDecision* Tables[7];
 
   // Table of ModRM encodings.
   typedef std::map<std::vector<unsigned>, unsigned> ModRMMapTy;
@@ -132,8 +130,7 @@ private:
   ///   }
   ///
   ///   NAME is the name of the ContextDecision (typically one of the four names
-  ///   ONEBYTE_SYM, TWOBYTE_SYM, THREEBYTE38_SYM, THREEBYTE3A_SYM,
-  ///   THREEBYTEA6_SYM, and THREEBYTEA7_SYM from
+  ///   ONEBYTE_SYM, TWOBYTE_SYM, THREEBYTE38_SYM, THREEBYTE3A_SYM from
   ///   X86DisassemblerDecoderCommon.h).
   ///   IC is one of the contexts in InstructionContext.  There is an opcode
   ///   decision for each possible context.
@@ -248,13 +245,15 @@ public:
   /// @param uid          - The unique ID of the instruction.
   /// @param is32bit      - Instructon is only 32-bit
   /// @param ignoresVEX_L - Instruction ignores VEX.L
+  /// @param AddrSize     - Instructions address size 16/32/64. 0 is unspecified
   void setTableFields(OpcodeType type,
                       InstructionContext insnContext,
                       uint8_t opcode,
                       const ModRMFilter &filter,
                       InstrUID uid,
                       bool is32bit,
-                      bool ignoresVEX_L);
+                      bool ignoresVEX_L,
+                      unsigned AddrSize);
 
   /// specForUID - Returns the instruction specifier for a given unique
   ///   instruction ID.  Used when resolving collisions.

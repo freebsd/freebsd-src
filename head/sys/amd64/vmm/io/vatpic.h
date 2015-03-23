@@ -39,11 +39,11 @@
 struct vatpic *vatpic_init(struct vm *vm);
 void vatpic_cleanup(struct vatpic *vatpic);
 
-int vatpic_master_handler(void *vm, int vcpuid, bool in, int port, int bytes,
-    uint32_t *eax);
-int vatpic_slave_handler(void *vm, int vcpuid, bool in, int port, int bytes,
-    uint32_t *eax);
-int vatpic_elc_handler(void *vm, int vcpuid, bool in, int port, int bytes,
+int vatpic_master_handler(struct vm *vm, int vcpuid, bool in, int port,
+    int bytes, uint32_t *eax);
+int vatpic_slave_handler(struct vm *vm, int vcpuid, bool in, int port,
+    int bytes, uint32_t *eax);
+int vatpic_elc_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
     uint32_t *eax);
 
 int vatpic_assert_irq(struct vm *vm, int irq);

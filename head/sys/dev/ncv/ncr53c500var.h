@@ -42,10 +42,6 @@
 struct ncv_softc {
 	struct scsi_low_softc sc_sclow;		/* generic data */
 
-	bus_space_tag_t sc_iot;
-	bus_space_tag_t sc_memt;
-	bus_space_handle_t sc_ioh;
-
 	int port_rid;
 	int port_rid_dmy;
 	int irq_rid;
@@ -80,7 +76,7 @@ struct ncv_targ_info {
 /*****************************************************************
  * Proto
  *****************************************************************/
-int ncvprobesubr(bus_space_tag_t, bus_space_handle_t ioh, u_int, int);
+int ncvprobesubr(struct resource *, u_int, int);
 void ncvattachsubr(struct ncv_softc *);
 int ncvintr(void *);
 

@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_CODEGEN_CGRECORDLAYOUT_H
-#define CLANG_CODEGEN_CGRECORDLAYOUT_H
+#ifndef LLVM_CLANG_LIB_CODEGEN_CGRECORDLAYOUT_H
+#define LLVM_CLANG_LIB_CODEGEN_CGRECORDLAYOUT_H
 
 #include "clang/AST/CharUnits.h"
 #include "clang/AST/Decl.h"
@@ -130,7 +130,7 @@ private:
   llvm::DenseMap<const FieldDecl *, CGBitFieldInfo> BitFields;
 
   // FIXME: Maybe we could use a CXXBaseSpecifier as the key and use a single
-  // map for both virtual and non virtual bases.
+  // map for both virtual and non-virtual bases.
   llvm::DenseMap<const CXXRecordDecl *, unsigned> NonVirtualBases;
 
   /// Map from virtual bases to their field index in the complete object.
@@ -183,6 +183,7 @@ public:
   /// \brief Return llvm::StructType element number that corresponds to the
   /// field FD.
   unsigned getLLVMFieldNo(const FieldDecl *FD) const {
+    FD = FD->getCanonicalDecl();
     assert(FieldInfo.count(FD) && "Invalid field for record!");
     return FieldInfo.lookup(FD);
   }
@@ -201,7 +202,8 @@ public:
 
   /// \brief Return the BitFieldInfo that corresponds to the field FD.
   const CGBitFieldInfo &getBitFieldInfo(const FieldDecl *FD) const {
-    assert(FD->isBitField() && "Invalid call for non bit-field decl!");
+    FD = FD->getCanonicalDecl();
+    assert(FD->isBitField() && "Invalid call for non-bit-field decl!");
     llvm::DenseMap<const FieldDecl *, CGBitFieldInfo>::const_iterator
       it = BitFields.find(FD);
     assert(it != BitFields.end() && "Unable to find bitfield info");

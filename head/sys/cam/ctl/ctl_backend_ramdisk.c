@@ -238,9 +238,10 @@ ctl_backend_ramdisk_move_done(union ctl_io *io)
 	if (io->scsiio.kern_sg_entries > 0)
 		free(io->scsiio.kern_data_ptr, M_RAMDISK);
 	io->scsiio.kern_rel_offset += io->scsiio.kern_data_len;
-	if ((io->io_hdr.port_status == 0)
-	 && ((io->io_hdr.flags & CTL_FLAG_ABORT) == 0)
-	 && ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE)) {
+	if (io->io_hdr.flags & CTL_FLAG_ABORT) {
+		;
+	} else if ((io->io_hdr.port_status == 0) &&
+	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE)) {
 		if (io->io_hdr.ctl_private[CTL_PRIV_BACKEND].integer > 0) {
 			mtx_lock(&be_lun->queue_lock);
 			STAILQ_INSERT_TAIL(&be_lun->cont_queue,
@@ -250,10 +251,10 @@ ctl_backend_ramdisk_move_done(union ctl_io *io)
 			    &be_lun->io_task);
 			return (0);
 		}
-		io->io_hdr.status = CTL_SUCCESS;
-	} else if ((io->io_hdr.port_status != 0)
-	      && ((io->io_hdr.flags & CTL_FLAG_ABORT) == 0)
-	      && ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE)){
+		ctl_set_success(&io->scsiio);
+	} else if ((io->io_hdr.port_status != 0) &&
+	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
+	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
 		/*
 		 * For hardware error sense keys, the sense key
 		 * specific value is defined to be a retry count,
@@ -312,8 +313,7 @@ ctl_backend_ramdisk_continue(union ctl_io *io)
 		sg_entries = (struct ctl_sg_entry *)io->scsiio.kern_data_ptr;
 		for (i = 0, len_filled = 0; i < sg_filled; i++) {
 			sg_entries[i].addr = softc->ramdisk_pages[i];
-			sg_entries[i].len = ctl_min(PAGE_SIZE,
-						    len - len_filled);
+			sg_entries[i].len = MIN(PAGE_SIZE, len - len_filled);
 			len_filled += sg_entries[i].len;
 		}
 		io->io_hdr.flags |= CTL_FLAG_KDPTR_SGLIST;
@@ -569,6 +569,8 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 		be_lun->size_bytes = be_lun->size_blocks * blocksize;
 
 		be_lun->ctl_be_lun.maxlba = be_lun->size_blocks - 1;
+		be_lun->ctl_be_lun.atomicblock = UINT32_MAX;
+		be_lun->ctl_be_lun.opttxferlen = softc->rd_size / blocksize;
 	} else {
 		be_lun->ctl_be_lun.maxlba = 0;
 		blocksize = 0;
@@ -586,16 +588,15 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 
 	be_lun->softc = softc;
 
-	unmap = 0;
+	unmap = 1;
 	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "unmap");
 	if (value != NULL && strcmp(value, "on") == 0)
-		unmap = 1;
+		unmap = (strcmp(value, "on") == 0);
 
 	be_lun->flags = CTL_BE_RAMDISK_LUN_UNCONFIGURED;
 	be_lun->ctl_be_lun.flags = CTL_LUN_FLAG_PRIMARY;
 	if (unmap)
 		be_lun->ctl_be_lun.flags |= CTL_LUN_FLAG_UNMAP;
-	be_lun->ctl_be_lun.atomicblock = UINT32_MAX;
 	be_lun->ctl_be_lun.be_lun = be_lun;
 
 	if (params->flags & CTL_LUN_FLAG_ID_REQ) {
@@ -612,32 +613,32 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 		snprintf(tmpstr, sizeof(tmpstr), "MYSERIAL%4d",
 			 softc->num_luns);
 		strncpy((char *)be_lun->ctl_be_lun.serial_num, tmpstr,
-			ctl_min(sizeof(be_lun->ctl_be_lun.serial_num),
-			sizeof(tmpstr)));
+			MIN(sizeof(be_lun->ctl_be_lun.serial_num),
+			    sizeof(tmpstr)));
 
 		/* Tell the user what we used for a serial number */
 		strncpy((char *)params->serial_num, tmpstr,
-			ctl_min(sizeof(params->serial_num), sizeof(tmpstr)));
+			MIN(sizeof(params->serial_num), sizeof(tmpstr)));
 	} else { 
 		strncpy((char *)be_lun->ctl_be_lun.serial_num,
 			params->serial_num,
-			ctl_min(sizeof(be_lun->ctl_be_lun.serial_num),
-			sizeof(params->serial_num)));
+			MIN(sizeof(be_lun->ctl_be_lun.serial_num),
+			    sizeof(params->serial_num)));
 	}
 	if ((params->flags & CTL_LUN_FLAG_DEVID) == 0) {
 		snprintf(tmpstr, sizeof(tmpstr), "MYDEVID%4d", softc->num_luns);
 		strncpy((char *)be_lun->ctl_be_lun.device_id, tmpstr,
-			ctl_min(sizeof(be_lun->ctl_be_lun.device_id),
-			sizeof(tmpstr)));
+			MIN(sizeof(be_lun->ctl_be_lun.device_id),
+			    sizeof(tmpstr)));
 
 		/* Tell the user what we used for a device ID */
 		strncpy((char *)params->device_id, tmpstr,
-			ctl_min(sizeof(params->device_id), sizeof(tmpstr)));
+			MIN(sizeof(params->device_id), sizeof(tmpstr)));
 	} else {
 		strncpy((char *)be_lun->ctl_be_lun.device_id,
 			params->device_id,
-			ctl_min(sizeof(be_lun->ctl_be_lun.device_id),
-				sizeof(params->device_id)));
+			MIN(sizeof(be_lun->ctl_be_lun.device_id),
+			    sizeof(params->device_id)));
 	}
 
 	STAILQ_INIT(&be_lun->cont_queue);
@@ -966,8 +967,31 @@ ctl_backend_ramdisk_config_write(union ctl_io *io)
 static int
 ctl_backend_ramdisk_config_read(union ctl_io *io)
 {
-	/*
-	 * XXX KDM need to implement!!
-	 */
-	return (0);
+	int retval = 0;
+
+	switch (io->scsiio.cdb[0]) {
+	case SERVICE_ACTION_IN:
+		if (io->scsiio.cdb[1] == SGLS_SERVICE_ACTION) {
+			/* We have nothing to tell, leave default data. */
+			ctl_config_read_done(io);
+			retval = CTL_RETVAL_COMPLETE;
+			break;
+		}
+		ctl_set_invalid_field(&io->scsiio,
+				      /*sks_valid*/ 1,
+				      /*command*/ 1,
+				      /*field*/ 1,
+				      /*bit_valid*/ 1,
+				      /*bit*/ 4);
+		ctl_config_read_done(io);
+		retval = CTL_RETVAL_COMPLETE;
+		break;
+	default:
+		ctl_set_invalid_opcode(&io->scsiio);
+		ctl_config_read_done(io);
+		retval = CTL_RETVAL_COMPLETE;
+		break;
+	}
+
+	return (retval);
 }

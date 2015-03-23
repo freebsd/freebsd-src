@@ -21,8 +21,7 @@ INCS+=	libcapsicum_random.h
 INCS+=	libcapsicum_service.h
 INCS+=	libcapsicum_sysctl.h
 
-DPADD=	${LIBNV}
-LDADD=	-lnv
+LIBADD=	nv
 
 CFLAGS+=-I${.CURDIR}
 CFLAGS+=-I${.CURDIR}/../libnv

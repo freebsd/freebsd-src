@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
 #include <sys/bus.h> 
 
 #include <dev/iicbus/iiconf.h>
@@ -96,6 +97,7 @@ iicbus_attach(device_t dev)
 
 	sc->dev = dev;
 	mtx_init(&sc->lock, "iicbus", NULL, MTX_DEF);
+	iicbus_init_frequency(dev, 0);
 	iicbus_reset(dev, IIC_FASTEST, 0, NULL);
 	if (resource_int_value(device_get_name(dev),
 		device_get_unit(dev), "strict", &strict) == 0)
@@ -243,6 +245,51 @@ iicbus_null_repeated_start(device_t dev, u_char addr)
 	return (IIC_ENOTSUPP);
 }
 
+void
+iicbus_init_frequency(device_t dev, u_int bus_freq)
+{
+	struct iicbus_softc *sc = IICBUS_SOFTC(dev);
+
+	/*
+	 * If a bus frequency value was passed in, use it.  Otherwise initialize
+	 * it first to the standard i2c 100KHz frequency, then override that
+	 * from a hint if one exists.
+	 */
+	if (bus_freq > 0)
+		sc->bus_freq = bus_freq;
+	else {
+		sc->bus_freq = 100000;
+		resource_int_value(device_get_name(dev), device_get_unit(dev),
+		    "frequency", (int *)&sc->bus_freq);
+	}
+	/*
+	 * Set up the sysctl that allows the bus frequency to be changed.
+	 * It is flagged as a tunable so that the user can set the value in
+	 * loader(8), and that will override any other setting from any source.
+	 * The sysctl tunable/value is the one most directly controlled by the
+	 * user and thus the one that always takes precedence.
+	 */
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "frequency", CTLFLAG_RW | CTLFLAG_TUN, &sc->bus_freq,
+	    sc->bus_freq, "Bus frequency in Hz");
+}
+
+static u_int
+iicbus_get_frequency(device_t dev, u_char speed)
+{
+	struct iicbus_softc *sc = IICBUS_SOFTC(dev);
+
+	/*
+	 * If the frequency has not been configured for the bus, or the request
+	 * is specifically for SLOW speed, use the standard 100KHz rate, else
+	 * use the configured bus speed.
+	 */
+	if (sc->bus_freq == 0 || speed == IIC_SLOW)
+		return (100000);
+	return (sc->bus_freq);
+}
+
 static device_method_t iicbus_methods[] = {
         /* device interface */
         DEVMETHOD(device_probe,         iicbus_probe),
@@ -260,6 +307,7 @@ static device_method_t iicbus_methods[] = {
 
 	/* iicbus interface */
 	DEVMETHOD(iicbus_transfer,	iicbus_transfer),
+	DEVMETHOD(iicbus_get_frequency,	iicbus_get_frequency),
 
 	DEVMETHOD_END
 };

@@ -10,7 +10,9 @@ SRCDIR=	tools/lldb/source
 SRCS=	lldb.cpp \
 	lldb-log.cpp
 
-TGHDRS=	DiagnosticCommonKinds \
+TGHDRS=	AttrList \
+	Attrs \
+	DiagnosticCommonKinds \
 	DeclNodes \
 	StmtNodes \
 	CommentCommandList

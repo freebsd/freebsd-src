@@ -63,7 +63,6 @@ struct tpcl_softc {
 	int cur_tag_num;
 };
 
-extern struct ctl_softc *control_softc;
 static struct tpcl_softc tpcl_softc;
 
 static int tpcl_init(void);
@@ -87,7 +86,6 @@ CTL_FRONTEND_DECLARE(ctltpc, tpcl_frontend);
 static int
 tpcl_init(void)
 {
-	struct ctl_softc *softc = control_softc;
 	struct tpcl_softc *tsoftc = &tpcl_softc;
 	struct ctl_port *port;
 	struct scsi_transportid_spi *tid;
@@ -112,7 +110,7 @@ tpcl_init(void)
 	port->max_target_id = 0;
 	port->max_initiators = 1;
 
-	if (ctl_port_register(port, (softc->flags & CTL_FLAG_MASTER_SHELF)) != 0) 
+	if (ctl_port_register(port) != 0)
 	{
 		printf("%s: tpc frontend registration failed\n", __func__);
 		return (0);
@@ -310,54 +308,42 @@ tpcl_done(union ctl_io *io)
 }
 
 uint64_t
-tpcl_resolve(int init_port, struct scsi_ec_cscd *cscd, uint32_t *ss)
+tpcl_resolve(struct ctl_softc *softc, int init_port,
+    struct scsi_ec_cscd *cscd, uint32_t *ss, uint32_t *ps, uint32_t *pso)
 {
-	struct ctl_softc *softc = control_softc;
 	struct scsi_ec_cscd_id *cscdid;
 	struct ctl_port *port;
 	struct ctl_lun *lun;
-	uint64_t lunid = UINT64_MAX, l;
-	int i;
+	uint64_t lunid = UINT64_MAX;
 
 	if (cscd->type_code != EC_CSCD_ID)
 		return (lunid);
 
 	cscdid = (struct scsi_ec_cscd_id *)cscd;
 	mtx_lock(&softc->ctl_lock);
-	if (init_port >= 0) {
+	if (init_port >= 0)
 		port = softc->ctl_ports[ctl_port_idx(init_port)];
-		if (port == NULL || port->lun_map == NULL)
-			init_port = -1;
-	}
-	if (init_port < 0) {
-		STAILQ_FOREACH(lun, &softc->lun_list, links) {
-			if (lun->lun_devid == NULL)
-				continue;
-			if (scsi_devid_match(lun->lun_devid->data,
-			    lun->lun_devid->len, &cscdid->codeset,
-			    cscdid->length + 4) == 0) {
-				lunid = lun->lun;
-				if (ss && lun->be_lun)
-					*ss = lun->be_lun->blocksize;
-				break;
-			}
-		}
-	} else {
-		for (i = 0; i < CTL_MAX_LUNS; i++) {
-			l = port->lun_map(port->targ_lun_arg, i);
-			if (l >= CTL_MAX_LUNS)
-				continue;
-			lun = softc->ctl_luns[l];
-			if (lun == NULL || lun->lun_devid == NULL)
-				continue;
-			if (scsi_devid_match(lun->lun_devid->data,
-			    lun->lun_devid->len, &cscdid->codeset,
-			    cscdid->length + 4) == 0) {
-				lunid = lun->lun;
-				if (ss && lun->be_lun)
-					*ss = lun->be_lun->blocksize;
-				break;
-			}
+	else
+		port = NULL;
+	STAILQ_FOREACH(lun, &softc->lun_list, links) {
+		if (port != NULL &&
+		    ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
+			continue;
+		if (lun->lun_devid == NULL)
+			continue;
+		if (scsi_devid_match(lun->lun_devid->data,
+		    lun->lun_devid->len, &cscdid->codeset,
+		    cscdid->length + 4) == 0) {
+			lunid = lun->lun;
+			if (ss && lun->be_lun)
+				*ss = lun->be_lun->blocksize;
+			if (ps && lun->be_lun)
+				*ps = lun->be_lun->blocksize <<
+				    lun->be_lun->pblockexp;
+			if (pso && lun->be_lun)
+				*pso = lun->be_lun->blocksize *
+				    lun->be_lun->pblockoff;
+			break;
 		}
 	}
 	mtx_unlock(&softc->ctl_lock);

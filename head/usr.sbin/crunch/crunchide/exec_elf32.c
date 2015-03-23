@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <limits.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -174,6 +175,10 @@ ELFNAMEEND(check)(int fd, const char *fn)
 	switch (xe16toh(eh.e_machine)) {
 	case EM_386: break;
 	case EM_ALPHA: break;
+#ifndef EM_AARCH64
+#define	EM_AARCH64	183
+#endif
+	case EM_AARCH64: break;
 #ifndef EM_ARM
 #define EM_ARM		40
 #endif
@@ -460,7 +465,7 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 			if (layoutp[i].shdr == &shdrshdr &&
 			    ehdr.e_shoff != shdrshdr.sh_offset) {
 				ehdr.e_shoff = shdrshdr.sh_offset;
-				off = (ELFSIZE == 32) ? 32 : 44;
+				off = offsetof(Elf_Ehdr, e_shoff);
 				size = sizeof(Elf_Off);
 				if ((size_t)xwriteatoff(fd, &ehdr.e_shoff, off, size,
 				    fn) != size)

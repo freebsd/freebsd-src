@@ -11,19 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MIPSTARGETMACHINE_H
-#define MIPSTARGETMACHINE_H
+#ifndef LLVM_LIB_TARGET_MIPS_MIPSTARGETMACHINE_H
+#define LLVM_LIB_TARGET_MIPS_MIPSTARGETMACHINE_H
 
-#include "MipsFrameLowering.h"
-#include "MipsISelLowering.h"
-#include "MipsInstrInfo.h"
-#include "MipsJITInfo.h"
-#include "MipsSelectionDAGInfo.h"
 #include "MipsSubtarget.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
-#include "llvm/IR/DataLayout.h"
 #include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetMachine.h"
 
@@ -32,70 +25,42 @@ class formatted_raw_ostream;
 class MipsRegisterInfo;
 
 class MipsTargetMachine : public LLVMTargetMachine {
-  MipsSubtarget       Subtarget;
-  const DataLayout    DL; // Calculates type size & alignment
-  OwningPtr<const MipsInstrInfo> InstrInfo;
-  OwningPtr<const MipsFrameLowering> FrameLowering;
-  OwningPtr<const MipsTargetLowering> TLInfo;
-  OwningPtr<const MipsInstrInfo> InstrInfo16;
-  OwningPtr<const MipsFrameLowering> FrameLowering16;
-  OwningPtr<const MipsTargetLowering> TLInfo16;
-  OwningPtr<const MipsInstrInfo> InstrInfoSE;
-  OwningPtr<const MipsFrameLowering> FrameLoweringSE;
-  OwningPtr<const MipsTargetLowering> TLInfoSE;
-  MipsSelectionDAGInfo TSInfo;
-  const InstrItineraryData &InstrItins;
-  MipsJITInfo JITInfo;
+  bool isLittle;
+  std::unique_ptr<TargetLoweringObjectFile> TLOF;
+  MipsSubtarget *Subtarget;
+  MipsSubtarget DefaultSubtarget;
+  MipsSubtarget NoMips16Subtarget;
+  MipsSubtarget Mips16Subtarget;
+
+  mutable StringMap<std::unique_ptr<MipsSubtarget>> SubtargetMap;
 
 public:
-  MipsTargetMachine(const Target &T, StringRef TT,
-                    StringRef CPU, StringRef FS, const TargetOptions &Options,
-                    Reloc::Model RM, CodeModel::Model CM,
-                    CodeGenOpt::Level OL,
-                    bool isLittle);
+  MipsTargetMachine(const Target &T, StringRef TT, StringRef CPU, StringRef FS,
+                    const TargetOptions &Options, Reloc::Model RM,
+                    CodeModel::Model CM, CodeGenOpt::Level OL, bool isLittle);
+  ~MipsTargetMachine() override;
 
-  virtual ~MipsTargetMachine() {}
+  void addAnalysisPasses(PassManagerBase &PM) override;
 
-  virtual void addAnalysisPasses(PassManagerBase &PM);
-
-  virtual const MipsInstrInfo *getInstrInfo() const
-  { return InstrInfo.get(); }
-  virtual const TargetFrameLowering *getFrameLowering() const
-  { return FrameLowering.get(); }
-  virtual const MipsSubtarget *getSubtargetImpl() const
-  { return &Subtarget; }
-  virtual const DataLayout *getDataLayout()    const
-  { return &DL;}
-
-  virtual const InstrItineraryData *getInstrItineraryData() const {
-    return Subtarget.inMips16Mode() ? 0 : &InstrItins;
+  const MipsSubtarget *getSubtargetImpl() const override {
+    if (Subtarget)
+      return Subtarget;
+    return &DefaultSubtarget;
   }
 
-  virtual MipsJITInfo *getJITInfo()
-  { return &JITInfo; }
+  const MipsSubtarget *getSubtargetImpl(const Function &F) const override;
 
-  virtual const MipsRegisterInfo *getRegisterInfo()  const {
-    return &InstrInfo->getRegisterInfo();
-  }
-
-  virtual const MipsTargetLowering *getTargetLowering() const {
-    return TLInfo.get();
-  }
-
-  virtual const MipsSelectionDAGInfo* getSelectionDAGInfo() const {
-    return &TSInfo;
-  }
+  /// \brief Reset the subtarget for the Mips target.
+  void resetSubtarget(MachineFunction *MF);
 
   // Pass Pipeline Configuration
-  virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
-  virtual bool addCodeEmitter(PassManagerBase &PM, JITCodeEmitter &JCE);
+  TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
 
-  // Set helper classes
-  void setHelperClassesMips16();
+  TargetLoweringObjectFile *getObjFileLowering() const override {
+    return TLOF.get();
+  }
 
-  void setHelperClassesMipsSE();
-
-
+  bool isLittleEndian() const { return isLittle; }
 };
 
 /// MipsebTargetMachine - Mips32/64 big endian target machine.

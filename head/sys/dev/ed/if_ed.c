@@ -976,8 +976,10 @@ edintr(void *arg)
 	/*
 	 * loop until there are no more new interrupts.  When the card goes
 	 * away, the hardware will read back 0xff.  Looking at the interrupts,
-	 * it would appear that 0xff is impossible, or at least extremely
-	 * unlikely.
+	 * it would appear that 0xff is impossible as ED_ISR_RST is normally
+	 * clear. ED_ISR_RDC is also normally clear and only set while
+	 * we're transferring memory to the card and we're holding the
+	 * ED_LOCK (so we can't get into here).
 	 */
 	while ((isr = ed_nic_inb(sc, ED_P0_ISR)) != 0 && isr != 0xff) {
 
@@ -1323,10 +1325,7 @@ ed_get_packet(struct ed_softc *sc, bus_size_t buf, u_short len)
 	 */
 	if ((len + 2) > MHLEN) {
 		/* Attach an mbuf cluster */
-		MCLGET(m, M_NOWAIT);
-
-		/* Insist on getting a cluster */
-		if ((m->m_flags & M_EXT) == 0) {
+		if (!(MCLGET(m, M_NOWAIT))) {
 			m_freem(m);
 			return;
 		}

@@ -1883,15 +1883,18 @@ out:
 static void
 vfs_vmio_release(struct buf *bp)
 {
-	int i;
+	vm_object_t obj;
 	vm_page_t m;
+	int i;
 
 	if ((bp->b_flags & B_UNMAPPED) == 0) {
 		BUF_CHECK_MAPPED(bp);
 		pmap_qremove(trunc_page((vm_offset_t)bp->b_data), bp->b_npages);
 	} else
 		BUF_CHECK_UNMAPPED(bp);
-	VM_OBJECT_WLOCK(bp->b_bufobj->bo_object);
+	obj = bp->b_bufobj->bo_object;
+	if (obj != NULL)
+		VM_OBJECT_WLOCK(obj);
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
 		bp->b_pages[i] = NULL;
@@ -1916,7 +1919,8 @@ vfs_vmio_release(struct buf *bp)
 			vm_page_try_to_cache(m);
 		vm_page_unlock(m);
 	}
-	VM_OBJECT_WUNLOCK(bp->b_bufobj->bo_object);
+	if (obj != NULL)
+		VM_OBJECT_WUNLOCK(obj);
 	
 	if (bp->b_bufsize) {
 		bufspacewakeup();
@@ -3607,6 +3611,7 @@ biodone(struct bio *bp)
 		bp->bio_flags |= BIO_UNMAPPED;
 		start = trunc_page((vm_offset_t)bp->bio_data);
 		end = round_page((vm_offset_t)bp->bio_data + bp->bio_length);
+		bp->bio_data = unmapped_buf;
 		pmap_qremove(start, OFF_TO_IDX(end - start));
 		vmem_free(transient_arena, start, end - start);
 		atomic_add_int(&inflight_transient_maps, -1);

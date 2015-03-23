@@ -7,12 +7,20 @@
 .
     bin
     ..
-    games
-    ..
     include
     ..
     lib
         aout
+        ..
+        clang
+            3.6.0
+                include
+                ..
+                lib
+                    freebsd
+                    ..
+                ..
+            ..
         ..
         compat
             aout
@@ -126,6 +134,8 @@
     sbin
     ..
     share
+        atf
+        ..
         bsdconfig
             media
             ..
@@ -169,6 +179,8 @@
         doc
             IPv6
             ..
+            atf
+            ..
             atm
             ..
             legal
@@ -188,6 +200,8 @@
             ntp
             ..
             papers
+            ..
+            pjdfstest
             ..
             psd
                 01.cacm
@@ -400,6 +414,8 @@
                 ..
             ..
             tcsh
+            ..
+            uefisign
             ..
         ..
         games

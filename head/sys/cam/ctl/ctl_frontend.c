@@ -68,21 +68,22 @@ extern struct ctl_softc *control_softc;
 int
 ctl_frontend_register(struct ctl_frontend *fe)
 {
+	struct ctl_softc *softc = control_softc;
 	struct ctl_frontend *fe_tmp;
 
-	KASSERT(control_softc != NULL, ("CTL is not initialized"));
+	KASSERT(softc != NULL, ("CTL is not initialized"));
 
 	/*
 	 * Sanity check, make sure this isn't a duplicate registration.
 	 */
-	mtx_lock(&control_softc->ctl_lock);
-	STAILQ_FOREACH(fe_tmp, &control_softc->fe_list, links) {
+	mtx_lock(&softc->ctl_lock);
+	STAILQ_FOREACH(fe_tmp, &softc->fe_list, links) {
 		if (strcmp(fe_tmp->name, fe->name) == 0) {
-			mtx_unlock(&control_softc->ctl_lock);
+			mtx_unlock(&softc->ctl_lock);
 			return (-1);
 		}
 	}
-	mtx_unlock(&control_softc->ctl_lock);
+	mtx_unlock(&softc->ctl_lock);
 	STAILQ_INIT(&fe->port_list);
 
 	/*
@@ -91,24 +92,25 @@ ctl_frontend_register(struct ctl_frontend *fe)
 	if (fe->init != NULL)
 		fe->init();
 
-	mtx_lock(&control_softc->ctl_lock);
-	control_softc->num_frontends++;
-	STAILQ_INSERT_TAIL(&control_softc->fe_list, fe, links);
-	mtx_unlock(&control_softc->ctl_lock);
+	mtx_lock(&softc->ctl_lock);
+	softc->num_frontends++;
+	STAILQ_INSERT_TAIL(&softc->fe_list, fe, links);
+	mtx_unlock(&softc->ctl_lock);
 	return (0);
 }
 
 int
 ctl_frontend_deregister(struct ctl_frontend *fe)
 {
+	struct ctl_softc *softc = control_softc;
 
 	if (!STAILQ_EMPTY(&fe->port_list))
 		return (-1);
 
-	mtx_lock(&control_softc->ctl_lock);
-	STAILQ_REMOVE(&control_softc->fe_list, fe, ctl_frontend, links);
-	control_softc->num_frontends--;
-	mtx_unlock(&control_softc->ctl_lock);
+	mtx_lock(&softc->ctl_lock);
+	STAILQ_REMOVE(&softc->fe_list, fe, ctl_frontend, links);
+	softc->num_frontends--;
+	mtx_unlock(&softc->ctl_lock);
 
 	/*
 	 * Call the frontend's shutdown routine.
@@ -121,41 +123,42 @@ ctl_frontend_deregister(struct ctl_frontend *fe)
 struct ctl_frontend *
 ctl_frontend_find(char *frontend_name)
 {
-	struct ctl_softc *ctl_softc = control_softc;
+	struct ctl_softc *softc = control_softc;
 	struct ctl_frontend *fe;
 
-	mtx_lock(&ctl_softc->ctl_lock);
-	STAILQ_FOREACH(fe, &ctl_softc->fe_list, links) {
+	mtx_lock(&softc->ctl_lock);
+	STAILQ_FOREACH(fe, &softc->fe_list, links) {
 		if (strcmp(fe->name, frontend_name) == 0) {
-			mtx_unlock(&ctl_softc->ctl_lock);
+			mtx_unlock(&softc->ctl_lock);
 			return (fe);
 		}
 	}
-	mtx_unlock(&ctl_softc->ctl_lock);
+	mtx_unlock(&softc->ctl_lock);
 	return (NULL);
 }
 
 int
-ctl_port_register(struct ctl_port *port, int master_shelf)
+ctl_port_register(struct ctl_port *port)
 {
-	struct ctl_io_pool *pool;
+	struct ctl_softc *softc = control_softc;
+	void *pool;
 	int port_num;
 	int retval;
 
 	retval = 0;
 
-	KASSERT(control_softc != NULL, ("CTL is not initialized"));
+	KASSERT(softc != NULL, ("CTL is not initialized"));
 
-	mtx_lock(&control_softc->ctl_lock);
-	port_num = ctl_ffz(control_softc->ctl_port_mask, CTL_MAX_PORTS);
+	mtx_lock(&softc->ctl_lock);
+	port_num = ctl_ffz(softc->ctl_port_mask, CTL_MAX_PORTS);
 	if ((port_num == -1)
-	 || (ctl_set_mask(control_softc->ctl_port_mask, port_num) == -1)) {
+	 || (ctl_set_mask(softc->ctl_port_mask, port_num) == -1)) {
 		port->targ_port = -1;
-		mtx_unlock(&control_softc->ctl_lock);
+		mtx_unlock(&softc->ctl_lock);
 		return (1);
 	}
-	control_softc->num_ports++;
-	mtx_unlock(&control_softc->ctl_lock);
+	softc->num_ports++;
+	mtx_unlock(&softc->ctl_lock);
 
 	/*
 	 * Initialize the initiator and portname mappings
@@ -176,15 +179,15 @@ ctl_port_register(struct ctl_port *port, int master_shelf)
 	 * pending sense queue on the next command, whether or not it is
 	 * a REQUEST SENSE.
 	 */
-	retval = ctl_pool_create(control_softc, CTL_POOL_FETD,
+	retval = ctl_pool_create(softc, port->port_name,
 				 port->num_requested_ctl_io + 20, &pool);
 	if (retval != 0) {
 		free(port->wwpn_iid, M_CTL);
 error:
 		port->targ_port = -1;
-		mtx_lock(&control_softc->ctl_lock);
-		ctl_clear_mask(control_softc->ctl_port_mask, port_num);
-		mtx_unlock(&control_softc->ctl_lock);
+		mtx_lock(&softc->ctl_lock);
+		ctl_clear_mask(softc->ctl_port_mask, port_num);
+		mtx_unlock(&softc->ctl_lock);
 		return (retval);
 	}
 	port->ctl_pool_ref = pool;
@@ -192,12 +195,12 @@ error:
 	if (port->options.stqh_first == NULL)
 		STAILQ_INIT(&port->options);
 
-	mtx_lock(&control_softc->ctl_lock);
-	port->targ_port = port_num + (master_shelf != 0 ? 0 : CTL_MAX_PORTS);
+	mtx_lock(&softc->ctl_lock);
+	port->targ_port = port_num + softc->port_offset;
 	STAILQ_INSERT_TAIL(&port->frontend->port_list, port, fe_links);
-	STAILQ_INSERT_TAIL(&control_softc->port_list, port, links);
-	control_softc->ctl_ports[port_num] = port;
-	mtx_unlock(&control_softc->ctl_lock);
+	STAILQ_INSERT_TAIL(&softc->port_list, port, links);
+	softc->ctl_ports[port_num] = port;
+	mtx_unlock(&softc->ctl_lock);
 
 	return (retval);
 }
@@ -205,6 +208,7 @@ error:
 int
 ctl_port_deregister(struct ctl_port *port)
 {
+	struct ctl_softc *softc = control_softc;
 	struct ctl_io_pool *pool;
 	int port_num, retval, i;
 
@@ -217,19 +221,20 @@ ctl_port_deregister(struct ctl_port *port)
 		goto bailout;
 	}
 
-	mtx_lock(&control_softc->ctl_lock);
-	STAILQ_REMOVE(&control_softc->port_list, port, ctl_port, links);
+	mtx_lock(&softc->ctl_lock);
+	STAILQ_REMOVE(&softc->port_list, port, ctl_port, links);
 	STAILQ_REMOVE(&port->frontend->port_list, port, ctl_port, fe_links);
-	control_softc->num_ports--;
+	softc->num_ports--;
 	port_num = (port->targ_port < CTL_MAX_PORTS) ? port->targ_port :
 	    port->targ_port - CTL_MAX_PORTS;
-	ctl_clear_mask(control_softc->ctl_port_mask, port_num);
-	control_softc->ctl_ports[port_num] = NULL;
-	mtx_unlock(&control_softc->ctl_lock);
+	ctl_clear_mask(softc->ctl_port_mask, port_num);
+	softc->ctl_ports[port_num] = NULL;
+	mtx_unlock(&softc->ctl_lock);
 
 	ctl_pool_free(pool);
 	ctl_free_opts(&port->options);
 
+	ctl_lun_map_deinit(port);
 	free(port->port_devid, M_CTL);
 	port->port_devid = NULL;
 	free(port->target_devid, M_CTL);

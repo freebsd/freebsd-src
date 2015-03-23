@@ -212,12 +212,13 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	struct iso88025_header gen_th;
 	struct sockaddr_dl *sdl = NULL;
 	struct rtentry *rt0 = NULL;
-#if defined(INET) || defined(INET6)
-	struct llentry *lle;
-#endif
+	int is_gw = 0;
 
-	if (ro != NULL)
+	if (ro != NULL) {
 		rt0 = ro->ro_rt;
+		if (rt0 != NULL && (rt0->rt_flags & RTF_GATEWAY) != 0)
+			is_gw = 1;
+	}
 
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
@@ -257,7 +258,7 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET:
-		error = arpresolve(ifp, rt0, m, dst, edst, &lle);
+		error = arpresolve(ifp, is_gw, m, dst, edst, NULL);
 		if (error)
 			return (error == EWOULDBLOCK ? 0 : error);
 		snap_type = ETHERTYPE_IP;
@@ -292,7 +293,7 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 #endif	/* INET */
 #ifdef INET6
 	case AF_INET6:
-		error = nd6_storelladdr(ifp, m, dst, (u_char *)edst, &lle);
+		error = nd6_storelladdr(ifp, m, dst, (u_char *)edst, NULL);
 		if (error)
 			return (error);
 		snap_type = ETHERTYPE_IPV6;
@@ -562,7 +563,6 @@ iso88025_input(ifp, m)
 		case LLC_TEST_P:
 		{
 			struct sockaddr sa;
-			struct arpcom *ac;
 			struct iso88025_sockaddr_data *th2;
 			int i;
 			u_char c;
@@ -695,49 +695,8 @@ iso88025_resolvemulti (ifp, llsa, sa)
 	return (0);
 }
 
-static MALLOC_DEFINE(M_ISO88025, "arpcom", "802.5 interface internals");
-
-static void*
-iso88025_alloc(u_char type, struct ifnet *ifp)
-{
-	struct arpcom	*ac;
- 
-        ac = malloc(sizeof(struct arpcom), M_ISO88025, M_WAITOK | M_ZERO);
-	ac->ac_ifp = ifp;
-
-	return (ac);
-} 
-
-static void
-iso88025_free(void *com, u_char type)
-{
- 
-        free(com, M_ISO88025);
-}
- 
-static int
-iso88025_modevent(module_t mod, int type, void *data)
-{
-  
-        switch (type) {
-        case MOD_LOAD:
-                if_register_com_alloc(IFT_ISO88025, iso88025_alloc,
-                    iso88025_free);
-                break;
-        case MOD_UNLOAD:
-                if_deregister_com_alloc(IFT_ISO88025);
-                break;
-        default:
-                return EOPNOTSUPP;
-        }
-
-        return (0);
-}
-
 static moduledata_t iso88025_mod = {
-	"iso88025",
-	iso88025_modevent,
-	0
+	.name = "iso88025",
 };
 
 DECLARE_MODULE(iso88025, iso88025_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);

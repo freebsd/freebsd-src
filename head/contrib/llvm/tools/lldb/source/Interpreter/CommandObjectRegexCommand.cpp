@@ -31,12 +31,14 @@ CommandObjectRegexCommand::CommandObjectRegexCommand
     const char *help,
     const char *syntax,
     uint32_t max_matches,
-    uint32_t completion_type_mask
+    uint32_t completion_type_mask,
+    bool is_removable
 ) :
     CommandObjectRaw (interpreter, name, help, syntax),
     m_max_matches (max_matches),
     m_completion_type_mask (completion_type_mask),
-    m_entries ()
+    m_entries (),
+    m_is_removable (is_removable)
 {
 }
 
@@ -86,11 +88,11 @@ CommandObjectRegexCommand::DoExecute
                     result.GetOutputStream().Printf("%s\n", new_command.c_str());
                 // Pass in true for "no context switching".  The command that called us should have set up the context
                 // appropriately, we shouldn't have to redo that.
-                return m_interpreter.HandleCommand(new_command.c_str(), eLazyBoolCalculate, result, NULL, true, true);
+                return m_interpreter.HandleCommand(new_command.c_str(), eLazyBoolCalculate, result, nullptr, true, true);
             }
         }
         result.SetStatus(eReturnStatusFailed);
-        if (GetSyntax() != NULL)
+        if (GetSyntax() != nullptr)
             result.AppendError (GetSyntax());
         else
             result.AppendErrorWithFormat ("Command contents '%s' failed to match any regular expression in the '%s' regex command.\n",
@@ -136,7 +138,7 @@ CommandObjectRegexCommand::HandleCompletion (Args &input,
                                                              completion_str.c_str(),
                                                              match_start_point,
                                                              max_return_elements,
-                                                             NULL,
+                                                             nullptr,
                                                              word_complete,
                                                              matches);
         return matches.GetSize();

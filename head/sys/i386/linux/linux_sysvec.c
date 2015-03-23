@@ -400,7 +400,6 @@ linux_copyout_strings(struct image_params *imgp)
 
 
 
-extern int _ucodesel, _udatasel;
 extern unsigned long linux_sznonrtsigcode;
 
 static void

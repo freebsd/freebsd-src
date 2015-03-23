@@ -111,7 +111,7 @@ __FBSDID("$FreeBSD$");
 #include <net/pfil.h>
 #include <net/vnet.h>
 
-#include <netinet/in.h> /* for struct arpcom */
+#include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
@@ -125,7 +125,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_carp.h>
 #endif
 #include <machine/in_cksum.h>
-#include <netinet/if_ether.h> /* for struct arpcom */
+#include <netinet/if_ether.h>
 #include <net/bridgestp.h>
 #include <net/if_bridgevar.h>
 #include <net/if_llc.h>
@@ -228,7 +228,7 @@ struct bridge_softc {
 
 static VNET_DEFINE(struct mtx, bridge_list_mtx);
 #define	V_bridge_list_mtx	VNET(bridge_list_mtx)
-eventhandler_tag	bridge_detach_cookie = NULL;
+static eventhandler_tag bridge_detach_cookie;
 
 int	bridge_rtable_prune_period = BRIDGE_RTABLE_PRUNE_PERIOD;
 
@@ -406,8 +406,8 @@ SYSCTL_INT(_net_link_bridge, OID_AUTO, inherit_mac,
 
 static VNET_DEFINE(int, allow_llz_overlap) = 0;
 #define	V_allow_llz_overlap	VNET(allow_llz_overlap)
-SYSCTL_VNET_INT(_net_link_bridge, OID_AUTO, allow_llz_overlap,
-    CTLFLAG_RW | CTLFLAG_VNET, &VNET_NAME(allow_llz_overlap), 0,
+SYSCTL_INT(_net_link_bridge, OID_AUTO, allow_llz_overlap,
+    CTLFLAG_VNET | CTLFLAG_RW | CTLFLAG_VNET, &VNET_NAME(allow_llz_overlap), 0,
     "Allow overlap of link-local scope "
     "zones of a bridge interface and the member interfaces");
 
@@ -538,6 +538,7 @@ vnet_bridge_uninit(const void *unused __unused)
 {
 
 	if_clone_detach(V_bridge_cloner);
+	V_bridge_cloner = NULL;
 	BRIDGE_LIST_LOCK_DESTROY();
 }
 VNET_SYSUNINIT(vnet_bridge_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
@@ -1797,7 +1798,13 @@ bridge_ifdetach(void *arg __unused, struct ifnet *ifp)
 
 	if (ifp->if_flags & IFF_RENAMING)
 		return;
-
+	if (V_bridge_cloner == NULL) {
+		/*
+		 * This detach handler can be called after
+		 * vnet_bridge_uninit().  Just return in that case.
+		 */
+		return;
+	}
 	/* Check if the interface is a bridge member */
 	if (sc != NULL) {
 		BRIDGE_LOCK(sc);

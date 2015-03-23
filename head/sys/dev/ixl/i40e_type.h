@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2014, Intel Corporation 
+  Copyright (c) 2013-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -57,6 +57,7 @@
 #define I40E_DEV_ID_QSFP_B		0x1584
 #define I40E_DEV_ID_QSFP_C		0x1585
 #define I40E_DEV_ID_10G_BASE_T		0x1586
+#define I40E_DEV_ID_20G_KR2		0x1587
 #define I40E_DEV_ID_VF			0x154C
 #define I40E_DEV_ID_VF_HV		0x1571
 
@@ -246,12 +247,12 @@ struct i40e_link_status {
 	u8 an_info;
 	u8 ext_info;
 	u8 loopback;
-	bool an_enabled;
 	/* is Link Status Event notification to SW enabled */
 	bool lse_enable;
 	u16 max_frame_size;
 	bool crc_enable;
 	u8 pacing;
+	u8 requested_speeds;
 };
 
 struct i40e_phy_info {
@@ -285,6 +286,7 @@ struct i40e_hw_capabilities {
 	bool evb_802_1_qbh; /* Bridge Port Extension */
 	bool dcb;
 	bool fcoe;
+	bool iscsi; /* Indicates iSCSI enabled */
 	bool mfp_mode_1;
 	bool mgmt_cem;
 	bool ieee_1588;
@@ -335,8 +337,7 @@ enum i40e_aq_resource_access_type {
 };
 
 struct i40e_nvm_info {
-	u64 hw_semaphore_timeout; /* 2usec global time (GTIME resolution) */
-	u64 hw_semaphore_wait;    /* - || - */
+	u64 hw_semaphore_timeout; /* usec global time (GTIME resolution) */
 	u32 timeout;              /* [ms] */
 	u16 sr_size;              /* Shadow RAM size in words */
 	bool blank_nvm_mode;      /* is NVM empty (no FW present)*/
@@ -455,9 +456,18 @@ struct i40e_fc_info {
 #define I40E_MAX_USER_PRIORITY		8
 #define I40E_DCBX_MAX_APPS		32
 #define I40E_LLDPDU_SIZE		1500
+#define I40E_TLV_STATUS_OPER		0x1
+#define I40E_TLV_STATUS_SYNC		0x2
+#define I40E_TLV_STATUS_ERR		0x4
+#define I40E_CEE_OPER_MAX_APPS		3
+#define I40E_APP_PROTOID_FCOE		0x8906
+#define I40E_APP_PROTOID_ISCSI		0x0cbc
+#define I40E_APP_PROTOID_FIP		0x8914
+#define I40E_APP_SEL_ETHTYPE		0x1
+#define I40E_APP_SEL_TCPIP		0x2
 
-/* IEEE 802.1Qaz ETS Configuration data */
-struct i40e_ieee_ets_config {
+/* CEE or IEEE 802.1Qaz ETS Configuration data */
+struct i40e_dcb_ets_config {
 	u8 willing;
 	u8 cbs;
 	u8 maxtcs;
@@ -466,34 +476,30 @@ struct i40e_ieee_ets_config {
 	u8 tsatable[I40E_MAX_TRAFFIC_CLASS];
 };
 
-/* IEEE 802.1Qaz ETS Recommendation data */
-struct i40e_ieee_ets_recommend {
-	u8 prioritytable[I40E_MAX_TRAFFIC_CLASS];
-	u8 tcbwtable[I40E_MAX_TRAFFIC_CLASS];
-	u8 tsatable[I40E_MAX_TRAFFIC_CLASS];
-};
-
-/* IEEE 802.1Qaz PFC Configuration data */
-struct i40e_ieee_pfc_config {
+/* CEE or IEEE 802.1Qaz PFC Configuration data */
+struct i40e_dcb_pfc_config {
 	u8 willing;
 	u8 mbc;
 	u8 pfccap;
 	u8 pfcenable;
 };
 
-/* IEEE 802.1Qaz Application Priority data */
-struct i40e_ieee_app_priority_table {
+/* CEE or IEEE 802.1Qaz Application Priority data */
+struct i40e_dcb_app_priority_table {
 	u8  priority;
 	u8  selector;
 	u16 protocolid;
 };
 
 struct i40e_dcbx_config {
+	u8  dcbx_mode;
+#define I40E_DCBX_MODE_CEE	0x1
+#define I40E_DCBX_MODE_IEEE	0x2
 	u32 numapps;
-	struct i40e_ieee_ets_config etscfg;
-	struct i40e_ieee_ets_recommend etsrec;
-	struct i40e_ieee_pfc_config pfc;
-	struct i40e_ieee_app_priority_table app[I40E_DCBX_MAX_APPS];
+	struct i40e_dcb_ets_config etscfg;
+	struct i40e_dcb_ets_config etsrec;
+	struct i40e_dcb_pfc_config pfc;
+	struct i40e_dcb_app_priority_table app[I40E_DCBX_MAX_APPS];
 };
 
 /* Port hardware description */
@@ -501,7 +507,7 @@ struct i40e_hw {
 	u8 *hw_addr;
 	void *back;
 
-	/* function pointer structs */
+	/* subsystem structs */
 	struct i40e_phy_info phy;
 	struct i40e_mac_info mac;
 	struct i40e_bus_info bus;
@@ -528,6 +534,11 @@ struct i40e_hw {
 	u8  pf_id;
 	u16 main_vsi_seid;
 
+	/* for multi-function MACs */
+	u16 partition_id;
+	u16 num_partitions;
+	u16 num_ports;
+
 	/* Closest numa node to the device */
 	u16 numa_node;
 
@@ -550,7 +561,11 @@ struct i40e_hw {
 	/* debug mask */
 	u32 debug_mask;
 };
-#define i40e_is_vf(_hw)	((_hw)->mac.type == I40E_MAC_VF)
+
+static inline bool i40e_is_vf(struct i40e_hw *hw)
+{
+	return hw->mac.type == I40E_MAC_VF;
+}
 
 struct i40e_driver_version {
 	u8 major_version;
@@ -653,13 +668,14 @@ enum i40e_rx_desc_status_bits {
 	I40E_RX_DESC_STATUS_CRCP_SHIFT		= 4,
 	I40E_RX_DESC_STATUS_TSYNINDX_SHIFT	= 5, /* 2 BITS */
 	I40E_RX_DESC_STATUS_TSYNVALID_SHIFT	= 7,
-	I40E_RX_DESC_STATUS_PIF_SHIFT		= 8,
+	I40E_RX_DESC_STATUS_RESERVED1_SHIFT	= 8,
+
 	I40E_RX_DESC_STATUS_UMBCAST_SHIFT	= 9, /* 2 BITS */
 	I40E_RX_DESC_STATUS_FLM_SHIFT		= 11,
 	I40E_RX_DESC_STATUS_FLTSTAT_SHIFT	= 12, /* 2 BITS */
 	I40E_RX_DESC_STATUS_LPBK_SHIFT		= 14,
 	I40E_RX_DESC_STATUS_IPV6EXADD_SHIFT	= 15,
-	I40E_RX_DESC_STATUS_RESERVED_SHIFT	= 16, /* 2 BITS */
+	I40E_RX_DESC_STATUS_RESERVED2_SHIFT	= 16, /* 2 BITS */
 	I40E_RX_DESC_STATUS_UDP_0_SHIFT		= 18,
 	I40E_RX_DESC_STATUS_LAST /* this entry must be last!!! */
 };
@@ -1194,6 +1210,14 @@ struct i40e_eth_stats {
 	u64 tx_errors;			/* tepc */
 };
 
+/* Statistics collected per VEB per TC */
+struct i40e_veb_tc_stats {
+	u64 tc_rx_packets[I40E_MAX_TRAFFIC_CLASS];
+	u64 tc_rx_bytes[I40E_MAX_TRAFFIC_CLASS];
+	u64 tc_tx_packets[I40E_MAX_TRAFFIC_CLASS];
+	u64 tc_tx_bytes[I40E_MAX_TRAFFIC_CLASS];
+};
+
 /* Statistics collected by the MAC */
 struct i40e_hw_port_stats {
 	/* eth stats collected by the port */
@@ -1261,17 +1285,23 @@ struct i40e_hw_port_stats {
 #define I40E_SR_CSR_PROTECTED_LIST_PTR		0x0D
 #define I40E_SR_MNG_CONFIG_PTR			0x0E
 #define I40E_SR_EMP_MODULE_PTR			0x0F
+#define I40E_SR_PBA_FLAGS			0x15
 #define I40E_SR_PBA_BLOCK_PTR			0x16
 #define I40E_SR_BOOT_CONFIG_PTR			0x17
-#define I40E_SR_NVM_IMAGE_VERSION		0x18
+#define I40E_SR_NVM_DEV_STARTER_VERSION		0x18
 #define I40E_SR_NVM_WAKE_ON_LAN			0x19
 #define I40E_SR_ALTERNATE_SAN_MAC_ADDRESS_PTR	0x27
 #define I40E_SR_PERMANENT_SAN_MAC_ADDRESS_PTR	0x28
+#define I40E_SR_NVM_MAP_VERSION			0x29
+#define I40E_SR_NVM_IMAGE_VERSION		0x2A
+#define I40E_SR_NVM_STRUCTURE_VERSION		0x2B
 #define I40E_SR_NVM_EETRACK_LO			0x2D
 #define I40E_SR_NVM_EETRACK_HI			0x2E
 #define I40E_SR_VPD_PTR				0x2F
 #define I40E_SR_PXE_SETUP_PTR			0x30
 #define I40E_SR_PXE_CONFIG_CUST_OPTIONS_PTR	0x31
+#define I40E_SR_NVM_ORIGINAL_EETRACK_LO		0x34
+#define I40E_SR_NVM_ORIGINAL_EETRACK_HI		0x35
 #define I40E_SR_SW_ETHERNET_MAC_ADDRESS_PTR	0x37
 #define I40E_SR_POR_REGS_AUTO_LOAD_PTR		0x38
 #define I40E_SR_EMPR_REGS_AUTO_LOAD_PTR		0x3A
@@ -1284,6 +1314,9 @@ struct i40e_hw_port_stats {
 #define I40E_SR_3RD_FREE_PROVISION_AREA_PTR	0x44
 #define I40E_SR_2ND_FREE_PROVISION_AREA_PTR	0x46
 #define I40E_SR_EMP_SR_SETTINGS_PTR		0x48
+#define I40E_SR_FEATURE_CONFIGURATION_PTR	0x49
+#define I40E_SR_CONFIGURATION_METADATA_PTR	0x4D
+#define I40E_SR_IMMEDIATE_VALUES_PTR		0x4E
 
 /* Auxiliary field, mask and shift definition for Shadow RAM and NVM Flash */
 #define I40E_SR_VPD_MODULE_MAX_SIZE		1024
@@ -1402,6 +1435,18 @@ enum i40e_reset_type {
 	I40E_RESET_CORER	= 1,
 	I40E_RESET_GLOBR	= 2,
 	I40E_RESET_EMPR		= 3,
+};
+
+/* IEEE 802.1AB LLDP Agent Variables from NVM */
+#define I40E_NVM_LLDP_CFG_PTR		0xD
+struct i40e_lldp_variables {
+	u16 length;
+	u16 adminstatus;
+	u16 msgfasttx;
+	u16 msgtxinterval;
+	u16 txparams;
+	u16 timers;
+	u16 crc8;
 };
 
 /* Offsets into Alternate Ram */

@@ -1198,7 +1198,7 @@ flush_table(struct ip_fw_chain *ch, struct tid_info *ti)
 	void *astate_old, *astate_new;
 	char algostate[64], *pstate;
 	struct tableop_state ts;
-	int error;
+	int error, need_gc;
 	uint16_t kidx;
 	uint8_t tflags;
 
@@ -1212,6 +1212,9 @@ flush_table(struct ip_fw_chain *ch, struct tid_info *ti)
 		IPFW_UH_WUNLOCK(ch);
 		return (ESRCH);
 	}
+	need_gc = 0;
+	astate_new = NULL;
+	memset(&ti_new, 0, sizeof(ti_new));
 restart:
 	/* Set up swap handler */
 	memset(&ts, 0, sizeof(ts));
@@ -1235,6 +1238,14 @@ restart:
 	tc->no.refcnt++;
 	add_toperation_state(ch, &ts);
 	IPFW_UH_WUNLOCK(ch);
+
+	/*
+	 * Stage 1.5: if this is not the first attempt, destroy previous state
+	 */
+	if (need_gc != 0) {
+		ta->destroy(astate_new, &ti_new);
+		need_gc = 0;
+	}
 
 	/*
 	 * Stage 2: allocate new table instance using same algo.
@@ -1262,7 +1273,8 @@ restart:
 	 * complex checks.
 	 */
 	if (ts.modified != 0) {
-		ta->destroy(astate_new, &ti_new);
+		/* Delay destroying data since we're holding UH lock */
+		need_gc = 1;
 		goto restart;
 	}
 
@@ -1824,7 +1836,6 @@ create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	char *tname, *aname;
 	struct tid_info ti;
 	struct namedobj_instance *ni;
-	struct table_config *tc;
 
 	if (sd->valsize != sizeof(*oh) + sizeof(ipfw_xtable_info))
 		return (EINVAL);
@@ -1853,7 +1864,7 @@ create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	ni = CHAIN_TO_NI(ch);
 
 	IPFW_UH_RLOCK(ch);
-	if ((tc = find_table(ni, &ti)) != NULL) {
+	if (find_table(ni, &ti) != NULL) {
 		IPFW_UH_RUNLOCK(ch);
 		return (EEXIST);
 	}
@@ -3043,6 +3054,7 @@ free_table_config(struct namedobj_instance *ni, struct table_config *tc)
 {
 
 	KASSERT(tc->linked == 0, ("free() on linked config"));
+	/* UH lock MUST NOT be held */
 
 	/*
 	 * We're using ta without any locking/referencing.

@@ -155,7 +155,7 @@ SYSCTL_INT(_hw_cbb, OID_AUTO, debug, CTLFLAG_RWTUN, &cbb_debug, 0,
 static void	cbb_insert(struct cbb_softc *sc);
 static void	cbb_removal(struct cbb_softc *sc);
 static uint32_t	cbb_detect_voltage(device_t brdev);
-static void	cbb_cardbus_reset_power(device_t brdev, device_t child, int on);
+static int	cbb_cardbus_reset_power(device_t brdev, device_t child, int on);
 static int	cbb_cardbus_io_open(device_t brdev, int win, uint32_t start,
 		    uint32_t end);
 static int	cbb_cardbus_mem_open(device_t brdev, int win,
@@ -958,12 +958,12 @@ cbb_do_power(device_t brdev)
 /* CardBus power functions						*/
 /************************************************************************/
 
-static void
+static int
 cbb_cardbus_reset_power(device_t brdev, device_t child, int on)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
-	uint32_t b;
-	int delay, count;
+	uint32_t b, h;
+	int delay, count, zero_seen, func;
 
 	/*
 	 * Asserting reset for 20ms is necessary for most bridges.  For some
@@ -992,8 +992,6 @@ cbb_cardbus_reset_power(device_t brdev, device_t child, int on)
 	 * a cardbus bus, so that's the only register we check here.
 	 */
 	if (on && CBB_CARD_PRESENT(cbb_get(sc, CBB_SOCKET_STATE))) {
-		/*
-		 */
 		PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL,
 		    &~CBBM_BRIDGECTRL_RESET, 2);
 		b = pcib_get_bus(child);
@@ -1004,23 +1002,30 @@ cbb_cardbus_reset_power(device_t brdev, device_t child, int on)
 		    0xfffffffful && --count >= 0);
 		if (count < 0)
 			device_printf(brdev, "Warning: Bus reset timeout\n");
+
+		/*
+		 * Some cards (so far just an atheros card I have) seem to
+		 * come out of reset in a funky state. They report they are
+		 * multi-function cards, but have nonsense for some of the
+		 * higher functions.  So if the card claims to be MFDEV, and
+		 * any of the higher functions' ID is 0, then we've hit the
+		 * bug and we'll try again.
+		 */
+		h = PCIB_READ_CONFIG(brdev, b, 0, 0, PCIR_HDRTYPE, 1);
+		if ((h & PCIM_MFDEV) == 0)
+			return 0;
+		zero_seen = 0;
+		for (func = 1; func < 8; func++) {
+			h = PCIB_READ_CONFIG(brdev, b, 0, func,
+			    PCIR_DEVVENDOR, 4);
+			if (h == 0)
+				zero_seen++;
+		}
+		if (!zero_seen)
+			return 0;
+		return (EINVAL);
 	}
-}
-
-static int
-cbb_cardbus_power_enable_socket(device_t brdev, device_t child)
-{
-	struct cbb_softc *sc = device_get_softc(brdev);
-	int err;
-
-	if (!CBB_CARD_PRESENT(cbb_get(sc, CBB_SOCKET_STATE)))
-		return (ENODEV);
-
-	err = cbb_do_power(brdev);
-	if (err)
-		return (err);
-	cbb_cardbus_reset_power(brdev, child, 1);
-	return (0);
+	return 0;
 }
 
 static int
@@ -1028,6 +1033,30 @@ cbb_cardbus_power_disable_socket(device_t brdev, device_t child)
 {
 	cbb_power(brdev, CARD_OFF);
 	cbb_cardbus_reset_power(brdev, child, 0);
+	return (0);
+}
+
+static int
+cbb_cardbus_power_enable_socket(device_t brdev, device_t child)
+{
+	struct cbb_softc *sc = device_get_softc(brdev);
+	int err, count;
+
+	if (!CBB_CARD_PRESENT(cbb_get(sc, CBB_SOCKET_STATE)))
+		return (ENODEV);
+
+	count = 10;
+	do {
+		err = cbb_do_power(brdev);
+		if (err)
+			return (err);
+		err = cbb_cardbus_reset_power(brdev, child, 1);
+		if (err) {
+			device_printf(brdev, "Reset failed, trying again.\n");
+			cbb_cardbus_power_disable_socket(brdev, child);
+			pause("cbbErr1", hz / 10); /* wait 100ms */
+		}
+	} while (err != 0 && count-- > 0);
 	return (0);
 }
 
@@ -1562,57 +1591,6 @@ cbb_write_ivar(device_t brdev, device_t child, int which, uintptr_t value)
 		return (EINVAL);
 	}
 	return (ENOENT);
-}
-
-int
-cbb_suspend(device_t self)
-{
-	int			error = 0;
-	struct cbb_softc	*sc = device_get_softc(self);
-
-	error = bus_generic_suspend(self);
-	if (error != 0)
-		return (error);
-	cbb_set(sc, CBB_SOCKET_MASK, 0);	/* Quiet hardware */
-	sc->cardok = 0;				/* Card is bogus now */
-	return (0);
-}
-
-int
-cbb_resume(device_t self)
-{
-	int	error = 0;
-	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(self);
-	uint32_t tmp;
-
-	/*
-	 * Some BIOSes will not save the BARs for the pci chips, so we
-	 * must do it ourselves.  If the BAR is reset to 0 for an I/O
-	 * device, it will read back as 0x1, so no explicit test for
-	 * memory devices are needed.
-	 *
-	 * Note: The PCI bus code should do this automatically for us on
-	 * suspend/resume, but until it does, we have to cope.
-	 */
-	pci_write_config(self, CBBR_SOCKBASE, rman_get_start(sc->base_res), 4);
-	DEVPRINTF((self, "PCI Memory allocated: %08lx\n",
-	    rman_get_start(sc->base_res)));
-
-	sc->chipinit(sc);
-
-	/* reset interrupt -- Do we really need to do this? */
-	tmp = cbb_get(sc, CBB_SOCKET_EVENT);
-	cbb_set(sc, CBB_SOCKET_EVENT, tmp);
-
-	/* CSC Interrupt: Card detect interrupt on */
-	cbb_setb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
-
-	/* Signal the thread to wakeup. */
-	wakeup(&sc->intrhand);
-
-	error = bus_generic_resume(self);
-
-	return (error);
 }
 
 int

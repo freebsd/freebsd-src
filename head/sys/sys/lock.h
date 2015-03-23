@@ -84,6 +84,7 @@ struct lock_class {
 #define	LO_IS_VNODE	0x00800000	/* Tell WITNESS about a VNODE lock */
 #define	LO_CLASSMASK	0x0f000000	/* Class index bitmask. */
 #define LO_NOPROFILE    0x10000000      /* Don't profile this lock */
+#define	LO_NEW		0x20000000	/* Don't check for double-init */
 
 /*
  * Lock classes are statically assigned an index into the gobal lock_classes

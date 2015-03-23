@@ -24,6 +24,8 @@
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
+#define DEBUG_TYPE "legalize-types"
+
 /// GetFPLibCall - Return the right libcall for the given floating point type.
 static RTLIB::Libcall GetFPLibCall(EVT VT,
                                    RTLIB::Libcall Call_F32,
@@ -66,6 +68,8 @@ void DAGTypeLegalizer::SoftenFloatResult(SDNode *N, unsigned ResNo) {
     case ISD::EXTRACT_VECTOR_ELT:
       R = SoftenFloatRes_EXTRACT_VECTOR_ELT(N); break;
     case ISD::FABS:        R = SoftenFloatRes_FABS(N); break;
+    case ISD::FMINNUM:     R = SoftenFloatRes_FMINNUM(N); break;
+    case ISD::FMAXNUM:     R = SoftenFloatRes_FMAXNUM(N); break;
     case ISD::FADD:        R = SoftenFloatRes_FADD(N); break;
     case ISD::FCEIL:       R = SoftenFloatRes_FCEIL(N); break;
     case ISD::FCOPYSIGN:   R = SoftenFloatRes_FCOPYSIGN(N); break;
@@ -83,7 +87,7 @@ void DAGTypeLegalizer::SoftenFloatResult(SDNode *N, unsigned ResNo) {
     case ISD::FNEG:        R = SoftenFloatRes_FNEG(N); break;
     case ISD::FP_EXTEND:   R = SoftenFloatRes_FP_EXTEND(N); break;
     case ISD::FP_ROUND:    R = SoftenFloatRes_FP_ROUND(N); break;
-    case ISD::FP16_TO_FP32:R = SoftenFloatRes_FP16_TO_FP32(N); break;
+    case ISD::FP16_TO_FP:  R = SoftenFloatRes_FP16_TO_FP(N); break;
     case ISD::FPOW:        R = SoftenFloatRes_FPOW(N); break;
     case ISD::FPOWI:       R = SoftenFloatRes_FPOWI(N); break;
     case ISD::FREM:        R = SoftenFloatRes_FREM(N); break;
@@ -149,6 +153,32 @@ SDValue DAGTypeLegalizer::SoftenFloatRes_FABS(SDNode *N) {
   SDValue Mask = DAG.getConstant(API, NVT);
   SDValue Op = GetSoftenedFloat(N->getOperand(0));
   return DAG.getNode(ISD::AND, SDLoc(N), NVT, Op, Mask);
+}
+
+SDValue DAGTypeLegalizer::SoftenFloatRes_FMINNUM(SDNode *N) {
+  EVT NVT = TLI.getTypeToTransformTo(*DAG.getContext(), N->getValueType(0));
+  SDValue Ops[2] = { GetSoftenedFloat(N->getOperand(0)),
+                     GetSoftenedFloat(N->getOperand(1)) };
+  return TLI.makeLibCall(DAG, GetFPLibCall(N->getValueType(0),
+                                           RTLIB::FMIN_F32,
+                                           RTLIB::FMIN_F64,
+                                           RTLIB::FMIN_F80,
+                                           RTLIB::FMIN_F128,
+                                           RTLIB::FMIN_PPCF128),
+                         NVT, Ops, 2, false, SDLoc(N)).first;
+}
+
+SDValue DAGTypeLegalizer::SoftenFloatRes_FMAXNUM(SDNode *N) {
+  EVT NVT = TLI.getTypeToTransformTo(*DAG.getContext(), N->getValueType(0));
+  SDValue Ops[2] = { GetSoftenedFloat(N->getOperand(0)),
+                     GetSoftenedFloat(N->getOperand(1)) };
+  return TLI.makeLibCall(DAG, GetFPLibCall(N->getValueType(0),
+                                           RTLIB::FMAX_F32,
+                                           RTLIB::FMAX_F64,
+                                           RTLIB::FMAX_F80,
+                                           RTLIB::FMAX_F128,
+                                           RTLIB::FMAX_PPCF128),
+                         NVT, Ops, 2, false, SDLoc(N)).first;
 }
 
 SDValue DAGTypeLegalizer::SoftenFloatRes_FADD(SDNode *N) {
@@ -371,23 +401,48 @@ SDValue DAGTypeLegalizer::SoftenFloatRes_FNEG(SDNode *N) {
 SDValue DAGTypeLegalizer::SoftenFloatRes_FP_EXTEND(SDNode *N) {
   EVT NVT = TLI.getTypeToTransformTo(*DAG.getContext(), N->getValueType(0));
   SDValue Op = N->getOperand(0);
+
+  // There's only a libcall for f16 -> f32, so proceed in two stages. Also, it's
+  // entirely possible for both f16 and f32 to be legal, so use the fully
+  // hard-float FP_EXTEND rather than FP16_TO_FP.
+  if (Op.getValueType() == MVT::f16 && N->getValueType(0) != MVT::f32) {
+    Op = DAG.getNode(ISD::FP_EXTEND, SDLoc(N), MVT::f32, Op);
+    if (getTypeAction(MVT::f32) == TargetLowering::TypeSoftenFloat)
+      SoftenFloatResult(Op.getNode(), 0);
+  }
+
   RTLIB::Libcall LC = RTLIB::getFPEXT(Op.getValueType(), N->getValueType(0));
+  if (getTypeAction(Op.getValueType()) == TargetLowering::TypeSoftenFloat)
+    Op = GetSoftenedFloat(Op);
   assert(LC != RTLIB::UNKNOWN_LIBCALL && "Unsupported FP_EXTEND!");
   return TLI.makeLibCall(DAG, LC, NVT, &Op, 1, false, SDLoc(N)).first;
 }
 
 // FIXME: Should we just use 'normal' FP_EXTEND / FP_TRUNC instead of special
 // nodes?
-SDValue DAGTypeLegalizer::SoftenFloatRes_FP16_TO_FP32(SDNode *N) {
-  EVT NVT = TLI.getTypeToTransformTo(*DAG.getContext(), N->getValueType(0));
+SDValue DAGTypeLegalizer::SoftenFloatRes_FP16_TO_FP(SDNode *N) {
+  EVT MidVT = TLI.getTypeToTransformTo(*DAG.getContext(), MVT::f32);
   SDValue Op = N->getOperand(0);
-  return TLI.makeLibCall(DAG, RTLIB::FPEXT_F16_F32, NVT, &Op, 1, false,
-                         SDLoc(N)).first;
+  SDValue Res32 = TLI.makeLibCall(DAG, RTLIB::FPEXT_F16_F32, MidVT, &Op, 1,
+                                  false, SDLoc(N)).first;
+  if (N->getValueType(0) == MVT::f32)
+    return Res32;
+
+  EVT NVT = TLI.getTypeToTransformTo(*DAG.getContext(), N->getValueType(0));
+  RTLIB::Libcall LC = RTLIB::getFPEXT(MVT::f32, N->getValueType(0));
+  assert(LC != RTLIB::UNKNOWN_LIBCALL && "Unsupported FP_EXTEND!");
+  return TLI.makeLibCall(DAG, LC, NVT, &Res32, 1, false, SDLoc(N)).first;
 }
 
 SDValue DAGTypeLegalizer::SoftenFloatRes_FP_ROUND(SDNode *N) {
   EVT NVT = TLI.getTypeToTransformTo(*DAG.getContext(), N->getValueType(0));
   SDValue Op = N->getOperand(0);
+  if (N->getValueType(0) == MVT::f16) {
+    // Semi-soften first, to FP_TO_FP16, so that targets which support f16 as a
+    // storage-only type get a chance to select things.
+    return DAG.getNode(ISD::FP_TO_FP16, SDLoc(N), NVT, Op);
+  }
+
   RTLIB::Libcall LC = RTLIB::getFPROUND(Op.getValueType(), N->getValueType(0));
   assert(LC != RTLIB::UNKNOWN_LIBCALL && "Unsupported FP_ROUND!");
   return TLI.makeLibCall(DAG, LC, NVT, &Op, 1, false, SDLoc(N)).first;
@@ -496,6 +551,9 @@ SDValue DAGTypeLegalizer::SoftenFloatRes_FSUB(SDNode *N) {
 
 SDValue DAGTypeLegalizer::SoftenFloatRes_FTRUNC(SDNode *N) {
   EVT NVT = TLI.getTypeToTransformTo(*DAG.getContext(), N->getValueType(0));
+  if (N->getValueType(0) == MVT::f16)
+    return DAG.getNode(ISD::FP_TO_FP16, SDLoc(N), NVT, N->getOperand(0));
+
   SDValue Op = GetSoftenedFloat(N->getOperand(0));
   return TLI.makeLibCall(DAG, GetFPLibCall(N->getValueType(0),
                                            RTLIB::TRUNC_F32,
@@ -518,7 +576,7 @@ SDValue DAGTypeLegalizer::SoftenFloatRes_LOAD(SDNode *N) {
                        NVT, dl, L->getChain(), L->getBasePtr(), L->getOffset(),
                        L->getPointerInfo(), NVT, L->isVolatile(),
                        L->isNonTemporal(), false, L->getAlignment(),
-                       L->getTBAAInfo());
+                       L->getAAInfo());
     // Legalized the chain result - switch anything that used the old chain to
     // use the new one.
     ReplaceValueWith(SDValue(N, 1), NewL.getValue(1));
@@ -531,7 +589,7 @@ SDValue DAGTypeLegalizer::SoftenFloatRes_LOAD(SDNode *N) {
                      L->getBasePtr(), L->getOffset(), L->getPointerInfo(),
                      L->getMemoryVT(), L->isVolatile(),
                      L->isNonTemporal(), false, L->getAlignment(),
-                     L->getTBAAInfo());
+                     L->getAAInfo());
   // Legalized the chain result - switch anything that used the old chain to
   // use the new one.
   ReplaceValueWith(SDValue(N, 1), NewL.getValue(1));
@@ -623,10 +681,11 @@ bool DAGTypeLegalizer::SoftenFloatOperand(SDNode *N, unsigned OpNo) {
 
   case ISD::BITCAST:     Res = SoftenFloatOp_BITCAST(N); break;
   case ISD::BR_CC:       Res = SoftenFloatOp_BR_CC(N); break;
+  case ISD::FP_EXTEND:   Res = SoftenFloatOp_FP_EXTEND(N); break;
+  case ISD::FP_TO_FP16:  // Same as FP_ROUND for softening purposes
   case ISD::FP_ROUND:    Res = SoftenFloatOp_FP_ROUND(N); break;
   case ISD::FP_TO_SINT:  Res = SoftenFloatOp_FP_TO_SINT(N); break;
   case ISD::FP_TO_UINT:  Res = SoftenFloatOp_FP_TO_UINT(N); break;
-  case ISD::FP32_TO_FP16:Res = SoftenFloatOp_FP32_TO_FP16(N); break;
   case ISD::SELECT_CC:   Res = SoftenFloatOp_SELECT_CC(N); break;
   case ISD::SETCC:       Res = SoftenFloatOp_SETCC(N); break;
   case ISD::STORE:       Res = SoftenFloatOp_STORE(N, OpNo); break;
@@ -652,11 +711,32 @@ SDValue DAGTypeLegalizer::SoftenFloatOp_BITCAST(SDNode *N) {
                      GetSoftenedFloat(N->getOperand(0)));
 }
 
-SDValue DAGTypeLegalizer::SoftenFloatOp_FP_ROUND(SDNode *N) {
+SDValue DAGTypeLegalizer::SoftenFloatOp_FP_EXTEND(SDNode *N) {
+  // If we get here, the result must be legal but the source illegal.
   EVT SVT = N->getOperand(0).getValueType();
   EVT RVT = N->getValueType(0);
+  SDValue Op = GetSoftenedFloat(N->getOperand(0));
 
-  RTLIB::Libcall LC = RTLIB::getFPROUND(SVT, RVT);
+  if (SVT == MVT::f16)
+    return DAG.getNode(ISD::FP16_TO_FP, SDLoc(N), RVT, Op);
+
+  RTLIB::Libcall LC = RTLIB::getFPEXT(SVT, RVT);
+  assert(LC != RTLIB::UNKNOWN_LIBCALL && "Unsupported FP_EXTEND libcall");
+
+  return TLI.makeLibCall(DAG, LC, RVT, &Op, 1, false, SDLoc(N)).first;
+}
+
+
+SDValue DAGTypeLegalizer::SoftenFloatOp_FP_ROUND(SDNode *N) {
+  // We actually deal with the partially-softened FP_TO_FP16 node too, which
+  // returns an i16 so doesn't meet the constraints necessary for FP_ROUND.
+  assert(N->getOpcode() == ISD::FP_ROUND || N->getOpcode() == ISD::FP_TO_FP16);
+
+  EVT SVT = N->getOperand(0).getValueType();
+  EVT RVT = N->getValueType(0);
+  EVT FloatRVT = N->getOpcode() == ISD::FP_TO_FP16 ? MVT::f16 : RVT;
+
+  RTLIB::Libcall LC = RTLIB::getFPROUND(SVT, FloatRVT);
   assert(LC != RTLIB::UNKNOWN_LIBCALL && "Unsupported FP_ROUND libcall");
 
   SDValue Op = GetSoftenedFloat(N->getOperand(0));
@@ -674,7 +754,7 @@ SDValue DAGTypeLegalizer::SoftenFloatOp_BR_CC(SDNode *N) {
 
   // If softenSetCCOperands returned a scalar, we need to compare the result
   // against zero to select between true and false values.
-  if (NewRHS.getNode() == 0) {
+  if (!NewRHS.getNode()) {
     NewRHS = DAG.getConstant(0, NewLHS.getValueType());
     CCCode = ISD::SETNE;
   }
@@ -702,13 +782,6 @@ SDValue DAGTypeLegalizer::SoftenFloatOp_FP_TO_UINT(SDNode *N) {
   return TLI.makeLibCall(DAG, LC, RVT, &Op, 1, false, SDLoc(N)).first;
 }
 
-SDValue DAGTypeLegalizer::SoftenFloatOp_FP32_TO_FP16(SDNode *N) {
-  EVT RVT = N->getValueType(0);
-  RTLIB::Libcall LC = RTLIB::FPROUND_F32_F16;
-  SDValue Op = GetSoftenedFloat(N->getOperand(0));
-  return TLI.makeLibCall(DAG, LC, RVT, &Op, 1, false, SDLoc(N)).first;
-}
-
 SDValue DAGTypeLegalizer::SoftenFloatOp_SELECT_CC(SDNode *N) {
   SDValue NewLHS = N->getOperand(0), NewRHS = N->getOperand(1);
   ISD::CondCode CCCode = cast<CondCodeSDNode>(N->getOperand(4))->get();
@@ -720,7 +793,7 @@ SDValue DAGTypeLegalizer::SoftenFloatOp_SELECT_CC(SDNode *N) {
 
   // If softenSetCCOperands returned a scalar, we need to compare the result
   // against zero to select between true and false values.
-  if (NewRHS.getNode() == 0) {
+  if (!NewRHS.getNode()) {
     NewRHS = DAG.getConstant(0, NewLHS.getValueType());
     CCCode = ISD::SETNE;
   }
@@ -742,7 +815,7 @@ SDValue DAGTypeLegalizer::SoftenFloatOp_SETCC(SDNode *N) {
   TLI.softenSetCCOperands(DAG, VT, NewLHS, NewRHS, CCCode, SDLoc(N));
 
   // If softenSetCCOperands returned a scalar, use it.
-  if (NewRHS.getNode() == 0) {
+  if (!NewRHS.getNode()) {
     assert(NewLHS.getValueType() == N->getValueType(0) &&
            "Unexpected setcc expansion!");
     return NewLHS;
@@ -811,6 +884,8 @@ void DAGTypeLegalizer::ExpandFloatResult(SDNode *N, unsigned ResNo) {
 
   case ISD::ConstantFP: ExpandFloatRes_ConstantFP(N, Lo, Hi); break;
   case ISD::FABS:       ExpandFloatRes_FABS(N, Lo, Hi); break;
+  case ISD::FMINNUM:    ExpandFloatRes_FMINNUM(N, Lo, Hi); break;
+  case ISD::FMAXNUM:    ExpandFloatRes_FMAXNUM(N, Lo, Hi); break;
   case ISD::FADD:       ExpandFloatRes_FADD(N, Lo, Hi); break;
   case ISD::FCEIL:      ExpandFloatRes_FCEIL(N, Lo, Hi); break;
   case ISD::FCOPYSIGN:  ExpandFloatRes_FCOPYSIGN(N, Lo, Hi); break;
@@ -872,6 +947,26 @@ void DAGTypeLegalizer::ExpandFloatRes_FABS(SDNode *N, SDValue &Lo,
   Lo = DAG.getSelectCC(dl, Tmp, Hi, Lo,
                    DAG.getNode(ISD::FNEG, dl, Lo.getValueType(), Lo),
                    ISD::SETEQ);
+}
+
+void DAGTypeLegalizer::ExpandFloatRes_FMINNUM(SDNode *N, SDValue &Lo,
+                                              SDValue &Hi) {
+  SDValue Call = LibCallify(GetFPLibCall(N->getValueType(0),
+                                         RTLIB::FMIN_F32, RTLIB::FMIN_F64,
+                                         RTLIB::FMIN_F80, RTLIB::FMIN_F128,
+                                         RTLIB::FMIN_PPCF128),
+                            N, false);
+  GetPairElements(Call, Lo, Hi);
+}
+
+void DAGTypeLegalizer::ExpandFloatRes_FMAXNUM(SDNode *N, SDValue &Lo,
+                                              SDValue &Hi) {
+  SDValue Call = LibCallify(GetFPLibCall(N->getValueType(0),
+                                         RTLIB::FMAX_F32, RTLIB::FMAX_F64,
+                                         RTLIB::FMAX_F80, RTLIB::FMAX_F128,
+                                         RTLIB::FMAX_PPCF128),
+                            N, false);
+  GetPairElements(Call, Lo, Hi);
 }
 
 void DAGTypeLegalizer::ExpandFloatRes_FADD(SDNode *N, SDValue &Lo,
@@ -1340,7 +1435,7 @@ SDValue DAGTypeLegalizer::ExpandFloatOp_BR_CC(SDNode *N) {
 
   // If ExpandSetCCOperands returned a scalar, we need to compare the result
   // against zero to select between true and false values.
-  if (NewRHS.getNode() == 0) {
+  if (!NewRHS.getNode()) {
     NewRHS = DAG.getConstant(0, NewLHS.getValueType());
     CCCode = ISD::SETNE;
   }
@@ -1433,7 +1528,7 @@ SDValue DAGTypeLegalizer::ExpandFloatOp_SELECT_CC(SDNode *N) {
 
   // If ExpandSetCCOperands returned a scalar, we need to compare the result
   // against zero to select between true and false values.
-  if (NewRHS.getNode() == 0) {
+  if (!NewRHS.getNode()) {
     NewRHS = DAG.getConstant(0, NewLHS.getValueType());
     CCCode = ISD::SETNE;
   }
@@ -1450,7 +1545,7 @@ SDValue DAGTypeLegalizer::ExpandFloatOp_SETCC(SDNode *N) {
   FloatExpandSetCCOperands(NewLHS, NewRHS, CCCode, SDLoc(N));
 
   // If ExpandSetCCOperands returned a scalar, use it.
-  if (NewRHS.getNode() == 0) {
+  if (!NewRHS.getNode()) {
     assert(NewLHS.getValueType() == N->getValueType(0) &&
            "Unexpected setcc expansion!");
     return NewLHS;

@@ -1,10 +1,11 @@
 #$FreeBSD$
 ARM9_CACHE_WRITE_THROUGH	opt_global.h
+ARMV6			opt_global.h
 ARM_CACHE_LOCK_ENABLE	opt_global.h
-ARM_DEVICE_MULTIPASS	opt_global.h
 ARM_KERN_DIRECTMAP	opt_vm.h
 ARM_L2_PIPT		opt_global.h
 ARM_MANY_BOARD		opt_global.h
+ARM_NEW_PMAP		opt_global.h
 ARM_WANT_TP_ADDRESS	opt_global.h
 COUNTS_PER_SEC		opt_timer.h
 CPU_ARM9		opt_global.h
@@ -27,6 +28,7 @@ IPI_IRQ_START		opt_smp.h
 IPI_IRQ_END		opt_smp.h
 FREEBSD_BOOT_LOADER	opt_global.h
 IXP4XX_FLASH_SIZE	opt_global.h
+KERNBASE		opt_global.h
 KERNPHYSADDR		opt_global.h
 KERNVIRTADDR		opt_global.h
 LINUX_BOOT_ABI		opt_global.h

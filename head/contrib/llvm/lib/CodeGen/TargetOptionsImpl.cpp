@@ -12,8 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/IR/Function.h"
-#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/Target/TargetOptions.h"
 using namespace llvm;
 
@@ -50,4 +50,11 @@ bool TargetOptions::HonorSignDependentRoundingFPMath() const {
 /// instead of an ISD::TRAP node.
 StringRef TargetOptions::getTrapFunctionName() const {
   return TrapFuncName;
+}
+
+/// getCFIFuncName - If this returns a non-empty string, then it is the name of
+/// the function that gets called on CFI violations in CFI non-enforcing mode
+/// (!TargetOptions::CFIEnforcing).
+StringRef TargetOptions::getCFIFuncName() const {
+  return CFIFuncName;
 }

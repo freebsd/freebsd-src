@@ -13,10 +13,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/CFG.h"
-
 #include "llvm/ADT/SmallSet.h"
-#include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/IR/Dominators.h"
 
 using namespace llvm;
 
@@ -28,7 +27,7 @@ using namespace llvm;
 void llvm::FindFunctionBackedges(const Function &F,
      SmallVectorImpl<std::pair<const BasicBlock*,const BasicBlock*> > &Result) {
   const BasicBlock *BB = &F.getEntryBlock();
-  if (succ_begin(BB) == succ_end(BB))
+  if (succ_empty(BB))
     return;
 
   SmallPtrSet<const BasicBlock*, 8> Visited;
@@ -46,7 +45,7 @@ void llvm::FindFunctionBackedges(const Function &F,
     bool FoundNew = false;
     while (I != succ_end(ParentBB)) {
       BB = *I++;
-      if (Visited.insert(BB)) {
+      if (Visited.insert(BB).second) {
         FoundNew = true;
         break;
       }
@@ -102,15 +101,9 @@ bool llvm::isCriticalEdge(const TerminatorInst *TI, unsigned SuccNum,
 
   // If AllowIdenticalEdges is true, then we allow this edge to be considered
   // non-critical iff all preds come from TI's block.
-  while (I != E) {
-    const BasicBlock *P = *I;
-    if (P != FirstPred)
+  for (; I != E; ++I)
+    if (*I != FirstPred)
       return true;
-    // Note: leave this as is until no one ever compiles with either gcc 4.0.1
-    // or Xcode 2. This seems to work around the pred_iterator assert in PR 2207
-    E = pred_end(P);
-    ++I;
-  }
   return false;
 }
 
@@ -130,7 +123,7 @@ static bool loopContainsBoth(const LoopInfo *LI,
                              const BasicBlock *BB1, const BasicBlock *BB2) {
   const Loop *L1 = getOutermostLoop(LI, BB1);
   const Loop *L2 = getOutermostLoop(LI, BB2);
-  return L1 != NULL && L1 == L2;
+  return L1 != nullptr && L1 == L2;
 }
 
 static bool isPotentiallyReachableInner(SmallVectorImpl<BasicBlock *> &Worklist,
@@ -140,7 +133,7 @@ static bool isPotentiallyReachableInner(SmallVectorImpl<BasicBlock *> &Worklist,
   // When the stop block is unreachable, it's dominated from everywhere,
   // regardless of whether there's a path between the two blocks.
   if (DT && !DT->isReachableFromEntry(StopBB))
-    DT = 0;
+    DT = nullptr;
 
   // Limit the number of blocks we visit. The goal is to avoid run-away compile
   // times on large CFGs without hampering sensible code. Arbitrarily chosen.
@@ -148,7 +141,7 @@ static bool isPotentiallyReachableInner(SmallVectorImpl<BasicBlock *> &Worklist,
   SmallSet<const BasicBlock*, 64> Visited;
   do {
     BasicBlock *BB = Worklist.pop_back_val();
-    if (!Visited.insert(BB))
+    if (!Visited.insert(BB).second)
       continue;
     if (BB == StopBB)
       return true;
@@ -163,14 +156,13 @@ static bool isPotentiallyReachableInner(SmallVectorImpl<BasicBlock *> &Worklist,
       return true;
     }
 
-    if (const Loop *Outer = LI ? getOutermostLoop(LI, BB) : 0) {
+    if (const Loop *Outer = LI ? getOutermostLoop(LI, BB) : nullptr) {
       // All blocks in a single loop are reachable from all other blocks. From
       // any of these blocks, we can skip directly to the exits of the loop,
       // ignoring any other blocks inside the loop body.
       Outer->getExitBlocks(Worklist);
     } else {
-      for (succ_iterator I = succ_begin(BB), E = succ_end(BB); I != E; ++I)
-        Worklist.push_back(*I);
+      Worklist.append(succ_begin(BB), succ_end(BB));
     }
   } while (!Worklist.empty());
 
@@ -208,7 +200,7 @@ bool llvm::isPotentiallyReachable(const Instruction *A, const Instruction *B,
 
     // If the block is in a loop then we can reach any instruction in the block
     // from any other instruction in the block by going around a backedge.
-    if (LI && LI->getLoopFor(BB) != 0)
+    if (LI && LI->getLoopFor(BB) != nullptr)
       return true;
 
     // Linear scan, start at 'A', see whether we hit 'B' or the end first.
@@ -223,8 +215,7 @@ bool llvm::isPotentiallyReachable(const Instruction *A, const Instruction *B,
       return false;
 
     // Otherwise, continue doing the normal per-BB CFG walk.
-    for (succ_iterator I = succ_begin(BB), E = succ_end(BB); I != E; ++I)
-      Worklist.push_back(*I);
+    Worklist.append(succ_begin(BB), succ_end(BB));
 
     if (Worklist.empty()) {
       // We've proven that there's no path!

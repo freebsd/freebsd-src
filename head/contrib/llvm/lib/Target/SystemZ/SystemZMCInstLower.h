@@ -7,12 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SYSTEMZMCINSTLOWER_H
-#define LLVM_SYSTEMZMCINSTLOWER_H
+#ifndef LLVM_LIB_TARGET_SYSTEMZ_SYSTEMZMCINSTLOWER_H
+#define LLVM_LIB_TARGET_SYSTEMZ_SYSTEMZMCINSTLOWER_H
 
 #include "llvm/MC/MCExpr.h"
-#include "llvm/Support/DataTypes.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/DataTypes.h"
 
 namespace llvm {
 class MCInst;

@@ -20,7 +20,7 @@ static inline uint64_t
 Bits64 (const uint64_t bits, const uint32_t msbit, const uint32_t lsbit)
 {
     assert(msbit < 64 && lsbit <= msbit);
-    return (bits >> lsbit) & ((1u << (msbit - lsbit + 1)) - 1);
+    return (bits >> lsbit) & ((1ull << (msbit - lsbit + 1)) - 1);
 }
 
 // Return the bit field(s) from the most significant bit (msbit) to the
@@ -83,6 +83,8 @@ Rotl32 (uint32_t bits, uint32_t amt)
 static inline uint64_t
 MaskUpToBit (const uint64_t bit)
 {
+    if (bit >= 63)
+        return -1ll;
     return (1ull << (bit + 1ull)) - 1ull;
 }
 

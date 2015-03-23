@@ -14,58 +14,50 @@
 #ifndef LLVM_BITCODE_READERWRITER_H
 #define LLVM_BITCODE_READERWRITER_H
 
+#include "llvm/IR/DiagnosticInfo.h"
+#include "llvm/Support/ErrorOr.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include <memory>
 #include <string>
 
 namespace llvm {
   class BitstreamWriter;
-  class MemoryBuffer;
   class DataStreamer;
   class LLVMContext;
   class Module;
   class ModulePass;
   class raw_ostream;
 
-  /// getLazyBitcodeModule - Read the header of the specified bitcode buffer
-  /// and prepare for lazy deserialization of function bodies.  If successful,
-  /// this takes ownership of 'buffer' and returns a non-null pointer.  On
-  /// error, this returns null, *does not* take ownership of Buffer, and fills
-  /// in *ErrMsg with an error description if ErrMsg is non-null.
-  Module *getLazyBitcodeModule(MemoryBuffer *Buffer,
-                               LLVMContext &Context,
-                               std::string *ErrMsg = 0);
+  /// Read the header of the specified bitcode buffer and prepare for lazy
+  /// deserialization of function bodies.  If successful, this moves Buffer. On
+  /// error, this *does not* move Buffer.
+  ErrorOr<Module *>
+  getLazyBitcodeModule(std::unique_ptr<MemoryBuffer> &&Buffer,
+                       LLVMContext &Context,
+                       DiagnosticHandlerFunction DiagnosticHandler = nullptr);
 
-  /// getStreamedBitcodeModule - Read the header of the specified stream
-  /// and prepare for lazy deserialization and streaming of function bodies.
-  /// On error, this returns null, and fills in *ErrMsg with an error
-  /// description if ErrMsg is non-null.
-  Module *getStreamedBitcodeModule(const std::string &name,
-                                   DataStreamer *streamer,
-                                   LLVMContext &Context,
-                                   std::string *ErrMsg = 0);
+  /// Read the header of the specified stream and prepare for lazy
+  /// deserialization and streaming of function bodies.
+  ErrorOr<std::unique_ptr<Module>> getStreamedBitcodeModule(
+      StringRef Name, DataStreamer *Streamer, LLVMContext &Context,
+      DiagnosticHandlerFunction DiagnosticHandler = nullptr);
 
-  /// getBitcodeTargetTriple - Read the header of the specified bitcode
-  /// buffer and extract just the triple information. If successful,
-  /// this returns a string and *does not* take ownership
-  /// of 'buffer'. On error, this returns "", and fills in *ErrMsg
-  /// if ErrMsg is non-null.
-  std::string getBitcodeTargetTriple(MemoryBuffer *Buffer,
-                                     LLVMContext &Context,
-                                     std::string *ErrMsg = 0);
+  /// Read the header of the specified bitcode buffer and extract just the
+  /// triple information. If successful, this returns a string. On error, this
+  /// returns "".
+  std::string
+  getBitcodeTargetTriple(MemoryBufferRef Buffer, LLVMContext &Context,
+                         DiagnosticHandlerFunction DiagnosticHandler = nullptr);
 
-  /// ParseBitcodeFile - Read the specified bitcode file, returning the module.
-  /// If an error occurs, this returns null and fills in *ErrMsg if it is
-  /// non-null.  This method *never* takes ownership of Buffer.
-  Module *ParseBitcodeFile(MemoryBuffer *Buffer, LLVMContext &Context,
-                           std::string *ErrMsg = 0);
+  /// Read the specified bitcode file, returning the module.
+  ErrorOr<Module *>
+  parseBitcodeFile(MemoryBufferRef Buffer, LLVMContext &Context,
+                   DiagnosticHandlerFunction DiagnosticHandler = nullptr);
 
   /// WriteBitcodeToFile - Write the specified module to the specified
   /// raw output stream.  For streams where it matters, the given stream
   /// should be in "binary" mode.
   void WriteBitcodeToFile(const Module *M, raw_ostream &Out);
-
-  /// createBitcodeWriterPass - Create and return a pass that writes the module
-  /// to the specified ostream.
-  ModulePass *createBitcodeWriterPass(raw_ostream &Str);
 
 
   /// isBitcodeWrapper - Return true if the given bytes are the magic bytes
@@ -149,6 +141,32 @@ namespace llvm {
     BufEnd = BufPtr+Size;
     return false;
   }
+
+  const std::error_category &BitcodeErrorCategory();
+  enum class BitcodeError { InvalidBitcodeSignature, CorruptedBitcode };
+  inline std::error_code make_error_code(BitcodeError E) {
+    return std::error_code(static_cast<int>(E), BitcodeErrorCategory());
+  }
+
+  class BitcodeDiagnosticInfo : public DiagnosticInfo {
+    const Twine &Msg;
+    std::error_code EC;
+
+  public:
+    BitcodeDiagnosticInfo(std::error_code EC, DiagnosticSeverity Severity,
+                          const Twine &Msg);
+    void print(DiagnosticPrinter &DP) const override;
+    std::error_code getError() const { return EC; };
+
+    static bool classof(const DiagnosticInfo *DI) {
+      return DI->getKind() == DK_Bitcode;
+    }
+  };
+
 } // End llvm namespace
+
+namespace std {
+template <> struct is_error_code_enum<llvm::BitcodeError> : std::true_type {};
+}
 
 #endif

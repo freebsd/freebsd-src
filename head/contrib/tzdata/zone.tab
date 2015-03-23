@@ -17,8 +17,8 @@
 # that of zone1970.tab.
 #
 # This table is intended as an aid for users, to help them select time
-# zone data appropriate for their practical needs.  It is not intended
-# to take or endorse any position on legal or territorial claims.
+# zone data entries appropriate for their practical needs.  It is not
+# intended to take or endorse any position on legal or territorial claims.
 #
 #country-
 #code	coordinates	TZ			comments
@@ -37,7 +37,7 @@ AQ	-6736+06253	Antarctica/Mawson	Mawson Station, Holme Bay
 AQ	-6835+07758	Antarctica/Davis	Davis Station, Vestfold Hills
 AQ	-6617+11031	Antarctica/Casey	Casey Station, Bailey Peninsula
 AQ	-7824+10654	Antarctica/Vostok	Vostok Station, Lake Vostok
-AQ	-6640+14001	Antarctica/DumontDUrville	Dumont-d'Urville Station, Terre Adelie
+AQ	-6640+14001	Antarctica/DumontDUrville	Dumont-d'Urville Station, Adelie Land
 AQ	-690022+0393524	Antarctica/Syowa	Syowa Station, E Ongul I
 AQ	-720041+0023206	Antarctica/Troll	Troll Station, Queen Maud Land
 AR	-3436-05827	America/Argentina/Buenos_Aires	Buenos Aires (BA, CF)
@@ -274,7 +274,7 @@ MU	-2010+05730	Indian/Mauritius
 MV	+0410+07330	Indian/Maldives
 MW	-1547+03500	Africa/Blantyre
 MX	+1924-09909	America/Mexico_City	Central Time - most locations
-MX	+2105-08646	America/Cancun	Central Time - Quintana Roo
+MX	+2105-08646	America/Cancun	Eastern Standard Time - Quintana Roo
 MX	+2058-08937	America/Merida	Central Time - Campeche, Yucatan
 MX	+2540-10019	America/Monterrey	Mexican Central Time - Coahuila, Durango, Nuevo Leon, Tamaulipas away from US border
 MX	+2550-09730	America/Matamoros	US Central Time - Coahuila, Durango, Nuevo Leon, Tamaulipas near US border
@@ -307,7 +307,8 @@ PE	-1203-07703	America/Lima
 PF	-1732-14934	Pacific/Tahiti	Society Islands
 PF	-0900-13930	Pacific/Marquesas	Marquesas Islands
 PF	-2308-13457	Pacific/Gambier	Gambier Islands
-PG	-0930+14710	Pacific/Port_Moresby
+PG	-0930+14710	Pacific/Port_Moresby	most locations
+PG	-0613+15534	Pacific/Bougainville	Bougainville
 PH	+1435+12100	Asia/Manila
 PK	+2452+06703	Asia/Karachi
 PL	+5215+02100	Europe/Warsaw

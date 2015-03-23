@@ -1,4 +1,4 @@
-//=- AArch64/AArch64FixupKinds.h - AArch64 Specific Fixup Entries -*- C++ -*-=//
+//===-- AArch64FixupKinds.h - AArch64 Specific Fixup Entries ----*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -6,108 +6,71 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-//
-// This file describes the LLVM fixups applied to MCInsts in the AArch64
-// backend.
-//
-//===----------------------------------------------------------------------===//
 
-#ifndef LLVM_AARCH64_AARCH64FIXUPKINDS_H
-#define LLVM_AARCH64_AARCH64FIXUPKINDS_H
+#ifndef LLVM_LIB_TARGET_AARCH64_MCTARGETDESC_AARCH64FIXUPKINDS_H
+#define LLVM_LIB_TARGET_AARCH64_MCTARGETDESC_AARCH64FIXUPKINDS_H
 
 #include "llvm/MC/MCFixup.h"
 
 namespace llvm {
-  namespace AArch64 {
-    enum Fixups {
-      fixup_a64_ld_prel = FirstTargetFixupKind,
-      fixup_a64_adr_prel,
-      fixup_a64_adr_prel_page,
+namespace AArch64 {
 
-      fixup_a64_add_lo12,
+enum Fixups {
+  // fixup_aarch64_pcrel_adr_imm21 - A 21-bit pc-relative immediate inserted into
+  // an ADR instruction.
+  fixup_aarch64_pcrel_adr_imm21 = FirstTargetFixupKind,
 
-      fixup_a64_ldst8_lo12,
-      fixup_a64_ldst16_lo12,
-      fixup_a64_ldst32_lo12,
-      fixup_a64_ldst64_lo12,
-      fixup_a64_ldst128_lo12,
+  // fixup_aarch64_pcrel_adrp_imm21 - A 21-bit pc-relative immediate inserted into
+  // an ADRP instruction.
+  fixup_aarch64_pcrel_adrp_imm21,
 
-      fixup_a64_tstbr,
-      fixup_a64_condbr,
-      fixup_a64_uncondbr,
-      fixup_a64_call,
+  // fixup_aarch64_imm12 - 12-bit fixup for add/sub instructions.
+  //     No alignment adjustment. All value bits are encoded.
+  fixup_aarch64_add_imm12,
 
-      fixup_a64_movw_uabs_g0,
-      fixup_a64_movw_uabs_g0_nc,
-      fixup_a64_movw_uabs_g1,
-      fixup_a64_movw_uabs_g1_nc,
-      fixup_a64_movw_uabs_g2,
-      fixup_a64_movw_uabs_g2_nc,
-      fixup_a64_movw_uabs_g3,
+  // fixup_aarch64_ldst_imm12_* - unsigned 12-bit fixups for load and
+  // store instructions.
+  fixup_aarch64_ldst_imm12_scale1,
+  fixup_aarch64_ldst_imm12_scale2,
+  fixup_aarch64_ldst_imm12_scale4,
+  fixup_aarch64_ldst_imm12_scale8,
+  fixup_aarch64_ldst_imm12_scale16,
 
-      fixup_a64_movw_sabs_g0,
-      fixup_a64_movw_sabs_g1,
-      fixup_a64_movw_sabs_g2,
+  // fixup_aarch64_ldr_pcrel_imm19 - The high 19 bits of a 21-bit pc-relative
+  // immediate. Same encoding as fixup_aarch64_pcrel_adrhi, except this is used by
+  // pc-relative loads and generates relocations directly when necessary.
+  fixup_aarch64_ldr_pcrel_imm19,
 
-      fixup_a64_adr_prel_got_page,
-      fixup_a64_ld64_got_lo12_nc,
+  // FIXME: comment
+  fixup_aarch64_movw,
 
-      // Produce offsets relative to the module's dynamic TLS area.
-      fixup_a64_movw_dtprel_g2,
-      fixup_a64_movw_dtprel_g1,
-      fixup_a64_movw_dtprel_g1_nc,
-      fixup_a64_movw_dtprel_g0,
-      fixup_a64_movw_dtprel_g0_nc,
-      fixup_a64_add_dtprel_hi12,
-      fixup_a64_add_dtprel_lo12,
-      fixup_a64_add_dtprel_lo12_nc,
-      fixup_a64_ldst8_dtprel_lo12,
-      fixup_a64_ldst8_dtprel_lo12_nc,
-      fixup_a64_ldst16_dtprel_lo12,
-      fixup_a64_ldst16_dtprel_lo12_nc,
-      fixup_a64_ldst32_dtprel_lo12,
-      fixup_a64_ldst32_dtprel_lo12_nc,
-      fixup_a64_ldst64_dtprel_lo12,
-      fixup_a64_ldst64_dtprel_lo12_nc,
+  // fixup_aarch64_pcrel_imm14 - The high 14 bits of a 21-bit pc-relative
+  // immediate.
+  fixup_aarch64_pcrel_branch14,
 
-      // Produce the GOT entry containing a variable's address in TLS's
-      // initial-exec mode.
-      fixup_a64_movw_gottprel_g1,
-      fixup_a64_movw_gottprel_g0_nc,
-      fixup_a64_adr_gottprel_page,
-      fixup_a64_ld64_gottprel_lo12_nc,
-      fixup_a64_ld_gottprel_prel19,
+  // fixup_aarch64_pcrel_branch19 - The high 19 bits of a 21-bit pc-relative
+  // immediate. Same encoding as fixup_aarch64_pcrel_adrhi, except this is use by
+  // b.cc and generates relocations directly when necessary.
+  fixup_aarch64_pcrel_branch19,
 
-      // Produce offsets relative to the thread pointer: TPIDR_EL0.
-      fixup_a64_movw_tprel_g2,
-      fixup_a64_movw_tprel_g1,
-      fixup_a64_movw_tprel_g1_nc,
-      fixup_a64_movw_tprel_g0,
-      fixup_a64_movw_tprel_g0_nc,
-      fixup_a64_add_tprel_hi12,
-      fixup_a64_add_tprel_lo12,
-      fixup_a64_add_tprel_lo12_nc,
-      fixup_a64_ldst8_tprel_lo12,
-      fixup_a64_ldst8_tprel_lo12_nc,
-      fixup_a64_ldst16_tprel_lo12,
-      fixup_a64_ldst16_tprel_lo12_nc,
-      fixup_a64_ldst32_tprel_lo12,
-      fixup_a64_ldst32_tprel_lo12_nc,
-      fixup_a64_ldst64_tprel_lo12,
-      fixup_a64_ldst64_tprel_lo12_nc,
+  // fixup_aarch64_pcrel_branch26 - The high 26 bits of a 28-bit pc-relative
+  // immediate.
+  fixup_aarch64_pcrel_branch26,
 
-      // Produce the special fixups used by the general-dynamic TLS model.
-      fixup_a64_tlsdesc_adr_page,
-      fixup_a64_tlsdesc_ld64_lo12_nc,
-      fixup_a64_tlsdesc_add_lo12_nc,
-      fixup_a64_tlsdesc_call,
+  // fixup_aarch64_pcrel_call26 - The high 26 bits of a 28-bit pc-relative
+  // immediate. Distinguished from branch26 only on ELF.
+  fixup_aarch64_pcrel_call26,
 
+  // fixup_aarch64_tlsdesc_call - zero-space placeholder for the ELF
+  // R_AARCH64_TLSDESC_CALL relocation.
+  fixup_aarch64_tlsdesc_call,
 
-      // Marker
-      LastTargetFixupKind,
-      NumTargetFixupKinds = LastTargetFixupKind - FirstTargetFixupKind
-    };
-  }
-}
+  // Marker
+  LastTargetFixupKind,
+  NumTargetFixupKinds = LastTargetFixupKind - FirstTargetFixupKind
+};
+
+} // end namespace AArch64
+} // end namespace llvm
 
 #endif

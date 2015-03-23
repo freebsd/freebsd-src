@@ -257,7 +257,7 @@ login_receive(struct connection *conn)
 		 * to be bug in NetBSD iSCSI target.
 		 */
 		log_warnx("received Login PDU with wrong StatSN: "
-		    "is %d, should be %d", ntohl(bhslr->bhslr_statsn),
+		    "is %u, should be %u", ntohl(bhslr->bhslr_statsn),
 		    conn->conn_statsn + 1);
 	}
 	conn->conn_tsih = ntohs(bhslr->bhslr_tsih);
@@ -388,6 +388,11 @@ login_negotiate_key(struct connection *conn, const char *name,
 		if (tmp <= 0)
 			log_errx(1, "received invalid "
 			    "MaxRecvDataSegmentLength");
+		if (tmp > ISCSI_MAX_DATA_SEGMENT_LENGTH) {
+			log_debugx("capping MaxRecvDataSegmentLength "
+			    "from %d to %d", tmp, ISCSI_MAX_DATA_SEGMENT_LENGTH);
+			tmp = ISCSI_MAX_DATA_SEGMENT_LENGTH;
+		}
 		conn->conn_max_data_segment_length = tmp;
 	} else if (strcmp(name, "MaxBurstLength") == 0) {
 		if (conn->conn_immediate_data) {
@@ -436,6 +441,10 @@ login_negotiate(struct connection *conn)
 	request = login_new_request(conn, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
 	request_keys = keys_new();
 
+	log_debugx("offload \"%s\" limits MaxRecvDataSegmentLength to %zd",
+	    conn->conn_conf.isc_offload,
+	    conn->conn_limits.isl_max_data_segment_length);
+
 	/*
 	 * The following keys are irrelevant for discovery sessions.
 	 */
@@ -451,21 +460,21 @@ login_negotiate(struct connection *conn)
 
 		keys_add(request_keys, "ImmediateData", "Yes");
 		keys_add_int(request_keys, "MaxBurstLength",
-		    ISCSI_MAX_DATA_SEGMENT_LENGTH);
+		    2 * conn->conn_limits.isl_max_data_segment_length);
 		keys_add_int(request_keys, "FirstBurstLength",
-		    ISCSI_MAX_DATA_SEGMENT_LENGTH);
+		    conn->conn_limits.isl_max_data_segment_length);
 		keys_add(request_keys, "InitialR2T", "Yes");
+		keys_add(request_keys, "MaxOutstandingR2T", "1");
 	} else {
 		keys_add(request_keys, "HeaderDigest", "None");
 		keys_add(request_keys, "DataDigest", "None");
 	}
 
 	keys_add_int(request_keys, "MaxRecvDataSegmentLength",
-	    ISCSI_MAX_DATA_SEGMENT_LENGTH);
+	    conn->conn_limits.isl_max_data_segment_length);
 	keys_add(request_keys, "DefaultTime2Wait", "0");
 	keys_add(request_keys, "DefaultTime2Retain", "0");
 	keys_add(request_keys, "ErrorRecoveryLevel", "0");
-	keys_add(request_keys, "MaxOutstandingR2T", "1");
 	keys_save(request_keys, request);
 	keys_delete(request_keys);
 	request_keys = NULL;

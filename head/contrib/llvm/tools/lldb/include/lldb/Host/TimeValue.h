@@ -15,11 +15,7 @@
 #ifndef _MSC_VER
 #include <sys/time.h>
 
-// BEGIN: MinGW work around
-#if !defined(_STRUCT_TIMESPEC) && !defined(HAVE_STRUCT_TIMESPEC)
-#include <pthread.h>
-#endif
-// END: MinGW work around
+
 #endif
 
 // C++ Includes
@@ -35,6 +31,7 @@ public:
     static const uint64_t MicroSecPerSec = 1000000UL;
     static const uint64_t NanoSecPerSec = 1000000000UL;
     static const uint64_t NanoSecPerMicroSec = 1000U;
+    static const uint64_t NanoSecPerMilliSec = 1000000UL;
 
     //------------------------------------------------------------------
     // Constructors and Destructors
@@ -99,6 +96,15 @@ public:
     /// @brief Retrieve the fractional part as microseconds;
     uint32_t microseconds() const {
         return (m_nano_seconds % NanoSecPerSec) / NanoSecPerMicroSec;
+    }
+
+    /// Returns only the fractional portion of the TimeValue rounded down to the
+    /// nearest millisecond (divide by one million).
+    /// @brief Retrieve the milliseconds component;
+    uint32_t
+    milliseconds() const
+    {
+        return m_nano_seconds / NanoSecPerMilliSec;
     }
 
 protected:

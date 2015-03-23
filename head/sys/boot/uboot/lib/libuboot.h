@@ -72,8 +72,3 @@ void reboot(void);
 
 int uboot_diskgetunit(int type, int type_unit);
 
-#if defined(LOADER_FDT_SUPPORT)
-extern int fdt_setup_fdtp();
-extern int fdt_copy(vm_offset_t);
-#endif
-

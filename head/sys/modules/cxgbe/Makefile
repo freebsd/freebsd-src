@@ -6,6 +6,7 @@ SYSDIR?=${.CURDIR}/../..
 .include "${SYSDIR}/conf/kern.opts.mk"
 
 SUBDIR=	if_cxgbe
+SUBDIR+=	if_cxl
 SUBDIR+=	t4_firmware
 SUBDIR+=	t5_firmware
 SUBDIR+=	${_tom}

@@ -14,6 +14,9 @@
 /* Define if we have libxml2 */
 /* #undef CLANG_HAVE_LIBXML */
 
+/* Multilib suffix for libdir. */
+/* #undef CLANG_LIBDIR_SUFFIX */
+
 /* Relative directory for resource files */
 #define CLANG_RESOURCE_DIR ""
 
@@ -38,38 +41,11 @@
 /* Directory where gcc is installed. */
 #define GCC_INSTALL_PREFIX ""
 
-/* Define to 1 if you have the `arc4random' function. */
-#define HAVE_ARC4RANDOM 1
-
-/* Define to 1 if you have the `argz_append' function. */
-/* #undef HAVE_ARGZ_APPEND */
-
-/* Define to 1 if you have the `argz_create_sep' function. */
-/* #undef HAVE_ARGZ_CREATE_SEP */
-
-/* Define to 1 if you have the <argz.h> header file. */
-/* #undef HAVE_ARGZ_H */
-
-/* Define to 1 if you have the `argz_insert' function. */
-/* #undef HAVE_ARGZ_INSERT */
-
-/* Define to 1 if you have the `argz_next' function. */
-/* #undef HAVE_ARGZ_NEXT */
-
-/* Define to 1 if you have the `argz_stringify' function. */
-/* #undef HAVE_ARGZ_STRINGIFY */
-
 /* Define to 1 if you have the `backtrace' function. */
 /* #undef HAVE_BACKTRACE */
 
 /* Define to 1 if you have the `ceilf' function. */
 #define HAVE_CEILF 1
-
-/* Define if the neat program is available */
-/* #undef HAVE_CIRCO */
-
-/* Define to 1 if you have the `closedir' function. */
-#define HAVE_CLOSEDIR 1
 
 /* Define to 1 if you have the <CrashReporterClient.h> header file. */
 /* #undef HAVE_CRASHREPORTERCLIENT_H */
@@ -79,6 +55,10 @@
 
 /* Define to 1 if you have the <cxxabi.h> header file. */
 #define HAVE_CXXABI_H 1
+
+/* Define to 1 if you have the declaration of `arc4random', and to 0 if you
+   don't. */
+#define HAVE_DECL_ARC4RANDOM 1
 
 /* Define to 1 if you have the declaration of `FE_ALL_EXCEPT', and to 0 if you
    don't. */
@@ -96,12 +76,6 @@
    */
 #define HAVE_DIRENT_H 1
 
-/* Define if you have the GNU dld library. */
-/* #undef HAVE_DLD */
-
-/* Define to 1 if you have the `dlerror' function. */
-#define HAVE_DLERROR 1
-
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
@@ -111,20 +85,13 @@
 /* Define if the dot program is available */
 /* #undef HAVE_DOT */
 
-/* Define if the dotty program is available */
-/* #undef HAVE_DOTTY */
-
-/* Define if you have the _dyld_func_lookup function. */
-/* #undef HAVE_DYLD */
-
 /* Define to 1 if you have the <errno.h> header file. */
 #define HAVE_ERRNO_H 1
 
-/* Define to 1 if the system has the type `error_t'. */
-/* #undef HAVE_ERROR_T */
-
 /* Define to 1 if you have the <execinfo.h> header file. */
-/* #undef HAVE_EXECINFO_H */
+#if __FreeBSD_version >= 1000052
+#define HAVE_EXECINFO_H 1
+#endif
 
 /* Define to 1 if you have the `exp' function. */
 #define HAVE_EXP 1
@@ -134,9 +101,6 @@
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
-
-/* Define if the neat program is available */
-/* #undef HAVE_FDP */
 
 /* Define to 1 if you have the <fenv.h> header file. */
 #define HAVE_FENV_H 1
@@ -160,7 +124,9 @@
 #define HAVE_FMODF 1
 
 /* Define to 1 if you have the `futimens' function. */
-/* #undef HAVE_FUTIMENS */
+#if __FreeBSD_version >= 1100056
+#define HAVE_FUTIMENS 1
+#endif
 
 /* Define to 1 if you have the `futimes' function. */
 #define HAVE_FUTIMES 1
@@ -179,12 +145,6 @@
 
 /* Define to 1 if you have the `gettimeofday' function. */
 #define HAVE_GETTIMEOFDAY 1
-
-/* Define if the Graphviz program is available */
-/* #undef HAVE_GRAPHVIZ */
-
-/* Define if the gv program is available */
-/* #undef HAVE_GV */
 
 /* Define to 1 if the system has the type `int64_t'. */
 #define HAVE_INT64_T 1
@@ -207,8 +167,8 @@
 /* Set to 1 if the isnan function is found in <math.h> */
 #define HAVE_ISNAN_IN_MATH_H 1
 
-/* Define if you have the libdl library or equivalent. */
-#define HAVE_LIBDL 1
+/* Define if libedit is available on this platform. */
+#define HAVE_LIBEDIT 1
 
 /* Define to 1 if you have the `imagehlp' library (-limagehlp). */
 /* #undef HAVE_LIBIMAGEHLP */
@@ -224,9 +184,6 @@
 
 /* Define to 1 if you have the `shell32' library (-lshell32). */
 /* #undef HAVE_LIBSHELL32 */
-
-/* Define to 1 if you have the `udis86' library (-ludis86). */
-/* #undef HAVE_LIBUDIS86 */
 
 /* Define to 1 if you have the `z' library (-lz). */
 #define HAVE_LIBZ 1
@@ -257,9 +214,6 @@
 
 /* Define to 1 if you have the <mach/mach.h> header file. */
 /* #undef HAVE_MACH_MACH_H */
-
-/* Define to 1 if you have the <mach-o/dyld.h> header file. */
-/* #undef HAVE_MACH_O_DYLD_H */
 
 /* Define if mallinfo() is available on this platform. */
 /* #undef HAVE_MALLINFO */
@@ -301,12 +255,6 @@
 /* Define to 1 if you have the `nearbyintf' function. */
 #define HAVE_NEARBYINTF 1
 
-/* Define if the neat program is available */
-/* #undef HAVE_NEATO */
-
-/* Define to 1 if you have the `opendir' function. */
-#define HAVE_OPENDIR 1
-
 /* Define to 1 if you have the `posix_spawn' function. */
 /* #undef HAVE_POSIX_SPAWN */
 
@@ -315,9 +263,6 @@
 
 /* Define to 1 if you have the `pread' function. */
 #define HAVE_PREAD 1
-
-/* Define if libtool can extract symbol lists from object files. */
-#define HAVE_PRELOADED_SYMBOLS 1
 
 /* Define to have the %a format string */
 #define HAVE_PRINTF_A 1
@@ -336,9 +281,6 @@
 
 /* Define to 1 if srand48/lrand48/drand48 exist in <stdlib.h> */
 #define HAVE_RAND48 1
-
-/* Define to 1 if you have the `readdir' function. */
-#define HAVE_READDIR 1
 
 /* Define to 1 if you have the `realpath' function. */
 #define HAVE_REALPATH 1
@@ -366,9 +308,6 @@
 
 /* Define to 1 if you have the `setrlimit' function. */
 #define HAVE_SETRLIMIT 1
-
-/* Define if you have the shl_load function. */
-/* #undef HAVE_SHL_LOAD */
 
 /* Define to 1 if you have the `siglongjmp' function. */
 #define HAVE_SIGLONGJMP 1
@@ -456,9 +395,6 @@
 /* Define to 1 if you have the <termios.h> header file. */
 #define HAVE_TERMIOS_H 1
 
-/* Define if the neat program is available */
-/* #undef HAVE_TWOPI */
-
 /* Define to 1 if the system has the type `uint64_t'. */
 #define HAVE_UINT64_T 1
 
@@ -476,9 +412,6 @@
 
 /* Define to 1 if you have the `writev' function. */
 #define HAVE_WRITEV 1
-
-/* Define if the xdot program is available */
-/* #undef HAVE_XDOT */
 
 /* Define to 1 if you have the <zlib.h> header file. */
 #define HAVE_ZLIB_H 1
@@ -603,32 +536,8 @@
 /* Define if this is Win32ish platform */
 /* #undef LLVM_ON_WIN32 */
 
-/* Define to path to circo program if found or 'echo circo' otherwise */
-/* #undef LLVM_PATH_CIRCO */
-
 /* Define to path to dot program if found or 'echo dot' otherwise */
 /* #undef LLVM_PATH_DOT */
-
-/* Define to path to dotty program if found or 'echo dotty' otherwise */
-/* #undef LLVM_PATH_DOTTY */
-
-/* Define to path to fdp program if found or 'echo fdp' otherwise */
-/* #undef LLVM_PATH_FDP */
-
-/* Define to path to Graphviz program if found or 'echo Graphviz' otherwise */
-/* #undef LLVM_PATH_GRAPHVIZ */
-
-/* Define to path to gv program if found or 'echo gv' otherwise */
-/* #undef LLVM_PATH_GV */
-
-/* Define to path to neato program if found or 'echo neato' otherwise */
-/* #undef LLVM_PATH_NEATO */
-
-/* Define to path to twopi program if found or 'echo twopi' otherwise */
-/* #undef LLVM_PATH_TWOPI */
-
-/* Define to path to xdot program if found or 'echo xdot' otherwise */
-/* #undef LLVM_PATH_XDOT */
 
 /* Installation prefix directory */
 #define LLVM_PREFIX "/usr"
@@ -643,45 +552,35 @@
 #define LLVM_VERSION_MAJOR 3
 
 /* Minor version of the LLVM API */
-#define LLVM_VERSION_MINOR 4
+#define LLVM_VERSION_MINOR 6
 
 /* Patch version of the LLVM API */
-#define LLVM_VERSION_PATCH 1
+#define LLVM_VERSION_PATCH 0
 
-/* Define if the OS needs help to load dependent libraries for dlopen(). */
-#define LTDL_DLOPEN_DEPLIBS 1
+/* LLVM version string */
+#define LLVM_VERSION_STRING "3.6.0"
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
-#define LTDL_OBJDIR ".libs/"
-
-/* Define to the extension used for shared libraries, say, ".so". */
+/* The shared library extension */
 #define LTDL_SHLIB_EXT ".so"
-
-/* Define to the system default library search path. */
-#define LTDL_SYSSEARCHPATH "/lib:/usr/lib"
 
 /* Define if /dev/zero should be used when mapping RWX memory, or undefine if
    its not necessary */
 /* #undef NEED_DEV_ZERO_FOR_MMAP */
 
-/* Define if dlsym() requires a leading underscore in symbol names. */
-/* #undef NEED_USCORE */
-
 /* Define to the address where bug reports for this package should be sent. */
-#define PACKAGE_BUGREPORT "http://llvm.org/bugs/"
+#define PACKAGE_BUGREPORT "https://bugs.freebsd.org/submit/"
 
 /* Define to the full name of this package. */
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 3.4.1"
+#define PACKAGE_STRING "LLVM 3.6.0"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "llvm"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.4.1"
+#define PACKAGE_VERSION "3.6.0"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
@@ -698,17 +597,8 @@
 /* Define to 1 if your <sys/time.h> declares `struct tm'. */
 /* #undef TM_IN_SYS_TIME */
 
-/* Define if use udis86 library */
-#define USE_UDIS86 0
-
 /* Type of 1st arg on ELM Callback */
 /* #undef WIN32_ELMCB_PCSTR */
-
-/* Define to empty if `const' does not conform to ANSI C. */
-/* #undef const */
-
-/* Define to a type to use for `error_t' if it is not otherwise available. */
-#define error_t int
 
 /* Define to `int' if <sys/types.h> does not define. */
 /* #undef pid_t */

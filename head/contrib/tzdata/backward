@@ -4,7 +4,8 @@
 # This file provides links between current names for time zones
 # and their old names.  Many names changed in late 1993.
 
-Link	Africa/Asmara		Africa/Asmera
+# Link	TARGET			LINK-NAME
+Link	Africa/Nairobi		Africa/Asmera
 Link	Africa/Abidjan		Africa/Timbuktu
 Link	America/Argentina/Catamarca	America/Argentina/ComodRivadavia
 Link	America/Adak		America/Atka

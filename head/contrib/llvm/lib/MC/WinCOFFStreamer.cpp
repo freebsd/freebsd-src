@@ -7,335 +7,269 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains an implementation of a Win32 COFF object file streamer.
+// This file contains an implementation of a Windows COFF object file streamer.
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "WinCOFFStreamer"
-
-#include "llvm/MC/MCStreamer.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/MC/MCAsmBackend.h"
 #include "llvm/MC/MCAsmLayout.h"
 #include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
+#include "llvm/MC/MCObjectFileInfo.h"
 #include "llvm/MC/MCObjectStreamer.h"
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCSectionCOFF.h"
+#include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCValue.h"
-#include "llvm/MC/MCWin64EH.h"
+#include "llvm/MC/MCWinCOFFStreamer.h"
 #include "llvm/Support/COFF.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/MathExtras.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 
-namespace {
-class WinCOFFStreamer : public MCObjectStreamer {
-public:
-  MCSymbol const *CurSymbol;
+#define DEBUG_TYPE "WinCOFFStreamer"
 
-  WinCOFFStreamer(MCContext &Context,
-                  MCAsmBackend &MAB,
-                  MCCodeEmitter &CE,
-                  raw_ostream &OS);
+namespace llvm {
+MCWinCOFFStreamer::MCWinCOFFStreamer(MCContext &Context, MCAsmBackend &MAB,
+                                     MCCodeEmitter &CE, raw_ostream &OS)
+    : MCObjectStreamer(Context, MAB, OS, &CE), CurSymbol(nullptr) {}
 
-  void AddCommonSymbol(MCSymbol *Symbol, uint64_t Size,
-                       unsigned ByteAlignment, bool External);
+void MCWinCOFFStreamer::EmitInstToData(const MCInst &Inst,
+                                       const MCSubtargetInfo &STI) {
+  MCDataFragment *DF = getOrCreateDataFragment();
 
-  // MCStreamer interface
+  SmallVector<MCFixup, 4> Fixups;
+  SmallString<256> Code;
+  raw_svector_ostream VecOS(Code);
+  getAssembler().getEmitter().EncodeInstruction(Inst, VecOS, Fixups, STI);
+  VecOS.flush();
 
-  virtual void InitSections();
-  virtual void InitToTextSection();
-  virtual void EmitLabel(MCSymbol *Symbol);
-  virtual void EmitDebugLabel(MCSymbol *Symbol);
-  virtual void EmitAssemblerFlag(MCAssemblerFlag Flag);
-  virtual void EmitThumbFunc(MCSymbol *Func);
-  virtual bool EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute);
-  virtual void EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue);
-  virtual void BeginCOFFSymbolDef(MCSymbol const *Symbol);
-  virtual void EmitCOFFSymbolStorageClass(int StorageClass);
-  virtual void EmitCOFFSymbolType(int Type);
-  virtual void EndCOFFSymbolDef();
-  virtual void EmitCOFFSecRel32(MCSymbol const *Symbol);
-  virtual void EmitELFSize(MCSymbol *Symbol, const MCExpr *Value);
-  virtual void EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
-                                unsigned ByteAlignment);
-  virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
-                                     unsigned ByteAlignment);
-  virtual void EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
-                            uint64_t Size,unsigned ByteAlignment);
-  virtual void EmitTBSSSymbol(const MCSection *Section, MCSymbol *Symbol,
-                              uint64_t Size, unsigned ByteAlignment);
-  virtual void EmitFileDirective(StringRef Filename);
-  virtual void EmitIdent(StringRef IdentString);
-  virtual void EmitWin64EHHandlerData();
-  virtual void FinishImpl();
-
-private:
-  virtual void EmitInstToData(const MCInst &Inst) {
-    MCDataFragment *DF = getOrCreateDataFragment();
-
-    SmallVector<MCFixup, 4> Fixups;
-    SmallString<256> Code;
-    raw_svector_ostream VecOS(Code);
-    getAssembler().getEmitter().EncodeInstruction(Inst, VecOS, Fixups);
-    VecOS.flush();
-
-    // Add the fixups and data.
-    for (unsigned i = 0, e = Fixups.size(); i != e; ++i) {
-      Fixups[i].setOffset(Fixups[i].getOffset() + DF->getContents().size());
-      DF->getFixups().push_back(Fixups[i]);
-    }
-    DF->getContents().append(Code.begin(), Code.end());
+  // Add the fixups and data.
+  for (unsigned i = 0, e = Fixups.size(); i != e; ++i) {
+    Fixups[i].setOffset(Fixups[i].getOffset() + DF->getContents().size());
+    DF->getFixups().push_back(Fixups[i]);
   }
 
-  void SetSection(StringRef Section,
-                  unsigned Characteristics,
-                  SectionKind Kind) {
-    SwitchSection(getContext().getCOFFSection(Section, Characteristics, Kind));
-  }
-
-  void SetSectionText() {
-    SetSection(".text",
-               COFF::IMAGE_SCN_CNT_CODE
-             | COFF::IMAGE_SCN_MEM_EXECUTE
-             | COFF::IMAGE_SCN_MEM_READ,
-               SectionKind::getText());
-    EmitCodeAlignment(4, 0);
-  }
-
-  void SetSectionData() {
-    SetSection(".data",
-               COFF::IMAGE_SCN_CNT_INITIALIZED_DATA
-             | COFF::IMAGE_SCN_MEM_READ
-             | COFF::IMAGE_SCN_MEM_WRITE,
-               SectionKind::getDataRel());
-    EmitCodeAlignment(4, 0);
-  }
-
-  void SetSectionBSS() {
-    SetSection(".bss",
-               COFF::IMAGE_SCN_CNT_UNINITIALIZED_DATA
-             | COFF::IMAGE_SCN_MEM_READ
-             | COFF::IMAGE_SCN_MEM_WRITE,
-               SectionKind::getBSS());
-    EmitCodeAlignment(4, 0);
-  }
-};
-} // end anonymous namespace.
-
-WinCOFFStreamer::WinCOFFStreamer(MCContext &Context, MCAsmBackend &MAB,
-                                 MCCodeEmitter &CE, raw_ostream &OS)
-    : MCObjectStreamer(Context, 0, MAB, OS, &CE), CurSymbol(NULL) {}
-
-void WinCOFFStreamer::AddCommonSymbol(MCSymbol *Symbol, uint64_t Size,
-                                      unsigned ByteAlignment, bool External) {
-  assert(!Symbol->isInSection() && "Symbol must not already have a section!");
-
-  std::string SectionName(".bss$linkonce");
-  SectionName.append(Symbol->getName().begin(), Symbol->getName().end());
-
-  MCSymbolData &SymbolData = getAssembler().getOrCreateSymbolData(*Symbol);
-
-  unsigned Characteristics =
-    COFF::IMAGE_SCN_LNK_COMDAT |
-    COFF::IMAGE_SCN_CNT_UNINITIALIZED_DATA |
-    COFF::IMAGE_SCN_MEM_READ |
-    COFF::IMAGE_SCN_MEM_WRITE;
-
-  int Selection = COFF::IMAGE_COMDAT_SELECT_LARGEST;
-
-  const MCSection *Section = MCStreamer::getContext().getCOFFSection(
-      SectionName, Characteristics, SectionKind::getBSS(), Symbol->getName(),
-      Selection);
-
-  MCSectionData &SectionData = getAssembler().getOrCreateSectionData(*Section);
-
-  if (SectionData.getAlignment() < ByteAlignment)
-    SectionData.setAlignment(ByteAlignment);
-
-  SymbolData.setExternal(External);
-
-  AssignSection(Symbol, Section);
-
-  if (ByteAlignment != 1)
-      new MCAlignFragment(ByteAlignment, 0, 0, ByteAlignment, &SectionData);
-
-  SymbolData.setFragment(new MCFillFragment(0, 0, Size, &SectionData));
+  DF->getContents().append(Code.begin(), Code.end());
 }
 
-// MCStreamer interface
+void MCWinCOFFStreamer::InitSections(bool NoExecStack) {
+  // FIXME: this is identical to the ELF one.
+  // This emulates the same behavior of GNU as. This makes it easier
+  // to compare the output as the major sections are in the same order.
+  SwitchSection(getContext().getObjectFileInfo()->getTextSection());
+  EmitCodeAlignment(4);
 
-void WinCOFFStreamer::InitToTextSection() {
-  SetSectionText();
+  SwitchSection(getContext().getObjectFileInfo()->getDataSection());
+  EmitCodeAlignment(4);
+
+  SwitchSection(getContext().getObjectFileInfo()->getBSSSection());
+  EmitCodeAlignment(4);
+
+  SwitchSection(getContext().getObjectFileInfo()->getTextSection());
 }
 
-void WinCOFFStreamer::InitSections() {
-  SetSectionText();
-  SetSectionData();
-  SetSectionBSS();
-  SetSectionText();
-}
-
-void WinCOFFStreamer::EmitLabel(MCSymbol *Symbol) {
+void MCWinCOFFStreamer::EmitLabel(MCSymbol *Symbol) {
   assert(Symbol->isUndefined() && "Cannot define a symbol twice!");
   MCObjectStreamer::EmitLabel(Symbol);
 }
 
-void WinCOFFStreamer::EmitDebugLabel(MCSymbol *Symbol) {
-  EmitLabel(Symbol);
-}
-void WinCOFFStreamer::EmitAssemblerFlag(MCAssemblerFlag Flag) {
+void MCWinCOFFStreamer::EmitAssemblerFlag(MCAssemblerFlag Flag) {
   llvm_unreachable("not implemented");
 }
 
-void WinCOFFStreamer::EmitThumbFunc(MCSymbol *Func) {
+void MCWinCOFFStreamer::EmitThumbFunc(MCSymbol *Func) {
   llvm_unreachable("not implemented");
 }
 
-bool WinCOFFStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
-                                          MCSymbolAttr Attribute) {
+bool MCWinCOFFStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
+                                            MCSymbolAttr Attribute) {
   assert(Symbol && "Symbol must be non-null!");
-  assert((Symbol->isInSection()
-         ? Symbol->getSection().getVariant() == MCSection::SV_COFF
-         : true) && "Got non COFF section in the COFF backend!");
+  assert((!Symbol->isInSection() ||
+          Symbol->getSection().getVariant() == MCSection::SV_COFF) &&
+         "Got non-COFF section in the COFF backend!");
+
+  MCSymbolData &SD = getAssembler().getOrCreateSymbolData(*Symbol);
+
   switch (Attribute) {
+  default: return false;
   case MCSA_WeakReference:
-  case MCSA_Weak: {
-      MCSymbolData &SD = getAssembler().getOrCreateSymbolData(*Symbol);
-      SD.modifyFlags(COFF::SF_WeakExternal, COFF::SF_WeakExternal);
-      SD.setExternal(true);
-    }
+  case MCSA_Weak:
+    SD.modifyFlags(COFF::SF_WeakExternal, COFF::SF_WeakExternal);
+    SD.setExternal(true);
     break;
-
   case MCSA_Global:
-    getAssembler().getOrCreateSymbolData(*Symbol).setExternal(true);
+    SD.setExternal(true);
     break;
-
-  default:
-    return false;
   }
 
   return true;
 }
 
-void WinCOFFStreamer::EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue) {
+void MCWinCOFFStreamer::EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue) {
   llvm_unreachable("not implemented");
 }
 
-void WinCOFFStreamer::BeginCOFFSymbolDef(MCSymbol const *Symbol) {
-  assert((Symbol->isInSection()
-         ? Symbol->getSection().getVariant() == MCSection::SV_COFF
-         : true) && "Got non COFF section in the COFF backend!");
-  assert(CurSymbol == NULL && "EndCOFFSymbolDef must be called between calls "
-                              "to BeginCOFFSymbolDef!");
+void MCWinCOFFStreamer::BeginCOFFSymbolDef(MCSymbol const *Symbol) {
+  assert((!Symbol->isInSection() ||
+          Symbol->getSection().getVariant() == MCSection::SV_COFF) &&
+         "Got non-COFF section in the COFF backend!");
+
+  if (CurSymbol)
+    FatalError("starting a new symbol definition without completing the "
+               "previous one");
   CurSymbol = Symbol;
 }
 
-void WinCOFFStreamer::EmitCOFFSymbolStorageClass(int StorageClass) {
-  assert(CurSymbol != NULL && "BeginCOFFSymbolDef must be called first!");
-  assert((StorageClass & ~0xFF) == 0 && "StorageClass must only have data in "
-                                        "the first byte!");
+void MCWinCOFFStreamer::EmitCOFFSymbolStorageClass(int StorageClass) {
+  if (!CurSymbol)
+    FatalError("storage class specified outside of symbol definition");
 
-  getAssembler().getOrCreateSymbolData(*CurSymbol).modifyFlags(
-    StorageClass << COFF::SF_ClassShift,
-    COFF::SF_ClassMask);
+  if (StorageClass & ~COFF::SSC_Invalid)
+    FatalError(Twine("storage class value '") + itostr(StorageClass) +
+               "' out of range");
+
+  MCSymbolData &SD = getAssembler().getOrCreateSymbolData(*CurSymbol);
+  SD.modifyFlags(StorageClass << COFF::SF_ClassShift, COFF::SF_ClassMask);
 }
 
-void WinCOFFStreamer::EmitCOFFSymbolType(int Type) {
-  assert(CurSymbol != NULL && "BeginCOFFSymbolDef must be called first!");
-  assert((Type & ~0xFFFF) == 0 && "Type must only have data in the first 2 "
-                                  "bytes");
+void MCWinCOFFStreamer::EmitCOFFSymbolType(int Type) {
+  if (!CurSymbol)
+    FatalError("symbol type specified outside of a symbol definition");
 
-  getAssembler().getOrCreateSymbolData(*CurSymbol).modifyFlags(
-    Type << COFF::SF_TypeShift,
-    COFF::SF_TypeMask);
+  if (Type & ~0xffff)
+    FatalError(Twine("type value '") + itostr(Type) + "' out of range");
+
+  MCSymbolData &SD = getAssembler().getOrCreateSymbolData(*CurSymbol);
+  SD.modifyFlags(Type << COFF::SF_TypeShift, COFF::SF_TypeMask);
 }
 
-void WinCOFFStreamer::EndCOFFSymbolDef() {
-  assert(CurSymbol != NULL && "BeginCOFFSymbolDef must be called first!");
-  CurSymbol = NULL;
+void MCWinCOFFStreamer::EndCOFFSymbolDef() {
+  if (!CurSymbol)
+    FatalError("ending symbol definition without starting one");
+  CurSymbol = nullptr;
 }
 
-void WinCOFFStreamer::EmitCOFFSecRel32(MCSymbol const *Symbol)
-{
+void MCWinCOFFStreamer::EmitCOFFSectionIndex(MCSymbol const *Symbol) {
   MCDataFragment *DF = getOrCreateDataFragment();
+  const MCSymbolRefExpr *SRE = MCSymbolRefExpr::Create(Symbol, getContext());
+  MCFixup Fixup = MCFixup::Create(DF->getContents().size(), SRE, FK_SecRel_2);
+  DF->getFixups().push_back(Fixup);
+  DF->getContents().resize(DF->getContents().size() + 2, 0);
+}
 
-  DF->getFixups().push_back(
-      MCFixup::Create(DF->getContents().size(),
-                      MCSymbolRefExpr::Create (Symbol, getContext ()),
-                      FK_SecRel_4));
+void MCWinCOFFStreamer::EmitCOFFSecRel32(MCSymbol const *Symbol) {
+  MCDataFragment *DF = getOrCreateDataFragment();
+  const MCSymbolRefExpr *SRE = MCSymbolRefExpr::Create(Symbol, getContext());
+  MCFixup Fixup = MCFixup::Create(DF->getContents().size(), SRE, FK_SecRel_4);
+  DF->getFixups().push_back(Fixup);
   DF->getContents().resize(DF->getContents().size() + 4, 0);
 }
 
-void WinCOFFStreamer::EmitELFSize(MCSymbol *Symbol, const MCExpr *Value) {
+void MCWinCOFFStreamer::EmitELFSize(MCSymbol *Symbol, const MCExpr *Value) {
+  llvm_unreachable("not supported");
+}
+
+void MCWinCOFFStreamer::EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+                                         unsigned ByteAlignment) {
+  assert((!Symbol->isInSection() ||
+          Symbol->getSection().getVariant() == MCSection::SV_COFF) &&
+         "Got non-COFF section in the COFF backend!");
+
+  const Triple &T = getContext().getObjectFileInfo()->getTargetTriple();
+  if (T.isKnownWindowsMSVCEnvironment()) {
+    if (ByteAlignment > 32)
+      report_fatal_error("alignment is limited to 32-bytes");
+
+    // Round size up to alignment so that we will honor the alignment request.
+    Size = std::max(Size, static_cast<uint64_t>(ByteAlignment));
+  }
+
+  AssignSection(Symbol, nullptr);
+
+  MCSymbolData &SD = getAssembler().getOrCreateSymbolData(*Symbol);
+  SD.setExternal(true);
+  SD.setCommon(Size, ByteAlignment);
+
+  if (!T.isKnownWindowsMSVCEnvironment() && ByteAlignment > 1) {
+    SmallString<128> Directive;
+    raw_svector_ostream OS(Directive);
+    const MCObjectFileInfo *MFI = getContext().getObjectFileInfo();
+
+    OS << " -aligncomm:\"" << Symbol->getName() << "\","
+       << Log2_32_Ceil(ByteAlignment);
+    OS.flush();
+
+    PushSection();
+    SwitchSection(MFI->getDrectveSection());
+    EmitBytes(Directive);
+    PopSection();
+  }
+}
+
+void MCWinCOFFStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+                                              unsigned ByteAlignment) {
+  assert(!Symbol->isInSection() && "Symbol must not already have a section!");
+
+  const MCSection *Section = getContext().getObjectFileInfo()->getBSSSection();
+  MCSectionData &SectionData = getAssembler().getOrCreateSectionData(*Section);
+  if (SectionData.getAlignment() < ByteAlignment)
+    SectionData.setAlignment(ByteAlignment);
+
+  MCSymbolData &SD = getAssembler().getOrCreateSymbolData(*Symbol);
+  SD.setExternal(false);
+
+  AssignSection(Symbol, Section);
+
+  if (ByteAlignment != 1)
+    new MCAlignFragment(ByteAlignment, /*_Value=*/0, /*_ValueSize=*/0,
+                        ByteAlignment, &SectionData);
+
+  MCFillFragment *Fragment =
+      new MCFillFragment(/*_Value=*/0, /*_ValueSize=*/0, Size, &SectionData);
+  SD.setFragment(Fragment);
+}
+
+void MCWinCOFFStreamer::EmitZerofill(const MCSection *Section,
+                                     MCSymbol *Symbol, uint64_t Size,
+                                     unsigned ByteAlignment) {
   llvm_unreachable("not implemented");
 }
 
-void WinCOFFStreamer::EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+void MCWinCOFFStreamer::EmitTBSSSymbol(const MCSection *Section,
+                                       MCSymbol *Symbol, uint64_t Size,
                                        unsigned ByteAlignment) {
-  assert((Symbol->isInSection()
-         ? Symbol->getSection().getVariant() == MCSection::SV_COFF
-         : true) && "Got non COFF section in the COFF backend!");
-  AddCommonSymbol(Symbol, Size, ByteAlignment, true);
-}
-
-void WinCOFFStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
-                                            unsigned ByteAlignment) {
-  assert((Symbol->isInSection()
-         ? Symbol->getSection().getVariant() == MCSection::SV_COFF
-         : true) && "Got non COFF section in the COFF backend!");
-  AddCommonSymbol(Symbol, Size, ByteAlignment, false);
-}
-
-void WinCOFFStreamer::EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
-                                   uint64_t Size,unsigned ByteAlignment) {
   llvm_unreachable("not implemented");
 }
 
-void WinCOFFStreamer::EmitTBSSSymbol(const MCSection *Section, MCSymbol *Symbol,
-                                     uint64_t Size, unsigned ByteAlignment) {
-  llvm_unreachable("not implemented");
-}
-
-void WinCOFFStreamer::EmitFileDirective(StringRef Filename) {
-  // Ignore for now, linkers don't care, and proper debug
-  // info will be a much large effort.
+void MCWinCOFFStreamer::EmitFileDirective(StringRef Filename) {
+  getAssembler().addFileName(Filename);
 }
 
 // TODO: Implement this if you want to emit .comment section in COFF obj files.
-void WinCOFFStreamer::EmitIdent(StringRef IdentString) {
-  llvm_unreachable("unsupported directive");
+void MCWinCOFFStreamer::EmitIdent(StringRef IdentString) {
+  llvm_unreachable("not implemented");
 }
 
-void WinCOFFStreamer::EmitWin64EHHandlerData() {
-  MCStreamer::EmitWin64EHHandlerData();
-
-  // We have to emit the unwind info now, because this directive
-  // actually switches to the .xdata section!
-  MCWin64EHUnwindEmitter::EmitUnwindInfo(*this, getCurrentW64UnwindInfo());
+void MCWinCOFFStreamer::EmitWinEHHandlerData() {
+  llvm_unreachable("not implemented");
 }
 
-void WinCOFFStreamer::FinishImpl() {
-  EmitFrames(NULL, true);
-  EmitW64Tables();
+void MCWinCOFFStreamer::FinishImpl() {
   MCObjectStreamer::FinishImpl();
 }
 
-namespace llvm
-{
-  MCStreamer *createWinCOFFStreamer(MCContext &Context,
-                                    MCAsmBackend &MAB,
-                                    MCCodeEmitter &CE,
-                                    raw_ostream &OS,
-                                    bool RelaxAll) {
-    WinCOFFStreamer *S = new WinCOFFStreamer(Context, MAB, CE, OS);
-    S->getAssembler().setRelaxAll(RelaxAll);
-    return S;
-  }
+LLVM_ATTRIBUTE_NORETURN
+void MCWinCOFFStreamer::FatalError(const Twine &Msg) const {
+  getContext().FatalError(SMLoc(), Msg);
 }
+}
+

@@ -738,12 +738,6 @@ device		aacp	# SCSI Passthrough interface (optional, CAM required)
 # Adaptec by PMC RAID controllers, Series 6/7/8 and upcoming families
 device		aacraid		# Container interface, CAM required
 
-# The 'asr' driver provides support for current DPT/Adaptec SCSI RAID
-# controllers (SmartRAID V and VI and later).
-# These controllers require the CAM infrastructure.
-#
-device		asr
-
 #
 # Highpoint RocketRAID 27xx.
 device		hpt27xx
@@ -815,6 +809,7 @@ device		virtio_blk	# VirtIO Block device
 device		virtio_scsi	# VirtIO SCSI device
 device		virtio_balloon	# VirtIO Memory Balloon device
 device		virtio_random	# VirtIO Entropy device
+device		virtio_console	# VirtIO Console device
 
 device 		hyperv		# HyperV drivers
 
@@ -1069,6 +1064,3 @@ options 	VM_KMEM_SIZE_MAX
 options 	VM_KMEM_SIZE_SCALE
 
 
-# asr old ioctls support, needed by raidutils
-
-options 	ASR_COMPAT

@@ -735,7 +735,7 @@ static struct malloc_type *memtype[] = {
 static	void check_clear_deps(struct mount *);
 static	void softdep_error(char *, int);
 static	int softdep_process_worklist(struct mount *, int);
-static	int softdep_waitidle(struct mount *);
+static	int softdep_waitidle(struct mount *, int);
 static	void drain_output(struct vnode *);
 static	struct buf *getdirtybuf(struct buf *, struct rwlock *, int);
 static	void clear_remove(struct mount *);
@@ -1377,6 +1377,10 @@ softdep_flush(addr)
 	mp = (struct mount *)addr;
 	ump = VFSTOUFS(mp);
 	atomic_add_int(&stat_flush_threads, 1);
+	ACQUIRE_LOCK(ump);
+	ump->softdep_flags &= ~FLUSH_STARTING;
+	wakeup(&ump->softdep_flushtd);
+	FREE_LOCK(ump);
 	if (print_threads) {
 		if (stat_flush_threads == 1)
 			printf("Running %s at pid %d\n", bufdaemonproc->p_comm,
@@ -1389,7 +1393,7 @@ softdep_flush(addr)
 		    VFSTOUFS(mp)->softdep_jblocks->jb_suspended))
 			kthread_suspend_check();
 		ACQUIRE_LOCK(ump);
-		if ((ump->softdep_flags & FLUSH_CLEANUP) == 0)
+		if ((ump->softdep_flags & (FLUSH_CLEANUP | FLUSH_EXIT)) == 0)
 			msleep(&ump->softdep_flushtd, LOCK_PTR(ump), PVM,
 			    "sdflush", hz / 2);
 		ump->softdep_flags &= ~FLUSH_CLEANUP;
@@ -1419,11 +1423,9 @@ worklist_speedup(mp)
 
 	ump = VFSTOUFS(mp);
 	LOCK_OWNED(ump);
-	if ((ump->softdep_flags & (FLUSH_CLEANUP | FLUSH_EXIT)) == 0) {
+	if ((ump->softdep_flags & (FLUSH_CLEANUP | FLUSH_EXIT)) == 0)
 		ump->softdep_flags |= FLUSH_CLEANUP;
-		if (ump->softdep_flushtd->td_wchan == &ump->softdep_flushtd)
-			wakeup(&ump->softdep_flushtd);
-	}
+	wakeup(&ump->softdep_flushtd);
 }
 
 static int
@@ -1468,14 +1470,10 @@ softdep_speedup(ump)
 			TAILQ_INSERT_TAIL(&softdepmounts, sdp, sd_next);
 			FREE_GBLLOCK(&lk);
 			if ((altump->softdep_flags &
-			    (FLUSH_CLEANUP | FLUSH_EXIT)) == 0) {
+			    (FLUSH_CLEANUP | FLUSH_EXIT)) == 0)
 				altump->softdep_flags |= FLUSH_CLEANUP;
-				altump->um_softdep->sd_cleanups++;
-				if (altump->softdep_flushtd->td_wchan ==
-				    &altump->softdep_flushtd) {
-					wakeup(&altump->softdep_flushtd);
-				}
-			}
+			altump->um_softdep->sd_cleanups++;
+			wakeup(&altump->softdep_flushtd);
 			FREE_LOCK(altump);
 		}
 	}
@@ -1911,7 +1909,7 @@ softdep_flushworklist(oldmnt, countp, td)
 }
 
 static int
-softdep_waitidle(struct mount *mp)
+softdep_waitidle(struct mount *mp, int flags __unused)
 {
 	struct ufsmount *ump;
 	int error;
@@ -1921,8 +1919,9 @@ softdep_waitidle(struct mount *mp)
 	ACQUIRE_LOCK(ump);
 	for (i = 0; i < 10 && ump->softdep_deps; i++) {
 		ump->softdep_req = 1;
-		if (ump->softdep_on_worklist)
-			panic("softdep_waitidle: work added after flush.");
+		KASSERT((flags & FORCECLOSE) == 0 ||
+		    ump->softdep_on_worklist == 0,
+		    ("softdep_waitidle: work added after flush"));
 		msleep(&ump->softdep_deps, LOCK_PTR(ump), PVM, "softdeps", 1);
 	}
 	ump->softdep_req = 0;
@@ -1990,7 +1989,7 @@ retry_flush:
 		error = EBUSY;
 	}
 	if (!error)
-		error = softdep_waitidle(oldmnt);
+		error = softdep_waitidle(oldmnt, flags);
 	if (!error) {
 		if (oldmnt->mnt_kern_flag & MNTK_UNMOUNT) {
 			retry = 0;
@@ -2490,9 +2489,18 @@ softdep_mount(devvp, mp, fs, cred)
 	/*
 	 * Start our flushing thread in the bufdaemon process.
 	 */
+	ACQUIRE_LOCK(ump);
+	ump->softdep_flags |= FLUSH_STARTING;
+	FREE_LOCK(ump);
 	kproc_kthread_add(&softdep_flush, mp, &bufdaemonproc,
 	    &ump->softdep_flushtd, 0, 0, "softdepflush", "%s worker",
 	    mp->mnt_stat.f_mntonname);
+	ACQUIRE_LOCK(ump);
+	while ((ump->softdep_flags & FLUSH_STARTING) != 0) {
+		msleep(&ump->softdep_flushtd, LOCK_PTR(ump), PVM, "sdstart",
+		    hz / 2);
+	}
+	FREE_LOCK(ump);
 	/*
 	 * When doing soft updates, the counters in the
 	 * superblock may have gotten out of sync. Recomputation

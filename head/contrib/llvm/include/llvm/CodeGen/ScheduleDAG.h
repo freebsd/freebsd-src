@@ -95,7 +95,7 @@ namespace llvm {
     /// SDep - Construct a null SDep. This is only for use by container
     /// classes which require default constructors. SUnits may not
     /// have null SDep edges.
-    SDep() : Dep(0, Data) {}
+    SDep() : Dep(nullptr, Data) {}
 
     /// SDep - Construct an SDep with the specified values.
     SDep(SUnit *S, Kind kind, unsigned Reg)
@@ -184,6 +184,18 @@ namespace llvm {
                                     || Contents.OrdKind == MustAliasMem);
     }
 
+    /// isBarrier - Test if this is an Order dependence that is marked
+    /// as a barrier.
+    bool isBarrier() const {
+      return getKind() == Order && Contents.OrdKind == Barrier;
+    }
+
+    /// isNormalMemoryOrBarrier - Test if this is could be any kind of memory
+    /// dependence.
+    bool isNormalMemoryOrBarrier() const {
+      return (isNormalMemory() || isBarrier());
+    }
+
     /// isMustAlias - Test if this is an Order dependence that is marked
     /// as "must alias", meaning that the SUnits at either end of the edge
     /// have a memory dependence on a known memory location.
@@ -248,7 +260,7 @@ namespace llvm {
   /// SUnit - Scheduling unit. This is a node in the scheduling DAG.
   class SUnit {
   private:
-    enum LLVM_ENUM_INT_TYPE(unsigned) { BoundaryID = ~0u };
+    enum : unsigned { BoundaryID = ~0u };
 
     SDNode *Node;                       // Representative node.
     MachineInstr *Instr;                // Alternatively, a MachineInstr.
@@ -292,6 +304,8 @@ namespace llvm {
     bool isScheduleHigh   : 1;          // True if preferable to schedule high.
     bool isScheduleLow    : 1;          // True if preferable to schedule low.
     bool isCloned         : 1;          // True if this node has been cloned.
+    bool isUnbuffered     : 1;          // Uses an unbuffered resource.
+    bool hasReservedResource : 1;       // Uses a reserved resource.
     Sched::Preference SchedulingPref;   // Scheduling preference.
 
   private:
@@ -309,43 +323,49 @@ namespace llvm {
     /// SUnit - Construct an SUnit for pre-regalloc scheduling to represent
     /// an SDNode and any nodes flagged to it.
     SUnit(SDNode *node, unsigned nodenum)
-      : Node(node), Instr(0), OrigNode(0), SchedClass(0), NodeNum(nodenum),
-        NodeQueueId(0), NumPreds(0), NumSuccs(0), NumPredsLeft(0),
-        NumSuccsLeft(0), WeakPredsLeft(0), WeakSuccsLeft(0), NumRegDefsLeft(0),
-        Latency(0), isVRegCycle(false), isCall(false), isCallOp(false),
-        isTwoAddress(false), isCommutable(false), hasPhysRegUses(false),
-        hasPhysRegDefs(false), hasPhysRegClobbers(false), isPending(false),
-        isAvailable(false), isScheduled(false), isScheduleHigh(false),
-        isScheduleLow(false), isCloned(false), SchedulingPref(Sched::None),
-        isDepthCurrent(false), isHeightCurrent(false), Depth(0), Height(0),
-        TopReadyCycle(0), BotReadyCycle(0), CopyDstRC(NULL), CopySrcRC(NULL) {}
+      : Node(node), Instr(nullptr), OrigNode(nullptr), SchedClass(nullptr),
+        NodeNum(nodenum), NodeQueueId(0), NumPreds(0), NumSuccs(0),
+        NumPredsLeft(0), NumSuccsLeft(0), WeakPredsLeft(0), WeakSuccsLeft(0),
+        NumRegDefsLeft(0), Latency(0), isVRegCycle(false), isCall(false),
+        isCallOp(false), isTwoAddress(false), isCommutable(false),
+        hasPhysRegUses(false), hasPhysRegDefs(false), hasPhysRegClobbers(false),
+        isPending(false), isAvailable(false), isScheduled(false),
+        isScheduleHigh(false), isScheduleLow(false), isCloned(false),
+        isUnbuffered(false), hasReservedResource(false),
+        SchedulingPref(Sched::None), isDepthCurrent(false),
+        isHeightCurrent(false), Depth(0), Height(0), TopReadyCycle(0),
+        BotReadyCycle(0), CopyDstRC(nullptr), CopySrcRC(nullptr) {}
 
     /// SUnit - Construct an SUnit for post-regalloc scheduling to represent
     /// a MachineInstr.
     SUnit(MachineInstr *instr, unsigned nodenum)
-      : Node(0), Instr(instr), OrigNode(0), SchedClass(0), NodeNum(nodenum),
-        NodeQueueId(0), NumPreds(0), NumSuccs(0), NumPredsLeft(0),
-        NumSuccsLeft(0), WeakPredsLeft(0), WeakSuccsLeft(0), NumRegDefsLeft(0),
-        Latency(0), isVRegCycle(false), isCall(false), isCallOp(false),
-        isTwoAddress(false), isCommutable(false), hasPhysRegUses(false),
-        hasPhysRegDefs(false), hasPhysRegClobbers(false), isPending(false),
-        isAvailable(false), isScheduled(false), isScheduleHigh(false),
-        isScheduleLow(false), isCloned(false), SchedulingPref(Sched::None),
-        isDepthCurrent(false), isHeightCurrent(false), Depth(0), Height(0),
-        TopReadyCycle(0), BotReadyCycle(0), CopyDstRC(NULL), CopySrcRC(NULL) {}
+      : Node(nullptr), Instr(instr), OrigNode(nullptr), SchedClass(nullptr),
+        NodeNum(nodenum), NodeQueueId(0), NumPreds(0), NumSuccs(0),
+        NumPredsLeft(0), NumSuccsLeft(0), WeakPredsLeft(0), WeakSuccsLeft(0),
+        NumRegDefsLeft(0), Latency(0), isVRegCycle(false), isCall(false),
+        isCallOp(false), isTwoAddress(false), isCommutable(false),
+        hasPhysRegUses(false), hasPhysRegDefs(false), hasPhysRegClobbers(false),
+        isPending(false), isAvailable(false), isScheduled(false),
+        isScheduleHigh(false), isScheduleLow(false), isCloned(false),
+        isUnbuffered(false), hasReservedResource(false),
+        SchedulingPref(Sched::None), isDepthCurrent(false),
+        isHeightCurrent(false), Depth(0), Height(0), TopReadyCycle(0),
+        BotReadyCycle(0), CopyDstRC(nullptr), CopySrcRC(nullptr) {}
 
     /// SUnit - Construct a placeholder SUnit.
     SUnit()
-      : Node(0), Instr(0), OrigNode(0), SchedClass(0), NodeNum(BoundaryID),
-        NodeQueueId(0), NumPreds(0), NumSuccs(0), NumPredsLeft(0),
-        NumSuccsLeft(0), WeakPredsLeft(0), WeakSuccsLeft(0), NumRegDefsLeft(0),
-        Latency(0), isVRegCycle(false), isCall(false), isCallOp(false),
-        isTwoAddress(false), isCommutable(false), hasPhysRegUses(false),
-        hasPhysRegDefs(false), hasPhysRegClobbers(false), isPending(false),
-        isAvailable(false), isScheduled(false), isScheduleHigh(false),
-        isScheduleLow(false), isCloned(false), SchedulingPref(Sched::None),
-        isDepthCurrent(false), isHeightCurrent(false), Depth(0), Height(0),
-        TopReadyCycle(0), BotReadyCycle(0), CopyDstRC(NULL), CopySrcRC(NULL) {}
+      : Node(nullptr), Instr(nullptr), OrigNode(nullptr), SchedClass(nullptr),
+        NodeNum(BoundaryID), NodeQueueId(0), NumPreds(0), NumSuccs(0),
+        NumPredsLeft(0), NumSuccsLeft(0), WeakPredsLeft(0), WeakSuccsLeft(0),
+        NumRegDefsLeft(0), Latency(0), isVRegCycle(false), isCall(false),
+        isCallOp(false), isTwoAddress(false), isCommutable(false),
+        hasPhysRegUses(false), hasPhysRegDefs(false), hasPhysRegClobbers(false),
+        isPending(false), isAvailable(false), isScheduled(false),
+        isScheduleHigh(false), isScheduleLow(false), isCloned(false),
+        isUnbuffered(false), hasReservedResource(false),
+        SchedulingPref(Sched::None), isDepthCurrent(false),
+        isHeightCurrent(false), Depth(0), Height(0), TopReadyCycle(0),
+        BotReadyCycle(0), CopyDstRC(nullptr), CopySrcRC(nullptr) {}
 
     /// \brief Boundary nodes are placeholders for the boundary of the
     /// scheduling region.

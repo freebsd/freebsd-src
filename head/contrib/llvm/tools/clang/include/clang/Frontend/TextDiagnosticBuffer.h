@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FRONTEND_TEXT_DIAGNOSTIC_BUFFER_H_
-#define LLVM_CLANG_FRONTEND_TEXT_DIAGNOSTIC_BUFFER_H_
+#ifndef LLVM_CLANG_FRONTEND_TEXTDIAGNOSTICBUFFER_H
+#define LLVM_CLANG_FRONTEND_TEXTDIAGNOSTICBUFFER_H
 
 #include "clang/Basic/Diagnostic.h"
 #include <vector>
@@ -28,7 +28,7 @@ public:
   typedef DiagList::iterator iterator;
   typedef DiagList::const_iterator const_iterator;
 private:
-  DiagList Errors, Warnings, Notes;
+  DiagList Errors, Warnings, Remarks, Notes;
 public:
   const_iterator err_begin() const  { return Errors.begin(); }
   const_iterator err_end() const    { return Errors.end(); }
@@ -36,11 +36,14 @@ public:
   const_iterator warn_begin() const { return Warnings.begin(); }
   const_iterator warn_end() const   { return Warnings.end(); }
 
+  const_iterator remark_begin() const { return Remarks.begin(); }
+  const_iterator remark_end() const   { return Remarks.end(); }
+
   const_iterator note_begin() const { return Notes.begin(); }
   const_iterator note_end() const   { return Notes.end(); }
 
-  virtual void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
-                                const Diagnostic &Info);
+  void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
+                        const Diagnostic &Info) override;
 
   /// FlushDiagnostics - Flush the buffered diagnostics to an given
   /// diagnostic engine.

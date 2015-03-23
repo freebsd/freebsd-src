@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef NVPTXASMPRINTER_H
-#define NVPTXASMPRINTER_H
+#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXASMPRINTER_H
+#define LLVM_LIB_TARGET_NVPTX_NVPTXASMPRINTER_H
 
 #include "NVPTX.h"
 #include "NVPTXSubtarget.h"
@@ -27,7 +27,6 @@
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormattedStream.h"
-#include "llvm/Target/Mangler.h"
 #include "llvm/Target/TargetMachine.h"
 #include <fstream>
 
@@ -39,13 +38,6 @@
 //
 // A better approach is to clone the MCAsmStreamer to a MCPTXAsmStreamer
 // (subclass of MCStreamer).
-
-// This is defined in AsmPrinter.cpp.
-// Used to process the constant expressions in initializers.
-namespace nvptx {
-const llvm::MCExpr *
-LowerConstant(const llvm::Constant *CV, llvm::AsmPrinter &AP);
-}
 
 namespace llvm {
 
@@ -87,26 +79,25 @@ class LLVM_LIBRARY_VISIBILITY NVPTXAsmPrinter : public AsmPrinter {
     // Once we have this AggBuffer setup, we can choose how to print
     // it out.
   public:
-    unsigned size;         // size of the buffer in bytes
-    unsigned char *buffer; // the buffer
     unsigned numSymbols;   // number of symbol addresses
-    SmallVector<unsigned, 4> symbolPosInBuffer;
-    SmallVector<const Value *, 4> Symbols;
 
   private:
+    const unsigned size;   // size of the buffer in bytes
+    std::vector<unsigned char> buffer; // the buffer
+    SmallVector<unsigned, 4> symbolPosInBuffer;
+    SmallVector<const Value *, 4> Symbols;
     unsigned curpos;
     raw_ostream &O;
     NVPTXAsmPrinter &AP;
+    bool EmitGeneric;
 
   public:
     AggBuffer(unsigned _size, raw_ostream &_O, NVPTXAsmPrinter &_AP)
-        : O(_O), AP(_AP) {
-      buffer = new unsigned char[_size];
-      size = _size;
+        : size(_size), buffer(_size), O(_O), AP(_AP) {
       curpos = 0;
       numSymbols = 0;
+      EmitGeneric = AP.EmitGeneric;
     }
-    ~AggBuffer() { delete[] buffer; }
     unsigned addBytes(unsigned char *Ptr, int Num, int Bytes) {
       assert((curpos + Num) <= size);
       assert((curpos + Bytes) <= size);
@@ -156,9 +147,20 @@ class LLVM_LIBRARY_VISIBILITY NVPTXAsmPrinter : public AsmPrinter {
             const Value *v = Symbols[nSym];
             if (const GlobalValue *GVar = dyn_cast<GlobalValue>(v)) {
               MCSymbol *Name = AP.getSymbol(GVar);
-              O << *Name;
+              PointerType *PTy = dyn_cast<PointerType>(GVar->getType());
+              bool IsNonGenericPointer = false;
+              if (PTy && PTy->getAddressSpace() != 0) {
+                IsNonGenericPointer = true;
+              }
+              if (EmitGeneric && !isa<Function>(v) && !IsNonGenericPointer) {
+                O << "generic(";
+                O << *Name;
+                O << ")";
+              } else {
+                O << *Name;
+              }
             } else if (const ConstantExpr *Cexpr = dyn_cast<ConstantExpr>(v)) {
-              O << *nvptx::LowerConstant(Cexpr, AP);
+              O << *AP.lowerConstant(Cexpr);
             } else
               llvm_unreachable("symbol type unknown");
             nSym++;
@@ -167,9 +169,9 @@ class LLVM_LIBRARY_VISIBILITY NVPTXAsmPrinter : public AsmPrinter {
             else
               nextSymbolPos = symbolPosInBuffer[nSym];
           } else if (nBytes == 4)
-            O << *(unsigned int *)(buffer + pos);
+            O << *(unsigned int *)(&buffer[pos]);
           else
-            O << *(unsigned long long *)(buffer + pos);
+            O << *(unsigned long long *)(&buffer[pos]);
         }
       }
     }
@@ -177,35 +179,32 @@ class LLVM_LIBRARY_VISIBILITY NVPTXAsmPrinter : public AsmPrinter {
 
   friend class AggBuffer;
 
-  virtual void emitSrcInText(StringRef filename, unsigned line);
+  void emitSrcInText(StringRef filename, unsigned line);
 
 private:
-  virtual const char *getPassName() const { return "NVPTX Assembly Printer"; }
+  const char *getPassName() const override { return "NVPTX Assembly Printer"; }
 
   const Function *F;
   std::string CurrentFnName;
 
-  void EmitFunctionEntryLabel();
-  void EmitFunctionBodyStart();
-  void EmitFunctionBodyEnd();
-  void emitImplicitDef(const MachineInstr *MI) const;
+  void EmitFunctionEntryLabel() override;
+  void EmitFunctionBodyStart() override;
+  void EmitFunctionBodyEnd() override;
+  void emitImplicitDef(const MachineInstr *MI) const override;
 
-  void EmitInstruction(const MachineInstr *);
+  void EmitInstruction(const MachineInstr *) override;
   void lowerToMCInst(const MachineInstr *MI, MCInst &OutMI);
   bool lowerOperand(const MachineOperand &MO, MCOperand &MCOp);
-  MCOperand GetSymbolRef(const MachineOperand &MO, const MCSymbol *Symbol);
+  MCOperand GetSymbolRef(const MCSymbol *Symbol);
   unsigned encodeVirtualRegister(unsigned Reg);
 
-  void EmitAlignment(unsigned NumBits, const GlobalValue *GV = 0) const {}
+  void EmitAlignment(unsigned NumBits, const GlobalValue *GV = nullptr) const {}
 
-  void printGlobalVariable(const GlobalVariable *GVar);
   void printVecModifiedImmediate(const MachineOperand &MO, const char *Modifier,
                                  raw_ostream &O);
   void printMemOperand(const MachineInstr *MI, int opNum, raw_ostream &O,
-                       const char *Modifier = 0);
+                       const char *Modifier = nullptr);
   void printImplicitDef(const MachineInstr *MI, raw_ostream &O) const;
-  // definition autogenerated.
-  void printInstruction(const MachineInstr *MI, raw_ostream &O);
   void printModuleLevelGV(const GlobalVariable *GVar, raw_ostream &O,
                           bool = false);
   void printParamName(int paramIndex, raw_ostream &O);
@@ -225,15 +224,15 @@ private:
   void printReturnValStr(const MachineFunction &MF, raw_ostream &O);
   bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
                        unsigned AsmVariant, const char *ExtraCode,
-                       raw_ostream &);
+                       raw_ostream &) override;
   void printOperand(const MachineInstr *MI, int opNum, raw_ostream &O,
-                    const char *Modifier = 0);
+                    const char *Modifier = nullptr);
   bool PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNo,
                              unsigned AsmVariant, const char *ExtraCode,
-                             raw_ostream &);
+                             raw_ostream &) override;
 protected:
-  bool doInitialization(Module &M);
-  bool doFinalization(Module &M);
+  bool doInitialization(Module &M) override;
+  bool doFinalization(Module &M) override;
 
 private:
   std::string CurrentBankselLabelInBasicBlock;
@@ -278,14 +277,33 @@ private:
   static const char *getRegisterName(unsigned RegNo);
   void emitDemotedVars(const Function *, raw_ostream &);
 
+  bool lowerImageHandleOperand(const MachineInstr *MI, unsigned OpNo,
+                               MCOperand &MCOp);
+  void lowerImageHandleSymbol(unsigned Index, MCOperand &MCOp);
+
   LineReader *reader;
   LineReader *getReader(std::string);
+
+  // Used to control the need to emit .generic() in the initializer of
+  // module scope variables.
+  // Although ptx supports the hybrid mode like the following,
+  //    .global .u32 a;
+  //    .global .u32 b;
+  //    .global .u32 addr[] = {a, generic(b)}
+  // we have difficulty representing the difference in the NVVM IR.
+  //
+  // Since the address value should always be generic in CUDA C and always
+  // be specific in OpenCL, we use this simple control here.
+  //
+  bool EmitGeneric;
+
 public:
   NVPTXAsmPrinter(TargetMachine &TM, MCStreamer &Streamer)
       : AsmPrinter(TM, Streamer),
         nvptxSubtarget(TM.getSubtarget<NVPTXSubtarget>()) {
     CurrentBankselLabelInBasicBlock = "";
-    reader = NULL;
+    reader = nullptr;
+    EmitGeneric = (nvptxSubtarget.getDrvInterface() == NVPTX::CUDA);
   }
 
   ~NVPTXAsmPrinter() {

@@ -71,7 +71,7 @@ RegularExpression::operator= (const RegularExpression &rhs)
 //----------------------------------------------------------------------
 // Destructor
 //
-// Any previosuly compiled regular expression contained in this
+// Any previously compiled regular expression contained in this
 // object will be freed.
 //----------------------------------------------------------------------
 RegularExpression::~RegularExpression()
@@ -81,14 +81,14 @@ RegularExpression::~RegularExpression()
 
 //----------------------------------------------------------------------
 // Compile a regular expression using the supplied regular
-// expression text and flags. The compied regular expression lives
+// expression text and flags. The compiled regular expression lives
 // in this object so that it can be readily used for regular
 // expression matches. Execute() can be called after the regular
-// expression is compiled. Any previosuly compiled regular
+// expression is compiled. Any previously compiled regular
 // expression contained in this object will be freed.
 //
 // RETURNS
-//  True of the refular expression compiles successfully, false
+//  True if the regular expression compiles successfully, false
 //  otherwise.
 //----------------------------------------------------------------------
 bool
@@ -162,20 +162,11 @@ RegularExpression::Execute(const char* s, Match *match, int execute_flags) const
 bool
 RegularExpression::Match::GetMatchAtIndex (const char* s, uint32_t idx, std::string& match_str) const
 {
-    if (idx < m_matches.size())
+    llvm::StringRef match_str_ref;
+    if (GetMatchAtIndex(s, idx, match_str_ref))
     {
-        if (m_matches[idx].rm_eo == m_matches[idx].rm_so)
-        {
-            // Matched the empty string...
-            match_str.clear();
-            return true;
-        }
-        else if (m_matches[idx].rm_eo > m_matches[idx].rm_so)
-        {
-            match_str.assign (s + m_matches[idx].rm_so,
-                              m_matches[idx].rm_eo - m_matches[idx].rm_so);
-            return true;
-        }
+        match_str = std::move(match_str_ref.str());
+        return true;
     }
     return false;
 }
@@ -185,6 +176,9 @@ RegularExpression::Match::GetMatchAtIndex (const char* s, uint32_t idx, llvm::St
 {
     if (idx < m_matches.size())
     {
+        if (m_matches[idx].rm_eo == -1 && m_matches[idx].rm_so == -1)
+            return false;
+
         if (m_matches[idx].rm_eo == m_matches[idx].rm_so)
         {
             // Matched the empty string...

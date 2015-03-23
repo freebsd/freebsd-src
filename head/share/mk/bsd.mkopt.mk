@@ -18,6 +18,10 @@
 # after all this processing, allowing this file to be included
 # multiple times with different lists.
 #
+# Other parts of the build system will set BROKEN_OPTIONS to a list
+# of options that are broken on this platform. This will not be unset
+# before returning. Clients are expected to always += this variable.
+#
 # Users should generally define WITH_FOO or WITHOUT_FOO, but the build
 # system should use MK_FOO={yes,no} when it needs to override the
 # user's desires or default behavior.
@@ -33,7 +37,11 @@ MK_${var}:=	no
 .else
 MK_${var}:=	yes
 .endif
+.else
+.if ${MK_${var}} != "yes" && ${MK_${var}} != "no"
+.error "Illegal value for MK_${var}: ${MK_${var}}"
 .endif
+.endif # !defined(MK_${var})
 .endfor
 .undef __DEFAULT_YES_OPTIONS
 
@@ -47,6 +55,18 @@ MK_${var}:=	yes
 .else
 MK_${var}:=	no
 .endif
+.else
+.if ${MK_${var}} != "yes" && ${MK_${var}} != "no"
+.error "Illegal value for MK_${var}: ${MK_${var}}"
 .endif
+.endif # !defined(MK_${var})
 .endfor
 .undef __DEFAULT_NO_OPTIONS
+
+#
+# MK_* options which are always no, usually because they are
+# unsupported/badly broken on this architecture.
+#
+.for var in ${BROKEN_OPTIONS}
+MK_${var}:=	no
+.endfor

@@ -11,124 +11,40 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86TARGETMACHINE_H
-#define X86TARGETMACHINE_H
-
-#include "X86.h"
-#include "X86FrameLowering.h"
-#include "X86ISelLowering.h"
+#ifndef LLVM_LIB_TARGET_X86_X86TARGETMACHINE_H
+#define LLVM_LIB_TARGET_X86_X86TARGETMACHINE_H
 #include "X86InstrInfo.h"
-#include "X86JITInfo.h"
-#include "X86SelectionDAGInfo.h"
 #include "X86Subtarget.h"
 #include "llvm/IR/DataLayout.h"
-#include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
 
 class StringRef;
 
-class X86TargetMachine : public LLVMTargetMachine {
+class X86TargetMachine final : public LLVMTargetMachine {
+  std::unique_ptr<TargetLoweringObjectFile> TLOF;
   X86Subtarget       Subtarget;
-  X86FrameLowering   FrameLowering;
-  InstrItineraryData InstrItins;
+
+  mutable StringMap<std::unique_ptr<X86Subtarget>> SubtargetMap;
 
 public:
   X86TargetMachine(const Target &T, StringRef TT,
                    StringRef CPU, StringRef FS, const TargetOptions &Options,
                    Reloc::Model RM, CodeModel::Model CM,
-                   CodeGenOpt::Level OL,
-                   bool is64Bit);
+                   CodeGenOpt::Level OL);
+  ~X86TargetMachine() override;
 
-  virtual const X86InstrInfo     *getInstrInfo() const {
-    llvm_unreachable("getInstrInfo not implemented");
-  }
-  virtual const TargetFrameLowering  *getFrameLowering() const {
-    return &FrameLowering;
-  }
-  virtual       X86JITInfo       *getJITInfo()         {
-    llvm_unreachable("getJITInfo not implemented");
-  }
-  virtual const X86Subtarget     *getSubtargetImpl() const{ return &Subtarget; }
-  virtual const X86TargetLowering *getTargetLowering() const {
-    llvm_unreachable("getTargetLowering not implemented");
-  }
-  virtual const X86SelectionDAGInfo *getSelectionDAGInfo() const {
-    llvm_unreachable("getSelectionDAGInfo not implemented");
-  }
-  virtual const X86RegisterInfo  *getRegisterInfo() const {
-    return &getInstrInfo()->getRegisterInfo();
-  }
-  virtual const InstrItineraryData *getInstrItineraryData() const {
-    return &InstrItins;
-  }
+  const X86Subtarget *getSubtargetImpl() const override { return &Subtarget; }
+  const X86Subtarget *getSubtargetImpl(const Function &F) const override;
 
   /// \brief Register X86 analysis passes with a pass manager.
-  virtual void addAnalysisPasses(PassManagerBase &PM);
+  void addAnalysisPasses(PassManagerBase &PM) override;
 
   // Set up the pass pipeline.
-  virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
-
-  virtual bool addCodeEmitter(PassManagerBase &PM,
-                              JITCodeEmitter &JCE);
-};
-
-/// X86_32TargetMachine - X86 32-bit target machine.
-///
-class X86_32TargetMachine : public X86TargetMachine {
-  virtual void anchor();
-  const DataLayout  DL; // Calculates type size & alignment
-  X86InstrInfo      InstrInfo;
-  X86TargetLowering TLInfo;
-  X86SelectionDAGInfo TSInfo;
-  X86JITInfo        JITInfo;
-public:
-  X86_32TargetMachine(const Target &T, StringRef TT,
-                      StringRef CPU, StringRef FS, const TargetOptions &Options,
-                      Reloc::Model RM, CodeModel::Model CM,
-                      CodeGenOpt::Level OL);
-  virtual const DataLayout *getDataLayout() const { return &DL; }
-  virtual const X86TargetLowering *getTargetLowering() const {
-    return &TLInfo;
-  }
-  virtual const X86SelectionDAGInfo *getSelectionDAGInfo() const {
-    return &TSInfo;
-  }
-  virtual const X86InstrInfo     *getInstrInfo() const {
-    return &InstrInfo;
-  }
-  virtual       X86JITInfo       *getJITInfo()         {
-    return &JITInfo;
-  }
-};
-
-/// X86_64TargetMachine - X86 64-bit target machine.
-///
-class X86_64TargetMachine : public X86TargetMachine {
-  virtual void anchor();
-  const DataLayout  DL; // Calculates type size & alignment
-  X86InstrInfo      InstrInfo;
-  X86TargetLowering TLInfo;
-  X86SelectionDAGInfo TSInfo;
-  X86JITInfo        JITInfo;
-public:
-  X86_64TargetMachine(const Target &T, StringRef TT,
-                      StringRef CPU, StringRef FS, const TargetOptions &Options,
-                      Reloc::Model RM, CodeModel::Model CM,
-                      CodeGenOpt::Level OL);
-  virtual const DataLayout *getDataLayout() const { return &DL; }
-  virtual const X86TargetLowering *getTargetLowering() const {
-    return &TLInfo;
-  }
-  virtual const X86SelectionDAGInfo *getSelectionDAGInfo() const {
-    return &TSInfo;
-  }
-  virtual const X86InstrInfo     *getInstrInfo() const {
-    return &InstrInfo;
-  }
-  virtual       X86JITInfo       *getJITInfo()         {
-    return &JITInfo;
+  TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
+  TargetLoweringObjectFile *getObjFileLowering() const override {
+    return TLOF.get();
   }
 };
 

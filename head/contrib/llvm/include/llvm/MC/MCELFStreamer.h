@@ -29,70 +29,74 @@ class raw_ostream;
 
 class MCELFStreamer : public MCObjectStreamer {
 public:
-  MCELFStreamer(MCContext &Context, MCTargetStreamer *TargetStreamer,
-                MCAsmBackend &TAB, raw_ostream &OS, MCCodeEmitter *Emitter)
-      : MCObjectStreamer(Context, TargetStreamer, TAB, OS, Emitter), 
-                         SeenIdent(false) {}
+  MCELFStreamer(MCContext &Context, MCAsmBackend &TAB, raw_ostream &OS,
+                MCCodeEmitter *Emitter)
+      : MCObjectStreamer(Context, TAB, OS, Emitter),
+        SeenIdent(false) {}
 
-  MCELFStreamer(MCContext &Context, MCTargetStreamer *TargetStreamer,
-                MCAsmBackend &TAB, raw_ostream &OS, MCCodeEmitter *Emitter,
-                MCAssembler *Assembler)
-      : MCObjectStreamer(Context, TargetStreamer, TAB, OS, Emitter, Assembler), 
-                         SeenIdent(false) {}
+  MCELFStreamer(MCContext &Context, MCAsmBackend &TAB, raw_ostream &OS,
+                MCCodeEmitter *Emitter, MCAssembler *Assembler)
+      : MCObjectStreamer(Context, TAB, OS, Emitter, Assembler),
+        SeenIdent(false) {}
 
   virtual ~MCELFStreamer();
+
+  /// state management
+  void reset() override {
+    LocalCommons.clear();
+    BindingExplicitlySet.clear();
+    SeenIdent = false;
+    MCObjectStreamer::reset();
+  }
 
   /// @name MCStreamer Interface
   /// @{
 
-  virtual void InitSections();
-  virtual void InitToTextSection();
-  virtual void ChangeSection(const MCSection *Section,
-                             const MCExpr *Subsection);
-  virtual void EmitLabel(MCSymbol *Symbol);
-  virtual void EmitDebugLabel(MCSymbol *Symbol);
-  virtual void EmitAssemblerFlag(MCAssemblerFlag Flag);
-  virtual void EmitThumbFunc(MCSymbol *Func);
-  virtual void EmitWeakReference(MCSymbol *Alias, const MCSymbol *Symbol);
-  virtual bool EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute);
-  virtual void EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue);
-  virtual void EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
-                                unsigned ByteAlignment);
-  virtual void BeginCOFFSymbolDef(const MCSymbol *Symbol);
-  virtual void EmitCOFFSymbolStorageClass(int StorageClass);
-  virtual void EmitCOFFSymbolType(int Type);
-  virtual void EndCOFFSymbolDef();
+  void InitSections(bool NoExecStack) override;
+  void ChangeSection(const MCSection *Section,
+                     const MCExpr *Subsection) override;
+  void EmitLabel(MCSymbol *Symbol) override;
+  void EmitAssemblerFlag(MCAssemblerFlag Flag) override;
+  void EmitThumbFunc(MCSymbol *Func) override;
+  void EmitWeakReference(MCSymbol *Alias, const MCSymbol *Symbol) override;
+  bool EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute) override;
+  void EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue) override;
+  void EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+                        unsigned ByteAlignment) override;
+  void BeginCOFFSymbolDef(const MCSymbol *Symbol) override;
+  void EmitCOFFSymbolStorageClass(int StorageClass) override;
+  void EmitCOFFSymbolType(int Type) override;
+  void EndCOFFSymbolDef() override;
 
-  virtual MCSymbolData &getOrCreateSymbolData(MCSymbol *Symbol);
+  void EmitELFSize(MCSymbol *Symbol, const MCExpr *Value) override;
 
-  virtual void EmitELFSize(MCSymbol *Symbol, const MCExpr *Value);
+  void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+                             unsigned ByteAlignment) override;
 
-  virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
-                                     unsigned ByteAlignment);
+  void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = nullptr,
+                    uint64_t Size = 0, unsigned ByteAlignment = 0) override;
+  void EmitTBSSSymbol(const MCSection *Section, MCSymbol *Symbol,
+                      uint64_t Size, unsigned ByteAlignment = 0) override;
+  void EmitValueImpl(const MCExpr *Value, unsigned Size,
+                     const SMLoc &Loc = SMLoc()) override;
 
-  virtual void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = 0,
-                            uint64_t Size = 0, unsigned ByteAlignment = 0);
-  virtual void EmitTBSSSymbol(const MCSection *Section, MCSymbol *Symbol,
-                              uint64_t Size, unsigned ByteAlignment = 0);
-  virtual void EmitValueImpl(const MCExpr *Value, unsigned Size);
+  void EmitFileDirective(StringRef Filename) override;
 
-  virtual void EmitFileDirective(StringRef Filename);
+  void EmitIdent(StringRef IdentString) override;
 
-  virtual void EmitIdent(StringRef IdentString);
+  void EmitValueToAlignment(unsigned, int64_t, unsigned, unsigned) override;
 
-  virtual void EmitValueToAlignment(unsigned, int64_t, unsigned, unsigned);
+  void Flush() override;
 
-  virtual void Flush();
+  void FinishImpl() override;
 
-  virtual void FinishImpl();
+  void EmitBundleAlignMode(unsigned AlignPow2) override;
+  void EmitBundleLock(bool AlignToEnd) override;
+  void EmitBundleUnlock() override;
 
 private:
-  virtual void EmitInstToFragment(const MCInst &Inst);
-  virtual void EmitInstToData(const MCInst &Inst);
-
-  virtual void EmitBundleAlignMode(unsigned AlignPow2);
-  virtual void EmitBundleLock(bool AlignToEnd);
-  virtual void EmitBundleUnlock();
+  void EmitInstToFragment(const MCInst &Inst, const MCSubtargetInfo &) override;
+  void EmitInstToData(const MCInst &Inst, const MCSubtargetInfo &) override;
 
   void fixSymbolsInTLSFixups(const MCExpr *expr);
 
@@ -107,19 +111,11 @@ private:
   std::vector<LocalCommon> LocalCommons;
 
   SmallPtrSet<MCSymbol *, 16> BindingExplicitlySet;
-
-
-  void SetSection(StringRef Section, unsigned Type, unsigned Flags,
-                  SectionKind Kind);
-  void SetSectionData();
-  void SetSectionText();
-  void SetSectionBss();
 };
 
 MCELFStreamer *createARMELFStreamer(MCContext &Context, MCAsmBackend &TAB,
                                     raw_ostream &OS, MCCodeEmitter *Emitter,
-                                    bool RelaxAll, bool NoExecStack,
-                                    bool IsThumb);
+                                    bool RelaxAll, bool IsThumb);
 
 } // end namespace llvm
 

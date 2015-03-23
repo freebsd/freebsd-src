@@ -62,7 +62,7 @@ static inline bool operator<(const OptTable::Info &A, const OptTable::Info &B) {
 
   for (const char * const *APre = A.Prefixes,
                   * const *BPre = B.Prefixes;
-                          *APre != 0 && *BPre != 0; ++APre, ++BPre) {
+                          *APre != nullptr && *BPre != nullptr; ++APre, ++BPre){
     if (int N = StrCmpOptionName(*APre, *BPre))
       return N < 0;
   }
@@ -136,7 +136,7 @@ OptTable::OptTable(const Info *_OptionInfos, unsigned _NumOptionInfos,
   for (unsigned i = FirstSearchableIndex + 1, e = getNumOptions() + 1;
                 i != e; ++i) {
     if (const char *const *P = getInfo(i).Prefixes) {
-      for (; *P != 0; ++P) {
+      for (; *P != nullptr; ++P) {
         PrefixesUnion.insert(*P);
       }
     }
@@ -160,7 +160,7 @@ OptTable::~OptTable() {
 const Option OptTable::getOption(OptSpecifier Opt) const {
   unsigned id = Opt.getID();
   if (id == 0)
-    return Option(0, 0);
+    return Option(nullptr, nullptr);
   assert((unsigned) (id - 1) < getNumOptions() && "Invalid ID.");
   return Option(&getInfo(id), this);
 }
@@ -178,7 +178,7 @@ static bool isInput(const llvm::StringSet<> &Prefixes, StringRef Arg) {
 /// \returns Matched size. 0 means no match.
 static unsigned matchOption(const OptTable::Info *I, StringRef Str,
                             bool IgnoreCase) {
-  for (const char * const *Pre = I->Prefixes; *Pre != 0; ++Pre) {
+  for (const char * const *Pre = I->Prefixes; *Pre != nullptr; ++Pre) {
     StringRef Prefix(*Pre);
     if (Str.startswith(Prefix)) {
       StringRef Rest = Str.substr(Prefix.size());
@@ -240,7 +240,7 @@ Arg *OptTable::ParseOneArg(const ArgList &Args, unsigned &Index,
 
     // Otherwise, see if this argument was missing values.
     if (Prev != Index)
-      return 0;
+      return nullptr;
   }
 
   // If we failed to find an option and this arg started with /, then it's
@@ -264,6 +264,11 @@ InputArgList *OptTable::ParseArgs(const char *const *ArgBegin,
   MissingArgIndex = MissingArgCount = 0;
   unsigned Index = 0, End = ArgEnd - ArgBegin;
   while (Index < End) {
+    // Ingore nullptrs, they are response file's EOL markers
+    if (Args->getArgString(Index) == nullptr) {
+      ++Index;
+      continue;
+    }
     // Ignore empty arguments (other things may still take them as arguments).
     StringRef Str = Args->getArgString(Index);
     if (Str == "") {
@@ -300,7 +305,18 @@ static std::string getOptionHelpName(const OptTable &Opts, OptSpecifier Id) {
     llvm_unreachable("Invalid option with help text.");
 
   case Option::MultiArgClass:
-    llvm_unreachable("Cannot print metavar for this kind of option.");
+    if (const char *MetaVarName = Opts.getOptionMetaVar(Id)) {
+      // For MultiArgs, metavar is full list of all argument names.
+      Name += ' ';
+      Name += MetaVarName;
+    }
+    else {
+      // For MultiArgs<N>, if metavar not supplied, print <value> N times.
+      for (unsigned i=0, e=O.getNumArgs(); i< e; ++i) {
+        Name += " <value>";
+      }
+    }
+    break;
 
   case Option::FlagClass:
     break;

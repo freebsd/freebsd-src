@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
+#include <sys/sbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
@@ -122,31 +123,31 @@ static void tcp_hc_purge(void *);
 static SYSCTL_NODE(_net_inet_tcp, OID_AUTO, hostcache, CTLFLAG_RW, 0,
     "TCP Host cache");
 
-SYSCTL_VNET_UINT(_net_inet_tcp_hostcache, OID_AUTO, cachelimit, CTLFLAG_RDTUN,
+SYSCTL_UINT(_net_inet_tcp_hostcache, OID_AUTO, cachelimit, CTLFLAG_VNET | CTLFLAG_RDTUN,
     &VNET_NAME(tcp_hostcache.cache_limit), 0,
     "Overall entry limit for hostcache");
 
-SYSCTL_VNET_UINT(_net_inet_tcp_hostcache, OID_AUTO, hashsize, CTLFLAG_RDTUN,
+SYSCTL_UINT(_net_inet_tcp_hostcache, OID_AUTO, hashsize, CTLFLAG_VNET | CTLFLAG_RDTUN,
     &VNET_NAME(tcp_hostcache.hashsize), 0,
     "Size of TCP hostcache hashtable");
 
-SYSCTL_VNET_UINT(_net_inet_tcp_hostcache, OID_AUTO, bucketlimit,
-    CTLFLAG_RDTUN, &VNET_NAME(tcp_hostcache.bucket_limit), 0,
+SYSCTL_UINT(_net_inet_tcp_hostcache, OID_AUTO, bucketlimit,
+    CTLFLAG_VNET | CTLFLAG_RDTUN, &VNET_NAME(tcp_hostcache.bucket_limit), 0,
     "Per-bucket hash limit for hostcache");
 
-SYSCTL_VNET_UINT(_net_inet_tcp_hostcache, OID_AUTO, count, CTLFLAG_RD,
+SYSCTL_UINT(_net_inet_tcp_hostcache, OID_AUTO, count, CTLFLAG_VNET | CTLFLAG_RD,
      &VNET_NAME(tcp_hostcache.cache_count), 0,
     "Current number of entries in hostcache");
 
-SYSCTL_VNET_INT(_net_inet_tcp_hostcache, OID_AUTO, expire, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, expire, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_hostcache.expire), 0,
     "Expire time of TCP hostcache entries");
 
-SYSCTL_VNET_INT(_net_inet_tcp_hostcache, OID_AUTO, prune, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, prune, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_hostcache.prune), 0,
     "Time between purge runs");
 
-SYSCTL_VNET_INT(_net_inet_tcp_hostcache, OID_AUTO, purge, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, purge, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_hostcache.purgeall), 0,
     "Expire all entires on next purge run");
 
@@ -595,30 +596,27 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 static int
 sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 {
-	int bufsize;
-	int linesize = 128;
-	char *p, *buf;
-	int len, i, error;
+	const int linesize = 128;
+	struct sbuf sb;
+	int i, error;
 	struct hc_metrics *hc_entry;
 #ifdef INET6
 	char ip6buf[INET6_ADDRSTRLEN];
 #endif
 
-	bufsize = linesize * (V_tcp_hostcache.cache_count + 1);
+	sbuf_new(&sb, NULL, linesize * (V_tcp_hostcache.cache_count + 1),
+		SBUF_INCLUDENUL);
 
-	p = buf = (char *)malloc(bufsize, M_TEMP, M_WAITOK|M_ZERO);
-
-	len = snprintf(p, linesize,
-		"\nIP address        MTU  SSTRESH      RTT   RTTVAR BANDWIDTH "
+	sbuf_printf(&sb,
+	        "\nIP address        MTU  SSTRESH      RTT   RTTVAR BANDWIDTH "
 		"    CWND SENDPIPE RECVPIPE HITS  UPD  EXP\n");
-	p += len;
 
 #define msec(u) (((u) + 500) / 1000)
 	for (i = 0; i < V_tcp_hostcache.hashsize; i++) {
 		THC_LOCK(&V_tcp_hostcache.hashbase[i].hch_mtx);
 		TAILQ_FOREACH(hc_entry, &V_tcp_hostcache.hashbase[i].hch_bucket,
 			      rmx_q) {
-			len = snprintf(p, linesize,
+			sbuf_printf(&sb,
 			    "%-15s %5lu %8lu %6lums %6lums %9lu %8lu %8lu %8lu "
 			    "%4lu %4lu %4i\n",
 			    hc_entry->ip4.s_addr ? inet_ntoa(hc_entry->ip4) :
@@ -640,13 +638,14 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 			    hc_entry->rmx_hits,
 			    hc_entry->rmx_updates,
 			    hc_entry->rmx_expire);
-			p += len;
 		}
 		THC_UNLOCK(&V_tcp_hostcache.hashbase[i].hch_mtx);
 	}
 #undef msec
-	error = SYSCTL_OUT(req, buf, p - buf);
-	free(buf, M_TEMP);
+	error = sbuf_finish(&sb);
+	if (error == 0)
+		error = SYSCTL_OUT(req, sbuf_data(&sb), sbuf_len(&sb));
+	sbuf_delete(&sb);
 	return(error);
 }
 

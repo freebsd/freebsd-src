@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 7, 2013
+.Dd March 8, 2015
 .Dt GPIOCTL 1
 .Os
 .Sh NAME
@@ -35,19 +35,24 @@
 .Nd GPIO control utility
 .Sh SYNOPSIS
 .Nm
-.Cm -l
 .Op Fl f Ar ctldev
+.Cm -l
 .Op Fl v
 .Nm
-.Cm -t
 .Op Fl f Ar ctldev
+.Cm -t
 .Ar pin
 .Nm
-.Cm -c
 .Op Fl f Ar ctldev
+.Cm -c
 .Ar pin
 .Ar flag
 .Op flag ...
+.Nm
+.Op Fl f Ar ctldev
+.Cm -n
+.Ar pin
+.Ar pin-name
 .Nm
 .Op Cm -f Ar ctldev
 .Ar pin
@@ -60,7 +65,8 @@ utility could be used to manage GPIO pins from userland and list available pins.
 The options are as follows:
 .Bl -tag -width ".Fl f Ar ctldev"
 .It Fl c Ar pin Ar flag Op flag ...
-Configure pin by setting provided flags. The following flags are currently defined:
+Configure pin by setting provided flags.
+The following flags are currently defined:
 .Bl -tag -offset indent -width ".Cm PULSE"
 .It Cm IN
 Input pin
@@ -87,6 +93,8 @@ If not specified, defaults to
 .Pa /dev/gpioc0
 .It Fl l
 list available pins
+.It Fl n Ar pin Ar pin-name
+set the name used to describe the pin
 .It Fl t Ar pin
 toggle value of provided pin number
 .It Fl v
@@ -108,8 +116,8 @@ Configure pin 12 to be input pin
 gpioctl -f /dev/gpioc0 -c 12 IN
 .El
 .Sh SEE ALSO
-.Xr gpio 4
-.Xr gpioiic 4
+.Xr gpio 4 ,
+.Xr gpioiic 4 ,
 .Xr gpioled 4
 .Sh HISTORY
 The

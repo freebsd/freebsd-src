@@ -53,7 +53,7 @@ run(int flags)
 	while ((i = open("/", O_RDONLY)) < 3)
 		ATF_REQUIRE(i != -1);
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	closefrom(3);
 #else
 	ATF_REQUIRE(fcntl(3, F_CLOSEM) != -1);
@@ -80,7 +80,7 @@ run(int flags)
 		ATF_REQUIRE((fcntl(fd[1], F_GETFL) & O_NONBLOCK) == 0);
 	}
 
-#if !defined(__FreeBSD__)
+#ifndef __FreeBSD__
 	if (flags & O_NOSIGPIPE) {
 		ATF_REQUIRE(fcntl(fd[0], F_GETNOSIGPIPE) != 0);
 		ATF_REQUIRE(fcntl(fd[1], F_GETNOSIGPIPE) != 0);
@@ -116,7 +116,7 @@ ATF_TC_BODY(pipe2_consume, tc)
 {
 	struct rlimit rl;
 	int err, filedes[2];
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	int old;
 
 	closefrom(4);
@@ -132,7 +132,7 @@ ATF_TC_BODY(pipe2_consume, tc)
 	 * file descriptor limit in the middle of a pipe2() call - i.e.
 	 * before the call only a single descriptor may be openend.
 	 */
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	old = rl.rlim_cur;
 #endif
 	rl.rlim_cur = 4;
@@ -141,7 +141,7 @@ ATF_TC_BODY(pipe2_consume, tc)
 
 	err = pipe2(filedes, O_CLOEXEC);
 	ATF_REQUIRE(err == -1);
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	rl.rlim_cur = old;
 	err = setrlimit(RLIMIT_NOFILE, &rl);
 #endif
@@ -169,7 +169,7 @@ ATF_TC_BODY(pipe2_cloexec, tc)
 	run(O_CLOEXEC);
 }
 
-#if defined(__NetBSD__)
+#ifdef __NetBSD__
 ATF_TC(pipe2_nosigpipe);
 ATF_TC_HEAD(pipe2_nosigpipe, tc)
 {
@@ -201,7 +201,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, pipe2_consume);
 	ATF_TP_ADD_TC(tp, pipe2_nonblock);
 	ATF_TP_ADD_TC(tp, pipe2_cloexec);
-#if defined(__NetBSD__)
+#ifdef __NetBSD__
 	ATF_TP_ADD_TC(tp, pipe2_nosigpipe);
 #endif
 	ATF_TP_ADD_TC(tp, pipe2_einval);

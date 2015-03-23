@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 23, 2013
+.Dd February 12, 2015
 .Dt SA 4
 .Os
 .Sh NAME
@@ -264,8 +264,8 @@ accessing the device, e.g.).
 .Sh DIAGNOSTICS
 None.
 .Sh SEE ALSO
-.Xr cam 4 ,
-.Xr mt 1
+.Xr mt 1 ,
+.Xr cam 4
 .Sh AUTHORS
 .An -nosplit
 The
@@ -285,10 +285,10 @@ device driver written and ported from
 by
 .An Julian Elischer .
 .Pp
-The current owner of record is
-.An Matthew Jacob
-who has suffered too many
-years of breaking tape drivers.
+The owner of record for many years was
+.An Matthew Jacob .
+The current maintainer is
+.An Kenneth Merry
 .Sh BUGS
 This driver lacks many of the hacks required to deal with older devices.
 Many older
@@ -305,7 +305,5 @@ for your device in order to read tapes written under
 .Fx
 2.X.
 .Pp
-Fine grained density and compression mode support that is bound to specific
-device names needs to be added.
-.Pp
-Support for fast indexing by use of partitions is missing.
+Partitions are only supported for status information and location.
+It would be nice to add support for creating and editing tape partitions.

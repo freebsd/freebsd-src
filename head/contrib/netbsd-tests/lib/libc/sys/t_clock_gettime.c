@@ -63,7 +63,7 @@ __RCSID("$NetBSD: t_clock_gettime.c,v 1.1 2011/10/15 06:42:16 jruoho Exp $");
 #include <sys/param.h>
 #include <sys/sysctl.h>
 
-#if defined(__NetBSD__)
+#ifdef __NetBSD__
 #include <machine/int_limits.h>
 #endif
 
@@ -75,7 +75,7 @@ __RCSID("$NetBSD: t_clock_gettime.c,v 1.1 2011/10/15 06:42:16 jruoho Exp $");
 #include <time.h>
 #include <unistd.h>
 
-#if defined(__NetBSD__)
+#ifdef __NetBSD__
 #include "../../../h_macros.h"
 #else
 #include <limits.h>

@@ -1,6 +1,7 @@
-/*	$Id: libman.h,v 1.56 2012/11/17 00:26:33 schwarze Exp $ */
+/*	$Id: libman.h,v 1.67 2014/12/28 14:42:27 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,8 +15,6 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifndef LIBMAN_H
-#define LIBMAN_H
 
 enum	man_next {
 	MAN_NEXT_SIBLING = 0,
@@ -24,13 +23,12 @@ enum	man_next {
 
 struct	man {
 	struct mparse	*parse; /* parse pointer */
+	const char	*defos; /* default OS argument for .TH */
+	int		 quick; /* abort parse early */
 	int		 flags; /* parse flags */
-#define	MAN_HALT	(1 << 0) /* badness happened: die */
 #define	MAN_ELINE	(1 << 1) /* Next-line element scope. */
 #define	MAN_BLINE	(1 << 2) /* Next-line block scope. */
-#define	MAN_ILINE	(1 << 3) /* Ignored in next-line scope. */
 #define	MAN_LITERAL	(1 << 4) /* Literal input. */
-#define	MAN_BPLINE	(1 << 5)
 #define	MAN_NEWLINE	(1 << 6) /* first macro/text in a line */
 	enum man_next	 next; /* where to put the next node */
 	struct man_node	*last; /* the last parsed node */
@@ -47,7 +45,7 @@ struct	man {
 			  char *buf
 
 struct	man_macro {
-	int		(*fp)(MACRO_PROT_ARGS);
+	void		(*fp)(MACRO_PROT_ARGS);
 	int		  flags;
 #define	MAN_SCOPED	 (1 << 0)
 #define	MAN_EXPLICIT	 (1 << 1)	/* See blk_imp(). */
@@ -55,31 +53,24 @@ struct	man_macro {
 #define	MAN_NSCOPED	 (1 << 3)	/* See in_line_eoln(). */
 #define	MAN_NOCLOSE	 (1 << 4)	/* See blk_exp(). */
 #define	MAN_BSCOPE	 (1 << 5)	/* Break BLINE scope. */
+#define	MAN_JOIN	 (1 << 6)	/* Join arguments together. */
 };
 
 extern	const struct man_macro *const man_macros;
 
 __BEGIN_DECLS
 
-#define		  man_pmsg(man, l, p, t) \
-		  mandoc_msg((t), (man)->parse, (l), (p), NULL)
-#define		  man_nmsg(man, n, t) \
-		  mandoc_msg((t), (man)->parse, (n)->line, (n)->pos, NULL)
-int		  man_word_alloc(struct man *, int, int, const char *);
-int		  man_block_alloc(struct man *, int, int, enum mant);
-int		  man_head_alloc(struct man *, int, int, enum mant);
-int		  man_tail_alloc(struct man *, int, int, enum mant);
-int		  man_body_alloc(struct man *, int, int, enum mant);
-int		  man_elem_alloc(struct man *, int, int, enum mant);
+void		  man_word_alloc(struct man *, int, int, const char *);
+void		  man_word_append(struct man *, const char *);
+void		  man_block_alloc(struct man *, int, int, enum mant);
+void		  man_head_alloc(struct man *, int, int, enum mant);
+void		  man_body_alloc(struct man *, int, int, enum mant);
+void		  man_elem_alloc(struct man *, int, int, enum mant);
 void		  man_node_delete(struct man *, struct man_node *);
 void		  man_hash_init(void);
 enum mant	  man_hash_find(const char *);
-int		  man_macroend(struct man *);
-int		  man_valid_post(struct man *);
-int		  man_valid_pre(struct man *, struct man_node *);
-int		  man_unscope(struct man *, 
-			const struct man_node *, enum mandocerr);
+void		  man_macroend(struct man *);
+void		  man_valid_post(struct man *);
+void		  man_unscope(struct man *, const struct man_node *);
 
 __END_DECLS
-
-#endif /*!LIBMAN_H*/

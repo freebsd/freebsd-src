@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MIPSSE_FRAMEINFO_H
-#define MIPSSE_FRAMEINFO_H
+#ifndef LLVM_LIB_TARGET_MIPS_MIPSSEFRAMELOWERING_H
+#define LLVM_LIB_TARGET_MIPS_MIPSSEFRAMELOWERING_H
 
 #include "MipsFrameLowering.h"
 
@@ -20,27 +20,26 @@ namespace llvm {
 
 class MipsSEFrameLowering : public MipsFrameLowering {
 public:
-  explicit MipsSEFrameLowering(const MipsSubtarget &STI)
-    : MipsFrameLowering(STI, STI.stackAlignment()) {}
+  explicit MipsSEFrameLowering(const MipsSubtarget &STI);
 
   /// emitProlog/emitEpilog - These methods insert prolog and epilog code into
   /// the function.
-  void emitPrologue(MachineFunction &MF) const;
-  void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const;
+  void emitPrologue(MachineFunction &MF) const override;
+  void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
 
   void eliminateCallFramePseudoInstr(MachineFunction &MF,
-                                     MachineBasicBlock &MBB,
-                                     MachineBasicBlock::iterator I) const;
+                                  MachineBasicBlock &MBB,
+                                  MachineBasicBlock::iterator I) const override;
 
   bool spillCalleeSavedRegisters(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator MI,
                                  const std::vector<CalleeSavedInfo> &CSI,
-                                 const TargetRegisterInfo *TRI) const;
+                                 const TargetRegisterInfo *TRI) const override;
 
-  bool hasReservedCallFrame(const MachineFunction &MF) const;
+  bool hasReservedCallFrame(const MachineFunction &MF) const override;
 
   void processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
-                                            RegScavenger *RS) const;
+                                            RegScavenger *RS) const override;
   unsigned ehDataReg(unsigned I) const;
 };
 

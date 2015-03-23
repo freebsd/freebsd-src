@@ -36,6 +36,10 @@
 #include <time.h>
 #include <stdlib.h>
 
+#ifndef __NetBSD__
+#include <signal.h>
+#endif
+
 ATF_TC(snprintf_c99);
 ATF_TC_HEAD(snprintf_c99, tc)
 {
@@ -115,6 +119,12 @@ ATF_TC_HEAD(snprintf_posarg_error, tc)
 ATF_TC_BODY(snprintf_posarg_error, tc)
 {
 	char s[16], fmt[32];
+
+#ifndef __NetBSD__
+	atf_tc_expect_signal(SIGSEGV,
+	    "some non-NetBSD platforms including FreeBSD don't validate "
+	    "negative size; testcase blows up with SIGSEGV");
+#endif
 
 	snprintf(fmt, sizeof(fmt), "%%%zu$d", SIZE_MAX / sizeof(size_t));
 

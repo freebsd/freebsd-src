@@ -346,6 +346,15 @@ rdmsr(u_int msr)
 	return (rv);
 }
 
+static __inline uint32_t
+rdmsr32(u_int msr)
+{
+	uint32_t low;
+
+	__asm __volatile("rdmsr" : "=a" (low) : "c" (msr) : "edx");
+	return (low);
+}
+
 static __inline uint64_t
 rdpmc(u_int pmc)
 {
@@ -455,6 +464,25 @@ rcr4(void)
 
 	__asm __volatile("movl %%cr4,%0" : "=r" (data));
 	return (data);
+}
+
+static __inline uint64_t
+rxcr(u_int reg)
+{
+	u_int low, high;
+
+	__asm __volatile("xgetbv" : "=a" (low), "=d" (high) : "c" (reg));
+	return (low | ((uint64_t)high << 32));
+}
+
+static __inline void
+load_xcr(u_int reg, uint64_t val)
+{
+	u_int low, high;
+
+	low = val;
+	high = val >> 32;
+	__asm __volatile("xsetbv" : : "c" (reg), "a" (low), "d" (high));
 }
 
 /*

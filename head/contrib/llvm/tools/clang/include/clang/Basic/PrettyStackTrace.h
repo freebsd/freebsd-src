@@ -14,8 +14,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_BASIC_PRETTYSTACKTRACE_H
-#define CLANG_BASIC_PRETTYSTACKTRACE_H
+#ifndef LLVM_CLANG_BASIC_PRETTYSTACKTRACE_H
+#define LLVM_CLANG_BASIC_PRETTYSTACKTRACE_H
 
 #include "clang/Basic/SourceLocation.h"
 #include "llvm/Support/PrettyStackTrace.h"
@@ -31,7 +31,7 @@ namespace clang {
   public:
     PrettyStackTraceLoc(SourceManager &sm, SourceLocation L, const char *Msg)
       : SM(sm), Loc(L), Message(Msg) {}
-    virtual void print(raw_ostream &OS) const;
+    void print(raw_ostream &OS) const override;
   };
 }
 
