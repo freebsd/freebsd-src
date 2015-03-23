@@ -186,7 +186,7 @@ evdev_read(struct cdev *dev, struct uio *uio, int ioflag)
 			return (EWOULDBLOCK);
 		}
 
-		mtx_sleep(client, &client->ec_buffer_mtx, 0, "evrea", 0);
+		mtx_sleep(client, &client->ec_buffer_mtx, PCATCH, "evrea", 0);
 	}
 
 	for (;;) {
