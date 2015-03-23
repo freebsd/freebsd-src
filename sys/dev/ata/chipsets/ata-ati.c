@@ -123,7 +123,7 @@ ata_ati_probe(device_t dev)
 		ctlr->chipinit = ata_ati_chipinit;
 	break;
     }
-    return (BUS_PROBE_DEFAULT);
+    return (BUS_PROBE_LOW_PRIORITY);
 }
 
 static int
