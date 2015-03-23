@@ -28,11 +28,12 @@ marker task-check-password.4th
 
 include /boot/screen.4th
 
-13 constant enter_key        \ The decimal ASCII value for Enter key
-8  constant bs_key           \ The decimal ASCII value for Backspace key
-16 constant readmax          \ Maximum number of characters for the password
+13  constant enter_key       \ The decimal ASCII value for Enter key
+8   constant bs_key          \ The decimal ASCII value for Backspace key
+21  constant ctrl_u          \ The decimal ASCII value for Ctrl-U sequence
+255 constant readmax         \ Maximum number of characters for the password
 
-variable readX               \ Current X offset (column)(used by read)
+variable read-tick           \ Twiddle position (used by read)
 variable read-start          \ Starting X offset (column)(used by read)
 
 create readval readmax allot \ input obtained (up to readmax characters)
@@ -55,16 +56,23 @@ variable readlen             \ input length
 
 			\ Check key pressed (see loader(8)) and input limit
 			dup 0<> if ( and ) readlen @ readmax < if
-				\ Echo an asterisk (unless Backspace/Enter)
-				dup bs_key <> if ( and ) dup enter_key <> if
-				      ." *" \ Echo an asterisk
-				then then
+				\ Spin the twiddle and then exit this function
+				read-tick @ dup 1+ 4 mod read-tick !
+				2 spaces
+				dup 0 = if ( 1 ) ." /" else
+				dup 1 = if ( 2 ) ." -" else
+				dup 2 = if ( 3 ) ." \" else
+				dup 3 = if ( 4 ) ." |" else
+					1 spaces
+				then then then then drop
+				read-start @ 25 at-xy
 				exit
 			then then
 
-			\ Always allow Backspace and Enter
+			\ Always allow Backspace, Enter, and Ctrl-U
 			dup bs_key = if exit then
 			dup enter_key = if exit then
+			dup ctrl_u = if exit then
 		then
 		50 ms \ Sleep for 50 milliseconds (see loader(8))
 	again
@@ -74,7 +82,6 @@ variable readlen             \ input length
 
 	0 25 at-xy           \ Move the cursor to the bottom-left
 	dup 1+ read-start !  \ Store X offset after the prompt
-	read-start @ readX ! \ copy value to the current X offset
 	0 readlen !          \ Initialize the read length
 	type                 \ Print the prompt
 
@@ -86,42 +93,23 @@ variable readlen             \ input length
 		\ security reasons). If Enter is pressed, we process the
 		\ password, otherwise augment the key to a string.
 
-		\ If the key that was entered was not Enter, advance
-		dup enter_key <> if
-			readX @ 1+ readX !     \ Advance the column
-			readlen @ 1+ readlen ! \ Increment input length
-		then
-
-		\ Handle backspacing
-		dup bs_key = if
-			readX @ 2 - readX !     \ Set new cursor position
-			readlen @ 2 - readlen ! \ Decrement input length
-
-			\ Don't move behind starting position
-			readX @ read-start @ < if
-				read-start @ readX !
-			then
-			readlen @ 0< if
-				0 readlen !
-			then
-
-			\ Reposition cursor and erase character
-			readX @ 25 at-xy 1 spaces readX @ 25 at-xy
-		then
-
 		dup enter_key = if
-			drop    \ Clean up stack cruft
-			10 emit \ Echo new line
+			drop     \ Clean up stack cruft
+			3 spaces \ Erase the twiddle
+			10 emit  \ Echo new line
 			exit
-		then
-
-		\ If not Backspace or Enter, store the character
-		dup bs_key <> if ( and ) dup enter_key <> if
-
-			\ store the character in our buffer
-			dup readval readlen @ 1- + c!
-
-		then then
+		else dup ctrl_u = if
+			3 spaces read-start @ 25 at-xy \ Erase the twiddle
+			0 readlen ! \ Reset input to NULL
+		else dup bs_key = if
+			readlen @ 1 - dup readlen ! \ Decrement input length
+			dup 0< if drop 0 dup readlen ! then \ Don't go negative
+			0= if 3 spaces read-start @ 25 at-xy then \ Twiddle
+		else dup \ Store the character
+			\ NB: sgetkey prevents overflow by way of blocking
+			\     at readmax except for Backspace or Enter
+			readlen @ 1+ dup readlen ! 1- readval + c!
+		then then then
 
 		drop \ last key pressed
 	again \ Enter was not pressed; repeat
