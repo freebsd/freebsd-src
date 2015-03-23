@@ -1,5 +1,6 @@
 .\"-
 .\" Copyright (c) 2012 Robert N. M. Watson
+.\" Copyright (c) 2015 SRI International
 .\" All rights reserved.
 .\"
 .\" This software was developed by SRI International and the University of
@@ -29,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 18, 2012
+.Dd March 23, 2015
 .Dt ALTERA_SDCARD 4
 .Os
 .Sh NAME
@@ -43,6 +44,12 @@ In
 .Cd hint.altera_sdcardc.0.at="nexus0"
 .Cd hint.altera_sdcardc.0.maddr=0x7f008000
 .Cd hint.altera_sdcardc.0.msize=0x400
+.Pp
+In DTS file:
+.Cd sdcard@7f008000 {
+.Cd "	compatible =" Qo Cd altera,sdcard_11_2011 Qc ;
+.Cd "	reg = <0x7f008000 0x400>;"
+.Cd };
 .Sh DESCRIPTION
 The
 .Nm

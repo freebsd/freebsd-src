@@ -1,5 +1,6 @@
 .\"-
 .\" Copyright (c) 2012 Robert N. M. Watson
+.\" Copyright (c) 2015 SRI International
 .\" All rights reserved.
 .\"
 .\" This software was developed by SRI International and the University of
@@ -29,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 18, 2012
+.Dd March 23, 2015
 .Dt ALTERA_AVGEN 4
 .Os
 .Sh NAME
@@ -46,6 +47,15 @@ In
 .Cd hint.altera_avgen.0.width=4
 .Cd hint.altera_avgen.0.fileio="rw"
 .Cd hint.altera_avgen.0.devname="berirom"
+.Pp
+In DTS file:
+.Cd avgen@0x7f00a000 {
+.Cd "	compatible =" Qo Cd sri-cambridge,avgen Qc ;
+.Cd "	reg = <0x7f00a000 0x14>;
+.Cd "	sri-cambridge,width = <4>;
+.Cd "	sri-cambridge,fileio = "rw";
+.Cd "	sri-cambridge,devname = "berirom";
+.Cd };
 .Sh DESCRIPTION
 The
 .Nm

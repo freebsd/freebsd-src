@@ -1,5 +1,6 @@
 .\"-
 .\" Copyright (c) 2012 Robert N. M. Watson
+.\" Copyright (c) 2015 SRI International
 .\" All rights reserved.
 .\"
 .\" This software was developed by SRI International and the University of
@@ -29,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 18, 2012
+.Dd March 23, 2015
 .Dt TERASIC_MTL 4
 .Os
 .Sh NAME
@@ -47,6 +48,14 @@ In
 .Cd hint.terasic_mtl.0.pixel_msize=0x177000
 .Cd hint.terasic_mtl.0.text_maddr=0x70177000
 .Cd hint.terasic_mtl.0.text_msize=0x2000
+.Pp
+In DTS file:
+.Cd touchscreen@70400000 {
+.Cd "	compatible =" Qo Cd sri-cambridge,mtl Qc ;
+.Cd "	reg = <0x70400000 0x1000
+.Cd "		0x70000000 0x177000
+.Cd "		0x70177000 0x2000>;
+.Cd };
 .Sh DESCRIPTION
 The
 .Nm
