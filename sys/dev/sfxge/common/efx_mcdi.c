@@ -213,6 +213,14 @@ static			int
 efx_mcdi_poll_reboot(
 	__in		efx_nic_t *enp)
 {
+#ifndef EFX_GRACEFUL_MC_REBOOT
+	/*
+	 * This function is not being used properly.
+	 * Until its callers are fixed, it should always return 0.
+	 */
+	_NOTE(ARGUNUSED(enp))
+	return (0);
+#else
 	efx_mcdi_iface_t *emip = &(enp->en_u.siena.enu_mip);
 	unsigned int rebootr;
 	efx_dword_t dword;
@@ -236,6 +244,7 @@ efx_mcdi_poll_reboot(
 		return (EINTR);
 	else
 		return (EIO);
+#endif
 }
 
 	__checkReturn	boolean_t
