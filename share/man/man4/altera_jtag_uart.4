@@ -1,5 +1,6 @@
 .\"-
 .\" Copyright (c) 2012 Robert N. M. Watson
+.\" Copyright (c) 2015 SRI International
 .\" All rights reserved.
 .\"
 .\" This software was developed by SRI International and the University of
@@ -29,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 18, 2012
+.Dd March 23, 2015
 .Dt ALTERA_JTAG_UART 4
 .Os
 .Sh NAME
@@ -47,6 +48,13 @@ In
 .Cd hint.altera_jtag_uart.1.at="nexus0"
 .Cd hint.altera_jtag_uart.1.maddr=0x7f001000
 .Cd hint.altera_jtag_uart.1.msize=0x40
+.Pp
+In DTS file:
+.Cd serial@7f000000 {
+.Cd "	compatible =" Qo Cd altera,jtag_uart-11_0 Qc ;
+.Cd "	reg = <0x7f000000 0x40>;"
+.Cd "	interrupts = <0>;"
+.Cd };
 .Sh DESCRIPTION
 The
 .Nm
@@ -76,6 +84,14 @@ supports JTAG UART cores with or without interrupt lines connected; if the
 portion of the
 .Pa device.hints
 entry is omitted, the driver will poll rather than configure interrupts.
+.Sh FILES
+.Bl -tag -width ".Pa /dev/ttyu?.init" -compact
+.It Pa /dev/ttyj?
+for callin ports
+.It Pa /dev/ttyj?.init
+.It Pa /dev/ttyj?.lock
+corresponding callin initial-state and lock-state devices
+.El
 .Sh SEE ALSO
 .Xr login 1 ,
 .Xr tty 4 ,
