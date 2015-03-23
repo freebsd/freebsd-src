@@ -94,13 +94,20 @@ extern "C" {
 #define	ISP2(x)			(((x) & ((x) - 1)) == 0)
 #endif
 
-#if defined(__x86_64__)
+#if defined(__x86_64__) && __FreeBSD_version >= 1000000
+
+#define	SFXGE_USE_BUS_SPACE_8		1
+
 #if !defined(bus_space_read_stream_8)
+
 #define	bus_space_read_stream_8(t, h, o)				\
 	bus_space_read_8((t), (h), (o))
+
 #define	bus_space_write_stream_8(t, h, o, v)				\
 	bus_space_write_8((t), (h), (o), (v))
+
 #endif
+
 #endif
 
 #define	ENOTACTIVE EINVAL
@@ -663,7 +670,7 @@ typedef struct efsys_bar_s {
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
-#if defined(__x86_64__)
+#if defined(SFXGE_USE_BUS_SPACE_8)
 #define	EFSYS_BAR_READQ(_esbp, _offset, _eqp)				\
 	do {								\
 		_NOTE(CONSTANTCONDITION)				\
@@ -804,7 +811,7 @@ typedef struct efsys_bar_s {
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
-#if defined(__x86_64__)
+#if defined(SFXGE_USE_BUS_SPACE_8)
 #define	EFSYS_BAR_WRITEQ(_esbp, _offset, _eqp)				\
 	do {								\
 		_NOTE(CONSTANTCONDITION)				\
@@ -873,7 +880,7 @@ typedef struct efsys_bar_s {
 	} while (B_FALSE)
 #endif
 
-#if defined(__x86_64__)
+#if defined(SFXGE_USE_BUS_SPACE_8)
 #define	EFSYS_BAR_WRITEO(_esbp, _offset, _eop, _lock)			\
 	do {								\
 		_NOTE(CONSTANTCONDITION)				\
