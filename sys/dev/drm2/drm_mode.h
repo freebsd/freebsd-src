@@ -228,6 +228,7 @@ struct drm_mode_get_connector {
 #define DRM_MODE_PROP_IMMUTABLE	(1<<2)
 #define DRM_MODE_PROP_ENUM	(1<<3) /* enumerated type with text strings */
 #define DRM_MODE_PROP_BLOB	(1<<4)
+#define DRM_MODE_PROP_BITMASK	(1<<5) /* bitmask of enumerated types */
 
 struct drm_mode_property_enum {
 	uint64_t value;
@@ -250,6 +251,21 @@ struct drm_mode_connector_set_property {
 	uint64_t value;
 	uint32_t prop_id;
 	uint32_t connector_id;
+};
+
+struct drm_mode_obj_get_properties {
+	uint64_t props_ptr;
+	uint64_t prop_values_ptr;
+	uint32_t count_props;
+	uint32_t obj_id;
+	uint32_t obj_type;
+};
+
+struct drm_mode_obj_set_property {
+	uint64_t value;
+	uint32_t prop_id;
+	uint32_t obj_id;
+	uint32_t obj_type;
 };
 
 struct drm_mode_get_blob {

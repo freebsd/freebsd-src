@@ -42,7 +42,7 @@ static bool i915_pipe_enabled(struct drm_device *dev, enum pipe pipe)
 		return false;
 
 	if (HAS_PCH_SPLIT(dev))
-		dpll_reg = PCH_DPLL(pipe);
+		dpll_reg = _PCH_DPLL(pipe);
 	else
 		dpll_reg = (pipe == PIPE_A) ? _DPLL_A : _DPLL_B;
 
@@ -873,22 +873,6 @@ int i915_restore_state(struct drm_device *dev)
 		I915_WRITE(IER, dev_priv->saveIER);
 		I915_WRITE(IMR, dev_priv->saveIMR);
 	}
-	DRM_UNLOCK(dev);
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		intel_init_clock_gating(dev);
-
-	if (IS_IRONLAKE_M(dev)) {
-		ironlake_enable_drps(dev);
-		intel_init_emon(dev);
-	}
-
-	if (INTEL_INFO(dev)->gen >= 6) {
-		gen6_enable_rps(dev_priv);
-		gen6_update_ring_freq(dev_priv);
-	}
-
-	DRM_LOCK(dev);
 
 	/* Cache mode state */
 	I915_WRITE(CACHE_MODE_0, dev_priv->saveCACHE_MODE_0 | 0xffff0000);

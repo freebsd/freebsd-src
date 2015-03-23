@@ -203,6 +203,9 @@ static void drm_fb_helper_restore_lut_atomic(struct drm_crtc *crtc)
 {
 	uint16_t *r_base, *g_base, *b_base;
 
+	if (crtc->funcs->gamma_set == NULL)
+		return;
+
 	r_base = crtc->gamma_store;
 	g_base = r_base + crtc->gamma_size;
 	b_base = g_base + crtc->gamma_size;
@@ -1226,7 +1229,7 @@ static bool drm_target_cloned(struct drm_fb_helper *fb_helper,
 
 	/* try and find a 1024x768 mode on each connector */
 	can_clone = true;
-	dmt_mode = drm_mode_find_dmt(fb_helper->dev, 1024, 768, 60);
+	dmt_mode = drm_mode_find_dmt(fb_helper->dev, 1024, 768, 60, false);
 
 	for (i = 0; i < fb_helper->connector_count; i++) {
 

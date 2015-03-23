@@ -78,7 +78,7 @@ struct drm_encoder_helper_funcs {
 	void (*restore)(struct drm_encoder *encoder);
 
 	bool (*mode_fixup)(struct drm_encoder *encoder,
-			   const struct drm_display_mode *mode,
+			   struct drm_display_mode *mode,
 			   struct drm_display_mode *adjusted_mode);
 	void (*prepare)(struct drm_encoder *encoder);
 	void (*commit)(struct drm_encoder *encoder);

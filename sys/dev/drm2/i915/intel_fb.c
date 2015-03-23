@@ -73,7 +73,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	DRM_LOCK(dev);
 
 	/* Flush everything out, we'll be doing GTT only from now on */
-	ret = intel_pin_and_fence_fb_obj(dev, obj, false);
+	ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
 	if (ret) {
 		DRM_ERROR("failed to pin fb: %d\n", ret);
 		goto out_unref;
