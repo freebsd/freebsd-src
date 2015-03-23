@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include "sdhci_if.h"
 
 #include "bcm2835_dma.h"
+#include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>
 #include "bcm2835_vcbus.h"
 
 #define	BCM2835_DEFAULT_SDHCI_FREQ	50
@@ -154,18 +155,38 @@ bcm_sdhci_attach(device_t dev)
 	int rid, err;
 	phandle_t node;
 	pcell_t cell;
-	int default_freq;
+	u_int default_freq;
 
 	sc->sc_dev = dev;
 	sc->sc_req = NULL;
-	err = 0;
 
-	default_freq = BCM2835_DEFAULT_SDHCI_FREQ;
+	err = bcm2835_mbox_set_power_state(dev, BCM2835_MBOX_POWER_ID_EMMC,
+	    TRUE);
+	if (err != 0) {
+		if (bootverbose)
+			device_printf(dev, "Unable to enable the power\n");
+		return (err);
+	}
+
+	default_freq = 0;
+	err = bcm2835_mbox_get_clock_rate(dev, BCM2835_MBOX_CLOCK_ID_EMMC,
+	    &default_freq);
+	if (err == 0) {
+		/* Convert to MHz */
+		default_freq /= 1000000;
+		if (bootverbose)
+			device_printf(dev, "default frequency: %dMHz\n",
+			    default_freq);
+	}
+	if (default_freq == 0)
+		default_freq = BCM2835_DEFAULT_SDHCI_FREQ;
+
 	node = ofw_bus_get_node(sc->sc_dev);
 	if ((OF_getprop(node, "clock-frequency", &cell, sizeof(cell))) > 0)
-		default_freq = (int)fdt32_to_cpu(cell)/1000000;
+		default_freq = fdt32_to_cpu(cell)/1000000;
 
-	dprintf("SDHCI frequency: %dMHz\n", default_freq);
+	if (bootverbose)
+		device_printf(dev, "SDHCI frequency: %dMHz\n", default_freq);
 
 	mtx_init(&sc->sc_mtx, "bcm sdhci", "sdhci", MTX_DEF);
 

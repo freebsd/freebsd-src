@@ -67,6 +67,35 @@ vm_create_base() {
 	return 0
 }
 
+vm_copy_base() {
+	# Creates a new UFS root filesystem and copies the contents of the
+	# current root filesystem into it.  This produces a "clean" disk
+	# image without any remnants of files which were created temporarily
+	# during image-creation and have since been deleted (e.g., downloaded
+	# package archives).
+
+	mkdir -p ${DESTDIR}/old
+	mdold=$(mdconfig -f ${VMBASE})
+	mount /dev/${mdold} ${DESTDIR}/old
+
+	truncate -s ${VMSIZE} ${VMBASE}.tmp
+	mkdir -p ${DESTDIR}/new
+	mdnew=$(mdconfig -f ${VMBASE}.tmp)
+	newfs -j /dev/${mdnew}
+	mount /dev/${mdnew} ${DESTDIR}/new
+
+	tar -cf- -C ${DESTDIR}/old . | tar -xf- -C ${DESTDIR}/new
+
+	umount /dev/${mdold}
+	rmdir ${DESTDIR}/old
+	mdconfig -d -u ${mdold}
+
+	umount /dev/${mdnew}
+	rmdir ${DESTDIR}/new
+	mdconfig -d -u ${mdnew}
+	mv ${VMBASE}.tmp ${VMBASE}
+}
+
 vm_install_base() {
 	# Installs the FreeBSD userland/kernel to the virtual machine disk.
 
