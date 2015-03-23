@@ -533,7 +533,6 @@ static driver_t bge_driver = {
 
 static struct ifdriver bge_ifdrv = {
 	.ifdrv_ops = {
-		.ifop_origin = IFOP_ORIGIN_DRIVER,
 		.ifop_ioctl = bge_ioctl,
 		.ifop_transmit = bge_transmit,
 		.ifop_get_counter = bge_get_counter,

@@ -396,7 +396,6 @@ static struct resource_spec msk_irq_spec_msi[] = {
 
 static struct ifdriver msk_ifdrv = {
 	.ifdrv_ops = {
-		.ifop_origin = IFOP_ORIGIN_DRIVER,
 		.ifop_ioctl = msk_ioctl,
 		.ifop_transmit = msk_transmit,
 	},

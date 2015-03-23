@@ -482,6 +482,7 @@ ifdriver_bless(struct ifdriver *ifdrv, struct iftype *ift)
 		    ifdrv->ifdrv_name));
 #endif
 
+	ifdrv->ifdrv_ops.ifop_origin = IFOP_ORIGIN_DRIVER;
 	ifdrv->ifdrv_flags |= IFDRV_BLESSED;
 }
 

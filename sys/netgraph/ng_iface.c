@@ -193,7 +193,6 @@ static VNET_DEFINE(struct unrhdr *, ng_iface_unit);
 
 static struct ifdriver ng_ifdrv = {
 	.ifdrv_ops = {
-		.ifop_origin = IFOP_ORIGIN_DRIVER,
 		.ifop_output = ng_iface_output,
 		.ifop_transmit = ng_iface_transmit,
 		.ifop_ioctl = ng_iface_ioctl,

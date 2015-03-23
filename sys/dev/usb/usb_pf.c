@@ -74,9 +74,6 @@ static uint32_t usbpf_xfer_precompute_size(struct usb_xfer *, int);
 
 static const char usbusname[] = "usbus";
 static struct ifdriver usbpf_ifdrv = {
-	.ifdrv_ops = {
-		.ifop_origin = IFOP_ORIGIN_DRIVER,
-	},
 	.ifdrv_name = usbusname,
 	.ifdrv_type = IFT_USB,
 	/*

@@ -296,7 +296,6 @@ MODULE_DEPEND(vtnet, virtio, 1, 1, 1);
 
 static struct ifdriver vtnet_ifdrv = {
 	.ifdrv_ops = {
-		.ifop_origin = IFOP_ORIGIN_DRIVER,
 		.ifop_ioctl = vtnet_ioctl,
 		.ifop_get_counter = vtnet_get_counter,
 		.ifop_transmit = vtnet_txq_mq_start,

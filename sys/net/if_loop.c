@@ -103,7 +103,6 @@ static const char loname[] = "lo";
 
 static struct ifdriver lo_ifdrv = {
 	.ifdrv_ops = {
-		.ifop_origin = IFOP_ORIGIN_DRIVER,
 		.ifop_ioctl = loioctl,
 		.ifop_output = looutput,
 	},

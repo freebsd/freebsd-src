@@ -306,7 +306,6 @@ static driver_t igb_driver = {
 
 static struct ifdriver igb_ifdrv = {
 	.ifdrv_ops = {
-		.ifop_origin = IFOP_ORIGIN_DRIVER,
 		.ifop_ioctl = igb_ioctl,
 		.ifop_get_counter = igb_get_counter,
 		.ifop_transmit = igb_mq_start,

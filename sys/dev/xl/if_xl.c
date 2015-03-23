@@ -329,7 +329,6 @@ DRIVER_MODULE(miibus, xl, miibus_driver, miibus_devclass, NULL, NULL);
 
 static struct ifdriver xl_ifdrv = {
 	.ifdrv_ops = {
-		.ifop_origin = IFOP_ORIGIN_DRIVER,
 		.ifop_ioctl = xl_ioctl,
 		.ifop_transmit = xl_transmit,
 #ifdef DEVICE_POLLING
