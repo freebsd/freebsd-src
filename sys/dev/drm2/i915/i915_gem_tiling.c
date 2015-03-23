@@ -357,11 +357,18 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		/* We need to rebind the object if its current allocation
 		 * no longer meets the alignment restrictions for its new
 		 * tiling mode. Otherwise we can just leave it alone, but
-		 * need to ensure that any fence register is cleared.
+		 * need to ensure that any fence register is updated before
+		 * the next fenced (either through the GTT or by the BLT unit
+		 * on older GPUs) access.
+		 *
+		 * After updating the tiling parameters, we then flag whether
+		 * we need to update an associated fence register. Note this
+		 * has to also include the unfenced register the GPU uses
+		 * whilst executing a fenced command for an untiled object.
 		 */
-		i915_gem_release_mmap(obj);
 
-		obj->map_and_fenceable = obj->gtt_space == NULL ||
+		obj->map_and_fenceable =
+			obj->gtt_space == NULL ||
 		    (obj->gtt_offset + obj->base.size <=
 		    dev_priv->mm.gtt_mappable_end &&
 		    i915_gem_object_fence_ok(obj, args->tiling_mode));
@@ -374,12 +381,20 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 			if (obj->gtt_offset & (unfenced_alignment - 1))
 				ret = i915_gem_object_unbind(obj);
 		}
+
 		if (ret == 0) {
-			obj->tiling_changed = true;
+			obj->fence_dirty =
+				obj->fenced_gpu_access ||
+				obj->fence_reg != I915_FENCE_REG_NONE;
+
+
 			obj->tiling_mode = args->tiling_mode;
 			obj->stride = args->stride;
+
+			/* Force the fence to be reacquired for GTT access */
+			i915_gem_release_mmap(obj);
 		}
- 	}
+	}
 	/* we have to maintain this existing ABI... */
 	args->stride = obj->stride;
 	args->tiling_mode = obj->tiling_mode;
@@ -453,6 +468,22 @@ i915_gem_swizzle_page(vm_page_t m)
 	}
 
 	sf_buf_free(sf);
+}
+
+void
+i915_gem_object_do_bit_17_swizzle_page(struct drm_i915_gem_object *obj,
+    vm_page_t m)
+{
+	char new_bit_17;
+
+	if (obj->bit_17 == NULL)
+		return;
+
+	new_bit_17 = VM_PAGE_TO_PHYS(m) >> 17;
+	if ((new_bit_17 & 0x1) != (test_bit(m->pindex, obj->bit_17) != 0)) {
+		i915_gem_swizzle_page(m);
+		vm_page_dirty(m);
+	}
 }
 
 void

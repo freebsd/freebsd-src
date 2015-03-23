@@ -188,6 +188,8 @@ static drm_ioctl_desc_t		  drm_ioctls[256] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_MODE_CREATE_DUMB, drm_mode_create_dumb_ioctl, DRM_MASTER|DRM_CONTROL_ALLOW|DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_MODE_MAP_DUMB, drm_mode_mmap_dumb_ioctl, DRM_MASTER|DRM_CONTROL_ALLOW|DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_MODE_DESTROY_DUMB, drm_mode_destroy_dumb_ioctl, DRM_MASTER|DRM_CONTROL_ALLOW|DRM_UNLOCKED),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_OBJ_GETPROPERTIES, drm_mode_obj_get_properties_ioctl, DRM_MASTER|DRM_CONTROL_ALLOW|DRM_UNLOCKED),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_OBJ_SETPROPERTY, drm_mode_obj_set_property_ioctl, DRM_MASTER|DRM_CONTROL_ALLOW|DRM_UNLOCKED),
 };
 
 static struct cdevsw drm_cdevsw = {
@@ -247,7 +249,8 @@ int drm_probe(device_t kdev, drm_pci_id_list_t *idlist)
 	device = pci_get_device(kdev);
 
 	if (pci_get_class(kdev) != PCIC_DISPLAY
-	    || pci_get_subclass(kdev) != PCIS_DISPLAY_VGA)
+	    || (pci_get_subclass(kdev) != PCIS_DISPLAY_VGA &&
+	    pci_get_subclass(kdev) != PCIS_DISPLAY_OTHER))
 		return ENXIO;
 
 	id_entry = drm_find_description(vendor, device, idlist);
@@ -1076,10 +1079,63 @@ SYSINIT(drm_register, SI_SUB_KLD, SI_ORDER_MIDDLE,
 SYSUNINIT(drm_unregister, SI_SUB_KLD, SI_ORDER_MIDDLE,
     drm_core_exit, NULL);
 
+static bool
+dmi_found(const struct dmi_system_id *dsi)
+{
+	char *hw_vendor, *hw_prod;
+	int i, slot;
+	bool res;
+
+	hw_vendor = getenv("smbios.planar.maker");
+	hw_prod = getenv("smbios.planar.product");
+	res = true;
+	for (i = 0; i < nitems(dsi->matches); i++) {
+		slot = dsi->matches[i].slot;
+		switch (slot) {
+		case DMI_NONE:
+			break;
+		case DMI_SYS_VENDOR:
+		case DMI_BOARD_VENDOR:
+			if (hw_vendor != NULL &&
+			    !strcmp(hw_vendor, dsi->matches[i].substr)) {
+				break;
+			} else {
+				res = false;
+				goto out;
+			}
+		case DMI_PRODUCT_NAME:
+		case DMI_BOARD_NAME:
+			if (hw_prod != NULL &&
+			    !strcmp(hw_prod, dsi->matches[i].substr)) {
+				break;
+			} else {
+				res = false;
+				goto out;
+			}
+		default:
+			res = false;
+			goto out;
+		}
+	}
+out:
+	freeenv(hw_vendor);
+	freeenv(hw_prod);
+
+	return (res);
+}
+
 bool
 dmi_check_system(const struct dmi_system_id *sysid)
 {
+	const struct dmi_system_id *dsi;
+	bool res;
 
-	/* XXXKIB */
-	return (false);
+	for (res = false, dsi = sysid; dsi->matches[0].slot != 0 ; dsi++) {
+		if (dmi_found(dsi)) {
+			res = true;
+			if (dsi->callback != NULL && dsi->callback(dsi))
+				break;
+		}
+	}
+	return (res);
 }
