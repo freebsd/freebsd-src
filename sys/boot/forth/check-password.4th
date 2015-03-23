@@ -28,15 +28,15 @@ marker task-check-password.4th
 
 include /boot/screen.4th
 
-13 constant enter_key   \ The decimal ASCII value for Enter key
-8  constant bs_key      \ The decimal ASCII value for Backspace key
-16 constant readmax     \ Maximum number of characters for the password
+13 constant enter_key        \ The decimal ASCII value for Enter key
+8  constant bs_key           \ The decimal ASCII value for Backspace key
+16 constant readmax          \ Maximum number of characters for the password
 
-variable readX          \ Current X offset (column)(used by read)
-variable read-start     \ Starting X offset (column)(used by read)
+variable readX               \ Current X offset (column)(used by read)
+variable read-start          \ Starting X offset (column)(used by read)
 
-create readval 16 allot \ input obtained (maximum 16 characters)
-variable readlen        \ input length
+create readval readmax allot \ input obtained (up to readmax characters)
+variable readlen             \ input length
 
 \ This function blocks program flow (loops forever) until a key is pressed.
 \ The key that was pressed is added to the top of the stack in the form of its
@@ -132,6 +132,7 @@ variable readlen        \ input length
 	\ Do not allow the user to proceed beyond this point if a boot-lock
 	\ password has been set (preventing even boot from proceeding)
 	s" bootlock_password" getenv dup -1 <> if
+		dup readmax > if drop readmax then
 		begin
 			s" Boot Password: " read ( prompt -- )
 			2dup readval readlen @ compare 0<>
@@ -154,7 +155,7 @@ variable readlen        \ input length
 	\ Only reached if autoboot fails for any reason (including if/when
 	\ the user aborts/escapes the countdown sequence leading to boot).
 
-	s" password" getenv
+	s" password" getenv dup readmax > if drop readmax then
 	begin
 		s" Password: " read ( prompt -- )
 		2dup readval readlen @ compare 0= if
