@@ -84,7 +84,6 @@ __FBSDID("$FreeBSD$");
 #define	SFXGE_TXQ_BLOCK_LEVEL(_entries)					\
 	(EFX_TXQ_LIMIT(_entries) - SFXGE_TSO_MAX_DESC)
 
-#ifdef SFXGE_HAVE_MQ
 
 #define	SFXGE_PARAM_TX_DPL_GET_MAX	SFXGE_PARAM(tx_dpl_get_max)
 static int sfxge_tx_dpl_get_max = SFXGE_TX_DPL_GET_PKT_LIMIT_DEFAULT;
@@ -108,8 +107,6 @@ TUNABLE_INT(SFXGE_PARAM_TX_DPL_PUT_MAX, &sfxge_tx_dpl_put_max);
 SYSCTL_INT(_hw_sfxge, OID_AUTO, tx_dpl_put_max, CTLFLAG_RDTUN,
 	   &sfxge_tx_dpl_put_max, 0,
 	   "Maximum number of any packets in deferred packet put-list");
-
-#endif
 
 
 /* Forward declarations. */
@@ -159,8 +156,6 @@ sfxge_tx_qcomplete(struct sfxge_txq *txq, struct sfxge_evq *evq)
 			sfxge_tx_qunblock(txq);
 	}
 }
-
-#ifdef SFXGE_HAVE_MQ
 
 static unsigned int
 sfxge_is_mbuf_non_tcp(struct mbuf *mbuf)
@@ -224,8 +219,6 @@ sfxge_tx_qdpl_swizzle(struct sfxge_txq *txq)
 	stdp->std_get_count += count;
 	stdp->std_get_non_tcp_count += non_tcp_count;
 }
-
-#endif /* SFXGE_HAVE_MQ */
 
 static void
 sfxge_tx_qreap(struct sfxge_txq *txq)
@@ -400,8 +393,6 @@ reject:
 
 	return (rc);
 }
-
-#ifdef SFXGE_HAVE_MQ
 
 /*
  * Drain the deferred packet list into the transmit queue.
@@ -708,88 +699,6 @@ sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m)
 
 	return (rc);
 }
-
-#else /* !SFXGE_HAVE_MQ */
-
-static void sfxge_if_start_locked(struct ifnet *ifp)
-{
-	struct sfxge_softc *sc = ifp->if_softc;
-	struct sfxge_txq *txq;
-	struct mbuf *mbuf;
-	unsigned int pushed[SFXGE_TXQ_NTYPES];
-	unsigned int q_index;
-
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING|IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING)
-		return;
-
-	if (!sc->port.link_up)
-		return;
-
-	for (q_index = 0; q_index < SFXGE_TXQ_NTYPES; q_index++) {
-		txq = sc->txq[q_index];
-		pushed[q_index] = txq->added;
-	}
-
-	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, mbuf);
-		if (mbuf == NULL)
-			break;
-
-		ETHER_BPF_MTAP(ifp, mbuf); /* packet capture */
-
-		/* Pick the desired transmit queue. */
-		if (mbuf->m_pkthdr.csum_flags & (CSUM_DELAY_DATA | CSUM_TSO))
-			q_index = SFXGE_TXQ_IP_TCP_UDP_CKSUM;
-		else if (mbuf->m_pkthdr.csum_flags & CSUM_DELAY_IP)
-			q_index = SFXGE_TXQ_IP_CKSUM;
-		else
-			q_index = SFXGE_TXQ_NON_CKSUM;
-		txq = sc->txq[q_index];
-
-		if (sfxge_tx_queue_mbuf(txq, mbuf) != 0)
-			continue;
-
-		if (txq->blocked) {
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			break;
-		}
-
-		/* Push the fragments to the hardware in batches. */
-		if (txq->added - pushed[q_index] >= SFXGE_TX_BATCH) {
-			efx_tx_qpush(txq->common, txq->added);
-			pushed[q_index] = txq->added;
-		}
-	}
-
-	for (q_index = 0; q_index < SFXGE_TXQ_NTYPES; q_index++) {
-		txq = sc->txq[q_index];
-		if (txq->added != pushed[q_index])
-			efx_tx_qpush(txq->common, txq->added);
-	}
-}
-
-void sfxge_if_start(struct ifnet *ifp)
-{
-	struct sfxge_softc *sc = ifp->if_softc;
-
-	SFXGE_TXQ_LOCK(sc->txq[0]);
-	sfxge_if_start_locked(ifp);
-	SFXGE_TXQ_UNLOCK(sc->txq[0]);
-}
-
-static void
-sfxge_tx_qdpl_service(struct sfxge_txq *txq)
-{
-	struct ifnet *ifp = txq->sc->ifnet;
-
-	SFXGE_TXQ_LOCK_ASSERT_OWNED(txq);
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	sfxge_if_start_locked(ifp);
-	SFXGE_TXQ_UNLOCK(txq);
-}
-
-#endif /* SFXGE_HAVE_MQ */
 
 /*
  * Software "TSO".  Not quite as good as doing it in hardware, but
@@ -1379,9 +1288,7 @@ sfxge_tx_qfini(struct sfxge_softc *sc, unsigned int index)
 
 	sc->txq[index] = NULL;
 
-#ifdef SFXGE_HAVE_MQ
 	SFXGE_TXQ_LOCK_DESTROY(txq);
-#endif
 
 	free(txq, M_SFXGE);
 }
@@ -1395,10 +1302,8 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 	struct sysctl_oid *txq_node;
 	struct sfxge_txq *txq;
 	struct sfxge_evq *evq;
-#ifdef SFXGE_HAVE_MQ
 	struct sfxge_tx_dpl *stdp;
 	struct sysctl_oid *dpl_node;
-#endif
 	efsys_mem_t *esmp;
 	unsigned int nmaps;
 	int rc;
@@ -1457,7 +1362,6 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 	    (rc = tso_init(txq)) != 0)
 		goto fail3;
 
-#ifdef SFXGE_HAVE_MQ
 	if (sfxge_tx_dpl_get_max <= 0) {
 		log(LOG_ERR, "%s=%d must be greater than 0",
 		    SFXGE_PARAM_TX_DPL_GET_MAX, sfxge_tx_dpl_get_max);
@@ -1507,7 +1411,6 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(dpl_node), OID_AUTO,
 			"put_hiwat", CTLFLAG_RD | CTLFLAG_STATS,
 			&stdp->std_put_hiwat, 0, "");
-#endif
 
 	txq->type = type;
 	txq->evq_index = evq_index;
@@ -1637,11 +1540,7 @@ sfxge_tx_init(struct sfxge_softc *sc)
 	KASSERT(intr->state == SFXGE_INTR_INITIALIZED,
 	    ("intr->state != SFXGE_INTR_INITIALIZED"));
 
-#ifdef SFXGE_HAVE_MQ
 	sc->txq_count = SFXGE_TXQ_NTYPES - 1 + sc->intr.n_alloc;
-#else
-	sc->txq_count = SFXGE_TXQ_NTYPES;
-#endif
 
 	sc->txqs_node = SYSCTL_ADD_NODE(
 		device_get_sysctl_ctx(sc->dev),
