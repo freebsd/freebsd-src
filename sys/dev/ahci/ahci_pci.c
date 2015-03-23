@@ -340,13 +340,13 @@ ahci_probe(device_t dev)
 			snprintf(buf, sizeof(buf), "%s AHCI SATA controller",
 			    ahci_ids[i].name);
 			device_set_desc_copy(dev, buf);
-			return (BUS_PROBE_VENDOR);
+			return (BUS_PROBE_DEFAULT);
 		}
 	}
 	if (!valid)
 		return (ENXIO);
 	device_set_desc_copy(dev, "AHCI SATA controller");
-	return (BUS_PROBE_VENDOR);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -366,11 +366,11 @@ ahci_ata_probe(device_t dev)
 			snprintf(buf, sizeof(buf), "%s AHCI SATA controller",
 			    ahci_ids[i].name);
 			device_set_desc_copy(dev, buf);
-			return (BUS_PROBE_VENDOR);
+			return (BUS_PROBE_DEFAULT);
 		}
 	}
 	device_set_desc_copy(dev, "AHCI SATA controller");
-	return (BUS_PROBE_VENDOR);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
