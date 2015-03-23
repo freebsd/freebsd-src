@@ -342,7 +342,7 @@ setfile(struct stat *fs, int fd)
 
 	tspec[0] = fs->st_atim;
 	tspec[1] = fs->st_mtim;
-	if (utimensat(AT_FDCWD, to.p_path, tspec,
+	if (fdval ? futimens(fd, tspec) : utimensat(AT_FDCWD, to.p_path, tspec,
 	    islink ? AT_SYMLINK_NOFOLLOW : 0)) {
 		warn("utimensat: %s", to.p_path);
 		rval = 1;
