@@ -676,7 +676,16 @@ sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m)
 
 	sc = (struct sfxge_softc *)ifp->if_softc;
 
-	KASSERT(ifp->if_flags & IFF_UP, ("interface not up"));
+	/*
+	 * Transmit may be called when interface is up from the kernel
+	 * point of view, but not yet up (in progress) from the driver
+	 * point of view. I.e. link aggregation bring up.
+	 * Transmit may be called when interface is up from the driver
+	 * point of view, but already down from the kernel point of
+	 * view. I.e. Rx when interface shutdown is in progress.
+	 */
+	KASSERT((ifp->if_flags & IFF_UP) || (sc->if_flags & IFF_UP),
+		("interface not up"));
 
 	/* Pick the desired transmit queue. */
 	if (m->m_pkthdr.csum_flags & (CSUM_DELAY_DATA | CSUM_TSO)) {
