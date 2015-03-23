@@ -204,6 +204,15 @@ fetch_syspath_and_devnode(struct libevdev_uinput *uinput_dev)
 	struct dirent **namelist;
 	int ndev, i;
 
+#ifdef __FreeBSD__
+	char devnode[80];
+	uinput_dev->syspath = strdup("unknown");
+
+	ioctl(uinput_dev->fd, UI_DEV_GETPATH, devnode);
+	asprintf(&uinput_dev->devnode, "/dev/%s", devnode);
+	return (0);
+#endif
+
 	/* FIXME: use new ioctl() here once kernel supports it */
 
 	ndev = scandir(SYS_INPUT_DIR, &namelist, is_input_device, alphasort);
