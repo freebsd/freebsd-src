@@ -96,7 +96,7 @@ ata_ali_probe(device_t dev)
     ata_set_desc(dev);
     ctlr->chipinit = ata_ali_chipinit;
     ctlr->chipdeinit = ata_ali_chipdeinit;
-    return (BUS_PROBE_DEFAULT);
+    return (BUS_PROBE_LOW_PRIORITY);
 }
 
 static int
