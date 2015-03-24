@@ -3,6 +3,7 @@
 .include <src.opts.mk>
 
 CLANG_SRCS=	${LLVM_SRCS}/tools/clang
+LLD_SRCS=	${LLVM_SRCS}/tools/lld
 
 CFLAGS+=	-I${LLVM_SRCS}/include -I${CLANG_SRCS}/include \
 		-I${LLVM_SRCS}/${SRCDIR} ${INCDIR:C/^/-I${LLVM_SRCS}\//} -I. \
@@ -219,6 +220,13 @@ Checkers.inc.h: ${CLANG_SRCS}/lib/StaticAnalyzer/Checkers/Checkers.td
 	${CLANG_TBLGEN} -gen-clang-sa-checkers \
 	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
 	    ${CLANG_SRCS}/lib/StaticAnalyzer/Checkers/Checkers.td
+
+.for hdr in Core DarwinLd GnuLd UniversalDriver WinLink
+${hdr}Options.inc.h: ${LLD_SRCS}/lib/Driver/${hdr}Options.td
+	${TBLGEN} -gen-opt-parser-defs \
+	    -I ${LLVM_SRCS}/include -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
+	    ${LLD_SRCS}/lib/Driver/${hdr}Options.td
+.endfor
 
 .for dep in ${TGHDRS:C/$/.inc.d/}
 . sinclude "${dep}"
