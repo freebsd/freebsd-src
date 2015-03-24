@@ -2026,6 +2026,13 @@ uaudio_chan_play_sync_callback(struct usb_xfer *xfer, usb_error_t error)
 		DPRINTF("Comparing %d Hz :: %d Hz\n",
 		    (int)temp, (int)sample_rate);
 
+		/*
+		 * Use feedback value as fallback when there is no
+		 * recording channel:
+		 */
+		if (ch->priv_sc->sc_rec_chan.num_alt == 0)
+			ch->jitter_curr = temp - sample_rate;
+
 		ch->feedback_rate = temp;
 		break;
 
