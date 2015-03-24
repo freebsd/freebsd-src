@@ -100,11 +100,7 @@ ata_jmicron_chipinit(device_t dev)
 
     /* do we have multiple PCI functions ? */
     if (pci_read_config(dev, 0xdf, 1) & 0x40) {
-	/* are we on the AHCI part ? */
-	if (ata_ahci_chipinit(dev) != ENXIO)
-	    return 0;
-
-	/* otherwise we are on the PATA part */
+	/* If this was not claimed by AHCI, then we are on the PATA part */
 	ctlr->ch_attach = ata_jmicron_ch_attach;
 	ctlr->ch_detach = ata_pci_ch_detach;
 	ctlr->reset = ata_generic_reset;
@@ -160,4 +156,3 @@ ata_jmicron_setmode(device_t dev, int target, int mode)
 }
 
 ATA_DECLARE_DRIVER(ata_jmicron);
-MODULE_DEPEND(ata_jmicron, ata_ahci, 1, 1, 1);
