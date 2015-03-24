@@ -43,7 +43,7 @@ SUBDIR_ORDERED=	${_csu} \
 	libmd \
 	ncurses \
 	${_libnetgraph} \
-	libradius \
+	${_libradius} \
 	librpcsvc \
 	libsbuf \
 	libtacplus \
@@ -82,7 +82,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libjail \
 	libkiconv \
 	liblzma \
-	libmagic \
+	${_libmagic} \
 	libmemstat \
 	${_libmilter} \
 	${_libmp} \
@@ -151,6 +151,10 @@ _libbsnmp=	libbsnmp
 
 .if ${MK_CLANG} != "no" && !defined(COMPAT_32BIT)
 _clang=		clang
+.endif
+
+.if ${MK_FILE} != "no"
+_libmagic=	libmagic
 .endif
 
 .if ${MK_GPIB} != "no"
@@ -222,6 +226,10 @@ _libmp=		libmp
 
 .if ${MK_PMC} != "no"
 _libpmc=	libpmc
+.endif
+
+.if ${MK_RADIUS_SUPPORT} != "no"
+_libradius=	libradius
 .endif
 
 .if ${MK_SENDMAIL} != "no"

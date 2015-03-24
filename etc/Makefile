@@ -17,13 +17,11 @@ BIN1=	crontab \
 	dhclient.conf \
 	disktab \
 	fbtab \
-	ftpusers \
 	gettytab \
 	group \
 	hosts \
 	hosts.allow \
 	hosts.equiv \
-	inetd.conf \
 	libalias.conf \
 	libmap.conf \
 	login.access \
@@ -91,6 +89,14 @@ BIN1+= snmpd.config
 
 .if ${MK_FREEBSD_UPDATE} != "no"
 BIN1+= freebsd-update.conf
+.endif
+
+.if ${MK_FTP} != "no"
+BIN1+= ftpusers
+.endif
+
+.if ${MK_INETD} != "no"
+BIN1+= inetd.conf
 .endif
 
 .if ${MK_LOCATE} != "no"
