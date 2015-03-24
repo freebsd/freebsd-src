@@ -1532,6 +1532,25 @@ ifnet_rename()
 	return 0
 }
 
+#
+# ifnet_rename_safe ifacename outputvar
+#    rename interface $ifacename to whatever is in the config database
+#    and store the resulting name into the variable $outputvar
+#
+ifnet_rename_safe()
+{
+	local _if _ifname _tovar
+	_if="$1"
+	_tovar="$2"
+	_ifname=`get_if_var $_if ifconfig_IF_name`
+	if [ ! -z "$_ifname" ]; then
+		${IFCONFIG_CMD} $_if name $_ifname
+	else
+		_ifname="$_if"
+	fi
+	eval $_tovar=\"$_ifname\"
+}
+
 # list_net_interfaces type
 #	List all network interfaces. The type of interface returned
 #	can be controlled by the type argument. The type

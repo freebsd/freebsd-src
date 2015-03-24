@@ -50,7 +50,7 @@ set_rcvar_obsolete ipv6_prefer
 
 netif_start()
 {
-	local _if
+	local _if _newname _newifs
 
 	# Set the list of interfaces to work on.
 	#
@@ -69,7 +69,19 @@ netif_start()
 	clone_up $cmdifn
 
 	# Rename interfaces.
-	ifnet_rename $cmdifn
+	if [ -z "$cmdifn" ] ; then
+		ifnet_rename
+	else
+		for _if in $cmdifn; do
+			#echo "Safe rename $_if"
+			ifnet_rename_safe $_if "_newname"
+			#echo " => $_newname"
+			_newifs="$_newifs $_newname"
+			#echo "_newifs=$_newifs"
+		done
+		cmdifn="$_newifs"
+	fi
+
 
 	# Configure the interface(s).
 	netif_common ifn_start $cmdifn
