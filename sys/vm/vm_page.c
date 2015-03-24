@@ -134,8 +134,9 @@ long first_page;
 int vm_page_zero_count;
 
 static int boot_pages = UMA_BOOT_PAGES;
-SYSCTL_INT(_vm, OID_AUTO, boot_pages, CTLFLAG_RDTUN, &boot_pages, 0,
-	"number of pages allocated for bootstrapping the VM system");
+SYSCTL_INT(_vm, OID_AUTO, boot_pages, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &boot_pages, 0,
+    "number of pages allocated for bootstrapping the VM system");
 
 static int pa_tryrelock_restart;
 SYSCTL_INT(_vm, OID_AUTO, tryrelock_restart, CTLFLAG_RD,
@@ -349,6 +350,7 @@ vm_page_startup(vm_offset_t vaddr)
 	 * Allocate memory for use when boot strapping the kernel memory
 	 * allocator.
 	 */
+	TUNABLE_INT_FETCH("vm.boot_pages", &boot_pages);
 	new_end = end - (boot_pages * UMA_SLAB_SIZE);
 	new_end = trunc_page(new_end);
 	mapped = pmap_map(&vaddr, new_end, end,
