@@ -32,13 +32,13 @@
 /* #undef LLVM_DOCSDIR */
 
 /* Define if threads enabled */
-#define LLVM_ENABLE_THREADS 0
+#define LLVM_ENABLE_THREADS 1
 
 /* Installation directory for config files */
 /* #undef LLVM_ETCDIR */
 
 /* Has gcc/MSVC atomic intrinsics */
-#define LLVM_HAS_ATOMICS 0
+#define LLVM_HAS_ATOMICS 1
 
 /* Host triple LLVM will be executed on */
 /* #undef LLVM_HOST_TRIPLE */

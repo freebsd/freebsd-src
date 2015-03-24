@@ -180,7 +180,7 @@
 /* #undef HAVE_LIBPSAPI */
 
 /* Define to 1 if you have the `pthread' library (-lpthread). */
-/* #undef HAVE_LIBPTHREAD */
+#define HAVE_LIBPTHREAD 1
 
 /* Define to 1 if you have the `shell32' library (-lshell32). */
 /* #undef HAVE_LIBSHELL32 */
@@ -268,16 +268,16 @@
 #define HAVE_PRINTF_A 1
 
 /* Have pthread_getspecific */
-/* #undef HAVE_PTHREAD_GETSPECIFIC */
+#define HAVE_PTHREAD_GETSPECIFIC 1
 
 /* Define to 1 if you have the <pthread.h> header file. */
-/* #undef HAVE_PTHREAD_H */
+#define HAVE_PTHREAD_H 1
 
 /* Have pthread_mutex_lock */
-/* #undef HAVE_PTHREAD_MUTEX_LOCK */
+#define HAVE_PTHREAD_MUTEX_LOCK 1
 
 /* Have pthread_rwlock_init */
-/* #undef HAVE_PTHREAD_RWLOCK_INIT */
+#define HAVE_PTHREAD_RWLOCK_INIT 1
 
 /* Define to 1 if srand48/lrand48/drand48 exist in <stdlib.h> */
 #define HAVE_RAND48 1
@@ -486,7 +486,7 @@
 /* #undef LLVM_DOCSDIR */
 
 /* Define if threads enabled */
-#define LLVM_ENABLE_THREADS 0
+#define LLVM_ENABLE_THREADS 1
 
 /* Define if zlib is enabled */
 #define LLVM_ENABLE_ZLIB 1
@@ -495,7 +495,7 @@
 /* #undef LLVM_ETCDIR */
 
 /* Has gcc/MSVC atomic intrinsics */
-#define LLVM_HAS_ATOMICS 0
+#define LLVM_HAS_ATOMICS 1
 
 /* Host triple LLVM will be executed on */
 /* #undef LLVM_HOST_TRIPLE */
