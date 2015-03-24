@@ -18,7 +18,6 @@ FILES=	DAEMON \
 	auditdistd \
 	bgfsck \
 	${_bluetooth} \
-	bootparams \
 	bridge \
 	${_bthidd} \
 	cleanvar \
@@ -34,8 +33,6 @@ FILES=	DAEMON \
 	dumpon \
 	faith \
 	fsck \
-	ftp-proxy \
-	ftpd \
 	gbde \
 	geli \
 	geli2 \
@@ -45,7 +42,6 @@ FILES=	DAEMON \
 	hostid \
 	hostid_save \
 	hostname \
-	inetd \
 	initrandom \
 	ip6addrctl \
 	ipfilter \
@@ -57,7 +53,6 @@ FILES=	DAEMON \
 	${_ipxrouted} \
 	${_kadmind} \
 	${_kdc} \
-	keyserv \
 	${_kfd} \
 	kld \
 	kldxref \
@@ -74,7 +69,6 @@ FILES=	DAEMON \
 	mdconfig \
 	mdconfig2 \
 	mountd \
-	moused \
 	mroute6d \
 	mrouted \
 	msgs \
@@ -90,15 +84,12 @@ FILES=	DAEMON \
 	nisdomain \
 	${_nscd} \
 	nsswitch \
-	ntpd \
 	ntpdate \
 	${_opensm} \
-	othermta \
 	pf \
 	pflog \
 	pfsync \
 	postrandom \
-	powerd \
 	ppp \
 	pppoed \
 	pwcheck \
@@ -110,16 +101,13 @@ FILES=	DAEMON \
 	rfcomm_pppd_server \
 	root \
 	route6d \
-	routed \
 	routing \
 	rpcbind \
 	rtadvd \
 	rtsold \
-	rwho \
 	savecore \
 	sdpd \
 	securelevel \
-	sendmail \
 	serial \
 	sppp \
 	${_sshd} \
@@ -129,10 +117,8 @@ FILES=	DAEMON \
 	stf \
 	swap \
 	swaplate \
-	syscons \
 	sysctl \
 	syslogd \
-	timed \
 	tmp \
 	${_ubthidhci} \
 	ugidfw \
@@ -158,6 +144,10 @@ FILES+=		accounting
 FILES+=		power_profile
 .endif
 
+.if ${MK_ACPI} != "no" || ${MK_APM} != "no"
+FILES+=		powerd
+.endif
+
 .if ${MK_AMD} != "no"
 FILES+=		amd
 .endif
@@ -180,6 +170,10 @@ _hcsecd=	hcsecd
 _ubthidhci=	ubthidhci
 .endif
 
+.if ${MK_BOOTPARAMD} != "no"
+FILES+=		bootparams
+.endif
+
 .if ${MK_BSNMP} != "no"
 FILES+=		bsnmpd
 .endif
@@ -188,12 +182,20 @@ FILES+=		bsnmpd
 FILES+=		ccd
 .endif
 
+.if ${MK_FTP} != "no"
+FILES+=		ftpd
+.endif
+
 .if ${MK_HAST} != "no"
 FILES+=		hastd
 .endif
 
 .if ${MK_IPX} != "no"
 _ipxrouted=	ipxrouted
+.endif
+
+.if ${MK_INETD} != "no"
+FILES+=		inetd
 .endif
 
 .if ${MK_ISCSI} != "no"
@@ -214,20 +216,57 @@ _kfd=		kfd
 _kpasswdd=	kpasswdd
 .endif
 
+.if ${MK_LEGACY_CONSOLE} != "no"
+FILES+=		moused
+FILES+=		syscons
+.endif
+
 .if ${MK_LPR} != "no"
 FILES+=		lpd
+.endif
+
+.if ${MK_MAIL} != "no"
+FILES+=		othermta
 .endif
 
 .if ${MK_NS_CACHING} != "no"
 _nscd=		nscd
 .endif
 
+.if ${MK_NTP} != "no"
+FILES+=		ntpd
+.endif
+
 .if ${MK_OFED} != "no"
 _opensm=	opensm
 .endif
 
+.if ${MK_OPENSSL} != "no"
+FILES+=		keyserv
+.endif
+
 .if ${MK_OPENSSH} != "no"
 _sshd=		sshd
+.endif
+
+.if ${MK_PF} != "no"
+FILES+=		ftp-proxy
+.endif
+
+.if ${MK_RCMDS} != "no"
+FILES+=		rwho
+.endif
+
+.if ${MK_ROUTED} != "no"
+FILES+=		routed
+.endif
+
+.if ${MK_SENDMAIL} != "no"
+FILES+=		sendmail
+.endif
+
+.if ${MK_TIMED} != "no"
+FILES+=		timed
 .endif
 
 .if ${MK_UNBOUND} != "no"
