@@ -1,0 +1,14 @@
+add_llvm_library(lldMipsELFTarget
+  MipsCtorsOrderPass.cpp
+  MipsELFFlagsMerger.cpp
+  MipsLinkingContext.cpp
+  MipsRelocationHandler.cpp
+  MipsRelocationPass.cpp
+  MipsTargetHandler.cpp
+  LINK_LIBS
+    lldELF
+    lldReaderWriter
+    lldCore
+    LLVMObject
+    LLVMSupport
+  )

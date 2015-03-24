@@ -1,0 +1,11 @@
+add_llvm_library(lldX86ELFTarget
+  X86LinkingContext.cpp
+  X86TargetHandler.cpp
+  X86RelocationHandler.cpp
+  LINK_LIBS
+    lldELF
+    lldReaderWriter
+    lldCore
+    LLVMObject
+    LLVMSupport
+  )
