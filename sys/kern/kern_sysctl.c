@@ -353,6 +353,9 @@ sysctl_register_oid(struct sysctl_oid *oidp)
 #endif
 	    (oidp->oid_kind & CTLFLAG_TUN) != 0 &&
 	    (oidp->oid_kind & CTLFLAG_NOFETCH) == 0) {
+		/* only fetch value once */
+		oidp->oid_kind |= CTLFLAG_NOFETCH;
+		/* try to fetch value from kernel environment */
 		sysctl_load_tunable_by_oid_locked(oidp);
 	}
 }
