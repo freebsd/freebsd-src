@@ -1251,7 +1251,7 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	struct vie *vie;
 	struct vcpu *vcpu;
 	struct vm_exit *vme;
-	uint64_t gla, gpa;
+	uint64_t gla, gpa, cs_base;
 	struct vm_guest_paging *paging;
 	mem_region_read_t mread;
 	mem_region_write_t mwrite;
@@ -1263,6 +1263,7 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 
 	gla = vme->u.inst_emul.gla;
 	gpa = vme->u.inst_emul.gpa;
+	cs_base = vme->u.inst_emul.cs_base;
 	cs_d = vme->u.inst_emul.cs_d;
 	vie = &vme->u.inst_emul.vie;
 	paging = &vme->u.inst_emul.paging;
@@ -1277,8 +1278,8 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 		 * maximum size instruction.
 		 */
 		length = vme->inst_length ? vme->inst_length : VIE_INST_SIZE;
-		error = vmm_fetch_instruction(vm, vcpuid, paging, vme->rip,
-		    length, vie);
+		error = vmm_fetch_instruction(vm, vcpuid, paging, vme->rip +
+		    cs_base, length, vie);
 	} else {
 		/*
 		 * The instruction bytes have already been copied into 'vie'
