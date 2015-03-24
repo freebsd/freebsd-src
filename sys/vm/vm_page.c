@@ -160,7 +160,7 @@ vm_page_init_fakepg(void *dummy)
 {
 
 	fakepg_zone = uma_zcreate("fakepg", sizeof(struct vm_page), NULL, NULL,
-	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE | UMA_ZONE_VM); 
+	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE | UMA_ZONE_VM);
 }
 
 /* Make sure that u_long is at least 64 bits when PAGE_SIZE is 32K. */
@@ -443,7 +443,7 @@ vm_page_startup(vm_offset_t vaddr)
 	 */
 	for (pa = new_end; pa < phys_avail[biggestone + 1]; pa += PAGE_SIZE)
 		dump_add_page(pa);
-#endif	
+#endif
 	phys_avail[biggestone + 1] = new_end;
 
 	/*
@@ -702,7 +702,7 @@ vm_page_unhold(vm_page_t mem)
  *	vm_page_unhold_pages:
  *
  *	Unhold each of the pages that is referenced by the given array.
- */ 
+ */
 void
 vm_page_unhold_pages(vm_page_t *ma, int count)
 {
@@ -1303,7 +1303,7 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
  *	zero is given for "end", then the range's upper bound is
  *	infinity.  If the given object is backed by a vnode and it
  *	transitions from having one or more cached pages to none, the
- *	vnode's hold count is reduced. 
+ *	vnode's hold count is reduced.
  */
 void
 vm_page_cache_free(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
@@ -1455,7 +1455,7 @@ vm_page_is_cached(vm_object_t object, vm_pindex_t pindex)
  *	VM_ALLOC_NOBUSY		do not exclusive busy the page
  *	VM_ALLOC_NODUMP		do not include the page in a kernel core dump
  *	VM_ALLOC_NOOBJ		page is not associated with an object and
- *				should not be exclusive busy 
+ *				should not be exclusive busy
  *	VM_ALLOC_SBUSY		shared busy the allocated page
  *	VM_ALLOC_WIRED		wire the allocated page
  *	VM_ALLOC_ZERO		prefer a zeroed page
@@ -1563,7 +1563,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	    ("vm_page_alloc: page %p has unexpected queue %d", m, m->queue));
 	KASSERT(m->wire_count == 0, ("vm_page_alloc: page %p is wired", m));
 	KASSERT(m->hold_count == 0, ("vm_page_alloc: page %p is held", m));
-	KASSERT(!vm_page_sbusied(m), 
+	KASSERT(!vm_page_sbusied(m),
 	    ("vm_page_alloc: page %p is busy", m));
 	KASSERT(m->dirty == 0, ("vm_page_alloc: page %p is dirty", m));
 	KASSERT(pmap_page_get_memattr(m) == VM_MEMATTR_DEFAULT,
@@ -1702,7 +1702,7 @@ vm_page_alloc_contig_vdrop(struct spglist *lst)
  *	optional allocation flags:
  *	VM_ALLOC_NOBUSY		do not exclusive busy the page
  *	VM_ALLOC_NOOBJ		page is not associated with an object and
- *				should not be exclusive busy 
+ *				should not be exclusive busy
  *	VM_ALLOC_SBUSY		shared busy the allocated page
  *	VM_ALLOC_WIRED		wire the allocated page
  *	VM_ALLOC_ZERO		prefer a zeroed page
@@ -2399,7 +2399,7 @@ vm_page_unwire(vm_page_t m, uint8_t queue)
  * This will cause them to be moved to the cache more quickly and
  * if not actively re-referenced, reclaimed more quickly.  If we just
  * stick these pages at the end of the inactive queue, heavy filesystem
- * meta-data accesses can cause an unnecessary paging load on memory bound 
+ * meta-data accesses can cause an unnecessary paging load on memory bound
  * processes.  This optimization causes one-time-use metadata to be
  * reused more quickly.
  *
@@ -2537,7 +2537,7 @@ vm_page_cache(vm_page_t m)
 
 	/*
 	 * Remove the page from the object's collection of resident
-	 * pages. 
+	 * pages.
 	 */
 	vm_radix_remove(&object->rtree, m->pindex);
 	TAILQ_REMOVE(&object->memq, m, listq);
@@ -2610,7 +2610,7 @@ vm_page_cache(vm_page_t m)
  *	it gets reused quickly.  However, this can result in a silly syndrome
  *	due to the page recycling too quickly.  Small objects will not be
  *	fully cached.  On the other hand, if we move the page to the inactive
- *	queue we wind up with a problem whereby very large objects 
+ *	queue we wind up with a problem whereby very large objects
  *	unnecessarily blow away our inactive and cache queues.
  *
  *	The solution is to move the pages based on a fixed weighting.  We
@@ -2712,7 +2712,7 @@ retrylookup:
 		    vm_page_xbusied(m) : vm_page_busied(m);
 		if (sleep) {
 			if ((allocflags & VM_ALLOC_NOWAIT) != 0)
-				return (NULL); 
+				return (NULL);
 			/*
 			 * Reference the page before unlocking and
 			 * sleeping so that the page daemon is less
@@ -2808,7 +2808,7 @@ vm_page_set_valid_range(vm_page_t m, int base, int size)
 		pmap_zero_page_area(m, frag, base - frag);
 
 	/*
-	 * If the ending offset is not DEV_BSIZE aligned and the 
+	 * If the ending offset is not DEV_BSIZE aligned and the
 	 * valid bit is clear, we have to zero out a portion of
 	 * the last block.
 	 */
@@ -2820,7 +2820,7 @@ vm_page_set_valid_range(vm_page_t m, int base, int size)
 
 	/*
 	 * Assert that no previously invalid block that is now being validated
-	 * is already dirty. 
+	 * is already dirty.
 	 */
 	KASSERT((~m->valid & vm_page_bits(base, size) & m->dirty) == 0,
 	    ("vm_page_set_valid_range: page %p is dirty", m));
@@ -2915,7 +2915,7 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 		pmap_zero_page_area(m, frag, base - frag);
 
 	/*
-	 * If the ending offset is not DEV_BSIZE aligned and the 
+	 * If the ending offset is not DEV_BSIZE aligned and the
 	 * valid bit is clear, we have to zero out a portion of
 	 * the last block.
 	 */
@@ -3011,12 +3011,12 @@ vm_page_set_invalid(vm_page_t m, int base, int size)
 /*
  * vm_page_zero_invalid()
  *
- *	The kernel assumes that the invalid portions of a page contain 
+ *	The kernel assumes that the invalid portions of a page contain
  *	garbage, but such pages can be mapped into memory by user code.
  *	When this occurs, we must zero out the non-valid portions of the
  *	page so user code sees what it expects.
  *
- *	Pages are most often semi-valid when the end of a file is mapped 
+ *	Pages are most often semi-valid when the end of a file is mapped
  *	into memory and the file's size is not page aligned.
  */
 void
@@ -3033,10 +3033,10 @@ vm_page_zero_invalid(vm_page_t m, boolean_t setvalid)
 	 * vm_page_set_validclean().
 	 */
 	for (b = i = 0; i <= PAGE_SIZE / DEV_BSIZE; ++i) {
-		if (i == (PAGE_SIZE / DEV_BSIZE) || 
+		if (i == (PAGE_SIZE / DEV_BSIZE) ||
 		    (m->valid & ((vm_page_bits_t)1 << i))) {
 			if (i > b) {
-				pmap_zero_page_area(m, 
+				pmap_zero_page_area(m,
 				    b << DEV_BSHIFT, (i - b) << DEV_BSHIFT);
 			}
 			b = i + 1;
