@@ -58,14 +58,10 @@ LSUBDIRS=	cam/ata cam/scsi \
 	security/mac_mls security/mac_partition \
 	ufs/ffs ufs/ufs
 
-.if ${MK_USB} != "no"
-LSUBDIRS+=	dev/usb
-.endif
-
 LSUBSUBDIRS=	dev/mpt/mpilib
 
-.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
-_dev_powermac_nvram=	dev/powermac_nvram
+.if ${MK_BLUETOOTH} != "no"
+LSUBSUBDIRS+=	netgraph/bluetooth/include
 .endif
 
 .if ${MK_GPIB} != "no"
@@ -85,10 +81,6 @@ INCS+=	hesiod.h
 INCS+=	iconv.h
 .endif
 
-.if ${MK_BLUETOOTH} != "no"
-LSUBSUBDIRS+=	netgraph/bluetooth/include
-.endif
-
 # XXX unconditionally needed by <netsmb/netbios.h>
 #.if ${MK_IPX} != "no"
 _netipx=	netipx
@@ -97,6 +89,14 @@ _netipx=	netipx
 .if ${MK_NCP} != "no"
 _netncp=	netncp
 _fs_nwfs=	fs/nwfs
+.endif
+
+.if ${MK_USB} != "no"
+LSUBDIRS+=	dev/usb
+.endif
+
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
+_dev_powermac_nvram=	dev/powermac_nvram
 .endif
 
 # Define SHARED to indicate whether you want symbolic links to the system
