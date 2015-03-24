@@ -117,11 +117,6 @@ ata_ali_chipinit(device_t dev)
 	ctlr->setmode = ata_sata_setmode;
 	ctlr->getrev = ata_sata_getrev;
 
-	/* AHCI mode is correctly supported only on the ALi 5288. */
-	if ((ctlr->chip->chipid == ATA_ALI_5288) &&
-	    (ata_ahci_chipinit(dev) != ENXIO))
-            return 0;
-
 	/* Allocate resources for later use by channel attach routines. */
 	res = malloc(sizeof(struct ali_sata_resources), M_ATAPCI, M_WAITOK);
 	for (i = 0; i < 4; i++) {
@@ -347,4 +342,3 @@ ata_ali_setmode(device_t dev, int target, int mode)
 }
 
 ATA_DECLARE_DRIVER(ata_ali);
-MODULE_DEPEND(ata_ali, ata_ahci, 1, 1, 1);
