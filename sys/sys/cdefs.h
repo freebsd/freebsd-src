@@ -347,9 +347,9 @@
 #endif
 
 #if __GNUC_PREREQ__(3, 3)
-#define __nonnull(x)	__attribute__((__nonnull__(x)))
+#define __nonnull(...)	__attribute__((__nonnull__(__VA_ARGS__)))
 #else
-#define __nonnull(x)
+#define __nonnull(...)
 #endif
 
 #if __GNUC_PREREQ__(3, 4)
