@@ -7443,6 +7443,71 @@ scsi_persistent_reserve_out(struct ccb_scsiio *csio, uint32_t retries,
 	scsi_cmd->opcode = PERSISTENT_RES_OUT;
 	scsi_cmd->action = service_action;
 	scsi_cmd->scope_type = scope | res_type;
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_OUT,
+		      tag_action,
+		      /*data_ptr*/data_ptr,
+		      /*dxfer_len*/dxfer_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
+
+void
+scsi_security_protocol_in(struct ccb_scsiio *csio, uint32_t retries, 
+			  void (*cbfcnp)(struct cam_periph *, union ccb *),
+			  uint8_t tag_action, uint32_t security_protocol,
+			  uint32_t security_protocol_specific, int byte4,
+			  uint8_t *data_ptr, uint32_t dxfer_len, int sense_len,
+			  int timeout)
+{
+	struct scsi_security_protocol_in *scsi_cmd;
+
+	scsi_cmd = (struct scsi_security_protocol_in *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+
+	scsi_cmd->opcode = SECURITY_PROTOCOL_IN;
+
+	scsi_cmd->security_protocol = security_protocol;
+	scsi_ulto2b(security_protocol_specific,
+		    scsi_cmd->security_protocol_specific); 
+	scsi_cmd->byte4 = byte4;
+	scsi_ulto4b(dxfer_len, scsi_cmd->length);
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_IN,
+		      tag_action,
+		      data_ptr,
+		      dxfer_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
+
+void
+scsi_security_protocol_out(struct ccb_scsiio *csio, uint32_t retries, 
+			   void (*cbfcnp)(struct cam_periph *, union ccb *),
+			   uint8_t tag_action, uint32_t security_protocol,
+			   uint32_t security_protocol_specific, int byte4,
+			   uint8_t *data_ptr, uint32_t dxfer_len, int sense_len,
+			   int timeout)
+{
+	struct scsi_security_protocol_out *scsi_cmd;
+
+	scsi_cmd = (struct scsi_security_protocol_out *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+
+	scsi_cmd->opcode = SECURITY_PROTOCOL_OUT;
+
+	scsi_cmd->security_protocol = security_protocol;
+	scsi_ulto2b(security_protocol_specific,
+		    scsi_cmd->security_protocol_specific); 
+	scsi_cmd->byte4 = byte4;
 	scsi_ulto4b(dxfer_len, scsi_cmd->length);
 
 	cam_fill_csio(csio,

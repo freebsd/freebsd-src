@@ -131,7 +131,7 @@ CRUNCH_LIBS+= -lgeom -lbsdxml -lkiconv
 .if ${MK_OPENSSL} == "no"
 CRUNCH_LIBS+= -lmd
 .endif
-CRUNCH_LIBS+= -lsbuf -lufs -lz
+CRUNCH_LIBS+= -lmt -lsbuf -lufs -lz
 
 .if ${MACHINE_CPUARCH} == "i386"
 CRUNCH_PROGS_sbin+= bsdlabel sconfig fdisk
