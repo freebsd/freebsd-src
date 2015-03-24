@@ -46,7 +46,7 @@ LSUBDIRS=	cam/ata cam/scsi \
 	dev/hwpmc \
 	dev/ic dev/iicbus ${_dev_ieee488} dev/io dev/lmc dev/mfi dev/nvme \
 	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/smbus \
-	dev/speaker dev/usb dev/utopia dev/vkbd dev/wi \
+	dev/speaker dev/utopia dev/vkbd dev/wi \
 	fs/devfs fs/fdescfs fs/fifofs fs/msdosfs fs/nfs fs/ntfs fs/nullfs \
 	${_fs_nwfs} fs/portalfs fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
@@ -57,6 +57,10 @@ LSUBDIRS=	cam/ata cam/scsi \
 	security/mac_biba security/mac_bsdextended security/mac_lomac \
 	security/mac_mls security/mac_partition \
 	ufs/ffs ufs/ufs
+
+.if ${MK_USB} != "no"
+LSUBDIRS+=	dev/usb
+.endif
 
 LSUBSUBDIRS=	dev/mpt/mpilib
 
