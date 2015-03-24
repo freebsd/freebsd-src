@@ -13,3 +13,7 @@ CC+=	-mllvm -cheri128
 # XXX: Needed as Clang rejects -mllvm -cheri128 when using $CC to link.
 CFLAGS+=        -Qunused-arguments
 .endif
+
+# Don't remove CHERI symbols from the symbol table
+STRIP_FLAGS+=	-w --keep-symbol=__cheri_callee_method.\* \
+		--keep-symbol=__cheri_method.\*
