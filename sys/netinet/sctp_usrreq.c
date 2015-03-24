@@ -6965,8 +6965,8 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 #endif
 	SOCK_LOCK(so);
 	error = solisten_proto_check(so);
+	SOCK_UNLOCK(so);
 	if (error) {
-		SOCK_UNLOCK(so);
 		SCTP_INP_RUNLOCK(inp);
 		return (error);
 	}
@@ -6979,28 +6979,27 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 		 * move the guy that was listener to the TCP Pool.
 		 */
 		if (sctp_swap_inpcb_for_listen(inp)) {
-			goto in_use;
+			SCTP_INP_RUNLOCK(inp);
+			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EADDRINUSE);
+			return (EADDRINUSE);
 		}
 	}
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) &&
 	    (inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED)) {
 		/* We are already connected AND the TCP model */
-in_use:
 		SCTP_INP_RUNLOCK(inp);
-		SOCK_UNLOCK(so);
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EADDRINUSE);
 		return (EADDRINUSE);
 	}
 	SCTP_INP_RUNLOCK(inp);
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) {
 		/* We must do a bind. */
-		SOCK_UNLOCK(so);
 		if ((error = sctp_inpcb_bind(so, NULL, NULL, p))) {
 			/* bind error, probably perm */
 			return (error);
 		}
-		SOCK_LOCK(so);
 	}
+	SOCK_LOCK(so);
 	/* It appears for 7.0 and on, we must always call this. */
 	solisten_proto(so, backlog);
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_UDPTYPE) {
