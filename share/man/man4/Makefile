@@ -504,54 +504,6 @@ MAN=	aac.4 \
 	tws.4 \
 	tx.4 \
 	txp.4 \
-	u3g.4 \
-	uark.4 \
-	uart.4 \
-	uath.4 \
-	ubsa.4 \
-	ubsec.4 \
-	ubser.4 \
-	ubtbcmfw.4 \
-	uchcom.4 \
-	ucom.4 \
-	ucycom.4 \
-	udav.4 \
-	udbp.4 \
-	udp.4 \
-	udplite.4 \
-	uep.4 \
-	ufm.4 \
-	ufoma.4 \
-	uftdi.4 \
-	ugen.4 \
-	uhci.4 \
-	uhid.4 \
-	uhso.4 \
-	uipaq.4 \
-	ukbd.4 \
-	uled.4 \
-	ulpt.4 \
-	umass.4 \
-	umcs.4 \
-	umct.4 \
-	umodem.4 \
-	ums.4 \
-	unix.4 \
-	upgt.4 \
-	uplcom.4 \
-	ural.4 \
-	urio.4 \
-	urndis.4 \
-	${_urtw.4} \
-	urtwn.4 \
-	urtwnfw.4 \
-	usb.4 \
-	usb_template.4 \
-	usb_quirk.4 \
-	uslcom.4 \
-	utopia.4 \
-	uvisor.4 \
-	uvscom.4 \
 	vale.4 \
 	vga.4 \
 	vge.4 \
@@ -733,13 +685,6 @@ MLINKS+=tl.4 if_tl.4
 MLINKS+=tun.4 if_tun.4
 MLINKS+=tx.4 if_tx.4
 MLINKS+=txp.4 if_txp.4
-MLINKS+=u3g.4 u3gstub.4
-MLINKS+=uath.4 if_uath.4
-MLINKS+=udav.4 if_udav.4
-MLINKS+=upgt.4 if_upgt.4
-MLINKS+=ural.4 if_ural.4
-MLINKS+=urndis.4 if_urndis.4
-MLINKS+=${_urtw.4} ${_if_urtw.4}
 MLINKS+=vge.4 if_vge.4
 MLINKS+=vlan.4 if_vlan.4
 MLINKS+=${_vmx.4} ${_if_vmx.4}
@@ -882,6 +827,65 @@ _atf_test_case.4=	atf-test-case.4
 _pf.4=		pf.4
 _pflog.4=	pflog.4
 _pfsync.4=	pfsync.4
+.endif
+
+.if ${MK_USB} != "no"
+MAN+=	u3g.4 \
+	uark.4 \
+	uart.4 \
+	uath.4 \
+	ubsa.4 \
+	ubsec.4 \
+	ubser.4 \
+	ubtbcmfw.4 \
+	uchcom.4 \
+	ucom.4 \
+	ucycom.4 \
+	udav.4 \
+	udbp.4 \
+	udp.4 \
+	udplite.4 \
+	uep.4 \
+	ufm.4 \
+	ufoma.4 \
+	uftdi.4 \
+	ugen.4 \
+	uhci.4 \
+	uhid.4 \
+	uhso.4 \
+	uipaq.4 \
+	ukbd.4 \
+	uled.4 \
+	ulpt.4 \
+	umass.4 \
+	umcs.4 \
+	umct.4 \
+	umodem.4 \
+	ums.4 \
+	unix.4 \
+	upgt.4 \
+	uplcom.4 \
+	ural.4 \
+	urio.4 \
+	urndis.4 \
+	${_urtw.4} \
+	urtwn.4 \
+	urtwnfw.4 \
+	usb.4 \
+	usb_template.4 \
+	usb_quirk.4 \
+	uslcom.4 \
+	utopia.4 \
+	uvisor.4 \
+	uvscom.4 \
+
+MLINKS+=u3g.4 u3gstub.4
+MLINKS+=uath.4 if_uath.4
+MLINKS+=udav.4 if_udav.4
+MLINKS+=upgt.4 if_upgt.4
+MLINKS+=ural.4 if_ural.4
+MLINKS+=urndis.4 if_urndis.4
+MLINKS+=${_urtw.4} ${_if_urtw.4}
 .endif
 
 .include <bsd.prog.mk>
