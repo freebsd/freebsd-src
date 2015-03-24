@@ -3303,9 +3303,9 @@ OLD_FILES+=usr/libexec/ssh-pkcs11-helper
 OLD_FILES+=usr/sbin/sshd
 .endif
 
-#.if ${MK_OPENSSL} == no
-# to be filled in
-#.endif
+.if ${MK_OPENSSL} == no
+OLD_FILES+=etc/rc.d/keyserv
+.endif
 
 .if ${MK_SYSINSTALL} == no
 OLD_FILES+=usr/sbin/sysinstall
@@ -3414,6 +3414,7 @@ OLD_DIRS+=usr/share/examples/pc-sysinstall
 .if ${MK_PF} == no
 OLD_FILES+=etc/periodic/security/520.pfdenied
 OLD_FILES+=etc/pf.os
+OLD_FILES+=etc/rc.d/ftp-proxy
 OLD_FILES+=sbin/pfctl
 OLD_FILES+=sbin/pflogd
 OLD_FILES+=usr/libexec/tftp-proxy
@@ -3596,6 +3597,7 @@ OLD_FILES+=usr/lib/private/libssh_p.a
 
 .if ${MK_RCMDS} == no
 OLD_FILES+=bin/rcp
+OLD_FILES+=etc/rc.d/rwho
 OLD_FILES+=etc/periodic/daily/140.clean-rwho 
 OLD_FILES+=etc/periodic/daily/430.status-rwho
 OLD_FILES+=rescue/rcp
