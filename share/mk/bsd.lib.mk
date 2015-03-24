@@ -150,6 +150,11 @@ DEBUGMKDIR=
 .else
 SHLIB_NAME_FULL=${SHLIB_NAME}
 .endif
+.if defined(STRIP) && !empty(STRIP)
+SHLIB_NAME_INSTALL=${SHLIB_NAME}.stripped
+.else
+SHLIB_NAME_INSTALL=${SHLIB_NAME}
+.endif
 .endif
 
 .include <bsd.symver.mk>
@@ -209,7 +214,7 @@ NOPATH_FILES+=	${SOBJS}
 .endif
 
 .if defined(SHLIB_NAME)
-_LIBS+=		${SHLIB_NAME}
+_LIBS+=		${SHLIB_NAME_INSTALL}
 
 SOLINKOPTS=	-shared -Wl,-x
 .if !defined(ALLOW_SHARED_TEXTREL)
@@ -245,13 +250,18 @@ ${SHLIB_NAME_FULL}: ${SOBJS}
 .endif
 
 .if ${MK_DEBUG_FILES} != "no"
-CLEANFILES+=	${SHLIB_NAME_FULL} ${SHLIB_NAME}.debug
+CLEANFILES+=	${SHLIB_NAME_FULL} ${SHLIB_NAME}.debug ${SHLIB_NAME}.stripped
 ${SHLIB_NAME}: ${SHLIB_NAME_FULL} ${SHLIB_NAME}.debug
 	${OBJCOPY} --strip-debug --add-gnu-debuglink=${SHLIB_NAME}.debug \
 	    ${SHLIB_NAME_FULL} ${.TARGET}
 
 ${SHLIB_NAME}.debug: ${SHLIB_NAME_FULL}
 	${OBJCOPY} --only-keep-debug ${SHLIB_NAME_FULL} ${.TARGET}
+.endif
+
+.if ${SHLIB_NAME} != ${SHLIB_NAME_INSTALL}
+${SHLIB_NAME_INSTALL}: ${SHLIB_NAME}
+	strip -o ${.TARGET} ${STRIP_FLAGS} ${SHLIB_NAME}
 .endif
 .endif #defined(SHLIB_NAME)
 
@@ -327,9 +337,9 @@ _libinstall:
 	    ${_INSTALLFLAGS} lib${LIB}${LIB_SUFFIX}_p.a ${DESTDIR}${_LIBDIR}
 .endif
 .if defined(SHLIB_NAME)
-	${INSTALL} ${STRIP} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${_SHLINSTALLFLAGS} \
-	    ${SHLIB_NAME} ${DESTDIR}${_SHLIBDIR}
+	    ${SHLIB_NAME_INSTALL} ${DESTDIR}${_SHLIBDIR}/${SHLIB_NAME}
 .if ${MK_DEBUG_FILES} != "no"
 .if defined(DEBUGMKDIR)
 	${INSTALL} -T debug -d ${DESTDIR}${DEBUGFILEDIR}

@@ -76,6 +76,12 @@ DEBUGMKDIR=
 PROG_FULL=	${PROG}
 .endif
 
+.if defined(STRIP) && !empty(STRIP) && defined(PROG) && !defined(INTERNALPROG)
+PROG_INSTALL=	${PROG}.stripped
+.else
+PROG_INSTALL=	${PROG}
+.endif
+
 .if defined(PROG)
 PROGNAME?=	${PROG}
 
@@ -139,6 +145,11 @@ ${PROGNAME}.debug: ${PROG_FULL}
 	${OBJCOPY} --only-keep-debug ${PROG_FULL} ${.TARGET}
 .endif
 
+.if ${PROG_INSTALL} != ${PROG}
+${PROG_INSTALL}: ${PROG}
+	strip -o ${.TARGET} ${STRIP_FLAGS} ${PROG}
+.endif
+
 .if defined(WANT_DUMP)
 ${PROGNAME}.dump: ${PROG_FULL}
 	${OBJDUMP} -xsSD ${PROG_FULL} > ${.TARGET}
@@ -153,14 +164,14 @@ MAN1=	${MAN}
 .endif
 .endif # defined(PROG)
 
-all: beforebuild .WAIT ${PROG} ${SCRIPTS}
+all: beforebuild .WAIT ${PROG_INSTALL} ${SCRIPTS}
 beforebuild: objwarn
 .if ${MK_MAN} != "no"
 all: _manpages
 .endif
 
 .if defined(PROG)
-CLEANFILES+= ${PROG}
+CLEANFILES+= ${PROG} ${PROG}.stripped
 .if ${MK_DEBUG_FILES} != "no"
 CLEANFILES+=	${PROG_FULL} ${PROGNAME}.debug
 .endif
@@ -212,8 +223,8 @@ realinstall: _proginstall
 .ORDER: beforeinstall _proginstall
 _proginstall:
 .if defined(PROG)
-	${INSTALL} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${BINDIR}/${PROGNAME}
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	    ${_INSTALLFLAGS} ${PROG_INSTALL} ${DESTDIR}${BINDIR}/${PROGNAME}
 .if ${MK_DEBUG_FILES} != "no"
 .if defined(DEBUGMKDIR)
 	${INSTALL} -T debug -d ${DESTDIR}${DEBUGFILEDIR}
