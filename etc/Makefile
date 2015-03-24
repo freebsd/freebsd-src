@@ -52,7 +52,7 @@ BIN1=	crontab \
 	shells \
 	sysctl.conf \
 	syslog.conf \
-	termcap.small
+	termcap.small \
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "powerpc64"
 BIN1+=	libmap32.conf
