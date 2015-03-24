@@ -5,7 +5,6 @@
 
 SUBDIR=	adduser \
 	arp \
-	bootparamd \
 	burncd \
 	bsdconfig \
 	cdcontrol \
@@ -33,7 +32,6 @@ SUBDIR=	adduser \
 	gstat \
 	i2c \
 	ifmcstat \
-	inetd \
 	iostat \
 	kldxref \
 	mailwrapper \
@@ -82,11 +80,8 @@ SUBDIR=	adduser \
 	spray \
 	syslogd \
 	sysrc \
-	tcpdchk \
-	tcpdmatch \
 	tcpdrop \
 	tcpdump \
-	timed \
 	traceroute \
 	trpt \
 	tzsetup \
@@ -149,6 +144,10 @@ SUBDIR+=	rndc-confgen
 SUBDIR+=	bluetooth
 .endif
 
+.if ${MK_BOOTPARAMD} != "no"
+SUBDIR+=	bootparamd
+.endif
+
 .if ${MK_BSDINSTALL} != "no"
 SUBDIR+=	bsdinstall
 .endif
@@ -192,6 +191,10 @@ SUBDIR+=	rtadvctl
 SUBDIR+=	rtadvd
 SUBDIR+=	rtsold
 SUBDIR+=	traceroute6
+.endif
+
+.if ${MK_INETD} != "no"
+SUBDIR+=	inetd
 .endif
 
 .if ${MK_IPFW} != "no"
@@ -311,6 +314,15 @@ SUBDIR+=	sendmail
 
 .if ${MK_SYSINSTALL} != "no"
 SUBDIR+=	sysinstall
+.endif
+
+.if ${MK_TCP_WRAPPERS} != "no"
+SUBDIR+=	tcpdchk
+SUBDIR+=	tcpdmatch
+.endif
+
+.if ${MK_TIMED} != "no"
+SUBDIR+=	timed
 .endif
 
 .if ${MK_TOOLCHAIN} != "no"

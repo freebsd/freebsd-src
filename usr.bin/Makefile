@@ -44,14 +44,11 @@ SUBDIR=	alias \
 	expand \
 	false \
 	fetch \
-	file \
 	find \
-	finger \
 	fmt \
 	fold \
 	fstat \
 	fsync \
-	ftp \
 	gcore \
 	gencat \
 	getconf \
@@ -153,7 +150,6 @@ SUBDIR=	alias \
 	tar \
 	tcopy \
 	tee \
-	tftp \
 	time \
 	tip \
 	top \
@@ -238,6 +234,22 @@ _clang=		clang
 SUBDIR+=	ee
 .endif
 
+.if ${MK_FILE} != "no"
+SUBDIR+=	file
+.endif
+
+.if ${MK_FINGER} != "no"
+SUBDIR+=	finger
+.endif
+
+.if ${MK_FTP} != "no"
+SUBDIR+=	ftp
+.endif
+
+.if ${MK_GROFF} != "no"
+SUBDIR+=	vgrind
+.endif
+
 .if ${MK_HESIOD} != "no"
 SUBDIR+=	hesinfo
 .endif
@@ -246,10 +258,6 @@ SUBDIR+=	hesinfo
 _iconv=		iconv
 _mkcsmapper=	mkcsmapper
 _mkesdb=	mkesdb
-.endif
-
-.if ${MK_GROFF} != "no"
-SUBDIR+=	vgrind
 .endif
 
 .if ${MK_OPENSSL} != "no"
@@ -322,6 +330,10 @@ SUBDIR+=	telnet
 SUBDIR+=	checknr
 SUBDIR+=	colcrt
 SUBDIR+=	ul
+.endif
+
+.if ${MK_TFTP} != "no"
+SUBDIR+=	tftp
 .endif
 
 .if ${MK_TOOLCHAIN} != "no"

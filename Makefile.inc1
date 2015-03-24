@@ -1391,7 +1391,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libhdb} \
 		lib/libkiconv lib/libkvm lib/liblzma lib/libmd \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
 		lib/libopie lib/libpam ${_lib_libthr} \
-		lib/libradius lib/libsbuf lib/libtacplus \
+		${_lib_libradius} lib/libsbuf lib/libtacplus \
 		${_cddl_lib_libumem} ${_cddl_lib_libnvpair} \
 		${_cddl_lib_libavl} \
 		${_cddl_lib_libzfs_core} \
@@ -1401,6 +1401,10 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libhdb} \
 
 .if ${MK_LIBTHR} != "no"
 _lib_libthr=	lib/libthr
+.endif
+
+.if ${MK_RADIUS_SUPPORT} != "no"
+_lib_libradius=	lib/libradius
 .endif
 
 .if ${MK_OFED} != "no"

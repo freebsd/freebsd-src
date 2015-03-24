@@ -31,6 +31,9 @@ PPP_NO_NETGRAPH=
 .if ${MK_PAM_SUPPORT} == "no"
 PPP_NO_PAM=
 .endif
+.if ${MK_RADIUS_SUPPORT} == "no"
+PPP_NO_RADIUS=
+.endif
 
 .if defined(PPP_NO_SUID)
 BINMODE=550
