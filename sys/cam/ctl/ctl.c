@@ -12152,9 +12152,6 @@ ctl_lun_reset(struct ctl_lun *lun, union ctl_io *io, ctl_ua_type ua_type)
 	/*
 	 * Run through the OOA queue and abort each I/O.
 	 */
-#if 0
-	TAILQ_FOREACH((struct ctl_io_hdr *)xio, &lun->ooa_queue, ooa_links) {
-#endif
 	for (xio = (union ctl_io *)TAILQ_FIRST(&lun->ooa_queue); xio != NULL;
 	     xio = (union ctl_io *)TAILQ_NEXT(&xio->io_hdr, ooa_links)) {
 		xio->io_hdr.flags |= CTL_FLAG_ABORT | CTL_FLAG_ABORT_STATUS;
@@ -12335,9 +12332,6 @@ ctl_abort_task(union ctl_io *io)
 	 * untagged command to abort, simply abort the first untagged command
 	 * we come to.  We only allow one untagged command at a time of course.
 	 */
-#if 0
-	TAILQ_FOREACH((struct ctl_io_hdr *)xio, &lun->ooa_queue, ooa_links) {
-#endif
 	for (xio = (union ctl_io *)TAILQ_FIRST(&lun->ooa_queue); xio != NULL;
 	     xio = (union ctl_io *)TAILQ_NEXT(&xio->io_hdr, ooa_links)) {
 #if 0
@@ -12375,7 +12369,7 @@ ctl_abort_task(union ctl_io *io)
 #if 0
 		if (((xio->scsiio.tag_type == CTL_TAG_UNTAGGED)
 		  && (io->taskio.tag_type == CTL_TAG_UNTAGGED))
-		 || (xio->scsiio.tag_num == io->taskio.tag_num)) {
+		 || (xio->scsiio.tag_num == io->taskio.tag_num))
 #endif
 		/*
 		 * XXX KDM we've got problems with FC, because it
