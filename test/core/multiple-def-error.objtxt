@@ -1,0 +1,19 @@
+# RUN: not lld -core %s  2>&1  | FileCheck %s
+
+#
+# Test that multiple definitions cause an error
+#
+
+# CHECK: duplicate symbol
+
+---
+defined-atoms:
+    - name:         _foo
+      scope:        global
+      type:         data
+---
+defined-atoms:
+    - name:         _foo
+      scope:        global
+      type:         data
+...
