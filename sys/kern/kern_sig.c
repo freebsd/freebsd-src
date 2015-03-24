@@ -180,7 +180,7 @@ static int	set_core_nodump_flag = 0;
 SYSCTL_INT(_kern, OID_AUTO, nodump_coredump, CTLFLAG_RW, &set_core_nodump_flag,
 	0, "Enable setting the NODUMP flag on coredump files");
 
-static int	coredump_devctl = 1;
+static int	coredump_devctl = 0;
 SYSCTL_INT(_kern, OID_AUTO, coredump_devctl, CTLFLAG_RW, &coredump_devctl,
 	0, "Generate a devctl notification when processes coredump");
 
