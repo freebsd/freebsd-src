@@ -324,7 +324,8 @@ siena_board_cfg(
 	efx_mcdi_execute(enp, &req);
 
 	if (req.emr_rc == 0) {
-		if (req.emr_out_length_used < MC_CMD_GET_RESOURCE_LIMITS_OUT_LEN) {
+		if (req.emr_out_length_used <
+		    MC_CMD_GET_RESOURCE_LIMITS_OUT_LEN) {
 			rc = EMSGSIZE;
 			goto fail3;
 		}
