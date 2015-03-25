@@ -45,6 +45,8 @@ sfxge_ev_qcomplete(struct sfxge_evq *evq, boolean_t eop)
 	struct sfxge_rxq *rxq;
 	struct sfxge_txq *txq;
 
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
+
 	sc = evq->sc;
 	index = evq->index;
 	rxq = sc->rxq[index];
@@ -84,6 +86,8 @@ sfxge_ev_rx(void *arg, uint32_t label, uint32_t id, uint32_t size,
 	struct sfxge_rx_sw_desc *rx_desc;
 
 	evq = arg;
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
+
 	sc = evq->sc;
 
 	if (evq->exception)
@@ -135,6 +139,8 @@ sfxge_ev_exception(void *arg, uint32_t code, uint32_t data)
 	struct sfxge_softc *sc;
 
 	evq = (struct sfxge_evq *)arg;
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
+
 	sc = evq->sc;
 
 	evq->exception = B_TRUE;
@@ -160,6 +166,8 @@ sfxge_ev_rxq_flush_done(void *arg, uint32_t rxq_index)
 	uint16_t magic;
 
 	evq = (struct sfxge_evq *)arg;
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
+
 	sc = evq->sc;
 	rxq = sc->rxq[rxq_index];
 
@@ -192,6 +200,8 @@ sfxge_ev_rxq_flush_failed(void *arg, uint32_t rxq_index)
 	uint16_t magic;
 
 	evq = (struct sfxge_evq *)arg;
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
+
 	sc = evq->sc;
 	rxq = sc->rxq[rxq_index];
 
@@ -233,6 +243,8 @@ sfxge_ev_tx(void *arg, uint32_t label, uint32_t id)
 	unsigned int delta;
 
 	evq = (struct sfxge_evq *)arg;
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
+
 	txq = sfxge_get_txq_by_label(evq, label);
 
 	KASSERT(txq != NULL, ("txq == NULL"));
@@ -273,6 +285,8 @@ sfxge_ev_txq_flush_done(void *arg, uint32_t txq_index)
 	uint16_t magic;
 
 	evq = (struct sfxge_evq *)arg;
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
+
 	sc = evq->sc;
 	txq = sc->txq[txq_index];
 
@@ -303,6 +317,8 @@ sfxge_ev_software(void *arg, uint16_t magic)
 	unsigned int label;
 
 	evq = (struct sfxge_evq *)arg;
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
+
 	sc = evq->sc;
 
 	label = magic & SFXGE_MAGIC_DMAQ_LABEL_MASK;
@@ -528,6 +544,7 @@ sfxge_ev_initialized(void *arg)
 	struct sfxge_evq *evq;
 
 	evq = (struct sfxge_evq *)arg;
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
 
 	KASSERT(evq->init_state == SFXGE_EVQ_STARTING,
 	    ("evq not starting"));
@@ -544,6 +561,8 @@ sfxge_ev_link_change(void *arg, efx_link_mode_t	link_mode)
 	struct sfxge_softc *sc;
 
 	evq = (struct sfxge_evq *)arg;
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
+
 	sc = evq->sc;
 
 	sfxge_mac_link_update(sc, link_mode);
