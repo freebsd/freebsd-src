@@ -313,4 +313,48 @@ extern int sfxge_port_ifmedia_init(struct sfxge_softc *sc);
 
 #define	SFXGE_MAX_MTU (9 * 1024)
 
+#define	SFXGE_ADAPTER_LOCK_INIT(_sc, _name)				\
+	sx_init(&(_sc)->softc_lock, (_name))
+#define	SFXGE_ADAPTER_LOCK_DESTROY(_sc)					\
+	sx_destroy(&(_sc)->softc_lock)
+#define	SFXGE_ADAPTER_LOCK(_sc)						\
+	sx_xlock(&(_sc)->softc_lock)
+#define	SFXGE_ADAPTER_UNLOCK(_sc)					\
+	sx_xunlock(&(_sc)->softc_lock)
+#define	SFXGE_ADAPTER_LOCK_ASSERT_OWNED(_sc)				\
+	sx_assert(&(_sc)->softc_lock, LA_XLOCKED)
+
+#define	SFXGE_PORT_LOCK_INIT(_port, _name)				\
+	mtx_init(&(_port)->lock, (_name), NULL, MTX_DEF)
+#define	SFXGE_PORT_LOCK_DESTROY(_port)					\
+	mtx_destroy(&(_port)->lock)
+#define	SFXGE_PORT_LOCK(_port)						\
+	mtx_lock(&(_port)->lock)
+#define	SFXGE_PORT_UNLOCK(_port)					\
+	mtx_unlock(&(_port)->lock)
+#define	SFXGE_PORT_LOCK_ASSERT_OWNED(_port)				\
+	mtx_assert(&(_port)->lock, MA_OWNED)
+
+#define	SFXGE_MCDI_LOCK_INIT(_mcdi, _name)				\
+	mtx_init(&(_mcdi)->lock, (_name), NULL, MTX_DEF)
+#define	SFXGE_MCDI_LOCK_DESTROY(_mcdi)					\
+	mtx_destroy(&(_mcdi)->lock)
+#define	SFXGE_MCDI_LOCK(_mcdi)						\
+	mtx_lock(&(_mcdi)->lock)
+#define	SFXGE_MCDI_UNLOCK(_mcdi)					\
+	mtx_unlock(&(_mcdi)->lock)
+#define	SFXGE_MCDI_LOCK_ASSERT_OWNED(_mcdi)				\
+	mtx_assert(&(_mcdi)->lock, MA_OWNED)
+
+#define	SFXGE_EVQ_LOCK_INIT(_evq, _name)				\
+	mtx_init(&(_evq)->lock, (_name), NULL, MTX_DEF)
+#define	SFXGE_EVQ_LOCK_DESTROY(_evq)					\
+	mtx_destroy(&(_evq)->lock)
+#define	SFXGE_EVQ_LOCK(_evq)						\
+	mtx_lock(&(_evq)->lock)
+#define	SFXGE_EVQ_UNLOCK(_evq)						\
+	mtx_unlock(&(_evq)->lock)
+#define	SFXGE_EVQ_LOCK_ASSERT_OWNED(_evq)				\
+	mtx_assert(&(_evq)->lock, MA_OWNED)
+
 #endif /* _SFXGE_H */
