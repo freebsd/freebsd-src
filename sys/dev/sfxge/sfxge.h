@@ -280,7 +280,7 @@ extern int sfxge_ev_init(struct sfxge_softc *sc);
 extern void sfxge_ev_fini(struct sfxge_softc *sc);
 extern int sfxge_ev_start(struct sfxge_softc *sc);
 extern void sfxge_ev_stop(struct sfxge_softc *sc);
-extern int sfxge_ev_qpoll(struct sfxge_softc *sc, unsigned int index);
+extern int sfxge_ev_qpoll(struct sfxge_evq *evq);
 
 /*
  * From sfxge_intr.c.

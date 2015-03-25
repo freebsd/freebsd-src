@@ -106,9 +106,8 @@ static void
 sfxge_intr_line(void *arg)
 {
 	struct sfxge_evq *evq = arg;
-	struct sfxge_softc *sc = evq->sc;
 
-	(void)sfxge_ev_qpoll(sc, 0);
+	(void)sfxge_ev_qpoll(evq);
 }
 
 static void
@@ -142,7 +141,7 @@ sfxge_intr_message(void *arg)
 		return;
 	}
 
-	(void)sfxge_ev_qpoll(sc, index);
+	(void)sfxge_ev_qpoll(evq);
 }
 
 static int

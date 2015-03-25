@@ -564,12 +564,9 @@ static const efx_ev_callbacks_t sfxge_ev_callbacks = {
 
 
 int
-sfxge_ev_qpoll(struct sfxge_softc *sc, unsigned int index)
+sfxge_ev_qpoll(struct sfxge_evq *evq)
 {
-	struct sfxge_evq *evq;
 	int rc;
-
-	evq = sc->evq[index];
 
 	mtx_lock(&evq->lock);
 
