@@ -649,7 +649,7 @@ sfxge_if_qflush(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 
-	for (i = 0; i < SFXGE_TX_SCALE(sc); i++)
+	for (i = 0; i < SFXGE_TXQ_IP_TCP_UDP_CKSUM + SFXGE_TX_SCALE(sc); i++)
 		sfxge_tx_qdpl_flush(sc->txq[i]);
 }
 
