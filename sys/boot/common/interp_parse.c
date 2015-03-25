@@ -7,7 +7,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * Jordan K. Hubbard
  * 29 August 1998
  *
@@ -76,7 +76,7 @@ isquote(int ch)
 }
 
 int
-parse(int *argc, char ***argv, char *str)
+parse(int *argc, char ***argv, const char *str)
 {
     int ac;
     char *val, *p, *q, *copy = NULL;

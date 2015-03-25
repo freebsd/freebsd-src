@@ -34,11 +34,11 @@
 #include <sys/linker_set.h>
 
 /*
- * Generic device specifier; architecture-dependant 
+ * Generic device specifier; architecture-dependant
  * versions may be larger, but should be allowed to
  * overlap.
  */
-struct devdesc 
+struct devdesc
 {
     struct devsw	*d_dev;
     int			d_type;
@@ -53,7 +53,7 @@ struct devdesc
 
 /* Commands and return values; nonzero return sets command_errmsg != NULL */
 typedef int	(bootblk_cmd_t)(int argc, char *argv[]);
-extern char	*command_errmsg;	
+extern char	*command_errmsg;
 extern char	command_errbuf[];	/* XXX blah, length */
 #define CMD_OK		0
 #define CMD_ERROR	1
@@ -66,7 +66,7 @@ int	include(const char *filename);
 char	*backslash(char *str);
 
 /* interp_parse.c */
-int	parse(int *argc, char ***argv, char *str);
+int	parse(int *argc, char ***argv, const char *str);
 
 /* interp_forth.c */
 void	bf_init(const char *rc);
@@ -104,7 +104,7 @@ struct bcache_devdata
 /*
  * Modular console support.
  */
-struct console 
+struct console
 {
     const char	*c_name;
     const char	*c_desc;
@@ -125,7 +125,7 @@ void		cons_probe(void);
 /*
  * Plug-and-play enumerator/configurator interface.
  */
-struct pnphandler 
+struct pnphandler
 {
     const char	*pp_name;		/* handler/bus name */
     void	(* pp_enumerate)(void);	/* enumerate PnP devices, add to chain */
@@ -174,7 +174,7 @@ extern int			isapnp_readport;
  * Metadata are allocated on our heap, and copied into kernel space
  * before executing the kernel.
  */
-struct file_metadata 
+struct file_metadata
 {
     size_t			md_size;
     u_int16_t			md_type;
@@ -264,9 +264,9 @@ int __elfN(load_modmetadata)(struct preloaded_file *fp, u_int64_t dest);
 #endif
 
 /*
- * Support for commands 
+ * Support for commands
  */
-struct bootblk_command 
+struct bootblk_command
 {
     const char		*c_name;
     const char		*c_desc;
@@ -280,7 +280,7 @@ struct bootblk_command
 
 SET_DECLARE(Xcommand_set, struct bootblk_command);
 
-/* 
+/*
  * The intention of the architecture switch is to provide a convenient
  * encapsulation of the interface between the bootstrap MI and MD code.
  * MD code may selectively populate the switch at runtime based on the
