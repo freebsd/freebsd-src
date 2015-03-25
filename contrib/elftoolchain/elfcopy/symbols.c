@@ -1036,10 +1036,8 @@ match_wildcard(const char *name, const char *pattern)
 	}
 
 	match = 0;
-	if (!fnmatch(pattern, name, 0)) {
+	if (!fnmatch(pattern, name, 0))
 		match = 1;
-		printf("string '%s' match to pattern '%s'\n", name, pattern);
-	}
 
 	return (reverse ? !match : match);
 }
