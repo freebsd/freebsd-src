@@ -82,10 +82,10 @@ struct sfxge_tx_mapping {
  * Deferred packet list.
  */
 struct sfxge_tx_dpl {
-	uintptr_t		std_put;    /* Head of put list. */
-	struct mbuf		*std_get;   /* Head of get list. */
-	struct mbuf		**std_getp; /* Tail of get list. */
-	unsigned int		std_count;  /* Count of packets. */
+	uintptr_t		std_put;	/* Head of put list. */
+	struct mbuf		*std_get;	/* Head of get list. */
+	struct mbuf		**std_getp;	/* Tail of get list. */
+	unsigned int		std_get_count;	/* Packets in get list. */
 };
 
 
