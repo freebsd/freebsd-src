@@ -311,7 +311,7 @@ static int sfxge_tx_queue_mbuf(struct sfxge_txq *txq, struct mbuf *mbuf)
 	if (mbuf->m_pkthdr.csum_flags & CSUM_TSO)
 		prefetch_read_many(mbuf->m_data);
 
-	if (txq->init_state != SFXGE_TXQ_STARTED) {
+	if (__predict_false(txq->init_state != SFXGE_TXQ_STARTED)) {
 		rc = EINTR;
 		goto reject;
 	}
@@ -1142,7 +1142,7 @@ sfxge_tx_qunblock(struct sfxge_txq *txq)
 
 	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
 
-	if (txq->init_state != SFXGE_TXQ_STARTED)
+	if (__predict_false(txq->init_state != SFXGE_TXQ_STARTED))
 		return;
 
 	SFXGE_TXQ_LOCK(txq);
