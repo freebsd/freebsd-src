@@ -1145,6 +1145,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 
 	m->m_pkthdr.rcvif = ifv->ifv_ifp;
 	if_inc_counter(ifv->ifv_ifp, IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(ifv->ifv_ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
 	/* Pass it back through the parent's input routine. */
 	if_input(ifv->ifv_ifp, m);

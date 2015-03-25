@@ -4824,6 +4824,8 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 			rxr->packets++;
 			rxr->bytes += rxr->fmp->m_pkthdr.len;
 			rxr->rx_bytes += rxr->fmp->m_pkthdr.len;
+			if_inc_counter(ifp, IFCOUNTER_IBYTES,
+			    rxr->fmp->m_pkthdr.len);
 
 			if ((adapter->if_capenable & IFCAP_RXCSUM) != 0)
 				igb_rx_checksum(staterr, rxr->fmp, ptype);

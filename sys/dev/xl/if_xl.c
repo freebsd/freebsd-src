@@ -1899,9 +1899,10 @@ again:
 		bus_dmamap_sync(sc->xl_ldata.xl_rx_tag,
 		    sc->xl_ldata.xl_rx_dmamap, BUS_DMASYNC_PREWRITE);
 
-		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = total_len;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+		if_inc_counter(ifp, IFCOUNTER_IBYTES, total_len);
 
 		if (sc->xl_capenable & IFCAP_RXCSUM) {
 			/* Do IP checksum checking. */

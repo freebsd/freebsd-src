@@ -2466,6 +2466,8 @@ vtnet_get_counter(if_t ifp, ift_counter cnt)
 	switch (cnt) {
 	case IFCOUNTER_IPACKETS:
 		return (rxaccum.vrxs_ipackets);
+	case IFCOUNTER_IBYTES:
+		return (rxaccum.vrxs_ibytes);
 	case IFCOUNTER_IQDROPS:
 		return (rxaccum.vrxs_iqdrops);
 	case IFCOUNTER_IERRORS:

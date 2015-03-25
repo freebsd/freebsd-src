@@ -4378,7 +4378,6 @@ bge_rxeof(struct bge_softc *sc, uint16_t rx_prod, int holdlck)
 			BGE_INC(sc->bge_std, BGE_STD_RX_RING_CNT);
 		}
 
-		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 #ifndef __NO_STRICT_ALIGNMENT
 		/*
 		 * For architectures with strict alignment we must make sure
@@ -4392,6 +4391,8 @@ bge_rxeof(struct bge_softc *sc, uint16_t rx_prod, int holdlck)
 #endif
 		m->m_pkthdr.len = m->m_len = cur_rx->bge_len - ETHER_CRC_LEN;
 		m->m_pkthdr.rcvif = ifp;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+		if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
 		if (sc->bge_capenable & IFCAP_RXCSUM)
 			bge_rxcsum(sc, cur_rx, m);
