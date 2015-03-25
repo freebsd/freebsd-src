@@ -209,7 +209,9 @@ INSTALLTMP!=	/usr/bin/mktemp -d -u -t install
 # 1. legacy stage [BMAKE]
 #	This stage is responsible for creating compatibility
 #	shims that are needed by the bootstrap-tools,
-#	build-tools and cross-tools stages.
+#	build-tools and cross-tools stages. These are generally
+#	APIs that tools from one of those three stages need to
+#	build that aren't present on the host.
 # 1. bootstrap-tools stage [BMAKE]
 #	This stage is responsible for creating programs that
 #	are needed for backward compatibility reasons. They
@@ -220,7 +222,7 @@ INSTALLTMP!=	/usr/bin/mktemp -d -u -t install
 #	the build process.
 # 3. cross-tools stage [XMAKE]
 #	This stage is responsible for creating any tools that
-#	are needed for cross-builds. A cross-compiler is one
+#	are needed for building the system. A cross-compiler is one
 #	of them.
 # 4. world stage [WMAKE]
 #	This stage actually builds the world.
@@ -1222,7 +1224,9 @@ update:
 #
 
 #
-# legacy: Build compatibility shims for the next three targets
+# legacy: Build compatibility shims for the next three targets. This is a minimal
+# set of tools and shims necessary to compensate for older systems which don't have
+# the APIs that the targets built in bootstrap-tools, build-tools or cross-tools.
 #
 legacy:
 .if ${BOOTSTRAPPING} < 800107 && ${BOOTSTRAPPING} != 0
@@ -1240,7 +1244,10 @@ legacy:
 .endfor
 
 #
-# bootstrap-tools: Build tools needed for compatibility
+# bootstrap-tools: Build tools needed for compatibility. These are binaries that
+# are built to build other binaries in the system. However, the focus of these
+# binaries is usually quite narrow. Bootstrap tools use the host's compiler and
+# libraries, augmented by -legacy.
 #
 _bt=		_bootstrap-tools	
 
@@ -1446,7 +1453,9 @@ kernel-tools: .MAKE
 	    -p ${MAKEOBJDIRPREFIX}/usr >/dev/null
 
 #
-# cross-tools: Build cross-building tools
+# cross-tools: All the tools needed to build the rest of the system after
+# we get done with the earlier stages. It is the last set of tools needed
+# to begin building the target binaries.
 #
 .if ${TARGET_ARCH} != ${MACHINE_ARCH}
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
