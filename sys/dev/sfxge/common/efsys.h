@@ -677,8 +677,7 @@ typedef struct efsys_bar_s {
 
 /* BARRIERS */
 
-/* Strict ordering guaranteed by devacc.devacc_attr_dataorder */
-#define	EFSYS_MEM_READ_BARRIER()
+#define	EFSYS_MEM_READ_BARRIER()	rmb()
 #define	EFSYS_PIO_WRITE_BARRIER()
 
 /* TIMESTAMP */
