@@ -567,6 +567,12 @@ efx_ev_mcdi(
 	if (enp->en_family != EFX_FAMILY_SIENA)
 		goto out;
 
+	EFSYS_ASSERT(eecp->eec_link_change != NULL);
+	EFSYS_ASSERT(eecp->eec_exception != NULL);
+#if EFSYS_OPT_MON_STATS
+	EFSYS_ASSERT(eecp->eec_monitor != NULL);
+#endif
+
 	EFX_EV_QSTAT_INCR(eep, EV_MCDI_RESPONSE);
 
 	code = EFX_QWORD_FIELD(*eqp, MCDI_EVENT_CODE);
