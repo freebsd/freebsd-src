@@ -224,8 +224,10 @@ struct sfxge_softc {
 
 	struct sfxge_evq		*evq[SFXGE_RX_SCALE_MAX];
 	unsigned int			ev_moderation;
+#if EFSYS_OPT_QSTATS
 	clock_t				ev_stats_update_time;
 	uint64_t			ev_stats[EV_NQSTATS];
+#endif
 
 	uma_zone_t			rxq_cache;
 	struct sfxge_rxq		*rxq[SFXGE_RX_SCALE_MAX];
