@@ -258,6 +258,8 @@ struct sfxge_softc {
 	struct mtx			tx_lock __aligned(CACHE_LINE_SIZE);
 	char				tx_lock_name[SFXGE_LOCK_NAME_MAX];
 #endif
+
+	unsigned int			txq_count;
 };
 
 #define	SFXGE_LINK_UP(sc) ((sc)->port.link_mode != EFX_LINK_DOWN)
