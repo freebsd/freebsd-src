@@ -1388,6 +1388,13 @@ cgem_mediachange(struct cgem_softc *sc,	struct mii_data *mii)
 			      sc->ref_clk_num, ref_clk_freq);
 
 	sc->mii_media_active = mii->mii_media_active;
+
+	if (sc->ifp == NULL)
+		return;
+
+	if_setbaudrate(sc->ifp, ifmedia_baudrate(mii->mii_media_active)); 
+	if_link_state_change(sc->ifp,
+	    ifmedia_link_state(mii->mii_media_status));
 }
 
 static void
