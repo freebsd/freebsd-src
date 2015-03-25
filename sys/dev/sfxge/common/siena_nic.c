@@ -276,7 +276,7 @@ siena_board_cfg(
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_mcdi_iface_t *emip = &(enp->en_u.siena.enu_mip);
-	uint8_t outbuf[MAX(MC_CMD_GET_BOARD_CFG_OUT_LEN,
+	uint8_t outbuf[MAX(MC_CMD_GET_BOARD_CFG_OUT_LENMIN,
 		    MC_CMD_GET_RESOURCE_LIMITS_OUT_LEN)];
 	efx_mcdi_req_t req;
 	uint8_t *src;
@@ -288,7 +288,7 @@ siena_board_cfg(
 	req.emr_in_buf = NULL;
 	req.emr_in_length = 0;
 	req.emr_out_buf = outbuf;
-	req.emr_out_length = MC_CMD_GET_BOARD_CFG_OUT_LEN;
+	req.emr_out_length = MC_CMD_GET_BOARD_CFG_OUT_LENMIN;
 
 	efx_mcdi_execute(enp, &req);
 
@@ -297,7 +297,7 @@ siena_board_cfg(
 		goto fail1;
 	}
 
-	if (req.emr_out_length_used < MC_CMD_GET_BOARD_CFG_OUT_LEN) {
+	if (req.emr_out_length_used < MC_CMD_GET_BOARD_CFG_OUT_LENMIN) {
 		rc = EMSGSIZE;
 		goto fail2;
 	}
