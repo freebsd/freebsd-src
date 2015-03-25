@@ -74,8 +74,8 @@ __FBSDID("$FreeBSD$");
  * the output at a packet boundary.  Allow for a reasonable
  * minimum MSS of 512.
  */
-#define SFXGE_TSO_MAX_DESC ((65535 / 512) * 2 + SFXGE_TX_MAPPING_MAX_SEG - 1)
-#define SFXGE_TXQ_BLOCK_LEVEL (SFXGE_NDESCS - SFXGE_TSO_MAX_DESC)
+#define	SFXGE_TSO_MAX_DESC ((65535 / 512) * 2 + SFXGE_TX_MAPPING_MAX_SEG - 1)
+#define	SFXGE_TXQ_BLOCK_LEVEL (SFXGE_NDESCS - SFXGE_TSO_MAX_DESC)
 
 /* Forward declarations. */
 static inline void sfxge_tx_qdpl_service(struct sfxge_txq *txq);
@@ -343,7 +343,7 @@ static int sfxge_tx_queue_mbuf(struct sfxge_txq *txq, struct mbuf *mbuf)
 	/* Post the fragment list. */
 	sfxge_tx_qlist_post(txq);
 
-	return 0;
+	return (0);
 
 reject_mapped:
 	bus_dmamap_unload(txq->packet_dma_tag, *used_map);
@@ -352,7 +352,7 @@ reject:
 	m_freem(mbuf);
 	++txq->drops;
 
-	return rc;
+	return (rc);
 }
 
 #ifdef SFXGE_HAVE_MQ
@@ -426,8 +426,8 @@ sfxge_tx_qdpl_drain(struct sfxge_txq *txq)
 		("queue unblocked but count is non-zero"));
 }
 
-#define SFXGE_TX_QDPL_PENDING(_txq)					\
-    ((_txq)->dpl.std_put != 0)
+#define	SFXGE_TX_QDPL_PENDING(_txq)					\
+	((_txq)->dpl.std_put != 0)
 
 /*
  * Service the deferred packet list.
@@ -493,7 +493,7 @@ sfxge_tx_qdpl_put(struct sfxge_txq *txq, struct mbuf *mbuf, int locked)
 
 		do {
 			old = *putp;
-			if (old) {
+			if (old != 0) {
 				struct mbuf *mp = (struct mbuf *)old;
 				old_len = mp->m_pkthdr.csum_data;
 			} else
@@ -559,7 +559,6 @@ fail:
 	m_freem(m);
 	atomic_add_long(&txq->early_drops, 1);
 	return (rc);
-	
 }
 
 static void
@@ -577,7 +576,7 @@ sfxge_tx_qdpl_flush(struct sfxge_txq *txq)
 	}
 	stdp->std_get = NULL;
 	stdp->std_count = 0;
-	stdp->std_getp = &stdp->std_get;	
+	stdp->std_getp = &stdp->std_get;
 
 	mtx_unlock(&txq->lock);
 }
@@ -599,7 +598,7 @@ sfxge_if_qflush(struct ifnet *ifp)
  */
 int
 sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m)
-{	
+{
 	struct sfxge_softc *sc;
 	struct sfxge_txq *txq;
 	int rc;
@@ -652,7 +651,7 @@ static void sfxge_if_start_locked(struct ifnet *ifp)
 	}
 
 	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
-                IFQ_DRV_DEQUEUE(&ifp->if_snd, mbuf);
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, mbuf);
 		if (mbuf == NULL)
 			break;
 
@@ -757,15 +756,15 @@ static inline const struct tcphdr *tso_tcph(const struct sfxge_tso_state *tso)
 /* Size of preallocated TSO header buffers.  Larger blocks must be
  * allocated from the heap.
  */
-#define TSOH_STD_SIZE	128
+#define	TSOH_STD_SIZE	128
 
 /* At most half the descriptors in the queue at any time will refer to
  * a TSO header buffer, since they must always be followed by a
  * payload descriptor referring to an mbuf.
  */
-#define TSOH_COUNT	(SFXGE_NDESCS / 2u)
-#define TSOH_PER_PAGE	(PAGE_SIZE / TSOH_STD_SIZE)
-#define TSOH_PAGE_COUNT	((TSOH_COUNT + TSOH_PER_PAGE - 1) / TSOH_PER_PAGE)
+#define	TSOH_COUNT	(SFXGE_NDESCS / 2u)
+#define	TSOH_PER_PAGE	(PAGE_SIZE / TSOH_STD_SIZE)
+#define	TSOH_PAGE_COUNT	((TSOH_COUNT + TSOH_PER_PAGE - 1) / TSOH_PER_PAGE)
 
 static int tso_init(struct sfxge_txq *txq)
 {
@@ -778,25 +777,25 @@ static int tso_init(struct sfxge_txq *txq)
 
 	for (i = 0; i < TSOH_PAGE_COUNT; i++) {
 		rc = sfxge_dma_alloc(sc, PAGE_SIZE, &txq->tsoh_buffer[i]);
-		if (rc)
+		if (rc != 0)
 			goto fail;
 	}
 
-	return 0;
+	return (0);
 
 fail:
 	while (i-- > 0)
 		sfxge_dma_free(&txq->tsoh_buffer[i]);
 	free(txq->tsoh_buffer, M_SFXGE);
 	txq->tsoh_buffer = NULL;
-	return rc;
+	return (rc);
 }
 
 static void tso_fini(struct sfxge_txq *txq)
 {
 	int i;
 
-	if (txq->tsoh_buffer) {
+	if (txq->tsoh_buffer != NULL) {
 		for (i = 0; i < TSOH_PAGE_COUNT; i++)
 			sfxge_dma_free(&txq->tsoh_buffer[i]);
 		free(txq->tsoh_buffer, M_SFXGE);
@@ -925,7 +924,7 @@ static int tso_start_new_packet(struct sfxge_txq *txq,
 		/* We cannot use bus_dmamem_alloc() as that may sleep */
 		header = malloc(tso->header_len, M_SFXGE, M_NOWAIT);
 		if (__predict_false(!header))
-			return ENOMEM;     
+			return (ENOMEM);
 		rc = bus_dmamap_load(txq->packet_dma_tag, stmp->map,
 				     header, tso->header_len,
 				     tso_map_long_header, &dma_addr,
@@ -938,7 +937,7 @@ static int tso_start_new_packet(struct sfxge_txq *txq,
 				rc = EINVAL;
 			}
 			free(header, M_SFXGE);
-			return rc;
+			return (rc);
 		}
 		map = stmp->map;
 
@@ -987,7 +986,7 @@ static int tso_start_new_packet(struct sfxge_txq *txq,
 	desc->eb_size = tso->header_len;
 	desc->eb_eop = 0;
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -1048,7 +1047,7 @@ sfxge_tx_queue_tso(struct sfxge_txq *txq, struct mbuf *mbuf,
 	}
 
 	txq->tso_bursts++;
-	return id;
+	return (id);
 }
 
 static void
@@ -1200,7 +1199,7 @@ sfxge_tx_qstart(struct sfxge_softc *sc, unsigned int index)
 		goto fail;
 
 	mtx_lock(SFXGE_TXQ_LOCK(txq));
-	
+
 	/* Enable the transmit queue. */
 	efx_tx_qenable(txq->common);
 
@@ -1229,7 +1228,7 @@ sfxge_tx_stop(struct sfxge_softc *sc)
 	sfxge_tx_qstop(sc, SFXGE_TXQ_IP_CKSUM);
 
 	encp = efx_nic_cfg_get(sc->enp);
-        sfxge_tx_qstop(sc, SFXGE_TXQ_NON_CKSUM);
+	sfxge_tx_qstop(sc, SFXGE_TXQ_NON_CKSUM);
 
 	/* Tear down the transmit module */
 	efx_tx_fini(sc->enp);
@@ -1266,7 +1265,7 @@ fail3:
 	sfxge_tx_qstop(sc, SFXGE_TXQ_IP_CKSUM);
 
 fail2:
-        sfxge_tx_qstop(sc, SFXGE_TXQ_NON_CKSUM);
+	sfxge_tx_qstop(sc, SFXGE_TXQ_NON_CKSUM);
 
 fail:
 	efx_tx_fini(sc->enp);
@@ -1293,7 +1292,7 @@ sfxge_tx_qfini(struct sfxge_softc *sc, unsigned int index)
 
 	/* Free the context arrays. */
 	free(txq->pend_desc, M_SFXGE);
-	while (nmaps--)
+	while (nmaps-- != 0)
 		bus_dmamap_destroy(txq->packet_dma_tag, txq->stmp[nmaps].map);
 	free(txq->stmp, M_SFXGE);
 
@@ -1385,7 +1384,7 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 fail3:
 	free(txq->pend_desc, M_SFXGE);
 fail2:
-	while (nmaps--)
+	while (nmaps-- != 0)
 		bus_dmamap_destroy(txq->packet_dma_tag, txq->stmp[nmaps].map);
 	free(txq->stmp, M_SFXGE);
 	bus_dma_tag_destroy(txq->packet_dma_tag);
@@ -1400,7 +1399,7 @@ static const struct {
 	const char *name;
 	size_t offset;
 } sfxge_tx_stats[] = {
-#define SFXGE_TX_STAT(name, member) \
+#define	SFXGE_TX_STAT(name, member) \
 	{ #name, offsetof(struct sfxge_txq, member) }
 	SFXGE_TX_STAT(tso_bursts, tso_bursts),
 	SFXGE_TX_STAT(tso_packets, tso_packets),
@@ -1426,7 +1425,7 @@ sfxge_tx_stat_handler(SYSCTL_HANDLER_ARGS)
 		sum += *(unsigned long *)((caddr_t)sc->txq[index] +
 					  sfxge_tx_stats[id].offset);
 
-	return SYSCTL_OUT(req, &sum, sizeof(sum));
+	return (SYSCTL_OUT(req, &sum, sizeof(sum)));
 }
 
 static void
@@ -1460,7 +1459,7 @@ sfxge_tx_fini(struct sfxge_softc *sc)
 		sfxge_tx_qfini(sc, SFXGE_TXQ_IP_TCP_UDP_CKSUM + index);
 
 	sfxge_tx_qfini(sc, SFXGE_TXQ_IP_CKSUM);
-        sfxge_tx_qfini(sc, SFXGE_TXQ_NON_CKSUM);
+	sfxge_tx_qfini(sc, SFXGE_TXQ_NON_CKSUM);
 }
 
 

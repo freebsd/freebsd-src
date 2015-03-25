@@ -30,7 +30,7 @@
  */
 
 #ifndef _SFXGE_H
-#define _SFXGE_H
+#define	_SFXGE_H
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -52,43 +52,43 @@
 /* This should be right on most machines the driver will be used on, and
  * we needn't care too much about wasting a few KB per interface.
  */
-#define CACHE_LINE_SIZE 128
+#define	CACHE_LINE_SIZE 128
 #endif
 #ifndef IFCAP_LINKSTATE
-#define IFCAP_LINKSTATE 0
+#define	IFCAP_LINKSTATE 0
 #endif
 #ifndef IFCAP_VLAN_HWTSO
-#define IFCAP_VLAN_HWTSO 0
+#define	IFCAP_VLAN_HWTSO 0
 #endif
 #ifndef IFM_10G_T
-#define IFM_10G_T IFM_UNKNOWN
+#define	IFM_10G_T IFM_UNKNOWN
 #endif
 #ifndef IFM_10G_KX4
-#define IFM_10G_KX4 IFM_10G_CX4
+#define	IFM_10G_KX4 IFM_10G_CX4
 #endif
 #if __FreeBSD_version >= 800054
 /* Networking core is multiqueue aware. We can manage our own TX
  * queues and use m_pkthdr.flowid.
  */
-#define SFXGE_HAVE_MQ
+#define	SFXGE_HAVE_MQ
 #endif
 #if (__FreeBSD_version >= 800501 && __FreeBSD_version < 900000) || \
 	__FreeBSD_version >= 900003
-#define SFXGE_HAVE_DESCRIBE_INTR
+#define	SFXGE_HAVE_DESCRIBE_INTR
 #endif
 #ifdef IFM_ETH_RXPAUSE
-#define SFXGE_HAVE_PAUSE_MEDIAOPTS
+#define	SFXGE_HAVE_PAUSE_MEDIAOPTS
 #endif
 #ifndef CTLTYPE_U64
-#define CTLTYPE_U64 CTLTYPE_QUAD
+#define	CTLTYPE_U64 CTLTYPE_QUAD
 #endif
 
 #include "sfxge_rx.h"
 #include "sfxge_tx.h"
 
-#define SFXGE_IP_ALIGN 2
+#define	SFXGE_IP_ALIGN	2
 
-#define SFXGE_ETHERTYPE_LOOPBACK        0x9000  /* Xerox loopback */
+#define	SFXGE_ETHERTYPE_LOOPBACK	0x9000	/* Xerox loopback */
 
 enum sfxge_evq_state {
 	SFXGE_EVQ_UNINITIALIZED = 0,
@@ -132,9 +132,9 @@ enum sfxge_intr_state {
 };
 
 struct sfxge_intr_hdl {
-	int                eih_rid;
-	void               *eih_tag;
-	struct resource    *eih_res;
+	int			eih_rid;
+	void			*eih_tag;
+	struct resource		*eih_res;
 };
 
 struct sfxge_intr {
@@ -196,7 +196,7 @@ struct sfxge_softc {
 	device_t			dev;
 	struct sx			softc_lock;
 	enum sfxge_softc_state		init_state;
-	struct ifnet                    *ifnet;
+	struct ifnet			*ifnet;
 	unsigned int			if_flags;
 	struct sysctl_oid		*stats_node;
 
@@ -208,7 +208,7 @@ struct sfxge_softc {
 	efx_nic_t			*enp;
 	struct mtx			enp_lock;
 
-	bus_dma_tag_t                   parent_dma_tag;
+	bus_dma_tag_t			parent_dma_tag;
 	efsys_bar_t			bar;
 
 	struct sfxge_intr		intr;
@@ -242,8 +242,8 @@ struct sfxge_softc {
 #endif
 };
 
-#define SFXGE_LINK_UP(sc) ((sc)->port.link_mode != EFX_LINK_DOWN)
-#define SFXGE_RUNNING(sc) ((sc)->ifnet->if_drv_flags & IFF_DRV_RUNNING)
+#define	SFXGE_LINK_UP(sc) ((sc)->port.link_mode != EFX_LINK_DOWN)
+#define	SFXGE_RUNNING(sc) ((sc)->ifnet->if_drv_flags & IFF_DRV_RUNNING)
 
 /*
  * From sfxge.c.
@@ -298,6 +298,6 @@ extern void sfxge_mac_link_update(struct sfxge_softc *sc,
 extern int sfxge_mac_filter_set(struct sfxge_softc *sc);
 extern int sfxge_port_ifmedia_init(struct sfxge_softc *sc);
 
-#define SFXGE_MAX_MTU (9 * 1024)
+#define	SFXGE_MAX_MTU (9 * 1024)
 
 #endif /* _SFXGE_H */
