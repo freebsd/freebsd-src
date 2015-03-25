@@ -782,7 +782,6 @@ struct sfxge_tso_state {
 	unsigned packet_space;	/* Remaining space in current packet */
 
 	/* Input position */
-	unsigned dma_seg_i;	/* Current DMA segment number */
 	uint64_t dma_addr;	/* DMA address of current position */
 	unsigned in_len;	/* Remaining length in current mbuf */
 
