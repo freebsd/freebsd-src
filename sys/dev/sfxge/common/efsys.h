@@ -941,7 +941,11 @@ typedef	clock_t	efsys_timestamp_t;
 #define	EFSYS_KMEM_ALLOC(_esip, _size, _p)				\
 	do {								\
 		(_esip) = (_esip);					\
-		(_p) = malloc((_size), M_SFXGE, M_WAITOK|M_ZERO);	\
+		/*							\
+		 * The macro is used in non-sleepable contexts, for	\
+		 * example, holding a mutex.				\
+		 */							\
+		(_p) = malloc((_size), M_SFXGE, M_NOWAIT|M_ZERO);	\
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
