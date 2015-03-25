@@ -38,6 +38,7 @@
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
+#include <sys/ucontext.h>
 
 #include <machine/cheri.h>
 #include <machine/cheric.h>
@@ -46,10 +47,14 @@
 
 #include <errno.h>
 #include <inttypes.h>
+#include <string.h>
+
+#include "cheri_stack.h"
 
 int
-cheri_stack_unwind(void)
+cheri_stack_unwind(ucontext_t *uap, int flags __unused)
 {
+	struct cheri_frame *cfp;
 	struct cheri_stack cs;
 	struct cheri_stack_frame *csfp;
 	u_int stack_depth, stack_frames;
@@ -64,27 +69,46 @@ cheri_stack_unwind(void)
 	if ((cs.cs_tsize % CHERI_FRAME_SIZE) != 0)
 		return (-1);
 	stack_depth = cs.cs_tsize / CHERI_FRAME_SIZE;
+	if (cs.cs_tsp > cs.cs_tsize)
+		return (-1);
 
 	if ((cs.cs_tsp % CHERI_FRAME_SIZE) != 0)
 		return (-1);
 
 	stack_frames = (cs.cs_tsize - cs.cs_tsp) / CHERI_FRAME_SIZE;
-	/* If there are zero or one frames we don't need to unwind. */
-	if (stack_frames < 2)
+	/* If there are no frames we don't need to unwind. */
+	if (stack_frames < 1)
 		return (0);
 
-	/* Validate that the first is a saved ambient context. */
+	/*
+	 * XXXBD: use flags to select different amounts of unwinding.
+	 * One frame, nearest ambient, first ambient after sandbox, all
+	 * frames.
+	 */
+	/* Unwind the whole way */
 	csfp = &cs.cs_frames[stack_depth - 1];
+	/* Make sure we will be returning to ambient authority. */
 	if (cheri_getbase(csfp->csf_pcc) != cheri_getbase(cheri_getpcc()) ||
 	    cheri_getlen(csfp->csf_pcc) != cheri_getlen(cheri_getpcc()))
 		return (-1);
 
-	cs.cs_tsp += (stack_frames - 1) * CHERI_FRAME_SIZE;
+	cs.cs_tsp += stack_frames * CHERI_FRAME_SIZE;
+	assert(cs.cs_tsp == cs.cs_tsize);
+
+	cfp = (struct cheri_frame *)uap->uc_mcontext.mc_cp2state;
+	if (cfp == NULL || uap->uc_mcontext.mc_cp2state_len != sizeof(*cfp))
+		return (-1);
+
+	memset(cfp, 0, sizeof(*cfp));
+	memset(uap->uc_mcontext.mc_regs, 0, sizeof(uap->uc_mcontext.mc_regs));
+	cfp->cf_idc =  csfp->csf_idc;
+	cfp->cf_pcc = csfp->csf_pcc;
+	uap->uc_mcontext.mc_pc = cheri_getoffset(cfp->cf_pcc);
 
 	/* Update kernel view of trusted stack. */
 	retval = sysarch(CHERI_SET_STACK, &cs);
 	if (retval != 0)
 		return (-1);
 
-	return (stack_frames - 1);
+	return (stack_frames);
 }

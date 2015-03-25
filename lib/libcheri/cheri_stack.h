@@ -32,6 +32,6 @@
 #ifndef _CHERI_STACK_H_
 #define	_CHERI_STACK_H_
 
-int	cheri_stack_unwind(void);
+int	cheri_stack_unwind(ucontext_t *uap, int flags);
 
 #endif /* !_CHERI_STACK_H_ */

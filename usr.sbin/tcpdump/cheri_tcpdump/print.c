@@ -35,6 +35,7 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/queue.h>
+#include <sys/ucontext.h>
 
 #include <machine/cheri.h>
 #include <machine/cheric.h>
@@ -158,13 +159,13 @@ static struct tcpdump_sandbox *default_sandbox;
 static struct sandbox_class	*tcpdump_classp;
 
 static void
-handle_alarm(int sig, siginfo_t *info __unused, void *vuap __unused)
+handle_alarm(int sig, siginfo_t *info __unused, void *vuap)
 {
 
 	assert(sig == SIGALRM);
 	g_timeout_occured = 1;
 
-	cheri_stack_unwind();
+	cheri_stack_unwind(vuap, 0);
 }
 
 static void
