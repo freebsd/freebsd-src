@@ -241,7 +241,7 @@ sfxge_port_wanted_fc_handler(SYSCTL_HANDLER_ARGS)
 		SFXGE_PORT_LOCK(port);
 
 		if (port->wanted_fc != fcntl) {
-		    if (__predict_false(port->init_state == SFXGE_PORT_STARTED))
+			if (port->init_state == SFXGE_PORT_STARTED)
 				error = efx_mac_fcntl_set(sc->enp,
 							  port->wanted_fc,
 							  B_TRUE);

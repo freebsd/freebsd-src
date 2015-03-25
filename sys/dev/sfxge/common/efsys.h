@@ -94,13 +94,20 @@ extern "C" {
 #define	ISP2(x)			(((x) & ((x) - 1)) == 0)
 #endif
 
-#if defined(__x86_64__)
+#if defined(__x86_64__) && __FreeBSD_version >= 1000000
+
+#define	SFXGE_USE_BUS_SPACE_8		1
+
 #if !defined(bus_space_read_stream_8)
+
 #define	bus_space_read_stream_8(t, h, o)				\
 	bus_space_read_8((t), (h), (o))
+
 #define	bus_space_write_stream_8(t, h, o, v)				\
 	bus_space_write_8((t), (h), (o), (v))
+
 #endif
+
 #endif
 
 #define	ENOTACTIVE EINVAL
@@ -663,7 +670,7 @@ typedef struct efsys_bar_s {
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
-#if defined(__x86_64__)
+#if defined(SFXGE_USE_BUS_SPACE_8)
 #define	EFSYS_BAR_READQ(_esbp, _offset, _eqp)				\
 	do {								\
 		_NOTE(CONSTANTCONDITION)				\
@@ -786,6 +793,14 @@ typedef struct efsys_bar_s {
 		EFSYS_PROBE2(bar_writed, unsigned int, (_offset),	\
 		    uint32_t, (_edp)->ed_u32[0]);			\
 									\
+		/*							\
+		 * Make sure that previous writes to the dword have	\
+		 * been done. It should be cheaper than barrier just	\
+		 * after the write below.				\
+		 */							\
+		bus_space_barrier((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		    (_offset), sizeof (efx_dword_t),			\
+		    BUS_SPACE_BARRIER_WRITE);				\
 		bus_space_write_stream_4((_esbp)->esb_tag,		\
 		    (_esbp)->esb_handle,				\
 		    (_offset), (_edp)->ed_u32[0]);			\
@@ -796,7 +811,7 @@ typedef struct efsys_bar_s {
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
-#if defined(__x86_64__)
+#if defined(SFXGE_USE_BUS_SPACE_8)
 #define	EFSYS_BAR_WRITEQ(_esbp, _offset, _eqp)				\
 	do {								\
 		_NOTE(CONSTANTCONDITION)				\
@@ -809,6 +824,14 @@ typedef struct efsys_bar_s {
 		    uint32_t, (_eqp)->eq_u32[1],			\
 		    uint32_t, (_eqp)->eq_u32[0]);			\
 									\
+		/*							\
+		 * Make sure that previous writes to the qword have	\
+		 * been done. It should be cheaper than barrier just	\
+		 * after the write below.				\
+		 */							\
+		bus_space_barrier((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		    (_offset), sizeof (efx_qword_t),			\
+		    BUS_SPACE_BARRIER_WRITE);				\
 		bus_space_write_stream_8((_esbp)->esb_tag,		\
 		    (_esbp)->esb_handle,				\
 		    (_offset), (_eqp)->eq_u64[0]);			\
@@ -829,9 +852,25 @@ typedef struct efsys_bar_s {
 		    uint32_t, (_eqp)->eq_u32[1],			\
 		    uint32_t, (_eqp)->eq_u32[0]);			\
 									\
+		/*							\
+		 * Make sure that previous writes to the qword have	\
+		 * been done. It should be cheaper than barrier just	\
+		 * after the last write below.				\
+		 */							\
+		bus_space_barrier((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		    (_offset), sizeof (efx_qword_t),			\
+		    BUS_SPACE_BARRIER_WRITE);				\
 		bus_space_write_stream_4((_esbp)->esb_tag,		\
 		    (_esbp)->esb_handle,				\
 		    (_offset), (_eqp)->eq_u32[0]);			\
+		/*							\
+		 * It should be guaranteed that the last dword comes	\
+		 * the last, so barrier entire qword to be sure that	\
+		 * neither above nor below writes are reordered.	\
+		 */							\
+		bus_space_barrier((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		    (_offset), sizeof (efx_qword_t),			\
+		    BUS_SPACE_BARRIER_WRITE);				\
 		bus_space_write_stream_4((_esbp)->esb_tag,		\
 		    (_esbp)->esb_handle,				\
 		    (_offset) + 4, (_eqp)->eq_u32[1]);			\
@@ -841,7 +880,7 @@ typedef struct efsys_bar_s {
 	} while (B_FALSE)
 #endif
 
-#if defined(__x86_64__)
+#if defined(SFXGE_USE_BUS_SPACE_8)
 #define	EFSYS_BAR_WRITEO(_esbp, _offset, _eop, _lock)			\
 	do {								\
 		_NOTE(CONSTANTCONDITION)				\
@@ -858,9 +897,25 @@ typedef struct efsys_bar_s {
 		    uint32_t, (_eop)->eo_u32[1],			\
 		    uint32_t, (_eop)->eo_u32[0]);			\
 									\
+		/*							\
+		 * Make sure that previous writes to the oword have	\
+		 * been done. It should be cheaper than barrier just	\
+		 * after the last write below.				\
+		 */							\
+		bus_space_barrier((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		    (_offset), sizeof (efx_oword_t),			\
+		    BUS_SPACE_BARRIER_WRITE);				\
 		bus_space_write_stream_8((_esbp)->esb_tag,		\
 		    (_esbp)->esb_handle,				\
 		    (_offset), (_eop)->eo_u64[0]);			\
+		/*							\
+		 * It should be guaranteed that the last qword comes	\
+		 * the last, so barrier entire oword to be sure that	\
+		 * neither above nor below writes are reordered.	\
+		 */							\
+		bus_space_barrier((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		    (_offset), sizeof (efx_oword_t),			\
+		    BUS_SPACE_BARRIER_WRITE);				\
 		bus_space_write_stream_8((_esbp)->esb_tag,		\
 		    (_esbp)->esb_handle,				\
 		    (_offset) + 8, (_eop)->eo_u64[1]);			\
@@ -888,6 +943,14 @@ typedef struct efsys_bar_s {
 		    uint32_t, (_eop)->eo_u32[1],			\
 		    uint32_t, (_eop)->eo_u32[0]);			\
 									\
+		/*							\
+		 * Make sure that previous writes to the oword have	\
+		 * been done. It should be cheaper than barrier just	\
+		 * after the last write below.				\
+		 */							\
+		bus_space_barrier((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		    (_offset), sizeof (efx_oword_t),			\
+		    BUS_SPACE_BARRIER_WRITE);				\
 		bus_space_write_stream_4((_esbp)->esb_tag,		\
 		    (_esbp)->esb_handle,				\
 		    (_offset), (_eop)->eo_u32[0]);			\
@@ -897,6 +960,14 @@ typedef struct efsys_bar_s {
 		bus_space_write_stream_4((_esbp)->esb_tag,		\
 		    (_esbp)->esb_handle,				\
 		    (_offset) + 8, (_eop)->eo_u32[2]);			\
+		/*							\
+		 * It should be guaranteed that the last dword comes	\
+		 * the last, so barrier entire oword to be sure that	\
+		 * neither above nor below writes are reordered.	\
+		 */							\
+		bus_space_barrier((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		    (_offset), sizeof (efx_oword_t),			\
+		    BUS_SPACE_BARRIER_WRITE);				\
 		bus_space_write_stream_4((_esbp)->esb_tag,		\
 		    (_esbp)->esb_handle,				\
 		    (_offset) + 12, (_eop)->eo_u32[3]);			\

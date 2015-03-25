@@ -1,4 +1,4 @@
-/* $NetBSD: read.c,v 1.12 2002/01/21 19:49:52 tv Exp $ */
+/* $NetBSD: read.c,v 1.19 2007/09/28 21:53:50 uwe Exp $ */
 
 /*
  * Copyright (c) 1996 Christopher G. Demetriou.  All Rights Reserved.
@@ -34,7 +34,7 @@
 
 #include <sys/cdefs.h>
 #if defined(__RCSID) && !defined(lint)
-__RCSID("$NetBSD: read.c,v 1.12 2002/01/21 19:49:52 tv Exp $");
+__RCSID("$NetBSD: read.c,v 1.19 2007/09/28 21:53:50 uwe Exp $");
 #endif
 __FBSDID("$FreeBSD$");
 
@@ -87,7 +87,8 @@ static	hte_t **renametab;
 static	int	csrcfile;
 
 
-static	void	inperr(void);
+#define 	inperr()	inperror(__FILE__, __LINE__)
+static	void	inperror(const char *, size_t);
 static	void	setsrc(const char *);
 static	void	setfnid(int, const char *);
 static	void	funccall(pos_t *, const char *);
@@ -213,10 +214,10 @@ readfile(const char *name)
 
 
 static void
-inperr(void)
+inperror(const char *file, size_t line)
 {
 
-	errx(1, "input file error: %s", fnames[srcfile]);
+	errx(1, "%s,%zd: input file error: %s", file, line, fnames[srcfile]);
 }
 
 /*
@@ -361,9 +362,7 @@ decldef(pos_t *posp, const char *cp)
 
 	used = 0;
 
-	while ((c = *cp) == 't' || c == 'd' || c == 'e' || c == 'u' ||
-	       c == 'r' || c == 'o' || c == 's' || c == 'v' ||
-	       c == 'P' || c == 'S') {
+	while (strchr("tdeurosvPS", (c = *cp)) != NULL) {
 		cp++;
 		switch (c) {
 		case 't':
@@ -545,7 +544,7 @@ inptype(const char *cp, const char **epp)
 	type_t	*tp;
 	int	narg, i, osdef = 0;
 	size_t	tlen;
-	u_short	tidx;
+	u_short	tidx, sidx;
 	int	h;
 
 	/* If we have this type already, return it's index. */
@@ -621,10 +620,12 @@ inptype(const char *cp, const char **epp)
 	case ARRAY:
 		tp->t_dim = (int)strtol(cp, &eptr, 10);
 		cp = eptr;
-		tp->t_subt = TP(inptype(cp, &cp));
+		sidx = inptype(cp, &cp); /* force seq. point! (ditto below) */
+		tp->t_subt = TP(sidx);
 		break;
 	case PTR:
-		tp->t_subt = TP(inptype(cp, &cp));
+		sidx = inptype(cp, &cp);
+		tp->t_subt = TP(sidx);
 		break;
 	case FUNC:
 		c = *cp;
@@ -641,11 +642,13 @@ inptype(const char *cp, const char **epp)
 					tp->t_vararg = 1;
 					cp++;
 				} else {
-					tp->t_args[i] = TP(inptype(cp, &cp));
+					sidx = inptype(cp, &cp);
+					tp->t_args[i] = TP(sidx);
 				}
 			}
 		}
-		tp->t_subt = TP(inptype(cp, &cp));
+		sidx = inptype(cp, &cp);
+		tp->t_subt = TP(sidx);
 		break;
 	case ENUM:
 		tp->t_tspec = INT;
