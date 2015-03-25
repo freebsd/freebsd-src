@@ -159,7 +159,8 @@ unsigned int kernel_ptbls;	/* Number of KVA ptbls. */
 #define PMAP_REMOVE_DONE(pmap) \
 	((pmap) != kernel_pmap && (pmap)->pm_stats.resident_count == 0)
 
-extern void tid_flush(tlbtid_t);
+extern void tid_flush(tlbtid_t tid, int tlb0_ways, int tlb0_entries_per_way);
+extern int elf32_nxstack;
 
 /**************************************************************************/
 /* TLB and TID handling */
@@ -1014,6 +1015,10 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 
 	debugf("mmu_booke_bootstrap: entered\n");
 
+	/* Set interesting system properties */
+	hw_direct_map = 0;
+	elf32_nxstack = 1;
+
 	/* Initialize invalidation mutex */
 	mtx_init(&tlbivax_mutex, "tlbivax", NULL, MTX_SPIN);
 
@@ -1315,6 +1320,8 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 		kstack0 += PAGE_SIZE;
 		kstack0_phys += PAGE_SIZE;
 	}
+
+	pmap_bootstrapped = 1;
 	
 	debugf("virtual_avail = %08x\n", virtual_avail);
 	debugf("virtual_end   = %08x\n", virtual_end);
@@ -1939,6 +1946,8 @@ mmu_booke_activate(mmu_t mmu, struct thread *td)
 	mtspr(SPR_PID0, pmap->pm_tid[cpuid]);
 	__asm __volatile("isync");
 
+	mtspr(SPR_DBCR0, td->td_pcb->pcb_cpu.booke.dbcr0);
+
 	sched_unpin();
 
 	CTR3(KTR_PMAP, "%s: e (tid = %d for '%s')", __func__,
@@ -1957,6 +1966,8 @@ mmu_booke_deactivate(mmu_t mmu, struct thread *td)
 	
 	CTR5(KTR_PMAP, "%s: td=%p, proc = '%s', id = %d, pmap = 0x%08x",
 	    __func__, td, td->td_proc->p_comm, td->td_proc->p_pid, pmap);
+
+	td->td_pcb->pcb_cpu.booke.dbcr0 = mfspr(SPR_DBCR0);
 
 	CPU_CLR_ATOMIC(PCPU_GET(cpuid), &pmap->pm_active);
 	PCPU_SET(curpmap, NULL);
@@ -2807,7 +2818,7 @@ tid_alloc(pmap_t pmap)
 		tidbusy[thiscpu][tid]->pm_tid[thiscpu] = TID_NONE;
 
 		/* Flush all entries from TLB0 matching this TID. */
-		tid_flush(tid);
+		tid_flush(tid, tlb0_ways, tlb0_entries_per_way);
 	}
 
 	tidbusy[thiscpu][tid] = pmap;

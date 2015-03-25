@@ -158,6 +158,8 @@ madt_setup_local(void)
 					printf(
        "x2APIC available but disabled inside VMWare without intr redirection\n");
 			}
+		} else if (vm_guest == VM_GUEST_XEN) {
+			x2apic_mode = 0;
 		}
 		TUNABLE_INT_FETCH("hw.x2apic_enable", &x2apic_mode);
 	}

@@ -29,9 +29,6 @@ hints		"PANDABOARD.hints"
 
 include 	"../ti/omap4/pandaboard/std.pandaboard"
 
-makeoptions	MODULES_OVERRIDE=""
-makeoptions	WITHOUT_MODULES="ahc"
-
 options 	HZ=100
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption

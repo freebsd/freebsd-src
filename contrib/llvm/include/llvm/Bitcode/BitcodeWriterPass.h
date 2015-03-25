@@ -12,8 +12,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_BITCODE_BITCODE_WRITER_PASS_H
-#define LLVM_BITCODE_BITCODE_WRITER_PASS_H
+#ifndef LLVM_BITCODE_BITCODEWRITERPASS_H
+#define LLVM_BITCODE_BITCODEWRITERPASS_H
 
 #include "llvm/ADT/StringRef.h"
 
@@ -41,7 +41,7 @@ public:
 
   /// \brief Run the bitcode writer pass, and output the module to the selected
   /// output stream.
-  PreservedAnalyses run(Module *M);
+  PreservedAnalyses run(Module &M);
 
   static StringRef name() { return "BitcodeWriterPass"; }
 };

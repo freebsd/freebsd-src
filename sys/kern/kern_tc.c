@@ -23,10 +23,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
-#ifdef FFCLOCK
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#endif
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
@@ -1447,18 +1446,18 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, hardware, CTLTYPE_STRING | CTLFLAG_RW,
 static int
 sysctl_kern_timecounter_choice(SYSCTL_HANDLER_ARGS)
 {
-	char buf[32], *spc;
+	struct sbuf sb;
 	struct timecounter *tc;
 	int error;
 
-	spc = "";
-	error = 0;
-	for (tc = timecounters; error == 0 && tc != NULL; tc = tc->tc_next) {
-		sprintf(buf, "%s%s(%d)",
-		    spc, tc->tc_name, tc->tc_quality);
-		error = SYSCTL_OUT(req, buf, strlen(buf));
-		spc = " ";
+	sbuf_new_for_sysctl(&sb, NULL, 0, req);
+	for (tc = timecounters; tc != NULL; tc = tc->tc_next) {
+		if (tc != timecounters)
+			sbuf_putc(&sb, ' ');
+		sbuf_printf(&sb, "%s(%d)", tc->tc_name, tc->tc_quality);
 	}
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
 	return (error);
 }
 
@@ -1498,7 +1497,10 @@ pps_fetch(struct pps_fetch_args *fapi, struct pps_state *pps)
 		cseq = pps->ppsinfo.clear_sequence;
 		while (aseq == pps->ppsinfo.assert_sequence &&
 		    cseq == pps->ppsinfo.clear_sequence) {
-			err = tsleep(pps, PCATCH, "ppsfch", timo);
+			if (pps->mtx != NULL)
+				err = msleep(pps, pps->mtx, PCATCH, "ppsfch", timo);
+			else
+				err = tsleep(pps, PCATCH, "ppsfch", timo);
 			if (err == EWOULDBLOCK && fapi->timeout.tv_sec == -1) {
 				continue;
 			} else if (err != 0) {

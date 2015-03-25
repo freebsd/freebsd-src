@@ -14,6 +14,7 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
@@ -206,6 +207,7 @@ namespace {
 
     virtual bool isEnumArg() const { return false; }
     virtual bool isVariadicEnumArg() const { return false; }
+    virtual bool isVariadic() const { return false; }
 
     virtual void writeImplicitCtorArgs(raw_ostream &OS) const {
       OS << getUpperName();
@@ -485,18 +487,18 @@ namespace {
     }
     void writeValue(raw_ostream &OS) const override {
       OS << "\";\n";
-      OS << "    assert(is" << getLowerName() << "Expr && " << getLowerName()
-         << "Expr != nullptr);\n";
-      OS << "    " << getLowerName() << "Expr->printPretty(OS, 0, Policy);\n";
+      // The aligned attribute argument expression is optional.
+      OS << "    if (is" << getLowerName() << "Expr && "
+         << getLowerName() << "Expr)\n";
+      OS << "      " << getLowerName() << "Expr->printPretty(OS, 0, Policy);\n";
       OS << "    OS << \"";
     }
     void writeDump(raw_ostream &OS) const override {
     }
     void writeDumpChildren(raw_ostream &OS) const override {
-      OS << "    if (SA->is" << getUpperName() << "Expr()) {\n";
-      OS << "      lastChild();\n";
+      OS << "    if (SA->is" << getUpperName() << "Expr())\n";
       OS << "      dumpStmt(SA->get" << getUpperName() << "Expr());\n";
-      OS << "    } else\n";
+      OS << "    else\n";
       OS << "      dumpType(SA->get" << getUpperName()
          << "Type()->getType());\n";
     }
@@ -508,12 +510,19 @@ namespace {
   class VariadicArgument : public Argument {
     std::string Type, ArgName, ArgSizeName, RangeName;
 
+  protected:
+    // Assumed to receive a parameter: raw_ostream OS.
+    virtual void writeValueImpl(raw_ostream &OS) const {
+      OS << "    OS << Val;\n";
+    }
+
   public:
     VariadicArgument(const Record &Arg, StringRef Attr, std::string T)
         : Argument(Arg, Attr), Type(T), ArgName(getLowerName().str() + "_"),
           ArgSizeName(ArgName + "Size"), RangeName(getLowerName()) {}
 
     std::string getType() const { return Type; }
+    bool isVariadic() const override { return true; }
 
     void writeAccessors(raw_ostream &OS) const override {
       std::string IteratorType = getLowerName().str() + "_iterator";
@@ -586,9 +595,9 @@ namespace {
       OS << "  bool isFirst = true;\n"
          << "  for (const auto &Val : " << RangeName << "()) {\n"
          << "    if (isFirst) isFirst = false;\n"
-         << "    else OS << \", \";\n"
-         << "    OS << Val;\n"
-         << "  }\n";
+         << "    else OS << \", \";\n";
+      writeValueImpl(OS);
+      OS << "  }\n";
       OS << "  OS << \"";
     }
     void writeDump(raw_ostream &OS) const override {
@@ -675,7 +684,11 @@ namespace {
       OS << "Record.push_back(SA->get" << getUpperName() << "());\n";
     }
     void writeValue(raw_ostream &OS) const override {
-      OS << "\" << get" << getUpperName() << "() << \"";
+      // FIXME: this isn't 100% correct -- some enum arguments require printing
+      // as a string literal, while others require printing as an identifier.
+      // Tablegen currently does not distinguish between the two forms.
+      OS << "\\\"\" << " << getAttrName() << "Attr::Convert" << type << "ToStr(get"
+         << getUpperName() << "()) << \"\\\"";
     }
     void writeDump(raw_ostream &OS) const override {
       OS << "    switch(SA->get" << getUpperName() << "()) {\n";
@@ -700,13 +713,40 @@ namespace {
       OS << "    if (R) {\n";
       OS << "      Out = *R;\n      return true;\n    }\n";
       OS << "    return false;\n";
-      OS << "  }\n";
+      OS << "  }\n\n";
+
+      // Mapping from enumeration values back to enumeration strings isn't
+      // trivial because some enumeration values have multiple named
+      // enumerators, such as type_visibility(internal) and
+      // type_visibility(hidden) both mapping to TypeVisibilityAttr::Hidden.
+      OS << "  static const char *Convert" << type << "ToStr("
+         << type << " Val) {\n"
+         << "    switch(Val) {\n";
+      std::set<std::string> Uniques;
+      for (size_t I = 0; I < enums.size(); ++I) {
+        if (Uniques.insert(enums[I]).second)
+          OS << "    case " << getAttrName() << "Attr::" << enums[I]
+             << ": return \"" << values[I] << "\";\n";       
+      }
+      OS << "    }\n"
+         << "    llvm_unreachable(\"No enumerator with that value\");\n"
+         << "  }\n";
     }
   };
   
   class VariadicEnumArgument: public VariadicArgument {
     std::string type, QualifiedTypeName;
     std::vector<std::string> values, enums, uniques;
+
+  protected:
+    void writeValueImpl(raw_ostream &OS) const override {
+      // FIXME: this isn't 100% correct -- some enum arguments require printing
+      // as a string literal, while others require printing as an identifier.
+      // Tablegen currently does not distinguish between the two forms.
+      OS << "    OS << \"\\\"\" << " << getAttrName() << "Attr::Convert" << type
+         << "ToStr(Val)" << "<< \"\\\"\";\n";
+    }
+
   public:
     VariadicEnumArgument(const Record &Arg, StringRef Attr)
       : VariadicArgument(Arg, Attr, Arg.getValueAsString("Type")),
@@ -782,7 +822,20 @@ namespace {
       OS << "    if (R) {\n";
       OS << "      Out = *R;\n      return true;\n    }\n";
       OS << "    return false;\n";
-      OS << "  }\n";
+      OS << "  }\n\n";
+
+      OS << "  static const char *Convert" << type << "ToStr("
+        << type << " Val) {\n"
+        << "    switch(Val) {\n";
+      std::set<std::string> Uniques;
+      for (size_t I = 0; I < enums.size(); ++I) {
+        if (Uniques.insert(enums[I]).second)
+          OS << "    case " << getAttrName() << "Attr::" << enums[I]
+          << ": return \"" << values[I] << "\";\n";
+      }
+      OS << "    }\n"
+        << "    llvm_unreachable(\"No enumerator with that value\");\n"
+        << "  }\n";
     }
   };
 
@@ -868,7 +921,6 @@ namespace {
     void writeDump(raw_ostream &OS) const override {}
 
     void writeDumpChildren(raw_ostream &OS) const override {
-      OS << "    lastChild();\n";
       OS << "    dumpStmt(SA->get" << getUpperName() << "());\n";
     }
     void writeHasChildren(raw_ostream &OS) const override { OS << "true"; }
@@ -923,11 +975,8 @@ namespace {
     void writeDumpChildren(raw_ostream &OS) const override {
       OS << "    for (" << getAttrName() << "Attr::" << getLowerName()
          << "_iterator I = SA->" << getLowerName() << "_begin(), E = SA->"
-         << getLowerName() << "_end(); I != E; ++I) {\n";
-      OS << "      if (I + 1 == E)\n";
-      OS << "        lastChild();\n";
+         << getLowerName() << "_end(); I != E; ++I)\n";
       OS << "      dumpStmt(*I);\n";
-      OS << "    }\n";
     }
 
     void writeHasChildren(raw_ostream &OS) const override {
@@ -966,44 +1015,49 @@ createArgument(const Record &Arg, StringRef Attr,
   if (!Search)
     Search = &Arg;
 
-  Argument *Ptr = nullptr;
+  std::unique_ptr<Argument> Ptr;
   llvm::StringRef ArgName = Search->getName();
 
-  if (ArgName == "AlignedArgument") Ptr = new AlignedArgument(Arg, Attr);
-  else if (ArgName == "EnumArgument") Ptr = new EnumArgument(Arg, Attr);
-  else if (ArgName == "ExprArgument") Ptr = new ExprArgument(Arg, Attr);
+  if (ArgName == "AlignedArgument")
+    Ptr = llvm::make_unique<AlignedArgument>(Arg, Attr);
+  else if (ArgName == "EnumArgument")
+    Ptr = llvm::make_unique<EnumArgument>(Arg, Attr);
+  else if (ArgName == "ExprArgument")
+    Ptr = llvm::make_unique<ExprArgument>(Arg, Attr);
   else if (ArgName == "FunctionArgument")
-    Ptr = new SimpleArgument(Arg, Attr, "FunctionDecl *");
+    Ptr = llvm::make_unique<SimpleArgument>(Arg, Attr, "FunctionDecl *");
   else if (ArgName == "IdentifierArgument")
-    Ptr = new SimpleArgument(Arg, Attr, "IdentifierInfo *");
+    Ptr = llvm::make_unique<SimpleArgument>(Arg, Attr, "IdentifierInfo *");
   else if (ArgName == "DefaultBoolArgument")
-    Ptr = new DefaultSimpleArgument(Arg, Attr, "bool",
-                                    Arg.getValueAsBit("Default"));
-  else if (ArgName == "BoolArgument") Ptr = new SimpleArgument(Arg, Attr, 
-                                                               "bool");
+    Ptr = llvm::make_unique<DefaultSimpleArgument>(
+        Arg, Attr, "bool", Arg.getValueAsBit("Default"));
+  else if (ArgName == "BoolArgument")
+    Ptr = llvm::make_unique<SimpleArgument>(Arg, Attr, "bool");
   else if (ArgName == "DefaultIntArgument")
-    Ptr = new DefaultSimpleArgument(Arg, Attr, "int",
-                                    Arg.getValueAsInt("Default"));
-  else if (ArgName == "IntArgument") Ptr = new SimpleArgument(Arg, Attr, "int");
-  else if (ArgName == "StringArgument") Ptr = new StringArgument(Arg, Attr);
-  else if (ArgName == "TypeArgument") Ptr = new TypeArgument(Arg, Attr);
+    Ptr = llvm::make_unique<DefaultSimpleArgument>(
+        Arg, Attr, "int", Arg.getValueAsInt("Default"));
+  else if (ArgName == "IntArgument")
+    Ptr = llvm::make_unique<SimpleArgument>(Arg, Attr, "int");
+  else if (ArgName == "StringArgument")
+    Ptr = llvm::make_unique<StringArgument>(Arg, Attr);
+  else if (ArgName == "TypeArgument")
+    Ptr = llvm::make_unique<TypeArgument>(Arg, Attr);
   else if (ArgName == "UnsignedArgument")
-    Ptr = new SimpleArgument(Arg, Attr, "unsigned");
+    Ptr = llvm::make_unique<SimpleArgument>(Arg, Attr, "unsigned");
   else if (ArgName == "VariadicUnsignedArgument")
-    Ptr = new VariadicArgument(Arg, Attr, "unsigned");
+    Ptr = llvm::make_unique<VariadicArgument>(Arg, Attr, "unsigned");
   else if (ArgName == "VariadicEnumArgument")
-    Ptr = new VariadicEnumArgument(Arg, Attr);
+    Ptr = llvm::make_unique<VariadicEnumArgument>(Arg, Attr);
   else if (ArgName == "VariadicExprArgument")
-    Ptr = new VariadicExprArgument(Arg, Attr);
+    Ptr = llvm::make_unique<VariadicExprArgument>(Arg, Attr);
   else if (ArgName == "VersionArgument")
-    Ptr = new VersionArgument(Arg, Attr);
+    Ptr = llvm::make_unique<VersionArgument>(Arg, Attr);
 
   if (!Ptr) {
     // Search in reverse order so that the most-derived type is handled first.
     std::vector<Record*> Bases = Search->getSuperClasses();
     for (const auto *Base : llvm::make_range(Bases.rbegin(), Bases.rend())) {
-      Ptr = createArgument(Arg, Attr, Base).release();
-      if (Ptr)
+      if ((Ptr = createArgument(Arg, Attr, Base)))
         break;
     }
   }
@@ -1011,7 +1065,7 @@ createArgument(const Record &Arg, StringRef Attr,
   if (Ptr && Arg.getValueAsBit("Optional"))
     Ptr->setOptional(true);
 
-  return std::unique_ptr<Argument>(Ptr);
+  return Ptr;
 }
 
 static void writeAvailabilityValue(raw_ostream &OS) {
@@ -1118,6 +1172,11 @@ writePrettyPrintFunction(Record &R,
       continue;
     }
 
+    // FIXME: always printing the parenthesis isn't the correct behavior for
+    // attributes which have optional arguments that were not provided. For
+    // instance: __attribute__((aligned)) will be pretty printed as
+    // __attribute__((aligned())). The logic should check whether there is only
+    // a single argument, and if it is optional, whether it has been provided.
     if (!Args.empty())
       OS << "(";
     if (Spelling == "availability") {
@@ -1328,6 +1387,7 @@ static bool isIdentifierArgument(Record *Arg) {
     llvm::StringSwitch<bool>(Arg->getSuperClasses().back()->getName())
     .Case("IdentifierArgument", true)
     .Case("EnumArgument", true)
+    .Case("VariadicEnumArgument", true)
     .Default(false);
 }
 
@@ -1606,8 +1666,16 @@ static void EmitAttrList(raw_ostream &OS, StringRef Class,
   }
 }
 
-namespace clang {
+// Determines if an attribute has a Pragma spelling.
+static bool AttrHasPragmaSpelling(const Record *R) {
+  std::vector<FlattenedSpelling> Spellings = GetFlattenedSpellings(*R);
+  return std::find_if(Spellings.begin(), Spellings.end(),
+                      [](const FlattenedSpelling &S) {
+           return S.variety() == "Pragma";
+         }) != Spellings.end();
+}
 
+namespace clang {
 // Emits the enumeration list for attributes.
 void EmitClangAttrList(RecordKeeper &Records, raw_ostream &OS) {
   emitSourceFileHeader("List of all attributes that Clang recognizes", OS);
@@ -1633,14 +1701,25 @@ void EmitClangAttrList(RecordKeeper &Records, raw_ostream &OS) {
         " INHERITABLE_PARAM_ATTR(NAME)\n";
   OS << "#endif\n\n";
 
+  OS << "#ifndef PRAGMA_SPELLING_ATTR\n";
+  OS << "#define PRAGMA_SPELLING_ATTR(NAME)\n";
+  OS << "#endif\n\n";
+
+  OS << "#ifndef LAST_PRAGMA_SPELLING_ATTR\n";
+  OS << "#define LAST_PRAGMA_SPELLING_ATTR(NAME) PRAGMA_SPELLING_ATTR(NAME)\n";
+  OS << "#endif\n\n";
+
   Record *InhClass = Records.getClass("InheritableAttr");
   Record *InhParamClass = Records.getClass("InheritableParamAttr");
-  std::vector<Record*> Attrs = Records.getAllDerivedDefinitions("Attr"),
-                       NonInhAttrs, InhAttrs, InhParamAttrs;
+  std::vector<Record *> Attrs = Records.getAllDerivedDefinitions("Attr"),
+                        NonInhAttrs, InhAttrs, InhParamAttrs, PragmaAttrs;
   for (auto *Attr : Attrs) {
     if (!Attr->getValueAsBit("ASTNode"))
       continue;
-    
+
+    if (AttrHasPragmaSpelling(Attr))
+      PragmaAttrs.push_back(Attr);
+
     if (Attr->isSubClassOf(InhParamClass))
       InhParamAttrs.push_back(Attr);
     else if (Attr->isSubClassOf(InhClass))
@@ -1649,6 +1728,7 @@ void EmitClangAttrList(RecordKeeper &Records, raw_ostream &OS) {
       NonInhAttrs.push_back(Attr);
   }
 
+  EmitAttrList(OS, "PRAGMA_SPELLING_ATTR", PragmaAttrs);
   EmitAttrList(OS, "INHERITABLE_PARAM_ATTR", InhParamAttrs);
   EmitAttrList(OS, "INHERITABLE_ATTR", InhAttrs);
   EmitAttrList(OS, "ATTR", NonInhAttrs);
@@ -1657,6 +1737,8 @@ void EmitClangAttrList(RecordKeeper &Records, raw_ostream &OS) {
   OS << "#undef INHERITABLE_ATTR\n";
   OS << "#undef LAST_INHERITABLE_ATTR\n";
   OS << "#undef LAST_INHERITABLE_PARAM_ATTR\n";
+  OS << "#undef LAST_PRAGMA_ATTR\n";
+  OS << "#undef PRAGMA_SPELLING_ATTR\n";
   OS << "#undef ATTR\n";
 }
 
@@ -1740,6 +1822,27 @@ static void GenerateHasAttrSpellingStringSwitch(
     const std::vector<Record *> &Attrs, raw_ostream &OS,
     const std::string &Variety = "", const std::string &Scope = "") {
   for (const auto *Attr : Attrs) {
+    // C++11-style attributes have specific version information associated with
+    // them. If the attribute has no scope, the version information must not
+    // have the default value (1), as that's incorrect. Instead, the unscoped
+    // attribute version information should be taken from the SD-6 standing
+    // document, which can be found at: 
+    // https://isocpp.org/std/standing-documents/sd-6-sg10-feature-test-recommendations
+    int Version = 1;
+
+    if (Variety == "CXX11") {
+        std::vector<Record *> Spellings = Attr->getValueAsListOfDefs("Spellings");
+        for (const auto &Spelling : Spellings) {
+          if (Spelling->getValueAsString("Variety") == "CXX11") {
+            Version = static_cast<int>(Spelling->getValueAsInt("Version"));
+            if (Scope.empty() && Version == 1)
+              PrintError(Spelling->getLoc(), "C++ standard attributes must "
+              "have valid version information.");
+            break;
+          }
+      }
+    }
+
     // It is assumed that there will be an llvm::Triple object named T within
     // scope that can be used to determine whether the attribute exists in
     // a given target.
@@ -1778,16 +1881,16 @@ static void GenerateHasAttrSpellingStringSwitch(
       // C++11 mode should be checked against LangOpts, which is presumed to be
       // present in the caller.
       Test = "LangOpts.CPlusPlus11";
-    else
-      Test = "true";
 
+    std::string TestStr =
+        !Test.empty() ? Test + " ? " + llvm::itostr(Version) + " : 0" : "1";
     std::vector<FlattenedSpelling> Spellings = GetFlattenedSpellings(*Attr);
     for (const auto &S : Spellings)
       if (Variety.empty() || (Variety == S.variety() &&
                               (Scope.empty() || Scope == S.nameSpace())))
-        OS << "    .Case(\"" << S.name() << "\", " << Test << ")\n";
+        OS << "    .Case(\"" << S.name() << "\", " << TestStr << ")\n";
   }
-  OS << "    .Default(false);\n";
+  OS << "    .Default(0);\n";
 }
 
 // Emits the list of spellings for attributes.
@@ -1818,17 +1921,14 @@ void EmitClangAttrHasAttrImpl(RecordKeeper &Records, raw_ostream &OS) {
   }
 
   OS << "switch (Syntax) {\n";
-  OS << "case AttrSyntax::Generic:\n";
-  OS << "  return llvm::StringSwitch<bool>(Name)\n";
-  GenerateHasAttrSpellingStringSwitch(Attrs, OS);
   OS << "case AttrSyntax::GNU:\n";
-  OS << "  return llvm::StringSwitch<bool>(Name)\n";
+  OS << "  return llvm::StringSwitch<int>(Name)\n";
   GenerateHasAttrSpellingStringSwitch(GNU, OS, "GNU");
   OS << "case AttrSyntax::Declspec:\n";
-  OS << "  return llvm::StringSwitch<bool>(Name)\n";
+  OS << "  return llvm::StringSwitch<int>(Name)\n";
   GenerateHasAttrSpellingStringSwitch(Declspec, OS, "Declspec");
   OS << "case AttrSyntax::Pragma:\n";
-  OS << "  return llvm::StringSwitch<bool>(Name)\n";
+  OS << "  return llvm::StringSwitch<int>(Name)\n";
   GenerateHasAttrSpellingStringSwitch(Pragma, OS, "Pragma");
   OS << "case AttrSyntax::CXX: {\n";
   // C++11-style attributes are further split out based on the Scope.
@@ -1841,7 +1941,7 @@ void EmitClangAttrHasAttrImpl(RecordKeeper &Records, raw_ostream &OS) {
       OS << "if (!Scope || Scope->getName() == \"\") {\n";
     else
       OS << "if (Scope->getName() == \"" << I->first << "\") {\n";
-    OS << "  return llvm::StringSwitch<bool>(Name)\n";
+    OS << "  return llvm::StringSwitch<int>(Name)\n";
     GenerateHasAttrSpellingStringSwitch(I->second, OS, "CXX11", I->first);
     OS << "}";
   }
@@ -2033,16 +2133,26 @@ void EmitClangAttrParsedAttrList(RecordKeeper &Records, raw_ostream &OS) {
   }
 }
 
+static bool isArgVariadic(const Record &R, StringRef AttrName) {
+  return createArgument(R, AttrName)->isVariadic();
+}
+
 static void emitArgInfo(const Record &R, std::stringstream &OS) {
   // This function will count the number of arguments specified for the
   // attribute and emit the number of required arguments followed by the
   // number of optional arguments.
   std::vector<Record *> Args = R.getValueAsListOfDefs("Args");
   unsigned ArgCount = 0, OptCount = 0;
+  bool HasVariadic = false;
   for (const auto *Arg : Args) {
     Arg->getValueAsBit("Optional") ? ++OptCount : ++ArgCount;
+    if (!HasVariadic && isArgVariadic(*Arg, R.getName()))
+      HasVariadic = true;
   }
-  OS << ArgCount << ", " << OptCount;
+
+  // If there is a variadic argument, we will set the optional argument count
+  // to its largest value. Since it's currently a 4-bit number, we set it to 15.
+  OS << ArgCount << ", " << (HasVariadic ? 15 : OptCount);
 }
 
 static void GenerateDefaultAppertainsTo(raw_ostream &OS) {
@@ -2603,25 +2713,8 @@ void EmitClangAttrDump(RecordKeeper &Records, raw_ostream &OS) {
       for (const auto *Arg : Args)
         createArgument(*Arg, R.getName())->writeDump(OS);
 
-      // Code for detecting the last child.
-      OS << "    bool OldMoreChildren = hasMoreChildren();\n";
-      OS << "    bool MoreChildren;\n";
-
-      for (auto AI = Args.begin(), AE = Args.end(); AI != AE; ++AI) {
-        // More code for detecting the last child.
-        OS << "    MoreChildren = OldMoreChildren";
-        for (auto Next = AI + 1; Next != AE; ++Next) {
-          OS << " || ";
-          createArgument(**Next, R.getName())->writeHasChildren(OS);
-        }
-        OS << ";\n";
-        OS << "    setMoreChildren(MoreChildren);\n";
-
+      for (auto AI = Args.begin(), AE = Args.end(); AI != AE; ++AI)
         createArgument(**AI, R.getName())->writeDumpChildren(OS);
-      }
-
-      // Reset the last child.
-      OS << "    setMoreChildren(OldMoreChildren);\n";
     }
     OS <<
       "    break;\n"

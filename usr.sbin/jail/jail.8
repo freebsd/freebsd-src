@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 6, 2015
+.Dd February 25, 2015
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -276,7 +276,7 @@ Then there are pseudo-parameters that are only used by
 .Nm
 itself.
 .Pp
-Jails have a set a core parameters, and kernel modules can add their own
+Jails have a set of core parameters, and kernel modules can add their own
 jail parameters.
 The current set of available parameters can be retrieved via
 .Dq Nm sysctl Fl d Va security.jail.param .
@@ -471,6 +471,14 @@ The
 .Va jid
 of the parent of this jail, or zero if this is a top-level jail
 (read-only).
+.It Va osrelease
+The string for the jail's
+.Va kern.osrelease
+sysctl and uname -r.
+.It Va osreldate
+The number for the jail's
+.Va kern.osreldate
+and uname -K.
 .It Va allow.*
 Some restrictions of the jail environment may be set on a per-jail
 basis.
@@ -695,7 +703,7 @@ jail is created, and will be removed from the interface after the
 jail is removed.
 .It Va ip4.addr
 In addition to the IP addresses that are passed to the kernel, an
-interface, netmask and additional paramters (as supported by
+interface, netmask and additional parameters (as supported by
 .Xr ifconfig 8 Ns )
 may also be specified, in the form
 .Dq Ar interface Ns | Ns Ar ip-address Ns / Ns Ar netmask param ... .

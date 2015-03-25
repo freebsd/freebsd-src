@@ -79,7 +79,7 @@ dump_frame(struct trapframe *frame)
 	printf("  exc  = 0x%x\n", frame->exc);
 	printf("  srr0 = 0x%08x\n", frame->srr0);
 	printf("  srr1 = 0x%08x\n", frame->srr1);
-	printf("  dear = 0x%08x\n", frame->cpu.booke.dear);
+	printf("  dear = 0x%08x\n", frame->dar);
 	printf("  esr  = 0x%08x\n", frame->cpu.booke.esr);
 	printf("  lr   = 0x%08x\n", frame->lr);
 	printf("  cr   = 0x%08x\n", frame->cr);

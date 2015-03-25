@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_READOBJ_OBJDUMPER_H
-#define LLVM_READOBJ_OBJDUMPER_H
+#ifndef LLVM_TOOLS_LLVM_READOBJ_OBJDUMPER_H
+#define LLVM_TOOLS_LLVM_READOBJ_OBJDUMPER_H
 
 #include <memory>
 #include <system_error>
@@ -42,6 +42,12 @@ public:
 
   // Only implemented for MIPS ELF at this time.
   virtual void printMipsPLTGOT() { }
+
+  // Only implemented for PE/COFF.
+  virtual void printCOFFImports() { }
+  virtual void printCOFFExports() { }
+  virtual void printCOFFDirectives() { }
+  virtual void printCOFFBaseReloc() { }
 
 protected:
   StreamWriter& W;

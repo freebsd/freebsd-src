@@ -1117,9 +1117,10 @@ init_qset_cntxt(struct sge_qset *qs, u_int id)
 	qs->txq[TXQ_CTRL].cntxt_id = FW_CTRL_SGEEC_START + id;
 	qs->txq[TXQ_CTRL].token = FW_CTRL_TID_START + id;
 
-	mbufq_init(&qs->txq[TXQ_ETH].sendq);
-	mbufq_init(&qs->txq[TXQ_OFLD].sendq);
-	mbufq_init(&qs->txq[TXQ_CTRL].sendq);
+	/* XXX: a sane limit is needed instead of INT_MAX */
+	mbufq_init(&qs->txq[TXQ_ETH].sendq, INT_MAX);
+	mbufq_init(&qs->txq[TXQ_OFLD].sendq, INT_MAX);
+	mbufq_init(&qs->txq[TXQ_CTRL].sendq, INT_MAX);
 }
 
 
@@ -1820,8 +1821,8 @@ check_desc_avail(adapter_t *adap, struct sge_txq *q,
 	 * the control queue is only used for binding qsets which happens
 	 * at init time so we are guaranteed enough descriptors
 	 */
-	if (__predict_false(!mbufq_empty(&q->sendq))) {
-addq_exit:	mbufq_tail(&q->sendq, m);
+	if (__predict_false(mbufq_len(&q->sendq))) {
+addq_exit:	(void )mbufq_enqueue(&q->sendq, m);
 		return 1;
 	}
 	if (__predict_false(q->size - q->in_use < ndesc)) {
@@ -1936,7 +1937,7 @@ again:	reclaim_completed_tx_imm(q);
 		}
 		q->in_use++;
 	}
-	if (!mbufq_empty(&q->sendq)) {
+	if (mbufq_len(&q->sendq)) {
 		setbit(&qs->txq_stopped, TXQ_CTRL);
 
 		if (should_restart_tx(q) &&
@@ -2319,7 +2320,7 @@ restart_offloadq(void *data, int npending)
 	TXQ_LOCK(qs);
 again:	cleaned = reclaim_completed_tx(qs, 16, TXQ_OFLD);
 
-	while ((m = mbufq_peek(&q->sendq)) != NULL) {
+	while ((m = mbufq_first(&q->sendq)) != NULL) {
 		unsigned int gen, pidx;
 		struct ofld_hdr *oh = mtod(m, struct ofld_hdr *);
 		unsigned int ndesc = G_HDR_NDESC(oh->flags);
@@ -2485,7 +2486,7 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 			printf("error %d from alloc ring tx %i\n", ret, i);
 			goto err;
 		}
-		mbufq_init(&q->txq[i].sendq);
+		mbufq_init(&q->txq[i].sendq, INT_MAX);
 		q->txq[i].gen = 1;
 		q->txq[i].size = p->txq_size[i];
 	}
@@ -3148,9 +3149,6 @@ t3_dump_rspq(SYSCTL_HANDLER_ARGS)
 	}
 
 	err = sbuf_finish(sb);
-	/* Output a trailing NUL. */
-	if (err == 0)
-		err = SYSCTL_OUT(req, "", 1);
 	sbuf_delete(sb);
 	return (err);
 }	
@@ -3218,9 +3216,6 @@ t3_dump_txq_eth(SYSCTL_HANDLER_ARGS)
 
 	}
 	err = sbuf_finish(sb);
-	/* Output a trailing NUL. */
-	if (err == 0)
-		err = SYSCTL_OUT(req, "", 1);
 	sbuf_delete(sb);
 	return (err);
 }
@@ -3278,9 +3273,6 @@ t3_dump_txq_ctrl(SYSCTL_HANDLER_ARGS)
 
 	}
 	err = sbuf_finish(sb);
-	/* Output a trailing NUL. */
-	if (err == 0)
-		err = SYSCTL_OUT(req, "", 1);
 	sbuf_delete(sb);
 	return (err);
 }
@@ -3521,7 +3513,7 @@ t3_add_configured_sysctls(adapter_t *sc)
 			    CTLFLAG_RD, &qs->txq[TXQ_ETH].txq_mr->br_drops,
 			    "#tunneled packets dropped");
 			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "sendqlen",
-			    CTLFLAG_RD, &qs->txq[TXQ_ETH].sendq.qlen,
+			    CTLFLAG_RD, &qs->txq[TXQ_ETH].sendq.mq_len,
 			    0, "#tunneled packets waiting to be sent");
 #if 0			
 			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "queue_pidx",

@@ -73,6 +73,7 @@ struct optent {
 	char val;
 };
 
+extern struct optent optlist[NOPTS];
 #ifdef DEFINE_OPTIONS
 struct optent optlist[NOPTS] = {
 	{ "errexit",	'e',	0 },
@@ -95,8 +96,6 @@ struct optent optlist[NOPTS] = {
 	{ "physical",	'P',	0 },
 	{ "trackall",	'h',	0 },
 };
-#else
-extern struct optent optlist[NOPTS];
 #endif
 
 

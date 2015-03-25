@@ -292,7 +292,8 @@ static const struct {
 	{0x11841039, 0x00, "SiS 966",		0},
 	{0x11851039, 0x00, "SiS 968",		0},
 	{0x01861039, 0x00, "SiS 968",		0},
-	{0xa01c177d, 0x00, "ThunderX SATA",	AHCI_Q_ABAR0},
+	{0xa01c177d, 0x00, "ThunderX",		AHCI_Q_ABAR0|AHCI_Q_1MSI},
+	{0x00311c36, 0x00, "Annapurna",		AHCI_Q_FORCE_PI|AHCI_Q_RESTORE_CAP},
 	{0x00000000, 0x00, NULL,		0}
 };
 
@@ -339,13 +340,13 @@ ahci_probe(device_t dev)
 			snprintf(buf, sizeof(buf), "%s AHCI SATA controller",
 			    ahci_ids[i].name);
 			device_set_desc_copy(dev, buf);
-			return (BUS_PROBE_VENDOR);
+			return (BUS_PROBE_DEFAULT);
 		}
 	}
 	if (!valid)
 		return (ENXIO);
 	device_set_desc_copy(dev, "AHCI SATA controller");
-	return (BUS_PROBE_VENDOR);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -365,11 +366,11 @@ ahci_ata_probe(device_t dev)
 			snprintf(buf, sizeof(buf), "%s AHCI SATA controller",
 			    ahci_ids[i].name);
 			device_set_desc_copy(dev, buf);
-			return (BUS_PROBE_VENDOR);
+			return (BUS_PROBE_DEFAULT);
 		}
 	}
 	device_set_desc_copy(dev, "AHCI SATA controller");
-	return (BUS_PROBE_VENDOR);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

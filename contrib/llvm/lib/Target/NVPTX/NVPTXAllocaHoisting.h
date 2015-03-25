@@ -11,10 +11,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef NVPTX_ALLOCA_HOISTING_H_
-#define NVPTX_ALLOCA_HOISTING_H_
+#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXALLOCAHOISTING_H
+#define LLVM_LIB_TARGET_NVPTX_NVPTXALLOCAHOISTING_H
 
 #include "llvm/CodeGen/MachineFunctionAnalysis.h"
+#include "llvm/CodeGen/StackProtector.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/Pass.h"
 
@@ -32,8 +33,8 @@ public:
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<DataLayoutPass>();
-    AU.addPreserved("stack-protector");
     AU.addPreserved<MachineFunctionAnalysis>();
+    AU.addPreserved<StackProtector>();
   }
 
   const char *getPassName() const override {
@@ -47,4 +48,4 @@ extern FunctionPass *createAllocaHoisting();
 
 } // end namespace llvm
 
-#endif // NVPTX_ALLOCA_HOISTING_H_
+#endif

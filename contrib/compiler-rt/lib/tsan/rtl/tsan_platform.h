@@ -26,8 +26,9 @@ namespace __tsan {
 
 #if !defined(SANITIZER_GO)
 
+#if defined(__x86_64__)
 /*
-C/C++ on linux and freebsd
+C/C++ on linux/x86_64 and freebsd/x86_64
 0000 0000 1000 - 0100 0000 0000: main binary and/or MAP_32BIT mappings
 0100 0000 0000 - 0200 0000 0000: -
 0200 0000 0000 - 1000 0000 0000: shadow
@@ -40,7 +41,6 @@ C/C++ on linux and freebsd
 7e00 0000 0000 - 7e80 0000 0000: -
 7e80 0000 0000 - 8000 0000 0000: modules and main thread stack
 */
-
 const uptr kMetaShadowBeg = 0x300000000000ull;
 const uptr kMetaShadowEnd = 0x400000000000ull;
 const uptr kTraceMemBeg   = 0x600000000000ull;
@@ -55,6 +55,38 @@ const uptr kHiAppMemBeg   = 0x7e8000000000ull;
 const uptr kHiAppMemEnd   = 0x800000000000ull;
 const uptr kAppMemMsk     = 0x7c0000000000ull;
 const uptr kAppMemXor     = 0x020000000000ull;
+const uptr kVdsoBeg       = 0xf000000000000000ull;
+#elif defined(__mips64)
+/*
+C/C++ on linux/mips64
+0100 0000 00 - 0200 0000 00: main binary
+0200 0000 00 - 1400 0000 00: -
+1400 0000 00 - 2400 0000 00: shadow
+2400 0000 00 - 3000 0000 00: -
+3000 0000 00 - 4000 0000 00: metainfo (memory blocks and sync objects)
+4000 0000 00 - 6000 0000 00: -
+6000 0000 00 - 6200 0000 00: traces
+6200 0000 00 - fe00 0000 00: -
+fe00 0000 00 - ff00 0000 00: heap
+ff00 0000 00 - ff80 0000 00: -
+ff80 0000 00 - ffff ffff ff: modules and main thread stack
+*/
+const uptr kMetaShadowBeg = 0x3000000000ull;
+const uptr kMetaShadowEnd = 0x4000000000ull;
+const uptr kTraceMemBeg   = 0x6000000000ull;
+const uptr kTraceMemEnd   = 0x6200000000ull;
+const uptr kShadowBeg     = 0x1400000000ull;
+const uptr kShadowEnd     = 0x2400000000ull;
+const uptr kHeapMemBeg    = 0xfe00000000ull;
+const uptr kHeapMemEnd    = 0xff00000000ull;
+const uptr kLoAppMemBeg   = 0x0100000000ull;
+const uptr kLoAppMemEnd   = 0x0200000000ull;
+const uptr kHiAppMemBeg   = 0xff80000000ull;
+const uptr kHiAppMemEnd   = 0xffffffffffull;
+const uptr kAppMemMsk     = 0xfc00000000ull;
+const uptr kAppMemXor     = 0x0400000000ull;
+const uptr kVdsoBeg       = 0xfffff00000ull;
+#endif
 
 ALWAYS_INLINE
 bool IsAppMem(uptr mem) {
@@ -171,8 +203,8 @@ static USED uptr UserRegions[] = {
 0000 1000 0000 - 00f8 0000 0000: -
 00c0 0000 0000 - 00e0 0000 0000: heap
 00e0 0000 0000 - 0100 0000 0000: -
-0100 0000 0000 - 0380 0000 0000: shadow
-0380 0000 0000 - 0560 0000 0000: -
+0100 0000 0000 - 0500 0000 0000: shadow
+0500 0000 0000 - 0560 0000 0000: -
 0560 0000 0000 - 0760 0000 0000: traces
 0760 0000 0000 - 07d0 0000 0000: metainfo (memory blocks and sync objects)
 07d0 0000 0000 - 8000 0000 0000: -
@@ -183,7 +215,7 @@ const uptr kMetaShadowEnd = 0x07d000000000ull;
 const uptr kTraceMemBeg   = 0x056000000000ull;
 const uptr kTraceMemEnd   = 0x076000000000ull;
 const uptr kShadowBeg     = 0x010000000000ull;
-const uptr kShadowEnd     = 0x038000000000ull;
+const uptr kShadowEnd     = 0x050000000000ull;
 const uptr kAppMemBeg     = 0x000000001000ull;
 const uptr kAppMemEnd     = 0x00e000000000ull;
 
@@ -205,21 +237,21 @@ bool IsMetaMem(uptr mem) {
 ALWAYS_INLINE
 uptr MemToShadow(uptr x) {
   DCHECK(IsAppMem(x));
-  return ((x & ~(kShadowCell - 1)) * kShadowCnt) | kShadowBeg;
+  return ((x & ~(kShadowCell - 1)) * kShadowCnt) + kShadowBeg;
 }
 
 ALWAYS_INLINE
 u32 *MemToMeta(uptr x) {
   DCHECK(IsAppMem(x));
   return (u32*)(((x & ~(kMetaShadowCell - 1)) / \
-      kMetaShadowCell * kMetaShadowSize) | kMetaShadowEnd);
+      kMetaShadowCell * kMetaShadowSize) | kMetaShadowBeg);
 }
 
 ALWAYS_INLINE
 uptr ShadowToMem(uptr s) {
   CHECK(IsShadowMem(s));
   // FIXME(dvyukov): this is most likely wrong as the mapping is not bijection.
-  return (x & ~kShadowBeg) / kShadowCnt;
+  return (s - kShadowBeg) / kShadowCnt;
 }
 
 static USED uptr UserRegions[] = {
@@ -251,9 +283,6 @@ uptr ALWAYS_INLINE GetThreadTraceHeader(int tid) {
 void InitializePlatform();
 void FlushShadowMemory();
 void WriteMemoryProfile(char *buf, uptr buf_size, uptr nthread, uptr nlive);
-
-void *internal_start_thread(void(*func)(void*), void *arg);
-void internal_join_thread(void *th);
 
 // Says whether the addr relates to a global var.
 // Guesses with high probability, may yield both false positives and negatives.

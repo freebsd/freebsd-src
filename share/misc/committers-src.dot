@@ -178,6 +178,7 @@ ian [label="Ian Lepore\nian@FreeBSD.org\n2013/01/07"]
 iedowse [label="Ian Dowse\niedowse@FreeBSD.org\n2000/12/01"]
 imp [label="Warner Losh\nimp@FreeBSD.org\n1996/09/20"]
 ivoras [label="Ivan Voras\nivoras@FreeBSD.org\n2008/06/10"]
+jah [label="Jason A. Harmening\njah@FreeBSD.org\n2015/03/08"]
 jamie [label="Jamie Gritton\njamie@FreeBSD.org\n2009/01/28"]
 jasone [label="Jason Evans\njasone@FreeBSD.org\n1999/03/03"]
 jceel [label="Jakub Klama\njceel@FreeBSD.org\n2011/09/25"]
@@ -296,10 +297,12 @@ tuexen [label="Michael Tuexen\ntuexen@FreeBSD.org\n2009/06/06"]
 tychon [label="Tycho Nightingale\ntychon@FreeBSD.org\n2014/01/21"]
 ume [label="Hajimu UMEMOTO\nume@FreeBSD.org\n2000/02/26"]
 uqs [label="Ulrich Spoerlein\nuqs@FreeBSD.org\n2010/01/28"]
+vangyzen [label="Eric van Gyzen\nvangyzen@FreeBSD.org\n2015/03/08"]
 vanhu [label="Yvan Vanhullebus\nvanhu@FreeBSD.org\n2008/07/21"]
 versus [label="Konrad Jankowski\nversus@FreeBSD.org\n2008/10/27"]
 weongyo [label="Weongyo Jeong\nweongyo@FreeBSD.org\n2007/12/21"]
 wes [label="Wes Peters\nwes@FreeBSD.org\n1998/11/25"]
+whu [label="Wei Hu\nwhu@FreeBSD.org\n2015/02/11"]
 wkoszek [label="Wojciech A. Koszek\nwkoszek@FreeBSD.org\n2006/02/21"]
 wollman [label="Garrett Wollman\nwollman@FreeBSD.org\n????/??/??"]
 wsalamon [label="Wayne Salamon\nwsalamon@FreeBSD.org\n2005/06/25"]
@@ -430,6 +433,7 @@ gavin -> versus
 gibbs -> mjacob
 gibbs -> njl
 gibbs -> royger
+gibbs -> whu
 
 glebius -> mav
 
@@ -546,6 +550,7 @@ ken -> slm
 kib -> ae
 kib -> dchagin
 kib -> gjb
+kib -> jah
 kib -> jlh
 kib -> jpaetzel
 kib -> lulf
@@ -558,6 +563,7 @@ kib -> rmh
 kib -> stas
 kib -> tijl
 kib -> trociny
+kib -> vangyzen
 kib -> zont
 
 kmacy -> lstewart
@@ -630,6 +636,8 @@ pjd -> trociny
 rgrimes -> markm
 
 rmacklem -> jwd
+
+royger -> whu
 
 rpaulo -> avg
 rpaulo -> bschmidt

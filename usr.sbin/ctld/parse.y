@@ -342,6 +342,8 @@ portal_group_entry:
 	|
 	portal_group_listen_iser
 	|
+	portal_group_offload
+	|
 	portal_group_redirect
 	;
 
@@ -392,6 +394,17 @@ portal_group_listen_iser:	LISTEN_ISER STR
 		int error;
 
 		error = portal_group_add_listen(portal_group, $2, true);
+		free($2);
+		if (error != 0)
+			return (1);
+	}
+	;
+
+portal_group_offload:	OFFLOAD STR
+	{
+		int error;
+
+		error = portal_group_set_offload(portal_group, $2);
 		free($2);
 		if (error != 0)
 			return (1);
@@ -462,8 +475,6 @@ target_entry:
 	target_initiator_name
 	|
 	target_initiator_portal
-	|
-	target_offload
 	|
 	target_portal_group
 	|
@@ -656,17 +667,6 @@ target_initiator_portal:	INITIATOR_PORTAL STR
 	}
 	;
 
-target_offload:	OFFLOAD STR
-	{
-		int error;
-
-		error = target_set_offload(target, $2);
-		free($2);
-		if (error != 0)
-			return (1);
-	}
-	;
-
 target_portal_group:	PORTAL_GROUP STR STR
 	{
 		struct portal_group *tpg;
@@ -774,6 +774,7 @@ target_lun:	LUN lun_number
 lun_number:	STR
 	{
 		uint64_t tmp;
+		int ret;
 		char *name;
 
 		if (expand_number($1, &tmp) != 0) {
@@ -782,7 +783,9 @@ lun_number:	STR
 			return (1);
 		}
 
-		asprintf(&name, "%s,lun,%ju", target->t_name, tmp);
+		ret = asprintf(&name, "%s,lun,%ju", target->t_name, tmp);
+		if (ret <= 0)
+			log_err(1, "asprintf");
 		lun = lun_new(conf, name);
 		if (lun == NULL)
 			return (1);

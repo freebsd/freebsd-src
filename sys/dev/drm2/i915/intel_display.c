@@ -2051,9 +2051,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-#if 0
 	struct drm_i915_master_private *master_priv;
-#endif
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int ret;
 
@@ -2099,7 +2097,6 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	intel_update_fbc(dev);
 	DRM_UNLOCK(dev);
 
-#if 0
 	if (!dev->primary->master)
 		return 0;
 
@@ -2114,19 +2111,6 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		master_priv->sarea_priv->pipeA_x = x;
 		master_priv->sarea_priv->pipeA_y = y;
 	}
-#else
-
-	if (!dev_priv->sarea_priv)
-		return 0;
-
-	if (intel_crtc->pipe) {
-		dev_priv->sarea_priv->planeB_x = x;
-		dev_priv->sarea_priv->planeB_y = y;
-	} else {
-		dev_priv->sarea_priv->planeA_x = x;
-		dev_priv->sarea_priv->planeA_y = y;
-	}
-#endif
 
 	return 0;
 }
@@ -3329,9 +3313,7 @@ static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-#if 0
 	struct drm_i915_master_private *master_priv;
-#endif
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
 	bool enabled;
@@ -3343,38 +3325,23 @@ static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 	dev_priv->display.dpms(crtc, mode);
 
-#if 0
 	if (!dev->primary->master)
 		return;
 
 	master_priv = dev->primary->master->driver_priv;
 	if (!master_priv->sarea_priv)
 		return;
-#else
-	if (!dev_priv->sarea_priv)
-		return;
-#endif
 
 	enabled = crtc->enabled && mode != DRM_MODE_DPMS_OFF;
 
 	switch (pipe) {
 	case 0:
-#if 0
 		master_priv->sarea_priv->pipeA_w = enabled ? crtc->mode.hdisplay : 0;
 		master_priv->sarea_priv->pipeA_h = enabled ? crtc->mode.vdisplay : 0;
-#else
-		dev_priv->sarea_priv->planeA_w = enabled ? crtc->mode.hdisplay : 0;
-		dev_priv->sarea_priv->planeA_h = enabled ? crtc->mode.vdisplay : 0;
-#endif
 		break;
 	case 1:
-#if 0
 		master_priv->sarea_priv->pipeB_w = enabled ? crtc->mode.hdisplay : 0;
 		master_priv->sarea_priv->pipeB_h = enabled ? crtc->mode.vdisplay : 0;
-#else
-		dev_priv->sarea_priv->planeB_w = enabled ? crtc->mode.hdisplay : 0;
-		dev_priv->sarea_priv->planeB_h = enabled ? crtc->mode.vdisplay : 0;
-#endif
 		break;
 	default:
 		DRM_ERROR("Can't update pipe %c in SAREA\n", pipe_name(pipe));
@@ -3502,7 +3469,7 @@ static int i915gm_get_display_clock_speed(struct drm_device *dev)
 {
 	u16 gcfgc = 0;
 
-	gcfgc = pci_read_config(dev->device, GCFGC, 2);
+	gcfgc = pci_read_config(dev->dev, GCFGC, 2);
 
 	if (gcfgc & GC_LOW_FREQUENCY_ENABLE)
 		return 133000;
@@ -6946,8 +6913,8 @@ static void intel_init_quirks(struct drm_device *dev)
 	device_t d;
 	int i;
 
-	d = dev->device;
-	for (i = 0; i < DRM_ARRAY_SIZE(intel_quirks); i++) {
+	d = dev->dev;
+	for (i = 0; i < ARRAY_SIZE(intel_quirks); i++) {
 		q = &intel_quirks[i];
 		if (pci_get_device(d) == q->device &&
 		    (pci_get_subvendor(d) == q->subsystem_vendor ||
@@ -7116,10 +7083,11 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	if (IS_VALLEYVIEW(dev))
 		vlv_init_dpio(dev);
 
+	DRM_UNLOCK(dev);
+
 	/* Disable the irq before mode object teardown, for the irq might
 	 * enqueue unpin/hotplug work. */
 	drm_irq_uninstall(dev);
-	DRM_UNLOCK(dev);
 
 	if (taskqueue_cancel(dev_priv->tq, &dev_priv->hotplug_task, NULL))
 		taskqueue_drain(dev_priv->tq, &dev_priv->hotplug_task);

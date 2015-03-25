@@ -87,7 +87,7 @@ static void StackStripMain(SymbolizedStack *frames) {
     // can actually happen if we do not instrument some code,
     // so it's only a debug print. However we must try hard to not miss it
     // due to our fault.
-    DPrintf("Bottom stack frame of stack %zx is missed\n", stack->info.address);
+    DPrintf("Bottom stack frame is missed\n");
   }
 #else
   // The last frame always point into runtime (gosched0, goexit0, runtime.main).
@@ -112,16 +112,10 @@ static ReportStack *SymbolizeStack(StackTrace trace) {
   for (uptr si = 0; si < trace.size; si++) {
     const uptr pc = trace.trace[si];
     uptr pc1 = pc;
-#ifndef SANITIZER_GO
     // We obtain the return address, but we're interested in the previous
     // instruction.
     if ((pc & kExternalPCBit) == 0)
       pc1 = StackTrace::GetPreviousInstructionPc(pc);
-#else
-    // FIXME(dvyukov): Go sometimes uses address of a function as top pc.
-    if (si != trace.size - 1)
-      pc1 -= 1;
-#endif
     SymbolizedStack *ent = SymbolizeCode(pc1);
     CHECK_NE(ent, 0);
     SymbolizedStack *last = ent;
@@ -251,7 +245,8 @@ ThreadContext *IsThreadStackOrTls(uptr addr, bool *is_stack) {
 
 void ScopedReport::AddThread(int unique_tid, bool suppressable) {
 #ifndef SANITIZER_GO
-  AddThread(FindThreadByUidLocked(unique_tid), suppressable);
+  if (const ThreadContext *tctx = FindThreadByUidLocked(unique_tid))
+    AddThread(tctx, suppressable);
 #endif
 }
 
@@ -397,7 +392,7 @@ void RestoreStack(int tid, const u64 epoch, VarSizeStackTrace *stk,
   InternalScopedBuffer<uptr> stack(kShadowStackSize);
   for (uptr i = 0; i < hdr->stack0.size; i++) {
     stack[i] = hdr->stack0.trace[i];
-    DPrintf2("  #%02lu: pc=%zx\n", i, stack[i]);
+    DPrintf2("  #%02zu: pc=%zx\n", i, stack[i]);
   }
   if (mset)
     *mset = hdr->mset0;

@@ -38,8 +38,8 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_gzio.h"
 #include "opt_ktrace.h"
-#include "opt_core.h"
 
 #include <sys/param.h>
 #include <sys/ctype.h>
@@ -180,7 +180,7 @@ static int	set_core_nodump_flag = 0;
 SYSCTL_INT(_kern, OID_AUTO, nodump_coredump, CTLFLAG_RW, &set_core_nodump_flag,
 	0, "Enable setting the NODUMP flag on coredump files");
 
-static int	coredump_devctl = 1;
+static int	coredump_devctl = 0;
 SYSCTL_INT(_kern, OID_AUTO, coredump_devctl, CTLFLAG_RW, &coredump_devctl,
 	0, "Generate a devctl notification when processes coredump");
 
@@ -3075,22 +3075,42 @@ sysctl_debug_num_cores_check (SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_debug, OID_AUTO, ncores, CTLTYPE_INT|CTLFLAG_RW,
 	    0, sizeof(int), sysctl_debug_num_cores_check, "I", "");
 
-#if defined(COMPRESS_USER_CORES)
-int compress_user_cores = 1;
-SYSCTL_INT(_kern, OID_AUTO, compress_user_cores, CTLFLAG_RW,
+#define	GZ_SUFFIX	".gz"
+
+#ifdef GZIO
+static int compress_user_cores = 1;
+SYSCTL_INT(_kern, OID_AUTO, compress_user_cores, CTLFLAG_RWTUN,
     &compress_user_cores, 0, "Compression of user corefiles");
 
-int compress_user_cores_gzlevel = -1; /* default level */
-SYSCTL_INT(_kern, OID_AUTO, compress_user_cores_gzlevel, CTLFLAG_RW,
-    &compress_user_cores_gzlevel, -1, "Corefile gzip compression level");
-
-#define GZ_SUFFIX	".gz"
-#define GZ_SUFFIX_LEN	3
+int compress_user_cores_gzlevel = 6;
+SYSCTL_INT(_kern, OID_AUTO, compress_user_cores_gzlevel, CTLFLAG_RWTUN,
+    &compress_user_cores_gzlevel, 0, "Corefile gzip compression level");
+#else
+static int compress_user_cores = 0;
 #endif
 
+/*
+ * Protect the access to corefilename[] by allproc_lock.
+ */
+#define	corefilename_lock	allproc_lock
+
 static char corefilename[MAXPATHLEN] = {"%N.core"};
-SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RWTUN, corefilename,
-    sizeof(corefilename), "Process corefile name format string");
+
+static int
+sysctl_kern_corefile(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	sx_xlock(&corefilename_lock);
+	error = sysctl_handle_string(oidp, corefilename, sizeof(corefilename),
+	    req);
+	sx_xunlock(&corefilename_lock);
+
+	return (error);
+}
+SYSCTL_PROC(_kern, OID_AUTO, corefile, CTLTYPE_STRING | CTLFLAG_RWTUN |
+    CTLFLAG_MPSAFE, 0, 0, sysctl_kern_corefile, "A",
+    "Process corefile name format string");
 
 /*
  * corefile_open(comm, uid, pid, td, compress, vpp, namep)
@@ -3119,6 +3139,7 @@ corefile_open(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 	name = malloc(MAXPATHLEN, M_TEMP, M_WAITOK | M_ZERO);
 	indexpos = -1;
 	(void)sbuf_new(&sb, name, MAXPATHLEN, SBUF_FIXEDLEN);
+	sx_slock(&corefilename_lock);
 	for (i = 0; format[i] != '\0'; i++) {
 		switch (format[i]) {
 		case '%':	/* Format character */
@@ -3161,11 +3182,10 @@ corefile_open(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 			break;
 		}
 	}
+	sx_sunlock(&corefilename_lock);
 	free(hostname, M_TEMP);
-#ifdef COMPRESS_USER_CORES
 	if (compress)
 		sbuf_printf(&sb, GZ_SUFFIX);
-#endif
 	if (sbuf_error(&sb) != 0) {
 		log(LOG_ERR, "pid %ld (%s), uid (%lu): corename is too "
 		    "long\n", (long)pid, comm, (u_long)uid);
@@ -3260,18 +3280,12 @@ coredump(struct thread *td)
 	char *name;			/* name of corefile */
 	void *rl_cookie;
 	off_t limit;
-	int compress;
 	char *data = NULL;
 	char *fullpath, *freepath = NULL;
 	size_t len;
 	static const char comm_name[] = "comm=";
 	static const char core_name[] = "core=";
 
-#ifdef COMPRESS_USER_CORES
-	compress = compress_user_cores;
-#else
-	compress = 0;
-#endif
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	MPASS((p->p_flag & P_HADTHREADS) == 0 || p->p_singlethread == td);
 	_STOPEVENT(p, S_CORE, 0);
@@ -3297,8 +3311,8 @@ coredump(struct thread *td)
 	}
 	PROC_UNLOCK(p);
 
-	error = corefile_open(p->p_comm, cred->cr_uid, p->p_pid, td, compress,
-	    &vp, &name);
+	error = corefile_open(p->p_comm, cred->cr_uid, p->p_pid, td,
+	    compress_user_cores, &vp, &name);
 	if (error != 0)
 		return (error);
 
@@ -3310,7 +3324,7 @@ coredump(struct thread *td)
 	    vattr.va_nlink != 1 || (vp->v_vflag & VV_SYSTEM) != 0) {
 		VOP_UNLOCK(vp, 0);
 		error = EFAULT;
-		goto close;
+		goto out;
 	}
 
 	VOP_UNLOCK(vp, 0);
@@ -3337,7 +3351,7 @@ coredump(struct thread *td)
 
 	if (p->p_sysent->sv_coredump != NULL) {
 		error = p->p_sysent->sv_coredump(td, vp, limit,
-		    compress ? IMGACT_CORE_COMPRESS : 0);
+		    compress_user_cores ? IMGACT_CORE_COMPRESS : 0);
 	} else {
 		error = ENOSYS;
 	}
@@ -3347,17 +3361,12 @@ coredump(struct thread *td)
 		VOP_ADVLOCK(vp, (caddr_t)p, F_UNLCK, &lf, F_FLOCK);
 	}
 	vn_rangelock_unlock(vp, rl_cookie);
-close:
-	error1 = vn_close(vp, FWRITE, cred, td);
-	if (error == 0)
-		error = error1;
-	else
-		goto out;
+
 	/*
 	 * Notify the userland helper that a process triggered a core dump.
 	 * This allows the helper to run an automated debugging session.
 	 */
-	if (coredump_devctl == 0)
+	if (error != 0 || coredump_devctl == 0)
 		goto out;
 	len = MAXPATHLEN * 2 + sizeof(comm_name) - 1 +
 	    sizeof(' ') + sizeof(core_name) - 1;
@@ -3379,6 +3388,9 @@ close:
 	strlcat(data, fullpath, len);
 	devctl_notify("kernel", "signal", "coredump", data);
 out:
+	error1 = vn_close(vp, FWRITE, cred, td);
+	if (error == 0)
+		error = error1;
 #ifdef AUDIT
 	audit_proc_coredump(td, name, error);
 #endif

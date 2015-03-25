@@ -23,11 +23,11 @@
 // Other libraries and framework includes
 #include "llvm/ADT/Triple.h"
 #include "lldb/Interpreter/Args.h"
-#include "lldb/Core/ConnectionFileDescriptor.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Log.h"
 #include "lldb/Core/State.h"
 #include "lldb/Core/StreamString.h"
+#include "lldb/Host/ConnectionFileDescriptor.h"
 #include "lldb/Host/Debug.h"
 #include "lldb/Host/Endian.h"
 #include "lldb/Host/File.h"
@@ -71,7 +71,7 @@ namespace
 //----------------------------------------------------------------------
 GDBRemoteCommunicationServer::GDBRemoteCommunicationServer(bool is_platform) :
     GDBRemoteCommunication ("gdb-remote.server", "gdb-remote.server.rx_packet", is_platform),
-    m_platform_sp (Platform::GetDefaultPlatform ()),
+    m_platform_sp (Platform::GetHostPlatform ()),
     m_async_thread (LLDB_INVALID_HOST_THREAD),
     m_process_launch_info (),
     m_process_launch_error (),
@@ -429,6 +429,14 @@ GDBRemoteCommunicationServer::GetPacketAndSendResponse (uint32_t timeout_usec,
         case StringExtractorGDBRemote::eServerPacketType_vAttach:
             packet_result = Handle_vAttach (packet);
             break;
+
+        case StringExtractorGDBRemote::eServerPacketType_D:
+            packet_result = Handle_D (packet);
+            break;
+
+        case StringExtractorGDBRemote::eServerPacketType_qThreadStopInfo:
+            packet_result = Handle_qThreadStopInfo (packet);
+            break;
         }
     }
     else
@@ -474,13 +482,34 @@ GDBRemoteCommunicationServer::LaunchProcess ()
     // FIXME This looks an awful lot like we could override this in
     // derived classes, one for lldb-platform, the other for lldb-gdbserver.
     if (IsGdbServer ())
-        return LaunchDebugServerProcess ();
+        return LaunchProcessForDebugging ();
     else
         return LaunchPlatformProcess ();
 }
 
+bool
+GDBRemoteCommunicationServer::ShouldRedirectInferiorOutputOverGdbRemote (const lldb_private::ProcessLaunchInfo &launch_info) const
+{
+    // Retrieve the file actions specified for stdout and stderr.
+    auto stdout_file_action = launch_info.GetFileActionForFD (STDOUT_FILENO);
+    auto stderr_file_action = launch_info.GetFileActionForFD (STDERR_FILENO);
+
+    // If neither stdout and stderr file actions are specified, we're not doing anything special, so
+    // assume we want to redirect stdout/stderr over gdb-remote $O messages.
+    if ((stdout_file_action == nullptr) && (stderr_file_action == nullptr))
+    {
+        // Send stdout/stderr over the gdb-remote protocol.
+        return true;
+    }
+
+    // Any other setting for either stdout or stderr implies we are either suppressing
+    // it (with /dev/null) or we've got it set to a PTY.  Either way, we don't want the
+    // output over gdb-remote.
+    return false;
+}
+
 lldb_private::Error
-GDBRemoteCommunicationServer::LaunchDebugServerProcess ()
+GDBRemoteCommunicationServer::LaunchProcessForDebugging ()
 {
     Log *log (GetLogIfAnyCategoriesSet(LIBLLDB_LOG_PROCESS));
 
@@ -503,20 +532,34 @@ GDBRemoteCommunicationServer::LaunchDebugServerProcess ()
         return error;
     }
 
-    // Setup stdout/stderr mapping from inferior.
-    auto terminal_fd = m_debugged_process_sp->GetTerminalFileDescriptor ();
-    if (terminal_fd >= 0)
+    // Handle mirroring of inferior stdout/stderr over the gdb-remote protocol as needed.
+    // llgs local-process debugging may specify PTYs, which will eliminate the need to reflect inferior
+    // stdout/stderr over the gdb-remote protocol.
+    if (ShouldRedirectInferiorOutputOverGdbRemote (m_process_launch_info))
     {
         if (log)
-            log->Printf ("ProcessGDBRemoteCommunicationServer::%s setting inferior STDIO fd to %d", __FUNCTION__, terminal_fd);
-        error = SetSTDIOFileDescriptor (terminal_fd);
-        if (error.Fail ())
-            return error;
+            log->Printf ("GDBRemoteCommunicationServer::%s pid %" PRIu64 " setting up stdout/stderr redirection via $O gdb-remote commands", __FUNCTION__, m_debugged_process_sp->GetID ());
+
+        // Setup stdout/stderr mapping from inferior to $O
+        auto terminal_fd = m_debugged_process_sp->GetTerminalFileDescriptor ();
+        if (terminal_fd >= 0)
+        {
+            if (log)
+                log->Printf ("ProcessGDBRemoteCommunicationServer::%s setting inferior STDIO fd to %d", __FUNCTION__, terminal_fd);
+            error = SetSTDIOFileDescriptor (terminal_fd);
+            if (error.Fail ())
+                return error;
+        }
+        else
+        {
+            if (log)
+                log->Printf ("ProcessGDBRemoteCommunicationServer::%s ignoring inferior STDIO since terminal fd reported as %d", __FUNCTION__, terminal_fd);
+        }
     }
     else
     {
         if (log)
-            log->Printf ("ProcessGDBRemoteCommunicationServer::%s ignoring inferior STDIO since terminal fd reported as %d", __FUNCTION__, terminal_fd);
+            log->Printf ("GDBRemoteCommunicationServer::%s pid %" PRIu64 " skipping stdout/stderr redirection via $O: inferior will communicate over client-provided file descriptors", __FUNCTION__, m_debugged_process_sp->GetID ());
     }
 
     printf ("Launched '%s' as process %" PRIu64 "...\n", m_process_launch_info.GetArguments ().GetArgumentAtIndex (0), m_process_launch_info.GetProcessID ());
@@ -526,33 +569,10 @@ GDBRemoteCommunicationServer::LaunchDebugServerProcess ()
     if ((pid = m_process_launch_info.GetProcessID ()) != LLDB_INVALID_PROCESS_ID)
     {
         // add to spawned pids
-        {
-            Mutex::Locker locker (m_spawned_pids_mutex);
-            // On an lldb-gdbserver, we would expect there to be only one.
-            assert (m_spawned_pids.empty () && "lldb-gdbserver adding tracked process but one already existed");
-            m_spawned_pids.insert (pid);
-        }
-    }
-
-    if (error.Success ())
-    {
-        if (log)
-            log->Printf ("GDBRemoteCommunicationServer::%s beginning check to wait for launched application to hit first stop", __FUNCTION__);
-
-        int iteration = 0;
-        // Wait for the process to hit its first stop state.
-        while (!StateIsStoppedState (m_debugged_process_sp->GetState (), false))
-        {
-            if (log)
-                log->Printf ("GDBRemoteCommunicationServer::%s waiting for launched process to hit first stop (%d)...", __FUNCTION__, iteration++);
-
-            // FIXME use a finer granularity.
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-        }
-
-        if (log)
-            log->Printf ("GDBRemoteCommunicationServer::%s launched application has hit first stop", __FUNCTION__);
-
+        Mutex::Locker locker (m_spawned_pids_mutex);
+        // On an lldb-gdbserver, we would expect there to be only one.
+        assert (m_spawned_pids.empty () && "lldb-gdbserver adding tracked process but one already existed");
+        m_spawned_pids.insert (pid);
     }
 
     return error;
@@ -699,12 +719,18 @@ GDBRemoteCommunicationServer::SendWResponse (lldb_private::NativeProcessProtocol
         char return_type_code;
         switch (exit_type)
         {
-            case ExitType::eExitTypeExit:   return_type_code = 'W'; break;
-            case ExitType::eExitTypeSignal: return_type_code = 'X'; break;
-            case ExitType::eExitTypeStop:   return_type_code = 'S'; break;
-
+            case ExitType::eExitTypeExit:
+                return_type_code = 'W';
+                break;
+            case ExitType::eExitTypeSignal:
+                return_type_code = 'X';
+                break;
+            case ExitType::eExitTypeStop:
+                return_type_code = 'S';
+                break;
             case ExitType::eExitTypeInvalid:
-            default:                        return_type_code = 'E'; break;
+                return_type_code = 'E';
+                break;
         }
         response.PutChar (return_type_code);
 
@@ -861,21 +887,21 @@ GDBRemoteCommunicationServer::SendStopReplyPacketForThread (lldb::tid_t tid)
     response.Printf ("thread:%" PRIx64 ";", tid);
 
     // Include the thread name if there is one.
-    const char *thread_name = thread_sp->GetName ();
-    if (thread_name && thread_name[0])
+    const std::string thread_name = thread_sp->GetName ();
+    if (!thread_name.empty ())
     {
-        size_t thread_name_len = strlen(thread_name);
+        size_t thread_name_len = thread_name.length ();
 
-        if (::strcspn (thread_name, "$#+-;:") == thread_name_len)
+        if (::strcspn (thread_name.c_str (), "$#+-;:") == thread_name_len)
         {
             response.PutCString ("name:");
-            response.PutCString (thread_name);
+            response.PutCString (thread_name.c_str ());
         }
         else
         {
             // The thread name contains special chars, send as hex bytes.
             response.PutCString ("hexname:");
-            response.PutCStringAsRawHex8 (thread_name);
+            response.PutCStringAsRawHex8 (thread_name.c_str ());
         }
         response.PutChar (';');
     }
@@ -1197,7 +1223,7 @@ GDBRemoteCommunicationServer::Handle_qHostInfo (StringExtractorGDBRemote &packet
     ArchSpec host_arch(HostInfo::GetArchitecture());
     const llvm::Triple &host_triple = host_arch.GetTriple();
     response.PutCString("triple:");
-    response.PutCString(host_triple.getTriple().c_str());
+    response.PutCStringAsRawHex8(host_triple.getTriple().c_str());
     response.Printf (";ptrsize:%u;",host_arch.GetAddressByteSize());
 
     const char* distribution_id = host_arch.GetDistributionId ().AsCString ();
@@ -1252,7 +1278,6 @@ GDBRemoteCommunicationServer::Handle_qHostInfo (StringExtractorGDBRemote &packet
     }
 
     std::string s;
-#if !defined(__linux__)
     if (HostInfo::GetOSBuildString(s))
     {
         response.PutCString ("os_build:");
@@ -1265,7 +1290,6 @@ GDBRemoteCommunicationServer::Handle_qHostInfo (StringExtractorGDBRemote &packet
         response.PutCStringAsRawHex8(s.c_str());
         response.PutChar(';');
     }
-#endif
 
 #if defined(__APPLE__)
 
@@ -1315,7 +1339,7 @@ CreateProcessInfoResponse (const ProcessInstanceInfo &proc_info, StreamString &r
     {
         const llvm::Triple &proc_triple = proc_arch.GetTriple();
         response.PutCString("triple:");
-        response.PutCString(proc_triple.getTriple().c_str());
+        response.PutCStringAsRawHex8(proc_triple.getTriple().c_str());
         response.PutChar(';');
     }
 }
@@ -1351,7 +1375,10 @@ CreateProcessInfoResponse_DebugServerStyle (const ProcessInstanceInfo &proc_info
             response.Printf ("vendor:%s;", vendor.c_str ());
 #else
         // We'll send the triple.
-        response.Printf ("triple:%s;", proc_triple.getTriple().c_str ());
+        response.PutCString("triple:");
+        response.PutCStringAsRawHex8(proc_triple.getTriple().c_str());
+        response.PutChar(';');
+
 #endif
         std::string ostype = proc_triple.getOSName ();
         // Adjust so ostype reports ios for Apple/ARM and Apple/ARM64.
@@ -2372,8 +2399,6 @@ GDBRemoteCommunicationServer::Handle_vCont_actions (StringExtractorGDBRemote &pa
         return SendUnimplementedResponse (packet.GetStringRef().c_str());
     }
 
-    // We handle $vCont messages for c.
-    // TODO add C, s and S.
     StreamString response;
     response.Printf("vCont;c;C;s;S");
 
@@ -3388,10 +3413,8 @@ GDBRemoteCommunicationServer::Handle_interrupt (StringExtractorGDBRemote &packet
         return SendErrorResponse (0x15);
     }
 
-    // Build the ResumeActionList - stop everything.
-    lldb_private::ResumeActionList actions (StateType::eStateStopped, 0);
-
-    Error error = m_debugged_process_sp->Resume (actions);
+    // Interrupt the process.
+    Error error = m_debugged_process_sp->Interrupt ();
     if (error.Fail ())
     {
         if (log)
@@ -3771,7 +3794,7 @@ GDBRemoteCommunicationServer::Handle_z (StringExtractorGDBRemote &packet)
     }
 
     // Parse out software or hardware breakpoint requested.
-    packet.SetFilePos (strlen("Z"));
+    packet.SetFilePos (strlen("z"));
     if (packet.GetBytesLeft() < 1)
         return SendIllFormedResponse(packet, "Too short z packet, missing software/hardware specifier");
 
@@ -3811,7 +3834,7 @@ GDBRemoteCommunicationServer::Handle_z (StringExtractorGDBRemote &packet)
 
     if (want_breakpoint)
     {
-        // Try to set the breakpoint.
+        // Try to clear the breakpoint.
         const Error error = m_debugged_process_sp->RemoveBreakpoint (breakpoint_addr);
         if (error.Success ())
             return SendOKResponse ();
@@ -4171,8 +4194,93 @@ GDBRemoteCommunicationServer::Handle_vAttach (StringExtractorGDBRemote &packet)
 
     // Notify we attached by sending a stop packet.
     return SendStopReasonForState (m_debugged_process_sp->GetState (), true);
+}
 
-    return PacketResult::Success;
+GDBRemoteCommunicationServer::PacketResult
+GDBRemoteCommunicationServer::Handle_D (StringExtractorGDBRemote &packet)
+{
+    Log *log (GetLogIfAnyCategoriesSet (LIBLLDB_LOG_PROCESS));
+
+    // We don't support if we're not llgs.
+    if (!IsGdbServer())
+        return SendUnimplementedResponse ("only supported for lldb-gdbserver");
+
+    // Scope for mutex locker.
+    Mutex::Locker locker (m_spawned_pids_mutex);
+
+    // Fail if we don't have a current process.
+    if (!m_debugged_process_sp || (m_debugged_process_sp->GetID () == LLDB_INVALID_PROCESS_ID))
+    {
+        if (log)
+            log->Printf ("GDBRemoteCommunicationServer::%s failed, no process available", __FUNCTION__);
+        return SendErrorResponse (0x15);
+    }
+
+    if (m_spawned_pids.find(m_debugged_process_sp->GetID ()) == m_spawned_pids.end())
+    {
+        if (log)
+            log->Printf ("GDBRemoteCommunicationServer::%s failed to find PID %" PRIu64 " in spawned pids list",
+                         __FUNCTION__, m_debugged_process_sp->GetID ());
+        return SendErrorResponse (0x1);
+    }
+
+    lldb::pid_t pid = LLDB_INVALID_PROCESS_ID;
+
+    // Consume the ';' after D.
+    packet.SetFilePos (1);
+    if (packet.GetBytesLeft ())
+    {
+        if (packet.GetChar () != ';')
+            return SendIllFormedResponse (packet, "D missing expected ';'");
+
+        // Grab the PID from which we will detach (assume hex encoding).
+        pid = packet.GetU32 (LLDB_INVALID_PROCESS_ID, 16);
+        if (pid == LLDB_INVALID_PROCESS_ID)
+            return SendIllFormedResponse (packet, "D failed to parse the process id");
+    }
+
+    if (pid != LLDB_INVALID_PROCESS_ID &&
+        m_debugged_process_sp->GetID () != pid)
+    {
+        return SendIllFormedResponse (packet, "Invalid pid");
+    }
+
+    if (m_stdio_communication.IsConnected ())
+    {
+        m_stdio_communication.StopReadThread ();
+    }
+
+    const Error error = m_debugged_process_sp->Detach ();
+    if (error.Fail ())
+    {
+        if (log)
+            log->Printf ("GDBRemoteCommunicationServer::%s failed to detach from pid %" PRIu64 ": %s\n",
+                         __FUNCTION__, m_debugged_process_sp->GetID (), error.AsCString ());
+        return SendErrorResponse (0x01);
+    }
+
+    m_spawned_pids.erase (m_debugged_process_sp->GetID ());
+    return SendOKResponse ();
+}
+
+GDBRemoteCommunicationServer::PacketResult
+GDBRemoteCommunicationServer::Handle_qThreadStopInfo (StringExtractorGDBRemote &packet)
+{
+    Log *log (GetLogIfAnyCategoriesSet(LIBLLDB_LOG_THREAD));
+
+    // We don't support if we're not llgs.
+    if (!IsGdbServer())
+        return SendUnimplementedResponse ("only supported for lldb-gdbserver");
+
+    packet.SetFilePos (strlen("qThreadStopInfo"));
+    const lldb::tid_t tid = packet.GetHexMaxU32 (false, LLDB_INVALID_THREAD_ID);
+    if (tid == LLDB_INVALID_THREAD_ID)
+    {
+        if (log)
+            log->Printf ("GDBRemoteCommunicationServer::%s failed, could not parse thread id from request \"%s\"", __FUNCTION__, packet.GetStringRef ().c_str ());
+        return SendErrorResponse (0x15);
+    }
+    return SendStopReplyPacketForThread (tid);
 }
 
 void

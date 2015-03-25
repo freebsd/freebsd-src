@@ -1,7 +1,7 @@
-/*	$Id: term.c,v 1.237 2014/12/02 10:08:06 schwarze Exp $ */
+/*	$Id: term.c,v 1.245 2015/03/06 13:02:43 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010-2014 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2010-2015 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -43,6 +43,7 @@ term_free(struct termp *p)
 {
 
 	free(p->buf);
+	free(p->fontq);
 	free(p);
 }
 
@@ -100,7 +101,6 @@ term_flushln(struct termp *p)
 	size_t		 j;     /* temporary loop index for p->buf */
 	size_t		 jhy;	/* last hyph before overflow w/r/t j */
 	size_t		 maxvis; /* output position of visible boundary */
-	size_t		 rmargin; /* the rightmost of the two margins */
 
 	/*
 	 * First, establish the maximum columns of "visible" content.
@@ -113,8 +113,7 @@ term_flushln(struct termp *p)
 	 * is negative, it gets sign extended.  Subtracting that
 	 * very large size_t effectively adds a small number to dv.
 	 */
-	rmargin = p->rmargin > p->offset ? p->rmargin : p->offset;
-	dv = p->rmargin - p->offset;
+	dv = p->rmargin > p->offset ? p->rmargin - p->offset : 0;
 	maxvis = (int)dv > p->overstep ? dv - (size_t)p->overstep : 0;
 
 	if (p->flags & TERMP_NOBREAK) {
@@ -192,8 +191,9 @@ term_flushln(struct termp *p)
 			(*p->endline)(p);
 			p->viscol = 0;
 			if (TERMP_BRIND & p->flags) {
-				vbl = rmargin;
-				vend += rmargin - p->offset;
+				vbl = p->rmargin;
+				vend += p->rmargin;
+				vend -= p->offset;
 			} else
 				vbl = p->offset;
 
@@ -273,7 +273,7 @@ term_flushln(struct termp *p)
 	}
 
 	if (TERMP_HANG & p->flags) {
-		p->overstep = (int)(vis - maxvis +
+		p->overstep += (int)(p->offset + vis - p->rmargin +
 		    p->trailspace * (*p->width)(p, ' '));
 
 		/*
@@ -329,6 +329,7 @@ term_vspace(struct termp *p)
 		(*p->endline)(p);
 }
 
+/* Swap current and previous font; for \fP and .ft P */
 void
 term_fontlast(struct termp *p)
 {
@@ -339,6 +340,7 @@ term_fontlast(struct termp *p)
 	p->fontq[p->fonti] = f;
 }
 
+/* Set font, save current, discard previous; for \f, .ft, .B etc. */
 void
 term_fontrepl(struct termp *p, enum termfont f)
 {
@@ -347,38 +349,31 @@ term_fontrepl(struct termp *p, enum termfont f)
 	p->fontq[p->fonti] = f;
 }
 
+/* Set font, save previous. */
 void
 term_fontpush(struct termp *p, enum termfont f)
 {
 
-	assert(p->fonti + 1 < 10);
 	p->fontl = p->fontq[p->fonti];
-	p->fontq[++p->fonti] = f;
+	if (++p->fonti == p->fontsz) {
+		p->fontsz += 8;
+		p->fontq = mandoc_reallocarray(p->fontq,
+		    p->fontsz, sizeof(enum termfont *));
+	}
+	p->fontq[p->fonti] = f;
 }
 
-const void *
-term_fontq(struct termp *p)
-{
-
-	return(&p->fontq[p->fonti]);
-}
-
-enum termfont
-term_fonttop(struct termp *p)
-{
-
-	return(p->fontq[p->fonti]);
-}
-
+/* Flush to make the saved pointer current again. */
 void
-term_fontpopq(struct termp *p, const void *key)
+term_fontpopq(struct termp *p, int i)
 {
 
-	while (p->fonti >= 0 && key < (void *)(p->fontq + p->fonti))
-		p->fonti--;
-	assert(p->fonti >= 0);
+	assert(i >= 0);
+	if (p->fonti > i)
+		p->fonti = i;
 }
 
+/* Pop one font off the stack. */
 void
 term_fontpop(struct termp *p)
 {
@@ -418,6 +413,7 @@ term_word(struct termp *p, const char *word)
 		p->flags |= TERMP_NOSPACE;
 
 	p->flags &= ~(TERMP_SENTENCE | TERMP_NONEWLINE);
+	p->skipvsp = 0;
 
 	while ('\0' != *word) {
 		if ('\\' != *word) {
@@ -492,6 +488,17 @@ term_word(struct termp *p, const char *word)
 		case ESCAPE_SKIPCHAR:
 			p->flags |= TERMP_SKIPCHAR;
 			continue;
+		case ESCAPE_OVERSTRIKE:
+			cp = seq + sz;
+			while (seq < cp) {
+				if (*seq == '\\') {
+					mandoc_escape(&seq, NULL, NULL);
+					continue;
+				}
+				encode1(p, *seq++);
+				if (seq < cp)
+					encode(p, "\b", 1);
+			}
 		default:
 			continue;
 		}
@@ -554,7 +561,7 @@ encode1(struct termp *p, int c)
 	if (p->col + 6 >= p->maxcols)
 		adjbuf(p, p->col + 6);
 
-	f = term_fonttop(p);
+	f = p->fontq[p->fonti];
 
 	if (TERMFONT_UNDER == f || TERMFONT_BI == f) {
 		p->buf[p->col++] = '_';
@@ -586,7 +593,7 @@ encode(struct termp *p, const char *word, size_t sz)
 	 * character by character.
 	 */
 
-	if (TERMFONT_NONE == term_fonttop(p)) {
+	if (p->fontq[p->fonti] == TERMFONT_NONE) {
 		if (p->col + sz >= p->maxcols)
 			adjbuf(p, p->col + sz);
 		for (i = 0; i < sz; i++)
@@ -713,6 +720,20 @@ term_strlen(const struct termp *p, const char *cp)
 			case ESCAPE_SKIPCHAR:
 				skip = 1;
 				continue;
+			case ESCAPE_OVERSTRIKE:
+				rsz = 0;
+				rhs = seq + ssz;
+				while (seq < rhs) {
+					if (*seq == '\\') {
+						mandoc_escape(&seq, NULL, NULL);
+						continue;
+					}
+					i = (*p->width)(p, *seq++);
+					if (rsz < i)
+						rsz = i;
+				}
+				sz += rsz;
+				continue;
 			default:
 				continue;
 			}
@@ -766,47 +787,55 @@ term_strlen(const struct termp *p, const char *cp)
 	return(sz);
 }
 
-size_t
+int
 term_vspan(const struct termp *p, const struct roffsu *su)
 {
 	double		 r;
+	int		 ri;
 
 	switch (su->unit) {
+	case SCALE_BU:
+		r = su->scale / 40.0;
+		break;
 	case SCALE_CM:
-		r = su->scale * 2.0;
+		r = su->scale * 6.0 / 2.54;
+		break;
+	case SCALE_FS:
+		r = su->scale * 65536.0 / 40.0;
 		break;
 	case SCALE_IN:
 		r = su->scale * 6.0;
+		break;
+	case SCALE_MM:
+		r = su->scale * 0.006;
 		break;
 	case SCALE_PC:
 		r = su->scale;
 		break;
 	case SCALE_PT:
-		r = su->scale / 8.0;
+		r = su->scale / 12.0;
 		break;
-	case SCALE_MM:
-		r = su->scale / 1000.0;
+	case SCALE_EN:
+		/* FALLTHROUGH */
+	case SCALE_EM:
+		r = su->scale * 0.6;
 		break;
 	case SCALE_VS:
 		r = su->scale;
 		break;
 	default:
-		r = su->scale - 1.0;
-		break;
+		abort();
+		/* NOTREACHED */
 	}
-
-	if (r < 0.0)
-		r = 0.0;
-	return((size_t)(r + 0.0005));
+	ri = r > 0.0 ? r + 0.4995 : r - 0.4995;
+	return(ri < 66 ? ri : 1);
 }
 
-size_t
+int
 term_hspan(const struct termp *p, const struct roffsu *su)
 {
 	double		 v;
 
 	v = (*p->hspan)(p, su);
-	if (v < 0.0)
-		v = 0.0;
-	return((size_t)(v + 0.0005));
+	return(v > 0.0 ? v + 0.0005 : v - 0.0005);
 }

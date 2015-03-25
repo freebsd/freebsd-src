@@ -447,6 +447,32 @@ FormatManager::GetSyntheticChildrenForType (lldb::TypeNameSpecifierImplSP type_s
 }
 #endif
 
+lldb::TypeValidatorImplSP
+FormatManager::GetValidatorForType (lldb::TypeNameSpecifierImplSP type_sp)
+{
+    if (!type_sp)
+        return lldb::TypeValidatorImplSP();
+    lldb::TypeValidatorImplSP validator_chosen_sp;
+    uint32_t num_categories = m_categories_map.GetCount();
+    lldb::TypeCategoryImplSP category_sp;
+    uint32_t prio_category = UINT32_MAX;
+    for (uint32_t category_id = 0;
+         category_id < num_categories;
+         category_id++)
+    {
+        category_sp = GetCategoryAtIndex(category_id);
+        if (category_sp->IsEnabled() == false)
+            continue;
+        lldb::TypeValidatorImplSP validator_current_sp(category_sp->GetValidatorForType(type_sp).get());
+        if (validator_current_sp && (validator_chosen_sp.get() == NULL || (prio_category > category_sp->GetEnabledPosition())))
+        {
+            prio_category = category_sp->GetEnabledPosition();
+            validator_chosen_sp = validator_current_sp;
+        }
+    }
+    return validator_chosen_sp;
+}
+
 lldb::TypeCategoryImplSP
 FormatManager::GetCategory (const ConstString& category_name,
                          bool can_create)
@@ -501,10 +527,9 @@ FormatManager::ShouldPrintAsOneLiner (ValueObject& valobj)
     if (valobj.GetTargetSP().get() && valobj.GetTargetSP()->GetDebugger().GetAutoOneLineSummaries() == false)
         return false; // then don't oneline
     
-    // if this object has a summary, don't try to do anything special to it
-    // if the user wants one-liner, they can ask for it in summary :)
+    // if this object has a summary, then ask the summary
     if (valobj.GetSummaryFormat().get() != nullptr)
-        return false;
+        return valobj.GetSummaryFormat()->IsOneLiner();
     
     // no children, no party
     if (valobj.GetNumChildren() == 0)
@@ -516,6 +541,7 @@ FormatManager::ShouldPrintAsOneLiner (ValueObject& valobj)
          idx < valobj.GetNumChildren();
          idx++)
     {
+        bool is_synth_val = false;
         ValueObjectSP child_sp(valobj.GetChildAtIndex(idx, true));
         // something is wrong here - bail out
         if (!child_sp)
@@ -523,7 +549,17 @@ FormatManager::ShouldPrintAsOneLiner (ValueObject& valobj)
         // if we decided to define synthetic children for a type, we probably care enough
         // to show them, but avoid nesting children in children
         if (child_sp->GetSyntheticChildren().get() != nullptr)
-            return false;
+        {
+            ValueObjectSP synth_sp(child_sp->GetSyntheticValue());
+            // wait.. wat? just get out of here..
+            if (!synth_sp)
+                return false;
+            // but if we only have them to provide a value, keep going
+            if (synth_sp->MightHaveChildren() == false && synth_sp->DoesProvideSyntheticValue())
+                is_synth_val = true;
+            else
+                return false;
+        }
         
         total_children_name_len += child_sp->GetName().GetLength();
         
@@ -547,7 +583,7 @@ FormatManager::ShouldPrintAsOneLiner (ValueObject& valobj)
             // ...and no summary...
             // (if it had a summary and the summary wanted children, we would have bailed out anyway
             //  so this only makes us bail out if this has no summary and we would then print children)
-            if (!child_sp->GetSummaryFormat())
+            if (!child_sp->GetSummaryFormat() && !is_synth_val) // but again only do that if not a synthetic valued child
                 return false; // then bail out
         }
     }
@@ -756,6 +792,63 @@ FormatManager::GetSyntheticChildren (ValueObject& valobj,
 }
 #endif
 
+lldb::TypeValidatorImplSP
+FormatManager::GetValidator (ValueObject& valobj,
+                             lldb::DynamicValueType use_dynamic)
+{
+    TypeValidatorImplSP retval;
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_TYPES));
+    ConstString valobj_type(GetTypeForCache(valobj, use_dynamic));
+    if (valobj_type)
+    {
+        if (log)
+            log->Printf("\n\n[FormatManager::GetValidator] Looking into cache for type %s", valobj_type.AsCString("<invalid>"));
+        if (m_format_cache.GetValidator(valobj_type,retval))
+        {
+            if (log)
+            {
+                log->Printf("[FormatManager::GetValidator] Cache search success. Returning.");
+                if (log->GetDebug())
+                    log->Printf("[FormatManager::GetValidator] Cache hits: %" PRIu64 " - Cache Misses: %" PRIu64, m_format_cache.GetCacheHits(), m_format_cache.GetCacheMisses());
+            }
+            return retval;
+        }
+        if (log)
+            log->Printf("[FormatManager::GetValidator] Cache search failed. Going normal route");
+    }
+    retval = m_categories_map.GetValidator(valobj, use_dynamic);
+    if (!retval)
+    {
+        if (log)
+            log->Printf("[FormatManager::GetValidator] Search failed. Giving hardcoded a chance.");
+        retval = GetHardcodedValidator(valobj, use_dynamic);
+    }
+    else if (valobj_type)
+    {
+        if (log)
+            log->Printf("[FormatManager::GetValidator] Caching %p for type %s",
+                        static_cast<void*>(retval.get()),
+                        valobj_type.AsCString("<invalid>"));
+        m_format_cache.SetValidator(valobj_type,retval);
+    }
+    if (log && log->GetDebug())
+        log->Printf("[FormatManager::GetValidator] Cache hits: %" PRIu64 " - Cache Misses: %" PRIu64, m_format_cache.GetCacheHits(), m_format_cache.GetCacheMisses());
+    return retval;
+}
+
+lldb::TypeValidatorImplSP
+FormatManager::GetHardcodedValidator (ValueObject& valobj,
+                                      lldb::DynamicValueType use_dynamic)
+{
+    for (const auto& candidate: m_hardcoded_validators)
+    {
+        auto result = candidate(valobj,use_dynamic,*this);
+        if (result)
+            return result;
+    }
+    return nullptr;
+}
+
 FormatManager::FormatManager() :
     m_format_cache(),
     m_named_summaries_map(this),
@@ -773,7 +866,8 @@ FormatManager::FormatManager() :
     m_appkit_category_name(ConstString("AppKit")),
     m_hardcoded_formats(),
     m_hardcoded_summaries(),
-    m_hardcoded_synthetics()
+    m_hardcoded_synthetics(),
+    m_hardcoded_validators()
     
 {
     LoadSystemFormatters();
@@ -818,6 +912,21 @@ AddStringSummary(TypeCategoryImpl::SharedPointer category_sp,
 {
     lldb::TypeSummaryImplSP summary_sp(new StringSummaryFormat(flags,
                                                                string));
+    
+    if (regex)
+        category_sp->GetRegexTypeSummariesContainer()->Add(RegularExpressionSP(new RegularExpression(type_name.AsCString())),summary_sp);
+    else
+        category_sp->GetTypeSummariesContainer()->Add(type_name, summary_sp);
+}
+
+static void
+AddOneLineSummary (TypeCategoryImpl::SharedPointer category_sp,
+                   ConstString type_name,
+                   TypeSummaryImpl::Flags flags,
+                   bool regex = false)
+{
+    flags.SetShowMembersOneLiner(true);
+    lldb::TypeSummaryImplSP summary_sp(new StringSummaryFormat(flags, ""));
     
     if (regex)
         category_sp->GetRegexTypeSummariesContainer()->Add(RegularExpressionSP(new RegularExpression(type_name.AsCString())),summary_sp);
@@ -945,13 +1054,6 @@ FormatManager::LoadLibStdcppFormatters()
     AddCXXSynthetic(gnu_category_sp, lldb_private::formatters::LibStdcppVectorIteratorSyntheticFrontEndCreator, "std::vector iterator synthetic children", ConstString("^__gnu_cxx::__normal_iterator<.+>$"), stl_synth_flags, true);
     
     AddCXXSynthetic(gnu_category_sp, lldb_private::formatters::LibstdcppMapIteratorSyntheticFrontEndCreator, "std::map iterator synthetic children", ConstString("^std::_Rb_tree_iterator<.+>$"), stl_synth_flags, true);
-    
-    gnu_category_sp->GetTypeSummariesContainer()->Add(ConstString("std::vector<std::allocator<bool> >"),
-                                                   TypeSummaryImplSP(new StringSummaryFormat(stl_summary_flags, "size=${svar%#}")));
-    
-    gnu_category_sp->GetTypeSyntheticsContainer()->Add(ConstString("std::vector<std::allocator<bool> >"),
-                                                     SyntheticChildrenSP(new CXXSyntheticChildren(stl_synth_flags,"libc++ std::vector<bool> synthetic children",lldb_private::formatters::LibstdcppVectorBoolSyntheticFrontEndCreator)));
-
 #endif
 }
 
@@ -998,6 +1100,7 @@ FormatManager::LoadLibcxxFormatters()
     AddCXXSynthetic(libcxx_category_sp, lldb_private::formatters::LibcxxStdMapSyntheticFrontEndCreator, "libc++ std::multiset synthetic children", ConstString("^std::__1::multiset<.+> >(( )?&)?$"), stl_synth_flags, true);
     AddCXXSynthetic(libcxx_category_sp, lldb_private::formatters::LibcxxStdMapSyntheticFrontEndCreator, "libc++ std::multimap synthetic children", ConstString("^std::__1::multimap<.+> >(( )?&)?$"), stl_synth_flags, true);
     AddCXXSynthetic(libcxx_category_sp, lldb_private::formatters::LibcxxStdUnorderedMapSyntheticFrontEndCreator, "libc++ std::unordered containers synthetic children", ConstString("^(std::__1::)unordered_(multi)?(map|set)<.+> >$"), stl_synth_flags, true);
+    AddCXXSynthetic(libcxx_category_sp, lldb_private::formatters::LibcxxInitializerListSyntheticFrontEndCreator, "libc++ std::initializer_list synthetic children", ConstString("^std::initializer_list<.+>(( )?&)?$"), stl_synth_flags, true);
     
     libcxx_category_sp->GetRegexTypeSyntheticsContainer()->Add(RegularExpressionSP(new RegularExpression("^(std::__1::)deque<.+>(( )?&)?$")),
                                                           SyntheticChildrenSP(new ScriptedSyntheticChildren(stl_synth_flags,
@@ -1124,6 +1227,10 @@ FormatManager::LoadObjCFormatters()
     .SetHideItemNames(false);
 
     TypeCategoryImpl::SharedPointer objc_category_sp = GetCategory(m_objc_category_name);
+    TypeCategoryImpl::SharedPointer appkit_category_sp = GetCategory(m_appkit_category_name);
+    TypeCategoryImpl::SharedPointer corefoundation_category_sp = GetCategory(m_corefoundation_category_name);
+    TypeCategoryImpl::SharedPointer coregraphics_category_sp = GetCategory(m_coregraphics_category_name);
+    TypeCategoryImpl::SharedPointer coreservices_category_sp = GetCategory(m_coreservices_category_name);
     
     lldb::TypeSummaryImplSP ObjC_BOOL_summary(new CXXFunctionSummaryFormat(objc_flags, lldb_private::formatters::ObjCBOOLSummaryProvider,""));
     objc_category_sp->GetTypeSummariesContainer()->Add(ConstString("BOOL"),
@@ -1159,8 +1266,6 @@ FormatManager::LoadObjCFormatters()
                       ConstString("__block_literal_generic"),
                       objc_flags);
 
-    TypeCategoryImpl::SharedPointer corefoundation_category_sp = GetCategory(m_corefoundation_category_name);
-
     AddStringSummary(corefoundation_category_sp,
                      "${var.years} years, ${var.months} months, ${var.days} days, ${var.hours} hours, ${var.minutes} minutes ${var.seconds} seconds",
                      ConstString("CFGregorianUnits"),
@@ -1169,43 +1274,35 @@ FormatManager::LoadObjCFormatters()
                      "location=${var.location} length=${var.length}",
                      ConstString("CFRange"),
                      objc_flags);
-    AddStringSummary(corefoundation_category_sp,
-                     "(x=${var.x}, y=${var.y})",
-                     ConstString("NSPoint"),
-                     objc_flags);
-    AddStringSummary(corefoundation_category_sp,
+
+    AddStringSummary(appkit_category_sp,
                      "location=${var.location}, length=${var.length}",
                      ConstString("NSRange"),
                      objc_flags);
-    AddStringSummary(corefoundation_category_sp,
-                     "${var.origin}, ${var.size}",
-                     ConstString("NSRect"),
-                     objc_flags);
-    AddStringSummary(corefoundation_category_sp,
+    AddStringSummary(appkit_category_sp,
                      "(${var.origin}, ${var.size}), ...",
                      ConstString("NSRectArray"),
                      objc_flags);
-    AddStringSummary(objc_category_sp,
-                     "(width=${var.width}, height=${var.height})",
-                     ConstString("NSSize"),
-                     objc_flags);
     
-    TypeCategoryImpl::SharedPointer coregraphics_category_sp = GetCategory(m_coregraphics_category_name);
+    AddOneLineSummary (appkit_category_sp,
+                       ConstString("NSPoint"),
+                       objc_flags);
+    AddOneLineSummary (appkit_category_sp,
+                       ConstString("NSSize"),
+                       objc_flags);
+    AddOneLineSummary (appkit_category_sp,
+                       ConstString("NSRect"),
+                       objc_flags);
     
-    AddStringSummary(coregraphics_category_sp,
-                     "(width=${var.width}, height=${var.height})",
-                     ConstString("CGSize"),
-                     objc_flags);
-    AddStringSummary(coregraphics_category_sp,
-                     "(x=${var.x}, y=${var.y})",
-                     ConstString("CGPoint"),
-                     objc_flags);
-    AddStringSummary(coregraphics_category_sp,
-                     "origin=${var.origin} size=${var.size}",
-                     ConstString("CGRect"),
-                     objc_flags);
-    
-    TypeCategoryImpl::SharedPointer coreservices_category_sp = GetCategory(m_coreservices_category_name);
+    AddOneLineSummary (coregraphics_category_sp,
+                       ConstString("CGSize"),
+                       objc_flags);
+    AddOneLineSummary (coregraphics_category_sp,
+                       ConstString("CGPoint"),
+                       objc_flags);
+    AddOneLineSummary (coregraphics_category_sp,
+                       ConstString("CGRect"),
+                       objc_flags);
     
     AddStringSummary(coreservices_category_sp,
                      "red=${var.red} green=${var.green} blue=${var.blue}",
@@ -1235,8 +1332,6 @@ FormatManager::LoadObjCFormatters()
                      "origin=${var.origin} size=${var.size}",
                      ConstString("HIRect"),
                      objc_flags);
-    
-    TypeCategoryImpl::SharedPointer appkit_category_sp = GetCategory(m_appkit_category_name);
     
     TypeSummaryImpl::Flags appkit_flags;
     appkit_flags.SetCascades(true)
@@ -1307,6 +1402,8 @@ FormatManager::LoadObjCFormatters()
     AddCXXSynthetic(appkit_category_sp, lldb_private::formatters::NSSetSyntheticFrontEndCreator, "NSOrderedSet synthetic children", ConstString("NSOrderedSet"), ScriptedSyntheticChildren::Flags());
     AddCXXSynthetic(appkit_category_sp, lldb_private::formatters::NSSetSyntheticFrontEndCreator, "__NSOrderedSetI synthetic children", ConstString("__NSOrderedSetI"), ScriptedSyntheticChildren::Flags());
     AddCXXSynthetic(appkit_category_sp, lldb_private::formatters::NSSetSyntheticFrontEndCreator, "__NSOrderedSetM synthetic children", ConstString("__NSOrderedSetM"), ScriptedSyntheticChildren::Flags());
+
+    AddCXXSynthetic(appkit_category_sp, lldb_private::formatters::NSIndexPathSyntheticFrontEndCreator, "NSIndexPath synthetic children", ConstString("NSIndexPath"), ScriptedSyntheticChildren::Flags());
     
     AddCXXSummary(corefoundation_category_sp,lldb_private::formatters::CFBagSummaryProvider, "CFBag summary provider", ConstString("CFBagRef"), appkit_flags);
     AddCXXSummary(corefoundation_category_sp,lldb_private::formatters::CFBagSummaryProvider, "CFBag summary provider", ConstString("__CFBag"), appkit_flags);
@@ -1471,8 +1568,22 @@ FormatManager::LoadHardcodedFormatters()
     }
     {
         // insert code to load summaries here
+        m_hardcoded_summaries.push_back(
+                                        [](lldb_private::ValueObject& valobj,
+                                            lldb::DynamicValueType,
+                                            FormatManager&) -> TypeSummaryImpl::SharedPointer {
+                                            static CXXFunctionSummaryFormat::SharedPointer formatter_sp(new CXXFunctionSummaryFormat(TypeSummaryImpl::Flags(), lldb_private::formatters::FunctionPointerSummaryProvider, "Function pointer summary provider"));
+                                            if (valobj.GetClangType().IsFunctionPointerType())
+                                            {
+                                                return formatter_sp;
+                                            }
+                                            return nullptr;
+                                        });
     }
     {
         // insert code to load synthetics here
+    }
+    {
+        // insert code to load validators here
     }
 }

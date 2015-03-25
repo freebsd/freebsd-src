@@ -38,6 +38,70 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150315: new clang import which bumps version from 3.5.1 to 3.6.0.
+OLD_FILES+=usr/include/clang/3.5.1/__wmmintrin_aes.h
+OLD_FILES+=usr/include/clang/3.5.1/__wmmintrin_pclmul.h
+OLD_FILES+=usr/include/clang/3.5.1/altivec.h
+OLD_FILES+=usr/include/clang/3.5.1/ammintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/arm_acle.h
+OLD_FILES+=usr/include/clang/3.5.1/arm_neon.h
+OLD_FILES+=usr/include/clang/3.5.1/avx2intrin.h
+OLD_FILES+=usr/include/clang/3.5.1/avxintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/bmi2intrin.h
+OLD_FILES+=usr/include/clang/3.5.1/bmiintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/cpuid.h
+OLD_FILES+=usr/include/clang/3.5.1/emmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/f16cintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/fma4intrin.h
+OLD_FILES+=usr/include/clang/3.5.1/fmaintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/ia32intrin.h
+OLD_FILES+=usr/include/clang/3.5.1/immintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/lzcntintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.5.1/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.5.1/mmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/module.modulemap
+OLD_FILES+=usr/include/clang/3.5.1/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/popcntintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/prfchwintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/rdseedintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/rtmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/shaintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/smmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/tbmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/x86intrin.h
+OLD_FILES+=usr/include/clang/3.5.1/xmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/xopintrin.h
+OLD_DIRS+=usr/include/clang/3.5.1
+OLD_DIRS+=usr/include/clang
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.asan-i386.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.asan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.asan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.asan_cxx-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.profile-arm.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.profile-i386.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.profile-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.san-i386.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.san-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.ubsan-i386.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.ubsan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.ubsan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
+OLD_DIRS+=usr/lib/clang/3.5.1/lib/freebsd
+OLD_DIRS+=usr/lib/clang/3.5.1/lib
+OLD_DIRS+=usr/lib/clang/3.5.1
+# 20150302: binutils documentation distributed as a manpage
+OLD_FILES+=usr/share/doc/binutils/as.txt
+OLD_FILES+=usr/share/doc/binutils/ld.txt
+OLD_DIRS+=usr/share/doc/binutils
+# 20150222: Removed bcd(6) and ppt(6)
+OLD_FILES+=usr/bin/bcd
+OLD_FILES+=usr/bin/ppt
+OLD_FILES+=usr/share/man/man6/bcd.6.gz
+OLD_FILES+=usr/share/man/man6/ppt.6.gz
 # 20150217: Removed remnants of ar(4) driver
 OLD_FILES+=usr/include/sys/dev/ic/hd64570.h
 # 20150212: /usr/games moving into /usr/bin

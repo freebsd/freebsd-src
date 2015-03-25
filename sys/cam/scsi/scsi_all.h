@@ -1758,6 +1758,7 @@ struct ata_pass_16 {
 #define	SERVICE_ACTION_IN	0x9E
 #define	REPORT_LUNS		0xA0
 #define	ATA_PASS_12		0xA1
+#define	SECURITY_PROTOCOL_IN	0xA2
 #define	MAINTENANCE_IN		0xA3
 #define	MAINTENANCE_OUT		0xA4
 #define	MOVE_MEDIUM     	0xA5
@@ -1765,6 +1766,7 @@ struct ata_pass_16 {
 #define	WRITE_12		0xAA
 #define	WRITE_VERIFY_12		0xAE
 #define	VERIFY_12		0xAF
+#define	SECURITY_PROTOCOL_OUT	0xB5
 #define	READ_ELEMENT_STATUS	0xB8
 #define	READ_CD			0xBE
 
@@ -2702,6 +2704,41 @@ struct scsi_target_group_data_extended {
 	struct scsi_target_port_group_descriptor groups[];
 };
 
+struct scsi_security_protocol_in
+{
+	uint8_t opcode;
+	uint8_t security_protocol;
+#define	SPI_PROT_INFORMATION		0x00
+#define	SPI_PROT_CBCS			0x07
+#define	SPI_PROT_TAPE_DATA_ENC		0x20
+#define	SPI_PROT_DATA_ENC_CONFIG	0x21
+#define	SPI_PROT_SA_CREATE_CAP		0x40
+#define	SPI_PROT_IKEV2_SCSI		0x41
+#define	SPI_PROT_JEDEC_UFS		0xEC
+#define	SPI_PROT_SDCARD_TFSSS		0xED
+#define	SPI_PROT_AUTH_HOST_TRANSIENT	0xEE
+#define	SPI_PROT_ATA_DEVICE_PASSWORD	0xEF
+	uint8_t security_protocol_specific[2];
+	uint8_t byte4;
+#define	SPI_INC_512	0x80
+	uint8_t reserved1;
+	uint8_t length[4];
+	uint8_t reserved2;
+	uint8_t control;
+};
+
+struct scsi_security_protocol_out
+{
+	uint8_t opcode;
+	uint8_t security_protocol;
+	uint8_t security_protocol_specific[2];
+	uint8_t byte4;
+#define	SPO_INC_512	0x80
+	uint8_t reserved1;
+	uint8_t length[4];
+	uint8_t reserved2;
+	uint8_t control;
+};
 
 typedef enum {
 	SSD_TYPE_NONE,
@@ -3622,6 +3659,20 @@ void scsi_start_stop(struct ccb_scsiio *csio, u_int32_t retries,
 		     void (*cbfcnp)(struct cam_periph *, union ccb *),
 		     u_int8_t tag_action, int start, int load_eject,
 		     int immediate, u_int8_t sense_len, u_int32_t timeout);
+
+void scsi_security_protocol_in(struct ccb_scsiio *csio, uint32_t retries, 
+			       void (*cbfcnp)(struct cam_periph *, union ccb *),
+			       uint8_t tag_action, uint32_t security_protocol,
+			       uint32_t security_protocol_specific, int byte4,
+			       uint8_t *data_ptr, uint32_t dxfer_len,
+			       int sense_len, int timeout);
+
+void scsi_security_protocol_out(struct ccb_scsiio *csio, uint32_t retries, 
+				void (*cbfcnp)(struct cam_periph *,union ccb *),
+				uint8_t tag_action, uint32_t security_protocol,
+				uint32_t security_protocol_specific, int byte4,
+				uint8_t *data_ptr, uint32_t dxfer_len,
+				int sense_len, int timeout);
 
 void scsi_persistent_reserve_in(struct ccb_scsiio *csio, uint32_t retries, 
 				void (*cbfcnp)(struct cam_periph *,union ccb *),

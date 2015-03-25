@@ -378,8 +378,8 @@ bool MLxExpansion::ExpandFPMLxInstructions(MachineBasicBlock &MBB) {
 }
 
 bool MLxExpansion::runOnMachineFunction(MachineFunction &Fn) {
-  TII = static_cast<const ARMBaseInstrInfo*>(Fn.getTarget().getInstrInfo());
-  TRI = Fn.getTarget().getRegisterInfo();
+  TII = static_cast<const ARMBaseInstrInfo *>(Fn.getSubtarget().getInstrInfo());
+  TRI = Fn.getSubtarget().getRegisterInfo();
   MRI = &Fn.getRegInfo();
   const ARMSubtarget *STI = &Fn.getTarget().getSubtarget<ARMSubtarget>();
   isLikeA9 = STI->isLikeA9() || STI->isSwift();

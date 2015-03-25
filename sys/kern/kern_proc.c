@@ -225,12 +225,11 @@ proc_init(void *mem, int size, int flags)
 	p = (struct proc *)mem;
 	SDT_PROBE(proc, kernel, init, entry, p, size, flags, 0, 0);
 	p->p_sched = (struct p_sched *)&p[1];
-	bzero(&p->p_mtx, sizeof(struct mtx));
-	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
-	mtx_init(&p->p_slock, "process slock", NULL, MTX_SPIN);
-	mtx_init(&p->p_statmtx, "pstatl", NULL, MTX_SPIN);
-	mtx_init(&p->p_itimmtx, "pitiml", NULL, MTX_SPIN);
-	mtx_init(&p->p_profmtx, "pprofl", NULL, MTX_SPIN);
+	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK | MTX_NEW);
+	mtx_init(&p->p_slock, "process slock", NULL, MTX_SPIN | MTX_NEW);
+	mtx_init(&p->p_statmtx, "pstatl", NULL, MTX_SPIN | MTX_NEW);
+	mtx_init(&p->p_itimmtx, "pitiml", NULL, MTX_SPIN | MTX_NEW);
+	mtx_init(&p->p_profmtx, "pprofl", NULL, MTX_SPIN | MTX_NEW);
 	cv_init(&p->p_pwait, "ppwait");
 	cv_init(&p->p_dbgwait, "dbgwait");
 	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
@@ -1273,6 +1272,7 @@ sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags,
 
 	pid = p->p_pid;
 	sbuf_new_for_sysctl(&sb, (char *)&ki, sizeof(ki), req);
+	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
 	error = kern_proc_out(p, &sb, flags);
 	error2 = sbuf_finish(&sb);
 	sbuf_delete(&sb);
@@ -1851,6 +1851,7 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 		_PHOLD(p);
 		PROC_UNLOCK(p);
 		sbuf_new_for_sysctl(&sb, NULL, GET_PS_STRINGS_CHUNK_SZ, req);
+		sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
 		error = proc_getargv(curthread, p, &sb);
 		error2 = sbuf_finish(&sb);
 		PRELE(p);
@@ -1903,6 +1904,7 @@ sysctl_kern_proc_env(SYSCTL_HANDLER_ARGS)
 	}
 
 	sbuf_new_for_sysctl(&sb, NULL, GET_PS_STRINGS_CHUNK_SZ, req);
+	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
 	error = proc_getenvv(curthread, p, &sb);
 	error2 = sbuf_finish(&sb);
 	PRELE(p);
@@ -1934,6 +1936,7 @@ sysctl_kern_proc_auxv(SYSCTL_HANDLER_ARGS)
 		return (0);
 	}
 	sbuf_new_for_sysctl(&sb, NULL, GET_PS_STRINGS_CHUNK_SZ, req);
+	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
 	error = proc_getauxv(curthread, p, &sb);
 	error2 = sbuf_finish(&sb);
 	PRELE(p);
@@ -2421,6 +2424,7 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 
 	name = (int *)arg1;
 	sbuf_new_for_sysctl(&sb, NULL, sizeof(struct kinfo_vmentry), req);
+	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
 	error = pget((pid_t)name[0], PGET_CANDEBUG | PGET_NOTWEXIT, &p);
 	if (error != 0) {
 		sbuf_delete(&sb);

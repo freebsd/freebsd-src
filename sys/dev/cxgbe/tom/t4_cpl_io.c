@@ -1105,19 +1105,7 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	sb = &so->so_rcv;
 	SOCKBUF_LOCK(sb);
 	if (__predict_false(toep->ddp_flags & (DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE))) {
-		m = get_ddp_mbuf(be32toh(cpl->rcv_nxt) - tp->rcv_nxt);
-		tp->rcv_nxt = be32toh(cpl->rcv_nxt);
-		toep->ddp_flags &= ~(DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE);
-
-		KASSERT(toep->sb_cc >= sbused(sb),
-		    ("%s: sb %p has more data (%d) than last time (%d).",
-		    __func__, sb, sbused(sb), toep->sb_cc));
-		toep->rx_credits += toep->sb_cc - sbused(sb);
-#ifdef USE_DDP_RX_FLOW_CONTROL
-		toep->rx_credits -= m->m_len;	/* adjust for F_RX_FC_DDP */
-#endif
-		sbappendstream_locked(sb, m, 0);
-		toep->sb_cc = sbused(sb);
+		handle_ddp_close(toep, tp, sb, cpl->rcv_nxt);
 	}
 	socantrcvmore_locked(so);	/* unlocks the sockbuf */
 

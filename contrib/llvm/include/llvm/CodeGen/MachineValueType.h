@@ -15,6 +15,7 @@
 #ifndef LLVM_CODEGEN_MACHINEVALUETYPE_H
 #define LLVM_CODEGEN_MACHINEVALUETYPE_H
 
+#include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 
@@ -118,6 +119,7 @@ namespace llvm {
                               // unspecified type.  The register class
                               // will be determined by the opcode.
 
+      FIRST_VALUETYPE = 0,    // This is always the beginning of the list.
       LAST_VALUETYPE =  58,   // This always remains at the end of the list.
 
       // This is the current maximum for LAST_VALUETYPE.
@@ -165,6 +167,12 @@ namespace llvm {
     bool operator>=(const MVT& S) const { return SimpleTy >= S.SimpleTy; }
     bool operator<=(const MVT& S) const { return SimpleTy <= S.SimpleTy; }
 
+    /// isValid - Return true if this is a valid simple valuetype.
+    bool isValid() const {
+      return (SimpleTy >= MVT::FIRST_VALUETYPE &&
+              SimpleTy < MVT::LAST_VALUETYPE);
+    }
+
     /// isFloatingPoint - Return true if this is a FP, or a vector FP type.
     bool isFloatingPoint() const {
       return ((SimpleTy >= MVT::FIRST_FP_VALUETYPE &&
@@ -196,21 +204,24 @@ namespace llvm {
     /// is32BitVector - Return true if this is a 32-bit vector type.
     bool is32BitVector() const {
       return (SimpleTy == MVT::v4i8  || SimpleTy == MVT::v2i16 ||
-              SimpleTy == MVT::v1i32);
+              SimpleTy == MVT::v1i32 || SimpleTy == MVT::v2f16 ||
+              SimpleTy == MVT::v1f32);
     }
 
     /// is64BitVector - Return true if this is a 64-bit vector type.
     bool is64BitVector() const {
       return (SimpleTy == MVT::v8i8  || SimpleTy == MVT::v4i16 ||
               SimpleTy == MVT::v2i32 || SimpleTy == MVT::v1i64 ||
-              SimpleTy == MVT::v1f64 || SimpleTy == MVT::v2f32);
+              SimpleTy == MVT::v4f16 || SimpleTy == MVT::v2f32 ||
+              SimpleTy == MVT::v1f64);
     }
 
     /// is128BitVector - Return true if this is a 128-bit vector type.
     bool is128BitVector() const {
       return (SimpleTy == MVT::v16i8 || SimpleTy == MVT::v8i16 ||
               SimpleTy == MVT::v4i32 || SimpleTy == MVT::v2i64 ||
-              SimpleTy == MVT::v4f32 || SimpleTy == MVT::v2f64);
+              SimpleTy == MVT::v8f16 || SimpleTy == MVT::v4f32 ||
+              SimpleTy == MVT::v2f64);
     }
 
     /// is256BitVector - Return true if this is a 256-bit vector type.
@@ -572,6 +583,52 @@ namespace llvm {
     /// returned as Other, otherwise they are invalid.
     static MVT getVT(Type *Ty, bool HandleUnknown = false);
 
+  private:
+    /// A simple iterator over the MVT::SimpleValueType enum.
+    struct mvt_iterator {
+      SimpleValueType VT;
+      mvt_iterator(SimpleValueType VT) : VT(VT) {}
+      MVT operator*() const { return VT; }
+      bool operator!=(const mvt_iterator &LHS) const { return VT != LHS.VT; }
+      mvt_iterator& operator++() {
+        VT = (MVT::SimpleValueType)((int)VT + 1);
+        assert((int)VT <= MVT::MAX_ALLOWED_VALUETYPE &&
+               "MVT iterator overflowed.");
+        return *this;
+      }
+    };
+    /// A range of the MVT::SimpleValueType enum.
+    typedef iterator_range<mvt_iterator> mvt_range;
+
+  public:
+    /// SimpleValueType Iteration
+    /// @{
+    static mvt_range all_valuetypes() {
+      return mvt_range(MVT::FIRST_VALUETYPE, MVT::LAST_VALUETYPE);
+    }
+    static mvt_range integer_valuetypes() {
+      return mvt_range(MVT::FIRST_INTEGER_VALUETYPE,
+                       (MVT::SimpleValueType)(MVT::LAST_INTEGER_VALUETYPE + 1));
+    }
+    static mvt_range fp_valuetypes() {
+      return mvt_range(MVT::FIRST_FP_VALUETYPE,
+                       (MVT::SimpleValueType)(MVT::LAST_FP_VALUETYPE + 1));
+    }
+    static mvt_range vector_valuetypes() {
+      return mvt_range(MVT::FIRST_VECTOR_VALUETYPE,
+                       (MVT::SimpleValueType)(MVT::LAST_VECTOR_VALUETYPE + 1));
+    }
+    static mvt_range integer_vector_valuetypes() {
+      return mvt_range(
+          MVT::FIRST_INTEGER_VECTOR_VALUETYPE,
+          (MVT::SimpleValueType)(MVT::LAST_INTEGER_VECTOR_VALUETYPE + 1));
+    }
+    static mvt_range fp_vector_valuetypes() {
+      return mvt_range(
+          MVT::FIRST_FP_VECTOR_VALUETYPE,
+          (MVT::SimpleValueType)(MVT::LAST_FP_VECTOR_VALUETYPE + 1));
+    }
+    /// @}
   };
 
 } // End llvm namespace

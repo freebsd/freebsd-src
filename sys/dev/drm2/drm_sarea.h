@@ -39,10 +39,12 @@ __FBSDID("$FreeBSD$");
 
 /* SAREA area needs to be at least a page */
 #if defined(__alpha__)
-#define SAREA_MAX                       0x2000
+#define SAREA_MAX                       0x2000U
+#elif defined(__mips__)
+#define SAREA_MAX                       0x4000U
 #else
 /* Intel 830M driver needs at least 8k SAREA */
-#define SAREA_MAX                       0x2000UL
+#define SAREA_MAX                       0x2000U
 #endif
 
 /** Maximum number of drawables in the SAREA */

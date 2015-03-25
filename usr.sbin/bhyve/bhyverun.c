@@ -122,7 +122,7 @@ usage(int code)
 {
 
         fprintf(stderr,
-                "Usage: %s [-abehwxACHPWY] [-c vcpus] [-g <gdb port>] [-l <lpc>]\n"
+                "Usage: %s [-abehuwxACHPWY] [-c vcpus] [-g <gdb port>] [-l <lpc>]\n"
 		"       %*s [-m mem] [-p vcpu:hostcpu] [-s <pci>] [-U uuid] <vm>\n"
 		"       -a: local apic is in xAPIC mode (deprecated)\n"
 		"       -A: create ACPI tables\n"
@@ -137,6 +137,7 @@ usage(int code)
 		"       -p: pin 'vcpu' to 'hostcpu'\n"
 		"       -P: vmexit from the guest on pause\n"
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
+		"       -u: RTC keeps UTC time\n"
 		"       -U: uuid\n"
 		"       -w: ignore unimplemented MSRs\n"
 		"       -W: force virtio to use single-vector MSI\n"
@@ -685,6 +686,7 @@ main(int argc, char *argv[])
 {
 	int c, error, gdb_port, err, bvmcons;
 	int dump_guest_memory, max_vcpus, mptgen;
+	int rtc_localtime;
 	struct vmctx *ctx;
 	uint64_t rip;
 	size_t memsize;
@@ -696,8 +698,9 @@ main(int argc, char *argv[])
 	guest_ncpus = 1;
 	memsize = 256 * MB;
 	mptgen = 1;
+	rtc_localtime = 1;
 
-	while ((c = getopt(argc, argv, "abehwxACHIPWYp:g:c:s:m:l:U:")) != -1) {
+	while ((c = getopt(argc, argv, "abehuwxACHIPWYp:g:c:s:m:l:U:")) != -1) {
 		switch (c) {
 		case 'a':
 			x2apic_mode = 0;
@@ -756,6 +759,9 @@ main(int argc, char *argv[])
 			break;
 		case 'e':
 			strictio = 1;
+			break;
+		case 'u':
+			rtc_localtime = 0;
 			break;
 		case 'U':
 			guest_uuid_str = optarg;
@@ -820,7 +826,7 @@ main(int argc, char *argv[])
 	pci_irq_init(ctx);
 	ioapic_init(ctx);
 
-	rtc_init(ctx);
+	rtc_init(ctx, rtc_localtime);
 	sci_init(ctx);
 
 	/*

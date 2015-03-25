@@ -60,14 +60,21 @@
 #define	USB_DEBUG_VAR udl_debug
 #include <dev/usb/usb_debug.h>
 
+static	SYSCTL_NODE(_hw_usb, OID_AUTO, udl, CTLFLAG_RW, 0, "USB UDL");
+
 #ifdef USB_DEBUG
 static int udl_debug = 0;
-
-static	SYSCTL_NODE(_hw_usb, OID_AUTO, udl, CTLFLAG_RW, 0, "USB UDL");
 
 SYSCTL_INT(_hw_usb_udl, OID_AUTO, debug, CTLFLAG_RWTUN,
     &udl_debug, 0, "Debug level");
 #endif
+
+#define	UDL_FPS_MAX	60
+#define	UDL_FPS_MIN	1
+
+static int udl_fps = 25;
+SYSCTL_INT(_hw_usb_udl, OID_AUTO, fps, CTLFLAG_RWTUN,
+    &udl_fps, 0, "Frames Per Second, 1-60");
 
 /*
  * Prototypes.
@@ -206,14 +213,25 @@ udl_callout(void *arg)
 {
 	struct udl_softc *sc = arg;
 	const uint32_t max = udl_get_fb_size(sc);
+	int fps;
 
 	if (sc->sc_power_save == 0) {
+		fps = udl_fps;
+
+	  	/* figure out number of frames per second */
+		if (fps < UDL_FPS_MIN)
+			fps = UDL_FPS_MIN;
+		else if (fps > UDL_FPS_MAX)
+			fps = UDL_FPS_MAX;
+
 		if (sc->sc_sync_off >= max)
 			sc->sc_sync_off = 0;
 		usbd_transfer_start(sc->sc_xfer[UDL_BULK_WRITE_0]);
 		usbd_transfer_start(sc->sc_xfer[UDL_BULK_WRITE_1]);
+	} else {
+		fps = 1;
 	}
-	callout_reset(&sc->sc_callout, hz / 5, &udl_callout, sc);
+	callout_reset(&sc->sc_callout, hz / fps, &udl_callout, sc);
 }
 
 static int
@@ -765,6 +783,10 @@ udl_fbmem_alloc(struct udl_softc *sc)
 	size = udl_get_fb_size(sc);
 	size = round_page(size);
 
+	/*
+	 * It is assumed that allocations above PAGE_SIZE bytes will
+	 * be PAGE_SIZE aligned for use with mmap()
+	 */
 	sc->sc_fb_addr = malloc(size, M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->sc_fb_copy = malloc(size, M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->sc_fb_size = size;

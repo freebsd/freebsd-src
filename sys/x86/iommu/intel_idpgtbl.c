@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <sys/uio.h>
+#include <sys/vmem.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
@@ -464,6 +465,7 @@ ctx_map_buf_locked(struct dmar_ctx *ctx, dmar_gaddr_t base, dmar_gaddr_t size,
 		KASSERT(size >= pg_sz,
 		    ("mapping loop overflow %p %jx %jx %jx", ctx,
 		    (uintmax_t)base, (uintmax_t)size, (uintmax_t)pg_sz));
+		KASSERT(pg_sz > 0, ("pg_sz 0 lvl %d", lvl));
 		pte = ctx_pgtbl_map_pte(ctx, base, lvl, flags, &idx, &sf);
 		if (pte == NULL) {
 			KASSERT((flags & DMAR_PGF_WAITOK) == 0,

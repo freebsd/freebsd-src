@@ -719,12 +719,6 @@ init_secondary(void)
 	load_cr0(cr0);
 	CHECK_WRITE(0x38, 5);
 	
-	/*
-	 * On real hardware, switch to x2apic mode if possible.
-	 * Disable local APIC until BSP directed APs to run.
-	 */
-	lapic_xapic_mode();
-
 	/* signal our startup to the BSP. */
 	mp_naps++;
 	CHECK_WRITE(0x39, 6);
@@ -741,6 +735,14 @@ init_secondary(void)
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 	lidt(&r_idt);
 #endif
+
+	/*
+	 * On real hardware, switch to x2apic mode if possible.  Do it
+	 * after aps_ready was signalled, to avoid manipulating the
+	 * mode while BSP might still want to send some IPI to us
+	 * (second startup IPI is ignored on modern hardware etc).
+	 */
+	lapic_xapic_mode();
 
 	/* Initialize the PAT MSR if present. */
 	pmap_init_pat();
@@ -840,8 +842,8 @@ set_interrupt_apic_ids(void)
 			continue;
 
 		/* Don't let hyperthreads service interrupts. */
-		if (hyperthreading_cpus > 1 &&
-		    apic_id % hyperthreading_cpus != 0)
+		if (cpu_logical > 1 &&
+		    apic_id % cpu_logical != 0)
 			continue;
 
 		intr_add_cpu(i);

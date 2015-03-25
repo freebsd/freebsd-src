@@ -279,7 +279,8 @@ siena_board_cfg(
 	uint8_t outbuf[MAX(MC_CMD_GET_BOARD_CFG_OUT_LENMIN,
 		    MC_CMD_GET_RESOURCE_LIMITS_OUT_LEN)];
 	efx_mcdi_req_t req;
-	uint8_t *src;
+	uint8_t *mac_addr;
+	efx_dword_t *capabilities;
 	int rc;
 
 	/* Board configuration */
@@ -302,16 +303,36 @@ siena_board_cfg(
 		goto fail2;
 	}
 
-	if (emip->emi_port == 1)
-		src = MCDI_OUT2(req, uint8_t,
+	if (emip->emi_port == 1) {
+		mac_addr = MCDI_OUT2(req, uint8_t,
 			    GET_BOARD_CFG_OUT_MAC_ADDR_BASE_PORT0);
-	else
-		src = MCDI_OUT2(req, uint8_t,
+		capabilities = MCDI_OUT2(req, efx_dword_t,
+			    GET_BOARD_CFG_OUT_CAPABILITIES_PORT0);
+	} else {
+		mac_addr = MCDI_OUT2(req, uint8_t,
 			    GET_BOARD_CFG_OUT_MAC_ADDR_BASE_PORT1);
-	EFX_MAC_ADDR_COPY(encp->enc_mac_addr, src);
+		capabilities = MCDI_OUT2(req, efx_dword_t,
+			    GET_BOARD_CFG_OUT_CAPABILITIES_PORT1);
+	}
+	EFX_MAC_ADDR_COPY(encp->enc_mac_addr, mac_addr);
 
 	encp->enc_board_type = MCDI_OUT_DWORD(req,
 				    GET_BOARD_CFG_OUT_BOARD_TYPE);
+
+	/* Additional capabilities */
+	encp->enc_clk_mult = 1;
+	if (MCDI_CMD_DWORD_FIELD(capabilities, CAPABILITIES_TURBO)) {
+		enp->en_features |= EFX_FEATURE_TURBO;
+
+		if (MCDI_CMD_DWORD_FIELD(capabilities,
+		    CAPABILITIES_TURBO_ACTIVE))
+			encp->enc_clk_mult = 2;
+	}
+
+	encp->enc_evq_timer_quantum_ns =
+		EFX_EVQ_SIENA_TIMER_QUANTUM_NS / encp->enc_clk_mult;
+	encp->enc_evq_timer_max_us = (encp->enc_evq_timer_quantum_ns <<
+		FRF_CZ_TC_TIMER_VAL_WIDTH) / 1000;
 
 	/* Resource limits */
 	req.emr_cmd = MC_CMD_GET_RESOURCE_LIMITS;
@@ -346,7 +367,8 @@ siena_board_cfg(
 	}
 
 	encp->enc_buftbl_limit = SIENA_SRAM_ROWS -
-	    (encp->enc_txq_limit * 16) - (encp->enc_rxq_limit * 64);
+	    (encp->enc_txq_limit * EFX_TXQ_DC_NDESCS(EFX_TXQ_DC_SIZE)) -
+	    (encp->enc_rxq_limit * EFX_RXQ_DC_NDESCS(EFX_RXQ_DC_SIZE));
 
 	return (0);
 
@@ -458,7 +480,7 @@ siena_phy_cfg(
 	if (MCDI_OUT_DWORD_FIELD(req, GET_PHY_CFG_OUT_FLAGS,
 	    GET_PHY_CFG_OUT_BIST))
 		encp->enc_bist_mask |= (1 << EFX_PHY_BIST_TYPE_NORMAL);
-#endif	/* EFSYS_OPT_BIST */
+#endif	/* EFSYS_OPT_PHY_BIST */
 
 	return (0);
 
@@ -590,7 +612,6 @@ siena_nic_probe(
 	unsigned int mask;
 	int rc;
 
-	mask = 0;	/* XXX: pacify gcc */
 	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_SIENA);
 
 	/* Read clear any assertion state */
@@ -607,9 +628,6 @@ siena_nic_probe(
 
 	if ((rc = siena_board_cfg(enp)) != 0)
 		goto fail4;
-
-	encp->enc_evq_moderation_max =
-		EFX_EV_TIMER_QUANTUM << FRF_CZ_TIMER_VAL_WIDTH;
 
 	if ((rc = siena_phy_cfg(enp)) != 0)
 		goto fail5;
@@ -888,7 +906,7 @@ static efx_register_set_t __cs	__siena_tables[] = {
 static const uint32_t __cs	__siena_table_masks[] = {
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x000003FF,
 	0xFFFF0FFF, 0xFFFFFFFF, 0x00000E7F, 0x00000000,
-	0xFFFFFFFF, 0x0FFFFFFF, 0x01800000, 0x00000000,
+	0xFFFFFFFE, 0x0FFFFFFF, 0x01800000, 0x00000000,
 	0xFFFFFFFE, 0x0FFFFFFF, 0x0C000000, 0x00000000,
 	0x3FFFFFFF, 0x00000000, 0x00000000, 0x00000000,
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x000013FF,

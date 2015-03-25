@@ -39,6 +39,7 @@
 #include "lldb/Interpreter/OptionGroupPlatform.h"
 #include "lldb/Interpreter/OptionGroupUInt64.h"
 #include "lldb/Interpreter/OptionGroupUUID.h"
+#include "lldb/Interpreter/OptionGroupString.h"
 #include "lldb/Interpreter/OptionGroupValueObjectDisplay.h"
 #include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Symbol/FuncUnwinders.h"
@@ -2844,7 +2845,7 @@ public:
                                                       "Set the load addresses for one or more sections in a target module.",
                                                       "target modules load [--file <module> --uuid <uuid>] <sect-name> <address> [<sect-name> <address> ....]"),
         m_option_group (interpreter),
-        m_file_option (LLDB_OPT_SET_1, false, "file", 'f', 0, eArgTypeFilename, "Fullpath or basename for module to load."),
+        m_file_option (LLDB_OPT_SET_1, false, "file", 'f', 0, eArgTypeName, "Fullpath or basename for module to load.", ""),
         m_slide_option(LLDB_OPT_SET_1, false, "slide", 's', 0, eArgTypeOffset, "Set the load address for all sections to be the virtual address in the file plus the offset.", 0)
     {
         m_option_group.Append (&m_uuid_option_group, LLDB_OPT_SET_ALL, LLDB_OPT_SET_1);
@@ -2884,7 +2885,26 @@ protected:
             if (m_file_option.GetOptionValue().OptionWasSet())
             {
                 search_using_module_spec = true;
-                module_spec.GetFileSpec() = m_file_option.GetOptionValue().GetCurrentValue();
+                const char *arg_cstr = m_file_option.GetOptionValue().GetCurrentValue();
+                const bool use_global_module_list = true;
+                ModuleList module_list;
+                const size_t num_matches = FindModulesByName (target, arg_cstr, module_list, use_global_module_list);
+                if (num_matches == 1)
+                {
+                    module_spec.GetFileSpec() = module_list.GetModuleAtIndex(0)->GetFileSpec();
+                }
+                else if (num_matches > 1 )
+                {
+                    search_using_module_spec = false;
+                    result.AppendErrorWithFormat ("more than 1 module matched by name '%s'\n", arg_cstr);
+                    result.SetStatus (eReturnStatusFailed);
+                }
+                else
+                {
+                    search_using_module_spec = false;
+                    result.AppendErrorWithFormat ("no object file for module '%s'\n", arg_cstr);
+                    result.SetStatus (eReturnStatusFailed);
+                }
             }
 
             if (m_uuid_option_group.GetOptionValue().OptionWasSet())
@@ -3070,7 +3090,7 @@ protected:
 
     OptionGroupOptions m_option_group;
     OptionGroupUUID m_uuid_option_group;
-    OptionGroupFile m_file_option;
+    OptionGroupString m_file_option;
     OptionGroupUInt64 m_slide_option;
 };
 
@@ -3724,45 +3744,85 @@ protected:
             if (func_unwinders_sp.get() == NULL)
                 continue;
 
-            Address first_non_prologue_insn (func_unwinders_sp->GetFirstNonPrologueInsn(*target));
-            if (first_non_prologue_insn.IsValid())
-            {
-                result.GetOutputStream().Printf("First non-prologue instruction is at address 0x%" PRIx64 " or offset %" PRId64 " into the function.\n", first_non_prologue_insn.GetLoadAddress(target), first_non_prologue_insn.GetLoadAddress(target) - start_addr);
-                result.GetOutputStream().Printf ("\n");
-            }
+            result.GetOutputStream().Printf("UNWIND PLANS for %s`%s (start addr 0x%" PRIx64 ")\n\n", sc.module_sp->GetPlatformFileSpec().GetFilename().AsCString(), funcname.AsCString(), start_addr);
 
             UnwindPlanSP non_callsite_unwind_plan = func_unwinders_sp->GetUnwindPlanAtNonCallSite(*target, *thread.get(), -1);
             if (non_callsite_unwind_plan.get())
             {
-                result.GetOutputStream().Printf("Asynchronous (not restricted to call-sites) UnwindPlan for %s`%s (start addr 0x%" PRIx64 "):\n", sc.module_sp->GetPlatformFileSpec().GetFilename().AsCString(), funcname.AsCString(), start_addr);
-                non_callsite_unwind_plan->Dump(result.GetOutputStream(), thread.get(), LLDB_INVALID_ADDRESS);
-                result.GetOutputStream().Printf ("\n");
+                result.GetOutputStream().Printf("Asynchronous (not restricted to call-sites) UnwindPlan is '%s'\n", non_callsite_unwind_plan->GetSourceName().AsCString());
             }
-
-            UnwindPlanSP callsite_unwind_plan = func_unwinders_sp->GetUnwindPlanAtCallSite(-1);
+            UnwindPlanSP callsite_unwind_plan = func_unwinders_sp->GetUnwindPlanAtCallSite(*target, -1);
             if (callsite_unwind_plan.get())
             {
-                result.GetOutputStream().Printf("Synchronous (restricted to call-sites) UnwindPlan for %s`%s (start addr 0x%" PRIx64 "):\n", sc.module_sp->GetPlatformFileSpec().GetFilename().AsCString(), funcname.AsCString(), start_addr);
-                callsite_unwind_plan->Dump(result.GetOutputStream(), thread.get(), LLDB_INVALID_ADDRESS);
-                result.GetOutputStream().Printf ("\n");
+                result.GetOutputStream().Printf("Synchronous (restricted to call-sites) UnwindPlan is '%s'\n", callsite_unwind_plan->GetSourceName().AsCString());
             }
-
-            UnwindPlanSP arch_default_unwind_plan = func_unwinders_sp->GetUnwindPlanArchitectureDefault(*thread.get());
-            if (arch_default_unwind_plan.get())
-            {
-                result.GetOutputStream().Printf("Architecture default UnwindPlan for %s`%s (start addr 0x%" PRIx64 "):\n", sc.module_sp->GetPlatformFileSpec().GetFilename().AsCString(), funcname.AsCString(), start_addr);
-                arch_default_unwind_plan->Dump(result.GetOutputStream(), thread.get(), LLDB_INVALID_ADDRESS);
-                result.GetOutputStream().Printf ("\n");
-            }
-
             UnwindPlanSP fast_unwind_plan = func_unwinders_sp->GetUnwindPlanFastUnwind(*thread.get());
             if (fast_unwind_plan.get())
             {
-                result.GetOutputStream().Printf("Fast UnwindPlan for %s`%s (start addr 0x%" PRIx64 "):\n", sc.module_sp->GetPlatformFileSpec().GetFilename().AsCString(), funcname.AsCString(), start_addr);
-                fast_unwind_plan->Dump(result.GetOutputStream(), thread.get(), LLDB_INVALID_ADDRESS);
-                result.GetOutputStream().Printf ("\n");
+                result.GetOutputStream().Printf("Fast UnwindPlan is '%s'\n", fast_unwind_plan->GetSourceName().AsCString());
             }
 
+            result.GetOutputStream().Printf("\n");
+
+            UnwindPlanSP assembly_sp = func_unwinders_sp->GetAssemblyUnwindPlan(*target, *thread.get(), 0);
+            if (assembly_sp)
+            {
+                result.GetOutputStream().Printf("Assembly language inspection UnwindPlan:\n");
+                assembly_sp->Dump(result.GetOutputStream(), thread.get(), LLDB_INVALID_ADDRESS);
+                result.GetOutputStream().Printf("\n");
+            }
+            
+
+            UnwindPlanSP ehframe_sp = func_unwinders_sp->GetEHFrameUnwindPlan(*target, 0);
+            if (ehframe_sp)
+            {
+                result.GetOutputStream().Printf("eh_frame UnwindPlan:\n");
+                ehframe_sp->Dump(result.GetOutputStream(), thread.get(), LLDB_INVALID_ADDRESS);
+                result.GetOutputStream().Printf("\n");
+            }
+
+            UnwindPlanSP ehframe_augmented_sp = func_unwinders_sp->GetEHFrameAugmentedUnwindPlan(*target, *thread.get(), 0);
+            if (ehframe_augmented_sp)
+            {
+                result.GetOutputStream().Printf("eh_frame augmented UnwindPlan:\n");
+                ehframe_augmented_sp->Dump(result.GetOutputStream(), thread.get(), LLDB_INVALID_ADDRESS);
+                result.GetOutputStream().Printf("\n");
+            }
+
+            UnwindPlanSP compact_unwind_sp = func_unwinders_sp->GetCompactUnwindUnwindPlan(*target, 0);
+            if (compact_unwind_sp)
+            {
+                result.GetOutputStream().Printf("Compact unwind UnwindPlan:\n");
+                compact_unwind_sp->Dump(result.GetOutputStream(), thread.get(), LLDB_INVALID_ADDRESS);
+                result.GetOutputStream().Printf("\n");
+            }
+
+            if (fast_unwind_plan)
+            {
+                result.GetOutputStream().Printf("Fast UnwindPlan:\n");
+                fast_unwind_plan->Dump(result.GetOutputStream(), thread.get(), LLDB_INVALID_ADDRESS);
+                result.GetOutputStream().Printf("\n");
+            }
+
+            ABISP abi_sp = process->GetABI();
+            if (abi_sp)
+            {
+                UnwindPlan arch_default(lldb::eRegisterKindGeneric);
+                if (abi_sp->CreateDefaultUnwindPlan (arch_default))
+                {
+                    result.GetOutputStream().Printf("Arch default UnwindPlan:\n");
+                    arch_default.Dump(result.GetOutputStream(), thread.get(), LLDB_INVALID_ADDRESS);
+                    result.GetOutputStream().Printf("\n");
+                }
+
+                UnwindPlan arch_entry(lldb::eRegisterKindGeneric);
+                if (abi_sp->CreateFunctionEntryUnwindPlan (arch_entry))
+                {
+                    result.GetOutputStream().Printf("Arch default at entry point UnwindPlan:\n");
+                    arch_entry.Dump(result.GetOutputStream(), thread.get(), LLDB_INVALID_ADDRESS);
+                    result.GetOutputStream().Printf("\n");
+                }
+            }
 
             result.GetOutputStream().Printf ("\n");
         }
@@ -4999,7 +5059,7 @@ protected:
     {
         m_stop_hook_sp.reset();
 
-        Target *target = m_interpreter.GetDebugger().GetSelectedTarget().get();
+        Target *target = GetSelectedOrDummyTarget();
         if (target)
         {
             Target::StopHookSP new_hook_sp = target->CreateStopHook();
@@ -5151,7 +5211,7 @@ protected:
     bool
     DoExecute (Args& command, CommandReturnObject &result)
     {
-        Target *target = m_interpreter.GetDebugger().GetSelectedTarget().get();
+        Target *target = GetSelectedOrDummyTarget();
         if (target)
         {
             // FIXME: see if we can use the breakpoint id style parser?
@@ -5227,7 +5287,7 @@ protected:
     bool
     DoExecute (Args& command, CommandReturnObject &result)
     {
-        Target *target = m_interpreter.GetDebugger().GetSelectedTarget().get();
+        Target *target = GetSelectedOrDummyTarget();
         if (target)
         {
             // FIXME: see if we can use the breakpoint id style parser?
@@ -5297,7 +5357,7 @@ protected:
     bool
     DoExecute (Args& command, CommandReturnObject &result)
     {
-        Target *target = m_interpreter.GetDebugger().GetSelectedTarget().get();
+        Target *target = GetSelectedOrDummyTarget();
         if (!target)
         {
             result.AppendError ("invalid target\n");

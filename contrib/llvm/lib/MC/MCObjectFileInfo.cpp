@@ -24,7 +24,7 @@ static bool useCompactUnwind(const Triple &T) {
     return false;
 
   // aarch64 always has it.
-  if (T.getArch() == Triple::arm64 || T.getArch() == Triple::aarch64)
+  if (T.getArch() == Triple::aarch64)
     return true;
 
   // Use it on newer version of OS X.
@@ -43,8 +43,7 @@ void MCObjectFileInfo::InitMachOMCObjectFileInfo(Triple T) {
   // MachO
   SupportsWeakOmittedEHFrame = false;
 
-  if (T.isOSDarwin() &&
-      (T.getArch() == Triple::arm64 || T.getArch() == Triple::aarch64))
+  if (T.isOSDarwin() && T.getArch() == Triple::aarch64)
     SupportsCompactUnwindWithoutEHFrame = true;
 
   PersonalityEncoding = dwarf::DW_EH_PE_indirect | dwarf::DW_EH_PE_pcrel
@@ -178,7 +177,7 @@ void MCObjectFileInfo::InitMachOMCObjectFileInfo(Triple T) {
 
     if (T.getArch() == Triple::x86_64 || T.getArch() == Triple::x86)
       CompactUnwindDwarfEHFrameOnly = 0x04000000;
-    else if (T.getArch() == Triple::arm64 || T.getArch() == Triple::aarch64)
+    else if (T.getArch() == Triple::aarch64)
       CompactUnwindDwarfEHFrameOnly = 0x03000000;
   }
 
@@ -274,6 +273,12 @@ void MCObjectFileInfo::InitELFMCObjectFileInfo(Triple T) {
   case Triple::mips64el:
     FDECFIEncoding = dwarf::DW_EH_PE_sdata8;
     break;
+  case Triple::x86_64:
+    FDECFIEncoding = dwarf::DW_EH_PE_pcrel |
+                     ((CMModel == CodeModel::Large) ? dwarf::DW_EH_PE_sdata8
+                                                    : dwarf::DW_EH_PE_sdata4);
+
+    break;
   default:
     FDECFIEncoding = dwarf::DW_EH_PE_pcrel | dwarf::DW_EH_PE_sdata4;
     break;
@@ -322,8 +327,6 @@ void MCObjectFileInfo::InitELFMCObjectFileInfo(Triple T) {
     break;
   case Triple::aarch64:
   case Triple::aarch64_be:
-  case Triple::arm64:
-  case Triple::arm64_be:
     // The small model guarantees static code/data size < 4GB, but not where it
     // will be in memory. Most of these could end up >2GB away so even a signed
     // pc-relative 32-bit address is insufficient, theoretically.
@@ -404,7 +407,7 @@ void MCObjectFileInfo::InitELFMCObjectFileInfo(Triple T) {
   // platform.
   EHSectionType = ELF::SHT_PROGBITS;
   EHSectionFlags = ELF::SHF_ALLOC;
-  if (T.getOS() == Triple::Solaris) {
+  if (T.isOSSolaris()) {
     if (T.getArch() == Triple::x86_64)
       EHSectionType = ELF::SHT_X86_64_UNWIND;
     else
@@ -566,6 +569,9 @@ void MCObjectFileInfo::InitELFMCObjectFileInfo(Triple T) {
   DwarfInfoDWOSection =
     Ctx->getELFSection(".debug_info.dwo", ELF::SHT_PROGBITS, 0,
                        SectionKind::getMetadata());
+  DwarfTypesDWOSection =
+    Ctx->getELFSection(".debug_types.dwo", ELF::SHT_PROGBITS, 0,
+                       SectionKind::getMetadata());
   DwarfAbbrevDWOSection =
     Ctx->getELFSection(".debug_abbrev.dwo", ELF::SHT_PROGBITS, 0,
                        SectionKind::getMetadata());
@@ -585,15 +591,19 @@ void MCObjectFileInfo::InitELFMCObjectFileInfo(Triple T) {
   DwarfAddrSection =
     Ctx->getELFSection(".debug_addr", ELF::SHT_PROGBITS, 0,
                        SectionKind::getMetadata());
+
+  StackMapSection =
+    Ctx->getELFSection(".llvm_stackmaps", ELF::SHT_PROGBITS,
+                       ELF::SHF_ALLOC,
+                       SectionKind::getMetadata());
+
 }
 
 
 void MCObjectFileInfo::InitCOFFMCObjectFileInfo(Triple T) {
   bool IsWoA = T.getArch() == Triple::arm || T.getArch() == Triple::thumb;
 
-  // The object file format cannot represent common symbols with explicit
-  // alignments.
-  CommDirectiveSupportsAlignment = false;
+  CommDirectiveSupportsAlignment = true;
 
   // COFF
   BSSSection =
@@ -741,6 +751,10 @@ void MCObjectFileInfo::InitCOFFMCObjectFileInfo(Triple T) {
                           COFF::IMAGE_SCN_MEM_DISCARDABLE |
                           COFF::IMAGE_SCN_MEM_READ,
                           SectionKind::getMetadata());
+  DwarfTypesDWOSection =
+      Ctx->getCOFFSection(".debug_types.dwo", COFF::IMAGE_SCN_MEM_DISCARDABLE |
+                                                  COFF::IMAGE_SCN_MEM_READ,
+                          SectionKind::getMetadata());
   DwarfAbbrevDWOSection =
       Ctx->getCOFFSection(".debug_abbrev.dwo",
                           COFF::IMAGE_SCN_MEM_DISCARDABLE |
@@ -772,6 +786,27 @@ void MCObjectFileInfo::InitCOFFMCObjectFileInfo(Triple T) {
                         COFF::IMAGE_SCN_MEM_DISCARDABLE |
                         COFF::IMAGE_SCN_MEM_READ,
                         SectionKind::getMetadata());
+
+  DwarfAccelNamesSection =
+      Ctx->getCOFFSection(".apple_names",
+                          COFF::IMAGE_SCN_MEM_DISCARDABLE |
+                          COFF::IMAGE_SCN_MEM_READ,
+                          SectionKind::getMetadata());
+  DwarfAccelNamespaceSection =
+      Ctx->getCOFFSection(".apple_namespaces",
+                          COFF::IMAGE_SCN_MEM_DISCARDABLE |
+                          COFF::IMAGE_SCN_MEM_READ,
+                          SectionKind::getMetadata());
+  DwarfAccelTypesSection =
+      Ctx->getCOFFSection(".apple_types",
+                          COFF::IMAGE_SCN_MEM_DISCARDABLE |
+                          COFF::IMAGE_SCN_MEM_READ,
+                          SectionKind::getMetadata());
+  DwarfAccelObjCSection =
+      Ctx->getCOFFSection(".apple_objc",
+                          COFF::IMAGE_SCN_MEM_DISCARDABLE |
+                          COFF::IMAGE_SCN_MEM_READ,
+                          SectionKind::getMetadata());
 
   DrectveSection =
     Ctx->getCOFFSection(".drectve",
@@ -830,7 +865,7 @@ void MCObjectFileInfo::InitMCObjectFileInfo(StringRef T, Reloc::Model relocm,
   // cellspu-apple-darwin. Perhaps we should fix in Triple?
   if ((Arch == Triple::x86 || Arch == Triple::x86_64 ||
        Arch == Triple::arm || Arch == Triple::thumb ||
-       Arch == Triple::arm64 || Arch == Triple::aarch64 ||
+       Arch == Triple::aarch64 ||
        Arch == Triple::ppc || Arch == Triple::ppc64 ||
        Arch == Triple::UnknownArch) &&
       (TT.isOSDarwin() || TT.isOSBinFormatMachO())) {
@@ -850,13 +885,6 @@ void MCObjectFileInfo::InitMCObjectFileInfo(StringRef T, Reloc::Model relocm,
 const MCSection *MCObjectFileInfo::getDwarfTypesSection(uint64_t Hash) const {
   return Ctx->getELFSection(".debug_types", ELF::SHT_PROGBITS, ELF::SHF_GROUP,
                             SectionKind::getMetadata(), 0, utostr(Hash));
-}
-
-const MCSection *
-MCObjectFileInfo::getDwarfTypesDWOSection(uint64_t Hash) const {
-  return Ctx->getELFSection(".debug_types.dwo", ELF::SHT_PROGBITS,
-                            ELF::SHF_GROUP, SectionKind::getMetadata(), 0,
-                            utostr(Hash));
 }
 
 void MCObjectFileInfo::InitEHFrameSection() {

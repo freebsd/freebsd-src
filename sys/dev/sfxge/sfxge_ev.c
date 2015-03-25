@@ -50,6 +50,8 @@ sfxge_ev_qcomplete(struct sfxge_evq *evq, boolean_t eop)
 	struct sfxge_rxq *rxq;
 	struct sfxge_txq *txq;
 
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
+
 	sc = evq->sc;
 	index = evq->index;
 	rxq = sc->rxq[index];
@@ -89,6 +91,8 @@ sfxge_ev_rx(void *arg, uint32_t label, uint32_t id, uint32_t size,
 	struct sfxge_rx_sw_desc *rx_desc;
 
 	evq = arg;
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
+
 	sc = evq->sc;
 
 	if (evq->exception)
@@ -99,7 +103,7 @@ sfxge_ev_rx(void *arg, uint32_t label, uint32_t id, uint32_t size,
 	KASSERT(evq->index == rxq->index,
 	    ("evq->index != rxq->index"));
 
-	if (rxq->init_state != SFXGE_RXQ_STARTED)
+	if (__predict_false(rxq->init_state != SFXGE_RXQ_STARTED))
 		goto done;
 
 	expected = rxq->pending++ & rxq->ptr_mask;
@@ -140,6 +144,8 @@ sfxge_ev_exception(void *arg, uint32_t code, uint32_t data)
 	struct sfxge_softc *sc;
 
 	evq = (struct sfxge_evq *)arg;
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
+
 	sc = evq->sc;
 
 	evq->exception = B_TRUE;
@@ -165,6 +171,8 @@ sfxge_ev_rxq_flush_done(void *arg, uint32_t rxq_index)
 	uint16_t magic;
 
 	evq = (struct sfxge_evq *)arg;
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
+
 	sc = evq->sc;
 	rxq = sc->rxq[rxq_index];
 
@@ -197,6 +205,8 @@ sfxge_ev_rxq_flush_failed(void *arg, uint32_t rxq_index)
 	uint16_t magic;
 
 	evq = (struct sfxge_evq *)arg;
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
+
 	sc = evq->sc;
 	rxq = sc->rxq[rxq_index];
 
@@ -238,13 +248,15 @@ sfxge_ev_tx(void *arg, uint32_t label, uint32_t id)
 	unsigned int delta;
 
 	evq = (struct sfxge_evq *)arg;
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
+
 	txq = sfxge_get_txq_by_label(evq, label);
 
 	KASSERT(txq != NULL, ("txq == NULL"));
 	KASSERT(evq->index == txq->evq_index,
 	    ("evq->index != txq->evq_index"));
 
-	if (txq->init_state != SFXGE_TXQ_STARTED)
+	if (__predict_false(txq->init_state != SFXGE_TXQ_STARTED))
 		goto done;
 
 	stop = (id + 1) & txq->ptr_mask;
@@ -278,6 +290,8 @@ sfxge_ev_txq_flush_done(void *arg, uint32_t txq_index)
 	uint16_t magic;
 
 	evq = (struct sfxge_evq *)arg;
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
+
 	sc = evq->sc;
 	txq = sc->txq[txq_index];
 
@@ -308,6 +322,8 @@ sfxge_ev_software(void *arg, uint16_t magic)
 	unsigned int label;
 
 	evq = (struct sfxge_evq *)arg;
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
+
 	sc = evq->sc;
 
 	label = magic & SFXGE_MAGIC_DMAQ_LABEL_MASK;
@@ -417,7 +433,7 @@ sfxge_ev_stat_update(struct sfxge_softc *sc)
 
 	SFXGE_ADAPTER_LOCK(sc);
 
-	if (sc->evq[0]->init_state != SFXGE_EVQ_STARTED)
+	if (__predict_false(sc->evq[0]->init_state != SFXGE_EVQ_STARTED))
 		goto out;
 
 	now = ticks;
@@ -506,7 +522,7 @@ sfxge_int_mod_handler(SYSCTL_HANDLER_ARGS)
 		 * so we have to range-check the value ourselves.
 		 */
 		if (moderation >
-		    efx_nic_cfg_get(sc->enp)->enc_evq_moderation_max) {
+		    efx_nic_cfg_get(sc->enp)->enc_evq_timer_max_us) {
 			error = EINVAL;
 			goto out;
 		}
@@ -533,6 +549,7 @@ sfxge_ev_initialized(void *arg)
 	struct sfxge_evq *evq;
 
 	evq = (struct sfxge_evq *)arg;
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
 
 	KASSERT(evq->init_state == SFXGE_EVQ_STARTING,
 	    ("evq not starting"));
@@ -549,6 +566,8 @@ sfxge_ev_link_change(void *arg, efx_link_mode_t	link_mode)
 	struct sfxge_softc *sc;
 
 	evq = (struct sfxge_evq *)arg;
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
+
 	sc = evq->sc;
 
 	sfxge_mac_link_update(sc, link_mode);
@@ -579,8 +598,8 @@ sfxge_ev_qpoll(struct sfxge_evq *evq)
 
 	SFXGE_EVQ_LOCK(evq);
 
-	if (evq->init_state != SFXGE_EVQ_STARTING &&
-	    evq->init_state != SFXGE_EVQ_STARTED) {
+	if (__predict_false(evq->init_state != SFXGE_EVQ_STARTING &&
+			    evq->init_state != SFXGE_EVQ_STARTED)) {
 		rc = EINVAL;
 		goto fail;
 	}

@@ -1305,7 +1305,7 @@ int mlx4_en_start_port(struct net_device *dev)
 		cq = priv->tx_cq[i];
 		err = mlx4_en_activate_cq(priv, cq, i);
 		if (err) {
-			en_err(priv, "Failed allocating Tx CQ\n");
+			en_err(priv, "Failed activating Tx CQ\n");
 			goto tx_err;
 		}
 		err = mlx4_en_set_cq_moder(priv, cq);
@@ -1323,7 +1323,7 @@ int mlx4_en_start_port(struct net_device *dev)
 		err = mlx4_en_activate_tx_ring(priv, tx_ring, cq->mcq.cqn,
 					       i / priv->num_tx_rings_p_up);
 		if (err) {
-			en_err(priv, "Failed allocating Tx ring\n");
+			en_err(priv, "Failed activating Tx ring %d\n", i);
 			mlx4_en_deactivate_cq(priv, cq);
 			goto tx_err;
 		}
@@ -1916,19 +1916,22 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 		error = -mlx4_en_change_mtu(dev, ifr->ifr_mtu);
 		break;
 	case SIOCSIFFLAGS:
-		mutex_lock(&mdev->state_lock);
 		if (dev->if_flags & IFF_UP) {
-			if ((dev->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			if ((dev->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+				mutex_lock(&mdev->state_lock);
 				mlx4_en_start_port(dev);
-			else
+				mutex_unlock(&mdev->state_lock);
+			} else {
 				mlx4_en_set_rx_mode(dev);
+			}
 		} else {
+			mutex_lock(&mdev->state_lock);
 			if (dev->if_drv_flags & IFF_DRV_RUNNING) {
 				mlx4_en_stop_port(dev);
-                                if_link_state_change(dev, LINK_STATE_DOWN);
+				if_link_state_change(dev, LINK_STATE_DOWN);
 			}
+			mutex_unlock(&mdev->state_lock);
 		}
-		mutex_unlock(&mdev->state_lock);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
@@ -2189,6 +2192,7 @@ out:
 	mlx4_en_destroy_netdev(dev);
 	return err;
 }
+
 static int mlx4_en_set_ring_size(struct net_device *dev,
     int rx_size, int tx_size)
 {
@@ -2408,7 +2412,6 @@ static void mlx4_en_sysctl_conf(struct mlx4_en_priv *priv)
             CTLFLAG_RW, &priv->adaptive_rx_coal, 0,
             "Enable adaptive rx coalescing");
 }
-
 
 static void mlx4_en_sysctl_stat(struct mlx4_en_priv *priv)
 {

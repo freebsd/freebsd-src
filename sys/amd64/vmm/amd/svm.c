@@ -799,8 +799,13 @@ svm_handle_inst_emul(struct vmcb *vmcb, uint64_t gpa, struct vm_exit *vmexit)
 	KASSERT(error == 0, ("%s: vmcb_seg(CS) error %d", __func__, error));
 
 	switch(paging->cpu_mode) {
+	case CPU_MODE_REAL:
+		vmexit->u.inst_emul.cs_base = seg.base;
+		vmexit->u.inst_emul.cs_d = 0;
 	case CPU_MODE_PROTECTED:
 	case CPU_MODE_COMPATIBILITY:
+		vmexit->u.inst_emul.cs_base = seg.base;
+
 		/*
 		 * Section 4.8.1 of APM2, Default Operand Size or D bit.
 		 */
@@ -808,6 +813,7 @@ svm_handle_inst_emul(struct vmcb *vmcb, uint64_t gpa, struct vm_exit *vmexit)
 		    1 : 0;
 		break;
 	default:
+		vmexit->u.inst_emul.cs_base = 0;
 		vmexit->u.inst_emul.cs_d = 0;
 		break;	
 	}
@@ -1641,7 +1647,7 @@ done:
 	 * VMRUN.
 	 */
 	v_tpr = vlapic_get_cr8(vlapic);
-	KASSERT(v_tpr >= 0 && v_tpr <= 15, ("invalid v_tpr %#x", v_tpr));
+	KASSERT(v_tpr <= 15, ("invalid v_tpr %#x", v_tpr));
 	if (ctrl->v_tpr != v_tpr) {
 		VCPU_CTR2(sc->vm, vcpu, "VMCB V_TPR changed from %#x to %#x",
 		    ctrl->v_tpr, v_tpr);
@@ -1808,14 +1814,14 @@ static __inline void
 disable_gintr(void)
 {
 
-        __asm __volatile("clgi" : : :);
+	__asm __volatile("clgi");
 }
 
 static __inline void
 enable_gintr(void)
 {
 
-        __asm __volatile("stgi" : : :);
+        __asm __volatile("stgi");
 }
 
 /*

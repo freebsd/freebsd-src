@@ -92,9 +92,11 @@ MODULE_VERSION(arge, 1);
 
 #include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/ar934xreg.h>	/* XXX tsk! */
+#include <mips/atheros/qca955xreg.h>	/* XXX tsk! */
 #include <mips/atheros/if_argevar.h>
 #include <mips/atheros/ar71xx_setup.h>
 #include <mips/atheros/ar71xx_cpudef.h>
+#include <mips/atheros/ar71xx_macaddr.h>
 
 typedef enum {
 	ARGE_DBG_MII 	=	0x00000001,
@@ -111,7 +113,8 @@ static const char * arge_miicfg_str[] = {
 	"GMII",
 	"MII",
 	"RGMII",
-	"RMII"
+	"RMII",
+	"SGMII"
 };
 
 #ifdef ARGE_DEBUG
@@ -302,6 +305,8 @@ arge_reset_mac(struct arge_softc *sc)
 	uint32_t reg;
 	uint32_t reset_reg;
 
+	ARGEDEBUG(sc, ARGE_DBG_RESET, "%s called\n", __func__);
+
 	/* Step 1. Soft-reset MAC */
 	ARGE_SET_BITS(sc, AR71XX_MAC_CFG1, MAC_CFG1_SOFT_RESET);
 	DELAY(20);
@@ -319,6 +324,7 @@ arge_reset_mac(struct arge_softc *sc)
 
 	/*
 	 * AR934x (and later) also needs the MDIO block reset.
+	 * XXX should methodize this!
 	 */
 	if (ar71xx_soc == AR71XX_SOC_AR9341 ||
 	   ar71xx_soc == AR71XX_SOC_AR9342 ||
@@ -327,6 +333,15 @@ arge_reset_mac(struct arge_softc *sc)
 			reset_reg |= AR934X_RESET_GE0_MDIO;
 		} else {
 			reset_reg |= AR934X_RESET_GE1_MDIO;
+		}
+	}
+
+	if (ar71xx_soc == AR71XX_SOC_QCA9556 ||
+	   ar71xx_soc == AR71XX_SOC_QCA9558) {
+		if (sc->arge_mac_unit == 0) {
+			reset_reg |= QCA955X_RESET_GE0_MDIO;
+		} else {
+			reset_reg |= QCA955X_RESET_GE1_MDIO;
 		}
 	}
 	ar71xx_device_stop(reset_reg);
@@ -400,6 +415,8 @@ arge_mdio_get_divider(struct arge_softc *sc, unsigned long mdio_clock)
 	case AR71XX_SOC_AR9341:
 	case AR71XX_SOC_AR9342:
 	case AR71XX_SOC_AR9344:
+	case AR71XX_SOC_QCA9556:
+	case AR71XX_SOC_QCA9558:
 		table = ar933x_mdio_div_table;
 		ndivs = nitems(ar933x_mdio_div_table);
 		break;
@@ -489,6 +506,8 @@ arge_fetch_mdiobus_clock_rate(struct arge_softc *sc)
 	case AR71XX_SOC_AR9341:
 	case AR71XX_SOC_AR9342:
 	case AR71XX_SOC_AR9344:
+	case AR71XX_SOC_QCA9556:
+	case AR71XX_SOC_QCA9558:
 		return (MAC_MII_CFG_CLOCK_DIV_58);
 		break;
 	default:
@@ -549,7 +568,6 @@ arge_attach(device_t dev)
 	struct ifnet		*ifp;
 	struct arge_softc	*sc;
 	int			error = 0, rid;
-	uint32_t		rnd;
 	int			is_base_mac_empty, i;
 	uint32_t		hint;
 	long			eeprom_mac_addr = 0;
@@ -633,8 +651,7 @@ arge_attach(device_t dev)
 	}
 
 	/*
-	 *  Get default media & duplex mode, by default its Base100T
-	 *  and full duplex
+	 * Get default/hard-coded media & duplex mode.
 	 */
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "media", &hint) != 0)
@@ -642,8 +659,12 @@ arge_attach(device_t dev)
 
 	if (hint == 1000)
 		sc->arge_media_type = IFM_1000_T;
-	else
+	else if (hint == 100)
 		sc->arge_media_type = IFM_100_TX;
+	else if (hint == 10)
+		sc->arge_media_type = IFM_10_T;
+	else
+		sc->arge_media_type = 0;
 
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "fduplex", &hint) != 0)
@@ -725,14 +746,7 @@ arge_attach(device_t dev)
 		if  (bootverbose)
 			device_printf(dev,
 			    "Generating random ethernet address.\n");
-
-		rnd = arc4random();
-		sc->arge_eaddr[0] = 'b';
-		sc->arge_eaddr[1] = 's';
-		sc->arge_eaddr[2] = 'd';
-		sc->arge_eaddr[3] = (rnd >> 24) & 0xff;
-		sc->arge_eaddr[4] = (rnd >> 16) & 0xff;
-		sc->arge_eaddr[5] = (rnd >> 8) & 0xff;
+		(void) ar71xx_mac_addr_random_init(sc->arge_eaddr);
 	}
 
 	/*
@@ -793,6 +807,8 @@ arge_attach(device_t dev)
 		case AR71XX_SOC_AR9341:
 		case AR71XX_SOC_AR9342:
 		case AR71XX_SOC_AR9344:
+		case AR71XX_SOC_QCA9556:
+		case AR71XX_SOC_QCA9558:
 			ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG1, 0x0010ffff);
 			ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG2, 0x015500aa);
 			break;
@@ -829,9 +845,10 @@ arge_attach(device_t dev)
 			}
 		}
 	}
+
 	if (sc->arge_miibus == NULL) {
 		/* no PHY, so use hard-coded values */
-		ifmedia_init(&sc->arge_ifmedia, 0, 
+		ifmedia_init(&sc->arge_ifmedia, 0,
 		    arge_multiphy_mediachange,
 		    arge_multiphy_mediastatus);
 		ifmedia_add(&sc->arge_ifmedia,
@@ -1053,6 +1070,25 @@ arge_update_link_locked(struct arge_softc *sc)
 		return;
 	}
 
+	/*
+	 * If we have a static media type configured, then
+	 * use that.  Some PHY configurations (eg QCA955x -> AR8327)
+	 * use a static speed/duplex between the SoC and switch,
+	 * even though the front-facing PHY speed changes.
+	 */
+	if (sc->arge_media_type != 0) {
+		ARGEDEBUG(sc, ARGE_DBG_MII, "%s: fixed; media=%d, duplex=%d\n",
+		    __func__,
+		    sc->arge_media_type,
+		    sc->arge_duplex_mode);
+		if (mii->mii_media_status & IFM_ACTIVE) {
+			sc->arge_link_status = 1;
+		} else {
+			sc->arge_link_status = 0;
+		}
+		arge_set_pll(sc, sc->arge_media_type, sc->arge_duplex_mode);
+	}
+
 	if (mii->mii_media_status & IFM_ACTIVE) {
 
 		media = IFM_SUBTYPE(mii->mii_media_active);
@@ -1077,6 +1113,12 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 	uint32_t		fifo_tx, pll;
 	int if_speed;
 
+	/*
+	 * XXX Verify - is this valid for all chips?
+	 * QCA955x (and likely some of the earlier chips!) define
+	 * this as nibble mode and byte mode, and those have to do
+	 * with the interface type (MII/SMII versus GMII/RGMII.)
+	 */
 	ARGEDEBUG(sc, ARGE_DBG_PLL, "set_pll(%04x, %s)\n", media,
 	    duplex == IFM_FDX ? "full" : "half");
 	cfg = ARGE_READ(sc, AR71XX_MAC_CFG2);
@@ -1126,6 +1168,8 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 		case AR71XX_SOC_AR9341:
 		case AR71XX_SOC_AR9342:
 		case AR71XX_SOC_AR9344:
+		case AR71XX_SOC_QCA9556:
+		case AR71XX_SOC_QCA9558:
 			fifo_tx = 0x01f00140;
 			break;
 		case AR71XX_SOC_AR9130:
@@ -1179,6 +1223,9 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 static void
 arge_reset_dma(struct arge_softc *sc)
 {
+
+	ARGEDEBUG(sc, ARGE_DBG_RESET, "%s: called\n", __func__);
+
 	ARGE_WRITE(sc, AR71XX_DMA_RX_CONTROL, 0);
 	ARGE_WRITE(sc, AR71XX_DMA_TX_CONTROL, 0);
 
@@ -1209,8 +1256,6 @@ arge_reset_dma(struct arge_softc *sc)
 	 */
 	arge_flush_ddr(sc);
 }
-
-
 
 static void
 arge_init(void *xsc)

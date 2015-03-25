@@ -89,6 +89,8 @@ __FBSDID("$FreeBSD$");
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <libxo/xo.h>
 
 #define	KERNEL 1
 #include <netinet6/ip6_mroute.h>
@@ -143,7 +145,7 @@ mroute6pr()
 	if (live) {
 		if (sysctlbyname("net.inet6.ip6.mif6table", mif6table, &len,
 		    NULL, 0) < 0) {
-			warn("sysctl: net.inet6.ip6.mif6table");
+			xo_warn("sysctl: net.inet6.ip6.mif6table");
 			return;
 		}
 	} else
@@ -165,28 +167,33 @@ mroute6pr()
 
 		maxmif = mifi;
 		if (!banner_printed) {
-			printf("\nIPv6 Multicast Interface Table\n"
-			       " Mif   Rate   PhyIF   "
-			       "Pkts-In   Pkts-Out\n");
+			xo_open_list("multicast-interface");
+			xo_emit("\n{T:IPv6 Multicast Interface Table}\n"
+			    "{T: Mif   Rate   PhyIF   Pkts-In   Pkts-Out}\n");
 			banner_printed = 1;
 		}
 
-		printf("  %2u   %4d",
-		       mifi, mifp->m6_rate_limit);
-		printf("   %5s", (mifp->m6_flags & MIFF_REGISTER) ?
-		       "reg0" : if_indextoname(ifnet.if_index, ifname));
+		xo_open_instance("multicast-interface");
+		xo_emit("  {:mif/%2u}   {:rate-limit/%4d}",
+		    mifi, mifp->m6_rate_limit);
+		xo_emit("   {:ifname/%5s}", (mifp->m6_flags & MIFF_REGISTER) ?
+		    "reg0" : if_indextoname(ifnet.if_index, ifname));
 
-		printf(" %9ju  %9ju\n", (uintmax_t)mifp->m6_pkt_in,
+		xo_emit(" {:received-packets/%9ju}  {:sent-packets/%9ju}\n",
+		    (uintmax_t)mifp->m6_pkt_in,
 		    (uintmax_t)mifp->m6_pkt_out);
+		xo_close_instance("multicast-interface");
 	}
-	if (!banner_printed)
-		printf("\nIPv6 Multicast Interface Table is empty\n");
+	if (banner_printed)
+		xo_open_list("multicast-interface");
+	else
+		xo_emit("\n{T:IPv6 Multicast Interface Table is empty}\n");
 
 	len = sizeof(mf6ctable);
 	if (live) {
 		if (sysctlbyname("net.inet6.ip6.mf6ctable", mf6ctable, &len,
 		    NULL, 0) < 0) {
-			warn("sysctl: net.inet6.ip6.mf6ctable");
+			xo_warn("sysctl: net.inet6.ip6.mf6ctable");
 			return;
 		}
 	} else
@@ -199,19 +206,24 @@ mroute6pr()
 		while(mfcp) {
 			kread((u_long)mfcp, (char *)&mfc, sizeof(mfc));
 			if (!banner_printed) {
-				printf ("\nIPv6 Multicast Forwarding Cache\n");
-				printf(" %-*.*s %-*.*s %s",
-				       WID_ORG, WID_ORG, "Origin",
-				       WID_GRP, WID_GRP, "Group",
-				       "  Packets Waits In-Mif  Out-Mifs\n");
+				xo_open_list("multicast-forwarding-cache");
+				xo_emit("\n"
+				    "{T:IPv6 Multicast Forwarding Cache}\n");
+				xo_emit(" {T:%-*.*s} {T:%-*.*s} {T:%s}",
+				    WID_ORG, WID_ORG, "Origin",
+				    WID_GRP, WID_GRP, "Group",
+				    "  Packets Waits In-Mif  Out-Mifs\n");
 				banner_printed = 1;
 			}
 
-			printf(" %-*.*s", WID_ORG, WID_ORG,
-			       routename6(&mfc.mf6c_origin));
-			printf(" %-*.*s", WID_GRP, WID_GRP,
-			       routename6(&mfc.mf6c_mcastgrp));
-			printf(" %9ju", (uintmax_t)mfc.mf6c_pkt_cnt);
+			xo_open_instance("multicast-forwarding-cache");
+
+			xo_emit(" {:origin/%-*.*s}", WID_ORG, WID_ORG,
+			    routename6(&mfc.mf6c_origin));
+			xo_emit(" {:group/%-*.*s}", WID_GRP, WID_GRP,
+			    routename6(&mfc.mf6c_mcastgrp));
+			xo_emit(" {:total-packets/%9ju}",
+			    (uintmax_t)mfc.mf6c_pkt_cnt);
 
 			for (waitings = 0, rtep = mfc.mf6c_stall; rtep; ) {
 				waitings++;
@@ -219,25 +231,30 @@ mroute6pr()
 				kread((u_long)rtep, (char *)&rte, sizeof(rte));
 				rtep = rte.next;
 			}
-			printf("   %3ld", waitings);
+			xo_emit("   {:waitings/%3ld}", waitings);
 
 			if (mfc.mf6c_parent == MF6C_INCOMPLETE_PARENT)
-				printf(" ---   ");
+				xo_emit(" ---   ");
 			else
-				printf("  %3d   ", mfc.mf6c_parent);
+				xo_emit("  {:parent/%3d}   ", mfc.mf6c_parent);
+			xo_open_list("mif");
 			for (mifi = 0; mifi <= maxmif; mifi++) {
 				if (IF_ISSET(mifi, &mfc.mf6c_ifset))
-					printf(" %u", mifi);
+					xo_emit(" {l:%u}", mifi);
 			}
-			printf("\n");
+			xo_close_list("mif");
+			xo_emit("\n");
 
 			mfcp = mfc.mf6c_next;
+			xo_close_instance("multicast-forwarding-cache");
 		}
 	}
-	if (!banner_printed)
-		printf("\nIPv6 Multicast Forwarding Table is empty\n");
+	if (banner_printed)
+		xo_close_list("multicast-forwarding-cache");
+	else
+		xo_emit("\n{T:IPv6 Multicast Forwarding Table is empty}\n");
 
-	printf("\n");
+	xo_emit("\n");
 	numeric_addr = saved_numeric_addr;
 }
 
@@ -259,36 +276,49 @@ mrt6_stats()
 	if (live) {
 		if (sysctlbyname("net.inet6.ip6.mrt6stat", &mrtstat, &len,
 		    NULL, 0) < 0) {
-			warn("sysctl: net.inet6.ip6.mrt6stat");
+			xo_warn("sysctl: net.inet6.ip6.mrt6stat");
 			return;
 		}
 	} else
 		kread(mstaddr, (char *)&mrtstat, sizeof(mrtstat));
 
-	printf("IPv6 multicast forwarding:\n");
+	xo_open_container("multicast-statistics");
+	xo_emit("{T:IPv6 multicast forwarding}:\n");
 
 #define	p(f, m) if (mrtstat.f || sflag <= 1) \
-	printf(m, (uintmax_t)mrtstat.f, plural(mrtstat.f))
+	xo_emit(m, (uintmax_t)mrtstat.f, plural(mrtstat.f))
 #define	p2(f, m) if (mrtstat.f || sflag <= 1) \
-	printf(m, (uintmax_t)mrtstat.f, plurales(mrtstat.f))
+	xo_emit(m, (uintmax_t)mrtstat.f, plurales(mrtstat.f))
 
-	p(mrt6s_mfc_lookups, "\t%ju multicast forwarding cache lookup%s\n");
-	p2(mrt6s_mfc_misses, "\t%ju multicast forwarding cache miss%s\n");
-	p(mrt6s_upcalls, "\t%ju upcall%s to multicast routing daemon\n");
-	p(mrt6s_upq_ovflw, "\t%ju upcall queue overflow%s\n");
-	p(mrt6s_upq_sockfull,
-	    "\t%ju upcall%s dropped due to full socket buffer\n");
-	p(mrt6s_cache_cleanups, "\t%ju cache cleanup%s\n");
-	p(mrt6s_no_route, "\t%ju datagram%s with no route for origin\n");
-	p(mrt6s_bad_tunnel, "\t%ju datagram%s arrived with bad tunneling\n");
-	p(mrt6s_cant_tunnel, "\t%ju datagram%s could not be tunneled\n");
-	p(mrt6s_wrong_if, "\t%ju datagram%s arrived on wrong interface\n");
-	p(mrt6s_drop_sel, "\t%ju datagram%s selectively dropped\n");
-	p(mrt6s_q_overflow,
-	    "\t%ju datagram%s dropped due to queue overflow\n");
-	p(mrt6s_pkt2large, "\t%ju datagram%s dropped for being too large\n");
+	p(mrt6s_mfc_lookups, "\t{:cache-lookups/%ju} "
+	    "{N:/multicast forwarding cache lookup%s}\n");
+	p2(mrt6s_mfc_misses, "\t{:cache-misses/%ju} "
+	    "{N:/multicast forwarding cache miss%s}\n");
+	p(mrt6s_upcalls, "\t{:upcalls/%ju} "
+	    "{N:/upcall%s to multicast routing daemon}\n");
+	p(mrt6s_upq_ovflw, "\t{:upcall-overflows/%ju} "
+	    "{N:/upcall queue overflow%s}\n");
+	p(mrt6s_upq_sockfull, "\t{:upcalls-dropped-full-buffer/%ju} "
+	    "{N:/upcall%s dropped due to full socket buffer}\n");
+	p(mrt6s_cache_cleanups, "\t{:cache-cleanups/%ju} "
+	    "{N:/cache cleanup%s}\n");
+	p(mrt6s_no_route, "\t{:dropped-no-origin/%ju} "
+	    "{N:/datagram%s with no route for origin}\n");
+	p(mrt6s_bad_tunnel, "\t{:dropped-bad-tunnel/%ju} "
+	    "{N:/datagram%s arrived with bad tunneling}\n");
+	p(mrt6s_cant_tunnel, "\t{:dropped-could-not-tunnel/%ju} "
+	    "{N:/datagram%s could not be tunneled}\n");
+	p(mrt6s_wrong_if, "\t{:dropped-wrong-incoming-interface/%ju} "
+	    "{N:/datagram%s arrived on wrong interface}\n");
+	p(mrt6s_drop_sel, "\t{:dropped-selectively/%ju} "
+	    "{N:/datagram%s selectively dropped}\n");
+	p(mrt6s_q_overflow, "\t{:dropped-queue-overflow/%ju} "
+	    "{N:/datagram%s dropped due to queue overflow}\n");
+	p(mrt6s_pkt2large, "\t{:dropped-too-large/%ju} "
+	    "{N:/datagram%s dropped for being too large}\n");
 
 #undef	p2
 #undef	p
+	xo_close_container("multicast-statistics");
 }
 #endif /*INET6*/
