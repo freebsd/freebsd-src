@@ -63,7 +63,7 @@ sfxge_ev_qcomplete(struct sfxge_evq *evq, boolean_t eop)
 			    ("txq->evq_index != index"));
 
 			if (txq->pending != txq->completed)
-				sfxge_tx_qcomplete(txq);
+				sfxge_tx_qcomplete(txq, evq);
 
 			txq = next;
 		} while (txq != NULL);
@@ -257,7 +257,7 @@ sfxge_ev_tx(void *arg, uint32_t label, uint32_t id)
 	}
 
 	if (txq->pending - txq->completed >= SFXGE_TX_BATCH)
-		sfxge_tx_qcomplete(txq);
+		sfxge_tx_qcomplete(txq, evq);
 
 done:
 	return (evq->tx_done >= SFXGE_EV_BATCH);
