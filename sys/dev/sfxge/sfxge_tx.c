@@ -107,7 +107,7 @@ SYSCTL_INT(_hw_sfxge, OID_AUTO, tx_dpl_put_max, CTLFLAG_RDTUN,
 
 
 /* Forward declarations. */
-static inline void sfxge_tx_qdpl_service(struct sfxge_txq *txq);
+static void sfxge_tx_qdpl_service(struct sfxge_txq *txq);
 static void sfxge_tx_qlist_post(struct sfxge_txq *txq);
 static void sfxge_tx_qunblock(struct sfxge_txq *txq);
 static int sfxge_tx_queue_tso(struct sfxge_txq *txq, struct mbuf *mbuf,
@@ -156,7 +156,7 @@ sfxge_tx_qcomplete(struct sfxge_txq *txq, struct sfxge_evq *evq)
 
 #ifdef SFXGE_HAVE_MQ
 
-static inline unsigned int
+static unsigned int
 sfxge_is_mbuf_non_tcp(struct mbuf *mbuf)
 {
 	/* Absense of TCP checksum flags does not mean that it is non-TCP
@@ -481,7 +481,7 @@ sfxge_tx_qdpl_drain(struct sfxge_txq *txq)
  *
  * NOTE: drops the txq mutex!
  */
-static inline void
+static void
 sfxge_tx_qdpl_service(struct sfxge_txq *txq)
 {
 	SFXGE_TXQ_LOCK_ASSERT_OWNED(txq);
@@ -509,7 +509,7 @@ sfxge_tx_qdpl_service(struct sfxge_txq *txq)
  * overload the csum_data field in the mbuf to keep track of this length
  * because there is no cheap alternative to avoid races.
  */
-static inline int
+static int
 sfxge_tx_qdpl_put(struct sfxge_txq *txq, struct mbuf *mbuf, int locked)
 {
 	struct sfxge_tx_dpl *stdp;
@@ -757,7 +757,7 @@ void sfxge_if_start(struct ifnet *ifp)
 	SFXGE_TXQ_UNLOCK(sc->txq[0]);
 }
 
-static inline void
+static void
 sfxge_tx_qdpl_service(struct sfxge_txq *txq)
 {
 	struct ifnet *ifp = txq->sc->ifnet;
@@ -792,19 +792,19 @@ struct sfxge_tso_state {
 	unsigned header_len;	/* Number of bytes of header */
 };
 
-static inline const struct ip *tso_iph(const struct sfxge_tso_state *tso)
+static const struct ip *tso_iph(const struct sfxge_tso_state *tso)
 {
 	KASSERT(tso->protocol == htons(ETHERTYPE_IP),
 		("tso_iph() in non-IPv4 state"));
 	return (const struct ip *)(tso->mbuf->m_data + tso->nh_off);
 }
-static inline const struct ip6_hdr *tso_ip6h(const struct sfxge_tso_state *tso)
+static __unused const struct ip6_hdr *tso_ip6h(const struct sfxge_tso_state *tso)
 {
 	KASSERT(tso->protocol == htons(ETHERTYPE_IPV6),
 		("tso_ip6h() in non-IPv6 state"));
 	return (const struct ip6_hdr *)(tso->mbuf->m_data + tso->nh_off);
 }
-static inline const struct tcphdr *tso_tcph(const struct sfxge_tso_state *tso)
+static const struct tcphdr *tso_tcph(const struct sfxge_tso_state *tso)
 {
 	return (const struct tcphdr *)(tso->mbuf->m_data + tso->tcph_off);
 }
