@@ -854,9 +854,7 @@ static void tso_start(struct sfxge_tso_state *tso, struct mbuf *mbuf)
 		tso->tcph_off = tso->nh_off + sizeof(struct ip6_hdr);
 	}
 
-	/* We assume all headers are linear in the head mbuf */
 	tso->header_len = tso->tcph_off + 4 * tso_tcph(tso)->th_off;
-	KASSERT(tso->header_len <= mbuf->m_len, ("packet headers fragmented"));
 	tso->full_packet_size = tso->header_len + mbuf->m_pkthdr.tso_segsz;
 
 	tso->seqnum = ntohl(tso_tcph(tso)->th_seq);
@@ -971,7 +969,7 @@ static int tso_start_new_packet(struct sfxge_txq *txq,
 	tsoh_th = (struct tcphdr *)(header + tso->tcph_off);
 
 	/* Copy and update the headers. */
-	memcpy(header, tso->mbuf->m_data, tso->header_len);
+	m_copydata(tso->mbuf, 0, tso->header_len, header);
 
 	tsoh_th->th_seq = htonl(tso->seqnum);
 	tso->seqnum += tso->mbuf->m_pkthdr.tso_segsz;
@@ -1017,20 +1015,18 @@ sfxge_tx_queue_tso(struct sfxge_txq *txq, struct mbuf *mbuf,
 {
 	struct sfxge_tso_state tso;
 	unsigned int id, next_id;
+	unsigned skipped = 0;
 
 	tso_start(&tso, mbuf);
 
-	/* Grab the first payload fragment. */
-	if (dma_seg->ds_len == tso.header_len) {
+	while (dma_seg->ds_len + skipped <= tso.header_len) {
+		skipped += dma_seg->ds_len;
 		--n_dma_seg;
 		KASSERT(n_dma_seg, ("no payload found in TSO packet"));
 		++dma_seg;
-		tso.in_len = dma_seg->ds_len;
-		tso.dma_addr = dma_seg->ds_addr;
-	} else {
-		tso.in_len = dma_seg->ds_len - tso.header_len;
-		tso.dma_addr = dma_seg->ds_addr + tso.header_len;
 	}
+	tso.in_len = dma_seg->ds_len + (tso.header_len - skipped);
+	tso.dma_addr = dma_seg->ds_addr + (tso.header_len - skipped);
 
 	id = txq->added & txq->ptr_mask;
 	if (__predict_false(tso_start_new_packet(txq, &tso, id)))
