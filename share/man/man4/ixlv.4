@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2015
+.Dd March 25, 2015
 .Dt IXLV 4
 .Os
 .Sh NAME
@@ -77,13 +77,13 @@ and/or TSO6, and finally LRO can be set and unset.
 For more information on configuring this device, see
 .Xr ifconfig 8 .
 .Pp
-NOTE that The 
+.Em NOTE :
+The 
 .Nm
 Driver is only used by means of SRIOV, normally in a VM on a
 hosting server with the
 .Xr ixl 4
 driver. 
-.Pp
 .Sh LOADER TUNABLES
 Tunables can be set at the
 .Xr loader 8
@@ -92,10 +92,10 @@ prompt before booting the kernel or stored in
 .Bl -tag -width indent
 .It Va hw.ixlv.ringsz
 Set the number of descriptors in the rings, note that this
-changes BOTH the TX and RX rings, they cannot be set independly.
+changes BOTH the TX and RX rings, they cannot be set independently.
 .It Va hw.ixlv.max_queues
 Set the number of queues (each a TX/RX pair) for the port, this
-allows one to override the autocalculation if its set to 0.
+allows one to override the autocalculation if it is set to 0.
 .It Va hw.ixlv.txbrsz
 Set the size of the buff ring used by the transmit side of the
 stack, we have found that it is necessary to have it quite large
@@ -109,7 +109,6 @@ The RX interrupt rate value, set to 8K by default.
 .It Va hw.ixlv.tx_itr
 The TX interrupt rate value, set to 4K by default.
 .El
-.Pp
 .Sh SUPPORT
 For general information and support,
 go to the Intel support website at:
@@ -119,8 +118,8 @@ If an issue is identified with this driver with a supported adapter,
 email all the specific information related to the issue to
 .Aq freebsd@intel.com .
 .Sh SEE ALSO
-.Xr ixl 4 ,
 .Xr arp 4 ,
+.Xr ixl 4 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr vlan 4 ,
