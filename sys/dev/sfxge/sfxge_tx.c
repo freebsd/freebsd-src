@@ -864,6 +864,8 @@ static void tso_fini(struct sfxge_txq *txq)
 static void tso_start(struct sfxge_tso_state *tso, struct mbuf *mbuf)
 {
 	struct ether_header *eh = mtod(mbuf, struct ether_header *);
+	const struct tcphdr *th;
+	struct tcphdr th_copy;
 
 	tso->mbuf = mbuf;
 
@@ -891,13 +893,24 @@ static void tso_start(struct sfxge_tso_state *tso, struct mbuf *mbuf)
 		tso->tcph_off = tso->nh_off + sizeof(struct ip6_hdr);
 	}
 
-	tso->header_len = tso->tcph_off + 4 * tso_tcph(tso)->th_off;
+	KASSERT(mbuf->m_len >= tso->tcph_off,
+		("network header is fragmented in mbuf"));
+	/* We need TCP header including flags (window is the next) */
+	if (mbuf->m_len < tso->tcph_off + offsetof(struct tcphdr, th_win)) {
+		m_copydata(tso->mbuf, tso->tcph_off, sizeof(th_copy),
+			   (caddr_t)&th_copy);
+		th = &th_copy;
+	} else {
+		th = tso_tcph(tso);
+	}
+
+	tso->header_len = tso->tcph_off + 4 * th->th_off;
 	tso->seg_size = mbuf->m_pkthdr.tso_segsz;
 
-	tso->seqnum = ntohl(tso_tcph(tso)->th_seq);
+	tso->seqnum = ntohl(th->th_seq);
 
 	/* These flags must not be duplicated */
-	KASSERT(!(tso_tcph(tso)->th_flags & (TH_URG | TH_SYN | TH_RST)),
+	KASSERT(!(th->th_flags & (TH_URG | TH_SYN | TH_RST)),
 		("incompatible TCP flag on TSO packet"));
 
 	tso->out_len = mbuf->m_pkthdr.len - tso->header_len;
