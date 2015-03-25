@@ -396,10 +396,17 @@ sfxge_create(struct sfxge_softc *sc)
 	device_t dev;
 	efx_nic_t *enp;
 	int error;
+	char rss_param_name[sizeof(SFXGE_PARAM(%d.max_rss_channels))];
 
 	dev = sc->dev;
 
 	sx_init(&sc->softc_lock, "sfxge_softc");
+
+	sc->max_rss_channels = 0;
+	snprintf(rss_param_name, sizeof(rss_param_name),
+		 SFXGE_PARAM(%d.max_rss_channels),
+		 (int)device_get_unit(dev));
+	TUNABLE_INT_FETCH(rss_param_name, &sc->max_rss_channels);
 
 	sc->stats_node = SYSCTL_ADD_NODE(
 		device_get_sysctl_ctx(dev),
