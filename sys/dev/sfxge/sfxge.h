@@ -201,6 +201,7 @@ struct sfxge_softc {
 	struct ifnet			*ifnet;
 	unsigned int			if_flags;
 	struct sysctl_oid		*stats_node;
+	struct sysctl_oid		*txqs_node;
 
 	struct task			task_reset;
 
