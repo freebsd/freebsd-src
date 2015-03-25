@@ -741,10 +741,8 @@ ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 		 * be less than the receiver's page size ?
 		 */
 		int newlen;
-		struct mbuf *m;
 
-		for (m = m0, off = 0; m && (off+m->m_len) <= mtu; m = m->m_next)
-			off += m->m_len;
+		off = MIN(mtu, m0->m_pkthdr.len);
 
 		/*
 		 * firstlen (off - hlen) must be aligned on an 
