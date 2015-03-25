@@ -105,7 +105,7 @@ void	(*bridge_dn_p)(struct mbuf *, struct ifnet *);
 /* if_lagg(4) support */
 struct mbuf *(*lagg_input_p)(struct ifnet *, struct mbuf *); 
 
-static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
+const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 static	int ether_resolvemulti(struct ifnet *, struct sockaddr **,

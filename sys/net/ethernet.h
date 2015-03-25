@@ -388,6 +388,8 @@ struct route;
 struct sockaddr;
 struct bpf_if;
 
+extern const u_char etherbroadcastaddr[ETHER_ADDR_LEN];
+
 extern	uint32_t ether_crc32_le(const uint8_t *, size_t);
 extern	uint32_t ether_crc32_be(const uint8_t *, size_t);
 extern	void ether_demux(struct ifnet *, struct mbuf *);
