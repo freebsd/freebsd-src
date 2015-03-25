@@ -505,7 +505,7 @@ sfxge_tx_qdpl_service(struct sfxge_txq *txq)
  * list", otherwise we atomically push it on the "put list".  The swizzle
  * function takes care of ordering.
  *
- * The length of the put list is bounded by SFXGE_TX_MAX_DEFFERED.  We
+ * The length of the put list is bounded by SFXGE_TX_MAX_DEFERRED.  We
  * overload the csum_data field in the mbuf to keep track of this length
  * because there is no cheap alternative to avoid races.
  */
@@ -569,7 +569,7 @@ sfxge_tx_qdpl_put(struct sfxge_txq *txq, struct mbuf *mbuf, int locked)
 
 /*
  * Called from if_transmit - will try to grab the txq lock and enqueue to the
- * put list if it succeeds, otherwise will push onto the defer list.
+ * put list if it succeeds, otherwise try to push onto the defer list if space.
  */
 int
 sfxge_tx_packet_add(struct sfxge_txq *txq, struct mbuf *m)

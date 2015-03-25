@@ -612,7 +612,7 @@ siena_nvram_get_subtype(
 
 	if (req.emr_out_length_used <
 	    MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_OFST +
-	    (partn + 1) * sizeof(efx_word_t)) {
+	    (partn + 1) * sizeof (efx_word_t)) {
 		rc = ENOENT;
 		goto fail3;
 	}
