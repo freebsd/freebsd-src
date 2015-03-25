@@ -1093,12 +1093,16 @@ sfxge_tx_queue_tso(struct sfxge_txq *txq, struct mbuf *mbuf,
 			 * roll back the work we have done.
 			 */
 			if (txq->n_pend_desc >
-			    SFXGE_TSO_MAX_DESC - (1 + SFXGE_TX_MAPPING_MAX_SEG))
+			    SFXGE_TSO_MAX_DESC - (1 + SFXGE_TX_MAPPING_MAX_SEG)) {
+				txq->tso_pdrop_too_many++;
 				break;
+			}
 			next_id = (id + 1) & txq->ptr_mask;
 			if (__predict_false(tso_start_new_packet(txq, &tso,
-								 next_id)))
+								 next_id))) {
+				txq->tso_pdrop_no_rsrc++;
 				break;
+			}
 			id = next_id;
 		}
 	}
@@ -1515,6 +1519,8 @@ static const struct {
 	SFXGE_TX_STAT(tso_bursts, tso_bursts),
 	SFXGE_TX_STAT(tso_packets, tso_packets),
 	SFXGE_TX_STAT(tso_long_headers, tso_long_headers),
+	SFXGE_TX_STAT(tso_pdrop_too_many, tso_pdrop_too_many),
+	SFXGE_TX_STAT(tso_pdrop_no_rsrc, tso_pdrop_no_rsrc),
 	SFXGE_TX_STAT(tx_collapses, collapses),
 	SFXGE_TX_STAT(tx_drops, drops),
 	SFXGE_TX_STAT(tx_get_overflow, get_overflow),
