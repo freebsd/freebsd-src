@@ -75,13 +75,17 @@ struct sfxge_tx_mapping {
 	enum sfxge_tx_buf_flags	flags;
 };
 
-#define	SFXGE_TX_DPL_GET_PKT_LIMIT_DEFAULT	64
+#define	SFXGE_TX_DPL_GET_PKT_LIMIT_DEFAULT	1024
 #define	SFXGE_TX_DPL_PUT_PKT_LIMIT_DEFAULT	64
 
 /*
  * Deferred packet list.
  */
 struct sfxge_tx_dpl {
+	unsigned int		std_get_max;	/* Maximum number of packets
+						 * in get list */
+	unsigned int		std_put_max;	/* Maximum number of packets
+						 * in put list */
 	uintptr_t		std_put;	/* Head of put list. */
 	struct mbuf		*std_get;	/* Head of get list. */
 	struct mbuf		**std_getp;	/* Tail of get list. */
