@@ -791,8 +791,6 @@ struct sfxge_tso_state {
 	ssize_t nh_off;		/* Offset of network header */
 	ssize_t tcph_off;	/* Offset of TCP header */
 	unsigned header_len;	/* Number of bytes of header */
-	int full_packet_size;	/* Number of bytes to put in each outgoing
-				 * segment */
 };
 
 static inline const struct ip *tso_iph(const struct sfxge_tso_state *tso)
@@ -894,7 +892,6 @@ static void tso_start(struct sfxge_tso_state *tso, struct mbuf *mbuf)
 	}
 
 	tso->header_len = tso->tcph_off + 4 * tso_tcph(tso)->th_off;
-	tso->full_packet_size = tso->header_len + mbuf->m_pkthdr.tso_segsz;
 
 	tso->seqnum = ntohl(tso_tcph(tso)->th_seq);
 
@@ -1014,7 +1011,8 @@ static int tso_start_new_packet(struct sfxge_txq *txq,
 	tso->seqnum += tso->mbuf->m_pkthdr.tso_segsz;
 	if (tso->out_len > tso->mbuf->m_pkthdr.tso_segsz) {
 		/* This packet will not finish the TSO burst. */
-		ip_length = tso->full_packet_size - tso->nh_off;
+		ip_length = tso->header_len - tso->nh_off +
+		    tso->mbuf->m_pkthdr.tso_segsz;
 		tsoh_th->th_flags &= ~(TH_FIN | TH_PUSH);
 	} else {
 		/* This packet will be the last in the TSO burst. */
