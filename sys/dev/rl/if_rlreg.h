@@ -912,6 +912,8 @@ struct rl_softc {
 	int			rl_int_rx_act;
 	int			rl_int_rx_mod;
 	uint32_t		rl_flags;
+	uint32_t		rl_capenable;
+	uint32_t		rl_mtu;
 #define	RL_FLAG_MSI		0x00000001
 #define	RL_FLAG_AUTOPAD		0x00000002
 #define	RL_FLAG_PHYWAKE_PM	0x00000004
@@ -932,6 +934,7 @@ struct rl_softc {
 #define	RL_FLAG_EARLYOFF	0x00020000
 #define	RL_FLAG_EARLYOFFV2	0x00040000
 #define	RL_FLAG_RXDV_GATED	0x00080000
+#define	RL_FLAG_RUNNING		0x00100000
 #define	RL_FLAG_PCIE		0x40000000
 #define	RL_FLAG_LINK		0x80000000
 };
