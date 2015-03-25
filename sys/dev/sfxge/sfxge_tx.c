@@ -476,6 +476,9 @@ sfxge_tx_qdpl_put(struct sfxge_txq *txq, struct mbuf *mbuf, int locked)
 
 		sfxge_tx_qdpl_swizzle(txq);
 
+		if (stdp->std_count >= SFXGE_TX_DPL_GET_PKT_LIMIT_DEFAULT)
+			return (ENOBUFS);
+
 		*(stdp->std_getp) = mbuf;
 		stdp->std_getp = &mbuf->m_nextpkt;
 		stdp->std_count++;
@@ -495,8 +498,8 @@ sfxge_tx_qdpl_put(struct sfxge_txq *txq, struct mbuf *mbuf, int locked)
 				old_len = mp->m_pkthdr.csum_data;
 			} else
 				old_len = 0;
-			if (old_len >= SFXGE_TX_MAX_DEFERRED)
-				return ENOBUFS;
+			if (old_len >= SFXGE_TX_DPL_PUT_PKT_LIMIT_DEFAULT)
+				return (ENOBUFS);
 			mbuf->m_pkthdr.csum_data = old_len + 1;
 			mbuf->m_nextpkt = (void *)old;
 		} while (atomic_cmpset_ptr(putp, old, new) == 0);
@@ -527,12 +530,9 @@ sfxge_tx_packet_add(struct sfxge_txq *txq, struct mbuf *m)
 	 */
 	locked = mtx_trylock(&txq->lock);
 
-	/*
-	 * Can only fail if we weren't able to get the lock.
-	 */
 	if (sfxge_tx_qdpl_put(txq, m, locked) != 0) {
-		KASSERT(!locked,
-		    ("sfxge_tx_qdpl_put() failed locked"));
+		if (locked)
+			mtx_unlock(&txq->lock);
 		rc = ENOBUFS;
 		goto fail;
 	}
