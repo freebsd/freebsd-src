@@ -326,14 +326,12 @@ sfxge_rx_deliver(struct sfxge_softc *sc, struct sfxge_rx_sw_desc *rx_desc)
 	if (rx_desc->flags & EFX_CKSUM_TCPUDP)
 		csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 
-#ifdef SFXGE_HAVE_MQ
 	/* The hash covers a 4-tuple for TCP only */
 	if (rx_desc->flags & EFX_PKT_TCP) {
 		m->m_pkthdr.flowid = EFX_RX_HASH_VALUE(EFX_RX_HASHALG_TOEPLITZ,
 						       mtod(m, uint8_t *));
 		m->m_flags |= M_FLOWID;
 	}
-#endif
 	m->m_data += sc->rx_prefix_size;
 	m->m_len = rx_desc->size - sc->rx_prefix_size;
 	m->m_pkthdr.len = m->m_len;
@@ -380,10 +378,9 @@ sfxge_lro_deliver(struct sfxge_lro_state *st, struct sfxge_lro_conn *c)
 		memcpy(c_th + 1, c->th_last + 1, optlen);
 	}
 
-#ifdef SFXGE_HAVE_MQ
 	m->m_pkthdr.flowid = c->conn_hash;
 	m->m_flags |= M_FLOWID;
-#endif
+
 	m->m_pkthdr.csum_flags = csum_flags;
 	__sfxge_rx_deliver(sc, m);
 

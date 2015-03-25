@@ -329,19 +329,8 @@ sfxge_ifnet_init(struct ifnet *ifp, struct sfxge_softc *sc)
 
 	ether_ifattach(ifp, encp->enc_mac_addr);
 
-#ifdef SFXGE_HAVE_MQ
 	ifp->if_transmit = sfxge_if_transmit;
 	ifp->if_qflush = sfxge_if_qflush;
-#else
-	ifp->if_start = sfxge_if_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, sc->txq_entries - 1);
-	ifp->if_snd.ifq_drv_maxlen = sc->txq_entries - 1;
-	IFQ_SET_READY(&ifp->if_snd);
-
-	snprintf(sc->tx_lock_name, sizeof(sc->tx_lock_name),
-		 "%s:tx", device_get_nameunit(sc->dev));
-	mtx_init(&sc->tx_lock, sc->tx_lock_name, NULL, MTX_DEF);
-#endif
 
 	if ((rc = sfxge_port_ifmedia_init(sc)) != 0)
 		goto fail;

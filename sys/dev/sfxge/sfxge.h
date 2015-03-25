@@ -66,12 +66,6 @@
 #ifndef IFM_10G_KX4
 #define	IFM_10G_KX4 IFM_10G_CX4
 #endif
-#if __FreeBSD_version >= 800054
-/* Networking core is multiqueue aware. We can manage our own TX
- * queues and use m_pkthdr.flowid.
- */
-#define	SFXGE_HAVE_MQ
-#endif
 #if (__FreeBSD_version >= 800501 && __FreeBSD_version < 900000) || \
 	__FreeBSD_version >= 900003
 #define	SFXGE_HAVE_DESCRIBE_INTR
@@ -242,22 +236,13 @@ struct sfxge_softc {
 	struct sfxge_rxq		*rxq[SFXGE_RX_SCALE_MAX];
 	unsigned int			rx_indir_table[SFXGE_RX_SCALE_MAX];
 
-#ifdef SFXGE_HAVE_MQ
 	struct sfxge_txq		*txq[SFXGE_TXQ_NTYPES + SFXGE_RX_SCALE_MAX];
-#else
-	struct sfxge_txq		*txq[SFXGE_TXQ_NTYPES];
-#endif
 
 	struct ifmedia			media;
 
 	size_t				rx_prefix_size;
 	size_t				rx_buffer_size;
 	uma_zone_t			rx_buffer_zone;
-
-#ifndef SFXGE_HAVE_MQ
-	struct mtx			tx_lock __aligned(CACHE_LINE_SIZE);
-	char				tx_lock_name[SFXGE_LOCK_NAME_MAX];
-#endif
 
 	unsigned int			evq_count;
 	unsigned int			rxq_count;
