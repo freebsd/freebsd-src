@@ -1659,14 +1659,6 @@ cgem_attach(device_t dev)
 	sc->rxbufs = DEFAULT_NUM_RX_BUFS;
 	sc->rxhangwar = 1;
 
-	/* Disable hardware checksumming by default. */
-	ifat.ifat_hwassist = 0;
-	ifat.ifat_capenable = sc->cgem_capenable = IFCAP_VLAN_MTU;
-	ifat.ifat_softc = sc;
-	ifat.ifat_dunit = device_get_unit(dev);
-	ifat.ifat_lla = eaddr;
-	sc->ifp = if_attach(&ifat);
-
 	/* Set up TX and RX descriptor area. */
 	err = cgem_setup_descs(sc);
 	if (err) {
@@ -1690,6 +1682,14 @@ cgem_attach(device_t dev)
 	}
 
 	cgem_add_sysctls(dev);
+
+	/* Disable hardware checksumming by default. */
+	ifat.ifat_hwassist = 0;
+	ifat.ifat_capenable = sc->cgem_capenable = IFCAP_VLAN_MTU;
+	ifat.ifat_softc = sc;
+	ifat.ifat_dunit = device_get_unit(dev);
+	ifat.ifat_lla = eaddr;
+	sc->ifp = if_attach(&ifat);
 
 	return (0);
 }
