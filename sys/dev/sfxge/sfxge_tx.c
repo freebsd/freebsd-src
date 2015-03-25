@@ -118,7 +118,7 @@ sfxge_tx_qcomplete(struct sfxge_txq *txq, struct sfxge_evq *evq)
 {
 	unsigned int completed;
 
-	mtx_assert(&evq->lock, MA_OWNED);
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
 
 	completed = txq->completed;
 	while (completed != txq->pending) {
@@ -178,7 +178,7 @@ sfxge_tx_qdpl_swizzle(struct sfxge_txq *txq)
 	unsigned int count;
 	unsigned int non_tcp_count;
 
-	mtx_assert(&txq->lock, MA_OWNED);
+	SFXGE_TXQ_LOCK_ASSERT_OWNED(txq);
 
 	stdp = &txq->dpl;
 
@@ -221,7 +221,7 @@ sfxge_tx_qdpl_swizzle(struct sfxge_txq *txq)
 static void
 sfxge_tx_qreap(struct sfxge_txq *txq)
 {
-	mtx_assert(SFXGE_TXQ_LOCK(txq), MA_OWNED);
+	SFXGE_TXQ_LOCK_ASSERT_OWNED(txq);
 
 	txq->reaped = txq->completed;
 }
@@ -233,7 +233,7 @@ sfxge_tx_qlist_post(struct sfxge_txq *txq)
 	unsigned int level;
 	int rc;
 
-	mtx_assert(SFXGE_TXQ_LOCK(txq), MA_OWNED);
+	SFXGE_TXQ_LOCK_ASSERT_OWNED(txq);
 
 	KASSERT(txq->n_pend_desc != 0, ("txq->n_pend_desc == 0"));
 	KASSERT(txq->n_pend_desc <= SFXGE_TSO_MAX_DESC,
@@ -408,7 +408,7 @@ sfxge_tx_qdpl_drain(struct sfxge_txq *txq)
 	unsigned int pushed;
 	int rc;
 
-	mtx_assert(&txq->lock, MA_OWNED);
+	SFXGE_TXQ_LOCK_ASSERT_OWNED(txq);
 
 	sc = txq->sc;
 	stdp = &txq->dpl;
@@ -484,7 +484,7 @@ sfxge_tx_qdpl_drain(struct sfxge_txq *txq)
 static inline void
 sfxge_tx_qdpl_service(struct sfxge_txq *txq)
 {
-	mtx_assert(&txq->lock, MA_OWNED);
+	SFXGE_TXQ_LOCK_ASSERT_OWNED(txq);
 
 	do {
 		if (SFXGE_TX_QDPL_PENDING(txq))
@@ -493,9 +493,9 @@ sfxge_tx_qdpl_service(struct sfxge_txq *txq)
 		if (!txq->blocked)
 			sfxge_tx_qdpl_drain(txq);
 
-		mtx_unlock(&txq->lock);
+		SFXGE_TXQ_UNLOCK(txq);
 	} while (SFXGE_TX_QDPL_PENDING(txq) &&
-		 mtx_trylock(&txq->lock));
+		 SFXGE_TXQ_TRYLOCK(txq));
 }
 
 /*
@@ -519,7 +519,7 @@ sfxge_tx_qdpl_put(struct sfxge_txq *txq, struct mbuf *mbuf, int locked)
 	KASSERT(mbuf->m_nextpkt == NULL, ("mbuf->m_nextpkt != NULL"));
 
 	if (locked) {
-		mtx_assert(&txq->lock, MA_OWNED);
+		SFXGE_TXQ_LOCK_ASSERT_OWNED(txq);
 
 		sfxge_tx_qdpl_swizzle(txq);
 
@@ -588,11 +588,11 @@ sfxge_tx_packet_add(struct sfxge_txq *txq, struct mbuf *m)
 	 * the packet will be appended to the "get list" of the deferred
 	 * packet list.  Otherwise, it will be pushed on the "put list".
 	 */
-	locked = mtx_trylock(&txq->lock);
+	locked = SFXGE_TXQ_TRYLOCK(txq);
 
 	if (sfxge_tx_qdpl_put(txq, m, locked) != 0) {
 		if (locked)
-			mtx_unlock(&txq->lock);
+			SFXGE_TXQ_UNLOCK(txq);
 		rc = ENOBUFS;
 		goto fail;
 	}
@@ -605,7 +605,7 @@ sfxge_tx_packet_add(struct sfxge_txq *txq, struct mbuf *m)
 	 * is processing the list.
 	 */
 	if (!locked)
-		locked = mtx_trylock(&txq->lock);
+		locked = SFXGE_TXQ_TRYLOCK(txq);
 
 	if (locked) {
 		/* Try to service the list. */
@@ -626,7 +626,7 @@ sfxge_tx_qdpl_flush(struct sfxge_txq *txq)
 	struct sfxge_tx_dpl *stdp = &txq->dpl;
 	struct mbuf *mbuf, *next;
 
-	mtx_lock(&txq->lock);
+	SFXGE_TXQ_LOCK(txq);
 
 	sfxge_tx_qdpl_swizzle(txq);
 	for (mbuf = stdp->std_get; mbuf != NULL; mbuf = next) {
@@ -638,7 +638,7 @@ sfxge_tx_qdpl_flush(struct sfxge_txq *txq)
 	stdp->std_get_non_tcp_count = 0;
 	stdp->std_getp = &stdp->std_get;
 
-	mtx_unlock(&txq->lock);
+	SFXGE_TXQ_UNLOCK(txq);
 }
 
 void
@@ -752,21 +752,20 @@ void sfxge_if_start(struct ifnet *ifp)
 {
 	struct sfxge_softc *sc = ifp->if_softc;
 
-	mtx_lock(&sc->tx_lock);
+	SFXGE_TXQ_LOCK(sc->txq[0]);
 	sfxge_if_start_locked(ifp);
-	mtx_unlock(&sc->tx_lock);
+	SFXGE_TXQ_UNLOCK(sc->txq[0]);
 }
 
 static inline void
 sfxge_tx_qdpl_service(struct sfxge_txq *txq)
 {
-	struct sfxge_softc *sc = txq->sc;
-	struct ifnet *ifp = sc->ifnet;
+	struct ifnet *ifp = txq->sc->ifnet;
 
-	mtx_assert(&sc->tx_lock, MA_OWNED);
+	SFXGE_TXQ_LOCK_ASSERT_OWNED(txq);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	sfxge_if_start_locked(ifp);
-	mtx_unlock(&sc->tx_lock);
+	SFXGE_TXQ_UNLOCK(txq);
 }
 
 #endif /* SFXGE_HAVE_MQ */
@@ -1117,12 +1116,12 @@ sfxge_tx_qunblock(struct sfxge_txq *txq)
 	sc = txq->sc;
 	evq = sc->evq[txq->evq_index];
 
-	mtx_assert(&evq->lock, MA_OWNED);
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
 
 	if (txq->init_state != SFXGE_TXQ_STARTED)
 		return;
 
-	mtx_lock(SFXGE_TXQ_LOCK(txq));
+	SFXGE_TXQ_LOCK(txq);
 
 	if (txq->blocked) {
 		unsigned int level;
@@ -1153,7 +1152,7 @@ sfxge_tx_qstop(struct sfxge_softc *sc, unsigned int index)
 	txq = sc->txq[index];
 	evq = sc->evq[txq->evq_index];
 
-	mtx_lock(SFXGE_TXQ_LOCK(txq));
+	SFXGE_TXQ_LOCK(txq);
 
 	KASSERT(txq->init_state == SFXGE_TXQ_STARTED,
 	    ("txq->init_state != SFXGE_TXQ_STARTED"));
@@ -1164,7 +1163,7 @@ sfxge_tx_qstop(struct sfxge_softc *sc, unsigned int index)
 	/* Flush the transmit queue. */
 	efx_tx_qflush(txq->common);
 
-	mtx_unlock(SFXGE_TXQ_LOCK(txq));
+	SFXGE_TXQ_UNLOCK(txq);
 
 	count = 0;
 	do {
@@ -1175,8 +1174,8 @@ sfxge_tx_qstop(struct sfxge_softc *sc, unsigned int index)
 			break;
 	} while (++count < 20);
 
-	mtx_lock(&evq->lock);
-	mtx_lock(SFXGE_TXQ_LOCK(txq));
+	SFXGE_EVQ_LOCK(evq);
+	SFXGE_TXQ_LOCK(txq);
 
 	KASSERT(txq->flush_state != SFXGE_FLUSH_FAILED,
 	    ("txq->flush_state == SFXGE_FLUSH_FAILED"));
@@ -1206,8 +1205,8 @@ sfxge_tx_qstop(struct sfxge_softc *sc, unsigned int index)
 	efx_sram_buf_tbl_clear(sc->enp, txq->buf_base_id,
 	    EFX_TXQ_NBUFS(sc->txq_entries));
 
-	mtx_unlock(&evq->lock);
-	mtx_unlock(SFXGE_TXQ_LOCK(txq));
+	SFXGE_EVQ_UNLOCK(evq);
+	SFXGE_TXQ_UNLOCK(txq);
 }
 
 static int
@@ -1256,14 +1255,14 @@ sfxge_tx_qstart(struct sfxge_softc *sc, unsigned int index)
 	    &txq->common)) != 0)
 		goto fail;
 
-	mtx_lock(SFXGE_TXQ_LOCK(txq));
+	SFXGE_TXQ_LOCK(txq);
 
 	/* Enable the transmit queue. */
 	efx_tx_qenable(txq->common);
 
 	txq->init_state = SFXGE_TXQ_STARTED;
 
-	mtx_unlock(SFXGE_TXQ_LOCK(txq));
+	SFXGE_TXQ_UNLOCK(txq);
 
 	return (0);
 
@@ -1361,7 +1360,7 @@ sfxge_tx_qfini(struct sfxge_softc *sc, unsigned int index)
 	sc->txq[index] = NULL;
 
 #ifdef SFXGE_HAVE_MQ
-	mtx_destroy(&txq->lock);
+	SFXGE_TXQ_LOCK_DESTROY(txq);
 #endif
 
 	free(txq, M_SFXGE);
@@ -1467,7 +1466,7 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 	stdp->std_get_non_tcp_max = sfxge_tx_dpl_get_non_tcp_max;
 	stdp->std_getp = &stdp->std_get;
 
-	mtx_init(&txq->lock, "txq", NULL, MTX_DEF);
+	SFXGE_TXQ_LOCK_INIT(txq, "txq");
 
 	SYSCTL_ADD_UINT(device_get_sysctl_ctx(sc->dev),
 			SYSCTL_CHILDREN(txq_node), OID_AUTO,
