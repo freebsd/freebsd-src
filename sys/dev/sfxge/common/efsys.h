@@ -669,7 +669,7 @@ typedef struct efsys_bar_s {
 		    uint32_t, (_eqp)->eq_u32[1],			\
 		    uint32_t, (_eqp)->eq_u32[0]);			\
 									\
-		mtx_unlock(&((_esbp)->esb_lock));			\
+		SFXGE_BAR_UNLOCK(_esbp);				\
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
@@ -681,7 +681,7 @@ typedef struct efsys_bar_s {
 									\
 		_NOTE(CONSTANTCONDITION)				\
 		if (_lock)						\
-			mtx_lock(&((_esbp)->esb_lock));			\
+			SFXGE_BAR_LOCK(_esbp);				\
 									\
 		(_eop)->eo_u64[0] = bus_space_read_8((_esbp)->esb_tag,	\
 		    (_esbp)->esb_handle, (_offset));			\
@@ -696,7 +696,7 @@ typedef struct efsys_bar_s {
 									\
 		_NOTE(CONSTANTCONDITION)				\
 		if (_lock)						\
-			mtx_unlock(&((_esbp)->esb_lock));		\
+			SFXGE_BAR_UNLOCK(_esbp);			\
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
@@ -707,7 +707,7 @@ typedef struct efsys_bar_s {
 		KASSERT(IS_P2ALIGNED(_offset, sizeof (efx_qword_t)),	\
 		    ("not power of 2 aligned"));			\
 									\
-		mtx_lock(&((_esbp)->esb_lock));				\
+		SFXGE_BAR_LOCK(_esbp);					\
 									\
 		(_eqp)->eq_u32[0] = bus_space_read_4((_esbp)->esb_tag,	\
 		    (_esbp)->esb_handle, (_offset));			\
@@ -762,7 +762,7 @@ typedef struct efsys_bar_s {
 									\
 		_NOTE(CONSTANTCONDITION)				\
 		if (_lock)						\
-			SFXGE_BAR_LOCK(_esbp);			\
+			SFXGE_BAR_LOCK(_esbp);				\
 									\
 		EFSYS_PROBE2(bar_writed, unsigned int, (_offset),	\
 		    uint32_t, (_edp)->ed_u32[0]);			\
@@ -772,7 +772,7 @@ typedef struct efsys_bar_s {
 									\
 		_NOTE(CONSTANTCONDITION)				\
 		if (_lock)						\
-			SFXGE_BAR_UNLOCK(_esbp);		\
+			SFXGE_BAR_UNLOCK(_esbp);			\
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
@@ -792,7 +792,7 @@ typedef struct efsys_bar_s {
 		bus_space_write_8((_esbp)->esb_tag, (_esbp)->esb_handle,\
 		    (_offset), (_eqp)->eq_u64[0]);			\
 									\
-		mtx_unlock(&((_esbp)->esb_lock));			\
+		SFXGE_BAR_UNLOCK(_esbp);				\
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 #else
@@ -802,7 +802,7 @@ typedef struct efsys_bar_s {
 		KASSERT(IS_P2ALIGNED(_offset, sizeof (efx_qword_t)),	\
 		    ("not power of 2 aligned"));			\
 									\
-		mtx_lock(&((_esbp)->esb_lock));				\
+		SFXGE_BAR_LOCK(_esbp);					\
 									\
 		EFSYS_PROBE3(bar_writeq, unsigned int, (_offset),	\
 		    uint32_t, (_eqp)->eq_u32[1],			\
@@ -842,7 +842,7 @@ typedef struct efsys_bar_s {
 									\
 		_NOTE(CONSTANTCONDITION)				\
 		if (_lock)						\
-			mtx_unlock(&((_esbp)->esb_lock));		\
+			SFXGE_BAR_UNLOCK(_esbp);			\
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
@@ -855,7 +855,7 @@ typedef struct efsys_bar_s {
 									\
 		_NOTE(CONSTANTCONDITION)				\
 		if (_lock)						\
-			mtx_lock(&((_esbp)->esb_lock));			\
+			SFXGE_BAR_LOCK(_esbp);				\
 									\
 		EFSYS_PROBE5(bar_writeo, unsigned int, (_offset),	\
 		    uint32_t, (_eop)->eo_u32[3],			\
