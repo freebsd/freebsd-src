@@ -68,8 +68,16 @@ __FBSDID("$FreeBSD$");
 #define dprintf(fmt, args...)
 #endif
 
+/* DMA doesn't yet work with the bcm3826 */
+#ifdef SOC_BCM2836
+#define	PIO_MODE	1
+#else
+#define	PIO_MODE	0
+#error
+#endif
+
 static int bcm2835_sdhci_hs = 1;
-static int bcm2835_sdhci_pio_mode = 0;
+static int bcm2835_sdhci_pio_mode = PIO_MODE;
 
 TUNABLE_INT("hw.bcm2835.sdhci.hs", &bcm2835_sdhci_hs);
 TUNABLE_INT("hw.bcm2835.sdhci.pio_mode", &bcm2835_sdhci_pio_mode);
