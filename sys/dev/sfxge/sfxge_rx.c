@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 
 #define	RX_REFILL_THRESHOLD(_entries)	(EFX_RXQ_LIMIT(_entries) * 9 / 10)
 
+#ifdef SFXGE_LRO
+
 SYSCTL_NODE(_hw_sfxge, OID_AUTO, lro, CTLFLAG_RD, NULL,
 	    "Large receive offload (LRO) parameters");
 
@@ -135,6 +137,8 @@ static unsigned long ipv6_addr_cmp(const struct in6_addr *left,
 	       (left->s6_addr32[3] - right->s6_addr32[3]);
 #endif
 }
+
+#endif	/* SFXGE_LRO */
 
 void
 sfxge_rx_qflush_done(struct sfxge_rxq *rxq)
@@ -341,6 +345,8 @@ sfxge_rx_deliver(struct sfxge_softc *sc, struct sfxge_rx_sw_desc *rx_desc)
 	rx_desc->flags = EFX_DISCARD;
 	rx_desc->mbuf = NULL;
 }
+
+#ifdef SFXGE_LRO
 
 static void
 sfxge_lro_deliver(struct sfxge_lro_state *st, struct sfxge_lro_conn *c)
@@ -760,6 +766,20 @@ static void sfxge_lro_end_of_burst(struct sfxge_rxq *rxq)
 		sfxge_lro_purge_idle(rxq, t);
 }
 
+#else	/* !SFXGE_LRO */
+
+static void
+sfxge_lro(struct sfxge_rxq *rxq, struct sfxge_rx_sw_desc *rx_buf)
+{
+}
+
+static void
+sfxge_lro_end_of_burst(struct sfxge_rxq *rxq)
+{
+}
+
+#endif	/* SFXGE_LRO */
+
 void
 sfxge_rx_qcomplete(struct sfxge_rxq *rxq, boolean_t eop)
 {
@@ -1040,6 +1060,8 @@ fail:
 	return (rc);
 }
 
+#ifdef SFXGE_LRO
+
 static void sfxge_lro_init(struct sfxge_rxq *rxq)
 {
 	struct sfxge_lro_state *st = &rxq->lro;
@@ -1091,6 +1113,20 @@ static void sfxge_lro_fini(struct sfxge_rxq *rxq)
 	free(st->conns, M_SFXGE);
 	st->conns = NULL;
 }
+
+#else
+
+static void
+sfxge_lro_init(struct sfxge_rxq *rxq)
+{
+}
+
+static void
+sfxge_lro_fini(struct sfxge_rxq *rxq)
+{
+}
+
+#endif	/* SFXGE_LRO */
 
 static void
 sfxge_rx_qfini(struct sfxge_softc *sc, unsigned int index)
@@ -1162,6 +1198,7 @@ static const struct {
 } sfxge_rx_stats[] = {
 #define	SFXGE_RX_STAT(name, member) \
 	{ #name, offsetof(struct sfxge_rxq, member) }
+#ifdef SFXGE_LRO
 	SFXGE_RX_STAT(lro_merges, lro.n_merges),
 	SFXGE_RX_STAT(lro_bursts, lro.n_bursts),
 	SFXGE_RX_STAT(lro_slow_start, lro.n_slow_start),
@@ -1170,6 +1207,7 @@ static const struct {
 	SFXGE_RX_STAT(lro_new_stream, lro.n_new_stream),
 	SFXGE_RX_STAT(lro_drop_idle, lro.n_drop_idle),
 	SFXGE_RX_STAT(lro_drop_closed, lro.n_drop_closed)
+#endif
 };
 
 static int
@@ -1226,6 +1264,7 @@ sfxge_rx_init(struct sfxge_softc *sc)
 	int index;
 	int rc;
 
+#ifdef SFXGE_LRO
 	if (!ISP2(lro_table_size)) {
 		log(LOG_ERR, "%s=%u must be power of 2",
 		    SFXGE_LRO_PARAM(table_size), lro_table_size);
@@ -1235,6 +1274,7 @@ sfxge_rx_init(struct sfxge_softc *sc)
 
 	if (lro_idle_ticks == 0)
 		lro_idle_ticks = hz / 10 + 1; /* 100 ms */
+#endif
 
 	intr = &sc->intr;
 
@@ -1260,6 +1300,8 @@ fail:
 
 	sc->rxq_count = 0;
 
+#ifdef SFXGE_LRO
 fail_lro_table_size:
+#endif
 	return (rc);
 }
