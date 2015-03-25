@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_dl.h>
-#include <net/if_types.h>
 #include <net/if_vlan_var.h>
 #include <net/vnet.h>
 
@@ -77,14 +76,12 @@ __FBSDID("$FreeBSD$");
 #define	VLAN_DEF_HWIDTH	4
 #define	VLAN_IFFLAGS	(IFF_BROADCAST | IFF_MULTICAST)
 
-#define	UP_AND_RUNNING(ifp) \
-    ((ifp)->if_flags & IFF_UP && (ifp)->if_drv_flags & IFF_DRV_RUNNING)
-
 LIST_HEAD(ifvlanhead, ifvlan);
 
 struct ifvlantrunk {
 	struct	ifnet   *parent;	/* parent interface of this trunk */
 	struct	rmlock	lock;
+	struct	ifops	ops;		/* Inherited from parent. */
 #ifdef VLAN_ARRAY
 #define	VLAN_ARRAY_SIZE	(EVL_VLID_MASK + 1)
 	struct	ifvlan	*vlans[VLAN_ARRAY_SIZE]; /* static table */
@@ -189,23 +186,24 @@ static	void vlan_growhash(struct ifvlantrunk *trunk, int howmuch);
 static __inline struct ifvlan * vlan_gethash(struct ifvlantrunk *trunk,
 	uint16_t vid);
 #endif
-static	void trunk_destroy(struct ifvlantrunk *trunk);
+static struct	ifvlantrunk * trunk_get(struct ifnet *);
+static void	trunk_destroy(struct ifvlantrunk *);
 
-static	void vlan_init(void *foo);
-static	void vlan_input(struct ifnet *ifp, struct mbuf *m);
-static	int vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t addr);
-static	void vlan_qflush(struct ifnet *ifp);
-static	int vlan_setflag(struct ifnet *ifp, int flag, int status,
-    int (*func)(struct ifnet *, int));
-static	int vlan_setflags(struct ifnet *ifp, int status);
-static	int vlan_setmulti(struct ifnet *ifp);
-static	int vlan_transmit(struct ifnet *ifp, struct mbuf *m);
-static	void vlan_unconfig(struct ifnet *ifp);
-static	void vlan_unconfig_locked(struct ifnet *ifp, int departing);
+/* Interface methods. */
+static void	vlan_input(if_t, struct mbuf *);
+static int	vlan_ioctl(if_t, u_long cmd, void *, struct thread *);
+static int	vlan_transmit(struct ifnet *, struct mbuf *);
+
+static	void vlan_unconfig(struct ifnet *, int);
 static	int vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t tag);
 static	void vlan_link_state(struct ifnet *ifp);
 static	void vlan_capabilities(struct ifvlan *ifv);
 static	void vlan_trunk_capabilities(struct ifnet *ifp);
+
+static	int vlan_setflags(struct ifnet *ifp, int status);
+static	int vlan_setmulti(struct ifnet *ifp);
+static	int vlan_setflag(struct ifnet *ifp, int flag, int status,
+    int (*func)(struct ifnet *, int));
 
 static	struct ifnet *vlan_clone_match_ethervid(const char *, int *);
 static	int vlan_clone_match(struct if_clone *, const char *);
@@ -221,6 +219,28 @@ static struct if_clone *vlan_cloner;
 static VNET_DEFINE(struct if_clone *, vlan_cloner);
 #define	V_vlan_cloner	VNET(vlan_cloner)
 #endif
+
+static struct ifdriver vlan_ifdrv = {
+	/*
+	 * These are ifops for an unconfigured vlan, not attached to any
+	 * trunk.  Real ops are set up when a trunk is allocated.
+	 */
+	.ifdrv_ops = {
+		.ifop_ioctl = vlan_ioctl,
+	},
+	.ifdrv_type = IFT_L2VLAN,
+	.ifdrv_name = vlanname,
+	.ifdrv_dlt = DLT_EN10MB,
+	.ifdrv_dlt_hdrlen = ETHER_HDR_LEN,
+	/*
+	 * XXXGL: we give only ETHER_ADDR_LEN, but if vlan(4) is used
+	 * on a non-Ethernet device, then vlan_config() will write beyond
+	 * the allocated memory.  The bug was there before the opaque
+	 * ifnet project.  Right fix is not storing the link level address
+	 * in vlan(4) at all, but keep pointer to the parent.
+	 */
+	.ifdrv_addrlen = ETHER_ADDR_LEN,
+};
 
 #ifndef VLAN_ARRAY
 #define HASH(n, m)	((((n) >> 8) ^ ((n) >> 4) ^ (n)) & (m))
@@ -440,9 +460,47 @@ vlan_inithash(struct ifvlantrunk *trunk)
 
 #endif /* !VLAN_ARRAY */
 
+/*
+ * Return or allocate a trunk for a given parent interface.
+ * Return it locked.
+ */
+static struct ifvlantrunk *
+trunk_get(struct ifnet *p)
+{
+	struct ifvlantrunk *trunk;
+
+	VLAN_LOCK_ASSERT();
+
+	if (p->if_vlantrunk != NULL) {
+		TRUNK_LOCK(p->if_vlantrunk);
+		return (p->if_vlantrunk);
+	};
+
+	trunk = malloc(sizeof(struct ifvlantrunk), M_VLAN, M_WAITOK | M_ZERO);
+	vlan_inithash(trunk);
+	TRUNK_LOCK_INIT(trunk);
+	TRUNK_LOCK(trunk);
+	p->if_vlantrunk = trunk;
+	trunk->parent = p;
+	/*
+	 * Build set of interface ops for the trunk.  It will be shared by
+	 * all vlan interfaces sitting on this trunk.
+	 */
+	trunk->ops.ifop_transmit = vlan_transmit;
+	trunk->ops.ifop_ioctl = vlan_ioctl;
+	trunk->ops.ifop_output = p->if_drv->ifdrv_ops.ifop_output;
+	trunk->ops.ifop_input = p->if_drv->ifdrv_ops.ifop_input;
+	trunk->ops.ifop_resolvemulti = p->if_drv->ifdrv_ops.ifop_resolvemulti;
+	trunk->ops.ifop_get_counter = if_get_counter_default;
+	trunk->ops.ifop_next = &p->if_drv->ifdrv_ops;
+
+	return (trunk);
+}
+
 static void
 trunk_destroy(struct ifvlantrunk *trunk)
 {
+
 	VLAN_LOCK_ASSERT();
 
 	TRUNK_LOCK(trunk);
@@ -544,7 +602,7 @@ vlan_iflladdr(void *arg __unused, struct ifnet *ifp)
 #endif /* VLAN_ARRAY */
 			VLAN_UNLOCK();
 			if_setlladdr(ifv->ifv_ifp, if_lladdr(ifp),
-			    ifp->if_addrlen);
+			    if_addrlen(ifp));
 			VLAN_LOCK();
 		}
 	VLAN_UNLOCK();
@@ -584,18 +642,15 @@ vlan_ifdetach(void *arg __unused, struct ifnet *ifp)
 #ifdef VLAN_ARRAY
 	for (i = 0; i < VLAN_ARRAY_SIZE; i++)
 		if ((ifv = ifp->if_vlantrunk->vlans[i])) {
-			vlan_unconfig_locked(ifv->ifv_ifp, 1);
+			vlan_unconfig(ifv->ifv_ifp, 1);
 			if (ifp->if_vlantrunk == NULL)
 				break;
 		}
 #else /* VLAN_ARRAY */
-restart:
 	for (i = 0; i < (1 << ifp->if_vlantrunk->hwidth); i++)
 		if ((ifv = LIST_FIRST(&ifp->if_vlantrunk->hash[i]))) {
-			vlan_unconfig_locked(ifv->ifv_ifp, 1);
-			if (ifp->if_vlantrunk)
-				goto restart;	/* trunk->hwidth can change */
-			else
+			vlan_unconfig(ifv->ifv_ifp, 1);
+			if (ifp->if_vlantrunk == NULL)
 				break;
 		}
 #endif /* VLAN_ARRAY */
@@ -612,7 +667,7 @@ vlan_trunkdev(struct ifnet *ifp)
 {
 	struct ifvlan *ifv;
 
-	if (ifp->if_type != IFT_L2VLAN)
+	if (if_type(ifp) != IFT_L2VLAN)
 		return (NULL);
 	ifv = ifp->if_softc;
 	ifp = NULL;
@@ -635,7 +690,7 @@ vlan_tag(struct ifnet *ifp, uint16_t *vidp)
 {
 	struct ifvlan *ifv;
 
-	if (ifp->if_type != IFT_L2VLAN)
+	if (if_type(ifp) != IFT_L2VLAN)
 		return (EINVAL);
 	ifv = ifp->if_softc;
 	*vidp = ifv->ifv_vid;
@@ -816,6 +871,12 @@ vlan_clone_match(struct if_clone *ifc, const char *name)
 static int
 vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 {
+	struct if_attach_args ifat = {
+		.ifat_version = IF_ATTACH_VERSION,
+		.ifat_drv = &vlan_ifdrv,
+		.ifat_flags = VLAN_IFFLAGS,
+	};
+	if_t ifp, p;
 	char *dp;
 	int wildcard;
 	int unit;
@@ -823,12 +884,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	int vid;
 	int ethertag;
 	struct ifvlan *ifv;
-	struct ifnet *ifp;
-	struct ifnet *p;
-	struct ifaddr *ifa;
-	struct sockaddr_dl *sdl;
 	struct vlanreq vlr;
-	static const u_char eaddr[ETHER_ADDR_LEN];	/* 00:00:00:00:00:00 */
 
 	/*
 	 * There are 3 (ugh) ways to specify the cloned device:
@@ -884,41 +940,18 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	}
 
 	ifv = malloc(sizeof(struct ifvlan), M_VLAN, M_WAITOK | M_ZERO);
-	ifp = ifv->ifv_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		ifc_free_unit(ifc, unit);
-		free(ifv, M_VLAN);
-		return (ENOSPC);
-	}
-	SLIST_INIT(&ifv->vlan_mc_listhead);
-	ifp->if_softc = ifv;
-	/*
-	 * Set the name manually rather than using if_initname because
-	 * we don't conform to the default naming convention for interfaces.
-	 */
-	strlcpy(ifp->if_xname, name, IFNAMSIZ);
-	ifp->if_dname = vlanname;
-	ifp->if_dunit = unit;
-	/* NB: flags are not set here */
+
+	ifat.ifat_softc = ifv;
+	ifat.ifat_dunit = unit;
+	ifat.ifat_name = name;
+	ifp = ifv->ifv_ifp = if_attach(&ifat);
+
 	ifp->if_linkmib = &ifv->ifv_mib;
 	ifp->if_linkmiblen = sizeof(ifv->ifv_mib);
-	/* NB: mtu is not set here */
-
-	ifp->if_init = vlan_init;
-	ifp->if_transmit = vlan_transmit;
-	ifp->if_qflush = vlan_qflush;
-	ifp->if_ioctl = vlan_ioctl;
-	ifp->if_flags = VLAN_IFFLAGS;
-	ether_ifattach(ifp, eaddr);
-	/* Now undo some of the damage... */
-	ifp->if_baudrate = 0;
-	ifp->if_type = IFT_L2VLAN;
-	ifp->if_hdrlen = ETHER_VLAN_ENCAP_LEN;
-	ifa = ifp->if_addr;
-	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-	sdl->sdl_type = IFT_L2VLAN;
+	ifp->if_broadcastaddr = etherbroadcastaddr;
 
 	if (ethertag) {
+		VLAN_LOCK();
 		error = vlan_config(ifv, p, vid);
 		if (error != 0) {
 			/*
@@ -926,15 +959,15 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 			 * out all the way, otherwise userland could get
 			 * confused.  Thus, we destroy the interface.
 			 */
-			ether_ifdetach(ifp);
-			vlan_unconfig(ifp);
-			if_free(ifp);
+			vlan_unconfig(ifp, 0);
+			VLAN_UNLOCK();
+			if_detach(ifp);
 			ifc_free_unit(ifc, unit);
 			free(ifv, M_VLAN);
 
 			return (error);
 		}
-
+		VLAN_UNLOCK();
 		/* Update flags on the parent, if necessary. */
 		vlan_setflags(ifp, 1);
 	}
@@ -948,21 +981,14 @@ vlan_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	struct ifvlan *ifv = ifp->if_softc;
 	int unit = ifp->if_dunit;
 
-	ether_ifdetach(ifp);	/* first, remove it from system-wide lists */
-	vlan_unconfig(ifp);	/* now it can be unconfigured and freed */
-	if_free(ifp);
-	free(ifv, M_VLAN);
+	if_detach(ifp);
 	ifc_free_unit(ifc, unit);
+	VLAN_LOCK();
+	vlan_unconfig(ifp, 0);
+	VLAN_UNLOCK();
+	free(ifv, M_VLAN);
 
 	return (0);
-}
-
-/*
- * The ifp->if_init entry point for vlan(4) is a no-op.
- */
-static void
-vlan_init(void *foo __unused)
-{
 }
 
 /*
@@ -975,18 +1001,17 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	struct ifnet *p;
 	int error, len, mcast;
 
-	ifv = ifp->if_softc;
+	ifv = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	p = PARENT(ifv);
 	len = m->m_pkthdr.len;
 	mcast = (m->m_flags & (M_MCAST | M_BCAST)) ? 1 : 0;
 
-	BPF_MTAP(ifp, m);
+	if_mtap(ifp, m, NULL, 0);
 
 	/*
-	 * Do not run parent's if_transmit() if the parent is not up,
-	 * or parent's driver will cause a system crash.
+	 * Do not run parent's if_transmit() if the parent is not up.
 	 */
-	if (!UP_AND_RUNNING(p)) {
+	if (!(p->if_flags & IFF_UP)) {
 		m_freem(m);
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return (ENETDOWN);
@@ -1004,7 +1029,7 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	 * devices that just discard such runts instead or mishandle
 	 * them somehow.
 	 */
-	if (V_soft_pad && p->if_type == IFT_ETHER) {
+	if (V_soft_pad && if_type(p) == IFT_ETHER) {
 		static char pad[8];	/* just zeros */
 		int n;
 
@@ -1043,7 +1068,7 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	/*
 	 * Send it, precisely as ether_output() would have.
 	 */
-	error = (p->if_transmit)(p, m);
+	error = if_transmit(p, m);
 	if (error == 0) {
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		if_inc_counter(ifp, IFCOUNTER_OBYTES, len);
@@ -1051,14 +1076,6 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	} else
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	return (error);
-}
-
-/*
- * The ifp->if_qflush entry point for vlan(4) is a no-op.
- */
-static void
-vlan_qflush(struct ifnet *ifp __unused)
-{
 }
 
 static void
@@ -1084,7 +1101,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 		/*
 		 * Packet is tagged in-band as specified by 802.1q.
 		 */
-		switch (ifp->if_type) {
+		switch (if_type(ifp)) {
 		case IFT_ETHER:
 			if (m->m_len < sizeof(*evl) &&
 			    (m = m_pullup(m, sizeof(*evl))) == NULL) {
@@ -1108,7 +1125,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 		default:
 #ifdef INVARIANTS
 			panic("%s: %s has unsupported if_type %u",
-			      __func__, ifp->if_xname, ifp->if_type);
+			      __func__, ifp->if_xname, if_type(ifp));
 #endif
 			m_freem(m);
 			if_inc_counter(ifp, IFCOUNTER_NOPROTO, 1);
@@ -1118,7 +1135,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 
 	TRUNK_RLOCK(trunk);
 	ifv = vlan_gethash(trunk, vid);
-	if (ifv == NULL || !UP_AND_RUNNING(ifv->ifv_ifp)) {
+	if (ifv == NULL || !(ifv->ifv_ifp->if_flags & IFF_UP)) {
 		TRUNK_RUNLOCK(trunk);
 		m_freem(m);
 		if_inc_counter(ifp, IFCOUNTER_NOPROTO, 1);
@@ -1130,7 +1147,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 	if_inc_counter(ifv->ifv_ifp, IFCOUNTER_IPACKETS, 1);
 
 	/* Pass it back through the parent's input routine. */
-	(*ifp->if_input)(ifv->ifv_ifp, m);
+	if_input(ifv->ifv_ifp, m);
 }
 
 static int
@@ -1140,11 +1157,15 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t vid)
 	struct ifnet *ifp;
 	int error = 0;
 
+	VLAN_LOCK_ASSERT();
+	KASSERT(ifv->ifv_trunk == NULL,
+	    ("%s: ifv %p configured", __func__, ifv));
+
 	/*
 	 * We can handle non-ethernet hardware types as long as
 	 * they handle the tagging and headers themselves.
 	 */
-	if (p->if_type != IFT_ETHER &&
+	if (if_type(p) != IFT_ETHER &&
 	    (p->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
 		return (EPROTONOSUPPORT);
 	if ((p->if_flags & VLAN_IFFLAGS) != VLAN_IFFLAGS)
@@ -1156,35 +1177,14 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t vid)
 	 */
 	if (vid == 0 || vid == 0xFFF || (vid & ~EVL_VLID_MASK))
 		return (EINVAL);
-	if (ifv->ifv_trunk)
-		return (EBUSY);
 
-	if (p->if_vlantrunk == NULL) {
-		trunk = malloc(sizeof(struct ifvlantrunk),
-		    M_VLAN, M_WAITOK | M_ZERO);
-		vlan_inithash(trunk);
-		VLAN_LOCK();
-		if (p->if_vlantrunk != NULL) {
-			/* A race that that is very unlikely to be hit. */
-			vlan_freehash(trunk);
-			free(trunk, M_VLAN);
-			goto exists;
-		}
-		TRUNK_LOCK_INIT(trunk);
-		TRUNK_LOCK(trunk);
-		p->if_vlantrunk = trunk;
-		trunk->parent = p;
-	} else {
-		VLAN_LOCK();
-exists:
-		trunk = p->if_vlantrunk;
-		TRUNK_LOCK(trunk);
-	}
-
+	trunk = trunk_get(p);
 	ifv->ifv_vid = vid;	/* must set this before vlan_inshash() */
 	error = vlan_inshash(trunk, ifv);
-	if (error)
-		goto done;
+	if (error) {
+		TRUNK_UNLOCK(trunk);
+		return (error);
+	}
 	ifv->ifv_proto = ETHERTYPE_VLAN;
 	ifv->ifv_encaplen = ETHER_VLAN_ENCAP_LEN;
 	ifv->ifv_mintu = ETHERMIN;
@@ -1215,17 +1215,13 @@ exists:
 	ifv->ifv_trunk = trunk;
 	ifp = ifv->ifv_ifp;
 	/*
-	 * Initialize fields from our parent.  This duplicates some
-	 * work with ether_ifattach() but allows for non-ethernet
-	 * interfaces to also work.
+	 * Initialize fields from our parent.
 	 */
 	ifp->if_mtu = p->if_mtu - ifv->ifv_mtufudge;
 	ifp->if_baudrate = p->if_baudrate;
-	ifp->if_output = p->if_output;
-	ifp->if_input = p->if_input;
-	ifp->if_resolvemulti = p->if_resolvemulti;
-	ifp->if_addrlen = p->if_addrlen;
 	ifp->if_broadcastaddr = p->if_broadcastaddr;
+	ifp->if_tsomax = p->if_tsomax;
+	ifp->if_ops = &trunk->ops;
 
 	/*
 	 * Copy only a selected subset of flags from the parent.
@@ -1243,10 +1239,16 @@ exists:
 	/*
 	 * Set up our interface address to reflect the underlying
 	 * physical interface's.
+	 *
+	 * XXXGL: ideally vlan(4) should just have pointer to
+	 * hardware address of the parent instead of storing a copy.
+	 * This requires resolving mess of storing name and link
+	 * level address in ifa_addr. Should be tried after ifnet
+	 * is opaque.
 	 */
-	bcopy(if_lladdr(p), if_lladdr(ifp), p->if_addrlen);
+	bcopy(if_lladdr(p), if_lladdr(ifp), if_addrlen(p));
 	((struct sockaddr_dl *)ifp->if_addr->ifa_addr)->sdl_alen =
-	    p->if_addrlen;
+	    if_addrlen(p);
 
 	/*
 	 * Configure multicast addresses that may already be
@@ -1254,28 +1256,14 @@ exists:
 	 */
 	(void)vlan_setmulti(ifp); /* XXX: VLAN lock held */
 
-	/* We are ready for operation now. */
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-done:
 	TRUNK_UNLOCK(trunk);
-	if (error == 0)
-		EVENTHANDLER_INVOKE(vlan_config, p, ifv->ifv_vid);
-	VLAN_UNLOCK();
+	EVENTHANDLER_INVOKE(vlan_config, p, ifv->ifv_vid);
 
 	return (error);
 }
 
 static void
-vlan_unconfig(struct ifnet *ifp)
-{
-
-	VLAN_LOCK();
-	vlan_unconfig_locked(ifp, 0);
-	VLAN_UNLOCK();
-}
-
-static void
-vlan_unconfig_locked(struct ifnet *ifp, int departing)
+vlan_unconfig(struct ifnet *ifp, int departing)
 {
 	struct ifvlantrunk *trunk;
 	struct vlan_mc_entry *mc;
@@ -1347,7 +1335,6 @@ vlan_unconfig_locked(struct ifnet *ifp, int departing)
 		if_printf(ifp, "%s: ifv_pflags unclean\n", __func__);
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_link_state = LINK_STATE_UNKNOWN;
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 
 	/*
 	 * Only dispatch an event if vlan was
@@ -1439,7 +1426,6 @@ vlan_capabilities(struct ifvlan *ifv)
 {
 	struct ifnet *p = PARENT(ifv);
 	struct ifnet *ifp = ifv->ifv_ifp;
-	struct ifnet_hw_tsomax hw_tsomax;
 
 	TRUNK_LOCK_ASSERT(TRUNK(ifv));
 
@@ -1466,9 +1452,6 @@ vlan_capabilities(struct ifvlan *ifv)
 	 * propagate the hardware-assisted flag. TSO on VLANs
 	 * does not necessarily require hardware VLAN tagging.
 	 */
-	memset(&hw_tsomax, 0, sizeof(hw_tsomax));
-	if_hw_tsomax_common(p, &hw_tsomax);
-	if_hw_tsomax_update(ifp, &hw_tsomax);
 	if (p->if_capabilities & IFCAP_VLAN_HWTSO)
 		ifp->if_capabilities |= p->if_capabilities & IFCAP_TSO;
 	if (p->if_capenable & IFCAP_VLAN_HWTSO) {
@@ -1518,7 +1501,7 @@ vlan_trunk_capabilities(struct ifnet *ifp)
 }
 
 static int
-vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+vlan_ioctl(if_t ifp, u_long cmd, void *data, struct thread *td)
 {
 	struct ifnet *p;
 	struct ifreq *ifr;
@@ -1533,27 +1516,18 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	ifv = ifp->if_softc;
 
 	switch (cmd) {
-	case SIOCSIFADDR:
-		ifp->if_flags |= IFF_UP;
-#ifdef INET
-		if (ifa->ifa_addr->sa_family == AF_INET)
-			arp_ifinit(ifp, ifa);
-#endif
-		break;
-	case SIOCGIFADDR:
-                {
-			struct sockaddr *sa;
+	case SIOCGIFADDR: {
+		struct sockaddr *sa;
 
-			sa = (struct sockaddr *)&ifr->ifr_data;
-			bcopy(if_lladdr(ifp), sa->sa_data, ifp->if_addrlen);
-                }
+		sa = (struct sockaddr *)&ifr->ifr_data;
+		bcopy(if_lladdr(ifp), sa->sa_data, if_addrlen(ifp));
 		break;
+	}
 	case SIOCGIFMEDIA:
 		VLAN_LOCK();
 		if (TRUNK(ifv) != NULL) {
 			p = PARENT(ifv);
-			VLAN_UNLOCK();
-			error = (*p->if_ioctl)(p, SIOCGIFMEDIA, data);
+			error = if_ioctl(p, SIOCGIFMEDIA, data, td);
 			/* Limit the result to the parent's current config. */
 			if (error == 0) {
 				struct ifmediareq *ifmr;
@@ -1566,14 +1540,9 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 						sizeof(int));
 				}
 			}
-		} else {
-			VLAN_UNLOCK();
+		} else
 			error = EINVAL;
-		}
-		break;
-
-	case SIOCSIFMEDIA:
-		error = EINVAL;
+		VLAN_UNLOCK();
 		break;
 
 	case SIOCSIFMTU:
@@ -1612,7 +1581,9 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (error)
 			break;
 		if (vlr.vlr_parent[0] == '\0') {
-			vlan_unconfig(ifp);
+			VLAN_LOCK();
+			vlan_unconfig(ifp, 0);
+			VLAN_UNLOCK();
 			break;
 		}
 		p = ifunit(vlr.vlr_parent);
@@ -1620,7 +1591,9 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			error = ENOENT;
 			break;
 		}
+		VLAN_LOCK();
 		error = vlan_config(ifv, p, vlr.vlr_tag);
+		VLAN_UNLOCK();
 		if (error)
 			break;
 
@@ -1673,13 +1646,12 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		VLAN_LOCK();
 		if (TRUNK(ifv) != NULL) {
 			p = PARENT(ifv);
-			VLAN_UNLOCK();
-			if ((p->if_type != IFT_ETHER) &&
+			if ((if_type(p) != IFT_ETHER) &&
 			    (ifr->ifr_reqcap & IFCAP_VLAN_HWTAGGING) == 0) {
 				error = EINVAL;
 				break;
 			}
-			error = (*p->if_ioctl)(p, cmd, data);
+			error = if_ioctl(p, cmd, data, td);
 			if (error)
 				break;
 			/* Propogate vlan interface capabilities */
@@ -1691,7 +1663,7 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	default:
-		error = EINVAL;
+		error = EOPNOTSUPP;
 		break;
 	}
 
