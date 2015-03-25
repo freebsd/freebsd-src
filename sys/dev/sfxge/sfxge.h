@@ -86,6 +86,8 @@
 #include "sfxge_rx.h"
 #include "sfxge_tx.h"
 
+#define	ROUNDUP_POW_OF_TWO(_n)	(1ULL << flsl((_n) - 1))
+
 #define	SFXGE_IP_ALIGN	2
 
 #define	SFXGE_ETHERTYPE_LOOPBACK	0x9000	/* Xerox loopback */
@@ -105,6 +107,7 @@ struct sfxge_evq {
 
 	enum sfxge_evq_state	init_state;
 	unsigned int		index;
+	unsigned int		entries;
 	efsys_mem_t		mem;
 	unsigned int		buf_base_id;
 
@@ -120,7 +123,6 @@ struct sfxge_evq {
 	struct sfxge_txq	**txqs;
 };
 
-#define	SFXGE_NEVS	4096
 #define	SFXGE_NDESCS	1024
 #define	SFXGE_MODERATION	30
 
@@ -208,6 +210,9 @@ struct sfxge_softc {
 	efx_nic_t			*enp;
 	struct mtx			enp_lock;
 
+	unsigned int			rxq_entries;
+	unsigned int			txq_entries;
+
 	bus_dma_tag_t			parent_dma_tag;
 	efsys_bar_t			bar;
 
@@ -244,6 +249,10 @@ struct sfxge_softc {
 
 #define	SFXGE_LINK_UP(sc) ((sc)->port.link_mode != EFX_LINK_DOWN)
 #define	SFXGE_RUNNING(sc) ((sc)->ifnet->if_drv_flags & IFF_DRV_RUNNING)
+
+#define	SFXGE_PARAM(_name)	"hw.sfxge." #_name
+
+SYSCTL_DECL(_hw_sfxge);
 
 /*
  * From sfxge.c.
