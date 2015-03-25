@@ -134,6 +134,7 @@ MALLOC_DECLARE(M_PRISON);
 #include <sys/osd.h>
 
 #define	HOSTUUIDLEN	64
+#define	OSRELEASELEN	32
 
 struct racct;
 struct prison_racct;
@@ -177,13 +178,15 @@ struct prison {
 	int		 pr_securelevel;		/* (p) securelevel */
 	int		 pr_enforce_statfs;		/* (p) statfs permission */
 	int		 pr_devfs_rsnum;		/* (p) devfs ruleset */
-	int		 pr_spare[4];
+	int		 pr_spare[3];
+	int		 pr_osreldate;			/* (c) kern.osreldate value */
 	unsigned long	 pr_hostid;			/* (p) jail hostid */
 	char		 pr_name[MAXHOSTNAMELEN];	/* (p) admin jail name */
 	char		 pr_path[MAXPATHLEN];		/* (c) chroot path */
 	char		 pr_hostname[MAXHOSTNAMELEN];	/* (p) jail hostname */
 	char		 pr_domainname[MAXHOSTNAMELEN];	/* (p) jail domainname */
 	char		 pr_hostuuid[HOSTUUIDLEN];	/* (p) jail hostuuid */
+	char		 pr_osrelease[OSRELEASELEN];	/* (c) kern.osrelease value */
 };
 
 struct prison_racct {
@@ -364,6 +367,7 @@ void getcredhostname(struct ucred *, char *, size_t);
 void getcreddomainname(struct ucred *, char *, size_t);
 void getcredhostuuid(struct ucred *, char *, size_t);
 void getcredhostid(struct ucred *, unsigned long *);
+void prison0_init(void);
 int prison_allow(struct ucred *, unsigned);
 int prison_check(struct ucred *cred1, struct ucred *cred2);
 int prison_owns_vnet(struct ucred *);

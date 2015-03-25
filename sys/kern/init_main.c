@@ -493,7 +493,7 @@ proc0_init(void *dummy __unused)
 	td->td_flags = TDF_INMEM;
 	td->td_pflags = TDP_KTHREAD;
 	td->td_cpuset = cpuset_thread0();
-	prison0.pr_cpuset = cpuset_ref(td->td_cpuset);
+	prison0_init();
 	p->p_peers = 0;
 	p->p_leader = p;
 	p->p_reaper = p;
