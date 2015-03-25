@@ -827,7 +827,7 @@ sfxge_ev_qinit(struct sfxge_softc *sc, unsigned int index)
 	sfxge_sram_buf_tbl_alloc(sc, EFX_EVQ_NBUFS(evq->entries),
 				 &evq->buf_base_id);
 
-	SFXGE_EVQ_LOCK_INIT(evq, "evq");
+	SFXGE_EVQ_LOCK_INIT(evq, device_get_nameunit(sc->dev), index);
 
 	evq->init_state = SFXGE_EVQ_INITIALIZED;
 

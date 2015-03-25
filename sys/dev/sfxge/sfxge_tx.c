@@ -1466,7 +1466,7 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 	stdp->std_get_non_tcp_max = sfxge_tx_dpl_get_non_tcp_max;
 	stdp->std_getp = &stdp->std_get;
 
-	SFXGE_TXQ_LOCK_INIT(txq, "txq");
+	SFXGE_TXQ_LOCK_INIT(txq, device_get_nameunit(sc->dev), txq_index);
 
 	SYSCTL_ADD_UINT(device_get_sysctl_ctx(sc->dev),
 			SYSCTL_CHILDREN(txq_node), OID_AUTO,
