@@ -102,26 +102,26 @@ enum sfxge_evq_state {
 #define	SFXGE_EV_BATCH	16384
 
 struct sfxge_evq {
-	struct sfxge_softc	*sc  __aligned(CACHE_LINE_SIZE);
-	struct mtx		lock __aligned(CACHE_LINE_SIZE);
-
-	enum sfxge_evq_state	init_state;
+	/* Structure members below are sorted by usage order */
+	struct sfxge_softc	*sc;
+	struct mtx		lock;
 	unsigned int		index;
-	unsigned int		entries;
+	enum sfxge_evq_state	init_state;
 	efsys_mem_t		mem;
-	unsigned int		buf_base_id;
-
-	boolean_t		exception;
-
 	efx_evq_t		*common;
 	unsigned int		read_ptr;
+	boolean_t		exception;
 	unsigned int		rx_done;
 	unsigned int		tx_done;
 
 	/* Linked list of TX queues with completions to process */
 	struct sfxge_txq	*txq;
 	struct sfxge_txq	**txqs;
-};
+
+	/* Structure members not used on event processing path */
+	unsigned int		buf_base_id;
+	unsigned int		entries;
+} __aligned(CACHE_LINE_SIZE);
 
 #define	SFXGE_NDESCS	1024
 #define	SFXGE_MODERATION	30
