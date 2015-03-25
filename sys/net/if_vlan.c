@@ -106,7 +106,6 @@ struct	ifvlan {
 	struct	ifnet *ifv_ifp;
 #define	TRUNK(ifv)	((ifv)->ifv_trunk)
 #define	PARENT(ifv)	((ifv)->ifv_trunk->parent)
-	void	*ifv_cookie;
 	int	ifv_pflags;	/* special flags we have set on parent */
 	struct	ifv_linkmib {
 		int	ifvm_encaplen;	/* encapsulation length */
@@ -644,37 +643,6 @@ vlan_tag(struct ifnet *ifp, uint16_t *vidp)
 }
 
 /*
- * Return a driver specific cookie for this interface.  Synchronization
- * with setcookie must be provided by the driver. 
- */
-static void *
-vlan_cookie(struct ifnet *ifp)
-{
-	struct ifvlan *ifv;
-
-	if (ifp->if_type != IFT_L2VLAN)
-		return (NULL);
-	ifv = ifp->if_softc;
-	return (ifv->ifv_cookie);
-}
-
-/*
- * Store a cookie in our softc that drivers can use to store driver
- * private per-instance data in.
- */
-static int
-vlan_setcookie(struct ifnet *ifp, void *cookie)
-{
-	struct ifvlan *ifv;
-
-	if (ifp->if_type != IFT_L2VLAN)
-		return (EINVAL);
-	ifv = ifp->if_softc;
-	ifv->ifv_cookie = cookie;
-	return (0);
-}
-
-/*
  * Return the vlan device present at the specific VID.
  */
 static struct ifnet *
@@ -727,8 +695,6 @@ vlan_modevent(module_t mod, int type, void *data)
 		vlan_link_state_p = vlan_link_state;
 		vlan_trunk_cap_p = vlan_trunk_capabilities;
 		vlan_trunkdev_p = vlan_trunkdev;
-		vlan_cookie_p = vlan_cookie;
-		vlan_setcookie_p = vlan_setcookie;
 		vlan_tag_p = vlan_tag;
 		vlan_devat_p = vlan_devat;
 #ifndef VIMAGE
@@ -756,8 +722,6 @@ vlan_modevent(module_t mod, int type, void *data)
 		vlan_trunk_cap_p = NULL;
 		vlan_trunkdev_p = NULL;
 		vlan_tag_p = NULL;
-		vlan_cookie_p = NULL;
-		vlan_setcookie_p = NULL;
 		vlan_devat_p = NULL;
 		VLAN_LOCK_DESTROY();
 		if (bootverbose)
