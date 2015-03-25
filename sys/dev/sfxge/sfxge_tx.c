@@ -604,7 +604,7 @@ sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m)
 
 	if (!SFXGE_LINK_UP(sc)) {
 		m_freem(m);
-		return (0);
+		return (ENETDOWN);
 	}
 
 	/* Pick the desired transmit queue. */
