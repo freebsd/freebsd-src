@@ -532,7 +532,7 @@ efx_mcdi_version(
 
 version:
 	/* The bootrom doesn't understand BOOT_STATUS */
-	if (build == MC_CMD_GET_VERSION_OUT_FIRMWARE_BOOTROM) {
+	if (build == MC_CMD_GET_VERSION_OUT_FIRMWARE_SIENA_BOOTROM) {
 		status = EFX_MCDI_BOOT_ROM;
 		goto out;
 	}
