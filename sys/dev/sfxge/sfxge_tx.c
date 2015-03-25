@@ -790,6 +790,7 @@ struct sfxge_tso_state {
 	ssize_t nh_off;		/* Offset of network header */
 	ssize_t tcph_off;	/* Offset of TCP header */
 	unsigned header_len;	/* Number of bytes of header */
+	unsigned seg_size;	/* TCP segment size */
 };
 
 static const struct ip *tso_iph(const struct sfxge_tso_state *tso)
@@ -891,6 +892,7 @@ static void tso_start(struct sfxge_tso_state *tso, struct mbuf *mbuf)
 	}
 
 	tso->header_len = tso->tcph_off + 4 * tso_tcph(tso)->th_off;
+	tso->seg_size = mbuf->m_pkthdr.tso_segsz;
 
 	tso->seqnum = ntohl(tso_tcph(tso)->th_seq);
 
@@ -1007,11 +1009,10 @@ static int tso_start_new_packet(struct sfxge_txq *txq,
 	m_copydata(tso->mbuf, 0, tso->header_len, header);
 
 	tsoh_th->th_seq = htonl(tso->seqnum);
-	tso->seqnum += tso->mbuf->m_pkthdr.tso_segsz;
-	if (tso->out_len > tso->mbuf->m_pkthdr.tso_segsz) {
+	tso->seqnum += tso->seg_size;
+	if (tso->out_len > tso->seg_size) {
 		/* This packet will not finish the TSO burst. */
-		ip_length = tso->header_len - tso->nh_off +
-		    tso->mbuf->m_pkthdr.tso_segsz;
+		ip_length = tso->header_len - tso->nh_off + tso->seg_size;
 		tsoh_th->th_flags &= ~(TH_FIN | TH_PUSH);
 	} else {
 		/* This packet will be the last in the TSO burst. */
@@ -1033,7 +1034,7 @@ static int tso_start_new_packet(struct sfxge_txq *txq,
 	/* Make the header visible to the hardware. */
 	bus_dmamap_sync(txq->packet_dma_tag, map, BUS_DMASYNC_PREWRITE);
 
-	tso->packet_space = tso->mbuf->m_pkthdr.tso_segsz;
+	tso->packet_space = tso->seg_size;
 	txq->tso_packets++;
 
 	/* Form a descriptor for this header. */
