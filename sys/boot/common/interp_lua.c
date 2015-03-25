@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <src/lualib.h>
 #include <lutils.h>
 
-
 struct interp_lua_softc {
 	lua_State	*luap;
 };
@@ -67,7 +66,7 @@ interp_lua_init(void *ctx)
 	softc = ctx;
 	luap = lua_create();
 	if (luap == NULL) {
-		LDBG("problem with initializing Lua interpreter\n");
+		LDBG("problem initializing the Lua interpreter");
 	}
 	softc->luap = luap;
 	register_utils(luap);
@@ -88,7 +87,7 @@ interp_lua_run(void *data, const char *line)
 	luap = softc->luap;
 
 	if (ldo_string(luap, line, strlen(line)) != 0)
-		printf("[LUA]Failed to execure \'%s\'\n", line);
+		LDBG("failed to execute \'%s\'", line);
 
 	return (0);
 }
@@ -104,13 +103,13 @@ interp_lua_incl(void *ctx, const char *filename)
 }
 
 /*
- * To avoid conflicts lua uses loader.lua instead of
- * loader.rc/boot.conf  to load its configurations.
+ * To avoid conflicts, this lua interpreter uses loader.lua instead of
+ * loader.rc/boot.conf to load its configurations.
  */
 int
 interp_lua_load_config(void *ctx)
 {
-	return interp_lua_incl(ctx, "/boot/loader.lua");
+	return (interp_lua_incl(ctx, "/boot/loader.lua"));
 }
 
 
