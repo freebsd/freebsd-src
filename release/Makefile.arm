@@ -32,14 +32,14 @@ arm-${BOARD:tl}:
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} build-${.TARGET}
 
 build-arm-ports${BOARD:tl}:
-.if defined(ARMPORTS) && !empty(ARMPORTS)
-. if !exists(${PORTSDIR}/Makefile)
-.  error "Ports tree (${PORTSDIR}) is required."
-. endif
-. for AP in ${ARMPORTS}
+.  if defined(ARMPORTS) && !empty(ARMPORTS)
+.   if !exists(${PORTSDIR}/Makefile)
+.    error "Ports tree (${PORTSDIR}) is required."
+.   endif
+.   for AP in ${ARMPORTS}
 	@echo ${MAKE} -C ${PORTSDIR}/${AP} all install clean distclean
-. endfor
-.endif
+.   endfor
+.  endif
 	touch ${.TARGET}
 . endfor
 .endif			# !WITH_ARM_IMAGES
