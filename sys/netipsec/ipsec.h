@@ -89,6 +89,9 @@ struct secpolicy {
 				/* if policy == IPSEC else this value == NULL.*/
 	u_int refcnt;			/* reference count */
 	u_int policy;			/* policy_type per pfkeyv2.h */
+	u_int state;
+#define	IPSEC_SPSTATE_DEAD	0
+#define	IPSEC_SPSTATE_ALIVE	1
 	u_int32_t id;			/* It's unique number on the system. */
 	/*
 	 * lifetime handler.

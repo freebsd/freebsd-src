@@ -21,18 +21,18 @@
 //===----------------------------------------------------------------------===//
 
 #include "AArch64.h"
-#include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
-#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
@@ -193,7 +193,7 @@ private:
     // Inserting into the DenseMap may invalidate existing iterator.
     // Keep a copy of the key to find the iterator to erase.
     Instruction *OldInstr = IPI->first;
-    InsertPts.insert(InsertionPoints::value_type(NewPt, IPI->second));
+    InsertPts[NewPt] = std::move(IPI->second);
     // Erase IPI.
     IPI = InsertPts.find(OldInstr);
     InsertPts.erase(IPI);
@@ -569,7 +569,7 @@ bool AArch64PromoteConstant::runOnFunction(Function &F) {
         // global. Do not promote constant expressions either, as they may
         // require some code expansion.
         if (Cst && !isa<GlobalValue>(Cst) && !isa<ConstantExpr>(Cst) &&
-            AlreadyChecked.insert(Cst))
+            AlreadyChecked.insert(Cst).second)
           LocalChange |= promoteConstant(Cst);
       }
     }

@@ -25,6 +25,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
@@ -290,13 +291,15 @@ bool TargetInstrInfo::getStackSlotRange(const TargetRegisterClass *RC,
     Offset = 0;
     return true;
   }
-  unsigned BitSize = TM->getRegisterInfo()->getSubRegIdxSize(SubIdx);
+  unsigned BitSize =
+      TM->getSubtargetImpl()->getRegisterInfo()->getSubRegIdxSize(SubIdx);
   // Convert bit size to byte size to be consistent with
   // MCRegisterClass::getSize().
   if (BitSize % 8)
     return false;
 
-  int BitOffset = TM->getRegisterInfo()->getSubRegIdxOffset(SubIdx);
+  int BitOffset =
+      TM->getSubtargetImpl()->getRegisterInfo()->getSubRegIdxOffset(SubIdx);
   if (BitOffset < 0 || BitOffset % 8)
     return false;
 
@@ -305,7 +308,7 @@ bool TargetInstrInfo::getStackSlotRange(const TargetRegisterClass *RC,
 
   assert(RC->getSize() >= (Offset + Size) && "bad subregister range");
 
-  if (!TM->getDataLayout()->isLittleEndian()) {
+  if (!TM->getSubtargetImpl()->getDataLayout()->isLittleEndian()) {
     Offset = RC->getSize() - (Offset + Size);
   }
   return true;
@@ -368,6 +371,10 @@ static const TargetRegisterClass *canFoldCopy(const MachineInstr *MI,
 
   // FIXME: Allow folding when register classes are memory compatible.
   return nullptr;
+}
+
+void TargetInstrInfo::getNoopForMachoTarget(MCInst &NopInst) const {
+  llvm_unreachable("Not a MachO target");
 }
 
 bool TargetInstrInfo::
@@ -498,7 +505,7 @@ TargetInstrInfo::foldMemoryOperand(MachineBasicBlock::iterator MI,
 
   const MachineOperand &MO = MI->getOperand(1-Ops[0]);
   MachineBasicBlock::iterator Pos = MI;
-  const TargetRegisterInfo *TRI = MF.getTarget().getRegisterInfo();
+  const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
 
   if (Flags == MachineMemOperand::MOStore)
     storeRegToStackSlot(*MBB, Pos, MO.getReg(), MO.isKill(), FI, RC, TRI);
@@ -562,8 +569,6 @@ isReallyTriviallyReMaterializableGeneric(const MachineInstr *MI,
                                          AliasAnalysis *AA) const {
   const MachineFunction &MF = *MI->getParent()->getParent();
   const MachineRegisterInfo &MRI = MF.getRegInfo();
-  const TargetMachine &TM = MF.getTarget();
-  const TargetInstrInfo &TII = *TM.getInstrInfo();
 
   // Remat clients assume operand 0 is the defined register.
   if (!MI->getNumOperands() || !MI->getOperand(0).isReg())
@@ -582,7 +587,7 @@ isReallyTriviallyReMaterializableGeneric(const MachineInstr *MI,
   // redundant with subsequent checks, but it's target-independent,
   // simple, and a common case.
   int FrameIdx = 0;
-  if (TII.isLoadFromStackSlot(MI, FrameIdx) &&
+  if (isLoadFromStackSlot(MI, FrameIdx) &&
       MF.getFrameInfo()->isImmutableObjectIndex(FrameIdx))
     return true;
 
@@ -640,6 +645,28 @@ isReallyTriviallyReMaterializableGeneric(const MachineInstr *MI,
   return true;
 }
 
+int TargetInstrInfo::getSPAdjust(const MachineInstr *MI) const {
+  const MachineFunction *MF = MI->getParent()->getParent();
+  const TargetFrameLowering *TFI = MF->getSubtarget().getFrameLowering();
+  bool StackGrowsDown =
+    TFI->getStackGrowthDirection() == TargetFrameLowering::StackGrowsDown;
+
+  int FrameSetupOpcode = getCallFrameSetupOpcode();
+  int FrameDestroyOpcode = getCallFrameDestroyOpcode();
+
+  if (MI->getOpcode() != FrameSetupOpcode &&
+      MI->getOpcode() != FrameDestroyOpcode)
+    return 0;
+ 
+  int SPAdj = MI->getOperand(0).getImm();
+
+  if ((!StackGrowsDown && MI->getOpcode() == FrameSetupOpcode) ||
+       (StackGrowsDown && MI->getOpcode() == FrameDestroyOpcode))
+    SPAdj = -SPAdj;
+
+  return SPAdj;
+}
+
 /// isSchedulingBoundary - Test if the given instruction should be
 /// considered a scheduling boundary. This primarily includes labels
 /// and terminators.
@@ -655,8 +682,8 @@ bool TargetInstrInfo::isSchedulingBoundary(const MachineInstr *MI,
   // saves compile time, because it doesn't require every single
   // stack slot reference to depend on the instruction that does the
   // modification.
-  const TargetLowering &TLI = *MF.getTarget().getTargetLowering();
-  const TargetRegisterInfo *TRI = MF.getTarget().getRegisterInfo();
+  const TargetLowering &TLI = *MF.getSubtarget().getTargetLowering();
+  const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
   if (MI->modifiesRegister(TLI.getStackPointerRegisterToSaveRestore(), TRI))
     return true;
 
@@ -746,14 +773,14 @@ TargetInstrInfo::getNumMicroOps(const InstrItineraryData *ItinData,
 }
 
 /// Return the default expected latency for a def based on it's opcode.
-unsigned TargetInstrInfo::defaultDefLatency(const MCSchedModel *SchedModel,
+unsigned TargetInstrInfo::defaultDefLatency(const MCSchedModel &SchedModel,
                                             const MachineInstr *DefMI) const {
   if (DefMI->isTransient())
     return 0;
   if (DefMI->mayLoad())
-    return SchedModel->LoadLatency;
+    return SchedModel.LoadLatency;
   if (isHighLatencyDef(DefMI->getOpcode()))
-    return SchedModel->HighLatency;
+    return SchedModel.HighLatency;
   return 1;
 }
 
@@ -851,4 +878,78 @@ computeOperandLatency(const InstrItineraryData *ItinData,
   InstrLatency = std::max(InstrLatency,
                           defaultDefLatency(ItinData->SchedModel, DefMI));
   return InstrLatency;
+}
+
+bool TargetInstrInfo::getRegSequenceInputs(
+    const MachineInstr &MI, unsigned DefIdx,
+    SmallVectorImpl<RegSubRegPairAndIdx> &InputRegs) const {
+  assert((MI.isRegSequence() ||
+          MI.isRegSequenceLike()) && "Instruction do not have the proper type");
+
+  if (!MI.isRegSequence())
+    return getRegSequenceLikeInputs(MI, DefIdx, InputRegs);
+
+  // We are looking at:
+  // Def = REG_SEQUENCE v0, sub0, v1, sub1, ...
+  assert(DefIdx == 0 && "REG_SEQUENCE only has one def");
+  for (unsigned OpIdx = 1, EndOpIdx = MI.getNumOperands(); OpIdx != EndOpIdx;
+       OpIdx += 2) {
+    const MachineOperand &MOReg = MI.getOperand(OpIdx);
+    const MachineOperand &MOSubIdx = MI.getOperand(OpIdx + 1);
+    assert(MOSubIdx.isImm() &&
+           "One of the subindex of the reg_sequence is not an immediate");
+    // Record Reg:SubReg, SubIdx.
+    InputRegs.push_back(RegSubRegPairAndIdx(MOReg.getReg(), MOReg.getSubReg(),
+                                            (unsigned)MOSubIdx.getImm()));
+  }
+  return true;
+}
+
+bool TargetInstrInfo::getExtractSubregInputs(
+    const MachineInstr &MI, unsigned DefIdx,
+    RegSubRegPairAndIdx &InputReg) const {
+  assert((MI.isExtractSubreg() ||
+      MI.isExtractSubregLike()) && "Instruction do not have the proper type");
+
+  if (!MI.isExtractSubreg())
+    return getExtractSubregLikeInputs(MI, DefIdx, InputReg);
+
+  // We are looking at:
+  // Def = EXTRACT_SUBREG v0.sub1, sub0.
+  assert(DefIdx == 0 && "EXTRACT_SUBREG only has one def");
+  const MachineOperand &MOReg = MI.getOperand(1);
+  const MachineOperand &MOSubIdx = MI.getOperand(2);
+  assert(MOSubIdx.isImm() &&
+         "The subindex of the extract_subreg is not an immediate");
+
+  InputReg.Reg = MOReg.getReg();
+  InputReg.SubReg = MOReg.getSubReg();
+  InputReg.SubIdx = (unsigned)MOSubIdx.getImm();
+  return true;
+}
+
+bool TargetInstrInfo::getInsertSubregInputs(
+    const MachineInstr &MI, unsigned DefIdx,
+    RegSubRegPair &BaseReg, RegSubRegPairAndIdx &InsertedReg) const {
+  assert((MI.isInsertSubreg() ||
+      MI.isInsertSubregLike()) && "Instruction do not have the proper type");
+
+  if (!MI.isInsertSubreg())
+    return getInsertSubregLikeInputs(MI, DefIdx, BaseReg, InsertedReg);
+
+  // We are looking at:
+  // Def = INSERT_SEQUENCE v0, v1, sub0.
+  assert(DefIdx == 0 && "INSERT_SUBREG only has one def");
+  const MachineOperand &MOBaseReg = MI.getOperand(1);
+  const MachineOperand &MOInsertedReg = MI.getOperand(2);
+  const MachineOperand &MOSubIdx = MI.getOperand(3);
+  assert(MOSubIdx.isImm() &&
+         "One of the subindex of the reg_sequence is not an immediate");
+  BaseReg.Reg = MOBaseReg.getReg();
+  BaseReg.SubReg = MOBaseReg.getSubReg();
+
+  InsertedReg.Reg = MOInsertedReg.getReg();
+  InsertedReg.SubReg = MOInsertedReg.getSubReg();
+  InsertedReg.SubIdx = (unsigned)MOSubIdx.getImm();
+  return true;
 }

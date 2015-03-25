@@ -301,4 +301,35 @@ IDTVEC(rendezvous)
 	call	smp_rendezvous_action
 	call	as_lapic_eoi
 	jmp	doreti
+
+/*
+ * IPI handler whose purpose is to interrupt the CPU with minimum overhead.
+ * This is used by bhyve to force a host cpu executing in guest context to
+ * trap into the hypervisor.
+ *
+ * This handler is different from other IPI handlers in the following aspects:
+ *
+ * 1. It doesn't push a trapframe on the stack.
+ *
+ * This implies that a DDB backtrace involving 'justreturn' will skip the
+ * function that was interrupted by this handler.
+ *
+ * 2. It doesn't 'swapgs' when userspace is interrupted.
+ *
+ * The 'justreturn' handler does not access any pcpu data so it is not an
+ * issue. Moreover the 'justreturn' handler can only be interrupted by an NMI
+ * whose handler already doesn't trust GS.base when kernel code is interrupted.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(justreturn)
+	pushq	%rax
+	pushq	%rcx
+	pushq	%rdx
+	call	as_lapic_eoi
+	popq	%rdx
+	popq	%rcx
+	popq	%rax
+	jmp	doreti_iret
+
 #endif /* SMP */

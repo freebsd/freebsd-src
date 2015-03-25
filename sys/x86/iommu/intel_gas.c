@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <sys/uio.h>
+#include <sys/vmem.h>
 #include <dev/pci/pcivar.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -327,13 +328,15 @@ dmar_gas_match_one(struct dmar_gas_match_args *a, struct dmar_map_entry *prev,
 	start = roundup2(bs, a->common->alignment);
 	/* DMAR_PAGE_SIZE to create gap after new entry. */
 	if (start + a->size + DMAR_PAGE_SIZE <= prev->end + prev->free_after &&
-	    start + a->size <= end) {
+	    start + a->size <= end && dmar_test_boundary(start, a->size,
+	    a->common->boundary)) {
 		a->entry->start = start;
 		return (true);
 	}
 
 	/*
-	 * Not enough space to align at boundary, but allowed to split.
+	 * Not enough space to align at the requested boundary, or
+	 * boundary is smaller than the size, but allowed to split.
 	 * We already checked that start + size does not overlap end.
 	 *
 	 * XXXKIB. It is possible that bs is exactly at the start of
@@ -366,7 +369,8 @@ dmar_gas_match_insert(struct dmar_gas_match_args *a,
 
 	next = RB_NEXT(dmar_gas_entries_tree, &a->ctx->rb_root, prev);
 	KASSERT(next->start >= a->entry->end &&
-	    next->start - a->entry->start >= a->size,
+	    next->start - a->entry->start >= a->size &&
+	    prev->end <= a->entry->end,
 	    ("dmar_gas_match_insert hole failed %p prev (%jx, %jx) "
 	    "free_after %jx next (%jx, %jx) entry (%jx, %jx)", a->ctx,
 	    (uintmax_t)prev->start, (uintmax_t)prev->end,
@@ -645,7 +649,7 @@ dmar_gas_map(struct dmar_ctx *ctx, const struct bus_dma_tag_common *common,
 	entry->flags |= eflags;
 	DMAR_CTX_UNLOCK(ctx);
 
-	error = ctx_map_buf(ctx, entry->start, size, ma,
+	error = ctx_map_buf(ctx, entry->start, entry->end - entry->start, ma,
 	    ((eflags & DMAR_MAP_ENTRY_READ) != 0 ? DMAR_PTE_R : 0) |
 	    ((eflags & DMAR_MAP_ENTRY_WRITE) != 0 ? DMAR_PTE_W : 0) |
 	    ((eflags & DMAR_MAP_ENTRY_SNOOP) != 0 ? DMAR_PTE_SNP : 0) |

@@ -30,6 +30,7 @@
 #ifndef LLVM_CLANG_TOOLING_TOOLING_H
 #define LLVM_CLANG_TOOLING_TOOLING_H
 
+#include "clang/AST/ASTConsumer.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/LLVM.h"
@@ -142,6 +143,10 @@ inline std::unique_ptr<FrontendActionFactory> newFrontendActionFactory(
 bool runToolOnCode(clang::FrontendAction *ToolAction, const Twine &Code,
                    const Twine &FileName = "input.cc");
 
+/// The first part of the pair is the filename, the second part the
+/// file-content.
+typedef std::vector<std::pair<std::string, std::string>> FileContentMappings;
+
 /// \brief Runs (and deletes) the tool on 'Code' with the -fsyntax-only flag and
 ///        with additional other flags.
 ///
@@ -151,9 +156,10 @@ bool runToolOnCode(clang::FrontendAction *ToolAction, const Twine &Code,
 /// \param FileName The file name which 'Code' will be mapped as.
 ///
 /// \return - True if 'ToolAction' was successfully executed.
-bool runToolOnCodeWithArgs(clang::FrontendAction *ToolAction, const Twine &Code,
-                           const std::vector<std::string> &Args,
-                           const Twine &FileName = "input.cc");
+bool runToolOnCodeWithArgs(
+    clang::FrontendAction *ToolAction, const Twine &Code,
+    const std::vector<std::string> &Args, const Twine &FileName = "input.cc",
+    const FileContentMappings &VirtualMappedFiles = FileContentMappings());
 
 /// \brief Builds an AST for 'Code'.
 ///
@@ -202,7 +208,9 @@ class ToolInvocation {
   ~ToolInvocation();
 
   /// \brief Set a \c DiagnosticConsumer to use during parsing.
-  void setDiagnosticConsumer(DiagnosticConsumer *DiagConsumer);
+  void setDiagnosticConsumer(DiagnosticConsumer *DiagConsumer) {
+    this->DiagConsumer = DiagConsumer;
+  }
 
   /// \brief Map a virtual file to be used while running the tool.
   ///
@@ -249,10 +257,12 @@ class ClangTool {
   ClangTool(const CompilationDatabase &Compilations,
             ArrayRef<std::string> SourcePaths);
 
-  virtual ~ClangTool() { clearArgumentsAdjusters(); }
+  ~ClangTool();
 
   /// \brief Set a \c DiagnosticConsumer to use during parsing.
-  void setDiagnosticConsumer(DiagnosticConsumer *DiagConsumer);
+  void setDiagnosticConsumer(DiagnosticConsumer *DiagConsumer) {
+    this->DiagConsumer = DiagConsumer;
+  }
 
   /// \brief Map a virtual file to be used while running the tool.
   ///
@@ -260,19 +270,11 @@ class ClangTool {
   /// \param Content A null terminated buffer of the file's content.
   void mapVirtualFile(StringRef FilePath, StringRef Content);
 
-  /// \brief Install command line arguments adjuster.
-  ///
-  /// \param Adjuster Command line arguments adjuster.
-  //
-  /// FIXME: Function is deprecated. Use (clear/append)ArgumentsAdjuster instead.
-  /// Remove it once all callers are gone.
-  void setArgumentsAdjuster(ArgumentsAdjuster *Adjuster);
-
   /// \brief Append a command line arguments adjuster to the adjuster chain.
   ///
   /// \param Adjuster An argument adjuster, which will be run on the output of
   ///        previous argument adjusters.
-  void appendArgumentsAdjuster(ArgumentsAdjuster *Adjuster);
+  void appendArgumentsAdjuster(ArgumentsAdjuster Adjuster);
 
   /// \brief Clear the command line arguments adjuster chain.
   void clearArgumentsAdjusters();
@@ -292,14 +294,14 @@ class ClangTool {
   FileManager &getFiles() { return *Files; }
 
  private:
-  // We store compile commands as pair (file name, compile command).
-  std::vector< std::pair<std::string, CompileCommand> > CompileCommands;
+  const CompilationDatabase &Compilations;
+  std::vector<std::string> SourcePaths;
 
   llvm::IntrusiveRefCntPtr<FileManager> Files;
   // Contains a list of pairs (<file name>, <file content>).
   std::vector< std::pair<StringRef, StringRef> > MappedFileContents;
 
-  SmallVector<ArgumentsAdjuster *, 2> ArgsAdjusters;
+  ArgumentsAdjuster ArgsAdjuster;
 
   DiagnosticConsumer *DiagConsumer;
 };
@@ -335,8 +337,8 @@ inline std::unique_ptr<FrontendActionFactory> newFrontendActionFactory(
                              SourceFileCallbacks *Callbacks)
         : ConsumerFactory(ConsumerFactory), Callbacks(Callbacks) {}
 
-      clang::ASTConsumer *CreateASTConsumer(clang::CompilerInstance &,
-                                            StringRef) override {
+      std::unique_ptr<clang::ASTConsumer>
+      CreateASTConsumer(clang::CompilerInstance &, StringRef) override {
         return ConsumerFactory->newASTConsumer();
       }
 

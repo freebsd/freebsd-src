@@ -62,7 +62,7 @@ restore_usersrs:
 	clrrdi	%r31,%r31,28
 	slbie	%r31
 1:	ld	%r31, 0(%r28)		/* Load SLB entry pointer */
-	cmpli	0, %r31, 0		/* If NULL, stop */
+	cmpdi	%r31, 0			/* If NULL, stop */
 	beqlr
 
 	ld	%r30, 0(%r31)		/* Load SLBV */
@@ -86,18 +86,18 @@ restore_kernsrs:
 	slbmfee	%r31,%r29		
 	clrrdi	%r31,%r31,28
 	slbie	%r31
-1:	cmpli	0, %r29, USER_SLB_SLOT	/* Skip the user slot */
+1:	cmpdi	%r29, USER_SLB_SLOT	/* Skip the user slot */
 	beq-	2f
 
 	ld	%r31, 8(%r28)		/* Load SLBE */
-	cmpli	0, %r31, 0		/* If SLBE is not valid, stop */
+	cmpdi	%r31, 0			/* If SLBE is not valid, stop */
 	beqlr
 	ld	%r30, 0(%r28)		/* Load SLBV  */
 	slbmte	%r30, %r31		/* Install SLB entry */
 
 2:	addi	%r28, %r28, 16		/* Advance pointer */
 	addi	%r29, %r29, 1
-	cmpli	0, %r29, 64		/* Repeat if we are not at the end */
+	cmpdi	%r29, 64		/* Repeat if we are not at the end */
 	blt	1b 
 	blr
 
@@ -356,10 +356,9 @@ CNAME(trapcode):
 	mtsprg1	%r1			/* save SP */
 	mflr	%r1			/* Save the old LR in r1 */
 	mtsprg2 %r1			/* And then in SPRG2 */
-	li	%r1,TRAP_GENTRAP
-	ld	%r1,0(%r1)
+	ld	%r1,TRAP_GENTRAP(0)
 	mtlr	%r1
-	li	%r1, 0xA0		/* How to get the vector from LR */
+	li	%r1, 0xe0		/* How to get the vector from LR */
 	blrl				/* Branch to generictrap */
 CNAME(trapcodeend):
 
@@ -673,8 +672,7 @@ realtrap:
  * SPRG2 - Original LR
  */
 
-	.globl	CNAME(trapcode2)
-trapcode2:
+	.globl	CNAME(generictrap)
 generictrap:
 	/* Save R1 for computing the exception vector */
 	mtsprg3 %r1
@@ -792,8 +790,7 @@ dbtrap:
 	andi.	%r1,%r1,0xff00
 	mtsprg3	%r1
 
-	li	%r1,TRAP_TOCBASE		/* get new SP */
-	ld	%r1,0(%r1)
+	ld	%r1,TRAP_TOCBASE(0)		/* get new SP */
 	ld	%r1,TOC_REF(tmpstk)(%r1)
 	addi	%r1,%r1,(TMPSTKSZ-48)
 

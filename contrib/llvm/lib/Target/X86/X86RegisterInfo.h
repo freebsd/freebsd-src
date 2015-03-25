@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86REGISTERINFO_H
-#define X86REGISTERINFO_H
+#ifndef LLVM_LIB_TARGET_X86_X86REGISTERINFO_H
+#define LLVM_LIB_TARGET_X86_X86REGISTERINFO_H
 
 #include "llvm/Target/TargetRegisterInfo.h"
 
@@ -122,6 +122,7 @@ public:
 
   // Debug information queries.
   unsigned getFrameRegister(const MachineFunction &MF) const override;
+  unsigned getPtrSizedFrameRegister(const MachineFunction &MF) const;
   unsigned getStackRegister() const { return StackPtr; }
   unsigned getBaseRegister() const { return BasePtr; }
   // FIXME: Move to FrameInfok

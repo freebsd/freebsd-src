@@ -20,24 +20,30 @@ CLOUDWARE?=	AZURE \
 		OPENSTACK
 AZURE_FORMAT=	vhdf
 AZURE_DESC=	Microsoft Azure platform image
+AZURE_DISK=	${OSRELEASE}.${AZURE_FORMAT}
 GCE_FORMAT=	raw
 GCE_DESC=	Google Compute Engine image
+GCE_DISK=	disk.${GCE_FORMAT}
 OPENSTACK_FORMAT=qcow2
 OPENSTACK_DESC=	OpenStack platform image
+OPENSTACK_DISK=	${OSRELEASE}.${OPENSTACK_FORMAT}
 
 .if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
 . for _CW in ${CLOUDWARE}
-CLOUDTARGETS+=	vm-${_CW:tl}
-CLEANDIRS+=	vm-${_CW:tl}
+CLOUDTARGETS+=	cw-${_CW:tl}
+CLEANDIRS+=	cw-${_CW:tl}
 CLEANFILES+=	${_CW:tl}.img \
 		${_CW:tl}.${${_CW:tu}_FORMAT} \
-		${_CW:tl}.${${_CW:tu}_FORMAT}.raw
+		${_CW:tl}.${${_CW:tu}_FORMAT}.raw \
+		cw${_CW:tl}-package
+CLOUDINSTALL+=	cw${_CW:tl}-install
+CLOUDPACKAGE+=	cw${_CW:tl}-package
 ${_CW:tu}IMAGE=	${_CW:tl}.${${_CW:tu}_FORMAT}
 .  if exists(${.CURDIR}/tools/${_CW:tl}.conf) && !defined(${_CW:tu}CONF)
 ${_CW:tu}CONF?=	${.CURDIR}/tools/${_CW:tl}.conf
 .  endif
 
-vm-${_CW:tl}:
+cw-${_CW:tl}:
 	mkdir -p ${.OBJDIR}/${.TARGET}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		${.CURDIR}/scripts/mk-vmimage.sh \
@@ -45,6 +51,26 @@ vm-${_CW:tl}:
 		-i ${.OBJDIR}/${_CW:tl}.img -s ${VMSIZE} -f ${${_CW}_FORMAT} \
 		-S ${WORLDDIR} -o ${.OBJDIR}/${${_CW}IMAGE} -c ${${_CW}CONF}
 	touch ${.TARGET}
+
+cw${_CW:tl}-install:
+	mkdir -p ${DESTDIR}/${_CW:tl}
+	cp -p ${${_CW}IMAGE} \
+		${DESTDIR}/${_CW:tl}/${${_CW}_DISK}
+	cd ${DESTDIR}/${_CW:tl} && sha256 ${${_CW}_DISK}* > \
+		${DESTDIR}/${_CW:tl}/CHECKSUM.SHA256
+	cd ${DESTDIR}/${_CW:tl} && md5 ${${_CW}_DISK}* > \
+		${DESTDIR}/${_CW:tl}/CHECKSUM.MD5
+
+cw${_CW:tl}-package:
+	@# Special target to handle packaging cloud images in the formats
+	@# specific to each hosting provider.
+.if exists(${.CURDIR}/tools/${_CW:tl}-package.sh)
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		${.CURDIR}/tools/${_CW:tl}-package.sh \
+		-D ${DESTDIR} -I ${${_CW}_DISK} -S ${WORLDDIR}
+.endif
+	touch ${.TARGET}
+
 . endfor
 .endif
 
@@ -97,8 +123,6 @@ vm-install:
 		${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
 . endfor
 . if defined(WITH_COMPRESSED_VMIMAGES) && !empty(WITH_COMPRESSED_VMIMAGES)
-# This is very time consuming, so defer it after the images are moved to
-# the DESTDIR.
 .  for FORMAT in ${VMFORMATS}
 	# Don't keep the originals.  There is a copy in ${.OBJDIR} if needed.
 	${XZ_CMD} ${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
@@ -118,4 +142,9 @@ vm-release:
 cloudware-release:
 .if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${CLOUDTARGETS}
+.endif
+
+cloudware-install:
+.if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
+	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${CLOUDINSTALL}
 .endif

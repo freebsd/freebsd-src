@@ -495,7 +495,7 @@ options 	KTRACE_REQUEST_POOL=101
 options 	KTR
 options 	KTR_BOOT_ENTRIES=1024
 options 	KTR_ENTRIES=(128*1024)
-options 	KTR_COMPILE=(KTR_INTR|KTR_PROC)
+options 	KTR_COMPILE=(KTR_ALL)
 options 	KTR_MASK=KTR_INTR
 options 	KTR_CPUMASK=0x3
 options 	KTR_VERBOSE
@@ -1722,10 +1722,8 @@ device		ata
 #device		atapci		# PCI bus support; only generic chipset support
 
 # PCI ATA chipsets
-#device		ataahci		# AHCI SATA
 #device		ataacard	# ACARD
 #device		ataacerlabs	# Acer Labs Inc. (ALI)
-#device		ataadaptec	# Adaptec
 #device		ataamd		# American Micro Devices (AMD)
 #device		ataati		# ATI
 #device		atacenatek	# Cenatek
@@ -2100,7 +2098,8 @@ device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel Pro/1000 Gigabit Ethernet
 device		igb		# Intel Pro/1000 PCIE Gigabit Ethernet
 device		ixgb		# Intel Pro/10Gbe PCI-X Ethernet
-device		ixgbe		# Intel Pro/10Gbe PCIE Ethernet
+device		ix		# Intel Pro/10Gbe PCIE Ethernet
+device		ixv		# Intel Pro/10Gbe PCIE Ethernet VF
 device		le		# AMD Am7900 LANCE and Am79C9xx PCnet
 device		mxge		# Myricom Myri-10G 10GbE NIC
 device		nxge		# Neterion Xframe 10GbE Server/Storage Adapter
@@ -2889,11 +2888,6 @@ options 	SHMMNI=33
 # a single process at one time.
 options 	SHMSEG=9
 
-# Compress user core dumps.
-options		COMPRESS_USER_CORES
-# required to compress file output from kernel for COMPRESS_USER_CORES.
-device		gzio	    
-
 # Set the amount of time (in seconds) the system will wait before
 # rebooting automatically when a kernel panic occurs.  If set to (-1),
 # the system will wait indefinitely until a key is pressed on the
@@ -2983,3 +2977,7 @@ options 	RANDOM_DEBUG	# Debugging messages
 
 # Module to enable execution of application via emulators like QEMU
 options         IMAGACT_BINMISC
+
+# zlib I/O stream support
+# This enables support for compressed core dumps.
+options 	GZIO

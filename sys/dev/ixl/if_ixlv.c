@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2014, Intel Corporation 
+  Copyright (c) 2013-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -32,9 +32,12 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
+#ifndef IXL_STANDALONE_BUILD
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_rss.h"
+#endif
+
 #include "ixl.h"
 #include "ixlv.h"
 
@@ -45,7 +48,7 @@
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixlv_driver_version[] = "1.2.1";
+char ixlv_driver_version[] = "1.2.4";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -395,7 +398,7 @@ ixlv_attach(device_t dev)
 
 	vsi->id = sc->vsi_res->vsi_id;
 	vsi->back = (void *)sc;
-	vsi->link_up = TRUE;
+	sc->link_up = TRUE;
 
 	/* This allocates the memory and early settings */
 	if (ixlv_setup_queues(sc) != 0) {
@@ -477,7 +480,7 @@ ixlv_detach(device_t dev)
 
 	/* Make sure VLANS are not using driver */
 	if (vsi->ifp->if_vlantrunk != NULL) {
-		device_printf(dev, "Vlan in use, detach first\n");
+		if_printf(vsi->ifp, "Vlan in use, detach first\n");
 		INIT_DBG_DEV(dev, "end");
 		return (EBUSY);
 	}
@@ -890,7 +893,7 @@ ixlv_init_locked(struct ixlv_sc *sc)
 
 		ixl_init_tx_ring(que);
 
-		if (vsi->max_frame_size <= 2048)
+		if (vsi->max_frame_size <= MCLBYTES)
 			rxr->mbuf_sz = MCLBYTES;
 		else
 			rxr->mbuf_sz = MJUMPAGESIZE;
@@ -1379,6 +1382,9 @@ ixlv_assign_msix(struct ixlv_sc *sc)
 	struct 		ixl_queue *que = vsi->queues;
 	struct		tx_ring	 *txr;
 	int 		error, rid, vector = 1;
+#ifdef	RSS
+	cpuset_t	cpu_mask;
+#endif
 
 	for (int i = 0; i < vsi->num_queues; i++, vector++, que++) {
 		int cpu_id = i;
@@ -1407,14 +1413,15 @@ ixlv_assign_msix(struct ixlv_sc *sc)
 #endif
 		bus_bind_intr(dev, que->res, cpu_id);
 		que->msix = vector;
-        	vsi->que_mask |= (u64)(1 << que->msix);
+		vsi->que_mask |= (u64)(1 << que->msix);
 		TASK_INIT(&que->tx_task, 0, ixl_deferred_mq_start, que);
 		TASK_INIT(&que->task, 0, ixlv_handle_que, que);
 		que->tq = taskqueue_create_fast("ixlv_que", M_NOWAIT,
 		    taskqueue_thread_enqueue, &que->tq);
 #ifdef RSS
-		taskqueue_start_threads_pinned(&que->tq, 1, PI_NET,
-		    cpu_id, "%s (bucket %d)",
+		CPU_SETOF(cpu_id, &cpu_mask);
+		taskqueue_start_threads_cpuset(&que->tq, 1, PI_NET,
+		    &cpu_mask, "%s (bucket %d)",
 		    device_get_nameunit(dev), cpu_id);
 #else
                 taskqueue_start_threads(&que->tq, 1, PI_NET,
@@ -1711,12 +1718,12 @@ early:
 static void
 ixlv_register_vlan(void *arg, struct ifnet *ifp, u16 vtag)
 {
-	struct ixl_vsi			*vsi = ifp->if_softc;
+	struct ixl_vsi		*vsi = arg;
 	struct ixlv_sc		*sc = vsi->back;
 	struct ixlv_vlan_filter	*v;
 
 
-	if (ifp->if_softc !=  arg)   /* Not our event */
+	if (ifp->if_softc != arg)   /* Not our event */
 		return;
 
 	if ((vtag == 0) || (vtag > 4095))	/* Invalid */
@@ -1748,12 +1755,12 @@ ixlv_register_vlan(void *arg, struct ifnet *ifp, u16 vtag)
 static void
 ixlv_unregister_vlan(void *arg, struct ifnet *ifp, u16 vtag)
 {
-	struct ixl_vsi			*vsi = ifp->if_softc;
+	struct ixl_vsi		*vsi = arg;
 	struct ixlv_sc		*sc = vsi->back;
 	struct ixlv_vlan_filter	*v;
-	int				i = 0;
+	int			i = 0;
 	
-	if (ifp->if_softc !=  arg)
+	if (ifp->if_softc != arg)
 		return;
 
 	if ((vtag == 0) || (vtag > 4095))	/* Invalid */
@@ -1819,8 +1826,7 @@ ixlv_msix_adminq(void *arg)
 {
 	struct ixlv_sc	*sc = arg;
 	struct i40e_hw	*hw = &sc->hw;
-	device_t	dev = sc->dev;
-	u32		reg, mask, oldreg;
+	u32		reg, mask;
 
         reg = rd32(hw, I40E_VFINT_ICR01);
         mask = rd32(hw, I40E_VFINT_ICR0_ENA1);
@@ -1828,43 +1834,6 @@ ixlv_msix_adminq(void *arg)
         reg = rd32(hw, I40E_VFINT_DYN_CTL01);
         reg |= I40E_PFINT_DYN_CTL0_CLEARPBA_MASK;
         wr32(hw, I40E_VFINT_DYN_CTL01, reg);
-
-	/* check for Admin queue errors */
-	oldreg = reg = rd32(hw, hw->aq.arq.len);
-	if (reg & I40E_VF_ARQLEN_ARQVFE_MASK) {
-		device_printf(dev, "ARQ VF Error detected\n");
-		reg &= ~I40E_VF_ARQLEN_ARQVFE_MASK;
-	}
-	if (reg & I40E_VF_ARQLEN_ARQOVFL_MASK) {
-		device_printf(dev, "ARQ Overflow Error detected\n");
-		reg &= ~I40E_VF_ARQLEN_ARQOVFL_MASK;
-	}
-	if (reg & I40E_VF_ARQLEN_ARQCRIT_MASK) {
-		device_printf(dev, "ARQ Critical Error detected\n");
-		reg &= ~I40E_VF_ARQLEN_ARQCRIT_MASK;
-	}
-	if (oldreg != reg)
-		wr32(hw, hw->aq.arq.len, reg);
-
-	oldreg = reg = rd32(hw, hw->aq.asq.len);
-	if (reg & I40E_VF_ATQLEN_ATQVFE_MASK) {
-		device_printf(dev, "ASQ VF Error detected\n");
-		reg &= ~I40E_VF_ATQLEN_ATQVFE_MASK;
-	}
-	if (reg & I40E_VF_ATQLEN_ATQOVFL_MASK) {
-		device_printf(dev, "ASQ Overflow Error detected\n");
-		reg &= ~I40E_VF_ATQLEN_ATQOVFL_MASK;
-	}
-	if (reg & I40E_VF_ATQLEN_ATQCRIT_MASK) {
-		device_printf(dev, "ASQ Critical Error detected\n");
-		reg &= ~I40E_VF_ATQLEN_ATQCRIT_MASK;
-	}
-	if (oldreg != reg)
-		wr32(hw, hw->aq.asq.len, reg);
-
-        /* re-enable interrupt causes */
-        wr32(hw, I40E_VFINT_ICR0_ENA1, mask);
-        wr32(hw, I40E_VFINT_DYN_CTL01, I40E_VFINT_DYN_CTL01_INTENA_MASK);
 
 	/* schedule task */
 	taskqueue_enqueue(sc->tq, &sc->aq_irq);
@@ -2185,7 +2154,7 @@ ixlv_media_status(struct ifnet * ifp, struct ifmediareq * ifmr)
 	ifmr->ifm_status = IFM_AVALID;
 	ifmr->ifm_active = IFM_ETHER;
 
-	if (!vsi->link_up) {
+	if (!sc->link_up) {
 		mtx_unlock(&sc->mtx);
 		INIT_DBG_IF(ifp, "end: link not up");
 		return;
@@ -2426,7 +2395,7 @@ ixlv_local_timer(void *arg)
 		} else {
 			/* Check if we've come back from hung */
 			if ((vsi->active_queues & ((u64)1 << que->me)) == 0)
-     				vsi->active_queues |= ((u64)1 << que->me);
+				vsi->active_queues |= ((u64)1 << que->me);
 		}
 		if (que->busy >= IXL_MAX_TX_BUSY) {
 			device_printf(dev,"Warning queue %d "
@@ -2457,20 +2426,19 @@ ixlv_update_link_status(struct ixlv_sc *sc)
 {
 	struct ixl_vsi		*vsi = &sc->vsi;
 	struct ifnet		*ifp = vsi->ifp;
-	device_t		 dev = sc->dev;
 
-	if (vsi->link_up){ 
+	if (sc->link_up){ 
 		if (vsi->link_active == FALSE) {
 			if (bootverbose)
-				device_printf(dev,"Link is Up, %d Gbps\n",
-				    (vsi->link_speed == I40E_LINK_SPEED_40GB) ? 40:10);
+				if_printf(ifp,"Link is Up, %d Gbps\n",
+				    (sc->link_speed == I40E_LINK_SPEED_40GB) ? 40:10);
 			vsi->link_active = TRUE;
 			if_link_state_change(ifp, LINK_STATE_UP);
 		}
 	} else { /* Link down */
 		if (vsi->link_active == TRUE) {
 			if (bootverbose)
-				device_printf(dev,"Link is Down\n");
+				if_printf(ifp,"Link is Down\n");
 			if_link_state_change(ifp, LINK_STATE_DOWN);
 			vsi->link_active = FALSE;
 		}
@@ -2600,7 +2568,7 @@ ixlv_config_rss(struct ixlv_sc *sc)
                 set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP);
 	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6)
                 set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_OTHER);
-        if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6_EX)
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6_EX)
 		set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6);
 	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV6)
                 set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_TCP);
@@ -2688,7 +2656,6 @@ static int
 ixlv_add_mac_filter(struct ixlv_sc *sc, u8 *macaddr, u16 flags)
 {
 	struct ixlv_mac_filter	*f;
-	device_t			dev = sc->dev;
 
 	/* Does one already exist? */
 	f = ixlv_find_mac_filter(sc, macaddr);
@@ -2701,7 +2668,7 @@ ixlv_add_mac_filter(struct ixlv_sc *sc, u8 *macaddr, u16 flags)
 	/* If not, get a new empty filter */
 	f = ixlv_get_mac_filter(sc);
 	if (f == NULL) {
-		device_printf(dev, "%s: no filters available!!\n",
+		if_printf(sc->vsi.ifp, "%s: no filters available!!\n",
 		    __func__);
 		return (ENOMEM);
 	}
@@ -2752,8 +2719,10 @@ ixlv_do_adminq_locked(struct ixlv_sc *sc)
 	struct i40e_hw			*hw = &sc->hw;
 	struct i40e_arq_event_info	event;
 	struct i40e_virtchnl_msg	*v_msg;
-	i40e_status			ret;
+	device_t			dev = sc->dev;
 	u16				result = 0;
+	u32				reg, oldreg;
+	i40e_status			ret;
 
 	IXLV_CORE_LOCK_ASSERT(sc);
 
@@ -2770,6 +2739,39 @@ ixlv_do_adminq_locked(struct ixlv_sc *sc)
 		if (result != 0)
 			bzero(event.msg_buf, IXL_AQ_BUF_SZ);
 	} while (result);
+
+	/* check for Admin queue errors */
+	oldreg = reg = rd32(hw, hw->aq.arq.len);
+	if (reg & I40E_VF_ARQLEN_ARQVFE_MASK) {
+		device_printf(dev, "ARQ VF Error detected\n");
+		reg &= ~I40E_VF_ARQLEN_ARQVFE_MASK;
+	}
+	if (reg & I40E_VF_ARQLEN_ARQOVFL_MASK) {
+		device_printf(dev, "ARQ Overflow Error detected\n");
+		reg &= ~I40E_VF_ARQLEN_ARQOVFL_MASK;
+	}
+	if (reg & I40E_VF_ARQLEN_ARQCRIT_MASK) {
+		device_printf(dev, "ARQ Critical Error detected\n");
+		reg &= ~I40E_VF_ARQLEN_ARQCRIT_MASK;
+	}
+	if (oldreg != reg)
+		wr32(hw, hw->aq.arq.len, reg);
+
+	oldreg = reg = rd32(hw, hw->aq.asq.len);
+	if (reg & I40E_VF_ATQLEN_ATQVFE_MASK) {
+		device_printf(dev, "ASQ VF Error detected\n");
+		reg &= ~I40E_VF_ATQLEN_ATQVFE_MASK;
+	}
+	if (reg & I40E_VF_ATQLEN_ATQOVFL_MASK) {
+		device_printf(dev, "ASQ Overflow Error detected\n");
+		reg &= ~I40E_VF_ATQLEN_ATQOVFL_MASK;
+	}
+	if (reg & I40E_VF_ATQLEN_ATQCRIT_MASK) {
+		device_printf(dev, "ASQ Critical Error detected\n");
+		reg &= ~I40E_VF_ATQLEN_ATQCRIT_MASK;
+	}
+	if (oldreg != reg)
+		wr32(hw, hw->aq.asq.len, reg);
 
 	ixlv_enable_adminq_irq(hw);
 }
@@ -2832,7 +2834,7 @@ ixlv_add_sysctls(struct ixlv_sc *sc)
 	struct ixl_sysctl_info *entry = ctls;
 	while (entry->stat != 0)
 	{
-		SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, entry->name,
+		SYSCTL_ADD_QUAD(ctx, child, OID_AUTO, entry->name,
 				CTLFLAG_RD, entry->stat,
 				entry->description);
 		entry++;
@@ -2848,34 +2850,34 @@ ixlv_add_sysctls(struct ixlv_sc *sc)
 		txr = &(queues[q].txr);
 		rxr = &(queues[q].rxr);
 
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "mbuf_defrag_failed",
+		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "mbuf_defrag_failed",
 				CTLFLAG_RD, &(queues[q].mbuf_defrag_failed),
 				"m_defrag() failed");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "dropped",
+		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "dropped",
 				CTLFLAG_RD, &(queues[q].dropped_pkts),
 				"Driver dropped packets");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "irqs",
+		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "irqs",
 				CTLFLAG_RD, &(queues[q].irqs),
 				"irqs on this queue");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tso_tx",
+		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "tso_tx",
 				CTLFLAG_RD, &(queues[q].tso),
 				"TSO");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_dma_setup",
+		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "tx_dma_setup",
 				CTLFLAG_RD, &(queues[q].tx_dma_setup),
 				"Driver tx dma failure in xmit");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "no_desc_avail",
+		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "no_desc_avail",
 				CTLFLAG_RD, &(txr->no_desc),
 				"Queue No Descriptor Available");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_packets",
+		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "tx_packets",
 				CTLFLAG_RD, &(txr->total_packets),
 				"Queue Packets Transmitted");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_bytes",
+		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "tx_bytes",
 				CTLFLAG_RD, &(txr->tx_bytes),
 				"Queue Bytes Transmitted");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_packets",
+		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "rx_packets",
 				CTLFLAG_RD, &(rxr->rx_packets),
 				"Queue Packets Received");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_bytes",
+		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "rx_bytes",
 				CTLFLAG_RD, &(rxr->rx_bytes),
 				"Queue Bytes Received");
 

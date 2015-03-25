@@ -76,7 +76,6 @@ __FBSDID("$FreeBSD$");
 #include "vlapic.h"
 #include "vpmtmr.h"
 #include "vrtc.h"
-#include "vmm_ipi.h"
 #include "vmm_stat.h"
 #include "vmm_lapic.h"
 
@@ -217,6 +216,11 @@ SYSCTL_INT(_hw_vmm, OID_AUTO, trace_guest_exceptions, CTLFLAG_RDTUN,
     &trace_guest_exceptions, 0,
     "Trap into hypervisor on all guest exceptions and reflect them back");
 
+static int vmm_force_iommu = 0;
+TUNABLE_INT("hw.vmm.force_iommu", &vmm_force_iommu);
+SYSCTL_INT(_hw_vmm, OID_AUTO, force_iommu, CTLFLAG_RDTUN, &vmm_force_iommu, 0,
+    "Force use of I/O MMU even if no passthrough devices were found.");
+
 static void
 vcpu_cleanup(struct vm *vm, int i, bool destroy)
 {
@@ -293,8 +297,8 @@ vmm_init(void)
 
 	vmm_host_state_init();
 
-	vmm_ipinum = vmm_ipi_alloc();
-	if (vmm_ipinum == 0)
+	vmm_ipinum = lapic_ipi_alloc(&IDTVEC(justreturn));
+	if (vmm_ipinum < 0)
 		vmm_ipinum = IPI_AST;
 
 	error = vmm_mem_init();
@@ -321,7 +325,7 @@ vmm_handler(module_t mod, int what, void *arg)
 	switch (what) {
 	case MOD_LOAD:
 		vmmdev_init();
-		if (ppt_avail_devices() > 0)
+		if (vmm_force_iommu || ppt_avail_devices() > 0)
 			iommu_init();
 		error = vmm_init();
 		if (error == 0)
@@ -333,7 +337,7 @@ vmm_handler(module_t mod, int what, void *arg)
 			vmm_resume_p = NULL;
 			iommu_cleanup();
 			if (vmm_ipinum != IPI_AST)
-				vmm_ipi_free(vmm_ipinum);
+				lapic_ipi_free(vmm_ipinum);
 			error = VMM_CLEANUP();
 			/*
 			 * Something bad happened - prevent new
@@ -1247,7 +1251,7 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	struct vie *vie;
 	struct vcpu *vcpu;
 	struct vm_exit *vme;
-	uint64_t gla, gpa;
+	uint64_t gla, gpa, cs_base;
 	struct vm_guest_paging *paging;
 	mem_region_read_t mread;
 	mem_region_write_t mwrite;
@@ -1259,6 +1263,7 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 
 	gla = vme->u.inst_emul.gla;
 	gpa = vme->u.inst_emul.gpa;
+	cs_base = vme->u.inst_emul.cs_base;
 	cs_d = vme->u.inst_emul.cs_d;
 	vie = &vme->u.inst_emul.vie;
 	paging = &vme->u.inst_emul.paging;
@@ -1273,8 +1278,8 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 		 * maximum size instruction.
 		 */
 		length = vme->inst_length ? vme->inst_length : VIE_INST_SIZE;
-		error = vmm_fetch_instruction(vm, vcpuid, paging, vme->rip,
-		    length, vie);
+		error = vmm_fetch_instruction(vm, vcpuid, paging, vme->rip +
+		    cs_base, length, vie);
 	} else {
 		/*
 		 * The instruction bytes have already been copied into 'vie'

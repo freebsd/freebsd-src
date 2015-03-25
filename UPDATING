@@ -31,13 +31,30 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150324:
+	From legacy ata(4) driver was removed support for SATA controllers
+	supported by more functional drivers ahci(4), siis(4) and mvs(4).
+	Kernel modules ataahci and ataadaptec were removed completely,
+	replaced by ahci and mvs modules respectively.
+
+20150315:
+	Clang, llvm and lldb have been upgraded to 3.6.0 release.  Please see
+	the 20141231 entry below for information about prerequisites and
+	upgrading, if you are not already using 3.5.0 or higher.
+
+20150307:
+	The 32-bit PowerPC kernel has been changed to a position-independent
+	executable. This can only be booted with a version of loader(8)
+	newer than January 31, 2015, so make sure to update both world and
+	kernel before rebooting.
+
 20150217:
 	If you are running a -CURRENT kernel since r273872 (Oct 30th, 2014),
 	but before r278950, the RNG was not seeded properly.  Immediately
 	upgrade the kernel to r278950 or later and regenerate any keys (e.g.
 	ssh keys or openssl keys) that were generated w/ a kernel from that
-	range.  This does not effect programs that directly used /dev/random
-	or /dev/urandom.  All userland uses of arc4random(3) are effected.
+	range.  This does not affect programs that directly used /dev/random
+	or /dev/urandom.  All userland uses of arc4random(3) are affected.
 
 20150210:
 	The autofs(4) ABI was changed in order to restore binary compatibility

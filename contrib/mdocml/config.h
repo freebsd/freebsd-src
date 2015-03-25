@@ -7,7 +7,6 @@
 
 #include <sys/types.h>
 
-#define VERSION "1.13.2"
 #define HAVE_DIRENT_NAMLEN 1
 #define HAVE_FGETLN 1
 #define HAVE_FTS 1
@@ -19,6 +18,7 @@
 #define HAVE_STRLCPY 1
 #define HAVE_STRPTIME 1
 #define HAVE_STRSEP 1
+#define HAVE_STRTONUM 1
 #define HAVE_WCHAR 1
 #define HAVE_SQLITE3 1
 #define HAVE_SQLITE3_ERRSTR 0

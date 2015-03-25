@@ -48,6 +48,33 @@ __DEFAULT_NO_OPTIONS = \
     NAND \
     OFED
 
+# Some options are totally broken on some architectures. We disable
+# them. If you need to enable them on an experimental basis, you
+# must change this code.
+
+# Things that don't work based on the CPU
+.if ${MACHINE_CPUARCH} == "arm"
+BROKEN_OPTIONS+= CDDL ZFS
+.endif
+
+.if ${MACHINE_CPUARCH} == "mips"
+BROKEN_OPTIONS+= CDDL ZFS
+.endif
+
+.if ${MACHINE_CPUARCH} == "powerpc" && ${MACHINE_ARCH} == "powerpc"
+BROKEN_OPTIONS+= ZFS
+.endif
+
+# Things that don't work because the kernel doesn't have the support
+# for them.
+.if ${MACHINE} != "i386"
+BROKEN_OPTIONS+= EISA
+.endif
+
+.if ${MACHINE} != "i386" && ${MACHINE} != "amd64"
+BROKEN_OPTIONS+= OFED
+.endif
+
 # expanded inline from bsd.mkopt.mk to avoid share/mk dependency
 
 # Those that default to yes
@@ -83,6 +110,16 @@ MK_${var}:=	no
 .undef __DEFAULT_NO_OPTIONS
 
 #
+# MK_* options which are always no, usually because they are
+# unsupported/badly broken on this architecture.
+#
+.for var in ${BROKEN_OPTIONS}
+MK_${var}:=	no
+.endfor
+.undef BROKEN_OPTIONS
+#end of bsd.mkopt.mk expanded inline.
+
+#
 # MK_*_SUPPORT options which default to "yes" unless their corresponding
 # MK_* variable is set to "no".
 #
@@ -104,6 +141,3 @@ MK_${var}_SUPPORT:= yes
 .endif
 .endif
 .endfor
-
-
-

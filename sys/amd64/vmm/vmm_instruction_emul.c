@@ -1825,11 +1825,11 @@ decode_modrm(struct vie *vie, enum vm_cpu_mode cpu_mode)
 {
 	uint8_t x;
 
-	if (cpu_mode == CPU_MODE_REAL)
-		return (-1);
-
 	if (vie->op.op_flags & VIE_OP_F_NO_MODRM)
 		return (0);
+
+	if (cpu_mode == CPU_MODE_REAL)
+		return (-1);
 
 	if (vie_peek(vie, &x))
 		return (-1);

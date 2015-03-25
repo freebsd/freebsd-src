@@ -53,6 +53,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_vm.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
@@ -104,6 +106,7 @@ struct pagerops vnodepagerops = {
 };
 
 int vnode_pbuf_freecnt;
+int vnode_async_pbuf_freecnt;
 
 /* Create the VM system backing object for this vnode */
 int
@@ -241,6 +244,9 @@ retry:
 		VI_UNLOCK(vp);
 	} else {
 		object->ref_count++;
+#if VM_NRESERVLEVEL > 0
+		vm_object_color(object, 0);
+#endif
 		VM_OBJECT_WUNLOCK(object);
 	}
 	vref(vp);
@@ -726,12 +732,12 @@ vnode_pager_local_getpages0(struct vnode *vp, vm_page_t *m, int bytecount,
 	/*
 	 * The requested page has valid blocks.  Invalid part can only
 	 * exist at the end of file, and the page is made fully valid
-	 * by zeroing in vm_pager_getpages().  Free non-requested
+	 * by zeroing in vm_pager_get_pages().  Free non-requested
 	 * pages, since no i/o is done to read its content.
 	 */
 	if (mreq->valid != 0) {
 		vm_pager_free_nonreq(mreq->object, m, reqpage,
-		    round_page(bytecount) / PAGE_SIZE);
+		    round_page(bytecount) / PAGE_SIZE, FALSE);
 		if (iodone != NULL)
 			iodone(arg, m, reqpage, 0);
 		return (VM_PAGER_OK);
@@ -751,7 +757,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 {
 	vm_object_t object;
 	off_t foff;
-	int i, j, size, bsize, first;
+	int i, j, size, bsize, first, *freecnt;
 	daddr_t firstaddr, reqblock;
 	struct bufobj *bo;
 	int runpg;
@@ -772,14 +778,26 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	foff = IDX_TO_OFF(m[reqpage]->pindex);
 
 	/*
+	 * Synchronous and asynchronous paging operations use different
+	 * free pbuf counters.  This is done to avoid asynchronous requests
+	 * to consume all pbufs.
+	 * Allocate the pbuf at the very beginning of the function, so that
+	 * if we are low on certain kind of pbufs don't even proceed to BMAP,
+	 * but sleep.
+	 */
+	freecnt = iodone != NULL ?
+	    &vnode_async_pbuf_freecnt : &vnode_pbuf_freecnt;
+	bp = getpbuf(freecnt);
+
+	/*
 	 * Get the underlying device blocks for the file with VOP_BMAP().
 	 * If the file system doesn't support VOP_BMAP, use old way of
 	 * getting pages via VOP_READ.
 	 */
 	error = VOP_BMAP(vp, foff / bsize, &bo, &reqblock, NULL, NULL);
 	if (error == EOPNOTSUPP) {
+		relpbuf(bp, freecnt);
 		VM_OBJECT_WLOCK(object);
-		
 		for (i = 0; i < count; i++)
 			if (i != reqpage) {
 				vm_page_lock(m[i]);
@@ -792,7 +810,8 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 		VM_OBJECT_WUNLOCK(object);
 		return (error);
 	} else if (error != 0) {
-		vm_pager_free_nonreq(object, m, reqpage, count);
+		relpbuf(bp, freecnt);
+		vm_pager_free_nonreq(object, m, reqpage, count, FALSE);
 		return (VM_PAGER_ERROR);
 
 		/*
@@ -802,7 +821,8 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 		 */
 	} else if ((PAGE_SIZE / bsize) > 1 &&
 	    (vp->v_mount->mnt_stat.f_type != nfs_mount_type)) {
-		vm_pager_free_nonreq(object, m, reqpage, count);
+		relpbuf(bp, freecnt);
+		vm_pager_free_nonreq(object, m, reqpage, count, FALSE);
 		PCPU_INC(cnt.v_vnodein);
 		PCPU_INC(cnt.v_vnodepgsin);
 		return vnode_pager_input_smlfs(object, m[reqpage]);
@@ -820,20 +840,17 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	 * media.
 	 */
 	if (m[reqpage]->valid == VM_PAGE_BITS_ALL) {
-		vm_pager_free_nonreq(object, m, reqpage, count);
+		relpbuf(bp, freecnt);
+		vm_pager_free_nonreq(object, m, reqpage, count, FALSE);
 		return (VM_PAGER_OK);
 	} else if (reqblock == -1) {
+		relpbuf(bp, freecnt);
 		pmap_zero_page(m[reqpage]);
 		KASSERT(m[reqpage]->dirty == 0,
 		    ("vnode_pager_generic_getpages: page %p is dirty", m));
 		VM_OBJECT_WLOCK(object);
 		m[reqpage]->valid = VM_PAGE_BITS_ALL;
-		for (i = 0; i < count; i++)
-			if (i != reqpage) {
-				vm_page_lock(m[i]);
-				vm_page_free(m[i]);
-				vm_page_unlock(m[i]);
-			}
+		vm_pager_free_nonreq(object, m, reqpage, count, TRUE);
 		VM_OBJECT_WUNLOCK(object);
 		return (VM_PAGER_OK);
 	} else if (m[reqpage]->valid != 0) {
@@ -853,14 +870,10 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	for (first = 0, i = 0; i < count; i = runend) {
 		if (vnode_pager_addr(vp, IDX_TO_OFF(m[i]->pindex), &firstaddr,
 		    &runpg) != 0) {
-			VM_OBJECT_WLOCK(object);
-			for (; i < count; i++)
-				if (i != reqpage) {
-					vm_page_lock(m[i]);
-					vm_page_free(m[i]);
-					vm_page_unlock(m[i]);
-				}
-			VM_OBJECT_WUNLOCK(object);
+			relpbuf(bp, freecnt);
+			/* The requested page may be out of range. */
+			vm_pager_free_nonreq(object, m + i, reqpage - i,
+			    count - i, FALSE);
 			return (VM_PAGER_ERROR);
 		}
 		if (firstaddr == -1) {
@@ -941,7 +954,6 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 		size = (size + secmask) & ~secmask;
 	}
 
-	bp = getpbuf(&vnode_pbuf_freecnt);
 	bp->b_kvaalloc = bp->b_data;
 
 	/*
@@ -1016,7 +1028,7 @@ vnode_pager_generic_getpages_done_async(struct buf *bp)
 		bp->b_pages[i] = NULL;
 	bp->b_vp = NULL;
 	pbrelbo(bp);
-	relpbuf(bp, &vnode_pbuf_freecnt);
+	relpbuf(bp, &vnode_async_pbuf_freecnt);
 }
 
 static int

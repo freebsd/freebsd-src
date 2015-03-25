@@ -1,7 +1,7 @@
-/*	$Id: out.c,v 1.54 2014/12/04 02:05:42 schwarze Exp $ */
+/*	$Id: out.c,v 1.59 2015/01/30 04:11:50 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2011, 2014 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,8 +20,6 @@
 #include <sys/types.h>
 
 #include <assert.h>
-#include <ctype.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -39,97 +37,64 @@ static	void	tblcalc_number(struct rofftbl *, struct roffcol *,
 
 
 /*
- * Convert a `scaling unit' to a consistent form, or fail.  Scaling
- * units are documented in groff.7, mdoc.7, man.7.
+ * Parse the *src string and store a scaling unit into *dst.
+ * If the string doesn't specify the unit, use the default.
+ * If no default is specified, fail.
+ * Return 2 on complete success, 1 when a conversion was done,
+ * but there was trailing garbage, and 0 on total failure.
  */
 int
 a2roffsu(const char *src, struct roffsu *dst, enum roffscale def)
 {
-	char		 buf[BUFSIZ], hasd;
-	int		 i;
-	enum roffscale	 unit;
+	char		*endptr;
 
-	if ('\0' == *src)
+	dst->unit = def == SCALE_MAX ? SCALE_BU : def;
+	dst->scale = strtod(src, &endptr);
+	if (endptr == src)
 		return(0);
 
-	i = hasd = 0;
-
-	switch (*src) {
-	case '+':
-		src++;
-		break;
-	case '-':
-		buf[i++] = *src++;
-		break;
-	default:
-		break;
-	}
-
-	if ('\0' == *src)
-		return(0);
-
-	while (i < BUFSIZ) {
-		if ( ! isdigit((unsigned char)*src)) {
-			if ('.' != *src)
-				break;
-			else if (hasd)
-				break;
-			else
-				hasd = 1;
-		}
-		buf[i++] = *src++;
-	}
-
-	if (BUFSIZ == i || (*src && *(src + 1)))
-		return(0);
-
-	buf[i] = '\0';
-
-	switch (*src) {
+	switch (*endptr++) {
 	case 'c':
-		unit = SCALE_CM;
+		dst->unit = SCALE_CM;
 		break;
 	case 'i':
-		unit = SCALE_IN;
-		break;
-	case 'P':
-		unit = SCALE_PC;
-		break;
-	case 'p':
-		unit = SCALE_PT;
+		dst->unit = SCALE_IN;
 		break;
 	case 'f':
-		unit = SCALE_FS;
-		break;
-	case 'v':
-		unit = SCALE_VS;
-		break;
-	case 'm':
-		unit = SCALE_EM;
-		break;
-	case '\0':
-		if (SCALE_MAX == def)
-			return(0);
-		unit = def;
-		break;
-	case 'u':
-		unit = SCALE_BU;
+		dst->unit = SCALE_FS;
 		break;
 	case 'M':
-		unit = SCALE_MM;
+		dst->unit = SCALE_MM;
+		break;
+	case 'm':
+		dst->unit = SCALE_EM;
 		break;
 	case 'n':
-		unit = SCALE_EN;
+		dst->unit = SCALE_EN;
 		break;
+	case 'P':
+		dst->unit = SCALE_PC;
+		break;
+	case 'p':
+		dst->unit = SCALE_PT;
+		break;
+	case 'u':
+		dst->unit = SCALE_BU;
+		break;
+	case 'v':
+		dst->unit = SCALE_VS;
+		break;
+	case '\0':
+		endptr--;
+		/* FALLTHROUGH */
 	default:
-		return(0);
+		if (SCALE_MAX == def)
+			return(0);
+		dst->unit = def;
+		break;
 	}
 
-	/* FIXME: do this in the caller. */
-	if ((dst->scale = atof(buf)) < 0.0)
-		dst->scale = 0.0;
-	dst->unit = unit;
-	return(1);
+	return(*endptr == '\0' ? 2 : 1);
 }
 
 /*
@@ -142,11 +107,12 @@ void
 tblcalc(struct rofftbl *tbl, const struct tbl_span *sp,
 	size_t totalwidth)
 {
+	const struct tbl_opts	*opts;
 	const struct tbl_dat	*dp;
 	struct roffcol		*col;
 	size_t			 ewidth, xwidth;
 	int			 spans;
-	int			 icol, maxcol, necol, nxcol;
+	int			 icol, maxcol, necol, nxcol, quirkcol;
 
 	/*
 	 * Allocate the master column specifiers.  These will hold the
@@ -157,6 +123,7 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp,
 	assert(NULL == tbl->cols);
 	tbl->cols = mandoc_calloc((size_t)sp->opts->cols,
 	    sizeof(struct roffcol));
+	opts = sp->opts;
 
 	for (maxcol = -1; sp; sp = sp->next) {
 		if (TBL_SPAN_DATA != sp->pos)
@@ -173,14 +140,14 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp,
 			spans = dp->spans;
 			if (1 < spans)
 				continue;
-			icol = dp->layout->head->ident;
+			icol = dp->layout->col;
 			if (maxcol < icol)
 				maxcol = icol;
 			col = tbl->cols + icol;
 			col->flags |= dp->layout->flags;
 			if (dp->layout->flags & TBL_CELL_WIGN)
 				continue;
-			tblcalc_data(tbl, col, sp->opts, dp);
+			tblcalc_data(tbl, col, opts, dp);
 		}
 	}
 
@@ -230,13 +197,35 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp,
 	 */
 
 	if (nxcol && totalwidth) {
-		xwidth = totalwidth - 3*maxcol - xwidth;
+		xwidth = totalwidth - xwidth - 3*maxcol -
+		    (opts->opts & (TBL_OPT_BOX | TBL_OPT_DBOX) ?
+		     2 : !!opts->lvert + !!opts->rvert);
+
+		/*
+		 * Emulate a bug in GNU tbl width calculation that
+		 * manifests itself for large numbers of x-columns.
+		 * Emulating it for 5 x-columns gives identical
+		 * behaviour for up to 6 x-columns.
+		 */
+
+		if (nxcol == 5) {
+			quirkcol = xwidth % nxcol + 2;
+			if (quirkcol != 3 && quirkcol != 4)
+				quirkcol = -1;
+		} else
+			quirkcol = -1;
+
+		necol = 0;
+		ewidth = 0;
 		for (icol = 0; icol <= maxcol; icol++) {
 			col = tbl->cols + icol;
 			if ( ! (col->flags & TBL_CELL_WMAX))
 				continue;
-			col->width = xwidth / nxcol--;
-			xwidth -= col->width;
+			col->width = (double)xwidth * ++necol / nxcol
+			    - ewidth + 0.4995;
+			if (necol == quirkcol)
+				col->width--;
+			ewidth += col->width;
 		}
 	}
 }

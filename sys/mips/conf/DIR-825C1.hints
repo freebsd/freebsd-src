@@ -83,27 +83,27 @@ hint.ath.1.eeprom_firmware="pcib.0.bus.0.0.0.eeprom_firmware"
 # 64KiB u-boot
 hint.map.0.at="flash/spi0"
 hint.map.0.start=0x00000000
-hint.map.0.end=  0x00010000
+hint.map.0.end=0x00010000
 hint.map.0.name="u-boot"
 hint.map.0.readonly=1
 
 # 64KiB u-boot-env
 hint.map.1.at="flash/spi0"
 hint.map.1.start=0x00010000
-hint.map.1.end=  0x00020000
+hint.map.1.end=0x00020000
 hint.map.1.name="u-boot-env"
 hint.map.1.readonly=1
 
 # 1344KiB kernel 
 hint.map.2.at="flash/spi0"
 hint.map.2.start=0x00020000
-hint.map.2.end="search:0x00100000:0x10000:.!/bin/sh"
+hint.map.2.end="search:0x00020000:0x10000:.!/bin/sh"
 hint.map.2.name="kernel"
 hint.map.2.readonly=1
 
 # 14592KiB rootfs
 hint.map.3.at="flash/spi0"
-hint.map.3.start="search:0x00100000:0x10000:.!/bin/sh"
+hint.map.3.start="search:0x00020000:0x10000:.!/bin/sh"
 hint.map.3.end=0x00fb0000
 hint.map.3.name="rootfs"
 hint.map.3.readonly=1
@@ -111,20 +111,20 @@ hint.map.3.readonly=1
 # 192KiB lang -- remapped to cfg
 hint.map.4.at="flash/spi0"
 hint.map.4.start=0x00fb0000
-hint.map.4.end=  0x00fe0000
+hint.map.4.end=0x00fe0000
 hint.map.4.name="cfg"
 hint.map.4.readonly=0
 
 # 64KiB mac
 hint.map.5.at="flash/spi0"
 hint.map.5.start=0x00fe0000
-hint.map.5.end=  0x00ff0000
+hint.map.5.end=0x00ff0000
 hint.map.5.name="mac"
 hint.map.5.readonly=1
 
 # 64KiB art
 hint.map.6.at="flash/spi0"
 hint.map.6.start=0x00ff0000
-hint.map.6.end=  0x01000000
+hint.map.6.end=0x01000000
 hint.map.6.name="art"
 hint.map.6.readonly=1

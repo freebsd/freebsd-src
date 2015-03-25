@@ -33,8 +33,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/linker.h>
 
 #include <machine/stack.h>
+
+#include "linker_if.h"
 
 /*
  * Definitions for the instruction interpreter.
@@ -61,7 +64,7 @@ __FBSDID("$FreeBSD$");
  * These are set in the linker script. Their addresses will be
  * either the start or end of the exception table or index.
  */
-extern int extab_start, extab_end, exidx_start, exidx_end;
+extern int exidx_start, exidx_end;
 
 /*
  * Entry types.
@@ -104,13 +107,47 @@ expand_prel31(uint32_t prel31)
 	return ((int32_t)(prel31 & 0x7fffffffu) << 1) / 2;
 }
 
+struct search_context {
+	uint32_t addr;
+	caddr_t exidx_start;
+	caddr_t exidx_end;
+};
+
+static int
+module_search(linker_file_t lf, void *context)
+{
+	struct search_context *sc = context;
+	linker_symval_t symval;
+	c_linker_sym_t sym;
+
+	if (lf->address <= (caddr_t)sc->addr &&
+	    (lf->address + lf->size) >= (caddr_t)sc->addr) {
+		if ((LINKER_LOOKUP_SYMBOL(lf, "__exidx_start", &sym) == 0 ||
+		    LINKER_LOOKUP_SYMBOL(lf, "exidx_start", &sym) == 0) &&
+		    LINKER_SYMBOL_VALUES(lf, sym, &symval) == 0)
+			sc->exidx_start = symval.value;
+
+		if ((LINKER_LOOKUP_SYMBOL(lf, "__exidx_end", &sym) == 0 ||
+		    LINKER_LOOKUP_SYMBOL(lf, "exidx_end", &sym) == 0) &&
+		    LINKER_SYMBOL_VALUES(lf, sym, &symval) == 0)
+			sc->exidx_end = symval.value;
+
+		if (sc->exidx_start != NULL && sc->exidx_end != NULL)
+			return (1);
+		panic("Invalid module %s, no unwind tables\n", lf->filename);
+	}
+	return (0);
+}
+
 /*
  * Perform a binary search of the index table to find the function
  * with the largest address that doesn't exceed addr.
  */
 static struct unwind_idx *
-find_index(uint32_t addr)
+find_index(uint32_t addr, int search_modules)
 {
+	struct search_context sc;
+	caddr_t idx_start, idx_end;
 	unsigned int min, mid, max;
 	struct unwind_idx *start;
 	struct unwind_idx *item;
@@ -118,9 +155,23 @@ find_index(uint32_t addr)
 	uint32_t func_addr;
 
 	start = (struct unwind_idx *)&exidx_start;
+	idx_start = (caddr_t)&exidx_start;
+	idx_end = (caddr_t)&exidx_end;
+
+	/* This may acquire a lock */
+	if (search_modules) {
+		bzero(&sc, sizeof(sc));
+		sc.addr = addr;
+		if (linker_file_foreach(module_search, &sc) != 0 &&
+		   sc.exidx_start != NULL && sc.exidx_end != NULL) {
+			start = (struct unwind_idx *)sc.exidx_start;
+			idx_start = sc.exidx_start;
+			idx_end = sc.exidx_end;
+		}
+	}
 
 	min = 0;
-	max = (&exidx_end - &exidx_start) / 2;
+	max = (idx_end - idx_start) / sizeof(struct unwind_idx);
 
 	while (min != max) {
 		mid = min + (max - min + 1) / 2;
@@ -332,7 +383,7 @@ unwind_tab(struct unwind_state *state)
 }
 
 int
-unwind_stack_one(struct unwind_state *state)
+unwind_stack_one(struct unwind_state *state, int can_lock)
 {
 	struct unwind_idx *index;
 	int finished;
@@ -344,7 +395,7 @@ unwind_stack_one(struct unwind_state *state)
 	state->start_pc = state->registers[PC];
 
 	/* Find the item to run */
-	index = find_index(state->start_pc);
+	index = find_index(state->start_pc, can_lock);
 
 	finished = 0;
 	if (index->insn != EXIDX_CANTUNWIND) {

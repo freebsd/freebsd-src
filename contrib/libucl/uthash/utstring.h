@@ -39,7 +39,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdarg.h>
 
 #ifndef oom
-#define oom() exit(-1)
+#define oom abort
 #endif
 
 typedef struct {
@@ -54,8 +54,8 @@ do {                                                       \
   if (((s)->n - (s)->i) < (size_t)(amt)) {                 \
      (s)->d = (char*)realloc((s)->d, (s)->n + amt);        \
      if ((s)->d == NULL) oom();                            \
-     (s)->n += amt;                                        \
-     if ((s)->pd) *((s)->pd) = (s)->d;                     \
+     else {(s)->n += amt;                                  \
+     if ((s)->pd) *((s)->pd) = (s)->d;}                    \
   }                                                        \
 } while(0)
 
@@ -82,7 +82,7 @@ do {                                                       \
 do {                                                       \
    s = (UT_string*)calloc(1, sizeof(UT_string));          \
    if (!s) oom();                                          \
-   utstring_init(s);                                       \
+   else utstring_init(s);                                  \
 } while(0)
 
 #define utstring_renew(s)                                  \

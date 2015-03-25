@@ -35,15 +35,6 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_MCDI
 
-/* Shared memory layout */
-
-#define	MCDI_P1_DBL_OFST	0x0
-#define	MCDI_P2_DBL_OFST	0x1
-#define	MCDI_P1_PDU_OFST	0x2
-#define	MCDI_P2_PDU_OFST	0x42
-#define	MCDI_P1_REBOOT_OFST	0x1fe
-#define	MCDI_P2_REBOOT_OFST	0x1ff
-
 /*
  * A reboot/assertion causes the MCDI status word to be set after the
  * command word is set or a REBOOT event is sent. If we notice a reboot
@@ -72,12 +63,12 @@ efx_mcdi_request_start(
 
 	switch (emip->emi_port)	{
 	case 1:
-		pdur = MCDI_P1_PDU_OFST;
-		dbr = MCDI_P1_DBL_OFST;
+		pdur = MC_SMEM_P0_PDU_OFST >> 2;
+		dbr = MC_SMEM_P0_DOORBELL_OFST >> 2;
 		break;
 	case 2:
-		pdur = MCDI_P2_PDU_OFST;
-		dbr = MCDI_P2_DBL_OFST;
+		pdur = MC_SMEM_P1_PDU_OFST >> 2;
+		dbr = MC_SMEM_P1_DOORBELL_OFST >> 2;
 		break;
 	default:
 		EFSYS_ASSERT(0);
@@ -140,7 +131,9 @@ efx_mcdi_request_copyout(
 	unsigned int pdur;
 	efx_dword_t data;
 
-	pdur = (emip->emi_port == 1) ? MCDI_P1_PDU_OFST : MCDI_P2_PDU_OFST;
+	pdur = (emip->emi_port == 1)
+	    ? MC_SMEM_P0_PDU_OFST >> 2
+	    : MC_SMEM_P1_PDU_OFST >> 2;
 
 	/* Copy payload out if caller supplied buffer */
 	if (emrp->emr_out_buf != NULL) {
@@ -220,6 +213,14 @@ static			int
 efx_mcdi_poll_reboot(
 	__in		efx_nic_t *enp)
 {
+#ifndef EFX_GRACEFUL_MC_REBOOT
+	/*
+	 * This function is not being used properly.
+	 * Until its callers are fixed, it should always return 0.
+	 */
+	_NOTE(ARGUNUSED(enp))
+	return (0);
+#else
 	efx_mcdi_iface_t *emip = &(enp->en_u.siena.enu_mip);
 	unsigned int rebootr;
 	efx_dword_t dword;
@@ -227,8 +228,8 @@ efx_mcdi_poll_reboot(
 
 	EFSYS_ASSERT(emip->emi_port == 1 || emip->emi_port == 2);
 	rebootr = ((emip->emi_port == 1)
-	    ? MCDI_P1_REBOOT_OFST
-	    : MCDI_P2_REBOOT_OFST);
+	    ? MC_SMEM_P0_STATUS_OFST >> 2
+	    : MC_SMEM_P1_STATUS_OFST >> 2);
 
 	EFX_BAR_TBL_READD(enp, FR_CZ_MC_TREG_SMEM, rebootr, &dword, B_FALSE);
 	value = EFX_DWORD_FIELD(dword, EFX_DWORD_0);
@@ -243,6 +244,7 @@ efx_mcdi_poll_reboot(
 		return (EINTR);
 	else
 		return (EIO);
+#endif
 }
 
 	__checkReturn	boolean_t
@@ -281,7 +283,9 @@ efx_mcdi_request_poll(
 	}
 
 	EFSYS_ASSERT(emip->emi_port == 1 || emip->emi_port == 2);
-	pdur = (emip->emi_port == 1) ? MCDI_P1_PDU_OFST : MCDI_P2_PDU_OFST;
+	pdur = (emip->emi_port == 1)
+	    ? MC_SMEM_P0_PDU_OFST >> 2
+	    : MC_SMEM_P1_PDU_OFST >> 2;
 
 	/* Read the command header */
 	EFX_BAR_TBL_READD(enp, FR_CZ_MC_TREG_SMEM, pdur, &dword, B_FALSE);
@@ -532,7 +536,7 @@ efx_mcdi_version(
 
 version:
 	/* The bootrom doesn't understand BOOT_STATUS */
-	if (build == MC_CMD_GET_VERSION_OUT_FIRMWARE_BOOTROM) {
+	if (build == MC_CMD_GET_VERSION_OUT_FIRMWARE_SIENA_BOOTROM) {
 		status = EFX_MCDI_BOOT_ROM;
 		goto out;
 	}

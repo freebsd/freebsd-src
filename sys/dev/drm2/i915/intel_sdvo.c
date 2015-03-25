@@ -416,20 +416,20 @@ static void intel_sdvo_debug_write(struct intel_sdvo *intel_sdvo, u8 cmd,
 {
 	int i;
 
-	if ((drm_debug_flag & DRM_DEBUGBITS_KMS) == 0)
+	if ((drm_debug & DRM_DEBUGBITS_KMS) == 0)
 		return;
 	DRM_DEBUG_KMS("%s: W: %02X ", SDVO_NAME(intel_sdvo), cmd);
 	for (i = 0; i < args_len; i++)
 		printf("%02X ", ((const u8 *)args)[i]);
 	for (; i < 8; i++)
 		printf("   ");
-	for (i = 0; i < DRM_ARRAY_SIZE(sdvo_cmd_names); i++) {
+	for (i = 0; i < ARRAY_SIZE(sdvo_cmd_names); i++) {
 		if (cmd == sdvo_cmd_names[i].cmd) {
 			printf("(%s)", sdvo_cmd_names[i].name);
 			break;
 		}
 	}
-	if (i == DRM_ARRAY_SIZE(sdvo_cmd_names))
+	if (i == ARRAY_SIZE(sdvo_cmd_names))
 		printf("(%02X)", cmd);
 	printf("\n");
 }
@@ -525,7 +525,7 @@ intel_sdvo_read_response(struct intel_sdvo *intel_sdvo, void *response,
 			goto log_fail;
 	}
 
-	if ((drm_debug_flag & DRM_DEBUGBITS_KMS) != 0) {
+	if ((drm_debug & DRM_DEBUGBITS_KMS) != 0) {
 		if (status <= SDVO_CMD_STATUS_SCALING_NOT_SUPP)
 			printf("(%s)", cmd_status_names[status]);
 		else
@@ -541,15 +541,15 @@ intel_sdvo_read_response(struct intel_sdvo *intel_sdvo, void *response,
 					  SDVO_I2C_RETURN_0 + i,
 					  &((u8 *)response)[i]))
 			goto log_fail;
-		if ((drm_debug_flag & DRM_DEBUGBITS_KMS) != 0)
+		if ((drm_debug & DRM_DEBUGBITS_KMS) != 0)
 			printf(" %02X", ((u8 *)response)[i]);
 	}
-	if ((drm_debug_flag & DRM_DEBUGBITS_KMS) != 0)
+	if ((drm_debug & DRM_DEBUGBITS_KMS) != 0)
 		printf("\n");
 	return (true);
 
 log_fail:
-	if ((drm_debug_flag & DRM_DEBUGBITS_KMS) != 0)
+	if ((drm_debug & DRM_DEBUGBITS_KMS) != 0)
 		printf("... failed\n");
 	return (false);
 }
@@ -972,7 +972,7 @@ intel_sdvo_set_input_timings_for_mode(struct intel_sdvo *intel_sdvo,
 }
 
 static bool intel_sdvo_mode_fixup(struct drm_encoder *encoder,
-				  struct drm_display_mode *mode,
+				  const struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
 	struct intel_sdvo *intel_sdvo = to_intel_sdvo(encoder);
@@ -1332,7 +1332,6 @@ intel_sdvo_tmds_sink_detect(struct drm_connector *connector)
 			}
 		} else
 			status = connector_status_disconnected;
-		connector->display_info.raw_edid = NULL;
 		free(edid, DRM_MEM_KMS);
 	}
 
@@ -1406,7 +1405,6 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 			else
 				ret = connector_status_disconnected;
 
-			connector->display_info.raw_edid = NULL;
 			free(edid, DRM_MEM_KMS);
 		} else
 			ret = connector_status_connected;
@@ -1452,7 +1450,6 @@ static void intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 			drm_add_edid_modes(connector, edid);
 		}
 
-		connector->display_info.raw_edid = NULL;
 		free(edid, DRM_MEM_KMS);
 	}
 }
@@ -1547,7 +1544,7 @@ static void intel_sdvo_get_tv_modes(struct drm_connector *connector)
 	if (!intel_sdvo_read_response(intel_sdvo, &reply, 3))
 		return;
 
-	for (i = 0; i < DRM_ARRAY_SIZE(sdvo_tv_modes); i++)
+	for (i = 0; i < ARRAY_SIZE(sdvo_tv_modes); i++)
 		if (reply & (1 << i)) {
 			struct drm_display_mode *nmode;
 			nmode = drm_mode_duplicate(connector->dev,
@@ -1697,7 +1694,7 @@ intel_sdvo_set_property(struct drm_connector *connector,
 	uint8_t cmd;
 	int ret;
 
-	ret = drm_connector_property_set_value(connector, property, val);
+	ret = drm_object_property_set_value(&connector->base, property, val);
 	if (ret)
 		return ret;
 
@@ -1752,7 +1749,7 @@ intel_sdvo_set_property(struct drm_connector *connector,
 	} else if (IS_TV_OR_LVDS(intel_sdvo_connector)) {
 		temp_value = val;
 		if (intel_sdvo_connector->left == property) {
-			drm_connector_property_set_value(connector,
+			drm_object_property_set_value(&connector->base,
 							 intel_sdvo_connector->right, val);
 			if (intel_sdvo_connector->left_margin == temp_value)
 				return 0;
@@ -1764,7 +1761,7 @@ intel_sdvo_set_property(struct drm_connector *connector,
 			cmd = SDVO_CMD_SET_OVERSCAN_H;
 			goto set_value;
 		} else if (intel_sdvo_connector->right == property) {
-			drm_connector_property_set_value(connector,
+			drm_object_property_set_value(&connector->base,
 							 intel_sdvo_connector->left, val);
 			if (intel_sdvo_connector->right_margin == temp_value)
 				return 0;
@@ -1776,7 +1773,7 @@ intel_sdvo_set_property(struct drm_connector *connector,
 			cmd = SDVO_CMD_SET_OVERSCAN_H;
 			goto set_value;
 		} else if (intel_sdvo_connector->top == property) {
-			drm_connector_property_set_value(connector,
+			drm_object_property_set_value(&connector->base,
 							 intel_sdvo_connector->bottom, val);
 			if (intel_sdvo_connector->top_margin == temp_value)
 				return 0;
@@ -1788,7 +1785,7 @@ intel_sdvo_set_property(struct drm_connector *connector,
 			cmd = SDVO_CMD_SET_OVERSCAN_V;
 			goto set_value;
 		} else if (intel_sdvo_connector->bottom == property) {
-			drm_connector_property_set_value(connector,
+			drm_object_property_set_value(&connector->base,
 							 intel_sdvo_connector->top, val);
 			if (intel_sdvo_connector->bottom_margin == temp_value)
 				return 0;
@@ -1863,7 +1860,7 @@ static void intel_sdvo_enc_destroy(struct drm_encoder *encoder)
 		drm_mode_destroy(encoder->dev,
 				 intel_sdvo->sdvo_lvds_fixed_mode);
 
-	device_delete_child(intel_sdvo->base.base.dev->device,
+	device_delete_child(intel_sdvo->base.base.dev->dev,
 	    intel_sdvo->ddc_iic_bus);
 	intel_encoder_destroy(encoder);
 }
@@ -2294,7 +2291,7 @@ static bool intel_sdvo_tv_create_property(struct intel_sdvo *intel_sdvo,
 				i, tv_format_names[intel_sdvo_connector->tv_format_supported[i]]);
 
 	intel_sdvo->tv_format_index = intel_sdvo_connector->tv_format_supported[0];
-	drm_connector_attach_property(&intel_sdvo_connector->base.base,
+	drm_object_attach_property(&intel_sdvo_connector->base.base.base,
 				      intel_sdvo_connector->tv_format, 0);
 	return true;
 
@@ -2310,7 +2307,7 @@ static bool intel_sdvo_tv_create_property(struct intel_sdvo *intel_sdvo,
 		intel_sdvo_connector->name = \
 			drm_property_create_range(dev, 0, #name, 0, data_value[0]); \
 		if (!intel_sdvo_connector->name) return false; \
-		drm_connector_attach_property(connector, \
+		drm_object_attach_property(&connector->base, \
 					      intel_sdvo_connector->name, \
 					      intel_sdvo_connector->cur_##name); \
 		DRM_DEBUG_KMS(#name ": max %d, default %d, current %d\n", \
@@ -2347,7 +2344,7 @@ intel_sdvo_create_enhance_property_tv(struct intel_sdvo *intel_sdvo,
 		if (!intel_sdvo_connector->left)
 			return false;
 
-		drm_connector_attach_property(connector,
+		drm_object_attach_property(&connector->base,
 					      intel_sdvo_connector->left,
 					      intel_sdvo_connector->left_margin);
 
@@ -2356,7 +2353,7 @@ intel_sdvo_create_enhance_property_tv(struct intel_sdvo *intel_sdvo,
 		if (!intel_sdvo_connector->right)
 			return false;
 
-		drm_connector_attach_property(connector,
+		drm_object_attach_property(&connector->base,
 					      intel_sdvo_connector->right,
 					      intel_sdvo_connector->right_margin);
 		DRM_DEBUG_KMS("h_overscan: max %d, "
@@ -2384,7 +2381,7 @@ intel_sdvo_create_enhance_property_tv(struct intel_sdvo *intel_sdvo,
 		if (!intel_sdvo_connector->top)
 			return false;
 
-		drm_connector_attach_property(connector,
+		drm_object_attach_property(&connector->base,
 					      intel_sdvo_connector->top,
 					      intel_sdvo_connector->top_margin);
 
@@ -2394,7 +2391,7 @@ intel_sdvo_create_enhance_property_tv(struct intel_sdvo *intel_sdvo,
 		if (!intel_sdvo_connector->bottom)
 			return false;
 
-		drm_connector_attach_property(connector,
+		drm_object_attach_property(&connector->base,
 					      intel_sdvo_connector->bottom,
 					      intel_sdvo_connector->bottom_margin);
 		DRM_DEBUG_KMS("v_overscan: max %d, "
@@ -2426,7 +2423,7 @@ intel_sdvo_create_enhance_property_tv(struct intel_sdvo *intel_sdvo,
 		if (!intel_sdvo_connector->dot_crawl)
 			return false;
 
-		drm_connector_attach_property(connector,
+		drm_object_attach_property(&connector->base,
 					      intel_sdvo_connector->dot_crawl,
 					      intel_sdvo_connector->cur_dot_crawl);
 		DRM_DEBUG_KMS("dot crawl: current %d\n", response);
@@ -2553,7 +2550,7 @@ intel_sdvo_init_ddc_proxy(struct intel_sdvo *sdvo, struct drm_device *dev,
 	struct intel_sdvo_ddc_proxy_sc *sc;
 	int ret;
 
-	sdvo->ddc_iic_bus = device_add_child(dev->device,
+	sdvo->ddc_iic_bus = device_add_child(dev->dev,
 	    "intel_sdvo_ddc_proxy", sdvo_reg);
 	if (sdvo->ddc_iic_bus == NULL) {
 		DRM_ERROR("cannot create ddc proxy bus %d\n", sdvo_reg);
@@ -2564,7 +2561,7 @@ intel_sdvo_init_ddc_proxy(struct intel_sdvo *sdvo, struct drm_device *dev,
 	if (ret != 0) {
 		DRM_ERROR("cannot attach proxy bus %d error %d\n",
 		    sdvo_reg, ret);
-		device_delete_child(dev->device, sdvo->ddc_iic_bus);
+		device_delete_child(dev->dev, sdvo->ddc_iic_bus);
 		return (false);
 	}
 	sc = device_get_softc(sdvo->ddc_iic_bus);

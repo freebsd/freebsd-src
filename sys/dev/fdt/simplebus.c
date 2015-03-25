@@ -38,26 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-struct simplebus_range {
-	uint64_t bus;
-	uint64_t host;
-	uint64_t size;
-};
-
-struct simplebus_softc {
-	device_t dev;
-	phandle_t node;
-
-	struct simplebus_range *ranges;
-	int nranges;
-
-	pcell_t acells, scells;
-};
-
-struct simplebus_devinfo {
-	struct ofw_bus_devinfo	obdinfo;
-	struct resource_list	rl;
-};
+#include <dev/fdt/simplebus.h>
 
 /*
  * Bus interface.
@@ -115,11 +96,9 @@ static device_method_t	simplebus_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t simplebus_driver = {
-	"simplebus",
-	simplebus_methods,
-	sizeof(struct simplebus_softc)
-};
+DEFINE_CLASS_0(simplebus, simplebus_driver, simplebus_methods,
+    sizeof(struct simplebus_softc));
+
 static devclass_t simplebus_devclass;
 EARLY_DRIVER_MODULE(simplebus, ofwbus, simplebus_driver, simplebus_devclass,
     0, 0, BUS_PASS_BUS);

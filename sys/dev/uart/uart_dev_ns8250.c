@@ -45,6 +45,9 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
+#ifdef FDT
+#include <dev/uart/uart_cpu_fdt.h>
+#endif
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_dev_ns8250.h>
 
@@ -377,6 +380,14 @@ struct uart_class uart_ns8250_class = {
 	.uc_range = 8,
 	.uc_rclk = DEFAULT_RCLK
 };
+
+#ifdef FDT
+static struct ofw_compat_data compat_data[] = {
+	{"ns16550",		(uintptr_t)&uart_ns8250_class},
+	{NULL,			(uintptr_t)NULL},
+};
+UART_FDT_CLASS_AND_DEVICE(compat_data);
+#endif
 
 #define	SIGCHG(c, i, s, d)				\
 	if (c) {					\
