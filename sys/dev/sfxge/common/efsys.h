@@ -509,16 +509,26 @@ typedef struct efsys_mem_s {
 
 /* BAR */
 
+#define	SFXGE_LOCK_NAME_MAX	16
+
 typedef struct efsys_bar_s {
 	struct mtx		esb_lock;
+	char			esb_lock_name[SFXGE_LOCK_NAME_MAX];
 	bus_space_tag_t		esb_tag;
 	bus_space_handle_t	esb_handle;
 	int			esb_rid;
 	struct resource		*esb_res;
 } efsys_bar_t;
 
-#define	SFXGE_BAR_LOCK_INIT(_esbp, _name)				\
-	mtx_init(&(_esbp)->esb_lock, (_name), NULL, MTX_DEF)
+#define	SFXGE_BAR_LOCK_INIT(_esbp, _ifname)				\
+	do {								\
+		snprintf((_esbp)->esb_lock_name,			\
+			 sizeof((_esbp)->esb_lock_name),		\
+			 "%s:bar", (_ifname));				\
+		mtx_init(&(_esbp)->esb_lock, (_esbp)->esb_lock_name,	\
+			 NULL, MTX_DEF);				\
+	_NOTE(CONSTANTCONDITION)					\
+	} while (B_FALSE)
 #define	SFXGE_BAR_LOCK_DESTROY(_esbp)					\
 	mtx_destroy(&(_esbp)->esb_lock)
 #define	SFXGE_BAR_LOCK(_esbp)						\
@@ -721,13 +731,35 @@ typedef	clock_t	efsys_timestamp_t;
 
 /* LOCK */
 
-typedef struct mtx	efsys_lock_t;
+typedef struct efsys_lock_s {
+	struct mtx	lock;
+	char		lock_name[SFXGE_LOCK_NAME_MAX];
+} efsys_lock_t;
+
+#define	SFXGE_EFSYS_LOCK_INIT(_eslp, _ifname, _label)			\
+	do {								\
+		efsys_lock_t *__eslp = (_eslp);				\
+									\
+		snprintf((__eslp)->lock_name,				\
+			 sizeof((__eslp)->lock_name),			\
+			 "%s:%s", (_ifname), (_label));			\
+		mtx_init(&(__eslp)->lock, (__eslp)->lock_name,		\
+			 NULL, MTX_DEF);				\
+	} while (B_FALSE)
+#define	SFXGE_EFSYS_LOCK_DESTROY(_eslp)					\
+	mtx_destroy(&(_eslp)->lock)
+#define	SFXGE_EFSYS_LOCK(_eslp)						\
+	mtx_lock(&(_eslp)->lock)
+#define	SFXGE_EFSYS_UNLOCK(_eslp)					\
+	mtx_unlock(&(_eslp)->lock)
+#define	SFXGE_EFSYS_LOCK_ASSERT_OWNED(_eslp)				\
+	mtx_assert(&(_eslp)->lock, MA_OWNED)
 
 #define	EFSYS_LOCK_MAGIC	0x000010c4
 
 #define	EFSYS_LOCK(_lockp, _state)					\
 	do {								\
-		mtx_lock(_lockp);					\
+		SFXGE_EFSYS_LOCK(_lockp);				\
 		(_state) = EFSYS_LOCK_MAGIC;				\
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
@@ -736,7 +768,7 @@ typedef struct mtx	efsys_lock_t;
 	do {								\
 		if ((_state) != EFSYS_LOCK_MAGIC)			\
 			KASSERT(B_FALSE, ("not locked"));		\
-		mtx_unlock(_lockp);					\
+		SFXGE_EFSYS_UNLOCK(_lockp);				\
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 

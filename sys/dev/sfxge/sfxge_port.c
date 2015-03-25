@@ -583,7 +583,7 @@ sfxge_port_init(struct sfxge_softc *sc)
 
 	port->sc = sc;
 
-	SFXGE_PORT_LOCK_INIT(port, "sfxge_port");
+	SFXGE_PORT_LOCK_INIT(port, device_get_nameunit(sc->dev));
 
 	port->phy_stats.decode_buf = malloc(EFX_PHY_NSTATS * sizeof(uint32_t),
 					    M_SFXGE, M_WAITOK | M_ZERO);

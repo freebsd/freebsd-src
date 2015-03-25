@@ -337,7 +337,9 @@ sfxge_ifnet_init(struct ifnet *ifp, struct sfxge_softc *sc)
 	ifp->if_snd.ifq_drv_maxlen = sc->txq_entries - 1;
 	IFQ_SET_READY(&ifp->if_snd);
 
-	mtx_init(&sc->tx_lock, "txq", NULL, MTX_DEF);
+	snprintf(sc->tx_lock_name, sizeof(sc->tx_lock_name),
+		 "%s:tx", device_get_nameunit(sc->dev));
+	mtx_init(&sc->tx_lock, sc->tx_lock_name, NULL, MTX_DEF);
 #endif
 
 	if ((rc = sfxge_port_ifmedia_init(sc)) != 0)
@@ -375,7 +377,8 @@ sfxge_bar_init(struct sfxge_softc *sc)
 	}
 	esbp->esb_tag = rman_get_bustag(esbp->esb_res);
 	esbp->esb_handle = rman_get_bushandle(esbp->esb_res);
-	SFXGE_BAR_LOCK_INIT(esbp, "sfxge_efsys_bar");
+
+	SFXGE_BAR_LOCK_INIT(esbp, device_get_nameunit(sc->dev));
 
 	return (0);
 }
@@ -400,7 +403,7 @@ sfxge_create(struct sfxge_softc *sc)
 
 	dev = sc->dev;
 
-	SFXGE_ADAPTER_LOCK_INIT(sc, "sfxge_softc");
+	SFXGE_ADAPTER_LOCK_INIT(sc, device_get_nameunit(sc->dev));
 
 	sc->max_rss_channels = 0;
 	snprintf(rss_param_name, sizeof(rss_param_name),
@@ -434,7 +437,8 @@ sfxge_create(struct sfxge_softc *sc)
 	KASSERT(error == 0, ("Family should be filtered by sfxge_probe()"));
 
 	/* Create the common code nic object. */
-	mtx_init(&sc->enp_lock, "sfxge_nic", NULL, MTX_DEF);
+	SFXGE_EFSYS_LOCK_INIT(&sc->enp_lock,
+			      device_get_nameunit(sc->dev), "nic");
 	if ((error = efx_nic_create(sc->family, (efsys_identifier_t *)sc,
 	    &sc->bar, &sc->enp_lock, &enp)) != 0)
 		goto fail3;
@@ -536,7 +540,7 @@ fail_tx_ring_entries:
 fail_rx_ring_entries:
 	sc->enp = NULL;
 	efx_nic_destroy(enp);
-	mtx_destroy(&sc->enp_lock);
+	SFXGE_EFSYS_LOCK_DESTROY(&sc->enp_lock);
 
 fail3:
 	sfxge_bar_fini(sc);
