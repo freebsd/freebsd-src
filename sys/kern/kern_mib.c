@@ -90,9 +90,6 @@ SYSCTL_ROOT_NODE(OID_AUTO, regression, CTLFLAG_RW, 0,
 SYSCTL_STRING(_kern, OID_AUTO, ident, CTLFLAG_RD|CTLFLAG_MPSAFE,
     kern_ident, 0, "Kernel identifier");
 
-SYSCTL_STRING(_kern, KERN_OSRELEASE, osrelease, CTLFLAG_RD|CTLFLAG_MPSAFE|
-    CTLFLAG_CAPRD, osrelease, 0, "Operating system release");
-
 SYSCTL_INT(_kern, KERN_OSREV, osrevision, CTLFLAG_RD|CTLFLAG_CAPRD,
     SYSCTL_NULL_INT_PTR, BSD, "Operating system revision");
 
@@ -104,13 +101,6 @@ SYSCTL_STRING(_kern, OID_AUTO, compiler_version, CTLFLAG_RD|CTLFLAG_MPSAFE,
 
 SYSCTL_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD|CTLFLAG_MPSAFE|
     CTLFLAG_CAPRD, ostype, 0, "Operating system type");
-
-/*
- * NOTICE: The *userland* release date is available in
- * /usr/include/osreldate.h
- */
-SYSCTL_INT(_kern, KERN_OSRELDATE, osreldate, CTLFLAG_RD|CTLFLAG_CAPRD,
-    &osreldate, 0, "Kernel release date");
 
 SYSCTL_INT(_kern, KERN_MAXPROC, maxproc, CTLFLAG_RDTUN,
     &maxproc, 0, "Maximum number of processes");
@@ -428,6 +418,48 @@ sysctl_hostid(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern, KERN_HOSTID, hostid,
     CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
     NULL, 0, sysctl_hostid, "LU", "Host ID");
+
+/*
+ * The osrelease string is copied from the global (osrelease in vers.c) into
+ * prison0 by a sysinit and is inherited by child jails if not changed at jail
+ * creation, so we always return the copy from the current prison data.
+ */
+static int
+sysctl_osrelease(SYSCTL_HANDLER_ARGS)
+{
+	struct prison *pr;
+
+	pr = req->td->td_ucred->cr_prison;
+	return (SYSCTL_OUT(req, pr->pr_osrelease, strlen(pr->pr_osrelease) + 1));
+
+}
+
+SYSCTL_PROC(_kern, KERN_OSRELEASE, osrelease,
+    CTLTYPE_STRING | CTLFLAG_CAPRD | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    NULL, 0, sysctl_osrelease, "A", "Operating system release");
+
+/*
+ * The osreldate number is copied from the global (osreldate in vers.c) into
+ * prison0 by a sysinit and is inherited by child jails if not changed at jail
+ * creation, so we always return the value from the current prison data.
+ */
+static int
+sysctl_osreldate(SYSCTL_HANDLER_ARGS)
+{
+	struct prison *pr;
+
+	pr = req->td->td_ucred->cr_prison;
+	return (SYSCTL_OUT(req, &pr->pr_osreldate, sizeof(pr->pr_osreldate)));
+
+}
+
+/*
+ * NOTICE: The *userland* release date is available in
+ * /usr/include/osreldate.h
+ */
+SYSCTL_PROC(_kern, KERN_OSRELDATE, osreldate,
+    CTLTYPE_INT | CTLFLAG_CAPRD | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    NULL, 0, sysctl_osreldate, "I", "Kernel release date");
 
 SYSCTL_NODE(_kern, OID_AUTO, features, CTLFLAG_RD, 0, "Kernel Features");
 
