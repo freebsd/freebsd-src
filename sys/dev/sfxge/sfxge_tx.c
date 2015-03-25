@@ -109,6 +109,26 @@ SYSCTL_INT(_hw_sfxge, OID_AUTO, tx_dpl_put_max, CTLFLAG_RDTUN,
 	   "Maximum number of any packets in deferred packet put-list");
 
 
+static const struct {
+	const char *name;
+	size_t offset;
+} sfxge_tx_stats[] = {
+#define	SFXGE_TX_STAT(name, member) \
+	{ #name, offsetof(struct sfxge_txq, member) }
+	SFXGE_TX_STAT(tso_bursts, tso_bursts),
+	SFXGE_TX_STAT(tso_packets, tso_packets),
+	SFXGE_TX_STAT(tso_long_headers, tso_long_headers),
+	SFXGE_TX_STAT(tso_pdrop_too_many, tso_pdrop_too_many),
+	SFXGE_TX_STAT(tso_pdrop_no_rsrc, tso_pdrop_no_rsrc),
+	SFXGE_TX_STAT(tx_collapses, collapses),
+	SFXGE_TX_STAT(tx_drops, drops),
+	SFXGE_TX_STAT(tx_get_overflow, get_overflow),
+	SFXGE_TX_STAT(tx_get_non_tcp_overflow, get_non_tcp_overflow),
+	SFXGE_TX_STAT(tx_put_overflow, put_overflow),
+	SFXGE_TX_STAT(tx_netdown_drops, netdown_drops),
+};
+
+
 /* Forward declarations. */
 static void sfxge_tx_qdpl_service(struct sfxge_txq *txq);
 static void sfxge_tx_qlist_post(struct sfxge_txq *txq);
@@ -1258,6 +1278,30 @@ fail:
 	return (rc);
 }
 
+static int
+sfxge_txq_stat_init(struct sfxge_txq *txq, struct sysctl_oid *txq_node)
+{
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(txq->sc->dev);
+	struct sysctl_oid *stat_node;
+	unsigned int id;
+
+	stat_node = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(txq_node), OID_AUTO,
+				    "stats", CTLFLAG_RD, NULL,
+				    "Tx queue statistics");
+	if (stat_node == NULL)
+		return (ENOMEM);
+
+	for (id = 0; id < nitems(sfxge_tx_stats); id++) {
+		SYSCTL_ADD_ULONG(
+		    ctx, SYSCTL_CHILDREN(stat_node), OID_AUTO,
+		    sfxge_tx_stats[id].name, CTLFLAG_RD | CTLFLAG_STATS,
+		    (unsigned long *)((caddr_t)txq + sfxge_tx_stats[id].offset),
+		    "");
+	}
+
+	return (0);
+}
+
 /**
  * Destroy a transmit queue.
  */
@@ -1411,6 +1455,10 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 			"put_hiwat", CTLFLAG_RD | CTLFLAG_STATS,
 			&stdp->std_put_hiwat, 0, "");
 
+	rc = sfxge_txq_stat_init(txq, txq_node);
+	if (rc != 0)
+		goto fail_txq_stat_init;
+
 	txq->type = type;
 	txq->evq_index = evq_index;
 	txq->txq_index = txq_index;
@@ -1418,6 +1466,7 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 
 	return (0);
 
+fail_txq_stat_init:
 fail_dpl_node:
 fail_tx_dpl_put_max:
 fail_tx_dpl_get_max:
@@ -1435,25 +1484,6 @@ fail:
 
 	return (rc);
 }
-
-static const struct {
-	const char *name;
-	size_t offset;
-} sfxge_tx_stats[] = {
-#define	SFXGE_TX_STAT(name, member) \
-	{ #name, offsetof(struct sfxge_txq, member) }
-	SFXGE_TX_STAT(tso_bursts, tso_bursts),
-	SFXGE_TX_STAT(tso_packets, tso_packets),
-	SFXGE_TX_STAT(tso_long_headers, tso_long_headers),
-	SFXGE_TX_STAT(tso_pdrop_too_many, tso_pdrop_too_many),
-	SFXGE_TX_STAT(tso_pdrop_no_rsrc, tso_pdrop_no_rsrc),
-	SFXGE_TX_STAT(tx_collapses, collapses),
-	SFXGE_TX_STAT(tx_drops, drops),
-	SFXGE_TX_STAT(tx_get_overflow, get_overflow),
-	SFXGE_TX_STAT(tx_get_non_tcp_overflow, get_non_tcp_overflow),
-	SFXGE_TX_STAT(tx_put_overflow, put_overflow),
-	SFXGE_TX_STAT(tx_netdown_drops, netdown_drops),
-};
 
 static int
 sfxge_tx_stat_handler(SYSCTL_HANDLER_ARGS)
