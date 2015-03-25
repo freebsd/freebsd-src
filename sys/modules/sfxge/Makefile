@@ -1,11 +1,13 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 KMOD=	sfxge
 
 SFXGE= ${.CURDIR}/../../dev/sfxge
 
 SRCS=	device_if.h bus_if.h pci_if.h
-SRCS+=	opt_inet.h opt_sched.h
+SRCS+=	opt_inet.h opt_inet6.h opt_sched.h
 
 .PATH: ${.CURDIR}/../../dev/sfxge
 SRCS+=	sfxge.c sfxge_dma.c sfxge_ev.c
@@ -26,5 +28,17 @@ SRCS+=	siena_sram.c siena_vpd.c
 SRCS+=	siena_flash.h siena_impl.h
 
 DEBUG_FLAGS= -DDEBUG=1
+
+.if !defined(KERNBUILDDIR)
+.if ${MK_INET_SUPPORT} != "no"
+opt_inet.h:
+	@echo "#define INET 1" > ${.TARGET}
+.endif
+
+.if ${MK_INET6_SUPPORT} != "no"
+opt_inet6.h:
+	@echo "#define INET6 1" > ${.TARGET}
+.endif
+.endif
 
 .include <bsd.kmod.mk>
