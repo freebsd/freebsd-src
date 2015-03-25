@@ -101,6 +101,7 @@
 #define	test_fault_ccall_code_noexecute			NULL
 #define	test_fault_ccall_data_execute			NULL
 #define	test_sandbox_simple_method			NULL
+#define	test_sandbox_simple_method_unwind		NULL
 #define	test_sandbox_cp2_bound_catch			NULL
 #define	test_sandbox_cp2_bound_nocatch			NULL
 #define	test_sandbox_cp2_perm_load_catch		NULL

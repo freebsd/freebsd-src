@@ -98,6 +98,11 @@ extern struct cheritest_child_state *ccsp;
 					       but not checkable */
 #define CT_FLAG_SLOW		0x00000040  /* Test is expected to take a 
 					       long time to run */
+#define	CT_FLAG_SIGNAL_UNWIND	0x00000080  /* Should fault and unwind
+					       trusted stack; checks signum
+					       and result. */
+
+#define	CHERITEST_SANDBOX_UNWOUND	0x123456789
 
 struct cheri_test {
 	const char	*ct_name;
@@ -195,6 +200,8 @@ extern struct sandbox_class	*cheritest_classp;
 extern struct sandbox_object	*cheritest_objectp;
 
 void	test_sandbox_simple_method(const struct cheri_test *ctp,
+	    int methodnum);
+void	test_sandbox_simple_method_unwind(const struct cheri_test *ctp,
 	    int methodnum);
 void	test_sandbox_md5(const struct cheri_test *ctp);
 void	test_sandbox_md5_ccall(const struct cheri_test *ctp);

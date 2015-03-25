@@ -52,6 +52,7 @@
 #include <machine/trap.h>
 
 #include <cheri/cheri_fd.h>
+#include <cheri/cheri_stack.h>
 #include <cheri/sandbox.h>
 #endif
 
@@ -69,6 +70,7 @@
 
 #include <libxo/xo.h>
 
+#include "cheritest.h"
 #include "cheritest.h"
 #ifdef LIST_ONLY
 #include "cheritest_list_only.h"
@@ -539,9 +541,9 @@ static const struct cheri_test cheri_tests[] = {
 
 	{ .ct_name = "test_sandbox_spin",
 	  .ct_desc = "spin in a libcheri sandbox",
-	  .ct_func_arg = test_sandbox_simple_method,
+	  .ct_func_arg = test_sandbox_simple_method_unwind,
 	  .ct_arg = CHERITEST_HELPER_OP_SPIN,
-	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_SLOW,
+	  .ct_flags = CT_FLAG_SIGNAL_UNWIND | CT_FLAG_SLOW,
 	  .ct_signum = SIGALRM },
 
 	{ .ct_name = "test_sandbox_syscall",
@@ -711,6 +713,7 @@ list_tests(void)
 static void
 signal_handler(int signum, siginfo_t *info __unused, void *vuap)
 {
+	int ret;
 	struct cheri_frame *cfp;
 	ucontext_t *uap;
 
@@ -723,7 +726,14 @@ signal_handler(int signum, siginfo_t *info __unused, void *vuap)
 	ccsp->ccs_signum = signum;
 	ccsp->ccs_mips_cause = uap->uc_mcontext.cause;
 	ccsp->ccs_cp2_cause = cfp->cf_capcause;
-	_exit(EX_SOFTWARE);
+
+	/* Unwind the sandbox stack or exit. */
+	ret = cheri_stack_unwind(uap, CHERITEST_SANDBOX_UNWOUND, 0);
+	if (ret < 0) {
+		printf("%s: cheri_stack_unwind failed\n", __func__);
+		_exit(EX_SOFTWARE);
+	} else if (ret == 0)
+		_exit(EX_SOFTWARE);
 }
 
 /* Maximum size of stdout data we will check if called for by a test. */
@@ -852,7 +862,7 @@ cheritest_run_test(const struct cheri_test *ctp)
 		    "Child returned negative signal %d", ccsp->ccs_signum);
 		goto fail;
 	}
-	if (ctp->ct_flags & CT_FLAG_SIGNAL &&
+	if (ctp->ct_flags & (CT_FLAG_SIGNAL | CT_FLAG_SIGNAL_UNWIND) &&
 	    ccsp->ccs_signum != ctp->ct_signum) {
 		snprintf(reason, sizeof(reason), "Expected signal %d, got %d",
 		    ctp->ct_signum, ccsp->ccs_signum);

@@ -87,6 +87,41 @@ test_sandbox_simple_method(const struct cheri_test *ctp __unused,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap());
 
+	alarm(0);
+
+	/*
+	 * XXXRW: Pretty soon we'll want to break this one function out into
+	 * test-specific functions that have more rich definitions of
+	 * 'success'.
+	 */
+	cheritest_success();
+}
+
+void
+test_sandbox_simple_method_unwind(const struct cheri_test *ctp __unused,
+    int methodnum)
+{
+	register_t v;
+
+	/*
+	 * Test must be done in 10 seconds or less: not the ideal way to do
+	 * this, as we'd rather time it out in the parent, I think, but works
+	 * fine in practice.
+	 */
+	alarm(10);
+
+	v = sandbox_object_cinvoke(cheritest_objectp,
+	    methodnum,
+	    0, 0, 0, 0, 0, 0, 0,
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap(), cheri_zerocap());
+
+	alarm(0);
+
+	if (v != CHERITEST_SANDBOX_UNWOUND)
+		cheritest_failure_errx("Sandbox not unwound");
+
 	/*
 	 * XXXRW: Pretty soon we'll want to break this one function out into
 	 * test-specific functions that have more rich definitions of
