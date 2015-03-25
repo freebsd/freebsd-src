@@ -33,14 +33,10 @@
 
 #include <stand.h>
 #include <sys/types.h>
-#include <sys/stddef.h>
 #include <sys/stdint.h>
 #include <limits.h>
 #include <string.h>
 #include <machine/stdarg.h>
-
-
-typedef __ptrdiff_t ptrdiff_t;
 
 typedef struct FILE
 {

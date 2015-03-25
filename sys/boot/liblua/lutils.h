@@ -30,16 +30,20 @@
 
 #define lua_create() lua_newstate(lua_realloc, NULL)
 
-int lua_print(lua_State *L);
-
-int lua_perform(lua_State *L);
-
-void * lua_realloc(void *ud, void *ptr, size_t osize, size_t nsize);
-
-int ldo_string(lua_State *L, const char *str, size_t size);
-
-int ldo_file(lua_State *L, const char *filename);
-
-void lregister(const char *tname, const char *fname, int (*fptr)(lua_State *));
-
-void register_utils(lua_State *L);
+int	 lua_perform(lua_State *);
+int	 lua_print(lua_State *);
+int	 lua_getchar(lua_State *);
+int	 lua_ischar(lua_State *);
+int	 lua_gets(lua_State *);
+int	 lua_time(lua_State *);
+int	 lua_delay(lua_State *);
+int	 lua_getenv(lua_State *);
+void 	*lua_realloc(void *, void *, size_t, size_t);
+int	 ldo_string(lua_State *, const char *, size_t);
+int	 ldo_file(lua_State *, const char *);
+int	 lua_include(lua_State *);
+int	 lua_openfile(lua_State *);
+int	 lua_closefile(lua_State *L);
+int	 lua_readfile(lua_State *L);
+void	 lregister(lua_State *, const char *, const char *, int (*fptr)(lua_State *));
+void	 register_utils(lua_State *);

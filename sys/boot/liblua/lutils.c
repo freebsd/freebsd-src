@@ -30,11 +30,17 @@ __FBSDID("$FreeBSD$");
 
 #include <src/lua.h>
 #include <lstd.h>
+#include <lutils.h>
+
+/* XXX this needs to be fixed */
+extern void parse(int *, char ***, const char *);
+extern int perform(int, char **);
+extern void delay(int);
 
 int
 lua_perform(lua_State *L)
 {
-	int	argc, ret;
+	int	argc;
 	char	**argv;
 	int	res = -1;
 	int	n = lua_gettop(L);
@@ -56,7 +62,8 @@ lua_getchar(lua_State *L)
 	return 1;
 }
 
-int lua_ischar(lua_State *L)
+int
+lua_ischar(lua_State *L)
 {
 	lua_pushboolean(L, ischar());
 	return 1;
@@ -127,7 +134,7 @@ typedef struct data_chunk
 	size_t size;
 } data_chunk;
 
-const char *
+static const char *
 read_chunk(lua_State *L, void *chunk, size_t *sz)
 {
 	data_chunk * ds = (data_chunk *)chunk;
@@ -220,9 +227,6 @@ int
 lua_openfile(lua_State *L)
 {
 	const char	*str;
-	int		fd;
-	int		r;
-	struct stat	st;
 
 	if (lua_gettop(L) != 1)
 	{
@@ -326,7 +330,7 @@ typedef struct utils_func
 	const char *name;
 } utils_func;
 
-utils_func reg_funcs[] = {
+static utils_func reg_funcs[] = {
 			{lua_perform, "loader", "perform"},
 			{lua_delay, "loader", "delay"},
 			{lua_time, "loader", "time"},

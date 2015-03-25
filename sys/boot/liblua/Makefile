@@ -14,6 +14,8 @@ SRCS=	lapi.c lcode.c lctype.c ldebug.c ldo.c ldump.c lfunc.c lgc.c llex.c \
 # Our utilities.
 SRCS+=	lstd.c lutils.c
 
+WARNS=	3
+
 CFLAGS+= -I${.CURDIR} -DBOOT_LUA -ffreestanding -nostdlib -fno-stack-protector
 CFLAGS+= -I${LUA_PATH}
 
