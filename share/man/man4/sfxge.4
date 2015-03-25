@@ -76,6 +76,32 @@ The
 .Nm
 driver supports all 10Gb Ethernet adapters based on Solarflare SFC9000
 family controllers.
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+Actual values can be obtained using
+.Xr sysctl 8 .
+.Bl -tag -width indent
+.It Va hw.sfxge.rx_ring
+Maximum number of descriptors in a receive queue ring.
+Supported values are: 512, 1024, 2048 and 4096.
+.It Va hw.sfxge.tx_ring
+Maximum number of descriptors in a transmit queue ring.
+Supported values are: 512, 1024, 2048 and 4096.
+.It Va hw.sfxge.tx_dpl_get_max
+The maximum length of the deferred packet 'get-list' for queued transmit
+packets, used only if the transmit queue lock can be acquired.
+If packet is dropped, \fItx_early_drops\fR counter grows and local sender
+gets ENOBUFS error.
+Value must be greater than 0.
+.It Va hw.sfxge.tx_dpl_put_max
+The maximum length of the deferred packet 'put-list' for queued transmit
+packets, used if the transmit queue lock cannot be acquired.
+If packet is dropped, \fItx_early_drops\fR counter grows and local sender
+gets ENOBUFS error.
+Value must be greater or equal to 0.
 .Sh SUPPORT
 For general information and support,
 go to the Solarflare support website at:
