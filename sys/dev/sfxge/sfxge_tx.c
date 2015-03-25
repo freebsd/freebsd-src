@@ -649,7 +649,7 @@ sfxge_if_qflush(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 
-	for (i = 0; i < SFXGE_TXQ_IP_TCP_UDP_CKSUM + SFXGE_TX_SCALE(sc); i++)
+	for (i = 0; i < sc->txq_count; i++)
 		sfxge_tx_qdpl_flush(sc->txq[i]);
 }
 
@@ -1279,13 +1279,9 @@ sfxge_tx_stop(struct sfxge_softc *sc)
 {
 	int index;
 
-	index = SFXGE_TX_SCALE(sc);
+	index = sc->txq_count;
 	while (--index >= 0)
-		sfxge_tx_qstop(sc, SFXGE_TXQ_IP_TCP_UDP_CKSUM + index);
-
-	sfxge_tx_qstop(sc, SFXGE_TXQ_IP_CKSUM);
-
-	sfxge_tx_qstop(sc, SFXGE_TXQ_NON_CKSUM);
+		sfxge_tx_qstop(sc, index);
 
 	/* Tear down the transmit module */
 	efx_tx_fini(sc->enp);
@@ -1301,30 +1297,17 @@ sfxge_tx_start(struct sfxge_softc *sc)
 	if ((rc = efx_tx_init(sc->enp)) != 0)
 		return (rc);
 
-	if ((rc = sfxge_tx_qstart(sc, SFXGE_TXQ_NON_CKSUM)) != 0)
-		goto fail;
-
-	if ((rc = sfxge_tx_qstart(sc, SFXGE_TXQ_IP_CKSUM)) != 0)
-		goto fail2;
-
-	for (index = 0; index < SFXGE_TX_SCALE(sc); index++) {
-		if ((rc = sfxge_tx_qstart(sc, SFXGE_TXQ_IP_TCP_UDP_CKSUM +
-		    index)) != 0)
-			goto fail3;
+	for (index = 0; index < sc->txq_count; index++) {
+		if ((rc = sfxge_tx_qstart(sc, index)) != 0)
+			goto fail;
 	}
 
 	return (0);
 
-fail3:
-	while (--index >= 0)
-		sfxge_tx_qstop(sc, SFXGE_TXQ_IP_TCP_UDP_CKSUM + index);
-
-	sfxge_tx_qstop(sc, SFXGE_TXQ_IP_CKSUM);
-
-fail2:
-	sfxge_tx_qstop(sc, SFXGE_TXQ_NON_CKSUM);
-
 fail:
+	while (--index >= 0)
+		sfxge_tx_qstop(sc, index);
+
 	efx_tx_fini(sc->enp);
 
 	return (rc);
@@ -1535,9 +1518,7 @@ sfxge_tx_stat_handler(SYSCTL_HANDLER_ARGS)
 
 	/* Sum across all TX queues */
 	sum = 0;
-	for (index = 0;
-	     index < SFXGE_TXQ_IP_TCP_UDP_CKSUM + SFXGE_TX_SCALE(sc);
-	     index++)
+	for (index = 0; index < sc->txq_count; index++)
 		sum += *(unsigned long *)((caddr_t)sc->txq[index] +
 					  sfxge_tx_stats[id].offset);
 
@@ -1570,12 +1551,11 @@ sfxge_tx_fini(struct sfxge_softc *sc)
 {
 	int index;
 
-	index = SFXGE_TX_SCALE(sc);
+	index = sc->txq_count;
 	while (--index >= 0)
-		sfxge_tx_qfini(sc, SFXGE_TXQ_IP_TCP_UDP_CKSUM + index);
+		sfxge_tx_qfini(sc, index);
 
-	sfxge_tx_qfini(sc, SFXGE_TXQ_IP_CKSUM);
-	sfxge_tx_qfini(sc, SFXGE_TXQ_NON_CKSUM);
+	sc->txq_count = 0;
 }
 
 
@@ -1590,6 +1570,12 @@ sfxge_tx_init(struct sfxge_softc *sc)
 
 	KASSERT(intr->state == SFXGE_INTR_INITIALIZED,
 	    ("intr->state != SFXGE_INTR_INITIALIZED"));
+
+#ifdef SFXGE_HAVE_MQ
+	sc->txq_count = SFXGE_TXQ_NTYPES - 1 + sc->intr.n_alloc;
+#else
+	sc->txq_count = SFXGE_TXQ_NTYPES;
+#endif
 
 	sc->txqs_node = SYSCTL_ADD_NODE(
 		device_get_sysctl_ctx(sc->dev),
@@ -1609,8 +1595,10 @@ sfxge_tx_init(struct sfxge_softc *sc)
 	    SFXGE_TXQ_IP_CKSUM, 0)) != 0)
 		goto fail2;
 
-	for (index = 0; index < SFXGE_TX_SCALE(sc); index++) {
-		if ((rc = sfxge_tx_qinit(sc, SFXGE_TXQ_IP_TCP_UDP_CKSUM + index,
+	for (index = 0;
+	     index < sc->txq_count - SFXGE_TXQ_NTYPES + 1;
+	     index++) {
+		if ((rc = sfxge_tx_qinit(sc, SFXGE_TXQ_NTYPES - 1 + index,
 		    SFXGE_TXQ_IP_TCP_UDP_CKSUM, index)) != 0)
 			goto fail3;
 	}
@@ -1620,15 +1608,16 @@ sfxge_tx_init(struct sfxge_softc *sc)
 	return (0);
 
 fail3:
-	sfxge_tx_qfini(sc, SFXGE_TXQ_IP_CKSUM);
-
 	while (--index >= 0)
 		sfxge_tx_qfini(sc, SFXGE_TXQ_IP_TCP_UDP_CKSUM + index);
+
+	sfxge_tx_qfini(sc, SFXGE_TXQ_IP_CKSUM);
 
 fail2:
 	sfxge_tx_qfini(sc, SFXGE_TXQ_NON_CKSUM);
 
 fail:
 fail_txq_node:
+	sc->txq_count = 0;
 	return (rc);
 }
