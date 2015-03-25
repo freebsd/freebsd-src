@@ -30,11 +30,6 @@ CLEANFILES+=		arm-${BOARD:tu}.img \
 
 arm-${BOARD:tl}:
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} build-${.TARGET}
-. endfor
-.endif			# !WITH_ARM_IMAGES
-
-arm-all: ${ARMTARGETS}
-	touch ${.TARGET}
 
 build-arm-ports${BOARD:tl}:
 .if defined(ARMPORTS) && !empty(ARMPORTS)
@@ -45,4 +40,9 @@ build-arm-ports${BOARD:tl}:
 	@echo ${MAKE} -C ${PORTSDIR}/${AP} all install clean distclean
 . endfor
 .endif
+	touch ${.TARGET}
+. endfor
+.endif			# !WITH_ARM_IMAGES
+
+arm-all: ${ARMTARGETS}
 	touch ${.TARGET}
