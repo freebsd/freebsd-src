@@ -137,7 +137,7 @@ sfxge_dma_alloc(struct sfxge_softc *sc, bus_size_t len, efsys_mem_t *esmp)
 	    MIN(0x3FFFFFFFFFFFUL, BUS_SPACE_MAXADDR), BUS_SPACE_MAXADDR, NULL,
 	    NULL, len, 1, len, 0, NULL, NULL, &esmp->esm_tag) != 0) {
 		device_printf(sc->dev, "Couldn't allocate txq DMA tag\n");
-		return (ENOMEM);
+		goto fail_tag_create;
 	}
 
 	/* Allocate kernel memory. */
@@ -145,17 +145,14 @@ sfxge_dma_alloc(struct sfxge_softc *sc, bus_size_t len, efsys_mem_t *esmp)
 	    BUS_DMA_WAITOK | BUS_DMA_COHERENT | BUS_DMA_ZERO,
 	    &esmp->esm_map) != 0) {
 		device_printf(sc->dev, "Couldn't allocate DMA memory\n");
-		bus_dma_tag_destroy(esmp->esm_tag);
-		return (ENOMEM);
+		goto fail_alloc;
 	}
 
 	/* Load map into device memory. */
 	if (bus_dmamap_load(esmp->esm_tag, esmp->esm_map, vaddr, len,
 	    sfxge_dma_cb, &esmp->esm_addr, 0) != 0) {
 		device_printf(sc->dev, "Couldn't load DMA mapping\n");
-		bus_dmamem_free(esmp->esm_tag, vaddr, esmp->esm_map);
-		bus_dma_tag_destroy(esmp->esm_tag);
-		return (ENOMEM);
+		goto fail_load;
 	}
 
 	/*
@@ -163,15 +160,20 @@ sfxge_dma_alloc(struct sfxge_softc *sc, bus_size_t len, efsys_mem_t *esmp)
 	 * and will have set esm_addr to 0 if something went
 	 * wrong.
 	 */
-	if (esmp->esm_addr == 0) {
-		bus_dmamem_free(esmp->esm_tag, vaddr, esmp->esm_map);
-		bus_dma_tag_destroy(esmp->esm_tag);
-		return (ENOMEM);
-	}
+	if (esmp->esm_addr == 0)
+		goto fail_load_check;
 
 	esmp->esm_base = vaddr;
 
 	return (0);
+
+fail_load_check:
+fail_load:
+	bus_dmamem_free(esmp->esm_tag, vaddr, esmp->esm_map);
+fail_alloc:
+	bus_dma_tag_destroy(esmp->esm_tag);
+fail_tag_create:
+	return (ENOMEM);
 }
 
 void
