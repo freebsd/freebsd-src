@@ -298,6 +298,9 @@ sfxge_intr_setup_msix(struct sfxge_softc *sc)
 	if (count > EFX_MAXRSS)
 		count = EFX_MAXRSS;
 
+	if (sc->max_rss_channels > 0 && count > sc->max_rss_channels)
+		count = sc->max_rss_channels;
+
 	rid = PCIR_BAR(4);
 	resp = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (resp == NULL)
