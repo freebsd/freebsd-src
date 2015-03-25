@@ -259,6 +259,7 @@ struct sfxge_softc {
 	char				tx_lock_name[SFXGE_LOCK_NAME_MAX];
 #endif
 
+	unsigned int			rxq_count;
 	unsigned int			txq_count;
 };
 
