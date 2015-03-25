@@ -73,7 +73,6 @@ __FBSDID("$FreeBSD$");
 #define	PIO_MODE	1
 #else
 #define	PIO_MODE	0
-#error
 #endif
 
 static int bcm2835_sdhci_hs = 1;
