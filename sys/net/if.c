@@ -435,18 +435,23 @@ static void
 ifdriver_bless(struct ifdriver *ifdrv, struct iftype *ift)
 {
 
+	/*
+	 * If the driver doesn't define certain op, but its type has
+	 * default implementation, then copy it.
+	 */
 	if (ift != NULL) {
-#define	COPY(op)	if (ifdrv->ifdrv_ops.op == NULL)		\
-				ifdrv->ifdrv_ops.op = ift->ift_ops.op
-		COPY(ifop_input);
-		COPY(ifop_transmit);
-		COPY(ifop_output);
-		COPY(ifop_ioctl);
-		COPY(ifop_get_counter);
-		COPY(ifop_qflush);
-		COPY(ifop_resolvemulti);
-		COPY(ifop_reassign);
-#undef COPY
+#define	COPYOP(op)	if (ifdrv->ifdrv_ops.ifop_ ## op == NULL)	\
+				ifdrv->ifdrv_ops.ifop_ ## op =		\
+				    ift->ift_ops.ifop_ ## op
+		COPYOP(input);
+		COPYOP(transmit);
+		COPYOP(output);
+		COPYOP(ioctl);
+		COPYOP(get_counter);
+		COPYOP(qflush);
+		COPYOP(resolvemulti);
+		COPYOP(reassign);
+#undef COPYOP
 #define	COPY(f)		if (ifdrv->ifdrv_ ## f == 0)			\
 				ifdrv->ifdrv_ ## f = ift->ift_ ## f
 		COPY(hdrlen);
@@ -457,7 +462,7 @@ ifdriver_bless(struct ifdriver *ifdrv, struct iftype *ift)
 	}
 
 	/*
-	 * If driver has ifdrv_maxqlen defined, then it opts-in
+	 * If the driver has ifdrv_maxqlen defined, then opts-in
 	 * for * generic software queue, and thus for default
 	 * ifop_qflush.
 	 */
@@ -468,8 +473,15 @@ ifdriver_bless(struct ifdriver *ifdrv, struct iftype *ift)
 		ifdrv->ifdrv_ops.ifop_qflush = if_snd_qflush;
 	}
 
-	if (ifdrv->ifdrv_ops.ifop_get_counter == NULL)
-		ifdrv->ifdrv_ops.ifop_get_counter = if_get_counter_default;
+	/*
+	 * If neither driver nor its type has a definitation of an op
+	 * that is mandatory, then set it to default implementation.
+	 */
+#define	DEFAULTOP(op)	if (ifdrv->ifdrv_ops.ifop_ ## op == NULL)	\
+				ifdrv->ifdrv_ops.ifop_ ## op =		\
+				    if_ ## op ## _default
+	DEFAULTOP(get_counter);
+#undef DEFAULTOP
 
 #if defined(INET) || defined(INET6)
 	/* Use defaults for TSO, if nothing is set. */
