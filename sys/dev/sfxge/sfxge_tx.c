@@ -667,7 +667,7 @@ void
 sfxge_if_qflush(struct ifnet *ifp)
 {
 	struct sfxge_softc *sc;
-	int i;
+	unsigned int i;
 
 	sc = ifp->if_softc;
 
