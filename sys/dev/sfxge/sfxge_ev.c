@@ -517,7 +517,7 @@ sfxge_int_mod_handler(SYSCTL_HANDLER_ARGS)
 		 * so we have to range-check the value ourselves.
 		 */
 		if (moderation >
-		    efx_nic_cfg_get(sc->enp)->enc_evq_moderation_max) {
+		    efx_nic_cfg_get(sc->enp)->enc_evq_timer_max_us) {
 			error = EINVAL;
 			goto out;
 		}
