@@ -1379,11 +1379,13 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
     enum sfxge_txq_type type, unsigned int evq_index)
 {
 	char name[16];
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->dev);
 	struct sysctl_oid *txq_node;
 	struct sfxge_txq *txq;
 	struct sfxge_evq *evq;
 #ifdef SFXGE_HAVE_MQ
 	struct sfxge_tx_dpl *stdp;
+	struct sysctl_oid *dpl_node;
 #endif
 	efsys_mem_t *esmp;
 	unsigned int nmaps;
@@ -1432,10 +1434,8 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 	}
 
 	snprintf(name, sizeof(name), "%u", txq_index);
-	txq_node = SYSCTL_ADD_NODE(
-		device_get_sysctl_ctx(sc->dev),
-		SYSCTL_CHILDREN(sc->txqs_node),
-		OID_AUTO, name, CTLFLAG_RD, NULL, "");
+	txq_node = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(sc->txqs_node),
+				   OID_AUTO, name, CTLFLAG_RD, NULL, "");
 	if (txq_node == NULL) {
 		rc = ENOMEM;
 		goto fail_txq_node;
@@ -1475,21 +1475,25 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 
 	SFXGE_TXQ_LOCK_INIT(txq, device_get_nameunit(sc->dev), txq_index);
 
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(sc->dev),
-			SYSCTL_CHILDREN(txq_node), OID_AUTO,
-			"dpl_get_count", CTLFLAG_RD | CTLFLAG_STATS,
+	dpl_node = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(txq_node), OID_AUTO,
+				   "dpl", CTLFLAG_RD, NULL,
+				   "Deferred packet list statistics");
+	if (dpl_node == NULL) {
+		rc = ENOMEM;
+		goto fail_dpl_node;
+	}
+
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(dpl_node), OID_AUTO,
+			"get_count", CTLFLAG_RD | CTLFLAG_STATS,
 			&stdp->std_get_count, 0, "");
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(sc->dev),
-			SYSCTL_CHILDREN(txq_node), OID_AUTO,
-			"dpl_get_non_tcp_count", CTLFLAG_RD | CTLFLAG_STATS,
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(dpl_node), OID_AUTO,
+			"get_non_tcp_count", CTLFLAG_RD | CTLFLAG_STATS,
 			&stdp->std_get_non_tcp_count, 0, "");
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(sc->dev),
-			SYSCTL_CHILDREN(txq_node), OID_AUTO,
-			"dpl_get_hiwat", CTLFLAG_RD | CTLFLAG_STATS,
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(dpl_node), OID_AUTO,
+			"get_hiwat", CTLFLAG_RD | CTLFLAG_STATS,
 			&stdp->std_get_hiwat, 0, "");
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(sc->dev),
-			SYSCTL_CHILDREN(txq_node), OID_AUTO,
-			"dpl_put_hiwat", CTLFLAG_RD | CTLFLAG_STATS,
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(dpl_node), OID_AUTO,
+			"put_hiwat", CTLFLAG_RD | CTLFLAG_STATS,
 			&stdp->std_put_hiwat, 0, "");
 #endif
 
@@ -1500,6 +1504,7 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 
 	return (0);
 
+fail_dpl_node:
 fail_tx_dpl_put_max:
 fail_tx_dpl_get_max:
 fail3:
