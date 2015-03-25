@@ -687,7 +687,7 @@ vunmap(void *addr)
 }
 
 static void
-linux_compat_init(void)
+linux_compat_init(void *arg)
 {
 	struct sysctl_oid *rootoid;
 	int i;
@@ -717,7 +717,7 @@ linux_compat_init(void)
 SYSINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_init, NULL);
 
 static void
-linux_compat_uninit(void)
+linux_compat_uninit(void *arg)
 {
 	kobject_kfree_name(&class_root);
 	kobject_kfree_name(&linux_rootdev.kobj);
