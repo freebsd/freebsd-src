@@ -51,7 +51,11 @@ extern "C" {
 #include <machine/endian.h>
 
 #define	EFSYS_HAS_UINT64 1
+#if defined(__x86_64__)
+#define	EFSYS_USE_UINT64 1
+#else
 #define	EFSYS_USE_UINT64 0
+#endif
 #if _BYTE_ORDER == _BIG_ENDIAN
 #define	EFSYS_IS_BIG_ENDIAN 1
 #define	EFSYS_IS_LITTLE_ENDIAN 0
@@ -398,6 +402,26 @@ typedef struct efsys_mem_s {
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
+#if defined(__x86_64__)
+#define	EFSYS_MEM_READQ(_esmp, _offset, _eqp)				\
+	do {								\
+		uint64_t *addr;						\
+									\
+		_NOTE(CONSTANTCONDITION)				\
+		KASSERT(IS_P2ALIGNED(_offset, sizeof (efx_qword_t)),	\
+		    ("not power of 2 aligned"));			\
+									\
+		addr = (void *)((_esmp)->esm_base + (_offset));		\
+									\
+		(_eqp)->eq_u64[0] = *addr;				\
+									\
+		EFSYS_PROBE3(mem_readq, unsigned int, (_offset),	\
+		    uint32_t, (_eqp)->eq_u32[1],			\
+		    uint32_t, (_eqp)->eq_u32[0]);			\
+									\
+	_NOTE(CONSTANTCONDITION)					\
+	} while (B_FALSE)
+#else
 #define	EFSYS_MEM_READQ(_esmp, _offset, _eqp)				\
 	do {								\
 		uint32_t *addr;						\
@@ -417,7 +441,31 @@ typedef struct efsys_mem_s {
 									\
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
+#endif
 
+#if defined(__x86_64__)
+#define	EFSYS_MEM_READO(_esmp, _offset, _eop)				\
+	do {								\
+		uint64_t *addr;						\
+									\
+		_NOTE(CONSTANTCONDITION)				\
+		KASSERT(IS_P2ALIGNED(_offset, sizeof (efx_oword_t)),	\
+		    ("not power of 2 aligned"));			\
+									\
+		addr = (void *)((_esmp)->esm_base + (_offset));		\
+									\
+		(_eop)->eo_u64[0] = *addr++;				\
+		(_eop)->eo_u64[1] = *addr;				\
+									\
+		EFSYS_PROBE5(mem_reado, unsigned int, (_offset),	\
+		    uint32_t, (_eop)->eo_u32[3],			\
+		    uint32_t, (_eop)->eo_u32[2],			\
+		    uint32_t, (_eop)->eo_u32[1],			\
+		    uint32_t, (_eop)->eo_u32[0]);			\
+									\
+	_NOTE(CONSTANTCONDITION)					\
+	} while (B_FALSE)
+#else
 #define	EFSYS_MEM_READO(_esmp, _offset, _eop)				\
 	do {								\
 		uint32_t *addr;						\
@@ -441,6 +489,7 @@ typedef struct efsys_mem_s {
 									\
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
+#endif
 
 #define	EFSYS_MEM_WRITED(_esmp, _offset, _edp)				\
 	do {								\
@@ -460,6 +509,27 @@ typedef struct efsys_mem_s {
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
+#if defined(__x86_64__)
+#define	EFSYS_MEM_WRITEQ(_esmp, _offset, _eqp)				\
+	do {								\
+		uint64_t *addr;						\
+									\
+		_NOTE(CONSTANTCONDITION)				\
+		KASSERT(IS_P2ALIGNED(_offset, sizeof (efx_qword_t)),	\
+		    ("not power of 2 aligned"));			\
+									\
+		EFSYS_PROBE3(mem_writeq, unsigned int, (_offset),	\
+		    uint32_t, (_eqp)->eq_u32[1],			\
+		    uint32_t, (_eqp)->eq_u32[0]);			\
+									\
+		addr = (void *)((_esmp)->esm_base + (_offset));		\
+									\
+		*addr   = (_eqp)->eq_u64[0];				\
+									\
+	_NOTE(CONSTANTCONDITION)					\
+	} while (B_FALSE)
+
+#else
 #define	EFSYS_MEM_WRITEQ(_esmp, _offset, _eqp)				\
 	do {								\
 		uint32_t *addr;						\
@@ -479,7 +549,31 @@ typedef struct efsys_mem_s {
 									\
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
+#endif
 
+#if defined(__x86_64__)
+#define	EFSYS_MEM_WRITEO(_esmp, _offset, _eop)				\
+	do {								\
+		uint64_t *addr;						\
+									\
+		_NOTE(CONSTANTCONDITION)				\
+		KASSERT(IS_P2ALIGNED(_offset, sizeof (efx_oword_t)),	\
+		    ("not power of 2 aligned"));			\
+									\
+		EFSYS_PROBE5(mem_writeo, unsigned int, (_offset),	\
+		    uint32_t, (_eop)->eo_u32[3],			\
+		    uint32_t, (_eop)->eo_u32[2],			\
+		    uint32_t, (_eop)->eo_u32[1],			\
+		    uint32_t, (_eop)->eo_u32[0]);			\
+									\
+		addr = (void *)((_esmp)->esm_base + (_offset));		\
+									\
+		*addr++ = (_eop)->eo_u64[0];				\
+		*addr   = (_eop)->eo_u64[1];				\
+									\
+	_NOTE(CONSTANTCONDITION)					\
+	} while (B_FALSE)
+#else
 #define	EFSYS_MEM_WRITEO(_esmp, _offset, _eop)				\
 	do {								\
 		uint32_t *addr;						\
@@ -503,6 +597,7 @@ typedef struct efsys_mem_s {
 									\
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
+#endif
 
 #define	EFSYS_MEM_ADDR(_esmp)						\
 	((_esmp)->esm_addr)
@@ -558,6 +653,7 @@ typedef struct efsys_bar_s {
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
+#if defined(__x86_64__)
 #define	EFSYS_BAR_READQ(_esbp, _offset, _eqp)				\
 	do {								\
 		_NOTE(CONSTANTCONDITION)				\
@@ -565,6 +661,53 @@ typedef struct efsys_bar_s {
 		    ("not power of 2 aligned"));			\
 									\
 		SFXGE_BAR_LOCK(_esbp);					\
+									\
+		(_eqp)->eq_u64[0] = bus_space_read_8((_esbp)->esb_tag,	\
+		    (_esbp)->esb_handle, (_offset));			\
+									\
+		EFSYS_PROBE3(bar_readq, unsigned int, (_offset),	\
+		    uint32_t, (_eqp)->eq_u32[1],			\
+		    uint32_t, (_eqp)->eq_u32[0]);			\
+									\
+		mtx_unlock(&((_esbp)->esb_lock));			\
+	_NOTE(CONSTANTCONDITION)					\
+	} while (B_FALSE)
+
+#define	EFSYS_BAR_READO(_esbp, _offset, _eop, _lock)			\
+	do {								\
+		_NOTE(CONSTANTCONDITION)				\
+		KASSERT(IS_P2ALIGNED(_offset, sizeof (efx_oword_t)),	\
+		    ("not power of 2 aligned"));			\
+									\
+		_NOTE(CONSTANTCONDITION)				\
+		if (_lock)						\
+			mtx_lock(&((_esbp)->esb_lock));			\
+									\
+		(_eop)->eo_u64[0] = bus_space_read_8((_esbp)->esb_tag,	\
+		    (_esbp)->esb_handle, (_offset));			\
+		(_eop)->eo_u64[1] = bus_space_read_8((_esbp)->esb_tag,	\
+		    (_esbp)->esb_handle, (_offset+8));			\
+									\
+		EFSYS_PROBE5(bar_reado, unsigned int, (_offset),	\
+		    uint32_t, (_eop)->eo_u32[3],			\
+		    uint32_t, (_eop)->eo_u32[2],			\
+		    uint32_t, (_eop)->eo_u32[1],			\
+		    uint32_t, (_eop)->eo_u32[0]);			\
+									\
+		_NOTE(CONSTANTCONDITION)				\
+		if (_lock)						\
+			mtx_unlock(&((_esbp)->esb_lock));		\
+	_NOTE(CONSTANTCONDITION)					\
+	} while (B_FALSE)
+
+#else
+#define	EFSYS_BAR_READQ(_esbp, _offset, _eqp)				\
+	do {								\
+		_NOTE(CONSTANTCONDITION)				\
+		KASSERT(IS_P2ALIGNED(_offset, sizeof (efx_qword_t)),	\
+		    ("not power of 2 aligned"));			\
+									\
+		mtx_lock(&((_esbp)->esb_lock));				\
 									\
 		(_eqp)->eq_u32[0] = bus_space_read_4((_esbp)->esb_tag,	\
 		    (_esbp)->esb_handle, (_offset));			\
@@ -609,6 +752,7 @@ typedef struct efsys_bar_s {
 			SFXGE_BAR_UNLOCK(_esbp);			\
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
+#endif
 
 #define	EFSYS_BAR_WRITED(_esbp, _offset, _edp, _lock)			\
 	do {								\
@@ -632,6 +776,7 @@ typedef struct efsys_bar_s {
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
+#if defined(__x86_64__)
 #define	EFSYS_BAR_WRITEQ(_esbp, _offset, _eqp)				\
 	do {								\
 		_NOTE(CONSTANTCONDITION)				\
@@ -639,6 +784,25 @@ typedef struct efsys_bar_s {
 		    ("not power of 2 aligned"));			\
 									\
 		SFXGE_BAR_LOCK(_esbp);					\
+									\
+		EFSYS_PROBE3(bar_writeq, unsigned int, (_offset),	\
+		    uint32_t, (_eqp)->eq_u32[1],			\
+		    uint32_t, (_eqp)->eq_u32[0]);			\
+									\
+		bus_space_write_8((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		    (_offset), (_eqp)->eq_u64[0]);			\
+									\
+		mtx_unlock(&((_esbp)->esb_lock));			\
+	_NOTE(CONSTANTCONDITION)					\
+	} while (B_FALSE)
+#else
+#define	EFSYS_BAR_WRITEQ(_esbp, _offset, _eqp)				\
+	do {								\
+		_NOTE(CONSTANTCONDITION)				\
+		KASSERT(IS_P2ALIGNED(_offset, sizeof (efx_qword_t)),	\
+		    ("not power of 2 aligned"));			\
+									\
+		mtx_lock(&((_esbp)->esb_lock));				\
 									\
 		EFSYS_PROBE3(bar_writeq, unsigned int, (_offset),	\
 		    uint32_t, (_eqp)->eq_u32[1],			\
@@ -652,7 +816,9 @@ typedef struct efsys_bar_s {
 		SFXGE_BAR_UNLOCK(_esbp);				\
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
+#endif
 
+#if defined(__x86_64__)
 #define	EFSYS_BAR_WRITEO(_esbp, _offset, _eop, _lock)			\
 	do {								\
 		_NOTE(CONSTANTCONDITION)				\
@@ -662,6 +828,34 @@ typedef struct efsys_bar_s {
 		_NOTE(CONSTANTCONDITION)				\
 		if (_lock)						\
 			SFXGE_BAR_LOCK(_esbp);				\
+									\
+		EFSYS_PROBE5(bar_writeo, unsigned int, (_offset),	\
+		    uint32_t, (_eop)->eo_u32[3],			\
+		    uint32_t, (_eop)->eo_u32[2],			\
+		    uint32_t, (_eop)->eo_u32[1],			\
+		    uint32_t, (_eop)->eo_u32[0]);			\
+									\
+		bus_space_write_8((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		    (_offset), (_eop)->eo_u64[0]);			\
+		bus_space_write_8((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		    (_offset+8), (_eop)->eo_u64[1]);			\
+									\
+		_NOTE(CONSTANTCONDITION)				\
+		if (_lock)						\
+			mtx_unlock(&((_esbp)->esb_lock));		\
+	_NOTE(CONSTANTCONDITION)					\
+	} while (B_FALSE)
+
+#else
+#define	EFSYS_BAR_WRITEO(_esbp, _offset, _eop, _lock)			\
+	do {								\
+		_NOTE(CONSTANTCONDITION)				\
+		KASSERT(IS_P2ALIGNED(_offset, sizeof (efx_oword_t)),	\
+		    ("not power of 2 aligned"));			\
+									\
+		_NOTE(CONSTANTCONDITION)				\
+		if (_lock)						\
+			mtx_lock(&((_esbp)->esb_lock));			\
 									\
 		EFSYS_PROBE5(bar_writeo, unsigned int, (_offset),	\
 		    uint32_t, (_eop)->eo_u32[3],			\
@@ -683,6 +877,7 @@ typedef struct efsys_bar_s {
 			SFXGE_BAR_UNLOCK(_esbp);			\
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
+#endif
 
 /* SPIN */
 
