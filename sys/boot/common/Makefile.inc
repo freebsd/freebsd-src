@@ -68,6 +68,11 @@ MAN+=	../forth/menusets.4th.8
 MAN+=	../forth/version.4th.8
 .endif
 
+# Lua interpreter
+.if defined(BOOT_LUA)
+SRCS+=	interp_lua.c
+.endif
+
 .if defined(BOOT_PROMPT_123)
 CFLAGS+=	-DBOOT_PROMPT_123
 .endif
