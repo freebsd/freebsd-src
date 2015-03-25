@@ -164,8 +164,8 @@ sfxge_dma_alloc(struct sfxge_softc *sc, bus_size_t len, efsys_mem_t *esmp)
 	 * wrong.
 	 */
 	if (esmp->esm_addr == 0) {
-		bus_dmamem_free(esmp->esm_tag, esmp->esm_base, esmp->esm_map);
-		bus_dma_tag_destroy(esmp->esm_tag);		
+		bus_dmamem_free(esmp->esm_tag, vaddr, esmp->esm_map);
+		bus_dma_tag_destroy(esmp->esm_tag);
 		return (ENOMEM);
 	}
 
