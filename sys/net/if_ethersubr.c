@@ -796,8 +796,6 @@ ether_sprintf(const u_char *ap)
 static void
 ether_ifattach(struct ifnet *ifp, struct if_attach_args *ifat)
 {
-	struct ifaddr *ifa;
-	struct sockaddr_dl *sdl;
 	int i;
 
 	if (ifp->if_mtu == 0)
@@ -805,13 +803,6 @@ ether_ifattach(struct ifnet *ifp, struct if_attach_args *ifat)
 	if (ifp->if_baudrate == 0)
 		ifp->if_baudrate = IF_Mbps(10);	/* just a default */
 	ifp->if_broadcastaddr = etherbroadcastaddr;
-
-	ifa = ifp->if_addr;
-	KASSERT(ifa != NULL, ("%s: no lladdr!\n", __func__));
-	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-	sdl->sdl_type = IFT_ETHER;
-	sdl->sdl_alen = if_addrlen(ifp);
-	bcopy(ifat->ifat_lla, LLADDR(sdl), if_addrlen(ifp));
 
 	if (ng_ether_attach_p != NULL)
 		(*ng_ether_attach_p)(ifp);
@@ -823,7 +814,7 @@ ether_ifattach(struct ifnet *ifp, struct if_attach_args *ifat)
 	if (i != if_addrlen(ifp))
 		if_printf(ifp, "Ethernet address: %6D\n", ifat->ifat_lla, ":");
 
-	uuid_ether_add(LLADDR(sdl));
+	uuid_ether_add(LLADDR((struct sockaddr_dl *)ifp->if_addr->ifa_addr));
 }
 
 /*

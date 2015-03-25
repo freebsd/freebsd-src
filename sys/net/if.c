@@ -619,6 +619,9 @@ if_attach(struct if_attach_args *ifat)
 	sdl->sdl_nlen = namelen;
 	sdl->sdl_index = ifp->if_index;
 	sdl->sdl_type = ifdrv->ifdrv_type;
+	sdl->sdl_alen = ifdrv->ifdrv_addrlen;
+	if (ifat->ifat_lla != NULL)
+		bcopy(ifat->ifat_lla, LLADDR(sdl), ifdrv->ifdrv_addrlen);
 	ifp->if_addr = ifa;
 	ifa->ifa_ifp = ifp;
 	ifa->ifa_rtrequest = link_rtrequest;
@@ -3496,6 +3499,21 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 #endif
 	}
 	return (0);
+}
+
+/*
+ * Return address length of the interface.
+ *
+ * For vlan(4) the address length of different instances can be different.
+ * For usual interfaces sdl->sdl_alen == ifdrv_addrlen.
+ */
+uint8_t
+if_addrlen(const if_t ifp)
+{
+	struct sockaddr_dl *sdl;
+
+	sdl = (struct sockaddr_dl *)ifp->if_addr->ifa_addr;
+	return (sdl->sdl_alen);
 }
 
 int

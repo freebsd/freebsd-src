@@ -384,6 +384,7 @@ int	ifioctl(struct socket *, u_long, caddr_t, struct thread *);
 int	ifpromisc(struct ifnet *, int);
 struct	ifnet *ifunit(const char *);
 struct	ifnet *ifunit_ref(const char *);
+uint8_t	if_addrlen(const if_t);
 
 void	iftype_register(struct iftype *);
 void	iftype_unregister(struct iftype *);
@@ -512,13 +513,6 @@ if_type(const if_t ifp)
 {
 
 	return (ifp->if_drv->ifdrv_type);
-}
-
-static inline uint8_t
-if_addrlen(const if_t ifp)
-{
-
-	return (ifp->if_drv->ifdrv_addrlen);
 }
 #endif /* _KERNEL */
 #endif /* !_NET_IF_VAR_H_ */
