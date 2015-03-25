@@ -105,14 +105,9 @@ static int sfxge_tx_queue_tso(struct sfxge_txq *txq, struct mbuf *mbuf,
 			      const bus_dma_segment_t *dma_seg, int n_dma_seg);
 
 void
-sfxge_tx_qcomplete(struct sfxge_txq *txq)
+sfxge_tx_qcomplete(struct sfxge_txq *txq, struct sfxge_evq *evq)
 {
-	struct sfxge_softc *sc;
-	struct sfxge_evq *evq;
 	unsigned int completed;
-
-	sc = txq->sc;
-	evq = sc->evq[txq->evq_index];
 
 	mtx_assert(&evq->lock, MA_OWNED);
 
@@ -1146,7 +1141,7 @@ sfxge_tx_qstop(struct sfxge_softc *sc, unsigned int index)
 	txq->blocked = 0;
 	txq->pending = txq->added;
 
-	sfxge_tx_qcomplete(txq);
+	sfxge_tx_qcomplete(txq, evq);
 	KASSERT(txq->completed == txq->added,
 	    ("txq->completed != txq->added"));
 
