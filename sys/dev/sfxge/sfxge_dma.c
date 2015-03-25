@@ -153,7 +153,7 @@ sfxge_dma_alloc(struct sfxge_softc *sc, bus_size_t len, efsys_mem_t *esmp)
 	if (bus_dmamap_load(esmp->esm_tag, esmp->esm_map, vaddr, len,
 	    sfxge_dma_cb, &esmp->esm_addr, 0) != 0) {
 		device_printf(sc->dev, "Couldn't load DMA mapping\n");
-		bus_dmamem_free(esmp->esm_tag, esmp->esm_base, esmp->esm_map);
+		bus_dmamem_free(esmp->esm_tag, vaddr, esmp->esm_map);
 		bus_dma_tag_destroy(esmp->esm_tag);
 		return (ENOMEM);
 	}
