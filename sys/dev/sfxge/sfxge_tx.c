@@ -1279,7 +1279,6 @@ fail:
 void
 sfxge_tx_stop(struct sfxge_softc *sc)
 {
-	const efx_nic_cfg_t *encp;
 	int index;
 
 	index = SFXGE_TX_SCALE(sc);
@@ -1288,7 +1287,6 @@ sfxge_tx_stop(struct sfxge_softc *sc)
 
 	sfxge_tx_qstop(sc, SFXGE_TXQ_IP_CKSUM);
 
-	encp = efx_nic_cfg_get(sc->enp);
 	sfxge_tx_qstop(sc, SFXGE_TXQ_NON_CKSUM);
 
 	/* Tear down the transmit module */
