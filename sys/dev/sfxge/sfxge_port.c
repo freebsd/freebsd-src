@@ -583,7 +583,6 @@ sfxge_port_init(struct sfxge_softc *sc)
 					    M_SFXGE, M_WAITOK | M_ZERO);
 	if ((rc = sfxge_dma_alloc(sc, EFX_PHY_STATS_SIZE, phy_stats_buf)) != 0)
 		goto fail;
-	bzero(phy_stats_buf->esm_base, phy_stats_buf->esm_size);
 	sfxge_phy_stat_init(sc);
 
 	sysctl_ctx = device_get_sysctl_ctx(sc->dev);
@@ -605,7 +604,6 @@ sfxge_port_init(struct sfxge_softc *sc)
 					    M_SFXGE, M_WAITOK | M_ZERO);
 	if ((rc = sfxge_dma_alloc(sc, EFX_MAC_STATS_SIZE, mac_stats_buf)) != 0)
 		goto fail2;
-	bzero(mac_stats_buf->esm_base, mac_stats_buf->esm_size);
 	sfxge_mac_stat_init(sc);
 
 	port->init_state = SFXGE_PORT_INITIALIZED;
