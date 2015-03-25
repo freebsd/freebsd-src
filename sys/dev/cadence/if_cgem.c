@@ -54,8 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
-#include <net/if_mib.h>
-#include <net/if_types.h>
 
 #ifdef INET
 #include <netinet/in.h>
@@ -63,9 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #endif
-
-#include <net/bpf.h>
-#include <net/bpfdesc.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
@@ -96,7 +91,6 @@ __FBSDID("$FreeBSD$");
 				 CSUM_TCP_IPV6 | CSUM_UDP_IPV6)
 
 #define CGEM_DRV_RUNNING	0x0001
-#define CGEM_DRV_OACTIVE	0x0002
 
 struct cgem_softc {
 	if_t			ifp;
@@ -107,7 +101,6 @@ struct cgem_softc {
 	int			cgem_if_flags;
 	int			cgem_drv_flags;
 	uint32_t		cgem_capenable;
-	uint64_t		cgem_hwassist;
 	struct resource 	*mem_res;
 	struct resource 	*irq_res;
 	void			*intrhand;
@@ -669,8 +662,6 @@ cgem_clean_tx(struct cgem_softc *sc)
 		else
 			sc->txring_tl_ptr++;
 		sc->txring_queued--;
-
-		sc->cgem_drv_flags &= ~CGEM_DRV_OACTIVE;
 	}
 }
 
@@ -686,9 +677,6 @@ cgem_start_locked(struct cgem_softc *sc)
 
 	CGEM_ASSERT_LOCKED(sc);
 
-	if ((sc->cgem_drv_flags & CGEM_DRV_OACTIVE) != 0)
-		return;
-
 	for (;;) {
 		/* Check that there is room in the descriptor ring. */
 		if (sc->txring_queued >=
@@ -700,7 +688,6 @@ cgem_start_locked(struct cgem_softc *sc)
 			/* Still no room? */
 			if (sc->txring_queued >=
 			    CGEM_NUM_TX_DESCS - TX_MAX_DMA_SEGS * 2) {
-				sc->cgem_drv_flags |= CGEM_DRV_OACTIVE;
 				sc->txfull++;
 				break;
 			}
@@ -1179,24 +1166,17 @@ cgem_ioctl(if_t ifp, u_long cmd, void *data, struct thread *td)
 
 	case SIOCSIFCAP:
 		CGEM_LOCK(sc);
-		mask = sc->cgem_capenable ^ ifr->ifr_reqcap;
-
+		mask = ifr->ifr_reqcap ^ ifr->ifr_curcap;
+		ifr->ifr_hwassist = 0;
 		if ((mask & IFCAP_TXCSUM) != 0) {
 			if ((ifr->ifr_reqcap & IFCAP_TXCSUM) != 0) {
 				/* Turn on TX checksumming. */
-				sc->cgem_capenable |= IFCAP_TXCSUM |
-					IFCAP_TXCSUM_IPV6;
-				sc->cgem_hwassist |= CGEM_CKSUM_ASSIST;
-
+				ifr->ifr_hwassist |= CGEM_CKSUM_ASSIST;
 				WR4(sc, CGEM_DMA_CFG,
 				    RD4(sc, CGEM_DMA_CFG) |
 				     CGEM_DMA_CFG_CHKSUM_GEN_OFFLOAD_EN);
 			} else {
 				/* Turn off TX checksumming. */
-				sc->cgem_capenable &= ~(IFCAP_TXCSUM |
-							IFCAP_TXCSUM_IPV6);
-				sc->cgem_hwassist &= ~CGEM_CKSUM_ASSIST;
-
 				WR4(sc, CGEM_DMA_CFG,
 				    RD4(sc, CGEM_DMA_CFG) &
 				     ~CGEM_DMA_CFG_CHKSUM_GEN_OFFLOAD_EN);
@@ -1205,21 +1185,17 @@ cgem_ioctl(if_t ifp, u_long cmd, void *data, struct thread *td)
 		if ((mask & IFCAP_RXCSUM) != 0) {
 			if ((ifr->ifr_reqcap & IFCAP_RXCSUM) != 0) {
 				/* Turn on RX checksumming. */
-				sc->cgem_capenable |= IFCAP_RXCSUM |
-					IFCAP_RXCSUM_IPV6;
-
 				WR4(sc, CGEM_NET_CFG,
 				    RD4(sc, CGEM_NET_CFG) |
 				     CGEM_NET_CFG_RX_CHKSUM_OFFLD_EN);
 			} else {
 				/* Turn off RX checksumming. */
-				sc->cgem_capenable &= ~(IFCAP_RXCSUM |
-							IFCAP_RXCSUM_IPV6);
 				WR4(sc, CGEM_NET_CFG,
 				    RD4(sc, CGEM_NET_CFG) &
 				     ~CGEM_NET_CFG_RX_CHKSUM_OFFLD_EN);
 			}
 		}
+		sc->cgem_capenable = ifr->ifr_reqcap;
 		CGEM_UNLOCK(sc);
 		break;
 	default:
@@ -1673,18 +1649,15 @@ cgem_attach(device_t dev)
 		return (err);
 	}
 
-	/* Disable hardware checksumming by default. */
-	sc->cgem_hwassist = 0;
-	sc->cgem_capenable = IFCAP_VLAN_MTU;
-
 	sc->rxbufs = DEFAULT_NUM_RX_BUFS;
 	sc->rxhangwar = 1;
 
+	/* Disable hardware checksumming by default. */
+	ifat.ifat_hwassist = 0;
+	ifat.ifat_capenable = sc->cgem_capenable = IFCAP_VLAN_MTU;
 	ifat.ifat_softc = sc;
 	ifat.ifat_dunit = device_get_unit(dev);
-	ifat.ifat_lla =eaddr;
-	ifat.ifat_hwassist = sc->cgem_hwassist;
-	ifat.ifat_capenable = sc->cgem_capenable;
+	ifat.ifat_lla = eaddr;
 	sc->ifp = if_attach(&ifat);
 
 	/* Set up TX and RX descriptor area. */
@@ -1728,7 +1701,6 @@ cgem_detach(device_t dev)
 		cgem_stop(sc);
 		CGEM_UNLOCK(sc);
 		callout_drain(&sc->tick_ch);
-		sc->cgem_if_flags &= ~IFF_UP;
 	}
 
 	if (sc->miibus != NULL) {
