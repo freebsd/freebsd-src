@@ -126,6 +126,8 @@ STAILQ_HEAD(tcpdump_sandbox_list, tcpdump_sandbox);
 #define	SB_CYAN			DEFAULT_COLOR
 #endif
 
+#define	SANDBOX_STACK_UNWOUND	0x12345678
+
 u_int32_t	g_localnet;
 u_int32_t	g_mask;
 u_int32_t	g_timezone_offset;
@@ -135,7 +137,6 @@ int		g_sandboxes = 1;
 int		g_max_lifetime;
 int		g_max_packets;
 useconds_t	g_timeout;
-int		g_timeout_occured;
 int		g_reset;
 
 static const char *hash_colors[] = {
@@ -163,9 +164,8 @@ handle_alarm(int sig, siginfo_t *info __unused, void *vuap)
 {
 
 	assert(sig == SIGALRM);
-	g_timeout_occured = 1;
 
-	cheri_stack_unwind(vuap, 0);
+	cheri_stack_unwind(vuap, SANDBOX_STACK_UNWOUND, 0);
 }
 
 static void
@@ -481,13 +481,12 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 		CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
 	    cheri_ptrperm((void *)data, hdr->caplen,
 		CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP));
-	if (g_timeout_occured) {
+	if (ret == SANDBOX_STACK_UNWOUND) {
 		printf("<sandbox-timeout>");
 		/* XXX: dump hex here? */
 		tcpdump_sandbox_reset(sb);
 	} else if (g_timeout != 0)
 		ualarm(0, 0);
-	g_timeout_occured = 0;
 
 	/* If it fails, reset it */
 	if (ret < 0) {

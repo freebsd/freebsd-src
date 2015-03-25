@@ -43,6 +43,7 @@
 #include <machine/cheri.h>
 #include <machine/cheric.h>
 #include <machine/cpuregs.h>
+#include <machine/regnum.h>
 #include <machine/sysarch.h>
 
 #include <errno.h>
@@ -52,17 +53,15 @@
 #include "cheri_stack.h"
 
 int
-cheri_stack_unwind(ucontext_t *uap, int flags __unused)
+cheri_stack_unwind(ucontext_t *uap, register_t ret, int flags __unused)
 {
 	struct cheri_frame *cfp;
 	struct cheri_stack cs;
 	struct cheri_stack_frame *csfp;
 	u_int stack_depth, stack_frames;
-	int retval;
 
 	/* Validate stack as retrieved. */
-	retval = sysarch(CHERI_GET_STACK, &cs);
-	if (retval != 0)
+	if (sysarch(CHERI_GET_STACK, &cs) != 0)
 		return (-1);
 
 	/* Does stack layout look sensible enough to continue? */
@@ -104,10 +103,10 @@ cheri_stack_unwind(ucontext_t *uap, int flags __unused)
 	cfp->cf_idc =  csfp->csf_idc;
 	cfp->cf_pcc = csfp->csf_pcc;
 	uap->uc_mcontext.mc_pc = cheri_getoffset(cfp->cf_pcc);
+	uap->uc_mcontext.mc_regs[V0] = ret;
 
 	/* Update kernel view of trusted stack. */
-	retval = sysarch(CHERI_SET_STACK, &cs);
-	if (retval != 0)
+	if (sysarch(CHERI_SET_STACK, &cs) != 0)
 		return (-1);
 
 	return (stack_frames);
