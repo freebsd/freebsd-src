@@ -67,16 +67,22 @@ __FBSDID("$FreeBSD$");
 #include "sfxge.h"
 #include "sfxge_tx.h"
 
-/* Set the block level to ensure there is space to generate a
- * large number of descriptors for TSO.  With minimum MSS and
- * maximum mbuf length we might need more than a ring-ful of
- * descriptors, but this should not happen in practice except
- * due to deliberate attack.  In that case we will truncate
- * the output at a packet boundary.
+/*
+ * Estimate maximum number of Tx descriptors required for TSO packet.
+ * With minimum MSS and maximum mbuf length we might need more (even
+ * than a ring-ful of descriptors), but this should not happen in
+ * practice except due to deliberate attack.  In that case we will
+ * truncate the output at a packet boundary.
  */
 #define	SFXGE_TSO_MAX_DESC						\
 	(SFXGE_TSO_MAX_SEGS * 2 + SFXGE_TX_MAPPING_MAX_SEG - 1)
-#define	SFXGE_TXQ_BLOCK_LEVEL(_entries)	((_entries) - SFXGE_TSO_MAX_DESC)
+
+/*
+ * Set the block level to ensure there is space to generate a
+ * large number of descriptors for TSO.
+ */
+#define	SFXGE_TXQ_BLOCK_LEVEL(_entries)					\
+	(EFX_TXQ_LIMIT(_entries) - SFXGE_TSO_MAX_DESC)
 
 #ifdef SFXGE_HAVE_MQ
 
