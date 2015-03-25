@@ -1103,8 +1103,8 @@ sfxge_tx_queue_tso(struct sfxge_txq *txq, struct mbuf *mbuf,
 			 * the remainder of the input mbuf but do not
 			 * roll back the work we have done.
 			 */
-			if (txq->n_pend_desc >
-			    SFXGE_TSO_MAX_DESC - (1 + SFXGE_TX_MAPPING_MAX_SEG)) {
+			if (txq->n_pend_desc + 1 /* header */ + n_dma_seg >
+			    SFXGE_TSO_MAX_DESC) {
 				txq->tso_pdrop_too_many++;
 				break;
 			}
