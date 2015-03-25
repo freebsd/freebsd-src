@@ -32,10 +32,10 @@ __FBSDID("$FreeBSD$");
 #include <lstd.h>
 #include <lutils.h>
 
+#include <bootstrap.h>
+
 /* XXX this needs to be fixed */
-extern void parse(int *, char ***, const char *);
 extern int perform(int, char **);
-extern void delay(int);
 
 int
 lua_perform(lua_State *L)

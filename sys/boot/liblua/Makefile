@@ -17,6 +17,6 @@ SRCS+=	lstd.c lutils.c
 WARNS=	3
 
 CFLAGS+= -I${.CURDIR} -DBOOT_LUA -ffreestanding -nostdlib -fno-stack-protector
-CFLAGS+= -I${LUA_PATH}
+CFLAGS+= -I${LUA_PATH} -I${.CURDIR}/../common
 
 .include <bsd.lib.mk>
