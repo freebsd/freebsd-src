@@ -81,7 +81,7 @@ struct sfxge_tx_mapping {
 
 #define	SFXGE_TX_DPL_GET_PKT_LIMIT_DEFAULT		(64 * 1024)
 #define	SFXGE_TX_DPL_GET_NON_TCP_PKT_LIMIT_DEFAULT	1024
-#define	SFXGE_TX_DPL_PUT_PKT_LIMIT_DEFAULT		64
+#define	SFXGE_TX_DPL_PUT_PKT_LIMIT_DEFAULT		1024
 
 /*
  * Deferred packet list.
