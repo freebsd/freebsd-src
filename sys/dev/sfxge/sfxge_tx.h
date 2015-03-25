@@ -30,7 +30,7 @@
  */
 
 #ifndef _SFXGE_TX_H
-#define _SFXGE_TX_H
+#define	_SFXGE_TX_H
 
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -47,7 +47,7 @@
  * could overlap all mbufs in the chain and also require an extra
  * segment for a TSO header.
  */
-#define SFXGE_TX_PACKET_MAX_SEG (SFXGE_TX_MAPPING_MAX_SEG + 1)
+#define	SFXGE_TX_PACKET_MAX_SEG (SFXGE_TX_MAPPING_MAX_SEG + 1)
 
 /*
  * Buffer mapping flags.
@@ -111,11 +111,11 @@ enum sfxge_txq_type {
 #define	SFXGE_TX_BATCH	64
 
 #ifdef SFXGE_HAVE_MQ
-#define SFXGE_TXQ_LOCK(txq)		(&(txq)->lock)
-#define SFXGE_TX_SCALE(sc)		((sc)->intr.n_alloc)
+#define	SFXGE_TXQ_LOCK(txq)		(&(txq)->lock)
+#define	SFXGE_TX_SCALE(sc)		((sc)->intr.n_alloc)
 #else
-#define SFXGE_TXQ_LOCK(txq)		(&(txq)->sc->tx_lock)
-#define SFXGE_TX_SCALE(sc)		1
+#define	SFXGE_TXQ_LOCK(txq)		(&(txq)->sc->tx_lock)
+#define	SFXGE_TX_SCALE(sc)		1
 #endif
 
 struct sfxge_txq {
