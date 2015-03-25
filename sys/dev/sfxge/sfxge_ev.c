@@ -870,7 +870,7 @@ sfxge_ev_init(struct sfxge_softc *sc)
 	/* Set default interrupt moderation; add a sysctl to
 	 * read and change it.
 	 */
-	sc->ev_moderation = 30;
+	sc->ev_moderation = SFXGE_MODERATION;
 	SYSCTL_ADD_PROC(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 			OID_AUTO, "int_mod", CTLTYPE_UINT|CTLFLAG_RW,
 			sc, 0, sfxge_int_mod_handler, "IU",
