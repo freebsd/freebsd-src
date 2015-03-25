@@ -102,6 +102,8 @@ struct sfxge_tx_dpl {
 						 * in get list */
 	unsigned int	std_get_hiwat;		/* Packets in get list
 						 * high watermark */
+	unsigned int	std_put_hiwat;		/* Packets in put list
+						 * high watermark */
 };
 
 
