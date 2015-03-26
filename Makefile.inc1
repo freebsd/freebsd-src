@@ -384,9 +384,9 @@ DEPFLAGS+=	-I${WORLDTMP}/usr/include/c++/v1
 TARGET_ABI?=	unknown
 TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd11.0
 XCFLAGS+=	-target ${TARGET_TRIPLE}
+.endif
 XCFLAGS+=	--sysroot=${WORLDTMP} ${BFLAGS}
 XCXXFLAGS+=	--sysroot=${WORLDTMP} ${BFLAGS}
-.endif
 .else
 .if defined(CROSS_BINUTILS_PREFIX) && exists(${CROSS_BINUTILS_PREFIX})
 BFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
