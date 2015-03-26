@@ -94,7 +94,7 @@ arm-mkfs${BOARD:tl}:
 	echo $$(mdconfig -f ${.OBJDIR}/${${BOARD:tu}BOOTFILE}) > \
 		${.OBJDIR}/${${BOARD:tu}BOOTDEV}
 	newfs_msdos -S 4096 /dev/$$(cat ${.OBJDIR}/${${BOARD:tu}BOOTDEV})
-	mount /dev/$$(cat ${.OBJDIR}/${${BOARD:tu}BOOTDEV}) \
+	mount_msdosfs /dev/$$(cat ${.OBJDIR}/${${BOARD:tu}BOOTDEV}) \
 		${.OBJDIR}/arm-${BOARD:tl}-boot
 .endif
 
