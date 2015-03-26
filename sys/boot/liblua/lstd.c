@@ -462,4 +462,12 @@ memchr(const void *s, int c, size_t n)
 	return (NULL);
 }
 
+void
+abort(void)
+{
+	printf("abort called!\n");
+	for (;;)
+		;
+}
+
 #endif /* BOOT_LUA */

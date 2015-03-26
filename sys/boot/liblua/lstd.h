@@ -38,6 +38,7 @@
 #include <string.h>
 #include <machine/stdarg.h>
 
+
 typedef struct FILE
 {
 	int fd;
@@ -96,6 +97,44 @@ int isgraph(int c);
 int ispunct(int c);
 
 void * memchr(const void *ptr, int value, size_t num);
+
+void abort(void) __dead2;
+
+static inline char
+_l_getlocaledecpoint(void)
+{
+	return ('.');
+}
+
+#ifndef l_getlocaledecpoint
+#define l_getlocaledecpoint _l_getlocaledecpoint
+#endif
+
+#ifndef lua_writestringerror
+#define lua_writestringerror(s,p) \
+	(printf((s), (p)))
+#endif
+
+#ifndef lua_writestring
+#define lua_writestring(s,l) \
+	(write(1, __DECONST(void *, (s)), (l)))
+#endif
+
+#define stdout 1
+#define fflush	/* */
+#define fgets(b,l,s) fgetstr((b), (l), 0)
+
+static inline double
+frexp(double value, int *exp)
+{
+	return 0; /* XXX */
+}
+
+static inline double
+fmod(double x, double y)
+{
+	return 0; /* XXX */
+}
 
 #endif
 #endif //LSTD_H

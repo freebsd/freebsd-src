@@ -10,6 +10,8 @@ INTERNALLIB=
 SRCS=	lapi.c lcode.c lctype.c ldebug.c ldo.c ldump.c lfunc.c lgc.c llex.c \
 	lmem.c lobject.c lopcodes.c lparser.c lstate.c lstring.c ltable.c \
         ltm.c lundump.c lvm.c lzio.c
+SRCS+=	lauxlib.c lbaselib.c lbitlib.c ldblib.c lstrlib.c ltablib.c loadlib.c \
+	linit.c
 
 # Our utilities.
 SRCS+=	lstd.c lutils.c
@@ -17,7 +19,7 @@ SRCS+=	lstd.c lutils.c
 WARNS=	3
 
 CFLAGS+= -DBOOT_LUA -ffreestanding -nostdlib
-CFLAGS+= -fno-stack-protector
+CFLAGS+= -fno-stack-protector -D__BSD_VISIBLE
 CFLAGS+= -I${.CURDIR}/../liblua -I${LUA_PATH} -I${.CURDIR}/../common
 
 .if ${MACHINE_CPUARCH} == "i386" || \
