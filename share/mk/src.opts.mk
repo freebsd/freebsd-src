@@ -181,6 +181,7 @@ __DEFAULT_NO_OPTIONS = \
     EISA \
     FMAKE \
     HESIOD \
+    LLD \
     LLDB \
     NAND \
     OFED \
@@ -382,6 +383,7 @@ MK_${vv:H}:=	${MK_${vv:T}}
 
 .if !${COMPILER_FEATURES:Mc++11}
 MK_LLDB:=	no
+MK_LLD:=	no
 .endif
 
 # gcc 4.8 and newer supports libc++, so suppress gnuc++ in that case.
