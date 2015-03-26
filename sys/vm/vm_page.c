@@ -349,6 +349,9 @@ vm_page_startup(vm_offset_t vaddr)
 	/*
 	 * Allocate memory for use when boot strapping the kernel memory
 	 * allocator.
+	 *
+	 * CTFLAG_RDTUN doesn't work during the early boot process, so we must
+	 * manually fetch the value.
 	 */
 	TUNABLE_INT_FETCH("vm.boot_pages", &boot_pages);
 	new_end = end - (boot_pages * UMA_SLAB_SIZE);
