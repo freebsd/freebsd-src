@@ -1,3 +1,3 @@
-/* $FreeBSD */
 
 #define FIRST_PSEUDO_REGISTER   67
+#define DWARF_FRAME_REGISTERS   97
