@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include "bootstrap.h"
 #include "ficl.h"
+#include "interp.h"
 
 extern char bootprog_rev[];
 
@@ -60,10 +61,14 @@ extern char bootprog_rev[];
 /*
  * BootForth   Interface to Ficl Forth interpreter.
  */
+struct interp_forth_softc {
+	FICL_SYSTEM *bf_sys;
+	FICL_VM	*bf_vm;
+	FICL_WORD *pInterp;
+};
+struct interp_forth_softc	forth_softc = { NULL, NULL, NULL };
 
-FICL_SYSTEM *bf_sys;
-FICL_VM	*bf_vm;
-FICL_WORD *pInterp;
+#define	RETURN(x)	stackPushINT(bf_vm->pStack,!x); return(x)
 
 /*
  * Shim for taking commands from BF and passing them out to 'standard'
@@ -72,81 +77,81 @@ FICL_WORD *pInterp;
 static void
 bf_command(FICL_VM *vm)
 {
-    char			*name, *line, *tail, *cp;
-    size_t			len;
-    struct bootblk_command	**cmdp;
-    bootblk_cmd_t		*cmd;
-    int				nstrings, i;
-    int				argc, result;
-    char			**argv;
+	char			*name, *line, *tail, *cp;
+	size_t			len;
+	struct bootblk_command	**cmdp;
+	bootblk_cmd_t		*cmd;
+	int			nstrings, i;
+	int			argc, result;
+	char			**argv;
 
-    /* Get the name of the current word */
-    name = vm->runningWord->name;
-    
-    /* Find our command structure */
-    cmd = NULL;
-    SET_FOREACH(cmdp, Xcommand_set) {
-	if (((*cmdp)->c_name != NULL) && !strcmp(name, (*cmdp)->c_name))
-	    cmd = (*cmdp)->c_fn;
-    }
-    if (cmd == NULL)
-	panic("callout for unknown command '%s'", name);
-   
-    /* Check whether we have been compiled or are being interpreted */
-    if (stackPopINT(vm->pStack)) {
-	/*
-	 * Get parameters from stack, in the format:
-	 * an un ... a2 u2 a1 u1 n --
-	 * Where n is the number of strings, a/u are pairs of
-	 * address/size for strings, and they will be concatenated
-	 * in LIFO order.
-	 */
-	nstrings = stackPopINT(vm->pStack);
-	for (i = 0, len = 0; i < nstrings; i++)
-	    len += stackFetch(vm->pStack, i * 2).i + 1;
-	line = malloc(strlen(name) + len + 1);
-	strcpy(line, name);
+	/* Get the name of the current word */
+	name = vm->runningWord->name;
 
-	if (nstrings)
-	    for (i = 0; i < nstrings; i++) {
-		len = stackPopINT(vm->pStack);
-		cp = stackPopPtr(vm->pStack);
-		strcat(line, " ");
-		strncat(line, cp, len);
-	    }
-    } else {
-	/* Get remainder of invocation */
-	tail = vmGetInBuf(vm);
-	for (cp = tail, len = 0; cp != vm->tib.end && *cp != 0 && *cp != '\n'; cp++, len++)
-	    ;
-    
-	line = malloc(strlen(name) + len + 2);
-	strcpy(line, name);
-	if (len > 0) {
-	    strcat(line, " ");
-	    strncat(line, tail, len);
-	    vmUpdateTib(vm, tail + len);
+	/* Find our command structure */
+	cmd = NULL;
+	SET_FOREACH(cmdp, Xcommand_set) {
+		if (((*cmdp)->c_name != NULL) && !strcmp(name, (*cmdp)->c_name))
+			cmd = (*cmdp)->c_fn;
 	}
-    }
-    DEBUG("cmd '%s'", line);
-    
-    command_errmsg = command_errbuf;
-    command_errbuf[0] = 0;
-    if (!parse(&argc, &argv, line)) {
-	result = (cmd)(argc, argv);
-	free(argv);
-    } else {
-	result=BF_PARSE;
-    }
-    free(line);
-    /*
-     * If there was error during nested ficlExec(), we may no longer have
-     * valid environment to return.  Throw all exceptions from here.
-     */
-    if (result != 0)
-	vmThrow(vm, result);
-    /* This is going to be thrown!!! */
-    stackPushINT(vm->pStack,result);
+	if (cmd == NULL)
+		panic("callout for unknown command '%s'", name);
+
+	/* Check whether we have been compiled or are being interpreted */
+	if (stackPopINT(vm->pStack)) {
+		/*
+		* Get parameters from stack, in the format:
+		* an un ... a2 u2 a1 u1 n --
+		* Where n is the number of strings, a/u are pairs of
+		* address/size for strings, and they will be concatenated
+		* in LIFO order.
+		*/
+		nstrings = stackPopINT(vm->pStack);
+		for (i = 0, len = 0; i < nstrings; i++)
+			len += stackFetch(vm->pStack, i * 2).i + 1;
+		line = malloc(strlen(name) + len + 1);
+		strcpy(line, name);
+
+		if (nstrings)
+			for (i = 0; i < nstrings; i++) {
+				len = stackPopINT(vm->pStack);
+				cp = stackPopPtr(vm->pStack);
+				strcat(line, " ");
+				strncat(line, cp, len);
+			}
+	} else {
+		/* Get remainder of invocation */
+		tail = vmGetInBuf(vm);
+		for (cp = tail, len = 0; cp != vm->tib.end && *cp != 0 && *cp != '\n'; cp++, len++)
+			;
+
+		line = malloc(strlen(name) + len + 2);
+		strcpy(line, name);
+		if (len > 0) {
+			strcat(line, " ");
+			strncat(line, tail, len);
+			vmUpdateTib(vm, tail + len);
+		}
+	}
+	DEBUG("cmd '%s'", line);
+
+	command_errmsg = command_errbuf;
+	command_errbuf[0] = 0;
+	if (!parse(&argc, &argv, line)) {
+		result = (cmd)(argc, argv);
+		free(argv);
+	} else {
+		result=BF_PARSE;
+	}
+	free(line);
+	/*
+	* If there was error during nested ficlExec(), we may no longer have
+	* valid environment to return.  Throw all exceptions from here.
+	*/
+	if (result != 0)
+		vmThrow(vm, result);
+	/* This is going to be thrown!!! */
+	stackPushINT(vm->pStack,result);
 }
 
 /*
@@ -241,87 +246,114 @@ bf_command(FICL_VM *vm)
  * Initialise the Forth interpreter, create all our commands as words.
  */
 void
-bf_init(const char *rc)
+interp_forth_init(void *ctx)
 {
-    struct bootblk_command	**cmdp;
-    char create_buf[41];	/* 31 characters-long builtins */
-    int fd;
+	struct interp_forth_softc   *softc;
+	struct bootblk_command	**cmdp;
+	char create_buf[41];	/* 31 characters-long builtins */
+	int fd;
 
-    bf_sys = ficlInitSystem(BF_DICTSIZE);
-    bf_vm = ficlNewVM(bf_sys);
+	softc = ctx;
 
-    /* Put all private definitions in a "builtins" vocabulary */
-    ficlExec(bf_vm, "vocabulary builtins also builtins definitions");
+	assert((softc->bf_sys == NULL) && (softc->bf_vm == NULL) &&
+		(softc->pInterp == NULL));	/* No Forth context at this stage */
 
-    /* Builtin constructor word  */
-    ficlExec(bf_vm, BUILTIN_CONSTRUCTOR);
+	softc->bf_sys = ficlInitSystem(BF_DICTSIZE);
+	softc->bf_vm = ficlNewVM(softc->bf_sys);
 
-    /* make all commands appear as Forth words */
-    SET_FOREACH(cmdp, Xcommand_set) {
-	ficlBuild(bf_sys, (char *)(*cmdp)->c_name, bf_command, FW_DEFAULT);
-	ficlExec(bf_vm, "forth definitions builtins");
-	sprintf(create_buf, "builtin: %s", (*cmdp)->c_name);
-	ficlExec(bf_vm, create_buf);
-	ficlExec(bf_vm, "builtins definitions");
-    }
-    ficlExec(bf_vm, "only forth definitions");
+	/* Put all private definitions in a "builtins" vocabulary */
+	ficlExec(softc->bf_vm, "vocabulary builtins also builtins definitions");
 
-    /* Export some version numbers so that code can detect the loader/host version */
-    ficlSetEnv(bf_sys, "FreeBSD_version", __FreeBSD_version);
-    ficlSetEnv(bf_sys, "loader_version", 
-	       (bootprog_rev[0] - '0') * 10 + (bootprog_rev[2] - '0'));
+	/* Builtin constructor word  */
+	ficlExec(softc->bf_vm, BUILTIN_CONSTRUCTOR);
 
-    pInterp = ficlLookup(bf_sys, "interpret");
-
-    /* try to load and run init file if present */
-    if (rc == NULL)
-	rc = "/boot/boot.4th";
-    if (*rc != '\0') {
-	fd = open(rc, O_RDONLY);
-	if (fd != -1) {
-	    (void)ficlExecFD(bf_vm, fd);
-	    close(fd);
+	/* make all commands appear as Forth words */
+	SET_FOREACH(cmdp, Xcommand_set) {
+		ficlBuild(softc->bf_sys, (char *)(*cmdp)->c_name, bf_command, FW_DEFAULT);
+		ficlExec(softc->bf_vm, "forth definitions builtins");
+		sprintf(create_buf, "builtin: %s", (*cmdp)->c_name);
+		ficlExec(softc->bf_vm, create_buf);
+		ficlExec(softc->bf_vm, "builtins definitions");
 	}
-    }
+	ficlExec(softc->bf_vm, "only forth definitions");
 
-    /* Do this again, so that interpret can be redefined. */
-    pInterp = ficlLookup(bf_sys, "interpret");
+	/* Export some version numbers so that code can detect the loader/host version */
+	ficlSetEnv(softc->bf_sys, "FreeBSD_version", __FreeBSD_version);
+	ficlSetEnv(softc->bf_sys, "loader_version", 
+		(bootprog_rev[0] - '0') * 10 + (bootprog_rev[2] - '0'));
+
+	/* try to load and run init file if present */
+	if ((fd = open("/boot/boot.4th", O_RDONLY)) != -1) {
+		(void)ficlExecFD(softc->bf_vm, fd);
+		close(fd);
+	}
+
+	/* Do this last, so /boot/boot.4th can change it */
+	softc->pInterp = ficlLookup(softc->bf_sys, "interpret");
 }
 
 /*
  * Feed a line of user input to the Forth interpreter
  */
 int
-bf_run(char *line)
+interp_forth_run(void *ctx, const char *line)
 {
-    int		result;
+	struct interp_forth_softc *softc;
+	int		result;
 
-    result = ficlExec(bf_vm, line);
+	softc = ctx;
 
-    DEBUG("ficlExec '%s' = %d", line, result);
-    switch (result) {
-    case VM_OUTOFTEXT:
-    case VM_ABORTQ:
-    case VM_QUIT:
-    case VM_ERREXIT:
-	break;
-    case VM_USEREXIT:
-	printf("No where to leave to!\n");
-	break;
-    case VM_ABORT:
-	printf("Aborted!\n");
-	break;
-    case BF_PARSE:
-	printf("Parse error!\n");
-	break;
-    default:
-        /* Hopefully, all other codes filled this buffer */
-	printf("%s\n", command_errmsg);
-    }
-    
-    if (result == VM_USEREXIT)
-	panic("interpreter exit");
-    setenv("interpret", bf_vm->state ? "" : "OK", 1);
+	result = ficlExec(softc->bf_vm, (char*)line);
 
-    return result;
+	DEBUG("ficlExec '%s' = %d", line, result);
+	switch (result) {
+	case VM_OUTOFTEXT:
+	case VM_ABORTQ:
+	case VM_QUIT:
+	case VM_ERREXIT:
+		break;
+	case VM_USEREXIT:
+		printf("No where to leave to!\n");
+		break;
+	case VM_ABORT:
+		printf("Aborted!\n");
+		break;
+	case BF_PARSE:
+		printf("Parse error!\n");
+		break;
+	default:
+		/* Hopefully, all other codes filled this buffer */
+		printf("%s\n", command_errmsg);
+	}
+
+	if (result == VM_USEREXIT)
+		panic("interpreter exit");
+	setenv("interpret", softc->bf_vm->state ? "" : "OK", 1);
+
+	return result;
 }
+
+int
+interp_forth_incl(void *ctx, const char *filename)
+{
+	struct interp_forth_softc *softc;
+	int	fd;
+
+	softc = ctx;
+
+	fd = open(filename, O_RDONLY);
+	if (fd == -1) {
+		printf("can't open %s\n", filename);
+		return (CMD_ERROR);
+	}
+	return (ficlExecFD(softc->bf_vm, fd));
+}
+
+
+struct interp boot_interp_forth = {
+	.init = interp_forth_init,
+	.run = interp_forth_run,
+	.incl = interp_forth_incl,
+	.load_configs = default_load_config,
+	.context = &forth_softc
+};
