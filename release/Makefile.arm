@@ -59,20 +59,24 @@ arm-buildkernel${BOARD:tl}:
 
 arm-installworld${BOARD:tl}: arm-mkfs${BOARD:tl}
 	@echo ${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${ARM_WFLAGS} \
-		installworld
+		DESTDIR=${.OBJDIR}/arm-${BOARD:tl} installworld distribution
 	touch ${.TARGET}
 
 arm-installkernel${BOARD:tl}:
 	@echo ${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${ARM_WFLAGS} \
-		KERNCONF=${BOARD} installkernel
+		DESTDIR=${.OBJDIR}/arm-${BOARD:tl} KERNCONF=${BOARD} \
+		installkernel
 	touch ${.TARGET}
 
 arm-mkfs${BOARD:tl}:
 .if !exists(${${BOARD:tu}MDDEV})
 	mkdir -p ${.OBJDIR}/arm-${BOARD:tl}
-	truncate -s ${ARMSIZE} ${.OBJDIR}/arm-${BOARD:tu}.raw
-	echo $$(mdconfig -f ${${BOARD:tu}MDFILE}) > \
-		${${BOARD:tu}MDDEV}
+	truncate -s ${ARMSIZE} ${.OBJDIR}/${${BOARD:tu}MDFILE}
+	echo $$(mdconfig -f ${.OBJDIR}/${${BOARD:tu}MDFILE}) > \
+		${.OBJDIR}/${${BOARD:tu}MDDEV}
+	newfs -S 4096 /dev/$$(cat ${.OBJDIR}/${${BOARD:tu}MDDEV})
+	mount /dev/$$(cat ${.OBJDIR}/${${BOARD:tu}MDDEV}) \
+		${.OBJDIR}/arm-${BOARD:tl}
 .endif
 
 build-arm-ports${BOARD:tl}:
