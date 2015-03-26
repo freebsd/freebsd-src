@@ -28,7 +28,7 @@ CFLAGS.gcc+=    -mpreferred-stack-boundary=2
 .if ${MACHINE_CPUARCH} == "amd64"
 CFLAGS+=        -mno-red-zone
 .endif
-.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "i386"
 CFLAGS+=        -mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 -msoft-float
 .endif
 
