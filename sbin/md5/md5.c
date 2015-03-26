@@ -42,11 +42,11 @@ __FBSDID("$FreeBSD$");
 #define TEST_BLOCK_COUNT 100000
 #define MDTESTCOUNT 8
 
-int qflag;
-int rflag;
-int sflag;
-unsigned char* checkAgainst;
-int	checksFailed;
+static int qflag;
+static int rflag;
+static int sflag;
+static char* checkAgainst;
+static int checksFailed;
 
 typedef void (DIGEST_Init)(void *);
 typedef void (DIGEST_Update)(void *, const unsigned char *, size_t);
