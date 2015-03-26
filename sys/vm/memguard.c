@@ -69,7 +69,7 @@ static SYSCTL_NODE(_vm, OID_AUTO, memguard, CTLFLAG_RW, NULL, "MemGuard data");
 static u_int vm_memguard_divisor;
 SYSCTL_UINT(_vm_memguard, OID_AUTO, divisor, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &vm_memguard_divisor,
-    0, "(kmem_size/memguard_divisor) == memguard submap size");     
+    0, "(kmem_size/memguard_divisor) == memguard submap size");
 
 /*
  * Short description (ks_shortdesc) of memory type to monitor.
@@ -162,6 +162,7 @@ memguard_fudge(unsigned long km_size, const struct vm_map *parent_map)
 	u_long mem_pgs, parent_size;
 
 	vm_memguard_divisor = 10;
+	/* CTFLAG_RDTUN doesn't work during the early boot process. */
 	TUNABLE_INT_FETCH("vm.memguard.divisor", &vm_memguard_divisor);
 
 	parent_size = vm_map_max(parent_map) - vm_map_min(parent_map) +
