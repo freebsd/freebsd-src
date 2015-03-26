@@ -108,7 +108,7 @@ SUBDIR=	\
 	${_et} \
 	${_ex} \
 	${_exca} \
-	${_ext2fs} \
+	ext2fs \
 	${_fatm} \
 	fdc \
 	fdescfs \
@@ -132,7 +132,7 @@ SUBDIR=	\
 	${_hptrr} \
 	hwpmc \
 	${_hyperv} \
-	${_i2c} \
+	i2c \
         ${_ibcore} \
 	${_ibcs2} \
 	${_ichwd} \
@@ -315,11 +315,11 @@ SUBDIR=	\
 	siis \
 	sis \
 	sk \
-	${_smbfs} \
+	smbfs \
 	sn \
 	${_snc} \
 	snp \
-	${_sound} \
+	sound \
 	${_speaker} \
 	${_splash} \
 	${_sppp} \
@@ -498,10 +498,8 @@ _em=		em
 _ep=		ep
 _et=		et
 _exca=		exca
-_ext2fs=	ext2fs
 _fe=		fe
 _filemon=	filemon
-_i2c=		i2c
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _ibcore=        ibcore
 .endif
@@ -530,8 +528,6 @@ _rdma=		rdma
 _safe=		safe
 _scsi_low=	scsi_low
 _si=		si
-_smbfs=		smbfs
-_sound=		sound
 _speaker=	speaker
 _splash=	splash
 _sppp=		sppp
@@ -688,7 +684,6 @@ _snc=		snc
 .if ${MACHINE_CPUARCH} == "arm"
 _cfi=		cfi
 _cpsw=		cpsw
-_sound=		sound
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"
@@ -709,14 +704,11 @@ _nvram=		powermac_nvram
 _opensolaris=	opensolaris
 .endif
 _pccard=	pccard
-_smbfs=		smbfs
-_sound=		sound
 _wi=		wi
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc64"
 _drm2=		drm2
-_i2c=		i2c
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 _zfs=		zfs
 .endif
@@ -726,13 +718,10 @@ _zfs=		zfs
 _auxio=		auxio
 _em=		em
 _epic=		epic
-_i2c=		i2c
 _igb=		igb
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _opensolaris=	opensolaris
 .endif
-_smbfs=		smbfs
-_sound=		sound
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 _zfs=		zfs
 .endif
