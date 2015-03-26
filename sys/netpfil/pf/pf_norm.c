@@ -386,7 +386,7 @@ pf_create_fragment(u_short *reason)
 	return (frent);
 }
 
-struct pf_fragment *
+static struct pf_fragment *
 pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 		u_short *reason)
 {
