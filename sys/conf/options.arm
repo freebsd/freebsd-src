@@ -6,6 +6,7 @@ ARM_KERN_DIRECTMAP	opt_vm.h
 ARM_L2_PIPT		opt_global.h
 ARM_MANY_BOARD		opt_global.h
 ARM_NEW_PMAP		opt_global.h
+NKPT2PG			opt_pmap.h
 ARM_WANT_TP_ADDRESS	opt_global.h
 COUNTS_PER_SEC		opt_timer.h
 CPU_ARM9		opt_global.h
