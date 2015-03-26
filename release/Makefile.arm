@@ -19,18 +19,31 @@ CLEANFILES+=	arm-all
 .if defined(WITH_ARM_IMAGES) && !empty(WITH_ARM_IMAGES) && !empty(BOARDS)
 . for BOARD in ${BOARDS}
 ARMTARGETS+=		arm-${BOARD:tl}
+ARMBEFORECLEAN+=	arm-mdclean${BOARD:tl}
 CLEANDIRS+=		arm-${BOARD:tl}
 CLEANFILES+=		arm-buildworld${BOARD:tl} \
 			arm-buildkernel${BOARD:tl} \
 			arm-installworld${BOARD:tl} \
 			arm-installkernel${BOARD:tl} \
-			arm-${BOARD:tu}.img \
-			arm-${BOARD:tu}.raw \
+			${${BOARD:tu}IMAGE} \
+			${${BOARD:tu}MDDEV} \
+			${${BOARD:tu}MDFILE} \
 			build-arm-${BOARD:tl} \
 			build-arm-ports${BOARD:tl}
+${BOARD:tu}IMAGE=	arm-${BOARD:tu}.img
+${BOARD:tu}MDDEV=	arm-${BOARD:tu}.mddev
+${BOARD:tu}MDFILE=	arm-${BOARD:tu}.raw
 .  if exists(${.CURDIR}/arm/Makefile.${BOARD})
 .   include "${.CURDIR}/arm/Makefile.${BOARD}"
 .  endif
+
+arm-mdcleanall: ${ARMBEFORECLEAN}
+
+arm-mdclean${BOARD:tl}:
+.if exists(${${BOARD:tu}MDDEV})
+	umount ${${BOARD:tu}MDFILE} || true
+	mdconfig -d -u $$(cat ${${BOARD:tu}MDDEV})
+.endif
 
 arm-${BOARD:tl}: arm-buildworld${BOARD:tl} arm-buildkernel${BOARD:tl} \
 	arm-installworld${BOARD:tl} arm-installkernel${BOARD:tl}
@@ -46,7 +59,7 @@ arm-buildkernel${BOARD:tl}:
 		KERNCONF=${BOARD} buildkernel
 	touch ${.TARGET}
 
-arm-installworld${BOARD:tl}:
+arm-installworld${BOARD:tl}: arm-mkfs${BOARD:tl}
 	@echo ${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${ARM_WFLAGS} \
 		installworld
 	touch ${.TARGET}
@@ -55,6 +68,12 @@ arm-installkernel${BOARD:tl}:
 	@echo ${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${ARM_WFLAGS} \
 		KERNCONF=${BOARD} installkernel
 	touch ${.TARGET}
+
+arm-mkfs${BOARD:tl}:
+	mkdir -p ${.OBJDIR}/arm-${BOARD:tl}
+	truncate -s ${ARMSIZE} ${.OBJDIR}/arm-${BOARD:tu}.raw
+	echo $$(mdconfig -f ${${BOARD:tu}MDFILE}) > \
+		${${BOARD:tu}MDDEV}
 
 build-arm-ports${BOARD:tl}:
 .  if defined(ARMPORTS) && !empty(ARMPORTS)
@@ -69,6 +88,8 @@ build-arm-ports${BOARD:tl}:
 
 . endfor		# main loop
 .endif			# !WITH_ARM_IMAGES
+
+beforeclean: arm-mdcleanall
 
 arm-all: ${ARMTARGETS}
 	touch ${.TARGET}
