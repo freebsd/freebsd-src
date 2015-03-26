@@ -2563,18 +2563,42 @@ DECLARE_GEOM_CLASS(g_swap_class, g_class);
 
 
 static void
+swapgeom_close_ev(void *arg, int flags)
+{
+	struct g_consumer *cp;
+
+	cp = arg;
+	g_access(cp, -1, -1, 0);
+	g_detach(cp);
+	g_destroy_consumer(cp);
+}
+
+static void
 swapgeom_done(struct bio *bp2)
 {
+	struct swdevt *sp;
 	struct buf *bp;
+	struct g_consumer *cp;
+	int destroy;
 
 	bp = bp2->bio_caller2;
+	cp = bp2->bio_from;
 	bp->b_ioflags = bp2->bio_flags;
 	if (bp2->bio_error)
 		bp->b_ioflags |= BIO_ERROR;
 	bp->b_resid = bp->b_bcount - bp2->bio_completed;
 	bp->b_error = bp2->bio_error;
 	bufdone(bp);
+	mtx_lock(&sw_dev_mtx);
+	destroy = ((--cp->index) == 0 && cp->private);
+	if (destroy) {
+		sp = bp2->bio_caller1;
+		sp->sw_id = NULL;
+	}
+	mtx_unlock(&sw_dev_mtx);
 	g_destroy_bio(bp2);
+	if (destroy)
+		g_waitfor_event(swapgeom_close_ev, cp, M_WAITOK, NULL);
 }
 
 static void
@@ -2583,13 +2607,17 @@ swapgeom_strategy(struct buf *bp, struct swdevt *sp)
 	struct bio *bio;
 	struct g_consumer *cp;
 
+	mtx_lock(&sw_dev_mtx);
 	cp = sp->sw_id;
 	if (cp == NULL) {
+		mtx_unlock(&sw_dev_mtx);
 		bp->b_error = ENXIO;
 		bp->b_ioflags |= BIO_ERROR;
 		bufdone(bp);
 		return;
 	}
+	cp->index++;
+	mtx_unlock(&sw_dev_mtx);
 	if (bp->b_iocmd == BIO_WRITE)
 		bio = g_new_bio();
 	else
@@ -2601,6 +2629,7 @@ swapgeom_strategy(struct buf *bp, struct swdevt *sp)
 		return;
 	}
 
+	bio->bio_caller1 = sp;
 	bio->bio_caller2 = bp;
 	bio->bio_cmd = bp->b_iocmd;
 	bio->bio_offset = (bp->b_blkno - sp->sw_first) * PAGE_SIZE;
@@ -2624,31 +2653,36 @@ static void
 swapgeom_orphan(struct g_consumer *cp)
 {
 	struct swdevt *sp;
+	int destroy;
 
 	mtx_lock(&sw_dev_mtx);
-	TAILQ_FOREACH(sp, &swtailq, sw_list)
-		if (sp->sw_id == cp)
+	TAILQ_FOREACH(sp, &swtailq, sw_list) {
+		if (sp->sw_id == cp) {
 			sp->sw_flags |= SW_CLOSING;
+			break;
+		}
+	}
+	cp->private = (void *)(uintptr_t)1;
+	destroy = ((sp != NULL) && (cp->index == 0));
+	if (destroy)
+		sp->sw_id = NULL;
 	mtx_unlock(&sw_dev_mtx);
-}
-
-static void
-swapgeom_close_ev(void *arg, int flags)
-{
-	struct g_consumer *cp;
-
-	cp = arg;
-	g_access(cp, -1, -1, 0);
-	g_detach(cp);
-	g_destroy_consumer(cp);
+	if (destroy)
+		swapgeom_close_ev(cp, 0);
 }
 
 static void
 swapgeom_close(struct thread *td, struct swdevt *sw)
 {
+	struct g_consumer *cp;
 
+	mtx_lock(&sw_dev_mtx);
+	cp = sw->sw_id;
+	sw->sw_id = NULL;
+	mtx_unlock(&sw_dev_mtx);
 	/* XXX: direct call when Giant untangled */
-	g_waitfor_event(swapgeom_close_ev, sw->sw_id, M_WAITOK, NULL);
+	if (cp != NULL)
+		g_waitfor_event(swapgeom_close_ev, cp, M_WAITOK, NULL);
 }
 
 
@@ -2689,6 +2723,8 @@ swapongeom_ev(void *arg, int flags)
 	if (gp == NULL)
 		gp = g_new_geomf(&g_swap_class, "swap");
 	cp = g_new_consumer(gp);
+	cp->index = 0;		/* Number of active I/Os. */
+	cp->private = NULL;	/* Orphanization flag */
 	g_attach(cp, pp);
 	/*
 	 * XXX: Everytime you think you can improve the margin for
