@@ -39,6 +39,7 @@
 #include <sys/malloc.h>
 #include <sys/rwlock.h>
 #include <sys/sx.h>
+#include <sys/taskqueue.h>
 #include <vm/uma.h>
 
 #include <dev/pci/pcivar.h>
@@ -48,7 +49,6 @@
 #include <sys/sysctl.h>
 #include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_media.h>
 #include <netinet/in.h>
 #include <netinet/tcp_lro.h>
@@ -218,13 +218,15 @@ struct port_info {
 	device_t dev;
 	struct adapter *adapter;
 
-	struct ifnet *ifp;
+	if_t ifp;
 	struct ifmedia media;
 
 	struct mtx pi_lock;
 	char lockname[16];
 	unsigned long flags;
-	int if_flags;
+	uint32_t if_flags;
+	uint32_t if_mtu;
+	uint32_t if_capenable;
 
 	uint16_t *rss;
 	uint16_t viid;
@@ -256,7 +258,7 @@ struct port_info {
 	int nnmrxq;		/* # of netmap rx queues */
 	int first_nm_rxq;	/* index of first netmap rx queue */
 
-	struct ifnet *nm_ifp;
+	if_t nm_ifp;
 	struct ifmedia nm_media;
 	int nmif_flags;
 	uint16_t nm_viid;
@@ -275,8 +277,6 @@ struct port_info {
  	struct port_stats stats;
 	u_int tnl_cong_drops;
 	u_int tx_parse_error;
-
-	eventhandler_tag vlan_c;
 
 	struct callout tick;
 	struct sysctl_ctx_list ctx;	/* from ifconfig up to driver detach */
@@ -482,7 +482,7 @@ struct mp_ring;
 struct sge_txq {
 	struct sge_eq eq;	/* MUST be first */
 
-	struct ifnet *ifp;	/* the interface this txq belongs to */
+	struct port_info *pi;
 	struct mp_ring *r;	/* tx software ring */
 	struct tx_sdesc *sdesc;	/* KVA of software descriptor ring */
 	struct sglist *gl;
@@ -510,7 +510,7 @@ struct sge_rxq {
 	struct sge_iq iq;	/* MUST be first */
 	struct sge_fl fl;	/* MUST follow iq */
 
-	struct ifnet *ifp;	/* the interface this rxq belongs to */
+	struct port_info *pi;
 #if defined(INET) || defined(INET6)
 	struct lro_ctrl lro;	/* LRO state */
 #endif

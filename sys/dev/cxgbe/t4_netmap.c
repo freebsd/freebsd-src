@@ -44,9 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_media.h>
-#include <net/if_var.h>
-#include <net/if_clone.h>
-#include <net/if_types.h>
 #include <net/netmap.h>
 #include <dev/netmap/netmap_kern.h>
 

@@ -82,16 +82,19 @@ __FBSDID("$FreeBSD$");
  */
 
 static struct sx t4_trace_lock;
-static const char *t4_cloner_name = "tXnex";
-static struct if_clone *t4_cloner;
 
-/* tracer ifnet routines.  mostly no-ops. */
-static void tracer_init(void *);
-static int tracer_ioctl(struct ifnet *, unsigned long, caddr_t);
-static int tracer_transmit(struct ifnet *, struct mbuf *);
-static void tracer_qflush(struct ifnet *);
-static int tracer_media_change(struct ifnet *);
-static void tracer_media_status(struct ifnet *, struct ifmediareq *);
+/* tracer interface ops.  mostly no-ops. */
+static int tracer_ioctl(if_t, unsigned long, void *, struct thread *);
+static int tracer_media_change(if_t);
+static void tracer_media_status(if_t, struct ifmediareq *);
+
+static struct ifdriver t4_tracer_ifdrv = {
+	.ifdrv_ops = {
+		.ifop_ioctl = tracer_ioctl,
+	},
+	.ifdrv_name = "tXnex",
+	.ifdrv_type = IFT_ETHER,
+};
 
 /* match name (request/response) */
 struct match_rr {
@@ -134,11 +137,19 @@ t4_cloner_match(struct if_clone *ifc, const char *name)
 static int
 t4_cloner_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 {
+	const uint8_t lla[ETHER_ADDR_LEN] = {0, 0, 0, 0, 0, 0};
+	struct if_attach_args ifat = {
+		.ifat_drv = &t4_tracer_ifdrv,
+		.ifat_name = name,
+		.ifat_dunit = -1,
+		.ifat_flags = IFF_SIMPLEX,
+		.ifat_capabilities = IFCAP_JUMBO_MTU | IFCAP_VLAN_MTU,
+		.ifat_lla = lla,
+	};
 	struct match_rr mrr;
 	struct adapter *sc;
-	struct ifnet *ifp;
-	int rc, unit;
-	const uint8_t lla[ETHER_ADDR_LEN] = {0, 0, 0, 0, 0, 0};
+	if_t ifp;
+	int rc = 0;
 
 	mrr.name = name;
 	mrr.lock = 1;
@@ -165,37 +176,15 @@ t4_cloner_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 		goto done;
 	}
 
+	ifat.ifat_softc = sc;
+	ifp = if_attach(&ifat);
 
-	unit = -1;
-	rc = ifc_alloc_unit(ifc, &unit);
-	if (rc != 0)
-		goto done;
-
-	ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		ifc_free_unit(ifc, unit);
-		rc = ENOMEM;
-		goto done;
-	}
-
-	/* Note that if_xname is not <if_dname><if_dunit>. */
-	strlcpy(ifp->if_xname, name, sizeof(ifp->if_xname));
-	ifp->if_dname = t4_cloner_name;
-	ifp->if_dunit = unit;
-	ifp->if_init = tracer_init;
-	ifp->if_flags = IFF_SIMPLEX | IFF_DRV_RUNNING;
-	ifp->if_ioctl = tracer_ioctl;
-	ifp->if_transmit = tracer_transmit;
-	ifp->if_qflush = tracer_qflush;
-	ifp->if_capabilities = IFCAP_JUMBO_MTU | IFCAP_VLAN_MTU;
 	ifmedia_init(&sc->media, IFM_IMASK, tracer_media_change,
 	    tracer_media_status);
 	ifmedia_add(&sc->media, IFM_ETHER | IFM_FDX | IFM_NONE, 0, NULL);
 	ifmedia_set(&sc->media, IFM_ETHER | IFM_FDX | IFM_NONE);
-	ether_ifattach(ifp, lla);
 
 	mtx_lock(&sc->ifp_lock);
-	ifp->if_softc = sc;
 	sc->ifp = ifp;
 	mtx_unlock(&sc->ifp_lock);
 done:
@@ -205,23 +194,19 @@ done:
 }
 
 static int
-t4_cloner_destroy(struct if_clone *ifc, struct ifnet *ifp)
+t4_cloner_destroy(struct if_clone *ifc, if_t ifp)
 {
 	struct adapter *sc;
-	int unit = ifp->if_dunit;
 
 	sx_xlock(&t4_trace_lock);
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	if (sc != NULL) {
 		mtx_lock(&sc->ifp_lock);
 		sc->ifp = NULL;
-		ifp->if_softc = NULL;
 		mtx_unlock(&sc->ifp_lock);
 		ifmedia_removeall(&sc->media);
 	}
-	ether_ifdetach(ifp);
-	if_free(ifp);
-	ifc_free_unit(ifc, unit);
+	if_detach(ifp);
 	sx_xunlock(&t4_trace_lock);
 
 	return (0);
@@ -230,17 +215,18 @@ t4_cloner_destroy(struct if_clone *ifc, struct ifnet *ifp)
 void
 t4_tracer_modload()
 {
+	struct ifdriver *drv = &t4_tracer_ifdrv;
 
 	sx_init(&t4_trace_lock, "T4/T5 tracer lock");
-	t4_cloner = if_clone_advanced(t4_cloner_name, 0, t4_cloner_match,
-	    t4_cloner_create, t4_cloner_destroy);
+	drv->ifdrv_clone = if_clone_advanced(drv->ifdrv_name, 0,
+	    t4_cloner_match, t4_cloner_create, t4_cloner_destroy);
 }
 
 void
 t4_tracer_modunload()
 {
 
-	if (t4_cloner != NULL) {
+	if (t4_tracer_ifdrv.ifdrv_clone != NULL) {
 		/*
 		 * The module is being unloaded so the nexus drivers have
 		 * detached.  The tracing interfaces can not outlive the nexus
@@ -248,7 +234,7 @@ t4_tracer_modunload()
 		 * already.  XXX: but if_clone is opaque to us and we can't
 		 * assert LIST_EMPTY(&t4_cloner->ifc_iflist) at this time.
 		 */
-		if_clone_detach(t4_cloner);
+		if_clone_detach(t4_tracer_ifdrv.ifdrv_clone);
 	}
 	sx_destroy(&t4_trace_lock);
 }
@@ -260,7 +246,6 @@ t4_tracer_port_detach(struct adapter *sc)
 	sx_xlock(&t4_trace_lock);
 	if (sc->ifp != NULL) {
 		mtx_lock(&sc->ifp_lock);
-		sc->ifp->if_softc = NULL;
 		sc->ifp = NULL;
 		mtx_unlock(&sc->ifp_lock);
 	}
@@ -407,7 +392,7 @@ int
 t4_trace_pkt(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 {
 	struct adapter *sc = iq->adapter;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	KASSERT(m != NULL, ("%s: no payload with opcode %02x", __func__,
 	    rss->opcode));
@@ -417,7 +402,7 @@ t4_trace_pkt(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	if (sc->ifp) {
 		m_adj(m, sizeof(struct cpl_trace_pkt));
 		m->m_pkthdr.rcvif = ifp;
-		ETHER_BPF_MTAP(ifp, m);
+		if_mtap(ifp, m, NULL, 0);
 	}
 	mtx_unlock(&sc->ifp_lock);
 	m_freem(m);
@@ -429,7 +414,7 @@ int
 t5_trace_pkt(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 {
 	struct adapter *sc = iq->adapter;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	KASSERT(m != NULL, ("%s: no payload with opcode %02x", __func__,
 	    rss->opcode));
@@ -439,7 +424,7 @@ t5_trace_pkt(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	if (ifp != NULL) {
 		m_adj(m, sizeof(struct cpl_t5_trace_pkt));
 		m->m_pkthdr.rcvif = ifp;
-		ETHER_BPF_MTAP(ifp, m);
+		if_mtap(ifp, m, NULL, 0);
 	}
 	mtx_unlock(&sc->ifp_lock);
 	m_freem(m);
@@ -447,16 +432,8 @@ t5_trace_pkt(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	return (0);
 }
 
-
-static void
-tracer_init(void *arg)
-{
-
-	return;
-}
-
 static int
-tracer_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
+tracer_ioctl(if_t ifp, unsigned long cmd, void *data, struct thread *td)
 {
 	int rc = 0;
 	struct adapter *sc;
@@ -472,7 +449,7 @@ tracer_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
 		sx_xlock(&t4_trace_lock);
-		sc = ifp->if_softc;
+		sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 		if (sc == NULL)
 			rc = EIO;
 		else
@@ -480,36 +457,21 @@ tracer_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
 		sx_xunlock(&t4_trace_lock);
 		break;
 	default:
-		rc = ether_ioctl(ifp, cmd, data);
+		rc = EOPNOTSUPP;
 	}
 
 	return (rc);
 }
 
 static int
-tracer_transmit(struct ifnet *ifp, struct mbuf *m)
-{
-
-	m_freem(m);
-	return (0);
-}
-
-static void
-tracer_qflush(struct ifnet *ifp)
-{
-
-	return;
-}
-
-static int
-tracer_media_change(struct ifnet *ifp)
+tracer_media_change(if_t ifp)
 {
 
 	return (EOPNOTSUPP);
 }
 
 static void
-tracer_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
+tracer_media_status(if_t ifp, struct ifmediareq *ifmr)
 {
 
 	ifmr->ifm_status = IFM_AVALID | IFM_ACTIVE;

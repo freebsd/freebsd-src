@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_vlan_var.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
@@ -59,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #ifdef DEV_NETMAP
 #include <machine/bus.h>
 #include <sys/selinfo.h>
-#include <net/if_var.h>
 #include <net/netmap.h>
 #include <dev/netmap/netmap_kern.h>
 #endif
@@ -982,10 +980,9 @@ t4_setup_port_queues(struct port_info *pi)
 #endif
 	char name[16];
 	struct adapter *sc = pi->adapter;
-	struct ifnet *ifp = pi->ifp;
 	struct sysctl_oid *oid = device_get_sysctl_tree(pi->dev);
 	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
-	int maxp, mtu = ifp->if_mtu;
+	int maxp, mtu = pi->if_mtu;
 
 	/* Interrupt vector to start from (when using multiple vectors) */
 	intr_idx = first_vector(pi);
@@ -1731,7 +1728,7 @@ static int
 t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 {
 	struct sge_rxq *rxq = iq_to_rxq(iq);
-	struct ifnet *ifp = rxq->ifp;
+	struct port_info *pi = rxq->pi;
 	const struct cpl_rx_pkt *cpl = (const void *)(rss + 1);
 #if defined(INET) || defined(INET6)
 	struct lro_ctrl *lro = &rxq->lro;
@@ -1744,17 +1741,17 @@ t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 	m0->m_len -= fl_pktshift;
 	m0->m_data += fl_pktshift;
 
-	m0->m_pkthdr.rcvif = ifp;
+	m0->m_pkthdr.rcvif = rxq->pi->ifp;
 	M_HASHTYPE_SET(m0, M_HASHTYPE_OPAQUE);
 	m0->m_pkthdr.flowid = be32toh(rss->hash_val);
 
 	if (cpl->csum_calc && !cpl->err_vec) {
-		if (ifp->if_capenable & IFCAP_RXCSUM &&
+		if (pi->if_capenable & IFCAP_RXCSUM &&
 		    cpl->l2info & htobe32(F_RXF_IP)) {
 			m0->m_pkthdr.csum_flags = (CSUM_IP_CHECKED |
 			    CSUM_IP_VALID | CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 			rxq->rxcsum++;
-		} else if (ifp->if_capenable & IFCAP_RXCSUM_IPV6 &&
+		} else if (pi->if_capenable & IFCAP_RXCSUM_IPV6 &&
 		    cpl->l2info & htobe32(F_RXF_IP6)) {
 			m0->m_pkthdr.csum_flags = (CSUM_DATA_VALID_IPV6 |
 			    CSUM_PSEUDO_HDR);
@@ -1780,7 +1777,7 @@ t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 		/* queued for LRO */
 	} else
 #endif
-	ifp->if_input(ifp, m0);
+	if_input(rxq->pi->ifp, m0);
 
 	return (0);
 }
@@ -1900,16 +1897,16 @@ t4_wrq_tx_locked(struct adapter *sc, struct sge_wrq *wrq, struct wrqe *wr)
 }
 
 void
-t4_update_fl_bufsize(struct ifnet *ifp)
+t4_update_fl_bufsize(if_t ifp)
 {
-	struct port_info *pi = ifp->if_softc;
+	struct port_info *pi = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	struct adapter *sc = pi->adapter;
 	struct sge_rxq *rxq;
 #ifdef TCP_OFFLOAD
 	struct sge_ofld_rxq *ofld_rxq;
 #endif
 	struct sge_fl *fl;
-	int i, maxp, mtu = ifp->if_mtu;
+	int i, maxp, mtu = pi->if_mtu;
 
 	maxp = mtu_to_max_payload(sc, mtu, 0);
 	for_each_rxq(pi, i, rxq) {
@@ -2342,8 +2339,8 @@ eth_tx(struct mp_ring *r, u_int cidx, u_int pidx)
 {
 	struct sge_txq *txq = r->cookie;
 	struct sge_eq *eq = &txq->eq;
-	struct ifnet *ifp = txq->ifp;
-	struct port_info *pi = (void *)ifp->if_softc;
+	struct port_info *pi = txq->pi;
+	if_t ifp = pi->ifp;
 	struct adapter *sc = pi->adapter;
 	u_int total, remaining;		/* # of packets */
 	u_int available, dbdiff;	/* # of hardware descriptors */
@@ -2400,8 +2397,8 @@ eth_tx(struct mp_ring *r, u_int cidx, u_int pidx)
 			MPASS(txp.npkt == 2);
 			tail = r->items[next_cidx];
 			MPASS(tail->m_nextpkt == NULL);
-			ETHER_BPF_MTAP(ifp, m0);
-			ETHER_BPF_MTAP(ifp, tail);
+			if_mtap(ifp, m0, NULL, 0);
+			if_mtap(ifp, tail, NULL, 0);
 			m0->m_nextpkt = tail;
 
 			if (__predict_false(++next_cidx == r->size))
@@ -2413,7 +2410,7 @@ eth_tx(struct mp_ring *r, u_int cidx, u_int pidx)
 					break;
 				tail->m_nextpkt = r->items[next_cidx];
 				tail = tail->m_nextpkt;
-				ETHER_BPF_MTAP(ifp, tail);
+				if_mtap(ifp, tail, NULL, 0);
 				if (__predict_false(++next_cidx == r->size))
 					next_cidx = 0;
 			}
@@ -2425,7 +2422,7 @@ eth_tx(struct mp_ring *r, u_int cidx, u_int pidx)
 			total++;
 			remaining--;
 			n = write_txpkt_wr(txq, (void *)wr, m0, available);
-			ETHER_BPF_MTAP(ifp, m0);
+			if_mtap(ifp, m0, NULL, 0);
 		}
 		MPASS(n >= 1 && n <= available && n <= SGE_MAX_WR_NDESC);
 
@@ -2950,10 +2947,10 @@ alloc_rxq(struct port_info *pi, struct sge_rxq *rxq, int intr_idx, int idx,
 		return (rc);
 	rxq->lro.ifp = pi->ifp; /* also indicates LRO init'ed */
 
-	if (pi->ifp->if_capenable & IFCAP_LRO)
+	if (pi->if_capenable & IFCAP_LRO)
 		rxq->iq.flags |= IQ_LRO_ENABLED;
 #endif
-	rxq->ifp = pi->ifp;
+	rxq->pi = pi;
 
 	children = SYSCTL_CHILDREN(oid);
 
@@ -3511,7 +3508,7 @@ alloc_txq(struct port_info *pi, struct sge_txq *txq, int idx,
 	/* Can't fail after this point. */
 
 	TASK_INIT(&txq->tx_reclaim_task, 0, tx_reclaim, eq);
-	txq->ifp = pi->ifp;
+	txq->pi = pi;
 	txq->gl = sglist_alloc(TX_SGL_SEGS, M_WAITOK);
 	txq->cpl_ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT) |
 	    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(sc->pf));
