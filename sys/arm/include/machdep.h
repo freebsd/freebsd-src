@@ -5,10 +5,16 @@
 #define _MACHDEP_BOOT_MACHDEP_H_
 
 /* Structs that need to be initialised by initarm */
+#ifdef ARM_NEW_PMAP
+extern vm_offset_t irqstack;
+extern vm_offset_t undstack;
+extern vm_offset_t abtstack;
+#else
 struct pv_addr;
 extern struct pv_addr irqstack;
 extern struct pv_addr undstack;
 extern struct pv_addr abtstack;
+#endif
 
 /* Define various stack sizes in pages */
 #define IRQ_STACK_SIZE	1

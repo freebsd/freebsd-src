@@ -46,6 +46,9 @@
  *
  * $FreeBSD$
  */
+#ifdef ARM_NEW_PMAP
+#include <machine/pmap-v6.h>
+#else /* ARM_NEW_PMAP */
 
 #ifndef _MACHINE_PMAP_H_
 #define _MACHINE_PMAP_H_
@@ -706,3 +709,4 @@ extern vm_paddr_t dump_avail[];
 #endif	/* !LOCORE */
 
 #endif	/* !_MACHINE_PMAP_H_ */
+#endif	/* !ARM_NEW_PMAP */
