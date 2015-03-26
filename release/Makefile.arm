@@ -68,10 +68,12 @@ arm-installkernel${BOARD:tl}:
 	touch ${.TARGET}
 
 arm-mkfs${BOARD:tl}:
+.if !exists(${${BOARD:tu}MDDEV})
 	mkdir -p ${.OBJDIR}/arm-${BOARD:tl}
 	truncate -s ${ARMSIZE} ${.OBJDIR}/arm-${BOARD:tu}.raw
 	echo $$(mdconfig -f ${${BOARD:tu}MDFILE}) > \
 		${${BOARD:tu}MDDEV}
+.endif
 
 build-arm-ports${BOARD:tl}:
 .  if defined(ARMPORTS) && !empty(ARMPORTS)
