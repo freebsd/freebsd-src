@@ -68,7 +68,6 @@ device		ath_ahb		# Atheros host bus glue
 options 	ATH_DEBUG
 options 	ATH_DIAGAPI
 option		ATH_ENABLE_11N
-option 		AH_DEBUG_ALQ
 
 # Don't bother compiling the whole HAL - AH_SUPPORT_AR9130 breaks the
 # rest of the 11n chipset support at the moment and the pre-AR5212
