@@ -37,8 +37,6 @@ ${BOARD:tu}MDFILE=	arm-${BOARD:tu}.raw
 .   include "${.CURDIR}/arm/Makefile.${BOARD}"
 .  endif
 
-arm-mdcleanall: ${ARMBEFORECLEAN}
-
 arm-mdclean${BOARD:tl}:
 .if exists(${${BOARD:tu}MDDEV})
 	umount ${${BOARD:tu}MDFILE} || true
@@ -89,7 +87,7 @@ build-arm-ports${BOARD:tl}:
 . endfor		# main loop
 .endif			# !WITH_ARM_IMAGES
 
-beforeclean: arm-mdcleanall
+beforeclean: ${ARMBEFORECLEAN}
 
 arm-all: ${ARMTARGETS}
 	touch ${.TARGET}
