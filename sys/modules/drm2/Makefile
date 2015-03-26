@@ -3,6 +3,7 @@
 .include <bsd.own.mk>
 
 .if ${MACHINE_CPUARCH} == "amd64"
+_i915kms=	i915kms
 _radeonkms=	radeonkms
 . if ${MK_SOURCELESS_UCODE} != "no"
 _radeonkmsfw=	radeonkmsfw
@@ -11,6 +12,7 @@ _radeonkmsfw=	radeonkmsfw
 
 .if ${MACHINE_CPUARCH} == "i386"
 . if ${MACHINE} != "pc98"
+_i915kms=	i915kms
 _radeonkms=	radeonkms
 .  if ${MK_SOURCELESS_UCODE} != "no"
 _radeonkmsfw=	radeonkmsfw
@@ -20,7 +22,7 @@ _radeonkmsfw=	radeonkmsfw
 
 SUBDIR = \
 	drm2 \
-	i915kms \
+	${_i915kms} \
 	${_radeonkms} \
 	${_radeonkmsfw}
 
