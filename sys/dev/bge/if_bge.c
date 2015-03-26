@@ -3847,9 +3847,8 @@ bge_attach(device_t dev)
 again:
 		bge_asf_driver_up(sc);
 
-		error = mii_attach(dev, &sc->bge_miibus,
-		    (ifm_change_cb_t)bge_ifmedia_upd,
-		    (ifm_stat_cb_t)bge_ifmedia_sts, capmask, sc->bge_phy_addr, 
+		error = mii_attach(dev, &sc->bge_miibus, bge_ifmedia_upd,
+		    bge_ifmedia_sts, capmask, sc->bge_phy_addr, 
 		    MII_OFFSET_ANY, MIIF_DOPAUSE);
 		if (error != 0) {
 			if (trys++ < 4) {
