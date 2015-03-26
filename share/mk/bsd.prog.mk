@@ -2,9 +2,7 @@
 # $FreeBSD$
 
 .include <bsd.init.mk>
-.if ${MK_CHERI} != "no" && defined(USE_CHERI)
 .include <bsd.cheri.mk>
-.endif
 .include <bsd.compiler.mk>
 
 .SUFFIXES: .out .o .c .cc .cpp .cxx .C .m .y .l .ln .s .S .asm

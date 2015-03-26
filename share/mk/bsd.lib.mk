@@ -4,9 +4,7 @@
 
 .include <bsd.init.mk>
 
-.if ${MK_CHERI} != "no" && defined(USE_CHERI)
 .include <bsd.cheri.mk>
-.endif
 
 # Set up the variables controlling shared libraries.  After this section,
 # SHLIB_NAME will be defined only if we are to create a shared library.

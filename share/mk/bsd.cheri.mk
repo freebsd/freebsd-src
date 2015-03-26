@@ -1,3 +1,4 @@
+.if ${MK_CHERI} != "no" && defined(USE_CHERI)
 .if ! exists(${CHERI_CC}) 
 .error USE_CHERI is defined and CHERI_CC is ${CHERI_CC}, but it doesn't exist.
 .endif
@@ -17,3 +18,4 @@ CFLAGS+=        -Qunused-arguments
 # Don't remove CHERI symbols from the symbol table
 STRIP_FLAGS+=	-w --keep-symbol=__cheri_callee_method.\* \
 		--keep-symbol=__cheri_method.\*
+.endif
