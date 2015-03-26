@@ -2139,7 +2139,11 @@ test_for_a_pmc(const char *pmc, int out_so_far)
 					printf(" ");
 				}
 			}
-			printf("%s", &line[j]);
+			if (len) {
+				printf("%s", &line[j]);
+			} else {
+				printf("\n");
+			}
 			goto out;
 		}
 	}
