@@ -211,6 +211,7 @@ kensmith [label="Ken Smith\nkensmith@FreeBSD.org\n2004/01/23"]
 kevlo [label="Kevin Lo\nkevlo@FreeBSD.org\n2006/07/23"]
 kib [label="Konstantin Belousov\nkib@FreeBSD.org\n2006/06/03"]
 kmacy [label="Kip Macy\nkmacy@FreeBSD.org\n2005/06/01"]
+kp [label="Kristof Provost\nkp@FreeBSD.org\n2015/03/22"]
 le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
 loos [label="Luiz Otavio O Souza\nloos@FreeBSD.org\n2013/07/03"]
 lstewart [label="Lawrence Stewart\nlstewart@FreeBSD.org\n2008/10/06"]
@@ -446,6 +447,7 @@ gnn -> np
 gnn -> davide
 gnn -> arybchik
 gnn -> erj
+gnn -> kp
 
 grehan -> bryanv
 
@@ -624,6 +626,7 @@ philip -> ed
 philip -> jls
 philip -> matteo
 philip -> uqs
+philip -> kp
 
 phk -> jkoshy
 phk -> mux
