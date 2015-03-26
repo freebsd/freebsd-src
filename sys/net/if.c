@@ -2447,13 +2447,38 @@ if_drvioctl(struct ifnet *ifp, u_long cmd, void *data, struct thread *td)
 		error = priv_check(td, PRIV_NET_SETIFCAP);
 		if (error)
 			return (error);
+		/*
+		 * All(?) NICs that do TSO require to perform VLAN tagging
+		 * and checksum offloading in hardware, when doing TSO.
+		 * Thus, turning TSO on implicitly turns on these features,
+		 * and turning these features off implicitly turns off TSO.
+		 */
 		if ((ifr->ifr_reqcap & IFCAP_VLAN_HWTSO) != 0)
 			ifr->ifr_reqcap |= IFCAP_VLAN_HWTAGGING;
+		if ((ifr->ifr_reqcap & IFCAP_VLAN_HWTAGGING) == 0)
+			ifr->ifr_reqcap &= ~IFCAP_VLAN_HWTSO;
+		if ((ifr->ifr_reqcap & IFCAP_TSO4) != 0)
+			ifr->ifr_reqcap |= IFCAP_TXCSUM;
+		if ((ifr->ifr_reqcap & IFCAP_TXCSUM) == 0)
+			ifr->ifr_reqcap &= ~IFCAP_TSO4;
+		if ((ifr->ifr_reqcap & IFCAP_TSO6) != 0)
+			ifr->ifr_reqcap |= IFCAP_TXCSUM_IPV6;
+		if ((ifr->ifr_reqcap & IFCAP_TXCSUM_IPV6) == 0)
+			ifr->ifr_reqcap &= ~IFCAP_TSO6;
+		/*
+		 * Now check that requested capabilities match
+		 * what interface can actually do, and whether
+		 * there is any change in the capenable.
+		 */
 		if (ifr->ifr_reqcap & ~ifp->if_capabilities)
 			return (EINVAL);
 		if (ifr->ifr_reqcap == ifp->if_capenable)
 			return (0);
 		ifr->ifr_curcap = ifp->if_capenable;
+		/*
+		 * See if driver accepts ifr_reqcap.  It may also
+		 * adjust them.  Driver also fills in ifr_hwassist.
+		 */
 		error = if_ioctl(ifp, cmd, data, td);
 		if (error != 0)
 			break;
