@@ -95,6 +95,8 @@ SRCS=	lib/Config/Version.cpp \
 NO_SHARED?= yes
 .endif
 
+LINKS=	${BINDIR}/lld ${BINDIR}/ld.lld
+
 TGHDRS=	CoreOptions \
 	DarwinLdOptions \
 	GnuLdOptions \
