@@ -50,7 +50,11 @@ LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 
 .if ${MK_LUA} != "no"
 BOOT_LUA=	yes
+.if ${MACHINE_CPUARCH} == "amd64"
+LIBLUA=		${.OBJDIR}/../../liblua32/liblua.a
+.else
 LIBLUA=		${.OBJDIR}/../../liblua/liblua.a
+.endif
 .endif
 
 .if defined(LOADER_BZIP2_SUPPORT)

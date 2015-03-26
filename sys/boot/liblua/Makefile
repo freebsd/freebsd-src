@@ -16,7 +16,28 @@ SRCS+=	lstd.c lutils.c
 
 WARNS=	3
 
-CFLAGS+= -I${.CURDIR} -DBOOT_LUA -ffreestanding -nostdlib -fno-stack-protector
-CFLAGS+= -I${LUA_PATH} -I${.CURDIR}/../common
+CFLAGS+= -DBOOT_LUA -ffreestanding -nostdlib
+CFLAGS+= -fno-stack-protector
+CFLAGS+= -I${.CURDIR}/../liblua -I${LUA_PATH} -I${.CURDIR}/../common
+
+.if ${MACHINE_CPUARCH} == "i386" || \
+    (${MACHINE_CPUARCH} == "amd64" && defined(LUA32))
+CFLAGS+=        -march=i386
+CFLAGS.gcc+=    -mpreferred-stack-boundary=2
+.endif
+.if ${MACHINE_CPUARCH} == "amd64"
+CFLAGS+=        -mno-red-zone
+.endif
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+CFLAGS+=        -mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 -msoft-float
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64"
+.if defined(LUA32)
+CFLAGS+=        -m32
+.else
+CFLAGS+=        -fPIC
+.endif
+.endif
 
 .include <bsd.lib.mk>
