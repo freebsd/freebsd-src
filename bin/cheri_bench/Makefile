@@ -4,7 +4,7 @@ PROG=	cheri_bench
 SRCS=	cheri_bench.c
 
 MAN=
-USE_CHERI=	yes
+NEED_CHERI=	hybrid
 WANT_DUMP=	yes
 
 LIBADD=  cheri

@@ -245,7 +245,7 @@ TTFONTS=	'-DNETSURF_FB_FONTPATH="/usr/share/fonts/truetype/ttf-dejavu:/usr/share
 CFLAGS+=	-D_LONGLONG -Dsmall -DLIBICONV_PLUG \
 		$(OPTIONS) $(TTFONTS) $(INCLUDES) $(WARNFLAGS)
 
-USE_CHERI=yes
+NEED_CHERI=	hybrid
 
 CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
 

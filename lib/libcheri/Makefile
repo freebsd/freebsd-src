@@ -38,7 +38,7 @@ SHLIB_MAJOR=	1
 MAN=	cheri_invoke.3			\
 	libcheri.3
 
-USE_CHERI=	yes
+NEED_CHERI=	hybrid
 
 CLEANFILES=	cheri_classes.o cheri_invoke.o
 

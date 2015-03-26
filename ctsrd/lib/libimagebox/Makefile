@@ -9,6 +9,6 @@ SRCS=	decode_png.c pngbox.c
 
 INCS=	imagebox.h
 
-USE_CHERI=	yes
+WANT_CHERI=	yes
 
 .include <bsd.lib.mk>

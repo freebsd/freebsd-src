@@ -29,7 +29,7 @@ CFLAGS+=	-I${NETSURF_DISTDIR}/libsvgtiny/include \
 		-I${.CURDIR}/../libdom \
 		'-D_ALIGNED=__attribute__((aligned))' -DNDEBUG $(WARNFLAGS)
 
-USE_CHERI=yes
+NEED_CHERI=hybrid
 
 .include <bsd.lib.mk>
 .include <bsd.subdir.mk>

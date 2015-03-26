@@ -21,7 +21,7 @@ SRCS+=	cheritest_ccall.c						\
 MAN=
 
 .ifndef BOOTSTRAPPING
-USE_CHERI=	yes
+NEED_CHERI=	hybrid
 WANT_DUMP=	yes
 LIBADD= 	cheri z
 .endif

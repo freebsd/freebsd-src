@@ -246,8 +246,7 @@ INCS=
 NO_MAN=		yes
 .undef SHLIB_MAJOR
 MK_PROFILE=	no
-USE_CHERI=	yes
-USE_CHERI_STACK=	yes
+NEED_CHERI=	pure
 WARNS?= 2
 
 NO_WERROR=	yes

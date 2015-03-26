@@ -6,7 +6,7 @@ LIB=		z-cheri
 SHLIBDIR?=	/lib
 SHLIB_MAJOR=	6
 MAN=		zlib.3
-USE_CHERI=	yes
+NEED_CHERI=	hybrid
 
 #CFLAGS=-O -DMAX_WBITS=14 -DMAX_MEM_LEVEL=7
 #CFLAGS=-g -DDEBUG

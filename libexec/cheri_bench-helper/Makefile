@@ -12,8 +12,7 @@ MAN=
 
 LIBADD=	c_cheri
 
-USE_CHERI=	yes
-USE_CHERI_STACK=	yes
+NEED_CHERI=	pure
 WANT_DUMP=	yes
 
 NO_SHARED=	yes

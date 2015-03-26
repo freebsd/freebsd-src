@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-USE_CHERI=
+NEED_CHERI=	hybrid
 NO_SHARED=
 
 .include <src.opts.mk>

@@ -15,6 +15,6 @@ FILESMODE=      ${LIBMODE}
 FILESDIR=       ${LIBDIR}
 CLEANFILES=	${FILES}
 
-USE_CHERI=yes
+NEED_CHERI=	hybrid
 
 .include <bsd.prog.mk>

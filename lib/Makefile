@@ -204,7 +204,7 @@ _libcheri=	libcheri
 _libmd_cheri=	libmd_cheri
 _libz_cheri=	libz-cheri
 .if ${MK_NETSURF} != no
-# XXXBD: not really CHERI specific, but currently using USE_CHERI to get
+# XXXBD: not really CHERI specific, but currently using WANT_CHERI to get
 # clang on mips.
 _libcurl=	libcurl
 _libjpeg=	libjpeg

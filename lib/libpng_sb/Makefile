@@ -11,7 +11,7 @@ CFLAGS+=	-I${.CURDIR} \
 SRCS=	libpng_sb.c
 WARNS?=	6
 
-USE_CHERI=yes
+NEED_CHERI=	hybrid
 
 .include <bsd.lib.mk>
 

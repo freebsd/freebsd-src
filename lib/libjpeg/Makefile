@@ -79,7 +79,7 @@ INCS=	jconfig.h \
 # XXXBD: broken with gcc due to -Wshadow
 WARNS?=	6
 
-USE_CHERI=yes
+WANT_CHERI=	yes
 
 CFLAGS+=	-DNO_GETENV
 

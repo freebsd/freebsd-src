@@ -143,7 +143,7 @@ INCSDIR=        ${INCLUDEDIR}/curl
 
 WARNS?=	6
 
-USE_CHERI=yes
+WANT_CHERI=	yes
 
 .include <bsd.lib.mk>
 

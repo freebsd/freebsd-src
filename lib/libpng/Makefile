@@ -35,7 +35,7 @@ INCS=	\
 
 WARNS?=	6
 
-USE_CHERI=yes
+WANT_CHERI=	yes
 
 CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
 .include <bsd.lib.mk>

@@ -10,8 +10,7 @@ SRCS=	md4c.c md5c.c md4hl.c md5hl.c \
 	sha512c.c sha512hl.c
 #INCS=	md4.h md5.h ripemd.h sha.h sha256.h sha512.h
 
-USE_CHERI=      yes
-USE_CHERI_STACK=        yes
+NEED_CHERI=	pure
 NO_SHARED=	yes
 NO_PROFILE=	yes
 
