@@ -3,6 +3,7 @@
 #
 
 BOARD=		WANDBOARD-QUAD
+${BOARD}PARTSCHEME=	mbr
 ARMPORTS=	sysutils/u-boot-wandboard
 
 build-arm-${BOARD:tl}:	build-arm-ports${BOARD:tl}

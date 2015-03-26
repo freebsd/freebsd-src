@@ -98,6 +98,22 @@ arm-mkfs${BOARD:tl}:
 		${.OBJDIR}/arm-${BOARD:tl}-boot
 .endif
 
+arm-mkimage${BOARD:tl}:
+.if exists(/dev/$$(cat ${.OBJDIR}/${${BOARD:tu}BOOTDEV})
+	umount ${.OBJDIR}/arm-${BOARD:tl}-boot
+.endif
+.if exists(/dev/$$(cat ${.OBJDIR}/${${BOARD:tu}MDDEV})
+	umount ${.OBJDIR}/arm-${BOARD:tl}
+.endif
+# FIXME:
+# Do these things need to be MBR?
+# I'm also not entirely sure this is correct, anyway.
+#
+	mkimg -s ${${BOARD}PARTSCHEME} \
+		-b ${${BOARD:tu}BOOTFILE} \
+		-p freebsd/rootfs:=${${BOARD:tu}MDFILE} \
+		-o ${${BOARD:tu}IMAGE}
+
 build-arm-ports${BOARD:tl}:
 .  if defined(ARMPORTS) && !empty(ARMPORTS)
 .   if !exists(${PORTSDIR}/Makefile)
