@@ -27,8 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>		/* to pick up __FreeBSD_version */
-#include <machine/stdarg.h>
+#include <stand.h>
 
 #include "bootstrap.h"
 #include "interp.h"
