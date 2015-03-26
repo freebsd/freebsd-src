@@ -3,6 +3,7 @@
 #
 
 BOARD=		RPI-B
+${BOARD}PARTSCHEME=	mbr
 ARMPORTS=	sysutils/u-boot-rpi
 
 build-arm-${BOARD:tl}:	build-arm-ports${BOARD:tl}

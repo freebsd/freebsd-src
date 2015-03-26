@@ -3,6 +3,7 @@
 #
 
 BOARD=		BEAGLEBONE
+${BOARD}PARTSCHEME=	mbr
 ARMPORTS=	sysutils/u-boot-beaglebone
 
 build-arm-${BOARD:tl}:	build-arm-ports${BOARD:tl}
