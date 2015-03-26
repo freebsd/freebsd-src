@@ -1027,6 +1027,23 @@ g_mirror_sync_done(struct bio *bp)
 }
 
 static void
+g_mirror_candelete(struct bio *bp)
+{
+	struct g_mirror_softc *sc;
+	struct g_mirror_disk *disk;
+	int *val;
+
+	sc = bp->bio_to->geom->softc;
+	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+		if (disk->d_flags & G_MIRROR_DISK_FLAG_CANDELETE)
+			break;
+	}
+	val = (int *)bp->bio_data;
+	*val = (disk != NULL);
+	g_io_deliver(bp, 0);
+}
+
+static void
 g_mirror_kernel_dump(struct bio *bp)
 {
 	struct g_mirror_softc *sc;
@@ -1120,9 +1137,10 @@ g_mirror_start(struct bio *bp)
 		g_mirror_flush(sc, bp);
 		return;
 	case BIO_GETATTR:
-		if (g_handleattr_int(bp, "GEOM::candelete", 1))
+		if (!strcmp(bp->bio_attribute, "GEOM::candelete")) {
+			g_mirror_candelete(bp);
 			return;
-		else if (strcmp("GEOM::kerneldump", bp->bio_attribute) == 0) {
+		} else if (strcmp("GEOM::kerneldump", bp->bio_attribute) == 0) {
 			g_mirror_kernel_dump(bp);
 			return;
 		}
@@ -1685,6 +1703,10 @@ g_mirror_register_request(struct bio *bp)
 			KASSERT(cp->acr >= 1 && cp->acw >= 1 && cp->ace >= 1,
 			    ("Consumer %s not opened (r%dw%de%d).",
 			    cp->provider->name, cp->acr, cp->acw, cp->ace));
+		}
+		if (bioq_first(&queue) == NULL) {
+			g_io_deliver(bp, EOPNOTSUPP);
+			return;
 		}
 		while ((cbp = bioq_takefirst(&queue)) != NULL) {
 			G_MIRROR_LOGREQ(3, cbp, "Sending request.");
