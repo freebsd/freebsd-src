@@ -9,9 +9,12 @@
 
 #include "lprefix.h"
 
-
+#ifdef BOOT_LUA
+#include <stand.h>
+#else
 #include <limits.h>
 #include <stddef.h>
+#endif
 
 #include "lua.h"
 
@@ -215,7 +218,7 @@ static int unpack (lua_State *L) {
     return luaL_error(L, "too many results to unpack");
   do {  /* must have at least one element */
     (*ta.geti)(L, 1, i);  /* push arg[i..e] */
-  } while (i++ < e); 
+  } while (i++ < e);
 
   return (int)n;
 }
@@ -354,4 +357,3 @@ LUAMOD_API int luaopen_table (lua_State *L) {
 #endif
   return 1;
 }
-

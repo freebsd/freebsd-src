@@ -9,10 +9,13 @@
 
 #include "lprefix.h"
 
-
+#ifdef BOOT_LUA
+#include <stand.h>
+#else
 #include <stdarg.h>
 #include <stddef.h>
 #include <string.h>
+#endif
 
 #include "lua.h"
 
@@ -640,4 +643,3 @@ void luaG_traceexec (lua_State *L) {
     luaD_throw(L, LUA_YIELD);
   }
 }
-

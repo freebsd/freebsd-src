@@ -9,8 +9,11 @@
 
 #include "lprefix.h"
 
-
+#ifdef BOOT_LUA
+#include <stand.h>
+#else
 #include <stddef.h>
+#endif
 
 #include "lua.h"
 
@@ -148,4 +151,3 @@ const char *luaF_getlocalname (const Proto *f, int local_number, int pc) {
   }
   return NULL;  /* not found */
 }
-

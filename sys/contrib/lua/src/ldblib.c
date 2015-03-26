@@ -9,10 +9,13 @@
 
 #include "lprefix.h"
 
-
+#ifdef BOOT_LUA
+#include <stand.h>
+#else
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#endif
 
 #include "lua.h"
 
@@ -434,4 +437,3 @@ LUAMOD_API int luaopen_debug (lua_State *L) {
   luaL_newlib(L, dblib);
   return 1;
 }
-

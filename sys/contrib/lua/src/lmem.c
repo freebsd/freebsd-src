@@ -9,8 +9,11 @@
 
 #include "lprefix.h"
 
-
+#ifdef BOOT_LUA
+#include <stand.h>
+#else
 #include <stddef.h>
+#endif
 
 #include "lua.h"
 
@@ -96,4 +99,3 @@ void *luaM_realloc_ (lua_State *L, void *block, size_t osize, size_t nsize) {
   g->GCdebt = (g->GCdebt + nsize) - realosize;
   return newblock;
 }
-

@@ -9,8 +9,11 @@
 
 #include "lprefix.h"
 
-
+#ifdef BOOT_LUA
+#include <stand.h>
+#else
 #include <string.h>
+#endif
 
 #include "lua.h"
 
@@ -179,4 +182,3 @@ Udata *luaS_newudata (lua_State *L, size_t s) {
   setuservalue(L, u, luaO_nilobject);
   return u;
 }
-

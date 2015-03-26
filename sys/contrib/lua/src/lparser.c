@@ -9,8 +9,11 @@
 
 #include "lprefix.h"
 
-
+#ifdef BOOT_LUA
+#include <stand.h>
+#else
 #include <string.h>
+#endif
 
 #include "lua.h"
 
@@ -1644,4 +1647,3 @@ LClosure *luaY_parser (lua_State *L, ZIO *z, Mbuffer *buff,
   L->top--;  /* remove scanner's table */
   return cl;  /* closure is on the stack, too */
 }
-

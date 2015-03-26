@@ -9,9 +9,13 @@
 
 #include "lprefix.h"
 
-
+#ifdef BOOT_LUA
+#include <stand.h>
+#include <lstd.h>
+#else
 #include <math.h>
 #include <stdlib.h>
+#endif
 
 #include "lua.h"
 
@@ -951,4 +955,3 @@ void luaK_setlist (FuncState *fs, int base, int nelems, int tostore) {
     luaX_syntaxerror(fs->ls, "constructor too long");
   fs->freereg = base + 1;  /* free registers with list values */
 }
-

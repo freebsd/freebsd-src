@@ -22,11 +22,14 @@
 ** to it), then the colliding element is in its own main position.
 ** Hence even when the load factor reaches 100%, performance remains good.
 */
-
 #include <float.h>
+#ifdef BOOT_LUA
+#include <stand.h>
+#else
 #include <math.h>
 #include <string.h>
 #include <limits.h>
+#endif
 
 #include "lua.h"
 

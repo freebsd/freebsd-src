@@ -9,13 +9,16 @@
 
 #include "lprefix.h"
 
-
+#ifdef BOOT_LUA
+#include <stand.h>
+#else
 #include <ctype.h>
 #include <limits.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#endif
 
 #include "lua.h"
 
@@ -1110,7 +1113,7 @@ static KOption getoption (Header *h, const char **fmt, int *size) {
 ** 'psize' is filled with option's size, 'notoalign' with its
 ** alignment requirements.
 ** Local variable 'size' gets the size to be aligned. (Kpadal option
-** always gets its full alignment, other options are limited by 
+** always gets its full alignment, other options are limited by
 ** the maximum alignment ('maxalign'). Kchar option needs no alignment
 ** despite its size.
 */
@@ -1427,4 +1430,3 @@ LUAMOD_API int luaopen_string (lua_State *L) {
   createmetatable(L);
   return 1;
 }
-

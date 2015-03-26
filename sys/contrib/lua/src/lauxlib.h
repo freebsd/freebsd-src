@@ -8,9 +8,13 @@
 #ifndef lauxlib_h
 #define lauxlib_h
 
-
+#ifdef BOOT_LUA
+#include <stand.h>
+#include <lstd.h>
+#else
 #include <stddef.h>
 #include <stdio.h>
+#endif
 
 #include "lua.h"
 
@@ -252,5 +256,3 @@ LUALIB_API void (luaL_openlib) (lua_State *L, const char *libname,
 
 
 #endif
-
-

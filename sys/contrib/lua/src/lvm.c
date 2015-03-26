@@ -9,11 +9,15 @@
 
 #include "lprefix.h"
 
-
+#ifdef BOOT_LUA
+#include <stand.h>
+#include <lstd.h>
+#else
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#endif
 
 #include "lua.h"
 
@@ -299,7 +303,7 @@ int luaV_lessequal (lua_State *L, const TValue *l, const TValue *r) {
 
 
 /*
-** Main operation for equality of Lua values; return 't1 == t2'. 
+** Main operation for equality of Lua values; return 't1 == t2'.
 ** L == NULL means raw equality (no metamethods)
 */
 int luaV_equalobj (lua_State *L, const TValue *t1, const TValue *t2) {
@@ -448,7 +452,7 @@ lua_Integer luaV_div (lua_State *L, lua_Integer m, lua_Integer n) {
 
 
 /*
-** Integer modulus; return 'm % n'. (Assume that C '%' with 
+** Integer modulus; return 'm % n'. (Assume that C '%' with
 ** negative operands follows C99 behavior. See previous comment
 ** about luaV_div.)
 */
@@ -743,7 +747,7 @@ void luaV_execute (lua_State *L) {
         Protect(luaV_gettable(L, rb, RKC(i), ra));
         vmbreak;
       }
-      vmcase(OP_ADD) { 
+      vmcase(OP_ADD) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Number nb; lua_Number nc;
@@ -1179,4 +1183,3 @@ void luaV_execute (lua_State *L) {
 }
 
 /* }================================================================== */
-

@@ -9,9 +9,13 @@
 
 #include "lprefix.h"
 
-
+#ifdef BOOT_LUA
+#include <stand.h>
+#include <lstd.h>
+#else
 #include <locale.h>
 #include <string.h>
+#endif
 
 #include "lua.h"
 
@@ -599,4 +603,3 @@ int luaX_lookahead (LexState *ls) {
   ls->lookahead.token = llex(ls, &ls->lookahead.seminfo);
   return ls->lookahead.token;
 }
-

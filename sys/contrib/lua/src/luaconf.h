@@ -9,7 +9,11 @@
 #define luaconf_h
 
 #include <limits.h>
+#ifdef BOOT_LUA
+#include <lstd.h>
+#else
 #include <stddef.h>
+#endif
 
 
 /*
@@ -732,4 +736,3 @@
 
 
 #endif
-

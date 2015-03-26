@@ -9,8 +9,11 @@
 
 #include "lprefix.h"
 
-
+#ifdef BOOT_LUA
+#include <stand.h>
+#else
 #include <stddef.h>
+#endif
 
 #include "lua.h"
 
@@ -211,4 +214,3 @@ int luaU_dump(lua_State *L, const Proto *f, lua_Writer w, void *data,
   DumpFunction(f, NULL, &D);
   return D.status;
 }
-

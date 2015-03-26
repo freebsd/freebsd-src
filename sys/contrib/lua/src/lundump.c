@@ -9,8 +9,11 @@
 
 #include "lprefix.h"
 
-
+#ifdef BOOT_LUA
+#include <stand.h>
+#else
 #include <string.h>
+#endif
 
 #include "lua.h"
 
@@ -274,4 +277,3 @@ LClosure *luaU_undump(lua_State *L, ZIO *Z, Mbuffer *buff,
   luai_verifycode(L, buff, cl->p);
   return cl;
 }
-

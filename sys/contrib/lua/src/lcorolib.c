@@ -9,8 +9,11 @@
 
 #include "lprefix.h"
 
-
+#ifdef BOOT_LUA
+#include <stand.h>
+#else
 #include <stdlib.h>
+#endif
 
 #include "lua.h"
 
@@ -165,4 +168,3 @@ LUAMOD_API int luaopen_coroutine (lua_State *L) {
   luaL_newlib(L, co_funcs);
   return 1;
 }
-

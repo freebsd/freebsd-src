@@ -9,10 +9,13 @@
 
 #include "lprefix.h"
 
-
+#ifdef BOOT_LUA
+#include <stand.h>
+#else
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#endif
 
 #include "lua.h"
 
@@ -193,7 +196,7 @@ static int byteoffset (lua_State *L) {
     lua_pushinteger(L, posi + 1);
   else  /* no such character */
     lua_pushnil(L);
-  return 1;  
+  return 1;
 }
 
 
@@ -252,4 +255,3 @@ LUAMOD_API int luaopen_utf8 (lua_State *L) {
   lua_setfield(L, -2, "charpattern");
   return 1;
 }
-

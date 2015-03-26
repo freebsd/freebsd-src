@@ -9,13 +9,16 @@
 
 #include "lprefix.h"
 
-
+#ifdef BOOT_LUA
+#include <stand.h>
+#else
 #include <string.h>
+#endif
 
 #include "lua.h"
 
 #include "ldebug.h"
-#include "ldo.h" 
+#include "ldo.h"
 #include "lobject.h"
 #include "lstate.h"
 #include "lstring.h"
@@ -140,4 +143,3 @@ int luaT_callorderTM (lua_State *L, const TValue *p1, const TValue *p2,
   else
     return !l_isfalse(L->top);
 }
-
