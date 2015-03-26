@@ -25,6 +25,7 @@ INCS=	cheri_class.h			\
 	sandbox.h			\
 	sandboxasm.h
 
+CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${.CURDIR}/${MACHINE_ARCH}
 
 INCSDIR=	${INCLUDEDIR}/cheri
