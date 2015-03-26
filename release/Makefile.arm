@@ -20,7 +20,11 @@ CLEANFILES+=	arm-all
 . for BOARD in ${BOARDS}
 ARMTARGETS+=		arm-${BOARD:tl}
 CLEANDIRS+=		arm-${BOARD:tl}
-CLEANFILES+=		arm-${BOARD:tu}.img \
+CLEANFILES+=		arm-buildworld${BOARD:tl} \
+			arm-buildkernel${BOARD:tl} \
+			arm-installworld${BOARD:tl} \
+			arm-installkernel${BOARD:tl} \
+			arm-${BOARD:tu}.img \
 			arm-${BOARD:tu}.raw \
 			build-arm-${BOARD:tl} \
 			build-arm-ports${BOARD:tl}
@@ -28,8 +32,29 @@ CLEANFILES+=		arm-${BOARD:tu}.img \
 .   include "${.CURDIR}/arm/Makefile.${BOARD}"
 .  endif
 
-arm-${BOARD:tl}:
+arm-${BOARD:tl}: arm-buildworld${BOARD:tl} arm-buildkernel${BOARD:tl} \
+	arm-installworld${BOARD:tl} arm-installkernel${BOARD:tl}
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} build-${.TARGET}
+
+arm-buildworld${BOARD:tl}:
+	@echo ${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${ARM_WFLAGS} \
+		buildworld
+	touch ${.TARGET}
+
+arm-buildkernel${BOARD:tl}:
+	@echo ${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${ARM_WFLAGS} \
+		KERNCONF=${BOARD} buildkernel
+	touch ${.TARGET}
+
+arm-installworld${BOARD:tl}:
+	@echo ${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${ARM_WFLAGS} \
+		installworld
+	touch ${.TARGET}
+
+arm-installkernel${BOARD:tl}:
+	@echo ${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${ARM_WFLAGS} \
+		KERNCONF=${BOARD} installkernel
+	touch ${.TARGET}
 
 build-arm-ports${BOARD:tl}:
 .  if defined(ARMPORTS) && !empty(ARMPORTS)
@@ -41,7 +66,8 @@ build-arm-ports${BOARD:tl}:
 .   endfor
 .  endif
 	touch ${.TARGET}
-. endfor
+
+. endfor		# main loop
 .endif			# !WITH_ARM_IMAGES
 
 arm-all: ${ARMTARGETS}
