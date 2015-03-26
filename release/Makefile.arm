@@ -10,6 +10,7 @@ BOARDS?=	BEAGLEBONE \
 
 ARMTARGETS?=
 ARMSIZE?=	1G
+BOOTSIZE?=	4m
 ARM_WFLAGS?=	CROSS_TOOLCHAIN=armv6-gcc
 ARMPORTS?=
 
@@ -20,7 +21,8 @@ CLEANFILES+=	arm-all
 . for BOARD in ${BOARDS}
 ARMTARGETS+=		arm-${BOARD:tl}
 ARMBEFORECLEAN+=	arm-mdclean${BOARD:tl}
-CLEANDIRS+=		arm-${BOARD:tl}
+CLEANDIRS+=		arm-${BOARD:tl} \
+			arm-${BOARD:tl}-boot
 CLEANFILES+=		arm-buildworld${BOARD:tl} \
 			arm-buildkernel${BOARD:tl} \
 			arm-installworld${BOARD:tl} \
@@ -28,11 +30,15 @@ CLEANFILES+=		arm-buildworld${BOARD:tl} \
 			${${BOARD:tu}IMAGE} \
 			${${BOARD:tu}MDDEV} \
 			${${BOARD:tu}MDFILE} \
+			${${BOARD:tu}BOOTDEV} \
+			${${BOARD:tu}BOOTFILE} \
 			build-arm-${BOARD:tl} \
 			build-arm-ports${BOARD:tl}
 ${BOARD:tu}IMAGE=	arm-${BOARD:tu}.img
 ${BOARD:tu}MDDEV=	arm-${BOARD:tu}.mddev
 ${BOARD:tu}MDFILE=	arm-${BOARD:tu}.raw
+${BOARD:tu}BOOTDEV=	arm-${BOARD:tu}.bootdev
+${BOARD:tu}BOOTFILE=	arm-${BOARD:tu}.boot
 .  if exists(${.CURDIR}/arm/Makefile.${BOARD})
 .   include "${.CURDIR}/arm/Makefile.${BOARD}"
 .  endif
@@ -41,6 +47,10 @@ arm-mdclean${BOARD:tl}:
 .if exists(${${BOARD:tu}MDDEV})
 	umount ${${BOARD:tu}MDFILE} || true
 	mdconfig -d -u $$(cat ${${BOARD:tu}MDDEV})
+.endif
+.if exists(${${BOARD:tu}BOOTDEV})
+	umount ${${BOARD:tu}BOOTFILE} || true
+	mdconfig -d -u $$(cat ${${BOARD:tu}BOOTDEV})
 .endif
 
 arm-${BOARD:tl}: arm-buildworld${BOARD:tl} arm-buildkernel${BOARD:tl} \
@@ -77,6 +87,15 @@ arm-mkfs${BOARD:tl}:
 	newfs -S 4096 /dev/$$(cat ${.OBJDIR}/${${BOARD:tu}MDDEV})
 	mount /dev/$$(cat ${.OBJDIR}/${${BOARD:tu}MDDEV}) \
 		${.OBJDIR}/arm-${BOARD:tl}
+.endif
+.if !exists(${${BOARD:tu}BOOTDEV})
+	mkdir -p ${.OBJDIR}/arm-${BOARD:tl}-boot
+	truncate -s ${BOOTSIZE} ${.OBJDIR}/${${BOARD:tu}BOOTFILE}
+	echo $$(mdconfig -f ${.OBJDIR}/${${BOARD:tu}BOOTFILE}) > \
+		${.OBJDIR}/${${BOARD:tu}BOOTDEV}
+	newfs_msdos -S 4096 /dev/$$(cat ${.OBJDIR}/${${BOARD:tu}BOOTDEV})
+	mount /dev/$$(cat ${.OBJDIR}/${${BOARD:tu}BOOTDEV}) \
+		${.OBJDIR}/arm-${BOARD:tl}-boot
 .endif
 
 build-arm-ports${BOARD:tl}:
