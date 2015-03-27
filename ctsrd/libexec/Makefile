@@ -2,12 +2,10 @@
 
 .include <src.opts.mk>
 
-SUBDIR=	minifile-capsicum-helper \
-	readpng-capsicum-helper
+SUBDIR=	readpng-capsicum-helper
 
 .if ${MK_CHERI} != "no"
-SUBDIR+=	minifile-cheri-helper \
-		readpng-cheri-helper
+SUBDIR+=	readpng-cheri-helper
 .endif
 
 .include <bsd.subdir.mk>

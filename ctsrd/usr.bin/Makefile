@@ -3,7 +3,6 @@
 .include <src.opts.mk>
 
 SUBDIR=	browser \
-	minifile \
 	writefile
 
 # XXX: The latter two should be buildable without cheri but aren't yet.
