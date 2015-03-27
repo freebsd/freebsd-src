@@ -91,7 +91,7 @@ typedef union {
 
 /* algorithm function table */
 
-struct Algorithm_t Algorithm[] = {
+static struct Algorithm_t Algorithm[] = {
 	{ "md5", "MD5", &MD5TestOutput, (DIGEST_Init*)&MD5Init,
 		(DIGEST_Update*)&MD5_Update, (DIGEST_End*)&MD5End,
 		&MD5Data, &MD5File },
@@ -282,7 +282,7 @@ MDTimeTrial(Algorithm_t *alg)
  * Digests a reference suite of strings and prints the results.
  */
 
-const char *MDTestInput[MDTESTCOUNT] = {
+static const char *MDTestInput[MDTESTCOUNT] = {
 	"",
 	"a",
 	"abc",
