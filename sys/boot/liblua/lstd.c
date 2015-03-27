@@ -64,8 +64,6 @@ __FBSDID("$FreeBSD$");
 
 #include "lstd.h"
 
-#ifdef BOOT_LUA
-
 int
 abs(int v)
 {
@@ -467,5 +465,3 @@ abort(void)
 	for (;;)
 		;
 }
-
-#endif /* BOOT_LUA */

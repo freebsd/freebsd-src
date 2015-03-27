@@ -18,7 +18,7 @@ SRCS+=	lstd.c lutils.c
 
 WARNS=	3
 
-CFLAGS+= -DBOOT_LUA -ffreestanding -nostdlib
+CFLAGS+= -ffreestanding -nostdlib
 CFLAGS+= -fno-stack-protector -D__BSD_VISIBLE
 CFLAGS+= -I${.CURDIR}/../liblua -I${LUA_PATH} -I${.CURDIR}/../common
 
