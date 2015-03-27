@@ -45,7 +45,8 @@ CFLAGS.pngerror.c=	-O0
 CFLAGS+=	-Wno-cast-align
 
 .if ${COMPILER_TYPE} == "clang"
-CFLAGS+=	-Wno-tautological-constant-out-of-range-compare
+CFLAGS+=	-Wno-tautological-constant-out-of-range-compare \
+		-Wno-cast-qual
 .endif
 
 .if ${COMPILER_TYPE} == "gcc"
