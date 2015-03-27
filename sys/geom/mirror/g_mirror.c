@@ -1582,7 +1582,7 @@ g_mirror_request_split(struct g_mirror_softc *sc, struct bio *bp)
 		cbp = g_clone_bio(bp);
 		if (cbp == NULL) {
 			while ((cbp = bioq_takefirst(&queue)) != NULL)
-				g_destroy_bio(cbp);;
+				g_destroy_bio(cbp);
 			if (bp->bio_error == 0)
 				bp->bio_error = ENOMEM;
 			g_io_deliver(bp, bp->bio_error);
