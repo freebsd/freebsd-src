@@ -360,10 +360,8 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 */
 	sbmp->sbm_heapbase = sbop->sbo_heapbase;
 	sbmp->sbm_heaplen = heaplen;
-	sbmp->sbm_vtable = cheri_ptrperm(
-	    (char *)sbop->sbo_datamem + sbcp->sbc_provided_methods->spms_base,
-	    sbcp->sbc_provided_methods->spms_nmethods * sizeof(intptr_t),
-	    CHERI_PERM_LOAD);
+	sbmp->sbm_vtable = sandbox_make_vtable(sbop->sbo_datamem,
+	    sbcp->sbc_provided_methods);
 
 	if (sbcp->sbc_sandbox_class_statp != NULL) {
 		(void)sandbox_stat_object_register(

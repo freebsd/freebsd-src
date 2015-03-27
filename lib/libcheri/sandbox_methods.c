@@ -49,6 +49,58 @@
 
 #include "sandbox_methods.h"
 
+/*
+ * Description of a method provided by a sandbox to be called via ccall.
+ * This data is used to create the 'sandbox class' vtable, resolve symbols
+ * to fill in caller .CHERI_CALLER variables, and store the corresponding
+ * method numbers in the .CHERI_CALLEE variables of each 'sandbox object'.
+ *
+ * XXXBD: Storing the method offsets past the vtable creation is arguably
+ * wasteful, but would allow a model where method entries are only populated
+ * in the vtable if the linker finds a consumer thus limited the attack
+ * surface.
+ * XXXBD: Updating callee variables via indirection is inefficient.  If
+ * we're sure that symtab entries are the same order as .CHERI_CALLEE then
+ * we could avoid that and simply fill them in order.
+ */
+struct sandbox_provided_method {
+	char		*spm_method;		/* Method name */
+	intptr_t	 spm_index_offset;	/* Offset of callee variable */
+};
+
+/*
+ * List of methods provided by a sandbox.  Sandbox method numbers (and
+ * by extension vtable indexs) are defined by method position in the
+ * spms_methods array.
+ */
+struct sandbox_provided_methods {
+	char				*spms_class;	/* Class name */
+	size_t				 spms_nmethods;	/* Number of methods */
+	struct sandbox_provided_method	*spms_methods;	/* Array of methods */
+	intptr_t			 spms_base;	/* Base of vtable */
+};
+
+/*
+ * Description of a method required by a sandbox to be called by ccall.
+ */
+struct sandbox_required_method {
+	char		*srm_class;		/* Class name */
+	char		*srm_method;		/* Method name */
+	intptr_t	 srm_index_offset;	/* Offset of caller variable */
+	intptr_t	 srm_vtable_offset;	/* Method number */
+	bool		 srm_resolved;		/* Resolved? */
+};
+
+/*
+ * List of methods required by a sandbox (or program).  Sandbox objects
+ * must not be created until all symbols are resolved.
+ */
+struct sandbox_required_methods {
+	size_t				 srms_nmethods;	/* Number of methods */
+	size_t				 srms_unresolved_methods; /* Number */
+	struct sandbox_required_method	*srms_methods;	/* Array of methods */
+};
+
 #define	CHERI_CALLEE_SYM_PREFIX	"__cheri_callee_method."
 #define	CHERI_CALLER_SYM_PREFIX	"__cheri_method."
 
@@ -525,6 +577,16 @@ sandbox_free_provided_methods(struct sandbox_provided_methods *provided_methods)
 	free(provided_methods);
 }
 
+size_t
+sandbox_get_unresolved_methods(
+    struct sandbox_required_methods *required_methods)
+{
+
+	assert(required_methods != NULL);
+
+	return(required_methods->srms_unresolved_methods);
+}
+
 void
 sandbox_warn_unresolved_methods(
     struct sandbox_required_methods *required_methods)
@@ -542,6 +604,16 @@ sandbox_warn_unresolved_methods(
 		warnx("%s: Unresolved method: %s->%s", __func__,
 		    rmethods[i].srm_class, rmethods[i].srm_method);
 	}
+}
+
+__capability intptr_t *
+sandbox_make_vtable(void *dataptr,
+    struct sandbox_provided_methods *provided_methods)
+{
+
+	return (cheri_ptrperm((char *)dataptr + provided_methods->spms_base,
+	    provided_methods->spms_nmethods * sizeof(intptr_t),
+	    CHERI_PERM_LOAD));
 }
 
 int

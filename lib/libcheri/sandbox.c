@@ -141,9 +141,9 @@ sandbox_program_finalize(void)
 	 * Check that all methods in the main program have been
 	 * provided.
 	 */
-	if (main_required_methods->srms_unresolved_methods > 0) {
+	if (sandbox_get_unresolved_methods(main_required_methods) > 0) {
 		warnx("%s: main program has %zu unresolved methods", __func__,
-		    main_required_methods->srms_unresolved_methods);
+		    sandbox_get_unresolved_methods(main_required_methods));
 		if (sb_verbose)
 			sandbox_warn_unresolved_methods(main_required_methods);
 		return (-1);
@@ -167,10 +167,10 @@ sandbox_program_finalize(void)
 	for (i = 0; i < num_sandbox_classes; i++) {
 		required_methods = sandbox_classes[i]->sbc_required_methods;
 		assert(required_methods != NULL);
-		if (required_methods->srms_unresolved_methods > 0) {
+		if (sandbox_get_unresolved_methods(required_methods) > 0) {
 			warnx("%s: sandbox %s has %zu unresolved methods",
 			    __func__, sandbox_classes[i]->sbc_path,
-			    required_methods->srms_unresolved_methods);
+			    sandbox_get_unresolved_methods(required_methods));
 			if (sb_verbose)
 				sandbox_warn_unresolved_methods(
 				    required_methods);
