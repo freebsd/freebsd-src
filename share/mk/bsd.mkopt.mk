@@ -67,6 +67,15 @@ MK_${var}:=	no
 # MK_* options which are always no, usually because they are
 # unsupported/badly broken on this architecture.
 #
+.for var in ${__ALWAYS_NO_OPTIONS}
+MK_${var}:=	no
+.endfor
+.undef __ALWAYS_NO_OPTIONS
+
+#
+# MK_* options which are always no, usually because they are
+# unsupported/badly broken on this architecture.
+#
 .for var in ${BROKEN_OPTIONS}
 MK_${var}:=	no
 .endfor
