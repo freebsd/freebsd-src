@@ -431,7 +431,6 @@ ahci_port_stop(struct ahci_port *p)
 static void
 ahci_port_reset(struct ahci_port *pr)
 {
-	pr->sctl = 0;
 	pr->serr = 0;
 	pr->sact = 0;
 	pr->xfermode = ATA_UDMA6;
@@ -443,8 +442,11 @@ ahci_port_reset(struct ahci_port *pr)
 		pr->tfd = 0x7F;
 		return;
 	}
-	pr->ssts = ATA_SS_DET_PHY_ONLINE | ATA_SS_SPD_GEN2 |
-		ATA_SS_IPM_ACTIVE;
+	pr->ssts = ATA_SS_DET_PHY_ONLINE | ATA_SS_IPM_ACTIVE;
+	if (pr->sctl & ATA_SC_SPD_MASK)
+		pr->ssts |= (pr->sctl & ATA_SC_SPD_MASK);
+	else
+		pr->ssts |= ATA_SS_SPD_GEN3;
 	pr->tfd = (1 << 8) | ATA_S_DSC | ATA_S_DMA;
 	if (!pr->atapi) {
 		pr->sig = PxSIG_ATA;
@@ -470,6 +472,7 @@ ahci_reset(struct pci_ahci_softc *sc)
 	for (i = 0; i < sc->ports; i++) {
 		sc->port[i].ie = 0;
 		sc->port[i].is = 0;
+		sc->port[i].sctl = 0;
 		ahci_port_reset(&sc->port[i]);
 	}
 }
@@ -808,26 +811,36 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		buf[53] = (1 << 1 | 1 << 2);
 		if (p->mult_sectors)
 			buf[59] = (0x100 | p->mult_sectors);
-		buf[60] = sectors;
-		buf[61] = (sectors >> 16);
+		if (sectors <= 0x0fffffff) {
+			buf[60] = sectors;
+			buf[61] = (sectors >> 16);
+		} else {
+			buf[60] = 0xffff;
+			buf[61] = 0x0fff;
+		}
 		buf[63] = 0x7;
 		if (p->xfermode & ATA_WDMA0)
 			buf[63] |= (1 << ((p->xfermode & 7) + 8));
 		buf[64] = 0x3;
-		buf[65] = 100;
-		buf[66] = 100;
-		buf[67] = 100;
-		buf[68] = 100;
+		buf[65] = 120;
+		buf[66] = 120;
+		buf[67] = 120;
+		buf[68] = 120;
 		buf[69] = 0;
 		buf[75] = 31;
-		buf[76] = (1 << 8 | 1 << 2);
+		buf[76] = (ATA_SATA_GEN1 | ATA_SATA_GEN2 | ATA_SATA_GEN3 |
+			   ATA_SUPPORT_NCQ);
 		buf[80] = 0x1f0;
 		buf[81] = 0x28;
-		buf[82] = (1 << 5 | 1 << 14);
-		buf[83] = (1 << 10 | 1 << 12 | 1 << 13 | 1 << 14);
+		buf[82] = (ATA_SUPPORT_POWERMGT | ATA_SUPPORT_WRITECACHE|
+			   ATA_SUPPORT_LOOKAHEAD | ATA_SUPPORT_NOP);
+		buf[83] = (ATA_SUPPORT_ADDRESS48 | ATA_SUPPORT_FLUSHCACHE |
+			   ATA_SUPPORT_FLUSHCACHE48 | 1 << 14);
 		buf[84] = (1 << 14);
-		buf[85] = (1 << 5 | 1 << 14);
-		buf[86] = (1 << 10 | 1 << 12 | 1 << 13);
+		buf[85] = (ATA_SUPPORT_POWERMGT | ATA_SUPPORT_WRITECACHE|
+			   ATA_SUPPORT_LOOKAHEAD | ATA_SUPPORT_NOP);
+		buf[86] = (ATA_SUPPORT_ADDRESS48 | ATA_SUPPORT_FLUSHCACHE |
+			   ATA_SUPPORT_FLUSHCACHE48);
 		buf[87] = (1 << 14);
 		buf[88] = 0x7f;
 		if (p->xfermode & ATA_UDMA0)
@@ -854,6 +867,7 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 			buf[117] = sectsz / 2;
 			buf[118] = ((sectsz / 2) >> 16);
 		}
+		buf[222] = 0x1020;
 		ahci_write_fis_piosetup(p);
 		write_prdt(p, slot, cfis, (void *)buf, sizeof(buf));
 		ahci_write_fis_d2h(p, slot, cfis, ATA_S_DSC | ATA_S_READY);
@@ -1851,10 +1865,10 @@ pci_ahci_port_write(struct pci_ahci_softc *sc, uint64_t offset, uint64_t value)
 		WPRINTF("pci_ahci_port: read only registers 0x%"PRIx64"\n", offset);
 		break;
 	case AHCI_P_SCTL:
+		p->sctl = value;
 		if (!(p->cmd & AHCI_P_CMD_ST)) {
 			if (value & ATA_SC_DET_RESET)
 				ahci_port_reset(p);
-			p->sctl = value;
 		}
 		break;
 	case AHCI_P_SERR:
