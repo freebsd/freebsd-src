@@ -115,9 +115,10 @@ _l_getlocaledecpoint(void)
 	(printf((s), (p)))
 #endif
 
+void luai_writestring(const char *, int);
+
 #ifndef lua_writestring
-#define lua_writestring(s,l) \
-	(write(1, __DECONST(void *, (s)), (l)))
+#define lua_writestring(s,l) luai_writestring(s,l)
 #endif
 
 #define stdout 1

@@ -420,14 +420,12 @@ strstr(const char *s, const char *find)
 	return ((char *)s);
 }
 
-#if 0
 void
 luai_writestring(const char *s, int i)
 {
 	while (i-- > 0)
 		putchar(*s++);
 }
-#endif
 
 int
 iscntrl(int c)
