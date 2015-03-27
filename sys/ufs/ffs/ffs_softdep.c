@@ -1885,8 +1885,8 @@ softdep_flushworklist(oldmnt, countp, td)
 	struct thread *td;
 {
 	struct vnode *devvp;
-	int count, error = 0;
 	struct ufsmount *ump;
+	int count, error;
 
 	/*
 	 * Alternately flush the block device associated with the mount
@@ -1895,6 +1895,7 @@ softdep_flushworklist(oldmnt, countp, td)
 	 * are found.
 	 */
 	*countp = 0;
+	error = 0;
 	ump = VFSTOUFS(oldmnt);
 	devvp = ump->um_devvp;
 	while ((count = softdep_process_worklist(oldmnt, 1)) > 0) {
@@ -1902,37 +1903,47 @@ softdep_flushworklist(oldmnt, countp, td)
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_FSYNC(devvp, MNT_WAIT, td);
 		VOP_UNLOCK(devvp, 0);
-		if (error)
+		if (error != 0)
 			break;
 	}
 	return (error);
 }
 
+#define	SU_WAITIDLE_RETRIES	20
 static int
 softdep_waitidle(struct mount *mp, int flags __unused)
 {
 	struct ufsmount *ump;
-	int error;
-	int i;
+	struct vnode *devvp;
+	struct thread *td;
+	int error, i;
 
 	ump = VFSTOUFS(mp);
+	devvp = ump->um_devvp;
+	td = curthread;
+	error = 0;
 	ACQUIRE_LOCK(ump);
-	for (i = 0; i < 10 && ump->softdep_deps; i++) {
+	for (i = 0; i < SU_WAITIDLE_RETRIES && ump->softdep_deps != 0; i++) {
 		ump->softdep_req = 1;
 		KASSERT((flags & FORCECLOSE) == 0 ||
 		    ump->softdep_on_worklist == 0,
 		    ("softdep_waitidle: work added after flush"));
-		msleep(&ump->softdep_deps, LOCK_PTR(ump), PVM, "softdeps", 1);
+		msleep(&ump->softdep_deps, LOCK_PTR(ump), PVM | PDROP,
+		    "softdeps", 10 * hz);
+		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
+		error = VOP_FSYNC(devvp, MNT_WAIT, td);
+		VOP_UNLOCK(devvp, 0);
+		if (error != 0)
+			break;
+		ACQUIRE_LOCK(ump);
 	}
 	ump->softdep_req = 0;
-	FREE_LOCK(ump);
-	error = 0;
-	if (i == 10) {
+	if (i == SU_WAITIDLE_RETRIES && error == 0 && ump->softdep_deps != 0) {
 		error = EBUSY;
 		printf("softdep_waitidle: Failed to flush worklist for %p\n",
 		    mp);
 	}
-
+	FREE_LOCK(ump);
 	return (error);
 }
 
@@ -7637,17 +7648,13 @@ check_inode_unwritten(inodedep)
 	return (1);
 }
 
-/*
- * Try to free an inodedep structure. Return 1 if it could be freed.
- */
 static int
-free_inodedep(inodedep)
+check_inodedep_free(inodedep)
 	struct inodedep *inodedep;
 {
 
 	LOCK_OWNED(VFSTOUFS(inodedep->id_list.wk_mp));
-	if ((inodedep->id_state & (ONWORKLIST | UNLINKED)) != 0 ||
-	    (inodedep->id_state & ALLCOMPLETE) != ALLCOMPLETE ||
+	if ((inodedep->id_state & ALLCOMPLETE) != ALLCOMPLETE ||
 	    !LIST_EMPTY(&inodedep->id_dirremhd) ||
 	    !LIST_EMPTY(&inodedep->id_pendinghd) ||
 	    !LIST_EMPTY(&inodedep->id_bufwait) ||
@@ -7661,6 +7668,21 @@ free_inodedep(inodedep)
 	    inodedep->id_mkdiradd != NULL ||
 	    inodedep->id_nlinkdelta != 0 ||
 	    inodedep->id_savedino1 != NULL)
+		return (0);
+	return (1);
+}
+
+/*
+ * Try to free an inodedep structure. Return 1 if it could be freed.
+ */
+static int
+free_inodedep(inodedep)
+	struct inodedep *inodedep;
+{
+
+	LOCK_OWNED(VFSTOUFS(inodedep->id_list.wk_mp));
+	if ((inodedep->id_state & (ONWORKLIST | UNLINKED)) != 0 ||
+	    !check_inodedep_free(inodedep))
 		return (0);
 	if (inodedep->id_state & ONDEPLIST)
 		LIST_REMOVE(inodedep, id_deps);
@@ -13846,7 +13868,8 @@ softdep_check_suspend(struct mount *mp,
 {
 	struct bufobj *bo;
 	struct ufsmount *ump;
-	int error;
+	struct inodedep *inodedep;
+	int error, unlinked;
 
 	bo = &devvp->v_bufobj;
 	ASSERT_BO_WLOCKED(bo);
@@ -13907,6 +13930,20 @@ softdep_check_suspend(struct mount *mp,
 		break;
 	}
 
+	unlinked = 0;
+	if (MOUNTEDSUJ(mp)) {
+		for (inodedep = TAILQ_FIRST(&ump->softdep_unlinked);
+		    inodedep != NULL;
+		    inodedep = TAILQ_NEXT(inodedep, id_unlinked)) {
+			if ((inodedep->id_state & (UNLINKED | UNLINKLINKS |
+			    UNLINKONLIST)) != (UNLINKED | UNLINKLINKS |
+			    UNLINKONLIST) ||
+			    !check_inodedep_free(inodedep))
+				continue;
+			unlinked++;
+		}
+	}
+
 	/*
 	 * Reasons for needing more work before suspend:
 	 * - Dirty buffers on devvp.
@@ -13916,8 +13953,8 @@ softdep_check_suspend(struct mount *mp,
 	error = 0;
 	if (bo->bo_numoutput > 0 ||
 	    bo->bo_dirty.bv_cnt > 0 ||
-	    softdep_depcnt != 0 ||
-	    ump->softdep_deps != 0 ||
+	    softdep_depcnt != unlinked ||
+	    ump->softdep_deps != unlinked ||
 	    softdep_accdepcnt != ump->softdep_accdeps ||
 	    secondary_writes != 0 ||
 	    mp->mnt_secondary_writes != 0 ||
