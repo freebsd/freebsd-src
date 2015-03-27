@@ -120,6 +120,16 @@ MK_${var}:=	no
 #end of bsd.mkopt.mk expanded inline.
 
 #
+# MK_* options which are always no, usually because they are
+# unsupported/badly broken on this architecture.
+#
+.for var in ${__ALWAYS_NO_OPTIONS}
+MK_${var}:=	no
+.endfor
+.undef __ALWAYS_NO_OPTIONS
+#end of bsd.mkopt.mk expanded inline.
+
+#
 # MK_*_SUPPORT options which default to "yes" unless their corresponding
 # MK_* variable is set to "no".
 #
