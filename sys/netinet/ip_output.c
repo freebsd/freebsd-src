@@ -91,7 +91,7 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-VNET_DEFINE(u_short, ip_id);
+VNET_DEFINE(uint32_t, ip_id);
 
 #ifdef MBUF_STRESS_TEST
 static int mbuf_frag_size = 0;
