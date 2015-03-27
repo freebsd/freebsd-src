@@ -51,6 +51,10 @@ __DEFAULT_NO_OPTIONS = \
 # Some options are totally broken on some architectures. We disable
 # them. If you need to enable them on an experimental basis, you
 # must change this code.
+# Note: These only apply to the list of modules we build by default
+# and sometimes what is in the opt_*.h files by default.
+# Kernel config files are unaffected, though some targets can be
+# affected by KERNEL_SYMBOLS, FORMAT_EXTENSIONS, CTF and SSP.
 
 # Things that don't work based on the CPU
 .if ${MACHINE_CPUARCH} == "arm"
@@ -73,34 +77,6 @@ BROKEN_OPTIONS+= EISA
 
 .if ${MACHINE} != "i386" && ${MACHINE} != "amd64"
 BROKEN_OPTIONS+= OFED
-.endif
-
-# Options that cannot be turned on this architecture, usually because
-# of compilation or other issues so severe it cannot be used even
-# on an experimental basis
-__ALWAYS_NO_OPTIONS=
-
-# Things that don't work based on the CPU
-.if ${MACHINE_CPUARCH} == "arm"
-__ALWAYS_NO_OPTIONS+= CDDL ZFS
-.endif
-
-.if ${MACHINE_CPUARCH} == "mips"
-__ALWAYS_NO_OPTIONS+= CDDL ZFS
-.endif
-
-.if ${MACHINE_CPUARCH} == "powerpc" && ${MACHINE_ARCH} != "powerpc64"
-__ALWAYS_NO_OPTIONS+= ZFS
-.endif
-
-# Things that don't work because the kernel doesn't have the support
-# for them.
-.if ${MACHINE} != "i386"
-__ALWAYS_NO_OPTIONS+= EISA
-.endif
-
-.if ${MACHINE} != "i386" && ${MACHINE} != "amd64"
-__ALWAYS_NO_OPTIONS+= OFED
 .endif
 
 # expanded inline from bsd.mkopt.mk to avoid share/mk dependency
@@ -145,16 +121,6 @@ MK_${var}:=	no
 MK_${var}:=	no
 .endfor
 .undef BROKEN_OPTIONS
-#end of bsd.mkopt.mk expanded inline.
-
-#
-# MK_* options which are always no, usually because they are
-# unsupported/badly broken on this architecture.
-#
-.for var in ${__ALWAYS_NO_OPTIONS}
-MK_${var}:=	no
-.endfor
-.undef __ALWAYS_NO_OPTIONS
 #end of bsd.mkopt.mk expanded inline.
 
 #
