@@ -1663,6 +1663,9 @@ ata_ioreq_cb(struct blockif_req *br, int err)
 	 */
 	STAILQ_INSERT_TAIL(&p->iofhd, aior, io_flist);
 
+	if (!err)
+		hdr->prdbc = aior->done;
+
 	if (dsm) {
 		if (aior->done != aior->len && !err) {
 			ahci_handle_dsm_trim(p, slot, cfis, aior->done);
@@ -1678,13 +1681,8 @@ ata_ioreq_cb(struct blockif_req *br, int err)
 
 	if (!err && aior->done == aior->len) {
 		tfd = ATA_S_READY | ATA_S_DSC;
-		if (ncq)
-			hdr->prdbc = 0;
-		else
-			hdr->prdbc = aior->len;
 	} else {
 		tfd = (ATA_E_ABORT << 8) | ATA_S_READY | ATA_S_ERROR;
-		hdr->prdbc = 0;
 		if (ncq)
 			p->serr |= (1 << slot);
 	}
@@ -1739,6 +1737,9 @@ atapi_ioreq_cb(struct blockif_req *br, int err)
 	 */
 	STAILQ_INSERT_TAIL(&p->iofhd, aior, io_flist);
 
+	if (!err)
+		hdr->prdbc = aior->done;
+
 	if (pending && !err) {
 		atapi_read(p, slot, cfis, aior->done, hdr->prdtl - pending);
 		goto out;
@@ -1746,12 +1747,10 @@ atapi_ioreq_cb(struct blockif_req *br, int err)
 
 	if (!err && aior->done == aior->len) {
 		tfd = ATA_S_READY | ATA_S_DSC;
-		hdr->prdbc = aior->len;
 	} else {
 		p->sense_key = ATA_SENSE_ILLEGAL_REQUEST;
 		p->asc = 0x21;
 		tfd = (p->sense_key << 12) | ATA_S_READY | ATA_S_ERROR;
-		hdr->prdbc = 0;
 	}
 
 	cfis[4] = (cfis[4] & ~7) | ATA_I_CMD | ATA_I_IN;
