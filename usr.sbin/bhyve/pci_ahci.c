@@ -1583,10 +1583,13 @@ ahci_handle_cmd(struct ahci_port *p, int slot, uint8_t *cfis)
 	case ATA_READ_LOG_DMA_EXT:
 		ahci_handle_read_log(p, slot, cfis);
 		break;
-	case ATA_STANDBY_CMD:
-		break;
 	case ATA_NOP:
+		ahci_write_fis_d2h(p, slot, cfis,
+		    (ATA_E_ABORT << 8) | ATA_S_READY | ATA_S_ERROR);
+		break;
+	case ATA_STANDBY_CMD:
 	case ATA_STANDBY_IMMEDIATE:
+	case ATA_IDLE_CMD:
 	case ATA_IDLE_IMMEDIATE:
 	case ATA_SLEEP:
 		ahci_write_fis_d2h(p, slot, cfis, ATA_S_READY | ATA_S_DSC);
