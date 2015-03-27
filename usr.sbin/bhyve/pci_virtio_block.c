@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 /* Capability bits */
 #define	VTBLK_F_SEG_MAX		(1 << 2)	/* Maximum request segments */
 #define	VTBLK_F_BLK_SIZE	(1 << 6)	/* cfg block size valid */
+#define	VTBLK_F_FLUSH		(1 << 9)	/* Cache flush support */
 #define	VTBLK_F_TOPOLOGY	(1 << 10)	/* Optimal I/O alignment */
 
 /*
@@ -72,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #define VTBLK_S_HOSTCAPS      \
   ( VTBLK_F_SEG_MAX  |						    \
     VTBLK_F_BLK_SIZE |						    \
+    VTBLK_F_FLUSH    |						    \
     VTBLK_F_TOPOLOGY |						    \
     VIRTIO_RING_F_INDIRECT_DESC )	/* indirect descriptors */
 
