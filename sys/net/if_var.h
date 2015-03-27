@@ -90,12 +90,14 @@ struct ifnet {
 	struct ifdriver	*if_drv;	/* driver static definition */
 	struct iftype	*if_type;	/* if type static def (optional)*/
 	struct iftsomax	*if_tsomax;	/* TSO limits */
+
+	struct	rwlock if_lock;		/* lock to protect the ifnet */
 	
 	/* General book keeping of interface lists. */
 	TAILQ_ENTRY(ifnet) if_link; 	/* all struct ifnets are chained */
 	LIST_ENTRY(ifnet) if_clones;	/* interfaces of a cloner */
 	TAILQ_HEAD(, ifg_list) if_groups; /* linked list of groups per if */
-					/* protected by if_addr_lock */
+					/* protected by if_lock */
 	void	*if_llsoftc;		/* link layer softc */
 	void	*if_l2com;		/* pointer to protocol bits */
 	int	if_dunit;		/* unit or IF_DUNIT_NONE */
@@ -124,7 +126,6 @@ struct ifnet {
 	struct	task if_linktask;	/* task for link change events */
 
 	/* Addresses of different protocol families assigned to this if. */
-	struct	rwlock if_addr_lock;	/* lock to protect address lists */
 		/*
 		 * if_addrhead is the list of all addresses associated to
 		 * an interface.
@@ -168,16 +169,24 @@ struct ifnet {
 };
 
 /*
- * Locks for address lists on the network interface.
+ * Modyfing interface requires synchronisation.
  */
-#define	IF_ADDR_LOCK_INIT(if)	rw_init(&(if)->if_addr_lock, "if_addr_lock")
-#define	IF_ADDR_LOCK_DESTROY(if)	rw_destroy(&(if)->if_addr_lock)
-#define	IF_ADDR_WLOCK(if)	rw_wlock(&(if)->if_addr_lock)
-#define	IF_ADDR_WUNLOCK(if)	rw_wunlock(&(if)->if_addr_lock)
-#define	IF_ADDR_RLOCK(if)	rw_rlock(&(if)->if_addr_lock)
-#define	IF_ADDR_RUNLOCK(if)	rw_runlock(&(if)->if_addr_lock)
-#define	IF_ADDR_LOCK_ASSERT(if)	rw_assert(&(if)->if_addr_lock, RA_LOCKED)
-#define	IF_ADDR_WLOCK_ASSERT(if) rw_assert(&(if)->if_addr_lock, RA_WLOCKED)
+#define	IF_WLOCK(ifp)		rw_wlock(&(ifp)->if_lock)
+#define	IF_WUNLOCK(if)		rw_wunlock(&(ifp)->if_lock)
+#define	IF_RLOCK(ifp)		rw_rlock(&(ifp)->if_lock)
+#define	IF_RUNLOCK(ifp)		rw_runlock(&(ifp)->if_lock)
+#define	IF_LOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_lock, RA_LOCKED)
+#define	IF_WLOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_lock, RA_WLOCKED)
+/*
+ * Originally only address lists were locked, so we keep these macros
+ * for compatibility, until they are cleaned up from kernel.
+ */
+#define	IF_ADDR_WLOCK(ifp)		IF_WLOCK(ifp)
+#define	IF_ADDR_WUNLOCK(ifp)		IF_WUNLOCK(ifp)
+#define	IF_ADDR_RLOCK(ifp)		IF_RLOCK(ifp)
+#define	IF_ADDR_RUNLOCK(ifp)		IF_RUNLOCK(ifp)
+#define	IF_ADDR_LOCK_ASSERT(ifp)	IF_LOCK_ASSERT(ifp)
+#define	IF_ADDR_WLOCK_ASSERT(ifp)	IF_WLOCK_ASSERT(ifp)
 
 #ifdef _KERNEL
 #ifdef _SYS_EVENTHANDLER_H_

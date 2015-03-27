@@ -579,7 +579,7 @@ if_attach(struct if_attach_args *ifat)
 	if (ifdrv->ifdrv_maxqlen > 0)
 		ifp->if_snd = if_snd_alloc(ifdrv->ifdrv_maxqlen);
 
-	IF_ADDR_LOCK_INIT(ifp);
+	rw_init(&ifp->if_lock, "if_lock");
 	IF_AFDATA_LOCK_INIT(ifp);
 	TASK_INIT(&ifp->if_linktask, 0, do_link_state_change, ifp);
 	TAILQ_INIT(&ifp->if_addrhead);
@@ -661,7 +661,7 @@ if_free_internal(struct ifnet *ifp)
 	if (ifp->if_description != NULL)
 		free(ifp->if_description, M_IFDESCR);
 	IF_AFDATA_DESTROY(ifp);
-	IF_ADDR_LOCK_DESTROY(ifp);
+	rw_destroy(&ifp->if_lock);
 	if (ifp->if_snd)
 		if_snd_free(ifp->if_snd);
 
