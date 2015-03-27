@@ -86,6 +86,7 @@ enum sata_fis_type {
 #define	READ_TOC		0x43
 #define	GET_EVENT_STATUS_NOTIFICATION 0x4A
 #define	MODE_SENSE_10		0x5A
+#define	REPORT_LUNS		0xA0
 #define	READ_12			0xA8
 #define	READ_CD			0xBE
 
@@ -874,7 +875,7 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 			   ATA_SUPPORT_NCQ);
 		buf[77] = (ATA_SUPPORT_RCVSND_FPDMA_QUEUED |
 			   (p->ssts & ATA_SS_SPD_MASK) >> 3);
-		buf[80] = 0x1f0;
+		buf[80] = 0x3f0;
 		buf[81] = 0x28;
 		buf[82] = (ATA_SUPPORT_POWERMGT | ATA_SUPPORT_WRITECACHE|
 			   ATA_SUPPORT_LOOKAHEAD | ATA_SUPPORT_NOP);
@@ -940,20 +941,28 @@ handle_atapi_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		buf[53] = (1 << 2 | 1 << 1);
 		buf[62] = 0x3f;
 		buf[63] = 7;
+		if (p->xfermode & ATA_WDMA0)
+			buf[63] |= (1 << ((p->xfermode & 7) + 8));
 		buf[64] = 3;
-		buf[65] = 100;
-		buf[66] = 100;
-		buf[67] = 100;
-		buf[68] = 100;
-		buf[76] = (1 << 2 | 1 << 1);
+		buf[65] = 120;
+		buf[66] = 120;
+		buf[67] = 120;
+		buf[68] = 120;
+		buf[76] = (ATA_SATA_GEN1 | ATA_SATA_GEN2 | ATA_SATA_GEN3);
+		buf[77] = ((p->ssts & ATA_SS_SPD_MASK) >> 3);
 		buf[78] = (1 << 5);
-		buf[80] = (0x1f << 4);
-		buf[82] = (1 << 4);
+		buf[80] = 0x3f0;
+		buf[82] = (ATA_SUPPORT_POWERMGT | ATA_SUPPORT_PACKET |
+			   ATA_SUPPORT_RESET | ATA_SUPPORT_NOP);
 		buf[83] = (1 << 14);
 		buf[84] = (1 << 14);
-		buf[85] = (1 << 4);
+		buf[85] = (ATA_SUPPORT_POWERMGT | ATA_SUPPORT_PACKET |
+			   ATA_SUPPORT_RESET | ATA_SUPPORT_NOP);
 		buf[87] = (1 << 14);
-		buf[88] = (1 << 14 | 0x7f);
+		buf[88] = 0x7f;
+		if (p->xfermode & ATA_UDMA0)
+			buf[88] |= (1 << ((p->xfermode & 7) + 8));
+		buf[222] = 0x1020;
 		ahci_write_fis_piosetup(p);
 		write_prdt(p, slot, cfis, (void *)buf, sizeof(buf));
 		ahci_write_fis_d2h(p, slot, cfis, ATA_S_DSC | ATA_S_READY);
@@ -966,22 +975,41 @@ atapi_inquiry(struct ahci_port *p, int slot, uint8_t *cfis)
 	uint8_t buf[36];
 	uint8_t *acmd;
 	int len;
+	uint32_t tfd;
 
 	acmd = cfis + 0x40;
 
-	buf[0] = 0x05;
-	buf[1] = 0x80;
-	buf[2] = 0x00;
-	buf[3] = 0x21;
-	buf[4] = 31;
-	buf[5] = 0;
-	buf[6] = 0;
-	buf[7] = 0;
-	atapi_string(buf + 8, "BHYVE", 8);
-	atapi_string(buf + 16, "BHYVE DVD-ROM", 16);
-	atapi_string(buf + 32, "001", 4);
+	if (acmd[1] & 1) {		/* VPD */
+		if (acmd[2] == 0) {	/* Supported VPD pages */
+			buf[0] = 0x05;
+			buf[1] = 0;
+			buf[2] = 0;
+			buf[3] = 1;
+			buf[4] = 0;
+			len = 4 + buf[3];
+		} else {
+			p->sense_key = ATA_SENSE_ILLEGAL_REQUEST;
+			p->asc = 0x24;
+			tfd = (p->sense_key << 12) | ATA_S_READY | ATA_S_ERROR;
+			cfis[4] = (cfis[4] & ~7) | ATA_I_CMD | ATA_I_IN;
+			ahci_write_fis_d2h(p, slot, cfis, tfd);
+			return;
+		}
+	} else {
+		buf[0] = 0x05;
+		buf[1] = 0x80;
+		buf[2] = 0x00;
+		buf[3] = 0x21;
+		buf[4] = 31;
+		buf[5] = 0;
+		buf[6] = 0;
+		buf[7] = 0;
+		atapi_string(buf + 8, "BHYVE", 8);
+		atapi_string(buf + 16, "BHYVE DVD-ROM", 16);
+		atapi_string(buf + 32, "001", 4);
+		len = sizeof(buf);
+	}
 
-	len = sizeof(buf);
 	if (len > acmd[4])
 		len = acmd[4];
 	cfis[4] = (cfis[4] & ~7) | ATA_I_CMD | ATA_I_IN;
@@ -1182,6 +1210,19 @@ atapi_read_toc(struct ahci_port *p, int slot, uint8_t *cfis)
 		break;
 	}
 	}
+}
+
+static void
+atapi_report_luns(struct ahci_port *p, int slot, uint8_t *cfis)
+{
+	uint8_t buf[16];
+
+	memset(buf, 0, sizeof(buf));
+	buf[3] = 8;
+
+	cfis[4] = (cfis[4] & ~7) | ATA_I_CMD | ATA_I_IN;
+	write_prdt(p, slot, cfis, buf, sizeof(buf));
+	ahci_write_fis_d2h(p, slot, cfis, ATA_S_READY | ATA_S_DSC);
 }
 
 static void
@@ -1452,6 +1493,9 @@ handle_packet_cmd(struct ahci_port *p, int slot, uint8_t *cfis)
 		break;
 	case READ_TOC:
 		atapi_read_toc(p, slot, cfis);
+		break;
+	case REPORT_LUNS:
+		atapi_report_luns(p, slot, cfis);
 		break;
 	case READ_10:
 	case READ_12:
