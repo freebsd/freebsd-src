@@ -190,7 +190,7 @@ OBJTREE=	${MAKEOBJDIRPREFIX}/${TARGET}.${TARGET_ARCH}
 .endif
 WORLDTMP=	${OBJTREE}${.CURDIR}/tmp
 BPATH=		${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/bin
-XPATH=		${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin
+XPATH=		${WORLDTMP}/bin:${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin
 STRICTTMPPATH=	${BPATH}:${XPATH}
 TMPPATH=	${STRICTTMPPATH}:${PATH}
 
