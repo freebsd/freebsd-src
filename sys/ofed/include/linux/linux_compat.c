@@ -32,6 +32,8 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/proc.h>
+#include <sys/sleepqueue.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/bus.h>
@@ -780,6 +782,117 @@ linux_timer_init(void *arg)
 	linux_timer_hz_mask--;
 }
 SYSINIT(linux_timer, SI_SUB_DRIVERS, SI_ORDER_FIRST, linux_timer_init, NULL);
+
+void
+linux_complete_common(struct completion *c, int all)
+{
+	int wakeup_swapper;
+
+	sleepq_lock(c);
+	c->done++;
+	if (all)
+		wakeup_swapper = sleepq_broadcast(c, SLEEPQ_SLEEP, 0, 0);
+	else
+		wakeup_swapper = sleepq_signal(c, SLEEPQ_SLEEP, 0, 0);
+	sleepq_release(c);
+	if (wakeup_swapper)
+		kick_proc0();
+}
+
+/*
+ * Indefinite wait for done != 0 with or without signals.
+ */
+long
+linux_wait_for_common(struct completion *c, int flags)
+{
+
+	if (flags != 0)
+		flags = SLEEPQ_INTERRUPTIBLE | SLEEPQ_SLEEP;
+	else
+		flags = SLEEPQ_SLEEP;
+	for (;;) {
+		sleepq_lock(c);
+		if (c->done)
+			break;
+		sleepq_add(c, NULL, "completion", flags, 0);
+		if (flags & SLEEPQ_INTERRUPTIBLE) {
+			if (sleepq_wait_sig(c, 0) != 0)
+				return (-ERESTARTSYS);
+		} else
+			sleepq_wait(c, 0);
+	}
+	c->done--;
+	sleepq_release(c);
+
+	return (0);
+}
+
+/*
+ * Time limited wait for done != 0 with or without signals.
+ */
+long
+linux_wait_for_timeout_common(struct completion *c, long timeout, int flags)
+{
+	long end = jiffies + timeout;
+
+	if (flags != 0)
+		flags = SLEEPQ_INTERRUPTIBLE | SLEEPQ_SLEEP;
+	else
+		flags = SLEEPQ_SLEEP;
+	for (;;) {
+		int ret;
+
+		sleepq_lock(c);
+		if (c->done)
+			break;
+		sleepq_add(c, NULL, "completion", flags, 0);
+		sleepq_set_timeout(c, linux_timer_jiffies_until(end));
+		if (flags & SLEEPQ_INTERRUPTIBLE)
+			ret = sleepq_timedwait_sig(c, 0);
+		else
+			ret = sleepq_timedwait(c, 0);
+		if (ret != 0) {
+			/* check for timeout or signal */
+			if (ret == EWOULDBLOCK)
+				return (0);
+			else
+				return (-ERESTARTSYS);
+		}
+	}
+	c->done--;
+	sleepq_release(c);
+
+	/* return how many jiffies are left */
+	return (linux_timer_jiffies_until(end));
+}
+
+int
+linux_try_wait_for_completion(struct completion *c)
+{
+	int isdone;
+
+	isdone = 1;
+	sleepq_lock(c);
+	if (c->done)
+		c->done--;
+	else
+		isdone = 0;
+	sleepq_release(c);
+	return (isdone);
+}
+
+int
+linux_completion_done(struct completion *c)
+{
+	int isdone;
+
+	isdone = 1;
+	sleepq_lock(c);
+	if (c->done == 0)
+		isdone = 0;
+	sleepq_release(c);
+	return (isdone);
+}
 
 static void
 linux_compat_init(void *arg)
