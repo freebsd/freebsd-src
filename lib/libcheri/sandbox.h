@@ -61,35 +61,11 @@ struct sandbox_metadata {
 
 /*
  * This section defines interfaces for setting up, invoking, resetting, and
- * destroying sandboxes.
+ * destroying sandbox classes and objects.
  */
 
 extern int sb_verbose;
 
-struct sandbox;
-int	sandbox_setup(const char *path, register_t sandboxlen,
-	    struct sandbox **sbp);
-void	sandbox_destroy(struct sandbox *sb);
-
-#if __has_feature(capabilities)
-register_t
-sandbox_cinvoke(struct sandbox *sb,
-    register_t methodnum, register_t a1, register_t a2, register_t a3,
-    register_t a4, register_t a5, register_t a6, register_t a7,
-    __capability void *c3, __capability void *c4, __capability void *c5,
-    __capability void *c6, __capability void *c7, __capability void *c8,
-    __capability void *c9, __capability void *c10);
-#endif
-register_t	sandbox_invoke(struct sandbox *sb,
-	    register_t methodnum, register_t a1, register_t a2, register_t a3,
-	    register_t a4,
-	    struct chericap *c3, struct chericap *c4, struct chericap *c5,
-	    struct chericap *c6, struct chericap *c7, struct chericap *c8,
-	    struct chericap *c9, struct chericap *c10);
-
-/*
- * Second-generation sandbox API with a more object-oriented spin.
- */
 int	sandbox_program_init(int argc, char **argv);
 int	sandbox_program_finalize(void);
 int	sandbox_program_fini(void);
