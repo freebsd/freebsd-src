@@ -75,6 +75,34 @@ BROKEN_OPTIONS+= EISA
 BROKEN_OPTIONS+= OFED
 .endif
 
+# Options that cannot be turned on this architecture, usually because
+# of compilation or other issues so severe it cannot be used even
+# on an experimental basis
+__ALWAYS_NO_OPTIONS=
+
+# Things that don't work based on the CPU
+.if ${MACHINE_CPUARCH} == "arm"
+__ALWAYS_NO_OPTIONS+= CDDL ZFS
+.endif
+
+.if ${MACHINE_CPUARCH} == "mips"
+__ALWAYS_NO_OPTIONS+= CDDL ZFS
+.endif
+
+.if ${MACHINE_CPUARCH} == "powerpc" && ${MACHINE_ARCH} != "powerpc64"
+__ALWAYS_NO_OPTIONS+= ZFS
+.endif
+
+# Things that don't work because the kernel doesn't have the support
+# for them.
+.if ${MACHINE} != "i386"
+__ALWAYS_NO_OPTIONS+= EISA
+.endif
+
+.if ${MACHINE} != "i386" && ${MACHINE} != "amd64"
+__ALWAYS_NO_OPTIONS+= OFED
+.endif
+
 # expanded inline from bsd.mkopt.mk to avoid share/mk dependency
 
 # Those that default to yes
