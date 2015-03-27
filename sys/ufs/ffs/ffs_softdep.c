@@ -738,6 +738,7 @@ static	int softdep_process_worklist(struct mount *, int);
 static	int softdep_waitidle(struct mount *, int);
 static	void drain_output(struct vnode *);
 static	struct buf *getdirtybuf(struct buf *, struct rwlock *, int);
+static	int check_inodedep_free(struct inodedep *);
 static	void clear_remove(struct mount *);
 static	void clear_inodedeps(struct mount *);
 static	void unlinked_inodedep(struct mount *, struct inodedep *);
