@@ -43,13 +43,18 @@ __FBSDID("$FreeBSD$");
 struct interp_lua_softc {
 	lua_State	*luap;
 };
-static struct interp_lua_softc lua_softc = { 0 };
 
+static struct interp_lua_softc lua_softc;
+
+#ifdef LUA_DEBUG
 #define	LDBG(...)	do {			\
 	printf("%s(%d): ", __func__, __LINE__);	\
 	printf(__VA_ARGS__);			\
 	printf("\n");				\
 } while (0)
+#else
+#define	LDBG(...)
+#endif
 
 
 void
@@ -63,9 +68,11 @@ interp_lua_init(void *ctx)
 	char buf[16];
 
 	softc = ctx;
+	LDBG("creating context");
 	luap = lua_create();
 	if (luap == NULL) {
-		LDBG("problem initializing the Lua interpreter");
+		printf("problem initializing the Lua interpreter\n");
+		abort();
 	}
 	softc->luap = luap;
 	register_utils(luap);
@@ -84,9 +91,9 @@ interp_lua_run(void *data, const char *line)
 
 	softc = data;
 	luap = softc->luap;
-
+	LDBG("running line...");
 	if (ldo_string(luap, line, strlen(line)) != 0)
-		LDBG("failed to execute \'%s\'", line);
+		printf("failed to parse \'%s\'\n", line);
 
 	return (0);
 }
@@ -97,6 +104,7 @@ interp_lua_incl(void *ctx, const char *filename)
 	struct interp_lua_softc *softc;
 
 	softc = ctx;
+	LDBG("loading file %s", filename);
 
 	return (ldo_file(softc->luap, filename));
 }
@@ -108,9 +116,10 @@ interp_lua_incl(void *ctx, const char *filename)
 int
 interp_lua_load_config(void *ctx)
 {
+	LDBG("loading config");
+
 	return (interp_lua_incl(ctx, "/boot/loader.lua"));
 }
-
 
 struct interp boot_interp_lua = {
 	.init = interp_lua_init,
