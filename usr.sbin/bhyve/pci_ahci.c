@@ -520,12 +520,14 @@ ahci_handle_dma(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done,
 	readop = 1;
 
 	prdt += seek;
-	if (cfis[2] == ATA_WRITE_DMA || cfis[2] == ATA_WRITE_DMA48 ||
-			cfis[2] == ATA_WRITE_FPDMA_QUEUED)
+	if (cfis[2] == ATA_WRITE || cfis[2] == ATA_WRITE48 ||
+	    cfis[2] == ATA_WRITE_MUL || cfis[2] == ATA_WRITE_MUL48 ||
+	    cfis[2] == ATA_WRITE_DMA || cfis[2] == ATA_WRITE_DMA48 ||
+	    cfis[2] == ATA_WRITE_FPDMA_QUEUED)
 		readop = 0;
 
 	if (cfis[2] == ATA_WRITE_FPDMA_QUEUED ||
-			cfis[2] == ATA_READ_FPDMA_QUEUED) {
+	    cfis[2] == ATA_READ_FPDMA_QUEUED) {
 		lba = ((uint64_t)cfis[10] << 40) |
 			((uint64_t)cfis[9] << 32) |
 			((uint64_t)cfis[8] << 24) |
@@ -536,7 +538,9 @@ ahci_handle_dma(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done,
 		if (!len)
 			len = 65536;
 		ncq = 1;
-	} else if (cfis[2] == ATA_READ_DMA48 || cfis[2] == ATA_WRITE_DMA48) {
+	} else if (cfis[2] == ATA_READ48 || cfis[2] == ATA_WRITE48 ||
+	    cfis[2] == ATA_READ_MUL48 || cfis[2] == ATA_WRITE_MUL48 ||
+	    cfis[2] == ATA_READ_DMA48 || cfis[2] == ATA_WRITE_DMA48) {
 		lba = ((uint64_t)cfis[10] << 40) |
 			((uint64_t)cfis[9] << 32) |
 			((uint64_t)cfis[8] << 24) |
@@ -1476,6 +1480,14 @@ ahci_handle_cmd(struct ahci_port *p, int slot, uint8_t *cfis)
 		}
 		ahci_write_fis_d2h(p, slot, cfis, p->tfd);
 		break;
+	case ATA_READ:
+	case ATA_WRITE:
+	case ATA_READ48:
+	case ATA_WRITE48:
+	case ATA_READ_MUL:
+	case ATA_WRITE_MUL:
+	case ATA_READ_MUL48:
+	case ATA_WRITE_MUL48:
 	case ATA_READ_DMA:
 	case ATA_WRITE_DMA:
 	case ATA_READ_DMA48:
