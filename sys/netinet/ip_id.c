@@ -85,38 +85,51 @@ __FBSDID("$FreeBSD$");
 #include <sys/random.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
+#include <sys/bitstring.h>
+
+#include <net/vnet.h>
+
 #include <netinet/in.h>
 #include <netinet/ip_var.h>
-#include <sys/bitstring.h>
 
 static MALLOC_DEFINE(M_IPID, "ipid", "randomized ip id state");
 
-static uint16_t 	*id_array;
-static bitstr_t		*id_bits;
-static int		 array_ptr;
-static int		 array_size;
-static int		 random_id_collisions;
-static int		 random_id_total;
-static struct mtx	 ip_id_mtx;
+static VNET_DEFINE(uint16_t *, id_array);
+static VNET_DEFINE(bitstr_t *, id_bits);
+static VNET_DEFINE(int, array_ptr);
+static VNET_DEFINE(int, array_size);
+static VNET_DEFINE(int, random_id_collisions);
+static VNET_DEFINE(int, random_id_total);
+static VNET_DEFINE(struct mtx, ip_id_mtx);
+#define	V_id_array	VNET(id_array)
+#define	V_id_bits	VNET(id_bits)
+#define	V_array_ptr	VNET(array_ptr)
+#define	V_array_size	VNET(array_size)
+#define	V_random_id_collisions	VNET(random_id_collisions)
+#define	V_random_id_total	VNET(random_id_total)
+#define	V_ip_id_mtx	VNET(ip_id_mtx)
 
 static void	ip_initid(int);
 static int	sysctl_ip_id_change(SYSCTL_HANDLER_ARGS);
-static void	ip_sysinitid(void);
+static void	ipid_sysinit(void);
+static void	ipid_sysuninit(void);
 
 SYSCTL_DECL(_net_inet_ip);
-SYSCTL_PROC(_net_inet_ip, OID_AUTO, random_id_period, CTLTYPE_INT|CTLFLAG_RW,
-    &array_size, 0, sysctl_ip_id_change, "IU", "IP ID Array size");
-SYSCTL_INT(_net_inet_ip, OID_AUTO, random_id_collisions, CTLFLAG_RD,
-    &random_id_collisions, 0, "Count of IP ID collisions");
-SYSCTL_INT(_net_inet_ip, OID_AUTO, random_id_total, CTLFLAG_RD,
-    &random_id_total, 0, "Count of IP IDs created");
+SYSCTL_PROC(_net_inet_ip, OID_AUTO, random_id_period,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_VNET,
+    &VNET_NAME(array_size), 0, sysctl_ip_id_change, "IU", "IP ID Array size");
+SYSCTL_INT(_net_inet_ip, OID_AUTO, random_id_collisions,
+    CTLFLAG_RD | CTLFLAG_VNET,
+    &VNET_NAME(random_id_collisions), 0, "Count of IP ID collisions");
+SYSCTL_INT(_net_inet_ip, OID_AUTO, random_id_total, CTLFLAG_RD | CTLFLAG_VNET,
+    &VNET_NAME(random_id_total), 0, "Count of IP IDs created");
 
 static int
 sysctl_ip_id_change(SYSCTL_HANDLER_ARGS)
 {
 	int error, new;
 
-	new = array_size;
+	new = V_array_size;
 	error = sysctl_handle_int(oidp, &new, 0, req);
 	if (error == 0 && req->newptr) {
 		if (new >= 512 && new <= 32768)
@@ -137,18 +150,18 @@ ip_initid(int new_size)
 	    M_WAITOK | M_ZERO);
 	new_bits = malloc(bitstr_size(65536), M_IPID, M_WAITOK | M_ZERO);
 
-	mtx_lock(&ip_id_mtx);
-	if (id_array != NULL) {
-		free(id_array, M_IPID);
-		free(id_bits, M_IPID);
+	mtx_lock(&V_ip_id_mtx);
+	if (V_id_array != NULL) {
+		free(V_id_array, M_IPID);
+		free(V_id_bits, M_IPID);
 	}
-	id_array = new_array;
-	id_bits = new_bits;
-	array_size = new_size;
-	array_ptr = 0;
-	random_id_collisions = 0;
-	random_id_total = 0;
-	mtx_unlock(&ip_id_mtx);
+	V_id_array = new_array;
+	V_id_bits = new_bits;
+	V_array_size = new_size;
+	V_array_ptr = 0;
+	V_random_id_collisions = 0;
+	V_random_id_total = 0;
+	mtx_unlock(&V_ip_id_mtx);
 }
 
 uint16_t
@@ -156,7 +169,7 @@ ip_randomid(void)
 {
 	uint16_t new_id;
 
-	mtx_lock(&ip_id_mtx);
+	mtx_lock(&V_ip_id_mtx);
 	/*
 	 * To avoid a conflict with the zeros that the array is initially
 	 * filled with, we never hand out an id of zero.
@@ -164,25 +177,35 @@ ip_randomid(void)
 	new_id = 0;
 	do {
 		if (new_id != 0)
-			random_id_collisions++;
+			V_random_id_collisions++;
 		arc4rand(&new_id, sizeof(new_id), 0);
-	} while (bit_test(id_bits, new_id) || new_id == 0);
-	bit_clear(id_bits, id_array[array_ptr]);
-	bit_set(id_bits, new_id);
-	id_array[array_ptr] = new_id;
-	array_ptr++;
-	if (array_ptr == array_size)
-		array_ptr = 0;
-	random_id_total++;
-	mtx_unlock(&ip_id_mtx);
+	} while (bit_test(V_id_bits, new_id) || new_id == 0);
+	bit_clear(V_id_bits, V_id_array[V_array_ptr]);
+	bit_set(V_id_bits, new_id);
+	V_id_array[V_array_ptr] = new_id;
+	V_array_ptr++;
+	if (V_array_ptr == V_array_size)
+		V_array_ptr = 0;
+	V_random_id_total++;
+	mtx_unlock(&V_ip_id_mtx);
 	return (new_id);
 }
 
 static void
-ip_sysinitid(void)
+ipid_sysinit(void)
 {
 
-	mtx_init(&ip_id_mtx, "ip_id_mtx", NULL, MTX_DEF);
+	mtx_init(&V_ip_id_mtx, "ip_id_mtx", NULL, MTX_DEF);
 	ip_initid(8192);
 }
-SYSINIT(ip_id, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, ip_sysinitid, NULL);
+VNET_SYSINIT(ip_id, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, ipid_sysinit, NULL);
+
+static void
+ipid_sysuninit(void)
+{
+
+	mtx_destroy(&V_ip_id_mtx);
+	free(V_id_array, M_IPID);
+	free(V_id_bits, M_IPID);
+}
+VNET_SYSUNINIT(ip_id, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, ipid_sysuninit, NULL);
