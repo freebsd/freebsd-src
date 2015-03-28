@@ -26,6 +26,9 @@ options 	DDB
 options 	KDB
 options 	ALQ
 
+# For small memory footprints
+options 	VM_KMEM_SIZE_SCALE=1
+
 options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
 options 	INET6			#InterNETworking
