@@ -1157,6 +1157,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 			int swap_pageouts_ok;
 			struct vnode *vp = NULL;
 			struct mount *mp = NULL;
+			vm_pindex_t pindex;
 
 			if ((object->type != OBJT_SWAP) && (object->type != OBJT_DEFAULT)) {
 				swap_pageouts_ok = 1;
@@ -1217,6 +1218,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 				KASSERT(mp != NULL,
 				    ("vp %p with NULL v_mount", vp));
 				vm_object_reference_locked(object);
+				pindex = m->pindex;
 				VM_OBJECT_WUNLOCK(object);
 				lockmode = MNT_SHARED_WRITES(vp->v_mount) ?
 				    LK_SHARED : LK_EXCLUSIVE;
@@ -1231,17 +1233,18 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 				}
 				VM_OBJECT_WLOCK(object);
 				vm_page_lock(m);
-				vm_pagequeue_lock(pq);
-				queues_locked = TRUE;
 				/*
-				 * The page might have been moved to another
-				 * queue during potential blocking in vget()
-				 * above.  The page might have been freed and
-				 * reused for another vnode.
+				 * While the object and page were unlocked,
+				 * the page may have been
+				 * (1) moved to a different queue,
+				 * (2) reallocated to a different object,
+				 * (3) reallocated to a different offset, or
+				 * (4) cleaned.
 				 */
 				if (m->queue != PQ_INACTIVE ||
 				    m->object != object ||
-				    TAILQ_NEXT(m, plinks.q) != &vmd->vmd_marker) {
+				    m->pindex != pindex ||
+				    m->dirty == 0) {
 					vm_page_unlock(m);
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
@@ -1271,8 +1274,6 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 						vnodes_skipped++;
 					goto unlock_and_continue;
 				}
-				vm_pagequeue_unlock(pq);
-				queues_locked = FALSE;
 			}
 
 			/*
@@ -1293,10 +1294,6 @@ unlock_and_continue:
 			vm_page_lock_assert(m, MA_NOTOWNED);
 			VM_OBJECT_WUNLOCK(object);
 			if (mp != NULL) {
-				if (queues_locked) {
-					vm_pagequeue_unlock(pq);
-					queues_locked = FALSE;
-				}
 				if (vp != NULL)
 					vput(vp);
 				vm_object_deallocate(object);
