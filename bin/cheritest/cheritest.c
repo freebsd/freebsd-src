@@ -573,19 +573,19 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_desc = "Exercise read() on a cheri_fd in a libcheri sandbox",
 	  .ct_func = test_sandbox_fd_read,
 	  .ct_flags = CT_FLAG_STDIN_STRING,
-	  .ct_stdin_string = "read123" },
+	  .ct_stdin_string = CHERITEST_FD_READ_STR },
 
 	{ .ct_name = "test_sandbox_fd_read_revoke",
 	  .ct_desc = "Exercise revoke() before read() on a cheri_fd",
 	  .ct_func = test_sandbox_fd_read_revoke,
 	  .ct_flags = CT_FLAG_STDIN_STRING,
-	  .ct_stdin_string = "read123" },
+	  .ct_stdin_string = CHERITEST_FD_READ_STR },
 
 	{ .ct_name = "test_sandbox_fd_write",
 	  .ct_desc = "Exercise write() on a cheri_fd in a libcheri sandbox",
 	  .ct_func = test_sandbox_fd_write,
 	  .ct_flags = CT_FLAG_STDOUT_STRING,
-	  .ct_stdout_string = "write123" },
+	  .ct_stdout_string = CHERITEST_FD_WRITE_STR },
 
 	{ .ct_name = "test_sandbox_fd_write_revoke",
 	  .ct_desc = "Exercise revoke() before write() on a cheri_fd",

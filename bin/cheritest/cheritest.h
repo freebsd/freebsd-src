@@ -181,6 +181,9 @@ void	test_sandbox_vm_xfault_catch(const struct cheri_test *ctp);
 void	test_sandbox_vm_xfault_nocatch(const struct cheri_test *ctp);
 
 /* cheritest_fd.c */
+#define	CHERITEST_FD_READ_STR	"read123"
+#define	CHERITEST_FD_WRITE_STR	"write123"
+
 extern int			 zero_fd;
 extern struct cheri_object	 stdin_fd_object;
 extern struct cheri_object	 stdout_fd_object;
