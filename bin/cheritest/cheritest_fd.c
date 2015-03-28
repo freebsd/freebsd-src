@@ -104,7 +104,7 @@ test_sandbox_fd_read(const struct cheri_test *ctp)
 	    stdin_fd_object.co_codecap, stdin_fd_object.co_datacap,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap());
-	if (v != strlen(ctp->ct_stdin_string))
+	if (v != (register_t)strlen(ctp->ct_stdin_string))
 		cheritest_failure_errx("invoke returned %ld (expected %ld)",
 		    v, strlen(ctp->ct_stdin_string));
 	read_string[sizeof(read_string)-1] = '\0';
