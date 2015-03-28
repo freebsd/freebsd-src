@@ -192,22 +192,20 @@ invoke_fd_lseek_c(struct cheri_object fd_object)
 }
 
 static int
-invoke_fd_read_c(struct cheri_object fd_object)
+invoke_fd_read_c(struct cheri_object fd_object, void *buf, size_t nbytes)
 {
 	struct cheri_fd_ret ret;
-	char buf[10];
-	__capability void *buf_c;
 
-	buf_c = cheri_ptr(buf, sizeof(buf));
-	ret = cheri_fd_read_c(fd_object, buf_c);
+	ret = cheri_fd_read_c(fd_object, buf, nbytes);
 	return (ret.cfr_retval0);
 }
 
 static int
-invoke_fd_write_c(struct cheri_object fd_object, __capability char *arg)
+invoke_fd_write_c(struct cheri_object fd_object, __capability char *arg,
+    size_t nbytes)
 {
 
-	return (cheri_fd_write_c(fd_object, arg).cfr_retval0);
+	return (cheri_fd_write_c(fd_object, arg, nbytes).cfr_retval0);
 }
 
 static int
@@ -453,10 +451,10 @@ invoke(struct cheri_object co __unused, register_t v0 __unused,
 		return (invoke_fd_lseek_c(fd_object));
 
 	case CHERITEST_HELPER_OP_FD_READ_C:
-		return (invoke_fd_read_c(fd_object));
+		return (invoke_fd_read_c(fd_object, data_output, len));
 
 	case CHERITEST_HELPER_OP_FD_WRITE_C:
-		return (invoke_fd_write_c(fd_object, data_input));
+		return (invoke_fd_write_c(fd_object, data_input, len));
 
 	case CHERITEST_HELPER_OP_CS_CLOCK_GETTIME:
 		return (invoke_clock_gettime());
