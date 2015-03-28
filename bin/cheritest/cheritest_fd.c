@@ -93,19 +93,24 @@ test_sandbox_fd_read(const struct cheri_test *ctp)
 {
 	__capability char *stringc;
 	register_t v;
+	size_t len;
 
-	stringc = cheri_ptrperm(read_string, sizeof(read_string),
-	    CHERI_PERM_STORE);
+	len = sizeof(read_string);
+	stringc = cheri_ptrperm(read_string, len, CHERI_PERM_STORE);
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_OP_FD_READ_C,
-	    0, 0, 0, 0, 0, 0, 0,
+	    /* arg */ 0, /* len */ len, 0, 0, 0, 0, 0,
 	    /* data_input */ cheri_zerocap(), /* data_output */ stringc,
 	    stdin_fd_object.co_codecap, stdin_fd_object.co_datacap,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap());
-	if (v != (ssize_t)strlen(ctp->ct_stdin_string))
-		cheritest_failure_errx("invoke returned %lu; expected %d\n",
-		    v, strlen(read_string));
+	if (v != strlen(ctp->ct_stdin_string))
+		cheritest_failure_errx("invoke returned %ld (expected %ld)",
+		    v, strlen(ctp->ct_stdin_string));
+	read_string[sizeof(read_string)-1] = '\0';
+	if (strcmp(read_string, ctp->ct_stdin_string) != 0)
+		cheritest_failure_errx("invoke returned mismatched string "
+		    "'%s' (expected '%s')", read_string, ctp->ct_stdin_string);
 	cheritest_success();
 }
 
@@ -114,17 +119,18 @@ test_sandbox_fd_read_revoke(const struct cheri_test *ctp __unused)
 {
 	__capability char *stringc;
 	register_t v;
+	size_t len;
 
 	/*
 	 * Essentially the same test as test_sandbox_fd_read() except that we
 	 * expect not to receive input.
 	 */
 	cheri_fd_revoke(stdin_fd_object);
-	stringc = cheri_ptrperm(read_string, sizeof(read_string),
-	    CHERI_PERM_STORE);
+	len = sizeof(read_string);
+	stringc = cheri_ptrperm(read_string, len, CHERI_PERM_STORE);
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_OP_FD_READ_C,
-	    0, 0, 0, 0, 0, 0, 0,
+	    /* arg */ 0, /* len */ len, 0, 0, 0, 0, 0,
 	    /* data_input */ cheri_zerocap(), /* data_output */ stringc,
 	    stdin_fd_object.co_codecap, stdin_fd_object.co_datacap,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
@@ -140,17 +146,18 @@ test_sandbox_fd_write(const struct cheri_test *ctp __unused)
 {
 	__capability char *stringc;
 	register_t v;
+	size_t len;
 
-	stringc = cheri_ptrperm(ctp->ct_stdout_string,
-	    strlen(ctp->ct_stdout_string), CHERI_PERM_LOAD);
+	len = strlen(ctp->ct_stdout_string);
+	stringc = cheri_ptrperm(ctp->ct_stdout_string, len, CHERI_PERM_LOAD);
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_OP_FD_WRITE_C,
-	    0, 0, 0, 0, 0, 0, 0,
+	    /* arg */ 0, /* len */ len, 0, 0, 0, 0, 0,
 	    /* data_input */ stringc, /* data_output */ cheri_zerocap(),
 	    stdout_fd_object.co_codecap, stdout_fd_object.co_datacap,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap());
-	if (v != (ssize_t)strlen(ctp->ct_stdout_string))
+	if (v != (ssize_t)len)
 		cheritest_failure_errx("invoke returned %lu; expected %d\n",
 		    v, strlen(ctp->ct_stdout_string));
 	cheritest_success();
@@ -161,17 +168,18 @@ test_sandbox_fd_write_revoke(const struct cheri_test *ctp __unused)
 {
 	__capability char *stringc;
 	register_t v;
+	size_t len;
 
 	/*
 	 * Essentially the same test as test_sandbox_fd_write() except that we
 	 * expect to see no output.
 	 */
 	cheri_fd_revoke(stdout_fd_object);
-	stringc = cheri_ptrperm(ctp->ct_stdout_string,
-	    strlen(ctp->ct_stdout_string), CHERI_PERM_LOAD);
+	len = strlen(ctp->ct_stdout_string);
+	stringc = cheri_ptrperm(ctp->ct_stdout_string, len, CHERI_PERM_LOAD);
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_OP_FD_WRITE_C,
-	    0, 0, 0, 0, 0, 0, 0,
+	    /* arg */ 0, /* len */ len, 0, 0, 0, 0, 0,
 	    /* data_input */ stringc, /* data_output */ cheri_zerocap(),
 	    stdout_fd_object.co_codecap, stdout_fd_object.co_datacap,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
