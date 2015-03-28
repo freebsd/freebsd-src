@@ -55,13 +55,12 @@
 int	invoke(struct cheri_object co __unused, register_t v0 __unused,
 	    register_t methodnum,
 	    register_t arg, size_t len,
-	    __capability char *data_input, __capability char *data_output,
+	    char *data_input, char *data_output,
 	    struct cheri_object fd_object, struct zstream_proxy *zspp)
 	    __attribute__((cheri_ccall)); /* XXXRW: Will be ccheri_ccallee. */
 
 static int
-invoke_md5(size_t len, __capability char *data_input,
-  __capability char *data_output)
+invoke_md5(size_t len, char *data_input, char *data_output)
 {
 	MD5_CTX md5context;
 	char buf[33], ch;
@@ -84,8 +83,7 @@ invoke_md5(size_t len, __capability char *data_input,
 static int
 invoke_cap_fault(register_t op)
 {
-	char buffer[N], ch;
-	__capability char *cap;
+	char buffer[N], ch, *cap;
 
 	switch (op) {
 	case CHERITEST_HELPER_OP_CP2_BOUND:
@@ -175,7 +173,7 @@ invoke_fd_fstat_c(struct cheri_object fd_object)
 {
 	struct cheri_fd_ret ret;
 	struct stat sb;
-	__capability void *sb_c;
+	void *sb_c;
 
 	sb_c = cheri_ptr(&sb, sizeof(sb));
 	ret = cheri_fd_fstat_c(fd_object, sb_c);
@@ -201,8 +199,7 @@ invoke_fd_read_c(struct cheri_object fd_object, void *buf, size_t nbytes)
 }
 
 static int
-invoke_fd_write_c(struct cheri_object fd_object, __capability char *arg,
-    size_t nbytes)
+invoke_fd_write_c(struct cheri_object fd_object, char *arg, size_t nbytes)
 {
 
 	return (cheri_fd_write_c(fd_object, arg, nbytes).cfr_retval0);
@@ -285,9 +282,9 @@ invoke_libcheri_userfn_setstack(register_t arg)
 	return (v);
 }
 
-static __capability void *saved_capability;
+static void *saved_capability;
 static int
-invoke_libcheri_save_capability_in_heap(__capability void *data_input)
+invoke_libcheri_save_capability_in_heap(void *data_input)
 {
 
 	saved_capability = data_input;
@@ -390,7 +387,7 @@ int
 invoke(struct cheri_object co __unused, register_t v0 __unused,
     register_t methodnum,
     register_t arg, size_t len,
-    __capability char *data_input, __capability char *data_output,
+    char *data_input, char *data_output,
     struct cheri_object fd_object, struct zstream_proxy* zspp)
 {
 
@@ -429,8 +426,7 @@ invoke(struct cheri_object co __unused, register_t v0 __unused,
 		return (cheri_system_helloworld());
 
 	case CHERITEST_HELPER_OP_CS_PUTS:
-		return (cheri_system_puts(
-		    (__capability char *)"sandbox cs_puts"));
+		return (cheri_system_puts("sandbox cs_puts"));
 
 	case CHERITEST_HELPER_OP_CS_PUTCHAR:
 		return (cheri_system_putchar('C'));	/* Is for cookie. */
