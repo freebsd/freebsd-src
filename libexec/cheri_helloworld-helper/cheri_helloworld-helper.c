@@ -63,14 +63,18 @@ invoke(struct cheri_object co __unused, register_t v0 __unused,
 {
 	__capability char *hello_world_str_c;
 	__capability char *hello_world_buf_c;
+	size_t len_str_c;
+	size_t len_buf_c;
 
 	/*
 	 * Construct a capability to our "hello world" string.
 	 */
-	hello_world_str_c = cheri_ptrperm(&hello_world_str,
-	    sizeof(hello_world_str), CHERI_PERM_LOAD); /* Nul-terminated. */
-	hello_world_buf_c = cheri_ptrperm(&hello_world_str_nl,
-	    strlen(hello_world_str_nl), CHERI_PERM_LOAD); /* Just the text. */
+	len_str_c = sizeof(hello_world_str);
+	hello_world_str_c = cheri_ptrperm(&hello_world_str, len_str_c,
+	    CHERI_PERM_LOAD); /* Nul-terminated. */
+	len_buf_c = strlen(hello_world_str_nl);
+	hello_world_buf_c = cheri_ptrperm(&hello_world_str_nl, len_buf_c,
+	    CHERI_PERM_LOAD); /* Just the text. */
 
 	/*
 	 * Select a print method.
@@ -84,7 +88,7 @@ invoke(struct cheri_object co __unused, register_t v0 __unused,
 
 	case CHERI_HELLOWORLD_HELPER_OP_FD_WRITE_C:
 		return (cheri_fd_write_c(fd_object,
-		    hello_world_buf_c).cfr_retval0);
+		    hello_world_buf_c, len_buf_c).cfr_retval0);
 
 	default:
 		return (-1);
@@ -113,9 +117,11 @@ int
 call_cheri_fd_write_c(struct cheri_object fd_object)
 {
 	__capability char *hello_world_buf_c;
+	size_t len_buf_c;
 
-	hello_world_buf_c = cheri_ptrperm(&hello_world_str_nl,
-	    strlen(hello_world_str_nl), CHERI_PERM_LOAD); /* Just the text. */
+	len_buf_c = strlen(hello_world_str_nl);
+	hello_world_buf_c = cheri_ptrperm(&hello_world_str_nl, len_buf_c,
+	    CHERI_PERM_LOAD); /* Just the text. */
 	return (cheri_fd_write_c(fd_object,
-	    hello_world_buf_c).cfr_retval0);
+	    hello_world_buf_c, len_buf_c).cfr_retval0);
 }
