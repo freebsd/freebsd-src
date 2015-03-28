@@ -262,7 +262,9 @@ static vm_offset_t ptbl_buf_pool_vabase;
 /* Pointer to ptbl_buf structures. */
 static struct ptbl_buf *ptbl_bufs;
 
+#ifdef SMP
 void pmap_bootstrap_ap(volatile uint32_t *);
+#endif
 
 /*
  * Kernel MMU interface
@@ -1329,6 +1331,7 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	debugf("mmu_booke_bootstrap: exit\n");
 }
 
+#ifdef SMP
 void
 pmap_bootstrap_ap(volatile uint32_t *trcp __unused)
 {
@@ -1349,6 +1352,7 @@ pmap_bootstrap_ap(volatile uint32_t *trcp __unused)
 
 	set_mas4_defaults();
 }
+#endif
 
 /*
  * Get the physical page address for the given pmap/virtual address.
