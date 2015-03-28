@@ -267,7 +267,7 @@ callout_callwheel_init(void *dummy)
 	 * XXX: Clip callout to result of previous function of maxusers
 	 * maximum 384.  This is still huge, but acceptable.
 	 */
-	memset(cc_cpu, 0, sizeof(cc_cpu));
+	memset(CC_CPU(0), 0, sizeof(cc_cpu));
 	ncallout = imin(16 + maxproc + maxfiles, 18508);
 	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
 
@@ -954,7 +954,7 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 	if (cpu == -1) {
 		ignore_cpu = 1;
 	} else if ((cpu >= MAXCPU) ||
-		   (cc_cpu[cpu].cc_inited == 0)) {
+		   ((CC_CPU(cpu))->cc_inited == 0)) {
 		/* Invalid CPU spec */
 		panic("Invalid CPU in callout %d", cpu);
 	}
