@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Robert N. M. Watson
+ * Copyright (c) 2014-2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -69,8 +69,8 @@ struct cheri_fd_ret	cheri_fd_fstat_c(struct cheri_object fd_object,
 struct cheri_fd_ret	cheri_fd_lseek_c(struct cheri_object fd_object,
 			    off_t offset, int whence);
 struct cheri_fd_ret	cheri_fd_read_c(struct cheri_object fd_object,
-			    __capability void *buf_c);
+			    __capability void *buf_c, size_t nbytes);
 struct cheri_fd_ret	cheri_fd_write_c(struct cheri_object fd_object,
-			    __capability const void *buf_c);
+			    __capability const void *buf_c, size_t nbytes);
 
 #endif /* !_CHERI_FD_H_ */

@@ -78,6 +78,8 @@ struct cheri_fd {
 	int	cf_fd;	/* Underlying file descriptor. */
 };
 
+#define	min(x, y)	((x) < (y) ? (x) : (y))
+
 static __attribute__ ((constructor)) void
 cheri_fd_init(void)
 {
@@ -219,7 +221,7 @@ _cheri_fd_lseek_c(off_t offset, int whence)
  * Forward read_c() on a cheri_fd to the underlying file descriptor.
  */
 static struct cheri_fd_ret
-_cheri_fd_read_c(__capability void *buf_c)
+_cheri_fd_read_c(__capability void *buf_c, size_t nbytes)
 {
 	struct cheri_fd_ret ret;
 	__capability struct cheri_fd *cfp;
@@ -244,7 +246,8 @@ _cheri_fd_read_c(__capability void *buf_c)
 	}
 
 	/* Forward to operating system. */
-	ret.cfr_retval0 = read(cfp->cf_fd, buf, cheri_getlen(buf_c));
+	ret.cfr_retval0 = read(cfp->cf_fd, buf,
+	    min(nbytes, cheri_getlen(buf_c)));
 	ret.cfr_retval1 = (ret.cfr_retval0 < 0 ? errno : 0);
 	return (ret);
 }
@@ -253,7 +256,7 @@ _cheri_fd_read_c(__capability void *buf_c)
  * Forward write_c() on a cheri_fd to the underlying file descriptor.
  */
 static struct cheri_fd_ret
-_cheri_fd_write_c(__capability const void *buf_c)
+_cheri_fd_write_c(__capability const void *buf_c, size_t nbytes)
 {
 	struct cheri_fd_ret ret;
 	__capability struct cheri_fd *cfp;
@@ -278,7 +281,8 @@ _cheri_fd_write_c(__capability const void *buf_c)
 	}
 
 	/* Forward to operating system. */
-	ret.cfr_retval0 = write(cfp->cf_fd, buf, cheri_getlen(buf_c));
+	ret.cfr_retval0 = write(cfp->cf_fd, buf,
+	    min(nbytes, cheri_getlen(buf_c)));
 	ret.cfr_retval1 = (ret.cfr_retval0 < 0 ? errno : 0);
 	return (ret);
 }
@@ -312,10 +316,10 @@ cheri_fd_enter(struct cheri_object co __unused, register_t methodnum,
 		return (_cheri_fd_lseek_c(a0, a1));
 
 	case CHERI_FD_METHOD_READ_C:
-		return (_cheri_fd_read_c(c3));
+		return (_cheri_fd_read_c(c3, a0));
 
 	case CHERI_FD_METHOD_WRITE_C:
-		return (_cheri_fd_write_c(c3));
+		return (_cheri_fd_write_c(c3, a0));
 
 	default:
 		ret.cfr_retval0 = -1;

@@ -73,18 +73,20 @@ cheri_fd_lseek_c(struct cheri_object fd_object, off_t offset, int whence)
 
 register_t cheri_fd_methodnum_read_c = CHERI_FD_METHOD_READ_C;
 struct cheri_fd_ret
-cheri_fd_read_c(struct cheri_object fd_object, __capability void *buf_c)
+cheri_fd_read_c(struct cheri_object fd_object, __capability void *buf_c,
+    size_t nbytes)
 {
 
-	return (cheri_invoke(fd_object, cheri_fd_methodnum_read_c, 0, 0,
+	return (cheri_invoke(fd_object, cheri_fd_methodnum_read_c, nbytes, 0,
 	    buf_c));
 }
 
 register_t cheri_fd_methodnum_write_c = CHERI_FD_METHOD_WRITE_C;
 struct cheri_fd_ret
-cheri_fd_write_c(struct cheri_object fd_object, __capability const void *buf_c)
+cheri_fd_write_c(struct cheri_object fd_object, __capability const void *buf_c,
+    size_t nbytes)
 {
 
-	return (cheri_invoke(fd_object, cheri_fd_methodnum_write_c, 0, 0,
+	return (cheri_invoke(fd_object, cheri_fd_methodnum_write_c, nbytes, 0,
 	    (__capability void *)buf_c));
 }
