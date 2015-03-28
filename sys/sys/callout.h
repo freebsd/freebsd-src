@@ -63,8 +63,23 @@ struct callout_handle {
 };
 
 #ifdef _KERNEL
+/* 
+ * Note the flags field is actually *two* fields. The c_flags
+ * field is the one that caller operations that may, or may not have
+ * a lock touches i.e. callout_deactivate(). The other, the c_iflags,
+ * is the internal flags that *must* be kept correct on which the
+ * callout system depend on i.e. callout_migrating() & callout_pending(),
+ * these are used internally by the callout system to determine which
+ * list and other critical internal state. Callers *should not* use the 
+ * c_flags field directly but should use the macros!
+ *  
+ * If the caller wants to keep the c_flags field sane they 
+ * should init with a mutex *or* if using the older
+ * mpsafe option, they *must* lock there own lock
+ * before calling callout_deactivate().
+ */
 #define	callout_active(c)	((c)->c_flags & CALLOUT_ACTIVE)
-#define	callout_migrating(c)	((c)->c_flags & CALLOUT_DFRMIGRATION)
+#define	callout_migrating(c)	((c)->c_iflags & CALLOUT_DFRMIGRATION)
 #define	callout_deactivate(c)	((c)->c_flags &= ~CALLOUT_ACTIVE)
 #define	callout_drain(c)	_callout_stop_safe(c, 1)
 void	callout_init(struct callout *, int);
@@ -78,11 +93,11 @@ void	_callout_init_lock(struct callout *, struct lock_object *, int);
 #define	callout_init_rw(c, rw, flags)					\
 	_callout_init_lock((c), ((rw) != NULL) ? &(rw)->lock_object :	\
 	   NULL, (flags))
-#define	callout_pending(c)	((c)->c_flags & CALLOUT_PENDING)
+#define	callout_pending(c)	((c)->c_iflags & CALLOUT_PENDING)
 int	callout_reset_sbt_on(struct callout *, sbintime_t, sbintime_t,
 	    void (*)(void *), void *, int, int);
 #define	callout_reset_sbt(c, sbt, pr, fn, arg, flags)			\
-    callout_reset_sbt_on((c), (sbt), (pr), (fn), (arg), (c)->c_cpu, (flags))
+    callout_reset_sbt_on((c), (sbt), (pr), (fn), (arg), -1, (flags))
 #define	callout_reset_sbt_curcpu(c, sbt, pr, fn, arg, flags)		\
     callout_reset_sbt_on((c), (sbt), (pr), (fn), (arg), PCPU_GET(cpuid),\
         (flags))
@@ -90,14 +105,14 @@ int	callout_reset_sbt_on(struct callout *, sbintime_t, sbintime_t,
     callout_reset_sbt_on((c), tick_sbt * (to_ticks), 0, (fn), (arg),	\
         (cpu), C_HARDCLOCK)
 #define	callout_reset(c, on_tick, fn, arg)				\
-    callout_reset_on((c), (on_tick), (fn), (arg), (c)->c_cpu)
+    callout_reset_on((c), (on_tick), (fn), (arg), -1)
 #define	callout_reset_curcpu(c, on_tick, fn, arg)			\
     callout_reset_on((c), (on_tick), (fn), (arg), PCPU_GET(cpuid))
 #define	callout_schedule_sbt_on(c, sbt, pr, cpu, flags)			\
     callout_reset_sbt_on((c), (sbt), (pr), (c)->c_func, (c)->c_arg,	\
         (cpu), (flags))
 #define	callout_schedule_sbt(c, sbt, pr, flags)				\
-    callout_schedule_sbt_on((c), (sbt), (pr), (c)->c_cpu, (flags))
+    callout_schedule_sbt_on((c), (sbt), (pr), -1, (flags))
 #define	callout_schedule_sbt_curcpu(c, sbt, pr, flags)			\
     callout_schedule_sbt_on((c), (sbt), (pr), PCPU_GET(cpuid), (flags))
 int	callout_schedule(struct callout *, int);
