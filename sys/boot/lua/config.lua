@@ -109,6 +109,15 @@ pattern_table = {
                 print("Failed to set '"..k.."' with value: "..v.."\n");
             end
         end
+    },
+--  env_var=num
+    [11] = {
+        str = "^%s*([%w%p]+)%s*=%s*(%d+)%s*(.*)",
+        process = function(k, v) 
+            if loader.perform("set "..k.."="..v.."") ~= 0 then
+                print("Failed to set '"..k.."' with value: "..v.."\n");
+            end
+        end
     }
 };
 
