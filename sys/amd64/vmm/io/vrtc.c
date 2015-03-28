@@ -214,9 +214,27 @@ secs_to_rtc(time_t rtctime, struct vrtc *vrtc, int force_update)
 	rtc->sec = rtcset(rtc, ct.sec);
 	rtc->min = rtcset(rtc, ct.min);
 
-	hour = ct.hour;
-	if ((rtc->reg_b & RTCSB_24HR) == 0)
-		hour = (hour % 12) + 1;	    /* convert to a 12-hour format */
+	if (rtc->reg_b & RTCSB_24HR) {
+		hour = ct.hour;
+	} else {
+		/*
+		 * Convert to the 12-hour format.
+		 */
+		switch (ct.hour) {
+		case 0:			/* 12 AM */
+		case 12:		/* 12 PM */
+			hour = 12;
+			break;
+		default:
+			/*
+			 * The remaining 'ct.hour' values are interpreted as:
+			 * [1  - 11] ->  1 - 11 AM
+			 * [13 - 23] ->  1 - 11 PM
+			 */
+			hour = ct.hour % 12;
+			break;
+		}
+	}
 
 	rtc->hour = rtcset(rtc, hour);
 
@@ -287,9 +305,26 @@ rtc_to_secs(struct vrtc *vrtc)
 	}
 	error = rtcget(rtc, hour, &ct.hour);
 	if ((rtc->reg_b & RTCSB_24HR) == 0) {
-		ct.hour -= 1;
-		if (pm)
-			ct.hour += 12;
+		if (ct.hour >= 1 && ct.hour <= 12) {
+			/*
+			 * Convert from 12-hour format to internal 24-hour
+			 * representation as follows:
+			 *
+			 *    12-hour format		ct.hour
+			 *	12	AM		0
+			 *	1 - 11	AM		1 - 11
+			 *	12	PM		12
+			 *	1 - 11	PM		13 - 23
+			 */
+			if (ct.hour == 12)
+				ct.hour = 0;
+			if (pm)
+				ct.hour += 12;
+		} else {
+			VM_CTR2(vm, "Invalid RTC 12-hour format %#x/%d",
+			    rtc->hour, ct.hour);
+			goto fail;
+		}
 	}
 
 	if (error || ct.hour < 0 || ct.hour > 23) {
