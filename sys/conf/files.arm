@@ -72,7 +72,7 @@ crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/fb/fb.c			optional	sc
 dev/fdt/fdt_arm_platform.c	optional	platform fdt
 dev/hwpmc/hwpmc_arm.c		optional	hwpmc
-dev/hwpmc/hwpmc_armv7.c		optional	hwpmc
+dev/hwpmc/hwpmc_armv7.c		optional	hwpmc armv6
 dev/kbd/kbd.c			optional	sc | vt
 dev/syscons/scgfbrndr.c		optional	sc
 dev/syscons/scterm-teken.c	optional	sc
