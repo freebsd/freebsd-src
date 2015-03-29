@@ -3,9 +3,6 @@
 arm/arm/bus_space_base.c 			standard
 arm/arm/bus_space_asm_generic.S			standard
 arm/arm/bus_space_generic.c                     standard
-arm/arm/cpufunc_asm_arm11.S                     standard
-arm/arm/cpufunc_asm_arm11x6.S			standard
-arm/arm/cpufunc_asm_armv6.S                     standard
 
 arm/versatile/pl050.c				optional sc
 arm/versatile/sp804.c				standard
