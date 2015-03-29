@@ -1204,8 +1204,12 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_hasveol = ath_hal_hasveol(ah);
 
 	/* get mac address from kenv first, then hardware */
-	if (ath_fetch_mac_kenv(sc, macaddr) < 0)
+	if (ath_fetch_mac_kenv(sc, macaddr) == 0) {
+		/* Tell the HAL now about the new MAC */
+		ath_hal_setmac(ah, macaddr);
+	} else {
 		ath_hal_getmac(ah, macaddr);
+	}
 
 	if (sc->sc_hasbmask)
 		ath_hal_getbssidmask(ah, sc->sc_hwbssidmask);
