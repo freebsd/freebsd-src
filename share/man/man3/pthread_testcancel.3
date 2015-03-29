@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd June 11, 2013
+.Dd March 29, 2015
 .Dt PTHREAD_TESTCANCEL 3
 .Os
 .Sh NAME
@@ -107,6 +107,7 @@ functions:
 .Fn close ,
 .Fn creat ,
 .Fn fsync ,
+.Fn kevent ,
 .Fn mq_receive ,
 .Fn mq_send ,
 .Fn mq_timedreceive ,
@@ -147,12 +148,20 @@ functions:
 .Fn waitpid ,
 .Fn write ,
 .Fn writev .
+.Pp
 The
 .Fn fcntl
 function is a cancellation point if
 .Fa cmd
 is
 .Dv F_SETLKW .
+.Pp
+The
+.Fn kevent
+function is a cancellation point if it is potentially blocking,
+i.e. when the
+.Fa nevents
+argument  is non-zero.
 .Sh RETURN VALUES
 If successful, the
 .Fn pthread_setcancelstate

@@ -221,6 +221,7 @@ enum {
 	INTERPOS__pthread_mutex_init_calloc_cb,
 	INTERPOS_spinlock,
 	INTERPOS_spinunlock,
+	INTERPOS_kevent,
 	INTERPOS_MAX
 };
 
@@ -293,6 +294,7 @@ void *	__sys_freebsd6_mmap(void *, __size_t, int, int, int, int, __off_t);
 struct aiocb;
 struct fd_set;
 struct iovec;
+struct kevent;
 struct msghdr;
 struct pollfd;
 struct rusage;
@@ -315,6 +317,8 @@ int		__sys_fsync(int);
 __pid_t		__sys_fork(void);
 int		__sys_ftruncate(int, __off_t);
 int		__sys_gettimeofday(struct timeval *, struct timezone *);
+int		__sys_kevent(int, const struct kevent *, int, struct kevent *,
+		    int, const struct timespec *);
 __off_t		__sys_lseek(int, __off_t, int);
 void	       *__sys_mmap(void *, __size_t, int, int, int, __off_t);
 int		__sys_msync(void *, __size_t, int);

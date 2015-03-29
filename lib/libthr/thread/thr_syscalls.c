@@ -341,6 +341,29 @@ __thr_pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds,
 	return (ret);
 }
 
+static int
+__thr_kevent(int kq, const struct kevent *changelist, int nchanges,
+    struct kevent *eventlist, int nevents, const struct timespec *timeout)
+{
+	struct pthread *curthread;
+	int ret;
+
+	if (nevents == 0) {
+		/*
+		 * No blocking, do not make the call cancellable.
+		 */
+		return (__sys_kevent(kq, changelist, nchanges, eventlist,
+		    nevents, timeout));
+	}
+	curthread = _get_curthread();
+	_thr_cancel_enter(curthread);
+	ret = __sys_kevent(kq, changelist, nchanges, eventlist, nevents,
+	    timeout);
+	_thr_cancel_leave(curthread, ret == -1 && nchanges == 0);
+
+	return (ret);
+}
+
 /*
  * Cancellation behavior:
  *   Thread may be canceled at start, but if the system call got some data, 
@@ -599,6 +622,7 @@ __thr_interpose_libc(void)
 	SLOT(writev);
 	SLOT(spinlock);
 	SLOT(spinunlock);
+	SLOT(kevent);
 #undef SLOT
 	*(__libc_interposing_slot(
 	    INTERPOS__pthread_mutex_init_calloc_cb)) =

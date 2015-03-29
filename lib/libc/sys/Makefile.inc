@@ -51,6 +51,7 @@ INTERPOSED = \
 	fcntl \
 	fsync \
 	fork \
+	kevent \
 	msync \
 	nanosleep \
 	open \
