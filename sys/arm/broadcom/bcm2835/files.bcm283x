@@ -19,7 +19,6 @@ arm/arm/bus_space_base.c			standard
 arm/arm/bus_space_generic.c                     standard
 arm/arm/bus_space_asm_generic.S                 standard
 arm/arm/cpufunc_asm_arm11.S                     standard
-arm/arm/cpufunc_asm_armv5.S                     standard
 arm/arm/cpufunc_asm_armv6.S                     standard
 
 kern/kern_clocksource.c                         standard
