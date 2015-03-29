@@ -334,30 +334,12 @@ extern unsigned arm9_dcache_index_inc;
 #endif
 
 #if defined(CPU_ARM9E)
-void	arm10_setttb		(u_int);
-
 void	arm10_tlb_flushID_SE	(u_int);
 void	arm10_tlb_flushI_SE	(u_int);
-
-void	arm10_icache_sync_all	(void);
-void	arm10_icache_sync_range	(vm_offset_t, vm_size_t);
-
-void	arm10_dcache_wbinv_all	(void);
-void	arm10_dcache_wbinv_range (vm_offset_t, vm_size_t);
-void	arm10_dcache_inv_range	(vm_offset_t, vm_size_t);
-void	arm10_dcache_wb_range	(vm_offset_t, vm_size_t);
-
-void	arm10_idcache_wbinv_all	(void);
-void	arm10_idcache_wbinv_range (vm_offset_t, vm_size_t);
 
 void	arm10_context_switch	(void);
 
 void	arm10_setup		(char *string);
-
-extern unsigned arm10_dcache_sets_max;
-extern unsigned arm10_dcache_sets_inc;
-extern unsigned arm10_dcache_index_max;
-extern unsigned arm10_dcache_index_inc;
 
 u_int	sheeva_control_ext 		(u_int, u_int);
 void	sheeva_cpu_sleep		(int);
