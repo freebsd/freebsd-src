@@ -2546,11 +2546,11 @@ ath_init(void *arg)
 	 * state cached in the driver.
 	 */
 	sc->sc_diversity = ath_hal_getdiversity(ah);
-	sc->sc_lastlongcal = 0;
+	sc->sc_lastlongcal = ticks;
 	sc->sc_resetcal = 1;
 	sc->sc_lastcalreset = 0;
-	sc->sc_lastani = 0;
-	sc->sc_lastshortcal = 0;
+	sc->sc_lastani = ticks;
+	sc->sc_lastshortcal = ticks;
 	sc->sc_doresetcal = AH_FALSE;
 	/*
 	 * Beacon timers were cleared here; give ath_newstate()
