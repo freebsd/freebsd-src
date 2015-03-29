@@ -1113,10 +1113,6 @@ ar5212GetDiagState(struct ath_hal *ah, int request,
 			return ar5212AniSetParams(ah, args, args);
 		}
 		break;
-	case HAL_DIAG_CHANSURVEY:
-		*result = &ahp->ah_chansurvey;
-		*resultsize = sizeof(HAL_CHANNEL_SURVEY);
-		return AH_TRUE;
 	}
 	return AH_FALSE;
 }

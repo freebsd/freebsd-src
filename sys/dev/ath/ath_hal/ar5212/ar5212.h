@@ -319,7 +319,6 @@ struct ath_hal_5212 {
 	struct ar5212AniParams ah_aniParams5;	/* 5GHz parameters */
 	struct ar5212AniState	*ah_curani;	/* cached last reference */
 	struct ar5212AniState	ah_ani[AH_MAXCHAN]; /* per-channel state */
-	HAL_CHANNEL_SURVEY	ah_chansurvey; /* channel survey */
 
 	/* AR5416 uses some of the AR5212 ANI code; these are the ANI methods */
 	HAL_BOOL	(*ah_aniControl) (struct ath_hal *, HAL_ANI_CMD cmd, int param);
