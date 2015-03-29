@@ -727,7 +727,7 @@ vtpci_describe_features(struct vtpci_softc *sc, const char *msg,
 	dev = sc->vtpci_dev;
 	child = sc->vtpci_child_dev;
 
-	if (device_is_attached(child) && bootverbose == 0)
+	if (device_is_attached(child) || bootverbose == 0)
 		return;
 
 	virtio_describe(dev, msg, features, sc->vtpci_child_feat_desc);
