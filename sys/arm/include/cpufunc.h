@@ -169,7 +169,7 @@ struct cpu_functions {
 
 	void	(*cf_context_switch)	(void);
 
-	void	(*cf_setup)		(char *string);
+	void	(*cf_setup)		(void);
 };
 
 extern struct cpu_functions cpufuncs;
@@ -268,7 +268,7 @@ void tlb_broadcast(int);
 #define ABORT_FIXUP_FAILED	1	/* fixup failed */
 #define ABORT_FIXUP_RETURN	2	/* abort handler should return */
 
-#define cpu_setup(a)			cpufuncs.cf_setup(a)
+#define cpu_setup()			cpufuncs.cf_setup()
 
 int	set_cpufuncs		(void);
 #define ARCHITECTURE_NOT_PRESENT	1	/* known but not configured */
@@ -287,7 +287,7 @@ u_int	cpufunc_faultaddress	(void);
 u_int	cpu_pfr			(int);
 
 #if defined(CPU_FA526) || defined(CPU_FA626TE)
-void	fa526_setup		(char *arg);
+void	fa526_setup		(void);
 void	fa526_setttb		(u_int ttb);
 void	fa526_context_switch	(void);
 void	fa526_cpu_sleep		(int);
@@ -325,7 +325,7 @@ void	arm9_idcache_wbinv_range (vm_offset_t, vm_size_t);
 
 void	arm9_context_switch	(void);
 
-void	arm9_setup		(char *string);
+void	arm9_setup		(void);
 
 extern unsigned arm9_dcache_sets_max;
 extern unsigned arm9_dcache_sets_inc;
@@ -339,7 +339,7 @@ void	arm10_tlb_flushI_SE	(u_int);
 
 void	arm10_context_switch	(void);
 
-void	arm10_setup		(char *string);
+void	arm10_setup		(void);
 
 u_int	sheeva_control_ext 		(u_int, u_int);
 void	sheeva_cpu_sleep		(int);
@@ -372,18 +372,18 @@ void	armv7_dcache_wbinv_range	(vm_offset_t, vm_size_t);
 void	armv7_dcache_inv_range		(vm_offset_t, vm_size_t);
 void	armv7_dcache_wb_range		(vm_offset_t, vm_size_t);
 void	armv7_cpu_sleep			(int);
-void	armv7_setup			(char *string);
+void	armv7_setup			(void);
 void	armv7_context_switch		(void);
 void	armv7_drain_writebuf		(void);
 void	armv7_sev			(void);
 void	armv7_sleep			(int unused);
 u_int	armv7_auxctrl			(u_int, u_int);
-void	pj4bv7_setup			(char *string);
+void	pj4bv7_setup			(void);
 void	pj4b_config			(void);
 
 void	armadaxp_idcache_wbinv_all	(void);
 
-void 	cortexa_setup			(char *);
+void 	cortexa_setup			(void);
 #endif
 
 #if defined(CPU_ARM1136) || defined(CPU_ARM1176)
@@ -411,7 +411,7 @@ void    arm11x6_icache_sync_all         (void);
 void    arm11x6_flush_prefetchbuf       (void);
 void    arm11x6_icache_sync_range       (vm_offset_t, vm_size_t);
 void    arm11x6_idcache_wbinv_range     (vm_offset_t, vm_size_t);
-void    arm11x6_setup                   (char *string);
+void    arm11x6_setup                   (void);
 void    arm11x6_sleep                   (int);  /* no ref. for errata */
 #endif
 #if defined(CPU_ARM1136)
@@ -488,7 +488,7 @@ void	xscale_cache_flushD_rng	(vm_offset_t start, vm_size_t end);
 
 void	xscale_context_switch	(void);
 
-void	xscale_setup		(char *string);
+void	xscale_setup		(void);
 #endif	/* CPU_XSCALE_80200 || CPU_XSCALE_80321 || CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425
 	   CPU_XSCALE_80219 */
 

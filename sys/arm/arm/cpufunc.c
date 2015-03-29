@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpuconf.h>
 #include <machine/cpufunc.h>
-#include <machine/bootconfig.h>
 
 #ifdef CPU_XSCALE_80200
 #include <arm/xscale/i80200/i80200reg.h>
@@ -1158,75 +1157,9 @@ cpufunc_null_fixup(arg)
  * CPU Setup code
  */
 
-#if defined (CPU_ARM9) || \
-  defined(CPU_ARM9E) || \
-  defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||		\
-  defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
-  defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342) || \
-  defined(CPU_ARM1136) || defined(CPU_ARM1176) ||\
-  defined(CPU_FA526) || defined(CPU_FA626TE)
-
-#define IGN	0
-#define OR	1
-#define BIC	2
-
-struct cpu_option {
-	char	*co_name;
-	int	co_falseop;
-	int	co_trueop;
-	int	co_value;
-};
-
-static u_int parse_cpu_options(char *, struct cpu_option *, u_int);
-
-static u_int
-parse_cpu_options(args, optlist, cpuctrl)
-	char *args;
-	struct cpu_option *optlist;
-	u_int cpuctrl;
-{
-	int integer;
-
-	if (args == NULL)
-		return(cpuctrl);
-
-	while (optlist->co_name) {
-		if (get_bootconf_option(args, optlist->co_name,
-		    BOOTOPT_TYPE_BOOLEAN, &integer)) {
-			if (integer) {
-				if (optlist->co_trueop == OR)
-					cpuctrl |= optlist->co_value;
-				else if (optlist->co_trueop == BIC)
-					cpuctrl &= ~optlist->co_value;
-			} else {
-				if (optlist->co_falseop == OR)
-					cpuctrl |= optlist->co_value;
-				else if (optlist->co_falseop == BIC)
-					cpuctrl &= ~optlist->co_value;
-			}
-		}
-		++optlist;
-	}
-	return(cpuctrl);
-}
-#endif /* CPU_ARM9 || XSCALE*/
-
 #ifdef CPU_ARM9
-struct cpu_option arm9_options[] = {
-	{ "cpu.cache",		BIC, OR,  (CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE) },
-	{ "cpu.nocache",	OR,  BIC, (CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE) },
-	{ "arm9.cache",	BIC, OR,  (CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE) },
-	{ "arm9.icache",	BIC, OR,  CPU_CONTROL_IC_ENABLE },
-	{ "arm9.dcache",	BIC, OR,  CPU_CONTROL_DC_ENABLE },
-	{ "cpu.writebuf",	BIC, OR,  CPU_CONTROL_WBUF_ENABLE },
-	{ "cpu.nowritebuf",	OR,  BIC, CPU_CONTROL_WBUF_ENABLE },
-	{ "arm9.writebuf",	BIC, OR,  CPU_CONTROL_WBUF_ENABLE },
-	{ NULL,			IGN, IGN, 0 }
-};
-
 void
-arm9_setup(args)
-	char *args;
+arm9_setup(void)
 {
 	int cpuctrl, cpuctrlmask;
 
@@ -1247,8 +1180,6 @@ arm9_setup(args)
 	cpuctrl |= CPU_CONTROL_AFLT_ENABLE;
 #endif
 
-	cpuctrl = parse_cpu_options(args, arm9_options, cpuctrl);
-
 #ifdef __ARMEB__
 	cpuctrl |= CPU_CONTROL_BEND_ENABLE;
 #endif
@@ -1266,21 +1197,8 @@ arm9_setup(args)
 #endif	/* CPU_ARM9 */
 
 #if defined(CPU_ARM9E)
-struct cpu_option arm10_options[] = {
-	{ "cpu.cache",		BIC, OR,  (CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE) },
-	{ "cpu.nocache",	OR,  BIC, (CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE) },
-	{ "arm10.cache",	BIC, OR,  (CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE) },
-	{ "arm10.icache",	BIC, OR,  CPU_CONTROL_IC_ENABLE },
-	{ "arm10.dcache",	BIC, OR,  CPU_CONTROL_DC_ENABLE },
-	{ "cpu.writebuf",	BIC, OR,  CPU_CONTROL_WBUF_ENABLE },
-	{ "cpu.nowritebuf",	OR,  BIC, CPU_CONTROL_WBUF_ENABLE },
-	{ "arm10.writebuf",	BIC, OR,  CPU_CONTROL_WBUF_ENABLE },
-	{ NULL,			IGN, IGN, 0 }
-};
-
 void
-arm10_setup(args)
-	char *args;
+arm10_setup(void)
 {
 	int cpuctrl, cpuctrlmask;
 
@@ -1297,8 +1215,6 @@ arm10_setup(args)
 #ifndef ARM32_DISABLE_ALIGNMENT_FAULTS
 	cpuctrl |= CPU_CONTROL_AFLT_ENABLE;
 #endif
-
-	cpuctrl = parse_cpu_options(args, arm10_options, cpuctrl);
 
 #ifdef __ARMEB__
 	cpuctrl |= CPU_CONTROL_BEND_ENABLE;
@@ -1370,17 +1286,8 @@ cpu_scc_setup_ccnt(void)
 #endif
 
 #if defined(CPU_ARM1136) || defined(CPU_ARM1176)
-struct cpu_option arm11_options[] = {
-	{ "cpu.cache",		BIC, OR,  (CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE) },
-	{ "cpu.nocache",	OR,  BIC, (CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE) },
-	{ "arm11.cache",	BIC, OR,  (CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE) },
-	{ "arm11.icache",	BIC, OR,  CPU_CONTROL_IC_ENABLE },
-	{ "arm11.dcache",	BIC, OR,  CPU_CONTROL_DC_ENABLE },
-	{ NULL,			IGN, IGN, 0 }
-};
-
 void
-arm11x6_setup(char *args)
+arm11x6_setup(void)
 {
 	int cpuctrl, cpuctrl_wax;
 	uint32_t auxctrl, auxctrl_wax;
@@ -1414,8 +1321,6 @@ arm11x6_setup(char *args)
 
 	cpuctrl |= CPU_CONTROL_BPRD_ENABLE;
 	cpuctrl |= CPU_CONTROL_V6_EXTPAGE;
-
-	cpuctrl = parse_cpu_options(args, arm11_options, cpuctrl);
 
 #ifdef __ARMEB__
 	cpuctrl |= CPU_CONTROL_BEND_ENABLE;
@@ -1479,8 +1384,7 @@ arm11x6_setup(char *args)
 
 #ifdef CPU_MV_PJ4B
 void
-pj4bv7_setup(args)
-	char *args;
+pj4bv7_setup(void)
 {
 	int cpuctrl;
 
@@ -1516,7 +1420,7 @@ pj4bv7_setup(args)
 #if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 
 void
-cortexa_setup(char *args)
+cortexa_setup(void)
 {
 	int cpuctrl, cpuctrlmask;
 	
@@ -1563,23 +1467,8 @@ cortexa_setup(char *args)
 #endif  /* CPU_CORTEXA */
 
 #if defined(CPU_FA526) || defined(CPU_FA626TE)
-struct cpu_option fa526_options[] = {
-#ifdef COMPAT_12
-	{ "nocache",		IGN, BIC, (CPU_CONTROL_IC_ENABLE |
-					   CPU_CONTROL_DC_ENABLE) },
-	{ "nowritebuf",		IGN, BIC, CPU_CONTROL_WBUF_ENABLE },
-#endif	/* COMPAT_12 */
-	{ "cpu.cache",		BIC, OR,  (CPU_CONTROL_IC_ENABLE |
-					   CPU_CONTROL_DC_ENABLE) },
-	{ "cpu.nocache",	OR,  BIC, (CPU_CONTROL_IC_ENABLE |
-					   CPU_CONTROL_DC_ENABLE) },
-	{ "cpu.writebuf",	BIC, OR,  CPU_CONTROL_WBUF_ENABLE },
-	{ "cpu.nowritebuf",	OR,  BIC, CPU_CONTROL_WBUF_ENABLE },
-	{ NULL,			IGN, IGN, 0 }
-};
-
 void
-fa526_setup(char *args)
+fa526_setup(void)
 {
 	int cpuctrl, cpuctrlmask;
 
@@ -1600,8 +1489,6 @@ fa526_setup(char *args)
 	cpuctrl |= CPU_CONTROL_AFLT_ENABLE;
 #endif
 
-	cpuctrl = parse_cpu_options(args, fa526_options, cpuctrl);
-
 #ifdef __ARMEB__
 	cpuctrl |= CPU_CONTROL_BEND_ENABLE;
 #endif
@@ -1621,24 +1508,8 @@ fa526_setup(char *args)
 #if defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) || \
   defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
-struct cpu_option xscale_options[] = {
-#ifdef COMPAT_12
-	{ "branchpredict", 	BIC, OR,  CPU_CONTROL_BPRD_ENABLE },
-	{ "nocache",		IGN, BIC, (CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE) },
-#endif	/* COMPAT_12 */
-	{ "cpu.branchpredict", 	BIC, OR,  CPU_CONTROL_BPRD_ENABLE },
-	{ "cpu.cache",		BIC, OR,  (CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE) },
-	{ "cpu.nocache",	OR,  BIC, (CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE) },
-	{ "xscale.branchpredict", BIC, OR,  CPU_CONTROL_BPRD_ENABLE },
-	{ "xscale.cache",	BIC, OR,  (CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE) },
-	{ "xscale.icache",	BIC, OR,  CPU_CONTROL_IC_ENABLE },
-	{ "xscale.dcache",	BIC, OR,  CPU_CONTROL_DC_ENABLE },
-	{ NULL,			IGN, IGN, 0 }
-};
-
 void
-xscale_setup(args)
-	char *args;
+xscale_setup(void)
 {
 	uint32_t auxctl;
 	int cpuctrl, cpuctrlmask;
@@ -1666,8 +1537,6 @@ xscale_setup(args)
 #ifndef ARM32_DISABLE_ALIGNMENT_FAULTS
 	cpuctrl |= CPU_CONTROL_AFLT_ENABLE;
 #endif
-
-	cpuctrl = parse_cpu_options(args, xscale_options, cpuctrl);
 
 #ifdef __ARMEB__
 	cpuctrl |= CPU_CONTROL_BEND_ENABLE;
