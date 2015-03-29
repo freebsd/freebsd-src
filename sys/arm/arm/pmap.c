@@ -522,28 +522,6 @@ pmap_pte_init_arm9(void)
 #endif /* CPU_ARM9 */
 #endif /* ARM_MMU_GENERIC != 0 */
 
-#if defined(CPU_ARM10)
-void
-pmap_pte_init_arm10(void)
-{
-
-	/*
-	 * ARM10 is compatible with generic, but we want to use
-	 * write-through caching for now.
-	 */
-	pmap_pte_init_generic();
-
-	pte_l1_s_cache_mode = L1_S_B | L1_S_C;
-	pte_l2_l_cache_mode = L2_B | L2_C;
-	pte_l2_s_cache_mode = L2_B | L2_C;
-
-	pte_l1_s_cache_mode_pt = L1_S_C;
-	pte_l2_l_cache_mode_pt = L2_C;
-	pte_l2_s_cache_mode_pt = L2_C;
-
-}
-#endif /* CPU_ARM10 */
-
 #if ARM_MMU_XSCALE == 1
 #if (ARM_NMMUS > 1) || defined (CPU_XSCALE_CORE3)
 static u_int xscale_use_minidata;

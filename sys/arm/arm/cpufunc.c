@@ -173,7 +173,7 @@ struct cpu_functions arm9_cpufuncs = {
 };
 #endif /* CPU_ARM9 */
 
-#if defined(CPU_ARM9E) || defined(CPU_ARM10)
+#if defined(CPU_ARM9E)
 struct cpu_functions armv5_ec_cpufuncs = {
 	/* CPU functions */
 
@@ -298,71 +298,7 @@ struct cpu_functions sheeva_cpufuncs = {
 
 	arm10_setup			/* cpu setup		*/
 };
-#endif /* CPU_ARM9E || CPU_ARM10 */
-
-#ifdef CPU_ARM10
-struct cpu_functions arm10_cpufuncs = {
-	/* CPU functions */
-
-	cpufunc_id,			/* id			*/
-	cpufunc_nullop,			/* cpwait		*/
-
-	/* MMU functions */
-
-	cpufunc_control,		/* control		*/
-	cpufunc_domains,		/* Domain		*/
-	arm10_setttb,			/* Setttb		*/
-	cpufunc_faultstatus,		/* Faultstatus		*/
-	cpufunc_faultaddress,		/* Faultaddress		*/
-
-	/* TLB functions */
-
-	armv4_tlb_flushID,		/* tlb_flushID		*/
-	arm10_tlb_flushID_SE,		/* tlb_flushID_SE	*/
-	armv4_tlb_flushI,		/* tlb_flushI		*/
-	arm10_tlb_flushI_SE,		/* tlb_flushI_SE	*/
-	armv4_tlb_flushD,		/* tlb_flushD		*/
-	armv4_tlb_flushD_SE,		/* tlb_flushD_SE	*/
-
-	/* Cache operations */
-
-	arm10_icache_sync_all,		/* icache_sync_all	*/
-	arm10_icache_sync_range,	/* icache_sync_range	*/
-
-	arm10_dcache_wbinv_all,		/* dcache_wbinv_all	*/
-	arm10_dcache_wbinv_range,	/* dcache_wbinv_range	*/
-	arm10_dcache_inv_range,		/* dcache_inv_range	*/
-	arm10_dcache_wb_range,		/* dcache_wb_range	*/
-
-	armv4_idcache_inv_all,		/* idcache_inv_all	*/
-	arm10_idcache_wbinv_all,	/* idcache_wbinv_all	*/
-	arm10_idcache_wbinv_range,	/* idcache_wbinv_range	*/
-	cpufunc_nullop,			/* l2cache_wbinv_all	*/
-	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
-	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
-	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
-	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
-
-	/* Other functions */
-
-	cpufunc_nullop,			/* flush_prefetchbuf	*/
-	armv4_drain_writebuf,		/* drain_writebuf	*/
-	cpufunc_nullop,			/* flush_brnchtgt_C	*/
-	(void *)cpufunc_nullop,		/* flush_brnchtgt_E	*/
-
-	(void *)cpufunc_nullop,		/* sleep		*/
-
-	/* Soft functions */
-
-	cpufunc_null_fixup,		/* dataabt_fixup	*/
-	cpufunc_null_fixup,		/* prefetchabt_fixup	*/
-
-	arm10_context_switch,		/* context_switch	*/
-
-	arm10_setup			/* cpu setup		*/
-
-};
-#endif /* CPU_ARM10 */
+#endif /* CPU_ARM9E */
 
 #ifdef CPU_MV_PJ4B
 struct cpu_functions pj4bv7_cpufuncs = {
@@ -830,7 +766,7 @@ u_int cputype;
 u_int cpu_reset_needs_v4_MMU_disable;	/* flag used in locore.s */
 
 #if defined(CPU_ARM9) ||	\
-  defined (CPU_ARM9E) || defined (CPU_ARM10) || defined (CPU_ARM1136) ||	\
+  defined (CPU_ARM9E) || defined (CPU_ARM1136) ||	\
   defined(CPU_ARM1176) || defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||		\
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
   defined(CPU_FA526) || defined(CPU_FA626TE) || defined(CPU_MV_PJ4B) ||			\
@@ -996,7 +932,7 @@ set_cpufuncs()
 		goto out;
 	}
 #endif /* CPU_ARM9 */
-#if defined(CPU_ARM9E) || defined(CPU_ARM10)
+#if defined(CPU_ARM9E)
 	if (cputype == CPU_ID_MV88FR131 || cputype == CPU_ID_MV88FR571_VD ||
 	    cputype == CPU_ID_MV88FR571_41) {
 		uint32_t sheeva_ctrl;
@@ -1021,33 +957,13 @@ set_cpufuncs()
 		get_cachetype_cp15();
 		pmap_pte_init_generic();
 		goto out;
-	} else if (cputype == CPU_ID_ARM926EJS || cputype == CPU_ID_ARM1026EJS) {
+	} else if (cputype == CPU_ID_ARM926EJS) {
 		cpufuncs = armv5_ec_cpufuncs;
 		get_cachetype_cp15();
 		pmap_pte_init_generic();
 		goto out;
 	}
-#endif /* CPU_ARM9E || CPU_ARM10 */
-#ifdef CPU_ARM10
-	if (/* cputype == CPU_ID_ARM1020T || */
-	    cputype == CPU_ID_ARM1020E) {
-		/*
-		 * Select write-through cacheing (this isn't really an
-		 * option on ARM1020T).
-		 */
-		cpufuncs = arm10_cpufuncs;
-		cpu_reset_needs_v4_MMU_disable = 1;	/* V4 or higher */
-		get_cachetype_cp15();
-		arm10_dcache_sets_inc = 1U << arm_dcache_l2_linesize;
-		arm10_dcache_sets_max =
-		    (1U << (arm_dcache_l2_linesize + arm_dcache_l2_nsets)) -
-		    arm10_dcache_sets_inc;
-		arm10_dcache_index_inc = 1U << (32 - arm_dcache_l2_assoc);
-		arm10_dcache_index_max = 0U - arm10_dcache_index_inc;
-		pmap_pte_init_generic();
-		goto out;
-	}
-#endif /* CPU_ARM10 */
+#endif /* CPU_ARM9E */
 #if defined(CPU_ARM1136) || defined(CPU_ARM1176)
 	if (cputype == CPU_ID_ARM1136JS
 	    || cputype == CPU_ID_ARM1136JSR1
@@ -1251,7 +1167,7 @@ cpufunc_null_fixup(arg)
   defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||		\
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
   defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342) || \
-  defined(CPU_ARM10) ||  defined(CPU_ARM1136) || defined(CPU_ARM1176) ||\
+  defined(CPU_ARM1136) || defined(CPU_ARM1176) ||\
   defined(CPU_FA526) || defined(CPU_FA626TE)
 
 #define IGN	0
@@ -1353,7 +1269,7 @@ arm9_setup(args)
 }
 #endif	/* CPU_ARM9 */
 
-#if defined(CPU_ARM9E) || defined(CPU_ARM10)
+#if defined(CPU_ARM9E)
 struct cpu_option arm10_options[] = {
 	{ "cpu.cache",		BIC, OR,  (CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE) },
 	{ "cpu.nocache",	OR,  BIC, (CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE) },
