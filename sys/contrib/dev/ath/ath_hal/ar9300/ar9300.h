@@ -185,6 +185,8 @@ struct ar9300_ani_state {
     int32_t     rssi;       /* The current RSSI */
     u_int32_t   tx_frame_count;   /* Last tx_frame_count */
     u_int32_t   rx_frame_count;   /* Last rx Frame count */
+    u_int32_t   rx_busy_count; /* Last rx busy count */
+    u_int32_t   rx_ext_busy_count; /* Last rx busy count; extension channel */
     u_int32_t   cycle_count; /* Last cycle_count (can detect wrap-around) */
     u_int32_t   ofdm_phy_err_count;/* OFDM err count since last reset */
     u_int32_t   cck_phy_err_count; /* CCK err count since last reset */

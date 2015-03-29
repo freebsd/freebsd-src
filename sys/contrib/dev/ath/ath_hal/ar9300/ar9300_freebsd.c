@@ -366,11 +366,26 @@ ar9300_ani_poll_freebsd(struct ath_hal *ah,
 
 	HAL_NODE_STATS stats;
 	HAL_ANISTATS anistats;
+	HAL_SURVEY_SAMPLE survey;
 
 	OS_MEMZERO(&stats, sizeof(stats));
 	OS_MEMZERO(&anistats, sizeof(anistats));
+	OS_MEMZERO(&survey, sizeof(survey));
 
 	ar9300_ani_ar_poll(ah, &stats, chan, &anistats);
+
+	/*
+	 * If ANI stats are valid, use them to update the
+	 * channel survey.
+	 */
+	if (anistats.valid) {
+		survey.cycle_count = anistats.cyclecnt_diff;
+		survey.chan_busy = anistats.rxclr_cnt;
+		survey.ext_chan_busy = anistats.extrxclr_cnt;
+		survey.tx_busy = anistats.txframecnt_diff;
+		survey.rx_busy = anistats.rxframecnt_diff;
+		ath_hal_survey_add_sample(ah, &survey);
+	}
 }
 
 /*

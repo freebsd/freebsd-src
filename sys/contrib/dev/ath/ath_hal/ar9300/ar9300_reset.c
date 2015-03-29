@@ -4666,7 +4666,10 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, struct ieee80211_channel *ch
 #endif
             ahp->ah_skip_rx_iq_cal = AH_FALSE;
     }
-    
+
+    /* FreeBSD: clear the channel survey data */
+    ath_hal_survey_clear(ah);
+
     /*
      * Fast channel change (Change synthesizer based on channel freq
      * without resetting chip)
@@ -6400,5 +6403,7 @@ ar9300_ant_ctrl_set_lna_div_use_bt_ant(struct ath_hal *ah, HAL_BOOL enable, cons
     } else {
         return AH_TRUE;
     }
+
+    /* XXX TODO: Add AR9565 support? */
 }
 #endif /* ATH_ANT_DIV_COMB */
