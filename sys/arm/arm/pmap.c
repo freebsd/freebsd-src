@@ -500,26 +500,6 @@ pmap_pte_init_generic(void)
 	pmap_zero_page_func = pmap_zero_page_generic;
 }
 
-#if defined(CPU_ARM9) && defined(ARM9_CACHE_WRITE_THROUGH)
-void
-pmap_pte_init_arm9(void)
-{
-
-	/*
-	 * ARM9 is compatible with generic, but we want to use
-	 * write-through caching for now.
-	 */
-	pmap_pte_init_generic();
-
-	pte_l1_s_cache_mode = L1_S_C;
-	pte_l2_l_cache_mode = L2_C;
-	pte_l2_s_cache_mode = L2_C;
-
-	pte_l1_s_cache_mode_pt = L1_S_C;
-	pte_l2_l_cache_mode_pt = L2_C;
-	pte_l2_s_cache_mode_pt = L2_C;
-}
-#endif /* CPU_ARM9 */
 #endif /* ARM_MMU_GENERIC != 0 */
 
 #if ARM_MMU_XSCALE == 1

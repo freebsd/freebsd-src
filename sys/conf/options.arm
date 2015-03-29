@@ -1,5 +1,4 @@
 #$FreeBSD$
-ARM9_CACHE_WRITE_THROUGH	opt_global.h
 ARMV6			opt_global.h
 ARM_CACHE_LOCK_ENABLE	opt_global.h
 ARM_KERN_DIRECTMAP	opt_vm.h
