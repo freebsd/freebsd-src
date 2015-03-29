@@ -3,7 +3,6 @@ arm/arm/autoconf.c		standard
 arm/arm/bcopy_page.S		standard
 arm/arm/bcopyinout.S		standard
 arm/arm/blockio.S		standard
-arm/arm/bootconfig.c		standard
 arm/arm/bus_space_asm_generic.S	standard
 arm/arm/busdma_machdep.c 	optional	!armv6
 arm/arm/busdma_machdep-v6.c 	optional	armv6

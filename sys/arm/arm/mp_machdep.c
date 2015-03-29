@@ -155,14 +155,14 @@ init_secondary(int cpu)
 #ifdef ARM_NEW_PMAP
 	pmap_set_tex();
 	reinit_mmu(pmap_kern_ttb, (1<<6) | (1<< 0), (1<<6) | (1<< 0));
-	cpu_setup("");
+	cpu_setup();
 
 	/* Provide stack pointers for other processor modes. */
 	set_stackptrs(cpu);
 
 	enable_interrupts(PSR_A);
 #else /* ARM_NEW_PMAP */
-	cpu_setup(NULL);
+	cpu_setup();
 	setttb(pmap_pa);
 	cpu_tlb_flushID();
 #endif /* ARM_NEW_PMAP */
