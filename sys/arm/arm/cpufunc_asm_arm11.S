@@ -112,10 +112,3 @@ ENTRY(arm11_drain_writebuf)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 	mov	pc, lr
 END(arm11_drain_writebuf)
-
-ENTRY_NP(arm11_sleep)
-	mov	r0, #0
-	mcr	p15, 0, r0, c7, c0, 4   /* wait for interrupt */
-	RET
-END(arm11_sleep)
-
