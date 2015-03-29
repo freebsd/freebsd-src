@@ -33,7 +33,7 @@
  * $FreeBSD$
  */
 #ifndef _PTHREAD_H_
-#define _PTHREAD_H_
+#define	_PTHREAD_H_
 
 /*
  * Header files.
@@ -49,71 +49,71 @@
 /*
  * Run-time invariant values:
  */
-#define PTHREAD_DESTRUCTOR_ITERATIONS		4
-#define PTHREAD_KEYS_MAX			256
-#define PTHREAD_STACK_MIN			__MINSIGSTKSZ
-#define PTHREAD_THREADS_MAX			__ULONG_MAX
-#define PTHREAD_BARRIER_SERIAL_THREAD		-1
+#define	PTHREAD_DESTRUCTOR_ITERATIONS		4
+#define	PTHREAD_KEYS_MAX			256
+#define	PTHREAD_STACK_MIN			__MINSIGSTKSZ
+#define	PTHREAD_THREADS_MAX			__ULONG_MAX
+#define	PTHREAD_BARRIER_SERIAL_THREAD		-1
 
 /*
  * Flags for threads and thread attributes.
  */
-#define PTHREAD_DETACHED            0x1
-#define PTHREAD_SCOPE_SYSTEM        0x2
-#define PTHREAD_INHERIT_SCHED       0x4
-#define PTHREAD_NOFLOAT             0x8
+#define	PTHREAD_DETACHED		0x1
+#define	PTHREAD_SCOPE_SYSTEM		0x2
+#define	PTHREAD_INHERIT_SCHED		0x4
+#define	PTHREAD_NOFLOAT			0x8
 
-#define PTHREAD_CREATE_DETACHED     PTHREAD_DETACHED
-#define PTHREAD_CREATE_JOINABLE     0
-#define PTHREAD_SCOPE_PROCESS       0
-#define PTHREAD_EXPLICIT_SCHED      0
+#define	PTHREAD_CREATE_DETACHED		PTHREAD_DETACHED
+#define	PTHREAD_CREATE_JOINABLE		0
+#define	PTHREAD_SCOPE_PROCESS		0
+#define	PTHREAD_EXPLICIT_SCHED		0
 
 /*
  * Flags for read/write lock attributes
  */
-#define PTHREAD_PROCESS_PRIVATE     0
-#define PTHREAD_PROCESS_SHARED      1	
+#define	PTHREAD_PROCESS_PRIVATE		0
+#define	PTHREAD_PROCESS_SHARED		1
 
 /*
  * Flags for cancelling threads
  */
-#define PTHREAD_CANCEL_ENABLE		0
-#define PTHREAD_CANCEL_DISABLE		1
-#define PTHREAD_CANCEL_DEFERRED		0
-#define PTHREAD_CANCEL_ASYNCHRONOUS	2
-#define PTHREAD_CANCELED		((void *) 1)
+#define	PTHREAD_CANCEL_ENABLE		0
+#define	PTHREAD_CANCEL_DISABLE		1
+#define	PTHREAD_CANCEL_DEFERRED		0
+#define	PTHREAD_CANCEL_ASYNCHRONOUS	2
+#define	PTHREAD_CANCELED		((void *) 1)
 
 /*
  * Flags for once initialization.
  */
-#define PTHREAD_NEEDS_INIT  0
-#define PTHREAD_DONE_INIT   1
+#define	PTHREAD_NEEDS_INIT	0
+#define	PTHREAD_DONE_INIT	1
 
 /*
- * Static once initialization values. 
+ * Static once initialization values.
  */
-#define PTHREAD_ONCE_INIT   { PTHREAD_NEEDS_INIT, NULL }
+#define	PTHREAD_ONCE_INIT	{ PTHREAD_NEEDS_INIT, NULL }
 
 /*
- * Static initialization values. 
+ * Static initialization values.
  */
-#define PTHREAD_MUTEX_INITIALIZER	NULL
-#define PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP	((pthread_mutex_t)1)
-#define PTHREAD_COND_INITIALIZER	NULL
-#define PTHREAD_RWLOCK_INITIALIZER	NULL
+#define	PTHREAD_MUTEX_INITIALIZER	NULL
+#define	PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP	((pthread_mutex_t)1)
+#define	PTHREAD_COND_INITIALIZER	NULL
+#define	PTHREAD_RWLOCK_INITIALIZER	NULL
 
 /*
  * Default attribute arguments (draft 4, deprecated).
  */
 #ifndef PTHREAD_KERNEL
-#define pthread_condattr_default    NULL
-#define pthread_mutexattr_default   NULL
-#define pthread_attr_default        NULL
+#define	pthread_condattr_default	NULL
+#define	pthread_mutexattr_default	NULL
+#define	pthread_attr_default		NULL
 #endif
 
-#define PTHREAD_PRIO_NONE	0
-#define PTHREAD_PRIO_INHERIT	1
-#define PTHREAD_PRIO_PROTECT	2
+#define	PTHREAD_PRIO_NONE	0
+#define	PTHREAD_PRIO_INHERIT	1
+#define	PTHREAD_PRIO_PROTECT	2
 
 /*
  * Mutex types (Single UNIX Specification, Version 2, 1997).
@@ -133,7 +133,7 @@ enum pthread_mutextype {
 	PTHREAD_MUTEX_TYPE_MAX
 };
 
-#define PTHREAD_MUTEX_DEFAULT		PTHREAD_MUTEX_ERRORCHECK
+#define	PTHREAD_MUTEX_DEFAULT		PTHREAD_MUTEX_ERRORCHECK
 
 struct _pthread_cleanup_info {
 	__uintptr_t	pthread_cleanup_pad[8];
