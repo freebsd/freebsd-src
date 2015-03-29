@@ -38,20 +38,6 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Functions to set the MMU Translation Table Base register
- *
- * We need to clean and flush the cache as it uses virtual
- * addresses that are about to change.
- */
-ENTRY(arm11_setttb)
-	mcr	p15, 0, r0, c2, c0, 0	/* load new TTB */
-
-	mcr	p15, 0, r0, c8, c7, 0	/* invalidate I+D TLBs */
-	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
-	RET
-END(arm11_setttb)
-
-/*
  * TLB functions
  */
 ENTRY(arm11_tlb_flushID_SE)
