@@ -333,7 +333,7 @@ extern unsigned arm9_dcache_index_max;
 extern unsigned arm9_dcache_index_inc;
 #endif
 
-#if defined(CPU_ARM9E) || defined(CPU_ARM10)
+#if defined(CPU_ARM9E)
 void	arm10_setttb		(u_int);
 
 void	arm10_tlb_flushID_SE	(u_int);
@@ -445,7 +445,7 @@ void    arm11x6_sleep                   (int);  /* no ref. for errata */
 void    arm1136_sleep_rev0              (int);  /* for errata 336501 */
 #endif
 
-#if defined(CPU_ARM9E) || defined (CPU_ARM10)
+#if defined(CPU_ARM9E)
 void	armv5_ec_setttb(u_int);
 
 void	armv5_ec_icache_sync_all(void);
@@ -460,27 +460,7 @@ void	armv5_ec_idcache_wbinv_all(void);
 void	armv5_ec_idcache_wbinv_range(vm_offset_t, vm_size_t);
 #endif
 
-#if defined (CPU_ARM10)
-void	armv5_setttb(u_int);
-
-void	armv5_icache_sync_all(void);
-void	armv5_icache_sync_range(vm_offset_t, vm_size_t);
-
-void	armv5_dcache_wbinv_all(void);
-void	armv5_dcache_wbinv_range(vm_offset_t, vm_size_t);
-void	armv5_dcache_inv_range(vm_offset_t, vm_size_t);
-void	armv5_dcache_wb_range(vm_offset_t, vm_size_t);
-
-void	armv5_idcache_wbinv_all(void);
-void	armv5_idcache_wbinv_range(vm_offset_t, vm_size_t);
-
-extern unsigned armv5_dcache_sets_max;
-extern unsigned armv5_dcache_sets_inc;
-extern unsigned armv5_dcache_index_max;
-extern unsigned armv5_dcache_index_inc;
-#endif
-
-#if defined(CPU_ARM9) || defined(CPU_ARM9E) || defined(CPU_ARM10) ||	\
+#if defined(CPU_ARM9) || defined(CPU_ARM9E) ||				\
   defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||		\
   defined(CPU_FA526) || defined(CPU_FA626TE) ||				\
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
