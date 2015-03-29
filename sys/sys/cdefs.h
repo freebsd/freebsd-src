@@ -359,9 +359,11 @@
 #endif
 
 #if __GNUC_PREREQ__(3, 3)
-#define	__nonnull(...)	__attribute__((__nonnull__(__VA_ARGS__)))
+#define	__nonnull(x)	__attribute__((__nonnull__(x)))
+#define	__nonnull_all	__attribute__((__nonnull__))
 #else
-#define	__nonnull(...)
+#define	__nonnull(x)
+#define	__nonnull_all
 #endif
 
 #if __GNUC_PREREQ__(3, 4)
@@ -379,9 +381,9 @@
 #endif
 
 #if __has_attribute(alloc_size) || __GNUC_PREREQ__(4, 3)
-#define	__alloc_size(...)	__attribute__((__alloc_size__(__VA_ARGS__)))
+#define	__alloc_size(x)	__attribute__((__alloc_size__(x)))
 #else
-#define	__alloc_size(...)
+#define	__alloc_size(x)
 #endif
 
 /* XXX: should use `#if __STDC_VERSION__ < 199901'. */
