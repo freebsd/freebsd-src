@@ -100,77 +100,70 @@ type will be in effect.
 .Ss Cancellation Points
 Cancellation points will occur when a thread is executing the following
 functions:
-.Fn accept ,
-.Fn accept4 ,
-.Fn aio_suspend ,
-.Fn connect ,
-.Fn close ,
-.Fn creat ,
-.Fn fsync ,
-.Fn kevent ,
-.Fn mq_receive ,
-.Fn mq_send ,
-.Fn mq_timedreceive ,
-.Fn mq_timedsend ,
-.Fn msync ,
-.Fn nanosleep ,
-.Fn open ,
-.Fn openat ,
-.Fn pause ,
-.Fn poll ,
-.Fn pselect ,
-.Fn pthread_cond_timedwait ,
-.Fn pthread_cond_wait ,
-.Fn pthread_join ,
-.Fn pthread_testcancel ,
-.Fn read ,
-.Fn readv ,
-.Fn recv ,
-.Fn recvfrom ,
-.Fn recvmsg ,
-.Fn select ,
-.Fn sem_timedwait ,
-.Fn sem_wait ,
-.Fn send ,
-.Fn sendmsg ,
-.Fn sendto ,
-.Fn sigsuspend ,
-.Fn sigtimedwait ,
-.Fn sigwaitinfo ,
-.Fn sigwait ,
-.Fn sleep ,
-.Fn system ,
-.Fn tcdrain ,
-.Fn usleep ,
-.Fn wait ,
-.Fn wait3 ,
-.Fn wait4 ,
-.Fn waitpid ,
-.Fn write ,
-.Fn writev .
-.Pp
+.Bl -tag -width "Fn pthread_cond_timedwait" -compact
+.It Fn accept
+.It Fn accept4
+.It Fn aio_suspend
+.It Fn connect
+.It Fn close
+.It Fn creat
+.It Fn fcntl
 The
 .Fn fcntl
 function is a cancellation point if
 .Fa cmd
 is
 .Dv F_SETLKW .
-.Pp
+.It Fn fsync
+.It Fn kevent
 The
 .Fn kevent
 function is a cancellation point if it is potentially blocking,
 i.e. when the
 .Fa nevents
 argument  is non-zero.
-.Sh RETURN VALUES
-If successful, the
-.Fn pthread_setcancelstate
-and
-.Fn pthread_setcanceltype
-functions will return zero.
-Otherwise, an error number shall be returned to
-indicate the error.
-.Pp
+.It Fn mq_receive
+.It Fn mq_send
+.It Fn mq_timedreceive
+.It Fn mq_timedsend
+.It Fn msync
+.It Fn nanosleep
+.It Fn open
+.It Fn openat
+.It Fn pause
+.It Fn poll
+.It Fn pselect
+.It Fn pthread_cond_timedwait
+.It Fn pthread_cond_wait
+.It Fn pthread_join
+.It Fn pthread_testcancel
+.It Fn read
+.It Fn readv
+.It Fn recv
+.It Fn recvfrom
+.It Fn recvmsg
+.It Fn select
+.It Fn sem_timedwait
+.It Fn sem_wait
+.It Fn send
+.It Fn sendmsg
+.It Fn sendto
+.It Fn sigsuspend
+.It Fn sigtimedwait
+.It Fn sigwaitinfo
+.It Fn sigwait
+.It Fn sleep
+.It Fn system
+.It Fn tcdrain
+.It Fn usleep
+.It Fn wait
+.It Fn wait3
+.It Fn wait4
+.It Fn waitpid
+.It Fn write
+.It Fn writev
+.El
+.Sh NOTES
 The
 .Fn pthread_setcancelstate
 and
@@ -212,6 +205,14 @@ entry to the object.
 .Pp
 Finally, only functions that are cancel-safe may be called from a thread that
 is asynchronously cancelable.
+.Sh RETURN VALUES
+If successful, the
+.Fn pthread_setcancelstate
+and
+.Fn pthread_setcanceltype
+functions will return zero.
+Otherwise, an error number shall be returned to
+indicate the error.
 .Sh ERRORS
 The function
 .Fn pthread_setcancelstate
