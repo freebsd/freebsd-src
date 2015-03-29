@@ -625,9 +625,6 @@ void	pmap_pte_init_generic(void);
 #if defined(CPU_ARM9)
 void	pmap_pte_init_arm9(void);
 #endif /* CPU_ARM9 */
-#if defined(CPU_ARM10)
-void	pmap_pte_init_arm10(void);
-#endif /* CPU_ARM10 */
 #if (ARM_MMU_V6 + ARM_MMU_V7) != 0
 void	pmap_pte_init_mmu_v6(void);
 #endif /* (ARM_MMU_V6 + ARM_MMU_V7) != 0 */
