@@ -378,12 +378,14 @@ void	armv7_drain_writebuf		(void);
 void	armv7_sev			(void);
 void	armv7_sleep			(int unused);
 u_int	armv7_auxctrl			(u_int, u_int);
-void	pj4bv7_setup			(void);
-void	pj4b_config			(void);
 
 void	armadaxp_idcache_wbinv_all	(void);
 
 void 	cortexa_setup			(void);
+#endif
+#if defined(CPU_MV_PJ4B)
+void	pj4b_config			(void);
+void	pj4bv7_setup			(void);
 #endif
 
 #if defined(CPU_ARM1176)
