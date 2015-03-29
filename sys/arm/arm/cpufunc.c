@@ -924,11 +924,7 @@ set_cpufuncs()
 		    arm_dcache_l2_nsets)) - arm9_dcache_sets_inc;
 		arm9_dcache_index_inc = 1U << (32 - arm_dcache_l2_assoc);
 		arm9_dcache_index_max = 0U - arm9_dcache_index_inc;
-#ifdef ARM9_CACHE_WRITE_THROUGH
-		pmap_pte_init_arm9();
-#else
 		pmap_pte_init_generic();
-#endif
 		goto out;
 	}
 #endif /* CPU_ARM9 */
