@@ -52,8 +52,6 @@
  */
 #define	CPU_NTYPES	(defined(CPU_ARM9) +				\
 			 defined(CPU_ARM9E) +				\
-			 defined(CPU_ARM10) +				\
-			 defined(CPU_ARM1136) +				\
 			 defined(CPU_ARM1176) +				\
 			 defined(CPU_XSCALE_80200) +			\
 			 defined(CPU_XSCALE_80321) +			\
@@ -85,7 +83,7 @@
 #endif
 
 #if !defined(ARM_ARCH_6)
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176)
+#if defined(CPU_ARM1176)
 #define ARM_ARCH_6	1
 #else
 #define ARM_ARCH_6	0
@@ -158,7 +156,7 @@
 #define	ARM_MMU_GENERIC		0
 #endif
 
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176)
+#if defined(CPU_ARM1176)
 #define ARM_MMU_V6		1
 #else
 #define ARM_MMU_V6		0
