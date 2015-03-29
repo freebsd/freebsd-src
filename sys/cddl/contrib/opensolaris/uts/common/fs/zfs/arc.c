@@ -4194,10 +4194,10 @@ arc_init(void)
 #endif
 #endif	/* illumos */
 	/* set min cache to 1/32 of all memory, or 16MB, whichever is more */
-	arc_c_min = MAX(arc_c / 4, 64<<18);
+	arc_c_min = MAX(arc_c / 4, 16 << 20);
 	/* set max to 1/2 of all memory, or all but 1GB, whichever is more */
-	if (arc_c * 8 >= 1<<30)
-		arc_c_max = (arc_c * 8) - (1<<30);
+	if (arc_c * 8 >= 1 << 30)
+		arc_c_max = (arc_c * 8) - (1 << 30);
 	else
 		arc_c_max = arc_c_min;
 	arc_c_max = MAX(arc_c * 5, arc_c_max);
@@ -4207,9 +4207,9 @@ arc_init(void)
 	 * Allow the tunables to override our calculations if they are
 	 * reasonable (ie. over 16MB)
 	 */
-	if (zfs_arc_max > 64<<18 && zfs_arc_max < kmem_size())
+	if (zfs_arc_max > 16 << 20 && zfs_arc_max < kmem_size())
 		arc_c_max = zfs_arc_max;
-	if (zfs_arc_min > 64<<18 && zfs_arc_min <= arc_c_max)
+	if (zfs_arc_min > 16 << 20 && zfs_arc_min <= arc_c_max)
 		arc_c_min = zfs_arc_min;
 #endif
 
