@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 The FreeBSD Foundation.
+ * Copyright (c) 2015 The FreeBSD Foundation.
  * All rights reserved.
  *
  * Portions of this software were developed by Konstantin Belousov
@@ -34,54 +34,20 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/event.h>
+#include <sys/time.h>
 #include "libc_private.h"
 
-#define	SLOT(a, b) \
-	[INTERPOS_##a] = (interpos_func_t)b
-interpos_func_t __libc_interposing[INTERPOS_MAX] = {
-	SLOT(accept, __sys_accept),
-	SLOT(accept4, __sys_accept4),
-	SLOT(aio_suspend, __sys_aio_suspend),
-	SLOT(close, __sys_close),
-	SLOT(connect, __sys_connect),
-	SLOT(fcntl, __fcntl_compat),
-	SLOT(fsync, __sys_fsync),
-	SLOT(fork, __sys_fork),
-	SLOT(msync, __sys_msync),
-	SLOT(nanosleep, __sys_nanosleep),
-	SLOT(openat, __sys_openat),
-	SLOT(poll, __sys_poll),
-	SLOT(pselect, __sys_pselect),
-	SLOT(read, __sys_read),
-	SLOT(readv, __sys_readv),
-	SLOT(recvfrom, __sys_recvfrom),
-	SLOT(recvmsg, __sys_recvmsg),
-	SLOT(select, __sys_select),
-	SLOT(sendmsg, __sys_sendmsg),
-	SLOT(sendto, __sys_sendto),
-	SLOT(setcontext, __sys_setcontext),
-	SLOT(sigaction, __sys_sigaction),
-	SLOT(sigprocmask, __sys_sigprocmask),
-	SLOT(sigsuspend, __sys_sigsuspend),
-	SLOT(sigwait, __libc_sigwait),
-	SLOT(sigtimedwait, __sys_sigtimedwait),
-	SLOT(sigwaitinfo, __sys_sigwaitinfo),
-	SLOT(swapcontext, __sys_swapcontext),
-	SLOT(system, __libc_system),
-	SLOT(tcdrain, __libc_tcdrain),
-	SLOT(wait4, __sys_wait4),
-	SLOT(write, __sys_write),
-	SLOT(writev, __sys_writev),
-	SLOT(_pthread_mutex_init_calloc_cb, _pthread_mutex_init_calloc_cb_stub),
-	SLOT(spinlock, __libc_spinlock_stub),
-	SLOT(spinunlock, __libc_spinunlock_stub),
-	SLOT(kevent, __sys_kevent),
-};
-#undef SLOT
+__weak_reference(__sys_kevent, __kevent);
 
-interpos_func_t *
-__libc_interposing_slot(int interposno)
+#pragma weak kevent
+int
+kevent(int kq, const struct kevent *changelist, int nchanges,
+    struct kevent *eventlist, int nevents, const struct timespec *timeout)
 {
 
-	return (&__libc_interposing[interposno]);
+	return (((int (*)(int, const struct kevent *, int,
+	    struct kevent *, int, const struct timespec *))
+	    __libc_interposing[INTERPOS_kevent])(kq, changelist, nchanges,
+	   eventlist, nevents, timeout));
 }
