@@ -286,7 +286,7 @@ u_int	cpufunc_faultstatus	(void);
 u_int	cpufunc_faultaddress	(void);
 u_int	cpu_pfr			(int);
 
-#if defined(CPU_FA526) || defined(CPU_FA626TE)
+#if defined(CPU_FA526)
 void	fa526_setup		(void);
 void	fa526_setttb		(u_int ttb);
 void	fa526_context_switch	(void);
@@ -434,7 +434,7 @@ void	armv5_ec_idcache_wbinv_range(vm_offset_t, vm_size_t);
 
 #if defined(CPU_ARM9) || defined(CPU_ARM9E) ||				\
   defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||		\
-  defined(CPU_FA526) || defined(CPU_FA626TE) ||				\
+  defined(CPU_FA526) ||							\
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
   defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
 
