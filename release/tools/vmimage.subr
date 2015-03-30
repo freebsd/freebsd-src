@@ -45,8 +45,10 @@ err() {
 }
 
 cleanup() {
-	umount ${DESTDIR}/dev 2>/dev/null
-	umount ${DESTDIR}
+	if mount | grep -qE "devfs on ${DESTDIR}/dev"; then
+		umount_loop ${DESTDIR}/dev 2>/dev/null
+	fi
+	umount_loop ${DESTDIR}
 	if [ ! -z "${mddev}" ]; then
 		mdconfig -d -u ${mddev}
 	fi
@@ -86,11 +88,11 @@ vm_copy_base() {
 
 	tar -cf- -C ${DESTDIR}/old . | tar -xf- -C ${DESTDIR}/new
 
-	umount /dev/${mdold}
+	umount_loop /dev/${mdold}
 	rmdir ${DESTDIR}/old
 	mdconfig -d -u ${mdold}
 
-	umount /dev/${mdnew}
+	umount_loop /dev/${mdnew}
 	rmdir ${DESTDIR}/new
 	mdconfig -d -u ${mdnew}
 	mv ${VMBASE}.tmp ${VMBASE}
@@ -117,7 +119,7 @@ vm_install_base() {
 	mount -t devfs devfs ${DESTDIR}/dev
 	chroot ${DESTDIR} /usr/bin/newaliases
 	chroot ${DESTDIR} /etc/rc.d/ldconfig forcestart
-	umount ${DESTDIR}/dev
+	umount_loop ${DESTDIR}/dev
 
 	cp /etc/resolv.conf ${DESTDIR}/etc/resolv.conf
 
@@ -152,7 +154,7 @@ vm_extra_install_packages() {
 		/usr/sbin/pkg bootstrap -y
 	chroot ${DESTDIR} env ASSUME_ALWAYS_YES=yes \
 		/usr/sbin/pkg install -y ${VM_EXTRA_PACKAGES}
-	umount ${DESTDIR}/dev
+	umount_loop ${DESTDIR}/dev
 
 	return 0
 }
@@ -181,16 +183,17 @@ vm_extra_pkg_rmcache() {
 	return 0
 }
 
-vm_umount_base() {
+umount_loop() {
+	DIR=$1
 	i=0
 	sync
-	while ! umount ${DESTDIR}/dev ${DESTDIR}; do
+	while ! umount ${DIR}; do
 		i=$(( $i + 1 ))
 		if [ $i -ge 10 ]; then
 			# This should never happen.  But, it has happened.
-			msg="Cannot umount(8) ${DESTDIR}\n"
-			msg="${msg}Something has gone horribly wrong."
-			err "${msg}"
+			echo "Cannot umount(8) ${DIR}"
+			echo "Something has gone horribly wrong."
+			return 1
 		fi
 		sleep 1
 	done
