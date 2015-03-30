@@ -249,6 +249,14 @@
  * solve it just using this define.
  */
 #define EM_EIAC 0x000DC
+/*
+ * 82574 only reports 3 MSI-X vectors by default;
+ * defines assisting with making it report 5 are
+ * located here.
+ */
+#define EM_NVM_PCIE_CTRL	0x1B
+#define EM_NVM_MSIX_N_MASK	(0x7 << EM_NVM_MSIX_N_SHIFT)
+#define EM_NVM_MSIX_N_SHIFT	7
 
 /*
  * Bus dma allocation structure used by
@@ -383,7 +391,9 @@ struct adapter {
 	eventhandler_tag vlan_detach;
 
 	u16	num_vlans;
-	u16	num_queues;
+	/* Allow number of tx queues != num of rx_queues */
+	u8	num_tx_queues;
+	u8	num_rx_queues;
 
         /*
          * Transmit rings:
