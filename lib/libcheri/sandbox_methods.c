@@ -637,7 +637,7 @@ sandbox_set_required_method_variables(__capability void *datacap,
 	assert(!(cheri_getbase(datacap) & (sizeof(datacap) - 1)));
 
 	if (required_methods->srms_unresolved_methods > 0) {
-		warn("%s: %zu unresolved methods", __func__,
+		warnx("%s: %zu unresolved methods", __func__,
 		    required_methods->srms_unresolved_methods);
 		if (sb_verbose)
 			sandbox_warn_unresolved_methods(required_methods);
