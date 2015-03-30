@@ -747,6 +747,12 @@ vmem_periodic(void *unused, int pending)
 		/* Grow in powers of two.  Shrink less aggressively. */
 		if (desired >= current * 2 || desired * 4 <= current)
 			vmem_rehash(vm, desired);
+
+		/*
+		 * Periodically wake up threads waiting for resources,
+		 * so they could ask for reclamation again.
+		 */
+		VMEM_CONDVAR_BROADCAST(vm);
 	}
 	mtx_unlock(&vmem_list_lock);
 
