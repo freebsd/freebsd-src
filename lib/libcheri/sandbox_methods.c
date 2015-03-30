@@ -452,6 +452,12 @@ good:
 	}
 	*required_methodsp = required_methods;
 
+	if (sandbox_resolve_methods(provided_methods, required_methods)
+	    == -1) {
+		warnx("%s: failed to resolve self called methods", __func__);
+		goto bad;
+	}
+
 	free(shstrtab);
 	free(symtab);
 	free(strtab);
