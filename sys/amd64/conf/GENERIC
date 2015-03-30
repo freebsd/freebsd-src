@@ -84,7 +84,6 @@ options 	SMP			# Symmetric MultiProcessor Kernel
 device		cpufreq
 
 # Bus support.
-device		hwpmc
 device		acpi
 options 	ACPI_DMAR
 device		pci
