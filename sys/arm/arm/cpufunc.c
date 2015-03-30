@@ -893,6 +893,7 @@ set_cpufuncs()
 #endif /* CPU_ARM9E */
 #if defined(CPU_ARM1176)
 	if (cputype == CPU_ID_ARM1176JZS) {
+		cpufuncs = arm1176_cpufuncs;
 		cpu_reset_needs_v4_MMU_disable = 1;     /* V4 or higher */
 		get_cachetype_cp15();
 
