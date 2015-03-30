@@ -55,7 +55,7 @@ struct cheri_object cheri_bench;
 
 typedef uint64_t memcpy_t(__capability char *, __capability char *, size_t, int fd);
 
-static uint64_t do_memcpy (__capability char *dataout, __capability char *datain, size_t len, int fd)
+static uint64_t do_memcpy (__capability char *dataout, __capability char *datain, size_t len, int __unused fd)
 {
   uint32_t start_count, end_count;
   start_count = get_cyclecount();
@@ -64,7 +64,7 @@ static uint64_t do_memcpy (__capability char *dataout, __capability char *datain
   return end_count - start_count;
 }
 
-static uint64_t invoke_memcpy(__capability char *dataout, __capability char *datain, size_t len, int fd)
+static uint64_t invoke_memcpy(__capability char *dataout, __capability char *datain, size_t len, int __unused fd)
 {
   int ret;
   uint32_t start_count, end_count;
