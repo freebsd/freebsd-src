@@ -48,5 +48,5 @@ CFLAGS.pngerror.c=	-O0
 CFLAGS.pngrutil.c=	-Wno-cast-align
 CFLAGS.pngset.c=	-Wno-tautological-constant-out-of-range-compare
 CFLAGS.zutil.c=		-Wno-incompatible-pointer-types-discards-qualifiers
-#CFLAGS.inflate.c=	-O0
-CFLAGS.inffast.c=	-O0
+CFLAGS.inflate.c=	-Wno-cast-qual
+CFLAGS.inffast.c=	-Wno-cast-qual -O0

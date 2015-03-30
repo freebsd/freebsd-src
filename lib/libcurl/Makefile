@@ -147,4 +147,4 @@ WANT_CHERI=	yes
 
 .include <bsd.lib.mk>
 
-CFLAGS+=	-Wno-cast-align
+CFLAGS+=	-Wno-cast-align -Wno-cast-qual

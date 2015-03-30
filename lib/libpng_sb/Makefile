@@ -17,4 +17,4 @@ NEED_CHERI=	hybrid
 
 CFLAGS:=	${CFLAGS:S/-O/-O2/}
 
-CFLAGS+=	-Wno-cast-align
+CFLAGS+=	-Wno-cast-align -Wno-cast-qual

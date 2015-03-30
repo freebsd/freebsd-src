@@ -87,7 +87,7 @@ CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
 
 .include <bsd.lib.mk>
 
-CFLAGS+=	-Wno-unused-parameter
+CFLAGS+=	-Wno-unused-parameter -Wno-cast-qual
 
 CFLAGS:=	${CFLAGS:S/-O/-O2/}
 CFLAGS.rdgif.c=		-O0

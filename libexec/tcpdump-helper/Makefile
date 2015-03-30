@@ -58,5 +58,6 @@ WANT_DUMP=yes
 .include <src.opts.mk>
 .include <bsd.prog.mk>
 
+CFLAGS+=	-Wno-cast-qual
 CFLAGS:=	${CFLAGS:N-Wcast-align}
 CFLAGS+= ${CFLAGS.${.IMPSRC:T}}

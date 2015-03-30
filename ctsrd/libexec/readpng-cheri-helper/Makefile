@@ -42,4 +42,5 @@ WARNS=4
 
 CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
 CFLAGS.zutil.c=         -Wno-incompatible-pointer-types-discards-qualifiers
-CFLAGS.inffast.c=	-O0
+CFLAGS.inffast.c=	-Wno-cast-qual -O0
+CFLAGS.inflate.c=	-Wno-cast-qual
