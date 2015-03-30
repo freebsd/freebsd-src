@@ -80,14 +80,6 @@ out:
 void
 pfsync_ip_print(const u_char *bp, u_int len)
 {
-	if (!invoke_dissector((void *)_pfsync_ip_print,
-	    len, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
-		_pfsync_ip_print(bp, len);
-}
-
-void
-_pfsync_ip_print(const u_char *bp, u_int len)
-{
 	struct pfsync_header *hdr = (struct pfsync_header *)bp;
 
 	if (len < PFSYNC_HDRLEN)
