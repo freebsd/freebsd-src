@@ -70,9 +70,9 @@ ppi_print(netdissect_options *ndo,
 	caplen -= sizeof(ppi_header_t);
 	p += sizeof(ppi_header_t);
 
-	if ((printer = lookup_printer(dlt)) != NULL) {
+	if ((printer = lookup_printer(dlt)) != NULL_FP) {
 		printer(h, p);
-	} else if ((ndo_printer = lookup_ndo_printer(dlt)) != NULL) {
+	} else if ((ndo_printer = lookup_ndo_printer(dlt)) != NULL_FP) {
 		ndo_printer(ndo, h, p);
 	} else {
 		if (!ndo->ndo_eflag)

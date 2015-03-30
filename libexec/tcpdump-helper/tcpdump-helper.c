@@ -132,10 +132,10 @@ cheri_tcpdump_sandbox_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
 	printinfo.ndo_type = 1;
 	printinfo.ndo = gndo;
 	printinfo.p.ndo_printer = lookup_ndo_printer(gndo->ndo_dlt);
-	if (printinfo.p.ndo_printer == NULL) {
+	if (printinfo.p.ndo_printer == NULL_FP) {
 		printinfo.p.printer = lookup_printer(gndo->ndo_dlt);
 		printinfo.ndo_type = 0;
-		if (printinfo.p.printer == NULL) {
+		if (printinfo.p.printer == NULL_FP) {
 			gndo->ndo_dltname =
 			    pcap_datalink_val_to_name(gndo->ndo_dlt);
 			if (gndo->ndo_dltname != NULL)

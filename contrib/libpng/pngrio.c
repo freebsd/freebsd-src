@@ -33,7 +33,7 @@ png_read_data(png_structp png_ptr, png_bytep data, png_size_t length)
 {
    png_debug1(4, "reading %d bytes", (int)length);
 
-   if (png_ptr->read_data_fn != NULL)
+   if (png_ptr->read_data_fn != NULL_FP)
       (*(png_ptr->read_data_fn))(png_ptr, data, length);
 
    else
@@ -151,7 +151,7 @@ png_set_read_fn(png_structp png_ptr, png_voidp io_ptr,
    png_ptr->io_ptr = io_ptr;
 
 #ifdef PNG_STDIO_SUPPORTED
-   if (read_data_fn != NULL)
+   if (read_data_fn != NULL_FP)
       png_ptr->read_data_fn = read_data_fn;
 
    else
@@ -161,7 +161,7 @@ png_set_read_fn(png_structp png_ptr, png_voidp io_ptr,
 #endif
 
    /* It is an error to write to a read device */
-   if (png_ptr->write_data_fn != NULL)
+   if (png_ptr->write_data_fn != NULL_FP)
    {
       png_ptr->write_data_fn = NULL;
       png_warning(png_ptr,

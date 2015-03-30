@@ -78,7 +78,7 @@ png_error,(png_structp png_ptr, png_const_charp error_message),PNG_NORETURN)
      }
    }
 #endif
-   if (png_ptr != NULL && png_ptr->error_fn != NULL)
+   if (png_ptr != NULL && png_ptr->error_fn != NULL_FP)
       (*(png_ptr->error_fn))(png_ptr, error_message);
 
    /* If the custom handler doesn't exist, or if it returns,
@@ -94,7 +94,7 @@ png_err,(png_structp png_ptr),PNG_NORETURN)
     * apparently an error, introduced in libpng-1.2.20, and png_default_error
     * will crash in this case.
     */
-   if (png_ptr != NULL && png_ptr->error_fn != NULL)
+   if (png_ptr != NULL && png_ptr->error_fn != NULL_FP)
       (*(png_ptr->error_fn))(png_ptr, "");
 
    /* If the custom handler doesn't exist, or if it returns,
@@ -229,7 +229,7 @@ png_warning(png_structp png_ptr, png_const_charp warning_message)
          }
       }
    }
-   if (png_ptr != NULL && png_ptr->warning_fn != NULL)
+   if (png_ptr != NULL && png_ptr->warning_fn != NULL_FP)
       (*(png_ptr->warning_fn))(png_ptr, warning_message + offset);
    else
       png_default_warning(png_ptr, warning_message + offset);

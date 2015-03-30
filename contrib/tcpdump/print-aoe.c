@@ -386,7 +386,7 @@ aoev1_print(netdissect_options *ndo,
 		command == AOEV1_CMD_MAC_MASK_LIST            ? aoev1_mac_print :
 		command == AOEV1_CMD_RESERVE_RELEASE          ? aoev1_reserve_print :
 		(void (*)(netdissect_options *, const u_char *, const u_int))NULL;
-	if (cmd_decoder != NULL)
+	if (cmd_decoder != NULL_FP)
 		cmd_decoder(ndo, cp, len - AOEV1_COMMON_HDR_LEN);
 	return;
 

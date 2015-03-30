@@ -641,7 +641,7 @@ png_read_row(png_structp png_ptr, png_bytep row, png_bytep dsp_row)
    }
    png_read_finish_row(png_ptr);
 
-   if (png_ptr->read_row_fn != NULL)
+   if (png_ptr->read_row_fn != NULL_FP)
       (*(png_ptr->read_row_fn))(png_ptr, png_ptr->row_number, png_ptr->pass);
 }
 #endif /* PNG_SEQUENTIAL_READ_SUPPORTED */

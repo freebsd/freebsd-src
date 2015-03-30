@@ -169,7 +169,7 @@ pfsync_print(struct pfsync_header *hdr, const u_char *bp, u_int len)
 		if (subh->action == PFSYNC_ACT_EOF)
 			return;
 
-		if (actions[subh->action].print == NULL) {
+		if (actions[subh->action].print == NULL_FP) {
 			printf("\n    unimplemented action %hhu", subh->action);
 			return;
 		}

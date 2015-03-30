@@ -1259,21 +1259,21 @@ png_read_push_finish_row(png_structp png_ptr)
 void /* PRIVATE */
 png_push_have_info(png_structp png_ptr, png_infop info_ptr)
 {
-   if (png_ptr->info_fn != NULL)
+   if (png_ptr->info_fn != NULL_FP)
       (*(png_ptr->info_fn))(png_ptr, info_ptr);
 }
 
 void /* PRIVATE */
 png_push_have_end(png_structp png_ptr, png_infop info_ptr)
 {
-   if (png_ptr->end_fn != NULL)
+   if (png_ptr->end_fn != NULL_FP)
       (*(png_ptr->end_fn))(png_ptr, info_ptr);
 }
 
 void /* PRIVATE */
 png_push_have_row(png_structp png_ptr, png_bytep row)
 {
-   if (png_ptr->row_fn != NULL)
+   if (png_ptr->row_fn != NULL_FP)
       (*(png_ptr->row_fn))(png_ptr, row, png_ptr->row_number,
          (int)png_ptr->pass);
 }

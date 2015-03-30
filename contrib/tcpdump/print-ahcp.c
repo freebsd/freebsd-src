@@ -283,7 +283,7 @@ ahcp1_options_print(netdissect_options *ndo, const u_char *cp, const u_char *ep)
 		if (cp + option_len > ep)
 			goto corrupt;
 		/* Value */
-		if (option_no <= AHCP1_OPT_MAX && data_decoders[option_no] != NULL) {
+		if (option_no <= AHCP1_OPT_MAX && data_decoders[option_no] != NULL_FP) {
 			if (data_decoders[option_no](ndo, cp, cp + option_len) < 0)
 				break; /* truncated and already marked up */
 		} else {

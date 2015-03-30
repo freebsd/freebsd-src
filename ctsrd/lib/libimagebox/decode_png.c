@@ -79,7 +79,7 @@ decode_png(struct ibox_decode_state *ids,
 		goto error;
 	}
 
-	if (read_row_fn != NULL)
+	if (read_row_fn != NULL_FP)
 		png_set_read_status_fn(png_ptr, read_row_fn);
 	else
 		png_set_read_status_fn(png_ptr, read_row_callback);
@@ -92,7 +92,7 @@ decode_png(struct ibox_decode_state *ids,
 	png_set_user_limits(png_ptr, width, height);
 #endif
 
-	if (user_read_fn != NULL)
+	if (user_read_fn != NULL_FP)
 		png_set_read_fn(png_ptr, ids, user_read_fn);
 	else
 #ifndef IMAGEBOX_PNG_NO_FD

@@ -2350,7 +2350,7 @@ png_do_read_transformations(png_structp png_ptr, png_row_infop row_info)
 #ifdef PNG_READ_USER_TRANSFORM_SUPPORTED
    if (png_ptr->transformations & PNG_USER_TRANSFORM)
     {
-      if (png_ptr->read_user_transform_fn != NULL)
+      if (png_ptr->read_user_transform_fn != NULL_FP)
          (*(png_ptr->read_user_transform_fn)) /* User read transform function */
              (png_ptr,     /* png_ptr */
              row_info,     /* row_info: */
