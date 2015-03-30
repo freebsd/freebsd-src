@@ -9,20 +9,19 @@
 #define NTP_DEBUG_H
 
 /*
- * macros for debugging output - cut down on #ifdef pollution in the code
+ * macro for debugging output - cut down on #ifdef pollution.
+ *
+ * TRACE() is similar to ntpd's DPRINTF() for utilities and libntp.
+ * Uses mprintf() and so supports %m, replaced by strerror(errno).
+ *
+ * The calling convention is not attractive:
+ *     TRACE(debuglevel, (fmt, ...));
+ *     TRACE(2, ("this will appear on stdout if debug >= %d\n", 2));
  */
-
-#ifdef DEBUG
-#define DPRINTF(_lvl_, _arg_)				\
+#define TRACE(lvl, arg)					\
 	do { 						\
-		if (debug >= (_lvl_))			\
-			printf _arg_;			\
+		if (debug >= (lvl))			\
+			mprintf arg;			\
 	} while (0)
-#else
-#define DPRINTF(_lvl_, _arg_)	do {} while (0)
-#endif
 
-#endif
-/*
- * $Log$
- */
+#endif	/* NTP_DEBUG_H */

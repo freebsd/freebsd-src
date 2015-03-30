@@ -45,7 +45,14 @@
 #include "iosignal.h"
 
 #if defined(HAVE_SIGNALED_IO)
+static RETSIGTYPE sigio_handler	(int);
+
+/* consistency safegurad to catch BLOCK/UNBLOCK oversights */
 static int sigio_block_count = 0;
+
+/* main inputhandler to be called on SIGIO */
+static input_handler_t *input_handler_callback = NULL;
+
 # if defined(HAVE_SIGACTION)
 /*
  * If sigaction() is used for signal handling and a signal is
@@ -59,40 +66,11 @@ static int sigio_block_count = 0;
  */
 static int sigio_handler_active = 0;
 # endif
-extern	void	input_handler	P((l_fp *));
 
 /*
  * SIGPOLL and SIGIO ROUTINES.
  */
 
- /*
- * Some systems (MOST) define SIGPOLL == SIGIO, others SIGIO == SIGPOLL, and
- * a few have separate SIGIO and SIGPOLL signals.  This code checks for the
- * SIGIO == SIGPOLL case at compile time.
- * Do not define USE_SIGPOLL or USE_SIGIO.
- * these are interal only to iosignal.c!
- */
-# if defined(USE_SIGPOLL)
-#  undef USE_SIGPOLL
-# endif
-# if defined(USE_SIGIO)
-#  undef USE_SIGIO
-# endif
-
-# if defined(USE_TTY_SIGPOLL) || defined(USE_UDP_SIGPOLL)
-#  define USE_SIGPOLL
-# endif
-
-# if !defined(USE_TTY_SIGPOLL) || !defined(USE_UDP_SIGPOLL)
-#  define USE_SIGIO
-# endif
-
-# if defined(USE_SIGIO) && defined(USE_SIGPOLL)
-#  if SIGIO == SIGPOLL
-#	define USE_SIGIO
-#	undef USE_SIGPOLL
-#  endif /* SIGIO == SIGPOLL */
-# endif /* USE_SIGIO && USE_SIGIO */
 
 
 /*
@@ -128,7 +106,7 @@ init_clock_sig(
 		pgrp = getpid();
 		if (ioctl(rio->fd, FIOSSAIOOWN, (char *)&pgrp) == -1)
 		{
-			msyslog(LOG_ERR, "ioctl(FIOSSAIOOWN) fails for clock I/O: %m");
+			msyslog(LOG_ERR, "ioctl(FIOSSAIOOWN) fails for clock I/O: %m - EXITING");
 			exit(1);
 			/*NOTREACHED*/
 		}
@@ -138,14 +116,14 @@ init_clock_sig(
 		 */
 		if (ioctl(rio->fd, FIOSNBIO, (char *)&on) == -1)
 		{
-			msyslog(LOG_ERR, "ioctl(FIOSNBIO) fails for clock I/O: %m");
+			msyslog(LOG_ERR, "ioctl(FIOSNBIO) fails for clock I/O: %m - EXITING");
 			exit(1);
 			/*NOTREACHED*/
 		}
 
 		if (ioctl(rio->fd, FIOSSAIOSTAT, (char *)&on) == -1)
 		{
-			msyslog(LOG_ERR, "ioctl(FIOSSAIOSTAT) fails for clock I/O: %m");
+			msyslog(LOG_ERR, "ioctl(FIOSSAIOSTAT) fails for clock I/O: %m - EXITING");
 			exit(1);
 			/*NOTREACHED*/
 		}
@@ -232,7 +210,7 @@ init_socket_sig(
 		if (ioctl(fd, I_SETSIG, S_INPUT) < 0)
 		{
 			msyslog(LOG_ERR,
-				"init_socket_sig: ioctl(I_SETSIG, S_INPUT) failed: %m");
+				"init_socket_sig: ioctl(I_SETSIG, S_INPUT) failed: %m - EXITING");
 			exit(1);
 		}
 	}
@@ -246,7 +224,7 @@ init_socket_sig(
 #  if defined(FIOASYNC)
 		if (ioctl(fd, FIOASYNC, (char *)&on) == -1)
 		{
-			msyslog(LOG_ERR, "ioctl(FIOASYNC) fails: %m");
+			msyslog(LOG_ERR, "ioctl(FIOASYNC) fails: %m - EXITING");
 			exit(1);
 			/*NOTREACHED*/
 		}
@@ -256,13 +234,13 @@ init_socket_sig(
 
 			if ((flags = fcntl(fd, F_GETFL, 0)) == -1)
 			{
-				msyslog(LOG_ERR, "fcntl(F_GETFL) fails: %m");
+				msyslog(LOG_ERR, "fcntl(F_GETFL) fails: %m - EXITING");
 				exit(1);
 				/*NOTREACHED*/
 			}
 			if (fcntl(fd, F_SETFL, flags|FASYNC) < 0)
 			{
-				msyslog(LOG_ERR, "fcntl(...|FASYNC) fails: %m");
+				msyslog(LOG_ERR, "fcntl(...|FASYNC) fails: %m - EXITING");
 				exit(1);
 				/*NOTREACHED*/
 			}
@@ -280,21 +258,21 @@ init_socket_sig(
 #  if defined(SIOCSPGRP)
 		if (ioctl(fd, SIOCSPGRP, (char *)&pgrp) == -1)
 		{
-			msyslog(LOG_ERR, "ioctl(SIOCSPGRP) fails: %m");
+			msyslog(LOG_ERR, "ioctl(SIOCSPGRP) fails: %m - EXITING");
 			exit(1);
 			/*NOTREACHED*/
 		}
 #  elif defined(FIOSETOWN)
 		if (ioctl(fd, FIOSETOWN, (char*)&pgrp) == -1)
 		{
-			msyslog(LOG_ERR, "ioctl(FIOSETOWN) fails: %m");
+			msyslog(LOG_ERR, "ioctl(FIOSETOWN) fails: %m - EXITING");
 			exit(1);
 			/*NOTREACHED*/
 		}
 #  elif defined(F_SETOWN)
 		if (fcntl(fd, F_SETOWN, pgrp) == -1)
 		{
-			msyslog(LOG_ERR, "fcntl(F_SETOWN) fails: %m");
+			msyslog(LOG_ERR, "fcntl(F_SETOWN) fails: %m - EXITING");
 			exit(1);
 			/*NOTREACHED*/
 		}
@@ -305,7 +283,7 @@ init_socket_sig(
 # endif /* USE_UDP_SIGPOLL */
 }
 
-RETSIGTYPE
+static RETSIGTYPE
 sigio_handler(
 	int sig
 	)
@@ -321,7 +299,8 @@ sigio_handler(
 	    msyslog(LOG_ERR, "sigio_handler: sigio_handler_active != 1");
 # endif
 
-	(void)input_handler(&ts);
+	INSIST(input_handler_callback != NULL);
+	(*input_handler_callback)(&ts);
 
 # if defined(HAVE_SIGACTION)
 	sigio_handler_active--;
@@ -337,8 +316,13 @@ sigio_handler(
  */
 # ifdef HAVE_SIGACTION
 void
-set_signal(void)
+set_signal(input_handler_t *input)
 {
+	INSIST(input != NULL);
+	
+	input_handler_callback = input;
+
+	using_sigio = TRUE;
 #  ifdef USE_SIGIO
 	(void) signal_no_reset(SIGIO, sigio_handler);
 # endif
@@ -507,8 +491,13 @@ block_sigio(void)
 }
 
 void
-set_signal(void)
+set_signal(input_handler_t *input)
 {
+	INSIST(input != NULL);
+
+	input_handler_callback = input;
+
+	using_sigio = TRUE;
 	(void) signal_no_reset(SIGIO, sigio_handler);
 }
 

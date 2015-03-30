@@ -2,6 +2,7 @@
  * hextoint - convert an ascii string in hex to an unsigned
  *	      long, with error checking
  */
+#include <config.h>
 #include <ctype.h>
 
 #include "ntp_stdlib.h"
@@ -9,7 +10,7 @@
 int
 hextoint(
 	const char *str,
-	u_long *ival
+	u_long *pu
 	)
 {
 	register u_long u;
@@ -18,22 +19,24 @@ hextoint(
 	cp = str;
 
 	if (*cp == '\0')
-	    return 0;
+		return 0;
 
 	u = 0;
 	while (*cp != '\0') {
-		if (!isxdigit((int)*cp))
-		    return 0;
-		if (u >= 0x10000000)
-		    return 0;	/* overflow */
+		if (!isxdigit((unsigned char)*cp))
+			return 0;
+		if (u & 0xF0000000)
+			return 0;	/* overflow */
 		u <<= 4;
-		if (*cp <= '9')		/* very ascii dependent */
-		    u += *cp++ - '0';
-		else if (*cp >= 'a')
-		    u += *cp++ - 'a' + 10;
+		if ('0' <= *cp && *cp <= '9')
+			u += *cp++ - '0';
+		else if ('a' <= *cp && *cp <= 'f')
+			u += *cp++ - 'a' + 10;
+		else if ('A' <= *cp && *cp <= 'F')
+			u += *cp++ - 'A' + 10;
 		else
-		    u += *cp++ - 'A' + 10;
+			return 0;
 	}
-	*ival = u;
+	*pu = u;
 	return 1;
 }

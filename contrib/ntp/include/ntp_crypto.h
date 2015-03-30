@@ -1,8 +1,33 @@
 /*
  * ntp_crypto.h - definitions for cryptographic operations
  */
-#ifdef OPENSSL
+#ifndef NTP_CRYPTO_H
+#define NTP_CRYPTO_H
+
+/*
+ * Configuration codes (also needed for parser without AUTOKEY)
+ */
+#define CRYPTO_CONF_NONE  0	/* nothing doing */
+#define CRYPTO_CONF_PRIV  1	/* host name */
+#define CRYPTO_CONF_IDENT 2	/* group name */
+#define CRYPTO_CONF_CERT  3	/* certificate file name */
+#define CRYPTO_CONF_RAND  4	/* random seed file name */
+#define CRYPTO_CONF_IFFPAR 5	/* IFF parameters file name */
+#define CRYPTO_CONF_GQPAR 6	/* GQ parameters file name */
+#define	CRYPTO_CONF_MVPAR 7	/* MV parameters file name */
+#define CRYPTO_CONF_PW	  8	/* private key password */
+#define	CRYPTO_CONF_NID   9	/* specify digest name */
+
+#ifdef AUTOKEY
+#ifndef OPENSSL
+#error AUTOKEY should be defined only if OPENSSL is.
+invalidsyntax: AUTOKEY should be defined only if OPENSSL is.
+#endif
+
 #include "openssl/evp.h"
+#include "ntp_calendar.h"	/* for fields in the cert_info structure */
+
+
 /*
  * The following bits are set by the CRYPTO_ASSOC message from
  * the server and are not modified by the client.
@@ -20,13 +45,14 @@
  * The following bits are used by the client during the protocol
  * exchange.
  */
-#define CRYPTO_FLAG_VALID 0x0100 /* public key verified */
+#define CRYPTO_FLAG_CERT  0x0100 /* public key verified */
 #define CRYPTO_FLAG_VRFY  0x0200 /* identity verified */
 #define CRYPTO_FLAG_PROV  0x0400 /* signature verified */
-#define CRYPTO_FLAG_AGREE 0x0800 /* cookie verifed */
+#define CRYPTO_FLAG_COOK  0x0800 /* cookie verifed */
 #define CRYPTO_FLAG_AUTO  0x1000 /* autokey verified */
 #define CRYPTO_FLAG_SIGN  0x2000 /* certificate signed */
-#define CRYPTO_FLAG_LEAP  0x4000 /* leapseconds table verified */
+#define CRYPTO_FLAG_LEAP  0x4000 /* leapsecond values verified */
+#define	CRYPTO_FLAG_ALL   0x7f00 /* all mask */
 
 /*
  * Flags used for certificate management
@@ -48,7 +74,7 @@
 #define CRYPTO_CERT	CRYPTO_CMD(2) /* certificate */
 #define CRYPTO_COOK	CRYPTO_CMD(3) /* cookie value */
 #define CRYPTO_AUTO	CRYPTO_CMD(4) /* autokey values */
-#define CRYPTO_TAI	CRYPTO_CMD(5) /* leapseconds table */
+#define CRYPTO_LEAP	CRYPTO_CMD(5) /* leapsecond values */
 #define	CRYPTO_SIGN	CRYPTO_CMD(6) /* certificate sign */
 #define CRYPTO_IFF	CRYPTO_CMD(7) /* IFF identity scheme */
 #define CRYPTO_GQ	CRYPTO_CMD(8) /* GQ identity scheme */
@@ -72,37 +98,20 @@
 #define XEVNT_VFY	XEVNT_CMD(9) /* certificate not verified */
 #define XEVNT_PER	XEVNT_CMD(10) /* host certificate expired */
 #define XEVNT_CKY	XEVNT_CMD(11) /* bad or missing cookie */
-#define XEVNT_DAT	XEVNT_CMD(12) /* bad or missing leapseconds table */
+#define XEVNT_DAT	XEVNT_CMD(12) /* bad or missing leapseconds */
 #define XEVNT_CRT	XEVNT_CMD(13) /* bad or missing certificate */
 #define XEVNT_ID	XEVNT_CMD(14) /* bad or missing group key */
 #define	XEVNT_ERR	XEVNT_CMD(15) /* protocol error */
-#define	XEVNT_SRV	XEVNT_CMD(16) /* server certificate expired */
-
-/*
- * Configuration codes
- */
-#define CRYPTO_CONF_NONE  0	/* nothing doing */
-#define CRYPTO_CONF_PRIV  1	/* host keys file name */
-#define CRYPTO_CONF_SIGN  2	/* signature keys file name */
-#define CRYPTO_CONF_LEAP  3	/* leapseconds table file name */
-#define CRYPTO_CONF_KEYS  4	/* keys directory path */
-#define CRYPTO_CONF_CERT  5	/* certificate file name */
-#define CRYPTO_CONF_RAND  6	/* random seed file name */
-#define	CRYPTO_CONF_TRST  7	/* specify trust */
-#define CRYPTO_CONF_IFFPAR 8	/* IFF parameters file name */
-#define CRYPTO_CONF_GQPAR 9	/* GQ parameters file name */
-#define	CRYPTO_CONF_MVPAR 10	/* GQ parameters file name */
-#define CRYPTO_CONF_PW	  11	/* private key password */
-#define	CRYPTO_CONF_IDENT 12	/* specify identity scheme */
 
 /*
  * Miscellaneous crypto stuff
  */
 #define NTP_MAXSESSION	100	/* maximum session key list entries */
-#define NTP_AUTOMAX	13	/* log2 default max session key life */
-#define KEY_REVOKE	16	/* log2 default key revoke timeout */
-#define NTP_MAXEXTEN	1024	/* maximum extension field size */
-#define	TAI_1972	10	/* initial TAI offset (s) */
+#define	NTP_MAXEXTEN	2048	/* maximum extension field size */
+#define	NTP_AUTOMAX	12	/* default key list timeout (log2 s) */
+#define	KEY_REVOKE	17	/* default key revoke timeout (log2 s) */
+#define	NTP_REFRESH	19	/* default restart timeout (log2 s) */
+#define	NTP_MAXKEY	65535	/* maximum symmetric key ID */
 
 /*
  * The autokey structure holds the values used to authenticate key IDs.
@@ -121,7 +130,7 @@ struct value {			/* network byte order */
 	tstamp_t tstamp;	/* timestamp */
 	tstamp_t fstamp;	/* filestamp */
 	u_int32	vallen;		/* value length */
-	u_char	*ptr;		/* data pointer (various) */
+	void	*ptr;		/* data pointer (various) */
 	u_int32	siglen;		/* signature length */
 	u_char	*sig;		/* signature */
 };
@@ -139,6 +148,7 @@ struct exten {
 	u_int32	pkt[1];		/* start of value field */
 };
 
+
 /*
  * The certificate info/value structure
  */
@@ -150,21 +160,31 @@ struct cert_info {
 	int	nid;		/* signature/digest ID */
 	const EVP_MD *digest;	/* message digest algorithm */
 	u_long	serial;		/* serial number */
-	tstamp_t first;		/* not valid before */
-	tstamp_t last;		/* not valid after */
+	struct calendar first;	/* not valid before */
+	struct calendar last;	/* not valid after */
 	char	*subject;	/* subject common name */
 	char	*issuer;	/* issuer common name */
-	u_char	*grpkey;	/* GQ group key */
-	u_int	grplen;		/* GQ group key length */
+	BIGNUM	*grpkey;	/* GQ group key */
 	struct value cert;	/* certificate/value */
+};
+
+/*
+ * The keys info/value structure
+ */
+struct pkey_info {
+	struct pkey_info *link; /* forward link */
+	EVP_PKEY *pkey;		/* generic key */
+	char	*name;		/* file name */
+	tstamp_t fstamp;	/* filestamp */
 };
 
 /*
  * Cryptographic values
  */
-extern	char	*keysdir;	/* crypto keys directory */
 extern	u_int	crypto_flags;	/* status word */
+extern	int	crypto_nid;	/* digest nid */
 extern	struct value hostval;	/* host name/value */
 extern	struct cert_info *cinfo; /* host certificate information */
 extern	struct value tai_leap;	/* leapseconds table */
-#endif /* OPENSSL */
+#endif /* AUTOKEY */
+#endif /* NTP_CRYPTO_H */

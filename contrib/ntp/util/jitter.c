@@ -16,12 +16,11 @@
 #include <stdlib.h>
 #include "jitter.h"
 
-#define NBUF	80002
+#define NBUF	800002
 #define FRAC	4294967296.		/* a bbbbillion */
 #define JAN_1970 2208988800UL		/* Unix base epoch */
 #define CLOCK_GETTIME			/* Solaris hires clock */
 
-int debug;
 char progname[10];
 double sys_residual;
 double average;

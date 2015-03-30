@@ -157,7 +157,7 @@ mbg_csum(
 	 )
 {
   unsigned long sum = 0;
-  short i;
+  unsigned int i;
   
   for ( i = 0; i < n; i++ )
     sum += *p++;
@@ -209,10 +209,10 @@ static struct format meinberg_fmt[] =
 	}
 };
 
-static u_long cvt_meinberg P((unsigned char *, int, struct format *, clocktime_t *, void *));
-static u_long cvt_mgps     P((unsigned char *, int, struct format *, clocktime_t *, void *));
-static u_long mbg_input    P((parse_t *, unsigned int, timestamp_t *));
-static u_long gps_input    P((parse_t *, unsigned int, timestamp_t *));
+static u_long cvt_meinberg (unsigned char *, int, struct format *, clocktime_t *, void *);
+static u_long cvt_mgps     (unsigned char *, int, struct format *, clocktime_t *, void *);
+static u_long mbg_input    (parse_t *, unsigned int, timestamp_t *);
+static u_long gps_input    (parse_t *, unsigned int, timestamp_t *);
 
 struct msg_buf
 {

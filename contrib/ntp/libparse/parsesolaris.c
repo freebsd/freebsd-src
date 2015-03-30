@@ -40,6 +40,7 @@
 static char rcsid[] = "parsesolaris.c,v 4.11 2005/04/16 17:32:10 kardel RELEASE_20050508_A";
 #endif
 
+#include <config.h>
 #include <sys/types.h>
 #include <sys/conf.h>
 #include <sys/errno.h>
@@ -142,7 +143,7 @@ _init(
 	{
 		if (strlen(t) >= (S - s))
 		{
-			(void) strncpy(t, s, (unsigned)(S - s));
+			strlcpy(t, s, (unsigned)(S - s));
 		}
 	}
 	return (mod_install(&modlinkage));
@@ -173,11 +174,11 @@ _fini(
 
 /*--------------- stream module definition ----------------------------*/
 
-static int parseopen  P((queue_t *, dev_t *, int, int, cred_t *));
-static int parseclose P((queue_t *, int));
-static int parsewput  P((queue_t *, mblk_t *));
-static int parserput  P((queue_t *, mblk_t *));
-static int parsersvc  P((queue_t *));
+static int parseopen  (queue_t *, dev_t *, int, int, cred_t *);
+static int parseclose (queue_t *, int);
+static int parsewput  (queue_t *, mblk_t *);
+static int parserput  (queue_t *, mblk_t *);
+static int parsersvc  (queue_t *);
 
 static struct module_info driverinfo =
 {
@@ -244,8 +245,8 @@ int parsedebug = 0;
 	}\
      } while (0)
 
-static int init_linemon P((queue_t *));
-static void close_linemon P((queue_t *, queue_t *));
+static int init_linemon (queue_t *);
+static void close_linemon (queue_t *, queue_t *);
 
 #define M_PARSE		0x0001
 #define M_NOPARSE	0x0002
@@ -264,7 +265,7 @@ ntp_memset(
 static void
 pprintf(
 	int lev,
-	const char *form,
+	char *form,
 	...
 	)
 {
@@ -273,7 +274,7 @@ pprintf(
 	va_start(ap, form);
 
 	if (lev & parsedebug)
-	    vcmn_err(CE_CONT, (char *)form, ap);
+		vcmn_err(CE_CONT, form, ap);
 
 	va_end(ap);
 }
@@ -291,7 +292,7 @@ setup_stream(
 	mp = allocb(sizeof(struct stroptions), BPRI_MED);
 	if (mp)
 	{
-		struct stroptions *str = (struct stroptions *)mp->b_wptr;
+		struct stroptions *str = (void *)mp->b_wptr;
 
 		str->so_flags   = SO_READOPT|SO_HIWAT|SO_LOWAT|SO_ISNTTY;
 		str->so_readopt = (mode == M_PARSE) ? RMSGD : RNORM;
@@ -486,7 +487,7 @@ parsewput(
 		break;
       
 	    case M_IOCTL:
-		iocp = (struct iocblk *)mp->b_rptr;
+		iocp = (void *)mp->b_rptr;
 		switch (iocp->ioc_cmd)
 		{
 		    default:
@@ -510,7 +511,8 @@ parsewput(
 			}
 
 			mp->b_cont = datap;
-			*(struct ppsclockev *)datap->b_wptr = parse->parse_ppsclockev;
+			/* (void *) quiets cast alignment warning */
+			*(struct ppsclockev *)(void *)datap->b_wptr = parse->parse_ppsclockev;
 			datap->b_wptr +=
 				sizeof(struct ppsclockev) / sizeof(*datap->b_wptr);
 			mp->b_datap->db_type = M_IOCACK;
@@ -543,7 +545,7 @@ parsewput(
 		    case PARSEIOC_SETCS:
 			if (iocp->ioc_count == sizeof(parsectl_t))
 			{
-				parsectl_t *dct = (parsectl_t *)mp->b_cont->b_rptr;
+				parsectl_t *dct = (void *)mp->b_cont->b_rptr;
 
 				switch (iocp->ioc_cmd)
 				{
@@ -641,15 +643,15 @@ parserput(
 			    register parsestream_t * parse = (parsestream_t *)q->q_ptr;
 			    register mblk_t *nmp;
 			    register unsigned long ch;
-			    timestamp_t ctime;
+			    timestamp_t c_time;
 			    timespec_t hres_time;
 
 			    /*
 			     * get time on packet delivery
 			     */
 			    gethrestime(&hres_time);
-			    ctime.tv.tv_sec  = hres_time.tv_sec;
-			    ctime.tv.tv_usec = hres_time.tv_nsec / 1000;
+			    c_time.tv.tv_sec  = hres_time.tv_sec;
+			    c_time.tv.tv_usec = hres_time.tv_nsec / 1000;
 
 			    if (!(parse->parse_status & PARSE_ENABLE))
 			    {
@@ -672,7 +674,7 @@ parserput(
 					    while (mp != (mblk_t *)NULL)
 					    {
 						    ch = rdchar(&mp);
-						    if (ch != ~0 && parse_ioread(&parse->parse_io, (unsigned int)ch, &ctime))
+						    if (ch != ~0 && parse_ioread(&parse->parse_io, (unsigned int)ch, &c_time))
 						    {
 							    /*
 							     * up up and away (hopefully ...)
@@ -693,7 +695,7 @@ parserput(
 				    }
 				    else
 				    {
-					    if (parse_ioread(&parse->parse_io, (unsigned int)0, &ctime))
+					    if (parse_ioread(&parse->parse_io, (unsigned int)0, &c_time))
 					    {
 						    /*
 						     * up up and away (hopefully ...)
@@ -723,19 +725,19 @@ parserput(
 	    case M_UNHANGUP:
 		    {
 			    register parsestream_t * parse = (parsestream_t *)q->q_ptr;
-			    timestamp_t ctime;
+			    timestamp_t c_time;
 			    timespec_t hres_time;
 			    register mblk_t *nmp;
 			    register int status = cd_invert ^ (type == M_UNHANGUP);
 
 			    gethrestime(&hres_time);
-			    ctime.tv.tv_sec  = hres_time.tv_sec;
-			    ctime.tv.tv_usec = hres_time.tv_nsec / 1000;
+			    c_time.tv.tv_sec  = hres_time.tv_sec;
+			    c_time.tv.tv_usec = hres_time.tv_nsec / 1000;
 	
 			    pprintf(DD_RPUT, "parse: parserput - M_%sHANGUP\n", (type == M_HANGUP) ? "" : "UN");
 
 			    if ((parse->parse_status & PARSE_ENABLE) &&
-				parse_iopps(&parse->parse_io, status ? SYNC_ONE : SYNC_ZERO, &ctime))
+				parse_iopps(&parse->parse_io, status ? SYNC_ONE : SYNC_ZERO, &c_time))
 			    {
 				    nmp = (mblk_t *)NULL;
 				    if (canputnext(parse->parse_queue) && (nmp = allocb(sizeof(parsetime_t), BPRI_MED)))
@@ -759,7 +761,7 @@ parserput(
 	
 			    if (status)
 			    {
-				    parse->parse_ppsclockev.tv = ctime.tv;
+				    parse->parse_ppsclockev.tv = c_time.tv;
 				    ++(parse->parse_ppsclockev.serial);
 			    }
 		    }
@@ -767,8 +769,8 @@ parserput(
 	return 0;
 }
 
-static int  init_zs_linemon  P((queue_t *, queue_t *));	/* handle line monitor for "zs" driver */
-static void close_zs_linemon P((queue_t *, queue_t *));
+static int  init_zs_linemon  (queue_t *, queue_t *);	/* handle line monitor for "zs" driver */
+static void close_zs_linemon (queue_t *, queue_t *);
 
 /*-------------------- CD isr status monitor ---------------*/
 
@@ -849,7 +851,7 @@ close_linemon(
 #include <sys/ser_async.h>
 #include <sys/ser_zscc.h>
 
-static void zs_xsisr         P((struct zscom *));	/* zs external status interupt handler */
+static void zs_xsisr         (struct zscom *);	/* zs external status interupt handler */
 
 /*
  * there should be some docs telling how to get to
@@ -911,7 +913,7 @@ init_zs_linemon(
 			parsestream->parse_dqueue = q; /* remember driver */
 
 			szs->zsops            = *zs->zs_ops;
-			szs->zsops.zsop_xsint = (void (*) P((struct zscom *)))zs_xsisr; /* place our bastard */
+			szs->zsops.zsop_xsint = (void (*) (struct zscom *))zs_xsisr; /* place our bastard */
 			szs->oldzsops         = zs->zs_ops;
 			emergencyzs           = zs->zs_ops;
 	  
@@ -920,7 +922,7 @@ init_zs_linemon(
 			 * XXX: this is usually done via zsopinit() 
 			 * - have yet to find a way to call that routine
 			 */
-			zs->zs_xsint          = (void (*) P((struct zscom *)))zs_xsisr;
+			zs->zs_xsint          = (void (*) (struct zscom *))zs_xsisr;
 	  
 			mutex_exit(zs->zs_excl);
 
@@ -986,7 +988,7 @@ zs_xsisr(
 	 struct zscom *zs
 	 )
 {
-	register struct asyncline *za = (struct asyncline *)zs->zs_priv;
+	register struct asyncline *za = (void *)zs->zs_priv;
 	register queue_t *q;
 	register unsigned char zsstatus;
 	register int loopcheck;
@@ -1117,7 +1119,7 @@ zs_xsisr(
 			dname = q->q_qinfo->qi_minfo->mi_idname;
 			if (!strcmp(dname, parseinfo.st_rdinit->qi_minfo->mi_idname))
 			{
-				register void (*zsisr) P((struct zscom *));
+				register void (*zsisr) (struct zscom *);
 		  
 				/*
 				 * back home - phew (hopping along stream queues might

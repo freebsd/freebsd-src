@@ -51,7 +51,7 @@ static char rcsid[] = "parse.c,v 4.20 2005/08/06 17:39:40 kardel RELEASE_2005080
 #endif
 
 #include "ntp_fp.h"
-#include "ntp_unixtime.h"
+#include "timevalops.h"
 #include "ntp_calendar.h"
 #include "ntp_stdlib.h"
 #include "ntp_machine.h"
@@ -68,7 +68,7 @@ static char rcsid[] = "parse.c,v 4.20 2005/08/06 17:39:40 kardel RELEASE_2005080
 extern clockformat_t *clockformats[];
 extern unsigned short nformats;
 
-static u_long timepacket P((parse_t *));
+static u_long timepacket (parse_t *);
 
 /*
  * strings support usually not in kernel - duplicated, but what the heck
@@ -128,10 +128,6 @@ parse_timedout(
 		delta.tv_usec += 1000000;
 	}
 #else
-	extern long tstouslo[];
-	extern long tstousmid[];
-	extern long tstoushi[];
-
 	l_fp delt;
 
 	delt = tstamp->fp;
@@ -234,7 +230,7 @@ parse_addchar(
 		 * collect into buffer
 		 */
 		parseprintf(DD_PARSE, ("parse: parse_addchar: buffer[%d] = 0x%x\n", parseio->parse_index, ch));
-		parseio->parse_data[parseio->parse_index++] = ch;
+		parseio->parse_data[parseio->parse_index++] = (char)ch;
 		return PARSE_INP_SKIP;
 	}
 	else
@@ -719,7 +715,7 @@ timepacket(
 	default:
 		/* shouldn't happen */
 #ifndef PARSEKERNEL
-		msyslog(LOG_WARNING, "parse: INTERNAL error: bad return code of convert routine \"%s\"\n", clockformats[format]->name);
+		msyslog(LOG_WARNING, "parse: INTERNAL error: bad return code of convert routine \"%s\"", clockformats[format]->name);
 #endif	  
 		return CVT_FAIL|cvtrtc;
 	}

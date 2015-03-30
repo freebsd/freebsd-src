@@ -58,11 +58,11 @@
 #endif
 #ifdef PARSEKERNEL
 #ifndef _KERNEL
-extern caddr_t kmem_alloc P((unsigned int));
-extern caddr_t kmem_free P((caddr_t, unsigned int));
-extern unsigned int splx P((unsigned int));
-extern unsigned int splhigh P((void));
-extern unsigned int splclock P((void));
+extern caddr_t kmem_alloc (unsigned int);
+extern caddr_t kmem_free (caddr_t, unsigned int);
+extern unsigned int splx (unsigned int);
+extern unsigned int splhigh (void);
+extern unsigned int splclock (void);
 #define MALLOC(_X_) (char *)kmem_alloc(_X_)
 #define FREE(_X_, _Y_) kmem_free((caddr_t)_X_, _Y_)
 #else
@@ -340,12 +340,12 @@ typedef struct clocktime clocktime_t;
 struct clockformat
 {
   /* special input protocol - implies fixed format */
-  u_long	(*input)   P((parse_t *, unsigned int, timestamp_t *));
+  u_long	(*input)   (parse_t *, unsigned int, timestamp_t *);
   /* conversion routine */
-  u_long        (*convert) P((unsigned char *, int, struct format *, clocktime_t *, void *));
+  u_long        (*convert) (unsigned char *, int, struct format *, clocktime_t *, void *);
   /* routine for handling RS232 sync events (time stamps) */
   /* PPS input routine */
-  u_long        (*syncpps) P((parse_t *, int, timestamp_t *));
+  u_long        (*syncpps) (parse_t *, int, timestamp_t *);
   /* time code synthesizer */
 
   void           *data;		/* local parameters */
@@ -359,30 +359,30 @@ typedef struct clockformat clockformat_t;
 /*
  * parse interface
  */
-extern int  parse_ioinit P((parse_t *));
-extern void parse_ioend P((parse_t *));
-extern int  parse_ioread P((parse_t *, unsigned int, timestamp_t *));
-extern int  parse_iopps P((parse_t *, int, timestamp_t *));
-extern void parse_iodone P((parse_t *));
-extern int  parse_timecode P((parsectl_t *, parse_t *));
-extern int  parse_getfmt P((parsectl_t *, parse_t *));
-extern int  parse_setfmt P((parsectl_t *, parse_t *));
-extern int  parse_setcs P((parsectl_t *, parse_t *));
+extern int  parse_ioinit (parse_t *);
+extern void parse_ioend (parse_t *);
+extern int  parse_ioread (parse_t *, unsigned int, timestamp_t *);
+extern int  parse_iopps (parse_t *, int, timestamp_t *);
+extern void parse_iodone (parse_t *);
+extern int  parse_timecode (parsectl_t *, parse_t *);
+extern int  parse_getfmt (parsectl_t *, parse_t *);
+extern int  parse_setfmt (parsectl_t *, parse_t *);
+extern int  parse_setcs (parsectl_t *, parse_t *);
 
-extern unsigned int parse_restart P((parse_t *, unsigned int));
-extern unsigned int parse_addchar P((parse_t *, unsigned int));
-extern unsigned int parse_end P((parse_t *));
+extern unsigned int parse_restart (parse_t *, unsigned int);
+extern unsigned int parse_addchar (parse_t *, unsigned int);
+extern unsigned int parse_end (parse_t *);
 
-extern int Strok P((const unsigned char *, const unsigned char *));
-extern int Stoi P((const unsigned char *, long *, int));
+extern int Strok (const unsigned char *, const unsigned char *);
+extern int Stoi (const unsigned char *, long *, int);
 
-extern time_t parse_to_unixtime P((clocktime_t *, u_long *));
-extern u_long updatetimeinfo P((parse_t *, u_long));
-extern void syn_simple P((parse_t *, timestamp_t *, struct format *, u_long));
-extern u_long pps_simple P((parse_t *, int, timestamp_t *));
-extern u_long pps_one P((parse_t *, int, timestamp_t *));
-extern u_long pps_zero P((parse_t *, int, timestamp_t *));
-extern int parse_timedout P((parse_t *, timestamp_t *, struct timeval *));
+extern time_t parse_to_unixtime (clocktime_t *, u_long *);
+extern u_long updatetimeinfo (parse_t *, u_long);
+extern void syn_simple (parse_t *, timestamp_t *, struct format *, u_long);
+extern u_long pps_simple (parse_t *, int, timestamp_t *);
+extern u_long pps_one (parse_t *, int, timestamp_t *);
+extern u_long pps_zero (parse_t *, int, timestamp_t *);
+extern int parse_timedout (parse_t *, timestamp_t *, struct timeval *);
 
 #endif
 

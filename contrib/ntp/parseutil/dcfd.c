@@ -185,7 +185,7 @@ static char pat[] = "-\\|/";
 
 #define R_SHIFT(_X_, _Y_) (((_X_) < 0) ? -(-(_X_) >> (_Y_)) : ((_X_) >> (_Y_)))
 
-static struct timeval max_adj_offset = { 0, 128000 };
+static long max_adj_offset_usec = 128000;
 
 static long clock_adjust = 0;	/* current adjustment value (usec * 2^USECSCALE) */
 static long accum_drift   = 0;	/* accumulated drift value  (usec / ADJINTERVAL) */
@@ -195,8 +195,8 @@ static char skip_adjust  = 1;	/* discard first adjustment (bad samples) */
 /*
  * DCF77 state flags
  */
-#define DCFB_ANNOUNCE           0x0001 /* switch time zone warning (DST switch) */
-#define DCFB_DST                0x0002 /* DST in effect */
+#define DCFB_ANNOUNCE		0x0001 /* switch time zone warning (DST switch) */
+#define DCFB_DST		0x0002 /* DST in effect */
 #define DCFB_LEAP		0x0004 /* LEAP warning (1 hour prior to occurrence) */
 #define DCFB_ALTERNATE		0x0008 /* alternate antenna used */
 
@@ -587,7 +587,8 @@ cvt_rawdcf(
 			/*
 			 * invalid character (no consecutive bit sequence)
 			 */
-			dprintf(("parse: cvt_rawdcf: character check for 0x%x@%d FAILED\n", *s, s - buffer));
+			dprintf(("parse: cvt_rawdcf: character check for 0x%x@%ld FAILED\n",
+				 (u_int)*s, (long)(s - buffer)));
 			*s = (unsigned char)~0;
 			rtc = CVT_FAIL|CVT_BADFMT;
 		}
@@ -898,15 +899,19 @@ static const char *wday[8] =
  */
 static char *
 pr_timeval(
-	   struct timeval *val
-	   )
+	struct timeval *val
+	)
 {
 	static char buf[20];
 
 	if (val->tv_sec == 0)
-	    sprintf(buf, "%c0.%06ld", (val->tv_usec < 0) ? '-' : '+', (long int)l_abs(val->tv_usec));
+		snprintf(buf, sizeof(buf), "%c0.%06ld",
+			 (val->tv_usec < 0) ? '-' : '+',
+			 (long int)l_abs(val->tv_usec));
 	else
-	    sprintf(buf, "%ld.%06ld", (long int)val->tv_sec, (long int)l_abs(val->tv_usec));
+		snprintf(buf, sizeof(buf), "%ld.%06ld",
+			 (long int)val->tv_sec,
+			 (long int)l_abs(val->tv_usec));
 	return buf;
 }
 
@@ -1042,7 +1047,8 @@ adjust_clock(
 	toffset = *offset;
 	toffset.tv_sec  = l_abs(toffset.tv_sec);
 	toffset.tv_usec = l_abs(toffset.tv_usec);
-	if (timercmp(&toffset, &max_adj_offset, >))
+	if (toffset.tv_sec ||
+	    (!toffset.tv_sec && toffset.tv_usec > max_adj_offset_usec))
 	{
 		/*
 		 * hopeless - set the clock - and clear the timing
@@ -1319,43 +1325,6 @@ check_y2k( void )
 	    break;
 	}
 
-	if ( year >= YEAR_PIVOT+1900 )
-	{
-	    /* check year % 100 code we put into dcf_to_unixtime() */
-	    ct.year = year % 100;
-	    Flag = 0;
-
-	    Observed = dcf_to_unixtime( &ct, &Flag );
-
-	    if ( Observed != Expected  ||  Flag )
-	    {   /* time difference */
-		fprintf( stdout, 
-"%04d: dcf_to_unixtime(%d,%d) FAILURE: was=%lu s/b=%lu  (%ld)\n",
-		   year, (int)ct.year, (int)Flag, 
-		   (unsigned long)Observed, (unsigned long)Expected,
-		   ((long)Observed - (long)Expected) );
-		Error(year);
-		break;
-	    }
-
-	    /* check year - 1900 code we put into dcf_to_unixtime() */
-	    ct.year = year - 1900;
-	    Flag = 0;
-
-	    Observed = dcf_to_unixtime( &ct, &Flag );
-
-	    if ( Observed != Expected  ||  Flag ) {   /* time difference */
-		    fprintf( stdout, 
-			     "%04d: dcf_to_unixtime(%d,%d) FAILURE: was=%lu s/b=%lu  (%ld)\n",
-			     year, (int)ct.year, (int)Flag, 
-			     (unsigned long)Observed, (unsigned long)Expected,
-			     ((long)Observed - (long)Expected) );
-		    Error(year);
-		break;
-	    }
-
-
-	}
     }
 
     return ( Fatals );
@@ -1609,7 +1578,7 @@ main(
 			struct sigaction act;
 
 # ifdef HAVE_SA_SIGACTION_IN_STRUCT_SIGACTION
-			act.sa_sigaction = (void (*) P((int, siginfo_t *, void *)))0;
+			act.sa_sigaction = (void (*) (int, siginfo_t *, void *))0;
 # endif /* HAVE_SA_SIGACTION_IN_STRUCT_SIGACTION */
 			act.sa_handler   = tick;
 			sigemptyset(&act.sa_mask);

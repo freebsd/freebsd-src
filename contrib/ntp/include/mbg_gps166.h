@@ -197,7 +197,7 @@ typedef struct {
 /* by the user. The status field can be checked to see which corrections */
 /* have been applied. */
 
-#ifndef _TM_DEFINED
+#ifndef GPS166_TM_DEFINED
   typedef struct {
     short year;          /* 0..9999 */
     char month;          /* 1..12 */
@@ -221,7 +221,7 @@ typedef struct {
 #  define TM_LS_ANN     0x10   /* leap second will be inserted */
 #  define TM_LS_ENB     0x20   /* current second is leap second */
 
-#  define _TM_DEFINED
+#  define GPS166_TM_DEFINED
 #endif
 
 
@@ -391,7 +391,7 @@ typedef struct {
   l_fp A0;         /*  ± Clock Correction Coefficient 0             [sec] */
   l_fp A1;         /*  ± Clock Correction Coefficient 1         [sec/sec] */
 
-  ushort WNlsf;    /*  week number of nearest leap second                 */
+  u_short WNlsf;   /*  week number of nearest leap second                 */
   short DNt;       /*  the day number at the end of which LS is inserted  */
   char delta_tls;  /*                                                     */
   char delta_tlsf; /*                                                     */
@@ -524,31 +524,31 @@ typedef struct {
 
 } IONO;
 
-void mbg_tm_str P((char **, TM *, int));
-void mbg_tgps_str P((char **, T_GPS *, int));
-void get_mbg_header P((unsigned char **, GPS_MSG_HDR *));
-void put_mbg_header P((unsigned char **, GPS_MSG_HDR *));
-void get_mbg_sw_rev P((unsigned char **, SW_REV *));
-void get_mbg_ascii_msg P((unsigned char **, ASCII_MSG *));
-void get_mbg_svno P((unsigned char **, SVNO *));
-void get_mbg_health P((unsigned char **, HEALTH *));
-void get_mbg_cfg P((unsigned char **, CFG *));
-void get_mbg_tgps P((unsigned char **, T_GPS *));
-void get_mbg_tm P((unsigned char **, TM *));
-void get_mbg_ttm P((unsigned char **, TTM *));
-void get_mbg_synth P((unsigned char **, SYNTH *));
-void get_mbg_tzdl P((unsigned char **, TZDL *));
-void get_mbg_antinfo P((unsigned char **, ANT_INFO *));
-void get_mbg_cfgh P((unsigned char **, CFGH *));
-void get_mbg_utc P((unsigned char **, UTC *));
-void get_mbg_lla P((unsigned char **, LLA));
-void get_mbg_xyz P((unsigned char **, XYZ));
-void get_mbg_portparam P((unsigned char **, PORT_PARM *));
-void get_mbg_eph P((unsigned char **, EPH *));
-void get_mbg_alm P((unsigned char **, ALM *));
-void get_mbg_iono P((unsigned char **, IONO *));
+void mbg_tm_str (char **, TM *, int);
+void mbg_tgps_str (char **, T_GPS *, int);
+void get_mbg_header (unsigned char **, GPS_MSG_HDR *);
+void put_mbg_header (unsigned char **, GPS_MSG_HDR *);
+void get_mbg_sw_rev (unsigned char **, SW_REV *);
+void get_mbg_ascii_msg (unsigned char **, ASCII_MSG *);
+void get_mbg_svno (unsigned char **, SVNO *);
+void get_mbg_health (unsigned char **, HEALTH *);
+void get_mbg_cfg (unsigned char **, CFG *);
+void get_mbg_tgps (unsigned char **, T_GPS *);
+void get_mbg_tm (unsigned char **, TM *);
+void get_mbg_ttm (unsigned char **, TTM *);
+void get_mbg_synth (unsigned char **, SYNTH *);
+void get_mbg_tzdl (unsigned char **, TZDL *);
+void get_mbg_antinfo (unsigned char **, ANT_INFO *);
+void get_mbg_cfgh (unsigned char **, CFGH *);
+void get_mbg_utc (unsigned char **, UTC *);
+void get_mbg_lla (unsigned char **, LLA);
+void get_mbg_xyz (unsigned char **, XYZ);
+void get_mbg_portparam (unsigned char **, PORT_PARM *);
+void get_mbg_eph (unsigned char **, EPH *);
+void get_mbg_alm (unsigned char **, ALM *);
+void get_mbg_iono (unsigned char **, IONO *);
 
-unsigned long mbg_csum P((unsigned char *, unsigned int));
+unsigned long mbg_csum (unsigned char *, unsigned int);
 
 #endif
 /*

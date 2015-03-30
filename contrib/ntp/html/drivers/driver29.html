@@ -4,15 +4,27 @@
 
 	<head>
 		<meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1">
-		<title>Trimble Palisade Receiver</title>
+		<title>Trimble Palisade and Thunderbolt Receivers</title>
 		<link href="scripts/style.css" type="text/css" rel="stylesheet">
 	</head>
 
 	<body bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#800080" alink="#FF0000">
-		<h1><font size="+2">Trimble Palisade Receiver</font>
+		<h1><font size="+2">Trimble Palisade and Thunderbolt Receivers</font>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->21-Oct-2010  23:44<!-- #EndDate -->
+  UTC</p>
 			<hr>
 		</h1>
+		<table>
+		<tr>
+		<td>
 		<h2><img src="../pic/driver29.gif" alt="gif" nosave height="100" width="420"></h2>
+		</td>
+		<td>
+		<h2><img src="../pic/thunderbolt.jpg" alt="jpg" nosave height="270" width="420"></h2>
+		</td>
+		</tr>
+		</table>
 		<h2><font size="+1">Synopsis</font></h2>
 		<table>
 			<tr>
@@ -50,12 +62,20 @@
 				</td>
 				<td><b>9600 baud, 8-bits, 1-stop, odd parity</b></td>
 			</tr>
+			<tr>
+			        <td>
+					<div align="right">
+						<tt><font size="+1">Serial I/O (Thunderbolt):</font></tt></div>
+				</td>
+				<td><b>9600 baud, 8-bits, 1-stop, no parity</b></td>
+			</tr>
 		</table>
 		<h2><font size="+1">Description</font></h2>
 		The <b>refclock_palisade</b> driver supports <a href="http://www.trimble.com/products/ntp">Trimble Navigation's Palisade Smart Antenna GPS receiver</a>.<br>
 		Additional software and information about the Palisade GPS is available from: <a href="http://www.trimble.com/oem/ntp">http://www.trimble.com/oem/ntp</a>.<br>
 		Latest NTP driver source, executables and documentation is maintained at: <a href="ftp://ftp.trimble.com/pub/ntp">ftp://ftp.trimble.com/pub/ntp</a>
 		<p>This documentation describes version 7.12 of the GPS Firmware and version 2.46 (July 15, 1999) and later, of the driver source.<br>&nbsp;</p>
+		<p>This documentation describes version 1 of the Thunderbolt Receiver Firmware, no tests have been made on further firmwares, please read "Notes on the Thunderbolt Receiver's Firmware" at the end of this documentation for more information.</p>
 		<h2><font size="+1">Operating System Compatibility</font></h2>
 		The Palisade driver has been tested on the following software and hardware platforms:<br>&nbsp;
 		<center>
@@ -97,7 +117,8 @@
 					<td>20 us</td>
 				</tr>
 			</table>
-		</center>
+		</center><P>
+		<b>Attention</b>: Thunderbolt Receiver has not being tested on the previous software and hardware plataforms.
 		<h2><font size="+1">GPS Receiver</font></h2>
 		The Palisade GPS receiver is an 8-channel smart antenna, housing the GPS receiver, antenna and interface in a single unit, and is designed for rooftop deployment in static timing applications.
 		<p>Palisade generates a PPS synchronized to UTC within +/- 100 ns.&nbsp; The Palisade's external event input with 40 nanosecond resolution is utilized by the Palisade NTP driver for asynchronous precision time transfer.</p>
@@ -199,6 +220,19 @@
 			<tt># and set flag2 to turn off event polling.</tt><br>
 			<tt><a href="#flag2">fudge 127.127.29.0 flag2 1</a></tt><br>
 			<tt>#------------------------------------------------------------------------------</tt><br>&nbsp;</p>
+		
+		<h4>Thunderbolt NTP Configuration file</h4>
+		<tt>#------------------------------------------------------------------------------</tt>
+		<p>Configuration without event polling:<br>
+		<tt>#------------------------------------------------------------------------------</tt><br>
+		<tt># The Primary reference</tt><br>
+		<tt>server 127.127.29.0 mode 2 # Trimble Thunderbolt GPS (Stratum 1).</tt><br>
+		<tt># Set packet delay</tt><br>
+		<tt><a href="#time1">fudge 127.127.29.0 time1 0.020</a></tt><br>
+		<tt># and set flag2 to turn off event polling.</tt><br>
+		<tt><a href="#flag2">fudge 127.127.29.0 flag2 1</a></tt><br>
+		<tt>#------------------------------------------------------------------------------</tt><br>&nbsp;</p>
+		Currently the Thunderbolt mode doesn't support event polling, the reasons are explained on the "Notes on the Thunderbolt Receiver's Firmware" section at the end of this documentation.
 		<h2><a name="TimeTransfer"></a><font size="+1">Time Transfer and Polling</font></h2>
 		Time transfer to the NTP host is performed via the Palisade's comprehensive time packet output. The time packets are output once per second, and whenever an event timestamp is requested.
 		<p>The driver requests an event time stamp at the end of each polling interval, by pulsing the RTS (request to send) line on the serial port. The Palisade GPS responds with a time stamped event packet.</p>
@@ -235,7 +269,7 @@
 		<h2><font size="+1">Mode Parameter</font></h2>
 		<dl>
 			<dt><tt><font size="+1">mode <i>number</i></font></tt>
-			<dd>The mode parameter to the server command specifies the specific hardware this driver is for. The default is 0 for a normal Trimble Palisade. The only other option at this time is 1 for a Endrun Praecis in Trimble emulation mode.
+			<dd>The mode parameter to the server command specifies the specific hardware this driver is for. The default is 0 for a normal Trimble Palisade. The other options are <b>1</b> for an <b>Endrun Praecis</b> in Trimble emulation mode, and <b>2</b> for the <b>Trimble Thunderbolt</b> GPS Disciplined Clock Receiver.
 		</dl>
 		<h2><font size="+1">DEFINEs</font></h2>
 		The following constants are defined in the driver source code. These defines may be modified to improve performance or adapt to new operating systems.<br>&nbsp;
@@ -369,6 +403,7 @@
 				</tr>
 			</table>
 		</center>
+		
 		<blockquote>
 			<h4>Leap Second Flag Definition:</h4>Bit 0:&nbsp; (1) UTC Time is available<br>
 			Bits 1 - 3: Undefined<br>Bit 4:&nbsp; (1) Leap Scheduled: Leap second pending asserted by GPS control segment.<br>Bit 5:&nbsp; (1) Leap Pending: set 24 hours before, until beginning of leap second.<br>Bit 6:&nbsp; (1) GPS Leap Warning: 6 hours before until 6 hours after leap event<br>Bit 7:&nbsp; (1) Leap In Progress. Only set during the leap second.
@@ -576,6 +611,281 @@
 				</tr>
 			</table>
 		</center>
+		<h3>Thunderbolt Timing packets Data Format</h3>
+		Thunderbolt can output 2 synchronous packets.
+		<h4><b>Primary Timing Packet - 0x8FAB</h4>
+		<center>
+			<table>
+				<tr>
+					<td><b>Byte</b></td>
+					<td><b>Bit</b></td>
+					<td><b>Item</b></td>
+					<td><b>Type</b></td>
+					<td><b>Value</b></td>
+					<td><b>Description</b></td>
+				</tr>
+				<tr>
+					<td>0</td>
+					<td></td>
+					<td>Subcode</td>
+					<td>UINT8</td>
+					<td></td>
+					<td>0xAB</td>
+				</tr>
+				<tr>
+					<td>1-4</td>
+					<td></td>
+					<td>Time of Week</td>
+					<td>UINT32</td>
+					<td></td>
+					<td>GPS seconds of week</td>
+				</tr>
+				<tr>
+					<td>5-6</td>
+					<td></td>
+					<td>Week Number</td>
+					<td>UINT16</td>
+					<td></td>
+					<td>GPS Week Number</td>
+				</tr>
+				<tr>
+					<td>7-8</td>
+					<td></td>
+					<td>UTC Offset</td>
+					<td>SINT16</td>
+					<td></td>
+					<td>UTC Offset (seconds)</td>
+				</tr>
+				<tr>
+					<td valign="top">9</td>
+					<td><table><tr><td>0</td></tr><tr><td>1</td></tr><tr><td>2</td></tr><tr><td>3</tr><tr><td>4</tr></table></td>
+					<td valign="top">Timing Flag</td>
+					<td valign="top">Bit field</td>
+					<td valign="top"><table><tr><td>0 or 1</td></tr><tr><td>0 or 1</td></tr><tr><td>0 or 1</td></tr><tr><td>0 or 1</tr><tr><td>0 or 1</tr></table></td></td>
+					<td valign="top"><table><tr><td>GPS Time or UTC Time</td></tr><tr><td>GPS PPS or UTC PPS</td></tr><tr><td>time is set or time is not set</td></tr><tr><td>have UTC info or no UTC info</td></tr><tr><td>Time from GPS or time from user</td></tr></table></td>
+				</tr>
+				<tr>
+					<td>10</td>
+					<td></td>
+					<td>Seconds</td>
+					<td>UINT8</td>
+					<td>0-59</td>
+					<td>(60 for UTC leap second event)</td>
+				</tr>
+				<tr>
+					<td>11</td>
+					<td></td>
+					<td>Minutes</td>
+					<td>UINT8</td>
+					<td>0-59</td>
+					<td>Minutes of Hour</td>
+				</tr>
+				<tr>
+					<td>12</td>
+					<td></td>
+					<td>Hours</td>
+					<td>UINT8</td>
+					<td>0-23</td>
+					<td>Hour of Day</td>
+				</tr>
+				<tr>
+					<td>13</td>
+					<td></td>
+					<td>Day of Month</td>
+					<td>UINT8</td>
+					<td>1-31</td>
+					<td>Day of Month</td>
+				</tr>
+				<tr>
+					<td>14</td>
+					<td></td>
+					<td>Month</td>
+					<td>UINT8</td>
+					<td>1-12</td>
+					<td>Month of Year</td>
+				</tr>
+				<tr>
+					<td>15-16</td>
+					<td></td>
+					<td>Year</td>
+					<td>UINT16</td>
+					<td></td>
+					<td>Four digits of Year (e.g. 1998)</td>
+				</tr>
+			</table>
+		</center>
+		<h4><b>Supplemental Timing Packet - 0x8FAC</h4>
+		<center>
+			<table>
+				<tr>
+					<td><b>Byte</b></td>
+					<td><b>Bit</b></td>
+					<td><b>Item</b></td>
+					<td><b>Type</b></td>
+					<td><b>Value</b></td>
+					<td><b>Description</b></td>
+				</tr>
+				<tr>
+					<td>0</td>
+					<td></td>
+					<td>Subcode</td>
+					<td>UINT8</td>
+					<td></td>
+					<td>0xAC</td>
+				</tr>
+				<tr>
+					<td valign="top">1</td>
+					<td></td>
+					<td valign="top">Receiver Mode</td>
+					<td valign="top">UINT8</td>
+					<td valign="top"><table><tr><td>0</td></tr><tr><td>1</td></tr><tr><td>2</td></tr><tr><td>3</td></tr><tr><td>4</td></tr><tr><td>5</td></tr><tr><td>6</td></tr></table></td>
+					<td valign="top"><table><tr><td>Automatic (2D/3D)</td></tr><tr><td>Single Satellite (Time)</td></tr><tr><td>Horizontal (2D)</td></tr><tr><td>Full Position (3D)</td></tr><tr><td>DGPS Reference</td></tr><tr><td>Clock Hold (2D)</td></tr><tr><td>Overdetermined Clock</td></tr></table></td>
+				</tr>
+				<tr>
+					<td valign="top">2</td>
+					<td></td>
+					<td valign="top">Disciplining Mode</td>
+					<td valign="top">UINT8</td>
+					<td valign="top"><table><tr><td>0</td></tr><tr><td>1</td></tr><tr><td>2</td></tr><tr><td>3</td></tr><tr><td>4</td></tr><tr><td>5</td></tr><tr><td>6</td></tr></table></td>
+					<td valign="top"><table><tr>Normal<td></td></tr><tr><td>Power-Up</td></tr><tr><td>Auto Holdover</td></tr><tr><td>Manual Holdover</td></tr><tr><td>Recovery</td></tr><tr><td>Not Used</td></tr><tr><td>Disciplining disabled</td></tr></table></td>
+				</tr>
+				<tr>
+				        <td>3</td>
+					<td></td>
+					<td>Self-Survey Progress</td>
+					<td>UINT 8</td>
+					<td>0-100%</td>
+					<td></td>
+				<tr>
+					<td>4-7</td>
+					<td></td>
+					<td>Holdover Duration</td>
+					<td>UINT 32</td>
+					<td></td>
+					<td>seconds</td>
+				</tr>
+				<tr>
+					<td valign="top">8-9</td>
+					<td><table><tr><td>0</td></tr><tr><td>1</td></tr><tr><td>2</td></tr><tr><td>3</tr><tr><td>4</tr></table></td>
+					<td valign="top">Critical Alarms</td>
+					<td valign="top">UINT16</td>
+					<td valign="top">Bit field</td>
+					<td valign="top"><table><tr><td>ROM checksum error</td></tr><tr><td>RAM check has failed</td></tr><tr><td>Power supply failure</td></tr><tr><td>FPGA check has failed</td></tr><tr><td>Oscillator control voltage at rail</td></tr></table></td>
+				</tr>
+				<tr>
+					<td valign="top">10-11</td>
+					<td valign="top"><table><tr><td>0</td></tr><tr><td>1</td></tr><tr><td>2</td></tr><tr><td>3</tr><tr><td>4</tr><tr><td>5</td></tr><tr><td>6</td></tr></table></td>
+					<td valign="top">Minor Alarms</td>
+					<td valign="top">UINT16</td>
+					<td valign="top">Bit field</td>
+					<td valign="top"><table><tr><td>Normal</td></tr><tr><td>Power-Up</td></tr><tr><td>Auto Holdover</td></tr><tr><td>Manual Holdover</tr><tr><td>Recovery</tr><tr><td>Not Used</td></tr><tr><td>Disciplining disabled</td></tr></table></td>
+				</tr>
+				<tr>
+					<td valign="top">12</td>
+					<td></td>
+					<td valign="top">GPS Decoding Status</td>
+					<td valign="top">UINT8</td>
+					<td valign="top"><table><tr><td>0</td></tr><tr><td>1</td></tr><tr><td>3</td></tr><tr><td>8</tr><tr><td>9</tr><tr><td>0x0A</td></tr><tr><td>0x0B</td></tr><tr><td>0x0C</td></tr><tr><td>0x10</tr></table></td>
+					<td valign="top"><table><tr><td>Doing fixes</td></tr><tr><td>Don t have GPS time</td></tr><tr><td>PDOP is too high</td></tr><tr><td>No usable sats</tr><tr><td>Only 1 usable sat</tr><tr><td>Only 2 usable sats</td></tr><tr><td>Only 3 usable sats</td></tr><tr><td>The chosen sat is unusable</td></tr><tr><td>TRAIM rejected the fix</tr></table></td>
+				</tr>
+				<tr>
+					<td valign="top">13</td>
+					<td></td>
+					<td valign="top">Disciplining Activity</td>
+					<td valign="top">UINT8</td>
+					<td><table><tr><td>0</td></tr><tr><td>1</td></tr><tr><td>2</td></tr><tr><td>3</tr><tr><td>4</tr><tr><td>5</td></tr><tr><td>6</td></tr><tr><td>7</td></tr><tr><td>8</tr></table></td>
+					<td><table><tr><td>Phase locking</td></tr><tr><td>Oscillator warming up</td></tr><tr><td>Frequency locking</td></tr><tr><td>Placing PPS</tr><tr><td>Initializing loop filter</tr><tr><td>Compensating OCXO</td></tr><tr><td>Inactive</td></tr><tr><td>Not used</td></tr><tr><td>Recovery mode</tr></table></td>
+				</tr>
+				<tr>
+					<td>14</td>
+					<td></td>
+					<td>Spare Status 1</td>
+					<td>UINT8</td>
+					<td>0</td>
+					<td></td>
+				</tr>
+				<tr>
+					<td>15</td>
+					<td></td>
+					<td>Spare Status 2</td>
+					<td>UINT8</td>
+					<td>0</td>
+					<td></td>
+				</tr>
+				<tr>
+					<td>16-19</td>
+					<td></td>
+					<td>PPS Offset</td>
+					<td>Single</td>
+					<td></td>
+					<td>Estimate of UTC/GPS offset (ns)</td>
+				</tr>
+				<tr>
+				        <td>20-23</td>
+					<td></td>
+					<td>10 MHz Offset</td>
+					<td>Single</td>
+					<td></td>
+					<td>Estimate of UTC/GPS offset (ns)</td>
+				</tr>
+				<tr>
+				        <td>24-27</td>
+					<td></td>
+					<td>DAC Value</td>
+					<td>UINT32</td>
+					<td></td>
+					<td>Offset binary (0x00 - 0xFFFFF)</td>
+				</tr>
+				<tr>
+				        <td>28-31</td>
+					<td></td>
+					<td>DAC Voltage</td>
+					<td>Single</td>
+					<td></td>
+					<td>Volts</td>
+				</tr>
+				<tr>
+				        <td>32-35</td>
+					<td></td>
+					<td>Temperature</td>
+					<td>Single</td>
+					<td></td>
+					<td>degrees C</td>
+				</tr>
+				<tr>
+				        <td>36-43</td>
+					<td></td>
+					<td>Latitude</td>
+					<td>Double</td>
+					<td></td>
+					<td>radians</td>
+				</tr>
+				<tr>
+				        <td>44-51</td>
+					<td></td>
+					<td>Longitude</td>
+					<td>Double</td>
+					<td></td>
+					<td>radians</td>
+				</tr>
+				<tr>
+				        <td>52-59</td>
+					<td></td>
+					<td>Altitude</td>
+					<td>Double</td>
+					<td></td>
+					<td>Meters</td>
+				</tr>
+				<tr>
+				        <td>60-67</td>
+					<td></td>
+					<td>Spare</td>
+					<td></td>
+					<td></td>
+					<td>For Future Expantion</td>
+				</tr>
+			</table>
+		</center>
 		<h2><a name="Pinouts"></a><font size="+1">Pinouts</font></h2>
 		<a href="#Connection">The following connections are required when connecting Palisade with a host:</a><br>&nbsp;<br>&nbsp;
 		<center>
@@ -762,12 +1072,19 @@
 				</tr>
 			</table>
 		</center>
+
+		<b><h3>Notes on the Thunderbolt Receiver's Firmware</h3></b>
+
+		The support for Thunderbolt Receiver in the palisade driver doesn't support (for now) event-polling, the reason is that the Thunderbolt receiver the patch is written for doesn't support time-on-request, so you just have to sit there and wait for the time to arrive with the PPS. We tried to contact Trimble because there's presumably a firmware update that support it, but we didn't have much luck.
+Here is a link explaining the situation:<p>
+<a href="https://lists.ntp.isc.org/pipermail/hackers/2006-April/002216.html">https://lists.ntp.isc.org/pipermail/hackers/2006-April/002216.html
 		<p></p>
 		<hr>
 		<p>Questions or Comments:<br>
 			<a href="mailto:sven_dietrich@trimble.com">Sven Dietrich</a><br>
 			<a href="http://www.trimble.com/">Trimble Navigation Ltd.</a></p>
-		<p>(last updated July 29, 1999)</p>
+			<a href="mailto:fernandoph@iar.unlp.edu.ar">Fernando P. Hauscarriaga</a><br>
+		<p>(last updated January 15, 2007)</p>
 		<hr>
 		<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
 		;

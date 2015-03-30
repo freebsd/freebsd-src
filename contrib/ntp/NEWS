@@ -1,3 +1,507 @@
+---
+NTP 4.2.8p1 (Harlan Stenn <stenn@ntp.org>, 2015/02/04) 
+
+Focus: Security and Bug fixes, enhancements.
+
+Severity: HIGH
+ 
+In addition to bug fixes and enhancements, this release fixes the
+following high-severity vulnerabilities:
+
+* vallen is not validated in several places in ntp_crypto.c, leading
+  to a potential information leak or possibly a crash
+
+    References: Sec 2671 / CVE-2014-9297 / VU#852879
+    Affects: All NTP4 releases before 4.2.8p1 that are running autokey.
+    CVSS: (AV:N/AC:L/Au:N/C:P/I:P/A:P) Base Score: 7.5
+    Date Resolved: Stable (4.2.8p1) 04 Feb 2015
+    Summary: The vallen packet value is not validated in several code
+             paths in ntp_crypto.c which can lead to information leakage
+	     or perhaps a crash of the ntpd process.
+    Mitigation - any of:
+	Upgrade to 4.2.8p1, or later, from the NTP Project Download Page
+		or the NTP Public Services Project Download Page.
+	Disable Autokey Authentication by removing, or commenting out,
+		all configuration directives beginning with the "crypto"
+		keyword in your ntp.conf file. 
+    Credit: This vulnerability was discovered by Stephen Roettger of the
+    	Google Security Team, with additional cases found by Sebastian
+	Krahmer of the SUSE Security Team and Harlan Stenn of Network
+	Time Foundation. 
+
+* ::1 can be spoofed on some OSes, so ACLs based on IPv6 ::1 addresses
+  can be bypassed.
+
+    References: Sec 2672 / CVE-2014-9298 / VU#852879
+    Affects: All NTP4 releases before 4.2.8p1, under at least some
+	versions of MacOS and Linux. *BSD has not been seen to be vulnerable.
+    CVSS: (AV:N/AC:L/Au:N/C:P/I:P/A:C) Base Score: 9
+    Date Resolved: Stable (4.2.8p1) 04 Feb 2014
+    Summary: While available kernels will prevent 127.0.0.1 addresses
+	from "appearing" on non-localhost IPv4 interfaces, some kernels
+	do not offer the same protection for ::1 source addresses on
+	IPv6 interfaces. Since NTP's access control is based on source
+	address and localhost addresses generally have no restrictions,
+	an attacker can send malicious control and configuration packets
+	by spoofing ::1 addresses from the outside. Note Well: This is
+	not really a bug in NTP, it's a problem with some OSes. If you
+	have one of these OSes where ::1 can be spoofed, ALL ::1 -based
+	ACL restrictions on any application can be bypassed!
+    Mitigation:
+        Upgrade to 4.2.8p1, or later, from the NTP Project Download Page
+	or the NTP Public Services Project Download Page
+        Install firewall rules to block packets claiming to come from
+	::1 from inappropriate network interfaces. 
+    Credit: This vulnerability was discovered by Stephen Roettger of
+	the Google Security Team. 
+
+Additionally, over 30 bugfixes and improvements were made to the codebase.
+See the ChangeLog for more information.
+
+---
+NTP 4.2.8 (Harlan Stenn <stenn@ntp.org>, 2014/12/18) 
+ 
+Focus: Security and Bug fixes, enhancements.
+ 
+Severity: HIGH
+ 
+In addition to bug fixes and enhancements, this release fixes the
+following high-severity vulnerabilities:
+
+************************** vv NOTE WELL vv *****************************
+
+The vulnerabilities listed below can be significantly mitigated by
+following the BCP of putting
+
+ restrict default ... noquery
+
+in the ntp.conf file.  With the exception of:
+
+   receive(): missing return on error
+   References: Sec 2670 / CVE-2014-9296 / VU#852879
+
+below (which is a limited-risk vulnerability), none of the recent
+vulnerabilities listed below can be exploited if the source IP is
+restricted from sending a 'query'-class packet by your ntp.conf file.
+
+************************** ^^ NOTE WELL ^^ *****************************
+
+* Weak default key in config_auth().
+
+  References: [Sec 2665] / CVE-2014-9293 / VU#852879
+  CVSS: (AV:N/AC:L/Au:M/C:P/I:P/A:C) Base Score: 7.3
+  Vulnerable Versions: all releases prior to 4.2.7p11
+  Date Resolved: 28 Jan 2010
+
+  Summary: If no 'auth' key is set in the configuration file, ntpd
+	would generate a random key on the fly.  There were two
+	problems with this: 1) the generated key was 31 bits in size,
+	and 2) it used the (now weak) ntp_random() function, which was
+	seeded with a 32-bit value and could only provide 32 bits of
+	entropy.  This was sufficient back in the late 1990s when the
+	code was written.  Not today.
+
+  Mitigation - any of:
+	- Upgrade to 4.2.7p11 or later.
+	- Follow BCP and put 'restrict ... noquery' in your ntp.conf file.
+
+  Credit: This vulnerability was noticed in ntp-4.2.6 by Neel Mehta
+  	of the Google Security Team.
+
+* Non-cryptographic random number generator with weak seed used by
+  ntp-keygen to generate symmetric keys.
+
+  References: [Sec 2666] / CVE-2014-9294 / VU#852879
+  CVSS: (AV:N/AC:L/Au:M/C:P/I:P/A:C) Base Score: 7.3
+  Vulnerable Versions: All NTP4 releases before 4.2.7p230
+  Date Resolved: Dev (4.2.7p230) 01 Nov 2011
+
+  Summary: Prior to ntp-4.2.7p230 ntp-keygen used a weak seed to
+  	prepare a random number generator that was of good quality back
+	in the late 1990s. The random numbers produced was then used to
+	generate symmetric keys. In ntp-4.2.8 we use a current-technology
+	cryptographic random number generator, either RAND_bytes from
+	OpenSSL, or arc4random(). 
+
+  Mitigation - any of:
+  	- Upgrade to 4.2.7p230 or later.
+	- Follow BCP and put 'restrict ... noquery' in your ntp.conf file.
+
+  Credit:  This vulnerability was discovered in ntp-4.2.6 by
+  	Stephen Roettger of the Google Security Team.
+
+* Buffer overflow in crypto_recv()
+
+  References: Sec 2667 / CVE-2014-9295 / VU#852879
+  CVSS: (AV:N/AC:L/Au:N/C:P/I:P/A:P) Base Score: 7.5
+  Versions: All releases before 4.2.8
+  Date Resolved: Stable (4.2.8) 18 Dec 2014
+
+  Summary: When Autokey Authentication is enabled (i.e. the ntp.conf
+  	file contains a 'crypto pw ...' directive) a remote attacker
+	can send a carefully crafted packet that can overflow a stack
+	buffer and potentially allow malicious code to be executed
+	with the privilege level of the ntpd process.
+
+  Mitigation - any of:
+  	- Upgrade to 4.2.8, or later, or
+	- Disable Autokey Authentication by removing, or commenting out,
+	  all configuration directives beginning with the crypto keyword
+	  in your ntp.conf file. 
+
+  Credit: This vulnerability was discovered by Stephen Roettger of the
+  	Google Security Team. 
+
+* Buffer overflow in ctl_putdata()
+
+  References: Sec 2668 / CVE-2014-9295 / VU#852879
+  CVSS: (AV:N/AC:L/Au:N/C:P/I:P/A:P) Base Score: 7.5
+  Versions: All NTP4 releases before 4.2.8
+  Date Resolved: Stable (4.2.8) 18 Dec 2014
+
+  Summary: A remote attacker can send a carefully crafted packet that
+  	can overflow a stack buffer and potentially allow malicious
+	code to be executed with the privilege level of the ntpd process.
+
+  Mitigation - any of:
+  	- Upgrade to 4.2.8, or later.
+	- Follow BCP and put 'restrict ... noquery' in your ntp.conf file.
+
+  Credit: This vulnerability was discovered by Stephen Roettger of the
+  	Google Security Team. 
+
+* Buffer overflow in configure()
+
+  References: Sec 2669 / CVE-2014-9295 / VU#852879
+  CVSS: (AV:N/AC:L/Au:N/C:P/I:P/A:P) Base Score: 7.5
+  Versions: All NTP4 releases before 4.2.8
+  Date Resolved: Stable (4.2.8) 18 Dec 2014
+
+  Summary: A remote attacker can send a carefully crafted packet that
+	can overflow a stack buffer and potentially allow malicious
+	code to be executed with the privilege level of the ntpd process.
+
+  Mitigation - any of:
+  	- Upgrade to 4.2.8, or later.
+	- Follow BCP and put 'restrict ... noquery' in your ntp.conf file.
+
+  Credit: This vulnerability was discovered by Stephen Roettger of the
+	Google Security Team. 
+
+* receive(): missing return on error
+
+  References: Sec 2670 / CVE-2014-9296 / VU#852879
+  CVSS: (AV:N/AC:L/Au:N/C:N/I:N/A:P) Base Score: 5.0
+  Versions: All NTP4 releases before 4.2.8
+  Date Resolved: Stable (4.2.8) 18 Dec 2014
+
+  Summary: Code in ntp_proto.c:receive() was missing a 'return;' in
+  	the code path where an error was detected, which meant
+	processing did not stop when a specific rare error occurred.
+	We haven't found a way for this bug to affect system integrity.
+	If there is no way to affect system integrity the base CVSS
+	score for this bug is 0. If there is one avenue through which
+	system integrity can be partially affected, the base score
+	becomes a 5. If system integrity can be partially affected
+	via all three integrity metrics, the CVSS base score become 7.5.
+
+  Mitigation - any of:
+        - Upgrade to 4.2.8, or later,
+        - Remove or comment out all configuration directives
+	  beginning with the crypto keyword in your ntp.conf file. 
+
+  Credit: This vulnerability was discovered by Stephen Roettger of the
+  	Google Security Team. 
+
+See http://support.ntp.org/security for more information.
+
+New features / changes in this release:
+
+Important Changes
+
+* Internal NTP Era counters
+
+The internal counters that track the "era" (range of years) we are in
+rolls over every 136 years'.  The current "era" started at the stroke of
+midnight on 1 Jan 1900, and ends just before the stroke of midnight on
+1 Jan 2036.
+In the past, we have used the "midpoint" of the  range to decide which
+era we were in.  Given the longevity of some products, it became clear
+that it would be more functional to "look back" less, and "look forward"
+more.  We now compile a timestamp into the ntpd executable and when we
+get a timestamp we us the "built-on" to tell us what era we are in.
+This check "looks back" 10 years, and "looks forward" 126 years.
+
+* ntpdc responses disabled by default
+
+Dave Hart writes:
+
+For a long time, ntpq and its mostly text-based mode 6 (control) 
+protocol have been preferred over ntpdc and its mode 7 (private 
+request) protocol for runtime queries and configuration.  There has 
+been a goal of deprecating ntpdc, previously held back by numerous 
+capabilities exposed by ntpdc with no ntpq equivalent.  I have been 
+adding commands to ntpq to cover these cases, and I believe I've 
+covered them all, though I've not compared command-by-command 
+recently. 
+
+As I've said previously, the binary mode 7 protocol involves a lot of 
+hand-rolled structure layout and byte-swapping code in both ntpd and 
+ntpdc which is hard to get right.  As ntpd grows and changes, the 
+changes are difficult to expose via ntpdc while maintaining forward 
+and backward compatibility between ntpdc and ntpd.  In contrast, 
+ntpq's text-based, label=value approach involves more code reuse and 
+allows compatible changes without extra work in most cases. 
+
+Mode 7 has always been defined as vendor/implementation-specific while 
+mode 6 is described in RFC 1305 and intended to be open to interoperate 
+with other implementations.  There is an early draft of an updated 
+mode 6 description that likely will join the other NTPv4 RFCs 
+eventually. (http://tools.ietf.org/html/draft-odonoghue-ntpv4-control-01)
+
+For these reasons, ntpd 4.2.7p230 by default disables processing of 
+ntpdc queries, reducing ntpd's attack surface and functionally 
+deprecating ntpdc.  If you are in the habit of using ntpdc for certain 
+operations, please try the ntpq equivalent.  If there's no equivalent, 
+please open a bug report at http://bugs.ntp.org./
+
+In addition to the above, over 1100 issues have been resolved between
+the 4.2.6 branch and 4.2.8.  The ChangeLog file in the distribution
+lists these.
+
+--- 
+NTP 4.2.6p5 (Harlan Stenn <stenn@ntp.org>, 2011/12/24) 
+ 
+Focus: Bug fixes
+ 
+Severity: Medium 
+ 
+This is a recommended upgrade. 
+
+This release updates sys_rootdisp and sys_jitter calculations to match the
+RFC specification, fixes a potential IPv6 address matching error for the
+"nic" and "interface" configuration directives, suppresses the creation of
+extraneous ephemeral associations for certain broadcastclient and
+multicastclient configurations, cleans up some ntpq display issues, and
+includes improvements to orphan mode, minor bugs fixes and code clean-ups.
+
+New features / changes in this release:
+
+ntpd
+
+ * Updated "nic" and "interface" IPv6 address handling to prevent 
+   mismatches with localhost [::1] and wildcard [::] which resulted from
+   using the address/prefix format (e.g. fe80::/64)
+ * Fix orphan mode stratum incorrectly counting to infinity
+ * Orphan parent selection metric updated to includes missing ntohl()
+ * Non-printable stratum 16 refid no longer sent to ntp
+ * Duplicate ephemeral associations suppressed for broadcastclient and
+   multicastclient without broadcastdelay
+ * Exclude undetermined sys_refid from use in loopback TEST12
+ * Exclude MODE_SERVER responses from KoD rate limiting
+ * Include root delay in clock_update() sys_rootdisp calculations
+ * get_systime() updated to exclude sys_residual offset (which only
+   affected bits "below" sys_tick, the precision threshold)
+ * sys.peer jitter weighting corrected in sys_jitter calculation
+
+ntpq
+
+ * -n option extended to include the billboard "server" column
+ * IPv6 addresses in the local column truncated to prevent overruns
+
+--- 
+NTP 4.2.6p4 (Harlan Stenn <stenn@ntp.org>, 2011/09/22) 
+ 
+Focus: Bug fixes and portability improvements 
+ 
+Severity: Medium 
+ 
+This is a recommended upgrade. 
+ 
+This release includes build infrastructure updates, code 
+clean-ups, minor bug fixes, fixes for a number of minor 
+ref-clock issues, and documentation revisions. 
+ 
+Portability improvements affect AIX, HP-UX, Linux, OS X and 64-bit time_t. 
+ 
+New features / changes in this release: 
+ 
+Build system 
+ 
+* Fix checking for struct rtattr 
+* Update config.guess and config.sub for AIX 
+* Upgrade required version of autogen and libopts for building 
+  from our source code repository 
+ 
+ntpd 
+ 
+* Back-ported several fixes for Coverity warnings from ntp-dev 
+* Fix a rare boundary condition in UNLINK_EXPR_SLIST() 
+* Allow "logconfig =allall" configuration directive 
+* Bind tentative IPv6 addresses on Linux 
+* Correct WWVB/Spectracom driver to timestamp CR instead of LF 
+* Improved tally bit handling to prevent incorrect ntpq peer status reports 
+* Exclude the Undisciplined Local Clock and ACTS drivers from the initial 
+  candidate list unless they are designated a "prefer peer" 
+* Prevent the consideration of Undisciplined Local Clock or ACTS drivers for 
+  selection during the 'tos orphanwait' period 
+* Prefer an Orphan Mode Parent over the Undisciplined Local Clock or ACTS 
+  drivers 
+* Improved support of the Parse Refclock trusttime flag in Meinberg mode 
+* Back-port utility routines from ntp-dev: mprintf(), emalloc_zero() 
+* Added the NTPD_TICKADJ_PPM environment variable for specifying baseline 
+  clock slew on Microsoft Windows 
+* Code cleanup in libntpq 
+ 
+ntpdc 
+ 
+* Fix timerstats reporting 
+ 
+ntpdate 
+ 
+* Reduce time required to set clock 
+* Allow a timeout greater than 2 seconds 
+ 
+sntp 
+ 
+* Backward incompatible command-line option change: 
+  -l/--filelog changed -l/--logfile (to be consistent with ntpd) 
+ 
+Documentation 
+ 
+* Update html2man. Fix some tags in the .html files 
+* Distribute ntp-wait.html 
+
+---
+NTP 4.2.6p3 (Harlan Stenn <stenn@ntp.org>, 2011/01/03)
+
+Focus: Bug fixes and portability improvements
+
+Severity: Medium
+
+This is a recommended upgrade.
+
+This release includes build infrastructure updates, code
+clean-ups, minor bug fixes, fixes for a number of minor
+ref-clock issues, and documentation revisions.
+
+Portability improvements in this release affect AIX, Atari FreeMiNT,
+FreeBSD4, Linux and Microsoft Windows.
+
+New features / changes in this release:
+
+Build system
+* Use lsb_release to get information about Linux distributions.
+* 'test' is in /usr/bin (instead of /bin) on some systems.
+* Basic sanity checks for the ChangeLog file.
+* Source certain build files with ./filename for systems without . in PATH.
+* IRIX portability fix.
+* Use a single copy of the "libopts" code.
+* autogen/libopts upgrade.
+* configure.ac m4 quoting cleanup.
+
+ntpd
+* Do not bind to IN6_IFF_ANYCAST addresses.
+* Log the reason for exiting under Windows.
+* Multicast fixes for Windows.
+* Interpolation fixes for Windows.
+* IPv4 and IPv6 Multicast fixes.
+* Manycast solicitation fixes and general repairs.
+* JJY refclock cleanup.
+* NMEA refclock improvements.
+* Oncore debug message cleanup.
+* Palisade refclock now builds under Linux.
+* Give RAWDCF more baud rates.
+* Support Truetime Satellite clocks under Windows.
+* Support Arbiter 1093C Satellite clocks under Windows.
+* Make sure that the "filegen" configuration command defaults to "enable".
+* Range-check the status codes (plus other cleanup) in the RIPE-NCC driver.
+* Prohibit 'includefile' directive in remote configuration command.
+* Fix 'nic' interface bindings.
+* Fix the way we link with openssl if openssl is installed in the base
+  system.
+
+ntp-keygen
+* Fix -V coredump.
+* OpenSSL version display cleanup.
+
+ntpdc
+* Many counters should be treated as unsigned.
+
+ntpdate
+* Do not ignore replies with equal receive and transmit timestamps.
+
+ntpq
+* libntpq warning cleanup.
+
+ntpsnmpd
+* Correct SNMP type for "precision" and "resolution".
+* Update the MIB from the draft version to RFC-5907.
+
+sntp
+* Display timezone offset when showing time for sntp in the local
+  timezone.
+* Pay proper attention to RATE KoD packets.
+* Fix a miscalculation of the offset.
+* Properly parse empty lines in the key file.
+* Logging cleanup.
+* Use tv_usec correctly in set_time().
+* Documentation cleanup.
+
+---
+NTP 4.2.6p2 (Harlan Stenn <stenn@ntp.org>, 2010/07/08)
+
+Focus: Bug fixes and portability improvements
+
+Severity: Medium
+
+This is a recommended upgrade.
+
+This release includes build infrastructure updates, code
+clean-ups, minor bug fixes, fixes for a number of minor
+ref-clock issues, improved KOD handling, OpenSSL related
+updates and documentation revisions.
+
+Portability improvements in this release affect Irix, Linux,
+Mac OS, Microsoft Windows, OpenBSD and QNX6
+
+New features / changes in this release:
+
+ntpd
+* Range syntax for the trustedkey configuration directive
+* Unified IPv4 and IPv6 restrict lists
+
+ntpdate
+* Rate limiting and KOD handling
+
+ntpsnmpd
+* default connection to net-snmpd via a unix-domain socket
+* command-line 'socket name' option
+
+ntpq / ntpdc
+* support for the "passwd ..." syntax
+* key-type specific password prompts
+
+sntp
+* MD5 authentication of an ntpd
+* Broadcast and crypto
+* OpenSSL support
+
+---
+NTP 4.2.6p1 (Harlan Stenn <stenn@ntp.org>, 2010/04/09)
+
+Focus: Bug fixes, portability fixes, and documentation improvements
+
+Severity: Medium
+
+This is a recommended upgrade.
+
+---
+NTP 4.2.6 (Harlan Stenn <stenn@ntp.org>, 2009/12/08)
+
+Focus: enhancements and bug fixes.
+
+---
 NTP 4.2.4p8 (Harlan Stenn <stenn@ntp.org>, 2009/12/08)
 
 Focus: Security Fixes
@@ -30,6 +534,14 @@ This release fixes the following high-severity vulnerability:
   Vinokurov of Alcatel-Lucent.
 
 THIS IS A STRONGLY RECOMMENDED UPGRADE.
+
+---
+ntpd now syncs to refclocks right away.
+
+Backward-Incompatible changes:
+
+ntpd no longer accepts '-v name' or '-V name' to define internal variables.
+Use '--var name' or '--dvar name' instead. (Bug 817)
 
 ---
 NTP 4.2.4p7 (Harlan Stenn <stenn@ntp.org>, 2009/05/04)

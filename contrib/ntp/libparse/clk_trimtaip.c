@@ -51,7 +51,7 @@
 #include <stdio.h>
 #else
 #include "sys/parsestreams.h"
-extern void printf P((const char *, ...));
+extern int printf (const char *, ...);
 #endif
 
 /*	0000000000111111111122222222223333333	/ char
@@ -78,8 +78,8 @@ extern void printf P((const char *, ...));
   0
 };
 
-static unsigned long cvt_trimtaip P((unsigned char *, int, struct format *, clocktime_t *, void *));
-static unsigned long inp_trimtaip P((parse_t *, unsigned int, timestamp_t *));
+static unsigned long cvt_trimtaip (unsigned char *, int, struct format *, clocktime_t *, void *);
+static unsigned long inp_trimtaip (parse_t *, unsigned int, timestamp_t *);
 
 clockformat_t clock_trimtaip =
 {
