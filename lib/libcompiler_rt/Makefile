@@ -37,6 +37,7 @@ SRCF=	absvdi2 \
 	clzti2 \
 	cmpdi2 \
 	cmpti2 \
+	comparetf2 \
 	ctzdi2 \
 	ctzsi2 \
 	ctzti2 \
@@ -50,6 +51,8 @@ SRCF=	absvdi2 \
 	divxc3 \
 	enable_execute_stack \
 	eprintf \
+	extenddftf2 \
+	extendsftf2 \
 	ffsdi2 \
 	ffsti2 \
 	fixdfdi \
@@ -76,6 +79,7 @@ SRCF=	absvdi2 \
 	floatdidf \
 	floatdisf \
 	floatdixf \
+	floatsitf \
 	floattidf \
 	floattisf \
 	floattixf \
@@ -127,6 +131,8 @@ SRCF=	absvdi2 \
 	subvsi3 \
 	subvti3 \
 	trampoline_setup \
+	trunctfdf2 \
+	trunctfsf2 \
 	ucmpdi2 \
 	ucmpti2 \
 	udivdi3 \
