@@ -55,12 +55,13 @@ else
 	removeinet6=0
 fi
 
-$dtrace -c "/sbin/ping -A inet6 $local 3" -qs /dev/stdin <<EOF | sort -n
+$dtrace -c "/sbin/ping6 -q -c 1 -X 3 $local" -qs /dev/stdin <<EOF | sort -n | \
+    grep -v -e '^round-trip ' -e '^--- '
 ip:::send
 /args[2]->ip_saddr == "$local" && args[2]->ip_daddr == "$local" &&
     args[5]->ipv6_nexthdr == IPPROTO_ICMPV6/
 {
-	printf("1 ip:::send    (");
+	printf("2 ip:::send    (");
 	printf("args[2]: %d %d, ", args[2]->ip_ver, args[2]->ip_plength);
 	printf("args[5]: %d %d %d)\n",
 	    args[5]->ipv6_ver, args[5]->ipv6_tclass, args[5]->ipv6_plen);
@@ -70,7 +71,7 @@ ip:::receive
 /args[2]->ip_saddr == "$local" && args[2]->ip_daddr == "$local" &&
     args[5]->ipv6_nexthdr == IPPROTO_ICMPV6/
 {
-	printf("2 ip:::receive (");
+	printf("3 ip:::receive (");
 	printf("args[2]: %d %d, ", args[2]->ip_ver, args[2]->ip_plength);
 	printf("args[5]: %d %d %d)\n",
 	    args[5]->ipv6_ver, args[5]->ipv6_tclass, args[5]->ipv6_plen);
