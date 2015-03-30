@@ -483,7 +483,6 @@ vop_getpages_async {
 	IN vm_page_t *m;
 	IN int count;
 	IN int reqpage;
-	IN vm_ooffset_t offset;
 	IN vop_getpages_iodone_t *iodone;
 	IN void *arg;
 };
