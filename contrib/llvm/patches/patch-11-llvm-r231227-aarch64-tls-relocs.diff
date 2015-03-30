@@ -1,0 +1,811 @@
+Pull in r231227 from upstream llvm trunk (by Kristof Beyls):
+
+  Fix PR22408 - LLVM producing AArch64 TLS relocations that GNU linkers
+  cannot handle yet.
+
+  As is described at http://llvm.org/bugs/show_bug.cgi?id=22408, the
+  GNU linkers ld.bfd and ld.gold currently only support a subset of the
+  whole range of AArch64 ELF TLS relocations. Furthermore, they assume
+  that some of the code sequences to access thread-local variables are
+  produced in a very specific sequence. When the sequence is not as the
+  linker expects, it can silently mis-relaxe/mis-optimize the
+  instructions.
+  Even if that wouldn't be the case, it's good to produce the exact
+  sequence, as that ensures that linkers can perform optimizing
+  relaxations.
+
+  This patch:
+
+  * implements support for 16MiB TLS area size instead of 4GiB TLS area
+    size. Ideally clang would grow an -mtls-size option to allow
+    support for both, but that's not part of this patch.
+  * by default doesn't produce local dynamic access patterns, as even
+    modern ld.bfd and ld.gold linkers do not support the associated
+    relocations. An option (-aarch64-elf-ldtls-generation) is added to
+    enable generation of local dynamic code sequence, but is off by
+    default.
+  * makes sure that the exact expected code sequence for local dynamic
+    and general dynamic accesses is produced, by making use of a new
+    pseudo instruction. The patch also removes two
+    (AArch64ISD::TLSDESC_BLR, AArch64ISD::TLSDESC_CALL) pre-existing
+    AArch64-specific pseudo SDNode instructions that are superseded by
+    the new one (TLSDESC_CALLSEQ).
+
+Introduced here: https://svnweb.freebsd.org/changeset/base/280865
+
+Index: lib/Target/AArch64/AArch64AsmPrinter.cpp
+===================================================================
+--- lib/Target/AArch64/AArch64AsmPrinter.cpp
++++ lib/Target/AArch64/AArch64AsmPrinter.cpp
+@@ -12,6 +12,8 @@
+ //
+ //===----------------------------------------------------------------------===//
+ 
++#include "MCTargetDesc/AArch64AddressingModes.h"
++#include "MCTargetDesc/AArch64MCExpr.h"
+ #include "AArch64.h"
+ #include "AArch64MCInstLower.h"
+ #include "AArch64MachineFunctionInfo.h"
+@@ -494,12 +496,47 @@ void AArch64AsmPrinter::EmitInstruction(const Mach
+     EmitToStreamer(OutStreamer, TmpInst);
+     return;
+   }
+-  case AArch64::TLSDESC_BLR: {
+-    MCOperand Callee, Sym;
+-    MCInstLowering.lowerOperand(MI->getOperand(0), Callee);
+-    MCInstLowering.lowerOperand(MI->getOperand(1), Sym);
++  case AArch64::TLSDESC_CALLSEQ: {
++    /// lower this to:
++    ///    adrp  x0, :tlsdesc:var
++    ///    ldr   x1, [x0, #:tlsdesc_lo12:var]
++    ///    add   x0, x0, #:tlsdesc_lo12:var
++    ///    .tlsdesccall var
++    ///    blr   x1
++    ///    (TPIDR_EL0 offset now in x0)
++    const MachineOperand &MO_Sym = MI->getOperand(0);
++    MachineOperand MO_TLSDESC_LO12(MO_Sym), MO_TLSDESC(MO_Sym);
++    MCOperand Sym, SymTLSDescLo12, SymTLSDesc;
++    MO_TLSDESC_LO12.setTargetFlags(AArch64II::MO_TLS | AArch64II::MO_PAGEOFF |
++                                   AArch64II::MO_NC);
++    MO_TLSDESC.setTargetFlags(AArch64II::MO_TLS | AArch64II::MO_PAGE);
++    MCInstLowering.lowerOperand(MO_Sym, Sym);
++    MCInstLowering.lowerOperand(MO_TLSDESC_LO12, SymTLSDescLo12);
++    MCInstLowering.lowerOperand(MO_TLSDESC, SymTLSDesc);
+ 
+-    // First emit a relocation-annotation. This expands to no code, but requests
++    MCInst Adrp;
++    Adrp.setOpcode(AArch64::ADRP);
++    Adrp.addOperand(MCOperand::CreateReg(AArch64::X0));
++    Adrp.addOperand(SymTLSDesc);
++    EmitToStreamer(OutStreamer, Adrp);
++
++    MCInst Ldr;
++    Ldr.setOpcode(AArch64::LDRXui);
++    Ldr.addOperand(MCOperand::CreateReg(AArch64::X1));
++    Ldr.addOperand(MCOperand::CreateReg(AArch64::X0));
++    Ldr.addOperand(SymTLSDescLo12);
++    Ldr.addOperand(MCOperand::CreateImm(0));
++    EmitToStreamer(OutStreamer, Ldr);
++
++    MCInst Add;
++    Add.setOpcode(AArch64::ADDXri);
++    Add.addOperand(MCOperand::CreateReg(AArch64::X0));
++    Add.addOperand(MCOperand::CreateReg(AArch64::X0));
++    Add.addOperand(SymTLSDescLo12);
++    Add.addOperand(MCOperand::CreateImm(AArch64_AM::getShiftValue(0)));
++    EmitToStreamer(OutStreamer, Add);
++
++    // Emit a relocation-annotation. This expands to no code, but requests
+     // the following instruction gets an R_AARCH64_TLSDESC_CALL.
+     MCInst TLSDescCall;
+     TLSDescCall.setOpcode(AArch64::TLSDESCCALL);
+@@ -506,12 +543,10 @@ void AArch64AsmPrinter::EmitInstruction(const Mach
+     TLSDescCall.addOperand(Sym);
+     EmitToStreamer(OutStreamer, TLSDescCall);
+ 
+-    // Other than that it's just a normal indirect call to the function loaded
+-    // from the descriptor.
+-    MCInst BLR;
+-    BLR.setOpcode(AArch64::BLR);
+-    BLR.addOperand(Callee);
+-    EmitToStreamer(OutStreamer, BLR);
++    MCInst Blr;
++    Blr.setOpcode(AArch64::BLR);
++    Blr.addOperand(MCOperand::CreateReg(AArch64::X1));
++    EmitToStreamer(OutStreamer, Blr);
+ 
+     return;
+   }
+Index: lib/Target/AArch64/AArch64CleanupLocalDynamicTLSPass.cpp
+===================================================================
+--- lib/Target/AArch64/AArch64CleanupLocalDynamicTLSPass.cpp
++++ lib/Target/AArch64/AArch64CleanupLocalDynamicTLSPass.cpp
+@@ -62,10 +62,10 @@ struct LDTLSCleanup : public MachineFunctionPass {
+     for (MachineBasicBlock::iterator I = BB->begin(), E = BB->end(); I != E;
+          ++I) {
+       switch (I->getOpcode()) {
+-      case AArch64::TLSDESC_BLR:
++      case AArch64::TLSDESC_CALLSEQ:
+         // Make sure it's a local dynamic access.
+-        if (!I->getOperand(1).isSymbol() ||
+-            strcmp(I->getOperand(1).getSymbolName(), "_TLS_MODULE_BASE_"))
++        if (!I->getOperand(0).isSymbol() ||
++            strcmp(I->getOperand(0).getSymbolName(), "_TLS_MODULE_BASE_"))
+           break;
+ 
+         if (TLSBaseAddrReg)
+Index: lib/Target/AArch64/AArch64ISelLowering.cpp
+===================================================================
+--- lib/Target/AArch64/AArch64ISelLowering.cpp
++++ lib/Target/AArch64/AArch64ISelLowering.cpp
+@@ -64,10 +64,18 @@ EnableAArch64ExtrGeneration("aarch64-extr-generati
+ 
+ static cl::opt<bool>
+ EnableAArch64SlrGeneration("aarch64-shift-insert-generation", cl::Hidden,
+-                         cl::desc("Allow AArch64 SLI/SRI formation"),
+-                         cl::init(false));
++                           cl::desc("Allow AArch64 SLI/SRI formation"),
++                           cl::init(false));
+ 
++// FIXME: The necessary dtprel relocations don't seem to be supported
++// well in the GNU bfd and gold linkers at the moment. Therefore, by
++// default, for now, fall back to GeneralDynamic code generation.
++cl::opt<bool> EnableAArch64ELFLocalDynamicTLSGeneration(
++    "aarch64-elf-ldtls-generation", cl::Hidden,
++    cl::desc("Allow AArch64 Local Dynamic TLS code generation"),
++    cl::init(false));
+ 
++
+ AArch64TargetLowering::AArch64TargetLowering(const TargetMachine &TM)
+     : TargetLowering(TM) {
+   Subtarget = &TM.getSubtarget<AArch64Subtarget>();
+@@ -760,7 +768,7 @@ const char *AArch64TargetLowering::getTargetNodeNa
+   case AArch64ISD::CSNEG:             return "AArch64ISD::CSNEG";
+   case AArch64ISD::CSINC:             return "AArch64ISD::CSINC";
+   case AArch64ISD::THREAD_POINTER:    return "AArch64ISD::THREAD_POINTER";
+-  case AArch64ISD::TLSDESC_CALL:      return "AArch64ISD::TLSDESC_CALL";
++  case AArch64ISD::TLSDESC_CALLSEQ:   return "AArch64ISD::TLSDESC_CALLSEQ";
+   case AArch64ISD::ADC:               return "AArch64ISD::ADC";
+   case AArch64ISD::SBC:               return "AArch64ISD::SBC";
+   case AArch64ISD::ADDS:              return "AArch64ISD::ADDS";
+@@ -3049,61 +3057,34 @@ AArch64TargetLowering::LowerDarwinGlobalTLSAddress
+ /// When accessing thread-local variables under either the general-dynamic or
+ /// local-dynamic system, we make a "TLS-descriptor" call. The variable will
+ /// have a descriptor, accessible via a PC-relative ADRP, and whose first entry
+-/// is a function pointer to carry out the resolution. This function takes the
+-/// address of the descriptor in X0 and returns the TPIDR_EL0 offset in X0. All
+-/// other registers (except LR, NZCV) are preserved.
++/// is a function pointer to carry out the resolution.
+ ///
+-/// Thus, the ideal call sequence on AArch64 is:
++/// The sequence is:
++///    adrp  x0, :tlsdesc:var
++///    ldr   x1, [x0, #:tlsdesc_lo12:var]
++///    add   x0, x0, #:tlsdesc_lo12:var
++///    .tlsdesccall var
++///    blr   x1
++///    (TPIDR_EL0 offset now in x0)
+ ///
+-///     adrp x0, :tlsdesc:thread_var
+-///     ldr x8, [x0, :tlsdesc_lo12:thread_var]
+-///     add x0, x0, :tlsdesc_lo12:thread_var
+-///     .tlsdesccall thread_var
+-///     blr x8
+-///     (TPIDR_EL0 offset now in x0).
+-///
+-/// The ".tlsdesccall" directive instructs the assembler to insert a particular
+-/// relocation to help the linker relax this sequence if it turns out to be too
+-/// conservative.
+-///
+-/// FIXME: we currently produce an extra, duplicated, ADRP instruction, but this
+-/// is harmless.
+-SDValue AArch64TargetLowering::LowerELFTLSDescCall(SDValue SymAddr,
+-                                                   SDValue DescAddr, SDLoc DL,
+-                                                   SelectionDAG &DAG) const {
++///  The above sequence must be produced unscheduled, to enable the linker to
++///  optimize/relax this sequence.
++///  Therefore, a pseudo-instruction (TLSDESC_CALLSEQ) is used to represent the
++///  above sequence, and expanded really late in the compilation flow, to ensure
++///  the sequence is produced as per above.
++SDValue AArch64TargetLowering::LowerELFTLSDescCallSeq(SDValue SymAddr, SDLoc DL,
++                                                      SelectionDAG &DAG) const {
+   EVT PtrVT = getPointerTy();
+ 
+-  // The function we need to call is simply the first entry in the GOT for this
+-  // descriptor, load it in preparation.
+-  SDValue Func = DAG.getNode(AArch64ISD::LOADgot, DL, PtrVT, SymAddr);
++  SDValue Chain = DAG.getEntryNode();
++  SDVTList NodeTys = DAG.getVTList(MVT::Other, MVT::Glue);
+ 
+-  // TLS calls preserve all registers except those that absolutely must be
+-  // trashed: X0 (it takes an argument), LR (it's a call) and NZCV (let's not be
+-  // silly).
+-  const TargetRegisterInfo *TRI =
+-      getTargetMachine().getSubtargetImpl()->getRegisterInfo();
+-  const AArch64RegisterInfo *ARI =
+-      static_cast<const AArch64RegisterInfo *>(TRI);
+-  const uint32_t *Mask = ARI->getTLSCallPreservedMask();
+-
+-  // The function takes only one argument: the address of the descriptor itself
+-  // in X0.
+-  SDValue Glue, Chain;
+-  Chain = DAG.getCopyToReg(DAG.getEntryNode(), DL, AArch64::X0, DescAddr, Glue);
+-  Glue = Chain.getValue(1);
+-
+-  // We're now ready to populate the argument list, as with a normal call:
+-  SmallVector<SDValue, 6> Ops;
++  SmallVector<SDValue, 2> Ops;
+   Ops.push_back(Chain);
+-  Ops.push_back(Func);
+   Ops.push_back(SymAddr);
+-  Ops.push_back(DAG.getRegister(AArch64::X0, PtrVT));
+-  Ops.push_back(DAG.getRegisterMask(Mask));
+-  Ops.push_back(Glue);
+ 
+-  SDVTList NodeTys = DAG.getVTList(MVT::Other, MVT::Glue);
+-  Chain = DAG.getNode(AArch64ISD::TLSDESC_CALL, DL, NodeTys, Ops);
+-  Glue = Chain.getValue(1);
++  Chain = DAG.getNode(AArch64ISD::TLSDESC_CALLSEQ, DL, NodeTys, Ops);
++  SDValue Glue = Chain.getValue(1);
+ 
+   return DAG.getCopyFromReg(Chain, DL, AArch64::X0, PtrVT, Glue);
+ }
+@@ -3114,9 +3095,18 @@ AArch64TargetLowering::LowerELFGlobalTLSAddress(SD
+   assert(Subtarget->isTargetELF() && "This function expects an ELF target");
+   assert(getTargetMachine().getCodeModel() == CodeModel::Small &&
+          "ELF TLS only supported in small memory model");
++  // Different choices can be made for the maximum size of the TLS area for a
++  // module. For the small address model, the default TLS size is 16MiB and the
++  // maximum TLS size is 4GiB.
++  // FIXME: add -mtls-size command line option and make it control the 16MiB
++  // vs. 4GiB code sequence generation.
+   const GlobalAddressSDNode *GA = cast<GlobalAddressSDNode>(Op);
+ 
+   TLSModel::Model Model = getTargetMachine().getTLSModel(GA->getGlobal());
++  if (!EnableAArch64ELFLocalDynamicTLSGeneration) {
++    if (Model == TLSModel::LocalDynamic)
++      Model = TLSModel::GeneralDynamic;
++  }
+ 
+   SDValue TPOff;
+   EVT PtrVT = getPointerTy();
+@@ -3127,17 +3117,20 @@ AArch64TargetLowering::LowerELFGlobalTLSAddress(SD
+ 
+   if (Model == TLSModel::LocalExec) {
+     SDValue HiVar = DAG.getTargetGlobalAddress(
+-        GV, DL, PtrVT, 0, AArch64II::MO_TLS | AArch64II::MO_G1);
++        GV, DL, PtrVT, 0, AArch64II::MO_TLS | AArch64II::MO_HI12);
+     SDValue LoVar = DAG.getTargetGlobalAddress(
+         GV, DL, PtrVT, 0,
+-        AArch64II::MO_TLS | AArch64II::MO_G0 | AArch64II::MO_NC);
++        AArch64II::MO_TLS | AArch64II::MO_PAGEOFF | AArch64II::MO_NC);
+ 
+-    TPOff = SDValue(DAG.getMachineNode(AArch64::MOVZXi, DL, PtrVT, HiVar,
+-                                       DAG.getTargetConstant(16, MVT::i32)),
+-                    0);
+-    TPOff = SDValue(DAG.getMachineNode(AArch64::MOVKXi, DL, PtrVT, TPOff, LoVar,
+-                                       DAG.getTargetConstant(0, MVT::i32)),
+-                    0);
++    SDValue TPWithOff_lo =
++        SDValue(DAG.getMachineNode(AArch64::ADDXri, DL, PtrVT, ThreadBase,
++                                   HiVar, DAG.getTargetConstant(0, MVT::i32)),
++                0);
++    SDValue TPWithOff =
++        SDValue(DAG.getMachineNode(AArch64::ADDXri, DL, PtrVT, TPWithOff_lo,
++                                   LoVar, DAG.getTargetConstant(0, MVT::i32)),
++                0);
++    return TPWithOff;
+   } else if (Model == TLSModel::InitialExec) {
+     TPOff = DAG.getTargetGlobalAddress(GV, DL, PtrVT, 0, AArch64II::MO_TLS);
+     TPOff = DAG.getNode(AArch64ISD::LOADgot, DL, PtrVT, TPOff);
+@@ -3152,19 +3145,6 @@ AArch64TargetLowering::LowerELFGlobalTLSAddress(SD
+         DAG.getMachineFunction().getInfo<AArch64FunctionInfo>();
+     MFI->incNumLocalDynamicTLSAccesses();
+ 
+-    // Accesses used in this sequence go via the TLS descriptor which lives in
+-    // the GOT. Prepare an address we can use to handle this.
+-    SDValue HiDesc = DAG.getTargetExternalSymbol(
+-        "_TLS_MODULE_BASE_", PtrVT, AArch64II::MO_TLS | AArch64II::MO_PAGE);
+-    SDValue LoDesc = DAG.getTargetExternalSymbol(
+-        "_TLS_MODULE_BASE_", PtrVT,
+-        AArch64II::MO_TLS | AArch64II::MO_PAGEOFF | AArch64II::MO_NC);
+-
+-    // First argument to the descriptor call is the address of the descriptor
+-    // itself.
+-    SDValue DescAddr = DAG.getNode(AArch64ISD::ADRP, DL, PtrVT, HiDesc);
+-    DescAddr = DAG.getNode(AArch64ISD::ADDlow, DL, PtrVT, DescAddr, LoDesc);
+-
+     // The call needs a relocation too for linker relaxation. It doesn't make
+     // sense to call it MO_PAGE or MO_PAGEOFF though so we need another copy of
+     // the address.
+@@ -3173,40 +3153,23 @@ AArch64TargetLowering::LowerELFGlobalTLSAddress(SD
+ 
+     // Now we can calculate the offset from TPIDR_EL0 to this module's
+     // thread-local area.
+-    TPOff = LowerELFTLSDescCall(SymAddr, DescAddr, DL, DAG);
++    TPOff = LowerELFTLSDescCallSeq(SymAddr, DL, DAG);
+ 
+     // Now use :dtprel_whatever: operations to calculate this variable's offset
+     // in its thread-storage area.
+     SDValue HiVar = DAG.getTargetGlobalAddress(
+-        GV, DL, MVT::i64, 0, AArch64II::MO_TLS | AArch64II::MO_G1);
++        GV, DL, MVT::i64, 0, AArch64II::MO_TLS | AArch64II::MO_HI12);
+     SDValue LoVar = DAG.getTargetGlobalAddress(
+         GV, DL, MVT::i64, 0,
+-        AArch64II::MO_TLS | AArch64II::MO_G0 | AArch64II::MO_NC);
++        AArch64II::MO_TLS | AArch64II::MO_PAGEOFF | AArch64II::MO_NC);
+ 
+-    SDValue DTPOff =
+-        SDValue(DAG.getMachineNode(AArch64::MOVZXi, DL, PtrVT, HiVar,
+-                                   DAG.getTargetConstant(16, MVT::i32)),
+-                0);
+-    DTPOff =
+-        SDValue(DAG.getMachineNode(AArch64::MOVKXi, DL, PtrVT, DTPOff, LoVar,
+-                                   DAG.getTargetConstant(0, MVT::i32)),
+-                0);
+-
+-    TPOff = DAG.getNode(ISD::ADD, DL, PtrVT, TPOff, DTPOff);
++    TPOff = SDValue(DAG.getMachineNode(AArch64::ADDXri, DL, PtrVT, TPOff, HiVar,
++                                       DAG.getTargetConstant(0, MVT::i32)),
++                    0);
++    TPOff = SDValue(DAG.getMachineNode(AArch64::ADDXri, DL, PtrVT, TPOff, LoVar,
++                                       DAG.getTargetConstant(0, MVT::i32)),
++                    0);
+   } else if (Model == TLSModel::GeneralDynamic) {
+-    // Accesses used in this sequence go via the TLS descriptor which lives in
+-    // the GOT. Prepare an address we can use to handle this.
+-    SDValue HiDesc = DAG.getTargetGlobalAddress(
+-        GV, DL, PtrVT, 0, AArch64II::MO_TLS | AArch64II::MO_PAGE);
+-    SDValue LoDesc = DAG.getTargetGlobalAddress(
+-        GV, DL, PtrVT, 0,
+-        AArch64II::MO_TLS | AArch64II::MO_PAGEOFF | AArch64II::MO_NC);
+-
+-    // First argument to the descriptor call is the address of the descriptor
+-    // itself.
+-    SDValue DescAddr = DAG.getNode(AArch64ISD::ADRP, DL, PtrVT, HiDesc);
+-    DescAddr = DAG.getNode(AArch64ISD::ADDlow, DL, PtrVT, DescAddr, LoDesc);
+-
+     // The call needs a relocation too for linker relaxation. It doesn't make
+     // sense to call it MO_PAGE or MO_PAGEOFF though so we need another copy of
+     // the address.
+@@ -3214,7 +3177,7 @@ AArch64TargetLowering::LowerELFGlobalTLSAddress(SD
+         DAG.getTargetGlobalAddress(GV, DL, PtrVT, 0, AArch64II::MO_TLS);
+ 
+     // Finally we can make a call to calculate the offset from tpidr_el0.
+-    TPOff = LowerELFTLSDescCall(SymAddr, DescAddr, DL, DAG);
++    TPOff = LowerELFTLSDescCallSeq(SymAddr, DL, DAG);
+   } else
+     llvm_unreachable("Unsupported ELF TLS access model");
+ 
+Index: lib/Target/AArch64/AArch64ISelLowering.h
+===================================================================
+--- lib/Target/AArch64/AArch64ISelLowering.h
++++ lib/Target/AArch64/AArch64ISelLowering.h
+@@ -29,9 +29,9 @@ enum {
+   WrapperLarge, // 4-instruction MOVZ/MOVK sequence for 64-bit addresses.
+   CALL,         // Function call.
+ 
+-  // Almost the same as a normal call node, except that a TLSDesc relocation is
+-  // needed so the linker can relax it correctly if possible.
+-  TLSDESC_CALL,
++  // Produces the full sequence of instructions for getting the thread pointer
++  // offset of a variable into X0, using the TLSDesc model.
++  TLSDESC_CALLSEQ,
+   ADRP,     // Page address of a TargetGlobalAddress operand.
+   ADDlow,   // Add the low 12 bits of a TargetGlobalAddress operand.
+   LOADgot,  // Load from automatically generated descriptor (e.g. Global
+@@ -399,8 +399,8 @@ class AArch64TargetLowering : public TargetLowerin
+   SDValue LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const;
+   SDValue LowerDarwinGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const;
+   SDValue LowerELFGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const;
+-  SDValue LowerELFTLSDescCall(SDValue SymAddr, SDValue DescAddr, SDLoc DL,
+-                              SelectionDAG &DAG) const;
++  SDValue LowerELFTLSDescCallSeq(SDValue SymAddr, SDLoc DL,
++                                 SelectionDAG &DAG) const;
+   SDValue LowerSETCC(SDValue Op, SelectionDAG &DAG) const;
+   SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
+   SDValue LowerSELECT(SDValue Op, SelectionDAG &DAG) const;
+Index: lib/Target/AArch64/AArch64InstrInfo.td
+===================================================================
+--- lib/Target/AArch64/AArch64InstrInfo.td
++++ lib/Target/AArch64/AArch64InstrInfo.td
+@@ -96,6 +96,19 @@ def SDT_AArch64ITOF  : SDTypeProfile<1, 1, [SDTCis
+ 
+ def SDT_AArch64TLSDescCall : SDTypeProfile<0, -2, [SDTCisPtrTy<0>,
+                                                  SDTCisPtrTy<1>]>;
++
++// Generates the general dynamic sequences, i.e.
++//  adrp  x0, :tlsdesc:var
++//  ldr   x1, [x0, #:tlsdesc_lo12:var]
++//  add   x0, x0, #:tlsdesc_lo12:var
++//  .tlsdesccall var
++//  blr   x1
++
++// (the TPIDR_EL0 offset is put directly in X0, hence no "result" here)
++// number of operands (the variable)
++def SDT_AArch64TLSDescCallSeq : SDTypeProfile<0,1,
++                                          [SDTCisPtrTy<0>]>;
++
+ def SDT_AArch64WrapperLarge : SDTypeProfile<1, 4,
+                                         [SDTCisVT<0, i64>, SDTCisVT<1, i32>,
+                                          SDTCisSameAs<1, 2>, SDTCisSameAs<1, 3>,
+@@ -229,11 +242,12 @@ def AArch64Prefetch        : SDNode<"AArch64ISD::P
+ def AArch64sitof: SDNode<"AArch64ISD::SITOF", SDT_AArch64ITOF>;
+ def AArch64uitof: SDNode<"AArch64ISD::UITOF", SDT_AArch64ITOF>;
+ 
+-def AArch64tlsdesc_call : SDNode<"AArch64ISD::TLSDESC_CALL",
+-                                 SDT_AArch64TLSDescCall,
+-                                 [SDNPInGlue, SDNPOutGlue, SDNPHasChain,
+-                                  SDNPVariadic]>;
++def AArch64tlsdesc_callseq : SDNode<"AArch64ISD::TLSDESC_CALLSEQ",
++                                    SDT_AArch64TLSDescCallSeq,
++                                    [SDNPInGlue, SDNPOutGlue, SDNPHasChain,
++                                     SDNPVariadic]>;
+ 
++
+ def AArch64WrapperLarge : SDNode<"AArch64ISD::WrapperLarge",
+                                  SDT_AArch64WrapperLarge>;
+ 
+@@ -1049,15 +1063,16 @@ def TLSDESCCALL : Pseudo<(outs), (ins i64imm:$sym)
+   let AsmString = ".tlsdesccall $sym";
+ }
+ 
+-// Pseudo-instruction representing a BLR with attached TLSDESC relocation. It
+-// gets expanded to two MCInsts during lowering.
+-let isCall = 1, Defs = [LR] in
+-def TLSDESC_BLR
+-    : Pseudo<(outs), (ins GPR64:$dest, i64imm:$sym),
+-             [(AArch64tlsdesc_call GPR64:$dest, tglobaltlsaddr:$sym)]>;
++// FIXME: maybe the scratch register used shouldn't be fixed to X1?
++// FIXME: can "hasSideEffects be dropped?
++let isCall = 1, Defs = [LR, X0, X1], hasSideEffects = 1,
++    isCodeGenOnly = 1 in
++def TLSDESC_CALLSEQ
++    : Pseudo<(outs), (ins i64imm:$sym),
++             [(AArch64tlsdesc_callseq tglobaltlsaddr:$sym)]>;
++def : Pat<(AArch64tlsdesc_callseq texternalsym:$sym),
++          (TLSDESC_CALLSEQ texternalsym:$sym)>;
+ 
+-def : Pat<(AArch64tlsdesc_call GPR64:$dest, texternalsym:$sym),
+-          (TLSDESC_BLR GPR64:$dest, texternalsym:$sym)>;
+ //===----------------------------------------------------------------------===//
+ // Conditional branch (immediate) instruction.
+ //===----------------------------------------------------------------------===//
+Index: lib/Target/AArch64/AArch64MCInstLower.cpp
+===================================================================
+--- lib/Target/AArch64/AArch64MCInstLower.cpp
++++ lib/Target/AArch64/AArch64MCInstLower.cpp
+@@ -22,9 +22,12 @@
+ #include "llvm/MC/MCExpr.h"
+ #include "llvm/MC/MCInst.h"
+ #include "llvm/Support/CodeGen.h"
++#include "llvm/Support/CommandLine.h"
+ #include "llvm/Target/TargetMachine.h"
+ using namespace llvm;
+ 
++extern cl::opt<bool> EnableAArch64ELFLocalDynamicTLSGeneration;
++
+ AArch64MCInstLower::AArch64MCInstLower(MCContext &ctx, AsmPrinter &printer)
+     : Ctx(ctx), Printer(printer), TargetTriple(printer.getTargetTriple()) {}
+ 
+@@ -84,10 +87,16 @@ MCOperand AArch64MCInstLower::lowerSymbolOperandEL
+     if (MO.isGlobal()) {
+       const GlobalValue *GV = MO.getGlobal();
+       Model = Printer.TM.getTLSModel(GV);
++      if (!EnableAArch64ELFLocalDynamicTLSGeneration &&
++          Model == TLSModel::LocalDynamic)
++        Model = TLSModel::GeneralDynamic;
++
+     } else {
+       assert(MO.isSymbol() &&
+              StringRef(MO.getSymbolName()) == "_TLS_MODULE_BASE_" &&
+              "unexpected external TLS symbol");
++      // The general dynamic access sequence is used to get the
++      // address of _TLS_MODULE_BASE_.
+       Model = TLSModel::GeneralDynamic;
+     }
+     switch (Model) {
+@@ -123,6 +132,8 @@ MCOperand AArch64MCInstLower::lowerSymbolOperandEL
+     RefFlags |= AArch64MCExpr::VK_G1;
+   else if ((MO.getTargetFlags() & AArch64II::MO_FRAGMENT) == AArch64II::MO_G0)
+     RefFlags |= AArch64MCExpr::VK_G0;
++  else if ((MO.getTargetFlags() & AArch64II::MO_FRAGMENT) == AArch64II::MO_HI12)
++    RefFlags |= AArch64MCExpr::VK_HI12;
+ 
+   if (MO.getTargetFlags() & AArch64II::MO_NC)
+     RefFlags |= AArch64MCExpr::VK_NC;
+Index: lib/Target/AArch64/Utils/AArch64BaseInfo.h
+===================================================================
+--- lib/Target/AArch64/Utils/AArch64BaseInfo.h
++++ lib/Target/AArch64/Utils/AArch64BaseInfo.h
+@@ -1229,7 +1229,7 @@ namespace AArch64II {
+ 
+     MO_NO_FLAG,
+ 
+-    MO_FRAGMENT = 0x7,
++    MO_FRAGMENT = 0xf,
+ 
+     /// MO_PAGE - A symbol operand with this flag represents the pc-relative
+     /// offset of the 4K page containing the symbol.  This is used with the
+@@ -1257,26 +1257,31 @@ namespace AArch64II {
+     /// 0-15 of a 64-bit address, used in a MOVZ or MOVK instruction
+     MO_G0 = 6,
+ 
++    /// MO_HI12 - This flag indicates that a symbol operand represents the bits
++    /// 13-24 of a 64-bit address, used in a arithmetic immediate-shifted-left-
++    /// by-12-bits instruction.
++    MO_HI12 = 7,
++
+     /// MO_GOT - This flag indicates that a symbol operand represents the
+     /// address of the GOT entry for the symbol, rather than the address of
+     /// the symbol itself.
+-    MO_GOT = 8,
++    MO_GOT = 0x10,
+ 
+     /// MO_NC - Indicates whether the linker is expected to check the symbol
+     /// reference for overflow. For example in an ADRP/ADD pair of relocations
+     /// the ADRP usually does check, but not the ADD.
+-    MO_NC = 0x10,
++    MO_NC = 0x20,
+ 
+     /// MO_TLS - Indicates that the operand being accessed is some kind of
+     /// thread-local symbol. On Darwin, only one type of thread-local access
+     /// exists (pre linker-relaxation), but on ELF the TLSModel used for the
+     /// referee will affect interpretation.
+-    MO_TLS = 0x20,
++    MO_TLS = 0x40,
+ 
+     /// MO_CONSTPOOL - This flag indicates that a symbol operand represents
+     /// the address of a constant pool entry for the symbol, rather than the
+     /// address of the symbol itself.
+-    MO_CONSTPOOL = 0x40
++    MO_CONSTPOOL = 0x80
+   };
+ } // end namespace AArch64II
+ 
+Index: test/CodeGen/AArch64/arm64-tls-dynamics.ll
+===================================================================
+--- test/CodeGen/AArch64/arm64-tls-dynamics.ll
++++ test/CodeGen/AArch64/arm64-tls-dynamics.ll
+@@ -1,5 +1,7 @@
+-; RUN: llc -mtriple=arm64-none-linux-gnu -relocation-model=pic -verify-machineinstrs < %s | FileCheck %s
+-; RUN: llc -mtriple=arm64-none-linux-gnu -relocation-model=pic -filetype=obj < %s | llvm-objdump -r - | FileCheck --check-prefix=CHECK-RELOC %s
++; RUN: llc -mtriple=arm64-none-linux-gnu -relocation-model=pic -aarch64-elf-ldtls-generation=1 -verify-machineinstrs < %s | FileCheck %s
++; RUN: llc -mtriple=arm64-none-linux-gnu -relocation-model=pic -aarch64-elf-ldtls-generation=1 -filetype=obj < %s | llvm-objdump -r - | FileCheck --check-prefix=CHECK-RELOC %s
++; RUN: llc -mtriple=arm64-none-linux-gnu -relocation-model=pic -verify-machineinstrs < %s | FileCheck --check-prefix=CHECK-NOLD %s
++; RUN: llc -mtriple=arm64-none-linux-gnu -relocation-model=pic -filetype=obj < %s | llvm-objdump -r - | FileCheck --check-prefix=CHECK-NOLD-RELOC %s
+ 
+ @general_dynamic_var = external thread_local global i32
+ 
+@@ -9,22 +11,34 @@ define i32 @test_generaldynamic() {
+   %val = load i32* @general_dynamic_var
+   ret i32 %val
+ 
+-  ; FIXME: the adrp instructions are redundant (if harmless).
+-; CHECK: adrp [[TLSDESC_HI:x[0-9]+]], :tlsdesc:general_dynamic_var
+-; CHECK: add x0, [[TLSDESC_HI]], :tlsdesc_lo12:general_dynamic_var
+ ; CHECK: adrp x[[TLSDESC_HI:[0-9]+]], :tlsdesc:general_dynamic_var
+-; CHECK: ldr [[CALLEE:x[0-9]+]], [x[[TLSDESC_HI]], :tlsdesc_lo12:general_dynamic_var]
+-; CHECK: .tlsdesccall general_dynamic_var
++; CHECK-NEXT: ldr [[CALLEE:x[0-9]+]], [x[[TLSDESC_HI]], :tlsdesc_lo12:general_dynamic_var]
++; CHECK-NEXT: add x0, x[[TLSDESC_HI]], :tlsdesc_lo12:general_dynamic_var
++; CHECK-NEXT: .tlsdesccall general_dynamic_var
+ ; CHECK-NEXT: blr [[CALLEE]]
+ 
++; CHECK-NOLD: adrp x[[TLSDESC_HI:[0-9]+]], :tlsdesc:general_dynamic_var
++; CHECK-NOLD-NEXT: ldr [[CALLEE:x[0-9]+]], [x[[TLSDESC_HI]], :tlsdesc_lo12:general_dynamic_var]
++; CHECK-NOLD-NEXT: add x0, x[[TLSDESC_HI]], :tlsdesc_lo12:general_dynamic_var
++; CHECK-NOLD-NEXT: .tlsdesccall general_dynamic_var
++; CHECK-NOLD-NEXT: blr [[CALLEE]]
++
++
+ ; CHECK: mrs x[[TP:[0-9]+]], TPIDR_EL0
+ ; CHECK: ldr w0, [x[[TP]], x0]
++; CHECK-NOLD: mrs x[[TP:[0-9]+]], TPIDR_EL0
++; CHECK-NOLD: ldr w0, [x[[TP]], x0]
+ 
+ ; CHECK-RELOC: R_AARCH64_TLSDESC_ADR_PAGE21
++; CHECK-RELOC: R_AARCH64_TLSDESC_LD64_LO12_NC
+ ; CHECK-RELOC: R_AARCH64_TLSDESC_ADD_LO12_NC
+-; CHECK-RELOC: R_AARCH64_TLSDESC_LD64_LO12_NC
+ ; CHECK-RELOC: R_AARCH64_TLSDESC_CALL
+ 
++; CHECK-NOLD-RELOC: R_AARCH64_TLSDESC_ADR_PAGE21
++; CHECK-NOLD-RELOC: R_AARCH64_TLSDESC_LD64_LO12_NC
++; CHECK-NOLD-RELOC: R_AARCH64_TLSDESC_ADD_LO12_NC
++; CHECK-NOLD-RELOC: R_AARCH64_TLSDESC_CALL
++
+ }
+ 
+ define i32* @test_generaldynamic_addr() {
+@@ -32,12 +46,10 @@ define i32* @test_generaldynamic_addr() {
+ 
+   ret i32* @general_dynamic_var
+ 
+-  ; FIXME: the adrp instructions are redundant (if harmless).
+-; CHECK: adrp [[TLSDESC_HI:x[0-9]+]], :tlsdesc:general_dynamic_var
+-; CHECK: add x0, [[TLSDESC_HI]], :tlsdesc_lo12:general_dynamic_var
+ ; CHECK: adrp x[[TLSDESC_HI:[0-9]+]], :tlsdesc:general_dynamic_var
+-; CHECK: ldr [[CALLEE:x[0-9]+]], [x[[TLSDESC_HI]], :tlsdesc_lo12:general_dynamic_var]
+-; CHECK: .tlsdesccall general_dynamic_var
++; CHECK-NEXT: ldr [[CALLEE:x[0-9]+]], [x[[TLSDESC_HI]], :tlsdesc_lo12:general_dynamic_var]
++; CHECK-NEXT: add x0, x[[TLSDESC_HI]], :tlsdesc_lo12:general_dynamic_var
++; CHECK-NEXT: .tlsdesccall general_dynamic_var
+ ; CHECK-NEXT: blr [[CALLEE]]
+ 
+ ; CHECK: mrs [[TP:x[0-9]+]], TPIDR_EL0
+@@ -44,9 +56,15 @@ define i32* @test_generaldynamic_addr() {
+ ; CHECK: add x0, [[TP]], x0
+ 
+ ; CHECK-RELOC: R_AARCH64_TLSDESC_ADR_PAGE21
++; CHECK-RELOC: R_AARCH64_TLSDESC_LD64_LO12_NC
+ ; CHECK-RELOC: R_AARCH64_TLSDESC_ADD_LO12_NC
+-; CHECK-RELOC: R_AARCH64_TLSDESC_LD64_LO12_NC
+ ; CHECK-RELOC: R_AARCH64_TLSDESC_CALL
++
++; CHECK-NOLD-RELOC: R_AARCH64_TLSDESC_ADR_PAGE21
++; CHECK-NOLD-RELOC: R_AARCH64_TLSDESC_LD64_LO12_NC
++; CHECK-NOLD-RELOC: R_AARCH64_TLSDESC_ADD_LO12_NC
++; CHECK-NOLD-RELOC: R_AARCH64_TLSDESC_CALL
++
+ }
+ 
+ @local_dynamic_var = external thread_local(localdynamic) global i32
+@@ -58,54 +76,71 @@ define i32 @test_localdynamic() {
+   ret i32 %val
+ 
+ ; CHECK: adrp x[[TLSDESC_HI:[0-9]+]], :tlsdesc:_TLS_MODULE_BASE_
+-; CHECK: add x0, x[[TLSDESC_HI]], :tlsdesc_lo12:_TLS_MODULE_BASE_
+-; CHECK: adrp x[[TLSDESC_HI:[0-9]+]], :tlsdesc:_TLS_MODULE_BASE_
+-; CHECK: ldr [[CALLEE:x[0-9]+]], [x[[TLSDESC_HI]], :tlsdesc_lo12:_TLS_MODULE_BASE_]
+-; CHECK: .tlsdesccall _TLS_MODULE_BASE_
++; CHECK-NEXT: ldr [[CALLEE:x[0-9]+]], [x[[TLSDESC_HI]], :tlsdesc_lo12:_TLS_MODULE_BASE_]
++; CHECK-NEXT: add x0, x[[TLSDESC_HI]], :tlsdesc_lo12:_TLS_MODULE_BASE_
++; CHECK-NEXT: .tlsdesccall _TLS_MODULE_BASE_
+ ; CHECK-NEXT: blr [[CALLEE]]
++; CHECK-NEXT: add x[[TPOFF:[0-9]+]], x0, :dtprel_hi12:local_dynamic_var
++; CHECK-NEXT: add x[[TPOFF]], x[[TPOFF]], :dtprel_lo12_nc:local_dynamic_var
++; CHECK: mrs x[[TPIDR:[0-9]+]], TPIDR_EL0
++; CHECK: ldr w0, [x[[TPIDR]], x[[TPOFF]]]
+ 
+-; CHECK: movz [[DTP_OFFSET:x[0-9]+]], #:dtprel_g1:local_dynamic_var
+-; CHECK: movk [[DTP_OFFSET]], #:dtprel_g0_nc:local_dynamic_var
++; CHECK-NOLD: adrp x[[TLSDESC_HI:[0-9]+]], :tlsdesc:local_dynamic_var
++; CHECK-NOLD-NEXT: ldr [[CALLEE:x[0-9]+]], [x[[TLSDESC_HI]], :tlsdesc_lo12:local_dynamic_var]
++; CHECK-NOLD-NEXT: add x0, x[[TLSDESC_HI]], :tlsdesc_lo12:local_dynamic_var
++; CHECK-NOLD-NEXT: .tlsdesccall local_dynamic_var
++; CHECK-NOLD-NEXT: blr [[CALLEE]]
++; CHECK-NOLD: mrs x[[TPIDR:[0-9]+]], TPIDR_EL0
++; CHECK-NOLD: ldr w0, [x[[TPIDR]], x0]
+ 
+-; CHECK: add x[[TPREL:[0-9]+]], x0, [[DTP_OFFSET]]
+ 
+-; CHECK: mrs x[[TPIDR:[0-9]+]], TPIDR_EL0
+-
+-; CHECK: ldr w0, [x[[TPIDR]], x[[TPREL]]]
+-
+ ; CHECK-RELOC: R_AARCH64_TLSDESC_ADR_PAGE21
++; CHECK-RELOC: R_AARCH64_TLSDESC_LD64_LO12_NC
+ ; CHECK-RELOC: R_AARCH64_TLSDESC_ADD_LO12_NC
+-; CHECK-RELOC: R_AARCH64_TLSDESC_LD64_LO12_NC
+ ; CHECK-RELOC: R_AARCH64_TLSDESC_CALL
++; CHECK-RELOC: R_AARCH64_TLSLD_ADD_DTPREL_HI12
++; CHECK-RELOC: R_AARCH64_TLSLD_ADD_DTPREL_LO12_NC
+ 
++; CHECK-NOLD-RELOC: R_AARCH64_TLSDESC_ADR_PAGE21
++; CHECK-NOLD-RELOC: R_AARCH64_TLSDESC_LD64_LO12_NC
++; CHECK-NOLD-RELOC: R_AARCH64_TLSDESC_ADD_LO12_NC
++; CHECK-NOLD-RELOC: R_AARCH64_TLSDESC_CALL
++
+ }
+ 
+ define i32* @test_localdynamic_addr() {
+ ; CHECK-LABEL: test_localdynamic_addr:
+ 
+-  ret i32* @local_dynamic_var
+-
+ ; CHECK: adrp x[[TLSDESC_HI:[0-9]+]], :tlsdesc:_TLS_MODULE_BASE_
+-; CHECK: add x0, x[[TLSDESC_HI]], :tlsdesc_lo12:_TLS_MODULE_BASE_
+-; CHECK: adrp x[[TLSDESC_HI:[0-9]+]], :tlsdesc:_TLS_MODULE_BASE_
+-; CHECK: ldr [[CALLEE:x[0-9]+]], [x[[TLSDESC_HI]], :tlsdesc_lo12:_TLS_MODULE_BASE_]
+-; CHECK: .tlsdesccall _TLS_MODULE_BASE_
++; CHECK-NEXT: ldr [[CALLEE:x[0-9]+]], [x[[TLSDESC_HI]], :tlsdesc_lo12:_TLS_MODULE_BASE_]
++; CHECK-NEXT: add x0, x[[TLSDESC_HI]], :tlsdesc_lo12:_TLS_MODULE_BASE_
++; CHECK-NEXT: .tlsdesccall _TLS_MODULE_BASE_
+ ; CHECK-NEXT: blr [[CALLEE]]
++; CHECK-NEXT: add x[[TPOFF:[0-9]+]], x0, :dtprel_hi12:local_dynamic_var
++; CHECK-NEXT: add x[[TPOFF]], x[[TPOFF]], :dtprel_lo12_nc:local_dynamic_var
++; CHECK: mrs x[[TPIDR:[0-9]+]], TPIDR_EL0
++; CHECK: add x0, x[[TPIDR]], x[[TPOFF]]
+ 
+-; CHECK: movz [[DTP_OFFSET:x[0-9]+]], #:dtprel_g1:local_dynamic_var
+-; CHECK: movk [[DTP_OFFSET]], #:dtprel_g0_nc:local_dynamic_var
++; CHECK-NOLD: adrp x[[TLSDESC_HI:[0-9]+]], :tlsdesc:local_dynamic_var
++; CHECK-NOLD-NEXT: ldr [[CALLEE:x[0-9]+]], [x[[TLSDESC_HI]], :tlsdesc_lo12:local_dynamic_var]
++; CHECK-NOLD-NEXT: add x0, x[[TLSDESC_HI]], :tlsdesc_lo12:local_dynamic_var
++; CHECK-NOLD-NEXT: .tlsdesccall local_dynamic_var
++; CHECK-NOLD-NEXT: blr [[CALLEE]]
++; CHECK-NOLD: mrs x[[TPIDR:[0-9]+]], TPIDR_EL0
++; CHECK-NOLD: add x0, x[[TPIDR]], x0
++  ret i32* @local_dynamic_var
+ 
+-; CHECK: add [[TPREL:x[0-9]+]], x0, [[DTP_OFFSET]]
+-
+-; CHECK: mrs [[TPIDR:x[0-9]+]], TPIDR_EL0
+-
+-; CHECK: add x0, [[TPIDR]], [[TPREL]]
+-
+ ; CHECK-RELOC: R_AARCH64_TLSDESC_ADR_PAGE21
++; CHECK-RELOC: R_AARCH64_TLSDESC_LD64_LO12_NC
+ ; CHECK-RELOC: R_AARCH64_TLSDESC_ADD_LO12_NC
+-; CHECK-RELOC: R_AARCH64_TLSDESC_LD64_LO12_NC
+ ; CHECK-RELOC: R_AARCH64_TLSDESC_CALL
++; CHECK-RELOC: R_AARCH64_TLSLD_ADD_DTPREL_HI12
++; CHECK-RELOC: R_AARCH64_TLSLD_ADD_DTPREL_LO12_NC
+ 
++; CHECK-NOLD-RELOC: R_AARCH64_TLSDESC_ADR_PAGE21
++; CHECK-NOLD-RELOC: R_AARCH64_TLSDESC_LD64_LO12_NC
++; CHECK-NOLD-RELOC: R_AARCH64_TLSDESC_ADD_LO12_NC
++; CHECK-NOLD-RELOC: R_AARCH64_TLSDESC_CALL
+ }
+ 
+ ; The entire point of the local-dynamic access model is to have a single call to
+@@ -122,11 +157,10 @@ define i32 @test_localdynamic_deduplicate() {
+   %sum = add i32 %val, %val2
+   ret i32 %sum
+ 
+-; CHECK: adrp x[[TLSDESC_HI:[0-9]+]], :tlsdesc:_TLS_MODULE_BASE_
+-; CHECK: add x0, x[[TLSDESC_HI]], :tlsdesc_lo12:_TLS_MODULE_BASE_
+-; CHECK: adrp x[[TLSDESC_HI:[0-9]+]], :tlsdesc:_TLS_MODULE_BASE_
+-; CHECK: ldr [[CALLEE:x[0-9]+]], [x[[TLSDESC_HI]], :tlsdesc_lo12:_TLS_MODULE_BASE_]
+-; CHECK: .tlsdesccall _TLS_MODULE_BASE_
++; CHECK: adrp x[[DTPREL_HI:[0-9]+]], :tlsdesc:_TLS_MODULE_BASE_
++; CHECK-NEXT: ldr [[CALLEE:x[0-9]+]], [x[[DTPREL_HI]], :tlsdesc_lo12:_TLS_MODULE_BASE_]
++; CHECK-NEXT: add x0, x[[TLSDESC_HI]], :tlsdesc_lo12:_TLS_MODULE_BASE
++; CHECK-NEXT: .tlsdesccall _TLS_MODULE_BASE_
+ ; CHECK-NEXT: blr [[CALLEE]]
+ 
+ ; CHECK-NOT: _TLS_MODULE_BASE_
+Index: test/CodeGen/AArch64/arm64-tls-execs.ll
+===================================================================
+--- test/CodeGen/AArch64/arm64-tls-execs.ll
++++ test/CodeGen/AArch64/arm64-tls-execs.ll
+@@ -38,14 +38,13 @@ define i32 @test_local_exec() {
+ ; CHECK-LABEL: test_local_exec:
+   %val = load i32* @local_exec_var
+ 
+-; CHECK: movz [[TP_OFFSET:x[0-9]+]], #:tprel_g1:local_exec_var // encoding: [0bAAA{{[01]+}},A,0b101AAAAA,0x92]
+-; CHECK: movk [[TP_OFFSET]], #:tprel_g0_nc:local_exec_var
+-; CHECK: mrs x[[TP:[0-9]+]], TPIDR_EL0
+-; CHECK: ldr w0, [x[[TP]], [[TP_OFFSET]]]
++; CHECK: mrs x[[R1:[0-9]+]], TPIDR_EL0
++; CHECK: add x[[R2:[0-9]+]], x[[R1]], :tprel_hi12:local_exec_var
++; CHECK: add x[[R3:[0-9]+]], x[[R2]], :tprel_lo12_nc:local_exec_var
++; CHECK: ldr w0, [x[[R3]]]
+ 
+-; CHECK-RELOC: R_AARCH64_TLSLE_MOVW_TPREL_G1
+-; CHECK-RELOC: R_AARCH64_TLSLE_MOVW_TPREL_G0_NC
+-
++; CHECK-RELOC: R_AARCH64_TLSLE_ADD_TPREL_HI12
++; CHECK-RELOC: R_AARCH64_TLSLE_ADD_TPREL_LO12_NC
+   ret i32 %val
+ }
+ 
+@@ -53,11 +52,11 @@ define i32* @test_local_exec_addr() {
+ ; CHECK-LABEL: test_local_exec_addr:
+   ret i32* @local_exec_var
+ 
+-; CHECK: movz [[TP_OFFSET:x[0-9]+]], #:tprel_g1:local_exec_var
+-; CHECK: movk [[TP_OFFSET]], #:tprel_g0_nc:local_exec_var
+-; CHECK: mrs [[TP:x[0-9]+]], TPIDR_EL0
+-; CHECK: add x0, [[TP]], [[TP_OFFSET]]
++; CHECK: mrs x[[R1:[0-9]+]], TPIDR_EL0
++; CHECK: add x[[R2:[0-9]+]], x[[R1]], :tprel_hi12:local_exec_var
++; CHECK: add x0, x[[R2]], :tprel_lo12_nc:local_exec_var
++; CHECK: ret
+ 
+-; CHECK-RELOC: R_AARCH64_TLSLE_MOVW_TPREL_G1
+-; CHECK-RELOC: R_AARCH64_TLSLE_MOVW_TPREL_G0_NC
++; CHECK-RELOC: R_AARCH64_TLSLE_ADD_TPREL_HI12
++; CHECK-RELOC: R_AARCH64_TLSLE_ADD_TPREL_LO12_NC
+ }
