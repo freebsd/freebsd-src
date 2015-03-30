@@ -686,7 +686,7 @@ vnode_pager_getpages_async(vm_object_t object, vm_page_t *m, int count,
 
 	vp = object->handle;
 	VM_OBJECT_WUNLOCK(object);
-	rtval = VOP_GETPAGES_ASYNC(vp, m, count * PAGE_SIZE, reqpage, 0,
+	rtval = VOP_GETPAGES_ASYNC(vp, m, count * PAGE_SIZE, reqpage,
 	    iodone, arg);
 	KASSERT(rtval != EOPNOTSUPP,
 	    ("vnode_pager: FS getpages_async not implemented\n"));
