@@ -59,7 +59,7 @@ extern void do_call(void *, void *, void *, int);
 #if defined(CPU_ARM9)
 #define cpu_idcache_wbinv_all	arm9_idcache_wbinv_all
 extern void arm9_idcache_wbinv_all(void);
-#elif defined(CPU_FA526) || defined(CPU_FA626TE)
+#elif defined(CPU_FA526)
 #define cpu_idcache_wbinv_all	fa526_idcache_wbinv_all
 extern void fa526_idcache_wbinv_all(void);
 #elif defined(CPU_ARM9E)

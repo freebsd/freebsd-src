@@ -57,7 +57,6 @@
 			 defined(CPU_XSCALE_80321) +			\
 			 defined(CPU_XSCALE_PXA2X0) +			\
 			 defined(CPU_FA526) +				\
-			 defined(CPU_FA626TE) +				\
 			 defined(CPU_XSCALE_IXP425)) +			\
 			 defined(CPU_CORTEXA) +				\
 			 defined(CPU_KRAIT) +				\
@@ -75,8 +74,7 @@
 #if (defined(CPU_ARM9E) || defined(CPU_ARM10) ||			\
      defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||		\
      defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342) ||		\
-     defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	\
-     defined(CPU_FA626TE))
+     defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425))
 #define	ARM_ARCH_5	1
 #else
 #define	ARM_ARCH_5	0
@@ -149,8 +147,7 @@
  *				require different PTE layout to use.
  */
 #if (defined(CPU_ARM9) || defined(CPU_ARM9E) ||	\
-     defined(CPU_ARM10) || defined(CPU_FA526) ||	\
-     defined(CPU_FA626TE))
+     defined(CPU_ARM10) || defined(CPU_FA526))
 #define	ARM_MMU_GENERIC		1
 #else
 #define	ARM_MMU_GENERIC		0

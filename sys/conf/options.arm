@@ -14,7 +14,6 @@ CPU_ARM1176		opt_global.h
 CPU_CORTEXA		opt_global.h
 CPU_KRAIT		opt_global.h
 CPU_FA526		opt_global.h
-CPU_FA626TE		opt_global.h
 CPU_MV_PJ4B		opt_global.h
 CPU_XSCALE_80219	opt_global.h
 CPU_XSCALE_80321	opt_global.h

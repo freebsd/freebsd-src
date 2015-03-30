@@ -494,7 +494,7 @@ struct cpu_functions xscalec3_cpufuncs = {
 #endif /* CPU_XSCALE_81342 */
 
 
-#if defined(CPU_FA526) || defined(CPU_FA626TE)
+#if defined(CPU_FA526)
 struct cpu_functions fa526_cpufuncs = {
 	/* CPU functions */
 
@@ -555,7 +555,7 @@ struct cpu_functions fa526_cpufuncs = {
 
 	fa526_setup			/* cpu setup 		*/
 };
-#endif	/* CPU_FA526 || CPU_FA626TE */
+#endif	/* CPU_FA526 */
 
 #if defined(CPU_ARM1176)
 struct cpu_functions arm1176_cpufuncs = {
@@ -705,7 +705,7 @@ u_int cpu_reset_needs_v4_MMU_disable;	/* flag used in locore.s */
   defined (CPU_ARM9E) ||	\
   defined(CPU_ARM1176) || defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||		\
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
-  defined(CPU_FA526) || defined(CPU_FA626TE) || defined(CPU_MV_PJ4B) ||			\
+  defined(CPU_FA526) || defined(CPU_MV_PJ4B) ||			\
   defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342) || \
   defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 
@@ -943,7 +943,7 @@ set_cpufuncs()
 	}
 #endif /* CPU_MV_PJ4B */
 
-#if defined(CPU_FA526) || defined(CPU_FA626TE)
+#if defined(CPU_FA526)
 	if (cputype == CPU_ID_FA526 || cputype == CPU_ID_FA626TE) {
 		cpufuncs = fa526_cpufuncs;
 		cpu_reset_needs_v4_MMU_disable = 1;	/* SA needs it	*/
@@ -955,7 +955,7 @@ set_cpufuncs()
 
 		goto out;
 	}
-#endif	/* CPU_FA526 || CPU_FA626TE */
+#endif	/* CPU_FA526 */
 
 #ifdef CPU_XSCALE_80200
 	if (cputype == CPU_ID_80200) {
@@ -1378,7 +1378,7 @@ cortexa_setup(void)
 }
 #endif  /* CPU_CORTEXA */
 
-#if defined(CPU_FA526) || defined(CPU_FA626TE)
+#if defined(CPU_FA526)
 void
 fa526_setup(void)
 {
@@ -1415,7 +1415,7 @@ fa526_setup(void)
 	ctrl = cpuctrl;
 	cpu_control(0xffffffff, cpuctrl);
 }
-#endif	/* CPU_FA526 || CPU_FA626TE */
+#endif	/* CPU_FA526 */
 
 #if defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) || \
