@@ -90,9 +90,8 @@ void
 llap_print(netdissect_options *ndo,
            register const u_char *bp, u_int length)
 {
-	if (!invoke_dissector((void *)_llap_print,
-	    length, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_llap_print(ndo, bp, length);
+
+	INVOKE_DISSECTOR(_llap_print, ndo, bp, length);
 }
 
 u_int
@@ -172,9 +171,7 @@ void
 atalk_print(netdissect_options *ndo,
             register const u_char *bp, u_int length)
 {
-	if (!invoke_dissector((void *)_atalk_print,
-	    length, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_atalk_print(ndo, bp, length);
+	INVOKE_DISSECTOR(_atalk_print, ndo, bp, length);
 }
 
 void
@@ -208,9 +205,7 @@ void
 aarp_print(netdissect_options *ndo,
            register const u_char *bp, u_int length)
 {
-	if (!invoke_dissector((void *)_aarp_print,
-	    length, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_aarp_print(ndo, bp, length);
+	INVOKE_DISSECTOR(_aarp_print, ndo, bp, length);
 }
 
 void

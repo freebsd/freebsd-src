@@ -558,9 +558,7 @@ void
 aodv_print(netdissect_options *ndo,
            const u_char *dat, u_int length, int is_ip6)
 {
-	if (!invoke_dissector((void *)_aodv_print,
-	    length, is_ip6, 0, 0, 0, ndo, dat, NULL, NULL, NULL))
-		_aodv_print(ndo, dat, length, is_ip6);
+	INVOKE_DISSECTOR(_aodv_print, ndo, dat, length, is_ip6);
 }
 
 void

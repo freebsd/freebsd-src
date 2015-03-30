@@ -86,9 +86,7 @@ void
 cdp_print(netdissect_options *ndo,
           const u_char *pptr, u_int length, u_int caplen)
 {
-	if (!invoke_dissector((void *)_cdp_print,
-	    length, caplen, 0, 0, 0, ndo, pptr, NULL, NULL, NULL))
-		_cdp_print(ndo, pptr, length, caplen);
+	INVOKE_DISSECTOR(_cdp_print, ndo, pptr, length, caplen);
 }
 
 void

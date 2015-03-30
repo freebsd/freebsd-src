@@ -106,9 +106,7 @@ vrrp_print(netdissect_options *ndo,
            register const u_char *bp, register u_int len,
            register const u_char *bp2, int ttl)
 {
-	if (!invoke_dissector((void *)_vrrp_print,
-	    len, ttl, 0, 0, 0, ndo, bp, bp2, NULL, NULL))
-		_vrrp_print(ndo, bp, len, bp2, ttl);
+	INVOKE_DISSECTOR(_vrrp_print, ndo, bp, len, bp2, ttl);
 }
 
 void

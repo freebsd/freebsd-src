@@ -524,9 +524,7 @@ rx_print(netdissect_options *ndo,
          register const u_char *bp, int length, int sport, int dport,
          u_char *bp2)
 {
-	if (!invoke_dissector((void *)_rx_print,
-	    length, sport, dport, 0, 0, ndo, bp, bp2, NULL, NULL))
-		_rx_print(ndo, bp, length, sport, dport, bp2);
+	INVOKE_DISSECTOR(_rx_print, ndo, bp, length, sport, dport, bp2);
 }
 
 void

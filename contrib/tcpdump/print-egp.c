@@ -210,9 +210,7 @@ void
 egp_print(netdissect_options *ndo,
           register const uint8_t *bp, register u_int length)
 {
-	if (!invoke_dissector((void *)_egp_print,
-	    length, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_egp_print(ndo, bp, length);
+	INVOKE_DISSECTOR(_egp_print, ndo, bp, length);
 }
 
 void

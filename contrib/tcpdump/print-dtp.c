@@ -45,9 +45,7 @@ static const struct tok dtp_tlv_values[] = {
 void
 dtp_print (netdissect_options *ndo, const u_char *pptr, u_int length)
 {
-	if (!invoke_dissector((void *)_dtp_print,
-	    length, 0, 0, 0, 0, ndo, pptr, NULL, NULL, NULL))
-		_dtp_print(ndo, pptr, length);
+	INVOKE_DISSECTOR(_dtp_print, ndo, pptr, length);
 }
 
 void

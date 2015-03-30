@@ -1500,9 +1500,7 @@ void
 ppp_print(netdissect_options *ndo,
           register const u_char *p, u_int length)
 {
-	if (!invoke_dissector((void *)_ppp_print,
-	    length, 0, 0, 0, 0, ndo, p, NULL, NULL, NULL))
-		_ppp_print(ndo, p, length);
+	INVOKE_DISSECTOR(_ppp_print, ndo, p, length);
 }
 
 u_int

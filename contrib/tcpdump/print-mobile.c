@@ -64,9 +64,7 @@ struct mobile_ip {
 void
 mobile_print(netdissect_options *ndo, const u_char *bp, u_int length)
 {
-	if (!invoke_dissector((void *)_mobile_print,
-	    length, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_mobile_print(ndo, bp, length);
+	INVOKE_DISSECTOR(_mobile_print, ndo, bp, length);
 }
 
 void

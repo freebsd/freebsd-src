@@ -259,9 +259,7 @@ void
 igmp_print(netdissect_options *ndo,
            register const u_char *bp, register u_int len)
 {
-	if (!invoke_dissector((void *)_igmp_print,
-	    len, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_igmp_print(ndo, bp, len);
+	INVOKE_DISSECTOR(_igmp_print, ndo, bp, len);
 }
 
 void

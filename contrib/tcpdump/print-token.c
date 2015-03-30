@@ -150,9 +150,7 @@ static const char *largest_frame[] = {
 void
 token_print(netdissect_options *ndo, const u_char *p, u_int length, u_int caplen)
 {
-	if (!invoke_dissector((void *)_token_print,
-	    length, caplen, 0, 0, 0, ndo, p, NULL, NULL, NULL))
-		_token_print(ndo, p, length, caplen);
+	INVOKE_DISSECTOR(_token_print, ndo, p, length, caplen);
 }
 
 u_int

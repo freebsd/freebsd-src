@@ -338,9 +338,7 @@ void
 tipc_print(netdissect_options *ndo, const u_char *bp, u_int length,
     u_int caplen)
 {
-	if (!invoke_dissector((void *)_tipc_print,
-	    length, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_tipc_print(ndo, bp, length, caplen);
+	INVOKE_DISSECTOR(_tipc_print, ndo, bp, length, caplen);
 }
 
 void

@@ -924,9 +924,7 @@ void
 nbt_tcp_print(netdissect_options *ndo,
               const u_char *data, int length)
 {
-	if (!invoke_dissector((void *)_nbt_tcp_print,
-	    length, 0, 0, 0, 0, ndo, data, NULL, NULL, NULL))
-		_nbt_tcp_print(ndo, data, length);
+	INVOKE_DISSECTOR(_nbt_tcp_print, ndo, data, length);
 }
 
 void
@@ -1106,9 +1104,7 @@ void
 nbt_udp137_print(netdissect_options *ndo,
                  const u_char *data, int length)
 {
-	if (!invoke_dissector((void *)_nbt_udp137_print,
-	    length, 0, 0, 0, 0, ndo, data, NULL, NULL, NULL))
-		_nbt_udp137_print(ndo, data, length);
+	INVOKE_DISSECTOR(_nbt_udp137_print, ndo, data, length);
 }
 
 void
@@ -1251,9 +1247,7 @@ void
 smb_tcp_print(netdissect_options *ndo,
               const u_char * data, int length)
 {
-	if (!invoke_dissector((void *)_smb_tcp_print,
-	    length, 0, 0, 0, 0, ndo, data, NULL, NULL, NULL))
-		_smb_tcp_print(ndo, data, length);
+	INVOKE_DISSECTOR(_smb_tcp_print, ndo, data, length);
 }
 
 void
@@ -1302,9 +1296,7 @@ void
 nbt_udp138_print(netdissect_options *ndo,
                  const u_char *data, int length)
 {
-	if (!invoke_dissector((void *)_nbt_udp138_print,
-	    length, 0, 0, 0, 0, ndo, data, NULL, NULL, NULL))
-		_nbt_udp138_print(ndo, data, length);
+	INVOKE_DISSECTOR(_nbt_udp138_print, ndo, data, length);
 }
 
 void
@@ -1403,9 +1395,7 @@ void
 netbeui_print(netdissect_options *ndo,
               u_short control, const u_char *data, int length)
 {
-	if (!invoke_dissector((void *)_netbeui_print,
-	    length, control, 0, 0, 0, ndo, data, NULL, NULL, NULL))
-		_netbeui_print(ndo, control, data, length);
+	INVOKE_DISSECTOR(_netbeui_print, ndo, control, data, length);
 }
 
 void
@@ -1510,9 +1500,7 @@ void
 ipx_netbios_print(netdissect_options *ndo,
                   const u_char *data, u_int length)
 {
-	if (!invoke_dissector((void *)_ipx_netbios_print,
-	    length, 0, 0, 0, 0, ndo, data, NULL, NULL, NULL))
-		_ipx_netbios_print(ndo, data, length);
+	INVOKE_DISSECTOR(_ipx_netbios_print, ndo, data, length);
 }
 
 void

@@ -635,9 +635,7 @@ l2tp_avp_print(netdissect_options *ndo, const u_char *dat, int length)
 void
 l2tp_print(netdissect_options *ndo, const u_char *dat, u_int length)
 {
-	if (!invoke_dissector((void *)_l2tp_print,
-	    length, 0, 0, 0, 0, ndo, dat, NULL, NULL, NULL))
-		_l2tp_print(ndo, dat, length);
+	INVOKE_DISSECTOR(_l2tp_print, ndo, dat, length);
 }
 
 void

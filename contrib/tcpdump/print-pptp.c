@@ -900,9 +900,7 @@ void
 pptp_print(netdissect_options *ndo,
            const u_char *dat)
 {
-	if (!invoke_dissector((void *)_pptp_print,
-	    ndo->ndo_snapend - dat, 0, 0, 0, 0, ndo, dat, NULL, NULL, NULL))
-		_pptp_print(ndo, dat);
+	INVOKE_DISSECTOR(_pptp_print, ndo, dat);
 }
 
 void

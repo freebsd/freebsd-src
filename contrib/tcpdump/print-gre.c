@@ -85,9 +85,7 @@ static void gre_sre_asn_print(netdissect_options *, uint8_t, uint8_t, const u_ch
 void
 gre_print(netdissect_options *ndo, const u_char *bp, u_int length)
 {
-	if (!invoke_dissector((void *)_gre_print,
-	    length, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_gre_print(ndo, bp, length);
+	INVOKE_DISSECTOR(_gre_print, ndo, bp, length);
 }
 
 void

@@ -1677,9 +1677,7 @@ void
 forces_print(netdissect_options *ndo,
              register const u_char * pptr, register u_int len)
 {
-	if (!invoke_dissector((void *)_forces_print,
-	    len, 0, 0, 0, 0, ndo, pptr, NULL, NULL, NULL))
-		_forces_print(ndo, pptr, len);
+	INVOKE_DISSECTOR(_forces_print, ndo, pptr, len);
 }
 
 void

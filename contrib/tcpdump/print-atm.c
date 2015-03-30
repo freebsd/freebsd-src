@@ -302,9 +302,7 @@ atm_print(netdissect_options *ndo,
           u_int vpi, u_int vci, u_int traftype, const u_char *p, u_int length,
           u_int caplen)
 {
-	if (!invoke_dissector((void *)_atm_print,
-	    length, vpi, vci, traftype, caplen, ndo, p, NULL, NULL, NULL))
-		_atm_print(ndo, vpi, vci, traftype, p, length, caplen);
+	INVOKE_DISSECTOR(_atm_print, ndo, vpi, vci, traftype, p, length, caplen);
 }
 
 void
@@ -375,9 +373,7 @@ struct oam_fm_ais_rdi_t {
 void
 oam_print (netdissect_options *ndo,
            const u_char *p, u_int length, u_int hec) {
-	if (!invoke_dissector((void *)_oam_print,
-	    length, hec, 0, 0, 0, ndo, p, NULL, NULL, NULL))
-		_oam_print(ndo, p, length, hec);
+	INVOKE_DISSECTOR(_oam_print, ndo, p, length, hec);
 }
 
 void

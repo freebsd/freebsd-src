@@ -164,9 +164,7 @@ void
 lwapp_control_print(netdissect_options *ndo,
                     const u_char *pptr, u_int len, int has_ap_ident) {
 
-	if (!invoke_dissector((void *)_lwapp_control_print,
-	    len, has_ap_ident, 0, 0, 0, ndo, pptr, NULL, NULL, NULL))
-		_lwapp_control_print(ndo, pptr, len, has_ap_ident);
+	INVOKE_DISSECTOR(_lwapp_control_print, ndo, pptr, len, has_ap_ident);
 }
 
 void
@@ -296,9 +294,7 @@ void
 lwapp_data_print(netdissect_options *ndo,
                  const u_char *pptr, u_int len) {
 
-	if (!invoke_dissector((void *)_lwapp_data_print,
-	    len, 0, 0, 0, 0, ndo, pptr, NULL, NULL, NULL))
-		_lwapp_data_print(ndo, pptr, len);
+	INVOKE_DISSECTOR(_lwapp_data_print, ndo, pptr, len);
 }
 
 void

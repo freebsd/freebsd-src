@@ -310,9 +310,7 @@ rpki_rtr_pdu_print (netdissect_options *ndo, const u_char *tptr, u_int indent)
 
 void
 rpki_rtr_print(netdissect_options *ndo, register const u_char *pptr, register u_int len) {
-	if (!invoke_dissector((void *)_rpki_rtr_print,
-	    len, 0, 0, 0, 0, ndo, pptr, NULL, NULL, NULL))
-		_rpki_rtr_print(ndo, pptr, len);
+	INVOKE_DISSECTOR(_rpki_rtr_print, ndo, pptr, len);
 }
 
 void

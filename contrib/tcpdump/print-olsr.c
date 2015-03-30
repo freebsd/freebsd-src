@@ -251,9 +251,7 @@ void
 olsr_print(netdissect_options *ndo,
            const u_char *pptr, u_int length, int is_ipv6)
 {
-	if (!invoke_dissector((void *)_olsr_print,
-	    length, is_ipv6, 0, 0, 0, ndo, pptr, NULL, NULL, NULL))
-		_olsr_print(ndo, pptr, length, is_ipv6);
+	INVOKE_DISSECTOR(_olsr_print, ndo, pptr, length, is_ipv6);
 }
 
 void

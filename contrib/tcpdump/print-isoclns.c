@@ -670,9 +670,7 @@ void
 isoclns_print(netdissect_options *ndo,
                    const uint8_t *p, u_int length, u_int caplen)
 {
-	if (!invoke_dissector((void *)_isoclns_print,
-	    length, caplen, 0, 0, 0, ndo, p, NULL, NULL, NULL))
-		_isoclns_print(ndo, p, length, caplen);
+	INVOKE_DISSECTOR(_isoclns_print, ndo, p, length, caplen);
 }
 
 void

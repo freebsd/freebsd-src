@@ -94,9 +94,7 @@ struct hsrp {
 void
 hsrp_print(netdissect_options *ndo, register const uint8_t *bp, register u_int len)
 {
-	if (!invoke_dissector((void *)_hsrp_print,
-	    len, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_hsrp_print(ndo, bp, len);
+	INVOKE_DISSECTOR(_hsrp_print, ndo, bp, len);
 }
 
 void

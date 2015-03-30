@@ -819,9 +819,7 @@ sflow_print_expanded_flow_sample(netdissect_options *ndo,
 void
 sflow_print(netdissect_options *ndo,
             const u_char *pptr, u_int len) {
-	if (!invoke_dissector((void *)_sflow_print,
-	    len, 0, 0, 0, 0, ndo, pptr, NULL, NULL, NULL))
-		_sflow_print(ndo, pptr, len);
+	INVOKE_DISSECTOR(_sflow_print, ndo, pptr, len);
 }
 
 void

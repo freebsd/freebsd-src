@@ -335,9 +335,7 @@ nfsreply_print(netdissect_options *ndo,
                register const u_char *bp, u_int length,
                register const u_char *bp2)
 {
-	if (!invoke_dissector((void *)_nfsreply_print,
-	    length, 0, 0, 0, 0, ndo, bp, bp2, NULL, NULL))
-		_nfsreply_print(ndo, bp, length, bp2);
+	INVOKE_DISSECTOR(_nfsreply_print, ndo, bp, length, bp2);
 }
 
 void
@@ -550,9 +548,7 @@ nfsreq_print_noaddr(netdissect_options *ndo,
                     register const u_char *bp, u_int length,
                     register const u_char *bp2)
 {
-	if (!invoke_dissector((void *)_nfsreq_print_noaddr,
-	    length, 0, 0, 0, 0, ndo, bp, bp2, NULL, NULL))
-		_nfsreq_print_noaddr(ndo, bp, length, bp2);
+	INVOKE_DISSECTOR(_nfsreq_print_noaddr, ndo, bp, length, bp2);
 }
 
 void

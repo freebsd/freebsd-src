@@ -92,9 +92,7 @@ pppoe_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h, register co
 void
 pppoe_print(netdissect_options *ndo, register const u_char *bp, u_int length)
 {
-	if (!invoke_dissector((void *)_pppoe_print,
-	    length, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_pppoe_print(ndo, bp, length);
+	INVOKE_DISSECTOR(_pppoe_print, ndo, bp, length);
 }
 
 u_int

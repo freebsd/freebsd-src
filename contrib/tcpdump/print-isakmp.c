@@ -2882,9 +2882,7 @@ isakmp_print(netdissect_options *ndo,
 	     const u_char *bp, u_int length,
 	     const u_char *bp2)
 {
-	if (!invoke_dissector((void *)_isakmp_print,
-	    length, 0, 0, 0, 0, ndo, bp, bp2, NULL, NULL))
-		_isakmp_print(ndo, bp, length, bp2);
+	INVOKE_DISSECTOR(_isakmp_print, ndo, bp, length, bp2);
 }
 
 void
@@ -2954,9 +2952,7 @@ isakmp_rfc3948_print(netdissect_options *ndo,
 		     const u_char *bp, u_int length,
 		     const u_char *bp2)
 {
-	if (!invoke_dissector((void *)_isakmp_rfc3948_print,
-	    length, 0, 0, 0, 0, ndo, bp, bp2, NULL, NULL))
-		_isakmp_rfc3948_print(ndo, bp, length, bp2);
+	INVOKE_DISSECTOR(_isakmp_rfc3948_print, ndo, bp, length, bp2);
 }
 
 void

@@ -177,9 +177,7 @@ void
 rip_print(netdissect_options *ndo,
           const u_char *dat, u_int length)
 {
-	if (!invoke_dissector((void *)_rip_print,
-	    length, 0, 0, 0, 0, ndo, dat, NULL, NULL, NULL))
-		_rip_print(ndo, dat, length);
+	INVOKE_DISSECTOR(_rip_print, ndo, dat, length);
 }
 
 void

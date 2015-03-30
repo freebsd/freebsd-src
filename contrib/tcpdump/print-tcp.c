@@ -154,9 +154,7 @@ tcp_print(netdissect_options *ndo,
           register const u_char *bp, register u_int length,
           register const u_char *bp2, int fragmented)
 {
-	if (!invoke_dissector((void *)_tcp_print,
-	    length, fragmented, 0, 0, 0, ndo, bp, bp2, NULL, NULL))
-		_tcp_print(ndo, bp, length, bp2, fragmented);
+	INVOKE_DISSECTOR(_tcp_print, ndo, bp, length, bp2, fragmented);
 }
 
 void

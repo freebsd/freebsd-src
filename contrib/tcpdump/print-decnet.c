@@ -504,9 +504,7 @@ decnet_print(netdissect_options *ndo,
              register const u_char *ap, register u_int length,
              register u_int caplen)
 {
-	if (!invoke_dissector((void *)_decnet_print,
-	    length, caplen, 0, 0, 0, ndo, ap, NULL, NULL, NULL))
-		_decnet_print(ndo, ap, length, caplen);
+	INVOKE_DISSECTOR(_decnet_print, ndo, ap, length, caplen);
 }
 
 void

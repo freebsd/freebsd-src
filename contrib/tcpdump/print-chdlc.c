@@ -57,9 +57,7 @@ chdlc_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h, register co
 
 void
 chdlc_print(netdissect_options *ndo, register const u_char *p, u_int length) {
-	if (!invoke_dissector((void *)_chdlc_print,
-	    length, 0, 0, 0, 0, ndo, p, NULL, NULL, NULL))
-		_chdlc_print(ndo, p, length);
+	INVOKE_DISSECTOR(_chdlc_print, ndo, p, length);
 }
 
 u_int

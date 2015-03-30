@@ -153,9 +153,7 @@ eap_print(netdissect_options *ndo,
           register const u_char *cp,
           u_int length)
 {
-	if (!invoke_dissector((void *)_eap_print,
-	    length, 0, 0, 0, 0, ndo, cp, NULL, NULL, NULL))
-		_eap_print(ndo, cp, length);
+	INVOKE_DISSECTOR(_eap_print, ndo, cp, length);
 }
 
 void

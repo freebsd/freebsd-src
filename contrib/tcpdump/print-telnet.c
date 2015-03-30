@@ -503,9 +503,7 @@ pktend:
 void
 telnet_print(netdissect_options *ndo, const u_char *sp, u_int length)
 {
-	if (!invoke_dissector((void *)_telnet_print,
-	    length, 0, 0, 0, 0, ndo, sp, NULL, NULL, NULL))
-		_telnet_print(ndo, sp, length);
+	INVOKE_DISSECTOR(_telnet_print, ndo, sp, length);
 }
 
 void

@@ -78,9 +78,7 @@ void
 cnfp_print(netdissect_options *ndo,
            const u_char *cp, const u_char *bp _U_)
 {
-	if (!invoke_dissector((void *)_cnfp_print,
-	    ndo->ndo_snapend - cp, 0, 0, 0, 0, ndo, cp, bp, NULL, NULL))
-		_cnfp_print(ndo, cp, bp);
+	INVOKE_DISSECTOR(_cnfp_print, ndo, cp, bp);
 }
 
 void

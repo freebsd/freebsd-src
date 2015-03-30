@@ -365,9 +365,7 @@ stp_print_spb_bpdu(netdissect_options *ndo, const struct stp_bpdu_ *stp_bpdu,
 void
 stp_print(netdissect_options *ndo, const u_char *p, u_int length)
 {
-	if (!invoke_dissector((void *)_stp_print,
-	    length, 0, 0, 0, 0, ndo, p, NULL, NULL, NULL))
-		_stp_print(ndo, p, length);
+	INVOKE_DISSECTOR(_stp_print, ndo, p, length);
 }
 
 void

@@ -47,9 +47,7 @@ static void babel_print_v2(netdissect_options *, const u_char *cp, u_int length)
 void
 babel_print(netdissect_options *ndo,
             const u_char *cp, u_int length) {
-	if (!invoke_dissector((void *)_babel_print,
-	    length, 0, 0, 0, 0, ndo, cp, NULL, NULL, NULL))
-		_babel_print(ndo, cp, length);
+	INVOKE_DISSECTOR(_babel_print, ndo, cp, length);
 }
 
 void

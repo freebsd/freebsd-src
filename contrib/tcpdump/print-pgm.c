@@ -147,9 +147,7 @@ pgm_print(netdissect_options *ndo,
           register const u_char *bp, register u_int length,
           register const u_char *bp2)
 {
-	if (!invoke_dissector((void *)_pgm_print,
-	    length, 0, 0, 0, 0, ndo, bp, bp2, NULL, NULL))
-		_pgm_print(ndo, bp, length, bp2);
+	INVOKE_DISSECTOR(_pgm_print, ndo, bp, length, bp2);
 }
 
 void

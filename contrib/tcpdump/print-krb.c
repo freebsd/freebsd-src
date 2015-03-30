@@ -225,9 +225,7 @@ void
 krb_print(netdissect_options *ndo,
           const u_char *dat)
 {
-	if (!invoke_dissector((void *)_krb_print,
-	    ndo->ndo_snapend - dat, 0, 0, 0, 0, ndo, dat, NULL, NULL, NULL))
-		_krb_print(ndo, dat);
+	INVOKE_DISSECTOR(_krb_print, ndo, dat);
 }
 
 void

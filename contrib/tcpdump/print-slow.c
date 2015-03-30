@@ -250,9 +250,7 @@ const struct slow_common_header_t *slow_com_header;
 void
 slow_print(netdissect_options *ndo,
            register const u_char *pptr, register u_int len) {
-	if (!invoke_dissector((void *)_slow_print,
-	    len, 0, 0, 0, 0, ndo, pptr, NULL, NULL, NULL))
-		_slow_print(ndo, pptr, len);
+	INVOKE_DISSECTOR(_slow_print, ndo, pptr, len);
 }
 
 void

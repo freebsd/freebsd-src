@@ -95,9 +95,7 @@ void
 timed_print(netdissect_options *ndo,
             register const u_char *bp)
 {
-	if (!invoke_dissector((void *)_timed_print,
-	    ndo->ndo_snapend - bp, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_timed_print(ndo, bp);
+	INVOKE_DISSECTOR(_timed_print, ndo, bp);
 }
 
 void

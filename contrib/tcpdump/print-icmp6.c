@@ -889,9 +889,7 @@ void
 icmp6_print(netdissect_options *ndo,
             const u_char *bp, u_int length, const u_char *bp2, int fragmented)
 {
-	if (!invoke_dissector((void *)_icmp6_print,
-	    length, fragmented, 0, 0, 0, ndo, bp, bp2, NULL, NULL))
-		_icmp6_print(ndo, bp, length, bp2, fragmented);
+	INVOKE_DISSECTOR(_icmp6_print, ndo, bp, length, bp2, fragmented);
 }
 
 void

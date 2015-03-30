@@ -58,9 +58,7 @@ enum mpls_packet_type {
 void
 mpls_print(netdissect_options *ndo, const u_char *bp, u_int length)
 {
-	if (!invoke_dissector((void *)_mpls_print,
-	    length, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_mpls_print(ndo, bp, length);
+	INVOKE_DISSECTOR(_mpls_print, ndo, bp, length);
 }
 
 void

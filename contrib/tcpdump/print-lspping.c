@@ -460,9 +460,7 @@ void
 lspping_print(netdissect_options *ndo,
               register const u_char *pptr, register u_int len) {
 
-	if (!invoke_dissector((void *)_lspping_print,
-	    len, 0, 0, 0, 0, ndo, pptr, NULL, NULL, NULL))
-		_lspping_print(ndo, pptr, len);
+	INVOKE_DISSECTOR(_lspping_print, ndo, pptr, len);
 }
 
 void

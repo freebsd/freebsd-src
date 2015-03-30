@@ -2701,9 +2701,7 @@ void
 bgp_print(netdissect_options *ndo,
           const u_char *dat, int length)
 {
-	if (!invoke_dissector((void *)_bgp_print,
-	    length, 0, 0, 0, 0, ndo, dat, NULL, NULL, NULL))
-		_bgp_print(ndo, dat, length);
+	INVOKE_DISSECTOR(_bgp_print, ndo, dat, length);
 }
 
 void

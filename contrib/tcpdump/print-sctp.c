@@ -496,9 +496,7 @@ void sctp_print(netdissect_options *ndo,
                 const u_char *bp2,       /* beginning of enclosing */
                 u_int sctpPacketLength)  /* ip packet */
 {
-	if (!invoke_dissector((void *)_sctp_print,
-	    sctpPacketLength, 0, 0, 0, 0, ndo, bp, bp2, NULL, NULL))
-		_sctp_print(ndo, bp, bp2, sctpPacketLength);
+	INVOKE_DISSECTOR(_sctp_print, ndo, bp, bp2, sctpPacketLength);
 }
 
 void

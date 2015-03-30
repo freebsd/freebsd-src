@@ -49,9 +49,7 @@ struct msnlb_heartbeat_pkt {
 void
 msnlb_print(netdissect_options *ndo, const u_char *bp, u_int length)
 {
-	if (!invoke_dissector((void *)_msnlb_print,
-	    length, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_msnlb_print(ndo, bp, length);
+	INVOKE_DISSECTOR(_msnlb_print, ndo, bp, length);
 }
 
 void

@@ -121,9 +121,7 @@ void
 vtp_print (netdissect_options *ndo,
            const u_char *pptr, u_int length)
 {
-	if (!invoke_dissector((void *)_vtp_print,
-	    length, 0, 0, 0, 0, ndo, pptr, NULL, NULL, NULL))
-		_vtp_print(ndo, pptr, length);
+	INVOKE_DISSECTOR(_vtp_print, ndo, pptr, length);
 }
 
 void

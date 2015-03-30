@@ -39,9 +39,7 @@ l_strnstart(const char *tstr1, u_int tl1, const char *str2, u_int l2)
 void
 beep_print(netdissect_options *ndo, const u_char *bp, u_int length)
 {
-	if (!invoke_dissector((void *)_beep_print,
-	    length, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_beep_print(ndo, bp, length);
+	INVOKE_DISSECTOR(_beep_print, ndo, bp, length);
 }
 
 void

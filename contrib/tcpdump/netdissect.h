@@ -350,26 +350,9 @@ typedef u_int (*if_printer)(const struct pcap_pkthdr *, const u_char *);
 extern if_ndo_printer lookup_ndo_printer(int);
 extern if_printer lookup_printer(int);
 
-#ifndef __CHERI_SANDBOX__
-static inline int
-invoke_dissector(void *func, u_int length, register_t arg2,
-    register_t arg3, register_t arg4, register_t arg5,
-    netdissect_options *ndo, const u_char *bp,
-    const u_char *bp2, void* carg1, void* carg2) {
-
-	return (0);
-}
-#else
-int
-invoke_dissector(void *func, u_int length, register_t arg2,
-    register_t arg3, register_t arg4, register_t arg5,
-    netdissect_options *ndo, const u_char *bp, const u_char *bp2,
-    void *carg1, void *carg2);
-#endif
-
 #if __has_feature(capabilities)
 extern struct cheri_object cheri_tcpdump;
-extern struct cheri_object gnext_sandbox;
+extern struct cheri_object g_next_object;
 #ifdef CHERI_TCPDUMP_INTERNAL
 #define CHERI_TCPDUMP_CCALL					\
     __attribute__((cheri_ccallee))				\
@@ -381,15 +364,24 @@ extern struct cheri_object gnext_sandbox;
     __attribute__((cheri_method_suffix("_cap")))		\
     __attribute__((cheri_method_class(cheri_tcpdump)))
 #endif
+#define INVOKE_DISSECTOR(name, ...) 				\
+	if (!CHERI_OBJECT_ISNULL(g_next_object))		\
+		name##_cap(g_next_object, __VA_ARGS__);		\
+	else							\
+		name(__VA_ARGS__)
 #else
 #define CHERI_TCPDUMP_CCALL
+#define	INVOKE_DISSECTOR(name, ...)				\
+	name(__VA_ARGS__)
 #endif
 
 #define ND_DECLARE(name, ...)		\
 	extern void name(netdissect_options *, __VA_ARGS__);		\
+	CHERI_TCPDUMP_CCALL						\
 	extern void _##name(netdissect_options *, __VA_ARGS__)
 #define ND_DECLARE_RET(name, ...)		\
 	extern void name(netdissect_options *, __VA_ARGS__);		\
+	CHERI_TCPDUMP_CCALL						\
 	extern u_int _##name(netdissect_options *, __VA_ARGS__)
 
 ND_DECLARE(eap_print, const u_char *, u_int);

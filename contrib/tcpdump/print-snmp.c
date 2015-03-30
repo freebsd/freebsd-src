@@ -1848,9 +1848,7 @@ void
 snmp_print(netdissect_options *ndo,
            const u_char *np, u_int length)
 {
-	if (!invoke_dissector((void *)_snmp_print,
-	    length, 0, 0, 0, 0, ndo, np, NULL, NULL, NULL))
-		_snmp_print(ndo, np, length);
+	INVOKE_DISSECTOR(_snmp_print, ndo, np, length);
 }
 
 void

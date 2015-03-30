@@ -82,9 +82,7 @@ lane_hdr_print(netdissect_options *ndo, const u_char *bp)
 void
 lane_print(netdissect_options *ndo, const u_char *p, u_int length, u_int caplen)
 {
-	if (!invoke_dissector((void *)_lane_print,
-	    length, caplen, 0, 0, 0, ndo, p, NULL, NULL, NULL))
-		_lane_print(ndo, p, length, caplen);
+	INVOKE_DISSECTOR(_lane_print, ndo, p, length, caplen);
 }
 
 void

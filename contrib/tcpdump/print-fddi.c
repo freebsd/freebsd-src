@@ -283,9 +283,7 @@ fddi_smt_print(netdissect_options *ndo, const u_char *p _U_, u_int length _U_)
 void
 fddi_print(netdissect_options *ndo, const u_char *p, u_int length, u_int caplen)
 {
-	if (!invoke_dissector((void *)_fddi_print,
-	    length, caplen, 0, 0, 0, ndo, p, NULL, NULL, NULL))
-		_fddi_print(ndo, p, length, caplen);
+	INVOKE_DISSECTOR(_fddi_print, ndo, p, length, caplen);
 }
 
 void

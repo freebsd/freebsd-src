@@ -580,9 +580,7 @@ void
 ns_print(netdissect_options *ndo,
          register const u_char *bp, u_int length, int is_mdns)
 {
-	if (!invoke_dissector((void *)_ns_print,
-	    length, is_mdns, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_ns_print(ndo, bp, length, is_mdns);
+	INVOKE_DISSECTOR(_ns_print, ndo, bp, length, is_mdns);
 }
 
 void

@@ -68,9 +68,7 @@ void
 dvmrp_print(netdissect_options *ndo,
             register const u_char *bp, register u_int len)
 {
-	if (!invoke_dissector((void *)_dvmrp_print,
-	    len, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_dvmrp_print(ndo, bp, len);
+	INVOKE_DISSECTOR(_dvmrp_print, ndo, bp, len);
 }
 
 void

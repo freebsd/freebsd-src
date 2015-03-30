@@ -232,9 +232,7 @@ void
 fr_print(netdissect_options *ndo,
          register const u_char *p, u_int length)
 {
-	if (!invoke_dissector((void *)_fr_print,
-	    length, 0, 0, 0, 0, ndo, p, NULL, NULL, NULL))
-		_fr_print(ndo, p, length);
+	INVOKE_DISSECTOR(_fr_print, ndo, p, length);
 }
 
 u_int
@@ -409,9 +407,7 @@ void
 mfr_print(netdissect_options *ndo,
           register const u_char *p, u_int length)
 {
-	if (!invoke_dissector((void *)_mfr_print,
-	    length, 0, 0, 0, 0, ndo, p, NULL, NULL, NULL))
-		_mfr_print(ndo, p, length);
+	INVOKE_DISSECTOR(_mfr_print, ndo, p, length);
 }
 
 u_int
@@ -748,9 +744,7 @@ void
 q933_print(netdissect_options *ndo,
            const u_char *p, u_int length)
 {
-	if (!invoke_dissector((void *)_q933_print,
-	    length, 0, 0, 0, 0, ndo, p, NULL, NULL, NULL))
-		_q933_print(ndo, p, length);
+	INVOKE_DISSECTOR(_q933_print, ndo, p, length);
 }
 
 void

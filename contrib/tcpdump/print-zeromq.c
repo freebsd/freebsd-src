@@ -141,9 +141,7 @@ trunc:
 void
 zmtp1_print(netdissect_options *ndo, const u_char *cp, u_int len)
 {
-	if (!invoke_dissector((void *)_zmtp1_print,
-	    len, 0, 0, 0, 0, ndo, cp, NULL, NULL, NULL))
-		_zmtp1_print(ndo, cp, len);
+	INVOKE_DISSECTOR(_zmtp1_print, ndo, cp, len);
 }
 
 void

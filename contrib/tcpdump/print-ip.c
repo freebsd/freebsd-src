@@ -507,9 +507,8 @@ ip_print_inner(netdissect_options *ndo,
 	       u_int length, u_int nh,
 	       const u_char *bp2)
 {
-	if (!invoke_dissector((void *)_ip_print_inner,
-	    length, nh, 0, 0, 0, ndo, bp, bp2, NULL, NULL))
-		_ip_print_inner(ndo, bp, length, nh, bp2);
+
+	INVOKE_DISSECTOR(_ip_print_inner, ndo, bp, length, nh, bp2);
 }
 
 void
@@ -540,9 +539,7 @@ ip_print(netdissect_options *ndo,
 	 u_int length)
 {
 
-	if (!invoke_dissector((void *)_ip_print,
-	    length, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_ip_print(ndo, bp, length);
+	INVOKE_DISSECTOR(_ip_print, ndo, bp, length);
 }
 
 void

@@ -256,9 +256,7 @@ void
 dccp_print(netdissect_options *ndo, const u_char *bp, const u_char *data2,
                 u_int len)
 {
-	if (!invoke_dissector((void *)_dccp_print,
-	    len, 0, 0, 0, 0, ndo, bp, data2, NULL, NULL))
-		_dccp_print(ndo, bp, data2, len);
+	INVOKE_DISSECTOR(_dccp_print, ndo, bp, data2, len);
 }
 
 void

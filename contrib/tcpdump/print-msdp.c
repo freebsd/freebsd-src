@@ -32,9 +32,7 @@
 void
 msdp_print(netdissect_options *ndo, const u_char *sp, u_int length)
 {
-	if (!invoke_dissector((void *)_msdp_print,
-	    length, 0, 0, 0, 0, ndo, sp, NULL, NULL, NULL))
-		_msdp_print(ndo, sp, length);
+	INVOKE_DISSECTOR(_msdp_print, ndo, sp, length);
 }
 
 void

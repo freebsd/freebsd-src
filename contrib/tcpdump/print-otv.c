@@ -38,9 +38,7 @@
 void
 otv_print(netdissect_options *ndo, const u_char *bp, u_int len)
 {
-	if (!invoke_dissector((void *)_otv_print,
-	    len, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_otv_print(ndo, bp, len);
+	INVOKE_DISSECTOR(_otv_print, ndo, bp, len);
 }
 
 void

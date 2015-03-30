@@ -394,9 +394,7 @@ void
 wb_print(netdissect_options *ndo,
          register const void *hdr, register u_int len)
 {
-	if (!invoke_dissector((void *)_wb_print,
-	    len, 0, 0, 0, 0, ndo, hdr, NULL, NULL, NULL))
-		_wb_print(ndo, hdr, len);
+	INVOKE_DISSECTOR(_wb_print, ndo, hdr, len);
 }
 
 void

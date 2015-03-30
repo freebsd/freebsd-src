@@ -38,9 +38,7 @@
 void
 vxlan_print(netdissect_options *ndo, const u_char *bp, u_int len)
 {
-	if (!invoke_dissector((void *)_vxlan_print,
-	    len, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_vxlan_print(ndo, bp, len);
+	INVOKE_DISSECTOR(_vxlan_print, ndo, bp, len);
 }
 
 void

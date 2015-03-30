@@ -295,9 +295,7 @@ void
 arp_print(netdissect_options *ndo,
 	  const u_char *bp, u_int length, u_int caplen)
 {
-	if (!invoke_dissector((void *)_arp_print,
-	    length, caplen, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_arp_print(ndo, bp, length, caplen);
+	INVOKE_DISSECTOR(_arp_print, ndo, bp, length, caplen);
 }
 
 void

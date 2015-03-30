@@ -282,9 +282,7 @@ cfm_egress_id_string(netdissect_options *ndo, register const u_char *tptr) {
 void
 cfm_print(netdissect_options *ndo,
           register const u_char *pptr, register u_int length) {
-	if (!invoke_dissector((void *)_cfm_print,
-	    length, 0, 0, 0, 0, ndo, pptr, NULL, NULL, NULL))
-		_cfm_print(ndo, pptr, length);
+	INVOKE_DISSECTOR(_cfm_print, ndo, pptr, length);
 }
 
 void

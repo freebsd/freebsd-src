@@ -130,9 +130,7 @@ str_to_lower(char *string)
 void
 zephyr_print(netdissect_options *ndo, const u_char *cp, int length)
 {
-	if (!invoke_dissector((void *)_zephyr_print,
-	    length, 0, 0, 0, 0, ndo, cp, NULL, NULL, NULL))
-		_zephyr_print(ndo, cp, length);
+	INVOKE_DISSECTOR(_zephyr_print, ndo, cp, length);
 }
 
 void

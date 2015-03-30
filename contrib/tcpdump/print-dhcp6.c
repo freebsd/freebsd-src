@@ -758,9 +758,7 @@ void
 dhcp6_print(netdissect_options *ndo,
             const u_char *cp, u_int length)
 {
-	if (!invoke_dissector((void *)_dhcp6_print,
-	    length, 0, 0, 0, 0, ndo, cp, NULL, NULL, NULL))
-		_dhcp6_print(ndo, cp, length);
+	INVOKE_DISSECTOR(_dhcp6_print, ndo, cp, length);
 }
 
 void

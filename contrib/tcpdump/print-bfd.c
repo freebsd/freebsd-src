@@ -162,9 +162,7 @@ void
 bfd_print(netdissect_options *ndo, register const u_char *pptr,
           register u_int len, register u_int port)
 {
-	if (!invoke_dissector((void *)_bfd_print,
-	    len, port, 0, 0, 0, ndo, pptr, NULL, NULL, NULL))
-		_bfd_print(ndo, pptr, len, port);
+	INVOKE_DISSECTOR(_bfd_print, ndo, pptr, len, port);
 }
 
 void

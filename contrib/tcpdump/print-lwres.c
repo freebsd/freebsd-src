@@ -293,9 +293,7 @@ void
 lwres_print(netdissect_options *ndo,
             register const u_char *bp, u_int length)
 {
-	if (!invoke_dissector((void *)_lwres_print,
-	    length, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_lwres_print(ndo, bp, length);
+	INVOKE_DISSECTOR(_lwres_print, ndo, bp, length);
 }
 
 void

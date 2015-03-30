@@ -47,9 +47,7 @@
 void
 carp_print(netdissect_options *ndo, register const u_char *bp, register u_int len, int ttl)
 {
-	if (!invoke_dissector((void *)_carp_print,
-	    len, ttl, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_carp_print(ndo, bp, len, ttl);
+	INVOKE_DISSECTOR(_carp_print, ndo, bp, len, ttl);
 }
 
 void

@@ -229,9 +229,7 @@ void
 pimv1_print(netdissect_options *ndo,
             register const u_char *bp, register u_int len)
 {
-	if (!invoke_dissector((void *)_pimv1_print,
-	    len, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_pimv1_print(ndo, bp, len);
+	INVOKE_DISSECTOR(_pimv1_print, ndo, bp, len);
 }
 
 void
@@ -333,9 +331,7 @@ void
 cisco_autorp_print(netdissect_options *ndo,
                    register const u_char *bp, register u_int len)
 {
-	if (!invoke_dissector((void *)_cisco_autorp_print,
-	    len, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_cisco_autorp_print(ndo, bp, len);
+	INVOKE_DISSECTOR(_cisco_autorp_print, ndo, bp, len);
 }
 
 void
@@ -437,9 +433,7 @@ void
 pim_print(netdissect_options *ndo,
           register const u_char *bp, register u_int len, u_int cksum)
 {
-	if (!invoke_dissector((void *)_pim_print,
-	    len, cksum, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_pim_print(ndo, bp, len, cksum);
+	INVOKE_DISSECTOR(_pim_print, ndo, bp, len, cksum);
 }
 
 void

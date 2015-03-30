@@ -124,9 +124,7 @@ static const struct tok mpcp_reg_ack_flag_values[] = {
 void
 mpcp_print(netdissect_options *ndo, register const u_char *pptr, register u_int length) {
 
-	if (!invoke_dissector((void *)_mpcp_print,
-	    length, 0, 0, 0, 0, ndo, pptr, NULL, NULL, NULL))
-		_mpcp_print(ndo, pptr, length);
+	INVOKE_DISSECTOR(_mpcp_print, ndo, pptr, length);
 }
 
 void

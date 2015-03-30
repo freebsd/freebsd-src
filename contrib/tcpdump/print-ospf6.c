@@ -951,9 +951,7 @@ void
 ospf6_print(netdissect_options *ndo,
             register const u_char *bp, register u_int length)
 {
-	if (!invoke_dissector((void *)_ospf6_print,
-	    length, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
-		_ospf6_print(ndo, bp, length);
+	INVOKE_DISSECTOR(_ospf6_print, ndo, bp, length);
 }
 
 void

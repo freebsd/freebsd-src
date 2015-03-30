@@ -74,9 +74,7 @@ rrcp_print(netdissect_options *ndo,
 	  register const u_char *cp,
 	  u_int length)
 {
-	if (!invoke_dissector((void *)_rrcp_print,
-	    length, 0, 0, 0, 0, ndo, cp, NULL, NULL, NULL))
-		_rrcp_print(ndo, cp, length);
+	INVOKE_DISSECTOR(_rrcp_print, ndo, cp, length);
 }
 
 void
