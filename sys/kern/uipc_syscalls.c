@@ -2576,7 +2576,8 @@ retry_space:
 			 * send (rem > space), or if we have readahead
 			 * configured (rhpages > 0).
 			 */
-			if ((i == npages - 1 &&
+			if ((flags & SF_NOCACHE) == 0 ||
+			    (i == npages - 1 &&
 			    ((off + space) & PAGE_MASK) &&
 			    (rem > space || rhpages > 0)))
 				m0->m_ext.ext_type = EXT_SFBUF;
