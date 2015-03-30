@@ -49,6 +49,8 @@ uint16_t dtrace_fuword16_nocheck(void *);
 uint32_t dtrace_fuword32_nocheck(void *);
 uint64_t dtrace_fuword64_nocheck(void *);
 
+int	dtrace_ustackdepth_max = 2048;
+
 void
 dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
     uint32_t *intrpc)
@@ -102,14 +104,25 @@ static int
 dtrace_getustack_common(uint64_t *pcstack, int pcstack_limit, uintptr_t pc,
     uintptr_t sp)
 {
+	uintptr_t oldsp;
 	volatile uint16_t *flags =
 	    (volatile uint16_t *)&cpu_core[curcpu].cpuc_dtrace_flags;
 	int ret = 0;
 
 	ASSERT(pcstack == NULL || pcstack_limit > 0);
+	ASSERT(dtrace_ustackdepth_max > 0);
 
 	while (pc != 0) {
-		ret++;
+		/*
+		 * We limit the number of times we can go around this
+		 * loop to account for a circular stack.
+		 */
+		if (ret++ >= dtrace_ustackdepth_max) {
+			*flags |= CPU_DTRACE_BADSTACK;
+			cpu_core[curcpu].cpuc_dtrace_illval = sp;
+			break;
+		}
+
 		if (pcstack != NULL) {
 			*pcstack++ = (uint64_t)pc;
 			pcstack_limit--;
@@ -120,9 +133,17 @@ dtrace_getustack_common(uint64_t *pcstack, int pcstack_limit, uintptr_t pc,
 		if (sp == 0)
 			break;
 
+		oldsp = sp;
+
 		pc = dtrace_fuword64((void *)(sp +
 			offsetof(struct amd64_frame, f_retaddr)));
 		sp = dtrace_fuword64((void *)sp);
+
+		if (sp == oldsp) {
+			*flags |= CPU_DTRACE_BADSTACK;
+			cpu_core[curcpu].cpuc_dtrace_illval = sp;
+			break;
+		}
 
 		/*
 		 * This is totally bogus:  if we faulted, we're going to clear
