@@ -45,7 +45,7 @@ err() {
 }
 
 cleanup() {
-	if mount | grep -qE "devfs on ${DESTDIR}/dev"; then
+	if [ -c "${DESTDIR}/dev/null" ]; then
 		umount_loop ${DESTDIR}/dev 2>/dev/null
 	fi
 	umount_loop ${DESTDIR}
