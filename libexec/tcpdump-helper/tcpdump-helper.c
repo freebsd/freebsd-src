@@ -198,7 +198,7 @@ cheri_sandbox_pretty_print_packet(const struct pcap_pkthdr *h,
 	if (gndo->ndo_packetp == NULL)
 		error("failed to malloc packet space\n");
 	/* XXXBD: void* cast works around type bug */
-	memcpy((void *)gndo->ndo_packetp, sp, h->caplen);
+	memcpy(__DECONST(void *, gndo->ndo_packetp), sp, h->caplen);
 	gndo->ndo_snapend = gndo->ndo_packetp + h->caplen;
 
 	if (printinfo.ndo_type)
@@ -208,7 +208,7 @@ cheri_sandbox_pretty_print_packet(const struct pcap_pkthdr *h,
 		ret = (*printinfo.p.printer)(h, gndo->ndo_packetp);
 
 	/* XXX: what else to reset? */
-	free((void*)(gndo->ndo_packetp));
+	free(__DECONST(void*, gndo->ndo_packetp));
 	gndo->ndo_packetp = NULL;
 	snapend = NULL;
 
@@ -906,8 +906,8 @@ invoke_dissector(void *func, u_int length, register_t arg2,
 		    CHERI_INVOKE_METHOD_LEGACY_INVOKE,
 		    methodnum,
 		    length, arg2, arg3, arg4, arg5, 0, 0,
-		    ndo, (void *)bp, (void *)bp2, carg1, carg2,
-		    NULL, NULL, NULL)) {
+		    ndo, __DECONST(void *, bp), __DECONST(void *, bp2),
+		    carg1, carg2, NULL, NULL, NULL)) {
 			printf("failure in sandbox op=%d\n", (int)methodnum);
 			abort();
 		}

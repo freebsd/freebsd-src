@@ -119,8 +119,9 @@ invoke(uint32_t width, uint32_t height, size_t pnglen __unused,
 		memcpy_c(png_out, idsp->buffer, sizeof(uint32_t) * width * height);
 	free(idsp->buffer);
 
-	memcpy_c(times, (void *)(isp->times + 1), sizeof(uint32_t) * 2);
-	free((void *)isp->times);
+	memcpy_c(times, __DEVOLATILE(void *, isp->times + 1),
+	    sizeof(uint32_t) * 2);
+	free(__DEVOLATILE(void *, isp->times));
 
 	error = isp->error;
 	free(isp);
