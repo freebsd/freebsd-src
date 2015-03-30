@@ -142,8 +142,6 @@ static const struct pci_id pci_ns8250_ids[] = {
 	"MosChip MCS9904 PCIe to Peripheral Controller", 0x10 },
 { 0x9710, 0x9922, 0xa000, 0x1000,
 	"MosChip MCS9922 PCIe to Peripheral Controller", 0x10 },
-{ 0x9710, 0x9922, 0xa000, 0x1000,
-	"MosChip MCS9922 PCIe to Peripheral Controller", 0x10 },
 { 0xdeaf, 0x9051, 0xffff, 0, "Middle Digital PC Weasel Serial Port", 0x10 },
 { 0xffff, 0, 0xffff, 0, NULL, 0, 0}
 };
