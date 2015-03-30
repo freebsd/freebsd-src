@@ -2069,7 +2069,7 @@ fixspace(int old, int new, off_t off, int *space)
  * call pru_ready on the socket, to notify it of readyness of the data.
  */
 struct sf_io {
-	u_int		nios;
+	volatile u_int	nios;
 	u_int		error;
 	int		npages;
 	struct file	*sock_fp;
@@ -2576,8 +2576,7 @@ retry_space:
 			 * send (rem > space), or if we have readahead
 			 * configured (rhpages > 0).
 			 */
-			if ((flags & SF_NOCACHE) == 0 ||
-			    (i == npages - 1 &&
+			if ((i == npages - 1 &&
 			    ((off + space) & PAGE_MASK) &&
 			    (rem > space || rhpages > 0)))
 				m0->m_ext.ext_type = EXT_SFBUF;
