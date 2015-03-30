@@ -148,24 +148,34 @@ sub ssw_SECode { return $_[$[] & 0xf; }
 
 %LI = ( 0, "leap_none",  1, "leap_add_sec", 2, "leap_del_sec", 3, "sync_alarm", "-", "leap");
 %ClockSource = (0, "sync_unspec",
-		1, "sync_lf_clock",
-		2, "sync_uhf_clock",
+		1, "sync_pps",
+		2, "sync_lf_clock",
 		3, "sync_hf_clock",
-		4, "sync_local_proto",
-		5, "sync_ntp",
-		6, "sync_udp/time",
-		7, "sync_wristwatch",
+		4, "sync_uhf_clock",
+		5, "sync_local_proto",
+		6, "sync_ntp",
+		7, "sync_udp/time",
+		8, "sync_wristwatch",
+		9, "sync_telephone",
 		"-", "ClockSource",
 		);
 
 %SystemEvent = (0, "event_unspec",
-		1, "event_restart",
-		2, "event_fault",
-		3, "event_sync_chg",
-		4, "event_sync/strat_chg",
-		5, "event_clock_reset",
-		6, "event_bad_date",
-		7, "event_clock_excptn",
+		1, "event_freq_not_set",
+		2, "event_freq_set",
+		3, "event_spike_detect",
+		4, "event_freq_mode",
+		5, "event_clock_sync",
+		6, "event_restart",
+		7, "event_panic_stop",
+		8, "event_no_sys_peer",
+		9, "event_leap_armed",
+		10, "event_leap_disarmed",
+		11, "event_leap_event",
+		12, "event_clock_step",
+		13, "event_kern",
+		14, "event_loaded_leaps",
+		15, "event_stale_leaps",
 		"-", "event",
 		);
 sub LI
@@ -196,26 +206,38 @@ sub psw_PStat_config     { return ($_[$[] & 0x8000) == 0x8000; }
 sub psw_PStat_authenable { return ($_[$[] & 0x4000) == 0x4000; }
 sub psw_PStat_authentic  { return ($_[$[] & 0x2000) == 0x2000; }
 sub psw_PStat_reach      { return ($_[$[] & 0x1000) == 0x1000; }
-sub psw_PStat_sane       { return ($_[$[] & 0x0800) == 0x0800; }
-sub psw_PStat_dispok     { return ($_[$[] & 0x0400) == 0x0400; }
+sub psw_PStat_bcast      { return ($_[$[] & 0x0800) == 0x0800; }
 sub psw_PStat { return ($_[$[] >> 10) & 0x3f; }
 sub psw_PSel  { return ($_[$[] >> 8)  & 0x3;  }
 sub psw_PCnt  { return ($_[$[] >> 4)  & 0xf; }
 sub psw_PCode { return $_[$[] & 0xf; }
 
 %PeerSelection = (0, "sel_reject",
-		  1, "sel_candidate",
-		  2, "sel_selcand",
-		  3, "sel_sys.peer",
+		  1, "sel_falsetick",
+		  2, "sel_excess",
+		  3, "sel_outlier",
+		  4, "sel_candidate",
+		  5, "sel_backup",
+		  6, "sel_sys.peer",
+		  6, "sel_pps.peer",
 		  "-", "PeerSel",
 		  );
 %PeerEvent = (0, "event_unspec",
-	      1, "event_ip_err",
-	      2, "event_authen",
+	      1, "event_mobilize",
+	      2, "event_demobilize",
 	      3, "event_unreach",
 	      4, "event_reach",
-	      5, "event_clock_excptn",
-	      6, "event_stratum_chg",
+	      5, "event_restart",
+	      6, "event_no_reply",
+	      7, "event_rate_exceed",
+	      8, "event_denied",
+	      9, "event_leap_armed",
+	      10, "event_sys_peer",
+	      11, "event_clock_event",
+	      12, "event_bad_auth",
+	      13, "event_popcorn",
+	      14, "event_intlv_mode",
+	      15, "event_intlv_err",
 	      "-", "event",
 	      );
 
@@ -236,8 +258,7 @@ sub peer_status
     $x .= "authenable," if &psw_PStat_authenable($_[$[]);
     $x .= "authentic,"  if &psw_PStat_authentic($_[$[]);
     $x .= "reach,"      if &psw_PStat_reach($_[$[]);
-    $x .= &psw_PStat_sane($_[$[]) ? "sane," : "insane,";
-    $x .= "hi_disp," unless &psw_PStat_dispok($_[$[]);
+    $x .= "bcast,"      if &psw_PStat_bcast($_[$[]);
 
     $x .= sprintf(" %s, %d event%s, %s", &PeerSelection($_[$[]),
 		  &psw_PCnt($_[$[]), ((&psw_PCnt($_[$[]) == 1) ? "" : "s"),
@@ -256,7 +277,7 @@ sub csw_CEvnt { return $_[$[] & 0xff; }
 		1, "clk_timeout",
 		2, "clk_badreply",
 		3, "clk_fault",
-		4, "clk_prop",
+		4, "clk_badsig",
 		5, "clk_baddate",
 		6, "clk_badtime",
 		"-", "clk",
@@ -295,13 +316,19 @@ sub error_status
 ;#
 ;# cntrl op name translation
 
-%CntrlOpName = (1, "read_status",
+%CntrlOpName = (0, "reserved",
+		1, "read_status",
 		2, "read_variables",
 		3, "write_variables",
 		4, "read_clock_variables",
 		5, "write_clock_variables",
 		6, "set_trap",
 		7, "trap_response",
+		8, "configure",
+		9, "saveconf",
+		10, "read_mru",
+		11, "read_ordlist",
+		12, "rqst_nonce",
 		31, "unset_trap", # !!! unofficial !!!
 		"-", "cntrlop",
 		);
@@ -393,7 +420,7 @@ sub handle_packet
 	$STAT_frag++;
 	
 	$lastseen = 1 if !&pkt_M($r_e_m_op);
-	if (!defined(%FRAGS))
+	if (!%FRAGS)
 	{
 	    print((&pkt_M($r_e_m_op) ? " more" : "")."\n");
 	    $FRAGS{$offset} = $data;
