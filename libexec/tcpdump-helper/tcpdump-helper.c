@@ -188,7 +188,6 @@ cheri_sandbox_pretty_print_packet(const struct pcap_pkthdr *h,
 	    cheri_getlen((void *)sp),
 	    cheri_getoffset((void *)sp));
 #endif
-	assert(h->caplen == cheri_getlen((void *)sp));
 
 	/*
 	 * XXXBD: Hack around the need to not store the packet except
