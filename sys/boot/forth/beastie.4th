@@ -1,6 +1,6 @@
 \ Copyright (c) 2003 Scott Long <scottl@freebsd.org>
 \ Copyright (c) 2003 Aleksander Fafula <alex@fafula.com>
-\ Copyright (c) 2006-2013 Devin Teske <dteske@FreeBSD.org>
+\ Copyright (c) 2006-2015 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
@@ -193,14 +193,10 @@ variable logoY
 
 	s" loader_logo_x" getenv dup -1 <> if
 		?number 1 = if logoX ! then
-	else
-		drop
-	then
+	else drop then
 	s" loader_logo_y" getenv dup -1 <> if
 		?number 1 = if logoY ! then
-	else
-		drop
-	then
+	else drop then
 
 	s" loader_logo" getenv dup -1 <> if
 		dup 5 + allocate if ENOMEM throw then
@@ -247,8 +243,7 @@ variable logoY
 			s" set beastie_disable=YES" evaluate
 		then
 	else drop then
-	s" beastie_disable" getenv
-	dup -1 <> if
+	s" beastie_disable" getenv dup -1 <> if
 		s" YES" compare-insensitive 0= if
 			any_conf_read? if
 				load_xen_throw
@@ -257,12 +252,9 @@ variable logoY
 			then
 			exit \ to autoboot (default)
 		then
-	else
-		drop
-	then
+	else drop then
 
-	s" loader_delay" getenv
-	-1 = if
+	s" loader_delay" getenv -1 = if
 		s" include /boot/menu.rc" evaluate
 	else
 		drop
