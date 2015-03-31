@@ -43,15 +43,16 @@ s" arch-i386" environment? [if] [if]
 include /boot/support.4th
 include /boot/color.4th
 include /boot/delay.4th
+include /boot/check-password.4th
 
 only forth also support-functions also builtins definitions
 
 : bootmsg ( -- )
-  loader_color? if
-    ." [37;44mBooting...[0m" cr
-  else
-    ." Booting..." cr
-  then
+  loader_color? dup ( -- bool bool )
+  if 7 fg 4 bg then
+  ." Booting..."
+  if me then
+  cr
 ;
 
 : try-menu-unset
@@ -127,8 +128,6 @@ builtin: boot
 builtin: boot-conf
 
 only forth definitions also support-functions
-
-include /boot/check-password.4th
 
 \ ***** start
 \
