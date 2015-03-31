@@ -146,8 +146,8 @@ variable readlen             \ input length
 	s" password" getenv dup readmax > if drop readmax then
 	begin
 		s" Password: " read ( prompt -- )
-		2dup readval readlen @ compare 0= if
-			2drop exit \ Correct password
+		2dup readval readlen @ compare 0= if \ Correct password?
+			2drop exit
 		then
 		3000 ms ." loader: incorrect password" 10 emit
 	again
