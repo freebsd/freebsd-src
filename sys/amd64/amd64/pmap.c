@@ -412,7 +412,7 @@ static caddr_t crashdumpmap;
 static void	free_pv_chunk(struct pv_chunk *pc);
 static void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
 static pv_entry_t get_pv_entry(pmap_t pmap, struct rwlock **lockp);
-static int	popcnt_pc_map_elem(uint64_t elem);
+static int	popcnt_pc_map_elem_pq(uint64_t elem);
 static vm_page_t reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp);
 static void	reserve_pv_entries(pmap_t pmap, int needed,
 		    struct rwlock **lockp);
@@ -2980,20 +2980,27 @@ retry:
 
 /*
  * Returns the number of one bits within the given PV chunk map element.
+ *
+ * The erratas for Intel processors state that "POPCNT Instruction May
+ * Take Longer to Execute Than Expected".  It is believed that the
+ * issue is the spurious dependency on the destination register.
+ * Provide a hint to the register rename logic that the destination
+ * value is overwritten, by clearing it, as suggested in the
+ * optimization manual.  It should be cheap for unaffected processors
+ * as well.
+ *
+ * Reference numbers for erratas are
+ * 4th Gen Core: HSD146
+ * 5th Gen Core: BDM85
  */
 static int
-popcnt_pc_map_elem(uint64_t elem)
+popcnt_pc_map_elem_pq(uint64_t elem)
 {
-	int count;
+	u_long result;
 
-	/*
-	 * This simple method of counting the one bits performs well because
-	 * the given element typically contains more zero bits than one bits.
-	 */
-	count = 0;
-	for (; elem != 0; elem &= elem - 1)
-		count++;
-	return (count);
+	__asm __volatile("xorl %k0,%k0;popcntq %1,%0"
+	    : "=&r" (result) : "rm" (elem));
+	return (result);
 }
 
 /*
@@ -3025,13 +3032,13 @@ retry:
 	avail = 0;
 	TAILQ_FOREACH(pc, &pmap->pm_pvchunk, pc_list) {
 		if ((cpu_feature2 & CPUID2_POPCNT) == 0) {
-			free = popcnt_pc_map_elem(pc->pc_map[0]);
-			free += popcnt_pc_map_elem(pc->pc_map[1]);
-			free += popcnt_pc_map_elem(pc->pc_map[2]);
+			free = bitcount64(pc->pc_map[0]);
+			free += bitcount64(pc->pc_map[1]);
+			free += bitcount64(pc->pc_map[2]);
 		} else {
-			free = popcntq(pc->pc_map[0]);
-			free += popcntq(pc->pc_map[1]);
-			free += popcntq(pc->pc_map[2]);
+			free = popcnt_pc_map_elem_pq(pc->pc_map[0]);
+			free += popcnt_pc_map_elem_pq(pc->pc_map[1]);
+			free += popcnt_pc_map_elem_pq(pc->pc_map[2]);
 		}
 		if (free == 0)
 			break;
