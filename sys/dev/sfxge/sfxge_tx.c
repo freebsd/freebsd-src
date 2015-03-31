@@ -1024,7 +1024,7 @@ sfxge_tx_queue_tso(struct sfxge_txq *txq, struct mbuf *mbuf,
 		KASSERT(n_dma_seg, ("no payload found in TSO packet"));
 		++dma_seg;
 	}
-	tso.in_len = dma_seg->ds_len + (tso.header_len - skipped);
+	tso.in_len = dma_seg->ds_len - (tso.header_len - skipped);
 	tso.dma_addr = dma_seg->ds_addr + (tso.header_len - skipped);
 
 	id = txq->added & txq->ptr_mask;
