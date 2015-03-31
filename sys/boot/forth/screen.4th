@@ -27,34 +27,26 @@
 
 marker task-screen.4th
 
-: escc	( -- )	\ emit Esc-[
-	91 27 emit emit
-;
+\ emit Esc-[
+: escc ( -- ) 27 emit [char] [ emit ;
 
-: ho	( -- )	\ Home cursor
-	escc 72 emit	\ Esc-[H
-;
+\ Home cursor ( Esc-[H )
+: ho ( -- ) escc [char] H emit ;
 
-: cld	( -- )	\ Clear from current position to end of display
-	escc 74 emit	\ Esc-[J
-;
+\ Clear from current position to end of display ( Esc-[J )
+: cld ( -- ) escc [char] J emit ;
 
-: clear	( -- )	\ clear screen
-	ho cld
-;
+\ clear screen
+: clear ( -- ) ho cld ;
 
-: at-xy	( x y -- )	\ move cursor to x rows, y cols (1-based coords)
-	escc .# 59 emit .# 72 emit	\ Esc-[%d;%dH
-;
+\ move cursor to x rows, y cols (1-based coords) ( Esc-[%d;%dH )
+: at-xy ( x y -- ) escc .# [char] ; emit .# [char] H emit ;
 
-: fg	( x -- )	\ Set foreground color
-	escc 3 .# .# 109 emit	\ Esc-[3%dm
-;
+\ Set foreground color ( Esc-[3%dm )
+: fg ( x -- ) escc 3 .# .# [char] m emit ;
 
-: bg	( x -- )	\ Set background color
-	escc 4 .# .# 109 emit	\ Esc-[4%dm
-;
+\ Set background color ( Esc-[4%dm )
+: bg ( x -- ) escc 4 .# .# [char] m emit ;
 
-: me	( -- )	\ Mode end (clear attributes)
-	escc 109 emit
-;
+\ Mode end (clear attributes)
+: me ( -- ) escc [char] m emit ;
