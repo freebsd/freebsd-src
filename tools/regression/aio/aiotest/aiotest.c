@@ -38,7 +38,8 @@
  * basic operations work on some basic object types.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/mdioctl.h>
@@ -79,25 +80,15 @@ struct aio_context {
 };
 
 static int	aio_timedout;
-static int	aio_notpresent;
-
-/*
- * Attempt to provide a cleaner failure mode in the event AIO support is not
- * present by catching and reporting SIGSYS.
- */
-static void
-aio_sigsys(int sig)
-{
-
-	aio_notpresent = 1;
-}
 
 static void
-aio_sigsys_setup(void)
+aio_available(void)
 {
 
-	if (signal(SIGSYS, aio_sigsys) == SIG_ERR)
-		errx(-1, "FAIL: signal(SIGSYS): %s", strerror(errno));
+	if (modfind("aio") == -1)
+		errx(0,
+		    "aio support not available in the kernel; skipping "
+		    "testcases");
 }
 
 /*
@@ -105,7 +96,7 @@ aio_sigsys_setup(void)
  * signal(3) and alarm(3) APIs to set this up.
  */
 static void
-aio_timeout_signal(int sig)
+aio_timeout_signal(int sig __unused)
 {
 
 	aio_timedout = 1;
@@ -117,7 +108,7 @@ aio_timeout_start(const char *string1, const char *string2, int seconds)
 
 	aio_timedout = 0;
 	if (signal(SIGALRM, aio_timeout_signal) == SIG_ERR)
-		errx(-1, "FAIL: %s: %s: aio_timeout_set: signal(SIGALRM): %s",
+		errx(1, "FAIL: %s: %s: aio_timeout_set: signal(SIGALRM): %s",
 		    string1, string2, strerror(errno));
 	alarm(seconds);
 }
@@ -127,7 +118,7 @@ aio_timeout_stop(const char *string1, const char *string2)
 {
 
 	if (signal(SIGALRM, NULL) == SIG_ERR)
-		errx(-1, "FAIL: %s: %s: aio_timeout_stop: signal(NULL): %s",
+		errx(1, "FAIL: %s: %s: aio_timeout_stop: signal(NULL): %s",
 		    string1, string2, strerror(errno));
 	alarm(0);
 }
@@ -179,7 +170,7 @@ aio_context_init(struct aio_context *ac, const char *test, int read_fd,
 {
 
 	if (buflen > BUFFER_MAX)
-		errx(-1, "FAIL: %s: aio_context_init: buffer too large",
+		errx(1, "FAIL: %s: aio_context_init: buffer too large",
 		    test);
 	bzero(ac, sizeof(*ac));
 	ac->ac_test = test;
@@ -190,7 +181,7 @@ aio_context_init(struct aio_context *ac, const char *test, int read_fd,
 	ac->ac_seed = random();
 	aio_fill_buffer(ac->ac_buffer, buflen, ac->ac_seed);
 	if (aio_test_buffer(ac->ac_buffer, buflen, ac->ac_seed) == 0)
-		errx(-1, "%s: aio_context_init: aio_test_buffer: internal "
+		errx(1, "%s: aio_context_init: aio_test_buffer: internal "
 		    "error", test);
 	ac->ac_seconds = seconds;
 	ac->ac_cleanup = cleanup;
@@ -223,7 +214,8 @@ aio_write_test(struct aio_context *ac)
 {
 	struct aiocb aio, *aiop;
 	ssize_t len;
-	int error;
+
+	aio_available();
 
 	bzero(&aio, sizeof(aio));
 	aio.aio_buf = ac->ac_buffer;
@@ -235,33 +227,29 @@ aio_write_test(struct aio_context *ac)
 
 	if (aio_write(&aio) < 0) {
 		if (errno == EINTR) {
-			if (aio_notpresent)
-				errno = EOPNOTSUPP;
 			if (aio_timedout) {
 				aio_cleanup(ac);
-				errx(-1, "FAIL: %s: aio_write_test: "
+				errx(1, "FAIL: %s: aio_write_test: "
 				    "aio_write: timed out", ac->ac_test);
 			}
 		}
 		aio_cleanup(ac);
-		errx(-1, "FAIL: %s: aio_write_test: aio_write: %s",
+		errx(1, "FAIL: %s: aio_write_test: aio_write: %s",
 		    ac->ac_test, strerror(errno));
 	}
 
 	len = aio_waitcomplete(&aiop, NULL);
 	if (len < 0) {
 		if (errno == EINTR) {
-			if (aio_notpresent)
-				errno = EOPNOTSUPP;
 			if (aio_timedout) {
 				aio_cleanup(ac);
-				errx(-1, "FAIL: %s: aio_write_test: "
+				errx(1, "FAIL: %s: aio_write_test: "
 				    "aio_waitcomplete: timed out",
 				    ac->ac_test);
 			}
 		}
 		aio_cleanup(ac);
-		errx(-1, "FAIL: %s: aio_write_test: aio_waitcomplete: %s",
+		errx(1, "FAIL: %s: aio_write_test: aio_waitcomplete: %s",
 		    ac->ac_test, strerror(errno));
 	}
 
@@ -269,7 +257,7 @@ aio_write_test(struct aio_context *ac)
 
 	if (len != ac->ac_buflen) {
 		aio_cleanup(ac);
-		errx(-1, "FAIL: %s: aio_write_test: aio_waitcomplete: short "
+		errx(1, "FAIL: %s: aio_write_test: aio_waitcomplete: short "
 		    "write (%jd)", ac->ac_test, (intmax_t)len);
 	}
 }
@@ -284,6 +272,8 @@ aio_read_test(struct aio_context *ac)
 	struct aiocb aio, *aiop;
 	ssize_t len;
 
+	aio_available();
+
 	bzero(ac->ac_buffer, ac->ac_buflen);
 	bzero(&aio, sizeof(aio));
 	aio.aio_buf = ac->ac_buffer;
@@ -295,33 +285,29 @@ aio_read_test(struct aio_context *ac)
 
 	if (aio_read(&aio) < 0) {
 		if (errno == EINTR) {
-			if (aio_notpresent)
-				errno = EOPNOTSUPP;
 			if (aio_timedout) {
 				aio_cleanup(ac);
-				errx(-1, "FAIL: %s: aio_read_test: "
+				errx(1, "FAIL: %s: aio_read_test: "
 				    "aio_read: timed out", ac->ac_test);
 			}
 		}
 		aio_cleanup(ac);
-		errx(-1, "FAIL: %s: aio_read_test: aio_read %s", ac->ac_test,
+		errx(1, "FAIL: %s: aio_read_test: aio_read %s", ac->ac_test,
 		    strerror(errno));
 	}
 
 	len = aio_waitcomplete(&aiop, NULL);
 	if (len < 0) {
 		if (errno == EINTR) {
-			if (aio_notpresent)
-				errno = EOPNOTSUPP;
 			if (aio_timedout) {
 				aio_cleanup(ac);
-				errx(-1, "FAIL: %s: aio_read_test: "
+				errx(1, "FAIL: %s: aio_read_test: "
 				    "aio_waitcomplete: timed out",
 				    ac->ac_test);
 			}
 		}
 		aio_cleanup(ac);
-		errx(-1, "FAIL: %s: aio_read_test: aio_waitcomplete: %s",
+		errx(1, "FAIL: %s: aio_read_test: aio_waitcomplete: %s",
 		    ac->ac_test, strerror(errno));
 	}
 
@@ -329,13 +315,13 @@ aio_read_test(struct aio_context *ac)
 
 	if (len != ac->ac_buflen) {
 		aio_cleanup(ac);
-		errx(-1, "FAIL: %s: aio_read_test: aio_waitcomplete: short "
+		errx(1, "FAIL: %s: aio_read_test: aio_waitcomplete: short "
 		    "read (%jd)", ac->ac_test, (intmax_t)len);
 	}
 
 	if (aio_test_buffer(ac->ac_buffer, ac->ac_buflen, ac->ac_seed) == 0) {
 		aio_cleanup(ac);
-		errx(-1, "FAIL: %s: aio_read_test: buffer mismatch",
+		errx(1, "FAIL: %s: aio_read_test: buffer mismatch",
 		    ac->ac_test);
 	}
 }
@@ -375,10 +361,12 @@ aio_file_test(void)
 	struct aio_context ac;
 	int fd;
 
+	aio_available();
+
 	strcpy(pathname, PATH_TEMPLATE);
 	fd = mkstemp(pathname);
 	if (fd == -1)
-		errx(-1, "FAIL: aio_file_test: mkstemp: %s",
+		errx(1, "FAIL: aio_file_test: mkstemp: %s",
 		    strerror(errno));
 
 	arg.afa_fd = fd;
@@ -423,15 +411,20 @@ aio_fifo_test(void)
 	char pathname[PATH_MAX];
 	struct aio_context ac;
 
+	aio_available();
+
 	/*
-	 * In theory, mktemp() can return a name that is then collided with.
+	 * In theory, mkstemp() can return a name that is then collided with.
 	 * Because this is a regression test, we treat that as a test failure
 	 * rather than retrying.
 	 */
 	strcpy(pathname, PATH_TEMPLATE);
-	mktemp(pathname);
+	if (mkstemp(pathname) == -1)
+		err(1, "FAIL: aio_fifo_test: mkstemp failed");
+	if (unlink(pathname) == -1)
+		err(1, "FAIL: aio_fifo_test: unlink failed");
 	if (mkfifo(pathname, 0600) == -1)
-		errx(-1, "FAIL: aio_fifo_test: mkfifo: %s", strerror(errno));
+		errx(1, "FAIL: aio_fifo_test: mkfifo: %s", strerror(errno));
 	arg.afa_pathname = pathname;
 	arg.afa_read_fd = -1;
 	arg.afa_write_fd = -1;
@@ -441,7 +434,7 @@ aio_fifo_test(void)
 		error = errno;
 		aio_fifo_cleanup(&arg);
 		errno = error;
-		errx(-1, "FAIL: aio_fifo_test: read_fd open: %s",
+		errx(1, "FAIL: aio_fifo_test: read_fd open: %s",
 		    strerror(errno));
 	}
 	arg.afa_read_fd = read_fd;
@@ -451,7 +444,7 @@ aio_fifo_test(void)
 		error = errno;
 		aio_fifo_cleanup(&arg);
 		errno = error;
-		errx(-1, "FAIL: aio_fifo_test: write_fd open: %s",
+		errx(1, "FAIL: aio_fifo_test: write_fd open: %s",
 		    strerror(errno));
 	}
 	arg.afa_write_fd = write_fd;
@@ -489,8 +482,10 @@ aio_unix_socketpair_test(void)
 	struct aio_context ac;
 	int sockets[2];
 
+	aio_available();
+
 	if (socketpair(PF_UNIX, SOCK_STREAM, 0, sockets) < 0)
-		errx(-1, "FAIL: aio_socketpair_test: socketpair: %s",
+		errx(1, "FAIL: aio_socketpair_test: socketpair: %s",
 		    strerror(errno));
 
 	arg.asa_sockets[0] = sockets[0];
@@ -532,8 +527,10 @@ aio_pty_test(void)
 	struct termios ts;
 	int error;
 
+	aio_available();
+
 	if (openpty(&read_fd, &write_fd, NULL, NULL, NULL) < 0)
-		errx(-1, "FAIL: aio_pty_test: openpty: %s", strerror(errno));
+		errx(1, "FAIL: aio_pty_test: openpty: %s", strerror(errno));
 
 	arg.apa_read_fd = read_fd;
 	arg.apa_write_fd = write_fd;
@@ -542,7 +539,7 @@ aio_pty_test(void)
 		error = errno;
 		aio_pty_cleanup(&arg);
 		errno = error;
-		errx(-1, "FAIL: aio_pty_test: tcgetattr: %s",
+		errx(1, "FAIL: aio_pty_test: tcgetattr: %s",
 		    strerror(errno));
 	}
 	cfmakeraw(&ts);
@@ -550,7 +547,7 @@ aio_pty_test(void)
 		error = errno;
 		aio_pty_cleanup(&arg);
 		errno = error;
-		errx(-1, "FAIL: aio_pty_test: tcsetattr: %s",
+		errx(1, "FAIL: aio_pty_test: tcsetattr: %s",
 		    strerror(errno));
 	}
 
@@ -581,8 +578,10 @@ aio_pipe_test(void)
 	struct aio_context ac;
 	int pipes[2];
 
+	aio_available();
+
 	if (pipe(pipes) < 0)
-		errx(-1, "FAIL: aio_pipe_test: pipe: %s", strerror(errno));
+		errx(1, "FAIL: aio_pipe_test: pipe: %s", strerror(errno));
 
 	aio_context_init(&ac, "aio_file_test", pipes[0], pipes[1], PIPE_LEN,
 	    PIPE_TIMEOUT, aio_pipe_cleanup, pipes);
@@ -633,15 +632,23 @@ aio_md_cleanup(void *arg)
 static void
 aio_md_test(void)
 {
-	int error, fd, i, mdctl_fd, unit;
+	int error, fd, mdctl_fd, unit;
 	char pathname[PATH_MAX];
 	struct aio_md_arg arg;
 	struct aio_context ac;
 	struct md_ioctl mdio;
 
+	aio_available();
+
+	if (geteuid() != 0) {
+		fprintf(stderr, "WARNING: aio_md_test: skipped as euid "
+		    "!= 0\n");
+		return;
+	}
+
 	mdctl_fd = open("/dev/" MDCTL_NAME, O_RDWR, 0);
 	if (mdctl_fd < 0)
-		errx(-1, "FAIL: aio_md_test: open(/dev/%s): %s", MDCTL_NAME,
+		errx(1, "FAIL: aio_md_test: open(/dev/%s): %s", MDCTL_NAME,
 		    strerror(errno));
 
 	bzero(&mdio, sizeof(mdio));
@@ -658,7 +665,7 @@ aio_md_test(void)
 		error = errno;
 		aio_md_cleanup(&arg);
 		errno = error;
-		errx(-1, "FAIL: aio_md_test: MDIOCATTACH: %s",
+		errx(1, "FAIL: aio_md_test: MDIOCATTACH: %s",
 		    strerror(errno));
 	}
 
@@ -669,7 +676,7 @@ aio_md_test(void)
 		error = errno;
 		aio_md_cleanup(&arg);
 		errno = error;
-		errx(-1, "FAIL: aio_md_test: open(%s): %s", pathname,
+		errx(1, "FAIL: aio_md_test: open(%s): %s", pathname,
 		    strerror(errno));
 	}
 	arg.ama_fd = fd;
@@ -685,18 +692,15 @@ aio_md_test(void)
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 
-	aio_sigsys_setup();
 	aio_file_test();
 	aio_fifo_test();
 	aio_unix_socketpair_test();
 	aio_pty_test();
 	aio_pipe_test();
-	if (geteuid() == 0)
-		aio_md_test();
-	else
-		fprintf(stderr, "WARNING: aio_md_test: skipped as euid "
-		    "!= 0\n");
+	aio_md_test();
+
+	return (0);
 }
