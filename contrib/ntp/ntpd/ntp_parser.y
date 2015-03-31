@@ -8,8 +8,8 @@
  * Copyright (c) 2006
  */
 
-%parse-param {struct FILE_INFO *ip_file}
-%lex-param {struct FILE_INFO *ip_file}
+%parse-param { struct FILE_INFO *ip_file }
+%lex-param { struct FILE_INFO *ip_file }
 
 %{
   #ifdef HAVE_CONFIG_H
