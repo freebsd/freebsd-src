@@ -2711,6 +2711,13 @@ OLD_FILES+=usr/share/man/man8/jexec.8.gz
 OLD_FILES+=usr/share/man/man8/jls.8.gz
 .endif
 
+.if ${MK_KDUMP} == no
+OLD_FILES+=usr/bin/kdump
+OLD_FILES+=usr/bin/truss
+OLD_FILES+=usr/share/man/man1/kdump.1.gz
+OLD_FILES+=usr/share/man/man1/truss.1.gz
+.endif
+
 .if ${MK_KERBEROS} == no
 OLD_FILES+=etc/rc.d/ipropd_master
 OLD_FILES+=etc/rc.d/ipropd_slave
