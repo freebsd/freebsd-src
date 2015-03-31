@@ -1,4 +1,4 @@
-\ Copyright (c) 2006-2011 Devin Teske <dteske@FreeBSD.org>
+\ Copyright (c) 2006-2015 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
@@ -64,20 +64,11 @@ variable brandY
 : draw-brand ( -- )
 
 	s" loader_brand_x" getenv dup -1 <> if
-		?number 1 = if
-			brandX !
-		then
-	else
-		drop
-	then
-
+		?number 1 = if brandX ! then
+	else drop then
  	s" loader_brand_y" getenv dup -1 <> if
- 		?number 1 = if
-			brandY !
-		then
- 	else
-		drop
-	then
+ 		?number 1 = if brandY ! then
+ 	else drop then
 
 	s" loader_brand" getenv dup -1 = if
 		brandX @ brandY @ fbsd-logo
