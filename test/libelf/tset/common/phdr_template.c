@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: phdr_template.c 1074 2010-08-09 11:43:34Z jkoshy $
+ * $Id: phdr_template.c 3174 2015-03-27 17:13:41Z emaste $
  */
 
 /*
@@ -35,8 +35,6 @@
  * #define	TS_PHDRSZ		32	(or 64)
  * #include "phdr_template.c"
  */
-
-#include <sys/cdefs.h>
 
 /* Variations of __CONCAT and __STRING which expand their arguments. */
 #define __XCONCAT(x,y)	__CONCAT(x,y)

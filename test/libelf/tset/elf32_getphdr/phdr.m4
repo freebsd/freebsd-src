@@ -23,10 +23,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: phdr.m4 2054 2011-10-26 12:12:06Z jkoshy $
+ * $Id: phdr.m4 3174 2015-03-27 17:13:41Z emaste $
  */
-
-#include <sys/cdefs.h>
 
 #include <libelf.h>
 #include <stdint.h>

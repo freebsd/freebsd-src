@@ -23,12 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ehdr.m4 2054 2011-10-26 12:12:06Z jkoshy $
+ * $Id: ehdr.m4 3174 2015-03-27 17:13:41Z emaste $
  */
 
 include(`elfts.m4')
-
-#include <sys/cdefs.h>
 
 #include <gelf.h>
 #include <libelf.h>

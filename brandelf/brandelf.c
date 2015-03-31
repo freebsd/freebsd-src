@@ -28,8 +28,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <err.h>
@@ -46,7 +44,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: brandelf.c 3101 2014-10-27 22:24:40Z jkoshy $");
+ELFTC_VCSID("$Id: brandelf.c 3174 2015-03-27 17:13:41Z emaste $");
 
 static int elftype(const char *);
 static const char *iselftype(int);

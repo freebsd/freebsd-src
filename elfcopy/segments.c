@@ -24,17 +24,17 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/queue.h>
 #include <err.h>
 #include <gelf.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: segments.c 3134 2014-12-23 10:43:59Z kaiwang27 $");
+ELFTC_VCSID("$Id: segments.c 3177 2015-03-30 18:19:41Z emaste $");
 
 static void	insert_to_inseg_list(struct segment *seg, struct section *sec);
 

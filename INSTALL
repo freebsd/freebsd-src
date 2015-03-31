@@ -171,13 +171,14 @@ Prerequisites
       ``pmake``               A ``make`` that uses BSD-make syntax.
       ``python-yaml``         A YAML library for Python.
       ``sharutils``           For ``uudecode``.
+      ``zlib1g-dev``          Compression library.
       ===================     =====================================
 
       The following command line may be used to install the necessary
       pre-requisites::
 
 	  % sudo apt-get install binutils bison flex gcc libarchive-dev \
-	    libc6-dev m4 pmake
+	    libc6-dev m4 pmake zlib1g-dev
 
     - To build and run the test suite:
 
@@ -211,13 +212,14 @@ Prerequisites
       ``pmake``               A ``make`` that uses BSD-make syntax.
       ``python-yaml``         A YAML library for Python.
       ``sharutils``           For ``uudecode``.
+      ``zlib1g-dev``          Compression library.
       ===================     =====================================
 
       The following command line may be used to install the necessary
       pre-requisites::
 
           % sudo apt-get install bison build-essential flex libarchive-dev \
-            m4 pmake
+            m4 pmake zlib1g-dev
 
     - To build and run the test suite:
 
@@ -297,7 +299,7 @@ website`_.
 
 .. _project website:  http://elftoolchain.sourceforge.net/
 
-.. $Id: INSTALL 3020 2014-04-17 15:52:31Z jkoshy $
+.. $Id: INSTALL 3165 2015-02-20 20:52:18Z emaste $
 
 .. Local Variables:
 .. mode: rst

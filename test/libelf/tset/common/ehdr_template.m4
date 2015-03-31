@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ehdr_template.m4 2077 2011-10-27 03:59:40Z jkoshy $
+ * $Id: ehdr_template.m4 3174 2015-03-27 17:13:41Z emaste $
  */
 
 include(`elfts.m4')
@@ -41,8 +41,6 @@ include(`elfts.m4')
 ifdef(`TS_EHDRFUNC',`',`errprint(`TS_EHDRFUNC was not defined')m4exit(1)')
 ifdef(`TS_EHDRSZ',`',`errprint(`TS_EHDRSZ was not defined')m4exit(1)')
 define(`TS_OTHERSIZE',`ifelse(TS_EHDRSZ,32,64,32)')
-
-#include <sys/cdefs.h>
 
 define(`TS_ICFUNC',`elf'TS_EHDRSZ`'TS_EHDRFUNC)
 define(`TS_EHDR',`Elf'TS_EHDRSZ`_Ehdr')

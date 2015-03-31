@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
@@ -51,7 +50,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: elfdump.c 3146 2015-02-15 18:20:03Z emaste $");
+ELFTC_VCSID("$Id: elfdump.c 3174 2015-03-27 17:13:41Z emaste $");
 
 #if defined(ELFTC_NEED_ELF_NOTE_DEFINITION)
 #include "native-elf-format.h"

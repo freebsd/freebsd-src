@@ -24,15 +24,14 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <assert.h>
 #include <gelf.h>
 #include <limits.h>
+#include <stdint.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: gelf_dyn.c 2998 2014-03-18 17:19:00Z jkoshy $");
+ELFTC_VCSID("$Id: gelf_dyn.c 3177 2015-03-30 18:19:41Z emaste $");
 
 GElf_Dyn *
 gelf_getdyn(Elf_Data *ed, int ndx, GElf_Dyn *dst)

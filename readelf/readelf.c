@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <ar.h>
@@ -38,6 +37,7 @@
 #include <libelftc.h>
 #include <libgen.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,7 +46,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: readelf.c 3155 2015-02-15 19:15:57Z emaste $");
+ELFTC_VCSID("$Id: readelf.c 3178 2015-03-30 18:29:13Z emaste $");
 
 /*
  * readelf(1) options.
@@ -910,7 +910,7 @@ dt_type(unsigned int mach, unsigned int dtype)
 	case DT_PLTPADSZ: return "PLTPADSZ";
 	case DT_MOVEENT: return "MOVEENT";
 	case DT_MOVESZ: return "MOVESZ";
-	case DT_FEATURE_1: return "FEATURE_1";
+	case DT_FEATURE: return "FEATURE";
 	case DT_POSFLAG_1: return "POSFLAG_1";
 	case DT_SYMINSZ: return "SYMINSZ";
 	case DT_SYMINENT: return "SYMINENT";
@@ -1142,7 +1142,11 @@ r_type(unsigned int mach, unsigned int type)
 		case 1025: return "R_AARCH64_GLOB_DAT";
 		case 1026: return "R_AARCH64_JUMP_SLOT";
 		case 1027: return "R_AARCH64_RELATIVE";
+		case 1028: return "R_AARCH64_TLS_DTPREL64";
+		case 1029: return "R_AARCH64_TLS_DTPMOD64";
+		case 1030: return "R_AARCH64_TLS_TPREL64";
 		case 1031: return "R_AARCH64_TLSDESC";
+		case 1032: return "R_AARCH64_IRELATIVE";
 		default: return "";
 		}
 	case EM_ARM:

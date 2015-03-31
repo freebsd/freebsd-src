@@ -24,13 +24,11 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <libelf.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_data.c 3080 2014-07-28 08:46:17Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_data.c 3174 2015-03-27 17:13:41Z emaste $");
 
 int
 _libelf_xlate_shtype(uint32_t sht)

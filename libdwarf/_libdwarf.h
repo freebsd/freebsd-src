@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: _libdwarf.h 3161 2015-02-15 21:43:36Z emaste $
+ * $Id: _libdwarf.h 3164 2015-02-19 01:20:12Z kaiwang27 $
  */
 
 #ifndef	__LIBDWARF_H_
@@ -190,6 +190,7 @@ struct _Dwarf_LineInfo {
 	Dwarf_Half	li_version;	/* Version of line info. */
 	Dwarf_Unsigned	li_hdrlen;	/* Length of line info header. */
 	Dwarf_Small	li_minlen;	/* Minimum instrutction length. */
+	Dwarf_Small	li_maxop;	/* Maximum operations per inst. */
 	Dwarf_Small	li_defstmt;	/* Default value of is_stmt. */
 	int8_t		li_lbase;    	/* Line base for special opcode. */
 	Dwarf_Small	li_lrange;    	/* Line range for special opcode. */

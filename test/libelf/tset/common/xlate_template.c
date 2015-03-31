@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: xlate_template.c 2586 2012-09-15 14:32:47Z jkoshy $
+ * $Id: xlate_template.c 3174 2015-03-27 17:13:41Z emaste $
  */
 
 /*
@@ -36,7 +36,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/cdefs.h>
 
 #define	__XCONCAT(x,y)	__CONCAT(x,y)
 #ifndef	__XSTRING

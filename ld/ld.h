@@ -23,10 +23,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ld.h 2940 2013-05-04 22:22:10Z kaiwang27 $
+ * $Id: ld.h 3174 2015-03-27 17:13:41Z emaste $
  */
 
-#include <sys/cdefs.h>
 #include <sys/mman.h>
 #include <sys/param.h>
 #include <sys/queue.h>
