@@ -123,6 +123,10 @@ static unsigned long	numvnodes;
 SYSCTL_ULONG(_vfs, OID_AUTO, numvnodes, CTLFLAG_RD, &numvnodes, 0,
     "Number of vnodes in existence");
 
+static u_long vnodes_created;
+SYSCTL_ULONG(_vfs, OID_AUTO, vnodes_created, CTLFLAG_RD, &vnodes_created,
+    0, "Number of vnodes created by getnewvnode");
+
 /*
  * Conversion tables for conversion from vnode types to inode formats
  * and back.
@@ -156,6 +160,10 @@ SYSCTL_ULONG(_vfs, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0,
 static int vlru_allow_cache_src;
 SYSCTL_INT(_vfs, OID_AUTO, vlru_allow_cache_src, CTLFLAG_RW,
     &vlru_allow_cache_src, 0, "Allow vlru to reclaim source vnode");
+
+static u_long recycles_count;
+SYSCTL_ULONG(_vfs, OID_AUTO, recycles, CTLFLAG_RD, &recycles_count, 0,
+    "Number of vnodes recycled to avoid exceding kern.maxvnodes");
 
 /*
  * Various variables used for debugging the new implementation of
@@ -769,6 +777,7 @@ vlrureclaim(struct mount *mp)
 		}
 		KASSERT((vp->v_iflag & VI_DOOMED) == 0,
 		    ("VI_DOOMED unexpectedly detected in vlrureclaim()"));
+		atomic_add_long(&recycles_count, 1);
 		vgonel(vp);
 		VOP_UNLOCK(vp, 0);
 		vdropl(vp);
@@ -964,8 +973,10 @@ vtryrecycle(struct vnode *vp)
 		    __func__, vp);
 		return (EBUSY);
 	}
-	if ((vp->v_iflag & VI_DOOMED) == 0)
+	if ((vp->v_iflag & VI_DOOMED) == 0) {
+		atomic_add_long(&recycles_count, 1);
 		vgonel(vp);
+	}
 	VOP_UNLOCK(vp, LK_INTERLOCK);
 	vn_finished_write(vnmp);
 	return (0);
@@ -1069,6 +1080,7 @@ getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 	atomic_add_long(&numvnodes, 1);
 	mtx_unlock(&vnode_free_list_mtx);
 alloc:
+	atomic_add_long(&vnodes_created, 1);
 	vp = (struct vnode *) uma_zalloc(vnode_zone, M_WAITOK|M_ZERO);
 	/*
 	 * Setup locks.
