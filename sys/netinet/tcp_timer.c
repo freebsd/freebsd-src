@@ -853,7 +853,7 @@ void
 tcp_timer_activate(struct tcpcb *tp, int timer_type, u_int delta)
 {
 	struct callout *t_callout;
-	void *f_callout;
+	timeout_t *f_callout;
 	struct inpcb *inp = tp->t_inpcb;
 	int cpu = inp_to_cpuid(inp);
 
