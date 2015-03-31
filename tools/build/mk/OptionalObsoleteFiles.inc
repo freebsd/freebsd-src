@@ -2705,6 +2705,7 @@ OLD_FILES+=etc/rc.d/jail
 OLD_FILES+=usr/sbin/jail
 OLD_FILES+=usr/sbin/jexec
 OLD_FILES+=usr/sbin/jls
+OLD_FILES+=usr/share/man/man5/jail.conf.5.gz
 OLD_FILES+=usr/share/man/man8/jail.8.gz
 OLD_FILES+=usr/share/man/man8/jexec.8.gz
 OLD_FILES+=usr/share/man/man8/jls.8.gz
