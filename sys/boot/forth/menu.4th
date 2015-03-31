@@ -1,6 +1,6 @@
-\ Copyright (c) 2003 Scott Long <scottl@freebsd.org>
+\ Copyright (c) 2003 Scott Long <scottl@FreeBSD.org>
 \ Copyright (c) 2003 Aleksander Fafula <alex@fafula.com>
-\ Copyright (c) 2006-2013 Devin Teske <dteske@FreeBSD.org>
+\ Copyright (c) 2006-2015 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
@@ -57,7 +57,7 @@ variable menubllt  \ Menu item bullet
 variable menuX     \ Menu X offset (columns)
 variable menuY     \ Menu Y offset (rows)
 
-\ Menu-item key association/detection
+\ Menu-item elements
 variable menukey1
 variable menukey2
 variable menukey3
@@ -144,12 +144,14 @@ create kernelsbuf 256 allot
 	swap drop		( c bool -- bool )	\ return boolean
 ;
 
+\ Forth variables
 : menukeyN      ( N -- ADDR )   s" menukeyN"       7 +c! evaluate ;
 : init_stateN   ( N -- ADDR )   s" init_stateN"   10 +c! evaluate ;
 : toggle_stateN ( N -- ADDR )   s" toggle_stateN" 12 +c! evaluate ;
 : cycle_stateN  ( N -- ADDR )   s" cycle_stateN"  11 +c! evaluate ;
 : init_textN    ( N -- C-ADDR ) s" init_textN"     9 +c! evaluate ;
 
+\ Environment variables
 : kernel[x]          ( N -- C-ADDR/U )   s" kernel[x]"           7 +c! ;
 : menu_init[x]       ( N -- C-ADDR/U )   s" menu_init[x]"       10 +c! ;
 : menu_command[x]    ( N -- C-ADDR/U )   s" menu_command[x]"    13 +c! ;
@@ -614,7 +616,7 @@ create kernelsbuf 256 allot
 ;
 
 \ This function creates the list of menu items. This function is called by the
-\ menu-display function. You need not be call it directly.
+\ menu-display function. You need not call it directly.
 \ 
 : menu-create ( -- )
 

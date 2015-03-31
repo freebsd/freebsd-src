@@ -1,4 +1,4 @@
-\ Copyright (c) 2006-2013 Devin Teske <dteske@FreeBSD.org>
+\ Copyright (c) 2006-2015 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
@@ -49,10 +49,11 @@ variable versionY
 	\ Default version if none was set
 	s" loader_version" getenv dup -1 = if
 		drop
-		\ Default version if no logo is requested
+		\ Use above default if no logo is requested
 		s" loader_logo" getenv dup -1 = if
 			drop str_loader_version
 		else
+			\ For tributes, do nothing (defer to beastie.4th)
 			2dup s" tribute" compare-insensitive 0= if
 				2drop
 				s" tribute-logo" sfind if
