@@ -32,25 +32,25 @@
 #ifndef __SANDBOX_METHODS_H__
 #define __SANDBOX_METHODS_H__
 
-struct sandbox_provided_methods;
+struct sandbox_provided_classes;
 struct sandbox_required_methods;
 
 int	sandbox_parse_ccall_methods(int fd,
-	    struct sandbox_provided_methods **provided_methodsp,
+	    struct sandbox_provided_classes **provided_classesp,
 	    struct sandbox_required_methods **required_methodsp);
 int	sandbox_resolve_methods(
-	    struct sandbox_provided_methods *provided_methods,
+	    struct sandbox_provided_classes *provided_classes,
 	    struct sandbox_required_methods *required_methods);
 void	sandbox_free_required_methods(
 	    struct sandbox_required_methods *required_methods);
-void	sandbox_free_provided_methods(
-	    struct sandbox_provided_methods *provided_methods);
+void	sandbox_free_provided_classes(
+	    struct sandbox_provided_classes *provided_classes);
 size_t	sandbox_get_unresolved_methods(
 	    struct sandbox_required_methods *required_methods);
 void	sandbox_warn_unresolved_methods(
 	    struct sandbox_required_methods *required_methods);
-__capability intptr_t *sandbox_make_vtable(void *datacap,
-	    struct sandbox_provided_methods *provided_methods);
+__capability intptr_t *sandbox_make_vtable(void *datacap, const char *class,
+	    struct sandbox_provided_classes *provided_classes);
 
 int	sandbox_set_required_method_variables(__capability void *datacap,
 	    struct sandbox_required_methods *required_methods);

@@ -69,7 +69,7 @@ struct sandbox_class {
 	/*
 	 * Class CCall methods.
 	 */
-	struct sandbox_provided_methods	*sbc_provided_methods;
+	struct sandbox_provided_classes	*sbc_provided_classes;
 	struct sandbox_required_methods	*sbc_required_methods;
 
 	/*

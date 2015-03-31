@@ -123,7 +123,7 @@ sandbox_class_load(struct sandbox_class *sbcp)
 	* required.
 	*/
 	if (sandbox_parse_ccall_methods(sbcp->sbc_fd,
-	     &sbcp->sbc_provided_methods, &sbcp->sbc_required_methods) < 0) {
+	     &sbcp->sbc_provided_classes, &sbcp->sbc_required_methods) < 0) {
 		saved_errno = EINVAL;
 		warnx("%s: sandbox_parse_ccal_methods() failed for %s",
 		    __func__, sbcp->sbc_path);
@@ -360,8 +360,8 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 */
 	sbmp->sbm_heapbase = sbop->sbo_heapbase;
 	sbmp->sbm_heaplen = heaplen;
-	sbmp->sbm_vtable = sandbox_make_vtable(sbop->sbo_datamem,
-	    sbcp->sbc_provided_methods);
+	sbmp->sbm_vtable = sandbox_make_vtable(sbop->sbo_datamem, NULL,
+	    sbcp->sbc_provided_classes);
 
 	if (sbcp->sbc_sandbox_class_statp != NULL) {
 		(void)sandbox_stat_object_register(

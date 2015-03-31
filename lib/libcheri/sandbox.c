@@ -70,7 +70,7 @@ static size_t			num_sandbox_classes;
 static size_t			max_sandbox_classes;
 static struct sandbox_class	**sandbox_classes;
 
-static struct sandbox_provided_methods	*main_provided_methods;
+static struct sandbox_provided_classes	*main_provided_classes;
 static struct sandbox_required_methods	*main_required_methods;
 
 /*
@@ -118,14 +118,16 @@ sandbox_program_init(int argc, char **argv)
 		}
 	}
 
-	if (sandbox_parse_ccall_methods(fd, &main_provided_methods,
+	if (sandbox_parse_ccall_methods(fd, &main_provided_classes,
 	    &main_required_methods) == -1) {
 		warn("%s: sandbox_parse_ccall_methods for %s", __func__,
 		    argv[0]);
 		close(fd);
 		return (-1);
 	}
-	cheri_system_vtable = sandbox_make_vtable(NULL, main_provided_methods);
+	/* XXXBD: cheri_system needs to do this. */
+	cheri_system_vtable = sandbox_make_vtable(NULL, NULL,
+	    main_provided_classes);
 	close(fd);
 	return (0);
 }
@@ -136,7 +138,7 @@ sandbox_program_finalize(void)
 	size_t i;
 	struct sandbox_required_methods *required_methods;
 
-	assert(main_provided_methods != NULL);
+	assert(main_provided_classes != NULL);
 	assert(main_required_methods != NULL);
 
 	/*
@@ -187,9 +189,9 @@ int
 sandbox_program_fini(void)
 {
 
-	if (main_provided_methods != NULL)
-		sandbox_free_provided_methods(main_provided_methods);
-	main_provided_methods = NULL;
+	if (main_provided_classes != NULL)
+		sandbox_free_provided_classes(main_provided_classes);
+	main_provided_classes = NULL;
 	if (main_required_methods != NULL)
 		sandbox_free_required_methods(main_required_methods);
 	main_required_methods = NULL;
@@ -292,7 +294,8 @@ sandbox_class_new(const char *path, size_t maxmaplen,
 	 * Resolve methods in other classes.
 	 */
 	for (i = 0; i < num_sandbox_classes; i++) {
-		if (sandbox_resolve_methods(sbcp->sbc_provided_methods,
+		/* XXXBD: Check there are no conflicting class names */
+		if (sandbox_resolve_methods(sbcp->sbc_provided_classes,
 		    sandbox_classes[i]->sbc_required_methods) < 0) {
 			saved_errno = EINVAL;
 			warnx("%s: sandbox_resolve_methods() failed providing "
@@ -301,7 +304,7 @@ sandbox_class_new(const char *path, size_t maxmaplen,
 			goto error;
 		}
 		if (sandbox_resolve_methods(
-		    sandbox_classes[i]->sbc_provided_methods,
+		    sandbox_classes[i]->sbc_provided_classes,
 		    sbcp->sbc_required_methods) < 0) {
 			saved_errno = EINVAL;
 			warnx("%s: sandbox_resolve_methods() failed providing "
@@ -314,15 +317,15 @@ sandbox_class_new(const char *path, size_t maxmaplen,
 	 * XXXBD: failure to initalize main_*_methods should eventually
 	 * be impossible and trigger an assert.
 	 */
-	if (main_provided_methods != NULL && main_required_methods != NULL) {
-		if (sandbox_resolve_methods(sbcp->sbc_provided_methods,
+	if (main_provided_classes != NULL && main_required_methods != NULL) {
+		if (sandbox_resolve_methods(sbcp->sbc_provided_classes,
 		    main_required_methods) < 0) {
 			saved_errno = EINVAL;
 			warnx("%s: sandbox_resolve_methods() failed providing "
 			    "methods from %s main program", __func__, path);
 			goto error;
 		}
-		if (sandbox_resolve_methods(main_provided_methods,
+		if (sandbox_resolve_methods(main_provided_classes,
 		    sbcp->sbc_required_methods) < 0) {
 			saved_errno = EINVAL;
 			warnx("%s: sandbox_resolve_methods() failed providing "

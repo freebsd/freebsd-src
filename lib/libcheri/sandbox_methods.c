@@ -72,12 +72,25 @@ struct sandbox_provided_method {
  * List of methods provided by a sandbox.  Sandbox method numbers (and
  * by extension vtable indexs) are defined by method position in the
  * spms_methods array.
+ *
+ * XXX: rename to sandbox_provided_class
  */
 struct sandbox_provided_methods {
 	char				*spms_class;	/* Class name */
 	size_t				 spms_nmethods;	/* Number of methods */
 	struct sandbox_provided_method	*spms_methods;	/* Array of methods */
 	intptr_t			 spms_base;	/* Base of vtable */
+};
+
+/*
+ * List of classes provided by a sandbox binary.  Each binary can
+ * support one or more classes.  No two binaries can provide the same
+ * class as vtable offsets would be inconsistant.
+ */
+struct sandbox_provided_classes {
+	struct sandbox_provided_methods	**spcs_classes;
+	size_t				  spcs_nclasses;
+	/* XXX: vtable base is per binary so move here */
 };
 
 /*
@@ -108,11 +121,12 @@ extern int sb_verbose;
 
 int
 sandbox_parse_ccall_methods(int fd,
-    struct sandbox_provided_methods **provided_methodsp,
+    struct sandbox_provided_classes **provided_classesp,
     struct sandbox_required_methods **required_methodsp)
 {
 	size_t i, nsyms;
 	int cheri_caller_idx, cheri_callee_idx;
+	struct sandbox_provided_classes *provided_classes = NULL;
 	size_t maxpmethods, npmethods;
 	struct sandbox_provided_method *pmethods = NULL;
 	struct sandbox_provided_methods *provided_methods = NULL;
@@ -133,8 +147,8 @@ sandbox_parse_ccall_methods(int fd,
 	Elf64_Shdr shdr, shstrtabhdr;
 	Elf64_Sym *symtab = NULL;
 
-	if (provided_methodsp == NULL) {
-		warnx("%s: provided_methodsp must be non-null", __func__);
+	if (provided_classesp == NULL) {
+		warnx("%s: provided_classesp must be non-null", __func__);
 		goto bad;
 	}
 	if (required_methodsp == NULL) {
@@ -436,7 +450,21 @@ good:
 		provided_methods->spms_methods = NULL;
 		free(pmethods);
 	}
-	*provided_methodsp = provided_methods;
+	if ((provided_classes = calloc(1, sizeof(*provided_classes))) ==
+	    NULL) {
+		warn("%s: calloc provided_classes", __func__);
+		goto bad;
+	}
+	if ((provided_classes->spcs_classes = calloc(1,
+	    sizeof(*provided_classes->spcs_classes))) == NULL) {
+		warn("%s: calloc provided_classes->spcs_classes", __func__);
+		goto bad;
+	}
+	for (i = 0; i < 1; i++) {
+		provided_classes->spcs_classes[i] = provided_methods;
+	}
+	provided_classes->spcs_nclasses = 1;
+	*provided_classesp = provided_classes;
 
 	if ((required_methods = calloc(1, sizeof(*required_methods))) == NULL) {
 		warn("%s: calloc required_methods", __func__);
@@ -452,7 +480,7 @@ good:
 	}
 	*required_methodsp = required_methods;
 
-	if (sandbox_resolve_methods(provided_methods, required_methods)
+	if (sandbox_resolve_methods(provided_classes, required_methods)
 	    == -1) {
 		warnx("%s: failed to resolve self called methods", __func__);
 		goto bad;
@@ -485,8 +513,9 @@ bad:
 	return (-1);
 }
 
-int
-sandbox_resolve_methods(struct sandbox_provided_methods *provided_methods,
+static int
+sandbox_resolve_methods_one_class(
+    struct sandbox_provided_methods *provided_methods,
     struct sandbox_required_methods *required_methods)
 {
 	size_t p, r, resolved = 0;
@@ -546,6 +575,19 @@ sandbox_resolve_methods(struct sandbox_provided_methods *provided_methods,
 	return (resolved);
 }
 
+int
+sandbox_resolve_methods(struct sandbox_provided_classes *provided_classes,
+    struct sandbox_required_methods *required_methods)
+{
+	size_t i, resolved = 0;
+
+	for (i = 0; i < provided_classes->spcs_nclasses; i++)
+		resolved += sandbox_resolve_methods_one_class(
+		    provided_classes->spcs_classes[i], required_methods);
+
+	return (resolved);
+}
+
 void
 sandbox_free_required_methods(struct sandbox_required_methods *required_methods)
 {
@@ -564,7 +606,7 @@ sandbox_free_required_methods(struct sandbox_required_methods *required_methods)
 	free(required_methods);
 }
 
-void
+static void
 sandbox_free_provided_methods(struct sandbox_provided_methods *provided_methods)
 {
 	size_t i, npmethods;
@@ -581,6 +623,19 @@ sandbox_free_provided_methods(struct sandbox_provided_methods *provided_methods)
 	}
 	free(provided_methods->spms_class);
 	free(provided_methods);
+}
+
+void
+sandbox_free_provided_classes(struct sandbox_provided_classes *provided_classes)
+{
+	size_t i;
+
+	assert(provided_classes != NULL);
+
+	for (i = 0; i < provided_classes->spcs_nclasses; i++)
+		sandbox_free_provided_methods(provided_classes->spcs_classes[i]);
+	free(provided_classes->spcs_classes);
+	free(provided_classes);
 }
 
 size_t
@@ -613,13 +668,40 @@ sandbox_warn_unresolved_methods(
 }
 
 __capability intptr_t *
-sandbox_make_vtable(void *dataptr,
-    struct sandbox_provided_methods *provided_methods)
+sandbox_make_vtable(void *dataptr, const char *class,
+    struct sandbox_provided_classes *provided_classes)
 {
+	size_t i;
 
-	return (cheri_ptrperm((char *)dataptr + provided_methods->spms_base,
-	    provided_methods->spms_nmethods * sizeof(intptr_t),
-	    CHERI_PERM_LOAD));
+	if (provided_classes->spcs_nclasses == 0)
+		return (NULL);
+
+	if (class == NULL) {
+		if (provided_classes->spcs_nclasses != 1) {
+			warnx("%s: called with no class name and multiple "
+			    "classes", __func__);
+			return (NULL);
+		}
+		return (cheri_ptrperm((char *)dataptr +
+		    provided_classes->spcs_classes[0]->spms_base,
+		    provided_classes->spcs_classes[0]->spms_nmethods *
+		    sizeof(intptr_t), CHERI_PERM_LOAD));
+	}
+
+	for (i = 0; i < provided_classes->spcs_nclasses; i++) {
+		if (strcmp(provided_classes->spcs_classes[i]->spms_class,
+		    class) != 0)
+			continue;
+		/*
+		 * XXXBD: malloc a copy and wipe out entries from other
+		 * classes
+		 */
+		return (cheri_ptrperm((char *)dataptr +
+		    provided_classes->spcs_classes[i]->spms_base,
+		    provided_classes->spcs_classes[i]->spms_nmethods *
+		    sizeof(intptr_t), CHERI_PERM_LOAD));
+	}
+	return (NULL);
 }
 
 int
