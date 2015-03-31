@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: gelf_ehdr_template.h 223 2008-08-10 15:40:06Z jkoshy $
+ * $Id: gelf_ehdr_template.h 3174 2015-03-27 17:13:41Z emaste $
  */
 
 #include <sys/types.h>
@@ -49,8 +49,6 @@
  #   #define	TC_ICFUNC(E,V)
  * #include "gelf_getehdr_template.c"
  */
-
-#include <sys/cdefs.h>
 
 IC_REQUIRES_VERSION_INIT();
 

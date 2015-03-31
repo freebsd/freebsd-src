@@ -25,7 +25,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
 
@@ -39,7 +38,7 @@
 
 #include "ar.h"
 
-ELFTC_VCSID("$Id: read.c 3163 2015-02-15 21:43:51Z emaste $");
+ELFTC_VCSID("$Id: read.c 3174 2015-03-27 17:13:41Z emaste $");
 
 /*
  * Handle read modes: 'x', 't' and 'p'.
@@ -175,7 +174,15 @@ ar_read_archive(struct bsdar *bsdar, int mode)
 
 				if (bsdar->options & AR_V)
 					(void)fprintf(out, "x - %s\n", name);
-				flags = 0;
+				/* Disallow absolute paths. */
+				if (name[0] == '/') {
+					bsdar_warnc(bsdar, 0,
+					    "Absolute path '%s'", name);
+					continue;
+				}
+				/* Basic path security flags. */
+				flags = ARCHIVE_EXTRACT_SECURE_SYMLINKS | \
+	 			    ARCHIVE_EXTRACT_SECURE_NODOTDOT;
 				if (bsdar->options & AR_O)
 					flags |= ARCHIVE_EXTRACT_TIME;
 

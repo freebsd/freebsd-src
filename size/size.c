@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <assert.h>
 #include <err.h>
 #include <fcntl.h>
@@ -39,7 +38,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: size.c 2350 2011-12-19 10:20:06Z jkoshy $");
+ELFTC_VCSID("$Id: size.c 3174 2015-03-27 17:13:41Z emaste $");
 
 #define	BUF_SIZE			1024
 #define	ELF_ALIGN(val,x) (((val)+(x)-1) & ~((x)-1))

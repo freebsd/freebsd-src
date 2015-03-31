@@ -24,14 +24,12 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <assert.h>
 #include <libelf.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_extended.c 3005 2014-03-22 07:43:25Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_extended.c 3174 2015-03-27 17:13:41Z emaste $");
 
 /*
  * Retrieve section #0, allocating a new section if needed.

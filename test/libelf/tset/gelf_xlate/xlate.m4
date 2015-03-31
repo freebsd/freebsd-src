@@ -23,10 +23,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: xlate.m4 2586 2012-09-15 14:32:47Z jkoshy $
+ * $Id: xlate.m4 3174 2015-03-27 17:13:41Z emaste $
  */
-
-#include <sys/cdefs.h>
 
 #include <gelf.h>
 #include <libelf.h>
