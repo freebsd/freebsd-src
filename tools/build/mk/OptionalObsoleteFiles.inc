@@ -640,10 +640,57 @@ OLD_FILES+=usr/share/man/man1/calendar.1.gz
 .endif
 
 .if ${MK_CASPER} == no
+OLD_FILES+=etc/casper/system.dns
+OLD_FILES+=etc/casper/system.grp
+OLD_FILES+=etc/casper/system.pwd
+OLD_FILES+=etc/casper/system.random
+OLD_FILES+=etc/casper/system.sysctl
 OLD_FILES+=etc/rc.d/casperd
+OLD_LIBS+=lib/libcapsicum.so.0
 OLD_LIBS+=lib/libcasper.so.0
+OLD_FILES+=libexec/casper/dns
+OLD_FILES+=libexec/casper/grp
+OLD_FILES+=libexec/casper/pwd
+OLD_FILES+=libexec/casper/random
+OLD_FILES+=libexec/casper/sysctl
 OLD_FILES+=sbin/casper
+OLD_FILES+=sbin/casperd
+OLD_FILES+=usr/include/libcapsicum.h
+OLD_FILES+=usr/include/libcapsicum_dns.h
+OLD_FILES+=usr/include/libcapsicum_grp.h
+OLD_FILES+=usr/include/libcapsicum_pwd.h
+OLD_FILES+=usr/include/libcapsicum_random.h
+OLD_FILES+=usr/include/libcapsicum_service.h
+OLD_FILES+=usr/include/libcapsicum_sysctl.h
+OLD_FILES+=usr/include/libcasper.h
+OLD_FILES+=usr/lib/libcapsicum.a
+OLD_FILES+=usr/lib/libcapsicum.so
+OLD_FILES+=usr/lib/libcapsicum_p.a
 OLD_FILES+=usr/lib/libcasper.a
+OLD_FILES+=usr/lib/libcasper.so
+OLD_FILES+=usr/lib/libcasper_p.a
+OLD_FILES+=usr/lib32/libcapsicum.a
+OLD_FILES+=usr/lib32/libcapsicum.so
+OLD_LIBS+=usr/lib32/libcapsicum.so.0
+OLD_FILES+=usr/lib32/libcapsicum_p.a
+OLD_FILES+=usr/lib32/libcasper.a
+OLD_FILES+=usr/lib32/libcasper.so
+OLD_LIBS+=usr/lib32/libcasper.so.0
+OLD_FILES+=usr/lib32/libcasper_p.a
+OLD_FILES+=usr/share/man/man3/cap_clone.3.gz
+OLD_FILES+=usr/share/man/man3/cap_close.3.gz
+OLD_FILES+=usr/share/man/man3/cap_init.3.gz
+OLD_FILES+=usr/share/man/man3/cap_limit_get.3.gz
+OLD_FILES+=usr/share/man/man3/cap_limit_set.3.gz
+OLD_FILES+=usr/share/man/man3/cap_recv_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/cap_send_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/cap_service_open.3.gz
+OLD_FILES+=usr/share/man/man3/cap_sock.3.gz
+OLD_FILES+=usr/share/man/man3/cap_unwrap.3.gz
+OLD_FILES+=usr/share/man/man3/cap_wrap.3.gz
+OLD_FILES+=usr/share/man/man3/cap_xfer_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/libcapsicum.3.gz
+OLD_FILES+=usr/share/man/man8/casperd.8.gz
 .endif
 
 .if ${MK_CCD} == no
