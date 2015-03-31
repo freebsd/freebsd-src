@@ -1,4 +1,4 @@
-\ Copyright (c) 2006-2011 Devin Teske <dteske@FreeBSD.org>
+\ Copyright (c) 2006-2015 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@ marker task-brand.4th
 variable brandX
 variable brandY
 
-\ Initialize logo placement
+\ Initialize brand placement to defaults
 2 brandX !
 1 brandY !
 
@@ -61,23 +61,14 @@ variable brandY
 \ NOTE: Setting `loader_brand' to an undefined value (such as "none") will
 \       prevent any brand from being drawn.
 \ 
-: draw-brand ( -- )
+: draw-brand ( -- ) \ at (loader_brand_x,loader_brand_y), else (2,1)
 
 	s" loader_brand_x" getenv dup -1 <> if
-		?number 1 = if
-			brandX !
-		then
-	else
-		drop
-	then
-
+		?number 1 = if brandX ! then
+	else drop then
  	s" loader_brand_y" getenv dup -1 <> if
- 		?number 1 = if
-			brandY !
-		then
- 	else
-		drop
-	then
+ 		?number 1 = if brandY ! then
+ 	else drop then
 
 	s" loader_brand" getenv dup -1 = if
 		brandX @ brandY @ fbsd-logo

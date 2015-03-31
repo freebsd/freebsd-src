@@ -540,6 +540,7 @@ typedef enum {
 typedef struct {
 	u_int32_t	cyclecnt_diff;		/* delta cycle count */
 	u_int32_t	rxclr_cnt;		/* rx clear count */
+	u_int32_t	extrxclr_cnt;		/* ext chan rx clear count */
 	u_int32_t	txframecnt_diff;	/* delta tx frame count */
 	u_int32_t	rxframecnt_diff;	/* delta rx frame count */
 	u_int32_t	listen_time;		/* listen time in msec - time for which ch is free */

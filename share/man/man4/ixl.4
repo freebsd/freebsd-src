@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2015
+.Dd March 25, 2015
 .Dt IXL 4
 .Os
 .Sh NAME
@@ -113,8 +113,6 @@ Intel DUAL RATE 1G/10G SFP+ LR (bailed) AFCT-701SDZ-IN2
 Note that X710/XL710 Based SFP+ adapters also support all passive and active
 limiting direct attach cables that comply with SFF-8431 v4.1 and
 SFF-8472 v10.4 specifications.
-
-.Pp
 .Sh LOADER TUNABLES
 Tunables can be set at the
 .Xr loader 8
@@ -125,10 +123,10 @@ prompt before booting the kernel or stored in
 Allows one to enable/disable MSIX, thus forcing MSI instead.
 .It Va hw.ixl.ringsz
 Set the number of descriptors in the rings, note that this
-changes BOTH the TX and RX rings, they cannot be set independly.
+changes BOTH the TX and RX rings, they cannot be set independently.
 .It Va hw.ixl.max_queues
 Set the number of queues (each a TX/RX pair) for the port, this
-allows one to override the autocalculation if its set to 0.
+allows one to override the autocalculation if it is set to 0.
 .It Va hw.ixl.dynamic_rx_itr
 The dynamic RX interrupt control, set to 1 to enable.
 .It Va hw.ixl.dynamic_tx_itr
@@ -138,27 +136,31 @@ The RX interrupt rate value, set to 8K by default.
 .It Va hw.ixl.tx_itr
 The TX interrupt rate value, set to 4K by default.
 .El
-.Pp
 .Sh SYSCTL PROCEDURES
 .Bl -tag -width indent
 .It Va hw.ixl.fc
-Allows one to set the flow control value. A value of 0 disables
+Allows one to set the flow control value.
+A value of 0 disables
 flow control, 3 enables full, 1 is RX, and 2 is TX pause.
 .It Va hw.ixl.advertise_speed
 Allows one to set advertised link speeds, this will then
-cause a link renegotiation. With the appropriate adapter
-this can cause a link at 10GB, 1GB, or 100MB. 
+cause a link renegotiation.
+With the appropriate adapter
+this can cause a link at 10GB, 1GB, or 100MB.
 .It Va hw.ixl.current_speed
 This is a display of the current setting.
 .It Va hw.ixl.fw_version
 This is a display of the Firmware version.
+.El
 .Sh Interrupt Storms
-It is important to note that 40G operation can generate high 
+It is important to note that 40G operation can generate high
 numbers of interrupts, often incorrectly being interpreted as
-a storm condition in the kernel. It is suggested that this
+a storm condition in the kernel.
+It is suggested that this
 be resolved by setting:
 .Bl -tag -width indent
 .It Va hw.intr_storm_threshold: 0
+.El
 .Sh SUPPORT
 For general information and support,
 go to the Intel support website at:
@@ -169,6 +171,7 @@ email all the specific information related to the issue to
 .Aq freebsd@intel.com .
 .Sh SEE ALSO
 .Xr arp 4 ,
+.Xr ixlv 4 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr vlan 4 ,

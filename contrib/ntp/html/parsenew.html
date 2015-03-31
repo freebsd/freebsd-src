@@ -11,6 +11,9 @@
 	<body>
 		<h3>How to build new PARSE clocks</h3>
 		<p>Here is an attempt to sketch out what you need to do in order to add another clock to the parse driver: Currently the implementation is being cleaned up - so not all information in here is completely correct. Refer to the included code where in doubt.</p>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->13-Oct-2010  00:33<!-- #EndDate -->
+    UTC</p>
 		<p>Prerequisites:</p>
 		<ul>
 			<li>Does the system you want the clock connect to have the include files termio.h or termios.h ? (You need that for the parse driver)
@@ -185,9 +188,7 @@ struct clockformat
 		</ol>
 		<p>Well, this is very sketchy, i know. But I hope it helps a little bit. The best way is to look which clock comes closest to your and tweak that code.</p>
 		<p>Two sorts of clocks are used with parse. Clocks that automatically send their time code (once a second) do not need entries in the poll routines because they send the data all the time. The second sort are the clocks that need a command sent to them in order to reply with a time code (like the Trimble clock).</p>
-		<p>For questions: <a href="mailto:%20kardel <AT> acm.org">kardel 
-				<AT>
-				acm.org</a>.</p>
+		<p>For questions: <a href="mailto:%20kardel AT acm.org">kardel@acm.org</a>.</p>
 		<p>Please include an exact description on how your clock works. (initialisation, TTY modes, strings to be sent to it, responses received from the clock).</p>
 		<hr>
 		<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>

@@ -12,3 +12,5 @@ SUBDIR+=		ficl32
 .if ${MK_LUA} != "no"
 SUBDIR+=		liblua32
 .endif
+
+SUBDIR+=		i386

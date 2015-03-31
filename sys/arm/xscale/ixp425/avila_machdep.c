@@ -376,7 +376,7 @@ initarm(struct arm_boot_params *abp)
 	 * this problem will not occur after initarm().
 	 */
 	cpu_idcache_wbinv_all();
-	cpu_setup("");
+	cpu_setup();
 
 	/* ready to setup the console (XXX move earlier if possible) */
 	cninit();

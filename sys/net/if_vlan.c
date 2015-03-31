@@ -1163,8 +1163,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 	TRUNK_RUNLOCK(trunk);
 
 	m->m_pkthdr.rcvif = ifv->ifv_ifp;
-	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
-	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
+	if_inc_counter(ifv->ifv_ifp, IFCOUNTER_IPACKETS, 1);
 
 	/* Pass it back through the parent's input routine. */
 	(*ifp->if_input)(ifv->ifv_ifp, m);

@@ -29,6 +29,8 @@ dev/adb/adb_buttons.c		optional	adb
 dev/agp/agp_apple.c		optional	agp powermac
 dev/fb/fb.c			optional	sc
 dev/fdt/fdt_powerpc.c		optional	fdt
+# ofwbus depends on simplebus.
+dev/fdt/simplebus.c		optional	aim | fdt
 dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
 dev/hwpmc/hwpmc_mpc7xxx.c	optional	hwpmc
 dev/hwpmc/hwpmc_ppc970.c	optional	hwpmc
