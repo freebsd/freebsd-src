@@ -68,18 +68,18 @@ struct callout_handle {
  * field is the one that caller operations that may, or may not have
  * a lock touches i.e. callout_deactivate(). The other, the c_iflags,
  * is the internal flags that *must* be kept correct on which the
- * callout system depend on i.e. callout_migrating() & callout_pending(),
- * these are used internally by the callout system to determine which
- * list and other critical internal state. Callers *should not* use the 
- * c_flags field directly but should use the macros!
+ * callout system depend on e.g. callout_pending().
+ * The c_iflag is used internally by the callout system to determine which
+ * list the callout is on and track internal state. Callers *should not* 
+ * use the c_flags field directly but should use the macros provided.
  *  
- * If the caller wants to keep the c_flags field sane they 
- * should init with a mutex *or* if using the older
- * mpsafe option, they *must* lock there own lock
- * before calling callout_deactivate().
+ * The c_iflags field holds internal flags that are protected by internal
+ * locks of the callout subsystem.  The c_flags field holds external flags.
+ * The caller must hold its own lock while manipulating or reading external
+ * flags via callout_active(), callout_deactivate(), callout_reset*(), or
+ * callout_stop() to avoid races.
  */
 #define	callout_active(c)	((c)->c_flags & CALLOUT_ACTIVE)
-#define	callout_migrating(c)	((c)->c_iflags & CALLOUT_DFRMIGRATION)
 #define	callout_deactivate(c)	((c)->c_flags &= ~CALLOUT_ACTIVE)
 #define	callout_drain(c)	_callout_stop_safe(c, 1)
 void	callout_init(struct callout *, int);
