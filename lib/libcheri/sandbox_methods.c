@@ -54,14 +54,6 @@
  * This data is used to create the 'sandbox class' vtable, resolve symbols
  * to fill in caller .CHERI_CALLER variables, and store the corresponding
  * method numbers in the .CHERI_CALLEE variables of each 'sandbox object'.
- *
- * XXXBD: Storing the method offsets past the vtable creation is arguably
- * wasteful, but would allow a model where method entries are only populated
- * in the vtable if the linker finds a consumer thus limited the attack
- * surface.
- * XXXBD: Updating callee variables via indirection is inefficient.  If
- * we're sure that symtab entries are the same order as .CHERI_CALLEE then
- * we could avoid that and simply fill them in order.
  */
 struct sandbox_provided_method {
 	char		*spm_method;		/* Method name */
