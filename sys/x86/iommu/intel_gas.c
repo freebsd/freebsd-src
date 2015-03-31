@@ -648,7 +648,7 @@ dmar_gas_map(struct dmar_ctx *ctx, const struct bus_dma_tag_common *common,
 	entry->flags |= eflags;
 	DMAR_CTX_UNLOCK(ctx);
 
-	error = ctx_map_buf(ctx, entry->start, size, ma,
+	error = ctx_map_buf(ctx, entry->start, entry->end - entry->start, ma,
 	    ((eflags & DMAR_MAP_ENTRY_READ) != 0 ? DMAR_PTE_R : 0) |
 	    ((eflags & DMAR_MAP_ENTRY_WRITE) != 0 ? DMAR_PTE_W : 0) |
 	    ((eflags & DMAR_MAP_ENTRY_SNOOP) != 0 ? DMAR_PTE_SNP : 0) |
