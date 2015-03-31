@@ -83,11 +83,6 @@ extern register_t cheri_system_methodnum_puts;
 extern register_t cheri_system_methodnum_putchar;
 
 /*
- * XXXRW: This API probably doesn't belong here.  But where does it belong?
- */
-__capability struct sandbox	*cheri_getsandbox(void);
-
-/*
  * XXXRW: Probably should be library-private: the CHERI type of the system
  * library.
  */
