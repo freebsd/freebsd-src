@@ -16,11 +16,15 @@ QCOW2_DESC=	Qemu, KVM disk image
 RAW_DESC=	Unformatted raw disk image
 
 CLOUDWARE?=	AZURE \
+		EC2 \
 		GCE \
 		OPENSTACK
 AZURE_FORMAT=	vhdf
 AZURE_DESC=	Microsoft Azure platform image
 AZURE_DISK=	${OSRELEASE}.${AZURE_FORMAT}
+EC2_FORMAT=	raw
+EC2_DESC=	Amazon EC2 image
+EC2_DISK=	${OSRELEASE}.${EC2_FORMAT}
 GCE_FORMAT=	raw
 GCE_DESC=	Google Compute Engine image
 GCE_DISK=	disk.${GCE_FORMAT}
