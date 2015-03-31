@@ -98,6 +98,10 @@ __FBSDID("$FreeBSD$");
 #define GICD_ICFGR_TRIG_EDGE	(1 << 1)
 #define GICD_ICFGR_TRIG_MASK	0x2
 
+#ifndef	GIC_DEFAULT_ICFGR_INIT
+#define	GIC_DEFAULT_ICFGR_INIT	0x00000000
+#endif
+
 struct arm_gic_softc {
 	device_t		gic_dev;
 	struct resource *	gic_res[3];
@@ -280,7 +284,7 @@ arm_gic_attach(device_t dev)
 
 	/* Set all global interrupts to be level triggered, active low. */
 	for (i = 32; i < sc->nirqs; i += 16) {
-		gic_d_write_4(sc, GICD_ICFGR(i >> 4), 0x00000000);
+		gic_d_write_4(sc, GICD_ICFGR(i >> 4), GIC_DEFAULT_ICFGR_INIT);
 	}
 
 	/* Disable all interrupts. */

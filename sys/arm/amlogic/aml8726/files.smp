@@ -1,0 +1,4 @@
+#$FreeBSD$
+
+arm/arm/gic.c					standard
+arm/amlogic/aml8726/aml8726_mp.c		standard
