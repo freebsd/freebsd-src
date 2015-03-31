@@ -101,7 +101,7 @@ cheri_fd_new(int fd, struct cheri_object *cop)
 		errno = ENOMEM;
 		return (-1);
 	}
-	CHERI_SYSTEM_OBJECT_INIT(cfp);
+	CHERI_SYSTEM_OBJECT_INIT(cfp, NULL);
 	cfp->cf_fd = fd;
 
 	/*

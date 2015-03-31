@@ -58,6 +58,7 @@
 #include "cheri_class.h"
 #include "cheri_enter.h"
 #include "cheri_invoke.h"
+#include "cheri_system.h"
 #include "libcheri_stat.h"
 #include "sandbox.h"
 #include "sandbox_elf.h"
@@ -124,6 +125,7 @@ sandbox_program_init(int argc, char **argv)
 		close(fd);
 		return (-1);
 	}
+	cheri_system_vtable = sandbox_make_vtable(NULL, main_provided_methods);
 	close(fd);
 	return (0);
 }
@@ -438,7 +440,7 @@ sandbox_object_new_flags(struct sandbox_class *sbcp, size_t heaplen,
 	sbop = calloc(1, sizeof(*sbop));
 	if (sbop == NULL)
 		return (-1);
-	CHERI_SYSTEM_OBJECT_INIT(sbop);
+	CHERI_SYSTEM_OBJECT_INIT(sbop, cheri_system_vtable);
 	sbop->sbo_sandbox_classp = sbcp;
 	sbop->sbo_flags = flags;
 	sbop->sbo_heaplen = heaplen;

@@ -251,10 +251,9 @@ invoke_libcheri_userfn(register_t arg, size_t len)
 	 * Argument passed to the cheritest-helper method turns into the
 	 * method number for the underlying system class invocation.
 	 */
-	return (cheri_invoke(_cheri_system_object,
-	    arg,
-	    len, 0, 0, 0, 0, 0, 0, 0,
-	    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
+	return (cheri_system_user_call_fn(arg,
+	    len, 0, 0, 0, 0, 0, 0,
+	    NULL, NULL, NULL, NULL, NULL));
 }
 
 static int
@@ -266,10 +265,9 @@ invoke_libcheri_userfn_setstack(register_t arg)
 	 * In the setstack test, ensure that execution of the return path via
 	 * the sandbox has a visible effect that can be tested for.
 	 */
-	v = (cheri_invoke(_cheri_system_object,
-	    CHERITEST_USERFN_SETSTACK,
-	    arg, 0, 0, 0, 0, 0, 0, 0,
-	    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
+	v = (cheri_system_user_call_fn(CHERITEST_USERFN_SETSTACK,
+	    arg, 0, 0, 0, 0, 0, 0,
+	    NULL, NULL, NULL, NULL, NULL));
 	v += 10;
 	return (v);
 }

@@ -33,6 +33,24 @@
 #define	_CHERI_SYSTEM_H_
 
 /*
+ * For now, expose the symbol for the system-object reference in each sandbox
+ * as a public symbol.  At some point we will want to find a better way to do
+ * this.
+ */
+extern struct cheri_object _cheri_system_object;
+
+#ifdef CHERI_SYSTEM_INTERNAL
+#define CHERI_SYSTEM_CCALL					\
+    __attribute__((cheri_ccallee))				\
+    __attribute__((cheri_method_class(_cheri_system_object)))
+#else
+#define CHERI_SYSTEM_CCALL					\
+    __attribute__((cheri_ccall))				\
+    __attribute__((cheri_method_suffix("_cap")))		\
+    __attribute__((cheri_method_class(_cheri_system_object)))
+#endif
+
+/*
  * This header defines the interface for the CHERI system class.  Currently,
  * it is a bit catch-all, and provides a few key service that make it easy to
  * implement (and debug) sandboxed code.  In the future, we anticipate the
@@ -41,51 +59,41 @@
  * definitely not yet at that point.
  */
 
-#define	CHERI_SYSTEM_METHOD_HELLOWORLD	1	/* printf("hello world\n"); */
-#define	CHERI_SYSTEM_METHOD_PUTS	2	/* puts(). */
-#define	CHERI_SYSTEM_METHOD_PUTCHAR	3	/* putchar(). */
-#define	CHERI_SYSTEM_CLOCK_GETTIME	4	/* clock_gettime(). */
-#define	CHERI_SYSTEM_CALLOC		5	/* calloc(). */
-#define	CHERI_SYSTEM_FREE		6	/* free(). */
-
-/*
- * In the sandbox: notify the stub implementation of the object capability to
- * invoke.
- */
-void	cheri_system_setup(struct cheri_object system_object);
-
 /*
  * Methods themselves.
  */
+CHERI_SYSTEM_CCALL
 int	cheri_system_helloworld(void);
+CHERI_SYSTEM_CCALL
 int	cheri_system_puts(__capability const char *str);
+CHERI_SYSTEM_CCALL
 int	cheri_system_putchar(int c);
+CHERI_SYSTEM_CCALL
 int	cheri_system_clock_gettime(clockid_t clock_id,
 	    __capability struct timespec *tp);
+CHERI_SYSTEM_CCALL
 int	cheri_system_calloc(size_t number, size_t size,
 	    void __capability * __capability * ptrp);
-int	cheri_system_free(__capability const void *ptr);
-
-/*
- * For now, expose the symbol for the system-object reference in each sandbox
- * as a public symbol.  At some point we will want to find a better way to do
- * this -- largely for the purposes of handling user-defined system-class
- * extensions.
- */
-extern struct cheri_object _cheri_system_object;
-
-/*
- * Method numbers, which can be modified to override the bottom layer of the
- * system class stub to invoke alternative methods.
- */
-extern register_t cheri_system_methodnum_helloworld;
-extern register_t cheri_system_methodnum_puts;
-extern register_t cheri_system_methodnum_putchar;
+CHERI_SYSTEM_CCALL
+int	cheri_system_free(__capability void *ptr);
+CHERI_SYSTEM_CCALL
+register_t	cheri_system_user_call_fn(register_t methodnum,
+		    register_t a0, register_t a1, register_t a2,
+		    register_t a3, register_t a4, register_t a5,
+		    register_t a6,
+		    __capability void *c3, __capability void *c4,
+		    __capability void *c5, __capability void *c6,
+		    __capability void *c7);
 
 /*
  * XXXRW: Probably should be library-private: the CHERI type of the system
  * library.
  */
 __capability void	*cheri_system_type;
+
+/*
+ * Vtable for cheri_system methods.
+ */
+__capability intptr_t	*cheri_system_vtable;
 
 #endif /* !_CHERI_SYSTEM_H_ */

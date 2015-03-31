@@ -33,6 +33,8 @@ INCSDIR=	${INCLUDEDIR}/cheri
 CFLAGS+=	-I${.CURDIR}/../libc/include \
 		-I${.CURDIR}/../libc/locale
 
+CFLAGS+=	-DCHERI_SYSTEM_INTERNAL
+
 SHLIB_MAJOR=	1
 
 MAN=	cheri_invoke.3			\

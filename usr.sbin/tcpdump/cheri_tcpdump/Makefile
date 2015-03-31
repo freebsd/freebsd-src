@@ -11,7 +11,7 @@ TCPDUMP_DISTDIR?= ${.CURDIR}/../../../contrib/tcpdump
 PROG=	cheri_tcpdump
 MAN=
 
-SRCS=	cheri_tcpdump_system.c \
+SRCS=	\
 	gmt2local.c \
 	machdep.c \
 	setsignal.c \

@@ -58,7 +58,6 @@
 #include <unistd.h>
 
 #include "cheri_tcpdump_control.h"
-#include "cheri_tcpdump_system.h"
 
 #include "tcpdump-stdinc.h"
 #include "extract.h"
@@ -614,8 +613,6 @@ init_print(uint32_t localnet, uint32_t mask, uint32_t timezone_offset)
 		asprintf(&hash_names[i], "hash%02d", i);
 	for (i = 0; i < MAX_SANDBOXES; i++)
 		asprintf(&proto_names[i], "proto%02d", i);
-
-	cheri_system_user_register_fn(&cheri_tcpdump_system);
 
 	if (tcpdump_classp == NULL) {
 		if (tcpdump_sandbox_object_setup() != 0)

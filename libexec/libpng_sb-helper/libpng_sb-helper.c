@@ -56,7 +56,6 @@ register_t invoke(struct cheri_object co __unused, register_t v0 __unused,
     __capability void *c7, __capability void *c8)
     __attribute__((cheri_ccall)); /* XXXRW: Will be ccheri_ccaller. */
 
-struct cheri_object global_system_object;
 png_structp g_png_ptr;
 
 static void
@@ -79,24 +78,18 @@ static void
 libpng_sb_read_callback(void *psp, png_bytep data, png_size_t length)
 {
 
-	cheri_invoke(global_system_object,
-	    LIBPNG_SB_USERFN_READ_CALLBACK,
-	    LIBPNG_SB_USERFN_READ_CALLBACK, length, 0, 0, 0, 0, 0, 0,
-	    psp, data,
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
+	cheri_system_user_call_fn(LIBPNG_SB_USERFN_READ_CALLBACK,
+	    length, 0, 0, 0, 0, 0, 0,
+	    psp, data, NULL, NULL, NULL);
 }
 
 static void
 libpng_sb_info_callback(void *psp, png_infop info_ptr)
 {
 
-	cheri_invoke(global_system_object,
-	    LIBPNG_SB_USERFN_INFO_CALLBACK,
-	    LIBPNG_SB_USERFN_INFO_CALLBACK, 0, 0, 0, 0, 0, 0, 0,
-	    psp, info_ptr,
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
+	cheri_system_user_call_fn(LIBPNG_SB_USERFN_INFO_CALLBACK,
+	    0, 0, 0, 0, 0, 0, 0,
+	    psp, info_ptr, NULL, NULL, NULL);
 }
 
 static void
@@ -104,24 +97,18 @@ libpng_sb_row_callback(void *psp, png_bytep new_row, png_uint_32 row_num,
     int pass)
 {
 
-	cheri_invoke(global_system_object,
-	    LIBPNG_SB_USERFN_ROW_CALLBACK,
-	    LIBPNG_SB_USERFN_ROW_CALLBACK, row_num, pass, 0, 0, 0, 0, 0,
-	    psp, new_row,
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
+	cheri_system_user_call_fn(LIBPNG_SB_USERFN_ROW_CALLBACK,
+	    row_num, pass, 0, 0, 0, 0, 0,
+	    psp, new_row, NULL, NULL, NULL);
 }
 
 static void
 libpng_sb_end_callback(void *psp, png_infop info_ptr)
 {
 
-	cheri_invoke(global_system_object,
-	    LIBPNG_SB_USERFN_END_CALLBACK,
-	    LIBPNG_SB_USERFN_END_CALLBACK, 0, 0, 0, 0, 0, 0, 0,
-	    psp, info_ptr,
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
+	cheri_system_user_call_fn(LIBPNG_SB_USERFN_END_CALLBACK,
+	    0, 0, 0, 0, 0, 0, 0,
+	    psp, info_ptr, NULL, NULL, NULL);
 }
 
 static void
@@ -168,18 +155,11 @@ sb_end_fn(png_structp png_ptr, png_infop info_ptr)
 register_t
 invoke(struct cheri_object c __unused, register_t v0 __unused,
     register_t op, register_t a0, register_t a1,
-    struct cheri_object system_object,
+    struct cheri_object system_object __unused,
     __capability void *c5 __unused, __capability void *c6 __unused,
     __capability void *c7, __capability void *c8)
 {
 	png_infop info_ptr;
-
-	/*
-	 * Save reference to our system object; NB: stores in a global
-	 * variable so this reference can't currently be ephemeral.
-	 */
-	cheri_system_setup(system_object);
-	global_system_object = system_object;
 
 	printf("libpng sandbox invoked with op %ld\n", op);
 

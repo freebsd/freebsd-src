@@ -34,10 +34,12 @@
  * use the saved $idc for this.
  */
 #define	CHERI_SYSTEM_OBJECT_FIELDS					\
-	__capability void	*__cheri_system_object_field_c0
+	__capability void	*__cheri_system_object_field_c0;	\
+	__capability intptr_t	*__cheri_system_object_vtable
 
-#define	CHERI_SYSTEM_OBJECT_INIT(x)					\
-	(x)->__cheri_system_object_field_c0 = cheri_getdefault()
+#define	CHERI_SYSTEM_OBJECT_INIT(x, vtable)				\
+	(x)->__cheri_system_object_field_c0 = cheri_getdefault();	\
+	(x)->__cheri_system_object_vtable = (vtable)
 
 /*
  * CHERI system class CCall landing pad code: catches CCalls inbound from
@@ -102,6 +104,21 @@ __cheri_ ## class ## _entry:						\
 	 */								\
 	dla	$gp, _gp;						\
 									\
+	/*								\
+	 * The second entry of $idc is a method vtable.  If it is a	\
+	 * valid capability, then load the address at offset $v0	\
+	 * rather than using the "enter" functions.			\
+	 */								\
+	clc	$c12, $zero, CHERICAP_SIZE($c26);			\
+	cgettag	$t9, $c12;						\
+	beqz	$t9, __cheri ## class ## legacy_enter;			\
+	nop;								\
+	cld	$t9, $v0, 0($c12);					\
+	jalr	$t9;							\
+	nop;								\
+	creturn;							\
+									\
+__cheri ## class ## legacy_enter:					\
 	/*								\
 	 * Invoke MIPS ABI C "enter" function.				\
 	 */								\

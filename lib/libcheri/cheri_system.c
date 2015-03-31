@@ -51,6 +51,8 @@
  */
 __capability void	*cheri_system_type;
 
+static struct cheri_object null_object;
+
 static __attribute__ ((constructor)) void
 cheri_system_init(void)
 {
@@ -121,23 +123,13 @@ cheri_system_calloc(size_t count, size_t size,
 	return (0);
 }
 
-/*
- * This function implements the "landing pad" for CHERI method invocations on
- * system capabilities.  For now, several pretty critical limitations, which
- * we will work on relaxing over time:
- *
- * 1. one global invocation stack, so no concurrency.
- * 2. one global data object, so no support for multiple data capabilities.
- */
-register_t	cheri_system_enter(struct cheri_object system_object,
-		    register_t methodnum,
-		    register_t a0, register_t a1, register_t a2,
-		    register_t a3, register_t a4, register_t a5,
-		    register_t a6, register_t a7,
-		    __capability void *c3, __capability void *c4,
-		    __capability void *c5, __capability void *c6,
-		    __capability void *c7) __attribute__((cheri_ccall));
-		    /* XXXRW: Will be cheri_ccallee. */
+int
+cheri_system_free(__capability void *ptr)
+{
+
+	free((void *)ptr);
+	return (0);
+}
 
 static cheri_system_user_fn_t	cheri_system_user_fn_ptr;
 
@@ -152,81 +144,22 @@ cheri_system_user_register_fn(cheri_system_user_fn_t fn_ptr)
 }
 
 /*
- * cheri_system_enter() itself: sandbox invocations turn up here.
+ * Call a legacy user function.
  */
 register_t
-cheri_system_enter(struct cheri_object system_object,
-    register_t methodnum,
+cheri_system_user_call_fn(register_t methodnum,
     register_t a0, register_t a1, register_t a2, register_t a3,
-    register_t a4, register_t a5, register_t a6, register_t a7,
+    register_t a4, register_t a5, register_t a6,
     __capability void *c3, __capability void *c4, __capability void *c5,
     __capability void *c6, __capability void *c7)
 {
-	__capability struct sandbox_object *sbop = cheri_getidc();
 
-	/* Check system permissions for this object. */
-	switch (methodnum) {
-	case CHERI_SYSTEM_METHOD_HELLOWORLD:
-	case CHERI_SYSTEM_METHOD_PUTS:
-	case CHERI_SYSTEM_METHOD_PUTCHAR:
-		/* Console-I/O permission. */
-		if (!(sbop->sbo_flags & SANDBOX_OBJECT_FLAG_CONSOLE))
-			return (-1);
-		break;
-
-	case CHERI_SYSTEM_CALLOC:
-	case CHERI_SYSTEM_FREE:
-		/* Memory-allocator permission. */
-		if (!(sbop->sbo_flags & SANDBOX_OBJECT_FLAG_ALLOCFREE))
-			return (-1);
-		break;
-
-	case CHERI_SYSTEM_CLOCK_GETTIME:
-		/* No permission required. */
-		return (0);
-
-	default:
-		if (methodnum >= CHERI_SYSTEM_USER_BASE &&
-		    methodnum < CHERI_SYSTEM_USER_CEILING &&
-		    (sbop->sbo_flags & SANDBOX_OBJECT_FLAG_USERFN))
-			break;
-
-		/*
-		 * All new methods must have a permission assigned; fail
-		 * closed if a new method is added without a permission entry.
-		 */
-		return (-1);
-	}
-
-	switch (methodnum) {
-	case CHERI_SYSTEM_METHOD_HELLOWORLD:
-		return (cheri_system_helloworld());
-
-	case CHERI_SYSTEM_METHOD_PUTS:
-		return (cheri_system_puts(c3));
-
-	case CHERI_SYSTEM_METHOD_PUTCHAR:
-		return (cheri_system_putchar(a0));
-
-	case CHERI_SYSTEM_CLOCK_GETTIME:
-		return (cheri_system_clock_gettime(a0, c3));
-
-	case CHERI_SYSTEM_CALLOC:
-		return (cheri_system_calloc(a0, a1,
-		    (void __capability * __capability *)c3));
-
-	case CHERI_SYSTEM_FREE:
-		free((void *)c3);
-		return (0);
-
-	default:
-		if (methodnum >= CHERI_SYSTEM_USER_BASE &&
-		    methodnum < CHERI_SYSTEM_USER_CEILING &&
-		    cheri_system_user_fn_ptr != NULL)
-			return (cheri_system_user_fn_ptr(system_object,
-			    methodnum,
-			    a0, a1, a2, a3, a4, a5, a6, a7,
-			    c3, c4, c5, c6, c7));
-		return (-1);
-	}
+	if (methodnum >= CHERI_SYSTEM_USER_BASE &&
+	    methodnum < CHERI_SYSTEM_USER_CEILING &&
+	    cheri_system_user_fn_ptr != NULL)
+		return (cheri_system_user_fn_ptr(null_object,
+		    methodnum,
+		    a0, a1, a2, a3, a4, a5, a6, 0,
+		    c3, c4, c5, c6, c7));
+	return (-1);
 }

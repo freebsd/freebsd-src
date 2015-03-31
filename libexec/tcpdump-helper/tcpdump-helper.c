@@ -73,7 +73,6 @@
 #include "interface.h"
 #include "print.h"
 
-#include "cheri_tcpdump_system.h"
 #include "tcpdump-helper.h"
 
 struct print_info printinfo;
@@ -100,11 +99,6 @@ cheri_tcpdump_sandbox_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
     uint32_t timezone_offset, const netdissect_options *ndo,
     struct cheri_object next_sandbox)
 {
-
-/* XXXBD: broken, use system default
-	cheri_system_methodnum_puts = CHERI_TCPDUMP_PUTS;
-	cheri_system_methodnum_putchar = CHERI_TCPDUMP_PUTCHAR;
-*/
 
 	program_name = "tcpdump-helper"; /* XXX: copy from parent? */
 
@@ -194,7 +188,5 @@ void
 pawned(void)
 {
 
-	cheri_system_methodnum_puts = CHERI_TCPDUMP_PUTS_PAWNED;
-	cheri_system_methodnum_putchar = CHERI_TCPDUMP_PUTCHAR_PAWNED;
 	printf(">>> ATTACKER OUTPUT <<<");
 }
