@@ -5146,7 +5146,7 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 {
 	u_int8_t type;
 	char *dtype, *qtype;
-	char vendor[16], product[48], revision[16], rstr[4];
+	char vendor[16], product[48], revision[16], rstr[12];
 
 	type = SID_TYPE(inq_data);
 
@@ -5154,7 +5154,7 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 	 * Figure out basic device type and qualifier.
 	 */
 	if (SID_QUAL_IS_VENDOR_UNIQUE(inq_data)) {
-		qtype = "(vendor-unique qualifier)";
+		qtype = " (vendor-unique qualifier)";
 	} else {
 		switch (SID_QUAL(inq_data)) {
 		case SID_QUAL_LU_CONNECTED:
@@ -5162,15 +5162,15 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 			break;
 
 		case SID_QUAL_LU_OFFLINE:
-			qtype = "(offline)";
+			qtype = " (offline)";
 			break;
 
 		case SID_QUAL_RSVD:
-			qtype = "(reserved qualifier)";
+			qtype = " (reserved qualifier)";
 			break;
 		default:
 		case SID_QUAL_BAD_LU:
-			qtype = "(LUN not supported)";
+			qtype = " (LUN not supported)";
 			break;
 		}
 	}
@@ -5239,11 +5239,16 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 	cam_strvis(revision, inq_data->revision, sizeof(inq_data->revision),
 		   sizeof(revision));
 
-	if (SID_ANSI_REV(inq_data) == SCSI_REV_CCS)
-		bcopy("CCS", rstr, 4);
-	else
-		snprintf(rstr, sizeof (rstr), "%d", SID_ANSI_REV(inq_data));
-	printf("<%s %s %s> %s %s SCSI-%s device %s\n",
+	if (SID_ANSI_REV(inq_data) == SCSI_REV_0)
+		snprintf(rstr, sizeof(rstr), "SCSI");
+	else if (SID_ANSI_REV(inq_data) <= SCSI_REV_SPC) {
+		snprintf(rstr, sizeof(rstr), "SCSI-%d",
+		    SID_ANSI_REV(inq_data));
+	} else {
+		snprintf(rstr, sizeof(rstr), "SPC-%d SCSI",
+		    SID_ANSI_REV(inq_data) - 2);
+	}
+	printf("<%s %s %s> %s %s %s device%s\n",
 	       vendor, product, revision,
 	       SID_IS_REMOVABLE(inq_data) ? "Removable" : "Fixed",
 	       dtype, rstr, qtype);
