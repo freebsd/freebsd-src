@@ -727,8 +727,8 @@ dt_print_packed(dtrace_hdl_t *dtp, FILE *fp,
 			utf8 = B_TRUE;
 		} else if ((term = getenv("TERM")) != NULL &&
 		    (strcmp(term, "sun") == 0 ||
-		    strcmp(term, "sun-color") == 0) ||
-		    strcmp(term, "dumb") == 0) {
+		    strcmp(term, "sun-color") == 0 ||
+		    strcmp(term, "dumb") == 0)) {
 			utf8 = B_FALSE;
 		} else {
 			utf8 = B_TRUE;
