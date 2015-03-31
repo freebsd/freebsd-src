@@ -167,6 +167,8 @@ struct callout_cpu {
 	char			cc_ktr_event_name[20];
 };
 
+#define	callout_migrating(c)	((c)->c_iflags & CALLOUT_DFRMIGRATION)
+
 #define	cc_exec_curr(cc, dir)		cc->cc_exec_entity[dir].cc_curr
 #define	cc_exec_next(cc)		cc->cc_next
 #define	cc_exec_cancel(cc, dir)		cc->cc_exec_entity[dir].cc_cancel
