@@ -29,7 +29,7 @@ marker task-brand.4th
 variable brandX
 variable brandY
 
-\ Initialize logo placement
+\ Initialize brand placement to defaults
 2 brandX !
 1 brandY !
 
@@ -61,7 +61,7 @@ variable brandY
 \ NOTE: Setting `loader_brand' to an undefined value (such as "none") will
 \       prevent any brand from being drawn.
 \ 
-: draw-brand ( -- )
+: draw-brand ( -- ) \ at (loader_brand_x,loader_brand_y), else (2,1)
 
 	s" loader_brand_x" getenv dup -1 <> if
 		?number 1 = if brandX ! then
