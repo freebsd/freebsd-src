@@ -1,5 +1,5 @@
 /*-
- * Copytight (c) 2014-2015 The FreeBSD Foundation
+ * Copyright (c) 2014-2015 The FreeBSD Foundation
  * All rights reserved.
  *
  * Portions of this software were developed by Andrew Turner
