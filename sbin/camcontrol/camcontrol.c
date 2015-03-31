@@ -7968,39 +7968,21 @@ atapm(struct cam_device *device, int argc, char **argv,
 	else
 		sc = 253;
 
-	cam_fill_ataio(&ccb->ataio,
-		      retry_count,
-		      NULL,
-		      /*flags*/CAM_DIR_NONE,
-		      MSG_SIMPLE_Q_TAG,
-		      /*data_ptr*/NULL,
-		      /*dxfer_len*/0,
-		      timeout ? timeout : 30 * 1000);
-	ata_28bit_cmd(&ccb->ataio, cmd, 0, 0, sc);
+	retval = ata_do_28bit_cmd(device,
+	    ccb,
+	    /*retries*/retry_count,
+	    /*flags*/CAM_DIR_NONE,
+	    /*protocol*/AP_PROTO_NON_DATA,
+	    /*tag_action*/MSG_SIMPLE_Q_TAG,
+	    /*command*/cmd,
+	    /*features*/0,
+	    /*lba*/0,
+	    /*sector_count*/sc,
+	    /*data_ptr*/NULL,
+	    /*dxfer_len*/0,
+	    /*timeout*/timeout ? timeout : 30 * 1000,
+	    /*quiet*/1);
 
-	/* Disable freezing the device queue */
-	ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
-
-	if (arglist & CAM_ARG_ERR_RECOVER)
-		ccb->ccb_h.flags |= CAM_PASS_ERR_RECOVER;
-
-	if (cam_send_ccb(device, ccb) < 0) {
-		warn("error sending command");
-
-		if (arglist & CAM_ARG_VERBOSE)
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-
-		retval = 1;
-		goto bailout;
-	}
-
-	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-		cam_error_print(device, ccb, CAM_ESF_ALL, CAM_EPF_ALL, stderr);
-		retval = 1;
-		goto bailout;
-	}
-bailout:
 	cam_freeccb(ccb);
 	return (retval);
 }
