@@ -551,11 +551,6 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_func_arg = test_sandbox_simple_method,
 	  .ct_arg = CHERITEST_HELPER_OP_SYSCALL },
 
-	{ .ct_name = "test_sandbox_syscap",
-	  .ct_desc = "Invoke the system capability in a libcheri sandbox",
-	  .ct_func_arg = test_sandbox_simple_method,
-	  .ct_arg = CHERITEST_HELPER_OP_SYSCAP },
-
 	/*
 	 * libcheri + cheri_fd tests.
 	 */

@@ -161,14 +161,6 @@ invoke_syscall(void)
 }
 
 static int
-invoke_syscap(void)
-{
-
-	return (cheri_invoke(_cheri_system_object, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
-}
-
-static int
 invoke_fd_fstat_c(struct cheri_object fd_object)
 {
 	struct cheri_fd_ret ret;
@@ -418,9 +410,6 @@ invoke(struct cheri_object co __unused, register_t v0 __unused,
 
 	case CHERITEST_HELPER_OP_DIVZERO:
 		return (1/(zero));
-
-	case CHERITEST_HELPER_OP_SYSCAP:
-		return (invoke_syscap());
 
 	case CHERITEST_HELPER_OP_CS_HELLOWORLD:
 		return (cheri_system_helloworld());

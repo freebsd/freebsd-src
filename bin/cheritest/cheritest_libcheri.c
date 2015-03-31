@@ -349,8 +349,6 @@ cheritest_libcheri_setup(void)
 	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_OP_DIVZERO, "divzero");
 	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_OP_SYSCAP, "syscap");
-	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_OP_MALLOC, "malloc");
 	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_OP_CS_CLOCK_GETTIME, "clock_gettime");
