@@ -50,3 +50,15 @@ marker task-screen.4th
 
 \ Mode end (clear attributes)
 : me ( -- ) escc [char] m emit ;
+
+\ Enable bold mode ( Esc-[1m )
+: b ( -- ) escc 1 .# [char] m emit ;
+
+\ Disable bold mode ( Esc-[22m )
+: -b ( -- ) escc 22 .# [char] m emit ;
+
+\ Enable inverse foreground/background mode ( Esc-[7m )
+: inv ( -- ) escc 7 .# [char] m emit ;
+
+\ Disable inverse foreground/background mode ( Esc-[27m )
+: -inv ( -- ) escc 27 .# [char] m emit ;
