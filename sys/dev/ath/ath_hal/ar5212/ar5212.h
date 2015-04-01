@@ -200,6 +200,7 @@ struct ar5212AniState {
 #define	HAL_ANI_ENA		0x00000001	/* ANI operation enabled */
 #define	HAL_RSSI_ANI_ENA	0x00000002	/* rssi-based processing ena'd*/
 
+#if 0
 struct ar5212Stats {
 	uint32_t	ast_ani_niup;	/* ANI increased noise immunity */
 	uint32_t	ast_ani_nidown;	/* ANI decreased noise immunity */
@@ -219,6 +220,7 @@ struct ar5212Stats {
 	HAL_MIB_STATS	ast_mibstats;	/* MIB counter stats */
 	HAL_NODE_STATS	ast_nodestats;	/* Latest rssi stats from driver */
 };
+#endif
 
 /*
  * NF Cal history buffer
@@ -258,7 +260,7 @@ struct ath_hal_5212 {
 	 * Runtime state.
 	 */
 	uint32_t	ah_maskReg;		/* copy of AR_IMR */
-	struct ar5212Stats ah_stats;		/* various statistics */
+	HAL_ANI_STATS	ah_stats;		/* various statistics */
 	RF_HAL_FUNCS	*ah_rfHal;
 	uint32_t	ah_txDescMask;		/* mask for TXDESC */
 	uint32_t	ah_txOkInterruptMask;
@@ -625,7 +627,7 @@ extern	void ar5212AniAttach(struct ath_hal *, const struct ar5212AniParams *,
 		const struct ar5212AniParams *, HAL_BOOL ena);
 extern	void ar5212AniDetach(struct ath_hal *);
 extern	struct ar5212AniState *ar5212AniGetCurrentState(struct ath_hal *);
-extern	struct ar5212Stats *ar5212AniGetCurrentStats(struct ath_hal *);
+extern	HAL_ANI_STATS *ar5212AniGetCurrentStats(struct ath_hal *);
 extern	HAL_BOOL ar5212AniControl(struct ath_hal *, HAL_ANI_CMD cmd, int param);
 extern	HAL_BOOL ar5212AniSetParams(struct ath_hal *,
 		const struct ar5212AniParams *, const struct ar5212AniParams *);

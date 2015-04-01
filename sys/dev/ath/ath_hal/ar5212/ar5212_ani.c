@@ -110,7 +110,7 @@ ar5212AniGetCurrentState(struct ath_hal *ah)
 /*
  * Return the current statistics.
  */
-struct ar5212Stats *
+HAL_ANI_STATS *
 ar5212AniGetCurrentStats(struct ath_hal *ah)
 {
 	struct ath_hal_5212 *ahp = AH5212(ah);
