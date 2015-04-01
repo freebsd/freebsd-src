@@ -27,6 +27,9 @@
 
 marker task-frames.4th
 
+vocabulary frame-drawing
+only forth also frame-drawing definitions
+
 \ XXX Filled boxes are left as an exercise for the reader... ;-/
 
 variable h_el
@@ -86,6 +89,8 @@ s" arch-pc98" environment? [if]
 	177 constant fill_med
 	178 constant fill_bright
 [then]
+
+only forth definitions also frame-drawing
 
 : hline	( len x y -- )	\ Draw horizontal single line
 	at-xy		\ move cursor
@@ -156,3 +161,5 @@ s" arch-pc98" environment? [if]
 
 f_single
 fill_none fill !
+
+only forth definitions
