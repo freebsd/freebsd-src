@@ -17,19 +17,19 @@ SRCS=	boot1.c reloc.c start.S
 
 CFLAGS+=	-fPIC
 CFLAGS+=	-I.
-CFLAGS+=	-I${.CURDIR}/../../efi/include
-CFLAGS+=	-I${.CURDIR}/../../efi/include/${MACHINE_CPUARCH}
+CFLAGS+=	-I${.CURDIR}/../include
+CFLAGS+=	-I${.CURDIR}/../include/${MACHINE_CPUARCH}
 CFLAGS+=	-I${.CURDIR}/../../../contrib/dev/acpica/include
 CFLAGS+=	-I${.CURDIR}/../../..
 
 # Always add MI sources and REGULAR efi loader bits
-.PATH:		${.CURDIR}/../efi ${.CURDIR}/../../common
+.PATH:		${.CURDIR}/../loader/arch/amd64 ${.CURDIR}/../../common
 CFLAGS+=	-I${.CURDIR}/../../common
 
 FILES=	boot1.efi boot1.efifat
 FILESMODE_boot1.efi=	${BINMODE}
 
-LDSCRIPT=	${.CURDIR}/../efi/ldscript.${MACHINE_CPUARCH}
+LDSCRIPT=	${.CURDIR}/../loader/arch/${MACHINE_CPUARCH}/ldscript.${MACHINE_CPUARCH}
 LDFLAGS=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared -Wl,-znocombreloc
 
 ${PROG}:	${LDSCRIPT}
@@ -39,7 +39,7 @@ OBJDUMP?=	objdump
 
 .if ${MACHINE_CPUARCH} == "amd64"
 EFI_TARGET=	efi-app-x86_64
-.else
+.elif ${MACHINE_CPUARCH} == "i386"
 EFI_TARGET=	efi-app-ia32
 .endif
 
