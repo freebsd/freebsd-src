@@ -84,7 +84,27 @@ SYSCTL_DECL(_vfs_devfs);
 
 static int devfs_dotimes;
 SYSCTL_INT(_vfs_devfs, OID_AUTO, dotimes, CTLFLAG_RW,
-        &devfs_dotimes, 0, "Update timestamps on DEVFS");
+    &devfs_dotimes, 0, "Update timestamps on DEVFS with default precision");
+
+/*
+ * Update devfs node timestamp.  Note that updates are unlocked and
+ * stat(2) could see partially updated times.
+ */
+static void
+devfs_timestamp(struct timespec *tsp)
+{
+	time_t ts;
+
+	if (devfs_dotimes) {
+		vfs_timestamp(tsp);
+	} else {
+		ts = time_second;
+		if (tsp->tv_sec != ts) {
+			tsp->tv_sec = ts;
+			tsp->tv_nsec = 0;
+		}
+	}
+}
 
 static int
 devfs_fp_check(struct file *fp, struct cdev **devp, struct cdevsw **dswp,
@@ -1228,9 +1248,8 @@ devfs_read_f(struct file *fp, struct uio *uio, struct ucred *cred,
 
 	foffset_lock_uio(fp, uio, flags | FOF_NOLOCK);
 	error = dsw->d_read(dev, uio, ioflag);
-	if (devfs_dotimes &&
-	    (uio->uio_resid != resid || (error == 0 && resid != 0)))
-		vfs_timestamp(&dev->si_atime);
+	if (uio->uio_resid != resid || (error == 0 && resid != 0))
+		devfs_timestamp(&dev->si_atime);
 	td->td_fpop = fpop;
 	dev_relthread(dev, ref);
 
@@ -1708,9 +1727,8 @@ devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred,
 	resid = uio->uio_resid;
 
 	error = dsw->d_write(dev, uio, ioflag);
-	if (devfs_dotimes &&
-	    (uio->uio_resid != resid || (error == 0 && resid != 0))) {
-		vfs_timestamp(&dev->si_ctime);
+	if (uio->uio_resid != resid || (error == 0 && resid != 0)) {
+		devfs_timestamp(&dev->si_ctime);
 		dev->si_mtime = dev->si_ctime;
 	}
 	td->td_fpop = fpop;
