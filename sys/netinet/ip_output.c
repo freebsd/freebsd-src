@@ -91,8 +91,6 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-VNET_DEFINE(uint32_t, ip_id);
-
 #ifdef MBUF_STRESS_TEST
 static int mbuf_frag_size = 0;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, mbuf_frag_size, CTLFLAG_RW,
@@ -174,21 +172,10 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	ip_len = ntohs(ip->ip_len);
 	ip_off = ntohs(ip->ip_off);
 
-	/*
-	 * Fill in IP header.  If we are not allowing fragmentation,
-	 * then the ip_id field is meaningless, but we don't set it
-	 * to zero.  Doing so causes various problems when devices along
-	 * the path (routers, load balancers, firewalls, etc.) illegally
-	 * disable DF on our packet.  Note that a 16-bit counter
-	 * will wrap around in less than 10 seconds at 100 Mbit/s on a
-	 * medium with MTU 1500.  See Steven M. Bellovin, "A Technique
-	 * for Counting NATted Hosts", Proc. IMW'02, available at
-	 * <http://www.cs.columbia.edu/~smb/papers/fnat.pdf>.
-	 */
 	if ((flags & (IP_FORWARDING|IP_RAWOUTPUT)) == 0) {
 		ip->ip_v = IPVERSION;
 		ip->ip_hl = hlen >> 2;
-		ip->ip_id = ip_newid();
+		ip_fillid(ip);
 		IPSTAT_INC(ips_localout);
 	} else {
 		/* Header already set, fetch hlen from there */
