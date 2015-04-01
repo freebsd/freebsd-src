@@ -146,6 +146,15 @@ only forth definitions also password-processing
 		2drop read-reset
 	else drop then
 
+	\ Prompt for GEOM ELI (geli(4)) passphrase if enabled
+	s" geom_eli_passphrase_prompt" getenv dup -1 <> if
+		s" YES" compare-insensitive 0= if
+			s" GELI Passphrase: " read ( prompt -- )
+			readval readlen @ s" kern.geom.eli.passphrase" setenv
+			read-reset
+		then
+	else drop then
+
 	\ Exit if a password was not set
 	s" password" getenv -1 = if exit else drop then
 
