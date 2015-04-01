@@ -24,13 +24,11 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <gelf.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_checksum.c 3003 2014-03-22 07:43:10Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_checksum.c 3174 2015-03-27 17:13:41Z emaste $");
 
 static unsigned long
 _libelf_sum(unsigned long c, const unsigned char *s, size_t size)

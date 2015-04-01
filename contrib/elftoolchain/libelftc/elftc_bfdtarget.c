@@ -24,15 +24,13 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <sys/param.h>
 #include <string.h>
 #include <libelftc.h>
 
 #include "_libelftc.h"
 
-ELFTC_VCSID("$Id: elftc_bfdtarget.c 2251 2011-11-30 16:50:06Z jkoshy $");
+ELFTC_VCSID("$Id: elftc_bfdtarget.c 3174 2015-03-27 17:13:41Z emaste $");
 
 Elftc_Bfd_Target *
 elftc_bfd_find_target(const char *tgt_name)

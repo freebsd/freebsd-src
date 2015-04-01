@@ -48,7 +48,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: nm.c 3145 2015-02-15 18:04:37Z emaste $");
+ELFTC_VCSID("$Id: nm.c 3179 2015-03-31 19:38:56Z emaste $");
 
 /* symbol information list */
 STAILQ_HEAD(sym_head, sym_entry);
@@ -379,7 +379,7 @@ cmp_value(const void *lp, const void *rp)
 		/* Both defined */
 		if (l->sym->st_value == r->sym->st_value)
 			return (strcmp(l->name, r->name));
-		return (l->sym->st_value - r->sym->st_value);
+		return (l->sym->st_value > r->sym->st_value ? 1 : -1);
 	case 1:
 		/* One undefined */
 		return (l_is_undef == 0 ? 1 : -1);
@@ -948,6 +948,36 @@ get_block_value(Dwarf_Debug dbg, Dwarf_Block *block)
 	return (0);
 }
 
+static char *
+find_object_name(Dwarf_Debug dbg, Dwarf_Die die)
+{
+	Dwarf_Die ret_die;
+	Dwarf_Attribute at;
+	Dwarf_Off off;
+	Dwarf_Error de;
+	const char *str;
+	char *name;
+
+	if (dwarf_attrval_string(die, DW_AT_name, &str, &de) == DW_DLV_OK) {
+		if ((name = strdup(str)) == NULL) {
+			warn("strdup");
+			return (NULL);
+		}
+		return (name);
+	}
+
+	if (dwarf_attr(die, DW_AT_specification, &at, &de) != DW_DLV_OK)
+		return (NULL);
+
+	if (dwarf_global_formref(at, &off, &de) != DW_DLV_OK)
+		return (NULL);
+
+	if (dwarf_offdie(dbg, off, &ret_die, &de) != DW_DLV_OK)
+		return (NULL);
+
+	return (find_object_name(dbg, ret_die));
+}
+
 static void
 search_line_attr(Dwarf_Debug dbg, struct func_info_head *func_info,
     struct var_info_head *var_info, Dwarf_Die die, char **src_files,
@@ -962,7 +992,6 @@ search_line_attr(Dwarf_Debug dbg, struct func_info_head *func_info,
 	Dwarf_Error de;
 	struct func_info_entry *func;
 	struct var_info_entry *var;
-	const char *str;
 	int ret;
 
 	if (dwarf_tag(die, &tag, &de) != DW_DLV_OK) {
@@ -1012,16 +1041,12 @@ search_line_attr(Dwarf_Debug dbg, struct func_info_head *func_info,
 		    DW_DLV_OK)
 			var->line = udata;
 
-		if (dwarf_attrval_string(die, DW_AT_name, &str, &de) ==
-		    DW_DLV_OK) {
-			var->name = strdup(str);
-			if (var->name == NULL) {
-				warn("strdup");
-				if (var->file)
-					free(var->file);
-				free(var);
-				goto cont_search;
-			}
+		var->name = find_object_name(dbg, die);
+		if (var->name == NULL) {
+			if (var->file)
+				free(var->file);
+			free(var);
+			goto cont_search;
 		}
 
 		if (dwarf_attr(die, DW_AT_location, &at, &de) == DW_DLV_OK &&
@@ -1064,16 +1089,12 @@ search_line_attr(Dwarf_Debug dbg, struct func_info_head *func_info,
 		    DW_DLV_OK)
 			func->line = udata;
 
-		if (dwarf_attrval_string(die, DW_AT_name, &str, &de) ==
-		    DW_DLV_OK) {
-			func->name = strdup(str);
-			if (func->name == NULL) {
-				warn("strdup");
-				if (func->file)
-					free(func->file);
-				free(func);
-				goto cont_search;
-			}
+		func->name = find_object_name(dbg, die);
+		if (func->name == NULL) {
+			if (func->file)
+				free(func->file);
+			free(func);
+			goto cont_search;
 		}
 
 		if (dwarf_attrval_unsigned(die, DW_AT_low_pc, &udata, &de) ==

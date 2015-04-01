@@ -24,14 +24,12 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <assert.h>
 #include <gelf.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: gelf_syminfo.c 2998 2014-03-18 17:19:00Z jkoshy $");
+ELFTC_VCSID("$Id: gelf_syminfo.c 3174 2015-03-27 17:13:41Z emaste $");
 
 GElf_Syminfo *
 gelf_getsyminfo(Elf_Data *ed, int ndx, GElf_Syminfo *dst)

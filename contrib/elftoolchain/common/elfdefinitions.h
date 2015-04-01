@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: elfdefinitions.h 3149 2015-02-15 19:00:06Z emaste $
+ * $Id: elfdefinitions.h 3178 2015-03-30 18:29:13Z emaste $
  */
 
 /*
@@ -171,7 +171,7 @@ _ELF_DEFINE_DT(DT_MOVEENT,          0x6FFFFDFAUL,			\
 	"size of DT_MOVETAB entries")					\
 _ELF_DEFINE_DT(DT_MOVESZ,           0x6FFFFDFBUL,			\
 	"total size of the MOVETAB table")				\
-_ELF_DEFINE_DT(DT_FEATURE_1,        0x6FFFFDFCUL, "feature values")	\
+_ELF_DEFINE_DT(DT_FEATURE,          0x6FFFFDFCUL, "feature values")	\
 _ELF_DEFINE_DT(DT_POSFLAG_1,        0x6FFFFDFDUL,			\
 	"dynamic position flags")					\
 _ELF_DEFINE_DT(DT_SYMINSZ,          0x6FFFFDFEUL,			\
