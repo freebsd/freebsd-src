@@ -177,7 +177,7 @@ end
 function config.parse(name, silent)
     local f = io.open(name);
     if f == nil then
-        if not silent then print("Failed to open config : '" .. name.."'\n"); end
+        if not silent then print("Failed to open config: '" .. name.."'\n"); end
         return false;
     end
     
@@ -187,7 +187,7 @@ function config.parse(name, silent)
     text, r = io.read(f);
     
     if text == nil then
-        if not silent then print("Failed to read confif : '" .. name.."'\n"); end
+        if not silent then print("Failed to read config: '" .. name.."'\n"); end
         return false;
     end
     
@@ -314,14 +314,12 @@ function config.load(file)
         end
     end
 
-    print("Loading kernel . . .\n");
+    print("Loading kernel...\n");
     config.loadkernel();
 
-    print("Loading configurations . . .\n");
-    if config.loadmod(modules) then
-        print("Configurations loaded successful!\n");
-    else
-        print("Configurations load failed!\n");
+    print("Loading configurations...\n");
+    if not config.loadmod(modules) then
+        print("Could not load configurations!\n");
     end
 end
 
@@ -329,7 +327,7 @@ function config.reload(kernel)
     local res = 1;
     
     -- unload all modules
-    print("unloading modules . . .\n");
+    print("Unloading modules...\n");
     loader.perform("unload");
     
     if kernel ~= nil then
@@ -340,7 +338,7 @@ function config.reload(kernel)
     -- failed to load kernel or it is nil
     -- then load default
     if res == 1 then
-        print("loading default kernel\n");
+        print("Loading default kernel...\n");
         config.loadkernel();
     end
     
