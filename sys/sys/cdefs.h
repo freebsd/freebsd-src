@@ -40,6 +40,9 @@
  * Testing against Clang-specific extensions.
  */
 
+#ifndef	__has_attribute
+#define	__has_attribute(x)	0
+#endif
 #ifndef	__has_extension
 #define	__has_extension		__has_feature
 #endif
@@ -240,7 +243,7 @@
 #define __aligned(x)	__attribute__((__aligned__(x)))
 #define __section(x)	__attribute__((__section__(x)))
 #endif
-#endif
+#endif /* lint */
 
 #if !__GNUC_PREREQ__(2, 95)
 #define	__alignof(x)	__offsetof(struct { char __a; x __b; }, __b)
@@ -347,15 +350,17 @@
 #endif
 
 #if __GNUC_PREREQ__(3, 3)
-#define __nonnull(...)	__attribute__((__nonnull__(__VA_ARGS__)))
+#define __nonnull(x)	__attribute__((__nonnull__(x)))
 #else
-#define __nonnull(...)
+#define __nonnull(x)
 #endif
 
 #if __GNUC_PREREQ__(3, 4)
 #define	__fastcall	__attribute__((__fastcall__))
+#define	__result_use_check	__attribute__((__warn_unused_result__))
 #else
 #define	__fastcall
+#define	__result_use_check
 #endif
 
 #if __GNUC_PREREQ__(4, 1)
