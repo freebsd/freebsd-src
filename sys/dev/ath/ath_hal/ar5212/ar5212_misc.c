@@ -1085,7 +1085,7 @@ ar5212GetDiagState(struct ath_hal *ah, int request,
 	case HAL_DIAG_ANI_STATS:
 		*result = ar5212AniGetCurrentStats(ah);
 		*resultsize = (*result == AH_NULL) ?
-			0 : sizeof(struct ar5212Stats);
+			0 : sizeof(HAL_ANI_STATS);
 		return AH_TRUE;
 	case HAL_DIAG_ANI_CMD:
 		if (argsize != 2*sizeof(uint32_t))
