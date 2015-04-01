@@ -26,6 +26,9 @@
 
 marker task-version.4th
 
+vocabulary version-processing
+only forth also version-processing definitions
+
 variable versionX
 variable versionY
 
@@ -35,6 +38,8 @@ variable versionY
 \ Initialize text placement to defaults
 80 versionX !	\ NOTE: this is the ending column (text is right-justified)
 24 versionY !
+
+only forth definitions also version-processing
 
 : print_version ( -- )
 
@@ -86,3 +91,5 @@ variable versionY
 		type
 	then
 ;
+
+only forth definitions
