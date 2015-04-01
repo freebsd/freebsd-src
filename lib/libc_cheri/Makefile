@@ -236,8 +236,7 @@ CFLAGS.subr_scanf.c=	-Wno-sign-compare
 SRCS+=		subr_scanf.c
 
 # CHERI system classes
-SRCS+=		cheri_system_stub.c	\
-		cheri_fd_stub.c
+SRCS+=		cheri_system_stub.c
 
 # Pull in ../Makefile.inc to define SHLIB_MAJOR so we can undef it.
 .include <bsd.init.mk>

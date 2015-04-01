@@ -38,4 +38,4 @@
 #include <cheri_class.h>
 
 CHERI_CLASS_ASM(libcheri_system, abort);
-CHERI_CLASS_ASM(cheri_fd, cheri_fd_enter);
+CHERI_CLASS_ASM(cheri_fd, abort);

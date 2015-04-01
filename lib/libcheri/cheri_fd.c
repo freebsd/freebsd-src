@@ -40,6 +40,7 @@
 #include <unistd.h>
 
 #include "cheri_class.h"
+#define CHERI_FD_INTERNAL
 #include "cheri_fd.h"
 #include "cheri_type.h"
 
@@ -69,6 +70,7 @@
 CHERI_CLASS_DECL(cheri_fd);
 
 static __capability void	*cheri_fd_type;
+__capability intptr_t		*cheri_fd_vtable;
 
 /*
  * Data segment for a cheri_fd.
@@ -101,7 +103,7 @@ cheri_fd_new(int fd, struct cheri_object *cop)
 		errno = ENOMEM;
 		return (-1);
 	}
-	CHERI_SYSTEM_OBJECT_INIT(cfp, NULL);
+	CHERI_SYSTEM_OBJECT_INIT(cfp, cheri_fd_vtable);
 	cfp->cf_fd = fd;
 
 	/*
@@ -160,8 +162,8 @@ cheri_fd_destroy(struct cheri_object co)
 /*
  * Forward fstat() on a cheri_fd to the underlying file descriptor.
  */
-static struct cheri_fd_ret
-_cheri_fd_fstat_c(__capability struct stat *sb_c)
+struct cheri_fd_ret
+cheri_fd_fstat(__capability struct stat *sb_c)
 {
 	struct cheri_fd_ret ret;
 	__capability struct cheri_fd *cfp;
@@ -195,8 +197,8 @@ _cheri_fd_fstat_c(__capability struct stat *sb_c)
 /*
  * Forward lseek() on a cheri_fd to the underlying file descriptor.
  */
-static struct cheri_fd_ret
-_cheri_fd_lseek_c(off_t offset, int whence)
+struct cheri_fd_ret
+cheri_fd_lseek(off_t offset, int whence)
 {
 	struct cheri_fd_ret ret;
 	__capability struct cheri_fd *cfp;
@@ -218,10 +220,10 @@ _cheri_fd_lseek_c(off_t offset, int whence)
 }
 
 /*
- * Forward read_c() on a cheri_fd to the underlying file descriptor.
+ * Forward read() on a cheri_fd to the underlying file descriptor.
  */
-static struct cheri_fd_ret
-_cheri_fd_read_c(__capability void *buf_c, size_t nbytes)
+struct cheri_fd_ret
+cheri_fd_read(__capability void *buf_c, size_t nbytes)
 {
 	struct cheri_fd_ret ret;
 	__capability struct cheri_fd *cfp;
@@ -255,8 +257,8 @@ _cheri_fd_read_c(__capability void *buf_c, size_t nbytes)
 /*
  * Forward write_c() on a cheri_fd to the underlying file descriptor.
  */
-static struct cheri_fd_ret
-_cheri_fd_write_c(__capability const void *buf_c, size_t nbytes)
+struct cheri_fd_ret
+cheri_fd_write(__capability const void *buf_c, size_t nbytes)
 {
 	struct cheri_fd_ret ret;
 	__capability struct cheri_fd *cfp;
@@ -285,45 +287,4 @@ _cheri_fd_write_c(__capability const void *buf_c, size_t nbytes)
 	    min(nbytes, cheri_getlen(buf_c)));
 	ret.cfr_retval1 = (ret.cfr_retval0 < 0 ? errno : 0);
 	return (ret);
-}
-
-/*
- * XXXRW: It would be nice if CHERI_CLASS_ASM() could actually be C and we
- * could keep this symbol local to the current object rather than making it
- * global.
- *
- * XXXRW: temporarily replaced __unused struct cheri_object co with capability
- * pointers to try to avoid a compiler bug.
- */
-struct cheri_fd_ret	cheri_fd_enter(struct cheri_object co,
-			    register_t methodnum,
-			    register_t a0, register_t a1,
-			    __capability void *c3)
-			    __attribute__((cheri_ccall));
-			    /* XXXRW: Will be ccheri_ccaller. */
-
-struct cheri_fd_ret
-cheri_fd_enter(struct cheri_object co __unused, register_t methodnum,
-    register_t a0, register_t a1, __capability void *c3)
-{
-	struct cheri_fd_ret ret;
-
-	switch (methodnum) {
-	case CHERI_FD_METHOD_FSTAT_C:
-		return (_cheri_fd_fstat_c(c3));
-
-	case CHERI_FD_METHOD_LSEEK_C:
-		return (_cheri_fd_lseek_c(a0, a1));
-
-	case CHERI_FD_METHOD_READ_C:
-		return (_cheri_fd_read_c(c3, a0));
-
-	case CHERI_FD_METHOD_WRITE_C:
-		return (_cheri_fd_write_c(c3, a0));
-
-	default:
-		ret.cfr_retval0 = -1;
-		ret.cfr_retval1 = ENOMETHOD;
-		return (ret);
-	}
 }

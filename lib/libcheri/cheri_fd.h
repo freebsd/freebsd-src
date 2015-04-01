@@ -31,6 +31,22 @@
 #ifndef _CHERI_FD_H_
 #define	_CHERI_FD_H_
 
+extern __capability intptr_t *cheri_fd_vtable;
+
+extern struct cheri_object	cheri_fd;
+#ifdef CHERI_FD_INTERNAL
+#define CHERI_FD_CCALL					\
+    __attribute__((cheri_ccallee))			\
+    __attribute__((cheri_method_suffix("_c")))		\
+    __attribute__((cheri_method_class(cheri_fd)))
+#else
+#define CHERI_FD_CCALL					\
+    __attribute__((cheri_ccall))			\
+    __attribute__((cheri_method_suffix("_c")))		\
+    __attribute__((cheri_method_class(cheri_fd)))
+#endif
+
+
 /*
  * Interfaces to create/revoke/destroy cheri_fd objects with ambient
  * authority.
@@ -38,14 +54,6 @@
 int	cheri_fd_new(int fd, struct cheri_object *cop);
 void	cheri_fd_revoke(struct cheri_object co);
 void	cheri_fd_destroy(struct cheri_object co);
-
-/*
- * Method numbers used during invocation.
- */
-#define	CHERI_FD_METHOD_FSTAT_C		1
-#define	CHERI_FD_METHOD_LSEEK_C		2
-#define	CHERI_FD_METHOD_READ_C		3
-#define	CHERI_FD_METHOD_WRITE_C		4
 
 /*
  * All methods return the following structure, which fits in register return
@@ -64,13 +72,15 @@ struct cheri_fd_ret {
  * authority.
  */
 struct stat;
-struct cheri_fd_ret	cheri_fd_fstat_c(struct cheri_object fd_object,
-			    __capability struct stat *sb_c);
-struct cheri_fd_ret	cheri_fd_lseek_c(struct cheri_object fd_object,
-			    off_t offset, int whence);
-struct cheri_fd_ret	cheri_fd_read_c(struct cheri_object fd_object,
-			    __capability void *buf_c, size_t nbytes);
-struct cheri_fd_ret	cheri_fd_write_c(struct cheri_object fd_object,
-			    __capability const void *buf_c, size_t nbytes);
+CHERI_FD_CCALL
+struct cheri_fd_ret	cheri_fd_fstat(__capability struct stat *sb_c);
+CHERI_FD_CCALL
+struct cheri_fd_ret	cheri_fd_lseek(off_t offset, int whence);
+CHERI_FD_CCALL
+struct cheri_fd_ret	cheri_fd_read(__capability void *buf_c,
+			     size_t nbytes);
+CHERI_FD_CCALL
+struct cheri_fd_ret	cheri_fd_write(__capability const void *buf_c,
+			     size_t nbytes);
 
 #endif /* !_CHERI_FD_H_ */

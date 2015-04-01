@@ -57,6 +57,7 @@
 
 #include "cheri_class.h"
 #include "cheri_enter.h"
+#include "cheri_fd.h"
 #include "cheri_invoke.h"
 #include "cheri_system.h"
 #include "libcheri_stat.h"
@@ -127,6 +128,8 @@ sandbox_program_init(int argc, char **argv)
 	}
 	/* XXXBD: cheri_system needs to do this. */
 	cheri_system_vtable = sandbox_make_vtable(NULL, NULL,
+	    main_provided_classes);
+	cheri_fd_vtable = sandbox_make_vtable(NULL, NULL,
 	    main_provided_classes);
 	close(fd);
 	return (0);
