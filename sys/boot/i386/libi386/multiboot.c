@@ -243,7 +243,7 @@ multiboot_exec(struct preloaded_file *fp)
 	/* Find the entry point of the Xen kernel and save it for later */
 	if ((md = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL) {
 		printf("Unable to find %s entry point\n", fp->f_name);
-		error = EFTYPE;
+		error = EINVAL;
 		goto error;
 	}
 	ehdr = (Elf_Ehdr *)&(md->md_data);
@@ -271,7 +271,7 @@ multiboot_exec(struct preloaded_file *fp)
 	fp = file_findfile(NULL, "elf kernel");
 	if (fp == NULL) {
 		printf("No FreeBSD kernel provided, aborting\n");
-		error = EFTYPE;
+		error = EINVAL;
 		goto error;
 	}
 
@@ -380,7 +380,7 @@ multiboot_obj_loadfile(char *filename, u_int64_t dest,
 			printf(
 			"Unable to load %s as a multiboot payload kernel\n",
 			filename);
-			return (EFTYPE);
+			return (EINVAL);
 		}
 
 		/* Load kernel metadata... */
@@ -389,7 +389,7 @@ multiboot_obj_loadfile(char *filename, u_int64_t dest,
 		if (error) {
 			printf("Unable to load kernel %s metadata error: %d\n",
 			    rfp->f_name, error);
-			return (EFTYPE);
+			return (EINVAL);
 		}
 
 		/*
