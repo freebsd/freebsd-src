@@ -475,3 +475,10 @@ call_invoke_md5(size_t len, char *data_input, char *data_output)
 
 	return (invoke_md5(len, data_input, data_output));
 }
+
+int
+call_invoke_md5_2(size_t len, char *data_input, char *data_output)
+{
+
+	return (invoke_md5(len, data_input, data_output));
+}

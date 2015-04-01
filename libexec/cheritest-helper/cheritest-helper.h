@@ -86,6 +86,7 @@
 
 #ifdef LIST_ONLY
 #define CHERITEST_CCALL
+#define CHERITEST_CCALL2
 #define	__capability
 #else
 extern struct cheri_object cheritest;
@@ -99,10 +100,24 @@ extern struct cheri_object cheritest;
     __attribute__((cheri_method_suffix("_cap")))	\
     __attribute__((cheri_method_class(cheritest)))
 #endif
+extern struct cheri_object cheritest2;
+#ifdef CHERITEST_INTERNAL
+#define	CHERITEST_CCALL2				\
+    __attribute__((cheri_ccallee))			\
+    __attribute__((cheri_method_class(cheritest2)))
+#else
+#define	CHERITEST_CCALL2				\
+    __attribute__((cheri_ccall))			\
+    __attribute__((cheri_method_suffix("_cap")))	\
+    __attribute__((cheri_method_class(cheritest2)))
+#endif
 #endif
 
 CHERITEST_CCALL
 int	call_invoke_md5(size_t len, __capability char *data_input,
+	    __capability char *data_output);
+CHERITEST_CCALL2
+int	call_invoke_md5_2(size_t len, __capability char *data_input,
 	    __capability char *data_output);
 
 #endif /* !_LIBEXEC_CHERITEST_CHERITEST_HELPER_H_ */

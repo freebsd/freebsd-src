@@ -65,7 +65,7 @@
 struct sandbox_class	*cheritest_classp;
 struct sandbox_object	*cheritest_objectp;
 
-struct cheri_object cheritest;
+struct cheri_object cheritest, cheritest2;
 
 void
 test_sandbox_simple_method(const struct cheri_test *ctp __unused,
@@ -159,7 +159,7 @@ test_sandbox_md5(const struct cheri_test *ctp __unused)
 }
 
 void
-test_sandbox_md5_ccall(const struct cheri_test *ctp __unused)
+test_sandbox_md5_ccall(const struct cheri_test *ctp __unused, int class)
 {
 	__capability void *md5cap, *bufcap;
 	char buf[33];
@@ -168,7 +168,17 @@ test_sandbox_md5_ccall(const struct cheri_test *ctp __unused)
 	    CHERI_PERM_LOAD);
 	bufcap = cheri_ptrperm(buf, sizeof(buf), CHERI_PERM_STORE);
 
-	call_invoke_md5(strlen(string_to_md5), md5cap, bufcap);
+	switch (class) {
+	case 1:
+		call_invoke_md5(strlen(string_to_md5), md5cap, bufcap);
+		break;
+	case 2:
+		call_invoke_md5_2(strlen(string_to_md5), md5cap, bufcap);
+		break;
+	default:
+		cheritest_failure_errx("invalid class", class);
+		break;
+	}
 
 	buf[32] = '\0';
 	if (strcmp(buf, string_md5) != 0)
@@ -316,6 +326,7 @@ cheritest_libcheri_setup(void)
 	if (sandbox_object_new(cheritest_classp, 2*1024*1024, &cheritest_objectp) < 0)
 		return (-1);
 	cheritest = sandbox_object_getobject(cheritest_objectp);
+	cheritest2 = sandbox_object_getobject(cheritest_objectp);
 	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_OP_MD5, "md5");
 	(void)sandbox_class_method_declare(cheritest_classp,
