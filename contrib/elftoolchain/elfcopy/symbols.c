@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <err.h>
 #include <fnmatch.h>
@@ -34,7 +33,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: symbols.c 3135 2014-12-24 08:22:43Z kaiwang27 $");
+ELFTC_VCSID("$Id: symbols.c 3174 2015-03-27 17:13:41Z emaste $");
 
 /* Symbol table buffer structure. */
 struct symbuf {
@@ -123,6 +122,17 @@ is_local_symbol(unsigned char st_info)
 {
 
 	if (GELF_ST_BIND(st_info) == STB_LOCAL)
+		return (1);
+
+	return (0);
+}
+
+static int
+is_hidden_symbol(unsigned char st_other)
+{
+
+	if (GELF_ST_VISIBILITY(st_other) == STV_HIDDEN ||
+	    GELF_ST_VISIBILITY(st_other) == STV_INTERNAL)
 		return (1);
 
 	return (0);
@@ -455,6 +465,11 @@ generate_symbols(struct elfcopy *ecp)
 			if (ecp->flags & KEEP_GLOBAL &&
 			    sym.st_shndx != SHN_UNDEF &&
 			    lookup_symop_list(ecp, name, SYMOP_KEEPG) == NULL)
+				sym.st_info = GELF_ST_INFO(STB_LOCAL,
+				    GELF_ST_TYPE(sym.st_info));
+			if (ecp->flags & LOCALIZE_HIDDEN &&
+			    sym.st_shndx != SHN_UNDEF &&
+			    is_hidden_symbol(sym.st_other))
 				sym.st_info = GELF_ST_INFO(STB_LOCAL,
 				    GELF_ST_TYPE(sym.st_info));
 		} else {
@@ -1036,10 +1051,8 @@ match_wildcard(const char *name, const char *pattern)
 	}
 
 	match = 0;
-	if (!fnmatch(pattern, name, 0)) {
+	if (!fnmatch(pattern, name, 0))
 		match = 1;
-		printf("string '%s' match to pattern '%s'\n", name, pattern);
-	}
 
 	return (reverse ? !match : match);
 }
