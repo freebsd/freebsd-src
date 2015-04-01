@@ -50,6 +50,13 @@ CFLAGS+=	-DBF_DICTSIZE=15000
 LIBFICL=	${.OBJDIR}/../ficl/libficl.a
 .endif
 
+.if ${MK_LUA} != "no"
+BOOT_LUA=	yes
+CFLAGS+=        -DBOOT_LUA -I${.CURDIR}/../../liblua \
+		-I${.CURDIR}/../../../contrib/lua
+LIBLUA=		${.OBJDIR}/../liblua/liblua.a
+.endif
+
 LIBSTAND=	${.OBJDIR}/../libstand/libstand.a
 
 .if ${MK_ZFS} != "no"
@@ -62,7 +69,7 @@ LIBZFSBOOT=	${.OBJDIR}/../zfs/libzfsboot.a
 .include	"${.CURDIR}/../../common/Makefile.inc"
 CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I.
-DPADD+=		${LIBFICL} ${LIBZFSBOOT} ${LIBSTAND} 
-LDADD+=		${LIBFICL} ${LIBZFSBOOT} ${LIBSTAND}
+DPADD+=		${LIBLUA} ${LIBFICL} ${LIBZFSBOOT} ${LIBSTAND} 
+LDADD+=		${LIBLUA} ${LIBFICL} ${LIBZFSBOOT} ${LIBSTAND}
 
 .include <bsd.lib.mk>

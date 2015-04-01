@@ -1,7 +1,12 @@
 # $FreeBSD$
 
-LUA_PATH=	${.CURDIR}/../../contrib/lua
+LUA_PATH?=	${.CURDIR}/../../contrib/lua
 .PATH:		${LUA_PATH}/src
+
+LIBLUA_PATH?=	${.CURDIR}/../liblua
+.PATH:		${LIBLUA_PATH}
+
+COMMON_PATH?=	${.CURDIR}/../common
 
 LIB=		lua
 INTERNALLIB=
@@ -20,7 +25,7 @@ WARNS=	3
 
 CFLAGS+= -ffreestanding -nostdlib
 CFLAGS+= -fno-stack-protector -D__BSD_VISIBLE
-CFLAGS+= -I${.CURDIR}/../liblua -I${LUA_PATH} -I${.CURDIR}/../common
+CFLAGS+= -I${LIBLUA_PATH} -I${LUA_PATH} -I${COMMON_PATH}
 
 .if ${MACHINE_CPUARCH} == "i386" || \
     (${MACHINE_CPUARCH} == "amd64" && defined(LUA32))
