@@ -471,7 +471,8 @@ readmap(pid_t pid)
 		    ((pflags & PFLAGS_FULL) == 0 &&
 		    kve->kve_type != KVME_TYPE_DEFAULT &&
 		    kve->kve_type != KVME_TYPE_VNODE &&
-		    kve->kve_type != KVME_TYPE_SWAP))
+		    kve->kve_type != KVME_TYPE_SWAP &&
+		    kve->kve_type != KVME_TYPE_PHYS))
 			continue;
 
 		ent = calloc(1, sizeof(*ent));
