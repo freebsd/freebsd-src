@@ -48,7 +48,7 @@ int			stage_offset_set = 0;
 ssize_t			stage_offset;
 
 int
-x86_efi_copy_init(void)
+efi_copy_init(void)
 {
 	EFI_STATUS	status;
 
@@ -65,7 +65,7 @@ x86_efi_copy_init(void)
 }
 
 ssize_t
-x86_efi_copyin(const void *src, vm_offset_t dest, const size_t len)
+efi_copyin(const void *src, vm_offset_t dest, const size_t len)
 {
 
 	if (!stage_offset_set) {
@@ -83,7 +83,7 @@ x86_efi_copyin(const void *src, vm_offset_t dest, const size_t len)
 }
 
 ssize_t
-x86_efi_copyout(const vm_offset_t src, void *dest, const size_t len)
+efi_copyout(const vm_offset_t src, void *dest, const size_t len)
 {
 
 	/* XXX: Callers do not check for failure. */
@@ -97,7 +97,7 @@ x86_efi_copyout(const vm_offset_t src, void *dest, const size_t len)
 
 
 ssize_t
-x86_efi_readin(const int fd, vm_offset_t dest, const size_t len)
+efi_readin(const int fd, vm_offset_t dest, const size_t len)
 {
 
 	if (dest + stage_offset + len > staging_end) {
@@ -108,7 +108,7 @@ x86_efi_readin(const int fd, vm_offset_t dest, const size_t len)
 }
 
 void
-x86_efi_copy_finish(void)
+efi_copy_finish(void)
 {
 	uint64_t	*src, *dst, *last;
 

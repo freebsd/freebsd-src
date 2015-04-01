@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Rui Paulo <rpaulo@FreeBSD.org>
+ * Copyright (c) 2006 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,9 +27,39 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-int
-x86_efi_autoload(void)
-{
+#include <stand.h>
+#include <bootstrap.h>
+#include <efi.h>
+#include <efilib.h>
 
-	return (0);
-}
+struct devsw *devsw[] = {
+	&efipart_dev,
+	&efinet_dev,
+	NULL
+};
+
+struct fs_ops *file_system[] = {
+	&dosfs_fsops,
+	&ufs_fsops,
+	&cd9660_fsops,
+	&nfs_fsops,
+	&gzipfs_fsops,
+	&bzipfs_fsops,
+	NULL
+};
+
+struct netif_driver *netif_drivers[] = {
+	&efinetif,
+	NULL
+};
+
+extern struct console efi_console;
+extern struct console comconsole;
+extern struct console nullconsole;
+
+struct console *consoles[] = {
+	&efi_console,
+	&comconsole,
+	&nullconsole,
+	NULL
+};

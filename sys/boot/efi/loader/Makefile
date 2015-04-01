@@ -12,27 +12,24 @@ MK_SSP=		no
 PROG=		loader.sym
 INTERNALPROG=
 
+.PATH: ${.CURDIR}/../../efi/loader
 # architecture-specific loader code
 SRCS=	autoload.c \
 	bootinfo.c \
 	conf.c \
 	copy.c \
 	devicename.c \
-	elf64_freebsd.c \
-	framebuffer.c \
 	main.c \
-	reloc.c \
 	vers.c
-SRCS+=	amd64_tramp.S \
-	start.S
-.PATH:	${.CURDIR}/../../i386/libi386
-SRCS+=	nullconsole.c \
-	comconsole.c
+
+.PATH: ${.CURDIR}/arch/${MACHINE_CPUARCH}
+.include "${.CURDIR}/arch/${MACHINE_CPUARCH}/Makefile.inc"
 
 CFLAGS+=	-fPIC
-CFLAGS+=	-I.
-CFLAGS+=	-I${.CURDIR}/../../efi/include
-CFLAGS+=	-I${.CURDIR}/../../efi/include/${MACHINE_CPUARCH}
+CFLAGS+=	-I${.CURDIR}
+CFLAGS+=	-I${.CURDIR}/arch/${MACHINE_CPUARCH}
+CFLAGS+=	-I${.CURDIR}/../include
+CFLAGS+=	-I${.CURDIR}/../include/${MACHINE_CPUARCH}
 CFLAGS+=	-I${.CURDIR}/../../../contrib/dev/acpica/include
 CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	-DNO_PCI
@@ -60,14 +57,14 @@ CFLAGS+=	-I${.CURDIR}/../../common
 FILES=	loader.efi
 FILESMODE_loader.efi=	${BINMODE}
 
-LDSCRIPT=	${.CURDIR}/ldscript.${MACHINE_CPUARCH}
+LDSCRIPT=	${.CURDIR}/arch/${MACHINE_CPUARCH}/ldscript.${MACHINE_CPUARCH}
 LDFLAGS=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared -Wl,-znocombreloc
 
 CLEANFILES=	vers.c loader.efi
 
 NEWVERSWHAT=	"EFI loader" ${MACHINE_CPUARCH}
 
-vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
+vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/../../efi/loader/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 
 OBJCOPY?=	objcopy
@@ -75,7 +72,7 @@ OBJDUMP?=	objdump
 
 .if ${MACHINE_CPUARCH} == "amd64"
 EFI_TARGET=	efi-app-x86_64
-.else
+.elif ${MACHINE_CPUARCH} == "i386"
 EFI_TARGET=	efi-app-ia32
 .endif
 
@@ -89,7 +86,7 @@ loader.efi: loader.sym
 		-j .rela.dyn -j .reloc -j .eh_frame -j set_Xcommand_set \
 		--output-target=${EFI_TARGET} ${.ALLSRC} ${.TARGET}
 
-LIBEFI=		${.OBJDIR}/../../efi/libefi/libefi.a
+LIBEFI=		${.OBJDIR}/../libefi/libefi.a
 
 DPADD=		${LIBFICL} ${LIBEFI} ${LIBSTAND} ${LDSCRIPT}
 LDADD=		${LIBFICL} ${LIBEFI} ${LIBSTAND}
