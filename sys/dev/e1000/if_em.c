@@ -209,7 +209,7 @@ static int	em_resume(device_t);
 #ifdef EM_MULTIQUEUE
 static int	em_mq_start(if_t, struct mbuf *);
 static int	em_mq_start_locked(if_t,
-		    struct tx_ring *, struct mbuf *);
+		    struct tx_ring *);
 static void	em_qflush(if_t);
 #else
 static void	em_start(if_t);
@@ -900,7 +900,7 @@ em_resume(device_t dev)
 			EM_TX_LOCK(txr);
 #ifdef EM_MULTIQUEUE
 			if (!drbr_empty(ifp, txr->br))
-				em_mq_start_locked(ifp, txr, NULL);
+				em_mq_start_locked(ifp, txr);
 #else
 			if (!if_sendq_empty(ifp))
 				em_start_locked(ifp, txr);
@@ -1007,16 +1007,16 @@ em_mq_start(if_t ifp, struct mbuf *m)
 		return (error);
 
 	if (EM_TX_TRYLOCK(txr)) {
-		error = em_mq_start_locked(ifp, txr, m);
+		em_mq_start_locked(ifp, txr);
 		EM_TX_UNLOCK(txr);
 	} else 
 		taskqueue_enqueue(txr->tq, &txr->tx_task);
 
-	return (error);
+	return (0);
 }
 
 static int
-em_mq_start_locked(if_t ifp, struct tx_ring *txr, struct mbuf *m)
+em_mq_start_locked(if_t ifp, struct tx_ring *txr)
 {
 	struct adapter  *adapter = txr->adapter;
         struct mbuf     *next;
@@ -1024,20 +1024,25 @@ em_mq_start_locked(if_t ifp, struct tx_ring *txr, struct mbuf *m)
 
 	EM_TX_LOCK_ASSERT(txr);
 
-	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || adapter->link_active == 0) {
-		if (m != NULL)
-			err = drbr_enqueue(ifp, txr->br, m);
-		return (err);
+	if (((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0) ||
+	    adapter->link_active == 0) {
+		return (ENETDOWN);
 	}
 
 	/* Process the queue */
 	while ((next = drbr_peek(ifp, txr->br)) != NULL) {
 		if ((err = em_xmit(txr, &next)) != 0) {
-			if (next == NULL)
+			if (next == NULL) {
+				/* It was freed, move forward */
 				drbr_advance(ifp, txr->br);
-			else 
+			} else {
+				/* 
+				 * Still have one left, it may not be
+				 * the same since the transmit function
+				 * may have changed it.
+				 */
 				drbr_putback(ifp, txr->br, next);
+			}
 			break;
 		}
 		drbr_advance(ifp, txr->br);
@@ -1476,7 +1481,7 @@ em_poll(if_t ifp, enum poll_cmd cmd, int count)
 	em_txeof(txr);
 #ifdef EM_MULTIQUEUE
 	if (!drbr_empty(ifp, txr->br))
-		em_mq_start_locked(ifp, txr, NULL);
+		em_mq_start_locked(ifp, txr);
 #else
 	if (!if_sendq_empty(ifp))
 		em_start_locked(ifp, txr);
@@ -1550,7 +1555,7 @@ em_handle_que(void *context, int pending)
 		em_txeof(txr);
 #ifdef EM_MULTIQUEUE
 		if (!drbr_empty(ifp, txr->br))
-			em_mq_start_locked(ifp, txr, NULL);
+			em_mq_start_locked(ifp, txr);
 #else
 		if (!if_sendq_empty(ifp))
 			em_start_locked(ifp, txr);
@@ -1584,7 +1589,7 @@ em_msix_tx(void *arg)
 	em_txeof(txr);
 #ifdef EM_MULTIQUEUE
 	if (!drbr_empty(ifp, txr->br))
-		em_mq_start_locked(ifp, txr, NULL);
+		em_mq_start_locked(ifp, txr);
 #else
 	if (!if_sendq_empty(ifp))
 		em_start_locked(ifp, txr);
@@ -1669,7 +1674,7 @@ em_handle_tx(void *context, int pending)
 	em_txeof(txr);
 #ifdef EM_MULTIQUEUE
 	if (!drbr_empty(ifp, txr->br))
-		em_mq_start_locked(ifp, txr, NULL);
+		em_mq_start_locked(ifp, txr);
 #else
 	if (!if_sendq_empty(ifp))
 		em_start_locked(ifp, txr);
@@ -1699,7 +1704,7 @@ em_handle_link(void *context, int pending)
 			EM_TX_LOCK(txr);
 #ifdef EM_MULTIQUEUE
 			if (!drbr_empty(ifp, txr->br))
-				em_mq_start_locked(ifp, txr, NULL);
+				em_mq_start_locked(ifp, txr);
 #else
 			if (if_sendq_empty(ifp))
 				em_start_locked(ifp, txr);
