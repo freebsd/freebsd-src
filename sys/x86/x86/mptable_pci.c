@@ -73,27 +73,6 @@ mptable_hostb_attach(device_t dev)
 	return (bus_generic_attach(dev));
 }
 
-/* Pass MSI requests up to the nexus. */
-static int
-mptable_hostb_alloc_msi(device_t pcib, device_t dev, int count, int maxcount,
-    int *irqs)
-{
-	device_t bus;
-
-	bus = device_get_parent(pcib);
-	return (PCIB_ALLOC_MSI(device_get_parent(bus), dev, count, maxcount,
-	    irqs));
-}
-
-static int
-mptable_hostb_alloc_msix(device_t pcib, device_t dev, int *irq)
-{
-	device_t bus;
-
-	bus = device_get_parent(pcib);
-	return (PCIB_ALLOC_MSIX(device_get_parent(bus), dev, irq));
-}
-
 #ifdef NEW_PCIB
 static int
 mptable_is_isa_range(u_long start, u_long end)
@@ -197,9 +176,9 @@ static device_method_t mptable_hostb_methods[] = {
 	DEVMETHOD(pcib_read_config,	legacy_pcib_read_config),
 	DEVMETHOD(pcib_write_config,	legacy_pcib_write_config),
 	DEVMETHOD(pcib_route_interrupt,	mptable_pci_route_interrupt),
-	DEVMETHOD(pcib_alloc_msi,	mptable_hostb_alloc_msi),
+	DEVMETHOD(pcib_alloc_msi,	legacy_pcib_alloc_msi),
 	DEVMETHOD(pcib_release_msi,	pcib_release_msi),
-	DEVMETHOD(pcib_alloc_msix,	mptable_hostb_alloc_msix),
+	DEVMETHOD(pcib_alloc_msix,	legacy_pcib_alloc_msix),
 	DEVMETHOD(pcib_release_msix,	pcib_release_msix),
 	DEVMETHOD(pcib_map_msi,		legacy_pcib_map_msi),
 
