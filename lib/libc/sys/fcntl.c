@@ -103,7 +103,4 @@ __fcntl_compat(int fd, int cmd, ...)
 		return (__sys_fcntl(fd, cmd, arg));
 	}
 }
-#else
-__weak_reference(__sys_fcntl, __fcntl_compat);
-__weak_reference(__sys_fcntl, __fcntl);
 #endif
