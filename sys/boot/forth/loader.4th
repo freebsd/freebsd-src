@@ -25,6 +25,8 @@
 \
 \ $FreeBSD$
 
+only forth definitions
+
 s" arch-i386" environment? [if] [if]
 	s" loader_version" environment?  [if]
 		11 < [if]
@@ -45,7 +47,7 @@ include /boot/color.4th
 include /boot/delay.4th
 include /boot/check-password.4th
 
-only forth also support-functions also builtins definitions
+only forth definitions
 
 : bootmsg ( -- )
   loader_color? dup ( -- bool bool )
@@ -78,6 +80,8 @@ only forth also support-functions also builtins definitions
     drop
   then
 ;
+
+only forth also support-functions also builtins definitions
 
 : boot
   0= if ( interpreted ) get_arguments then
@@ -122,7 +126,7 @@ only forth also support-functions also builtins definitions
   ?dup 0= if 0 1 autoboot then
 ;
 
-also forth definitions also builtins
+also forth definitions previous
 
 builtin: boot
 builtin: boot-conf
@@ -245,5 +249,4 @@ only forth definitions also support-functions
   then
 ; immediate \ interpret immediately for access to `source' (aka tib)
 
-only forth also
-
+only forth definitions

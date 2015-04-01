@@ -28,7 +28,7 @@
 
 marker task-beastie.4th
 
-only forth definitions also support-functions
+only forth definitions
 
 variable logoX
 variable logoY
@@ -82,6 +82,8 @@ variable logoY
 	then
 ;
 
+also support-functions
+
 : beastie-start ( -- ) \ starts the menu
 	s" console" getenv dup -1 <> if
 		s" efi" 2swap contains? if
@@ -110,4 +112,4 @@ variable logoY
 	then
 ;
 
-only forth also
+only forth definitions
