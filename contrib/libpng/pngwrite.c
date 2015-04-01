@@ -815,7 +815,7 @@ png_write_row(png_structp png_ptr, png_const_bytep row)
    /* Find a filter if necessary, filter the row and write it out. */
    png_write_find_filter(png_ptr, &row_info);
 
-   if (png_ptr->write_row_fn != NULL_FP)
+   if (png_ptr->write_row_fn != NULL)
       (*(png_ptr->write_row_fn))(png_ptr, png_ptr->row_number, png_ptr->pass);
 }
 

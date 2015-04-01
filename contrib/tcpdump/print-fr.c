@@ -827,7 +827,7 @@ _q933_print(netdissect_options *ndo,
                     return;
 		}
 
-                if (fr_q933_print_ie_codeset[codeset] != NULL_FP) {
+                if (fr_q933_print_ie_codeset[codeset] != NULL) {
                     ie_is_known = fr_q933_print_ie_codeset[codeset](ndo, ie_p, ptemp);
 		}
 

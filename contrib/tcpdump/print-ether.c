@@ -141,7 +141,7 @@ ether_print(netdissect_options *ndo,
 	}
 
 	if (ndo->ndo_eflag) {
-		if (print_encap_header != NULL_FP)
+		if (print_encap_header != NULL)
 			(*print_encap_header)(ndo, encap_header_arg);
 		ether_hdr_print(ndo, p, length);
 	}
@@ -164,7 +164,7 @@ recurse:
 		    &extracted_ether_type) == 0) {
 			/* ether_type not known, print raw packet */
 			if (!ndo->ndo_eflag) {
-				if (print_encap_header != NULL_FP)
+				if (print_encap_header != NULL)
 					(*print_encap_header)(ndo, encap_header_arg);
 				ether_hdr_print(ndo, (u_char *)ep, orig_length);
 			}
@@ -215,7 +215,7 @@ recurse:
 		    &extracted_ether_type) == 0) {
 			/* ether_type not known, print raw packet */
 			if (!ndo->ndo_eflag) {
-				if (print_encap_header != NULL_FP)
+				if (print_encap_header != NULL)
 					(*print_encap_header)(ndo, encap_header_arg);
 				ether_hdr_print(ndo, (u_char *)ep, orig_length);
 			}
@@ -227,7 +227,7 @@ recurse:
 		if (ethertype_print(ndo, ether_type, p, length, caplen) == 0) {
 			/* ether_type not known, print raw packet */
 			if (!ndo->ndo_eflag) {
-				if (print_encap_header != NULL_FP)
+				if (print_encap_header != NULL)
 					(*print_encap_header)(ndo, encap_header_arg);
 				ether_hdr_print(ndo, (u_char *)ep, orig_length);
 			}

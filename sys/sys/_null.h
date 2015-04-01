@@ -45,11 +45,3 @@
 #endif	/* !__cplusplus */
 
 #endif
-
-#ifndef NULL_FP
-#if defined(__CHERI__)
-#define	NULL_FP		0L
-#else
-#define	NULL_FP		NULL
-#endif
-#endif

@@ -1728,7 +1728,7 @@ of10_stats_reply_print(netdissect_options *ndo,
 			type == OFPST_QUEUE     ? of10_queue_stats_reply_print     :
 			type == OFPST_VENDOR    ? of10_vendor_data_print           :
 			(const u_char *(*)(netdissect_options *, const u_char *, const u_char *, u_int))NULL;
-		if (decoder != NULL_FP)
+		if (decoder != NULL)
 			return decoder(ndo, cp, ep, len - OF_STATS_REPLY_LEN);
 	}
 	ND_TCHECK2(*cp0, len);

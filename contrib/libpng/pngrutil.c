@@ -2689,7 +2689,7 @@ png_handle_unknown(png_structp png_ptr, png_infop info_ptr, png_uint_32 length)
       if (png_chunk_unknown_handling(png_ptr, png_ptr->chunk_name) !=
           PNG_HANDLE_CHUNK_ALWAYS
 #ifdef PNG_READ_USER_CHUNKS_SUPPORTED
-          && png_ptr->read_user_chunk_fn == NULL_FP
+          && png_ptr->read_user_chunk_fn == NULL
 #endif
           )
 #endif
@@ -2702,7 +2702,7 @@ png_handle_unknown(png_structp png_ptr, png_infop info_ptr, png_uint_32 length)
 #else
    if ((png_ptr->flags & PNG_FLAG_KEEP_UNKNOWN_CHUNKS)
 #ifdef PNG_READ_USER_CHUNKS_SUPPORTED
-       || (png_ptr->read_user_chunk_fn != NULL_FP)
+       || (png_ptr->read_user_chunk_fn != NULL)
 #endif
        )
 #endif
@@ -2779,7 +2779,7 @@ png_handle_unknown(png_structp png_ptr, png_infop info_ptr, png_uint_32 length)
 
 
 #ifdef PNG_READ_USER_CHUNKS_SUPPORTED
-      if (png_ptr->read_user_chunk_fn != NULL_FP)
+      if (png_ptr->read_user_chunk_fn != NULL)
       {
          /* Callback to user unknown chunk handler */
          int ret;
@@ -3775,7 +3775,7 @@ png_read_filter_row(png_structp pp, png_row_infop row_info, png_bytep row,
 {
    if (filter > PNG_FILTER_VALUE_NONE && filter < PNG_FILTER_VALUE_LAST)
    {
-      if (pp->read_filter[0] == NULL_FP)
+      if (pp->read_filter[0] == NULL)
          png_init_filter_functions(pp);
 
       pp->read_filter[filter-1](row_info, row, prev_row);

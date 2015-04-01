@@ -141,9 +141,9 @@ pktap_if_print(netdissect_options *ndo,
 		break;
 
 	case PKT_REC_PACKET:
-		if ((printer = lookup_printer(dlt)) != NULL_FP) {
+		if ((printer = lookup_printer(dlt)) != NULL) {
 			printer(h, p);
-		} else if ((ndo_printer = lookup_ndo_printer(dlt)) != NULL_FP) {
+		} else if ((ndo_printer = lookup_ndo_printer(dlt)) != NULL) {
 			ndo_printer(ndo, h, p);
 		} else {
 			if (!ndo->ndo_eflag)

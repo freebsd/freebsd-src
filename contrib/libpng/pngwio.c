@@ -33,7 +33,7 @@ void /* PRIVATE */
 png_write_data(png_structp png_ptr, png_const_bytep data, png_size_t length)
 {
    /* NOTE: write_data_fn must not change the buffer! */
-   if (png_ptr->write_data_fn != NULL_FP)
+   if (png_ptr->write_data_fn != NULL )
       (*(png_ptr->write_data_fn))(png_ptr, (png_bytep)data, length);
 
    else
@@ -128,7 +128,7 @@ png_default_write_data(png_structp png_ptr, png_bytep data, png_size_t length)
 void /* PRIVATE */
 png_flush(png_structp png_ptr)
 {
-   if (png_ptr->output_flush_fn != NULL_FP)
+   if (png_ptr->output_flush_fn != NULL)
       (*(png_ptr->output_flush_fn))(png_ptr);
 }
 
@@ -186,7 +186,7 @@ png_set_write_fn(png_structp png_ptr, png_voidp io_ptr,
    png_ptr->io_ptr = io_ptr;
 
 #ifdef PNG_STDIO_SUPPORTED
-   if (write_data_fn != NULL_FP)
+   if (write_data_fn != NULL)
       png_ptr->write_data_fn = write_data_fn;
 
    else
@@ -198,7 +198,7 @@ png_set_write_fn(png_structp png_ptr, png_voidp io_ptr,
 #ifdef PNG_WRITE_FLUSH_SUPPORTED
 #  ifdef PNG_STDIO_SUPPORTED
 
-   if (output_flush_fn != NULL_FP)
+   if (output_flush_fn != NULL)
       png_ptr->output_flush_fn = output_flush_fn;
 
    else
@@ -212,7 +212,7 @@ png_set_write_fn(png_structp png_ptr, png_voidp io_ptr,
 #endif /* PNG_WRITE_FLUSH_SUPPORTED */
 
    /* It is an error to read while writing a png file */
-   if (png_ptr->read_data_fn != NULL_FP)
+   if (png_ptr->read_data_fn != NULL)
    {
       png_ptr->read_data_fn = NULL;
 

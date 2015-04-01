@@ -494,11 +494,11 @@ handle_ctrl_proto(netdissect_options *ndo,
 				 * No print routine for the options for
 				 * this protocol.
 				 */
-				pfunc = NULL_FP;
+				pfunc = NULL;
 				break;
 			}
 
-			if (pfunc == NULL_FP) /* catch the above null pointer if unknown CP */
+			if (pfunc == NULL) /* catch the above null pointer if unknown CP */
 				break;
 
 			if ((j = (*pfunc)(ndo, tptr, len)) == 0)

@@ -53,7 +53,7 @@ png_create_struct_2,(int type, png_malloc_ptr malloc_fn, png_voidp mem_ptr),
       return (png_get_copyright(NULL));
 
 #  ifdef PNG_USER_MEM_SUPPORTED
-   if (malloc_fn != NULL_FP)
+   if (malloc_fn != NULL)
    {
       png_struct dummy_struct;
       png_memset(&dummy_struct, 0, sizeof dummy_struct);
@@ -87,7 +87,7 @@ png_destroy_struct_2(png_voidp struct_ptr, png_free_ptr free_fn,
    if (struct_ptr != NULL)
    {
 #  ifdef PNG_USER_MEM_SUPPORTED
-      if (free_fn != NULL_FP)
+      if (free_fn != NULL)
       {
          png_struct dummy_struct;
          png_memset(&dummy_struct, 0, sizeof dummy_struct);
@@ -142,7 +142,7 @@ png_malloc,(png_structp png_ptr, png_alloc_size_t size),PNG_ALLOCATED)
       return (NULL);
 
 #  ifdef PNG_USER_MEM_SUPPORTED
-   if (png_ptr->malloc_fn != NULL_FP)
+   if (png_ptr->malloc_fn != NULL)
       ret = ((png_voidp)(*(png_ptr->malloc_fn))(png_ptr, size));
 
    else
@@ -325,7 +325,7 @@ png_free(png_structp png_ptr, png_voidp ptr)
       return;
 
 #  ifdef PNG_USER_MEM_SUPPORTED
-   if (png_ptr->free_fn != NULL_FP)
+   if (png_ptr->free_fn != NULL)
    {
       (*(png_ptr->free_fn))(png_ptr, ptr);
       return;
@@ -402,7 +402,7 @@ png_create_struct_2,(int type, png_malloc_ptr malloc_fn, png_voidp mem_ptr),
       return (NULL);
 
 #  ifdef PNG_USER_MEM_SUPPORTED
-   if (malloc_fn != NULL_FP)
+   if (malloc_fn != NULL)
    {
       png_struct dummy_struct;
       png_structp png_ptr = &dummy_struct;
@@ -450,7 +450,7 @@ png_destroy_struct_2(png_voidp struct_ptr, png_free_ptr free_fn,
    if (struct_ptr != NULL)
    {
 #  ifdef PNG_USER_MEM_SUPPORTED
-      if (free_fn != NULL_FP)
+      if (free_fn != NULL)
       {
          png_struct dummy_struct;
          png_structp png_ptr = &dummy_struct;
@@ -503,7 +503,7 @@ png_malloc,(png_structp png_ptr, png_alloc_size_t size),PNG_ALLOCATED)
    if (png_ptr == NULL || size == 0)
       return (NULL);
 
-   if (png_ptr->malloc_fn != NULL_FP)
+   if (png_ptr->malloc_fn != NULL)
       ret = ((png_voidp)(*(png_ptr->malloc_fn))(png_ptr, (png_size_t)size));
 
    else
@@ -581,7 +581,7 @@ png_free(png_structp png_ptr, png_voidp ptr)
       return;
 
 #  ifdef PNG_USER_MEM_SUPPORTED
-   if (png_ptr->free_fn != NULL_FP)
+   if (png_ptr->free_fn != NULL)
    {
       (*(png_ptr->free_fn))(png_ptr, ptr);
       return;

@@ -317,8 +317,8 @@ int
 has_printer(int type)
 {
 
-	return (lookup_ndo_printer(type) != NULL_FP ||
-	    lookup_printer(type) != NULL_FP);
+	return (lookup_ndo_printer(type) != NULL ||
+	    lookup_printer(type) != NULL);
 }
 
 int
@@ -342,10 +342,10 @@ get_print_info(int type)
 	printinfo.ndo_type = 1;
 	printinfo.ndo = gndo;
 	printinfo.p.ndo_printer = lookup_ndo_printer(type);
-	if (printinfo.p.ndo_printer == NULL_FP) {
+	if (printinfo.p.ndo_printer == NULL) {
 		printinfo.p.printer = lookup_printer(type);
 		printinfo.ndo_type = 0;
-		if (printinfo.p.printer == NULL_FP) {
+		if (printinfo.p.printer == NULL) {
 			gndo->ndo_dltname = pcap_datalink_val_to_name(type);
 			if (gndo->ndo_dltname != NULL)
 				error("packet printing is not supported for link type %s: use -w",
