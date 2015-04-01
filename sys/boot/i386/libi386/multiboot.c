@@ -274,7 +274,14 @@ multiboot_exec(struct preloaded_file *fp)
 		error = EFTYPE;
 		goto error;
 	}
+
 	mb_mod = malloc(sizeof(struct multiboot_mod_list) * NUM_MODULES);
+	if (mb_mod == NULL) {
+		error = ENOMEM;
+		goto error;
+	}
+
+	bzero(mb_mod, sizeof(struct multiboot_mod_list) * NUM_MODULES);
 
 	/*
 	 * Calculate how much memory is needed for the metatdata. We did
