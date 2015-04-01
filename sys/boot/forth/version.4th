@@ -53,18 +53,18 @@ variable versionY
 		s" loader_logo" getenv dup -1 = if
 			drop str_loader_version
 		else
-			\ For tributes, do nothing (defer to beastie.4th)
+			\ For tributes, do nothing (defer to logo-*.4th)
 			2dup s" tribute" compare-insensitive 0= if
 				2drop
-				s" tribute-logo" sfind if
-					drop exit \ see beastie tribute-text
+				s" logo" sfind if
+					drop exit \ see logo-tribute.4th
 				else
 					drop str_loader_version
 				then
 			else 2dup s" tributebw" compare-insensitive 0= if
 				2drop
-				s" tributebw-logo" sfind if
-					drop exit \ see beastie tribute-text
+				s" logo" sfind if
+					drop exit \ see logo-tributebw.4th
 				else
 					drop str_loader_version
 				then
