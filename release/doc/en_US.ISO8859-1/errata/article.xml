@@ -232,6 +232,17 @@ boot</screen>
 	  is expected to be issued when a solution to the problem is
 	  identified.</para>
       </listitem>
+
+      <listitem>
+	<para>[2015-03-31] Several reports were received regarding the
+	  <acronym>QCOW2</acronym> &os;&nbsp;virtual machine images
+	  crashing on boot.  As result of this, these images have been
+	  removed from the <acronym>FTP</acronym> mirrors, and the
+	  hashes removed from <filename>CHECKSUM.SHA256</filename> and
+	  <filename>CHECKSUM.MD5</filename> in the <filename
+	    class="directory">VM-IMAGES/</filename> directory on the
+	  <acronym>FTP</acronym> mirrors.</para>
+      </listitem>
     </itemizedlist>
   </sect1>
 
