@@ -70,8 +70,8 @@ struct sandbox_provided_method {
 struct sandbox_provided_methods {
 	char				*spms_class;	/* Class name */
 	size_t				 spms_nmethods;	/* Number of methods */
+	size_t				 spms_maxmethods; /* Array size */
 	struct sandbox_provided_method	*spms_methods;	/* Array of methods */
-	intptr_t			 spms_base;	/* Base of vtable */
 };
 
 /*
@@ -80,9 +80,11 @@ struct sandbox_provided_methods {
  * class as vtable offsets would be inconsistant.
  */
 struct sandbox_provided_classes {
-	struct sandbox_provided_methods	**spcs_classes;
-	size_t				  spcs_nclasses;
-	/* XXX: vtable base is per binary so move here */
+	struct sandbox_provided_methods	**spcs_classes;	/* Class pointers */
+	size_t				  spcs_nclasses; /* Number of methods */
+	size_t				  spcs_maxclasses; /* Array size */
+	size_t				  spcs_nmethods; /* Total methods */
+	intptr_t			  spcs_base;	/* Base of vtable */
 };
 
 /*
@@ -106,10 +108,57 @@ struct sandbox_required_methods {
 	struct sandbox_required_method	*srms_methods;	/* Array of methods */
 };
 
+static void	sandbox_free_provided_methods(
+		    struct sandbox_provided_methods *provided_methods);
+
 #define	CHERI_CALLEE_SYM_PREFIX	"__cheri_callee_method."
 #define	CHERI_CALLER_SYM_PREFIX	"__cheri_method."
 
 extern int sb_verbose;
+
+#define SB_GET_CLASS_ALLOC	0x1
+static struct sandbox_provided_methods *
+sandbox_get_class_flag(struct sandbox_provided_classes *pcs,
+    const char *class, int flags)
+{
+	struct sandbox_provided_methods *pms;
+	size_t i;
+
+	assert(class != NULL);
+	assert(pcs->spcs_nclasses <= pcs->spcs_maxclasses);
+
+	for (i = 0; i < pcs->spcs_nclasses; i++)
+		if (strcmp(pcs->spcs_classes[i]->spms_class, class) == 0)
+			return(pcs->spcs_classes[i]);
+
+	if (!(flags & SB_GET_CLASS_ALLOC))
+		return (NULL);
+	if (pcs->spcs_nclasses == pcs->spcs_maxclasses) {
+		if (pcs->spcs_maxclasses == 0)
+			pcs->spcs_maxclasses = 4;
+		else
+			pcs->spcs_maxclasses *= 2;
+		pcs->spcs_classes = reallocf(pcs->spcs_classes,
+		    pcs->spcs_maxclasses * sizeof(*pcs->spcs_classes));
+		if (pcs->spcs_classes == NULL)	/* No recovery possible */
+			err(1, "%s: realloc spcs_maxclasses", __func__);
+		memset(pcs->spcs_classes + pcs->spcs_nclasses, 0,
+		    (pcs->spcs_maxclasses - pcs->spcs_nclasses) *
+		    sizeof(*pcs->spcs_classes));
+	}
+	if ((pms = calloc(1, sizeof(*pms))) == NULL) {
+		warn("%s: calloc struct sandbox_provided_methods", __func__);
+		return (NULL);
+	}
+	pms->spms_class = strdup(class);
+	if (pms->spms_class == NULL) {
+		warn("%s: strdup class name", __func__);
+		free(pms);
+		return (NULL);
+	}
+	pcs->spcs_classes[pcs->spcs_nclasses++] = pms;
+	return (pms);
+}
 
 int
 sandbox_parse_ccall_methods(int fd,
@@ -118,13 +167,13 @@ sandbox_parse_ccall_methods(int fd,
 {
 	size_t i, nsyms;
 	int cheri_caller_idx, cheri_callee_idx;
-	struct sandbox_provided_classes *provided_classes = NULL;
 	size_t maxpmethods, npmethods;
-	struct sandbox_provided_method *pmethods = NULL;
-	struct sandbox_provided_methods *provided_methods = NULL;
+	struct sandbox_provided_classes *pcs;
+	struct sandbox_provided_method *pmethods;
+	struct sandbox_provided_methods *pms;
 	size_t maxrmethods, nrmethods;
 	struct sandbox_required_method *rmethods = NULL;
-	struct sandbox_required_methods *required_methods = NULL;
+	struct sandbox_required_methods *rms = NULL;
 	char *class_name = NULL;
 	size_t class_name_len;
 	char *required_class_name = NULL;
@@ -134,10 +183,18 @@ sandbox_parse_ccall_methods(int fd,
 	char *strtab = NULL;
 	int maxoffset = 0;
 	ssize_t rlen;
-	intptr_t cheri_callee_offset;
 	Elf64_Ehdr ehdr;
 	Elf64_Shdr shdr, shstrtabhdr;
 	Elf64_Sym *symtab = NULL;
+
+	if ((pcs = calloc(1, sizeof(*pcs))) == NULL) {
+		warn("%s: calloc pcs", __func__);
+		goto bad;
+	}
+	if ((rms = calloc(1, sizeof(*rms))) == NULL) {
+		warn("%s: calloc rms", __func__);
+		goto bad;
+	}
 
 	if (provided_classesp == NULL) {
 		warnx("%s: provided_classesp must be non-null", __func__);
@@ -247,7 +304,7 @@ sandbox_parse_ccall_methods(int fd,
 #endif
 		} else if (shdr.sh_type == SHT_PROGBITS &&
 		    strcmp(".CHERI_CALLEE", sname) == 0) {
-			cheri_callee_offset = shdr.sh_addr;
+			pcs->spcs_base = shdr.sh_addr;
 			cheri_callee_idx = i;
 #ifdef DEBUG
 			printf("found .CHERI_CALLEE\n");
@@ -269,7 +326,7 @@ sandbox_parse_ccall_methods(int fd,
 		goto bad;
 	}
 
-	npmethods = nrmethods = 0;
+	nrmethods = 0;
 
 	/* No symbols provided or required */
 	if (cheri_callee_idx == 0 && cheri_caller_idx == 0)
@@ -279,11 +336,7 @@ sandbox_parse_ccall_methods(int fd,
 	 * Scan the symbol table for ccall methods we provide and methods
 	 * we require;
 	 */
-	maxpmethods = maxrmethods = 16;
-	if ((pmethods = calloc(maxpmethods, sizeof(*pmethods))) == NULL) {
-		warn("%s: calloc pmethods", __func__);
-		goto bad;
-	}
+	maxrmethods = 16;
 	if ((rmethods = calloc(maxrmethods, sizeof(*rmethods))) == NULL) {
 		warn("%s: calloc rmethods", __func__);
 		goto bad;
@@ -300,18 +353,6 @@ sandbox_parse_ccall_methods(int fd,
 			continue;
 		if (cheri_callee_idx != 0 &&
 		    symtab[i].st_shndx == cheri_callee_idx) {
-			if (npmethods >= maxpmethods) {
-				maxpmethods *= 2;
-				if ((pmethods = reallocf(pmethods,
-				    maxpmethods * sizeof(*pmethods))) == NULL) {
-					warn("%s: realloc pmethods",
-					    __func__);
-					goto bad;
-				}
-				memset(pmethods + npmethods, 0,
-				    (maxpmethods - npmethods) * sizeof(*pmethods));
-			}
-
 			/* Check that the prefix is right */
 			if (strncmp(sname, CHERI_CALLEE_SYM_PREFIX,
 			    strlen(CHERI_CALLEE_SYM_PREFIX)) != 0) {
@@ -321,26 +362,12 @@ sandbox_parse_ccall_methods(int fd,
 			}
 			sname += strlen(CHERI_CALLEE_SYM_PREFIX);
 
-			/* Make sure all methods are in the same class */
-			if (class_name == NULL) {
-				class_name_len = strcspn(sname, ".");
-				if ((class_name = strndup(sname,
-				    class_name_len)) == NULL) {
-					warn("%s: strdup", __func__);
-					goto bad;
-				}
-#ifdef DEBUG
-				printf("class name: %s\n", class_name);
-#endif
-			} else {
-				if (strncmp(class_name, sname,
-				    class_name_len) != 0) {
-					warnx("%s: multiple classes not "
-					    "supported.  First class %s, "
-					    "symbol %s", __func__,
-					    class_name, sname);
-					goto bad;
-				}
+			/* Extract the class name */
+			class_name_len = strcspn(sname, ".");
+			if ((class_name = strndup(sname,
+			    class_name_len)) == NULL) {
+				warn("%s: strdup", __func__);
+				goto bad;
 			}
 
 			/* Check for the '.' after the class name */
@@ -351,6 +378,33 @@ sandbox_parse_ccall_methods(int fd,
 				goto bad;
 			}
 
+			if ((pms = sandbox_get_class_flag(pcs, class_name,
+			    SB_GET_CLASS_ALLOC)) == NULL)
+				goto bad;
+			pmethods = pms->spms_methods;
+			npmethods = pms->spms_nmethods;
+			maxpmethods = pms->spms_maxmethods;
+
+			assert(npmethods <= maxpmethods);
+			if (npmethods == maxpmethods) {
+				if (maxpmethods == 0)
+					maxpmethods = 16;
+				else
+					maxpmethods *= 2;
+				if ((pmethods = reallocf(pmethods,
+				    maxpmethods * sizeof(*pmethods))) == NULL) {
+					warn("%s: realloc pmethods",
+					    __func__);
+					goto bad;
+				}
+				memset(pmethods + npmethods, 0,
+				    (maxpmethods - npmethods) *
+				    sizeof(*pmethods));
+				pms->spms_methods = pmethods;
+				pms->spms_maxmethods = maxpmethods;
+			}
+			assert(pmethods != NULL);
+
 			if ((pmethods[npmethods].spm_method = strdup(sname +
 			    class_name_len + 1)) == NULL) {
 				warn("%s: strdup method name", __func__);
@@ -359,11 +413,13 @@ sandbox_parse_ccall_methods(int fd,
 			pmethods[npmethods].spm_index_offset =
 			    symtab[i].st_value;
 #ifdef DEBUG
-			printf("provided method: %s (index offset 0x%lx)\n",
+			printf("provided method: %s->%s (index offset 0x%lx)\n",
+			    class_name,
 			    pmethods[npmethods].spm_method,
 			    pmethods[npmethods].spm_index_offset);
 #endif
-			npmethods++;
+			pms->spms_nmethods++;
+			pcs->spcs_nmethods++;
 		} else if (cheri_caller_idx != 0 &&
 		    symtab[i].st_shndx == cheri_caller_idx) {
 			if (nrmethods >= maxrmethods) {
@@ -425,54 +481,19 @@ sandbox_parse_ccall_methods(int fd,
 #endif
 
 good:
-	if ((provided_methods = calloc(1, sizeof(*provided_methods))) == NULL) {
-		warn("%s: calloc provided_methods", __func__);
-		goto bad;
-	}
-	provided_methods->spms_class = class_name;
-	provided_methods->spms_nmethods = npmethods;
-	provided_methods->spms_base = cheri_callee_offset;
-#ifdef DEBUG
-	printf("[%s]->spms_base = %p\n", provided_methods->spms_class,
-	    (void *)provided_methods->spms_base);
-#endif
-	if (npmethods > 0)
-		provided_methods->spms_methods = pmethods;
-	else {
-		provided_methods->spms_methods = NULL;
-		free(pmethods);
-	}
-	if ((provided_classes = calloc(1, sizeof(*provided_classes))) ==
-	    NULL) {
-		warn("%s: calloc provided_classes", __func__);
-		goto bad;
-	}
-	if ((provided_classes->spcs_classes = calloc(1,
-	    sizeof(*provided_classes->spcs_classes))) == NULL) {
-		warn("%s: calloc provided_classes->spcs_classes", __func__);
-		goto bad;
-	}
-	for (i = 0; i < 1; i++) {
-		provided_classes->spcs_classes[i] = provided_methods;
-	}
-	provided_classes->spcs_nclasses = 1;
-	*provided_classesp = provided_classes;
+	*provided_classesp = pcs;
 
-	if ((required_methods = calloc(1, sizeof(*required_methods))) == NULL) {
-		warn("%s: calloc required_methods", __func__);
-		goto bad;
-	}
-	required_methods->srms_nmethods = nrmethods;
-	required_methods->srms_unresolved_methods = nrmethods;
+	rms->srms_nmethods = nrmethods;
+	rms->srms_unresolved_methods = nrmethods;
 	if (nrmethods > 0)
-		required_methods->srms_methods = rmethods;
+		rms->srms_methods = rmethods;
 	else {
-		required_methods->srms_methods = NULL;
+		rms->srms_methods = NULL;
 		free(rmethods);
 	}
-	*required_methodsp = required_methods;
+	*required_methodsp = rms;
 
-	if (sandbox_resolve_methods(provided_classes, required_methods)
+	if (sandbox_resolve_methods(pcs, rms)
 	    == -1) {
 		warnx("%s: failed to resolve self called methods", __func__);
 		goto bad;
@@ -488,11 +509,6 @@ bad:
 	free(symtab);
 	free(strtab);
 	free(class_name);
-	if (pmethods != NULL) {
-		for (i = 0; i < npmethods; i++)
-			free(pmethods[i].spm_method);
-		free(pmethods);
-	}
 	if (rmethods != NULL) {
 		for (i = 0; i < nrmethods; i++) {
 			free(rmethods[i].srm_class);
@@ -500,13 +516,13 @@ bad:
 		}
 		free(rmethods);
 	}
-	free(provided_methods);
-	free(required_methods);
+	sandbox_free_provided_classes(pcs);
+	free(rms);
 	return (-1);
 }
 
 static int
-sandbox_resolve_methods_one_class(
+sandbox_resolve_methods_one_class(intptr_t vtable_base,
     struct sandbox_provided_methods *provided_methods,
     struct sandbox_required_methods *required_methods)
 {
@@ -547,8 +563,7 @@ sandbox_resolve_methods_one_class(
 			    pmethods[p].spm_method) != 0)
 				continue;
 			rmethods[r].srm_vtable_offset =
-			    pmethods[p].spm_index_offset -
-			    provided_methods->spms_base;
+			    pmethods[p].spm_index_offset - vtable_base;
 			rmethods[r].srm_resolved = 1;
 			resolved++;
 #ifdef DEBUG
@@ -575,6 +590,7 @@ sandbox_resolve_methods(struct sandbox_provided_classes *provided_classes,
 
 	for (i = 0; i < provided_classes->spcs_nclasses; i++)
 		resolved += sandbox_resolve_methods_one_class(
+		    provided_classes->spcs_base,
 		    provided_classes->spcs_classes[i], required_methods);
 
 	return (resolved);
@@ -669,15 +685,10 @@ sandbox_make_vtable(void *dataptr, const char *class,
 		return (NULL);
 
 	if (class == NULL) {
-		if (provided_classes->spcs_nclasses != 1) {
-			warnx("%s: called with no class name and multiple "
-			    "classes", __func__);
-			return (NULL);
-		}
 		return (cheri_ptrperm((char *)dataptr +
-		    provided_classes->spcs_classes[0]->spms_base,
-		    provided_classes->spcs_classes[0]->spms_nmethods *
-		    sizeof(intptr_t), CHERI_PERM_LOAD));
+		    provided_classes->spcs_base,
+		    provided_classes->spcs_nmethods * sizeof(intptr_t),
+		    CHERI_PERM_LOAD));
 	}
 
 	for (i = 0; i < provided_classes->spcs_nclasses; i++) {
@@ -689,9 +700,9 @@ sandbox_make_vtable(void *dataptr, const char *class,
 		 * classes
 		 */
 		return (cheri_ptrperm((char *)dataptr +
-		    provided_classes->spcs_classes[i]->spms_base,
-		    provided_classes->spcs_classes[i]->spms_nmethods *
-		    sizeof(intptr_t), CHERI_PERM_LOAD));
+		    provided_classes->spcs_base,
+		    provided_classes->spcs_nmethods * sizeof(intptr_t),
+		    CHERI_PERM_LOAD));
 	}
 	return (NULL);
 }
