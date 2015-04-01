@@ -28,7 +28,7 @@
 .\"     From: @(#)inet.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2012
+.Dd April 2, 2015
 .Dt INET 4
 .Os
 .Sh NAME
@@ -226,12 +226,24 @@ This
 .Xr sysctl 8
 variable affects packets destined for a local host as well as packets
 forwarded to some other host.
+.It Va ip.rfc6864
+Boolean: control IP IDs generation behaviour.
+True value enables RFC6864 support, which specifies that IP ID field of
+.Em atomic
+datagrams can be set to any value.
+The
+.Fx implementation sets it to zero.
+Enabled by default.
 .It Va ip.random_id
 Boolean: control IP IDs generation behaviour.
 Setting this
 .Xr sysctl 8
-to non-zero causes the ID field in IP packets to be randomized instead of
-incremented by 1 with each packet generated.
+to 1 causes the ID field in
+.Em non-atomic
+IP datagrams (or all IP datagrams, if
+.Va ip.rfc6864
+is disabled) to be randomized instead of incremented by 1 with each packet
+generated.
 This closes a minor information leak which allows remote observers to
 determine the rate of packet generation on the machine by watching the
 counter.

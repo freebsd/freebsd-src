@@ -105,11 +105,6 @@ SYSCTL_INT(_net_inet_ip, IPCTL_SENDREDIRECTS, redirect, CTLFLAG_VNET | CTLFLAG_R
     &VNET_NAME(ipsendredirects), 0,
     "Enable sending IP redirects");
 
-VNET_DEFINE(int, ip_do_randomid);
-SYSCTL_INT(_net_inet_ip, OID_AUTO, random_id, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(ip_do_randomid), 0,
-    "Assign random ip_id values");
-
 /*
  * XXX - Setting ip_checkinterface mostly implements the receive side of
  * the Strong ES model described in RFC 1122, but since the routing table
@@ -330,8 +325,6 @@ ip_init(void)
 {
 	struct protosw *pr;
 	int i;
-
-	V_ip_id = time_second & 0xffff;
 
 	TAILQ_INIT(&V_in_ifaddrhead);
 	V_in_ifaddrhashtbl = hashinit(INADDR_NHASH, M_IFADDR, &V_in_ifaddrhmask);

@@ -505,8 +505,12 @@ rip_output(struct mbuf *m, struct socket *so, ...)
 			m_freem(m);
 			return (EINVAL);
 		}
+		/*
+		 * This doesn't allow application to specify ID of zero,
+		 * but we got this limitation from the beginning of history.
+		 */
 		if (ip->ip_id == 0)
-			ip->ip_id = ip_newid();
+			ip_fillid(ip);
 
 		/*
 		 * XXX prevent ip_output from overwriting header fields.

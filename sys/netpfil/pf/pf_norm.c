@@ -2271,9 +2271,9 @@ pf_scrub_ip(struct mbuf **m0, u_int32_t flags, u_int8_t min_ttl, u_int8_t tos)
 
 	/* random-id, but not for fragments */
 	if (flags & PFRULE_RANDOMID && !(h->ip_off & ~htons(IP_DF))) {
-		u_int16_t ip_id = h->ip_id;
+		uint16_t ip_id = h->ip_id;
 
-		h->ip_id = ip_randomid();
+		ip_fillid(h);
 		h->ip_sum = pf_cksum_fixup(h->ip_sum, ip_id, h->ip_id, 0);
 	}
 }
