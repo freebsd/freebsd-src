@@ -28,6 +28,9 @@ marker task-check-password.4th
 
 include /boot/screen.4th
 
+vocabulary password-processing
+only forth also password-processing definitions
+
 13  constant enter_key       \ The decimal ASCII value for Enter key
 8   constant bs_key          \ The decimal ASCII value for Backspace key
 21  constant ctrl_u          \ The decimal ASCII value for Ctrl-U sequence
@@ -126,6 +129,8 @@ variable readlen             \ input length
 	again \ Enter was not pressed; repeat
 ;
 
+only forth definitions also password-processing
+
 : check-password ( -- )
 
 	\ Do not allow the user to proceed beyond this point if a boot-lock
@@ -161,3 +166,5 @@ variable readlen             \ input length
 		3000 ms ." loader: incorrect password" 10 emit
 	again
 ;
+
+only forth definitions
