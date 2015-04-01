@@ -152,3 +152,5 @@ cloudware-install:
 .if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${CLOUDINSTALL}
 .endif
+
+.include "${.CURDIR}/Makefile.ec2"
