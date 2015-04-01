@@ -161,7 +161,7 @@ VECTOR(_locore, unknown)
 	cmove	$c25, $c0		# Global $udc for now
 #endif
 
-#if defined(CPU_CHERI)
+#if defined(CPU_CHERI) || defined(CPU_BERI)
 	/*
 	 * Enable userspace cycle-count, cycle-count resolution, and CPU
 	 * number registers available via rdhwr.
