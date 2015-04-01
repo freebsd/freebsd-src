@@ -39,6 +39,7 @@ variable fill
 
 \ ASCII frames (used when serial console is detected)
  45 constant ascii_dash
+ 61 constant ascii_equal
 124 constant ascii_pipe
  43 constant ascii_plus
 
@@ -113,7 +114,11 @@ s" arch-pc98" environment? [if]
 ;
 
 : f_double	( -- )	\ set frames to double
-	boot_serial? if f_ascii exit then
+	boot_serial? if
+		f_ascii
+		ascii_equal h_el !
+		exit
+	then
 	dh_el h_el !
 	dv_el v_el !
 	dlt_el lt_el !
