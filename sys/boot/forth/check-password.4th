@@ -78,6 +78,17 @@ variable readlen             \ input length
 	again
 ;
 
+: cfill ( c c-addr/u -- )
+	begin dup 0> while
+		-rot 2dup c! 1+ rot 1-
+	repeat 2drop drop
+;
+
+: read-reset ( -- )
+	0 readlen !
+	0 readval readmax cfill
+;
+
 : read ( c-addr/u -- ) \ Expects string prompt as stack input
 
 	0 25 at-xy           \ Move the cursor to the bottom-left
@@ -127,10 +138,8 @@ variable readlen             \ input length
 		while
 			3000 ms ." loader: incorrect password" 10 emit
 		repeat
-		2drop ( c-addr/u )
-	else
-		drop ( -1 ) \ getenv cruft
-	then
+		2drop read-reset
+	else drop then
 
 	\ Exit if a password was not set
 	s" password" getenv -1 = if exit else drop then
@@ -147,7 +156,7 @@ variable readlen             \ input length
 	begin
 		s" Password: " read ( prompt -- )
 		2dup readval readlen @ compare 0= if \ Correct password?
-			2drop exit
+			2drop read-reset exit
 		then
 		3000 ms ." loader: incorrect password" 10 emit
 	again
