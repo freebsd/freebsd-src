@@ -1002,11 +1002,15 @@ em_mq_start(if_t ifp, struct mbuf *m)
 
 	txr = &adapter->tx_rings[i];
 
+	error = drbr_enqueue(ifp, txr->br, m);
+	if (error)
+		return (error);
+
 	if (EM_TX_TRYLOCK(txr)) {
 		error = em_mq_start_locked(ifp, txr, m);
 		EM_TX_UNLOCK(txr);
 	} else 
-		error = drbr_enqueue(ifp, txr->br, m);
+		taskqueue_enqueue(txr->tq, &txr->tx_task);
 
 	return (error);
 }
@@ -1026,13 +1030,6 @@ em_mq_start_locked(if_t ifp, struct tx_ring *txr, struct mbuf *m)
 			err = drbr_enqueue(ifp, txr->br, m);
 		return (err);
 	}
-
-	enq = 0;
-	if (m != NULL) {
-		err = drbr_enqueue(ifp, txr->br, m);
-		if (err)
-			return (err);
-	} 
 
 	/* Process the queue */
 	while ((next = drbr_peek(ifp, txr->br)) != NULL) {
