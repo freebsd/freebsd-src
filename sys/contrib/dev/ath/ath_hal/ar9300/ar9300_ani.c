@@ -210,7 +210,7 @@ ar9300_ani_get_current_state(struct ath_hal *ah)
 /*
  * Return the current statistics.
  */
-struct ar9300_stats *
+HAL_ANI_STATS *
 ar9300_ani_get_current_stats(struct ath_hal *ah)
 {
     return &AH9300(ah)->ah_stats;

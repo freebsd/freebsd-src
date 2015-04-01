@@ -206,6 +206,7 @@ struct ar9300_ani_state {
 #define DO_ANI(ah) \
     ((AH9300(ah)->ah_proc_phy_err & HAL_PROCESS_ANI))
 
+#if 0
 struct ar9300_stats {
     u_int32_t   ast_ani_niup;   /* ANI increased noise immunity */
     u_int32_t   ast_ani_nidown; /* ANI decreased noise immunity */
@@ -225,6 +226,7 @@ struct ar9300_stats {
     HAL_MIB_STATS   ast_mibstats;   /* MIB counter stats */
     HAL_NODE_STATS  ast_nodestats;  /* Latest rssi stats from driver */
 };
+#endif
 
 struct ar9300_rad_reader {
     u_int16_t   rd_index;
@@ -431,7 +433,7 @@ struct ath_hal_9300 {
     u_int32_t   ah_mask2Reg;         /* copy of AR_IMR_S2 */
     u_int32_t   ah_msi_reg;          /* copy of AR_PCIE_MSI */
     os_atomic_t ah_ier_ref_count;    /* reference count for enabling interrupts */
-    struct ar9300_stats ah_stats;        /* various statistics */
+    HAL_ANI_STATS ah_stats;        /* various statistics */
     RF_HAL_FUNCS    ah_rf_hal;
     u_int32_t   ah_tx_desc_mask;      /* mask for TXDESC */
     u_int32_t   ah_tx_ok_interrupt_mask;
@@ -887,6 +889,7 @@ struct ath_hal_9300 {
     int                  ah_fccaifs;
     int ah_reset_reason;
     int ah_dcs_enable;
+    HAL_ANI_STATE ext_ani_state;     /* FreeBSD; external facing ANI state */
 
     struct ar9300NfLimits nf_2GHz;
     struct ar9300NfLimits nf_5GHz;
@@ -1443,7 +1446,7 @@ extern  void ar9300_disable_mib_counters(struct ath_hal *);
 extern  void ar9300_ani_attach(struct ath_hal *);
 extern  void ar9300_ani_detach(struct ath_hal *);
 extern  struct ar9300_ani_state *ar9300_ani_get_current_state(struct ath_hal *);
-extern  struct ar9300_stats *ar9300_ani_get_current_stats(struct ath_hal *);
+extern  HAL_ANI_STATS *ar9300_ani_get_current_stats(struct ath_hal *);
 extern  HAL_BOOL ar9300_ani_control(struct ath_hal *, HAL_ANI_CMD cmd, int param);
 struct ath_rx_status;
 
