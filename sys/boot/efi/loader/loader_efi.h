@@ -28,22 +28,24 @@
  * $FreeBSD$
  */
 
-#ifndef	_X86_EFI_COPY_H_
-#define	_X86_EFI_COPY_H_
+#ifndef	_LOADER_EFI_COPY_H_
+#define	_LOADER_EFI_COPY_H_
 
-int	x86_efi_autoload(void);
+int	efi_autoload(void);
 
-int	x86_efi_getdev(void **vdev, const char *devspec, const char **path);
-char	*x86_efi_fmtdev(void *vdev);
-int	x86_efi_setcurrdev(struct env_var *ev, int flags, const void *value);
+int	efi_getdev(void **vdev, const char *devspec, const char **path);
+char	*efi_fmtdev(void *vdev);
+int	efi_setcurrdev(struct env_var *ev, int flags, const void *value);
 
-int	x86_efi_copy_init(void);
-void	x86_efi_copy_finish(void);
+int	efi_copy_init(void);
 
-ssize_t	x86_efi_copyin(const void *src, vm_offset_t dest, const size_t len);
-ssize_t	x86_efi_copyout(const vm_offset_t src, void *dest, const size_t len);
-ssize_t	x86_efi_readin(const int fd, vm_offset_t dest, const size_t len);
+ssize_t	efi_copyin(const void *src, vm_offset_t dest, const size_t len);
+ssize_t	efi_copyout(const vm_offset_t src, void *dest, const size_t len);
+ssize_t	efi_readin(const int fd, vm_offset_t dest, const size_t len);
+void * efi_translate(vm_offset_t ptr);
 
-extern UINTN x86_efi_mapkey;
+extern UINTN efi_mapkey;
 
-#endif	/* _X86_EFI_COPY_H_ */
+void	efi_copy_finish(void);
+
+#endif	/* _LOADER_EFI_COPY_H_ */
