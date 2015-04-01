@@ -51,6 +51,7 @@
  * minimalist.
  */
 __capability void	*cheri_system_type;
+__capability intptr_t	*cheri_system_vtable;
 
 static struct cheri_object null_object;
 

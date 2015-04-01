@@ -89,11 +89,11 @@ register_t	cheri_system_user_call_fn(register_t methodnum,
  * XXXRW: Probably should be library-private: the CHERI type of the system
  * library.
  */
-__capability void	*cheri_system_type;
+extern __capability void	*cheri_system_type;
 
 /*
  * Vtable for cheri_system methods.
  */
-__capability intptr_t	*cheri_system_vtable;
+extern __capability intptr_t	*cheri_system_vtable;
 
 #endif /* !_CHERI_SYSTEM_H_ */
