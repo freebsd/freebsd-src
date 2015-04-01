@@ -1437,7 +1437,8 @@ retry:
 static mmu_t installed_mmu;
 
 static void *
-moea64_uma_page_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait) 
+moea64_uma_page_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *flags,
+    int wait)
 {
 	struct pvo_entry *pvo;
         vm_offset_t va;
