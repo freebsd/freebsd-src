@@ -39,6 +39,7 @@
 #include <time.h>
 
 #include "cheri_enter.h"
+#define CHERI_SYSTEM_INTERNAL
 #include "cheri_system.h"
 #include "cheri_type.h"
 
