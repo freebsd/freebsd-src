@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 #include "actypes.h"
 #include "actbl.h"
 
-#include "x86_efi.h"
+#include "loader_efi.h"
 
 static EFI_GUID acpi_guid = ACPI_TABLE_GUID;
 static EFI_GUID acpi20_guid = ACPI_20_TABLE_GUID;
@@ -57,8 +57,14 @@ extern int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp);
 static int	elf64_exec(struct preloaded_file *amp);
 static int	elf64_obj_exec(struct preloaded_file *amp);
 
-struct file_format amd64_elf = { elf64_loadfile, elf64_exec };
-struct file_format amd64_elf_obj = { elf64_obj_loadfile, elf64_obj_exec };
+static struct file_format amd64_elf = { elf64_loadfile, elf64_exec };
+static struct file_format amd64_elf_obj = { elf64_obj_loadfile, elf64_obj_exec };
+
+struct file_format *file_formats[] = {
+	&amd64_elf,
+	&amd64_elf_obj,
+	NULL
+};
 
 #define PG_V    0x001
 #define PG_RW   0x002
@@ -168,7 +174,7 @@ elf64_exec(struct preloaded_file *fp)
 	if (err != 0)
 		return(err);
 
-	status = BS->ExitBootServices(IH, x86_efi_mapkey);
+	status = BS->ExitBootServices(IH, efi_mapkey);
 	if (EFI_ERROR(status)) {
 		printf("%s: ExitBootServices() returned 0x%lx\n", __func__,
 		    (long)status);
@@ -177,7 +183,7 @@ elf64_exec(struct preloaded_file *fp)
 
 	dev_cleanup();
 
-	trampoline(trampstack, x86_efi_copy_finish, kernend, modulep, PT4,
+	trampoline(trampstack, efi_copy_finish, kernend, modulep, PT4,
 	    ehdr->e_entry);
 
 	panic("exec returned");
