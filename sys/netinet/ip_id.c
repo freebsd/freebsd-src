@@ -74,26 +74,37 @@ __FBSDID("$FreeBSD$");
  * enabled.
  */
 
-#include <sys/types.h>
-#include <sys/malloc.h>
 #include <sys/param.h>
-#include <sys/time.h>
-#include <sys/kernel.h>
-#include <sys/libkern.h>
+#include <sys/systm.h>
+#include <sys/counter.h>
+#include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/random.h>
-#include <sys/systm.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/bitstring.h>
 
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/ip.h>
 #include <netinet/ip_var.h>
 
-static MALLOC_DEFINE(M_IPID, "ipid", "randomized ip id state");
+/*
+ * By default we generate IP ID only for non-atomic datagrams, as
+ * suggested by RFC6864.  We use per-CPU counter for that, or if
+ * user wants to, we can turn on random ID generation.
+ */
+static VNET_DEFINE(int, ip_rfc6864) = 1;
+static VNET_DEFINE(int, ip_do_randomid) = 0;
+#define	V_ip_rfc6864		VNET(ip_rfc6864)
+#define	V_ip_do_randomid	VNET(ip_do_randomid)
 
+/*
+ * Random ID state engine.
+ */
+static MALLOC_DEFINE(M_IPID, "ipid", "randomized ip id state");
 static VNET_DEFINE(uint16_t *, id_array);
 static VNET_DEFINE(bitstr_t *, id_bits);
 static VNET_DEFINE(int, array_ptr);
@@ -109,12 +120,27 @@ static VNET_DEFINE(struct mtx, ip_id_mtx);
 #define	V_random_id_total	VNET(random_id_total)
 #define	V_ip_id_mtx	VNET(ip_id_mtx)
 
-static void	ip_initid(int);
+/*
+ * Non-random ID state engine is simply a per-cpu counter.
+ */
+static VNET_DEFINE(counter_u64_t, ip_id);
+#define	V_ip_id		VNET(ip_id)
+
+static int	sysctl_ip_randomid(SYSCTL_HANDLER_ARGS);
 static int	sysctl_ip_id_change(SYSCTL_HANDLER_ARGS);
+static void	ip_initid(int);
+static uint16_t ip_randomid(void);
 static void	ipid_sysinit(void);
 static void	ipid_sysuninit(void);
 
 SYSCTL_DECL(_net_inet_ip);
+SYSCTL_PROC(_net_inet_ip, OID_AUTO, random_id,
+    CTLTYPE_INT | CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(ip_do_randomid), 0, sysctl_ip_randomid, "IU",
+    "Assign random ip_id values");
+SYSCTL_INT(_net_inet_ip, OID_AUTO, rfc6864, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(ip_rfc6864), 0,
+    "Use constant IP ID for atomic datagrams");
 SYSCTL_PROC(_net_inet_ip, OID_AUTO, random_id_period,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_VNET,
     &VNET_NAME(array_size), 0, sysctl_ip_id_change, "IU", "IP ID Array size");
@@ -123,6 +149,26 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, random_id_collisions,
     &VNET_NAME(random_id_collisions), 0, "Count of IP ID collisions");
 SYSCTL_INT(_net_inet_ip, OID_AUTO, random_id_total, CTLFLAG_RD | CTLFLAG_VNET,
     &VNET_NAME(random_id_total), 0, "Count of IP IDs created");
+
+static int
+sysctl_ip_randomid(SYSCTL_HANDLER_ARGS)
+{
+	int error, new;
+
+	new = V_ip_do_randomid;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error || req->newptr == NULL)
+		return (error);
+	if (new != 0 && new != 1)
+		return (EINVAL);
+	if (new == V_ip_do_randomid)
+		return (0);
+	if (new == 1 && V_ip_do_randomid == 0)
+		ip_initid(8192);
+	/* We don't free memory when turning random ID off, due to race. */
+	V_ip_do_randomid = new;
+	return (0);
+}
 
 static int
 sysctl_ip_id_change(SYSCTL_HANDLER_ARGS)
@@ -164,7 +210,7 @@ ip_initid(int new_size)
 	mtx_unlock(&V_ip_id_mtx);
 }
 
-uint16_t
+static uint16_t
 ip_randomid(void)
 {
 	uint16_t new_id;
@@ -191,12 +237,34 @@ ip_randomid(void)
 	return (new_id);
 }
 
+void
+ip_fillid(struct ip *ip)
+{
+
+	/*
+	 * Per RFC6864 Section 4
+	 *
+	 * o  Atomic datagrams: (DF==1) && (MF==0) && (frag_offset==0)
+	 * o  Non-atomic datagrams: (DF==0) || (MF==1) || (frag_offset>0)
+	 */
+	if (V_ip_rfc6864 && (ip->ip_off & htons(IP_DF)) == htons(IP_DF))
+		ip->ip_id = 0;
+	else if (V_ip_do_randomid)
+		ip->ip_id = ip_randomid();
+	else {
+		counter_u64_add(V_ip_id, 1);
+		ip->ip_id = htons((*(uint64_t *)zpcpu_get(V_ip_id)) & 0xffff);
+	}
+}
+
 static void
 ipid_sysinit(void)
 {
 
 	mtx_init(&V_ip_id_mtx, "ip_id_mtx", NULL, MTX_DEF);
-	ip_initid(8192);
+	V_ip_id = counter_u64_alloc(M_WAITOK);
+	for (int i = 0; i < mp_ncpus; i++)
+		arc4rand(zpcpu_get_cpu(V_ip_id, i), sizeof(uint64_t), 0);
 }
 VNET_SYSINIT(ip_id, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, ipid_sysinit, NULL);
 
@@ -205,7 +273,10 @@ ipid_sysuninit(void)
 {
 
 	mtx_destroy(&V_ip_id_mtx);
-	free(V_id_array, M_IPID);
-	free(V_id_bits, M_IPID);
+	if (V_id_array != NULL) {
+		free(V_id_array, M_IPID);
+		free(V_id_bits, M_IPID);
+	}
+	counter_u64_free(V_ip_id);
 }
 VNET_SYSUNINIT(ip_id, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, ipid_sysuninit, NULL);

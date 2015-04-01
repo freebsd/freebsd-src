@@ -4106,7 +4106,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				ip->ip_off = htons(0);
 			}
 			/* FreeBSD has a function for ip_id's */
-			ip->ip_id = ip_newid();
+			ip_fillid(ip);
 
 			ip->ip_ttl = inp->ip_inp.inp.inp_ip_ttl;
 			ip->ip_len = htons(packet_length);
@@ -10949,8 +10949,8 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 		ip->ip_v = IPVERSION;
 		ip->ip_hl = (sizeof(struct ip) >> 2);
 		ip->ip_tos = 0;
-		ip->ip_id = ip_newid();
 		ip->ip_off = 0;
+		ip_fillid(ip);
 		ip->ip_ttl = MODULE_GLOBAL(ip_defttl);
 		if (port) {
 			ip->ip_p = IPPROTO_UDP;

@@ -838,11 +838,11 @@ carp_send_ad_locked(struct carp_softc *sc)
 		ip->ip_hl = sizeof(*ip) >> 2;
 		ip->ip_tos = IPTOS_LOWDELAY;
 		ip->ip_len = htons(len);
-		ip->ip_id = ip_newid();
 		ip->ip_off = htons(IP_DF);
 		ip->ip_ttl = CARP_DFLTTL;
 		ip->ip_p = IPPROTO_CARP;
 		ip->ip_sum = 0;
+		ip_fillid(ip);
 
 		bzero(&sa, sizeof(sa));
 		sa.sa_family = AF_INET;
