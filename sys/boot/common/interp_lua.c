@@ -88,12 +88,26 @@ interp_lua_run(void *data, const char *line)
 	struct interp_lua_softc	*softc;
 	int argc, ret;
 	char **argv;
+	char loader_line[128];
+	int status;
+	int len;
 
 	softc = data;
 	luap = softc->luap;
-	LDBG("running line...");
-	if (ldo_string(luap, line, strlen(line)) != 0)
-		printf("failed to parse \'%s\'\n", line);
+	LDBG("executing line...");
+	if ((status = ldo_string(luap, line, strlen(line))) != 0) {
+		/*
+		 * If we could not parse the line as Lua syntax,
+		 * try parsing it as a loader command.
+		 */
+		len = snprintf(loader_line, sizeof(loader_line),
+		    "loader.perform(\"%s\")", line);
+		if (len > 0)
+			status = ldo_string(luap, loader_line,
+			    len + 1);
+	}
+	if (status != 0)
+		printf("Failed to parse \'%s\'\n", line);
 
 	return (0);
 }
