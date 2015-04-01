@@ -74,7 +74,7 @@
  *     the inbound path, which can't be the long-term solution.
  */
 
-#define	CHERI_CLASS_ASM(class, function)				\
+#define	CHERI_CLASS_ASM(class)						\
 	.text;								\
 	.global __cheri_ ## class ## _entry;				\
 	.ent __cheri_ ## class ## _entry;				\
@@ -110,19 +110,7 @@ __cheri_ ## class ## _entry:						\
 	 * rather than using the "enter" functions.			\
 	 */								\
 	clc	$c12, $zero, CHERICAP_SIZE($c26);			\
-	cgettag	$t9, $c12;						\
-	beqz	$t9, __cheri ## class ## legacy_enter;			\
-	nop;								\
 	cld	$t9, $v0, 0($c12);					\
-	jalr	$t9;							\
-	nop;								\
-	creturn;							\
-									\
-__cheri ## class ## legacy_enter:					\
-	/*								\
-	 * Invoke MIPS ABI C "enter" function.				\
-	 */								\
-	dla	$t9, function;						\
 	jalr	$t9;							\
 	nop;			/* Branch-delay slot */			\
 									\
