@@ -29,8 +29,6 @@
 #ifndef LSTD_H
 #define LSTD_H
 
-#ifdef BOOT_LUA
-
 #include <stand.h>
 #include <sys/types.h>
 #include <sys/stdint.h>
@@ -137,5 +135,4 @@ fmod(double x, double y)
 	return 0; /* XXX */
 }
 
-#endif
-#endif //LSTD_H
+#endif /* LSTD_H */
