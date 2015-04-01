@@ -67,7 +67,7 @@ variable root_state
 	evaluate
 ;
 
-: altboot ( -- )
+: altboot ( N -- NOTREACHED )
 	s" boot_single" 2dup getenv -1 <> if
 		drop ( c-addr/u c-addr -- c-addr/u ) \ unused
 		unsetenv ( c-addr/u -- )
