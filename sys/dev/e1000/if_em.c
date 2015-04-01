@@ -435,10 +435,10 @@ static int
 em_probe(device_t dev)
 {
 	char		adapter_name[60];
-	u16		pci_vendor_id = 0;
-	u16		pci_device_id = 0;
-	u16		pci_subvendor_id = 0;
-	u16		pci_subdevice_id = 0;
+	uint16_t	pci_vendor_id = 0;
+	uint16_t	pci_device_id = 0;
+	uint16_t	pci_subvendor_id = 0;
+	uint16_t	pci_subdevice_id = 0;
 	em_vendor_info_t *ent;
 
 	INIT_DEBUGOUT("em_probe: begin");
@@ -472,33 +472,6 @@ em_probe(device_t dev)
 
 	return (ENXIO);
 }
-
-#ifdef EM_MULTIQUEUE
-/*
- * 82574 only:
- * Write a new value to the EEPROM increasing the number of MSIX
- * vectors from 3 to 5, for proper multiqueue support.
- */
-static void
-em_enable_vectors_82574(struct adapter *adapter)
-{
-	struct e1000_hw *hw = &adapter->hw;
-	device_t dev = adapter->dev;
-	u16 edata;
-
-	e1000_read_nvm(hw, EM_NVM_PCIE_CTRL, 1, &edata);
-	printf("Current cap: %#06x\n", edata);
-	if (((edata & EM_NVM_MSIX_N_MASK) >> EM_NVM_MSIX_N_SHIFT) != 4) {
-		device_printf(dev, "Writing to eeprom: increasing "
-		    "reported MSIX vectors from 3 to 5...\n");
-		edata &= ~(EM_NVM_MSIX_N_MASK);
-		edata |= 4 << EM_NVM_MSIX_N_SHIFT;
-		e1000_write_nvm(hw, EM_NVM_PCIE_CTRL, 1, &edata);
-		e1000_update_nvm_checksum(hw);
-		device_printf(dev, "Writing to eeprom: done\n");
-	}
-}
-#endif
 
 /*********************************************************************
  *  Device initialization routine
@@ -941,116 +914,7 @@ em_resume(device_t dev)
 }
 
 
-#ifdef EM_MULTIQUEUE
-/*********************************************************************
- *  Multiqueue Transmit routines 
- *
- *  em_mq_start is called by the stack to initiate a transmit.
- *  however, if busy the driver can queue the request rather
- *  than do an immediate send. It is this that is an advantage
- *  in this driver, rather than also having multiple tx queues.
- **********************************************************************/
-static int
-em_mq_start_locked(if_t ifp, struct tx_ring *txr, struct mbuf *m)
-{
-	struct adapter  *adapter = txr->adapter;
-        struct mbuf     *next;
-        int             err = 0, enq = 0;
-
-	EM_TX_LOCK_ASSERT(txr);
-
-	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || adapter->link_active == 0) {
-		if (m != NULL)
-			err = drbr_enqueue(ifp, txr->br, m);
-		return (err);
-	}
-
-	enq = 0;
-	if (m != NULL) {
-		err = drbr_enqueue(ifp, txr->br, m);
-		if (err)
-			return (err);
-	} 
-
-	/* Process the queue */
-	while ((next = drbr_peek(ifp, txr->br)) != NULL) {
-		if ((err = em_xmit(txr, &next)) != 0) {
-			if (next == NULL)
-				drbr_advance(ifp, txr->br);
-			else 
-				drbr_putback(ifp, txr->br, next);
-			break;
-		}
-		drbr_advance(ifp, txr->br);
-		enq++;
-		if_inc_counter(ifp, IFCOUNTER_OBYTES, next->m_pkthdr.len);
-		if (next->m_flags & M_MCAST)
-			if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
-		ETHER_BPF_MTAP(ifp, next);
-		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
-                        break;
-	}
-
-	if (enq > 0) {
-                /* Set the watchdog */
-                txr->queue_status = EM_QUEUE_WORKING;
-		txr->watchdog_time = ticks;
-	}
-
-	if (txr->tx_avail < EM_MAX_SCATTER)
-		em_txeof(txr);
-	if (txr->tx_avail < EM_MAX_SCATTER)
-		if_setdrvflagbits(ifp, IFF_DRV_OACTIVE,0);
-	return (err);
-}
-
-/*
-** Multiqueue capable stack interface
-*/
-static int
-em_mq_start(if_t ifp, struct mbuf *m)
-{
-	struct adapter	*adapter = if_getsoftc(ifp);
-	struct tx_ring	*txr = adapter->tx_rings;
-	int 		i, error;
-
-	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
-		i = m->m_pkthdr.flowid % adapter->num_tx_queues;
-	else
-		i = curcpu % adapter->num_tx_queues;
-
-	txr = &adapter->tx_rings[i];
-
-	if (EM_TX_TRYLOCK(txr)) {
-		error = em_mq_start_locked(ifp, txr, m);
-		EM_TX_UNLOCK(txr);
-	} else 
-		error = drbr_enqueue(ifp, txr->br, m);
-
-	return (error);
-}
-
-/*
-** Flush all ring buffers
-*/
-static void
-em_qflush(if_t ifp)
-{
-	struct adapter  *adapter = if_getsoftc(ifp);
-	struct tx_ring  *txr = adapter->tx_rings;
-	struct mbuf     *m;
-
-	for (int i = 0; i < adapter->num_tx_queues; i++, txr++) {
-		EM_TX_LOCK(txr);
-		while ((m = buf_ring_dequeue_sc(txr->br)) != NULL)
-			m_freem(m);
-		EM_TX_UNLOCK(txr);
-	}
-	if_qflush(ifp);
-}
-#else  /* !EM_MULTIQUEUE */
-
+#ifndef EM_MULTIQUEUE
 static void
 em_start_locked(if_t ifp, struct tx_ring *txr)
 {
@@ -1111,6 +975,114 @@ em_start(if_t ifp)
 		EM_TX_UNLOCK(txr);
 	}
 	return;
+}
+#else /* EM_MULTIQUEUE */
+/*********************************************************************
+ *  Multiqueue Transmit routines 
+ *
+ *  em_mq_start is called by the stack to initiate a transmit.
+ *  however, if busy the driver can queue the request rather
+ *  than do an immediate send. It is this that is an advantage
+ *  in this driver, rather than also having multiple tx queues.
+ **********************************************************************/
+/*
+** Multiqueue capable stack interface
+*/
+static int
+em_mq_start(if_t ifp, struct mbuf *m)
+{
+	struct adapter	*adapter = if_getsoftc(ifp);
+	struct tx_ring	*txr = adapter->tx_rings;
+	int 		i, error;
+
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
+		i = m->m_pkthdr.flowid % adapter->num_tx_queues;
+	else
+		i = curcpu % adapter->num_tx_queues;
+
+	txr = &adapter->tx_rings[i];
+
+	if (EM_TX_TRYLOCK(txr)) {
+		error = em_mq_start_locked(ifp, txr, m);
+		EM_TX_UNLOCK(txr);
+	} else 
+		error = drbr_enqueue(ifp, txr->br, m);
+
+	return (error);
+}
+
+static int
+em_mq_start_locked(if_t ifp, struct tx_ring *txr, struct mbuf *m)
+{
+	struct adapter  *adapter = txr->adapter;
+        struct mbuf     *next;
+        int             err = 0, enq = 0;
+
+	EM_TX_LOCK_ASSERT(txr);
+
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING || adapter->link_active == 0) {
+		if (m != NULL)
+			err = drbr_enqueue(ifp, txr->br, m);
+		return (err);
+	}
+
+	enq = 0;
+	if (m != NULL) {
+		err = drbr_enqueue(ifp, txr->br, m);
+		if (err)
+			return (err);
+	} 
+
+	/* Process the queue */
+	while ((next = drbr_peek(ifp, txr->br)) != NULL) {
+		if ((err = em_xmit(txr, &next)) != 0) {
+			if (next == NULL)
+				drbr_advance(ifp, txr->br);
+			else 
+				drbr_putback(ifp, txr->br, next);
+			break;
+		}
+		drbr_advance(ifp, txr->br);
+		enq++;
+		if_inc_counter(ifp, IFCOUNTER_OBYTES, next->m_pkthdr.len);
+		if (next->m_flags & M_MCAST)
+			if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
+		ETHER_BPF_MTAP(ifp, next);
+		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
+                        break;
+	}
+
+	if (enq > 0) {
+                /* Set the watchdog */
+                txr->queue_status = EM_QUEUE_WORKING;
+		txr->watchdog_time = ticks;
+	}
+
+	if (txr->tx_avail < EM_MAX_SCATTER)
+		em_txeof(txr);
+	if (txr->tx_avail < EM_MAX_SCATTER)
+		if_setdrvflagbits(ifp, IFF_DRV_OACTIVE,0);
+	return (err);
+}
+
+/*
+** Flush all ring buffers
+*/
+static void
+em_qflush(if_t ifp)
+{
+	struct adapter  *adapter = if_getsoftc(ifp);
+	struct tx_ring  *txr = adapter->tx_rings;
+	struct mbuf     *m;
+
+	for (int i = 0; i < adapter->num_tx_queues; i++, txr++) {
+		EM_TX_LOCK(txr);
+		while ((m = buf_ring_dequeue_sc(txr->br)) != NULL)
+			m_freem(m);
+		EM_TX_UNLOCK(txr);
+	}
+	if_qflush(ifp);
 }
 #endif /* EM_MULTIQUEUE */
 
@@ -5898,3 +5870,30 @@ em_print_debug_info(struct adapter *adapter)
 	device_printf(dev, "RX Next to Check = %d\n", rxr->next_to_check);
 	device_printf(dev, "RX Next to Refresh = %d\n", rxr->next_to_refresh);
 }
+
+#ifdef EM_MULTIQUEUE
+/*
+ * 82574 only:
+ * Write a new value to the EEPROM increasing the number of MSIX
+ * vectors from 3 to 5, for proper multiqueue support.
+ */
+static void
+em_enable_vectors_82574(struct adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	device_t dev = adapter->dev;
+	u16 edata;
+
+	e1000_read_nvm(hw, EM_NVM_PCIE_CTRL, 1, &edata);
+	printf("Current cap: %#06x\n", edata);
+	if (((edata & EM_NVM_MSIX_N_MASK) >> EM_NVM_MSIX_N_SHIFT) != 4) {
+		device_printf(dev, "Writing to eeprom: increasing "
+		    "reported MSIX vectors from 3 to 5...\n");
+		edata &= ~(EM_NVM_MSIX_N_MASK);
+		edata |= 4 << EM_NVM_MSIX_N_SHIFT;
+		e1000_write_nvm(hw, EM_NVM_PCIE_CTRL, 1, &edata);
+		e1000_update_nvm_checksum(hw);
+		device_printf(dev, "Writing to eeprom: done\n");
+	}
+}
+#endif
