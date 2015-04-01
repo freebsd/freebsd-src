@@ -92,7 +92,7 @@ legacy_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 
 /* Pass MSI requests up to the nexus. */
 
-static int
+int
 legacy_pcib_alloc_msi(device_t pcib, device_t dev, int count, int maxcount,
     int *irqs)
 {
@@ -103,7 +103,7 @@ legacy_pcib_alloc_msi(device_t pcib, device_t dev, int count, int maxcount,
 	    irqs));
 }
 
-static int
+int
 legacy_pcib_alloc_msix(device_t pcib, device_t dev, int *irq)
 {
 	device_t bus;
