@@ -104,7 +104,7 @@ interp_lua_run(void *data, const char *line)
 		    "loader.perform(\"%s\")", line);
 		if (len > 0)
 			status = ldo_string(luap, loader_line,
-			    len + 1);
+			    len);
 	}
 	if (status != 0)
 		printf("Failed to parse \'%s\'\n", line);
