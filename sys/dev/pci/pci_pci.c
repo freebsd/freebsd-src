@@ -130,6 +130,10 @@ pcib_is_resource_managed(struct pcib_softc *sc, int type, struct resource *r)
 {
 
 	switch (type) {
+#ifdef PCI_RES_BUS
+	case PCI_RES_BUS:
+		return (rman_is_region_manager(r, &sc->bus.rman));
+#endif
 	case SYS_RES_IOPORT:
 		return (rman_is_region_manager(r, &sc->io.rman));
 	case SYS_RES_MEMORY:
@@ -534,6 +538,173 @@ pcib_probe_windows(struct pcib_softc *sc)
 	}
 }
 
+#ifdef PCI_RES_BUS
+/*
+ * Allocate a suitable secondary bus for this bridge if needed and
+ * initialize the resource manager for the secondary bus range.  Note
+ * that the minimum count is a desired value and this may allocate a
+ * smaller range.
+ */
+void
+pcib_setup_secbus(device_t dev, struct pcib_secbus *bus, int min_count)
+{
+	char buf[64];
+	int error, rid;
+
+	switch (pci_read_config(dev, PCIR_HDRTYPE, 1) & PCIM_HDRTYPE) {
+	case PCIM_HDRTYPE_BRIDGE:
+		bus->sub_reg = PCIR_SUBBUS_1;
+		break;
+	case PCIM_HDRTYPE_CARDBUS:
+		bus->sub_reg = PCIR_SUBBUS_2;
+		break;
+	default:
+		panic("not a PCI bridge");
+	}
+	bus->dev = dev;
+	bus->rman.rm_start = 0;
+	bus->rman.rm_end = PCI_BUSMAX;
+	bus->rman.rm_type = RMAN_ARRAY;
+	snprintf(buf, sizeof(buf), "%s bus numbers", device_get_nameunit(dev));
+	bus->rman.rm_descr = strdup(buf, M_DEVBUF);
+	error = rman_init(&bus->rman);
+	if (error)
+		panic("Failed to initialize %s bus number rman",
+		    device_get_nameunit(dev));
+
+	/*
+	 * Allocate a bus range.  This will return an existing bus range
+	 * if one exists, or a new bus range if one does not.
+	 */
+	rid = 0;
+	bus->res = bus_alloc_resource(dev, PCI_RES_BUS, &rid, 0ul, ~0ul,
+	    min_count, 0);
+	if (bus->res == NULL) {
+		/*
+		 * Fall back to just allocating a range of a single bus
+		 * number.
+		 */
+		bus->res = bus_alloc_resource(dev, PCI_RES_BUS, &rid, 0ul, ~0ul,
+		    1, 0);
+	} else if (rman_get_size(bus->res) < min_count)
+		/*
+		 * Attempt to grow the existing range to satisfy the
+		 * minimum desired count.
+		 */
+		(void)bus_adjust_resource(dev, PCI_RES_BUS, bus->res,
+		    rman_get_start(bus->res), rman_get_start(bus->res) +
+		    min_count - 1);
+
+	/*
+	 * Add the initial resource to the rman.
+	 */
+	if (bus->res != NULL) {
+		error = rman_manage_region(&bus->rman, rman_get_start(bus->res),
+		    rman_get_end(bus->res));
+		if (error)
+			panic("Failed to add resource to rman");
+		bus->sec = rman_get_start(bus->res);
+		bus->sub = rman_get_end(bus->res);
+	}
+}
+
+static struct resource *
+pcib_suballoc_bus(struct pcib_secbus *bus, device_t child, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	struct resource *res;
+
+	res = rman_reserve_resource(&bus->rman, start, end, count, flags,
+	    child);
+	if (res == NULL)
+		return (NULL);
+
+	if (bootverbose)
+		device_printf(bus->dev,
+		    "allocated bus range (%lu-%lu) for rid %d of %s\n",
+		    rman_get_start(res), rman_get_end(res), *rid,
+		    pcib_child_name(child));
+	rman_set_rid(res, *rid);
+	return (res);
+}
+
+/*
+ * Attempt to grow the secondary bus range.  This is much simpler than
+ * for I/O windows as the range can only be grown by increasing
+ * subbus.
+ */
+static int
+pcib_grow_subbus(struct pcib_secbus *bus, u_long new_end)
+{
+	u_long old_end;
+	int error;
+
+	old_end = rman_get_end(bus->res);
+	KASSERT(new_end > old_end, ("attempt to shrink subbus"));
+	error = bus_adjust_resource(bus->dev, PCI_RES_BUS, bus->res,
+	    rman_get_start(bus->res), new_end);
+	if (error)
+		return (error);
+	if (bootverbose)
+		device_printf(bus->dev, "grew bus range to %lu-%lu\n",
+		    rman_get_start(bus->res), rman_get_end(bus->res));
+	error = rman_manage_region(&bus->rman, old_end + 1,
+	    rman_get_end(bus->res));
+	if (error)
+		panic("Failed to add resource to rman");
+	bus->sub = rman_get_end(bus->res);
+	pci_write_config(bus->dev, bus->sub_reg, bus->sub, 1);
+	return (0);
+}
+
+struct resource *
+pcib_alloc_subbus(struct pcib_secbus *bus, device_t child, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	struct resource *res;
+	u_long start_free, end_free, new_end;
+
+	/*
+	 * First, see if the request can be satisified by the existing
+	 * bus range.
+	 */
+	res = pcib_suballoc_bus(bus, child, rid, start, end, count, flags);
+	if (res != NULL)
+		return (res);
+
+	/*
+	 * Figure out a range to grow the bus range.  First, find the
+	 * first bus number after the last allocated bus in the rman and
+	 * enforce that as a minimum starting point for the range.
+	 */
+	if (rman_last_free_region(&bus->rman, &start_free, &end_free) != 0 ||
+	    end_free != bus->sub)
+		start_free = bus->sub + 1;
+	if (start_free < start)
+		start_free = start;
+	new_end = start_free + count - 1;
+
+	/*
+	 * See if this new range would satisfy the request if it
+	 * succeeds.
+	 */
+	if (new_end > end)
+		return (NULL);
+
+	/* Finally, attempt to grow the existing resource. */
+	if (bootverbose) {
+		device_printf(bus->dev,
+		    "attempting to grow bus range for %lu buses\n", count);
+		printf("\tback candidate range: %lu-%lu\n", start_free,
+		    new_end);
+	}
+	if (pcib_grow_subbus(bus, new_end) == 0)
+		return (pcib_suballoc_bus(bus, child, rid, start, end, count,
+		    flags));
+	return (NULL);
+}
+#endif
+
 #else
 
 /*
@@ -680,8 +851,8 @@ pcib_cfg_save(struct pcib_softc *sc)
 
 	sc->command = pci_read_config(dev, PCIR_COMMAND, 2);
 	sc->pribus = pci_read_config(dev, PCIR_PRIBUS_1, 1);
-	sc->secbus = pci_read_config(dev, PCIR_SECBUS_1, 1);
-	sc->subbus = pci_read_config(dev, PCIR_SUBBUS_1, 1);
+	sc->bus.sec = pci_read_config(dev, PCIR_SECBUS_1, 1);
+	sc->bus.sub = pci_read_config(dev, PCIR_SUBBUS_1, 1);
 	sc->bridgectl = pci_read_config(dev, PCIR_BRIDGECTL_1, 2);
 	sc->seclat = pci_read_config(dev, PCIR_SECLAT_1, 1);
 #ifndef NEW_PCIB
@@ -704,8 +875,8 @@ pcib_cfg_restore(struct pcib_softc *sc)
 
 	pci_write_config(dev, PCIR_COMMAND, sc->command, 2);
 	pci_write_config(dev, PCIR_PRIBUS_1, sc->pribus, 1);
-	pci_write_config(dev, PCIR_SECBUS_1, sc->secbus, 1);
-	pci_write_config(dev, PCIR_SUBBUS_1, sc->subbus, 1);
+	pci_write_config(dev, PCIR_SECBUS_1, sc->bus.sec, 1);
+	pci_write_config(dev, PCIR_SUBBUS_1, sc->bus.sub, 1);
 	pci_write_config(dev, PCIR_BRIDGECTL_1, sc->bridgectl, 2);
 	pci_write_config(dev, PCIR_SECLAT_1, sc->seclat, 1);
 #ifdef NEW_PCIB
@@ -751,6 +922,13 @@ pcib_attach_common(device_t dev)
     pcib_cfg_save(sc);
 
     /*
+     * The primary bus register should always be the bus of the
+     * parent.
+     */
+    sc->pribus = pci_get_bus(dev);
+    pci_write_config(dev, PCIR_PRIBUS_1, sc->pribus, 1);
+
+    /*
      * Setup sysctl reporting nodes
      */
     sctx = device_get_sysctl_ctx(dev);
@@ -760,25 +938,27 @@ pcib_attach_common(device_t dev)
     SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "pribus",
       CTLFLAG_RD, &sc->pribus, 0, "Primary bus number");
     SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "secbus",
-      CTLFLAG_RD, &sc->secbus, 0, "Secondary bus number");
+      CTLFLAG_RD, &sc->bus.sec, 0, "Secondary bus number");
     SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "subbus",
-      CTLFLAG_RD, &sc->subbus, 0, "Subordinate bus number");
+      CTLFLAG_RD, &sc->bus.sub, 0, "Subordinate bus number");
 
     /*
      * Quirk handling.
      */
     switch (pci_get_devid(dev)) {
+#if !defined(NEW_PCIB) && !defined(PCI_RES_BUS)
     case 0x12258086:		/* Intel 82454KX/GX (Orion) */
 	{
 	    uint8_t	supbus;
 
 	    supbus = pci_read_config(dev, 0x41, 1);
 	    if (supbus != 0xff) {
-		sc->secbus = supbus + 1;
-		sc->subbus = supbus + 1;
+		sc->bus.sec = supbus + 1;
+		sc->bus.sub = supbus + 1;
 	    }
 	    break;
 	}
+#endif
 
     /*
      * The i82380FB mobile docking controller is a PCI-PCI bridge,
@@ -792,6 +972,7 @@ pcib_attach_common(device_t dev)
 	sc->flags |= PCIB_SUBTRACTIVE;
 	break;
 
+#if !defined(NEW_PCIB) && !defined(PCI_RES_BUS)
     /* Compaq R3000 BIOS sets wrong subordinate bus number. */
     case 0x00dd10de:
 	{
@@ -811,12 +992,13 @@ pcib_attach_common(device_t dev)
 		break;
 	    }
 	    freeenv(cp);
-	    if (sc->subbus < 0xa) {
+	    if (sc->bus.sub < 0xa) {
 		pci_write_config(dev, PCIR_SUBBUS_1, 0xa, 1);
-		sc->subbus = pci_read_config(dev, PCIR_SUBBUS_1, 1);
+		sc->bus.sub = pci_read_config(dev, PCIR_SUBBUS_1, 1);
 	    }
 	    break;
 	}
+#endif
     }
 
     if (pci_msi_device_blacklisted(dev))
@@ -838,12 +1020,15 @@ pcib_attach_common(device_t dev)
 	sc->flags |= PCIB_SUBTRACTIVE;
 
 #ifdef NEW_PCIB
+#ifdef PCI_RES_BUS
+    pcib_setup_secbus(dev, &sc->bus, 1);
+#endif
     pcib_probe_windows(sc);
 #endif
     if (bootverbose) {
 	device_printf(dev, "  domain            %d\n", sc->domain);
-	device_printf(dev, "  secondary bus     %d\n", sc->secbus);
-	device_printf(dev, "  subordinate bus   %d\n", sc->subbus);
+	device_printf(dev, "  secondary bus     %d\n", sc->bus.sec);
+	device_printf(dev, "  subordinate bus   %d\n", sc->bus.sub);
 #ifdef NEW_PCIB
 	if (pcib_is_window_open(&sc->io))
 	    device_printf(dev, "  I/O decode        0x%jx-0x%jx\n",
@@ -884,20 +1069,6 @@ pcib_attach_common(device_t dev)
     }
 
     /*
-     * XXX If the secondary bus number is zero, we should assign a bus number
-     *     since the BIOS hasn't, then initialise the bridge.  A simple
-     *     bus_alloc_resource with the a couple of busses seems like the right
-     *     approach, but we don't know what busses the BIOS might have already
-     *     assigned to other bridges on this bus that probe later than we do.
-     *
-     *     If the subordinate bus number is less than the secondary bus number,
-     *     we should pick a better value.  One sensible alternative would be to
-     *     pick 255; the only tradeoff here is that configuration transactions
-     *     would be more widely routed than absolutely necessary.  We could
-     *     then do a walk of the tree later and fix it.
-     */
-
-    /*
      * Always enable busmastering on bridges so that transactions
      * initiated on the secondary bus are passed through to the
      * primary bus.
@@ -913,8 +1084,8 @@ pcib_attach(device_t dev)
 
     pcib_attach_common(dev);
     sc = device_get_softc(dev);
-    if (sc->secbus != 0) {
-	child = device_add_child(dev, "pci", sc->secbus);
+    if (sc->bus.sec != 0) {
+	child = device_add_child(dev, "pci", sc->bus.sec);
 	if (child != NULL)
 	    return(bus_generic_attach(dev));
     }
@@ -966,7 +1137,7 @@ pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	*result = sc->domain;
 	return(0);
     case PCIB_IVAR_BUS:
-	*result = sc->secbus;
+	*result = sc->bus.sec;
 	return(0);
     }
     return(ENOENT);
@@ -975,14 +1146,12 @@ pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 int
 pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 {
-    struct pcib_softc	*sc = device_get_softc(dev);
 
     switch (which) {
     case PCIB_IVAR_DOMAIN:
 	return(EINVAL);
     case PCIB_IVAR_BUS:
-	sc->secbus = value;
-	return(0);
+	return(EINVAL);
     }
     return(ENOENT);
 }
@@ -1392,6 +1561,11 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	}
 
 	switch (type) {
+#ifdef PCI_RES_BUS
+	case PCI_RES_BUS:
+		return (pcib_alloc_subbus(&sc->bus, child, rid, start, end,
+		    count, flags));
+#endif
 	case SYS_RES_IOPORT:
 		if (pcib_is_isa_range(sc, start, end, count))
 			return (NULL);

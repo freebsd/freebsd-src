@@ -83,6 +83,18 @@ struct pcib_window {
 };
 #endif
 
+struct pcib_secbus {
+	u_int		sec;
+	u_int		sub;
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	device_t	dev;
+	struct rman	rman;
+	struct resource	*res;
+	const char	*name;
+	int		sub_reg;
+#endif
+};
+
 /*
  * Bridge-specific data.
  */
@@ -97,8 +109,7 @@ struct pcib_softc
     uint16_t	command;	/* command register */
     u_int	domain;		/* domain number */
     u_int	pribus;		/* primary bus number */
-    u_int	secbus;		/* secondary bus number */
-    u_int	subbus;		/* subordinate bus number */
+    struct pcib_secbus bus;	/* secondary bus numbers */
 #ifdef NEW_PCIB
     struct pcib_window io;	/* I/O port window */
     struct pcib_window mem;	/* memory window */
@@ -120,13 +131,26 @@ struct pcib_softc
 
 typedef uint32_t pci_read_config_fn(int b, int s, int f, int reg, int width);
 
+int		host_pcib_get_busno(pci_read_config_fn read_config, int bus,
+    int slot, int func, uint8_t *busnum);
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+struct resource *pci_domain_alloc_bus(int domain, device_t dev, int *rid,
+		    u_long start, u_long end, u_long count, u_int flags);
+int		pci_domain_adjust_bus(int domain, device_t dev,
+		    struct resource *r, u_long start, u_long end);
+int		pci_domain_release_bus(int domain, device_t dev, int rid,
+		    struct resource *r);
+struct resource *pcib_alloc_subbus(struct pcib_secbus *bus, device_t child,
+		    int *rid, u_long start, u_long end, u_long count,
+		    u_int flags);
+void		pcib_setup_secbus(device_t dev, struct pcib_secbus *bus,
+    int min_count);
+#endif
+int		pcib_attach(device_t dev);
+void		pcib_attach_common(device_t dev);
 #ifdef NEW_PCIB
 const char	*pcib_child_name(device_t child);
 #endif
-int		host_pcib_get_busno(pci_read_config_fn read_config, int bus,
-    int slot, int func, uint8_t *busnum);
-int		pcib_attach(device_t dev);
-void		pcib_attach_common(device_t dev);
 int		pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result);
 int		pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value);
 struct resource *pcib_alloc_resource(device_t dev, device_t child, int type, int *rid, 

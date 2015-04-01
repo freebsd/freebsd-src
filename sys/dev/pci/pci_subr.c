@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/malloc.h>
 #include <sys/rman.h>
 #include <sys/systm.h>
 
@@ -282,4 +283,102 @@ pcib_host_res_adjust(struct pcib_host_resources *hr, device_t dev, int type,
 	}
 	return (ERANGE);
 }
+
+#ifdef PCI_RES_BUS
+struct pci_domain {
+	int	pd_domain;
+	struct rman pd_bus_rman;
+	TAILQ_ENTRY(pci_domain) pd_link;
+};
+
+static TAILQ_HEAD(, pci_domain) domains = TAILQ_HEAD_INITIALIZER(domains);
+
+/*
+ * Each PCI domain maintains its own resource manager for PCI bus
+ * numbers in that domain.  Domain objects are created on first use.
+ * Host to PCI bridge drivers and PCI-PCI bridge drivers should
+ * allocate their bus ranges from their domain.
+ */
+static struct pci_domain *
+pci_find_domain(int domain)
+{
+	struct pci_domain *d;
+	char buf[64];
+	int error;
+
+	TAILQ_FOREACH(d, &domains, pd_link) {
+		if (d->pd_domain == domain)
+			return (d);
+	}
+
+	snprintf(buf, sizeof(buf), "PCI domain %d bus numbers", domain);
+	d = malloc(sizeof(*d) + strlen(buf) + 1, M_DEVBUF, M_WAITOK | M_ZERO);
+	d->pd_domain = domain;
+	d->pd_bus_rman.rm_start = 0;
+	d->pd_bus_rman.rm_end = PCI_BUSMAX;
+	d->pd_bus_rman.rm_type = RMAN_ARRAY;
+	strcpy((char *)(d + 1), buf);
+	d->pd_bus_rman.rm_descr = (char *)(d + 1);
+	error = rman_init(&d->pd_bus_rman);
+	if (error == 0)
+		error = rman_manage_region(&d->pd_bus_rman, 0, PCI_BUSMAX);
+	if (error)
+		panic("Failed to initialize PCI domain %d rman", domain);
+	TAILQ_INSERT_TAIL(&domains, d, pd_link);
+	return (d);
+}
+
+struct resource *
+pci_domain_alloc_bus(int domain, device_t dev, int *rid, u_long start,
+    u_long end, u_long count, u_int flags)
+{
+	struct pci_domain *d;
+	struct resource *res;
+
+	if (domain < 0 || domain > PCI_DOMAINMAX)
+		return (NULL);
+	d = pci_find_domain(domain);
+	res = rman_reserve_resource(&d->pd_bus_rman, start, end, count, flags,
+	    dev);
+	if (res == NULL)
+		return (NULL);
+
+	rman_set_rid(res, *rid);
+	return (res);
+}
+
+int
+pci_domain_adjust_bus(int domain, device_t dev, struct resource *r,
+    u_long start, u_long end)
+{
+#ifdef INVARIANTS
+	struct pci_domain *d;
+#endif
+
+	if (domain < 0 || domain > PCI_DOMAINMAX)
+		return (EINVAL);
+#ifdef INVARIANTS
+	d = pci_find_domain(domain);
+	KASSERT(rman_is_region_manager(r, &d->pd_bus_rman), ("bad resource"));
+#endif
+	return (rman_adjust_resource(r, start, end));
+}
+
+int
+pci_domain_release_bus(int domain, device_t dev, int rid, struct resource *r)
+{
+#ifdef INVARIANTS
+	struct pci_domain *d;
+#endif
+
+	if (domain < 0 || domain > PCI_DOMAINMAX)
+		return (EINVAL);
+#ifdef INVARIANTS
+	d = pci_find_domain(domain);
+	KASSERT(rman_is_region_manager(r, &d->pd_bus_rman), ("bad resource"));
+#endif
+	return (rman_release_resource(r));
+}
+#endif /* PCI_RES_BUS */
+
 #endif /* NEW_PCIB */
