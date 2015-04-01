@@ -979,6 +979,18 @@ gla2gpa(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
 	return (error);
 }
 
+int
+vm_gla2gpa(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
+    uint64_t gla, int prot, uint64_t *gpa)
+{
+	int error, fault;
+
+	error = gla2gpa(ctx, vcpu, paging, gla, prot, &fault, gpa);
+	if (fault)
+		error = fault;
+	return (error);
+}
+
 #ifndef min
 #define	min(a,b)	(((a) < (b)) ? (a) : (b))
 #endif
