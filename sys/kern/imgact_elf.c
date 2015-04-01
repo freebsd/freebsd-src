@@ -1392,7 +1392,8 @@ each_writable_segment(td, func, closure)
 			object = backing_object;
 		}
 		ignore_entry = object->type != OBJT_DEFAULT &&
-		    object->type != OBJT_SWAP && object->type != OBJT_VNODE;
+		    object->type != OBJT_SWAP && object->type != OBJT_VNODE &&
+		    object->type != OBJT_PHYS;
 		VM_OBJECT_UNLOCK(object);
 		if (ignore_entry)
 			continue;
