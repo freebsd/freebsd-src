@@ -353,7 +353,7 @@ DELAY(int usec)
 		for (; usec > 0; usec--)
 			for (counts = 200; counts > 0; counts--)
 				/*
-				 * Prevent gcc from optimizing
+				 * Prevent the compiler from optimizing
 				 * out the loop
 				 */
 				cpufunc_nullop();
