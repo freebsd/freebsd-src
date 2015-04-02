@@ -28,7 +28,7 @@
 .\"	@(#)logger.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd August 2, 2006
+.Dd March 21, 2015
 .Dt LOGGER 1
 .Os
 .Sh NAME
@@ -74,7 +74,8 @@ with each line.
 .It Fl s
 Log the message to standard error, as well as the system log.
 .It Fl f Ar file
-Log the specified file.
+Read the contents of the specified file into syslog.
+This option is ignored when a message is also specified.
 .It Fl h Ar host
 Send the message to the remote system
 .Ar host
