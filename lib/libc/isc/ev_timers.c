@@ -19,7 +19,7 @@
  * vix 09sep95 [initial]
  */
 
-#if !defined(LINT) && !defined(CODECENTER)
+#if defined(LIBC_SCCS) && !defined(LINT) && !defined(CODECENTER)
 static const char rcsid[] = "$Id: ev_timers.c,v 1.6 2005/04/27 04:56:36 sra Exp $";
 #endif
 #include <sys/cdefs.h>

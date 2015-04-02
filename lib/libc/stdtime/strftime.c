@@ -22,11 +22,13 @@
 
 #ifndef lint
 #ifndef NOID
+#ifdef LIBC_SCCS
 static const char	elsieid[] = "@(#)strftime.3	8.3";
 /*
  * Based on the UCB version with the ID appearing below.
  * This is ANSIish only when "multibyte character == plain character".
  */
+#endif /* defined LIBC_SCCS */
 #endif /* !defined NOID */
 #endif /* !defined lint */
 

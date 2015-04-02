@@ -1,4 +1,4 @@
-#if !defined(lint) && !defined(SABER)
+#if defined(LIBC_SCCS) && !defined(lint) && !defined(SABER)
 static const char rcsid[] = "$Id: res_update.c,v 1.13 2005/04/27 04:56:43 sra Exp $";
 #endif /* not lint */
 

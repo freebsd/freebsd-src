@@ -15,7 +15,7 @@
  * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef lint
+#if defined(LIBC_SCCS) && !defined(lint)
 static const char rcsid[] = "$Id: ns_ttl.c,v 1.4 2005/07/28 06:51:49 marka Exp $";
 #endif
 #include <sys/cdefs.h>
