@@ -26,21 +26,29 @@
 
 46 logoX ! 7 logoY ! \ Initialize logo placement defaults
 
+: logo+ ( x y c-addr/u -- x y' )
+	2swap 2dup at-xy 2swap \ position the cursor
+	type \ print to the screen
+	1+ \ increase y for next time we're called
+;
+
 : logo ( x y -- ) \ B/W Orb mascot (15 rows x 32 columns)
 
-	2dup at-xy ."  ```                        `" 1+
-	2dup at-xy ." s` `.....---.......--.```   -/" 1+
-	2dup at-xy ." +o   .--`         /y:`      +." 1+
-	2dup at-xy ."  yo`:.            :o      `+-" 1+
-	2dup at-xy ."   y/               -/`   -o/" 1+
-	2dup at-xy ."  .-                  ::/sy+:." 1+
-	2dup at-xy ."  /                     `--  /" 1+
-	2dup at-xy ." `:                          :`" 1+
-	2dup at-xy ." `:                          :`" 1+
-	2dup at-xy ."  /                          /" 1+
-	2dup at-xy ."  .-                        -." 1+
-	2dup at-xy ."   --                      -." 1+
-	2dup at-xy ."    `:`                  `:`" 1+
-	2dup at-xy ."      .--             `--." 1+
-	     at-xy ."         .---.....----."
+	s"  ```                        `"  logo+
+	s" s` `.....---.......--.```   -/" logo+
+	s" +o   .--`         /y:`      +." logo+
+	s"  yo`:.            :o      `+-"  logo+
+	s"   y/               -/`   -o/"   logo+
+	s"  .-                  ::/sy+:."  logo+
+	s"  /                     `--  /"  logo+
+	s" `:                          :`" logo+
+	s" `:                          :`" logo+
+	s"  /                          /"  logo+
+	s"  .-                        -."  logo+
+	s"   --                      -."   logo+
+	s"    `:`                  `:`"    logo+
+	s"      .--             `--."      logo+
+	s"         .---.....----."         logo+
+
+	2drop
 ;

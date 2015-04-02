@@ -27,19 +27,27 @@
 
 52 logoX ! 9 logoY ! \ Initialize logo placement defaults
 
+: logo+ ( x y c-addr/u -- x y' )
+	2swap 2dup at-xy 2swap \ position the cursor
+	type \ print to the screen
+	1+ \ increase y for next time we're called
+;
+
 : logo ( x y -- ) \ "FreeBSD" logo in B/W (13 rows x 21 columns)
 
-	2dup at-xy ."  ______" 1+
-	2dup at-xy ." |  ____| __ ___  ___ " 1+
-	2dup at-xy ." | |__ | '__/ _ \/ _ \" 1+
-	2dup at-xy ." |  __|| | |  __/  __/" 1+
-	2dup at-xy ." | |   | | |    |    |" 1+
-	2dup at-xy ." |_|   |_|  \___|\___|" 1+
-	2dup at-xy ."  ____   _____ _____" 1+
-	2dup at-xy ." |  _ \ / ____|  __ \" 1+
-	2dup at-xy ." | |_) | (___ | |  | |" 1+
-	2dup at-xy ." |  _ < \___ \| |  | |" 1+
-	2dup at-xy ." | |_) |____) | |__| |" 1+
-	2dup at-xy ." |     |      |      |" 1+
-	     at-xy ." |____/|_____/|_____/"
+	s"  ______"               logo+
+	s" |  ____| __ ___  ___ " logo+
+	s" | |__ | '__/ _ \/ _ \" logo+
+	s" |  __|| | |  __/  __/" logo+
+	s" | |   | | |    |    |" logo+
+	s" |_|   |_|  \___|\___|" logo+
+	s"  ____   _____ _____"   logo+
+	s" |  _ \ / ____|  __ \"  logo+
+	s" | |_) | (___ | |  | |" logo+
+	s" |  _ < \___ \| |  | |" logo+
+	s" | |_) |____) | |__| |" logo+
+	s" |     |      |      |" logo+
+	s" |____/|_____/|_____/"  logo+
+
+	2drop
 ;

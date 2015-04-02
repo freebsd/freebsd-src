@@ -28,25 +28,34 @@
 
 46 logoX ! 4 logoY ! \ Initialize logo placement defaults
 
+: logo+ ( x y c-addr/u -- x y' )
+	2swap 2dup at-xy 2swap \ position the cursor
+	[char] @ escc! \ replace @ with Esc
+	type \ print to the screen
+	1+ \ increase y for next time we're called
+;
+
 : logo ( x y -- ) \ color BSD mascot (19 rows x 34 columns)
 
-2dup at-xy ."               [31m,        ," 1+
-2dup at-xy ."              /(        )`" 1+
-2dup at-xy ."              \ \___   / |" 1+
-2dup at-xy ."              /- [37m_[31m  `-/  '" 1+
-2dup at-xy ."             ([37m/\/ \[31m \   /\" 1+
-2dup at-xy ."             [37m/ /   |[31m `    \" 1+
-2dup at-xy ."             [34mO O   [37m) [31m/    |" 1+
-2dup at-xy ."             [37m`-^--'[31m`<     '" 1+
-2dup at-xy ."            (_.)  _  )   /" 1+
-2dup at-xy ."             `.___/`    /" 1+
-2dup at-xy ."               `-----' /" 1+
-2dup at-xy ."  [33m<----.[31m     __ / __   \" 1+
-2dup at-xy ."  [33m<----|====[31mO)))[33m==[31m) \) /[33m====|" 1+
-2dup at-xy ."  [33m<----'[31m    `--' `.__,' \" 1+
-2dup at-xy ."               |        |" 1+
-2dup at-xy ."                \       /       /\" 1+
-2dup at-xy ."           [36m______[31m( (_  / \______/" 1+
-2dup at-xy ."         [36m,'  ,-----'   |" 1+
-     at-xy ."         `--{__________)[37m"
+	s"               @[31m,        ,"                         logo+
+	s"              /(        )`"                             logo+
+	s"              \ \___   / |"                             logo+
+	s"              /- @[m_@[31m  `-/  '"                     logo+
+	s"             (@[m/\/ \@[31m \   /\"                     logo+
+	s"             @[m/ /   |@[31m `    \"                    logo+
+	s"             @[34mO O   @[m) @[31m/    |"               logo+
+	s"             @[m`-^--'@[31m`<     '"                    logo+
+	s"            (_.)  _  )   /"                             logo+
+	s"             `.___/`    /"                              logo+
+	s"               `-----' /"                               logo+
+	s"  @[33m<----.@[31m     __ / __   \"                     logo+
+	s"  @[33m<----|====@[31mO)))@[33m==@[31m) \) /@[33m====|" logo+
+	s"  @[33m<----'@[31m    `--' `.__,' \"                    logo+
+	s"               |        |"                              logo+
+	s"                \       /       /\"                     logo+
+	s"           @[36m______@[31m( (_  / \______/"            logo+
+	s"         @[36m,'  ,-----'   |"                          logo+
+	s"         `--{__________)@[m"                            logo+
+
+	2drop
 ;
