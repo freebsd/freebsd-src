@@ -173,6 +173,7 @@ static struct linker_class link_elf_class = {
 };
 
 static int	relocate_file(elf_file_t ef);
+static void	elf_obj_cleanup_globals_cache(elf_file_t);
 
 static void
 link_elf_error(const char *filename, const char *s)
@@ -1075,6 +1076,13 @@ relocate_file(elf_file_t ef)
 		}
 	}
 
+	/*
+	 * Only clean SHN_FBSD_CACHED for successfull return.  If we
+	 * modified symbol table for the object but found an
+	 * unresolved symbol, there is no reason to roll back.
+	 */
+	elf_obj_cleanup_globals_cache(ef);
+
 	return 0;
 }
 
@@ -1223,6 +1231,21 @@ link_elf_each_function_nameval(linker_file_t file,
 	return (0);
 }
 
+static void
+elf_obj_cleanup_globals_cache(elf_file_t ef)
+{
+	Elf_Sym *sym;
+	Elf_Size i;
+
+	for (i = 0; i < ef->ddbsymcnt; i++) {
+		sym = ef->ddbsymtab + i;
+		if (sym->st_shndx == SHN_FBSD_CACHED) {
+			sym->st_shndx = SHN_UNDEF;
+			sym->st_value = 0;
+		}
+	}
+}
+
 /*
  * Symbol lookup function that can be used when the symbol index is known (ie
  * in relocations). It uses the symbol index instead of doing a fully fledged
@@ -1234,7 +1257,7 @@ static Elf_Addr
 elf_obj_lookup(linker_file_t lf, Elf_Size symidx, int deps)
 {
 	elf_file_t ef = (elf_file_t)lf;
-	const Elf_Sym *sym;
+	Elf_Sym *sym;
 	const char *symbol;
 	Elf_Addr ret;
 
@@ -1262,7 +1285,22 @@ elf_obj_lookup(linker_file_t lf, Elf_Size symidx, int deps)
 		if (*symbol == 0)
 			return (0);
 		ret = ((Elf_Addr)linker_file_lookup_symbol(lf, symbol, deps));
-		return ret;
+
+		/*
+		 * Cache global lookups during module relocation. The failure
+		 * case is particularly expensive for callers, who must scan
+		 * through the entire globals table doing strcmp(). Cache to
+		 * avoid doing such work repeatedly.
+		 *
+		 * After relocation is complete, undefined globals will be
+		 * restored to SHN_UNDEF in elf_obj_cleanup_globals_cache(),
+		 * above.
+		 */
+		if (ret != 0) {
+			sym->st_shndx = SHN_FBSD_CACHED;
+			sym->st_value = ret;
+		}
+		return (ret);
 
 	case STB_WEAK:
 		printf("link_elf_obj: Weak symbols not supported\n");
