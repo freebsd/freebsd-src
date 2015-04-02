@@ -278,7 +278,7 @@ __bsd_iconvctl(iconv_t cd, int request, void *argument)
 
 		strlcpy(src, convname, dst - convname + 1);
 		dst++;
-		if ((convname == NULL) || (src == NULL) || (dst == NULL))
+		if ((convname == NULL) || (dst == NULL))
 			return (-1);
 		*i = strcmp(src, dst) == 0 ? 1 : 0;
 		return (0);
