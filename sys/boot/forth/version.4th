@@ -85,11 +85,10 @@ only forth definitions also version-processing
 	dup versionX @ swap - versionY @ at-xy
 
 	\ Print the version (optionally in cyan)
-	loader_color? if
-		." [36m" type ." [37m"
-	else
-		type
-	then
+	loader_color? dup ( -- bool bool )
+	if 6 fg then
+	type
+	if me then
 ;
 
 only forth definitions
