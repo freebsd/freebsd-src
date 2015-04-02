@@ -164,8 +164,8 @@ sandbox_map_minoffset(struct sandbox_map *sm)
 static int
 sandbox_map_optimize(struct sandbox_map *sm)
 {
-	size_t delta;
-	struct sandbox_map_entry *sme;
+	size_t delta, entry_end, newlen;
+	struct sandbox_map_entry *sme, *next_sme, *tmp_sme;
 
 	/*
 	 * Search for any mapping that start below sm->sm_minoffset (the
@@ -186,6 +186,107 @@ sandbox_map_optimize(struct sandbox_map *sm)
 			sme->sme_len -= delta;
 			sme->sme_file_offset += delta;
 		}
+	}
+
+	/*
+	 * Search for mapping with segments that will be overwritten by
+	 * the next mapping and truncate the mappings appropriately.
+	 */
+	STAILQ_FOREACH_SAFE(sme, &sm->sm_head, sme_entries, tmp_sme) {
+		next_sme = STAILQ_NEXT(sme, sme_entries);
+		if (next_sme == NULL)
+			break;
+
+		/*
+		 * Normal elf files have their sections sorted.  We can't
+		 * do anything useful if they aren't.  Complain loudly
+		 * if this happens so we know we need to handle this case.
+		 */
+		if (next_sme->sme_map_offset < sme->sme_map_offset) {
+			warnx("%s: unsorted mappings, most optimizations are "
+			    "disabled!", __func__);
+			continue;
+		}
+
+		if (sme->sme_map_offset + sme->sme_len <=
+		    next_sme->sme_map_offset)
+			continue;
+		if (sme->sme_map_offset + sme->sme_len >
+		    roundup2(next_sme->sme_map_offset + next_sme->sme_len,
+		    PAGE_SIZE)) {
+			/* This should not happen in normal ELF files... */
+			warnx("%s: mapping 0x%zx of length 0x%zx surrounds "
+			    "next mapping 0x%zx of length 0x%zx!", __func__,
+			    sme->sme_map_offset, sme->sme_len,
+			    next_sme->sme_map_offset, next_sme->sme_len);
+			continue;
+		}
+		newlen = next_sme->sme_map_offset - sme->sme_map_offset;
+#ifdef DEBUG
+		printf("truncating mapping at 0x%zx from 0x%zx to 0x%zx\n",
+		    sme->sme_map_offset, sme->sme_len, newlen);
+#endif
+		sme->sme_len = newlen;
+		sme->sme_tailbytes = 0;
+		if (sme->sme_len == 0) {
+			STAILQ_REMOVE(&sm->sm_head, sme, sandbox_map_entry,
+			    sme_entries);
+			free(sme);
+		}
+	}
+
+	/*
+	 * Search for adjacent mappings of the same file with the same
+	 * permissions and combine them.
+	 */
+	STAILQ_FOREACH_SAFE(sme, &sm->sm_head, sme_entries, tmp_sme) {
+#if defined(DEBUG) && DEBUG > 1
+		printf("sme_map_offset  = 0x%zx\n", sme->sme_map_offset);
+		printf("sme_len         = 0x%zx\n", sme->sme_len);
+		printf("sme_prot        = 0x%x\n", (uint)sme->sme_prot);
+		printf("sme_flags       = 0x%x\n", (uint)sme->sme_flags);
+		printf("sme_fd          = 0x%d\n", sme->sme_fd);
+		printf("sme_file_offset = 0x%zx\n", (size_t)sme->sme_file_offset);
+		printf("sme_tailbytes   = 0x%zx\n", sme->sme_tailbytes);
+#endif
+		next_sme = STAILQ_NEXT(sme, sme_entries);
+		if (next_sme == NULL)
+			continue;
+
+		/*
+		 * Normal elf files have their sections sorted.  We can't
+		 * do anything useful if they aren't.
+		 */
+		if (next_sme->sme_map_offset < sme->sme_map_offset ||
+		    next_sme->sme_file_offset < sme->sme_file_offset)
+			continue;
+
+		/*
+		 * Note: the truncation pass above ensures that eligable
+		 * entries run precisely to the page proceeding the next one.
+		 */
+		entry_end = roundup2(sme->sme_map_offset + sme->sme_len,
+		    PAGE_SIZE);
+		delta = next_sme->sme_map_offset - sme->sme_map_offset;
+		if (sme->sme_tailbytes > 0 ||
+		    sme->sme_prot != next_sme->sme_prot ||
+		    sme->sme_flags != next_sme->sme_flags ||
+		    sme->sme_fd != next_sme->sme_fd ||
+		    entry_end != next_sme->sme_map_offset ||
+		    (size_t)next_sme->sme_file_offset - sme->sme_file_offset
+		    != delta)
+			continue;
+
+#ifdef DEBUG
+		printf("combining mapping at 0x%zx with mapping at 0x%zx\n",
+		    sme->sme_map_offset, next_sme->sme_map_offset);
+#endif
+		next_sme->sme_map_offset -= delta;
+		next_sme->sme_len += delta;
+		next_sme->sme_file_offset -= delta;
+
+		STAILQ_REMOVE(&sm->sm_head, sme, sandbox_map_entry, sme_entries);
+		free(sme);
 	}
 
 	return (0);
