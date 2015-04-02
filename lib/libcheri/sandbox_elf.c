@@ -126,6 +126,20 @@ sandbox_map_load(void *base, struct sandbox_map *sm)
 	return (0);
 }
 
+int
+sandbox_map_reload(void *base, struct sandbox_map *sm)
+{
+	struct sandbox_map_entry *sme;
+
+	STAILQ_FOREACH(sme, &sm->sm_head, sme_entries) {
+		if (!(sme->sme_prot & PROT_WRITE))
+			continue;
+		if (sandbox_map_entry_mmap(base, sme) == MAP_FAILED)
+			return (-1);
+	}
+	return (0);
+}
+
 void
 sandbox_map_free(struct sandbox_map *sm)
 {

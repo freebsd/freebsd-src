@@ -479,6 +479,38 @@ sandbox_object_new_flags(struct sandbox_class *sbcp, size_t heaplen,
 	return (0);
 }
 
+int
+sandbox_object_reset(struct sandbox_object *sbop)
+{
+	struct sandbox_class *sbcp;
+
+	assert(sbop != NULL);
+	sbcp = sbop->sbo_sandbox_classp;
+	assert(sbcp != NULL);
+
+	if (sandbox_object_reload(sbop) == -1) {
+		warn("%s:, sandbox_object_reload", __func__);
+		return (-1);
+	}
+
+	/*
+	 * Invoke object instance's constructors.  Note that, given the tight
+	 * binding of class and object in the sandbox library currently, this
+	 * will need to change in the future.  We also need to think more
+	 * carefully about the mechanism here.
+	 *
+	 * NB: Should we be passing in a system-class reference...?
+	 */
+	(void)cheri_invoke(sbop->sbo_cheri_object_rtld,
+	    SANDBOX_RUNTIME_CONSTRUCTORS,
+	    0, 0, 0, 0, 0, 0, 0, 0,
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap(), cheri_zerocap());
+
+	return (0);
+}
+
 #define	SANDBOX_OBJECT_FLAG_DEFAULT	(SANDBOX_OBJECT_FLAG_CONSOLE |	\
 	    SANDBOX_OBJECT_FLAG_ALLOCFREE | SANDBOX_OBJECT_FLAG_USERFN)
 int

@@ -84,6 +84,7 @@ int	sandbox_object_new(struct sandbox_class *sbcp, size_t heaplen,
 	    struct sandbox_object **sbopp);
 int	sandbox_object_new_flags(struct sandbox_class *sbcp, size_t heaplen,
 	    uint flags, struct sandbox_object **sbopp);
+int	sandbox_object_reset(struct sandbox_object *sbop);
 void	*sandbox_object_getbase(struct sandbox_object *sbop);
 size_t	sandbox_object_getlength(struct sandbox_object *sbop);
 #if __has_feature(capabilities)

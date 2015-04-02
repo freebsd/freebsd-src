@@ -339,13 +339,14 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	/*
 	 * Stack.
 	 */
+	sbop->sbo_stackbase = (register_t)base - (register_t)sbop->sbo_datamem;
+	sbop->sbo_stacklen = length;
 	if (mmap(base, length, PROT_READ | PROT_WRITE, MAP_ANON | MAP_FIXED,
 	    -1, 0) == MAP_FAILED) {
 		saved_errno = errno;
 		warn("%s: mmap stack", __func__);
 		goto error;
 	}
-	memset(base, 0, length);
 	base += STACK_SIZE;
 	length -= STACK_SIZE;
 
@@ -426,6 +427,66 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 error:
 	if (sbop->sbo_datamem != NULL)
 		munmap(sbop->sbo_datamem, sbop->sbo_datalen);
+	errno = saved_errno;
+	return (-1);
+}
+
+int
+sandbox_object_reload(struct sandbox_object *sbop)
+{
+	int saved_errno;
+	caddr_t base;
+	size_t length;
+	struct sandbox_class *sbcp;
+	__capability void *datacap;
+
+	assert(sbop != NULL);
+	sbcp = sbop->sbo_sandbox_classp;
+	assert(sbcp != NULL);
+
+	if (sandbox_map_reload(sbop->sbo_datamem, sbcp->sbc_datamap) == -1) {
+		saved_errno = EINVAL;
+		warnx("%s:, sandbox_map_reset", __func__);
+		goto error;
+	}
+
+	base = (caddr_t)sbop->sbo_datamem + sbop->sbo_heapbase;
+	length = sbop->sbo_heaplen;
+	if (mmap(base, length, PROT_READ | PROT_WRITE, MAP_ANON | MAP_FIXED,
+	    -1, 0) == MAP_FAILED) {
+		saved_errno = errno;
+		warn("%s: mmap heap", __func__);
+		goto error;
+	}
+
+	base = (caddr_t)sbop->sbo_datamem + sbop->sbo_stackbase;
+	length = sbop->sbo_stacklen;
+	if (mmap(base, length, PROT_READ | PROT_WRITE, MAP_ANON | MAP_FIXED,
+	    -1, 0) == MAP_FAILED) {
+		saved_errno = errno;
+		warn("%s: mmap stack", __func__);
+		goto error;
+	}
+
+	datacap = cheri_ptrperm(sbop->sbo_datamem, sbop->sbo_datalen,
+	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP |
+	    CHERI_PERM_STORE | CHERI_PERM_STORE_CAP |
+	    CHERI_PERM_STORE_LOCAL_CAP);
+	if (sandbox_set_required_method_variables(datacap,
+	    sbcp->sbc_required_methods)
+	    == -1) {
+		saved_errno = EINVAL;
+		warnx("%s: sandbox_set_ccaller_method_variables", __func__);
+		goto error;
+	}
+
+	return (0);
+
+error:
+	if (sbop->sbo_datamem != NULL) {
+		munmap(sbop->sbo_datamem, sbop->sbo_datalen);
+		sbop->sbo_datamem = NULL;
+	}
 	errno = saved_errno;
 	return (-1);
 }

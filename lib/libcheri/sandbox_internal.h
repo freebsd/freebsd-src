@@ -101,6 +101,8 @@ struct sandbox_object {
 	register_t		 sbo_datalen;
 	register_t		 sbo_heapbase;
 	register_t		 sbo_heaplen;
+	register_t		 sbo_stackbase;
+	register_t		 sbo_stacklen;
 	uint			 sbo_flags;	/* Sandbox flags. */
 
 	/*
@@ -134,6 +136,7 @@ int	sandbox_class_load(struct sandbox_class *sbcp);
 void	sandbox_class_unload(struct sandbox_class *sbcp);
 int	sandbox_object_load(struct sandbox_class *sbcp,
 	    struct sandbox_object *sbop);
+int	sandbox_object_reload(struct sandbox_object *sbop);
 void	sandbox_object_unload(struct sandbox_object *sbop);
 
 #endif /* !_SANDBOX_INTERNAL_H_ */
