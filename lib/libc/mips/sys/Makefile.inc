@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SRCS+=	__vdso_gettc.c
+SRCS+=	trivial-vdso_tc.c
 
 MDASM=  Ovfork.S brk.S cerror.S exect.S \
 	fork.S pipe.S ptrace.S sbrk.S syscall.S
