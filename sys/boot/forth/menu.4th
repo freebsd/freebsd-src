@@ -216,13 +216,10 @@ also menu-infrastructure definitions
 	dup menuX @ swap at-xy
 
 	\ Print the value of menuidx
-	loader_color? if
-		." [1m" ( [22m )
-	then
+	loader_color? dup ( -- bool bool )
+	if b then
 	menuidx @ .
-	loader_color? if
-		." [37m" ( [39m )
-	then
+	if me then
 
 	\ Move the cursor forward 1 column
 	dup menuX @ 1+ swap at-xy
