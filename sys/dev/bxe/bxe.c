@@ -3246,7 +3246,7 @@ bxe_rxeof(struct bxe_softc    *sc,
     uint16_t bd_cons, bd_prod, bd_prod_fw, comp_ring_cons;
     uint16_t hw_cq_cons, sw_cq_cons, sw_cq_prod;
     int rx_pkts = 0;
-    int rc;
+    int rc = 0;
 
     BXE_FP_RX_LOCK(fp);
 
@@ -3388,6 +3388,10 @@ bxe_rxeof(struct bxe_softc    *sc,
                                   (sc->max_rx_bufs != RX_BD_USABLE) ?
                                       bd_prod : bd_cons);
         if (rc != 0) {
+
+            /* we simply reuse the received mbuf and don't post it to the stack */
+            m = NULL;
+
             BLOGE(sc, "mbuf alloc fail for fp[%02d] rx chain (%d)\n",
                   fp->index, rc);
             fp->eth_q_stats.rx_soft_errors++;
@@ -3476,6 +3480,9 @@ next_cqe:
         sw_cq_cons = RCQ_NEXT(sw_cq_cons);
 
         /* limit spinning on the queue */
+        if (rc != 0)
+            break;
+
         if (rx_pkts == sc->rx_budget) {
             fp->eth_q_stats.rx_budget_reached++;
             break;
