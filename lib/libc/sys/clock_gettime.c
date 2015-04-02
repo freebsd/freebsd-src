@@ -42,7 +42,7 @@ __clock_gettime(clockid_t clock_id, struct timespec *ts)
 {
 	int error;
 
-	if (__vdso_clock_gettime != NULL && __vdso_gettc != NULL)
+	if (&__vdso_clock_gettime != NULL && &__vdso_gettc != NULL)
 		error = __vdso_clock_gettime(clock_id, ts);
 	else
 		error = ENOSYS;
