@@ -105,12 +105,7 @@ static struct timecounter arm_tmr_timecount = {
 static int
 get_freq(void)
 {
-	uint32_t val;
-
-	/* cntfrq */
-	__asm volatile("mrc p15, 0, %0, c14, c0, 0" : "=r" (val));
-
-	return (val);
+	return (cp15_cntfrq_get());
 }
 
 static long
@@ -120,11 +115,9 @@ get_cntxct(bool physical)
 
 	isb();
 	if (physical)
-		/* cntpct */
-		__asm volatile("mrrc p15, 0, %Q0, %R0, c14" : "=r" (val));
+		val = cp15_cntpct_get();
 	else
-		/* cntvct */
-		__asm volatile("mrrc p15, 1, %Q0, %R0, c14" : "=r" (val));
+		val = cp15_cntvct_get();
 
 	return (val);
 }
@@ -134,13 +127,9 @@ set_ctrl(uint32_t val, bool physical)
 {
 
 	if (physical)
-		/* cntp_ctl */
-		__asm volatile("mcr p15, 0, %[val], c14, c2, 1" : :
-		    [val] "r" (val));
+		cp15_cntp_ctl_set(val);
 	else
-		/* cntv_ctl */
-		__asm volatile("mcr p15, 0, %[val], c14, c3, 1" : :
-		    [val] "r" (val));
+		cp15_cntv_ctl_set(val);
 	isb();
 
 	return (0);
@@ -151,13 +140,9 @@ set_tval(uint32_t val, bool physical)
 {
 
 	if (physical)
-		/* cntp_tval */
-		__asm volatile("mcr p15, 0, %[val], c14, c2, 0" : :
-		    [val] "r" (val));
+		cp15_cntp_tval_set(val);
 	else
-		/* cntv_tval */
-		__asm volatile("mcr p15, 0, %[val], c14, c3, 0" : :
-		    [val] "r" (val));
+		cp15_cntv_tval_set(val);
 	isb();
 
 	return (0);
@@ -169,11 +154,9 @@ get_ctrl(bool physical)
 	uint32_t val;
 
 	if (physical)
-		/* cntp_ctl */
-		__asm volatile("mrc p15, 0, %0, c14, c2, 1" : "=r" (val));
+		val = cp15_cntp_ctl_get();
 	else
-		/* cntv_ctl */
-		__asm volatile("mrc p15, 0, %0, c14, c3, 1" : "=r" (val));
+		val = cp15_cntv_ctl_get();
 
 	return (val);
 }
@@ -183,10 +166,10 @@ disable_user_access(void)
 {
 	uint32_t cntkctl;
 
-	__asm volatile("mrc p15, 0, %0, c14, c1, 0" : "=r" (cntkctl));
+	cntkctl = cp15_cntkctl_get();
 	cntkctl &= ~(GT_CNTKCTL_PL0PTEN | GT_CNTKCTL_PL0VTEN |
 	    GT_CNTKCTL_EVNTEN | GT_CNTKCTL_PL0VCTEN | GT_CNTKCTL_PL0PCTEN);
-	__asm volatile("mcr p15, 0, %0, c14, c1, 0" : : "r" (cntkctl));
+	cp15_cntkctl_set(cntkctl);
 	isb();
 }
 
