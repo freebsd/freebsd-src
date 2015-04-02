@@ -78,7 +78,7 @@ sandbox_map_entry_new(size_t map_offset, size_t len, int prot, int flags,
 		return (NULL);
 	}
 	sme->sme_map_offset = map_offset;
-	sme->sme_len = len;
+	sme->sme_len = roundup2(len, PAGE_SIZE);
 	sme->sme_prot = prot;
 	sme->sme_flags = flags;
 	sme->sme_fd = fd;
@@ -114,7 +114,7 @@ sandbox_map_entry_mmap(void *base, struct sandbox_map_entry *sme)
 	 * sme->sme_tailbytes if memset isn't useful.  Requires a
 	 * first-pass flag.
 	 */
-	memset(taddr + sme->sme_len, 0, sme->sme_tailbytes);
+	memset(taddr + sme->sme_len - sme->sme_tailbytes, 0, sme->sme_tailbytes);
 
 	return (addr);
 }
@@ -212,8 +212,7 @@ sandbox_map_optimize(struct sandbox_map *sm)
 		    next_sme->sme_map_offset)
 			continue;
 		if (sme->sme_map_offset + sme->sme_len >
-		    roundup2(next_sme->sme_map_offset + next_sme->sme_len,
-		    PAGE_SIZE)) {
+		    next_sme->sme_map_offset + next_sme->sme_len) {
 			/* This should not happen in normal ELF files... */
 			warnx("%s: mapping 0x%zx of length 0x%zx surrounds "
 			    "next mapping 0x%zx of length 0x%zx!", __func__,
@@ -265,8 +264,7 @@ sandbox_map_optimize(struct sandbox_map *sm)
 		 * Note: the truncation pass above ensures that eligable
 		 * entries run precisely to the page proceeding the next one.
 		 */
-		entry_end = roundup2(sme->sme_map_offset + sme->sme_len,
-		    PAGE_SIZE);
+		entry_end = sme->sme_map_offset + sme->sme_len;
 		delta = next_sme->sme_map_offset - sme->sme_map_offset;
 		if (sme->sme_tailbytes > 0 ||
 		    sme->sme_prot != next_sme->sme_prot ||
