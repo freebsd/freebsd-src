@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 1998 Michael Smith <msmith@freebsd.org>
+ * Copyright (c) 2011 Wojciech A. Koszek <wkoszek@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -279,7 +280,7 @@ interp_forth_init(void *ctx)
 
 	/* Export some version numbers so that code can detect the loader/host version */
 	ficlSetEnv(softc->bf_sys, "FreeBSD_version", __FreeBSD_version);
-	ficlSetEnv(softc->bf_sys, "loader_version", 
+	ficlSetEnv(softc->bf_sys, "loader_version",
 		(bootprog_rev[0] - '0') * 10 + (bootprog_rev[2] - '0'));
 
 	/* try to load and run init file if present */
