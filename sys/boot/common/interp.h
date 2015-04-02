@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2011 Wojciech A. Koszek <wkoszek@FreeBSD.org>
  * Copyright (c) 2014 Pedro Souza <pedrosouza@freebsd.org>
  * All rights reserved.
  *
@@ -75,7 +76,7 @@ void prompt(void);
  */
 int default_load_config(void *ctx);
 
-struct includeline 
+struct includeline
 {
     struct includeline	*next;
     int			flags;

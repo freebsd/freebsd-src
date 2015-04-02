@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2011 Wojciech A. Koszek <wkoszek@FreeBSD.org>
  * Copyright (c) 2014 Pedro Souza <pedrosouza@freebsd.org>
  * All rights reserved.
  *
