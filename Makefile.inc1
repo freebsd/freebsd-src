@@ -411,8 +411,9 @@ LIB32CPUFLAGS=	-march=${TARGET_CPUTYPE}
 LIB32WMAKEENV=	MACHINE=i386 MACHINE_ARCH=i386 \
 		MACHINE_CPU="i686 mmx sse sse2"
 LIB32WMAKEFLAGS=	\
-		AS="${AS} --32" \
-		LD="${LD} -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32"
+		AS="${XAS} --32" \
+		LD="${XLD} -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32" \
+		OBJCOPY="${XOBJCOPY}"
 
 .elif ${TARGET_ARCH} == "powerpc64"
 .if empty(TARGET_CPUTYPE)
@@ -422,7 +423,8 @@ LIB32CPUFLAGS=	-mcpu=${TARGET_CPUTYPE}
 .endif
 LIB32WMAKEENV=	MACHINE=powerpc MACHINE_ARCH=powerpc
 LIB32WMAKEFLAGS=	\
-		LD="${LD} -m elf32ppc_fbsd"
+		LD="${XLD} -m elf32ppc_fbsd" \
+		OBJCOPY="${XOBJCOPY}"
 .endif
 
 
