@@ -55,7 +55,7 @@ LIB2FUNCS+= _fixuns${mode}si
 .endfor
 
 # Likewise double-word routines.
-.if ${TARGET_CPUARCH} != "arm"
+.if ${TARGET_CPUARCH} != "aarch64" && ${TARGET_CPUARCH} != "arm"
 # These are implemented in an ARM specific file but will not be filtered out
 .for mode in sf df xf tf
 LIB2FUNCS+= _fix${mode}di _fixuns${mode}di
