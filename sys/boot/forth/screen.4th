@@ -62,3 +62,13 @@ marker task-screen.4th
 
 \ Disable inverse foreground/background mode ( Esc-[27m )
 : -inv ( -- ) escc 27 .# [char] m emit ;
+
+\ Convert all occurrences of given character (c) in string (c-addr/u) to Esc
+: escc! ( c-addr/u c -- c-addr/u )
+	2 pick 2 pick
+	begin dup 0> while
+		over c@ 3 pick = if over 27 swap c! then
+		1- swap 1+ swap
+	repeat
+	2drop drop
+;

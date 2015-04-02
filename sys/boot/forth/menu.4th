@@ -395,14 +395,15 @@ also menu-infrastructure definitions
 		setenv
 
 		\ Assign third to ansi_caption[x][y]
-		kerncapbuf 0 s" [1mK[37mernel: " strcat
+		kerncapbuf 0 s" @[1mK@[37mernel: " [char] @ escc! strcat
 		kernmenuidx @ [char] 0 = if
-			s" default/[32m"
+			s" default/@[32m"
 		else
-			s" [34;1m"
-		then strcat
+			s" @[34;1m"
+		then
+		[char] @ escc! strcat
 		2over strcat
-		s" [37m" strcat
+		s" @[37m" [char] @ escc! strcat
 		kernidx @ kernmenuidx @ ansi_caption[x][y]
 		setenv
 

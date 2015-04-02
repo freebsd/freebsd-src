@@ -26,13 +26,21 @@
 
 2 brandX ! 1 brandY ! \ Initialize brand placement defaults
 
+: brand+ ( x y c-addr/u -- x y' )
+	2swap 2dup at-xy 2swap \ position the cursor
+	type \ print to the screen
+	1+ \ increase y for next time we're called
+;
+
 : brand ( x y -- ) \ "FreeBSD" [wide] logo in B/W (7 rows x 42 columns)
 
-	2dup at-xy ."  ______               ____   _____ _____  " 1+
-	2dup at-xy ." |  ____|             |  _ \ / ____|  __ \ " 1+
-	2dup at-xy ." | |___ _ __ ___  ___ | |_) | (___ | |  | |" 1+
-	2dup at-xy ." |  ___| '__/ _ \/ _ \|  _ < \___ \| |  | |" 1+
-	2dup at-xy ." | |   | | |  __/  __/| |_) |____) | |__| |" 1+
-	2dup at-xy ." | |   | | |    |    ||     |      |      |" 1+
-	     at-xy ." |_|   |_|  \___|\___||____/|_____/|_____/ "
+	s"  ______               ____   _____ _____  " brand+
+	s" |  ____|             |  _ \ / ____|  __ \ " brand+
+	s" | |___ _ __ ___  ___ | |_) | (___ | |  | |" brand+
+	s" |  ___| '__/ _ \/ _ \|  _ < \___ \| |  | |" brand+
+	s" | |   | | |  __/  __/| |_) |____) | |__| |" brand+
+	s" | |   | | |    |    ||     |      |      |" brand+
+	s" |_|   |_|  \___|\___||____/|_____/|_____/ " brand+
+
+	2drop
 ;
