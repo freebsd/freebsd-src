@@ -95,14 +95,14 @@ or
 .Qq Ar CRC32C .
 Default is
 .Qq Ar None .
-.It Cm TargetName
-Sets the target name.
-Not required for discovery sessions.
 .It Cm InitiatorName
 Sets the initiator name.
 By default, the name is concatenation of
 .Qq Ar iqn.1994-09.org.freebsd:
 with the hostname.
+.It Cm TargetName
+Sets the target name.
+Not required for discovery sessions.
 .It Cm TargetAddress
 Sets the target address and port, in
 .Sy address[:port]
@@ -140,6 +140,12 @@ myiscsi { # nickname
    targetaddress = iscsi1
    targetname    = iqn.1900.com.com:sn.123456
 }
+
+myiscsi6 { # nickname
+   targetaddress = [2001:db8::de:ef]:3260
+   targetname    = iqn.1900.com.com:sn.123456
+}
+
 chaptest {
    targetaddress = 10.0.0.1;
    targetname    = iqn.1900.com.com:sn.123456;
