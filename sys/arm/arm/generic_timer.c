@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #define	GT_CTRL_ENABLE		(1 << 0)
 #define	GT_CTRL_INT_MASK	(1 << 1)
