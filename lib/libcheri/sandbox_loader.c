@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2012-2015 Robert N. M. Watson
+ * Copyright (c) 2015 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -86,9 +87,7 @@ sandbox_class_load(struct sandbox_class *sbcp)
 	 * configure a stack.
 	 *
 	 * Eventually, we will want to do something a bit different here -- in
-	 * particular, perform run-time-linker-esque setup such as vtable
-	 * initialisation, and also set up the code and data capabilities
-	 * quite differently.
+	 * particular, set up the code and data capabilities quite differently.
 	 */
 
 	/*

@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2012-2015 Robert N. M. Watson
+ * Copyright (c) 2015 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -435,6 +436,7 @@ sandbox_class_destroy(struct sandbox_class *sbcp)
  * resources via flags passed here.  We should use a more general security
  * model based on capability permissions.  However, this does allow us to more
  * generally get up and running.
+ * XXXBD: I broke the flags when switching system functions to cheri_ccallee.
  */
 int
 sandbox_object_new_flags(struct sandbox_class *sbcp, size_t heaplen,
@@ -462,8 +464,6 @@ sandbox_object_new_flags(struct sandbox_class *sbcp, size_t heaplen,
 	 * binding of class and object in the sandbox library currently, this
 	 * will need to change in the future.  We also need to think more
 	 * carefully about the mechanism here.
-	 *
-	 * NB: Should we be passing in a system-class reference...?
 	 */
 	(void)cheri_invoke(sbop->sbo_cheri_object_rtld,
 	    SANDBOX_RUNTIME_CONSTRUCTORS,
@@ -498,8 +498,6 @@ sandbox_object_reset(struct sandbox_object *sbop)
 	 * binding of class and object in the sandbox library currently, this
 	 * will need to change in the future.  We also need to think more
 	 * carefully about the mechanism here.
-	 *
-	 * NB: Should we be passing in a system-class reference...?
 	 */
 	(void)cheri_invoke(sbop->sbo_cheri_object_rtld,
 	    SANDBOX_RUNTIME_CONSTRUCTORS,

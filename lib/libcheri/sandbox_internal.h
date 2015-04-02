@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2012-2015 Robert N. M. Watson
+ * Copyright (c) 2015 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -44,9 +45,6 @@ extern int	sb_verbose;
  * NB: For now, support up to 'SANDBOX_CLASS_METHOD_COUNT' sets of method
  * statistics, which will be indexed by method number.  If the requested
  * method number isn't in range, use the catchall entry instead.
- *
- * XXXRW: Ideally, we would load this data from the target ELF rather than
- * letting the caller provide it.
  */
 #define	SANDBOX_CLASS_METHOD_COUNT	32
 struct sandbox_class {
@@ -91,8 +89,6 @@ struct sandbox_class {
  * TODO:
  * - Add atomically set flag and assertion to ensure single-threaded entry to
  *   the sandbox.
- * - Once the compiler supports it, move the code memory mapping and
- *   capability out of sandbox_object into sandbox_class.
  */
 struct sandbox_object {
 	CHERI_SYSTEM_OBJECT_FIELDS;
