@@ -254,6 +254,20 @@ ip_fillid(struct ip *ip)
 		ip->ip_id = ip_randomid();
 	else {
 		counter_u64_add(V_ip_id, 1);
+		/*
+		 * There are two issues about this trick, to be kept in mind.
+		 * 1) We can migrate between counter_u64_add() and next
+		 *    line, and grab counter from other CPU, resulting in too
+		 *    quick ID reuse. This is tolerable in our particular case,
+		 *    since probability of such event is much lower then reuse
+		 *    of ID due to legitimate overflow, that at modern Internet
+		 *    speeds happens all the time.
+		 * 2) We are relying on the fact that counter(9) is based on
+		 *    UMA_ZONE_PCPU uma(9) zone. We also take only last
+		 *    sixteen bits of a counter, so we don't care about the
+		 *    fact that machines with 32-bit word update their counters
+		 *    not atomically.
+		 */
 		ip->ip_id = htons((*(uint64_t *)zpcpu_get(V_ip_id)) & 0xffff);
 	}
 }
