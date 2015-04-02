@@ -109,11 +109,6 @@ sandbox_map_entry_mmap(void *base, struct sandbox_map_entry *sme)
 	}
 	assert(addr == taddr);
 
-	/*
-	 * XXXBD: Optimization opportunity.  Check contents and clear
-	 * sme->sme_tailbytes if memset isn't useful.  Requires a
-	 * first-pass flag.
-	 */
 	memset(taddr + sme->sme_len - sme->sme_tailbytes, 0, sme->sme_tailbytes);
 
 	return (addr);
@@ -231,6 +226,36 @@ sandbox_map_optimize(struct sandbox_map *sm)
 			STAILQ_REMOVE(&sm->sm_head, sme, sandbox_map_entry,
 			    sme_entries);
 			free(sme);
+		}
+	}
+
+	/*
+	 * Search for mappings containing tailbytes and map the last page to
+	 * check if the bytes actually need to be zeroed.
+	 */
+	STAILQ_FOREACH(sme, &sm->sm_head, sme_entries) {
+		char *lastpage;
+		if (sme->sme_tailbytes == 0)
+			continue;
+#ifdef DEBUG
+		printf("Testing %zu tailbytes for mapping at 0x%zx\n",
+		    sme->sme_tailbytes, sme->sme_map_offset);
+#endif
+		if ((lastpage = mmap(0, PAGE_SIZE, PROT_READ, MAP_PRIVATE,
+		    sme->sme_fd, sme->sme_file_offset + sme->sme_len -
+		    PAGE_SIZE)) == MAP_FAILED) {
+			warn("%s: mmap\n", __func__);
+			return (-1);
+		}
+		for (/**/; sme->sme_tailbytes > 0; sme->sme_tailbytes--)
+			if (lastpage[PAGE_SIZE - sme->sme_tailbytes] != 0)
+				break;
+#ifdef DEBUG
+		printf("%zu actual tailbytes\n", sme->sme_tailbytes);
+#endif
+		if (munmap(lastpage, PAGE_SIZE) == -1) {
+			warn("%s: munmap", __func__);
+			return (-1);
 		}
 	}
 
