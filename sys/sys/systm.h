@@ -295,8 +295,9 @@ sbintime_t 	cpu_idleclock(void);
 void	cpu_activeclock(void);
 void	cpu_new_callout(int cpu, sbintime_t bt, sbintime_t bt_opt);
 void	cpu_et_frequency(struct eventtimer *et, uint64_t newfreq);
-extern int	cpu_can_deep_sleep;
-extern int	cpu_disable_deep_sleep;
+extern int	cpu_deepest_sleep;
+extern int	cpu_disable_c2_sleep;
+extern int	cpu_disable_c3_sleep;
 
 int	cr_cansee(struct ucred *u1, struct ucred *u2);
 int	cr_canseesocket(struct ucred *cred, struct socket *so);
