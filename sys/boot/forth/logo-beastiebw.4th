@@ -27,25 +27,33 @@
 
 46 logoX ! 4 logoY ! \ Initialize logo placement defaults
 
+: logo+ ( x y c-addr/u -- x y' )
+	2swap 2dup at-xy 2swap \ position the cursor
+	type \ print to the screen
+	1+ \ increase y for next time we're called
+;
+
 : logo ( x y -- ) \ B/W BSD mascot (19 rows x 34 columns)
 
-	2dup at-xy ."               ,        ," 1+
-	2dup at-xy ."              /(        )`" 1+
-	2dup at-xy ."              \ \___   / |" 1+
-	2dup at-xy ."              /- _  `-/  '" 1+
-	2dup at-xy ."             (/\/ \ \   /\" 1+
-	2dup at-xy ."             / /   | `    \" 1+
-	2dup at-xy ."             O O   ) /    |" 1+
-	2dup at-xy ."             `-^--'`<     '" 1+
-	2dup at-xy ."            (_.)  _  )   /" 1+
-	2dup at-xy ."             `.___/`    /" 1+
-	2dup at-xy ."               `-----' /" 1+
-	2dup at-xy ."  <----.     __ / __   \" 1+
-	2dup at-xy ."  <----|====O)))==) \) /====|" 1+
-	2dup at-xy ."  <----'    `--' `.__,' \" 1+
-	2dup at-xy ."               |        |" 1+
-	2dup at-xy ."                \       /       /\" 1+
-	2dup at-xy ."           ______( (_  / \______/" 1+
-	2dup at-xy ."         ,'  ,-----'   |" 1+
-	     at-xy ."         `--{__________)"
+	s"               ,        ,"          logo+
+	s"              /(        )`"         logo+
+	s"              \ \___   / |"         logo+
+	s"              /- _  `-/  '"         logo+
+	s"             (/\/ \ \   /\"         logo+
+	s"             / /   | `    \"        logo+
+	s"             O O   ) /    |"        logo+
+	s"             `-^--'`<     '"        logo+
+	s"            (_.)  _  )   /"         logo+
+	s"             `.___/`    /"          logo+
+	s"               `-----' /"           logo+
+	s"  <----.     __ / __   \"           logo+
+	s"  <----|====O)))==) \) /====|"      logo+
+	s"  <----'    `--' `.__,' \"          logo+
+	s"               |        |"          logo+
+	s"                \       /       /\" logo+
+	s"           ______( (_  / \______/"  logo+
+	s"         ,'  ,-----'   |"           logo+
+	s"         `--{__________)"           logo+
+
+	2drop
 ;
