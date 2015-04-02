@@ -106,15 +106,16 @@ gpioled_identify(driver_t *driver, device_t bus)
 	root = OF_finddevice("/");
 	if (root == 0)
 		return;
-	leds = fdt_find_compatible(root, "gpio-leds", 1);
-	if (leds == 0)
-		return;
-	/* Traverse the 'gpio-leds' node and add its children. */
-	for (child = OF_child(leds); child != 0; child = OF_peer(child)) {
-		if (!OF_hasprop(child, "gpios"))
+	for (leds = OF_child(root); leds != 0; leds = OF_peer(leds)) {
+		if (!fdt_is_compatible_strict(leds, "gpio-leds"))
 			continue;
-		if (ofw_gpiobus_add_fdt_child(bus, driver->name, child) == NULL)
-			continue;
+		/* Traverse the 'gpio-leds' node and add its children. */
+		for (child = OF_child(leds); child != 0; child = OF_peer(child)) {
+			if (!OF_hasprop(child, "gpios"))
+				continue;
+			if (ofw_gpiobus_add_fdt_child(bus, driver->name, child) == NULL)
+				continue;
+		}
 	}
 }
 #endif
