@@ -78,7 +78,6 @@ typedef void * (*path_enum_proc) (const char *path, size_t len, void *arg);
  * Function declarations.
  */
 static const char *basename(const char *);
-static void die(void) __dead2;
 static void digest_dynamic1(Obj_Entry *, int, const Elf_Dyn **,
     const Elf_Dyn **, const Elf_Dyn **);
 static void digest_dynamic2(Obj_Entry *, const Elf_Dyn *, const Elf_Dyn *,
@@ -430,7 +429,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	    unsetenv(LD_ "DEBUG") || unsetenv(LD_ "ELF_HINTS_PATH") ||
 	    unsetenv(LD_ "LOADFLTR") || unsetenv(LD_ "LIBRARY_PATH_RPATH")) {
 		_rtld_error("environment corrupt; aborting");
-		die();
+		rtld_die();
 	}
     }
     ld_debug = getenv(LD_ "DEBUG");
@@ -479,7 +478,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	obj_main = map_object(fd, argv0, NULL);
 	close(fd);
 	if (obj_main == NULL)
-	    die();
+	    rtld_die();
 	max_stack_flags = obj->stack_flags;
     } else {				/* Main program already loaded. */
 	const Elf_Phdr *phdr;
@@ -496,7 +495,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	assert(aux_info[AT_ENTRY] != NULL);
 	entry = (caddr_t) aux_info[AT_ENTRY]->a_un.a_ptr;
 	if ((obj_main = digest_phdr(phdr, phnum, entry, argv0)) == NULL)
-	    die();
+	    rtld_die();
     }
 
     if (aux_info[AT_EXECPATH] != 0) {
@@ -563,12 +562,12 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
     dbg("loading LD_PRELOAD libraries");
     if (load_preload_objects() == -1)
-	die();
+	rtld_die();
     preload_tail = obj_tail;
 
     dbg("loading needed objects");
     if (load_needed_objects(obj_main, 0) == -1)
-	die();
+	rtld_die();
 
     /* Make a list of all objects loaded at startup. */
     last_interposer = obj_main;
@@ -584,7 +583,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
     dbg("checking for required versions");
     if (rtld_verify_versions(&list_main) == -1 && !ld_tracing)
-	die();
+	rtld_die();
 
     if (ld_tracing) {		/* We're done */
 	trace_loaded_objects(obj_main);
@@ -613,11 +612,11 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     if (relocate_objects(obj_main,
       ld_bind_now != NULL && *ld_bind_now != '\0',
       &obj_rtld, SYMLOOK_EARLY, NULL) == -1)
-	die();
+	rtld_die();
 
     dbg("doing copy relocations");
     if (do_copy_relocations(obj_main) == -1)
-	die();
+	rtld_die();
 
     if (getenv(LD_ "DUMP_REL_POST") != NULL) {
        dump_relocations(obj_main);
@@ -649,7 +648,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     if (resolve_objects_ifunc(obj_main,
       ld_bind_now != NULL && *ld_bind_now != '\0', SYMLOOK_EARLY,
       NULL) == -1)
-	die();
+	rtld_die();
 
     if (!obj_main->crt_no_init) {
 	/*
@@ -716,7 +715,7 @@ _rtld_bind(Obj_Entry *obj, Elf_Size reloff)
     def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj, true, NULL,
 	&lockstate);
     if (def == NULL)
-	die();
+	rtld_die();
     if (ELF_ST_TYPE(def->st_info) == STT_GNU_IFUNC)
 	target = (Elf_Addr)rtld_resolve_ifunc(defobj, def);
     else
@@ -865,8 +864,8 @@ origin_subst(char *real, const char *origin_path)
 	return (res4);
 }
 
-static void
-die(void)
+void
+rtld_die(void)
 {
     const char *msg = dlerror();
 
@@ -1216,7 +1215,7 @@ digest_dynamic2(Obj_Entry *obj, const Elf_Dyn *dyn_rpath,
     if (obj->z_origin && obj->origin_path == NULL) {
 	obj->origin_path = xmalloc(PATH_MAX);
 	if (rtld_dirname_abs(obj->path, obj->origin_path) == -1)
-	    die();
+	    rtld_die();
     }
 
     if (dyn_runpath != NULL) {
@@ -1914,7 +1913,7 @@ init_pagesizes(Elf_Auxinfo **aux_info)
 		}
 		if (sysctl(mib, len, psa, &size, NULL, 0) == -1) {
 			_rtld_error("sysctl for hw.pagesize(s) failed");
-			die();
+			rtld_die();
 		}
 psa_filled:
 		pagesizes = psa;
@@ -2851,7 +2850,7 @@ search_library_pathfds(const char *name, const char *path, int *fdp)
 			if (rtld_snprintf(found, len, "#%d/%s", dirfd, name) < 0) {
 				_rtld_error("error generating '%d/%s'",
 				    dirfd, name);
-				die();
+				rtld_die();
 			}
 			dbg("open('%s') => %d", found, fd);
 			break;
@@ -4571,7 +4570,7 @@ allocate_module_tls(int index)
     }
     if (!obj) {
 	_rtld_error("Can't find module with TLS index %d", index);
-	die();
+	rtld_die();
     }
 
     p = malloc_aligned(obj->tlssize, obj->tlsalign);
@@ -4712,7 +4711,7 @@ locate_dependency(const Obj_Entry *obj, const char *name)
     }
     _rtld_error("%s: Unexpected inconsistency: dependency %s not found",
 	obj->path, name);
-    die();
+    rtld_die();
 }
 
 static int
@@ -5049,7 +5048,7 @@ __stack_chk_fail(void)
 {
 
 	_rtld_error("stack overflow detected; terminated");
-	die();
+	rtld_die();
 }
 __weak_reference(__stack_chk_fail, __stack_chk_fail_local);
 
@@ -5058,7 +5057,7 @@ __chk_fail(void)
 {
 
 	_rtld_error("buffer overflow detected; terminated");
-	die();
+	rtld_die();
 }
 
 const char *
