@@ -4,7 +4,8 @@
 #
 # an aggressive little script for trimming duplicate cookies
 
-import re, sys
+import argparse
+import re
 
 wordlist = [
     'hadnot',
@@ -14,6 +15,7 @@ wordlist = [
     'am', 'an', 'is', 'll', 've', 'we',
     'a', 'd', 'i', 'm', 's',
 ]
+
 
 def hash(fortune):
     f = fortune
@@ -27,37 +29,40 @@ def hash(fortune):
 #    f = f[-30:]
     return f
 
+
 def edit(datfile):
     dups = {}
     fortunes = []
     fortune = ""
-    for line in file(datfile):
-        if line == "%\n":
-            key = hash(fortune)
-            if key not in dups:
-                dups[key] = []
-            dups[key].append(fortune)
-            fortunes.append(fortune)
-            fortune = ""
-        else:
-            fortune += line
+    with open(datfile, "r") as datfiledf:
+        for line in datfiledf:
+            if line == "%\n":
+                key = hash(fortune)
+                if key not in dups:
+                    dups[key] = []
+                dups[key].append(fortune)
+                fortunes.append(fortune)
+                fortune = ""
+            else:
+                fortune += line
     for key in list(dups.keys()):
         if len(dups[key]) == 1:
             del dups[key]
-    o = file(datfile + '~', "w")
-    for fortune in fortunes:
-        key = hash(fortune)
-        if key in dups:
-            print('\n' * 50)
-            for f in dups[key]:
-                if f != fortune:
-                    print(f, '%')
-            print(fortune, '%')
-            if input("Remove last fortune? ") == 'y':
-                del dups[key]
-                continue
-        o.write(fortune + "%\n")
-    o.close()
+    with open(datfile + "~", "w") as o:
+        for fortune in fortunes:
+            key = hash(fortune)
+            if key in dups:
+                print('\n' * 50)
+                for f in dups[key]:
+                    if f != fortune:
+                        print(f, '%')
+                print(fortune, '%')
+                if input("Remove last fortune? ") == 'y':
+                    del dups[key]
+                    continue
+            o.write(fortune + "%\n")
 
-assert len(sys.argv) == 2
-edit(sys.argv[1])
+parser = argparse.ArgumentParser(description="trimming duplicate cookies")
+parser.add_argument("filename", type=str, nargs=1)
+args = parser.parse_args()
+edit(args.filename[0])
