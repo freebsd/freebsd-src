@@ -515,10 +515,10 @@ tc_windup(void)
 	/* Now is a good time to change timecounters. */
 	if (th->th_counter != timecounter) {
 #ifndef __arm__
-		if ((timecounter->tc_flags & TC_FLAGS_C3STOP) != 0)
-			cpu_disable_deep_sleep++;
-		if ((th->th_counter->tc_flags & TC_FLAGS_C3STOP) != 0)
-			cpu_disable_deep_sleep--;
+		if ((timecounter->tc_flags & TC_FLAGS_C2STOP) != 0)
+			cpu_disable_c2_sleep++;
+		if ((th->th_counter->tc_flags & TC_FLAGS_C2STOP) != 0)
+			cpu_disable_c2_sleep--;
 #endif
 		th->th_counter = timecounter;
 		th->th_offset_count = ncount;
