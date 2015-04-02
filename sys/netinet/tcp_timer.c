@@ -884,7 +884,7 @@ tcp_timer_activate(struct tcpcb *tp, int timer_type, u_int delta)
 			f_callout = tcp_timer_2msl;
 			break;
 		default:
-			panic("bad timer_type");
+			panic("tp %p bad timer_type %#x", tp, timer_type);
 		}
 	if (delta == 0) {
 		callout_stop(t_callout);
@@ -915,7 +915,7 @@ tcp_timer_active(struct tcpcb *tp, int timer_type)
 			t_callout = &tp->t_timers->tt_2msl;
 			break;
 		default:
-			panic("bad timer_type");
+			panic("tp %p bad timer_type %#x", tp, timer_type);
 		}
 	return callout_active(t_callout);
 }
