@@ -282,6 +282,7 @@ valid_type(int type)
 	switch (type) {
 	case IFT_ETHER:
 	case IFT_FDDI:
+	case IFT_INFINIBAND:
 	case IFT_ISO88023:
 	case IFT_ISO88024:
 	case IFT_ISO88025:
@@ -655,6 +656,9 @@ print_entry(struct sockaddr_dl *sdl,
                 break;
 	case IFT_BRIDGE:
 		printf(" [bridge]");
+		break;
+	case IFT_INFINIBAND:
+		printf(" [infiniband]");
 		break;
 	default:
 		break;
