@@ -56,7 +56,8 @@ LEAF(__sys_brk)
 	PIC_PROLOGUE(__sys_brk)
 	PTR_LA	v0, _C_LABEL(minbrk)
 	PTR_L	v0, 0(v0)
-	bgeu	a0, v0, 1f
+	sltu	v1, a0, v0
+	beq	v1, zero, 1f
 	move	a0, v0		# dont allow break < minbrk
 1:
 	li	v0, SYS_break
