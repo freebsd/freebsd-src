@@ -122,7 +122,7 @@ loader.help: help.common help.mips
 	    awk -f ${.CURDIR}/../../../common/merge_help.awk > ${.TARGET}
 
 .PATH: ${.CURDIR}/../../../forth
-.include	"${.CURDIR}/../../forth/Makefile.inc"
+.include	"${.CURDIR}/../../../forth/Makefile.inc"
 
 .if !exists(${DESTDIR}/boot/loader.rc)
 FILES+= loader.rc
