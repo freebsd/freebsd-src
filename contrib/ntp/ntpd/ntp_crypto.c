@@ -826,10 +826,10 @@ crypto_recv(
 			 * Decrypt the cookie, hunting all the time for
 			 * errors.
 			 */
-			if (vallen == (u_int) EVP_PKEY_size(host_pkey)) {
+			if (vallen == (u_int)EVP_PKEY_size(host_pkey)) {
 				u_int32 *cookiebuf = malloc(
 				    RSA_size(host_pkey->pkey.rsa));
-				if (cookiebuf == NULL) {
+				if (!cookiebuf) {
 					rval = XEVNT_CKY;
 					break;
 				}
@@ -3817,7 +3817,7 @@ crypto_setup(void)
 			    randfile);
 			exit (-1);
 		}
-		get_systime(&seed);
+		arc4random_buf(&seed, sizeof(l_fp));
 		RAND_seed(&seed, sizeof(l_fp));
 		RAND_write_file(randfile);
 #ifdef DEBUG
@@ -3839,36 +3839,6 @@ crypto_setup(void)
 	memset(&hostval, 0, sizeof(hostval));
 	memset(&pubkey, 0, sizeof(pubkey));
 	memset(&tai_leap, 0, sizeof(tai_leap));
-
-	/*
-	 * Load required host key from file "ntpkey_host_<hostname>". If
-	 * no host key file is not found or has invalid password, life
-	 * as we know it ends. The host key also becomes the default
-	 * sign key. 
-	 */
-	snprintf(filename, sizeof(filename), "ntpkey_host_%s", hostname);
-	pinfo = crypto_key(filename, passwd, NULL);
-	if (pinfo == NULL) {
-		msyslog(LOG_ERR,
-		    "crypto_setup: random seed file not specified");
-		exit (-1);
-	}
-	if ((bytes = RAND_load_file(rand_file, -1)) == 0) {
-		msyslog(LOG_ERR,
-		    "crypto_setup: random seed file %s not found\n",
-		    rand_file);
-		exit (-1);
-	}
-	arc4random_buf(&seed, sizeof(l_fp));
-	RAND_seed(&seed, sizeof(l_fp));
-	RAND_write_file(rand_file);
-	OpenSSL_add_all_algorithms();
-#ifdef DEBUG
-	if (debug)
-		printf(
-		    "crypto_setup: OpenSSL version %lx random seed file %s bytes read %d\n",
-		    SSLeay(), rand_file, bytes);
-#endif
 
 	/*
 	 * Load required host key from file "ntpkey_host_<hostname>". If
