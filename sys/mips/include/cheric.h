@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2014 Robert N. M. Watson
+ * Copyright (c) 2013-2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -45,15 +45,14 @@
 #define	cheri_getbase(x)	__builtin_cheri_get_cap_base(x)
 #define	cheri_getoffset(x)	__builtin_cheri_cap_offset_get(x)
 #define	cheri_getperm(x)	__builtin_cheri_get_cap_perms(x)
+#define	cheri_getsealed(x)	__builtin_cheri_get_cap_unsealed(x)
 #define	cheri_gettag(x)		__builtin_cheri_get_cap_tag(x)
 #define	cheri_gettype(x)	__builtin_cheri_get_cap_type(x)
-
-/* XXXRW: Built-in not yet present but encoding works. */
-#define	cheri_getsealed(x)	__builtin_cheri_get_cap_unsealed(x)
 
 #define	cheri_andperm(x, y)	__builtin_cheri_and_cap_perms((x), (y))
 #define	cheri_cleartag(x)	__builtin_cheri_clear_cap_tag(x)
 #define	cheri_incbase(x, y)	__builtin_cheri_inc_cap_base((x), (y))
+#define	cheri_incoffset(x, y)	__builtin_cheri_cap_offset_increment((x), (y))
 #define	cheri_setlen(x, y)	__builtin_cheri_set_cap_length((x), (y))
 #define	cheri_setoffset(x, y)	__builtin_cheri_cap_offset_set((x), (y))
 #define	cheri_settype(x, y)	__builtin_cheri_set_cap_type((x), (y))
