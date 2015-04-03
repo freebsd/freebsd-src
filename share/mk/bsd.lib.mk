@@ -173,7 +173,7 @@ ${SHLIB_NAME}: ${SOBJS}
 .if defined(SHLIB_LINK)
 	@ln -fs ${.TARGET} ${SHLIB_LINK}
 .endif
-	@${CC} ${LDFLAGS} ${SSP_CFLAGS} -shared -Wl,-x \
+	${CC} ${LDFLAGS} ${SSP_CFLAGS} -shared -Wl,-x \
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
 	    `NM='${NM}' lorder ${SOBJS} | tsort -q` ${LDADD}
 .if ${MK_CTF} != "no"
