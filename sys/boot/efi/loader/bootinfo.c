@@ -39,7 +39,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 #include <machine/metadata.h>
 #include <machine/psl.h>
+
+#if defined(__amd64__) || defined(__i386__)
 #include <machine/specialreg.h>
+#endif
 
 #include <efi.h>
 #include <efilib.h>
