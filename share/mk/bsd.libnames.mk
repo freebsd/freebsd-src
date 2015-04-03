@@ -63,6 +63,7 @@ LIBGNUREGEX?=	${DESTDIR}${LIBDIR}/libgnuregex.a
 LIBGSSAPI?=	${DESTDIR}${LIBDIR}/libgssapi.a
 LIBGSSAPI_KRB5?= ${DESTDIR}${LIBDIR}/libgssapi_krb5.a
 LIBHDB?=	${DESTDIR}${LIBDIR}/libhdb.a
+LIBHELLOWORLD?=	${DESTDIR}${LIBDIR}/libhelloworld.a
 LIBHEIMBASE?=	${DESTDIR}${LIBDIR}/libheimbase.a
 LIBHEIMNTLM?=	${DESTDIR}${LIBDIR}/libheimntlm.a
 LIBHEIMSQLITE?=	${DESTDIR}${LIBDIR}/libheimsqlite.a

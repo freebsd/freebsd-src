@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2014-2015 Robert N. M. Watson
+ * Copyright (c) 2015 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -43,8 +44,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#define CHERI_HELLOWORLD_INTERNAL
-#include "cheri_helloworld-helper.h"
+#define HELLOWORLD_COMPARTMENT
+#include "../helloworld.h"
 
 void	invoke(void);
 void	invoke(void) { abort(); }

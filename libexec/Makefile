@@ -6,7 +6,6 @@
 SUBDIR=	${_atf} \
 	${_atrun} \
 	${_casper} \
-	${_cheri_helloworld_helper} \
 	${_cheritest_helper} \
 	${_cheri_bench_helper} \
 	${_comsat} \
@@ -48,7 +47,6 @@ _casper=	casper
 .endif
 
 .if ${MK_CHERI} != "no"
-_cheri_helloworld_helper=	cheri_helloworld-helper
 _cheri_bench_helper=	cheri_bench-helper
 _cheritest_helper=	cheritest-helper
 _libpng_sb_helper=	libpng_sb-helper

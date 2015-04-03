@@ -93,6 +93,7 @@ _LIBRARIES=	\
 		gssapi \
 		gssapi_krb5 \
 		hdb \
+		helloworld \
 		heimbase \
 		heimntlm \
 		heimsqlite \

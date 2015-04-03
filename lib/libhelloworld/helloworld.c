@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014-2015 Robert N. M. Watson
+ * Copyright (c) 2015 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -28,55 +28,31 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
-#if !__has_feature(capabilities)
-#error "This code requires a CHERI-aware compiler"
-#endif
-
-#include <sys/types.h>
-
 #include <machine/cheri.h>
-#include <machine/cheric.h>
 
-#include <cheri/cheri_fd.h>
-#include <cheri/helloworld.h>
 #include <cheri/sandbox.h>
 
 #include <err.h>
-#include <stdio.h>
 #include <sysexits.h>
-#include <unistd.h>
 
-int
-main(int argc, char *argv[])
+#include "helloworld.h"
+
+#define	COMPARTMENT_PATH	"/usr/lib/helloworld.co.0"
+
+struct cheri_object	 __helloworld;
+struct sandbox_class	*__helloworld_classp;
+
+void
+cheri_helloworld_init(void)
 {
-	struct sandbox_object *objectp;
-	struct cheri_object stdout_fd;
+	
+	if (sandbox_class_new(COMPARTMENT_PATH, 0, &__helloworld_classp) < 0)
+		err(EX_OSFILE, "sandbox_class_new(%s)", COMPARTMENT_PATH);
+}
 
-	if (sandbox_program_init(argc, argv) == -1)
-		errx(EX_OSFILE, "sandbox_program_init");
+void
+cheri_helloworld_fini(void)
+{
 
-	if (cheri_fd_new(STDOUT_FILENO, &stdout_fd) < 0)
-		err(EX_OSFILE, "cheri_fd_new: stdout");
-	cheri_helloworld_init();
-	if (sandbox_program_finalize() == -1)
-		errx(EX_SOFTWARE, "sandbox_program_finalize");
-	if (sandbox_object_new(__helloworld_classp, 2*1024*1024, &objectp) < 0)
-		err(EX_OSFILE, "sandbox_object_new");
-	__helloworld = sandbox_object_getobject(objectp);
-
-	int ret;
-	ret = call_cheri_system_helloworld();
-	assert(ret == 123456);
-	ret = call_cheri_system_puts();
-	assert(ret >= 0);
-	ret = call_cheri_fd_write_c(stdout_fd);
-	assert(ret == 12);
-
-	sandbox_object_destroy(objectp);
-	cheri_helloworld_fini();
-	cheri_fd_destroy(stdout_fd);
-
-	return (0);
+	sandbox_class_destroy(__helloworld_classp);
 }

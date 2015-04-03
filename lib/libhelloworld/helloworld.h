@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2014 Robert N. M. Watson
- * Copyright (c) 2014 SRI International
+ * Copyright (c) 2014-2015 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -29,20 +29,25 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _LIBEXEC_CHERI_HELLOWORLD_HELPER_H_
-#define	_LIBEXEC_CHERI_HELLOWORLD_HELPER_H_
+#ifndef _CHERI_HELLOWORLD_H_
+#define	_CHERI_HELLOWORLD_H_
 
-extern struct cheri_object	cheri_helloworld;
-#ifdef CHERI_HELLOWORLD_INTERNAL
+extern struct cheri_object	 __helloworld;
+extern struct sandbox_class	*__helloworld_classp;
+
+#ifdef HELLOWORLD_COMPARTMENT
 #define	CHERI_HELLOWORLD_CCALL					\
     __attribute__((cheri_ccallee))				\
-    __attribute__((cheri_method_class(cheri_helloworld)))
+    __attribute__((cheri_method_class(__helloworld)))
 #else
 #define	CHERI_HELLOWORLD_CCALL					\
     __attribute__((cheri_ccall))				\
     __attribute__((cheri_method_suffix("_cap")))		\
-    __attribute__((cheri_method_class(cheri_helloworld)))
+    __attribute__((cheri_method_class(__helloworld)))
 #endif
+
+void	cheri_helloworld_init(void);
+void	cheri_helloworld_fini(void);
 
 CHERI_HELLOWORLD_CCALL
 int call_cheri_system_helloworld(void);
@@ -53,4 +58,4 @@ int call_cheri_system_puts(void);
 CHERI_HELLOWORLD_CCALL
 int call_cheri_fd_write_c(struct cheri_object fd_object);
 
-#endif /* !_LIBEXEC_CHERI_HELLOWORLD_HELPER_H_ */
+#endif /* !_CHERI_HELLOWORLD_H_ */

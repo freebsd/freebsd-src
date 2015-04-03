@@ -60,6 +60,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libgeom \
 	${_libgpio} \
 	${_libgssapi} \
+	${_libhelloworld} \
 	${_librpcsec_gss} \
 	${_libiconv_modules} \
 	libipsec \
@@ -204,6 +205,7 @@ _libcasper=	libcasper
 .if ${MK_CHERI} != "no"
 _libc_cheri=	libc_cheri
 _libcheri=	libcheri
+_libhelloworld=	libhelloworld
 _libmd_cheri=	libmd_cheri
 _libz_cheri=	libz-cheri
 .if ${MK_NETSURF} != no
