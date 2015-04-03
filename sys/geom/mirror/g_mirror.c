@@ -1542,7 +1542,7 @@ g_mirror_request_split(struct g_mirror_softc *sc, struct bio *bp)
 		if (cbp == NULL) {
 			for (cbp = bioq_first(&queue); cbp != NULL;
 			    cbp = bioq_first(&queue)) {
-				bioq_remove(&queue, cbp);
+				g_destroy_bio(cbp);
 				g_destroy_bio(cbp);
 			}
 			if (bp->bio_error == 0)
@@ -1829,7 +1829,7 @@ g_mirror_worker(void *arg)
 		 */
 		/* Get first request from the queue. */
 		mtx_lock(&sc->sc_queue_mtx);
-		bp = bioq_first(&sc->sc_queue);
+		bp = bioq_takefirst(&sc->sc_queue);
 		if (bp == NULL) {
 			if ((sc->sc_flags &
 			    G_MIRROR_DEVICE_FLAG_DESTROY) != 0) {
@@ -1857,7 +1857,6 @@ g_mirror_worker(void *arg)
 			G_MIRROR_DEBUG(5, "%s: I'm here 4.", __func__);
 			continue;
 		}
-		bioq_remove(&sc->sc_queue, bp);
 		mtx_unlock(&sc->sc_queue_mtx);
 
 		if (bp->bio_from->geom == sc->sc_sync.ds_geom &&
