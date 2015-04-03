@@ -6835,6 +6835,8 @@ elf32_arm_merge_eabi_attributes (bfd *ibfd, bfd *obfd)
 	case Tag_ABI_FP_number_model:
 	case Tag_ABI_align8_preserved:
 	case Tag_ABI_HardFP_use:
+	case Tag_CPU_unaligned_access:
+	case Tag_FP_HP_extension:
 	  /* Use the largest value specified.  */
 	  if (in_attr[i].i > out_attr[i].i)
 	    out_attr[i].i = in_attr[i].i;
@@ -6951,7 +6953,9 @@ elf32_arm_merge_eabi_attributes (bfd *ibfd, bfd *obfd)
 	    }
 	  break;
 	default: /* All known attributes should be explicitly covered.   */
-	  abort ();
+	  /* XXX Not now */
+	  /* abort (); */
+	  break;
 	}
     }
 
