@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 3, 2012
+.Dd March 23, 2015
 .Dt ATA 4
 .Os
 .Sh NAME
@@ -50,8 +50,6 @@ atapci_load="YES"
 
 ataacard_load="YES"
 ataacerlabs_load="YES"
-ataadaptec_load="YES"
-ataahci_load="YES"
 ataamd_load="YES"
 ataati_load="YES"
 atacenatek_load="YES"
@@ -76,16 +74,11 @@ atavia_load="YES"
 The first line is for the common hardware independent code, and is a
 prerequisite for the other modules.
 The next three lines are generic bus-specific drivers.
-Of the rest, ataahci is the AHCI driver.
-The others are vendor-specific PCI drivers.
+The rest are vendor-specific PCI drivers.
 .Pp
 The following tunables are settable from the
 .Xr loader 8 :
 .Bl -ohang
-.It Va hw.ahci.force
-set to nonzero value for forcing drivers to attach to some known AHCI-capable
-chips even if they are configured for legacy IDE emulation (the default is 1,
-force the attach).
 .It Va hw.ata.ata_dma_check_80pin
 set to 0 to disable the 80pin cable check (the default is 1, check the cable).
 .It Va hint.atapci.X.msi
@@ -106,13 +99,6 @@ Interface Power Management is disabled.
 This is the default value.
 .It 1
 The device is allowed to initiate a PM state change; the host is passive.
-.It 2
-The host initiates a PARTIAL PM state transition every time a port becomes idle.
-.It 3
-host initiates SLUMBER PM state transition every time port becomes idle.
-.El
-.Pp
-Modes 2 and 3 are only supported for AHCI.
 .It Va hint.ata. Ns Ar X Ns Va .dev Ns Ar X Ns Va .sata_rev
 limits the initial SATA revision (speed) for the specified device
 on the specified channel.
@@ -198,8 +184,7 @@ IT8211F, IT8212F, IT8213F.
 .It JMicron:
 JMB360, JMB361, JMB363, JMB365, JMB366, JMB368.
 .It Marvell
-88SX5040, 88SX5041, 88SX5080, 88SX5081, 88SX6041, 88SX6042, 88SX6081, 88SE6101,
-88SE6102, 88SE6111, 88SE6121, 88SE6141, 88SE6145, 88SX7042.
+88SE6101, 88SE6102, 88SE6111, 88SE6121, 88SE6141, 88SE6145.
 .It National:
 SC1100.
 .It NetCell:
@@ -216,7 +201,7 @@ PDC40718, PDC40719.
 .It ServerWorks:
 HT1000, ROSB4, CSB5, CSB6, K2, Frodo4, Frodo8.
 .It Silicon Image:
-SiI0680, SiI3112, SiI3114, SiI3124, SiI3132, SiI3512.
+SiI0680, SiI3112, SiI3114, SiI3512.
 .It SiS:
 SIS180, SIS181, SIS182, SIS5513, SIS530, SIS540, SIS550, SIS620, SIS630,
 SIS630S, SIS633, SIS635, SIS730, SIS733, SIS735, SIS745, SIS961, SIS962,
@@ -227,13 +212,10 @@ VT82C686A, VT82C686B, VT8231, VT8233, VT8233A, VT8233C, VT8235, VT8237,
 VT8237A, VT8237S, VT8251, CX700, VX800, VX855, VX900.
 .El
 .Pp
-Some of above chips are also supported by the more featured
-.Xr ahci 4 ,
-.Xr mvs 4 ,
-and
-.Xr siis 4
-drivers.
-If both drivers are loaded at the same time, those will have precedence.
+Some of above chips can be configured for AHCI mode.
+In such case they are supported by
+.Xr ahci 4
+driver instead.
 .Pp
 Unknown ATA chipsets are supported in PIO modes, and if the standard
 busmaster DMA registers are present and contain valid setup, DMA is

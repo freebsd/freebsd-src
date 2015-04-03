@@ -1,12 +1,12 @@
 /*
- * /src/NTP/ntp4-dev/libparse/clk_trimtsip.c,v 4.17 2005/04/16 17:32:10 kardel RELEASE_20050508_A
+ * /src/NTP/REPOSITORY/ntp4-dev/libparse/clk_trimtsip.c,v 4.19 2009/11/01 10:47:49 kardel RELEASE_20091101_A
  *
- * clk_trimtsip.c,v 4.17 2005/04/16 17:32:10 kardel RELEASE_20050508_A
+ * clk_trimtsip.c,v 4.19 2009/11/01 10:47:49 kardel RELEASE_20091101_A
  *
  * Trimble TSIP support
  * Thanks to Sven Dietrich for providing test hardware
  *
- * Copyright (c) 1995-2005 by Frank Kardel <kardel <AT> ntp.org>
+ * Copyright (c) 1995-2009 by Frank Kardel <kardel <AT> ntp.org>
  * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universität Erlangen-Nürnberg, Germany
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@
 #include "ntp_syslog.h"
 #include "ntp_types.h"
 #include "ntp_fp.h"
-#include "ntp_unixtime.h"
+#include "timevalops.h"
 #include "ntp_calendar.h"
 #include "ntp_machine.h"
 #include "ntp_stdlib.h"
@@ -116,8 +116,8 @@ struct trimble
 #define STATUS_UNSAFE 1		/* not enough receivers for full precision */
 #define STATUS_SYNC   2		/* enough information for good operation */
 
-static unsigned long inp_tsip P((parse_t *, unsigned int, timestamp_t *));
-static unsigned long cvt_trimtsip P((unsigned char *, int, struct format *, clocktime_t *, void *));
+static unsigned long inp_tsip (parse_t *, unsigned int, timestamp_t *);
+static unsigned long cvt_trimtsip (unsigned char *, int, struct format *, clocktime_t *, void *);
 
 struct clockformat clock_trimtsip =
 {
@@ -190,6 +190,7 @@ inp_tsip(
 			t->t_in_pkt = t->t_dle = 0;
 			return PARSE_INP_TIME|PARSE_INP_DATA;
 		}
+		/*FALLTHROUGH*/
 
 	    default:		/* collect data */
 		t->t_dle = 0;
@@ -398,6 +399,12 @@ int clk_trimtsip_bs;
  * History:
  *
  * clk_trimtsip.c,v
+ * Revision 4.19  2009/11/01 10:47:49  kardel
+ * de-P()
+ *
+ * Revision 4.18  2009/11/01 08:46:46  kardel
+ * clarify case FALLTHROUGH
+ *
  * Revision 4.17  2005/04/16 17:32:10  kardel
  * update copyright
  *

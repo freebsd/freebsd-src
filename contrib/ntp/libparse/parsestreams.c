@@ -77,15 +77,15 @@ static char rcsid[] = "parsestreams.c,v 4.11 2005/04/16 17:32:10 kardel RELEASE_
 /*
  * just make checking compilers more silent
  */
-extern int printf      P((const char *, ...));
-extern int putctl1     P((queue_t *, int, int));
-extern int canput      P((queue_t *));
-extern void putbq      P((queue_t *, mblk_t *));
-extern void freeb      P((mblk_t *));
-extern void qreply     P((queue_t *, mblk_t *));
-extern void freemsg    P((mblk_t *));
-extern void panic      P((const char *, ...));
-extern void usec_delay P((int));
+extern int printf      (const char *, ...);
+extern int putctl1     (queue_t *, int, int);
+extern int canput      (queue_t *);
+extern void putbq      (queue_t *, mblk_t *);
+extern void freeb      (mblk_t *);
+extern void qreply     (queue_t *, mblk_t *);
+extern void freemsg    (mblk_t *);
+extern void panic      (const char *, ...);
+extern void usec_delay (int);
 
 #include "parse.h"
 #include "sys/parsestreams.h"
@@ -357,11 +357,11 @@ xxxinit(
 
 /*--------------- stream module definition ----------------------------*/
 
-static int parseopen  P((queue_t *, dev_t, int, int));
-static int parseclose P((queue_t *, int));
-static int parsewput  P((queue_t *, mblk_t *));
-static int parserput  P((queue_t *, mblk_t *));
-static int parsersvc  P((queue_t *));
+static int parseopen  (queue_t *, dev_t, int, int);
+static int parseclose (queue_t *, int);
+static int parsewput  (queue_t *, mblk_t *);
+static int parserput  (queue_t *, mblk_t *);
+static int parsersvc  (queue_t *);
 
 static char mn[] = "parse";
 
@@ -416,7 +416,7 @@ int cd_invert = 1;		/* invert status of CD line - PPS support via CD input */
 
 int parsedebug = ~0;
 
-extern void uniqtime P((struct timeval *));
+extern void uniqtime (struct timeval *);
 
 /*--------------- module implementation -----------------------------*/
 
@@ -429,8 +429,8 @@ extern void uniqtime P((struct timeval *));
                                      }\
 				 } while (0)
 
-static int init_linemon P((queue_t *));
-static void close_linemon P((queue_t *, queue_t *));
+static int init_linemon (queue_t *);
+static void close_linemon (queue_t *, queue_t *);
 
 #define M_PARSE		0x0001
 #define M_NOPARSE	0x0002
@@ -919,8 +919,8 @@ parserput(
 	return 0;
 }
 
-static int  init_zs_linemon  P((queue_t *, queue_t *));	/* handle line monitor for "zs" driver */
-static void close_zs_linemon P((queue_t *, queue_t *));
+static int  init_zs_linemon  (queue_t *, queue_t *);	/* handle line monitor for "zs" driver */
+static void close_zs_linemon (queue_t *, queue_t *);
 
 /*-------------------- CD isr status monitor ---------------*/
 
@@ -1010,8 +1010,8 @@ struct savedzsops
 };
 
 struct zsops   *emergencyzs;
-extern void zsopinit   P((struct zscom *, struct zsops *));
-static int  zs_xsisr   P((struct zscom *));	/* zs external status interupt handler */
+extern void zsopinit   (struct zscom *, struct zsops *);
+static int  zs_xsisr   (struct zscom *);	/* zs external status interupt handler */
 
 static int
 init_zs_linemon(
@@ -1112,7 +1112,7 @@ close_zs_linemon(
 #define MAXDEPTH 50		/* maximum allowed stream crawl */
 
 #ifdef PPS_SYNC
-extern void hardpps P((struct timeval *, long));
+extern void hardpps (struct timeval *, long);
 #ifdef PPS_NEW
 extern struct timeval timestamp;
 #else
@@ -1282,7 +1282,7 @@ zs_xsisr(
 			dname = q->q_qinfo->qi_minfo->mi_idname;
 			if (!Strcmp(dname, parseinfo.st_rdinit->qi_minfo->mi_idname))
 			{
-				register int (*zsisr) P((struct zscom *));
+				register int (*zsisr) (struct zscom *);
 		  
 				/*
 				 * back home - phew (hopping along stream queues might

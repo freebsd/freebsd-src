@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2013, Intel Corporation 
+  Copyright (c) 2001-2014, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -37,6 +37,13 @@
 #include "ixgbe_api.h"
 #include "ixgbe_common.h"
 #include "ixgbe_phy.h"
+
+#define IXGBE_82598_MAX_TX_QUEUES 32
+#define IXGBE_82598_MAX_RX_QUEUES 64
+#define IXGBE_82598_RAR_ENTRIES   16
+#define IXGBE_82598_MC_TBL_SIZE  128
+#define IXGBE_82598_VFT_TBL_SIZE 128
+#define IXGBE_82598_RX_PB_SIZE   512
 
 static s32 ixgbe_get_link_capabilities_82598(struct ixgbe_hw *hw,
 					     ixgbe_link_speed *speed,
@@ -121,47 +128,48 @@ s32 ixgbe_init_ops_82598(struct ixgbe_hw *hw)
 	ret_val = ixgbe_init_ops_generic(hw);
 
 	/* PHY */
-	phy->ops.init = &ixgbe_init_phy_ops_82598;
+	phy->ops.init = ixgbe_init_phy_ops_82598;
 
 	/* MAC */
-	mac->ops.start_hw = &ixgbe_start_hw_82598;
-	mac->ops.enable_relaxed_ordering = &ixgbe_enable_relaxed_ordering_82598;
-	mac->ops.reset_hw = &ixgbe_reset_hw_82598;
-	mac->ops.get_media_type = &ixgbe_get_media_type_82598;
+	mac->ops.start_hw = ixgbe_start_hw_82598;
+	mac->ops.enable_relaxed_ordering = ixgbe_enable_relaxed_ordering_82598;
+	mac->ops.reset_hw = ixgbe_reset_hw_82598;
+	mac->ops.get_media_type = ixgbe_get_media_type_82598;
 	mac->ops.get_supported_physical_layer =
-				&ixgbe_get_supported_physical_layer_82598;
-	mac->ops.read_analog_reg8 = &ixgbe_read_analog_reg8_82598;
-	mac->ops.write_analog_reg8 = &ixgbe_write_analog_reg8_82598;
-	mac->ops.set_lan_id = &ixgbe_set_lan_id_multi_port_pcie_82598;
+				ixgbe_get_supported_physical_layer_82598;
+	mac->ops.read_analog_reg8 = ixgbe_read_analog_reg8_82598;
+	mac->ops.write_analog_reg8 = ixgbe_write_analog_reg8_82598;
+	mac->ops.set_lan_id = ixgbe_set_lan_id_multi_port_pcie_82598;
+	mac->ops.enable_rx_dma = ixgbe_enable_rx_dma_82598;
 
 	/* RAR, Multicast, VLAN */
-	mac->ops.set_vmdq = &ixgbe_set_vmdq_82598;
-	mac->ops.clear_vmdq = &ixgbe_clear_vmdq_82598;
-	mac->ops.set_vfta = &ixgbe_set_vfta_82598;
+	mac->ops.set_vmdq = ixgbe_set_vmdq_82598;
+	mac->ops.clear_vmdq = ixgbe_clear_vmdq_82598;
+	mac->ops.set_vfta = ixgbe_set_vfta_82598;
 	mac->ops.set_vlvf = NULL;
-	mac->ops.clear_vfta = &ixgbe_clear_vfta_82598;
+	mac->ops.clear_vfta = ixgbe_clear_vfta_82598;
 
 	/* Flow Control */
-	mac->ops.fc_enable = &ixgbe_fc_enable_82598;
+	mac->ops.fc_enable = ixgbe_fc_enable_82598;
 
-	mac->mcft_size		= 128;
-	mac->vft_size		= 128;
-	mac->num_rar_entries	= 16;
-	mac->rx_pb_size		= 512;
-	mac->max_tx_queues	= 32;
-	mac->max_rx_queues	= 64;
+	mac->mcft_size		= IXGBE_82598_MC_TBL_SIZE;
+	mac->vft_size		= IXGBE_82598_VFT_TBL_SIZE;
+	mac->num_rar_entries	= IXGBE_82598_RAR_ENTRIES;
+	mac->rx_pb_size		= IXGBE_82598_RX_PB_SIZE;
+	mac->max_rx_queues	= IXGBE_82598_MAX_RX_QUEUES;
+	mac->max_tx_queues	= IXGBE_82598_MAX_TX_QUEUES;
 	mac->max_msix_vectors	= ixgbe_get_pcie_msix_count_generic(hw);
 
 	/* SFP+ Module */
-	phy->ops.read_i2c_eeprom = &ixgbe_read_i2c_eeprom_82598;
-	phy->ops.read_i2c_sff8472 = &ixgbe_read_i2c_sff8472_82598;
+	phy->ops.read_i2c_eeprom = ixgbe_read_i2c_eeprom_82598;
+	phy->ops.read_i2c_sff8472 = ixgbe_read_i2c_sff8472_82598;
 
 	/* Link */
-	mac->ops.check_link = &ixgbe_check_mac_link_82598;
-	mac->ops.setup_link = &ixgbe_setup_mac_link_82598;
+	mac->ops.check_link = ixgbe_check_mac_link_82598;
+	mac->ops.setup_link = ixgbe_setup_mac_link_82598;
 	mac->ops.flap_tx_laser = NULL;
-	mac->ops.get_link_capabilities = &ixgbe_get_link_capabilities_82598;
-	mac->ops.setup_rxpba = &ixgbe_set_rxpba_82598;
+	mac->ops.get_link_capabilities = ixgbe_get_link_capabilities_82598;
+	mac->ops.setup_rxpba = ixgbe_set_rxpba_82598;
 
 	/* Manageability interface */
 	mac->ops.set_fw_drv_ver = NULL;
@@ -194,20 +202,20 @@ s32 ixgbe_init_phy_ops_82598(struct ixgbe_hw *hw)
 
 	/* Overwrite the link function pointers if copper PHY */
 	if (mac->ops.get_media_type(hw) == ixgbe_media_type_copper) {
-		mac->ops.setup_link = &ixgbe_setup_copper_link_82598;
+		mac->ops.setup_link = ixgbe_setup_copper_link_82598;
 		mac->ops.get_link_capabilities =
-				&ixgbe_get_copper_link_capabilities_generic;
+				ixgbe_get_copper_link_capabilities_generic;
 	}
 
 	switch (hw->phy.type) {
 	case ixgbe_phy_tn:
-		phy->ops.setup_link = &ixgbe_setup_phy_link_tnx;
-		phy->ops.check_link = &ixgbe_check_phy_link_tnx;
+		phy->ops.setup_link = ixgbe_setup_phy_link_tnx;
+		phy->ops.check_link = ixgbe_check_phy_link_tnx;
 		phy->ops.get_firmware_version =
-					&ixgbe_get_phy_firmware_version_tnx;
+					ixgbe_get_phy_firmware_version_tnx;
 		break;
 	case ixgbe_phy_nl:
-		phy->ops.reset = &ixgbe_reset_phy_nl;
+		phy->ops.reset = ixgbe_reset_phy_nl;
 
 		/* Call SFP+ identify routine to get the SFP+ module type */
 		ret_val = phy->ops.identify_sfp(hw);
@@ -1409,6 +1417,20 @@ static void ixgbe_set_rxpba_82598(struct ixgbe_hw *hw, int num_pb,
 	/* Setup Tx packet buffer sizes */
 	for (i = 0; i < IXGBE_MAX_PACKET_BUFFERS; i++)
 		IXGBE_WRITE_REG(hw, IXGBE_TXPBSIZE(i), IXGBE_TXPBSIZE_40KB);
+}
 
-	return;
+/**
+ *  ixgbe_enable_rx_dma_82598 - Enable the Rx DMA unit
+ *  @hw: pointer to hardware structure
+ *  @regval: register value to write to RXCTRL
+ *
+ *  Enables the Rx DMA unit
+ **/
+s32 ixgbe_enable_rx_dma_82598(struct ixgbe_hw *hw, u32 regval)
+{
+	DEBUGFUNC("ixgbe_enable_rx_dma_82598");
+
+	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, regval);
+
+	return IXGBE_SUCCESS;
 }

@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2013, Intel Corporation 
+  Copyright (c) 2001-2014, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -34,7 +34,6 @@
 
 #ifndef _IXGBE_DCB_H_
 #define _IXGBE_DCB_H_
-
 
 #include "ixgbe_type.h"
 

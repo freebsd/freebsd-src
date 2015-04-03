@@ -115,7 +115,7 @@ static void
 ath_sample_stats(struct ath_ratestats *r, struct ath_rateioctl_rt *rt,
     struct sample_node *sn)
 {
-	uint32_t mask;
+	uint64_t mask;
 	int rix, y;
 
 	PRINTMSG("static_rix (%d) ratemask 0x%llx\n",

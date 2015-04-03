@@ -49,19 +49,16 @@ devclass_t pcm_devclass;
 int pcm_veto_load = 1;
 
 int snd_unit = -1;
-TUNABLE_INT("hw.snd.default_unit", &snd_unit);
 
 static int snd_unit_auto = -1;
 SYSCTL_INT(_hw_snd, OID_AUTO, default_auto, CTLFLAG_RWTUN,
     &snd_unit_auto, 0, "assign default unit to a newly attached device");
 
 int snd_maxautovchans = 16;
-/* XXX: a tunable implies that we may need more than one sound channel before
-   the system can change a sysctl (/etc/sysctl.conf), do we really need
-   this? */
-TUNABLE_INT("hw.snd.maxautovchans", &snd_maxautovchans);
 
 SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD, 0, "Sound driver");
+
+static void pcm_sysinit(device_t);
 
 /*
  * XXX I've had enough with people not telling proper version/arch
@@ -444,7 +441,7 @@ sysctl_hw_snd_default_unit(SYSCTL_HANDLER_ARGS)
 }
 /* XXX: do we need a way to let the user change the default unit? */
 SYSCTL_PROC(_hw_snd, OID_AUTO, default_unit,
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY,
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_ANYBODY,
 	    0, sizeof(int), sysctl_hw_snd_default_unit, "I",
 	    "default sound device");
 
@@ -474,7 +471,7 @@ sysctl_hw_snd_maxautovchans(SYSCTL_HANDLER_ARGS)
 	}
 	return (error);
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, maxautovchans, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_hw_snd, OID_AUTO, maxautovchans, CTLTYPE_INT | CTLFLAG_RWTUN,
             0, sizeof(int), sysctl_hw_snd_maxautovchans, "I", "maximum virtual channel");
 
 struct pcm_channel *
@@ -766,16 +763,17 @@ pcm_setstatus(device_t dev, char *str)
 {
 	struct snddev_info *d = device_get_softc(dev);
 
+	/* should only be called once */
+	if (d->flags & SD_F_REGISTERED)
+		return (EINVAL);
+
 	PCM_BUSYASSERT(d);
 
 	if (d->playcount == 0 || d->reccount == 0)
 		d->flags |= SD_F_SIMPLEX;
 
-	if ((d->playcount > 0 || d->reccount > 0) &&
-	    !(d->flags & SD_F_AUTOVCHAN)) {
+	if (d->playcount > 0 || d->reccount > 0)
 		d->flags |= SD_F_AUTOVCHAN;
-		vchan_initsys(dev);
-	}
 
 	pcm_setmaxautovchans(d, snd_maxautovchans);
 
@@ -793,6 +791,12 @@ pcm_setstatus(device_t dev, char *str)
 	PCM_RELEASE(d);
 
 	PCM_UNLOCK(d);
+
+	/*
+	 * Create all sysctls once SD_F_REGISTERED is set else
+	 * tunable sysctls won't work:
+	 */
+	pcm_sysinit(dev);
 
 	if (snd_unit_auto < 0)
 		snd_unit_auto = (snd_unit < 0) ? 1 : 0;
@@ -1001,10 +1005,48 @@ sysctl_hw_snd_clone_gc(SYSCTL_HANDLER_ARGS)
 
 	return (err);
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, clone_gc, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_hw_snd, OID_AUTO, clone_gc, CTLTYPE_INT | CTLFLAG_RWTUN,
     0, sizeof(int), sysctl_hw_snd_clone_gc, "I",
     "global clone garbage collector");
 #endif
+
+static void
+pcm_sysinit(device_t dev)
+{
+  	struct snddev_info *d = device_get_softc(dev);
+
+  	/* XXX: an user should be able to set this with a control tool, the
+	   sysadmin then needs min+max sysctls for this */
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+            OID_AUTO, "buffersize", CTLFLAG_RD, &d->bufsz, 0, "allocated buffer size");
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "bitperfect", CTLTYPE_INT | CTLFLAG_RWTUN, d, sizeof(d),
+	    sysctl_dev_pcm_bitperfect, "I",
+	    "bit-perfect playback/recording (0=disable, 1=enable)");
+#ifdef SND_DEBUG
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "clone_flags", CTLTYPE_UINT | CTLFLAG_RWTUN, d, sizeof(d),
+	    sysctl_dev_pcm_clone_flags, "IU",
+	    "clone flags");
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "clone_deadline", CTLTYPE_INT | CTLFLAG_RWTUN, d, sizeof(d),
+	    sysctl_dev_pcm_clone_deadline, "I",
+	    "clone expiration deadline (ms)");
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "clone_gc", CTLTYPE_INT | CTLFLAG_RWTUN, d, sizeof(d),
+	    sysctl_dev_pcm_clone_gc, "I",
+	    "clone garbage collector");
+#endif
+	if (d->flags & SD_F_AUTOVCHAN)
+		vchan_initsys(dev);
+	if (d->flags & SD_F_EQ)
+		feeder_eq_initsys(dev);
+}
 
 int
 pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
@@ -1087,41 +1129,9 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	d->rec_sysctl_tree = SYSCTL_ADD_NODE(&d->rec_sysctl_ctx,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "rec",
 	    CTLFLAG_RD, 0, "record channels node");
-	/* XXX: an user should be able to set this with a control tool, the
-	   sysadmin then needs min+max sysctls for this */
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-            OID_AUTO, "buffersize", CTLFLAG_RD, &d->bufsz, 0, "allocated buffer size");
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "bitperfect", CTLTYPE_INT | CTLFLAG_RW, d, sizeof(d),
-	    sysctl_dev_pcm_bitperfect, "I",
-	    "bit-perfect playback/recording (0=disable, 1=enable)");
-#ifdef SND_DEBUG
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "clone_flags", CTLTYPE_UINT | CTLFLAG_RW, d, sizeof(d),
-	    sysctl_dev_pcm_clone_flags, "IU",
-	    "clone flags");
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "clone_deadline", CTLTYPE_INT | CTLFLAG_RW, d, sizeof(d),
-	    sysctl_dev_pcm_clone_deadline, "I",
-	    "clone expiration deadline (ms)");
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "clone_gc", CTLTYPE_INT | CTLFLAG_RW, d, sizeof(d),
-	    sysctl_dev_pcm_clone_gc, "I",
-	    "clone garbage collector");
-#endif
 
-	if (numplay > 0 || numrec > 0) {
+	if (numplay > 0 || numrec > 0)
 		d->flags |= SD_F_AUTOVCHAN;
-		vchan_initsys(dev);
-	}
-
-	if (d->flags & SD_F_EQ)
-		feeder_eq_initsys(dev);
 
 	sndstat_register(dev, d->status, sndstat_prepare_pcm);
 

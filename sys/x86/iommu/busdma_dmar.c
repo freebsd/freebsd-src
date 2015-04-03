@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <sys/uio.h>
+#include <sys/vmem.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <vm/vm.h>
@@ -92,7 +93,7 @@ dmar_bus_dma_is_dev_disabled(int domain, int bus, int slot, int func)
  * domain, and must collectively be assigned to use either DMAR or
  * bounce mapping.
  */
-static device_t
+device_t
 dmar_get_requester(device_t dev, uint16_t *rid)
 {
 	devclass_t pci_class;
@@ -254,6 +255,8 @@ dmar_get_dma_tag(device_t dev, device_t child)
 	dmar = dmar_find(child);
 	/* Not in scope of any DMAR ? */
 	if (dmar == NULL)
+		return (NULL);
+	if (!dmar->dma_enabled)
 		return (NULL);
 	dmar_quirks_pre_use(dmar);
 	dmar_instantiate_rmrr_ctxs(dmar);
@@ -852,6 +855,8 @@ int
 dmar_init_busdma(struct dmar_unit *unit)
 {
 
+	unit->dma_enabled = 1;
+	TUNABLE_INT_FETCH("hw.dmar.dma", &unit->dma_enabled);
 	TAILQ_INIT(&unit->delayed_maps);
 	TASK_INIT(&unit->dmamap_load_task, 0, dmar_bus_task_dmamap, unit);
 	unit->delayed_taskqueue = taskqueue_create("dmar", M_WAITOK,

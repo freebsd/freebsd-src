@@ -634,7 +634,7 @@ emulate_movs(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 #else
 	struct iovec copyinfo[2];
 #endif
-	uint64_t dstaddr, srcaddr, val;
+	uint64_t dstaddr, srcaddr, dstgpa, srcgpa, val;
 	uint64_t rcx, rdi, rsi, rflags;
 	int error, opsize, seg, repeat;
 
@@ -669,7 +669,7 @@ emulate_movs(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	 * (1)  memory		memory		n/a
 	 * (2)  memory		mmio		emulated
 	 * (3)  mmio		memory		emulated
-	 * (4)  mmio		mmio		not emulated
+	 * (4)  mmio		mmio		emulated
 	 *
 	 * At this point we don't have sufficient information to distinguish
 	 * between (2), (3) and (4). We use 'vm_copy_setup()' to tease this
@@ -694,7 +694,8 @@ emulate_movs(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		vm_copyin(vm, vcpuid, copyinfo, &val, opsize);
 		vm_copy_teardown(vm, vcpuid, copyinfo, nitems(copyinfo));
 		error = memwrite(vm, vcpuid, gpa, val, opsize, arg);
-		goto done;
+		if (error)
+			goto done;
 	} else if (error > 0) {
 		/*
 		 * Resume guest execution to handle fault.
@@ -705,37 +706,55 @@ emulate_movs(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		 * 'vm_copy_setup()' is expected to fail for cases (3) and (4)
 		 * if 'srcaddr' is in the mmio space.
 		 */
-	}
 
-	error = get_gla(vm, vcpuid, vie, paging, opsize, vie->addrsize,
-	    PROT_WRITE, VM_REG_GUEST_ES, VM_REG_GUEST_RDI, &dstaddr);
-	if (error)
-		goto done;
-
-	error = vm_copy_setup(vm, vcpuid, paging, dstaddr, opsize,
-	    PROT_WRITE, copyinfo, nitems(copyinfo));
-	if (error == 0) {
-		/*
-		 * case (3): read from MMIO and write to system memory.
-		 *
-		 * A MMIO read can have side-effects so we commit to it
-		 * only after vm_copy_setup() is successful. If a page-fault
-		 * needs to be injected into the guest then it will happen
-		 * before the MMIO read is attempted.
-		 */
-		error = memread(vm, vcpuid, gpa, &val, opsize, arg);
+		error = get_gla(vm, vcpuid, vie, paging, opsize, vie->addrsize,
+		    PROT_WRITE, VM_REG_GUEST_ES, VM_REG_GUEST_RDI, &dstaddr);
 		if (error)
 			goto done;
 
-		vm_copyout(vm, vcpuid, &val, copyinfo, opsize);
-		vm_copy_teardown(vm, vcpuid, copyinfo, nitems(copyinfo));
-	} else if (error > 0) {
-		/*
-		 * Resume guest execution to handle fault.
-		 */
-		goto done;
-	} else {
-		goto done;
+		error = vm_copy_setup(vm, vcpuid, paging, dstaddr, opsize,
+		    PROT_WRITE, copyinfo, nitems(copyinfo));
+		if (error == 0) {
+			/*
+			 * case (3): read from MMIO and write to system memory.
+			 *
+			 * A MMIO read can have side-effects so we
+			 * commit to it only after vm_copy_setup() is
+			 * successful. If a page-fault needs to be
+			 * injected into the guest then it will happen
+			 * before the MMIO read is attempted.
+			 */
+			error = memread(vm, vcpuid, gpa, &val, opsize, arg);
+			if (error)
+				goto done;
+
+			vm_copyout(vm, vcpuid, &val, copyinfo, opsize);
+			vm_copy_teardown(vm, vcpuid, copyinfo, nitems(copyinfo));
+		} else if (error > 0) {
+			/*
+			 * Resume guest execution to handle fault.
+			 */
+			goto done;
+		} else {
+			/*
+			 * Case (4): read from and write to mmio.
+			 */
+			error = vm_gla2gpa(vm, vcpuid, paging, srcaddr,
+			    PROT_READ, &srcgpa);
+			if (error)
+				goto done;
+			error = memread(vm, vcpuid, srcgpa, &val, opsize, arg);
+			if (error)
+				goto done;
+
+			error = vm_gla2gpa(vm, vcpuid, paging, dstaddr,
+			   PROT_WRITE, &dstgpa);
+			if (error)
+				goto done;
+			error = memwrite(vm, vcpuid, dstgpa, val, opsize, arg);
+			if (error)
+				goto done;
+		}
 	}
 
 	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RSI, &rsi);
@@ -1465,7 +1484,7 @@ ptp_hold(struct vm *vm, vm_paddr_t ptpphys, size_t len, void **cookie)
 }
 
 int
-vmm_gla2gpa(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
+vm_gla2gpa(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
     uint64_t gla, int prot, uint64_t *gpa)
 {
 	int nlevels, pfcode, ptpshift, ptpindex, retval, usermode, writable;
@@ -1825,11 +1844,11 @@ decode_modrm(struct vie *vie, enum vm_cpu_mode cpu_mode)
 {
 	uint8_t x;
 
-	if (cpu_mode == CPU_MODE_REAL)
-		return (-1);
-
 	if (vie->op.op_flags & VIE_OP_F_NO_MODRM)
 		return (0);
+
+	if (cpu_mode == CPU_MODE_REAL)
+		return (-1);
 
 	if (vie_peek(vie, &x))
 		return (-1);

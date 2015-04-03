@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * $FreeBSD: users/kaiwang27/elftc/libelftc.h 392 2009-05-31 19:17:46Z kaiwang27 $
- * $Id: libelftc.h 3031 2014-05-01 17:45:41Z jkoshy $
+ * $Id: libelftc.h 3174 2015-03-27 17:13:41Z emaste $
  */
 
 #ifndef	_LIBELFTC_H_
@@ -62,7 +62,9 @@ typedef enum {
 /* Demangling behaviour control. */
 #define ELFTC_DEM_NOPARAM	0x00010000U
 
-__BEGIN_DECLS
+#ifdef __cplusplus
+extern "C" {
+#endif
 Elftc_Bfd_Target	*elftc_bfd_find_target(const char *_tgt_name);
 Elftc_Bfd_Target_Flavor	 elftc_bfd_target_flavor(Elftc_Bfd_Target *_tgt);
 unsigned int	elftc_bfd_target_byteorder(Elftc_Bfd_Target *_tgt);
@@ -87,6 +89,8 @@ int		elftc_string_table_remove(Elftc_String_Table *_table,
 const char	*elftc_string_table_to_string(Elftc_String_Table *_table,
     size_t offset);
 const char	*elftc_version(void);
-__END_DECLS
+#ifdef __cplusplus
+}
+#endif
 
 #endif	/* _LIBELFTC_H_ */

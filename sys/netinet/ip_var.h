@@ -174,7 +174,6 @@ struct inpcb;
 struct route;
 struct sockopt;
 
-VNET_DECLARE(u_short, ip_id);			/* ip packet ctr, for ids */
 VNET_DECLARE(int, ip_defttl);			/* default IP ttl */
 VNET_DECLARE(int, ipforwarding);		/* ip forwarding */
 #ifdef IPSTEALTH
@@ -228,7 +227,7 @@ struct in_ifaddr *
 void	ip_savecontrol(struct inpcb *, struct mbuf **, struct ip *,
 	    struct mbuf *);
 void	ip_slowtimo(void);
-u_int16_t	ip_randomid(void);
+void	ip_fillid(struct ip *);
 int	rip_ctloutput(struct socket *, struct sockopt *);
 void	rip_ctlinput(int, struct sockaddr *, void *);
 void	rip_init(void);
@@ -302,12 +301,6 @@ extern int	(*ng_ipfw_input_p)(struct mbuf **, int,
 
 extern int	(*ip_dn_ctl_ptr)(struct sockopt *);
 extern int	(*ip_dn_io_ptr)(struct mbuf **, int, struct ip_fw_args *);
-
-VNET_DECLARE(int, ip_do_randomid);
-#define	V_ip_do_randomid	VNET(ip_do_randomid)
-#define	ip_newid()	((V_ip_do_randomid != 0) ? ip_randomid() : \
-			    htons(V_ip_id++))
-
 #endif /* _KERNEL */
 
 #endif /* !_NETINET_IP_VAR_H_ */

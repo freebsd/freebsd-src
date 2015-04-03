@@ -551,6 +551,7 @@ struct vm_exit {
 		struct {
 			uint64_t	gpa;
 			uint64_t	gla;
+			uint64_t	cs_base;
 			int		cs_d;		/* CS.D */
 			struct vm_guest_paging paging;
 			struct vie	vie;

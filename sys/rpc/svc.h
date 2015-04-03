@@ -371,10 +371,10 @@ typedef struct __rpc_svcpool {
 	 * amount of memory used by RPC requests which are queued
 	 * waiting for execution.
 	 */
-	unsigned int	sp_space_low;
-	unsigned int	sp_space_high;
-	unsigned int	sp_space_used;
-	unsigned int	sp_space_used_highest;
+	unsigned long	sp_space_low;
+	unsigned long	sp_space_high;
+	unsigned long	sp_space_used;
+	unsigned long	sp_space_used_highest;
 	bool_t		sp_space_throttled;
 	int		sp_space_throttle_count;
 

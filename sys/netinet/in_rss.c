@@ -283,7 +283,7 @@ rss_mbuf_software_hash_v4(const struct mbuf *m, int dir, uint32_t *hashval,
 			printf("%s: short TCP frame?\n", __func__);
 			return (-1);
 		}
-		th = (struct tcphdr *)((caddr_t)ip + iphlen);
+		th = (const struct tcphdr *)((c_caddr_t)ip + iphlen);
 		return rss_proto_software_hash_v4(ip->ip_src, ip->ip_dst,
 		    th->th_sport,
 		    th->th_dport,
@@ -293,7 +293,7 @@ rss_mbuf_software_hash_v4(const struct mbuf *m, int dir, uint32_t *hashval,
 	} else if ((rss_gethashconfig() & RSS_HASHTYPE_RSS_UDP_IPV4) &&
 	    (proto == IPPROTO_UDP) &&
 	    (is_frag == 0)) {
-		uh = (struct udphdr *)((caddr_t)ip + iphlen);
+		uh = (const struct udphdr *)((c_caddr_t)ip + iphlen);
 		if (m->m_len < iphlen + sizeof(struct udphdr)) {
 			printf("%s: short UDP frame?\n", __func__);
 			return (-1);

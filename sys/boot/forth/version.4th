@@ -1,4 +1,4 @@
-\ Copyright (c) 2006-2013 Devin Teske <dteske@FreeBSD.org>
+\ Copyright (c) 2006-2015 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
@@ -26,6 +26,9 @@
 
 marker task-version.4th
 
+vocabulary version-processing
+only forth also version-processing definitions
+
 variable versionX
 variable versionY
 
@@ -35,6 +38,8 @@ variable versionY
 \ Initialize text placement to defaults
 80 versionX !	\ NOTE: this is the ending column (text is right-justified)
 24 versionY !
+
+only forth definitions also version-processing
 
 : print_version ( -- )
 
@@ -49,21 +54,22 @@ variable versionY
 	\ Default version if none was set
 	s" loader_version" getenv dup -1 = if
 		drop
-		\ Default version if no logo is requested
+		\ Use above default if no logo is requested
 		s" loader_logo" getenv dup -1 = if
 			drop str_loader_version
 		else
+			\ For tributes, do nothing (defer to logo-*.4th)
 			2dup s" tribute" compare-insensitive 0= if
 				2drop
-				s" tribute-logo" sfind if
-					drop exit \ see beastie tribute-text
+				s" logo" sfind if
+					drop exit \ see logo-tribute.4th
 				else
 					drop str_loader_version
 				then
 			else 2dup s" tributebw" compare-insensitive 0= if
 				2drop
-				s" tributebw-logo" sfind if
-					drop exit \ see beastie tribute-text
+				s" logo" sfind if
+					drop exit \ see logo-tributebw.4th
 				else
 					drop str_loader_version
 				then
@@ -79,9 +85,10 @@ variable versionY
 	dup versionX @ swap - versionY @ at-xy
 
 	\ Print the version (optionally in cyan)
-	loader_color? if
-		." [36m" type ." [37m"
-	else
-		type
-	then
+	loader_color? dup ( -- bool bool )
+	if 6 fg then
+	type
+	if me then
 ;
+
+only forth definitions

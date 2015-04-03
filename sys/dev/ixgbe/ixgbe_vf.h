@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2013, Intel Corporation 
+  Copyright (c) 2001-2014, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -84,6 +84,9 @@
 #define IXGBE_VFGOTC_LSB	0x02020
 #define IXGBE_VFGOTC_MSB	0x02024
 #define IXGBE_VFMPRC		0x01034
+#define IXGBE_VFMRQC		0x3000
+#define IXGBE_VFRSSRK(x)	(0x3100 + ((x) * 4))
+#define IXGBE_VFRETA(x)	(0x3200 + ((x) * 4))
 
 
 struct ixgbevf_hw_stats {

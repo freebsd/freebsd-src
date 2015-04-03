@@ -15,24 +15,41 @@ $1 == "'$ENTRY_ATTRIBUTE':" {
 	key = $2
 }
 
-$1 == "'$VALUE_ATTRIBUTE':" && key {
-	printf "%s%s", key, OFS
-	key = ""
-	for (i=2; i<NF; i++) {
-		printf "%s%s", $(i), OFS
+$1 == "'$VALUE_ATTRIBUTE':" {
+	for (i = 2; i <= NF; i++) {
+		value[i] = $(i)
 	}
-	printf "%s%s", $NF, ORS
+	nvalues = NF
+	b64 = 0
 }
 
 # Double colon after attribute name means the value is in Base64.
-$1 == "'$VALUE_ATTRIBUTE'::" && key {
-	printf "%s%s", key, OFS
-	key = ""
-	for (i=2; i<NF; i++) {
-		printf "%s%s", $(i), OFS
+$1 == "'$VALUE_ATTRIBUTE'::" {
+	for (i = 2; i <= NF; i++) {
+		value[i] = $(i)
 	}
-	printf "%s", $NF | "b64decode -rp"
-	close("b64decode -rp")
-	printf "%s", ORS
+	nvalues = NF
+	b64 = 1
+}
+
+# Empty line - end of record.
+NF == 0 && key != "" && nvalues > 0 {
+	printf "%s%s", key, OFS
+	for (i = 2; i < nvalues; i++) {
+		printf "%s%s", value[i], OFS
+	}
+	if (b64 == 1) {
+		printf "%s", value[nvalues] | "b64decode -rp"
+		close("b64decode -rp")
+		printf "%s", ORS
+	} else {
+		printf "%s%s", value[nvalues], ORS
+	}
+}
+
+NF == 0 {
+	key = ""
+	nvalues = 0
+	delete value
 }
 '
