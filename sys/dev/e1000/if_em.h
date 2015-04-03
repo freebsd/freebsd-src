@@ -191,6 +191,7 @@
 #define EM_QUEUE_IDLE			0
 #define EM_QUEUE_WORKING		1
 #define EM_QUEUE_HUNG			2
+#define EM_QUEUE_DEPLETED		4
 
 /*
  * TDBA/RDBA should be aligned on 16 byte boundary. But TDLEN/RDLEN should be

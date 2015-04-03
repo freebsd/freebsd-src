@@ -899,7 +899,8 @@ em_resume(device_t dev)
 		for (int i = 0; i < adapter->num_tx_queues; i++, txr++) {
 			EM_TX_LOCK(txr);
 #ifdef EM_MULTIQUEUE
-			if (!drbr_empty(ifp, txr->br))
+			if (((txr->queue_status & EM_QUEUE_DEPLETED) == 0) &&
+			    !drbr_empty(ifp, txr->br))
 				em_mq_start_locked(ifp, txr);
 #else
 			if (!if_sendq_empty(ifp))
@@ -957,7 +958,7 @@ em_start_locked(if_t ifp, struct tx_ring *txr)
 
 		/* Set timeout in case hardware has problems transmitting. */
 		txr->watchdog_time = ticks;
-                txr->queue_status = EM_QUEUE_WORKING;
+                txr->queue_status |= EM_QUEUE_WORKING;
 	}
 
 	return;
@@ -1057,14 +1058,14 @@ em_mq_start_locked(if_t ifp, struct tx_ring *txr)
 
 	if (enq > 0) {
                 /* Set the watchdog */
-                txr->queue_status = EM_QUEUE_WORKING;
+                txr->queue_status |= EM_QUEUE_WORKING;
 		txr->watchdog_time = ticks;
 	}
 
-	if (txr->tx_avail < EM_MAX_SCATTER)
+	if (txr->tx_avail < (adapter->num_tx_desc / 8))
 		em_txeof(txr);
 	if (txr->tx_avail < EM_MAX_SCATTER)
-		if_setdrvflagbits(ifp, IFF_DRV_OACTIVE,0);
+		txr->queue_status |= EM_QUEUE_DEPLETED;
 	return (err);
 }
 
@@ -1588,7 +1589,8 @@ em_msix_tx(void *arg)
 	EM_TX_LOCK(txr);
 	em_txeof(txr);
 #ifdef EM_MULTIQUEUE
-	if (!drbr_empty(ifp, txr->br))
+	if (((txr->queue_status & EM_QUEUE_DEPLETED) == 0) &&
+	    !drbr_empty(ifp, txr->br))
 		em_mq_start_locked(ifp, txr);
 #else
 	if (!if_sendq_empty(ifp))
@@ -2251,6 +2253,7 @@ em_local_timer(void *arg)
 	struct tx_ring	*txr = adapter->tx_rings;
 	struct rx_ring	*rxr = adapter->rx_rings;
 	u32		trigger;
+	int		hung = 0, busy = 0;
 
 	EM_CORE_LOCK_ASSERT(adapter);
 
@@ -2274,14 +2277,24 @@ em_local_timer(void *arg)
 	** and the HUNG state will be static if set.
 	*/
 	for (int i = 0; i < adapter->num_tx_queues; i++, txr++) {
-		if ((txr->queue_status == EM_QUEUE_HUNG) &&
+		if ((txr->queue_status & EM_QUEUE_HUNG) &&
 		    (adapter->pause_frames == 0))
-			goto hung;
+			++hung;
+		if (txr->queue_status & EM_QUEUE_DEPLETED)
+			++busy;
 		/* Schedule a TX tasklet if needed */
-		if (txr->tx_avail <= EM_MAX_SCATTER)
+		if ((txr->queue_status & EM_QUEUE_IDLE) == 0)
 			taskqueue_enqueue(txr->tq, &txr->tx_task);
 	}
 	
+	if (hung == adapter->num_tx_queues)
+		goto timeout;
+	if (busy == adapter->num_tx_queues)
+		if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
+	else if ((if_getdrvflags(adapter->ifp) & IFF_DRV_OACTIVE) &&
+		    (busy < adapter->num_tx_queues))
+			if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
+
 	adapter->pause_frames = 0;
 	callout_reset(&adapter->timer, hz, em_local_timer, adapter);
 #ifndef DEVICE_POLLING
@@ -2289,7 +2302,7 @@ em_local_timer(void *arg)
 	E1000_WRITE_REG(&adapter->hw, E1000_ICS, trigger);
 #endif
 	return;
-hung:
+timeout:
 	/* Looks like we're hung */
 	device_printf(adapter->dev, "Watchdog timeout -- resetting\n");
 	device_printf(adapter->dev,
@@ -2301,10 +2314,8 @@ hung:
 	    txr->me, txr->tx_avail, txr->next_to_clean);
 	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 	adapter->watchdog_events++;
-	adapter->pause_frames = 0;
 	em_init_locked(adapter);
 }
-
 
 static void
 em_update_link_status(struct adapter *adapter)
@@ -2370,10 +2381,11 @@ em_update_link_status(struct adapter *adapter)
 		if (bootverbose)
 			device_printf(dev, "Link is Down\n");
 		adapter->link_active = 0;
-		/* Link down, disable watchdog */
+		/* This can sleep */
+		if_link_state_change(ifp, LINK_STATE_DOWN);
+		/* Reset queue state */
 		for (int i = 0; i < adapter->num_tx_queues; i++, txr++)
 			txr->queue_status = EM_QUEUE_IDLE;
-		if_link_state_change(ifp, LINK_STATE_DOWN);
 	}
 }
 
@@ -3411,7 +3423,6 @@ em_setup_transmit_ring(struct tx_ring *txr)
 
 	/* Set number of descriptors available */
 	txr->tx_avail = adapter->num_tx_desc;
-	txr->queue_status = EM_QUEUE_IDLE;
 
 	/* Clear checksum offload context. */
 	txr->last_hw_offload = 0;
@@ -3932,17 +3943,10 @@ em_txeof(struct tx_ring *txr)
 	** will examine this and do a reset if needed.
 	*/
 	if ((!processed) && ((ticks - txr->watchdog_time) > EM_WATCHDOG))
-		txr->queue_status = EM_QUEUE_HUNG;
+		txr->queue_status |= EM_QUEUE_HUNG;
 
-        /*
-         * If we have a minimum free, clear IFF_DRV_OACTIVE
-         * to tell the stack that it is OK to send packets.
-	 * Notice that all writes of OACTIVE happen under the
-	 * TX lock which, with a single queue, guarantees 
-	 * sanity.
-         */
-        if (txr->tx_avail >= EM_MAX_SCATTER)
-		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
+	if (txr->tx_avail >= (adapter->num_tx_desc / 8))
+		txr->queue_status &= ~EM_QUEUE_DEPLETED;
 
 	/* Disable watchdog if all clean */
 	if (txr->tx_avail == adapter->num_tx_desc) {
