@@ -217,21 +217,16 @@ tcpdump_sandbox_reset(struct tcpdump_sandbox *sb)
 {
 	int i;
 
-	/* XXX: should have a cheap reset based on ELF loader */
-	sandbox_object_destroy(sb->tds_sandbox_object);
-	if (sandbox_object_new(tcpdump_classp, 128*1024,
-	    &sb->tds_sandbox_object) < 0) {
-		fprintf(stderr, "failed to create sandbox object: %s",
+	if (sb->tds_current_invokes == 0)
+		return (0);
+	if (sandbox_object_reset(sb->tds_sandbox_object) < 0) {
+		fprintf(stderr, "failed to reset sandbox object: %s",
 		    strerror(errno));
 		return (-1);
 	}
-	if (sb->tds_proto_sandboxes != NULL) {
-		for (i = 0; i < sb->tds_num_proto_sandboxes; i++) {
+	if (sb->tds_proto_sandboxes != NULL)
+		for (i = 0; i < sb->tds_num_proto_sandboxes; i++)
 			tcpdump_sandbox_reset(sb->tds_proto_sandboxes[i]);
-			sb->tds_proto_sandbox_objects[i] =
-			    sandbox_object_getobject(sb->tds_proto_sandboxes[i]->tds_sandbox_object);
-		}
-	}
 	sb->tds_resets++;
 	sb->tds_current_invokes = 0;
 
