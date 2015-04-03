@@ -46,8 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/rman.h>
-#include <sys/timeet.h>
-#include <sys/timetc.h>
 #include <sys/endian.h>
 #include <sys/lock.h>
 #include <sys/mbuf.h>
@@ -72,8 +70,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/fdt.h>
-#include <machine/cpu.h>
-#include <machine/intr.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
@@ -550,7 +546,8 @@ dwc_alloc_mbufcl(struct dwc_softc *sc)
 	struct mbuf *m;
 
 	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
-	m->m_pkthdr.len = m->m_len = m->m_ext.ext_size;
+	if (m != NULL)
+		m->m_pkthdr.len = m->m_len = m->m_ext.ext_size;
 
 	return (m);
 }
@@ -744,11 +741,8 @@ dwc_txfinish_locked(struct dwc_softc *sc)
 {
 	struct dwc_bufmap *bmap;
 	struct dwc_hwdesc *desc;
-	struct ifnet *ifp;
 
 	DWC_ASSERT_LOCKED(sc);
-
-	ifp = sc->ifp;
 
 	while (sc->tx_idx_tail != sc->tx_idx_head) {
 		desc = &sc->txdesc_ring[sc->tx_idx_tail];
