@@ -40,16 +40,16 @@ __FBSDID("$FreeBSD$");
 #include <machine/metadata.h>
 #include <machine/psl.h>
 
-#if defined(__amd64__) || defined(__i386__)
-#include <machine/specialreg.h>
-#endif
-
 #include <efi.h>
 #include <efilib.h>
 
 #include "bootstrap.h"
-#include "framebuffer.h"
 #include "loader_efi.h"
+
+#if defined(__amd64__) || defined(__i386__)
+#include <machine/specialreg.h>
+#include "framebuffer.h"
+#endif
 
 UINTN efi_mapkey;
 
@@ -236,6 +236,8 @@ bi_load_efi_data(struct preloaded_file *kfp)
 	UINTN mmsz, pages, sz;
 	UINT32 mmver;
 	struct efi_map_header *efihdr;
+
+#if defined(__amd64__) || defined(__i386__)
 	struct efi_fb efifb;
 
 	if (efi_find_framebuffer(&efifb) == 0) {
@@ -251,6 +253,7 @@ bi_load_efi_data(struct preloaded_file *kfp)
 
 		file_addmetadata(kfp, MODINFOMD_EFI_FB, sizeof(efifb), &efifb);
 	}
+#endif
 
 	efisz = (sizeof(struct efi_map_header) + 0xf) & ~0xf;
 
