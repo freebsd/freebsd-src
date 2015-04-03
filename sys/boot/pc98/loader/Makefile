@@ -86,6 +86,7 @@ FILES=	${LOADER}
 # XXX INSTALLFLAGS_loader= -b
 FILESMODE_${LOADER}= ${BINMODE} -b
 
+.PATH: ${.CURDIR}/../../forth
 .include	"${.CURDIR}/../../forth/Makefile.inc"
 
 .if !exists(${DESTDIR}/boot/loader.rc)
