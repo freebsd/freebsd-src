@@ -109,5 +109,44 @@ END(_rtld_bind_start)
  */
 ENTRY(_rtld_tlsdesc)
 	ldr	x0, [x0, #8]
-	RET
+	ret
 END(_rtld_tlsdesc)
+
+/*
+ * uint64_t _rtld_tlsdesc_dynamic(struct tlsdesc *);
+ *
+ * TODO: We could lookup the saved index here to skip saving the entire stack.
+ */
+ENTRY(_rtld_tlsdesc_dynamic)
+	/* Store any registers we may use in rtld_tlsdesc_handle */
+	stp	x29, x30, [sp, #-(10 * 16)]!
+	mov	x29, sp
+	stp	x1, x2,   [sp, #(1 * 16)]
+	stp	x3, x4,   [sp, #(2 * 16)]
+	stp	x5, x6,   [sp, #(3 * 16)]
+	stp	x7, x8,   [sp, #(4 * 16)]
+	stp	x9, x10,  [sp, #(5 * 16)]
+	stp	x11, x12, [sp, #(6 * 16)]
+	stp	x13, x14, [sp, #(7 * 16)]
+	stp	x15, x16, [sp, #(8 * 16)]
+	stp	x17, x18, [sp, #(9 * 16)]
+
+	/* Find the tls offset */
+	ldr	x0, [x0, #8]
+	mov	x1, #1
+	bl	rtld_tlsdesc_handle
+
+	/* Restore the registers */
+	ldp	x17, x18, [sp, #(9 * 16)]
+	ldp	x15, x16, [sp, #(8 * 16)]
+	ldp	x13, x14, [sp, #(7 * 16)]
+	ldp	x11, x12, [sp, #(6 * 16)]
+	ldp	x9, x10,  [sp, #(5 * 16)]
+	ldp	x7, x8,   [sp, #(4 * 16)]
+	ldp	x5, x6,   [sp, #(3 * 16)]
+	ldp	x3, x4,   [sp, #(2 * 16)]
+	ldp	x1, x2,   [sp, #(1 * 16)]
+	ldp	x29, x30, [sp], #(10 * 16)
+
+	ret
+END(_rtld_tlsdesc_dynamic)

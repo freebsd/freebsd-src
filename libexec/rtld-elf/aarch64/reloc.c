@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
  * a function pointer to a simple asm function.
  */
 void *_rtld_tlsdesc(void *);
+void *_rtld_tlsdesc_dynamic(void *);
+
 void _exit(int);
 
 void
@@ -120,6 +122,68 @@ do_copy_relocations(Obj_Entry *dstobj)
 	return (0);
 }
 
+struct tls_data {
+	int64_t index;
+	Obj_Entry *obj;
+	const Elf_Rela *rela;
+};
+
+static struct tls_data *
+reloc_tlsdesc_alloc(Obj_Entry *obj, const Elf_Rela *rela)
+{
+	struct tls_data *tlsdesc;
+
+	tlsdesc = xmalloc(sizeof(struct tls_data));
+	tlsdesc->index = -1;
+	tlsdesc->obj = obj;
+	tlsdesc->rela = rela;
+
+	return (tlsdesc);
+}
+
+/*
+ * Look up the symbol to find its tls index
+ */
+static int64_t
+rtld_tlsdesc_handle_locked(struct tls_data *tlsdesc, int flags,
+    RtldLockState *lockstate)
+{
+	const Elf_Rela *rela;
+	const Elf_Sym *def;
+	const Obj_Entry *defobj;
+	Obj_Entry *obj;
+
+	rela = tlsdesc->rela;
+	obj = tlsdesc->obj;
+
+	def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj, flags, NULL,
+	    lockstate);
+	if (def == NULL)
+		rtld_die();
+
+	tlsdesc->index = defobj->tlsindex + def->st_value + rela->r_addend;
+
+	return (tlsdesc->index);
+}
+
+int64_t
+rtld_tlsdesc_handle(struct tls_data *tlsdesc, int flags)
+{
+	RtldLockState lockstate;
+
+	/* We have already found the index, return it */
+	if (tlsdesc->index >= 0)
+		return (tlsdesc->index);
+
+	wlock_acquire(rtld_bind_lock, &lockstate);
+	/* tlsdesc->index may have been set by another thread */
+	if (tlsdesc->index == -1)
+		rtld_tlsdesc_handle_locked(tlsdesc, flags, &lockstate);
+	lock_release(rtld_bind_lock, &lockstate);
+
+	return (tlsdesc->index);
+}
+
 /*
  * Process the PLT relocations.
  */
@@ -142,11 +206,11 @@ reloc_plt(Obj_Entry *obj)
 		case R_AARCH64_TLSDESC:
 			if (ELF_R_SYM(rela->r_info) == 0) {
 				where[0] = (Elf_Addr)_rtld_tlsdesc;
-				where[1] = rela->r_addend;
+				where[1] = obj->tlsindex + rela->r_addend;
 			} else {
-				_rtld_error("Unable to handle "
-				    "R_AARCH64_TLSDESC with a symbol set");
-				return (-1);
+				where[0] = (Elf_Addr)_rtld_tlsdesc_dynamic;
+				where[1] = (Elf_Addr)reloc_tlsdesc_alloc(obj,
+				    rela);
 			}
 			break;
 		default:
@@ -169,14 +233,15 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 	const Elf_Rela *relalim;
 	const Elf_Rela *rela;
 	const Elf_Sym *def;
+	struct tls_data *tlsdesc;
 
 	relalim = (const Elf_Rela *)((char *)obj->pltrela + obj->pltrelasize);
 	for (rela = obj->pltrela; rela < relalim; rela++) {
 		Elf_Addr *where;
 
+		where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 		switch(ELF_R_TYPE(rela->r_info)) {
 		case R_AARCH64_JUMP_SLOT:
-			where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 			def = find_symdef(ELF_R_SYM(rela->r_info), obj,
 			    &defobj, SYMLOOK_IN_PLT | flags, NULL, lockstate);
 			if (def == NULL) {
@@ -187,6 +252,12 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 			*where = (Elf_Addr)(defobj->relocbase + def->st_value);
 			break;
 		case R_AARCH64_TLSDESC:
+			if (ELF_R_SYM(rela->r_info) != 0) {
+				tlsdesc = (struct tls_data *)where[1];
+				if (tlsdesc->index == -1)
+					rtld_tlsdesc_handle_locked(tlsdesc,
+					    SYMLOOK_IN_PLT | flags, lockstate);
+			}
 			break;
 		default:
 			_rtld_error("Unknown relocation type %x in jmpslot",
@@ -284,6 +355,32 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 				    "relocation in shared library", obj->path);
 				return (-1);
 			}
+			break;
+		case R_AARCH64_TLS_TPREL64:
+			def = find_symdef(symnum, obj, &defobj, flags, cache,
+			    lockstate);
+			if (def == NULL)
+				return (-1);
+
+			/*
+			 * We lazily allocate offsets for static TLS as we
+			 * see the first relocation that references the
+			 * TLS block. This allows us to support (small
+			 * amounts of) static TLS in dynamically loaded
+			 * modules. If we run out of space, we generate an
+			 * error.
+			 */
+			if (!defobj->tls_done) {
+				if (!allocate_tls_offset((Obj_Entry*) defobj)) {
+					_rtld_error(
+					    "%s: No space available for static "
+					    "Thread Local Storage", obj->path);
+					return (-1);
+				}
+			}
+
+			*where = def->st_value + rela->r_addend +
+			    defobj->tlsoffset - TLS_TCB_SIZE;
 			break;
 		case R_AARCH64_RELATIVE:
 			*where = (Elf_Addr)(obj->relocbase + rela->r_addend);
