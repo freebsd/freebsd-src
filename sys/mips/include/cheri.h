@@ -427,6 +427,15 @@ struct cheri_stack {
 		    "i" (cd), "i" (cb), "r" (v));			\
 } while (0)
 
+#define	CHERI_CINCOFFSET(cd, cb, v) do {				\
+	if ((cd) == 0)							\
+		__asm__ __volatile__ ("cincoffset $c%0, $c%1, %2" : :	\
+		    "i" (cd), "i" (cb), "r" (v) : "memory");		\
+	else								\
+		__asm__ __volatile__ ("cincoffset $c%0, $c%1, %2" : :	\
+		    "i" (cd), "i" (cb), "r" (v));			\
+} while (0)
+
 #define	CHERI_CMOVE(cd, cb) do {					\
 	if ((cd) == 0)							\
 		__asm__ __volatile__ ("cmove $c%0, $c%1" : :		\
