@@ -888,7 +888,7 @@ g_mirror_done(struct bio *bp)
 	sc = bp->bio_from->geom->softc;
 	bp->bio_cflags = G_MIRROR_BIO_FLAG_REGULAR;
 	mtx_lock(&sc->sc_queue_mtx);
-	bioq_disksort(&sc->sc_queue, bp);
+	bioq_insert_tail(&sc->sc_queue, bp);
 	mtx_unlock(&sc->sc_queue_mtx);
 	wakeup(sc);
 }
@@ -975,7 +975,7 @@ g_mirror_regular_request(struct bio *bp)
 		else {
 			pbp->bio_error = 0;
 			mtx_lock(&sc->sc_queue_mtx);
-			bioq_disksort(&sc->sc_queue, pbp);
+			bioq_insert_tail(&sc->sc_queue, pbp);
 			mtx_unlock(&sc->sc_queue_mtx);
 			G_MIRROR_DEBUG(4, "%s: Waking up %p.", __func__, sc);
 			wakeup(sc);
@@ -1015,7 +1015,7 @@ g_mirror_sync_done(struct bio *bp)
 	sc = bp->bio_from->geom->softc;
 	bp->bio_cflags = G_MIRROR_BIO_FLAG_SYNC;
 	mtx_lock(&sc->sc_queue_mtx);
-	bioq_disksort(&sc->sc_queue, bp);
+	bioq_insert_tail(&sc->sc_queue, bp);
 	mtx_unlock(&sc->sc_queue_mtx);
 	wakeup(sc);
 }
@@ -1144,7 +1144,7 @@ g_mirror_start(struct bio *bp)
 		return;
 	}
 	mtx_lock(&sc->sc_queue_mtx);
-	bioq_disksort(&sc->sc_queue, bp);
+	bioq_insert_tail(&sc->sc_queue, bp);
 	mtx_unlock(&sc->sc_queue_mtx);
 	G_MIRROR_DEBUG(4, "%s: Waking up %p.", __func__, sc);
 	wakeup(sc);
@@ -1582,7 +1582,7 @@ g_mirror_request_split(struct g_mirror_softc *sc, struct bio *bp)
 		cbp = g_clone_bio(bp);
 		if (cbp == NULL) {
 			while ((cbp = bioq_takefirst(&queue)) != NULL)
-				bioq_remove(&queue, cbp);
+				g_destroy_bio(cbp);
 			if (bp->bio_error == 0)
 				bp->bio_error = ENOMEM;
 			g_io_deliver(bp, bp->bio_error);
@@ -1865,7 +1865,7 @@ g_mirror_worker(void *arg)
 		 */
 		/* Get first request from the queue. */
 		mtx_lock(&sc->sc_queue_mtx);
-		bp = bioq_first(&sc->sc_queue);
+		bp = bioq_takefirst(&sc->sc_queue);
 		if (bp == NULL) {
 			if ((sc->sc_flags &
 			    G_MIRROR_DEVICE_FLAG_DESTROY) != 0) {
@@ -1893,7 +1893,6 @@ g_mirror_worker(void *arg)
 			G_MIRROR_DEBUG(5, "%s: I'm here 4.", __func__);
 			continue;
 		}
-		bioq_remove(&sc->sc_queue, bp);
 		mtx_unlock(&sc->sc_queue_mtx);
 
 		if (bp->bio_from->geom == sc->sc_sync.ds_geom &&

@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd February 7, 2013
+.Dd April 2, 2015
 .Dt OPEN 2
 .Os
 .Sh NAME
@@ -115,8 +115,8 @@ O_DIRECT	eliminate or reduce cache effects
 O_FSYNC		synchronous writes
 O_SYNC		synchronous writes
 O_NOFOLLOW	do not follow symlinks
-O_NOCTTY	don't assign controlling terminal
-O_TTY_INIT	restore default terminal attributes
+O_NOCTTY	ignored
+O_TTY_INIT	ignored
 O_DIRECTORY	error if file is not a directory
 O_CLOEXEC	set FD_CLOEXEC upon open
 .Ed

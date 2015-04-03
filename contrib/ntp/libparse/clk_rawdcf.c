@@ -101,9 +101,9 @@
  * 59		      - usually missing (minute indication), except for leap insertion
  */
 
-static u_long pps_rawdcf P((parse_t *, int, timestamp_t *));
-static u_long cvt_rawdcf P((unsigned char *, int, struct format *, clocktime_t *, void *));
-static u_long inp_rawdcf P((parse_t *, unsigned int, timestamp_t  *));
+static u_long pps_rawdcf (parse_t *, int, timestamp_t *);
+static u_long cvt_rawdcf (unsigned char *, int, struct format *, clocktime_t *, void *);
+static u_long inp_rawdcf (parse_t *, unsigned int, timestamp_t  *);
 
 typedef struct last_tcode {
 	time_t tcode;	/* last converted time code */
@@ -125,12 +125,12 @@ clockformat_t clock_rawdcf =
 
 static struct dcfparam
 {
-	unsigned char *onebits;
-	unsigned char *zerobits;
+	const unsigned char *onebits;
+	const unsigned char *zerobits;
 } dcfparameter = 
 {
-	(unsigned char *)"###############RADMLS1248124P124812P1248121241248112481248P??", /* 'ONE' representation */
-	(unsigned char *)"--------------------s-------p------p----------------------p__"  /* 'ZERO' representation */
+	(const unsigned char *)"###############RADMLS1248124P124812P1248121241248112481248P??", /* 'ONE' representation */
+	(const unsigned char *)"--------------------s-------p------p----------------------p__"  /* 'ZERO' representation */
 };
 
 static struct rawdcfcode 
@@ -182,7 +182,7 @@ static u_long
 ext_bf(
 	unsigned char *buf,
 	int   idx,
-	unsigned char *zero
+	const unsigned char *zero
 	)
 {
 	u_long sum = 0;
@@ -202,7 +202,7 @@ static unsigned
 pcheck(
        unsigned char *buf,
        int   idx,
-       unsigned char *zero
+       const unsigned char *zero
        )
 {
 	int i,last;
@@ -225,8 +225,8 @@ convert_rawdcf(
 	       )
 {
 	unsigned char *s = buffer;
-	unsigned char *b = dcfprm->onebits;
-	unsigned char *c = dcfprm->zerobits;
+	const unsigned char *b = dcfprm->onebits;
+	const unsigned char *c = dcfprm->zerobits;
 	int i;
 
 	parseprintf(DD_RAWDCF,("parse: convert_rawdcf: \"%s\"\n", buffer));
@@ -234,7 +234,7 @@ convert_rawdcf(
 	if (size < 57)
 	{
 #ifndef PARSEKERNEL
-		msyslog(LOG_ERR, "parse: convert_rawdcf: INCOMPLETE DATA - time code only has %d bits\n", size);
+		msyslog(LOG_ERR, "parse: convert_rawdcf: INCOMPLETE DATA - time code only has %d bits", size);
 #endif
 		return CVT_NONE;
 	}
@@ -320,7 +320,7 @@ convert_rawdcf(
 		 * bad format - not for us
 		 */
 #ifndef PARSEKERNEL
-		msyslog(LOG_ERR, "parse: convert_rawdcf: parity check FAILED for \"%s\"\n", buffer);
+		msyslog(LOG_ERR, "parse: convert_rawdcf: parity check FAILED for \"%s\"", buffer);
 #endif
 		return CVT_FAIL|CVT_BADFMT;
 	}
@@ -342,8 +342,8 @@ cvt_rawdcf(
 	last_tcode_t  *t = (last_tcode_t *)local;
 	unsigned char *s = (unsigned char *)buffer;
 	unsigned char *e = s + size;
-	unsigned char *b = dcfparameter.onebits;
-	unsigned char *c = dcfparameter.zerobits;
+	const unsigned char *b = dcfparameter.onebits;
+	const unsigned char *c = dcfparameter.zerobits;
 	u_long       rtc = CVT_NONE;
 	unsigned int i, lowmax, highmax, cutoff, span;
 #define BITS 9

@@ -55,7 +55,7 @@
 # include <stdio.h>
 #else
 # include "sys/parsestreams.h"
-extern void printf P((const char *, ...));
+extern int printf (const char *, ...);
 #endif
 
 static const u_char VT_INITIALISED      = 0x01;
@@ -105,8 +105,8 @@ static struct format varitext_fmt =
   0
 };
 
-static u_long   cvt_varitext P((unsigned char *, int, struct format *, clocktime_t *, void *));
-static u_long   inp_varitext P((parse_t *, unsigned int, timestamp_t *));
+static u_long   cvt_varitext (unsigned char *, int, struct format *, clocktime_t *, void *);
+static u_long   inp_varitext (parse_t *, unsigned int, timestamp_t *);
 
 struct varitext {
   unsigned char start_found;

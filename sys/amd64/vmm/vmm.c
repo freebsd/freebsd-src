@@ -2332,7 +2332,7 @@ vm_copy_setup(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
 	remaining = len;
 	while (remaining > 0) {
 		KASSERT(nused < num_copyinfo, ("insufficient vm_copyinfo"));
-		error = vmm_gla2gpa(vm, vcpuid, paging, gla, prot, &gpa);
+		error = vm_gla2gpa(vm, vcpuid, paging, gla, prot, &gpa);
 		if (error)
 			return (error);
 		off = gpa & PAGE_MASK;

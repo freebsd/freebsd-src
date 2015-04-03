@@ -141,6 +141,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 
+#ifdef MPC85XX
+#include <powerpc/mpc85xx/mpc85xx.h>
+#endif
+
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
@@ -464,7 +468,9 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	debugf(" arg3 mdp = 0x%08x\n", (u_int32_t)mdp);
 	debugf(" end = 0x%08x\n", (u_int32_t)end);
 	debugf(" boothowto = 0x%08x\n", boothowto);
+#ifdef MPC85XX
 	debugf(" kernel ccsrbar = 0x%08x\n", CCSRBAR_VA);
+#endif
 	debugf(" MSR = 0x%08x\n", mfmsr());
 #if defined(BOOKE_E500)
 	debugf(" HID0 = 0x%08x\n", mfspr(SPR_HID0));

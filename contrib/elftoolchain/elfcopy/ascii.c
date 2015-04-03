@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <ctype.h>
 #include <err.h>
@@ -37,7 +36,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: ascii.c 2358 2011-12-19 18:22:32Z kaiwang27 $");
+ELFTC_VCSID("$Id: ascii.c 3177 2015-03-30 18:19:41Z emaste $");
 
 static void append_data(struct section *s, const void *buf, size_t sz);
 static char hex_digit(uint8_t n);

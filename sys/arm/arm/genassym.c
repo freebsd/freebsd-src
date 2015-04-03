@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/pcb.h>
 #include <machine/cpu.h>
+#include <machine/cpu-v6.h>
 #include <machine/proc.h>
 #include <machine/cpufunc.h>
 #include <machine/cpuinfo.h>
@@ -58,12 +59,19 @@ __FBSDID("$FreeBSD$");
 
 ASSYM(KERNBASE, KERNBASE);
 ASSYM(PCB_NOALIGNFLT, PCB_NOALIGNFLT);
+#ifdef ARM_NEW_PMAP
+ASSYM(CPU_ASID_KERNEL,CPU_ASID_KERNEL);
+#endif
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
+#ifndef ARM_NEW_PMAP
 ASSYM(PCB_DACR, offsetof(struct pcb, pcb_dacr));
+#endif
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_PAGEDIR, offsetof(struct pcb, pcb_pagedir));
+#ifndef ARM_NEW_PMAP
 ASSYM(PCB_L1VEC, offsetof(struct pcb, pcb_l1vec));
 ASSYM(PCB_PL1VEC, offsetof(struct pcb, pcb_pl1vec));
+#endif
 ASSYM(PCB_R4, offsetof(struct pcb, pcb_regs.sf_r4));
 ASSYM(PCB_R5, offsetof(struct pcb, pcb_regs.sf_r5));
 ASSYM(PCB_R6, offsetof(struct pcb, pcb_regs.sf_r6));
@@ -131,7 +139,6 @@ ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
 #endif
 
 ASSYM(PAGE_SIZE, PAGE_SIZE);
-ASSYM(PDESIZE, PDESIZE);
 ASSYM(PMAP_DOMAIN_KERNEL, PMAP_DOMAIN_KERNEL);
 #ifdef PMAP_INCLUDE_PTE_SYNC
 ASSYM(PMAP_INCLUDE_PTE_SYNC, 1);
@@ -145,8 +152,13 @@ ASSYM(TRAPFRAMESIZE, sizeof(struct trapframe));
 
 ASSYM(MAXCOMLEN, MAXCOMLEN);
 ASSYM(MAXCPU, MAXCPU);
+ASSYM(_NCPUWORDS, _NCPUWORDS);
 ASSYM(NIRQ, NIRQ);
 ASSYM(PCPU_SIZE, sizeof(struct pcpu));
+ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
+ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
+ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
+ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
 
 ASSYM(DCACHE_LINE_SIZE, offsetof(struct cpuinfo, dcache_line_size));
 ASSYM(DCACHE_LINE_MASK, offsetof(struct cpuinfo, dcache_line_mask));

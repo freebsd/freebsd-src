@@ -1,5 +1,4 @@
 # $FreeBSD$
-arm/arm/cpufunc_asm_fa526.S	standard
 arm/cavium/cns11xx/econa_machdep.c		standard
 arm/cavium/cns11xx/econa.c			standard
 arm/cavium/cns11xx/timer.c			standard

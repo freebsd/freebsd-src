@@ -2702,6 +2702,7 @@ dev/xen/xenstore/xenstore_dev.c	optional xen | xenhvm
 dev/xen/xenstore/xenstored_dev.c	optional xen | xenhvm
 dev/xen/evtchn/evtchn_dev.c	optional xen | xenhvm
 dev/xen/privcmd/privcmd.c	optional xen | xenhvm
+dev/xen/debug/debug.c		optional xen | xenhvm
 dev/xl/if_xl.c			optional xl pci
 dev/xl/xlphy.c			optional xl pci
 fs/autofs/autofs.c		optional autofs
