@@ -136,6 +136,7 @@ ldscript.generated::
 	fi
 
 .if !defined(LOADER_ONLY)
+.PATH: ${.CURDIR}/../../forth
 .include	"${.CURDIR}/../../forth/Makefile.inc"
 
 # Put sample loader.rc and menu.rc on disk but don't enable them
