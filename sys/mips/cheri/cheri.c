@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2014 Robert N. M. Watson
+ * Copyright (c) 2011-2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -117,14 +117,60 @@ void
 cheri_capability_set(struct chericap *cp, uint32_t perms, void *otypep,
     void *basep, size_t length, off_t off)
 {
+#ifdef INVARIANTS
+	register_t r;
+#endif
 
-	CHERI_CINCBASE(CHERI_CR_CTEMP0, CHERI_CR_KDC, (register_t)basep);
+	/*
+	 * NB: Set fields in this order (offset first), in the absence of a
+	 * CSetBound instruction, such that maximum precision is available
+	 * when using compressed capabilities.
+	 */
+	CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_KDC, 0);
+	CHERI_CINCBASE(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)basep);
 	CHERI_CSETLEN(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)length);
-	CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)off);
 	CHERI_CANDPERM(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)perms);
-	/* XXXRW: For now, don't set type. */
+
+	/*
+	 * NB: With imprecise bounds, offset may be non-zero after setting up
+	 * bounds.  We therefore need to add the requested offset to the
+	 * actual one before installing, rather than simply setting it.
+	 */
+	CHERI_CINCOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)off);
 #if 0
+	/* XXXRW: For now, don't set type. */
 	CHERI_CSETTYPE(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)otypep);
+#endif
+
+	/*
+	 * NB: With imprecise bounds, we want to assert that the results will
+	 * be 'as requested' -- i.e., that the kernel always request bounds
+	 * that can be represented precisly.
+	 *
+	 * XXXRW: Given these assupmtions, we actually don't need to do the
+	 * '+= off' above.
+	 */
+#ifdef INVARIANTS
+	CHERI_CGETPERM(r, CHERI_CR_CTEMP0);
+	KASSERT(r == (register_t)perms,
+	    ("%s: permissions 0x%x rather than 0x%x", __func__,
+	    (unsigned int)r, perms));
+	CHERI_CGETBASE(r, CHERI_CR_CTEMP0);
+	KASSERT(r == (register_t)basep,
+	    ("%s: base %p rather than %p", __func__, (void *)r, basep));
+	CHERI_CGETLEN(r, CHERI_CR_CTEMP0);
+	KASSERT(r == (register_t)length,
+	    ("%s: permissions 0x%x rather than 0x%x", __func__,
+	    (unsigned int)r, perms));
+	CHERI_CGETOFFSET(r, CHERI_CR_CTEMP0);
+	KASSERT(r == (register_t)off,
+	    ("%s: offset %p rather than %p", __func__, (void *)r,
+	    (void *)off));
+#if 0
+	CHERI_CGETTYPE(r, CHERI_CR_CTEMP0);
+	KASSERT(r == (register_t)otypep,
+	    ("%s: otype %p rather than %p", __func__, (void *)r, otypep));
+#endif
 #endif
 	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, (register_t)cp, 0);
 }
