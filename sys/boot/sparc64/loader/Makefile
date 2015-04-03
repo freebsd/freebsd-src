@@ -95,6 +95,7 @@ loader.help: help.common help.sparc64
 	cat ${.ALLSRC} | \
 	    awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
+.PATH: ${.CURDIR}/../../forth
 .include	"${.CURDIR}/../../forth/Makefile.inc"
 
 .if !exists(${DESTDIR}/boot/loader.rc)
