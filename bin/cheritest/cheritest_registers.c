@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2014 Robert N. M. Watson
+ * Copyright (c) 2012-2015 Robert N. M. Watson
  * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
@@ -41,6 +41,7 @@
 
 #include <machine/cheri.h>
 #include <machine/cheric.h>
+#include <machine/cherireg.h>
 #include <machine/cpuregs.h>
 
 #include <cheri/cheri_fd.h>
@@ -109,4 +110,92 @@ test_listregs(const struct cheri_test *ctp __unused)
 	CHERI_CAPREG_PRINT(26);
 	CHERI_PCC_PRINT();
 	cheritest_success();
+}
+
+/*
+ * These tests assume that the compiler and run-time libraries won't muck with
+ * the global registers in question -- which is true at the time of writing.
+ *
+ * However, in the future, it could be that they are modified -- e.g., to
+ * differentiate memory capabilities from class-type capabilities.  In that
+ * case, these tests would need to check the original capability values saved
+ * during process startup -- and also the new expected values.
+ */
+static void
+check_initreg(__capability void *c)
+{
+	register_t v;
+
+	/* Base. */
+	v = cheri_getbase(c);
+	if (v != CHERI_CAP_USER_BASE)
+		cheritest_failure_errx("base %jx (expected %jx)", v,
+		    CHERI_CAP_USER_BASE);
+
+	/* Length. */
+	v = cheri_getlen(c);
+	if (v != CHERI_CAP_USER_LENGTH)
+		cheritest_failure_errx("length 0x%jx (expected 0x%jx)", v,
+		    CHERI_CAP_USER_LENGTH);
+
+	/* Offset. */
+	v = cheri_getoffset(c);
+	if (v != CHERI_CAP_USER_OFFSET)
+		cheritest_failure_errx("offset %jx (expected %jx)", v,
+		    CHERI_CAP_USER_OFFSET);
+	/* Type. */
+	v = cheri_gettype(c);
+	if (v != CHERI_CAP_USER_OTYPE)
+		cheritest_failure_errx("otype %jx (expected %jx)", v,
+		    CHERI_CAP_USER_OTYPE);
+
+	/* Permissions. */
+	v = cheri_getperm(c);
+	if (v != CHERI_CAP_USER_PERMS)
+		cheritest_failure_errx("perms %jx (expected %jx)", v,
+		    CHERI_CAP_USER_PERMS);
+
+	/* Sealed bit. */
+	v = cheri_getsealed(c);
+	if (v != 0)
+		cheritest_failure_errx("sealed %jx (expected 0)", v);
+
+	/* Tag bit. */
+	v = cheri_gettag(c);
+	if (v != 1)
+		cheritest_failure_errx("tag %jx (expected 1)", v);
+	cheritest_success();
+}
+
+void
+test_initregs_default(const struct cheri_test *ctp __unused)
+{
+
+	check_initreg(cheri_getdefault());
+}
+
+void
+test_initregs_stack(const struct cheri_test *ctp __unused)
+{
+
+	/* XXXRW: There is no Clang builtin for the stack capability! */
+	check_initreg(cheri_getreg(11));
+}
+
+void
+test_initregs_idc(const struct cheri_test *ctp __unused)
+{
+
+	check_initreg(cheri_getidc());
+}
+
+void
+test_initregs_pcc(const struct cheri_test *ctp __unused)
+{
+	__capability void *c;
+
+	/* $pcc includes $pc, so clear that for the purposes of the check. */
+	c = cheri_getpcc();
+	c = cheri_setoffset(c, 0);
+	check_initreg(c);
 }

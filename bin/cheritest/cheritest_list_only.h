@@ -62,6 +62,10 @@
 #define	CHERI_EXCCODE_PERM_SEAL		0
 #define	CHERI_EXCCODE_STORE_LOCALCAP	0
 
+#define	test_initregs_default				NULL
+#define	test_initregs_stack				NULL
+#define	test_initregs_idc				NULL
+#define	test_initregs_pcc				NULL
 #define	test_copyregs					NULL
 #define	test_listregs					NULL
 #define	test_fault_cgetcause				NULL

@@ -82,6 +82,22 @@ static const struct cheri_test cheri_tests[] = {
 	/*
 	 * Exercise CHERI functions without an expectation of a signal.
 	 */
+	{ .ct_name = "test_initregs_default",
+	  .ct_desc = "Test initial value of default capability",
+	  .ct_func = test_initregs_default },
+
+	{ .ct_name = "test_initregs_stack",
+	  .ct_desc = "Test initial value of stack capability",
+	  .ct_func = test_initregs_stack },
+
+	{ .ct_name = "test_initregs_idc",
+	  .ct_desc = "Test initial value of invoked data capability",
+	  .ct_func = test_initregs_idc },
+
+	{ .ct_name = "test_initregs_pcc",
+	  .ct_desc = "Test initial value of program-counter capability",
+	  .ct_func = test_initregs_pcc },
+
 	{ .ct_name = "test_copyregs",
 	  .ct_desc = "Exercise CP2 register assignments",
 	  .ct_func = test_copyregs },

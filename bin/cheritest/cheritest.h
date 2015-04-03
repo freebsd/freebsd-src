@@ -225,6 +225,10 @@ void	test_sandbox_setstack_nop(const struct cheri_test *ctp);
 void	test_sandbox_syscall(const struct cheri_test *ctp);
 
 /* cheritest_registers.c */
+void	test_initregs_default(const struct cheri_test *ctp);
+void	test_initregs_stack(const struct cheri_test *ctp);
+void	test_initregs_idc(const struct cheri_test *ctp);
+void	test_initregs_pcc(const struct cheri_test *ctp);
 void	test_copyregs(const struct cheri_test *ctp);
 void	test_listregs(const struct cheri_test *ctp);
 
