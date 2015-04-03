@@ -24,15 +24,13 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <assert.h>
 #include <libelf.h>
 #include <string.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_convert.m4 3158 2015-02-15 21:42:07Z emaste $");
+ELFTC_VCSID("$Id: libelf_convert.m4 3174 2015-03-27 17:13:41Z emaste $");
 
 /* WARNING: GENERATED FROM __file__. */
 

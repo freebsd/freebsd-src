@@ -128,12 +128,6 @@ enum sfxge_txq_type {
 
 #define	SFXGE_TX_BATCH	64
 
-#ifdef SFXGE_HAVE_MQ
-#define	SFXGE_TX_LOCK(txq)		(&(txq)->lock)
-#else
-#define	SFXGE_TX_LOCK(txq)		(&(txq)->sc->tx_lock)
-#endif
-
 #define	SFXGE_TXQ_LOCK_INIT(_txq, _ifname, _txq_index)			\
 	do {								\
 		struct sfxge_txq  *__txq = (_txq);			\
@@ -147,13 +141,13 @@ enum sfxge_txq_type {
 #define	SFXGE_TXQ_LOCK_DESTROY(_txq)					\
 	mtx_destroy(&(_txq)->lock)
 #define	SFXGE_TXQ_LOCK(_txq)						\
-	mtx_lock(SFXGE_TX_LOCK(_txq))
+	mtx_lock(&(_txq)->lock)
 #define	SFXGE_TXQ_TRYLOCK(_txq)						\
-	mtx_trylock(SFXGE_TX_LOCK(_txq))
+	mtx_trylock(&(_txq)->lock)
 #define	SFXGE_TXQ_UNLOCK(_txq)						\
-	mtx_unlock(SFXGE_TX_LOCK(_txq))
+	mtx_unlock(&(_txq)->lock)
 #define	SFXGE_TXQ_LOCK_ASSERT_OWNED(_txq)				\
-	mtx_assert(SFXGE_TX_LOCK(_txq), MA_OWNED)
+	mtx_assert(&(_txq)->lock, MA_OWNED)
 
 
 struct sfxge_txq {
@@ -186,13 +180,9 @@ struct sfxge_txq {
 	/* The following fields change more often, and are used mostly
 	 * on the initiation path
 	 */
-#ifdef SFXGE_HAVE_MQ
 	struct mtx			lock __aligned(CACHE_LINE_SIZE);
 	struct sfxge_tx_dpl		dpl;	/* Deferred packet list. */
 	unsigned int			n_pend_desc;
-#else
-	unsigned int			n_pend_desc __aligned(CACHE_LINE_SIZE);
-#endif
 	unsigned int			added;
 	unsigned int			reaped;
 	/* Statistics */
@@ -227,11 +217,7 @@ extern int sfxge_tx_start(struct sfxge_softc *sc);
 extern void sfxge_tx_stop(struct sfxge_softc *sc);
 extern void sfxge_tx_qcomplete(struct sfxge_txq *txq, struct sfxge_evq *evq);
 extern void sfxge_tx_qflush_done(struct sfxge_txq *txq);
-#ifdef SFXGE_HAVE_MQ
 extern void sfxge_if_qflush(struct ifnet *ifp);
 extern int sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m);
-#else
-extern void sfxge_if_start(struct ifnet *ifp);
-#endif
 
 #endif

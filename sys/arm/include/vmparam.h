@@ -68,7 +68,9 @@
  * The line between user space and kernel space
  * Mappings >= KERNEL_BASE are constant across all processes
  */
+#ifndef KERNBASE
 #define	KERNBASE		0xc0000000
+#endif
 
 /*
  * max number of non-contig chunks of physical RAM you can have
@@ -117,13 +119,10 @@
 #define	VM_LEVEL_0_ORDER	8
 #endif
 
-#define UPT_MAX_ADDRESS		VADDR(UPTPTDI + 3, 0)
-#define UPT_MIN_ADDRESS		VADDR(UPTPTDI, 0)
-
 #define VM_MIN_ADDRESS          (0x00001000)
 #ifndef VM_MAXUSER_ADDRESS
-#define VM_MAXUSER_ADDRESS      KERNBASE
-#endif /* VM_MAXUSER_ADDRESS */
+#define VM_MAXUSER_ADDRESS      (KERNBASE - 0x00400000) /* !!! PT2MAP_SIZE */
+#endif
 #define VM_MAX_ADDRESS          VM_MAXUSER_ADDRESS
 
 #define USRSTACK        VM_MAXUSER_ADDRESS

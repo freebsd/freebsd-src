@@ -35,6 +35,7 @@ _INTERNALIBS=	\
 		mandoc \
 		netbsd \
 		ntp \
+		ntpevent \
 		ohash \
 		opts \
 		parse \
@@ -358,11 +359,14 @@ LIBCRON?=	${LIBCRONDIR}/libcron.a
 LIBNTPDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libntp
 LIBNTP?=	${LIBNTPDIR}/libntp.a
 
+LIBNTPEVENTDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libntpevent
+LIBNTPEVENT?=	${LIBNTPDIR}/libntpevent.a
+
 LIBOPTSDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libopts
 LIBOTPS?=	${LIBOPTSDIR}/libopts.a
 
 LIBPARSEDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libparse
-LIBPARSE?=	${LIBOPTSDIR}/libparse.a
+LIBPARSE?=	${LIBPARSEDIR}/libparse.a
 
 LIBLPRDIR=	${ROOTOBJDIR}/usr.sbin/lpr/common_source
 LIBLPR?=	${LIBOPTSDIR}/liblpr.a

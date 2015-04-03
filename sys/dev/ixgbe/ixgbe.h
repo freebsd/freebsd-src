@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2013, Intel Corporation 
+  Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -92,6 +92,7 @@
 #include <machine/smp.h>
 
 #include "ixgbe_api.h"
+#include "ixgbe_vf.h"
 
 /* Tunables */
 
@@ -197,12 +198,25 @@
 #define IXGBE_VFTA_SIZE			128
 #define IXGBE_BR_SIZE			4096
 #define IXGBE_QUEUE_MIN_FREE		32
+#define IXGBE_MAX_TX_BUSY		10
+#define IXGBE_QUEUE_HUNG		0x80000000
+
+#define IXV_EITR_DEFAULT		128
 
 /* Offload bits in mbuf flag */
 #if __FreeBSD_version >= 800000
 #define CSUM_OFFLOAD		(CSUM_IP|CSUM_TCP|CSUM_UDP|CSUM_SCTP)
 #else
 #define CSUM_OFFLOAD		(CSUM_IP|CSUM_TCP|CSUM_UDP)
+#endif
+
+/* Backward compatibility items for very old versions */
+#ifndef pci_find_cap
+#define pci_find_cap pci_find_extcap
+#endif
+
+#ifndef DEVMETHOD_END
+#define DEVMETHOD_END { NULL, NULL }
 #endif
 
 /*
@@ -212,7 +226,6 @@
 #define IXGBE_AVE_LATENCY	400
 #define IXGBE_BULK_LATENCY	1200
 #define IXGBE_LINK_ITR		2000
-
 
 /*
  *****************************************************************************
@@ -268,8 +281,10 @@ struct ix_queue {
 	u32			msix;           /* This queue's MSIX vector */
 	u32			eims;           /* This queue's EIMS bit */
 	u32			eitr_setting;
+	u32			me;
 	struct resource		*res;
 	void			*tag;
+	int			busy;
 	struct tx_ring		*txr;
 	struct rx_ring		*rxr;
 	struct task		que_task;
@@ -284,7 +299,8 @@ struct tx_ring {
         struct adapter		*adapter;
 	struct mtx		tx_mtx;
 	u32			me;
-	int			watchdog_time;
+	u32			tail;
+	int			busy;
 	union ixgbe_adv_tx_desc	*tx_base;
 	struct ixgbe_tx_buf	*tx_buffers;
 	struct ixgbe_dma_alloc	txdma;
@@ -293,11 +309,6 @@ struct tx_ring {
 	u16			next_to_clean;
 	u16			process_limit;
 	u16			num_desc;
-	enum {
-	    IXGBE_QUEUE_IDLE,
-	    IXGBE_QUEUE_WORKING,
-	    IXGBE_QUEUE_HUNG,
-	}			queue_status;
 	u32			txd_cmd;
 	bus_dma_tag_t		txtag;
 	char			mtx_name[16];
@@ -312,8 +323,8 @@ struct tx_ring {
 	u32			bytes;  /* used for AIM */
 	u32			packets;
 	/* Soft Stats */
+	u64			tx_bytes;
 	unsigned long   	tso_tx;
-	unsigned long   	no_tx_map_avail;
 	unsigned long   	no_tx_dma_setup;
 	u64			no_desc_avail;
 	u64			total_packets;
@@ -327,6 +338,7 @@ struct rx_ring {
         struct adapter		*adapter;
 	struct mtx		rx_mtx;
 	u32			me;
+	u32			tail;
 	union ixgbe_adv_rx_desc	*rx_base;
 	struct ixgbe_dma_alloc	rxdma;
 	struct lro_ctrl		lro;
@@ -406,7 +418,7 @@ struct adapter {
 	u16			num_segs;
 	u32			link_speed;
 	bool			link_up;
-	u32 			linkvec;
+	u32 			vector;
 
 	/* Mbuf cluster size */
 	u32			rx_mbuf_sz;
@@ -442,7 +454,7 @@ struct adapter {
 	 *	Allocated at run time, an array of rings.
 	 */
 	struct rx_ring		*rx_rings;
-	u64			que_mask;
+	u64			active_queues;
 	u32			num_rx_desc;
 
 	/* Multicast array memory */
@@ -455,9 +467,24 @@ struct adapter {
 	unsigned long   	mbuf_header_failed;
 	unsigned long   	mbuf_packet_failed;
 	unsigned long   	watchdog_events;
-	unsigned long		link_irq;
-
-	struct ixgbe_hw_stats 	stats;
+	unsigned long		vector_irq;
+	union {
+		struct ixgbe_hw_stats pf;
+		struct ixgbevf_hw_stats vf;
+	} stats;
+#if __FreeBSD_version >= 1100036
+	/* counter(9) stats */
+	u64			ipackets;
+	u64			ierrors;
+	u64			opackets;
+	u64			oerrors;
+	u64			ibytes;
+	u64			obytes;
+	u64			imcasts;
+	u64			omcasts;
+	u64			iqdrops;
+	u64			noproto;
+#endif
 };
 
 
@@ -488,6 +515,45 @@ struct adapter {
 #define PCIER_LINK_STA PCIR_EXPRESS_LINK_STA
 #endif
 
+/* Stats macros */
+#if __FreeBSD_version >= 1100036
+#define IXGBE_SET_IPACKETS(sc, count)    (sc)->ipackets = (count)
+#define IXGBE_SET_IERRORS(sc, count)     (sc)->ierrors = (count)
+#define IXGBE_SET_OPACKETS(sc, count)    (sc)->opackets = (count)
+#define IXGBE_SET_OERRORS(sc, count)     (sc)->oerrors = (count)
+#define IXGBE_SET_COLLISIONS(sc, count)
+#define IXGBE_SET_IBYTES(sc, count)      (sc)->ibytes = (count)
+#define IXGBE_SET_OBYTES(sc, count)      (sc)->obytes = (count)
+#define IXGBE_SET_IMCASTS(sc, count)     (sc)->imcasts = (count)
+#define IXGBE_SET_OMCASTS(sc, count)     (sc)->omcasts = (count)
+#define IXGBE_SET_IQDROPS(sc, count)     (sc)->iqdrops = (count)
+#else
+#define IXGBE_SET_IPACKETS(sc, count)    (sc)->ifp->if_ipackets = (count)
+#define IXGBE_SET_IERRORS(sc, count)     (sc)->ifp->if_ierrors = (count)
+#define IXGBE_SET_OPACKETS(sc, count)    (sc)->ifp->if_opackets = (count)
+#define IXGBE_SET_OERRORS(sc, count)     (sc)->ifp->if_oerrors = (count)
+#define IXGBE_SET_COLLISIONS(sc, count)  (sc)->ifp->if_collisions = (count)
+#define IXGBE_SET_IBYTES(sc, count)      (sc)->ifp->if_ibytes = (count)
+#define IXGBE_SET_OBYTES(sc, count)      (sc)->ifp->if_obytes = (count)
+#define IXGBE_SET_IMCASTS(sc, count)     (sc)->ifp->if_imcasts = (count)
+#define IXGBE_SET_OMCASTS(sc, count)     (sc)->ifp->if_omcasts = (count)
+#define IXGBE_SET_IQDROPS(sc, count)     (sc)->ifp->if_iqdrops = (count)
+#endif
+
+/* Sysctl help messages; displayed with sysctl -d */
+#define IXGBE_SYSCTL_DESC_ADV_SPEED \
+	"\nControl advertised link speed using these flags:\n" \
+	"\t0x1 - advertise 100M\n" \
+	"\t0x2 - advertise 1G\n" \
+	"\t0x4 - advertise 10G"
+
+#define IXGBE_SYSCTL_DESC_SET_FC \
+	"\nSet flow control mode using these values:\n" \
+	"\t0 - off\n" \
+	"\t1 - rx pause\n" \
+	"\t2 - tx pause\n" \
+	"\t3 - tx and rx pause"
+
 static inline bool
 ixgbe_is_sfp(struct ixgbe_hw *hw)
 {
@@ -498,6 +564,10 @@ ixgbe_is_sfp(struct ixgbe_hw *hw)
 	case ixgbe_phy_sfp_unknown:
 	case ixgbe_phy_sfp_passive_tyco:
 	case ixgbe_phy_sfp_passive_unknown:
+	case ixgbe_phy_qsfp_passive_unknown:
+	case ixgbe_phy_qsfp_active_unknown:
+	case ixgbe_phy_qsfp_intel:
+	case ixgbe_phy_qsfp_unknown:
 		return TRUE;
 	default:
 		return FALSE;
@@ -530,4 +600,44 @@ ixgbe_rx_unrefreshed(struct rx_ring *rxr)
 		    rxr->next_to_refresh - 1);
 }       
 
+/*
+** This checks for a zero mac addr, something that will be likely
+** unless the Admin on the Host has created one.
+*/
+static inline bool
+ixv_check_ether_addr(u8 *addr)
+{
+	bool status = TRUE;
+
+	if ((addr[0] == 0 && addr[1]== 0 && addr[2] == 0 &&
+	    addr[3] == 0 && addr[4]== 0 && addr[5] == 0))
+		status = FALSE;
+	return (status);
+}
+
+/* Shared Prototypes */
+
+#ifdef IXGBE_LEGACY_TX
+void     ixgbe_start(struct ifnet *);
+void     ixgbe_start_locked(struct tx_ring *, struct ifnet *);
+#else /* ! IXGBE_LEGACY_TX */
+int	ixgbe_mq_start(struct ifnet *, struct mbuf *);
+int	ixgbe_mq_start_locked(struct ifnet *, struct tx_ring *);
+void	ixgbe_qflush(struct ifnet *);
+void	ixgbe_deferred_mq_start(void *, int);
+#endif /* IXGBE_LEGACY_TX */
+
+int	ixgbe_allocate_queues(struct adapter *);
+int	ixgbe_allocate_transmit_buffers(struct tx_ring *);
+int	ixgbe_setup_transmit_structures(struct adapter *);
+void	ixgbe_free_transmit_structures(struct adapter *);
+int	ixgbe_allocate_receive_buffers(struct rx_ring *);
+int	ixgbe_setup_receive_structures(struct adapter *);
+void	ixgbe_free_receive_structures(struct adapter *);
+void	ixgbe_txeof(struct tx_ring *);
+bool	ixgbe_rxeof(struct ix_queue *);
+
+int	ixgbe_dma_malloc(struct adapter *,
+	    bus_size_t, struct ixgbe_dma_alloc *, int);
+void	ixgbe_dma_free(struct adapter *, struct ixgbe_dma_alloc *);
 #endif /* _IXGBE_H_ */

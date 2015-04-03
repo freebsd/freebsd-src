@@ -10,7 +10,8 @@ CFLAGS+=-DNLIST_AOUT
 SRCS+=	exec_aout.c
 .endif
 
-.if ${TARGET_ARCH} == amd64 || ${TARGET_ARCH} == powerpc64 || \
+.if ${TARGET_ARCH} == aarch64 || ${TARGET_ARCH} == amd64 || \
+    ${TARGET_ARCH} == powerpc64 || \
     ${TARGET_ARCH} == sparc64 || ${TARGET_ARCH:Mmips64*}
 CFLAGS+=-DNLIST_ELF64
 SRCS+=	exec_elf64.c

@@ -1157,7 +1157,7 @@ ipi_startup(int apic_id, int vector)
 	 */
 	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_LEVEL |
 	    APIC_LEVEL_ASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_INIT, apic_id);
-	lapic_ipi_wait(20);
+	lapic_ipi_wait(100);
 
 	/* Explicitly deassert the INIT IPI. */
 	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_LEVEL |
@@ -1177,7 +1177,7 @@ ipi_startup(int apic_id, int vector)
 	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
 	    APIC_LEVEL_ASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_STARTUP |
 	    vector, apic_id);
-	if (!lapic_ipi_wait(20))
+	if (!lapic_ipi_wait(100))
 		panic("Failed to deliver first STARTUP IPI to APIC %d",
 		    apic_id);
 	DELAY(200);		/* wait ~200uS */
@@ -1191,7 +1191,7 @@ ipi_startup(int apic_id, int vector)
 	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
 	    APIC_LEVEL_ASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_STARTUP |
 	    vector, apic_id);
-	if (!lapic_ipi_wait(20))
+	if (!lapic_ipi_wait(100))
 		panic("Failed to deliver second STARTUP IPI to APIC %d",
 		    apic_id);
 

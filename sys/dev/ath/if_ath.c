@@ -510,6 +510,60 @@ ath_setup_hal_config(struct ath_softc *sc, HAL_OPS_CONFIG *ah_config)
 
 }
 
+/*
+ * Attempt to fetch the MAC address from the kernel environment.
+ *
+ * Returns 0, macaddr in macaddr if successful; -1 otherwise.
+ */
+static int
+ath_fetch_mac_kenv(struct ath_softc *sc, uint8_t *macaddr)
+{
+	char devid_str[32];
+	int local_mac = 0;
+	char *local_macstr;
+
+	/*
+	 * Fetch from the kenv rather than using hints.
+	 *
+	 * Hints would be nice but the transition to dynamic
+	 * hints/kenv doesn't happen early enough for this
+	 * to work reliably (eg on anything embedded.)
+	 */
+	snprintf(devid_str, 32, "hint.%s.%d.macaddr",
+	    device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev));
+
+	if ((local_macstr = kern_getenv(devid_str)) != NULL) {
+		uint32_t tmpmac[ETHER_ADDR_LEN];
+		int count;
+		int i;
+
+		/* Have a MAC address; should use it */
+		device_printf(sc->sc_dev,
+		    "Overriding MAC address from environment: '%s'\n",
+		    local_macstr);
+
+		/* Extract out the MAC address */
+		count = sscanf(local_macstr, "%x%*c%x%*c%x%*c%x%*c%x%*c%x",
+		    &tmpmac[0], &tmpmac[1],
+		    &tmpmac[2], &tmpmac[3],
+		    &tmpmac[4], &tmpmac[5]);
+		if (count == 6) {
+			/* Valid! */
+			local_mac = 1;
+			for (i = 0; i < ETHER_ADDR_LEN; i++)
+				macaddr[i] = tmpmac[i];
+		}
+		/* Done! */
+		freeenv(local_macstr);
+		local_macstr = NULL;
+	}
+
+	if (local_mac)
+		return (0);
+	return (-1);
+}
+
 #define	HAL_MODE_HT20 (HAL_MODE_11NG_HT20 | HAL_MODE_11NA_HT20)
 #define	HAL_MODE_HT40 \
 	(HAL_MODE_11NG_HT40PLUS | HAL_MODE_11NG_HT40MINUS | \
@@ -1149,8 +1203,14 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 */
 	sc->sc_hasveol = ath_hal_hasveol(ah);
 
-	/* get mac address from hardware */
-	ath_hal_getmac(ah, macaddr);
+	/* get mac address from kenv first, then hardware */
+	if (ath_fetch_mac_kenv(sc, macaddr) == 0) {
+		/* Tell the HAL now about the new MAC */
+		ath_hal_setmac(ah, macaddr);
+	} else {
+		ath_hal_getmac(ah, macaddr);
+	}
+
 	if (sc->sc_hasbmask)
 		ath_hal_getbssidmask(ah, sc->sc_hwbssidmask);
 
@@ -2486,11 +2546,11 @@ ath_init(void *arg)
 	 * state cached in the driver.
 	 */
 	sc->sc_diversity = ath_hal_getdiversity(ah);
-	sc->sc_lastlongcal = 0;
+	sc->sc_lastlongcal = ticks;
 	sc->sc_resetcal = 1;
 	sc->sc_lastcalreset = 0;
-	sc->sc_lastani = 0;
-	sc->sc_lastshortcal = 0;
+	sc->sc_lastani = ticks;
+	sc->sc_lastshortcal = ticks;
 	sc->sc_doresetcal = AH_FALSE;
 	/*
 	 * Beacon timers were cleared here; give ath_newstate()

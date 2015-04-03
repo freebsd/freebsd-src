@@ -97,47 +97,6 @@ struct armv7_cpu {
 static struct armv7_cpu **armv7_pcpu;
 
 /*
- * Performance Monitor Control Register
- */
-static __inline uint32_t
-armv7_pmnc_read(void)
-{
-	uint32_t reg;
-
-	__asm __volatile("mrc p15, 0, %0, c9, c12, 0" : "=r" (reg));
-
-	return (reg);
-}
-
-static __inline void
-armv7_pmnc_write(uint32_t reg)
-{
-
-	__asm __volatile("mcr p15, 0, %0, c9, c12, 0" : : "r" (reg));
-}
-
-/*
- * Clock Counter Register (PMCCNTR)
- * Counts processor clock cycles.
- */
-static __inline uint32_t
-armv7_ccnt_read(void)
-{
-	uint32_t reg;
-
-	__asm __volatile("mrc p15, 0, %0, c9, c13, 0" : "=r" (reg));
-	
-	return (reg);
-}
-
-static __inline void
-armv7_ccnt_write(uint32_t reg)
-{
-
-	__asm __volatile("mcr p15, 0, %0, c9, c13, 0" : : "r" (reg));
-}
-
-/*
  * Interrupt Enable Set Register
  */
 static __inline void
@@ -146,8 +105,7 @@ armv7_interrupt_enable(uint32_t pmc)
 	uint32_t reg;
 
 	reg = (1 << pmc);
-
-	__asm __volatile("mcr p15, 0, %0, c9, c14, 1" : : "r" (reg));
+	cp15_pminten_set(reg);
 }
 
 /*
@@ -159,48 +117,7 @@ armv7_interrupt_disable(uint32_t pmc)
 	uint32_t reg;
 
 	reg = (1 << pmc);
-
-	__asm __volatile("mcr p15, 0, %0, c9, c14, 2" : : "r" (reg));
-}
-
-/*
- * Overflow Flag Register
- */
-static __inline uint32_t
-armv7_flag_read(void)
-{
-	uint32_t reg;
-
-	__asm __volatile("mrc p15, 0, %0, c9, c12, 3" : "=r" (reg));
-
-	return (reg);
-}
-
-static __inline void
-armv7_flag_write(uint32_t reg)
-{
-
-	__asm __volatile("mcr p15, 0, %0, c9, c12, 3" : : "r" (reg));
-}
-
-/*
- * Event Selection Register
- */
-static __inline void
-armv7_evtsel_write(uint32_t reg)
-{
-
-	__asm __volatile("mcr p15, 0, %0, c9, c13, 1" : : "r" (reg));
-}
-
-/*
- * PMSELR
- */
-static __inline void
-armv7_select_counter(unsigned int pmc)
-{
-
-	__asm __volatile("mcr p15, 0, %0, c9, c12, 5" : : "r" (pmc));
+	cp15_pminten_clr(reg);
 }
 
 /*
@@ -212,8 +129,7 @@ armv7_counter_enable(unsigned int pmc)
 	uint32_t reg;
 
 	reg = (1 << pmc);
-
-	__asm __volatile("mcr p15, 0, %0, c9, c12, 1" : : "r" (reg));
+	cp15_pmcnten_set(reg);
 }
 
 /*
@@ -225,8 +141,7 @@ armv7_counter_disable(unsigned int pmc)
 	uint32_t reg;
 
 	reg = (1 << pmc);
-
-	__asm __volatile("mcr p15, 0, %0, c9, c12, 2" : : "r" (reg));
+	cp15_pmcnten_clr(reg);
 }
 
 /*
@@ -235,24 +150,21 @@ armv7_counter_disable(unsigned int pmc)
 static uint32_t
 armv7_pmcn_read(unsigned int pmc)
 {
-	uint32_t reg = 0;
 
-	KASSERT(pmc < 4, ("[armv7,%d] illegal PMC number %d", __LINE__, pmc));
+	KASSERT(pmc < armv7_npmcs, ("%s: illegal PMC number %d", __func__, pmc));
 
-	armv7_select_counter(pmc);
-	__asm __volatile("mrc p15, 0, %0, c9, c13, 2" : "=r" (reg));
-
-	return (reg);
+	cp15_pmselr_set(pmc);
+	return (cp15_pmxevcntr_get());
 }
 
 static uint32_t
 armv7_pmcn_write(unsigned int pmc, uint32_t reg)
 {
 
-	KASSERT(pmc < 4, ("[armv7,%d] illegal PMC number %d", __LINE__, pmc));
+	KASSERT(pmc < armv7_npmcs, ("%s: illegal PMC number %d", __func__, pmc));
 
-	armv7_select_counter(pmc);
-	__asm __volatile("mcr p15, 0, %0, c9, c13, 2" : : "r" (reg));
+	cp15_pmselr_set(pmc);
+	cp15_pmxevcntr_set(reg);
 
 	return (reg);
 }
@@ -309,7 +221,7 @@ armv7_read_pmc(int cpu, int ri, pmc_value_t *v)
 	pm  = armv7_pcpu[cpu]->pc_armv7pmcs[ri].phw_pmc;
 
 	if (pm->pm_md.pm_armv7.pm_armv7_evsel == 0xFF)
-		tmp = armv7_ccnt_read();
+		tmp = cp15_pmccntr_get();
 	else
 		tmp = armv7_pmcn_read(ri);
 
@@ -340,7 +252,7 @@ armv7_write_pmc(int cpu, int ri, pmc_value_t v)
 	PMCDBG(MDP,WRI,1,"armv7-write cpu=%d ri=%d v=%jx", cpu, ri, v);
 
 	if (pm->pm_md.pm_armv7.pm_armv7_evsel == 0xFF)
-		armv7_ccnt_write(v);
+		cp15_pmccntr_set(v);
 	else
 		armv7_pmcn_write(ri, v);
 
@@ -384,8 +296,8 @@ armv7_start_pmc(int cpu, int ri)
 	/*
 	 * Configure the event selection.
 	 */
-	armv7_select_counter(ri);
-	armv7_evtsel_write(config);
+	cp15_pmselr_set(ri);
+	cp15_pmxevtyper_set(config);
 
 	/*
 	 * Enable the PMC.
@@ -459,12 +371,12 @@ armv7_intr(int cpu, struct trapframe *tf)
 		else
 			reg = (1 << ri);
 
-		if ((armv7_flag_read() & reg) == 0) {
+		if ((cp15_pmovsr_get() & reg) == 0) {
 			continue;
 		}
 
 		/* Clear Overflow Flag */
-		armv7_flag_write(reg);
+		cp15_pmovsr_set(reg);
 
 		retval = 1; /* Found an interrupting PMC. */
 		if (pm->pm_state != PMC_STATE_RUNNING)
@@ -573,9 +485,9 @@ armv7_pcpu_init(struct pmc_mdep *md, int cpu)
 	}
 
 	/* Enable unit */
-	pmnc = armv7_pmnc_read();
+	pmnc = cp15_pmcr_get();
 	pmnc |= ARMV7_PMNC_ENABLE;
-	armv7_pmnc_write(pmnc);
+	cp15_pmcr_set(pmnc);
 
 	return 0;
 }
@@ -585,9 +497,9 @@ armv7_pcpu_fini(struct pmc_mdep *md, int cpu)
 {
 	uint32_t pmnc;
 
-	pmnc = armv7_pmnc_read();
+	pmnc = cp15_pmcr_get();
 	pmnc &= ~ARMV7_PMNC_ENABLE;
-	armv7_pmnc_write(pmnc);
+	cp15_pmcr_set(pmnc);
 
 	return 0;
 }
@@ -599,7 +511,7 @@ pmc_armv7_initialize()
 	struct pmc_classdep *pcd;
 	int reg;
 
-	reg = armv7_pmnc_read();
+	reg = cp15_pmcr_get();
 
 	armv7_npmcs = (reg >> ARMV7_PMNC_N_SHIFT) & \
 				ARMV7_PMNC_N_MASK;

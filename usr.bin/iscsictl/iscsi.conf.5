@@ -24,132 +24,111 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 4, 2015
+.Dd April 2, 2015
 .Dt ISCSI.CONF 5
 .Os
 .Sh NAME
 .Nm iscsi.conf
 .Nd iSCSI initiator configuration file
 .Sh DESCRIPTION
-The file
-.Nm ,
-is used by the
+The
+.Nm
+configuration file is used by the
 .Xr iscsictl 8
 and
 .Xr iscontrol 8
 utilities.
-It contains declarations and parameter/key-options.
-The syntax is very simple,
-.D1 Li variable = value;
-and they can be grouped via a
-.Em block
-declaration:
+The general syntax is:
 .Bf Li
 .Bd -literal
 	# this is a comment
-	target_1 { # nickname
+	nickname_1 {
 	   variable = value;
 	   ...
-	} # this must be on a line by itself.
+	}
+	nickname_2 {
+	   variable = value;
+	   ...
+	}
+	...
 .Ed
 .Ef
-.Pp
-The following are specified in the iSCSI RFC 3720,
-for a full description see sections 11/12 of the RFC.
 .Bl -tag -width MaxConnections
 .It Cm AuthMethod
-currently only supported authentication method is CHAP, with
-digest either MD5 or SHA.
-Default is none.
-.It Cm HeaderDigest
-a
-.Em digest
-is calculated on the header of all iSCSI PDUs, and
-checked.
-Only CRC32C is implemented.
-Default is none.
-.It Cm DataDigest
-same as for HeaderDigest, but on the data part of the iSCSI PDU.
-(not yet tested)
-.It Cm TargetName
-is the name by which the target is known, not to be confused with
-target address, either obtained via the target administrator, or
-from a
-.Em discovery session .
-.It Cm InitiatorName
-if not specified, defaults to
-.Sy iqn.2005-01.il.ac.huji.cs:
-.Aq hostname .
-.It Cm TargetAddress
-is of the form
-.Sy domainname[:port][,portal-group-tag]
-to quote the RFC:
-.Bd -ragged -compact
-The domainname can be specified as either a DNS host name, a
-dotted-decimal IPv4 address, or a bracketed IPv6 address as specified
-in [RFC2732].
-.Ed
-Note: portal-group-tag is unused at the moment.
-.Em not implemented yet.
-.It Cm MaxRecvDataSegmentLength
-the maximum data segment length in
-bytes it can receive in an iSCSI PDU, default is 8192.
-.It Cm MaxOutstandingR2T
-is used to calculate/negotiate the
-.Em tag opening ,
-can be overridden by the
-.Sy tag
-option.
-.It Cm SessionType
-either Discovery or Normal, default is Normal, see the
-.Fl d
-flag of
-.Cm iscontrol .
-.El
-.sp
-The following are not specified in the
-.Sy RFC 3720
-.Bl -tag -width sockbufsize
-.It Cm offload
-Name of selected iSCSI hardware offload driver.
-.It Cm port
-The iSCSI port used by the iSCSI protocol, defaults to 3260.
-.It Cm tags
-Sets the
-.Em tag opening
-to the value specified.
-.It Cm maxluns
-overrides the compiled value of
-.Sy luns ,
-see
-.Xr iscsi_initiator 4 .
-This value can only be reduced.
-.It Cm sockbufsize
-sets the receiver and transmitter socket buffer size to
-.Em size ,
-in kilobytes.
-The default is 128.
-.El
-.sp
-If
-.Em AuthMethod
-is set to
+Sets the authentication type.
+Type can be either
+.Qq Ar None ,
+or
+.Qq Ar CHAP .
+Default is
+.Qq Ar None .
+When set to
 .Cm CHAP ,
-then the following must also be set:
-.Bl -tag -width chapSecret
-.It Cm chapSecret
-this
-.Em shared-secret .
-Can be either an ASCII string (e.g. hello world), a hex string (e.g
-0xababcd0987654321...), or base64 string (eg 0b...)
+both
+.Cm chapIName
+and
+.Cm chapSecret
+must be defined.
 .It Cm chapIName
-the chap-name, defaults to
-.Em hostname .
-.It Cm chapDigest
-can be MD5 or SHA1.
-.It Cm tgtChapName/tgtChapSecret
-name and secret used for mutual CHAP; by default, mutual CHAP
-is not used.
+Login for CHAP authentication.
+.It Cm chapSecret
+Secret for CHAP authentication.
+.It Cm tgtChapName
+Target login for Mutual CHAP authentication.
+.It Cm tgtChapSecret
+Target secret for Mutual CHAP authentication.
+.It Cm HeaderDigest
+Sets the header digest; a checksum calculated over the header of iSCSI
+PDUs, and verified on receive.
+Digest can be either
+.Qq Ar None ,
+or
+.Qq Ar CRC32C .
+Default is
+.Qq Ar None .
+.It Cm DataDigest
+Sets the data digest; a checksum calculated over the Data Section of iSCSI
+PDUs, and verified on receive.
+Digest can be either
+.Qq Ar None ,
+or
+.Qq Ar CRC32C .
+Default is
+.Qq Ar None .
+.It Cm InitiatorName
+Sets the initiator name.
+By default, the name is concatenation of
+.Qq Ar iqn.1994-09.org.freebsd:
+with the hostname.
+.It Cm TargetName
+Sets the target name.
+Not required for discovery sessions.
+.It Cm TargetAddress
+Sets the target address and port, in
+.Sy address[:port]
+format.
+The
+.Sy address
+can be either an IP address, or hostname.
+The optional port defaults to 3260.
+.It Cm SessionType
+Sets the session type.
+Type can be either
+.Qq Ar Discovery ,
+or
+.Qq Ar Normal .
+Default is
+.Qq Ar Normal .
+For normal sessions, the
+.Sy TargetName
+must be defined.
+Discovery sessions result in the initiator connecting to all the targets
+returned by SendTargets iSCSI discovery with the defined
+.Sy TargetAddress .
+.It Cm Offload
+Name of selected iSCSI hardware offload driver.
+Default is
+.Qq Ar None .
 .El
 .Sh FILES
 .Bl -tag -width indent
@@ -157,34 +136,27 @@ is not used.
 .El
 .Sh EXAMPLES
 .Bd -literal
-#
-# Globals
-#
-port = 3260
-#
 myiscsi { # nickname
-   targetaddress	= iscsi1
-   targetname		= iqn.1900.com.com:sn.123456
+   targetaddress = iscsi1
+   targetname    = iqn.1900.com.com:sn.123456
 }
+
+myiscsi6 { # nickname
+   targetaddress = [2001:db8::de:ef]:3260
+   targetname    = iqn.1900.com.com:sn.123456
+}
+
 chaptest {
-   targetaddress= 10.0.0.1;
-   targetname	= iqn.1900.com.com:sn.123456
-   initiatorname= iqn.2005-01.il.ac.huji.cs:nobody
-   authmethod = CHAP; chapDigest = SHA1;
-   chapsecret = 0x3713c3336d9a224c2791c873d3d2b174
-   tags		= 256
+   targetaddress = 10.0.0.1;
+   targetname    = iqn.1900.com.com:sn.123456;
+   initiatorname = iqn.2005-01.il.ac.huji.cs:nobody;
+   authmethod    = CHAP;
+   chapiname     = iqn.2005-01.il.ac.huji.cs:nobody;
+   chapsecret    = "secretsecret";
 }
 .Ed
 .Sh SEE ALSO
-.Xr iscsi_initiator 4 ,
 .Xr iscontrol 8 ,
 .Xr iscsictl 8
-.Sh STANDARDS
-ISCSI RFC 3720
 .\"Sh HISTORY
 .\"Sh AUTHORS
-.Sh BUGS
-Some options have not been implemented, either they were found
-to be unnecessary, or not understood, this can change in the future.
-.br
-The tags opening value is difficult to calculate, use wisely.

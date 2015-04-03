@@ -36,11 +36,15 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/radeon/radeon_drm.h>
 #include "radeon.h"
-#ifdef DUMBBELL_WIP
+#ifdef FREEBSD_WIP
 #include "radeon_trace.h"
-#endif /* DUMBBELL_WIP */
+#endif /* FREEBSD_WIP */
 
 
+#ifdef FREEBSD_WIP /* FreeBSD: to please GCC 4.2. */
+int radeon_ttm_init(struct radeon_device *rdev);
+void radeon_ttm_fini(struct radeon_device *rdev);
+#endif
 static void radeon_bo_clear_surface_reg(struct radeon_bo *bo);
 
 /*
@@ -135,7 +139,7 @@ int radeon_bo_create(struct radeon_device *rdev,
 				       sizeof(struct radeon_bo));
 
 	bo = malloc(sizeof(struct radeon_bo),
-	    DRM_MEM_DRIVER, M_ZERO | M_WAITOK);
+	    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (bo == NULL)
 		return -ENOMEM;
 	r = drm_gem_object_init(rdev->ddev, &bo->gem_base, size);
@@ -160,9 +164,9 @@ int radeon_bo_create(struct radeon_device *rdev,
 	}
 	*bo_ptr = bo;
 
-#ifdef DUMBBELL_WIP
+#ifdef FREEBSD_WIP
 	trace_radeon_bo_create(bo);
-#endif /* DUMBBELL_WIP */
+#endif /* FREEBSD_WIP */
 
 	return 0;
 }
@@ -315,6 +319,7 @@ void radeon_bo_force_delete(struct radeon_device *rdev)
 	}
 	dev_err(rdev->dev, "Userspace still has active objects !\n");
 	list_for_each_entry_safe(bo, n, &rdev->gem.objects, list) {
+		DRM_LOCK(rdev->ddev);
 		dev_err(rdev->dev, "%p %p %lu %lu force free\n",
 			&bo->gem_base, bo, (unsigned long)bo->gem_base.size,
 			*((unsigned long *)&bo->gem_base.refcount));
@@ -323,6 +328,7 @@ void radeon_bo_force_delete(struct radeon_device *rdev)
 		sx_xunlock(&bo->rdev->gem.mutex);
 		/* this should unref the ttm bo */
 		drm_gem_object_unreference(&bo->gem_base);
+		DRM_UNLOCK(rdev->ddev);
 	}
 }
 
@@ -388,13 +394,13 @@ int radeon_bo_list_validate(struct list_head *head)
 	return 0;
 }
 
-#ifdef DUMBBELL_WIP
+#ifdef FREEBSD_WIP
 int radeon_bo_fbdev_mmap(struct radeon_bo *bo,
 			     struct vm_area_struct *vma)
 {
 	return ttm_fbdev_mmap(vma, &bo->tbo);
 }
-#endif /* DUMBBELL_WIP */
+#endif /* FREEBSD_WIP */
 
 int radeon_bo_get_surface_reg(struct radeon_bo *bo)
 {

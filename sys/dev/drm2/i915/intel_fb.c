@@ -79,20 +79,17 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 		goto out_unref;
 	}
 
-#if 0
-	info = framebuffer_alloc(0, device);
+	info = framebuffer_alloc();
 	if (!info) {
 		ret = -ENOMEM;
 		goto out_unpin;
 	}
 
+#if 0
 	info->par = ifbdev;
 #else
-	info = malloc(sizeof(struct fb_info), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 	info->fb_size = size;
 	info->fb_bpp = sizes->surface_bpp;
-	info->fb_width = sizes->fb_width;
-	info->fb_height = sizes->fb_height;
 	info->fb_pbase = dev->agp->base + obj->gtt_offset;
 	info->fb_vbase = (vm_offset_t)pmap_mapdev_attr(info->fb_pbase, size,
 	    PAT_WRITE_COMBINING);
@@ -140,12 +137,12 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	info->screen_size = size;
 
 //	memset(info->screen_base, 0, size);
+#endif
 
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
 	drm_fb_helper_fill_var(info, &ifbdev->helper, sizes->fb_width, sizes->fb_height);
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
-#endif
 	DRM_DEBUG_KMS("allocated %dx%d (s %dbits) fb: 0x%08x, bo %p\n",
 		      fb->width, fb->height, fb->depth,
 		      obj->gtt_offset, obj);
@@ -192,21 +189,19 @@ static struct drm_fb_helper_funcs intel_fb_helper_funcs = {
 static void intel_fbdev_destroy(struct drm_device *dev,
 				struct intel_fbdev *ifbdev)
 {
-#if 0
 	struct fb_info *info;
-#endif
 	struct intel_framebuffer *ifb = &ifbdev->ifb;
 
-#if 0
 	if (ifbdev->helper.fbdev) {
 		info = ifbdev->helper.fbdev;
+#if 0
 		unregister_framebuffer(info);
 		iounmap(info->screen_base);
 		if (info->cmap.len)
 			fb_dealloc_cmap(&info->cmap);
+#endif
 		framebuffer_release(info);
 	}
-#endif
 
 	drm_fb_helper_fini(&ifbdev->helper);
 

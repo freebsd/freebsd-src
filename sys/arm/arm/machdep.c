@@ -138,6 +138,14 @@ int _min_bzero_size = 0;
 extern int *end;
 
 #ifdef FDT
+vm_paddr_t pmap_pa;
+
+#ifdef ARM_NEW_PMAP
+vm_offset_t systempage;
+vm_offset_t irqstack;
+vm_offset_t undstack;
+vm_offset_t abtstack;
+#else
 /*
  * This is the number of L2 page tables required for covering max
  * (hypothetical) memsize of 4GB and all kernel mappings (vectors, msgbuf,
@@ -147,15 +155,13 @@ extern int *end;
 
 static struct pv_addr kernel_pt_table[KERNEL_PT_MAX];
 
-vm_paddr_t pmap_pa;
-
 struct pv_addr systempage;
 static struct pv_addr msgbufpv;
 struct pv_addr irqstack;
 struct pv_addr undstack;
 struct pv_addr abtstack;
 static struct pv_addr kernelstack;
-
+#endif
 #endif
 
 #if defined(LINUX_BOOT_ABI)
@@ -381,9 +387,11 @@ cpu_startup(void *dummy)
 	vm_pager_bufferinit();
 	pcb->pcb_regs.sf_sp = (u_int)thread0.td_kstack +
 	    USPACE_SVC_STACK_TOP;
-	vector_page_setprot(VM_PROT_READ);
 	pmap_set_pcb_pagedir(pmap_kernel(), pcb);
+#ifndef ARM_NEW_PMAP
+	vector_page_setprot(VM_PROT_READ);
 	pmap_postinit();
+#endif
 #ifdef ARM_TP_ADDRESS
 #ifdef ARM_CACHE_LOCK_ENABLE
 	pmap_kenter_user(ARM_TP_ADDRESS, ARM_TP_ADDRESS);
@@ -1003,6 +1011,19 @@ init_proc0(vm_offset_t kstack)
 	pcpup->pc_curpcb = thread0.td_pcb;
 }
 
+#ifdef ARM_NEW_PMAP
+void
+set_stackptrs(int cpu)
+{
+
+	set_stackptr(PSR_IRQ32_MODE,
+	    irqstack + ((IRQ_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
+	set_stackptr(PSR_ABT32_MODE,
+	    abtstack + ((ABT_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
+	set_stackptr(PSR_UND32_MODE,
+	    undstack + ((UND_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
+}
+#else
 void
 set_stackptrs(int cpu)
 {
@@ -1014,6 +1035,7 @@ set_stackptrs(int cpu)
 	set_stackptr(PSR_UND32_MODE,
 	    undstack.pv_va + ((UND_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
 }
+#endif
 
 #ifdef FDT
 static char *
@@ -1048,6 +1070,7 @@ print_kenv(void)
 		debugf(" %x %s\n", (uint32_t)cp, cp);
 }
 
+#ifndef ARM_NEW_PMAP
 void *
 initarm(struct arm_boot_params *abp)
 {
@@ -1234,7 +1257,7 @@ initarm(struct arm_boot_params *abp)
 	 * Now that proper page tables are installed, call cpu_setup() to enable
 	 * instruction and data caches and other chip-specific features.
 	 */
-	cpu_setup("");
+	cpu_setup();
 
 	/*
 	 * Only after the SOC registers block is mapped we can perform device
@@ -1316,4 +1339,181 @@ initarm(struct arm_boot_params *abp)
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
 }
+#else /* !ARM_NEW_PMAP */
+void *
+initarm(struct arm_boot_params *abp)
+{
+	struct mem_region mem_regions[FDT_MEM_REGIONS];
+	vm_paddr_t lastaddr;
+	vm_offset_t dtbp, kernelstack, dpcpu;
+	uint32_t memsize;
+	char *env;
+	void *kmdp;
+	int err_devmap, mem_regions_sz;
+
+	/* get last allocated physical address */
+	arm_physmem_kernaddr = abp->abp_physaddr;
+	lastaddr = parse_boot_param(abp) - KERNVIRTADDR + arm_physmem_kernaddr;
+
+	memsize = 0;
+	set_cpufuncs();
+	cpuinfo_init();
+
+	/*
+	 * Find the dtb passed in by the boot loader.
+	 */
+	kmdp = preload_search_by_type("elf kernel");
+	if (kmdp != NULL)
+		dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
+	else
+		dtbp = (vm_offset_t)NULL;
+#if defined(FDT_DTB_STATIC)
+	/*
+	 * In case the device tree blob was not retrieved (from metadata) try
+	 * to use the statically embedded one.
+	 */
+	if (dtbp == (vm_offset_t)NULL)
+		dtbp = (vm_offset_t)&fdt_static_dtb;
 #endif
+
+	if (OF_install(OFW_FDT, 0) == FALSE)
+		panic("Cannot install FDT");
+
+	if (OF_init((void *)dtbp) != 0)
+		panic("OF_init failed with the found device tree");
+
+	/* Grab physical memory regions information from device tree. */
+	if (fdt_get_mem_regions(mem_regions, &mem_regions_sz, &memsize) != 0)
+		panic("Cannot get physical memory regions");
+	arm_physmem_hardware_regions(mem_regions, mem_regions_sz);
+
+	/* Grab reserved memory regions information from device tree. */
+	if (fdt_get_reserved_regions(mem_regions, &mem_regions_sz) == 0)
+		arm_physmem_exclude_regions(mem_regions, mem_regions_sz,
+		    EXFLAG_NODUMP | EXFLAG_NOALLOC);
+
+	/*
+	 * Set TEX remapping registers.
+	 * Setup kernel page tables and switch to kernel L1 page table.
+	 */
+	pmap_set_tex();
+	pmap_bootstrap_prepare(lastaddr);
+
+	/*
+	 * Now that proper page tables are installed, call cpu_setup() to enable
+	 * instruction and data caches and other chip-specific features.
+	 */
+	cpu_setup();
+
+	/* Platform-specific initialisation */
+	platform_probe_and_attach();
+	pcpu0_init();
+
+	/* Do basic tuning, hz etc */
+	init_param1();
+
+	/*
+	 * Allocate a page for the system page mapped to 0xffff0000
+	 * This page will just contain the system vectors and can be
+	 * shared by all processes.
+	 */
+	systempage = pmap_preboot_get_pages(1);
+
+	/* Map the vector page. */
+	pmap_preboot_map_pages(systempage, ARM_VECTORS_HIGH,  1);
+	if (virtual_end >= ARM_VECTORS_HIGH)
+		virtual_end = ARM_VECTORS_HIGH - 1;
+
+	/* Allocate dynamic per-cpu area. */
+	dpcpu = pmap_preboot_get_vpages(DPCPU_SIZE / PAGE_SIZE);
+	dpcpu_init((void *)dpcpu, 0);
+
+	/* Allocate stacks for all modes */
+	irqstack    = pmap_preboot_get_vpages(IRQ_STACK_SIZE * MAXCPU);
+	abtstack    = pmap_preboot_get_vpages(ABT_STACK_SIZE * MAXCPU);
+	undstack    = pmap_preboot_get_vpages(UND_STACK_SIZE * MAXCPU );
+	kernelstack = pmap_preboot_get_vpages(KSTACK_PAGES * MAXCPU);
+
+	/* Allocate message buffer. */
+	msgbufp = (void *)pmap_preboot_get_vpages(
+	    round_page(msgbufsize) / PAGE_SIZE);
+
+	/*
+	 * Pages were allocated during the secondary bootstrap for the
+	 * stacks for different CPU modes.
+	 * We must now set the r13 registers in the different CPU modes to
+	 * point to these stacks.
+	 * Since the ARM stacks use STMFD etc. we must set r13 to the top end
+	 * of the stack memory.
+	 */
+	set_stackptrs(0);
+	mutex_init();
+
+	/* Establish static device mappings. */
+	err_devmap = platform_devmap_init();
+	arm_devmap_bootstrap(0, NULL);
+	vm_max_kernel_address = platform_lastaddr();
+
+	/*
+	 * Only after the SOC registers block is mapped we can perform device
+	 * tree fixups, as they may attempt to read parameters from hardware.
+	 */
+	OF_interpret("perform-fixup", 0);
+	platform_gpio_init();
+	cninit();
+
+	debugf("initarm: console initialized\n");
+	debugf(" arg1 kmdp = 0x%08x\n", (uint32_t)kmdp);
+	debugf(" boothowto = 0x%08x\n", boothowto);
+	debugf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
+	debugf(" lastaddr1: 0x%08x\n", lastaddr);
+	print_kenv();
+
+	env = kern_getenv("kernelname");
+	if (env != NULL)
+		strlcpy(kernelname, env, sizeof(kernelname));
+
+	if (err_devmap != 0)
+		printf("WARNING: could not fully configure devmap, error=%d\n",
+		    err_devmap);
+
+	platform_late_init();
+
+	/*
+	 * We must now clean the cache again....
+	 * Cleaning may be done by reading new data to displace any
+	 * dirty data in the cache. This will have happened in setttb()
+	 * but since we are boot strapping the addresses used for the read
+	 * may have just been remapped and thus the cache could be out
+	 * of sync. A re-clean after the switch will cure this.
+	 * After booting there are no gross relocations of the kernel thus
+	 * this problem will not occur after initarm().
+	 */
+	/* Set stack for exception handlers */
+	undefined_init();
+	init_proc0(kernelstack);
+	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
+	enable_interrupts(PSR_A);
+	pmap_bootstrap(0);
+
+	/* Exclude the kernel (and all the things we allocated which immediately
+	 * follow the kernel) from the VM allocation pool but not from crash
+	 * dumps.  virtual_avail is a global variable which tracks the kva we've
+	 * "allocated" while setting up pmaps.
+	 *
+	 * Prepare the list of physical memory available to the vm subsystem.
+	 */
+	arm_physmem_exclude_region(abp->abp_physaddr,
+		pmap_preboot_get_pages(0) - abp->abp_physaddr, EXFLAG_NOALLOC);
+	arm_physmem_init_kernel_globals();
+
+	init_param2(physmem);
+	/* Init message buffer. */
+	msgbufinit(msgbufp, msgbufsize);
+	kdb_init();
+	return ((void *)STACKALIGN(thread0.td_pcb));
+
+}
+
+#endif /* !ARM_NEW_PMAP */
+#endif /* FDT */

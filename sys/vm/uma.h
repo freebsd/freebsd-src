@@ -382,7 +382,8 @@ uma_zfree(uma_zone_t zone, void *item)
  *	A pointer to the allocated memory or NULL on failure.
  */
 
-typedef void *(*uma_alloc)(uma_zone_t zone, int size, uint8_t *pflag, int wait);
+typedef void *(*uma_alloc)(uma_zone_t zone, vm_size_t size, uint8_t *pflag,
+    int wait);
 
 /*
  * Backend page free routines
@@ -395,7 +396,7 @@ typedef void *(*uma_alloc)(uma_zone_t zone, int size, uint8_t *pflag, int wait);
  * Returns:
  *	None
  */
-typedef void (*uma_free)(void *item, int size, uint8_t pflag);
+typedef void (*uma_free)(void *item, vm_size_t size, uint8_t pflag);
 
 
 

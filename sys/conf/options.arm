@@ -1,21 +1,19 @@
 #$FreeBSD$
-ARM9_CACHE_WRITE_THROUGH	opt_global.h
 ARMV6			opt_global.h
 ARM_CACHE_LOCK_ENABLE	opt_global.h
 ARM_KERN_DIRECTMAP	opt_vm.h
 ARM_L2_PIPT		opt_global.h
 ARM_MANY_BOARD		opt_global.h
 ARM_NEW_PMAP		opt_global.h
+NKPT2PG			opt_pmap.h
 ARM_WANT_TP_ADDRESS	opt_global.h
 COUNTS_PER_SEC		opt_timer.h
 CPU_ARM9		opt_global.h
 CPU_ARM9E		opt_global.h
-CPU_ARM1136		opt_global.h
 CPU_ARM1176		opt_global.h
 CPU_CORTEXA		opt_global.h
 CPU_KRAIT		opt_global.h
 CPU_FA526		opt_global.h
-CPU_FA626TE		opt_global.h
 CPU_MV_PJ4B		opt_global.h
 CPU_XSCALE_80219	opt_global.h
 CPU_XSCALE_80321	opt_global.h
@@ -24,10 +22,12 @@ CPU_XSCALE_IXP425	opt_global.h
 CPU_XSCALE_IXP435	opt_global.h
 CPU_XSCALE_PXA2X0	opt_global.h
 FLASHADDR		opt_global.h
+GIC_DEFAULT_ICFGR_INIT	opt_global.h
 IPI_IRQ_START		opt_smp.h
 IPI_IRQ_END		opt_smp.h
 FREEBSD_BOOT_LOADER	opt_global.h
 IXP4XX_FLASH_SIZE	opt_global.h
+KERNBASE		opt_global.h
 KERNPHYSADDR		opt_global.h
 KERNVIRTADDR		opt_global.h
 LINUX_BOOT_ABI		opt_global.h
@@ -38,6 +38,8 @@ SOCDEV_PA		opt_global.h
 SOCDEV_VA		opt_global.h
 PV_STATS		opt_pmap.h
 QEMU_WORKAROUNDS	opt_global.h
+SOC_BCM2835		opt_global.h
+SOC_BCM2836		opt_global.h
 SOC_MV_ARMADAXP		opt_global.h
 SOC_MV_DISCOVERY	opt_global.h
 SOC_MV_DOVE		opt_global.h

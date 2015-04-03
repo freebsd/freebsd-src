@@ -45,7 +45,7 @@ int rs690_mc_wait_for_idle(struct radeon_device *rdev)
 		tmp = RREG32_MC(R_000090_MC_SYSTEM_STATUS);
 		if (G_000090_MC_SYSTEM_IDLE(tmp))
 			return 0;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 	return -1;
 }

@@ -75,6 +75,7 @@ interpos_func_t __libc_interposing[INTERPOS_MAX] = {
 	SLOT(_pthread_mutex_init_calloc_cb, _pthread_mutex_init_calloc_cb_stub),
 	SLOT(spinlock, __libc_spinlock_stub),
 	SLOT(spinunlock, __libc_spinunlock_stub),
+	SLOT(kevent, __sys_kevent),
 };
 #undef SLOT
 

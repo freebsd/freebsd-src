@@ -136,9 +136,6 @@ ipip_output(struct mbuf *m, struct ipsecrequest *isr, struct mbuf **mp,
 		ipo->ip_sum = 0;
 		ipo->ip_src = saidx->src.sin.sin_addr;
 		ipo->ip_dst = saidx->dst.sin.sin_addr;
-
-		ipo->ip_id = ip_newid();
-
 		/* If the inner protocol is IP... */
 		switch (tp) {
 		case IPVERSION:
@@ -178,6 +175,7 @@ ipip_output(struct mbuf *m, struct ipsecrequest *isr, struct mbuf **mp,
 		default:
 			goto nofamily;
 		}
+		ip_fillid(ipo);
 
 		otos = 0;
 		ip_ecn_ingress(ECN_ALLOWED, &otos, &itos);

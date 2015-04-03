@@ -285,7 +285,7 @@ sysctl_load_tunable_by_oid_locked(struct sysctl_oid *oidp)
 	error = sysctl_root_handler_locked(oidp, oidp->oid_arg1,
 	    oidp->oid_arg2, &req);
 	if (error != 0)
-		printf("Setting sysctl %s failed: %d\n", path, error);
+		printf("Setting sysctl %s failed: %d\n", path + rem, error);
 	if (penv != NULL)
 		freeenv(penv);
 }
@@ -296,6 +296,8 @@ sysctl_register_oid(struct sysctl_oid *oidp)
 	struct sysctl_oid_list *parent = oidp->oid_parent;
 	struct sysctl_oid *p;
 	struct sysctl_oid *q;
+	int oid_number;
+	int timeout = 2;
 
 	/*
 	 * First check if another oid with the same name already
@@ -312,37 +314,66 @@ sysctl_register_oid(struct sysctl_oid *oidp)
 			return;
 		}
 	}
+	/* get current OID number */
+	oid_number = oidp->oid_number;
+
+#if (OID_AUTO >= 0)
+#error "OID_AUTO is expected to be a negative value"
+#endif	
 	/*
-	 * If this oid has a number OID_AUTO, give it a number which
-	 * is greater than any current oid.
+	 * Any negative OID number qualifies as OID_AUTO. Valid OID
+	 * numbers should always be positive.
+	 *
 	 * NOTE: DO NOT change the starting value here, change it in
 	 * <sys/sysctl.h>, and make sure it is at least 256 to
 	 * accomodate e.g. net.inet.raw as a static sysctl node.
 	 */
-	if (oidp->oid_number == OID_AUTO) {
-		static int newoid = CTL_AUTO_START;
+	if (oid_number < 0) {
+		static int newoid;
 
-		oidp->oid_number = newoid++;
-		if (newoid == 0x7fffffff)
-			panic("out of oids");
+		/*
+		 * By decrementing the next OID number we spend less
+		 * time inserting the OIDs into a sorted list.
+		 */
+		if (--newoid < CTL_AUTO_START)
+			newoid = 0x7fffffff;
+
+		oid_number = newoid;
 	}
-#if 0
-	else if (oidp->oid_number >= CTL_AUTO_START) {
-		/* do not panic; this happens when unregistering sysctl sets */
-		printf("static sysctl oid too high: %d", oidp->oid_number);
-	}
-#endif
 
 	/*
-	 * Insert the oid into the parent's list in order.
+	 * Insert the OID into the parent's list sorted by OID number.
 	 */
+retry:
 	q = NULL;
 	SLIST_FOREACH(p, parent, oid_link) {
-		if (oidp->oid_number < p->oid_number)
+		/* check if the current OID number is in use */
+		if (oid_number == p->oid_number) {
+			/* get the next valid OID number */
+			if (oid_number < CTL_AUTO_START ||
+			    oid_number == 0x7fffffff) {
+				/* wraparound - restart */
+				oid_number = CTL_AUTO_START;
+				/* don't loop forever */
+				if (!timeout--)
+					panic("sysctl: Out of OID numbers\n");
+				goto retry;
+			} else {
+				oid_number++;
+			}
+		} else if (oid_number < p->oid_number)
 			break;
 		q = p;
 	}
-	if (q)
+	/* check for non-auto OID number collision */
+	if (oidp->oid_number >= 0 && oidp->oid_number < CTL_AUTO_START &&
+	    oid_number >= CTL_AUTO_START) {
+		printf("sysctl: OID number(%d) is already in use for '%s'\n",
+		    oidp->oid_number, oidp->oid_name);
+	}
+	/* update the OID number, if any */
+	oidp->oid_number = oid_number;
+	if (q != NULL)
 		SLIST_INSERT_AFTER(q, oidp, oid_link);
 	else
 		SLIST_INSERT_HEAD(parent, oidp, oid_link);
@@ -353,6 +384,9 @@ sysctl_register_oid(struct sysctl_oid *oidp)
 #endif
 	    (oidp->oid_kind & CTLFLAG_TUN) != 0 &&
 	    (oidp->oid_kind & CTLFLAG_NOFETCH) == 0) {
+		/* only fetch value once */
+		oidp->oid_kind |= CTLFLAG_NOFETCH;
+		/* try to fetch value from kernel environment */
 		sysctl_load_tunable_by_oid_locked(oidp);
 	}
 }
@@ -1807,6 +1841,9 @@ sbuf_new_for_sysctl(struct sbuf *s, char *buf, int length,
     struct sysctl_req *req)
 {
 
+	/* Supply a default buffer size if none given. */
+	if (buf == NULL && length == 0)
+		length = 64;
 	s = sbuf_new(s, buf, length, SBUF_FIXEDLEN | SBUF_INCLUDENUL);
 	sbuf_set_drain(s, sbuf_sysctl_drain, req);
 	return (s);

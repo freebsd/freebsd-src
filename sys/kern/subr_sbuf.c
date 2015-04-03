@@ -78,6 +78,7 @@ static MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
 #define	SBUF_SETFLAG(s, f)	do { (s)->s_flags |= (f); } while (0)
 #define	SBUF_CLEARFLAG(s, f)	do { (s)->s_flags &= ~(f); } while (0)
 
+#define	SBUF_MINSIZE		 2		/* Min is 1 byte + nulterm. */
 #define	SBUF_MINEXTENDSIZE	16		/* Should be power of 2. */
 
 #ifdef PAGE_SIZE
@@ -192,8 +193,9 @@ sbuf_newbuf(struct sbuf *s, char *buf, int length, int flags)
 	s->s_buf = buf;
 
 	if ((s->s_flags & SBUF_AUTOEXTEND) == 0) {
-		KASSERT(s->s_size >= 0,
-		    ("attempt to create a too small sbuf"));
+		KASSERT(s->s_size >= SBUF_MINSIZE,
+		    ("attempt to create an sbuf smaller than %d bytes",
+		    SBUF_MINSIZE));
 	}
 
 	if (s->s_buf != NULL)
