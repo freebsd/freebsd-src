@@ -156,6 +156,7 @@ cheri_fd_destroy(struct cheri_object co)
 	__capability struct cheri_fd *cfp;
 
 	cfp = cheri_unseal(co.co_datacap, cheri_fd_type);
+	CHERI_SYSTEM_OBJECT_FINI(cfp);
 	free((void *)cfp);
 }
 

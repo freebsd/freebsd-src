@@ -128,9 +128,9 @@ sandbox_program_init(int argc, char **argv)
 		return (-1);
 	}
 	/* XXXBD: cheri_system needs to do this. */
-	cheri_system_vtable = sandbox_make_vtable(NULL, NULL,
+	cheri_system_vtable = sandbox_make_vtable(NULL, "_cheri_system_object",
 	    main_provided_classes);
-	cheri_fd_vtable = sandbox_make_vtable(NULL, NULL,
+	cheri_fd_vtable = sandbox_make_vtable(NULL, "cheri_fd",
 	    main_provided_classes);
 	close(fd);
 	return (0);
@@ -631,6 +631,7 @@ sandbox_object_destroy(struct sandbox_object *sbop)
 		(void)sandbox_stat_object_deregister(
 		    sbop->sbo_sandbox_object_statp);
 	sandbox_object_unload(sbop);		/* Unmap memory. */
+	CHERI_SYSTEM_OBJECT_FINI(sbop);
 	bzero(sbop, sizeof(*sbop));		/* Clears tags. */
 	free(sbop);
 }

@@ -493,6 +493,11 @@ error:
 void
 sandbox_object_unload(struct sandbox_object *sbop)
 {
+	struct sandbox_metadata *sbmp;
+
+	sbmp = (void *)((char *)sbop->sbo_datamem +
+	    SANDBOX_METADATA_BASE);
+	free((void *)sbmp->sbm_vtable);
 
 	munmap(sbop->sbo_datamem, sbop->sbo_datalen);
 }

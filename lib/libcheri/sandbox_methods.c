@@ -679,31 +679,43 @@ __capability intptr_t *
 sandbox_make_vtable(void *dataptr, const char *class,
     struct sandbox_provided_classes *provided_classes)
 {
-	size_t i;
+	__capability intptr_t *vtable;
+	intptr_t *cheri_ccallee_base;
+	size_t i, index, length, m;
+	struct sandbox_provided_method *pm;
+	struct sandbox_provided_methods *pms;
 
 	if (provided_classes->spcs_nclasses == 0)
 		return (NULL);
 
+	if ((vtable = (__capability intptr_t *)calloc(
+	    provided_classes->spcs_nmethods, sizeof(*vtable))) == NULL) {
+		warnx("%s: calloc", __func__);
+		return (NULL);
+	}
+	cheri_ccallee_base = (intptr_t *)dataptr + provided_classes->spcs_base
+	/ sizeof(intptr_t);
+	length = provided_classes->spcs_nmethods * sizeof(*vtable);
+
 	if (class == NULL) {
-		return (cheri_ptrperm((char *)dataptr +
-		    provided_classes->spcs_base,
-		    provided_classes->spcs_nmethods * sizeof(intptr_t),
-		    CHERI_PERM_LOAD));
+		memcpy_c_tocap(vtable, cheri_ccallee_base, length);
+		return (cheri_andperm(vtable, CHERI_PERM_LOAD));
 	}
 
 	for (i = 0; i < provided_classes->spcs_nclasses; i++) {
-		if (strcmp(provided_classes->spcs_classes[i]->spms_class,
-		    class) != 0)
+		pms = provided_classes->spcs_classes[i];
+		if (strcmp(pms->spms_class, class) != 0)
 			continue;
-		/*
-		 * XXXBD: malloc a copy and wipe out entries from other
-		 * classes
-		 */
-		return (cheri_ptrperm((char *)dataptr +
-		    provided_classes->spcs_base,
-		    provided_classes->spcs_nmethods * sizeof(intptr_t),
-		    CHERI_PERM_LOAD));
+
+		for (m = 0; m < pms->spms_nmethods; m++) {
+			pm = pms->spms_methods + m;
+			index = (pm->spm_index_offset -
+			    provided_classes->spcs_base) / sizeof(*vtable);
+			vtable[index] = cheri_ccallee_base[index];
+		}
+		return (cheri_andperm(vtable, CHERI_PERM_LOAD));
 	}
+	free((void *)vtable);
 	return (NULL);
 }
 

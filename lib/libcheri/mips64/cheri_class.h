@@ -41,6 +41,11 @@
 	(x)->__cheri_system_object_field_c0 = cheri_getdefault();	\
 	(x)->__cheri_system_object_vtable = (vtable)
 
+#define	CHERI_SYSTEM_OBJECT_FINI(x)					\
+	(x)->__cheri_system_object_field_c0 = NULL;			\
+	free((void *)(x)->__cheri_system_object_vtable);		\
+	(x)->__cheri_system_object_vtable = NULL
+
 /*
  * CHERI system class CCall landing pad code: catches CCalls inbound from
  * sandboxes seeking system services, and bootstraps C code.  A number of
