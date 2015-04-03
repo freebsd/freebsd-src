@@ -50,39 +50,6 @@
 
 struct cheri_object	cheri_helloworld;
 
-/*
- * Print "hello world" from a sandbox ... three different ways!
- */
-static void
-invoke_cheri_helloworld(struct sandbox_object *objectp,
-    struct cheri_object stdout_fd, register_t methodnum)
-{
-	register_t v;
-
-	/*
-	 * XXXRW: Once we have more compiler support, this will be a lot
-	 * tidier, hopefully.
-	 */
-	v = sandbox_object_cinvoke(objectp, methodnum,
-	    0, 0, 0, 0, 0, 0, 0,
-	    stdout_fd.co_codecap, stdout_fd.co_datacap, cheri_zerocap(),
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap(), cheri_zerocap());
-	switch (methodnum) {
-	case CHERI_HELLOWORLD_HELPER_OP_HELLOWORLD:
-		assert(v == 123456);
-		break;
-
-	case CHERI_HELLOWORLD_HELPER_OP_PUTS:
-		assert(v >= 0);
-		break;
-
-	case CHERI_HELLOWORLD_HELPER_OP_FD_WRITE_C:
-		assert(v == 12);
-		break;
-	}
-}
-
 int
 main(int argc, char *argv[])
 {
@@ -103,24 +70,6 @@ main(int argc, char *argv[])
 	if (sandbox_object_new(classp, 2*1024*1024, &objectp) < 0)
 		err(EX_OSFILE, "sandbox_object_new");
 	cheri_helloworld = sandbox_object_getobject(objectp);
-
-	/*
-	 * Ideally, this information would be sucked out of ELF.
-	 */
-	(void)sandbox_class_method_declare(classp,
-	    CHERI_HELLOWORLD_HELPER_OP_HELLOWORLD, "helloworld");
-	(void)sandbox_class_method_declare(classp,
-	    CHERI_HELLOWORLD_HELPER_OP_PUTS, "puts");
-	(void)sandbox_class_method_declare(classp,
-	    CHERI_HELLOWORLD_HELPER_OP_FD_WRITE_C, "fd_write_c");
-
-	/* Do it three times, one for each possible way. */
-	invoke_cheri_helloworld(objectp, stdout_fd,
-	    CHERI_HELLOWORLD_HELPER_OP_HELLOWORLD);
-	invoke_cheri_helloworld(objectp, stdout_fd,
-	    CHERI_HELLOWORLD_HELPER_OP_PUTS);
-	invoke_cheri_helloworld(objectp, stdout_fd,
-	    CHERI_HELLOWORLD_HELPER_OP_FD_WRITE_C);
 
 	int ret;
 	ret = call_cheri_system_helloworld();

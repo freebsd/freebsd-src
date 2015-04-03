@@ -39,61 +39,18 @@
 #include <cheri/cheri_invoke.h>
 #include <cheri/cheri_system.h>
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
 #define CHERI_HELLOWORLD_INTERNAL
 #include "cheri_helloworld-helper.h"
 
-int	invoke(struct cheri_object co, register_t v0,
-	    register_t methodnum, struct cheri_object fd_object)
-	    __attribute__((cheri_ccall)); /* XXXRW: Will be ccheri_ccaller. */
+void	invoke(void);
+void	invoke(void) { abort(); }
 
 static char hello_world_str[] = "hello world";
 static char hello_world_str_nl[] = "hello world\n";
-
-/*
- * Print "hello world" in one of three ways, depending on the "methodnum"
- * argument: via the system-class hello-world service, via the system-class
- * puts service, and by writing it to a cheri_fd object passed as an argument.
- */
-int
-invoke(struct cheri_object co __unused, register_t v0 __unused,
-    register_t methodnum, struct cheri_object fd_object)
-{
-	__capability char *hello_world_str_c;
-	__capability char *hello_world_buf_c;
-	size_t len_str_c;
-	size_t len_buf_c;
-
-	/*
-	 * Construct a capability to our "hello world" string.
-	 */
-	len_str_c = sizeof(hello_world_str);
-	hello_world_str_c = cheri_ptrperm(&hello_world_str, len_str_c,
-	    CHERI_PERM_LOAD); /* Nul-terminated. */
-	len_buf_c = strlen(hello_world_str_nl);
-	hello_world_buf_c = cheri_ptrperm(&hello_world_str_nl, len_buf_c,
-	    CHERI_PERM_LOAD); /* Just the text. */
-
-	/*
-	 * Select a print method.
-	 */
-	switch (methodnum) {
-	case CHERI_HELLOWORLD_HELPER_OP_HELLOWORLD:
-		return (cheri_system_helloworld());
-
-	case CHERI_HELLOWORLD_HELPER_OP_PUTS:
-		return (cheri_system_puts(hello_world_str_c));
-
-	case CHERI_HELLOWORLD_HELPER_OP_FD_WRITE_C:
-		return (cheri_fd_write_c(fd_object,
-		    hello_world_buf_c, len_buf_c).cfr_retval0);
-
-	default:
-		return (-1);
-	}
-}
 
 int
 call_cheri_system_helloworld(void)
