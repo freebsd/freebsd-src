@@ -4,6 +4,13 @@
 
 .include <bsd.init.mk>
 
+.if defined(LIB_CXX)
+LIB=	${LIB_CXX}
+_LD=	${CXX}
+.else
+_LD=	${CC}
+.endif
+
 # Set up the variables controlling shared libraries.  After this section,
 # SHLIB_NAME will be defined only if we are to create a shared library.
 # SHLIB_LINK will be defined only if we are to create a link to it.
@@ -208,7 +215,7 @@ ${SHLIB_NAME_FULL}: ${SOBJS}
 .if defined(SHLIB_LINK)
 	@${INSTALL_SYMLINK} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
-	${CC} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
+	${_LD} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
 	    `NM='${NM}' lorder ${SOBJS} | tsort -q` ${LDADD}
 .if ${MK_CTF} != "no"

@@ -27,7 +27,7 @@
 
 .include <bsd.init.mk>
 
-LIB=		atf-c++
+LIB_CXX=	atf-c++
 PRIVATELIB=	true
 SHLIB_MAJOR=	2
 
