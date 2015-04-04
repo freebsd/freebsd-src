@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #define _PATH_LOADER	"/boot/loader.efi"
 #define _PATH_KERNEL	"/boot/kernel/kernel"
- 
+
 #define BSIZEMAX	16384
 
 typedef int putc_func_t(char c, void *arg);
@@ -40,7 +40,7 @@ struct sp_data {
 	u_int	sp_len;
 	u_int	sp_size;
 };
-        
+
 static const char digits[] = "0123456789abcdef";
 
 static void panic(const char *fmt, ...) __dead2;
@@ -62,7 +62,7 @@ static void load(const char *fname);
 EFI_SYSTEM_TABLE *systab;
 EFI_HANDLE *image;
 
-static void     
+static void
 bcopy(const void *src, void *dst, size_t len)
 {
 	const char *s = src;
@@ -71,12 +71,12 @@ bcopy(const void *src, void *dst, size_t len)
 	while (len-- != 0)
 		*d++ = *s++;
 }
-   
+
 static void
 memcpy(void *dst, const void *src, size_t len)
 {
 	bcopy(src, dst, len);
-}               
+}
 
 static void
 bzero(void *b, size_t len)
@@ -86,7 +86,7 @@ bzero(void *b, size_t len)
 	while (len-- != 0)
 		*p++ = 0;
 }
-        
+
 static int
 strcmp(const char *s1, const char *s2)
 {
@@ -134,7 +134,7 @@ EFI_STATUS efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE* Xsystab)
 
 	for (i = 0; i < nparts; i++) {
 		status = systab->BootServices->HandleProtocol(handles[i],
-		    &DevicePathGUID, (void **)&devpath); 
+		    &DevicePathGUID, (void **)&devpath);
 		if (EFI_ERROR(status))
 			continue;
 
@@ -142,7 +142,7 @@ EFI_STATUS efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE* Xsystab)
 			devpath = NextDevicePathNode(devpath);
 
 		status = systab->BootServices->HandleProtocol(handles[i],
-		    &BlockIoProtocolGUID, (void **)&blkio); 
+		    &BlockIoProtocolGUID, (void **)&blkio);
 		if (EFI_ERROR(status))
 			continue;
 
@@ -158,7 +158,7 @@ EFI_STATUS efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE* Xsystab)
 
 	bootdevhandle = handles[i];
 	load(path);
-		
+
 	panic("Load failed");
 
 	return EFI_SUCCESS;
@@ -266,7 +266,7 @@ fsstat(ufs_ino_t inode)
 }
 
 static struct dmadat __dmadat;
-                
+
 static int
 domount(EFI_DEVICE_PATH *device, EFI_BLOCK_IO *blkio, int quiet)
 {
@@ -278,7 +278,7 @@ domount(EFI_DEVICE_PATH *device, EFI_BLOCK_IO *blkio, int quiet)
 		if (!quiet)
 			printf("domount: can't read superblock\n");
 		return (-1);
-	} 
+	}
 	if (!quiet)
 		printf("Succesfully mounted UFS filesystem\n");
 	return (0);
@@ -303,7 +303,7 @@ load(const char *fname)
 	status = systab->BootServices->AllocatePool(EfiLoaderData,
 	    bufsize, &buffer);
 	fsread(ino, buffer, bufsize);
-	
+
 	/* XXX: For secure boot, we need our own loader here */
 	status = systab->BootServices->LoadImage(TRUE, image, bootdevpath,
 	    buffer, bufsize, &loaderhandle);
@@ -549,4 +549,3 @@ __ultoa(char *buf, u_long ul, int base)
 	while ((ul /= base) != 0);
 	return (p);
 }
-
