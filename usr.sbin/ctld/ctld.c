@@ -203,7 +203,7 @@ auth_check_secret_length(struct auth *auth)
 	}
 
 	if (auth->a_mutual_secret != NULL) {
-		len = strlen(auth->a_secret);
+		len = strlen(auth->a_mutual_secret);
 		if (len > 16) {
 			if (auth->a_auth_group->ag_name != NULL)
 				log_warnx("mutual secret for user \"%s\", "
