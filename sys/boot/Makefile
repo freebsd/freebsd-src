@@ -5,6 +5,7 @@
 .if ${MK_FORTH} != "no"
 # Build the add-in FORTH interpreter.
 SUBDIR+=		ficl
+SUBDIR+=		forth
 .endif
 
 .include <bsd.arch.inc.mk>
