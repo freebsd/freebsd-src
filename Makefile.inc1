@@ -1746,6 +1746,10 @@ _startup_libs+=	lib/csu/${MACHINE_ARCH}
 .else
 _startup_libs+=	lib/csu/${MACHINE_CPUARCH}
 .endif
+.if ${MK_CHERI} != "no"
+_startup_libs+= lib/csu/cheri
+_startup_libs+= lib/libc_cheri
+.endif
 _startup_libs+=	gnu/lib/libgcc
 _startup_libs+=	lib/libcompiler_rt
 _startup_libs+=	lib/libc
@@ -1792,6 +1796,10 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 _prebuild_libs+= gnu/lib/libstdc++ gnu/lib/libsupc++
 gnu/lib/libstdc++__L: lib/msun__L
 gnu/lib/libsupc++__L: gnu/lib/libstdc++__L
+.endif
+
+.if ${MK_CHERI} != "no"
+_prebuild_libs+=	lib/libcheri
 .endif
 
 .if ${MK_LIBCPLUSPLUS} != "no"
