@@ -140,5 +140,6 @@ struct arm_devmap_entry;
 
 int mv_pci_devmap(phandle_t, struct arm_devmap_entry *, vm_offset_t,
     vm_offset_t);
+int fdt_localbus_devmap(phandle_t, struct arm_devmap_entry *, int, int *);
 
 #endif /* _MVVAR_H_ */
