@@ -1574,6 +1574,10 @@ _prebuild_libs+= gnu/lib/libstdc++ gnu/lib/libsupc++
 gnu/lib/libstdc++__L: lib/msun__L
 .endif
 
+.if ${MK_LIBCPLUSPLUS} != "no"
+_prebuild_libs+= lib/libc++
+.endif
+
 lib/libgeom__L: lib/libexpat__L
 
 .if defined(WITH_ATF) || ${MK_TESTS} != "no"
@@ -1583,6 +1587,12 @@ lib/libgeom__L: lib/libexpat__L
 MAKE+=		-DWITH_ATF
 .endif
 _lib_atf=	lib/atf
+.if ${MK_GNUCXX} != no
+lib/atf__L: gnu/lib/libstdc++__L
+.endif
+.if ${MK_LIBCPLUSPLUS} != "no"
+lib/atf__L: lib/libc++__L lib/msun__L
+.endif
 .endif
 
 .if ${MK_LIBTHR} != "no"
