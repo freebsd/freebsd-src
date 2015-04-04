@@ -1,12 +1,12 @@
-%{
+NoEcho('
 /******************************************************************************
  *
- * Module Name: aslcompiler.y - Bison/Yacc input file (ASL grammar and actions)
+ * Module Name: aslrules.y - Bison/Yacc production rules
  *
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,755 +42,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <contrib/dev/acpica/compiler/aslcompiler.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <contrib/dev/acpica/include/acpi.h>
-#include <contrib/dev/acpica/include/accommon.h>
+')
 
-#define _COMPONENT          ACPI_COMPILER
-        ACPI_MODULE_NAME    ("aslparse")
-
-/*
- * Global Notes:
- *
- * October 2005: The following list terms have been optimized (from the
- * original ASL grammar in the ACPI specification) to force the immediate
- * reduction of each list item so that the parse stack use doesn't increase on
- * each list element and possibly overflow on very large lists (>4000 items).
- * This dramatically reduces use of the parse stack overall.
- *
- *      ArgList, TermList, Objectlist, ByteList, DWordList, PackageList,
- *      ResourceMacroList, and FieldUnitList
- */
-
-void *                      AslLocalAllocate (unsigned int Size);
-
-/* Bison/yacc configuration */
-
-#define static
-#undef alloca
-#define alloca              AslLocalAllocate
-#define yytname             AslCompilername
-
-#define YYINITDEPTH         600             /* State stack depth */
-#define YYDEBUG             1               /* Enable debug output */
-#define YYERROR_VERBOSE     1               /* Verbose error messages */
-
-/* Define YYMALLOC/YYFREE to prevent redefinition errors  */
-
-#define YYMALLOC            malloc
-#define YYFREE              free
-
-/*
- * The windows version of bison defines this incorrectly as "32768" (Not negative).
- * We use a custom (edited binary) version of bison that defines YYFLAG as YYFBAD
- * instead (#define YYFBAD 32768), so we can define it correctly here.
- *
- * The problem is that if YYFLAG is positive, the extended syntax error messages
- * are disabled.
- */
-#define YYFLAG              -32768
-
-%}
-
-/*
- * Declare the type of values in the grammar
- */
-%union {
-    UINT64              i;
-    char                *s;
-    ACPI_PARSE_OBJECT   *n;
-}
-
-/*! [Begin] no source code translation */
-
-/*
- * These shift/reduce conflicts are expected. There should be zero
- * reduce/reduce conflicts.
- */
-%expect 86
-
-/******************************************************************************
- *
- * Token types: These are returned by the lexer
- *
- * NOTE: This list MUST match the AslKeywordMapping table found
- *       in aslmap.c EXACTLY!  Double check any changes!
- *
- *****************************************************************************/
-
-%token <i> PARSEOP_ACCESSAS
-%token <i> PARSEOP_ACCESSATTRIB_BLOCK
-%token <i> PARSEOP_ACCESSATTRIB_BLOCK_CALL
-%token <i> PARSEOP_ACCESSATTRIB_BYTE
-%token <i> PARSEOP_ACCESSATTRIB_MULTIBYTE
-%token <i> PARSEOP_ACCESSATTRIB_QUICK
-%token <i> PARSEOP_ACCESSATTRIB_RAW_BYTES
-%token <i> PARSEOP_ACCESSATTRIB_RAW_PROCESS
-%token <i> PARSEOP_ACCESSATTRIB_SND_RCV
-%token <i> PARSEOP_ACCESSATTRIB_WORD
-%token <i> PARSEOP_ACCESSATTRIB_WORD_CALL
-%token <i> PARSEOP_ACCESSTYPE_ANY
-%token <i> PARSEOP_ACCESSTYPE_BUF
-%token <i> PARSEOP_ACCESSTYPE_BYTE
-%token <i> PARSEOP_ACCESSTYPE_DWORD
-%token <i> PARSEOP_ACCESSTYPE_QWORD
-%token <i> PARSEOP_ACCESSTYPE_WORD
-%token <i> PARSEOP_ACQUIRE
-%token <i> PARSEOP_ADD
-%token <i> PARSEOP_ADDRESSINGMODE_7BIT
-%token <i> PARSEOP_ADDRESSINGMODE_10BIT
-%token <i> PARSEOP_ADDRESSTYPE_ACPI
-%token <i> PARSEOP_ADDRESSTYPE_MEMORY
-%token <i> PARSEOP_ADDRESSTYPE_NVS
-%token <i> PARSEOP_ADDRESSTYPE_RESERVED
-%token <i> PARSEOP_ALIAS
-%token <i> PARSEOP_AND
-%token <i> PARSEOP_ARG0
-%token <i> PARSEOP_ARG1
-%token <i> PARSEOP_ARG2
-%token <i> PARSEOP_ARG3
-%token <i> PARSEOP_ARG4
-%token <i> PARSEOP_ARG5
-%token <i> PARSEOP_ARG6
-%token <i> PARSEOP_BANKFIELD
-%token <i> PARSEOP_BITSPERBYTE_EIGHT
-%token <i> PARSEOP_BITSPERBYTE_FIVE
-%token <i> PARSEOP_BITSPERBYTE_NINE
-%token <i> PARSEOP_BITSPERBYTE_SEVEN
-%token <i> PARSEOP_BITSPERBYTE_SIX
-%token <i> PARSEOP_BREAK
-%token <i> PARSEOP_BREAKPOINT
-%token <i> PARSEOP_BUFFER
-%token <i> PARSEOP_BUSMASTERTYPE_MASTER
-%token <i> PARSEOP_BUSMASTERTYPE_NOTMASTER
-%token <i> PARSEOP_BYTECONST
-%token <i> PARSEOP_CASE
-%token <i> PARSEOP_CLOCKPHASE_FIRST
-%token <i> PARSEOP_CLOCKPHASE_SECOND
-%token <i> PARSEOP_CLOCKPOLARITY_HIGH
-%token <i> PARSEOP_CLOCKPOLARITY_LOW
-%token <i> PARSEOP_CONCATENATE
-%token <i> PARSEOP_CONCATENATERESTEMPLATE
-%token <i> PARSEOP_CONDREFOF
-%token <i> PARSEOP_CONNECTION
-%token <i> PARSEOP_CONTINUE
-%token <i> PARSEOP_COPYOBJECT
-%token <i> PARSEOP_CREATEBITFIELD
-%token <i> PARSEOP_CREATEBYTEFIELD
-%token <i> PARSEOP_CREATEDWORDFIELD
-%token <i> PARSEOP_CREATEFIELD
-%token <i> PARSEOP_CREATEQWORDFIELD
-%token <i> PARSEOP_CREATEWORDFIELD
-%token <i> PARSEOP_DATABUFFER
-%token <i> PARSEOP_DATATABLEREGION
-%token <i> PARSEOP_DEBUG
-%token <i> PARSEOP_DECODETYPE_POS
-%token <i> PARSEOP_DECODETYPE_SUB
-%token <i> PARSEOP_DECREMENT
-%token <i> PARSEOP_DEFAULT
-%token <i> PARSEOP_DEFAULT_ARG
-%token <i> PARSEOP_DEFINITIONBLOCK
-%token <i> PARSEOP_DEREFOF
-%token <i> PARSEOP_DEVICE
-%token <i> PARSEOP_DEVICEPOLARITY_HIGH
-%token <i> PARSEOP_DEVICEPOLARITY_LOW
-%token <i> PARSEOP_DIVIDE
-%token <i> PARSEOP_DMA
-%token <i> PARSEOP_DMATYPE_A
-%token <i> PARSEOP_DMATYPE_COMPATIBILITY
-%token <i> PARSEOP_DMATYPE_B
-%token <i> PARSEOP_DMATYPE_F
-%token <i> PARSEOP_DWORDCONST
-%token <i> PARSEOP_DWORDIO
-%token <i> PARSEOP_DWORDMEMORY
-%token <i> PARSEOP_DWORDSPACE
-%token <i> PARSEOP_EISAID
-%token <i> PARSEOP_ELSE
-%token <i> PARSEOP_ELSEIF
-%token <i> PARSEOP_ENDDEPENDENTFN
-%token <i> PARSEOP_ENDIAN_BIG
-%token <i> PARSEOP_ENDIAN_LITTLE
-%token <i> PARSEOP_ENDTAG
-%token <i> PARSEOP_ERRORNODE
-%token <i> PARSEOP_EVENT
-%token <i> PARSEOP_EXTENDEDIO
-%token <i> PARSEOP_EXTENDEDMEMORY
-%token <i> PARSEOP_EXTENDEDSPACE
-%token <i> PARSEOP_EXTERNAL
-%token <i> PARSEOP_FATAL
-%token <i> PARSEOP_FIELD
-%token <i> PARSEOP_FINDSETLEFTBIT
-%token <i> PARSEOP_FINDSETRIGHTBIT
-%token <i> PARSEOP_FIXEDDMA
-%token <i> PARSEOP_FIXEDIO
-%token <i> PARSEOP_FLOWCONTROL_HW
-%token <i> PARSEOP_FLOWCONTROL_NONE
-%token <i> PARSEOP_FLOWCONTROL_SW
-%token <i> PARSEOP_FROMBCD
-%token <i> PARSEOP_FUNCTION
-%token <i> PARSEOP_GPIO_INT
-%token <i> PARSEOP_GPIO_IO
-%token <i> PARSEOP_I2C_SERIALBUS
-%token <i> PARSEOP_IF
-%token <i> PARSEOP_INCLUDE
-%token <i> PARSEOP_INCLUDE_END
-%token <i> PARSEOP_INCREMENT
-%token <i> PARSEOP_INDEX
-%token <i> PARSEOP_INDEXFIELD
-%token <i> PARSEOP_INTEGER
-%token <i> PARSEOP_INTERRUPT
-%token <i> PARSEOP_INTLEVEL_ACTIVEBOTH
-%token <i> PARSEOP_INTLEVEL_ACTIVEHIGH
-%token <i> PARSEOP_INTLEVEL_ACTIVELOW
-%token <i> PARSEOP_INTTYPE_EDGE
-%token <i> PARSEOP_INTTYPE_LEVEL
-%token <i> PARSEOP_IO
-%token <i> PARSEOP_IODECODETYPE_10
-%token <i> PARSEOP_IODECODETYPE_16
-%token <i> PARSEOP_IORESTRICT_IN
-%token <i> PARSEOP_IORESTRICT_NONE
-%token <i> PARSEOP_IORESTRICT_OUT
-%token <i> PARSEOP_IORESTRICT_PRESERVE
-%token <i> PARSEOP_IRQ
-%token <i> PARSEOP_IRQNOFLAGS
-%token <i> PARSEOP_LAND
-%token <i> PARSEOP_LEQUAL
-%token <i> PARSEOP_LGREATER
-%token <i> PARSEOP_LGREATEREQUAL
-%token <i> PARSEOP_LLESS
-%token <i> PARSEOP_LLESSEQUAL
-%token <i> PARSEOP_LNOT
-%token <i> PARSEOP_LNOTEQUAL
-%token <i> PARSEOP_LOAD
-%token <i> PARSEOP_LOADTABLE
-%token <i> PARSEOP_LOCAL0
-%token <i> PARSEOP_LOCAL1
-%token <i> PARSEOP_LOCAL2
-%token <i> PARSEOP_LOCAL3
-%token <i> PARSEOP_LOCAL4
-%token <i> PARSEOP_LOCAL5
-%token <i> PARSEOP_LOCAL6
-%token <i> PARSEOP_LOCAL7
-%token <i> PARSEOP_LOCKRULE_LOCK
-%token <i> PARSEOP_LOCKRULE_NOLOCK
-%token <i> PARSEOP_LOR
-%token <i> PARSEOP_MATCH
-%token <i> PARSEOP_MATCHTYPE_MEQ
-%token <i> PARSEOP_MATCHTYPE_MGE
-%token <i> PARSEOP_MATCHTYPE_MGT
-%token <i> PARSEOP_MATCHTYPE_MLE
-%token <i> PARSEOP_MATCHTYPE_MLT
-%token <i> PARSEOP_MATCHTYPE_MTR
-%token <i> PARSEOP_MAXTYPE_FIXED
-%token <i> PARSEOP_MAXTYPE_NOTFIXED
-%token <i> PARSEOP_MEMORY24
-%token <i> PARSEOP_MEMORY32
-%token <i> PARSEOP_MEMORY32FIXED
-%token <i> PARSEOP_MEMTYPE_CACHEABLE
-%token <i> PARSEOP_MEMTYPE_NONCACHEABLE
-%token <i> PARSEOP_MEMTYPE_PREFETCHABLE
-%token <i> PARSEOP_MEMTYPE_WRITECOMBINING
-%token <i> PARSEOP_METHOD
-%token <i> PARSEOP_METHODCALL
-%token <i> PARSEOP_MID
-%token <i> PARSEOP_MINTYPE_FIXED
-%token <i> PARSEOP_MINTYPE_NOTFIXED
-%token <i> PARSEOP_MOD
-%token <i> PARSEOP_MULTIPLY
-%token <i> PARSEOP_MUTEX
-%token <i> PARSEOP_NAME
-%token <s> PARSEOP_NAMESEG
-%token <s> PARSEOP_NAMESTRING
-%token <i> PARSEOP_NAND
-%token <i> PARSEOP_NOOP
-%token <i> PARSEOP_NOR
-%token <i> PARSEOP_NOT
-%token <i> PARSEOP_NOTIFY
-%token <i> PARSEOP_OBJECTTYPE
-%token <i> PARSEOP_OBJECTTYPE_BFF
-%token <i> PARSEOP_OBJECTTYPE_BUF
-%token <i> PARSEOP_OBJECTTYPE_DDB
-%token <i> PARSEOP_OBJECTTYPE_DEV
-%token <i> PARSEOP_OBJECTTYPE_EVT
-%token <i> PARSEOP_OBJECTTYPE_FLD
-%token <i> PARSEOP_OBJECTTYPE_INT
-%token <i> PARSEOP_OBJECTTYPE_MTH
-%token <i> PARSEOP_OBJECTTYPE_MTX
-%token <i> PARSEOP_OBJECTTYPE_OPR
-%token <i> PARSEOP_OBJECTTYPE_PKG
-%token <i> PARSEOP_OBJECTTYPE_POW
-%token <i> PARSEOP_OBJECTTYPE_PRO
-%token <i> PARSEOP_OBJECTTYPE_STR
-%token <i> PARSEOP_OBJECTTYPE_THZ
-%token <i> PARSEOP_OBJECTTYPE_UNK
-%token <i> PARSEOP_OFFSET
-%token <i> PARSEOP_ONE
-%token <i> PARSEOP_ONES
-%token <i> PARSEOP_OPERATIONREGION
-%token <i> PARSEOP_OR
-%token <i> PARSEOP_PACKAGE
-%token <i> PARSEOP_PACKAGE_LENGTH
-%token <i> PARSEOP_PARITYTYPE_EVEN
-%token <i> PARSEOP_PARITYTYPE_MARK
-%token <i> PARSEOP_PARITYTYPE_NONE
-%token <i> PARSEOP_PARITYTYPE_ODD
-%token <i> PARSEOP_PARITYTYPE_SPACE
-%token <i> PARSEOP_PIN_NOPULL
-%token <i> PARSEOP_PIN_PULLDEFAULT
-%token <i> PARSEOP_PIN_PULLDOWN
-%token <i> PARSEOP_PIN_PULLUP
-%token <i> PARSEOP_POWERRESOURCE
-%token <i> PARSEOP_PROCESSOR
-%token <i> PARSEOP_QWORDCONST
-%token <i> PARSEOP_QWORDIO
-%token <i> PARSEOP_QWORDMEMORY
-%token <i> PARSEOP_QWORDSPACE
-%token <i> PARSEOP_RANGETYPE_ENTIRE
-%token <i> PARSEOP_RANGETYPE_ISAONLY
-%token <i> PARSEOP_RANGETYPE_NONISAONLY
-%token <i> PARSEOP_RAW_DATA
-%token <i> PARSEOP_READWRITETYPE_BOTH
-%token <i> PARSEOP_READWRITETYPE_READONLY
-%token <i> PARSEOP_REFOF
-%token <i> PARSEOP_REGIONSPACE_CMOS
-%token <i> PARSEOP_REGIONSPACE_EC
-%token <i> PARSEOP_REGIONSPACE_FFIXEDHW
-%token <i> PARSEOP_REGIONSPACE_GPIO
-%token <i> PARSEOP_REGIONSPACE_GSBUS
-%token <i> PARSEOP_REGIONSPACE_IO
-%token <i> PARSEOP_REGIONSPACE_IPMI
-%token <i> PARSEOP_REGIONSPACE_MEM
-%token <i> PARSEOP_REGIONSPACE_PCC
-%token <i> PARSEOP_REGIONSPACE_PCI
-%token <i> PARSEOP_REGIONSPACE_PCIBAR
-%token <i> PARSEOP_REGIONSPACE_SMBUS
-%token <i> PARSEOP_REGISTER
-%token <i> PARSEOP_RELEASE
-%token <i> PARSEOP_RESERVED_BYTES
-%token <i> PARSEOP_RESET
-%token <i> PARSEOP_RESOURCETEMPLATE
-%token <i> PARSEOP_RESOURCETYPE_CONSUMER
-%token <i> PARSEOP_RESOURCETYPE_PRODUCER
-%token <i> PARSEOP_RETURN
-%token <i> PARSEOP_REVISION
-%token <i> PARSEOP_SCOPE
-%token <i> PARSEOP_SERIALIZERULE_NOTSERIAL
-%token <i> PARSEOP_SERIALIZERULE_SERIAL
-%token <i> PARSEOP_SHARETYPE_EXCLUSIVE
-%token <i> PARSEOP_SHARETYPE_EXCLUSIVEWAKE
-%token <i> PARSEOP_SHARETYPE_SHARED
-%token <i> PARSEOP_SHARETYPE_SHAREDWAKE
-%token <i> PARSEOP_SHIFTLEFT
-%token <i> PARSEOP_SHIFTRIGHT
-%token <i> PARSEOP_SIGNAL
-%token <i> PARSEOP_SIZEOF
-%token <i> PARSEOP_SLAVEMODE_CONTROLLERINIT
-%token <i> PARSEOP_SLAVEMODE_DEVICEINIT
-%token <i> PARSEOP_SLEEP
-%token <i> PARSEOP_SPI_SERIALBUS
-%token <i> PARSEOP_STALL
-%token <i> PARSEOP_STARTDEPENDENTFN
-%token <i> PARSEOP_STARTDEPENDENTFN_NOPRI
-%token <i> PARSEOP_STOPBITS_ONE
-%token <i> PARSEOP_STOPBITS_ONEPLUSHALF
-%token <i> PARSEOP_STOPBITS_TWO
-%token <i> PARSEOP_STOPBITS_ZERO
-%token <i> PARSEOP_STORE
-%token <s> PARSEOP_STRING_LITERAL
-%token <i> PARSEOP_SUBTRACT
-%token <i> PARSEOP_SWITCH
-%token <i> PARSEOP_THERMALZONE
-%token <i> PARSEOP_TIMER
-%token <i> PARSEOP_TOBCD
-%token <i> PARSEOP_TOBUFFER
-%token <i> PARSEOP_TODECIMALSTRING
-%token <i> PARSEOP_TOHEXSTRING
-%token <i> PARSEOP_TOINTEGER
-%token <i> PARSEOP_TOSTRING
-%token <i> PARSEOP_TOUUID
-%token <i> PARSEOP_TRANSLATIONTYPE_DENSE
-%token <i> PARSEOP_TRANSLATIONTYPE_SPARSE
-%token <i> PARSEOP_TYPE_STATIC
-%token <i> PARSEOP_TYPE_TRANSLATION
-%token <i> PARSEOP_UART_SERIALBUS
-%token <i> PARSEOP_UNICODE
-%token <i> PARSEOP_UNLOAD
-%token <i> PARSEOP_UPDATERULE_ONES
-%token <i> PARSEOP_UPDATERULE_PRESERVE
-%token <i> PARSEOP_UPDATERULE_ZEROS
-%token <i> PARSEOP_VAR_PACKAGE
-%token <i> PARSEOP_VENDORLONG
-%token <i> PARSEOP_VENDORSHORT
-%token <i> PARSEOP_WAIT
-%token <i> PARSEOP_WHILE
-%token <i> PARSEOP_WIREMODE_FOUR
-%token <i> PARSEOP_WIREMODE_THREE
-%token <i> PARSEOP_WORDBUSNUMBER
-%token <i> PARSEOP_WORDCONST
-%token <i> PARSEOP_WORDIO
-%token <i> PARSEOP_WORDSPACE
-%token <i> PARSEOP_XFERSIZE_8
-%token <i> PARSEOP_XFERSIZE_16
-%token <i> PARSEOP_XFERSIZE_32
-%token <i> PARSEOP_XFERSIZE_64
-%token <i> PARSEOP_XFERSIZE_128
-%token <i> PARSEOP_XFERSIZE_256
-%token <i> PARSEOP_XFERTYPE_8
-%token <i> PARSEOP_XFERTYPE_8_16
-%token <i> PARSEOP_XFERTYPE_16
-%token <i> PARSEOP_XOR
-%token <i> PARSEOP_ZERO
-
-/*
- * Special functions. These should probably stay at the end of this
- * table.
- */
-%token <i> PARSEOP___DATE__
-%token <i> PARSEOP___FILE__
-%token <i> PARSEOP___LINE__
-%token <i> PARSEOP___PATH__
-
-
-/******************************************************************************
- *
- * Production names
- *
- *****************************************************************************/
-
-%type <n> ArgList
-%type <n> ASLCode
-%type <n> BufferData
-%type <n> BufferTermData
-%type <n> CompilerDirective
-%type <n> DataObject
-%type <n> DefinitionBlockTerm
-%type <n> IntegerData
-%type <n> NamedObject
-%type <n> NameSpaceModifier
-%type <n> Object
-%type <n> ObjectList
-%type <n> PackageData
-%type <n> ParameterTypePackage
-%type <n> ParameterTypePackageList
-%type <n> ParameterTypesPackage
-%type <n> ParameterTypesPackageList
-%type <n> RequiredTarget
-%type <n> SimpleTarget
-%type <n> StringData
-%type <n> Target
-%type <n> Term
-%type <n> TermArg
-%type <n> TermList
-%type <n> UserTerm
-
-/* Type4Opcode is obsolete */
-
-%type <n> Type1Opcode
-%type <n> Type2BufferOpcode
-%type <n> Type2BufferOrStringOpcode
-%type <n> Type2IntegerOpcode
-%type <n> Type2Opcode
-%type <n> Type2StringOpcode
-%type <n> Type3Opcode
-%type <n> Type5Opcode
-%type <n> Type6Opcode
-
-%type <n> AccessAsTerm
-%type <n> ExternalTerm
-%type <n> FieldUnit
-%type <n> FieldUnitEntry
-%type <n> FieldUnitList
-%type <n> IncludeTerm
-%type <n> OffsetTerm
-%type <n> OptionalAccessAttribTerm
-
-/* Named Objects */
-
-%type <n> BankFieldTerm
-%type <n> CreateBitFieldTerm
-%type <n> CreateByteFieldTerm
-%type <n> CreateDWordFieldTerm
-%type <n> CreateFieldTerm
-%type <n> CreateQWordFieldTerm
-%type <n> CreateWordFieldTerm
-%type <n> DataRegionTerm
-%type <n> DeviceTerm
-%type <n> EventTerm
-%type <n> FieldTerm
-%type <n> FunctionTerm
-%type <n> IndexFieldTerm
-%type <n> MethodTerm
-%type <n> MutexTerm
-%type <n> OpRegionTerm
-%type <n> OpRegionSpaceIdTerm
-%type <n> PowerResTerm
-%type <n> ProcessorTerm
-%type <n> ThermalZoneTerm
-
-/* Namespace modifiers */
-
-%type <n> AliasTerm
-%type <n> NameTerm
-%type <n> ScopeTerm
-
-/* Type 1 opcodes */
-
-%type <n> BreakPointTerm
-%type <n> BreakTerm
-%type <n> CaseDefaultTermList
-%type <n> CaseTerm
-%type <n> ContinueTerm
-%type <n> DefaultTerm
-%type <n> ElseTerm
-%type <n> FatalTerm
-%type <n> IfElseTerm
-%type <n> IfTerm
-%type <n> LoadTerm
-%type <n> NoOpTerm
-%type <n> NotifyTerm
-%type <n> ReleaseTerm
-%type <n> ResetTerm
-%type <n> ReturnTerm
-%type <n> SignalTerm
-%type <n> SleepTerm
-%type <n> StallTerm
-%type <n> SwitchTerm
-%type <n> UnloadTerm
-%type <n> WhileTerm
-/* %type <n> CaseTermList */
-
-/* Type 2 opcodes */
-
-%type <n> AcquireTerm
-%type <n> AddTerm
-%type <n> AndTerm
-%type <n> ConcatResTerm
-%type <n> ConcatTerm
-%type <n> CondRefOfTerm
-%type <n> CopyObjectTerm
-%type <n> DecTerm
-%type <n> DerefOfTerm
-%type <n> DivideTerm
-%type <n> FindSetLeftBitTerm
-%type <n> FindSetRightBitTerm
-%type <n> FromBCDTerm
-%type <n> IncTerm
-%type <n> IndexTerm
-%type <n> LAndTerm
-%type <n> LEqualTerm
-%type <n> LGreaterEqualTerm
-%type <n> LGreaterTerm
-%type <n> LLessEqualTerm
-%type <n> LLessTerm
-%type <n> LNotEqualTerm
-%type <n> LNotTerm
-%type <n> LoadTableTerm
-%type <n> LOrTerm
-%type <n> MatchTerm
-%type <n> MidTerm
-%type <n> ModTerm
-%type <n> MultiplyTerm
-%type <n> NAndTerm
-%type <n> NOrTerm
-%type <n> NotTerm
-%type <n> ObjectTypeTerm
-%type <n> OrTerm
-%type <n> RefOfTerm
-%type <n> ShiftLeftTerm
-%type <n> ShiftRightTerm
-%type <n> SizeOfTerm
-%type <n> StoreTerm
-%type <n> SubtractTerm
-%type <n> TimerTerm
-%type <n> ToBCDTerm
-%type <n> ToBufferTerm
-%type <n> ToDecimalStringTerm
-%type <n> ToHexStringTerm
-%type <n> ToIntegerTerm
-%type <n> ToStringTerm
-%type <n> WaitTerm
-%type <n> XOrTerm
-
-/* Keywords */
-
-%type <n> AccessAttribKeyword
-%type <n> AccessTypeKeyword
-%type <n> AddressingModeKeyword
-%type <n> AddressKeyword
-%type <n> AddressSpaceKeyword
-%type <n> BitsPerByteKeyword
-%type <n> ClockPhaseKeyword
-%type <n> ClockPolarityKeyword
-%type <n> DecodeKeyword
-%type <n> DevicePolarityKeyword
-%type <n> DMATypeKeyword
-%type <n> EndianKeyword
-%type <n> FlowControlKeyword
-%type <n> InterruptLevel
-%type <n> InterruptTypeKeyword
-%type <n> IODecodeKeyword
-%type <n> IoRestrictionKeyword
-%type <n> LockRuleKeyword
-%type <n> MatchOpKeyword
-%type <n> MaxKeyword
-%type <n> MemTypeKeyword
-%type <n> MinKeyword
-%type <n> ObjectTypeKeyword
-%type <n> OptionalBusMasterKeyword
-%type <n> OptionalReadWriteKeyword
-%type <n> ParityTypeKeyword
-%type <n> PinConfigByte
-%type <n> PinConfigKeyword
-%type <n> RangeTypeKeyword
-%type <n> RegionSpaceKeyword
-%type <n> ResourceTypeKeyword
-%type <n> SerializeRuleKeyword
-%type <n> ShareTypeKeyword
-%type <n> SlaveModeKeyword
-%type <n> StopBitsKeyword
-%type <n> TranslationKeyword
-%type <n> TypeKeyword
-%type <n> UpdateRuleKeyword
-%type <n> WireModeKeyword
-%type <n> XferSizeKeyword
-%type <n> XferTypeKeyword
-
-/* Types */
-
-%type <n> SuperName
-%type <n> ObjectTypeName
-%type <n> ArgTerm
-%type <n> LocalTerm
-%type <n> DebugTerm
-
-%type <n> Integer
-%type <n> ByteConst
-%type <n> WordConst
-%type <n> DWordConst
-%type <n> QWordConst
-%type <n> String
-
-%type <n> ConstTerm
-%type <n> ConstExprTerm
-%type <n> ByteConstExpr
-%type <n> WordConstExpr
-%type <n> DWordConstExpr
-%type <n> QWordConstExpr
-
-%type <n> DWordList
-%type <n> BufferTerm
-%type <n> ByteList
-
-%type <n> PackageElement
-%type <n> PackageList
-%type <n> PackageTerm
-%type <n> VarPackageLengthTerm
-
-/* Macros */
-
-%type <n> EISAIDTerm
-%type <n> ResourceMacroList
-%type <n> ResourceMacroTerm
-%type <n> ResourceTemplateTerm
-%type <n> ToUUIDTerm
-%type <n> UnicodeTerm
-
-/* Resource Descriptors */
-
-%type <n> ConnectionTerm
-%type <n> DataBufferTerm
-%type <n> DMATerm
-%type <n> DWordIOTerm
-%type <n> DWordMemoryTerm
-%type <n> DWordSpaceTerm
-%type <n> EndDependentFnTerm
-%type <n> ExtendedIOTerm
-%type <n> ExtendedMemoryTerm
-%type <n> ExtendedSpaceTerm
-%type <n> FixedDmaTerm
-%type <n> FixedIOTerm
-%type <n> GpioIntTerm
-%type <n> GpioIoTerm
-%type <n> I2cSerialBusTerm
-%type <n> InterruptTerm
-%type <n> IOTerm
-%type <n> IRQNoFlagsTerm
-%type <n> IRQTerm
-%type <n> Memory24Term
-%type <n> Memory32FixedTerm
-%type <n> Memory32Term
-%type <n> NameSeg
-%type <n> NameString
-%type <n> QWordIOTerm
-%type <n> QWordMemoryTerm
-%type <n> QWordSpaceTerm
-%type <n> RegisterTerm
-%type <n> SpiSerialBusTerm
-%type <n> StartDependentFnNoPriTerm
-%type <n> StartDependentFnTerm
-%type <n> UartSerialBusTerm
-%type <n> VendorLongTerm
-%type <n> VendorShortTerm
-%type <n> WordBusNumberTerm
-%type <n> WordIOTerm
-%type <n> WordSpaceTerm
-
-/* Local types that help construct the AML, not in ACPI spec */
-
-%type <n> AmlPackageLengthTerm
-%type <n> IncludeEndTerm
-%type <n> NameStringItem
-%type <n> TermArgItem
-
-%type <n> OptionalAccessSize
-%type <n> OptionalAddressingMode
-%type <n> OptionalAddressRange
-%type <n> OptionalBitsPerByte
-%type <n> OptionalBuffer_Last
-%type <n> OptionalByteConstExpr
-%type <n> OptionalCount
-%type <n> OptionalDecodeType
-%type <n> OptionalDevicePolarity
-%type <n> OptionalDWordConstExpr
-%type <n> OptionalEndian
-%type <n> OptionalFlowControl
-%type <n> OptionalIoRestriction
-%type <n> OptionalListString
-%type <n> OptionalMaxType
-%type <n> OptionalMemType
-%type <n> OptionalMinType
-%type <n> OptionalNameString
-%type <n> OptionalNameString_First
-%type <n> OptionalNameString_Last
-%type <n> OptionalObjectTypeKeyword
-%type <n> OptionalParameterTypePackage
-%type <n> OptionalParameterTypesPackage
-%type <n> OptionalParityType
-%type <n> OptionalQWordConstExpr
-%type <n> OptionalRangeType
-%type <n> OptionalReference
-%type <n> OptionalResourceType
-%type <n> OptionalResourceType_First
-%type <n> OptionalReturnArg
-%type <n> OptionalSerializeRuleKeyword
-%type <n> OptionalShareType
-%type <n> OptionalShareType_First
-%type <n> OptionalSlaveMode
-%type <n> OptionalStopBits
-%type <n> OptionalStringData
-%type <n> OptionalTermArg
-%type <n> OptionalTranslationType_Last
-%type <n> OptionalType
-%type <n> OptionalType_Last
-%type <n> OptionalWireMode
-%type <n> OptionalWordConst
-%type <n> OptionalWordConstExpr
-%type <n> OptionalXferSize
-
-%%
 /*******************************************************************************
  *
  * Production rules start here
@@ -799,10 +52,7 @@ void *                      AslLocalAllocate (unsigned int Size);
 
 /*
  * ASL Names
- */
-
-
-/*
+ *
  * Root rule. Allow multiple #line directives before the definition block
  * to handle output from preprocessors
  */
@@ -842,6 +92,149 @@ DefinitionBlockTerm
             '{' TermList '}'        {$$ = TrLinkChildren ($<n>3,7,$4,$6,$8,$10,$12,$14,$18);}
     ;
 
+    /*
+     * ASL Extensions: C-style math/logical operators and expressions.
+     * The implementation transforms these operators into the standard
+     * AML opcodes and syntax.
+     *
+     * Supported operators and precedence rules (high-to-low)
+     *
+     * NOTE: The operator precedence and associativity rules are
+     * implemented by the tokens in asltokens.y
+     *
+     * (left-to-right):
+     *  1)      ( ) expr++ expr--
+     *
+     * (right-to-left):
+     *  2)      ! ~
+     *
+     * (left-to-right):
+     *  3)      *   /   %
+     *  4)      +   -
+     *  5)      >>  <<
+     *  6)      <   >   <=  >=
+     *  7)      ==  !=
+     *  8)      &
+     *  9)      ^
+     *  10)     |
+     *  11)     &&
+     *  12)     ||
+     *
+     * (right-to-left):
+     *  13)     = += -= *= /= %= <<= >>= &= ^= |=
+     */
+Expression
+
+    /* Unary operators */
+
+    : PARSEOP_EXP_LOGICAL_NOT           {$<n>$ = TrCreateLeafNode (PARSEOP_LNOT);}
+        TermArg                         {$$ = TrLinkChildren ($<n>2,1,$3);}
+    | PARSEOP_EXP_NOT                   {$<n>$ = TrCreateLeafNode (PARSEOP_NOT);}
+        TermArg                         {$$ = TrLinkChildren ($<n>2,2,$3,TrCreateLeafNode (PARSEOP_ZERO));}
+
+    | SuperName PARSEOP_EXP_INCREMENT   {$<n>$ = TrCreateLeafNode (PARSEOP_INCREMENT);}
+                                        {$$ = TrLinkChildren ($<n>3,1,$1);}
+    | SuperName PARSEOP_EXP_DECREMENT   {$<n>$ = TrCreateLeafNode (PARSEOP_DECREMENT);}
+                                        {$$ = TrLinkChildren ($<n>3,1,$1);}
+
+    /* Binary operators: math and logical */
+
+    | TermArg PARSEOP_EXP_ADD           {$<n>$ = TrCreateLeafNode (PARSEOP_ADD);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,TrCreateLeafNode (PARSEOP_ZERO));}
+    | TermArg PARSEOP_EXP_DIVIDE        {$<n>$ = TrCreateLeafNode (PARSEOP_DIVIDE);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,4,$1,$4,TrCreateLeafNode (PARSEOP_ZERO),
+                                            TrCreateLeafNode (PARSEOP_ZERO));}
+    | TermArg PARSEOP_EXP_MODULO        {$<n>$ = TrCreateLeafNode (PARSEOP_MOD);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,TrCreateLeafNode (PARSEOP_ZERO));}
+    | TermArg PARSEOP_EXP_MULTIPLY      {$<n>$ = TrCreateLeafNode (PARSEOP_MULTIPLY);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,TrCreateLeafNode (PARSEOP_ZERO));}
+    | TermArg PARSEOP_EXP_SHIFT_LEFT    {$<n>$ = TrCreateLeafNode (PARSEOP_SHIFTLEFT);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,TrCreateLeafNode (PARSEOP_ZERO));}
+    | TermArg PARSEOP_EXP_SHIFT_RIGHT   {$<n>$ = TrCreateLeafNode (PARSEOP_SHIFTRIGHT);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,TrCreateLeafNode (PARSEOP_ZERO));}
+    | TermArg PARSEOP_EXP_SUBTRACT      {$<n>$ = TrCreateLeafNode (PARSEOP_SUBTRACT);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,TrCreateLeafNode (PARSEOP_ZERO));}
+
+    | TermArg PARSEOP_EXP_AND           {$<n>$ = TrCreateLeafNode (PARSEOP_AND);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,TrCreateLeafNode (PARSEOP_ZERO));}
+    | TermArg PARSEOP_EXP_OR            {$<n>$ = TrCreateLeafNode (PARSEOP_OR);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,TrCreateLeafNode (PARSEOP_ZERO));}
+    | TermArg PARSEOP_EXP_XOR           {$<n>$ = TrCreateLeafNode (PARSEOP_XOR);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,TrCreateLeafNode (PARSEOP_ZERO));}
+
+    | TermArg PARSEOP_EXP_GREATER       {$<n>$ = TrCreateLeafNode (PARSEOP_LGREATER);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,2,$1,$4);}
+    | TermArg PARSEOP_EXP_GREATER_EQUAL {$<n>$ = TrCreateLeafNode (PARSEOP_LGREATEREQUAL);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,2,$1,$4);}
+    | TermArg PARSEOP_EXP_LESS          {$<n>$ = TrCreateLeafNode (PARSEOP_LLESS);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,2,$1,$4);}
+    | TermArg PARSEOP_EXP_LESS_EQUAL    {$<n>$ = TrCreateLeafNode (PARSEOP_LLESSEQUAL);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,2,$1,$4);}
+
+    | TermArg PARSEOP_EXP_EQUAL         {$<n>$ = TrCreateLeafNode (PARSEOP_LEQUAL);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,2,$1,$4);}
+    | TermArg PARSEOP_EXP_NOT_EQUAL     {$<n>$ = TrCreateLeafNode (PARSEOP_LNOTEQUAL);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,2,$1,$4);}
+
+    | TermArg PARSEOP_EXP_LOGICAL_AND   {$<n>$ = TrCreateLeafNode (PARSEOP_LAND);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,2,$1,$4);}
+    | TermArg PARSEOP_EXP_LOGICAL_OR    {$<n>$ = TrCreateLeafNode (PARSEOP_LOR);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,2,$1,$4);}
+
+      /* Parentheses */
+
+    | '(' TermArg ')'                   { $$ = $2;}
+    ;
+
+EqualsTerm
+
+    /* All assignment-type operations */
+
+    : SuperName PARSEOP_EXP_EQUALS
+        TermArg                         {$$ = TrCreateAssignmentNode ($1, $3);}
+
+    | TermArg PARSEOP_EXP_ADD_EQ        {$<n>$ = TrCreateLeafNode (PARSEOP_ADD);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,
+                                            TrSetNodeFlags (TrCreateTargetOperand ($1, NULL), NODE_IS_TARGET));}
+
+    | TermArg PARSEOP_EXP_DIV_EQ        {$<n>$ = TrCreateLeafNode (PARSEOP_DIVIDE);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,4,$1,$4,TrCreateLeafNode (PARSEOP_ZERO),
+                                            TrSetNodeFlags (TrCreateTargetOperand ($1, NULL), NODE_IS_TARGET));}
+
+    | TermArg PARSEOP_EXP_MOD_EQ        {$<n>$ = TrCreateLeafNode (PARSEOP_MOD);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,
+                                            TrSetNodeFlags (TrCreateTargetOperand ($1, NULL), NODE_IS_TARGET));}
+
+    | TermArg PARSEOP_EXP_MUL_EQ        {$<n>$ = TrCreateLeafNode (PARSEOP_MULTIPLY);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,
+                                            TrSetNodeFlags (TrCreateTargetOperand ($1, NULL), NODE_IS_TARGET));}
+
+    | TermArg PARSEOP_EXP_SHL_EQ        {$<n>$ = TrCreateLeafNode (PARSEOP_SHIFTLEFT);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,
+                                            TrSetNodeFlags (TrCreateTargetOperand ($1, NULL), NODE_IS_TARGET));}
+
+    | TermArg PARSEOP_EXP_SHR_EQ        {$<n>$ = TrCreateLeafNode (PARSEOP_SHIFTRIGHT);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,
+                                            TrSetNodeFlags (TrCreateTargetOperand ($1, NULL), NODE_IS_TARGET));}
+
+    | TermArg PARSEOP_EXP_SUB_EQ        {$<n>$ = TrCreateLeafNode (PARSEOP_SUBTRACT);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,
+                                            TrSetNodeFlags (TrCreateTargetOperand ($1, NULL), NODE_IS_TARGET));}
+
+    | TermArg PARSEOP_EXP_AND_EQ        {$<n>$ = TrCreateLeafNode (PARSEOP_AND);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,
+                                            TrSetNodeFlags (TrCreateTargetOperand ($1, NULL), NODE_IS_TARGET));}
+
+    | TermArg PARSEOP_EXP_OR_EQ         {$<n>$ = TrCreateLeafNode (PARSEOP_OR);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,
+                                            TrSetNodeFlags (TrCreateTargetOperand ($1, NULL), NODE_IS_TARGET));}
+
+    | TermArg PARSEOP_EXP_XOR_EQ        {$<n>$ = TrCreateLeafNode (PARSEOP_XOR);}
+        TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,
+                                            TrSetNodeFlags (TrCreateTargetOperand ($1, NULL), NODE_IS_TARGET));}
+    ;
+
+
 /* ACPI 3.0 -- allow semicolons between terms */
 
 TermList
@@ -854,6 +247,7 @@ TermList
 
 Term
     : Object                        {}
+    | Expression                    {}
     | Type1Opcode                   {}
     | Type2Opcode                   {}
     | Type2IntegerOpcode            {}
@@ -961,7 +355,8 @@ Removed from TermArg due to reduce/reduce conflicts
 */
 
 TermArg
-    : Type2Opcode                   {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
+    : Expression                    {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
+    | Type2Opcode                   {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
     | DataObject                    {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
     | NameString                    {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
     | ArgTerm                       {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
@@ -1055,6 +450,7 @@ Type2Opcode
     | RefOfTerm                     {}
     | SizeOfTerm                    {}
     | StoreTerm                     {}
+    | EqualsTerm                    {}
     | TimerTerm                     {}
     | WaitTerm                      {}
     | UserTerm                      {}
@@ -1112,6 +508,8 @@ Type2BufferOpcode                   /* "Type5" Opcodes */
 
 Type2BufferOrStringOpcode
     : ConcatTerm                    {}
+    | PrintfTerm                    {}
+    | FprintfTerm                   {}
     | MidTerm                       {}
     ;
 
@@ -1137,6 +535,7 @@ Type4Opcode
 Type5Opcode
     : ResourceTemplateTerm          {}
     | UnicodeTerm                   {}
+    | ToPLDTerm                     {}
     | ToUUIDTerm                    {}
     ;
 
@@ -2117,6 +1516,86 @@ ToIntegerTerm
         Target
         ')'                         {$$ = TrLinkChildren ($<n>3,2,$4,$5);}
     | PARSEOP_TOINTEGER '('
+        error ')'                   {$$ = AslDoError(); yyclearin;}
+    ;
+
+PldKeyword
+    : PARSEOP_PLD_REVISION          {$$ = TrCreateLeafNode (PARSEOP_PLD_REVISION);}
+    | PARSEOP_PLD_IGNORECOLOR       {$$ = TrCreateLeafNode (PARSEOP_PLD_IGNORECOLOR);}
+    | PARSEOP_PLD_RED               {$$ = TrCreateLeafNode (PARSEOP_PLD_RED);}
+    | PARSEOP_PLD_GREEN             {$$ = TrCreateLeafNode (PARSEOP_PLD_GREEN);}
+    | PARSEOP_PLD_BLUE              {$$ = TrCreateLeafNode (PARSEOP_PLD_BLUE);}
+    | PARSEOP_PLD_WIDTH             {$$ = TrCreateLeafNode (PARSEOP_PLD_WIDTH);}
+    | PARSEOP_PLD_HEIGHT            {$$ = TrCreateLeafNode (PARSEOP_PLD_HEIGHT);}
+    | PARSEOP_PLD_USERVISIBLE       {$$ = TrCreateLeafNode (PARSEOP_PLD_USERVISIBLE);}
+    | PARSEOP_PLD_DOCK              {$$ = TrCreateLeafNode (PARSEOP_PLD_DOCK);}
+    | PARSEOP_PLD_LID               {$$ = TrCreateLeafNode (PARSEOP_PLD_LID);}
+    | PARSEOP_PLD_PANEL             {$$ = TrCreateLeafNode (PARSEOP_PLD_PANEL);}
+    | PARSEOP_PLD_VERTICALPOSITION  {$$ = TrCreateLeafNode (PARSEOP_PLD_VERTICALPOSITION);}
+    | PARSEOP_PLD_HORIZONTALPOSITION {$$ = TrCreateLeafNode (PARSEOP_PLD_HORIZONTALPOSITION);}
+    | PARSEOP_PLD_SHAPE             {$$ = TrCreateLeafNode (PARSEOP_PLD_SHAPE);}
+    | PARSEOP_PLD_GROUPORIENTATION  {$$ = TrCreateLeafNode (PARSEOP_PLD_GROUPORIENTATION);}
+    | PARSEOP_PLD_GROUPTOKEN        {$$ = TrCreateLeafNode (PARSEOP_PLD_GROUPTOKEN);}
+    | PARSEOP_PLD_GROUPPOSITION     {$$ = TrCreateLeafNode (PARSEOP_PLD_GROUPPOSITION);}
+    | PARSEOP_PLD_BAY               {$$ = TrCreateLeafNode (PARSEOP_PLD_BAY);}
+    | PARSEOP_PLD_EJECTABLE         {$$ = TrCreateLeafNode (PARSEOP_PLD_EJECTABLE);}
+    | PARSEOP_PLD_EJECTREQUIRED     {$$ = TrCreateLeafNode (PARSEOP_PLD_EJECTREQUIRED);}
+    | PARSEOP_PLD_CABINETNUMBER     {$$ = TrCreateLeafNode (PARSEOP_PLD_CABINETNUMBER);}
+    | PARSEOP_PLD_CARDCAGENUMBER    {$$ = TrCreateLeafNode (PARSEOP_PLD_CARDCAGENUMBER);}
+    | PARSEOP_PLD_REFERENCE         {$$ = TrCreateLeafNode (PARSEOP_PLD_REFERENCE);}
+    | PARSEOP_PLD_ROTATION          {$$ = TrCreateLeafNode (PARSEOP_PLD_ROTATION);}
+    | PARSEOP_PLD_ORDER             {$$ = TrCreateLeafNode (PARSEOP_PLD_ORDER);}
+    | PARSEOP_PLD_RESERVED          {$$ = TrCreateLeafNode (PARSEOP_PLD_RESERVED);}
+    | PARSEOP_PLD_VERTICALOFFSET    {$$ = TrCreateLeafNode (PARSEOP_PLD_VERTICALOFFSET);}
+    | PARSEOP_PLD_HORIZONTALOFFSET  {$$ = TrCreateLeafNode (PARSEOP_PLD_HORIZONTALOFFSET);}
+    ;
+
+PldKeywordList
+    :                               {$$ = NULL;}
+    | PldKeyword
+        PARSEOP_EXP_EQUALS Integer  {$$ = TrLinkChildren ($1,1,$3);}
+    | PldKeyword
+        PARSEOP_EXP_EQUALS String   {$$ = TrLinkChildren ($1,1,$3);}
+    | PldKeywordList ','            /* Allows a trailing comma at list end */
+    | PldKeywordList ','
+        PldKeyword
+        PARSEOP_EXP_EQUALS Integer  {$$ = TrLinkPeerNode ($1,TrLinkChildren ($3,1,$5));}
+    | PldKeywordList ','
+        PldKeyword
+        PARSEOP_EXP_EQUALS String   {$$ = TrLinkPeerNode ($1,TrLinkChildren ($3,1,$5));}
+    ;
+
+ToPLDTerm
+    : PARSEOP_TOPLD '('             {$<n>$ = TrCreateLeafNode (PARSEOP_TOPLD);}
+        PldKeywordList
+        ')'                         {$$ = TrLinkChildren ($<n>3,1,$4);}
+    | PARSEOP_TOPLD '('
+        error ')'                   {$$ = AslDoError(); yyclearin;}
+    ;
+
+PrintfArgList
+    :                               {$$ = NULL;}
+    | TermArg                       {$$ = $1;}
+    | PrintfArgList ','
+       TermArg                      {$$ = TrLinkPeerNode ($1, $3);}
+    ;
+
+PrintfTerm
+    : PARSEOP_PRINTF '('            {$<n>$ = TrCreateLeafNode (PARSEOP_PRINTF);}
+        StringData
+        PrintfArgList
+        ')'                         {$$ = TrLinkChildren ($<n>3,2,$4,$5);}
+    | PARSEOP_PRINTF '('
+        error ')'                   {$$ = AslDoError(); yyclearin;}
+    ;
+
+FprintfTerm
+    : PARSEOP_FPRINTF '('            {$<n>$ = TrCreateLeafNode (PARSEOP_FPRINTF);}
+        TermArg ','
+        StringData
+        PrintfArgList
+        ')'                         {$$ = TrLinkChildren ($<n>3,3,$4,$6,$7);}
+    | PARSEOP_FPRINTF '('
         error ')'                   {$$ = AslDoError(); yyclearin;}
     ;
 
@@ -3511,77 +2990,3 @@ OptionalXferSize
     | ','                           {$$ = TrCreateValuedLeafNode (PARSEOP_XFERSIZE_32, 2);}
     | ',' XferSizeKeyword           {$$ = $2;}
     ;
-
-%%
-/******************************************************************************
- *
- * Local support functions
- *
- *****************************************************************************/
-
-int
-AslCompilerwrap(void)
-{
-  return (1);
-}
-
-/*! [End] no source code translation !*/
-
-void *
-AslLocalAllocate (unsigned int Size)
-{
-    void                *Mem;
-
-
-    DbgPrint (ASL_PARSE_OUTPUT, "\nAslLocalAllocate: Expanding Stack to %u\n\n", Size);
-
-    Mem = ACPI_ALLOCATE_ZEROED (Size);
-    if (!Mem)
-    {
-        AslCommonError (ASL_ERROR, ASL_MSG_MEMORY_ALLOCATION,
-                        Gbl_CurrentLineNumber, Gbl_LogicalLineNumber,
-                        Gbl_InputByteCount, Gbl_CurrentColumn,
-                        Gbl_Files[ASL_FILE_INPUT].Filename, NULL);
-        exit (1);
-    }
-
-    return (Mem);
-}
-
-ACPI_PARSE_OBJECT *
-AslDoError (void)
-{
-
-
-    return (TrCreateLeafNode (PARSEOP_ERRORNODE));
-
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    UtGetOpName
- *
- * PARAMETERS:  ParseOpcode         - Parser keyword ID
- *
- * RETURN:      Pointer to the opcode name
- *
- * DESCRIPTION: Get the ascii name of the parse opcode
- *
- ******************************************************************************/
-
-char *
-UtGetOpName (
-    UINT32                  ParseOpcode)
-{
-#ifdef ASL_YYTNAME_START
-    /*
-     * First entries (ASL_YYTNAME_START) in yytname are special reserved names.
-     * Ignore first 8 characters of the name
-     */
-    return ((char *) yytname
-        [(ParseOpcode - ASL_FIRST_PARSE_OPCODE) + ASL_YYTNAME_START] + 8);
-#else
-    return ("[Unknown parser generator]");
-#endif
-}

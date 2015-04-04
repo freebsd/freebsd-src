@@ -255,6 +255,8 @@ contrib/altq/altq/altq_red.c		optional altq
 contrib/altq/altq/altq_rio.c		optional altq
 contrib/altq/altq/altq_rmclass.c	optional altq
 contrib/altq/altq/altq_subr.c		optional altq
+contrib/dev/acpica/common/ahids.c			optional acpi acpi_debug
+contrib/dev/acpica/common/ahuuids.c			optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbcmds.c		optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbconvert.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbdisply.c	optional acpi acpi_debug
@@ -265,9 +267,11 @@ contrib/dev/acpica/components/debugger/dbinput.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbmethod.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbnames.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbstats.c	optional acpi acpi_debug
+contrib/dev/acpica/components/debugger/dbtest.c		optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbutils.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbxface.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmbuffer.c	optional acpi acpi_debug
+contrib/dev/acpica/components/disassembler/dmcstyle.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmdeferred.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmnames.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmopcode.c	optional acpi acpi_debug
@@ -387,6 +391,7 @@ contrib/dev/acpica/components/resources/rsmisc.c	optional acpi
 contrib/dev/acpica/components/resources/rsserial.c	optional acpi
 contrib/dev/acpica/components/resources/rsutils.c	optional acpi
 contrib/dev/acpica/components/resources/rsxface.c	optional acpi
+contrib/dev/acpica/components/tables/tbdata.c		optional acpi
 contrib/dev/acpica/components/tables/tbfadt.c		optional acpi
 contrib/dev/acpica/components/tables/tbfind.c		optional acpi
 contrib/dev/acpica/components/tables/tbinstal.c		optional acpi
@@ -407,6 +412,7 @@ contrib/dev/acpica/components/utilities/uterror.c	optional acpi
 contrib/dev/acpica/components/utilities/uteval.c	optional acpi
 contrib/dev/acpica/components/utilities/utexcep.c	optional acpi
 contrib/dev/acpica/components/utilities/utglobal.c	optional acpi
+contrib/dev/acpica/components/utilities/uthex.c		optional acpi
 contrib/dev/acpica/components/utilities/utids.c		optional acpi
 contrib/dev/acpica/components/utilities/utinit.c	optional acpi
 contrib/dev/acpica/components/utilities/utlock.c	optional acpi
@@ -420,6 +426,7 @@ contrib/dev/acpica/components/utilities/utpredef.c	optional acpi
 contrib/dev/acpica/components/utilities/utresrc.c	optional acpi
 contrib/dev/acpica/components/utilities/utstate.c	optional acpi
 contrib/dev/acpica/components/utilities/utstring.c	optional acpi
+contrib/dev/acpica/components/utilities/utuuid.c	optional acpi acpi_debug
 contrib/dev/acpica/components/utilities/utxface.c	optional acpi
 contrib/dev/acpica/components/utilities/utxferror.c	optional acpi
 contrib/dev/acpica/components/utilities/utxfinit.c	optional acpi
