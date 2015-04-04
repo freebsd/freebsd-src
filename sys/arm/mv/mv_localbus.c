@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include "dev/fdt/fdt_common.h"
 #include "ofw_bus_if.h"
 
+#include <arm/mv/mvvar.h>
 #include <arm/mv/mvwin.h>
 
 #ifdef DEBUG
