@@ -34,6 +34,8 @@
 
 #include <dev/ofw/openfirm.h>
 
+#include <machine/bus.h>
+
 /* Max interrupt number */
 #define FDT_INTR_MAX	NIRQ
 
