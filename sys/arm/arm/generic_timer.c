@@ -101,10 +101,22 @@ static struct timecounter arm_tmr_timecount = {
 	.tc_quality        = 1000,
 };
 
+#ifdef __arm__
+#define	get_el0(x)	cp15_## x ##_get()
+#define	get_el1(x)	cp15_## x ##_get()
+#define	set_el0(x, val)	cp15_## x ##_set(val)
+#define	set_el1(x, val)	cp15_## x ##_set(val)
+#else /* __aarch64__ */
+#define	get_el0(x)	READ_SPECIALREG(x ##_el0)
+#define	get_el1(x)	READ_SPECIALREG(x ##_el1)
+#define	set_el0(x, val)	WRITE_SPECIALREG(x ##_el0, val)
+#define	set_el1(x, val)	WRITE_SPECIALREG(x ##_el1, val)
+#endif
+
 static int
 get_freq(void)
 {
-	return (cp15_cntfrq_get());
+	return (get_el0(cntfrq));
 }
 
 static long
@@ -114,9 +126,9 @@ get_cntxct(bool physical)
 
 	isb();
 	if (physical)
-		val = cp15_cntpct_get();
+		val = get_el0(cntpct);
 	else
-		val = cp15_cntvct_get();
+		val = get_el0(cntvct);
 
 	return (val);
 }
@@ -126,9 +138,9 @@ set_ctrl(uint32_t val, bool physical)
 {
 
 	if (physical)
-		cp15_cntp_ctl_set(val);
+		set_el0(cntp_ctl, val);
 	else
-		cp15_cntv_ctl_set(val);
+		set_el0(cntv_ctl, val);
 	isb();
 
 	return (0);
@@ -139,9 +151,9 @@ set_tval(uint32_t val, bool physical)
 {
 
 	if (physical)
-		cp15_cntp_tval_set(val);
+		set_el0(cntp_tval, val);
 	else
-		cp15_cntv_tval_set(val);
+		set_el0(cntv_tval, val);
 	isb();
 
 	return (0);
@@ -153,9 +165,9 @@ get_ctrl(bool physical)
 	uint32_t val;
 
 	if (physical)
-		val = cp15_cntp_ctl_get();
+		val = get_el0(cntp_ctl);
 	else
-		val = cp15_cntv_ctl_get();
+		val = get_el0(cntv_ctl);
 
 	return (val);
 }
@@ -165,10 +177,10 @@ disable_user_access(void)
 {
 	uint32_t cntkctl;
 
-	cntkctl = cp15_cntkctl_get();
+	cntkctl = get_el1(cntkctl);
 	cntkctl &= ~(GT_CNTKCTL_PL0PTEN | GT_CNTKCTL_PL0VTEN |
 	    GT_CNTKCTL_EVNTEN | GT_CNTKCTL_PL0VCTEN | GT_CNTKCTL_PL0PCTEN);
-	cp15_cntkctl_set(cntkctl);
+	set_el1(cntkctl, cntkctl);
 	isb();
 }
 
@@ -242,11 +254,15 @@ arm_tmr_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "arm,armv7-timer"))
-		return (ENXIO);
+	if (ofw_bus_is_compatible(dev, "arm,armv7-timer")) {
+		device_set_desc(dev, "ARMv7 Generic Timer");
+		return (BUS_PROBE_DEFAULT);
+	} else if (ofw_bus_is_compatible(dev, "arm,armv8-timer")) {
+		device_set_desc(dev, "ARMv8 Generic Timer");
+		return (BUS_PROBE_DEFAULT);
+	}
 
-	device_set_desc(dev, "ARMv7 Generic Timer");
-	return (BUS_PROBE_DEFAULT);
+	return (ENXIO);
 }
 
 
@@ -285,7 +301,11 @@ arm_tmr_attach(device_t dev)
 		return (ENXIO);
 	}
 
+#ifdef __arm__
 	sc->physical = true;
+#else /* __aarch64__ */
+	sc->physical = false;
+#endif
 
 	arm_tmr_sc = sc;
 
