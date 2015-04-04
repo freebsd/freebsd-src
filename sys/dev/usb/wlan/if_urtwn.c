@@ -176,12 +176,12 @@ static struct ieee80211vap *urtwn_vap_create(struct ieee80211com *,
                     const uint8_t [IEEE80211_ADDR_LEN],
                     const uint8_t [IEEE80211_ADDR_LEN]);
 static void		urtwn_vap_delete(struct ieee80211vap *);
-static struct mbuf *	urtwn_rx_frame(struct urtwn_softc *, uint8_t *, int, 
+static struct mbuf *	urtwn_rx_frame(struct urtwn_softc *, uint8_t *, int,
 			    int *);
-static struct mbuf *	urtwn_rxeof(struct usb_xfer *, struct urtwn_data *, 
+static struct mbuf *	urtwn_rxeof(struct usb_xfer *, struct urtwn_data *,
 			    int *, int8_t *);
 static void		urtwn_txeof(struct usb_xfer *, struct urtwn_data *);
-static int		urtwn_alloc_list(struct urtwn_softc *, 
+static int		urtwn_alloc_list(struct urtwn_softc *,
 			    struct urtwn_data[], int, int);
 static int		urtwn_alloc_rx_list(struct urtwn_softc *);
 static int		urtwn_alloc_tx_list(struct urtwn_softc *);
@@ -191,24 +191,24 @@ static void		urtwn_free_list(struct urtwn_softc *,
 			    struct urtwn_data data[], int);
 static struct urtwn_data *	_urtwn_getbuf(struct urtwn_softc *);
 static struct urtwn_data *	urtwn_getbuf(struct urtwn_softc *);
-static int		urtwn_write_region_1(struct urtwn_softc *, uint16_t, 
+static int		urtwn_write_region_1(struct urtwn_softc *, uint16_t,
 			    uint8_t *, int);
 static void		urtwn_write_1(struct urtwn_softc *, uint16_t, uint8_t);
 static void		urtwn_write_2(struct urtwn_softc *, uint16_t, uint16_t);
 static void		urtwn_write_4(struct urtwn_softc *, uint16_t, uint32_t);
-static int		urtwn_read_region_1(struct urtwn_softc *, uint16_t, 
+static int		urtwn_read_region_1(struct urtwn_softc *, uint16_t,
 			    uint8_t *, int);
 static uint8_t		urtwn_read_1(struct urtwn_softc *, uint16_t);
 static uint16_t		urtwn_read_2(struct urtwn_softc *, uint16_t);
 static uint32_t		urtwn_read_4(struct urtwn_softc *, uint16_t);
-static int		urtwn_fw_cmd(struct urtwn_softc *, uint8_t, 
+static int		urtwn_fw_cmd(struct urtwn_softc *, uint8_t,
 			    const void *, int);
 static void		urtwn_r92c_rf_write(struct urtwn_softc *, int,
 			    uint8_t, uint32_t);
-static void		urtwn_r88e_rf_write(struct urtwn_softc *, int, 
+static void		urtwn_r88e_rf_write(struct urtwn_softc *, int,
 			    uint8_t, uint32_t);
 static uint32_t		urtwn_rf_read(struct urtwn_softc *, int, uint8_t);
-static int		urtwn_llt_write(struct urtwn_softc *, uint32_t, 
+static int		urtwn_llt_write(struct urtwn_softc *, uint32_t,
 			    uint32_t);
 static uint8_t		urtwn_efuse_read_1(struct urtwn_softc *, uint16_t);
 static void		urtwn_efuse_read(struct urtwn_softc *);
@@ -219,7 +219,7 @@ static void		urtwn_r88e_read_rom(struct urtwn_softc *);
 static int		urtwn_ra_init(struct urtwn_softc *);
 static void		urtwn_tsf_sync_enable(struct urtwn_softc *);
 static void		urtwn_set_led(struct urtwn_softc *, int, int);
-static int		urtwn_newstate(struct ieee80211vap *, 
+static int		urtwn_newstate(struct ieee80211vap *,
 			    enum ieee80211_state, int);
 static void		urtwn_watchdog(void *);
 static void		urtwn_update_avgrssi(struct urtwn_softc *, int, int8_t);
@@ -237,7 +237,7 @@ static int		urtwn_r88e_power_on(struct urtwn_softc *);
 static int		urtwn_llt_init(struct urtwn_softc *);
 static void		urtwn_fw_reset(struct urtwn_softc *);
 static void		urtwn_r88e_fw_reset(struct urtwn_softc *);
-static int		urtwn_fw_loadpage(struct urtwn_softc *, int, 
+static int		urtwn_fw_loadpage(struct urtwn_softc *, int,
 			    const uint8_t *, int);
 static int		urtwn_load_firmware(struct urtwn_softc *);
 static int		urtwn_r92c_dma_init(struct urtwn_softc *);
@@ -249,22 +249,22 @@ static void		urtwn_cam_init(struct urtwn_softc *);
 static void		urtwn_pa_bias_init(struct urtwn_softc *);
 static void		urtwn_rxfilter_init(struct urtwn_softc *);
 static void		urtwn_edca_init(struct urtwn_softc *);
-static void		urtwn_write_txpower(struct urtwn_softc *, int, 
+static void		urtwn_write_txpower(struct urtwn_softc *, int,
 			    uint16_t[]);
 static void		urtwn_get_txpower(struct urtwn_softc *, int,
-		      	    struct ieee80211_channel *, 
+		      	    struct ieee80211_channel *,
 			    struct ieee80211_channel *, uint16_t[]);
 static void		urtwn_r88e_get_txpower(struct urtwn_softc *, int,
-		      	    struct ieee80211_channel *, 
+		      	    struct ieee80211_channel *,
 			    struct ieee80211_channel *, uint16_t[]);
 static void		urtwn_set_txpower(struct urtwn_softc *,
-		    	    struct ieee80211_channel *, 
+		    	    struct ieee80211_channel *,
 			    struct ieee80211_channel *);
 static void		urtwn_scan_start(struct ieee80211com *);
 static void		urtwn_scan_end(struct ieee80211com *);
 static void		urtwn_set_channel(struct ieee80211com *);
 static void		urtwn_set_chan(struct urtwn_softc *,
-		    	    struct ieee80211_channel *, 
+		    	    struct ieee80211_channel *,
 			    struct ieee80211_channel *);
 static void		urtwn_update_mcast(struct ifnet *);
 static void		urtwn_iq_calib(struct urtwn_softc *);
@@ -470,7 +470,7 @@ urtwn_attach(device_t self)
 	ic->ic_vap_delete = urtwn_vap_delete;
 	ic->ic_update_mcast = urtwn_update_mcast;
 
-	ieee80211_radiotap_attach(ic, &sc->sc_txtap.wt_ihdr, 
+	ieee80211_radiotap_attach(ic, &sc->sc_txtap.wt_ihdr,
 	    sizeof(sc->sc_txtap), URTWN_TX_RADIOTAP_PRESENT,
 	    &sc->sc_rxtap.wr_ihdr, sizeof(sc->sc_rxtap),
 	    URTWN_RX_RADIOTAP_PRESENT);
@@ -492,7 +492,7 @@ urtwn_detach(device_t self)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	unsigned int x;
-	
+
 	/* Prevent further ioctls. */
 	URTWN_LOCK(sc);
 	sc->sc_flags |= URTWN_DETACHED;
@@ -604,7 +604,7 @@ urtwn_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	vap = &uvp->vap;
 	/* enable s/w bmiss handling for sta mode */
 
-	if (ieee80211_vap_setup(ic, vap, name, unit, opmode, 
+	if (ieee80211_vap_setup(ic, vap, name, unit, opmode,
 	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac) != 0) {
 		/* out of memory */
 		free(uvp, M_80211_VAP);
@@ -673,7 +673,7 @@ urtwn_rx_frame(struct urtwn_softc *sc, uint8_t *buf, int pktlen, int *rssi_p)
 
 	/* Get RSSI from PHY status descriptor if present. */
 	if (infosz != 0 && (rxdw0 & R92C_RXDW0_PHYST)) {
-		if (sc->chip & URTWN_CHIP_88E) 
+		if (sc->chip & URTWN_CHIP_88E)
 			rssi = urtwn_r88e_get_rssi(sc, rate, &stat[1]);
 		else
 			rssi = urtwn_get_rssi(sc, rate, &stat[1]);
@@ -1184,7 +1184,7 @@ urtwn_efuse_read_1(struct urtwn_softc *sc, uint16_t addr)
 			return (MS(reg, R92C_EFUSE_CTRL_DATA));
 		urtwn_ms_delay(sc);
 	}
-	device_printf(sc->sc_dev, 
+	device_printf(sc->sc_dev,
 	    "could not read efuse byte at address 0x%x\n", addr);
 	return (0xff);
 }
@@ -1477,7 +1477,7 @@ static void
 urtwn_set_led(struct urtwn_softc *sc, int led, int on)
 {
 	uint8_t reg;
-	
+
 	if (led == URTWN_LED_LINK) {
 		if (sc->chip & URTWN_CHIP_88E) {
 			reg = urtwn_read_1(sc, R92C_LEDCFG2) & 0xf0;
@@ -1643,7 +1643,7 @@ urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		if (sc->chip & URTWN_CHIP_88E)
 			ni->ni_txrate =
 			    ni->ni_rates.rs_rates[ni->ni_rates.rs_nrates-1];
-		else 
+		else
 			urtwn_ra_init(sc);
 		/* Turn link LED on. */
 		urtwn_set_led(sc, URTWN_LED_LINK, 1);
@@ -1754,7 +1754,7 @@ urtwn_r88e_get_rssi(struct urtwn_softc *sc, int rate, void *physt)
 		cck = (struct r88e_rx_cck *)physt;
 		cck_agc_rpt = cck->agc_rpt;
 		lna_idx = (cck_agc_rpt & 0xe0) >> 5;
-		vga_idx = cck_agc_rpt & 0x1f; 
+		vga_idx = cck_agc_rpt & 0x1f;
 		switch (lna_idx) {
 		case 7:
 			if (vga_idx <= 27)
@@ -1794,7 +1794,7 @@ urtwn_r88e_get_rssi(struct urtwn_softc *sc, int rate, void *physt)
 
 
 static int
-urtwn_tx_start(struct urtwn_softc *sc, struct ieee80211_node *ni, 
+urtwn_tx_start(struct urtwn_softc *sc, struct ieee80211_node *ni,
     struct mbuf *m0, struct urtwn_data *data)
 {
 	struct ifnet *ifp = sc->sc_ifp;
@@ -1835,7 +1835,7 @@ urtwn_tx_start(struct urtwn_softc *sc, struct ieee80211_node *ni,
 		/* in case packet header moved, reset pointer */
 		wh = mtod(m0, struct ieee80211_frame *);
 	}
-	
+
 	switch (type) {
 	case IEEE80211_FC0_TYPE_CTL:
 	case IEEE80211_FC0_TYPE_MGT:
@@ -1847,7 +1847,7 @@ urtwn_tx_start(struct urtwn_softc *sc, struct ieee80211_node *ni,
 		xfer = urtwn_pipes[M_WME_GETAC(m0)];
 		break;
 	}
-			    
+
 	hasqos = 0;
 
 	/* Fill Tx descriptor. */
@@ -2320,7 +2320,7 @@ urtwn_fw_loadpage(struct urtwn_softc *sc, int page, const uint8_t *buf, int len)
 		else
 			mlen = 1;
 		/* XXX fix this deconst */
-		error = urtwn_write_region_1(sc, off, 
+		error = urtwn_write_region_1(sc, off,
 		    __DECONST(uint8_t *, buf), mlen);
 		if (error != 0)
 			break;
@@ -2455,7 +2455,7 @@ fail:
 static __inline int
 urtwn_dma_init(struct urtwn_softc *sc)
 {
-            
+
 	return sc->sc_dma_init(sc);
 }
 
@@ -3219,10 +3219,10 @@ urtwn_set_chan(struct urtwn_softc *sc, struct ieee80211_channel *c,
 			    urtwn_bb_read(sc, R92C_FPGA0_ANAPARAM2) |
 			    R92C_FPGA0_ANAPARAM2_CBW20);
 		}
-			
+
 		/* Select 20MHz bandwidth. */
 		urtwn_rf_write(sc, 0, R92C_RF_CHNLBW,
-		    (sc->rf_chnlbw[0] & ~0xfff) | chan | 
+		    (sc->rf_chnlbw[0] & ~0xfff) | chan |
 		    ((sc->chip & URTWN_CHIP_88E) ? R88E_RF_CHNLBW_BW20 :
 		    R92C_RF_CHNLBW_BW20));
 	}
@@ -3297,7 +3297,7 @@ urtwn_init_locked(void *arg)
 	error = urtwn_alloc_rx_list(sc);
 	if (error != 0)
 		goto fail;
-	
+
 	error = urtwn_alloc_tx_list(sc);
 	if (error != 0)
 		goto fail;
