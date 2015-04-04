@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-#define __DSUTILS_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -779,16 +777,16 @@ AcpiDsCreateOperands (
         Index++;
     }
 
+    ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
+        "NumOperands %d, ArgCount %d, Index %d\n",
+        WalkState->NumOperands, ArgCount, Index));
+
+    /* Create the interpreter arguments, in reverse order */
+
     Index--;
-
-    /* It is the appropriate order to get objects from the Result stack */
-
     for (i = 0; i < ArgCount; i++)
     {
         Arg = Arguments[Index];
-
-        /* Force the filling of the operand stack in inverse order */
-
         WalkState->OperandIndex = (UINT8) Index;
 
         Status = AcpiDsCreateOperand (WalkState, Arg, Index);
@@ -797,10 +795,10 @@ AcpiDsCreateOperands (
             goto Cleanup;
         }
 
+        ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
+            "Created Arg #%u (%p) %u args total\n",
+            Index, Arg, ArgCount));
         Index--;
-
-        ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Arg #%u (%p) done, Arg1=%p\n",
-            Index, Arg, FirstArg));
     }
 
     return_ACPI_STATUS (Status);

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -106,6 +106,8 @@ FlSetFilename (
 
     DbgPrint (ASL_PARSE_OUTPUT, "\n#line: New filename %s (old %s)\n",
          Filename, Gbl_Files[ASL_FILE_INPUT].Filename);
+
+    /* No need to free any existing filename */
 
     Gbl_Files[ASL_FILE_INPUT].Filename = Filename;
 }
@@ -216,14 +218,14 @@ FlMergePathnames (
         (*FilePathname == '/') ||
          (FilePathname[1] == ':'))
     {
-        Pathname = ACPI_ALLOCATE (strlen (FilePathname) + 1);
+        Pathname = UtStringCacheCalloc (strlen (FilePathname) + 1);
         strcpy (Pathname, FilePathname);
         goto ConvertBackslashes;
     }
 
     /* Need a local copy of the prefix directory path */
 
-    CommonPath = ACPI_ALLOCATE (strlen (PrefixDir) + 1);
+    CommonPath = UtStringCacheCalloc (strlen (PrefixDir) + 1);
     strcpy (CommonPath, PrefixDir);
 
     /*
@@ -259,14 +261,13 @@ FlMergePathnames (
     /* Build the final merged pathname */
 
 ConcatenatePaths:
-    Pathname = ACPI_ALLOCATE_ZEROED (strlen (CommonPath) + strlen (FilePathname) + 2);
+    Pathname = UtStringCacheCalloc (strlen (CommonPath) + strlen (FilePathname) + 2);
     if (LastElement && *CommonPath)
     {
         strcpy (Pathname, CommonPath);
         strcat (Pathname, "/");
     }
     strcat (Pathname, FilePathname);
-    ACPI_FREE (CommonPath);
 
     /* Convert all backslashes to normal slashes */
 
@@ -484,6 +485,8 @@ FlOpenAmlOutputFile (
                 0, 0, 0, 0, NULL, NULL);
             return (AE_ERROR);
         }
+
+        Gbl_Files[ASL_FILE_AML_OUTPUT].Filename = Filename;
     }
 
     /* Open the output AML file in binary mode */
@@ -562,9 +565,14 @@ FlOpenMiscOutputFiles (
 
         if (!Gbl_Files[ASL_FILE_DEBUG_OUTPUT].Handle)
         {
-            AslCommonError (ASL_ERROR, ASL_MSG_DEBUG_FILENAME,
-                0, 0, 0, 0, NULL, NULL);
-            return (AE_ERROR);
+            /*
+             * A problem with freopen is that on error,
+             * we no longer have stderr.
+             */
+            Gbl_DebugFlag = FALSE;
+            memcpy (stderr, stdout, sizeof (FILE));
+            FlFileError (ASL_FILE_DEBUG_OUTPUT, ASL_MSG_DEBUG_FILENAME);
+            AslAbort ();
         }
 
         AslCompilerSignon (ASL_FILE_DEBUG_OUTPUT);
@@ -757,6 +765,26 @@ FlOpenMiscOutputFiles (
         AslCompilerFileHeader (ASL_FILE_NAMESPACE_OUTPUT);
     }
 
+    /* Create/Open a map file if requested */
+
+    if (Gbl_MapfileFlag)
+    {
+        Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_MAP);
+        if (!Filename)
+        {
+            AslCommonError (ASL_ERROR, ASL_MSG_LISTING_FILENAME,
+                0, 0, 0, 0, NULL, NULL);
+            return (AE_ERROR);
+        }
+
+        /* Open the hex file, text mode (closed at compiler exit) */
+
+        FlOpenFile (ASL_FILE_MAP_OUTPUT, Filename, "w+t");
+
+        AslCompilerSignon (ASL_FILE_MAP_OUTPUT);
+        AslCompilerFileHeader (ASL_FILE_MAP_OUTPUT);
+    }
+
     return (AE_OK);
 }
 
@@ -824,6 +852,7 @@ FlParseInputPathname (
         *(Substring+1) = 0;
     }
 
+    UtConvertBackslashes (Gbl_OutputFilenamePrefix);
     return (AE_OK);
 }
 #endif

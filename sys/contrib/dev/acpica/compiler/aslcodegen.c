@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
@@ -108,6 +107,12 @@ CgGenerateAmlOutput (
 
     TrWalkParseTree (RootNode, ASL_WALK_VISIT_DOWNWARD,
         CgAmlWriteWalk, NULL, NULL);
+
+    DbgPrint (ASL_TREE_OUTPUT,
+        "%*s Value    P_Op A_Op OpLen PByts Len  SubLen PSubLen OpPtr"
+        "    Parent   Child    Next     Flags    AcTyp    Final Col L\n",
+        76, " ");
+
     CgCloseTable ();
 }
 
@@ -139,7 +144,8 @@ CgAmlWriteWalk (
         DbgPrint (ASL_TREE_OUTPUT,
             "Final parse tree used for AML output:\n");
         DbgPrint (ASL_TREE_OUTPUT,
-            "%*s Value    P_Op A_Op OpLen PByts Len  SubLen PSubLen OpPtr    Child    Parent   Flags    AcTyp    Final Col L\n",
+            "%*s Value    P_Op A_Op OpLen PByts Len  SubLen PSubLen OpPtr"
+            "    Parent   Child    Next     Flags    AcTyp    Final Col L\n",
             76, " ");
     }
 
@@ -162,7 +168,8 @@ CgAmlWriteWalk (
     }
 
     DbgPrint (ASL_TREE_OUTPUT,
-    "%08X %04X %04X %01X     %04X  %04X %04X   %04X    %08X %08X %08X %08X %08X %04X  %02d  %02d\n",
+    "%08X %04X %04X %01X     %04X  %04X %04X   %04X    "
+    "%08X %08X %08X %08X %08X %08X %04X  %02d  %02d\n",
             /* 1  */ (UINT32) Op->Asl.Value.Integer,
             /* 2  */ Op->Asl.ParseOpcode,
             /* 3  */ Op->Asl.AmlOpcode,
@@ -172,13 +179,14 @@ CgAmlWriteWalk (
             /* 7  */ Op->Asl.AmlSubtreeLength,
             /* 8  */ Op->Asl.Parent ? Op->Asl.Parent->Asl.AmlSubtreeLength : 0,
             /* 9  */ Op,
-            /* 10 */ Op->Asl.Child,
-            /* 11 */ Op->Asl.Parent,
-            /* 12 */ Op->Asl.CompileFlags,
-            /* 13 */ Op->Asl.AcpiBtype,
-            /* 14 */ Op->Asl.FinalAmlLength,
-            /* 15 */ Op->Asl.Column,
-            /* 16 */ Op->Asl.LineNumber);
+            /* 10 */ Op->Asl.Parent,
+            /* 11 */ Op->Asl.Child,
+            /* 12 */ Op->Asl.Next,
+            /* 13 */ Op->Asl.CompileFlags,
+            /* 14 */ Op->Asl.AcpiBtype,
+            /* 15 */ Op->Asl.FinalAmlLength,
+            /* 16 */ Op->Asl.Column,
+            /* 17 */ Op->Asl.LineNumber);
 
     /* Generate the AML for this node */
 

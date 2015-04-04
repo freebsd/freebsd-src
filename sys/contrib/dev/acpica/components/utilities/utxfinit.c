@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,8 +41,7 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
-#define __UTXFINIT_C__
+#define EXPORT_ACPI_INTERFACES
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -53,6 +52,11 @@
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utxfinit")
+
+/* For AcpiExec only */
+void
+AeDoObjectOverrides (
+    void);
 
 
 /*******************************************************************************
@@ -130,11 +134,19 @@ AcpiInitializeSubsystem (
 
     /* If configured, initialize the AML debugger */
 
-    ACPI_DEBUGGER_EXEC (Status = AcpiDbInitialize ());
-    return_ACPI_STATUS (Status);
+#ifdef ACPI_DEBUGGER
+    Status = AcpiDbInitialize ();
+    if (ACPI_FAILURE (Status))
+    {
+        ACPI_EXCEPTION ((AE_INFO, Status, "During Debugger initialization"));
+        return_ACPI_STATUS (Status);
+    }
+#endif
+
+    return_ACPI_STATUS (AE_OK);
 }
 
-ACPI_EXPORT_SYMBOL (AcpiInitializeSubsystem)
+ACPI_EXPORT_SYMBOL_INIT (AcpiInitializeSubsystem)
 
 
 /*******************************************************************************
@@ -256,7 +268,7 @@ AcpiEnableSubsystem (
     return_ACPI_STATUS (Status);
 }
 
-ACPI_EXPORT_SYMBOL (AcpiEnableSubsystem)
+ACPI_EXPORT_SYMBOL_INIT (AcpiEnableSubsystem)
 
 
 /*******************************************************************************
@@ -300,6 +312,14 @@ AcpiInitializeObjects (
             return_ACPI_STATUS (Status);
         }
     }
+
+#ifdef ACPI_EXEC_APP
+    /*
+     * This call implements the "initialization file" option for AcpiExec.
+     * This is the precise point that we want to perform the overrides.
+     */
+    AeDoObjectOverrides ();
+#endif
 
     /*
      * Execute any module-level code that was detected during the table load
@@ -355,4 +375,4 @@ AcpiInitializeObjects (
     return_ACPI_STATUS (Status);
 }
 
-ACPI_EXPORT_SYMBOL (AcpiInitializeObjects)
+ACPI_EXPORT_SYMBOL_INIT (AcpiInitializeObjects)
