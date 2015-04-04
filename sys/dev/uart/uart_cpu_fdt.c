@@ -59,35 +59,6 @@ bus_space_tag_t uart_bus_space_io;
 bus_space_tag_t uart_bus_space_mem;
 
 int
-uart_fdt_get_clock(phandle_t node, pcell_t *cell)
-{
-	pcell_t clock;
-
-	/* clock-frequency is a FreeBSD-only extention. */
-	if ((OF_getencprop(node, "clock-frequency", &clock,
-	    sizeof(clock))) <= 0)
-		clock = 0;
-
-	if (clock == 0)
-		/* Try to retrieve parent 'bus-frequency' */
-		/* XXX this should go to simple-bus fixup or so */
-		if ((OF_getencprop(OF_parent(node), "bus-frequency", &clock,
-		    sizeof(clock))) <= 0)
-			clock = 0;
-
-	return (0);
-}
-
-int
-uart_fdt_get_shift(phandle_t node, pcell_t *cell)
-{
-
-	if ((OF_getencprop(node, "reg-shift", cell, sizeof(*cell))) <= 0)
-		*cell = 0;
-	return (0);
-}
-
-int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 {
 
