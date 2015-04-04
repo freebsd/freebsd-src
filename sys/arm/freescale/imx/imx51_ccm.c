@@ -78,7 +78,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #include <arm/freescale/imx/imx51_ccmvar.h>
 #include <arm/freescale/imx/imx51_ccmreg.h>
