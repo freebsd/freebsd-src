@@ -82,11 +82,9 @@ uart_fdt_get_clock(phandle_t node, pcell_t *cell)
 static int
 uart_fdt_get_shift(phandle_t node, pcell_t *cell)
 {
-	pcell_t shift;
 
-	if ((OF_getprop(node, "reg-shift", &shift, sizeof(shift))) <= 0)
-		shift = 0;
-	*cell = fdt32_to_cpu(shift);
+	if ((OF_getencprop(node, "reg-shift", cell, sizeof(*cell))) <= 0)
+		*cell = 0;
 	return (0);
 }
 
