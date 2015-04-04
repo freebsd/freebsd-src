@@ -285,7 +285,7 @@ command_configuration(int argc, char *argv[])
 }
 
 
-COMMAND_SET(mode, "mode", "change or display text modes", command_mode);
+COMMAND_SET(mode, "mode", "change or display EFI text modes", command_mode);
 
 static int
 command_mode(int argc, char *argv[])
@@ -331,7 +331,7 @@ command_mode(int argc, char *argv[])
 	}
 
 	if (i != 0)
-		printf("Choose the mode with \"col <mode number>\"\n");
+		printf("Select a mode with the command \"mode <number>\"\n");
 
 	return (CMD_OK);
 }
