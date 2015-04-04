@@ -34,12 +34,6 @@
 
 #include <dev/ofw/openfirm.h>
 
-#include <vm/vm.h>
-#include <vm/pmap.h>
-
-#include <machine/bus.h>
-#include <machine/intr.h>
-
 /* Max interrupt number */
 #define FDT_INTR_MAX	NIRQ
 
