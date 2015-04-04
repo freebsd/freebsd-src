@@ -108,11 +108,12 @@ EFI_STATUS efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE* Xsystab)
 {
 	EFI_HANDLE handles[128];
 	EFI_BLOCK_IO *blkio;
-	UINTN i, nparts = sizeof(handles);
+	UINTN i, nparts = sizeof(handles), cols, rows, max_dim, best_mode;
 	EFI_STATUS status;
 	EFI_DEVICE_PATH *devpath;
 	EFI_BOOT_SERVICES *BS;
 	EFI_CONSOLE_CONTROL_PROTOCOL *ConsoleControl = NULL;
+	SIMPLE_TEXT_OUTPUT_INTERFACE *conout = NULL;
 	char *path = _PATH_LOADER;
 
 	systab = Xsystab;
@@ -124,6 +125,26 @@ EFI_STATUS efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE* Xsystab)
 	if (status == EFI_SUCCESS)
 		(void)ConsoleControl->SetMode(ConsoleControl,
 		    EfiConsoleControlScreenText);
+	/*
+	 * Reset the console and find the best text mode.
+	 */
+	conout = systab->ConOut;
+	conout->Reset(conout, TRUE);
+	max_dim = best_mode = 0;
+	for (i = 0; ; i++) {
+		status = conout->QueryMode(conout, i,
+		    &cols, &rows);
+		if (EFI_ERROR(status))
+			break;
+		if (cols * rows > max_dim) {
+			max_dim = cols * rows;
+			best_mode = i;
+		}
+	}
+	if (max_dim > 0)
+		conout->SetMode(conout, best_mode);
+	conout->EnableCursor(conout, TRUE);
+	conout->ClearScreen(conout);
 
 	printf(" \n>> FreeBSD EFI boot block\n");
 	printf("   Loader path: %s\n", path);
