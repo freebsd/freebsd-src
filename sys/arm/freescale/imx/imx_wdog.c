@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-#include <machine/fdt.h>
 
 #include <arm/freescale/imx/imx_wdogreg.h>
 

@@ -58,7 +58,6 @@
 #include <sys/rman.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/fdt/fdt_pinctrl.h>
