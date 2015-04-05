@@ -1060,9 +1060,9 @@ vm_fault_dontneed(const struct faultstate *fs, vm_offset_t vaddr, int ahead)
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	first_object = fs->first_object;
 	if (first_object != object) {
-		if (!VM_OBJECT_TRYRLOCK(first_object)) {
+		if (!VM_OBJECT_TRYWLOCK(first_object)) {
 			VM_OBJECT_WUNLOCK(object);
-			VM_OBJECT_RLOCK(first_object);
+			VM_OBJECT_WLOCK(first_object);
 			VM_OBJECT_WLOCK(object);
 		}
 	}
@@ -1097,7 +1097,7 @@ vm_fault_dontneed(const struct faultstate *fs, vm_offset_t vaddr, int ahead)
 		}
 	}
 	if (first_object != object)
-		VM_OBJECT_RUNLOCK(first_object);
+		VM_OBJECT_WUNLOCK(first_object);
 }
 
 /*
