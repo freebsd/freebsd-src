@@ -1252,7 +1252,7 @@ _sed=		usr.bin/sed
 _m4=		usr.bin/m4
 .endif
 
-.if ${BOOTSTRAPPING} < 1000013
+.if ${BOOTSTRAPPING} < 1001506
 _yacc=		lib/liby \
 		usr.bin/yacc
 
