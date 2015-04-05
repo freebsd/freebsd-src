@@ -29,7 +29,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <err.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -54,7 +53,6 @@ sort_malloc(size_t size)
 void
 sort_free(const void *ptr)
 {
-
 	if (ptr)
 		free(__DECONST(void *, ptr));
 }
