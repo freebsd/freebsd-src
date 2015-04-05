@@ -42,6 +42,15 @@ CFLAGS+=	-I${.CURDIR}/../../ficl/${MACHINE_CPUARCH}
 LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 .endif
 
+LOADER_FDT_SUPPORT?=	no
+.if ${MK_FDT} != "no" && ${LOADER_FDT_SUPPORT} != "no"
+CFLAGS+=	-I${.CURDIR}/../../fdt
+CFLAGS+=	-I${.OBJDIR}/../../fdt
+CFLAGS+=	-DLOADER_FDT_SUPPORT
+LIBEFI_FDT=	${.OBJDIR}/../../efi/fdt/libefi_fdt.a
+LIBFDT=		${.OBJDIR}/../../fdt/libfdt.a
+.endif
+
 # Include bcache code.
 HAVE_BCACHE=    yes
 
@@ -88,8 +97,9 @@ loader.efi: loader.sym
 
 LIBEFI=		${.OBJDIR}/../libefi/libefi.a
 
-DPADD=		${LIBFICL} ${LIBEFI} ${LIBSTAND} ${LDSCRIPT}
-LDADD=		${LIBFICL} ${LIBEFI} ${LIBSTAND}
+DPADD=		${LIBFICL} ${LIBEFI} ${LIBFDT} ${LIBEFI_FDT} ${LIBSTAND} \
+		${LDSCRIPT}
+LDADD=		${LIBFICL} ${LIBEFI} ${LIBFDT} ${LIBEFI_FDT} ${LIBSTAND}
 
 .endif # ${COMPILER_TYPE} != "gcc"
 
