@@ -1,12 +1,36 @@
 # $FreeBSD$
 
-# This is a placeholder until the hardware support is complete.
-
 # mdiobus0 on arge0
 hint.argemdio.0.at="nexus0"
 hint.argemdio.0.maddr=0x19000000
 hint.argemdio.0.msize=0x1000
 hint.argemdio.0.order=0
+
+# 0x1ffe0004 is the the "unit MAC".
+# 0x1ffe0018 is the second "MAC".
+# Right now this doesn't have any option for more than one
+# "unit MACs", so:
+# ath0: unit MAC
+# ath1: unit MAC + 1
+# arge0: unit MAC + 2
+# arge1: leave as default; not used.
+hint.ar71xx.0.eeprom_mac_addr=0x1ffe0004
+hint.ar71xx.0.eeprom_mac_isascii=1
+
+hint.ar71xx_mac_map.0.devid=ath
+hint.ar71xx_mac_map.0.unitid=0
+hint.ar71xx_mac_map.0.offset=0
+hint.ar71xx_mac_map.0.is_local=0
+
+hint.ar71xx_mac_map.1.devid=ath
+hint.ar71xx_mac_map.1.unitid=1
+hint.ar71xx_mac_map.1.offset=1
+hint.ar71xx_mac_map.1.is_local=0
+
+hint.ar71xx_mac_map.2.devid=arge
+hint.ar71xx_mac_map.2.unitid=0
+hint.ar71xx_mac_map.2.offset=2
+hint.ar71xx_mac_map.2.is_local=0
 
 # DIR-825C1 GMAC configuration
 # + AR934X_ETH_CFG_RGMII_GMAC0              (1 << 0)
