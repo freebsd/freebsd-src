@@ -1554,6 +1554,11 @@ __PMC_EV_ALIAS("BACLEARS.RETURN",		    IAP_EVENT_E6H_08H)	\
 __PMC_EV_ALIAS("BACLEARS.COND",			    IAP_EVENT_E6H_10H)	\
 __PMC_EV_ALIAS("MS_DECODED.MS_ENTRY",		    IAP_EVENT_E7H_01H)
 
+/*
+ * Aliases for Broadwell PMC events.
+ */
+#define __PMC_EV_ALIAS_BROADWELL()					\
+__PMC_EV_ALIAS_INTEL_ARCHITECTURAL()
 
 /*
  * Aliases for Core PMC events.
@@ -4227,6 +4232,11 @@ __PMC_EV(UCP, EVENT_86H_01H)
 
 #define	PMC_EV_UCP_FIRST	PMC_EV_UCP_EVENT_00H_01H
 #define	PMC_EV_UCP_LAST		PMC_EV_UCP_EVENT_86H_01H
+
+/*
+ * Aliases for Broadwell uncore PMC events
+ */
+#define __PMC_EV_ALIAS_BROADWELLUC()
 
 #define	__PMC_EV_ALIAS_COREI7UC()					\
 __PMC_EV_ALIAS("GQ_CYCLES_FULL.READ_TRACKER", UCP_EVENT_00H_01H)	\
