@@ -410,7 +410,7 @@ iaf_start_pmc(int cpu, int ri)
 		iafc->pc_resync = 0;
 		iafc->pc_globalctrl |= (1ULL << (ri + IAF_OFFSET));
  		msr = rdmsr(IA_GLOBAL_CTRL) & ~IAF_GLOBAL_CTRL_MASK;
- 		wrmsr(IA_GLOBAL_CTRL, msr | (iafc->pc_globalctrl & 
+ 		wrmsr(IA_GLOBAL_CTRL, msr | (iafc->pc_globalctrl &
  					     IAF_GLOBAL_CTRL_MASK));
 	} while (iafc->pc_resync != 0);
 
@@ -487,7 +487,7 @@ iaf_write_pmc(int cpu, int ri, pmc_value_t v)
 
 	/* Turn off fixed counters */
 	msr = rdmsr(IAF_CTRL) & ~IAF_CTRL_MASK;
-	wrmsr(IAF_CTRL, msr); 
+	wrmsr(IAF_CTRL, msr);
 
 	wrmsr(IAF_CTR0 + ri, v & ((1ULL << core_iaf_width) - 1));
 
@@ -704,7 +704,7 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(0CH_02H, 0x0C, 0x02, IAP_F_FM | IAP_F_CC2),
     IAPDESCR(0CH_03H, 0x0C, 0x03, IAP_F_FM | IAP_F_CA),
 
-    IAPDESCR(0DH_03H, 0x0D, 0x03, IAP_F_FM | IAP_F_SB | IAP_F_SBX | IAP_F_HW | 
+    IAPDESCR(0DH_03H, 0x0D, 0x03, IAP_F_FM | IAP_F_SB | IAP_F_SBX | IAP_F_HW |
        IAP_F_IB | IAP_F_IBX | IAP_F_HWX),
     IAPDESCR(0DH_40H, 0x0D, 0x40, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
 
@@ -1316,7 +1316,7 @@ static struct iap_event_descr iap_events[] = {
 
     IAPDESCR(A6H_01H, 0xA6, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
     IAPDESCR(A7H_01H, 0xA7, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
-    IAPDESCR(A8H_01H, 0xA8, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_IBX | 
+    IAPDESCR(A8H_01H, 0xA8, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_IBX |
 	IAP_F_IB |IAP_F_SB |  IAP_F_SBX | IAP_F_HW | IAP_F_HWX),
 
     IAPDESCR(AAH_01H, 0xAA, 0x01, IAP_F_FM | IAP_F_CC2),
@@ -1466,7 +1466,7 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(C3H_01H, 0xC3, 0x01, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
 	IAP_F_I7 | IAP_F_WM | IAP_F_CAS),
     IAPDESCR(C3H_02H, 0xC3, 0x02, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | 
+	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW |
 	IAP_F_CAS | IAP_F_HWX),
     IAPDESCR(C3H_04H, 0xC3, 0x04, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
 	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX |
@@ -1623,10 +1623,10 @@ static struct iap_event_descr iap_events[] = {
 	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
     IAPDESCR(D1H_04H, 0xD1, 0x04, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
 	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
-    IAPDESCR(D1H_08H, 0xD1, 0x08, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_IB | 
+    IAPDESCR(D1H_08H, 0xD1, 0x08, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_IB |
         IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
     IAPDESCR(D1H_10H, 0xD1, 0x10, IAP_F_HW | IAP_F_IB | IAP_F_IBX | IAP_F_HWX),
-    IAPDESCR(D1H_20H, 0xD1, 0x20, IAP_F_FM | IAP_F_SBX | IAP_F_IBX | IAP_F_IB | 
+    IAPDESCR(D1H_20H, 0xD1, 0x20, IAP_F_FM | IAP_F_SBX | IAP_F_IBX | IAP_F_IB |
         IAP_F_HW | IAP_F_HWX),
     IAPDESCR(D1H_40H, 0xD1, 0x40, IAP_F_FM | IAP_F_SB | IAP_F_IB |
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
@@ -1716,7 +1716,7 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(E6H_02H, 0xE6, 0x02, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
     IAPDESCR(E6H_08H, 0xE6, 0x08, IAP_F_CAS),
     IAPDESCR(E6H_10H, 0xE6, 0x10, IAP_F_CAS),
-    IAPDESCR(E6H_1FH, 0xE6, 0x1F, IAP_F_FM | IAP_F_IB | 
+    IAPDESCR(E6H_1FH, 0xE6, 0x1F, IAP_F_FM | IAP_F_IB |
         IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
 
     IAPDESCR(E7H_01H, 0xE7, 0x01, IAP_F_CAS),
@@ -1876,7 +1876,7 @@ iap_is_event_architectural(enum pmc_event pe, enum pmc_event *map)
 		return (EV_IS_NOTARCH);
 	}
 
-	return (((core_architectural_events & (1 << ae)) == 0) ? 
+	return (((core_architectural_events & (1 << ae)) == 0) ?
 	    EV_IS_ARCH_NOTSUPP : EV_IS_ARCH_SUPP);
 }
 
