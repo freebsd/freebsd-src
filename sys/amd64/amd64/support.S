@@ -73,11 +73,7 @@ ENTRY(pagezero)
 	movnti	%rax,8(%rdi,%rdx)
 	movnti	%rax,16(%rdi,%rdx)
 	movnti	%rax,24(%rdi,%rdx)
-	movnti	%rax,32(%rdi,%rdx)
-	movnti	%rax,40(%rdi,%rdx)
-	movnti	%rax,48(%rdi,%rdx)
-	movnti	%rax,56(%rdi,%rdx)
-	addq	$64,%rdx
+	addq	$32,%rdx
 	jne	1b
 	sfence
 	POP_FRAME_POINTER
