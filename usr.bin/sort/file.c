@@ -1127,7 +1127,7 @@ file_headers_merge(size_t fnum, struct file_header **fh, FILE *f_out)
 	memset(&lp, 0, sizeof(lp));
 
 	/*
-	 * construct the initial sort structure 
+	 * construct the initial sort structure
 	 */
 	for (i = 0; i < fnum; i++)
 		file_header_list_push(fh[i], fh, i);

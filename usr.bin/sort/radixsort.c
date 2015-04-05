@@ -129,7 +129,7 @@ have_sort_left(void)
  * Push sort level to the stack
  */
 static inline void
-push_ls(struct sort_level* sl)
+push_ls(struct sort_level *sl)
 {
 	struct level_stack *new_ls;
 
@@ -231,7 +231,6 @@ add_to_sublevel(struct sort_level *sl, struct sort_list_item *item, size_t indx)
 static inline void
 add_leaf(struct sort_level *sl, struct sort_list_item *item)
 {
-
 	if (++(sl->leaves_num) > sl->leaves_sz) {
 		sl->leaves_sz = sl->leaves_num + 128;
 		sl->leaves = sort_realloc(sl->leaves,
