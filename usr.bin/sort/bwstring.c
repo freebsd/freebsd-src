@@ -147,7 +147,6 @@ wide_str_coll(const wchar_t *s1, const wchar_t *s2)
 void
 bwsprintf(FILE *f, struct bwstring *bws, const char *prefix, const char *suffix)
 {
-
 	if (MB_CUR_MAX == 1)
 		fprintf(f, "%s%s%s", prefix, bws->data.cstr, suffix);
 	else
@@ -156,20 +155,17 @@ bwsprintf(FILE *f, struct bwstring *bws, const char *prefix, const char *suffix)
 
 const void* bwsrawdata(const struct bwstring *bws)
 {
-
 	return (&(bws->data));
 }
 
 size_t bwsrawlen(const struct bwstring *bws)
 {
-
 	return ((MB_CUR_MAX == 1) ? bws->len : SIZEOF_WCHAR_STRING(bws->len));
 }
 
 size_t
 bws_memsize(const struct bwstring *bws)
 {
-
 	return ((MB_CUR_MAX == 1) ? (bws->len + 2 + sizeof(struct bwstring)) :
 	    (SIZEOF_WCHAR_STRING(bws->len + 1) + sizeof(struct bwstring)));
 }
@@ -177,7 +173,6 @@ bws_memsize(const struct bwstring *bws)
 void
 bws_setlen(struct bwstring *bws, size_t newlen)
 {
-
 	if (bws && newlen != bws->len && newlen <= bws->len) {
 		bws->len = newlen;
 		if (MB_CUR_MAX == 1)
@@ -217,7 +212,6 @@ bwsalloc(size_t sz)
 struct bwstring *
 bwsdup(const struct bwstring *s)
 {
-
 	if (s == NULL)
 		return (NULL);
 	else {
@@ -239,7 +233,6 @@ bwsdup(const struct bwstring *s)
 struct bwstring *
 bwssbdup(const wchar_t *str, size_t len)
 {
-
 	if (str == NULL)
 		return ((len == 0) ? bwsalloc(0) : NULL);
 	else {
@@ -320,7 +313,6 @@ bwscsbdup(const unsigned char *str, size_t len)
 void
 bwsfree(const struct bwstring *s)
 {
-
 	if (s)
 		sort_free(s);
 }
@@ -391,7 +383,6 @@ struct bwstring *
 bwsnocpy(struct bwstring *dst, const struct bwstring *src, size_t offset,
     size_t size)
 {
-
 	if (offset >= src->len) {
 		dst->data.wstr[0] = 0;
 		dst->len = 0;
@@ -424,7 +415,6 @@ bwsnocpy(struct bwstring *dst, const struct bwstring *src, size_t offset,
 size_t
 bwsfwrite(struct bwstring *bws, FILE *f, bool zero_ended)
 {
-
 	if (MB_CUR_MAX == 1) {
 		size_t len = bws->len;
 
@@ -914,7 +904,6 @@ bwstod(struct bwstring *s0, bool *empty)
 int
 bws_month_score(const struct bwstring *s0)
 {
-
 	if (MB_CUR_MAX == 1) {
 		const unsigned char *end, *s;
 		size_t len;
@@ -1120,7 +1109,6 @@ dictionary_order(struct bwstring *str)
 struct bwstring *
 ignore_case(struct bwstring *str)
 {
-
 	if (MB_CUR_MAX == 1) {
 		unsigned char *end, *s;
 
@@ -1148,7 +1136,6 @@ ignore_case(struct bwstring *str)
 void
 bws_disorder_warnx(struct bwstring *s, const char *fn, size_t pos)
 {
-
 	if (MB_CUR_MAX == 1)
 		warnx("%s:%zu: disorder: %s", fn, pos + 1, s->data.cstr);
 	else
