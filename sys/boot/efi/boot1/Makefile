@@ -71,7 +71,7 @@ boot1.efifat: boot1.efi
 	bzip2 -f -d ${.TARGET}.bz2
 	dd if=boot1.efi of=${.TARGET} seek=${BOOT1_OFFSET} conv=notrunc
 
-CLEANFILES= boot1.efifat
+CLEANFILES= boot1.efi boot1.efifat
 
 .endif # ${COMPILER_TYPE} != "gcc"
 
@@ -80,7 +80,7 @@ CLEANFILES= boot1.efifat
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 beforedepend ${OBJS}: machine x86
 
-CLEANFILES+=   machine x86 boot1.efi
+CLEANFILES+=   machine x86
 
 machine:
 	ln -sf ${.CURDIR}/../../../amd64/include machine
