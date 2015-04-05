@@ -4,7 +4,7 @@
 
 SUBDIR=		libefi
 
-.if ${TARGET_CPUARCH} == "aarch64" || ${TARGET_CPUARCH} == "arm"
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm"
 .if ${MK_FDT} != "no"
 SUBDIR+=	fdt
 .endif
