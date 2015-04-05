@@ -165,8 +165,20 @@ hid_interrupt(bthid_session_p s, uint8_t *data, int32_t len)
 			continue;
 
 		page = HID_PAGE(h.usage);
-		usage = HID_USAGE(h.usage);
 		val = hid_get_data(data, &h);
+
+		/*
+		 * When the input field is an array and the usage is specified
+		 * with a range instead of an ID, we have to derive the actual
+		 * usage by using the item value as an index in the usage range
+		 * list.
+		 */
+		if ((h.flags & HIO_VARIABLE)) {
+			usage = HID_USAGE(h.usage);
+		} else {
+			const uint32_t usage_offset = val - h.logical_minimum;
+			usage = HID_USAGE(h.usage_minimum + usage_offset);
+		}
 
 		switch (page) {
 		case HUP_GENERIC_DESKTOP:
