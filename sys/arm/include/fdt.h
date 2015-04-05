@@ -32,8 +32,6 @@
 #ifndef _MACHINE_FDT_H_
 #define _MACHINE_FDT_H_
 
-#include <dev/ofw/openfirm.h>
-
 #include <machine/bus.h>
 
 /* Max interrupt number */
