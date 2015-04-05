@@ -7,6 +7,32 @@
 # QCA955X_ETH_CFG_RGMII_EN (1 << 0)
 hint.qca955x_gmac.0.gmac_cfg=0x1
 
+# Use this to derive ath0 from arge0 MAC address.
+# 0x1ffe0004 is the arge0 MAC; but it's also the "unit MAC".
+# So make that the ath0 MAC, and make arge0 -1 from that.
+# ath0: offset 0
+# arge0: offset -1
+# arge1: use +1 from the arge0 MAC, even though
+# there's a secondary MAC address configured in EEPROM
+# at 0x1ffe0018.
+hint.ar71xx.0.eeprom_mac_addr=0x1ffe0004
+hint.ar71xx.0.eeprom_mac_isascii=1
+
+hint.ar71xx_mac_map.0.devid=ath
+hint.ar71xx_mac_map.0.unitid=0
+hint.ar71xx_mac_map.0.offset=0
+hint.ar71xx_mac_map.0.is_local=0
+
+hint.ar71xx_mac_map.1.devid=arge
+hint.ar71xx_mac_map.1.unitid=0
+hint.ar71xx_mac_map.1.offset=-1
+hint.ar71xx_mac_map.1.is_local=0
+
+hint.ar71xx_mac_map.2.devid=arge
+hint.ar71xx_mac_map.2.unitid=1
+hint.ar71xx_mac_map.2.offset=1
+hint.ar71xx_mac_map.2.is_local=0
+
 # mdiobus0 on arge0
 hint.argemdio.0.at="nexus0"
 hint.argemdio.0.maddr=0x19000000
@@ -91,9 +117,8 @@ hint.arge.0.miimode=3           # RGMII
 hint.arge.0.media=1000
 hint.arge.0.fduplex=1
 hint.arge.0.pll_1000=0x56000000
-
-# MAC for arge0 is the first 6 bytes of the ART
-hint.arge.0.eeprommac=0x1fff0000
+# hint.arge.0.eeprommac=0x1ffe0004
+# hint.arge.0.readascii=1
 
 # arge1 - lock up to 1000/full
 hint.arge.1.phymask=0x0
@@ -101,11 +126,12 @@ hint.arge.1.media=1000
 hint.arge.1.fduplex=1
 hint.arge.1.miimode=5		# SGMII
 hint.arge.1.pll_1000=0x03000101
-
-# MAC for arge1 is the second 6 bytes of the ART
-hint.arge.1.eeprommac=0x1fff0006
+#hint.arge.1.eeprommac=0x1ffe0018
+#hint.arge.1.readascii=1
 
 # ath0: Where the ART is - last 64k in the flash
+# Note: ath0 MAC is default (00:11:22:33:44:55) and thus
+# requires replacing via the board MAC address map.
 hint.ath.0.eepromaddr=0x1fff0000
 hint.ath.0.eepromsize=16384
 
