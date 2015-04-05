@@ -55,7 +55,7 @@ struct sort_list
 };
 
 /*
- * File reader object 
+ * File reader object
  */
 struct file_reader;
 
