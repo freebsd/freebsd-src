@@ -110,6 +110,7 @@ struct ng_iface_private {
 	if_t	ifp;			/* Our interface */
 	u_int	fib;			/* Interface fib */
 	int	unit;			/* Interface unit number */
+	uint32_t flags;			/* Interface flags */
 	node_p	node;			/* Our netgraph node */
 	hook_p	hooks[NUM_FAMILIES];	/* Hook for each address family */
 };
@@ -283,10 +284,8 @@ ng_iface_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 	ng_iface_print_ioctl(ifp, command, data);
 #endif
 	switch (command) {
-
-	/* These two are mostly handled at a higher layer */
-	case SIOCSIFADDR:
-		if_addflags(ifp, IF_FLAGS, IFF_UP);
+	case SIOCSIFFLAGS:
+		priv->flags = ifr->ifr_flags;
 		break;
 
 	/* Set the interface MTU */
@@ -303,7 +302,6 @@ ng_iface_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 
 	/* Stuff that's not supported */
 	case SIOCGIFADDR:
-	case SIOCSIFFLAGS:
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		break;
@@ -325,11 +323,12 @@ static int
 ng_iface_output(if_t ifp, struct mbuf *m, const struct sockaddr *dst,
     struct route *ro)
 {
+	const priv_p priv = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	struct m_tag *mtag;
 	uint32_t af;
 
 	/* Check interface flags */
-	if ((if_get(ifp, IF_FLAGS) & IFF_UP) == 0) {
+	if ((priv->flags & IFF_UP) == 0) {
 		m_freem(m);
 		return (ENETDOWN);
 	}
@@ -482,6 +481,7 @@ ng_iface_constructor(node_p node)
 	priv->node = node;
 	ifat.ifat_softc = priv;
 	ifat.ifat_dunit = priv->unit = alloc_unr(V_ng_iface_unit);
+	priv->flags = ifat.ifat_flags;
 	priv->ifp = if_attach(&ifat);
 
 	/* Give this node the same name as the interface (if possible) */
@@ -536,28 +536,6 @@ ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 			strlcpy(resp->data, if_name(ifp), IFNAMSIZ);
 			break;
-
-		case NGM_IFACE_POINT2POINT:
-		case NGM_IFACE_BROADCAST:
-		    {
-
-			/* Deny request if interface is UP */
-			if ((if_get(ifp, IF_FLAGS) & IFF_UP) != 0)
-				return (EBUSY);
-
-			/* Change flags */
-			switch (msg->header.cmd) {
-			case NGM_IFACE_POINT2POINT:
-				if_addflags(ifp, IF_FLAGS, IFF_POINTOPOINT);
-				if_clrflags(ifp, IF_FLAGS, IFF_BROADCAST);
-				break;
-			case NGM_IFACE_BROADCAST:
-				if_clrflags(ifp, IF_FLAGS, IFF_POINTOPOINT);
-				if_addflags(ifp, IF_FLAGS, IFF_BROADCAST);
-				break;
-			}
-			break;
-		    }
 
 		case NGM_IFACE_GET_IFINDEX:
 		    {
@@ -616,7 +594,7 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 	/* Sanity checks */
 	KASSERT(iffam != NULL, ("%s: iffam", __func__));
 	M_ASSERTPKTHDR(m);
-	if ((if_get(ifp, IF_FLAGS) & IFF_UP) == 0) {
+	if ((priv->flags & IFF_UP) == 0) {
 		NG_FREE_M(m);
 		return (ENETDOWN);
 	}
