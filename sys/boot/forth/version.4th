@@ -88,7 +88,7 @@ only forth definitions also version-processing
 	loader_color? dup ( -- bool bool )
 	if 6 fg then
 	type
-	if me then
+	if 7 fg then
 ;
 
 only forth definitions
