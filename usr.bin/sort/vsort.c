@@ -40,18 +40,21 @@ __FBSDID("$FreeBSD$");
 static inline bool
 isdigit_clocale(wchar_t c)
 {
+
 	return (c >= L'0' && c <= L'9');
 }
 
 static inline bool
 isalpha_clocale(wchar_t c)
 {
+
 	return ((c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z'));
 }
 
 static inline bool
 isalnum_clocale(wchar_t c)
 {
+
 	return ((c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z') ||
 	    (c >= L'0' && c <= L'9'));
 }
@@ -112,6 +115,7 @@ find_suffix(bwstring_iterator si, bwstring_iterator se, size_t *len)
 static inline int
 cmp_chars(wchar_t c1, wchar_t c2)
 {
+
 	if (c1 == c2)
 		return (0);
 

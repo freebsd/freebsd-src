@@ -93,6 +93,7 @@ key_hint_size(void)
 size_t
 keys_array_size(void)
 {
+
 	return (keys_num * (sizeof(struct key_value) + key_hint_size()));
 }
 
@@ -102,6 +103,7 @@ keys_array_size(void)
 void
 clean_keys_array(const struct bwstring *s, struct keys_array *ka)
 {
+
 	if (ka) {
 		for (size_t i = 0; i < keys_num; ++i)
 			if (ka->key[i].k && ka->key[i].k != s)
@@ -116,6 +118,7 @@ clean_keys_array(const struct bwstring *s, struct keys_array *ka)
 void
 set_key_on_keys_array(struct keys_array *ka, struct bwstring *s, size_t ind)
 {
+
 	if (ka && keys_num > ind) {
 		struct key_value *kv;
 
@@ -170,6 +173,7 @@ sort_list_item_size(struct sort_list_item *si)
 static void
 sort_list_item_make_key(struct sort_list_item *si)
 {
+
 	preproc(si->str, &(si->ka));
 }
 
@@ -180,6 +184,7 @@ sort_list_item_make_key(struct sort_list_item *si)
 void
 sort_list_item_set(struct sort_list_item *si, struct bwstring *str)
 {
+
 	if (si) {
 		clean_keys_array(si->str, &(si->ka));
 		if (si->str) {
@@ -202,6 +207,7 @@ sort_list_item_set(struct sort_list_item *si, struct bwstring *str)
 void
 sort_list_item_clean(struct sort_list_item *si)
 {
+
 	if (si) {
 		clean_keys_array(si->str, &(si->ka));
 		if (si->str) {
@@ -242,6 +248,7 @@ skip_cols_to_start(const struct bwstring *s, size_t cols, size_t start,
 static size_t
 skip_fields_to_start(const struct bwstring *s, size_t fields, bool *empty_field)
 {
+
 	if (fields < 2) {
 		if (BWSLEN(s) == 0)
 			*empty_field = true;
@@ -290,6 +297,7 @@ static void
 find_field_start(const struct bwstring *s, struct key_specs *ks,
     size_t *field_start, size_t *key_start, bool *empty_field, bool *empty_key)
 {
+
 	*field_start = skip_fields_to_start(s, ks->f1, empty_field);
 	if (!*empty_field)
 		*key_start = skip_cols_to_start(s, ks->c1, *field_start,
@@ -386,6 +394,7 @@ cut_field(const struct bwstring *s, struct key_specs *ks)
 int
 preproc(struct bwstring *s, struct keys_array *ka)
 {
+
 	if (sort_opts_vals.kflag)
 		for (size_t i = 0; i < keys_num; i++) {
 			struct bwstring *key;
@@ -440,6 +449,7 @@ preproc(struct bwstring *s, struct keys_array *ka)
 cmpcoll_t
 get_sort_func(struct sort_mods *sm)
 {
+
 	if (sm->nflag)
 		return (numcoll);
 	else if (sm->hflag)
@@ -492,6 +502,7 @@ key_coll(struct keys_array *ps1, struct keys_array *ps2, size_t offset)
 int
 top_level_str_coll(const struct bwstring *s1, const struct bwstring *s2)
 {
+
 	if (default_sort_mods->rflag) {
 		const struct bwstring *tmp;
 
@@ -580,15 +591,16 @@ list_coll_offset(struct sort_list_item **ss1, struct sort_list_item **ss2,
 int
 list_coll(struct sort_list_item **ss1, struct sort_list_item **ss2)
 {
+
 	return (list_coll_offset(ss1, ss2, 0));
 }
 
-#define LSCDEF(N)								\
-static int									\
-list_coll_##N(struct sort_list_item **ss1, struct sort_list_item **ss2)		\
-{										\
-										\
-	return (list_coll_offset(ss1, ss2, N));					\
+#define	LSCDEF(N)							\
+static int 								\
+list_coll_##N(struct sort_list_item **ss1, struct sort_list_item **ss2)	\
+{									\
+									\
+	return (list_coll_offset(ss1, ss2, N));				\
 }
 
 LSCDEF(1)
@@ -634,6 +646,7 @@ get_list_call_func(size_t offset)
 int
 list_coll_by_str_only(struct sort_list_item **ss1, struct sort_list_item **ss2)
 {
+
 	return (top_level_str_coll(((*ss1)->str), ((*ss2)->str)));
 }
 
@@ -771,6 +784,7 @@ wstrcoll(struct key_value *kv1, struct key_value *kv2, size_t offset)
 static inline int
 cmpsuffix(unsigned char si1, unsigned char si2)
 {
+
 	return ((char)si1 - (char)si2);
 }
 
@@ -936,6 +950,7 @@ numcoll_impl(struct key_value *kv1, struct key_value *kv2,
 static int
 numcoll(struct key_value *kv1, struct key_value *kv2, size_t offset)
 {
+
 	return (numcoll_impl(kv1, kv2, offset, false));
 }
 
@@ -945,6 +960,7 @@ numcoll(struct key_value *kv1, struct key_value *kv2, size_t offset)
 static int
 hnumcoll(struct key_value *kv1, struct key_value *kv2, size_t offset)
 {
+
 	return (numcoll_impl(kv1, kv2, offset, true));
 }
 
@@ -1030,6 +1046,7 @@ versioncoll(struct key_value *kv1, struct key_value *kv2,
 static inline bool
 huge_minus(double d, int err1)
 {
+
 	if (err1 == ERANGE)
 		if (d == -HUGE_VAL || d == -HUGE_VALF || d == -HUGE_VALL)
 			return (+1);
@@ -1043,6 +1060,7 @@ huge_minus(double d, int err1)
 static inline bool
 huge_plus(double d, int err1)
 {
+
 	if (err1 == ERANGE)
 		if (d == HUGE_VAL || d == HUGE_VALF || d == HUGE_VALL)
 			return (+1);
@@ -1056,6 +1074,7 @@ huge_plus(double d, int err1)
 static bool
 is_nan(double d)
 {
+
 	return ((d == NAN) || (isnan(d)));
 }
 
@@ -1065,6 +1084,7 @@ is_nan(double d)
 static int
 cmp_nans(double d1, double d2)
 {
+
 	if (d1 < d2)
 		return (-1);
 	if (d2 > d2)
