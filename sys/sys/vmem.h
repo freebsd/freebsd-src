@@ -129,6 +129,7 @@ void vmem_startup(void);
 /* vmem_size typemask */
 #define VMEM_ALLOC	0x01
 #define VMEM_FREE	0x02
+#define VMEM_MAXFREE	0x10
 
 #endif /* _KERNEL */
 

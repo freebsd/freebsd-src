@@ -20,9 +20,12 @@ SRCS=	autoload.c \
 	copy.c \
 	devicename.c \
 	main.c \
+	smbios.c \
 	vers.c
 
 .PATH: ${.CURDIR}/arch/${MACHINE_CPUARCH}
+# For smbios.c
+.PATH: ${.CURDIR}/../../i386/libi386
 .include "${.CURDIR}/arch/${MACHINE_CPUARCH}/Makefile.inc"
 
 CFLAGS+=	-fPIC
@@ -32,7 +35,8 @@ CFLAGS+=	-I${.CURDIR}/../include
 CFLAGS+=	-I${.CURDIR}/../include/${MACHINE_CPUARCH}
 CFLAGS+=	-I${.CURDIR}/../../../contrib/dev/acpica/include
 CFLAGS+=	-I${.CURDIR}/../../..
-CFLAGS+=	-DNO_PCI
+CFLAGS+=	-I${.CURDIR}/../../i386/libi386
+CFLAGS+=	-DNO_PCI -DEFI
 
 .if ${MK_FORTH} != "no"
 BOOT_FORTH=	yes
@@ -40,6 +44,15 @@ CFLAGS+=	-DBOOT_FORTH
 CFLAGS+=	-I${.CURDIR}/../../ficl
 CFLAGS+=	-I${.CURDIR}/../../ficl/${MACHINE_CPUARCH}
 LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
+.endif
+
+LOADER_FDT_SUPPORT?=	no
+.if ${MK_FDT} != "no" && ${LOADER_FDT_SUPPORT} != "no"
+CFLAGS+=	-I${.CURDIR}/../../fdt
+CFLAGS+=	-I${.OBJDIR}/../../fdt
+CFLAGS+=	-DLOADER_FDT_SUPPORT
+LIBEFI_FDT=	${.OBJDIR}/../../efi/fdt/libefi_fdt.a
+LIBFDT=		${.OBJDIR}/../../fdt/libfdt.a
 .endif
 
 # Include bcache code.
@@ -88,8 +101,9 @@ loader.efi: loader.sym
 
 LIBEFI=		${.OBJDIR}/../libefi/libefi.a
 
-DPADD=		${LIBFICL} ${LIBEFI} ${LIBSTAND} ${LDSCRIPT}
-LDADD=		${LIBFICL} ${LIBEFI} ${LIBSTAND}
+DPADD=		${LIBFICL} ${LIBEFI} ${LIBFDT} ${LIBEFI_FDT} ${LIBSTAND} \
+		${LDSCRIPT}
+LDADD=		${LIBFICL} ${LIBEFI} ${LIBFDT} ${LIBEFI_FDT} ${LIBSTAND}
 
 .endif # ${COMPILER_TYPE} != "gcc"
 
