@@ -53,7 +53,7 @@ only forth definitions
   loader_color? dup ( -- bool bool )
   if 7 fg 4 bg then
   ." Booting..."
-  if me then
+  if escc ." 0m" then
   cr
 ;
 
