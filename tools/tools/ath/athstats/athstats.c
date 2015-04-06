@@ -796,10 +796,12 @@ ath_get_totstat(struct bsdstat *sf, int s, char b[], size_t bs)
 	switch (s) {
 	case S_INPUT:
 		snprintf(b, bs, "%lu",
-		    wf->total.ath.ast_rx_packets - wf->total.ath.ast_rx_mgt);
+		    (unsigned long) wf->total.ath.ast_rx_packets -
+		    (unsigned long) wf->total.ath.ast_rx_mgt);
 		return 1;
 	case S_OUTPUT:
-		snprintf(b, bs, "%lu", wf->total.ath.ast_tx_packets);
+		snprintf(b, bs, "%lu",
+		    (unsigned long) wf->total.ath.ast_tx_packets);
 		return 1;
 	case S_RATE:
 		snprintrate(b, bs, wf->total.ath.ast_tx_rate);
