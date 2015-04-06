@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #define	FAULTBUF_R1	1
 #define	FAULTBUF_R2	2
 #define	FAULTBUF_CR	3
-#define	FAULTBUF_R13	6
+#define	FAULTBUF_R13	4
 
 static void	trap_fatal(struct trapframe *frame);
 static void	printtrap(u_int vector, struct trapframe *frame, int isfatal,
