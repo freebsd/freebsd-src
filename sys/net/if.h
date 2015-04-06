@@ -134,8 +134,8 @@ struct if_data {
  *     after.
  * (n) if_flags field written only by the network stack, read by either the
  *     stack or driver.
- * (d) if_drv_flags field written only by the device driver, read by either
- *     the stack or driver.
+ * (o) obsoleted in FreeBSD, but third party applications may still
+ *     require definitions.
  */
 #define	IFF_UP		0x1		/* (n) interface is up */
 #define	IFF_BROADCAST	0x2		/* (i) broadcast address valid */
@@ -143,11 +143,11 @@ struct if_data {
 #define	IFF_LOOPBACK	0x8		/* (i) is a loopback net */
 #define	IFF_POINTOPOINT	0x10		/* (i) is a point-to-point link */
 /*			0x20		   was IFF_SMART */
-#define	IFF_RUNNING	0x40		/* (d) resources allocated */
+#define	IFF_RUNNING	0x40		/* (o) resources allocated */
 #define	IFF_NOARP	0x80		/* (n) no address resolution protocol */
 #define	IFF_PROMISC	0x100		/* (n) receive all packets */
 #define	IFF_ALLMULTI	0x200		/* (n) receive all multicast packets */
-#define	IFF_OACTIVE	0x400		/* (d) tx hardware queue is full */
+#define	IFF_OACTIVE	0x400		/* (o) tx hardware queue is full */
 #define	IFF_SIMPLEX	0x800		/* (i) can't hear own transmissions */
 #define	IFF_LINK0	0x1000		/* per link layer defined bit */
 #define	IFF_LINK1	0x2000		/* per link layer defined bit */
