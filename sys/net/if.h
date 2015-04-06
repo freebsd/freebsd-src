@@ -572,14 +572,15 @@ typedef enum {
 } ift_counter;
 
 typedef enum {
-	IF_DRIVER_SOFTC = 0,
+	IF_NO_SOFTC = 0,
+	IF_DRIVER_SOFTC,
 	IF_LLADDR,
 	IF_BPF,
 	IF_NAME,
 	IF_VLAN,
 	/*
 	 * Values do matter, since we want to avoid aliasing of frequently
-	 * used features in if_softcs cache.
+	 * used features in if_sccache cache.
 	 */
 	IF_AF_INET = 8,
 	IF_AF_INET6 = 9,
