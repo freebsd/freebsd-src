@@ -206,6 +206,8 @@ also menu-infrastructure definitions
 \ 
 : printmenuitem ( menu_item_str -- ascii_keycode )
 
+	loader_color? if [char] ^ escc! then
+
 	menurow dup @ 1+ swap ! ( increment menurow )
 	menuidx dup @ 1+ swap ! ( increment menuidx )
 
