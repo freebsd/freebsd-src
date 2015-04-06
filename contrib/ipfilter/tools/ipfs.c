@@ -33,9 +33,6 @@
 #include <netinet/in_systm.h>
 #include <sys/time.h>
 #include <net/if.h>
-#if __FreeBSD_version >= 300000
-# include <net/if_var.h>
-#endif
 #include <netinet/ip.h>
 #include <netdb.h>
 #include <arpa/nameser.h>

@@ -51,7 +51,6 @@
 
 #include <arpa/inet.h>
 
-#include <net/if_var.h>
 #include <netinet/in_var.h>
 #include <netinet6/nd6.h>
 

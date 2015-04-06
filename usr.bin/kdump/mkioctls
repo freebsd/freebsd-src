@@ -54,7 +54,6 @@ BEGIN {
 	print "#include <bsm/audit.h>"
 	print "#include <net/ethernet.h>"
 	print "#include <net/if.h>"
-	print "#include <net/if_var.h>"
 	print "#ifdef PF"
 	print "#include <net/pfvar.h>"
 	print "#include <net/if_pfsync.h>"
