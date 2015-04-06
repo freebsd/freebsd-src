@@ -113,7 +113,7 @@ ata_sii_probe(device_t dev)
 
     ata_set_desc(dev);
     ctlr->chipinit = ata_sii_chipinit;
-    return (BUS_PROBE_DEFAULT);
+    return (BUS_PROBE_LOW_PRIORITY);
 }
 
 int
