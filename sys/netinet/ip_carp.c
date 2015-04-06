@@ -156,7 +156,7 @@ static int proto_reg[] = {-1, -1};
  * Brief design of carp(4).
  *
  * Any carp-capable ifnet may have a list of carp softcs hanging off
- * its ifp->if_carp pointer. Each softc represents one unique virtual
+ * its IF_CARP softc pointer. Each softc represents one unique virtual
  * host id, or vhid. The softc has a back pointer to the ifnet. All
  * softcs are joined in a global list, which has quite limited use.
  *
@@ -285,9 +285,9 @@ SYSCTL_VNET_PCPUSTAT(_net_inet_carp, OID_AUTO, stats, struct carpstats,
 		((ifa) = sc->sc_ifas[_i]) != NULL;			\
 		++_i)
 
-#define	IFNET_FOREACH_CARP(ifp, sc)					\
-	CIF_LOCK_ASSERT(ifp->if_carp);					\
-	TAILQ_FOREACH((sc), &(ifp)->if_carp->cif_vrs, sc_list)
+#define	CIF_FOREACH_CARP(cif, sc)					\
+	CIF_LOCK_ASSERT(cif);						\
+	TAILQ_FOREACH((sc), &(cif)->cif_vrs, sc_list)
 
 #define	DEMOTE_ADVSKEW(sc)					\
     (((sc)->sc_advskew + V_carp_demotion > CARP_MAXSKEW) ?	\
@@ -539,7 +539,7 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 	}
 
 	/* check if received on a valid carp interface */
-	if (m->m_pkthdr.rcvif->if_carp == NULL) {
+	if (if_getsoftc(m->m_pkthdr.rcvif, IF_CARP) == NULL) {
 		CARPSTATS_INC(carps_badif);
 		CARP_DEBUG("%s: packet received on non-carp interface: %s\n",
 		    __func__, m->m_pkthdr.rcvif->if_xname);
@@ -795,6 +795,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 	struct timeval tv;
 	struct sockaddr sa;
 	struct ifaddr *ifa;
+	struct carp_if *cif;
 	struct carp_header *ch_ptr;
 	struct mbuf *m;
 	int len, advskew;
@@ -813,6 +814,8 @@ carp_send_ad_locked(struct carp_softc *sc)
 	ch.carp_authlen = 7;	/* XXX DEFINE */
 	ch.carp_pad1 = 0;	/* must be zero */
 	ch.carp_cksum = 0;
+
+	cif = if_getsoftc(sc->sc_carpdev, IF_CARP);
 
 	/* XXXGL: OpenBSD picks first ifaddr with needed family. */
 
@@ -865,7 +868,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 		CARPSTATS_INC(carps_opackets);
 
 		carp_send_ad_error(sc, ip_output(m, NULL, NULL, IP_RAWOUTPUT,
-		    &sc->sc_carpdev->if_carp->cif_imo, NULL));
+		    &cif->cif_imo, NULL));
 	}
 #endif /* INET */
 #ifdef INET6
@@ -922,7 +925,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 		CARPSTATS_INC(carps_opackets6);
 
 		carp_send_ad_error(sc, ip6_output(m, NULL, NULL, 0,
-		    &sc->sc_carpdev->if_carp->cif_im6o, NULL, NULL));
+		    &cif->cif_im6o, NULL, NULL));
 	}
 #endif /* INET6 */
 
@@ -1111,23 +1114,25 @@ int
 carp_forus(struct ifnet *ifp, u_char *dhost)
 {
 	struct carp_softc *sc;
+	struct carp_if *cif;
 	uint8_t *ena = dhost;
 
 	if (ena[0] || ena[1] || ena[2] != 0x5e || ena[3] || ena[4] != 1)
 		return (0);
 
-	CIF_LOCK(ifp->if_carp);
-	IFNET_FOREACH_CARP(ifp, sc) {
+	cif = if_getsoftc(ifp, IF_CARP);
+	CIF_LOCK(cif);
+	CIF_FOREACH_CARP(cif, sc) {
 		CARP_LOCK(sc);
 		if (sc->sc_state == MASTER && !bcmp(dhost, LLADDR(&sc->sc_addr),
 		    ETHER_ADDR_LEN)) {
 			CARP_UNLOCK(sc);
-			CIF_UNLOCK(ifp->if_carp);
+			CIF_UNLOCK(cif);
 			return (1);
 		}
 		CARP_UNLOCK(sc);
 	}
-	CIF_UNLOCK(ifp->if_carp);
+	CIF_UNLOCK(cif);
 
 	return (0);
 }
@@ -1417,7 +1422,7 @@ carp_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *sa)
 	bcopy(mtag + 1, &sc, sizeof(sc));
 
 	/* Set the source MAC address to the Virtual Router MAC Address. */
-	switch (ifp->if_type) {
+	switch (if_type(ifp)) {
 	case IFT_ETHER:
 	case IFT_BRIDGE:
 	case IFT_L2VLAN: {
@@ -1457,7 +1462,7 @@ carp_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *sa)
 		break;
 	default:
 		printf("%s: carp is not supported for the %d interface type\n",
-		    ifp->if_xname, ifp->if_type);
+		    ifp->if_xname, if_type(ifp));
 		return (EOPNOTSUPP);
 	}
 
@@ -1470,7 +1475,8 @@ carp_alloc(struct ifnet *ifp)
 	struct carp_softc *sc;
 	struct carp_if *cif;
 
-	if ((cif = ifp->if_carp) == NULL)
+	cif = if_getsoftc(ifp, IF_CARP);
+	if (cif == NULL)
 		cif = carp_alloc_if(ifp);
 
 	sc = malloc(sizeof(*sc), M_CARP, M_WAITOK|M_ZERO);
@@ -1526,8 +1532,9 @@ static void
 carp_destroy(struct carp_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_carpdev;
-	struct carp_if *cif = ifp->if_carp;
+	struct carp_if *cif;
 
+	cif = if_getsoftc(ifp, IF_CARP);
 	CIF_LOCK_ASSERT(cif);
 
 	TAILQ_REMOVE(&cif->cif_vrs, sc, sc_list);
@@ -1552,7 +1559,7 @@ carp_destroy(struct carp_softc *sc)
 	free(sc, M_CARP);
 }
 
-static struct carp_if*
+static struct carp_if *
 carp_alloc_if(struct ifnet *ifp)
 {
 	struct carp_if *cif;
@@ -1570,10 +1577,9 @@ carp_alloc_if(struct ifnet *ifp)
 	cif->cif_ifp = ifp;
 	TAILQ_INIT(&cif->cif_vrs);
 
-	IF_ADDR_WLOCK(ifp);
-	ifp->if_carp = cif;
+	error = if_setsoftc(ifp, IF_CARP, cif);
+	KASSERT(error == 0, ("%s: ifp %p has carp softc", __func__, ifp));
 	if_ref(ifp);
-	IF_ADDR_WUNLOCK(ifp);
 
 	return (cif);
 }
@@ -1587,9 +1593,7 @@ carp_free_if(struct carp_if *cif)
 	KASSERT(TAILQ_EMPTY(&cif->cif_vrs), ("%s: softc list not empty",
 	    __func__));
 
-	IF_ADDR_WLOCK(ifp);
-	ifp->if_carp = NULL;
-	IF_ADDR_WUNLOCK(ifp);
+	if_setsoftc(ifp, IF_CARP, NULL);
 
 	CIF_LOCK_DESTROY(cif);
 
@@ -1621,6 +1625,7 @@ carp_ioctl(struct ifreq *ifr, u_long cmd, struct thread *td)
 {
 	struct carpreq carpr;
 	struct ifnet *ifp;
+	struct carp_if *cif;
 	struct carp_softc *sc = NULL;
 	int error = 0, locked = 0;
 
@@ -1631,7 +1636,7 @@ carp_ioctl(struct ifreq *ifr, u_long cmd, struct thread *td)
 	if (ifp == NULL)
 		return (ENXIO);
 
-	switch (ifp->if_type) {
+	switch (if_type(ifp)) {
 	case IFT_ETHER:
 	case IFT_L2VLAN:
 	case IFT_BRIDGE:
@@ -1649,6 +1654,7 @@ carp_ioctl(struct ifreq *ifr, u_long cmd, struct thread *td)
 	}
 
 	sx_xlock(&carp_sx);
+	cif = if_getsoftc(ifp, IF_CARP);
 	switch (cmd) {
 	case SIOCSVH:
 		if ((error = priv_check(td, PRIV_NETINET_CARP)))
@@ -1659,12 +1665,12 @@ carp_ioctl(struct ifreq *ifr, u_long cmd, struct thread *td)
 			break;
 		}
 
-		if (ifp->if_carp) {
-			CIF_LOCK(ifp->if_carp);
-			IFNET_FOREACH_CARP(ifp, sc)
+		if (cif) {
+			CIF_LOCK(cif);
+			CIF_FOREACH_CARP(cif, sc)
 				if (sc->sc_vhid == carpr.carpr_vhid)
 					break;
-			CIF_UNLOCK(ifp->if_carp);
+			CIF_UNLOCK(cif);
 		}
 		if (sc == NULL) {
 			sc = carp_alloc(ifp);
@@ -1728,18 +1734,18 @@ carp_ioctl(struct ifreq *ifr, u_long cmd, struct thread *td)
 			error = EMSGSIZE;
 			break;
 		}
-		if (ifp->if_carp == NULL) {
+		if (cif == NULL) {
 			error = ENOENT;
 			break;
 		}
 
 		priveleged = (priv_check(td, PRIV_NETINET_CARP) == 0);
 		if (carpr.carpr_vhid != 0) {
-			CIF_LOCK(ifp->if_carp);
-			IFNET_FOREACH_CARP(ifp, sc)
+			CIF_LOCK(cif);
+			CIF_FOREACH_CARP(cif, sc)
 				if (sc->sc_vhid == carpr.carpr_vhid)
 					break;
-			CIF_UNLOCK(ifp->if_carp);
+			CIF_UNLOCK(cif);
 			if (sc == NULL) {
 				error = ENOENT;
 				break;
@@ -1750,29 +1756,29 @@ carp_ioctl(struct ifreq *ifr, u_long cmd, struct thread *td)
 			int i, count;
 
 			count = 0;
-			CIF_LOCK(ifp->if_carp);
-			IFNET_FOREACH_CARP(ifp, sc)
+			CIF_LOCK(cif);
+			CIF_FOREACH_CARP(cif, sc)
 				count++;
 
 			if (count > carpr.carpr_count) {
-				CIF_UNLOCK(ifp->if_carp);
+				CIF_UNLOCK(cif);
 				error = EMSGSIZE;
 				break;
 			}
 
 			i = 0;
-			IFNET_FOREACH_CARP(ifp, sc) {
+			CIF_FOREACH_CARP(cif, sc) {
 				carp_carprcp(&carpr, sc, priveleged);
 				carpr.carpr_count = count;
 				error = copyout(&carpr, ifr->ifr_data +
 				    (i * sizeof(carpr)), sizeof(carpr));
 				if (error) {
-					CIF_UNLOCK(ifp->if_carp);
+					CIF_UNLOCK(cif);
 					break;
 				}
 				i++;
 			}
-			CIF_UNLOCK(ifp->if_carp);
+			CIF_UNLOCK(cif);
 		}
 		break;
 	    }
@@ -1803,11 +1809,12 @@ int
 carp_attach(struct ifaddr *ifa, int vhid)
 {
 	struct ifnet *ifp = ifa->ifa_ifp;
-	struct carp_if *cif = ifp->if_carp;
+	struct carp_if *cif;
 	struct carp_softc *sc;
 	int index, error;
 
-	if (ifp->if_carp == NULL)
+	cif = if_getsoftc(ifp, IF_CARP);
+	if (cif == NULL)
 		return (ENOPROTOOPT);
 
 	switch (ifa->ifa_addr->sa_family) {
@@ -1823,7 +1830,7 @@ carp_attach(struct ifaddr *ifa, int vhid)
 	}
 
 	CIF_LOCK(cif);
-	IFNET_FOREACH_CARP(ifp, sc)
+	CIF_FOREACH_CARP(cif, sc)
 		if (sc->sc_vhid == vhid)
 			break;
 	if (sc == NULL) {
@@ -1889,8 +1896,9 @@ void
 carp_detach(struct ifaddr *ifa)
 {
 	struct ifnet *ifp = ifa->ifa_ifp;
-	struct carp_if *cif = ifp->if_carp;
+	struct carp_if *cif;
 
+	cif = if_getsoftc(ifp, IF_CARP);
 	CIF_LOCK(cif);
 	carp_detach_locked(ifa);
 	CIF_FREE(cif);
@@ -1900,12 +1908,13 @@ static void
 carp_detach_locked(struct ifaddr *ifa)
 {
 	struct ifnet *ifp = ifa->ifa_ifp;
-	struct carp_if *cif = ifp->if_carp;
+	struct carp_if *cif;
 	struct carp_softc *sc = ifa->ifa_carp;
 	int i, index;
 
 	KASSERT(sc != NULL, ("%s: %p not attached", __func__, ifa));
 
+	cif = if_getsoftc(ifp, IF_CARP);
 	CIF_LOCK_ASSERT(cif);
 	CARP_LOCK(sc);
 
@@ -1976,14 +1985,16 @@ static void
 carp_linkstate(struct ifnet *ifp)
 {
 	struct carp_softc *sc;
+	struct carp_if *cif;
 
-	CIF_LOCK(ifp->if_carp);
-	IFNET_FOREACH_CARP(ifp, sc) {
+	cif = if_getsoftc(ifp, IF_CARP);
+	CIF_LOCK(cif);
+	CIF_FOREACH_CARP(cif, sc) {
 		CARP_LOCK(sc);
 		carp_sc_state(sc);
 		CARP_UNLOCK(sc);
 	}
-	CIF_UNLOCK(ifp->if_carp);
+	CIF_UNLOCK(cif);
 }
 
 static void

@@ -242,7 +242,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	 * (3) "tentative" address on which DAD is being performed.
 	 */
 	/* (1) and (3) check. */
-	if (ifp->if_carp)
+	if (if_getsoftc(ifp, IF_CARP) != NULL)
 		ifa = (*carp_iamatch6_p)(ifp, &taddr6);
 	else
 		ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp, &taddr6);
@@ -731,7 +731,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	 * This effectively disables the DAD check on a non-master CARP
 	 * address.
 	 */
-	if (ifp->if_carp)
+	if (if_getsoftc(ifp, IF_CARP) != NULL)
 		ifa = (*carp_iamatch6_p)(ifp, &taddr6);
 	else
 		ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp, &taddr6);
@@ -1077,7 +1077,7 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 		 * my address) use lladdr configured for the interface.
 		 */
 		if (sdl0 == NULL) {
-			if (ifp->if_carp)
+			if (if_getsoftc(ifp, IF_CARP) != NULL)
 				mac = (*carp_macmatch6_p)(ifp, m, taddr6);
 			if (mac == NULL)
 				mac = nd6_ifptomac(ifp);

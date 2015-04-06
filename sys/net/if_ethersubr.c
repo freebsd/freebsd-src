@@ -318,7 +318,12 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	}
 
 #if defined(INET) || defined(INET6)
-	if (ifp->if_carp &&
+	/*
+	 * XXXGL: the if_getsoftc() lookup might affect performance,
+	 * but the plan is to improve carp to avoid calling
+	 * carp_output() on every packet.
+	 */
+	if (carp_output_p != NULL && if_getsoftc(ifp, IF_CARP) != NULL &&
 	    (error = (*carp_output_p)(ifp, m, dst)))
 		goto bad;
 #endif
@@ -544,7 +549,8 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 	 * TODO: Maintain a hash table of ethernet addresses other than
 	 * ether_dhost which may be active on this ifp.
 	 */
-	if (ifp->if_carp && (*carp_forus_p)(ifp, eh->ether_dhost)) {
+	if (carp_forus_p != NULL && if_getsoftc(ifp, IF_CARP) != NULL &&
+	    (*carp_forus_p)(ifp, eh->ether_dhost)) {
 		m->m_flags &= ~M_PROMISC;
 	} else
 #endif

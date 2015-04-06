@@ -633,7 +633,7 @@ passin:
 	 */
 	checkif = V_ip_checkinterface && (V_ipforwarding == 0) && 
 	    ifp != NULL && ((ifp->if_flags & IFF_LOOPBACK) == 0) &&
-	    ifp->if_carp == NULL && (dchg == 0);
+	    (dchg == 0) && if_getsoftc(ifp, IF_CARP) == NULL;
 
 	/*
 	 * Check for exact addresses in the hash bucket.

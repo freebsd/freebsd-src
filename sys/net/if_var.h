@@ -36,7 +36,6 @@
 struct	rtentry;		/* ifa_rtrequest */
 struct	rt_addrinfo;		/* ifa_rtrequest */
 struct	socket;
-struct	carp_if;
 struct	carp_softc;
 struct  ifvlantrunk;
 struct	ifmedia;
@@ -171,7 +170,6 @@ struct ifnet {
 	void	*if_bridge;		/* bridge glue */
 	void	*if_lagg;		/* lagg glue */
 	void	*if_pf_kif;		/* pf glue */
-	struct	carp_if *if_carp;	/* carp interface structure */
 	struct	label *if_label;	/* interface MAC label */
 	struct	netmap_adapter *if_netmap; /* netmap(4) softc */
 

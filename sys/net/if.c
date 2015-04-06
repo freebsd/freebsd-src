@@ -2276,7 +2276,7 @@ do_link_state_change(void *arg, int pending)
 	if ((if_type(ifp) == IFT_ETHER || if_type(ifp) == IFT_L2VLAN) &&
 	    ifp->if_l2com != NULL)
 		(*ng_ether_link_state_p)(ifp, link_state);
-	if (ifp->if_carp)
+	if (if_getsoftc(ifp, IF_CARP) != NULL)
 		(*carp_linkstate_p)(ifp);
 	if (ifp->if_bridge)
 		(*bridge_linkstate_p)(ifp);
@@ -2310,7 +2310,7 @@ if_down(struct ifnet *ifp)
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		pfctlinput(PRC_IFDOWN, ifa->ifa_addr);
 	if_qflush(ifp);
-	if (ifp->if_carp)
+	if (if_getsoftc(ifp, IF_CARP) != NULL)
 		(*carp_linkstate_p)(ifp);
 	rt_ifmsg(ifp);
 }
@@ -2328,7 +2328,7 @@ if_up(struct ifnet *ifp)
 	getmicrotime(&ifp->if_lastchange);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		pfctlinput(PRC_IFUP, ifa->ifa_addr);
-	if (ifp->if_carp)
+	if (if_getsoftc(ifp, IF_CARP) != NULL)
 		(*carp_linkstate_p)(ifp);
 	rt_ifmsg(ifp);
 #ifdef INET6
