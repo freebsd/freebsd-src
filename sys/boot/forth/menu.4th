@@ -219,7 +219,7 @@ also menu-infrastructure definitions
 	loader_color? dup ( -- bool bool )
 	if b then
 	menuidx @ .
-	if me then
+	if 7 fg then
 
 	\ Move the cursor forward 1 column
 	dup menuX @ 1+ swap at-xy
