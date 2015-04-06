@@ -180,9 +180,6 @@ static int proto_reg[] = {-1, -1};
  *
  * Known issues with locking:
  *
- * - There is no protection for races between two ioctl() requests,
- *   neither SIOCSVH, nor SIOCAIFADDR & SIOCAIFADDR_IN6. I think that all
- *   interface ioctl()s should be serialized right in net/if.c.
  * - Sending ad, we put the pointer to the softc in an mtag, and no reference
  *   counting is done on the softc.
  * - On module unload we may race (?) with packet processing thread
@@ -321,6 +318,7 @@ static void	carp_demote_adj(int, char *);
 
 static LIST_HEAD(, carp_softc) carp_list;
 static struct mtx carp_mtx;
+static struct sx carp_sx;
 static struct task carp_sendall_task =
     TASK_INITIALIZER(0, carp_send_ad_all, NULL);
 
@@ -1650,6 +1648,7 @@ carp_ioctl(struct ifreq *ifr, u_long cmd, struct thread *td)
 		goto out;
 	}
 
+	sx_xlock(&carp_sx);
 	switch (cmd) {
 	case SIOCSVH:
 		if ((error = priv_check(td, PRIV_NETINET_CARP)))
@@ -1780,6 +1779,7 @@ carp_ioctl(struct ifreq *ifr, u_long cmd, struct thread *td)
 	default:
 		error = EINVAL;
 	}
+	sx_xunlock(&carp_sx);
 
 out:
 	if (locked)
@@ -2099,6 +2099,7 @@ carp_mod_cleanup(void)
 	mtx_unlock(&carp_mtx);
 	taskqueue_drain(taskqueue_swi, &carp_sendall_task);
 	mtx_destroy(&carp_mtx);
+	sx_destroy(&carp_sx);
 }
 
 static int
@@ -2107,6 +2108,7 @@ carp_mod_load(void)
 	int err;
 
 	mtx_init(&carp_mtx, "carp_mtx", NULL, MTX_DEF);
+	sx_init(&carp_sx, "carp_sx");
 	LIST_INIT(&carp_list);
 	carp_get_vhid_p = carp_get_vhid;
 	carp_forus_p = carp_forus;
