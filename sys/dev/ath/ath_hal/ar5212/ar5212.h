@@ -345,7 +345,9 @@ struct ath_hal_5212 {
 	uint32_t	ah_txBusy;
 	uint32_t	ah_rx_chainmask;
 	uint32_t	ah_tx_chainmask;
-	HAL_ANI_STATE	ext_ani_state;
+
+	/* Used to return ANI statistics to the diagnostic API */
+	HAL_ANI_STATS	ext_ani_stats;
 };
 #define	AH5212(_ah)	((struct ath_hal_5212 *)(_ah))
 
