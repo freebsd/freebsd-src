@@ -537,22 +537,9 @@ again2:
 	if (!IN6_ARE_ADDR_EQUAL(&odst, &ip6->ip6_dst)) {
 		m->m_flags |= M_SKIP_FIREWALL;
 		/* If destination is now ourself drop to ip6_input(). */
-		if (in6_localip(&ip6->ip6_dst)) {
+		if (in6_localip(&ip6->ip6_dst))
 			m->m_flags |= M_FASTFWD_OURS;
-			if (m->m_pkthdr.rcvif == NULL)
-				m->m_pkthdr.rcvif = V_loif;
-			if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
-				m->m_pkthdr.csum_flags |=
-				    CSUM_DATA_VALID_IPV6 | CSUM_PSEUDO_HDR;
-				m->m_pkthdr.csum_data = 0xffff;
-			}
-#ifdef SCTP
-			if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6)
-				m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
-#endif
-			error = netisr_queue(NETISR_IPV6, m);
-			goto out;
-		} else
+		else
 			goto again;	/* Redo the routing table lookup. */
 	}
 
