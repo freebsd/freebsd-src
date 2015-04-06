@@ -79,13 +79,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/route.h>
 
 #include <netinet/in.h>
 
 #include <err.h>
-#include <nlist.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -98,20 +96,6 @@ __FBSDID("$FreeBSD$");
 
 #include "netstat.h"
 
-/*
- * kvm(3) bindings for every needed symbol
- */
-static struct nlist mrl[] = {
-#define	N_MF6CTABLE	0
-	{ .n_name = "_mf6ctable" },
-#define	N_MIF6TABLE	1
-	{ .n_name = "_mif6table" },
-#define	N_MRT6STAT	2
-	{ .n_name = "_mrt6stat" },
-	{ .n_name = NULL },
-};
-
-
 #define	WID_ORG	(Wflag ? 39 : (numeric_addr ? 29 : 18)) /* width of origin column */
 #define	WID_GRP	(Wflag ? 18 : (numeric_addr ? 16 : 18)) /* width of group column */
 
@@ -119,11 +103,10 @@ void
 mroute6pr()
 {
 	struct mf6c *mf6ctable[MF6CTBLSIZ], *mfcp;
-	struct mif6 mif6table[MAXMIFS];
+	struct mif6_sctl mif6table[MAXMIFS];
 	struct mf6c mfc;
 	struct rtdetq rte, *rtep;
-	struct mif6 *mifp;
-	u_long mfcaddr, mifaddr;
+	struct mif6_sctl *mifp;
 	mifi_t mifi;
 	int i;
 	int banner_printed;
@@ -132,38 +115,25 @@ mroute6pr()
 	long int waitings;
 	size_t len;
 
-	kresolve_list(mrl);
-	mfcaddr = mrl[N_MF6CTABLE].n_value;
-	mifaddr = mrl[N_MIF6TABLE].n_value;
-
-	if (mfcaddr == 0 || mifaddr == 0) {
-		fprintf(stderr, "No IPv6 MROUTING kernel support.\n");
+	if (live == 0)
 		return;
-	}
 
 	len = sizeof(mif6table);
-	if (live) {
-		if (sysctlbyname("net.inet6.ip6.mif6table", mif6table, &len,
-		    NULL, 0) < 0) {
-			xo_warn("sysctl: net.inet6.ip6.mif6table");
-			return;
-		}
-	} else
-		kread(mifaddr, (char *)mif6table, sizeof(mif6table));
+	if (sysctlbyname("net.inet6.ip6.mif6table", mif6table, &len, NULL, 0) <
+	    0) {
+		xo_warn("sysctl: net.inet6.ip6.mif6table");
+		return;
+	}
 
 	saved_numeric_addr = numeric_addr;
 	numeric_addr = 1;
 	banner_printed = 0;
 
 	for (mifi = 0, mifp = mif6table; mifi < MAXMIFS; ++mifi, ++mifp) {
-		struct ifnet ifnet;
 		char ifname[IFNAMSIZ];
 
-		if (mifp->m6_ifp == NULL)
+		if (mifp->m6_ifp == 0)
 			continue;
-
-		/* XXX KVM */
-		kread((u_long)mifp->m6_ifp, (char *)&ifnet, sizeof(ifnet));
 
 		maxmif = mifi;
 		if (!banner_printed) {
@@ -177,7 +147,7 @@ mroute6pr()
 		xo_emit("  {:mif/%2u}   {:rate-limit/%4d}",
 		    mifi, mifp->m6_rate_limit);
 		xo_emit("   {:ifname/%5s}", (mifp->m6_flags & MIFF_REGISTER) ?
-		    "reg0" : if_indextoname(ifnet.if_index, ifname));
+		    "reg0" : if_indextoname(mifp->m6_ifp, ifname));
 
 		xo_emit(" {:received-packets/%9ju}  {:sent-packets/%9ju}\n",
 		    (uintmax_t)mifp->m6_pkt_in,
@@ -190,14 +160,11 @@ mroute6pr()
 		xo_emit("\n{T:IPv6 Multicast Interface Table is empty}\n");
 
 	len = sizeof(mf6ctable);
-	if (live) {
-		if (sysctlbyname("net.inet6.ip6.mf6ctable", mf6ctable, &len,
-		    NULL, 0) < 0) {
-			xo_warn("sysctl: net.inet6.ip6.mf6ctable");
-			return;
-		}
-	} else
-		kread(mfcaddr, (char *)mf6ctable, sizeof(mf6ctable));
+	if (sysctlbyname("net.inet6.ip6.mf6ctable", mf6ctable, &len, NULL, 0) <
+	    0) {
+		xo_warn("sysctl: net.inet6.ip6.mf6ctable");
+		return;
+	}
 
 	banner_printed = 0;
 
@@ -262,25 +229,13 @@ void
 mrt6_stats()
 {
 	struct mrt6stat mrtstat;
-	u_long mstaddr;
 	size_t len = sizeof mrtstat;
 
-	kresolve_list(mrl);
-	mstaddr = mrl[N_MRT6STAT].n_value;
-
-	if (mstaddr == 0) {
-		fprintf(stderr, "No IPv6 MROUTING kernel support.\n");
+	if (sysctlbyname("net.inet6.ip6.mrt6stat", &mrtstat, &len, NULL, 0) <
+	    0) {
+		xo_warn("sysctl: net.inet6.ip6.mrt6stat");
 		return;
 	}
-
-	if (live) {
-		if (sysctlbyname("net.inet6.ip6.mrt6stat", &mrtstat, &len,
-		    NULL, 0) < 0) {
-			xo_warn("sysctl: net.inet6.ip6.mrt6stat");
-			return;
-		}
-	} else
-		kread(mstaddr, (char *)&mrtstat, sizeof(mrtstat));
 
 	xo_open_container("multicast-statistics");
 	xo_emit("{T:IPv6 multicast forwarding}:\n");
