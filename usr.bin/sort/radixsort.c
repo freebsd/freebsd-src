@@ -308,7 +308,7 @@ run_sort_level_next(struct sort_level *sl)
 		sl->sublevels = NULL;
 	}
 
-	switch (sl->tosort_num){
+	switch (sl->tosort_num) {
 	case 0:
 		goto end;
 	case (1):
