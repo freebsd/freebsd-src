@@ -16,9 +16,6 @@
 #include <sys/ioctl.h>
 
 #include <net/if.h>
-#if __FreeBSD_version >= 300000
-# include <net/if_var.h>
-#endif
 #include <netinet/in.h>
 
 #include <arpa/inet.h>
