@@ -160,7 +160,6 @@ atomic_subtract_32(volatile uint32_t *p, uint32_t val)
 #define	atomic_set_int		atomic_set_32
 #define	atomic_subtract_int	atomic_subtract_32
 
-
 static __inline void
 atomic_add_acq_32(volatile uint32_t *p, uint32_t val)
 {
@@ -170,7 +169,7 @@ atomic_add_acq_32(volatile uint32_t *p, uint32_t val)
 	__asm __volatile(
 	    "1: ldaxr	%w0, [%2]      \n"
 	    "   add	%w0, %w0, %w3  \n"
-	    "   stlxr	%w1, %w0, [%2] \n"
+	    "   stxr	%w1, %w0, [%2] \n"
             "   cbnz	%w1, 1b        \n"
 	    "2:"
 	    : "=&r"(tmp), "=&r"(res), "+r" (p), "+r" (val) : : "cc", "memory"
@@ -186,7 +185,7 @@ atomic_clear_acq_32(volatile uint32_t *p, uint32_t val)
 	__asm __volatile(
 	    "1: ldaxr	%w0, [%2]      \n"
 	    "   bic	%w0, %w0, %w3  \n"
-	    "   stlxr	%w1, %w0, [%2] \n"
+	    "   stxr	%w1, %w0, [%2] \n"
             "   cbnz	%w1, 1b        \n"
 	    : "=&r"(tmp), "=&r"(res), "+r" (p), "+r" (val) : : "cc", "memory"
 	);
@@ -203,7 +202,7 @@ atomic_cmpset_acq_32(volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 	    "   ldaxr	%w0, [%2]      \n"
 	    "   cmp	%w0, %w3       \n"
 	    "   b.ne	2f             \n"
-	    "   stlxr	%w1, %w4, [%2] \n"
+	    "   stxr	%w1, %w4, [%2] \n"
             "   cbnz	%w1, 1b        \n"
 	    "2:"
 	    : "=&r"(tmp), "=&r"(res), "+r" (p), "+r" (cmpval), "+r" (newval)
@@ -218,8 +217,9 @@ atomic_load_acq_32(volatile uint32_t *p)
 {
 	uint32_t ret;
 
-	ret = *p;
-	dmb();
+	__asm __volatile(
+	    "ldar	%w0, [%1] \n"
+	    : "=&r" (ret) : "r" (p) : "memory");
 
 	return (ret);
 }
@@ -233,7 +233,7 @@ atomic_set_acq_32(volatile uint32_t *p, uint32_t val)
 	__asm __volatile(
 	    "1: ldaxr	%w0, [%2]      \n"
 	    "   orr	%w0, %w0, %w3  \n"
-	    "   stlxr	%w1, %w0, [%2] \n"
+	    "   stxr	%w1, %w0, [%2] \n"
             "   cbnz	%w1, 1b        \n"
 	    : "=&r"(tmp), "=&r"(res), "+r" (p), "+r" (val) : : "cc", "memory"
 	);
@@ -248,6 +248,82 @@ atomic_subtract_acq_32(volatile uint32_t *p, uint32_t val)
 	__asm __volatile(
 	    "1: ldaxr	%w0, [%2]      \n"
 	    "   sub	%w0, %w0, %w3  \n"
+	    "   stxr	%w1, %w0, [%2] \n"
+            "   cbnz	%w1, 1b        \n"
+	    : "=&r"(tmp), "=&r"(res), "+r" (p), "+r" (val) : : "cc", "memory"
+	);
+}
+
+#define	atomic_add_acq_int	atomic_add_acq_32
+#define	atomic_clear_acq_int	atomic_clear_acq_32
+#define	atomic_cmpset_acq_int	atomic_cmpset_acq_32
+#define	atomic_load_acq_int	atomic_load_acq_32
+#define	atomic_set_acq_int	atomic_set_acq_32
+#define	atomic_subtract_acq_int	atomic_subtract_acq_32
+
+/* The atomic functions currently are both acq and rel, we should fix this. */
+
+static __inline void
+atomic_add_rel_32(volatile uint32_t *p, uint32_t val)
+{
+	uint32_t tmp;
+	int res;
+
+	__asm __volatile(
+	    "1: ldxr	%w0, [%2]      \n"
+	    "   add	%w0, %w0, %w3  \n"
+	    "   stlxr	%w1, %w0, [%2] \n"
+            "   cbnz	%w1, 1b        \n"
+	    "2:"
+	    : "=&r"(tmp), "=&r"(res), "+r" (p), "+r" (val) : : "cc", "memory"
+	);
+}
+
+static __inline void
+atomic_clear_rel_32(volatile uint32_t *p, uint32_t val)
+{
+	uint32_t tmp;
+	int res;
+
+	__asm __volatile(
+	    "1: ldxr	%w0, [%2]      \n"
+	    "   bic	%w0, %w0, %w3  \n"
+	    "   stlxr	%w1, %w0, [%2] \n"
+            "   cbnz	%w1, 1b        \n"
+	    : "=&r"(tmp), "=&r"(res), "+r" (p), "+r" (val) : : "cc", "memory"
+	);
+}
+
+static __inline int
+atomic_cmpset_rel_32(volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
+{
+	uint32_t tmp;
+	int res;
+
+	__asm __volatile(
+	    "1: mov	%w1, #1        \n"
+	    "   ldxr	%w0, [%2]      \n"
+	    "   cmp	%w0, %w3       \n"
+	    "   b.ne	2f             \n"
+	    "   stlxr	%w1, %w4, [%2] \n"
+            "   cbnz	%w1, 1b        \n"
+	    "2:"
+	    : "=&r"(tmp), "=&r"(res), "+r" (p), "+r" (cmpval), "+r" (newval)
+	    : : "cc", "memory"
+	);
+
+	return (!res);
+}
+
+static __inline void
+atomic_set_rel_32(volatile uint32_t *p, uint32_t val)
+{
+	uint32_t tmp;
+	int res;
+
+	__asm __volatile(
+	    "1: ldxr	%w0, [%2]      \n"
+	    "   orr	%w0, %w0, %w3  \n"
 	    "   stlxr	%w1, %w0, [%2] \n"
             "   cbnz	%w1, 1b        \n"
 	    : "=&r"(tmp), "=&r"(res), "+r" (p), "+r" (val) : : "cc", "memory"
@@ -258,23 +334,25 @@ static __inline void
 atomic_store_rel_32(volatile uint32_t *p, uint32_t val)
 {
 
-	dmb();
-	*p = val;
+	__asm __volatile(
+	    "stlr	%w0, [%1] \n"
+	    : : "r" (val), "r" (p) : "memory");
 }
 
-#define	atomic_add_acq_int	atomic_add_acq_32
-#define	atomic_clear_acq_int	atomic_add_acq_32
-#define	atomic_cmpset_acq_int	atomic_cmpset_acq_32
-#define	atomic_load_acq_int	atomic_load_acq_32
-#define	atomic_set_acq_int	atomic_set_acq_32
-#define	atomic_subtract_acq_int	atomic_subtract_acq_32
+static __inline void
+atomic_subtract_rel_32(volatile uint32_t *p, uint32_t val)
+{
+	uint32_t tmp;
+	int res;
 
-/* The atomic functions currently are both acq and rel, we should fix this. */
-#define	atomic_add_rel_32	atomic_add_acq_32
-#define	atomic_clear_rel_32	atomic_add_acq_32
-#define	atomic_cmpset_rel_32	atomic_cmpset_acq_32
-#define	atomic_set_rel_32	atomic_set_acq_32
-#define	atomic_subtract_rel_32	atomic_subtract_acq_32
+	__asm __volatile(
+	    "1: ldxr	%w0, [%2]      \n"
+	    "   sub	%w0, %w0, %w3  \n"
+	    "   stlxr	%w1, %w0, [%2] \n"
+            "   cbnz	%w1, 1b        \n"
+	    : "=&r"(tmp), "=&r"(res), "+r" (p), "+r" (val) : : "cc", "memory"
+	);
+}
 
 #define	atomic_add_rel_int	atomic_add_rel_32
 #define	atomic_clear_rel_int	atomic_add_rel_32
@@ -440,7 +518,7 @@ atomic_add_acq_64(volatile uint64_t *p, uint64_t val)
 	__asm __volatile(
 	    "1: ldaxr	%0, [%2]      \n"
 	    "   add	%0, %0, %3    \n"
-	    "   stlxr	%w1, %0, [%2] \n"
+	    "   stxr	%w1, %0, [%2] \n"
             "   cbnz	%w1, 1b       \n"
 	    "2:"
 	    : "=&r"(tmp), "=&r"(res), "+r" (p), "+r" (val) : : "cc", "memory"
@@ -456,7 +534,7 @@ atomic_clear_acq_64(volatile uint64_t *p, uint64_t val)
 	__asm __volatile(
 	    "1: ldaxr	%0, [%2]      \n"
 	    "   bic	%0, %0, %3    \n"
-	    "   stlxr	%w1, %0, [%2] \n"
+	    "   stxr	%w1, %0, [%2] \n"
             "   cbnz	%w1, 1b       \n"
 	    : "=&r"(tmp), "=&r"(res), "+r" (p), "+r" (val) : : "cc", "memory"
 	);
@@ -473,7 +551,7 @@ atomic_cmpset_acq_64(volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 	    "   ldaxr	%0, [%2]      \n"
 	    "   cmp	%0, %3        \n"
 	    "   b.ne	2f            \n"
-	    "   stlxr	%w1, %4, [%2] \n"
+	    "   stxr	%w1, %4, [%2] \n"
             "   cbnz	%w1, 1b       \n"
 	    "2:"
 	    : "=&r" (tmp), "=&r" (res), "+r" (p), "+r" (cmpval), "+r" (newval)
@@ -488,8 +566,9 @@ atomic_load_acq_64(volatile uint64_t *p)
 {
 	uint64_t ret;
 
-	ret = *p;
-	dmb();
+	__asm __volatile(
+	    "ldar	%0, [%1] \n"
+	    : "=&r" (ret) : "r" (p) : "memory");
 
 	return (ret);
 }
@@ -503,7 +582,7 @@ atomic_set_acq_64(volatile uint64_t *p, uint64_t val)
 	__asm __volatile(
 	    "1: ldaxr	%0, [%2]      \n"
 	    "   orr	%0, %0, %3    \n"
-	    "   stlxr	%w1, %0, [%2] \n"
+	    "   stxr	%w1, %0, [%2] \n"
             "   cbnz	%w1, 1b       \n"
 	    : "=&r"(tmp), "=&r"(res), "+r" (p), "+r" (val) : : "cc", "memory"
 	);
@@ -518,18 +597,10 @@ atomic_subtract_acq_64(volatile uint64_t *p, uint64_t val)
 	__asm __volatile(
 	    "1: ldaxr	%0, [%2]      \n"
 	    "   sub	%0, %0, %3    \n"
-	    "   stlxr	%w1, %0, [%2] \n"
+	    "   stxr	%w1, %0, [%2] \n"
             "   cbnz	%w1, 1b       \n"
 	    : "=&r"(tmp), "=&r"(res), "+r" (p), "+r" (val) : : "cc", "memory"
 	);
-}
-
-static __inline void
-atomic_store_rel_64(volatile uint64_t *p, uint64_t val)
-{
-
-	dmb();
-	*p = val;
 }
 
 #define	atomic_add_acq_long		atomic_add_acq_64
@@ -550,21 +621,106 @@ atomic_store_rel_64(volatile uint64_t *p, uint64_t val)
  * TODO: The atomic functions currently are both acq and rel, we should fix
  * this.
  */
-#define	atomic_add_rel_64		atomic_add_acq_64
-#define	atomic_clear_rel_64		atomic_add_acq_64
-#define	atomic_cmpset_rel_64		atomic_cmpset_acq_64
-#define	atomic_set_rel_64		atomic_set_acq_64
-#define	atomic_subtract_rel_64		atomic_subtract_acq_64
+static __inline void
+atomic_add_rel_64(volatile uint64_t *p, uint64_t val)
+{
+	uint64_t tmp;
+	int res;
+
+	__asm __volatile(
+	    "1: ldxr	%0, [%2]      \n"
+	    "   add	%0, %0, %3    \n"
+	    "   stlxr	%w1, %0, [%2] \n"
+            "   cbnz	%w1, 1b       \n"
+	    "2:"
+	    : "=&r"(tmp), "=&r"(res), "+r" (p), "+r" (val) : : "cc", "memory"
+	);
+}
+
+static __inline void
+atomic_clear_rel_64(volatile uint64_t *p, uint64_t val)
+{
+	uint64_t tmp;
+	int res;
+
+	__asm __volatile(
+	    "1: ldxr	%0, [%2]      \n"
+	    "   bic	%0, %0, %3    \n"
+	    "   stlxr	%w1, %0, [%2] \n"
+            "   cbnz	%w1, 1b       \n"
+	    : "=&r"(tmp), "=&r"(res), "+r" (p), "+r" (val) : : "cc", "memory"
+	);
+}
+
+static __inline int
+atomic_cmpset_rel_64(volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
+{
+	uint64_t tmp;
+	int res;
+
+	__asm __volatile(
+	    "1: mov	%w1, #1       \n"
+	    "   ldxr	%0, [%2]      \n"
+	    "   cmp	%0, %3        \n"
+	    "   b.ne	2f            \n"
+	    "   stlxr	%w1, %4, [%2] \n"
+            "   cbnz	%w1, 1b       \n"
+	    "2:"
+	    : "=&r" (tmp), "=&r" (res), "+r" (p), "+r" (cmpval), "+r" (newval)
+	    : : "cc", "memory"
+	);
+
+	return (!res);
+}
+
+static __inline void
+atomic_set_rel_64(volatile uint64_t *p, uint64_t val)
+{
+	uint64_t tmp;
+	int res;
+
+	__asm __volatile(
+	    "1: ldxr	%0, [%2]      \n"
+	    "   orr	%0, %0, %3    \n"
+	    "   stlxr	%w1, %0, [%2] \n"
+            "   cbnz	%w1, 1b       \n"
+	    : "=&r"(tmp), "=&r"(res), "+r" (p), "+r" (val) : : "cc", "memory"
+	);
+}
+
+static __inline void
+atomic_store_rel_64(volatile uint64_t *p, uint64_t val)
+{
+
+	__asm __volatile(
+	    "stlr	%0, [%1] \n"
+	    : : "r" (val), "r" (p) : "memory");
+}
+
+static __inline void
+atomic_subtract_rel_64(volatile uint64_t *p, uint64_t val)
+{
+	uint64_t tmp;
+	int res;
+
+	__asm __volatile(
+	    "1: ldxr	%0, [%2]      \n"
+	    "   sub	%0, %0, %3    \n"
+	    "   stlxr	%w1, %0, [%2] \n"
+            "   cbnz	%w1, 1b       \n"
+	    : "=&r"(tmp), "=&r"(res), "+r" (p), "+r" (val) : : "cc", "memory"
+	);
+}
 
 #define	atomic_add_rel_long		atomic_add_rel_64
-#define	atomic_clear_rel_long		atomic_add_rel_64
+#define	atomic_clear_rel_long		atomic_clear_rel_64
 #define	atomic_cmpset_rel_long		atomic_cmpset_rel_64
 #define	atomic_set_rel_long		atomic_set_rel_64
 #define	atomic_subtract_rel_long	atomic_subtract_rel_64
 #define	atomic_store_rel_long		atomic_store_rel_64
 
 #define	atomic_add_rel_ptr		atomic_add_rel_64
-#define	atomic_clear_rel_ptr		atomic_add_rel_64
+#define	atomic_clear_rel_ptr		atomic_clear_rel_64
 #define	atomic_cmpset_rel_ptr		atomic_cmpset_rel_64
 #define	atomic_set_rel_ptr		atomic_set_rel_64
 #define	atomic_subtract_rel_ptr		atomic_subtract_rel_64
