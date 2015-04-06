@@ -108,6 +108,9 @@ typedef struct synapticshw {
 	int capPalmDetect;
 	int capPassthrough;
 	int capMiddle;
+	int capLowPower;
+	int capMultiFingerReport;
+	int capBallistics;
 	int nExtendedButtons;
 	int nExtendedQueries;
 } synapticshw_t;
