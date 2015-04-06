@@ -59,8 +59,8 @@ static char *__ultoa(char *buf, u_long val, int base);
 static int domount(EFI_DEVICE_PATH *device, EFI_BLOCK_IO *blkio, int quiet);
 static void load(const char *fname);
 
-EFI_SYSTEM_TABLE *systab;
-EFI_HANDLE *image;
+static EFI_SYSTEM_TABLE *systab;
+static EFI_HANDLE *image;
 
 static void
 bcopy(const void *src, void *dst, size_t len)
