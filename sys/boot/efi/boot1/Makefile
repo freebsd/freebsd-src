@@ -36,6 +36,14 @@ LDFLAGS=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared
 LDFLAGS+=	-Wl,-znocombreloc
 .endif
 
+.if ${MACHINE_CPUARCH} == "arm"
+#
+# Add libstand for the __aeabi_* functions used by the compiler
+#
+DPADD+=		${LIBSTAND}
+LDADD+=		-lstand
+.endif
+
 ${PROG}:	${LDSCRIPT}
 
 OBJCOPY?=	objcopy
@@ -45,6 +53,8 @@ OBJDUMP?=	objdump
 EFI_TARGET=	efi-app-x86_64
 .elif ${MACHINE_CPUARCH} == "i386"
 EFI_TARGET=	efi-app-ia32
+.else
+EFI_TARGET=	binary
 .endif
 
 boot1.efi: loader.sym
@@ -52,7 +62,7 @@ boot1.efi: loader.sym
 		${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*'; \
 		exit 1; \
 	fi
-	${OBJCOPY} -j .text -j .sdata -j .data \
+	${OBJCOPY} -j .peheader -j .text -j .sdata -j .data \
 		-j .dynamic -j .dynsym -j .rel.dyn \
 		-j .rela.dyn -j .reloc -j .eh_frame -j set_Xcommand_set \
 		--output-target=${EFI_TARGET} ${.ALLSRC} ${.TARGET}
@@ -66,8 +76,8 @@ boot1.o: ${.CURDIR}/../../common/ufsread.c
 
 boot1.efifat: boot1.efi
 	echo ${.OBJDIR}
-	uudecode ${.CURDIR}/fat.tmpl.bz2.uu
-	mv fat.tmpl.bz2 ${.TARGET}.bz2
+	uudecode ${.CURDIR}/fat-${MACHINE_CPUARCH}.tmpl.bz2.uu
+	mv fat-${MACHINE_CPUARCH}.tmpl.bz2 ${.TARGET}.bz2
 	bzip2 -f -d ${.TARGET}.bz2
 	dd if=boot1.efi of=${.TARGET} seek=${BOOT1_OFFSET} conv=notrunc
 

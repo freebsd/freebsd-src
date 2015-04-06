@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Peter Wemm <peter@FreeBSD.org>
+ * Copyright (c) 2008-2010 Rui Paulo <rpaulo@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,21 +22,62 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _MACHINE_METADATA_H_
-#define	_MACHINE_METADATA_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#define	MODINFOMD_BOOTINFO	0x1001
-#define	MODINFOMD_DTBP		0x1002
-#define	MODINFOMD_EFI_MAP	0x1003
+#include <sys/types.h>
+#include <elf.h>
+#include <bootstrap.h>
 
-struct efi_map_header {
-	uint64_t	memory_size;
-	uint64_t	descriptor_size;
-	uint32_t	descriptor_version;
-};
+/*
+ * A simple relocator for ARM binaries.
+ */
+void
+_reloc(unsigned long ImageBase, Elf32_Dyn *dynamic)
+{
+	unsigned long relsz, relent;
+	unsigned long *newaddr;
+	Elf32_Rel *rel;
+	Elf32_Dyn *dynp;
 
-#endif /* !_MACHINE_METADATA_H_ */
+	/*
+	 * Find the relocation address, its size and the relocation entry.
+	 */
+	relsz = 0;
+	relent = 0;
+	for (dynp = dynamic; dynp->d_tag != DT_NULL; dynp++) {
+		switch (dynp->d_tag) {
+		case DT_REL:
+			rel = (Elf32_Rel *) ((unsigned long) dynp->d_un.d_ptr +
+			    ImageBase);
+			break;
+		case DT_RELSZ:
+			relsz = dynp->d_un.d_val;
+			break;
+		case DT_RELENT:
+			relent = dynp->d_un.d_val;
+			break;
+		default:
+			break;
+		}
+	}
+
+	/*
+	 * Perform the actual relocation.
+	 */
+	for (; relsz > 0; relsz -= relent) {
+		switch (ELF32_R_TYPE(rel->r_info)) {
+		case R_ARM_RELATIVE:
+			/* Address relative to the base address. */
+			newaddr = (unsigned long *)(ImageBase + rel->r_offset);
+			*newaddr += ImageBase;
+			break;
+		default:
+			/* XXX: do we need other relocations ? */
+			break;
+		}
+		rel = (Elf32_Rel *) ((caddr_t) rel + relent);
+	}
+}
