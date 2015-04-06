@@ -1,0 +1,77 @@
+include GENERIC
+
+# Untrivial stuff
+nodevice	netmap
+nodevice	wlan
+nodevice	wlan_wep
+nodevice	wlan_ccmp
+nodevice	wlan_tkip
+nodevice	wlan_amrr
+
+# Should be easy
+nodevice	an
+nodevice	ath
+nodevice	ath_pci
+nodevice	ath_hal
+nodevice	ath_rate_sample
+nodevice	gem
+nodevice	hme
+nodevice	malo
+nodevice	le
+nodevice	mwl
+nodevice	ral
+nodevice	wi
+nodevice	vx
+nodevice	hyperv
+nodevice	lem
+nodevice	em
+nodevice	de
+nodevice	iwn
+nodevice	iwi
+nodevice	ipw
+nodevice	ti
+nodevice	bxe
+nodevice	txp
+nodevice	vmx
+nodevice	wpi
+nodevice	dc
+nodevice	fxp
+nodevice	jme
+nodevice	ale
+nodevice	age
+nodevice	cas
+nodevice	nge
+nodevice	rl
+nodevice	alc
+nodevice	sis
+nodevice	sf
+nodevice	ae
+nodevice	et
+nodevice	bce
+nodevice	bfe
+nodevice	lge
+nodevice	vge
+nodevice	tl
+nodevice	tx
+nodevice	sk
+nodevice	wb
+nodevice	vr
+nodevice	ste
+nodevice	stge
+nodevice	sge
+nodevice	pcn
+nodevice	nfe
+nodevice	xenpci	# netfront
+nooptions	XENHVM	# netfront
+
+# Could be not easy
+nodevice	ixgb
+nodevice	ixgbe
+nodevice	ix
+nodevice	ixv
+nodevice	ixl
+nodevice	ixlv
+
+# Software interfaces, must be easy
+nodevice	gif
+nodevice	tun
