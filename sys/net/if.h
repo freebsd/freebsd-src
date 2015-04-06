@@ -572,11 +572,18 @@ typedef enum {
 } ift_counter;
 
 typedef enum {
-	IF_DRIVER_SOFTC,
+	IF_DRIVER_SOFTC = 0,
 	IF_LLADDR,
 	IF_BPF,
 	IF_NAME,
 	IF_VLAN,
+	/*
+	 * Values do matter, since we want to avoid aliasing of frequently
+	 * used features in if_softcs cache.
+	 */
+	IF_AF_INET = 8,
+	IF_AF_INET6 = 9,
+	IF_CARP = 10,
 } ift_feature;
 
 typedef struct ifnet * if_t;
@@ -709,6 +716,7 @@ void	if_inc_txcounters(if_t, struct mbuf *);
 void	if_setbaudrate(if_t, uint64_t);
 void	if_link_state_change(if_t, int);
 void *	if_getsoftc(if_t, ift_feature);
+int	if_setsoftc(if_t, ift_feature, void *);
 int	if_printf(if_t, const char *, ...) __printflike(2, 3);
 int	if_drvioctl(if_t, u_long, void *, struct thread *);
 uint64_t if_get_counter_default(if_t, ift_counter);

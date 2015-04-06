@@ -80,33 +80,49 @@ struct iftype {
 };
 
 /*
+ * Many network stack modules want to store their software context associated
+ * with an interface.  We used to give a pointer for everyone, but that yield
+ * to sizeof(struct ifnet) growing and permanent need for new pointers added
+ * to the struct.  Now we keep a tiny cache of recently used features and
+ * dynamically allocated store for them.
+ * Note: this could be generalized with kobj(9).
+ */
+#define	SOFTC_CACHE_SIZE	4
+struct ifsoftc {
+	ift_feature     ifsc_desc;
+	void            *ifsc_ptr;
+};
+
+/*
  * Structure defining a network interface.
  *
  * (Would like to call this struct ``if'', but C isn't PL/1.)
  */
 struct ifnet {
 	struct ifops	*if_ops;	/* driver ops (or overridden) */
-	void		*if_softc;	/* driver soft state */
+	void		*if_softc;	/* driver software context */
 	struct ifdriver	*if_drv;	/* driver static definition */
-	struct iftype	*if_type;	/* if type static def (optional)*/
+	struct ifsoftc  *if_sccache[SOFTC_CACHE_SIZE];	/* cache of softcs */
 	struct iftsomax	*if_tsomax;	/* TSO limits */
+	struct iftype	*if_type;	/* if type static def (optional)*/
 
-	struct	rwlock if_lock;		/* lock to protect the ifnet */
-	
-	/* General book keeping of interface lists. */
-	TAILQ_ENTRY(ifnet) if_link; 	/* all struct ifnets are chained */
-	LIST_ENTRY(ifnet) if_clones;	/* interfaces of a cloner */
-	TAILQ_HEAD(, ifg_list) if_groups; /* linked list of groups per if */
-					/* protected by if_lock */
+	struct	rwlock	if_lock;	/* lock to protect the ifnet */
+
+	struct ifsoftc		*if_scstore;	/* store of different softcs */
+	TAILQ_ENTRY(ifnet)	if_link; 	/* on global list */
+	LIST_ENTRY(ifnet)	if_clones;	/* on if_cloner list */
+	TAILQ_HEAD(, ifg_list)	if_groups;	/* groups of this ifnet */
+
 	void	*if_llsoftc;		/* link layer softc */
 	void	*if_l2com;		/* pointer to protocol bits */
+	uint32_t if_nsoftcs;		/* elements in if_scstore */
 	int	if_dunit;		/* unit or IF_DUNIT_NONE */
 	u_short	if_index;		/* numeric abbreviation for this if  */
 	short	if_index_reserved;	/* spare space to grow if_index */
 	char	if_xname[IFNAMSIZ];	/* external name (name + unit) */
 	char	*if_description;	/* interface description */
 
-	/* Variable fields that are touched by the stack and drivers. */
+	/* Variable fields that are touched by the stack . */
 	uint32_t	if_flags;	/* up/down, broadcast, etc. */
 	uint32_t	if_capabilities;/* interface features & capabilities */
 	uint32_t	if_capenable;	/* enabled features & capabilities */

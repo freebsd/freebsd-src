@@ -538,6 +538,9 @@ if_attach(struct if_attach_args *ifat)
 	}
 
 	ifp = malloc(sizeof(struct ifnet), M_IFNET, M_WAITOK | M_ZERO);
+	ifp->if_scstore = malloc(sizeof(struct ifsoftc) * SOFTC_CACHE_SIZE,
+	    M_IFNET, M_WAITOK | M_ZERO);
+	ifp->if_nsoftcs = SOFTC_CACHE_SIZE;
 	for (int i = 0; i < IFCOUNTERS; i++)
 		ifp->if_counters[i] = counter_u64_alloc(M_WAITOK);
 #ifdef MAC
@@ -1541,7 +1544,13 @@ if_rtdel(struct radix_node *rn, void *arg)
 void *
 if_getsoftc(struct ifnet *ifp, ift_feature f)
 {
+	struct ifsoftc *sc;
 
+	/*
+	 * Some softcs are non-optional either for performance reasons,
+	 * since they always exist and are often dereferenced, or for
+	 * historical reasons.
+	 */
 	switch (f) {
 	case IF_DRIVER_SOFTC:
 		return (ifp->if_softc);
@@ -1554,8 +1563,97 @@ if_getsoftc(struct ifnet *ifp, ift_feature f)
 	case IF_VLAN:
 		return (ifp->if_vlantrunk);
 	default:
-		panic("%s: unknown feature %d", __func__, f);
+		/* fall through */
+		;
 	};
+
+	/*
+	 * Rest of softc live in the store and in the cache.
+	 * First check the cache.
+	 */
+	sc = ifp->if_sccache[f & (SOFTC_CACHE_SIZE - 1)];
+	if (sc != NULL && sc->ifsc_desc == f)
+		return (sc->ifsc_ptr);
+
+	/*
+	 * Then check the store.
+	 * We can do lookup lockless, since if_nsoftcs only grows.
+	 */
+	for (int i = 0; i < ifp->if_nsoftcs; i++) {
+		sc = &ifp->if_scstore[i];
+		if (sc->ifsc_desc == f) {
+			ifp->if_sccache[f & (SOFTC_CACHE_SIZE - 1)] = sc;
+			return (sc->ifsc_ptr);
+		}
+	}
+
+	/*
+	 * XXXGL: a negative cache would be not bad.
+	 */
+	return (NULL);
+}
+
+/*
+ * Set arbitrary context identified by ift_feature key.  It is responsibility
+ * of the caller to establish race safety against two if_setsoftc()s.  The
+ * function may sleep when setting new context.  The function will not sleep
+ * when clearing previously set context.  May fail only if associated context
+ * is already set.
+ */
+int
+if_setsoftc(struct ifnet *ifp, ift_feature f, void *softc)
+{
+	int i;
+
+	IF_WLOCK(ifp);
+retry:
+	for (i = 0; i < ifp->if_nsoftcs; i++)
+		if (ifp->if_scstore[i].ifsc_desc == f) {
+			IF_WUNLOCK(ifp);
+			return (EEXIST);
+		}
+
+	for (i = 0; i < ifp->if_nsoftcs; i++)
+		if (ifp->if_scstore[i].ifsc_desc == 0)
+			break;
+
+	if (i == ifp->if_nsoftcs) {
+		struct ifsoftc *new, *old;
+		u_int size;
+
+		old = ifp->if_scstore;
+		size = ifp->if_nsoftcs;
+		IF_WUNLOCK(ifp);
+		new = malloc(sizeof(struct ifsoftc) * size * 2,
+		    M_IFNET, M_WAITOK | M_ZERO);
+		IF_WLOCK(ifp);
+		if (ifp->if_scstore != old) {
+			free(new, M_IFNET);
+			goto retry;
+		}
+		bcopy(ifp->if_scstore, new, sizeof(struct ifsoftc) * size);
+		ifp->if_scstore = new;
+		ifp->if_nsoftcs = size * 2;
+		/*
+		 * XXXGL: of course there is a race here against if_getsoftc(),
+		 * which runs lockless.  We lack RCU or lightweight reference
+		 * counting.
+		 */
+		free(old, M_IFNET);
+	}
+
+	if (softc != NULL) {
+		ifp->if_scstore[i].ifsc_ptr = softc;
+		ifp->if_scstore[i].ifsc_desc = f;
+		ifp->if_sccache[f & (SOFTC_CACHE_SIZE - 1)] =
+		    &ifp->if_scstore[i];
+	} else {
+		ifp->if_scstore[i].ifsc_desc = 0;
+		ifp->if_scstore[i].ifsc_ptr = NULL;
+		ifp->if_sccache[f & (SOFTC_CACHE_SIZE - 1)] = NULL;
+	}
+	IF_WUNLOCK(ifp);
+	return (0);
 }
 
 /*
