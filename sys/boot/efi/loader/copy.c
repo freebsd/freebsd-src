@@ -61,7 +61,19 @@ efi_copy_init(void)
 	}
 	staging_end = staging + STAGE_PAGES * 4096;
 
+#ifdef __arm__
+	/* Round the kernel load address to a 2MiB value */
+	staging = roundup2(staging, 2 * 1024 * 1024);
+#endif
+
 	return (0);
+}
+
+void *
+efi_translate(vm_offset_t ptr)
+{
+
+	return ((void *)(ptr + stage_offset));
 }
 
 ssize_t
