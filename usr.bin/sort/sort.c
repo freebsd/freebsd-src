@@ -196,6 +196,7 @@ void fix_obsolete_keys(int *argc, char **argv);
 static bool
 sort_modifier_empty(struct sort_mods *sm)
 {
+
 	if (sm == NULL)
 		return (true);
 	return (!(sm->Mflag || sm->Vflag || sm->nflag || sm->gflag ||
@@ -305,6 +306,7 @@ set_hw_params(void)
 static void
 conv_mbtowc(wchar_t *wc, const char *c, const wchar_t def)
 {
+
 	if (wc && c) {
 		int res;
 
@@ -384,6 +386,7 @@ set_tmpdir(void)
 static unsigned long long
 parse_memory_buffer_value(const char *value)
 {
+
 	if (value == NULL)
 		return (available_free_memory);
 	else {
@@ -446,6 +449,7 @@ static void
 sig_handler(int sig __unused, siginfo_t *siginfo __unused,
     void *context __unused)
 {
+
 	clear_tmp_files();
 	exit(-1);
 }
@@ -506,6 +510,7 @@ set_signal_handler(void)
 static void
 unknown(const char *what)
 {
+
 	errx(2, "%s: %s", getstr(3), what);
 }
 
@@ -518,7 +523,7 @@ check_mutually_exclusive_flags(char c, bool *mef_flags)
 	int fo_index, mec;
 	bool found_others, found_this;
 
-	found_others = found_this = false;
+	found_others = found_this =false;
 	fo_index = 0;
 
 	for (int i = 0; i < NUMBER_OF_MUTUALLY_EXCLUSIVE_FLAGS; i++) {
@@ -546,6 +551,7 @@ check_mutually_exclusive_flags(char c, bool *mef_flags)
 static void
 set_sort_opts(void)
 {
+
 	memset(&default_sort_mods_object, 0,
 	    sizeof(default_sort_mods_object));
 	memset(&sort_opts_vals, 0, sizeof(sort_opts_vals));
@@ -559,6 +565,7 @@ set_sort_opts(void)
 static bool
 set_sort_modifier(struct sort_mods *sm, int c)
 {
+
 	if (sm) {
 		switch (c){
 		case 'b':
