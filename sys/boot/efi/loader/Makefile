@@ -20,9 +20,12 @@ SRCS=	autoload.c \
 	copy.c \
 	devicename.c \
 	main.c \
+	smbios.c \
 	vers.c
 
 .PATH: ${.CURDIR}/arch/${MACHINE_CPUARCH}
+# For smbios.c
+.PATH: ${.CURDIR}/../../i386/libi386
 .include "${.CURDIR}/arch/${MACHINE_CPUARCH}/Makefile.inc"
 
 CFLAGS+=	-fPIC
@@ -32,7 +35,8 @@ CFLAGS+=	-I${.CURDIR}/../include
 CFLAGS+=	-I${.CURDIR}/../include/${MACHINE_CPUARCH}
 CFLAGS+=	-I${.CURDIR}/../../../contrib/dev/acpica/include
 CFLAGS+=	-I${.CURDIR}/../../..
-CFLAGS+=	-DNO_PCI
+CFLAGS+=	-I${.CURDIR}/../../i386/libi386
+CFLAGS+=	-DNO_PCI -DEFI
 
 .if ${MK_FORTH} != "no"
 BOOT_FORTH=	yes

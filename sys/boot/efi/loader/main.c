@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 #include <efilib.h>
 
 #include <bootstrap.h>
+#include <smbios.h>
+
 #include "loader_efi.h"
 
 extern char bootprog_name[];
@@ -63,6 +65,7 @@ main(int argc, CHAR16 *argv[])
 {
 	char vendor[128];
 	EFI_LOADED_IMAGE *img;
+	EFI_GUID *guid;
 	int i;
 
 	/*
@@ -127,6 +130,14 @@ main(int argc, CHAR16 *argv[])
 	archsw.arch_copyin = efi_copyin;
 	archsw.arch_copyout = efi_copyout;
 	archsw.arch_readin = efi_readin;
+
+	for (i = 0; i < ST->NumberOfTableEntries; i++) {
+		guid = &ST->ConfigurationTable[i].VendorGuid;
+		if (!memcmp(guid, &smbios, sizeof(EFI_GUID))) {
+			smbios_detect(ST->ConfigurationTable[i].VendorTable);
+			break;
+		}
+	}
 
 	interact(NULL);			/* doesn't return */
 

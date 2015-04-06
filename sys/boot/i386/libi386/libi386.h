@@ -113,10 +113,6 @@ uint32_t biospci_locator(int8_t bus, uint8_t device, uint8_t function);
 
 void	biosacpi_detect(void);
 
-void	smbios_detect(void);
-int	smbios_match(const char* bios_vendor, const char* maker,
-	    const char* product);
-
 int	i386_autoload(void);
 
 int	bi_getboothowto(char *kargs);
