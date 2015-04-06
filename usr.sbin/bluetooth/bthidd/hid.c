@@ -48,12 +48,6 @@
 #include "bthidd.h"
 #include "kbd.h"
 
-#undef	min
-#define	min(x, y)	(((x) < (y))? (x) : (y))
-
-#undef	ASIZE
-#define	ASIZE(a)	(sizeof(a)/sizeof(a[0]))
-
 /*
  * Process data from control channel
  */
