@@ -326,6 +326,7 @@ int	numeric_port;	/* show ports numerically */
 static int pflag;	/* show given protocol */
 int	Qflag;		/* show netisr information */
 int	rflag;		/* show routing tables (or routing stats) */
+int	Rflag;		/* show flow / RSS statistics */
 int	sflag;		/* show protocol statistics */
 int	Wflag;		/* wide display */
 int	Tflag;		/* TCP Information */
@@ -350,7 +351,7 @@ main(int argc, char *argv[])
 
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "46AaBbdF:f:ghI:iLlM:mN:np:Qq:rSTsuWw:xz"))
+	while ((ch = getopt(argc, argv, "46AaBbdF:f:ghI:iLlM:mN:np:Qq:RrSTsuWw:xz"))
 	    != -1)
 		switch(ch) {
 		case '4':
@@ -467,6 +468,9 @@ main(int argc, char *argv[])
 			break;
 		case 'r':
 			rflag = 1;
+			break;
+		case 'R':
+			Rflag = 1;
 			break;
 		case 's':
 			++sflag;
@@ -864,7 +868,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-"usage: netstat [-46AaLnSTWx] [-f protocol_family | -p protocol]\n"
+"usage: netstat [-46AaLnRSTWx] [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
 "       netstat -i | -I interface [-46abdhnW] [-f address_family]\n"
 "               [-M core] [-N system]",
