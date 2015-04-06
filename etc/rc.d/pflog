@@ -38,7 +38,7 @@ pflog_prestart()
 		return 1
 	fi
 
-	# -p flag requires striping pidfile's leading /var/run and trailing .pid
+	# -p flag requires stripping pidfile's leading /var/run and trailing .pid
 	pidfile=$(echo $pidfile | sed -e 's|/var/run/||' -e 's|.pid$||')
 
 	# prepare the command line for pflogd
