@@ -379,7 +379,7 @@ distrib-dirs: ${MTREES:N/*}
 		test "$$d" == "/" && d=""; \
 		d=${DISTBASE}$$d; \
 		shift; \
-		test -d $$d || mkdir -p $$d; \
+		test -d ${DESTDIR}/$$d || mkdir -p ${DESTDIR}/$$d; \
 		${ECHO} "${MTREE_CMD:N-W} -C -f $$m -K uname,gname | " \
 		    "sed s#^\.#.$$d# | ${METALOG.add}" ; \
 		${MTREE_CMD:N-W} -C -f $$m -K uname,gname | sed s#^\.#.$$d# | \
