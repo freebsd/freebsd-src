@@ -2627,6 +2627,7 @@ product LARSENBRUSGAARD ALTITRACK	0x0001	FTDI compatible adapter
 product LEADTEK 9531		0x2101	9531 GPS
 
 /* Lenovo products */
+product LENOVO GIGALAN		0x304b	USB 3.0 Ethernet
 product LENOVO ETHERNET		0x7203	USB 2.0 Ethernet
 
 /* Lexar products */
