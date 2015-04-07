@@ -217,7 +217,8 @@ struct fxp_softc {
 	int cu_resume_bug;
 	int revision;
 	int flags;
-	int if_flags;
+	uint32_t if_flags;
+	uint32_t if_capenable;
 	uint8_t rfa_size;
 	uint32_t tx_cmd;
 	uint16_t eeprom[256];
@@ -239,6 +240,7 @@ struct fxp_softc {
 #define FXP_FLAG_WOL		0x4000	/* WOL active */
 #define FXP_FLAG_RXBUG		0x8000	/* Rx lock-up bug */
 #define FXP_FLAG_NO_UCODE	0x10000	/* ucode is not applicable */
+#define	FXP_FLAG_RUNNING	0x20000
 
 /* Macros to ease CSR access. */
 #define	CSR_READ_1(sc, reg)		bus_read_1(sc->fxp_res[0], reg)
