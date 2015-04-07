@@ -31,6 +31,7 @@
  */
 
 #ifndef _GMAC_H_
+#define _GMAC_H_
 
 #include "gfmult.h"
 #include <crypto/rijndael/rijndael.h>
