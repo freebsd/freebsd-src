@@ -166,15 +166,18 @@ VNET_DEFINE(u_long, in_ifaddrhmask);		/* mask for hash table */
 
 static VNET_DEFINE(uma_zone_t, ipq_zone);
 static VNET_DEFINE(TAILQ_HEAD(ipqhead, ipq), ipq[IPREASS_NHASH]);
-static struct mtx ipqlock;
+static struct mtx_padalign ipqlock[IPREASS_NHASH];
 
 #define	V_ipq_zone		VNET(ipq_zone)
 #define	V_ipq			VNET(ipq)
 
-#define	IPQ_LOCK()	mtx_lock(&ipqlock)
-#define	IPQ_UNLOCK()	mtx_unlock(&ipqlock)
-#define	IPQ_LOCK_INIT()	mtx_init(&ipqlock, "ipqlock", NULL, MTX_DEF)
-#define	IPQ_LOCK_ASSERT()	mtx_assert(&ipqlock, MA_OWNED)
+/*
+ * The ipqlock array is global, /not/ per-VNET.
+ */
+#define	IPQ_LOCK(i)	mtx_lock(&ipqlock[(i)])
+#define	IPQ_UNLOCK(i)	mtx_unlock(&ipqlock[(i)])
+#define	IPQ_LOCK_INIT(i)	mtx_init(&ipqlock[(i)], "ipqlock", NULL, MTX_DEF)
+#define	IPQ_LOCK_ASSERT(i)	mtx_assert(&ipqlock[(i)], MA_OWNED)
 
 static void	maxnipq_update(void);
 static void	ipq_zone_change(void *);
@@ -206,7 +209,7 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, stealth, CTLFLAG_VNET | CTLFLAG_RW,
     "IP stealth mode, no TTL decrementation on forwarding");
 #endif
 
-static void	ip_freef(struct ipqhead *, struct ipq *);
+static void	ip_freef(struct ipqhead *, int, struct ipq *);
 
 /*
  * IP statistics are stored in the "array" of counter(9)s.
@@ -373,7 +376,8 @@ ip_init(void)
 		NULL, EVENTHANDLER_PRI_ANY);
 
 	/* Initialize various other remaining things. */
-	IPQ_LOCK_INIT();
+	for (i = 0; i < IPREASS_NHASH; i++)
+		IPQ_LOCK_INIT(i);
 	netisr_register(&ip_nh);
 #ifdef	RSS
 	netisr_register(&ip_direct_nh);
@@ -393,9 +397,7 @@ ip_destroy(void)
 	/* Cleanup in_ifaddr hash table; should be empty. */
 	hashdestroy(V_in_ifaddrhashtbl, M_IFADDR, V_in_ifaddrhmask);
 
-	IPQ_LOCK();
 	ip_drain_locked();
-	IPQ_UNLOCK();
 
 	uma_zdestroy(V_ipq_zone);
 }
@@ -856,6 +858,41 @@ SYSCTL_PROC(_net_inet_ip, OID_AUTO, maxfragpackets, CTLTYPE_INT|CTLFLAG_RW,
 #define	M_IP_FRAG	M_PROTO9
 
 /*
+ * Attempt to purge something from the reassembly queue to make
+ * room.
+ *
+ * Must be called without any IPQ locks held, as it will attempt
+ * to lock each in turn.
+ *
+ * 'skip_bucket' is the bucket with which to skip over, or -1 to
+ * not skip over anything.
+ *
+ * Returns the bucket being freed, or -1 for no action.
+ */
+static int
+ip_reass_purge_element(int skip_bucket)
+{
+	int i;
+	struct ipq *r;
+
+	for (i = 0; i < IPREASS_NHASH; i++) {
+		if (skip_bucket > -1 && i == skip_bucket)
+			continue;
+		IPQ_LOCK(i);
+		r = TAILQ_LAST(&V_ipq[i], ipqhead);
+		if (r) {
+			IPSTAT_ADD(ips_fragtimeout,
+			    r->ipq_nfrags);
+			ip_freef(&V_ipq[i], i, r);
+			IPQ_UNLOCK(i);
+			return (i);
+		}
+		IPQ_UNLOCK(i);
+	}
+	return (-1);
+}
+
+/*
  * Take incoming datagram fragment and try to reassemble it into
  * whole datagram.  If the argument is the first fragment or one
  * in between the function will return NULL and store the mbuf
@@ -878,6 +915,7 @@ ip_reass(struct mbuf *m)
 #ifdef	RSS
 	uint32_t rss_hash, rss_type;
 #endif
+	int do_purge = 0;
 
 	/* If maxnipq or maxfragsperpacket are 0, never accept fragments. */
 	if (V_maxnipq == 0 || V_maxfragsperpacket == 0) {
@@ -892,7 +930,7 @@ ip_reass(struct mbuf *m)
 
 	hash = IPREASS_HASH(ip->ip_src.s_addr, ip->ip_id);
 	head = &V_ipq[hash];
-	IPQ_LOCK();
+	IPQ_LOCK(hash);
 
 	/*
 	 * Look for queue of fragments
@@ -921,18 +959,14 @@ ip_reass(struct mbuf *m)
 		 */
 		struct ipq *q = TAILQ_LAST(head, ipqhead);
 		if (q == NULL) {   /* gak */
-			for (i = 0; i < IPREASS_NHASH; i++) {
-				struct ipq *r = TAILQ_LAST(&V_ipq[i], ipqhead);
-				if (r) {
-					IPSTAT_ADD(ips_fragtimeout,
-					    r->ipq_nfrags);
-					ip_freef(&V_ipq[i], r);
-					break;
-				}
-			}
+			/*
+			 * Defer doing this until later; when the
+			 * lock is no longer held.
+			 */
+			do_purge = 1;
 		} else {
 			IPSTAT_ADD(ips_fragtimeout, q->ipq_nfrags);
-			ip_freef(head, q);
+			ip_freef(head, hash, q);
 		}
 	}
 
@@ -1093,7 +1127,7 @@ found:
 		if (ntohs(GETIP(q)->ip_off) != next) {
 			if (fp->ipq_nfrags > V_maxfragsperpacket) {
 				IPSTAT_ADD(ips_fragdropped, fp->ipq_nfrags);
-				ip_freef(head, fp);
+				ip_freef(head, hash, fp);
 			}
 			goto done;
 		}
@@ -1103,7 +1137,7 @@ found:
 	if (p->m_flags & M_IP_FRAG) {
 		if (fp->ipq_nfrags > V_maxfragsperpacket) {
 			IPSTAT_ADD(ips_fragdropped, fp->ipq_nfrags);
-			ip_freef(head, fp);
+			ip_freef(head, hash, fp);
 		}
 		goto done;
 	}
@@ -1116,7 +1150,7 @@ found:
 	if (next + (ip->ip_hl << 2) > IP_MAXPACKET) {
 		IPSTAT_INC(ips_toolong);
 		IPSTAT_ADD(ips_fragdropped, fp->ipq_nfrags);
-		ip_freef(head, fp);
+		ip_freef(head, hash, fp);
 		goto done;
 	}
 
@@ -1166,7 +1200,20 @@ found:
 	if (m->m_flags & M_PKTHDR)	/* XXX this should be done elsewhere */
 		m_fixhdr(m);
 	IPSTAT_INC(ips_reassembled);
-	IPQ_UNLOCK();
+	IPQ_UNLOCK(hash);
+
+	/*
+	 * Do the delayed purge to keep fragment counts under
+	 * the configured maximum.
+	 *
+	 * This is delayed so that it's not done with another IPQ bucket
+	 * lock held.
+	 *
+	 * Note that we pass in the bucket to /skip/ over, not
+	 * the bucket to /purge/.
+	 */
+	if (do_purge)
+		ip_reass_purge_element(hash);
 
 #ifdef	RSS
 	/*
@@ -1208,7 +1255,7 @@ dropfrag:
 		fp->ipq_nfrags--;
 	m_freem(m);
 done:
-	IPQ_UNLOCK();
+	IPQ_UNLOCK(hash);
 	return (NULL);
 
 #undef GETIP
@@ -1219,11 +1266,11 @@ done:
  * associated datagrams.
  */
 static void
-ip_freef(struct ipqhead *fhp, struct ipq *fp)
+ip_freef(struct ipqhead *fhp, int i, struct ipq *fp)
 {
 	struct mbuf *q;
 
-	IPQ_LOCK_ASSERT();
+	IPQ_LOCK_ASSERT(i);
 
 	while (fp->ipq_frags) {
 		q = fp->ipq_frags;
@@ -1248,10 +1295,10 @@ ip_slowtimo(void)
 	int i;
 
 	VNET_LIST_RLOCK_NOSLEEP();
-	IPQ_LOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		for (i = 0; i < IPREASS_NHASH; i++) {
+			IPQ_LOCK(i);
 			for(fp = TAILQ_FIRST(&V_ipq[i]); fp;) {
 				struct ipq *fpp;
 
@@ -1260,9 +1307,10 @@ ip_slowtimo(void)
 				if(--fpp->ipq_ttl == 0) {
 					IPSTAT_ADD(ips_fragtimeout,
 					    fpp->ipq_nfrags);
-					ip_freef(&V_ipq[i], fpp);
+					ip_freef(&V_ipq[i], i, fpp);
 				}
 			}
+			IPQ_UNLOCK(i);
 		}
 		/*
 		 * If we are over the maximum number of fragments
@@ -1271,37 +1319,41 @@ ip_slowtimo(void)
 		 */
 		if (V_maxnipq >= 0 && V_nipq > V_maxnipq) {
 			for (i = 0; i < IPREASS_NHASH; i++) {
+				IPQ_LOCK(i);
 				while (V_nipq > V_maxnipq &&
 				    !TAILQ_EMPTY(&V_ipq[i])) {
 					IPSTAT_ADD(ips_fragdropped,
 					    TAILQ_FIRST(&V_ipq[i])->ipq_nfrags);
 					ip_freef(&V_ipq[i],
+					    i,
 					    TAILQ_FIRST(&V_ipq[i]));
 				}
+				IPQ_UNLOCK(i);
 			}
 		}
 		CURVNET_RESTORE();
 	}
-	IPQ_UNLOCK();
 	VNET_LIST_RUNLOCK_NOSLEEP();
 }
 
 /*
  * Drain off all datagram fragments.
+ *
+ * Call without any IPQ locks held.
  */
 static void
 ip_drain_locked(void)
 {
 	int     i;
 
-	IPQ_LOCK_ASSERT();
-
 	for (i = 0; i < IPREASS_NHASH; i++) {
+		IPQ_LOCK(i);
 		while(!TAILQ_EMPTY(&V_ipq[i])) {
 			IPSTAT_ADD(ips_fragdropped,
 			    TAILQ_FIRST(&V_ipq[i])->ipq_nfrags);
-			ip_freef(&V_ipq[i], TAILQ_FIRST(&V_ipq[i]));
+			ip_freef(&V_ipq[i], i, TAILQ_FIRST(&V_ipq[i]));
 		}
+		IPQ_UNLOCK(i);
 	}
 }
 
@@ -1311,13 +1363,11 @@ ip_drain(void)
 	VNET_ITERATOR_DECL(vnet_iter);
 
 	VNET_LIST_RLOCK_NOSLEEP();
-	IPQ_LOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		ip_drain_locked();
 		CURVNET_RESTORE();
 	}
-	IPQ_UNLOCK();
 	VNET_LIST_RUNLOCK_NOSLEEP();
 }
 
