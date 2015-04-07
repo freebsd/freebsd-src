@@ -83,10 +83,16 @@ uart_fdt_get_clock(phandle_t node, pcell_t *cell)
 int
 uart_fdt_get_shift(phandle_t node, pcell_t *cell)
 {
+#ifdef __aarch64__
+#define DEFAULT_SHIFT	2
+#else
+#define DEFAULT_SHIFT	0
+#endif
 
 	if ((OF_getencprop(node, "reg-shift", cell, sizeof(*cell))) <= 0)
-		*cell = 0;
+		*cell = DEFAULT_SHIFT;
 	return (0);
+#undef DEFAULT_SHIFT
 }
 
 static uintptr_t
