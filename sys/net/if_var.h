@@ -32,6 +32,11 @@
 
 #ifndef	_NET_IF_VAR_H_
 #define	_NET_IF_VAR_H_
+#ifndef _KERNEL
+#ifdef BURN_BRIDGES
+#error "no user-servicable parts inside"
+#endif
+#else
 
 struct	rtentry;		/* ifa_rtrequest */
 struct	rt_addrinfo;		/* ifa_rtrequest */
@@ -41,11 +46,9 @@ struct  ifvlantrunk;
 struct	ifmedia;
 struct	netmap_adapter;
 
-#ifdef _KERNEL
 #include <sys/mbuf.h>		/* ifqueue only? */
 #include <sys/buf_ring.h>
 #include <net/vnet.h>
-#endif /* _KERNEL */
 #include <sys/counter.h>
 #include <sys/lock.h>		/* XXX */
 #include <sys/mutex.h>		/* struct ifqueue */
@@ -59,10 +62,8 @@ TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
 TAILQ_HEAD(ifmultihead, ifmultiaddr);
 TAILQ_HEAD(ifgrouphead, ifg_group);
 
-#ifdef _KERNEL
 VNET_DECLARE(struct pfil_head, link_pfil_hook);	/* packet filter hooks */
 #define	V_link_pfil_hook	VNET(link_pfil_hook)
-#endif /* _KERNEL */
 
 typedef	void (*iftype_attach_t)(if_t ifp, struct if_attach_args *args);
 typedef	void (*iftype_detach_t)(if_t ifp);
@@ -202,7 +203,6 @@ struct ifnet {
 #define	IF_ADDR_LOCK_ASSERT(ifp)	IF_LOCK_ASSERT(ifp)
 #define	IF_ADDR_WLOCK_ASSERT(ifp)	IF_WLOCK_ASSERT(ifp)
 
-#ifdef _KERNEL
 #ifdef _SYS_EVENTHANDLER_H_
 /* interface link layer address change event */
 typedef void (*iflladdr_event_handler_t)(void *, struct ifnet *);
