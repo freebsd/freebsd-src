@@ -244,9 +244,9 @@ IP datagrams (or all IP datagrams, if
 .Va ip.rfc6864
 is disabled) to be randomized instead of incremented by 1 with each packet
 generated.
-This prevents IP IDs being abused as a covert channel and also closes
-a minor information leak which allows remote observers to determine
-the rate of packet generation on the machine by watching the counter.
+This closes a minor information leak which allows remote observers to
+determine the rate of packet generation on the machine by watching the
+counter.
 At the same time, on high-speed links, it can decrease the ID reuse
 cycle greatly.
 Default is 0 (sequential IP IDs).
