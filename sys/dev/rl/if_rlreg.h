@@ -896,7 +896,7 @@ struct rl_softc {
 	struct mbuf		*rl_tail;
 	uint32_t		rl_rxlenmask;
 	int			rl_testmode;
-	int			rl_if_flags;
+	uint32_t		rl_if_flags;
 	int			rl_twister_enable;
 	enum rl_twist		rl_twister;
 	int			rl_twist_row;
@@ -935,6 +935,7 @@ struct rl_softc {
 #define	RL_FLAG_EARLYOFFV2	0x00040000
 #define	RL_FLAG_RXDV_GATED	0x00080000
 #define	RL_FLAG_RUNNING		0x00100000
+#define	RL_FLAG_WOL		0x00200000
 #define	RL_FLAG_PCIE		0x40000000
 #define	RL_FLAG_LINK		0x80000000
 };
