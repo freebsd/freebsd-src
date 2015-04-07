@@ -413,39 +413,6 @@ again2:
 		goto bad;
 	}
 
-	if (m->m_pkthdr.len > IN6_LINKMTU(rt->rt_ifp)) {
-		in6_ifstat_inc(rt->rt_ifp, ifs6_in_toobig);
-		if (mcopy) {
-			u_long mtu;
-#ifdef IPSEC
-			size_t ipsechdrsiz;
-#endif /* IPSEC */
-
-			mtu = IN6_LINKMTU(rt->rt_ifp);
-#ifdef IPSEC
-			/*
-			 * When we do IPsec tunnel ingress, we need to play
-			 * with the link value (decrement IPsec header size
-			 * from mtu value).  The code is much simpler than v4
-			 * case, as we have the outgoing interface for
-			 * encapsulated packet as "rt->rt_ifp".
-			 */
-			ipsechdrsiz = ipsec_hdrsiz(mcopy, IPSEC_DIR_OUTBOUND,
-			    NULL);
-			if (ipsechdrsiz < mtu)
-				mtu -= ipsechdrsiz;
-			/*
-			 * if mtu becomes less than minimum MTU,
-			 * tell minimum MTU (and I'll need to fragment it).
-			 */
-			if (mtu < IPV6_MMTU)
-				mtu = IPV6_MMTU;
-#endif /* IPSEC */
-			icmp6_error(mcopy, ICMP6_PACKET_TOO_BIG, 0, mtu);
-		}
-		goto bad;
-	}
-
 	if (rt->rt_flags & RTF_GATEWAY)
 		dst = (struct sockaddr_in6 *)rt->rt_gateway;
 
@@ -571,6 +538,40 @@ again2:
 	}
 
 pass:
+	/* See if the size was changed by the packet filter. */
+	if (m->m_pkthdr.len > IN6_LINKMTU(rt->rt_ifp)) {
+		in6_ifstat_inc(rt->rt_ifp, ifs6_in_toobig);
+		if (mcopy) {
+			u_long mtu;
+#ifdef IPSEC
+			size_t ipsechdrsiz;
+#endif /* IPSEC */
+
+			mtu = IN6_LINKMTU(rt->rt_ifp);
+#ifdef IPSEC
+			/*
+			 * When we do IPsec tunnel ingress, we need to play
+			 * with the link value (decrement IPsec header size
+			 * from mtu value).  The code is much simpler than v4
+			 * case, as we have the outgoing interface for
+			 * encapsulated packet as "rt->rt_ifp".
+			 */
+			ipsechdrsiz = ipsec_hdrsiz(mcopy, IPSEC_DIR_OUTBOUND,
+			    NULL);
+			if (ipsechdrsiz < mtu)
+				mtu -= ipsechdrsiz;
+			/*
+			 * if mtu becomes less than minimum MTU,
+			 * tell minimum MTU (and I'll need to fragment it).
+			 */
+			if (mtu < IPV6_MMTU)
+				mtu = IPV6_MMTU;
+#endif /* IPSEC */
+			icmp6_error(mcopy, ICMP6_PACKET_TOO_BIG, 0, mtu);
+		}
+		goto bad;
+	}
+
 	error = nd6_output(rt->rt_ifp, origifp, m, dst, rt);
 	if (error) {
 		in6_ifstat_inc(rt->rt_ifp, ifs6_out_discard);
