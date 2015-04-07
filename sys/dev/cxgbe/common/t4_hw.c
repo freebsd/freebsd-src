@@ -5417,6 +5417,10 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 		}
 		lc = &pi->link_cfg;
 
+		if (mod != pi->mod_type) {
+			pi->mod_type = mod;
+			t4_os_portmod_changed(adap, i);
+		}
 		if (link_ok != lc->link_ok || speed != lc->speed ||
 		    fc != lc->fc) {                    /* something changed */
 			int reason;
@@ -5431,10 +5435,6 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 			lc->fc = fc;
 			lc->supported = ntohs(p->u.info.pcap);
 			t4_os_link_changed(adap, i, link_ok, reason);
-		}
-		if (mod != pi->mod_type) {
-			pi->mod_type = mod;
-			t4_os_portmod_changed(adap, i);
 		}
 	} else {
 		CH_WARN_RATELIMIT(adap,
