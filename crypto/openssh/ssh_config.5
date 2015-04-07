@@ -35,7 +35,7 @@
 .\"
 .\" $OpenBSD: ssh_config.5,v 1.185 2014/02/23 20:11:36 djm Exp $
 .\" $FreeBSD$
-.Dd February 23, 2014
+.Dd March 22, 2015
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -1421,6 +1421,9 @@ Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
 .Dq FreeBSD-20140420 .
+The value
+.Dq none
+may be used to disable this.
 .It Cm VisualHostKey
 If this flag is set to
 .Dq yes ,
