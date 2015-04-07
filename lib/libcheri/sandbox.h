@@ -67,10 +67,6 @@ struct sandbox_metadata {
 
 extern int sb_verbose;
 
-int	sandbox_program_init(int argc, char **argv);
-int	sandbox_program_finalize(void);
-int	sandbox_program_fini(void);
-
 struct sandbox_class;
 int	sandbox_class_new(const char *path, size_t maxmapsize,
 	    struct sandbox_class **sbcpp);

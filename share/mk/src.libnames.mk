@@ -242,6 +242,8 @@ _DP_gssapi_krb5+=	gssapi krb5 crypto roken asn1 com_err
 _DP_lzma=	pthread
 _DP_ucl=	m
 
+_DP_helloworld=	cheri
+
 # Define spacial cases
 LDADD_supcplusplus=	-lsupc++
 LDADD_atf_c=	-L${LIBATF_CDIR} -latf-c

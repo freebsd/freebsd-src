@@ -49,19 +49,14 @@
 #include <unistd.h>
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 	struct sandbox_object *objectp;
 	struct cheri_object stdout_fd;
 
-	if (sandbox_program_init(argc, argv) == -1)
-		errx(EX_OSFILE, "sandbox_program_init");
-
 	if (cheri_fd_new(STDOUT_FILENO, &stdout_fd) < 0)
 		err(EX_OSFILE, "cheri_fd_new: stdout");
 	cheri_helloworld_init();
-	if (sandbox_program_finalize() == -1)
-		errx(EX_SOFTWARE, "sandbox_program_finalize");
 	if (sandbox_object_new(__helloworld_classp, 2*1024*1024, &objectp) < 0)
 		err(EX_OSFILE, "sandbox_object_new");
 	__helloworld = sandbox_object_getobject(objectp);

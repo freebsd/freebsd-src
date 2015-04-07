@@ -75,6 +75,8 @@ static struct sandbox_class	**sandbox_classes;
 static struct sandbox_provided_classes	*main_provided_classes;
 static struct sandbox_required_methods	*main_required_methods;
 
+static int	sandbox_program_init(void);
+
 /*
  * Control verbose debugging output around sandbox invocation; disabled by
  * default but may be enabled using an environmental variable.
@@ -87,11 +89,15 @@ sandbox_init(void)
 
 	if (getenv("LIBCHERI_SB_VERBOSE"))
 		sb_verbose = 1;
+
+	if (sandbox_program_init() < -1) {
+		err(1, "%s: sandbox_program_init", __func__);
+	}
 }
 
 /* XXXBD: should be done in sandbox_init(), but need access to argv[0]. */
 int
-sandbox_program_init(int argc, char **argv)
+sandbox_program_init(void)
 {
 	int fd = -1;
 	int mib[4];
@@ -108,23 +114,18 @@ sandbox_program_init(int argc, char **argv)
 			warn("%s: open %s (from kern.proc.pathname.(-1))",
 			    __func__, buf);
 	}
-	if (fd == -1) {
-		if (argc < 0) {
-			warnx("%s: no argv[0]", __func__);
-			return (-1);
-		}
-		/* XXX: if argv[0] contains no /, search path */
-		if ((fd = open(argv[0], O_RDONLY)) == -1) {
-			warn("%s: open %s", __func__, argv[0]);
-			return (-1);
-		}
-	}
 
 	if (sandbox_parse_ccall_methods(fd, &main_provided_classes,
 	    &main_required_methods) == -1) {
-		warn("%s: sandbox_parse_ccall_methods for %s", __func__,
-		    argv[0]);
+		warn("%s: sandbox_parse_ccall_methods for main program",
+		    __func__);
 		close(fd);
+		return (-1);
+	}
+	if (sandbox_set_required_method_variables(cheri_getdefault(),
+	    main_required_methods) == -1) {
+		warnx("%s: sandbox_set_required_method_variables for main "
+		    "program", __func__);
 		return (-1);
 	}
 	/* XXXBD: cheri_system needs to do this. */
@@ -136,8 +137,8 @@ sandbox_program_init(int argc, char **argv)
 	return (0);
 }
 
-int
-sandbox_program_finalize(void)
+static int
+sandbox_program_sanity_check(void)
 {
 	size_t i;
 	struct sandbox_required_methods *required_methods;
@@ -154,15 +155,6 @@ sandbox_program_finalize(void)
 		    sandbox_get_unresolved_methods(main_required_methods));
 		if (sb_verbose)
 			sandbox_warn_unresolved_methods(main_required_methods);
-		return (-1);
-	}
-	/*
-	 * Update main program method variables.
-	 */
-	if (sandbox_set_required_method_variables(cheri_getdefault(),
-	    main_required_methods) == -1) {
-		warnx("%s: sandbox_set_required_method_variables for main "
-		    "program", __func__);
 		return (-1);
 	}
 
@@ -189,6 +181,7 @@ sandbox_program_finalize(void)
 	return (0);
 }
 
+#if 0
 int
 sandbox_program_fini(void)
 {
@@ -201,6 +194,7 @@ sandbox_program_fini(void)
 	main_required_methods = NULL;
 	return (0);
 }
+#endif
 
 int
 sandbox_class_new(const char *path, size_t maxmaplen,
@@ -338,6 +332,17 @@ sandbox_class_new(const char *path, size_t maxmaplen,
 			goto error;
 		}
 	}
+	/*
+	 * Update main program method variables.
+	 *
+	 * XXXBD: Doing this in every class is inefficient.
+	 */
+	if (sandbox_set_required_method_variables(cheri_getdefault(),
+	    main_required_methods) == -1) {
+		warnx("%s: sandbox_set_required_method_variables for main "
+		    "program", __func__);
+		return (-1);
+	}
 
 	/*
 	 * Register the class on the list of classes.
@@ -444,6 +449,9 @@ sandbox_object_new_flags(struct sandbox_class *sbcp, size_t heaplen,
 {
 	struct sandbox_object *sbop;
 	int error;
+
+	if (sandbox_program_sanity_check() < 0)
+		errx(1, "%s: sandbox_program_sanity_check", __func__);
 
 	sbop = calloc(1, sizeof(*sbop));
 	if (sbop == NULL)

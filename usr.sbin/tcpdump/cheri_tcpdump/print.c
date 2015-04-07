@@ -495,18 +495,12 @@ static int
 tcpdump_sandbox_object_setup()
 {
 
-	if (sandbox_program_init(0, NULL) == -1)
-		error("%s: sandbox_program_init", __func__);
-
 	if (sandbox_class_new("/usr/libexec/tcpdump-helper",
 	    8*1024*1024, &tcpdump_classp) < 0) {
 		fprintf(stderr, "failed to create sandbox class: %s",
 		    strerror(errno));
 		return (-1);
 	}
-
-	if (sandbox_program_finalize() == -1)
-		error("%s: sandbox_program_finalize", __func__);
 
 	return (tcpdump_sandboxes_init(&sandboxes,
 	    ctdc->ctdc_sb_mode == 0 ?

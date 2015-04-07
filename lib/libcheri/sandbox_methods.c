@@ -733,15 +733,10 @@ sandbox_set_required_method_variables(__capability void *datacap,
 	/* Ensure the capability is capability aligned. */
 	assert(!(cheri_getbase(datacap) & (sizeof(datacap) - 1)));
 
-	if (required_methods->srms_unresolved_methods > 0) {
-		warnx("%s: %zu unresolved methods", __func__,
-		    required_methods->srms_unresolved_methods);
-		if (sb_verbose)
-			sandbox_warn_unresolved_methods(required_methods);
-		return (-1);
-	}
-
 	for (i = 0; i < required_methods->srms_nmethods; i++) {
+		if (!rmethods[i].srm_resolved)
+			continue;
+
 		/* Zero offsets can't be sane. */
 		assert(rmethods[i].srm_index_offset != 0);
 
