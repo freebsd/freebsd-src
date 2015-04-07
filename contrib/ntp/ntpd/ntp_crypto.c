@@ -93,6 +93,7 @@
 #define TAI_1972	10	/* initial TAI offset (s) */
 #define MAX_LEAP	100	/* max UTC leapseconds (s) */
 #define VALUE_LEN	(6 * 4) /* min response field length */
+#define MAX_VALLEN	(65535 - VALUE_LEN)
 #define YEAR		(60 * 60 * 24 * 365) /* seconds in year */
 
 /*
@@ -137,8 +138,8 @@ static u_int ident_scheme = 0;	/* server identity scheme */
  */
 static	int	crypto_verify	P((struct exten *, struct value *,
 				    struct peer *));
-static	int	crypto_encrypt	P((struct exten *, struct value *,
-				    keyid_t *));
+static	int	crypto_encrypt	P((const u_char *, u_int, keyid_t *,
+				    struct value *));
 static	int	crypto_alice	P((struct peer *, struct value *));
 static	int	crypto_alice2	P((struct peer *, struct value *));
 static	int	crypto_alice3	P((struct peer *, struct value *));
@@ -446,6 +447,12 @@ crypto_recv(
 			tstamp = ntohl(ep->tstamp);
 			fstamp = ntohl(ep->fstamp);
 			vallen = ntohl(ep->vallen);
+			/*
+			 * Bug 2761: I hope this isn't too early...
+			 */
+			if (   vallen == 0
+			    || len - VALUE_LEN < vallen)
+				return XEVNT_LEN;
 		}
 		switch (code) {
 
@@ -488,7 +495,7 @@ crypto_recv(
 				break;
 
 			if (vallen == 0 || vallen > MAXHOSTNAME ||
-			    len < VALUE_LEN + vallen) {
+			    len - VALUE_LEN < vallen) {
 				rval = XEVNT_LEN;
 				break;
 			}
@@ -1250,7 +1257,8 @@ crypto_xmit(
 		vallen = ntohl(ep->vallen);
 		if (vallen == 8) {
 			strcpy(certname, sys_hostname);
-		} else if (vallen == 0 || vallen > MAXHOSTNAME) {
+		} else if (vallen == 0 || vallen > MAXHOSTNAME ||
+		    len - VALUE_LEN < vallen) {
 			rval = XEVNT_LEN;
 			break;
 
@@ -1407,7 +1415,10 @@ crypto_xmit(
 	 * anything goes wrong.
 	 */
 	case CRYPTO_COOK | CRYPTO_RESP:
-		if ((opcode & 0xffff) < VALUE_LEN) {
+		vallen = ntohl(ep->vallen);	/* Must be <64k */
+		if (   vallen == 0
+		    || (vallen >= MAX_VALLEN)
+		    || (opcode & 0x0000ffff)  < VALUE_LEN + vallen) {
 			rval = XEVNT_LEN;
 			break;
 		}
@@ -1420,10 +1431,11 @@ crypto_xmit(
 			}
 			tcookie = peer->pcookie;
 		}
-		if ((rval = crypto_encrypt(ep, &vtemp, &tcookie)) ==
-		    XEVNT_OK)
+		if ((rval = crypto_encrypt((const u_char *)ep->pkt, vallen, &tcookie, &vtemp))
+		    == XEVNT_OK) {
 			len += crypto_send(fp, &vtemp);
-		value_free(&vtemp);
+			value_free(&vtemp);
+		}
 		break;
 
 	/*
@@ -1558,10 +1570,15 @@ crypto_verify(
 	 * are rounded up to the next word.
 	 */
 	vallen = ntohl(ep->vallen);
+	if (   vallen == 0
+	    || vallen > MAX_VALLEN)
+		return (XEVNT_LEN);
 	i = (vallen + 3) / 4;
 	siglen = ntohl(ep->pkt[i++]);
-	if (len < VALUE_LEN + ((vallen + 3) / 4) * 4 + ((siglen + 3) /
-	    4) * 4)
+	if (   siglen > MAX_VALLEN
+	    || len - VALUE_LEN < ((vallen + 3) / 4) * 4
+	    || len - VALUE_LEN - ((vallen + 3) / 4) * 4
+	      < ((siglen + 3) / 4) * 4)
 		return (XEVNT_LEN);
 
 	/*
@@ -1627,6 +1644,7 @@ crypto_verify(
 	 * avoid doing the sign exchange.
 	 */
 	EVP_VerifyInit(&ctx, peer->digest);
+	/* XXX: the "+ 12" needs to be at least documented... */
 	EVP_VerifyUpdate(&ctx, (u_char *)&ep->tstamp, vallen + 12);
 	if (EVP_VerifyFinal(&ctx, (u_char *)&ep->pkt[i], siglen, pkey) <= 0)
 		return (XEVNT_SIG);
@@ -1641,10 +1659,10 @@ crypto_verify(
 
 
 /*
- * crypto_encrypt - construct encrypted cookie and signature from
- * extension field and cookie
+ * crypto_encrypt - construct vp (encrypted cookie and signature) from
+ * the public key and cookie.
  *
- * Returns
+ * Returns:
  * XEVNT_OK	success
  * XEVNT_PUB	bad or missing public key
  * XEVNT_CKY	bad or missing cookie
@@ -1652,24 +1670,21 @@ crypto_verify(
  */
 static int
 crypto_encrypt(
-	struct exten *ep,	/* extension pointer */
-	struct value *vp,	/* value pointer */
-	keyid_t	*cookie		/* server cookie */
+	const u_char *ptr,	/* Public Key */
+	u_int	vallen,		/* Length of Public Key */
+	keyid_t	*cookie,	/* server cookie */
+	struct value *vp	/* value pointer */
 	)
 {
 	EVP_PKEY *pkey;		/* public key */
 	EVP_MD_CTX ctx;		/* signature context */
 	tstamp_t tstamp;	/* NTP timestamp */
 	u_int32	temp32;
-	u_int	len;
-	u_char	*ptr;
 
 	/*
 	 * Extract the public key from the request.
 	 */
-	len = ntohl(ep->vallen);
-	ptr = (u_char *)ep->pkt;
-	pkey = d2i_PublicKey(EVP_PKEY_RSA, NULL, &ptr, len);
+	pkey = d2i_PublicKey(EVP_PKEY_RSA, NULL, &ptr, vallen);
 	if (pkey == NULL) {
 		msyslog(LOG_ERR, "crypto_encrypt %s\n",
 		    ERR_error_string(ERR_get_error(), NULL));
@@ -1683,9 +1698,9 @@ crypto_encrypt(
 	memset(vp, 0, sizeof(struct value));
 	vp->tstamp = htonl(tstamp);
 	vp->fstamp = hostval.tstamp;
-	len = EVP_PKEY_size(pkey);
-	vp->vallen = htonl(len);
-	vp->ptr = emalloc(len);
+	vallen = EVP_PKEY_size(pkey);
+	vp->vallen = htonl(vallen);
+	vp->ptr = emalloc(vallen);
 	temp32 = htonl(*cookie);
 	if (!RSA_public_encrypt(4, (u_char *)&temp32, vp->ptr,
 	    pkey->pkey.rsa, RSA_PKCS1_OAEP_PADDING)) {
@@ -1705,9 +1720,9 @@ crypto_encrypt(
 	vp->sig = emalloc(sign_siglen);
 	EVP_SignInit(&ctx, sign_digest);
 	EVP_SignUpdate(&ctx, (u_char *)&vp->tstamp, 12);
-	EVP_SignUpdate(&ctx, vp->ptr, len);
-	if (EVP_SignFinal(&ctx, vp->sig, &len, sign_pkey))
-		vp->siglen = htonl(len);
+	EVP_SignUpdate(&ctx, vp->ptr, vallen);
+	if (EVP_SignFinal(&ctx, vp->sig, &vallen, sign_pkey))
+		vp->siglen = htonl(sign_siglen);
 	return (XEVNT_OK);
 }
 
@@ -1794,6 +1809,9 @@ crypto_ident(
  * call in the protocol module.
  *
  * Returns extension field pointer (no errors).
+ *
+ * XXX: opcode and len should really be 32-bit quantities and
+ * we should make sure that str is not too big.
  */
 struct exten *
 crypto_args(
@@ -1805,11 +1823,14 @@ crypto_args(
 	tstamp_t tstamp;	/* NTP timestamp */
 	struct exten *ep;	/* extension field pointer */
 	u_int	len;		/* extension field length */
+	size_t	slen;
 
 	tstamp = crypto_time();
 	len = sizeof(struct exten);
-	if (str != NULL)
-		len += strlen(str);
+	if (str != NULL) {
+		slen = strlen(str);
+		len += slen;
+	}
 	ep = emalloc(len);
 	memset(ep, 0, len);
 	if (opcode == 0)
@@ -1829,8 +1850,8 @@ crypto_args(
 	ep->fstamp = hostval.tstamp;
 	ep->vallen = 0;
 	if (str != NULL) {
-		ep->vallen = htonl(strlen(str));
-		memcpy((char *)ep->pkt, str, strlen(str));
+		ep->vallen = htonl(slen);
+		memcpy((char *)ep->pkt, str, slen);
 	} else {
 		ep->pkt[0] = peer->associd;
 	}
@@ -1844,6 +1865,8 @@ crypto_args(
  * Returns extension field length. Note: it is not polite to send a
  * nonempty signature with zero timestamp or a nonzero timestamp with
  * empty signature, but these rules are not enforced here.
+ *
+ * XXX This code won't work on a box with 16-bit ints.
  */
 u_int
 crypto_send(
@@ -2212,7 +2235,8 @@ crypto_bob(
 	tstamp_t tstamp;	/* NTP timestamp */
 	BIGNUM	*bn, *bk, *r;
 	u_char	*ptr;
-	u_int	len;
+	u_int	len;		/* extension field length */
+	u_int	vallen = 0;	/* value length */
 
 	/*
 	 * If the IFF parameters are not valid, something awful
@@ -2227,8 +2251,11 @@ crypto_bob(
 	/*
 	 * Extract r from the challenge.
 	 */
-	len = ntohl(ep->vallen);
-	if ((r = BN_bin2bn((u_char *)ep->pkt, len, NULL)) == NULL) {
+	vallen = ntohl(ep->vallen);
+	len = ntohl(ep->opcode) & 0x0000ffff;
+	if (vallen == 0 || len < VALUE_LEN || len - VALUE_LEN < vallen)
+		return XEVNT_LEN;
+	if ((r = BN_bin2bn((u_char *)ep->pkt, vallen, NULL)) == NULL) {
 		msyslog(LOG_ERR, "crypto_bob %s\n",
 		    ERR_error_string(ERR_get_error(), NULL));
 		return (XEVNT_ERR);
@@ -2240,7 +2267,7 @@ crypto_bob(
 	 */
 	bctx = BN_CTX_new(); bk = BN_new(); bn = BN_new();
 	sdsa = DSA_SIG_new();
-	BN_rand(bk, len * 8, -1, 1);		/* k */
+	BN_rand(bk, vallen * 8, -1, 1);		/* k */
 	BN_mod_mul(bn, dsa->priv_key, r, dsa->q, bctx); /* b r mod q */
 	BN_add(bn, bn, bk);
 	BN_mod(bn, bn, dsa->q, bctx);		/* k + b r mod q */
@@ -2254,19 +2281,25 @@ crypto_bob(
 	/*
 	 * Encode the values in ASN.1 and sign.
 	 */
-	tstamp = crypto_time();
-	memset(vp, 0, sizeof(struct value));
-	vp->tstamp = htonl(tstamp);
-	vp->fstamp = htonl(if_fstamp);
-	len = i2d_DSA_SIG(sdsa, NULL);
-	if (len <= 0) {
+	vallen = i2d_DSA_SIG(sdsa, NULL);
+	if (vallen == 0) {
 		msyslog(LOG_ERR, "crypto_bob %s\n",
 		    ERR_error_string(ERR_get_error(), NULL));
 		DSA_SIG_free(sdsa);
 		return (XEVNT_ERR);
 	}
-	vp->vallen = htonl(len);
-	ptr = emalloc(len);
+	if (vallen > MAX_VALLEN) {
+		msyslog(LOG_ERR, "crypto_bob: signature is too big: %d",
+		    vallen);
+		DSA_SIG_free(sdsa);
+		return (XEVNT_LEN);
+	}
+	memset(vp, 0, sizeof(struct value));
+	tstamp = crypto_time();
+	vp->tstamp = htonl(tstamp);
+	vp->fstamp = htonl(if_fstamp);
+	vp->vallen = htonl(vallen);
+	ptr = emalloc(vallen);
 	vp->ptr = ptr;
 	i2d_DSA_SIG(sdsa, &ptr);
 	DSA_SIG_free(sdsa);
@@ -2277,11 +2310,12 @@ crypto_bob(
 	if (tstamp < cinfo->first || tstamp > cinfo->last)
 		return (XEVNT_PER);
 
+	/* XXX: more validation to make sure the sign fits... */
 	vp->sig = emalloc(sign_siglen);
 	EVP_SignInit(&ctx, sign_digest);
 	EVP_SignUpdate(&ctx, (u_char *)&vp->tstamp, 12);
-	EVP_SignUpdate(&ctx, vp->ptr, len);
-	if (EVP_SignFinal(&ctx, vp->sig, &len, sign_pkey))
+	EVP_SignUpdate(&ctx, vp->ptr, vallen);
+	if (EVP_SignFinal(&ctx, vp->sig, &vallen, sign_pkey))
 		vp->siglen = htonl(len);
 	return (XEVNT_OK);
 }

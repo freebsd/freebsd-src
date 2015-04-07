@@ -15,6 +15,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20150407:	p27	FreeBSD-SA-15:04.igmp [revised]
+			FreeBSD-SA-15:07.ntp
+			FreeBSD-SA-15:09.ipv6
+
+	Improved patch for SA-15:04.igmp.
+
+	Fix multiple vulnerabilities of ntp. [SA-15:07]
+
+	Fix Denial of Service with IPv6 Router Advertisements. [SA-15:09]
+
 20150320:       p26
         Fix patch for SA-15:06.openssl.
 
