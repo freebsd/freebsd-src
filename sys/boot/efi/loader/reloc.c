@@ -29,18 +29,42 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <elf.h>
+#include <efi.h>
 #include <bootstrap.h>
 
+#if defined(__arm__) || defined(__i386__)
+#define ElfW_Rel	Elf32_Rel
+#define	ElfW_Dyn	Elf32_Dyn
+#define	ELFW_R_TYPE	ELF32_R_TYPE
+#elif defined(__amd64__)
+#define ElfW_Rel	Elf64_Rel
+#define	ElfW_Dyn	Elf64_Dyn
+#define	ELFW_R_TYPE	ELF64_R_TYPE
+#else
+#error architecture not supported
+#endif
+#if defined(__amd64__)
+#define	RELOC_TYPE_NONE		R_X86_64_NONE
+#define	RELOC_TYPE_RELATIVE	R_X86_64_RELATIVE
+#elif defined(__arm__)
+#define	RELOC_TYPE_NONE		R_ARM_NONE
+#define	RELOC_TYPE_RELATIVE	R_ARM_RELATIVE
+#elif defined(__i386__)
+#define	RELOC_TYPE_NONE		R_386_NONE
+#define	RELOC_TYPE_RELATIVE	R_386_RELATIVE
+#endif
+
 /*
- * A simple relocator for ARM binaries.
+ * A simple relocator for EFI binaries.
  */
-void
-_reloc(unsigned long ImageBase, Elf32_Dyn *dynamic)
+EFI_STATUS
+_reloc(unsigned long ImageBase, ElfW_Dyn *dynamic, EFI_HANDLE image_handle,
+    EFI_SYSTEM_TABLE *system_table)
 {
 	unsigned long relsz, relent;
 	unsigned long *newaddr;
-	Elf32_Rel *rel;
-	Elf32_Dyn *dynp;
+	ElfW_Rel *rel;
+	ElfW_Dyn *dynp;
 
 	/*
 	 * Find the relocation address, its size and the relocation entry.
@@ -50,13 +74,16 @@ _reloc(unsigned long ImageBase, Elf32_Dyn *dynamic)
 	for (dynp = dynamic; dynp->d_tag != DT_NULL; dynp++) {
 		switch (dynp->d_tag) {
 		case DT_REL:
-			rel = (Elf32_Rel *) ((unsigned long) dynp->d_un.d_ptr +
+		case DT_RELA:
+			rel = (ElfW_Rel *) ((unsigned long) dynp->d_un.d_ptr +
 			    ImageBase);
 			break;
 		case DT_RELSZ:
+		case DT_RELASZ:
 			relsz = dynp->d_un.d_val;
 			break;
 		case DT_RELENT:
+		case DT_RELAENT:
 			relent = dynp->d_un.d_val;
 			break;
 		default:
@@ -68,8 +95,12 @@ _reloc(unsigned long ImageBase, Elf32_Dyn *dynamic)
 	 * Perform the actual relocation.
 	 */
 	for (; relsz > 0; relsz -= relent) {
-		switch (ELF32_R_TYPE(rel->r_info)) {
-		case R_ARM_RELATIVE:
+		switch (ELFW_R_TYPE(rel->r_info)) {
+		case RELOC_TYPE_NONE:
+			/* No relocation needs be performed. */
+			break;
+
+		case RELOC_TYPE_RELATIVE:
 			/* Address relative to the base address. */
 			newaddr = (unsigned long *)(ImageBase + rel->r_offset);
 			*newaddr += ImageBase;
@@ -78,6 +109,8 @@ _reloc(unsigned long ImageBase, Elf32_Dyn *dynamic)
 			/* XXX: do we need other relocations ? */
 			break;
 		}
-		rel = (Elf32_Rel *) ((caddr_t) rel + relent);
+		rel = (ElfW_Rel *) ((caddr_t) rel + relent);
 	}
+
+	return (EFI_SUCCESS);
 }
