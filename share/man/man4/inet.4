@@ -28,7 +28,7 @@
 .\"     From: @(#)inet.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd April 3, 2015
+.Dd April 7, 2015
 .Dt INET 4
 .Os
 .Sh NAME
@@ -244,21 +244,9 @@ IP datagrams (or all IP datagrams, if
 .Va ip.rfc6864
 is disabled) to be randomized instead of incremented by 1 with each packet
 generated.
-This prevents information exchange between any combination of two or
-more inside and/or outside observers using packet frequency
-modulation, PFM.
-An outside observer can ping the outside facing port at a fixed rate
-sampling the returned counter.
-An inside observer can ping the inside facing port sampling the same
-counter.
-Even though packets don't flow directly between any of the observers
-any single observer can influence the data rate the other observer(s)
-is or are sampling.
-This is done by sending more or less ping packets towards the gateway
-per measured interval.
-Setting this sysctl also prevents the remote and internal observers to
-determine the rate of packet generation on the machine by watching the
-counter.
+This prevents IP IDs being abused as a covert channel and also closes
+a minor information leak which allows remote observers to determine
+the rate of packet generation on the machine by watching the counter.
 At the same time, on high-speed links, it can decrease the ID reuse
 cycle greatly.
 Default is 0 (sequential IP IDs).
