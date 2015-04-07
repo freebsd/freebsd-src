@@ -1137,6 +1137,9 @@ zfs_create_boot()
 			f_eval_catch $funcname dd "$DD_WITH_OPTIONS" \
 				     /dev/random "$bootpool/$zroot_key" \
 			             "bs=4096 count=1" || return $FAILURE
+			f_eval_catch $funcname chmod "$CHMOD_MODE" \
+			             go-wrx "$bootpool/$zroot_key" ||
+			             return $FAILURE
 		else
 			# Clean up
 			f_eval_catch $funcname zfs "$ZFS_UNMOUNT" \
