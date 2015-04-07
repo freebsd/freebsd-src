@@ -98,7 +98,7 @@ pattern_table = {
         str = "^%s*exec%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
         process = function(k, v) 
             if loader.perform(k) ~= 0 then
-                print("Failed to exec '"..k.."'\n");
+                print("Failed to exec '"..k.."'");
             end
         end
     },
@@ -107,7 +107,7 @@ pattern_table = {
         str = "^%s*([%w%p]+)%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
         process = function(k, v) 
             if loader.perform("set "..k.."=\""..v.."\"") ~= 0 then
-                print("Failed to set '"..k.."' with value: "..v.."\n");
+                print("Failed to set '"..k.."' with value: "..v.."");
             end
         end
     },
@@ -116,7 +116,7 @@ pattern_table = {
         str = "^%s*([%w%p]+)%s*=%s*(%d+)%s*(.*)",
         process = function(k, v) 
             if loader.perform("set "..k.."="..v.."") ~= 0 then
-                print("Failed to set '"..k.."' with value: "..v.."\n");
+                print("Failed to set '"..k.."' with value: "..v.."");
             end
         end
     }
@@ -143,14 +143,14 @@ function config.loadmod(mod, silent)
             if v.before ~= nil then
                 if loader.perform(v.before) ~= 0 then
                     if not silent then
-                        print("Failed to execute '"..v.before.."' before loading '"..k.."'\n");
+                        print("Failed to execute '"..v.before.."' before loading '"..k.."'");
                     end
                     status = false;
                 end
             end
             
             if loader.perform(str) ~= 0 then
-                if not silent then print("Failed to execute '" .. str .. "'\n"); end
+                if not silent then print("Failed to execute '" .. str .. "'"); end
                 if v.error ~= nil then
                     loader.perform(v.error);
                 end 
@@ -160,14 +160,14 @@ function config.loadmod(mod, silent)
             if v.after ~= nil then
                 if loader.perform(v.after) ~= 0 then
                     if not silent then 
-                        print("Failed to execute '"..v.after.."' after loading '"..k.."'\n");
+                        print("Failed to execute '"..v.after.."' after loading '"..k.."'");
                     end
                     status = false;
                 end
             end
             
         else
-            --if not silent then print("Skiping module '".. k .. "'\n"); end
+            --if not silent then print("Skiping module '".. k .. "'"); end
         end
     end
     
@@ -177,7 +177,7 @@ end
 function config.parse(name, silent)
     local f = io.open(name);
     if f == nil then
-        if not silent then print("Failed to open config: '" .. name.."'\n"); end
+        if not silent then print("Failed to open config: '" .. name.."'"); end
         return false;
     end
     
@@ -187,7 +187,7 @@ function config.parse(name, silent)
     text, r = io.read(f);
     
     if text == nil then
-        if not silent then print("Failed to read config: '" .. name.."'\n"); end
+        if not silent then print("Failed to read config: '" .. name.."'"); end
         return false;
     end
     
@@ -207,7 +207,7 @@ function config.parse(name, silent)
                     if config.isValidComment(c) then
                         val.process(k, v);
                     else
-                        print("Malformed line ("..n.."):\n\t'"..line.."'\n");
+                        print("Malformed line ("..n.."):\n\t'"..line.."'");
                         status = false;
                     end
                     
@@ -216,7 +216,7 @@ function config.parse(name, silent)
             end
             
             if found == false then
-                print("Malformed line ("..n.."):\n\t'"..line.."'\n");
+                print("Malformed line ("..n.."):\n\t'"..line.."'");
                 status = false;
             end
         end
@@ -261,7 +261,7 @@ function config.loadkernel()
         if res ~= nil then
             return true;
         else
-            print("Failed to load kernel '"..res.."'\n");
+            print("Failed to load kernel '"..res.."'");
             return false;
         end
     else
@@ -290,7 +290,7 @@ function config.loadkernel()
         if res ~= nil then
             return true;
         else
-            print("Failed to load kernel '"..res.."'\n");
+            print("Failed to load kernel '"..res.."'");
             return false;
         end
     end
@@ -302,24 +302,24 @@ function config.load(file)
     if not file then file = "/boot/defaults/loader.conf"; end
     
     if not config.parse(file) then 
-        print("Failed to parse configuration: '"..file.."'\n");
+        print("Failed to parse configuration: '"..file.."'");
     end
     
     local f = loader.getenv("loader_conf_files");
     if f ~= nil then
         for name in string.gmatch(f, "([%w%p]+)%s*") do
             if not config.parse(name) then 
-                print("Failed to parse configuration: '"..name.."'\n");
+                print("Failed to parse configuration: '"..name.."'");
             end
         end
     end
 
-    print("Loading kernel...\n");
+    print("Loading kernel...");
     config.loadkernel();
 
-    print("Loading configurations...\n");
+    print("Loading configurations...");
     if not config.loadmod(modules) then
-        print("Could not load configurations!\n");
+        print("Could not load configurations!");
     end
 end
 
@@ -327,7 +327,7 @@ function config.reload(kernel)
     local res = 1;
     
     -- unload all modules
-    print("Unloading modules...\n");
+    print("Unloading modules...");
     loader.perform("unload");
     
     if kernel ~= nil then
@@ -338,7 +338,7 @@ function config.reload(kernel)
     -- failed to load kernel or it is nil
     -- then load default
     if res == 1 then
-        print("Loading default kernel...\n");
+        print("Loading default kernel...");
         config.loadkernel();
     end
     

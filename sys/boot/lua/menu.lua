@@ -91,7 +91,7 @@ function menu.run(opts)
         if (opts[ch] ~= nil) then
             local ret = opts[ch].func();
             if (ret) then
-                print("Exiting menu!\n");
+                print("Exiting menu!");
                 return;
             end
         else
@@ -100,7 +100,7 @@ function menu.run(opts)
                 if opts.alias[ch] ~= nil then
                     local ret = opts.alias[ch].func();
                     if (ret) then
-                        print("Exiting menu!\n");
+                        print("Exiting menu!");
                         return;
                     end
                 end
