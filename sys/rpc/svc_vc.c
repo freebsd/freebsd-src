@@ -177,7 +177,7 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 
 	xprt_register(xprt);
 
-	solisten(so, SOMAXCONN, curthread);
+	solisten(so, -1, curthread);
 
 	SOCKBUF_LOCK(&so->so_rcv);
 	xprt->xp_upcallset = 1;
