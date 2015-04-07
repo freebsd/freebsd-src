@@ -146,8 +146,12 @@ LIBZFS?=	${DESTDIR}${LIBDIR}/libzfs.a
 LIBZFS_CORE?=	${DESTDIR}${LIBDIR}/libzfs_core.a
 LIBZPOOL?=	${DESTDIR}${LIBDIR}/libzpool.a
 
-# enforce the 2 -lpthread and -lc to always be the last in that exact order
+# enforce that -lcheri, -lpthread, and -lc to always be the last in that
+# exact order
 .if defined(LDADD)
+.if ${LDADD:M-lcheri}
+LDADD:=	${LDADD:N-lcheri} -lcheri
+.endif
 .if ${LDADD:M-lpthread}
 LDADD:=	${LDADD:N-lpthread} -lpthread
 .endif
