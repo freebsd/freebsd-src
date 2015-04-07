@@ -971,7 +971,7 @@ oshmctl(struct thread *td, struct oshmctl_args *uap)
 	shmseg = shm_find_segment(uap->shmid, true);
 	if (shmseg == NULL) {
 		SYSVSHM_UNLOCK();
-		return (error);
+		return (EINVAL);
 	}
 	switch (uap->cmd) {
 	case IPC_STAT:
