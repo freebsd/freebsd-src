@@ -108,6 +108,7 @@ SRCF=	absvdi2 \
 	mulvdi3 \
 	mulvsi3 \
 	mulvti3 \
+	multc3 \
 	mulxc3 \
 	negdf2 \
 	negdi2 \
