@@ -20,6 +20,7 @@ BOOT1_SIZE=128k
 # amd64:   BOOTx64.efi
 # aarch64: BOOTaa64.efi
 # arm:     BOOTarm.efi
+# i386:    BOOTia32.efi
 #
 if [ -z "$2" ]; then
 	echo "Usage: $0 arch boot-filename"
