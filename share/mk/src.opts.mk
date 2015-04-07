@@ -235,6 +235,8 @@ __DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC
 .endif
 .if ${__T} == "aarch64"
 BROKEN_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP GDB
+# There was no support for arm64 prior to FreeBSD 11
+BROKEN_OPTIONS+=SYSCALL_COMPAT
 .endif
 
 .include <bsd.mkopt.mk>
