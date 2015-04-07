@@ -40,21 +40,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
-#include <net/radix.h>
-#define	_WANT_RTENTRY
 #include <net/route.h>
 
 #include <netinet/in.h>
 #include <netgraph/ng_socket.h>
-
-#include <sys/sysctl.h>
 
 #include <arpa/inet.h>
 #include <ifaddrs.h>
@@ -71,8 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <libxo/xo.h>
 #include "netstat.h"
-
-#define	kget(p, d) (kread((u_long)(p), (char *)&(d), sizeof (d)))
 
 /*
  * Definitions for showing gateway flags.
@@ -108,9 +102,7 @@ struct bits {
 static struct nlist rl[] = {
 #define	N_RTSTAT	0
 	{ .n_name = "_rtstat" },
-#define	N_RTREE		1
-	{ .n_name = "_rt_tables"},
-#define	N_RTTRASH	2
+#define	N_RTTRASH	1
 	{ .n_name = "_rttrash" },
 	{ .n_name = NULL },
 };
@@ -121,33 +113,14 @@ typedef union {
 	u_short	u_data[128];
 } sa_u;
 
-static sa_u pt_u;
-
 struct ifmap_entry {
 	char ifname[IFNAMSIZ];
 };
-
 static struct ifmap_entry *ifmap;
 static int ifmap_size;
-
-int	do_rtent = 0;
-struct	rtentry rtentry;
-struct	radix_node rnode;
-struct	radix_mask rmask;
-
-int	NewTree = 1;
-
 struct	timespec uptime;
 
-static struct sockaddr *kgetsa(struct sockaddr *);
-static void size_cols(int ef, struct radix_node *rn);
-static void size_cols_tree(struct radix_node *rn);
-static void size_cols_rtentry(struct rtentry *rt);
-static void p_rtnode_kvm(void);
 static void p_rtable_sysctl(int, int);
-static void p_rtable_kvm(int, int );
-static void p_rtree_kvm(const char *name, struct radix_node *);
-static void p_rtentry_kvm(const char *name, struct rtentry *);
 static void p_rtentry_sysctl(const char *name, struct rt_msghdr *);
 static void p_sockaddr(const char *name, struct sockaddr *, struct sockaddr *,
     int, int);
@@ -165,6 +138,9 @@ routepr(int fibnum, int af)
 {
 	size_t intsize;
 	int numfibs;
+
+	if (live == 0)
+		return;
 
 	intsize = sizeof(int);
 	if (fibnum == -1 &&
@@ -187,11 +163,7 @@ routepr(int fibnum, int af)
 	if (fibnum)
 		xo_emit(" ({L:fib}: {:fib/%d})", fibnum);
 	xo_emit("\n");
-
-	if (Aflag == 0 && live != 0 && NewTree)
-		p_rtable_sysctl(fibnum, af);
-	else
-		p_rtable_kvm(fibnum, af);
+	p_rtable_sysctl(fibnum, af);
 	xo_close_container("route-information");
 }
 
@@ -253,100 +225,6 @@ static int wid_mtu;
 static int wid_if;
 static int wid_expire;
 
-static void
-size_cols(int ef, struct radix_node *rn)
-{
-	wid_dst = WID_DST_DEFAULT(ef);
-	wid_gw = WID_GW_DEFAULT(ef);
-	wid_flags = 6;
-	wid_pksent = 8;
-	wid_mtu = 6;
-	wid_if = WID_IF_DEFAULT(ef);
-	wid_expire = 6;
-
-	if (Wflag && rn != NULL)
-		size_cols_tree(rn);
-}
-
-static void
-size_cols_tree(struct radix_node *rn)
-{
-again:
-	if (kget(rn, rnode) != 0)
-		return;
-	if (!(rnode.rn_flags & RNF_ACTIVE))
-		return;
-	if (rnode.rn_bit < 0) {
-		if ((rnode.rn_flags & RNF_ROOT) == 0) {
-			if (kget(rn, rtentry) != 0)
-				return;
-			size_cols_rtentry(&rtentry);
-		}
-		if ((rn = rnode.rn_dupedkey))
-			goto again;
-	} else {
-		rn = rnode.rn_right;
-		size_cols_tree(rnode.rn_left);
-		size_cols_tree(rn);
-	}
-}
-
-static void
-size_cols_rtentry(struct rtentry *rt)
-{
-	static struct ifnet ifnet, *lastif;
-	static char buffer[100];
-	const char *bp;
-	struct sockaddr *sa;
-	sa_u addr, mask;
-	int len;
-
-	bzero(&addr, sizeof(addr));
-	if ((sa = kgetsa(rt_key(rt))))
-		bcopy(sa, &addr, sa->sa_len);
-	bzero(&mask, sizeof(mask));
-	if (rt_mask(rt) && (sa = kgetsa(rt_mask(rt))))
-		bcopy(sa, &mask, sa->sa_len);
-	bp = fmt_sockaddr(&addr.u_sa, &mask.u_sa, rt->rt_flags);
-	len = strlen(bp);
-	wid_dst = MAX(len, wid_dst);
-
-	bp = fmt_sockaddr(kgetsa(rt->rt_gateway), NULL, RTF_HOST);
-	len = strlen(bp);
-	wid_gw = MAX(len, wid_gw);
-
-	bp = fmt_flags(rt->rt_flags);
-	len = strlen(bp);
-	wid_flags = MAX(len, wid_flags);
-
-	if (Wflag) {
-		len = snprintf(buffer, sizeof(buffer), "%ju",
-		    (uintmax_t )kread_counter((u_long )rt->rt_pksent));
-		wid_pksent = MAX(len, wid_pksent);
-	}
-	if (rt->rt_ifp) {
-		if (rt->rt_ifp != lastif) {
-			if (kget(rt->rt_ifp, ifnet) == 0)
-				len = strlen(ifnet.if_xname);
-			else
-				len = strlen("---");
-			lastif = rt->rt_ifp;
-			wid_if = MAX(len, wid_if);
-		}
-		if (rt->rt_expire) {
-			time_t expire_time;
-
-			if ((expire_time =
-			    rt->rt_expire - uptime.tv_sec) > 0) {
-				len = snprintf(buffer, sizeof(buffer), "%d",
-				    (int)expire_time);
-				wid_expire = MAX(len, wid_expire);
-			}
-		}
-	}
-}
-
-
 /*
  * Print header for routing table columns.
  */
@@ -375,210 +253,6 @@ pr_rthdr(int af1)
 			wid_if,		wid_if,		"Netif",
 			wid_expire,			"Expire");
 	}
-}
-
-static struct sockaddr *
-kgetsa(struct sockaddr *dst)
-{
-
-	if (kget(dst, pt_u.u_sa) != 0)
-		return (NULL);
-	if (pt_u.u_sa.sa_len > sizeof (pt_u.u_sa))
-		kread((u_long)dst, (char *)pt_u.u_data, pt_u.u_sa.sa_len);
-	return (&pt_u.u_sa);
-}
-
-/*
- * Print kernel routing tables for given fib
- * using debugging kvm(3) interface.
- */
-static void
-p_rtable_kvm(int fibnum, int af)
-{
-	struct radix_node_head **rnhp, *rnh, head;
-	struct radix_node_head **rt_tables;
-	u_long rtree;
-	int fam, af_size;
-	bool did_rt_family = false;
-
-	kresolve_list(rl);
-	if ((rtree = rl[N_RTREE].n_value) == 0) {
-		xo_emit("rt_tables: symbol not in namelist\n");
-		return;
-	}
-
-	af_size = (AF_MAX + 1) * sizeof(struct radix_node_head *);
-	rt_tables = calloc(1, af_size);
-	if (rt_tables == NULL)
-		err(EX_OSERR, "memory allocation failed");
-
-	if (kread((u_long)(rtree), (char *)(rt_tables) + fibnum * af_size,
-	    af_size) != 0)
-		err(EX_OSERR, "error retrieving radix pointers");
-	xo_open_container("route-table");
-	for (fam = 0; fam <= AF_MAX; fam++) {
-		int tmpfib;
-
-		switch (fam) {
-		case AF_INET6:
-		case AF_INET:
-			tmpfib = fibnum;
-			break;
-		default:
-			tmpfib = 0;
-		}
-		rnhp = (struct radix_node_head **)*rt_tables;
-		/* Calculate the in-kernel address. */
-		rnhp += tmpfib * (AF_MAX + 1) + fam;
-		/* Read the in kernel rhn pointer. */
-		if (kget(rnhp, rnh) != 0)
-			continue;
-		if (rnh == NULL)
-			continue;
-		/* Read the rnh data. */
-		if (kget(rnh, head) != 0)
-			continue;
-		if (fam == AF_UNSPEC) {
-			if (Aflag && af == 0) {
-				xo_emit("{T:Netmasks}:\n");
-				xo_open_list("netmasks");
-				p_rtree_kvm("netmasks", head.rnh_treetop);
-				xo_close_list("netmasks");
-			}
-		} else if (af == AF_UNSPEC || af == fam) {
-			if (!did_rt_family) {
-				xo_open_list("rt-family");
-				did_rt_family = true;
-			}
-			size_cols(fam, head.rnh_treetop);
-			xo_open_instance("rt-family");
-			pr_family(fam);
-			do_rtent = 1;
-			xo_open_list("rt-entry");
-			pr_rthdr(fam);
-			p_rtree_kvm("rt-entry", head.rnh_treetop);
-			xo_close_list("rt-entry");
-			xo_close_instance("rt-family");
-		}
-	}
-	if (did_rt_family)
-		xo_close_list("rt-family");
-	xo_close_container("route-table");
-
-	free(rt_tables);
-}
-
-/*
- * Print given kernel radix tree using
- * debugging kvm(3) interface.
- */
-static void
-p_rtree_kvm(const char *name, struct radix_node *rn)
-{
-	bool opened;
-
-	opened = false;
-
-#define DOOPEN()    do { \
-	if (!opened) { xo_open_instance(name); opened = true; } \
-    } while (0)
-#define DOCLOSE()   do { \
-	if (opened) { opened = false; xo_close_instance(name); } \
-    } while(0)
-
-again:
-	if (kget(rn, rnode) != 0)
-		return;
-	if (!(rnode.rn_flags & RNF_ACTIVE))
-		return;
-	if (rnode.rn_bit < 0) {
-		if (Aflag) {
-			DOOPEN();
-			xo_emit("{q:radix-node/%-8.8lx} ", (u_long)rn);
-		}
-		if (rnode.rn_flags & RNF_ROOT) {
-			if (Aflag) {
-				DOOPEN();
-				xo_emit("({:root/root} node){L:/%s}",
-				    rnode.rn_dupedkey ? " =>\n" : "\n");
-			}
-		} else if (do_rtent) {
-			if (kget(rn, rtentry) == 0) {
-				DOOPEN();
-				p_rtentry_kvm(name, &rtentry);
-				if (Aflag) {
-					DOOPEN();
-					p_rtnode_kvm();
-					DOCLOSE();
-				}
-			}
-		} else {
-			DOOPEN();
-			p_sockaddr("address",
-			    kgetsa((struct sockaddr *)rnode.rn_key),
-			    NULL, 0, 44);
-			xo_emit("\n");
-		}
-		DOCLOSE();
-		if ((rn = rnode.rn_dupedkey))
-			goto again;
-	} else {
-		if (Aflag && do_rtent) {
-			DOOPEN();
-			xo_emit("{q:radix-node/%-8.8lx} ", (u_long)rn);
-			p_rtnode_kvm();
-			DOCLOSE();
-		}
-		rn = rnode.rn_right;
-		p_rtree_kvm(name, rnode.rn_left);
-		p_rtree_kvm(name, rn);
-	}
-}
-
-char	nbuf[20];
-
-static void
-p_rtnode_kvm(void)
-{
-	struct radix_mask *rm = rnode.rn_mklist;
-
-	if (rnode.rn_bit < 0) {
-		if (rnode.rn_mask) {
-			xo_emit("\t  {L:mask} ");
-			p_sockaddr("netmask",
-			    kgetsa((struct sockaddr *)rnode.rn_mask),
-			    NULL, 0, -1);
-		} else if (rm == 0)
-			return;
-	} else {
-		xo_emit("{[:6}{:bit/(%d)}{]:} {q:left-node/%8.8lx} "
-		    ": {q:right-node/%8.8lx}", rnode.rn_bit,
-		    (u_long)rnode.rn_left, (u_long)rnode.rn_right);
-	}
-	while (rm) {
-		if (kget(rm, rmask) != 0)
-			break;
-		sprintf(nbuf, " %d refs, ", rmask.rm_refs);
-		xo_emit(" mk = {q:node/%8.8lx} \\{({:bit/%d}),{nbufs/%s}",
-		    (u_long)rm, -1 - rmask.rm_bit, rmask.rm_refs ? nbuf : " ");
-		if (rmask.rm_flags & RNF_NORMAL) {
-			struct radix_node rnode_aux;
-			xo_emit(" <{:mode/normal}>, ");
-			if (kget(rmask.rm_leaf, rnode_aux) == 0)
-				p_sockaddr("netmask",
-				    kgetsa(/*XXX*/(void *)rnode_aux.rn_mask),
-				    NULL, 0, -1);
-			else
-				p_sockaddr(NULL, NULL, NULL, 0, -1);
-		} else
-			p_sockaddr("netmask",
-			    kgetsa((struct sockaddr *)rmask.rm_mask),
-			    NULL, 0, -1);
-		xo_emit("\\}");
-		if ((rm = rmask.rm_mklist))
-			xo_emit(" {D:->}");
-	}
-	xo_emit("\n");
 }
 
 static void
@@ -664,7 +338,13 @@ p_rtable_sysctl(int fibnum, int af)
 			need_table_close = true;
 
 			fam = sa->sa_family;
-			size_cols(fam, NULL);
+			wid_dst = WID_DST_DEFAULT(fam);
+			wid_gw = WID_GW_DEFAULT(fam);
+			wid_flags = 6;
+			wid_pksent = 8;
+			wid_mtu = 6;
+			wid_if = WID_IF_DEFAULT(fam);
+			wid_expire = 6;
 			xo_open_instance("rt-family");
 			pr_family(fam);
 			xo_open_list("rt-entry");
@@ -903,61 +583,6 @@ fmt_flags(int f)
 			*flags++ = p->b_val;
 	*flags = '\0';
 	return (name);
-}
-
-static void
-p_rtentry_kvm(const char *name, struct rtentry *rt)
-{
-	static struct ifnet ifnet, *lastif;
-	static char buffer[128];
-	static char prettyname[128];
-	struct sockaddr *sa;
-	sa_u addr, mask;
-
-	bzero(&addr, sizeof(addr));
-	if ((sa = kgetsa(rt_key(rt))))
-		bcopy(sa, &addr, sa->sa_len);
-	bzero(&mask, sizeof(mask));
-	if (rt_mask(rt) && (sa = kgetsa(rt_mask(rt))))
-		bcopy(sa, &mask, sa->sa_len);
-
-	p_sockaddr("destination", &addr.u_sa, &mask.u_sa, rt->rt_flags,
-	    wid_dst);
-	p_sockaddr("gateway", kgetsa(rt->rt_gateway), NULL, RTF_HOST, wid_gw);
-	snprintf(buffer, sizeof(buffer), "{[:-%d}{:flags/%%s}{]:}",
-	    wid_flags);
-	p_flags(rt->rt_flags, buffer);
-	if (Wflag) {
-		xo_emit("{[:%d}{t:use/%ju}{]:} ", -wid_pksent,
-		    (uintmax_t )kread_counter((u_long )rt->rt_pksent));
-
-		if (rt->rt_mtu != 0)
-			xo_emit("{t:mtu/%*lu} ", wid_mtu, rt->rt_mtu);
-		else
-			xo_emit("{P:/%*s} ", wid_mtu, "");
-	}
-	if (rt->rt_ifp) {
-		if (rt->rt_ifp != lastif) {
-			if (kget(rt->rt_ifp, ifnet) == 0)
-				strlcpy(prettyname, ifnet.if_xname,
-				    sizeof(prettyname));
-			else
-				strlcpy(prettyname, "---", sizeof(prettyname));
-			lastif = rt->rt_ifp;
-		}
-		xo_emit("{t:interface-name/%*.*s}", wid_if, wid_if, prettyname);
-		if (rt->rt_expire) {
-			time_t expire_time;
-
-			if ((expire_time =
-			    rt->rt_expire - uptime.tv_sec) > 0)
-				xo_emit(" {:expire-time/%*d}",
-				    wid_expire, (int)expire_time);
-		}
-		if (rt->rt_nodes[0].rn_dupedkey)
-			xo_emit(" =>");
-	}
-	xo_emit("\n");
 }
 
 char *
