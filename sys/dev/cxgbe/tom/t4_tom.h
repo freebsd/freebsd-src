@@ -31,7 +31,6 @@
 #ifndef __T4_TOM_H__
 #define __T4_TOM_H__
 
-#define KTR_CXGBE	KTR_SPARE3
 #define LISTEN_HASH_SIZE 32
 
 /*

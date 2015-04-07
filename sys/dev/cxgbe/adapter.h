@@ -51,6 +51,7 @@
 #include "common/t4_msg.h"
 #include "firmware/t4fw_interface.h"
 
+#define KTR_CXGBE	KTR_SPARE3
 MALLOC_DECLARE(M_CXGBE);
 #define CXGBE_UNIMPLEMENTED(s) \
     panic("%s (%s, line %d) not implemented yet.", s, __FILE__, __LINE__)
