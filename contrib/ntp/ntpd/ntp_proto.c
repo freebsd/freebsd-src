@@ -459,7 +459,7 @@ receive(
 	while (has_mac > 0) {
 		int temp;
 
-		if (has_mac % 4 != 0 || has_mac < 0) {
+		if (has_mac % 4 != 0 || has_mac < MIN_MAC_LEN) {
 			sys_badlength++;
 			return;			/* bad MAC length */
 		}
@@ -482,6 +482,13 @@ receive(
 			sys_badlength++;
 			return;			/* bad MAC length */
 		}
+	}
+	/*
+	 * If has_mac is < 0 we had a malformed packet.
+	 */
+	if (has_mac < 0) {
+		sys_badlength++;
+		return;		/* bad length */
 	}
 #ifdef OPENSSL
 	pkeyid = tkeyid = 0;
@@ -942,12 +949,9 @@ receive(
 	}
 
 	/*
-	 * Update the origin and destination timestamps. If
-	 * unsynchronized or bogus abandon ship. If the crypto machine
+	 * If unsynchronized or bogus abandon ship. If the crypto machine
 	 * breaks, light the crypto bit and plaint the log.
 	 */
-	peer->org = p_xmt;
-	peer->rec = rbufp->recv_time;
 	if (peer->flash & PKT_TEST_MASK) {
 #ifdef OPENSSL
 		if (crypto_flags && (peer->flags & FLAG_SKEY)) {
@@ -978,10 +982,11 @@ receive(
 	 * versions. If symmetric modes, return a crypto-NAK. The peer
 	 * should restart the protocol.
 	 */
-	} else if (!AUTH(peer->keyid || (restrict_mask & RES_DONTTRUST),
-	    is_authentic)) {
+	} else if (!AUTH(peer->keyid || has_mac ||
+	    (restrict_mask & RES_DONTTRUST), is_authentic)) {
 		peer->flash |= TEST5;
-		if (hismode == MODE_ACTIVE || hismode == MODE_PASSIVE)
+		if (has_mac &&
+		    (hismode == MODE_ACTIVE || hismode == MODE_PASSIVE))
 			fast_xmit(rbufp, MODE_ACTIVE, 0, restrict_mask);
 		return;				/* bad auth */
 	}
@@ -989,7 +994,12 @@ receive(
 	/*
 	 * That was hard and I am sweaty, but the packet is squeaky
 	 * clean. Get on with real work.
+	 *
+	 * Update the origin and destination timestamps.
 	 */
+	peer->org = p_xmt;
+	peer->rec = rbufp->recv_time;
+
 	peer->received++;
 	peer->timereceived = current_time;
 	if (is_authentic == AUTH_OK)
