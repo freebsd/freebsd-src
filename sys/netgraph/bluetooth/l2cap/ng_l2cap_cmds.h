@@ -199,6 +199,25 @@ do {									\
 	c->hdr.length = htole16(c->hdr.length);				\
 } while (0)
 
+#define _ng_l2cap_cmd_urs(_m, _ident, _result)	\
+do {									\
+	struct  _cmd_urs{						\
+		ng_l2cap_cmd_hdr_t	 hdr;				\
+		uint16_t	 result;				\
+	} __attribute__ ((packed))	*c = NULL;			\
+									\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
+									\
+	(_m)->m_pkthdr.len = (_m)->m_len = sizeof(*c);			\
+									\
+	c = mtod((_m), struct _cmd_urs *);				\
+	c->hdr.code = NG_L2CAP_CMD_PARAM_UPDATE_RESPONSE;		\
+	c->hdr.ident = (_ident);					\
+	c->hdr.length = sizeof(c->result);				\
+									\
+	c->result = htole16((_result));				\
+} while (0)
+
 /* Build configuration options */
 #define _ng_l2cap_build_cfg_options(_m, _mtu, _flush_timo, _flow)	\
 do {									\
