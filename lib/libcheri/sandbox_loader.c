@@ -118,13 +118,13 @@ sandbox_class_load(struct sandbox_class *sbcp)
 	}
 
 	/*
-	* Parse the sandbox ELF binary for CCall methods provided and
-	* required.
-	*/
+	 * Parse the sandbox ELF binary for CCall methods provided and
+	 * required.
+	 */
 	if (sandbox_parse_ccall_methods(sbcp->sbc_fd,
 	     &sbcp->sbc_provided_classes, &sbcp->sbc_required_methods) < 0) {
 		saved_errno = EINVAL;
-		warnx("%s: sandbox_parse_ccal_methods() failed for %s",
+		warnx("%s: sandbox_parse_ccall_methods() failed for %s",
 		    __func__, sbcp->sbc_path);
 		goto error;
 	}
