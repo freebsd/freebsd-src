@@ -32,6 +32,7 @@
 
 #include <sys/fcntl.h>
 #include <sys/queue.h>
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <errno.h>
 #include <limits.h>
