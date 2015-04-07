@@ -7,7 +7,7 @@ MAN=
 NEED_CHERI=	hybrid
 WANT_DUMP=	yes
 
-LIBADD=  cheri helloworld
+LIBADD=  helloworld
 
 NO_SHARED?=	YES
 

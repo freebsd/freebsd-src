@@ -46,9 +46,6 @@ extern struct sandbox_class	*__helloworld_classp;
     __attribute__((cheri_method_class(__helloworld)))
 #endif
 
-void	cheri_helloworld_init(void);
-void	cheri_helloworld_fini(void);
-
 CHERI_HELLOWORLD_CCALL
 int call_cheri_system_helloworld(void);
 

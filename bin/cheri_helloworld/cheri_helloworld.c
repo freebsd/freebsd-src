@@ -51,17 +51,12 @@
 int
 main(void)
 {
-	struct sandbox_object *objectp;
+	int ret;
 	struct cheri_object stdout_fd;
 
 	if (cheri_fd_new(STDOUT_FILENO, &stdout_fd) < 0)
 		err(EX_OSFILE, "cheri_fd_new: stdout");
-	cheri_helloworld_init();
-	if (sandbox_object_new(__helloworld_classp, 2*1024*1024, &objectp) < 0)
-		err(EX_OSFILE, "sandbox_object_new");
-	__helloworld = sandbox_object_getobject(objectp);
 
-	int ret;
 	ret = call_cheri_system_helloworld();
 	assert(ret == 123456);
 	ret = call_cheri_system_puts();
@@ -69,8 +64,6 @@ main(void)
 	ret = call_cheri_fd_write_c(stdout_fd);
 	assert(ret == 12);
 
-	sandbox_object_destroy(objectp);
-	cheri_helloworld_fini();
 	cheri_fd_destroy(stdout_fd);
 
 	return (0);

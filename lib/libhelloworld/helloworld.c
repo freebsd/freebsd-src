@@ -41,18 +41,26 @@
 
 struct cheri_object	 __helloworld;
 struct sandbox_class	*__helloworld_classp;
+struct sandbox_object	*__helloworld_objectp;
 
-void
+__attribute__ ((constructor)) static void
 cheri_helloworld_init(void)
 {
 	
 	if (sandbox_class_new(COMPARTMENT_PATH, 0, &__helloworld_classp) < 0)
 		err(EX_OSFILE, "sandbox_class_new(%s)", COMPARTMENT_PATH);
+	if (sandbox_object_new(__helloworld_classp, 2*1024*1024,
+	    &__helloworld_objectp) < 0)
+		err(EX_OSFILE, "sandbox_object_new");
+	__helloworld = sandbox_object_getobject(__helloworld_objectp);
 }
 
+#if 0
 void
 cheri_helloworld_fini(void)
 {
 
+	sandbox_object_destroy(__helloworld_objectp);
 	sandbox_class_destroy(__helloworld_classp);
 }
+#endif
