@@ -23,7 +23,9 @@ CFLAGS+=	-I${.CURDIR}/../../../contrib/dev/acpica/include
 CFLAGS+=	-I${.CURDIR}/../../..
 
 # Always add MI sources and REGULAR efi loader bits
-.PATH:		${.CURDIR}/../loader/arch/${MACHINE_CPUARCH} ${.CURDIR}/../../common
+.PATH:		${.CURDIR}/../loader/arch/${MACHINE_CPUARCH}
+.PATH:		${.CURDIR}/../loader
+.PATH:		${.CURDIR}/../../common
 CFLAGS+=	-I${.CURDIR}/../../common
 
 FILES=	boot1.efi boot1.efifat
