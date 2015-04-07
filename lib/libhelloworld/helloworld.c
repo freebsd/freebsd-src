@@ -37,7 +37,7 @@
 
 #include "helloworld.h"
 
-#define	COMPARTMENT_PATH	"/usr/lib/helloworld.co.0"
+#define	COMPARTMENT_PATH	"/usr/libcheri/helloworld.co.0"
 
 struct cheri_object	 __helloworld;
 struct sandbox_class	*__helloworld_classp;
