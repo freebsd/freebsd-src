@@ -206,6 +206,8 @@ also menu-infrastructure definitions
 \ 
 : printmenuitem ( menu_item_str -- ascii_keycode )
 
+	loader_color? if [char] ^ escc! then
+
 	menurow dup @ 1+ swap ! ( increment menurow )
 	menuidx dup @ 1+ swap ! ( increment menuidx )
 
@@ -219,7 +221,7 @@ also menu-infrastructure definitions
 	loader_color? dup ( -- bool bool )
 	if b then
 	menuidx @ .
-	if me then
+	if 7 fg then
 
 	\ Move the cursor forward 1 column
 	dup menuX @ 1+ swap at-xy
