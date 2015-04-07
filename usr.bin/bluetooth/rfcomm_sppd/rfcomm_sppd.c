@@ -33,6 +33,7 @@
 
 #include <sys/stat.h>
 #include <sys/types.h>
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <ctype.h>
 #include <err.h>
