@@ -1012,7 +1012,6 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	 * Do not run parent's if_transmit() if the parent is not up.
 	 */
 	if (!(p->if_flags & IFF_UP)) {
-		m_freem(m);
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return (ENETDOWN);
 	}

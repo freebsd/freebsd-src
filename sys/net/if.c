@@ -3747,10 +3747,8 @@ if_snd_enqueue(struct ifnet *ifp, struct mbuf *m)
 	mtx_lock(&ifq->ifq_mtx);
 	error = mbufq_enqueue(&ifq->ifq_mbq, m);
 	mtx_unlock(&ifq->ifq_mtx);
-	if (error) {
-		m_freem(m);
+	if (error)
 		if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
-	}
 	return (error);
 }
 

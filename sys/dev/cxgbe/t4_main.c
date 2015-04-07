@@ -1363,10 +1363,8 @@ cxgbe_transmit(if_t ifp, struct mbuf *m)
 	M_ASSERTPKTHDR(m);
 	MPASS(m->m_nextpkt == NULL);	/* not quite ready for this yet */
 
-	if (__predict_false(pi->link_cfg.link_ok == 0)) {
-		m_freem(m);
+	if (__predict_false(pi->link_cfg.link_ok == 0))
 		return (ENETDOWN);
-	}
 
 	rc = parse_pkt(&m);
 	if (__predict_false(rc != 0)) {
@@ -1383,8 +1381,6 @@ cxgbe_transmit(if_t ifp, struct mbuf *m)
 
 	items[0] = m;
 	rc = mp_ring_enqueue(txq->r, items, 1, 4096);
-	if (__predict_false(rc != 0))
-		m_freem(m);
 
 	return (rc);
 }

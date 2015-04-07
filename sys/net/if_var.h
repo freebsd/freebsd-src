@@ -460,8 +460,12 @@ if_input(if_t ifp, struct mbuf *m)
 static inline int
 if_transmit(if_t ifp, struct mbuf *m)
 {
+	int error;
 
-	return (ifp->if_ops->ifop_transmit(ifp, m));
+	error = ifp->if_ops->ifop_transmit(ifp, m);
+	if (error)
+		m_freem(m);
+	return (error);
 }
 
 static inline void

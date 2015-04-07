@@ -398,7 +398,6 @@ ng_iface_send(if_t ifp, struct mbuf *m, sa_family_t sa)
 
 	/* Check address family to determine hook (if known) */
 	if (iffam == NULL) {
-		m_freem(m);
 		log(LOG_WARNING, "%s: can't handle af%d\n", if_name(ifp), sa);
 		return (EAFNOSUPPORT);
 	}
@@ -418,7 +417,8 @@ ng_iface_send(if_t ifp, struct mbuf *m, sa_family_t sa)
 	} else
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
-	return (error);
+	/* Netgraph frees the mbuf, so we can't return an error. */
+	return (0);
 }
 
 #ifdef DEBUG
