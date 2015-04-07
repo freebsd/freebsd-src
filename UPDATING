@@ -11,6 +11,16 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20150407:	p13	FreeBSD-SA-15:04.igmp [revised]
+			FreeBSD-SA-15:07.ntp
+			FreeBSD-SA-15:09.ipv6
+
+	Improved patch for SA-15:04.igmp.
+
+	Fix multiple vulnerabilities of ntp. [SA-15:07]
+
+	Fix Denial of Service with IPv6 Router Advertisements. [SA-15:09]
+
 20150320:	p12
 	Fix patch for SA-15:06.openssl.
 
