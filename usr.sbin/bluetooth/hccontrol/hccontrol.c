@@ -29,6 +29,7 @@
  * $FreeBSD$
  */
 
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <sys/ioctl.h>
 #include <sys/sysctl.h>
