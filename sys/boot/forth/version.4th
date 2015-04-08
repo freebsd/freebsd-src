@@ -88,7 +88,7 @@ only forth definitions also version-processing
 	loader_color? dup ( c-addr/u -- c-addr/u bool bool )
 	if 6 fg then
 	-rot type
-	if 7 fg then
+	if me then
 
 	0 25 at-xy
 ;
