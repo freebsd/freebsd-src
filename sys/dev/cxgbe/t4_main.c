@@ -4587,7 +4587,7 @@ t4_sysctls(struct adapter *sc)
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "ddp_stats",
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
-	    sysctl_ddp_stats, "A", "DDP statistics");
+	    sysctl_ddp_stats, "A", "non-TCP DDP statistics");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "devlog",
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
