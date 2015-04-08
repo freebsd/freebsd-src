@@ -22,7 +22,6 @@ CRTSRC=${.CURDIR}/../../contrib/compiler-rt/lib/builtins
 SRCF=	absvdi2 \
 	absvsi2 \
 	absvti2 \
-	addtf3 \
 	addvdi3 \
 	addvsi3 \
 	addvti3 \
@@ -37,7 +36,6 @@ SRCF=	absvdi2 \
 	clzti2 \
 	cmpdi2 \
 	cmpti2 \
-	comparetf2 \
 	ctzdi2 \
 	ctzsi2 \
 	ctzti2 \
@@ -46,31 +44,22 @@ SRCF=	absvdi2 \
 	divmoddi4 \
 	divmodsi4 \
 	divsc3 \
-	divtf3 \
 	divti3 \
 	divxc3 \
 	enable_execute_stack \
 	eprintf \
-	extenddftf2 \
-	extendsftf2 \
 	ffsdi2 \
 	ffsti2 \
 	fixdfdi \
 	fixdfti \
 	fixsfdi \
 	fixsfti \
-	fixtfdi \
-	fixtfsi \
-	fixtfti \
 	fixunsdfdi \
 	fixunsdfsi \
 	fixunsdfti \
 	fixunssfdi \
 	fixunssfsi \
 	fixunssfti \
-	fixunstfdi \
-	fixunstfsi \
-	fixunstfti \
 	fixunsxfdi \
 	fixunsxfsi \
 	fixunsxfti \
@@ -105,7 +94,6 @@ SRCF=	absvdi2 \
 	mulosi4 \
 	muloti4 \
 	mulsc3 \
-	multf3 \
 	multi3 \
 	mulvdi3 \
 	mulvsi3 \
@@ -129,13 +117,10 @@ SRCF=	absvdi2 \
 	powisf2 \
 	powitf2 \
 	powixf2 \
-	subtf3 \
 	subvdi3 \
 	subvsi3 \
 	subvti3 \
 	trampoline_setup \
-	trunctfdf2 \
-	trunctfsf2 \
 	ucmpdi2 \
 	ucmpti2 \
 	udivdi3 \
@@ -145,6 +130,25 @@ SRCF=	absvdi2 \
 	udivti3 \
 	umoddi3 \
 	umodti3
+
+# 128-bit quad precision long double support, only used on arm64
+.if ${MACHINE_CPUARCH} == "aarch64"
+SRCF+=	addtf3 \
+	comparetf2 \
+	divtf3 \
+	extenddftf2 \
+	extendsftf2 \
+	fixtfdi \
+	fixtfsi \
+	fixtfti \
+	fixunstfdi \
+	fixunstfsi \
+	fixunstfti \
+	multf3 \
+	subtf3 \
+	trunctfdf2 \
+	trunctfsf2
+.endif
 
 # These are already shipped by libc.a on arm and mips
 .if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
