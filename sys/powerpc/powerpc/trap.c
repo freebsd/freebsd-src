@@ -407,19 +407,25 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 	printf("\n");
 	printf("   exception       = 0x%x (%s)\n", vector, trapname(vector));
 	switch (vector) {
-	case EXC_DTMISS:
 	case EXC_DSE:
 	case EXC_DSI:
+	case EXC_DTMISS:
 		printf("   virtual address = 0x%" PRIxPTR "\n", frame->dar);
+#ifdef AIM
 		printf("   dsisr           = 0x%" PRIxPTR "\n",
 		    frame->cpu.aim.dsisr);
+#endif
 		break;
-	case EXC_ITMISS:
 	case EXC_ISE:
 	case EXC_ISI:
+	case EXC_ITMISS:
 		printf("   virtual address = 0x%" PRIxPTR "\n", frame->srr0);
 		break;
 	}
+#ifdef BOOKE
+	printf("   esr             = 0x%" PRIxPTR "\n",
+	    frame->cpu.booke.esr);
+#endif
 	printf("   srr0            = 0x%" PRIxPTR "\n", frame->srr0);
 	printf("   srr1            = 0x%" PRIxPTR "\n", frame->srr1);
 	printf("   lr              = 0x%" PRIxPTR "\n", frame->lr);
