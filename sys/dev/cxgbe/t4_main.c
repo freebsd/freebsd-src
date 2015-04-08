@@ -7056,10 +7056,9 @@ get_filter_mode(struct adapter *sc, uint32_t *mode)
 		log(LOG_WARNING, "%s: cached filter mode out of sync %x %x.\n",
 		    device_get_nameunit(sc->dev), sc->params.tp.vlan_pri_map,
 		    fconf);
-		sc->params.tp.vlan_pri_map = fconf;
 	}
 
-	*mode = fconf_to_mode(sc->params.tp.vlan_pri_map);
+	*mode = fconf_to_mode(fconf);
 
 	end_synchronized_op(sc, LOCK_HELD);
 	return (0);
@@ -7090,14 +7089,7 @@ set_filter_mode(struct adapter *sc, uint32_t mode)
 	}
 #endif
 
-#ifdef notyet
 	rc = -t4_set_filter_mode(sc, fconf);
-	if (rc == 0)
-		sc->filter_mode = fconf;
-#else
-	rc = ENOTSUP;
-#endif
-
 done:
 	end_synchronized_op(sc, LOCK_HELD);
 	return (rc);
