@@ -81,27 +81,55 @@ MODULE_VERSION(nvme, 1);
 
 static struct _pcsid
 {
-	u_int32_t   type;
-	const char  *desc;
+	uint32_t	devid;
+	int		match_subdevice;
+	uint16_t	subdevice;
+	const char	*desc;
 } pci_ids[] = {
-	{ 0x01118086,		"NVMe Controller"  },
-	{ CHATHAM_PCI_ID,	"Chatham Prototype NVMe Controller"  },
-	{ IDT32_PCI_ID,		"IDT NVMe Controller (32 channel)"  },
-	{ IDT8_PCI_ID,		"IDT NVMe Controller (8 channel)" },
-	{ 0x00000000,		NULL  }
+	{ 0x01118086,		0, 0, "NVMe Controller"  },
+	{ CHATHAM_PCI_ID,	0, 0, "Chatham Prototype NVMe Controller"  },
+	{ IDT32_PCI_ID,		0, 0, "IDT NVMe Controller (32 channel)"  },
+	{ IDT8_PCI_ID,		0, 0, "IDT NVMe Controller (8 channel)" },
+	{ 0x09538086,		1, 0x3702, "DC P3700 SSD" },
+	{ 0x09538086,		1, 0x3703, "DC P3700 SSD [2.5\" SFF]" },
+	{ 0x09538086,		1, 0x3704, "DC P3500 SSD [Add-in Card]" },
+	{ 0x09538086,		1, 0x3705, "DC P3500 SSD [2.5\" SFF]" },
+	{ 0x09538086,		1, 0x3709, "DC P3600 SSD [Add-in Card]" },
+	{ 0x09538086,		1, 0x370a, "DC P3600 SSD [2.5\" SFF]" },
+	{ 0x00000000,		0, 0, NULL  }
 };
+
+static int
+nvme_match(uint32_t devid, uint16_t subdevice, struct _pcsid *ep)
+{
+	if (devid != ep->devid)
+		return 0;
+
+	if (!ep->match_subdevice)
+		return 1;
+
+	if (subdevice == ep->subdevice)
+		return 1;
+	else
+		return 0;
+}
 
 static int
 nvme_probe (device_t device)
 {
 	struct _pcsid	*ep;
-	u_int32_t	type;
+	uint32_t	devid;
+	uint16_t	subdevice;
 
-	type = pci_get_devid(device);
+	devid = pci_get_devid(device);
+	subdevice = pci_get_subdevice(device);
 	ep = pci_ids;
 
-	while (ep->type && ep->type != type)
+	while (ep->devid) {
+		if (nvme_match(devid, subdevice, ep))
+			break;
 		++ep;
+	}
 
 	if (ep->desc) {
 		device_set_desc(device, ep->desc);
