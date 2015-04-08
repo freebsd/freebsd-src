@@ -469,15 +469,6 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 	qpair->id = id;
 	qpair->vector = vector;
 	qpair->num_entries = num_entries;
-#ifdef CHATHAM2
-	/*
-	 * Chatham prototype board starts having issues at higher queue
-	 *  depths.  So use a conservative estimate here of no more than 64
-	 *  outstanding I/O per queue at any one point.
-	 */
-	if (pci_get_devid(ctrlr->dev) == CHATHAM_PCI_ID)
-		num_trackers = min(num_trackers, 64);
-#endif
 	qpair->num_trackers = num_trackers;
 	qpair->ctrlr = ctrlr;
 
