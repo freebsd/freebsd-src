@@ -19,7 +19,7 @@ LDFLAGS+=	-Wl,--script=${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
 		-nostdlib
 MAN=
 
-LIBADD=	md_cheri c_cheri
+LIBADD=	md c_cheri
 
 NEED_CHERI=	pure
 WANT_DUMP=	yes

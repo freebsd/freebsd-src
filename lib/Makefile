@@ -74,7 +74,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libmandoc \
 	libmemstat \
 	libmd \
-	${_libmd_cheri} \
 	${_libmilter} \
 	${_libmp} \
 	libmt \
@@ -206,7 +205,6 @@ _libcasper=	libcasper
 _libc_cheri=	libc_cheri
 _libcheri=	libcheri
 _libhelloworld=	libhelloworld
-_libmd_cheri=	libmd_cheri
 _libz_cheri=	libz-cheri
 .if ${MK_NETSURF} != no
 # XXXBD: not really CHERI specific, but currently using WANT_CHERI to get

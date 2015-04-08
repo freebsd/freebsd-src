@@ -114,7 +114,6 @@ _LIBRARIES=	\
 		magic \
 		mandoc \
 		md \
-		md_cheri \
 		memstat \
 		mp \
 		nandfs \
