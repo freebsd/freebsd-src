@@ -62,7 +62,7 @@ crt_sb_constructors(void)
 	for (func = &__CTOR_LIST__[0];
 	    func != &__CTOR_END__;
 	    func++) {
-		if (*func != (void *)-1)
+		if (*func != (mips_function_ptr)-1)
 			(*func)();
 	}
 }
