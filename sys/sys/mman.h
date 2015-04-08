@@ -127,6 +127,7 @@
 #define	MS_SYNC		0x0000	/* msync synchronously */
 #define MS_ASYNC	0x0001	/* return immediately */
 #define MS_INVALIDATE	0x0002	/* invalidate all cached data */
+#define	MS_PAGEOUT	0x0004
 
 /*
  * Advice to madvise
