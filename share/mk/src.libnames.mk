@@ -293,7 +293,7 @@ LDADD+=		${LDADD_${_l}}
 .endfor
 
 .if defined(DPADD) && ${DPADD:Mmissing-dpadd_*}
-.error Missing ${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//:tu:S/^/DPADD_/} variable add "${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//}" to _LIBRARIES, _INTERNALLIBS, or _PRIVATELIBS and define "${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//:S/^/LIB/:tu}".
+.error Missing ${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//:S/^/DPADD_/} variable add "${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//}" to _LIBRARIES, _INTERNALLIBS, or _PRIVATELIBS and define "${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//:S/^/LIB/:tu}".
 .endif
 
 .if defined(USEPRIVATELIB)
