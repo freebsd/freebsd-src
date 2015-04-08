@@ -4951,13 +4951,16 @@ cxgbe_sysctls(struct port_info *pi)
 static int
 sysctl_int_array(SYSCTL_HANDLER_ARGS)
 {
-	int rc, *i;
+	int rc, *i, space = 0;
 	struct sbuf sb;
 
 	sbuf_new(&sb, NULL, 32, SBUF_AUTOEXTEND);
-	for (i = arg1; arg2; arg2 -= sizeof(int), i++)
-		sbuf_printf(&sb, "%d ", *i);
-	sbuf_trim(&sb);
+	for (i = arg1; arg2; arg2 -= sizeof(int), i++) {
+		if (space)
+			sbuf_printf(&sb, " ");
+		sbuf_printf(&sb, "%d", *i);
+		space = 1;
+	}
 	sbuf_finish(&sb);
 	rc = sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
 	sbuf_delete(&sb);
