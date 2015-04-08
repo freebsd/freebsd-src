@@ -796,8 +796,12 @@ db_trap_glue(struct trapframe *frame)
 {
 	if (!(frame->srr1 & PSL_PR)
 	    && (frame->exc == EXC_TRC || frame->exc == EXC_RUNMODETRC
+#ifdef AIM
 		|| (frame->exc == EXC_PGM
 		    && (frame->srr1 & 0x20000))
+#else
+		|| (frame->exc == EXC_DEBUG)
+#endif
 		|| frame->exc == EXC_BPT
 		|| frame->exc == EXC_DSI)) {
 		int type = frame->exc;
@@ -805,7 +809,11 @@ db_trap_glue(struct trapframe *frame)
 		/* Ignore DTrace traps. */
 		if (*(uint32_t *)frame->srr0 == EXC_DTRACE)
 			return (0);
+#ifdef AIM
 		if (type == EXC_PGM && (frame->srr1 & 0x20000)) {
+#else
+		if (frame->cpu.booke.esr & ESR_PTR) {
+#endif
 			type = T_BREAKPOINT;
 		}
 		return (kdb_trap(type, 0, frame));
