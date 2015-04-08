@@ -7,4 +7,6 @@ CFLAGS+=	-DCTSRD_BACKDOOR -DBROKEN_SYSCALLS
 BUILDDIR=	${.CURDIR}/../../../lib/libpng
 SRCDIR=		${.CURDIR}/../../../contrib/libpng
 
+NO_SHARED=
+
 .include <${BUILDDIR}/Makefile>
