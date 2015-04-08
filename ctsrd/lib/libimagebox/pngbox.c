@@ -266,8 +266,8 @@ cheri_png_read_start(char *pngbuffer, size_t pnglen,
 	     CHERI_PERM_STORE | CHERI_PERM_STORE_CAP),
 	    cheri_ptrperm(pngbuffer, pnglen,
 	     CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
-	    cheri_ptrperm(__DEVOLATILE(void *, (is->times + 1)), sizeof(uint32_t) * 2,
-	     CHERI_PERM_STORE),
+	    cheri_ptrperm(__DEVOLATILE(void *, (is->times + 1)),
+	     sizeof(uint32_t) * 2, CHERI_PERM_STORE),
 	    NULL, NULL, NULL, NULL, NULL);
 	if (v == -1) {
 		is->error = 99;
