@@ -1144,9 +1144,17 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	/* One vector per IO queue, plus one vector for admin queue. */
 	num_vectors = ctrlr->num_io_queues + 1;
 
-	if (pci_msix_count(dev) < num_vectors) {
+	/*
+	 * If we cannot even allocate 2 vectors (one for admin, one for
+	 *  I/O), then revert to INTx.
+	 */
+	if (pci_msix_count(dev) < 2) {
 		ctrlr->msix_enabled = 0;
 		goto intx;
+	} else if (pci_msix_count(dev) < num_vectors) {
+		ctrlr->per_cpu_io_queues = FALSE;
+		ctrlr->num_io_queues = 1;
+		num_vectors = 2; /* one for admin, one for I/O */
 	}
 
 	if (pci_alloc_msix(dev, &num_vectors) != 0) {
