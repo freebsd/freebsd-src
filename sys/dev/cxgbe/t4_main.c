@@ -3317,6 +3317,7 @@ adapter_full_init(struct adapter *sc)
 {
 	int rc, i;
 
+	ASSERT_SYNCHRONIZED_OP(sc);
 	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
 	KASSERT((sc->flags & FULL_INIT_DONE) == 0,
 	    ("%s: FULL_INIT_DONE already", __func__));
