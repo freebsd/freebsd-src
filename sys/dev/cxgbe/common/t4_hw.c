@@ -3108,6 +3108,31 @@ void t4_write_rss_pf_mask(struct adapter *adapter, u32 pfmask)
 			  &pfmask, 1, A_TP_RSS_PF_MSK);
 }
 
+static void refresh_vlan_pri_map(struct adapter *adap)
+{
+
+        t4_read_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA,
+                         &adap->params.tp.vlan_pri_map, 1,
+                         A_TP_VLAN_PRI_MAP);
+
+	/*
+	 * Now that we have TP_VLAN_PRI_MAP cached, we can calculate the field
+	 * shift positions of several elements of the Compressed Filter Tuple
+	 * for this adapter which we need frequently ...
+	 */
+	adap->params.tp.vlan_shift = t4_filter_field_shift(adap, F_VLAN);
+	adap->params.tp.vnic_shift = t4_filter_field_shift(adap, F_VNIC_ID);
+	adap->params.tp.port_shift = t4_filter_field_shift(adap, F_PORT);
+	adap->params.tp.protocol_shift = t4_filter_field_shift(adap, F_PROTOCOL);
+
+	/*
+	 * If TP_INGRESS_CONFIG.VNID == 0, then TP_VLAN_PRI_MAP.VNIC_ID
+	 * represents the presense of an Outer VLAN instead of a VNIC ID.
+	 */
+	if ((adap->params.tp.ingress_config & F_VNIC) == 0)
+		adap->params.tp.vnic_shift = -1;
+}
+
 /**
  *	t4_set_filter_mode - configure the optional components of filter tuples
  *	@adap: the adapter
@@ -3131,6 +3156,8 @@ int t4_set_filter_mode(struct adapter *adap, unsigned int mode_map)
 		return -EINVAL;
 	t4_write_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA, &mode_map, 1,
 			  A_TP_VLAN_PRI_MAP);
+	refresh_vlan_pri_map(adap);
+
 	return 0;
 }
 
@@ -5615,33 +5642,10 @@ int __devinit t4_init_tp_params(struct adapter *adap)
 	for (chan = 0; chan < NCHAN; chan++)
 		adap->params.tp.tx_modq[chan] = chan;
 
-	/*
-	 * Cache the adapter's Compressed Filter Mode and global Incress
-	 * Configuration.
-	 */
-        t4_read_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-                         &adap->params.tp.vlan_pri_map, 1,
-                         A_TP_VLAN_PRI_MAP);
 	t4_read_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA,
 			 &adap->params.tp.ingress_config, 1,
 			 A_TP_INGRESS_CONFIG);
-
-	/*
-	 * Now that we have TP_VLAN_PRI_MAP cached, we can calculate the field
-	 * shift positions of several elements of the Compressed Filter Tuple
-	 * for this adapter which we need frequently ...
-	 */
-	adap->params.tp.vlan_shift = t4_filter_field_shift(adap, F_VLAN);
-	adap->params.tp.vnic_shift = t4_filter_field_shift(adap, F_VNIC_ID);
-	adap->params.tp.port_shift = t4_filter_field_shift(adap, F_PORT);
-	adap->params.tp.protocol_shift = t4_filter_field_shift(adap, F_PROTOCOL);
-
-	/*
-	 * If TP_INGRESS_CONFIG.VNID == 0, then TP_VLAN_PRI_MAP.VNIC_ID
-	 * represents the presense of an Outer VLAN instead of a VNIC ID.
-	 */
-	if ((adap->params.tp.ingress_config & F_VNIC) == 0)
-		adap->params.tp.vnic_shift = -1;
+	refresh_vlan_pri_map(adap);
 
 	return 0;
 }
