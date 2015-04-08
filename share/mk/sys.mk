@@ -64,17 +64,18 @@ PO_CFLAGS	?=	${CFLAGS}
 
 CHERI_CC	?=	/usr/local/bin/cheri-unknown-freebsd-clang
 
+# cp(1) is used to copy source files to ${.OBJDIR}, make sure it can handle
+# read-only files as non-root by passing -f.
+CP		?=	cp -f
+
+CPP		?=	cpp
+
 # C Type Format data is required for DTrace
 CTFFLAGS	?=	-L VERSION
 
 CTFCONVERT	?=	ctfconvert
 CTFMERGE	?=	ctfmerge
 
-# cp(1) is used to copy source files to ${.OBJDIR}, make sure it can handle
-# read-only files as non-root by passing -f.
-CP		?=	cp -f
-
-DTRACE		?=	dtrace
 .if defined(CFLAGS) && (${CFLAGS:M-g} != "")
 CTFFLAGS	+=	-g
 .endif
@@ -83,7 +84,8 @@ CXX		?=	c++
 CXXFLAGS	?=	${CFLAGS:N-std=*:N-Wnested-externs:N-W*-prototypes:N-Wno-pointer-sign:N-Wold-style-definition}
 PO_CXXFLAGS	?=	${CXXFLAGS}
 
-CPP		?=	cpp
+DTRACE		?=	dtrace
+DTRACEFLAGS	?=	-C -x nolibs
 
 .if empty(.MAKEFLAGS:M-s)
 ECHO		?=	echo
