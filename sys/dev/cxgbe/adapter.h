@@ -803,7 +803,6 @@ struct adapter {
 #define ADAPTER_LOCK_ASSERT_OWNED(sc)	mtx_assert(&(sc)->sc_lock, MA_OWNED)
 #define ADAPTER_LOCK_ASSERT_NOTOWNED(sc) mtx_assert(&(sc)->sc_lock, MA_NOTOWNED)
 
-/* XXX: not bulletproof, but much better than nothing */
 #define ASSERT_SYNCHRONIZED_OP(sc)	\
     KASSERT(IS_BUSY(sc) && \
 	(mtx_owned(&(sc)->sc_lock) || sc->last_op_thr == curthread), \
