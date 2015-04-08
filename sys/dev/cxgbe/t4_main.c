@@ -8157,7 +8157,12 @@ toe_capability(struct port_info *pi, int enable)
 		return (ENODEV);
 
 	if (enable) {
-		if (!(sc->flags & FULL_INIT_DONE)) {
+		/*
+		 * We need the port's queues around so that we're able to send
+		 * and receive CPLs to/from the TOE even if the ifnet for this
+		 * port has never been UP'd administratively.
+		 */
+		if (!(pi->flags & PORT_INIT_DONE)) {
 			rc = cxgbe_init_synchronized(pi);
 			if (rc)
 				return (rc);
