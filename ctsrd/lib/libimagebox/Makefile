@@ -9,8 +9,6 @@ SRCS=	decode_png.c pngbox.c
 
 INCS=	imagebox.h
 
-LIBADD=	vuln_png
-
 WANT_CHERI=	yes
 
 .include <bsd.lib.mk>
