@@ -1785,11 +1785,17 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		    "failed to open %s: %s", file, strerror(errno)));
 	}
 #else
-	snprintf(tfile, sizeof(tfile), "%s.XXXXXX", file);
-	if ((fd = mkstemp(tfile)) == -1)
-		return (dt_link_error(dtp, NULL, -1, NULL,
-		    "failed to create temporary file %s: %s",
-		    tfile, strerror(errno)));
+	if (dtp->dt_lazyload) {
+		if ((fd = open(file, O_RDWR | O_CREAT | O_TRUNC, 0666)) < 0)
+			return (dt_link_error(dtp, NULL, -1, NULL,
+			    "failed to open %s: %s", file, strerror(errno)));
+	} else {
+		snprintf(tfile, sizeof(tfile), "%s.XXXXXX", file);
+		if ((fd = mkstemp(tfile)) == -1)
+			return (dt_link_error(dtp, NULL, -1, NULL,
+			    "failed to create temporary file %s: %s",
+			    tfile, strerror(errno)));
+	}
 #endif
 
 	/*

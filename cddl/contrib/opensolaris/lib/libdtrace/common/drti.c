@@ -147,6 +147,9 @@ dtrace_dof_init(void)
 
 	dh.dofhp_dof = (uintptr_t)dof;
 	dh.dofhp_addr = elf->e_type == ET_DYN ? (uintptr_t) lmp->l_addr : 0;
+#ifdef __FreeBSD__
+	dh.dofhp_pid = getpid();
+#endif
 
 	if (lmid == 0) {
 		(void) snprintf(dh.dofhp_mod, sizeof (dh.dofhp_mod),
@@ -184,7 +187,7 @@ dtrace_dof_init(void)
 	else {
 		dprintf(1, "DTrace ioctl succeeded for DOF at %p\n", dof);
 #ifdef __FreeBSD__
-		gen = dh.gen;
+		gen = dh.dofhp_gen;
 #endif
 	}
 
