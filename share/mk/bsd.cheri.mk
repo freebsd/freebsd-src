@@ -22,6 +22,7 @@ CC+=	--sysroot=${SYSROOT}
 .endif
 .if defined(NEED_CHERI) && ${NEED_CHERI} == "pure"
 CC+=    -mabi=sandbox
+LIBDIR:=	/usr/libcheri
 .endif
 .if ${MK_CHERI128} == "yes"
 CC+=	-mllvm -cheri128
