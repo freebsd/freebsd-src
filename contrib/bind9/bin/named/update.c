@@ -3239,6 +3239,8 @@ update_action(isc_task_t *task, isc_event_t *event) {
 	uev->ev_type = DNS_EVENT_UPDATEDONE;
 	uev->ev_action = updatedone_action;
 	isc_task_send(client->task, &event);
+
+	INSIST(ver == NULL);
 	INSIST(event == NULL);
 }
 

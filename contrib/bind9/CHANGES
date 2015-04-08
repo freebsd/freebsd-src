@@ -1,11 +1,145 @@
-	--- 9.9.6-P2 released ---
+	--- 9.9.7 released ---
+
+	--- 9.9.7rc2 released ---
+
+4061.	[bug]		Handle timeout in legacy system test. [RT #38573]
+
+4060.	[bug]		dns_rdata_freestruct could be called on a
+			uninitialised structure when handling a error.
+			[RT #38568]
+
+4059.	[bug]		Addressed valgrind warnings. [RT #38549]
+
+4058.	[bug]		UDP dispatches could use the wrong pseudorandom
+			number generator context. [RT #38578]
+
+4056.	[bug]		Fixed several small bugs in automatic trust anchor
+			management, including a memory leak and a possible
+			loss of key state information. [RT #38458]
+
+4057.	[bug]		'dnssec-dsfromkey -T 0' failed to add ttl field.
+			[RT #38565]
 
 4053.	[security]	Revoking a managed trust anchor and supplying
 			an untrusted replacement could cause named
 			to crash with an assertion failure.
 			(CVE-2015-1349) [RT #38344]
 
-	--- 9.9.6-P1 released ---
+4052.	[bug]		Fix a leak of query fetchlock. [RT #38454]
+
+4050.	[bug]		RPZ could send spurious SERVFAILs in response
+			to duplicate queries. [RT #38510]
+
+4049.	[bug]		CDS and CDNSKEY had the wrong attributes. [RT #38491]
+
+4048.	[bug]		adb hash table was not being grown. [RT #38470]
+
+	--- 9.9.7rc1 released ---
+
+4047.	[cleanup]	"named -V" now reports the current running versions
+			of OpenSSL and the libxml2 libraries, in addition to
+			the versions that were in use at build time.
+
+4046.	[bug]		Accounting of "total use" in memory context
+			statistics was not correct. [RT #38370]
+
+4045.	[bug]		Skip to next master on dns_request_createvia4 failure.
+			[RT #25185]
+
+4044.	[bug]		Change 3955 was not complete, resulting in an assertion
+			failure if the timing was just right. [RT #38352]
+
+4039.	[cleanup]	Cleaned up warnings from gcc -Wshadow. [RT #37381]
+
+4038.	[bug]		Add 'rpz' flag to node and use it to determine whether
+			to call dns_rpz_delete.  This should prevent unbalanced
+			add / delete calls. [RT #36888]
+
+4037.	[bug]		also-notify was ignoring the tsig key when checking
+			for duplicates resulting in some expected notify
+			messages not being sent. [RT #38369]
+
+4035.	[bug]		Close temporary and NZF FILE pointers before moving
+			the former into the latter's place, as required on
+			Windows. [RT #38332]
+
+4032.	[bug]		Built-in "empty" zones did not correctly inherit the
+			"allow-transfer" ACL from the options or view.
+			[RT #38310]
+
+4031.	[bug]		named-checkconf -z failed to report a missing file
+			with a hint zone. [RT #38294]
+
+4028.	[bug]		$GENERATE with a zero step was not being caught as a
+			error.  A $GENERATE with a / but no step was not being
+			caught as a error. [RT #38262]
+
+3973.	[test]		Added hooks for Google Performance Tools CPU profiler,
+			including real-time/wall-clock profiling. Use
+			"configure --with-gperftools-profiler" to enable.
+			[RT #37339]
+
+	--- 9.9.7b1 released ---
+
+4027.	[port]		Net::DNS 0.81 compatibility. [RT #38165]
+
+4026.	[bug]		Fix RFC 3658 reference in dig +sigchase. [RT #38173]
+
+4025.	[port]		bsdi: failed to build. [RT #38047]
+
+4024.	[bug]		dns_rdata_opt_first, dns_rdata_opt_next,
+			dns_rdata_opt_current, dns_rdata_txt_first,
+			dns_rdata_txt_next and dns_rdata_txt_current were
+			documented but not implemented.  These have now been
+			implemented.
+
+			dns_rdata_spf_first, dns_rdata_spf_next and
+			dns_rdata_spf_current were documented but not
+			implemented.  The prototypes for these
+			functions have been removed. [RT #38068]
+
+4023.	[bug]		win32: socket handling with explicit ports and
+			invoking named with -4 was broken for some
+			configurations. [RT #38068]
+
+4021.	[bug]		Adjust max-recursion-queries to accommodate
+			the need for more queries when the cache is
+			empty. [RT #38104]
+
+4020.	[bug]		Change 3736 broke nsupdate's SOA MNAME discovery
+			resulting in updates being sent to the wrong server.
+			[RT #37925]
+
+4019.	[func]		If named is not configured to validate the answer
+			then allow fallback to plain DNS on timeout even
+			when we know the server supports EDNS. [RT #37978]
+
+4018.	[bug]		Fall back to plain DNS when EDNS queries are being
+			dropped was failing. [RT #37965]
+
+4017.	[test]		Add system test to check lookups to legacy servers
+			with broken DNS behavior. [RT #37965]
+
+4016.	[bug]		Fix a dig segfault due to bad linked list usage.
+			[RT #37591]
+
+4015.	[bug]		Nameservers that are skipped due to them being
+			CNAMEs were not being logged. They are now logged
+			to category 'cname' as per BIND 8. [RT #37935]
+
+4014.	[bug]		When including a master file origin_changed was
+			not being properly set leading to a potentially
+			spurious 'inherited owner' warning. [RT #37919]
+
+4012.	[bug]		Check returned status of OpenSSL digest and HMAC
+			functions when they return one. Note this applies
+			only to FIPS capable OpenSSL libraries put in
+			FIPS mode and MD5. [RT #37944]
+
+4011.	[bug]		master's list port inheritance was not properly
+			implemented. [RT #37792]
+
+4007.	[doc]		Remove acl forward reference restriction. [RT #37772]
 
 4006.	[security]	A flaw in delegation handling could be exploited
 			to put named into an infinite loop.  This has
@@ -18,6 +152,99 @@
 			The recursion depth limit is configured via the
 			"max-recursion-depth" option, and the query limit
 			via the "max-recursion-queries" option.  [RT #37580]
+
+4004.	[bug]		When delegations had AAAA glue but not A, a
+			reference could be leaked causing an assertion
+			failure on shutdown. [RT #37796]
+
+4000.	[bug]		NXDOMAIN redirection incorrectly handled NXRRSET
+			from the redirect zone. [RT #37722]
+
+3998.	[bug]		isc_radix_search was returning matches that were
+			too precise. [RT #37680]
+
+3997.	[protocol]	Add OPENGPGKEY record. [RT# 37671]
+
+3996.	[bug]		Address use after free on out of memory error in
+			keyring_add. [RT #37639]
+
+3995.	[bug]		receive_secure_serial holds the zone lock for too
+			long. [RT #37626]
+
+3990.	[testing]	Add tests for unknown DNSSEC algorithm handling.
+			[RT #37541]
+
+3989.	[cleanup]	Remove redundant dns_db_resigned calls. [RT #35748]
+
+3987.	[func]		Handle future Visual Studio 14 incompatible changes.
+			[RT #37380]
+
+3986.	[doc]		Add the BIND version number to page footers
+			in the ARM. [RT #37398]
+
+3985.	[doc]		Describe how +ndots and +search interact in dig.
+			[RT #37529]
+
+3982.	[doc]		Include release notes in product documentation.
+			[RT #37272]
+
+3981.	[bug]		Cache DS/NXDOMAIN independently of other query types.
+			[RT #37467]
+
+3978.	[test]		Added a unit test for Diffie-Hellman key
+			computation, completing change #3974. [RT #37477]
+
+3976.	[bug]		When refreshing managed-key trust anchors, clear
+			any cached trust so that they will always be
+			revalidated with the current set of secure
+			roots. [RT #37506]
+
+3974.	[bug]		Handle DH_compute_key() failure correctly in
+			openssldh_link.c. [RT #37477]
+
+3972.	[bug]		Fix host's usage statement. [RT #37397]
+
+3971.	[bug]		Reduce the cascading failures due to a bad $TTL line
+			in named-checkconf / named-checkzone. [RT #37138]
+
+3970.	[contrib]	Fixed a use after free bug in the SDB LDAP driver.
+			[RT #37237]
+
+3968.	[bug]		Silence spurious log messages when using 'named -[46]'.
+			[RT #37308]
+
+3967.	[test]		Add test for inlined signed zone in multiple views
+			with different DNSKEY sets. [RT #35759]
+
+3966.	[bug]		Missing dns_db_closeversion call in receive_secure_db.
+			[RT #35746]
+
+3962.	[bug]		'dig +topdown +trace +sigchase' address unhandled error
+			conditions. [RT #34663]
+
+3961.	[bug]		Forwarding of SIG(0) signed UPDATE messages failed with
+			BADSIG.  [RT #37216]
+
+3960.	[bug]		'dig +sigchase' could loop forever. [RT #37220]
+
+3959.	[bug]		Updates could be lost if they arrived immediately
+			after a rndc thaw. [RT #37233]
+
+3958.	[bug]		Detect when writeable files have multiple references
+			in named.conf. [RT #37172]
+
+3957.	[bug]		"dnssec-keygen -S" failed for ECCGOST, ECDSAP256SHA256
+			and ECDSAP384SHA384. [RT #37183]
+
+3955.	[bug]		Notify messages due to changes are no longer queued
+			behind startup notify messages. [RT #24454]
+
+3954.	[bug]		Unchecked mutex init in dlz_dlopen_driver.c [RT #37112]
+
+3953.	[bug]		Don't escape semi-colon in TXT fields. [RT #37159]
+
+3952.	[bug]		dns_name_fullcompare failed to set *nlabelsp when the
+			two name pointers were the same. [RT #37176]
 
 	--- 9.9.6 released ---
 
@@ -63,7 +290,7 @@
 
 3922.	[bug]		When resigning, dnssec-signzone was removing
 			all signatures from delegation nodes. It now
-			retains	DS and (if applicable) NSEC signatures.
+			retains DS and (if applicable) NSEC signatures.
 			[RT #36946]
 
 3921.	[bug]		AD was inappropriately set on RPZ responses. [RT #36833]

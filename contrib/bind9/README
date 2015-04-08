@@ -51,14 +51,21 @@ BIND 9
 	For up-to-date release notes and errata, see
 	http://www.isc.org/software/bind9/releasenotes
 
+
+BIND 9.9.7
+
+	BIND 9.9.7 is a maintenance release and addresses bugs
+	found in BIND 9.9.6 and earlier, as well as the security
+	flaws described in CVE-2014-8500 and CVE-2015-1349.
+
 BIND 9.9.6
 
 	BIND 9.9.6 is a maintenance release, and also includes
-        the following new functionality.
+	the following new functionality.
 
 	 - The former behavior with respect to capitalization of names
-           (prior to BIND 9.9.5) can be restored for specific clients via
-           the new "no-case-compress" ACL.
+	   (prior to BIND 9.9.5) can be restored for specific clients via
+	   the new "no-case-compress" ACL.
 
 BIND 9.9.5
 
@@ -219,7 +226,7 @@ Building
 				    -DDIG_SIGCHASE_BU=1)
 		Disable dropping queries from particular well known ports.
 		  -DNS_CLIENT_DROPPORT=0
-	        Sibling glue checking in named-checkzone is enabled by default.
+		Sibling glue checking in named-checkzone is enabled by default.
 		To disable the default check set.  -DCHECK_SIBLING=0
 		named-checkzone checks out-of-zone addresses by default.
 		To disable this default set.  -DCHECK_LOCAL=0
@@ -358,7 +365,7 @@ Change Log
 	   [security]	  Fix for a significant security flaw
 
 	   [experimental] Used for new features when the syntax
-	   		  or other aspects of the design are still
+			  or other aspects of the design are still
 			  in flux and may change
 
 	   [port]	  Portability enhancement
@@ -367,7 +374,7 @@ Change Log
 			  server addresses and keys
 
 	   [tuning]	  Changes to built-in configuration defaults
-	   		  and constants to improve performanceo
+			  and constants to improve performanceo
 
 	   [protocol]	  Updates to the DNS protocol such as new
 			  RR types

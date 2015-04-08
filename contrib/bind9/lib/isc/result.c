@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2008, 2012, 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2008, 2012, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -40,7 +40,7 @@ typedef struct resulttable {
 	ISC_LINK(struct resulttable)		link;
 } resulttable;
 
-static const char *text[ISC_R_NRESULTS] = {
+static const char *description[ISC_R_NRESULTS] = {
 	"success",				/*%< 0 */
 	"out of memory",			/*%< 1 */
 	"timed out",				/*%< 2 */
@@ -153,8 +153,8 @@ initialize_action(void) {
 	RUNTIME_CHECK(isc_mutex_init(&lock) == ISC_R_SUCCESS);
 	ISC_LIST_INIT(tables);
 
-	result = register_table(ISC_RESULTCLASS_ISC, ISC_R_NRESULTS, text,
-				isc_msgcat, ISC_RESULT_RESULTSET);
+	result = register_table(ISC_RESULTCLASS_ISC, ISC_R_NRESULTS,
+				description, isc_msgcat, ISC_RESULT_RESULTSET);
 	if (result != ISC_R_SUCCESS)
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "register_table() %s: %u",

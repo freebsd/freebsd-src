@@ -624,7 +624,8 @@
 	      are interpreted as relative names and will be searched
 	      for in the domains listed in the <option>search</option>
 	      or <option>domain</option> directive in
-	      <filename>/etc/resolv.conf</filename>.
+	      <filename>/etc/resolv.conf</filename> if
+	      <option>+search</option> is set.
 	    </para>
 	  </listitem>
 	</varlistentry>
@@ -730,6 +731,13 @@
 	      searchlist or domain directive in
 	      <filename>resolv.conf</filename> (if any).  The search
 	      list is not used by default.
+	    </para>
+	    <para>
+	      'ndots' from <filename>resolv.conf</filename> (default 1)
+	       which may be overridden by <parameter>+ndots</parameter>
+	      determines if the name will be treated as relative
+	      or not and hence whether a search is eventually
+	      performed or not.
 	    </para>
 	  </listitem>
 	</varlistentry>

@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
                [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2009-2011, 2014  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2009-2011, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -39,6 +39,7 @@
       <year>2010</year>
       <year>2011</year>
       <year>2014</year>
+      <year>2015</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
@@ -126,8 +127,10 @@
             into a DNSKEY RR.  If the key is imported into a zone,
             this is the TTL that will be used for it, unless there was
             already a DNSKEY RRset in place, in which case the existing TTL
-            would take precedence.  Setting the default TTL to
-            <literal>0</literal> or <literal>none</literal> removes it.
+            would take precedence.  If this value is not set and there
+            is no existing DNSKEY RRset, the TTL will default to the
+            SOA TTL. Setting the default TTL to <literal>0</literal>
+            or <literal>none</literal> removes it from the key.
           </para>
         </listitem>
       </varlistentry>

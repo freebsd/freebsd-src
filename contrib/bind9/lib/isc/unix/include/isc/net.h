@@ -37,6 +37,7 @@
  *\li		struct sockaddr
  *\li		struct sockaddr_in
  *\li		struct sockaddr_in6
+ *\li		struct sockaddr_storage
  *\li		in_port_t
  *
  * It ensures that the AF_ and PF_ macros are defined.
@@ -184,6 +185,33 @@
 struct in6_pktinfo {
 	struct in6_addr ipi6_addr;    /*%< src/dst IPv6 address */
 	unsigned int    ipi6_ifindex; /*%< send/recv interface index */
+};
+#endif
+
+
+#ifndef ISC_PLATFORM_HAVESOCKADDRSTORAGE
+#define _SS_MAXSIZE 128
+#define _SS_ALIGNSIZE  (sizeof (isc_uint64_t))
+#ifdef ISC_PLATFORM_HAVESALEN
+#define _SS_PAD1SIZE (_SS_ALIGNSIZE - (2 * sizeof(isc_uint8_t)))
+#define _SS_PAD2SIZE (_SS_MAXSIZE - (_SS_ALIGNSIZE + _SS_PAD1SIZE \
+		       + 2 * sizeof(isc_uint8_t)))
+#else
+#define _SS_PAD1SIZE (_SS_ALIGNSIZE - sizeof(isc_uint16_t))
+#define _SS_PAD2SIZE (_SS_MAXSIZE - (_SS_ALIGNSIZE + _SS_PAD1SIZE \
+			+ sizeof(isc_uint16_t)))
+#endif
+
+struct sockaddr_storage {
+#ifdef ISC_PLATFORM_HAVESALEN
+       isc_uint8_t             ss_len;
+       isc_uint8_t             ss_family;
+#else
+       isc_uint16_t            ss_family;
+#endif
+       char                    __ss_pad1[_SS_PAD1SIZE];
+       isc_uint64_t            __ss_align;  /* field to force desired structure */
+       char                    __ss_pad2[_SS_PAD2SIZE];
 };
 #endif
 

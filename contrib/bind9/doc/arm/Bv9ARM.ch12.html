@@ -1,0 +1,545 @@
+<!--
+ - Copyright (C) 2004-2015 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2000-2003 Internet Software Consortium.
+ - 
+ - Permission to use, copy, modify, and/or distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ - 
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+<!-- $Id$ -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>Appendix D. BIND 9 DNS Library Support</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
+<link rel="start" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
+<link rel="up" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
+<link rel="prev" href="Bv9ARM.ch11.html" title="Appendix C. General DNS Reference Information">
+<link rel="next" href="Bv9ARM.ch13.html" title="Manual pages">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<div class="navheader">
+<table width="100%" summary="Navigation header">
+<tr><th colspan="3" align="center">Appendix D. BIND 9 DNS Library Support</th></tr>
+<tr>
+<td width="20%" align="left">
+<a accesskey="p" href="Bv9ARM.ch11.html">Prev</a> </td>
+<th width="60%" align="center"> </th>
+<td width="20%" align="right"> <a accesskey="n" href="Bv9ARM.ch13.html">Next</a>
+</td>
+</tr>
+</table>
+<hr>
+</div>
+<div class="appendix" lang="en">
+<div class="titlepage"><div><div><h2 class="title">
+<a name="Bv9ARM.ch12"></a>Appendix D. BIND 9 DNS Library Support</h2></div></div></div>
+<div class="toc">
+<p><b>Table of Contents</b></p>
+<dl>
+<dt><span class="sect1"><a href="Bv9ARM.ch12.html#bind9.library">BIND 9 DNS Library Support</a></span></dt>
+<dd><dl>
+<dt><span class="sect2"><a href="Bv9ARM.ch12.html#id2611396">Prerequisite</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch12.html#id2610723">Compilation</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch12.html#id2610747">Installation</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch12.html#id2610778">Known Defects/Restrictions</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch12.html#id2610855">The dns.conf File</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch12.html#id2610882">Sample Applications</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch12.html#id2611718">Library References</a></span></dt>
+</dl></dd>
+</dl>
+</div>
+<div class="sect1" lang="en">
+<div class="titlepage"><div><div><h2 class="title" style="clear: both">
+<a name="bind9.library"></a>BIND 9 DNS Library Support</h2></div></div></div>
+<p>This version of BIND 9 "exports" its internal libraries so
+  that they can be used by third-party applications more easily (we
+  call them "export" libraries in this document). In addition to
+  all major DNS-related APIs BIND 9 is currently using, the export
+  libraries provide the following features:</p>
+<div class="itemizedlist"><ul type="disc">
+<li><p>The newly created "DNS client" module. This is a higher
+      level API that provides an interface to name resolution,
+      single DNS transaction with a particular server, and dynamic
+      update. Regarding name resolution, it supports advanced
+      features such as DNSSEC validation and caching. This module
+      supports both synchronous and asynchronous mode.</p></li>
+<li><p>The new "IRS" (Information Retrieval System) library.
+      It provides an interface to parse the traditional resolv.conf
+      file and more advanced, DNS-specific configuration file for
+      the rest of this package (see the description for the
+      dns.conf file below).</p></li>
+<li><p>As part of the IRS library, newly implemented standard
+      address-name mapping functions, getaddrinfo() and
+      getnameinfo(), are provided. They use the DNSSEC-aware
+      validating resolver backend, and could use other advanced
+      features of the BIND 9 libraries such as caching. The
+      getaddrinfo() function resolves both A and AAAA RRs
+      concurrently (when the address family is unspecified).</p></li>
+<li><p>An experimental framework to support other event
+      libraries than BIND 9's internal event task system.</p></li>
+</ul></div>
+<div class="sect2" lang="en">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="id2611396"></a>Prerequisite</h3></div></div></div>
+<p>GNU make is required to build the export libraries (other
+  part of BIND 9 can still be built with other types of make). In
+  the reminder of this document, "make" means GNU make. Note that
+  in some platforms you may need to invoke a different command name
+  than "make" (e.g. "gmake") to indicate it's GNU make.</p>
+</div>
+<div class="sect2" lang="en">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="id2610723"></a>Compilation</h3></div></div></div>
+<pre class="screen">
+$ <strong class="userinput"><code>./configure --enable-exportlib <em class="replaceable"><code>[other flags]</code></em></code></strong>
+$ <strong class="userinput"><code>make</code></strong>
+</pre>
+<p>
+  This will create (in addition to usual BIND 9 programs) and a
+  separate set of libraries under the lib/export directory. For
+  example, <code class="filename">lib/export/dns/libdns.a</code> is the archive file of the
+  export version of the BIND 9 DNS library. Sample application
+  programs using the libraries will also be built under the
+  lib/export/samples directory (see below).</p>
+</div>
+<div class="sect2" lang="en">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="id2610747"></a>Installation</h3></div></div></div>
+<pre class="screen">
+$ <strong class="userinput"><code>cd lib/export</code></strong>
+$ <strong class="userinput"><code>make install</code></strong>
+</pre>
+<p>
+  This will install library object files under the directory
+  specified by the --with-export-libdir configure option (default:
+  EPREFIX/lib/bind9), and header files under the directory
+  specified by the --with-export-includedir configure option
+  (default: PREFIX/include/bind9).
+  Root privilege is normally required.
+  "<span><strong class="command">make install</strong></span>" at the top directory will do the
+  same.
+  </p>
+<p>
+  To see how to build your own
+  application after the installation, see
+  <code class="filename">lib/export/samples/Makefile-postinstall.in</code>.</p>
+</div>
+<div class="sect2" lang="en">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="id2610778"></a>Known Defects/Restrictions</h3></div></div></div>
+<div class="itemizedlist"><ul type="disc">
+<li><p>Currently, win32 is not supported for the export
+      library. (Normal BIND 9 application can be built as
+      before).</p></li>
+<li>
+<p>The "fixed" RRset order is not (currently) supported in
+      the export library. If you want to use "fixed" RRset order
+      for, e.g. <span><strong class="command">named</strong></span> while still building the
+      export library even without the fixed order support, build
+      them separately:
+      </p>
+<pre class="screen">
+$ <strong class="userinput"><code>./configure --enable-fixed-rrset <em class="replaceable"><code>[other flags, but not --enable-exportlib]</code></em></code></strong>
+$ <strong class="userinput"><code>make</code></strong>
+$ <strong class="userinput"><code>./configure --enable-exportlib <em class="replaceable"><code>[other flags, but not --enable-fixed-rrset]</code></em></code></strong>
+$ <strong class="userinput"><code>cd lib/export</code></strong>
+$ <strong class="userinput"><code>make</code></strong>
+</pre>
+<p>
+    </p>
+</li>
+<li><p>The client module and the IRS library currently do not
+      support DNSSEC validation using DLV (the underlying modules
+      can handle it, but there is no tunable interface to enable
+      the feature).</p></li>
+<li><p>RFC 5011 is not supported in the validating stub
+      resolver of the export library. In fact, it is not clear
+      whether it should: trust anchors would be a system-wide
+      configuration which would be managed by an administrator,
+      while the stub resolver will be used by ordinary applications
+      run by a normal user.</p></li>
+<li><p>Not all common <code class="filename">/etc/resolv.conf</code>
+      options are supported
+      in the IRS library. The only available options in this
+      version are "debug" and "ndots".</p></li>
+</ul></div>
+</div>
+<div class="sect2" lang="en">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="id2610855"></a>The dns.conf File</h3></div></div></div>
+<p>The IRS library supports an "advanced" configuration file
+  related to the DNS library for configuration parameters that
+  would be beyond the capability of the
+  <code class="filename">resolv.conf</code> file.
+  Specifically, it is intended to provide DNSSEC related
+  configuration parameters. By default the path to this
+  configuration file is <code class="filename">/etc/dns.conf</code>.
+  This module is very
+  experimental and the configuration syntax or library interfaces
+  may change in future versions. Currently, only the
+  <span><strong class="command">trusted-keys</strong></span>
+  statement is supported, whose syntax is the same as the same name
+  of statement for <code class="filename">named.conf</code>. (See
+  <a href="Bv9ARM.ch06.html#trusted-keys" title="trusted-keys Statement Grammar">the section called &#8220;<span><strong class="command">trusted-keys</strong></span> Statement Grammar&#8221;</a> for details.)</p>
+</div>
+<div class="sect2" lang="en">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="id2610882"></a>Sample Applications</h3></div></div></div>
+<p>Some sample application programs using this API are
+  provided for reference. The following is a brief description of
+  these applications.
+  </p>
+<div class="sect3" lang="en">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="id2610890"></a>sample: a simple stub resolver utility</h4></div></div></div>
+<p>
+  It sends a query of a given name (of a given optional RR type) to a
+  specified recursive server, and prints the result as a list of
+  RRs. It can also act as a validating stub resolver if a trust
+  anchor is given via a set of command line options.</p>
+<p>
+  Usage: sample [options] server_address hostname
+  </p>
+<p>
+  Options and Arguments:
+  </p>
+<div class="variablelist"><dl>
+<dt><span class="term">
+  -t RRtype
+  </span></dt>
+<dd><p>
+        specify the RR type of the query.  The default is the A RR.
+  </p></dd>
+<dt><span class="term">
+  [-a algorithm] [-e] -k keyname -K keystring
+  </span></dt>
+<dd>
+<p>
+        specify a command-line DNS key to validate the answer.  For
+        example, to specify the following DNSKEY of example.com:
+</p>
+<div class="literallayout"><p><br>
+                example.com. 3600 IN DNSKEY 257 3 5 xxx<br>
+</p></div>
+<p>
+        specify the options as follows:
+</p>
+<pre class="screen">
+<strong class="userinput"><code>
+          -e -k example.com -K "xxx"
+</code></strong>
+</pre>
+<p>
+        -e means that this key is a zone's "key signing key" (as known
+        as "secure Entry point").
+        When -a is omitted rsasha1 will be used by default.
+  </p>
+</dd>
+<dt><span class="term">
+  -s domain:alt_server_address
+  </span></dt>
+<dd><p>
+         specify a separate recursive server address for the specific
+        "domain".  Example: -s example.com:2001:db8::1234
+  </p></dd>
+<dt><span class="term">server_address</span></dt>
+<dd><p>
+        an IP(v4/v6) address of the recursive server to which queries
+        are sent.
+  </p></dd>
+<dt><span class="term">hostname</span></dt>
+<dd><p>
+        the domain name for the query
+  </p></dd>
+</dl></div>
+</div>
+<div class="sect3" lang="en">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="id2610981"></a>sample-async: a simple stub resolver, working asynchronously</h4></div></div></div>
+<p>
+  Similar to "sample", but accepts a list
+  of (query) domain names as a separate file and resolves the names
+  asynchronously.</p>
+<p>
+    Usage: sample-async [-s server_address] [-t RR_type] input_file</p>
+<p>
+ Options and Arguments:
+  </p>
+<div class="variablelist"><dl>
+<dt><span class="term">
+   -s server_address
+   </span></dt>
+<dd>
+   an IPv4 address of the recursive server to which queries are sent.
+  (IPv6 addresses are not supported in this implementation)
+  </dd>
+<dt><span class="term">
+   -t RR_type
+  </span></dt>
+<dd>
+  specify the RR type of the queries. The default is the A
+  RR.
+  </dd>
+<dt><span class="term">
+   input_file
+  </span></dt>
+<dd>
+   a list of domain names to be resolved. each line
+  consists of a single domain name. Example:
+  <div class="literallayout"><p><br>
+  www.example.com<br>
+  mx.example.net<br>
+  ns.xxx.example<br>
+</p></div>
+</dd>
+</dl></div>
+</div>
+<div class="sect3" lang="en">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="id2611102"></a>sample-request: a simple DNS transaction client</h4></div></div></div>
+<p>
+  It sends a query to a specified server, and
+  prints the response with minimal processing. It doesn't act as a
+  "stub resolver": it stops the processing once it gets any
+  response from the server, whether it's a referral or an alias
+  (CNAME or DNAME) that would require further queries to get the
+  ultimate answer. In other words, this utility acts as a very
+  simplified <span><strong class="command">dig</strong></span>.
+  </p>
+<p>
+  Usage: sample-request [-t RRtype] server_address hostname
+  </p>
+<p>
+    Options and Arguments:
+  </p>
+<div class="variablelist"><dl>
+<dt><span class="term">
+   -t RRtype
+  </span></dt>
+<dd><p>
+  specify the RR type of
+  the queries. The default is the A RR.
+  </p></dd>
+<dt><span class="term">
+  server_address
+  </span></dt>
+<dd><p>
+   an IP(v4/v6)
+  address of the recursive server to which the query is sent.
+  </p></dd>
+<dt><span class="term">
+  hostname
+  </span></dt>
+<dd><p>
+  the domain name for the query
+  </p></dd>
+</dl></div>
+</div>
+<div class="sect3" lang="en">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="id2611166"></a>sample-gai: getaddrinfo() and getnameinfo() test code</h4></div></div></div>
+<p>
+  This is a test program
+  to check getaddrinfo() and getnameinfo() behavior. It takes a
+  host name as an argument, calls getaddrinfo() with the given host
+  name, and calls getnameinfo() with the resulting IP addresses
+  returned by getaddrinfo(). If the dns.conf file exists and
+  defines a trust anchor, the underlying resolver will act as a
+  validating resolver, and getaddrinfo()/getnameinfo() will fail
+  with an EAI_INSECUREDATA error when DNSSEC validation fails.
+  </p>
+<p>
+  Usage: sample-gai hostname
+  </p>
+</div>
+<div class="sect3" lang="en">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="id2611181"></a>sample-update: a simple dynamic update client program</h4></div></div></div>
+<p>
+  It accepts a single update command as a
+  command-line argument, sends an update request message to the
+  authoritative server, and shows the response from the server. In
+  other words, this is a simplified <span><strong class="command">nsupdate</strong></span>.
+  </p>
+<p>
+   Usage: sample-update [options] (add|delete) "update data"
+  </p>
+<p>
+  Options and Arguments:
+  </p>
+<div class="variablelist"><dl>
+<dt><span class="term">
+  -a auth_server
+   </span></dt>
+<dd><p>
+        An IP address of the authoritative server that has authority
+        for the zone containing the update name.  This should normally
+        be the primary authoritative server that accepts dynamic
+        updates.  It can also be a secondary server that is configured
+        to forward update requests to the primary server.
+   </p></dd>
+<dt><span class="term">
+  -k keyfile
+   </span></dt>
+<dd><p>
+        A TSIG key file to secure the update transaction.  The keyfile
+        format is the same as that for the nsupdate utility.
+   </p></dd>
+<dt><span class="term">
+  -p prerequisite
+   </span></dt>
+<dd><p>
+        A prerequisite for the update (only one prerequisite can be
+        specified).  The prerequisite format is the same as that is
+        accepted by the nsupdate utility.
+   </p></dd>
+<dt><span class="term">
+  -r recursive_server
+   </span></dt>
+<dd><p>
+        An IP address of a recursive server that this utility will
+        use.  A recursive server may be necessary to identify the
+        authoritative server address to which the update request is
+        sent.
+   </p></dd>
+<dt><span class="term">
+  -z zonename
+   </span></dt>
+<dd><p>
+        The domain name of the zone that contains
+   </p></dd>
+<dt><span class="term">
+  (add|delete)
+   </span></dt>
+<dd><p>
+        Specify the type of update operation.  Either "add" or "delete"
+        must be specified.
+   </p></dd>
+<dt><span class="term">
+  "update data"
+   </span></dt>
+<dd><p>
+        Specify the data to be updated.  A typical example of the data
+        would look like "name TTL RRtype RDATA".
+  </p></dd>
+</dl></div>
+<div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
+<h3 class="title">Note</h3>In practice, either -a or -r must be specified.  Others can
+   be optional; the underlying library routine tries to identify the
+   appropriate server and the zone name for the update.</div>
+<p>
+   Examples: assuming the primary authoritative server of the
+   dynamic.example.com zone has an IPv6 address 2001:db8::1234,
+   </p>
+<pre class="screen">
+$ <strong class="userinput"><code>sample-update -a sample-update -k Kxxx.+nnn+mmmm.key add "foo.dynamic.example.com 30 IN A 192.168.2.1"</code></strong></pre>
+<p>
+     adds an A RR for foo.dynamic.example.com using the given key.
+   </p>
+<pre class="screen">
+$ <strong class="userinput"><code>sample-update -a sample-update -k Kxxx.+nnn+mmmm.key delete "foo.dynamic.example.com 30 IN A"</code></strong></pre>
+<p>
+     removes all A RRs for foo.dynamic.example.com using the given key.
+   </p>
+<pre class="screen">   
+$ <strong class="userinput"><code>sample-update -a sample-update -k Kxxx.+nnn+mmmm.key delete "foo.dynamic.example.com"</code></strong></pre>
+<p>
+     removes all RRs for foo.dynamic.example.com using the given key.
+   </p>
+</div>
+<div class="sect3" lang="en">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="id2611654"></a>nsprobe: domain/name server checker in terms of RFC 4074</h4></div></div></div>
+<p>
+  It checks a set
+  of domains to see the name servers of the domains behave
+  correctly in terms of RFC 4074. This is included in the set of
+  sample programs to show how the export library can be used in a
+  DNS-related application.
+  </p>
+<p>
+ Usage: nsprobe [-d] [-v [-v...]] [-c cache_address] [input_file]
+  </p>
+<p>
+   Options
+  </p>
+<div class="variablelist"><dl>
+<dt><span class="term">
+  -d
+  </span></dt>
+<dd><p>
+        run in the "debug" mode.  with this option nsprobe will dump
+        every RRs it receives.
+  </p></dd>
+<dt><span class="term">
+  -v
+  </span></dt>
+<dd><p>
+        increase verbosity of other normal log messages.  This can be
+        specified multiple times
+  </p></dd>
+<dt><span class="term">
+  -c cache_address
+  </span></dt>
+<dd><p>
+        specify an IP address of a recursive (caching) name server.
+        nsprobe uses this server to get the NS RRset of each domain and
+        the A and/or AAAA RRsets for the name servers.  The default
+        value is 127.0.0.1.
+  </p></dd>
+<dt><span class="term">
+  input_file
+  </span></dt>
+<dd><p>
+        a file name containing a list of domain (zone) names to be
+        probed.  when omitted the standard input will be used.  Each
+        line of the input file specifies a single domain name such as
+        "example.com".  In general this domain name must be the apex
+        name of some DNS zone (unlike normal "host names" such as
+        "www.example.com").  nsprobe first identifies the NS RRsets for
+        the given domain name, and sends A and AAAA queries to these
+        servers for some "widely used" names under the zone;
+        specifically, adding "www" and "ftp" to the zone name.
+  </p></dd>
+</dl></div>
+</div>
+</div>
+<div class="sect2" lang="en">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="id2611718"></a>Library References</h3></div></div></div>
+<p>As of this writing, there is no formal "manual" of the
+  libraries, except this document, header files (some of them
+  provide pretty detailed explanations), and sample application
+  programs.</p>
+</div>
+</div>
+</div>
+<div class="navfooter">
+<hr>
+<table width="100%" summary="Navigation footer">
+<tr>
+<td width="40%" align="left">
+<a accesskey="p" href="Bv9ARM.ch11.html">Prev</a> </td>
+<td width="20%" align="center"> </td>
+<td width="40%" align="right"> <a accesskey="n" href="Bv9ARM.ch13.html">Next</a>
+</td>
+</tr>
+<tr>
+<td width="40%" align="left" valign="top">Appendix C. General <acronym class="acronym">DNS</acronym> Reference Information </td>
+<td width="20%" align="center"><a accesskey="h" href="Bv9ARM.html">Home</a></td>
+<td width="40%" align="right" valign="top"> Manual pages</td>
+</tr>
+</table>
+</div>
+<p style="text-align: center;">BIND 9.9.7 (Extended Support Version)</p>
+</body>
+</html>

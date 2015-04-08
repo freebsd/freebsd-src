@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2011-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,8 +14,6 @@
  * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
-/* $Id: dig.h,v 1.114 2011/12/07 17:23:28 each Exp $ */
 
 #ifndef DIG_H
 #define DIG_H
@@ -259,7 +257,6 @@ extern isc_boolean_t check_ra, have_ipv4, have_ipv6, specified_source,
 extern in_port_t port;
 extern unsigned int timeout;
 extern isc_mem_t *mctx;
-extern dns_messageid_t id;
 extern int sendcount;
 extern int ndots;
 extern int lookup_counter;

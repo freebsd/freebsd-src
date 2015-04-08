@@ -134,6 +134,11 @@
 #undef ISC_PLATFORM_FIXIN6ISADDR
 
 /*! \brief
+ * Define if the system has struct sockaddr_storage.
+ */
+#define ISC_PLATFORM_HAVESOCKADDRSTORAGE 1
+
+/*! \brief
  * Define if the system supports kqueue multiplexing
  */
 #define ISC_PLATFORM_HAVEKQUEUE 1

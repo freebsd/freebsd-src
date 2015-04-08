@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -157,9 +157,15 @@ EXTERN int			ns_g_listen		INIT(3);
 EXTERN isc_time_t		ns_g_boottime;
 EXTERN isc_boolean_t		ns_g_memstatistics	INIT(ISC_FALSE);
 EXTERN isc_boolean_t		ns_g_clienttest		INIT(ISC_FALSE);
+EXTERN isc_boolean_t		ns_g_dropedns		INIT(ISC_FALSE);
+EXTERN isc_boolean_t		ns_g_noedns		INIT(ISC_FALSE);
 EXTERN isc_boolean_t		ns_g_nosoa		INIT(ISC_FALSE);
 EXTERN isc_boolean_t		ns_g_noaa		INIT(ISC_FALSE);
 EXTERN isc_boolean_t		ns_g_nonearest		INIT(ISC_FALSE);
+EXTERN isc_boolean_t		ns_g_notcp		INIT(ISC_FALSE);
+EXTERN isc_boolean_t		ns_g_disable6		INIT(ISC_FALSE);
+EXTERN isc_boolean_t		ns_g_disable4		INIT(ISC_FALSE);
+
 
 #undef EXTERN
 #undef INIT

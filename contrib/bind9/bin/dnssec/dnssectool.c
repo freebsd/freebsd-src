@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2009-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -120,8 +120,8 @@ vbprintf(int level, const char *fmt, ...) {
 }
 
 void
-version(const char *program) {
-	fprintf(stderr, "%s %s\n", program, VERSION);
+version(const char *name) {
+	fprintf(stderr, "%s %s\n", name, VERSION);
 	exit(0);
 }
 
@@ -149,7 +149,7 @@ sig_format(dns_rdata_rrsig_t *sig, char *cp, unsigned int size) {
 }
 
 void
-setup_logging(int verbose, isc_mem_t *mctx, isc_log_t **logp) {
+setup_logging(isc_mem_t *mctx, isc_log_t **logp) {
 	isc_result_t result;
 	isc_logdestination_t destination;
 	isc_logconfig_t *logconfig = NULL;

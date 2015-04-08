@@ -25,6 +25,8 @@ export_srcdir =	@top_srcdir@/lib/export
 CINCLUDES =	-I${srcdir}/unix/include \
 		-I${srcdir}/@ISC_THREAD_DIR@/include \
 		-I${srcdir}/@ISC_ARCH_DIR@/include \
+		-Iinclude \
+		-I../../isc/include \
 		-I${export_srcdir}/isc/include -I${srcdir}/include \
 		@ISC_OPENSSL_INC@
 CDEFINES =	@USE_OPENSSL@ -DUSE_APPIMPREGISTER -DUSE_MEMIMPREGISTER \

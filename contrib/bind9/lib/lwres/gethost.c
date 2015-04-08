@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2013-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -232,14 +232,14 @@ struct hostent *
 lwres_gethostbyname_r(const char *name, struct hostent *resbuf,
 		char *buf, int buflen, int *error)
 {
-	struct hostent *he;
+	struct hostent *myhe;
 	int res;
 
-	he = lwres_getipnodebyname(name, AF_INET, 0, error);
-	if (he == NULL)
+	myhe = lwres_getipnodebyname(name, AF_INET, 0, error);
+	if (myhe == NULL)
 		return (NULL);
-	res = copytobuf(he, resbuf, buf, buflen);
-	lwres_freehostent(he);
+	res = copytobuf(myhe, resbuf, buf, buflen);
+	lwres_freehostent(myhe);
 	if (res != 0) {
 		errno = ERANGE;
 		return (NULL);
@@ -253,14 +253,14 @@ lwres_gethostbyaddr_r(const char *addr, int len, int type,
 		      struct hostent *resbuf, char *buf, int buflen,
 		      int *error)
 {
-	struct hostent *he;
+	struct hostent *myhe;
 	int res;
 
-	he = lwres_getipnodebyaddr(addr, len, type, error);
-	if (he == NULL)
+	myhe = lwres_getipnodebyaddr(addr, len, type, error);
+	if (myhe == NULL)
 		return (NULL);
-	res = copytobuf(he, resbuf, buf, buflen);
-	lwres_freehostent(he);
+	res = copytobuf(myhe, resbuf, buf, buflen);
+	lwres_freehostent(myhe);
 	if (res != 0) {
 		errno = ERANGE;
 		return (NULL);
@@ -296,7 +296,7 @@ lwres_endhostent_r(void) {
 }
 
 static int
-copytobuf(struct hostent *he, struct hostent *hptr, char *buf, int buflen) {
+copytobuf(struct hostent *src, struct hostent *hptr, char *buf, int buflen) {
 	char *cp;
 	char **ptr;
 	int i, n;
@@ -307,13 +307,13 @@ copytobuf(struct hostent *he, struct hostent *hptr, char *buf, int buflen) {
 	 */
 	nptr = 2; /* NULL ptrs */
 	len = (int)((char *)LWRES_ALIGN(buf) - buf);
-	for (i = 0; he->h_addr_list[i]; i++, nptr++) {
-		len += he->h_length;
+	for (i = 0; src->h_addr_list[i]; i++, nptr++) {
+		len += src->h_length;
 	}
-	for (i = 0; he->h_aliases[i]; i++, nptr++) {
-		len += strlen(he->h_aliases[i]) + 1;
+	for (i = 0; src->h_aliases[i]; i++, nptr++) {
+		len += strlen(src->h_aliases[i]) + 1;
 	}
-	len += strlen(he->h_name) + 1;
+	len += strlen(src->h_name) + 1;
 	len += nptr * sizeof(char*);
 
 	if (len > buflen) {
@@ -323,8 +323,8 @@ copytobuf(struct hostent *he, struct hostent *hptr, char *buf, int buflen) {
 	/*
 	 * Copy address size and type.
 	 */
-	hptr->h_addrtype = he->h_addrtype;
-	n = hptr->h_length = he->h_length;
+	hptr->h_addrtype = src->h_addrtype;
+	n = hptr->h_length = src->h_length;
 
 	ptr = (char **)LWRES_ALIGN(buf);
 	cp = (char *)LWRES_ALIGN(buf) + nptr * sizeof(char *);
@@ -333,8 +333,8 @@ copytobuf(struct hostent *he, struct hostent *hptr, char *buf, int buflen) {
 	 * Copy address list.
 	 */
 	hptr->h_addr_list = ptr;
-	for (i = 0; he->h_addr_list[i]; i++, ptr++) {
-		memmove(cp, he->h_addr_list[i], n);
+	for (i = 0; src->h_addr_list[i]; i++, ptr++) {
+		memmove(cp, src->h_addr_list[i], n);
 		hptr->h_addr_list[i] = cp;
 		cp += n;
 	}
@@ -344,8 +344,8 @@ copytobuf(struct hostent *he, struct hostent *hptr, char *buf, int buflen) {
 	/*
 	 * Copy official name.
 	 */
-	n = strlen(he->h_name) + 1;
-	strcpy(cp, he->h_name);
+	n = strlen(src->h_name) + 1;
+	strcpy(cp, src->h_name);
 	hptr->h_name = cp;
 	cp += n;
 
@@ -353,9 +353,9 @@ copytobuf(struct hostent *he, struct hostent *hptr, char *buf, int buflen) {
 	 * Copy aliases.
 	 */
 	hptr->h_aliases = ptr;
-	for (i = 0; he->h_aliases[i]; i++) {
-		n = strlen(he->h_aliases[i]) + 1;
-		strcpy(cp, he->h_aliases[i]);
+	for (i = 0; src->h_aliases[i]; i++) {
+		n = strlen(src->h_aliases[i]) + 1;
+		strcpy(cp, src->h_aliases[i]);
 		hptr->h_aliases[i] = cp;
 		cp += n;
 	}

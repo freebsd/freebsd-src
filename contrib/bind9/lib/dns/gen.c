@@ -23,9 +23,11 @@
  */
 #define _CRT_SECURE_NO_DEPRECATE 1
 /*
- * We use snprintf.
+ * We use snprintf which was defined late in Windows even it is in C99.
  */
+#if _MSC_VER < 1900
 #define snprintf _snprintf
+#endif
 #endif
 
 #include <sys/types.h>

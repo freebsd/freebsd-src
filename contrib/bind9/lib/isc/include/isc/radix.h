@@ -36,8 +36,9 @@
 
 #define NETADDR_TO_PREFIX_T(na,pt,bits) \
 	do { \
+		const void *p = na; \
 		memset(&(pt), 0, sizeof(pt)); \
-		if((na) != NULL) { \
+		if (p != NULL) { \
 			(pt).family = (na)->family; \
 			(pt).bitlen = (bits); \
 			if ((pt).family == AF_INET6) { \
