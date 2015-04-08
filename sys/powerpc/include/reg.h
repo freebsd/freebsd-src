@@ -39,7 +39,7 @@ struct dbreg {
 	unsigned int	junk;
 };
 
-#ifdef COMPAT_FREEBSD32
+#ifdef __LP64__
 /* Must match struct trapframe */
 struct reg32 {
 	int32_t fixreg[32];
@@ -61,6 +61,8 @@ struct vmxreg32 {
 struct dbreg32 {
 	struct dbreg data;
 };
+
+#define __HAVE_REG32
 #endif
 
 #ifdef _KERNEL
