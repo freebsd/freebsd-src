@@ -4,3 +4,5 @@
 
 BINDIR?=	/usr/bin
 WARNS?=		6
+
+.include "${.PARSEDIR}/../Makefile.inc"

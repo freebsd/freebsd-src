@@ -370,7 +370,9 @@ SUBDIR_PARALLEL=
 .endif
 
 .if defined(LIBCHERI)
-SUBDIR:=	libmd
+SUBDIR:=	libmd	\
+		libpng	\
+		libz
 .endif
 
 .include <bsd.subdir.mk>

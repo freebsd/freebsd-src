@@ -6,6 +6,6 @@ SRCS=	de4ctl.c hdmi.c cvtlib.c
 
 MAN=	de4ctl.8
 
-LDFLAGS= -lm
+LIBADD=	m
 
 .include <bsd.prog.mk>

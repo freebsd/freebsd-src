@@ -8,7 +8,6 @@ MAN=
 
 WARNS=	0
 
-LDADD+=		-lterasic_mtl -limagebox -lvuln_png
-LIBADD+=	cheri util z pthread
+LIBADD+=	cheri util terasic_mtl imagebox
 
 .include <bsd.prog.mk>

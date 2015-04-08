@@ -6,8 +6,7 @@ PROG=	cheripoint
 
 MAN=
 
-LDADD+=		-lterasic_mtl -limagebox -lvuln_png
-LIBADD+=	cheri util z pthread
+LIBADD+=	cheri util terasic_mtl imagebox
 
 NO_SHARED=yes
 WANT_DUMP=yes

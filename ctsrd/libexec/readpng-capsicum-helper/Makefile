@@ -12,11 +12,10 @@ MAN=
 CFLAGS+=	-I${.CURDIR}/../../lib/libimagebox
 .if ${MACHINE_ARCH} == "amd64"
 CFLAGS+=	-I/usr/local/include
-LDADD+=		-L/usr/local/lib -lpng -lm
+LDADD+=		-L/usr/local/lib -lpng
+LIBADD+=	m z
 .else
-#CFLAGS+=	-I${.CURDIR}/../../lib/libvuln_png
-LDADD+=		-lvuln_png
+LIBADD+=	vuln_png
 .endif
-LIBADD+=	z
 
 .include <bsd.prog.mk>

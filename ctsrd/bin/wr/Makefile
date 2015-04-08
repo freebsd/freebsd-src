@@ -5,7 +5,6 @@ PROG=	wr
 MAN=
 
 CFLAGS+=	-DALL_RED
-LDADD+=		-lterasic_mtl
-LIBADD+=	png z
+LIBADD+=	png terasic_mtl z
 
 .include <bsd.prog.mk>

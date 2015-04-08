@@ -5,21 +5,13 @@ PROG=	cheritest-helper
 SRCS=	cheritest-helper.c			\
 	stub.c
 
-.PATH: ${.CURDIR}/../../lib/libz
-SRCS+=	adler32.c \
-	crc32.c \
-	inffast.c \
-	inflate.c \
-	inftrees.c \
-	zutil.c
-
 INCS=	cheritest-helper.h cheritest-helper-internal.h
 
 LDFLAGS+=	-Wl,--script=${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
 		-nostdlib
 MAN=
 
-LIBADD=	md c_cheri
+LIBADD=	md z c_cheri
 
 NEED_CHERI=	pure
 WANT_DUMP=	yes
@@ -27,8 +19,3 @@ WANT_DUMP=	yes
 NO_SHARED=	yes
 
 .include <bsd.prog.mk>
-
-CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
-CFLAGS.zutil.c=	-Wno-incompatible-pointer-types-discards-qualifiers
-CFLAGS.inffast.c=	-Wno-cast-qual -O0
-CFLAGS.inflate.c=	-Wno-cast-qual

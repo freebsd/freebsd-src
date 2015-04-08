@@ -1,4 +1,5 @@
 LIB=		vuln_png
+LIBADD=		z
 
 CFLAGS+=	-DCTSRD_BACKDOOR
 

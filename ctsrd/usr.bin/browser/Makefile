@@ -8,7 +8,6 @@ MAN=
 
 WARNS=	6
 
-LDADD+=		-lterasic_mtl -lvuln_png -lvuln_magic
-LIBADD+=	z util
+LIBADD+=	terasic_mtl vuln_png vuln_magic util
 
 .include <bsd.prog.mk>

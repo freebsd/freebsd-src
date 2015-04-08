@@ -11,8 +11,6 @@ INCS=	terasic_mtl.h
 CFLAGS+=	-I${.CURDIR}/../../../usr.sbin/vidcontrol
 SRCS+=  	decode.c
 
-#CFLAGS+=        -I${.CURDIR}/../libvuln_png/
-
 SUBDIR=	images
 
 .include <bsd.lib.mk>

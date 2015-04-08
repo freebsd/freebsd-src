@@ -4,3 +4,5 @@
 
 BINDIR?=	/usr/libexec
 WARNS?=		6
+
+.sinclude "${.PARSEDIR}/../Makefile.inc"
