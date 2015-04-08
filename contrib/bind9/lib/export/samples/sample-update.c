@@ -181,7 +181,9 @@ main(int argc, char *argv[]) {
 		hints.ai_family = AF_UNSPEC;
 		hints.ai_socktype = SOCK_DGRAM;
 		hints.ai_protocol = IPPROTO_UDP;
+#ifdef AI_NUMERICHOST
 		hints.ai_flags = AI_NUMERICHOST;
+#endif
 		gai_error = getaddrinfo(auth_server, "53", &hints, &res);
 		if (gai_error != 0) {
 			fprintf(stderr, "getaddrinfo failed: %s\n",
@@ -203,7 +205,9 @@ main(int argc, char *argv[]) {
 		hints.ai_family = AF_UNSPEC;
 		hints.ai_socktype = SOCK_DGRAM;
 		hints.ai_protocol = IPPROTO_UDP;
+#ifdef AI_NUMERICHOST
 		hints.ai_flags = AI_NUMERICHOST;
+#endif
 		gai_error = getaddrinfo(recursive_server, "53", &hints, &res);
 		if (gai_error != 0) {
 			fprintf(stderr, "getaddrinfo failed: %s\n",

@@ -1,4 +1,4 @@
-.\" Copyright (C) 2009-2011, 2014 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2009-2011, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -69,11 +69,11 @@ Sets the directory in which the key files are to reside.
 .PP
 \-L \fIttl\fR
 .RS 4
-Sets the default TTL to use for this key when it is converted into a DNSKEY RR. If the key is imported into a zone, this is the TTL that will be used for it, unless there was already a DNSKEY RRset in place, in which case the existing TTL would take precedence. Setting the default TTL to
+Sets the default TTL to use for this key when it is converted into a DNSKEY RR. If the key is imported into a zone, this is the TTL that will be used for it, unless there was already a DNSKEY RRset in place, in which case the existing TTL would take precedence. If this value is not set and there is no existing DNSKEY RRset, the TTL will default to the SOA TTL. Setting the default TTL to
 0
 or
 none
-removes it.
+removes it from the key.
 .RE
 .PP
 \-h
@@ -176,5 +176,5 @@ RFC 5011.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2009\-2011, 2014 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2009\-2011, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
 .br

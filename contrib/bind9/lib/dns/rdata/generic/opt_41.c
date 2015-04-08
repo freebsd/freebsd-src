@@ -326,4 +326,63 @@ casecompare_opt(ARGS_COMPARE) {
 	return (compare_opt(rdata1, rdata2));
 }
 
+isc_result_t
+dns_rdata_opt_first(dns_rdata_opt_t *opt) {
+
+	REQUIRE(opt != NULL);
+	REQUIRE(opt->common.rdtype == 41);
+	REQUIRE(opt->options != NULL || opt->length == 0);
+
+	if (opt->length == 0)
+		return (ISC_R_NOMORE);
+
+	opt->offset = 0;
+	return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+dns_rdata_opt_next(dns_rdata_opt_t *opt) {
+	isc_region_t r;
+	isc_uint16_t length;
+
+	REQUIRE(opt != NULL);
+	REQUIRE(opt->common.rdtype == 41);
+	REQUIRE(opt->options != NULL && opt->length != 0);
+	REQUIRE(opt->offset < opt->length);
+
+	INSIST(opt->offset + 4 <= opt->length);
+	r.base = opt->options + opt->offset + 2;
+	r.length = opt->length - opt->offset - 2;
+	length = uint16_fromregion(&r);
+	INSIST(opt->offset + 4 + length <= opt->length);
+	opt->offset = opt->offset + 4 + length;
+	if (opt->offset == opt->length)
+		return (ISC_R_NOMORE);
+	return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+dns_rdata_opt_current(dns_rdata_opt_t *opt, dns_rdata_opt_opcode_t *opcode) {
+	isc_region_t r;
+
+	REQUIRE(opt != NULL);
+	REQUIRE(opcode != NULL);
+	REQUIRE(opt->common.rdtype == 41);
+	REQUIRE(opt->options != NULL);
+	REQUIRE(opt->offset < opt->length);
+
+	INSIST(opt->offset + 4 <= opt->length);
+	r.base = opt->options + opt->offset;
+	r.length = opt->length - opt->offset;
+
+	opcode->opcode = uint16_fromregion(&r);
+	isc_region_consume(&r, 2);
+	opcode->length = uint16_fromregion(&r);
+	isc_region_consume(&r, 2);
+	opcode->data = r.base;
+	INSIST(opt->offset + 4 + opcode->length <= opt->length);
+
+	return (ISC_R_SUCCESS);
+}
+
 #endif	/* RDATA_GENERIC_OPT_41_C */

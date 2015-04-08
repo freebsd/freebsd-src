@@ -488,7 +488,33 @@ main(int argc, char **argv) {
 
 	isc_commandline_errprint = ISC_FALSE;
 
-	while ((c = isc_commandline_parse(argc, argv, "dhjt:pvxz")) != EOF) {
+	/*
+	 * Process memory debugging argument first.
+	 */
+#define CMDLINE_FLAGS "dhjm:t:pvxz"
+	while ((c = isc_commandline_parse(argc, argv, CMDLINE_FLAGS)) != -1) {
+		switch (c) {
+		case 'm':
+			if (strcasecmp(isc_commandline_argument, "record") == 0)
+				isc_mem_debugging |= ISC_MEM_DEBUGRECORD;
+			if (strcasecmp(isc_commandline_argument, "trace") == 0)
+				isc_mem_debugging |= ISC_MEM_DEBUGTRACE;
+			if (strcasecmp(isc_commandline_argument, "usage") == 0)
+				isc_mem_debugging |= ISC_MEM_DEBUGUSAGE;
+			if (strcasecmp(isc_commandline_argument, "size") == 0)
+				isc_mem_debugging |= ISC_MEM_DEBUGSIZE;
+			if (strcasecmp(isc_commandline_argument, "mctx") == 0)
+				isc_mem_debugging |= ISC_MEM_DEBUGCTX;
+			break;
+		default:
+			break;
+		}
+	}
+	isc_commandline_reset = ISC_TRUE;
+
+	RUNTIME_CHECK(isc_mem_create(0, 0, &mctx) == ISC_R_SUCCESS);
+
+	while ((c = isc_commandline_parse(argc, argv, CMDLINE_FLAGS)) != EOF) {
 		switch (c) {
 		case 'd':
 			debug++;
@@ -496,6 +522,9 @@ main(int argc, char **argv) {
 
 		case 'j':
 			nomerge = ISC_FALSE;
+			break;
+
+		case 'm':
 			break;
 
 		case 't':
@@ -556,8 +585,6 @@ main(int argc, char **argv) {
 #ifdef _WIN32
 	InitSockets();
 #endif
-
-	RUNTIME_CHECK(isc_mem_create(0, 0, &mctx) == ISC_R_SUCCESS);
 
 	RUNTIME_CHECK(setup_logging(mctx, stdout, &logc) == ISC_R_SUCCESS);
 

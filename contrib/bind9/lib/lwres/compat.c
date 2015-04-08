@@ -123,6 +123,7 @@ lwres_strtoul(const char *nptr, char **endptr, int base) {
 		acc = ULONG_MAX;
 		errno = ERANGE;
 	} else if (neg)
+		/* XXX: acc was declared unsigned! */
 		acc = -acc;
 	if (endptr != 0)
 		DE_CONST(any ? s - 1 : nptr, *endptr);

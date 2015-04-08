@@ -159,6 +159,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to enable the "filter-aaaa-on-v4" option. */
 /* #undef ALLOW_FILTER_AAAA_ON_V4 */
 
+/* define if ATF unit tests are to be built. */
+/* #undef ATF_TEST */
+
 /* Define if recvmsg() does not meet all of the BSD socket API specifications.
    */
 /* #undef BROKEN_RECVMSG */
@@ -170,10 +173,10 @@ int sigwait(const unsigned int *set, int *sig);
 /* #undef DNS_RDATASET_FIXED */
 
 /* Define to enable rpz-nsdname rules. */
-/* #undef ENABLE_RPZ_NSDNAME */
+#define ENABLE_RPZ_NSDNAME 1
 
 /* Define to enable rpz-nsip rules. */
-/* #undef ENABLE_RPZ_NSIP */
+#define ENABLE_RPZ_NSIP 1
 
 /* Solaris hack to get select_large_fdset. */
 /* #undef FD_SETSIZE */
@@ -217,6 +220,15 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
 
+/* Define to 1 if you have the `fseeko' function. */
+#define HAVE_FSEEKO 1
+
+/* Define to 1 if you have the `ftello' function. */
+#define HAVE_FTELLO 1
+
+/* Define to use gperftools CPU profiler. */
+/* #undef HAVE_GPERFTOOLS_PROFILER */
+
 /* Define to 1 if you have the <gssapi/gssapi.h> header file. */
 /* #undef HAVE_GSSAPI_GSSAPI_H */
 
@@ -229,7 +241,7 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the <gssapi_krb5.h> header file. */
 /* #undef HAVE_GSSAPI_KRB5_H */
 
-/* Define to 1 if you have the `if_nametoindex' function. */
+/* Define to 1 if you have the if_nametoindex function. */
 #define HAVE_IF_NAMETOINDEX 1
 
 /* Define to 1 if you have the <inttypes.h> header file. */
@@ -309,7 +321,7 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you have the `readline' function. */
 #define HAVE_READLINE 1
- 
+
 /* Define to 1 if you have the <regex.h> header file. */
 #define HAVE_REGEX_H 1
 
@@ -391,6 +403,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the `usleep' function. */
 #define HAVE_USLEEP 1
 
+/* HMAC_*() return ints */
+/* #undef HMAC_RETURN_INT */
+
 /* return type of gai_strerror */
 #define IRS_GAISTRERROR_RETURN_T const char *
 
@@ -399,6 +414,9 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to the flags type used by getnameinfo(3). */
 #define IRS_GETNAMEINFO_FLAGS_T int
+
+/* Define to the sockaddr length type used by getnameinfo(3). */
+#define IRS_GETNAMEINFO_SOCKLEN_T socklen_t
 
 /* Define to allow building of objects for dlopen(). */
 #define ISC_DLZ_DLOPEN 1
@@ -418,22 +436,22 @@ int sigwait(const unsigned int *set, int *sig);
 /* #undef NEWSTATS */
 
 /* Define to the address where bug reports for this package should be sent. */
-#define PACKAGE_BUGREPORT ""
+#define PACKAGE_BUGREPORT "bind9-bugs@isc.org"
 
 /* Define to the full name of this package. */
-#define PACKAGE_NAME ""
+#define PACKAGE_NAME "BIND"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING ""
+#define PACKAGE_STRING "BIND 9.9"
 
 /* Define to the one symbol short name of this package. */
-#define PACKAGE_TARNAME ""
+#define PACKAGE_TARNAME "bind"
 
 /* Define to the home page for this package. */
-#define PACKAGE_URL ""
+#define PACKAGE_URL "https://www.isc.org/downloads/BIND/"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION ""
+#define PACKAGE_VERSION "9.9"
 
 /* Sets which flag to pass to open/fcntl to make non-blocking
    (O_NDELAY/O_NONBLOCK). */
@@ -474,7 +492,7 @@ int sigwait(const unsigned int *set, int *sig);
 /* #undef const */
 
 /* Define to empty if your compiler does not support "static inline". */
-#define inline /**/
+/* #undef inline */
 
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 /* #undef size_t */

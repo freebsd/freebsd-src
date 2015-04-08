@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009, 2011-2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -143,9 +143,10 @@ static struct afd {
 	} while (0)
 
 int
-getnameinfo(const struct sockaddr *sa, socklen_t salen, char *host,
-	    IRS_GETNAMEINFO_BUFLEN_T hostlen, char *serv,
-	    IRS_GETNAMEINFO_BUFLEN_T servlen, IRS_GETNAMEINFO_FLAGS_T flags)
+getnameinfo(const struct sockaddr *sa, IRS_GETNAMEINFO_SOCKLEN_T salen,
+	    char *host, IRS_GETNAMEINFO_BUFLEN_T hostlen,
+	    char *serv, IRS_GETNAMEINFO_BUFLEN_T servlen,
+	    IRS_GETNAMEINFO_FLAGS_T flags)
 {
 	struct afd *afd = NULL;
 	struct servent *sp;

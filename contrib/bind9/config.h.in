@@ -217,6 +217,15 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the <fcntl.h> header file. */
 #undef HAVE_FCNTL_H
 
+/* Define to 1 if you have the `fseeko' function. */
+#undef HAVE_FSEEKO
+
+/* Define to 1 if you have the `ftello' function. */
+#undef HAVE_FTELLO
+
+/* Define to use gperftools CPU profiler. */
+#undef HAVE_GPERFTOOLS_PROFILER
+
 /* Define to 1 if you have the <gssapi/gssapi.h> header file. */
 #undef HAVE_GSSAPI_GSSAPI_H
 
@@ -229,7 +238,7 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the <gssapi_krb5.h> header file. */
 #undef HAVE_GSSAPI_KRB5_H
 
-/* Define to 1 if you have the `if_nametoindex' function. */
+/* Define to 1 if you have the if_nametoindex function. */
 #undef HAVE_IF_NAMETOINDEX
 
 /* Define to 1 if you have the <inttypes.h> header file. */
@@ -391,6 +400,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the `usleep' function. */
 #undef HAVE_USLEEP
 
+/* HMAC_*() return ints */
+#undef HMAC_RETURN_INT
+
 /* return type of gai_strerror */
 #undef IRS_GAISTRERROR_RETURN_T
 
@@ -399,6 +411,9 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to the flags type used by getnameinfo(3). */
 #undef IRS_GETNAMEINFO_FLAGS_T
+
+/* Define to the sockaddr length type used by getnameinfo(3). */
+#undef IRS_GETNAMEINFO_SOCKLEN_T
 
 /* Define to allow building of objects for dlopen(). */
 #undef ISC_DLZ_DLOPEN

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
- - Copyright (C) 2010, 2011  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2010, 2011, 2015  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -14,8 +14,6 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-
-<!-- $Id: dnssec.xml,v 1.7 2011/10/13 23:47:10 tbox Exp $ -->
 
 <sect1 id="dnssec.dynamic.zones">
   <title>DNSSEC, Dynamic Zones, and Automatic Signing</title>
@@ -125,6 +123,13 @@
   <command>rndc sign</command> or <command>rndc loadkeys</command>
   command. (Those commands can still be used when there are unscheduled
   key changes, however.)
+  </para>
+  <para>
+  When new keys are added to a zone, the TTL is set to match that
+  of any existing DNSKEY RRset. If there is no existing DNSKEY RRset,
+  then the TTL will be set to the TTL specified when the key was
+  created (using the <command>dnssec-keygen -L</command> option), if
+  any, or to the SOA TTL.
   </para>
   <para>
   If you wish the zone to be signed using NSEC3 instead of NSEC,

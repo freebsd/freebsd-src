@@ -1,4 +1,4 @@
-# Copyright (C) 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2009, 2012, 2014  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -24,6 +24,7 @@ CINCLUDES =	-I${srcdir}/include \
 		-I${srcdir}/../@ISC_THREAD_DIR@/include \
 		-I${export_srcdir}/isc/include \
 		-I../include \
+		-I../../../isc/include \
 		-I${srcdir}/../include \
 		-I${srcdir}/..
 

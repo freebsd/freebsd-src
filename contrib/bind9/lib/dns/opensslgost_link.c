@@ -196,6 +196,7 @@ opensslgost_generate(dst_key_t *key, int unused, void (*callback)(int)) {
 		DST_RET(dst__openssl_toresult2("EVP_PKEY_keygen",
 					       DST_R_OPENSSLFAILURE));
 	key->keydata.pkey = pkey;
+	key->key_size = EVP_PKEY_bits(pkey);
 	EVP_PKEY_CTX_free(ctx);
 	return (ISC_R_SUCCESS);
 
@@ -281,6 +282,7 @@ opensslgost_fromdns(dst_key_t *key, isc_buffer_t *data) {
 		return (dst__openssl_toresult2("d2i_PUBKEY",
 					       DST_R_OPENSSLFAILURE));
 	key->keydata.pkey = pkey;
+	key->key_size = EVP_PKEY_bits(pkey);
 
 	return (ISC_R_SUCCESS);
 }

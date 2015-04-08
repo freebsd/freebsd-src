@@ -2,7 +2,7 @@
 	      "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -34,6 +34,7 @@
       <year>2012</year>
       <year>2013</year>
       <year>2014</year>
+      <year>2015</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -3349,12 +3350,6 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
 	</para>
 
 	<para>
-	  Note that an address match list's name must be defined
-	  with <command>acl</command> before it can be used
-	  elsewhere; no forward references are allowed.
-	</para>
-
-	<para>
 	  The following ACLs are built-in:
 	</para>
 
@@ -4337,6 +4332,17 @@ category notify { null; };
 		    </para>
 		  </entry>
 		</row>
+		<row rowsep="0">
+		  <entry colname="1">
+		    <para><command>cname</command></para>
+		  </entry>
+		  <entry colname="2">
+		    <para>
+		      Logs nameservers that are skipped due to them being
+		      a CNAME rather than A / AAAA records.
+		    </para>
+		  </entry>
+		</row>
 	      </tbody>
 	    </tgroup>
 	  </informaltable>
@@ -4889,12 +4895,17 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 	<optional> exempt-clients  { <replaceable>address_match_list</replaceable> } ; </optional>
 	<optional> max-table-size <replaceable>number</replaceable> ; </optional>
 	<optional> min-table-size <replaceable>number</replaceable> ; </optional>
-      } ; </optional>
-    <optional> response-policy { <replaceable>zone_name</replaceable>
-	<optional> policy given | disabled | passthru | nxdomain | nodata | cname <replaceable>domain</replaceable> </optional>
-	<optional> recursive-only <replaceable>yes_or_no</replaceable> </optional> <optional> max-policy-ttl <replaceable>number</replaceable> </optional> ;
-    } <optional> recursive-only <replaceable>yes_or_no</replaceable> </optional> <optional> max-policy-ttl <replaceable>number</replaceable> </optional>
-	<optional> break-dnssec <replaceable>yes_or_no</replaceable> </optional> <optional> min-ns-dots <replaceable>number</replaceable> </optional> ; </optional>
+    } ; </optional>
+    <optional> response-policy {
+	zone <replaceable>zone_name</replaceable>
+	<optional> policy <replaceable>(given | disabled | passthru |
+		  nxdomain | nodata | cname domain</replaceable>) </optional>
+	<optional> recursive-only <replaceable>yes_or_no</replaceable> </optional>
+	<optional> max-policy-ttl <replaceable>number</replaceable> </optional>
+	<optional> break-dnssec <replaceable>yes_or_no</replaceable> </optional>
+	<optional> min-ns-dots <replaceable>number</replaceable> </optional>
+	; <optional>...</optional>
+    } ; </optional>
 };
 </programlisting>
 
@@ -7505,7 +7516,9 @@ avoid-v6-udp-ports {};
 		  rate at which queries are sent.  The value of the
 		  <command>serial-query-rate</command> option, an
 		  integer, is the maximum number of queries sent
-		  per second.  The default is 20.
+		  per second.  The default is 20 per second.
+		  The lowest possible rate is one per second; when set
+		  to zero, it will be silently raised to one.
 		</para>
 		<para>
 		  In addition to controlling the rate SOA refresh
@@ -8703,8 +8716,10 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 		  Sets the maximum number of iterative queries that
 		  may be sent while servicing a recursive query.
 		  If more queries are sent, the recursive query
-		  is terminated and returns SERVFAIL. The default
-		  is 50.
+		  is terminated and returns SERVFAIL. Queries to
+		  look up top level comains such as "com" and "net"
+		  and the DNS root zone are exempt from this limitation.
+		  The default is 50.
 		</para>
 	      </listitem>
 	    </varlistentry>
@@ -9272,7 +9287,7 @@ deny-answer-aliases { "example.net"; };
 	    <acronym>BIND</acronym> 9 includes a limited
 	    mechanism to modify DNS responses for requests
 	    analogous to email anti-spam DNS blacklists.
-	    Responses can be changed to deny the existence of domains(NXDOMAIN),
+	    Responses can be changed to deny the existence of domains (NXDOMAIN),
 	    deny the existence of IP addresses for domains (NODATA),
 	    or contain other IP addresses or data.
 	  </para>
@@ -9359,7 +9374,7 @@ deny-answer-aliases { "example.net"; };
 	      <listitem>Among IP or NSIP triggers, prefer the trigger
 		with the longest prefix.
 	      </listitem>
-	      <listitem>Among triggers with the same prefex length,
+	      <listitem>Among triggers with the same prefix length,
 		prefer the IP or NSIP trigger that matches
 		the smallest IP address.
 	      </listitem>
@@ -15578,13 +15593,15 @@ zone "example.com" {
 	</para>
       </sect1>
     </chapter>
-    <appendix id="Bv9ARM.ch09">
-      <title>Appendices</title>
-      <sect1>
-	<title>Acknowledgments</title>
-	<sect2 id="historical_dns_information">
-	  <title>A Brief History of the <acronym>DNS</acronym> and <acronym>BIND</acronym></title>
 
+    <appendix id="Bv9ARM.ch09">
+      <title>Release Notes</title>
+      <xi:include href="notes.xml"/>
+    </appendix>
+
+    <appendix id="Bv9ARM.ch10">
+      <title>A Brief History of the <acronym>DNS</acronym> and <acronym>BIND</acronym></title>
+      <sect1 id="historical_dns_information">
 	  <para>
 	    Although the "official" beginning of the Domain Name
 	    System occurred in 1984 with the publication of RFC 920, the
@@ -15680,11 +15697,12 @@ zone "example.com" {
 	    of several corporations, and by the tireless work efforts of
 	    numerous individuals.
 	  </para>
-	</sect2>
       </sect1>
-      <sect1>
-	<title>General <acronym>DNS</acronym> Reference Information</title>
-	<sect2 id="ipv6addresses">
+    </appendix>
+
+    <appendix id="Bv9ARM.ch11">
+      <title>General <acronym>DNS</acronym> Reference Information</title>
+      <sect1 id="ipv6addresses">
 	  <title>IPv6 addresses (AAAA)</title>
 	  <para>
 	    IPv6 addresses are 128-bit identifiers for interfaces and
@@ -15740,7 +15758,6 @@ zone "example.com" {
 	    string
 	    of zeros that can fit, and can be used only once in an address.
 	  </para>
-	</sect2>
       </sect1>
       <sect1 id="bibliography">
 	<title>Bibliography (and Suggested Reading)</title>
@@ -16993,13 +17010,14 @@ zone "example.com" {
 	  </bibliography>
 	</sect2>
       </sect1>
-
-      <xi:include href="libdns.xml"/>
-
     </appendix>
 
+    <appendix id="Bv9ARM.ch12">
+      <title>BIND 9 DNS Library Support</title>
+      <xi:include href="libdns.xml"/>
+    </appendix>
 
-    <reference id="Bv9ARM.ch10">
+    <reference id="Bv9ARM.ch13">
       <title>Manual pages</title>
       <xi:include href="../../bin/dig/dig.docbook"/>
       <xi:include href="../../bin/dig/host.docbook"/>

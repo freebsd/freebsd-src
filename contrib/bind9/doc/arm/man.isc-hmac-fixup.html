@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2014 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2015 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -21,7 +21,7 @@
 <title>isc-hmac-fixup</title>
 <meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
 <link rel="start" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
-<link rel="up" href="Bv9ARM.ch10.html" title="Manual pages">
+<link rel="up" href="Bv9ARM.ch13.html" title="Manual pages">
 <link rel="prev" href="man.genrandom.html" title="genrandom">
 <link rel="next" href="man.nsec3hash.html" title="nsec3hash">
 </head>
@@ -50,7 +50,7 @@
 <div class="cmdsynopsis"><p><code class="command">isc-hmac-fixup</code>  {<em class="replaceable"><code>algorithm</code></em>} {<em class="replaceable"><code>secret</code></em>}</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2657565"></a><h2>DESCRIPTION</h2>
+<a name="id2660604"></a><h2>DESCRIPTION</h2>
 <p>
       Versions of BIND 9 up to and including BIND 9.6 had a bug causing
       HMAC-SHA* TSIG keys which were longer than the digest length of the
@@ -76,7 +76,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2657593"></a><h2>SECURITY CONSIDERATIONS</h2>
+<a name="id2660632"></a><h2>SECURITY CONSIDERATIONS</h2>
 <p>
       Secrets that have been converted by <span><strong class="command">isc-hmac-fixup</strong></span>
       are shortened, but as this is how the HMAC protocol works in
@@ -87,14 +87,14 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2657609"></a><h2>SEE ALSO</h2>
+<a name="id2660648"></a><h2>SEE ALSO</h2>
 <p>
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>,
       <em class="citetitle">RFC 2104</em>.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2657626"></a><h2>AUTHOR</h2>
+<a name="id2660665"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>
@@ -105,7 +105,7 @@
 <tr>
 <td width="40%" align="left">
 <a accesskey="p" href="man.genrandom.html">Prev</a> </td>
-<td width="20%" align="center"><a accesskey="u" href="Bv9ARM.ch10.html">Up</a></td>
+<td width="20%" align="center"><a accesskey="u" href="Bv9ARM.ch13.html">Up</a></td>
 <td width="40%" align="right"> <a accesskey="n" href="man.nsec3hash.html">Next</a>
 </td>
 </tr>
@@ -118,6 +118,6 @@
 </tr>
 </table>
 </div>
-<p style="text-align: center;">BIND Version 9.9</p>
+<p style="text-align: center;">BIND 9.9.7 (Extended Support Version)</p>
 </body>
 </html>

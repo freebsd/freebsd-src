@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2009, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2009, 2011-2014  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -93,7 +93,7 @@ openssldh_computesecret(const dst_key_t *pub, const dst_key_t *priv,
 	if (r.length < len)
 		return (ISC_R_NOSPACE);
 	ret = DH_compute_key(r.base, dhpub->pub_key, dhpriv);
-	if (ret == 0)
+	if (ret <= 0)
 		return (dst__openssl_toresult2("DH_compute_key",
 					       DST_R_COMPUTESECRETFAILURE));
 	isc_buffer_add(secret, len);

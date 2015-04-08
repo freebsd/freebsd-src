@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,8 +14,6 @@
  * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
-/* $Id$ */
 
 /*% */
 
@@ -709,6 +707,8 @@ configure_staticstub(const cfg_obj_t *zconfig, dns_zone_t *zone,
 				    sizeof(*rdata) + region.length);
 		}
 	}
+
+	INSIST(dbversion == NULL);
 
 	return (result);
 }

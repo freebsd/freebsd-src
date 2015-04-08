@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009, 2011-2013, 2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,10 +14,11 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
-
 #ifndef GENERIC_KEYDATA_65533_C
 #define GENERIC_KEYDATA_65533_C 1
+
+#include <isc/time.h>
+#include <isc/stdtime.h>
 
 #include <dst/dst.h>
 
@@ -97,7 +98,7 @@ totext_keydata(ARGS_TOTEXT) {
 	char buf[sizeof("64000")];
 	unsigned int flags;
 	unsigned char algorithm;
-	unsigned long when;
+	unsigned long refresh, add, remove;
 	char algbuf[DNS_NAME_FORMATSIZE];
 	const char *keyinfo;
 
@@ -109,21 +110,21 @@ totext_keydata(ARGS_TOTEXT) {
 	dns_rdata_toregion(rdata, &sr);
 
 	/* refresh timer */
-	when = uint32_fromregion(&sr);
+	refresh = uint32_fromregion(&sr);
 	isc_region_consume(&sr, 4);
-	RETERR(dns_time32_totext(when, target));
+	RETERR(dns_time32_totext(refresh, target));
 	RETERR(str_totext(" ", target));
 
 	/* add hold-down */
-	when = uint32_fromregion(&sr);
+	add = uint32_fromregion(&sr);
 	isc_region_consume(&sr, 4);
-	RETERR(dns_time32_totext(when, target));
+	RETERR(dns_time32_totext(add, target));
 	RETERR(str_totext(" ", target));
 
 	/* remove hold-down */
-	when = uint32_fromregion(&sr);
+	remove = uint32_fromregion(&sr);
 	isc_region_consume(&sr, 4);
-	RETERR(dns_time32_totext(when, target));
+	RETERR(dns_time32_totext(remove, target));
 	RETERR(str_totext(" ", target));
 
 	/* flags */
@@ -176,6 +177,10 @@ totext_keydata(ARGS_TOTEXT) {
 
 	if ((tctx->flags & DNS_STYLEFLAG_RRCOMMENT) != 0) {
 		isc_region_t tmpr;
+		char rbuf[ISC_FORMATHTTPTIMESTAMP_SIZE];
+		char abuf[ISC_FORMATHTTPTIMESTAMP_SIZE];
+		char dbuf[ISC_FORMATHTTPTIMESTAMP_SIZE];
+		isc_time_t t;
 
 		RETERR(str_totext(" ; ", target));
 		RETERR(str_totext(keyinfo, target));
@@ -189,6 +194,47 @@ totext_keydata(ARGS_TOTEXT) {
 		isc_region_consume(&tmpr, 12);
 		sprintf(buf, "%u", dst_region_computeid(&tmpr, algorithm));
 		RETERR(str_totext(buf, target));
+
+		if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0) {
+			isc_stdtime_t now;
+
+			isc_stdtime_get(&now);
+
+			RETERR(str_totext(tctx->linebreak, target));
+			RETERR(str_totext("; next refresh: ", target));
+			isc_time_set(&t, refresh, 0);
+			isc_time_formathttptimestamp(&t, rbuf, sizeof(rbuf));
+			RETERR(str_totext(rbuf, target));
+
+			if (add == 0) {
+				RETERR(str_totext(tctx->linebreak, target));
+				RETERR(str_totext("; no trust", target));
+			} else {
+				RETERR(str_totext(tctx->linebreak, target));
+				if (add < now) {
+					RETERR(str_totext("; trusted since: ",
+							  target));
+				} else {
+					RETERR(str_totext("; trust pending: ",
+							  target));
+				}
+				isc_time_set(&t, add, 0);
+				isc_time_formathttptimestamp(&t, abuf,
+							     sizeof(abuf));
+				RETERR(str_totext(abuf, target));
+			}
+
+			if (remove != 0) {
+				RETERR(str_totext(tctx->linebreak, target));
+				RETERR(str_totext("; removal pending: ",
+						  target));
+				isc_time_set(&t, remove, 0);
+				isc_time_formathttptimestamp(&t, dbuf,
+							     sizeof(dbuf));
+				RETERR(str_totext(dbuf, target));
+			}
+		}
+
 	}
 	return (ISC_R_SUCCESS);
 }

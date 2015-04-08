@@ -132,6 +132,11 @@
 @ISC_PLATFORM_FIXIN6ISADDR@
 
 /*! \brief
+ * Define if the system has struct sockaddr_storage.
+ */
+@ISC_PLATFORM_HAVESOCKADDRSTORAGE@
+
+/*! \brief
  * Define if the system supports kqueue multiplexing
  */
 @ISC_PLATFORM_HAVEKQUEUE@

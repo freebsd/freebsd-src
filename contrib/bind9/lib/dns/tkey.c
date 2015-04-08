@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -859,7 +859,7 @@ buildquery(dns_message_t *msg, dns_name_t *name,
 	dns_rdataset_t *question = NULL, *tkeyset = NULL;
 	dns_rdatalist_t *tkeylist = NULL;
 	dns_rdata_t *rdata = NULL;
-	isc_buffer_t *dynbuf = NULL;
+	isc_buffer_t *dynbuf = NULL, *anamebuf = NULL, *qnamebuf = NULL;
 	isc_result_t result;
 
 	REQUIRE(msg != NULL);
@@ -875,6 +875,8 @@ buildquery(dns_message_t *msg, dns_name_t *name,
 				  dns_rdatatype_tkey);
 
 	RETERR(isc_buffer_allocate(msg->mctx, &dynbuf, 4096));
+	RETERR(isc_buffer_allocate(msg->mctx, &anamebuf, DNS_NAME_MAXWIRE));
+	RETERR(isc_buffer_allocate(msg->mctx, &qnamebuf, DNS_NAME_MAXWIRE));
 	RETERR(dns_message_gettemprdata(msg, &rdata));
 
 	RETERR(dns_rdata_fromstruct(rdata, dns_rdataclass_any,
@@ -894,15 +896,16 @@ buildquery(dns_message_t *msg, dns_name_t *name,
 	RETERR(dns_rdatalist_tordataset(tkeylist, tkeyset));
 
 	dns_name_init(qname, NULL);
-	dns_name_clone(name, qname);
+	dns_name_copy(name, qname, qnamebuf);
 
 	dns_name_init(aname, NULL);
-	dns_name_clone(name, aname);
+	dns_name_copy(name, aname, anamebuf);
 
 	ISC_LIST_APPEND(qname->list, question, link);
 	ISC_LIST_APPEND(aname->list, tkeyset, link);
 
 	dns_message_addname(msg, qname, DNS_SECTION_QUESTION);
+	dns_message_takebuffer(msg, &qnamebuf);
 
 	/*
 	 * Windows 2000 needs this in the answer section, not the additional
@@ -912,6 +915,7 @@ buildquery(dns_message_t *msg, dns_name_t *name,
 		dns_message_addname(msg, aname, DNS_SECTION_ANSWER);
 	else
 		dns_message_addname(msg, aname, DNS_SECTION_ADDITIONAL);
+	dns_message_takebuffer(msg, &anamebuf);
 
 	return (ISC_R_SUCCESS);
 
@@ -926,6 +930,10 @@ buildquery(dns_message_t *msg, dns_name_t *name,
 	}
 	if (dynbuf != NULL)
 		isc_buffer_free(&dynbuf);
+	if (qnamebuf != NULL)
+		isc_buffer_free(&qnamebuf);
+	if (anamebuf != NULL)
+		isc_buffer_free(&anamebuf);
 	printf("buildquery error\n");
 	return (result);
 }
@@ -1389,6 +1397,7 @@ dns_tkey_gssnegotiate(dns_message_t *qmsg, dns_message_t *rmsg,
 	dst_key_t *dstkey = NULL;
 	isc_result_t result;
 	unsigned char array[1024];
+	isc_boolean_t freertkey = ISC_FALSE;
 
 	REQUIRE(qmsg != NULL);
 	REQUIRE(rmsg != NULL);
@@ -1401,6 +1410,7 @@ dns_tkey_gssnegotiate(dns_message_t *qmsg, dns_message_t *rmsg,
 
 	RETERR(find_tkey(rmsg, &tkeyname, &rtkeyrdata, DNS_SECTION_ANSWER));
 	RETERR(dns_rdata_tostruct(&rtkeyrdata, &rtkey, NULL));
+	freertkey = ISC_TRUE;
 
 	if (win2k == ISC_TRUE)
 		RETERR(find_tkey(qmsg, &tkeyname, &qtkeyrdata,
@@ -1453,7 +1463,8 @@ dns_tkey_gssnegotiate(dns_message_t *qmsg, dns_message_t *rmsg,
 	/*
 	 * XXXSRA This probably leaks memory from qtkey.
 	 */
-	dns_rdata_freestruct(&rtkey);
+	if (freertkey)
+		dns_rdata_freestruct(&rtkey);
 	if (dstkey != NULL)
 		dst_key_free(&dstkey);
 	return (result);

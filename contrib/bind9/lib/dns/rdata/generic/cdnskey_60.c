@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -27,7 +27,7 @@
 
 #include <dst/dst.h>
 
-#define RRTYPE_CDNSKEY_ATTRIBUTES (DNS_RDATATYPEATTR_DNSSEC)
+#define RRTYPE_CDNSKEY_ATTRIBUTES 0
 
 static inline isc_result_t
 fromtext_cdnskey(ARGS_FROMTEXT) {

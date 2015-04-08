@@ -579,6 +579,7 @@ dns_name_fullcompare(const dns_name_t *name1, const dns_name_t *name2,
 
 	if (name1 == name2) {
 		*orderp = 0;
+		*nlabelsp = name1->labels;
 		return (dns_namereln_equal);
 	}
 

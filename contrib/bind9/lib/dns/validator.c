@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -2062,9 +2062,6 @@ validatezonekey(dns_validator_t *val) {
 				      "the DNSKEY RRset and also matches a "
 				      "trusted key for '%s'",
 				      namebuf);
-			validator_log(val, ISC_LOG_NOTICE,
-				      "please check the 'trusted-keys' for "
-				      "'%s' in named.conf.", namebuf);
 			return (DNS_R_NOVALIDKEY);
 		}
 

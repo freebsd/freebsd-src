@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 /*
- * Copyright (C) 2004-2014 Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2015 Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003 Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -87,6 +87,7 @@
 #include "rdata/generic/hip_55.c"
 #include "rdata/generic/cds_59.c"
 #include "rdata/generic/cdnskey_60.c"
+#include "rdata/generic/openpgpkey_61.c"
 #include "rdata/generic/spf_99.c"
 #include "rdata/generic/unspec_103.c"
 #include "rdata/generic/nid_104.c"
@@ -203,6 +204,7 @@
 	case 55: result = fromtext_hip(rdclass, type, lexer, origin, options, target, callbacks); break; \
 	case 59: result = fromtext_cds(rdclass, type, lexer, origin, options, target, callbacks); break; \
 	case 60: result = fromtext_cdnskey(rdclass, type, lexer, origin, options, target, callbacks); break; \
+	case 61: result = fromtext_openpgpkey(rdclass, type, lexer, origin, options, target, callbacks); break; \
 	case 99: result = fromtext_spf(rdclass, type, lexer, origin, options, target, callbacks); break; \
 	case 103: result = fromtext_unspec(rdclass, type, lexer, origin, options, target, callbacks); break; \
 	case 104: result = fromtext_nid(rdclass, type, lexer, origin, options, target, callbacks); break; \
@@ -323,6 +325,7 @@
 	case 55: result = totext_hip(rdata, tctx, target); break; \
 	case 59: result = totext_cds(rdata, tctx, target); break; \
 	case 60: result = totext_cdnskey(rdata, tctx, target); break; \
+	case 61: result = totext_openpgpkey(rdata, tctx, target); break; \
 	case 99: result = totext_spf(rdata, tctx, target); break; \
 	case 103: result = totext_unspec(rdata, tctx, target); break; \
 	case 104: result = totext_nid(rdata, tctx, target); break; \
@@ -443,6 +446,7 @@
 	case 55: result = fromwire_hip(rdclass, type, source, dctx, options, target); break; \
 	case 59: result = fromwire_cds(rdclass, type, source, dctx, options, target); break; \
 	case 60: result = fromwire_cdnskey(rdclass, type, source, dctx, options, target); break; \
+	case 61: result = fromwire_openpgpkey(rdclass, type, source, dctx, options, target); break; \
 	case 99: result = fromwire_spf(rdclass, type, source, dctx, options, target); break; \
 	case 103: result = fromwire_unspec(rdclass, type, source, dctx, options, target); break; \
 	case 104: result = fromwire_nid(rdclass, type, source, dctx, options, target); break; \
@@ -563,6 +567,7 @@
 	case 55: result = towire_hip(rdata, cctx, target); break; \
 	case 59: result = towire_cds(rdata, cctx, target); break; \
 	case 60: result = towire_cdnskey(rdata, cctx, target); break; \
+	case 61: result = towire_openpgpkey(rdata, cctx, target); break; \
 	case 99: result = towire_spf(rdata, cctx, target); break; \
 	case 103: result = towire_unspec(rdata, cctx, target); break; \
 	case 104: result = towire_nid(rdata, cctx, target); break; \
@@ -683,6 +688,7 @@
 	case 55: result = compare_hip(rdata1, rdata2); break; \
 	case 59: result = compare_cds(rdata1, rdata2); break; \
 	case 60: result = compare_cdnskey(rdata1, rdata2); break; \
+	case 61: result = compare_openpgpkey(rdata1, rdata2); break; \
 	case 99: result = compare_spf(rdata1, rdata2); break; \
 	case 103: result = compare_unspec(rdata1, rdata2); break; \
 	case 104: result = compare_nid(rdata1, rdata2); break; \
@@ -803,6 +809,7 @@
 	case 55: result = casecompare_hip(rdata1, rdata2); break; \
 	case 59: result = casecompare_cds(rdata1, rdata2); break; \
 	case 60: result = casecompare_cdnskey(rdata1, rdata2); break; \
+	case 61: result = casecompare_openpgpkey(rdata1, rdata2); break; \
 	case 99: result = casecompare_spf(rdata1, rdata2); break; \
 	case 103: result = casecompare_unspec(rdata1, rdata2); break; \
 	case 104: result = casecompare_nid(rdata1, rdata2); break; \
@@ -923,6 +930,7 @@
 	case 55: result = fromstruct_hip(rdclass, type, source, target); break; \
 	case 59: result = fromstruct_cds(rdclass, type, source, target); break; \
 	case 60: result = fromstruct_cdnskey(rdclass, type, source, target); break; \
+	case 61: result = fromstruct_openpgpkey(rdclass, type, source, target); break; \
 	case 99: result = fromstruct_spf(rdclass, type, source, target); break; \
 	case 103: result = fromstruct_unspec(rdclass, type, source, target); break; \
 	case 104: result = fromstruct_nid(rdclass, type, source, target); break; \
@@ -1043,6 +1051,7 @@
 	case 55: result = tostruct_hip(rdata, target, mctx); break; \
 	case 59: result = tostruct_cds(rdata, target, mctx); break; \
 	case 60: result = tostruct_cdnskey(rdata, target, mctx); break; \
+	case 61: result = tostruct_openpgpkey(rdata, target, mctx); break; \
 	case 99: result = tostruct_spf(rdata, target, mctx); break; \
 	case 103: result = tostruct_unspec(rdata, target, mctx); break; \
 	case 104: result = tostruct_nid(rdata, target, mctx); break; \
@@ -1163,6 +1172,7 @@
 	case 55: freestruct_hip(source); break; \
 	case 59: freestruct_cds(source); break; \
 	case 60: freestruct_cdnskey(source); break; \
+	case 61: freestruct_openpgpkey(source); break; \
 	case 99: freestruct_spf(source); break; \
 	case 103: freestruct_unspec(source); break; \
 	case 104: freestruct_nid(source); break; \
@@ -1283,6 +1293,7 @@
 	case 55: result = additionaldata_hip(rdata, add, arg); break; \
 	case 59: result = additionaldata_cds(rdata, add, arg); break; \
 	case 60: result = additionaldata_cdnskey(rdata, add, arg); break; \
+	case 61: result = additionaldata_openpgpkey(rdata, add, arg); break; \
 	case 99: result = additionaldata_spf(rdata, add, arg); break; \
 	case 103: result = additionaldata_unspec(rdata, add, arg); break; \
 	case 104: result = additionaldata_nid(rdata, add, arg); break; \
@@ -1403,6 +1414,7 @@
 	case 55: result = digest_hip(rdata, digest, arg); break; \
 	case 59: result = digest_cds(rdata, digest, arg); break; \
 	case 60: result = digest_cdnskey(rdata, digest, arg); break; \
+	case 61: result = digest_openpgpkey(rdata, digest, arg); break; \
 	case 99: result = digest_spf(rdata, digest, arg); break; \
 	case 103: result = digest_unspec(rdata, digest, arg); break; \
 	case 104: result = digest_nid(rdata, digest, arg); break; \
@@ -1523,6 +1535,7 @@
 	case 55: result = checkowner_hip(name, rdclass, type, wildcard); break; \
 	case 59: result = checkowner_cds(name, rdclass, type, wildcard); break; \
 	case 60: result = checkowner_cdnskey(name, rdclass, type, wildcard); break; \
+	case 61: result = checkowner_openpgpkey(name, rdclass, type, wildcard); break; \
 	case 99: result = checkowner_spf(name, rdclass, type, wildcard); break; \
 	case 103: result = checkowner_unspec(name, rdclass, type, wildcard); break; \
 	case 104: result = checkowner_nid(name, rdclass, type, wildcard); break; \
@@ -1643,6 +1656,7 @@
 	case 55: result = checknames_hip(rdata, owner, bad); break; \
 	case 59: result = checknames_cds(rdata, owner, bad); break; \
 	case 60: result = checknames_cdnskey(rdata, owner, bad); break; \
+	case 61: result = checknames_openpgpkey(rdata, owner, bad); break; \
 	case 99: result = checknames_spf(rdata, owner, bad); break; \
 	case 103: result = checknames_unspec(rdata, owner, bad); break; \
 	case 104: result = checknames_nid(rdata, owner, bad); break; \
@@ -1830,6 +1844,9 @@
 		case 208: \
 			RDATATYPE_COMPARE("hip", 55, _typename, _length, _typep); \
 			break; \
+		case 49: \
+			RDATATYPE_COMPARE("openpgpkey", 61, _typename, _length, _typep); \
+			break; \
 		case 230: \
 			RDATATYPE_COMPARE("uinfo", 100, _typename, _length, _typep); \
 			break; \
@@ -1937,6 +1954,7 @@
 	case 55: return (RRTYPE_HIP_ATTRIBUTES); \
 	case 59: return (RRTYPE_CDS_ATTRIBUTES); \
 	case 60: return (RRTYPE_CDNSKEY_ATTRIBUTES); \
+	case 61: return (RRTYPE_OPENPGPKEY_ATTRIBUTES); \
 	case 99: return (RRTYPE_SPF_ATTRIBUTES); \
 	case 100: return (DNS_RDATATYPEATTR_RESERVED); \
 	case 101: return (DNS_RDATATYPEATTR_RESERVED); \
@@ -2017,6 +2035,7 @@
 	case 55: return (str_totext("HIP", target)); \
 	case 59: return (str_totext("CDS", target)); \
 	case 60: return (str_totext("CDNSKEY", target)); \
+	case 61: return (str_totext("OPENPGPKEY", target)); \
 	case 99: return (str_totext("SPF", target)); \
 	case 100: return (str_totext("UINFO", target)); \
 	case 101: return (str_totext("UID", target)); \

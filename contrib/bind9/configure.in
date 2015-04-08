@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -63,6 +63,8 @@ It is available from http://www.isc.org as a separate download.])
 		;;
 esac
 
+AC_ARG_ENABLE(warn_shadow, [  --enable-warn-shadow	  turn on -Wshadow when compiling])
+
 AC_ARG_ENABLE(warn_error, [  --enable-warn-error	  turn on -Werror when compiling])
 
 AC_ARG_ENABLE(developer, [  --enable-developer      enable developer build settings])
@@ -84,6 +86,7 @@ yes)
 	esac
 	test "${enable_symtable+set}" = set || enable_symtable=all
 	test "${enable_warn_error+set}" = set || enable_warn_error=yes
+	test "${enable_warn_shadow+set}" = set || enable_warn_shadow=yes
 	;;
 esac
 #
@@ -408,6 +411,9 @@ AC_C_FLEXIBLE_ARRAY_MEMBER
 #
 AC_CHECK_FUNCS(seteuid setresuid)
 AC_CHECK_FUNCS(setegid setresgid)
+
+# BSDI doesn't have ftello fseeko
+AC_CHECK_FUNCS(ftello fseeko)
 
 #
 # UnixWare 7.1.1 with the feature supplement to the UDK compiler
@@ -979,6 +985,23 @@ case $want_openssl_hash in
 		fi
 		ISC_PLATFORM_OPENSSLHASH="#define ISC_PLATFORM_OPENSSLHASH 1"
 		ISC_OPENSSL_INC="$DST_OPENSSL_INC"
+		ISC_OPENSSL_LIBS="$DST_OPENSSL_LIBS"
+		saved_cflags="$CFLAGS"
+		save_libs="$LIBS"
+		CFLAGS="$CFLAGS $ISC_OPENSSL_INC"
+		LIBS="$LIBS $ISC_OPENSSL_LIBS"
+		AC_MSG_CHECKING([HMAC_Init() return type])
+		AC_TRY_COMPILE([
+		#include <openssl/hmac.h>],[
+		HMAC_CTX ctx;
+		int n = HMAC_Init(&ctx, NULL, 0, NULL);
+		n += HMAC_Update(&ctx, NULL, 0);
+		n += HMAC_Final(&ctx, NULL, NULL);],[
+		AC_MSG_RESULT(int)
+		AC_DEFINE(HMAC_RETURN_INT, 1, [HMAC_*() return ints])],[
+		AC_MSG_RESULT(void)])
+		CFLAGS="$saved_cflags"
+		LIBS="$save_libs"
 		;;
 	no)
 		ISC_PLATFORM_OPENSSLHASH="#undef ISC_PLATFORM_OPENSSLHASH"
@@ -1577,6 +1600,9 @@ if test "X$GCC" = "Xyes"; then
 		BACKTRACECFLAGS="$BACKTRACECFLAGS -Wl,+vnocompatwarnings"
 		;;
 	esac
+	if test "X$enable_warn_shadow" = Xyes; then
+		STD_CWARNINGS="$STD_CWARNINGS -Wshadow"
+	fi
 	if test "X$enable_warn_error" = Xyes; then
 		STD_CWARNINGS="$STD_CWARNINGS -Werror"
 	fi
@@ -1749,6 +1775,26 @@ case $use_libtool in
 		;;
 esac
 AC_SUBST(INSTALL_LIBRARY)
+
+#
+# Google/Great Performance Tools CPU Profiler
+#
+AC_MSG_CHECKING(whether to use gperftools profiler)
+AC_ARG_WITH(gperftools-profiler,
+	[  --with-gperftools-profiler  use gperftools CPU profiler],
+	use_profiler="$withval", use_profiler="no")
+
+case $use_profiler in
+	yes)
+		AC_MSG_RESULT(yes)
+		AC_DEFINE([HAVE_GPERFTOOLS_PROFILER], 1,
+		[Define to use gperftools CPU profiler.])
+		LIBS="$LIBS -lprofiler"
+		;;
+	*)
+		AC_MSG_RESULT(no)
+		;;
+esac
 
 #
 # enable/disable dumping stack backtrace.  Also check if the system supports
@@ -2094,6 +2140,19 @@ $isc_netinet6in6_hack
 		;;
 esac
 
+AC_MSG_CHECKING(for struct sockaddr_storage)
+AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <sys/socket.h>
+$isc_netinetin6_hack
+$isc_netinet6in6_hack
+],
+[struct sockaddr_storage storage; return (0);],
+[AC_MSG_RESULT(yes)
+ISC_PLATFORM_HAVESOCKADDRSTORAGE="#define ISC_PLATFORM_HAVESOCKADDRSTORAGE 1"],
+[AC_MSG_RESULT(no)
+ISC_PLATFORM_HAVESOCKADDRSTORAGE="#undef ISC_PLATFORM_HAVESOCKADDRSTORAGE"])
+
 AC_SUBST(ISC_PLATFORM_HAVEIPV6)
 AC_SUBST(LWRES_PLATFORM_HAVEIPV6)
 AC_SUBST(ISC_PLATFORM_NEEDNETINETIN6H)
@@ -2108,6 +2167,7 @@ AC_SUBST(ISC_PLATFORM_NEEDIN6ADDRLOOPBACK)
 AC_SUBST(LWRES_PLATFORM_NEEDIN6ADDRLOOPBACK)
 AC_SUBST(ISC_PLATFORM_HAVEIN6PKTINFO)
 AC_SUBST(ISC_PLATFORM_FIXIN6ISADDR)
+AC_SUBST(ISC_PLATFORM_HAVESOCKADDRSTORAGE)
 AC_SUBST(ISC_IPV6_H)
 AC_SUBST(ISC_IPV6_O)
 AC_SUBST(ISC_ISCIPV6_O)
@@ -2357,6 +2417,8 @@ int getnameinfo(const struct sockaddr *, socklen_t, char *,
 		socklen_t, char *, socklen_t, unsigned int);],
 [ return (0);],
 	[AC_MSG_RESULT(socklen_t for buflen; u_int for flags)
+	 AC_DEFINE(IRS_GETNAMEINFO_SOCKLEN_T, socklen_t,
+		   [Define to the sockaddr length type used by getnameinfo(3).])
 	 AC_DEFINE(IRS_GETNAMEINFO_BUFLEN_T, socklen_t,
 		   [Define to the buffer length type used by getnameinfo(3).])
 	 AC_DEFINE(IRS_GETNAMEINFO_FLAGS_T, unsigned int,
@@ -2369,11 +2431,24 @@ int getnameinfo(const struct sockaddr *, socklen_t, char *,
 		size_t, char *, size_t, int);],
 [ return (0);],
 	[AC_MSG_RESULT(size_t for buflen; int for flags)
+	 AC_DEFINE(IRS_GETNAMEINFO_SOCKLEN_T, socklen_t)
+	 AC_DEFINE(IRS_GETNAMEINFO_BUFLEN_T, size_t)
+	 AC_DEFINE(IRS_GETNAMEINFO_FLAGS_T, int)],
+[AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+int getnameinfo(const struct sockaddr *, size_t, char *,
+		size_t, char *, size_t, int);],
+[ return (0);],
+	[AC_MSG_RESULT(size_t for buflen; int for flags)
+	 AC_DEFINE(IRS_GETNAMEINFO_SOCKLEN_T, size_t)
 	 AC_DEFINE(IRS_GETNAMEINFO_BUFLEN_T, size_t)
 	 AC_DEFINE(IRS_GETNAMEINFO_FLAGS_T, int)],
 [AC_MSG_RESULT(not match any subspecies; assume standard definition)
+AC_DEFINE(IRS_GETNAMEINFO_SOCKLEN_T, socklen_t)
 AC_DEFINE(IRS_GETNAMEINFO_BUFLEN_T, socklen_t)
-AC_DEFINE(IRS_GETNAMEINFO_FLAGS_T, int)])])
+AC_DEFINE(IRS_GETNAMEINFO_FLAGS_T, int)])])])
 
 #
 # ...and same for gai_strerror().
@@ -2869,7 +2944,9 @@ esac
 case $ac_cv_have_if_nametoindex in
 yes)
 	ISC_PLATFORM_HAVEIFNAMETOINDEX="#define ISC_PLATFORM_HAVEIFNAMETOINDEX 1"
-	AC_DEFINE(HAVE_IF_NAMETOINDEX, 1)
+        AC_DEFINE(HAVE_IF_NAMETOINDEX, 1,
+                  [Define to 1 if you have the if_nametoindex function.])
+
 	;;
 *)
 	ISC_PLATFORM_HAVEIFNAMETOINDEX="#undef ISC_PLATFORM_HAVEIFNAMETOINDEX"
@@ -3481,6 +3558,10 @@ BIND9_DESCRIPTION="DESCRIPTION=\"${DESCRIPTION}\""
 AC_SUBST(BIND9_DESCRIPTION)
 BIND9_VERSION="VERSION=${MAJORVER}.${MINORVER}${PATCHVER:+.}${PATCHVER}${RELEASETYPE}${RELEASEVER}${EXTENSIONS}"
 AC_SUBST(BIND9_VERSION)
+BIND9_MAJOR="MAJOR=${MAJORVER}.${MINORVER}"
+AC_SUBST(BIND9_MAJOR)
+BIND9_VERSIONSTRING="${PRODUCT} ${MAJORVER}.${MINORVER}${PATCHVER:+.}${PATCHVER}${RELEASETYPE}${RELEASEVER}${EXTENSIONS}${DESCRIPTION:+ }${DESCRIPTION}"
+AC_SUBST(BIND9_VERSIONSTRING)
 
 BIND9_SRCID="SRCID=unset"
 if test -f "${srcdir}/srcid"; then
@@ -3866,6 +3947,8 @@ AC_CONFIG_FILES([
 	doc/xsl/isc-docbook-html.xsl
 	doc/xsl/isc-docbook-latex.xsl
 	doc/xsl/isc-manpage.xsl
+	doc/xsl/isc-notes-html.xsl
+	doc/xsl/isc-notes-latex.xsl
 	isc-config.sh
 	lib/Makefile
 	lib/bind9/Makefile

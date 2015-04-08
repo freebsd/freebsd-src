@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2008, 2010-2012, 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2006-2008, 2010-2012, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -648,7 +648,7 @@ isc_httpd_recvdone(isc_task_t *task, isc_event_t *ev) {
 	isc_socketevent_t *sev = (isc_socketevent_t *)ev;
 	isc_httpdurl_t *url;
 	isc_time_t now;
-	char datebuf[32];  /* Only need 30, but safety first */
+	char datebuf[ISC_FORMATHTTPTIMESTAMP_SIZE];
 
 	ENTER("recv");
 
@@ -729,7 +729,7 @@ isc_httpd_recvdone(isc_task_t *task, isc_event_t *ev) {
 	isc_httpd_addheader(httpd, "Expires", datebuf);
 
 	if (url != NULL && url->isstatic) {
-		char loadbuf[32];
+		char loadbuf[ISC_FORMATHTTPTIMESTAMP_SIZE];
 		isc_time_formathttptimestamp(&url->loadtime,
 					     loadbuf, sizeof(loadbuf));
 		isc_httpd_addheader(httpd, "Last-Modified", loadbuf);

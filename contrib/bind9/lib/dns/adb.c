@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -1768,12 +1768,12 @@ new_adbentry(dns_adb_t *adb) {
 	ISC_LINK_INIT(e, plink);
 	LOCK(&adb->entriescntlock);
 	adb->entriescnt++;
-	if (!adb->growentries_sent && adb->growentries_sent &&
+	if (!adb->growentries_sent && adb->excl != NULL &&
 	    adb->entriescnt > (adb->nentries * 8))
 	{
 		isc_event_t *event = &adb->growentries;
 		inc_adb_irefcnt(adb);
-		isc_task_send(adb->task, &event);
+		isc_task_send(adb->excl, &event);
 		adb->growentries_sent = ISC_TRUE;
 	}
 	UNLOCK(&adb->entriescntlock);
@@ -3805,11 +3805,11 @@ fetch_callback(isc_task_t *task, isc_event_t *ev) {
 			goto out;
 		/* XXXMLG Don't pound on bad servers. */
 		if (address_type == DNS_ADBFIND_INET) {
-			name->expire_v4 = ISC_MIN(name->expire_v4, now + 300);
+			name->expire_v4 = ISC_MIN(name->expire_v4, now + 10);
 			name->fetch_err = FIND_ERR_FAILURE;
 			inc_stats(adb, dns_resstatscounter_gluefetchv4fail);
 		} else {
-			name->expire_v6 = ISC_MIN(name->expire_v6, now + 300);
+			name->expire_v6 = ISC_MIN(name->expire_v6, now + 10);
 			name->fetch6_err = FIND_ERR_FAILURE;
 			inc_stats(adb, dns_resstatscounter_gluefetchv6fail);
 		}

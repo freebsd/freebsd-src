@@ -279,6 +279,9 @@ isc_radix_search(isc_radix_tree_t *radix, isc_radix_node_t **target,
 	while (cnt-- > 0) {
 		node = stack[cnt];
 
+		if (prefix->bitlen < node->bit)
+			continue;
+
 		if (_comp_with_mask(isc_prefix_tochar(node->prefix),
 				    isc_prefix_tochar(prefix),
 				    node->prefix->bitlen)) {

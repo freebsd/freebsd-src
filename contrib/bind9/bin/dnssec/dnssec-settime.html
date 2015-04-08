@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2009-2011, 2014 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2009-2011, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -31,7 +31,7 @@
 <div class="cmdsynopsis"><p><code class="command">dnssec-settime</code>  [<code class="option">-f</code>] [<code class="option">-K <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-L <em class="replaceable"><code>ttl</code></em></code>] [<code class="option">-P <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-A <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-R <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-I <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-D <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-h</code>] [<code class="option">-V</code>] [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] [<code class="option">-E <em class="replaceable"><code>engine</code></em></code>] {keyfile}</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543447"></a><h2>DESCRIPTION</h2>
+<a name="id2543450"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">dnssec-settime</strong></span>
       reads a DNSSEC private key file and sets the key timing metadata
       as specified by the <code class="option">-P</code>, <code class="option">-A</code>,
@@ -57,7 +57,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543495"></a><h2>OPTIONS</h2>
+<a name="id2543498"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-f</span></dt>
 <dd><p>
@@ -80,8 +80,10 @@
             into a DNSKEY RR.  If the key is imported into a zone,
             this is the TTL that will be used for it, unless there was
             already a DNSKEY RRset in place, in which case the existing TTL
-            would take precedence.  Setting the default TTL to
-            <code class="literal">0</code> or <code class="literal">none</code> removes it.
+            would take precedence.  If this value is not set and there
+            is no existing DNSKEY RRset, the TTL will default to the
+            SOA TTL. Setting the default TTL to <code class="literal">0</code>
+            or <code class="literal">none</code> removes it from the key.
           </p></dd>
 <dt><span class="term">-h</span></dt>
 <dd><p>
@@ -103,7 +105,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543692"></a><h2>TIMING OPTIONS</h2>
+<a name="id2543697"></a><h2>TIMING OPTIONS</h2>
 <p>
       Dates can be expressed in the format YYYYMMDD or YYYYMMDDHHMMSS.
       If the argument begins with a '+' or '-', it is interpreted as
@@ -182,7 +184,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543831"></a><h2>PRINTING OPTIONS</h2>
+<a name="id2543835"></a><h2>PRINTING OPTIONS</h2>
 <p>
       <span><strong class="command">dnssec-settime</strong></span> can also be used to print the
       timing metadata associated with a key.
@@ -208,7 +210,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543909"></a><h2>SEE ALSO</h2>
+<a name="id2543913"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">dnssec-signzone</span>(8)</span>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>,
@@ -216,7 +218,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543942"></a><h2>AUTHOR</h2>
+<a name="id2543946"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>

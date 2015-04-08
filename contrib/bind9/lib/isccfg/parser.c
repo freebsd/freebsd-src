@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -1495,10 +1495,10 @@ cfg_print_mapbody(cfg_printer_t *pctx, const cfg_obj_t *obj) {
 			result = isc_symtab_lookup(obj->value.map.symtab,
 						   clause->name, 0, &symval);
 			if (result == ISC_R_SUCCESS) {
-				cfg_obj_t *obj = symval.as_pointer;
-				if (obj->type == &cfg_type_implicitlist) {
+				cfg_obj_t *symobj = symval.as_pointer;
+				if (symobj->type == &cfg_type_implicitlist) {
 					/* Multivalued. */
-					cfg_list_t *list = &obj->value.list;
+					cfg_list_t *list = &symobj->value.list;
 					cfg_listelt_t *elt;
 					for (elt = ISC_LIST_HEAD(*list);
 					     elt != NULL;
@@ -1514,7 +1514,7 @@ cfg_print_mapbody(cfg_printer_t *pctx, const cfg_obj_t *obj) {
 					print_indent(pctx);
 					cfg_print_cstr(pctx, clause->name);
 					cfg_print_chars(pctx, " ", 1);
-					cfg_print_obj(pctx, obj);
+					cfg_print_obj(pctx, symobj);
 					cfg_print_chars(pctx, ";\n", 2);
 				}
 			} else if (result == ISC_R_NOTFOUND) {
