@@ -126,6 +126,13 @@ static struct rmlock	netisr_rmlock;
 
 static SYSCTL_NODE(_net, OID_AUTO, isr, CTLFLAG_RW, 0, "netisr");
 
+#ifdef DEVICE_POLLING
+static int	netisr_polling = 0;	/* Enable Polling. */
+TUNABLE_INT("net.isr.polling_enable", &netisr_polling);
+SYSCTL_INT(_net_isr, OID_AUTO, polling_enable, CTLFLAG_RW,
+    &netisr_polling, 0, "Enable polling");
+#endif
+
 /*-
  * Three global direct dispatch policies are supported:
  *
@@ -789,9 +796,11 @@ swi_net(void *arg)
 	nwsp = arg;
 
 #ifdef DEVICE_POLLING
-	KASSERT(nws_count == 1,
-	    ("%s: device_polling but nws_count != 1", __func__));
-	netisr_poll();
+	if (netisr_polling) {
+		KASSERT(nws_count == 1,
+		    ("%s: device_polling but nws_count != 1", __func__));
+		netisr_poll();
+	}
 #endif
 #ifdef NETISR_LOCKING
 	NETISR_RLOCK(&tracker);
@@ -816,7 +825,8 @@ out:
 	NETISR_RUNLOCK(&tracker);
 #endif
 #ifdef DEVICE_POLLING
-	netisr_pollmore();
+	if (netisr_polling)
+		netisr_pollmore();
 #endif
 }
 
@@ -1071,6 +1081,9 @@ netisr_sched_poll(void)
 {
 	struct netisr_workstream *nwsp;
 
+	if (!netisr_polling)
+		return;
+
 	nwsp = DPCPU_ID_PTR(nws_array[0], nws);
 	NWS_SIGNAL(nwsp);
 }
@@ -1138,7 +1151,7 @@ netisr_init(void *arg)
 	 * multiple netisr threads, so for the time being compiling in device
 	 * polling disables parallel netisr workers.
 	 */
-	if (netisr_maxthreads != 1 || netisr_bindthreads != 0) {
+	if (netisr_polling && (netisr_maxthreads != 1 || netisr_bindthreads != 0)) {
 		printf("netisr_init: forcing maxthreads to 1 and "
 		    "bindthreads to 0 for device polling\n");
 		netisr_maxthreads = 1;
