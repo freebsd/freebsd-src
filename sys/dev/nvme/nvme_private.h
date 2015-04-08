@@ -211,6 +211,7 @@ struct nvme_qpair {
 	struct nvme_completion	*cpl;
 
 	bus_dma_tag_t		dma_tag;
+	bus_dma_tag_t		dma_tag_payload;
 
 	bus_dmamap_t		cmd_dma_map;
 	uint64_t		cmd_bus_addr;
@@ -491,6 +492,8 @@ nvme_single_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 {
 	uint64_t *bus_addr = (uint64_t *)arg;
 
+	if (error != 0)
+		printf("nvme_single_map err %d\n", error);
 	*bus_addr = seg[0].ds_addr;
 }
 
