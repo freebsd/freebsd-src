@@ -1244,9 +1244,6 @@ t4_teardown_port_queues(struct port_info *pi)
 			free_ofld_rxq(pi, ofld_rxq);
 	}
 #endif
-#ifdef DEV_NETMAP
-	CXGBE_UNIMPLEMENTED(__func__);
-#endif
 
 	return (0);
 }
