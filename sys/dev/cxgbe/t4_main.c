@@ -4689,6 +4689,10 @@ t4_sysctls(struct adapter *sc)
 		sc->tt.rx_coalesce = 1;
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "rx_coalesce",
 		    CTLFLAG_RW, &sc->tt.rx_coalesce, 0, "receive coalescing");
+
+		sc->tt.tx_align = 1;
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "tx_align",
+		    CTLFLAG_RW, &sc->tt.tx_align, 0, "chop and align payload");
 	}
 #endif
 
