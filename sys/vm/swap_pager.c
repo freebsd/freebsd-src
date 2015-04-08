@@ -147,6 +147,8 @@ __FBSDID("$FreeBSD$");
 #define SWCORRECT(n) (sizeof(void *) * (n) / sizeof(daddr_t))
 #define SWAP_META_PAGES		(SWB_NPAGES * 2)
 #define SWAP_META_MASK		(SWAP_META_PAGES - 1)
+#define	BITS_PER_TAGS_PER_PAGE					\
+	((PAGE_SIZE / CHERICAP_SIZE) / (8 * sizeof(uint64_t)))
 
 struct swblock {
 	struct swblock	*swb_hnext;
@@ -154,7 +156,7 @@ struct swblock {
 	vm_pindex_t	swb_index;
 	int		swb_count;
 #ifdef CPU_CHERI
-	uint64_t	swb_tags[(PAGE_SIZE / CHERICAP_SIZE) / sizeof(uint64_t)];
+	uint64_t	swb_tags[SWAP_META_PAGES * BITS_PER_TAGS_PER_PAGE];
 #endif
 	daddr_t		swb_pages[SWAP_META_PAGES];
 };
@@ -425,6 +427,11 @@ static daddr_t	swp_pager_getswapspace(int npages);
  */
 static struct swblock **swp_pager_hash(vm_object_t object, vm_pindex_t index);
 static void swp_pager_meta_build(vm_object_t, vm_pindex_t, daddr_t);
+#ifdef CPU_CHERI
+static void cheri_restore_tag(void *);
+static void swp_pager_meta_cheri_get_tags(vm_page_t);
+static void swp_pager_meta_cheri_put_tags(vm_page_t);
+#endif
 static void swp_pager_meta_free(vm_object_t, vm_pindex_t, daddr_t);
 static void swp_pager_meta_free_all(vm_object_t);
 static daddr_t swp_pager_meta_ctl(vm_object_t, vm_pindex_t, int);
@@ -1446,11 +1453,6 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		bp->b_bufsize = PAGE_SIZE * n;
 		bp->b_blkno = blk;
 
-#ifdef CPU_CHERI
-		/*
-		 * XXXCHERI: This is (possibly) where we should save the tags.
-		 */
-#endif
 		VM_OBJECT_WLOCK(object);
 		for (j = 0; j < n; ++j) {
 			vm_page_t mreq = m[i+j];
@@ -1460,6 +1462,14 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 			    mreq->pindex,
 			    blk + j
 			);
+
+#ifdef CPU_CHERI
+			/*
+			 * Save capability tags.
+			 */
+			swp_pager_meta_cheri_put_tags(mreq);
+#endif
+
 			vm_page_dirty(mreq);
 			rtvals[i+j] = VM_PAGER_OK;
 
@@ -1546,12 +1556,6 @@ swp_pager_async_iodone(struct buf *bp)
 		    bp->b_error
 		);
 	}
-
-#ifdef CPU_CHERI
-	/*
-	 * XXXCHERI: This is (probably) where we should restore the tags.
-	 */
-#endif
 
 	/*
 	 * remove the mapping for kernel virtual
@@ -1655,6 +1659,12 @@ swp_pager_async_iodone(struct buf *bp)
 			m->valid = VM_PAGE_BITS_ALL;
 			KASSERT(m->dirty == 0,
 			    ("swp_pager_async_iodone: page %p is dirty", m));
+#ifdef CPU_CHERI
+			/*
+			 * Restore capability tags.
+			 */
+			swp_pager_meta_cheri_get_tags(m);
+#endif
 
 			/*
 			 * We have to wake specifically requested pages
@@ -1980,6 +1990,105 @@ retry:
 done:
 	mtx_unlock(&swhash_mtx);
 }
+
+#ifdef CPU_CHERI
+/*
+ *	cheri_restore_tag:
+ *
+ *	Restore a single tag.
+ */
+static void
+cheri_restore_tag(void *cp)
+{
+	size_t base, len, offset, perm, sealed, type;
+
+	CHERI_CLC(11, 0, cp, 0);
+	CHERI_CGETBASE(base, 11);
+	CHERI_CGETLEN(len, 11);
+	CHERI_CGETOFFSET(offset, 11);
+	CHERI_CGETPERM(perm, 11);
+	CHERI_CGETSEALED(sealed, 11);
+	CHERI_CGETTYPE(type, 11);
+	CHERI_CMOVE(11, 0);
+	CHERI_CINCBASE(11, 11, base);
+	CHERI_CSETLEN(11, 11, len);
+	CHERI_CSETOFFSET(11, 11, offset);
+	CHERI_CANDPERM(11, 11, perm);
+	if (sealed) {
+		CHERI_CMOVE(12, 0);
+		CHERI_CSETOFFSET(12, 12, type);
+		CHERI_CSEAL(11, 11, 12);
+	}
+	CHERI_CSC(11, 0, cp, 0);
+}
+
+/*
+ *	swp_pager_meta_cheri_get_tags:
+ *
+ *	Restore the capability tags of a page from its swap metadata
+ *	structure.
+ */
+static void
+swp_pager_meta_cheri_get_tags(vm_page_t page)
+{
+	size_t i, j, swidx;
+	uint64_t t;
+	struct chericap *scan;
+	struct swblock *swap;
+
+	/* XXX: Uses details internal to swp_pager_hash. */
+	swidx = (int)(page->pindex & (vm_pindex_t)SWAP_META_MASK);
+	scan = (void *)MIPS_PHYS_TO_DIRECT(VM_PAGE_TO_PHYS(page));
+	swap = *swp_pager_hash(page->object, page->pindex);
+
+	for (i = swidx * BITS_PER_TAGS_PER_PAGE;
+	    i < (swidx + 1) * BITS_PER_TAGS_PER_PAGE; i++) {
+		/* XXX: Slow; no need to scan zeros.  */
+		t = swap->swb_tags[i];
+		for (j = 0; j < 8 * sizeof(uint64_t); j++) {
+			if (t & 1)
+				cheri_restore_tag(scan);
+			t >>= 1;
+			scan++;
+		}
+	}
+}
+
+/*
+ *	swp_pager_meta_cheri_put_tags:
+ *
+ *	Save the capability tags of a page to its swap metadata structure.
+ */
+static void
+swp_pager_meta_cheri_put_tags(vm_page_t page)
+{
+	size_t i, j, swidx;
+	uint64_t t, m;
+	struct chericap *scan;
+	struct swblock *swap;
+	int tag;
+
+	/* XXX: Uses details internal to swp_pager_hash. */
+	swidx = (int)(page->pindex & (vm_pindex_t)SWAP_META_MASK);
+	scan = (void *)MIPS_PHYS_TO_DIRECT(VM_PAGE_TO_PHYS(page));
+	swap = *swp_pager_hash(page->object, page->pindex);
+
+	for (i = swidx * BITS_PER_TAGS_PER_PAGE;
+	    i < (swidx + 1) * BITS_PER_TAGS_PER_PAGE; i++) {
+		t = 0;
+		m = 1;
+		for (j = 0; j < 8 * sizeof(uint64_t); j++) {
+			CHERI_CLC(11, 0, scan, 0);
+			CHERI_CGETTAG(tag, 11);
+			if (tag != 0)
+				t |= m;
+			m <<= 1;
+			scan++;
+		}
+		swap->swb_tags[i] = t;
+	}
+}
+#endif
 
 /*
  * SWP_PAGER_META_FREE() - free a range of blocks in the object's swap metadata
