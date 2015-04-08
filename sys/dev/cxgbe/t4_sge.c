@@ -2563,7 +2563,7 @@ free_mgmtq(struct adapter *sc)
 	return free_wrq(sc, &sc->sge.mgmtq);
 }
 
-static inline int
+int
 tnl_cong(struct port_info *pi)
 {
 

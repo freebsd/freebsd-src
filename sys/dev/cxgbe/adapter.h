@@ -1022,6 +1022,7 @@ void t4_wrq_tx_locked(struct adapter *, struct sge_wrq *, struct wrqe *);
 int t4_eth_tx(struct ifnet *, struct sge_txq *, struct mbuf *);
 void t4_update_fl_bufsize(struct ifnet *);
 int can_resume_tx(struct sge_eq *);
+int tnl_cong(struct port_info *);
 
 /* t4_tracer.c */
 struct t4_tracer;
