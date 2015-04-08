@@ -122,13 +122,18 @@
  */
 #define VADDR(pdi, pti) ((vm_offset_t)(((pdi)<<PDRSHIFT)|((pti)<<PAGE_SHIFT)))
 
-/* Initial number of kernel page tables. */
+/*
+ * The initial number of kernel page table pages that are constructed
+ * by locore must be sufficient to map vm_page_array.  That number can
+ * be calculated as follows:
+ *     max_phys / PAGE_SIZE * sizeof(struct vm_page) / NBPDR
+ * PAE:      max_phys 16G, sizeof(vm_page) 76, NBPDR 2M, 152 page table pages.
+ * Non-PAE:  max_phys 4G,  sizeof(vm_page) 68, NBPDR 4M, 18 page table pages.
+ */
 #ifndef NKPT
 #ifdef PAE
-/* 152 page tables needed to map 16G (76B "struct vm_page", 2M page tables). */
 #define	NKPT		240
 #else
-/* 18 page tables needed to map 4G (72B "struct vm_page", 4M page tables). */
 #define	NKPT		30
 #endif
 #endif
