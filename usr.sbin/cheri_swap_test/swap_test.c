@@ -10,7 +10,7 @@
 #include <unistd.h>
 
 #define	NPAGES		1000
-#define NPATTERN	16
+#define	NPATTERN	16
 #define	SLEEPTIME	5
 
 uint64_t orig_pattern[NPATTERN + 1] = {
@@ -36,7 +36,7 @@ uint64_t orig_pattern[NPATTERN + 1] = {
 uint64_t pattern[NPATTERN + 1];
 
 #define	CNE(p1, p2)	cne2(p1, p2)
-#define caps(p)		caps2(#p, (p))
+#define	caps(p)		caps2(#p, (p))
 const char	*caps2(const char *nam, __capability void *p);
 int		 cne2(__capability void *p1, __capability void *p2);
 int		 dotest(int force_pageout);
@@ -200,7 +200,7 @@ dotest(int force_pageout)
 		err(1, "mmap");
 	printf("p=%p\n", p);
 
-#define LOOP_INNER do {							\
+#define	LOOP_INNER do {							\
 		if (j == 8 * sizeof(*pattern)) {			\
 			j = 0;						\
 			k++;						\
