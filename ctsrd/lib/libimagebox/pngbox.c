@@ -269,7 +269,12 @@ cheri_png_read_start(char *pngbuffer, size_t pnglen,
 	    cheri_ptrperm(__DEVOLATILE(void *, (is->times + 1)), sizeof(uint32_t) * 2,
 	     CHERI_PERM_STORE),
 	    NULL, NULL, NULL, NULL, NULL);
-	if (v != 0) {
+	if (v == -1) {
+		is->error = 99;
+		memset(__DEVOLATILE(void *, is->buffer), 0,
+		   is->width * is->height * sizeof(*is->buffer));
+		sandbox_object_reset(sandbox_object);
+	} else if (v != 0) {
 		printf("sandbox returned %ju\n", (intmax_t)v);
 		goto error;
 	}
