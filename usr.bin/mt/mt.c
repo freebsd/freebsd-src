@@ -81,7 +81,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/mtio.h>
 #include <sys/queue.h>
-#include <sys/sbuf.h>
 
 #include <ctype.h>
 #include <err.h>
