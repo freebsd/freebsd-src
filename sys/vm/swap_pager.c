@@ -2579,7 +2579,6 @@ swapgeom_done(struct bio *bp2)
 	struct swdevt *sp;
 	struct buf *bp;
 	struct g_consumer *cp;
-	int destroy;
 
 	bp = bp2->bio_caller2;
 	cp = bp2->bio_from;
@@ -2590,15 +2589,14 @@ swapgeom_done(struct bio *bp2)
 	bp->b_error = bp2->bio_error;
 	bufdone(bp);
 	mtx_lock(&sw_dev_mtx);
-	destroy = ((--cp->index) == 0 && cp->private);
-	if (destroy) {
-		sp = bp2->bio_caller1;
-		sp->sw_id = NULL;
+	if ((--cp->index) == 0 && cp->private) {
+		if (g_post_event(swapgeom_close_ev, cp, M_NOWAIT, NULL) == 0) {
+			sp = bp2->bio_caller1;
+			sp->sw_id = NULL;
+		}
 	}
 	mtx_unlock(&sw_dev_mtx);
 	g_destroy_bio(bp2);
-	if (destroy)
-		g_waitfor_event(swapgeom_close_ev, cp, M_WAITOK, NULL);
 }
 
 static void
