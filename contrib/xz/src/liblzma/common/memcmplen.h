@@ -19,11 +19,6 @@
 #	include <immintrin.h>
 #endif
 
-/// How many extra bytes lzma_memcmplen() may read. This depends on
-/// the method but since it is just a few bytes the biggest possible
-/// value is used here.
-#define LZMA_MEMCMPLEN_EXTRA 16
-
 
 /// Find out how many equal bytes the two buffers have.
 ///
@@ -39,6 +34,11 @@
 ///
 /// \return     Number of equal bytes in the buffers is returned.
 ///             This is always at least len and at most limit.
+///
+/// \note       LZMA_MEMCMPLEN_EXTRA defines how many extra bytes may be read.
+///             It's rounded up to 2^n. This extra amount needs to be
+///             allocated in the buffers being used. It needs to be
+///             initialized too to keep Valgrind quiet.
 static inline uint32_t lzma_attribute((__always_inline__))
 lzma_memcmplen(const uint8_t *buf1, const uint8_t *buf2,
 		uint32_t len, uint32_t limit)
@@ -59,6 +59,7 @@ lzma_memcmplen(const uint8_t *buf1, const uint8_t *buf2,
 	// to be a good method. This may be fine on other 64-bit CPUs too.
 	// On big endian one should use xor instead of subtraction and switch
 	// to __builtin_clzll().
+#define LZMA_MEMCMPLEN_EXTRA 8
 	while (len < limit) {
 		const uint64_t x = *(const uint64_t *)(buf1 + len)
 				- *(const uint64_t *)(buf2 + len);
@@ -91,6 +92,7 @@ lzma_memcmplen(const uint8_t *buf1, const uint8_t *buf2,
 	// version is sometimes significantly faster and sometimes
 	// slightly slower than this SSE2 version, so this SSE2
 	// version isn't used on x86-64.
+#	define LZMA_MEMCMPLEN_EXTRA 16
 	while (len < limit) {
 		const uint32_t x = 0xFFFF ^ _mm_movemask_epi8(_mm_cmpeq_epi8(
 			_mm_loadu_si128((const __m128i *)(buf1 + len)),
@@ -116,6 +118,7 @@ lzma_memcmplen(const uint8_t *buf1, const uint8_t *buf2,
 
 #elif defined(TUKLIB_FAST_UNALIGNED_ACCESS) && !defined(WORDS_BIGENDIAN)
 	// Generic 32-bit little endian method
+#	define LZMA_MEMCMPLEN_EXTRA 4
 	while (len < limit) {
 		uint32_t x = *(const uint32_t *)(buf1 + len)
 				- *(const uint32_t *)(buf2 + len);
@@ -138,6 +141,7 @@ lzma_memcmplen(const uint8_t *buf1, const uint8_t *buf2,
 
 #elif defined(TUKLIB_FAST_UNALIGNED_ACCESS) && defined(WORDS_BIGENDIAN)
 	// Generic 32-bit big endian method
+#	define LZMA_MEMCMPLEN_EXTRA 4
 	while (len < limit) {
 		uint32_t x = *(const uint32_t *)(buf1 + len)
 				^ *(const uint32_t *)(buf2 + len);
@@ -160,6 +164,7 @@ lzma_memcmplen(const uint8_t *buf1, const uint8_t *buf2,
 
 #else
 	// Simple portable version that doesn't use unaligned access.
+#	define LZMA_MEMCMPLEN_EXTRA 0
 	while (len < limit && buf1[len] == buf2[len])
 		++len;
 
