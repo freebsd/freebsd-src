@@ -82,13 +82,26 @@ io_init(void)
 	// we are root.
 	warn_fchown = geteuid() == 0;
 
-	if (pipe(user_abort_pipe)
-			|| fcntl(user_abort_pipe[0], F_SETFL, O_NONBLOCK)
-				== -1
-			|| fcntl(user_abort_pipe[1], F_SETFL, O_NONBLOCK)
-				== -1)
+	// Create a pipe for the self-pipe trick. If pipe2() is available,
+	// we can avoid the fcntl() calls.
+#	ifdef HAVE_PIPE2
+	if (pipe2(user_abort_pipe, O_NONBLOCK))
 		message_fatal(_("Error creating a pipe: %s"),
 				strerror(errno));
+#	else
+	if (pipe(user_abort_pipe))
+		message_fatal(_("Error creating a pipe: %s"),
+				strerror(errno));
+
+	// Make both ends of the pipe non-blocking.
+	for (unsigned i = 0; i < 2; ++i) {
+		int flags = fcntl(user_abort_pipe[i], F_GETFL);
+		if (flags == -1 || fcntl(user_abort_pipe[i], F_SETFL,
+				flags | O_NONBLOCK) == -1)
+			message_fatal(_("Error creating a pipe: %s"),
+					strerror(errno));
+	}
+#	endif
 #endif
 
 #ifdef __DJGPP__
@@ -393,7 +406,11 @@ io_open_src_real(file_pair *pair)
 #ifdef TUKLIB_DOSLIKE
 		setmode(STDIN_FILENO, O_BINARY);
 #else
-		// Enable O_NONBLOCK for stdin.
+		// Try to set stdin to non-blocking mode. It won't work
+		// e.g. on OpenBSD if stdout is e.g. /dev/null. In such
+		// case we proceed as if stdin were non-blocking anyway
+		// (in case of /dev/null it will be in practice). The
+		// same applies to stdout in io_open_dest_real().
 		stdin_flags = fcntl(STDIN_FILENO, F_GETFL);
 		if (stdin_flags == -1) {
 			message_error(_("Error getting the file status flags "
@@ -402,17 +419,10 @@ io_open_src_real(file_pair *pair)
 			return true;
 		}
 
-		if ((stdin_flags & O_NONBLOCK) == 0) {
-			if (fcntl(STDIN_FILENO, F_SETFL,
-					stdin_flags | O_NONBLOCK) == -1) {
-				message_error(_("Error setting O_NONBLOCK "
-						"on standard input: %s"),
-						strerror(errno));
-				return true;
-			}
-
+		if ((stdin_flags & O_NONBLOCK) == 0
+				&& fcntl(STDIN_FILENO, F_SETFL,
+					stdin_flags | O_NONBLOCK) != -1)
 			restore_stdin_flags = true;
-		}
 #endif
 #ifdef HAVE_POSIX_FADVISE
 		// It will fail if stdin is a pipe and that's fine.
@@ -705,7 +715,10 @@ io_open_dest_real(file_pair *pair)
 #ifdef TUKLIB_DOSLIKE
 		setmode(STDOUT_FILENO, O_BINARY);
 #else
-		// Set O_NONBLOCK if it isn't already set.
+		// Try to set O_NONBLOCK if it isn't already set.
+		// If it fails, we assume that stdout is non-blocking
+		// in practice. See the comments in io_open_src_real()
+		// for similar situation with stdin.
 		//
 		// NOTE: O_APPEND may be unset later in this function
 		// and it relies on stdout_flags being set here.
@@ -717,17 +730,10 @@ io_open_dest_real(file_pair *pair)
 			return true;
 		}
 
-		if ((stdout_flags & O_NONBLOCK) == 0) {
-			if (fcntl(STDOUT_FILENO, F_SETFL,
-					stdout_flags | O_NONBLOCK) == -1) {
-				message_error(_("Error setting O_NONBLOCK "
-						"on standard output: %s"),
-						strerror(errno));
-				return true;
-			}
-
-			restore_stdout_flags = true;
-		}
+		if ((stdout_flags & O_NONBLOCK) == 0
+				&& fcntl(STDOUT_FILENO, F_SETFL,
+					stdout_flags | O_NONBLOCK) != -1)
+				restore_stdout_flags = true;
 #endif
 	} else {
 		pair->dest_name = suffix_get_dest_name(pair->src_name);
@@ -742,6 +748,7 @@ io_open_dest_real(file_pair *pair)
 				message_error("%s: Refusing to write to "
 						"a DOS special file",
 						pair->dest_name);
+				free(pair->dest_name);
 				return true;
 			}
 
@@ -751,6 +758,7 @@ io_open_dest_real(file_pair *pair)
 				message_error("%s: Output file is the same "
 						"as the input file",
 						pair->dest_name);
+				free(pair->dest_name);
 				return true;
 			}
 		}
@@ -829,23 +837,24 @@ io_open_dest_real(file_pair *pair)
 				if (lseek(STDOUT_FILENO, 0, SEEK_END) == -1)
 					return false;
 
-				// O_NONBLOCK was set earlier in this function
-				// so it must be kept here too. If this
-				// fcntl() call fails, we continue but won't
+				// Construct the new file status flags.
+				// If O_NONBLOCK was set earlier in this
+				// function, it must be kept here too.
+				int flags = stdout_flags & ~O_APPEND;
+				if (restore_stdout_flags)
+					flags |= O_NONBLOCK;
+
+				// If this fcntl() fails, we continue but won't
 				// try to create sparse output. The original
 				// flags will still be restored if needed (to
 				// unset O_NONBLOCK) when the file is finished.
-				if (fcntl(STDOUT_FILENO, F_SETFL,
-						(stdout_flags | O_NONBLOCK)
-						& ~O_APPEND) == -1)
+				if (fcntl(STDOUT_FILENO, F_SETFL, flags) == -1)
 					return false;
 
 				// Disabling O_APPEND succeeded. Mark
 				// that the flags should be restored
-				// in io_close_dest(). This quite likely was
-				// already set when enabling O_NONBLOCK but
-				// just in case O_NONBLOCK was already set,
-				// set this again here.
+				// in io_close_dest(). (This may have already
+				// been set when enabling O_NONBLOCK.)
 				restore_stdout_flags = true;
 
 			} else if (lseek(STDOUT_FILENO, 0, SEEK_CUR)
