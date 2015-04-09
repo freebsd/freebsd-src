@@ -177,11 +177,27 @@ static struct mtx_padalign ipqlock[IPREASS_NHASH];
 #define	IPQ_LOCK(i)	mtx_lock(&ipqlock[(i)])
 #define	IPQ_UNLOCK(i)	mtx_unlock(&ipqlock[(i)])
 #define	IPQ_LOCK_INIT(i)	mtx_init(&ipqlock[(i)], "ipqlock", NULL, MTX_DEF)
-#define	IPQ_LOCK_ASSERT(i)	mtx_assert(&ipqlock[(i)], MA_OWNED)
 
 static void	maxnipq_update(void);
 static void	ipq_zone_change(void *);
 static void	ip_drain_vnet(void);
+static void	ipq_free(struct ipqhead *, struct ipq *);
+
+static inline void
+ipq_timeout(struct ipqhead *head, struct ipq *fp)
+{
+
+	IPSTAT_ADD(ips_fragtimeout, fp->ipq_nfrags);
+	ipq_free(head, fp);
+}
+
+static inline void
+ipq_drop(struct ipqhead *head, struct ipq *fp)
+{
+
+	IPSTAT_ADD(ips_fragdropped, fp->ipq_nfrags);
+	ipq_free(head, fp);
+}
 
 static VNET_DEFINE(int, maxnipq);  /* Administrative limit on # reass queues. */
 static VNET_DEFINE(int, nipq);			/* Total # of reass queues */
@@ -208,8 +224,6 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, stealth, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ipstealth), 0,
     "IP stealth mode, no TTL decrementation on forwarding");
 #endif
-
-static void	ip_freef(struct ipqhead *, int, struct ipq *);
 
 /*
  * IP statistics are stored in the "array" of counter(9)s.
@@ -881,9 +895,7 @@ ip_reass_purge_element(int skip_bucket)
 		IPQ_LOCK(i);
 		r = TAILQ_LAST(&V_ipq[i], ipqhead);
 		if (r) {
-			IPSTAT_ADD(ips_fragtimeout,
-			    r->ipq_nfrags);
-			ip_freef(&V_ipq[i], i, r);
+			ipq_timeout(&V_ipq[i], r);
 			IPQ_UNLOCK(i);
 			return (i);
 		}
@@ -964,10 +976,8 @@ ip_reass(struct mbuf *m)
 			 * lock is no longer held.
 			 */
 			do_purge = 1;
-		} else {
-			IPSTAT_ADD(ips_fragtimeout, q->ipq_nfrags);
-			ip_freef(head, hash, q);
-		}
+		} else
+			ipq_timeout(head, q);
 	}
 
 found:
@@ -1125,20 +1135,16 @@ found:
 	next = 0;
 	for (p = NULL, q = fp->ipq_frags; q; p = q, q = q->m_nextpkt) {
 		if (ntohs(GETIP(q)->ip_off) != next) {
-			if (fp->ipq_nfrags > V_maxfragsperpacket) {
-				IPSTAT_ADD(ips_fragdropped, fp->ipq_nfrags);
-				ip_freef(head, hash, fp);
-			}
+			if (fp->ipq_nfrags > V_maxfragsperpacket)
+				ipq_drop(head, fp);
 			goto done;
 		}
 		next += ntohs(GETIP(q)->ip_len);
 	}
 	/* Make sure the last packet didn't have the IP_MF flag */
 	if (p->m_flags & M_IP_FRAG) {
-		if (fp->ipq_nfrags > V_maxfragsperpacket) {
-			IPSTAT_ADD(ips_fragdropped, fp->ipq_nfrags);
-			ip_freef(head, hash, fp);
-		}
+		if (fp->ipq_nfrags > V_maxfragsperpacket)
+			ipq_drop(head, fp);
 		goto done;
 	}
 
@@ -1149,8 +1155,7 @@ found:
 	ip = GETIP(q);
 	if (next + (ip->ip_hl << 2) > IP_MAXPACKET) {
 		IPSTAT_INC(ips_toolong);
-		IPSTAT_ADD(ips_fragdropped, fp->ipq_nfrags);
-		ip_freef(head, hash, fp);
+		ipq_drop(head, fp);
 		goto done;
 	}
 
@@ -1266,11 +1271,9 @@ done:
  * associated datagrams.
  */
 static void
-ip_freef(struct ipqhead *fhp, int i, struct ipq *fp)
+ipq_free(struct ipqhead *fhp, struct ipq *fp)
 {
 	struct mbuf *q;
-
-	IPQ_LOCK_ASSERT(i);
 
 	while (fp->ipq_frags) {
 		q = fp->ipq_frags;
@@ -1304,11 +1307,8 @@ ip_slowtimo(void)
 
 				fpp = fp;
 				fp = TAILQ_NEXT(fp, ipq_list);
-				if(--fpp->ipq_ttl == 0) {
-					IPSTAT_ADD(ips_fragtimeout,
-					    fpp->ipq_nfrags);
-					ip_freef(&V_ipq[i], i, fpp);
-				}
+				if(--fpp->ipq_ttl == 0)
+					ipq_timeout(&V_ipq[i], fpp);
 			}
 			IPQ_UNLOCK(i);
 		}
@@ -1321,13 +1321,9 @@ ip_slowtimo(void)
 			for (i = 0; i < IPREASS_NHASH; i++) {
 				IPQ_LOCK(i);
 				while (V_nipq > V_maxnipq &&
-				    !TAILQ_EMPTY(&V_ipq[i])) {
-					IPSTAT_ADD(ips_fragdropped,
-					    TAILQ_FIRST(&V_ipq[i])->ipq_nfrags);
-					ip_freef(&V_ipq[i],
-					    i,
+				    !TAILQ_EMPTY(&V_ipq[i]))
+					ipq_drop(&V_ipq[i],
 					    TAILQ_FIRST(&V_ipq[i]));
-				}
 				IPQ_UNLOCK(i);
 			}
 		}
@@ -1346,11 +1342,8 @@ ip_drain_vnet(void)
 
 	for (i = 0; i < IPREASS_NHASH; i++) {
 		IPQ_LOCK(i);
-		while(!TAILQ_EMPTY(&V_ipq[i])) {
-			IPSTAT_ADD(ips_fragdropped,
-			    TAILQ_FIRST(&V_ipq[i])->ipq_nfrags);
-			ip_freef(&V_ipq[i], i, TAILQ_FIRST(&V_ipq[i]));
-		}
+		while(!TAILQ_EMPTY(&V_ipq[i]))
+			ipq_drop(&V_ipq[i], TAILQ_FIRST(&V_ipq[i]));
 		IPQ_UNLOCK(i);
 	}
 }
