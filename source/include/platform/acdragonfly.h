@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Name: acnetbsd.h - OS specific defines, etc.
+ * Name: acdragonfly.h - OS specific for DragonFly BSD
  *
  *****************************************************************************/
 
@@ -41,75 +41,90 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#ifndef __ACNETBSD_H__
-#define __ACNETBSD_H__
+#ifndef __ACDRAGONFLY_H_
+#define __ACDRAGONFLY_H_
 
-/* NetBSD uses GCC */
+#include <platform/acgcc.h>     /* DragonFly uses GCC */
+#include <sys/types.h>
 
-#include "acgcc.h"
-
-#define ACPI_UINTPTR_T          uintptr_t
-#define ACPI_USE_LOCAL_CACHE
-#define ACPI_CAST_PTHREAD_T(x)  ((ACPI_THREAD_ID) ACPI_TO_INTEGER (x))
-
-#ifdef _LP64
-#define ACPI_MACHINE_WIDTH      64
+#ifdef __LP64__
+#define ACPI_MACHINE_WIDTH              64
 #else
-#define ACPI_MACHINE_WIDTH      32
+#define ACPI_MACHINE_WIDTH              32
+#define ACPI_USE_NATIVE_DIVIDE
 #endif
 
-#define COMPILER_DEPENDENT_INT64  int64_t
-#define COMPILER_DEPENDENT_UINT64 uint64_t
+#define ACPI_UINTPTR_T                  uintptr_t
+#define COMPILER_DEPENDENT_INT64        int64_t
+#define COMPILER_DEPENDENT_UINT64       uint64_t
 
-#if defined(_KERNEL) || defined(_STANDALONE)
-#ifdef _KERNEL_OPT
-#include "opt_acpi.h"           /* collect build-time options here */
-#endif /* _KERNEL_OPT */
+#define ACPI_USE_DO_WHILE_0
+#define ACPI_USE_SYSTEM_CLIBRARY
 
-#include <sys/param.h>
+#ifdef _KERNEL
+
+#include "opt_acpi.h"
+#include <sys/ctype.h>
 #include <sys/systm.h>
-#include <machine/stdarg.h>
-#include <machine/acpi_func.h>
-
-#define asm         __asm
-
-#define ACPI_USE_NATIVE_DIVIDE
-
-#define ACPI_SYSTEM_XFACE
-#define ACPI_EXTERNAL_XFACE
-#define ACPI_INTERNAL_XFACE
-#define ACPI_INTERNAL_VAR_XFACE
+#include <machine/acpica_machdep.h>
+#include <stdarg.h>
 
 #ifdef ACPI_DEBUG
-#define ACPI_DEBUG_OUTPUT
-#define ACPI_DBG_TRACK_ALLOCATIONS
+#define ACPI_DEBUG_OUTPUT       /* enable debug output */
 #ifdef DEBUGGER_THREADING
 #undef DEBUGGER_THREADING
 #endif /* DEBUGGER_THREADING */
-#define DEBUGGER_THREADING 0    /* integrated with DDB */
+#define DEBUGGER_THREADING DEBUGGER_SINGLE_THREADED /* integrated with DDB */
+#if 0                           /* XXX */
 #include "opt_ddb.h"
 #ifdef DDB
-#define ACPI_DISASSEMBLER
 #define ACPI_DEBUGGER
 #endif /* DDB */
-#endif /* ACPI_DEBUG */
+#define ACPI_DISASSEMBLER
+#endif
+#endif
 
-#else /* defined(_KERNEL) || defined(_STANDALONE) */
+#ifdef ACPI_DEBUG_CACHE
+#define ACPI_USE_ALTERNATE_PROTOTYPE_AcpiOsReleaseObject
+#define AcpiOsReleaseObject(Cache, Object) \
+        _AcpiOsReleaseObject((Cache), (Object), __func__, __LINE__)
+#endif
 
-#include <ctype.h>
-#include <stdint.h>
+#ifdef ACPI_DEBUG_LOCKS
+#define ACPI_USE_ALTERNATE_PROTOTYPE_AcpiOsAcquireLock
+#define AcpiOsAcquireLock(Handle) \
+        _AcpiOsAcquireLock((Handle), __func__, __LINE__)
+#endif
 
-/* Not building kernel code, so use libc */
+#ifdef ACPI_DEBUG_MEMMAP
+#define ACPI_USE_ALTERNATE_PROTOTYPE_AcpiOsMapMemory
+#define AcpiOsMapMemory(Where, Length) \
+        _AcpiOsMapMemory((Where), (Length), __func__, __LINE__)
+
+#define ACPI_USE_ALTERNATE_PROTOTYPE_AcpiOsUnmapMemory
+#define AcpiOsUnmapMemory(LogicalAddress, Size) \
+        _AcpiOsUnmapMemory((LogicalAddress), (Size), __func__, __LINE__)
+#endif
+
+/* XXX TBI */
+#define ACPI_USE_ALTERNATE_PROTOTYPE_AcpiOsWaitEventsComplete
+#define AcpiOsWaitEventsComplete()
+
+#define USE_NATIVE_ALLOCATE_ZEROED
+
+#define ACPI_SPINLOCK   struct acpi_spinlock *
+struct acpi_spinlock;
+
+#define ACPI_CACHE_T    struct acpicache
+struct acpicache;
+
+#else /* _KERNEL */
+
 #define ACPI_USE_STANDARD_HEADERS
 
-#define __cli()
-#define __sti()
-#define __cdecl
+#define ACPI_CAST_PTHREAD_T(pthread)    ((ACPI_THREAD_ID) ACPI_TO_INTEGER (pthread))
+#define ACPI_FLUSH_CPU_CACHE()
 
-#endif /* defined(_KERNEL) || defined(_STANDALONE) */
+#endif /* _KERNEL */
 
-/* Always use NetBSD code over our local versions */
-#define ACPI_USE_SYSTEM_CLIBRARY
-#define ACPI_USE_NATIVE_DIVIDE
-
-#endif /* __ACNETBSD_H__ */
+#endif /* __ACDRAGONFLY_H_ */

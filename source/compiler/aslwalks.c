@@ -252,6 +252,13 @@ AnOperandTypecheckWalkEnd (
         }
         return (AE_OK);
 
+    case AML_EXTERNAL_OP:
+        /*
+         * Not really a "runtime" opcode since it used by disassembler only.
+         * The parser will find any issues with the operands.
+         */
+        return (AE_OK);
+
     default:
 
         break;
@@ -388,9 +395,6 @@ AnOperandTypecheckWalkEnd (
                     break;
 
                 case PARSEOP_DEBUG:
-
-                    break;
-
                 case PARSEOP_REFOF:
                 case PARSEOP_INDEX:
                 default:

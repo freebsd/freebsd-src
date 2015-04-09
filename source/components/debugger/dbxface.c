@@ -422,11 +422,9 @@ AcpiDbInitialize (
     AcpiGbl_DbConsoleDebugLevel = ACPI_NORMAL_DEFAULT | ACPI_LV_TABLES;
     AcpiGbl_DbOutputFlags       = ACPI_DB_CONSOLE_OUTPUT;
 
-    AcpiGbl_DbOpt_tables        = FALSE;
-    AcpiGbl_DbOpt_disasm        = FALSE;
-    AcpiGbl_DbOpt_stats         = FALSE;
-    AcpiGbl_DbOpt_verbose       = TRUE;
-    AcpiGbl_DbOpt_ini_methods   = TRUE;
+    AcpiGbl_DbOpt_Disasm        = FALSE;
+    AcpiGbl_DbOpt_Verbose       = TRUE;
+    AcpiGbl_DbOpt_NoIniMethods  = FALSE;
 
     AcpiGbl_DbBuffer = AcpiOsAllocate (ACPI_DEBUG_BUFFER_SIZE);
     if (!AcpiGbl_DbBuffer)
@@ -474,10 +472,9 @@ AcpiDbInitialize (
         }
     }
 
-    if (!AcpiGbl_DbOpt_verbose)
+    if (!AcpiGbl_DbOpt_Verbose)
     {
-        AcpiGbl_DbOpt_disasm = TRUE;
-        AcpiGbl_DbOpt_stats = FALSE;
+        AcpiGbl_DbOpt_Disasm = TRUE;
     }
 
     return_ACPI_STATUS (AE_OK);

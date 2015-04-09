@@ -198,7 +198,7 @@ AeBuildLocalTables (
          * Use the external FADT, but we must update the DSDT/FACS addresses
          * as well as the checksum
          */
-        ExternalFadt->Dsdt = DsdtAddress;
+        ExternalFadt->Dsdt = (UINT32) DsdtAddress;
         ExternalFadt->Facs = ACPI_PTR_TO_PHYSADDR (&LocalFACS);
 
         if (ExternalFadt->Header.Length > ACPI_PTR_DIFF (&ExternalFadt->XDsdt, ExternalFadt))
@@ -296,5 +296,5 @@ AcpiOsGetRootPointer (
     void)
 {
 
-    return ((ACPI_PHYSICAL_ADDRESS) &LocalRSDP);
+    return (ACPI_PTR_TO_PHYSADDR (&LocalRSDP));
 }

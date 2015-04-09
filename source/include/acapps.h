@@ -69,15 +69,15 @@
 /* Macros for signons and file headers */
 
 #define ACPI_COMMON_SIGNON(UtilityName) \
-    "\n%s\n%s version %8.8X%s [%s]\n%s\n\n", \
+    "\n%s\n%s version %8.8X%s\n%s\n\n", \
     ACPICA_NAME, \
-    UtilityName, ((UINT32) ACPI_CA_VERSION), ACPI_WIDTH, __DATE__, \
+    UtilityName, ((UINT32) ACPI_CA_VERSION), ACPI_WIDTH, \
     ACPICA_COPYRIGHT
 
 #define ACPI_COMMON_HEADER(UtilityName, Prefix) \
-    "%s%s\n%s%s version %8.8X%s [%s]\n%s%s\n%s\n", \
+    "%s%s\n%s%s version %8.8X%s\n%s%s\n%s\n", \
     Prefix, ACPICA_NAME, \
-    Prefix, UtilityName, ((UINT32) ACPI_CA_VERSION), ACPI_WIDTH, __DATE__, \
+    Prefix, UtilityName, ((UINT32) ACPI_CA_VERSION), ACPI_WIDTH, \
     Prefix, ACPICA_COPYRIGHT, \
     Prefix
 

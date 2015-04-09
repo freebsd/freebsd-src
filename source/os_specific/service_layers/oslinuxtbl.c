@@ -1319,7 +1319,7 @@ OslTableNameFromFile (
 
     if (isdigit ((int) Filename[ACPI_NAME_SIZE]))
     {
-        sscanf (&Filename[ACPI_NAME_SIZE], "%d", Instance);
+        sscanf (&Filename[ACPI_NAME_SIZE], "%u", Instance);
     }
     else if (strlen (Filename) != ACPI_NAME_SIZE)
     {

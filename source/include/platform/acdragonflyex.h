@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Name: acnetbsd.h - OS specific defines, etc.
+ * Name: acdragonflyex.h - Extra OS specific defines, etc. for DragonFly BSD
  *
  *****************************************************************************/
 
@@ -41,75 +41,44 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#ifndef __ACNETBSD_H__
-#define __ACNETBSD_H__
+#ifndef __ACDRAGONFLYEX_H__
+#define __ACDRAGONFLYEX_H__
 
-/* NetBSD uses GCC */
+#ifdef _KERNEL
 
-#include "acgcc.h"
-
-#define ACPI_UINTPTR_T          uintptr_t
-#define ACPI_USE_LOCAL_CACHE
-#define ACPI_CAST_PTHREAD_T(x)  ((ACPI_THREAD_ID) ACPI_TO_INTEGER (x))
-
-#ifdef _LP64
-#define ACPI_MACHINE_WIDTH      64
-#else
-#define ACPI_MACHINE_WIDTH      32
+#ifdef ACPI_DEBUG_CACHE
+ACPI_STATUS
+_AcpiOsReleaseObject (
+    ACPI_CACHE_T                *Cache,
+    void                        *Object,
+    const char                  *func,
+    int                         line);
 #endif
 
-#define COMPILER_DEPENDENT_INT64  int64_t
-#define COMPILER_DEPENDENT_UINT64 uint64_t
+#ifdef ACPI_DEBUG_LOCKS
+ACPI_CPU_FLAGS
+_AcpiOsAcquireLock (
+    ACPI_SPINLOCK               Spin,
+    const char                  *func,
+    int                         line);
+#endif
 
-#if defined(_KERNEL) || defined(_STANDALONE)
-#ifdef _KERNEL_OPT
-#include "opt_acpi.h"           /* collect build-time options here */
-#endif /* _KERNEL_OPT */
+#ifdef ACPI_DEBUG_MEMMAP
+void *
+_AcpiOsMapMemory (
+    ACPI_PHYSICAL_ADDRESS       Where,
+    ACPI_SIZE                   Length,
+    const char                  *caller,
+    int                         line);
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <machine/stdarg.h>
-#include <machine/acpi_func.h>
+void
+_AcpiOsUnmapMemory (
+    void                        *LogicalAddress,
+    ACPI_SIZE                   Length,
+    const char                  *caller,
+    int                         line);
+#endif
 
-#define asm         __asm
+#endif /* _KERNEL */
 
-#define ACPI_USE_NATIVE_DIVIDE
-
-#define ACPI_SYSTEM_XFACE
-#define ACPI_EXTERNAL_XFACE
-#define ACPI_INTERNAL_XFACE
-#define ACPI_INTERNAL_VAR_XFACE
-
-#ifdef ACPI_DEBUG
-#define ACPI_DEBUG_OUTPUT
-#define ACPI_DBG_TRACK_ALLOCATIONS
-#ifdef DEBUGGER_THREADING
-#undef DEBUGGER_THREADING
-#endif /* DEBUGGER_THREADING */
-#define DEBUGGER_THREADING 0    /* integrated with DDB */
-#include "opt_ddb.h"
-#ifdef DDB
-#define ACPI_DISASSEMBLER
-#define ACPI_DEBUGGER
-#endif /* DDB */
-#endif /* ACPI_DEBUG */
-
-#else /* defined(_KERNEL) || defined(_STANDALONE) */
-
-#include <ctype.h>
-#include <stdint.h>
-
-/* Not building kernel code, so use libc */
-#define ACPI_USE_STANDARD_HEADERS
-
-#define __cli()
-#define __sti()
-#define __cdecl
-
-#endif /* defined(_KERNEL) || defined(_STANDALONE) */
-
-/* Always use NetBSD code over our local versions */
-#define ACPI_USE_SYSTEM_CLIBRARY
-#define ACPI_USE_NATIVE_DIVIDE
-
-#endif /* __ACNETBSD_H__ */
+#endif /* __ACDRAGONFLYEX_H__ */

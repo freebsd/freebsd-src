@@ -64,6 +64,11 @@ AdCreateTableHeader (
     char                    *Filename,
     ACPI_TABLE_HEADER       *Table);
 
+static ACPI_STATUS
+AdStoreTable (
+    ACPI_TABLE_HEADER       *Table,
+    UINT32                  *TableIndex);
+
 /* Stubs for ASL compiler */
 
 #ifndef ACPI_ASL_COMPILER
@@ -298,7 +303,7 @@ AdAmlDisassemble (
             return (Status);
         }
 
-        if (!AcpiGbl_DbOpt_disasm)
+        if (!AcpiGbl_DbOpt_Disasm)
         {
             return (AE_OK);
         }
@@ -337,7 +342,6 @@ AdAmlDisassemble (
         {
             fprintf (stderr, "Could not open output file %s\n", DisasmFilename);
             Status = AE_ERROR;
-            ACPI_FREE (DisasmFilename);
             goto Cleanup;
         }
 
@@ -346,9 +350,11 @@ AdAmlDisassemble (
 
     *OutFilename = DisasmFilename;
 
-    if (!AcpiUtIsAmlTable (Table))
+    /* ForceAmlDisassembly means to assume the table contains valid AML */
+
+    if (!AcpiGbl_ForceAmlDisassembly && !AcpiUtIsAmlTable (Table))
     {
-        AdDisassemblerHeader (Filename);
+        AdDisassemblerHeader (Filename, ACPI_IS_DATA_TABLE);
         AcpiOsPrintf (" * ACPI Data Table [%4.4s]\n *\n",
             Table->Signature);
         AcpiOsPrintf (" * Format: [HexOffset DecimalOffset ByteLength]  "
@@ -486,7 +492,7 @@ AdAmlDisassemble (
 
         /* Optional displays */
 
-        if (AcpiGbl_DbOpt_disasm)
+        if (AcpiGbl_DbOpt_Disasm)
         {
             /* This is the real disassembly */
 
@@ -515,7 +521,7 @@ AdAmlDisassemble (
 
 Cleanup:
 
-    if (Table && !AcpiUtIsAmlTable (Table))
+    if (Table && !AcpiGbl_ForceAmlDisassembly &&!AcpiUtIsAmlTable (Table))
     {
         ACPI_FREE (Table);
     }
@@ -543,6 +549,7 @@ Cleanup:
  * FUNCTION:    AdDisassemblerHeader
  *
  * PARAMETERS:  Filename            - Input file for the table
+ *              TableType           - Either AML or DataTable
  *
  * RETURN:      None
  *
@@ -553,7 +560,8 @@ Cleanup:
 
 void
 AdDisassemblerHeader (
-    char                    *Filename)
+    char                    *Filename,
+    UINT8                   TableType)
 {
     time_t                  Timer;
 
@@ -565,17 +573,20 @@ AdDisassemblerHeader (
     AcpiOsPrintf ("/*\n");
     AcpiOsPrintf (ACPI_COMMON_HEADER (AML_DISASSEMBLER_NAME, " * "));
 
-    if (AcpiGbl_CstyleDisassembly)
+    if (TableType == ACPI_IS_AML_TABLE)
     {
-        AcpiOsPrintf (
-            " * Disassembling to symbolic ASL+ operators\n"
-            " *\n");
-    }
-    else
-    {
-        AcpiOsPrintf (
-            " * Disassembling to non-symbolic legacy ASL operators\n"
-            " *\n");
+        if (AcpiGbl_CstyleDisassembly)
+        {
+            AcpiOsPrintf (
+                " * Disassembling to symbolic ASL+ operators\n"
+                " *\n");
+        }
+        else
+        {
+            AcpiOsPrintf (
+                " * Disassembling to non-symbolic legacy ASL operators\n"
+                " *\n");
+        }
     }
 
     AcpiOsPrintf (" * Disassembly of %s, %s", Filename, ctime (&Timer));
@@ -609,7 +620,7 @@ AdCreateTableHeader (
     /*
      * Print file header and dump original table header
      */
-    AdDisassemblerHeader (Filename);
+    AdDisassemblerHeader (Filename, ACPI_IS_AML_TABLE);
 
     AcpiOsPrintf (" * Original Table Header:\n");
     AcpiOsPrintf (" *     Signature        \"%4.4s\"\n",    Table->Signature);
@@ -717,7 +728,7 @@ AdDisplayTables (
         return (AE_NOT_EXIST);
     }
 
-    if (!AcpiGbl_DbOpt_verbose)
+    if (!AcpiGbl_DbOpt_Verbose)
     {
         AdCreateTableHeader (Filename, Table);
     }
@@ -725,7 +736,7 @@ AdDisplayTables (
     AcpiDmDisassemble (NULL, AcpiGbl_ParseOpRoot, ACPI_UINT32_MAX);
     MpEmitMappingInfo ();
 
-    if (AcpiGbl_DbOpt_verbose)
+    if (AcpiGbl_DbOpt_Verbose)
     {
         AcpiOsPrintf ("\n\nTable Header:\n");
         AcpiUtDebugDumpBuffer ((UINT8 *) Table, sizeof (ACPI_TABLE_HEADER),
@@ -736,6 +747,43 @@ AdDisplayTables (
             Table->Length, DB_BYTE_DISPLAY, ACPI_UINT32_MAX);
     }
 
+    return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AdStoreTable
+ *
+ * PARAMETERS:  Table               - Table header
+ *              TableIndex          - Where the table index is returned
+ *
+ * RETURN:      Status and table index.
+ *
+ * DESCRIPTION: Add an ACPI table to the global table list
+ *
+ ******************************************************************************/
+
+static ACPI_STATUS
+AdStoreTable (
+    ACPI_TABLE_HEADER       *Table,
+    UINT32                  *TableIndex)
+{
+    ACPI_STATUS             Status;
+    ACPI_TABLE_DESC         *TableDesc;
+
+
+    Status = AcpiTbGetNextTableDescriptor (TableIndex, &TableDesc);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    /* Initialize added table */
+
+    AcpiTbInitTableDescriptor (TableDesc, ACPI_PTR_TO_PHYSADDR (Table),
+        ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL, Table);
+    AcpiTbValidateTable (TableDesc);
     return (AE_OK);
 }
 
@@ -777,8 +825,7 @@ AdGetLocalTables (
 
     /* Store DSDT in the Table Manager */
 
-    Status = AcpiTbStoreTable (0, NewTable, NewTable->Length,
-                0, &TableIndex);
+    Status = AdStoreTable (NewTable, &TableIndex);
     if (ACPI_FAILURE (Status))
     {
         fprintf (stderr, "Could not store DSDT\n");
@@ -871,9 +918,7 @@ AdParseTable (
 
     if (LoadTable)
     {
-        Status = AcpiTbStoreTable ((ACPI_PHYSICAL_ADDRESS) Table, Table,
-                    Table->Length, ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL,
-                    &TableIndex);
+        Status = AdStoreTable (Table, &TableIndex);
         if (ACPI_FAILURE (Status))
         {
             return (Status);

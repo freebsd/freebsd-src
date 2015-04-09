@@ -852,18 +852,6 @@ AcpiDmDisassembleOneOp (
         }
         break;
 
-    case AML_INT_STATICSTRING_OP:
-
-        if (Op->Common.Value.String)
-        {
-            AcpiOsPrintf ("%s", Op->Common.Value.String);
-        }
-        else
-        {
-            AcpiOsPrintf ("\"<NULL STATIC STRING PTR>\"");
-        }
-        break;
-
     case AML_INT_NAMEPATH_OP:
 
         AcpiDmNamestring (Op->Common.Value.Name);

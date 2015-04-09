@@ -477,7 +477,7 @@ AcpiDsEvalRegionOperands (
 
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "RgnObj %p Addr %8.8X%8.8X Len %X\n",
         ObjDesc,
-        ACPI_FORMAT_NATIVE_UINT (ObjDesc->Region.Address),
+        ACPI_FORMAT_UINT64 (ObjDesc->Region.Address),
         ObjDesc->Region.Length));
 
     /* Now the address and length are valid for this opregion */
@@ -579,12 +579,12 @@ AcpiDsEvalTableRegionOperands (
         return_ACPI_STATUS (AE_NOT_EXIST);
     }
 
-    ObjDesc->Region.Address = (ACPI_PHYSICAL_ADDRESS) ACPI_TO_INTEGER (Table);
+    ObjDesc->Region.Address = ACPI_PTR_TO_PHYSADDR (Table);
     ObjDesc->Region.Length = Table->Length;
 
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "RgnObj %p Addr %8.8X%8.8X Len %X\n",
         ObjDesc,
-        ACPI_FORMAT_NATIVE_UINT (ObjDesc->Region.Address),
+        ACPI_FORMAT_UINT64 (ObjDesc->Region.Address),
         ObjDesc->Region.Length));
 
     /* Now the address and length are valid for this opregion */

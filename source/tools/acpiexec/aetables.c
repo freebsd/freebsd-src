@@ -335,7 +335,7 @@ AeBuildLocalTables (
          * Use the external FADT, but we must update the DSDT/FACS addresses
          * as well as the checksum
          */
-        ExternalFadt->Dsdt = DsdtAddress;
+        ExternalFadt->Dsdt = (UINT32) DsdtAddress;
         if (!AcpiGbl_ReducedHardware)
         {
             ExternalFadt->Facs = ACPI_PTR_TO_PHYSADDR (&LocalFACS);
@@ -362,7 +362,7 @@ AeBuildLocalTables (
     else if (AcpiGbl_UseHwReducedFadt)
     {
         ACPI_MEMCPY (&LocalFADT, HwReducedFadtCode, sizeof (ACPI_TABLE_FADT));
-        LocalFADT.Dsdt = DsdtAddress;
+        LocalFADT.Dsdt = (UINT32) DsdtAddress;
         LocalFADT.XDsdt = DsdtAddress;
 
         LocalFADT.Header.Checksum = 0;
@@ -558,5 +558,5 @@ AcpiOsGetRootPointer (
     void)
 {
 
-    return ((ACPI_PHYSICAL_ADDRESS) &LocalRSDP);
+    return (ACPI_PTR_TO_PHYSADDR (&LocalRSDP));
 }
