@@ -44,6 +44,10 @@ LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 # Include bcache code.
 HAVE_BCACHE=    yes
 
+.if defined(EFI_STAGING_SIZE)
+CFLAGS+=	-DEFI_STAGING_SIZE=${EFI_STAGING_SIZE}
+.endif
+
 # Always add MI sources 
 .PATH:		${.CURDIR}/../../common
 .include	"${.CURDIR}/../../common/Makefile.inc"

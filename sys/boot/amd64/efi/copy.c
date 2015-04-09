@@ -37,9 +37,13 @@ __FBSDID("$FreeBSD$");
 #include <efi.h>
 #include <efilib.h>
 
-#define	STAGE_PAGES	8192	/* 32MB */
+#ifndef EFI_STAGING_SIZE
+#define	EFI_STAGING_SIZE	32
+#endif
 
-EFI_PHYSICAL_ADDRESS	staging;
+#define	STAGE_PAGES	((EFI_STAGING_SIZE) * 1024 * 1024 / 4096)
+
+EFI_PHYSICAL_ADDRESS	staging, staging_end;
 int			stage_offset_set = 0;
 ssize_t			stage_offset;
 
@@ -55,6 +59,7 @@ x86_efi_copy_init(void)
 		    (unsigned long)(status & EFI_ERROR_MASK));
 		return (status);
 	}
+	staging_end = staging + STAGE_PAGES * 4096;
 
 	return (0);
 }
@@ -68,6 +73,11 @@ x86_efi_copyin(const void *src, vm_offset_t dest, const size_t len)
 		stage_offset_set = 1;
 	}
 
+	/* XXX: Callers do not check for failure. */
+	if (dest + stage_offset + len > staging_end) {
+		errno = ENOMEM;
+		return (-1);
+	}
 	bcopy(src, (void *)(dest + stage_offset), len);
 	return (len);
 }
@@ -76,6 +86,11 @@ ssize_t
 x86_efi_copyout(const vm_offset_t src, void *dest, const size_t len)
 {
 
+	/* XXX: Callers do not check for failure. */
+	if (src + stage_offset + len > staging_end) {
+		errno = ENOMEM;
+		return (-1);
+	}
 	bcopy((void *)(src + stage_offset), dest, len);
 	return (len);
 }
@@ -85,6 +100,10 @@ ssize_t
 x86_efi_readin(const int fd, vm_offset_t dest, const size_t len)
 {
 
+	if (dest + stage_offset + len > staging_end) {
+		errno = ENOMEM;
+		return (-1);
+	}
 	return (read(fd, (void *)(dest + stage_offset), len));
 }
 
