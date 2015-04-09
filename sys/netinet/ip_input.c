@@ -181,7 +181,7 @@ static struct mtx_padalign ipqlock[IPREASS_NHASH];
 
 static void	maxnipq_update(void);
 static void	ipq_zone_change(void *);
-static void	ip_drain_locked(void);
+static void	ip_drain_vnet(void);
 
 static VNET_DEFINE(int, maxnipq);  /* Administrative limit on # reass queues. */
 static VNET_DEFINE(int, nipq);			/* Total # of reass queues */
@@ -397,7 +397,7 @@ ip_destroy(void)
 	/* Cleanup in_ifaddr hash table; should be empty. */
 	hashdestroy(V_in_ifaddrhashtbl, M_IFADDR, V_in_ifaddrhmask);
 
-	ip_drain_locked();
+	ip_drain_vnet();
 
 	uma_zdestroy(V_ipq_zone);
 }
@@ -1338,11 +1338,9 @@ ip_slowtimo(void)
 
 /*
  * Drain off all datagram fragments.
- *
- * Call without any IPQ locks held.
  */
 static void
-ip_drain_locked(void)
+ip_drain_vnet(void)
 {
 	int     i;
 
@@ -1365,7 +1363,7 @@ ip_drain(void)
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		ip_drain_locked();
+		ip_drain_vnet();
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK_NOSLEEP();
