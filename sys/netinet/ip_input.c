@@ -165,18 +165,15 @@ VNET_DEFINE(struct in_ifaddrhashhead *, in_ifaddrhashtbl); /* inet addr hash tab
 VNET_DEFINE(u_long, in_ifaddrhmask);		/* mask for hash table */
 
 static VNET_DEFINE(uma_zone_t, ipq_zone);
-static VNET_DEFINE(TAILQ_HEAD(ipqhead, ipq), ipq[IPREASS_NHASH]);
-static struct mtx_padalign ipqlock[IPREASS_NHASH];
-
-#define	V_ipq_zone		VNET(ipq_zone)
-#define	V_ipq			VNET(ipq)
-
-/*
- * The ipqlock array is global, /not/ per-VNET.
- */
-#define	IPQ_LOCK(i)	mtx_lock(&ipqlock[(i)])
-#define	IPQ_UNLOCK(i)	mtx_unlock(&ipqlock[(i)])
-#define	IPQ_LOCK_INIT(i)	mtx_init(&ipqlock[(i)], "ipqlock", NULL, MTX_DEF)
+#define	V_ipq_zone	VNET(ipq_zone)
+struct ipqbucket {
+	TAILQ_HEAD(ipqhead, ipq) head;
+	struct mtx		 lock;
+};
+static VNET_DEFINE(struct ipqbucket, ipq[IPREASS_NHASH]);
+#define	V_ipq		VNET(ipq)
+#define	IPQ_LOCK(i)	mtx_lock(&V_ipq[i].lock)
+#define	IPQ_UNLOCK(i)	mtx_unlock(&V_ipq[i].lock)
 
 static void	maxnipq_update(void);
 static void	ipq_zone_change(void *);
@@ -347,8 +344,10 @@ ip_init(void)
 	V_in_ifaddrhashtbl = hashinit(INADDR_NHASH, M_IFADDR, &V_in_ifaddrhmask);
 
 	/* Initialize IP reassembly queue. */
-	for (i = 0; i < IPREASS_NHASH; i++)
-		TAILQ_INIT(&V_ipq[i]);
+	for (i = 0; i < IPREASS_NHASH; i++) {
+		TAILQ_INIT(&V_ipq[i].head);
+		mtx_init(&V_ipq[i].lock, "IP reassembly", NULL, MTX_DEF);
+	}
 	V_maxnipq = nmbclusters / 32;
 	V_maxfragsperpacket = 16;
 	V_ipq_zone = uma_zcreate("ipq", sizeof(struct ipq), NULL, NULL, NULL,
@@ -389,9 +388,6 @@ ip_init(void)
 	EVENTHANDLER_REGISTER(nmbclusters_change, ipq_zone_change,
 		NULL, EVENTHANDLER_PRI_ANY);
 
-	/* Initialize various other remaining things. */
-	for (i = 0; i < IPREASS_NHASH; i++)
-		IPQ_LOCK_INIT(i);
 	netisr_register(&ip_nh);
 #ifdef	RSS
 	netisr_register(&ip_direct_nh);
@@ -411,9 +407,11 @@ ip_destroy(void)
 	/* Cleanup in_ifaddr hash table; should be empty. */
 	hashdestroy(V_in_ifaddrhashtbl, M_IFADDR, V_in_ifaddrhmask);
 
+	/* Destroy IP reassembly queue. */
 	ip_drain_vnet();
-
 	uma_zdestroy(V_ipq_zone);
+	for (i = 0; i < IPREASS_NHASH; i++)
+		mtx_destroy(&V_ipq[i].lock);
 }
 #endif
 
@@ -893,9 +891,9 @@ ip_reass_purge_element(int skip_bucket)
 		if (skip_bucket > -1 && i == skip_bucket)
 			continue;
 		IPQ_LOCK(i);
-		r = TAILQ_LAST(&V_ipq[i], ipqhead);
+		r = TAILQ_LAST(&V_ipq[i].head, ipqhead);
 		if (r) {
-			ipq_timeout(&V_ipq[i], r);
+			ipq_timeout(&V_ipq[i].head, r);
 			IPQ_UNLOCK(i);
 			return (i);
 		}
@@ -941,7 +939,7 @@ ip_reass(struct mbuf *m)
 	hlen = ip->ip_hl << 2;
 
 	hash = IPREASS_HASH(ip->ip_src.s_addr, ip->ip_id);
-	head = &V_ipq[hash];
+	head = &V_ipq[hash].head;
 	IPQ_LOCK(hash);
 
 	/*
@@ -1302,9 +1300,9 @@ ip_slowtimo(void)
 		CURVNET_SET(vnet_iter);
 		for (i = 0; i < IPREASS_NHASH; i++) {
 			IPQ_LOCK(i);
-			TAILQ_FOREACH_SAFE(fp, &V_ipq[i], ipq_list, tmp)
+			TAILQ_FOREACH_SAFE(fp, &V_ipq[i].head, ipq_list, tmp)
 				if (--fp->ipq_ttl == 0)
-					ipq_timeout(&V_ipq[i], fp);
+					ipq_timeout(&V_ipq[i].head, fp);
 			IPQ_UNLOCK(i);
 		}
 		/*
@@ -1316,9 +1314,9 @@ ip_slowtimo(void)
 			for (i = 0; i < IPREASS_NHASH; i++) {
 				IPQ_LOCK(i);
 				while (V_nipq > V_maxnipq &&
-				    !TAILQ_EMPTY(&V_ipq[i]))
-					ipq_drop(&V_ipq[i],
-					    TAILQ_FIRST(&V_ipq[i]));
+				    !TAILQ_EMPTY(&V_ipq[i].head))
+					ipq_drop(&V_ipq[i].head,
+					    TAILQ_FIRST(&V_ipq[i].head));
 				IPQ_UNLOCK(i);
 			}
 		}
@@ -1337,8 +1335,8 @@ ip_drain_vnet(void)
 
 	for (i = 0; i < IPREASS_NHASH; i++) {
 		IPQ_LOCK(i);
-		while(!TAILQ_EMPTY(&V_ipq[i]))
-			ipq_drop(&V_ipq[i], TAILQ_FIRST(&V_ipq[i]));
+		while(!TAILQ_EMPTY(&V_ipq[i].head))
+			ipq_drop(&V_ipq[i].head, TAILQ_FIRST(&V_ipq[i].head));
 		IPQ_UNLOCK(i);
 	}
 }
