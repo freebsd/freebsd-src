@@ -194,7 +194,7 @@ read_archive(struct bsdar *bsdar, char mode)
 					continue;
 				}
 				/* Basic path security flags. */
-				flags = ARCHIVE_EXTRACT_SECURE_SYMLINKS | \
+				flags = ARCHIVE_EXTRACT_SECURE_SYMLINKS |
 				    ARCHIVE_EXTRACT_SECURE_NODOTDOT;
 				if (bsdar->options & AR_O)
 					flags |= ARCHIVE_EXTRACT_TIME;
