@@ -451,7 +451,8 @@ g_part_find_geom(const char *name)
 {
 	struct g_geom *gp;
 	LIST_FOREACH(gp, &g_part_class.geom, geom) {
-		if (!strcmp(name, gp->name))
+		if ((gp->flags & G_GEOM_WITHER) == 0 &&
+		    strcmp(name, gp->name) == 0)
 			break;
 	}
 	return (gp);
@@ -472,10 +473,6 @@ g_part_parm_geom(struct gctl_req *req, const char *name, struct g_geom **v)
 	if (gp == NULL) {
 		gctl_error(req, "%d %s '%s'", EINVAL, name, gname);
 		return (EINVAL);
-	}
-	if ((gp->flags & G_GEOM_WITHER) != 0) {
-		gctl_error(req, "%d %s", ENXIO, gname);
-		return (ENXIO);
 	}
 	*v = gp;
 	return (0);
