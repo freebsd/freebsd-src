@@ -207,15 +207,20 @@ find_class(struct gmesh *mesh, const char *name)
 static struct ggeom *
 find_geom(struct gclass *classp, const char *name)
 {
-	struct ggeom *gp;
+	struct ggeom *gp, *wgp;
 
 	if (strncmp(name, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
 		name += sizeof(_PATH_DEV) - 1;
+	wgp = NULL;
 	LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
-		if (strcmp(gp->lg_name, name) == 0)
+		if (strcmp(gp->lg_name, name) != 0)
+			continue;
+		if (find_geomcfg(gp, "wither") == NULL)
 			return (gp);
+		else
+			wgp = gp;
 	}
-	return (NULL);
+	return (wgp);
 }
 
 static const char *
@@ -598,6 +603,8 @@ gpart_show_geom(struct ggeom *gp, const char *element, int show_providers)
 	off_t length, secsz;
 	int idx, wblocks, wname, wmax;
 
+	if (find_geomcfg(gp, "wither"))
+		return;
 	scheme = find_geomcfg(gp, "scheme");
 	if (scheme == NULL)
 		errx(EXIT_FAILURE, "Scheme not found for geom %s", gp->lg_name);

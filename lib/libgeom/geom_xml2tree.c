@@ -186,6 +186,7 @@ static void
 EndElement(void *userData, const char *name)
 {
 	struct mystate *mt;
+	struct gconf *c;
 	struct gconfig *gc;
 	char *p;
 
@@ -259,7 +260,14 @@ EndElement(void *userData, const char *name)
 		return;
 	}
 
-	if (mt->config != NULL) {
+	if (mt->config != NULL || (!strcmp(name, "wither") &&
+	    (mt->provider != NULL || mt->geom != NULL))) {
+		if (mt->config != NULL)
+			c = mt->config;
+		else if (mt->provider != NULL)
+			c = &mt->provider->lg_config;
+		else
+			c = &mt->geom->lg_config;
 		gc = calloc(1, sizeof *gc);
 		if (gc == NULL) {
 			mt->error = errno;
@@ -270,14 +278,15 @@ EndElement(void *userData, const char *name)
 		}
 		gc->lg_name = strdup(name);
 		if (gc->lg_name == NULL) {
+			free(gc);
 			mt->error = errno;
 			XML_StopParser(mt->parser, 0);
 			warn("Cannot allocate memory during processing of '%s' "
 			    "element", name);
 			return;
 		}
-		gc->lg_val = p;
-		LIST_INSERT_HEAD(mt->config, gc, lg_config);
+		gc->lg_val = p ? p : strdup("1");
+		LIST_INSERT_HEAD(c, gc, lg_config);
 		return;
 	}
 
