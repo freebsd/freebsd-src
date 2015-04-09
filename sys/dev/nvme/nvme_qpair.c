@@ -499,7 +499,7 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 
 	err = bus_dma_tag_create(bus_get_dma_tag(ctrlr->dev),
 	    4, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
-	    BUS_SPACE_MAXADDR, 1, BUS_SPACE_MAXSIZE, 0,
+	    BUS_SPACE_MAXSIZE, 1, BUS_SPACE_MAXSIZE, 0,
 	    NULL, NULL, &qpair->dma_tag);
 	if (err != 0)
 		nvme_printf(ctrlr, "tag create failed %d\n", err);
