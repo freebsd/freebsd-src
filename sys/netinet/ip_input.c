@@ -938,6 +938,41 @@ ip_reass(struct mbuf *m)
 	ip = mtod(m, struct ip *);
 	hlen = ip->ip_hl << 2;
 
+	/*
+	 * Adjust ip_len to not reflect header,
+	 * convert offset of this to bytes.
+	 */
+	ip->ip_len = htons(ntohs(ip->ip_len) - hlen);
+	if (ip->ip_off & htons(IP_MF)) {
+		/*
+		 * Make sure that fragments have a data length
+		 * that's a non-zero multiple of 8 bytes.
+		 */
+		if (ip->ip_len == htons(0) || (ntohs(ip->ip_len) & 0x7) != 0) {
+			IPSTAT_INC(ips_toosmall); /* XXX */
+			IPSTAT_INC(ips_fragdropped);
+			m_freem(m);
+			return (NULL);
+		}
+		m->m_flags |= M_IP_FRAG;
+	} else
+		m->m_flags &= ~M_IP_FRAG;
+	ip->ip_off = htons(ntohs(ip->ip_off) << 3);
+
+	/*
+	 * Attempt reassembly; if it succeeds, proceed.
+	 * ip_reass() will return a different mbuf.
+	 */
+	IPSTAT_INC(ips_fragments);
+	m->m_pkthdr.PH_loc.ptr = ip;
+
+	/*
+	 * Presence of header sizes in mbufs
+	 * would confuse code below.
+	 */
+	m->m_data += hlen;
+	m->m_len -= hlen;
+
 	hash = IPREASS_HASH(ip->ip_src.s_addr, ip->ip_id);
 	head = &V_ipq[hash].head;
 	IPQ_LOCK(hash);
@@ -979,40 +1014,6 @@ ip_reass(struct mbuf *m)
 	}
 
 found:
-	/*
-	 * Adjust ip_len to not reflect header,
-	 * convert offset of this to bytes.
-	 */
-	ip->ip_len = htons(ntohs(ip->ip_len) - hlen);
-	if (ip->ip_off & htons(IP_MF)) {
-		/*
-		 * Make sure that fragments have a data length
-		 * that's a non-zero multiple of 8 bytes.
-		 */
-		if (ip->ip_len == htons(0) || (ntohs(ip->ip_len) & 0x7) != 0) {
-			IPSTAT_INC(ips_toosmall); /* XXX */
-			goto dropfrag;
-		}
-		m->m_flags |= M_IP_FRAG;
-	} else
-		m->m_flags &= ~M_IP_FRAG;
-	ip->ip_off = htons(ntohs(ip->ip_off) << 3);
-
-	/*
-	 * Attempt reassembly; if it succeeds, proceed.
-	 * ip_reass() will return a different mbuf.
-	 */
-	IPSTAT_INC(ips_fragments);
-	m->m_pkthdr.PH_loc.ptr = ip;
-
-	/* Previous ip_reass() started here. */
-	/*
-	 * Presence of header sizes in mbufs
-	 * would confuse code below.
-	 */
-	m->m_data += hlen;
-	m->m_len -= hlen;
-
 	/*
 	 * If first fragment to arrive, create a reassembly queue.
 	 */
