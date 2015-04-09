@@ -417,14 +417,9 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6,
 	/* estimate the size of message */
 	maxlen = sizeof(*ip6) + sizeof(*nd_ns);
 	maxlen += (sizeof(struct nd_opt_hdr) + ifp->if_addrlen + 7) & ~7;
-	if (max_linkhdr + maxlen >= MCLBYTES) {
-#ifdef DIAGNOSTIC
-		printf("%s: max_linkhdr + maxlen >= MCLBYTES "
-		    "(%d + %d > %d)\n", __func__, max_linkhdr, maxlen,
-		    MCLBYTES);
-#endif
-		return;
-	}
+	KASSERT(max_linkhdr + maxlen <= MCLBYTES, (
+	    "%s: max_linkhdr + maxlen > MCLBYTES (%d + %d > %d)",
+	    __func__, max_linkhdr, maxlen, MCLBYTES));
 
 	if (max_linkhdr + maxlen > MHLEN)
 		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
@@ -992,13 +987,9 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 	/* estimate the size of message */
 	maxlen = sizeof(*ip6) + sizeof(*nd_na);
 	maxlen += (sizeof(struct nd_opt_hdr) + ifp->if_addrlen + 7) & ~7;
-	if (max_linkhdr + maxlen >= MCLBYTES) {
-#ifdef DIAGNOSTIC
-		printf("nd6_na_output: max_linkhdr + maxlen >= MCLBYTES "
-		    "(%d + %d > %d)\n", max_linkhdr, maxlen, MCLBYTES);
-#endif
-		return;
-	}
+	KASSERT(max_linkhdr + maxlen <= MCLBYTES, (
+	    "%s: max_linkhdr + maxlen > MCLBYTES (%d + %d > %d)",
+	    __func__, max_linkhdr, maxlen, MCLBYTES));
 
 	if (max_linkhdr + maxlen > MHLEN)
 		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
