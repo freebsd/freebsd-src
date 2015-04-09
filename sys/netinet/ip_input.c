@@ -172,12 +172,18 @@ struct ipqbucket {
 };
 static VNET_DEFINE(struct ipqbucket, ipq[IPREASS_NHASH]);
 #define	V_ipq		VNET(ipq)
-#define	IPQ_LOCK(i)	mtx_lock(&V_ipq[i].lock)
-#define	IPQ_UNLOCK(i)	mtx_unlock(&V_ipq[i].lock)
+static VNET_DEFINE(int, noreass);
+#define	V_noreass	VNET(noreass)
 
-static void	maxnipq_update(void);
+#define	IPQ_LOCK(i)	mtx_lock(&V_ipq[i].lock)
+#define	IPQ_TRYLOCK(i)	mtx_trylock(&V_ipq[i].lock)
+#define	IPQ_UNLOCK(i)	mtx_unlock(&V_ipq[i].lock)
+#define	IPQ_LOCK_ASSERT(i)	mtx_assert(&V_ipq[i].lock, MA_OWNED)
+
+static int	sysctl_maxfragpackets(SYSCTL_HANDLER_ARGS);
 static void	ipq_zone_change(void *);
 static void	ip_drain_vnet(void);
+static void	ipq_drain_tomax(void);
 static void	ipq_free(struct ipqhead *, struct ipq *);
 
 static inline void
@@ -196,12 +202,11 @@ ipq_drop(struct ipqhead *head, struct ipq *fp)
 	ipq_free(head, fp);
 }
 
-static VNET_DEFINE(int, maxnipq);  /* Administrative limit on # reass queues. */
-static VNET_DEFINE(int, nipq);			/* Total # of reass queues */
-#define	V_maxnipq		VNET(maxnipq)
-#define	V_nipq			VNET(nipq)
-SYSCTL_INT(_net_inet_ip, OID_AUTO, fragpackets, CTLFLAG_VNET | CTLFLAG_RD,
-    &VNET_NAME(nipq), 0,
+SYSCTL_PROC(_net_inet_ip, OID_AUTO, maxfragpackets, CTLFLAG_VNET |
+    CTLTYPE_INT | CTLFLAG_RW, NULL, 0, sysctl_maxfragpackets, "I",
+    "Maximum number of IPv4 fragment reassembly queue entries");
+SYSCTL_UMA_CUR(_net_inet_ip, OID_AUTO, fragpackets, CTLFLAG_VNET,
+    &VNET_NAME(ipq_zone),
     "Current number of IPv4 fragment reassembly queue entries");
 
 static VNET_DEFINE(int, maxfragsperpacket);
@@ -346,13 +351,13 @@ ip_init(void)
 	/* Initialize IP reassembly queue. */
 	for (i = 0; i < IPREASS_NHASH; i++) {
 		TAILQ_INIT(&V_ipq[i].head);
-		mtx_init(&V_ipq[i].lock, "IP reassembly", NULL, MTX_DEF);
+		mtx_init(&V_ipq[i].lock, "IP reassembly", NULL,
+		    MTX_DEF | MTX_DUPOK);
 	}
-	V_maxnipq = nmbclusters / 32;
 	V_maxfragsperpacket = 16;
 	V_ipq_zone = uma_zcreate("ipq", sizeof(struct ipq), NULL, NULL, NULL,
 	    NULL, UMA_ALIGN_PTR, 0);
-	maxnipq_update();
+	uma_zone_set_max(V_ipq_zone, nmbclusters / 32);
 
 	/* Initialize packet filter hooks. */
 	V_inet_pfil_hook.ph_type = PFIL_TYPE_AF;
@@ -810,25 +815,27 @@ bad:
  * reasons.
  */
 static void
-maxnipq_update(void)
+ipq_drain_tomax(void)
 {
+	int target;
 
 	/*
-	 * -1 for unlimited allocation.
+	 * If we are over the maximum number of fragments,
+	 * drain off enough to get down to the new limit,
+	 * stripping off last elements on queues.  Every
+	 * run we strip the oldest element from each bucket.
 	 */
-	if (V_maxnipq < 0)
-		uma_zone_set_max(V_ipq_zone, 0);
-	/*
-	 * Positive number for specific bound.
-	 */
-	if (V_maxnipq > 0)
-		uma_zone_set_max(V_ipq_zone, V_maxnipq);
-	/*
-	 * Zero specifies no further fragment queue allocation.
-	 */
-	if (V_maxnipq == 0) {
-		uma_zone_set_max(V_ipq_zone, 1);
-		ip_drain_vnet();
+	target = uma_zone_get_max(V_ipq_zone);
+	while (uma_zone_get_cur(V_ipq_zone) > target) {
+		struct ipq *fp;
+
+		for (int i = 0; i < IPREASS_NHASH; i++) {
+			IPQ_LOCK(i);
+			fp = TAILQ_LAST(&V_ipq[i].head, ipqhead);
+			if (fp != NULL)
+				ipq_timeout(&V_ipq[i].head, fp);
+			IPQ_UNLOCK(i);
+		}
 	}
 }
 
@@ -836,70 +843,86 @@ static void
 ipq_zone_change(void *tag)
 {
 
-	if (V_maxnipq > 0 && V_maxnipq < (nmbclusters / 32)) {
-		V_maxnipq = nmbclusters / 32;
-		maxnipq_update();
-	}
+	uma_zone_set_max(V_ipq_zone, nmbclusters / 32);
+	ipq_drain_tomax();
 }
 
+/*
+ * Change the limit on the UMA zone, or disable the fragment allocation
+ * at all.  Since 0 and -1 is a special values here, we need our own handler,
+ * instead of sysctl_handle_uma_zone_max().
+ */
 static int
-sysctl_maxnipq(SYSCTL_HANDLER_ARGS)
+sysctl_maxfragpackets(SYSCTL_HANDLER_ARGS)
 {
-	int error, i;
+	int error, max;
 
-	i = V_maxnipq;
-	error = sysctl_handle_int(oidp, &i, 0, req);
+	if (V_noreass == 0) {
+		max = uma_zone_get_max(V_ipq_zone);
+		if (max == 0)
+			max = -1;
+	} else 
+		max = 0;
+	error = sysctl_handle_int(oidp, &max, 0, req);
 	if (error || !req->newptr)
 		return (error);
-
-	/*
-	 * XXXRW: Might be a good idea to sanity check the argument and place
-	 * an extreme upper bound.
-	 */
-	if (i < -1)
+	if (max > 0) {
+		/*
+		 * XXXRW: Might be a good idea to sanity check the argument
+		 * and place an extreme upper bound.
+		 */
+		max = uma_zone_set_max(V_ipq_zone, max);
+		ipq_drain_tomax();
+		V_noreass = 0;
+	} else if (max == 0) {
+		V_noreass = 1;
+		ip_drain_vnet();
+	} else if (max == -1) {
+		V_noreass = 0;
+		uma_zone_set_max(V_ipq_zone, 0);
+	} else
 		return (EINVAL);
-	V_maxnipq = i;
-	maxnipq_update();
 	return (0);
 }
-
-SYSCTL_PROC(_net_inet_ip, OID_AUTO, maxfragpackets, CTLTYPE_INT|CTLFLAG_RW,
-    NULL, 0, sysctl_maxnipq, "I",
-    "Maximum number of IPv4 fragment reassembly queue entries");
 
 #define	M_IP_FRAG	M_PROTO9
 
 /*
- * Attempt to purge something from the reassembly queue to make
- * room.
- *
- * Must be called without any IPQ locks held, as it will attempt
- * to lock each in turn.
- *
- * 'skip_bucket' is the bucket with which to skip over, or -1 to
- * not skip over anything.
- *
- * Returns the bucket being freed, or -1 for no action.
+ * Seek for old fragment queue header that can be reused.  Try to
+ * reuse a header from currently locked hash bucket.
  */
-static int
-ip_reass_purge_element(int skip_bucket)
+static struct ipq *
+ipq_reuse(int start)
 {
+	struct ipq *fp;
 	int i;
-	struct ipq *r;
 
-	for (i = 0; i < IPREASS_NHASH; i++) {
-		if (skip_bucket > -1 && i == skip_bucket)
+	IPQ_LOCK_ASSERT(start);
+
+	for (i = start;; i++) {
+		if (i == IPREASS_NHASH)
+			i = 0;
+		if (i != start && IPQ_TRYLOCK(i) == 0)
 			continue;
-		IPQ_LOCK(i);
-		r = TAILQ_LAST(&V_ipq[i].head, ipqhead);
-		if (r) {
-			ipq_timeout(&V_ipq[i].head, r);
-			IPQ_UNLOCK(i);
-			return (i);
+		fp = TAILQ_LAST(&V_ipq[i].head, ipqhead);
+		if (fp) {
+			struct mbuf *m;
+
+			IPSTAT_ADD(ips_fragtimeout, fp->ipq_nfrags);
+			while (fp->ipq_frags) {
+				m = fp->ipq_frags;
+				fp->ipq_frags = m->m_nextpkt;
+				m_freem(m);
+			}
+			TAILQ_REMOVE(&V_ipq[i].head, fp, ipq_list);
+			if (i != start)
+				IPQ_UNLOCK(i);
+			IPQ_LOCK_ASSERT(start);
+			return (fp);
 		}
-		IPQ_UNLOCK(i);
+		if (i != start)
+			IPQ_UNLOCK(i);
 	}
-	return (-1);
 }
 
 /*
@@ -917,7 +940,7 @@ ip_reass(struct mbuf *m)
 {
 	struct ip *ip;
 	struct mbuf *p, *q, *nq, *t;
-	struct ipq *fp = NULL;
+	struct ipq *fp;
 	struct ipqhead *head;
 	int i, hlen, next;
 	u_int8_t ecn, ecn0;
@@ -925,10 +948,12 @@ ip_reass(struct mbuf *m)
 #ifdef	RSS
 	uint32_t rss_hash, rss_type;
 #endif
-	int do_purge = 0;
 
-	/* If maxnipq or maxfragsperpacket are 0, never accept fragments. */
-	if (V_maxnipq == 0 || V_maxfragsperpacket == 0) {
+	/*
+	 * If no reassembling or maxfragsperpacket are 0,
+	 * never accept fragments.
+	 */
+	if (V_noreass == 1 || V_maxfragsperpacket == 0) {
 		IPSTAT_INC(ips_fragments);
 		IPSTAT_INC(ips_fragdropped);
 		m_freem(m);
@@ -989,38 +1014,14 @@ ip_reass(struct mbuf *m)
 		    mac_ipq_match(m, fp) &&
 #endif
 		    ip->ip_p == fp->ipq_p)
-			goto found;
-
-	fp = NULL;
-
-	/*
-	 * Attempt to trim the number of allocated fragment queues if it
-	 * exceeds the administrative limit.
-	 */
-	if ((V_nipq > V_maxnipq) && (V_maxnipq > 0)) {
-		/*
-		 * drop something from the tail of the current queue
-		 * before proceeding further
-		 */
-		struct ipq *q = TAILQ_LAST(head, ipqhead);
-		if (q == NULL) {   /* gak */
-			/*
-			 * Defer doing this until later; when the
-			 * lock is no longer held.
-			 */
-			do_purge = 1;
-		} else
-			ipq_timeout(head, q);
-	}
-
-found:
+			break;
 	/*
 	 * If first fragment to arrive, create a reassembly queue.
 	 */
 	if (fp == NULL) {
 		fp = uma_zalloc(V_ipq_zone, M_NOWAIT);
 		if (fp == NULL)
-			goto dropfrag;
+			fp = ipq_reuse(hash);
 #ifdef MAC
 		if (mac_ipq_init(fp, M_NOWAIT) != 0) {
 			uma_zfree(V_ipq_zone, fp);
@@ -1030,7 +1031,6 @@ found:
 		mac_ipq_create(m, fp);
 #endif
 		TAILQ_INSERT_HEAD(head, fp, ipq_list);
-		V_nipq++;
 		fp->ipq_nfrags = 1;
 		fp->ipq_ttl = IPFRAGTTL;
 		fp->ipq_p = ip->ip_p;
@@ -1196,7 +1196,6 @@ found:
 	ip->ip_src = fp->ipq_src;
 	ip->ip_dst = fp->ipq_dst;
 	TAILQ_REMOVE(head, fp, ipq_list);
-	V_nipq--;
 	uma_zfree(V_ipq_zone, fp);
 	m->m_len += (ip->ip_hl << 2);
 	m->m_data -= (ip->ip_hl << 2);
@@ -1205,19 +1204,6 @@ found:
 		m_fixhdr(m);
 	IPSTAT_INC(ips_reassembled);
 	IPQ_UNLOCK(hash);
-
-	/*
-	 * Do the delayed purge to keep fragment counts under
-	 * the configured maximum.
-	 *
-	 * This is delayed so that it's not done with another IPQ bucket
-	 * lock held.
-	 *
-	 * Note that we pass in the bucket to /skip/ over, not
-	 * the bucket to /purge/.
-	 */
-	if (do_purge)
-		ip_reass_purge_element(hash);
 
 #ifdef	RSS
 	/*
@@ -1281,7 +1267,6 @@ ipq_free(struct ipqhead *fhp, struct ipq *fp)
 	}
 	TAILQ_REMOVE(fhp, fp, ipq_list);
 	uma_zfree(V_ipq_zone, fp);
-	V_nipq--;
 }
 
 /*
@@ -1305,21 +1290,6 @@ ip_slowtimo(void)
 				if (--fp->ipq_ttl == 0)
 					ipq_timeout(&V_ipq[i].head, fp);
 			IPQ_UNLOCK(i);
-		}
-		/*
-		 * If we are over the maximum number of fragments
-		 * (due to the limit being lowered), drain off
-		 * enough to get down to the new limit.
-		 */
-		if (V_maxnipq >= 0 && V_nipq > V_maxnipq) {
-			for (i = 0; i < IPREASS_NHASH; i++) {
-				IPQ_LOCK(i);
-				while (V_nipq > V_maxnipq &&
-				    !TAILQ_EMPTY(&V_ipq[i].head))
-					ipq_drop(&V_ipq[i].head,
-					    TAILQ_FIRST(&V_ipq[i].head));
-				IPQ_UNLOCK(i);
-			}
 		}
 		CURVNET_RESTORE();
 	}
