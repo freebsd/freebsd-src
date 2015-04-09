@@ -166,6 +166,6 @@ AcpiOsUnmapMemory (
 
 
     PageSize = AcpiOsGetPageSize ();
-    Offset = (ACPI_PHYSICAL_ADDRESS) Where % PageSize;
+    Offset = ACPI_TO_INTEGER (Where) % PageSize;
     munmap ((UINT8 *) Where - Offset, (Length + Offset));
 }

@@ -562,7 +562,7 @@ AcpiDmDescendingOp (
 
                 if (Op->Common.AmlOpcode != AML_INT_NAMEDFIELD_OP)
                 {
-                    if (AcpiGbl_DbOpt_verbose)
+                    if (AcpiGbl_DbOpt_Verbose)
                     {
                         (void) AcpiPsDisplayObjectPathname (NULL, Op);
                     }

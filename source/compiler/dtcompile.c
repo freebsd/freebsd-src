@@ -102,13 +102,18 @@ DtDoCompile (
 
     /* Preprocessor */
 
-    Event = UtBeginEvent ("Preprocess input file");
-    PrDoPreprocess ();
-    UtEndEvent (Event);
-
-    if (Gbl_PreprocessOnly)
+    if (Gbl_PreprocessFlag)
     {
-        return (AE_OK);
+        /* Preprocessor */
+
+        Event = UtBeginEvent ("Preprocess input file");
+        PrDoPreprocess ();
+        UtEndEvent (Event);
+
+        if (Gbl_PreprocessOnly)
+        {
+            return (AE_OK);
+        }
     }
 
     /*

@@ -172,6 +172,9 @@ ACPI_STRING_TABLE           LinuxDataTypes[] = {
 
 ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
 
+    {"ACPI_ADDRESS16_ATTRIBUTE",            SRC_TYPE_STRUCT},
+    {"ACPI_ADDRESS32_ATTRIBUTE",            SRC_TYPE_STRUCT},
+    {"ACPI_ADDRESS64_ATTRIBUTE",            SRC_TYPE_STRUCT},
     {"ACPI_ADDRESS_RANGE",                  SRC_TYPE_STRUCT},
     {"ACPI_ADR_SPACE_HANDLER",              SRC_TYPE_SIMPLE},
     {"ACPI_ADR_SPACE_SETUP",                SRC_TYPE_SIMPLE},
@@ -521,6 +524,7 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_TABLE_MCHI",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_MPST",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_MSCT",                     SRC_TYPE_STRUCT},
+    {"ACPI_TABLE_MSDM",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_PCCT",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_RSDP",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_RSDT",                     SRC_TYPE_STRUCT},
@@ -631,9 +635,6 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_RSDP_EXTENSION",                 SRC_TYPE_STRUCT},
     {"ACPI_S3PT_RESUME",                    SRC_TYPE_STRUCT},
     {"ACPI_S3PT_SUSPEND",                   SRC_TYPE_STRUCT},
-    {"ACPI_SLIC_HEADER",                    SRC_TYPE_STRUCT},
-    {"ACPI_SLIC_KEY",                       SRC_TYPE_STRUCT},
-    {"ACPI_SLIC_MARKER",                    SRC_TYPE_STRUCT},
     {"ACPI_SRAT_CPU_AFFINITY",              SRC_TYPE_STRUCT},
     {"ACPI_SRAT_HEADER",                    SRC_TYPE_STRUCT},
     {"ACPI_SRAT_MEM_AFFINITY",              SRC_TYPE_STRUCT},

@@ -394,9 +394,9 @@ AcpiDbDisassembleMethod (
 
     /* Now we can disassemble the method */
 
-    AcpiGbl_DbOpt_verbose = FALSE;
+    AcpiGbl_DbOpt_Verbose = FALSE;
     AcpiDmDisassemble (NULL, Op, 0);
-    AcpiGbl_DbOpt_verbose = TRUE;
+    AcpiGbl_DbOpt_Verbose = TRUE;
 
     AcpiPsDeleteParseTree (Op);
 

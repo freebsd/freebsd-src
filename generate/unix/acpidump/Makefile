@@ -52,8 +52,16 @@ OBJECTS = \
 # Per-host interfaces
 #
 ifeq ($(HOST), _FreeBSD)
+HOST_FAMILY = BSD
+endif
+
+ifeq ($(HOST), _NetBSD)
+HOST_FAMILY = BSD
+endif
+
+ifeq ($(HOST_FAMILY), BSD)
 OBJECTS += \
-	$(OBJDIR)/osfreebsdtbl.o
+	$(OBJDIR)/osbsdtbl.o
 else
 OBJECTS += \
 	$(OBJDIR)/oslinuxtbl.o

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Module Name: osfreebsdtbl - FreeBSD OSL for obtaining ACPI tables
+ * Module Name: osbsdtbl - BSD OSL for obtaining ACPI tables
  *
  *****************************************************************************/
 
@@ -43,14 +43,16 @@
 
 #include "acpidump.h"
 
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 #include <kenv.h>
+#endif
 #include <unistd.h>
 #include <sys/param.h>
 #include <sys/sysctl.h>
 
 
 #define _COMPONENT          ACPI_OS_SERVICES
-        ACPI_MODULE_NAME    ("osfreebsdtbl")
+        ACPI_MODULE_NAME    ("osbsdtbl")
 
 
 /* Local prototypes */
@@ -78,9 +80,12 @@ OslGetTableViaRoot (
 
 
 /* Hints for RSDP */
-
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 #define SYSTEM_KENV         "hint.acpi.0.rsdp"
 #define SYSTEM_SYSCTL       "machdep.acpi_root"
+#elif defined(__NetBSD__)
+#define SYSTEM_SYSCTL       "hw.acpi.root"
+#endif
 
 /* Initialization flags */
 
@@ -371,7 +376,9 @@ static ACPI_STATUS
 OslTableInitialize (
     void)
 {
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
     char                    Buffer[32];
+#endif
     ACPI_TABLE_HEADER       *MappedTable;
     UINT8                   *TableAddress;
     UINT8                   *RsdpAddress;
@@ -395,10 +402,12 @@ OslTableInitialize (
     {
         Address = Gbl_RsdpBase;
     }
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
     else if (kenv (KENV_GET, SYSTEM_KENV, Buffer, sizeof (Buffer)) > 0)
     {
         Address = ACPI_STRTOUL (Buffer, NULL, 0);
     }
+#endif
     if (!Address)
     {
         if (sysctlbyname (SYSTEM_SYSCTL, &Address, &Length, NULL, 0) != 0)

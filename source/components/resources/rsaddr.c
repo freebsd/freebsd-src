@@ -77,7 +77,7 @@ ACPI_RSCONVERT_INFO     AcpiRsConvertAddress16[5] =
      * Address Translation Offset
      * Address Length
      */
-    {ACPI_RSC_MOVE16,   ACPI_RS_OFFSET (Data.Address16.Granularity),
+    {ACPI_RSC_MOVE16,   ACPI_RS_OFFSET (Data.Address16.Address.Granularity),
                         AML_OFFSET (Address16.Granularity),
                         5},
 
@@ -117,7 +117,7 @@ ACPI_RSCONVERT_INFO     AcpiRsConvertAddress32[5] =
      * Address Translation Offset
      * Address Length
      */
-    {ACPI_RSC_MOVE32,   ACPI_RS_OFFSET (Data.Address32.Granularity),
+    {ACPI_RSC_MOVE32,   ACPI_RS_OFFSET (Data.Address32.Address.Granularity),
                         AML_OFFSET (Address32.Granularity),
                         5},
 
@@ -157,7 +157,7 @@ ACPI_RSCONVERT_INFO     AcpiRsConvertAddress64[5] =
      * Address Translation Offset
      * Address Length
      */
-    {ACPI_RSC_MOVE64,   ACPI_RS_OFFSET (Data.Address64.Granularity),
+    {ACPI_RSC_MOVE64,   ACPI_RS_OFFSET (Data.Address64.Address.Granularity),
                         AML_OFFSET (Address64.Granularity),
                         5},
 
@@ -203,7 +203,7 @@ ACPI_RSCONVERT_INFO     AcpiRsConvertExtAddress64[5] =
      * Address Length
      * Type-Specific Attribute
      */
-    {ACPI_RSC_MOVE64,   ACPI_RS_OFFSET (Data.ExtAddress64.Granularity),
+    {ACPI_RSC_MOVE64,   ACPI_RS_OFFSET (Data.ExtAddress64.Address.Granularity),
                         AML_OFFSET (ExtAddress64.Granularity),
                         6}
 };
