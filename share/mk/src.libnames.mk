@@ -229,6 +229,7 @@ _DP_krb5+=	asn1 com_err crypt crypto hx509 roken wind heimbase heimipcc \
 _DP_gssapi_krb5+=	gssapi krb5 crypto roken asn1 com_err
 _DP_lzma=	pthread
 _DP_ucl=	m
+_DP_vmmapi=	util
 
 # Define spacial cases
 LDADD_supcplusplus=	-lsupc++
