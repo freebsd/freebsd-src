@@ -6,6 +6,8 @@ INCS=	vmmapi.h
 
 WARNS?=	2
 
+LIBADD=	util
+
 CFLAGS+= -I${.CURDIR}
 
 .include <bsd.lib.mk>
