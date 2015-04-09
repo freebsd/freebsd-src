@@ -65,6 +65,13 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_tcb.h"
 #include "tom/t4_tom.h"
 
+VNET_DECLARE(int, tcp_do_autorcvbuf);
+#define V_tcp_do_autorcvbuf VNET(tcp_do_autorcvbuf)
+VNET_DECLARE(int, tcp_autorcvbuf_inc);
+#define V_tcp_autorcvbuf_inc VNET(tcp_autorcvbuf_inc)
+VNET_DECLARE(int, tcp_autorcvbuf_max);
+#define V_tcp_autorcvbuf_max VNET(tcp_autorcvbuf_max)
+
 #define PPOD_SZ(n)	((n) * sizeof(struct pagepod))
 #define PPOD_SIZE	(PPOD_SZ(1))
 
@@ -458,6 +465,21 @@ handle_ddp_data(struct toepcb *toep, __be32 ddp_report, __be32 rcv_nxt, int len)
 		toep->ddp_score = DDP_HIGH_SCORE;
 	else
 		discourage_ddp(toep);
+
+	/* receive buffer autosize */
+	if (sb->sb_flags & SB_AUTOSIZE &&
+	    V_tcp_do_autorcvbuf &&
+	    sb->sb_hiwat < V_tcp_autorcvbuf_max &&
+	    len > (sbspace(sb) / 8 * 7)) {
+		unsigned int hiwat = sb->sb_hiwat;
+		unsigned int newsize = min(hiwat + V_tcp_autorcvbuf_inc,
+		    V_tcp_autorcvbuf_max);
+
+		if (!sbreserve_locked(sb, newsize, so, NULL))
+			sb->sb_flags &= ~SB_AUTOSIZE;
+		else
+			toep->rx_credits += newsize - hiwat;
+	}
 
 	KASSERT(toep->sb_cc >= sb->sb_cc,
 	    ("%s: sb %p has more data (%d) than last time (%d).",
