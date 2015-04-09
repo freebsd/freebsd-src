@@ -15,7 +15,6 @@ INTERNALPROG=
 # architecture-specific loader code
 SRCS=	boot1.c reloc.c start.S
 
-CFLAGS+=	-fPIC
 CFLAGS+=	-I.
 CFLAGS+=	-I${.CURDIR}/../include
 CFLAGS+=	-I${.CURDIR}/../include/${MACHINE_CPUARCH}
@@ -35,6 +34,7 @@ LDSCRIPT=	${.CURDIR}/../loader/arch/${MACHINE_CPUARCH}/ldscript.${MACHINE_CPUARC
 LDFLAGS=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+CFLAGS+=	-fPIC
 LDFLAGS+=	-Wl,-znocombreloc
 .endif
 
