@@ -1294,7 +1294,7 @@ void
 ip_slowtimo(void)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
-	struct ipq *fp;
+	struct ipq *fp, *tmp;
 	int i;
 
 	VNET_LIST_RLOCK_NOSLEEP();
@@ -1302,14 +1302,9 @@ ip_slowtimo(void)
 		CURVNET_SET(vnet_iter);
 		for (i = 0; i < IPREASS_NHASH; i++) {
 			IPQ_LOCK(i);
-			for(fp = TAILQ_FIRST(&V_ipq[i]); fp;) {
-				struct ipq *fpp;
-
-				fpp = fp;
-				fp = TAILQ_NEXT(fp, ipq_list);
-				if(--fpp->ipq_ttl == 0)
-					ipq_timeout(&V_ipq[i], fpp);
-			}
+			TAILQ_FOREACH_SAFE(fp, &V_ipq[i], ipq_list, tmp)
+				if (--fp->ipq_ttl == 0)
+					ipq_timeout(&V_ipq[i], fp);
 			IPQ_UNLOCK(i);
 		}
 		/*
