@@ -826,12 +826,12 @@ maxnipq_update(void)
 	if (V_maxnipq > 0)
 		uma_zone_set_max(V_ipq_zone, V_maxnipq);
 	/*
-	 * Zero specifies no further fragment queue allocation -- set the
-	 * bound very low, but rely on implementation elsewhere to actually
-	 * prevent allocation and reclaim current queues.
+	 * Zero specifies no further fragment queue allocation.
 	 */
-	if (V_maxnipq == 0)
+	if (V_maxnipq == 0) {
 		uma_zone_set_max(V_ipq_zone, 1);
+		ip_drain_vnet();
+	}
 }
 
 static void
