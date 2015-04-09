@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2014 Robert N. M. Watson
+ * Copyright (c) 2011-2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -35,7 +35,11 @@
  * The size of in-memory capabilities in bytes; minimum alignment is also
  * assumed to be this size.
  */
-#ifdef CPU_CHERI128
+#if defined(_MIPS_SZCAP) && (_MIPS_SZCAP != 128) && (_MIPS_SZCAP != 256)
+#error "_MIPS_SZCAP defined but neither 128 nor 256"
+#endif
+
+#if defined(CPU_CHERI128) || (defined(_MIPS_SZCAP) && (_MIPS_SZCAP == 128))
 #define	CHERICAP_SIZE   16
 #else
 #define	CHERICAP_SIZE   32
@@ -79,6 +83,21 @@
 #define	CHERI_PERM_USER5			(1 << 20)	/* 0x00100000 */
 #define	CHERI_PERM_USER6			(1 << 21)	/* 0x00200000 */
 #define	CHERI_PERM_USER7			(1 << 22)	/* 0x00400000 */
+
+#if defined(CPU_CHERI128) || (defined(_MIPS_SZCAP) && (_MIPS_SZCAP == 128))
+/*
+ * 128-bit CHERI supports only 8 user-defined permissions for memory
+ * capabilities.
+ */
+#define	CHERI_PERM_USER_PRIVS						\
+	(CHERI_PERM_USER0 | CHERI_PERM_USER1 | CHERI_PERM_USER2 |	\
+	CHERI_PERM_USER3 | CHERI_PERM_USER4 | CHERI_PERM_USER5 |	\
+	CHERI_PERM_USER6 | CHERI_PERM_USER7)
+#else /* !CPU_CHERI128 */
+
+/*
+ * 256-bit CHERI supports a further 7 user-defined permissions.
+ */
 #define	CHERI_PERM_USER8			(1 << 23)	/* 0x00800000 */
 #define	CHERI_PERM_USER9			(1 << 24)	/* 0x01000000 */
 #define	CHERI_PERM_USER10			(1 << 25)	/* 0x02000000 */
@@ -87,7 +106,6 @@
 #define	CHERI_PERM_USER13			(1 << 28)	/* 0x10000000 */
 #define	CHERI_PERM_USER14			(1 << 29)	/* 0x20000000 */
 #define	CHERI_PERM_USER15			(1 << 30)	/* 0x40000000 */
-
 #define	CHERI_PERM_USER_PRIVS						\
 	(CHERI_PERM_USER0 | CHERI_PERM_USER1 | CHERI_PERM_USER2 |	\
 	CHERI_PERM_USER3 | CHERI_PERM_USER4 | CHERI_PERM_USER5 |	\
@@ -95,6 +113,7 @@
 	CHERI_PERM_USER9 | CHERI_PERM_USER10 | CHERI_PERM_USER11 |	\
 	CHERI_PERM_USER12 | CHERI_PERM_USER13 | CHERI_PERM_USER14 |	\
 	CHERI_PERM_USER15)
+#endif /* !CPU_CHERI128 */
 
 #define	CHERI_PERM_PRIV							\
 	(CHERI_PERM_GLOBAL | CHERI_PERM_EXECUTE |			\
