@@ -28,7 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * MD primitives supporting placement of module data 
+ * MD primitives supporting placement of module data
  *
  * XXX should check load address/size against memory top.
  */

@@ -33,7 +33,7 @@
 #define EFI_SUCCESS		0
 
 /*
- * EFI entry point. 
+ * EFI entry point.
  * _start(EFI_IMAGE image_handle, EFI_SYSTEM_TABLE *system_table);
  *
  * We calculate the base address along with _DYNAMIC, relocate us and finally
