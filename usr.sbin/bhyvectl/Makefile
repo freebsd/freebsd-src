@@ -7,7 +7,7 @@ SRCS=	bhyvectl.c
 
 MAN=
 
-LIBADD=	vmmapi util
+LIBADD=	vmmapi
 
 WARNS?=	3
 
