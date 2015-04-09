@@ -111,6 +111,7 @@ _LIBRARIES=	\
 		md \
 		memstat \
 		mp \
+		mt \
 		nandfs \
 		ncurses \
 		ncursesw \
@@ -199,6 +200,7 @@ _DP_proc+=	ctf
 _DP_mp=	crypto
 _DP_memstat=	kvm
 _DP_magic=	z
+_DP_mt=		bsdxml
 _DP_ldns=	crypto
 .if ${MK_OPENSSL} != "no"
 _DP_fetch=	ssl crypto
@@ -258,6 +260,9 @@ LDADD_atf_cxx+=	${LDADD_atf_c}
 
 DPADD_ipf+=	${DPADD_kvm}
 LDADD_ipf+=	${LDADD_kvm}
+
+DPADD_mt+=	${DPADD_sbuf}
+LDADD_mt+=	${LDADD_sbuf}
 
 # The following depends on libraries which are using pthread
 DPADD_hdb+=	${DPADD_pthread}
