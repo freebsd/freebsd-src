@@ -154,16 +154,6 @@ define p_rtree
 	end
 end
 
-define test
-	set $rn_$arg0 = $arg0
-	set $next$arg0 = $arg0 + 1
-	printf "%d\n", $rn_$arg0
-	if $rn_$arg0 > 10
-		return
-	end
-	test $next$arg0
-end
-
 define netstat-anr
 	printf "Routing tables\n\nInternet:\n"
 	set $af = $AF_INET
