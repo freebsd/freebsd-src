@@ -176,15 +176,6 @@ do {									\
 } while (0)
 
 /*
- * IP datagram reassembly.
- */
-#define	IPREASS_NHASH_LOG2	6
-#define	IPREASS_NHASH		(1 << IPREASS_NHASH_LOG2)
-#define	IPREASS_HMASK		(IPREASS_NHASH - 1)
-#define	IPREASS_HASH(x,y) \
-	(((((x) & 0xF) | ((((x) >> 8) & 0xF) << 4)) ^ (y)) & IPREASS_HMASK)
-
-/*
  * Legacy IPv4 IGMP per-link structure.
  */
 struct router_info {
