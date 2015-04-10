@@ -190,7 +190,8 @@ void *pmap_mapdev_attr(vm_paddr_t, vm_size_t, int);
 boolean_t pmap_page_is_mapped(vm_page_t );
 void pmap_page_set_memattr(vm_page_t , vm_memattr_t );
 void pmap_unmapdev(vm_offset_t, vm_size_t);
-void pmap_kenter_device(vm_offset_t , vm_paddr_t );
+void pmap_kenter_device(vm_offset_t, vm_size_t, vm_paddr_t);
+void pmap_kremove_device(vm_offset_t, vm_size_t);
 void pmap_set_pcb_pagedir(pmap_t , struct pcb *);
 void pmap_lazyfix_action(void);
 

@@ -246,7 +246,7 @@ arm_devmap_vtop(void * vpva, vm_size_t size)
 void *
 pmap_mapdev(vm_offset_t pa, vm_size_t size)
 {
-	vm_offset_t va, tmpva, offset;
+	vm_offset_t va, offset;
 	void * rva;
 
 	/* First look in the static mapping table. */
@@ -261,12 +261,7 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 
-	for (tmpva = va; size > 0;) {
-		pmap_kenter_device(tmpva, pa);
-		size -= PAGE_SIZE;
-		tmpva += PAGE_SIZE;
-		pa += PAGE_SIZE;
-	}
+	pmap_kenter_device(va, size, pa);
 	
 	return ((void *)(va + offset));
 }
@@ -277,25 +272,18 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 void
 pmap_unmapdev(vm_offset_t va, vm_size_t size)
 {
-	vm_offset_t tmpva, offset;
-	vm_size_t origsize;
+	vm_offset_t offset;
 
 	/* Nothing to do if we find the mapping in the static table. */
 	if (arm_devmap_vtop((void*)va, size) != DEVMAP_PADDR_NOTFOUND)
 		return;
 
-	origsize = size;
 	offset = va & PAGE_MASK;
 	va = trunc_page(va);
 	size = round_page(size + offset);
 
-	for (tmpva = va; size > 0;) {
-		pmap_kremove(tmpva);
-		size -= PAGE_SIZE;
-		tmpva += PAGE_SIZE;
-	}
-
-	kva_free(va, origsize);
+	pmap_kremove_device(va, size);
+	kva_free(va, size);
 }
 
 #ifdef DDB

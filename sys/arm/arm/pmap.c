@@ -2712,14 +2712,36 @@ pmap_kenter_nocache(vm_offset_t va, vm_paddr_t pa)
 }
 
 void
-pmap_kenter_device(vm_offset_t va, vm_paddr_t pa)
+pmap_kenter_device(vm_offset_t va, vm_size_t size, vm_paddr_t pa)
 {
+	vm_offset_t sva;
 
-	/*
-	 * XXX - Need a way for kenter_internal to handle PTE_DEVICE mapping as
-	 * a potentially different thing than PTE_NOCACHE.
-	 */
-	pmap_kenter_internal(va, pa, 0);
+	KASSERT((size & PAGE_MASK) == 0, 
+	    ("%s: device mapping not page-sized", __func__));
+
+	sva = va;
+	while (size != 0) {
+		pmap_kenter_internal(va, pa, 0);
+		va += PAGE_SIZE;
+		pa += PAGE_SIZE;
+		size -= PAGE_SIZE;
+	}
+}
+
+void
+pmap_kremove_device(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t sva;
+
+	KASSERT((size & PAGE_MASK) == 0, 
+	    ("%s: device mapping not page-sized", __func__));
+
+	sva = va;
+	while (size != 0) {
+		pmap_kremove(va);
+		va += PAGE_SIZE;
+		size -= PAGE_SIZE;
+	}
 }
 
 void
