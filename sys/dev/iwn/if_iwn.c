@@ -8060,7 +8060,7 @@ iwn_read_firmware_tlv(struct iwn_softc *sc, struct iwn_fw_info *fw,
 		case IWN_FW_TLV_WOWLAN_INST:
 		case IWN_FW_TLV_WOWLAN_DATA:
 			DPRINTF(sc, IWN_DEBUG_RESET,
-			    "TLV type %d reconized but not handled\n",
+			    "TLV type %d recognized but not handled\n",
 			    le16toh(tlv->type));
 			break;
 		default:
