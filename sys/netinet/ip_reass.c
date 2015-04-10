@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
+#include <sys/hash.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
@@ -64,8 +65,6 @@ SYSCTL_DECL(_net_inet_ip);
 #define	IPREASS_NHASH_LOG2	6
 #define	IPREASS_NHASH		(1 << IPREASS_NHASH_LOG2)
 #define	IPREASS_HMASK		(IPREASS_NHASH - 1)
-#define	IPREASS_HASH(x,y) \
-	(((((x) & 0xF) | ((((x) >> 8) & 0xF) << 4)) ^ (y)) & IPREASS_HMASK)
 
 struct ipqbucket {
 	TAILQ_HEAD(ipqhead, ipq) head;
@@ -74,6 +73,8 @@ struct ipqbucket {
 
 static VNET_DEFINE(struct ipqbucket, ipq[IPREASS_NHASH]);
 #define	V_ipq		VNET(ipq)
+static VNET_DEFINE(uint32_t, ipq_hashseed);
+#define V_ipq_hashseed   VNET(ipq_hashseed)
 
 #define	IPQ_LOCK(i)	mtx_lock(&V_ipq[i].lock)
 #define	IPQ_TRYLOCK(i)	mtx_trylock(&V_ipq[i].lock)
@@ -146,7 +147,7 @@ ip_reass(struct mbuf *m)
 	struct ipqhead *head;
 	int i, hlen, next;
 	u_int8_t ecn, ecn0;
-	u_short hash;
+	uint32_t hash;
 #ifdef	RSS
 	uint32_t rss_hash, rss_type;
 #endif
@@ -200,7 +201,8 @@ ip_reass(struct mbuf *m)
 	m->m_data += hlen;
 	m->m_len -= hlen;
 
-	hash = IPREASS_HASH(ip->ip_src.s_addr, ip->ip_id);
+	hash = ip->ip_src.s_addr ^ ip->ip_id;
+	hash = jenkins_hash32(&hash, 1, V_ipq_hashseed) & IPREASS_HMASK;
 	head = &V_ipq[hash].head;
 	IPQ_LOCK(hash);
 
@@ -465,6 +467,7 @@ ipreass_init(void)
 		mtx_init(&V_ipq[i].lock, "IP reassembly", NULL,
 		    MTX_DEF | MTX_DUPOK);
 	}
+	V_ipq_hashseed = arc4random();
 	V_maxfragsperpacket = 16;
 	V_ipq_zone = uma_zcreate("ipq", sizeof(struct ipq), NULL, NULL, NULL,
 	    NULL, UMA_ALIGN_PTR, 0);
