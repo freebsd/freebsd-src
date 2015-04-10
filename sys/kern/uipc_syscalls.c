@@ -2114,9 +2114,12 @@ sf_iodone(void *arg, vm_page_t *pg, int reqpage, int error)
 		m = sfio->m;
 		for (int i = 0; i < sfio->npages; i++)
 			m = m_free(m);
-	} else
+	} else {
+		CURVNET_SET(so->so_vnet);
 		(void )(so->so_proto->pr_usrreqs->pru_ready)(so, sfio->m,
 		    sfio->npages);
+		CURVNET_RESTORE();
+	}
 
 	/* XXXGL: curthread */
 	fdrop(sfio->sock_fp, curthread);
