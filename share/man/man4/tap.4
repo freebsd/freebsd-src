@@ -1,7 +1,7 @@
 .\" $FreeBSD$
 .\" Based on PR#2411
 .\"
-.Dd November 30, 2014
+.Dd April 10, 2015
 .Dt TAP 4
 .Os
 .Sh NAME
@@ -275,7 +275,9 @@ brought down
 .Dq ifconfig tap Ns Sy N No down )
 unless the device is a
 .Em VMnet
-device.
+device, or has
+.Dv IFF_LINK0
+flag set.
 All queued frames are thrown away.
 If the interface is up when the data
 device is not open, output frames are thrown away rather than
