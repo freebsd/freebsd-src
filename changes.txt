@@ -1,4 +1,11 @@
 ----------------------------------------
+10 April 2015. Summary of changes for version 20150410:
+
+Reverted a change introduced in version 20150408 that caused
+a regression in the disassembler where incorrect operator
+symbols could be emitted.
+
+----------------------------------------
 08 April 2015. Summary of changes for version 20150408:
 
 
