@@ -3485,6 +3485,7 @@ netinet/ip_ipsec.c		optional inet ipsec
 netinet/ip_mroute.c		optional mrouting inet
 netinet/ip_options.c		optional inet
 netinet/ip_output.c		optional inet
+netinet/ip_reass.c		optional inet
 netinet/raw_ip.c		optional inet | inet6
 netinet/cc/cc.c			optional inet | inet6
 netinet/cc/cc_newreno.c		optional inet | inet6
