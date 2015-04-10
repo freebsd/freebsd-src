@@ -45,6 +45,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#ifdef SOC_BCM2836
+#include <arm/broadcom/bcm2835/bcm2836.h>
+#endif
+
 #define	INTC_PENDING_BASIC	0x00
 #define	INTC_PENDING_BANK1	0x04
 #define	INTC_PENDING_BANK2	0x08
@@ -61,10 +65,12 @@ __FBSDID("$FreeBSD$");
 #define	BANK2_START	(BANK1_START + 32)
 #define	BANK2_END	(BANK2_START + 32 - 1)
 #define	BANK3_START	(BANK2_START + 32)
+#define	BANK3_END	(BANK3_START + 32 - 1)
 
 #define	IS_IRQ_BASIC(n)	(((n) >= 0) && ((n) < BANK1_START))
 #define	IS_IRQ_BANK1(n)	(((n) >= BANK1_START) && ((n) <= BANK1_END))
 #define	IS_IRQ_BANK2(n)	(((n) >= BANK2_START) && ((n) <= BANK2_END))
+#define	ID_IRQ_BCM2836(n) (((n) >= BANK3_START) && ((n) <= BANK3_END))
 #define	IRQ_BANK1(n)	((n) - BANK1_START)
 #define	IRQ_BANK2(n)	((n) - BANK2_START)
 
@@ -148,10 +154,18 @@ arm_get_next_irq(int last_irq)
 	struct bcm_intc_softc *sc = bcm_intc_sc;
 	uint32_t pending;
 	int32_t irq = last_irq + 1;
+#ifdef SOC_BCM2836
+	int ret;
+#endif
 
 	/* Sanity check */
 	if (irq < 0)
 		irq = 0;
+
+#ifdef SOC_BCM2836
+	if ((ret = bcm2836_get_next_irq(irq)) >= 0)
+		return (ret + BANK3_START);
+#endif
 
 	/* TODO: should we mask last_irq? */
 	if (irq < BANK1_START) {
@@ -197,6 +211,10 @@ arm_mask_irq(uintptr_t nb)
 		intc_write_4(sc, INTC_DISABLE_BANK1, (1 << IRQ_BANK1(nb)));
 	else if (IS_IRQ_BANK2(nb))
 		intc_write_4(sc, INTC_DISABLE_BANK2, (1 << IRQ_BANK2(nb)));
+#ifdef SOC_BCM2836
+	else if (ID_IRQ_BCM2836(nb))
+		bcm2836_mask_irq(nb - BANK3_START);
+#endif
 	else
 		printf("arm_mask_irq: Invalid IRQ number: %d\n", nb);
 }
@@ -213,6 +231,10 @@ arm_unmask_irq(uintptr_t nb)
 		intc_write_4(sc, INTC_ENABLE_BANK1, (1 << IRQ_BANK1(nb)));
 	else if (IS_IRQ_BANK2(nb))
 		intc_write_4(sc, INTC_ENABLE_BANK2, (1 << IRQ_BANK2(nb)));
+#ifdef SOC_BCM2836
+	else if (ID_IRQ_BCM2836(nb))
+		bcm2836_unmask_irq(nb - BANK3_START);
+#endif
 	else
 		printf("arm_mask_irq: Invalid IRQ number: %d\n", nb);
 }

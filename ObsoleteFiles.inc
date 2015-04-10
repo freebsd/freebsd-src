@@ -38,6 +38,12 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150329
+.if ${TARGET_ARCH} == "arm"
+OLD_FILES+=usr/include/bootconfig.h
+.endif
+# 20150326
+OLD_FILES+=usr/share/man/man1/pmcstudy.1.gz
 # 20150315: new clang import which bumps version from 3.5.1 to 3.6.0.
 OLD_FILES+=usr/include/clang/3.5.1/__wmmintrin_aes.h
 OLD_FILES+=usr/include/clang/3.5.1/__wmmintrin_pclmul.h

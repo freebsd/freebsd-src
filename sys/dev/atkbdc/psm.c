@@ -4483,8 +4483,12 @@ enable_synaptics(KBDC kbdc, struct psm_softc *sc)
 		synhw.nExtendedQueries = (status[0] & 0x70) != 0;
 		synhw.capMiddle        = (status[0] & 0x04) != 0;
 		synhw.capPassthrough   = (status[2] & 0x80) != 0;
+		synhw.capLowPower      = (status[2] & 0x40) != 0;
+		synhw.capMultiFingerReport =
+					 (status[2] & 0x20) != 0;
 		synhw.capSleep         = (status[2] & 0x10) != 0;
 		synhw.capFourButtons   = (status[2] & 0x08) != 0;
+		synhw.capBallistics    = (status[2] & 0x04) != 0;
 		synhw.capMultiFinger   = (status[2] & 0x02) != 0;
 		synhw.capPalmDetect    = (status[2] & 0x01) != 0;
 
@@ -4495,8 +4499,12 @@ enable_synaptics(KBDC kbdc, struct psm_softc *sc)
 			printf("   nExtendedQueries: %d\n",
 			    synhw.nExtendedQueries);
 			printf("   capPassthrough: %d\n", synhw.capPassthrough);
+			printf("   capLowPower: %d\n", synhw.capLowPower);
+			printf("   capMultiFingerReport: %d\n",
+			    synhw.capMultiFingerReport);
 			printf("   capSleep: %d\n", synhw.capSleep);
 			printf("   capFourButtons: %d\n", synhw.capFourButtons);
+			printf("   capBallistics: %d\n", synhw.capBallistics);
 			printf("   capMultiFinger: %d\n", synhw.capMultiFinger);
 			printf("   capPalmDetect: %d\n", synhw.capPalmDetect);
 		}

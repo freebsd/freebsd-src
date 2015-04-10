@@ -580,6 +580,7 @@ m_extaddref(struct mbuf *m, caddr_t buf, u_int size, u_int *ref_cnt,
 	m->m_ext.ext_arg1 = arg1;
 	m->m_ext.ext_arg2 = arg2;
 	m->m_ext.ext_type = EXT_EXTREF;
+	m->m_ext.ext_flags = 0;
 }
 
 static __inline uma_zone_t
@@ -687,8 +688,8 @@ static __inline int
 m_clget(struct mbuf *m, int how)
 {
 
-	if (m->m_flags & M_EXT)
-		printf("%s: %p mbuf already has external storage\n", __func__, m);
+	KASSERT((m->m_flags & M_EXT) == 0, ("%s: mbuf %p has M_EXT",
+	    __func__, m));
 	m->m_ext.ext_buf = (char *)NULL;
 	uma_zalloc_arg(zone_clust, m, how);
 	/*
@@ -714,10 +715,11 @@ m_cljget(struct mbuf *m, int how, int size)
 {
 	uma_zone_t zone;
 
-	if (m && m->m_flags & M_EXT)
-		printf("%s: %p mbuf already has external storage\n", __func__, m);
-	if (m != NULL)
+	if (m != NULL) {
+		KASSERT((m->m_flags & M_EXT) == 0, ("%s: mbuf %p has M_EXT",
+		    __func__, m));
 		m->m_ext.ext_buf = NULL;
+	}
 
 	zone = m_getzone(size);
 	return (uma_zalloc_arg(zone, m, how));

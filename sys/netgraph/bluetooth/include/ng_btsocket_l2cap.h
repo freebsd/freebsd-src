@@ -70,6 +70,8 @@ struct ng_btsocket_l2cap_raw_pcb {
 
 	bdaddr_t				 src;	/* source address */
 	bdaddr_t				 dst;	/* dest address */
+	uint8_t			 	 	 srctype;/*source addr type*/
+	uint8_t			 	 	 dsttype;/*source addr type*/
 	ng_btsocket_l2cap_rtentry_p		 rt;    /* routing info */
 
 	u_int32_t				 token;	/* message token */
@@ -129,6 +131,8 @@ struct ng_btsocket_l2cap_pcb {
 
 	bdaddr_t			 src;	     /* Source address */
 	bdaddr_t			 dst;	     /* Destination address */
+	uint8_t			 	 srctype;	/*source addr type*/
+	uint8_t			 	 dsttype;	/*source addr type*/
 
 	u_int16_t			 psm;	     /* PSM */
 	u_int16_t			 cid;	     /* Local channel ID */

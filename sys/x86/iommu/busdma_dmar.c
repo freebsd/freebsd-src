@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <sys/uio.h>
+#include <sys/vmem.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <vm/vm.h>
@@ -92,7 +93,7 @@ dmar_bus_dma_is_dev_disabled(int domain, int bus, int slot, int func)
  * domain, and must collectively be assigned to use either DMAR or
  * bounce mapping.
  */
-static device_t
+device_t
 dmar_get_requester(device_t dev, uint16_t *rid)
 {
 	devclass_t pci_class;
@@ -254,6 +255,8 @@ dmar_get_dma_tag(device_t dev, device_t child)
 	dmar = dmar_find(child);
 	/* Not in scope of any DMAR ? */
 	if (dmar == NULL)
+		return (NULL);
+	if (!dmar->dma_enabled)
 		return (NULL);
 	dmar_quirks_pre_use(dmar);
 	dmar_instantiate_rmrr_ctxs(dmar);
@@ -459,6 +462,7 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
 	bus_size_t buflen1;
 	int error, idx, gas_flags, seg;
 
+	KASSERT(offset < DMAR_PAGE_SIZE, ("offset %d", offset));
 	if (segs == NULL)
 		segs = tag->segments;
 	ctx = tag->ctx;
@@ -473,7 +477,6 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
 		}
 		buflen1 = buflen > tag->common.maxsegsz ?
 		    tag->common.maxsegsz : buflen;
-		buflen -= buflen1;
 		size = round_page(offset + buflen1);
 
 		/*
@@ -484,7 +487,7 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
 		if (seg + 1 < tag->common.nsegments)
 			gas_flags |= DMAR_GM_CANSPLIT;
 
-		error = dmar_gas_map(ctx, &tag->common, size,
+		error = dmar_gas_map(ctx, &tag->common, size, offset,
 		    DMAR_MAP_ENTRY_READ | DMAR_MAP_ENTRY_WRITE,
 		    gas_flags, ma + idx, &entry);
 		if (error != 0)
@@ -503,6 +506,10 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
 			    (uintmax_t)size, (uintmax_t)entry->start,
 			    (uintmax_t)entry->end));
 		}
+		if (offset + buflen1 > size)
+			buflen1 = size - offset;
+		if (buflen1 > tag->common.maxsegsz)
+			buflen1 = tag->common.maxsegsz;
 
 		KASSERT(((entry->start + offset) & (tag->common.alignment - 1))
 		    == 0,
@@ -516,15 +523,16 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
 		    (uintmax_t)entry->start, (uintmax_t)entry->end,
 		    (uintmax_t)tag->common.lowaddr,
 		    (uintmax_t)tag->common.highaddr));
-		KASSERT(dmar_test_boundary(entry->start, entry->end -
-		    entry->start, tag->common.boundary),
+		KASSERT(dmar_test_boundary(entry->start + offset, buflen1,
+		    tag->common.boundary),
 		    ("boundary failed: ctx %p start 0x%jx end 0x%jx "
 		    "boundary 0x%jx", ctx, (uintmax_t)entry->start,
 		    (uintmax_t)entry->end, (uintmax_t)tag->common.boundary));
 		KASSERT(buflen1 <= tag->common.maxsegsz,
 		    ("segment too large: ctx %p start 0x%jx end 0x%jx "
-		    "maxsegsz 0x%jx", ctx, (uintmax_t)entry->start,
-		    (uintmax_t)entry->end, (uintmax_t)tag->common.maxsegsz));
+		    "buflen1 0x%jx maxsegsz 0x%jx", ctx,
+		    (uintmax_t)entry->start, (uintmax_t)entry->end,
+		    (uintmax_t)buflen1, (uintmax_t)tag->common.maxsegsz));
 
 		DMAR_CTX_LOCK(ctx);
 		TAILQ_INSERT_TAIL(&map->map_entries, entry, dmamap_link);
@@ -538,6 +546,7 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
 		idx += OFF_TO_IDX(trunc_page(offset + buflen1));
 		offset += buflen1;
 		offset &= DMAR_PAGE_MASK;
+		buflen -= buflen1;
 	}
 	if (error == 0)
 		*segp = seg;
@@ -852,6 +861,8 @@ int
 dmar_init_busdma(struct dmar_unit *unit)
 {
 
+	unit->dma_enabled = 1;
+	TUNABLE_INT_FETCH("hw.dmar.dma", &unit->dma_enabled);
 	TAILQ_INIT(&unit->delayed_maps);
 	TASK_INIT(&unit->dmamap_load_task, 0, dmar_bus_task_dmamap, unit);
 	unit->delayed_taskqueue = taskqueue_create("dmar", M_WAITOK,

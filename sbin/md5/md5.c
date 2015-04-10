@@ -42,11 +42,11 @@ __FBSDID("$FreeBSD$");
 #define TEST_BLOCK_COUNT 100000
 #define MDTESTCOUNT 8
 
-int qflag;
-int rflag;
-int sflag;
-unsigned char* checkAgainst;
-int	checksFailed;
+static int qflag;
+static int rflag;
+static int sflag;
+static char* checkAgainst;
+static int checksFailed;
 
 typedef void (DIGEST_Init)(void *);
 typedef void (DIGEST_Update)(void *, const unsigned char *, size_t);
@@ -70,11 +70,11 @@ typedef struct Algorithm_t {
 } Algorithm_t;
 
 static void MD5_Update(MD5_CTX *, const unsigned char *, size_t);
-static void MDString(Algorithm_t *, const char *);
-static void MDTimeTrial(Algorithm_t *);
-static void MDTestSuite(Algorithm_t *);
-static void MDFilter(Algorithm_t *, int);
-static void usage(Algorithm_t *);
+static void MDString(const Algorithm_t *, const char *);
+static void MDTimeTrial(const Algorithm_t *);
+static void MDTestSuite(const Algorithm_t *);
+static void MDFilter(const Algorithm_t *, int);
+static void usage(const Algorithm_t *);
 
 typedef union {
 	MD5_CTX md5;
@@ -91,7 +91,7 @@ typedef union {
 
 /* algorithm function table */
 
-struct Algorithm_t Algorithm[] = {
+static const struct Algorithm_t Algorithm[] = {
 	{ "md5", "MD5", &MD5TestOutput, (DIGEST_Init*)&MD5Init,
 		(DIGEST_Update*)&MD5_Update, (DIGEST_End*)&MD5End,
 		&MD5Data, &MD5File },
@@ -216,7 +216,7 @@ main(int argc, char *argv[])
  * Digests a string and prints the result.
  */
 static void
-MDString(Algorithm_t *alg, const char *string)
+MDString(const Algorithm_t *alg, const char *string)
 {
 	size_t len = strlen(string);
 	char buf[HEX_DIGEST_LENGTH];
@@ -240,7 +240,7 @@ MDString(Algorithm_t *alg, const char *string)
  * Measures the time to digest TEST_BLOCK_COUNT TEST_BLOCK_LEN-byte blocks.
  */
 static void
-MDTimeTrial(Algorithm_t *alg)
+MDTimeTrial(const Algorithm_t *alg)
 {
 	DIGEST_CTX context;
 	struct rusage before, after;
@@ -282,7 +282,7 @@ MDTimeTrial(Algorithm_t *alg)
  * Digests a reference suite of strings and prints the results.
  */
 
-const char *MDTestInput[MDTESTCOUNT] = {
+static const char *MDTestInput[MDTESTCOUNT] = {
 	"",
 	"a",
 	"abc",
@@ -350,7 +350,7 @@ const char *RIPEMD160_TestOutput[MDTESTCOUNT] = {
 };
 
 static void
-MDTestSuite(Algorithm_t *alg)
+MDTestSuite(const Algorithm_t *alg)
 {
 	int i;
 	char buffer[HEX_DIGEST_LENGTH];
@@ -370,7 +370,7 @@ MDTestSuite(Algorithm_t *alg)
  * Digests the standard input and prints the result.
  */
 static void
-MDFilter(Algorithm_t *alg, int tee)
+MDFilter(const Algorithm_t *alg, int tee)
 {
 	DIGEST_CTX context;
 	unsigned int len;
@@ -387,7 +387,7 @@ MDFilter(Algorithm_t *alg, int tee)
 }
 
 static void
-usage(Algorithm_t *alg)
+usage(const Algorithm_t *alg)
 {
 
 	fprintf(stderr, "usage: %s [-pqrtx] [-c string] [-s string] [files ...]\n", alg->progname);

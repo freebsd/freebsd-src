@@ -799,8 +799,13 @@ svm_handle_inst_emul(struct vmcb *vmcb, uint64_t gpa, struct vm_exit *vmexit)
 	KASSERT(error == 0, ("%s: vmcb_seg(CS) error %d", __func__, error));
 
 	switch(paging->cpu_mode) {
+	case CPU_MODE_REAL:
+		vmexit->u.inst_emul.cs_base = seg.base;
+		vmexit->u.inst_emul.cs_d = 0;
 	case CPU_MODE_PROTECTED:
 	case CPU_MODE_COMPATIBILITY:
+		vmexit->u.inst_emul.cs_base = seg.base;
+
 		/*
 		 * Section 4.8.1 of APM2, Default Operand Size or D bit.
 		 */
@@ -808,6 +813,7 @@ svm_handle_inst_emul(struct vmcb *vmcb, uint64_t gpa, struct vm_exit *vmexit)
 		    1 : 0;
 		break;
 	default:
+		vmexit->u.inst_emul.cs_base = 0;
 		vmexit->u.inst_emul.cs_d = 0;
 		break;	
 	}

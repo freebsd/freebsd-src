@@ -32,9 +32,9 @@ static int
 dtrace_ioctl_helper(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
     struct thread *td)
 {
-	int rval;
 	dof_helper_t *dhp = NULL;
 	dof_hdr_t *dof = NULL;
+	int rval;
 
 	switch (cmd) {
 	case DTRACEHIOC_ADDDOF:
@@ -51,7 +51,7 @@ dtrace_ioctl_helper(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		mutex_enter(&dtrace_lock);
 		if ((rval = dtrace_helper_slurp((dof_hdr_t *)dof, dhp)) != -1) {
 			if (dhp) {
-				dhp->gen = rval;
+				dhp->dofhp_gen = rval;
 				copyout(dhp, addr, sizeof(*dhp));
 			}
 			rval = 0;
@@ -59,10 +59,11 @@ dtrace_ioctl_helper(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 			rval = EINVAL;
 		}
 		mutex_exit(&dtrace_lock);
+
 		return (rval);
 	case DTRACEHIOC_REMOVE:
 		mutex_enter(&dtrace_lock);
-		rval = dtrace_helper_destroygen((int)*addr);
+		rval = dtrace_helper_destroygen(NULL, (int)*addr);
 		mutex_exit(&dtrace_lock);
 
 		return (rval);

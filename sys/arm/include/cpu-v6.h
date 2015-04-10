@@ -54,6 +54,15 @@ fname(void)								\
 	return(reg);							\
 }
 
+#define _R64F0(fname, aname)						\
+static __inline uint64_t						\
+fname(void)								\
+{									\
+	uint64_t reg;							\
+	__asm __volatile("mrrc\t" _FX(aname): "=r" (reg));		\
+	return(reg);							\
+}
+
 #define _WF0(fname, aname...)						\
 static __inline void							\
 fname(void)								\
@@ -66,6 +75,13 @@ static __inline void							\
 fname(register_t reg)							\
 {									\
 	__asm __volatile("mcr\t" _FX(aname):: "r" (reg));		\
+}
+
+#define _W64F1(fname, aname...)						\
+static __inline void							\
+fname(uint64_t reg)							\
+{									\
+	__asm __volatile("mcrr\t" _FX(aname):: "r" (reg));		\
 }
 
 /*
@@ -188,6 +204,37 @@ _RF0(cp15_tpidruro_get, CP15_TPIDRURO(%0))
 _WF1(cp15_tpidruro_set, CP15_TPIDRURO(%0))
 _RF0(cp15_tpidrpwr_get, CP15_TPIDRPRW(%0))
 _WF1(cp15_tpidrpwr_set, CP15_TPIDRPRW(%0))
+
+/* Generic Timer registers - only use when you know the hardware is available */
+_RF0(cp15_cntfrq_get, CP15_CNTFRQ(%0))
+_WF1(cp15_cntfrq_set, CP15_CNTFRQ(%0))
+_RF0(cp15_cntkctl_get, CP15_CNTKCTL(%0))
+_WF1(cp15_cntkctl_set, CP15_CNTKCTL(%0))
+_RF0(cp15_cntp_tval_get, CP15_CNTP_TVAL(%0))
+_WF1(cp15_cntp_tval_set, CP15_CNTP_TVAL(%0))
+_RF0(cp15_cntp_ctl_get, CP15_CNTP_CTL(%0))
+_WF1(cp15_cntp_ctl_set, CP15_CNTP_CTL(%0))
+_RF0(cp15_cntv_tval_get, CP15_CNTV_TVAL(%0))
+_WF1(cp15_cntv_tval_set, CP15_CNTV_TVAL(%0))
+_RF0(cp15_cntv_ctl_get, CP15_CNTV_CTL(%0))
+_WF1(cp15_cntv_ctl_set, CP15_CNTV_CTL(%0))
+_RF0(cp15_cnthctl_get, CP15_CNTHCTL(%0))
+_WF1(cp15_cnthctl_set, CP15_CNTHCTL(%0))
+_RF0(cp15_cnthp_tval_get, CP15_CNTHP_TVAL(%0))
+_WF1(cp15_cnthp_tval_set, CP15_CNTHP_TVAL(%0))
+_RF0(cp15_cnthp_ctl_get, CP15_CNTHP_CTL(%0))
+_WF1(cp15_cnthp_ctl_set, CP15_CNTHP_CTL(%0))
+
+_R64F0(cp15_cntpct_get, CP15_CNTPCT(%Q0, %R0))
+_R64F0(cp15_cntvct_get, CP15_CNTVCT(%Q0, %R0))
+_R64F0(cp15_cntp_cval_get, CP15_CNTP_CVAL(%Q0, %R0))
+_W64F1(cp15_cntp_cval_set, CP15_CNTP_CVAL(%Q0, %R0))
+_R64F0(cp15_cntv_cval_get, CP15_CNTV_CVAL(%Q0, %R0))
+_W64F1(cp15_cntv_cval_set, CP15_CNTV_CVAL(%Q0, %R0))
+_R64F0(cp15_cntvoff_get, CP15_CNTVOFF(%Q0, %R0))
+_W64F1(cp15_cntvoff_set, CP15_CNTVOFF(%Q0, %R0))
+_R64F0(cp15_cnthp_cval_get, CP15_CNTHP_CVAL(%Q0, %R0))
+_W64F1(cp15_cnthp_cval_set, CP15_CNTHP_CVAL(%Q0, %R0))
 
 #undef	_FX
 #undef	_RF0

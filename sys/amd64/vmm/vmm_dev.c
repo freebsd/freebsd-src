@@ -440,10 +440,10 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		CTASSERT(PROT_WRITE == VM_PROT_WRITE);
 		CTASSERT(PROT_EXEC == VM_PROT_EXECUTE);
 		gg = (struct vm_gla2gpa *)data;
-		error = vmm_gla2gpa(sc->vm, gg->vcpuid, &gg->paging, gg->gla,
+		error = vm_gla2gpa(sc->vm, gg->vcpuid, &gg->paging, gg->gla,
 		    gg->prot, &gg->gpa);
 		KASSERT(error == 0 || error == 1 || error == -1,
-		    ("%s: vmm_gla2gpa unknown error %d", __func__, error));
+		    ("%s: vm_gla2gpa unknown error %d", __func__, error));
 		if (error >= 0) {
 			/*
 			 * error = 0: the translation was successful

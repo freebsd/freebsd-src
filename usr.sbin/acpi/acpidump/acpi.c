@@ -168,12 +168,18 @@ acpi_print_gas(ACPI_GENERIC_ADDRESS *gas)
 {
 	switch(gas->SpaceId) {
 	case ACPI_GAS_MEMORY:
-		printf("0x%08lx:%u[%u] (Memory)", (u_long)gas->Address,
-		       gas->BitOffset, gas->BitWidth);
+		if (gas->BitWidth <= 32)
+			printf("0x%08x:%u[%u] (Memory)",
+			    (u_int)gas->Address, gas->BitOffset,
+			    gas->BitWidth);
+		else
+			printf("0x%016jx:%u[%u] (Memory)",
+			    (uintmax_t)gas->Address, gas->BitOffset,
+			    gas->BitWidth);
 		break;
 	case ACPI_GAS_IO:
-		printf("0x%02lx:%u[%u] (IO)", (u_long)gas->Address,
-		       gas->BitOffset, gas->BitWidth);
+		printf("0x%02x:%u[%u] (IO)", (u_int)gas->Address,
+		    gas->BitOffset, gas->BitWidth);
 		break;
 	case ACPI_GAS_PCI:
 		printf("%x:%x+0x%x (PCI)", (uint16_t)(gas->Address >> 32),
@@ -194,7 +200,7 @@ acpi_print_gas(ACPI_GENERIC_ADDRESS *gas)
 	case ACPI_GAS_DATATABLE:
 	case ACPI_GAS_FIXED:
 	default:
-		printf("0x%08lx (?)", (u_long)gas->Address);
+		printf("0x%016jx (?)", (uintmax_t)gas->Address);
 		break;
 	}
 }
@@ -831,7 +837,7 @@ acpi_handle_dmar_drhd(ACPI_DMAR_HARDWARE_UNIT *drhd)
 #undef PRINTFLAG
 
 	printf("\tSegment=%d\n", drhd->Segment);
-	printf("\tAddress=0x%0jx\n", (uintmax_t)drhd->Address);
+	printf("\tAddress=0x%016jx\n", (uintmax_t)drhd->Address);
 
 	remaining = drhd->Header.Length - sizeof(ACPI_DMAR_HARDWARE_UNIT);
 	if (remaining > 0)
@@ -856,8 +862,8 @@ acpi_handle_dmar_rmrr(ACPI_DMAR_RESERVED_MEMORY *rmrr)
 	printf("\tType=RMRR\n");
 	printf("\tLength=%d\n", rmrr->Header.Length);
 	printf("\tSegment=%d\n", rmrr->Segment);
-	printf("\tBaseAddress=0x%0jx\n", (uintmax_t)rmrr->BaseAddress);
-	printf("\tLimitAddress=0x%0jx\n", (uintmax_t)rmrr->EndAddress);
+	printf("\tBaseAddress=0x%016jx\n", (uintmax_t)rmrr->BaseAddress);
+	printf("\tLimitAddress=0x%016jx\n", (uintmax_t)rmrr->EndAddress);
 
 	remaining = rmrr->Header.Length - sizeof(ACPI_DMAR_RESERVED_MEMORY);
 	if (remaining > 0)
@@ -912,7 +918,7 @@ acpi_handle_dmar_rhsa(ACPI_DMAR_RHSA *rhsa)
 	printf("\n");
 	printf("\tType=RHSA\n");
 	printf("\tLength=%d\n", rhsa->Header.Length);
-	printf("\tBaseAddress=0x%0jx\n", (uintmax_t)rhsa->BaseAddress);
+	printf("\tBaseAddress=0x%016jx\n", (uintmax_t)rhsa->BaseAddress);
 	printf("\tProximityDomain=0x%08x\n", rhsa->ProximityDomain);
 }
 
@@ -1074,7 +1080,6 @@ acpi_print_rsdt(ACPI_TABLE_HEADER *rsdp)
 	ACPI_TABLE_RSDT *rsdt;
 	ACPI_TABLE_XSDT *xsdt;
 	int	i, entries;
-	u_long	addr;
 
 	rsdt = (ACPI_TABLE_RSDT *)rsdp;
 	xsdt = (ACPI_TABLE_XSDT *)rsdp;
@@ -1085,18 +1090,11 @@ acpi_print_rsdt(ACPI_TABLE_HEADER *rsdp)
 	for (i = 0; i < entries; i++) {
 		if (i > 0)
 			printf(", ");
-		switch (addr_size) {
-		case 4:
-			addr = le32toh(rsdt->TableOffsetEntry[i]);
-			break;
-		case 8:
-			addr = le64toh(xsdt->TableOffsetEntry[i]);
-			break;
-		default:
-			addr = 0;
-		}
-		assert(addr != 0);
-		printf("0x%08lx", addr);
+		if (addr_size == 4)
+			printf("0x%08x", le32toh(rsdt->TableOffsetEntry[i]));
+		else
+			printf("0x%016jx",
+			    (uintmax_t)le64toh(xsdt->TableOffsetEntry[i]));
 	}
 	printf(" }\n");
 	printf(END_COMMENT);
@@ -1212,8 +1210,8 @@ acpi_print_fadt(ACPI_TABLE_HEADER *sdp)
 		printf(", RESET_VALUE=%#x\n", fadt->ResetValue);
 	}
 	if (acpi_get_fadt_revision(fadt) > 1) {
-		printf("\tX_FACS=0x%08lx, ", (u_long)fadt->XFacs);
-		printf("X_DSDT=0x%08lx\n", (u_long)fadt->XDsdt);
+		printf("\tX_FACS=0x%016jx, ", (uintmax_t)fadt->XFacs);
+		printf("X_DSDT=0x%016jx\n", (uintmax_t)fadt->XDsdt);
 		printf("\tX_PM1a_EVT_BLK=");
 		acpi_print_gas(&fadt->XPm1aEventBlock);
 		if (fadt->XPm1bEventBlock.Address != 0) {
@@ -1268,10 +1266,9 @@ acpi_print_facs(ACPI_TABLE_FACS *facs)
 		printf("S4BIOS");
 	printf("\n");
 
-	if (facs->XFirmwareWakingVector != 0) {
-		printf("\tX_Firm_Wake_Vec=%08lx\n",
-		       (u_long)facs->XFirmwareWakingVector);
-	}
+	if (facs->XFirmwareWakingVector != 0)
+		printf("\tX_Firm_Wake_Vec=%016jx\n",
+		    (uintmax_t)facs->XFirmwareWakingVector);
 	printf("\tVersion=%u\n", facs->Version);
 
 	printf(END_COMMENT);
@@ -1321,8 +1318,8 @@ acpi_print_rsd_ptr(ACPI_TABLE_RSDP *rp)
 		printf("\tRSDT=0x%08x, cksum=%u\n", rp->RsdtPhysicalAddress,
 		    rp->Checksum);
 	} else {
-		printf("\tXSDT=0x%08lx, length=%u, cksum=%u\n",
-		    (u_long)rp->XsdtPhysicalAddress, rp->Length,
+		printf("\tXSDT=0x%016jx, length=%u, cksum=%u\n",
+		    (uintmax_t)rp->XsdtPhysicalAddress, rp->Length,
 		    rp->ExtendedChecksum);
 	}
 	printf(END_COMMENT);
@@ -1342,17 +1339,12 @@ acpi_handle_rsdt(ACPI_TABLE_HEADER *rsdp)
 	xsdt = (ACPI_TABLE_XSDT *)rsdp;
 	entries = (rsdp->Length - sizeof(ACPI_TABLE_HEADER)) / addr_size;
 	for (i = 0; i < entries; i++) {
-		switch (addr_size) {
-		case 4:
+		if (addr_size == 4)
 			addr = le32toh(rsdt->TableOffsetEntry[i]);
-			break;
-		case 8:
+		else
 			addr = le64toh(xsdt->TableOffsetEntry[i]);
-			break;
-		default:
-			assert((addr = 0));
-		}
-
+		if (addr == 0)
+			continue;
 		sdp = (ACPI_TABLE_HEADER *)acpi_map_sdt(addr);
 		if (acpi_checksum(sdp, sdp->Length)) {
 			warnx("RSDT entry %d (sig %.4s) is corrupt", i,
@@ -1547,16 +1539,12 @@ sdt_from_rsdt(ACPI_TABLE_HEADER *rsdp, const char *sig, ACPI_TABLE_HEADER *last)
 	xsdt = (ACPI_TABLE_XSDT *)rsdp;
 	entries = (rsdp->Length - sizeof(ACPI_TABLE_HEADER)) / addr_size;
 	for (i = 0; i < entries; i++) {
-		switch (addr_size) {
-		case 4:
+		if (addr_size == 4)
 			addr = le32toh(rsdt->TableOffsetEntry[i]);
-			break;
-		case 8:
+		else
 			addr = le64toh(xsdt->TableOffsetEntry[i]);
-			break;
-		default:
-			assert((addr = 0));
-		}
+		if (addr == 0)
+			continue;
 		sdt = (ACPI_TABLE_HEADER *)acpi_map_sdt(addr);
 		if (last != NULL) {
 			if (sdt == last)

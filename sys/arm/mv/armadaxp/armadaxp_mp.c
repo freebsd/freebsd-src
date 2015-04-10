@@ -36,6 +36,7 @@
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/pmap.h>
 
 #include <dev/fdt/fdt_common.h>
 
@@ -106,7 +107,7 @@ void
 platform_mp_start_ap(void)
 {
 	uint32_t reg, *src, *dst, cpu_num, div_val, cputype;
-	vm_offset_t smp_boot, pmu_boot_off;
+	vm_offset_t pmu_boot_off;
 	/*
 	 * Initialization procedure depends on core revision,
 	 * in this step CHIP ID is checked to choose proper procedure
@@ -114,22 +115,18 @@ platform_mp_start_ap(void)
 	cputype = cpufunc_id();
 	cputype &= CPU_ID_CPU_MASK;
 
-	smp_boot = kva_alloc(PAGE_SIZE);
-	pmap_kenter_nocache(smp_boot, 0xffff0000);
-	dst = (uint32_t *) smp_boot;
 	/*
 	 * Set the PA of CPU0 Boot Address Redirect register used in
 	 * mptramp according to the actual SoC registers' base address.
 	 */
 	pmu_boot_off = (CPU_PMU(0) - MV_BASE) + CPU_PMU_BOOT;
 	mptramp_pmu_boot = fdt_immr_pa + pmu_boot_off;
-
+	dst = pmap_mapdev(0xffff0000, PAGE_SIZE);
 	for (src = (uint32_t *)mptramp; src < (uint32_t *)mptramp_end;
 	    src++, dst++) {
 		*dst = *src;
 	}
-	kva_free(smp_boot, PAGE_SIZE);
-
+	pmap_unmapdev((vm_offset_t)dst, PAGE_SIZE);
 	if (cputype == CPU_ID_MV88SV584X_V7) {
 		/* Core rev A0 */
 		div_val = read_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL1);

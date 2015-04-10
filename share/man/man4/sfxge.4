@@ -120,6 +120,27 @@ The value must be greater than or equal to 0.
 The maximum number of allocated RSS channels for the Nth adapter.
 If set to 0 or unset, the number of channels is determined by the number
 of CPU cores.
+.It Va hw.sfxge.lro.table_size
+Size of the LRO hash table.
+Must be a power of 2.
+A larger table means we can accelerate a larger number of streams.
+.It Va hw.sfxge.lro.chain_max
+The maximum length of a hash chain.
+If chains get too long then the lookup time increases and may exceed
+the benefit of LRO.
+.It Va hw.sfxge.lro.idle_ticks
+The maximum time (in ticks) that a connection can be idle before it's LRO
+state is discarded.
+.It Va hw.sfxge.lro.slow_start_packets
+Number of packets with payload that must arrive in-order before a connection
+is eligible for LRO.
+The idea is we should avoid coalescing segments when the sender is in
+slow-start because reducing the ACK rate can damage performance.
+.It Va hw.sfxge.lro.loss_packets
+Number of packets with payload that must arrive in-order following loss
+before a connection is eligible for LRO.
+The idea is we should avoid coalescing segments when the sender is recovering
+from loss, because reducing the ACK rate can damage performance.
 .El
 .Sh SUPPORT
 For general information and support,

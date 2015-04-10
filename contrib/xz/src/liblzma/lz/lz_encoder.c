@@ -110,6 +110,12 @@ fill_window(lzma_coder *coder, const lzma_allocator *allocator,
 
 	coder->mf.write_pos = write_pos;
 
+	// Silence Valgrind. lzma_memcmplen() can read extra bytes
+	// and Valgrind will give warnings if those bytes are uninitialized
+	// because Valgrind cannot see that the values of the uninitialized
+	// bytes are eventually ignored.
+	memzero(coder->mf.buffer + write_pos, LZMA_MEMCMPLEN_EXTRA);
+
 	// If end of stream has been reached or flushing completed, we allow
 	// the encoder to process all the input (that is, read_pos is allowed
 	// to reach write_pos). Otherwise we keep keep_size_after bytes

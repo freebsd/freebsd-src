@@ -423,6 +423,23 @@ intr_describe(u_int vector, void *ih, const char *descr)
 	return (0);
 }
 
+void
+intr_reprogram(void)
+{
+	struct intsrc *is;
+	int v;
+
+	mtx_lock(&intr_table_lock);
+	for (v = 0; v < NUM_IO_INTS; v++) {
+		is = interrupt_sources[v];
+		if (is == NULL)
+			continue;
+		if (is->is_pic->pic_reprogram_pin != NULL)
+			is->is_pic->pic_reprogram_pin(is);
+	}
+	mtx_unlock(&intr_table_lock);
+}
+
 #ifdef DDB
 /*
  * Dump data about interrupt handlers

@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/kdb.h>
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>

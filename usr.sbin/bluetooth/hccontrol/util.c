@@ -30,6 +30,7 @@
  */
  
 #include <sys/param.h>
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <stdio.h>
 #include <string.h>

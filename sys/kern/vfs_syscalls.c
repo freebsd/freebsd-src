@@ -3294,6 +3294,7 @@ kern_utimensat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 {
 	struct nameidata nd;
 	struct timespec ts[2];
+	cap_rights_t rights;
 	int error, flags;
 
 	if (flag & ~AT_SYMLINK_NOFOLLOW)
@@ -3301,8 +3302,9 @@ kern_utimensat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 
 	if ((error = getutimens(tptr, tptrseg, ts, &flags)) != 0)
 		return (error);
-	NDINIT_AT(&nd, LOOKUP, ((flag & AT_SYMLINK_NOFOLLOW) ? NOFOLLOW :
-	    FOLLOW) | AUDITVNODE1, pathseg, path, fd, td);
+	NDINIT_ATRIGHTS(&nd, LOOKUP, ((flag & AT_SYMLINK_NOFOLLOW) ? NOFOLLOW :
+	    FOLLOW) | AUDITVNODE1, pathseg, path, fd,
+	    cap_rights_init(&rights, CAP_FUTIMES), td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	/*

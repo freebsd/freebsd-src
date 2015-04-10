@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/smp.h>
 #include <machine/pcb.h>
+#include <machine/pmap.h>
 #include <machine/pte.h>
 #include <machine/physmem.h>
 #include <machine/intr.h>
@@ -151,10 +152,20 @@ init_secondary(int cpu)
 	uint32_t loop_counter;
 	int start = 0, end = 0;
 
-	cpu_setup(NULL);
+#ifdef ARM_NEW_PMAP
+	pmap_set_tex();
+	reinit_mmu(pmap_kern_ttb, (1<<6) | (1<< 0), (1<<6) | (1<< 0));
+	cpu_setup();
+
+	/* Provide stack pointers for other processor modes. */
+	set_stackptrs(cpu);
+
+	enable_interrupts(PSR_A);
+#else /* ARM_NEW_PMAP */
+	cpu_setup();
 	setttb(pmap_pa);
 	cpu_tlb_flushID();
-
+#endif /* ARM_NEW_PMAP */
 	pc = &__pcpu[cpu];
 
 	/*
@@ -166,10 +177,10 @@ init_secondary(int cpu)
 
 	pcpu_init(pc, cpu, sizeof(struct pcpu));
 	dpcpu_init(dpcpu[cpu - 1], cpu);
-
+#ifndef ARM_NEW_PMAP
 	/* Provide stack pointers for other processor modes. */
 	set_stackptrs(cpu);
-
+#endif
 	/* Signal our startup to BSP */
 	atomic_add_rel_32(&mp_naps, 1);
 
@@ -298,6 +309,12 @@ ipi_handler(void *arg)
 			CTR1(KTR_SMP, "%s: IPI_TLB", __func__);
 			cpufuncs.cf_tlb_flushID();
 			break;
+#ifdef ARM_NEW_PMAP
+		case IPI_LAZYPMAP:
+			CTR1(KTR_SMP, "%s: IPI_LAZYPMAP", __func__);
+			pmap_lazyfix_action();
+			break;
+#endif
 		default:
 			panic("Unknown IPI 0x%0x on cpu %d", ipi, curcpu);
 		}

@@ -4106,7 +4106,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				ip->ip_off = htons(0);
 			}
 			/* FreeBSD has a function for ip_id's */
-			ip->ip_id = ip_newid();
+			ip_fillid(ip);
 
 			ip->ip_ttl = inp->ip_inp.inp.inp_ip_ttl;
 			ip->ip_len = htons(packet_length);
@@ -9286,8 +9286,6 @@ sctp_send_asconf_ack(struct sctp_tcb *stcb)
 			atomic_add_int(&chk->whoTo->ref_count, 1);
 		}
 		chk->data = m_ack;
-		chk->send_size = 0;
-		/* Get size */
 		chk->send_size = ack->len;
 		chk->sent = SCTP_DATAGRAM_UNSENT;
 		chk->snd_count = 0;
@@ -10411,32 +10409,17 @@ sctp_send_sack(struct sctp_tcb *stcb, int so_locked
 	a_chk->sent = SCTP_DATAGRAM_UNSENT;
 	a_chk->whoTo = NULL;
 
-	if ((asoc->numduptsns) ||
-	    (!(asoc->last_data_chunk_from->dest_state & SCTP_ADDR_REACHABLE))) {
+	if (!(asoc->last_data_chunk_from->dest_state & SCTP_ADDR_REACHABLE)) {
 		/*-
-		 * Ok, we have some duplicates or the destination for the
-		 * sack is unreachable, lets see if we can select an
-		 * alternate than asoc->last_data_chunk_from
+		 * Ok, the destination for the SACK is unreachable, lets see if
+		 * we can select an alternate to asoc->last_data_chunk_from
 		 */
-		if ((asoc->last_data_chunk_from->dest_state & SCTP_ADDR_REACHABLE) &&
-		    (asoc->used_alt_onsack > asoc->numnets)) {
-			/* We used an alt last time, don't this time */
-			a_chk->whoTo = NULL;
-		} else {
-			asoc->used_alt_onsack++;
-			a_chk->whoTo = sctp_find_alternate_net(stcb, asoc->last_data_chunk_from, 0);
-		}
+		a_chk->whoTo = sctp_find_alternate_net(stcb, asoc->last_data_chunk_from, 0);
 		if (a_chk->whoTo == NULL) {
 			/* Nope, no alternate */
 			a_chk->whoTo = asoc->last_data_chunk_from;
-			asoc->used_alt_onsack = 0;
 		}
 	} else {
-		/*
-		 * No duplicates so we use the last place we received data
-		 * from.
-		 */
-		asoc->used_alt_onsack = 0;
 		a_chk->whoTo = asoc->last_data_chunk_from;
 	}
 	if (a_chk->whoTo) {
@@ -10966,8 +10949,8 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 		ip->ip_v = IPVERSION;
 		ip->ip_hl = (sizeof(struct ip) >> 2);
 		ip->ip_tos = 0;
-		ip->ip_id = ip_newid();
 		ip->ip_off = 0;
+		ip_fillid(ip);
 		ip->ip_ttl = MODULE_GLOBAL(ip_defttl);
 		if (port) {
 			ip->ip_p = IPPROTO_UDP;

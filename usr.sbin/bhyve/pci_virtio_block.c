@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 /* Capability bits */
 #define	VTBLK_F_SEG_MAX		(1 << 2)	/* Maximum request segments */
 #define	VTBLK_F_BLK_SIZE	(1 << 6)	/* cfg block size valid */
+#define	VTBLK_F_FLUSH		(1 << 9)	/* Cache flush support */
 #define	VTBLK_F_TOPOLOGY	(1 << 10)	/* Optimal I/O alignment */
 
 /*
@@ -72,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #define VTBLK_S_HOSTCAPS      \
   ( VTBLK_F_SEG_MAX  |						    \
     VTBLK_F_BLK_SIZE |						    \
+    VTBLK_F_FLUSH    |						    \
     VTBLK_F_TOPOLOGY |						    \
     VIRTIO_RING_F_INDIRECT_DESC )	/* indirect descriptors */
 
@@ -367,8 +369,6 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_set_cfgdata16(pi, PCIR_VENDOR, VIRTIO_VENDOR);
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_STORAGE);
 	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, VIRTIO_TYPE_BLOCK);
-
-	pci_lintr_request(pi);
 
 	if (vi_intr_init(&sc->vbsc_vs, 1, fbsdrun_virtio_msix())) {
 		blockif_close(sc->bc);

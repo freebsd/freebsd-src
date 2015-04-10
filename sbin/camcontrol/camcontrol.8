@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 31, 2014
+.Dd March 19, 2015
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -238,6 +238,16 @@
 .Ic sleep
 .Op device id
 .Op generic args
+.Nm
+.Ic apm
+.Op device id
+.Op generic args
+.Op Fl l Ar level
+.Nm
+.Ic aam
+.Op device id
+.Op generic args
+.Op Fl l Ar level
 .Nm
 .Ic fwdownload
 .Op device id
@@ -1291,6 +1301,19 @@ Value 0 disables timer.
 Put ATA device into SLEEP state.
 Note that the only way get device out of
 this state may be reset.
+.It Ic apm
+It optional parameter
+.Pq Fl l
+specified, enables and sets advanced power management level, where
+1 -- minimum power, 127 -- maximum performance with standby,
+128 -- minimum power without standby, 254 -- maximum performance.
+If not specified -- APM is disabled.
+.It Ic aam
+It optional parameter
+.Pq Fl l
+specified, enables and sets automatic acoustic management level, where
+1 -- minimum noise, 254 -- maximum performance.
+If not specified -- AAM is disabled.
 .It Ic security
 Update or report security settings, using an ATA identify command (0xec).
 By default,
