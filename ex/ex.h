@@ -13,7 +13,7 @@
 
 typedef struct _excmdlist {		/* Ex command table structure. */
 	CHAR_T *name;			/* Command name, underlying function. */
-	int (*fn) __P((SCR *, EXCMD *));
+	int (*fn)(SCR *, EXCMD *);
 
 #define	E_ADDR1		0x00000001	/* One address. */
 #define	E_ADDR2		0x00000002	/* Two addresses. */
@@ -222,7 +222,7 @@ typedef enum {
 /* Ex address error types. */
 enum badaddr { A_COMBO, A_EMPTY, A_EOF, A_NOTSET, A_ZERO };
 
-/* Ex common tag error messages. */                                         
+/* Ex common tag error messages. */
 typedef enum {
 	TAG_BADLNO,		/* Tag line doesn't exist. */
 	TAG_EMPTY,		/* Tags stack is empty. */
