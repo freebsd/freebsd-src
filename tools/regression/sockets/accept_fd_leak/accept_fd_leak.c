@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
 
@@ -41,13 +41,16 @@
 #include <string.h>
 #include <unistd.h>
 
+#define	BIND_ATTEMPTS	10
 #define	LOOPS	500
+#define	NUM_ATTEMPTS	1000
 
-volatile int quit;
+static volatile int quit;
 
 static void
-child_died(int sig)
+child_died(int sig __unused)
 {
+
 	quit = 1;
 }
 
@@ -59,13 +62,12 @@ child_died(int sig)
  * briefly before beginning (not 100% reliable, but a good start).
  */
 int
-main(int argc, char *argv[])
+main(void)
 {
 	struct sockaddr_in sin;
 	socklen_t size;
 	pid_t child;
-	int fd1, fd2, fd3, i, s;
-	int status;
+	int fd1, fd2, fd3, i, listen_port, s, status;
 
 	printf("1..2\n");
 
@@ -85,10 +87,22 @@ main(int argc, char *argv[])
 	sin.sin_len = sizeof(sin);
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	sin.sin_port = htons(8080);
 
-	if (bind(s, (struct sockaddr *) &sin, sizeof(sin)) != 0)
-		errx(-1, "bind: %s", strerror(errno));
+	srandomdev();
+
+	for (i = 0; i < BIND_ATTEMPTS; i++) {
+		/* Pick a random unprivileged port 1025-65535 */
+		listen_port = MAX((int)random() % 65535, 1025);
+		sin.sin_port = htons(listen_port);
+		if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) == 0)
+			break;
+		warn("bind with %d failed", listen_port);
+		usleep(1000);
+	}
+	if (i >= BIND_ATTEMPTS) {
+		printf("Bail out!\n");
+		exit(1);
+	}
 
 	if (listen(s, -1) != 0)
 		errx(-1, "listen: %s", strerror(errno));
@@ -134,16 +148,20 @@ main(int argc, char *argv[])
 		errx(-1, "fork: %s", strerror(errno));
 
 	/*
-	 * Child process does 1000 connect's.
+	 * Child process does `NUM_ATTEMPTS` connects.
 	 */
 	if (child == 0) {
+		close(fd1);
+		close(fd2);
+		close(s);
+
 		bzero(&sin, sizeof(sin));
 		sin.sin_len = sizeof(sin);
 		sin.sin_family = AF_INET;
 		sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-		sin.sin_port = htons(8080);
+		sin.sin_port = htons(listen_port);
 
-		for (i = 0; i < 1000; i++) {
+		for (i = 0; i < NUM_ATTEMPTS; i++) {
 			s = socket(PF_INET, SOCK_STREAM, 0);
 			if (s == -1)
 				errx(-1, "socket: %s", strerror(errno));
@@ -167,9 +185,9 @@ main(int argc, char *argv[])
 		errx(-1, "ioctl(F_GETFL): %s", strerror(errno));
 	if (i & O_NONBLOCK)
 		errx(-1, "Failed to clear O_NONBLOCK (i=0x%x)\n", i);
-	
-	/* Do 1000 accept's with an invalid pointer. */
-	for (i = 0; !quit && i < 1000; i++) {
+
+	/* Do `NUM_ATTEMPTS` accepts with an invalid pointer. */
+	for (i = 0; !quit && i < NUM_ATTEMPTS; i++) {
 		size = sizeof(sin);
 		if (accept(s, (struct sockaddr *)(uintptr_t)(0x100),
 		    &size) != -1)
@@ -182,7 +200,7 @@ main(int argc, char *argv[])
 		errx(-1, "waitpid: %s", strerror(errno));
 	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
 		warnx("child process died");
-	
+
 	/*
 	 * Allocate a file descriptor and make sure it's fd2+2.  2 because
 	 * we allocate an fd for the socket.
