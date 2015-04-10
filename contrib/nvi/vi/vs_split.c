@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "$Id: vs_split.c,v 10.42 2001/06/25 15:19:38 skimo Exp $";
+static const char sccsid[] = "$Id: vs_split.c,v 10.43 2015/04/05 15:21:55 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -29,15 +29,15 @@ static const char sccsid[] = "$Id: vs_split.c,v 10.42 2001/06/25 15:19:38 skimo 
 
 typedef enum { HORIZ_FOLLOW, HORIZ_PRECEDE, VERT_FOLLOW, VERT_PRECEDE } jdir_t;
 
-static SCR	*vs_getbg __P((SCR *, char *));
-static void      vs_insert __P((SCR *sp, GS *gp));
-static int	 vs_join __P((SCR *, SCR **, jdir_t *));
+static SCR	*vs_getbg(SCR *, char *);
+static void      vs_insert(SCR *sp, GS *gp);
+static int	 vs_join(SCR *, SCR **, jdir_t *);
 
 /*
  * vs_split --
  *	Create a new screen, horizontally.
  *
- * PUBLIC: int vs_split __P((SCR *, SCR *, int));
+ * PUBLIC: int vs_split(SCR *, SCR *, int);
  */
 int
 vs_split(
@@ -194,7 +194,7 @@ vs_split(
 	 */
 	F_SET(new,
 	    SC_SCR_REFORMAT | SC_STATUS |
-	    F_ISSET(sp, SC_EX | SC_VI | SC_SCR_VI | SC_SCR_EX));
+	    F_ISSET(sp, SC_EX | SC_VI | SC_SCR_VI | SC_SCR_EX | SC_READONLY));
 	return (0);
 }
 
@@ -202,7 +202,7 @@ vs_split(
  * vs_vsplit --
  *	Create a new screen, vertically.
  *
- * PUBLIC: int vs_vsplit __P((SCR *, SCR *));
+ * PUBLIC: int vs_vsplit(SCR *, SCR *);
  */
 int
 vs_vsplit(SCR *sp, SCR *new)
@@ -285,7 +285,7 @@ vs_vsplit(SCR *sp, SCR *new)
 	 */
 	F_SET(new,
 	    SC_SCR_REFORMAT | SC_STATUS |
-	    F_ISSET(sp, SC_EX | SC_VI | SC_SCR_VI | SC_SCR_EX));
+	    F_ISSET(sp, SC_EX | SC_VI | SC_SCR_VI | SC_SCR_EX | SC_READONLY));
 	return (0);
 }
 
@@ -331,7 +331,7 @@ vs_insert(SCR *sp, GS *gp)
  *	Discard the screen, folding the real-estate into a related screen,
  *	if one exists, and return that screen.
  *
- * PUBLIC: int vs_discard __P((SCR *, SCR **));
+ * PUBLIC: int vs_discard(SCR *, SCR **);
  */
 int
 vs_discard(SCR *sp, SCR **spp)
@@ -608,7 +608,7 @@ vs_join(SCR *sp, SCR **listp, jdir_t *jdirp)
  * vs_fg --
  *	Background the current screen, and foreground a new one.
  *
- * PUBLIC: int vs_fg __P((SCR *, SCR **, CHAR_T *, int));
+ * PUBLIC: int vs_fg(SCR *, SCR **, CHAR_T *, int);
  */
 int
 vs_fg(SCR *sp, SCR **nspp, CHAR_T *name, int newscreen)
@@ -661,7 +661,7 @@ vs_fg(SCR *sp, SCR **nspp, CHAR_T *name, int newscreen)
  * vs_bg --
  *	Background the screen, and switch to the next one.
  *
- * PUBLIC: int vs_bg __P((SCR *));
+ * PUBLIC: int vs_bg(SCR *);
  */
 int
 vs_bg(SCR *sp)
@@ -699,7 +699,7 @@ vs_bg(SCR *sp)
  * vs_swap --
  *	Swap the current screen with a backgrounded one.
  *
- * PUBLIC: int vs_swap __P((SCR *, SCR **, char *));
+ * PUBLIC: int vs_swap(SCR *, SCR **, char *);
  */
 int
 vs_swap(SCR *sp, SCR **nspp, char *name)
@@ -794,7 +794,7 @@ vs_swap(SCR *sp, SCR **nspp, char *name)
  * vs_resize --
  *	Change the absolute size of the current screen.
  *
- * PUBLIC: int vs_resize __P((SCR *, long, adj_t));
+ * PUBLIC: int vs_resize(SCR *, long, adj_t);
  */
 int
 vs_resize(SCR *sp, long int count, adj_t adj)
