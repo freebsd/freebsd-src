@@ -170,7 +170,7 @@ main(void)
 				errx(-1, "connect: %s", strerror(errno));
 			close(s);
 		}
-		exit(0);
+		_exit(0);
 	}
 
 	/* Reset back to a blocking socket. */
