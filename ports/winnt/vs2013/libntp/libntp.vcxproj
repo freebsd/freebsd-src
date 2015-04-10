@@ -544,6 +544,7 @@
     <ClCompile Include="..\..\..\..\lib\isc\error.c" />
     <ClCompile Include="..\..\..\..\lib\isc\event.c" />
     <ClCompile Include="..\..\..\..\libntp\findconfig.c" />
+    <ClCompile Include="..\..\libntp\arc4wrap.c" />
     <ClCompile Include="..\..\libntp\getclock.c" />
     <ClCompile Include="..\..\..\..\libntp\getopt.c" />
     <ClCompile Include="..\..\..\..\libntp\hextoint.c" />

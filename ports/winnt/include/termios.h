@@ -205,7 +205,7 @@ struct termios
 #define cfsetispeed(dcb, spd)	(0)
 
 extern	int	closeserial	(int);
-extern	int	ioctl		(int, int, int *);
+extern	int	ioctl		(int, int, void *);
 extern	int	tcsetattr	(int, int, const struct termios *);
 extern	int	tcgetattr	(int, struct termios *);
 extern	int	tcflush		(int, int);

@@ -457,7 +457,7 @@ typedef unsigned long uintptr_t;
 #if defined(_MSC_VER) && _MSC_VER<1800
 # define MISSING_INTTYPES_H         1  /* not provided by VS2012 and earlier */
 # define MISSING_STDBOOL_H          1  /* not provided by VS2012 and earlier */
-# define MISSING_C99_STYLE_INIT     1  /* see [Bug 2728] */
+# define MISSING_C99_STRUCT_INIT    1  /* see [Bug 2728] */
 #else
 #if defined(_MSC_VER) && _MSC_VER>=1800
 /* VS2013 and above support C99 types */

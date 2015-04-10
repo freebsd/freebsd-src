@@ -193,6 +193,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\libntp\arc4wrap.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\..\lib\isc\assertions.c"
 				>
 			</File>
@@ -874,15 +878,15 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\..\lib\isc\win32\include\isc\time.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\..\lib\isc\win32\include\isc\time.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\include\sys\time.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\..\..\lib\isc\win32\include\isc\time.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\..\..\lib\isc\win32\include\isc\time.h"
 				>
 			</File>
 			<File

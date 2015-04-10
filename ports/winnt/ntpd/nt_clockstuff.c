@@ -824,6 +824,10 @@ init_winnt_time(void)
 			
 			msyslog(LOG_INFO, "MM timer resolution: %u..%u msec, set to %u msec",
 				tc.wPeriodMin, tc.wPeriodMax, wTimerRes );
+
+			/* Pause briefly before measuring the clock precision, see [Bug 2790] */
+			Sleep( 33 );
+
 		} else {
 			msyslog(LOG_ERR, "Multimedia timer unavailable");
 		}

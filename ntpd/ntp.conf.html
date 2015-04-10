@@ -33,7 +33,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#dir">(dir)</a>
 <p>This document describes the configuration file for the NTP Project's
 <code>ntpd</code> program.
 
-  <p>This document applies to version 4.2.8p1 of <code>ntp.conf</code>.
+  <p>This document applies to version 4.2.8p2 of <code>ntp.conf</code>.
 
   <div class="shortcontents">
 <h2>Short Contents</h2>
@@ -2463,7 +2463,7 @@ holds
 the names of all peer variables and the
 <code>clock_var_list</code>
 holds the names of the reference clock variables. 
-<br><dt><code>tinker</code> <code>[allan </code><kbd>allan</kbd><code> | dispersion </code><kbd>dispersion</kbd><code> | freq </code><kbd>freq</kbd><code> | huffpuff </code><kbd>huffpuff</kbd><code> | panic </code><kbd>panic</kbd><code> | step </code><kbd>srep</kbd><code> | stepout </code><kbd>stepout</kbd><code>]</code><dd>This command can be used to alter several system variables in
+<br><dt><code>tinker</code> <code>[allan </code><kbd>allan</kbd><code> | dispersion </code><kbd>dispersion</kbd><code> | freq </code><kbd>freq</kbd><code> | huffpuff </code><kbd>huffpuff</kbd><code> | panic </code><kbd>panic</kbd><code> | step </code><kbd>step</kbd><code> | stepback </code><kbd>stepback</kbd><code> | stepfwd </code><kbd>stepfwd</kbd><code> | stepout </code><kbd>stepout</kbd><code>]</code><dd>This command can be used to alter several system variables in
 very exceptional circumstances. 
 It should occur in the
 configuration file before any other configuration options. 
@@ -2513,6 +2513,17 @@ adjustments will never occur.
 Note: The kernel time discipline is
 disabled if the step threshold is set to zero or greater than the
 default. 
+<br><dt><code>stepback</code> <kbd>stepback</kbd><dd>The argument is the step threshold for the backward direction,
+which by default is 0.128 s. 
+It can
+be set to any positive number in seconds. 
+If both the forward and backward step thresholds are set to zero, step
+adjustments will never occur. 
+Note: The kernel time discipline is
+disabled if
+each direction of step threshold are either
+set to zero or greater than .5 second. 
+<br><dt><code>stepfwd</code> <kbd>stepfwd</kbd><dd>As for stepback, but for the forward direction. 
 <br><dt><code>stepout</code> <kbd>stepout</kbd><dd>The argument is the stepout timeout, which by default is 900 s. 
 It can
 be set to any positive number in seconds. 
