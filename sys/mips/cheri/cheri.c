@@ -102,6 +102,26 @@ static void	cheri_capability_set_user_stack(struct chericap *);
 static void	cheri_capability_set_user_pcc(struct chericap *);
 
 /*
+ * For now, all we do is declare what we support, as most initialisation took
+ * place in the MIPS machine-dependent assembly.  CHERI doesn't need a lot of
+ * actual boot-time initialisation.
+ */
+static void
+cheri_cpu_startup(void)
+{
+
+	printf(
+#ifdef CPU_CHERI128
+	    "CHERI: compiled for 128-bit capabilities\n"
+#else
+	    "CHERI: compiled for 256-bit capabilities\n"
+#endif
+	    );
+}
+SYSINIT(cheri_cpu_startup, SI_SUB_CPU, SI_ORDER_FIRST, cheri_cpu_startup,
+    NULL);
+
+/*
  * Given an existing more privileged capability (fromcrn), build a new
  * capability in tocrn with the contents of the passed flattened
  * representation.
