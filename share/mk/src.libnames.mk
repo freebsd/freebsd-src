@@ -259,6 +259,9 @@ LDADD_sqlite3+=	${LDADD_pthread}
 DPADD_atf_cxx+=	${DPADD_atf_c}
 LDADD_atf_cxx+=	${LDADD_atf_c}
 
+DPADD_fifolog+=	${DPADD_z}
+LDADD_fifolog+=	${LDADD_z}
+
 DPADD_ipf+=	${DPADD_kvm}
 LDADD_ipf+=	${LDADD_kvm}
 
