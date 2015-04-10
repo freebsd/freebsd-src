@@ -150,6 +150,8 @@ __FBSDID("$FreeBSD$");
 #define	BITS_PER_TAGS_PER_PAGE					\
 	((PAGE_SIZE / CHERICAP_SIZE) / (8 * sizeof(uint64_t)))
 
+CTASSERT((PAGE_SIZE / CHERICAP_SIZE) % (8 * sizeof(uint64_t)) == 0);
+
 struct swblock {
 	struct swblock	*swb_hnext;
 	vm_object_t	swb_object;
@@ -1464,9 +1466,6 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 			);
 
 #ifdef CPU_CHERI
-			/*
-			 * Save capability tags.
-			 */
 			swp_pager_meta_cheri_put_tags(mreq);
 #endif
 
@@ -1660,9 +1659,6 @@ swp_pager_async_iodone(struct buf *bp)
 			KASSERT(m->dirty == 0,
 			    ("swp_pager_async_iodone: page %p is dirty", m));
 #ifdef CPU_CHERI
-			/*
-			 * Restore capability tags.
-			 */
 			swp_pager_meta_cheri_get_tags(m);
 #endif
 
@@ -1996,30 +1992,40 @@ done:
  *	cheri_restore_tag:
  *
  *	Restore a single tag.
+ *
+ *	XXX: It would be nice to replace this with a more portable
+ *	CSETTAG().
  */
 static void
 cheri_restore_tag(void *cp)
 {
 	size_t base, len, offset, perm, sealed, type;
 
-	CHERI_CLC(11, 0, cp, 0);
-	CHERI_CGETBASE(base, 11);
-	CHERI_CGETLEN(len, 11);
-	CHERI_CGETOFFSET(offset, 11);
-	CHERI_CGETPERM(perm, 11);
-	CHERI_CGETSEALED(sealed, 11);
-	CHERI_CGETTYPE(type, 11);
-	CHERI_CMOVE(11, 0);
-	CHERI_CINCBASE(11, 11, base);
-	CHERI_CSETLEN(11, 11, len);
-	CHERI_CSETOFFSET(11, 11, offset);
-	CHERI_CANDPERM(11, 11, perm);
+	/*
+	 * XXX: This currently assumes precise capabilities, but the order
+	 * has been carefully selected (matching that in
+	 * sys/mips/cheri/cheri.c) to avoid loss of precision in
+	 * anticipation of the addition of a future CSetBounds instruction.
+	 */
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_C0, cp, 0);
+	CHERI_CGETBASE(base, CHERI_CR_CTEMP0);
+	CHERI_CGETLEN(len, CHERI_CR_CTEMP0);
+	CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
+	CHERI_CGETPERM(perm, CHERI_CR_CTEMP0);
+	CHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);
+	CHERI_CGETTYPE(type, CHERI_CR_CTEMP0);
+	CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_C0, 0);
+	CHERI_CINCBASE(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, base);
+	CHERI_CSETLEN(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, len);
+	CHERI_CANDPERM(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, perm);
+	CHERI_CINCOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, offset);
 	if (sealed) {
-		CHERI_CMOVE(12, 0);
-		CHERI_CSETOFFSET(12, 12, type);
-		CHERI_CSEAL(11, 11, 12);
+		CHERI_CMOVE(CHERI_CR_CTEMP1, CHERI_CR_C0);
+		CHERI_CSETOFFSET(CHERI_CR_CTEMP1, CHERI_CR_CTEMP1, type);
+		CHERI_CSEAL(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+		    CHERI_CR_CTEMP1);
 	}
-	CHERI_CSC(11, 0, cp, 0);
+	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_C0, cp, 0);
 }
 
 /*
@@ -2033,7 +2039,7 @@ swp_pager_meta_cheri_get_tags(vm_page_t page)
 {
 	size_t i, j, swidx;
 	uint64_t t;
-	struct chericap *scan;
+	struct chericap *scan, *p;
 	struct swblock *swap;
 
 	/* XXX: Uses details internal to swp_pager_hash. */
@@ -2043,14 +2049,13 @@ swp_pager_meta_cheri_get_tags(vm_page_t page)
 
 	for (i = swidx * BITS_PER_TAGS_PER_PAGE;
 	    i < (swidx + 1) * BITS_PER_TAGS_PER_PAGE; i++) {
-		/* XXX: Slow; no need to scan zeros.  */
-		t = swap->swb_tags[i];
-		for (j = 0; j < 8 * sizeof(uint64_t); j++) {
-			if (t & 1)
-				cheri_restore_tag(scan);
-			t >>= 1;
-			scan++;
+		p = scan;
+		for (t = swap->swb_tags[i]; t != 0; t >>= j) {
+			j = ffsl((long)t);
+			cheri_restore_tag(p + j - 1);
+			p += j;
 		}
+		scan += 8 * sizeof(uint64_t);
 	}
 }
 
@@ -2078,8 +2083,8 @@ swp_pager_meta_cheri_put_tags(vm_page_t page)
 		t = 0;
 		m = 1;
 		for (j = 0; j < 8 * sizeof(uint64_t); j++) {
-			CHERI_CLC(11, 0, scan, 0);
-			CHERI_CGETTAG(tag, 11);
+			CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_C0, scan, 0);
+			CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
 			if (tag != 0)
 				t |= m;
 			m <<= 1;

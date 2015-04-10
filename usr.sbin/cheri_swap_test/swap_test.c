@@ -247,7 +247,8 @@ dotest(int force_pageout)
 		LOOP_INNER;
 		p[i] = tmp;
 	}
-	printf("%zu sealed and %zu tagged out of %zu\n", nsealed, ntagged, i);
+	printf("%zu sealed and %zu tagged out of %zu\n",
+	    nsealed, ntagged, i);
 
 	if (force_pageout) {
 		printf("Paging out...\n");
@@ -280,8 +281,8 @@ dotest(int force_pageout)
 		}
 
 		LOOP_INNER;
-		
-		if (want_tag)
+
+		if (cheri_gettag(p[i]))
 			found_tags |= (1ULL << (uint64_t)(j - 1));
 
 		if (CNE(p[i], tmp)) {
