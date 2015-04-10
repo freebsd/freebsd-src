@@ -28,7 +28,7 @@ static const char sccsid[] = "$Id: ex_open.c,v 10.8 2001/06/25 15:19:17 skimo Ex
  *
  *	Switch to single line "open" mode.
  *
- * PUBLIC: int ex_open __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_open(SCR *, EXCMD *);
  */
 int
 ex_open(SCR *sp, EXCMD *cmdp)

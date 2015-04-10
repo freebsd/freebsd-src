@@ -32,12 +32,12 @@ static const char sccsid[] = "$Id: ex_subst.c,v 10.53 2011/12/21 20:40:35 zy Exp
 #define	SUB_FIRST	0x01		/* The 'r' flag isn't reasonable. */
 #define	SUB_MUSTSETR	0x02		/* The 'r' flag is required. */
 
-static int re_conv __P((SCR *, CHAR_T **, size_t *, int *));
-static int re_cscope_conv __P((SCR *, CHAR_T **, size_t *, int *));
-static int re_sub __P((SCR *,
-		CHAR_T *, CHAR_T **, size_t *, size_t *, regmatch_t [10]));
-static int re_tag_conv __P((SCR *, CHAR_T **, size_t *, int *));
-static int s __P((SCR *, EXCMD *, CHAR_T *, regex_t *, u_int));
+static int re_conv(SCR *, CHAR_T **, size_t *, int *);
+static int re_cscope_conv(SCR *, CHAR_T **, size_t *, int *);
+static int re_sub(SCR *,
+		CHAR_T *, CHAR_T **, size_t *, size_t *, regmatch_t [10]);
+static int re_tag_conv(SCR *, CHAR_T **, size_t *, int *);
+static int s(SCR *, EXCMD *, CHAR_T *, regex_t *, u_int);
 
 /*
  * ex_s --
@@ -45,7 +45,7 @@ static int s __P((SCR *, EXCMD *, CHAR_T *, regex_t *, u_int));
  *
  *	Substitute on lines matching a pattern.
  *
- * PUBLIC: int ex_s __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_s(SCR *, EXCMD *);
  */
 int
 ex_s(SCR *sp, EXCMD *cmdp)
@@ -250,7 +250,7 @@ tilde:				++p;
  *
  *	Substitute using the last substitute RE and replacement pattern.
  *
- * PUBLIC: int ex_subagain __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_subagain(SCR *, EXCMD *);
  */
 int
 ex_subagain(SCR *sp, EXCMD *cmdp)
@@ -273,7 +273,7 @@ ex_subagain(SCR *sp, EXCMD *cmdp)
  *
  *	Substitute using the last RE and last substitute replacement pattern.
  *
- * PUBLIC: int ex_subtilde __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_subtilde(SCR *, EXCMD *);
  */
 int
 ex_subtilde(SCR *sp, EXCMD *cmdp)
@@ -879,8 +879,8 @@ err:		rval = 1;
  * re_compile --
  *	Compile the RE.
  *
- * PUBLIC: int re_compile __P((SCR *,
- * PUBLIC:     CHAR_T *, size_t, CHAR_T **, size_t *, regex_t *, u_int));
+ * PUBLIC: int re_compile(SCR *,
+ * PUBLIC:     CHAR_T *, size_t, CHAR_T **, size_t *, regex_t *, u_int);
  */
 int
 re_compile(SCR *sp, CHAR_T *ptrn, size_t plen, CHAR_T **ptrnp, size_t *lenp, regex_t *rep, u_int flags)
@@ -1280,7 +1280,7 @@ re_cscope_conv(SCR *sp, CHAR_T **ptrnp, size_t *plenp, int *replacedp)
  * re_error --
  *	Report a regular expression error.
  *
- * PUBLIC: void re_error __P((SCR *, int, regex_t *));
+ * PUBLIC: void re_error(SCR *, int, regex_t *);
  */
 void
 re_error(SCR *sp, int errcode, regex_t *preg)
@@ -1396,7 +1396,7 @@ re_sub(
 			case '5': case '6': case '7': case '8': case '9':
 				no = *rp++ - '0';
 subzero:			if (match[no].rm_so == -1 ||
-			    	    match[no].rm_eo == -1)
+				    match[no].rm_eo == -1)
 					break;
 				mlen = match[no].rm_eo - match[no].rm_so;
 				for (t = ip + match[no].rm_so; mlen--; ++t)

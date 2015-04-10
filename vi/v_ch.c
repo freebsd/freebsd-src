@@ -25,14 +25,14 @@ static const char sccsid[] = "$Id: v_ch.c,v 10.11 2011/12/02 19:49:50 zy Exp $";
 #include "../common/common.h"
 #include "vi.h"
 
-static void notfound __P((SCR *, ARG_CHAR_T));
-static void noprev __P((SCR *));
+static void notfound(SCR *, ARG_CHAR_T);
+static void noprev(SCR *);
 
 /*
  * v_chrepeat -- [count];
  *	Repeat the last F, f, T or t search.
  *
- * PUBLIC: int v_chrepeat __P((SCR *, VICMD *));
+ * PUBLIC: int v_chrepeat(SCR *, VICMD *);
  */
 int
 v_chrepeat(SCR *sp, VICMD *vp)
@@ -61,7 +61,7 @@ v_chrepeat(SCR *sp, VICMD *vp)
  * v_chrrepeat -- [count],
  *	Repeat the last F, f, T or t search in the reverse direction.
  *
- * PUBLIC: int v_chrrepeat __P((SCR *, VICMD *));
+ * PUBLIC: int v_chrrepeat(SCR *, VICMD *);
  */
 int
 v_chrrepeat(SCR *sp, VICMD *vp)
@@ -100,7 +100,7 @@ v_chrrepeat(SCR *sp, VICMD *vp)
  *	Search forward in the line for the character before the next
  *	occurrence of the specified character.
  *
- * PUBLIC: int v_cht __P((SCR *, VICMD *));
+ * PUBLIC: int v_cht(SCR *, VICMD *);
  */
 int
 v_cht(SCR *sp, VICMD *vp)
@@ -131,7 +131,7 @@ v_cht(SCR *sp, VICMD *vp)
  *	Search forward in the line for the next occurrence of the
  *	specified character.
  *
- * PUBLIC: int v_chf __P((SCR *, VICMD *));
+ * PUBLIC: int v_chf(SCR *, VICMD *);
  */
 int
 v_chf(SCR *sp, VICMD *vp)
@@ -188,7 +188,7 @@ empty:		notfound(sp, key);
  *	Search backward in the line for the character after the next
  *	occurrence of the specified character.
  *
- * PUBLIC: int v_chT __P((SCR *, VICMD *));
+ * PUBLIC: int v_chT(SCR *, VICMD *);
  */
 int
 v_chT(SCR *sp, VICMD *vp)
@@ -213,7 +213,7 @@ v_chT(SCR *sp, VICMD *vp)
  *	Search backward in the line for the next occurrence of the
  *	specified character.
  *
- * PUBLIC: int v_chF __P((SCR *, VICMD *));
+ * PUBLIC: int v_chF(SCR *, VICMD *);
  */
 int
 v_chF(SCR *sp, VICMD *vp)
