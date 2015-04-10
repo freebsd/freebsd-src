@@ -48,6 +48,12 @@ static int	elf32_obj_exec(struct preloaded_file *amp);
 struct file_format i386_elf = { elf32_loadfile, elf32_exec };
 struct file_format i386_elf_obj = { elf32_obj_loadfile, elf32_obj_exec };
 
+struct file_format *file_formats[] = {
+	&i386_elf,
+	&i386_elf_obj,
+	NULL
+};
+
 /*
  * There is an ELF kernel and one or more ELF modules loaded.
  * We wish to start executing the kernel image, so make such

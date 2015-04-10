@@ -1,0 +1,11 @@
+# $FreeBSD$
+
+SRCS+=	start.S \
+	efimd.c \
+	elf32_freebsd.c \
+	exec.c \
+	reloc.c
+
+.PATH:	${.CURDIR}/../../i386/libi386
+SRCS+=	nullconsole.c \
+	comconsole.c
