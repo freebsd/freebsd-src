@@ -1141,7 +1141,7 @@ g_raid_start(struct bio *bp)
 		return;
 	}
 	mtx_lock(&sc->sc_queue_mtx);
-	bioq_disksort(&sc->sc_queue, bp);
+	bioq_insert_tail(&sc->sc_queue, bp);
 	mtx_unlock(&sc->sc_queue_mtx);
 	if (!dumping) {
 		G_RAID_DEBUG1(4, sc, "Waking up %p.", sc);
@@ -1353,7 +1353,7 @@ g_raid_unlock_range(struct g_raid_volume *vol, off_t off, off_t len)
 			    (intmax_t)(lp->l_offset+lp->l_length));
 			mtx_lock(&sc->sc_queue_mtx);
 			while ((bp = bioq_takefirst(&vol->v_locked)) != NULL)
-				bioq_disksort(&sc->sc_queue, bp);
+				bioq_insert_tail(&sc->sc_queue, bp);
 			mtx_unlock(&sc->sc_queue_mtx);
 			free(lp, M_RAID);
 			return (0);
@@ -1447,7 +1447,7 @@ g_raid_disk_done(struct bio *bp)
 	sd = bp->bio_caller1;
 	sc = sd->sd_softc;
 	mtx_lock(&sc->sc_queue_mtx);
-	bioq_disksort(&sc->sc_queue, bp);
+	bioq_insert_tail(&sc->sc_queue, bp);
 	mtx_unlock(&sc->sc_queue_mtx);
 	if (!dumping)
 		wakeup(sc);
