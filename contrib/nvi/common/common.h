@@ -23,8 +23,8 @@
  */
 typedef struct _cb		CB;
 typedef struct _csc		CSC;
-typedef struct _conv	    	CONV;
-typedef struct _conv_win    	CONVWIN;
+typedef struct _conv		CONV;
+typedef struct _conv_win	CONVWIN;
 typedef struct _event		EVENT;
 typedef struct _excmd		EXCMD;
 typedef struct _exf		EXF;

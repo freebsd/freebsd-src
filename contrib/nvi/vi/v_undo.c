@@ -31,7 +31,7 @@ static const char sccsid[] = "$Id: v_undo.c,v 10.6 2001/06/25 15:19:36 skimo Exp
  * v_Undo -- U
  *	Undo changes to this line.
  *
- * PUBLIC: int v_Undo __P((SCR *, VICMD *));
+ * PUBLIC: int v_Undo(SCR *, VICMD *);
  */
 int
 v_Undo(SCR *sp, VICMD *vp)
@@ -65,7 +65,7 @@ v_Undo(SCR *sp, VICMD *vp)
  * v_undo -- u
  *	Undo the last change.
  *
- * PUBLIC: int v_undo __P((SCR *, VICMD *));
+ * PUBLIC: int v_undo(SCR *, VICMD *);
  */
 int
 v_undo(SCR *sp, VICMD *vp)

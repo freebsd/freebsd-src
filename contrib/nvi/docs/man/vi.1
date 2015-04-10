@@ -13,7 +13,6 @@
 .\" redistribute it, contributions to the authors would be appreciated.
 .\"
 .\"     $Id: vi.1,v 9.0 2013/11/02 12:11:56 zy Exp $
-.\"     $FreeBSD$
 .\"
 .Dd November 2, 2013
 .Dt VI 1
@@ -198,7 +197,8 @@ and that is the
 .Aq escape
 key.
 .Pp
-Key names are written using less-than and greater-than signs, e.g.,
+In this manual,
+key names are denoted with \(la and \(ra, e.g.,
 .Aq escape
 means the
 .Dq escape
@@ -239,9 +239,9 @@ Move the cursor up one line.
 Move the cursor right one character.
 .It Aq Cm cursor-arrows
 The cursor arrow keys should work, too.
-.It Cm / Ns text
+.It Cm / Ns Ar text
 Search for the string
-.Dq text
+.Dq Ar text
 in the file,
 and move the cursor to its first character.
 .El
@@ -347,10 +347,10 @@ version of regular expressions:
 .It
 An empty regular expression is equivalent to the last regular expression used.
 .It
-.Sq \e\(la
+.Sq \e<
 matches the beginning of the word.
 .It
-.Sq \e\(ra
+.Sq \e>
 matches the end of the word.
 .It
 .Sq \(a~
@@ -364,7 +364,7 @@ for later use.
 .Nm vi
 buffers are named with a single character preceded by a double quote,
 for example
-.Pf \&" Ns Aq c ;
+.Cm \&" Ns Aq Ar c ;
 .Nm ex
 buffers are the same,
 but without the double quote.
@@ -414,7 +414,7 @@ make the destination buffer character-oriented.
 .Cm j ,
 .Aq Cm control-M ,
 .Cm k ,
-.Cm ' ,
+.Cm \(aq ,
 .Cm - ,
 .Cm G ,
 .Cm H ,
@@ -427,7 +427,7 @@ make the destination buffer line-oriented.
 .It
 .Cm $ ,
 .Cm % ,
-.Cm ` ,
+.Cm \` ,
 .Cm (\& ,
 .Cm )\& ,
 .Cm / ,
@@ -477,7 +477,7 @@ It is specified using a line-oriented motion.
 .It
 It is specified using one of the following motion commands:
 .Aq Cm control-A ,
-.Cm ` Ns Aq Cm character ,
+.Cm \` Ns Aq Ar character ,
 .Cm n ,
 .Cm N ,
 .Cm % ,
@@ -804,7 +804,7 @@ If
 .Ar count
 is specified, additionally move the cursor down
 .Ar count
-\- 1 lines.
+\(mi 1 lines.
 .Pp
 .It Cm %
 Move to the
@@ -816,26 +816,26 @@ the one found at the cursor position or the closest to the right of it.
 Repeat the previous substitution command on the current line.
 .Pp
 .It Xo
-.Cm ' Ns Aq Ar character
+.Cm \(aq Ns Aq Ar character
 .Xc
 .It Xo
-.Cm ` Ns Aq Ar character
+.Cm \` Ns Aq Ar character
 .Xc
 Return to the cursor position marked by the character
 .Ar character ,
 or, if
 .Ar character
 is
-.Sq '
+.Sq \(aq
 or
-.Sq ` ,
+.Sq \` ,
 to the position of the cursor before the last of the following commands:
 .Aq Cm control-A ,
 .Aq Cm control-T ,
 .Aq Cm control-] ,
 .Cm % ,
-.Cm ' ,
-.Cm ` ,
+.Cm \(aq ,
+.Cm \` ,
 .Cm (\& ,
 .Cm )\& ,
 .Cm / ,
@@ -1028,7 +1028,7 @@ If a
 .Ar count
 argument is given, the characters input are repeated
 .Ar count
-\- 1 times after input mode is exited.
+\(mi 1 times after input mode is exited.
 .Pp
 .It Xo
 .Op Ar count
@@ -1095,7 +1095,7 @@ is not specified.
 .Xc
 Move to the screen line
 .Ar count
-\- 1 lines below the top of the screen.
+\(mi 1 lines below the top of the screen.
 .Pp
 .It Xo
 .Op Ar count
@@ -1107,7 +1107,7 @@ If a
 argument is given,
 the characters input are repeated
 .Ar count
-\- 1 more times.
+\(mi 1 more times.
 .Pp
 .It Xo
 .Op Ar count
@@ -1126,7 +1126,7 @@ It is set to one whitespace character otherwise.
 .Xc
 Move to the screen line
 .Ar count
-\- 1 lines above the bottom of the screen.
+\(mi 1 lines above the bottom of the screen.
 .Pp
 .It Cm M
 Move to the screen line in the middle of the screen.
@@ -1141,7 +1141,7 @@ If a
 argument is given,
 the characters input are repeated
 .Ar count
-\- 1 more times.
+\(mi 1 more times.
 .Pp
 .It Xo
 .Op Ar buffer
@@ -1171,7 +1171,7 @@ If a
 argument is given,
 the characters input are repeated
 .Ar count
-\- 1 more times upon exit from insert mode.
+\(mi 1 more times upon exit from insert mode.
 .Pp
 .It Xo
 .Op Ar buffer
@@ -1268,7 +1268,7 @@ Move to the first non-blank character on the current line.
 .Xc
 Move down
 .Ar count
-\- 1 lines, to the first non-blank character.
+\(mi 1 lines, to the first non-blank character.
 .Pp
 .It Xo
 .Op Ar count
@@ -1372,7 +1372,7 @@ If a
 argument is given,
 the characters input are repeated
 .Ar count
-\- 1 more times.
+\(mi 1 more times.
 .Pp
 .It Xo
 .Op Ar buffer
@@ -2051,10 +2051,11 @@ If this is the entire
 pattern, the replacement part of the previous
 .Cm substitute
 command.
-.It Sq \e\(sh
+.It Sq \e Ns Ar \(sh
 Where
-.Sq \(sh
-is an integer from 1 to 9, the text matched by the #'th subexpression in
+.Sq Ar \(sh
+is an integer from 1 to 9, the text matched by the
+.Ar # Ns 'th subexpression in
 .Ar pattern .
 .It Sq \eL
 Causes the characters up to the end of the line of the next occurrence of
@@ -2265,7 +2266,7 @@ session.
 Back up files before they are overwritten.
 .It Cm beautify , bf Bq off
 Discard control characters.
-.It Cm cdpath Bq "environment variable CDPATH, or current directory"
+.It Cm cdpath Bo environment variable Ev CDPATH , or current directory Bc
 The directory paths used as path prefixes for the
 .Cm cd
 command.
@@ -2277,7 +2278,7 @@ Set the number of columns in the screen.
 .Nm vi
 only.
 Skip leading comments in shell, C and C++ language files.
-.It Cm directory , dir Bq "environment variable TMPDIR, or /tmp"
+.It Cm directory , dir Bo environment variable Ev TMPDIR , or Pa /tmp Bc
 The directory where temporary files are created.
 .It Cm edcompatible , ed Bq off
 Remember the values of the
@@ -2446,9 +2447,9 @@ and
 commands.
 .It Cm secure Bq off
 Turns off all access to external programs.
-.It Cm shell , sh Bq "environment variable SHELL, or /bin/sh"
+.It Cm shell , sh Bo environment variable Ev SHELL , or Pa /bin/sh Bc
 Select the shell used by the editor.
-.It Cm shellmeta Bq ~{[*?$`'\&"\e
+.It Cm shellmeta Bq ~{[*?$\`\(aq\&"\e
 Set the meta characters checked to determine if file name expansion
 is necessary.
 .It Cm shiftwidth , sw Bq 8
@@ -2481,7 +2482,7 @@ Set the number of significant characters in tag names.
 Set the list of tags files.
 .It Xo
 .Cm term , ttytype , tty
-.Bq "environment variable TERM"
+.Bq environment variable Ev TERM
 .Xc
 Set the terminal type.
 .It Cm terse Bq off
@@ -2522,7 +2523,7 @@ if the file has been modified since it was last written, before a
 command.
 .It Xo
 .Cm window , w , wi
-.Bq "environment variable LINES \- 1"
+.Bq environment variable Ev LINES No \(mi 1
 .Xc
 Set the window size for the screen.
 .It Cm windowname Bq off

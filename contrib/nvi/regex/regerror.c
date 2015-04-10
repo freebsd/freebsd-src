@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -59,7 +55,7 @@ extern "C" {
 #endif
 
 /* === regerror.c === */
-static char *regatoi __P((const regex_t *preg, char *localbuf));
+static char *regatoi(const regex_t *preg, char *localbuf);
 
 #ifdef __cplusplus
 }
@@ -117,10 +113,10 @@ static struct rerr {
 size_t
 regerror(int errcode, const regex_t *preg, char *errbuf, size_t errbuf_size)
 {
-	register struct rerr *r;
-	register size_t len;
-	register int target = errcode &~ REG_ITOA;
-	register const char *s;
+	struct rerr *r;
+	size_t len;
+	int target = errcode &~ REG_ITOA;
+	const char *s;
 	char convbuf[50];
 
 	if (errcode == REG_ATOI)
@@ -144,7 +140,7 @@ regerror(int errcode, const regex_t *preg, char *errbuf, size_t errbuf_size)
 
 	len = strlen(s) + 1;
 	if (errbuf_size > 0) {
-		(void) strlcpy(errbuf, s, errbuf_size);
+		strlcpy(errbuf, s, errbuf_size);
 	}
 
 	return(len);
@@ -152,15 +148,14 @@ regerror(int errcode, const regex_t *preg, char *errbuf, size_t errbuf_size)
 
 /*
  - regatoi - internal routine to implement REG_ATOI
- == static char *regatoi(const regex_t *preg, char *localbuf);
  */
 static char *
 regatoi(const regex_t *preg, char *localbuf)
 {
 #if 0 /* we don't seem to use this and it gives a warning. */
-	register struct rerr *r;
-	register size_t siz;
-	register char *p;
+	struct rerr *r;
+	size_t siz;
+	char *p;
 
 	for (r = rerrs; r->code != 0; r++)
 		if (strcmp(r->name, preg->re_endp) == 0)

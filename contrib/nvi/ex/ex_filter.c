@@ -27,7 +27,7 @@ static const char sccsid[] = "$Id: ex_filter.c,v 10.44 2003/11/05 17:11:54 skimo
 
 #include "../common/common.h"
 
-static int filter_ldisplay __P((SCR *, FILE *));
+static int filter_ldisplay(SCR *, FILE *);
 
 /*
  * ex_filter --
@@ -35,8 +35,8 @@ static int filter_ldisplay __P((SCR *, FILE *));
  *	replace the original text with the stdout/stderr output of
  *	the utility.
  *
- * PUBLIC: int ex_filter __P((SCR *, 
- * PUBLIC:    EXCMD *, MARK *, MARK *, MARK *, CHAR_T *, enum filtertype));
+ * PUBLIC: int ex_filter(SCR *, 
+ * PUBLIC:    EXCMD *, MARK *, MARK *, MARK *, CHAR_T *, enum filtertype);
  */
 int
 ex_filter(SCR *sp, EXCMD *cmdp, MARK *fm, MARK *tm, MARK *rp, CHAR_T *cmd, enum filtertype ftype)
