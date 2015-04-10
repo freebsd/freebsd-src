@@ -77,7 +77,8 @@ SRCS+=	common.c \
 .PATH: ${LZMADIR}/check
 SRCS+=	check.c \
 	crc32_table.c \
-	crc64_table.c
+	crc64_table.c \
+	sha256.c
 .if defined(MACHINE_ARCH) && ${MACHINE_ARCH} == "i386"
 SRCS+=	crc32_x86.S \
 	crc64_x86.S
@@ -145,7 +146,7 @@ CFLAGS+=	-DHAVE_CONFIG_H \
 		-I${LZMADIR}/simple \
 		-I${LZMADIR}/../common
 
-LIBADD+=	md pthread
+LIBADD+=	pthread
 
 VERSION_DEF=	${.CURDIR}/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map
