@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "loader_efi.h"
 
-#if defined(__amd64__) || defined(__i386__)
+#if defined(__amd64__)
 #include <machine/specialreg.h>
 #include "framebuffer.h"
 #endif
@@ -244,7 +244,7 @@ bi_load_efi_data(struct preloaded_file *kfp)
 	UINT32 mmver;
 	struct efi_map_header *efihdr;
 
-#if defined(__amd64__) || defined(__i386__)
+#if defined(__amd64__)
 	struct efi_fb efifb;
 
 	if (efi_find_framebuffer(&efifb) == 0) {
