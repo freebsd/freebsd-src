@@ -1,7 +1,7 @@
 /*
  *  EDIT THIS FILE WITH CAUTION  (ntpd-opts.h)
  *
- *  It has been AutoGen-ed  February  4, 2015 at 02:39:16 AM by AutoGen 5.18.5pre4
+ *  It has been AutoGen-ed  April  7, 2015 at 04:23:13 AM by AutoGen 5.18.5pre4
  *  From the definitions    ntpd-opts.def
  *  and the template file   options
  *
@@ -74,40 +74,41 @@ typedef enum {
     INDEX_OPT_SET_DEBUG_LEVEL   =  7,
     INDEX_OPT_DRIFTFILE         =  8,
     INDEX_OPT_PANICGATE         =  9,
-    INDEX_OPT_JAILDIR           = 10,
-    INDEX_OPT_INTERFACE         = 11,
-    INDEX_OPT_KEYFILE           = 12,
-    INDEX_OPT_LOGFILE           = 13,
-    INDEX_OPT_NOVIRTUALIPS      = 14,
-    INDEX_OPT_MODIFYMMTIMER     = 15,
-    INDEX_OPT_NOFORK            = 16,
-    INDEX_OPT_NICE              = 17,
-    INDEX_OPT_PIDFILE           = 18,
-    INDEX_OPT_PRIORITY          = 19,
-    INDEX_OPT_QUIT              = 20,
-    INDEX_OPT_PROPAGATIONDELAY  = 21,
-    INDEX_OPT_SAVECONFIGQUIT    = 22,
-    INDEX_OPT_STATSDIR          = 23,
-    INDEX_OPT_TRUSTEDKEY        = 24,
-    INDEX_OPT_USER              = 25,
-    INDEX_OPT_UPDATEINTERVAL    = 26,
-    INDEX_OPT_VAR               = 27,
-    INDEX_OPT_DVAR              = 28,
-    INDEX_OPT_WAIT_SYNC         = 29,
-    INDEX_OPT_SLEW              = 30,
-    INDEX_OPT_USEPCC            = 31,
-    INDEX_OPT_PCCFREQ           = 32,
-    INDEX_OPT_MDNS              = 33,
-    INDEX_OPT_VERSION           = 34,
-    INDEX_OPT_HELP              = 35,
-    INDEX_OPT_MORE_HELP         = 36
+    INDEX_OPT_FORCE_STEP_ONCE   = 10,
+    INDEX_OPT_JAILDIR           = 11,
+    INDEX_OPT_INTERFACE         = 12,
+    INDEX_OPT_KEYFILE           = 13,
+    INDEX_OPT_LOGFILE           = 14,
+    INDEX_OPT_NOVIRTUALIPS      = 15,
+    INDEX_OPT_MODIFYMMTIMER     = 16,
+    INDEX_OPT_NOFORK            = 17,
+    INDEX_OPT_NICE              = 18,
+    INDEX_OPT_PIDFILE           = 19,
+    INDEX_OPT_PRIORITY          = 20,
+    INDEX_OPT_QUIT              = 21,
+    INDEX_OPT_PROPAGATIONDELAY  = 22,
+    INDEX_OPT_SAVECONFIGQUIT    = 23,
+    INDEX_OPT_STATSDIR          = 24,
+    INDEX_OPT_TRUSTEDKEY        = 25,
+    INDEX_OPT_USER              = 26,
+    INDEX_OPT_UPDATEINTERVAL    = 27,
+    INDEX_OPT_VAR               = 28,
+    INDEX_OPT_DVAR              = 29,
+    INDEX_OPT_WAIT_SYNC         = 30,
+    INDEX_OPT_SLEW              = 31,
+    INDEX_OPT_USEPCC            = 32,
+    INDEX_OPT_PCCFREQ           = 33,
+    INDEX_OPT_MDNS              = 34,
+    INDEX_OPT_VERSION           = 35,
+    INDEX_OPT_HELP              = 36,
+    INDEX_OPT_MORE_HELP         = 37
 } teOptIndex;
 /** count of all options for ntpd */
-#define OPTION_CT    37
+#define OPTION_CT    38
 /** ntpd version */
-#define NTPD_VERSION       "4.2.8p1"
+#define NTPD_VERSION       "4.2.8p2"
 /** Full ntpd version text */
-#define NTPD_FULL_VERSION  "ntpd 4.2.8p1"
+#define NTPD_FULL_VERSION  "ntpd 4.2.8p2"
 
 /**
  *  Interface defines for all options.  Replace "n" with the UPPER_CASED
@@ -198,6 +199,10 @@ typedef enum {
 # ifdef    PANICGATE
 #  warning undefining PANICGATE due to option name conflict
 #  undef   PANICGATE
+# endif
+# ifdef    FORCE_STEP_ONCE
+#  warning undefining FORCE_STEP_ONCE due to option name conflict
+#  undef   FORCE_STEP_ONCE
 # endif
 # ifdef    JAILDIR
 #  warning undefining JAILDIR due to option name conflict
@@ -306,6 +311,7 @@ typedef enum {
 # undef SET_DEBUG_LEVEL
 # undef DRIFTFILE
 # undef PANICGATE
+# undef FORCE_STEP_ONCE
 # undef JAILDIR
 # undef INTERFACE
 # undef KEYFILE
@@ -348,6 +354,7 @@ typedef enum {
 #define OPT_VALUE_SET_DEBUG_LEVEL (DESC(SET_DEBUG_LEVEL).optArg.argInt)
 #define VALUE_OPT_DRIFTFILE      'f'
 #define VALUE_OPT_PANICGATE      'g'
+#define VALUE_OPT_FORCE_STEP_ONCE 'G'
 #define VALUE_OPT_JAILDIR        'i'
 #define VALUE_OPT_INTERFACE      'I'
 #define VALUE_OPT_KEYFILE        'k'

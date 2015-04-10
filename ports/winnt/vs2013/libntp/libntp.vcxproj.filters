@@ -317,6 +317,12 @@
     <ClCompile Include="..\..\..\..\libntp\vint64ops.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\ntp_crypto_rnd.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libntp\arc4wrap.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\sntp\libopts\ag-char-map.h">

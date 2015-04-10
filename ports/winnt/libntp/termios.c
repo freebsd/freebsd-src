@@ -468,12 +468,13 @@ int
 ioctl(
 	int fd,
 	int op,
-	int *pi
+	void *pv
 	)
 {
 	HANDLE	h;
 	int	result;
 	int	modctl;
+	int *pi = (int *) pv;
 	
 	h = (HANDLE)_get_osfhandle(fd);
 

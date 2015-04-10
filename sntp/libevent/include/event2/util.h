@@ -292,6 +292,62 @@ extern "C" {
 #define evutil_socket_t int
 #endif
 
+/**
+ * Structure to hold information about a monotonic timer
+ *
+ * Use this with evutil_configure_monotonic_time() and
+ * evutil_gettime_monotonic().
+ *
+ * This is an opaque structure; you can allocate one using
+ * evutil_monotonic_timer_new().
+ *
+ * @see evutil_monotonic_timer_new(), evutil_monotonic_timer_free(),
+ * evutil_configure_monotonic_time(), evutil_gettime_monotonic()
+ */
+struct evutil_monotonic_timer
+#ifdef EVENT_IN_DOXYGEN_
+{/*Empty body so that doxygen will generate documentation here.*/}
+#endif
+;
+
+#define EV_MONOT_PRECISE  1
+#define EV_MONOT_FALLBACK 2
+
+/** Allocate a new struct evutil_monotonic_timer for use with the
+ * evutil_configure_monotonic_time() and evutil_gettime_monotonic()
+ * functions.  You must configure the timer with
+ * evutil_configure_monotonic_time() before using it.
+ */
+EVENT2_EXPORT_SYMBOL
+struct evutil_monotonic_timer * evutil_monotonic_timer_new(void);
+
+/** Free a struct evutil_monotonic_timer that was allocated using
+ * evutil_monotonic_timer_new().
+ */
+EVENT2_EXPORT_SYMBOL
+void evutil_monotonic_timer_free(struct evutil_monotonic_timer *timer);
+
+/** Set up a struct evutil_monotonic_timer; flags can include
+ * EV_MONOT_PRECISE and EV_MONOT_FALLBACK.
+ */
+EVENT2_EXPORT_SYMBOL
+int evutil_configure_monotonic_time(struct evutil_monotonic_timer *timer,
+                                    int flags);
+
+/** Query the current monotonic time from a struct evutil_monotonic_timer
+ * previously configured with evutil_configure_monotonic_time().  Monotonic
+ * time is guaranteed never to run in reverse, but is not necessarily epoch-
+ * based, or relative to any other definite point.  Use it to make reliable
+ * measurements of elapsed time between events even when the system time
+ * may be changed.
+ *
+ * It is not safe to use this funtion on the same timer from multiple
+ * threads.
+ */
+EVENT2_EXPORT_SYMBOL
+int evutil_gettime_monotonic(struct evutil_monotonic_timer *timer,
+                             struct timeval *tp);
+
 /** Create two new sockets that are connected to each other.
 
     On Unix, this simply calls socketpair().  On Windows, it uses the
@@ -326,6 +382,19 @@ int evutil_make_socket_nonblocking(evutil_socket_t sock);
  */
 EVENT2_EXPORT_SYMBOL
 int evutil_make_listen_socket_reuseable(evutil_socket_t sock);
+
+/** Do platform-specific operations to make a listener port reusable.
+
+    Specifically, we want to make sure that multiple programs which also
+    set the same socket option will be able to bind, listen at the same time.
+
+    This is a feature available only to Linux 3.9+
+
+    @param sock The socket to make reusable
+    @return 0 on success, -1 on failure
+ */
+EVENT2_EXPORT_SYMBOL
+int evutil_make_listen_socket_reuseable_port(evutil_socket_t sock);
 
 /** Do platform-specific operations as needed to close a socket upon a
     successful execution of one of the exec*() functions.

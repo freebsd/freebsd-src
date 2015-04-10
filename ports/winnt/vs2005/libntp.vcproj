@@ -181,6 +181,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\libntp\arc4wrap.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\isc\assertions.c"
 				>
 			</File>
