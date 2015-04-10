@@ -26,7 +26,7 @@ static const char sccsid[] = "$Id: ex_equal.c,v 10.12 2001/06/25 15:19:15 skimo 
 /*
  * ex_equal -- :address =
  *
- * PUBLIC: int ex_equal __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_equal(SCR *, EXCMD *);
  */
 int
 ex_equal(SCR *sp, EXCMD *cmdp)

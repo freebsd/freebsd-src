@@ -30,18 +30,18 @@ static const char sccsid[] = "$Id: ex_argv.c,v 11.2 2012/10/09 23:00:29 zy Exp $
 
 #include "../common/common.h"
 
-static int argv_alloc __P((SCR *, size_t));
-static int argv_comp __P((const void *, const void *));
-static int argv_fexp __P((SCR *, EXCMD *,
-	CHAR_T *, size_t, CHAR_T *, size_t *, CHAR_T **, size_t *, int));
-static int argv_sexp __P((SCR *, CHAR_T **, size_t *, size_t *));
-static int argv_flt_user __P((SCR *, EXCMD *, CHAR_T *, size_t));
+static int argv_alloc(SCR *, size_t);
+static int argv_comp(const void *, const void *);
+static int argv_fexp(SCR *, EXCMD *,
+	CHAR_T *, size_t, CHAR_T *, size_t *, CHAR_T **, size_t *, int);
+static int argv_sexp(SCR *, CHAR_T **, size_t *, size_t *);
+static int argv_flt_user(SCR *, EXCMD *, CHAR_T *, size_t);
 
 /*
  * argv_init --
  *	Build  a prototype arguments list.
  *
- * PUBLIC: int argv_init __P((SCR *, EXCMD *));
+ * PUBLIC: int argv_init(SCR *, EXCMD *);
  */
 int
 argv_init(SCR *sp, EXCMD *excp)
@@ -61,7 +61,7 @@ argv_init(SCR *sp, EXCMD *excp)
  * argv_exp0 --
  *	Append a string to the argument list.
  *
- * PUBLIC: int argv_exp0 __P((SCR *, EXCMD *, CHAR_T *, size_t));
+ * PUBLIC: int argv_exp0(SCR *, EXCMD *, CHAR_T *, size_t);
  */
 int
 argv_exp0(SCR *sp, EXCMD *excp, CHAR_T *cmd, size_t cmdlen)
@@ -84,7 +84,7 @@ argv_exp0(SCR *sp, EXCMD *excp, CHAR_T *cmd, size_t cmdlen)
  *	Do file name expansion on a string, and append it to the
  *	argument list.
  *
- * PUBLIC: int argv_exp1 __P((SCR *, EXCMD *, CHAR_T *, size_t, int));
+ * PUBLIC: int argv_exp1(SCR *, EXCMD *, CHAR_T *, size_t, int);
  */
 int
 argv_exp1(SCR *sp, EXCMD *excp, CHAR_T *cmd, size_t cmdlen, int is_bang)
@@ -123,7 +123,7 @@ ret:	FREE_SPACEW(sp, bp, blen);
  *	Do file name and shell expansion on a string, and append it to
  *	the argument list.
  *
- * PUBLIC: int argv_exp2 __P((SCR *, EXCMD *, CHAR_T *, size_t));
+ * PUBLIC: int argv_exp2(SCR *, EXCMD *, CHAR_T *, size_t);
  */
 int
 argv_exp2(SCR *sp, EXCMD *excp, CHAR_T *cmd, size_t cmdlen)
@@ -209,7 +209,7 @@ err:	FREE_SPACEW(sp, bp, blen);
  *	Take a string and break it up into an argv, which is appended
  *	to the argument list.
  *
- * PUBLIC: int argv_exp3 __P((SCR *, EXCMD *, CHAR_T *, size_t));
+ * PUBLIC: int argv_exp3(SCR *, EXCMD *, CHAR_T *, size_t);
  */
 int
 argv_exp3(SCR *sp, EXCMD *excp, CHAR_T *cmd, size_t cmdlen)
@@ -277,7 +277,7 @@ argv_exp3(SCR *sp, EXCMD *excp, CHAR_T *cmd, size_t cmdlen)
  *	Filter the ex commands with a prefix, and append the results to
  *	the argument list.
  *
- * PUBLIC: int argv_flt_ex __P((SCR *, EXCMD *, CHAR_T *, size_t));
+ * PUBLIC: int argv_flt_ex(SCR *, EXCMD *, CHAR_T *, size_t);
  */
 int
 argv_flt_ex(SCR *sp, EXCMD *excp, CHAR_T *cmd, size_t cmdlen)
@@ -520,7 +520,7 @@ mem:			msgq(sp, M_SYSERR, NULL);
  * argv_free --
  *	Free up argument structures.
  *
- * PUBLIC: int argv_free __P((SCR *));
+ * PUBLIC: int argv_free(SCR *);
  */
 int
 argv_free(SCR *sp)
@@ -550,7 +550,7 @@ argv_free(SCR *sp)
  *	Find all file names matching the prefix and append them to the
  *	argument list.
  *
- * PUBLIC: int argv_flt_path __P((SCR *, EXCMD *, CHAR_T *, size_t));
+ * PUBLIC: int argv_flt_path(SCR *, EXCMD *, CHAR_T *, size_t);
  */
 int
 argv_flt_path(SCR *sp, EXCMD *excp, CHAR_T *path, size_t plen)
@@ -812,7 +812,7 @@ alloc_err:	rval = SEXP_ERR;
  * argv_esc --
  *	Escape a string into an ex and shell argument.
  *
- * PUBLIC: CHAR_T *argv_esc __P((SCR *, EXCMD *, CHAR_T *, size_t));
+ * PUBLIC: CHAR_T *argv_esc(SCR *, EXCMD *, CHAR_T *, size_t);
  */
 CHAR_T *
 argv_esc(SCR *sp, EXCMD *excp, CHAR_T *str, size_t len)
@@ -875,7 +875,7 @@ alloc_err:
  * argv_uesc --
  *	Unescape an escaped ex and shell argument.
  *
- * PUBLIC: CHAR_T *argv_uesc __P((SCR *, EXCMD *, CHAR_T *, size_t));
+ * PUBLIC: CHAR_T *argv_uesc(SCR *, EXCMD *, CHAR_T *, size_t);
  */
 CHAR_T *
 argv_uesc(SCR *sp, EXCMD *excp, CHAR_T *str, size_t len)
