@@ -1097,9 +1097,16 @@ nfscl_checksattr(struct vattr *vap, struct nfsvattr *nvap)
 	 * us to do a SETATTR RPC. FreeBSD servers store the verifier
 	 * in atime, but we can't really assume that all servers will
 	 * so we ensure that our SETATTR sets both atime and mtime.
+	 * Set the VA_UTIMES_NULL flag for this case, so that
+	 * the server's time will be used.  This is needed to
+	 * work around a bug in some Solaris servers, where
+	 * setting the time TOCLIENT causes the Setattr RPC
+	 * to return NFS_OK, but not set va_mode.
 	 */
-	if (vap->va_mtime.tv_sec == VNOVAL)
+	if (vap->va_mtime.tv_sec == VNOVAL) {
 		vfs_timestamp(&vap->va_mtime);
+		vap->va_vaflags |= VA_UTIMES_NULL;
+	}
 	if (vap->va_atime.tv_sec == VNOVAL)
 		vap->va_atime = vap->va_mtime;
 	return (1);
