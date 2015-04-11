@@ -170,8 +170,8 @@ PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
 		depend dependall distclean distribute exe \
 		html includes install installfiles installincludes lint \
 		obj objlink objs objwarn realall realdepend \
-		realinstall regress subdir-all subdir-depend subdir-install \
-		tags whereobj
+		realinstall subdir-all subdir-depend subdir-install \
+		tags test whereobj
 
 .PHONY: ${PHONY_NOTMAIN}
 .NOTMAIN: ${PHONY_NOTMAIN}

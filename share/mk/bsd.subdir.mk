@@ -26,7 +26,7 @@
 #
 #	afterinstall, all, all-man, beforeinstall, checkdpadd, clean,
 #	cleandepend, cleandir, cleanilinks depend, install, lint,
-#	maninstall, manlint, obj, objlink, realinstall, regress, tags
+#	maninstall, manlint, obj, objlink, realinstall, test, tags
 #
 
 .if !target(__<bsd.subdir.mk>__)
