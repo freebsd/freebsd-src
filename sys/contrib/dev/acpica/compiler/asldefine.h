@@ -48,7 +48,6 @@
 /*
  * Compiler versions and names
  */
-#define ASL_REVISION                ACPI_CA_VERSION
 #define ASL_COMPILER_NAME           "ASL+ Optimizing Compiler"
 #define AML_DISASSEMBLER_NAME       "AML/ASL+ Disassembler"
 #define ASL_INVOCATION_NAME         "iasl"
