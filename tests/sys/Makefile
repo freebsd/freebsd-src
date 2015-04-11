@@ -8,6 +8,7 @@ TESTS_SUBDIRS+=		kern
 TESTS_SUBDIRS+=		kqueue
 TESTS_SUBDIRS+=		netinet
 TESTS_SUBDIRS+=		opencrypto
+TESTS_SUBDIRS+=		posixshm
 TESTS_SUBDIRS+=		sockets
 TESTS_SUBDIRS+=		vfs
 

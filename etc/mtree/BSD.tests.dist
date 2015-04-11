@@ -364,6 +364,8 @@
         ..
         opencrypto
         ..
+        posixshm
+        ..
         pjdfstest
             chflags
             ..

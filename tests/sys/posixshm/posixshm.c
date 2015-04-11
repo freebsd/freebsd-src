@@ -619,7 +619,7 @@ test_object_resize(void)
 TEST(test_object_resize, "object resize");
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 
 	run_tests();
