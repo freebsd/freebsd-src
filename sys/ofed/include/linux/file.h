@@ -82,7 +82,7 @@ put_unused_fd(unsigned int fd)
 	 * installed, so no need to free the associated Linux file
 	 * structure.
 	 */
-	fdclose(curthread->td_proc->p_fd, file, fd, curthread);
+	fdclose(curthread, file, fd);
 
 	/* drop extra reference */
 	fdrop(file, curthread);

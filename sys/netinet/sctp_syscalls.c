@@ -187,7 +187,7 @@ noconnection:
 	 * out from under us.
 	 */
 	if (error != 0)
-		fdclose(td->td_proc->p_fd, nfp, fd, td);
+		fdclose(td, nfp, fd);
 
 	/*
 	 * Release explicitly held references before returning.

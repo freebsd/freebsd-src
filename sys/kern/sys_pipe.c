@@ -406,13 +406,11 @@ kern_pipe(struct thread *td, int fildes[2])
 int
 kern_pipe2(struct thread *td, int fildes[2], int flags)
 {
-	struct filedesc *fdp; 
 	struct file *rf, *wf;
 	struct pipe *rpipe, *wpipe;
 	struct pipepair *pp;
 	int fd, fflags, error;
 
-	fdp = td->td_proc->p_fd;
 	pipe_paircreate(td, &pp);
 	rpipe = &pp->pp_rpipe;
 	wpipe = &pp->pp_wpipe;
@@ -438,7 +436,7 @@ kern_pipe2(struct thread *td, int fildes[2], int flags)
 	finit(rf, fflags, DTYPE_PIPE, rpipe, &pipeops);
 	error = falloc(td, &wf, &fd, flags);
 	if (error) {
-		fdclose(fdp, rf, fildes[0], td);
+		fdclose(td, rf, fildes[0]);
 		fdrop(rf, td);
 		/* rpipe has been closed by fdrop(). */
 		pipeclose(wpipe);
