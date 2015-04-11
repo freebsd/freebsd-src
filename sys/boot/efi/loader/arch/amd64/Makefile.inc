@@ -8,3 +8,6 @@ SRCS+=	amd64_tramp.S \
 .PATH:	${.CURDIR}/../../i386/libi386
 SRCS+=	nullconsole.c \
 	comconsole.c
+
+CFLAGS+=	-fPIC
+LDFLAGS+=	-Wl,-znocombreloc
