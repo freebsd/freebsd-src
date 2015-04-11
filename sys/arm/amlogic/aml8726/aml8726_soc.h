@@ -32,8 +32,11 @@
 #define	AML_SOC_AOBUS_BASE_ADDR		0xc8100000
 #define	AML_SOC_CBUS_BASE_ADDR		0xc1100000
 
+void aml8726_identify_soc(void);
+
 /* cbus */
 #define	AML_SOC_HW_REV_REG		0x7d4c
+#define	AML_SOC_HW_REV_UNKNOWN		0xffffffff
 #define	AML_SOC_HW_REV_M3		0x15
 #define	AML_SOC_HW_REV_M6		0x16
 #define	AML_SOC_HW_REV_M6TV		0x17
@@ -42,6 +45,7 @@
 #define	AML_SOC_HW_REV_M8B		0x1b
 
 #define	AML_SOC_METAL_REV_REG		0x81a8
+#define	AML_SOC_METAL_REV_UNKNOWN	0xffffffff
 #define	AML_SOC_M8_METAL_REV_A		0x11111111
 #define	AML_SOC_M8_METAL_REV_M2_A	0x11111112
 #define	AML_SOC_M8_METAL_REV_B		0x11111113

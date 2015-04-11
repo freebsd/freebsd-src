@@ -107,6 +107,25 @@ static struct resource_spec aml8726_mmc_spec[] = {
 #define	PWR_OFF_FLAG(pol)		((pol) == 0 ? GPIO_PIN_HIGH :	\
     GPIO_PIN_LOW)
 
+static unsigned int
+aml8726_mmc_clk(phandle_t node)
+{
+	pcell_t prop;
+	ssize_t len;
+	phandle_t clk_node;
+
+	len = OF_getencprop(node, "clocks", &prop, sizeof(prop));
+	if ((len / sizeof(prop)) != 1 || prop == 0 ||
+	    (clk_node = OF_node_from_xref(prop)) == 0)
+		return (0);
+
+	len = OF_getencprop(clk_node, "clock-frequency", &prop, sizeof(prop));
+	if ((len / sizeof(prop)) != 1 || prop == 0)
+		return (0);
+
+	return ((unsigned int)prop);
+}
+
 static void
 aml8726_mmc_mapmem(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
@@ -502,14 +521,12 @@ aml8726_mmc_attach(device_t dev)
 
 	node = ofw_bus_get_node(dev);
 
-	len = OF_getencprop(OF_parent(node), "bus-frequency",
-	    prop, sizeof(prop));
-	if ((len / sizeof(prop[0])) != 1 || prop[0] == 0) {
-		device_printf(dev, "missing bus-frequency attribute in FDT\n");
+	sc->ref_freq = aml8726_mmc_clk(node);
+
+	if (sc->ref_freq == 0) {
+		device_printf(dev, "missing clocks attribute in FDT\n");
 		return (ENXIO);
 	}
-
-	sc->ref_freq = prop[0];
 
 	/*
 	 * The pins must be specified as part of the device in order
