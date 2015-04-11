@@ -72,7 +72,7 @@ ${SUBDIR:N.WAIT}: .PHONY .MAKE
 __wait= .WAIT
 .for __target in all all-man checkdpadd clean cleandepend cleandir \
     cleanilinks depend distribute lint maninstall manlint obj objlink \
-    realinstall regress tags ${SUBDIR_TARGETS}
+    realinstall regress tags test ${SUBDIR_TARGETS}
 .ifdef SUBDIR_PARALLEL
 __subdir_targets=
 .for __dir in ${SUBDIR}
