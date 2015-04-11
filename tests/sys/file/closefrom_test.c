@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <libutil.h>
+#include <paths.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -132,37 +133,37 @@ devnull(void)
 {
 	int fd;
 
-	fd = open("/dev/null", O_RDONLY);
+	fd = open(_PATH_DEVNULL, O_RDONLY);
 	if (fd < 0)
-		fail_err("open(\"/dev/null\")");
+		fail_err("open(\" "_PATH_DEVNULL" \")");
 	return (fd);
 }
 
 int
-main(int __unused argc, char __unused *argv[])
+main(void)
 {
 	struct shared_info *info;
 	pid_t pid;
-	int fd, i;
+	int fd, i, start;
 
 	printf("1..15\n");
 
 	/* We better start up with fd's 0, 1, and 2 open. */
-	fd = devnull();
-	if (fd != 3)
-		fail("open", "bad descriptor %d", fd);
+	start = devnull();
+	if (start == -1)
+		fail("open", "bad descriptor %d", start);
 	ok("open");
 
 	/* Make sure highest_fd() works. */
 	fd = highest_fd();
-	if (fd != 3)
-		fail("highest_fd", "bad descriptor %d", fd);
+	if (start != fd)
+		fail("highest_fd", "bad descriptor %d != %d", start, fd);
 	ok("highest_fd");
 
 	/* Try to use closefrom() for just closing fd 3. */
-	closefrom(3);
+	closefrom(start + 1);
 	fd = highest_fd();
-	if (fd != 2)
+	if (fd != start)
 		fail("closefrom", "highest fd %d", fd);
 	ok("closefrom");
 
@@ -170,7 +171,7 @@ main(int __unused argc, char __unused *argv[])
 	for (i = 0; i < 16; i++)
 		(void)devnull();
 	fd = highest_fd();
-	if (fd != 18)
+	if (fd != start + 16)
 		fail("open 16", "highest fd %d", fd);
 	ok("open 16");
 
@@ -269,6 +270,6 @@ main(int __unused argc, char __unused *argv[])
 	if (fd != 3)
 		fail("closefrom", "highest fd %d", fd);
 	ok("closefrom");
-	
+
 	return (0);
 }

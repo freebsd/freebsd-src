@@ -4,6 +4,7 @@
 
 TESTSDIR= ${TESTSBASE}/sys
 
+TESTS_SUBDIRS+=		file
 TESTS_SUBDIRS+=		kern
 TESTS_SUBDIRS+=		kqueue
 TESTS_SUBDIRS+=		mqueue
