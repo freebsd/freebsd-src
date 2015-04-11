@@ -191,7 +191,8 @@ enum {
 	SYNAPTICS_SYSCTL_VSCROLL_VER_AREA,
 	SYNAPTICS_SYSCTL_VSCROLL_MIN_DELTA,
 	SYNAPTICS_SYSCTL_VSCROLL_DIV_MIN,
-	SYNAPTICS_SYSCTL_VSCROLL_DIV_MAX
+	SYNAPTICS_SYSCTL_VSCROLL_DIV_MAX,
+	SYNAPTICS_SYSCTL_TOUCHPAD_OFF
 };
 
 typedef struct synapticsinfo {
@@ -229,6 +230,7 @@ typedef struct synapticsinfo {
 	int			 vscroll_min_delta;
 	int			 vscroll_div_min;
 	int			 vscroll_div_max;
+	int			 touchpad_off;
 } synapticsinfo_t;
 
 typedef struct synapticspacket {
@@ -477,6 +479,10 @@ static probefunc_t	enable_mmanplus;
 static probefunc_t	enable_synaptics;
 static probefunc_t	enable_trackpoint;
 static probefunc_t	enable_versapad;
+
+static void set_trackpoint_parameters(struct psm_softc *sc);
+static void synaptics_passthrough_on(struct psm_softc *sc);
+static void synaptics_passthrough_off(struct psm_softc *sc);
 
 static struct {
 	int		model;
@@ -885,6 +891,13 @@ doinitialize(struct psm_softc *sc, mousemode_t *mode)
 			    set_mouse_resolution(kbdc, mode->resolution);
 		set_mouse_scaling(kbdc, 1);
 		set_mouse_mode(kbdc);
+
+		/*
+		 * Trackpoint settings are lost on resume.
+		 * Restore them here.
+		 */
+		if (sc->tphw > 0)
+			set_trackpoint_parameters(sc);
 	}
 
 	/* Record sync on the next data packet we see. */
@@ -2725,6 +2738,12 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		goto SYNAPTICS_END;
 	}
 
+	if (sc->syninfo.touchpad_off) {
+		*x = *y = *z = 0;
+		ms->button = ms->obutton;
+		goto SYNAPTICS_END;
+	}
+
 	/* Button presses */
 	touchpad_buttons = 0;
 	if (pb->ipacket[0] & 0x01)
@@ -4131,6 +4150,10 @@ synaptics_sysctl(SYSCTL_HANDLER_ARGS)
 		if (arg < -6143 || arg > 6143)
 			return (EINVAL);
 		break;
+        case SYNAPTICS_SYSCTL_TOUCHPAD_OFF:
+		if (arg < 0 || arg > 1)
+			return (EINVAL);
+		break;
 	default:
 		return (EINVAL);
 	}
@@ -4458,6 +4481,15 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	    &sc->syninfo.vscroll_div_max, SYNAPTICS_SYSCTL_VSCROLL_DIV_MAX,
 	    synaptics_sysctl, "I",
 	    "Divisor for slow scrolling");
+
+	/* hw.psm.synaptics.touchpad_off. */
+	sc->syninfo.touchpad_off = 0;
+	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
+	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
+	    "touchpad_off", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
+	    &sc->syninfo.touchpad_off, SYNAPTICS_SYSCTL_TOUCHPAD_OFF,
+	    synaptics_sysctl, "I",
+	    "Turn off touchpad");
 }
 
 static int
@@ -4689,25 +4721,75 @@ enable_synaptics(KBDC kbdc, struct psm_softc *sc)
 	VLOG(3, (LOG_DEBUG, "synaptics: END init (%d buttons)\n", buttons));
 
 	if (sc != NULL) {
+		if (trackpoint_support && synhw.capPassthrough) {
+			synaptics_passthrough_on(sc);
+			enable_trackpoint(kbdc, sc);
+			synaptics_passthrough_off(sc);
+		}
 		/* Create sysctl tree. */
 		synaptics_sysctl_create_tree(sc);
-
 		sc->hw.buttons = buttons;
 	}
 
 	return (TRUE);
 }
 
+static void
+synaptics_passthrough_on(struct psm_softc *sc)
+{
+	int mode_byte;
+
+	mode_byte = 0xc1 | (1 << 5);
+	VLOG(2, (LOG_NOTICE, "psm: setting pass-through mode. %d\n",
+		mode_byte));
+	mouse_ext_command(sc->kbdc, mode_byte);
+
+	/* "Commit" the Set Mode Byte command sent above. */
+	set_mouse_sampling_rate(sc->kbdc, 20);
+}
+
+static void
+synaptics_passthrough_off(struct psm_softc *sc)
+{
+	int mode_byte;
+
+	mode_byte = 0xc1;
+	VLOG(2, (LOG_NOTICE, "psm: turning pass-through mode off.\n"));
+	set_mouse_scaling(sc->kbdc, 2);
+	set_mouse_scaling(sc->kbdc, 1);
+	mouse_ext_command(sc->kbdc, mode_byte);
+
+	/* "Commit" the Set Mode Byte command sent above. */
+	set_mouse_sampling_rate(sc->kbdc, 20);
+}
+
 /* IBM/Lenovo TrackPoint */
 static int
-trackpoint_command(KBDC kbdc, int cmd, int loc, int val)
+trackpoint_command(struct psm_softc *sc, int cmd, int loc, int val)
 {
 	const int seq[] = { 0xe2, cmd, loc, val };
 	int i;
 
-	for (i = 0; i < nitems(seq); i++)
-		if (send_aux_command(kbdc, seq[i]) != PSM_ACK)
+	if (sc->synhw.capPassthrough)
+		synaptics_passthrough_on(sc);
+
+	for (i = 0; i < nitems(seq); i++) {
+		if (sc->synhw.capPassthrough &&
+		    (seq[i] == 0xff || seq[i] == 0xe7))
+			if (send_aux_command(sc->kbdc, 0xe7) != PSM_ACK) {
+				synaptics_passthrough_off(sc);
+				return (EIO);
+			}
+		if (send_aux_command(sc->kbdc, seq[i]) != PSM_ACK) {
+			if (sc->synhw.capPassthrough)
+				synaptics_passthrough_off(sc);
 			return (EIO);
+		}
+	}
+
+	if (sc->synhw.capPassthrough)
+		synaptics_passthrough_off(sc);
+
 	return (0);
 }
 
@@ -4750,7 +4832,7 @@ trackpoint_sysctl(SYSCTL_HANDLER_ARGS)
 		return (0);
 	if (newval < 0 || newval > (tp[TPMASK] == 0 ? 255 : 1))
 		return (EINVAL);
-	error = trackpoint_command(sc->kbdc, tp[TPMASK] == 0 ? 0x81 : 0x47,
+	error = trackpoint_command(sc, tp[TPMASK] == 0 ? 0x81 : 0x47,
 	    tp[TPLOC], tp[TPMASK] == 0 ? newval : tp[TPMASK]);
 	if (error != 0)
 		return (error);
@@ -4773,7 +4855,7 @@ trackpoint_sysctl_create_tree(struct psm_softc *sc)
 	    0, "IBM/Lenovo TrackPoint");
 
 	/* hw.psm.trackpoint.sensitivity */
-	sc->tpinfo.sensitivity = 0x64;
+	sc->tpinfo.sensitivity = 0x80;
 	SYSCTL_ADD_PROC(&sc->tpinfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->tpinfo.sysctl_tree), OID_AUTO,
 	    "sensitivity", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
@@ -4881,6 +4963,25 @@ trackpoint_sysctl_create_tree(struct psm_softc *sc)
 	    "Skip backups from drags");
 }
 
+static void
+set_trackpoint_parameters(struct psm_softc *sc)
+{
+	trackpoint_command(sc, 0x81, 0x4a, sc->tpinfo.sensitivity);
+	trackpoint_command(sc, 0x81, 0x60, sc->tpinfo.uplateau);
+	trackpoint_command(sc, 0x81, 0x4d, sc->tpinfo.inertia);
+	trackpoint_command(sc, 0x81, 0x57, sc->tpinfo.reach);
+	trackpoint_command(sc, 0x81, 0x58, sc->tpinfo.draghys);
+	trackpoint_command(sc, 0x81, 0x59, sc->tpinfo.mindrag);
+	trackpoint_command(sc, 0x81, 0x5a, sc->tpinfo.upthresh);
+	trackpoint_command(sc, 0x81, 0x5c, sc->tpinfo.threshold);
+	trackpoint_command(sc, 0x81, 0x5d, sc->tpinfo.jenks);
+	trackpoint_command(sc, 0x81, 0x5e, sc->tpinfo.ztime);
+	if (sc->tpinfo.pts == 0x01)
+		trackpoint_command(sc, 0x47, 0x2c, 0x01);
+	if (sc->tpinfo.skipback == 0x01)
+		trackpoint_command(sc, 0x47, 0x2d, 0x08);
+}
+
 static int
 enable_trackpoint(KBDC kbdc, struct psm_softc *sc)
 {
@@ -4901,23 +5002,14 @@ enable_trackpoint(KBDC kbdc, struct psm_softc *sc)
 		/* Create sysctl tree. */
 		trackpoint_sysctl_create_tree(sc);
 
-		trackpoint_command(kbdc, 0x81, 0x4a, sc->tpinfo.sensitivity);
-		trackpoint_command(kbdc, 0x81, 0x4d, sc->tpinfo.inertia);
-		trackpoint_command(kbdc, 0x81, 0x60, sc->tpinfo.uplateau);
-		trackpoint_command(kbdc, 0x81, 0x57, sc->tpinfo.reach);
-		trackpoint_command(kbdc, 0x81, 0x58, sc->tpinfo.draghys);
-		trackpoint_command(kbdc, 0x81, 0x59, sc->tpinfo.mindrag);
-		trackpoint_command(kbdc, 0x81, 0x5a, sc->tpinfo.upthresh);
-		trackpoint_command(kbdc, 0x81, 0x5c, sc->tpinfo.threshold);
-		trackpoint_command(kbdc, 0x81, 0x5d, sc->tpinfo.jenks);
-		trackpoint_command(kbdc, 0x81, 0x5e, sc->tpinfo.ztime);
-		if (sc->tpinfo.pts == 0x01)
-			trackpoint_command(kbdc, 0x47, 0x2c, 0x01);
-		if (sc->tpinfo.skipback == 0x01)
-			trackpoint_command(kbdc, 0x47, 0x2d, 0x08);
-
-		sc->hw.hwid = id;
-		sc->hw.buttons = 3;
+		/*
+		 * Don't overwrite hwid and buttons when we are
+		 * a guest device.
+		 */
+		if (!sc->synhw.capPassthrough) {
+			sc->hw.hwid = id;
+			sc->hw.buttons = 3;
+		}
 	}
 
 	return (TRUE);
