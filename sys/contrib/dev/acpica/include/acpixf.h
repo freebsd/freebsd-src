@@ -46,7 +46,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20150204
+#define ACPI_CA_VERSION                 0x20150410
 
 #include <contrib/dev/acpica/include/acconfig.h>
 #include <contrib/dev/acpica/include/actypes.h>
@@ -503,7 +503,7 @@ AcpiReallocateRootTable (
 ACPI_EXTERNAL_RETURN_STATUS (
 ACPI_STATUS
 AcpiFindRootPointer (
-    ACPI_SIZE               *RsdpAddress))
+    ACPI_PHYSICAL_ADDRESS   *RsdpAddress))
 
 ACPI_EXTERNAL_RETURN_STATUS (
 ACPI_STATUS
