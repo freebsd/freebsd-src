@@ -356,6 +356,8 @@
     sys
         kern
         ..
+        kqueue
+        ..
         netinet
         ..
         opencrypto
