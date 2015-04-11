@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/fdt/fdt_common.h>
 
+#include <arm/amlogic/aml8726/aml8726_soc.h>
 #include <arm/amlogic/aml8726/aml8726_clkmsr.h>
 
 #if defined(SOCDEV_PA) && defined(SOCDEV_VA)
@@ -55,12 +56,12 @@ vm_offset_t aml8726_aobus_kva_base;
 static void
 aml8726_fixup_busfreq()
 {
-	phandle_t node, child;
+	phandle_t node;
 	pcell_t freq, prop;
 	ssize_t len;
 
 	/*
-	 * Set the bus-frequency for any top level SoC simple-bus which
+	 * Set the bus-frequency for the SoC simple-bus if it
 	 * needs updating (meaning the current frequency is zero).
 	 */
 
@@ -74,16 +75,6 @@ aml8726_fixup_busfreq()
 	len = OF_getencprop(node, "bus-frequency", &prop, sizeof(prop));
 	if ((len / sizeof(prop)) == 1 && prop == 0)
 		OF_setprop(node, "bus-frequency", (void *)&freq, sizeof(freq));
-
-	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
-		if (fdt_is_compatible_strict(child, "simple-bus")) {
-			len = OF_getencprop(child, "bus-frequency",
-			    &prop, sizeof(prop));
-			if ((len / sizeof(prop)) == 1 && prop == 0)
-				OF_setprop(child, "bus-frequency",
-				    (void *)&freq, sizeof(freq));
-		}
-	}
 }
 
 vm_offset_t
@@ -114,6 +105,13 @@ platform_gpio_init(void)
 	 */
 	aml8726_aobus_kva_base =
 	    (vm_offset_t)arm_devmap_ptov(0xc8100000, 0x100000);
+
+	/*
+	 * The hardware mux used by clkmsr is unique to the SoC (though
+	 * currently clk81 is at a fixed location, however that might
+	 * change in the future).
+	 */
+	aml8726_identify_soc();
 
 	/*
 	 * This FDT fixup should arguably be called through fdt_fixup_table,
@@ -179,13 +177,13 @@ fdt_pic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
 	 * multi core chips also have a GIC.
 	 */
 #ifdef SMP
-	if (!fdt_is_compatible_strict(node, "arm,gic"))
+	if (!fdt_is_compatible_strict(node, "arm,cortex-a9-gic"))
 #else
 	if (!fdt_is_compatible_strict(node, "amlogic,aml8726-pic"))
 #endif
 		return (ENXIO);
 
-	*interrupt = fdt32_to_cpu(intr[0]);
+	*interrupt = fdt32_to_cpu(intr[1]);
 	*trig = INTR_TRIGGER_EDGE;
 	*pol = INTR_POLARITY_HIGH;
 
