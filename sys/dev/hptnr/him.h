@@ -197,7 +197,8 @@ IDENTIFY_DATA, *PIDENTIFY_DATA;
 typedef struct _HIM_DEVICE_CONFIG
 {
 	HPT_U64 capacity;
-
+	HPT_U32 logical_sector_size;
+	
 	DEVICE_FLAGS flags;
 
 	HPT_U8  path_id;
