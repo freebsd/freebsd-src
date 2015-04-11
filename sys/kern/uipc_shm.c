@@ -718,7 +718,7 @@ sys_shm_open(struct thread *td, struct shm_open_args *uap)
 	if (uap->path == SHM_ANON) {
 		/* A read-only anonymous object is pointless. */
 		if ((uap->flags & O_ACCMODE) == O_RDONLY) {
-			fdclose(fdp, fp, fd, td);
+			fdclose(td, fp, fd);
 			fdrop(fp, td);
 			return (EINVAL);
 		}
@@ -734,7 +734,7 @@ sys_shm_open(struct thread *td, struct shm_open_args *uap)
 		if (error == 0 && path[0] != '/')
 			error = EINVAL;
 		if (error) {
-			fdclose(fdp, fp, fd, td);
+			fdclose(td, fp, fd);
 			fdrop(fp, td);
 			free(path, M_SHMFD);
 			return (error);
@@ -800,7 +800,7 @@ sys_shm_open(struct thread *td, struct shm_open_args *uap)
 		sx_xunlock(&shm_dict_lock);
 
 		if (error) {
-			fdclose(fdp, fp, fd, td);
+			fdclose(td, fp, fd);
 			fdrop(fp, td);
 			return (error);
 		}

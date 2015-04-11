@@ -216,7 +216,7 @@ sys_socket(td, uap)
 	error = socreate(uap->domain, &so, type, uap->protocol,
 	    td->td_ucred, td);
 	if (error != 0) {
-		fdclose(td->td_proc->p_fd, fp, fd, td);
+		fdclose(td, fp, fd);
 	} else {
 		finit(fp, FREAD | FWRITE | fflag, DTYPE_SOCKET, so, &socketops);
 		if ((fflag & FNONBLOCK) != 0)
@@ -373,7 +373,7 @@ accept1(td, s, uname, anamelen, flags)
 		error = copyout(&namelen, anamelen,
 		    sizeof(namelen));
 	if (error != 0)
-		fdclose(td->td_proc->p_fd, fp, td->td_retval[0], td);
+		fdclose(td, fp, td->td_retval[0]);
 	fdrop(fp, td);
 	free(name, M_SONAME);
 	return (error);
@@ -520,7 +520,7 @@ noconnection:
 	 * out from under us.
 	 */
 	if (error != 0)
-		fdclose(fdp, nfp, fd, td);
+		fdclose(td, nfp, fd);
 
 	/*
 	 * Release explicitly held references before returning.  We return
@@ -683,7 +683,6 @@ int
 kern_socketpair(struct thread *td, int domain, int type, int protocol,
     int *rsv)
 {
-	struct filedesc *fdp = td->td_proc->p_fd;
 	struct file *fp1, *fp2;
 	struct socket *so1, *so2;
 	int fd, error, oflag, fflag;
@@ -747,10 +746,10 @@ kern_socketpair(struct thread *td, int domain, int type, int protocol,
 	fdrop(fp2, td);
 	return (0);
 free4:
-	fdclose(fdp, fp2, rsv[1], td);
+	fdclose(td, fp2, rsv[1]);
 	fdrop(fp2, td);
 free3:
-	fdclose(fdp, fp1, rsv[0], td);
+	fdclose(td, fp1, rsv[0]);
 	fdrop(fp1, td);
 free2:
 	if (so2 != NULL)
