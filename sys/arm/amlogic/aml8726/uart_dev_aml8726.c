@@ -724,7 +724,8 @@ struct uart_class uart_aml8726_class = {
 	sizeof(struct uart_softc),
 	.uc_ops = &aml8726_uart_ops,
 	.uc_range = 24,
-	.uc_rclk = 0
+	.uc_rclk = 0,
+	.uc_rshift = 0
 };
 
 static struct ofw_compat_data compat_data[] = {
