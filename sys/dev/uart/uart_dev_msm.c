@@ -566,6 +566,7 @@ static struct uart_class uart_msm_class = {
 	.uc_ops = &uart_msm_ops,
 	.uc_range = 8,
 	.uc_rclk = DEF_CLK,
+	.uc_rshift = 0
 };
 
 static struct ofw_compat_data compat_data[] = {

@@ -276,7 +276,8 @@ static struct uart_class uart_vybrid_class = {
 	sizeof(struct vf_uart_softc),
 	.uc_ops = &uart_vybrid_ops,
 	.uc_range = 0x100,
-	.uc_rclk = 24000000 /* TODO: get value from CCM */
+	.uc_rclk = 24000000, /* TODO: get value from CCM */
+	.uc_rshift = 0
 };
 
 static struct ofw_compat_data compat_data[] = {

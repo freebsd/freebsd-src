@@ -391,7 +391,8 @@ struct uart_class uart_sab82532_class = {
 	sizeof(struct sab82532_softc),
 	.uc_ops = &uart_sab82532_ops,
 	.uc_range = 64,
-	.uc_rclk = DEFAULT_RCLK
+	.uc_rclk = DEFAULT_RCLK,
+	.uc_rshift = 0
 };
 
 #define	SIGCHG(c, i, s, d)				\

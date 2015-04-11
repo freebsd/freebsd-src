@@ -165,15 +165,6 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		return (ENXIO);
 
 	/*
-	 * Retrieve serial attributes.
-	 */
-	uart_fdt_get_shift(node, &shift);
-	if (OF_getprop(node, "current-speed", &br, sizeof(br)) <= 0)
-		br = 0;
-	else
-		br = fdt32_to_cpu(br);
-
-	/*
 	 * Check old style of UART definition first. Unfortunately, the common
 	 * FDT processing is not possible if we have clock, power domains and
 	 * pinmux stuff.
@@ -190,6 +181,17 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 			return (ENXIO);
 		rclk = 0;
 	}
+
+	/*
+	 * Retrieve serial attributes.
+	 */
+	if (uart_fdt_get_shift(node, &shift) != 0)
+		shift = uart_getregshift(class);
+
+	if (OF_getprop(node, "current-speed", &br, sizeof(br)) <= 0)
+		br = 0;
+	else
+		br = fdt32_to_cpu(br);
 
 	/*
 	 * Finalize configuration.
