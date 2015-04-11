@@ -280,6 +280,19 @@ AcpiHwGetGpeStatus (
         LocalEventStatus |= ACPI_EVENT_FLAG_WAKE_ENABLED;
     }
 
+    /* GPE currently enabled (enable bit == 1)? */
+
+    Status = AcpiHwRead (&InByte, &GpeRegisterInfo->EnableAddress);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    if (RegisterBit & InByte)
+    {
+        LocalEventStatus |= ACPI_EVENT_FLAG_ENABLE_SET;
+    }
+
     /* GPE currently active (status bit == 1)? */
 
     Status = AcpiHwRead (&InByte, &GpeRegisterInfo->StatusAddress);
@@ -290,7 +303,7 @@ AcpiHwGetGpeStatus (
 
     if (RegisterBit & InByte)
     {
-        LocalEventStatus |= ACPI_EVENT_FLAG_SET;
+        LocalEventStatus |= ACPI_EVENT_FLAG_STATUS_SET;
     }
 
     /* Set return value */

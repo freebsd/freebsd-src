@@ -599,6 +599,15 @@ AcpiDsCreateOperand (
                                 ACPI_OPERAND_OBJECT, AcpiGbl_RootNode);
                     Status = AE_OK;
                 }
+                else if (ParentOp->Common.AmlOpcode == AML_EXTERNAL_OP)
+                {
+                    /* TBD: May only be temporary */
+
+                    ObjDesc = AcpiUtCreateStringObject ((ACPI_SIZE) NameLength);
+
+                    ACPI_STRNCPY (ObjDesc->String.Pointer, NameString, NameLength);
+                    Status = AE_OK;
+                }
                 else
                 {
                     /*

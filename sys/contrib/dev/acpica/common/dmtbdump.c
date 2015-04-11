@@ -59,14 +59,6 @@ AcpiDmValidateFadtLength (
     UINT32                  Revision,
     UINT32                  Length);
 
-static void
-AcpiDmDumpBuffer (
-    void                    *Table,
-    UINT32                  BufferOffset,
-    UINT32                  Length,
-    UINT32                  AbsoluteOffset,
-    char                    *Header);
-
 
 /*******************************************************************************
  *
@@ -78,6 +70,7 @@ AcpiDmDumpBuffer (
  *              AbsoluteOffset      - Offset of buffer in the main ACPI table
  *              Header              - Name of the buffer field (printed on the
  *                                    first line only.)
+ *              MultiLine           - TRUE if a large, multi-line buffer
  *
  * RETURN:      None
  *
@@ -86,13 +79,14 @@ AcpiDmDumpBuffer (
  *
  ******************************************************************************/
 
-static void
+void
 AcpiDmDumpBuffer (
     void                    *Table,
     UINT32                  BufferOffset,
     UINT32                  Length,
     UINT32                  AbsoluteOffset,
-    char                    *Header)
+    char                    *Header,
+    BOOLEAN                 MultiLine)
 {
     UINT8                   *Buffer;
     UINT32                  i;
@@ -110,10 +104,19 @@ AcpiDmDumpBuffer (
     {
         if (!(i % 16))
         {
-            AcpiOsPrintf ("\n");
-            AcpiDmLineHeader (AbsoluteOffset,
-                ((Length - i) > 16) ? 16 : (Length - i), Header);
-            Header = NULL;
+            if (MultiLine)
+            {
+                /* Insert a backslash - line continuation character */
+
+                AcpiOsPrintf ("\\\n    ");
+            }
+            else
+            {
+                AcpiOsPrintf ("\n");
+                AcpiDmLineHeader (AbsoluteOffset,
+                    ((Length - i) > 16) ? 16 : (Length - i), Header);
+                Header = NULL;
+            }
         }
 
         AcpiOsPrintf ("%.02X ", *Buffer);
@@ -526,7 +529,7 @@ AcpiDmDumpAsf (
                 DataOffset++;
                 if (DataOffset > Table->Length)
                 {
-                    AcpiOsPrintf ("**** ACPI table terminates in the middle of a data structure!\n");
+                    AcpiOsPrintf ("**** ACPI table terminates in the middle of a data structure! (ASF! table)\n");
                     return;
                 }
             }
@@ -692,7 +695,7 @@ AcpiDmDumpCsrt (
             InfoLength = SubSubTable->Length - SubSubOffset;
 
             AcpiDmDumpBuffer (SubSubTable, SubSubOffset, InfoLength,
-                Offset + SubOffset + SubSubOffset, "ResourceInfo");
+                Offset + SubOffset + SubSubOffset, "ResourceInfo", FALSE);
             SubSubOffset += InfoLength;
 
             /* Point to next sub-subtable */
@@ -812,7 +815,7 @@ AcpiDmDumpDbg2 (
         if (SubTable->OemDataOffset)
         {
             AcpiDmDumpBuffer (SubTable, SubTable->OemDataOffset, SubTable->OemDataLength,
-                Offset + SubTable->OemDataOffset, "OEM Data");
+                Offset + SubTable->OemDataOffset, "OEM Data", FALSE);
         }
 
         /* Point to next subtable */
@@ -2535,67 +2538,8 @@ void
 AcpiDmDumpSlic (
     ACPI_TABLE_HEADER       *Table)
 {
-    ACPI_STATUS             Status;
-    UINT32                  Offset = sizeof (ACPI_TABLE_SLIC);
-    ACPI_SLIC_HEADER        *SubTable;
-    ACPI_DMTABLE_INFO       *InfoTable;
-
-
-    /* There is no main SLIC table, only subtables */
-
-    SubTable = ACPI_ADD_PTR (ACPI_SLIC_HEADER, Table, Offset);
-    while (Offset < Table->Length)
-    {
-        /* Common subtable header */
-
-        AcpiOsPrintf ("\n");
-        Status = AcpiDmDumpTable (Table->Length, Offset, SubTable,
-                    SubTable->Length, AcpiDmTableInfoSlicHdr);
-        if (ACPI_FAILURE (Status))
-        {
-            return;
-        }
-
-        switch (SubTable->Type)
-        {
-        case ACPI_SLIC_TYPE_PUBLIC_KEY:
-
-            InfoTable = AcpiDmTableInfoSlic0;
-            break;
-
-        case ACPI_SLIC_TYPE_WINDOWS_MARKER:
-
-            InfoTable = AcpiDmTableInfoSlic1;
-            break;
-
-        default:
-
-            AcpiOsPrintf ("\n**** Unknown SLIC subtable type 0x%X\n", SubTable->Type);
-
-            /* Attempt to continue */
-
-            if (!SubTable->Length)
-            {
-                AcpiOsPrintf ("Invalid zero length subtable\n");
-                return;
-            }
-            goto NextSubTable;
-        }
-
-        AcpiOsPrintf ("\n");
-        Status = AcpiDmDumpTable (Table->Length, Offset, SubTable,
-                    SubTable->Length, InfoTable);
-        if (ACPI_FAILURE (Status))
-        {
-            return;
-        }
-
-NextSubTable:
-        /* Point to next subtable */
-
-        Offset += SubTable->Length;
-        SubTable = ACPI_ADD_PTR (ACPI_SLIC_HEADER, SubTable, SubTable->Length);
-    }
+    AcpiDmDumpTable (Table->Length, sizeof (ACPI_TABLE_HEADER), Table,
+                Table->Length - sizeof (*Table), AcpiDmTableInfoSlic);
 }
 
 

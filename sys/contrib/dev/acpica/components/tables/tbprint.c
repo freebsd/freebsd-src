@@ -144,18 +144,12 @@ AcpiTbPrintTableHeader (
     ACPI_TABLE_HEADER       LocalHeader;
 
 
-    /*
-     * The reason that we use ACPI_PRINTF_UINT and ACPI_FORMAT_TO_UINT is to
-     * support both 32-bit and 64-bit hosts/addresses in a consistent manner.
-     * The %p specifier does not emit uniform output on all hosts. On some,
-     * leading zeros are not supported.
-     */
     if (ACPI_COMPARE_NAME (Header->Signature, ACPI_SIG_FACS))
     {
         /* FACS only has signature and length fields */
 
-        ACPI_INFO ((AE_INFO, "%-4.4s " ACPI_PRINTF_UINT " %06X",
-            Header->Signature, ACPI_FORMAT_TO_UINT (Address),
+        ACPI_INFO ((AE_INFO, "%-4.4s 0x%8.8X%8.8X %06X",
+            Header->Signature, ACPI_FORMAT_UINT64 (Address),
             Header->Length));
     }
     else if (ACPI_VALIDATE_RSDP_SIG (Header->Signature))
@@ -166,8 +160,8 @@ AcpiTbPrintTableHeader (
             ACPI_CAST_PTR (ACPI_TABLE_RSDP, Header)->OemId, ACPI_OEM_ID_SIZE);
         AcpiTbFixString (LocalHeader.OemId, ACPI_OEM_ID_SIZE);
 
-        ACPI_INFO ((AE_INFO, "RSDP " ACPI_PRINTF_UINT " %06X (v%.2d %-6.6s)",
-            ACPI_FORMAT_TO_UINT (Address),
+        ACPI_INFO ((AE_INFO, "RSDP 0x%8.8X%8.8X %06X (v%.2d %-6.6s)",
+            ACPI_FORMAT_UINT64 (Address),
             (ACPI_CAST_PTR (ACPI_TABLE_RSDP, Header)->Revision > 0) ?
                 ACPI_CAST_PTR (ACPI_TABLE_RSDP, Header)->Length : 20,
             ACPI_CAST_PTR (ACPI_TABLE_RSDP, Header)->Revision,
@@ -180,9 +174,9 @@ AcpiTbPrintTableHeader (
         AcpiTbCleanupTableHeader (&LocalHeader, Header);
 
         ACPI_INFO ((AE_INFO,
-            "%-4.4s " ACPI_PRINTF_UINT
+            "%-4.4s 0x%8.8X%8.8X"
             " %06X (v%.2d %-6.6s %-8.8s %08X %-4.4s %08X)",
-            LocalHeader.Signature, ACPI_FORMAT_TO_UINT (Address),
+            LocalHeader.Signature, ACPI_FORMAT_UINT64 (Address),
             LocalHeader.Length, LocalHeader.Revision, LocalHeader.OemId,
             LocalHeader.OemTableId, LocalHeader.OemRevision,
             LocalHeader.AslCompilerId, LocalHeader.AslCompilerRevision));

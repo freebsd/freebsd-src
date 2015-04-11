@@ -200,9 +200,7 @@
 #define ACPI_S3PTH_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_S3PT_HEADER,f)
 #define ACPI_S3PT0_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_S3PT_RESUME,f)
 #define ACPI_S3PT1_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_S3PT_SUSPEND,f)
-#define ACPI_SLICH_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_SLIC_HEADER,f)
-#define ACPI_SLIC0_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_SLIC_KEY,f)
-#define ACPI_SLIC1_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_SLIC_MARKER,f)
+#define ACPI_SLIC_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_SLIC,f)
 #define ACPI_SRATH_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_SUBTABLE_HEADER,f)
 #define ACPI_SRAT0_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_SRAT_CPU_AFFINITY,f)
 #define ACPI_SRAT1_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_SRAT_MEM_AFFINITY,f)
@@ -2043,42 +2041,16 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoSbst[] =
 
 /*******************************************************************************
  *
- * SLIC - Software Licensing Description Table. There is no common table, just
- * the standard ACPI header and then subtables.
+ * SLIC - Software Licensing Description Table. This table contains the standard
+ * ACPI header followed by proprietary data structures
  *
  ******************************************************************************/
 
-/* Common Subtable header (one per Subtable) */
+/* Single subtable, a proprietary format, so treat it as a buffer */
 
-ACPI_DMTABLE_INFO           AcpiDmTableInfoSlicHdr[] =
+ACPI_DMTABLE_INFO           AcpiDmTableInfoSlic[] =
 {
-    {ACPI_DMT_SLIC,     ACPI_SLICH_OFFSET (Type),                   "Subtable Type", 0},
-    {ACPI_DMT_UINT32,   ACPI_SLICH_OFFSET (Length),                 "Length", DT_LENGTH},
-    ACPI_DMT_TERMINATOR
-};
-
-ACPI_DMTABLE_INFO           AcpiDmTableInfoSlic0[] =
-{
-    {ACPI_DMT_UINT8,    ACPI_SLIC0_OFFSET (KeyType),                "Key Type", 0},
-    {ACPI_DMT_UINT8,    ACPI_SLIC0_OFFSET (Version),                "Version", 0},
-    {ACPI_DMT_UINT16,   ACPI_SLIC0_OFFSET (Reserved),               "Reserved", 0},
-    {ACPI_DMT_UINT32,   ACPI_SLIC0_OFFSET (Algorithm),              "Algorithm", 0},
-    {ACPI_DMT_NAME4,    ACPI_SLIC0_OFFSET (Magic),                  "Magic", 0},
-    {ACPI_DMT_UINT32,   ACPI_SLIC0_OFFSET (BitLength),              "BitLength", 0},
-    {ACPI_DMT_UINT32,   ACPI_SLIC0_OFFSET (Exponent),               "Exponent", 0},
-    {ACPI_DMT_BUF128,   ACPI_SLIC0_OFFSET (Modulus[0]),             "Modulus", 0},
-    ACPI_DMT_TERMINATOR
-};
-
-ACPI_DMTABLE_INFO           AcpiDmTableInfoSlic1[] =
-{
-    {ACPI_DMT_UINT32,   ACPI_SLIC1_OFFSET (Version),                "Version", 0},
-    {ACPI_DMT_NAME6,    ACPI_SLIC1_OFFSET (OemId[0]),               "Oem ID", 0},
-    {ACPI_DMT_NAME8,    ACPI_SLIC1_OFFSET (OemTableId[0]),          "Oem Table ID", 0},
-    {ACPI_DMT_NAME8,    ACPI_SLIC1_OFFSET (WindowsFlag[0]),         "Windows Flag", 0},
-    {ACPI_DMT_UINT32,   ACPI_SLIC1_OFFSET (SlicVersion),            "SLIC Version", 0},
-    {ACPI_DMT_BUF16,    ACPI_SLIC1_OFFSET (Reserved[0]),            "Reserved", 0},
-    {ACPI_DMT_BUF128,   ACPI_SLIC1_OFFSET (Signature[0]),           "Signature", 0},
+    {ACPI_DMT_RAW_BUFFER, 0,                                        "Software Licensing Structure", 0},
     ACPI_DMT_TERMINATOR
 };
 
@@ -2091,7 +2063,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoSlic1[] =
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoSlit[] =
 {
-    {ACPI_DMT_UINT64,   ACPI_SLIT_OFFSET (LocalityCount),          "Localities", 0},
+    {ACPI_DMT_UINT64,   ACPI_SLIT_OFFSET (LocalityCount),           "Localities", 0},
     ACPI_DMT_TERMINATOR
 };
 
