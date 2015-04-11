@@ -2,6 +2,6 @@
 
 PROG=	pr_atomic
 MAN=
-WARNS?=	3
+WARNS?=	6
 
 .include <bsd.prog.mk>
