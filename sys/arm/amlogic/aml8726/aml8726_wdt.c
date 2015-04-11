@@ -167,7 +167,7 @@ aml8726_wdt_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "amlogic,aml8726-wdt"))
+	if (!ofw_bus_is_compatible(dev, "amlogic,meson6-wdt"))
 		return (ENXIO);
 
 	device_set_desc(dev, "Amlogic aml8726 WDT");
