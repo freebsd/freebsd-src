@@ -45,6 +45,8 @@ main(void)
 	int listen_sock, connect_sock;
 	u_short port;
 
+	listen_sock = -1;
+
 	/* Shutdown(2) on an invalid file descriptor has to return EBADF. */
 	if ((shutdown(listen_sock, SHUT_RDWR) != -1) && (errno != EBADF))
 		errx(-1, "shutdown() for invalid file descriptor does not "
