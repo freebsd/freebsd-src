@@ -394,6 +394,8 @@
         ..
         socket
         ..
+        vfs
+        ..
     ..
     usr.bin
         apply

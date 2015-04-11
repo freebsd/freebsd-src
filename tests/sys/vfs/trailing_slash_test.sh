@@ -6,8 +6,8 @@
 # point to files.  See kern/21768 for details.  Fixed in r193028.
 #
 
-testfile="/tmp/testfile-$$"
-testlink="/tmp/testlink-$$"
+testfile=$(mktemp tmp.XXXXXX) || exit
+testlink="testlink-$$"
 
 tests="
 $testfile:$testlink:$testfile:0
@@ -18,7 +18,6 @@ $testfile/:$testlink:$testlink:1
 $testfile/:$testlink:$testlink/:1
 "
 
-touch $testfile || exit 1
 trap "rm $testfile $testlink" EXIT
 
 set $tests

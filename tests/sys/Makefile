@@ -8,6 +8,7 @@ TESTS_SUBDIRS+=		kern
 TESTS_SUBDIRS+=		netinet
 TESTS_SUBDIRS+=		opencrypto
 TESTS_SUBDIRS+=		sockets
+TESTS_SUBDIRS+=		vfs
 
 # Items not integrated into kyua runs by default
 SUBDIR+=		pjdfstest
