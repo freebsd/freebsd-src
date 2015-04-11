@@ -503,8 +503,13 @@ UtDisplaySummary (
 
     if (Gbl_FileType != ASL_INPUT_TYPE_ASCII_DATA)
     {
-        FlPrintFile (FileId,
-            ", %u Optimizations", Gbl_ExceptionCount[ASL_OPTIMIZATION]);
+        FlPrintFile (FileId, ", %u Optimizations",
+            Gbl_ExceptionCount[ASL_OPTIMIZATION]);
+
+        if (TotalFolds)
+        {
+            FlPrintFile (FileId, ", %u Constants Folded", TotalFolds);
+        }
     }
 
     FlPrintFile (FileId, "\n");

@@ -460,7 +460,7 @@ CgWriteTableHeader (
 
     /* Compiler version */
 
-    TableHeader.AslCompilerRevision = ASL_REVISION;
+    TableHeader.AslCompilerRevision = ACPI_CA_VERSION;
 
     /* Table length. Checksum zero for now, will rewrite later */
 
