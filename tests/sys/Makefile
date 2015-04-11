@@ -6,6 +6,7 @@ TESTSDIR= ${TESTSBASE}/sys
 
 TESTS_SUBDIRS+=		kern
 TESTS_SUBDIRS+=		kqueue
+TESTS_SUBDIRS+=		mqueue
 TESTS_SUBDIRS+=		netinet
 TESTS_SUBDIRS+=		opencrypto
 TESTS_SUBDIRS+=		posixshm
