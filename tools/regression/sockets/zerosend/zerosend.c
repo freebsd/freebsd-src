@@ -209,12 +209,12 @@ setup_pipe(const char *test, int *fdp)
 static void
 setup_fifo(const char *test, int *fdp)
 {
-	char path[PATH_MAX];
+	char path[] = "0send_fifo.XXXXXXX";
 	int fd1, fd2;
 
-	strcpy(path, "/tmp/0send_fifo.XXXXXXX");
-	if (mktemp(path) == NULL)
+	if (mkstemp(path) == -1)
 		err(-1, "%s: setup_fifo: mktemp", test);
+	unlink(path);
 
 	if (mkfifo(path, 0600) < 0)
 		err(-1, "%s: setup_fifo: mkfifo(%s)", test, path);
