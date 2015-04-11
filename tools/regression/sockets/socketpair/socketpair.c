@@ -47,7 +47,7 @@
  * right places.
  */
 int
-main(int argc, char *argv[])
+main(void)
 {
 	int fd1, fd2, fd3;
 	int sv[2];
