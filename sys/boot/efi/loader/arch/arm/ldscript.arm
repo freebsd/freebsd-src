@@ -8,10 +8,8 @@ SECTIONS
   /* Read-only sections, merged into text segment: */
   . = 0;
   ImageBase = .;
-  .peheader	: {
-    *(.peheader)
-  }
   .text		: {
+    *(.peheader)
     *(.text .stub .text.* .gnu.linkonce.t.*)
     /* .gnu.warning sections are handled specially by elf32.em. */
     *(.gnu.warning)
@@ -22,65 +20,43 @@ SECTIONS
   . = ALIGN(4096);
   .data    :
   {
-    *(.data)
+    *(.data *.data.*)
     *(.gnu.linkonce.d*)
     *(.rodata)
     *(.rodata.*)
     CONSTRUCTORS
+
+    PROVIDE (__bss_start = .);
+    *(.sbss)
+    *(.scommon)
+    *(.dynsbss)
+    *(.dynbss)
+    *(.bss)
+    *(COMMON)
+    PROVIDE (__bss_end = .);
   }
-  .data1   : { *(.data1) }
-  .got1           : { *(.got1) }
-  .dynamic        : { *(.dynamic) }
-  /* Put .ctors and .dtors next to the .got2 section, so that the pointers
-     get relocated with -mrelocatable. Also put in the .fixup pointers.
-     The current compiler no longer needs this, but keep it around for 2.7.2  */
-                PROVIDE (_GOT2_START_ = .);
-  .got2           :  { *(.got2) }
-                PROVIDE (__CTOR_LIST__ = .);
-  .ctors          : { *(.ctors) }
-                PROVIDE (__CTOR_END__ = .);
-                PROVIDE (__DTOR_LIST__ = .);
-  .dtors          : { *(.dtors) }
-                PROVIDE (__DTOR_END__ = .);
-                PROVIDE (_FIXUP_START_ = .);
-  .fixup          : { *(.fixup) }
-                PROVIDE (_FIXUP_END_ = .);
-                PROVIDE (_GOT2_END_ = .);
-                PROVIDE (_GOT_START_ = .);
-  .got            : { *(.got) }
-  .got.plt        : { *(.got.plt) }
-                PROVIDE (_GOT_END_ = .);
   /* We want the small data sections together, so single-instruction offsets
      can access them all, and initialized data all before uninitialized, so
      we can shorten the on-disk segment size.  */
-  .sdata     : { *(.sdata) }
-  _edata  =  .;
-  PROVIDE (edata = .);
+  .sdata     : {
+    *(.got.plt .got)
+    *(.sdata*.sdata.* .gnu.linkonce.s.*)
+  }
   set_Xcommand_set	: {
     __start_set_Xcommand_set = .;
     *(set_Xcommand_set)
     __stop_set_Xcommand_set = .;
   }
   __gp = .;
-   PROVIDE (__bss_start = .);
-  .sbss      :
-  {
-    *(.sbss)
-    *(.scommon)
-    *(.dynsbss)
-  }
-  .bss       :
-  {
-   *(.dynbss)
-   *(.bss)
-   *(COMMON)
-  }
-   PROVIDE (__bss_end = .);
   .plt   : { *(.plt) }
   .dynamic	: { *(.dynamic) }
   .reloc	: { *(.reloc) }
-  .hash		: { *(.hash) }
   .dynsym	: { *(.dynsym) }
   .dynstr	: { *(.dynstr) }
+  .rel.dyn	: {
+    *(.rel.*)
+    *(.relset_*)
+  }
   _edata = .;
+  .hash		: { *(.hash) }
 }
