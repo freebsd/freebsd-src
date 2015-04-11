@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <arm/amlogic/aml8726/aml8726_soc.h>
 #include <arm/amlogic/aml8726/aml8726_clkmsr.h>
 
 
@@ -147,6 +148,30 @@ aml8726_clkmsr_clock_frequency(struct aml8726_clkmsr_softc *sc, unsigned clock)
 	return value;
 }
 
+static void
+aml8726_clkmsr_fixup_clk81(struct aml8726_clkmsr_softc *sc, int freq)
+{
+	pcell_t prop;
+	ssize_t len;
+	phandle_t clk_node;
+	phandle_t node;
+
+	node = ofw_bus_get_node(sc->dev);
+
+	len = OF_getencprop(node, "clocks", &prop, sizeof(prop));
+	if ((len / sizeof(prop)) != 1 || prop == 0 ||
+	    (clk_node = OF_node_from_xref(prop)) == 0)
+		return;
+
+	len = OF_getencprop(clk_node, "clock-frequency", &prop, sizeof(prop));
+	if ((len / sizeof(prop)) != 1 || prop != 0)
+		return;
+
+	freq = cpu_to_fdt32(freq);
+
+	OF_setprop(clk_node, "clock-frequency", (void *)&freq, sizeof(freq));
+}
+
 static int
 aml8726_clkmsr_probe(device_t dev)
 {
@@ -177,6 +202,8 @@ aml8726_clkmsr_attach(device_t dev)
 
 	freq = aml8726_clkmsr_clock_frequency(sc, AML_CLKMSR_CLK81);
 	device_printf(sc->dev, "bus clock %u MHz\n", freq);
+
+	aml8726_clkmsr_fixup_clk81(sc, freq * 1000000);
 
 	return (0);
 }
@@ -209,8 +236,8 @@ static driver_t aml8726_clkmsr_driver = {
 
 static devclass_t aml8726_clkmsr_devclass;
 
-DRIVER_MODULE(clkmsr, simplebus, aml8726_clkmsr_driver,
-    aml8726_clkmsr_devclass, 0, 0);
+EARLY_DRIVER_MODULE(clkmsr, simplebus, aml8726_clkmsr_driver,
+    aml8726_clkmsr_devclass, 0, 0,  BUS_PASS_CPU + BUS_PASS_ORDER_EARLY);
 
 int
 aml8726_clkmsr_bus_frequency()
@@ -221,6 +248,9 @@ aml8726_clkmsr_bus_frequency()
 	u_long pbase, psize;
 	u_long start, size;
 	int freq;
+
+	KASSERT(aml8726_soc_hw_rev != AML_SOC_HW_REV_UNKNOWN,
+		("aml8726_soc_hw_rev isn't initialized"));
 
 	/*
 	 * Try to access the clkmsr node directly i.e. through /aliases/.
