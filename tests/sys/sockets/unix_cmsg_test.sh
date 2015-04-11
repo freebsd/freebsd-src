@@ -1,10 +1,7 @@
 #!/bin/sh
 # $FreeBSD$
 
-cd `dirname $0`
-cmd="./`basename $0 .t`"
-
-make ${cmd} >/dev/null 2>&1
+cmd=`echo $0 | sed -e 's,_test$,,'`
 
 IFS=
 n=0

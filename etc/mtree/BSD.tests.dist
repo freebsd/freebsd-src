@@ -392,6 +392,8 @@
             unlink
             ..
         ..
+        socket
+        ..
     ..
     usr.bin
         apply
