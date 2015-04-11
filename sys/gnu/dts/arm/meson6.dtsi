@@ -78,3 +78,7 @@
 		clock-frequency = <200000000>;
 	};
 }; /* end of / */
+
+&L2 {
+	interrupts = <0 61 1>;
+};
