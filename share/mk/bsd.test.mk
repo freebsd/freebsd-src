@@ -78,14 +78,9 @@ realtest: .PHONY
 	@echo "$@ not defined; skipping"
 .endif
 
-test: .PHONY
-.ORDER: beforetest realtest
-test: beforetest realtest
-
-.if target(aftertest)
-.ORDER: realtest aftertest
-test: aftertest
-.endif
+beforetest realtest aftertest test: .PHONY
+.ORDER: beforetest realtest aftertest
+test: beforetest realtest aftertest
 
 .if !empty(SUBDIR)
 .include <bsd.subdir.mk>
