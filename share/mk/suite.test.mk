@@ -82,6 +82,29 @@ Kyuafile.auto: Makefile
 .endif
 
 KYUA?= ${KYUA_PREFIX}/bin/kyua
+
+_kyuafile=	${DESTDIR}${TESTSDIR}/Kyuafile
+
+kyuafile-check:
+.if ${KYUAFILE:tl} != "no"
+	@if [ ! -f ${_kyuafile} ]; then \
+		echo "*** Please run make install and make test for" \
+		          "end-to-end testing"; \
+		false; \
+	fi
+	@if [ "${KYUAFILE:tl}" = yes ]; then \
+		ext=; \
+	else \
+		ext=.auto; \
+	fi; \
+	if [ ${_kyuafile} -ot Kyuafile$$ext ]; then \
+		echo "*** ${_kyuafile} is older than " \
+		     "${.OBJDIR}/Kyuafile$$ext"; \
+		echo "*** Please run make install before running make test"; \
+		false; \
+	fi
+.endif
+
 .if exists(${KYUA})
 # Definition of the "make test" target and supporting variables.
 #
@@ -93,35 +116,12 @@ KYUA?= ${KYUA_PREFIX}/bin/kyua
 # are used by tests, it is highly possible for a execution of "make test" to
 # report bogus results unless the new binaries are put in place.
 realtest: .PHONY
-	@echo "*** WARNING: make test is experimental"
-	@echo "***"
-	@echo "*** Using this test does not preclude you from running the tests"
-	@echo "*** installed in ${TESTSBASE}.  This test run may raise false"
-	@echo "*** positives and/or false negatives."
-	@echo
-	@set -e; \
-	${KYUA} test -k ${DESTDIR}${TESTSDIR}/Kyuafile; \
-	result=0; \
-	echo; \
-	echo "*** Once again, note that "make test" is unsupported."; \
-	test $${result} -eq 0
+	${KYUA} test -k ${_kyuafile}
 .endif
 
 beforetest: .PHONY
-.if defined(TESTSDIR)
-.if ${TESTSDIR} == ${TESTSBASE}
-# Forbid running from ${TESTSBASE}.  It can cause false positives/negatives and
-# it does not cover all the tests (e.g. it misses testing software in external).
-	@echo "*** Sorry, you cannot use make test from src/tests.  Install the"
-	@echo "*** tests into their final location and run them from ${TESTSBASE}"
-	@false
-.else
-	@echo "*** Using this test does not preclude you from running the tests"
-	@echo "*** installed in ${TESTSBASE}.  This test run may raise false"
-	@echo "*** positives and/or false negatives."
-.endif
-.else
+beforetest: kyuafile-check
+.if !defined(TESTSDIR)
 	@echo "*** No TESTSDIR defined; nothing to do."
 	@false
 .endif
-	@echo
