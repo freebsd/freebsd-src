@@ -1561,14 +1561,9 @@ urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				urtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(1), reg);
 			}
 		}
-		/* Make link LED blink during scan. */
-		urtwn_set_led(sc, URTWN_LED_LINK, !sc->ledlink);
-
 		/* Pause AC Tx queues. */
 		urtwn_write_1(sc, R92C_TXPAUSE,
 		    urtwn_read_1(sc, R92C_TXPAUSE) | 0x0f);
-
-		urtwn_set_chan(sc, ic->ic_curchan, NULL);
 		break;
 	case IEEE80211_S_AUTH:
 		/* Set initial gain under link. */
@@ -3124,8 +3119,13 @@ static void
 urtwn_set_channel(struct ieee80211com *ic)
 {
 	struct urtwn_softc *sc = ic->ic_ifp->if_softc;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
 	URTWN_LOCK(sc);
+	if (vap->iv_state == IEEE80211_S_SCAN) {
+		/* Make link LED blink during scan. */
+		urtwn_set_led(sc, URTWN_LED_LINK, !sc->ledlink);
+	}
 	urtwn_set_chan(sc, ic->ic_curchan, NULL);
 	URTWN_UNLOCK(sc);
 }
