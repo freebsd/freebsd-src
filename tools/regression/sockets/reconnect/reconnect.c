@@ -62,7 +62,7 @@ prepare_ifsun(struct sockaddr_un *ifsun, const char *path)
     strcpy(ifsun->sun_path, path);
 }
 
-int
+static int
 create_uds_server(const char *path)
 {
     struct sockaddr_un ifsun;
@@ -82,7 +82,7 @@ create_uds_server(const char *path)
     return sock;
 }
 
-void
+static void
 connect_uds_server(int sock, const char *path)
 {
     struct sockaddr_un ifsun;
@@ -95,7 +95,7 @@ connect_uds_server(int sock, const char *path)
         err(1, "can't connect to a socket");
 }
 
-void
+static void
 cleanup(void)
 {
 
