@@ -983,8 +983,18 @@ vm_reserv_reclaim_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
 				break;
 			} else if ((pa & (alignment - 1)) != 0 ||
 			    ((pa ^ (pa + size - 1)) & ~(boundary - 1)) != 0) {
-				/* Continue with this reservation. */
-				hi = lo;
+				/*
+				 * The current page doesn't meet the alignment
+				 * and/or boundary requirements.  Continue
+				 * searching this reservation until the rest
+				 * of its free pages are either excluded or
+				 * exhausted.
+				 */
+				hi = lo + 1;
+				if (hi >= NBPOPMAP) {
+					hi = 0;
+					i++;
+				}
 				continue;
 			}
 			/* Find the next used page. */
