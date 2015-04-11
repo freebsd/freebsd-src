@@ -45,8 +45,8 @@
 #include <string.h>
 #include <unistd.h>
 
-static char *uds_name1 = NULL;
-static char *uds_name2 = NULL;
+static char uds_name1[] = "reconnect.XXXXXXXX";
+static char uds_name2[] = "reconnect.XXXXXXXX";
 
 #define	sstosa(ss)	((struct sockaddr *)(ss))
 
@@ -112,20 +112,14 @@ main()
 
     atexit(cleanup);
 
-    uds_name1 = strdup("/tmp/reconnect.XXXXXX");
-    if (uds_name1 == NULL)
-        err(1, "can't allocate memory");
-    uds_name1 = mktemp(uds_name1);
-    if (uds_name1 == NULL)
-        err(1, "mktemp(3) failed");
+    if (mkstemp(uds_name1) == -1)
+	err(1, "mkstemp");
+    unlink(uds_name1);
     s_sock1 = create_uds_server(uds_name1);
 
-    uds_name2 = strdup("/tmp/reconnect.XXXXXX");
-    if (uds_name2 == NULL)
-        err(1, "can't allocate memory");
-    uds_name2 = mktemp(uds_name2);
-    if (uds_name2 == NULL)
-        err(1, "mktemp(3) failed");
+    if (mkstemp(uds_name2) == -1)
+        err(1, "mkstemp");
+    unlink(uds_name2);
     s_sock2 = create_uds_server(uds_name2);
 
     c_sock = socket(PF_LOCAL, SOCK_DGRAM, 0);
