@@ -144,6 +144,7 @@ socket_open(char const *node)
 	bit_set(filter.event_mask, NG_HCI_EVENT_READ_CLOCK_OFFSET_COMPL - 1);
 	bit_set(filter.event_mask, NG_HCI_EVENT_CON_PKT_TYPE_CHANGED - 1);
 	bit_set(filter.event_mask, NG_HCI_EVENT_ROLE_CHANGE - 1);
+	bit_set(filter.event_mask, NG_HCI_EVENT_LE -1);
 
 	if (setsockopt(s, SOL_HCI_RAW, SO_HCI_RAW_FILTER, 
 			(void * const) &filter, sizeof(filter)) < 0)
