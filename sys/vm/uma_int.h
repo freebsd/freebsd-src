@@ -311,7 +311,7 @@ struct uma_zone {
 	 * This HAS to be the last item because we adjust the zone size
 	 * based on NCPU and then allocate the space for the zones.
 	 */
-	struct uma_cache	uz_cpu[1]; /* Per cpu caches */
+	struct uma_cache	uz_cpu[]; /* Per cpu caches */
 };
 
 /*
