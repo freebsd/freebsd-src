@@ -85,7 +85,26 @@ KYUA?= ${KYUA_PREFIX}/bin/kyua
 
 _kyuafile=	${DESTDIR}${TESTSDIR}/Kyuafile
 
-kyuafile-check:
+realtest: .PHONY
+.if exists(${KYUA})
+# Definition of the "make test" target and supporting variables.
+#
+# This target, by necessity, can only work for native builds (i.e. a FreeBSD
+# host building a release for the same system).  The target runs Kyua, which is
+# not in the toolchain, and the tests execute code built for the target host.
+#
+# Due to the dependencies of the binaries built by the source tree and how they
+# are used by tests, it is highly possible for a execution of "make test" to
+# report bogus results unless the new binaries are put in place.
+realtest:
+	@${KYUA} test -k ${_kyuafile}
+.endif
+
+beforetest: .PHONY
+.if !defined(TESTSDIR)
+	@echo "*** No TESTSDIR defined; nothing to do."
+	@false
+.endif
 .if ${KYUAFILE:tl} != "no"
 	@if [ ! -f ${_kyuafile} ]; then \
 		echo "*** Please run make install and make test for" \
@@ -103,25 +122,4 @@ kyuafile-check:
 		echo "*** Please run make install before running make test"; \
 		false; \
 	fi
-.endif
-
-.if exists(${KYUA})
-# Definition of the "make test" target and supporting variables.
-#
-# This target, by necessity, can only work for native builds (i.e. a FreeBSD
-# host building a release for the same system).  The target runs Kyua, which is
-# not in the toolchain, and the tests execute code built for the target host.
-#
-# Due to the dependencies of the binaries built by the source tree and how they
-# are used by tests, it is highly possible for a execution of "make test" to
-# report bogus results unless the new binaries are put in place.
-realtest: .PHONY
-	${KYUA} test -k ${_kyuafile}
-.endif
-
-beforetest: .PHONY
-beforetest: kyuafile-check
-.if !defined(TESTSDIR)
-	@echo "*** No TESTSDIR defined; nothing to do."
-	@false
 .endif
