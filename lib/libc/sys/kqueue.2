@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 18, 2014
+.Dd March 29, 2015
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@
 .Fn kqueue "void"
 .Ft int
 .Fn kevent "int kq" "const struct kevent *changelist" "int nchanges" "struct kevent *eventlist" "int nevents" "const struct timespec *timeout"
-.Fn EV_SET "&kev" ident filter flags fflags data udata
+.Fn EV_SET "kev" ident filter flags fflags data udata
 .Sh DESCRIPTION
 The
 .Fn kqueue
@@ -532,6 +532,16 @@ On return,
 .Va fflags
 contains the users defined flags in the lower 24 bits.
 .El
+.Sh CANCELLATION BEHAVIOUR
+If
+.Fa nevents
+is non-zero, i.e. the function is potentially blocking, the call
+is a cancellation point.
+Otherwise, i.e. if
+.Fa nevents
+is zero, the call is not cancellable.
+Cancellation can only occur before any changes are made to the kqueue,
+or when the call was blocked and no changes to the queue were requested.
 .Sh RETURN VALUES
 The
 .Fn kqueue
@@ -595,6 +605,8 @@ The specified descriptor is invalid.
 .It Bq Er EINTR
 A signal was delivered before the timeout expired and before any
 events were placed on the kqueue for return.
+.It Bq Er EINTR
+A cancellation request was delivered to the thread, but not yet handled.
 .It Bq Er EINVAL
 The specified time limit or filter is invalid.
 .It Bq Er ENOENT
@@ -609,6 +621,14 @@ sysctl.
 .It Bq Er ESRCH
 The specified process to attach to does not exist.
 .El
+.Pp
+When
+.Fn kevent
+call fails with
+.Er EINTR
+error, all changes in the
+.Fa changelist
+have been applied.
 .Sh SEE ALSO
 .Xr aio_error 2 ,
 .Xr aio_read 2 ,
@@ -618,6 +638,7 @@ The specified process to attach to does not exist.
 .Xr select 2 ,
 .Xr sigaction 2 ,
 .Xr write 2 ,
+.Xr pthread_setcancelstate 3 ,
 .Xr signal 3
 .Sh HISTORY
 The
