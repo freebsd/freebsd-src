@@ -6,6 +6,8 @@ CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${.CURDIR}/../../sys/dev/iscsi
 MAN=		iscsi.conf.5 iscsictl.8
 
+LIBADD=		xo
+
 YFLAGS+=	-v
 LFLAGS+=	-i
 CLEANFILES=	y.tab.c y.tab.h y.output
