@@ -375,8 +375,10 @@
 #endif
 
 #if __GNUC_PREREQ__(4, 1)
+#define	__gnu_inline	__attribute__((__gnu_inline__))
 #define	__returns_twice	__attribute__((__returns_twice__))
 #else
+#define	__gnu_inline
 #define	__returns_twice
 #endif
 
