@@ -71,7 +71,7 @@ typedef union modspecific {
 } modspecific_t;
 
 /*
- * Module dependency declarartion
+ * Module dependency declaration
  */
 struct mod_depend {
 	int	md_ver_minimum;
