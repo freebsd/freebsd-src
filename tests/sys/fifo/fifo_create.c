@@ -75,7 +75,7 @@
  * All activity occurs within a temporary directory created early in the
  * test.
  */
-char	temp_dir[PATH_MAX];
+static char	temp_dir[PATH_MAX];
 
 static void __unused
 atexit_temp_dir(void)
@@ -94,7 +94,7 @@ fifo_create_test(int use_mkfifo)
 {
 	struct stat old_dirsb, dirsb, fifosb;
 	const char *testname;
-	char path[PATH_MAX];
+	char path[] = "testfifo";
 	int error;
 
 	if (use_mkfifo)
@@ -106,13 +106,11 @@ fifo_create_test(int use_mkfifo)
 	 * Sleep to make sure that the time stamp on the directory will be
 	 * updated.
 	 */
-	if (stat(temp_dir, &old_dirsb) < 0)
+	if (stat(".", &old_dirsb) < 0)
 		err(-1, "basic_create_test: %s: stat: %s", testname,
 		    temp_dir);
 
 	sleep(2);
-
-	snprintf(path, PATH_MAX, "%s/testfifo", temp_dir);
 
 	if (use_mkfifo) {
 		if (mkfifo(path, 0600) < 0)
@@ -149,7 +147,7 @@ fifo_create_test(int use_mkfifo)
 		err(-1, "basic_create_test: dup %s unexpected error",
 		    testname);
 
-	if (stat(temp_dir, &dirsb) < 0) {
+	if (stat(".", &dirsb) < 0) {
 		error = errno;
 		(void)unlink(path);
 		errno = error;
@@ -205,7 +203,7 @@ fifo_permission_test(int use_mkfifo)
 {
 	const struct permission_test *ptp;
 	mode_t __unused old_umask;
-	char path[PATH_MAX];
+	char path[] = "testfifo";
 	const char *testname;
 	struct stat sb;
 	int error, i;
@@ -215,7 +213,6 @@ fifo_permission_test(int use_mkfifo)
 	else
 		testname = "mknod";
 
-	snprintf(path, PATH_MAX, "%s/testfifo", temp_dir);
 	old_umask = umask(0022);
 	for (i = 0; i < permission_test_count; i++) {
 		ptp = &permission_test[i];
@@ -256,14 +253,14 @@ fifo_permission_test(int use_mkfifo)
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 	int i;
 
 	if (geteuid() != 0)
 		errx(-1, "must be run as root");
 
-	strcpy(temp_dir, "/tmp/fifo_create.XXXXXXXXXXX");
+	strcpy(temp_dir, "fifo_create.XXXXXXXXXXX");
 	if (mkdtemp(temp_dir) == NULL)
 		err(-1, "mkdtemp");
 	atexit(atexit_temp_dir);

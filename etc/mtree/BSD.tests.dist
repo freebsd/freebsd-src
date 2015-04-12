@@ -354,6 +354,8 @@
         ..
     ..
     sys
+        fifo
+        ..
         file
         ..
         kern

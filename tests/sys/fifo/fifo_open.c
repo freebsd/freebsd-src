@@ -87,7 +87,7 @@
  * All activity occurs within a temporary directory created early in the
  * test.
  */
-char	temp_dir[PATH_MAX];
+static char	temp_dir[PATH_MAX];
 
 static void __unused
 atexit_temp_dir(void)
@@ -453,13 +453,13 @@ test_non_blocking_writer(void)
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 
 	if (geteuid() != 0)
 		errx(-1, "must be run as root");
 
-	strcpy(temp_dir, "/tmp/fifo_open.XXXXXXXXXXX");
+	strcpy(temp_dir, "fifo_open.XXXXXXXXXXX");
 	if (mkdtemp(temp_dir) == NULL)
 		err(-1, "mkdtemp");
 	if (chdir(temp_dir) < 0)

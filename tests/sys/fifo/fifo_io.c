@@ -88,7 +88,7 @@
  * All activity occurs within a temporary directory created early in the
  * test.
  */
-char	temp_dir[PATH_MAX];
+static char	temp_dir[PATH_MAX];
 
 static void __unused
 atexit_temp_dir(void)
@@ -130,8 +130,7 @@ cleanfifo3(const char *fifoname, int fd1, int fd2, int fd3)
  * so using non-blocking opens in order to avoid deadlocking the process.
  */
 static int
-openfifo(const char *fifoname, const char *testname, int *reader_fdp,
-    int *writer_fdp)
+openfifo(const char *fifoname, int *reader_fdp, int *writer_fdp)
 {
 	int error, fd1, fd2;
 
@@ -155,7 +154,7 @@ openfifo(const char *fifoname, const char *testname, int *reader_fdp,
  * Open one file descriptor for the fifo, supporting both read and write.
  */
 static int
-openfifo_rw(const char *fifoname, const char *testname, int *fdp)
+openfifo_rw(const char *fifoname, int *fdp)
 {
 	int fd;
 
@@ -249,7 +248,7 @@ test_simpleio(void)
 	ssize_t len;
 
 	makefifo("testfifo", __func__);
-	if (openfifo("testfifo", "test_simpleio", &reader_fd, &writer_fd)
+	if (openfifo("testfifo", &reader_fd, &writer_fd)
 	    < 0) {
 		warn("test_simpleio: openfifo: testfifo");
 		cleanfifo2("testfifo", -1, -1);
@@ -296,12 +295,12 @@ test_simpleio(void)
 	cleanfifo2("testfifo", reader_fd, writer_fd);
 }
 
-static int alarm_fired;
+static volatile int alarm_fired;
 /*
  * Non-destructive SIGALRM handler.
  */
 static void
-sigalarm(int signum)
+sigalarm(int signum __unused)
 {
 
 	alarm_fired = 1;
@@ -408,7 +407,7 @@ test_blocking_read_empty(void)
 	u_char ch;
 
 	makefifo("testfifo", __func__);
-	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd)
+	if (openfifo("testfifo", &reader_fd, &writer_fd)
 	    < 0) {
 		warn("test_blocking_read_empty: openfifo: testfifo");
 		cleanfifo2("testfifo", -1, -1);
@@ -477,8 +476,7 @@ test_blocking_one_byte(void)
 	u_char ch;
 
 	makefifo("testfifo", __func__);
-	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd)
-	    < 0) {
+	if (openfifo("testfifo", &reader_fd, &writer_fd) < 0) {
 		warn("test_blocking: openfifo: testfifo");
 		cleanfifo2("testfifo", -1, -1);
 		exit(-1);
@@ -544,8 +542,7 @@ test_nonblocking_one_byte(void)
 	u_char ch;
 
 	makefifo("testfifo", __func__);
-	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd)
-	    < 0) {
+	if (openfifo("testfifo", &reader_fd, &writer_fd) < 0) {
 		warn("test_nonblocking: openfifo: testfifo");
 		cleanfifo2("testfifo", -1, -1);
 		exit(-1);
@@ -609,8 +606,7 @@ test_blocking_partial_write(void)
 	ssize_t len;
 
 	makefifo("testfifo", __func__);
-	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd)
-	    < 0) {
+	if (openfifo("testfifo", &reader_fd, &writer_fd) < 0) {
 		warn("test_blocking_partial_write: openfifo: testfifo");
 		cleanfifo2("testfifo", -1, -1);
 		exit(-1);
@@ -668,8 +664,7 @@ test_nonblocking_partial_write(void)
 	ssize_t len;
 
 	makefifo("testfifo", __func__);
-	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd)
-	    < 0) {
+	if (openfifo("testfifo", &reader_fd, &writer_fd) < 0) {
 		warn("test_blocking_partial_write: openfifo: testfifo");
 		cleanfifo2("testfifo", -1, -1);
 		exit(-1);
@@ -736,8 +731,7 @@ test_coalesce_big_read(void)
 	ssize_t len;
 
 	makefifo("testfifo", __func__);
-	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd)
-	    < 0) {
+	if (openfifo("testfifo", &reader_fd, &writer_fd) < 0) {
 		warn("test_coalesce_big_read: openfifo: testfifo");
 		cleanfifo2("testfifo", -1, -1);
 		exit(-1);
@@ -808,8 +802,7 @@ test_coalesce_big_write(void)
 	ssize_t len;
 
 	makefifo("testfifo", __func__);
-	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd)
-	    < 0) {
+	if (openfifo("testfifo", &reader_fd, &writer_fd) < 0) {
 		warn("test_coalesce_big_write: openfifo: testfifo");
 		cleanfifo2("testfifo", -1, -1);
 		exit(-1);
@@ -1078,7 +1071,7 @@ test_events_outofbox(void)
 	int kqueue_fd, reader_fd, writer_fd;
 
 	makefifo("testfifo", __func__);
-	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd) < 0) {
+	if (openfifo("testfifo", &reader_fd, &writer_fd) < 0) {
 		warn("test_events_outofbox: openfifo: testfifo");
 		cleanfifo2("testfifo", -1, -1);
 		exit(-1);
@@ -1134,8 +1127,7 @@ test_events_write_read_byte(void)
 	u_char ch;
 
 	makefifo("testfifo", __func__);
-	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd)
-	    < 0) {
+	if (openfifo("testfifo", &reader_fd, &writer_fd) < 0) {
 		warn("test_events_write_read_byte: openfifo: testfifo");
 		cleanfifo2("testfifo", -1, -1);
 		exit(-1);
@@ -1227,8 +1219,7 @@ test_events_partial_write(void)
 	ssize_t len;
 
 	makefifo("testfifo", __func__);
-	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd)
-	    < 0) {
+	if (openfifo("testfifo", &reader_fd, &writer_fd) < 0) {
 		warn("test_events_partial_write: openfifo: testfifo");
 		cleanfifo2("testfifo", -1, -1);
 		exit(-1);
@@ -1313,8 +1304,7 @@ test_events_rdwr(void)
 	char ch;
 
 	makefifo("testfifo", __func__);
-	if (openfifo_rw("testfifo", __func__, &fd)
-	    < 0) {
+	if (openfifo_rw("testfifo", &fd) < 0) {
 		warn("%s: openfifo_rw: testfifo", __func__);
 		cleanfifo2("testfifo", -1, -1);
 		exit(-1);
@@ -1381,10 +1371,10 @@ test_events_rdwr(void)
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 
-	strcpy(temp_dir, "/tmp/fifo_io.XXXXXXXXXXX");
+	strcpy(temp_dir, "fifo_io.XXXXXXXXXXX");
 	if (mkdtemp(temp_dir) == NULL)
 		err(-1, "mkdtemp");
 	atexit(atexit_temp_dir);
