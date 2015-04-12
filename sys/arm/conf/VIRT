@@ -82,6 +82,7 @@ device		uart
 device		pty
 device		snp
 device		pl011
+device		psci
 
 device		virtio                                                                                                                                           
 device		virtio_mmio                                                                                                                                      
