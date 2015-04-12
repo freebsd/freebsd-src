@@ -65,6 +65,8 @@ SYMLINKS+=lib${LIB}_p.a ${LIBDIR}/libpthread_p.a
 CFLAGS+=-DSYSCALL_COMPAT
 .endif
 
-.include <bsd.arch.inc.mk>
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.lib.mk>
