@@ -42,6 +42,9 @@ CFLAGS+=	-fPIC
 CFLAGS+=	-fpic
 .endif
 CFLAGS+=	-DPIC $(DEBUG)
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+CFLAGS+=	-fvisibility=hidden
+.endif
 LDFLAGS+=	-shared -Wl,-Bsymbolic
 DPADD=		${LIBC_PIC}
 LDADD=		-lc_pic

@@ -161,14 +161,14 @@ static uint32_t gnu_hash(const char *);
 static bool matched_symbol(SymLook *, const Obj_Entry *, Sym_Match_Result *,
     const unsigned long);
 
-void r_debug_state(struct r_debug *, struct link_map *) __noinline;
-void _r_debug_postinit(struct link_map *) __noinline;
+void r_debug_state(struct r_debug *, struct link_map *) __noinline __exported;
+void _r_debug_postinit(struct link_map *) __noinline __exported;
 
 /*
  * Data declarations.
  */
 static char *error_message;	/* Message for dlerror(), or NULL */
-struct r_debug r_debug;		/* for GDB; */
+struct r_debug r_debug __exported;	/* for GDB; */
 static bool libmap_disable;	/* Disable libmap */
 static bool ld_loadfltr;	/* Immediate filters processing */
 static char *libmap_override;	/* Maps to use in addition to libmap.conf */
@@ -206,6 +206,23 @@ extern Elf_Dyn _DYNAMIC;
 #ifndef RTLD_IS_DYNAMIC
 #define	RTLD_IS_DYNAMIC()	(&_DYNAMIC != NULL)
 #endif
+
+int dlclose(void *) __exported;
+char *dlerror(void) __exported;
+void *dlopen(const char *, int) __exported;
+void *fdlopen(int, int) __exported;
+void *dlsym(void *, const char *) __exported;
+dlfunc_t dlfunc(void *, const char *) __exported;
+void *dlvsym(void *, const char *, const char *) __exported;
+int dladdr(const void *, Dl_info *) __exported;
+void dllockinit(void *, void *(*)(void *), void (*)(void *), void (*)(void *),
+    void (*)(void *), void (*)(void *), void (*)(void *)) __exported;
+int dlinfo(void *, int , void *) __exported;
+int dl_iterate_phdr(__dl_iterate_hdr_callback, void *) __exported;
+int _rtld_addr_phdr(const void *, struct dl_phdr_info *) __exported;
+int _rtld_get_stack_prot(void) __exported;
+int _rtld_is_dlopened(void *) __exported;
+void _rtld_error(const char *, ...) __exported;
 
 int npagesizes, osreldate;
 size_t *pagesizes;
