@@ -359,6 +359,8 @@
         file
         ..
         kern
+            execve
+            ..
         ..
         kqueue
         ..
