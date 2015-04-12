@@ -71,6 +71,9 @@ extern size_t tls_static_space;
 extern int tls_dtv_generation;
 extern int tls_max_index;
 
+extern int npagesizes;
+extern size_t *pagesizes;
+
 extern int main_argc;
 extern char **main_argv;
 extern char **environ;
