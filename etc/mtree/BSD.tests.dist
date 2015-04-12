@@ -360,6 +360,8 @@
         ..
         kqueue
         ..
+        mmmap
+        ..
         mqueue
         ..
         netinet
