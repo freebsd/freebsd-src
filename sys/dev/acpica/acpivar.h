@@ -185,7 +185,7 @@ extern struct mtx			acpi_mutex;
  * Various features and capabilities for the acpi_get_features() method.
  * In particular, these are used for the ACPI 3.0 _PDC and _OSC methods.
  * See the Intel document titled "Intel Processor Vendor-Specific ACPI",
- * number 302223-005.
+ * number 302223-007.
  */
 #define	ACPI_CAP_PERF_MSRS	(1 << 0)  /* Intel SpeedStep PERF_CTL MSRs */
 #define	ACPI_CAP_C1_IO_HALT	(1 << 1)  /* Intel C1 "IO then halt" sequence */
@@ -198,6 +198,9 @@ extern struct mtx			acpi_mutex;
 #define	ACPI_CAP_SMP_C1_NATIVE	(1 << 8)  /* MP C1 support other than halt */
 #define	ACPI_CAP_SMP_C3_NATIVE	(1 << 9)  /* MP C2 and C3 support */
 #define	ACPI_CAP_PX_HW_COORD	(1 << 11) /* Intel P-state HW coordination */
+#define	ACPI_CAP_INTR_CPPC	(1 << 12) /* Native Interrupt Handling for
+	     Collaborative Processor Performance Control notifications */
+#define	ACPI_CAP_HW_DUTY_C	(1 << 13) /* Hardware Duty Cycling */
 
 /*
  * Quirk flags.
