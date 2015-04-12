@@ -1822,7 +1822,7 @@ uma_startup(void *bootmem, int boot_pages)
 #endif
 	args.name = "UMA Zones";
 	args.size = sizeof(struct uma_zone) +
-	    (sizeof(struct uma_cache) * (mp_maxid));
+	    (sizeof(struct uma_cache) * (mp_maxid + 1));
 	args.ctor = zone_ctor;
 	args.dtor = zone_dtor;
 	args.uminit = zero_init;
