@@ -1,5 +1,5 @@
 /*-
- * Copyright 2015 John Wehle <john@feith.com>
+ * Copyright (c) 2015 Andrew Turner
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,36 +23,70 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 
-#ifndef	_ARM_AMLOGIC_AML8726_SOC_H
-#define	_ARM_AMLOGIC_AML8726_SOC_H
+#include "opt_platform.h"
 
-#define	AML_SOC_AOBUS_BASE_ADDR		0xc8100000
-#define	AML_SOC_CBUS_BASE_ADDR		0xc1100000
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-void aml8726_identify_soc(void);
+#define _ARM32_BUS_DMA_PRIVATE
+#include <sys/param.h>
+#include <sys/systm.h>
 
-/* cbus */
-#define	AML_SOC_HW_REV_REG		0x7d4c
-#define	AML_SOC_HW_REV_UNKNOWN		0xffffffff
-#define	AML_SOC_HW_REV_M3		0x15
-#define	AML_SOC_HW_REV_M6		0x16
-#define	AML_SOC_HW_REV_M6TV		0x17
-#define	AML_SOC_HW_REV_M6TVL		0x18
-#define	AML_SOC_HW_REV_M8		0x19
-#define	AML_SOC_HW_REV_M8B		0x1b
+#include <vm/vm.h>
 
-#define	AML_SOC_METAL_REV_REG		0x81a8
-#define	AML_SOC_METAL_REV_UNKNOWN	0xffffffff
-#define	AML_SOC_M8_METAL_REV_A		0x11111111
-#define	AML_SOC_M8_METAL_REV_M2_A	0x11111112
-#define	AML_SOC_M8_METAL_REV_B		0x11111113
-#define	AML_SOC_M8_METAL_REV_C		0x11111133
-#define	AML_SOC_M8B_METAL_REV_A		0x11111111
+#include <machine/bus.h>
+#include <machine/devmap.h>
+#include <machine/platform.h>
+#include <machine/platformvar.h>
 
-extern uint32_t aml8726_soc_hw_rev;
-extern uint32_t aml8726_soc_metal_rev;
+#include "platform_if.h"
 
-#endif /* _ARM_AMLOGIC_AML8726_SOC_H */
+struct arm32_dma_range *
+bus_dma_get_range(void)
+{
+
+	return (NULL);
+}
+
+int
+bus_dma_get_range_nb(void)
+{
+
+	return (0);
+}
+
+void
+cpu_reset(void)
+{
+
+	while (1);
+}
+
+static vm_offset_t
+virt_lastaddr(platform_t plat)
+{
+
+	return (arm_devmap_lastaddr());
+}
+
+/*
+ * Set up static device mappings.
+ */
+static int
+virt_devmap_init(platform_t plat)
+{
+
+	arm_devmap_add_entry(0x09000000, 0x100000); /* Uart */
+	return (0);
+}
+
+static platform_method_t virt_methods[] = {
+	PLATFORMMETHOD(platform_devmap_init,	virt_devmap_init),
+	PLATFORMMETHOD(platform_lastaddr,	virt_lastaddr),
+
+	PLATFORMMETHOD_END,
+};
+
+FDT_PLATFORM_DEF(virt, "virt", 0, "linux,dummy-virt");

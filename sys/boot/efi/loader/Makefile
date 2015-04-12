@@ -20,6 +20,7 @@ SRCS=	autoload.c \
 	copy.c \
 	devicename.c \
 	main.c \
+	reloc.c \
 	smbios.c \
 	vers.c
 
@@ -28,7 +29,6 @@ SRCS=	autoload.c \
 .PATH: ${.CURDIR}/../../i386/libi386
 .include "${.CURDIR}/arch/${MACHINE_CPUARCH}/Makefile.inc"
 
-CFLAGS+=	-fPIC
 CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${.CURDIR}/arch/${MACHINE_CPUARCH}
 CFLAGS+=	-I${.CURDIR}/../include
@@ -71,7 +71,7 @@ FILES=	loader.efi
 FILESMODE_loader.efi=	${BINMODE}
 
 LDSCRIPT=	${.CURDIR}/arch/${MACHINE_CPUARCH}/ldscript.${MACHINE_CPUARCH}
-LDFLAGS=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared -Wl,-znocombreloc
+LDFLAGS+=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared
 
 CLEANFILES=	vers.c loader.efi
 

@@ -48,6 +48,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_cpu_fdt.h>
@@ -262,6 +266,25 @@ struct uart_ops aml8726_uart_ops = {
 	.getc = aml8726_uart_getc,
 };
 
+static unsigned int
+aml8726_uart_bus_clk(phandle_t node)
+{
+	pcell_t prop;
+	ssize_t len;
+	phandle_t clk_node;
+
+	len = OF_getencprop(node, "clocks", &prop, sizeof(prop));
+	if ((len / sizeof(prop)) != 1 || prop == 0 ||
+	    (clk_node = OF_node_from_xref(prop)) == 0)
+		return (0);
+
+	len = OF_getencprop(clk_node, "clock-frequency", &prop, sizeof(prop));
+	if ((len / sizeof(prop)) != 1 || prop == 0)
+		return (0);
+
+	return ((unsigned int)prop);
+}
+
 static int
 aml8726_uart_bus_probe(struct uart_softc *sc)
 {
@@ -330,8 +353,10 @@ aml8726_uart_bus_attach(struct uart_softc *sc)
 
 	bas = &sc->sc_bas;
 
+	bas->rclk = aml8726_uart_bus_clk(ofw_bus_get_node(sc->sc_dev));
+
 	if (bas->rclk == 0) {
-		device_printf(sc->sc_dev, "missing clock attribute in FDT\n");
+		device_printf(sc->sc_dev, "missing clocks attribute in FDT\n");
 		return (ENXIO);
 	}
 
@@ -699,11 +724,12 @@ struct uart_class uart_aml8726_class = {
 	sizeof(struct uart_softc),
 	.uc_ops = &aml8726_uart_ops,
 	.uc_range = 24,
-	.uc_rclk = 0
+	.uc_rclk = 0,
+	.uc_rshift = 0
 };
 
 static struct ofw_compat_data compat_data[] = {
-	{ "amlogic,aml8726-uart",	(uintptr_t)&uart_aml8726_class },
+	{ "amlogic,meson-uart",		(uintptr_t)&uart_aml8726_class },
 	{ NULL,				(uintptr_t)NULL }
 };
 UART_FDT_CLASS_AND_DEVICE(compat_data);
