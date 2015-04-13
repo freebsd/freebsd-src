@@ -109,6 +109,7 @@ get_mpidr(void)
 }
 
 #define	cpu_nullop()			arm64_nullop()
+#define	cpufunc_nullop()		arm64_nullop()
 #define	cpu_setttb(a)			arm64_setttb(a)
 
 #define	cpu_tlb_flushID()		arm64_tlb_flushID()
