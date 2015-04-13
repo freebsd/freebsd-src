@@ -29,6 +29,8 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Routines for mapping device memory.
+ *
+ * This is used on both arm and arm64.
  */
 
 #include "opt_ddb.h"
@@ -40,9 +42,17 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <machine/armreg.h>
 #include <machine/devmap.h>
+#include <machine/vmparam.h>
 
 static const struct arm_devmap_entry *devmap_table;
 static boolean_t devmap_bootstrap_done = false;
+
+#if defined(__aarch64__)
+#define	MAX_VADDR	VM_MAX_KERNEL_ADDRESS
+#define	PTE_DEVICE	VM_MEMATTR_DEVICE
+#elif defined(__arm__)
+#define	MAX_VADDR	ARM_VECTORS_HIGH
+#endif
 
 /*
  * The allocated-kva (akva) devmap table and metadata.  Platforms can call
@@ -53,7 +63,11 @@ static boolean_t devmap_bootstrap_done = false;
 #define	AKVA_DEVMAP_MAX_ENTRIES	32
 static struct arm_devmap_entry	akva_devmap_entries[AKVA_DEVMAP_MAX_ENTRIES];
 static u_int			akva_devmap_idx;
-static vm_offset_t		akva_devmap_vaddr = ARM_VECTORS_HIGH;
+static vm_offset_t		akva_devmap_vaddr = MAX_VADDR;
+
+#ifdef __aarch64__
+extern int early_boot;
+#endif
 
 /*
  * Print the contents of the static mapping table using the provided printf-like
@@ -99,7 +113,7 @@ arm_devmap_lastaddr()
 	if (akva_devmap_idx > 0)
 		return (akva_devmap_vaddr);
 
-	lowaddr = ARM_VECTORS_HIGH;
+	lowaddr = MAX_VADDR;
 	for (pd = devmap_table; pd != NULL && pd->pd_size != 0; ++pd) {
 		if (lowaddr > pd->pd_va)
 			lowaddr = pd->pd_va;
@@ -136,9 +150,12 @@ arm_devmap_add_entry(vm_paddr_t pa, vm_size_t sz)
 	 * align the virtual address to the next-lower 1MB boundary so that we
 	 * end up with a nice efficient section mapping.
 	 */
+#ifdef __arm__
 	if ((pa & 0x000fffff) == 0 && (sz & 0x000fffff) == 0) {
 		akva_devmap_vaddr = trunc_1mpage(akva_devmap_vaddr - sz);
-	} else {
+	} else
+#endif
+	{
 		akva_devmap_vaddr = trunc_page(akva_devmap_vaddr - sz);
 	}
 	m = &akva_devmap_entries[akva_devmap_idx++];
@@ -186,8 +203,12 @@ arm_devmap_bootstrap(vm_offset_t l1pt, const struct arm_devmap_entry *table)
 		return;
 
 	for (pd = devmap_table; pd->pd_size != 0; ++pd) {
+#if defined(__arm__)
 		pmap_map_chunk(l1pt, pd->pd_va, pd->pd_pa, pd->pd_size,
 		    pd->pd_prot,pd->pd_cache);
+#elif defined(__aarch64__)
+		pmap_kenter_device(pd->pd_va, pd->pd_size, pd->pd_pa);
+#endif
 	}
 }
 
@@ -252,17 +273,25 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 	/* First look in the static mapping table. */
 	if ((rva = arm_devmap_ptov(pa, size)) != NULL)
 		return (rva);
-	
+
 	offset = pa & PAGE_MASK;
 	pa = trunc_page(pa);
 	size = round_page(size + offset);
-	
-	va = kva_alloc(size);
+
+#ifdef __aarch64__
+	if (early_boot) {
+		akva_devmap_vaddr = trunc_page(akva_devmap_vaddr - size);
+		va = akva_devmap_vaddr;
+		KASSERT(va >= VM_MAX_KERNEL_ADDRESS - L2_SIZE,
+		    ("Too many early devmap mappings"));
+	} else
+#endif
+		va = kva_alloc(size);
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 
 	pmap_kenter_device(va, size, pa);
-	
+
 	return ((void *)(va + offset));
 }
 
