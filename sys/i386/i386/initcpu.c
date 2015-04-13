@@ -784,7 +784,7 @@ initializecpu(void)
 			init_transmeta();
 			break;
 		}
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 		if ((amd_feature & AMDID_NX) != 0) {
 			uint64_t msr;
 

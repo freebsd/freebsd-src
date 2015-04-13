@@ -389,7 +389,7 @@ bios16(struct bios_args *args, char *fmt, ...)
     args->seg.code32.limit = 0xffff;	
 
     ptd = (pd_entry_t *)rcr3();
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
     if (ptd == IdlePDPT)
 #else
     if (ptd == IdlePTD)
