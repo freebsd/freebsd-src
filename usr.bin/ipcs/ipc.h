@@ -52,7 +52,7 @@
 /* SysCtlGatherStruct structure. */
 struct scgs_vector {
 	const char *sysctl;
-	off_t offset;
+	size_t offset;
 	size_t size;
 };
 
