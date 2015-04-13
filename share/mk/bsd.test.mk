@@ -77,14 +77,14 @@ PROGS_TARGETS+= install
 .include <suite.test.mk>
 .endif
 
-.if !target(realtest)
-realtest: .PHONY
+.if !target(realregress)
+realregress: .PHONY
 	@echo "$@ not defined; skipping"
 .endif
 
-beforetest realtest aftertest test: .PHONY
-.ORDER: beforetest realtest aftertest
-test: beforetest realtest aftertest
+beforeregress realregress afterregress regress: .PHONY
+.ORDER: beforeregress realregress afterregress
+regress: beforeregress realregress afterregress
 
 .if !empty(SUBDIR)
 .include <bsd.subdir.mk>

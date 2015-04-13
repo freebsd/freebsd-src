@@ -43,7 +43,7 @@ ATFFILE?= auto
 # Path to the prefix of the installed ATF tools, if any.
 #
 # If atf-run and atf-report are installed from ports, we automatically define a
-# realtest target below to run the tests using these tools.  The tools are
+# realregress target below to run the tests using these tools.  The tools are
 # searched for in the hierarchy specified by this variable.
 ATF_PREFIX?= /usr/local
 
@@ -164,7 +164,7 @@ ATF_RUN?= ${ATF_PREFIX}/bin/atf-run
 _TESTS_FIFO= ${.OBJDIR}/atf-run.fifo
 _TESTS_LOG= ${.OBJDIR}/atf-run.log
 CLEANFILES+= ${_TESTS_FIFO} ${_TESTS_LOG}
-realtest: .PHONY
+realregress: .PHONY
 	@set -e; \
 	if [ -z "${TESTSDIR}" ]; then \
 	    echo "*** No TESTSDIR defined; nothing to do."; \

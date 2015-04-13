@@ -44,7 +44,7 @@ KYUAFILE?= auto
 
 # Path to the prefix of the installed Kyua CLI, if any.
 #
-# If kyua is installed from ports, we automatically define a realtest target
+# If kyua is installed from ports, we automatically define a realregress target
 # below to run the tests using this tool.  The tools are searched for in the
 # hierarchy specified by this variable.
 KYUA_PREFIX?= /usr/local
@@ -85,7 +85,7 @@ KYUA?= ${KYUA_PREFIX}/bin/kyua
 
 _kyuafile=	${DESTDIR}${TESTSDIR}/Kyuafile
 
-realtest: .PHONY
+realregress: .PHONY
 .if exists(${KYUA})
 # Definition of the "make test" target and supporting variables.
 #
@@ -96,11 +96,11 @@ realtest: .PHONY
 # Due to the dependencies of the binaries built by the source tree and how they
 # are used by tests, it is highly possible for a execution of "make test" to
 # report bogus results unless the new binaries are put in place.
-realtest:
+realregress:
 	@${KYUA} test -k ${_kyuafile}
 .endif
 
-beforetest: .PHONY
+beforeregress: .PHONY
 .if !defined(TESTSDIR)
 	@echo "*** No TESTSDIR defined; nothing to do."
 	@false
