@@ -2382,8 +2382,11 @@ found:
 					client_fd = accept(portal->p_socket,
 					    (struct sockaddr *)&client_sa,
 					    &client_salen);
-					if (client_fd < 0)
+					if (client_fd < 0) {
+						if (errno == ECONNABORTED)
+							continue;
 						log_err(1, "accept");
+					}
 					assert(client_salen >= client_sa.ss_len);
 
 					handle_connection(portal, client_fd,
