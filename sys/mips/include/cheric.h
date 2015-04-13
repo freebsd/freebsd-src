@@ -55,7 +55,6 @@
 #define	cheri_incoffset(x, y)	__builtin_cheri_cap_offset_increment((x), (y))
 #define	cheri_setlen(x, y)	__builtin_cheri_set_cap_length((x), (y))
 #define	cheri_setoffset(x, y)	__builtin_cheri_cap_offset_set((x), (y))
-#define	cheri_settype(x, y)	__builtin_cheri_set_cap_type((x), (y))
 
 #define	cheri_seal(x, y)	__builtin_cheri_seal_cap((x), (y))
 #define	cheri_unseal(x, y)	__builtin_cheri_unseal_cap((x), (y))
@@ -76,13 +75,6 @@
 #define	cheri_getpcc()		__builtin_cheri_get_program_counter_cap()
 
 #define	cheri_local(c)		cheri_andperm((c), ~CHERI_PERM_GLOBAL)
-
-static __inline __capability void *
-cheri_setlentype(__capability void *cap, size_t len, register_t type)
-{
-
-	return (cheri_settype(cheri_setlen(cap, len), type));
-}
 
 static __inline __capability void *
 cheri_ptr(void *ptr, size_t len)
