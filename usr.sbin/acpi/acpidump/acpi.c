@@ -1084,17 +1084,10 @@ acpi_print_rsdt(ACPI_TABLE_HEADER *rsdp)
 	for (i = 0; i < entries; i++) {
 		if (i > 0)
 			printf(", ");
-		switch (addr_size) {
-		case 4:
+		if (addr_size == 4)
 			addr = le32toh(rsdt->TableOffsetEntry[i]);
-			break;
-		case 8:
+		else
 			addr = le64toh(xsdt->TableOffsetEntry[i]);
-			break;
-		default:
-			addr = 0;
-		}
-		assert(addr != 0);
 		printf("0x%08lx", addr);
 	}
 	printf(" }\n");
@@ -1341,17 +1334,12 @@ acpi_handle_rsdt(ACPI_TABLE_HEADER *rsdp)
 	xsdt = (ACPI_TABLE_XSDT *)rsdp;
 	entries = (rsdp->Length - sizeof(ACPI_TABLE_HEADER)) / addr_size;
 	for (i = 0; i < entries; i++) {
-		switch (addr_size) {
-		case 4:
+		if (addr_size == 4)
 			addr = le32toh(rsdt->TableOffsetEntry[i]);
-			break;
-		case 8:
+		else
 			addr = le64toh(xsdt->TableOffsetEntry[i]);
-			break;
-		default:
-			assert((addr = 0));
-		}
-
+		if (addr == 0)
+			continue;
 		sdp = (ACPI_TABLE_HEADER *)acpi_map_sdt(addr);
 		if (acpi_checksum(sdp, sdp->Length)) {
 			warnx("RSDT entry %d (sig %.4s) is corrupt", i,
@@ -1546,16 +1534,12 @@ sdt_from_rsdt(ACPI_TABLE_HEADER *rsdp, const char *sig, ACPI_TABLE_HEADER *last)
 	xsdt = (ACPI_TABLE_XSDT *)rsdp;
 	entries = (rsdp->Length - sizeof(ACPI_TABLE_HEADER)) / addr_size;
 	for (i = 0; i < entries; i++) {
-		switch (addr_size) {
-		case 4:
+		if (addr_size == 4)
 			addr = le32toh(rsdt->TableOffsetEntry[i]);
-			break;
-		case 8:
+		else
 			addr = le64toh(xsdt->TableOffsetEntry[i]);
-			break;
-		default:
-			assert((addr = 0));
-		}
+		if (addr == 0)
+			continue;
 		sdt = (ACPI_TABLE_HEADER *)acpi_map_sdt(addr);
 		if (last != NULL) {
 			if (sdt == last)
