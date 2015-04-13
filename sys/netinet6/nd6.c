@@ -765,11 +765,10 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 		 * address with the prefix.
 		 */
 		if (!IFA6_IS_DEPRECATED(it6))
-		    public_ifa6 = it6;
-
-		if (public_ifa6 != NULL)
-			ifa_ref(&public_ifa6->ia_ifa);
+			public_ifa6 = it6;
 	}
+	if (public_ifa6 != NULL)
+		ifa_ref(&public_ifa6->ia_ifa);
 	IF_ADDR_RUNLOCK(ifp);
 
 	if (public_ifa6 != NULL) {
