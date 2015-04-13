@@ -111,12 +111,17 @@ LDADD=		${LIBFICL} ${LIBEFI} ${LIBFDT} ${LIBEFI_FDT} ${LIBSTAND}
 
 .include <bsd.prog.mk>
 
-beforedepend ${OBJS}: machine x86
+beforedepend ${OBJS}: machine
 
-CLEANFILES+=   machine x86
+CLEANFILES+=   machine
 
 machine:
-	ln -sf ${.CURDIR}/../../../amd64/include machine
+	ln -sf ${.CURDIR}/../../../${MACHINE}/include machine
+
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+beforedepend ${OBJS}: x86
+CLEANFILES+=   x86
 
 x86:
 	ln -sf ${.CURDIR}/../../../x86/include x86
+.endif
