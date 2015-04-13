@@ -180,7 +180,7 @@ cheri_capability_set(struct chericap *cp, uint32_t perms, void *otypep,
 	    ("%s: base %p rather than %p", __func__, (void *)r, basep));
 	CHERI_CGETLEN(r, CHERI_CR_CTEMP0);
 	KASSERT(r == (register_t)length,
-	    ("%s: permissions 0x%x rather than 0x%x", __func__,
+	    ("%s: length 0x%x rather than 0x%x", __func__,
 	    (unsigned int)r, perms));
 	CHERI_CGETOFFSET(r, CHERI_CR_CTEMP0);
 	KASSERT(r == (register_t)off,
