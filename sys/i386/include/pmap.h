@@ -63,7 +63,7 @@
 #define	PG_AVAIL2	0x400	/*   <	programmers use		*/
 #define	PG_AVAIL3	0x800	/*    \				*/
 #define	PG_PDE_PAT	0x1000	/* PAT	PAT index		*/
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 #define	PG_NX		(1ull<<63) /* No-execute */
 #endif
 
@@ -71,7 +71,7 @@
 /* Our various interpretations of the above */
 #define PG_W		PG_AVAIL1	/* "Wired" pseudoflag */
 #define	PG_MANAGED	PG_AVAIL2
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 #define	PG_FRAME	(0x000ffffffffff000ull)
 #define	PG_PS_FRAME	(0x000fffffffe00000ull)
 #else
@@ -110,7 +110,7 @@
  * is 1 Gigabyte.  Double everything.  It must be a multiple of 8 for PAE.
  */
 #ifndef KVA_PAGES
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 #define KVA_PAGES	512
 #else
 #define KVA_PAGES	256
@@ -128,11 +128,14 @@
  * be calculated as follows:
  *     max_phys / PAGE_SIZE * sizeof(struct vm_page) / NBPDR
  * PAE:      max_phys 16G, sizeof(vm_page) 76, NBPDR 2M, 152 page table pages.
+ * PAE_TABLES: max_phys 4G,  sizeof(vm_page) 68, NBPDR 2M, 36 page table pages.
  * Non-PAE:  max_phys 4G,  sizeof(vm_page) 68, NBPDR 4M, 18 page table pages.
  */
 #ifndef NKPT
-#ifdef PAE
+#if defined(PAE)
 #define	NKPT		240
+#elif defined(PAE_TABLES)
+#define	NKPT		60
 #else
 #define	NKPT		30
 #endif
@@ -166,7 +169,7 @@
 
 #include <vm/_vm_radix.h>
 
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 
 typedef uint64_t pdpt_entry_t;
 typedef uint64_t pd_entry_t;
@@ -193,7 +196,7 @@ extern pt_entry_t PTmap[];
 extern pd_entry_t PTD[];
 extern pd_entry_t PTDpde[];
 
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 extern pdpt_entry_t *IdlePDPT;
 #endif
 extern pd_entry_t *IdlePTD;	/* physical address of "Idle" state directory */
@@ -331,7 +334,7 @@ pmap_kextract(vm_offset_t va)
 #define PT_UPDATES_FLUSH()
 #endif
 
-#if defined(PAE) && !defined(XEN)
+#if (defined(PAE) || defined(PAE_TABLES)) && !defined(XEN)
 
 #define	pde_cmpset(pdep, old, new)	atomic_cmpset_64_i586(pdep, old, new)
 #define	pte_load_store(ptep, pte)	atomic_swap_64_i586(ptep, pte)
@@ -340,7 +343,7 @@ pmap_kextract(vm_offset_t va)
 
 extern pt_entry_t pg_nx;
 
-#elif !defined(PAE) && !defined(XEN)
+#elif !defined(PAE) && !defined(PAE_TABLES) && !defined(XEN)
 
 #define	pde_cmpset(pdep, old, new)	atomic_cmpset_int(pdep, old, new)
 #define	pte_load_store(ptep, pte)	atomic_swap_int(ptep, pte)
@@ -375,8 +378,8 @@ struct pmap {
 	cpuset_t		pm_active;	/* active on cpus */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	LIST_ENTRY(pmap) 	pm_list;	/* List of all pmaps */
-#ifdef PAE
-	pdpt_entry_t		*pm_pdpt;	/* KVA of page director pointer
+#if defined(PAE) || defined(PAE_TABLES)
+	pdpt_entry_t		*pm_pdpt;	/* KVA of page directory pointer
 						   table */
 #endif
 	struct vm_radix		pm_root;	/* spare page table pages */
