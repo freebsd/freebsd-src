@@ -90,13 +90,16 @@ CLEANFILES= boot1.efi boot1.efifat
 
 .include <bsd.prog.mk>
 
-.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
-beforedepend ${OBJS}: machine x86
+beforedepend ${OBJS}: machine
 
-CLEANFILES+=   machine x86
+CLEANFILES+=   machine
 
 machine:
-	ln -sf ${.CURDIR}/../../../amd64/include machine
+	ln -sf ${.CURDIR}/../../../${MACHINE}/include machine
+
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+beforedepend ${OBJS}: x86
+CLEANFILES+=   x86
 
 x86:
 	ln -sf ${.CURDIR}/../../../x86/include x86
