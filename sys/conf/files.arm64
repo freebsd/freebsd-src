@@ -1,0 +1,48 @@
+# $FreeBSD$
+arm/arm/devmap.c		standard
+arm/arm/generic_timer.c		standard
+arm64/arm64/autoconf.c		standard
+arm64/arm64/bcopy.c		standard
+arm64/arm64/bus_machdep.c	standard
+arm64/arm64/bus_space_asm.S	standard
+arm64/arm64/busdma_machdep.c	standard
+arm64/arm64/clock.c		standard
+arm64/arm64/copyinout.S		standard
+arm64/arm64/copystr.c		standard
+arm64/arm64/cpufunc_asm.S	standard
+arm64/arm64/dump_machdep.c	standard
+arm64/arm64/elf_machdep.c	standard
+arm64/arm64/exception.S		standard
+arm64/arm64/gic.c		standard
+arm64/arm64/identcpu.c		standard
+arm64/arm64/intr_machdep.c	standard
+arm64/arm64/in_cksum.c		optional	inet | inet6
+arm64/arm64/locore.S		standard	no-obj
+arm64/arm64/machdep.c		standard
+arm64/arm64/mem.c		standard
+arm64/arm64/minidump_machdep.c	standard
+arm64/arm64/nexus.c		standard
+arm64/arm64/pic_if.m		standard
+arm64/arm64/pmap.c		standard
+arm64/arm64/stack_machdep.c	standard
+arm64/arm64/support.S		standard
+arm64/arm64/swtch.S		standard
+arm64/arm64/sys_machdep.c	standard
+arm64/arm64/trap.c		standard
+arm64/arm64/uio_machdep.c	standard
+arm64/arm64/vfp.c		standard
+arm64/arm64/vm_machdep.c	standard
+dev/fdt/fdt_arm64.c		optional	fdt
+dev/ofw/ofw_cpu.c		optional	fdt
+dev/uart/uart_cpu_fdt.c		optional	uart fdt
+dev/uart/uart_dev_pl011.c	optional	uart pl011
+kern/kern_clocksource.c		standard
+kern/subr_dummy_vdso_tc.c	standard
+libkern/bcmp.c			standard
+libkern/ffs.c			standard
+libkern/ffsl.c			standard
+libkern/fls.c			standard
+libkern/flsl.c			standard
+libkern/flsll.c			standard
+libkern/memmove.c		standard
+libkern/memset.c		standard
