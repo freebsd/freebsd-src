@@ -105,21 +105,3 @@ beforetest: .PHONY
 	@echo "*** No TESTSDIR defined; nothing to do."
 	@false
 .endif
-.if ${KYUAFILE:tl} != "no"
-	@if [ ! -f ${_kyuafile} ]; then \
-		echo "*** Please run make install and make test for" \
-		          "end-to-end testing"; \
-		false; \
-	fi
-	@if [ "${KYUAFILE:tl}" = yes ]; then \
-		ext=; \
-	else \
-		ext=.auto; \
-	fi; \
-	if [ ${_kyuafile} -ot Kyuafile$$ext ]; then \
-		echo "*** ${_kyuafile} is older than " \
-		     "${.OBJDIR}/Kyuafile$$ext"; \
-		echo "*** Please run make install before running make test"; \
-		false; \
-	fi
-.endif
