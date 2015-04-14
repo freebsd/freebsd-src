@@ -169,8 +169,7 @@ _start:
 	pop	{r0, r1}
 	bl	_C_LABEL(efi_main)
 
-1:	WFI
-	b	1b
+1:	b	1b
 
 .Lbase:
 	.word	.
