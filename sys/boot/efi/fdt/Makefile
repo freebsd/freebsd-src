@@ -10,7 +10,7 @@ INTERNALLIB=
 SRCS=		efi_fdt.c
 
 CFLAGS+=	-ffreestanding -msoft-float
-.if ${MACHINE_CPUARCH} == "arm64"
+.if ${MACHINE_CPUARCH} == "aarch64"
 CFLAGS+=	-mgeneral-regs-only
 .endif
 
