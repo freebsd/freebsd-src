@@ -42,7 +42,7 @@ CFLAGS+=	-DNO_PCI -DEFI
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH
 CFLAGS+=	-I${.CURDIR}/../../ficl
-CFLAGS+=	-I${.CURDIR}/../../ficl/${MACHINE}
+CFLAGS+=	-I${.CURDIR}/../../ficl/${MACHINE_CPUARCH}
 LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 .endif
 

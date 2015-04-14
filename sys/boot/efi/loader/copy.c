@@ -61,8 +61,14 @@ efi_copy_init(void)
 	}
 	staging_end = staging + STAGE_PAGES * 4096;
 
-#ifdef __arm__
-	/* Round the kernel load address to a 2MiB value */
+#if defined(__aarch64__) || defined(__arm__)
+	/*
+	 * Round the kernel load address to a 2MiB value. This is needed
+	 * because the kernel builds a page table based on where it has
+	 * been loaded in physical address space. As the kernel will use
+	 * either a 1MiB or 2MiB page for this we need to make sure it
+	 * is correctly aligned for both cases.
+	 */
 	staging = roundup2(staging, 2 * 1024 * 1024);
 #endif
 
