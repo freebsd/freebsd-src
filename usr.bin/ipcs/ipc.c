@@ -55,7 +55,6 @@ struct msginfo		msginfo;
 struct msqid_kernel	*msqids;
 struct shminfo		shminfo;
 struct shmid_kernel	*shmsegs;
-void	kget(int idx, void *addr, size_t size);
 
 struct nlist symbols[] = {
 	{ .n_name = "sema" },
