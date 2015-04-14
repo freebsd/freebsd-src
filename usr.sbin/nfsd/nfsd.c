@@ -605,7 +605,7 @@ main(int argc, char **argv)
 					    bindhost[i]);
 					nfsd_exit(1);
 				}
-				if (listen(tcpsock, 5) < 0) {
+				if (listen(tcpsock, -1) < 0) {
 					syslog(LOG_ERR, "listen failed");
 					nfsd_exit(1);
 				}
@@ -680,7 +680,7 @@ main(int argc, char **argv)
 					    bindhost[i]);
 					nfsd_exit(1);
 				}
-				if (listen(tcp6sock, 5) < 0) {
+				if (listen(tcp6sock, -1) < 0) {
 					syslog(LOG_ERR, "listen failed");
 					nfsd_exit(1);
 				}
