@@ -4,14 +4,17 @@ PROG=	cheri_bench
 SRCS=	cheri_bench.c
 
 MAN=
-NEED_CHERI=	hybrid
+WANT_CHERI=	yes
+#NEED_CHERI=     hybrid
 WANT_DUMP=	yes
-
-LIBADD=  cheri
-LDADD=  -static -lcheri
 
 NO_SHARED?=	YES
 
 NO_WERROR=	YES
 
 .include <bsd.prog.mk>
+
+.if ${MK_CHERI} != "no"
+LIBADD=  cheri
+LDADD=  -static -lcheri
+.endif

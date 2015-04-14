@@ -42,6 +42,8 @@
 #include <assert.h>
 #include <sys/uio.h>
 
+#if __has_feature(capabilities)
+
 #include <machine/cheri.h>
 #include <machine/cheric.h>
 #include <cheri/cheri_fd.h>
@@ -49,9 +51,24 @@
 #include <cheri/cheri_invoke.h>
 #include <cheri_bench-helper.h>
 
-#define get_cyclecount cheri_get_cyclecount
+static inline uint32_t get_cyclecount(void)
+{
+  uint64_t _time;
+  //__asm __volatile("rdhwr %0, $2" : "=r" (_time));
+  __asm __volatile(".word 0x7c10103b\n\tmove %0, $16" : "=r" (_time) :: "$16"); // rdhwr $16, $2 manually assembled due to gas issuesa
+  return (_time & 0xffffffff);
+}
 
+#define CAP
 struct cheri_object cheri_bench;
+
+#else
+
+#define __capability
+#define memcpy_c memcpy
+#define __builtin_cheri_set_cap_length(c,l) c
+
+#endif
 
 typedef uint64_t memcpy_t(__capability char *, __capability char *, size_t, int fd);
 
@@ -64,6 +81,7 @@ static uint64_t do_memcpy (__capability char *dataout, __capability char *datain
   return end_count - start_count;
 }
 
+#ifdef CAP
 static uint64_t invoke_memcpy(__capability char *dataout, __capability char *datain, size_t len, int __unused fd)
 {
   int ret;
@@ -78,6 +96,7 @@ static uint64_t invoke_memcpy(__capability char *dataout, __capability char *dat
   if (ret != 0) err(1, "Invoke failed.");
   return end_count - start_count;
 }
+#endif
 
 static inline void read_retry(int fd, char *buf, size_t len)
 {
@@ -190,8 +209,10 @@ static void usage(void)
 int
 main(int argc, char *argv[])
 {
+#ifdef CAP
 	struct sandbox_class *classp;
 	struct sandbox_object *sandboxp;
+#endif
 	char *datain, *dataout;
 	__capability char *datain_cap, *dataout_cap;
 	int socket_pair[2], pipe_pair[2], shmem_socket_pair[2];
@@ -201,7 +222,7 @@ main(int argc, char *argv[])
 	size_t size, max_size = 0;
 	char *endp;
 	int ch;
-	int func = 0, invoke = 0, socket = 0, do_pipe=0, shared = 0;
+	int func = 0, invoke = 0, do_socket = 0, do_pipe=0, shared = 0;
 	int inOffset = 0, outOffset = 0;
 	uint64_t *samples;
 	
@@ -220,7 +241,7 @@ main(int argc, char *argv[])
 	    do_pipe = 1;
 	    break;
 	  case 's':
-	    socket = 1;
+	    do_socket = 1;
 	    break;
 	  case 'S':
 	    shared = 1;
@@ -265,9 +286,11 @@ main(int argc, char *argv[])
 	datain  = mmap(NULL, max_size + inOffset, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
 	dataout = mmap(NULL, max_size + outOffset, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
 	if (datain == NULL || dataout == NULL) err(1, "malloc");
+
 	datain_cap  = __builtin_cheri_set_cap_length((__capability char *) (datain + inOffset), max_size);
 	dataout_cap = __builtin_cheri_set_cap_length((__capability char *) (dataout + outOffset), max_size);
 
+#ifdef CAP
 	if (invoke)
 	  {
 	    if (sandbox_class_new("/usr/libexec/cheri_bench-helper",
@@ -277,8 +300,9 @@ main(int argc, char *argv[])
 	      err(EX_OSFILE, "sandbox_object_new");
 	    cheri_bench = sandbox_object_getobject(sandboxp);
 	  }
-
-	if (socket)
+#endif
+	
+	if (do_socket)
 	  {
 	    if (socketpair(PF_LOCAL, SOCK_STREAM, 0, socket_pair) < 0)
 	      err(1, NULL);
@@ -337,17 +361,19 @@ main(int argc, char *argv[])
 		printf("\n#func %zu\n%zu", size, size);
 		benchmark(do_memcpy, dataout_cap, datain_cap, size, reps, samples, 0);
 	      }
+#ifdef CAP
 	    if (invoke)
 	      {
 		printf("\n#invoke %zu\n%zu", size, size);
 		benchmark(invoke_memcpy, dataout_cap, datain_cap, size, reps, samples, 0);
 	      }
+#endif
 	    if(shared)
 	      {
 		printf("\n#shmem %zu\n%zu", size, size);
 		benchmark(shmem_memcpy, dataout_cap, datain_cap, size, reps, samples, shmem_socket_pair[0]);
 	      }
-	    if(socket)
+	    if(do_socket)
 	      {
 		printf("\n#socket %zu\n%zu", size, size);
 		benchmark(socket_memcpy, dataout_cap, datain_cap, size, reps, samples, socket_pair[0]);
@@ -365,11 +391,13 @@ main(int argc, char *argv[])
 	munmap(datain, max_size + inOffset);
 	munmap(dataout, max_size + outOffset);
 
+#ifdef CAP
 	if (invoke)
 	  {
 	    sandbox_object_destroy(sandboxp);
 	    sandbox_class_destroy(classp);
 	  }
+#endif
 
 	return (0);
 }
