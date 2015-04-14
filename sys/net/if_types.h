@@ -243,10 +243,10 @@
 
 #define	IFT_STF			   0xd7	/* 6to4 interface */
 
-/* not based on IANA assignments */
-#define	IFT_GIF		0xf0
-#define	IFT_PVC		0xf1
-#define	IFT_ENC		0xf4
-#define	IFT_PFLOG	0xf6
-#define	IFT_PFSYNC	0xf7
+/* FreeBSD specific, not based on IANA assignments */
+#define	IFT_GIF		0xf0 /* Generic tunnel interface */
+#define	IFT_PVC		0xf1 /* Unused */
+#define	IFT_ENC		0xf4 /* Encapsulating interface */
+#define	IFT_PFLOG	0xf6 /* PF packet filter logging */
+#define	IFT_PFSYNC	0xf7 /* PF packet filter synchronization */
 #endif /* !_NET_IF_TYPES_H_ */
