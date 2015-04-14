@@ -90,7 +90,7 @@
 #define PAGE_MASK	(PAGE_SIZE-1)
 #define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
 
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 #define NPGPTD		4
 #define PDRSHIFT	21		/* LOG2(NBPDR) */
 #define NPGPTD_SHIFT	9

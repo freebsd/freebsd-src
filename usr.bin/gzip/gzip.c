@@ -1,4 +1,4 @@
-/*	$NetBSD: gzip.c,v 1.106 2014/10/18 08:33:30 snj Exp $	*/
+/*	$NetBSD: gzip.c,v 1.107 2015/01/13 02:37:20 mrg Exp $	*/
 
 /*-
  * Copyright (c) 1997, 1998, 2003, 2004, 2006 Matthew R. Green
@@ -158,7 +158,7 @@ static suffixes_t suffixes[] = {
 #define NUM_SUFFIXES (sizeof suffixes / sizeof suffixes[0])
 #define SUFFIX_MAXLEN	30
 
-static	const char	gzip_version[] = "FreeBSD gzip 20141022";
+static	const char	gzip_version[] = "FreeBSD gzip 20150413";
 
 #ifndef SMALL
 static	const char	gzip_copyright[] = \
@@ -1354,7 +1354,7 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 #ifndef SMALL
 	ssize_t rv;
 	time_t timestamp = 0;
-	unsigned char name[PATH_MAX + 1];
+	char name[PATH_MAX + 1];
 #endif
 
 	/* gather the old name info */
@@ -1415,15 +1415,24 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 				goto lose;
 			}
 			if (name[0] != 0) {
+				char *dp, *nf;
+
+				/* strip saved directory name */
+				nf = strrchr(name, '/');
+				if (nf == NULL)
+					nf = name;
+				else
+					nf++;
+
 				/* preserve original directory name */
-				char *dp = strrchr(file, '/');
+				dp = strrchr(file, '/');
 				if (dp == NULL)
 					dp = file;
 				else
 					dp++;
 				snprintf(outfile, outsize, "%.*s%.*s",
 						(int) (dp - file), 
-						file, (int) rbytes, name);
+						file, (int) rbytes, nf);
 			}
 		}
 	}
@@ -2110,7 +2119,7 @@ static void
 display_license(void)
 {
 
-	fprintf(stderr, "%s (based on NetBSD gzip 20141018)\n", gzip_version);
+	fprintf(stderr, "%s (based on NetBSD gzip 20150113)\n", gzip_version);
 	fprintf(stderr, "%s\n", gzip_copyright);
 	exit(0);
 }

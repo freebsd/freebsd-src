@@ -26,16 +26,16 @@ static const char sccsid[] = "$Id: ex_display.c,v 10.15 2001/06/25 15:19:15 skim
 #include "../common/common.h"
 #include "tag.h"
 
-static int	is_prefix __P((ARGS *, CHAR_T *));
-static int	bdisplay __P((SCR *));
-static void	db __P((SCR *, CB *, const char *));
+static int	is_prefix(ARGS *, CHAR_T *);
+static int	bdisplay(SCR *);
+static void	db(SCR *, CB *, const char *);
 
 /*
  * ex_display -- :display b[uffers] | c[onnections] | s[creens] | t[ags]
  *
  *	Display cscope connections, buffers, tags or screens.
  *
- * PUBLIC: int ex_display __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_display(SCR *, EXCMD *);
  */
 int
 ex_display(SCR *sp, EXCMD *cmdp)

@@ -20,19 +20,19 @@ SRCS=	autoload.c \
 	copy.c \
 	devicename.c \
 	main.c \
+	reloc.c \
 	smbios.c \
 	vers.c
 
-.PATH: ${.CURDIR}/arch/${MACHINE_CPUARCH}
+.PATH: ${.CURDIR}/arch/${MACHINE}
 # For smbios.c
 .PATH: ${.CURDIR}/../../i386/libi386
-.include "${.CURDIR}/arch/${MACHINE_CPUARCH}/Makefile.inc"
+.include "${.CURDIR}/arch/${MACHINE}/Makefile.inc"
 
-CFLAGS+=	-fPIC
 CFLAGS+=	-I${.CURDIR}
-CFLAGS+=	-I${.CURDIR}/arch/${MACHINE_CPUARCH}
+CFLAGS+=	-I${.CURDIR}/arch/${MACHINE}
 CFLAGS+=	-I${.CURDIR}/../include
-CFLAGS+=	-I${.CURDIR}/../include/${MACHINE_CPUARCH}
+CFLAGS+=	-I${.CURDIR}/../include/${MACHINE}
 CFLAGS+=	-I${.CURDIR}/../../../contrib/dev/acpica/include
 CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	-I${.CURDIR}/../../i386/libi386
@@ -70,12 +70,12 @@ CFLAGS+=	-I${.CURDIR}/../../common
 FILES=	loader.efi
 FILESMODE_loader.efi=	${BINMODE}
 
-LDSCRIPT=	${.CURDIR}/arch/${MACHINE_CPUARCH}/ldscript.${MACHINE_CPUARCH}
-LDFLAGS=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared -Wl,-znocombreloc
+LDSCRIPT=	${.CURDIR}/arch/${MACHINE}/ldscript.${MACHINE}
+LDFLAGS+=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared
 
 CLEANFILES=	vers.c loader.efi
 
-NEWVERSWHAT=	"EFI loader" ${MACHINE_CPUARCH}
+NEWVERSWHAT=	"EFI loader" ${MACHINE}
 
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/../../efi/loader/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
@@ -111,12 +111,17 @@ LDADD=		${LIBFICL} ${LIBEFI} ${LIBFDT} ${LIBEFI_FDT} ${LIBSTAND}
 
 .include <bsd.prog.mk>
 
-beforedepend ${OBJS}: machine x86
+beforedepend ${OBJS}: machine
 
-CLEANFILES+=   machine x86
+CLEANFILES+=   machine
 
 machine:
-	ln -sf ${.CURDIR}/../../../amd64/include machine
+	ln -sf ${.CURDIR}/../../../${MACHINE}/include machine
+
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+beforedepend ${OBJS}: x86
+CLEANFILES+=   x86
 
 x86:
 	ln -sf ${.CURDIR}/../../../x86/include x86
+.endif

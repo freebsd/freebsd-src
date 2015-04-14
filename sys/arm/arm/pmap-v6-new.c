@@ -6051,11 +6051,38 @@ retry:
 }
 
 void
-pmap_kenter_device(vm_offset_t va, vm_paddr_t pa)
+pmap_kenter_device(vm_offset_t va, vm_size_t size, vm_paddr_t pa)
 {
+	vm_offset_t sva;
 
-	pmap_kenter_prot_attr(va, pa, PTE2_AP_KRW, PTE2_ATTR_DEVICE);
-	tlb_flush(va);
+	KASSERT((size & PAGE_MASK) == 0, 
+	    ("%s: device mapping not page-sized", __func__));
+
+	sva = va;
+	while (size != 0) {
+		pmap_kenter_prot_attr(va, pa, PTE2_AP_KRW, PTE2_ATTR_DEVICE);
+		va += PAGE_SIZE;
+		pa += PAGE_SIZE;
+		size -= PAGE_SIZE;
+	}
+	tlb_flush_range(sva, va - sva);
+}
+
+void
+pmap_kremove_device(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t sva;
+
+	KASSERT((size & PAGE_MASK) == 0, 
+	    ("%s: device mapping not page-sized", __func__));
+
+	sva = va;
+	while (size != 0) {
+		pmap_kremove(va);
+		va += PAGE_SIZE;
+		size -= PAGE_SIZE;
+	}
+	tlb_flush_range(sva, va - sva);
 }
 
 void

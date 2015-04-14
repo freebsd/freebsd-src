@@ -378,7 +378,8 @@ struct uart_class uart_ns8250_class = {
 	sizeof(struct ns8250_softc),
 	.uc_ops = &uart_ns8250_ops,
 	.uc_range = 8,
-	.uc_rclk = DEFAULT_RCLK
+	.uc_rclk = DEFAULT_RCLK,
+	.uc_rshift = 0
 };
 
 #ifdef FDT

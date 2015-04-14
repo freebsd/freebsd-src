@@ -90,11 +90,11 @@ CTASSERT(sizeof(struct ip) == 20);
 #endif
 
 /* IP reassembly functions are defined in ip_reass.c. */
-extern void ipreass_init();
-extern void ipreass_drain();
-extern void ipreass_slowtimo();
+extern void ipreass_init(void);
+extern void ipreass_drain(void);
+extern void ipreass_slowtimo(void);
 #ifdef VIMAGE
-extern void ipreass_destroy();
+extern void ipreass_destroy(void);
 #endif
 
 struct	rwlock in_ifaddr_lock;

@@ -2155,8 +2155,9 @@ fdsetugidsafety(struct thread *td)
  * file descriptor out from under the thread creating the file object.
  */
 void
-fdclose(struct filedesc *fdp, struct file *fp, int idx, struct thread *td)
+fdclose(struct thread *td, struct file *fp, int idx)
 {
+	struct filedesc *fdp = td->td_proc->p_fd;
 
 	FILEDESC_XLOCK(fdp);
 	if (fdp->fd_ofiles[idx].fde_file == fp) {

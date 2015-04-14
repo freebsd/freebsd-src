@@ -30,7 +30,8 @@
 #include <dev/hptnr/hptnr_config.h>
 #include <dev/hptnr/os_bsd.h>
 #include <dev/hptnr/hptintf.h>
-
+int msi = 0;
+int debug_flag = 0;
 static HIM *hpt_match(device_t dev)
 {
 	PCI_ID pci_id;
@@ -431,10 +432,61 @@ static void os_cmddone(PCOMMAND pCmd)
 {
 	POS_CMDEXT ext = (POS_CMDEXT)pCmd->priv;
 	union ccb *ccb = ext->ccb;
+	HPT_U8 *cdb;
+		
+	if (ccb->ccb_h.flags & CAM_CDB_POINTER)
+		cdb = ccb->csio.cdb_io.cdb_ptr;
+	else
+		cdb = ccb->csio.cdb_io.cdb_bytes;
 
 	KdPrint(("os_cmddone(%p, %d)", pCmd, pCmd->Result));
 
 	callout_stop(&ext->timeout);
+	switch(cdb[0]) {
+		case 0x85: /*ATA_16*/
+		case 0xA1: /*ATA_12*/
+		{
+			PassthroughCmd *passthru = &pCmd->uCmd.Passthrough;
+			HPT_U8 *sense_buffer = (HPT_U8 *)&ccb->csio.sense_data;
+			memset(&ccb->csio.sense_data, 0,sizeof(ccb->csio.sense_data));
+
+			sense_buffer[0] = 0x72; /* Response Code */
+			sense_buffer[7] = 14; /* Additional Sense Length */
+	
+			sense_buffer[8] = 0x9; /* ATA Return Descriptor */
+			sense_buffer[9] = 0xc; /* Additional Descriptor Length */
+			sense_buffer[11] = (HPT_U8)passthru->bFeaturesReg; /* Error */
+			sense_buffer[13] = (HPT_U8)passthru->bSectorCountReg;  /* Sector Count (7:0) */
+			sense_buffer[15] = (HPT_U8)passthru->bLbaLowReg; /* LBA Low (7:0) */
+			sense_buffer[17] = (HPT_U8)passthru->bLbaMidReg; /* LBA Mid (7:0) */
+			sense_buffer[19] = (HPT_U8)passthru->bLbaHighReg; /* LBA High (7:0) */
+	
+			if ((cdb[0] == 0x85) && (cdb[1] & 0x1))
+			{
+				sense_buffer[10] = 1;
+				sense_buffer[12] = (HPT_U8)(passthru->bSectorCountReg >> 8); /* Sector Count (15:8) */
+				sense_buffer[14] = (HPT_U8)(passthru->bLbaLowReg >> 8);	/* LBA Low (15:8) */
+				sense_buffer[16] = (HPT_U8)(passthru->bLbaMidReg >> 8); /* LBA Mid (15:8) */
+				sense_buffer[18] = (HPT_U8)(passthru->bLbaHighReg >> 8); /* LBA High (15:8) */
+			}
+	
+			sense_buffer[20] = (HPT_U8)passthru->bDriveHeadReg; /* Device */
+			sense_buffer[21] = (HPT_U8)passthru->bCommandReg; /* Status */
+			KdPrint(("sts 0x%x err 0x%x low 0x%x mid 0x%x hig 0x%x dh 0x%x sc 0x%x",
+					 passthru->bCommandReg,
+					 passthru->bFeaturesReg,
+					 passthru->bLbaLowReg,
+					 passthru->bLbaMidReg,
+					 passthru->bLbaHighReg,
+					 passthru->bDriveHeadReg,
+					 passthru->bSectorCountReg));
+			KdPrint(("result:0x%x,bFeaturesReg:0x%04x,bSectorCountReg:0x%04x,LBA:0x%04x%04x%04x ",
+				pCmd->Result,passthru->bFeaturesReg,passthru->bSectorCountReg,
+				passthru->bLbaHighReg,passthru->bLbaMidReg,passthru->bLbaLowReg));
+		}
+		default:
+			break;
+	}
 
 	switch(pCmd->Result) {
 	case RETURN_SUCCESS:
@@ -561,47 +613,303 @@ static void hpt_scsi_io(PVBUS_EXT vbus_ext, union ccb *ccb)
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 
-	case INQUIRY:
-		{
-			PINQUIRYDATA inquiryData;
-			memset(ccb->csio.data_ptr, 0, ccb->csio.dxfer_len);
-			inquiryData = (PINQUIRYDATA)ccb->csio.data_ptr;
+	case 0x85: /*ATA_16*/
+	case 0xA1: /*ATA_12*/
+	{
+		int error;
+		HPT_U8 prot;
+		PassthroughCmd *passthru;	
 		
-			inquiryData->AdditionalLength = 31;
-			inquiryData->CommandQueue = 1;
-			memcpy(&inquiryData->VendorId, "HPT     ", 8);
-			memcpy(&inquiryData->ProductId, "DISK 0_0        ", 16);
-	
-			if (vd->target_id / 10) {
-				inquiryData->ProductId[7] = (vd->target_id % 100) / 10 + '0';
-				inquiryData->ProductId[8] = (vd->target_id % 100) % 10 + '0';
-			}
-			else
-				inquiryData->ProductId[7] = (vd->target_id % 100) % 10 + '0';
-	
-			memcpy(&inquiryData->ProductRevisionLevel, "4.00", 4);
-	
-			ccb->ccb_h.status = CAM_REQ_CMP;
+		if (mIsArray(vd->type)) {
+			ccb->ccb_h.status = CAM_PATH_INVALID;
+			break;
 		}
-		break;
+		
+		HPT_ASSERT(vd->type == VD_RAW && vd->u.raw.legacy_disk);
+		
+		prot = (cdb[1] & 0x1e) >> 1;
+		
+		
+		if (prot < 3 || prot > 5) 
+		{
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+			break;
+		}
+		
+		pCmd = ldm_alloc_cmds(vbus, vd->cmds_per_request);
+		if (!pCmd) {
+			HPT_ASSERT(0);
+			ccb->ccb_h.status = CAM_BUSY;
+			break;
+		}
+		
+		passthru = &pCmd->uCmd.Passthrough;
+		if (cdb[0] == 0x85/*ATA_16*/) {
+			if (cdb[1] & 0x1) {
+				passthru->bFeaturesReg =
+					((HPT_U16)cdb[3] << 8)
+						| cdb[4];
+				passthru->bSectorCountReg =
+					((HPT_U16)cdb[5] << 8) |
+						cdb[6];
+				passthru->bLbaLowReg =
+					((HPT_U16)cdb[7] << 8) |
+						cdb[8];
+				passthru->bLbaMidReg =
+					((HPT_U16)cdb[9] << 8) |
+						cdb[10];
+				passthru->bLbaHighReg =
+					((HPT_U16)cdb[11] << 8) |
+						cdb[12];
+			} else {
+				passthru->bFeaturesReg = cdb[4];
+				passthru->bSectorCountReg = cdb[6];
+				passthru->bLbaLowReg = cdb[8];
+				passthru->bLbaMidReg = cdb[10];
+				passthru->bLbaHighReg = cdb[12];
+			}
+			passthru->bDriveHeadReg = cdb[13];
+			passthru->bCommandReg = cdb[14];
+		
+		} else { /*ATA_12*/
+		
+			passthru->bFeaturesReg = cdb[3];
+			passthru->bSectorCountReg = cdb[4];
+			passthru->bLbaLowReg = cdb[5];
+			passthru->bLbaMidReg = cdb[6];
+			passthru->bLbaHighReg = cdb[7];
+			passthru->bDriveHeadReg = cdb[8];
+			passthru->bCommandReg = cdb[9];
+		}
+		
+		if (cdb[1] & 0xe0) {
+			
+		
+			if (!(passthru->bCommandReg == ATA_CMD_READ_MULTI ||
+				passthru->bCommandReg == ATA_CMD_READ_MULTI_EXT ||
+				passthru->bCommandReg == ATA_CMD_WRITE_MULTI ||
+				passthru->bCommandReg == ATA_CMD_WRITE_MULTI_EXT ||
+				passthru->bCommandReg == ATA_CMD_WRITE_MULTI_FUA_EXT)
+				) {
+				goto error;
+			}
+		}
+		
+		
+		if (passthru->bFeaturesReg == ATA_SET_FEATURES_XFER &&
+			passthru->bCommandReg == ATA_CMD_SET_FEATURES) {
+			goto error;
+		}
 
+		
+		passthru->nSectors = ccb->csio.dxfer_len/ATA_SECTOR_SIZE;
+		switch (prot) {
+			default: /*None data*/
+				break;
+			case 4: /*PIO data in, T_DIR=1 match check*/
+				if ((cdb[2] & 3) && 
+					(cdb[2] & 0x8) == 0)
+				{
+					OsPrint(("PIO data in, T_DIR=1 match check"));
+					goto error;
+				}
+				pCmd->flags.data_in = 1;
+						break;
+			case 5: /*PIO data out, T_DIR=0 match check*/
+				if ((cdb[2] & 3) && 
+					(cdb[2] & 0x8))
+				{
+					OsPrint(("PIO data out, T_DIR=0 match check"));
+					goto error;
+				}
+
+				pCmd->flags.data_out = 1;
+				break;
+		}
+		pCmd->type = CMD_TYPE_PASSTHROUGH;
+		pCmd->priv = ext = cmdext_get(vbus_ext);
+		HPT_ASSERT(ext);
+		ext->ccb = ccb;
+		pCmd->target = vd;
+		pCmd->done = os_cmddone;
+		pCmd->buildsgl = os_buildsgl;
+		pCmd->psg = ext->psg;
+
+		if(!ccb->csio.dxfer_len)
+		{
+			ldm_queue_cmd(pCmd);
+			return;
+		}
+		pCmd->flags.physical_sg = 1;
+		error = bus_dmamap_load_ccb(vbus_ext->io_dmat, 
+					ext->dma_map, ccb, 
+					hpt_io_dmamap_callback, pCmd,
+				    	BUS_DMA_WAITOK
+					);
+		KdPrint(("bus_dmamap_load return %d", error));
+		if (error && error!=EINPROGRESS) {
+			os_printk("bus_dmamap_load error %d", error);
+			cmdext_put(ext);
+			ldm_free_cmds(pCmd);
+			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+			xpt_done(ccb);
+		}
+		return;
+error:
+		ldm_free_cmds(pCmd);
+		ccb->ccb_h.status = CAM_PATH_INVALID;
+		break;
+	}
+
+	case INQUIRY:
+	{
+		PINQUIRYDATA inquiryData;
+		HIM_DEVICE_CONFIG devconf;
+		HPT_U8 *rbuf;
+
+		memset(ccb->csio.data_ptr, 0, ccb->csio.dxfer_len);
+		inquiryData = (PINQUIRYDATA)ccb->csio.data_ptr;
+
+		if (cdb[1] & 1) {
+			rbuf = (HPT_U8 *)inquiryData;
+			switch(cdb[2]) {
+			case 0:
+				rbuf[0] = 0;
+				rbuf[1] = 0;
+				rbuf[2] = 0;
+				rbuf[3] = 3;
+				rbuf[4] = 0;
+				rbuf[5] = 0x80;
+				rbuf[6] = 0x83;
+				ccb->ccb_h.status = CAM_REQ_CMP;
+				break;
+			case 0x80: {
+				rbuf[0] = 0;
+				rbuf[1] = 0x80;
+				rbuf[2] = 0;
+				if (vd->type == VD_RAW) {
+					rbuf[3] = 20;
+					vd->u.raw.him->get_device_config(vd->u.raw.phy_dev,&devconf);
+					memcpy(&rbuf[4], devconf.pIdentifyData->SerialNumber, 20);
+					ldm_ide_fixstring(&rbuf[4], 20);
+				} else {
+					rbuf[3] = 1;
+					rbuf[4] = 0x20;
+				}
+				ccb->ccb_h.status = CAM_REQ_CMP;				
+				break;
+			}
+			case 0x83:
+				rbuf[0] = 0;
+				rbuf[1] = 0x83;
+				rbuf[2] = 0;
+				rbuf[3] = 12; 
+				rbuf[4] = 1;
+				rbuf[5] = 2; 
+				rbuf[6] = 0;
+				rbuf[7] = 8; 
+				rbuf[8] = 0; 
+				rbuf[9] = 0x19;
+				rbuf[10] = 0x3C;
+				rbuf[11] = 0;
+				rbuf[12] = 0;
+				rbuf[13] = 0;
+				rbuf[14] = 0;
+				rbuf[15] = 0;
+				ccb->ccb_h.status = CAM_REQ_CMP;			
+				break;
+			default:
+				ccb->ccb_h.status = CAM_REQ_INVALID;
+				break;
+			}
+
+			break;
+		} 
+		else if (cdb[2]) {	
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+			break;
+		}
+
+		inquiryData->DeviceType = 0; /*DIRECT_ACCESS_DEVICE*/
+		inquiryData->Versions = 5; /*SPC-3*/
+		inquiryData->ResponseDataFormat = 2;
+		inquiryData->AdditionalLength = 0x5b;
+		inquiryData->CommandQueue = 1;
+
+		if (ccb->csio.dxfer_len > 63) {
+			rbuf = (HPT_U8 *)inquiryData;			
+			rbuf[58] = 0x60;
+			rbuf[59] = 0x3;
+			
+			rbuf[64] = 0x3; 
+			rbuf[66] = 0x3; 
+			rbuf[67] = 0x20;
+			
+		}
+		
+		if (vd->type == VD_RAW) {
+			vd->u.raw.him->get_device_config(vd->u.raw.phy_dev,&devconf);
+
+			if ((devconf.pIdentifyData->GeneralConfiguration & 0x80))
+				inquiryData->RemovableMedia = 1;
+
+			
+			memcpy(&inquiryData->VendorId, "ATA     ", 8);
+			memcpy(&inquiryData->ProductId, devconf.pIdentifyData->ModelNumber, 16);
+			ldm_ide_fixstring((HPT_U8 *)&inquiryData->ProductId, 16);
+			memcpy(&inquiryData->ProductRevisionLevel, devconf.pIdentifyData->FirmwareRevision, 4);
+			ldm_ide_fixstring((HPT_U8 *)&inquiryData->ProductRevisionLevel, 4);
+			if (inquiryData->ProductRevisionLevel[0] == 0 || inquiryData->ProductRevisionLevel[0] == ' ')
+				memcpy(&inquiryData->ProductRevisionLevel, "n/a ", 4);
+		} else {
+			memcpy(&inquiryData->VendorId, "HPT     ", 8);
+			snprintf((char *)&inquiryData->ProductId, 16, "DISK_%d_%d        ",
+				os_get_vbus_seq(vbus_ext), vd->target_id);
+			inquiryData->ProductId[15] = ' ';
+			memcpy(&inquiryData->ProductRevisionLevel, "4.00", 4);
+		}
+
+		ccb->ccb_h.status = CAM_REQ_CMP;
+		break;
+	}
 	case READ_CAPACITY:
 	{
 		HPT_U8 *rbuf = ccb->csio.data_ptr;
 		HPT_U32 cap;
+		HPT_U8 sector_size_shift = 0;
+		HPT_U64 new_cap;
+		HPT_U32 sector_size = 0;
+
+		if (mIsArray(vd->type))
+			sector_size_shift = vd->u.array.sector_size_shift;
+		else{
+			if(vd->type == VD_RAW){
+				sector_size = vd->u.raw.logical_sector_size;
+			}
 		
-		if (vd->capacity>0xfffffffful)
-			cap = 0xfffffffful;
+			switch (sector_size) {
+				case 0x1000:
+					KdPrint(("set 4k setctor size in READ_CAPACITY"));
+					sector_size_shift = 3;
+					break;
+				default:
+					break;
+			}			
+		}
+		new_cap = vd->capacity >> sector_size_shift;
+		
+		if (new_cap > 0xfffffffful)
+			cap = 0xffffffff;
 		else
-			cap = vd->capacity - 1;
-	
+			cap = new_cap - 1;
+			
 		rbuf[0] = (HPT_U8)(cap>>24);
 		rbuf[1] = (HPT_U8)(cap>>16);
 		rbuf[2] = (HPT_U8)(cap>>8);
 		rbuf[3] = (HPT_U8)cap;
 		rbuf[4] = 0;
 		rbuf[5] = 0;
-		rbuf[6] = 2;
+		rbuf[6] = 2 << sector_size_shift;
 		rbuf[7] = 0;
 
 		ccb->ccb_h.status = CAM_REQ_CMP;
@@ -611,8 +919,28 @@ static void hpt_scsi_io(PVBUS_EXT vbus_ext, union ccb *ccb)
 	case SERVICE_ACTION_IN: 
 	{
 		HPT_U8 *rbuf = ccb->csio.data_ptr;
-		HPT_U64	cap = vd->capacity - 1;
+		HPT_U64	cap = 0;
+		HPT_U8 sector_size_shift = 0;
+		HPT_U32 sector_size = 0;
+
+		if(mIsArray(vd->type))
+			sector_size_shift = vd->u.array.sector_size_shift;
+		else{
+			if(vd->type == VD_RAW){
+				sector_size = vd->u.raw.logical_sector_size;
+			}
 		
+			switch (sector_size) {
+				case 0x1000:
+					KdPrint(("set 4k setctor size in SERVICE_ACTION_IN"));
+					sector_size_shift = 3;
+					break;
+				default:
+					break;
+			}			
+		}
+		cap = (vd->capacity >> sector_size_shift) - 1;
+					
 		rbuf[0] = (HPT_U8)(cap>>56);
 		rbuf[1] = (HPT_U8)(cap>>48);
 		rbuf[2] = (HPT_U8)(cap>>40);
@@ -623,7 +951,7 @@ static void hpt_scsi_io(PVBUS_EXT vbus_ext, union ccb *ccb)
 		rbuf[7] = (HPT_U8)cap;
 		rbuf[8] = 0;
 		rbuf[9] = 0;
-		rbuf[10] = 2;
+		rbuf[10] = 2 << sector_size_shift;
 		rbuf[11] = 0;
 		
 		ccb->ccb_h.status = CAM_REQ_CMP;
@@ -641,6 +969,8 @@ static void hpt_scsi_io(PVBUS_EXT vbus_ext, union ccb *ccb)
 	case 0x8f: /* VERIFY_16 */
 	{
 		int error;
+		HPT_U8 sector_size_shift = 0;
+		HPT_U32 sector_size = 0;
 		pCmd = ldm_alloc_cmds(vbus, vd->cmds_per_request);
 		if(!pCmd){
 			KdPrint(("Failed to allocate command!"));
@@ -678,6 +1008,27 @@ static void hpt_scsi_io(PVBUS_EXT vbus_ext, union ccb *ccb)
 			pCmd->uCmd.Ide.nSectors = (HPT_U16) cdb[8] | ((HPT_U16)cdb[7]<<8);
 			break;
 		}
+
+		if(mIsArray(vd->type)) {
+			sector_size_shift = vd->u.array.sector_size_shift;
+		}
+		else{
+			if(vd->type == VD_RAW){
+				sector_size = vd->u.raw.logical_sector_size;
+			}
+	  		
+			switch (sector_size) {
+				case 0x1000:
+					KdPrint(("<8>resize sector size from 4k to 512"));
+					sector_size_shift = 3;
+					break;
+				default:
+					break;
+	 		}			
+		}
+		pCmd->uCmd.Ide.Lba <<= sector_size_shift;
+		pCmd->uCmd.Ide.nSectors <<= sector_size_shift;
+
 		
 		switch (cdb[0]) {
 		case READ_6:
@@ -716,7 +1067,7 @@ static void hpt_scsi_io(PVBUS_EXT vbus_ext, union ccb *ccb)
 	}
 
 	default:
-		ccb->ccb_h.status = CAM_REQ_INVALID;
+		ccb->ccb_h.status = CAM_SEL_TIMEOUT;
 		break;
 	}
 

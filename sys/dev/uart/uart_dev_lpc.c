@@ -428,7 +428,8 @@ static struct uart_class uart_lpc_class = {
 	sizeof(struct lpc_ns8250_softc),
 	.uc_ops = &uart_lpc_ns8250_ops,
 	.uc_range = 8,
-	.uc_rclk = DEFAULT_RCLK
+	.uc_rclk = DEFAULT_RCLK,
+	.uc_rshift = 0
 };
 
 static struct ofw_compat_data compat_data[] = {

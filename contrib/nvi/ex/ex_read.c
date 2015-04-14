@@ -36,7 +36,7 @@ static const char sccsid[] = "$Id: ex_read.c,v 10.44 2001/06/25 15:19:19 skimo E
  * !!!
  * Historical vi wouldn't undo a filter read, for no apparent reason.
  *
- * PUBLIC: int ex_read __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_read(SCR *, EXCMD *);
  */
 int
 ex_read(SCR *sp, EXCMD *cmdp)
@@ -291,7 +291,7 @@ ex_read(SCR *sp, EXCMD *cmdp)
  * ex_readfp --
  *	Read lines into the file.
  *
- * PUBLIC: int ex_readfp __P((SCR *, char *, FILE *, MARK *, recno_t *, int));
+ * PUBLIC: int ex_readfp(SCR *, char *, FILE *, MARK *, recno_t *, int);
  */
 int
 ex_readfp(SCR *sp, char *name, FILE *fp, MARK *fm, recno_t *nlinesp, int silent)
