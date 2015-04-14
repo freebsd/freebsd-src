@@ -24,15 +24,15 @@ SRCS=	autoload.c \
 	smbios.c \
 	vers.c
 
-.PATH: ${.CURDIR}/arch/${MACHINE_CPUARCH}
+.PATH: ${.CURDIR}/arch/${MACHINE}
 # For smbios.c
 .PATH: ${.CURDIR}/../../i386/libi386
-.include "${.CURDIR}/arch/${MACHINE_CPUARCH}/Makefile.inc"
+.include "${.CURDIR}/arch/${MACHINE}/Makefile.inc"
 
 CFLAGS+=	-I${.CURDIR}
-CFLAGS+=	-I${.CURDIR}/arch/${MACHINE_CPUARCH}
+CFLAGS+=	-I${.CURDIR}/arch/${MACHINE}
 CFLAGS+=	-I${.CURDIR}/../include
-CFLAGS+=	-I${.CURDIR}/../include/${MACHINE_CPUARCH}
+CFLAGS+=	-I${.CURDIR}/../include/${MACHINE}
 CFLAGS+=	-I${.CURDIR}/../../../contrib/dev/acpica/include
 CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	-I${.CURDIR}/../../i386/libi386
@@ -42,7 +42,7 @@ CFLAGS+=	-DNO_PCI -DEFI
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH
 CFLAGS+=	-I${.CURDIR}/../../ficl
-CFLAGS+=	-I${.CURDIR}/../../ficl/${MACHINE_CPUARCH}
+CFLAGS+=	-I${.CURDIR}/../../ficl/${MACHINE}
 LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 .endif
 
@@ -70,12 +70,12 @@ CFLAGS+=	-I${.CURDIR}/../../common
 FILES=	loader.efi
 FILESMODE_loader.efi=	${BINMODE}
 
-LDSCRIPT=	${.CURDIR}/arch/${MACHINE_CPUARCH}/ldscript.${MACHINE_CPUARCH}
+LDSCRIPT=	${.CURDIR}/arch/${MACHINE}/ldscript.${MACHINE}
 LDFLAGS+=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared
 
 CLEANFILES=	vers.c loader.efi
 
-NEWVERSWHAT=	"EFI loader" ${MACHINE_CPUARCH}
+NEWVERSWHAT=	"EFI loader" ${MACHINE}
 
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/../../efi/loader/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
