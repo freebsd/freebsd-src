@@ -26,6 +26,7 @@
  * $FreeBSD$
  */
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 
@@ -54,7 +55,7 @@ static void
 usage(void)
 {
 
-	errx(-1, "usage: sigpipe tcpport");
+	errx(-1, "usage: sigpipe [tcpport]");
 }
 
 /*
@@ -254,11 +255,16 @@ main(int argc, char *argv[])
 	int sock[2];
 	long port;
 
-	if (argc != 2)
-		usage();
+	if (argc == 1) {
+		srandomdev();
 
-	port = strtol(argv[1], &dummy, 10);
-	if (port < 0 || port > 65535 || *dummy != '\0')
+		/* Pick a random unprivileged port 1025-65535 */
+		port = MAX((int)random() % 65535, 1025);
+	} else if (argc == 2) {
+		port = strtol(argv[1], &dummy, 10);
+		if (port < 0 || port > 65535 || *dummy != '\0')
+			usage();
+	} else
 		usage();
 
 #ifndef SO_NOSIGPIPE
