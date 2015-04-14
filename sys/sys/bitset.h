@@ -165,4 +165,14 @@
 	__bit;								\
 })
 
+#define	BIT_COUNT(_s, p) __extension__ ({				\
+	__size_t __i;							\
+	int __count;							\
+									\
+	__count = 0;							\
+	for (__i = 0; __i < __bitset_words((_s)); __i++)		\
+		__count += __bitcountl((p)->__bits[__i]);		\
+	__count;							\
+})
+	
 #endif /* !_SYS_BITSET_H_ */
