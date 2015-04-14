@@ -34,7 +34,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "ctld.h"
 #include "y.tab.h"
 
 int lineno;
