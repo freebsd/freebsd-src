@@ -64,8 +64,5 @@ extern struct nlist symbols[];
 extern kvm_t *kd;
 
 extern struct semid_kernel	*sema;
-extern struct seminfo		seminfo;
-extern struct msginfo		msginfo;
 extern struct msqid_kernel	*msqids;
-extern struct shminfo		shminfo;
 extern struct shmid_kernel	*shmsegs;
