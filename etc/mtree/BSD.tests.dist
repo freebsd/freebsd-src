@@ -364,7 +364,7 @@
         ..
         kqueue
         ..
-        mmmap
+        mmap
         ..
         mqueue
         ..
