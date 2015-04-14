@@ -94,6 +94,12 @@ int	 fls(int);
 #ifndef	HAVE_INLINE_FLSL
 int	 flsl(long);
 #endif
+#define	bitcount64(x)	__bitcount64((uint64_t)(x))
+#define	bitcount32(x)	__bitcount32((uint32_t)(x))
+#define	bitcount16(x)	__bitcount16((uint16_t)(x))
+#define	bitcountl(x)	__bitcountl((u_long)(x))
+#define	bitcount(x)	__bitcount((u_int)(x))
+
 int	 fnmatch(const char *, const char *, int);
 int	 locc(int, char *, u_int);
 void	*memchr(const void *s, int c, size_t n);

@@ -58,6 +58,7 @@
 #define	CPU_OR_ATOMIC(d, s)		BIT_OR_ATOMIC(CPU_SETSIZE, d, s)
 #define	CPU_COPY_STORE_REL(f, t)	BIT_COPY_STORE_REL(CPU_SETSIZE, f, t)
 #define	CPU_FFS(p)			BIT_FFS(CPU_SETSIZE, p)
+#define	CPU_COUNT(p)			BIT_COUNT(CPU_SETSIZE, p)
 
 /*
  * Valid cpulevel_t values.
