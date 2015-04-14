@@ -18,7 +18,7 @@ CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
 # EFI library headers
 CFLAGS+=	-I${.CURDIR}/../include
-CFLAGS+=	-I${.CURDIR}/../include/${MACHINE_CPUARCH}
+CFLAGS+=	-I${.CURDIR}/../include/${MACHINE}
 
 # libfdt headers
 CFLAGS+=	-I${.CURDIR}/../../fdt
@@ -27,7 +27,7 @@ CFLAGS+=	-I${.CURDIR}/../../fdt
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../.. -I.
 
 machine:
-	ln -sf ${.CURDIR}/../../../${MACHINE_CPUARCH}/include machine
+	ln -sf ${.CURDIR}/../../../${MACHINE}/include machine
 
 CLEANFILES+=	machine
 
