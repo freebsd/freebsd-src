@@ -13,7 +13,7 @@ TESTS_SUBDIRS+=		mmap
 TESTS_SUBDIRS+=		netinet
 TESTS_SUBDIRS+=		opencrypto
 TESTS_SUBDIRS+=		posixshm
-TESTS_SUBDIRS+=		sockets
+TESTS_SUBDIRS+=		socket
 TESTS_SUBDIRS+=		vfs
 
 # Items not integrated into kyua runs by default
