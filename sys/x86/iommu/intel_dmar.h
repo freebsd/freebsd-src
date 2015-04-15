@@ -289,7 +289,7 @@ struct dmar_map_entry *dmar_gas_alloc_entry(struct dmar_ctx *ctx, u_int flags);
 void dmar_gas_free_entry(struct dmar_ctx *ctx, struct dmar_map_entry *entry);
 void dmar_gas_free_space(struct dmar_ctx *ctx, struct dmar_map_entry *entry);
 int dmar_gas_map(struct dmar_ctx *ctx, const struct bus_dma_tag_common *common,
-    dmar_gaddr_t size, u_int eflags, u_int flags, vm_page_t *ma,
+    dmar_gaddr_t size, int offset, u_int eflags, u_int flags, vm_page_t *ma,
     struct dmar_map_entry **res);
 void dmar_gas_free_region(struct dmar_ctx *ctx, struct dmar_map_entry *entry);
 int dmar_gas_map_region(struct dmar_ctx *ctx, struct dmar_map_entry *entry,
