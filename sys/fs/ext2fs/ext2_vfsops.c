@@ -675,7 +675,8 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 	 * Initialize filesystem stat information in mount struct.
 	 */
 	MNT_ILOCK(mp);
-	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED;
+	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED |
+	    MNTK_USES_BCACHE;
 	MNT_IUNLOCK(mp);
 	return (0);
 out:
