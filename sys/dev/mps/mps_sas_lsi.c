@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2011, 2012 LSI Corp.
+ * Copyright (c) 2011-2015 LSI Corp.
+ * Copyright (c) 2013-2015 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,13 +24,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * LSI MPT-Fusion Host Adapter FreeBSD
+ * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* Communications core for LSI MPT2 */
+/* Communications core for Avago Technologies (LSI) MPT2 */
 
 /* TODO Move headers to mpsvar */
 #include <sys/types.h>
@@ -105,7 +106,9 @@ struct _ata_identify_device_data {
 	u16 serial_number[10];	/* 10-19 */
 	u16 reserved2[7];	/* 20-26 */
 	u16 model_number[20];	/* 27-46*/
-	u16 reserved3[209];	/* 47-255*/
+	u16 reserved3[170];	/* 47-216 */
+	u16 rotational_speed;	/* 217 */
+	u16 reserved4[38];	/* 218-255 */
 };
 static u32 event_count;
 static void mpssas_fw_work(struct mps_softc *sc,
@@ -116,8 +119,9 @@ static int mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate);
 static int mpssas_get_sata_identify(struct mps_softc *sc, u16 handle,
     Mpi2SataPassthroughReply_t *mpi_reply, char *id_buffer, int sz,
     u32 devinfo);
+static void mpssas_ata_id_timeout(void *data);
 int mpssas_get_sas_address_for_sata_disk(struct mps_softc *sc,
-    u64 *sas_address, u16 handle, u32 device_info);
+    u64 *sas_address, u16 handle, u32 device_info, u8 *is_SATA_SSD);
 static int mpssas_volume_add(struct mps_softc *sc,
     u16 handle);
 static void mpssas_SSU_to_SATA_devices(struct mps_softc *sc);
@@ -606,14 +610,14 @@ mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate){
 	struct mpssas_target *targ;
 	Mpi2ConfigReply_t mpi_reply;
 	Mpi2SasDevicePage0_t config_page;
-	uint64_t sas_address, sata_sas_address;
+	uint64_t sas_address;
 	uint64_t parent_sas_address = 0;
-	u16 ioc_pg8_flags = le16toh(sc->ioc_pg8.Flags);
 	u32 device_info, parent_devinfo = 0;
 	unsigned int id;
-	int ret;
-	int error = 0;
+	int ret = 1, error = 0, i;
 	struct mpssas_lun *lun;
+	u8 is_SATA_SSD = 0;
+	struct mps_command *cm;
 
 	sassc = sc->sassc;
 	mpssas_startup_increment(sassc);
@@ -645,26 +649,27 @@ mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate){
 	}
 	/* TODO Check proper endianess */
 	sas_address = config_page.SASAddress.High;
-	sas_address = (sas_address << 32) | 
-	    config_page.SASAddress.Low;
+	sas_address = (sas_address << 32) | config_page.SASAddress.Low;
 
-	if ((ioc_pg8_flags & MPI2_IOCPAGE8_FLAGS_MASK_MAPPING_MODE)
-		    == MPI2_IOCPAGE8_FLAGS_DEVICE_PERSISTENCE_MAPPING) {
-		if (device_info & MPI2_SAS_DEVICE_INFO_SATA_DEVICE) {
-			ret = mpssas_get_sas_address_for_sata_disk(sc,
-			    &sata_sas_address, handle, device_info);
-			if (!ret)
-				id = mps_mapping_get_sas_id(sc,
-				    sata_sas_address, handle);
-			else
-				id = mps_mapping_get_sas_id(sc,
-				    sas_address, handle);
-		} else
-			id = mps_mapping_get_sas_id(sc, sas_address,
-			    handle);
-	} else
-		id = mps_mapping_get_sas_id(sc, sas_address, handle);
+	/*
+	 * Always get SATA Identify information because this is used to
+	 * determine if Start/Stop Unit should be sent to the drive when the
+	 * system is shutdown.
+	 */
+	if (device_info & MPI2_SAS_DEVICE_INFO_SATA_DEVICE) {
+		ret = mpssas_get_sas_address_for_sata_disk(sc, &sas_address,
+		    handle, device_info, &is_SATA_SSD);
+		if (ret) {
+			mps_dprint(sc, MPS_INFO, "%s: failed to get disk type "
+			    "(SSD or HDD) for SATA device with handle 0x%04x\n",
+			    __func__, handle);
+		} else {
+			mps_dprint(sc, MPS_INFO, "SAS Address from SATA "
+			    "device = %jx\n", sas_address);
+		}
+	}
 
+	id = mps_mapping_get_sas_id(sc, sas_address, handle);
 	if (id == MPS_MAP_BAD_ID) {
 		printf("failure at %s:%d/%s()! Could not get ID for device "
 		    "with handle 0x%04x\n", __FILE__, __LINE__, __func__,
@@ -696,6 +701,9 @@ mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate){
 	targ->tid = id;
 	targ->linkrate = (linkrate>>4);
 	targ->flags = 0;
+	if (is_SATA_SSD) {
+		targ->flags = MPS_TARGET_IS_SATA_SSD;
+	}
 	TAILQ_INIT(&targ->commands);
 	TAILQ_INIT(&targ->timedout_commands);
 	while(!SLIST_EMPTY(&targ->luns)) {
@@ -706,8 +714,8 @@ mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate){
 	SLIST_INIT(&targ->luns);
 
 	mps_describe_devinfo(targ->devinfo, devstring, 80);
-	mps_dprint(sc, MPS_MAPPING, "Found device <%s> <%s> <0x%04x> <%d/%d>\n", devstring,
-	    mps_describe_table(mps_linkrate_names, targ->linkrate),
+	mps_dprint(sc, MPS_MAPPING, "Found device <%s> <%s> <0x%04x> <%d/%d>\n",
+	    devstring, mps_describe_table(mps_linkrate_names, targ->linkrate),
 	    targ->handle, targ->encl_handle, targ->encl_slot);
 
 #if __FreeBSD_version < 1000039
@@ -715,7 +723,50 @@ mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate){
 #endif
 		mpssas_rescan_target(sc, targ);
 	mps_dprint(sc, MPS_MAPPING, "Target id 0x%x added\n", targ->tid);
+
+	/*
+	 * Check all commands to see if the SATA_ID_TIMEOUT flag has been set.
+	 * If so, send a Target Reset TM to the target that was just created.
+	 * An Abort Task TM should be used instead of a Target Reset, but that
+	 * would be much more difficult because targets have not been fully
+	 * discovered yet, and LUN's haven't been setup.  So, just reset the
+	 * target instead of the LUN.
+	 */
+	for (i = 1; i < sc->num_reqs; i++) {
+		cm = &sc->commands[i];
+		if (cm->cm_flags & MPS_CM_FLAGS_SATA_ID_TIMEOUT) {
+			targ->timeouts++;
+			cm->cm_state = MPS_CM_STATE_TIMEDOUT;
+
+			if ((targ->tm = mpssas_alloc_tm(sc)) != NULL) {
+				mps_dprint(sc, MPS_INFO, "%s: sending Target "
+				    "Reset for stuck SATA identify command "
+				    "(cm = %p)\n", __func__, cm);
+				targ->tm->cm_targ = targ;
+				mpssas_send_reset(sc, targ->tm,
+				    MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET);
+			} else {
+				mps_dprint(sc, MPS_ERROR, "Failed to allocate "
+				    "tm for Target Reset after SATA ID command "
+				    "timed out (cm %p)\n", cm);
+			}
+			/*
+			 * No need to check for more since the target is
+			 * already being reset.
+			 */
+			break;
+		}
+	}
 out:
+	/*
+	 * Free the commands that may not have been freed from the SATA ID call
+	 */
+	for (i = 1; i < sc->num_reqs; i++) {
+		cm = &sc->commands[i];
+		if (cm->cm_flags & MPS_CM_FLAGS_SATA_ID_TIMEOUT) {
+			mps_free_command(sc, cm);
+		}
+	}
 	mpssas_startup_decrement(sassc);
 	return (error);
 	
@@ -723,7 +774,7 @@ out:
 	
 int
 mpssas_get_sas_address_for_sata_disk(struct mps_softc *sc,
-    u64 *sas_address, u16 handle, u32 device_info)
+    u64 *sas_address, u16 handle, u32 device_info, u8 *is_SATA_SSD)
 {
 	Mpi2SataPassthroughReply_t mpi_reply;
 	int i, rc, try_count;
@@ -743,16 +794,25 @@ mpssas_get_sas_address_for_sata_disk(struct mps_softc *sc,
 		ioc_status = le16toh(mpi_reply.IOCStatus)
 		    & MPI2_IOCSTATUS_MASK;
 		sas_status = mpi_reply.SASStatus;
-	} while ((rc == -EAGAIN || ioc_status || sas_status) &&
+		if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
+			if (sc->spinup_wait_time > 0) {
+				mps_dprint(sc, MPS_INFO, "Sleeping %d seconds "
+				    "after SATA ID error to wait for spinup\n",
+				    sc->spinup_wait_time);
+				msleep(&sc->msleep_fake_chan, &sc->mps_mtx, 0,
+				    "mpsid", sc->spinup_wait_time * hz);
+			}
+		}
+	} while (((rc && (rc != EWOULDBLOCK)) || ioc_status || sas_status) &&
 	    (try_count < 5));
 
 	if (rc == 0 && !ioc_status && !sas_status) {
-		mps_dprint(sc, MPS_MAPPING, "%s: got SATA identify successfully "
-			   "for handle = 0x%x with try_count = %d\n",
-			   __func__, handle, try_count);
+		mps_dprint(sc, MPS_MAPPING, "%s: got SATA identify "
+		    "successfully for handle = 0x%x with try_count = %d\n",
+		    __func__, handle, try_count);
 	} else {
 		mps_dprint(sc, MPS_MAPPING, "%s: handle = 0x%x failed\n",
-			   __func__, handle);
+		    __func__, handle);
 		return -1;
 	}
 	/* Copy & byteswap the 40 byte model number to a buffer */
@@ -763,9 +823,9 @@ mpssas_get_sas_address_for_sata_disk(struct mps_softc *sc,
 	/* Copy & byteswap the 20 byte serial number to a buffer */
 	for (i = 0; i < MPT2SAS_SN_LEN; i += 2) {
 		buffer[MPT2SAS_MN_LEN + i] =
-			((u8 *)ata_identify.serial_number)[i + 1];
+		    ((u8 *)ata_identify.serial_number)[i + 1];
 		buffer[MPT2SAS_MN_LEN + i + 1] =
-			((u8 *)ata_identify.serial_number)[i];
+		    ((u8 *)ata_identify.serial_number)[i];
 	}
 	bufferptr = (u32 *)buffer;
 	/* There are 60 bytes to hash down to 8. 60 isn't divisible by 8,
@@ -792,6 +852,10 @@ mpssas_get_sas_address_for_sata_disk(struct mps_softc *sc,
 	    (u64)hash_address.wwid[3] << 32 | (u64)hash_address.wwid[4] << 24 |
 	    (u64)hash_address.wwid[5] << 16 | (u64)hash_address.wwid[6] <<  8 |
 	    (u64)hash_address.wwid[7];
+	if (ata_identify.rotational_speed == 1) {
+		*is_SATA_SSD = 1;
+	}
+
 	return 0;
 }
 
@@ -831,7 +895,22 @@ mpssas_get_sata_identify(struct mps_softc *sc, u16 handle,
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 	cm->cm_data = buffer;
 	cm->cm_length = htole32(sz);
- 	error = mps_wait_command(sc, cm, 60, CAN_SLEEP);
+
+	/*
+	 * Start a timeout counter specifically for the SATA ID command. This
+	 * is used to fix a problem where the FW does not send a reply sometimes
+	 * when a bad disk is in the topology. So, this is used to timeout the
+	 * command so that processing can continue normally.
+	 */
+	mps_dprint(sc, MPS_XINFO, "%s start timeout counter for SATA ID "
+	    "command\n", __func__);
+	callout_reset(&cm->cm_callout, MPS_ATA_ID_TIMEOUT * hz,
+	    mpssas_ata_id_timeout, cm);
+	error = mps_wait_command(sc, cm, 60, CAN_SLEEP);
+	mps_dprint(sc, MPS_XINFO, "%s stop timeout counter for SATA ID "
+	    "command\n", __func__);
+	callout_stop(&cm->cm_callout);
+
 	reply = (Mpi2SataPassthroughReply_t *)cm->cm_reply;
 	if (error || (reply == NULL)) {
 		/* FIXME */
@@ -854,9 +933,64 @@ mpssas_get_sata_identify(struct mps_softc *sc, u16 handle,
 		goto out;
 	}
 out:
-	mps_free_command(sc, cm);
-	free(buffer, M_MPT2);	
+	/*
+	 * If the SATA_ID_TIMEOUT flag has been set for this command, don't free
+	 * it.  The command will be freed after sending a target reset TM. If
+	 * the command did timeout, use EWOULDBLOCK.
+	 */
+	if ((cm->cm_flags & MPS_CM_FLAGS_SATA_ID_TIMEOUT) == 0)
+		mps_free_command(sc, cm);
+	else if (error == 0)
+		error = EWOULDBLOCK;
+	free(buffer, M_MPT2);
 	return (error);
+}
+
+static void
+mpssas_ata_id_timeout(void *data)
+{
+	struct mps_softc *sc;
+	struct mps_command *cm;
+
+	cm = (struct mps_command *)data;
+	sc = cm->cm_sc;
+	mtx_assert(&sc->mps_mtx, MA_OWNED);
+
+	mps_dprint(sc, MPS_INFO, "%s checking ATA ID command %p sc %p\n",
+	    __func__, cm, sc);
+	if ((callout_pending(&cm->cm_callout)) ||
+	    (!callout_active(&cm->cm_callout))) {
+		mps_dprint(sc, MPS_INFO, "%s ATA ID command almost timed out\n",
+		    __func__);
+		return;
+	}
+	callout_deactivate(&cm->cm_callout);
+
+	/*
+	 * Run the interrupt handler to make sure it's not pending.  This
+	 * isn't perfect because the command could have already completed
+	 * and been re-used, though this is unlikely.
+	 */
+	mps_intr_locked(sc);
+	if (cm->cm_state == MPS_CM_STATE_FREE) {
+		mps_dprint(sc, MPS_INFO, "%s ATA ID command almost timed out\n",
+		    __func__);
+		return;
+	}
+
+	mps_dprint(sc, MPS_INFO, "ATA ID command timeout cm %p\n", cm);
+
+	/*
+	 * Send wakeup() to the sleeping thread that issued this ATA ID command.
+	 * wakeup() will cause msleep to return a 0 (not EWOULDBLOCK), and this
+	 * will keep reinit() from being called. This way, an Abort Task TM can
+	 * be issued so that the timed out command can be cleared.  The Abort
+	 * Task cannot be sent from here because the driver has not completed
+	 * setting up targets.  Instead, the command is flagged so that special
+	 * handling will be used to send the abort.
+	 */
+	cm->cm_flags |= MPS_CM_FLAGS_SATA_ID_TIMEOUT;
+	wakeup(cm);
 }
 
 static int
@@ -931,13 +1065,11 @@ mpssas_SSU_to_SATA_devices(struct mps_softc *sc)
 	path_id_t pathid = cam_sim_path(sassc->sim);
 	target_id_t targetid;
 	struct mpssas_target *target;
-	struct mpssas_lun *lun;
 	char path_str[64];
 	struct timeval cur_time, start_time;
 
 	/*
-	 * For each LUN of each target, issue a StartStopUnit command to stop
-	 * the device.
+	 * For each target, issue a StartStopUnit command to stop the device.
 	 */
 	sc->SSU_started = TRUE;
 	sc->SSU_refcount = 0;
@@ -947,63 +1079,58 @@ mpssas_SSU_to_SATA_devices(struct mps_softc *sc)
 			continue;
 		}
 
-		SLIST_FOREACH(lun, &target->luns, lun_link) {
-			ccb = xpt_alloc_ccb_nowait();
-			if (ccb == NULL) {
-				mps_dprint(sc, MPS_FAULT, "Unable to alloc CCB "
-				    "to stop unit.\n");
+		ccb = xpt_alloc_ccb_nowait();
+		if (ccb == NULL) {
+			mps_dprint(sc, MPS_FAULT, "Unable to alloc CCB to stop "
+			    "unit.\n");
+			return;
+		}
+
+		/*
+		 * The stop_at_shutdown flag will be set if this device is
+		 * a SATA direct-access end device.
+		 */
+		if (target->stop_at_shutdown) {
+			if (xpt_create_path(&ccb->ccb_h.path,
+			    xpt_periph, pathid, targetid,
+			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+				mps_dprint(sc, MPS_FAULT, "Unable to create "
+				    "LUN path to stop unit.\n");
+				xpt_free_ccb(ccb);
 				return;
 			}
+			xpt_path_string(ccb->ccb_h.path, path_str,
+			    sizeof(path_str));
 
-			/*
-			 * The stop_at_shutdown flag will be set if this LUN is
-			 * a SATA direct-access end device.
-			 */
-			if (lun->stop_at_shutdown) {
-				if (xpt_create_path(&ccb->ccb_h.path,
-				    xpt_periph, pathid, targetid,
-				    lun->lun_id) != CAM_REQ_CMP) {
-					mps_dprint(sc, MPS_FAULT, "Unable to "
-					    "create LUN path to stop unit.\n");
-					xpt_free_ccb(ccb);
-					return;
-				}
-				xpt_path_string(ccb->ccb_h.path, path_str,
-				    sizeof(path_str));
-
-				mps_dprint(sc, MPS_INFO, "Sending StopUnit: "
-				    "path %s handle %d\n", path_str,
-				    target->handle);
+			mps_dprint(sc, MPS_INFO, "Sending StopUnit: path %s "
+			    "handle %d\n", path_str, target->handle);
 			
-				/*
-				 * Issue a START STOP UNIT command for the LUN.
-				 * Increment the SSU counter to be used to
-				 * count the number of required replies.
-				 */
-				mps_dprint(sc, MPS_INFO, "Incrementing SSU "
-				    "count\n");
-				sc->SSU_refcount++;
-				ccb->ccb_h.target_id =
-				    xpt_path_target_id(ccb->ccb_h.path);
-				ccb->ccb_h.target_lun = lun->lun_id;
-				ccb->ccb_h.ppriv_ptr1 = sassc;
-				scsi_start_stop(&ccb->csio,
-				    /*retries*/0,
-				    mpssas_stop_unit_done,
-				    MSG_SIMPLE_Q_TAG,
-				    /*start*/FALSE,
-				    /*load/eject*/0,
-				    /*immediate*/FALSE,
-				    MPS_SENSE_LEN,
-				    /*timeout*/10000);
-				xpt_action(ccb);
-			}
+			/*
+			 * Issue a START STOP UNIT command for the target.
+			 * Increment the SSU counter to be used to count the
+			 * number of required replies.
+			 */
+			mps_dprint(sc, MPS_INFO, "Incrementing SSU count\n");
+			sc->SSU_refcount++;
+			ccb->ccb_h.target_id =
+			    xpt_path_target_id(ccb->ccb_h.path);
+			ccb->ccb_h.ppriv_ptr1 = sassc;
+			scsi_start_stop(&ccb->csio,
+			    /*retries*/0,
+			    mpssas_stop_unit_done,
+			    MSG_SIMPLE_Q_TAG,
+			    /*start*/FALSE,
+			    /*load/eject*/0,
+			    /*immediate*/FALSE,
+			    MPS_SENSE_LEN,
+			    /*timeout*/10000);
+			xpt_action(ccb);
 		}
 	}
 
 	/*
 	 * Wait until all of the SSU commands have completed or time has
-	 * expired (60 seconds).  pause for 100ms each time through.  If any
+	 * expired (60 seconds).  Pause for 100ms each time through.  If any
 	 * command times out, the target will be reset in the SCSI command
 	 * timeout routine.
 	 */
@@ -1063,6 +1190,8 @@ mpssas_ir_shutdown(struct mps_softc *sc)
 	unsigned int id, found_volume = 0;
 	struct mps_command *cm;
 	Mpi2RaidActionRequest_t	*action;
+	target_id_t targetid;
+	struct mpssas_target *target;
 
 	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
 
@@ -1105,7 +1234,7 @@ mpssas_ir_shutdown(struct mps_softc *sc)
 	action->Action = MPI2_RAID_ACTION_SYSTEM_SHUTDOWN_INITIATED;
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 	mps_lock(sc);
- 	mps_wait_command(sc, cm, 5, CAN_SLEEP);
+	mps_wait_command(sc, cm, 5, CAN_SLEEP);
 	mps_unlock(sc);
 
 	/*
@@ -1115,5 +1244,47 @@ mpssas_ir_shutdown(struct mps_softc *sc)
 		mps_free_command(sc, cm);
 
 out:
+	/*
+	 * All of the targets must have the correct value set for
+	 * 'stop_at_shutdown' for the current 'enable_ssu' sysctl variable.
+	 *
+	 * The possible values for the 'enable_ssu' variable are:
+	 * 0: disable to SSD and HDD
+	 * 1: disable only to HDD (default)
+	 * 2: disable only to SSD
+	 * 3: enable to SSD and HDD
+	 * anything else will default to 1.
+	 */
+	for (targetid = 0; targetid < sc->facts->MaxTargets; targetid++) {
+		target = &sc->sassc->targets[targetid];
+		if (target->handle == 0x0) {
+			continue;
+		}
+
+		if (target->supports_SSU) {
+			switch (sc->enable_ssu) {
+			case MPS_SSU_DISABLE_SSD_DISABLE_HDD:
+				target->stop_at_shutdown = FALSE;
+				break;
+			case MPS_SSU_DISABLE_SSD_ENABLE_HDD:
+				target->stop_at_shutdown = TRUE;
+				if (target->flags & MPS_TARGET_IS_SATA_SSD) {
+					target->stop_at_shutdown = FALSE;
+				}
+				break;
+			case MPS_SSU_ENABLE_SSD_ENABLE_HDD:
+				target->stop_at_shutdown = TRUE;
+				break;
+			case MPS_SSU_ENABLE_SSD_DISABLE_HDD:
+			default:
+				target->stop_at_shutdown = TRUE;
+				if ((target->flags &
+				    MPS_TARGET_IS_SATA_SSD) == 0) {
+					target->stop_at_shutdown = FALSE;
+				}
+				break;
+			}
+		}
+	}
 	mpssas_SSU_to_SATA_devices(sc);
 }
