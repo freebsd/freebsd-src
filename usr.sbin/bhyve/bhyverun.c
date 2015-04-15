@@ -325,8 +325,10 @@ vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 
 	error = emulate_inout(ctx, vcpu, vme, strictio);
 	if (error) {
-		fprintf(stderr, "Unhandled %s%c 0x%04x\n", in ? "in" : "out",
-		    bytes == 1 ? 'b' : (bytes == 2 ? 'w' : 'l'), port);
+		fprintf(stderr, "Unhandled %s%c 0x%04x at 0x%lx\n",
+		    in ? "in" : "out",
+		    bytes == 1 ? 'b' : (bytes == 2 ? 'w' : 'l'),
+		    port, vmexit->rip);
 		return (VMEXIT_ABORT);
 	} else {
 		return (VMEXIT_CONTINUE);
