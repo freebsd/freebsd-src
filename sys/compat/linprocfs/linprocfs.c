@@ -53,10 +53,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/mount.h>
 #include <sys/msg.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sem.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/time.h>
@@ -326,11 +327,12 @@ static int
 linprocfs_domtab(PFS_FILL_ARGS)
 {
 	struct nameidata nd;
-	struct mount *mp;
 	const char *lep;
 	char *dlep, *flep, *mntto, *mntfrom, *fstype;
 	size_t lep_len;
 	int error;
+	struct statfs *buf, *sp;
+	size_t count;
 
 	/* resolve symlinks etc. in the emulation tree prefix */
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, linux_emul_path, td);
@@ -344,20 +346,26 @@ linprocfs_domtab(PFS_FILL_ARGS)
 	}
 	lep_len = strlen(lep);
 
-	mtx_lock(&mountlist_mtx);
-	error = 0;
-	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
+	buf = NULL;
+	error = kern_getfsstat(td, &buf, SIZE_T_MAX, &count,
+	    UIO_SYSSPACE, MNT_WAIT);
+	if (error != 0) {
+		free(buf, M_TEMP);
+		free(flep, M_TEMP);
+		return (error);
+	}
+
+	for (sp = buf; count > 0; sp++, count--) {
 		/* determine device name */
-		mntfrom = mp->mnt_stat.f_mntfromname;
+		mntfrom = sp->f_mntfromname;
 
 		/* determine mount point */
-		mntto = mp->mnt_stat.f_mntonname;
-		if (strncmp(mntto, lep, lep_len) == 0 &&
-		    mntto[lep_len] == '/')
+		mntto = sp->f_mntonname;
+		if (strncmp(mntto, lep, lep_len) == 0 && mntto[lep_len] == '/')
 			mntto += lep_len;
 
 		/* determine fs type */
-		fstype = mp->mnt_stat.f_fstypename;
+		fstype = sp->f_fstypename;
 		if (strcmp(fstype, pn->pn_info->pi_name) == 0)
 			mntfrom = fstype = "proc";
 		else if (strcmp(fstype, "procfs") == 0)
@@ -365,16 +373,16 @@ linprocfs_domtab(PFS_FILL_ARGS)
 
 		if (strcmp(fstype, "linsysfs") == 0) {
 			sbuf_printf(sb, "/sys %s sysfs %s", mntto,
-			    mp->mnt_stat.f_flags & MNT_RDONLY ? "ro" : "rw");
+			    sp->f_flags & MNT_RDONLY ? "ro" : "rw");
 		} else {
 			/* For Linux msdosfs is called vfat */
 			if (strcmp(fstype, "msdosfs") == 0)
 				fstype = "vfat";
 			sbuf_printf(sb, "%s %s %s %s", mntfrom, mntto, fstype,
-			    mp->mnt_stat.f_flags & MNT_RDONLY ? "ro" : "rw");
+			    sp->f_flags & MNT_RDONLY ? "ro" : "rw");
 		}
 #define ADD_OPTION(opt, name) \
-	if (mp->mnt_stat.f_flags & (opt)) sbuf_printf(sb, "," name);
+	if (sp->f_flags & (opt)) sbuf_printf(sb, "," name);
 		ADD_OPTION(MNT_SYNCHRONOUS,	"sync");
 		ADD_OPTION(MNT_NOEXEC,		"noexec");
 		ADD_OPTION(MNT_NOSUID,		"nosuid");
@@ -387,7 +395,8 @@ linprocfs_domtab(PFS_FILL_ARGS)
 		/* a real Linux mtab will also show NFS options */
 		sbuf_printf(sb, " 0 0\n");
 	}
-	mtx_unlock(&mountlist_mtx);
+
+	free(buf, M_TEMP);
 	free(flep, M_TEMP);
 	return (error);
 }
