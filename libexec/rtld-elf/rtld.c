@@ -1158,8 +1158,8 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 		    obj->z_noopen = true;
 		if ((dynp->d_un.d_val & DF_1_ORIGIN) && trust)
 		    obj->z_origin = true;
-		/*if (dynp->d_un.d_val & DF_1_GLOBAL)
-		    XXX ;*/
+		if (dynp->d_un.d_val & DF_1_GLOBAL)
+		    obj->z_global = true;
 		if (dynp->d_un.d_val & DF_1_BIND_NOW)
 		    obj->bind_now = true;
 		if (dynp->d_un.d_val & DF_1_NODELETE)
@@ -1790,22 +1790,35 @@ init_dag(Obj_Entry *root)
 }
 
 static void
-process_nodelete(Obj_Entry *root)
+process_z(Obj_Entry *root)
 {
 	const Objlist_Entry *elm;
+	Obj_Entry *obj;
 
 	/*
-	 * Walk over object DAG and process every dependent object that
-	 * is marked as DF_1_NODELETE. They need to grow their own DAG,
-	 * which then should have its reference upped separately.
+	 * Walk over object DAG and process every dependent object
+	 * that is marked as DF_1_NODELETE or DF_1_GLOBAL. They need
+	 * to grow their own DAG.
+	 *
+	 * For DF_1_GLOBAL, DAG is required for symbol lookups in
+	 * symlook_global() to work.
+	 *
+	 * For DF_1_NODELETE, the DAG should have its reference upped.
 	 */
 	STAILQ_FOREACH(elm, &root->dagmembers, link) {
-		if (elm->obj != NULL && elm->obj->z_nodelete &&
-		    !elm->obj->ref_nodel) {
-			dbg("obj %s nodelete", elm->obj->path);
-			init_dag(elm->obj);
-			ref_dag(elm->obj);
-			elm->obj->ref_nodel = true;
+		obj = elm->obj;
+		if (obj == NULL)
+			continue;
+		if (obj->z_nodelete && !obj->ref_nodel) {
+			dbg("obj %s -z nodelete", obj->path);
+			init_dag(obj);
+			ref_dag(obj);
+			obj->ref_nodel = true;
+		}
+		if (obj->z_global && objlist_find(&list_global, obj) == NULL) {
+			dbg("obj %s -z global", obj->path);
+			objlist_push_tail(&list_global, obj);
+			init_dag(obj);
 		}
 	}
 }
@@ -3044,13 +3057,13 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 		initlist_add_objects(obj, &obj->next, &initlist);
 	    }
 	    /*
-	     * Process all no_delete objects here, given them own
-	     * DAGs to prevent their dependencies from being unloaded.
-	     * This has to be done after we have loaded all of the
-	     * dependencies, so that we do not miss any.
+	     * Process all no_delete or global objects here, given
+	     * them own DAGs to prevent their dependencies from being
+	     * unloaded.  This has to be done after we have loaded all
+	     * of the dependencies, so that we do not miss any.
 	     */
 	    if (obj != NULL)
-		process_nodelete(obj);
+		process_z(obj);
 	} else {
 	    /*
 	     * Bump the reference counts for objects on this DAG.  If
