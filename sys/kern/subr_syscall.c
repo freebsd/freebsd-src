@@ -106,7 +106,7 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 				goto retval;
 		}
 
-#ifdef CPU_CHERI
+#if defined(CPU_CHERI) && !defined(CPU_CHERI_NO_SYSCALL_AUTHORIZE) 
 		/*
 		 * Constrain code that can originate system calls if
 		 * userspace sandboxing is available.
