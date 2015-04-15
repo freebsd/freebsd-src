@@ -47,6 +47,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/frame.h>
 
+#ifdef VFP
+#include <machine/vfp.h>
+#endif
+
 /*
  * Finish a fork operation, with process p2 nearly set up.
  * Copy and update the pcb, set up the stack so that the child
@@ -60,6 +64,19 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	if ((flags & RFPROC) == 0)
 		return;
+
+	if (td1 == curthread) {
+		/*
+		 * Save the tpidr_el0 and the vfp state, these normally happen
+		 * in cpu_switch, but if userland changes these then forks
+		 * this may not have happened.
+		 */
+		td1->td_pcb->pcb_tpidr_el0 = READ_SPECIALREG(tpidr_el0);
+#ifdef VFP
+		if ((td1->td_pcb->pcb_fpflags & PCB_FP_STARTED) != 0)
+			vfp_save_state(td1);
+#endif
+	}
 
 	pcb2 = (struct pcb *)(td2->td_kstack +
 	    td2->td_kstack_pages * PAGE_SIZE) - 1;
