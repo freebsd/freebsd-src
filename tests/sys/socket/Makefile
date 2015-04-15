@@ -31,8 +31,7 @@ PLAIN_TESTS_C+=	unix_close_race_test
 TAP_TESTS_SH+=	unix_cmsg_test
 # unix_gc: twosome_drop1: sendfd: before 0 after 0
 PLAIN_TESTS_C+=	unix_gc_test
-# unix_passfd: test8-rights+creds+payload: recvmsg: 24 bytes received
-PLAIN_TESTS_C+=	unix_passfd_test
+ATF_TESTS_C+=	unix_passfd_test
 PLAIN_TESTS_C+=	unix_sendtorace_test
 # unix_socket: socket(PF_LOCAL, SOCK_RAW, 0): Protocol wrong type for socket
 PLAIN_TESTS_C+=	unix_socket_test

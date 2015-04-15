@@ -32,13 +32,16 @@
 #include <sys/sysctl.h>
 #include <sys/un.h>
 
-#include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include <atf-c.h>
 
 /*
  * UNIX domain sockets allow file descriptors to be passed via "ancillary
@@ -50,11 +53,12 @@
  */
 
 static void
-domainsocketpair(const char *test, int *fdp)
+domainsocketpair(int *fdp)
 {
 
-	if (socketpair(PF_UNIX, SOCK_STREAM, 0, fdp) < 0)
-		err(-1, "%s: socketpair(PF_UNIX, SOCK_STREAM)", test);
+	ATF_REQUIRE_MSG(socketpair(PF_UNIX, SOCK_STREAM, 0, fdp) != -1,
+	    "socketpair(PF_UNIX, SOCK_STREAM, ..) failed: %s, ",
+	    strerror(errno));
 }
 
 static void
@@ -66,50 +70,38 @@ closesocketpair(int *fdp)
 }
 
 static void
-devnull(const char *test, int *fdp)
-{
-	int fd;
-
-	fd = open("/dev/null", O_RDONLY);
-	if (fd < 0)
-		err(-1, "%s: open(/dev/null)", test);
-	*fdp = fd;
-}
-
-static void
-tempfile(const char *test, int *fdp)
+tempfile(int *fdp)
 {
 	char path[PATH_MAX];
 	int fd;
 
-	snprintf(path, PATH_MAX, "/tmp/unix_passfd.XXXXXXXXXXXXXXX");
+	snprintf(path, PATH_MAX, "unix_passfd.XXXXXXXXXXXXXXX");
 	fd = mkstemp(path);
-	if (fd < 0)
-		err(-1, "%s: mkstemp(%s)", test, path);
+	ATF_REQUIRE_MSG(fd != -1, "mkstemp failed: %s", strerror(errno));
 	(void)unlink(path);
 	*fdp = fd;
 }
 
 static void
-dofstat(const char *test, int fd, struct stat *sb)
+dofstat(int fd, struct stat *sb)
 {
 
-	if (fstat(fd, sb) < 0)
-		err(-1, "%s: fstat", test);
+	ATF_REQUIRE_MSG(fstat(fd, sb) != -1, "fstat failed: %s",
+	    strerror(errno));
 }
 
 static void
-samefile(const char *test, struct stat *sb1, struct stat *sb2)
+samefile(struct stat *sb1, struct stat *sb2)
 {
 
-	if (sb1->st_dev != sb2->st_dev)
-		errx(-1, "%s: samefile: different device", test);
-	if (sb1->st_ino != sb2->st_ino)
-		errx(-1, "%s: samefile: different inode", test);
+	ATF_REQUIRE_EQ_MSG(sb1->st_dev, sb2->st_dev,
+	    "different devices (%d != %d)", sb1->st_dev, sb2->st_dev);
+	ATF_REQUIRE_EQ_MSG(sb1->st_dev, sb2->st_dev,
+	    "different inodes (%u != %u)", sb1->st_ino, sb2->st_ino);
 }
 
 static void
-sendfd_payload(const char *test, int sockfd, int sendfd,
+sendfd_payload(int sockfd, int sendfd,
     void *payload, size_t paylen)
 {
 	struct iovec iovec;
@@ -137,23 +129,22 @@ sendfd_payload(const char *test, int sockfd, int sendfd,
 	*(int *)CMSG_DATA(cmsghdr) = sendfd;
 
 	len = sendmsg(sockfd, &msghdr, 0);
-	if (len < 0)
-		err(-1, "%s: sendmsg", test);
-	if ((size_t)len != paylen)
-		errx(-1, "%s: sendmsg: %zd bytes sent", test, len);
+	ATF_REQUIRE_MSG(len != -1, "sendmsg failed: %s", strerror(errno));
+	ATF_REQUIRE_MSG((size_t)len == paylen,
+	    "mismatch with amount of data sent via sendmsg (%zd != %zu)",
+	    len, paylen);
 }
 
 static void
-sendfd(const char *test, int sockfd, int sendfd)
+sendfd(int sockfd, int sendfd)
 {
 	char ch;
 
-	return (sendfd_payload(test, sockfd, sendfd, &ch, sizeof(ch)));
+	return (sendfd_payload(sockfd, sendfd, &ch, sizeof(ch)));
 }
 
 static void
-recvfd_payload(const char *test, int sockfd, int *recvfd,
-    void *buf, size_t buflen)
+recvfd_payload(int sockfd, int *recvfd, void *buf, size_t buflen)
 {
 	struct cmsghdr *cmsghdr;
 	char message[CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) + sizeof(int)];
@@ -173,217 +164,232 @@ recvfd_payload(const char *test, int sockfd, int *recvfd,
 	msghdr.msg_iovlen = 1;
 
 	len = recvmsg(sockfd, &msghdr, 0);
-	if (len < 0)
-		err(-1, "%s: recvmsg", test);
-	if ((size_t)len != buflen)
-		errx(-1, "%s: recvmsg: %zd bytes received", test, len);
+	ATF_REQUIRE_MSG(len != -1, "recvmsg failed: %s", strerror(errno));
+	ATF_REQUIRE_MSG((size_t)len == buflen,
+	    "mismatch with amount of data sent via recvmsg (%zd != %zu)",
+	    len, buflen);
 
 	cmsghdr = CMSG_FIRSTHDR(&msghdr);
-	if (cmsghdr == NULL)
-		errx(-1, "%s: recvmsg: did not receive control message", test);
+	ATF_REQUIRE_MSG(cmsghdr != NULL, "did not receive control message");
 	*recvfd = -1;
 	for (; cmsghdr != NULL; cmsghdr = CMSG_NXTHDR(&msghdr, cmsghdr)) {
 		if (cmsghdr->cmsg_level == SOL_SOCKET &&
 		    cmsghdr->cmsg_type == SCM_RIGHTS &&
 		    cmsghdr->cmsg_len == CMSG_LEN(sizeof(int))) {
 			*recvfd = *(int *)CMSG_DATA(cmsghdr);
-			if (*recvfd == -1)
-				errx(-1, "%s: recvmsg: received fd -1", test);
+			ATF_REQUIRE(*recvfd != -1);
 		}
 	}
-	if (*recvfd == -1)
-		errx(-1, "%s: recvmsg: did not receive single-fd message",
-		    test);
+	ATF_REQUIRE_MSG(*recvfd != -1,
+	    "recvmsg did not receive a single fd message");
 }
 
 static void
-recvfd(const char *test, int sockfd, int *recvfd)
+recvfd(int sockfd, int *recvfd)
 {
 	char ch;
 
-	return (recvfd_payload(test, sockfd, recvfd, &ch, sizeof(ch)));
+	return (recvfd_payload(sockfd, recvfd, &ch, sizeof(ch)));
 }
 
-int
-main(void)
+/*
+ * First test: put a temporary file into a UNIX domain socket, then
+ * take it out and make sure it's the same file.  First time around,
+ * don't close the reference after sending.
+ */
+ATF_TC_WITHOUT_HEAD(simple_send_fd);
+ATF_TC_BODY(simple_send_fd, tc)
 {
-	struct stat putfd_1_stat, putfd_2_stat, getfd_1_stat, getfd_2_stat;
-	int fd[2], putfd_1, putfd_2, getfd_1, getfd_2;
-	const char *test;
+	struct stat getfd_1_stat, putfd_1_stat;
+	int fd[2], getfd_1, putfd_1;
 
-	/*
-	 * First test: put a temporary file into a UNIX domain socket, then
-	 * take it out and make sure it's the same file.  First time around,
-	 * don't close the reference after sending.
-	 */
-	test = "test1-simplesendfd";
-	printf("beginning %s\n", test);
-
-	domainsocketpair(test, fd);
-	tempfile(test, &putfd_1);
-	dofstat(test, putfd_1, &putfd_1_stat);
-	sendfd(test, fd[0], putfd_1);
-	recvfd(test, fd[1], &getfd_1);
-	dofstat(test, getfd_1, &getfd_1_stat);
-	samefile(test, &putfd_1_stat, &getfd_1_stat);
+	domainsocketpair(fd);
+	tempfile(&putfd_1);
+	dofstat(putfd_1, &putfd_1_stat);
+	sendfd(fd[0], putfd_1);
+	recvfd(fd[1], &getfd_1);
+	dofstat(getfd_1, &getfd_1_stat);
+	samefile(&putfd_1_stat, &getfd_1_stat);
 	close(putfd_1);
 	close(getfd_1);
 	closesocketpair(fd);
+}
 
-	printf("%s passed\n", test);
+/*
+ * Second test: same as first, only close the file reference after
+ * sending, so that the only reference is the descriptor in the UNIX
+ * domain socket buffer.
+ */
+ATF_TC_WITHOUT_HEAD(send_and_close);
+ATF_TC_BODY(send_and_close, tc)
+{
+	struct stat getfd_1_stat, putfd_1_stat;
+	int fd[2], getfd_1, putfd_1;
 
-	/*
-	 * Second test: same as first, only close the file reference after
-	 * sending, so that the only reference is the descriptor in the UNIX
-	 * domain socket buffer.
-	 */
-	test = "test2-sendandclose";
-	printf("beginning %s\n", test);
-
-	domainsocketpair(test, fd);
-	tempfile(test, &putfd_1);
-	dofstat(test, putfd_1, &putfd_1_stat);
-	sendfd(test, fd[0], putfd_1);
+	domainsocketpair(fd);
+	tempfile(&putfd_1);
+	dofstat(putfd_1, &putfd_1_stat);
+	sendfd(fd[0], putfd_1);
 	close(putfd_1);
-	recvfd(test, fd[1], &getfd_1);
-	dofstat(test, getfd_1, &getfd_1_stat);
-	samefile(test, &putfd_1_stat, &getfd_1_stat);
+	recvfd(fd[1], &getfd_1);
+	dofstat(getfd_1, &getfd_1_stat);
+	samefile(&putfd_1_stat, &getfd_1_stat);
 	close(getfd_1);
 	closesocketpair(fd);
 
-	printf("%s passed\n", test);
+}
 
-	/*
-	 * Third test: put a temporary file into a UNIX domain socket, then
-	 * close both endpoints causing garbage collection to kick off.
-	 */
-	test = "test3-sendandcancel";
-	printf("beginning %s\n", test);
+/*
+ * Third test: put a temporary file into a UNIX domain socket, then
+ * close both endpoints causing garbage collection to kick off.
+ */
+ATF_TC_WITHOUT_HEAD(send_and_cancel);
+ATF_TC_BODY(send_and_cancel, tc)
+{
+	int fd[2], putfd_1;
 
-	domainsocketpair(test, fd);
-	tempfile(test, &putfd_1);
-	sendfd(test, fd[0], putfd_1);
+	domainsocketpair(fd);
+	tempfile(&putfd_1);
+	sendfd(fd[0], putfd_1);
 	close(putfd_1);
 	closesocketpair(fd);
+}
 
-	printf("%s passed\n", test);
+/*
+ * Send two files.  Then receive them.  Make sure they are returned
+ * in the right order, and both get there.
+ */
+ATF_TC_WITHOUT_HEAD(two_files);
+ATF_TC_BODY(two_files, tc)
+{
+	struct stat getfd_1_stat, getfd_2_stat, putfd_1_stat, putfd_2_stat;
+	int fd[2], getfd_1, getfd_2, putfd_1, putfd_2;
 
-	/*
-	 * Send two files.  Then receive them.  Make sure they are returned
-	 * in the right order, and both get there.
-	 */
-
-	test = "test4-twofile";
-	printf("beginning %s\n", test);
-
-	domainsocketpair(test, fd);
-	tempfile(test, &putfd_1);
-	tempfile(test, &putfd_2);
-	dofstat(test, putfd_1, &putfd_1_stat);
-	dofstat(test, putfd_2, &putfd_2_stat);
-	sendfd(test, fd[0], putfd_1);
-	sendfd(test, fd[0], putfd_2);
+	domainsocketpair(fd);
+	tempfile(&putfd_1);
+	tempfile(&putfd_2);
+	dofstat(putfd_1, &putfd_1_stat);
+	dofstat(putfd_2, &putfd_2_stat);
+	sendfd(fd[0], putfd_1);
+	sendfd(fd[0], putfd_2);
 	close(putfd_1);
 	close(putfd_2);
-	recvfd(test, fd[1], &getfd_1);
-	recvfd(test, fd[1], &getfd_2);
-	dofstat(test, getfd_1, &getfd_1_stat);
-	dofstat(test, getfd_2, &getfd_2_stat);
-	samefile(test, &putfd_1_stat, &getfd_1_stat);
-	samefile(test, &putfd_2_stat, &getfd_2_stat);
+	recvfd(fd[1], &getfd_1);
+	recvfd(fd[1], &getfd_2);
+	dofstat(getfd_1, &getfd_1_stat);
+	dofstat(getfd_2, &getfd_2_stat);
+	samefile(&putfd_1_stat, &getfd_1_stat);
+	samefile(&putfd_2_stat, &getfd_2_stat);
 	close(getfd_1);
 	close(getfd_2);
 	closesocketpair(fd);
+}
 
-	printf("%s passed\n", test);
+/*
+ * Big bundling test.  Send an endpoint of the UNIX domain socket
+ * over itself, closing the door behind it.
+ */
+ATF_TC_WITHOUT_HEAD(bundle);
+ATF_TC_BODY(bundle, tc)
+{
+	int fd[2], getfd_1;
 
-	/*
-	 * Big bundling test.  Send an endpoint of the UNIX domain socket
-	 * over itself, closing the door behind it.
-	 */
+	domainsocketpair(fd);
 
-	test = "test5-bundle";
-	printf("beginning %s\n", test);
-
-	domainsocketpair(test, fd);
-
-	sendfd(test, fd[0], fd[0]);
+	sendfd(fd[0], fd[0]);
 	close(fd[0]);
-	recvfd(test, fd[1], &getfd_1);
+	recvfd(fd[1], &getfd_1);
 	close(getfd_1);
 	close(fd[1]);
+}
 
-	printf("%s passed\n", test);
+/*
+ * Big bundling test part two: Send an endpoint of the UNIX domain
+ * socket over itself, close the door behind it, and never remove it
+ * from the other end.
+ */
+ATF_TC_WITHOUT_HEAD(bundle_cancel);
+ATF_TC_BODY(bundle_cancel, tc)
+{
+	int fd[2];
 
-	/*
-	 * Big bundling test part two: Send an endpoint of the UNIX domain
-	 * socket over itself, close the door behind it, and never remove it
-	 * from the other end.
-	 */
-
-	test = "test6-bundlecancel";
-	printf("beginning %s\n", test);
-
-	domainsocketpair(test, fd);
-	sendfd(test, fd[0], fd[0]);
-	sendfd(test, fd[1], fd[0]);
+	domainsocketpair(fd);
+	sendfd(fd[0], fd[0]);
+	sendfd(fd[1], fd[0]);
 	closesocketpair(fd);
+}
 
-	printf("%s passed\n", test);
+/*
+ * Test for PR 151758: Send an character device over the UNIX
+ * domain socket and then close both sockets to orphan the
+ * device.
+ */
+ATF_TC_WITHOUT_HEAD(devfs_orphan);
+ATF_TC_BODY(devfs_orphan, tc)
+{
+	int fd[2], putfd_1;
 
-	/*
-	 * Test for PR 151758: Send an character device over the UNIX
-	 * domain socket and then close both sockets to orphan the
-	 * device.
-	 */
-
-	test = "test7-devfsorphan";
-	printf("beginning %s\n", test);
-
-	domainsocketpair(test, fd);
-	devnull(test, &putfd_1);
-	sendfd(test, fd[0], putfd_1);
+	domainsocketpair(fd);
+	putfd_1 = open(_PATH_DEVNULL, O_RDONLY);
+	ATF_REQUIRE_MSG(putfd_1 != -1,
+	    "opening %s failed: %s", _PATH_DEVNULL, strerror(errno));
+	sendfd(fd[0], putfd_1);
 	close(putfd_1);
 	closesocketpair(fd);
+}
 
-	printf("%s passed\n", test);
+#define	LOCAL_STREAM_SENDSPACE	"net.local.stream.sendspace"
 
-	/*
-	 * Test for PR 181741. Receiver sets LOCAL_CREDS, and kernel
-	 * prepends a control message to the data. Sender sends large
-	 * payload. Payload + SCM_RIGHTS + LOCAL_CREDS hit socket buffer
-	 * limit, and receiver receives truncated data.
-	 */
-	test = "test8-rights+creds+payload";
-	printf("beginning %s\n", test);
+/*
+ * Test for PR 181741. Receiver sets LOCAL_CREDS, and kernel
+ * prepends a control message to the data. Sender sends large
+ * payload. Payload + SCM_RIGHTS + LOCAL_CREDS hit socket buffer
+ * limit, and receiver receives truncated data.
+ */
+ATF_TC_WITHOUT_HEAD(rights_with_LOCAL_CREDS_and_large_payload);
+ATF_TC_BODY(rights_with_LOCAL_CREDS_and_large_payload, tc)
+{
+	void *buf;
+	int fd[2];
+	size_t len;
+	u_long sendspace;
+	const int on = 1;
+	int getfd_1, putfd_1, rc;
 
-	{
-		const int on = 1;
-		u_long sendspace;
-		size_t len;
-		void *buf;
+	atf_tc_expect_fail("Bug 181741 has not been fixed yet");
 
-		len = sizeof(sendspace);
-		if (sysctlbyname("net.local.stream.sendspace", &sendspace,
-		    &len, NULL, 0) < 0)
-			err(-1, "%s: sysctlbyname(net.local.stream.sendspace)",
-			    test);
+	len = sizeof(sendspace);
+	rc = sysctlbyname(LOCAL_STREAM_SENDSPACE, &sendspace, &len, NULL, 0);
+	ATF_REQUIRE_MSG(rc == 0, "sysctlbyname %s failed: %s",
+	    LOCAL_STREAM_SENDSPACE, strerror(errno));
 
-		if ((buf = malloc(sendspace)) == NULL)
-			err(-1, "%s: malloc", test);
+	ATF_REQUIRE((buf = malloc(sendspace)) != NULL);
 
-		domainsocketpair(test, fd);
-		if (setsockopt(fd[1], 0, LOCAL_CREDS, &on, sizeof(on)) < 0)
-			err(-1, "%s: setsockopt(LOCAL_CREDS)", test);
-		tempfile(test, &putfd_1);
-		sendfd_payload(test, fd[0], putfd_1, buf, sendspace);
-		recvfd_payload(test, fd[1], &getfd_1, buf, sendspace);
-		close(putfd_1);
-		close(getfd_1);
-		closesocketpair(fd);
-	}
+	domainsocketpair(fd);
+	rc = setsockopt(fd[1], 0, LOCAL_CREDS, &on, sizeof(on));
+	ATF_REQUIRE_MSG(rc == 0, "setsockopt failed: %s", strerror(errno));
 
-	printf("%s passed\n", test);
-	
-	return (0);
+	tempfile(&putfd_1);
+
+	sendfd_payload(fd[0], putfd_1, buf, sendspace);
+	recvfd_payload(fd[1], &getfd_1, buf, sendspace);
+
+	close(putfd_1);
+	close(getfd_1);
+	closesocketpair(fd);
+}
+
+ATF_TP_ADD_TCS(tp)
+{
+
+	ATF_TP_ADD_TC(tp, simple_send_fd);
+	ATF_TP_ADD_TC(tp, send_and_close);
+	ATF_TP_ADD_TC(tp, send_and_cancel);
+	ATF_TP_ADD_TC(tp, two_files);
+	ATF_TP_ADD_TC(tp, bundle);
+	ATF_TP_ADD_TC(tp, bundle_cancel);
+	ATF_TP_ADD_TC(tp, devfs_orphan);
+	ATF_TP_ADD_TC(tp, rights_with_LOCAL_CREDS_and_large_payload);
+
+	return (atf_no_error());
 }
