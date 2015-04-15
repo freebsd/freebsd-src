@@ -37,7 +37,7 @@ PLAIN_TESTS_C+=	unix_sendtorace_test
 PLAIN_TESTS_C+=	unix_socket_test
 PLAIN_TESTS_C+=	unix_sorflush_test
 # zerosend: tcp_0write: bind(127.0.0.1, 10001): Address already in use
-PLAIN_TESTS_C+=	zerosend_test
+ATF_TESTS_C+=	zerosend_test
 
 DPADD.sendfile_test+=	${LIBMD}
 LDADD.sendfile_test+=	-lmd

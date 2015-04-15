@@ -26,6 +26,7 @@
  * $FreeBSD$
  */
 
+#include <sys/param.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -38,85 +39,80 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
-#define	PORT1	10001
-#define	PORT2	10002
+#include <atf-c.h>
 
 static void
-try_0send(const char *test, int fd)
+try_0send(int fd)
 {
 	ssize_t len;
 	char ch;
 
 	ch = 0;
 	len = send(fd, &ch, 0, 0);
-	if (len < 0)
-		err(-1, "%s: try_0send", test);
-	if (len != 0)
-		errx(-1, "%s: try_0send: returned %zd", test, len);
+	ATF_REQUIRE_MSG(len != -1, "send failed: %s", strerror(errno));
+	ATF_REQUIRE_MSG(len == 0, "send returned %zd (not 0): %s",
+	    len, strerror(errno));
 }
 
 static void
-try_0write(const char *test, int fd)
+try_0write(int fd)
 {
 	ssize_t len;
 	char ch;
 
 	ch = 0;
 	len = write(fd, &ch, 0);
-	if (len < 0)
-		err(-1, "%s: try_0write", test);
-	if (len != 0)
-		errx(-1, "%s: try_0write: returned %zd", test, len);
+	ATF_REQUIRE_MSG(len != -1, "write failed: %s", strerror(errno));
+	ATF_REQUIRE_MSG(len == 0, "write returned: %zd (not 0): %s",
+	    len, strerror(errno));
 }
 
 static void
-setup_udp(const char *test, int *fdp)
+setup_udp(int *fdp)
 {
 	struct sockaddr_in sin;
-	int sock1, sock2;
+	int port_base, sock1, sock2;
 
 	bzero(&sin, sizeof(sin));
 	sin.sin_len = sizeof(sin);
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
-	sin.sin_port = htons(PORT1);
+	port_base = MAX((int)random() % 65535, 1025);
+
+	sin.sin_port = htons(port_base);
 	sock1 = socket(PF_INET, SOCK_DGRAM, 0);
-	if (sock1 < 0)
-		err(-1, "%s: setup_udp: socket", test);
-	if (bind(sock1, (struct sockaddr *)&sin, sizeof(sin)) < 0)
-		err(-1, "%s: setup_udp: bind(%s, %d)", test,
-		    inet_ntoa(sin.sin_addr), PORT1);
-	sin.sin_port = htons(PORT2);
-	if (connect(sock1, (struct sockaddr *)&sin, sizeof(sin)) < 0)
-		err(-1, "%s: setup_udp: connect(%s, %d)", test,
-		    inet_ntoa(sin.sin_addr), PORT2);
+	ATF_REQUIRE_MSG(sock1 != -1, "socket # 1 failed: %s", strerror(errno));
+	ATF_REQUIRE_MSG(bind(sock1, (struct sockaddr *)&sin, sizeof(sin)) == 0,
+	    "bind # 1 failed: %s", strerror(errno));
+	sin.sin_port = htons(port_base + 1);
+	ATF_REQUIRE_MSG(connect(sock1, (struct sockaddr *)&sin, sizeof(sin))
+	    == 0, "connect # 1 failed: %s", strerror(errno));
 
 	sock2 = socket(PF_INET, SOCK_DGRAM, 0);
-	if (sock2 < 0)
-		err(-1, "%s: setup_udp: socket", test);
-	if (bind(sock2, (struct sockaddr *)&sin, sizeof(sin)) < 0)
-		err(-1, "%s: setup_udp: bind(%s, %d)", test,
-		    inet_ntoa(sin.sin_addr), PORT2);
-	sin.sin_port = htons(PORT1);
-	if (connect(sock2, (struct sockaddr *)&sin, sizeof(sin)) < 0)
-		err(-1, "%s: setup_udp: connect(%s, %d)", test,
-		    inet_ntoa(sin.sin_addr), PORT1);
+	ATF_REQUIRE_MSG(sock2 != -1, "socket # 2 failed: %s", strerror(errno));
+	ATF_REQUIRE_MSG(bind(sock2, (struct sockaddr *)&sin, sizeof(sin)) == 0,
+	    "bind # 2 failed: %s", strerror(errno));
+	sin.sin_port = htons(port_base);
+	ATF_REQUIRE_MSG(connect(sock2, (struct sockaddr *)&sin, sizeof(sin))
+	    == 0, "connect # 2 failed: %s", strerror(errno));
 
 	fdp[0] = sock1;
 	fdp[1] = sock2;
+	fdp[2] = -1;
 }
 
 static void
-setup_tcp(const char *test, int *fdp)
+setup_tcp(int *fdp)
 {
 	fd_set writefds, exceptfds;
 	struct sockaddr_in sin;
-	int ret, sock1, sock2, sock3;
+	int port_base, ret, sock1, sock2, sock3;
 	struct timeval tv;
 
 	bzero(&sin, sizeof(sin));
@@ -124,44 +120,40 @@ setup_tcp(const char *test, int *fdp)
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
+	port_base = MAX((int)random() % 65535, 1025);
+
 	/*
 	 * First set up the listen socket.
 	 */
-	sin.sin_port = htons(PORT1);
+	sin.sin_port = htons(port_base);
 	sock1 = socket(PF_INET, SOCK_STREAM, 0);
-	if (sock1 < 0)
-		err(-1, "%s: setup_tcp: socket", test);
-	if (bind(sock1, (struct sockaddr *)&sin, sizeof(sin)) < 0)
-		err(-1, "%s: bind(%s, %d)", test, inet_ntoa(sin.sin_addr),
-		    PORT1);
-	if (listen(sock1, -1) < 0)
-		err(-1, "%s: listen", test);
+	ATF_REQUIRE_MSG(sock1 != -1, "socket # 1 failed: %s", strerror(errno));
+	ATF_REQUIRE_MSG(bind(sock1, (struct sockaddr *)&sin, sizeof(sin)) == 0,
+	    "bind # 1 failed: %s", strerror(errno));
+	ATF_REQUIRE_MSG(listen(sock1, -1) == 0,
+	    "listen # 1 failed: %s", strerror(errno));
 
 	/*
 	 * Now connect to it, non-blocking so that we don't deadlock against
 	 * ourselves.
 	 */
 	sock2 = socket(PF_INET, SOCK_STREAM, 0);
-	if (sock2 < 0)
-		err(-1, "%s: setup_tcp: socket", test);
-	if (fcntl(sock2, F_SETFL, O_NONBLOCK) < 0)
-		err(-1, "%s: setup_tcp: fcntl(O_NONBLOCK)", test);
-	if (connect(sock2, (struct sockaddr *)&sin, sizeof(sin)) < 0 &&
-	    errno != EINPROGRESS)
-		err(-1, "%s: setup_tcp: connect(%s, %d)", test,
-		    inet_ntoa(sin.sin_addr), PORT1);
+	ATF_REQUIRE_MSG(sock2 != -1, "socket # 2 failed: %s", strerror(errno));
+	ATF_REQUIRE_MSG(fcntl(sock2, F_SETFL, O_NONBLOCK) == 0,
+	    "setting socket as nonblocking failed: %s", strerror(errno));
+	ATF_REQUIRE_MSG(
+	    (connect(sock2, (struct sockaddr *)&sin, sizeof(sin)) == 0 ||
+	     errno == EINPROGRESS),
+	    "connect # 2 failed: %s", strerror(errno));
 
 	/*
 	 * Now pick up the connection after sleeping a moment to make sure
 	 * there's been time for some packets to go back and forth.
 	 */
-	if (sleep(1) < 0)
-		err(-1, "%s: sleep(1)", test);
+	ATF_REQUIRE_MSG(sleep(1) == 0, "sleep(1) <= 0");
 	sock3 = accept(sock1, NULL, NULL);
-	if (sock3 < 0)
-		err(-1, "%s: accept", test);
-	if (sleep(1) < 0)
-		err(-1, "%s: sleep(1)", test);
+	ATF_REQUIRE_MSG(sock3 != -1, "accept failed: %s", strerror(errno));
+	ATF_REQUIRE_MSG(sleep(1) == 0, "sleep(1) <= 0");
 
 	FD_ZERO(&writefds);
 	FD_SET(sock2, &writefds);
@@ -170,121 +162,181 @@ setup_tcp(const char *test, int *fdp)
 	tv.tv_sec = 1;
 	tv.tv_usec = 0;
 	ret = select(sock2 + 1, NULL, &writefds, &exceptfds, &tv);
-	if (ret < 0)
-		err(-1, "%s: setup_tcp: select", test);
-	if (FD_ISSET(sock2, &exceptfds))
-		errx(-1, "%s: setup_tcp: select: exception", test);
-	if (!FD_ISSET(sock2, &writefds))
-		errx(-1, "%s: setup_tcp: select: not writable", test);
+	ATF_REQUIRE_MSG(ret != -1, "select failed: %s", strerror(errno));
+	ATF_REQUIRE_MSG(!FD_ISSET(sock2, &exceptfds),
+	    "select: exception occurred with sock2");
+	ATF_REQUIRE_MSG(FD_ISSET(sock2, &writefds),
+	    "not writable");
 
 	close(sock1);
 	fdp[0] = sock2;
 	fdp[1] = sock3;
+	fdp[2] = sock1;
 }
 
 static void
-setup_udsstream(const char *test, int *fdp)
+setup_udsstream(int *fdp)
 {
 
-	if (socketpair(PF_LOCAL, SOCK_STREAM, 0, fdp) < 0)
-		err(-1, "%s: setup_udsstream: socketpair", test);
+	ATF_REQUIRE_MSG(socketpair(PF_LOCAL, SOCK_STREAM, 0, fdp) == 0,
+	    "socketpair failed: %s", strerror(errno));
 }
 
 static void
-setup_udsdgram(const char *test, int *fdp)
+setup_udsdgram(int *fdp)
 {
 
-	if (socketpair(PF_LOCAL, SOCK_DGRAM, 0, fdp) < 0)
-		err(-1, "%s: setup_udsdgram: socketpair", test);
+	ATF_REQUIRE_MSG(socketpair(PF_LOCAL, SOCK_DGRAM, 0, fdp) == 0,
+	    "socketpair failed: %s", strerror(errno));
 }
 
 static void
-setup_pipe(const char *test, int *fdp)
+setup_pipe(int *fdp)
 {
 
-	if (pipe(fdp) < 0)
-		err(-1, "%s: setup_pipe: pipe", test);
+	ATF_REQUIRE_MSG(pipe(fdp) == 0, "pipe failed: %s", strerror(errno));
 }
 
 static void
-setup_fifo(const char *test, int *fdp)
+setup_fifo(int *fdp)
 {
 	char path[] = "0send_fifo.XXXXXXX";
 	int fd1, fd2;
 
-	if (mkstemp(path) == -1)
-		err(-1, "%s: setup_fifo: mktemp", test);
+	ATF_REQUIRE_MSG(mkstemp(path) != -1,
+	    "mkstemp failed: %s", strerror(errno));
 	unlink(path);
 
-	if (mkfifo(path, 0600) < 0)
-		err(-1, "%s: setup_fifo: mkfifo(%s)", test, path);
+	ATF_REQUIRE_MSG(mkfifo(path, 0600) == 0,
+	    "mkfifo(\"%s\", 0600) failed: %s", path, strerror(errno));
 
 	fd1 = open(path, O_RDONLY | O_NONBLOCK);
-	if (fd1 < 0)
-		err(-1, "%s: setup_fifo: open(%s, O_RDONLY)", test, path);
+	ATF_REQUIRE_MSG(fd1 != -1, "open(\"%s\", O_RDONLY)", path);
 
 	fd2 = open(path, O_WRONLY | O_NONBLOCK);
-	if (fd2 < 0)
-		err(-1, "%s: setup_fifo: open(%s, O_WRONLY)", test, path);
+	ATF_REQUIRE_MSG(fd2 != -1, "open(\"%s\", O_WRONLY)", path);
 
 	fdp[0] = fd2;
 	fdp[1] = fd1;
+	fdp[2] = -1;
 }
+
+static int fd[3];
 
 static void
-close_both(int *fdp)
+close_fds(int *fdp)
 {
+	int i;
 
-	close(fdp[0]);
-	fdp[0] = -1;
-	close(fdp[1]);
-	fdp[1] = -1;
+	for (i = 0; i < nitems(fdp); i++)
+		close(fdp[i]);
 }
 
-int
-main(int argc, char *argv[])
+ATF_TC_WITHOUT_HEAD(udp_zero_send);
+ATF_TC_BODY(udp_zero_send, tc)
 {
-	int fd[2];
 
-	setup_udp("udp_0send", fd);
-	try_0send("udp_0send", fd[0]);
-	close_both(fd);
+	setup_udp(fd);
+	try_0send(fd[0]);
+	close_fds(fd);
+}
 
-	setup_udp("udp_0write", fd);
-	try_0write("udp_0write", fd[0]);
-	close_both(fd);
+ATF_TC_WITHOUT_HEAD(udp_zero_write);
+ATF_TC_BODY(udp_zero_write, tc)
+{
 
-	setup_tcp("tcp_0send", fd);
-	try_0send("tcp_0send", fd[0]);
-	close_both(fd);
+	setup_udp(fd);
+	try_0write(fd[0]);
+	close_fds(fd);
+}
 
-	setup_tcp("tcp_0write", fd);
-	try_0write("tcp_0write", fd[0]);
-	close_both(fd);
+ATF_TC_WITHOUT_HEAD(tcp_zero_send);
+ATF_TC_BODY(tcp_zero_send, tc)
+{
 
-	setup_udsstream("udsstream_0send", fd);
-	try_0send("udsstream_0send", fd[0]);
-	close_both(fd);
+	setup_tcp(fd);
+	try_0send(fd[0]);
+	close_fds(fd);
+}
 
-	setup_udsstream("udsstream_0write", fd);
-	try_0write("udsstream_0write", fd[0]);
-	close_both(fd);
+ATF_TC_WITHOUT_HEAD(tcp_zero_write);
+ATF_TC_BODY(tcp_zero_write, tc)
+{
 
-	setup_udsdgram("udsdgram_0send", fd);
-	try_0send("udsdgram_0send", fd[0]);
-	close_both(fd);
+	setup_tcp(fd);
+	try_0write(fd[0]);
+	close_fds(fd);
+}
 
-	setup_udsdgram("udsdgram_0write", fd);
-	try_0write("udsdgram_0write", fd[0]);
-	close_both(fd);
+ATF_TC_WITHOUT_HEAD(udsstream_zero_send);
+ATF_TC_BODY(udsstream_zero_send, tc)
+{
 
-	setup_pipe("pipe_0write", fd);
-	try_0write("pipd_0write", fd[0]);
-	close_both(fd);
+	setup_udsstream(fd);
+	try_0send(fd[0]);
+	close_fds(fd);
+}
 
-	setup_fifo("fifo_0write", fd);
-	try_0write("fifo_0write", fd[0]);
-	close_both(fd);
+ATF_TC_WITHOUT_HEAD(udsstream_zero_write);
+ATF_TC_BODY(udsstream_zero_write, tc)
+{
 
-	return (0);
+	setup_udsstream(fd);
+	try_0write(fd[0]);
+	close_fds(fd);
+}
+
+ATF_TC_WITHOUT_HEAD(udsdgram_zero_send);
+ATF_TC_BODY(udsdgram_zero_send, tc)
+{
+
+	setup_udsdgram(fd);
+	try_0send(fd[0]);
+	close_fds(fd);
+}
+
+ATF_TC_WITHOUT_HEAD(udsdgram_zero_write);
+ATF_TC_BODY(udsdgram_zero_write, tc)
+{
+
+	setup_udsdgram(fd);
+	try_0write(fd[0]);
+	close_fds(fd);
+}
+
+ATF_TC_WITHOUT_HEAD(pipe_zero_write);
+ATF_TC_BODY(pipe_zero_write, tc)
+{
+
+	setup_pipe(fd);
+	try_0write(fd[0]);
+	close_fds(fd);
+}
+
+ATF_TC_WITHOUT_HEAD(fifo_zero_write);
+ATF_TC_BODY(fifo_zero_write, tc)
+{
+
+	setup_fifo(fd);
+	try_0write(fd[0]);
+	close_fds(fd);
+}
+
+ATF_TP_ADD_TCS(tp)
+{
+
+	srandomdev();
+
+	ATF_TP_ADD_TC(tp, udp_zero_send);
+	ATF_TP_ADD_TC(tp, udp_zero_write);
+	ATF_TP_ADD_TC(tp, tcp_zero_send);
+	ATF_TP_ADD_TC(tp, tcp_zero_write);
+	ATF_TP_ADD_TC(tp, udsstream_zero_write);
+	ATF_TP_ADD_TC(tp, udsstream_zero_send);
+	ATF_TP_ADD_TC(tp, udsdgram_zero_write);
+	ATF_TP_ADD_TC(tp, udsdgram_zero_send);
+	ATF_TP_ADD_TC(tp, pipe_zero_write);
+	ATF_TP_ADD_TC(tp, fifo_zero_write);
+
+	return (atf_no_error());
 }
