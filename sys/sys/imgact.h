@@ -80,6 +80,7 @@ struct image_params {
 	unsigned long pagesizes;
 	int pagesizeslen;
 	vm_prot_t stack_prot;
+	u_long stack_sz;
 };
 
 #ifdef _KERNEL
