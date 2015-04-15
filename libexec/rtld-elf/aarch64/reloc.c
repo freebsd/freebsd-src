@@ -161,7 +161,7 @@ rtld_tlsdesc_handle_locked(struct tls_data *tlsdesc, int flags,
 	if (def == NULL)
 		rtld_die();
 
-	tlsdesc->index = defobj->tlsindex + def->st_value + rela->r_addend;
+	tlsdesc->index = defobj->tlsoffset + def->st_value + rela->r_addend;
 
 	return (tlsdesc->index);
 }
@@ -206,7 +206,7 @@ reloc_plt(Obj_Entry *obj)
 		case R_AARCH64_TLSDESC:
 			if (ELF_R_SYM(rela->r_info) == 0) {
 				where[0] = (Elf_Addr)_rtld_tlsdesc;
-				where[1] = obj->tlsindex + rela->r_addend;
+				where[1] = obj->tlsoffset + rela->r_addend;
 			} else {
 				where[0] = (Elf_Addr)_rtld_tlsdesc_dynamic;
 				where[1] = (Elf_Addr)reloc_tlsdesc_alloc(obj,
