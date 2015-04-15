@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2009 Yahoo! Inc.
- * Copyright (c) 2012 LSI Corp.
+ * Copyright (c) 2011-2015 LSI Corp.
+ * Copyright (c) 2013-2015 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * LSI MPT-Fusion Host Adapter FreeBSD
+ * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD
  *
  * $FreeBSD$
  */
@@ -32,7 +33,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* Communications core for LSI MPT2 */
+/* Communications core for Avago Technologies (LSI) MPT2 */
 
 /* TODO Move headers to mpsvar */
 #include <sys/types.h>
@@ -1349,6 +1350,8 @@ mps_get_tunables(struct mps_softc *sc)
 	sc->disable_msix = 0;
 	sc->disable_msi = 0;
 	sc->max_chains = MPS_CHAIN_FRAMES;
+	sc->enable_ssu = MPS_SSU_ENABLE_SSD_DISABLE_HDD;
+	sc->spinup_wait_time = DEFAULT_SPINUP_WAIT;
 
 	/*
 	 * Grab the global variables.
@@ -1357,6 +1360,8 @@ mps_get_tunables(struct mps_softc *sc)
 	TUNABLE_INT_FETCH("hw.mps.disable_msix", &sc->disable_msix);
 	TUNABLE_INT_FETCH("hw.mps.disable_msi", &sc->disable_msi);
 	TUNABLE_INT_FETCH("hw.mps.max_chains", &sc->max_chains);
+	TUNABLE_INT_FETCH("hw.mps.enable_ssu", &sc->enable_ssu);
+	TUNABLE_INT_FETCH("hw.mps.spinup_wait_time", &sc->spinup_wait_time);
 
 	/* Grab the unit-instance variables */
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mps.%d.debug_level",
@@ -1379,6 +1384,14 @@ mps_get_tunables(struct mps_softc *sc)
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mps.%d.exclude_ids",
 	    device_get_unit(sc->mps_dev));
 	TUNABLE_STR_FETCH(tmpstr, sc->exclude_ids, sizeof(sc->exclude_ids));
+
+	snprintf(tmpstr, sizeof(tmpstr), "dev.mps.%d.enable_ssu",
+	    device_get_unit(sc->mps_dev));
+	TUNABLE_INT_FETCH(tmpstr, &sc->enable_ssu);
+
+	snprintf(tmpstr, sizeof(tmpstr), "dev.mps.%d.spinup_wait_time",
+	    device_get_unit(sc->mps_dev));
+	TUNABLE_INT_FETCH(tmpstr, &sc->spinup_wait_time);
 }
 
 static void
@@ -1451,11 +1464,20 @@ mps_setup_sysctl(struct mps_softc *sc)
 	    OID_AUTO, "max_chains", CTLFLAG_RD,
 	    &sc->max_chains, 0,"maximum chain frames that will be allocated");
 
+	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "enable_ssu", CTLFLAG_RW, &sc->enable_ssu, 0,
+	    "enable SSU to SATA SSD/HDD at shutdown");
+
 #if __FreeBSD_version >= 900030
 	SYSCTL_ADD_UQUAD(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "chain_alloc_fail", CTLFLAG_RD,
 	    &sc->chain_alloc_fail, "chain allocation failures");
 #endif //FreeBSD_version >= 900030
+
+	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "spinup_wait_time", CTLFLAG_RD,
+	    &sc->spinup_wait_time, DEFAULT_SPINUP_WAIT, "seconds to wait for "
+	    "spinup after SATA ID error");
 }
 
 int
