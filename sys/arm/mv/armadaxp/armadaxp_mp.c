@@ -36,6 +36,7 @@
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/pmap.h>
 
 #include <dev/fdt/fdt_common.h>
 

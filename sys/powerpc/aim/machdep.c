@@ -760,31 +760,6 @@ spinlock_exit(void)
 	}
 }
 
-int db_trap_glue(struct trapframe *);		/* Called from trap_subr.S */
-
-int
-db_trap_glue(struct trapframe *frame)
-{
-	if (!(frame->srr1 & PSL_PR)
-	    && (frame->exc == EXC_TRC || frame->exc == EXC_RUNMODETRC
-		|| (frame->exc == EXC_PGM
-		    && (frame->srr1 & 0x20000))
-		|| frame->exc == EXC_BPT
-		|| frame->exc == EXC_DSI)) {
-		int type = frame->exc;
-
-		/* Ignore DTrace traps. */
-		if (*(uint32_t *)frame->srr0 == EXC_DTRACE)
-			return (0);
-		if (type == EXC_PGM && (frame->srr1 & 0x20000)) {
-			type = T_BREAKPOINT;
-		}
-		return (kdb_trap(type, 0, frame));
-	}
-
-	return (0);
-}
-
 #ifndef __powerpc64__
 
 uint64_t

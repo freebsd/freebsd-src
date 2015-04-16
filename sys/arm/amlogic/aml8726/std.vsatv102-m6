@@ -1,0 +1,17 @@
+# $FreeBSD$
+
+include		"../amlogic/aml8726/std.aml8726"
+
+makeoptions	FDT_DTS_FILE=vsatv102-m6.dts
+
+options		SMP				# Enable multiple cores
+files		"../amlogic/aml8726/files.smp"
+
+# Physical memory starts at 0x80000000.  We assume the kernel is loaded
+# at 0x80100000 by u-boot (which doesn't support ubldr since it's missing
+# CONFIG_API).  The kernel must be supplied as a binary since u-boot is
+# also missing CONFIG_CMD_ELF.
+#
+#
+options		KERNVIRTADDR=0xc0100000		# Used in ldscript.arm
+makeoptions	KERNVIRTADDR=0xc0100000

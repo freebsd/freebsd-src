@@ -4471,6 +4471,21 @@ em_initialize_receive_unit(struct adapter *adapter)
 		u32 rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(0));
 		E1000_WRITE_REG(hw, E1000_RXDCTL(0), rxdctl | 3);
 	}
+#if 0
+	} else if ((adapter->hw.mac.type == e1000_82574) &&
+		  (if_getmtu(ifp) > ETHERMTU)) {
+		for (int i = 0; i < adapter->num_rx_queues; i++) {
+			u32 rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(i));
+
+                	rxdctl |= 0x1f; /* PTHRESH */
+                	rxdctl |= 1 << 8; /* HTHRESH */
+                	rxdctl |= 5 << 16;/* WTHRESH */
+			rxdctl |= 0x00400000; /*Enable counting*/
+			rxdctl |= 0x10000000; /* Switch to granularity */
+			E1000_WRITE_REG(hw, E1000_RXDCTL(i), rxdctl);
+		}
+	}
+#endif
 		
 	if (adapter->hw.mac.type >= e1000_pch2lan) {
 		if (if_getmtu(ifp) > ETHERMTU)

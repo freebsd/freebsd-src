@@ -24,8 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <assert.h>
 #include <gelf.h>
 #include <limits.h>
@@ -33,7 +31,7 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: gelf_cap.c 2995 2014-03-18 02:16:31Z jkoshy $");
+ELFTC_VCSID("$Id: gelf_cap.c 3177 2015-03-30 18:19:41Z emaste $");
 
 GElf_Cap *
 gelf_getcap(Elf_Data *ed, int ndx, GElf_Cap *dst)

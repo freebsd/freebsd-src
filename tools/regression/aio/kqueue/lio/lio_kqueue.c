@@ -37,13 +37,15 @@
  * 	http://www.ambrisko.com/doug/listio_kqueue/listio_kqueue.patch
  */
 
-#include <aio.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <errno.h>
 #include <sys/types.h>
 #include <sys/event.h>
 #include <sys/time.h>
+#include <aio.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #define PATH_TEMPLATE   "/tmp/aio.XXXXXXXXXX"
@@ -52,9 +54,10 @@
 #define MAX LIO_MAX * 16
 #define MAX_RUNS 300
 
+int
 main(int argc, char *argv[]){
 	int fd;
-	struct aiocb *iocb[MAX], *kq_iocb;
+	struct aiocb *iocb[MAX];
 	struct aiocb **lio[LIO_MAX], **lio_element, **kq_lio;
 	int i, result, run, error, j, k;
 	char buffer[32768];
@@ -65,7 +68,7 @@ main(int argc, char *argv[]){
 	time_t time1, time2;
 	char *file, pathname[sizeof(PATH_TEMPLATE)-1];
 	int tmp_file = 0, failed = 0;
-	
+
 	if (kq < 0) {
 		perror("No kqeueue\n");
 		exit(1);
@@ -89,7 +92,7 @@ main(int argc, char *argv[]){
 #ifdef DEBUG
 	printf("Hello kq %d fd %d\n", kq, fd);
 #endif
-	
+
 	for (run = 0; run < MAX_RUNS; run++){
 #ifdef DEBUG
 		printf("Run %d\n", run);
@@ -137,13 +140,13 @@ main(int argc, char *argv[]){
 			printf("write %d is at %p\n", j, lio[j]);
 #endif
 		}
-		
+
 		for(i = 0; i < LIO_MAX; i++) {
 			for(j = LIO_MAX - 1; j >=0; j--) {
 				if (lio[j])
 					break;
 			}
-			
+
 			for(;;) {
 				bzero(&ke, sizeof(ke));
 				bzero(&kq_returned, sizeof(ke));
@@ -169,18 +172,18 @@ main(int argc, char *argv[]){
 				       kq_returned.udata, 
 				       lio[j]);
 #endif
-				
+
 				if(kq_lio)
 					break;
 #ifdef DEBUG
 				printf("Try again\n");
 #endif
-			}			
-			
+			}
+
 #ifdef DEBUG
 			printf("lio %p\n", lio);
 #endif
-			
+
 			for (j = 0; j < LIO_MAX; j++) {
 				if (lio[j] == kq_lio) {
 					break;
@@ -201,12 +204,12 @@ main(int argc, char *argv[]){
 				printf("PASS: run %d, operation %d result %d \n", run, LIO_MAX - i -1, result);
 			}
 			for(k = 0; k < MAX / LIO_MAX; k++){
-				result = aio_return(kq_lio[k]);			
+				result = aio_return(kq_lio[k]);
 #ifdef DEBUG
 				printf("Return Resulto for %d %d is %d\n", j, k, result);
 #endif
 				if (result != sizeof(buffer)) {
-					printf("FAIL: run %d, operation %d sub-opt %d  result %d (errno=%d) should be %d\n",
+					printf("FAIL: run %d, operation %d sub-opt %d  result %d (errno=%d) should be %zu\n",
 					   run, LIO_MAX - i -1, k, result, errno, sizeof(buffer));
 				} else {
 					printf("PASS: run %d, operation %d sub-opt %d  result %d\n",
@@ -216,13 +219,13 @@ main(int argc, char *argv[]){
 #ifdef DEBUG
 			printf("\n");
 #endif
-			
+
 			for(k = 0; k < MAX / LIO_MAX; k++) {
 				free(lio[j][k]);
 			}
 			free(lio[j]);
 			lio[j] = NULL;
-		}	
+		}
 	}
 #ifdef DEBUG
 	printf("Done\n");

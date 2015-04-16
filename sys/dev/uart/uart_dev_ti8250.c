@@ -137,7 +137,8 @@ static struct uart_class uart_ti8250_class = {
 	sizeof(struct ti8250_softc),
 	.uc_ops = &uart_ns8250_ops,
 	.uc_range = 0x88,
-	.uc_rclk = 48000000
+	.uc_rclk = 48000000,
+	.uc_rshift = 0
 };
 static struct ofw_compat_data compat_data[] = {
 	{"ti,ns16550",		(uintptr_t)&uart_ti8250_class},

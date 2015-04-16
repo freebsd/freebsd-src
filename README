@@ -34,9 +34,7 @@ The sample kernel configuration files reside in the sys/<arch>/conf
 sub-directory (assuming that you've installed the kernel sources), the
 file named GENERIC being the one used to build your initial installation
 kernel.  The file NOTES contains entries and documentation for all possible
-devices, not just those commonly used.  It is the successor of the ancient
-LINT file, but in contrast to LINT, it is not buildable as a kernel but a
-pure reference and documentation file.
+devices, not just those commonly used.
 
 
 Source Roadmap:
@@ -76,6 +74,9 @@ secure		Cryptographic libraries and commands.
 share		Shared resources.
 
 sys		Kernel sources.
+
+tests		Regression tests which can be run by Kyua.  See tests/README
+		for additional information.
 
 tools		Utilities for regression testing and miscellaneous tasks.
 

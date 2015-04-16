@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <dwarf.h>
 #include <err.h>
@@ -40,7 +39,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: addr2line.c 3148 2015-02-15 18:47:39Z emaste $");
+ELFTC_VCSID("$Id: addr2line.c 3174 2015-03-27 17:13:41Z emaste $");
 
 static struct option longopts[] = {
 	{"target" , required_argument, NULL, 'b'},

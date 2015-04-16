@@ -1701,7 +1701,7 @@ uftdi_get_bitmode(struct ucom_softc *ucom, uint8_t *iomask)
 	struct uftdi_softc *sc = ucom->sc_parent;
 	usb_device_request_t req;
 
-	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
+	req.bmRequestType = UT_READ_VENDOR_DEVICE;
 	req.bRequest = FTDI_SIO_GET_BITMODE;
 
 	USETW(req.wIndex, sc->sc_ucom.sc_portno);
@@ -1738,7 +1738,7 @@ uftdi_get_latency(struct ucom_softc *ucom, int *latency)
 	usb_error_t err;
 	uint8_t buf;
 
-	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
+	req.bmRequestType = UT_READ_VENDOR_DEVICE;
 	req.bRequest = FTDI_SIO_GET_LATENCY;
 
 	USETW(req.wIndex, sc->sc_ucom.sc_portno);

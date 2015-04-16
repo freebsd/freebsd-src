@@ -327,7 +327,7 @@ kern_shmat_locked(struct thread *td, int shmid, const void *shmaddr,
 {
 	struct proc *p = td->td_proc;
 	struct shmid_kernel *shmseg;
-	struct shmmap_state *shmmap_s = NULL;
+	struct shmmap_state *shmmap_s;
 	vm_offset_t attach_va;
 	vm_prot_t prot;
 	vm_size_t size;
@@ -965,7 +965,7 @@ oshmctl(struct thread *td, struct oshmctl_args *uap)
 	shmseg = shm_find_segment(uap->shmid, true);
 	if (shmseg == NULL) {
 		SYSVSHM_UNLOCK();
-		return (error);
+		return (EINVAL);
 	}
 	switch (uap->cmd) {
 	case IPC_STAT:
