@@ -36,7 +36,7 @@
 #endif
 
 #ifdef _KERNEL_OPT
-#include <altq/altqconf.h>
+#include <net/altq/altqconf.h>
 #endif
 
 struct altq_pktattr; struct tb_regulator; struct top_cdnr;
