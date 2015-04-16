@@ -43,7 +43,9 @@ ATF_TC_BODY(fmod, tc)
 {
 	ATF_CHECK(fmodf(2.0, 1.0) == 0);
 	ATF_CHECK(fmod(2.0, 1.0) == 0);
+#if !defined(__FreeBSD__) || LDBL_PREC != 53
 	ATF_CHECK(fmodl(2.0, 1.0) == 0);
+#endif
 
 	ATF_CHECK(fmodf(2.0, 0.5) == 0);
 	ATF_CHECK(fmod(2.0, 0.5) == 0);
