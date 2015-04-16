@@ -1,6 +1,4 @@
-/*	$KAME: altq_cdnr.h,v 1.9 2003/07/10 12:07:48 kjc Exp $	*/
-
-/*
+/*-
  * Copyright (C) 1999-2002
  *	Sony Computer Science Laboratories Inc.  All rights reserved.
  *
@@ -24,12 +22,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $KAME: altq_cdnr.h,v 1.9 2003/07/10 12:07:48 kjc Exp $
+ * $FreeBSD$
  */
 
 #ifndef _ALTQ_ALTQ_CDNR_H_
 #define	_ALTQ_ALTQ_CDNR_H_
 
-#include <altq/altq.h>
+#include <net/altq/altq.h>
 
 /*
  * traffic conditioner element types

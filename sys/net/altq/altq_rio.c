@@ -92,12 +92,12 @@
 
 #include <netpfil/pf/pf.h>
 #include <netpfil/pf/pf_altq.h>
-#include <altq/altq.h>
-#include <altq/altq_cdnr.h>
-#include <altq/altq_red.h>
-#include <altq/altq_rio.h>
+#include <net/altq/altq.h>
+#include <net/altq/altq_cdnr.h>
+#include <net/altq/altq_red.h>
+#include <net/altq/altq_rio.h>
 #ifdef ALTQ3_COMPAT
-#include <altq/altq_conf.h>
+#include <net/altq/altq_conf.h>
 #endif
 
 /*

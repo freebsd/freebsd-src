@@ -98,12 +98,12 @@
 #include <netpfil/pf/pf.h>
 #include <netpfil/pf/pf_altq.h>
 #include <netpfil/pf/pf_mtag.h>
-#include <altq/altq.h>
-#include <altq/altq_red.h>
+#include <net/altq/altq.h>
+#include <net/altq/altq_red.h>
 #ifdef ALTQ3_COMPAT
-#include <altq/altq_conf.h>
+#include <net/altq/altq_conf.h>
 #ifdef ALTQ_FLOWVALVE
-#include <altq/altq_flowvalve.h>
+#include <net/altq/altq_flowvalve.h>
 #endif
 #endif
 

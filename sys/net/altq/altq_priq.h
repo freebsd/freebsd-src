@@ -1,5 +1,4 @@
-/*	$KAME: altq_priq.h,v 1.7 2003/10/03 05:05:15 kjc Exp $	*/
-/*
+/*-
  * Copyright (C) 2000-2003
  *	Sony Computer Science Laboratories Inc.  All rights reserved.
  *
@@ -23,15 +22,18 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $KAME: altq_priq.h,v 1.7 2003/10/03 05:05:15 kjc Exp $
+ * $FreeBSD$
  */
 
 #ifndef _ALTQ_ALTQ_PRIQ_H_
 #define	_ALTQ_ALTQ_PRIQ_H_
 
-#include <altq/altq.h>
-#include <altq/altq_classq.h>
-#include <altq/altq_red.h>
-#include <altq/altq_rio.h>
+#include <net/altq/altq.h>
+#include <net/altq/altq_classq.h>
+#include <net/altq/altq_red.h>
+#include <net/altq/altq_rio.h>
 
 #ifdef __cplusplus
 extern "C" {

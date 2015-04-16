@@ -1,6 +1,4 @@
-/*	$KAME: altq_rmclass.h,v 1.10 2003/08/20 23:30:23 itojun Exp $	*/
-
-/*
+/*-
  * Copyright (c) 1991-1997 Regents of the University of California.
  * All rights reserved.
  *
@@ -31,12 +29,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $KAME: altq_rmclass.h,v 1.10 2003/08/20 23:30:23 itojun Exp $
+ * $FreeBSD$
  */
 
 #ifndef _ALTQ_ALTQ_RMCLASS_H_
 #define	_ALTQ_ALTQ_RMCLASS_H_
 
-#include <altq/altq_classq.h>
+#include <net/altq/altq_classq.h>
 
 /* #pragma ident "@(#)rm_class.h  1.20     97/10/23 SMI" */
 
