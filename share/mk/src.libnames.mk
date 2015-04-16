@@ -282,9 +282,13 @@ LDADD_gssapi_krb5+=	${LDADD_pthread}
 .if ${_PRIVATELIBS:M${_l}}
 USEPRIVATELIB+=	${_l}
 .endif
-DPADD+=		${DPADD_${_l}}
+DPADD+=		${DPADD_${_l}:Umissing-dpadd_${_l}}
 LDADD+=		${LDADD_${_l}}
 .endfor
+
+.if defined(DPADD) && ${DPADD:Mmissing-dpadd_*}
+.error Missing ${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//:S/^/DPADD_/} variable add "${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//}" to _LIBRARIES, _INTERNALLIBS, or _PRIVATELIBS and define "${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//:S/^/LIB/:tu}".
+.endif
 
 .if defined(USEPRIVATELIB)
 LDFLAGS+=	-rpath ${LIBPRIVATEDIR}

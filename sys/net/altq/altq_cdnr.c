@@ -55,12 +55,12 @@
 #include <netinet/ip6.h>
 #endif
 
-#include <altq/if_altq.h>
-#include <altq/altq.h>
+#include <net/altq/if_altq.h>
+#include <net/altq/altq.h>
 #ifdef ALTQ3_COMPAT
-#include <altq/altq_conf.h>
+#include <net/altq/altq_conf.h>
 #endif
-#include <altq/altq_cdnr.h>
+#include <net/altq/altq_cdnr.h>
 
 #ifdef ALTQ3_COMPAT
 /*

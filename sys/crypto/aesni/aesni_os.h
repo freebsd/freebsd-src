@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006 Hajimu UMEMOTO <ume@FreeBSD.org>
+ * Copyright 2015 Craig Rodrigues <rodrigc@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,21 +24,10 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
+ *
  */
 
-#ifndef _ICONV_H_
-#define _ICONV_H_
-
-typedef void *iconv_t;
-typedef size_t dl_iconv_t(iconv_t, char **, size_t *, char **, size_t *);
-typedef int dl_iconv_close_t(iconv_t);
-
-extern iconv_t dl_iconv_open(const char *, const char *);
-extern dl_iconv_t *dl_iconv;
-extern dl_iconv_close_t *dl_iconv_close;
-
-#define iconv_open	dl_iconv_open
-#define iconv		dl_iconv
-#define iconv_close	dl_iconv_close
-
-#endif /* !_ICONV_H_ */
+#if defined(__GNUC__) && defined(_KERNEL)
+/* Suppress inclusion of gcc's mm_malloc.h header */
+#define _MM_MALLOC_H_INCLUDED 1
+#endif

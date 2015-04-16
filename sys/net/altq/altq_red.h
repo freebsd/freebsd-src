@@ -1,6 +1,4 @@
-/*	$KAME: altq_red.h,v 1.8 2003/07/10 12:07:49 kjc Exp $	*/
-
-/*
+/*-
  * Copyright (C) 1997-2003
  *	Sony Computer Science Laboratories Inc.  All rights reserved.
  *
@@ -24,12 +22,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $KAME: altq_red.h,v 1.8 2003/07/10 12:07:49 kjc Exp $
+ * $FreeBSD$
  */
 
 #ifndef _ALTQ_ALTQ_RED_H_
 #define	_ALTQ_ALTQ_RED_H_
 
-#include <altq/altq_classq.h>
+#include <net/altq/altq_classq.h>
 
 #ifdef ALTQ3_COMPAT
 struct red_interface {
