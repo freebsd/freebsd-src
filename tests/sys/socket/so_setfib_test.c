@@ -183,8 +183,7 @@ main(int argc __unused, char *argv[] __unused)
 	if (sysctlbyname("net.fibs", &rt_numfibs, &s, NULL, 0) == -1)
 		err(1, "sysctlbyname(net.fibs, ..)");
 
-	printf("1..%lu\n",
-	    (nitems(t_dom) - 1) * nitems(t_type) * (2 + rt_numfibs + 2 + 3));
+	printf("1..%zu\n", (nitems(t_dom) - 1) * nitems(t_type) * (2 + rt_numfibs + 2 + 3));
 
 	/* Adjust from number to index. */
 	rt_numfibs -= 1;
