@@ -35,6 +35,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	The const qualifier has been removed from iconv(3) to comply with
 	POSIX.  The ports tree is aware of this from r384038 onwards.
 
+20150416:
+	Libraries specified by LIBADD in Makefiles must have a corresponding
+	DPADD_<lib> variable to ensure correct dependencies.  This is now
+	enforced in src.libnames.mk.
+
 20150324:
 	From legacy ata(4) driver was removed support for SATA controllers
 	supported by more functional drivers ahci(4), siis(4) and mvs(4).
