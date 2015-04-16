@@ -591,6 +591,8 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	c->c_iflags |= CALLOUT_PENDING;
 	c->c_iflags &= ~CALLOUT_PROCESSED;
 	c->c_flags |= CALLOUT_ACTIVE;
+	if (flags & C_DIRECT_EXEC)
+		c->c_iflags |= CALLOUT_DIRECT;
 	c->c_func = func;
 	c->c_time = sbt;
 	c->c_precision = precision;
