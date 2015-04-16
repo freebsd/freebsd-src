@@ -144,6 +144,7 @@ SRCF+=	addtf3 \
 	fixunstfdi \
 	fixunstfsi \
 	fixunstfti \
+	floatunsitf \
 	multf3 \
 	subtf3 \
 	trunctfdf2 \
