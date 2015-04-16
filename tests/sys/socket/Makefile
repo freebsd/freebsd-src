@@ -10,7 +10,7 @@ PROGS+=		unix_cmsg
 
 TAP_TESTS_C+=	accept_fd_leak_test
 # accf_data_attach: not ok 9 - setsockopt() after listen() failed with 2 (No such file or directory)
-TAP_TESTS_C+=	accf_data_attach_test
+ATF_TESTS_C+=	accf_data_attach_test
 PLAIN_TESTS_C+=	fstat_test
 PLAIN_TESTS_C+=	kqueue_test
 PLAIN_TESTS_C+=	listen_backlog_test
