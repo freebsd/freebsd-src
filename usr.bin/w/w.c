@@ -54,8 +54,10 @@ static const char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/ioctl.h>
+#include <sys/sbuf.h>
 #include <sys/socket.h>
 #include <sys/tty.h>
+#include <sys/types.h>
 
 #include <machine/cpu.h>
 #include <netinet/in.h>
@@ -472,7 +474,9 @@ pr_header(time_t *nowp, int nusers)
 	struct timespec tp;
 	int days, hrs, i, mins, secs;
 	char buf[256];
+	struct sbuf *upbuf;
 
+	upbuf = sbuf_new_auto();
 	/*
 	 * Print time of day.
 	 */
@@ -493,21 +497,27 @@ pr_header(time_t *nowp, int nusers)
 		mins = uptime / 60;
 		secs = uptime % 60;
 		xo_emit(" up");
-		xo_attr("seconds", "%lu", (unsigned long) tp.tv_sec);
+		xo_emit("{e:uptime/%lu}", (unsigned long) tp.tv_sec);
+		xo_emit("{e:days/%d}{e:hours/%d}{e:minutes/%d}{e:seconds/%d}", days, hrs, mins, secs);
+
 		if (days > 0)
-			xo_emit(" {:uptime/%d day%s},",
+			sbuf_printf(upbuf, " %d day%s,",
 				days, days > 1 ? "s" : "");
 		if (hrs > 0 && mins > 0)
-			xo_emit(" {:uptime/%2d:%02d},", hrs, mins);
+			sbuf_printf(upbuf, " %2d:%02d,", hrs, mins);
 		else if (hrs > 0)
-			xo_emit(" {:uptime/%d hr%s},",
+			sbuf_printf(upbuf, " %d hr%s,",
 				hrs, hrs > 1 ? "s" : "");
 		else if (mins > 0)
-			xo_emit(" {:uptime/%d min%s},",
+			sbuf_printf(upbuf, " %d min%s,",
 				mins, mins > 1 ? "s" : "");
-		else
-			xo_emit(" {:uptime/%d sec%s},",
+		else 
+			sbuf_printf(upbuf, " %d sec%s,",
 				secs, secs > 1 ? "s" : "");
+		if (sbuf_finish(upbuf) != 0)
+			xo_err(1, "Could not generate output");
+		xo_emit("{:uptime-human/%s}", sbuf_data(upbuf));
+		sbuf_delete(upbuf);
 	}
 
 	/* Print number of users logged in to system */
