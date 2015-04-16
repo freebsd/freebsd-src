@@ -1917,7 +1917,7 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		}
 
 		/* We are asked to give the cpu by scheduler. */
-		if (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED)) {
+		if (vcpu_should_yield(vm, vcpu)) {
 			enable_gintr();
 			vm_exit_astpending(vm, vcpu, state->rip);
 			break;
