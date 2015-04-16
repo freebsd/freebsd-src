@@ -425,10 +425,10 @@ genassym.o: opt_global.h
 .endif
 assym.s: ${SYSDIR}/kern/genassym.sh
 	sh ${SYSDIR}/kern/genassym.sh genassym.o > ${.TARGET}
-genassym.o: ${SYSDIR}/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}/genassym.c
+genassym.o: ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
 genassym.o: ${SRCS:Mopt_*.h}
 	${CC} -c ${CFLAGS:N-fno-common} \
-	    ${SYSDIR}/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}/genassym.c
+	    ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
 .endif
 
 lint: ${SRCS}
