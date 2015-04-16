@@ -758,7 +758,7 @@ main(int argc, char *argv[])
 	int serrno;
 	pid_t pid;
 
-	strlcpy(dpath, "/tmp/unpgc.XXXXXXXX", sizeof(dpath));
+	strlcpy(dpath, "unpgc.XXXXXXXX", sizeof(dpath));
 	if (mkdtemp(dpath) == NULL)
 		err(-1, "mkdtemp");
 

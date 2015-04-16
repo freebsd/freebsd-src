@@ -303,7 +303,7 @@ main(void)
 	char directory_path[PATH_MAX];
 	int error;
 
-	strlcpy(directory_path, "/tmp/unix_bind.XXXXXXX", PATH_MAX);
+	strlcpy(directory_path, "unix_bind.XXXXXXX", PATH_MAX);
 	if (mkdtemp(directory_path) == NULL)
 		err(-1, "mkdtemp");
 	push_path(directory_path);
