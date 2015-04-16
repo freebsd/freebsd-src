@@ -39,7 +39,7 @@ DPADD.sendfile_test+=	${LIBMD}
 LDADD.sendfile_test+=	-lmd
 
 # XXX: unix_cmsg_test and unix_passfd_test need to be fixed
-NO_WCAST_ALIGN.clang=
+NO_WCAST_ALIGN=
 
 WARNS?=	6
 
