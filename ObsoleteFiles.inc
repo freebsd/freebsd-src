@@ -38,6 +38,21 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150416: ALTQ moved to net/altq
+OLD_FILES+=usr/include/altq/altq_rmclass_debug.h
+OLD_FILES+=usr/include/altq/altq.h
+OLD_FILES+=usr/include/altq/altq_cdnr.h
+OLD_FILES+=usr/include/altq/altq_hfsc.h
+OLD_FILES+=usr/include/altq/altq_priq.h
+OLD_FILES+=usr/include/altq/altqconf.h
+OLD_FILES+=usr/include/altq/altq_classq.h
+OLD_FILES+=usr/include/altq/altq_red.h
+OLD_FILES+=usr/include/altq/if_altq.h
+OLD_FILES+=usr/include/altq/altq_var.h
+OLD_FILES+=usr/include/altq/altq_rmclass.h
+OLD_FILES+=usr/include/altq/altq_cbq.h
+OLD_FILES+=usr/include/altq/altq_rio.h
+OLD_DIRS+=usr/include/altq
 # 20150410
 OLD_FILES+=usr/share/doc/usd/10.exref/paper.ascii.gz
 OLD_FILES+=usr/share/doc/usd/10.exref/summary.ascii.gz

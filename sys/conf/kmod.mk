@@ -101,10 +101,6 @@ CFLAGS+=	-DHAVE_KERNEL_OPTION_HEADERS -include ${KERNBUILDDIR}/opt_global.h
 # set because there are no standard paths for non-headers.
 CFLAGS+=	-I. -I${SYSDIR}
 
-# Add -I path for altq headers as they are included via net/if_var.h
-# for example.
-CFLAGS+=	-I${SYSDIR}/contrib/altq
-
 CFLAGS.gcc+=	-finline-limit=${INLINE_LIMIT}
 CFLAGS.gcc+=	-fms-extensions
 CFLAGS.gcc+= --param inline-unit-growth=100

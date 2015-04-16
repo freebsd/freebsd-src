@@ -1,6 +1,4 @@
-/*	$KAME: altq_rio.h,v 1.9 2003/07/10 12:07:49 kjc Exp $	*/
-
-/*
+/*-
  * Copyright (C) 1998-2003
  *	Sony Computer Science Laboratories Inc.  All rights reserved.
  *
@@ -24,12 +22,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $KAME: altq_rio.h,v 1.9 2003/07/10 12:07:49 kjc Exp $
+ * $FreeBSD$
  */
 
 #ifndef _ALTQ_ALTQ_RIO_H_
 #define	_ALTQ_ALTQ_RIO_H_
 
-#include <altq/altq_classq.h>
+#include <net/altq/altq_classq.h>
 
 /*
  * RIO: RED with IN/OUT bit

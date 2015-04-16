@@ -1,6 +1,4 @@
-/*	$KAME: altq_hfsc.h,v 1.12 2003/12/05 05:40:46 kjc Exp $	*/
-
-/*
+/*-
  * Copyright (c) 1997-1999 Carnegie Mellon University. All Rights Reserved.
  *
  * Permission to use, copy, modify, and distribute this software and
@@ -28,14 +26,17 @@
  * software to return any improvements or extensions that they make,
  * and to grant Carnegie Mellon the rights to redistribute these
  * changes without encumbrance.
+ *
+ * $KAME: altq_hfsc.h,v 1.12 2003/12/05 05:40:46 kjc Exp $
+ * $FreeBSD$
  */
 #ifndef _ALTQ_ALTQ_HFSC_H_
 #define	_ALTQ_ALTQ_HFSC_H_
 
-#include <altq/altq.h>
-#include <altq/altq_classq.h>
-#include <altq/altq_red.h>
-#include <altq/altq_rio.h>
+#include <net/altq/altq.h>
+#include <net/altq/altq_classq.h>
+#include <net/altq/altq_red.h>
+#include <net/altq/altq_rio.h>
 
 #ifdef __cplusplus
 extern "C" {
