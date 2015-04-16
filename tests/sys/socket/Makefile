@@ -42,12 +42,9 @@ ATF_TESTS_C+=	zerosend_test
 DPADD.sendfile_test+=	${LIBMD}
 LDADD.sendfile_test+=	-lmd
 
-# XXX: this doesn't work..?
-#WARNS.unix_cmsg=	3
-#WARNS.unix_gc=		3
-#WARNS.unix_passfd=	3
-#WARNS.zerosend=		2
+# XXX: unix_cmsg_test and unix_passfd_test need to be fixed
+NO_WCAST_ALIGN.clang=
 
-WARNS=	2
+WARNS?=	6
 
 .include <bsd.test.mk>
