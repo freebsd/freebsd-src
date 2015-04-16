@@ -26,7 +26,7 @@ KODIR?=		/boot/${KERNEL}
 LDSCRIPT_NAME?=	ldscript.$M
 LDSCRIPT?=	$S/conf/${LDSCRIPT_NAME}
 
-M=		${MACHINE_CPUARCH}
+M=		${MACHINE}
 
 AWK?=		awk
 CP?=		cp
