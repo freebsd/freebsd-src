@@ -66,12 +66,12 @@
 #include <netinet/ip.h>
 #endif
 
-#include <altq/if_altq.h>
-#include <altq/altq.h>
-#include <altq/altq_rmclass.h>
-#include <altq/altq_rmclass_debug.h>
-#include <altq/altq_red.h>
-#include <altq/altq_rio.h>
+#include <net/altq/if_altq.h>
+#include <net/altq/altq.h>
+#include <net/altq/altq_rmclass.h>
+#include <net/altq/altq_rmclass_debug.h>
+#include <net/altq/altq_red.h>
+#include <net/altq/altq_rio.h>
 
 /*
  * Local Macros

@@ -1,6 +1,4 @@
-/*	$KAME: altq_cbq.h,v 1.12 2003/10/03 05:05:15 kjc Exp $	*/
-
-/*
+/*-
  * Copyright (c) Sun Microsystems, Inc. 1993-1998 All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,15 +26,18 @@
  * provided "as is" without express or implied warranty of any kind.
  *
  * These notices must be retained in any copies of any part of this software.
+ *
+ * $KAME: altq_cbq.h,v 1.12 2003/10/03 05:05:15 kjc Exp $
+ * $FreeBSD$
  */
 
 #ifndef _ALTQ_ALTQ_CBQ_H_
 #define	_ALTQ_ALTQ_CBQ_H_
 
-#include <altq/altq.h>
-#include <altq/altq_rmclass.h>
-#include <altq/altq_red.h>
-#include <altq/altq_rio.h>
+#include <net/altq/altq.h>
+#include <net/altq/altq_rmclass.h>
+#include <net/altq/altq_red.h>
+#include <net/altq/altq_rio.h>
 
 #ifdef __cplusplus
 extern "C" {
