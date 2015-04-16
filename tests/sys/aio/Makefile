@@ -2,6 +2,8 @@
 
 TESTSDIR=	${TESTSBASE}/sys/aio
 
+PLAIN_TESTS_C+=	aio_kqueue
+PLAIN_TESTS_C+=	lio_kqueue
 ATF_TESTS_C+=	aio_test
 
 DPADD.aio_test+=	${LIBUTIL}
