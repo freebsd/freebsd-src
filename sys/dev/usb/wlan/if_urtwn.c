@@ -1195,7 +1195,7 @@ urtwn_efuse_read(struct urtwn_softc *sc)
 	uint8_t *rom = (uint8_t *)&sc->rom;
 	uint16_t addr = 0;
 	uint32_t reg;
-	uint8_t off, msk;
+	uint8_t off, msk, vol;
 	int i;
 
 	urtwn_efuse_switch_power(sc);
@@ -1228,10 +1228,15 @@ urtwn_efuse_read(struct urtwn_softc *sc)
 		printf("\n");
 	}
 #endif
+	/* Disable LDO 2.5V. */
+	vol = urtwn_read_1(sc, R92C_EFUSE_TEST + 3);
+	urtwn_write_1(sc, R92C_EFUSE_TEST + 3, vol & ~(0x80));
+
 }
 static void
 urtwn_efuse_switch_power(struct urtwn_softc *sc)
 {
+	uint8_t vol;
 	uint32_t reg;
 
 	reg = urtwn_read_2(sc, R92C_SYS_ISO_CTRL);
@@ -1250,6 +1255,12 @@ urtwn_efuse_switch_power(struct urtwn_softc *sc)
 		urtwn_write_2(sc, R92C_SYS_CLKR,
 		    reg | R92C_SYS_CLKR_LOADER_EN | R92C_SYS_CLKR_ANA8M);
 	}
+
+	/* Enable LDO 2.5V. */
+	vol = urtwn_read_1(sc, R92C_EFUSE_TEST + 3);
+	vol &= 0x0f;
+	vol |= 0x30;
+	urtwn_write_1(sc, R92C_EFUSE_TEST + 3, (vol | 0x80));
 }
 
 static int
