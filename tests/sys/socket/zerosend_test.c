@@ -226,7 +226,7 @@ static int fd[3];
 static void
 close_fds(int *fdp)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < nitems(fdp); i++)
 		close(fdp[i]);

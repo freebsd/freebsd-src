@@ -752,7 +752,7 @@ recursion(void)
 
 #define	RMDIR	"rm -Rf "
 int
-main(int argc, char *argv[])
+main(void)
 {
 	char cmd[sizeof(RMDIR) + PATH_MAX];
 	int serrno;

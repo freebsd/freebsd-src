@@ -136,11 +136,11 @@ sendfd_payload(int sockfd, int sendfd,
 }
 
 static void
-sendfd(int sockfd, int sendfd)
+sendfd(int sock_fd, int send_fd)
 {
 	char ch;
 
-	return (sendfd_payload(sockfd, sendfd, &ch, sizeof(ch)));
+	return (sendfd_payload(sock_fd, send_fd, &ch, sizeof(ch)));
 }
 
 static void
@@ -185,11 +185,11 @@ recvfd_payload(int sockfd, int *recvfd, void *buf, size_t buflen)
 }
 
 static void
-recvfd(int sockfd, int *recvfd)
+recvfd(int sock_fd, int *recv_fd)
 {
 	char ch;
 
-	return (recvfd_payload(sockfd, recvfd, &ch, sizeof(ch)));
+	return (recvfd_payload(sock_fd, recv_fd, &ch, sizeof(ch)));
 }
 
 /*

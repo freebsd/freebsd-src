@@ -104,7 +104,7 @@ cleanup(void)
 }
 
 int
-main()
+main(void)
 {
     int s_sock1, s_sock2, c_sock;
 

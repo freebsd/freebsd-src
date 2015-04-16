@@ -51,6 +51,7 @@
  *
  * For the purposes of testing TCP, an unused port number must be specified.
  */
+static void usage(void) __dead2;
 static void
 usage(void)
 {
