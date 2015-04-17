@@ -1,7 +1,4 @@
-/*	$FreeBSD$	*/
-/*	$KAME: if_altq.h,v 1.12 2005/04/13 03:44:25 suz Exp $	*/
-
-/*
+/*-
  * Copyright (C) 1997-2003
  *	Sony Computer Science Laboratories Inc.  All rights reserved.
  *
@@ -25,19 +22,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $KAME: if_altq.h,v 1.12 2005/04/13 03:44:25 suz Exp $
+ * $FreeBSD$
  */
 #ifndef _ALTQ_IF_ALTQ_H_
 #define	_ALTQ_IF_ALTQ_H_
 
-#ifdef __FreeBSD__
 #include <sys/lock.h>		/* XXX */
 #include <sys/mutex.h>		/* XXX */
 #include <sys/event.h>		/* XXX */
-#endif
-
-#ifdef _KERNEL_OPT
-#include <net/altq/altqconf.h>
-#endif
 
 struct altq_pktattr; struct tb_regulator; struct top_cdnr;
 
@@ -50,9 +44,7 @@ struct	ifaltq {
 	struct	mbuf *ifq_tail;
 	int	ifq_len;
 	int	ifq_maxlen;
-#ifdef __FreeBSD__
 	struct	mtx ifq_mtx;
-#endif
 
 	/* driver owned queue (used for bulk dequeue and prepend) UNLOCKED */
 	struct	mbuf *ifq_drv_head;

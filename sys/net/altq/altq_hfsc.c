@@ -1,7 +1,4 @@
-/*	$FreeBSD$	*/
-/*	$KAME: altq_hfsc.c,v 1.24 2003/12/05 05:40:46 kjc Exp $	*/
-
-/*
+/*-
  * Copyright (c) 1997-1999 Carnegie Mellon University. All Rights Reserved.
  *
  * Permission to use, copy, modify, and distribute this software and
@@ -29,6 +26,9 @@
  * software to return any improvements or extensions that they make,
  * and to grant Carnegie Mellon the rights to redistribute these
  * changes without encumbrance.
+ *
+ * $KAME: altq_hfsc.c,v 1.24 2003/12/05 05:40:46 kjc Exp $
+ * $FreeBSD$
  */
 /*
  * H-FSC is described in Proceedings of SIGCOMM'97,
@@ -42,13 +42,9 @@
  * a class whose fit-time exceeds the current time.
  */
 
-#if defined(__FreeBSD__) || defined(__NetBSD__)
 #include "opt_altq.h"
 #include "opt_inet.h"
-#ifdef __FreeBSD__
 #include "opt_inet6.h"
-#endif
-#endif /* __FreeBSD__ || __NetBSD__ */
 
 #ifdef ALTQ_HFSC  /* hfsc is enabled by ALTQ_HFSC option in opt_altq.h */
 
@@ -177,11 +173,7 @@ hfsc_pfattach(struct pf_altq *a)
 
 	if ((ifp = ifunit(a->ifname)) == NULL || a->altq_disc == NULL)
 		return (EINVAL);
-#ifdef __NetBSD__
 	s = splnet();
-#else
-	s = splimp();
-#endif
 	error = altq_attach(&ifp->if_snd, ALTQT_HFSC, a->altq_disc,
 	    hfsc_enqueue, hfsc_dequeue, hfsc_request, NULL, NULL);
 	splx(s);
@@ -483,11 +475,7 @@ hfsc_class_create(struct hfsc_if *hif, struct service_curve *rsc,
 	cl->cl_hif = hif;
 	cl->cl_parent = parent;
 
-#ifdef __NetBSD__
 	s = splnet();
-#else
-	s = splimp();
-#endif
 	IFQ_LOCK(hif->hif_ifq);
 	hif->hif_classes++;
 
@@ -567,11 +555,7 @@ hfsc_class_destroy(struct hfsc_class *cl)
 	if (is_a_parent_class(cl))
 		return (EBUSY);
 
-#ifdef __NetBSD__
 	s = splnet();
-#else
-	s = splimp();
-#endif
 	IFQ_LOCK(cl->cl_hif->hif_ifq);
 
 #ifdef ALTQ3_COMPAT
@@ -1771,11 +1755,7 @@ hfsc_class_modify(cl, rsc, fsc, usc)
 	}
 
 	cur_time = read_machclk();
-#ifdef __NetBSD__
 	s = splnet();
-#else
-	s = splimp();
-#endif
 	IFQ_LOCK(cl->cl_hif->hif_ifq);
 
 	if (rsc != NULL) {

@@ -1,6 +1,4 @@
-/*	$KAME: altq_classq.h,v 1.6 2003/01/07 07:33:38 kjc Exp $	*/
-
-/*
+/*-
  * Copyright (c) 1991-1997 Regents of the University of California.
  * All rights reserved.
  *
@@ -31,6 +29,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $KAME: altq_classq.h,v 1.6 2003/01/07 07:33:38 kjc Exp $
+ * $FreeBSD$
  */
 /*
  * class queue definitions extracted from rm_class.h.

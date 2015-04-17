@@ -1,6 +1,4 @@
-/*	$FreeBSD$	*/
-/*	$KAME: altq_priq.c,v 1.11 2003/09/17 14:23:25 kjc Exp $	*/
-/*
+/*-
  * Copyright (C) 2000-2003
  *	Sony Computer Science Laboratories Inc.  All rights reserved.
  *
@@ -24,18 +22,17 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $KAME: altq_priq.c,v 1.11 2003/09/17 14:23:25 kjc Exp $
+ * $FreeBSD$
  */
 /*
  * priority queue
  */
 
-#if defined(__FreeBSD__) || defined(__NetBSD__)
 #include "opt_altq.h"
 #include "opt_inet.h"
-#ifdef __FreeBSD__
 #include "opt_inet6.h"
-#endif
-#endif /* __FreeBSD__ || __NetBSD__ */
 
 #ifdef ALTQ_PRIQ  /* priq is enabled by ALTQ_PRIQ option in opt_altq.h */
 
@@ -113,11 +110,7 @@ priq_pfattach(struct pf_altq *a)
 
 	if ((ifp = ifunit(a->ifname)) == NULL || a->altq_disc == NULL)
 		return (EINVAL);
-#ifdef __NetBSD__
 	s = splnet();
-#else
-	s = splimp();
-#endif
 	error = altq_attach(&ifp->if_snd, ALTQT_PRIQ, a->altq_disc,
 	    priq_enqueue, priq_dequeue, priq_request, NULL, NULL);
 	splx(s);
@@ -300,11 +293,7 @@ priq_class_create(struct priq_if *pif, int pri, int qlimit, int flags, int qid)
 
 	if ((cl = pif->pif_classes[pri]) != NULL) {
 		/* modify the class instead of creating a new one */
-#ifdef __NetBSD__
 		s = splnet();
-#else
-		s = splimp();
-#endif
 		IFQ_LOCK(cl->cl_pif->pif_ifq);
 		if (!qempty(cl->cl_q))
 			priq_purgeq(cl);
@@ -407,11 +396,7 @@ priq_class_destroy(struct priq_class *cl)
 	struct priq_if *pif;
 	int s, pri;
 
-#ifdef __NetBSD__
 	s = splnet();
-#else
-	s = splimp();
-#endif
 	IFQ_LOCK(cl->cl_pif->pif_ifq);
 
 #ifdef ALTQ3_CLFIER_COMPAT
