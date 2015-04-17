@@ -65,7 +65,6 @@ if_show_ifnet(struct ifnet *ifp)
 	IF_DB_PRINTF("%p", if_vnet);
 	IF_DB_PRINTF("%p", if_home_vnet);
 	IF_DB_PRINTF("%p", if_addr);
-	IF_DB_PRINTF("%p", if_llsoftc);
 	IF_DB_PRINTF("%p", if_label);
 	IF_DB_PRINTF("%u", if_pcount);
 	IF_DB_PRINTF("0x%08x", if_flags);

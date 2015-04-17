@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/taskqueue.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
@@ -1021,7 +1022,7 @@ t4_tom_activate(struct adapter *sc)
 	tod->tod_ctloutput = t4_ctloutput;
 
 	for_each_port(sc, i)
-		TOEDEV(sc->port[i]->ifp) = &td->tod;
+		if_setsoftc(sc->port[i]->ifp, IF_TOEDEV, &td->tod);
 
 	sc->tom_softc = td;
 	register_toedev(sc->tom_softc);

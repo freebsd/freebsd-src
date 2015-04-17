@@ -1473,7 +1473,7 @@ vlan_capabilities(struct ifvlan *ifv)
 	if (p->if_capabilities & IFCAP_VLAN_TOE)
 		ifp->if_capabilities |= p->if_capabilities & IFCAP_TOE;
 	if (p->if_capenable & IFCAP_VLAN_TOE) {
-		TOEDEV(ifp) = TOEDEV(p);
+		if_setsoftc(ifp, IF_TOEDEV, if_getsoftc(p, IF_TOEDEV));
 		ifp->if_capenable |= p->if_capenable & IFCAP_TOE;
 	}
 }

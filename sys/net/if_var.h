@@ -113,7 +113,6 @@ struct ifnet {
 	LIST_ENTRY(ifnet)	if_clones;	/* on if_cloner list */
 	TAILQ_HEAD(, ifg_list)	if_groups;	/* groups of this ifnet */
 
-	void	*if_llsoftc;		/* link layer softc */
 	void	*if_l2com;		/* pointer to protocol bits */
 	uint32_t if_nsoftcs;		/* elements in if_scstore */
 	int	if_dunit;		/* unit or IF_DUNIT_NONE */
@@ -277,8 +276,6 @@ EVENTHANDLER_DECLARE(group_change_event, group_change_event_handler_t);
  */
 #define	IF_MINMTU	72
 #define	IF_MAXMTU	65535
-
-#define	TOEDEV(ifp)	((ifp)->if_llsoftc)
 
 /*
  * The ifaddr structure contains information about one address

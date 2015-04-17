@@ -577,14 +577,21 @@ typedef enum {
 	IF_LLADDR,
 	IF_BPF,
 	IF_NAME,
-	IF_VLAN,
 	/*
 	 * Values do matter, since we want to avoid aliasing of frequently
 	 * used features in if_sccache cache.
 	 */
-	IF_AF_INET = 8,
-	IF_AF_INET6 = 9,
-	IF_CARP = 10,
+	IF_AF_INET = 100,
+	IF_AF_INET6,
+	IF_CARP,
+	IF_VLAN,
+	IF_TOEDEV,
+	/*
+	 * Space above 99999 is split among different vendors.
+	 *
+	 * Chelsio	10000 - 10999
+	 */
+	IF_CXGBE_PORT	= 10000,
 } ift_feature;
 
 typedef struct ifnet * if_t;

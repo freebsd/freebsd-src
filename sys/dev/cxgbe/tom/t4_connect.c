@@ -43,8 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_types.h>
-#include <net/if_vlan_var.h>
 #include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
@@ -320,7 +318,6 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	struct tom_data *td = tod_td(tod);
 	struct toepcb *toep = NULL;
 	struct wrqe *wr = NULL;
-	struct ifnet *rt_ifp = rt->rt_ifp;
 	struct port_info *pi;
 	int mtu_idx, rscale, qid_atid, rc, isipv6;
 	struct inpcb *inp = sotoinpcb(so);
@@ -331,15 +328,12 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	KASSERT(nam->sa_family == AF_INET || nam->sa_family == AF_INET6,
 	    ("%s: dest addr %p has family %u", __func__, nam, nam->sa_family));
 
-	if (rt_ifp->if_type == IFT_ETHER)
-		pi = rt_ifp->if_softc;
-	else if (rt_ifp->if_type == IFT_L2VLAN) {
-		struct ifnet *ifp = VLAN_COOKIE(rt_ifp);
-
-		pi = ifp->if_softc;
-	} else if (rt_ifp->if_type == IFT_IEEE8023ADLAG)
-		DONT_OFFLOAD_ACTIVE_OPEN(ENOSYS); /* XXX: implement lagg+TOE */
-	else
+	/*
+	 * Get port of a NIC or vlan(4).
+	 * XXX: implement lagg+TOE
+	 */
+	pi = if_getsoftc(rt->rt_ifp, IF_CXGBE_PORT);
+	if (pi == NULL)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOTSUP);
 
 	toep = alloc_toepcb(pi, -1, -1, M_NOWAIT);
@@ -350,7 +344,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	if (toep->tid < 0)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 
-	toep->l2te = t4_l2t_get(pi, rt_ifp,
+	toep->l2te = t4_l2t_get(pi, rt->rt_ifp,
 	    rt->rt_flags & RTF_GATEWAY ? rt->rt_gateway : nam);
 	if (toep->l2te == NULL)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);

@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/protosw.h>
 #include <sys/refcount.h>
@@ -45,8 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_types.h>
-#include <net/if_vlan_var.h>
 #include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
@@ -346,7 +345,7 @@ send_reset_synqe(struct toedev *tod, struct synq_entry *synqe)
 	struct adapter *sc = tod->tod_softc;
 	struct mbuf *m = synqe->syn;
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
-	struct port_info *pi = ifp->if_softc;
+	struct port_info *pi = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	struct l2t_entry *e = &sc->l2t->l2tab[synqe->l2e_idx];
 	struct wrqe *wr;
 	struct fw_flowc_wr *flowc;
@@ -541,7 +540,7 @@ t4_listen_start(struct toedev *tod, struct tcpcb *tp)
 	 */
 	for_each_port(sc, i) {
 		if (isset(&sc->open_device_map, i) &&
-		    sc->port[i]->ifp->if_capenable & IFCAP_TOE)
+		    sc->port[i]->if_capenable & IFCAP_TOE)
 				break;
 	}
 	KASSERT(i < sc->params.nports,
@@ -822,11 +821,12 @@ done_with_synqe(struct adapter *sc, struct synq_entry *synqe)
 {
 	struct listen_ctx *lctx = synqe->lctx;
 	struct inpcb *inp = lctx->inp;
-	struct port_info *pi = synqe->syn->m_pkthdr.rcvif->if_softc;
 	struct l2t_entry *e = &sc->l2t->l2tab[synqe->l2e_idx];
+	struct port_info *pi;
 
 	INP_WLOCK_ASSERT(inp);
 
+	pi = if_getsoftc(synqe->syn->m_pkthdr.rcvif, IF_DRIVER_SOFTC);
 	TAILQ_REMOVE(&lctx->synq, synqe, link);
 	inp = release_lctx(sc, lctx);
 	if (inp)
@@ -1195,7 +1195,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	pi = sc->port[G_SYN_INTF(be16toh(cpl->l2info))];
 	hw_ifp = pi->ifp;	/* the cxgbeX ifnet */
 	m->m_pkthdr.rcvif = hw_ifp;
-	tod = TOEDEV(hw_ifp);
+	tod = if_getsoftc(hw_ifp, IF_TOEDEV);
 
 	/*
 	 * Figure out if there is a pseudo interface (vlan, lagg, etc.)
@@ -1206,7 +1206,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	 */
 	vid = EVL_VLANOFTAG(be16toh(cpl->vlan));
 	if (vid != 0xfff) {
-		ifp = VLAN_DEVAT(hw_ifp, vid);
+		ifp = if_vlandev(hw_ifp, vid);
 		if (ifp == NULL)
 			REJECT_PASS_ACCEPT();
 	} else
@@ -1222,7 +1222,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	if (inc.inc_flags & INC_ISIPV6) {
 
 		/* Don't offload if the ifcap isn't enabled */
-		if ((ifp->if_capenable & IFCAP_TOE6) == 0)
+		if ((pi->if_capenable & IFCAP_TOE6) == 0)
 			REJECT_PASS_ACCEPT();
 
 		/*
@@ -1234,7 +1234,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	} else {
 
 		/* Don't offload if the ifcap isn't enabled */
-		if ((ifp->if_capenable & IFCAP_TOE4) == 0)
+		if ((pi->if_capenable & IFCAP_TOE4) == 0)
 			REJECT_PASS_ACCEPT();
 
 		/*
@@ -1400,7 +1400,7 @@ reject:
 		m->m_pkthdr.csum_flags |= (CSUM_IP_CHECKED | CSUM_IP_VALID |
 		    CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 		m->m_pkthdr.csum_data = 0xffff;
-		hw_ifp->if_input(hw_ifp, m);
+		if_input(hw_ifp, m);
 	}
 
 	return (reject_reason);
@@ -1480,7 +1480,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 	}
 
 	ifp = synqe->syn->m_pkthdr.rcvif;
-	pi = ifp->if_softc;
+	pi = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	KASSERT(pi->adapter == sc,
 	    ("%s: pi %p, sc %p mismatch", __func__, pi, sc));
 
@@ -1498,7 +1498,7 @@ reset:
 		 * we responded to the PASS_ACCEPT_REQ, and our response had the
 		 * L2T idx.
 		 */
-		send_reset_synqe(TOEDEV(ifp), synqe);
+		send_reset_synqe(if_getsoftc(ifp, IF_TOEDEV), synqe);
 		INP_WUNLOCK(inp);
 		INP_INFO_WUNLOCK(&V_tcbinfo);
 		return (0);
@@ -1548,7 +1548,7 @@ reset:
 
 		INP_WLOCK(new_inp);
 		tcp_timer_activate(intotcpcb(new_inp), TT_KEEP, 0);
-		t4_offload_socket(TOEDEV(ifp), synqe, so);
+		t4_offload_socket(if_getsoftc(ifp, IF_TOEDEV), synqe, so);
 		INP_WUNLOCK(new_inp);
 	}
 

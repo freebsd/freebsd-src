@@ -407,7 +407,7 @@ toe_lle_event(void *arg __unused, struct llentry *lle, int evt)
 	    (sa->sa_family == AF_INET6 && !(ifp->if_capenable & IFCAP_TOE6)))
 		return;
 
-	tod = TOEDEV(ifp);
+	tod = if_getsoftc(ifp, IF_TOEDEV);
 	if (tod == NULL)
 		return;
 
@@ -426,9 +426,7 @@ toe_lle_event(void *arg __unused, struct llentry *lle, int evt)
 		    ("%s: %p resolved but not valid?", __func__, lle));
 
 		lladdr = (uint8_t *)&lle->ll_addr;
-#ifdef VLAN_TAG
-		VLAN_TAG(ifp, &vtag);
-#endif
+		if_vlanid(ifp, &vtag);
 	}
 
 	tod->tod_l2_update(tod, ifp, sa, lladdr, vtag);
@@ -493,7 +491,7 @@ restart:
 	}
 
 	if (lle->la_flags & LLE_VALID) {
-		memcpy(lladdr, &lle->ll_addr, ifp->if_addrlen);
+		memcpy(lladdr, &lle->ll_addr, if_addrlen(ifp));
 		rc = 0;
 	} else
 		rc = EWOULDBLOCK;
@@ -534,9 +532,7 @@ toe_l2_resolve(struct toedev *tod, struct ifnet *ifp, struct sockaddr *sa,
 	}
 
 	if (rc == 0) {
-#ifdef VLAN_TAG
-		if (VLAN_TAG(ifp, vtag) != 0)
-#endif
+		if (if_vlanid(ifp, vtag) != 0)
 			*vtag = 0xfff;
 	}
 

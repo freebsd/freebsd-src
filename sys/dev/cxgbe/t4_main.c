@@ -153,6 +153,7 @@ static int cxgbe_ioctl(if_t, unsigned long, void *, struct thread *);
 static int cxgbe_transmit(if_t, struct mbuf *);
 static void cxgbe_qflush(if_t);
 static uint64_t cxgbe_get_counter(if_t, ift_counter);
+static void cxgbe_vlan_event(if_t, uint16_t, if_t);
 static int cxgbe_media_change(if_t);
 static void cxgbe_media_status(if_t, struct ifmediareq *);
 
@@ -169,6 +170,7 @@ static struct ifdriver cxgbe_ifdrv = {
 		.ifop_transmit = cxgbe_transmit,
 		.ifop_qflush = cxgbe_qflush,
 		.ifop_get_counter = cxgbe_get_counter,
+		.ifop_vlan_event = cxgbe_vlan_event,
 	},
 	.ifdrv_name = "cxgbe",
 	.ifdrv_type = IFT_ETHER,
@@ -1133,6 +1135,7 @@ cxgbe_attach(device_t dev)
 	ifat.ifat_softc = pi;
 	ifat.ifat_dunit = device_get_unit(dev);
 	pi->ifp = if_attach(&ifat);
+	if_setsoftc(pi->ifp, IF_CXGBE_PORT, pi);
 
 #ifdef DEV_NETMAP
 	/* nm_media handled here to keep implementation private to this file */
@@ -4336,6 +4339,15 @@ cxgbe_tick(void *arg)
 
 	callout_schedule(&pi->tick, hz);
 	PORT_UNLOCK(pi);
+}
+
+static void
+cxgbe_vlan_event(if_t trunk, uint16_t id, if_t vlan)
+{
+	struct port_info *pi;
+
+	pi = if_getsoftc(trunk, IF_DRIVER_SOFTC);
+	if_setsoftc(vlan, IF_CXGBE_PORT, pi);
 }
 
 static int
