@@ -523,6 +523,14 @@ if_reassign(if_t ifp, struct vnet *new)
 	return (ifp->if_ops->ifop_reassign(ifp, new));
 }
 
+static inline void
+if_vlan_event(if_t ifp, uint16_t vid, if_t vifp)
+{
+
+	if (ifp->if_ops->ifop_vlan_event != NULL)
+		ifp->if_ops->ifop_vlan_event(ifp, vid, vifp);
+}
+
 #ifdef DEVICE_POLLING
 static inline int
 if_poll(if_t ifp, enum poll_cmd cmd, int count)

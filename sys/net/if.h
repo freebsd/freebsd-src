@@ -599,6 +599,7 @@ typedef void	(*if_qflush_t)(if_t);
 typedef int	(*if_resolvemulti_t)(if_t, struct sockaddr **,
     struct sockaddr *);
 typedef void	(*if_reassign_t)(if_t, struct vnet *);
+typedef void	(*if_vlan_event_t)(if_t, uint16_t, if_t);
 enum poll_cmd { POLL_ONLY, POLL_AND_CHECK_STATUS };
 typedef int	(*if_poll_t)(if_t, enum poll_cmd, int);
 
@@ -617,6 +618,7 @@ struct ifops {
 	if_qflush_t	ifop_qflush;	/* flush any queue */	
 	if_resolvemulti_t ifop_resolvemulti; /* validate/resolve multicast */
 	if_reassign_t	ifop_reassign;	/* reassign to vnet routine */
+	if_vlan_event_t	ifop_vlan_event;/* VLAN config/unconfig */
 	struct ifops	*ifop_next;
 	uint8_t		ifop_origin;
 };
@@ -746,6 +748,13 @@ int	if_snd_len(if_t);
 int	if_snd_enqueue(if_t, struct mbuf *);
 struct mbuf * if_snd_dequeue(if_t);
 void	if_snd_prepend(if_t, struct mbuf *);
+
+/*
+ * vlan(4) interfaces extra API.
+ */
+int	if_vlanid(if_t, uint16_t *);
+if_t	if_vlandev(if_t, uint16_t);
+if_t	if_vlantrunk(if_t);
 
 /*
  * Type-enforcing inliners over if_getsoftc().

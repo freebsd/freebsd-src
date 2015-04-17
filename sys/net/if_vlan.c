@@ -73,6 +73,11 @@ __FBSDID("$FreeBSD$");
 #include <netinet/if_ether.h>
 #endif
 
+extern	struct ifnet *(*vlan_dev_p)(struct ifnet *, uint16_t);
+extern	uint16_t (*vlan_vid_p)(struct ifnet *);
+extern	void (*vlan_trunk_cap_p)(struct ifnet *);
+extern	struct ifnet *(*vlan_trunkdev_p)(struct ifnet *);
+
 #define	VLAN_DEF_HWIDTH	4
 #define	VLAN_IFFLAGS	(IFF_BROADCAST | IFF_MULTICAST)
 
@@ -662,18 +667,17 @@ vlan_ifdetach(void *arg __unused, struct ifnet *ifp)
 /*
  * Return the trunk device for a virtual interface.
  */
-static struct ifnet  *
+static struct ifnet *
 vlan_trunkdev(struct ifnet *ifp)
 {
 	struct ifvlan *ifv;
 
-	if (if_type(ifp) != IFT_L2VLAN)
-		return (NULL);
 	ifv = ifp->if_softc;
-	ifp = NULL;
 	VLAN_LOCK();
 	if (ifv->ifv_trunk)
 		ifp = PARENT(ifv);
+	else
+		ifp = NULL;
 	VLAN_UNLOCK();
 	return (ifp);
 }
@@ -681,40 +685,35 @@ vlan_trunkdev(struct ifnet *ifp)
 /*
  * Return the 12-bit VLAN VID for this interface, for use by external
  * components such as Infiniband.
- *
- * XXXRW: Note that the function name here is historical; it should be named
- * vlan_vid().
  */
-static int
-vlan_tag(struct ifnet *ifp, uint16_t *vidp)
+static uint16_t
+vlan_vid(struct ifnet *ifp)
 {
 	struct ifvlan *ifv;
 
-	if (if_type(ifp) != IFT_L2VLAN)
-		return (EINVAL);
+	KASSERT(if_type(ifp) == IFT_L2VLAN, ("%s: %p is not a VLAN",
+	    __func__, ifp));
 	ifv = ifp->if_softc;
-	*vidp = ifv->ifv_vid;
-	return (0);
+	return (ifv->ifv_vid);
 }
 
 /*
  * Return the vlan device present at the specific VID.
  */
 static struct ifnet *
-vlan_devat(struct ifnet *ifp, uint16_t vid)
+vlan_dev(struct ifnet *ifp, uint16_t vid)
 {
 	struct ifvlantrunk *trunk;
 	struct ifvlan *ifv;
 	TRUNK_LOCK_READER;
 
 	trunk = ifp->if_vlantrunk;
-	if (trunk == NULL)
-		return (NULL);
-	ifp = NULL;
 	TRUNK_RLOCK(trunk);
 	ifv = vlan_gethash(trunk, vid);
 	if (ifv)
 		ifp = ifv->ifv_ifp;
+	else
+		ifp = NULL;
 	TRUNK_RUNLOCK(trunk);
 	return (ifp);
 }
@@ -750,8 +749,8 @@ vlan_modevent(module_t mod, int type, void *data)
 		vlan_link_state_p = vlan_link_state;
 		vlan_trunk_cap_p = vlan_trunk_capabilities;
 		vlan_trunkdev_p = vlan_trunkdev;
-		vlan_tag_p = vlan_tag;
-		vlan_devat_p = vlan_devat;
+		vlan_vid_p = vlan_vid;
+		vlan_dev_p = vlan_dev;
 #ifndef VIMAGE
 		vlan_cloner = if_clone_advanced(vlanname, 0, vlan_clone_match,
 		    vlan_clone_create, vlan_clone_destroy);
@@ -776,8 +775,8 @@ vlan_modevent(module_t mod, int type, void *data)
 		vlan_link_state_p = NULL;
 		vlan_trunk_cap_p = NULL;
 		vlan_trunkdev_p = NULL;
-		vlan_tag_p = NULL;
-		vlan_devat_p = NULL;
+		vlan_vid_p = NULL;
+		vlan_dev_p = NULL;
 		VLAN_LOCK_DESTROY();
 		if (bootverbose)
 			printf("vlan: unloaded\n");
@@ -1257,7 +1256,7 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t vid)
 	(void)vlan_setmulti(ifp); /* XXX: VLAN lock held */
 
 	TRUNK_UNLOCK(trunk);
-	EVENTHANDLER_INVOKE(vlan_config, p, ifv->ifv_vid);
+	if_vlan_event(p, vid, ifp);
 
 	return (error);
 }
@@ -1342,7 +1341,7 @@ vlan_unconfig(struct ifnet *ifp, int departing)
 	 * to cleanup anyway.
 	 */
 	if (parent != NULL)
-		EVENTHANDLER_INVOKE(vlan_unconfig, parent, ifv->ifv_vid);
+		if_vlan_event(parent, ifv->ifv_vid, NULL);
 }
 
 /* Handle a reference counted flag that should be set on the parent as well */

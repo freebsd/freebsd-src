@@ -73,7 +73,6 @@ struct	vlanreq {
 #define	SIOCSETVLAN	SIOCSIFGENERIC
 #define	SIOCGETVLAN	SIOCGIFGENERIC
 
-#ifdef _KERNEL
 /*
  * Drivers that are capable of adding and removing the VLAN header
  * in hardware indicate they support this by marking IFCAP_VLAN_HWTAGGING
@@ -109,27 +108,4 @@ struct	vlanreq {
  * stripping/insertion by marking IFCAP_VLAN_HWTAGGING in
  * if_capabilities.
  */
-
-#define	VLAN_TRUNKDEV(_ifp)					\
-	(_ifp)->if_type == IFT_L2VLAN ? (*vlan_trunkdev_p)((_ifp)) : NULL
-#define	VLAN_TAG(_ifp, _vid)					\
-	(_ifp)->if_type == IFT_L2VLAN ? (*vlan_tag_p)((_ifp), (_vid)) : EINVAL
-#define	VLAN_DEVAT(_ifp, _vid)					\
-	(_ifp)->if_vlantrunk != NULL ? (*vlan_devat_p)((_ifp), (_vid)) : NULL
-
-extern	void (*vlan_trunk_cap_p)(struct ifnet *);
-extern	struct ifnet *(*vlan_trunkdev_p)(struct ifnet *);
-extern	struct ifnet *(*vlan_devat_p)(struct ifnet *, uint16_t);
-extern	int (*vlan_tag_p)(struct ifnet *, uint16_t *);
-
-#ifdef _SYS_EVENTHANDLER_H_
-/* VLAN state change events */
-typedef void (*vlan_config_fn)(void *, struct ifnet *, uint16_t);
-typedef void (*vlan_unconfig_fn)(void *, struct ifnet *, uint16_t);
-EVENTHANDLER_DECLARE(vlan_config, vlan_config_fn);
-EVENTHANDLER_DECLARE(vlan_unconfig, vlan_unconfig_fn);
-#endif /* _SYS_EVENTHANDLER_H_ */
-
-#endif /* _KERNEL */
-
 #endif /* _NET_IF_VLAN_VAR_H_ */

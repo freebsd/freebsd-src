@@ -2232,11 +2232,15 @@ link_init_sdl(struct ifnet *ifp, struct sockaddr *paddr, u_char iftype)
 	return (sdl);
 }
 
-void	(*vlan_link_state_p)(struct ifnet *);	/* XXX: private from if_vlan */
-void	(*vlan_trunk_cap_p)(struct ifnet *);		/* XXX: private from if_vlan */
+/*
+ * Function pointers to vlan(4) module.
+ * XXXGL: shouldn't we just make vlan(4) always in kernel?
+ */
+void	(*vlan_link_state_p)(struct ifnet *);
+void	(*vlan_trunk_cap_p)(struct ifnet *);
 struct ifnet *(*vlan_trunkdev_p)(struct ifnet *);
-struct	ifnet *(*vlan_devat_p)(struct ifnet *, uint16_t);
-int	(*vlan_tag_p)(struct ifnet *, uint16_t *);
+struct ifnet *(*vlan_dev_p)(struct ifnet *, uint16_t);
+uint16_t (*vlan_vid_p)(struct ifnet *);
 
 /*
  * Handle a change in the interface link state. To avoid LORs
@@ -3773,6 +3777,34 @@ if_snd_prepend(if_t ifp, struct mbuf *m)
 	mtx_lock(&ifq->ifq_mtx);
 	mbufq_prepend(&ifq->ifq_mbq, m);
 	mtx_unlock(&ifq->ifq_mtx);
+}
+
+int
+if_vlanid(if_t vifp, uint16_t *vid)
+{
+
+	if (if_type(vifp) != IFT_L2VLAN)
+		return (EINVAL);
+	*vid = (*vlan_vid_p)(vifp);
+	return (0);
+}
+
+if_t
+if_vlandev(if_t parent, uint16_t vid)
+{
+
+	if (parent->if_vlantrunk == NULL)
+                return (NULL);
+	return ((*vlan_dev_p)(parent, vid));
+}
+
+if_t
+if_vlantrunk(if_t vifp)
+{
+
+	if (if_type(vifp) != IFT_L2VLAN)
+		return (NULL);
+	return ((*vlan_trunkdev_p)(vifp));
 }
 
 /*
