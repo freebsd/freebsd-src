@@ -1642,26 +1642,6 @@ vlan_ioctl(if_t ifp, u_long cmd, void *data, struct thread *td)
 		}
 		break;
 
-	case SIOCSIFCAP:
-		VLAN_LOCK();
-		if (TRUNK(ifv) != NULL) {
-			p = PARENT(ifv);
-			if ((if_type(p) != IFT_ETHER) &&
-			    (ifr->ifr_reqcap & IFCAP_VLAN_HWTAGGING) == 0) {
-				error = EINVAL;
-				break;
-			}
-			error = if_ioctl(p, cmd, data, td);
-			if (error)
-				break;
-			/* Propogate vlan interface capabilities */
-			vlan_trunk_capabilities(p);
-		} else {
-			VLAN_UNLOCK();
-			error = EINVAL;
-		}
-		break;
-
 	default:
 		error = EOPNOTSUPP;
 		break;
