@@ -1,6 +1,4 @@
-/*	$KAME: altq_rmclass_debug.h,v 1.3 2002/11/29 04:36:24 kjc Exp $	*/
-
-/*
+/*-
  * Copyright (c) Sun Microsystems, Inc. 1998 All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +26,9 @@
  * provided "as is" without express or implied warranty of any kind.
  *
  * These notices must be retained in any copies of any part of this software.
+ *
+ * $KAME: altq_rmclass_debug.h,v 1.3 2002/11/29 04:36:24 kjc Exp $
+ * $FreeBSD$
  */
 
 #ifndef _ALTQ_ALTQ_RMCLASS_DEBUG_H_
