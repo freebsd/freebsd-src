@@ -1,7 +1,4 @@
-/*	$FreeBSD$	*/
-/*	$KAME: altq_cdnr.c,v 1.15 2005/04/13 03:44:24 suz Exp $	*/
-
-/*
+/*-
  * Copyright (C) 1999-2002
  *	Sony Computer Science Laboratories Inc.  All rights reserved.
  *
@@ -25,15 +22,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $KAME: altq_cdnr.c,v 1.15 2005/04/13 03:44:24 suz Exp $
+ * $FreeBSD$
  */
 
-#if defined(__FreeBSD__) || defined(__NetBSD__)
 #include "opt_altq.h"
 #include "opt_inet.h"
-#ifdef __FreeBSD__
 #include "opt_inet6.h"
-#endif
-#endif /* __FreeBSD__ || __NetBSD__ */
 
 #include <sys/param.h>
 #include <sys/malloc.h>
@@ -1272,11 +1268,7 @@ cdnrioctl(dev, cmd, addr, flag, p)
 		break;
 	}
 
-#ifdef __NetBSD__
 	s = splnet();
-#else
-	s = splimp();
-#endif
 	switch (cmd) {
 
 	case CDNR_IF_ATTACH:
