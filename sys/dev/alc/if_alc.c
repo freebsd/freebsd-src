@@ -47,16 +47,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 
-#include <net/bpf.h>
 #include <net/if.h>
-#include <net/if_var.h>
-#include <net/if_arp.h>
-#include <net/ethernet.h>
 #include <net/if_dl.h>
-#include <net/if_llc.h>
 #include <net/if_media.h>
-#include <net/if_types.h>
-#include <net/if_vlan_var.h>
+#include <net/ethernet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -141,22 +135,21 @@ static struct alc_ident *
 		alc_find_ident(device_t);
 #ifndef __NO_STRICT_ALIGNMENT
 static struct mbuf *
-		alc_fixup_rx(struct ifnet *, struct mbuf *);
+		alc_fixup_rx(if_t, struct mbuf *);
 #endif
 static void	alc_get_macaddr(struct alc_softc *);
 static void	alc_get_macaddr_813x(struct alc_softc *);
 static void	alc_get_macaddr_816x(struct alc_softc *);
 static void	alc_get_macaddr_par(struct alc_softc *);
-static void	alc_init(void *);
 static void	alc_init_cmb(struct alc_softc *);
-static void	alc_init_locked(struct alc_softc *);
+static void	alc_init(struct alc_softc *);
 static void	alc_init_rr_ring(struct alc_softc *);
 static int	alc_init_rx_ring(struct alc_softc *);
 static void	alc_init_smb(struct alc_softc *);
 static void	alc_init_tx_ring(struct alc_softc *);
 static void	alc_int_task(void *, int);
 static int	alc_intr(void *);
-static int	alc_ioctl(struct ifnet *, u_long, caddr_t);
+static int	alc_ioctl(if_t, u_long, void *, struct thread *);
 static void	alc_mac_config(struct alc_softc *);
 static uint32_t	alc_mii_readreg_813x(struct alc_softc *, int, int);
 static uint32_t	alc_mii_readreg_816x(struct alc_softc *, int, int);
@@ -169,9 +162,9 @@ static uint32_t	alc_miidbg_readreg(struct alc_softc *, int);
 static uint32_t	alc_miidbg_writereg(struct alc_softc *, int, int);
 static uint32_t	alc_miiext_readreg(struct alc_softc *, int, int);
 static uint32_t	alc_miiext_writereg(struct alc_softc *, int, int, int);
-static int	alc_mediachange(struct ifnet *);
+static int	alc_mediachange(if_t);
 static int	alc_mediachange_locked(struct alc_softc *);
-static void	alc_mediastatus(struct ifnet *, struct ifmediareq *);
+static void	alc_mediastatus(if_t, struct ifmediareq *);
 static int	alc_newbuf(struct alc_softc *, struct alc_rxdesc *);
 static void	alc_osc_reset(struct alc_softc *);
 static void	alc_phy_down(struct alc_softc *);
@@ -190,8 +183,8 @@ static void	alc_setwol(struct alc_softc *);
 static void	alc_setwol_813x(struct alc_softc *);
 static void	alc_setwol_816x(struct alc_softc *);
 static int	alc_shutdown(device_t);
-static void	alc_start(struct ifnet *);
-static void	alc_start_locked(struct ifnet *);
+static int	alc_transmit(if_t, struct mbuf *);
+static int	alc_start(struct alc_softc *);
 static void	alc_start_queue(struct alc_softc *);
 static void	alc_stats_clear(struct alc_softc *);
 static void	alc_stats_update(struct alc_softc *);
@@ -234,6 +227,17 @@ static devclass_t alc_devclass;
 
 DRIVER_MODULE(alc, pci, alc_driver, alc_devclass, 0, 0);
 DRIVER_MODULE(miibus, alc, miibus_driver, miibus_devclass, 0, 0);
+
+static struct ifdriver alc_ifdrv = {
+	.ifdrv_ops = {
+		.ifop_ioctl = alc_ioctl,
+		.ifop_transmit = alc_transmit,
+	},
+	.ifdrv_name = "alc",
+	.ifdrv_type = IFT_ETHER,
+	.ifdrv_hdrlen = sizeof(struct ether_vlan_header),
+	.ifdrv_maxqlen = ALC_TX_RING_CNT - 1,
+};
 
 static struct resource_spec alc_res_spec_mem[] = {
 	{ SYS_RES_MEMORY,	PCIR_BAR(0),	RF_ACTIVE },
@@ -398,15 +402,11 @@ alc_miibus_statchg(device_t dev)
 {
 	struct alc_softc *sc;
 	struct mii_data *mii;
-	struct ifnet *ifp;
 	uint32_t reg;
 
 	sc = device_get_softc(dev);
-
 	mii = device_get_softc(sc->alc_miibus);
-	ifp = sc->alc_ifp;
-	if (mii == NULL || ifp == NULL ||
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	if (mii == NULL || (sc->alc_flags & ALC_FLAG_RUNNING) == 0)
 		return;
 
 	sc->alc_flags &= ~ALC_FLAG_LINK;
@@ -593,14 +593,14 @@ alc_dsp_fixup(struct alc_softc *sc, int media)
 }
 
 static void
-alc_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
+alc_mediastatus(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct alc_softc *sc;
 	struct mii_data *mii;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	ALC_LOCK(sc);
-	if ((ifp->if_flags & IFF_UP) == 0) {
+	if ((sc->alc_if_flags & IFF_UP) == 0) {
 		ALC_UNLOCK(sc);
 		return;
 	}
@@ -613,12 +613,12 @@ alc_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static int
-alc_mediachange(struct ifnet *ifp)
+alc_mediachange(if_t ifp)
 {
 	struct alc_softc *sc;
 	int error;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	ALC_LOCK(sc);
 	error = alc_mediachange_locked(sc);
 	ALC_UNLOCK(sc);
@@ -1246,7 +1246,7 @@ alc_aspm_816x(struct alc_softc *sc, int init)
 		if (init != 0)
 			pmcfg |= PM_CFG_ASPM_L0S_ENB | PM_CFG_ASPM_L1_ENB |
 			    PM_CFG_MAC_ASPM_CHK;
-		else if ((sc->alc_ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		else if ((sc->alc_flags & ALC_FLAG_RUNNING) != 0)
 			pmcfg |= PM_CFG_ASPM_L1_ENB | PM_CFG_MAC_ASPM_CHK;
 	}
 	CSR_WRITE_4(sc, ALC_PM_CFG, pmcfg);
@@ -1360,8 +1360,16 @@ alc_config_msi(struct alc_softc *sc)
 static int
 alc_attach(device_t dev)
 {
+	struct if_attach_args ifat = {
+		.ifat_version = IF_ATTACH_VERSION,
+		.ifat_drv = &alc_ifdrv,
+		.ifat_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST,
+		.ifat_capabilities = IFCAP_TXCSUM | IFCAP_TSO4 |
+		    IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING |
+		    IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWTSO,
+		.ifat_hwassist = ALC_CSUM_FEATURES | CSUM_TSO,
+	};
 	struct alc_softc *sc;
-	struct ifnet *ifp;
 	int base, error, i, msic, msixc;
 	uint16_t burst;
 
@@ -1538,33 +1546,8 @@ alc_attach(device_t dev)
 	/* Load station address. */
 	alc_get_macaddr(sc);
 
-	ifp = sc->alc_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "cannot allocate ifnet structure.\n");
-		error = ENXIO;
-		goto fail;
-	}
-
-	ifp->if_softc = sc;
-	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_ioctl = alc_ioctl;
-	ifp->if_start = alc_start;
-	ifp->if_init = alc_init;
-	ifp->if_snd.ifq_drv_maxlen = ALC_TX_RING_CNT - 1;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
-	IFQ_SET_READY(&ifp->if_snd);
-	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_TSO4;
-	ifp->if_hwassist = ALC_CSUM_FEATURES | CSUM_TSO;
-	if (pci_find_cap(dev, PCIY_PMG, &base) == 0) {
-		ifp->if_capabilities |= IFCAP_WOL_MAGIC | IFCAP_WOL_MCAST;
-		sc->alc_flags |= ALC_FLAG_PM;
-		sc->alc_pmcap = base;
-	}
-	ifp->if_capenable = ifp->if_capabilities;
-
 	/* Set up MII bus. */
-	error = mii_attach(dev, &sc->alc_miibus, ifp, alc_mediachange,
+	error = mii_attach(dev, &sc->alc_miibus, alc_mediachange,
 	    alc_mediastatus, BMSR_DEFCAPMASK, sc->alc_phyaddr, MII_OFFSET_ANY,
 	    MIIF_DOPAUSE);
 	if (error != 0) {
@@ -1572,38 +1555,11 @@ alc_attach(device_t dev)
 		goto fail;
 	}
 
-	ether_ifattach(ifp, sc->alc_eaddr);
-
-	/* VLAN capability setup. */
-	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING |
-	    IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWTSO;
-	ifp->if_capenable = ifp->if_capabilities;
-	/*
-	 * XXX
-	 * It seems enabling Tx checksum offloading makes more trouble.
-	 * Sometimes the controller does not receive any frames when
-	 * Tx checksum offloading is enabled. I'm not sure whether this
-	 * is a bug in Tx checksum offloading logic or I got broken
-	 * sample boards. To safety, don't enable Tx checksum offloading
-	 * by default but give chance to users to toggle it if they know
-	 * their controllers work without problems.
-	 * Fortunately, Tx checksum offloading for AR816x family
-	 * seems to work.
-	 */
-	if ((sc->alc_flags & ALC_FLAG_AR816X_FAMILY) == 0) {
-		ifp->if_capenable &= ~IFCAP_TXCSUM;
-		ifp->if_hwassist &= ~ALC_CSUM_FEATURES;
-	}
-
-	/* Tell the upper layer(s) we support long frames. */
-	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
-
 	/* Create local taskq. */
 	sc->alc_tq = taskqueue_create_fast("alc_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &sc->alc_tq);
 	if (sc->alc_tq == NULL) {
 		device_printf(dev, "could not create taskqueue.\n");
-		ether_ifdetach(ifp);
 		error = ENXIO;
 		goto fail;
 	}
@@ -1628,14 +1584,39 @@ alc_attach(device_t dev)
 		device_printf(dev, "could not set up interrupt handler.\n");
 		taskqueue_free(sc->alc_tq);
 		sc->alc_tq = NULL;
-		ether_ifdetach(ifp);
 		goto fail;
 	}
 
-fail:
-	if (error != 0)
-		alc_detach(dev);
+	ifat.ifat_softc = sc;
+	ifat.ifat_dunit = device_get_unit(dev);
+	ifat.ifat_lla = sc->alc_eaddr;
+	if (pci_find_cap(dev, PCIY_PMG, &base) == 0) {
+		ifat.ifat_capabilities |= IFCAP_WOL_MAGIC | IFCAP_WOL_MCAST;
+		sc->alc_flags |= ALC_FLAG_PM;
+		sc->alc_pmcap = base;
+	}
+	ifat.ifat_capenable = ifat.ifat_capabilities;
+	/*
+	 * XXX
+	 * It seems enabling Tx checksum offloading makes more trouble.
+	 * Sometimes the controller does not receive any frames when
+	 * Tx checksum offloading is enabled. I'm not sure whether this
+	 * is a bug in Tx checksum offloading logic or I got broken
+	 * sample boards. To safety, don't enable Tx checksum offloading
+	 * by default but give chance to users to toggle it if they know
+	 * their controllers work without problems.
+	 * Fortunately, Tx checksum offloading for AR816x family
+	 * seems to work.
+	 */
+	if ((sc->alc_flags & ALC_FLAG_AR816X_FAMILY) == 0) {
+		ifat.ifat_capenable &= ~IFCAP_TXCSUM;
+		ifat.ifat_hwassist &= ~ALC_CSUM_FEATURES;
+	}
+	sc->alc_ifp = if_attach(&ifat);
 
+	return (0);
+fail:
+	alc_detach(dev);
 	return (error);
 }
 
@@ -1643,14 +1624,11 @@ static int
 alc_detach(device_t dev)
 {
 	struct alc_softc *sc;
-	struct ifnet *ifp;
 	int i, msic;
 
 	sc = device_get_softc(dev);
 
-	ifp = sc->alc_ifp;
 	if (device_is_attached(dev)) {
-		ether_ifdetach(ifp);
 		ALC_LOCK(sc);
 		alc_stop(sc);
 		ALC_UNLOCK(sc);
@@ -1671,10 +1649,8 @@ alc_detach(device_t dev)
 	bus_generic_detach(dev);
 	alc_dma_free(sc);
 
-	if (ifp != NULL) {
-		if_free(ifp);
-		sc->alc_ifp = NULL;
-	}
+	if (sc->alc_ifp != NULL)
+		if_detach(sc->alc_ifp);
 
 	if ((sc->alc_flags & ALC_FLAG_MSIX) != 0)
 		msic = ALC_MSIX_MESSAGES;
@@ -2495,14 +2471,12 @@ alc_setwol(struct alc_softc *sc)
 static void
 alc_setwol_813x(struct alc_softc *sc)
 {
-	struct ifnet *ifp;
 	uint32_t reg, pmcs;
 	uint16_t pmstat;
 
 	ALC_LOCK_ASSERT(sc);
 
 	alc_disable_l0s_l1(sc);
-	ifp = sc->alc_ifp;
 	if ((sc->alc_flags & ALC_FLAG_PM) == 0) {
 		/* Disable WOL. */
 		CSR_WRITE_4(sc, ALC_WOL_CFG, 0);
@@ -2516,7 +2490,7 @@ alc_setwol_813x(struct alc_softc *sc)
 		return;
 	}
 
-	if ((ifp->if_capenable & IFCAP_WOL) != 0) {
+	if ((sc->alc_capenable & IFCAP_WOL) != 0) {
 		if ((sc->alc_flags & ALC_FLAG_FASTETHER) == 0)
 			alc_setlinkspeed(sc);
 		CSR_WRITE_4(sc, ALC_MASTER_CFG,
@@ -2524,22 +2498,22 @@ alc_setwol_813x(struct alc_softc *sc)
 	}
 
 	pmcs = 0;
-	if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
+	if ((sc->alc_capenable & IFCAP_WOL_MAGIC) != 0)
 		pmcs |= WOL_CFG_MAGIC | WOL_CFG_MAGIC_ENB;
 	CSR_WRITE_4(sc, ALC_WOL_CFG, pmcs);
 	reg = CSR_READ_4(sc, ALC_MAC_CFG);
 	reg &= ~(MAC_CFG_DBG | MAC_CFG_PROMISC | MAC_CFG_ALLMULTI |
 	    MAC_CFG_BCAST);
-	if ((ifp->if_capenable & IFCAP_WOL_MCAST) != 0)
+	if ((sc->alc_capenable & IFCAP_WOL_MCAST) != 0)
 		reg |= MAC_CFG_ALLMULTI | MAC_CFG_BCAST;
-	if ((ifp->if_capenable & IFCAP_WOL) != 0)
+	if ((sc->alc_capenable & IFCAP_WOL) != 0)
 		reg |= MAC_CFG_RX_ENB;
 	CSR_WRITE_4(sc, ALC_MAC_CFG, reg);
 
 	reg = CSR_READ_4(sc, ALC_PCIE_PHYMISC);
 	reg |= PCIE_PHYMISC_FORCE_RCV_DET;
 	CSR_WRITE_4(sc, ALC_PCIE_PHYMISC, reg);
-	if ((ifp->if_capenable & IFCAP_WOL) == 0) {
+	if ((sc->alc_capenable & IFCAP_WOL) == 0) {
 		/* WOL disabled, PHY power down. */
 		alc_phy_down(sc);
 		CSR_WRITE_4(sc, ALC_MASTER_CFG,
@@ -2549,7 +2523,7 @@ alc_setwol_813x(struct alc_softc *sc)
 	pmstat = pci_read_config(sc->alc_dev,
 	    sc->alc_pmcap + PCIR_POWER_STATUS, 2);
 	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
-	if ((ifp->if_capenable & IFCAP_WOL) != 0)
+	if ((sc->alc_capenable & IFCAP_WOL) != 0)
 		pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
 	pci_write_config(sc->alc_dev,
 	    sc->alc_pmcap + PCIR_POWER_STATUS, pmstat, 2);
@@ -2558,13 +2532,11 @@ alc_setwol_813x(struct alc_softc *sc)
 static void
 alc_setwol_816x(struct alc_softc *sc)
 {
-	struct ifnet *ifp;
 	uint32_t gphy, mac, master, pmcs, reg;
 	uint16_t pmstat;
 
 	ALC_LOCK_ASSERT(sc);
 
-	ifp = sc->alc_ifp;
 	master = CSR_READ_4(sc, ALC_MASTER_CFG);
 	master &= ~MASTER_CLK_SEL_DIS;
 	gphy = CSR_READ_4(sc, ALC_GPHY_CFG);
@@ -2576,21 +2548,21 @@ alc_setwol_816x(struct alc_softc *sc)
 		gphy |= GPHY_CFG_PHY_IDDQ | GPHY_CFG_PWDOWN_HW;
 		mac = CSR_READ_4(sc, ALC_MAC_CFG);
 	} else {
-		if ((ifp->if_capenable & IFCAP_WOL) != 0) {
+		if ((sc->alc_capenable & IFCAP_WOL) != 0) {
 			gphy |= GPHY_CFG_EXT_RESET;
 			if ((sc->alc_flags & ALC_FLAG_FASTETHER) == 0)
 				alc_setlinkspeed(sc);
 		}
 		pmcs = 0;
-		if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
+		if ((sc->alc_capenable & IFCAP_WOL_MAGIC) != 0)
 			pmcs |= WOL_CFG_MAGIC | WOL_CFG_MAGIC_ENB;
 		CSR_WRITE_4(sc, ALC_WOL_CFG, pmcs);
 		mac = CSR_READ_4(sc, ALC_MAC_CFG);
 		mac &= ~(MAC_CFG_DBG | MAC_CFG_PROMISC | MAC_CFG_ALLMULTI |
 		    MAC_CFG_BCAST);
-		if ((ifp->if_capenable & IFCAP_WOL_MCAST) != 0)
+		if ((sc->alc_capenable & IFCAP_WOL_MCAST) != 0)
 			mac |= MAC_CFG_ALLMULTI | MAC_CFG_BCAST;
-		if ((ifp->if_capenable & IFCAP_WOL) != 0)
+		if ((sc->alc_capenable & IFCAP_WOL) != 0)
 			mac |= MAC_CFG_RX_ENB;
 		alc_miiext_writereg(sc, MII_EXT_ANEG, MII_EXT_ANEG_S3DIG10,
 		    ANEG_S3DIG10_SL);
@@ -2614,7 +2586,7 @@ alc_setwol_816x(struct alc_softc *sc)
 		pmstat = pci_read_config(sc->alc_dev,
 		    sc->alc_pmcap + PCIR_POWER_STATUS, 2);
 		pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
-		if ((ifp->if_capenable & IFCAP_WOL) != 0)
+		if ((sc->alc_capenable & IFCAP_WOL) != 0)
 			pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
 		pci_write_config(sc->alc_dev,
 		    sc->alc_pmcap + PCIR_POWER_STATUS, pmstat, 2);
@@ -2640,7 +2612,6 @@ static int
 alc_resume(device_t dev)
 {
 	struct alc_softc *sc;
-	struct ifnet *ifp;
 	uint16_t pmstat;
 
 	sc = device_get_softc(dev);
@@ -2658,10 +2629,9 @@ alc_resume(device_t dev)
 	}
 	/* Reset PHY. */
 	alc_phy_reset(sc);
-	ifp = sc->alc_ifp;
-	if ((ifp->if_flags & IFF_UP) != 0) {
-		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-		alc_init_locked(sc);
+	if ((sc->alc_if_flags & IFF_UP) != 0) {
+		sc->alc_flags &= ~ALC_FLAG_RUNNING;
+		alc_init(sc);
 	}
 	ALC_UNLOCK(sc);
 
@@ -2900,25 +2870,27 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 	return (0);
 }
 
-static void
-alc_start(struct ifnet *ifp)
+static int
+alc_transmit(if_t ifp, struct mbuf *m)
 {
 	struct alc_softc *sc;
+	int error;
 
-	sc = ifp->if_softc;
+	if ((error = if_snd_enqueue(ifp, m)) != 0)
+		return (error);
+
+	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	ALC_LOCK(sc);
-	alc_start_locked(ifp);
+	error = alc_start(sc);
 	ALC_UNLOCK(sc);
+	return (error);
 }
 
-static void
-alc_start_locked(struct ifnet *ifp)
+static int
+alc_start(struct alc_softc *sc)
 {
-	struct alc_softc *sc;
-	struct mbuf *m_head;
+	struct mbuf *m;
 	int enq;
-
-	sc = ifp->if_softc;
 
 	ALC_LOCK_ASSERT(sc);
 
@@ -2926,33 +2898,26 @@ alc_start_locked(struct ifnet *ifp)
 	if (sc->alc_cdata.alc_tx_cnt >= ALC_TX_DESC_HIWAT)
 		alc_txeof(sc);
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || (sc->alc_flags & ALC_FLAG_LINK) == 0)
-		return;
+	if ((sc->alc_flags & (ALC_FLAG_LINK | ALC_FLAG_RUNNING)) !=
+	    (ALC_FLAG_LINK | ALC_FLAG_RUNNING))
+		return (ENETDOWN);
 
-	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd); ) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
-		if (m_head == NULL)
-			break;
+	enq = 0;
+	while ((m = if_snd_dequeue(sc->alc_ifp)) != NULL) {
 		/*
 		 * Pack the data into the transmit ring. If we
 		 * don't have room, set the OACTIVE flag and wait
 		 * for the NIC to drain the ring.
 		 */
-		if (alc_encap(sc, &m_head)) {
-			if (m_head == NULL)
+		if (alc_encap(sc, &m)) {
+			if (m == NULL)
 				break;
-			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			if_snd_prepend(sc->alc_ifp, m);
 			break;
 		}
 
 		enq++;
-		/*
-		 * If there's a BPF listener, bounce a copy of this frame
-		 * to him.
-		 */
-		ETHER_BPF_MTAP(ifp, m_head);
+		if_mtap(sc->alc_ifp, m, NULL, 0);
 	}
 
 	if (enq > 0) {
@@ -2971,12 +2936,14 @@ alc_start_locked(struct ifnet *ifp)
 		/* Set a timeout in case the chip goes out to lunch. */
 		sc->alc_watchdog_timer = ALC_TX_TIMEOUT;
 	}
+
+	return (0);
 }
 
 static void
 alc_watchdog(struct alc_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	ALC_LOCK_ASSERT(sc);
 
@@ -2985,30 +2952,31 @@ alc_watchdog(struct alc_softc *sc)
 
 	ifp = sc->alc_ifp;
 	if ((sc->alc_flags & ALC_FLAG_LINK) == 0) {
-		if_printf(sc->alc_ifp, "watchdog timeout (lost link)\n");
+		if_printf(ifp, "watchdog timeout (lost link)\n");
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-		alc_init_locked(sc);
+		sc->alc_flags &= ~ALC_FLAG_RUNNING;
+		alc_init(sc);
 		return;
 	}
-	if_printf(sc->alc_ifp, "watchdog timeout -- resetting\n");
+	if_printf(ifp, "watchdog timeout -- resetting\n");
 	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	alc_init_locked(sc);
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		alc_start_locked(ifp);
+	sc->alc_flags &= ~ALC_FLAG_RUNNING;
+	alc_init(sc);
+	if (if_snd_len(ifp))
+		alc_start(sc);
 }
 
 static int
-alc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+alc_ioctl(if_t ifp, u_long cmd, void *data, struct thread *td)
 {
 	struct alc_softc *sc;
 	struct ifreq *ifr;
 	struct mii_data *mii;
+	uint32_t oflags;
 	int error, mask;
 
-	sc = ifp->if_softc;
-	ifr = (struct ifreq *)data;
+	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
+	ifr = data;
 	error = 0;
 	switch (cmd) {
 	case SIOCSIFMTU:
@@ -3017,38 +2985,37 @@ alc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		    sizeof(struct ether_vlan_header) - ETHER_CRC_LEN) ||
 		    ((sc->alc_flags & ALC_FLAG_JUMBO) == 0 &&
 		    ifr->ifr_mtu > ETHERMTU))
-			error = EINVAL;
-		else if (ifp->if_mtu != ifr->ifr_mtu) {
-			ALC_LOCK(sc);
-			ifp->if_mtu = ifr->ifr_mtu;
-			/* AR81[3567]x has 13 bits MSS field. */
-			if (ifp->if_mtu > ALC_TSO_MTU &&
-			    (ifp->if_capenable & IFCAP_TSO4) != 0) {
-				ifp->if_capenable &= ~IFCAP_TSO4;
-				ifp->if_hwassist &= ~CSUM_TSO;
-				VLAN_CAPABILITIES(ifp);
-			}
-			ALC_UNLOCK(sc);
+			return (EINVAL);
+		/* AR81[3567]x has 13 bits MSS field. */
+		if (ifr->ifr_mtu > ALC_TSO_MTU &&
+		    (sc->alc_capenable & IFCAP_TSO4) != 0) {
+			struct ifreq tmp;
+
+			if_drvioctl(ifp, SIOCGIFCAP, &tmp, td);
+			tmp.ifr_reqcap &= ~IFCAP_TSO4;
+			if_drvioctl(ifp, SIOCSIFCAP, &tmp, td);
 		}
+		sc->alc_mtu = ifr->ifr_mtu;
 		break;
 	case SIOCSIFFLAGS:
 		ALC_LOCK(sc);
-		if ((ifp->if_flags & IFF_UP) != 0) {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
-			    ((ifp->if_flags ^ sc->alc_if_flags) &
+		oflags = sc->alc_if_flags;
+		sc->alc_if_flags = ifr->ifr_flags;
+		if ((sc->alc_if_flags & IFF_UP) != 0) {
+			if ((sc->alc_flags & ALC_FLAG_RUNNING) != 0 &&
+			    ((oflags ^ sc->alc_if_flags) &
 			    (IFF_PROMISC | IFF_ALLMULTI)) != 0)
 				alc_rxfilter(sc);
 			else
-				alc_init_locked(sc);
-		} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+				alc_init(sc);
+		} else if ((sc->alc_flags & ALC_FLAG_RUNNING) != 0)
 			alc_stop(sc);
-		sc->alc_if_flags = ifp->if_flags;
 		ALC_UNLOCK(sc);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		ALC_LOCK(sc);
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		if ((sc->alc_flags & ALC_FLAG_RUNNING) != 0)
 			alc_rxfilter(sc);
 		ALC_UNLOCK(sc);
 		break;
@@ -3059,53 +3026,26 @@ alc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCSIFCAP:
 		ALC_LOCK(sc);
-		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
-		if ((mask & IFCAP_TXCSUM) != 0 &&
-		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
-			ifp->if_capenable ^= IFCAP_TXCSUM;
-			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
-				ifp->if_hwassist |= ALC_CSUM_FEATURES;
-			else
-				ifp->if_hwassist &= ~ALC_CSUM_FEATURES;
+		mask = ifr->ifr_reqcap ^ ifr->ifr_curcap;
+		ifr->ifr_hwassist = 0;
+		if ((ifr->ifr_reqcap & IFCAP_TXCSUM) != 0)
+			ifr->ifr_hwassist |= ALC_CSUM_FEATURES;
+		if ((ifr->ifr_reqcap & IFCAP_TSO4) != 0) {
+			/* AR81[3567]x has 13 bits MSS field. */
+			if (sc->alc_mtu > ALC_TSO_MTU) {
+				error = EINVAL;
+				ALC_UNLOCK(sc);
+				break;
+			}
+			ifr->ifr_hwassist |= CSUM_TSO;
 		}
-		if ((mask & IFCAP_TSO4) != 0 &&
-		    (ifp->if_capabilities & IFCAP_TSO4) != 0) {
-			ifp->if_capenable ^= IFCAP_TSO4;
-			if ((ifp->if_capenable & IFCAP_TSO4) != 0) {
-				/* AR81[3567]x has 13 bits MSS field. */
-				if (ifp->if_mtu > ALC_TSO_MTU) {
-					ifp->if_capenable &= ~IFCAP_TSO4;
-					ifp->if_hwassist &= ~CSUM_TSO;
-				} else
-					ifp->if_hwassist |= CSUM_TSO;
-			} else
-				ifp->if_hwassist &= ~CSUM_TSO;
-		}
-		if ((mask & IFCAP_WOL_MCAST) != 0 &&
-		    (ifp->if_capabilities & IFCAP_WOL_MCAST) != 0)
-			ifp->if_capenable ^= IFCAP_WOL_MCAST;
-		if ((mask & IFCAP_WOL_MAGIC) != 0 &&
-		    (ifp->if_capabilities & IFCAP_WOL_MAGIC) != 0)
-			ifp->if_capenable ^= IFCAP_WOL_MAGIC;
-		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
-		    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING) != 0) {
-			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+		sc->alc_capenable = ifr->ifr_reqcap;
+		if ((mask & IFCAP_VLAN_HWTAGGING) != 0)
 			alc_rxvlan(sc);
-		}
-		if ((mask & IFCAP_VLAN_HWCSUM) != 0 &&
-		    (ifp->if_capabilities & IFCAP_VLAN_HWCSUM) != 0)
-			ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
-		if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
-		    (ifp->if_capabilities & IFCAP_VLAN_HWTSO) != 0)
-			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
-		if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
-			ifp->if_capenable &=
-			    ~(IFCAP_VLAN_HWTSO | IFCAP_VLAN_HWCSUM);
 		ALC_UNLOCK(sc);
-		VLAN_CAPABILITIES(ifp);
 		break;
 	default:
-		error = ether_ioctl(ifp, cmd, data);
+		error = EOPNOTSUPP;
 		break;
 	}
 
@@ -3186,7 +3126,7 @@ alc_stats_update(struct alc_softc *sc)
 {
 	struct alc_hw_stats *stat;
 	struct smb sb, *smb;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t *reg;
 	int i;
 
@@ -3319,7 +3259,7 @@ static void
 alc_int_task(void *arg, int pending)
 {
 	struct alc_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t status;
 	int more;
 
@@ -3339,14 +3279,14 @@ alc_int_task(void *arg, int pending)
 	CSR_WRITE_4(sc, ALC_INTR_STATUS, status | INTR_DIS_INT);
 
 	more = 0;
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+	if ((sc->alc_flags & ALC_FLAG_RUNNING) != 0) {
 		if ((status & INTR_RX_PKT) != 0) {
 			more = alc_rxintr(sc, sc->alc_process_limit);
 			if (more == EAGAIN)
 				sc->alc_morework = 1;
 			else if (more == EIO) {
-				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-				alc_init_locked(sc);
+				sc->alc_flags &= ~ALC_FLAG_RUNNING;
+				alc_init(sc);
 				ALC_UNLOCK(sc);
 				return;
 			}
@@ -3362,14 +3302,13 @@ alc_int_task(void *arg, int pending)
 			if ((status & INTR_TXQ_TO_RST) != 0)
 				device_printf(sc->alc_dev,
 				    "TxQ reset! -- resetting\n");
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-			alc_init_locked(sc);
+			sc->alc_flags &= ~ALC_FLAG_RUNNING;
+			alc_init(sc);
 			ALC_UNLOCK(sc);
 			return;
 		}
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
-		    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			alc_start_locked(ifp);
+		if ((sc->alc_flags & ALC_FLAG_RUNNING) != 0 && if_snd_len(ifp))
+			alc_start(sc);
 	}
 
 	if (more == EAGAIN ||
@@ -3380,7 +3319,7 @@ alc_int_task(void *arg, int pending)
 	}
 
 done:
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+	if ((sc->alc_flags & ALC_FLAG_RUNNING) != 0) {
 		/* Re-enable interrupts if we're running. */
 		CSR_WRITE_4(sc, ALC_INTR_STATUS, 0x7FFFFFFF);
 	}
@@ -3390,14 +3329,11 @@ done:
 static void
 alc_txeof(struct alc_softc *sc)
 {
-	struct ifnet *ifp;
 	struct alc_txdesc *txd;
 	uint32_t cons, prod;
 	int prog;
 
 	ALC_LOCK_ASSERT(sc);
-
-	ifp = sc->alc_ifp;
 
 	if (sc->alc_cdata.alc_tx_cnt == 0)
 		return;
@@ -3427,7 +3363,6 @@ alc_txeof(struct alc_softc *sc)
 		if (sc->alc_cdata.alc_tx_cnt <= 0)
 			break;
 		prog++;
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		sc->alc_cdata.alc_tx_cnt--;
 		txd = &sc->alc_cdata.alc_txdesc[cons];
 		if (txd->tx_m != NULL) {
@@ -3494,7 +3429,6 @@ alc_newbuf(struct alc_softc *sc, struct alc_rxdesc *rxd)
 static int
 alc_rxintr(struct alc_softc *sc, int count)
 {
-	struct ifnet *ifp;
 	struct rx_rdesc *rrd;
 	uint32_t nsegs, status;
 	int rr_cons, prog;
@@ -3505,8 +3439,7 @@ alc_rxintr(struct alc_softc *sc, int count)
 	bus_dmamap_sync(sc->alc_cdata.alc_rx_ring_tag,
 	    sc->alc_cdata.alc_rx_ring_map, BUS_DMASYNC_POSTWRITE);
 	rr_cons = sc->alc_cdata.alc_rr_cons;
-	ifp = sc->alc_ifp;
-	for (prog = 0; (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0;) {
+	for (prog = 0; (sc->alc_flags & ALC_FLAG_RUNNING) != 0;) {
 		if (count-- <= 0)
 			break;
 		rrd = &sc->alc_rdata.alc_rr_ring[rr_cons];
@@ -3565,7 +3498,7 @@ alc_rxintr(struct alc_softc *sc, int count)
 
 #ifndef __NO_STRICT_ALIGNMENT
 static struct mbuf *
-alc_fixup_rx(struct ifnet *ifp, struct mbuf *m)
+alc_fixup_rx(if_t ifp, struct mbuf *m)
 {
 	struct mbuf *n;
         int i;
@@ -3606,7 +3539,7 @@ static void
 alc_rxeof(struct alc_softc *sc, struct rx_rdesc *rrd)
 {
 	struct alc_rxdesc *rxd;
-	struct ifnet *ifp;
+	if_t ifp;
 	struct mbuf *mp, *m;
 	uint32_t rdinfo, status, vtag;
 	int count, nsegs, rx_cons;
@@ -3701,7 +3634,7 @@ alc_rxeof(struct alc_softc *sc, struct rx_rdesc *rrd)
 			 * Due to hardware bugs, Rx checksum offloading
 			 * was intentionally disabled.
 			 */
-			if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0 &&
+			if ((sc->alc_capenable & IFCAP_VLAN_HWTAGGING) != 0 &&
 			    (status & RRD_VLAN_TAG) != 0) {
 				vtag = RRD_VLAN(le32toh(rrd->vtag));
 				m->m_pkthdr.ether_vtag = ntohs(vtag);
@@ -3714,7 +3647,7 @@ alc_rxeof(struct alc_softc *sc, struct rx_rdesc *rrd)
 			{
 			/* Pass it on. */
 			ALC_UNLOCK(sc);
-			(*ifp->if_input)(ifp, m);
+			if_input(ifp, m);
 			ALC_LOCK(sc);
 			}
 		}
@@ -3872,20 +3805,8 @@ alc_reset(struct alc_softc *sc)
 }
 
 static void
-alc_init(void *xsc)
+alc_init(struct alc_softc *sc)
 {
-	struct alc_softc *sc;
-
-	sc = (struct alc_softc *)xsc;
-	ALC_LOCK(sc);
-	alc_init_locked(sc);
-	ALC_UNLOCK(sc);
-}
-
-static void
-alc_init_locked(struct alc_softc *sc)
-{
-	struct ifnet *ifp;
 	struct mii_data *mii;
 	uint8_t eaddr[ETHER_ADDR_LEN];
 	bus_addr_t paddr;
@@ -3893,10 +3814,9 @@ alc_init_locked(struct alc_softc *sc)
 
 	ALC_LOCK_ASSERT(sc);
 
-	ifp = sc->alc_ifp;
 	mii = device_get_softc(sc->alc_miibus);
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+	if ((sc->alc_flags & ALC_FLAG_RUNNING) != 0)
 		return;
 	/*
 	 * Cancel any pending I/O.
@@ -3931,7 +3851,7 @@ alc_init_locked(struct alc_softc *sc)
 		CSR_WRITE_4(sc, ALC_CLK_GATING_CFG, 0);
 
 	/* Reprogram the station address. */
-	bcopy(IF_LLADDR(ifp), eaddr, ETHER_ADDR_LEN);
+	bcopy(if_lladdr(sc->alc_ifp), eaddr, ETHER_ADDR_LEN);
 	CSR_WRITE_4(sc, ALC_PAR0,
 	    eaddr[2] << 24 | eaddr[3] << 16 | eaddr[4] << 8 | eaddr[5]);
 	CSR_WRITE_4(sc, ALC_PAR1, eaddr[0] << 8 | eaddr[1]);
@@ -4261,9 +4181,7 @@ alc_init_locked(struct alc_softc *sc)
 	CSR_WRITE_4(sc, ALC_INTR_STATUS, 0xFFFFFFFF);
 	CSR_WRITE_4(sc, ALC_INTR_STATUS, 0);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-
+	sc->alc_flags |= ALC_FLAG_RUNNING;
 	sc->alc_flags &= ~ALC_FLAG_LINK;
 	/* Switch to the current media. */
 	alc_mediachange_locked(sc);
@@ -4274,7 +4192,6 @@ alc_init_locked(struct alc_softc *sc)
 static void
 alc_stop(struct alc_softc *sc)
 {
-	struct ifnet *ifp;
 	struct alc_txdesc *txd;
 	struct alc_rxdesc *rxd;
 	uint32_t reg;
@@ -4284,9 +4201,7 @@ alc_stop(struct alc_softc *sc)
 	/*
 	 * Mark the interface down and cancel the watchdog timer.
 	 */
-	ifp = sc->alc_ifp;
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	sc->alc_flags &= ~ALC_FLAG_LINK;
+	sc->alc_flags &= ~(ALC_FLAG_LINK | ALC_FLAG_RUNNING);
 	callout_stop(&sc->alc_tick_ch);
 	sc->alc_watchdog_timer = 0;
 	alc_stats_update(sc);
@@ -4529,14 +4444,12 @@ alc_init_smb(struct alc_softc *sc)
 static void
 alc_rxvlan(struct alc_softc *sc)
 {
-	struct ifnet *ifp;
 	uint32_t reg;
 
 	ALC_LOCK_ASSERT(sc);
 
-	ifp = sc->alc_ifp;
 	reg = CSR_READ_4(sc, ALC_MAC_CFG);
-	if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0)
+	if ((sc->alc_capenable & IFCAP_VLAN_HWTAGGING) != 0)
 		reg |= MAC_CFG_VLAN_TAG_STRIP;
 	else
 		reg &= ~MAC_CFG_VLAN_TAG_STRIP;
@@ -4544,43 +4457,42 @@ alc_rxvlan(struct alc_softc *sc)
 }
 
 static void
+alc_hash_maddr(void *arg, struct sockaddr *maddr)
+{
+	struct sockaddr_dl *sdl = (struct sockaddr_dl *)maddr;
+	uint32_t *mchash, crc;
+
+	if (sdl->sdl_family != AF_LINK)
+		return;
+
+	mchash = arg;
+	crc = ether_crc32_be(LLADDR(sdl), ETHER_ADDR_LEN);
+	mchash[crc >> 31] |= 1 << ((crc >> 26) & 0x1f);
+}
+
+static void
 alc_rxfilter(struct alc_softc *sc)
 {
-	struct ifnet *ifp;
-	struct ifmultiaddr *ifma;
-	uint32_t crc;
 	uint32_t mchash[2];
 	uint32_t rxcfg;
 
 	ALC_LOCK_ASSERT(sc);
 
-	ifp = sc->alc_ifp;
-
 	bzero(mchash, sizeof(mchash));
 	rxcfg = CSR_READ_4(sc, ALC_MAC_CFG);
 	rxcfg &= ~(MAC_CFG_ALLMULTI | MAC_CFG_BCAST | MAC_CFG_PROMISC);
-	if ((ifp->if_flags & IFF_BROADCAST) != 0)
+	if ((sc->alc_if_flags & IFF_BROADCAST) != 0)
 		rxcfg |= MAC_CFG_BCAST;
-	if ((ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI)) != 0) {
-		if ((ifp->if_flags & IFF_PROMISC) != 0)
+	if ((sc->alc_if_flags & (IFF_PROMISC | IFF_ALLMULTI)) != 0) {
+		if ((sc->alc_if_flags & IFF_PROMISC) != 0)
 			rxcfg |= MAC_CFG_PROMISC;
-		if ((ifp->if_flags & IFF_ALLMULTI) != 0)
+		if ((sc->alc_if_flags & IFF_ALLMULTI) != 0)
 			rxcfg |= MAC_CFG_ALLMULTI;
 		mchash[0] = 0xFFFFFFFF;
 		mchash[1] = 0xFFFFFFFF;
 		goto chipit;
 	}
-
-	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &sc->alc_ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)
-		    ifma->ifma_addr), ETHER_ADDR_LEN);
-		mchash[crc >> 31] |= 1 << ((crc >> 26) & 0x1f);
-	}
-	if_maddr_runlock(ifp);
-
+	if_foreach_maddr(sc->alc_ifp, alc_hash_maddr, mchash);
 chipit:
 	CSR_WRITE_4(sc, ALC_MAR0, mchash[0]);
 	CSR_WRITE_4(sc, ALC_MAR1, mchash[1]);
