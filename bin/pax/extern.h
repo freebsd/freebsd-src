@@ -217,6 +217,7 @@ extern int vflag;
 extern int Dflag;
 extern int Hflag;
 extern int Lflag;
+extern int Oflag;
 extern int Xflag;
 extern int Yflag;
 extern int Zflag;
