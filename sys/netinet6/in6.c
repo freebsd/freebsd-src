@@ -1696,7 +1696,7 @@ in6_ifhasaddr(struct ifnet *ifp, struct in6_addr *addr)
 	struct in6_ifaddr *ia6;
 
 	in6 = *addr;
-	if (in6_clearscope(&in6) || in6_clearscope(&in6))
+	if (in6_clearscope(&in6))
 		return (0);
 	in6_setscope(&in6, ifp, NULL);
 
