@@ -1469,11 +1469,8 @@ _btxld=		usr.sbin/btxld
 .endif
 .endif
 .if ${TARGET_ARCH} != ${MACHINE_ARCH}
-.if ${MK_RESCUE} != "no" || defined(RELEASEDIR)
+.if ${MK_RESCUE} != "no"
 _crunchide=	usr.sbin/crunch/crunchide
-.endif
-.if ${TARGET_ARCH} == "i386" && defined(RELEASEDIR)
-_kgzip=		usr.sbin/kgzip
 .endif
 .endif
 
@@ -1520,7 +1517,6 @@ cross-tools: .MAKE
     ${_cc} \
     ${_btxld} \
     ${_crunchide} \
-    ${_kgzip} \
     sys/boot/usb/tools
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool} && \
