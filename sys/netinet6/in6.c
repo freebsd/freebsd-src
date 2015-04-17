@@ -1684,6 +1684,36 @@ in6_localip(struct in6_addr *in6)
 	IN6_IFADDR_RUNLOCK();
 	return (0);
 }
+ 
+/*
+ * Return 1 if an internet address is configured on an interface.
+ */
+int
+in6_ifhasaddr(struct ifnet *ifp, struct in6_addr *addr)
+{
+	struct in6_addr in6;
+	struct ifaddr *ifa;
+	struct in6_ifaddr *ia6;
+
+	in6 = *addr;
+	if (in6_clearscope(&in6) || in6_clearscope(&in6))
+		return (0);
+	in6_setscope(&in6, ifp, NULL);
+
+	IF_ADDR_RLOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family != AF_INET6)
+			continue;
+		ia6 = (struct in6_ifaddr *)ifa;
+		if (IN6_ARE_ADDR_EQUAL(&ia6->ia_addr.sin6_addr, &in6)) {
+			IF_ADDR_RUNLOCK(ifp);
+			return (1);
+		}
+	}
+	IF_ADDR_RUNLOCK(ifp);
+
+	return (0);
+}
 
 int
 in6_is_addr_deprecated(struct sockaddr_in6 *sa6)
