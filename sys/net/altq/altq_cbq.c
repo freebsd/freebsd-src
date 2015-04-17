@@ -1,7 +1,4 @@
-/*	$FreeBSD$	*/
-/*	$KAME: altq_cbq.c,v 1.19 2003/09/17 14:23:25 kjc Exp $	*/
-
-/*
+/*-
  * Copyright (c) Sun Microsystems, Inc. 1993-1998 All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,15 +26,14 @@
  * provided "as is" without express or implied warranty of any kind.
  *
  * These notices must be retained in any copies of any part of this software.
+ *
+ * $KAME: altq_cbq.c,v 1.19 2003/09/17 14:23:25 kjc Exp $
+ * $FreeBSD$
  */
 
-#if defined(__FreeBSD__) || defined(__NetBSD__)
 #include "opt_altq.h"
 #include "opt_inet.h"
-#ifdef __FreeBSD__
 #include "opt_inet6.h"
-#endif
-#endif /* __FreeBSD__ || __NetBSD__ */
 #ifdef ALTQ_CBQ	/* cbq is enabled by ALTQ_CBQ option in opt_altq.h */
 
 #include <sys/param.h>
@@ -251,11 +247,7 @@ cbq_pfattach(struct pf_altq *a)
 
 	if ((ifp = ifunit(a->ifname)) == NULL || a->altq_disc == NULL)
 		return (EINVAL);
-#ifdef __NetBSD__
 	s = splnet();
-#else
-	s = splimp();
-#endif
 	error = altq_attach(&ifp->if_snd, ALTQT_CBQ, a->altq_disc,
 	    cbq_enqueue, cbq_dequeue, cbq_request, NULL, NULL);
 	splx(s);

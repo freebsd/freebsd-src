@@ -1,7 +1,4 @@
-/*	$FreeBSD$	*/
-/*	$KAME: altq_subr.c,v 1.21 2003/11/06 06:32:53 kjc Exp $	*/
-
-/*
+/*-
  * Copyright (C) 1997-2003
  *	Sony Computer Science Laboratories Inc.  All rights reserved.
  *
@@ -25,15 +22,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $KAME: altq_subr.c,v 1.21 2003/11/06 06:32:53 kjc Exp $
+ * $FreeBSD$
  */
 
-#if defined(__FreeBSD__) || defined(__NetBSD__)
 #include "opt_altq.h"
 #include "opt_inet.h"
-#ifdef __FreeBSD__
 #include "opt_inet6.h"
-#endif
-#endif /* __FreeBSD__ || __NetBSD__ */
 
 #include <sys/param.h>
 #include <sys/malloc.h>
@@ -52,9 +48,7 @@
 #include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
-#ifdef __FreeBSD__
 #include <net/vnet.h>
-#endif
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -73,20 +67,14 @@
 #endif
 
 /* machine dependent clock related includes */
-#ifdef __FreeBSD__
 #include <sys/bus.h>
 #include <sys/cpu.h>
 #include <sys/eventhandler.h>
 #include <machine/clock.h>
-#endif
 #if defined(__amd64__) || defined(__i386__)
 #include <machine/cpufunc.h>		/* for pentium tsc */
 #include <machine/specialreg.h>		/* for CPUID_TSC */
-#ifdef __FreeBSD__
 #include <machine/md_var.h>		/* for cpu_feature */
-#elif defined(__NetBSD__) || defined(__OpenBSD__)
-#include <machine/cpu.h>		/* for cpu_feature */
-#endif
 #endif /* __amd64 || __i386__ */
 
 /*
@@ -254,11 +242,7 @@ altq_enable(ifq)
 		return 0;
 	}
 
-#ifdef __NetBSD__
 	s = splnet();
-#else
-	s = splimp();
-#endif
 	IFQ_PURGE_NOLOCK(ifq);
 	ASSERT(ifq->ifq_len == 0);
 	ifq->ifq_drv_maxlen = 0;		/* disable bulk dequeue */
@@ -283,11 +267,7 @@ altq_disable(ifq)
 		return 0;
 	}
 
-#ifdef __NetBSD__
 	s = splnet();
-#else
-	s = splimp();
-#endif
 	IFQ_PURGE_NOLOCK(ifq);
 	ASSERT(ifq->ifq_len == 0);
 	ifq->altq_flags &= ~(ALTQF_ENABLED|ALTQF_CLASSIFY);
@@ -444,24 +424,16 @@ static void
 tbr_timeout(arg)
 	void *arg;
 {
-#ifdef __FreeBSD__
 	VNET_ITERATOR_DECL(vnet_iter);
-#endif
 	struct ifnet *ifp;
 	int active, s;
 
 	active = 0;
-#ifdef __NetBSD__
 	s = splnet();
-#else
-	s = splimp();
-#endif
-#ifdef __FreeBSD__
 	IFNET_RLOCK_NOSLEEP();
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-#endif
 		for (ifp = TAILQ_FIRST(&V_ifnet); ifp;
 		    ifp = TAILQ_NEXT(ifp, if_list)) {
 			/* read from if_snd unlocked */
@@ -472,12 +444,10 @@ tbr_timeout(arg)
 			    ifp->if_start != NULL)
 				(*ifp->if_start)(ifp);
 		}
-#ifdef __FreeBSD__
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK_NOSLEEP();
 	IFNET_RUNLOCK_NOSLEEP();
-#endif
 	splx(s);
 	if (active > 0)
 		CALLOUT_RESET(&tbr_callout, 1, tbr_timeout, (void *)0);
@@ -563,11 +533,7 @@ altq_pfdetach(struct pf_altq *a)
 	if (a->altq_disc == NULL || a->altq_disc != ifp->if_snd.altq_disc)
 		return (0);
 
-#ifdef __NetBSD__
 	s = splnet();
-#else
-	s = splimp();
-#endif
 	/* read unlocked from if_snd, _disable and _detach take care */
 	if (ALTQ_IS_ENABLED(&ifp->if_snd))
 		error = altq_disable(&ifp->if_snd);
@@ -926,12 +892,8 @@ init_machclk_setup(void)
 #endif
 #if defined(__amd64__) || defined(__i386__)
 	/* check if TSC is available */
-#ifdef __FreeBSD__
 	if ((cpu_feature & CPUID_TSC) == 0 ||
 	    atomic_load_acq_64(&tsc_freq) == 0)
-#else
-	if ((cpu_feature & CPUID_TSC) == 0)
-#endif
 		machclk_usepcc = 0;
 #endif
 }
@@ -962,13 +924,7 @@ init_machclk(void)
 	 * accessible, just use it.
 	 */
 #if defined(__amd64__) || defined(__i386__)
-#ifdef __FreeBSD__
 	machclk_freq = atomic_load_acq_64(&tsc_freq);
-#elif defined(__NetBSD__)
-	machclk_freq = (u_int32_t)cpu_tsc_freq;
-#elif defined(__OpenBSD__) && (defined(I586_CPU) || defined(I686_CPU))
-	machclk_freq = pentium_mhz * 1000000;
-#endif
 #endif
 
 	/*
@@ -1449,11 +1405,7 @@ acc_add_filter(classifier, filter, class, phandle)
 	 * add this filter to the filter list.
 	 * filters are ordered from the highest rule number.
 	 */
-#ifdef __NetBSD__
 	s = splnet();
-#else
-	s = splimp();
-#endif
 	prev = NULL;
 	LIST_FOREACH(tmp, &classifier->acc_filters[i], f_chain) {
 		if (tmp->f_filter.ff_ruleno > afp->f_filter.ff_ruleno)
@@ -1482,11 +1434,7 @@ acc_delete_filter(classifier, handle)
 	if ((afp = filth_to_filtp(classifier, handle)) == NULL)
 		return (EINVAL);
 
-#ifdef __NetBSD__
 	s = splnet();
-#else
-	s = splimp();
-#endif
 	LIST_REMOVE(afp, f_chain);
 	splx(s);
 
@@ -1510,11 +1458,7 @@ acc_discard_filters(classifier, class, all)
 	struct acc_filter *afp;
 	int	i, s;
 
-#ifdef __NetBSD__
 	s = splnet();
-#else
-	s = splimp();
-#endif
 	for (i = 0; i < ACC_FILTER_TABLESIZE; i++) {
 		do {
 			LIST_FOREACH(afp, &classifier->acc_filters[i], f_chain)

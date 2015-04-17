@@ -1,7 +1,4 @@
-/*	$FreeBSD$	*/
-/*	$KAME: altq_var.h,v 1.16 2003/10/03 05:05:15 kjc Exp $	*/
-
-/*
+/*-
  * Copyright (C) 1998-2003
  *	Sony Computer Science Laboratories Inc.  All rights reserved.
  *
@@ -25,6 +22,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $KAME: altq_var.h,v 1.16 2003/10/03 05:05:15 kjc Exp $
+ * $FreeBSD$
  */
 #ifndef _ALTQ_ALTQ_VAR_H_
 #define	_ALTQ_ALTQ_VAR_H_
@@ -161,7 +161,6 @@ typedef u_long ioctlcmd_t;
 #endif
 
 /* macro for timeout/untimeout */
-#if (__FreeBSD_version > 300000) || defined(__NetBSD__)
 /* use callout */
 #include <sys/callout.h>
 
@@ -174,35 +173,6 @@ typedef u_long ioctlcmd_t;
 #define	CALLOUT_STOP(c)		callout_stop((c))
 #if !defined(CALLOUT_INITIALIZER) && (__FreeBSD_version < 600000)
 #define	CALLOUT_INITIALIZER	{ { { NULL } }, 0, NULL, NULL, 0 }
-#endif
-#elif defined(__OpenBSD__)
-#include <sys/timeout.h>
-/* callout structure as a wrapper of struct timeout */
-struct callout {
-	struct timeout	c_to;
-};
-#define	CALLOUT_INIT(c)		do { bzero((c), sizeof(*(c))); } while (/*CONSTCOND*/ 0)
-#define	CALLOUT_RESET(c,t,f,a)	do { if (!timeout_initialized(&(c)->c_to))  \
-					 timeout_set(&(c)->c_to, (f), (a)); \
-				     timeout_add(&(c)->c_to, (t)); } while (/*CONSTCOND*/ 0)
-#define	CALLOUT_STOP(c)		timeout_del(&(c)->c_to)
-#define	CALLOUT_INITIALIZER	{ { { NULL }, NULL, NULL, 0, 0 } }
-#else
-/* use old-style timeout/untimeout */
-/* dummy callout structure */
-struct callout {
-	void		*c_arg;			/* function argument */
-	void		(*c_func)(void *);	/* functiuon to call */
-};
-#define	CALLOUT_INIT(c)		do { bzero((c), sizeof(*(c))); } while (/*CONSTCOND*/ 0)
-#define	CALLOUT_RESET(c,t,f,a)	do {	(c)->c_arg = (a);	\
-					(c)->c_func = (f);	\
-					timeout((f),(a),(t)); } while (/*CONSTCOND*/ 0)
-#define	CALLOUT_STOP(c)		untimeout((c)->c_func,(c)->c_arg)
-#define	CALLOUT_INITIALIZER	{ NULL, NULL }
-#endif
-#if !defined(__FreeBSD__)
-typedef void (timeout_t)(void *);
 #endif
 
 #define	m_pktlen(m)		((m)->m_pkthdr.len)
