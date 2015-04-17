@@ -178,11 +178,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 	 * place the returned data into r1. As the lseek and frerebsd6_lseek
 	 * syscalls also return an off_t they do not need this fixup.
 	 */
-#ifdef __ARM_EABI__
 	call = frame->tf_r7;
-#else
-	call = *(u_int32_t *)(frame->tf_pc - INSN_SIZE) & 0x000fffff;
-#endif
 	if (call == SYS___syscall) {
 		register_t *ap = &frame->tf_r0;
 		register_t code = ap[_QUAD_LOWWORD];
