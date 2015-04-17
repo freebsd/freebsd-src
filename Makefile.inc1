@@ -1559,7 +1559,7 @@ _btxld=		usr.sbin/btxld
 .endif
 .endif
 .if ${TARGET_ARCH} != ${MACHINE_ARCH}
-.if ${MK_RESCUE} != "no" || defined(RELEASEDIR)
+.if ${MK_RESCUE} != "no"
 _crunchide=	usr.sbin/crunch/crunchide
 .endif
 .if ${TARGET_ARCH} == "i386" && defined(RELEASEDIR)
