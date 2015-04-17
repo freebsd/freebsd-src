@@ -115,7 +115,7 @@ typedef struct callout sscop_timer_t;
 	ng_callout(&(S)->t_##T, (S)->aarg, NULL,			\
 	    hz * (S)->timer##T / 1000, T##_func, (S), 0);		\
     } while (0)
-#define	TIMER_ISACT(S, T) ((S)->t_##T.c_flags & (CALLOUT_PENDING))
+#define	TIMER_ISACT(S, T) (callout_pending(&(S)->t_##T))
 
 /*
  * This assumes, that the user argument is the node pointer.
