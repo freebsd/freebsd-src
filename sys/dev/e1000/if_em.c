@@ -2305,16 +2305,8 @@ em_local_timer(void *arg)
 	return;
 hung:
 	/* Looks like we're hung */
-	device_printf(adapter->dev, "Watchdog timeout -- resetting\n");
-	device_printf(adapter->dev,
-	    "Queue(%d) tdh = %d, hw tdt = %d\n", txr->me,
-	    E1000_READ_REG(&adapter->hw, E1000_TDH(txr->me)),
-	    E1000_READ_REG(&adapter->hw, E1000_TDT(txr->me)));
-	device_printf(adapter->dev,"TX(%d) desc avail = %d,"
-	    "Next TX to Clean = %d\n",
-	    txr->me, txr->tx_avail, txr->next_to_clean);
-
-
+	device_printf(adapter->dev, "Watchdog timeout Queue[%d]-- resetting\n",
+			txr->me);
 	em_print_debug_info(adapter);
 	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 	adapter->watchdog_events++;
@@ -3508,10 +3500,14 @@ em_initialize_transmit_unit(struct adapter *adapter)
 
 		txr->queue_status = EM_QUEUE_IDLE;
 		txdctl = E1000_READ_REG(hw, E1000_TXDCTL(i));
+		txdctl = 0; /* clear txdctl */
                 txdctl |= 0x1f; /* PTHRESH */
                 txdctl |= 1 << 8; /* HTHRESH */
                 txdctl |= 1 << 16;/* WTHRESH */
-                txdctl |= E1000_TXDCTL_QUEUE_ENABLE; 
+		txdctl |= 1 << 22; /* Reserved bit 22 must always be 1 */
+		txdctl |= E1000_TXDCTL_GRAN;
+                txdctl |= 1 << 25; /* LWTHRESH */
+
                 E1000_WRITE_REG(hw, E1000_TXDCTL(i), txdctl);
 	}
 
@@ -4367,11 +4363,14 @@ em_initialize_receive_unit(struct adapter *adapter)
 	** using the EITR register (82574 only)
 	*/
 	if (hw->mac.type == e1000_82574) {
+		u32 rfctl;
 		for (int i = 0; i < 4; i++)
 			E1000_WRITE_REG(hw, E1000_EITR_82574(i),
 			    DEFAULT_ITR);
 		/* Disable accelerated acknowledge */
-		E1000_WRITE_REG(hw, E1000_RFCTL, E1000_RFCTL_ACK_DIS);
+		rfctl = E1000_READ_REG(hw, E1000_RFCTL);
+		rfctl |= E1000_RFCTL_ACK_DIS;
+		E1000_WRITE_REG(hw, E1000_RFCTL, rfctl);
 	}
 
 	rxcsum = E1000_READ_REG(hw, E1000_RXCSUM);
@@ -4470,22 +4469,18 @@ em_initialize_receive_unit(struct adapter *adapter)
 	    (if_getmtu(ifp) > ETHERMTU)) {
 		u32 rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(0));
 		E1000_WRITE_REG(hw, E1000_RXDCTL(0), rxdctl | 3);
-	}
-#if 0
 	} else if ((adapter->hw.mac.type == e1000_82574) &&
 		  (if_getmtu(ifp) > ETHERMTU)) {
 		for (int i = 0; i < adapter->num_rx_queues; i++) {
 			u32 rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(i));
 
-                	rxdctl |= 0x1f; /* PTHRESH */
-                	rxdctl |= 1 << 8; /* HTHRESH */
-                	rxdctl |= 5 << 16;/* WTHRESH */
-			rxdctl |= 0x00400000; /*Enable counting*/
-			rxdctl |= 0x10000000; /* Switch to granularity */
+                	rxdctl |= 0x20; /* PTHRESH */
+                	rxdctl |= 4 << 8; /* HTHRESH */
+                	rxdctl |= 4 << 16;/* WTHRESH */
+			rxdctl |= 1 << 24; /* Switch to granularity */
 			E1000_WRITE_REG(hw, E1000_RXDCTL(i), rxdctl);
 		}
 	}
-#endif
 		
 	if (adapter->hw.mac.type >= e1000_pch2lan) {
 		if (if_getmtu(ifp) > ETHERMTU)
