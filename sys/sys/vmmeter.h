@@ -118,7 +118,7 @@ struct vmmeter {
 
 extern struct vmmeter vm_cnt;
 
-extern int vm_pageout_wakeup_thresh;
+extern u_int vm_pageout_wakeup_thresh;
 
 /*
  * Return TRUE if we are under our severe low-free-pages threshold
