@@ -662,9 +662,6 @@ emac_intr(void *arg)
 
 	sc = (struct emac_softc *)arg;
 	EMAC_LOCK(sc);
-	ifp = sc->emac_ifp;
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-		return;
 
 	/* Disable all interrupts */
 	EMAC_WRITE_REG(sc, EMAC_INT_CTL, 0);
@@ -678,18 +675,17 @@ emac_intr(void *arg)
 		emac_rxeof(sc, sc->emac_rx_process_limit);
 
 	/* Transmit Interrupt check */
-	if (reg_val & EMAC_INT_STA_TX){
+	if (reg_val & EMAC_INT_STA_TX) {
 		emac_txeof(sc);
+		ifp = sc->emac_ifp;
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			emac_start_locked(ifp);
 	}
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
-		/* Re-enable interrupt mask */
-		reg_val = EMAC_READ_REG(sc, EMAC_INT_CTL);
-		reg_val |= EMAC_INT_EN;
-		EMAC_WRITE_REG(sc, EMAC_INT_CTL, reg_val);
-	}
+	/* Re-enable interrupt mask */
+	reg_val = EMAC_READ_REG(sc, EMAC_INT_CTL);
+	reg_val |= EMAC_INT_EN;
+	EMAC_WRITE_REG(sc, EMAC_INT_CTL, reg_val);
 	EMAC_UNLOCK(sc);
 }
 
