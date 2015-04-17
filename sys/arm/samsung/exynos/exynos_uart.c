@@ -380,6 +380,7 @@ static struct uart_class uart_exynos4210_class = {
 	.uc_ops = &uart_exynos4210_ops,
 	.uc_range = 8,
 	.uc_rclk = 0,
+	.uc_rshift = 0
 };
 
 static struct ofw_compat_data compat_data[] = {

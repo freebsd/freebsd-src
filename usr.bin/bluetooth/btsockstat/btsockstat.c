@@ -39,6 +39,7 @@
 
 #include <net/if.h>
 
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <err.h>
 #include <fcntl.h>

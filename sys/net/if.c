@@ -2759,6 +2759,7 @@ if_drvioctl(struct ifnet *ifp, u_long cmd, void *data, struct thread *td)
 	case SIOCGIFPSRCADDR:
 	case SIOCGIFPDSTADDR:
 	case SIOCGIFMEDIA:
+	case SIOCGIFXMEDIA:
 	case SIOCGIFGENERIC:
 		error = if_ioctl(ifp, cmd, data, td);
 		break;

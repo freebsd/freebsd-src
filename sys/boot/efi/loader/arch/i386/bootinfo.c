@@ -219,7 +219,7 @@ bi_load(struct preloaded_file *fp, uint64_t *bi_addr)
 	bi.bi_version = 1;
 //	bi.bi_boothowto = bi_getboothowto(fp->f_args);
 
-	/* 
+	/*
 	 * Allow the environment variable 'rootdev' to override the supplied
 	 * device. This should perhaps go to MI code and/or have $rootdev
 	 * tested/set by MI code before launching the kernel.

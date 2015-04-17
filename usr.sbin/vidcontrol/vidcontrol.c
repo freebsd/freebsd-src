@@ -1343,7 +1343,7 @@ main(int argc, char **argv)
 	if (vt4_mode)
 		opts = "b:Cc:fg:h:Hi:M:m:pPr:S:s:T:t:x";
 	else
-		opts = "b:Cc:df:g:h:Hi:l:LM:m:pPr:S:s:T:t:x";
+		opts = "b:Cc:dfg:h:Hi:l:LM:m:pPr:S:s:T:t:x";
 
 	while ((opt = getopt(argc, argv, opts)) != -1)
 		switch(opt) {

@@ -358,15 +358,13 @@ emac_rxeof(struct emac_softc *sc, int count)
 				return;
 			m->m_len = m->m_pkthdr.len = MCLBYTES;
 
-			len -= ETHER_CRC_LEN;
-
 			/* Copy entire frame to mbuf first. */
 			bus_space_read_multi_4(sc->emac_tag, sc->emac_handle,
 			    EMAC_RX_IO_DATA, mtod(m, uint32_t *),
 			    roundup2(len, 4) / 4);
 
 			m->m_pkthdr.rcvif = ifp;
-			m->m_len = m->m_pkthdr.len = len;
+			m->m_len = m->m_pkthdr.len = len - ETHER_CRC_LEN;
 
 			/*
 			 * Emac controller needs strict aligment, so to avoid

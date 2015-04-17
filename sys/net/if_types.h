@@ -248,10 +248,10 @@ typedef enum {
 	 * We should make them negative probably.
 	 * This requires changes to struct if_data.
 	 */
-	IFT_GIF		= 0xf0,
-	IFT_PVC		= 0xf1,
-	IFT_ENC		= 0xf4,
-	IFT_PFLOG	= 0xf6,
-	IFT_PFSYNC	= 0xf7,
+	IFT_GIF		= 0xf0,		/* Generic tunnel interface */
+	IFT_PVC		= 0xf1,		/* Unused */
+	IFT_ENC		= 0xf4,		/* Encapsulating interface */
+	IFT_PFLOG	= 0xf6,		/* PF packet filter logging */
+	IFT_PFSYNC	= 0xf7,		/* PF packet filter synchronization */
 } ifType;
 #endif /* !_NET_IF_TYPES_H_ */

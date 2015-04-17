@@ -2,6 +2,6 @@
 
 PROG=	unix_passfd
 MAN=
-WARNS?=	2
+WARNS?=	3
 
 .include <bsd.prog.mk>

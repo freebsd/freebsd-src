@@ -40,7 +40,7 @@ static const char sccsid[] = "$Id: v_replace.c,v 10.24 2001/06/25 15:19:34 skimo
  * <literal> character, it required three <literal> characters after the
  * command.  This may not be right, but at least it's not insane.
  *
- * PUBLIC: int v_replace __P((SCR *, VICMD *));
+ * PUBLIC: int v_replace(SCR *, VICMD *);
  */
 int
 v_replace(SCR *sp, VICMD *vp)

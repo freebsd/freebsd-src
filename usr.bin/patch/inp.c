@@ -57,8 +57,9 @@ static char	empty_line[] = { '\0' };
 static int	tifd = -1;	/* plan b virtual string array */
 static char	*tibuf[2];	/* plan b buffers */
 static LINENUM	tiline[2] = {-1, -1};	/* 1st line in each buffer */
-static LINENUM	lines_per_buf;	/* how many lines per buffer */
-static int	tireclen;	/* length of records in tmp file */
+static size_t	lines_per_buf;	/* how many lines per buffer */
+static size_t	tibuflen;	/* plan b buffer length */
+static size_t	tireclen;	/* length of records in tmp file */
 
 static bool	rev_in_string(const char *);
 static bool	reallocate_lines(size_t *);
@@ -319,7 +320,7 @@ plan_a(const char *filename)
 	/* now check for revision, if any */
 
 	if (revision != NULL) {
-		if (!rev_in_string(i_womp)) {
+		if (i_womp == NULL || !rev_in_string(i_womp)) {
 			if (force) {
 				if (verbose)
 					say("Warning: this file doesn't appear "
@@ -349,8 +350,8 @@ static void
 plan_b(const char *filename)
 {
 	FILE	*ifp;
-	size_t	i = 0, j, maxlen = 1;
-	char	*p;
+	size_t	i = 0, j, len, maxlen = 1;
+	char	*lbuf = NULL, *p;
 	bool	found_revision = (revision == NULL);
 
 	using_plan_a = false;
@@ -359,15 +360,28 @@ plan_b(const char *filename)
 	unlink(TMPINNAME);
 	if ((tifd = open(TMPINNAME, O_EXCL | O_CREAT | O_WRONLY, 0666)) < 0)
 		pfatal("can't open file %s", TMPINNAME);
-	while (fgets(buf, buf_size, ifp) != NULL) {
-		if (revision != NULL && !found_revision && rev_in_string(buf))
+	while ((p = fgetln(ifp, &len)) != NULL) {
+		if (p[len - 1] == '\n')
+			p[len - 1] = '\0';
+		else {
+			/* EOF without EOL, copy and add the NUL */
+			if ((lbuf = malloc(len + 1)) == NULL)
+				fatal("out of memory\n");
+			memcpy(lbuf, p, len);
+			lbuf[len] = '\0';
+			p = lbuf;
+
+			last_line_missing_eol = true;
+			len++;
+		}
+		if (revision != NULL && !found_revision && rev_in_string(p))
 			found_revision = true;
-		if ((i = strlen(buf)) > maxlen)
-			maxlen = i;	/* find longest line */
+		if (len > maxlen)
+			maxlen = len;   /* find longest line */
 	}
-	last_line_missing_eol = i > 0 && buf[i - 1] != '\n';
-	if (last_line_missing_eol && maxlen == i)
-		maxlen++;
+	free(lbuf);
+	if (ferror(ifp))
+		pfatal("can't read file %s", filename);
 
 	if (revision != NULL) {
 		if (!found_revision) {
@@ -392,23 +406,26 @@ plan_b(const char *filename)
 			    revision);
 	}
 	fseek(ifp, 0L, SEEK_SET);	/* rewind file */
-	lines_per_buf = BUFFERSIZE / maxlen;
 	tireclen = maxlen;
-	tibuf[0] = malloc(BUFFERSIZE + 1);
+	tibuflen = maxlen > BUFFERSIZE ? maxlen : BUFFERSIZE;
+	lines_per_buf = tibuflen / maxlen;
+	tibuf[0] = malloc(tibuflen + 1);
 	if (tibuf[0] == NULL)
 		fatal("out of memory\n");
-	tibuf[1] = malloc(BUFFERSIZE + 1);
+	tibuf[1] = malloc(tibuflen + 1);
 	if (tibuf[1] == NULL)
 		fatal("out of memory\n");
 	for (i = 1;; i++) {
 		p = tibuf[0] + maxlen * (i % lines_per_buf);
 		if (i % lines_per_buf == 0)	/* new block */
-			if (write(tifd, tibuf[0], BUFFERSIZE) < BUFFERSIZE)
+			if (write(tifd, tibuf[0], tibuflen) !=
+			    (ssize_t) tibuflen)
 				pfatal("can't write temp file");
 		if (fgets(p, maxlen + 1, ifp) == NULL) {
 			input_lines = i - 1;
 			if (i % lines_per_buf != 0)
-				if (write(tifd, tibuf[0], BUFFERSIZE) < BUFFERSIZE)
+				if (write(tifd, tibuf[0], tibuflen) !=
+				    (ssize_t) tibuflen)
 					pfatal("can't write temp file");
 			break;
 		}
@@ -450,10 +467,11 @@ ifetch(LINENUM line, int whichbuf)
 			tiline[whichbuf] = baseline;
 
 			if (lseek(tifd, (off_t) (baseline / lines_per_buf *
-			    BUFFERSIZE), SEEK_SET) < 0)
+			    tibuflen), SEEK_SET) < 0)
 				pfatal("cannot seek in the temporary input file");
 
-			if (read(tifd, tibuf[whichbuf], BUFFERSIZE) < 0)
+			if (read(tifd, tibuf[whichbuf], tibuflen) !=
+			    (ssize_t) tibuflen)
 				pfatal("error reading tmp file %s", TMPINNAME);
 		}
 		return tibuf[whichbuf] + (tireclen * offline);

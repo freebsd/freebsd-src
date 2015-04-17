@@ -3173,11 +3173,6 @@ re_init(struct rl_softc *sc)
 		    ~0x00080000);
 
 	/*
-	 * Enable transmit and receive.
-	 */
-	CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_TX_ENB|RL_CMD_RX_ENB);
-
-	/*
 	 * Set the initial TX configuration.
 	 */
 	if (sc->rl_testmode) {
@@ -3203,6 +3198,11 @@ re_init(struct rl_softc *sc)
 		CSR_WRITE_2(sc, RL_INTRMOD, 0x5100);
 	}
 
+	/*
+	 * Enable transmit and receive.
+	 */
+	CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_TX_ENB | RL_CMD_RX_ENB);
+
 #ifdef DEVICE_POLLING
 	/*
 	 * Disable interrupts if we are polling.
@@ -3226,10 +3226,6 @@ re_init(struct rl_softc *sc)
 
 	/* Start RX/TX process. */
 	CSR_WRITE_4(sc, RL_MISSEDPKT, 0);
-#ifdef notdef
-	/* Enable receiver and transmitter. */
-	CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_TX_ENB|RL_CMD_RX_ENB);
-#endif
 
 	/*
 	 * Initialize the timer interrupt register so that
