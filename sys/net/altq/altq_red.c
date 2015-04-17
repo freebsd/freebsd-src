@@ -1,7 +1,4 @@
-/*	$FreeBSD$	*/
-/*	$KAME: altq_red.c,v 1.18 2003/09/05 22:40:36 itojun Exp $	*/
-
-/*
+/*-
  * Copyright (C) 1997-2003
  *	Sony Computer Science Laboratories Inc.  All rights reserved.
  *
@@ -27,7 +24,7 @@
  * SUCH DAMAGE.
  *
  */
-/*
+/*-
  * Copyright (c) 1990-1994 Regents of the University of California.
  * All rights reserved.
  *
@@ -58,15 +55,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $KAME: altq_red.c,v 1.18 2003/09/05 22:40:36 itojun Exp $
+ * $FreeBSD$	
  */
 
-#if defined(__FreeBSD__) || defined(__NetBSD__)
 #include "opt_altq.h"
 #include "opt_inet.h"
-#ifdef __FreeBSD__
 #include "opt_inet6.h"
-#endif
-#endif /* __FreeBSD__ || __NetBSD__ */
 #ifdef ALTQ_RED	/* red is enabled by ALTQ_RED option in opt_altq.h */
 
 #include <sys/param.h>
@@ -944,11 +940,7 @@ redioctl(dev, cmd, addr, flag, p)
 				break;
 			}
 
-#ifdef __NetBSD__
 			s = splnet();
-#else
-			s = splimp();
-#endif
 			red_purgeq(rqp);
 			limit = fc->red_limit;
 			if (limit < fc->red_thmax)

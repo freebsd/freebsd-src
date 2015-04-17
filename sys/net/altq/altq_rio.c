@@ -1,7 +1,4 @@
-/*	$FreeBSD$	*/
-/*	$KAME: altq_rio.c,v 1.17 2003/07/10 12:07:49 kjc Exp $	*/
-
-/*
+/*-
  * Copyright (C) 1998-2003
  *	Sony Computer Science Laboratories Inc.  All rights reserved.
  *
@@ -26,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-/*
+/*-
  * Copyright (c) 1990-1994 Regents of the University of California.
  * All rights reserved.
  *
@@ -57,15 +54,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $KAME: altq_rio.c,v 1.17 2003/07/10 12:07:49 kjc Exp $
+ * $FreeBSD$
  */
 
-#if defined(__FreeBSD__) || defined(__NetBSD__)
 #include "opt_altq.h"
 #include "opt_inet.h"
-#ifdef __FreeBSD__
 #include "opt_inet6.h"
-#endif
-#endif /* __FreeBSD__ || __NetBSD__ */
 #ifdef ALTQ_RIO	/* rio is enabled by ALTQ_RIO option in opt_altq.h */
 
 #include <sys/param.h>
@@ -684,11 +680,7 @@ rioioctl(dev, cmd, addr, flag, p)
 				break;
 			}
 
-#ifdef __NetBSD__
 			s = splnet();
-#else
-			s = splimp();
-#endif
 			_flushq(rqp->rq_q);
 			limit = fc->rio_limit;
 			if (limit < fc->q_params[RIO_NDROPPREC-1].th_max)
