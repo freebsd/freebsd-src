@@ -497,6 +497,19 @@ INTERRUPT(int_watchdog)
 	b	trap_common
 
 
+#ifdef HWPMC_HOOKS
+/*****************************************************************************
+ * PMC Interrupt
+ ****************************************************************************/
+INTERRUPT(int_performance_counter)
+	STANDARD_PROLOG(SPR_SPRG3, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
+	FRAME_SETUP(SPR_SPRG3, PC_TEMPSAVE, EXC_PERF)
+	addi	%r3, %r1, 8
+	bl	CNAME(powerpc_pmc_interrupt)
+	b	trapexit
+#endif
+
+
 /*****************************************************************************
  * Data TLB miss interrupt
  *
