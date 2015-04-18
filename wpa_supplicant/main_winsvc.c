@@ -119,7 +119,7 @@ static int read_interface(struct wpa_global *global, HKEY _hk,
 
 	RegCloseKey(hk);
 
-	if (wpa_supplicant_add_iface(global, &iface) == NULL) {
+	if (wpa_supplicant_add_iface(global, &iface, NULL) == NULL) {
 		if (skip_on_error)
 			wpa_printf(MSG_DEBUG, "Skipped interface '%s' due to "
 				   "initialization failure", iface.ifname);

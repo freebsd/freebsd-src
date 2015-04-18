@@ -59,6 +59,14 @@ static int wps_set_vendor_ext_wfa_subelem(struct wps_parse_attr *attr,
 		}
 		attr->settings_delay_time = pos;
 		break;
+	case WFA_ELEM_REGISTRAR_CONFIGURATION_METHODS:
+		if (len != 2) {
+			wpa_printf(MSG_DEBUG, "WPS: Invalid Registrar Configuration Methods length %u",
+				   len);
+			return -1;
+		}
+		attr->registrar_configuration_methods = pos;
+		break;
 	default:
 		wpa_printf(MSG_MSGDUMP, "WPS: Skipped unknown WFA Vendor "
 			   "Extension subelement %u", id);
@@ -75,7 +83,7 @@ static int wps_parse_vendor_ext_wfa(struct wps_parse_attr *attr, const u8 *pos,
 	const u8 *end = pos + len;
 	u8 id, elen;
 
-	while (pos + 2 < end) {
+	while (pos + 2 <= end) {
 		id = *pos++;
 		elen = *pos++;
 		if (pos + elen > end)
@@ -263,10 +271,13 @@ static int wps_set_attr(struct wps_parse_attr *attr, u16 type,
 		attr->dev_password_id = pos;
 		break;
 	case ATTR_OOB_DEVICE_PASSWORD:
-		if (len < WPS_OOB_PUBKEY_HASH_LEN + 2 +
-		    WPS_OOB_DEVICE_PASSWORD_MIN_LEN ||
+		if (len < WPS_OOB_PUBKEY_HASH_LEN + 2 ||
 		    len > WPS_OOB_PUBKEY_HASH_LEN + 2 +
-		    WPS_OOB_DEVICE_PASSWORD_LEN) {
+		    WPS_OOB_DEVICE_PASSWORD_LEN ||
+		    (len < WPS_OOB_PUBKEY_HASH_LEN + 2 +
+		     WPS_OOB_DEVICE_PASSWORD_MIN_LEN &&
+		     WPA_GET_BE16(pos + WPS_OOB_PUBKEY_HASH_LEN) !=
+		     DEV_PW_NFC_CONNECTION_HANDOVER)) {
 			wpa_printf(MSG_DEBUG, "WPS: Invalid OOB Device "
 				   "Password length %u", len);
 			return -1;
@@ -410,22 +421,6 @@ static int wps_set_attr(struct wps_parse_attr *attr, u16 type,
 		}
 		attr->mac_addr = pos;
 		break;
-	case ATTR_KEY_PROVIDED_AUTO:
-		if (len != 1) {
-			wpa_printf(MSG_DEBUG, "WPS: Invalid Key Provided "
-				   "Automatically length %u", len);
-			return -1;
-		}
-		attr->key_prov_auto = pos;
-		break;
-	case ATTR_802_1X_ENABLED:
-		if (len != 1) {
-			wpa_printf(MSG_DEBUG, "WPS: Invalid 802.1X Enabled "
-				   "length %u", len);
-			return -1;
-		}
-		attr->dot1x_enabled = pos;
-		break;
 	case ATTR_SELECTED_REGISTRAR:
 		if (len != 1) {
 			wpa_printf(MSG_DEBUG, "WPS: Invalid Selected Registrar"
@@ -496,14 +491,6 @@ static int wps_set_attr(struct wps_parse_attr *attr, u16 type,
 	case ATTR_NETWORK_KEY:
 		attr->network_key = pos;
 		attr->network_key_len = len;
-		break;
-	case ATTR_EAP_TYPE:
-		attr->eap_type = pos;
-		attr->eap_type_len = len;
-		break;
-	case ATTR_EAP_IDENTITY:
-		attr->eap_identity = pos;
-		attr->eap_identity_len = len;
 		break;
 	case ATTR_AP_SETUP_LOCKED:
 		if (len != 1) {

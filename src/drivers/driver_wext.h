@@ -44,12 +44,6 @@ struct wpa_driver_wext_data {
 	int cfg80211; /* whether driver is using cfg80211 */
 
 	u8 max_level;
-
-#ifdef ANDROID
-	int errors;
-	int driver_is_started;
-	int bgscan_enabled;
-#endif /* ANDROID */
 };
 
 int wpa_driver_wext_get_bssid(void *priv, u8 *bssid);

@@ -15,10 +15,12 @@
     <cmdsynopsis>
       <command>wpa_cli</command>
       <arg>-p <replaceable>path to ctrl sockets</replaceable></arg>
+      <arg>-g <replaceable>path to global ctrl_interface socket</replaceable></arg>
       <arg>-i <replaceable>ifname</replaceable></arg>
       <arg>-hvB</arg>
       <arg>-a <replaceable>action file</replaceable></arg>
       <arg>-P <replaceable>pid file</replaceable></arg>
+      <arg>-G <replaceable>ping interval</replaceable></arg>
       <arg><replaceable>command ...</replaceable></arg>
     </cmdsynopsis>
   </refsynopsisdiv>
@@ -111,6 +113,14 @@ CTRL-REQ-OTP-2:Challenge 1235663 needed for SSID foobar
       </varlistentry>
 
       <varlistentry>
+	<term>-g control socket path</term>
+
+	<listitem><para>Connect to the global control socket at the
+	indicated path rather than an interface-specific control
+	socket.</para></listitem>
+      </varlistentry>
+
+      <varlistentry>
 	<term>-i ifname</term>
 
         <listitem><para>Specify the interface that is being
@@ -158,6 +168,13 @@ CTRL-REQ-OTP-2:Challenge 1235663 needed for SSID foobar
 
 	<listitem><para>Set the location of the PID
 	file.</para></listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-G ping interval</term>
+
+	<listitem><para>Set the interval (in seconds) at which
+	wpa_cli pings the supplicant.</para></listitem>
       </varlistentry>
 
       <varlistentry>
@@ -328,7 +345,7 @@ CTRL-REQ-OTP-2:Challenge 1235663 needed for SSID foobar
   </refsect1>
   <refsect1>
     <title>Legal</title>
-    <para>wpa_supplicant is copyright (c) 2003-2012,
+    <para>wpa_supplicant is copyright (c) 2003-2015,
     Jouni Malinen <email>j@w1.fi</email> and
     contributors.
     All Rights Reserved.</para>

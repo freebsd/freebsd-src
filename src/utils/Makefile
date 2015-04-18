@@ -1,7 +1,7 @@
 all: libutils.a
 
 clean:
-	rm -f *~ *.o *.d libutils.a
+	rm -f *~ *.o *.d *.gcno *.gcda *.gcov libutils.a
 
 install:
 	@echo Nothing to be made.
@@ -11,9 +11,11 @@ include ../lib.rules
 
 #CFLAGS += -DWPA_TRACE
 CFLAGS += -DCONFIG_IPV6
+CFLAGS += -DCONFIG_DEBUG_FILE
 
 LIB_OBJS= \
 	base64.o \
+	bitfield.o \
 	common.o \
 	ip_addr.o \
 	radiotap.o \

@@ -456,7 +456,7 @@ int tlsv1_record_receive(struct tlsv1_record_layer *rl,
 			return -1;
 		}
 		if (hlen != rl->hash_size ||
-		    os_memcmp(hash, out_data + plen, hlen) != 0 ||
+		    os_memcmp_const(hash, out_data + plen, hlen) != 0 ||
 		    force_mac_error) {
 			wpa_printf(MSG_DEBUG, "TLSv1: Invalid HMAC value in "
 				   "received message (force_mac_error=%d)",
