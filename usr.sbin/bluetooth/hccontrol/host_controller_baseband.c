@@ -1491,7 +1491,7 @@ hci_write_page_scan_mode(int s, int argc, char **argv)
 static int
 hci_read_le_host_supported_command(int s, int argc, char **argv) 
 {
-	ng_hci_read_le_host_supported_rp	rp;
+	ng_hci_read_le_host_supported_rp rp;
 	int n;
 	n = sizeof(rp);
 	if (hci_simple_request(s, NG_HCI_OPCODE(NG_HCI_OGF_HC_BASEBAND,
@@ -1514,10 +1514,10 @@ hci_read_le_host_supported_command(int s, int argc, char **argv)
 static int
 hci_write_le_host_supported_command(int s, int argc, char **argv) 
 {
-	ng_hci_write_le_host_supported_cp	cp;
-	ng_hci_write_le_host_supported_rp	rp;
+	ng_hci_write_le_host_supported_cp cp;
+	ng_hci_write_le_host_supported_rp rp;
 
-	int				n;
+	int n;
 
 	cp.le_supported_host = 0;
 	cp.simultaneous_le_host = 0;
