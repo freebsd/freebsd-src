@@ -1090,35 +1090,6 @@ pass_accept_req_to_protohdrs(const struct mbuf *m, struct in_conninfo *inc,
 	}
 }
 
-static int
-ifnet_has_ip6(struct ifnet *ifp, struct in6_addr *ip6)
-{
-	struct ifaddr *ifa;
-	struct sockaddr_in6 *sin6;
-	int found = 0;
-	struct in6_addr in6 = *ip6;
-
-	/* Just as in ip6_input */
-	if (in6_clearscope(&in6) || in6_clearscope(&in6))
-		return (0);
-	in6_setscope(&in6, ifp, NULL);
-
-	if_addr_rlock(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-		sin6 = (void *)ifa->ifa_addr;
-		if (sin6->sin6_family != AF_INET6)
-			continue;
-
-		if (IN6_ARE_ADDR_EQUAL(&sin6->sin6_addr, &in6)) {
-			found = 1;
-			break;
-		}
-	}
-	if_addr_runlock(ifp);
-
-	return (found);
-}
-
 static struct l2t_entry *
 get_l2te_for_nexthop(struct port_info *pi, struct ifnet *ifp,
     struct in_conninfo *inc)
@@ -1164,29 +1135,6 @@ get_l2te_for_nexthop(struct port_info *pi, struct ifnet *ifp,
 	}
 
 	return (e);
-}
-
-static int
-ifnet_has_ip(struct ifnet *ifp, struct in_addr in)
-{
-	struct ifaddr *ifa;
-	struct sockaddr_in *sin;
-	int found = 0;
-
-	if_addr_rlock(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-		sin = (void *)ifa->ifa_addr;
-		if (sin->sin_family != AF_INET)
-			continue;
-
-		if (sin->sin_addr.s_addr == in.s_addr) {
-			found = 1;
-			break;
-		}
-	}
-	if_addr_runlock(ifp);
-
-	return (found);
 }
 
 #define REJECT_PASS_ACCEPT()	do { \
@@ -1281,7 +1229,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 		 * SYN must be directed to an IP6 address on this ifnet.  This
 		 * is more restrictive than in6_localip.
 		 */
-		if (!ifnet_has_ip6(ifp, &inc.inc6_laddr))
+		if (!in6_ifhasaddr(ifp, &inc.inc6_laddr))
 			REJECT_PASS_ACCEPT();
 	} else {
 
@@ -1293,7 +1241,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 		 * SYN must be directed to an IP address on this ifnet.  This
 		 * is more restrictive than in_localip.
 		 */
-		if (!ifnet_has_ip(ifp, inc.inc_laddr))
+		if (!in_ifhasaddr(ifp, inc.inc_laddr))
 			REJECT_PASS_ACCEPT();
 	}
 

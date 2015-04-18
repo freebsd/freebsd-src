@@ -1,7 +1,4 @@
-/*	$FreeBSD$	*/
-/*	$KAME: altq.h,v 1.10 2003/07/10 12:07:47 kjc Exp $	*/
-
-/*
+/*-
  * Copyright (C) 1998-2003
  *	Sony Computer Science Laboratories Inc.  All rights reserved.
  *
@@ -25,6 +22,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $KAME: altq.h,v 1.10 2003/07/10 12:07:47 kjc Exp $
+ * $FreeBSD$
  */
 #ifndef _ALTQ_ALTQ_H_
 #define	_ALTQ_ALTQ_H_

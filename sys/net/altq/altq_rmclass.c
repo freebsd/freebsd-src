@@ -1,7 +1,4 @@
-/*	$FreeBSD$	*/
-/*	$KAME: altq_rmclass.c,v 1.19 2005/04/13 03:44:25 suz Exp $	*/
-
-/*
+/*-
  * Copyright (c) 1991-1997 Regents of the University of California.
  * All rights reserved.
  *
@@ -37,14 +34,12 @@
  * For questions and/or comments, please send mail to cbq@ee.lbl.gov
  *
  * @(#)rm_class.c  1.48     97/12/05 SMI
+ * $KAME: altq_rmclass.c,v 1.19 2005/04/13 03:44:25 suz Exp $
+ * $FreeBSD$
  */
-#if defined(__FreeBSD__) || defined(__NetBSD__)
 #include "opt_altq.h"
 #include "opt_inet.h"
-#ifdef __FreeBSD__
 #include "opt_inet6.h"
-#endif
-#endif /* __FreeBSD__ || __NetBSD__ */
 #ifdef ALTQ_CBQ	/* cbq is enabled by ALTQ_CBQ option in opt_altq.h */
 
 #include <sys/param.h>
@@ -306,11 +301,7 @@ rmc_newclass(int pri, struct rm_ifdat *ifd, u_int nsecPerByte,
 	/*
 	 * put the class into the class tree
 	 */
-#ifdef __NetBSD__
 	s = splnet();
-#else
-	s = splimp();
-#endif
 	IFQ_LOCK(ifd->ifq_);
 	if ((peer = ifd->active_[pri]) != NULL) {
 		/* find the last class at this pri */
@@ -359,11 +350,7 @@ rmc_modclass(struct rm_class *cl, u_int nsecPerByte, int maxq, u_int maxidle,
 	ifd = cl->ifdat_;
 	old_allotment = cl->allotment_;
 
-#ifdef __NetBSD__
 	s = splnet();
-#else
-	s = splimp();
-#endif
 	IFQ_LOCK(ifd->ifq_);
 	cl->allotment_ = RM_NS_PER_SEC / nsecPerByte; /* Bytes per sec */
 	cl->qthresh_ = 0;
@@ -559,11 +546,7 @@ rmc_delete_class(struct rm_ifdat *ifd, struct rm_class *cl)
 	if (cl->sleeping_)
 		CALLOUT_STOP(&cl->callout_);
 
-#ifdef __NetBSD__
 	s = splnet();
-#else
-	s = splimp();
-#endif
 	IFQ_LOCK(ifd->ifq_);
 	/*
 	 * Free packets in the packet queue.
@@ -1531,13 +1514,8 @@ rmc_delay_action(struct rm_class *cl, struct rm_class *borrow)
 		 * a 'backstop' to restart this class.
 		 */
 		if (delay > tick * 2) {
-#ifdef __FreeBSD__
 			/* FreeBSD rounds up the tick */
 			t = hzto(&cl->undertime_);
-#else
-			/* other BSDs round down the tick */
-			t = hzto(&cl->undertime_) + 1;
-#endif
 		} else
 			t = 2;
 		CALLOUT_RESET(&cl->callout_, t,
@@ -1568,11 +1546,7 @@ rmc_restart(struct rm_class *cl)
 	struct rm_ifdat	*ifd = cl->ifdat_;
 	int		 s;
 
-#ifdef __NetBSD__
 	s = splnet();
-#else
-	s = splimp();
-#endif
 	IFQ_LOCK(ifd->ifq_);
 	if (cl->sleeping_) {
 		cl->sleeping_ = 0;

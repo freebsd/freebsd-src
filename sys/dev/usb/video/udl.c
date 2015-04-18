@@ -76,6 +76,11 @@ static int udl_fps = 25;
 SYSCTL_INT(_hw_usb_udl, OID_AUTO, fps, CTLFLAG_RWTUN,
     &udl_fps, 0, "Frames Per Second, 1-60");
 
+static struct mtx udl_buffer_mtx;
+static struct udl_buffer_head udl_buffer_head;
+
+MALLOC_DEFINE(M_USB_DL, "USB", "USB DisplayLink");
+
 /*
  * Prototypes.
  */
@@ -174,6 +179,56 @@ static const STRUCT_USB_HOST_ID udl_devs[] = {
 	{USB_VPI(USB_VENDOR_DISPLAYLINK, USB_PRODUCT_DISPLAYLINK_POLARIS2, DLUNK)},
 	{USB_VPI(USB_VENDOR_DISPLAYLINK, USB_PRODUCT_DISPLAYLINK_LT1421, DLUNK)}
 };
+
+static void
+udl_buffer_init(void *arg)
+{
+	mtx_init(&udl_buffer_mtx, "USB", "UDL", MTX_DEF);
+	TAILQ_INIT(&udl_buffer_head);
+}
+SYSINIT(udl_buffer_init, SI_SUB_LOCK, SI_ORDER_FIRST, udl_buffer_init, NULL);
+
+CTASSERT(sizeof(struct udl_buffer) < PAGE_SIZE);
+
+static void *
+udl_buffer_alloc(uint32_t size)
+{
+	struct udl_buffer *buf;
+	mtx_lock(&udl_buffer_mtx);
+	TAILQ_FOREACH(buf, &udl_buffer_head, entry) {
+		if (buf->size == size) {
+			TAILQ_REMOVE(&udl_buffer_head, buf, entry);
+			break;
+		}
+	}
+	mtx_unlock(&udl_buffer_mtx);
+	if (buf != NULL) {
+		/* wipe and recycle buffer */
+		memset(buf, 0, size);
+		return (buf);
+	}
+	/* allocate new buffer */
+	return (malloc(size, M_USB_DL, M_WAITOK | M_ZERO));
+}
+
+static void
+udl_buffer_free(void *_buf, uint32_t size)
+{
+	struct udl_buffer *buf;
+
+	buf = (struct udl_buffer *)_buf;
+	if (buf == NULL)
+		return;
+
+	/*
+	 * Memory mapped buffers should never be freed.
+	 * Put display buffer into a recycle list.
+	 */
+	mtx_lock(&udl_buffer_mtx);
+	buf->size = size;
+	TAILQ_INSERT_TAIL(&udl_buffer_head, buf, entry);
+	mtx_unlock(&udl_buffer_mtx);
+}
 
 static uint32_t
 udl_get_fb_size(struct udl_softc *sc)
@@ -403,11 +458,11 @@ udl_detach(device_t dev)
 	mtx_destroy(&sc->sc_mtx);
 	cv_destroy(&sc->sc_cv);
 
-	/*
-	 * Free framebuffer memory, if any.
-	 */
-	free(sc->sc_fb_addr, M_DEVBUF);
-	free(sc->sc_fb_copy, M_DEVBUF);
+	/* put main framebuffer into a recycle list, if any */
+	udl_buffer_free(sc->sc_fb_addr, sc->sc_fb_size);
+
+	/* free shadow framebuffer memory, if any */
+	free(sc->sc_fb_copy, M_USB_DL);
 
 	return (0);
 }
@@ -782,13 +837,15 @@ udl_fbmem_alloc(struct udl_softc *sc)
 
 	size = udl_get_fb_size(sc);
 	size = round_page(size);
-
+	/* check for zero size */
+	if (size == 0)
+		size = PAGE_SIZE;
 	/*
 	 * It is assumed that allocations above PAGE_SIZE bytes will
 	 * be PAGE_SIZE aligned for use with mmap()
 	 */
-	sc->sc_fb_addr = malloc(size, M_DEVBUF, M_WAITOK | M_ZERO);
-	sc->sc_fb_copy = malloc(size, M_DEVBUF, M_WAITOK | M_ZERO);
+	sc->sc_fb_addr = udl_buffer_alloc(size);
+	sc->sc_fb_copy = malloc(size, M_USB_DL, M_WAITOK | M_ZERO);
 	sc->sc_fb_size = size;
 }
 
