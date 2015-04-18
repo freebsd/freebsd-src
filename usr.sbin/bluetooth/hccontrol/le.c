@@ -43,6 +43,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdint.h>
 #define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include "hccontrol.h"
@@ -233,7 +234,7 @@ le_read_local_supported_features(int s, int argc ,char *argv[])
 			(void *)&rp, &n);
 
 	printf("LOCAL SUPPORTED: %d %d %jx\n", e, rp.status,
-			rp.le_features);
+	       (uintmax_t) rp.le_features);
 
 	return 0;
 }
@@ -250,7 +251,7 @@ le_read_supported_status(int s, int argc, char *argv[])
 					NG_HCI_OCF_LE_READ_SUPPORTED_STATUS),
 			       		(void *)&rp, &n);
 
-	printf("LE_STATUS: %d %d %jx\n", e, rp.status, rp.le_status);
+	printf("LE_STATUS: %d %d %jx\n", e, rp.status, (uintmax_t)rp.le_status);
 
 	return 0;
 }
