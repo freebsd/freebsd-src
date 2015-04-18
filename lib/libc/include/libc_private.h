@@ -278,20 +278,11 @@ extern void (*__cleanup)(void) __hidden;
 
 /*
  * Get kern.osreldate to detect ABI revisions.  Explicitly
- * ignores value of $OSVERSION and caches result.  Prototypes
- * for the wrapped "new" pad-less syscalls are here for now.
+ * ignores value of $OSVERSION and caches result.
  */
 int __getosreldate(void);
 #include <sys/_types.h>
 #include <sys/_sigset.h>
-
-/* With pad */
-__off_t	__sys_freebsd6_lseek(int, int, __off_t, int);
-int	__sys_freebsd6_ftruncate(int, int, __off_t);
-int	__sys_freebsd6_truncate(const char *, int, __off_t);
-__ssize_t __sys_freebsd6_pread(int, void *, __size_t, int, __off_t);
-__ssize_t __sys_freebsd6_pwrite(int, const void *, __size_t, int, __off_t);
-void *	__sys_freebsd6_mmap(void *, __size_t, int, int, int, int, __off_t);
 
 struct aiocb;
 struct fd_set;
