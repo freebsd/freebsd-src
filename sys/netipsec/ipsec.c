@@ -1488,6 +1488,7 @@ ipsec_chkreplay(u_int32_t seq, struct secasvar *sav)
 int
 ipsec_updatereplay(u_int32_t seq, struct secasvar *sav)
 {
+	char buf[128];
 	struct secreplay *replay;
 	u_int32_t diff;
 	int fr;
@@ -1567,7 +1568,8 @@ ok:
 			return (1);
 
 		ipseclog((LOG_WARNING, "%s: replay counter made %d cycle. %s\n",
-		    __func__, replay->overflow, ipsec_logsastr(sav)));
+		    __func__, replay->overflow,
+		    ipsec_logsastr(sav, buf, sizeof(buf))));
 	}
 
 	replay->count++;
@@ -1598,67 +1600,37 @@ vshiftl(unsigned char *bitmap, int nbit, int wsize)
 	}
 }
 
-#ifdef INET
-/* Return a printable string for the IPv4 address. */
-static char *
-inet_ntoa4(struct in_addr ina)
-{
-	static char buf[4][4 * sizeof "123" + 4];
-	unsigned char *ucp = (unsigned char *) &ina;
-	static int i = 3;
-
-	/* XXX-BZ Returns static buffer. */
-	i = (i + 1) % 4;
-	sprintf(buf[i], "%d.%d.%d.%d", ucp[0] & 0xff, ucp[1] & 0xff,
-	    ucp[2] & 0xff, ucp[3] & 0xff);
-	return (buf[i]);
-}
-#endif
-
 /* Return a printable string for the address. */
-char *
-ipsec_address(union sockaddr_union* sa)
+char*
+ipsec_address(union sockaddr_union* sa, char *buf, socklen_t size)
 {
-#ifdef INET6
-	char ip6buf[INET6_ADDRSTRLEN];
-#endif
 
 	switch (sa->sa.sa_family) {
 #ifdef INET
 	case AF_INET:
-		return (inet_ntoa4(sa->sin.sin_addr));
+		return (inet_ntop(AF_INET, &sa->sin.sin_addr, buf, size));
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
-		return (ip6_sprintf(ip6buf, &sa->sin6.sin6_addr));
+		return (inet_ntop(AF_INET6, &sa->sin6.sin6_addr, buf, size));
 #endif /* INET6 */
 	default:
 		return ("(unknown address family)");
 	}
 }
 
-const char *
-ipsec_logsastr(struct secasvar *sav)
+char *
+ipsec_logsastr(struct secasvar *sav, char *buf, size_t size)
 {
-	static char buf[256];
-	char *p;
-	struct secasindex *saidx = &sav->sah->saidx;
+	char sbuf[INET6_ADDRSTRLEN], dbuf[INET6_ADDRSTRLEN];
 
-	IPSEC_ASSERT(saidx->src.sa.sa_family == saidx->dst.sa.sa_family,
-		("address family mismatch"));
+	IPSEC_ASSERT(sav->sah->saidx.src.sa.sa_family ==
+	    sav->sah->saidx.dst.sa.sa_family, ("address family mismatch"));
 
-	p = buf;
-	snprintf(buf, sizeof(buf), "SA(SPI=%u ", (u_int32_t)ntohl(sav->spi));
-	while (p && *p)
-		p++;
-	/* NB: only use ipsec_address on one address at a time. */
-	snprintf(p, sizeof (buf) - (p - buf), "src=%s ",
-		ipsec_address(&saidx->src));
-	while (p && *p)
-		p++;
-	snprintf(p, sizeof (buf) - (p - buf), "dst=%s)",
-		ipsec_address(&saidx->dst));
-
+	snprintf(buf, size, "SA(SPI=%08lx src=%s dst=%s)",
+	    (u_long)ntohl(sav->spi),
+	    ipsec_address(&sav->sah->saidx.src, sbuf, sizeof(sbuf)),
+	    ipsec_address(&sav->sah->saidx.dst, dbuf, sizeof(dbuf)));
 	return (buf);
 }
 

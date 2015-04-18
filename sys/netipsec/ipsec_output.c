@@ -529,6 +529,7 @@ ipsec_encap(struct mbuf **mp, struct secasindex *saidx)
 int
 ipsec4_process_packet(struct mbuf *m, struct ipsecrequest *isr)
 {
+	char sbuf[INET6_ADDRSTRLEN], dbuf[INET6_ADDRSTRLEN];
 	union sockaddr_union *dst;
 	struct secasindex saidx;
 	struct secasvar *sav;
@@ -579,9 +580,10 @@ ipsec4_process_packet(struct mbuf *m, struct ipsecrequest *isr)
 		if (error != 0) {
 			DPRINTF(("%s: encapsulation for SA %s->%s "
 			    "SPI 0x%08x failed with error %d\n", __func__,
-			    ipsec_address(&sav->sah->saidx.src),
-			    ipsec_address(&sav->sah->saidx.dst),
-			    ntohl(sav->spi), error));
+			    ipsec_address(&sav->sah->saidx.src, sbuf,
+				sizeof(sbuf)),
+			    ipsec_address(&sav->sah->saidx.dst, dbuf,
+				sizeof(dbuf)), ntohl(sav->spi), error));
 			goto bad;
 		}
 	}
@@ -650,11 +652,9 @@ in6_sa_equal_addrwithscope(const struct sockaddr_in6 *sa, const struct in6_addr 
  * IPsec output logic for IPv6.
  */
 int
-ipsec6_process_packet(
-	struct mbuf *m,
- 	struct ipsecrequest *isr
-    )
+ipsec6_process_packet(struct mbuf *m, struct ipsecrequest *isr)
 {
+	char sbuf[INET6_ADDRSTRLEN], dbuf[INET6_ADDRSTRLEN];
 	struct secasindex saidx;
 	struct secasvar *sav;
 	struct ip6_hdr *ip6;
@@ -704,9 +704,10 @@ ipsec6_process_packet(
 		if (error != 0) {
 			DPRINTF(("%s: encapsulation for SA %s->%s "
 			    "SPI 0x%08x failed with error %d\n", __func__,
-			    ipsec_address(&sav->sah->saidx.src),
-			    ipsec_address(&sav->sah->saidx.dst),
-			    ntohl(sav->spi), error));
+			    ipsec_address(&sav->sah->saidx.src, sbuf,
+				sizeof(sbuf)),
+			    ipsec_address(&sav->sah->saidx.dst, dbuf,
+				sizeof(dbuf)), ntohl(sav->spi), error));
 			goto bad;
 		}
 	}
