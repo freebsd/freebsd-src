@@ -232,7 +232,7 @@ le_read_local_supported_features(int s, int argc ,char *argv[])
 			NG_HCI_OCF_LE_READ_LOCAL_SUPPORTED_FEATURES), 
 			(void *)&rp, &n);
 
-	printf("LOCAL SUPPOREDED: %d %d %lu\n", e, rp.status,
+	printf("LOCAL SUPPORTED: %d %d %lu\n", e, rp.status,
 			rp.le_features);
 
 	return 0;
