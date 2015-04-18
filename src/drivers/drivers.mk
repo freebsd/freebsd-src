@@ -20,6 +20,11 @@ endif
 ifdef CONFIG_DRIVER_NL80211
 DRV_CFLAGS += -DCONFIG_DRIVER_NL80211
 DRV_OBJS += src/drivers/driver_nl80211.c
+DRV_OBJS += src/drivers/driver_nl80211_android.c
+DRV_OBJS += src/drivers/driver_nl80211_capa.c
+DRV_OBJS += src/drivers/driver_nl80211_event.c
+DRV_OBJS += src/drivers/driver_nl80211_monitor.c
+DRV_OBJS += src/drivers/driver_nl80211_scan.c
 DRV_OBJS += src/utils/radiotap.c
 NEED_SME=y
 NEED_AP_MLME=y
@@ -31,6 +36,10 @@ ifdef CONFIG_LIBNL32
   DRV_LIBS += -lnl-3
   DRV_LIBS += -lnl-genl-3
   DRV_CFLAGS += -DCONFIG_LIBNL20 -I/usr/include/libnl3
+ifdef CONFIG_LIBNL3_ROUTE
+  DRV_LIBS += -lnl-route-3
+  DRV_CFLAGS += -DCONFIG_LIBNL3_ROUTE
+endif
 else
   ifdef CONFIG_LIBNL_TINY
     DRV_LIBS += -lnl-tiny
@@ -55,10 +64,12 @@ CONFIG_L2_FREEBSD=y
 CONFIG_DNET_PCAP=y
 endif
 
-ifdef CONFIG_DRIVER_TEST
-DRV_CFLAGS += -DCONFIG_DRIVER_TEST
-DRV_OBJS += src/drivers/driver_test.c
-NEED_AP_MLME=y
+ifdef CONFIG_DRIVER_OPENBSD
+ifndef CONFIG_L2_PACKET
+CONFIG_L2_PACKET=freebsd
+endif
+DRV_CFLAGS += -DCONFIG_DRIVER_OPENBSD
+DRV_OBJS += src/drivers/driver_openbsd.c
 endif
 
 ifdef CONFIG_DRIVER_NONE
@@ -73,15 +84,6 @@ DRV_AP_CFLAGS += -DCONFIG_DRIVER_HOSTAP
 DRV_AP_OBJS += src/drivers/driver_hostap.c
 CONFIG_WIRELESS_EXTENSION=y
 NEED_AP_MLME=y
-NEED_NETLINK=y
-NEED_LINUX_IOCTL=y
-endif
-
-ifdef CONFIG_DRIVER_MADWIFI
-DRV_AP_CFLAGS += -DCONFIG_DRIVER_MADWIFI
-DRV_AP_OBJS += src/drivers/driver_madwifi.c
-CONFIG_WIRELESS_EXTENSION=y
-CONFIG_L2_PACKET=linux
 NEED_NETLINK=y
 NEED_LINUX_IOCTL=y
 endif

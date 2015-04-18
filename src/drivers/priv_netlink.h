@@ -68,7 +68,9 @@
 ((attrlen) -= RTA_ALIGN((rta)->rta_len), \
 (struct rtattr *) (((char *)(rta)) + RTA_ALIGN((rta)->rta_len)))
 #define RTA_LENGTH(len) (RTA_ALIGN(sizeof(struct rtattr)) + (len))
+#define RTA_SPACE(len) RTA_ALIGN(RTA_LENGTH(len))
 #define RTA_DATA(rta) ((void *) (((char *) (rta)) + RTA_LENGTH(0)))
+#define RTA_PAYLOAD(rta) ((int) ((rta)->rta_len) - RTA_LENGTH(0))
 
 
 struct sockaddr_nl

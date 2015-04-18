@@ -2,7 +2,7 @@ all:
 	@echo Nothing to be made.
 
 clean:
-	rm -f *~ *.o *.so *.d
+	rm -f *~ *.o *.so *.d *.gcno *.gcda *.gcov
 
 install:
 	if ls *.so >/dev/null 2>&1; then \

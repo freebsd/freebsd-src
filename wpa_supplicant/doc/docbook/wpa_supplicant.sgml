@@ -12,7 +12,7 @@
   <refsynopsisdiv>
     <cmdsynopsis>
       <command>wpa_supplicant</command>
-      <arg>-BddfhKLqqtuvW</arg>
+      <arg>-BddfhKLqqsTtuvW</arg>
       <arg>-i<replaceable>ifname</replaceable></arg>
       <arg>-c<replaceable>config file</replaceable></arg>
       <arg>-D<replaceable>driver</replaceable></arg>
@@ -344,9 +344,20 @@
       </varlistentry>
 
       <varlistentry>
+	<term>-e entropy file</term>
+	<listitem>
+	  <para>File for <command>wpa_supplicant</command> to use to
+	  maintain its internal entropy store in over restarts.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
 	<term>-f output file</term>
 	<listitem>
-	  <para>Log output to specified file instead of stdout.</para>
+	  <para>Log output to specified file instead of stdout. (This
+	  is only available if <command>wpa_supplicant</command> was
+	  built with the <literal>CONFIG_DEBUG_FILE</literal>
+	  option.)</para>
 	</listitem>
       </varlistentry>
 
@@ -387,6 +398,22 @@
       </varlistentry>
 
       <varlistentry>
+	<term>-o override driver</term>
+	<listitem>
+	  <para>Override the driver parameter for new
+	  interfaces.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-O override ctrl_interface</term>
+	<listitem>
+	  <para>Override the ctrl_interface parameter for new
+	  interfaces.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
 	<term>-p</term>
 	<listitem>
 	  <para>Driver parameters. (Per interface)</para>
@@ -409,10 +436,40 @@
       </varlistentry>
 
       <varlistentry>
+	<term>-s</term>
+	<listitem>
+	  <para>Log output to syslog instead of stdout. (This is only
+	  available if <command>wpa_supplicant</command> was built
+	  with the <literal>CONFIG_DEBUG_SYSLOG</literal>
+	  option.)</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-T</term>
+	<listitem>
+	  <para>Log output to Linux tracing in addition to any other
+	  destinations. (This is only available
+	  if <command>wpa_supplicant</command> was built with
+	  the <literal>CONFIG_DEBUG_LINUX_TRACING</literal>
+	  option.)</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-t</term>
+	<listitem>
+	  <para>Include timestamp in debug messages.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
 	<term>-u</term>
 	<listitem>
-	  <para>Enabled DBus control interface. If enabled, interface
-	  definitions may be omitted.</para>
+	  <para>Enable DBus control interface. If enabled, interface
+	  definitions may be omitted. (This is only available
+	  if <command>wpa_supplicant</command> was built with
+	  the <literal>CONFIG_DBUS</literal> option.)</para>
 	</listitem>
       </varlistentry>
 
@@ -679,7 +736,7 @@ fi
   </refsect1>
   <refsect1>
     <title>Legal</title>
-    <para>wpa_supplicant is copyright (c) 2003-2012,
+    <para>wpa_supplicant is copyright (c) 2003-2015,
     Jouni Malinen <email>j@w1.fi</email> and
     contributors.
     All Rights Reserved.</para>

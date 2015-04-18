@@ -91,7 +91,8 @@ static u16 wpa_driver_roboswitch_mdio_read(
 	mii->reg_num = reg;
 
 	if (ioctl(drv->fd, SIOCGMIIREG, &drv->ifr) < 0) {
-		perror("ioctl[SIOCGMIIREG]");
+		wpa_printf(MSG_ERROR, "ioctl[SIOCGMIIREG]: %s",
+			   strerror(errno));
 		return 0x00;
 	}
 	return mii->val_out;
@@ -108,7 +109,8 @@ static void wpa_driver_roboswitch_mdio_write(
 	mii->val_in = val;
 
 	if (ioctl(drv->fd, SIOCSMIIREG, &drv->ifr) < 0) {
-		perror("ioctl[SIOCSMIIREG");
+		wpa_printf(MSG_ERROR, "ioctl[SIOCSMIIREG]: %s",
+			   strerror(errno));
 	}
 }
 
@@ -260,17 +262,17 @@ static int wpa_driver_roboswitch_join(struct wpa_driver_roboswitch_data *drv,
 					    ROBO_ARLCTRL_CONF, read1, 1);
 	} else {
 		/* if both multiport addresses are the same we can add */
-		wpa_driver_roboswitch_read(drv, ROBO_ARLCTRL_PAGE,
-					   ROBO_ARLCTRL_ADDR_1, read1, 3);
-		wpa_driver_roboswitch_read(drv, ROBO_ARLCTRL_PAGE,
-					   ROBO_ARLCTRL_ADDR_2, read2, 3);
-		if (os_memcmp(read1, read2, 6) != 0)
+		if (wpa_driver_roboswitch_read(drv, ROBO_ARLCTRL_PAGE,
+					       ROBO_ARLCTRL_ADDR_1, read1, 3) ||
+		    wpa_driver_roboswitch_read(drv, ROBO_ARLCTRL_PAGE,
+					       ROBO_ARLCTRL_ADDR_2, read2, 3) ||
+		    os_memcmp(read1, read2, 6) != 0)
 			return -1;
-		wpa_driver_roboswitch_read(drv, ROBO_ARLCTRL_PAGE,
-					   ROBO_ARLCTRL_VEC_1, read1, 1);
-		wpa_driver_roboswitch_read(drv, ROBO_ARLCTRL_PAGE,
-					   ROBO_ARLCTRL_VEC_2, read2, 1);
-		if (read1[0] != read2[0])
+		if (wpa_driver_roboswitch_read(drv, ROBO_ARLCTRL_PAGE,
+					       ROBO_ARLCTRL_VEC_1, read1, 1) ||
+		    wpa_driver_roboswitch_read(drv, ROBO_ARLCTRL_PAGE,
+					       ROBO_ARLCTRL_VEC_2, read2, 1) ||
+		    read1[0] != read2[0])
 			return -1;
 		wpa_driver_roboswitch_write(drv, ROBO_ARLCTRL_PAGE,
 					    ROBO_ARLCTRL_ADDR_1, addr_be16, 3);
@@ -394,7 +396,8 @@ static void * wpa_driver_roboswitch_init(void *ctx, const char *ifname)
 	os_memset(&drv->ifr, 0, sizeof(drv->ifr));
 	os_strlcpy(drv->ifr.ifr_name, drv->ifname, IFNAMSIZ);
 	if (ioctl(drv->fd, SIOCGMIIPHY, &drv->ifr) < 0) {
-		perror("ioctl[SIOCGMIIPHY]");
+		wpa_printf(MSG_ERROR, "ioctl[SIOCGMIIPHY]: %s",
+			   strerror(errno));
 		os_free(drv);
 		return NULL;
 	}

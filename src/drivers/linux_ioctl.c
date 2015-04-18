@@ -204,11 +204,14 @@ int linux_br_del_if(int sock, const char *brname, const char *ifname)
 int linux_br_get(char *brname, const char *ifname)
 {
 	char path[128], brlink[128], *pos;
+	ssize_t res;
+
 	os_snprintf(path, sizeof(path), "/sys/class/net/%s/brport/bridge",
 		    ifname);
-	os_memset(brlink, 0, sizeof(brlink));
-	if (readlink(path, brlink, sizeof(brlink) - 1) < 0)
+	res = readlink(path, brlink, sizeof(brlink));
+	if (res < 0 || (size_t) res >= sizeof(brlink))
 		return -1;
+	brlink[res] = '\0';
 	pos = os_strrchr(brlink, '/');
 	if (pos == NULL)
 		return -1;

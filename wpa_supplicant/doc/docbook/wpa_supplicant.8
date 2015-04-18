@@ -3,13 +3,13 @@
 .\" <http://shell.ipoline.com/~elmert/comp/docbook2X/> 
 .\" Please send any bug reports, improvements, comments, patches, 
 .\" etc. to Steve Cheng <steve@ggi-project.org>.
-.TH "WPA_SUPPLICANT" "8" "12 January 2013" "" ""
+.TH "WPA_SUPPLICANT" "8" "15 March 2015" "" ""
 
 .SH NAME
 wpa_supplicant \- Wi-Fi Protected Access client and IEEE 802.1X supplicant
 .SH SYNOPSIS
 
-\fBwpa_supplicant\fR [ \fB-BddfhKLqqtuvW\fR ] [ \fB-i\fIifname\fB\fR ] [ \fB-c\fIconfig file\fB\fR ] [ \fB-D\fIdriver\fB\fR ] [ \fB-P\fIPID_file\fB\fR ] [ \fB-f\fIoutput file\fB\fR ]
+\fBwpa_supplicant\fR [ \fB-BddfhKLqqsTtuvW\fR ] [ \fB-i\fIifname\fB\fR ] [ \fB-c\fIconfig file\fB\fR ] [ \fB-D\fIdriver\fB\fR ] [ \fB-P\fIPID_file\fB\fR ] [ \fB-f\fIoutput file\fB\fR ]
 
 .SH "OVERVIEW"
 .PP
@@ -264,8 +264,15 @@ more).
 Driver to use (can be multiple drivers: nl80211,wext).
 (Per interface, see the available options below.)
 .TP
+\fB-e entropy file\fR
+File for \fBwpa_supplicant\fR to use to
+maintain its internal entropy store in over restarts.
+.TP
 \fB-f output file\fR
-Log output to specified file instead of stdout.
+Log output to specified file instead of stdout. (This
+is only available if \fBwpa_supplicant\fR was
+built with the CONFIG_DEBUG_FILE
+option.)
 .TP
 \fB-g global ctrl_interface\fR
 Path to global ctrl_interface socket. If specified, interface
@@ -283,6 +290,14 @@ Help.  Show a usage message.
 \fB-L\fR
 Show license (BSD).
 .TP
+\fB-o override driver\fR
+Override the driver parameter for new
+interfaces.
+.TP
+\fB-O override ctrl_interface\fR
+Override the ctrl_interface parameter for new
+interfaces.
+.TP
 \fB-p\fR
 Driver parameters. (Per interface)
 .TP
@@ -293,9 +308,27 @@ Path to PID file.
 Decrease debugging verbosity (\fB-qq\fR even
 less).
 .TP
+\fB-s\fR
+Log output to syslog instead of stdout. (This is only
+available if \fBwpa_supplicant\fR was built
+with the CONFIG_DEBUG_SYSLOG
+option.)
+.TP
+\fB-T\fR
+Log output to Linux tracing in addition to any other
+destinations. (This is only available
+if \fBwpa_supplicant\fR was built with
+the CONFIG_DEBUG_LINUX_TRACING
+option.)
+.TP
+\fB-t\fR
+Include timestamp in debug messages.
+.TP
 \fB-u\fR
-Enabled DBus control interface. If enabled, interface
-definitions may be omitted.
+Enable DBus control interface. If enabled, interface
+definitions may be omitted. (This is only available
+if \fBwpa_supplicant\fR was built with
+the CONFIG_DBUS option.)
 .TP
 \fB-v\fR
 Show version.
@@ -502,7 +535,7 @@ in.
 \fBwpa_passphrase\fR(8)
 .SH "LEGAL"
 .PP
-wpa_supplicant is copyright (c) 2003-2012,
+wpa_supplicant is copyright (c) 2003-2015,
 Jouni Malinen <j@w1.fi> and
 contributors.
 All Rights Reserved.

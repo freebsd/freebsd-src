@@ -3,13 +3,13 @@
 .\" <http://shell.ipoline.com/~elmert/comp/docbook2X/> 
 .\" Please send any bug reports, improvements, comments, patches, 
 .\" etc. to Steve Cheng <steve@ggi-project.org>.
-.TH "WPA_CLI" "8" "12 January 2013" "" ""
+.TH "WPA_CLI" "8" "15 March 2015" "" ""
 
 .SH NAME
 wpa_cli \- WPA command line client
 .SH SYNOPSIS
 
-\fBwpa_cli\fR [ \fB-p \fIpath to ctrl sockets\fB\fR ] [ \fB-i \fIifname\fB\fR ] [ \fB-hvB\fR ] [ \fB-a \fIaction file\fB\fR ] [ \fB-P \fIpid file\fB\fR ] [ \fB\fIcommand ...\fB\fR ]
+\fBwpa_cli\fR [ \fB-p \fIpath to ctrl sockets\fB\fR ] [ \fB-g \fIpath to global ctrl_interface socket\fB\fR ] [ \fB-i \fIifname\fB\fR ] [ \fB-hvB\fR ] [ \fB-a \fIaction file\fB\fR ] [ \fB-P \fIpid file\fB\fR ] [ \fB-G \fIping interval\fB\fR ] [ \fB\fIcommand ...\fB\fR ]
 
 .SH "OVERVIEW"
 .PP
@@ -95,6 +95,11 @@ CTRL-REQ-OTP-2:Challenge 1235663 needed for SSID foobar
 Change the path where control sockets should
 be found.
 .TP
+\fB-g control socket path\fR
+Connect to the global control socket at the
+indicated path rather than an interface-specific control
+socket.
+.TP
 \fB-i ifname\fR
 Specify the interface that is being
 configured.  By default, choose the first interface found with
@@ -126,6 +131,10 @@ network, and WPA_ID_STR contains the content of the id_str option.
 \fB-P file\fR
 Set the location of the PID
 file.
+.TP
+\fB-G ping interval\fR
+Set the interval (in seconds) at which
+wpa_cli pings the supplicant.
 .TP
 \fBcommand\fR
 Run a command.  The available commands are
@@ -201,7 +210,7 @@ exit wpa_cli
 \fBwpa_supplicant\fR(8)
 .SH "LEGAL"
 .PP
-wpa_supplicant is copyright (c) 2003-2012,
+wpa_supplicant is copyright (c) 2003-2015,
 Jouni Malinen <j@w1.fi> and
 contributors.
 All Rights Reserved.

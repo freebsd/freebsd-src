@@ -61,7 +61,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 			exitcode = -1;
 			break;
 		}
-		if (wpa_supplicant_add_iface(global, &ifaces[i]) == NULL)
+		if (wpa_supplicant_add_iface(global, &ifaces[i], NULL) == NULL)
 			exitcode = -1;
 	}
 

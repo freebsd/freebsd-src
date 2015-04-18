@@ -1,7 +1,7 @@
 all: libradius.a
 
 clean:
-	rm -f *~ *.o *.d libradius.a
+	rm -f *~ *.o *.d *.gcno *.gcda *.gcov libradius.a
 
 install:
 	@echo Nothing to be made.

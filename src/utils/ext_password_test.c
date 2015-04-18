@@ -36,7 +36,7 @@ static void ext_password_test_deinit(void *ctx)
 {
 	struct ext_password_test_data *data = ctx;
 
-	os_free(data->params);
+	str_clear_free(data->params);
 	os_free(data);
 }
 

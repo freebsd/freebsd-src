@@ -6,14 +6,22 @@ ifndef CFLAGS
 CFLAGS = -MMD -O2 -Wall -g
 endif
 
-CFLAGS += -I../src
-CFLAGS += -I../src/utils
+CFLAGS += $(EXTRA_CFLAGS)
+CFLAGS += -I$(abspath ../src)
+CFLAGS += -I$(abspath ../src/utils)
+
+export BINDIR ?= /usr/local/bin/
 
 # Uncomment following line and set the path to your kernel tree include
 # directory if your C library does not include all header files.
 # CFLAGS += -DUSE_KERNEL_HEADERS -I/usr/src/linux/include
 
 -include .config
+
+ifdef CONFIG_TESTING_OPTIONS
+CFLAGS += -DCONFIG_TESTING_OPTIONS
+CONFIG_WPS_TESTING=y
+endif
 
 ifndef CONFIG_OS
 ifdef CONFIG_NATIVE_WINDOWS
@@ -54,6 +62,7 @@ OBJS += ../src/ap/preauth_auth.o
 OBJS += ../src/ap/pmksa_cache_auth.o
 OBJS += ../src/ap/ieee802_11_shared.o
 OBJS += ../src/ap/beacon.o
+OBJS += ../src/ap/bss_load.o
 
 OBJS_c = hostapd_cli.o ../src/common/wpa_ctrl.o ../src/utils/os_$(CONFIG_OS).o
 
@@ -65,6 +74,11 @@ NEED_SHA1=y
 OBJS += ../src/drivers/drivers.o
 CFLAGS += -DHOSTAPD
 
+ifdef CONFIG_MODULE_TESTS
+CFLAGS += -DCONFIG_MODULE_TESTS
+OBJS += hapd_module_tests.o
+endif
+
 ifdef CONFIG_WPA_TRACE
 CFLAGS += -DWPA_TRACE
 OBJS += ../src/utils/trace.o
@@ -72,10 +86,10 @@ HOBJS += ../src/utils/trace.o
 LDFLAGS += -rdynamic
 CFLAGS += -funwind-tables
 ifdef CONFIG_WPA_TRACE_BFD
-CFLAGS += -DWPA_TRACE_BFD
-LIBS += -lbfd
-LIBS_c += -lbfd
-LIBS_h += -lbfd
+CFLAGS += -DPACKAGE="hostapd" -DWPA_TRACE_BFD
+LIBS += -lbfd -ldl -liberty -lz
+LIBS_c += -lbfd -ldl -liberty -lz
+LIBS_h += -lbfd -ldl -liberty -lz
 endif
 endif
 
@@ -84,6 +98,15 @@ CONFIG_ELOOP=eloop
 endif
 OBJS += ../src/utils/$(CONFIG_ELOOP).o
 OBJS_c += ../src/utils/$(CONFIG_ELOOP).o
+
+ifeq ($(CONFIG_ELOOP), eloop)
+# Using glibc < 2.17 requires -lrt for clock_gettime()
+LIBS += -lrt
+LIBS_c += -lrt
+LIBS_h += -lrt
+LIBS_n += -lrt
+endif
+
 OBJS += ../src/utils/common.o
 OBJS += ../src/utils/wpa_debug.o
 OBJS_c += ../src/utils/wpa_debug.o
@@ -93,15 +116,24 @@ OBJS += ../src/utils/ip_addr.o
 
 OBJS += ../src/common/ieee802_11_common.o
 OBJS += ../src/common/wpa_common.o
+OBJS += ../src/common/hw_features_common.o
 
 OBJS += ../src/eapol_auth/eapol_auth_sm.o
 
 
+ifdef CONFIG_CODE_COVERAGE
+CFLAGS += -O0 -fprofile-arcs -ftest-coverage
+LIBS += -lgcov
+LIBS_c += -lgcov
+LIBS_h += -lgcov
+LIBS_n += -lgcov
+endif
+
 ifndef CONFIG_NO_DUMP_STATE
-# define HOSTAPD_DUMP_STATE to include SIGUSR1 handler for dumping state to
-# a file (undefine it, if you want to save in binary size)
+# define HOSTAPD_DUMP_STATE to include support for dumping internal state
+# through control interface commands (undefine it, if you want to save in
+# binary size)
 CFLAGS += -DHOSTAPD_DUMP_STATE
-OBJS += dump_state.o
 OBJS += ../src/eapol_auth/eapol_auth_dump.o
 endif
 
@@ -139,8 +171,6 @@ OBJS += ctrl_iface.o
 OBJS += ../src/ap/ctrl_iface_ap.o
 endif
 
-OBJS += ../src/crypto/md5.o
-
 CFLAGS += -DCONFIG_CTRL_IFACE -DCONFIG_CTRL_IFACE_UNIX
 
 ifdef CONFIG_IAPP
@@ -156,6 +186,26 @@ endif
 ifdef CONFIG_PEERKEY
 CFLAGS += -DCONFIG_PEERKEY
 OBJS += ../src/ap/peerkey_auth.o
+endif
+
+ifdef CONFIG_HS20
+NEED_AES_OMAC1=y
+CONFIG_PROXYARP=y
+endif
+
+ifdef CONFIG_PROXYARP
+CONFIG_L2_PACKET=y
+endif
+
+ifdef CONFIG_SUITEB
+CFLAGS += -DCONFIG_SUITEB
+NEED_SHA256=y
+NEED_AES_OMAC1=y
+endif
+
+ifdef CONFIG_SUITEB192
+CFLAGS += -DCONFIG_SUITEB192
+NEED_SHA384=y
 endif
 
 ifdef CONFIG_IEEE80211W
@@ -174,6 +224,9 @@ endif
 
 ifdef CONFIG_SAE
 CFLAGS += -DCONFIG_SAE
+OBJS += ../src/common/sae.o
+NEED_ECC=y
+NEED_DH_GROUPS=y
 endif
 
 ifdef CONFIG_WNM
@@ -211,6 +264,12 @@ else
 OBJS += ../src/l2_packet/l2_packet_none.o
 endif
 
+
+ifdef CONFIG_ERP
+CFLAGS += -DCONFIG_ERP
+NEED_SHA256=y
+NEED_HMAC_SHA256_KDF=y
+endif
 
 ifdef CONFIG_EAP_MD5
 CFLAGS += -DEAP_SERVER_MD5
@@ -308,7 +367,7 @@ ifdef CONFIG_EAP_GPSK
 CFLAGS += -DEAP_SERVER_GPSK
 OBJS += ../src/eap_server/eap_server_gpsk.o ../src/eap_common/eap_gpsk_common.o
 ifdef CONFIG_EAP_GPSK_SHA256
-CFLAGS += -DEAP_SERVER_GPSK_SHA256
+CFLAGS += -DEAP_GPSK_SHA256
 endif
 NEED_SHA256=y
 NEED_AES_OMAC1=y
@@ -318,6 +377,13 @@ ifdef CONFIG_EAP_PWD
 CFLAGS += -DEAP_SERVER_PWD
 OBJS += ../src/eap_server/eap_server_pwd.o ../src/eap_common/eap_pwd_common.o
 NEED_SHA256=y
+endif
+
+ifdef CONFIG_EAP_EKE
+CFLAGS += -DEAP_SERVER_EKE
+OBJS += ../src/eap_server/eap_server_eke.o ../src/eap_common/eap_eke_common.o
+NEED_DH_GROUPS=y
+NEED_DH_GROUPS_ALL=y
 endif
 
 ifdef CONFIG_EAP_VENDOR_TEST
@@ -335,10 +401,6 @@ NEED_AES_UNWRAP=y
 endif
 
 ifdef CONFIG_WPS
-ifdef CONFIG_WPS2
-CFLAGS += -DCONFIG_WPS2
-endif
-
 CFLAGS += -DCONFIG_WPS -DEAP_SERVER_WSC
 OBJS += ../src/utils/uuid.o
 OBJS += ../src/ap/wps_hostapd.o
@@ -481,7 +543,8 @@ endif
 OBJS += ../src/crypto/crypto_gnutls.o
 HOBJS += ../src/crypto/crypto_gnutls.o
 ifdef NEED_FIPS186_2_PRF
-OBJS += ../src/crypto/fips_prf_gnutls.o
+OBJS += ../src/crypto/fips_prf_internal.o
+SHA1OBJS += ../src/crypto/sha1-internal.o
 endif
 LIBS += -lgcrypt
 LIBS_h += -lgcrypt
@@ -498,21 +561,6 @@ OBJS += ../src/crypto/crypto_cryptoapi.o
 OBJS_p += ../src/crypto/crypto_cryptoapi.o
 CONFIG_INTERNAL_SHA256=y
 CONFIG_INTERNAL_RC4=y
-CONFIG_INTERNAL_DH_GROUP5=y
-endif
-
-ifeq ($(CONFIG_TLS), nss)
-ifdef TLS_FUNCS
-OBJS += ../src/crypto/tls_nss.o
-LIBS += -lssl3
-endif
-OBJS += ../src/crypto/crypto_nss.o
-ifdef NEED_FIPS186_2_PRF
-OBJS += ../src/crypto/fips_prf_nss.o
-endif
-LIBS += -lnss3
-LIBS_h += -lnss3
-CONFIG_INTERNAL_MD4=y
 CONFIG_INTERNAL_DH_GROUP5=y
 endif
 
@@ -622,7 +670,9 @@ ifdef CONFIG_INTERNAL_AES
 AESOBJS += ../src/crypto/aes-internal.o ../src/crypto/aes-internal-enc.o
 endif
 
+ifneq ($(CONFIG_TLS), openssl)
 AESOBJS += ../src/crypto/aes-wrap.o
+endif
 ifdef NEED_AES_EAX
 AESOBJS += ../src/crypto/aes-eax.o
 NEED_AES_CTR=y
@@ -637,8 +687,10 @@ ifdef NEED_AES_OMAC1
 AESOBJS += ../src/crypto/aes-omac1.o
 endif
 ifdef NEED_AES_UNWRAP
+ifneq ($(CONFIG_TLS), openssl)
 NEED_AES_DEC=y
 AESOBJS += ../src/crypto/aes-unwrap.o
+endif
 endif
 ifdef NEED_AES_CBC
 NEED_AES_DEC=y
@@ -679,6 +731,10 @@ ifdef NEED_SHA1
 OBJS += $(SHA1OBJS)
 endif
 
+ifneq ($(CONFIG_TLS), openssl)
+OBJS += ../src/crypto/md5.o
+endif
+
 ifdef NEED_MD5
 ifdef CONFIG_INTERNAL_MD5
 OBJS += ../src/crypto/md5-internal.o
@@ -716,6 +772,12 @@ endif
 ifdef NEED_TLS_PRF_SHA256
 OBJS += ../src/crypto/sha256-tlsprf.o
 endif
+ifdef NEED_HMAC_SHA256_KDF
+OBJS += ../src/crypto/sha256-kdf.o
+endif
+endif
+ifdef NEED_SHA384
+CFLAGS += -DCONFIG_SHA384
 endif
 
 ifdef NEED_DH_GROUPS
@@ -728,6 +790,10 @@ ifdef CONFIG_INTERNAL_DH_GROUP5
 ifdef NEED_DH_GROUPS
 OBJS += ../src/crypto/dh_group5.o
 endif
+endif
+
+ifdef NEED_ECC
+CFLAGS += -DCONFIG_ECC
 endif
 
 ifdef CONFIG_NO_RANDOM_POOL
@@ -768,6 +834,7 @@ OBJS += ../src/ap/wmm.o
 OBJS += ../src/ap/ap_list.o
 OBJS += ../src/ap/ieee802_11.o
 OBJS += ../src/ap/hw_features.o
+OBJS += ../src/ap/dfs.o
 CFLAGS += -DNEED_AP_MLME
 endif
 ifdef CONFIG_IEEE80211N
@@ -795,6 +862,15 @@ OBJS += ../src/common/gas.o
 OBJS += ../src/ap/gas_serv.o
 endif
 
+ifdef CONFIG_PROXYARP
+CFLAGS += -DCONFIG_PROXYARP
+OBJS += ../src/ap/x_snoop.o
+OBJS += ../src/ap/dhcp_snoop.o
+ifdef CONFIG_IPV6
+OBJS += ../src/ap/ndisc_snoop.o
+endif
+endif
+
 OBJS += ../src/drivers/driver_common.o
 
 ifdef CONFIG_WPA_CLI_EDIT
@@ -803,8 +879,18 @@ else
 OBJS_c += ../src/utils/edit_simple.o
 endif
 
+ifdef CONFIG_ACS
+CFLAGS += -DCONFIG_ACS
+OBJS += ../src/ap/acs.o
+LIBS += -lm
+endif
+
 ifdef CONFIG_NO_STDOUT_DEBUG
 CFLAGS += -DCONFIG_NO_STDOUT_DEBUG
+endif
+
+ifdef CONFIG_DEBUG_LINUX_TRACING
+CFLAGS += -DCONFIG_DEBUG_LINUX_TRACING
 endif
 
 ifdef CONFIG_DEBUG_FILE
@@ -827,10 +913,20 @@ ifeq ($(V), 1)
 Q=
 E=true
 endif
+ifeq ($(QUIET), 1)
+Q=@
+E=true
+endif
 
+ifdef CONFIG_CODE_COVERAGE
+%.o: %.c
+	@$(E) "  CC " $<
+	$(Q)cd $(dir $@); $(CC) -c -o $(notdir $@) $(CFLAGS) $(notdir $<)
+else
 %.o: %.c
 	$(Q)$(CC) -c -o $@ $(CFLAGS) $<
 	@$(E) "  CC " $<
+endif
 
 verify_config:
 	@if [ ! -r .config ]; then \
@@ -841,9 +937,10 @@ verify_config:
 		exit 1; \
 	fi
 
-install: all
-	mkdir -p $(DESTDIR)/usr/local/bin
-	for i in $(ALL); do cp -f $$i $(DESTDIR)/usr/local/bin/$$i; done
+$(DESTDIR)$(BINDIR)/%: %
+	install -D $(<) $(@)
+
+install: $(addprefix $(DESTDIR)$(BINDIR)/,$(ALL))
 
 ../src/drivers/build.hostapd:
 	@if [ -f ../src/drivers/build.wpa_supplicant ]; then \
@@ -864,7 +961,8 @@ hostapd_cli: $(OBJS_c)
 	$(Q)$(CC) $(LDFLAGS) -o hostapd_cli $(OBJS_c) $(LIBS_c)
 	@$(E) "  LD " $@
 
-NOBJS = nt_password_hash.o ../src/crypto/ms_funcs.o $(SHA1OBJS) ../src/crypto/md5.o
+NOBJS = nt_password_hash.o ../src/crypto/ms_funcs.o $(SHA1OBJS)
+NOBJS += ../src/utils/common.o
 ifdef NEED_RC4
 ifdef CONFIG_INTERNAL_RC4
 NOBJS += ../src/crypto/rc4.o
@@ -899,9 +997,15 @@ hlr_auc_gw: $(HOBJS)
 	$(Q)$(CC) $(LDFLAGS) -o hlr_auc_gw $(HOBJS) $(LIBS_h)
 	@$(E) "  LD " $@
 
+lcov-html:
+	lcov -c -d .. > lcov.info
+	genhtml lcov.info --output-directory lcov-html
+
 clean:
 	$(MAKE) -C ../src clean
 	rm -f core *~ *.o hostapd hostapd_cli nt_password_hash hlr_auc_gw
-	rm -f *.d
+	rm -f *.d *.gcno *.gcda *.gcov
+	rm -f lcov.info
+	rm -rf lcov-html
 
 -include $(OBJS:%.o=%.d)
