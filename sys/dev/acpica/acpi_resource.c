@@ -296,33 +296,33 @@ acpi_parse_resource(ACPI_RESOURCE *res, void *context)
     case ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64:
 	switch (res->Type) {
 	case ACPI_RESOURCE_TYPE_ADDRESS16:
-	    gran = res->Data.Address16.Granularity;
-	    min = res->Data.Address16.Minimum;
-	    max = res->Data.Address16.Maximum;
-	    length = res->Data.Address16.AddressLength;
+	    gran = res->Data.Address16.Address.Granularity;
+	    min = res->Data.Address16.Address.Minimum;
+	    max = res->Data.Address16.Address.Maximum;
+	    length = res->Data.Address16.Address.AddressLength;
 	    name = "Address16";
 	    break;
 	case ACPI_RESOURCE_TYPE_ADDRESS32:
-	    gran = res->Data.Address32.Granularity;
-	    min = res->Data.Address32.Minimum;
-	    max = res->Data.Address32.Maximum;
-	    length = res->Data.Address32.AddressLength;
+	    gran = res->Data.Address32.Address.Granularity;
+	    min = res->Data.Address32.Address.Minimum;
+	    max = res->Data.Address32.Address.Maximum;
+	    length = res->Data.Address32.Address.AddressLength;
 	    name = "Address32";
 	    break;
 	case ACPI_RESOURCE_TYPE_ADDRESS64:
-	    gran = res->Data.Address64.Granularity;
-	    min = res->Data.Address64.Minimum;
-	    max = res->Data.Address64.Maximum;
-	    length = res->Data.Address64.AddressLength;
+	    gran = res->Data.Address64.Address.Granularity;
+	    min = res->Data.Address64.Address.Minimum;
+	    max = res->Data.Address64.Address.Maximum;
+	    length = res->Data.Address64.Address.AddressLength;
 	    name = "Address64";
 	    break;
 	default:
 	    KASSERT(res->Type == ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64,
 		("should never happen"));
-	    gran = res->Data.ExtAddress64.Granularity;
-	    min = res->Data.ExtAddress64.Minimum;
-	    max = res->Data.ExtAddress64.Maximum;
-	    length = res->Data.ExtAddress64.AddressLength;
+	    gran = res->Data.ExtAddress64.Address.Granularity;
+	    min = res->Data.ExtAddress64.Address.Minimum;
+	    max = res->Data.ExtAddress64.Address.Maximum;
+	    length = res->Data.ExtAddress64.Address.AddressLength;
 	    name = "ExtAddress64";
 	    break;
 	}
