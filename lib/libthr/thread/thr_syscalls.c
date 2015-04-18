@@ -327,6 +327,26 @@ __thr_poll(struct pollfd *fds, unsigned int nfds, int timeout)
  *   the thread is not canceled.
  */
 static int
+__thr_ppoll(struct pollfd pfd[], nfds_t nfds, const struct timespec *
+    timeout, const sigset_t *newsigmask)
+{
+	struct pthread *curthread;
+	int ret;
+
+	curthread = _get_curthread();
+	_thr_cancel_enter(curthread);
+	ret = __sys_ppoll(pfd, nfds, timeout, newsigmask);
+	_thr_cancel_leave(curthread, ret == -1);
+
+	return (ret);
+}
+
+/*
+ * Cancellation behavior:
+ *   Thread may be canceled at start, but if the system call returns something,
+ *   the thread is not canceled.
+ */
+static int
 __thr_pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds, 
 	const struct timespec *timo, const sigset_t *mask)
 {
@@ -545,6 +565,25 @@ __thr_wait4(pid_t pid, int *status, int options, struct rusage *rusage)
 
 /*
  * Cancellation behavior:
+ *   Thread may be canceled at start, but if the system call returns
+ *   a child pid, the thread is not canceled.
+ */
+static pid_t
+__thr_wait6(idtype_t idtype, id_t id, int *status, int options,
+    struct __wrusage *ru, siginfo_t *infop)
+{
+	struct pthread *curthread;
+	pid_t ret;
+
+	curthread = _get_curthread();
+	_thr_cancel_enter(curthread);
+	ret = __sys_wait6(idtype, id, status, options, ru, infop);
+	_thr_cancel_leave(curthread, ret <= 0);
+	return (ret);
+}
+
+/*
+ * Cancellation behavior:
  *   Thread may be canceled at start, but if the thread wrote some data,
  *   it is not canceled.
  */
@@ -623,6 +662,8 @@ __thr_interpose_libc(void)
 	SLOT(spinlock);
 	SLOT(spinunlock);
 	SLOT(kevent);
+	SLOT(wait6);
+	SLOT(ppoll);
 #undef SLOT
 	*(__libc_interposing_slot(
 	    INTERPOS__pthread_mutex_init_calloc_cb)) =

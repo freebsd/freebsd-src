@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd March 29, 2015
+.Dd April 16, 2015
 .Dt PTHREAD_TESTCANCEL 3
 .Os
 .Sh NAME
@@ -132,6 +132,7 @@ argument  is non-zero.
 .It Fn openat
 .It Fn pause
 .It Fn poll
+.It Fn ppoll
 .It Fn pselect
 .It Fn pthread_cond_timedwait
 .It Fn pthread_cond_wait
@@ -159,6 +160,8 @@ argument  is non-zero.
 .It Fn wait
 .It Fn wait3
 .It Fn wait4
+.It Fn wait6
+.It Fn waitid
 .It Fn waitpid
 .It Fn write
 .It Fn writev
