@@ -254,6 +254,15 @@ emac_reset(struct emac_softc *sc)
 }
 
 static void
+emac_drain_rxfifo(struct emac_softc *sc)
+{
+	uint32_t data;
+
+	while (EMAC_READ_REG(sc, EMAC_RX_FBC) > 0)
+		data = EMAC_READ_REG(sc, EMAC_RX_IO_DATA);
+}
+
+static void
 emac_txeof(struct emac_softc *sc, uint32_t status)
 {
 	struct ifnet *ifp;
@@ -281,7 +290,7 @@ emac_rxeof(struct emac_softc *sc, int count)
 	uint32_t reg_val, rxcount;
 	int16_t len;
 	uint16_t status;
-	int good_packet, i;
+	int i;
 
 	ifp = sc->emac_ifp;
 	for (; count > 0 &&
@@ -333,20 +342,19 @@ emac_rxeof(struct emac_softc *sc, int count)
 			return;
 		}
 
-		good_packet = 1;
-
 		/* Get packet size and status */
 		reg_val = EMAC_READ_REG(sc, EMAC_RX_IO_DATA);
 		len = reg_val & 0xffff;
 		status = (reg_val >> 16) & 0xffff;
 
-		if (len < 64) {
-			good_packet = 0;
+		if (len < 64 || (status & EMAC_PKT_OK) == 0) {
 			if (bootverbose)
 				if_printf(ifp,
 				    "bad packet: len = %i status = %i\n",
 				    len, status);
 			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+			emac_drain_rxfifo(sc);
+			continue;
 		}
 #if 0
 		if (status & (EMAC_CRCERR | EMAC_LENERR)) {
@@ -358,61 +366,58 @@ emac_rxeof(struct emac_softc *sc, int count)
 				if_printf(ifp, "length error\n");
 		}
 #endif
-		if (good_packet) {
-			m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
-			if (m == NULL)
-				return;
-			m->m_len = m->m_pkthdr.len = MCLBYTES;
+		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+		if (m == NULL) {
+			emac_drain_rxfifo(sc);
+			return;
+		}
+		m->m_len = m->m_pkthdr.len = MCLBYTES;
 
-			/* Copy entire frame to mbuf first. */
-			bus_space_read_multi_4(sc->emac_tag, sc->emac_handle,
-			    EMAC_RX_IO_DATA, mtod(m, uint32_t *),
-			    roundup2(len, 4) / 4);
+		/* Copy entire frame to mbuf first. */
+		bus_space_read_multi_4(sc->emac_tag, sc->emac_handle,
+		    EMAC_RX_IO_DATA, mtod(m, uint32_t *), roundup2(len, 4) / 4);
 
-			m->m_pkthdr.rcvif = ifp;
-			m->m_len = m->m_pkthdr.len = len - ETHER_CRC_LEN;
+		m->m_pkthdr.rcvif = ifp;
+		m->m_len = m->m_pkthdr.len = len - ETHER_CRC_LEN;
 
-			/*
-			 * Emac controller needs strict aligment, so to avoid
-			 * copying over an entire frame to align, we allocate
-			 * a new mbuf and copy ethernet header + IP header to
-			 * the new mbuf. The new mbuf is prepended into the
-			 * existing mbuf chain.
-			 */
-			if (m->m_len <= (MHLEN - ETHER_HDR_LEN)) {
-				bcopy(m->m_data, m->m_data + ETHER_HDR_LEN,
-				    m->m_len);
-				m->m_data += ETHER_HDR_LEN;
-			} else if (m->m_len <= (MCLBYTES - ETHER_HDR_LEN) &&
-			    m->m_len > (MHLEN - ETHER_HDR_LEN)) {
-				MGETHDR(m0, M_NOWAIT, MT_DATA);
-				if (m0 != NULL) {
-					len = ETHER_HDR_LEN +
-					    m->m_pkthdr.l2hlen;
-					bcopy(m->m_data, m0->m_data, len);
-					m->m_data += len;
-					m->m_len -= len;
-					m0->m_len = len;
-					M_MOVE_PKTHDR(m0, m);
-					m0->m_next = m;
-					m = m0;
-				} else {
-					if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
-					m_freem(m);
-					m = NULL;
-					continue;
-				}
-			} else if (m->m_len > EMAC_MAC_MAXF) {
+		/*
+		 * Emac controller needs strict aligment, so to avoid
+		 * copying over an entire frame to align, we allocate
+		 * a new mbuf and copy ethernet header + IP header to
+		 * the new mbuf. The new mbuf is prepended into the
+		 * existing mbuf chain.
+		 */
+		if (m->m_len <= (MHLEN - ETHER_HDR_LEN)) {
+			bcopy(m->m_data, m->m_data + ETHER_HDR_LEN, m->m_len);
+			m->m_data += ETHER_HDR_LEN;
+		} else if (m->m_len <= (MCLBYTES - ETHER_HDR_LEN) &&
+		    m->m_len > (MHLEN - ETHER_HDR_LEN)) {
+			MGETHDR(m0, M_NOWAIT, MT_DATA);
+			if (m0 != NULL) {
+				len = ETHER_HDR_LEN + m->m_pkthdr.l2hlen;
+				bcopy(m->m_data, m0->m_data, len);
+				m->m_data += len;
+				m->m_len -= len;
+				m0->m_len = len;
+				M_MOVE_PKTHDR(m0, m);
+				m0->m_next = m;
+				m = m0;
+			} else {
 				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				m_freem(m);
 				m = NULL;
 				continue;
 			}
-			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
-			EMAC_UNLOCK(sc);
-			(*ifp->if_input)(ifp, m);
-			EMAC_LOCK(sc);
+		} else if (m->m_len > EMAC_MAC_MAXF) {
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+			m_freem(m);
+			m = NULL;
+			continue;
 		}
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+		EMAC_UNLOCK(sc);
+		(*ifp->if_input)(ifp, m);
+		EMAC_LOCK(sc);
 	}
 }
 

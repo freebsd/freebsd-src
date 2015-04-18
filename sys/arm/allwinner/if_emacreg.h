@@ -225,6 +225,7 @@
 /* Receive status */
 #define	EMAC_CRCERR		(1 << 4)
 #define	EMAC_LENERR		(3 << 5)
+#define	EMAC_PKT_OK		(1 << 7)
 
 #define	EMAC_RX_FLUSH_FIFO	(1 << 3)
 #define	EMAC_PHY_RESET		(1 << 15)
