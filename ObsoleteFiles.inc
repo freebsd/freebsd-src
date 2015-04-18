@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150418
+OLD_FILES+=sbin/mount_oldnfs
+OLD_FILES+=usr/share/man/man8/mount_oldnfs.8.gz
 # 20150416: ALTQ moved to net/altq
 OLD_FILES+=usr/include/altq/altq_rmclass_debug.h
 OLD_FILES+=usr/include/altq/altq.h
