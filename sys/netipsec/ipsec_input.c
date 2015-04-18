@@ -195,6 +195,13 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 		m_copydata(m, offsetof(struct ip6_hdr, ip6_dst),
 		    sizeof(struct in6_addr),
 		    (caddr_t) &dst_address.sin6.sin6_addr);
+		/* We keep addresses in SADB without embedded scope id */
+		if (IN6_IS_SCOPE_LINKLOCAL(&dst_address.sin6.sin6_addr)) {
+			/* XXX: sa6_recoverscope() */
+			dst_address.sin6.sin6_scope_id =
+			    ntohs(dst_address.sin6.sin6_addr.s6_addr16[1]);
+			dst_address.sin6.sin6_addr.s6_addr16[1] = 0;
+		}
 		break;
 #endif /* INET6 */
 	default:

@@ -503,7 +503,14 @@ ipsec_encap(struct mbuf **mp, struct secasindex *saidx)
 		ip6->ip6_hlim = V_ip6_defhlim;
 		ip6->ip6_nxt = proto;
 		ip6->ip6_dst = saidx->dst.sin6.sin6_addr;
+		/* For link-local address embed scope zone id */
+		if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_dst))
+			ip6->ip6_dst.s6_addr16[1] =
+			    htons(saidx->dst.sin6.sin6_scope_id & 0xffff);
 		ip6->ip6_src = saidx->src.sin6.sin6_addr;
+		if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_src))
+			ip6->ip6_src.s6_addr16[1] =
+			    htons(saidx->src.sin6.sin6_scope_id & 0xffff);
 		ip6->ip6_plen = htons((*mp)->m_pkthdr.len - sizeof(*ip6));
 		ip_ecn_ingress(V_ip6_ipsec_ecn, &proto, &itos);
 		ip6->ip6_flow |= htonl((uint32_t)proto << 20);
