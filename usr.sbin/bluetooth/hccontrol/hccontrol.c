@@ -183,6 +183,7 @@ do_hci_command(char const *node, int argc, char **argv)
 			print_hci_command(host_controller_baseband_commands);
 			print_hci_command(info_commands);
 			print_hci_command(status_commands);
+			print_hci_command(le_commands);
 			print_hci_command(node_commands);
 			fprintf(stdout, "\nFor more information use " \
 				"'help command'\n");
@@ -214,6 +215,11 @@ do_hci_command(char const *node, int argc, char **argv)
 	if (c != NULL)
 		goto execute;
 
+	c = find_hci_command(cmd, le_commands);
+	if (c != NULL)
+		goto execute;
+
+	
 	c = find_hci_command(cmd, node_commands);
 	if (c == NULL) {
 		fprintf(stdout, "Unknown command: \"%s\"\n", cmd);
