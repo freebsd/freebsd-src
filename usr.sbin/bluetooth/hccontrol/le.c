@@ -46,6 +46,7 @@
 #define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include "hccontrol.h"
+
 static int le_set_scan_param(int s, int argc, char *argv[]);
 static int le_set_scan_enable(int s, int argc, char *argv[]);
 static int parse_param(int argc, char *argv[], char *buf, int *len);
@@ -56,51 +57,47 @@ static int set_le_event_mask(int s, uint64_t mask);
 static int set_event_mask(int s, uint64_t mask);
 static int le_enable(int s, int argc, char *argv[]);
 
-static int le_set_scan_param(int s, int argc, char *argv[])
+static int
+le_set_scan_param(int s, int argc, char *argv[])
 {
 	int type;
 	int interval;
 	int window;
 	int adrtype;
-	int  policy;
+	int policy;
+	int e, n;
 
 	ng_hci_le_set_scan_parameters_cp cp;
 	ng_hci_le_set_scan_parameters_rp rp;
-	int e,n;
 
-	if(argc != 5){
+	if (argc != 5)
 		return USAGE;
-	}
 	
-	if(strcmp(argv[0], "active")==0){
+	if (strcmp(argv[0], "active") == 0)
 		type = 1;
-	}else if (strcmp(argv[0], "passive") == 0){
+	else if (strcmp(argv[0], "passive") == 0)
 		type = 0;
-	}else{
+	else
 		return USAGE;
-	}
 
 	interval = (int)(atof(argv[1])/0.625);
 	interval = (interval < 4)? 4: interval;
 	window = (int)(atof(argv[2])/0.625);
 	window = (window < 4) ? 4 : interval;
 	
-	if(strcmp(argv[3], "public")==0){
+	if (strcmp(argv[3], "public") == 0)
 		adrtype = 0;
-	}else if (strcmp(argv[0], "random") == 0){
+	else if (strcmp(argv[0], "random") == 0)
 		adrtype = 1;
-	}else{
+	else
 		return USAGE;
-	}
 
-	if(strcmp(argv[4], "all")==0){
+	if (strcmp(argv[4], "all") == 0)
 		policy = 0;
-	}else if (strcmp(argv[4], "whitelist") == 0){
+	else if (strcmp(argv[4], "whitelist") == 0)
 		policy = 1;
-	}else{
+	else
 		return USAGE;
-	}
-	
 
 	cp.le_scan_type = type;
 	cp.le_scan_interval = interval;
@@ -109,43 +106,42 @@ static int le_set_scan_param(int s, int argc, char *argv[])
 	cp.scanning_filter_policy = policy;
 	n = sizeof(rp);
 	e = hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
-					 NG_HCI_OCF_LE_SET_SCAN_PARAMETERS), 
-			(void *)&cp, sizeof(cp), (void *)&rp, &n);
-			
+		NG_HCI_OCF_LE_SET_SCAN_PARAMETERS), 
+		(void *)&cp, sizeof(cp), (void *)&rp, &n);
 
 	return 0;
-	
 }
 
-
-static int le_set_scan_enable(int s, int argc, char *argv[])
+static int
+le_set_scan_enable(int s, int argc, char *argv[])
 {
 	ng_hci_le_set_scan_enable_cp cp;
 	ng_hci_le_set_scan_enable_rp rp;
-	int e,n,enable = 0;
+	int e, n, enable = 0;
 
-	if(argc != 1)
+	if (argc != 1)
 		return USAGE;
 	  
-	if(strcmp(argv[0], "enable") == 0){
+	if (strcmp(argv[0], "enable") == 0)
 		enable = 1;
-	}else if(strcmp(argv[0], "disable")!= 0){
+	else if (strcmp(argv[0], "disable") != 0)
 		return USAGE;
-	}
+
 	n = sizeof(rp);
 	cp.le_scan_enable = enable;
 	cp.filter_duplicates = 0;
 	e = hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
-					 NG_HCI_OCF_LE_SET_SCAN_ENABLE), 
-			(void *)&cp, sizeof(cp), (void *)&rp, &n);
+		NG_HCI_OCF_LE_SET_SCAN_ENABLE), 
+		(void *)&cp, sizeof(cp), (void *)&rp, &n);
 			
-	if(e != 0 || rp.status != 0){
+	if (e != 0 || rp.status != 0)
 		return ERROR;
-	}
+
 	return OK;
-	
 }
-static int parse_param(int argc, char *argv[], char *buf, int *len)
+
+static int
+parse_param(int argc, char *argv[], char *buf, int *len)
 {
 	char *buflast  =  buf + (*len);
 	char *curbuf = buf;
@@ -155,13 +151,12 @@ static int parse_param(int argc, char *argv[], char *buf, int *len)
 	uint16_t value;
 	optreset = 1;
 	optind = 0;
-	while((ch = getopt(argc, argv , "n:f:u:")) != -1){
+	while ((ch = getopt(argc, argv , "n:f:u:")) != -1) {
 		switch(ch){
 		case 'n':
 			datalen = strlen(optarg);
-			if( (curbuf + datalen + 2)>= buflast){
+			if ((curbuf + datalen + 2) >= buflast)
 				goto done;
-			}
 			curbuf[0] = datalen + 1;
 			curbuf[1] = 8;
 			curbuf += 2;
@@ -169,9 +164,8 @@ static int parse_param(int argc, char *argv[], char *buf, int *len)
 			curbuf += datalen;
 			break;
 		case 'f':
-			if(curbuf+3 >buflast){
+			if (curbuf+3 > buflast)
 				goto done;
-			}
 			curbuf[0] = 2;
 			curbuf[1] = 1;
 			curbuf[2] = atoi(optarg);
@@ -179,15 +173,14 @@ static int parse_param(int argc, char *argv[], char *buf, int *len)
 			break;
 		case 'u':
 			lenpos = buf;
-			if((buf+2)>= buflast)
+			if ((buf+2) >= buflast)
 				goto done;
-			
 			curbuf[1] = 2;
 			*lenpos = 1;
 			curbuf += 2;
-			while((token = strsep(&optarg, ",")) != NULL){
+			while ((token = strsep(&optarg, ",")) != NULL) {
 				value = strtol(token, NULL, 16);
-				if((curbuf+2)>= buflast)
+				if ((curbuf+2) >= buflast)
 					break;
 				curbuf[0] = value &0xff;
 				curbuf[1] = (value>>8)&0xff;
@@ -202,7 +195,8 @@ done:
 	return OK;
 }
 
-static int le_set_scan_response(int s, int argc, char *argv[])
+static int
+le_set_scan_response(int s, int argc, char *argv[])
 {
 	ng_hci_le_set_scan_response_data_cp cp;
 	ng_hci_le_set_scan_response_data_rp rp;
@@ -210,6 +204,7 @@ static int le_set_scan_response(int s, int argc, char *argv[])
 	int e;
 	int len;
 	char buf[NG_HCI_ADVERTISING_DATA_SIZE];
+
 	len = sizeof(buf);
 	parse_param(argc, argv, buf, &len);
 	memset(cp.scan_response_data, 0, sizeof(cp.scan_response_data));
@@ -217,45 +212,51 @@ static int le_set_scan_response(int s, int argc, char *argv[])
 	memcpy(cp.scan_response_data, buf, len);
 	n = sizeof(rp);
 	e = hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
-					 NG_HCI_OCF_LE_SET_SCAN_RESPONSE_DATA), 
+			NG_HCI_OCF_LE_SET_SCAN_RESPONSE_DATA), 
 			(void *)&cp, sizeof(cp), (void *)&rp, &n);
 			
-	printf("SEt SCAN RESPONSE %d %d %d\n", e, rp.status, n);
+	printf("SET SCAN RESPONSE %d %d %d\n", e, rp.status, n);
 
 	return OK;
 }
 
-static int le_read_local_supported_features(int s, int argc ,char *argv[])
+static int
+le_read_local_supported_features(int s, int argc ,char *argv[])
 {
 	ng_hci_le_read_local_supported_features_rp rp;
 	int e;
 	int n = sizeof(rp);
+
 	e = hci_simple_request(s,
-			       NG_HCI_OPCODE(NG_HCI_OGF_LE,
-					     NG_HCI_OCF_LE_READ_LOCAL_SUPPORTED_FEATURES), 
-			       (void *)&rp, &n);
-	printf("LOCAL SUPPOREDED:%d %d %lu\n", e, rp.status, rp.le_features);
+			NG_HCI_OPCODE(NG_HCI_OGF_LE,
+			NG_HCI_OCF_LE_READ_LOCAL_SUPPORTED_FEATURES), 
+			(void *)&rp, &n);
+
+	printf("LOCAL SUPPOREDED: %d %d %lu\n", e, rp.status,
+			rp.le_features);
 
 	return 0;
-
 }
-static int le_read_supported_status(int s, int argc, char *argv[])
+
+static int
+le_read_supported_status(int s, int argc, char *argv[])
 {
 	ng_hci_le_read_supported_status_rp rp;
 	int e;
 	int n = sizeof(rp);
-	e = hci_simple_request(s,
-			       NG_HCI_OPCODE(NG_HCI_OGF_LE,
-					     NG_HCI_OCF_LE_READ_SUPPORTED_STATUS), 
-			       (void *)&rp, &n);
-	printf("LE_STATUS:%d %d %lx\n", e, rp.status, rp.le_status);
+
+	e = hci_simple_request(s, NG_HCI_OPCODE(
+					NG_HCI_OGF_LE,
+					NG_HCI_OCF_LE_READ_SUPPORTED),
+			       		(void *)&rp, &n);
+
+	printf("LE_STATUS: %d %d %lx\n", e, rp.status, rp.le_status);
 
 	return 0;
-
 }
 
-
-static int set_le_event_mask(int s, uint64_t mask)
+static int
+set_le_event_mask(int s, uint64_t mask)
 {
 	ng_hci_le_set_event_mask_cp semc;
 	ng_hci_le_set_event_mask_rp rp;  
@@ -263,60 +264,62 @@ static int set_le_event_mask(int s, uint64_t mask)
 	
 	n = sizeof(rp);
 	
-	for(i=0; i< NG_HCI_LE_EVENT_MASK_SIZE;i++){
+	for (i=0; i < NG_HCI_LE_EVENT_MASK_SIZE; i++) {
 		semc.event_mask[i] = mask&0xff;
-		mask>>= 8;
+		mask >>= 8;
 	}
-	e = hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE, NG_HCI_OCF_LE_SET_EVENT_MASK), (void *)&semc, sizeof(semc), (void *)&rp, &n);
+	e = hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
+			NG_HCI_OCF_LE_SET_EVENT_MASK),
+			(void *)&semc, sizeof(semc), (void *)&rp, &n);
 	
 	return 0;
 }
 
-
-static int set_event_mask(int s, uint64_t mask)
+static int
+set_event_mask(int s, uint64_t mask)
 {
 	ng_hci_set_event_mask_cp semc;
 	ng_hci_set_event_mask_rp rp;  
-	int i,n,e;
+	int i, n, e;
 	
 	n = sizeof(rp);
 	
-	for(i=0; i< NG_HCI_EVENT_MASK_SIZE;i++){
+	for (i=0; i < NG_HCI_EVENT_MASK_SIZE; i++) {
 		semc.event_mask[i] = mask&0xff;
-		mask>>= 8;
+		mask >>= 8;
 	}
-	e = hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_HC_BASEBAND, NG_HCI_OCF_SET_EVENT_MASK), (void *)&semc, sizeof(semc), (void *)&rp, &n);
+	e = hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_HC_BASEBAND,
+			NG_HCI_OCF_SET_EVENT_MASK),
+			(void *)&semc, sizeof(semc), (void *)&rp, &n);
 	
 	return 0;
 }
 
-
-static int le_enable(int s, int argc, char *argv[])
+static
+int le_enable(int s, int argc, char *argv[])
 {
-	if(argc != 1){
+	if (argc != 1)
 		return USAGE;
-	}
 	
-	if(strcasecmp(argv[0], "enable")==0){
-		set_event_mask(s,NG_HCI_EVENT_MASK_DEFAULT |
+	if (strcasecmp(argv[0], "enable") == 0) {
+		set_event_mask(s, NG_HCI_EVENT_MASK_DEFAULT |
 			       NG_HCI_EVENT_MASK_LE);
 		set_le_event_mask(s, NG_HCI_LE_EVENT_MASK_ALL);
-	}else if (strcasecmp(argv[0], "disble")==0){
-		set_event_mask(s,NG_HCI_EVENT_MASK_DEFAULT);
-	}else{
+	} else if (strcasecmp(argv[0], "disble") == 0)
+		set_event_mask(s, NG_HCI_EVENT_MASK_DEFAULT);
+	else
 		return USAGE;
-	}
 
 	return OK;
 }
 
-struct hci_command	le_commands[] = {
-  {
-	  "le_enable",
-	  "le_enable [enable|disable] \n"
-          "Enable LE event ",
-	  &le_enable,
-  },
+struct hci_command le_commands[] = {
+{
+	"le_enable",
+	"le_enable [enable|disable] \n"
+	"Enable LE event ",
+	&le_enable,
+},
   {
 	  "le_read_local_supported_features",
 	  "le_read_local_supported_features\n" 
