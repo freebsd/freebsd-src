@@ -627,7 +627,7 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	struct m_tag *mtag;
 	struct tdb_ident *tdbi;
 	struct secasindex *saidx;
-	int nxt;
+	int nxt, isr_prot;
 	u_int8_t nxt8;
 	int error, nest;
 #ifdef notyet
@@ -803,6 +803,35 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_AFTER)) != 0)
 		return (error);
 #endif /* DEV_ENC */
+	if (skip == 0) {
+		/*
+		 * We stripped outer IPv6 header.
+		 * Now we should requeue decrypted packet via netisr.
+		 */
+		switch (prot) {
+#ifdef INET
+		case IPPROTO_IPIP:
+			isr_prot = NETISR_IP;
+			break;
+#endif
+		case IPPROTO_IPV6:
+			isr_prot = NETISR_IPV6;
+			break;
+		default:
+			DPRINTF(("%s: cannot handle inner ip proto %d\n",
+			    __func__, prot));
+			IPSEC_ISTAT(sproto, nopf);
+			error = EPFNOSUPPORT;
+			goto bad;
+		}
+		error = netisr_queue_src(isr_prot, (uintptr_t)sav->spi, m);
+		if (error) {
+			IPSEC_ISTAT(sproto, qfull);
+			DPRINTF(("%s: queue full; proto %u packet dropped\n",
+			    __func__, sproto));
+		}
+		return (error);
+	}
 	/*
 	 * See the end of ip6_input for this logic.
 	 * IPPROTO_IPV[46] case will be processed just like other ones
