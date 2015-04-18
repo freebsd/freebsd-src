@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 8, 2015
+.Dd April 18, 2015
 .Dt SDT 9
 .Os
 .Sh NAME
@@ -194,7 +194,37 @@ macros are used to create
 trace points.
 They are meant to be added to executable code and can be used to instrument the
 code in which they are called.
+.Sh PROVIDERS
+A number of kernel DTrace providers are available.
+In general, these providers define stable interfaces and should be treated as
+such: existing D scripts may be broken if a probe is renamed or its arguments
+are modified.
+However, it is often useful to define ad-hoc
+.Nm
+probes for debugging a subsystem or driver.
+Similarly, a developer may wish to provide a group of
+.Nm
+probes without committing to their future stability.
+Such probes should be added to the
+.Ql sdt
+provider instead of defining a new provider.
 .Sh EXAMPLES
+The DTrace providers available on the current system can be listed with
+.Bd -literal -offset indent
+dtrace -l | sed 1d | awk '{print $2}' | sort -u
+.Ed
+.Pp
+A detailed list of the probes offered by a given provider can be obtained by
+specifying the provider using the
+.Fl P
+flag.
+For example, to view the probes and argument types for the
+.Ql sched
+provider, run
+.Bd -literal -offset indent
+dtrace -lv -P sched
+.Ed
+.Pp
 The following probe definition will create a DTrace probe called
 .Ql icmp:::receive-unreachable ,
 which would hypothetically be triggered when the kernel receives an ICMP packet
