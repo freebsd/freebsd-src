@@ -198,6 +198,7 @@ typedef struct synapticsinfo {
 	struct sysctl_ctx_list	 sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
 	int			 directional_scrolls;
+	int			 two_finger_scroll;
 	int			 min_pressure;
 	int			 max_pressure;
 	int			 max_width;
@@ -336,6 +337,7 @@ struct psm_softc {		/* Driver status information */
 	int		lasterr;
 	int		cmdcount;
 	struct sigio	*async;		/* Processes waiting for SIGIO */
+	int		extended_buttons;
 };
 static devclass_t psm_devclass;
 
@@ -2742,7 +2744,13 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 				if (pb->ipacket[5] & 0x02)
 					touchpad_buttons |= MOUSE_BUTTON7DOWN;
 			} else {
-				touchpad_buttons |= MOUSE_BUTTON2DOWN;
+				if (pb->ipacket[4] & 0x01)
+					touchpad_buttons |= MOUSE_BUTTON1DOWN;
+				if (pb->ipacket[5] & 0x01)
+					touchpad_buttons |= MOUSE_BUTTON3DOWN;
+				if (pb->ipacket[4] & 0x02)
+					touchpad_buttons |= MOUSE_BUTTON2DOWN;
+				sc->extended_buttons = touchpad_buttons;
 			}
 
 			/*
@@ -2764,13 +2772,26 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 			mask = (1 << maskedbits) - 1;
 			pb->ipacket[4] &= ~(mask);
 			pb->ipacket[5] &= ~(mask);
+		} else	if (!sc->syninfo.directional_scrolls &&
+		    !sc->synaction.in_vscroll) {
+			/*
+			 * Keep reporting MOUSE DOWN until we get a new packet
+			 * indicating otherwise.
+			 */
+			touchpad_buttons |= sc->extended_buttons;
 		}
 	}
+	/* Handle ClickPad. */
+	if (sc->synhw.capClickPad &&
+	    ((pb->ipacket[0] ^ pb->ipacket[3]) & 0x01))
+		touchpad_buttons |= MOUSE_BUTTON1DOWN;
 
 	ms->button = touchpad_buttons | guest_buttons;
 
-	/* Check pressure to detect a real wanted action on the
-	 * touchpad. */
+	/*
+	 * Check pressure to detect a real wanted action on the
+	 * touchpad.
+	 */
 	if (*z >= sc->syninfo.min_pressure) {
 		synapticsaction_t *synaction;
 		int cursor, peer, window;
@@ -2783,7 +2804,7 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		int weight_current, weight_previous, weight_len_squared;
 		int div_min, div_max, div_len;
 		int vscroll_hor_area, vscroll_ver_area;
-
+		int two_finger_scroll;
 		int len, weight_prev_x, weight_prev_y;
 		int div_max_x, div_max_y, div_x, div_y;
 
@@ -2810,6 +2831,7 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		div_len = sc->syninfo.div_len;
 		vscroll_hor_area = sc->syninfo.vscroll_hor_area;
 		vscroll_ver_area = sc->syninfo.vscroll_ver_area;
+		two_finger_scroll = sc->syninfo.two_finger_scroll;
 
 		/* Palm detection. */
 		if (!(
@@ -2969,33 +2991,57 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 			if (timevalcmp(&sc->lastsoftintr, &sc->taptimeout, >) ||
 			    dxp >= sc->syninfo.vscroll_min_delta ||
 			    dyp >= sc->syninfo.vscroll_min_delta) {
-				/* Check for horizontal scrolling. */
-				if ((vscroll_hor_area > 0 &&
-				    synaction->start_y <= vscroll_hor_area) ||
-				    (vscroll_hor_area < 0 &&
-				     synaction->start_y >=
-				     6143 + vscroll_hor_area))
-					synaction->in_vscroll += 2;
+				/*
+				 * Handle two finger scrolling.
+				 * Note that we don't rely on fingers_nb
+				 * as that keeps the maximum number of fingers.
+				 */
+				if (two_finger_scroll) {
+					if (w == 0) {
+						synaction->in_vscroll +=
+						    dyp ? 2 : 0;
+						synaction->in_vscroll +=
+						    dxp ? 1 : 0;
+					}
+				} else {
+					/* Check for horizontal scrolling. */
+					if ((vscroll_hor_area > 0 &&
+					    synaction->start_y <=
+					        vscroll_hor_area) ||
+					    (vscroll_hor_area < 0 &&
+					     synaction->start_y >=
+					     6143 + vscroll_hor_area))
+						synaction->in_vscroll += 2;
 
-				/* Check for vertical scrolling. */
-				if ((vscroll_ver_area > 0 &&
-				    synaction->start_x <= vscroll_ver_area) ||
-				    (vscroll_ver_area < 0 &&
-				     synaction->start_x >=
-				     6143 + vscroll_ver_area))
-					synaction->in_vscroll += 1;
+					/* Check for vertical scrolling. */
+					if ((vscroll_ver_area > 0 &&
+					    synaction->start_x <=
+						vscroll_ver_area) ||
+					    (vscroll_ver_area < 0 &&
+					     synaction->start_x >=
+					     6143 + vscroll_ver_area))
+						synaction->in_vscroll += 1;
+				}
 
 				/* Avoid conflicts if area overlaps. */
-				if (synaction->in_vscroll == 3)
+				if (synaction->in_vscroll >= 3)
 					synaction->in_vscroll =
 					    (dxp > dyp) ? 2 : 1;
 			}
-			VLOG(5, (LOG_DEBUG,
-			    "synaptics: virtual scrolling: %s "
-			    "(direction=%d, dxp=%d, dyp=%d)\n",
-			    synaction->in_vscroll ? "YES" : "NO",
-			    synaction->in_vscroll, dxp, dyp));
 		}
+		/*
+		 * Reset two finger scrolling when the number of fingers
+		 * is different from two.
+		 */
+		if (two_finger_scroll && w != 0)
+			synaction->in_vscroll = 0;
+
+		VLOG(5, (LOG_DEBUG,
+			"synaptics: virtual scrolling: %s "
+			"(direction=%d, dxp=%d, dyp=%d, fingers=%d)\n",
+			synaction->in_vscroll ? "YES" : "NO",
+			synaction->in_vscroll, dxp, dyp,
+			synaction->fingers_nb));
 
 		weight_prev_x = weight_prev_y = weight_previous;
 		div_max_x = div_max_y = div_max;
@@ -3237,6 +3283,7 @@ SYNAPTICS_END:
 	 * That's why the horizontal wheel is disabled by
 	 * default for now.
 	 */
+
 	if (ms->button & MOUSE_BUTTON4DOWN) {
 		*z = -1;
 		ms->button &= ~MOUSE_BUTTON4DOWN;
@@ -3450,7 +3497,7 @@ psmsoftintr(void *arg)
 			c = ((x < 0) ? MOUSE_PS2_XNEG : 0) |
 			    ((y < 0) ? MOUSE_PS2_YNEG : 0);
 			break;
-	
+
 		case MOUSE_MODEL_4D:
 			/*
 			 *          b7 b6 b5 b4 b3 b2 b1 b0
@@ -4098,13 +4145,29 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	    0, "Synaptics TouchPad");
 
 	/* hw.psm.synaptics.directional_scrolls. */
-	sc->syninfo.directional_scrolls = 1;
+	sc->syninfo.directional_scrolls = 0;
 	SYSCTL_ADD_INT(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "directional_scrolls", CTLFLAG_RW|CTLFLAG_ANYBODY,
 	    &sc->syninfo.directional_scrolls, 0,
 	    "Enable hardware scrolling pad (if non-zero) or register it as "
-	    "a middle-click (if 0)");
+	    "extended buttons (if 0)");
+
+	/*
+	 * Turn off two finger scroll if we have a
+	 * physical area reserved for scrolling or when
+	 * there's no multi finger support.
+	 */
+	if (sc->synhw.verticalScroll || sc->synhw.capMultiFinger == 0)
+		sc->syninfo.two_finger_scroll = 0;
+	else
+		sc->syninfo.two_finger_scroll = 1;
+	/* hw.psm.synaptics.two_finger_scroll. */
+	SYSCTL_ADD_INT(&sc->syninfo.sysctl_ctx,
+	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
+	    "two_finger_scroll", CTLFLAG_RW|CTLFLAG_ANYBODY,
+	    &sc->syninfo.two_finger_scroll, 0,
+	    "Enable two finger scrolling");
 
 	/* hw.psm.synaptics.min_pressure. */
 	sc->syninfo.min_pressure = 16;
@@ -4501,7 +4564,21 @@ enable_synaptics(KBDC kbdc, struct psm_softc *sc)
 				return (FALSE);
 			if (get_mouse_status(kbdc, status, 0, 3) != 3)
 				return (FALSE);
+			synhw.verticalScroll   = (status[0] & 0x01) != 0;
+			synhw.horizontalScroll = (status[0] & 0x02) != 0;
+			synhw.verticalWheel    = (status[0] & 0x08) != 0;
 			synhw.nExtendedButtons = (status[1] & 0xf0) >> 4;
+			if (verbose >= 2) {
+				printf("  Extended model ID:\n");
+				printf("   verticalScroll: %d\n",
+				    synhw.verticalScroll);
+				printf("   horizontalScroll: %d\n",
+				    synhw.horizontalScroll);
+				printf("   verticalWheel: %d\n",
+				    synhw.verticalWheel);
+				printf("   nExtendedButtons: %d\n",
+				    synhw.nExtendedButtons);
+			}
 			/*
 			 * Add the number of extended buttons to the total
 			 * button support count, including the middle button
@@ -4520,6 +4597,42 @@ enable_synaptics(KBDC kbdc, struct psm_softc *sc)
 			printf("  Additional Buttons: %d\n", buttons);
 		else
 			printf("  No extended capabilities\n");
+	}
+
+	/* Read the continued capabilities bits. */
+	if (mouse_ext_command(kbdc, 0xc) != 0 &&
+	    get_mouse_status(kbdc, status, 0, 3) == 3) {
+		synhw.capClickPad         = (status[1] & 0x01) << 1;
+		synhw.capClickPad        |= (status[0] & 0x10) != 0;
+		synhw.capDeluxeLEDs       = (status[1] & 0x02) != 0;
+		synhw.noAbsoluteFilter    = (status[1] & 0x04) != 0;
+		synhw.capReportsV         = (status[1] & 0x08) != 0;
+		synhw.capUniformClickPad  = (status[1] & 0x10) != 0;
+		synhw.capReportsMin       = (status[1] & 0x20) != 0;
+		synhw.capInterTouch       = (status[1] & 0x40) != 0;
+		synhw.capReportsMax       = (status[2] & 0x02) != 0;
+		synhw.capClearPad         = (status[2] & 0x04) != 0;
+		synhw.capAdvancedGestures = (status[2] & 0x08) != 0;
+		synhw.capCoveredPad       = (status[2] & 0x80) != 0;
+
+		if (verbose >= 2) {
+			printf("  Continued capabilities:\n");
+			printf("   capClickPad: %d\n", synhw.capClickPad);
+			printf("   capDeluxeLEDs: %d\n", synhw.capDeluxeLEDs);
+			printf("   noAbsoluteFilter: %d\n",
+			    synhw.noAbsoluteFilter);
+			printf("   capReportsV: %d\n", synhw.capReportsV);
+			printf("   capUniformClickPad: %d\n",
+			    synhw.capUniformClickPad);
+			printf("   capReportsMin: %d\n", synhw.capReportsMin);
+			printf("   capInterTouch: %d\n", synhw.capInterTouch);
+			printf("   capReportsMax: %d\n", synhw.capReportsMax);
+			printf("   capClearPad: %d\n", synhw.capClearPad);
+			printf("   capAdvancedGestures: %d\n",
+			    synhw.capAdvancedGestures);
+			printf("   capCoveredPad: %d\n", synhw.capCoveredPad);
+		}
+		buttons += synhw.capClickPad;
 	}
 
 	/*
