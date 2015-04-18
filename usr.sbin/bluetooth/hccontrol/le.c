@@ -247,7 +247,7 @@ le_read_supported_status(int s, int argc, char *argv[])
 
 	e = hci_simple_request(s, NG_HCI_OPCODE(
 					NG_HCI_OGF_LE,
-					NG_HCI_OCF_LE_READ_SUPPORTED),
+					NG_HCI_OCF_LE_READ_SUPPORTED_STATUS),
 			       		(void *)&rp, &n);
 
 	printf("LE_STATUS: %d %d %lx\n", e, rp.status, rp.le_status);
