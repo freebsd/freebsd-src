@@ -232,7 +232,7 @@ le_read_local_supported_features(int s, int argc ,char *argv[])
 			NG_HCI_OCF_LE_READ_LOCAL_SUPPORTED_FEATURES), 
 			(void *)&rp, &n);
 
-	printf("LOCAL SUPPORTED: %d %d %lu\n", e, rp.status,
+	printf("LOCAL SUPPORTED: %d %d %jx\n", e, rp.status,
 			rp.le_features);
 
 	return 0;
@@ -250,7 +250,7 @@ le_read_supported_status(int s, int argc, char *argv[])
 					NG_HCI_OCF_LE_READ_SUPPORTED_STATUS),
 			       		(void *)&rp, &n);
 
-	printf("LE_STATUS: %d %d %lx\n", e, rp.status, rp.le_status);
+	printf("LE_STATUS: %d %d %jx\n", e, rp.status, rp.le_status);
 
 	return 0;
 }
