@@ -1,4 +1,4 @@
-.\" Copyright (c) 2013 Mark Johnston <markj@freebsd.org>
+.\" Copyright (c) 2013-2015 Mark Johnston <markj@freebsd.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -304,7 +304,13 @@ SDT_PROBE_DEFINE1_XLATE(ip, , , receive, "struct icmp *",
     "struct icmp_hdr_dt *");
 .Ed
 .Sh SEE ALSO
-.Xr dtrace 1
+.Xr dtrace 1 ,
+.Xr dtrace-io 4 ,
+.Xr dtrace-ip 4 ,
+.Xr dtrace-proc 4 ,
+.Xr dtrace-sched 4 ,
+.Xr dtrace-tcp 4 ,
+.Xr dtrace-udp 4
 .Sh AUTHORS
 .An -nosplit
 DTrace and the
