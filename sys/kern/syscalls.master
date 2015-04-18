@@ -342,9 +342,9 @@
 				    int a4); }
 ; XXX should be	{ int shmsys(int which, ...); }
 172	AUE_NULL	UNIMPL	nosys
-173	AUE_PREAD	STD	{ ssize_t freebsd6_pread(int fd, void *buf, \
+173	AUE_PREAD	COMPAT6	{ ssize_t pread(int fd, void *buf, \
 				    size_t nbyte, int pad, off_t offset); }
-174	AUE_PWRITE	STD	{ ssize_t freebsd6_pwrite(int fd, \
+174	AUE_PWRITE	COMPAT6	{ ssize_t pwrite(int fd, \
 				    const void *buf, \
 				    size_t nbyte, int pad, off_t offset); }
 175	AUE_NULL	STD	{ int setfib(int fibnum); }
@@ -376,16 +376,16 @@
 				    __setrlimit_args int
 196	AUE_GETDIRENTRIES	STD	{ int getdirentries(int fd, char *buf, \
 				    u_int count, long *basep); }
-197	AUE_MMAP	STD	{ caddr_t freebsd6_mmap(caddr_t addr, \
+197	AUE_MMAP	COMPAT6	{ caddr_t mmap(caddr_t addr, \
 				    size_t len, int prot, int flags, int fd, \
 				    int pad, off_t pos); }
 198	AUE_NULL	NOPROTO	{ int nosys(void); } __syscall \
 				    __syscall_args int
-199	AUE_LSEEK	STD	{ off_t freebsd6_lseek(int fd, int pad, \
+199	AUE_LSEEK	COMPAT6	{ off_t lseek(int fd, int pad, \
 				    off_t offset, int whence); }
-200	AUE_TRUNCATE	STD	{ int freebsd6_truncate(char *path, int pad, \
+200	AUE_TRUNCATE	COMPAT6	{ int truncate(char *path, int pad, \
 				    off_t length); }
-201	AUE_FTRUNCATE	STD	{ int freebsd6_ftruncate(int fd, int pad, \
+201	AUE_FTRUNCATE	COMPAT6	{ int ftruncate(int fd, int pad, \
 				    off_t length); }
 202	AUE_SYSCTL	STD	{ int __sysctl(int *name, u_int namelen, \
 				    void *old, size_t *oldlenp, void *new, \

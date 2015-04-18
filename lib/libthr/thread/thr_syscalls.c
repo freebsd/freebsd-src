@@ -95,10 +95,6 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "thr_private.h"
 
-#ifdef SYSCALL_COMPAT
-extern int __fcntl_compat(int, int, ...);
-#endif
-
 static int
 __thr_accept(int s, struct sockaddr *addr, socklen_t *addrlen)
 {
@@ -203,18 +199,10 @@ __thr_fcntl(int fd, int cmd, ...)
 	va_start(ap, cmd);
 	if (cmd == F_OSETLKW || cmd == F_SETLKW) {
 		_thr_cancel_enter(curthread);
-#ifdef SYSCALL_COMPAT
-		ret = __fcntl_compat(fd, cmd, va_arg(ap, void *));
-#else
 		ret = __sys_fcntl(fd, cmd, va_arg(ap, void *));
-#endif
 		_thr_cancel_leave(curthread, ret == -1);
 	} else {
-#ifdef SYSCALL_COMPAT
-		ret = __fcntl_compat(fd, cmd, va_arg(ap, void *));
-#else
 		ret = __sys_fcntl(fd, cmd, va_arg(ap, void *));
-#endif
 	}
 	va_end(ap);
 

@@ -44,7 +44,7 @@ interpos_func_t __libc_interposing[INTERPOS_MAX] = {
 	SLOT(aio_suspend, __sys_aio_suspend),
 	SLOT(close, __sys_close),
 	SLOT(connect, __sys_connect),
-	SLOT(fcntl, __fcntl_compat),
+	SLOT(fcntl, __sys_fcntl),
 	SLOT(fsync, __sys_fsync),
 	SLOT(fork, __sys_fork),
 	SLOT(msync, __sys_msync),

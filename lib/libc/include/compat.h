@@ -47,9 +47,7 @@ __sym_compat(shmctl, freebsd7_shmctl, FBSD_1.0);
 #define	__weak_reference(sym,alias)	\
 	.weak	alias;.equ	alias,sym
 
-#ifndef SYSCALL_COMPAT
 __weak_reference(__sys_fcntl,__fcntl_compat)
-#endif
 
 #undef __weak_reference
 
