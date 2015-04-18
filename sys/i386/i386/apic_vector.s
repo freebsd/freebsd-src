@@ -320,19 +320,4 @@ IDTVEC(rendezvous)
 	POP_FRAME
 	iret
 	
-/*
- * Clean up when we lose out on the lazy context switch optimization.
- * ie: when we are about to release a PTD but a cpu is still borrowing it.
- */
-	SUPERALIGN_TEXT
-IDTVEC(lazypmap)
-	PUSH_FRAME
-	SET_KERNEL_SREGS
-	cld
-
-	call	pmap_lazyfix_action
-
-	call	as_lapic_eoi
-	POP_FRAME
-	iret
 #endif /* SMP */
