@@ -153,7 +153,7 @@ set_active_node(line_t *lp)
 		if (active_list != NULL) {
 #endif
 			if ((ts = (line_t **) realloc(active_list,
-			    (ti += MINBUFSZ) * sizeof(line_t **))) == NULL) {
+			    (ti += MINBUFSZ) * sizeof(line_t *))) == NULL) {
 				fprintf(stderr, "%s\n", strerror(errno));
 				errmsg = "out of memory";
 				SPL0();
