@@ -79,6 +79,9 @@ __FBSDID("$FreeBSD$");
 #define ELFNAME2(x,y)   CONCAT(x,CONCAT(_elf,CONCAT(ELFSIZE,CONCAT(_,y))))
 #define ELFNAMEEND(x)   CONCAT(x,CONCAT(_elf,ELFSIZE))
 #define ELFDEFNNAME(x)  CONCAT(ELF,CONCAT(ELFSIZE,CONCAT(_,x)))
+#ifndef ELFCLASS
+#define ELFCLASS	CONCAT(ELFCLASS,ELFSIZE)
+#endif
 
 #define	xe16toh(x)	((data == ELFDATA2MSB) ? be16toh(x) : le16toh(x))
 #define	xe32toh(x)	((data == ELFDATA2MSB) ? be32toh(x) : le32toh(x))
@@ -167,7 +170,7 @@ ELFNAMEEND(check)(int fd, const char *fn)
 	if (read(fd, &eh, sizeof eh) != sizeof eh)
 		return 0;
 
-	if (IS_ELF(eh) == 0)
+	if (IS_ELF(eh) == 0 || eh.e_ident[EI_CLASS] != ELFCLASS)
                 return 0;
 
 	data = eh.e_ident[EI_DATA];
