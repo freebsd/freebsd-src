@@ -1010,7 +1010,9 @@ em_mq_start(if_t ifp, struct mbuf *m)
 
 	txr = &adapter->tx_rings[i];
 
+	EM_TX_LOCK(txr);
 	error = drbr_enqueue(ifp, txr->br, m);
+	EM_TX_UNLOCK(txr);
 	if (error)
 		return (error);
 
@@ -5915,6 +5917,7 @@ em_print_debug_info(struct adapter *adapter)
 		printf("and ACTIVE\n");
 
 	for (int i = 0; i < adapter->num_tx_queues; i++, txr++) {
+		device_printf(dev, "TX Queue %d ------\n", i);
 		device_printf(dev, "hw tdh = %d, hw tdt = %d\n",
 	    		E1000_READ_REG(&adapter->hw, E1000_TDH(i)),
 	    		E1000_READ_REG(&adapter->hw, E1000_TDT(i)));
@@ -5925,6 +5928,7 @@ em_print_debug_info(struct adapter *adapter)
 	    		txr->no_desc_avail);
 	}
 	for (int i = 0; i < adapter->num_rx_queues; i++, rxr++) {
+		device_printf(dev, "RX Queue %d ------\n", i);
 		device_printf(dev, "hw rdh = %d, hw rdt = %d\n",
 	    		E1000_READ_REG(&adapter->hw, E1000_RDH(i)),
 	    		E1000_READ_REG(&adapter->hw, E1000_RDT(i)));
