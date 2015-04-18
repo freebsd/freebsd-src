@@ -3856,48 +3856,19 @@ key_ismyaddr(struct sockaddr *sa)
  * compare my own address for IPv6.
  * 1: ours
  * 0: other
- * NOTE: derived ip6_input() in KAME. This is necessary to modify more.
  */
-#include <netinet6/in6_var.h>
-
 static int
 key_ismyaddr6(struct sockaddr_in6 *sin6)
 {
-	struct in6_ifaddr *ia;
-#if 0
-	struct in6_multi *in6m;
-#endif
+	struct in6_addr in6;
 
-	IN6_IFADDR_RLOCK();
-	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
-		if (key_sockaddrcmp((struct sockaddr *)sin6,
-		    (struct sockaddr *)&ia->ia_addr, 0) == 0) {
-			IN6_IFADDR_RUNLOCK();
-			return 1;
-		}
+	if (!IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr))
+		return (in6_localip(&sin6->sin6_addr));
 
-#if 0
-		/*
-		 * XXX Multicast
-		 * XXX why do we care about multlicast here while we don't care
-		 * about IPv4 multicast??
-		 * XXX scope
-		 */
-		in6m = NULL;
-		IN6_LOOKUP_MULTI(sin6->sin6_addr, ia->ia_ifp, in6m);
-		if (in6m) {
-			IN6_IFADDR_RUNLOCK();
-			return 1;
-		}
-#endif
-	}
-	IN6_IFADDR_RUNLOCK();
-
-	/* loopback, just for safety */
-	if (IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr))
-		return 1;
-
-	return 0;
+	/* Convert address into kernel-internal form */
+	in6 = sin6->sin6_addr;
+	in6.s6_addr16[1] = htons(sin6->sin6_scope_id & 0xffff);
+	return (in6_localip(&in6));
 }
 #endif /*INET6*/
 
