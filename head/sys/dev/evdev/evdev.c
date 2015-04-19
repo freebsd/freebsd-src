@@ -186,65 +186,96 @@ evdev_set_softc(struct evdev_dev *evdev, void *softc)
 	evdev->ev_softc = softc;
 }
 
-inline void
+inline int
 evdev_support_event(struct evdev_dev *evdev, uint16_t type)
 {
 
+	if (type >= EV_CNT)
+		return (EINVAL);
+
 	set_bit(evdev->ev_type_flags, type);
+	return (0);
 }
 
-inline void
+inline int
 evdev_support_key(struct evdev_dev *evdev, uint16_t code)
 {
 
+	if (code >= KEY_CNT)
+		return (EINVAL);
+
 	set_bit(evdev->ev_key_flags, code);
+	return (0);
 }
 
-inline void
+inline int
 evdev_support_rel(struct evdev_dev *evdev, uint16_t code)
 {
 
+	if (code >= REL_CNT)
+		return (EINVAL);
+
 	set_bit(evdev->ev_rel_flags, code);
+	return (0);
 }
 
-inline void
+inline int
 evdev_support_abs(struct evdev_dev *evdev, uint16_t code)
 {
 
+	if (code >= ABS_CNT)
+		return (EINVAL);
+
 	set_bit(evdev->ev_abs_flags, code);
+	return (0);
 }
 
 
-inline void
+inline int
 evdev_support_msc(struct evdev_dev *evdev, uint16_t code)
 {
 
+	if (code >= MSC_CNT)
+		return (EINVAL);
+
 	set_bit(evdev->ev_msc_flags, code);
+	return (0);
 }
 
 
-inline void
+inline int
 evdev_support_led(struct evdev_dev *evdev, uint16_t code)
 {
 
+	if (code >= LED_CNT)
+		return (EINVAL);
+
 	set_bit(evdev->ev_led_flags, code);
+	return (0);
 }
 
-inline void
+inline int
 evdev_support_snd(struct evdev_dev *evdev, uint16_t code)
 {
 
+	if (code >= SND_CNT)
+		return (EINVAL);
+
 	set_bit(evdev->ev_snd_flags, code);
+	return (0);
 }
 
-inline void
+inline int
 evdev_support_sw(struct evdev_dev *evdev, uint16_t code)
 {
+	if (code >= SW_CNT)
+		return (EINVAL);
 
 	set_bit(evdev->ev_sw_flags, code);
+	return (0);
 }
 
-inline void
+inline int
 evdev_support_repeat(struct evdev_dev *evdev, enum evdev_repeat_mode mode)
 {
 
@@ -252,6 +283,7 @@ evdev_support_repeat(struct evdev_dev *evdev, enum evdev_repeat_mode mode)
 		set_bit(evdev->ev_type_flags, EV_REP);
 
 	evdev->ev_repeat_mode = mode;
+	return (0);
 }
 
 
