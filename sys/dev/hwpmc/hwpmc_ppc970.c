@@ -555,7 +555,7 @@ ppc970_pcpu_init(struct pmc_mdep *md, int cpu)
 	pac->pc_class = PMC_CLASS_PPC970;
 
 	pc = pmc_pcpu[cpu];
-	first_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_PPC970].pcd_ri;
+	first_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_POWERPC].pcd_ri;
 	KASSERT(pc != NULL, ("[powerpc,%d] NULL per-cpu pointer", __LINE__));
 
 	for (i = 0, phw = pac->pc_ppcpmcs; i < PPC970_MAX_PMCS; i++, phw++) {
@@ -661,7 +661,7 @@ pmc_ppc970_initialize(struct pmc_mdep *pmc_mdep)
 	
 	pmc_mdep->pmd_cputype = PMC_CPU_PPC_970;
 
-	pcd = &pmc_mdep->pmd_classdep[PMC_MDEP_CLASS_INDEX_PPC970];
+	pcd = &pmc_mdep->pmd_classdep[PMC_MDEP_CLASS_INDEX_POWERPC];
 	pcd->pcd_caps  = POWERPC_PMC_CAPS;
 	pcd->pcd_class = PMC_CLASS_PPC970;
 	pcd->pcd_num   = PPC970_MAX_PMCS;

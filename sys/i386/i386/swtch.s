@@ -174,12 +174,6 @@ ENTRY(cpu_switch)
 
 	/* switch address space */
 	movl	PCB_CR3(%edx),%eax
-#if defined(PAE) || defined(PAE_TABLES)
-	cmpl	%eax,IdlePDPT			/* Kernel address space? */
-#else
-	cmpl	%eax,IdlePTD			/* Kernel address space? */
-#endif
-	je	sw0
 	READ_CR3(%ebx)				/* The same address space? */
 	cmpl	%ebx,%eax
 	je	sw0

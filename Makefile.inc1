@@ -1281,10 +1281,6 @@ _m4=		lib/libohash \
 ${_bt}-usr.bin/m4: ${_bt}-lib/libohash
 .endif
 
-.if ${BOOTSTRAPPING} < 1000014
-_crunch=	usr.sbin/crunch
-.endif
-
 .if ${BOOTSTRAPPING} < 1000026
 _nmtree=	lib/libnetbsd \
 		usr.sbin/nmtree
@@ -1300,16 +1296,18 @@ _cat=		bin/cat
 _lex=		usr.bin/lex
 .endif
 
+.if ${BOOTSTRAPPING} < 1001507
+_crunch=	usr.sbin/crunch
+.endif
+
 .if ${BOOTSTRAPPING} >= 900040 && ${BOOTSTRAPPING} < 900041
 _awk=		usr.bin/awk
 .endif
 
-.if ${BOOTSTRAPPING} < 1001506
 _yacc=		lib/liby \
 		usr.bin/yacc
 
 ${_bt}-usr.bin/yacc: ${_bt}-lib/liby
-.endif
 
 .if ${MK_BSNMP} != "no"
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
@@ -1359,8 +1357,13 @@ _kerberos5_bootstrap_tools= \
 	kerberos5/tools/slc \
 	usr.bin/compile_et
 
-${_bt}-kerberos5/tools/slc: ${_bt}-kerberos5/lib/libroken
-${_bt}-kerberos5/tools/asn1_compile: ${_bt}-kerberos5/lib/libroken
+${_bt}-kerberos5/lib/libroken: ${_bt}-kerberos5/tools/make-roken
+${_bt}-kerberos5/tools/asn1_compile: \
+    ${_bt}-kerberos5/lib/libroken ${_bt}-kerberos5/lib/libvers
+${_bt}-kerberos5/tools/slc: \
+    ${_bt}-kerberos5/lib/libroken ${_bt}-kerberos5/lib/libvers
+${_bt}-usr.bin/compile_et: \
+    ${_bt}-kerberos5/lib/libroken ${_bt}-kerberos5/lib/libvers
 .endif
 
 bootstrap-tools: .PHONY
@@ -1466,11 +1469,8 @@ _btxld=		usr.sbin/btxld
 .endif
 .endif
 .if ${TARGET_ARCH} != ${MACHINE_ARCH}
-.if ${MK_RESCUE} != "no" || defined(RELEASEDIR)
+.if ${MK_RESCUE} != "no"
 _crunchide=	usr.sbin/crunch/crunchide
-.endif
-.if ${TARGET_ARCH} == "i386" && defined(RELEASEDIR)
-_kgzip=		usr.sbin/kgzip
 .endif
 .endif
 
@@ -1517,7 +1517,6 @@ cross-tools: .MAKE
     ${_cc} \
     ${_btxld} \
     ${_crunchide} \
-    ${_kgzip} \
     sys/boot/usb/tools
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool} && \

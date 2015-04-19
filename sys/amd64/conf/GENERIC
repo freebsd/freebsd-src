@@ -354,3 +354,6 @@ device		vmx			# VMware VMXNET3 Ethernet
 # Netmap provides direct access to TX/RX rings on supported NICs
 device		netmap			# netmap(4) support
 
+options		EM_MULTIQUEUE
+options		ALT_BREAK_TO_DEBUGGER
+options		BREAK_TO_DEBUGGER
