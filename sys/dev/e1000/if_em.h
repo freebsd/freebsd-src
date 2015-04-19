@@ -53,7 +53,11 @@
  */
 #define EM_MIN_TXD		80
 #define EM_MAX_TXD		4096
+#ifdef EM_MULTIQUEUE
+#define EM_DEFAULT_TXD		4096
+#else
 #define EM_DEFAULT_TXD		1024
+#endif
 
 /*
  * EM_RXD - Maximum number of receive Descriptors
@@ -70,7 +74,11 @@
  */
 #define EM_MIN_RXD		80
 #define EM_MAX_RXD		4096
+#ifdef EM_MULTIQUEUE
+#define EM_DEFAULT_RXD		4096
+#else
 #define EM_DEFAULT_RXD		1024
+#endif
 
 /*
  * EM_TIDV - Transmit Interrupt Delay Value
@@ -117,7 +125,11 @@
  *            restoring the network connection. To eliminate the potential
  *            for the hang ensure that EM_RDTR is set to 0.
  */
+#ifdef EM_MULTIQUEUE
+#define EM_RDTR                         64
+#else
 #define EM_RDTR                         0
+#endif
 
 /*
  * Receive Interrupt Absolute Delay Timer (Not valid for 82542/82543/82544)
@@ -130,7 +142,11 @@
  *   along with EM_RDTR, may improve traffic throughput in specific network
  *   conditions.
  */
+#ifdef EM_MULTIQUEUE
+#define EM_RADV                         128
+#else
 #define EM_RADV                         64
+#endif
 
 /*
  * This parameter controls the max duration of transmit watchdog.
