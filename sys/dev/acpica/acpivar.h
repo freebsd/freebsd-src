@@ -500,8 +500,8 @@ SYSCTL_DECL(_debug_acpi);
 #if MAXMEMDOM > 1
 extern	int acpi_map_pxm_to_vm_domainid(int pxm);
 #endif
-
 extern	int acpi_get_domain(device_t dev, device_t child, int *domain);
+extern	int acpi_parse_pxm(device_t dev, int *domain);
 
 #endif /* _KERNEL */
 #endif /* !_ACPIVAR_H_ */
