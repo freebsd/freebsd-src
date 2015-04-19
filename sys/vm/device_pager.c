@@ -294,7 +294,6 @@ static int
 old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
     vm_page_t *mres)
 {
-	vm_pindex_t pidx;
 	vm_paddr_t paddr;
 	vm_page_t m_paddr, page;
 	struct cdev *dev;
@@ -304,7 +303,6 @@ old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 	vm_memattr_t memattr;
 	int ref, ret;
 
-	pidx = OFF_TO_IDX(offset);
 	memattr = object->memattr;
 
 	VM_OBJECT_WUNLOCK(object);
