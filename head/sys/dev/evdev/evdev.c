@@ -60,6 +60,7 @@ static void evdev_assign_id(struct evdev_dev *);
 static void evdev_start_repeat(struct evdev_dev *, int32_t);
 static void evdev_stop_repeat(struct evdev_dev *);
 #endif
+static int evdev_check_event(struct evdev_dev *, uint16_t, uint16_t, int32_t);
 static void evdev_client_push(struct evdev_client *, uint16_t, uint16_t,
     int32_t);
 
@@ -270,12 +271,46 @@ evdev_set_repeat_params(struct evdev_dev *evdev, uint16_t property, int value)
 	evdev->ev_rep[property] = value;
 }
 
+static int
+evdev_check_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
+    int32_t value)
+{
+
+	if (type == EV_KEY) {
+		if (code >= KEY_CNT)
+			return (EINVAL);
+	} else if (type == EV_REL) {
+		if (code >= REL_CNT)
+			return (EINVAL);
+	} else if (type == EV_ABS) {
+		if (code >= ABS_CNT)
+			return (EINVAL);
+	} else if (type == EV_MSC) {
+		if (code >= MSC_CNT)
+			return (EINVAL);
+	} else if (type == EV_LED) {
+		if (code >= LED_CNT)
+			return (EINVAL);
+	} else if (type == EV_SND) {
+		if (code >= SND_CNT)
+			return (EINVAL);
+	} else if (type == EV_SW) {
+		if (code >= SW_CNT)
+			return (EINVAL);
+	} else
+		return (EINVAL);
+
+	return (0);
+}
 
 int
 evdev_push_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
     int32_t value)
 {
 	struct evdev_client *client;
+
+	if (evdev_check_event(evdev, type, code, value) != 0)
+		return (EINVAL);
 
 	debugf("%s pushed event %d/%d/%d",
 	    evdev->ev_shortname, type, code, value);

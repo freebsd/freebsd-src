@@ -87,7 +87,6 @@ struct uinput_cdev_state
 {
 	bool			ucs_connected;
 	struct evdev_dev *	ucs_evdev;
-	struct evdev_dev	ucs_state;
 	struct mtx		ucs_mtx;
 };
 
@@ -181,8 +180,11 @@ uinput_write(struct cdev *dev, struct uio *uio, int ioflag)
 
 		while (uio->uio_resid > 0) {
 			uiomove(&event, sizeof(struct input_event), uio);
-			evdev_push_event(state->ucs_evdev, event.type, event.code,
+			ret = evdev_push_event(state->ucs_evdev, event.type, event.code,
 			    event.value);
+
+			if (ret != 0)
+				return (ret);
 		}
 	}
 
