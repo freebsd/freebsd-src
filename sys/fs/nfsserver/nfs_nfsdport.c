@@ -84,7 +84,7 @@ extern int nfsrv_issuedelegs;
 extern int nfsrv_dolocallocks;
 extern int nfsd_enable_stringtouid;
 
-SYSCTL_NODE(_vfs, OID_AUTO, nfsd, CTLFLAG_RW, 0, "New NFS server");
+SYSCTL_NODE(_vfs, OID_AUTO, nfsd, CTLFLAG_RW, 0, "NFS server");
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, mirrormnt, CTLFLAG_RW,
     &nfsrv_enable_crossmntpt, 0, "Enable nfsd to cross mount points");
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, commit_blks, CTLFLAG_RW, &nfs_commit_blks,
@@ -96,7 +96,7 @@ SYSCTL_INT(_vfs_nfsd, OID_AUTO, issue_delegations, CTLFLAG_RW,
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_locallocks, CTLFLAG_RW,
     &nfsrv_dolocallocks, 0, "Enable nfsd to acquire local locks on files");
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, debuglevel, CTLFLAG_RW, &nfsd_debuglevel,
-    0, "Debug level for new nfs server");
+    0, "Debug level for NFS server");
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_stringtouid, CTLFLAG_RW,
     &nfsd_enable_stringtouid, 0, "Enable nfsd to accept numeric owner_names");
 
