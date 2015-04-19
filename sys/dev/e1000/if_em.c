@@ -3501,7 +3501,6 @@ em_initialize_transmit_unit(struct adapter *adapter)
 		    E1000_READ_REG(&adapter->hw, E1000_TDLEN(i)));
 
 		txr->queue_status = EM_QUEUE_IDLE;
-		txdctl = E1000_READ_REG(hw, E1000_TXDCTL(i));
 		txdctl = 0; /* clear txdctl */
                 txdctl |= 0x1f; /* PTHRESH */
                 txdctl |= 1 << 8; /* HTHRESH */
