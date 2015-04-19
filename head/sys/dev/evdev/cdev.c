@@ -367,7 +367,7 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 
 	case IOCBASECMD(EVIOCGREP):
 		if (evdev->ev_repeat_mode == NO_REPEAT)
-			return ENOTSUP;
+			return (ENOTSUP);
 
 		rep_params[0] = evdev->ev_rep[REP_DELAY];
 		rep_params[1] = evdev->ev_rep[REP_PERIOD];
@@ -376,7 +376,7 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 
 	case IOCBASECMD(EVIOCSREP):
 		if (evdev->ev_repeat_mode == NO_REPEAT)
-			return ENOTSUP;
+			return (ENOTSUP);
 
 		memcpy(rep_params, data, sizeof(rep_params));
 		evdev->ev_rep[REP_DELAY] = rep_params[0];
@@ -391,7 +391,7 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 
 	case IOCBASECMD(EVIOCGKEYCODE_V2):
 		if (evdev->ev_methods->ev_get_keycode == NULL)
-			return ENOTSUP;
+			return (ENOTSUP);
 
 		ke = (struct input_keymap_entry *)data;
 		evdev->ev_methods->ev_get_keycode(evdev, evdev->ev_softc, ke);
@@ -399,7 +399,7 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 
 	case IOCBASECMD(EVIOCSKEYCODE_V2):
 		if (evdev->ev_methods->ev_set_keycode == NULL)
-			return ENOTSUP;
+			return (ENOTSUP);
 
 		ke = (struct input_keymap_entry *)data;
 		evdev->ev_methods->ev_set_keycode(evdev, evdev->ev_softc, ke);
@@ -410,10 +410,16 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		break;
 
 	case EVIOCGPHYS(0):
+		if (evdev->ev_dev == NULL)
+			return (ENOENT);
+
 		strlcpy(data, evdev->ev_shortname, len);
 		break;
 
 	case EVIOCGUNIQ(0):
+		if (evdev->ev_dev == NULL)
+			return (ENOENT);
+
 		strlcpy(data, evdev->ev_serial, len);
 		break;
 
