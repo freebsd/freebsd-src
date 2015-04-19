@@ -1752,9 +1752,8 @@ more:
                 memmove(sep->se_proto, sep->se_proto + 4,
                     strlen(sep->se_proto) + 1 - 4);
                 sep->se_rpc = 1;
-                sep->se_rpc_prog = sep->se_rpc_lowvers = 0;
-		memcpy(&sep->se_ctrladdr4, bind_sa4,
-		       sizeof(sep->se_ctrladdr4));
+                sep->se_rpc_prog = sep->se_rpc_lowvers =
+			sep->se_rpc_highvers = 0;
                 if ((versp = strrchr(sep->se_service, '/'))) {
                         *versp++ = '\0';
                         switch (sscanf(versp, "%u-%u",
