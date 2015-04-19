@@ -86,8 +86,8 @@ extern struct nfsmount *ncl_iodmount[NFS_MAXASYNCDAEMON];
 extern struct mtx ncl_iod_mutex;
 NFSCLSTATEMUTEX;
 
-MALLOC_DEFINE(M_NEWNFSREQ, "newnfsclient_req", "New NFS request header");
-MALLOC_DEFINE(M_NEWNFSMNT, "newnfsmnt", "New NFS mount struct");
+MALLOC_DEFINE(M_NEWNFSREQ, "newnfsclient_req", "NFS request header");
+MALLOC_DEFINE(M_NEWNFSMNT, "newnfsmnt", "NFS mount struct");
 
 SYSCTL_DECL(_vfs_nfs);
 static int nfs_ip_paranoia = 1;
