@@ -32,7 +32,7 @@
 .\"     @(#)icmp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd September 30, 2014
+.Dd March 26, 2015
 .Dt ICMP 4
 .Os
 .Sh NAME
@@ -181,13 +181,11 @@ Defaults to 0.
 .It Va icmplim
 .Pq Vt integer
 Bandwidth limit for ICMP replies in packets/second.
-Used when
-.Va icmplim_output
-is non-zero.
+If set to zero, no limiting will occur.
 Defaults to 200.
 .It Va icmplim_output
 .Pq Vt boolean
-Enable/disable bandwidth limiting of ICMP replies.
+Enable/disable logging of ICMP replies bandwidth limiting.
 Defaults to true.
 .It Va drop_redirect
 .Pq Vt boolean
