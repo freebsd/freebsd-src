@@ -33,6 +33,7 @@
 /*$FreeBSD$*/
 
 #include "opt_em.h"
+#include "opt_ddb.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
@@ -42,6 +43,10 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#ifdef DDB
+#include <sys/types.h>
+#include <ddb/ddb.h>
+#endif
 #if __FreeBSD_version >= 800000
 #include <sys/buf_ring.h>
 #endif
@@ -4353,6 +4358,9 @@ em_initialize_receive_unit(struct adapter *adapter)
 
 	E1000_WRITE_REG(&adapter->hw, E1000_RADV,
 	    adapter->rx_abs_int_delay.value);
+
+	E1000_WRITE_REG(&adapter->hw, E1000_RDTR,
+	    adapter->rx_int_delay.value);
 	/*
 	 * Set the interrupt throttling rate. Value is calculated
 	 * as DEFAULT_ITR = 1/(MAX_INTS_PER_SEC * 256ns)
