@@ -21,9 +21,9 @@
 
 #
 # Copyright (c) 1991, 2010, Oracle and/or its affiliates. All rights reserved.
-# Copyright (c) 2012 Nexenta Systems, Inc. All rights reserved.
 # Copyright (c) 2013 by Delphix. All rights reserved.
 # Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
+# Copyright 2014 Nexenta Systems, Inc.  All rights reserved.
 #
 
 #
@@ -1328,6 +1328,7 @@ TRANS_OBJS += mdtrans.o trans_ioctl.o trans_log.o
 
 ZFS_COMMON_OBJS +=		\
 	arc.o			\
+	blkptr.o		\
 	bplist.o		\
 	bpobj.o			\
 	bptree.o		\
@@ -1360,6 +1361,7 @@ ZFS_COMMON_OBJS +=		\
 	lz4.o			\
 	lzjb.o			\
 	metaslab.o		\
+	multilist.o		\
 	range_tree.o		\
 	refcount.o		\
 	rrwlock.o		\
@@ -1846,7 +1848,8 @@ ZYD_OBJS += zyd.o zyd_usb.o zyd_hw.o zyd_fw.o
 
 MXFE_OBJS += mxfe.o
 
-MPTSAS_OBJS += mptsas.o mptsas_impl.o mptsas_init.o mptsas_raid.o mptsas_smhba.o
+MPTSAS_OBJS += mptsas.o mptsas_hash.o mptsas_impl.o mptsas_init.o \
+		mptsas_raid.o mptsas_smhba.o
 
 SFE_OBJS += sfe.o sfe_util.o
 
@@ -1864,6 +1867,8 @@ VR_OBJS += vr.o
 ATGE_OBJS += atge_main.o atge_l1e.o atge_mii.o atge_l1.o atge_l1c.o
 
 YGE_OBJS = yge.o
+
+SKD_OBJS = skd.o
 
 #
 #	Build up defines and paths.
