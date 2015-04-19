@@ -161,6 +161,7 @@ linux_common_open(struct thread *td, int dirfd, char *path, int l_flags, int mod
 		    PROC_UNLOCK(p);
 		    sx_sunlock(&proctree_lock);
 	    }
+	    fdrop(fp, td);
     }
 
 done:
