@@ -67,6 +67,7 @@
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
+#include <vis.h>
 
 #include <libxo/xo.h>
 
@@ -762,7 +763,8 @@ cheritest_run_test(const struct cheri_test *ctp)
 	struct sigaction sa;
 	pid_t childpid;
 	int status, pipefd_stdin[2], pipefd_stdout[2];
-	char reason[TESTRESULT_STR_LEN];
+	char reason[TESTRESULT_STR_LEN * 2]; /* Potential output, plus some extra */
+	char visreason[sizeof(reason) * 4]; /* Space for vis(3) the string */
 	char buffer[TEST_BUFFER_LEN];
 	register_t cp2_exccode, mips_exccode;
 	ssize_t len;
@@ -1005,14 +1007,19 @@ cheritest_run_test(const struct cheri_test *ctp)
 	return;
 
 fail:
+	/*
+	 * Escape non-printing characters and JSON and XML special characters.
+	 */
+	strsnvis(visreason, sizeof(visreason), reason, VIS_TAB|VIS_NL,
+	    "\\\"&'<>/");
 	if (ctp->ct_xfail_reason == NULL)
 		xo_emit("{:status/%s}: {d:name/%s}: {:failure-reason/%s}\n",
-		    "FAIL", ctp->ct_name, reason);
+		    "FAIL", ctp->ct_name, visreason);
 	else {
 		xo_attr("expected", "true");
 		xo_emit("{d:/%s}{:status/%s}: {d:name/%s}: "
 		    "{:failure-reason/%s} ({d:expected-failure-reason/%s})\n",
-		    "X", "FAIL", ctp->ct_name, reason, ctp->ct_xfail_reason);
+		    "X", "FAIL", ctp->ct_name, visreason, ctp->ct_xfail_reason);
 		tests_xfailed++;
 	}
 	tests_failed++;
