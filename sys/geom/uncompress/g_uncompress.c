@@ -571,6 +571,7 @@ g_uncompress_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		    (buf+sizeof(struct cloop_header)))[i]);
 	}
 	free(buf, M_GEOM);
+	buf = NULL;
 	DPRINTF(("%s: done reading offsets\n", gp->name));
 	mtx_init(&sc->last_mtx, "geom_uncompress cache", NULL, MTX_DEF);
 	sc->last_blk = -1;
