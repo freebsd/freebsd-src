@@ -537,8 +537,10 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 			    (void) nfs_catnap(PZERO, ret, "nfs_open2");
 		    } while (ret == NFSERR_DELAY);
 		    if (ret) {
-			if (ndp != NULL)
+			if (ndp != NULL) {
 				FREE((caddr_t)ndp, M_NFSCLDELEG);
+				ndp = NULL;
+			}
 			if (ret == NFSERR_STALECLIENTID ||
 			    ret == NFSERR_STALEDONTRECOVER ||
 			    ret == NFSERR_BADSESSION)
