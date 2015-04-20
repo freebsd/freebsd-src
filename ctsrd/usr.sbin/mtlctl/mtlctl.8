@@ -1,0 +1,94 @@
+.\"-
+.\" Copyright (c) 2015 SRI International
+.\" All rights reserved.
+.\"
+.\" This software was developed by SRI International and the University of
+.\" Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+.\" ("CTSRD"), as part of the DARPA CRASH research programme.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd April 20, 2015
+.Dt MTLCLT 8
+.Os
+.Sh NAME
+.Nm mtlctl
+.Nd Control the Terasic MTL touch screen
+.Sh SYNOPSIS
+.Nm
+.Ar command
+.Op Ar args
+.Sh DESCRIPTION
+The
+.Nm
+utility allows limited control of the Terasic MTL touchscreen.
+The command line interface of
+.Nm
+is set of commands.
+.Sh COMMANDS
+.Bl -tag -width 1
+.It Nm fbdump Ar file
+Write the raw values of the display memory to 
+.Ar file .
+.It Nm fbdump Ar file
+Write the display contents to
+.Ar file
+in PNG format.
+.It Nm fbfill Ar RRGGBB
+Fill the display with the color
+.Ar RRGGBB
+where
+.Ar RRGGBB
+is 6 hexadecimal digits.
+.It Nm fbloaddump Ar file
+Fill the display with the contents of
+.Ar file
+where
+.Ar file
+was previously written by the
+.Nm fbdump command.
+.It Nm fbloadpng Ar file
+Load the PNG file
+Ar file
+to the display.
+The file must be an 800 x 480 image.
+.It Nm gesture
+Dump the most recent gesture value.
+.It Nm gestures
+Poll the touch screen in a tight loop printing gestures.
+.El
+.Sh SEE ALSO
+.Xr terasic_mtl 4
+.Sh AUTHORS
+This software and this manual page were
+developed by SRI International and the University of Cambridge Computer
+Laboratory under DARPA/AFRL contract
+.Pq FA8750-10-C-0237
+.Pq Do CTSRD Dc ,
+as part of the DARPA CRASH research programme.
+.Sh BUGS
+The
+.Nm fbload
+and
+.Nm fbloadpng
+commands perform nearly no validation of inputs before writing them to the
+display.

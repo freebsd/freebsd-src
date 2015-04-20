@@ -2,7 +2,7 @@
 
 PROG=	mtlctl
 
-MAN=
+MAN=	mtlctl.8
 
 LIBADD=	png terasic_mtl z
 
