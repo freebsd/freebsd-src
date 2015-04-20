@@ -37,7 +37,7 @@ We only pay attention to a subset of the information in the
 
 """
 RCSid:
-	$Id: meta2deps.py,v 1.17 2014/04/05 22:56:54 sjg Exp $
+	$Id: meta2deps.py,v 1.18 2015/04/03 18:23:25 sjg Exp $
 
 	Copyright (c) 2011-2013, Juniper Networks, Inc.
 	All rights reserved.
@@ -112,7 +112,8 @@ def abspath(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
     rpath = resolve(path, cwd, last_dir, debug, debug_out)
     if rpath:
         path = rpath
-    if (path.find('./') > 0 or
+    if (path.find('/') < 0 or
+	path.find('./') > 0 or
         path.endswith('/..') or
         os.path.islink(path)):
         return os.path.realpath(path)
@@ -142,7 +143,7 @@ class MetaFile:
     host_target = None
     srctops = []
     objroots = []
-    
+    excludes = []
     seen = {}
     obj_deps = []
     src_deps = []
@@ -178,6 +179,10 @@ class MetaFile:
 		then 'DPDEPS_some/path/foo.h +=' "RELDIR" is output.
 		This can allow 'bmake' to learn all the dirs within
  		the tree that depend on 'foo.h'
+
+	EXCLUDES
+		A list of paths to ignore.
+		ccache(1) can otherwise be trouble.
 
         debug	desired debug level
 
@@ -236,11 +241,14 @@ class MetaFile:
             # we want the longest match
             self.srctops.sort(reverse=True)
             self.objroots.sort(reverse=True)
-            
+
+            self.excludes = getv(conf, 'EXCLUDES', [])
+
             if self.debug:
                 print("host_target=", self.host_target, file=self.debug_out)
                 print("srctops=", self.srctops, file=self.debug_out)
                 print("objroots=", self.objroots, file=self.debug_out)
+                print("excludes=", self.excludes, file=self.debug_out)
 
             self.dirdep_re = re.compile(r'([^/]+)/(.+)')
 
@@ -257,6 +265,7 @@ class MetaFile:
                 self.dpdeps = None      # we cannot do it?
 
         self.cwd = os.getcwd()          # make sure this is initialized
+        self.last_dir = self.cwd
 
         if name:
             self.try_parse()
@@ -360,18 +369,18 @@ class MetaFile:
 	V 3
 	C "pid" "cwd"
 	E "pid" "path"
-        F "pid" "child"
+	F "pid" "child"
 	R "pid" "path"
 	W "pid" "path"
 	X "pid" "status"
-        D "pid" "path"
-        L "pid" "src" "target"
-        M "pid" "old" "new"
-        S "pid" "path"
-        # Bye bye
+	D "pid" "path"
+	L "pid" "src" "target"
+	M "pid" "old" "new"
+	S "pid" "path"
+	# Bye bye
 
-        We go to some effort to avoid processing a dependency more than once.
-        Of the above record types only C,E,F,L,R,V and W are of interest.
+	We go to some effort to avoid processing a dependency more than once.
+	Of the above record types only C,E,F,L,R,V and W are of interest.
         """
 
         version = 0                     # unknown
@@ -379,7 +388,7 @@ class MetaFile:
             self.name = name;
         if file:
             f = file
-            cwd = last_dir = self.cwd
+            cwd = self.last_dir = self.cwd
         else:
             f = open(self.name, 'r')
         skip = True
@@ -412,7 +421,7 @@ class MetaFile:
                         interesting += 'W'
                     """
                 elif w[0] == 'CWD':
-                    self.cwd = cwd = last_dir = w[1]
+                    self.cwd = cwd = self.last_dir = w[1]
                     self.seenit(cwd)    # ignore this
                     if self.debug:
                         print("%s: CWD=%s" % (self.name, cwd), file=self.debug_out)
@@ -422,9 +431,9 @@ class MetaFile:
             if pid != last_pid:
                 if last_pid:
                     pid_cwd[last_pid] = cwd
-                    pid_last_dir[last_pid] = last_dir
+                    pid_last_dir[last_pid] = self.last_dir
                 cwd = getv(pid_cwd, pid, self.cwd)
-                last_dir = getv(pid_last_dir, pid, self.cwd)
+                self.last_dir = getv(pid_last_dir, pid, self.cwd)
                 last_pid = pid
 
             # process operations
@@ -438,7 +447,7 @@ class MetaFile:
                 cwd = abspath(w[2], cwd, None, self.debug, self.debug_out)
                 if cwd.endswith('/.'):
                     cwd = cwd[0:-2]
-                last_dir = cwd
+                self.last_dir = cwd
                 if self.debug > 1:
                     print("cwd=", cwd, file=self.debug_out)
                 continue
@@ -449,98 +458,114 @@ class MetaFile:
                 continue
             # file operations
             if w[0] in 'ML':
-                path = w[2].strip("'")
-            else:
+                # these are special, tread src as read and
+                # target as write
+                self.parse_path(w[1].strip("'"), cwd, 'R', w)
+                self.parse_path(w[2].strip("'"), cwd, 'W', w)
+                continue
+            elif w[0] in 'ERWS':
                 path = w[2]
-            # we are never interested in .dirdep files as dependencies
-            if path.endswith('.dirdep'):
-                continue
-            # we don't want to resolve the last component if it is
-            # a symlink
-            path = resolve(path, cwd, last_dir, self.debug, self.debug_out)
-            if not path:
-                continue
-            dir,base = os.path.split(path)
-            if dir in self.seen:
-                if self.debug > 2:
-                    print("seen:", dir, file=self.debug_out)
-                continue
-            # we can have a path in an objdir which is a link
-            # to the src dir, we may need to add dependencies for each
-            rdir = dir
-            dir = abspath(dir, cwd, last_dir, self.debug, self.debug_out)
-            if rdir == dir or rdir.find('./') > 0:
-                rdir = None
-            # now put path back together
-            path = '/'.join([dir,base])
-            if self.debug > 1:
-                print("raw=%s rdir=%s dir=%s path=%s" % (w[2], rdir, dir, path), file=self.debug_out)
-            if w[0] in 'SRWL':
-                if w[0] == 'W' and path.endswith('.dirdep'):
-                    continue
-                if path in [last_dir, cwd, self.cwd, self.curdir]:
-                    if self.debug > 1:
-                        print("skipping:", path, file=self.debug_out)
-                    continue
-                if os.path.isdir(path):
-                    if w[0] in 'RW':
-                        last_dir = path;
-                    if self.debug > 1:
-                        print("ldir=", last_dir, file=self.debug_out)
-                    continue
+                self.parse_path(path, cwd, w[0], w)
 
-            if w[0] in 'REWML':
-                # finally, we get down to it
-                if dir == self.cwd or dir == self.curdir:
-                    continue
-                srctop = self.find_top(path, self.srctops)
-                if srctop:
-                    if self.dpdeps:
-                        self.add(self.file_deps, path.replace(srctop,''), 'file')
-                    self.add(self.src_deps, dir.replace(srctop,''), 'src')
-                    self.seenit(w[2])
-                    self.seenit(dir)
-                    if rdir and not rdir.startswith(srctop):
-                        dir = rdir      # for below
-                        rdir = None
-                    else:
-                        continue
-
-                objroot = None
-                for dir in [dir,rdir]:
-                    if not dir:
-                        continue
-                    objroot = self.find_top(dir, self.objroots)
-                    if objroot:
-                        break
-                if objroot:
-                    ddep = self.find_obj(objroot, dir, path, w[2])
-                    if ddep:
-                        self.add(self.obj_deps, ddep, 'obj')
-                else:
-                    # don't waste time looking again
-                    self.seenit(w[2])
-                    self.seenit(dir)
         if not file:
             f.close()
+
+    def parse_path(self, path, cwd, op=None, w=[]):
+        """look at a path for the op specified"""
+
+        if not op:
+            op = w[0]
+
+        # we are never interested in .dirdep files as dependencies
+        if path.endswith('.dirdep'):
+            return
+        for p in self.excludes:
+            if p and path.startswith(p):
+                if self.debug > 2:
+                    print >> self.debug_out, "exclude:", p, path
+                return
+        # we don't want to resolve the last component if it is
+        # a symlink
+        path = resolve(path, cwd, self.last_dir, self.debug, self.debug_out)
+        if not path:
+            return
+        dir,base = os.path.split(path)
+        if dir in self.seen:
+            if self.debug > 2:
+                print("seen:", dir, file=self.debug_out)
+            return
+        # we can have a path in an objdir which is a link
+        # to the src dir, we may need to add dependencies for each
+        rdir = dir
+        dir = abspath(dir, cwd, self.last_dir, self.debug, self.debug_out)
+        if rdir == dir or rdir.find('./') > 0:
+            rdir = None
+        # now put path back together
+        path = '/'.join([dir,base])
+        if self.debug > 1:
+            print("raw=%s rdir=%s dir=%s path=%s" % (w[2], rdir, dir, path), file=self.debug_out)
+        if op in 'RWS':
+            if path in [self.last_dir, cwd, self.cwd, self.curdir]:
+                if self.debug > 1:
+                    print("skipping:", path, file=self.debug_out)
+                return
+            if os.path.isdir(path):
+                if op in 'RW':
+                    self.last_dir = path;
+                if self.debug > 1:
+                    print("ldir=", self.last_dir, file=self.debug_out)
+                return
+
+        if op in 'ERW':
+            # finally, we get down to it
+            if dir == self.cwd or dir == self.curdir:
+                return
+            srctop = self.find_top(path, self.srctops)
+            if srctop:
+                if self.dpdeps:
+                    self.add(self.file_deps, path.replace(srctop,''), 'file')
+                self.add(self.src_deps, dir.replace(srctop,''), 'src')
+                self.seenit(w[2])
+                self.seenit(dir)
+                if rdir and not rdir.startswith(srctop):
+                    dir = rdir      # for below
+                    rdir = None
+                else:
+                    return
+
+            objroot = None
+            for dir in [dir,rdir]:
+                if not dir:
+                    continue
+                objroot = self.find_top(dir, self.objroots)
+                if objroot:
+                    break
+            if objroot:
+                ddep = self.find_obj(objroot, dir, path, w[2])
+                if ddep:
+                    self.add(self.obj_deps, ddep, 'obj')
+            else:
+                # don't waste time looking again
+                self.seenit(w[2])
+                self.seenit(dir)
 
                             
 def main(argv, klass=MetaFile, xopts='', xoptf=None):
     """Simple driver for class MetaFile.
 
     Usage:
-    	script [options] [key=value ...] "meta" ...
+        script [options] [key=value ...] "meta" ...
         
     Options and key=value pairs contribute to the
     dictionary passed to MetaFile.
 
     -S "SRCTOP"
-		add "SRCTOP" to the "SRCTOPS" list.
+                add "SRCTOP" to the "SRCTOPS" list.
 
     -C "CURDIR"
     
     -O "OBJROOT"
-    		add "OBJROOT" to the "OBJROOTS" list.
+                add "OBJROOT" to the "OBJROOTS" list.
 
     -m "MACHINE"
 
@@ -550,7 +575,7 @@ def main(argv, klass=MetaFile, xopts='', xoptf=None):
 
     -D "DPDEPS"
     
-    -d	bumps debug level
+    -d  bumps debug level
 
     """
     import getopt
@@ -568,6 +593,7 @@ def main(argv, klass=MetaFile, xopts='', xoptf=None):
     conf = {
         'SRCTOPS': [],
         'OBJROOTS': [],
+        'EXCLUDES': [],
         }
 
     try:
@@ -589,7 +615,7 @@ def main(argv, klass=MetaFile, xopts='', xoptf=None):
     debug = 0
     output = True
     
-    opts, args = getopt.getopt(argv[1:], 'a:dS:C:O:R:m:D:H:qT:' + xopts)
+    opts, args = getopt.getopt(argv[1:], 'a:dS:C:O:R:m:D:H:qT:X:' + xopts)
     for o, a in opts:
         if o == '-a':
             conf['MACHINE_ARCH'] = a
@@ -615,6 +641,9 @@ def main(argv, klass=MetaFile, xopts='', xoptf=None):
             conf['MACHINE'] = a
         elif o == '-T':
             conf['TARGET_SPEC'] = a
+        elif o == '-X':
+            if a not in conf['EXCLUDES']:
+                conf['EXCLUDES'].append(a)
         elif xoptf:
             xoptf(o, a, conf)
 
@@ -649,16 +678,21 @@ def main(argv, klass=MetaFile, xopts='', xoptf=None):
         for k,v in list(conf.items()):
             print("%s=%s" % (k,v), file=debug_out)
 
+    m = None
     for a in args:
         if a.endswith('.meta'):
+            if not os.path.exists(a):
+                continue
             m = klass(a, conf)
         elif a.startswith('@'):
             # there can actually multiple files per line
             for line in open(a[1:]):
                 for f in line.strip().split():
+                    if not os.path.exists(f):
+                        continue
                     m = klass(f, conf)
 
-    if output:
+    if output and m:
         print(m.dirdeps())
 
         print(m.src_dirdeps('\nsrc:'))
