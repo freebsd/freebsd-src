@@ -393,6 +393,7 @@ pci_vtnet_ping_rxq(void *vsc, struct vqueue_info *vq)
 	 */
 	if (sc->vsc_rx_ready == 0) {
 		sc->vsc_rx_ready = 1;
+		vq->vq_used->vu_flags |= VRING_USED_F_NO_NOTIFY;
 	}
 }
 
@@ -438,6 +439,7 @@ pci_vtnet_ping_txq(void *vsc, struct vqueue_info *vq)
 
 	/* Signal the tx thread for processing */
 	pthread_mutex_lock(&sc->tx_mtx);
+	vq->vq_used->vu_flags |= VRING_USED_F_NO_NOTIFY;
 	if (sc->tx_in_progress == 0)
 		pthread_cond_signal(&sc->tx_cond);
 	pthread_mutex_unlock(&sc->tx_mtx);
@@ -466,6 +468,7 @@ pci_vtnet_tx_thread(void *param)
 	for (;;) {
 		/* note - tx mutex is locked here */
 		do {
+			vq->vq_used->vu_flags &= ~VRING_USED_F_NO_NOTIFY;
 			if (sc->resetting)
 				have_work = 0;
 			else
@@ -478,6 +481,7 @@ pci_vtnet_tx_thread(void *param)
 				assert(error == 0);
 			}
 		} while (!have_work);
+		vq->vq_used->vu_flags |= VRING_USED_F_NO_NOTIFY;
 		sc->tx_in_progress = 1;
 		pthread_mutex_unlock(&sc->tx_mtx);
 
