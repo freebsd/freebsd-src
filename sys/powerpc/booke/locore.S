@@ -28,6 +28,8 @@
 
 #include "assym.s"
 
+#include "opt_hwpmc_hooks.h"
+
 #include <machine/asm.h>
 #include <machine/hid.h>
 #include <machine/param.h>

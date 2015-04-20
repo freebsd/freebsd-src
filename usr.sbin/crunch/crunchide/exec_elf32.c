@@ -79,6 +79,9 @@ __FBSDID("$FreeBSD$");
 #define ELFNAME2(x,y)   CONCAT(x,CONCAT(_elf,CONCAT(ELFSIZE,CONCAT(_,y))))
 #define ELFNAMEEND(x)   CONCAT(x,CONCAT(_elf,ELFSIZE))
 #define ELFDEFNNAME(x)  CONCAT(ELF,CONCAT(ELFSIZE,CONCAT(_,x)))
+#ifndef ELFCLASS
+#define ELFCLASS	CONCAT(ELFCLASS,ELFSIZE)
+#endif
 
 #define	xe16toh(x)	((data == ELFDATA2MSB) ? be16toh(x) : le16toh(x))
 #define	xe32toh(x)	((data == ELFDATA2MSB) ? be32toh(x) : le32toh(x))
@@ -167,7 +170,7 @@ ELFNAMEEND(check)(int fd, const char *fn)
 	if (read(fd, &eh, sizeof eh) != sizeof eh)
 		return 0;
 
-	if (IS_ELF(eh) == 0)
+	if (IS_ELF(eh) == 0 || eh.e_ident[EI_CLASS] != ELFCLASS)
                 return 0;
 
 	data = eh.e_ident[EI_DATA];
@@ -175,37 +178,13 @@ ELFNAMEEND(check)(int fd, const char *fn)
 	switch (xe16toh(eh.e_machine)) {
 	case EM_386: break;
 	case EM_ALPHA: break;
-#ifndef EM_AARCH64
-#define	EM_AARCH64	183
-#endif
 	case EM_AARCH64: break;
-#ifndef EM_ARM
-#define EM_ARM		40
-#endif
 	case EM_ARM: break;
-#ifndef EM_MIPS
-#define EM_MIPS		8
-#endif
-#ifndef EM_MIPS_RS4_BE		/* same as EM_MIPS_RS3_LE */
-#define EM_MIPS_RS4_BE	10
-#endif
 	case EM_MIPS: break;
 	case /* EM_MIPS_RS3_LE */ EM_MIPS_RS4_BE: break;
-#ifndef EM_PPC
-#define	EM_PPC		20
-#endif
 	case EM_PPC: break;
-#ifndef EM_PPC64
-#define	EM_PPC64	21
-#endif
 	case EM_PPC64: break;
-#ifndef EM_SPARCV9
-#define	EM_SPARCV9	43
-#endif
 	case EM_SPARCV9: break;
-#ifndef EM_X86_64
-#define	EM_X86_64	62
-#endif
 	case EM_X86_64: break;
 /*        ELFDEFNNAME(MACHDEP_ID_CASES) */
 

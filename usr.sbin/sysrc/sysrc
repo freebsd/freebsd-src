@@ -80,7 +80,7 @@ die()
 #
 usage()
 {
-	f_err "Usage: %s [OPTIONS] name[[+]=value] ...\n" "$pgm"
+	f_err "Usage: %s [OPTIONS] name[[+|-]=value] ...\n" "$pgm"
 	f_err "Try \`%s --help' for more information.\n" "$pgm"
 	die
 }
