@@ -5977,19 +5977,16 @@ em_enable_vectors_82574(struct adapter *adapter)
 DB_COMMAND(em_dump_queue, em_ddb_dump_queue)
 {
 	devclass_t	dc;
-	struct adapter  *adapter;
 	int max_em;
 
 	dc = devclass_find("em");
 	max_em = devclass_get_maxunit(dc);
 
-	db_printf("max_em %d\n", max_em);
 	for (int index = 0; index < (max_em - 1); index++) {
-		driver_t *em;
-		adapter = devclass_get_softc(dc, index);
-		em = device_get_driver(adapter->dev);
-		if (em == &em_driver)
-			em_print_debug_info(adapter);
+		device_t dev;
+		dev = devclass_get_device(dc, index);
+		if (device_get_driver(dev) == &em_driver)
+			em_print_debug_info(device_get_softc(dev));
 	}
 
 }
