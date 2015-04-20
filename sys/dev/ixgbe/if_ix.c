@@ -1197,6 +1197,7 @@ ixgbe_handle_que(void *context, int pending)
 	struct ifnet    *ifp = adapter->ifp;
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		ixgbe_rxeof(que);
 		IXGBE_TX_LOCK(txr);
 		ixgbe_txeof(txr);
 #ifndef IXGBE_LEGACY_TX
