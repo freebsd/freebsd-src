@@ -1085,11 +1085,15 @@ show_mode_info(void)
 	printf("---------------------------------------"
 	       "---------------------------------------\n");
 
+	memset(&_info, 0, sizeof(_info));
 	for (mode = 0; mode <= M_VESA_MODE_MAX; ++mode) {
 		_info.vi_mode = mode;
 		if (ioctl(0, CONS_MODEINFO, &_info))
 			continue;
 		if (_info.vi_mode != mode)
+			continue;
+		if (_info.vi_width == 0 && _info.vi_height == 0 &&
+		    _info.vi_cwidth == 0 && _info.vi_cheight == 0)
 			continue;
 
 		printf("%3d (0x%03x)", mode, mode);
