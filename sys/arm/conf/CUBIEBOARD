@@ -139,4 +139,4 @@ device		miibus
 options 	FDT			# Configure using FDT/DTB data
 options 	FDT_DTB_STATIC
 makeoptions	FDT_DTS_FILE=cubieboard.dts
-
+makeoptions	MODULES_EXTRA=dtb/allwinner
