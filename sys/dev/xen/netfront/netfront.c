@@ -1472,7 +1472,6 @@ xn_assemble_tx_request(struct netfront_info *sc, struct mbuf *m_head)
 	struct ifnet *ifp;
 	struct mbuf *m;
 	u_int nfrags;
-	netif_extra_info_t *extra;
 	int otherend_id;
 
 	ifp = sc->xn_ifp;
@@ -1546,7 +1545,6 @@ xn_assemble_tx_request(struct netfront_info *sc, struct mbuf *m_head)
 	 * of fragments or hit the end of the mbuf chain.
 	 */
 	m = m_head;
-	extra = NULL;
 	otherend_id = xenbus_get_otherend_id(sc->xbdev);
 	for (m = m_head; m; m = m->m_next) {
 		netif_tx_request_t *tx;
