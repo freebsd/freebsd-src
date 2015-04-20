@@ -62,7 +62,7 @@ typedef	int word;		/* "word" used for optimal copy speed */
 
 __CAPABILITY void *
 #ifdef MEMCOPY
-memcpy
+__CAPSUFFIX(memcpy)
 #else
 __CAPSUFFIX(memmove)
 #endif
