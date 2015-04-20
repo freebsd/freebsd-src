@@ -6039,7 +6039,7 @@ scsi_parse_transportid_rdma(char *id_str, struct scsi_transportid_header **hdr,
 		goto bailout;
 	}
 	*alloc_len = sizeof(*rdma);
-	bzero(rdma, sizeof(rdma));
+	bzero(rdma, *alloc_len);
 
 	rdma->format_protocol = SCSI_PROTO_RDMA | SCSI_TRN_RDMA_FORMAT_DEFAULT;
 	bcopy(rdma_id, rdma->initiator_port_id, SCSI_TRN_RDMA_PORT_LEN);
