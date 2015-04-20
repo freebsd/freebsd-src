@@ -1195,10 +1195,8 @@ ixgbe_handle_que(void *context, int pending)
 	struct adapter  *adapter = que->adapter;
 	struct tx_ring  *txr = que->txr;
 	struct ifnet    *ifp = adapter->ifp;
-	bool		more;
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		more = ixgbe_rxeof(que);
 		IXGBE_TX_LOCK(txr);
 		ixgbe_txeof(txr);
 #ifndef IXGBE_LEGACY_TX
