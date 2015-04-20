@@ -307,9 +307,8 @@ bucket_init(void)
 {
 	struct uma_bucket_zone *ubz;
 	int size;
-	int i;
 
-	for (i = 0, ubz = &bucket_zones[0]; ubz->ubz_entries != 0; ubz++) {
+	for (ubz = &bucket_zones[0]; ubz->ubz_entries != 0; ubz++) {
 		size = roundup(sizeof(struct uma_bucket), sizeof(void *));
 		size += sizeof(void *) * ubz->ubz_entries;
 		ubz->ubz_zone = uma_zcreate(ubz->ubz_name, size,
