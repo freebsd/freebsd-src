@@ -121,6 +121,7 @@ static void ipsec4_common_ctlinput(int, struct sockaddr *, void *, int);
 static int
 ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 {
+	char buf[INET6_ADDRSTRLEN];
 	union sockaddr_union dst_address;
 	struct secasvar *sav;
 	u_int32_t spi;
@@ -195,6 +196,13 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 		m_copydata(m, offsetof(struct ip6_hdr, ip6_dst),
 		    sizeof(struct in6_addr),
 		    (caddr_t) &dst_address.sin6.sin6_addr);
+		/* We keep addresses in SADB without embedded scope id */
+		if (IN6_IS_SCOPE_LINKLOCAL(&dst_address.sin6.sin6_addr)) {
+			/* XXX: sa6_recoverscope() */
+			dst_address.sin6.sin6_scope_id =
+			    ntohs(dst_address.sin6.sin6_addr.s6_addr16[1]);
+			dst_address.sin6.sin6_addr.s6_addr16[1] = 0;
+		}
 		break;
 #endif /* INET6 */
 	default:
@@ -208,8 +216,8 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 	sav = KEY_ALLOCSA(&dst_address, sproto, spi);
 	if (sav == NULL) {
 		DPRINTF(("%s: no key association found for SA %s/%08lx/%u\n",
-			  __func__, ipsec_address(&dst_address),
-			  (u_long) ntohl(spi), sproto));
+		    __func__, ipsec_address(&dst_address, buf, sizeof(buf)),
+		    (u_long) ntohl(spi), sproto));
 		IPSEC_ISTAT(sproto, notdb);
 		m_freem(m);
 		return ENOENT;
@@ -217,8 +225,8 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 
 	if (sav->tdb_xform == NULL) {
 		DPRINTF(("%s: attempted to use uninitialized SA %s/%08lx/%u\n",
-			 __func__, ipsec_address(&dst_address),
-			 (u_long) ntohl(spi), sproto));
+		    __func__, ipsec_address(&dst_address, buf, sizeof(buf)),
+		    (u_long) ntohl(spi), sproto));
 		IPSEC_ISTAT(sproto, noxform);
 		KEY_FREESAV(&sav);
 		m_freem(m);
@@ -320,6 +328,7 @@ int
 ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
     int protoff)
 {
+	char buf[INET6_ADDRSTRLEN];
 	int prot, af, sproto, isr_prot;
 	struct ip *ip;
 	struct m_tag *mtag;
@@ -358,8 +367,8 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 		 */
 		if (m->m_len < skip && (m = m_pullup(m, skip)) == NULL) {
 			DPRINTF(("%s: processing failed for SA %s/%08lx\n",
-			    __func__, ipsec_address(&sav->sah->saidx.dst),
-			    (u_long) ntohl(sav->spi)));
+			    __func__, ipsec_address(&sav->sah->saidx.dst,
+			    buf, sizeof(buf)), (u_long) ntohl(sav->spi)));
 			IPSEC_ISTAT(sproto, hdrops);
 			error = ENOBUFS;
 			goto bad;
@@ -615,12 +624,13 @@ int
 ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
     int protoff)
 {
+	char buf[INET6_ADDRSTRLEN];
 	int prot, af, sproto;
 	struct ip6_hdr *ip6;
 	struct m_tag *mtag;
 	struct tdb_ident *tdbi;
 	struct secasindex *saidx;
-	int nxt;
+	int nxt, isr_prot;
 	u_int8_t nxt8;
 	int error, nest;
 #ifdef notyet
@@ -651,8 +661,8 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	    (m = m_pullup(m, sizeof(struct ip6_hdr))) == NULL) {
 
 		DPRINTF(("%s: processing failed for SA %s/%08lx\n",
-		    __func__, ipsec_address(&sav->sah->saidx.dst),
-		    (u_long) ntohl(sav->spi)));
+		    __func__, ipsec_address(&sav->sah->saidx.dst, buf,
+		    sizeof(buf)), (u_long) ntohl(sav->spi)));
 
 		IPSEC_ISTAT(sproto, hdrops);
 		error = EACCES;
@@ -796,6 +806,35 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_AFTER)) != 0)
 		return (error);
 #endif /* DEV_ENC */
+	if (skip == 0) {
+		/*
+		 * We stripped outer IPv6 header.
+		 * Now we should requeue decrypted packet via netisr.
+		 */
+		switch (prot) {
+#ifdef INET
+		case IPPROTO_IPIP:
+			isr_prot = NETISR_IP;
+			break;
+#endif
+		case IPPROTO_IPV6:
+			isr_prot = NETISR_IPV6;
+			break;
+		default:
+			DPRINTF(("%s: cannot handle inner ip proto %d\n",
+			    __func__, prot));
+			IPSEC_ISTAT(sproto, nopf);
+			error = EPFNOSUPPORT;
+			goto bad;
+		}
+		error = netisr_queue_src(isr_prot, (uintptr_t)sav->spi, m);
+		if (error) {
+			IPSEC_ISTAT(sproto, qfull);
+			DPRINTF(("%s: queue full; proto %u packet dropped\n",
+			    __func__, sproto));
+		}
+		return (error);
+	}
 	/*
 	 * See the end of ip6_input for this logic.
 	 * IPPROTO_IPV[46] case will be processed just like other ones

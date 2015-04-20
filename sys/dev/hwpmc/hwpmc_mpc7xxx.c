@@ -567,7 +567,7 @@ mpc7xxx_pcpu_init(struct pmc_mdep *md, int cpu)
 	    M_PMC, M_WAITOK|M_ZERO);
 	pac->pc_class = PMC_CLASS_PPC7450;
 	pc = pmc_pcpu[cpu];
-	first_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_PPC7450].pcd_ri;
+	first_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_POWERPC].pcd_ri;
 	KASSERT(pc != NULL, ("[powerpc,%d] NULL per-cpu pointer", __LINE__));
 
 	for (i = 0, phw = pac->pc_ppcpmcs; i < MPC7XXX_MAX_PMCS; i++, phw++) {
@@ -729,7 +729,7 @@ pmc_mpc7xxx_initialize(struct pmc_mdep *pmc_mdep)
 
 	pmc_mdep->pmd_cputype = PMC_CPU_PPC_7450;
 
-	pcd = &pmc_mdep->pmd_classdep[PMC_MDEP_CLASS_INDEX_PPC7450];
+	pcd = &pmc_mdep->pmd_classdep[PMC_MDEP_CLASS_INDEX_POWERPC];
 	pcd->pcd_caps  = POWERPC_PMC_CAPS;
 	pcd->pcd_class = PMC_CLASS_PPC7450;
 	pcd->pcd_num   = MPC7XXX_MAX_PMCS;
