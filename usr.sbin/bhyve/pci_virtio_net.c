@@ -645,7 +645,7 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, VIRTIO_TYPE_NET);
 
 	/* Link is up if we managed to open tap device. */
-	sc->vsc_config.status = (sc->vsc_tapfd >= 0);
+	sc->vsc_config.status = (opts == NULL || sc->vsc_tapfd >= 0);
 	
 	/* use BAR 1 to map MSI-X table and PBA, if we're using MSI-X */
 	if (vi_intr_init(&sc->vsc_vs, 1, fbsdrun_virtio_msix()))
