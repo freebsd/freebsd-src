@@ -14,17 +14,24 @@ write_partition_layout() {
 		SWAPOPT="-p freebsd-swap/swapfs::1G"
 	fi
 
+	_OBJDIR="$(make -C ${WORLDDIR} -V .OBJDIR)"
+	if [ -d "${_OBJDIR%%/usr/src}/${TARGET}.${TARGET_ARCH}" ]; then
+		BOOTFILES="${_OBJDIR%%/usr/src}/${TARGET}.${TARGET_ARCH}/usr/src/sys/boot"
+	else
+		BOOTFILES="${_OBJDIR}/usr/src/sys/boot"
+	fi
+
 	case "${TARGET}:${TARGET_ARCH}" in
 		amd64:amd64 | i386:i386)
-			mkimg -s gpt -b /boot/pmbr \
-				-p freebsd-boot/bootfs:=/boot/gptboot \
+			mkimg -s gpt -b ${BOOTFILES}/i386/pmbr/pmbr \
+				-p freebsd-boot/bootfs:=${BOOTFILES}/i386/gptboot/gptboot \
 				${SWAPOPT} \
 				-p freebsd-ufs/rootfs:=${VMBASE} \
 				-o ${VMIMAGE}
 			;;
 		powerpc:powerpc*)
 			mkimg -s apm \
-				-p apple-boot/bootfs:=/boot/boot1.hfs \
+				-p apple-boot/bootfs:=${BOOTFILES}/powerpc/boot1.chrp/boot1.hfs \
 				${SWAPOPT} \
 				-p freebsd-ufs/rootfs:=${VMBASE} \
 				-o ${VMIMAGE}
@@ -63,7 +70,7 @@ vm_create_base() {
 	mkdir -p ${DESTDIR}
 	truncate -s ${VMSIZE} ${VMBASE}
 	mddev=$(mdconfig -f ${VMBASE})
-	newfs -j /dev/${mddev}
+	newfs /dev/${mddev}
 	mount /dev/${mddev} ${DESTDIR}
 
 	return 0
@@ -83,10 +90,10 @@ vm_copy_base() {
 	truncate -s ${VMSIZE} ${VMBASE}.tmp
 	mkdir -p ${DESTDIR}/new
 	mdnew=$(mdconfig -f ${VMBASE}.tmp)
-	newfs -j /dev/${mdnew}
+	newfs /dev/${mdnew}
 	mount /dev/${mdnew} ${DESTDIR}/new
 
-	tar -cf- -C ${DESTDIR}/old . | tar -xf- -C ${DESTDIR}/new
+	tar -cf- -C ${DESTDIR}/old . | tar -xUf- -C ${DESTDIR}/new
 
 	umount_loop /dev/${mdold}
 	rmdir ${DESTDIR}/old
@@ -94,6 +101,7 @@ vm_copy_base() {
 
 	umount_loop /dev/${mdnew}
 	rmdir ${DESTDIR}/new
+	tunefs -j enable /dev/${mdnew}
 	mdconfig -d -u ${mdnew}
 	mv ${VMBASE}.tmp ${VMBASE}
 }
