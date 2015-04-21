@@ -46,6 +46,7 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/sysproto.h>
@@ -147,6 +148,14 @@ struct if_mtuinfo
 };
 
 static int	if_updatemtu_cb(struct radix_node *, void *);
+static int	rtioctl_socket(struct socket *, u_long, caddr_t,
+		    struct thread *);
+
+static struct socket_iocgroup rtiocgroup = {
+	.soiocg_group = 'r',
+	.soiocg_ioctl = rtioctl_socket
+};
+SO_IOCGROUP_SET(rt);
 
 /*
  * handler for net.my_fibnum
@@ -700,6 +709,20 @@ rtioctl_fib(u_long req, caddr_t data, u_int fibnum)
 #else /* INET */
 	return ENXIO;
 #endif /* INET */
+}
+
+
+static int
+rtioctl_socket(struct socket *so, u_long cmd, caddr_t data,
+    struct thread *td __unused)
+{
+	int error;
+
+	CURVNET_SET(so->so_vnet);
+	error = rtioctl_fib(cmd, data, so->so_fibnum);
+	CURVNET_RESTORE();
+
+	return (error);
 }
 
 struct ifaddr *
