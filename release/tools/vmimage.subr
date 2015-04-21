@@ -29,6 +29,13 @@ write_partition_layout() {
 				-p freebsd-ufs/rootfs:=${VMBASE} \
 				-o ${VMIMAGE}
 			;;
+		arm64:aarch64)
+			mkimg -s gpt \
+				-p efi/efiboot:=${BOOTFILES}/efi/boot1/boot1.efifat \
+				${SWAPOPT} \
+				-p freebsd-ufs/rootfs:=${VMBASE} \
+				-o ${VMIMAGE}
+			;;
 		powerpc:powerpc*)
 			mkimg -s apm \
 				-p apple-boot/bootfs:=${BOOTFILES}/powerpc/boot1.chrp/boot1.hfs \
