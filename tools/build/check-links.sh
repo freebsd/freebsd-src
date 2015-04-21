@@ -21,7 +21,7 @@ esac
 
 # Gather all symbols from the target
 unresolved_symbols=$(nm ${DEMANGLE} -D -u --format=posix "$1" | awk '$2 == "U" {print $1}' | tr '\n' ' ')
-ldd_libs=$(ldd $1 | awk '{print $1 ":" $3}')
+ldd_libs=$(ldd $(realpath $1) | awk '{print $1 ":" $3}')
 
 libkey() {
 	libkey="lib_symbols_$1"
