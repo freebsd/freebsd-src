@@ -3386,7 +3386,7 @@ trm_init(u_int16_t unit, device_t dev)
 	/*highaddr*/	BUS_SPACE_MAXADDR,
 	/*filter*/	NULL, 
 	/*filterarg*/	NULL,
-	/*maxsize*/	MAXBSIZE,
+	/*maxsize*/	TRM_MAXPHYS,
 	/*nsegments*/	TRM_NSEG,
 	/*maxsegsz*/	TRM_MAXTRANSFER_SIZE,
 	/*flags*/	BUS_DMA_ALLOCNOW,
