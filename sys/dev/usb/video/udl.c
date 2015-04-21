@@ -1082,8 +1082,7 @@ udl_select_mode(struct udl_softc *sc)
 	}
 
 	if (index == UDL_MAX_MODES) {
-		DPRINTF("no mode line found for %dx%d @ %dHz!\n",
-		    mode.hdisplay, mode.vdisplay, mode.hz);
+		DPRINTF("no mode line found\n");
 
 		i = 0;
 		while (i < sc->sc_edid_info.edid_nmodes) {
