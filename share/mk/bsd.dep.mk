@@ -48,11 +48,7 @@ CTAGSFLAGS?=
 GTAGSFLAGS?=	-o
 HTAGSFLAGS?=
 
-.if ${CC} != "cc"
-MKDEPCMD?=	CC='${CC} ${DEPFLAGS}' mkdep
-.else
-MKDEPCMD?=	mkdep
-.endif
+MKDEPCMD?=	CC='${CC.${.IMPSRC:T}:U${CC}} ${DEPFLAGS}' mkdep
 DEPENDFILE?=	.depend
 
 # Keep `tags' here, before SRCS are mangled below for `depend'.
