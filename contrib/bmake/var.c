@@ -1,4 +1,4 @@
-/*	$NetBSD: var.c,v 1.186 2014/06/20 06:13:45 sjg Exp $	*/
+/*	$NetBSD: var.c,v 1.191 2014/09/14 02:32:51 dholland Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: var.c,v 1.186 2014/06/20 06:13:45 sjg Exp $";
+static char rcsid[] = "$NetBSD: var.c,v 1.191 2014/09/14 02:32:51 dholland Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: var.c,v 1.186 2014/06/20 06:13:45 sjg Exp $");
+__RCSID("$NetBSD: var.c,v 1.191 2014/09/14 02:32:51 dholland Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -3600,14 +3600,13 @@ Var_Parse(const char *str, GNode *ctxt, Boolean errnum, int *lengthPtr,
 				 * expanding it in a non-local context. This
 				 * is done to support dynamic sources. The
 				 * result is just the invocation, unaltered */
-    Var_Parse_State parsestate; /* Flags passed to helper functions */
+    const char     *extramodifiers; /* extra modifiers to apply first */
     char	  name[2];
 
     *freePtr = NULL;
+    extramodifiers = NULL;
     dynamic = FALSE;
     start = str;
-    parsestate.oneBigWord = FALSE;
-    parsestate.varSpace = ' ';	/* word separator */
 
     startc = str[1];
     if (startc != PROPEN && startc != BROPEN) {
@@ -3735,7 +3734,7 @@ Var_Parse(const char *str, GNode *ctxt, Boolean errnum, int *lengthPtr,
 	 */
 	if ((v == NULL) && (ctxt != VAR_CMD) && (ctxt != VAR_GLOBAL) &&
 		(vlen == 2) && (str[1] == 'F' || str[1] == 'D') &&
-		strchr("@%*!<>", str[0]) != NULL) {
+		strchr("@%?*!<>", str[0]) != NULL) {
 	    /*
 	     * Well, it's local -- go look for it.
 	     */
@@ -3744,29 +3743,12 @@ Var_Parse(const char *str, GNode *ctxt, Boolean errnum, int *lengthPtr,
 	    v = VarFind(name, ctxt, 0);
 
 	    if (v != NULL) {
-		/*
-		 * No need for nested expansion or anything, as we're
-		 * the only one who sets these things and we sure don't
-		 * but nested invocations in them...
-		 */
-		nstr = Buf_GetAll(&v->val, NULL);
-
 		if (str[1] == 'D') {
-		    nstr = VarModify(ctxt, &parsestate, nstr, VarHead,
-				    NULL);
-		} else {
-		    nstr = VarModify(ctxt, &parsestate, nstr, VarTail,
-				    NULL);
+			extramodifiers = "H:";
 		}
-		/*
-		 * Resulting string is dynamically allocated, so
-		 * tell caller to free it.
-		 */
-		*freePtr = nstr;
-		*lengthPtr = tstr-start+1;
-		Buf_Destroy(&buf, TRUE);
-		VarFreeEnv(v, TRUE);
-		return nstr;
+		else { /* F */
+			extramodifiers = "T:";
+		}
 	    }
 	}
 
@@ -3861,16 +3843,29 @@ Var_Parse(const char *str, GNode *ctxt, Boolean errnum, int *lengthPtr,
 
     v->flags &= ~VAR_IN_USE;
 
-    if ((nstr != NULL) && haveModifier) {
+    if ((nstr != NULL) && (haveModifier || extramodifiers != NULL)) {
+	void *extraFree;
 	int used;
-	/*
-	 * Skip initial colon.
-	 */
-	tstr++;
 
-	nstr = ApplyModifiers(nstr, tstr, startc, endc,
-			      v, ctxt, errnum, &used, freePtr);
-	tstr += used;
+	extraFree = NULL;
+	if (extramodifiers != NULL) {
+		nstr = ApplyModifiers(nstr, extramodifiers, '(', ')',
+				      v, ctxt, errnum, &used, &extraFree);
+	}
+
+	if (haveModifier) {
+		/* Skip initial colon. */
+		tstr++;
+
+		nstr = ApplyModifiers(nstr, tstr, startc, endc,
+				      v, ctxt, errnum, &used, freePtr);
+		tstr += used;
+		if (extraFree) {
+			free(extraFree);
+		}
+	} else {
+		*freePtr = extraFree;
+	}
     }
     if (*tstr) {
 	*lengthPtr = tstr - start + 1;
