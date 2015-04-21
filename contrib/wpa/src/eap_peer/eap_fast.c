@@ -53,6 +53,8 @@ struct eap_fast_data {
 	int session_ticket_used;
 
 	u8 key_data[EAP_FAST_KEY_LEN];
+	u8 *session_id;
+	size_t id_len;
 	u8 emsk[EAP_EMSK_LEN];
 	int success;
 
@@ -147,14 +149,16 @@ static void * eap_fast_init(struct eap_sm *sm)
 	struct eap_fast_data *data;
 	struct eap_peer_config *config = eap_get_config(sm);
 
+	if (config == NULL)
+		return NULL;
+
 	data = os_zalloc(sizeof(*data));
 	if (data == NULL)
 		return NULL;
 	data->fast_version = EAP_FAST_VERSION;
 	data->max_pac_list_len = 10;
 
-	if (config && config->phase1 &&
-	    eap_fast_parse_phase1(data, config->phase1) < 0) {
+	if (config->phase1 && eap_fast_parse_phase1(data, config->phase1) < 0) {
 		eap_fast_deinit(sm, data);
 		return NULL;
 	}
@@ -194,14 +198,22 @@ static void * eap_fast_init(struct eap_sm *sm)
 			   "workarounds");
 	}
 
+	if (!config->pac_file) {
+		wpa_printf(MSG_INFO, "EAP-FAST: No PAC file configured");
+		eap_fast_deinit(sm, data);
+		return NULL;
+	}
+
 	if (data->use_pac_binary_format &&
 	    eap_fast_load_pac_bin(sm, &data->pac, config->pac_file) < 0) {
+		wpa_printf(MSG_INFO, "EAP-FAST: Failed to load PAC file");
 		eap_fast_deinit(sm, data);
 		return NULL;
 	}
 
 	if (!data->use_pac_binary_format &&
 	    eap_fast_load_pac(sm, &data->pac, config->pac_file) < 0) {
+		wpa_printf(MSG_INFO, "EAP-FAST: Failed to load PAC file");
 		eap_fast_deinit(sm, data);
 		return NULL;
 	}
@@ -238,6 +250,9 @@ static void eap_fast_deinit(struct eap_sm *sm, void *priv)
 		pac = pac->next;
 		eap_fast_free_pac(prev);
 	}
+	os_memset(data->key_data, 0, EAP_FAST_KEY_LEN);
+	os_memset(data->emsk, 0, EAP_EMSK_LEN);
+	os_free(data->session_id);
 	wpabuf_free(data->pending_phase2_req);
 	os_free(data);
 }
@@ -754,7 +769,7 @@ static struct wpabuf * eap_fast_process_crypto_binding(
 		    "MAC calculation", (u8 *) _bind, bind_len);
 	hmac_sha1(cmk, EAP_FAST_CMK_LEN, (u8 *) _bind, bind_len,
 		  _bind->compound_mac);
-	res = os_memcmp(cmac, _bind->compound_mac, sizeof(cmac));
+	res = os_memcmp_const(cmac, _bind->compound_mac, sizeof(cmac));
 	wpa_hexdump(MSG_MSGDUMP, "EAP-FAST: Received Compound MAC",
 		    cmac, sizeof(cmac));
 	wpa_hexdump(MSG_MSGDUMP, "EAP-FAST: Calculated Compound MAC",
@@ -783,6 +798,21 @@ static struct wpabuf * eap_fast_process_crypto_binding(
 		data->phase2_success = 0;
 		wpabuf_free(resp);
 		return NULL;
+	}
+
+	if (!data->anon_provisioning && data->phase2_success) {
+		os_free(data->session_id);
+		data->session_id = eap_peer_tls_derive_session_id(
+			sm, &data->ssl, EAP_TYPE_FAST, &data->id_len);
+		if (data->session_id) {
+			wpa_hexdump(MSG_DEBUG, "EAP-FAST: Derived Session-Id",
+				    data->session_id, data->id_len);
+		} else {
+			wpa_printf(MSG_ERROR, "EAP-FAST: Failed to derive "
+				   "Session-Id");
+			wpabuf_free(resp);
+			return NULL;
+		}
 	}
 
 	pos = wpabuf_put(resp, sizeof(struct eap_tlv_crypto_binding_tlv));
@@ -1029,6 +1059,7 @@ static struct wpabuf * eap_fast_process_pac(struct eap_sm *sm,
 		}
 		wpa_printf(MSG_DEBUG, "EAP-FAST: Send PAC-Acknowledgement TLV "
 			   "- Provisioning completed successfully");
+		sm->expected_failure = 1;
 	} else {
 		/*
 		 * This is PAC refreshing, i.e., normal authentication that is
@@ -1051,7 +1082,8 @@ static int eap_fast_parse_decrypted(struct wpabuf *decrypted,
 				    struct eap_fast_tlv_parse *tlv,
 				    struct wpabuf **resp)
 {
-	int mandatory, tlv_type, len, res;
+	int mandatory, tlv_type, res;
+	size_t len;
 	u8 *pos, *end;
 
 	os_memset(tlv, 0, sizeof(*tlv));
@@ -1065,13 +1097,14 @@ static int eap_fast_parse_decrypted(struct wpabuf *decrypted,
 		pos += 2;
 		len = WPA_GET_BE16(pos);
 		pos += 2;
-		if (pos + len > end) {
+		if (len > (size_t) (end - pos)) {
 			wpa_printf(MSG_INFO, "EAP-FAST: TLV overflow");
 			return -1;
 		}
 		wpa_printf(MSG_DEBUG, "EAP-FAST: Received Phase 2: "
-			   "TLV type %d length %d%s",
-			   tlv_type, len, mandatory ? " (mandatory)" : "");
+			   "TLV type %d length %u%s",
+			   tlv_type, (unsigned int) len,
+			   mandatory ? " (mandatory)" : "");
 
 		res = eap_fast_parse_tlv(tlv, tlv_type, pos, len);
 		if (res == -2)
@@ -1226,6 +1259,7 @@ static int eap_fast_process_decrypted(struct eap_sm *sm,
 				   "provisioning completed successfully.");
 			ret->methodState = METHOD_DONE;
 			ret->decision = DECISION_FAIL;
+			sm->expected_failure = 1;
 		} else {
 			wpa_printf(MSG_DEBUG, "EAP-FAST: Authentication "
 				   "completed successfully.");
@@ -1604,6 +1638,10 @@ static void * eap_fast_init_for_reauth(struct eap_sm *sm, void *priv)
 		os_free(data);
 		return NULL;
 	}
+	os_memset(data->key_data, 0, EAP_FAST_KEY_LEN);
+	os_memset(data->emsk, 0, EAP_EMSK_LEN);
+	os_free(data->session_id);
+	data->session_id = NULL;
 	if (data->phase2_priv && data->phase2_method &&
 	    data->phase2_method->init_for_reauth)
 		data->phase2_method->init_for_reauth(sm, data->phase2_priv);
@@ -1628,7 +1666,7 @@ static int eap_fast_get_status(struct eap_sm *sm, void *priv, char *buf,
 		ret = os_snprintf(buf + len, buflen - len,
 				  "EAP-FAST Phase2 method=%s\n",
 				  data->phase2_method->name);
-		if (ret < 0 || (size_t) ret >= buflen - len)
+		if (os_snprintf_error(buflen - len, ret))
 			return len;
 		len += ret;
 	}
@@ -1659,6 +1697,25 @@ static u8 * eap_fast_getKey(struct eap_sm *sm, void *priv, size_t *len)
 	os_memcpy(key, data->key_data, EAP_FAST_KEY_LEN);
 
 	return key;
+}
+
+
+static u8 * eap_fast_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
+{
+	struct eap_fast_data *data = priv;
+	u8 *id;
+
+	if (!data->success)
+		return NULL;
+
+	id = os_malloc(data->id_len);
+	if (id == NULL)
+		return NULL;
+
+	*len = data->id_len;
+	os_memcpy(id, data->session_id, data->id_len);
+
+	return id;
 }
 
 
@@ -1696,6 +1753,7 @@ int eap_peer_fast_register(void)
 	eap->process = eap_fast_process;
 	eap->isKeyAvailable = eap_fast_isKeyAvailable;
 	eap->getKey = eap_fast_getKey;
+	eap->getSessionId = eap_fast_get_session_id;
 	eap->get_status = eap_fast_get_status;
 #if 0
 	eap->has_reauth_data = eap_fast_has_reauth_data;
