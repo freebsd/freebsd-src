@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 4, 2015
+.Dd April 19, 2015
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -365,7 +365,12 @@ All CTL-specific options are documented in the
 section of
 .Xr ctladm 8 .
 .It Ic path Ar path
-The path to the file or device node used to back the LUN.
+The path to the file, device node, or
+.Xr zfs 8
+volume used to back the LUN.
+For optimal performance, create the volume with the
+.Qq Ar volmode=dev
+property set.
 .It Ic serial Ar string
 The SCSI serial number presented to the initiator.
 .It Ic size Ar size
@@ -435,7 +440,8 @@ target naa.50015178f369f092 {
 .Sh SEE ALSO
 .Xr ctl 4 ,
 .Xr ctladm 8 ,
-.Xr ctld 8
+.Xr ctld 8 ,
+.Xr zfs 8
 .Sh AUTHORS
 The
 .Nm
