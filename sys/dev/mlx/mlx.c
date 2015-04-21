@@ -378,7 +378,8 @@ mlx_attach(struct mlx_softc *sc)
 			       BUS_SPACE_MAXADDR,	/* lowaddr */
 			       BUS_SPACE_MAXADDR, 	/* highaddr */
 			       NULL, NULL, 		/* filter, filterarg */
-			       MAXBSIZE, MLX_NSEG,	/* maxsize, nsegments */
+			       MLX_MAXPHYS,		/* maxsize */
+			       MLX_NSEG,		/* nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			       0,			/* flags */
 			       busdma_lock_mutex,	/* lockfunc */

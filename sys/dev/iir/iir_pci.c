@@ -323,7 +323,7 @@ iir_pci_attach(device_t dev)
                            /*highaddr*/BUS_SPACE_MAXADDR,
                            /*filter*/NULL, /*filterarg*/NULL,
                            /*maxsize*/BUS_SPACE_MAXSIZE_32BIT,
-                           /*nsegments*/GDT_MAXSG,
+			   /*nsegments*/BUS_SPACE_UNRESTRICTED,
                            /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
 			   /*flags*/0, /*lockfunc*/busdma_lock_mutex,
 			   /*lockarg*/&Giant, &gdt->sc_parent_dmat) != 0) {
