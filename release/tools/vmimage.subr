@@ -14,9 +14,9 @@ write_partition_layout() {
 		SWAPOPT="-p freebsd-swap/swapfs::1G"
 	fi
 
-	_OBJDIR="$(make -C ${WORLDDIR} -V .OBJDIR)"
-	if [ -d "${_OBJDIR%%/usr/src}/${TARGET}.${TARGET_ARCH}" ]; then
-		BOOTFILES="${_OBJDIR%%/usr/src}/${TARGET}.${TARGET_ARCH}/usr/src/sys/boot"
+	_OBJDIR="$(make -C ${WORLDDIR} -V .OBJDIR | tr -d '/usr/src')"
+	if [ -d "${_OBJDIR}/${TARGET}.${TARGET_ARCH}" ]; then
+		BOOTFILES="${_OBJDIR}/${TARGET}.${TARGET_ARCH}/usr/src/sys/boot"
 	else
 		BOOTFILES="${_OBJDIR}/usr/src/sys/boot"
 	fi
