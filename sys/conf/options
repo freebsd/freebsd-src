@@ -553,6 +553,7 @@ LPT_DEBUG		opt_lpt.h
 PLIP_DEBUG		opt_plip.h
 LOCKF_DEBUG		opt_debug_lockf.h
 SI_DEBUG		opt_debug_si.h
+IFMEDIA_DEBUG		opt_ifmedia.h
 
 # Fb options
 FB_DEBUG		opt_fb.h

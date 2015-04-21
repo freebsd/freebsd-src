@@ -730,15 +730,6 @@ cpu_idle_hlt(sbintime_t sbt)
 	*state = STATE_RUNNING;
 }
 
-/*
- * MWAIT cpu power states.  Lower 4 bits are sub-states.
- */
-#define	MWAIT_C0	0xf0
-#define	MWAIT_C1	0x00
-#define	MWAIT_C2	0x10
-#define	MWAIT_C3	0x20
-#define	MWAIT_C4	0x30
-
 static void
 cpu_idle_mwait(sbintime_t sbt)
 {
