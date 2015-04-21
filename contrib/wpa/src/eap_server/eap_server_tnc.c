@@ -480,7 +480,8 @@ static void eap_tnc_process(struct eap_sm *sm, void *priv,
 		message_length = WPA_GET_BE32(pos);
 		pos += 4;
 
-		if (message_length < (u32) (end - pos)) {
+		if (message_length < (u32) (end - pos) ||
+		    message_length > 75000) {
 			wpa_printf(MSG_DEBUG, "EAP-TNC: Invalid Message "
 				   "Length (%d; %ld remaining in this msg)",
 				   message_length, (long) (end - pos));

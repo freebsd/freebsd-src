@@ -31,8 +31,9 @@ dev/fb/fb.c			optional	sc
 dev/fdt/fdt_powerpc.c		optional	fdt
 # ofwbus depends on simplebus.
 dev/fdt/simplebus.c		optional	aim | fdt
-dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
+dev/hwpmc/hwpmc_e500.c		optional	hwpmc
 dev/hwpmc/hwpmc_mpc7xxx.c	optional	hwpmc
+dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
 dev/hwpmc/hwpmc_ppc970.c	optional	hwpmc
 dev/iicbus/ad7417.c		optional	ad7417 powermac
 dev/iicbus/adm1030.c		optional	powermac windtunnel | adm1030 powermac

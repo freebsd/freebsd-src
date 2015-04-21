@@ -1281,10 +1281,6 @@ _m4=		lib/libohash \
 ${_bt}-usr.bin/m4: ${_bt}-lib/libohash
 .endif
 
-.if ${BOOTSTRAPPING} < 1000014
-_crunch=	usr.sbin/crunch
-.endif
-
 .if ${BOOTSTRAPPING} < 1000026
 _nmtree=	lib/libnetbsd \
 		usr.sbin/nmtree
@@ -1298,6 +1294,10 @@ _cat=		bin/cat
 
 .if ${BOOTSTRAPPING} < 1000033
 _lex=		usr.bin/lex
+.endif
+
+.if ${BOOTSTRAPPING} < 1001507
+_crunch=	usr.sbin/crunch
 .endif
 
 .if ${BOOTSTRAPPING} >= 900040 && ${BOOTSTRAPPING} < 900041
@@ -1469,11 +1469,8 @@ _btxld=		usr.sbin/btxld
 .endif
 .endif
 .if ${TARGET_ARCH} != ${MACHINE_ARCH}
-.if ${MK_RESCUE} != "no" || defined(RELEASEDIR)
+.if ${MK_RESCUE} != "no"
 _crunchide=	usr.sbin/crunch/crunchide
-.endif
-.if ${TARGET_ARCH} == "i386" && defined(RELEASEDIR)
-_kgzip=		usr.sbin/kgzip
 .endif
 .endif
 
@@ -1520,7 +1517,6 @@ cross-tools: .MAKE
     ${_cc} \
     ${_btxld} \
     ${_crunchide} \
-    ${_kgzip} \
     sys/boot/usb/tools
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool} && \
