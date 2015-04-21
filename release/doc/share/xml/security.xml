@@ -238,6 +238,21 @@
 	<entry>19&nbsp;March&nbsp;2015</entry>
 	<entry><para>Multiple vulnerabilities</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-15:07.ntp.asc">FreeBSD-SA-15:07.ntp</link></entry>
+	<entry>7&nbsp;April&nbsp;2015</entry>
+	<entry><para>Multiple vulnerabilities</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-15:09.ipv6.asc">FreeBSD-SA-15:09.ipv6</link></entry>
+	<entry>7&nbsp;April&nbsp;2015</entry>
+	<entry><para>Router advertisement Denial of
+	    Service</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
