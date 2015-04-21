@@ -3,10 +3,8 @@
 
 ret=0
 CHECK_UNRESOLVED=1
-DEMANGLE=
-while getopts "DU" flag; do
+while getopts "U" flag; do
 	case "${flag}" in
-		D) DEMANGLE="-C" ;;
 		U) CHECK_UNRESOLVED=0 ;;
 	esac
 done
@@ -20,7 +18,7 @@ case $mime in
 esac
 
 # Gather all symbols from the target
-unresolved_symbols=$(nm ${DEMANGLE} -D -u --format=posix "$1" | awk '$2 == "U" {print $1}' | tr '\n' ' ')
+unresolved_symbols=$(nm -D -u --format=posix "$1" | awk '$2 == "U" {print $1}' | tr '\n' ' ')
 ldd_libs=$(ldd $(realpath $1) | awk '{print $1 ":" $3}')
 
 libkey() {
@@ -52,7 +50,7 @@ for lib in $(readelf -d $1 | awk '$2 ~ /\(?NEEDED\)?/ { sub(/\[/,"",$NF); sub(/\
 	done
 	list_libs="$list_libs $lib"
 	foundone=
-	lib_symbols="$(nm ${DEMANGLE} -D --defined-only --format=posix "${libpath}" | awk '$2 ~ /R|D|T|W|B|V/ {print $1}' | tr '\n' ' ')"
+	lib_symbols="$(nm -D --defined-only --format=posix "${libpath}" | awk '$2 ~ /R|D|T|W|B|V/ {print $1}' | tr '\n' ' ')"
 	if [ ${CHECK_UNRESOLVED} -eq 1 ]; then
 		# Save the global symbols for this lib
 		libkey "${lib}"
