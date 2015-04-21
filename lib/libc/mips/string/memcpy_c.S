@@ -33,6 +33,13 @@
 .set noreorder
 .set nobopt
 .set noat
+#ifndef _MIPS_SZCAP
+// This should be an error, but mkdep runs with the wrong compiler so it can't
+// be.
+//#error Size of capability unknown!
+#endif
+#define CAP_SIZE (_MIPS_SZCAP/8)
+#define CAP_ALIGN_MASK (CAP_SIZE-1)
 
 #
 # Capability Memcpy - copies from one capability to another.
@@ -59,8 +66,9 @@ memcpy_c:
 	CGetBase $v1, $c4            # v1 = linear address of src
 	CGetOffset $at, $c4
 	dadd     $v1, $v1, $at
-	andi     $12, $v0, 0x1f      # t4 = dst % 32
-	andi     $13, $v1, 0x1f      # t5 = src % 32
+	andi     $12, $v0, CAP_ALIGN_MASK # t4 = dst % CAP_SIZE
+          CToPtr   $v0, $c0, $c3       # Return ptr in integer return
+	andi     $13, $v1, CAP_ALIGN_MASK # t5 = src % CAP_SIZE
 	daddi    $a1, $zero, 0       # Store 0 in $a1 - we'll use that for the
 	                             # offset later.
 
@@ -72,18 +80,18 @@ memcpy_c:
 	                             # We could do something involving shifts, but
 	                             # this is probably a sufficiently uncommon
 	                             # case not to be worth optimising.
-	andi     $t8, $a0, 0x1f      # t8 = len % 32
+	andi     $t8, $a0, CAP_ALIGN_MASK      # t8 = len % CAP_SIZE
 
 fast_path:                       # At this point, src and dst are known to have
-                                 # the same alignment.  They may not be 32-byte
+                                 # the same alignment.  They may not be capability
                                  # aligned, however.
 	# FIXME: This logic can be simplified by using the power of algebra
 	dsub    $v1, $zero, $12
-	daddi   $v1, $v1, 32
-	andi    $v1, $v1, 0x1f      # v1 = number of bytes we need to copy to
+	daddi   $v1, $v1, CAP_SIZE
+	andi    $v1, $v1, CAP_ALIGN_MASK      # v1 = number of bytes we need to copy to
 	                            # become aligned
 	dsub    $a2, $a0, $v1
-	daddi   $a2, $a2, -32        # (delay slot)
+	daddi   $a2, $a2, -CAP_SIZE
 	bltz    $a2, slow_memcpy_loop# If we are copying more bytes than the number
 	                             # required for alignment, plus at least one
 	                             # capability more, continue in the fast path
@@ -101,15 +109,15 @@ unaligned_start:
 
 	dsub     $a2, $a0, $a1        # $12 = amount left to copy
 aligned_copy:
-	addi    $at, $zero, 0xFFE0
-	and     $a2, $a2, $at        # a2 = number of 32-byte aligned bytes to copy
+	addi    $at, $zero, (0xFFFF-CAP_ALIGN_MASK)
+	and     $a2, $a2, $at        # a2 = number of capability-aligned bytes to copy
 	dadd    $a2, $a2, $a1        # ...plus the number already copied.
 
 copy_caps:
 	clc     $c5, $a1, 0($c4)
-	daddi   $a1, $a1, 32
+	daddi   $a1, $a1, CAP_SIZE
 	bne     $a1, $a2, copy_caps
-	csc     $c5, $a1, -32($c3)
+	csc     $c5, $a1, -CAP_SIZE($c3)
 
 	dsub    $v1, $a0, $a2        # Subtract the number of bytes copied from the
 	                             # number to copy.  This should give the number
@@ -136,3 +144,16 @@ slow_memcpy_loop:                # byte-by-byte copy
 	jr       $ra                 # Return value remains in c1
 	nop
 .end memcpy_c
+
+# Use the capability memcpy for normal memcopies. (Not enabled yet)
+#if 0
+		.text
+		.global memcpy
+		.ent memcpy
+memcpy:
+	CFromPtr $c3, $c0, $a0       # dst ptr -> dst capability
+	CFromPtr $c4, $c0, $a1       # src ptr -> src capability
+          b        memcpy_c
+          move     $a0, $a3            # len -> first integer arg register (in delay slot)
+.end memcpy
+#endif

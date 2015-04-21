@@ -14,11 +14,13 @@ _CHERI_CC=	${CHERI_CC} -integrated-as --target=cheri-unknown-freebsd \
 .if defined(SYSROOT)
 _CHERI_CC+=	--sysroot=${SYSROOT}
 .endif
+
 CHERI_SRCS=	\
 		bcopy.c \
 		memchr_c.c \
 		memcmp_c.c \
 		memcpy.c \
+		memcpy_c.S \
 		memcpy_c_tofrom.c \
 		memmove.c \
 		memmove_c.c \
@@ -29,11 +31,7 @@ CHERI_SRCS=	\
 		strncmp_c.c \
 		strncpy_c.c \
 		strtol_c.c
-.if ${MK_CHERI128} != "no"
-CHERI_SRCS+=	memcpy_c.c
-.else
-CHERI_SRCS+=	memcpy_c.s
-.endif
+
 SRCS+=	${CHERI_SRCS}
 
 .for src in ${CHERI_SRCS}
