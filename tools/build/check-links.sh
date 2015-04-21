@@ -3,7 +3,7 @@
 
 libkey() {
 	libkey="lib_symbols_$1"
-	patterns=[.+,-]
+	patterns=[.+,/-]
 	replacement=_
 	while :; do
 		case " ${libkey} " in
@@ -44,11 +44,15 @@ list_libs=
 resolved_symbols=
 for lib in $(readelf -d $1 | awk '$2 ~ /\(?NEEDED\)?/ { sub(/\[/,"",$NF); sub(/\]/,"",$NF); print $NF }'); do
 	echo -n "checking if $lib is needed: "
-	for libpair in ${ldd_libs}; do
-		case "${libpair}" in
-			${lib}:*) libpath="${libpair#*:}" && break ;;
-		esac
-	done
+	if [ -n "${lib##/*}" ]; then
+		for libpair in ${ldd_libs}; do
+			case "${libpair}" in
+				${lib}:*) libpath="${libpair#*:}" && break ;;
+			esac
+		done
+	else
+		libpath="${lib}"
+	fi
 	list_libs="$list_libs $lib"
 	foundone=
 	lib_symbols="$(nm -D --defined-only --format=posix "${libpath}" | awk '$2 ~ /C|R|D|T|W|B|V/ {print $1}' | tr '\n' ' ')"
