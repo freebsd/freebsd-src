@@ -36,7 +36,8 @@ case $mime in
 esac
 
 # Gather all symbols from the target
-unresolved_symbols=$(nm -D --format=posix "$1" | awk -v isbin=${isbin} '$2 == "U" || ($2 == "B" && $4 != "" && isbin == 1) {print $1}' | tr '\n' ' ')
+unresolved_symbols=$(nm -u -D --format=posix "$1" | awk '$2 == "U" {print $1}' | tr '\n' ' ')
+[ ${isbin} -eq 1 ] && bss_symbols=$(nm -D --format=posix "$1" | awk '$2 == "B" && $4 != "" {print $1}' | tr '\n' ' ')
 ldd_libs=$(ldd $(realpath $1) | awk '{print $1 ":" $3}')
 
 # Check for useful libs
@@ -62,7 +63,7 @@ for lib in $(readelf -d $1 | awk '$2 ~ /\(?NEEDED\)?/ { sub(/\[/,"",$NF); sub(/\
 		setvar "${libkey}" "${lib_symbols}"
 	fi
 	for fct in ${lib_symbols}; do
-		case " ${unresolved_symbols} " in
+		case " ${unresolved_symbols} ${bss_symbols} " in
 			*\ ${fct}\ *) foundone="${fct}" && break ;;
 		esac
 	done
