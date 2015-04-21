@@ -161,19 +161,22 @@ MKDEP_CFLAGS=	${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BIDU]*} ${CFLAGS:M-std=*} \
 MKDEP_CXXFLAGS=	${CXXFLAGS:M-nostdinc*} ${CXXFLAGS:M-[BIDU]*} \
 		${CXXFLAGS:M-std=*} ${CXXFLAGS:M-ansi} ${CXXFLAGS:M-stdlib=*}
 
-DPSRCS+= ${SRCS}
-${DEPENDFILE}: ${DPSRCS}
-	rm -f ${DEPENDFILE}
-.if !empty(DPSRCS:M*.[cS])
-	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
-	    ${MKDEP_CFLAGS} ${.ALLSRC:M*.[cS]}
-.endif
-.if !empty(DPSRCS:M*.cc) || !empty(DPSRCS:M*.C) || !empty(DPSRCS:M*.cpp) || \
-    !empty(DPSRCS:M*.cxx)
-	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
-	    ${MKDEP_CXXFLAGS} \
-	    ${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cpp} ${.ALLSRC:M*.cxx}
-.endif
+# Each source has it's own dependency file suffix in case multple possible
+# sources exists (e.g. fabs.c and fabs.S in libc)
+DPSRCS+=	${SRCS}
+DPFILES+=	${DPSRCS:M*.[cS]:S/.c$/.dep_c/:S/.S$/.dep_S/} \
+		${DPSRCS:M*.cc:S/.cc$/.dep_cc/} \
+		${DPSRCS:M*.C:S/.C$/.dep_C/} \
+		${DPSRCS:M*.cpp:S/.cpp$/.dep_cpp/} \
+		${DPSRCS:M*.cxx:S/.cxx$/.dep_cxx/}
+.SUFFIXES:	.dep_c .dep_S .dep_cc .dep_C .dep_cpp .dep_cxx
+.c.dep_c .S.dep_S: ${DPSRCS}
+	${MKDEPCMD} -f ${.TARGET} ${MKDEP} ${MKDEP_CFLAGS} ${.IMPSRC}
+.cc.dep_cc .C.dep_C .cpp.dep_cpp .cxx.dep_cxx: ${DPSRCS}
+	${MKDEPCMD} -f ${.TARGET} ${MKDEP} ${MKDEP_CXXFLAGS} ${.IMPSRC}
+
+${DEPENDFILE}: ${DPFILES}
+	cat ${.ALLSRC} > ${DEPENDFILE}
 .if target(_EXTRADEPEND)
 _EXTRADEPEND: .USE
 ${DEPENDFILE}: _EXTRADEPEND
@@ -198,12 +201,12 @@ afterdepend:
 cleandepend:
 .if defined(SRCS)
 .if ${CTAGS:T} == "gtags"
-	rm -f ${DEPENDFILE} GPATH GRTAGS GSYMS GTAGS
+	rm -f ${DPFILES} ${DEPENDFILE} GPATH GRTAGS GSYMS GTAGS
 .if defined(HTML)
 	rm -rf HTML
 .endif
 .else
-	rm -f ${DEPENDFILE} tags
+	rm -f ${DPFILES} ${DEPENDFILE} tags
 .endif
 .endif
 .endif
