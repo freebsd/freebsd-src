@@ -1,8 +1,76 @@
+2015-04-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20150418
+	  Merge with NetBSD make, pick up
+	  o job.c: use memmove() rather than memcpy()
+
+	* unit-tests/varshell.mk: SunOS cannot handle the TERMINATED_BY_SIGNAL
+	  case, so skip it.
+
+2015-04-11  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20150411
+	  bump version - only mk/ changes.
+	
+2015-04-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20150410
+	  Merge with NetBSD make, pick up
+	  o document different handling of '-' in jobs mode vs compat
+	  o fix jobs mode so that '-' only applies to whole job
+	    when shell lacks hasErrCtl
+	  o meta.c: use separate vars to track lcwd and latestdir (read)
+	    per process
+	
+2015-04-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20150401
+	  Merge with NetBSD make, pick up
+	  o meta.c: close meta file in child
+	
+	* Makefile: use BINDIR.bmake if set.
+	  Same for MANDIR and SHAREDIR
+	  Handy for testing release candidates
+	  in various environments.
+	
+2015-03-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* move initialization of savederr to block where it is used
+	  to avoid spurious warning from gcc5
+
+2014-11-11  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20141111
+	  just a cooler number
+
+2014-11-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20141105
+	  Merge with NetBSD make, pick up
+	  o revert major overhaul of suffix handling
+	    and POSIX compliance - too much breakage
+	    and impossible to make backwards compatible.
+	  o we still have the new unit test structure which is ok.
+	  o meta.c ensure "-- filemon" is at start of line.
+
+2014-09-17  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* configure.in: test that result of getconf PATH_MAX is numeric
+	  and discard if not.  Apparently needed for Hurd.
+
+2014-08-30  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20140830
+	  Merge with NetBSD make, pick up
+	  o major overhaul of suffix handling
+	  o improved POSIX compliance
+	  o overhauled unit-tests
+
 2014-06-20  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (MAKE_VERSION): 20140620
 	  Merge with NetBSD make, pick up
-	  o var.c return varNoError rather than var_Error for ::= modidiers.
+	  o var.c return varNoError rather than var_Error for ::= modifiers.
 
 2014-05-22  Simon J. Gerraty  <sjg@bad.crufty.net>
 
