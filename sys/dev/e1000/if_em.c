@@ -407,6 +407,7 @@ SYSCTL_INT(_hw_em, OID_AUTO, num_tx_queues, CTLFLAG_RDTUN, &em_num_tx_queues, 0,
 static int em_num_rx_queues = 1;
 SYSCTL_INT(_hw_em, OID_AUTO, num_rx_queues, CTLFLAG_RDTUN, &em_num_rx_queues, 0,
     "82574 only: Number of rx queues to configure, 0 indicates autoconfigure");
+#endif
 
 /*
 ** Global variable to store last used CPU when binding queues
@@ -414,7 +415,6 @@ SYSCTL_INT(_hw_em, OID_AUTO, num_rx_queues, CTLFLAG_RDTUN, &em_num_rx_queues, 0,
 ** queue is bound to a cpu.
 */
 static int em_last_bind_cpu = -1;
-#endif
 
 /* How many packets rxeof tries to clean at a time */
 static int em_rx_process_limit = 100;
