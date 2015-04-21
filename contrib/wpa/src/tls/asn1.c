@@ -1,6 +1,6 @@
 /*
  * ASN.1 DER parsing
- * Copyright (c) 2006, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2006-2014, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -10,6 +10,17 @@
 
 #include "common.h"
 #include "asn1.h"
+
+struct asn1_oid asn1_sha1_oid = {
+	.oid = { 1, 3, 14, 3, 2, 26 },
+	.len = 6
+};
+
+struct asn1_oid asn1_sha256_oid = {
+	.oid = { 2, 16, 840, 1, 101, 3, 4, 2, 1 },
+	.len = 9
+};
+
 
 int asn1_get_next(const u8 *buf, size_t len, struct asn1_hdr *hdr)
 {
@@ -140,7 +151,7 @@ int asn1_get_oid(const u8 *buf, size_t len, struct asn1_oid *oid,
 }
 
 
-void asn1_oid_to_str(struct asn1_oid *oid, char *buf, size_t len)
+void asn1_oid_to_str(const struct asn1_oid *oid, char *buf, size_t len)
 {
 	char *pos = buf;
 	size_t i;
@@ -155,7 +166,7 @@ void asn1_oid_to_str(struct asn1_oid *oid, char *buf, size_t len)
 		ret = os_snprintf(pos, buf + len - pos,
 				  "%s%lu",
 				  i == 0 ? "" : ".", oid->oid[i]);
-		if (ret < 0 || ret >= buf + len - pos)
+		if (os_snprintf_error(buf + len - pos, ret))
 			break;
 		pos += ret;
 	}
@@ -203,4 +214,20 @@ unsigned long asn1_bit_string_to_long(const u8 *buf, size_t len)
 			   __func__, (unsigned long) len);
 
 	return val;
+}
+
+
+int asn1_oid_equal(const struct asn1_oid *a, const struct asn1_oid *b)
+{
+	size_t i;
+
+	if (a->len != b->len)
+		return 0;
+
+	for (i = 0; i < a->len; i++) {
+		if (a->oid[i] != b->oid[i])
+			return 0;
+	}
+
+	return 1;
 }

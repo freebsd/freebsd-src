@@ -9,8 +9,8 @@
 #include "utils/includes.h"
 
 #include "utils/common.h"
-#include "drivers/driver.h"
 #include "common/ieee802_11_defs.h"
+#include "common/hw_features_common.h"
 #include "wps/wps.h"
 #include "p2p/p2p.h"
 #include "hostapd.h"
@@ -129,14 +129,14 @@ int hostapd_build_ap_extra_ies(struct hostapd_data *hapd,
 	}
 #endif /* CONFIG_P2P_MANAGER */
 
-#ifdef CONFIG_WPS2
+#ifdef CONFIG_WPS
 	if (hapd->conf->wps_state) {
 		struct wpabuf *a = wps_build_assoc_resp_ie();
 		if (a && wpabuf_resize(&assocresp, wpabuf_len(a)) == 0)
 			wpabuf_put_buf(assocresp, a);
 		wpabuf_free(a);
 	}
-#endif /* CONFIG_WPS2 */
+#endif /* CONFIG_WPS */
 
 #ifdef CONFIG_P2P_MANAGER
 	if (hapd->conf->p2p & P2P_MANAGE) {
@@ -171,7 +171,26 @@ int hostapd_build_ap_extra_ies(struct hostapd_data *hapd,
 			goto fail;
 		wpabuf_put_data(proberesp, buf, pos - buf);
 	}
+
+	pos = hostapd_eid_osen(hapd, buf);
+	if (pos != buf) {
+		if (wpabuf_resize(&beacon, pos - buf) != 0)
+			goto fail;
+		wpabuf_put_data(beacon, buf, pos - buf);
+
+		if (wpabuf_resize(&proberesp, pos - buf) != 0)
+			goto fail;
+		wpabuf_put_data(proberesp, buf, pos - buf);
+	}
 #endif /* CONFIG_HS20 */
+
+	if (hapd->conf->vendor_elements) {
+		size_t add = wpabuf_len(hapd->conf->vendor_elements);
+		if (wpabuf_resize(&beacon, add) == 0)
+			wpabuf_put_buf(beacon, hapd->conf->vendor_elements);
+		if (wpabuf_resize(&proberesp, add) == 0)
+			wpabuf_put_buf(proberesp, hapd->conf->vendor_elements);
+	}
 
 	*beacon_ret = beacon;
 	*proberesp_ret = proberesp;
@@ -262,7 +281,8 @@ int hostapd_set_drv_ieee8021x(struct hostapd_data *hapd, const char *ifname,
 		params.wpa = hapd->conf->wpa;
 		params.ieee802_1x = hapd->conf->ieee802_1x;
 		params.wpa_group = hapd->conf->wpa_group;
-		params.wpa_pairwise = hapd->conf->wpa_pairwise;
+		params.wpa_pairwise = hapd->conf->wpa_pairwise |
+			hapd->conf->rsn_pairwise;
 		params.wpa_key_mgmt = hapd->conf->wpa_key_mgmt;
 		params.rsn_preauth = hapd->conf->rsn_preauth;
 #ifdef CONFIG_IEEE80211W
@@ -278,7 +298,7 @@ int hostapd_vlan_if_add(struct hostapd_data *hapd, const char *ifname)
 	char force_ifname[IFNAMSIZ];
 	u8 if_addr[ETH_ALEN];
 	return hostapd_if_add(hapd, WPA_IF_AP_VLAN, ifname, hapd->own_addr,
-			      NULL, NULL, force_ifname, if_addr, NULL);
+			      NULL, NULL, force_ifname, if_addr, NULL, 0);
 }
 
 
@@ -288,19 +308,19 @@ int hostapd_vlan_if_remove(struct hostapd_data *hapd, const char *ifname)
 }
 
 
-int hostapd_set_wds_sta(struct hostapd_data *hapd, const u8 *addr, int aid,
-			int val)
+int hostapd_set_wds_sta(struct hostapd_data *hapd, char *ifname_wds,
+			const u8 *addr, int aid, int val)
 {
 	const char *bridge = NULL;
 
 	if (hapd->driver == NULL || hapd->driver->set_wds_sta == NULL)
-		return 0;
+		return -1;
 	if (hapd->conf->wds_bridge[0])
 		bridge = hapd->conf->wds_bridge;
 	else if (hapd->conf->bridge[0])
 		bridge = hapd->conf->bridge;
 	return hapd->driver->set_wds_sta(hapd->drv_priv, addr, aid, val,
-					 bridge);
+					 bridge, ifname_wds);
 }
 
 
@@ -338,7 +358,8 @@ int hostapd_sta_add(struct hostapd_data *hapd,
 		    const u8 *supp_rates, size_t supp_rates_len,
 		    u16 listen_interval,
 		    const struct ieee80211_ht_capabilities *ht_capab,
-		    u32 flags, u8 qosinfo)
+		    const struct ieee80211_vht_capabilities *vht_capab,
+		    u32 flags, u8 qosinfo, u8 vht_opmode)
 {
 	struct hostapd_sta_add_params params;
 
@@ -355,6 +376,9 @@ int hostapd_sta_add(struct hostapd_data *hapd,
 	params.supp_rates_len = supp_rates_len;
 	params.listen_interval = listen_interval;
 	params.ht_capabilities = ht_capab;
+	params.vht_capabilities = vht_capab;
+	params.vht_opmode_enabled = !!(flags & WLAN_STA_VHT_OPMODE_ENABLED);
+	params.vht_opmode = vht_opmode;
 	params.flags = hostapd_sta_flags_to_drv(flags);
 	params.qosinfo = qosinfo;
 	return hapd->driver->sta_add(hapd->drv_priv, &params);
@@ -407,20 +431,21 @@ int hostapd_set_ssid(struct hostapd_data *hapd, const u8 *buf, size_t len)
 int hostapd_if_add(struct hostapd_data *hapd, enum wpa_driver_if_type type,
 		   const char *ifname, const u8 *addr, void *bss_ctx,
 		   void **drv_priv, char *force_ifname, u8 *if_addr,
-		   const char *bridge)
+		   const char *bridge, int use_existing)
 {
 	if (hapd->driver == NULL || hapd->driver->if_add == NULL)
 		return -1;
 	return hapd->driver->if_add(hapd->drv_priv, type, ifname, addr,
 				    bss_ctx, drv_priv, force_ifname, if_addr,
-				    bridge);
+				    bridge, use_existing);
 }
 
 
 int hostapd_if_remove(struct hostapd_data *hapd, enum wpa_driver_if_type type,
 		      const char *ifname)
 {
-	if (hapd->driver == NULL || hapd->driver->if_remove == NULL)
+	if (hapd->driver == NULL || hapd->drv_priv == NULL ||
+	    hapd->driver->if_remove == NULL)
 		return -1;
 	return hapd->driver->if_remove(hapd->drv_priv, type, ifname);
 }
@@ -453,20 +478,25 @@ int hostapd_flush(struct hostapd_data *hapd)
 }
 
 
-int hostapd_set_freq(struct hostapd_data *hapd, int mode, int freq,
-		     int channel, int ht_enabled, int sec_channel_offset)
+int hostapd_set_freq(struct hostapd_data *hapd, enum hostapd_hw_mode mode,
+		     int freq, int channel, int ht_enabled, int vht_enabled,
+		     int sec_channel_offset, int vht_oper_chwidth,
+		     int center_segment0, int center_segment1)
 {
 	struct hostapd_freq_params data;
+
+	if (hostapd_set_freq_params(&data, mode, freq, channel, ht_enabled,
+				    vht_enabled, sec_channel_offset,
+				    vht_oper_chwidth,
+				    center_segment0, center_segment1,
+				    hapd->iface->current_mode ?
+				    hapd->iface->current_mode->vht_capab : 0))
+		return -1;
+
 	if (hapd->driver == NULL)
 		return 0;
 	if (hapd->driver->set_freq == NULL)
 		return 0;
-	os_memset(&data, 0, sizeof(data));
-	data.mode = mode;
-	data.freq = freq;
-	data.channel = channel;
-	data.ht_enabled = ht_enabled;
-	data.sec_channel_offset = sec_channel_offset;
 	return hapd->driver->set_freq(hapd->drv_priv, &data);
 }
 
@@ -616,7 +646,7 @@ int hostapd_drv_wnm_oper(struct hostapd_data *hapd, enum wnm_oper oper,
 			 const u8 *peer, u8 *buf, u16 *buf_len)
 {
 	if (hapd->driver == NULL || hapd->driver->wnm_oper == NULL)
-		return 0;
+		return -1;
 	return hapd->driver->wnm_oper(hapd->drv_priv, oper, peer, buf,
 				      buf_len);
 }
@@ -631,4 +661,67 @@ int hostapd_drv_send_action(struct hostapd_data *hapd, unsigned int freq,
 	return hapd->driver->send_action(hapd->drv_priv, freq, wait, dst,
 					 hapd->own_addr, hapd->own_addr, data,
 					 len, 0);
+}
+
+
+int hostapd_start_dfs_cac(struct hostapd_iface *iface,
+			  enum hostapd_hw_mode mode, int freq,
+			  int channel, int ht_enabled, int vht_enabled,
+			  int sec_channel_offset, int vht_oper_chwidth,
+			  int center_segment0, int center_segment1)
+{
+	struct hostapd_data *hapd = iface->bss[0];
+	struct hostapd_freq_params data;
+	int res;
+
+	if (!hapd->driver || !hapd->driver->start_dfs_cac)
+		return 0;
+
+	if (!iface->conf->ieee80211h) {
+		wpa_printf(MSG_ERROR, "Can't start DFS CAC, DFS functionality "
+			   "is not enabled");
+		return -1;
+	}
+
+	if (hostapd_set_freq_params(&data, mode, freq, channel, ht_enabled,
+				    vht_enabled, sec_channel_offset,
+				    vht_oper_chwidth, center_segment0,
+				    center_segment1,
+				    iface->current_mode->vht_capab)) {
+		wpa_printf(MSG_ERROR, "Can't set freq params");
+		return -1;
+	}
+
+	res = hapd->driver->start_dfs_cac(hapd->drv_priv, &data);
+	if (!res) {
+		iface->cac_started = 1;
+		os_get_reltime(&iface->dfs_cac_start);
+	}
+
+	return res;
+}
+
+
+int hostapd_drv_set_qos_map(struct hostapd_data *hapd,
+			    const u8 *qos_map_set, u8 qos_map_set_len)
+{
+	if (hapd->driver == NULL || hapd->driver->set_qos_map == NULL)
+		return 0;
+	return hapd->driver->set_qos_map(hapd->drv_priv, qos_map_set,
+					 qos_map_set_len);
+}
+
+
+int hostapd_drv_do_acs(struct hostapd_data *hapd)
+{
+	struct drv_acs_params params;
+
+	if (hapd->driver == NULL || hapd->driver->do_acs == NULL)
+		return 0;
+	os_memset(&params, 0, sizeof(params));
+	params.hw_mode = hapd->iface->conf->hw_mode;
+	params.ht_enabled = !!(hapd->iface->conf->ieee80211n);
+	params.ht40_enabled = !!(hapd->iface->conf->ht_capab &
+				 HT_CAP_INFO_SUPP_CHANNEL_WIDTH_SET);
+	return hapd->driver->do_acs(hapd->drv_priv, &params);
 }

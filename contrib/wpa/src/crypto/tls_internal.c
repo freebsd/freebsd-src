@@ -28,6 +28,7 @@ struct tls_global {
 struct tls_connection {
 	struct tlsv1_client *client;
 	struct tlsv1_server *server;
+	struct tls_global *global;
 };
 
 
@@ -85,6 +86,7 @@ struct tls_connection * tls_connection_init(void *tls_ctx)
 	conn = os_zalloc(sizeof(*conn));
 	if (conn == NULL)
 		return NULL;
+	conn->global = global;
 
 #ifdef CONFIG_TLS_INTERNAL_CLIENT
 	if (!global->server) {
@@ -106,6 +108,28 @@ struct tls_connection * tls_connection_init(void *tls_ctx)
 #endif /* CONFIG_TLS_INTERNAL_SERVER */
 
 	return conn;
+}
+
+
+#ifdef CONFIG_TESTING_OPTIONS
+#ifdef CONFIG_TLS_INTERNAL_SERVER
+void tls_connection_set_test_flags(struct tls_connection *conn, u32 flags)
+{
+	if (conn->server)
+		tlsv1_server_set_test_flags(conn->server, flags);
+}
+#endif /* CONFIG_TLS_INTERNAL_SERVER */
+#endif /* CONFIG_TESTING_OPTIONS */
+
+
+void tls_connection_set_log_cb(struct tls_connection *conn,
+			       void (*log_cb)(void *ctx, const char *msg),
+			       void *ctx)
+{
+#ifdef CONFIG_TLS_INTERNAL_SERVER
+	if (conn->server)
+		tlsv1_server_set_log_cb(conn->server, log_cb, ctx);
+#endif /* CONFIG_TLS_INTERNAL_SERVER */
 }
 
 
@@ -165,6 +189,31 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 	cred = tlsv1_cred_alloc();
 	if (cred == NULL)
 		return -1;
+
+	if (params->subject_match) {
+		wpa_printf(MSG_INFO, "TLS: subject_match not supported");
+		return -1;
+	}
+
+	if (params->altsubject_match) {
+		wpa_printf(MSG_INFO, "TLS: altsubject_match not supported");
+		return -1;
+	}
+
+	if (params->suffix_match) {
+		wpa_printf(MSG_INFO, "TLS: suffix_match not supported");
+		return -1;
+	}
+
+	if (params->domain_match) {
+		wpa_printf(MSG_INFO, "TLS: domain_match not supported");
+		return -1;
+	}
+
+	if (params->openssl_ciphers) {
+		wpa_printf(MSG_INFO, "GnuTLS: openssl_ciphers not supported");
+		return -1;
+	}
 
 	if (tlsv1_set_ca_cert(cred, params->ca_cert,
 			      params->ca_cert_blob, params->ca_cert_blob_len,
@@ -627,4 +676,10 @@ int tls_connection_set_session_ticket_cb(void *tls_ctx,
 	}
 #endif /* CONFIG_TLS_INTERNAL_SERVER */
 	return -1;
+}
+
+
+int tls_get_library_version(char *buf, size_t buf_len)
+{
+	return os_snprintf(buf, buf_len, "internal");
 }
