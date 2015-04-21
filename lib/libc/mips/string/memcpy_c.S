@@ -34,9 +34,7 @@
 .set nobopt
 .set noat
 #ifndef _MIPS_SZCAP
-// This should be an error, but mkdep runs with the wrong compiler so it can't
-// be.
-//#error Size of capability unknown!
+#error Size of capability unknown!
 #endif
 #define CAP_SIZE (_MIPS_SZCAP/8)
 #define CAP_ALIGN_MASK (CAP_SIZE-1)
