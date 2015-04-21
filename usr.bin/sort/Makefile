@@ -13,10 +13,10 @@ CLEANFILES+= sort.1
 
 .if defined(WITH_THREADS)
 CFLAGS+= -DSORT_THREADS
-LDFLAGS+= -lpthread -lmd
+LDADD+= -lpthread -lmd
 MAN_SUB+= -e 's|%%THREADS%%||g'
 .else
-LDFLAGS+= -lmd
+LDADD+= -lmd
 MAN_SUB+= -e 's|%%THREADS%%|\.\\"|g'
 .endif
 
