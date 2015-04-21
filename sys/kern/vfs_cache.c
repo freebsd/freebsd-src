@@ -1053,11 +1053,13 @@ sys___getcwd(td, uap)
 	struct __getcwd_args *uap;
 {
 
-	return (kern___getcwd(td, uap->buf, UIO_USERSPACE, uap->buflen));
+	return (kern___getcwd(td, uap->buf, UIO_USERSPACE, uap->buflen,
+	    MAXPATHLEN));
 }
 
 int
-kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg, u_int buflen)
+kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg, u_int buflen,
+    u_int path_max)
 {
 	char *bp, *tmpbuf;
 	struct filedesc *fdp;
@@ -1068,8 +1070,8 @@ kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg, u_int buflen)
 		return (ENODEV);
 	if (buflen < 2)
 		return (EINVAL);
-	if (buflen > MAXPATHLEN)
-		buflen = MAXPATHLEN;
+	if (buflen > path_max)
+		buflen = path_max;
 
 	tmpbuf = malloc(buflen, M_TEMP, M_WAITOK);
 	fdp = td->td_proc->p_fd;
