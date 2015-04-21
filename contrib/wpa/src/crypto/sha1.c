@@ -30,6 +30,7 @@ int hmac_sha1_vector(const u8 *key, size_t key_len, size_t num_elem,
 	unsigned char tk[20];
 	const u8 *_addr[6];
 	size_t _len[6], i;
+	int ret;
 
 	if (num_elem > 5) {
 		/*
@@ -84,7 +85,9 @@ int hmac_sha1_vector(const u8 *key, size_t key_len, size_t num_elem,
 	_len[0] = 64;
 	_addr[1] = mac;
 	_len[1] = SHA1_MAC_LEN;
-	return sha1_vector(2, _addr, _len, mac);
+	ret = sha1_vector(2, _addr, _len, mac);
+	os_memset(k_pad, 0, sizeof(k_pad));
+	return ret;
 }
 
 

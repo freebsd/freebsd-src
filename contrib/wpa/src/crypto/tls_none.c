@@ -192,3 +192,9 @@ unsigned int tls_capabilities(void *tls_ctx)
 {
 	return 0;
 }
+
+
+int tls_get_library_version(char *buf, size_t buf_len)
+{
+	return os_snprintf(buf, buf_len, "none");
+}

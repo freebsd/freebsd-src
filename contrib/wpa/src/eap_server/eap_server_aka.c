@@ -241,7 +241,7 @@ static void eap_aka_reset(struct eap_sm *sm, void *priv)
 	os_free(data->next_reauth_id);
 	wpabuf_free(data->id_msgs);
 	os_free(data->network_name);
-	os_free(data);
+	bin_clear_free(data, sizeof(*data));
 }
 
 
@@ -336,7 +336,7 @@ static int eap_aka_verify_checkcode(struct eap_aka_data *data,
 	else
 		sha1_vector(1, &addr, &len, hash);
 
-	if (os_memcmp(hash, checkcode, hash_len) != 0) {
+	if (os_memcmp_const(hash, checkcode, hash_len) != 0) {
 		wpa_printf(MSG_DEBUG, "EAP-AKA: Mismatch in AT_CHECKCODE");
 		return -1;
 	}
@@ -377,7 +377,7 @@ static struct wpabuf * eap_aka_build_identity(struct eap_sm *sm,
 		wpa_printf(MSG_DEBUG, "   AT_PERMANENT_ID_REQ");
 		eap_sim_msg_add(msg, EAP_SIM_AT_PERMANENT_ID_REQ, 0, NULL, 0);
 	}
-	buf = eap_sim_msg_finish(msg, NULL, NULL, 0);
+	buf = eap_sim_msg_finish(msg, data->eap_method, NULL, NULL, 0);
 	if (eap_aka_add_id_msg(data, buf) < 0) {
 		wpabuf_free(buf);
 		return NULL;
@@ -534,7 +534,7 @@ static struct wpabuf * eap_aka_build_challenge(struct eap_sm *sm,
 
 	wpa_printf(MSG_DEBUG, "   AT_MAC");
 	eap_sim_msg_add_mac(msg, EAP_SIM_AT_MAC);
-	return eap_sim_msg_finish(msg, data->k_aut, NULL, 0);
+	return eap_sim_msg_finish(msg, data->eap_method, data->k_aut, NULL, 0);
 }
 
 
@@ -581,7 +581,7 @@ static struct wpabuf * eap_aka_build_reauth(struct eap_sm *sm,
 
 	wpa_printf(MSG_DEBUG, "   AT_MAC");
 	eap_sim_msg_add_mac(msg, EAP_SIM_AT_MAC);
-	return eap_sim_msg_finish(msg, data->k_aut, NULL, 0);
+	return eap_sim_msg_finish(msg, data->eap_method, data->k_aut, NULL, 0);
 }
 
 
@@ -620,7 +620,7 @@ static struct wpabuf * eap_aka_build_notification(struct eap_sm *sm,
 		wpa_printf(MSG_DEBUG, "   AT_MAC");
 		eap_sim_msg_add_mac(msg, EAP_SIM_AT_MAC);
 	}
-	return eap_sim_msg_finish(msg, data->k_aut, NULL, 0);
+	return eap_sim_msg_finish(msg, data->eap_method, data->k_aut, NULL, 0);
 }
 
 
@@ -963,7 +963,7 @@ static void eap_aka_process_challenge(struct eap_sm *sm,
 	 */
 	if (attr->res == NULL || attr->res_len < data->res_len ||
 	    attr->res_len_bits != data->res_len * 8 ||
-	    os_memcmp(attr->res, data->res, data->res_len) != 0) {
+	    os_memcmp_const(attr->res, data->res, data->res_len) != 0) {
 		wpa_printf(MSG_WARNING, "EAP-AKA: Challenge message did not "
 			   "include valid AT_RES (attr len=%lu, res len=%lu "
 			   "bits, expected %lu bits)",
@@ -1040,6 +1040,7 @@ static void eap_aka_process_sync_failure(struct eap_sm *sm,
 	data->auts_reported = 1;
 
 	/* Remain in CHALLENGE state to re-try after resynchronization */
+	eap_aka_fullauth(sm, data);
 }
 
 
@@ -1293,6 +1294,28 @@ static Boolean eap_aka_isSuccess(struct eap_sm *sm, void *priv)
 }
 
 
+static u8 * eap_aka_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
+{
+	struct eap_aka_data *data = priv;
+	u8 *id;
+
+	if (data->state != SUCCESS)
+		return NULL;
+
+	*len = 1 + EAP_AKA_RAND_LEN + EAP_AKA_AUTN_LEN;
+	id = os_malloc(*len);
+	if (id == NULL)
+		return NULL;
+
+	id[0] = data->eap_method;
+	os_memcpy(id + 1, data->rand, EAP_AKA_RAND_LEN);
+	os_memcpy(id + 1 + EAP_AKA_RAND_LEN, data->autn, EAP_AKA_AUTN_LEN);
+	wpa_hexdump(MSG_DEBUG, "EAP-AKA: Derived Session-Id", id, *len);
+
+	return id;
+}
+
+
 int eap_server_aka_register(void)
 {
 	struct eap_method *eap;
@@ -1312,6 +1335,7 @@ int eap_server_aka_register(void)
 	eap->getKey = eap_aka_getKey;
 	eap->isSuccess = eap_aka_isSuccess;
 	eap->get_emsk = eap_aka_get_emsk;
+	eap->getSessionId = eap_aka_get_session_id;
 
 	ret = eap_server_method_register(eap);
 	if (ret)
@@ -1341,6 +1365,7 @@ int eap_server_aka_prime_register(void)
 	eap->getKey = eap_aka_getKey;
 	eap->isSuccess = eap_aka_isSuccess;
 	eap->get_emsk = eap_aka_get_emsk;
+	eap->getSessionId = eap_aka_get_session_id;
 
 	ret = eap_server_method_register(eap);
 	if (ret)

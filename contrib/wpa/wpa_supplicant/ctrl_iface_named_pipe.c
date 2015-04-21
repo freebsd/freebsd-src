@@ -423,7 +423,7 @@ static int ctrl_iface_parse(struct ctrl_iface_priv *priv, const char *params)
 }
 
 
-static void wpa_supplicant_ctrl_iface_msg_cb(void *ctx, int level,
+static void wpa_supplicant_ctrl_iface_msg_cb(void *ctx, int level, int global,
 					     const char *txt, size_t len)
 {
 	struct wpa_supplicant *wpa_s = ctx;

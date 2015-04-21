@@ -1,6 +1,6 @@
 /*
  * EAP peer: EAP-TLS/PEAP/TTLS/FAST common functions
- * Copyright (c) 2004-2012, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2013, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -22,6 +22,10 @@ static struct wpabuf * eap_tls_msg_alloc(EapType type, size_t payload_len,
 	if (type == EAP_UNAUTH_TLS_TYPE)
 		return eap_msg_alloc(EAP_VENDOR_UNAUTH_TLS,
 				     EAP_VENDOR_TYPE_UNAUTH_TLS, payload_len,
+				     code, identifier);
+	if (type == EAP_WFA_UNAUTH_TLS_TYPE)
+		return eap_msg_alloc(EAP_VENDOR_WFA_NEW,
+				     EAP_VENDOR_WFA_UNAUTH_TLS, payload_len,
 				     code, identifier);
 	return eap_msg_alloc(EAP_VENDOR_IETF, type, payload_len, code,
 			     identifier);
@@ -64,6 +68,14 @@ static void eap_tls_params_flags(struct tls_connection_params *params,
 		params->flags |= TLS_CONN_DISABLE_SESSION_TICKET;
 	if (os_strstr(txt, "tls_disable_session_ticket=0"))
 		params->flags &= ~TLS_CONN_DISABLE_SESSION_TICKET;
+	if (os_strstr(txt, "tls_disable_tlsv1_1=1"))
+		params->flags |= TLS_CONN_DISABLE_TLSv1_1;
+	if (os_strstr(txt, "tls_disable_tlsv1_1=0"))
+		params->flags &= ~TLS_CONN_DISABLE_TLSv1_1;
+	if (os_strstr(txt, "tls_disable_tlsv1_2=1"))
+		params->flags |= TLS_CONN_DISABLE_TLSv1_2;
+	if (os_strstr(txt, "tls_disable_tlsv1_2=0"))
+		params->flags &= ~TLS_CONN_DISABLE_TLSv1_2;
 }
 
 
@@ -78,6 +90,8 @@ static void eap_tls_params_from_conf1(struct tls_connection_params *params,
 	params->dh_file = (char *) config->dh_file;
 	params->subject_match = (char *) config->subject_match;
 	params->altsubject_match = (char *) config->altsubject_match;
+	params->suffix_match = config->domain_suffix_match;
+	params->domain_match = config->domain_match;
 	params->engine = config->engine;
 	params->engine_id = config->engine_id;
 	params->pin = config->pin;
@@ -99,6 +113,8 @@ static void eap_tls_params_from_conf2(struct tls_connection_params *params,
 	params->dh_file = (char *) config->dh_file2;
 	params->subject_match = (char *) config->subject_match2;
 	params->altsubject_match = (char *) config->altsubject_match2;
+	params->suffix_match = config->domain_suffix_match2;
+	params->domain_match = config->domain_match2;
 	params->engine = config->engine2;
 	params->engine_id = config->engine2_id;
 	params->pin = config->pin2;
@@ -133,6 +149,8 @@ static int eap_tls_params_from_conf(struct eap_sm *sm,
 	} else {
 		wpa_printf(MSG_DEBUG, "TLS: using phase1 config options");
 		eap_tls_params_from_conf1(params, config);
+		if (data->eap_type == EAP_TYPE_FAST)
+			params->flags |= TLS_CONN_EAP_FAST;
 	}
 
 	/*
@@ -153,6 +171,8 @@ static int eap_tls_params_from_conf(struct eap_sm *sm,
 		return -1;
 	}
 
+	params->openssl_ciphers = config->openssl_ciphers;
+
 	return 0;
 }
 
@@ -164,6 +184,10 @@ static int eap_tls_init_connection(struct eap_sm *sm,
 {
 	int res;
 
+	if (config->ocsp)
+		params->flags |= TLS_CONN_REQUEST_OCSP;
+	if (config->ocsp == 2)
+		params->flags |= TLS_CONN_REQUIRE_OCSP;
 	data->conn = tls_connection_init(data->ssl_ctx);
 	if (data->conn == NULL) {
 		wpa_printf(MSG_INFO, "SSL: Failed to initialize new TLS "
@@ -336,6 +360,47 @@ fail:
 	os_free(out);
 	os_free(rnd);
 	return NULL;
+}
+
+
+/**
+ * eap_peer_tls_derive_session_id - Derive a Session-Id based on TLS data
+ * @sm: Pointer to EAP state machine allocated with eap_peer_sm_init()
+ * @data: Data for TLS processing
+ * @eap_type: EAP method used in Phase 1 (EAP_TYPE_TLS/PEAP/TTLS/FAST)
+ * @len: Pointer to length of the session ID generated
+ * Returns: Pointer to allocated Session-Id on success or %NULL on failure
+ *
+ * This function derive the Session-Id based on the TLS session data
+ * (client/server random and method type).
+ *
+ * The caller is responsible for freeing the returned buffer.
+ */
+u8 * eap_peer_tls_derive_session_id(struct eap_sm *sm,
+				    struct eap_ssl_data *data, u8 eap_type,
+				    size_t *len)
+{
+	struct tls_keys keys;
+	u8 *out;
+
+	if (tls_connection_get_keys(sm->ssl_ctx, data->conn, &keys))
+		return NULL;
+
+	if (keys.client_random == NULL || keys.server_random == NULL)
+		return NULL;
+
+	*len = 1 + keys.client_random_len + keys.server_random_len;
+	out = os_malloc(*len);
+	if (out == NULL)
+		return NULL;
+
+	/* Session-Id = EAP type || client.random || server.random */
+	out[0] = eap_type;
+	os_memcpy(out + 1, keys.client_random, keys.client_random_len);
+	os_memcpy(out + 1 + keys.client_random_len, keys.server_random,
+		  keys.server_random_len);
+
+	return out;
 }
 
 
@@ -731,8 +796,11 @@ int eap_peer_tls_status(struct eap_sm *sm, struct eap_ssl_data *data,
 	if (tls_get_cipher(data->ssl_ctx, data->conn, name, sizeof(name)) == 0)
 	{
 		ret = os_snprintf(buf + len, buflen - len,
-				  "EAP TLS cipher=%s\n", name);
-		if (ret < 0 || (size_t) ret >= buflen - len)
+				  "EAP TLS cipher=%s\n"
+				  "tls_session_reused=%d\n",
+				  name, tls_connection_resumed(data->ssl_ctx,
+							       data->conn));
+		if (os_snprintf_error(buflen - len, ret))
 			return len;
 		len += ret;
 	}
@@ -785,6 +853,10 @@ const u8 * eap_peer_tls_process_init(struct eap_sm *sm,
 	if (eap_type == EAP_UNAUTH_TLS_TYPE)
 		pos = eap_hdr_validate(EAP_VENDOR_UNAUTH_TLS,
 				       EAP_VENDOR_TYPE_UNAUTH_TLS, reqData,
+				       &left);
+	else if (eap_type == EAP_WFA_UNAUTH_TLS_TYPE)
+		pos = eap_hdr_validate(EAP_VENDOR_WFA_NEW,
+				       EAP_VENDOR_WFA_UNAUTH_TLS, reqData,
 				       &left);
 	else
 		pos = eap_hdr_validate(EAP_VENDOR_IETF, eap_type, reqData,

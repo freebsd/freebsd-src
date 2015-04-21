@@ -109,6 +109,8 @@ Credentials can be pre-configured for automatic network selection:
 #
 # credential fields:
 #
+# temporary: Whether this credential is temporary and not to be saved
+#
 # priority: Priority group
 #	By default, all networks and credentials get the same priority group
 #	(0). This field can be used to give higher priority for credentials
@@ -166,9 +168,25 @@ Credentials can be pre-configured for automatic network selection:
 # milenage: Milenage parameters for SIM/USIM simulator in <Ki>:<OPc>:<SQN>
 #	format
 #
-# domain: Home service provider FQDN
+# domain_suffix_match: Constraint for server domain name
+#	If set, this FQDN is used as a suffix match requirement for the AAA
+#	server certificate in SubjectAltName dNSName element(s). If a
+#	matching dNSName is found, this constraint is met. If no dNSName
+#	values are present, this constraint is matched against SubjectName CN
+#	using same suffix match comparison. Suffix match here means that the
+#	host/domain name is compared one label at a time starting from the
+#	top-level domain and all the labels in @domain_suffix_match shall be
+#	included in the certificate. The certificate may include additional
+#	sub-level labels in addition to the required labels.
+#
+#	For example, domain_suffix_match=example.com would match
+#	test.example.com but would not match test-example.com.
+#
+# domain: Home service provider FQDN(s)
 #	This is used to compare against the Domain Name List to figure out
-#	whether the AP is operated by the Home SP.
+#	whether the AP is operated by the Home SP. Multiple domain entries can
+#	be used to configure alternative FQDNs that will be considered home
+#	networks.
 #
 # roaming_consortium: Roaming Consortium OI
 #	If roaming_consortium_len is non-zero, this field contains the
@@ -195,6 +213,65 @@ Credentials can be pre-configured for automatic network selection:
 #	matching with the network. Multiple entries can be used to specify more
 #	than one SSID.
 #
+# roaming_partner: Roaming partner information
+#	This optional field can be used to configure preferences between roaming
+#	partners. The field is a string in following format:
+#	<FQDN>,<0/1 exact match>,<priority>,<* or country code>
+#	(non-exact match means any subdomain matches the entry; priority is in
+#	0..255 range with 0 being the highest priority)
+#
+# update_identifier: PPS MO ID
+#	(Hotspot 2.0 PerProviderSubscription/UpdateIdentifier)
+#
+# provisioning_sp: FQDN of the SP that provisioned the credential
+#	This optional field can be used to keep track of the SP that provisioned
+#	the credential to find the PPS MO (./Wi-Fi/<provisioning_sp>).
+#
+# sp_priority: Credential priority within a provisioning SP
+#	This is the priority of the credential among all credentials
+#	provisionined by the same SP (i.e., for entries that have identical
+#	provisioning_sp value). The range of this priority is 0-255 with 0
+#	being the highest and 255 the lower priority.
+#
+# Minimum backhaul threshold (PPS/<X+>/Policy/MinBackhauldThreshold/*)
+#	These fields can be used to specify minimum download/upload backhaul
+#	bandwidth that is preferred for the credential. This constraint is
+#	ignored if the AP does not advertise WAN Metrics information or if the
+#	limit would prevent any connection. Values are in kilobits per second.
+# min_dl_bandwidth_home
+# min_ul_bandwidth_home
+# min_dl_bandwidth_roaming
+# min_ul_bandwidth_roaming
+#
+# max_bss_load: Maximum BSS Load Channel Utilization (1..255)
+#	(PPS/<X+>/Policy/MaximumBSSLoadValue)
+#	This value is used as the maximum channel utilization for network
+#	selection purposes for home networks. If the AP does not advertise
+#	BSS Load or if the limit would prevent any connection, this constraint
+#	will be ignored.
+#
+# req_conn_capab: Required connection capability
+#	(PPS/<X+>/Policy/RequiredProtoPortTuple)
+#	This value is used to configure set of required protocol/port pairs that
+#	a roaming network shall support (include explicitly in Connection
+#	Capability ANQP element). This constraint is ignored if the AP does not
+#	advertise Connection Capability or if this constraint would prevent any
+#	network connection. This policy is not used in home networks.
+#	Format: <protocol>[:<comma-separated list of ports]
+#	Multiple entries can be used to list multiple requirements.
+#	For example, number of common TCP protocols:
+#	req_conn_capab=6:22,80,443
+#	For example, IPSec/IKE:
+#	req_conn_capab=17:500
+#	req_conn_capab=50
+#
+# ocsp: Whether to use/require OCSP to check server certificate
+#	0 = do not use OCSP stapling (TLS certificate status extension)
+#	1 = try to use OCSP stapling, but not require response
+#	2 = require valid OCSP stapling response
+#
+# sim_num: Identifier for which SIM to use in multi-SIM devices
+#
 # for example:
 #
 #cred={
@@ -203,6 +280,7 @@ Credentials can be pre-configured for automatic network selection:
 #	password="password"
 #	ca_cert="/etc/wpa_supplicant/ca.pem"
 #	domain="example.com"
+#	domain_suffix_match="example.com"
 #}
 #
 #cred={
@@ -252,6 +330,8 @@ OK
 OK
 > set_cred 0 priority 1
 OK
+> set_cred 0 temporary 1
+OK
 
 Add a SIM credential using a simulated SIM/USIM card for testing:
 
@@ -266,6 +346,17 @@ OK
 
 Note: the return value of add_cred is used as the first argument to
 the following set_cred commands.
+
+Add a SIM credential using a external SIM/USIM processing:
+
+> set external_sim 1
+OK
+> add_cred
+1
+> set_cred 1 imsi "23456-0000000000"
+OK
+> set_cred 1 eap SIM
+OK
 
 
 Add a WPA2-Enterprise network:
