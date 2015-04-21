@@ -1357,13 +1357,7 @@ _kerberos5_bootstrap_tools= \
 	kerberos5/tools/slc \
 	usr.bin/compile_et
 
-${_bt}-kerberos5/lib/libroken: ${_bt}-kerberos5/tools/make-roken
-${_bt}-kerberos5/tools/asn1_compile: \
-    ${_bt}-kerberos5/lib/libroken ${_bt}-kerberos5/lib/libvers
-${_bt}-kerberos5/tools/slc: \
-    ${_bt}-kerberos5/lib/libroken ${_bt}-kerberos5/lib/libvers
-${_bt}-usr.bin/compile_et: \
-    ${_bt}-kerberos5/lib/libroken ${_bt}-kerberos5/lib/libvers
+.ORDER: ${_kerberos5_bootstrap_tools:C/^/${_bt}-/g}
 .endif
 
 bootstrap-tools: .PHONY
