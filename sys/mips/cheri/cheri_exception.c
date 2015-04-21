@@ -104,24 +104,12 @@ cheri_exccode_string(uint8_t exccode)
 }
 
 void
-cheri_log_exception(struct trapframe *frame, int trap_type)
+cheri_log_exception_registers(struct trapframe *frame)
 {
 	struct cheri_frame *cheriframe;
-	register_t cause;
-	uint8_t exccode, regnum;
 
-#ifdef SMP
-	printf("cpuid = %d\n", PCPU_GET(cpuid));
-#endif
 	/* XXXRW: awkward and unmaintainable pointer construction. */
 	cheriframe = &(((struct pcb *)frame)->pcb_cheriframe);
-	cause = cheriframe->cf_capcause;
-	exccode = (cause & CHERI_CAPCAUSE_EXCCODE_MASK) >>
-	    CHERI_CAPCAUSE_EXCCODE_SHIFT;
-	regnum = cause & CHERI_CAPCAUSE_REGNUM_MASK;
-	printf("CHERI cause: ExcCode: 0x%02x RegNum: 0x%02x (%s)\n", exccode,
-	    regnum, cheri_exccode_string(exccode));
-
 
 	/* C0 */
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_c0, 0);
@@ -230,4 +218,26 @@ cheri_log_exception(struct trapframe *frame, int trap_type)
 	/* C31 - saved PCC */
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_pcc, 0);
 	CHERI_REG_PRINT(CHERI_CR_CTEMP0, 31);
+}
+
+void
+cheri_log_exception(struct trapframe *frame, int trap_type)
+{
+	struct cheri_frame *cheriframe;
+	register_t cause;
+	uint8_t exccode, regnum;
+
+#ifdef SMP
+	printf("cpuid = %d\n", PCPU_GET(cpuid));
+#endif
+	/* XXXRW: awkward and unmaintainable pointer construction. */
+	cheriframe = &(((struct pcb *)frame)->pcb_cheriframe);
+	cause = cheriframe->cf_capcause;
+	exccode = (cause & CHERI_CAPCAUSE_EXCCODE_MASK) >>
+	    CHERI_CAPCAUSE_EXCCODE_SHIFT;
+	regnum = cause & CHERI_CAPCAUSE_REGNUM_MASK;
+	printf("CHERI cause: ExcCode: 0x%02x RegNum: 0x%02x (%s)\n", exccode,
+	    regnum, cheri_exccode_string(exccode));
+
+	cheri_log_exception_registers(frame);
 }

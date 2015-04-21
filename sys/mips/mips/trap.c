@@ -114,6 +114,10 @@ SYSCTL_INT(_machdep, OID_AUTO, trap_debug, CTLFLAG_RW,
 int log_cheri_exceptions = 1;
 SYSCTL_INT(_machdep, OID_AUTO, log_cheri_exceptions, CTLFLAG_RW,
     &log_cheri_exceptions, 1, "Print trap frame on CHERI exceptions");
+
+int log_cheri_registers = 1;
+SYSCTL_INT(_machdep, OID_AUTO, log_cheri_registers, CTLFLAG_RW,
+    &log_cheri_registers, 1, "Print CHERI registers for non-CHERI exceptions");
 #endif
 
 #define	lbu_macro(data, addr)						\
@@ -1597,6 +1601,10 @@ log_illegal_instruction(const char *msg, struct trapframe *frame)
 
 	/* log registers in trap frame */
 	log_frame_dump(frame);
+#ifdef CPU_CHERI
+	if (log_cheri_registers)
+		cheri_log_exception_registers(frame);
+#endif
 
 	get_mapping_info((vm_offset_t)pc, &pdep, &ptep);
 
@@ -1680,6 +1688,11 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 
 	/* log registers in trap frame */
 	log_frame_dump(frame);
+#ifdef CPU_CHERI
+	if (log_cheri_registers)
+		cheri_log_exception_registers(frame);
+#endif
+
 
 	get_mapping_info((vm_offset_t)pc, &pdep, &ptep);
 

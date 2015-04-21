@@ -610,6 +610,7 @@ void	*cheri_memcpy(void *dst, void *src, size_t len);
  */
 void	cheri_exec_setregs(struct thread *td);
 void	cheri_log_exception(struct trapframe *frame, int trap_type);
+void	cheri_log_exception_registers(struct trapframe *frame);
 int	cheri_syscall_authorize(struct thread *td, u_int code,
 	    int nargs, register_t *args);
 int	cheri_signal_sandboxed(struct thread *td);
