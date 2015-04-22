@@ -583,6 +583,8 @@ pci_hdrtypedata(device_t pcib, int b, int s, int f, pcicfgregs *cfg)
 	case PCIM_HDRTYPE_NORMAL:
 		cfg->subvendor      = REG(PCIR_SUBVEND_0, 2);
 		cfg->subdevice      = REG(PCIR_SUBDEV_0, 2);
+		cfg->mingnt         = REG(PCIR_MINGNT, 1);
+		cfg->maxlat         = REG(PCIR_MAXLAT, 1);
 		cfg->nummaps	    = PCI_MAXMAPS_0;
 		break;
 	case PCIM_HDRTYPE_BRIDGE:
@@ -640,9 +642,6 @@ pci_fill_devinfo(device_t pcib, int d, int b, int s, int f, uint16_t vid,
 	cfg->lattimer		= REG(PCIR_LATTIMER, 1);
 	cfg->intpin		= REG(PCIR_INTPIN, 1);
 	cfg->intline		= REG(PCIR_INTLINE, 1);
-
-	cfg->mingnt		= REG(PCIR_MINGNT, 1);
-	cfg->maxlat		= REG(PCIR_MAXLAT, 1);
 
 	cfg->mfdev		= (cfg->hdrtype & PCIM_MFDEV) != 0;
 	cfg->hdrtype		&= ~PCIM_MFDEV;
@@ -4425,9 +4424,17 @@ pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 		*result = cfg->cachelnsz;
 		break;
 	case PCI_IVAR_MINGNT:
+		if (cfg->hdrtype != PCIM_HDRTYPE_NORMAL) {
+			*result = -1;
+			return (EINVAL);
+		}
 		*result = cfg->mingnt;
 		break;
 	case PCI_IVAR_MAXLAT:
+		if (cfg->hdrtype != PCIM_HDRTYPE_NORMAL) {
+			*result = -1;
+			return (EINVAL);
+		}
 		*result = cfg->maxlat;
 		break;
 	case PCI_IVAR_LATTIMER:
