@@ -576,6 +576,7 @@ x86/pci/pci_bus.c		optional pci
 x86/pci/qpi.c			optional pci
 x86/x86/busdma_bounce.c		standard
 x86/x86/busdma_machdep.c	standard
+x86/x86/cpu_machdep.c		standard
 x86/x86/dump_machdep.c		standard
 x86/x86/fdt_machdep.c		optional fdt
 x86/x86/identcpu.c		standard
