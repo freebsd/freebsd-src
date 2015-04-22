@@ -66,8 +66,8 @@ bsdinstall hostname || error "Set hostname failed"
 
 export DISTRIBUTIONS="base.txz kernel.txz"
 if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
-	DISTMENU=`awk -F'\t' '!/^(kernel\.txz|base\.txz)/{print $4,$5,$6}' $BSDINSTALL_DISTDIR/MANIFEST`
-	DISTMENU="$(echo ${DISTMENU} | tr '_' '-')"
+	DISTMENU=`awk -F'\t' '!/^(kernel\.txz|base\.txz)/{print $1,$5,$6}' $BSDINSTALL_DISTDIR/MANIFEST`
+	DISTMENU="$(echo ${DISTMENU} | sed -E 's/\.txz//g')"
 
 	exec 3>&1
 	EXTRA_DISTS=$( eval dialog \
