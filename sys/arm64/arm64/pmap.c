@@ -2251,7 +2251,9 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
     vm_pindex_t pindex, vm_size_t size)
 {
 
-	panic("pmap_object_init_pt");
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	KASSERT(object->type == OBJT_DEVICE || object->type == OBJT_SG,
+	    ("pmap_object_init_pt: non-device object"));
 }
 
 /*
@@ -2930,7 +2932,8 @@ pmap_clear_modify(vm_page_t m)
 	 */
 	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
-	panic("pmap_clear_modify");
+
+	/* TODO: We lack support for tracking if a page is modified */
 }
 
 /*
