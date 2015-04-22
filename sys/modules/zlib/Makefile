@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../net
+.PATH: ${.CURDIR}/../../libkern
 
 KMOD=	zlib
 SRCS=	zlib.c
