@@ -467,8 +467,8 @@ cbb_chipinit(struct cbb_softc *sc)
 	uint32_t mux, sysctrl, reg;
 
 	/* Set CardBus latency timer */
-	if (pci_read_config(sc->dev, PCIR_SECLAT_1, 1) < 0x20)
-		pci_write_config(sc->dev, PCIR_SECLAT_1, 0x20, 1);
+	if (pci_read_config(sc->dev, PCIR_SECLAT_2, 1) < 0x20)
+		pci_write_config(sc->dev, PCIR_SECLAT_2, 0x20, 1);
 
 	/* Set PCI latency timer */
 	if (pci_read_config(sc->dev, PCIR_LATTIMER, 1) < 0x20)
