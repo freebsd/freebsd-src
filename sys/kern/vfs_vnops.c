@@ -306,9 +306,15 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 	if ((fmode & O_APPEND) && (fmode & FWRITE))
 		accmode |= VAPPEND;
 #ifdef MAC
+	if (fmode & O_CREAT)
+		accmode |= VCREAT;
+	if (fmode & O_VERIFY)
+		accmode |= VVERIFY;
 	error = mac_vnode_check_open(cred, vp, accmode);
 	if (error)
 		return (error);
+
+	accmode &= ~(VCREAT | VVERIFY);
 #endif
 	if ((fmode & O_CREAT) == 0) {
 		if (accmode & VWRITE) {
