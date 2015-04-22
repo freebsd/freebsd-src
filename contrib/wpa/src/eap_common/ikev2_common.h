@@ -70,11 +70,7 @@ struct ikev2_transform {
 /* Current IKEv2 version from RFC 4306 */
 #define IKEV2_MjVer 2
 #define IKEV2_MnVer 0
-#ifdef CCNS_PL
-#define IKEV2_VERSION ((IKEV2_MjVer) | ((IKEV2_MnVer) << 4))
-#else /* CCNS_PL */
 #define IKEV2_VERSION (((IKEV2_MjVer) << 4) | (IKEV2_MnVer))
-#endif /* CCNS_PL */
 
 /* IKEv2 Exchange Types */
 enum {

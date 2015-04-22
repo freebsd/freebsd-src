@@ -60,7 +60,11 @@ int asn1_get_next(const u8 *buf, size_t len, struct asn1_hdr *hdr);
 int asn1_parse_oid(const u8 *buf, size_t len, struct asn1_oid *oid);
 int asn1_get_oid(const u8 *buf, size_t len, struct asn1_oid *oid,
 		 const u8 **next);
-void asn1_oid_to_str(struct asn1_oid *oid, char *buf, size_t len);
+void asn1_oid_to_str(const struct asn1_oid *oid, char *buf, size_t len);
 unsigned long asn1_bit_string_to_long(const u8 *buf, size_t len);
+int asn1_oid_equal(const struct asn1_oid *a, const struct asn1_oid *b);
+
+extern struct asn1_oid asn1_sha1_oid;
+extern struct asn1_oid asn1_sha256_oid;
 
 #endif /* ASN1_H */

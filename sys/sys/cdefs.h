@@ -40,6 +40,9 @@
  * Testing against Clang-specific extensions.
  */
 
+#ifndef	__has_attribute
+#define	__has_attribute(x)	0
+#endif
 #ifndef	__has_extension
 #define	__has_extension		__has_feature
 #endif
@@ -242,7 +245,7 @@
 #define	__aligned(x)	__attribute__((__aligned__(x)))
 #define	__section(x)	__attribute__((__section__(x)))
 #endif
-#endif
+#endif /* lint */
 
 #if !__GNUC_PREREQ__(2, 95)
 #define	__alignof(x)	__offsetof(struct { char __a; x __b; }, __b)
@@ -356,21 +359,33 @@
 #endif
 
 #if __GNUC_PREREQ__(3, 3)
-#define	__nonnull(...)	__attribute__((__nonnull__(__VA_ARGS__)))
+#define	__nonnull(x)	__attribute__((__nonnull__(x)))
+#define	__nonnull_all	__attribute__((__nonnull__))
 #else
-#define	__nonnull(...)
+#define	__nonnull(x)
+#define	__nonnull_all
 #endif
 
 #if __GNUC_PREREQ__(3, 4)
 #define	__fastcall	__attribute__((__fastcall__))
+#define	__result_use_check	__attribute__((__warn_unused_result__))
 #else
 #define	__fastcall
+#define	__result_use_check
 #endif
 
 #if __GNUC_PREREQ__(4, 1)
+#define	__gnu_inline	__attribute__((__gnu_inline__))
 #define	__returns_twice	__attribute__((__returns_twice__))
 #else
+#define	__gnu_inline
 #define	__returns_twice
+#endif
+
+#if __has_attribute(alloc_size) || __GNUC_PREREQ__(4, 3)
+#define	__alloc_size(x)	__attribute__((__alloc_size__(x)))
+#else
+#define	__alloc_size(x)
 #endif
 
 /* XXX: should use `#if __STDC_VERSION__ < 199901'. */

@@ -74,7 +74,7 @@ flashboot.elf: relocate.o start.o boot2.o altera_jtag_uart.o cfi.o sdcard.o
 	${LD} ${_LDFLAGS} -T ${.CURDIR}/flashboot.ldscript -o ${.TARGET}	\
 	    ${.ALLSRC} ${LIBSTAND}
 flashboot: flashboot.elf
-	objcopy -S -O binary ${.TARGET}.elf ${.TARGET}
+	${OBJCOPY} -S -O binary ${.TARGET}.elf ${.TARGET}
 flashboot.md5: flashboot
 	md5 flashboot > flashboot.md5
 

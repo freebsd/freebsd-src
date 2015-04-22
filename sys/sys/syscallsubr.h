@@ -58,7 +58,7 @@ struct thr_param;
 struct __wrusage;
 
 int	kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg,
-	    u_int buflen);
+	    u_int buflen, u_int path_max);
 int	kern_accept(struct thread *td, int s, struct sockaddr **name,
 	    socklen_t *namelen, struct file **fp);
 int	kern_accept4(struct thread *td, int s, struct sockaddr **name,
@@ -104,7 +104,7 @@ int	kern_futimens(struct thread *td, int fd, struct timespec *tptr,
 int	kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
 	    long *basep, ssize_t *residp, enum uio_seg bufseg);
 int	kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
-	    enum uio_seg bufseg, int flags);
+	    size_t *countp, enum uio_seg bufseg, int flags);
 int	kern_getitimer(struct thread *, u_int, struct itimerval *);
 int	kern_getppid(struct thread *);
 int	kern_getpeername(struct thread *td, int fd, struct sockaddr **sa,

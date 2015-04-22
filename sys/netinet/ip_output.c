@@ -91,8 +91,6 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-VNET_DEFINE(u_short, ip_id);
-
 #ifdef MBUF_STRESS_TEST
 static int mbuf_frag_size = 0;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, mbuf_frag_size, CTLFLAG_RW,
@@ -174,21 +172,10 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	ip_len = ntohs(ip->ip_len);
 	ip_off = ntohs(ip->ip_off);
 
-	/*
-	 * Fill in IP header.  If we are not allowing fragmentation,
-	 * then the ip_id field is meaningless, but we don't set it
-	 * to zero.  Doing so causes various problems when devices along
-	 * the path (routers, load balancers, firewalls, etc.) illegally
-	 * disable DF on our packet.  Note that a 16-bit counter
-	 * will wrap around in less than 10 seconds at 100 Mbit/s on a
-	 * medium with MTU 1500.  See Steven M. Bellovin, "A Technique
-	 * for Counting NATted Hosts", Proc. IMW'02, available at
-	 * <http://www.cs.columbia.edu/~smb/papers/fnat.pdf>.
-	 */
 	if ((flags & (IP_FORWARDING|IP_RAWOUTPUT)) == 0) {
 		ip->ip_v = IPVERSION;
 		ip->ip_hl = hlen >> 2;
-		ip->ip_id = ip_newid();
+		ip_fillid(ip);
 		IPSTAT_INC(ips_localout);
 	} else {
 		/* Header already set, fetch hlen from there */
@@ -787,11 +774,19 @@ smart_frag_failure:
 			IPSTAT_INC(ips_odropped);
 			goto done;
 		}
-		/* make sure the flowid is the same for the fragmented mbufs */
-		M_HASHTYPE_SET(m, M_HASHTYPE_GET(m0));
-		m->m_pkthdr.flowid = m0->m_pkthdr.flowid;
-		/* copy multicast flag, if any */
-		m->m_flags |= (m0->m_flags & M_MCAST);
+		/*
+		 * Make sure the complete packet header gets copied
+		 * from the originating mbuf to the newly created
+		 * mbuf. This also ensures that existing firewall
+		 * classification(s), VLAN tags and so on get copied
+		 * to the resulting fragmented packet(s):
+		 */
+		if (m_dup_pkthdr(m, m0, M_NOWAIT) == 0) {
+			m_free(m);
+			error = ENOBUFS;
+			IPSTAT_INC(ips_odropped);
+			goto done;
+		}
 		/*
 		 * In the first mbuf, leave room for the link header, then
 		 * copy the original IP header including options. The payload
@@ -821,11 +816,9 @@ smart_frag_failure:
 			goto done;
 		}
 		m->m_pkthdr.len = mhlen + len;
-		m->m_pkthdr.rcvif = NULL;
 #ifdef MAC
 		mac_netinet_fragment(m0, m);
 #endif
-		m->m_pkthdr.csum_flags = m0->m_pkthdr.csum_flags;
 		mhip->ip_off = htons(mhip->ip_off);
 		mhip->ip_sum = 0;
 		if (m->m_pkthdr.csum_flags & CSUM_IP & ~if_hwassist_flags) {

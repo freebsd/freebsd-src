@@ -1732,6 +1732,12 @@ get_exportlist(void)
 		}
 
 		/*
+		 * We do not need to delete "export" flag from
+		 * filesystems that do not have it set.
+		 */
+		if (!(fsp->f_flags & MNT_EXPORTED))
+		    continue;
+		/*
 		 * Do not delete export for network filesystem by
 		 * passing "export" arg to nmount().
 		 * It only makes sense to do this for local filesystems.

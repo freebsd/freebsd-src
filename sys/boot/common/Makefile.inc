@@ -9,6 +9,8 @@ SRCS+=	load_elf32.c load_elf32_obj.c reloc_elf32.c
 SRCS+=	load_elf64.c load_elf64_obj.c reloc_elf64.c
 .elif ${MACHINE} == "pc98"
 SRCS+=	load_elf32.c load_elf32_obj.c reloc_elf32.c
+.elif ${MACHINE_CPUARCH} == "aarch64"
+SRCS+=	load_elf64.c reloc_elf64.c
 .elif ${MACHINE_CPUARCH} == "arm"
 SRCS+=	load_elf32.c reloc_elf32.c
 .elif ${MACHINE_CPUARCH} == "powerpc"
@@ -56,16 +58,6 @@ SRCS+=	pnp.c
 # Forth interpreter
 .if defined(BOOT_FORTH)
 SRCS+=	interp_forth.c
-MAN+=	../forth/beastie.4th.8
-MAN+=	../forth/brand.4th.8
-MAN+=	../forth/check-password.4th.8
-MAN+=	../forth/color.4th.8
-MAN+=	../forth/delay.4th.8
-MAN+=	../forth/loader.conf.5
-MAN+=	../forth/loader.4th.8
-MAN+=	../forth/menu.4th.8
-MAN+=	../forth/menusets.4th.8
-MAN+=	../forth/version.4th.8
 .endif
 
 .if defined(BOOT_PROMPT_123)

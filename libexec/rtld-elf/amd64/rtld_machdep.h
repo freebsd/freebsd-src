@@ -74,7 +74,7 @@ typedef struct {
     unsigned long ti_offset;
 } tls_index;
 
-extern void *__tls_get_addr(tls_index *ti);
+void *__tls_get_addr(tls_index *ti) __exported;
 
 #define	RTLD_DEFAULT_STACK_PF_EXEC	PF_X
 #define	RTLD_DEFAULT_STACK_EXEC		PROT_EXEC

@@ -500,49 +500,7 @@ pmap_pte_init_generic(void)
 	pmap_zero_page_func = pmap_zero_page_generic;
 }
 
-#if defined(CPU_ARM9) && defined(ARM9_CACHE_WRITE_THROUGH)
-void
-pmap_pte_init_arm9(void)
-{
-
-	/*
-	 * ARM9 is compatible with generic, but we want to use
-	 * write-through caching for now.
-	 */
-	pmap_pte_init_generic();
-
-	pte_l1_s_cache_mode = L1_S_C;
-	pte_l2_l_cache_mode = L2_C;
-	pte_l2_s_cache_mode = L2_C;
-
-	pte_l1_s_cache_mode_pt = L1_S_C;
-	pte_l2_l_cache_mode_pt = L2_C;
-	pte_l2_s_cache_mode_pt = L2_C;
-}
-#endif /* CPU_ARM9 */
 #endif /* ARM_MMU_GENERIC != 0 */
-
-#if defined(CPU_ARM10)
-void
-pmap_pte_init_arm10(void)
-{
-
-	/*
-	 * ARM10 is compatible with generic, but we want to use
-	 * write-through caching for now.
-	 */
-	pmap_pte_init_generic();
-
-	pte_l1_s_cache_mode = L1_S_B | L1_S_C;
-	pte_l2_l_cache_mode = L2_B | L2_C;
-	pte_l2_s_cache_mode = L2_B | L2_C;
-
-	pte_l1_s_cache_mode_pt = L1_S_C;
-	pte_l2_l_cache_mode_pt = L2_C;
-	pte_l2_s_cache_mode_pt = L2_C;
-
-}
-#endif /* CPU_ARM10 */
 
 #if ARM_MMU_XSCALE == 1
 #if (ARM_NMMUS > 1) || defined (CPU_XSCALE_CORE3)
@@ -2754,14 +2712,36 @@ pmap_kenter_nocache(vm_offset_t va, vm_paddr_t pa)
 }
 
 void
-pmap_kenter_device(vm_offset_t va, vm_paddr_t pa)
+pmap_kenter_device(vm_offset_t va, vm_size_t size, vm_paddr_t pa)
 {
+	vm_offset_t sva;
 
-	/*
-	 * XXX - Need a way for kenter_internal to handle PTE_DEVICE mapping as
-	 * a potentially different thing than PTE_NOCACHE.
-	 */
-	pmap_kenter_internal(va, pa, 0);
+	KASSERT((size & PAGE_MASK) == 0, 
+	    ("%s: device mapping not page-sized", __func__));
+
+	sva = va;
+	while (size != 0) {
+		pmap_kenter_internal(va, pa, 0);
+		va += PAGE_SIZE;
+		pa += PAGE_SIZE;
+		size -= PAGE_SIZE;
+	}
+}
+
+void
+pmap_kremove_device(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t sva;
+
+	KASSERT((size & PAGE_MASK) == 0, 
+	    ("%s: device mapping not page-sized", __func__));
+
+	sva = va;
+	while (size != 0) {
+		pmap_kremove(va);
+		va += PAGE_SIZE;
+		size -= PAGE_SIZE;
+	}
 }
 
 void

@@ -230,10 +230,10 @@ enum zfreeskip { SKIP_NONE = 0, SKIP_DTOR, SKIP_FINI };
 
 /* Prototypes.. */
 
-static void *noobj_alloc(uma_zone_t, int, uint8_t *, int);
-static void *page_alloc(uma_zone_t, int, uint8_t *, int);
-static void *startup_alloc(uma_zone_t, int, uint8_t *, int);
-static void page_free(void *, int, uint8_t);
+static void *noobj_alloc(uma_zone_t, vm_size_t, uint8_t *, int);
+static void *page_alloc(uma_zone_t, vm_size_t, uint8_t *, int);
+static void *startup_alloc(uma_zone_t, vm_size_t, uint8_t *, int);
+static void page_free(void *, vm_size_t, uint8_t);
 static uma_slab_t keg_alloc_slab(uma_keg_t, uma_zone_t, int);
 static void cache_drain(uma_zone_t);
 static void bucket_drain(uma_zone_t, uma_bucket_t);
@@ -307,9 +307,8 @@ bucket_init(void)
 {
 	struct uma_bucket_zone *ubz;
 	int size;
-	int i;
 
-	for (i = 0, ubz = &bucket_zones[0]; ubz->ubz_entries != 0; ubz++) {
+	for (ubz = &bucket_zones[0]; ubz->ubz_entries != 0; ubz++) {
 		size = roundup(sizeof(struct uma_bucket), sizeof(void *));
 		size += sizeof(void *) * ubz->ubz_entries;
 		ubz->ubz_zone = uma_zcreate(ubz->ubz_name, size,
@@ -1038,7 +1037,7 @@ out:
  * the VM is ready.
  */
 static void *
-startup_alloc(uma_zone_t zone, int bytes, uint8_t *pflag, int wait)
+startup_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *pflag, int wait)
 {
 	uma_keg_t keg;
 	uma_slab_t tmps;
@@ -1098,7 +1097,7 @@ startup_alloc(uma_zone_t zone, int bytes, uint8_t *pflag, int wait)
  *	NULL if M_NOWAIT is set.
  */
 static void *
-page_alloc(uma_zone_t zone, int bytes, uint8_t *pflag, int wait)
+page_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *pflag, int wait)
 {
 	void *p;	/* Returned page */
 
@@ -1120,7 +1119,7 @@ page_alloc(uma_zone_t zone, int bytes, uint8_t *pflag, int wait)
  *	NULL if M_NOWAIT is set.
  */
 static void *
-noobj_alloc(uma_zone_t zone, int bytes, uint8_t *flags, int wait)
+noobj_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *flags, int wait)
 {
 	TAILQ_HEAD(, vm_page) alloctail;
 	u_long npages;
@@ -1183,7 +1182,7 @@ noobj_alloc(uma_zone_t zone, int bytes, uint8_t *flags, int wait)
  *	Nothing
  */
 static void
-page_free(void *mem, int size, uint8_t flags)
+page_free(void *mem, vm_size_t size, uint8_t flags)
 {
 	struct vmem *vmem;
 
@@ -3060,7 +3059,7 @@ uma_zone_set_fini(uma_zone_t zone, uma_fini fini)
 	uma_keg_t keg;
 
 	keg = zone_first_keg(zone);
-	KASSERT(keg != NULL, ("uma_zone_set_init: Invalid zone type"));
+	KASSERT(keg != NULL, ("uma_zone_set_fini: Invalid zone type"));
 	KEG_LOCK(keg);
 	KASSERT(keg->uk_pages == 0,
 	    ("uma_zone_set_fini on non-empty keg"));
@@ -3100,7 +3099,7 @@ uma_zone_set_freef(uma_zone_t zone, uma_free freef)
 	uma_keg_t keg;
 
 	keg = zone_first_keg(zone);
-	KASSERT(keg != NULL, ("uma_zone_set_init: Invalid zone type"));
+	KASSERT(keg != NULL, ("uma_zone_set_freef: Invalid zone type"));
 	KEG_LOCK(keg);
 	keg->uk_freef = freef;
 	KEG_UNLOCK(keg);
@@ -3266,7 +3265,7 @@ uma_zone_exhausted_nolock(uma_zone_t zone)
 }
 
 void *
-uma_large_malloc(int size, int wait)
+uma_large_malloc(vm_size_t size, int wait)
 {
 	void *mem;
 	uma_slab_t slab;
@@ -3540,15 +3539,12 @@ int
 sysctl_handle_uma_zone_max(SYSCTL_HANDLER_ARGS)
 {
 	uma_zone_t zone = *(uma_zone_t *)arg1;
-	int error, max, old;
+	int error, max;
 
-	old = max = uma_zone_get_max(zone);
+	max = uma_zone_get_max(zone);
 	error = sysctl_handle_int(oidp, &max, 0, req);
 	if (error || !req->newptr)
 		return (error);
-
-	if (max < old)
-		return (EINVAL);
 
 	uma_zone_set_max(zone, max);
 

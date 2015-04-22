@@ -35,6 +35,7 @@ _INTERNALIBS=	\
 		mandoc \
 		netbsd \
 		ntp \
+		ntpevent \
 		ohash \
 		opts \
 		parse \
@@ -110,6 +111,7 @@ _LIBRARIES=	\
 		md \
 		memstat \
 		mp \
+		mt \
 		nandfs \
 		ncurses \
 		ncursesw \
@@ -198,6 +200,7 @@ _DP_proc+=	ctf
 _DP_mp=	crypto
 _DP_memstat=	kvm
 _DP_magic=	z
+_DP_mt=		bsdxml
 _DP_ldns=	crypto
 .if ${MK_OPENSSL} != "no"
 _DP_fetch=	ssl crypto
@@ -226,6 +229,7 @@ _DP_krb5+=	asn1 com_err crypt crypto hx509 roken wind heimbase heimipcc \
 _DP_gssapi_krb5+=	gssapi krb5 crypto roken asn1 com_err
 _DP_lzma=	pthread
 _DP_ucl=	m
+_DP_vmmapi=	util
 
 # Define spacial cases
 LDADD_supcplusplus=	-lsupc++
@@ -255,8 +259,14 @@ LDADD_sqlite3+=	${LDADD_pthread}
 DPADD_atf_cxx+=	${DPADD_atf_c}
 LDADD_atf_cxx+=	${LDADD_atf_c}
 
+DPADD_fifolog+=	${DPADD_z}
+LDADD_fifolog+=	${LDADD_z}
+
 DPADD_ipf+=	${DPADD_kvm}
 LDADD_ipf+=	${LDADD_kvm}
+
+DPADD_mt+=	${DPADD_sbuf}
+LDADD_mt+=	${LDADD_sbuf}
 
 # The following depends on libraries which are using pthread
 DPADD_hdb+=	${DPADD_pthread}
@@ -272,9 +282,13 @@ LDADD_gssapi_krb5+=	${LDADD_pthread}
 .if ${_PRIVATELIBS:M${_l}}
 USEPRIVATELIB+=	${_l}
 .endif
-DPADD+=		${DPADD_${_l}}
+DPADD+=		${DPADD_${_l}:Umissing-dpadd_${_l}}
 LDADD+=		${LDADD_${_l}}
 .endfor
+
+.if defined(DPADD) && ${DPADD:Mmissing-dpadd_*}
+.error Missing ${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//:S/^/DPADD_/} variable add "${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//}" to _LIBRARIES, _INTERNALLIBS, or _PRIVATELIBS and define "${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//:S/^/LIB/:tu}".
+.endif
 
 .if defined(USEPRIVATELIB)
 LDFLAGS+=	-rpath ${LIBPRIVATEDIR}
@@ -358,11 +372,14 @@ LIBCRON?=	${LIBCRONDIR}/libcron.a
 LIBNTPDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libntp
 LIBNTP?=	${LIBNTPDIR}/libntp.a
 
+LIBNTPEVENTDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libntpevent
+LIBNTPEVENT?=	${LIBNTPDIR}/libntpevent.a
+
 LIBOPTSDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libopts
 LIBOTPS?=	${LIBOPTSDIR}/libopts.a
 
 LIBPARSEDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libparse
-LIBPARSE?=	${LIBOPTSDIR}/libparse.a
+LIBPARSE?=	${LIBPARSEDIR}/libparse.a
 
 LIBLPRDIR=	${ROOTOBJDIR}/usr.sbin/lpr/common_source
 LIBLPR?=	${LIBOPTSDIR}/liblpr.a

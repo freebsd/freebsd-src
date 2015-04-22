@@ -290,7 +290,7 @@ main(int argc, char **argv)
 			need = l->l_lsize ? l->l_lsize * 2 : 90;
 			if ((l->l_line = realloc(l->l_line,
 			    (unsigned)need * sizeof(CHAR))) == NULL)
-				err(1, (char *)NULL);
+				err(1, NULL);
 			l->l_lsize = need;
 		}
 		c = &l->l_line[l->l_line_len++];
@@ -410,13 +410,13 @@ flush_line(LINE *l)
 			sorted_size = l->l_lsize;
 			if ((sorted = realloc(sorted,
 			    (unsigned)sizeof(CHAR) * sorted_size)) == NULL)
-				err(1, (char *)NULL);
+				err(1, NULL);
 		}
 		if (l->l_max_col >= count_size) {
 			count_size = l->l_max_col + 1;
 			if ((count = realloc(count,
 			    (unsigned)sizeof(int) * count_size)) == NULL)
-				err(1, (char *)NULL);
+				err(1, NULL);
 		}
 		memset(count, 0, sizeof(int) * l->l_max_col + 1);
 		for (i = nchars, c = l->l_line; --i >= 0; c++)
@@ -510,7 +510,7 @@ alloc_line(void)
 
 	if (!line_freelist) {
 		if ((l = realloc(NULL, sizeof(LINE) * NALLOC)) == NULL)
-			err(1, (char *)NULL);
+			err(1, NULL);
 		line_freelist = l;
 		for (i = 1; i < NALLOC; i++, l++)
 			l->l_next = l + 1;

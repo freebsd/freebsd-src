@@ -198,6 +198,20 @@
             ncurses
             ..
             ntp
+                drivers
+                    icons
+                    ..
+                    scripts
+                    ..
+                ..
+                hints
+                ..
+                icons
+                ..
+                pic
+                ..
+                scripts
+                ..
             ..
             papers
             ..
@@ -277,14 +291,6 @@
                 06.bc
                 ..
                 07.mail
-                ..
-                10.exref
-                ..
-                11.edit
-                ..
-                12.vi
-                ..
-                13.viref
                 ..
                 18.msdiffs
                 ..

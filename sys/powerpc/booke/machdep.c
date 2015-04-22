@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
 #include "opt_ddb.h"
+#include "opt_hwpmc_hooks.h"
 #include "opt_kstack_pages.h"
 #include "opt_platform.h"
 
@@ -140,6 +141,10 @@ __FBSDID("$FreeBSD$");
 #include <contrib/libfdt/libfdt.h>
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
+
+#ifdef MPC85XX
+#include <powerpc/mpc85xx/mpc85xx.h>
+#endif
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -204,6 +209,9 @@ extern void *int_watchdog;
 extern void *int_data_tlb_error;
 extern void *int_inst_tlb_error;
 extern void *int_debug;
+#ifdef HWPMC_HOOKS
+extern void *int_performance_counter;
+#endif
 
 #define SET_TRAP(ivor, handler) \
 	KASSERT(((uintptr_t)(&handler) & ~0xffffUL) == \
@@ -231,6 +239,9 @@ ivor_setup(void)
 	SET_TRAP(SPR_IVOR13, int_data_tlb_error);
 	SET_TRAP(SPR_IVOR14, int_inst_tlb_error);
 	SET_TRAP(SPR_IVOR15, int_debug);
+#ifdef HWPMC_HOOKS
+	SET_TRAP(SPR_IVOR35, int_performance_counter);
+#endif
 }
 
 static void
@@ -464,7 +475,9 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	debugf(" arg3 mdp = 0x%08x\n", (u_int32_t)mdp);
 	debugf(" end = 0x%08x\n", (u_int32_t)end);
 	debugf(" boothowto = 0x%08x\n", boothowto);
+#ifdef MPC85XX
 	debugf(" kernel ccsrbar = 0x%08x\n", CCSRBAR_VA);
+#endif
 	debugf(" MSR = 0x%08x\n", mfmsr());
 #if defined(BOOKE_E500)
 	debugf(" HID0 = 0x%08x\n", mfspr(SPR_HID0));

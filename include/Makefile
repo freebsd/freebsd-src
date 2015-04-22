@@ -50,6 +50,7 @@ LSUBDIRS=	cam/ata cam/scsi \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
 	geom/mirror geom/mountver geom/multipath geom/nop \
 	geom/raid geom/raid3 geom/shsec geom/stripe geom/virstor \
+	net/altq \
 	netgraph/atm netgraph/netflow \
 	security/audit \
 	security/mac_biba security/mac_bsdextended security/mac_lomac \
@@ -145,7 +146,7 @@ compat:
 	    -p ${DESTDIR}${INCLUDEDIR}
 
 copies:
-.for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} altq crypto machine machine/pc \
+.for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} crypto machine machine/pc \
 	${_MARCHS}
 .if exists(${DESTDIR}${INCLUDEDIR}/$i)
 	cd ${DESTDIR}${INCLUDEDIR}/$i; \
@@ -180,9 +181,6 @@ copies:
 	cd ${.CURDIR}/../sys/dev/pci; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 pcireg.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/pci
-	cd ${.CURDIR}/../sys/contrib/altq/altq; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
-	    ${DESTDIR}${INCLUDEDIR}/altq
 	cd ${.CURDIR}/../sys/fs/cd9660/; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/isofs/cd9660
@@ -280,11 +278,6 @@ symlinks:
 		ln -fs ../../../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
-	cd ${.CURDIR}/../sys/contrib/altq/altq; \
-	for h in *.h; do \
-		ln -fs ../../../sys/contrib/altq/altq/$$h \
-		    ${DESTDIR}${INCLUDEDIR}/altq; \
-	done
 .if ${MK_IPFILTER} != "no"
 	cd ${.CURDIR}/../sys/contrib/ipfilter/netinet; \
 	for h in *.h; do \

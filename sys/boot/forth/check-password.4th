@@ -28,6 +28,9 @@ marker task-check-password.4th
 
 include /boot/screen.4th
 
+vocabulary password-processing
+only forth also password-processing definitions
+
 13  constant enter_key       \ The decimal ASCII value for Enter key
 8   constant bs_key          \ The decimal ASCII value for Backspace key
 21  constant ctrl_u          \ The decimal ASCII value for Ctrl-U sequence
@@ -78,6 +81,17 @@ variable readlen             \ input length
 	again
 ;
 
+: cfill ( c c-addr/u -- )
+	begin dup 0> while
+		-rot 2dup c! 1+ rot 1-
+	repeat 2drop drop
+;
+
+: read-reset ( -- )
+	0 readlen !
+	0 readval readmax cfill
+;
+
 : read ( c-addr/u -- ) \ Expects string prompt as stack input
 
 	0 25 at-xy           \ Move the cursor to the bottom-left
@@ -115,6 +129,8 @@ variable readlen             \ input length
 	again \ Enter was not pressed; repeat
 ;
 
+only forth definitions also password-processing
+
 : check-password ( -- )
 
 	\ Do not allow the user to proceed beyond this point if a boot-lock
@@ -127,10 +143,17 @@ variable readlen             \ input length
 		while
 			3000 ms ." loader: incorrect password" 10 emit
 		repeat
-		2drop ( c-addr/u )
-	else
-		drop ( -1 ) \ getenv cruft
-	then
+		2drop read-reset
+	else drop then
+
+	\ Prompt for GEOM ELI (geli(8)) passphrase if enabled
+	s" geom_eli_passphrase_prompt" getenv dup -1 <> if
+		s" YES" compare-insensitive 0= if
+			s" GELI Passphrase: " read ( prompt -- )
+			readval readlen @ s" kern.geom.eli.passphrase" setenv
+			read-reset
+		then
+	else drop then
 
 	\ Exit if a password was not set
 	s" password" getenv -1 = if exit else drop then
@@ -146,9 +169,11 @@ variable readlen             \ input length
 	s" password" getenv dup readmax > if drop readmax then
 	begin
 		s" Password: " read ( prompt -- )
-		2dup readval readlen @ compare 0= if
-			2drop exit \ Correct password
+		2dup readval readlen @ compare 0= if \ Correct password?
+			2drop read-reset exit
 		then
 		3000 ms ." loader: incorrect password" 10 emit
 	again
 ;
+
+only forth definitions

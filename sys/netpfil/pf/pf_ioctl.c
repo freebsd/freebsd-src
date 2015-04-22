@@ -84,7 +84,7 @@ __FBSDID("$FreeBSD$");
 #endif /* INET6 */
 
 #ifdef ALTQ
-#include <altq/altq.h>
+#include <net/altq/altq.h>
 #endif
 
 static int		 pfattach(void);

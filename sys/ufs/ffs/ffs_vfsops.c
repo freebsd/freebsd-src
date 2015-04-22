@@ -1055,7 +1055,8 @@ ffs_mountfs(devvp, mp, td)
 	 */
 	MNT_ILOCK(mp);
 	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED |
-	    MNTK_NO_IOPF | MNTK_UNMAPPED_BUFS | MNTK_SUSPENDABLE;
+	    MNTK_NO_IOPF | MNTK_UNMAPPED_BUFS | MNTK_SUSPENDABLE |
+	    MNTK_USES_BCACHE;
 	MNT_IUNLOCK(mp);
 #ifdef UFS_EXTATTR
 #ifdef UFS_EXTATTR_AUTOSTART
@@ -1502,8 +1503,11 @@ ffs_sync(mp, waitfor)
 	if (fs->fs_fmod != 0 && fs->fs_ronly != 0 && ump->um_fsckpid == 0)
 		panic("%s: ffs_sync: modification on read-only filesystem",
 		    fs->fs_fsmnt);
-	if (waitfor == MNT_LAZY)
-		return (ffs_sync_lazy(mp));
+	if (waitfor == MNT_LAZY) {
+		if (!rebooting)
+			return (ffs_sync_lazy(mp));
+		waitfor = MNT_NOWAIT;
+	}
 
 	/*
 	 * Write back each (modified) inode.
@@ -1560,7 +1564,7 @@ loop:
 	/*
 	 * Force stale filesystem control information to be flushed.
 	 */
-	if (waitfor == MNT_WAIT) {
+	if (waitfor == MNT_WAIT || rebooting) {
 		if ((error = softdep_flushworklist(ump->um_mountp, &count, td)))
 			allerror = error;
 		/* Flushed work items may create new vnodes to clean */
@@ -1577,9 +1581,12 @@ loop:
 	if (bo->bo_numoutput > 0 || bo->bo_dirty.bv_cnt > 0) {
 		BO_UNLOCK(bo);
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
-		if ((error = VOP_FSYNC(devvp, waitfor, td)) != 0)
-			allerror = error;
+		error = VOP_FSYNC(devvp, waitfor, td);
 		VOP_UNLOCK(devvp, 0);
+		if (MOUNTEDSOFTDEP(mp) && (error == 0 || error == EAGAIN))
+			error = ffs_sbupdate(ump, waitfor, 0);
+		if (error != 0)
+			allerror = error;
 		if (allerror == 0 && waitfor == MNT_WAIT)
 			goto loop;
 	} else if (suspend != 0) {

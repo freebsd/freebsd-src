@@ -325,8 +325,10 @@ vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 
 	error = emulate_inout(ctx, vcpu, vme, strictio);
 	if (error) {
-		fprintf(stderr, "Unhandled %s%c 0x%04x\n", in ? "in" : "out",
-		    bytes == 1 ? 'b' : (bytes == 2 ? 'w' : 'l'), port);
+		fprintf(stderr, "Unhandled %s%c 0x%04x at 0x%lx\n",
+		    in ? "in" : "out",
+		    bytes == 1 ? 'b' : (bytes == 2 ? 'w' : 'l'),
+		    port, vmexit->rip);
 		return (VMEXIT_ABORT);
 	} else {
 		return (VMEXIT_CONTINUE);
@@ -495,22 +497,27 @@ vmexit_mtrap(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 static int
 vmexit_inst_emul(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
-	int err;
+	int err, i;
+	struct vie *vie;
+
 	stats.vmexit_inst_emul++;
 
+	vie = &vmexit->u.inst_emul.vie;
 	err = emulate_mem(ctx, *pvcpu, vmexit->u.inst_emul.gpa,
-	    &vmexit->u.inst_emul.vie, &vmexit->u.inst_emul.paging);
+	    vie, &vmexit->u.inst_emul.paging);
 
 	if (err) {
-		if (err == EINVAL) {
-			fprintf(stderr,
-			    "Failed to emulate instruction at 0x%lx\n", 
-			    vmexit->rip);
-		} else if (err == ESRCH) {
+		if (err == ESRCH) {
 			fprintf(stderr, "Unhandled memory access to 0x%lx\n",
 			    vmexit->u.inst_emul.gpa);
 		}
 
+		fprintf(stderr, "Failed to emulate instruction [");
+		for (i = 0; i < vie->num_valid; i++) {
+			fprintf(stderr, "0x%02x%s", vie->inst[i],
+			    i != (vie->num_valid - 1) ? " " : "");
+		}
+		fprintf(stderr, "] at 0x%lx\n", vmexit->rip);
 		return (VMEXIT_ABORT);
 	}
 
@@ -795,6 +802,11 @@ main(int argc, char *argv[])
 	ctx = vm_open(vmname);
 	if (ctx == NULL) {
 		perror("vm_open");
+		exit(1);
+	}
+
+	if (guest_ncpus < 1) {
+		fprintf(stderr, "Invalid guest vCPUs (%d)\n", guest_ncpus);
 		exit(1);
 	}
 

@@ -393,6 +393,7 @@ pci_vtnet_ping_rxq(void *vsc, struct vqueue_info *vq)
 	 */
 	if (sc->vsc_rx_ready == 0) {
 		sc->vsc_rx_ready = 1;
+		vq->vq_used->vu_flags |= VRING_USED_F_NO_NOTIFY;
 	}
 }
 
@@ -438,6 +439,7 @@ pci_vtnet_ping_txq(void *vsc, struct vqueue_info *vq)
 
 	/* Signal the tx thread for processing */
 	pthread_mutex_lock(&sc->tx_mtx);
+	vq->vq_used->vu_flags |= VRING_USED_F_NO_NOTIFY;
 	if (sc->tx_in_progress == 0)
 		pthread_cond_signal(&sc->tx_cond);
 	pthread_mutex_unlock(&sc->tx_mtx);
@@ -466,6 +468,7 @@ pci_vtnet_tx_thread(void *param)
 	for (;;) {
 		/* note - tx mutex is locked here */
 		do {
+			vq->vq_used->vu_flags &= ~VRING_USED_F_NO_NOTIFY;
 			if (sc->resetting)
 				have_work = 0;
 			else
@@ -478,6 +481,7 @@ pci_vtnet_tx_thread(void *param)
 				assert(error == 0);
 			}
 		} while (!have_work);
+		vq->vq_used->vu_flags |= VRING_USED_F_NO_NOTIFY;
 		sc->tx_in_progress = 1;
 		pthread_mutex_unlock(&sc->tx_mtx);
 
@@ -640,10 +644,8 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_NETWORK);
 	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, VIRTIO_TYPE_NET);
 
-	pci_lintr_request(pi);
-
-	/* link always up */
-	sc->vsc_config.status = 1;
+	/* Link is up if we managed to open tap device. */
+	sc->vsc_config.status = (opts == NULL || sc->vsc_tapfd >= 0);
 	
 	/* use BAR 1 to map MSI-X table and PBA, if we're using MSI-X */
 	if (vi_intr_init(&sc->vsc_vs, 1, fbsdrun_virtio_msix()))

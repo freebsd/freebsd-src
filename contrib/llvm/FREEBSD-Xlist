@@ -397,7 +397,9 @@ tools/llvm-bcanalyzer/LLVMBuild.txt
 tools/llvm-bcanalyzer/Makefile
 tools/llvm-c-test/
 tools/llvm-config/
-tools/llvm-cov/
+tools/llvm-cov/CMakeLists.txt
+tools/llvm-cov/LLVMBuild.txt
+tools/llvm-cov/Makefile
 tools/llvm-diff/CMakeLists.txt
 tools/llvm-diff/LLVMBuild.txt
 tools/llvm-diff/Makefile
@@ -424,7 +426,9 @@ tools/llvm-nm/Makefile
 tools/llvm-objdump/CMakeLists.txt
 tools/llvm-objdump/LLVMBuild.txt
 tools/llvm-objdump/Makefile
-tools/llvm-profdata/
+tools/llvm-profdata/CMakeLists.txt
+tools/llvm-profdata/LLVMBuild.txt
+tools/llvm-profdata/Makefile
 tools/llvm-readobj/CMakeLists.txt
 tools/llvm-readobj/LLVMBuild.txt
 tools/llvm-readobj/Makefile

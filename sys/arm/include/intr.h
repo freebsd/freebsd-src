@@ -58,7 +58,7 @@
 #define NIRQ		1020
 #elif defined(CPU_KRAIT)
 #define NIRQ		288
-#elif defined(CPU_ARM1136) || defined(CPU_ARM1176)
+#elif defined(CPU_ARM1176)
 #define NIRQ		128
 #elif defined(SOC_MV_ARMADAXP)
 #define MAIN_IRQ_NUM		116

@@ -2710,11 +2710,17 @@ netmap_attach(struct netmap_adapter *arg)
 	}
 #endif /* linux */
 
+#ifdef __FreeBSD__
+	if_printf(ifp, "netmap queues/slots: TX %d/%d, RX %d/%d\n",
+	    hwna->up.num_tx_rings, hwna->up.num_tx_desc,
+	    hwna->up.num_rx_rings, hwna->up.num_rx_desc);
+#else
 	D("success for %s tx %d/%d rx %d/%d queues/slots",
 		hwna->up.name,
 		hwna->up.num_tx_rings, hwna->up.num_tx_desc,
 		hwna->up.num_rx_rings, hwna->up.num_rx_desc
 		);
+#endif
 	return 0;
 
 fail:

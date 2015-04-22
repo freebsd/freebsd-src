@@ -1,4 +1,4 @@
-\ Copyright (c) 1999 Daniel C. Sobral <dcs@freebsd.org>
+\ Copyright (c) 1999 Daniel C. Sobral <dcs@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
@@ -315,7 +315,7 @@ string value_buffer
 \	reset_line_reading
 
 vocabulary line-reading
-also line-reading definitions also
+also line-reading definitions
 
 \ File data temporary storage
 
@@ -324,13 +324,13 @@ string read_buffer
 
 \ File's line reading function
 
-support-functions definitions
+get-current ( -- wid ) previous definitions
 
 string line_buffer
 0 value end_of_file?
 variable fd
 
-line-reading definitions
+>search ( wid -- ) definitions
 
 : skip_newlines
   begin
@@ -405,7 +405,7 @@ line-reading definitions
   read_buffer .len !
 ;
 
-support-functions definitions
+get-current ( -- wid ) previous definitions >search ( wid -- )
 
 : reset_line_reading
   0 to read_buffer_ptr
@@ -447,7 +447,7 @@ also file-processing definitions
 \	get_assignment
 
 vocabulary parser
-also parser definitions also
+also parser definitions
 
 0 value parsing_function
 0 value end_of_line
@@ -606,7 +606,7 @@ also parser definitions also
   end_of_line? 0= if ESYNTAX throw then
 ;
 
-file-processing definitions
+get-current ( -- wid ) previous definitions >search ( wid -- )
 
 : get_assignment
   line_buffer strget + to end_of_line
@@ -623,7 +623,7 @@ file-processing definitions
   or or 0= if ESYNTAX throw then
 ;
 
-only forth also support-functions also file-processing definitions also
+only forth also support-functions also file-processing definitions
 
 \ Process line
 
@@ -818,7 +818,7 @@ only forth also support-functions also file-processing definitions also
 
 \ Higher level file processing
 
-support-functions definitions
+get-current ( -- wid ) previous definitions >search ( wid -- )
 
 : process_conf
   begin
@@ -1580,7 +1580,4 @@ also builtins
   then
 ;
 
-\ Go back to straight forth vocabulary
-
-only forth also definitions
-
+only forth definitions

@@ -375,6 +375,7 @@ DtParseLine (
         Field->ByteOffset = Offset;
         Field->NameColumn = NameColumn;
         Field->Column = Column;
+        Field->StringLength = Length;
 
         DtLinkField (Field);
     }
@@ -414,6 +415,7 @@ DtGetNextLine (
     int                     c;
 
 
+    ACPI_MEMSET (Gbl_CurrentLineBuffer, 0, Gbl_LineBufferSize);
     for (i = 0; ;)
     {
         /*
@@ -939,11 +941,11 @@ DtDumpFieldList (
 
     DbgPrint (ASL_DEBUG_OUTPUT,  "\nField List:\n"
         "LineNo   ByteOff  NameCol  Column   TableOff "
-        "Flags    %32s : %s\n\n", "Name", "Value");
+        "Flags %32s : %s\n\n", "Name", "Value");
     while (Field)
     {
         DbgPrint (ASL_DEBUG_OUTPUT,
-            "%.08X %.08X %.08X %.08X %.08X %.08X %32s : %s\n",
+            "%.08X %.08X %.08X %.08X %.08X %2.2X    %32s : %s\n",
             Field->Line, Field->ByteOffset, Field->NameColumn,
             Field->Column, Field->TableOffset, Field->Flags,
             Field->Name, Field->Value);

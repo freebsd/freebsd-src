@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.226 2014/02/07 17:23:35 pooka Exp $	*/
+/*	$NetBSD: main.c,v 1.232 2015/03/26 22:20:42 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,7 +69,7 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: main.c,v 1.226 2014/02/07 17:23:35 pooka Exp $";
+static char rcsid[] = "$NetBSD: main.c,v 1.232 2015/03/26 22:20:42 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
@@ -81,7 +81,7 @@ __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993\
 #if 0
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: main.c,v 1.226 2014/02/07 17:23:35 pooka Exp $");
+__RCSID("$NetBSD: main.c,v 1.232 2015/03/26 22:20:42 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -99,14 +99,14 @@ __RCSID("$NetBSD: main.c,v 1.226 2014/02/07 17:23:35 pooka Exp $");
  *
  *	Error			Print a tagged error message. The global
  *				MAKE variable must have been defined. This
- *				takes a format string and two optional
- *				arguments for it.
+ *				takes a format string and optional arguments
+ *				for it.
  *
  *	Fatal			Print an error message and exit. Also takes
- *				a format string and two arguments.
+ *				a format string and arguments for it.
  *
  *	Punt			Aborts all jobs and exits with a message. Also
- *				takes a format string and two arguments.
+ *				takes a format string and arguments for it.
  *
  *	Finish			Finish things up by printing the number of
  *				errors which occurred, as passed to it, and
@@ -1522,7 +1522,8 @@ Cmd_Exec(const char *cmd, const char **errnum)
     WAIT_T	status;		/* command exit status */
     Buffer	buf;		/* buffer to store the result */
     char	*cp;
-    int		cc;
+    int		cc;		/* bytes read, or -1 */
+    int		savederr;	/* saved errno */
 
 
     *errnum = NULL;
@@ -1579,6 +1580,7 @@ Cmd_Exec(const char *cmd, const char **errnum)
 	 */
 	(void)close(fds[1]);
 
+	savederr = 0;
 	Buf_Init(&buf, 0);
 
 	do {
@@ -1588,6 +1590,8 @@ Cmd_Exec(const char *cmd, const char **errnum)
 		Buf_AddBytes(&buf, cc, result);
 	}
 	while (cc > 0 || (cc == -1 && errno == EINTR));
+	if (cc == -1)
+	    savederr = errno;
 
 	/*
 	 * Close the input side of the pipe.
@@ -1604,7 +1608,7 @@ Cmd_Exec(const char *cmd, const char **errnum)
 	cc = Buf_Size(&buf);
 	res = Buf_Destroy(&buf, FALSE);
 
-	if (cc == 0)
+	if (savederr != 0)
 	    *errnum = "Couldn't read shell's output for \"%s\"";
 
 	if (WIFSIGNALED(status))
