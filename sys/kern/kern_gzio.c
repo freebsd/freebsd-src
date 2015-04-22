@@ -32,8 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/gzio.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-
-#include <net/zutil.h>
+#include <sys/zutil.h>
 
 #define	KERN_GZ_HDRLEN		10	/* gzip header length */
 #define	KERN_GZ_TRAILERLEN	8	/* gzip trailer length */

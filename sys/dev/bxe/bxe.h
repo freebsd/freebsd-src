@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/queue.h>
 #include <sys/taskqueue.h>
+#include <sys/zlib.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -60,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_vlan_var.h>
-#include <net/zlib.h>
 #include <net/bpf.h>
 
 #include <netinet/in.h>
