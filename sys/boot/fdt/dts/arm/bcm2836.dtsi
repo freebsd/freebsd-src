@@ -431,7 +431,7 @@
 			interrupts = <70>;
 			interrupt-parent = <&intc>;
 
-			clock-frequency = <2500000000>;	/* Set by VideoCore */
+			clock-frequency = <250000000>;	/* Set by VideoCore */
 		};
 
 		uart0: uart0 {
