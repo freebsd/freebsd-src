@@ -54,7 +54,7 @@
 #define _Z_UTIL_H
 
 #ifdef _KERNEL
-#include <net/zlib.h>
+#include <sys/zlib.h>
 #else
 #include "zlib.h"
 #endif
