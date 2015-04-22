@@ -212,6 +212,7 @@
 #define	__unused
 #define	__packed
 #define	__aligned(x)
+#define	__arg_type_tag(arg_kind, arg_idx, type_tag_idx)
 #define	__section(x)
 #define	__weak
 #else
@@ -235,6 +236,12 @@
 #define	__packed	__attribute__((__packed__))
 #define	__aligned(x)	__attribute__((__aligned__(x)))
 #define	__section(x)	__attribute__((__section__(x)))
+#endif
+#if __has_attribute(argument_with_type_tag)
+#define	__arg_type_tag(arg_kind, arg_idx, type_tag_idx) \
+	    __attribute__((__argument_with_type_tag__(arg_kind, arg_idx, type_tag_idx)))
+#else
+#define	__arg_type_tag(arg_kind, arg_idx, type_tag_idx)
 #endif
 #if defined(__INTEL_COMPILER)
 #define	__dead2		__attribute__((__noreturn__))
