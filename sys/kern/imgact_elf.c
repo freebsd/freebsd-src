@@ -776,6 +776,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			if (__elfN(nxstack))
 				imgp->stack_prot =
 				    __elfN(trans_prot)(phdr[i].p_flags);
+			imgp->stack_sz = phdr[i].p_memsz;
 			break;
 		}
 	}
