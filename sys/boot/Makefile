@@ -6,6 +6,7 @@
 .if ${MK_FORTH} != "no"
 # Build the add-in FORTH interpreter.
 SUBDIR+=		ficl
+SUBDIR+=		forth
 .endif
 
 # Pick the machine-dependent subdir based on the target architecture.

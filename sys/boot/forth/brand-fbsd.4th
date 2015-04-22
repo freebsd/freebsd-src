@@ -24,51 +24,23 @@
 \ 
 \ $FreeBSD$
 
-marker task-brand.4th
+2 brandX ! 1 brandY ! \ Initialize brand placement defaults
 
-variable brandX
-variable brandY
+: brand+ ( x y c-addr/u -- x y' )
+	2swap 2dup at-xy 2swap \ position the cursor
+	type \ print to the screen
+	1+ \ increase y for next time we're called
+;
 
-\ Initialize brand placement to defaults
-2 brandX !
-1 brandY !
+: brand ( x y -- ) \ "FreeBSD" [wide] logo in B/W (7 rows x 42 columns)
 
-\ This function draws any number of company brands at (loader_brand_x,
-\ loader_brand_y) if defined, or (2,1) (top-left). To choose your brand, set
-\ the variable `loader_brand' to the respective brand name.
-\ 
-\ NOTE: Each is defined as a brand function in /boot/brand-${loader_brand}.4th
-\ NOTE: If `/boot/brand-${loader_brand}.4th' does not exist or does not define
-\       a `brand' function, no brand is drawn.
-\ 
-: draw-brand ( -- ) \ at (loader_brand_x,loader_brand_y), else (2,1)
+	s"  ______               ____   _____ _____  " brand+
+	s" |  ____|             |  _ \ / ____|  __ \ " brand+
+	s" | |___ _ __ ___  ___ | |_) | (___ | |  | |" brand+
+	s" |  ___| '__/ _ \/ _ \|  _ < \___ \| |  | |" brand+
+	s" | |   | | |  __/  __/| |_) |____) | |__| |" brand+
+	s" | |   | | |    |    ||     |      |      |" brand+
+	s" |_|   |_|  \___|\___||____/|_____/|_____/ " brand+
 
-	s" loader_brand_x" getenv dup -1 <> if
-		?number 1 = if brandX ! then
-	else drop then
- 	s" loader_brand_y" getenv dup -1 <> if
- 		?number 1 = if brandY ! then
- 	else drop then
-
-	\ If `brand' is defined, execute it
-	s" brand" sfind ( -- xt|0 bool ) if
-		brandX @ brandY @ rot execute
-	else
-		\ Not defined; try-include desired brand file
-		drop ( xt = 0 ) \ cruft
-		s" loader_brand" getenv dup -1 = over 0= or if
-			dup 0= if 2drop else drop then \ getenv result unused
-			s" try-include /boot/brand-fbsd.4th"
-		else
-			2drop ( c-addr/u -- ) \ getenv result unused
-			s" try-include /boot/brand-${loader_brand}.4th"
-		then
-		evaluate
-		1 spaces
-
-		\ Execute `brand' if defined now
-		s" brand" sfind if
-			brandX @ brandY @ rot execute
-		else drop then
-	then
+	2drop
 ;

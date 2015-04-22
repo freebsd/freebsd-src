@@ -1337,6 +1337,9 @@ zfs_create_boot()
 	    $BSDINSTALL_TMPBOOT/loader.conf.aesni || return $FAILURE
 	f_eval_catch $funcname echo "$ECHO_APPEND" 'geom_eli_load=\"YES\"' \
 	    $BSDINSTALL_TMPBOOT/loader.conf.geli || return $FAILURE
+	f_eval_catch $funcname echo "$ECHO_APPEND" \
+		'geom_eli_passphrase_prompt=\"YES\"' \
+		$BSDINSTALL_TMPBOOT/loader.conf.geli || return $FAILURE
 	for disk in $disks; do
 		f_eval_catch $funcname printf "$PRINTF_CONF" \
 			geli_%s_keyfile0_load "$disk$targetpart YES" \
