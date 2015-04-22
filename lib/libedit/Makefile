@@ -43,6 +43,8 @@ CFLAGS+= #-DDEBUG_PASTE -DDEBUG_EDIT
 
 WARNS?=	1
 
+WANT_DUMP=	yes
+
 SUBDIR= edit/readline
 
 AHDR=	vi.h emacs.h common.h

@@ -64,4 +64,6 @@ token.h: mktokens
 SUBDIR+=    tests
 .endif
 
+WANT_DUMP=	yes
+
 .include <bsd.prog.mk>
