@@ -257,6 +257,7 @@ EndElement(void *userData, const char *name)
 
 	if (!strcmp(name, "config")) {
 		mt->config = NULL;
+		free(p);
 		return;
 	}
 
