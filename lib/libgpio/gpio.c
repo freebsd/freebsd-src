@@ -119,6 +119,22 @@ gpio_pin_config(gpio_handle_t handle, gpio_config_t *cfg)
 }
 
 int
+gpio_pin_set_name(gpio_handle_t handle, gpio_pin_t pin, char *name)
+{
+	struct gpio_pin gppin;
+
+	if (name == NULL)
+		return (-1);
+	bzero(&gppin, sizeof(gppin));
+	gppin.gp_pin = pin;
+	strlcpy(gppin.gp_name, name, GPIOMAXNAME);
+	if (ioctl(handle, GPIOSETNAME, &gppin) < 0)
+		return (-1);
+
+	return (0);
+}
+
+int
 gpio_pin_set_flags(gpio_handle_t handle, gpio_config_t *cfg)
 {
 	struct gpio_pin gppin;

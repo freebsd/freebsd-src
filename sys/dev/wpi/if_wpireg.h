@@ -20,14 +20,23 @@
 #define WPI_TX_RING_COUNT	256
 #define WPI_TX_RING_LOMARK	192
 #define WPI_TX_RING_HIMARK	224
+
+#ifdef DIAGNOSTIC
+#define WPI_RX_RING_COUNT_LOG	8
+#else
 #define WPI_RX_RING_COUNT_LOG	6
+#endif
+
 #define WPI_RX_RING_COUNT	(1 << WPI_RX_RING_COUNT_LOG)
 
 #define WPI_NTXQUEUES		8
+#define WPI_DRV_NTXQUEUES	5
+#define WPI_CMD_QUEUE_NUM	4
+
 #define WPI_NDMACHNLS		6
 
 /* Maximum scatter/gather. */
-#define WPI_MAX_SCATTER	4
+#define WPI_MAX_SCATTER		4
 
 /*
  * Rings must be aligned on a 16K boundary.
@@ -94,6 +103,7 @@
 #define WPI_ALM_SCHED_TXF5MF		0x2e20
 #define WPI_ALM_SCHED_SBYPASS_MODE1	0x2e2c
 #define WPI_ALM_SCHED_SBYPASS_MODE2	0x2e30
+#define WPI_APMG_CLK_CTRL		0x3000
 #define WPI_APMG_CLK_EN			0x3004
 #define WPI_APMG_CLK_DIS		0x3008
 #define WPI_APMG_PS			0x300c
@@ -221,7 +231,7 @@
 #define WPI_APMG_PCI_STT_L1A_DIS	(1 << 11)
 
 struct wpi_shared {
-	uint32_t	txbase[8];
+	uint32_t	txbase[WPI_NTXQUEUES];
 	uint32_t	next;
 	uint32_t	reserved[2];
 } __packed;
@@ -268,13 +278,16 @@ struct wpi_rx_desc {
 	uint8_t		qid;
 } __packed;
 
+#define WPI_RX_DESC_QID_MSK		0x07
+#define WPI_UNSOLICITED_RX_NOTIF	0x80
+
 struct wpi_rx_stat {
 	uint8_t		len;
 #define WPI_STAT_MAXLEN	20
 
 	uint8_t		id;
 	uint8_t		rssi;	/* received signal strength */
-#define WPI_RSSI_OFFSET	95
+#define WPI_RSSI_OFFSET	-95
 
 	uint8_t		agc;	/* access gain control */
 	uint16_t	signal;
@@ -368,6 +381,7 @@ struct wpi_rxon {
 #define WPI_FILTER_NODECRYPT	(1 << 3)
 #define WPI_FILTER_BSS		(1 << 5)
 #define WPI_FILTER_BEACON	(1 << 6)
+#define WPI_FILTER_ASSOC	(1 << 7)    /* Accept associaton requests. */
 
 	uint8_t		chan;
 	uint16_t	reserved5;
@@ -465,7 +479,7 @@ struct wpi_cmd_data {
 	uint16_t	lnext;
 	uint32_t	flags;
 #define WPI_TX_NEED_RTS		(1 <<  1)
-#define WPI_TX_NEED_CTS         (1 <<  2)
+#define WPI_TX_NEED_CTS		(1 <<  2)
 #define WPI_TX_NEED_ACK		(1 <<  3)
 #define WPI_TX_FULL_TXOP	(1 <<  7)
 #define WPI_TX_BT_DISABLE	(1 << 12) 	/* bluetooth coexistence */
@@ -515,10 +529,10 @@ struct wpi_cmd_beacon {
 
 /* Structure for notification WPI_BEACON_MISSED. */
 struct wpi_beacon_missed {
-    uint32_t consecutive;
-    uint32_t total;
-    uint32_t expected;
-    uint32_t received;
+	uint32_t consecutive;
+	uint32_t total;
+	uint32_t expected;
+	uint32_t received;
 } __packed;
 
 

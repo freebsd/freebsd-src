@@ -48,10 +48,15 @@ protected:
     : User(ty, vty, Ops, NumOps) {}
 
   void destroyConstantImpl();
+  void replaceUsesOfWithOnConstantImpl(Constant *Replacement);
+
 public:
   /// isNullValue - Return true if this is the value that would be returned by
   /// getNullValue.
   bool isNullValue() const;
+
+  /// \brief Returns true if the value is one.
+  bool isOneValue() const;
 
   /// isAllOnesValue - Return true if this is the value that would be returned by
   /// getAllOnesValue.
@@ -63,6 +68,9 @@ public:
 
   /// Return true if the value is negative zero or null value.
   bool isZeroValue() const;
+
+  /// \brief Return true if the value is not the smallest signed value.
+  bool isNotMinSignedValue() const;
 
   /// \brief Return true if the value is the smallest signed value.
   bool isMinSignedValue() const;

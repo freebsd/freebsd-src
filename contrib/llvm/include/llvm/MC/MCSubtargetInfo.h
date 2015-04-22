@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_MC_MCSUBTARGET_H
-#define LLVM_MC_MCSUBTARGET_H
+#ifndef LLVM_MC_MCSUBTARGETINFO_H
+#define LLVM_MC_MCSUBTARGETINFO_H
 
 #include "llvm/MC/MCInstrItineraries.h"
 #include "llvm/MC/SubtargetFeature.h"
@@ -36,7 +36,7 @@ class MCSubtargetInfo {
   const MCWriteProcResEntry *WriteProcResTable;
   const MCWriteLatencyEntry *WriteLatencyTable;
   const MCReadAdvanceEntry *ReadAdvanceTable;
-  const MCSchedModel *CPUSchedModel;
+  MCSchedModel CPUSchedModel;
 
   const InstrStage *Stages;            // Instruction itinerary stages
   const unsigned *OperandCycles;       // Itinerary operand cycles
@@ -65,6 +65,10 @@ public:
     return FeatureBits;
   }
 
+  /// setFeatureBits - Set the feature bits.
+  ///
+  void setFeatureBits(uint64_t FeatureBits_) { FeatureBits = FeatureBits_; }
+
   /// InitMCProcessorInfo - Set or change the CPU (optionally supplemented with
   /// feature string). Recompute feature bits and scheduling model.
   void InitMCProcessorInfo(StringRef CPU, StringRef FS);
@@ -82,11 +86,11 @@ public:
 
   /// getSchedModelForCPU - Get the machine model of a CPU.
   ///
-  const MCSchedModel *getSchedModelForCPU(StringRef CPU) const;
+  MCSchedModel getSchedModelForCPU(StringRef CPU) const;
 
   /// getSchedModel - Get the machine model for this subtarget's CPU.
   ///
-  const MCSchedModel *getSchedModel() const { return CPUSchedModel; }
+  const MCSchedModel &getSchedModel() const { return CPUSchedModel; }
 
   /// Return an iterator at the first process resource consumed by the given
   /// scheduling class.

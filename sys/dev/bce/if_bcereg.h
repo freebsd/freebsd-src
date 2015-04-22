@@ -419,7 +419,7 @@
 /* Returns FALSE in "defects" per 2^31 - 1 calls, otherwise returns TRUE. */
 #define DB_RANDOMFALSE(defects)        (random() > defects)
 #define DB_OR_RANDOMFALSE(defects)  || (random() > defects)
-#define DB_AND_RANDOMFALSE(defects) && (random() > ddfects)
+#define DB_AND_RANDOMFALSE(defects) && (random() > defects)
 
 /* Returns TRUE in "defects" per 2^31 - 1 calls, otherwise returns FALSE. */
 #define DB_RANDOMTRUE(defects)         (random() < defects)

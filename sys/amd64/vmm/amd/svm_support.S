@@ -22,6 +22,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 #include <machine/asmacros.h>
 
@@ -34,6 +36,10 @@
  */
 #define	VENTER  push %rbp ; mov %rsp,%rbp
 #define	VLEAVE  pop %rbp
+
+#define	VMLOAD	.byte 0x0f, 0x01, 0xda
+#define	VMRUN	.byte 0x0f, 0x01, 0xd8
+#define	VMSAVE	.byte 0x0f, 0x01, 0xdb
 
 /*
  * svm_launch(uint64_t vmcb, struct svm_regctx *gctx)
@@ -79,9 +85,9 @@ ENTRY(svm_launch)
 	movq SCTX_RDI(%rsi), %rdi
 	movq SCTX_RSI(%rsi), %rsi	/* %rsi must be restored last */
 
-	vmload %rax
-	vmrun %rax
-	vmsave %rax
+	VMLOAD
+	VMRUN
+	VMSAVE
 
 	pop %rax		/* pop guest context pointer from the stack */
 

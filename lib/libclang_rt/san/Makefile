@@ -11,6 +11,7 @@ SRCS=	sanitizer_allocator.cc\
 	sanitizer_deadlock_detector1.cc\
 	sanitizer_deadlock_detector2.cc\
 	sanitizer_flags.cc\
+	sanitizer_flag_parser.cc\
 	sanitizer_libc.cc\
 	sanitizer_libignore.cc\
 	sanitizer_linux.cc\

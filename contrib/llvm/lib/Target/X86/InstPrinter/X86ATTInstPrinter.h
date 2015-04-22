@@ -11,10 +11,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86_ATT_INST_PRINTER_H
-#define X86_ATT_INST_PRINTER_H
+#ifndef LLVM_LIB_TARGET_X86_INSTPRINTER_X86ATTINSTPRINTER_H
+#define LLVM_LIB_TARGET_X86_INSTPRINTER_X86ATTINSTPRINTER_H
 
 #include "llvm/MC/MCInstPrinter.h"
+#include "llvm/MC/MCSubtargetInfo.h"
 
 namespace llvm {
 
@@ -23,8 +24,11 @@ class MCOperand;
 class X86ATTInstPrinter final : public MCInstPrinter {
 public:
   X86ATTInstPrinter(const MCAsmInfo &MAI, const MCInstrInfo &MII,
-                    const MCRegisterInfo &MRI)
-    : MCInstPrinter(MAI, MII, MRI) {}
+                    const MCRegisterInfo &MRI, const MCSubtargetInfo &STI)
+    : MCInstPrinter(MAI, MII, MRI) {
+    // Initialize the set of available features.
+    setAvailableFeatures(STI.getFeatureBits());
+  }
 
   void printRegName(raw_ostream &OS, unsigned RegNo) const override;
   void printInst(const MCInst *MI, raw_ostream &OS, StringRef Annot) override;
@@ -49,10 +53,14 @@ public:
   void printMemOffset(const MCInst *MI, unsigned OpNo, raw_ostream &OS);
   void printRoundingControl(const MCInst *MI, unsigned Op, raw_ostream &OS);
 
+  void printanymem(const MCInst *MI, unsigned OpNo, raw_ostream &O) {
+    printMemReference(MI, OpNo, O);
+  }
+
   void printopaquemem(const MCInst *MI, unsigned OpNo, raw_ostream &O) {
     printMemReference(MI, OpNo, O);
   }
-  
+
   void printi8mem(const MCInst *MI, unsigned OpNo, raw_ostream &O) {
     printMemReference(MI, OpNo, O);
   }
@@ -129,8 +137,11 @@ public:
   void printMemOffs64(const MCInst *MI, unsigned OpNo, raw_ostream &O) {
     printMemOffset(MI, OpNo, O);
   }
+
+private:
+  bool HasCustomInstComment;
 };
-  
+
 }
 
 #endif

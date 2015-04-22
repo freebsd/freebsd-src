@@ -30,7 +30,7 @@
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -150,9 +150,7 @@ bool PHIElimination::runOnMachineFunction(MachineFunction &MF) {
     Changed |= EliminatePHINodes(MF, *I);
 
   // Remove dead IMPLICIT_DEF instructions.
-  for (SmallPtrSet<MachineInstr*, 4>::iterator I = ImpDefs.begin(),
-         E = ImpDefs.end(); I != E; ++I) {
-    MachineInstr *DefMI = *I;
+  for (MachineInstr *DefMI : ImpDefs) {
     unsigned DefReg = DefMI->getOperand(0).getReg();
     if (MRI->use_nodbg_empty(DefReg)) {
       if (LIS)
@@ -240,7 +238,7 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
   // Insert a register to register copy at the top of the current block (but
   // after any remaining phi nodes) which copies the new incoming register
   // into the phi node destination.
-  const TargetInstrInfo *TII = MF.getTarget().getInstrInfo();
+  const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
   if (isSourceDefinedByImplicitDef(MPhi, MRI))
     // If all sources of a PHI node are implicit_def, just emit an
     // implicit_def instead of a copy.
@@ -369,7 +367,7 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
     // Check to make sure we haven't already emitted the copy for this block.
     // This can happen because PHI nodes may have multiple entries for the same
     // basic block.
-    if (!MBBsInsertedInto.insert(&opBlock))
+    if (!MBBsInsertedInto.insert(&opBlock).second)
       continue;  // If the copy has already been emitted, we're done.
 
     // Find a safe location to insert the copy, this may be the first terminator

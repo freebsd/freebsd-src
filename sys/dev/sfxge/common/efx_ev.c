@@ -567,6 +567,12 @@ efx_ev_mcdi(
 	if (enp->en_family != EFX_FAMILY_SIENA)
 		goto out;
 
+	EFSYS_ASSERT(eecp->eec_link_change != NULL);
+	EFSYS_ASSERT(eecp->eec_exception != NULL);
+#if EFSYS_OPT_MON_STATS
+	EFSYS_ASSERT(eecp->eec_monitor != NULL);
+#endif
+
 	EFX_EV_QSTAT_INCR(eep, EV_MCDI_RESPONSE);
 
 	code = EFX_QWORD_FIELD(*eqp, MCDI_EVENT_CODE);
@@ -648,7 +654,7 @@ out:
 	return (should_abort);
 }
 
-#endif	/* EFSYS_OPT_SIENA */
+#endif	/* EFSYS_OPT_MCDI */
 
 	__checkReturn	int
 efx_ev_qprime(
@@ -851,7 +857,7 @@ efx_ev_qmoderate(
 
 	EFSYS_ASSERT3U(eep->ee_magic, ==, EFX_EVQ_MAGIC);
 
-	if (us > encp->enc_evq_moderation_max) {
+	if (us > encp->enc_evq_timer_max_us) {
 		rc = EINVAL;
 		goto fail1;
 	}
@@ -870,7 +876,7 @@ efx_ev_qmoderate(
 		uint32_t timer_val;
 
 		/* Calculate the timer value in quanta */
-		timer_val = us * encp->enc_clk_mult / EFX_EV_TIMER_QUANTUM;
+		timer_val = us * 1000 / encp->enc_evq_timer_quantum_ns;
 
 		/* Moderation value is base 0 so we need to deduct 1 */
 		if (timer_val > 0)
@@ -964,7 +970,7 @@ efx_ev_qcreate(
 	eep->ee_handler[FSE_AZ_EV_CODE_DRV_GEN_EV] = efx_ev_drv_gen;
 #if EFSYS_OPT_MCDI
 	eep->ee_handler[FSE_AZ_EV_CODE_MCDI_EVRESPONSE] = efx_ev_mcdi;
-#endif	/* EFSYS_OPT_SIENA */
+#endif	/* EFSYS_OPT_MCDI */
 
 	/* Set up the new event queue */
 	if (enp->en_family != EFX_FAMILY_FALCON) {

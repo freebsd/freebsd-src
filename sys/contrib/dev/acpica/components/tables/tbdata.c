@@ -121,7 +121,8 @@ AcpiTbAcquireTable (
     case ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL:
     case ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL:
 
-        Table = ACPI_CAST_PTR (ACPI_TABLE_HEADER, TableDesc->Address);
+        Table = ACPI_CAST_PTR (ACPI_TABLE_HEADER,
+                    ACPI_PHYSADDR_TO_PTR (TableDesc->Address));
         break;
 
     default:
@@ -227,7 +228,8 @@ AcpiTbAcquireTempTable (
     case ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL:
     case ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL:
 
-        TableHeader = ACPI_CAST_PTR (ACPI_TABLE_HEADER, Address);
+        TableHeader = ACPI_CAST_PTR (ACPI_TABLE_HEADER,
+                        ACPI_PHYSADDR_TO_PTR (Address));
         if (!TableHeader)
         {
             return (AE_NO_MEMORY);
@@ -437,11 +439,11 @@ AcpiTbVerifyTempTable (
         if (ACPI_FAILURE (Status))
         {
             ACPI_EXCEPTION ((AE_INFO, AE_NO_MEMORY,
-                "%4.4s " ACPI_PRINTF_UINT
+                "%4.4s 0x%8.8X%8.8X"
                 " Attempted table install failed",
                 AcpiUtValidAcpiName (TableDesc->Signature.Ascii) ?
                     TableDesc->Signature.Ascii : "????",
-                ACPI_FORMAT_TO_UINT (TableDesc->Address)));
+                ACPI_FORMAT_UINT64 (TableDesc->Address)));
             goto InvalidateAndExit;
         }
     }
@@ -529,21 +531,24 @@ AcpiTbResizeRootTableList (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiTbGetNextRootIndex
+ * FUNCTION:    AcpiTbGetNextTableDescriptor
  *
  * PARAMETERS:  TableIndex          - Where table index is returned
+ *              TableDesc           - Where table descriptor is returned
  *
- * RETURN:      Status and table index.
+ * RETURN:      Status and table index/descriptor.
  *
  * DESCRIPTION: Allocate a new ACPI table entry to the global table list
  *
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiTbGetNextRootIndex (
-    UINT32                  *TableIndex)
+AcpiTbGetNextTableDescriptor (
+    UINT32                  *TableIndex,
+    ACPI_TABLE_DESC         **TableDesc)
 {
     ACPI_STATUS             Status;
+    UINT32                  i;
 
 
     /* Ensure that there is room for the table in the Root Table List */
@@ -558,8 +563,18 @@ AcpiTbGetNextRootIndex (
         }
     }
 
-    *TableIndex = AcpiGbl_RootTableList.CurrentTableCount;
+    i = AcpiGbl_RootTableList.CurrentTableCount;
     AcpiGbl_RootTableList.CurrentTableCount++;
+
+    if (TableIndex)
+    {
+        *TableIndex = i;
+    }
+    if (TableDesc)
+    {
+        *TableDesc = &AcpiGbl_RootTableList.Tables[i];
+    }
+
     return (AE_OK);
 }
 

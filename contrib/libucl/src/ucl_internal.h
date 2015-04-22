@@ -339,14 +339,17 @@ ucl_hash_search_obj (ucl_hash_t* hashlin, ucl_object_t *obj)
 	return (const ucl_object_t *)ucl_hash_search (hashlin, obj->key, obj->keylen);
 }
 
-static inline ucl_hash_t *
-ucl_hash_insert_object (ucl_hash_t *hashlin, const ucl_object_t *obj) UCL_WARN_UNUSED_RESULT;
+static inline ucl_hash_t * ucl_hash_insert_object (ucl_hash_t *hashlin,
+		const ucl_object_t *obj,
+		bool ignore_case) UCL_WARN_UNUSED_RESULT;
 
 static inline ucl_hash_t *
-ucl_hash_insert_object (ucl_hash_t *hashlin, const ucl_object_t *obj)
+ucl_hash_insert_object (ucl_hash_t *hashlin,
+		const ucl_object_t *obj,
+		bool ignore_case)
 {
 	if (hashlin == NULL) {
-		hashlin = ucl_hash_create ();
+		hashlin = ucl_hash_create (ignore_case);
 	}
 	ucl_hash_insert (hashlin, obj, obj->key, obj->keylen);
 

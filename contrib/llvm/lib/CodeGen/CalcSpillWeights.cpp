@@ -16,8 +16,8 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "calcspillweights"
@@ -95,11 +95,12 @@ static bool isRematerializable(const LiveInterval &LI,
 void
 VirtRegAuxInfo::calculateSpillWeightAndHint(LiveInterval &li) {
   MachineRegisterInfo &mri = MF.getRegInfo();
-  const TargetRegisterInfo &tri = *MF.getTarget().getRegisterInfo();
+  const TargetRegisterInfo &tri = *MF.getSubtarget().getRegisterInfo();
   MachineBasicBlock *mbb = nullptr;
   MachineLoop *loop = nullptr;
   bool isExiting = false;
   float totalWeight = 0;
+  unsigned numInstr = 0; // Number of instructions using li
   SmallPtrSet<MachineInstr*, 8> visited;
 
   // Find the best physreg hint and the best virtreg hint.
@@ -116,9 +117,10 @@ VirtRegAuxInfo::calculateSpillWeightAndHint(LiveInterval &li) {
        I = mri.reg_instr_begin(li.reg), E = mri.reg_instr_end();
        I != E; ) {
     MachineInstr *mi = &*(I++);
+    numInstr++;
     if (mi->isIdentityCopy() || mi->isImplicitDef() || mi->isDebugValue())
       continue;
-    if (!visited.insert(mi))
+    if (!visited.insert(mi).second)
       continue;
 
     float weight = 1.0f;
@@ -186,8 +188,8 @@ VirtRegAuxInfo::calculateSpillWeightAndHint(LiveInterval &li) {
   // it is a preferred candidate for spilling.
   // FIXME: this gets much more complicated once we support non-trivial
   // re-materialization.
-  if (isRematerializable(li, LIS, *MF.getTarget().getInstrInfo()))
+  if (isRematerializable(li, LIS, *MF.getSubtarget().getInstrInfo()))
     totalWeight *= 0.5F;
 
-  li.weight = normalize(totalWeight, li.getSize());
+  li.weight = normalize(totalWeight, li.getSize(), numInstr);
 }

@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_AArch64MCEXPR_H
-#define LLVM_AArch64MCEXPR_H
+#ifndef LLVM_LIB_TARGET_AARCH64_MCTARGETDESC_AARCH64MCEXPR_H
+#define LLVM_LIB_TARGET_AARCH64_MCTARGETDESC_AARCH64MCEXPR_H
 
 #include "llvm/MC/MCExpr.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -152,7 +152,8 @@ public:
   const MCSection *FindAssociatedSection() const override;
 
   bool EvaluateAsRelocatableImpl(MCValue &Res,
-                                 const MCAsmLayout *Layout) const override;
+                                 const MCAsmLayout *Layout,
+				 const MCFixup *Fixup) const override;
 
   void fixELFSymbolsInTLSFixups(MCAssembler &Asm) const override;
 

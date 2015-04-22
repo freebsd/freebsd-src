@@ -7,18 +7,19 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_RUNTIMEDYLDCHECKER_H
-#define LLVM_RUNTIMEDYLDCHECKER_H
+#ifndef LLVM_EXECUTIONENGINE_RUNTIMEDYLDCHECKER_H
+#define LLVM_EXECUTIONENGINE_RUNTIMEDYLDCHECKER_H
 
-#include "RuntimeDyld.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/raw_ostream.h"
-#include <map>
+#include "llvm/ADT/StringRef.h"
 
 namespace llvm {
 
 class MCDisassembler;
+class MemoryBuffer;
 class MCInstPrinter;
+class RuntimeDyld;
+class RuntimeDyldCheckerImpl;
+class raw_ostream;
 
 /// \brief RuntimeDyld invariant checker for verifying that RuntimeDyld has
 ///        correctly applied relocations.
@@ -61,14 +62,16 @@ class MCInstPrinter;
 ///             | expr '>>' expr
 ///
 class RuntimeDyldChecker {
-  friend class RuntimeDyldCheckerExprEval;
 public:
-  RuntimeDyldChecker(RuntimeDyld &RTDyld,
-                     MCDisassembler *Disassembler,
-                     MCInstPrinter *InstPrinter,
-                     llvm::raw_ostream &ErrStream)
-    : RTDyld(*RTDyld.Dyld), Disassembler(Disassembler),
-      InstPrinter(InstPrinter), ErrStream(ErrStream) {}
+  RuntimeDyldChecker(RuntimeDyld &RTDyld, MCDisassembler *Disassembler,
+                     MCInstPrinter *InstPrinter, raw_ostream &ErrStream);
+  ~RuntimeDyldChecker();
+
+  // \brief Get the associated RTDyld instance.
+  RuntimeDyld& getRTDyld();
+
+  // \brief Get the associated RTDyld instance.
+  const RuntimeDyld& getRTDyld() const;
 
   /// \brief Check a single expression against the attached RuntimeDyld
   ///        instance.
@@ -79,20 +82,20 @@ public:
   ///        method to be evaluated as an expression.
   bool checkAllRulesInBuffer(StringRef RulePrefix, MemoryBuffer *MemBuf) const;
 
+  /// \brief Returns the address of the requested section (or an error message
+  ///        in the second element of the pair if the address cannot be found).
+  ///
+  /// if 'LinkerAddress' is true, this returns the address of the section
+  /// within the linker's memory. If 'LinkerAddress' is false it returns the
+  /// address within the target process (i.e. the load address).
+  std::pair<uint64_t, std::string> getSectionAddr(StringRef FileName,
+                                                  StringRef SectionName,
+                                                  bool LinkerAddress);
+
 private:
-
-  bool isSymbolValid(StringRef Symbol) const;
-  uint64_t getSymbolAddress(StringRef Symbol) const;
-  uint64_t readMemoryAtSymbol(StringRef Symbol, int64_t Offset,
-                              unsigned Size) const;
-  StringRef getSubsectionStartingAt(StringRef Name) const;
-
-  RuntimeDyldImpl &RTDyld;
-  MCDisassembler *Disassembler;
-  MCInstPrinter *InstPrinter;
-  llvm::raw_ostream &ErrStream;
+  std::unique_ptr<RuntimeDyldCheckerImpl> Impl;
 };
 
 } // end namespace llvm
 
-#endif // LLVM_RUNTIMEDYLDCHECKER_H
+#endif

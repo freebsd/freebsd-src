@@ -28,7 +28,7 @@ CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 -msoft-float
 CFLAGS.gcc+=	-mpreferred-stack-boundary=2
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
-CFLAGS+=	-fPIC
+CFLAGS+=	-fPIC -mno-red-zone
 .endif
 .if ${MACHINE} == "pc98"
 CFLAGS+=	-Os
@@ -38,6 +38,9 @@ CFLAGS+=	-msoft-float -D_STANDALONE -DNETIF_DEBUG
 .endif
 .if ${MACHINE_CPUARCH} == "arm"
 CFLAGS+=	-msoft-float -D_STANDALONE
+.endif
+.if ${MACHINE_CPUARCH} == "aarch64"
+CFLAGS+=	-D_STANDALONE -mgeneral-regs-only
 .endif
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS+=	-G0 -fno-pic -mno-abicalls
@@ -75,12 +78,15 @@ SRCS+=	udivmoddi4.c udivmodsi4.c udivdi3.c udivsi3.c umoddi3.c umodsi3.c
 .PATH: ${.CURDIR}/../../contrib/compiler-rt/lib/builtins/arm/
 SRCS+=	aeabi_idivmod.S aeabi_ldivmod.S aeabi_uidivmod.S aeabi_uldivmod.S
 SRCS+=	aeabi_memcmp.S aeabi_memcpy.S aeabi_memmove.S aeabi_memset.S
-
 .endif
+
+.if ${MACHINE_CPUARCH} == "aarch64"
+.PATH: ${.CURDIR}/../libc/aarch64/gen
+.endif
+
 .if ${MACHINE_CPUARCH} == "powerpc"
 .PATH: ${.CURDIR}/../libc/quad
 SRCS+=	ashldi3.c ashrdi3.c
-.PATH: ${.CURDIR}/../libc/powerpc/gen
 SRCS+=	syncicache.c
 .endif
 
@@ -89,11 +95,7 @@ SRCS+=	syncicache.c
 SRCS+= uuid_equal.c uuid_is_nil.c
 
 # _setjmp/_longjmp
-.if ${MACHINE_ARCH} == "powerpc64"
-.PATH: ${.CURDIR}/powerpc
-.else
 .PATH: ${.CURDIR}/${MACHINE_CPUARCH}
-.endif
 SRCS+=	_setjmp.S
 
 # decompression functionality from libbz2

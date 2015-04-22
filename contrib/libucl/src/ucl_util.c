@@ -24,12 +24,20 @@
 #include "ucl.h"
 #include "ucl_internal.h"
 #include "ucl_chartable.h"
+#include "kvec.h"
 
+#ifndef _WIN32
 #include <glob.h>
+#endif
 
 #ifdef HAVE_LIBGEN_H
 #include <libgen.h> /* For dirname */
 #endif
+
+typedef kvec_t(ucl_object_t *) ucl_array_t;
+
+#define UCL_ARRAY_GET(ar, obj) ucl_array_t *ar = \
+	(ucl_array_t *)((obj) != NULL ? (obj)->value.av : NULL)
 
 #ifdef HAVE_OPENSSL
 #include <openssl/err.h>
@@ -66,6 +74,11 @@
 #endif
 #ifndef MAP_FAILED
 #define MAP_FAILED      ((void *) -1)
+#endif
+
+#ifdef _WIN32
+#include <limits.h>
+#define NBBY CHAR_BIT
 #endif
 
 static void *ucl_mmap(char *addr, size_t length, int prot, int access, int fd, off_t offset)
@@ -195,15 +208,27 @@ ucl_object_dtor_unref (ucl_object_t *obj)
 static void
 ucl_object_free_internal (ucl_object_t *obj, bool allow_rec, ucl_object_dtor dtor)
 {
-	ucl_object_t *sub, *tmp;
+	ucl_object_t *tmp, *sub;
 
 	while (obj != NULL) {
 		if (obj->type == UCL_ARRAY) {
-			sub = obj->value.av;
-			while (sub != NULL) {
-				tmp = sub->next;
-				dtor (sub);
-				sub = tmp;
+			UCL_ARRAY_GET (vec, obj);
+			unsigned int i;
+
+			if (vec != NULL) {
+				for (i = 0; i < vec->n; i ++) {
+					sub = kv_A (*vec, i);
+					if (sub != NULL) {
+						tmp = sub;
+						while (sub) {
+							tmp = sub->next;
+							dtor (sub);
+							sub = tmp;
+						}
+					}
+				}
+				kv_destroy (*vec);
+				UCL_FREE (sizeof (*vec), vec);
 			}
 		}
 		else if (obj->type == UCL_OBJECT) {
@@ -453,6 +478,15 @@ ucl_parser_get_error(struct ucl_parser *parser)
 		return NULL;
 
 	return utstring_body(parser->err);
+}
+
+UCL_EXTERN void
+ucl_parser_clear_error(struct ucl_parser *parser)
+{
+	if (parser != NULL && parser->err != NULL) {
+		utstring_free(parser->err);
+		parser->err = NULL;
+	}
 }
 
 UCL_EXTERN bool
@@ -933,10 +967,10 @@ ucl_include_file (const unsigned char *data, size_t len,
 	const unsigned char *p = data, *end = data + len;
 	bool need_glob = false;
 	int cnt = 0;
-	glob_t globbuf;
 	char glob_pattern[PATH_MAX];
 	size_t i;
 
+#ifndef _WIN32
 	if (!allow_glob) {
 		return ucl_include_file_single (data, len, parser, check_signature,
 			must_exist, priority);
@@ -951,6 +985,7 @@ ucl_include_file (const unsigned char *data, size_t len,
 			p ++;
 		}
 		if (need_glob) {
+			glob_t globbuf;
 			memset (&globbuf, 0, sizeof (globbuf));
 			ucl_strlcpy (glob_pattern, (const char *)data, sizeof (glob_pattern));
 			if (glob (glob_pattern, 0, NULL, &globbuf) != 0) {
@@ -978,7 +1013,13 @@ ucl_include_file (const unsigned char *data, size_t len,
 				must_exist, priority);
 		}
 	}
-
+#else
+	/* Win32 compilers do not support globbing. Therefore, for Win32,
+	   treat allow_glob/need_glob as a NOOP and just return */
+	return ucl_include_file_single (data, len, parser, check_signature,
+		must_exist, priority);
+#endif
+	
 	return true;
 }
 
@@ -1394,7 +1435,7 @@ ucl_object_insert_key_common (ucl_object_t *top, ucl_object_t *elt,
 	}
 
 	if (top->value.ov == NULL) {
-		top->value.ov = ucl_hash_create ();
+		top->value.ov = ucl_hash_create (false);
 	}
 
 	if (keylen == 0) {
@@ -1427,7 +1468,7 @@ ucl_object_insert_key_common (ucl_object_t *top, ucl_object_t *elt,
 	found = __DECONST (ucl_object_t *, ucl_hash_search_obj (top->value.ov, elt));
 
 	if (found == NULL) {
-		top->value.ov = ucl_hash_insert_object (top->value.ov, elt);
+		top->value.ov = ucl_hash_insert_object (top->value.ov, elt, false);
 		top->len ++;
 		if (replace) {
 			ret = false;
@@ -1444,7 +1485,7 @@ ucl_object_insert_key_common (ucl_object_t *top, ucl_object_t *elt,
 				ucl_object_insert_key_common (elt, found, found->key,
 						found->keylen, copy_key, false, false);
 				ucl_hash_delete (top->value.ov, found);
-				top->value.ov = ucl_hash_insert_object (top->value.ov, elt);
+				top->value.ov = ucl_hash_insert_object (top->value.ov, elt, false);
 			}
 			else if (found->type == UCL_OBJECT && elt->type != UCL_OBJECT) {
 				/* Insert new to old */
@@ -1568,7 +1609,7 @@ ucl_object_merge (ucl_object_t *top, ucl_object_t *elt, bool copy)
 		found = __DECONST(ucl_object_t *, ucl_hash_search (top->value.ov, cp->key, cp->keylen));
 		if (found == NULL) {
 			/* The key does not exist */
-			top->value.ov = ucl_hash_insert_object (top->value.ov, cp);
+			top->value.ov = ucl_hash_insert_object (top->value.ov, cp, false);
 			top->len ++;
 		}
 		else {
@@ -1610,7 +1651,7 @@ ucl_object_find_key (const ucl_object_t *obj, const char *key)
 const ucl_object_t*
 ucl_iterate_object (const ucl_object_t *obj, ucl_object_iter_t *iter, bool expand_values)
 {
-	const ucl_object_t *elt;
+	const ucl_object_t *elt = NULL;
 
 	if (obj == NULL || iter == NULL) {
 		return NULL;
@@ -1621,19 +1662,25 @@ ucl_iterate_object (const ucl_object_t *obj, ucl_object_iter_t *iter, bool expan
 		case UCL_OBJECT:
 			return (const ucl_object_t*)ucl_hash_iterate (obj->value.ov, iter);
 			break;
-		case UCL_ARRAY:
-			elt = *iter;
-			if (elt == NULL) {
-				elt = obj->value.av;
-				if (elt == NULL) {
-					return NULL;
+		case UCL_ARRAY: {
+			unsigned int idx;
+			UCL_ARRAY_GET (vec, obj);
+			idx = (unsigned int)(uintptr_t)(*iter);
+
+			if (vec != NULL) {
+				while (idx < kv_size (*vec)) {
+					if ((elt = kv_A (*vec, idx)) != NULL) {
+						idx ++;
+						break;
+					}
+					idx ++;
 				}
+				*iter = (void *)(uintptr_t)idx;
 			}
-			else if (elt == obj->value.av) {
-				return NULL;
-			}
-			*iter = elt->next ? elt->next : obj->value.av;
+
 			return elt;
+			break;
+		}
 		default:
 			/* Go to linear iteration */
 			break;
@@ -1652,6 +1699,95 @@ ucl_iterate_object (const ucl_object_t *obj, ucl_object_iter_t *iter, bool expan
 
 	/* Not reached */
 	return NULL;
+}
+
+const char safe_iter_magic[4] = {'u', 'i', 't', 'e'};
+struct ucl_object_safe_iter {
+	char magic[4]; /* safety check */
+	const ucl_object_t *impl_it; /* implicit object iteration */
+	ucl_object_iter_t expl_it; /* explicit iteration */
+};
+
+#define UCL_SAFE_ITER(ptr) (struct ucl_object_safe_iter *)(ptr)
+#define UCL_SAFE_ITER_CHECK(it) do { \
+	assert (it != NULL); \
+	assert (memcmp (it->magic, safe_iter_magic, sizeof (it->magic)) == 0); \
+ } while (0)
+
+ucl_object_iter_t
+ucl_object_iterate_new (const ucl_object_t *obj)
+{
+	struct ucl_object_safe_iter *it;
+
+	it = UCL_ALLOC (sizeof (*it));
+	if (it != NULL) {
+		memcpy (it->magic, safe_iter_magic, sizeof (it->magic));
+		it->expl_it = NULL;
+		it->impl_it = obj;
+	}
+
+	return (ucl_object_iter_t)it;
+}
+
+
+ucl_object_iter_t
+ucl_object_iterate_reset (ucl_object_iter_t it, const ucl_object_t *obj)
+{
+	struct ucl_object_safe_iter *rit = UCL_SAFE_ITER (it);
+
+	UCL_SAFE_ITER_CHECK (rit);
+
+	rit->impl_it = obj;
+	rit->expl_it = NULL;
+
+	return it;
+}
+
+const ucl_object_t*
+ucl_object_iterate_safe (ucl_object_iter_t it, bool expand_values)
+{
+	struct ucl_object_safe_iter *rit = UCL_SAFE_ITER (it);
+	const ucl_object_t *ret = NULL;
+
+	UCL_SAFE_ITER_CHECK (rit);
+
+	if (rit->impl_it == NULL) {
+		return NULL;
+	}
+
+	if (rit->impl_it->type == UCL_OBJECT || rit->impl_it->type == UCL_ARRAY) {
+		ret = ucl_iterate_object (rit->impl_it, &rit->expl_it, true);
+
+		if (ret == NULL) {
+			/* Need to switch to another implicit object in chain */
+			rit->impl_it = rit->impl_it->next;
+			rit->expl_it = NULL;
+			return ucl_object_iterate_safe (it, expand_values);
+		}
+	}
+	else {
+		/* Just iterate over the implicit array */
+		ret = rit->impl_it;
+		rit->impl_it = rit->impl_it->next;
+		if (expand_values) {
+			/* We flatten objects if need to expand values */
+			if (ret->type == UCL_OBJECT || ret->type == UCL_ARRAY) {
+				return ucl_object_iterate_safe (it, expand_values);
+			}
+		}
+	}
+
+	return ret;
+}
+
+void
+ucl_object_iterate_free (ucl_object_iter_t it)
+{
+	struct ucl_object_safe_iter *rit = UCL_SAFE_ITER (it);
+
+	UCL_SAFE_ITER_CHECK (rit);
+
+	UCL_FREE (sizeof (*rit), it);
 }
 
 const ucl_object_t *
@@ -1733,6 +1869,17 @@ ucl_object_new_full (ucl_type_t type, unsigned priority)
 			new->next = NULL;
 			new->prev = new;
 			ucl_object_set_priority (new, priority);
+
+			if (type == UCL_ARRAY) {
+				new->value.av = UCL_ALLOC (sizeof (ucl_array_t));
+				if (new->value.av) {
+					memset (new->value.av, 0, sizeof (ucl_array_t));
+					UCL_ARRAY_GET (vec, new);
+
+					/* Preallocate some space for arrays */
+					kv_resize (ucl_object_t *, *vec, 8);
+				}
+			}
 		}
 	}
 	else {
@@ -1826,23 +1973,20 @@ ucl_object_frombool (bool bv)
 bool
 ucl_array_append (ucl_object_t *top, ucl_object_t *elt)
 {
-	ucl_object_t *head;
+	UCL_ARRAY_GET (vec, top);
 
 	if (elt == NULL || top == NULL) {
 		return false;
 	}
 
-	head = top->value.av;
-	if (head == NULL) {
-		top->value.av = elt;
-		elt->prev = elt;
+	if (vec == NULL) {
+		vec = UCL_ALLOC (sizeof (*vec));
+		kv_init (*vec);
+		top->value.av = (void *)vec;
 	}
-	else {
-		elt->prev = head->prev;
-		head->prev->next = elt;
-		head->prev = elt;
-	}
-	elt->next = NULL;
+
+	kv_push (ucl_object_t *, *vec, elt);
+
 	top->len ++;
 
 	return true;
@@ -1851,24 +1995,23 @@ ucl_array_append (ucl_object_t *top, ucl_object_t *elt)
 bool
 ucl_array_prepend (ucl_object_t *top, ucl_object_t *elt)
 {
-	ucl_object_t *head;
+	UCL_ARRAY_GET (vec, top);
 
 	if (elt == NULL || top == NULL) {
 		return false;
 	}
 
-
-	head = top->value.av;
-	if (head == NULL) {
-		top->value.av = elt;
-		elt->prev = elt;
+	if (vec == NULL) {
+		vec = UCL_ALLOC (sizeof (*vec));
+		kv_init (*vec);
+		top->value.av = (void *)vec;
+		kv_push (ucl_object_t *, *vec, elt);
 	}
 	else {
-		elt->prev = head->prev;
-		head->prev = elt;
+		/* Slow O(n) algorithm */
+		kv_prepend (ucl_object_t *, *vec, elt);
 	}
-	elt->next = head;
-	top->value.av = elt;
+
 	top->len ++;
 
 	return true;
@@ -1877,21 +2020,29 @@ ucl_array_prepend (ucl_object_t *top, ucl_object_t *elt)
 bool
 ucl_array_merge (ucl_object_t *top, ucl_object_t *elt, bool copy)
 {
-	ucl_object_t *cur, *tmp, *cp;
+	unsigned i;
+	ucl_object_t **obj;
+	UCL_ARRAY_GET (v1, top);
+	UCL_ARRAY_GET (v2, elt);
 
 	if (elt == NULL || top == NULL || top->type != UCL_ARRAY || elt->type != UCL_ARRAY) {
 		return false;
 	}
 
-	DL_FOREACH_SAFE (elt->value.av, cur, tmp) {
+	kv_concat (ucl_object_t *, *v1, *v2);
+
+	for (i = v2->n; i < v1->n; i ++) {
+		obj = &kv_A (*v1, i);
+		if (*obj == NULL) {
+			continue;
+		}
+
+		top->len ++;
 		if (copy) {
-			cp = ucl_object_copy (cur);
+			*obj = ucl_object_copy (*obj);
 		}
 		else {
-			cp = ucl_object_ref (cur);
-		}
-		if (cp != NULL) {
-			ucl_array_append (top, cp);
+			ucl_object_ref (*obj);
 		}
 	}
 
@@ -1901,82 +2052,85 @@ ucl_array_merge (ucl_object_t *top, ucl_object_t *elt, bool copy)
 ucl_object_t *
 ucl_array_delete (ucl_object_t *top, ucl_object_t *elt)
 {
-	ucl_object_t *head;
+	UCL_ARRAY_GET (vec, top);
+	ucl_object_t *ret = NULL;
+	unsigned i;
 
-	if (top == NULL || top->type != UCL_ARRAY || top->value.av == NULL) {
-		return NULL;
-	}
-	head = top->value.av;
-
-	if (elt->prev == elt) {
-		top->value.av = NULL;
-	}
-	else if (elt == head) {
-		elt->next->prev = elt->prev;
-		top->value.av = elt->next;
-	}
-	else {
-		elt->prev->next = elt->next;
-		if (elt->next) {
-			elt->next->prev = elt->prev;
-		}
-		else {
-			head->prev = elt->prev;
+	for (i = 0; i < vec->n; i ++) {
+		if (kv_A (*vec, i) == elt) {
+			kv_del (ucl_object_t *, *vec, i);
+			ret = elt;
+			top->len --;
+			break;
 		}
 	}
-	elt->next = NULL;
-	elt->prev = elt;
-	top->len --;
 
-	return elt;
+	return ret;
 }
 
 const ucl_object_t *
 ucl_array_head (const ucl_object_t *top)
 {
+	UCL_ARRAY_GET (vec, top);
+
 	if (top == NULL || top->type != UCL_ARRAY || top->value.av == NULL) {
 		return NULL;
 	}
-	return top->value.av;
+
+	return (vec->n > 0 ? vec->a[0] : NULL);
 }
 
 const ucl_object_t *
 ucl_array_tail (const ucl_object_t *top)
 {
+	UCL_ARRAY_GET (vec, top);
+
 	if (top == NULL || top->type != UCL_ARRAY || top->value.av == NULL) {
 		return NULL;
 	}
-	return top->value.av->prev;
+
+	return (vec->n > 0 ? vec->a[vec->n - 1] : NULL);
 }
 
 ucl_object_t *
 ucl_array_pop_last (ucl_object_t *top)
 {
-	return ucl_array_delete (top, __DECONST(ucl_object_t *, ucl_array_tail (top)));
+	UCL_ARRAY_GET (vec, top);
+	ucl_object_t **obj, *ret = NULL;
+
+	if (vec != NULL && vec->n > 0) {
+		obj = &kv_A (*vec, vec->n - 1);
+		ret = *obj;
+		kv_del (ucl_object_t *, *vec, vec->n - 1);
+		top->len --;
+	}
+
+	return ret;
 }
 
 ucl_object_t *
 ucl_array_pop_first (ucl_object_t *top)
 {
-	return ucl_array_delete (top, __DECONST(ucl_object_t *, ucl_array_head (top)));
+	UCL_ARRAY_GET (vec, top);
+	ucl_object_t **obj, *ret = NULL;
+
+	if (vec != NULL && vec->n > 0) {
+		obj = &kv_A (*vec, 0);
+		ret = *obj;
+		kv_del (ucl_object_t *, *vec, 0);
+		top->len --;
+	}
+
+	return ret;
 }
 
 const ucl_object_t *
 ucl_array_find_index (const ucl_object_t *top, unsigned int index)
 {
-	ucl_object_iter_t it = NULL;
-	const ucl_object_t *ret;
+	UCL_ARRAY_GET (vec, top);
 
-	if (top == NULL || top->type != UCL_ARRAY || top->len == 0 ||
-	    (index + 1) > top->len) {
-		return NULL;
-	}
-
-	while ((ret = ucl_iterate_object (top, &it, true)) != NULL) {
-		if (index == 0) {
-			return ret;
-		}
-		--index;
+	if (vec != NULL && vec->n > 0 && index < vec->n) {
+		return kv_A (*vec, index);
 	}
 
 	return NULL;
@@ -1986,22 +2140,15 @@ ucl_object_t *
 ucl_array_replace_index (ucl_object_t *top, ucl_object_t *elt,
 	unsigned int index)
 {
-	ucl_object_t *cur, *tmp;
+	UCL_ARRAY_GET (vec, top);
+	ucl_object_t *ret = NULL;
 
-	if (top == NULL || top->type != UCL_ARRAY || elt == NULL ||
-			top->len == 0 || (index + 1) > top->len) {
-		return NULL;
+	if (vec != NULL && vec->n > 0 && index < vec->n) {
+		ret = kv_A (*vec, index);
+		kv_A (*vec, index) = elt;
 	}
 
-	DL_FOREACH_SAFE (top->value.av, cur, tmp) {
-		if (index == 0) {
-			DL_REPLACE_ELEM (top->value.av, cur, elt);
-			return cur;
-		}
-		--index;
-	}
-
-	return NULL;
+	return ret;
 }
 
 ucl_object_t *
@@ -2314,7 +2461,7 @@ ucl_object_compare (const ucl_object_t *o1, const ucl_object_t *o2)
 
 	switch (o1->type) {
 	case UCL_STRING:
-		if (o1->len == o2->len) {
+		if (o1->len == o2->len && o1->len > 0) {
 			ret = strcmp (ucl_object_tostring(o1), ucl_object_tostring(o2));
 		}
 		else {
@@ -2330,17 +2477,28 @@ ucl_object_compare (const ucl_object_t *o1, const ucl_object_t *o2)
 		ret = ucl_object_toboolean (o1) - ucl_object_toboolean (o2);
 		break;
 	case UCL_ARRAY:
-		if (o1->len == o2->len) {
-			it1 = o1->value.av;
-			it2 = o2->value.av;
+		if (o1->len == o2->len && o1->len > 0) {
+			UCL_ARRAY_GET (vec1, o1);
+			UCL_ARRAY_GET (vec2, o2);
+			unsigned i;
+
 			/* Compare all elements in both arrays */
-			while (it1 != NULL && it2 != NULL) {
-				ret = ucl_object_compare (it1, it2);
-				if (ret != 0) {
-					break;
+			for (i = 0; i < vec1->n; i ++) {
+				it1 = kv_A (*vec1, i);
+				it2 = kv_A (*vec2, i);
+
+				if (it1 == NULL && it2 != NULL) {
+					return -1;
 				}
-				it1 = it1->next;
-				it2 = it2->next;
+				else if (it2 == NULL && it1 != NULL) {
+					return 1;
+				}
+				else if (it1 != NULL && it2 != NULL) {
+					ret = ucl_object_compare (it1, it2);
+					if (ret != 0) {
+						break;
+					}
+				}
 			}
 		}
 		else {
@@ -2348,7 +2506,7 @@ ucl_object_compare (const ucl_object_t *o1, const ucl_object_t *o2)
 		}
 		break;
 	case UCL_OBJECT:
-		if (o1->len == o2->len) {
+		if (o1->len == o2->len && o1->len > 0) {
 			while ((it1 = ucl_iterate_object (o1, &iter, true)) != NULL) {
 				it2 = ucl_object_find_key (o2, ucl_object_key (it1));
 				if (it2 == NULL) {
@@ -2377,11 +2535,14 @@ void
 ucl_object_array_sort (ucl_object_t *ar,
 		int (*cmp)(const ucl_object_t *o1, const ucl_object_t *o2))
 {
+	UCL_ARRAY_GET (vec, ar);
+
 	if (cmp == NULL || ar == NULL || ar->type != UCL_ARRAY) {
 		return;
 	}
 
-	DL_SORT (ar->value.av, cmp);
+	qsort (vec->a, vec->n, sizeof (ucl_object_t *),
+			(int (*)(const void *, const void *))cmp);
 }
 
 #define PRIOBITS 4

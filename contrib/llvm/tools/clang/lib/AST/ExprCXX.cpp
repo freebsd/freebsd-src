@@ -909,16 +909,21 @@ LambdaCapture::LambdaCapture(SourceLocation Loc, bool Implicit,
   case LCK_ByRef:
     assert(Var && "capture must have a variable!");
     break;
+  case LCK_VLAType:
+    assert(!Var && "VLA type capture cannot have a variable!");
+    Bits |= Capture_ByCopy;
+    break;
   }
   DeclAndBits.setInt(Bits);
 }
 
 LambdaCaptureKind LambdaCapture::getCaptureKind() const {
   Decl *D = DeclAndBits.getPointer();
+  bool CapByCopy = DeclAndBits.getInt() & Capture_ByCopy;
   if (!D)
-    return LCK_This;
+    return CapByCopy ? LCK_VLAType : LCK_This;
 
-  return (DeclAndBits.getInt() & Capture_ByCopy) ? LCK_ByCopy : LCK_ByRef;
+  return CapByCopy ? LCK_ByCopy : LCK_ByRef;
 }
 
 LambdaExpr::LambdaExpr(QualType T,
@@ -1073,8 +1078,8 @@ LambdaExpr::getCaptureInitIndexVars(capture_init_iterator Iter) const {
          "Capture index out-of-range");
   VarDecl **IndexVars = getArrayIndexVars();
   unsigned *IndexStarts = getArrayIndexStarts();
-  return ArrayRef<VarDecl *>(IndexVars + IndexStarts[Index],
-                             IndexVars + IndexStarts[Index + 1]);
+  return llvm::makeArrayRef(IndexVars + IndexStarts[Index],
+                            IndexVars + IndexStarts[Index + 1]);
 }
 
 CXXRecordDecl *LambdaExpr::getLambdaClass() const {
@@ -1399,7 +1404,8 @@ CXXRecordDecl *UnresolvedMemberExpr::getNamingClass() const {
   // It can't be dependent: after all, we were actually able to do the
   // lookup.
   CXXRecordDecl *Record = nullptr;
-  if (getQualifier()) {
+  auto *NNS = getQualifier();
+  if (NNS && NNS->getKind() != NestedNameSpecifier::Super) {
     const Type *T = getQualifier()->getAsType();
     assert(T && "qualifier in member expression does not name type");
     Record = T->getAsCXXRecordDecl();

@@ -815,17 +815,8 @@ network_alloc_rx_buffers(struct netfront_info *sc)
 	 */
 	batch_target = sc->rx_target - (req_prod - sc->rx.rsp_cons);
 	for (i = mbufq_len(&sc->xn_rx_batch); i < batch_target; i++) {
-		MGETHDR(m_new, M_NOWAIT, MT_DATA);
+		m_new = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
 		if (m_new == NULL) {
-			printf("%s: MGETHDR failed\n", __func__);
-			goto no_mbuf;
-		}
-
-		if (m_cljget(m_new, M_NOWAIT, MJUMPAGESIZE) == NULL) {
-			printf("%s: m_cljget failed\n", __func__);
-			m_freem(m_new);
-
-no_mbuf:
 			if (i != 0)
 				goto refill;
 			/*
@@ -1481,7 +1472,6 @@ xn_assemble_tx_request(struct netfront_info *sc, struct mbuf *m_head)
 	struct ifnet *ifp;
 	struct mbuf *m;
 	u_int nfrags;
-	netif_extra_info_t *extra;
 	int otherend_id;
 
 	ifp = sc->xn_ifp;
@@ -1555,7 +1545,6 @@ xn_assemble_tx_request(struct netfront_info *sc, struct mbuf *m_head)
 	 * of fragments or hit the end of the mbuf chain.
 	 */
 	m = m_head;
-	extra = NULL;
 	otherend_id = xenbus_get_otherend_id(sc->xbdev);
 	for (m = m_head; m; m = m->m_next) {
 		netif_tx_request_t *tx;
@@ -2062,6 +2051,9 @@ create_netdev(device_t dev)
 		np->rx_mbufs[i] = NULL;
 		np->grant_rx_ref[i] = GRANT_REF_INVALID;
 	}
+
+	mbufq_init(&np->xn_rx_batch, INT_MAX);
+
 	/* A grant for every tx ring slot */
 	if (gnttab_alloc_grant_references(NET_TX_RING_SIZE,
 					  &np->gref_tx_head) != 0) {

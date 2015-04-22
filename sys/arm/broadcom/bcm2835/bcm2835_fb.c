@@ -240,7 +240,6 @@ bcm_fb_init(void *arg)
 	}
 	else {
 		device_printf(sc->dev, "Failed to set framebuffer info\n");
-		return;
 	}
 
 	config_intrhook_disestablish(&sc->init_hook);

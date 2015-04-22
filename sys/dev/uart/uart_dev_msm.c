@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
+#include <dev/uart/uart_cpu_fdt.h>
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_dev_msm.h>
 
@@ -558,11 +559,18 @@ msm_bus_ungrab(struct uart_softc *sc)
 	uart_unlock(sc->sc_hwmtx);
 }
 
-struct uart_class uart_msm_class = {
+static struct uart_class uart_msm_class = {
 	"msm",
 	msm_methods,
 	sizeof(struct msm_uart_softc),
 	.uc_ops = &uart_msm_ops,
 	.uc_range = 8,
 	.uc_rclk = DEF_CLK,
+	.uc_rshift = 0
 };
+
+static struct ofw_compat_data compat_data[] = {
+	{"qcom,msm-uartdm",	(uintptr_t)&uart_msm_class},
+	{NULL,			(uintptr_t)NULL},
+};
+UART_FDT_CLASS_AND_DEVICE(compat_data);

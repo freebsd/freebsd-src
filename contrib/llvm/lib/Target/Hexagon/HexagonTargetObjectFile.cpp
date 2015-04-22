@@ -31,7 +31,7 @@ static cl::opt<int> SmallDataThreshold("hexagon-small-data-threshold",
 void HexagonTargetObjectFile::Initialize(MCContext &Ctx,
                                          const TargetMachine &TM) {
   TargetLoweringObjectFileELF::Initialize(Ctx, TM);
-
+  InitializeELF(TM.Options.UseInitArray);
 
   SmallDataSection =
     getContext().getELFSection(".sdata", ELF::SHT_PROGBITS,
@@ -79,7 +79,8 @@ IsGlobalInSmallSection(const GlobalValue *GV, const TargetMachine &TM,
 
   if (Kind.isBSS() || Kind.isDataNoRel() || Kind.isCommon()) {
     Type *Ty = GV->getType()->getElementType();
-    return IsInSmallSection(TM.getDataLayout()->getTypeAllocSize(Ty));
+    return IsInSmallSection(
+        TM.getSubtargetImpl()->getDataLayout()->getTypeAllocSize(Ty));
   }
 
   return false;

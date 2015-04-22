@@ -374,8 +374,10 @@ static AvailabilityResult CheckAvailability(ASTContext &Context,
     if (Message) {
       Message->clear();
       llvm::raw_string_ostream Out(*Message);
+      VersionTuple VTI(A->getIntroduced());
+      VTI.UseDotAsSeparator();
       Out << "introduced in " << PrettyPlatformName << ' ' 
-          << A->getIntroduced() << HintMessage;
+          << VTI << HintMessage;
     }
 
     return AR_NotYetIntroduced;
@@ -386,8 +388,10 @@ static AvailabilityResult CheckAvailability(ASTContext &Context,
     if (Message) {
       Message->clear();
       llvm::raw_string_ostream Out(*Message);
+      VersionTuple VTO(A->getObsoleted());
+      VTO.UseDotAsSeparator();
       Out << "obsoleted in " << PrettyPlatformName << ' ' 
-          << A->getObsoleted() << HintMessage;
+          << VTO << HintMessage;
     }
     
     return AR_Unavailable;
@@ -398,8 +402,10 @@ static AvailabilityResult CheckAvailability(ASTContext &Context,
     if (Message) {
       Message->clear();
       llvm::raw_string_ostream Out(*Message);
+      VersionTuple VTD(A->getDeprecated());
+      VTD.UseDotAsSeparator();
       Out << "first deprecated in " << PrettyPlatformName << ' '
-          << A->getDeprecated() << HintMessage;
+          << VTD << HintMessage;
     }
     
     return AR_Deprecated;
@@ -1296,6 +1302,11 @@ DeclContext::lookup(DeclarationName Name) {
   if (PrimaryContext != this)
     return PrimaryContext->lookup(Name);
 
+  // If this is a namespace, ensure that any later redeclarations of it have
+  // been loaded, since they may add names to the result of this lookup.
+  if (auto *ND = dyn_cast<NamespaceDecl>(this))
+    (void)ND->getMostRecentDecl();
+
   if (hasExternalVisibleStorage()) {
     if (NeedToReconcileExternalVisibleStorage)
       reconcileExternalVisibleStorage();
@@ -1428,6 +1439,17 @@ DeclContext *DeclContext::getEnclosingNamespaceContext() {
   while (!Ctx->isFileContext())
     Ctx = Ctx->getParent();
   return Ctx->getPrimaryContext();
+}
+
+RecordDecl *DeclContext::getOuterLexicalRecordContext() {
+  // Loop until we find a non-record context.
+  RecordDecl *OutermostRD = nullptr;
+  DeclContext *DC = this;
+  while (DC->isRecord()) {
+    OutermostRD = cast<RecordDecl>(DC);
+    DC = DC->getLexicalParent();
+  }
+  return OutermostRD;
 }
 
 bool DeclContext::InEnclosingNamespaceSetOf(const DeclContext *O) const {

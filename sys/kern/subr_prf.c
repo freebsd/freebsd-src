@@ -295,7 +295,7 @@ log(int level, const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	(void)_vprintf(level, log_open ? TOLOG : TOCONS, fmt, ap);
+	(void)_vprintf(level, log_open ? TOLOG : TOCONS | TOLOG, fmt, ap);
 	va_end(ap);
 
 	msgbuftrigger = 1;
@@ -1009,7 +1009,7 @@ sysctl_kern_msgbuf(SYSCTL_HANDLER_ARGS)
 		len = msgbuf_peekbytes(msgbufp, buf, sizeof(buf), &seq);
 		mtx_unlock(&msgbuf_lock);
 		if (len == 0)
-			return (0);
+			return (SYSCTL_OUT(req, "", 1)); /* add nulterm */
 
 		error = sysctl_handle_opaque(oidp, buf, len, req);
 		if (error)

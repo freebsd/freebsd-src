@@ -90,8 +90,6 @@ struct lm75_softc {
 	uint32_t		sc_conf;
 };
 
-static int lm75_faults[4] = { 1, 2, 4, 6 };
-
 /* Utility functions */
 static int  lm75_conf_read(struct lm75_softc *);
 static int  lm75_conf_write(struct lm75_softc *);
@@ -457,14 +455,15 @@ static int
 lm75_faults_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev;
+	int lm75_faults[] = { 1, 2, 4, 6 };
 	int error, faults, i, newf, tmp;
 	struct lm75_softc *sc;
 
 	dev = (device_t)arg1;
 	sc = device_get_softc(dev);
 	tmp = (sc->sc_conf & LM75_CONF_FAULT) >> LM75_CONF_FSHIFT;
-	if (tmp > nitems(lm75_faults))
-		tmp = nitems(lm75_faults);
+	if (tmp >= nitems(lm75_faults))
+		tmp = nitems(lm75_faults) - 1;
 	faults = lm75_faults[tmp];
 
 	error = sysctl_handle_int(oidp, &faults, 0, req);

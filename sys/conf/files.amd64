@@ -513,10 +513,10 @@ compat/ndis/winx64_wrap.S	optional	ndisapi pci
 libkern/memmove.c		standard
 libkern/memset.c		standard
 #
-# x86 real mode BIOS emulator, required by atkbdc/dpms/vesa
+# x86 real mode BIOS emulator, required by atkbdc/dpms/pci/vesa
 #
-compat/x86bios/x86bios.c	optional x86bios | atkbd | dpms | vesa
-contrib/x86emu/x86emu.c		optional x86bios | atkbd | dpms | vesa
+compat/x86bios/x86bios.c	optional x86bios | atkbd | dpms | pci | vesa
+contrib/x86emu/x86emu.c		optional x86bios | atkbd | dpms | pci | vesa
 #
 # bvm console
 #
@@ -542,6 +542,7 @@ x86/iommu/intel_drv.c		optional	acpi acpi_dmar pci
 x86/iommu/intel_fault.c		optional	acpi acpi_dmar pci
 x86/iommu/intel_gas.c		optional	acpi acpi_dmar pci
 x86/iommu/intel_idpgtbl.c	optional	acpi acpi_dmar pci
+x86/iommu/intel_intrmap.c	optional	acpi acpi_dmar pci
 x86/iommu/intel_qi.c		optional	acpi acpi_dmar pci
 x86/iommu/intel_quirks.c	optional	acpi acpi_dmar pci
 x86/iommu/intel_utils.c		optional	acpi acpi_dmar pci

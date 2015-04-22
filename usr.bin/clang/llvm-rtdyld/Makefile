@@ -9,7 +9,7 @@ SRCDIR=	tools/llvm-rtdyld
 SRCS=	llvm-rtdyld.cpp
 
 LIBDEPS=llvmdebuginfo \
-	llvmjit \
+	llvmmcjit \
 	llvmexecutionengine \
 	llvmruntimedyld \
 	llvmaarch64disassembler \
@@ -50,6 +50,7 @@ LIBDEPS=llvmdebuginfo \
 	llvmasmprinter \
 	llvmcodegen \
 	llvmscalaropts \
+	llvmprofiledata \
 	llvminstcombine \
 	llvmtransformutils \
 	llvmipa \
@@ -59,11 +60,12 @@ LIBDEPS=llvmdebuginfo \
 	llvmobject \
 	llvmmcparser \
 	llvmbitreader \
-	llvmcore \
+	llvmmcdisassembler \
 	llvmx86info \
 	llvmx86instprinter \
 	llvmmc \
 	llvmx86utils \
+	llvmcore \
 	llvmsupport
 
 .include "../clang.prog.mk"

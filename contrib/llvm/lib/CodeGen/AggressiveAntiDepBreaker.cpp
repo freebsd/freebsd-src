@@ -24,7 +24,6 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 using namespace llvm;
 
@@ -111,18 +110,13 @@ bool AggressiveAntiDepState::IsLive(unsigned Reg)
   return((KillIndices[Reg] != ~0u) && (DefIndices[Reg] == ~0u));
 }
 
-
-
-AggressiveAntiDepBreaker::
-AggressiveAntiDepBreaker(MachineFunction& MFi,
-                         const RegisterClassInfo &RCI,
-                         TargetSubtargetInfo::RegClassVector& CriticalPathRCs) :
-  AntiDepBreaker(), MF(MFi),
-  MRI(MF.getRegInfo()),
-  TII(MF.getTarget().getInstrInfo()),
-  TRI(MF.getTarget().getRegisterInfo()),
-  RegClassInfo(RCI),
-  State(nullptr) {
+AggressiveAntiDepBreaker::AggressiveAntiDepBreaker(
+    MachineFunction &MFi, const RegisterClassInfo &RCI,
+    TargetSubtargetInfo::RegClassVector &CriticalPathRCs)
+    : AntiDepBreaker(), MF(MFi), MRI(MF.getRegInfo()),
+      TII(MF.getSubtarget().getInstrInfo()),
+      TRI(MF.getSubtarget().getRegisterInfo()), RegClassInfo(RCI),
+      State(nullptr) {
   /* Collect a bitset of all registers that are only broken if they
      are on the critical path. */
   for (unsigned i = 0, e = CriticalPathRCs.size(); i < e; ++i) {
@@ -262,11 +256,8 @@ static void AntiDepEdges(const SUnit *SU, std::vector<const SDep*>& Edges) {
   for (SUnit::const_pred_iterator P = SU->Preds.begin(), PE = SU->Preds.end();
        P != PE; ++P) {
     if ((P->getKind() == SDep::Anti) || (P->getKind() == SDep::Output)) {
-      unsigned Reg = P->getReg();
-      if (RegSet.count(Reg) == 0) {
+      if (RegSet.insert(P->getReg()).second)
         Edges.push_back(&*P);
-        RegSet.insert(Reg);
-      }
     }
   }
 }
@@ -527,7 +518,7 @@ BitVector AggressiveAntiDepBreaker::GetRenameRegisters(unsigned Reg) {
       BV &= RCBV;
     }
 
-    DEBUG(dbgs() << " " << RC->getName());
+    DEBUG(dbgs() << " " << TRI->getRegClassName(RC));
   }
 
   return BV;
@@ -620,8 +611,7 @@ bool AggressiveAntiDepBreaker::FindSuitableFreeRegisters(
 
   DEBUG(dbgs() << "\tFind Registers:");
 
-  if (RenameOrder.count(SuperRC) == 0)
-    RenameOrder.insert(RenameOrderType::value_type(SuperRC, Order.size()));
+  RenameOrder.insert(RenameOrderType::value_type(SuperRC, Order.size()));
 
   unsigned OrigR = RenameOrder[SuperRC];
   unsigned EndR = ((OrigR == Order.size()) ? 0 : OrigR);
@@ -681,6 +671,21 @@ bool AggressiveAntiDepBreaker::FindSuitableFreeRegisters(
         }
         if (found)
           goto next_super_reg;
+      }
+
+      // We cannot rename 'Reg' to 'NewReg' if one of the uses of 'Reg' also
+      // defines 'NewReg' via an early-clobber operand.
+      auto Range = RegRefs.equal_range(Reg);
+      for (auto Q = Range.first, QE = Range.second; Q != QE; ++Q) {
+        auto UseMI = Q->second.Operand->getParent();
+        int Idx = UseMI->findRegisterDefOperandIdx(NewReg, false, true, TRI);
+        if (Idx == -1)
+          continue;
+
+        if (UseMI->getOperand(Idx).isEarlyClobber()) {
+          DEBUG(dbgs() << "(ec)");
+          goto next_super_reg;
+        }
       }
 
       // Record that 'Reg' can be renamed to 'NewReg'.

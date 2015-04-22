@@ -29,6 +29,7 @@
 #include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
 #include "llvm/CodeGen/SlotIndexes.h"
+#include "llvm/CodeGen/StackMaps.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -75,7 +76,7 @@ PPCInstrInfo::CreateTargetHazardRecognizer(const TargetSubtargetInfo *STI,
   if (Directive == PPC::DIR_440 || Directive == PPC::DIR_A2 ||
       Directive == PPC::DIR_E500mc || Directive == PPC::DIR_E5500) {
     const InstrItineraryData *II =
-        &static_cast<const PPCSubtarget *>(STI)->getInstrItineraryData();
+        static_cast<const PPCSubtarget *>(STI)->getInstrItineraryData();
     return new ScoreboardHazardRecognizer(II, DAG);
   }
 
@@ -230,10 +231,12 @@ PPCInstrInfo::commuteInstruction(MachineInstr *MI, bool NewMI) const {
 
   // Normal instructions can be commuted the obvious way.
   if (MI->getOpcode() != PPC::RLWIMI &&
-      MI->getOpcode() != PPC::RLWIMIo &&
-      MI->getOpcode() != PPC::RLWIMI8 &&
-      MI->getOpcode() != PPC::RLWIMI8o)
+      MI->getOpcode() != PPC::RLWIMIo)
     return TargetInstrInfo::commuteInstruction(MI, NewMI);
+  // Note that RLWIMI can be commuted as a 32-bit instruction, but not as a
+  // 64-bit instruction (so we don't handle PPC::RLWIMI8 here), because
+  // changing the relative order of the mask operands might change what happens
+  // to the high-bits of the mask (and, thus, the result).
 
   // Cannot commute if it has a non-zero rotate count.
   if (MI->getOperand(3).getImm() != 0)
@@ -329,6 +332,11 @@ void PPCInstrInfo::insertNoop(MachineBasicBlock &MBB,
 
   DebugLoc DL;
   BuildMI(MBB, MI, DL, get(Opcode));
+}
+
+/// getNoopForMachoTarget - Return the noop instruction to use for a noop.
+void PPCInstrInfo::getNoopForMachoTarget(MCInst &NopInst) const {
+  NopInst.setOpcode(PPC::NOP);
 }
 
 // Branch analysis.
@@ -1106,7 +1114,7 @@ bool PPCInstrInfo::PredicateInstruction(
                      MachineInstr *MI,
                      const SmallVectorImpl<MachineOperand> &Pred) const {
   unsigned OpC = MI->getOpcode();
-  if (OpC == PPC::BLR) {
+  if (OpC == PPC::BLR || OpC == PPC::BLR8) {
     if (Pred[1].getReg() == PPC::CTR8 || Pred[1].getReg() == PPC::CTR) {
       bool isPPC64 = Subtarget.isPPC64();
       MI->setDesc(get(Pred[0].getImm() ?
@@ -1270,6 +1278,7 @@ bool PPCInstrInfo::isPredicable(MachineInstr *MI) const {
     return false;
   case PPC::B:
   case PPC::BLR:
+  case PPC::BLR8:
   case PPC::BCTR:
   case PPC::BCTR8:
   case PPC::BCTRL:
@@ -1588,6 +1597,11 @@ unsigned PPCInstrInfo::GetInstSizeInBytes(const MachineInstr *MI) const {
     const MachineFunction *MF = MI->getParent()->getParent();
     const char *AsmStr = MI->getOperand(0).getSymbolName();
     return getInlineAsmLength(AsmStr, *MF->getTarget().getMCAsmInfo());
+  } else if (Opcode == TargetOpcode::STACKMAP) {
+    return MI->getOperand(1).getImm();
+  } else if (Opcode == TargetOpcode::PATCHPOINT) {
+    PatchPointOpers Opers(MI);
+    return Opers.getMetaOper(PatchPointOpers::NBytesPos).getImm();
   } else {
     const MCInstrDesc &Desc = get(Opcode);
     return Desc.getSize();
@@ -1617,6 +1631,7 @@ protected:
       bool Changed = false;
 
       MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
+      const TargetRegisterInfo *TRI = &TII->getRegisterInfo();
       for (MachineBasicBlock::iterator I = MBB.begin(), IE = MBB.end();
            I != IE; ++I) {
         MachineInstr *MI = I;
@@ -1682,16 +1697,26 @@ protected:
         // In theory, there could be other uses of the addend copy before this
         // fma.  We could deal with this, but that would require additional
         // logic below and I suspect it will not occur in any relevant
-        // situations.
-        bool OtherUsers = false;
+        // situations.  Additionally, check whether the copy source is killed
+        // prior to the fma.  In order to replace the addend here with the
+        // source of the copy, it must still be live here.  We can't use
+        // interval testing for a physical register, so as long as we're
+        // walking the MIs we may as well test liveness here.
+        bool OtherUsers = false, KillsAddendSrc = false;
         for (auto J = std::prev(I), JE = MachineBasicBlock::iterator(AddendMI);
-             J != JE; --J)
+             J != JE; --J) {
           if (J->readsVirtualRegister(AddendMI->getOperand(0).getReg())) {
             OtherUsers = true;
             break;
           }
+          if (J->modifiesRegister(AddendSrcReg, TRI) ||
+              J->killsRegister(AddendSrcReg, TRI)) {
+            KillsAddendSrc = true;
+            break;
+          }
+        }
 
-        if (OtherUsers)
+        if (OtherUsers || KillsAddendSrc)
           continue;
 
         // Find one of the product operands that is killed by this instruction.
@@ -1712,10 +1737,11 @@ protected:
         if (!KilledProdOp)
           continue;
 
-        // In order to replace the addend here with the source of the copy,
-        // it must still be live here.
-        if (!LIS->getInterval(AddendMI->getOperand(1).getReg()).liveAt(FMAIdx))
-          continue;
+        // For virtual registers, verify that the addend source register
+        // is live here (as should have been assured above).
+        assert((!TargetRegisterInfo::isVirtualRegister(AddendSrcReg) ||
+                LIS->getInterval(AddendSrcReg).liveAt(FMAIdx)) &&
+               "Addend source register is not live!");
 
         // Transform: (O2 * O3) + O1 -> (O2 * O1) + O3.
 
@@ -1736,6 +1762,12 @@ protected:
         bool OtherProdRegUndef  = MI->getOperand(OtherProdOp).isUndef();
 
         unsigned OldFMAReg = MI->getOperand(0).getReg();
+
+        // The transformation doesn't work well with things like:
+        //    %vreg5 = A-form-op %vreg5, %vreg11, %vreg5;
+        // so leave such things alone.
+        if (OldFMAReg == KilledProdReg)
+          continue;
 
         assert(OldFMAReg == AddendMI->getOperand(0).getReg() &&
                "Addend copy not tied to old FMA output!");
@@ -1827,7 +1859,7 @@ public:
 
       LIS = &getAnalysis<LiveIntervals>();
 
-      TII = TM->getInstrInfo();
+      TII = TM->getSubtargetImpl()->getInstrInfo();
 
       bool Changed = false;
 
@@ -1980,7 +2012,7 @@ public:
       // If we don't have VSX on the subtarget, don't do anything.
       if (!TM->getSubtargetImpl()->hasVSX())
         return false;
-      TII = TM->getInstrInfo();
+      TII = TM->getSubtargetImpl()->getInstrInfo();
 
       bool Changed = false;
 
@@ -2057,7 +2089,7 @@ public:
       // If we don't have VSX don't bother doing anything here.
       if (!TM->getSubtargetImpl()->hasVSX())
         return false;
-      TII = TM->getInstrInfo();
+      TII = TM->getSubtargetImpl()->getInstrInfo();
 
       bool Changed = false;
 
@@ -2113,7 +2145,8 @@ protected:
       I = ReturnMBB.SkipPHIsAndLabels(I);
 
       // The block must be essentially empty except for the blr.
-      if (I == ReturnMBB.end() || I->getOpcode() != PPC::BLR ||
+      if (I == ReturnMBB.end() ||
+          (I->getOpcode() != PPC::BLR && I->getOpcode() != PPC::BLR8) ||
           I != ReturnMBB.getLastNonDebugInstr())
         return Changed;
 
@@ -2126,7 +2159,7 @@ protected:
             if (J->getOperand(0).getMBB() == &ReturnMBB) {
               // This is an unconditional branch to the return. Replace the
               // branch with a blr.
-              BuildMI(**PI, J, J->getDebugLoc(), TII->get(PPC::BLR));
+              BuildMI(**PI, J, J->getDebugLoc(), TII->get(I->getOpcode()));
               MachineBasicBlock::iterator K = J--;
               K->eraseFromParent();
               BlockChanged = true;
@@ -2214,7 +2247,7 @@ protected:
 public:
     bool runOnMachineFunction(MachineFunction &MF) override {
       TM = static_cast<const PPCTargetMachine *>(&MF.getTarget());
-      TII = TM->getInstrInfo();
+      TII = TM->getSubtargetImpl()->getInstrInfo();
 
       bool Changed = false;
 

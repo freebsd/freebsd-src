@@ -8,14 +8,21 @@ LLVM_SRCS= ${.CURDIR}/../../../contrib/llvm
 
 .PATH: ${LLVM_SRCS}/tools/clang/lib/Headers
 
-INCSDIR=${INCLUDEDIR}/clang/3.5.1
+INCSDIR=${LIBDIR}/clang/3.6.0/include
 
-INCS=	__wmmintrin_aes.h \
+INCS=	__stddef_max_align_t.h \
+	__wmmintrin_aes.h \
 	__wmmintrin_pclmul.h \
+	adxintrin.h \
 	altivec.h \
 	ammintrin.h \
 	arm_acle.h \
 	avx2intrin.h \
+	avx512bwintrin.h \
+	avx512erintrin.h \
+	avx512fintrin.h \
+	avx512vlbwintrin.h \
+	avx512vlintrin.h \
 	avxintrin.h \
 	bmi2intrin.h \
 	bmiintrin.h \

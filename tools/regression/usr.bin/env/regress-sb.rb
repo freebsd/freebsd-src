@@ -346,6 +346,7 @@ class RGTestOptions
 	#   "just anything" that matches the general pattern.  There are
 	#   no blanks in the recognized values, but I use an x-tended
 	#   regexp and then add blanks to make it more readable.
+	optval.gsub!(/\[%- testpgm\.pathname -%\]/x, $testpgm)
 	optval.gsub!(/\[%- testpgm\.basename -%\]/x, File.basename($testpgm))
 	optval.gsub!(/\[%- script\.pathname  -%\]/x, $scriptfile)
 

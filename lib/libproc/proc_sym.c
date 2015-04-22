@@ -91,7 +91,7 @@ find_dbg_obj(const char *path)
 	snprintf(dbg_path, sizeof(dbg_path),
 	    "/usr/lib/debug/%s.debug", path);
 	fd = open(dbg_path, O_RDONLY);
-	if (fd > 0)
+	if (fd >= 0)
 		return (fd);
 	else
 		return (open(path, O_RDONLY));

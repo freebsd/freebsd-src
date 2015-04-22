@@ -836,9 +836,9 @@ g_raid_md_taste_jmicron(struct g_raid_md_object *md, struct g_class *mp,
 
 	/* Read metadata from device. */
 	meta = NULL;
-	vendor = 0xffff;
 	g_topology_unlock();
-	len = 2;
+	vendor = 0xffff;
+	len = sizeof(vendor);
 	if (pp->geom->rank == 1)
 		g_io_getattr("GEOM::hba_vendor", cp, &len, &vendor);
 	meta = jmicron_meta_read(cp);

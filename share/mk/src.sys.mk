@@ -11,3 +11,13 @@ SRCCONF?=	/etc/src.conf
 .include "${SRCCONF}"
 _srcconf_included_:	.NOTMAIN
 .endif
+# If we were found via .../share/mk we need to replace that in
+# with ${.PARSEDIR:tA} so that we can be found by
+# sub-makes launched from objdir.
+.if ${.MAKEFLAGS:M.../share/mk} != ""
+.MAKEFLAGS:= ${.MAKEFLAGS:S,.../share/mk,${.PARSEDIR:tA},}
+.endif
+.if ${MAKESYSPATH:Uno:M*.../*} != ""
+MAKESYSPATH:= ${MAKESYSPATH:S,.../share/mk,${.PARSEDIR:tA},}
+.export MAKESYSPATH
+.endif

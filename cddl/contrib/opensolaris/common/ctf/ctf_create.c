@@ -583,10 +583,10 @@ ctf_discard(ctf_file_t *fp)
 		return (0); /* no update required */
 
 	for (dtd = ctf_list_prev(&fp->ctf_dtdefs); dtd != NULL; dtd = ntd) {
-		if (dtd->dtd_type <= fp->ctf_dtoldid)
+		ntd = ctf_list_prev(dtd);
+		if (CTF_TYPE_TO_INDEX(dtd->dtd_type) <= fp->ctf_dtoldid)
 			continue; /* skip types that have been committed */
 
-		ntd = ctf_list_prev(dtd);
 		ctf_dtd_delete(fp, dtd);
 	}
 
@@ -1313,10 +1313,13 @@ ctf_add_type(ctf_file_t *dst_fp, ctf_file_t *src_fp, ctf_id_t src_type)
 	 * unless dst_type is a forward declaration and src_type is a struct,
 	 * union, or enum (i.e. the definition of the previous forward decl).
 	 */
-	if (dst_type != CTF_ERR && dst_kind != kind && (
-	    dst_kind != CTF_K_FORWARD || (kind != CTF_K_ENUM &&
-	    kind != CTF_K_STRUCT && kind != CTF_K_UNION)))
-		return (ctf_set_errno(dst_fp, ECTF_CONFLICT));
+	if (dst_type != CTF_ERR && dst_kind != kind) {
+		if (dst_kind != CTF_K_FORWARD || (kind != CTF_K_ENUM &&
+		    kind != CTF_K_STRUCT && kind != CTF_K_UNION))
+			return (ctf_set_errno(dst_fp, ECTF_CONFLICT));
+		else
+			dst_type = CTF_ERR;
+	}
 
 	/*
 	 * If the non-empty name was not found in the appropriate hash, search
@@ -1328,7 +1331,7 @@ ctf_add_type(ctf_file_t *dst_fp, ctf_file_t *src_fp, ctf_id_t src_type)
 	 */
 	if (dst_type == CTF_ERR && name[0] != '\0') {
 		for (dtd = ctf_list_prev(&dst_fp->ctf_dtdefs); dtd != NULL &&
-		    dtd->dtd_type > dst_fp->ctf_dtoldid;
+		    CTF_TYPE_TO_INDEX(dtd->dtd_type) > dst_fp->ctf_dtoldid;
 		    dtd = ctf_list_prev(dtd)) {
 			if (CTF_INFO_KIND(dtd->dtd_data.ctt_info) == kind &&
 			    dtd->dtd_name != NULL &&

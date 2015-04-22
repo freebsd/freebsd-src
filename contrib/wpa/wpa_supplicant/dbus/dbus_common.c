@@ -17,6 +17,7 @@
 #include "dbus_common_i.h"
 #include "dbus_new.h"
 #include "dbus_old.h"
+#include "../wpa_supplicant_i.h"
 
 
 #ifndef SIGPOLL
@@ -164,6 +165,7 @@ static void process_timeout(void *eloop_ctx, void *sock_ctx)
 static dbus_bool_t add_timeout(DBusTimeout *timeout, void *data)
 {
 	struct wpas_dbus_priv *priv = data;
+
 	if (!dbus_timeout_get_enabled(timeout))
 		return TRUE;
 
@@ -179,6 +181,7 @@ static dbus_bool_t add_timeout(DBusTimeout *timeout, void *data)
 static void remove_timeout(DBusTimeout *timeout, void *data)
 {
 	struct wpas_dbus_priv *priv = data;
+
 	eloop_cancel_timeout(process_timeout, priv, timeout);
 	dbus_timeout_set_data(timeout, NULL, NULL);
 }
@@ -243,8 +246,7 @@ static int integrate_with_eloop(struct wpas_dbus_priv *priv)
 						   remove_timeout,
 						   timeout_toggled, priv,
 						   NULL)) {
-		wpa_printf(MSG_ERROR, "dbus: Failed to set callback "
-			   "functions");
+		wpa_printf(MSG_ERROR, "dbus: Failed to set callback functions");
 		return -1;
 	}
 
@@ -257,6 +259,22 @@ static int integrate_with_eloop(struct wpas_dbus_priv *priv)
 }
 
 
+static DBusHandlerResult disconnect_filter(DBusConnection *conn,
+					   DBusMessage *message, void *data)
+{
+	struct wpas_dbus_priv *priv = data;
+
+	if (dbus_message_is_signal(message, DBUS_INTERFACE_LOCAL,
+				   "Disconnected")) {
+		wpa_printf(MSG_DEBUG, "dbus: bus disconnected, terminating");
+		dbus_connection_set_exit_on_disconnect(conn, FALSE);
+		wpa_supplicant_terminate_proc(priv->global);
+		return DBUS_HANDLER_RESULT_HANDLED;
+	} else
+		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+}
+
+
 static int wpas_dbus_init_common(struct wpas_dbus_priv *priv)
 {
 	DBusError error;
@@ -265,9 +283,13 @@ static int wpas_dbus_init_common(struct wpas_dbus_priv *priv)
 	/* Get a reference to the system bus */
 	dbus_error_init(&error);
 	priv->con = dbus_bus_get(DBUS_BUS_SYSTEM, &error);
-	if (!priv->con) {
-		wpa_printf(MSG_ERROR, "dbus: Could not acquire the system "
-			   "bus: %s - %s", error.name, error.message);
+	if (priv->con) {
+		dbus_connection_add_filter(priv->con, disconnect_filter, priv,
+					   NULL);
+	} else {
+		wpa_printf(MSG_ERROR,
+			   "dbus: Could not acquire the system bus: %s - %s",
+			   error.name, error.message);
 		ret = -1;
 	}
 	dbus_error_free(&error);
@@ -289,7 +311,7 @@ static int wpas_dbus_init_common_finish(struct wpas_dbus_priv *priv)
 	 * FIXME: is there a better solution to this problem?
 	 */
 	eloop_register_timeout(0, 50, dispatch_initial_dbus_messages,
-	                       priv->con, NULL);
+			       priv->con, NULL);
 
 	return 0;
 }
@@ -300,10 +322,15 @@ static void wpas_dbus_deinit_common(struct wpas_dbus_priv *priv)
 	if (priv->con) {
 		eloop_cancel_timeout(dispatch_initial_dbus_messages,
 				     priv->con, NULL);
+		eloop_cancel_timeout(process_timeout, priv, ELOOP_ALL_CTX);
+
 		dbus_connection_set_watch_functions(priv->con, NULL, NULL,
 						    NULL, NULL, NULL);
 		dbus_connection_set_timeout_functions(priv->con, NULL, NULL,
 						      NULL, NULL, NULL);
+		dbus_connection_remove_filter(priv->con, disconnect_filter,
+					      priv);
+
 		dbus_connection_unref(priv->con);
 	}
 
@@ -320,26 +347,14 @@ struct wpas_dbus_priv * wpas_dbus_init(struct wpa_global *global)
 		return NULL;
 	priv->global = global;
 
-	if (wpas_dbus_init_common(priv) < 0) {
-		wpas_dbus_deinit(priv);
-		return NULL;
-	}
-
+	if (wpas_dbus_init_common(priv) < 0 ||
 #ifdef CONFIG_CTRL_IFACE_DBUS_NEW
-	if (wpas_dbus_ctrl_iface_init(priv) < 0) {
-		wpas_dbus_deinit(priv);
-		return NULL;
-	}
+	    wpas_dbus_ctrl_iface_init(priv) < 0 ||
 #endif /* CONFIG_CTRL_IFACE_DBUS_NEW */
-
 #ifdef CONFIG_CTRL_IFACE_DBUS
-	if (wpa_supplicant_dbus_ctrl_iface_init(priv) < 0) {
-		wpas_dbus_deinit(priv);
-		return NULL;
-	}
+	    wpa_supplicant_dbus_ctrl_iface_init(priv) < 0 ||
 #endif /* CONFIG_CTRL_IFACE_DBUS */
-
-	if (wpas_dbus_init_common_finish(priv) < 0) {
+	    wpas_dbus_init_common_finish(priv) < 0) {
 		wpas_dbus_deinit(priv);
 		return NULL;
 	}

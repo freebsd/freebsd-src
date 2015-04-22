@@ -91,7 +91,14 @@ public:
     GetSummary ();
     
     const char *
+    GetSummary (lldb::SBStream& stream,
+                lldb::SBTypeSummaryOptions& options);
+    
+    const char *
     GetObjectDescription ();
+    
+    const char *
+    GetTypeValidatorResult ();
     
     lldb::SBValue
     GetDynamicValue (lldb::DynamicValueType use_dynamic);
@@ -152,6 +159,7 @@ public:
     lldb::SBValue
     CreateChildAtOffset (const char *name, uint32_t offset, lldb::SBType type);
     
+    // Deprecated - use the expression evaluator to perform type casting
     lldb::SBValue
     Cast (lldb::SBType type);
     
@@ -345,6 +353,9 @@ public:
     
     lldb::SBType
     GetType();
+    
+    lldb::SBValue
+    Persist ();
 
     bool
     GetDescription (lldb::SBStream &description);

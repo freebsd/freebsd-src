@@ -796,6 +796,7 @@
 .ds doc-str-Lb-libmd       Message Digest (MD4, MD5, etc.) Support Library (libmd, \-lmd)
 .ds doc-str-Lb-libmemstat  Kernel Memory Allocator Statistics Library (libmemstat, \-lmemstat)
 .ds doc-str-Lb-libmenu     Curses Menu Library (libmenu, \-lmenu)
+.ds doc-str-Lb-libmt       Magnetic Tape Library (libmt, \-lmt)
 .ds doc-str-Lb-libnetgraph Netgraph User Library (libnetgraph, \-lnetgraph)
 .ds doc-str-Lb-libnetpgp   Netpgp signing, verification, encryption and decryption (libnetpgp, \-lnetpgp)
 .ds doc-str-Lb-libossaudio OSS Audio Emulation Library (libossaudio, \-lossaudio)

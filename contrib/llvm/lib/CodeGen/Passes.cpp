@@ -27,6 +27,7 @@
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Utils/SymbolRewriter.h"
 
 using namespace llvm;
 
@@ -71,6 +72,8 @@ static cl::opt<bool> DisableCGP("disable-cgp", cl::Hidden,
     cl::desc("Disable Codegen Prepare"));
 static cl::opt<bool> DisableCopyProp("disable-copyprop", cl::Hidden,
     cl::desc("Disable Copy Propagation pass"));
+static cl::opt<bool> DisablePartialLibcallInlining("disable-partial-libcall-inlining",
+    cl::Hidden, cl::desc("Disable Partial Libcall Inlining"));
 static cl::opt<bool> PrintLSR("print-lsr-output", cl::Hidden,
     cl::desc("Print LLVM IR produced by the loop-reduce pass"));
 static cl::opt<bool> PrintISelInput("print-isel-input", cl::Hidden,
@@ -96,6 +99,10 @@ static cl::opt<bool> MISchedPostRA("misched-postra", cl::Hidden,
 // Experimental option to run live interval analysis early.
 static cl::opt<bool> EarlyLiveIntervals("early-live-intervals", cl::Hidden,
     cl::desc("Run live interval analysis earlier in the pipeline"));
+
+static cl::opt<bool> UseCFLAA("use-cfl-aa-in-codegen",
+  cl::init(false), cl::Hidden,
+  cl::desc("Enable the new, experimental CFL alias analysis in CodeGen"));
 
 /// Allow standard passes to be disabled by command line options. This supports
 /// simple binary flags that either suppress the pass or do nothing.
@@ -228,8 +235,8 @@ TargetPassConfig::~TargetPassConfig() {
 // registers all common codegen passes.
 TargetPassConfig::TargetPassConfig(TargetMachine *tm, PassManagerBase &pm)
   : ImmutablePass(ID), PM(&pm), StartAfter(nullptr), StopAfter(nullptr),
-    Started(true), Stopped(false), TM(tm), Impl(nullptr), Initialized(false),
-    DisableVerify(false),
+    Started(true), Stopped(false), AddingMachinePasses(false), TM(tm),
+    Impl(nullptr), Initialized(false), DisableVerify(false),
     EnableTailMerge(true) {
 
   Impl = new PassConfigImpl();
@@ -297,7 +304,7 @@ IdentifyingPassPtr TargetPassConfig::getPassSubstitution(AnalysisID ID) const {
 /// a later pass or that it should stop after an earlier pass, then do not add
 /// the pass.  Finally, compare the current pass against the StartAfter
 /// and StopAfter options and change the Started/Stopped flags accordingly.
-void TargetPassConfig::addPass(Pass *P) {
+void TargetPassConfig::addPass(Pass *P, bool verifyAfter, bool printAfter) {
   assert(!Initialized && "PassConfig is immutable");
 
   // Cache the Pass ID here in case the pass manager finds this pass is
@@ -306,10 +313,21 @@ void TargetPassConfig::addPass(Pass *P) {
   // and shouldn't reference it.
   AnalysisID PassID = P->getPassID();
 
-  if (Started && !Stopped)
+  if (Started && !Stopped) {
+    std::string Banner;
+    // Construct banner message before PM->add() as that may delete the pass.
+    if (AddingMachinePasses && (printAfter || verifyAfter))
+      Banner = std::string("After ") + std::string(P->getPassName());
     PM->add(P);
-  else
+    if (AddingMachinePasses) {
+      if (printAfter)
+        addPrintPass(Banner);
+      if (verifyAfter)
+        addVerifyPass(Banner);
+    }
+  } else {
     delete P;
+  }
   if (StopAfter == PassID)
     Stopped = true;
   if (StartAfter == PassID)
@@ -323,7 +341,8 @@ void TargetPassConfig::addPass(Pass *P) {
 ///
 /// addPass cannot return a pointer to the pass instance because is internal the
 /// PassManager and the instance we create here may already be freed.
-AnalysisID TargetPassConfig::addPass(AnalysisID PassID) {
+AnalysisID TargetPassConfig::addPass(AnalysisID PassID, bool verifyAfter,
+                                     bool printAfter) {
   IdentifyingPassPtr TargetID = getPassSubstitution(PassID);
   IdentifyingPassPtr FinalPtr = overridePass(PassID, TargetID);
   if (!FinalPtr.isValid())
@@ -338,7 +357,7 @@ AnalysisID TargetPassConfig::addPass(AnalysisID PassID) {
       llvm_unreachable("Pass ID not registered");
   }
   AnalysisID FinalID = P->getPassID();
-  addPass(P); // Ends the lifetime of P.
+  addPass(P, verifyAfter, printAfter); // Ends the lifetime of P.
 
   // Add the passes after the pass P if there is any.
   for (SmallVectorImpl<std::pair<AnalysisID, IdentifyingPassPtr> >::iterator
@@ -353,18 +372,25 @@ AnalysisID TargetPassConfig::addPass(AnalysisID PassID) {
         NP = Pass::createPass((*I).second.getID());
         assert(NP && "Pass ID not registered");
       }
-      addPass(NP);
+      addPass(NP, false, false);
     }
   }
   return FinalID;
 }
 
-void TargetPassConfig::printAndVerify(const char *Banner) {
-  if (TM->shouldPrintMachineCode())
-    addPass(createMachineFunctionPrinterPass(dbgs(), Banner));
+void TargetPassConfig::printAndVerify(const std::string &Banner) {
+  addPrintPass(Banner);
+  addVerifyPass(Banner);
+}
 
+void TargetPassConfig::addPrintPass(const std::string &Banner) {
+  if (TM->shouldPrintMachineCode())
+    PM->add(createMachineFunctionPrinterPass(dbgs(), Banner));
+}
+
+void TargetPassConfig::addVerifyPass(const std::string &Banner) {
   if (VerifyMachineCode)
-    addPass(createMachineVerifierPass(Banner));
+    PM->add(createMachineVerifierPass(Banner));
 }
 
 /// Add common target configurable passes that perform LLVM IR to IR transforms
@@ -374,7 +400,10 @@ void TargetPassConfig::addIRPasses() {
   // Add TypeBasedAliasAnalysis before BasicAliasAnalysis so that
   // BasicAliasAnalysis wins if they disagree. This is intended to help
   // support "obvious" type-punning idioms.
+  if (UseCFLAA)
+    addPass(createCFLAliasAnalysisPass());
   addPass(createTypeBasedAliasAnalysisPass());
+  addPass(createScopedNoAliasAAPass());
   addPass(createBasicAliasAnalysisPass());
 
   // Before running any passes, run the verifier to determine if the input
@@ -399,6 +428,9 @@ void TargetPassConfig::addIRPasses() {
   // Prepare expensive constants for SelectionDAG.
   if (getOptLevel() != CodeGenOpt::None && !DisableConstantHoisting)
     addPass(createConstantHoistingPass());
+
+  if (getOptLevel() != CodeGenOpt::None && !DisablePartialLibcallInlining)
+    addPass(createPartiallyInlineLibCallsPass());
 }
 
 /// Turn exception handling constructs into something the code generators can
@@ -416,9 +448,10 @@ void TargetPassConfig::addPassesToHandleExceptions() {
     // FALLTHROUGH
   case ExceptionHandling::DwarfCFI:
   case ExceptionHandling::ARM:
-  case ExceptionHandling::WinEH:
+  case ExceptionHandling::ItaniumWinEH:
     addPass(createDwarfEHPass(TM));
     break;
+  case ExceptionHandling::MSVC: // FIXME: Add preparation.
   case ExceptionHandling::None:
     addPass(createLowerInvokePass());
 
@@ -433,6 +466,7 @@ void TargetPassConfig::addPassesToHandleExceptions() {
 void TargetPassConfig::addCodeGenPrepare() {
   if (getOptLevel() != CodeGenOpt::None && !DisableCGP)
     addPass(createCodeGenPreparePass(TM));
+  addPass(createRewriteSymbolsPass());
 }
 
 /// Add common passes that perform LLVM IR to IR transforms in preparation for
@@ -477,6 +511,8 @@ void TargetPassConfig::addISelPrepare() {
 /// TODO: We could use a single addPre/Post(ID) hook to allow pass injection
 /// before/after any target-independent pass. But it's currently overkill.
 void TargetPassConfig::addMachinePasses() {
+  AddingMachinePasses = true;
+
   // Insert a machine instr printer pass after the specified pass.
   // If -print-machineinstrs specified, print machineinstrs after all passes.
   if (StringRef(PrintMachineInstrs.getValue()).equals(""))
@@ -485,7 +521,7 @@ void TargetPassConfig::addMachinePasses() {
            .equals("option-unspecified")) {
     const PassRegistry *PR = PassRegistry::getPassRegistry();
     const PassInfo *TPI = PR->getPassInfo(PrintMachineInstrs.getValue());
-    const PassInfo *IPI = PR->getPassInfo(StringRef("print-machineinstrs"));
+    const PassInfo *IPI = PR->getPassInfo(StringRef("machineinstr-printer"));
     assert (TPI && IPI && "Pass ID not registered!");
     const char *TID = (const char *)(TPI->getTypeInfo());
     const char *IID = (const char *)(IPI->getTypeInfo());
@@ -496,8 +532,7 @@ void TargetPassConfig::addMachinePasses() {
   printAndVerify("After Instruction Selection");
 
   // Expand pseudo-instructions emitted by ISel.
-  if (addPass(&ExpandISelPseudosID))
-    printAndVerify("After ExpandISelPseudos");
+  addPass(&ExpandISelPseudosID);
 
   // Add passes that optimize machine instructions in SSA form.
   if (getOptLevel() != CodeGenOpt::None) {
@@ -505,12 +540,11 @@ void TargetPassConfig::addMachinePasses() {
   } else {
     // If the target requests it, assign local variables to stack slots relative
     // to one another and simplify frame index references where possible.
-    addPass(&LocalStackSlotAllocationID);
+    addPass(&LocalStackSlotAllocationID, false);
   }
 
   // Run pre-ra passes.
-  if (addPreRegAlloc())
-    printAndVerify("After PreRegAlloc passes");
+  addPreRegAlloc();
 
   // Run register allocation and passes that are tightly coupled with it,
   // including phi elimination and scheduling.
@@ -520,12 +554,10 @@ void TargetPassConfig::addMachinePasses() {
     addFastRegAlloc(createRegAllocPass(false));
 
   // Run post-ra passes.
-  if (addPostRegAlloc())
-    printAndVerify("After PostRegAlloc passes");
+  addPostRegAlloc();
 
   // Insert prolog/epilog code.  Eliminate abstract frame index references...
   addPass(&PrologEpilogCodeInserterID);
-  printAndVerify("After PrologEpilogCodeInserter");
 
   /// Add passes that optimize machine instructions after register allocation.
   if (getOptLevel() != CodeGenOpt::None)
@@ -533,11 +565,9 @@ void TargetPassConfig::addMachinePasses() {
 
   // Expand pseudo instructions before second scheduling pass.
   addPass(&ExpandPostRAPseudosID);
-  printAndVerify("After ExpandPostRAPseudos");
 
   // Run pre-sched2 passes.
-  if (addPreSched2())
-    printAndVerify("After PreSched2 passes");
+  addPreSched2();
 
   // Second pass scheduler.
   if (getOptLevel() != CodeGenOpt::None) {
@@ -545,63 +575,61 @@ void TargetPassConfig::addMachinePasses() {
       addPass(&PostMachineSchedulerID);
     else
       addPass(&PostRASchedulerID);
-    printAndVerify("After PostRAScheduler");
   }
 
   // GC
   if (addGCPasses()) {
     if (PrintGCInfo)
-      addPass(createGCInfoPrinter(dbgs()));
+      addPass(createGCInfoPrinter(dbgs()), false, false);
   }
 
   // Basic block placement.
   if (getOptLevel() != CodeGenOpt::None)
     addBlockPlacement();
 
-  if (addPreEmitPass())
-    printAndVerify("After PreEmit passes");
+  addPreEmitPass();
 
-  addPass(&StackMapLivenessID);
+  addPass(&StackMapLivenessID, false);
+
+  AddingMachinePasses = false;
 }
 
 /// Add passes that optimize machine instructions in SSA form.
 void TargetPassConfig::addMachineSSAOptimization() {
   // Pre-ra tail duplication.
-  if (addPass(&EarlyTailDuplicateID))
-    printAndVerify("After Pre-RegAlloc TailDuplicate");
+  addPass(&EarlyTailDuplicateID);
 
   // Optimize PHIs before DCE: removing dead PHI cycles may make more
   // instructions dead.
-  addPass(&OptimizePHIsID);
+  addPass(&OptimizePHIsID, false);
 
   // This pass merges large allocas. StackSlotColoring is a different pass
   // which merges spill slots.
-  addPass(&StackColoringID);
+  addPass(&StackColoringID, false);
 
   // If the target requests it, assign local variables to stack slots relative
   // to one another and simplify frame index references where possible.
-  addPass(&LocalStackSlotAllocationID);
+  addPass(&LocalStackSlotAllocationID, false);
 
   // With optimization, dead code should already be eliminated. However
   // there is one known exception: lowered code for arguments that are only
   // used by tail calls, where the tail calls reuse the incoming stack
   // arguments directly (see t11 in test/CodeGen/X86/sibcall.ll).
   addPass(&DeadMachineInstructionElimID);
-  printAndVerify("After codegen DCE pass");
 
   // Allow targets to insert passes that improve instruction level parallelism,
   // like if-conversion. Such passes will typically need dominator trees and
   // loop info, just like LICM and CSE below.
-  if (addILPOpts())
-    printAndVerify("After ILP optimizations");
+  addILPOpts();
 
-  addPass(&MachineLICMID);
-  addPass(&MachineCSEID);
+  addPass(&MachineLICMID, false);
+  addPass(&MachineCSEID, false);
   addPass(&MachineSinkingID);
-  printAndVerify("After Machine LICM, CSE and Sinking passes");
 
-  addPass(&PeepholeOptimizerID);
-  printAndVerify("After codegen peephole optimization pass");
+  addPass(&PeepholeOptimizerID, false);
+  // Clean-up the dead code that may have been generated by peephole
+  // rewriting.
+  addPass(&DeadMachineInstructionElimID);
 }
 
 //===---------------------------------------------------------------------===//
@@ -675,21 +703,26 @@ FunctionPass *TargetPassConfig::createRegAllocPass(bool Optimized) {
   return createTargetRegisterAllocator(Optimized);
 }
 
+/// Return true if the default global register allocator is in use and
+/// has not be overriden on the command line with '-regalloc=...'
+bool TargetPassConfig::usingDefaultRegAlloc() const {
+  return RegAlloc.getNumOccurrences() == 0;
+}
+
 /// Add the minimum set of target-independent passes that are required for
 /// register allocation. No coalescing or scheduling.
 void TargetPassConfig::addFastRegAlloc(FunctionPass *RegAllocPass) {
-  addPass(&PHIEliminationID);
-  addPass(&TwoAddressInstructionPassID);
+  addPass(&PHIEliminationID, false);
+  addPass(&TwoAddressInstructionPassID, false);
 
   addPass(RegAllocPass);
-  printAndVerify("After Register Allocation");
 }
 
 /// Add standard target-independent passes that are tightly coupled with
 /// optimized register allocation, including coalescing, machine instruction
 /// scheduling, and register allocation itself.
 void TargetPassConfig::addOptimizedRegAlloc(FunctionPass *RegAllocPass) {
-  addPass(&ProcessImplicitDefsID);
+  addPass(&ProcessImplicitDefsID, false);
 
   // LiveVariables currently requires pure SSA form.
   //
@@ -697,34 +730,30 @@ void TargetPassConfig::addOptimizedRegAlloc(FunctionPass *RegAllocPass) {
   // LiveVariables can be removed completely, and LiveIntervals can be directly
   // computed. (We still either need to regenerate kill flags after regalloc, or
   // preferably fix the scavenger to not depend on them).
-  addPass(&LiveVariablesID);
+  addPass(&LiveVariablesID, false);
 
   // Edge splitting is smarter with machine loop info.
-  addPass(&MachineLoopInfoID);
-  addPass(&PHIEliminationID);
+  addPass(&MachineLoopInfoID, false);
+  addPass(&PHIEliminationID, false);
 
   // Eventually, we want to run LiveIntervals before PHI elimination.
   if (EarlyLiveIntervals)
-    addPass(&LiveIntervalsID);
+    addPass(&LiveIntervalsID, false);
 
-  addPass(&TwoAddressInstructionPassID);
+  addPass(&TwoAddressInstructionPassID, false);
   addPass(&RegisterCoalescerID);
 
   // PreRA instruction scheduling.
-  if (addPass(&MachineSchedulerID))
-    printAndVerify("After Machine Scheduling");
+  addPass(&MachineSchedulerID);
 
   // Add the selected register allocation pass.
   addPass(RegAllocPass);
-  printAndVerify("After Register Allocation, before rewriter");
 
   // Allow targets to change the register assignments before rewriting.
-  if (addPreRewrite())
-    printAndVerify("After pre-rewrite passes");
+  addPreRewrite();
 
   // Finally rewrite virtual registers.
   addPass(&VirtRegRewriterID);
-  printAndVerify("After Virtual Register Rewriter");
 
   // Perform stack slot coloring and post-ra machine LICM.
   //
@@ -736,8 +765,6 @@ void TargetPassConfig::addOptimizedRegAlloc(FunctionPass *RegAllocPass) {
   //
   // FIXME: can this move into MachineLateOptimization?
   addPass(&PostRAMachineLICMID);
-
-  printAndVerify("After StackSlotColoring and postra Machine LICM");
 }
 
 //===---------------------------------------------------------------------===//
@@ -747,34 +774,30 @@ void TargetPassConfig::addOptimizedRegAlloc(FunctionPass *RegAllocPass) {
 /// Add passes that optimize machine instructions after register allocation.
 void TargetPassConfig::addMachineLateOptimization() {
   // Branch folding must be run after regalloc and prolog/epilog insertion.
-  if (addPass(&BranchFolderPassID))
-    printAndVerify("After BranchFolding");
+  addPass(&BranchFolderPassID);
 
   // Tail duplication.
   // Note that duplicating tail just increases code size and degrades
   // performance for targets that require Structured Control Flow.
   // In addition it can also make CFG irreducible. Thus we disable it.
-  if (!TM->requiresStructuredCFG() && addPass(&TailDuplicateID))
-    printAndVerify("After TailDuplicate");
+  if (!TM->requiresStructuredCFG())
+    addPass(&TailDuplicateID);
 
   // Copy propagation.
-  if (addPass(&MachineCopyPropagationID))
-    printAndVerify("After copy propagation pass");
+  addPass(&MachineCopyPropagationID);
 }
 
 /// Add standard GC passes.
 bool TargetPassConfig::addGCPasses() {
-  addPass(&GCMachineCodeAnalysisID);
+  addPass(&GCMachineCodeAnalysisID, false);
   return true;
 }
 
 /// Add standard basic block placement passes.
 void TargetPassConfig::addBlockPlacement() {
-  if (addPass(&MachineBlockPlacementID)) {
+  if (addPass(&MachineBlockPlacementID, false)) {
     // Run a separate pass to collect block placement statistics.
     if (EnableBlockPlacementStats)
       addPass(&MachineBlockPlacementStatsID);
-
-    printAndVerify("After machine block placement.");
   }
 }

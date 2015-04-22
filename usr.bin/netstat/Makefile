@@ -41,4 +41,6 @@ LIBADD+=	netgraph
 CFLAGS+=-DNETGRAPH
 .endif
 
+LIBADD+= xo
+
 .include <bsd.prog.mk>

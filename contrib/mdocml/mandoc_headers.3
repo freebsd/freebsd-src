@@ -47,7 +47,7 @@ HTML formatters
 search tools
 .El
 .Pp
-Note that mere usage of an opaque type does
+Note that mere usage of an opaque struct type does
 .Em not
 require inclusion of the header where that type is defined.
 .Ss Parser interface
@@ -204,7 +204,11 @@ are included, the same file should not include any formatter headers.
 Requires
 .In sys/types.h
 for
-.Vt size_t .
+.Vt size_t
+and
+.Qq Pa mandoc.h
+for
+.Vt enum mandocerr .
 .Pp
 Provides
 .Vt enum rofferr ,
@@ -222,8 +226,7 @@ from
 .Pa roff.c
 for function prototypes.
 Uses the types
-.Vt enum mandocerr ,
-.Vt struct tbl_span ,
+.Vt struct tbl_span
 and
 .Vt struct eqn
 from

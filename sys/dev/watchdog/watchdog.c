@@ -28,6 +28,8 @@
  *
  */
 
+#include "opt_ddb.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -37,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>
+#include <sys/kdb.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/sysctl.h>

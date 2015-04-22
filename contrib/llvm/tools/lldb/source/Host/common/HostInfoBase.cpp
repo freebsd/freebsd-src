@@ -18,7 +18,9 @@
 #include "lldb/Host/HostInfoBase.h"
 
 #include "llvm/ADT/Triple.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/Host.h"
+#include "llvm/Support/raw_ostream.h"
 
 #include <thread>
 
@@ -54,6 +56,7 @@ struct HostInfoBaseFields
     FileSpec m_lldb_support_exe_dir;
     FileSpec m_lldb_headers_dir;
     FileSpec m_lldb_python_dir;
+    FileSpec m_lldb_clang_resource_dir;
     FileSpec m_lldb_system_plugin_dir;
     FileSpec m_lldb_user_plugin_dir;
     FileSpec m_lldb_tmp_dir;
@@ -92,6 +95,12 @@ HostInfoBase::GetNumberCPUS()
     }
 
     return g_fields->m_number_cpus;
+}
+
+uint32_t
+HostInfoBase::GetMaxThreadNameLength()
+{
+    return 0;
 }
 
 llvm::StringRef
@@ -190,6 +199,11 @@ HostInfoBase::GetLLDBPath(lldb::PathType type, FileSpec &file_spec)
             if (log)
                 log->Printf("HostInfoBase::GetLLDBPath(ePathTypePythonDir) => '%s'", g_fields->m_lldb_python_dir.GetPath().c_str());
             break;
+        case lldb::ePathTypeClangDir:
+            COMPUTE_LLDB_PATH(ComputeClangDirectory, g_fields->m_lldb_clang_resource_dir)
+            if (log)
+                log->Printf("HostInfoBase::GetLLDBPath(ePathTypeClangResourceDir) => '%s'", g_fields->m_lldb_clang_resource_dir.GetPath().c_str());
+            break;
         case lldb::ePathTypeLLDBSystemPlugins:
             COMPUTE_LLDB_PATH(ComputeSystemPluginsDirectory, g_fields->m_lldb_system_plugin_dir)
             if (log)
@@ -252,19 +266,23 @@ HostInfoBase::ComputeTempFileDirectory(FileSpec &file_spec)
     if (!tmpdir_cstr)
         return false;
 
-    StreamString pid_tmpdir;
-    pid_tmpdir.Printf("%s/lldb", tmpdir_cstr);
-    if (!FileSystem::MakeDirectory(pid_tmpdir.GetString().c_str(), eFilePermissionsDirectoryDefault).Success())
+    FileSpec temp_file_spec(tmpdir_cstr, false);
+    temp_file_spec.AppendPathComponent("lldb");
+    if (!FileSystem::MakeDirectory(temp_file_spec.GetPath().c_str(), eFilePermissionsDirectoryDefault).Success())
         return false;
 
-    pid_tmpdir.Printf("/%" PRIu64, Host::GetCurrentProcessID());
-    if (!FileSystem::MakeDirectory(pid_tmpdir.GetString().c_str(), eFilePermissionsDirectoryDefault).Success())
+    std::string pid_str;
+    llvm::raw_string_ostream pid_stream(pid_str);
+    pid_stream << Host::GetCurrentProcessID();
+    temp_file_spec.AppendPathComponent(pid_stream.str().c_str());
+    std::string final_path = temp_file_spec.GetPath();
+    if (!FileSystem::MakeDirectory(final_path.c_str(), eFilePermissionsDirectoryDefault).Success())
         return false;
 
     // Make an atexit handler to clean up the process specify LLDB temp dir
     // and all of its contents.
     ::atexit(CleanupProcessSpecificLLDBTempDir);
-    file_spec.GetDirectory().SetCStringWithLength(pid_tmpdir.GetString().c_str(), pid_tmpdir.GetString().size());
+    file_spec.GetDirectory().SetCStringWithLength(final_path.c_str(), final_path.size());
     return true;
 }
 
@@ -279,6 +297,12 @@ bool
 HostInfoBase::ComputeSystemPluginsDirectory(FileSpec &file_spec)
 {
     // TODO(zturner): Figure out how to compute the system plugins directory for all platforms.
+    return false;
+}
+
+bool
+HostInfoBase::ComputeClangDirectory(FileSpec &file_spec)
+{
     return false;
 }
 

@@ -5,12 +5,15 @@
 LIB=	llvmaarch64codegen
 
 SRCDIR=	lib/Target/AArch64
-SRCS=	AArch64AddressTypePromotion.cpp \
+SRCS=	AArch64A53Fix835769.cpp \
+	AArch64A57FPLoadBalancing.cpp \
+	AArch64AddressTypePromotion.cpp \
 	AArch64AdvSIMDScalarPass.cpp \
 	AArch64AsmPrinter.cpp \
 	AArch64BranchRelaxation.cpp \
 	AArch64CleanupLocalDynamicTLSPass.cpp \
 	AArch64CollectLOH.cpp \
+	AArch64ConditionOptimizer.cpp \
 	AArch64ConditionalCompares.cpp \
 	AArch64DeadRegisterDefinitionsPass.cpp \
 	AArch64ExpandPseudoInsts.cpp \
@@ -21,6 +24,7 @@ SRCS=	AArch64AddressTypePromotion.cpp \
 	AArch64InstrInfo.cpp \
 	AArch64LoadStoreOptimizer.cpp \
 	AArch64MCInstLower.cpp \
+	AArch64PBQPRegAlloc.cpp \
 	AArch64PromoteConstant.cpp \
 	AArch64RegisterInfo.cpp \
 	AArch64SelectionDAGInfo.cpp \

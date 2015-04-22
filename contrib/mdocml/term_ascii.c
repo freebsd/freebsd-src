@@ -1,4 +1,4 @@
-/*	$Id: term_ascii.c,v 1.40 2014/11/20 13:56:20 schwarze Exp $ */
+/*	$Id: term_ascii.c,v 1.43 2015/02/16 14:11:41 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -63,12 +63,17 @@ ascii_init(enum termenc enc, const struct mchars *mchars, char *outopts)
 	const char	*toks[5];
 	char		*v;
 	struct termp	*p;
+	const char	*errstr;
+	int		num;
 
 	p = mandoc_calloc(1, sizeof(struct termp));
 
 	p->symtab = mchars;
 	p->tabwidth = 5;
 	p->defrmargin = p->lastrmargin = 78;
+	p->fontq = mandoc_reallocarray(NULL,
+	     (p->fontsz = 8), sizeof(enum termfont));
+	p->fontq[0] = p->fontl = TERMFONT_NONE;
 
 	p->begin = ascii_begin;
 	p->end = ascii_end;
@@ -106,10 +111,14 @@ ascii_init(enum termenc enc, const struct mchars *mchars, char *outopts)
 	while (outopts && *outopts)
 		switch (getsubopt(&outopts, UNCONST(toks), &v)) {
 		case 0:
-			p->defindent = (size_t)atoi(v);
+			num = strtonum(v, 0, 1000, &errstr);
+			if (!errstr)
+				p->defindent = num;
 			break;
 		case 1:
-			p->defrmargin = (size_t)atoi(v);
+			num = strtonum(v, 0, 1000, &errstr);
+			if (!errstr)
+				p->defrmargin = num;
 			break;
 		case 2:
 			/*
@@ -169,6 +178,20 @@ ascii_setwidth(struct termp *p, int iop, size_t width)
 		p->defrmargin = 0;
 	p->lastrmargin = p->rmargin;
 	p->rmargin = p->maxrmargin = p->defrmargin;
+}
+
+void
+ascii_sepline(void *arg)
+{
+	struct termp	*p;
+	size_t		 i;
+
+	p = (struct termp *)arg;
+	putchar('\n');
+	for (i = 0; i < p->defrmargin; i++)
+		putchar('-');
+	putchar('\n');
+	putchar('\n');
 }
 
 static size_t

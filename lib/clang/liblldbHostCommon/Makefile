@@ -11,16 +11,22 @@ SRCS=	Condition.cpp \
 	FileSpec.cpp \
 	Host.cpp \
 	HostInfoBase.cpp \
+	HostNativeThreadBase.cpp \
+	HostProcess.cpp \
+	HostThread.cpp \
 	IOObject.cpp \
+	MonitoringProcessLauncher.cpp \
 	Mutex.cpp \
 	OptionParser.cpp \
-	Pipe.cpp \
+	PipeBase.cpp \
 	ProcessRunLock.cpp \
 	Socket.cpp \
 	SocketAddress.cpp \
 	SoftwareBreakpoint.cpp \
 	Symbols.cpp \
 	Terminal.cpp \
+	ThisThread.cpp \
+	ThreadLauncher.cpp \
 	TimeValue.cpp
 
 TGHDRS=	AttrList \

@@ -33,14 +33,19 @@
 # define __has_builtin(x) 0
 #endif
 
-/// \macro __GNUC_PREREQ
-/// \brief Defines __GNUC_PREREQ if glibc's features.h isn't available.
-#ifndef __GNUC_PREREQ
-# if defined(__GNUC__) && defined(__GNUC_MINOR__)
-#  define __GNUC_PREREQ(maj, min) \
-    ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
+/// \macro LLVM_GNUC_PREREQ
+/// \brief Extend the default __GNUC_PREREQ even if glibc's features.h isn't
+/// available.
+#ifndef LLVM_GNUC_PREREQ
+# if defined(__GNUC__) && defined(__GNUC_MINOR__) && defined(__GNUC_PATCHLEVEL__)
+#  define LLVM_GNUC_PREREQ(maj, min, patch) \
+    ((__GNUC__ << 20) + (__GNUC_MINOR__ << 10) + __GNUC_PATCHLEVEL__ >= \
+     ((maj) << 20) + ((min) << 10) + (patch))
+# elif defined(__GNUC__) && defined(__GNUC_MINOR__)
+#  define LLVM_GNUC_PREREQ(maj, min, patch) \
+    ((__GNUC__ << 20) + (__GNUC_MINOR__ << 10) >= ((maj) << 20) + ((min) << 10))
 # else
-#  define __GNUC_PREREQ(maj, min) 0
+#  define LLVM_GNUC_PREREQ(maj, min, patch) 0
 # endif
 #endif
 
@@ -61,7 +66,7 @@
 #define LLVM_MSC_PREREQ(version) 0
 #endif
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || defined(__clang__) || LLVM_MSC_PREREQ(1900)
 #define LLVM_NOEXCEPT noexcept
 #else
 #define LLVM_NOEXCEPT
@@ -70,10 +75,8 @@
 /// \brief Does the compiler support r-value reference *this?
 ///
 /// Sadly, this is separate from just r-value reference support because GCC
-/// implemented everything but this thus far. No release of GCC yet has support
-/// for this feature so it is enabled with Clang only.
-/// FIXME: This should change to a version check when GCC grows support for it.
-#if __has_feature(cxx_rvalue_references)
+/// implemented this later than everything else.
+#if __has_feature(cxx_rvalue_references) || LLVM_GNUC_PREREQ(4, 8, 1)
 #define LLVM_HAS_RVALUE_REFERENCE_THIS 1
 #else
 #define LLVM_HAS_RVALUE_REFERENCE_THIS 0
@@ -128,20 +131,26 @@
 /// not accessible from outside it.  Can also be used to mark variables and
 /// functions, making them private to any shared library they are linked into.
 /// On PE/COFF targets, library visibility is the default, so this isn't needed.
-#if (__has_attribute(visibility) || __GNUC_PREREQ(4, 0)) &&                    \
+#if (__has_attribute(visibility) || LLVM_GNUC_PREREQ(4, 0, 0)) &&              \
     !defined(__MINGW32__) && !defined(__CYGWIN__) && !defined(LLVM_ON_WIN32)
 #define LLVM_LIBRARY_VISIBILITY __attribute__ ((visibility("hidden")))
 #else
 #define LLVM_LIBRARY_VISIBILITY
 #endif
 
-#if __has_attribute(used) || __GNUC_PREREQ(3, 1)
+#if __has_attribute(sentinel) || LLVM_GNUC_PREREQ(3, 0, 0)
+#define LLVM_END_WITH_NULL __attribute__((sentinel))
+#else
+#define LLVM_END_WITH_NULL
+#endif
+
+#if __has_attribute(used) || LLVM_GNUC_PREREQ(3, 1, 0)
 #define LLVM_ATTRIBUTE_USED __attribute__((__used__))
 #else
 #define LLVM_ATTRIBUTE_USED
 #endif
 
-#if __has_attribute(warn_unused_result) || __GNUC_PREREQ(3, 4)
+#if __has_attribute(warn_unused_result) || LLVM_GNUC_PREREQ(3, 4, 0)
 #define LLVM_ATTRIBUTE_UNUSED_RESULT __attribute__((__warn_unused_result__))
 #else
 #define LLVM_ATTRIBUTE_UNUSED_RESULT
@@ -155,14 +164,14 @@
 // more portable solution:
 //   (void)unused_var_name;
 // Prefer cast-to-void wherever it is sufficient.
-#if __has_attribute(unused) || __GNUC_PREREQ(3, 1)
+#if __has_attribute(unused) || LLVM_GNUC_PREREQ(3, 1, 0)
 #define LLVM_ATTRIBUTE_UNUSED __attribute__((__unused__))
 #else
 #define LLVM_ATTRIBUTE_UNUSED
 #endif
 
 // FIXME: Provide this for PE/COFF targets.
-#if (__has_attribute(weak) || __GNUC_PREREQ(4, 0)) &&                          \
+#if (__has_attribute(weak) || LLVM_GNUC_PREREQ(4, 0, 0)) &&                    \
     (!defined(__MINGW32__) && !defined(__CYGWIN__) && !defined(LLVM_ON_WIN32))
 #define LLVM_ATTRIBUTE_WEAK __attribute__((__weak__))
 #else
@@ -185,7 +194,7 @@
 #define LLVM_READONLY
 #endif
 
-#if __has_builtin(__builtin_expect) || __GNUC_PREREQ(4, 0)
+#if __has_builtin(__builtin_expect) || LLVM_GNUC_PREREQ(4, 0, 0)
 #define LLVM_LIKELY(EXPR) __builtin_expect((bool)(EXPR), true)
 #define LLVM_UNLIKELY(EXPR) __builtin_expect((bool)(EXPR), false)
 #else
@@ -208,7 +217,7 @@
 
 /// LLVM_ATTRIBUTE_NOINLINE - On compilers where we have a directive to do so,
 /// mark a method "not for inlining".
-#if __has_attribute(noinline) || __GNUC_PREREQ(3, 4)
+#if __has_attribute(noinline) || LLVM_GNUC_PREREQ(3, 4, 0)
 #define LLVM_ATTRIBUTE_NOINLINE __attribute__((noinline))
 #elif defined(_MSC_VER)
 #define LLVM_ATTRIBUTE_NOINLINE __declspec(noinline)
@@ -220,7 +229,7 @@
 /// so, mark a method "always inline" because it is performance sensitive. GCC
 /// 3.4 supported this but is buggy in various cases and produces unimplemented
 /// errors, just use it in GCC 4.0 and later.
-#if __has_attribute(always_inline) || __GNUC_PREREQ(4, 0)
+#if __has_attribute(always_inline) || LLVM_GNUC_PREREQ(4, 0, 0)
 #define LLVM_ATTRIBUTE_ALWAYS_INLINE inline __attribute__((always_inline))
 #elif defined(_MSC_VER)
 #define LLVM_ATTRIBUTE_ALWAYS_INLINE __forceinline
@@ -234,6 +243,12 @@
 #define LLVM_ATTRIBUTE_NORETURN __declspec(noreturn)
 #else
 #define LLVM_ATTRIBUTE_NORETURN
+#endif
+
+#if __has_attribute(returns_nonnull) || LLVM_GNUC_PREREQ(4, 9, 0)
+#define LLVM_ATTRIBUTE_RETURNS_NONNULL __attribute__((returns_nonnull))
+#else
+#define LLVM_ATTRIBUTE_RETURNS_NONNULL
 #endif
 
 /// LLVM_EXTENSION - Support compilers where we have a keyword to suppress
@@ -262,7 +277,7 @@
 /// LLVM_BUILTIN_UNREACHABLE - On compilers which support it, expands
 /// to an expression which states that it is undefined behavior for the
 /// compiler to reach this point.  Otherwise is not defined.
-#if __has_builtin(__builtin_unreachable) || __GNUC_PREREQ(4, 5)
+#if __has_builtin(__builtin_unreachable) || LLVM_GNUC_PREREQ(4, 5, 0)
 # define LLVM_BUILTIN_UNREACHABLE __builtin_unreachable()
 #elif defined(_MSC_VER)
 # define LLVM_BUILTIN_UNREACHABLE __assume(false)
@@ -270,7 +285,7 @@
 
 /// LLVM_BUILTIN_TRAP - On compilers which support it, expands to an expression
 /// which causes the program to exit abnormally.
-#if __has_builtin(__builtin_trap) || __GNUC_PREREQ(4, 3)
+#if __has_builtin(__builtin_trap) || LLVM_GNUC_PREREQ(4, 3, 0)
 # define LLVM_BUILTIN_TRAP __builtin_trap()
 #else
 # define LLVM_BUILTIN_TRAP *(volatile int*)0x11 = 0
@@ -278,7 +293,7 @@
 
 /// \macro LLVM_ASSUME_ALIGNED
 /// \brief Returns a pointer with an assumed alignment.
-#if __has_builtin(__builtin_assume_aligned) && __GNUC_PREREQ(4, 7)
+#if __has_builtin(__builtin_assume_aligned) || LLVM_GNUC_PREREQ(4, 7, 0)
 # define LLVM_ASSUME_ALIGNED(p, a) __builtin_assume_aligned(p, a)
 #elif defined(LLVM_BUILTIN_UNREACHABLE)
 // As of today, clang does not support __builtin_assume_aligned.

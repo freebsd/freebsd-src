@@ -5,8 +5,12 @@
 LIB=	lldbHostPOSIX
 
 SRCDIR=	tools/lldb/source/Host/posix
-SRCS=	FileSystem.cpp \
+SRCS=	ConnectionFileDescriptorPosix.cpp \
+	FileSystem.cpp \
 	HostInfoPosix.cpp \
-	HostProcessPosix.cpp
+	HostProcessPosix.cpp \
+	HostThreadPosix.cpp \
+	PipePosix.cpp \
+	ProcessLauncherPosix.cpp
 
 .include "../lldb.lib.mk"

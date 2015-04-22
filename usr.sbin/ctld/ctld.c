@@ -203,7 +203,7 @@ auth_check_secret_length(struct auth *auth)
 	}
 
 	if (auth->a_mutual_secret != NULL) {
-		len = strlen(auth->a_secret);
+		len = strlen(auth->a_mutual_secret);
 		if (len > 16) {
 			if (auth->a_auth_group->ag_name != NULL)
 				log_warnx("mutual secret for user \"%s\", "
@@ -400,6 +400,7 @@ auth_portal_new(struct auth_group *ag, const char *portal)
 	return (ap);
 
 error:
+	free(ap);
 	log_errx(1, "Incorrect initiator portal '%s'", portal);
 	return (NULL);
 }
@@ -636,6 +637,7 @@ portal_group_delete(struct portal_group *pg)
 	TAILQ_FOREACH_SAFE(portal, &pg->pg_portals, p_next, tmp)
 		portal_delete(portal);
 	free(pg->pg_name);
+	free(pg->pg_offload);
 	free(pg->pg_redirection);
 	free(pg);
 }
@@ -1022,6 +1024,22 @@ portal_group_set_filter(struct portal_group *pg, const char *str)
 }
 
 int
+portal_group_set_offload(struct portal_group *pg, const char *offload)
+{
+
+	if (pg->pg_offload != NULL) {
+		log_warnx("cannot set offload to \"%s\" for "
+		    "portal-group \"%s\"; already defined",
+		    offload, pg->pg_name);
+		return (1);
+	}
+
+	pg->pg_offload = checked_strdup(offload);
+
+	return (0);
+}
+
+int
 portal_group_set_redirection(struct portal_group *pg, const char *addr)
 {
 
@@ -1360,22 +1378,6 @@ target_set_redirection(struct target *target, const char *addr)
 	return (0);
 }
 
-int
-target_set_offload(struct target *target, const char *offload)
-{
-
-	if (target->t_offload != NULL) {
-		log_warnx("cannot set offload to \"%s\" for "
-		    "target \"%s\"; already defined",
-		    offload, target->t_name);
-		return (1);
-	}
-
-	target->t_offload = checked_strdup(offload);
-
-	return (0);
-}
-
 struct lun *
 lun_new(struct conf *conf, const char *name)
 {
@@ -1618,8 +1620,6 @@ conf_print(struct conf *conf)
 		fprintf(stderr, "target %s {\n", targ->t_name);
 		if (targ->t_alias != NULL)
 			fprintf(stderr, "\t alias %s\n", targ->t_alias);
-		if (targ->t_offload != NULL)
-			fprintf(stderr, "\t offload %s\n", targ->t_offload);
 		fprintf(stderr, "}\n");
 	}
 }
@@ -2399,8 +2399,11 @@ found:
 					client_fd = accept(portal->p_socket,
 					    (struct sockaddr *)&client_sa,
 					    &client_salen);
-					if (client_fd < 0)
+					if (client_fd < 0) {
+						if (errno == ECONNABORTED)
+							continue;
 						log_err(1, "accept");
+					}
 					assert(client_salen >= client_sa.ss_len);
 
 					handle_connection(portal, client_fd,

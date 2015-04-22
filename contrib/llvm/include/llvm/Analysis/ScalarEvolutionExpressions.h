@@ -14,8 +14,8 @@
 #ifndef LLVM_ANALYSIS_SCALAREVOLUTIONEXPRESSIONS_H
 #define LLVM_ANALYSIS_SCALAREVOLUTIONEXPRESSIONS_H
 
-#include "llvm/ADT/iterator_range.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/iterator_range.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Support/ErrorHandling.h"
 
@@ -577,7 +577,7 @@ namespace llvm {
     SmallPtrSet<const SCEV *, 8> Visited;
 
     void push(const SCEV *S) {
-      if (Visited.insert(S) && Visitor.follow(S))
+      if (Visited.insert(S).second && Visitor.follow(S))
         Worklist.push_back(S);
     }
   public:
@@ -624,7 +624,7 @@ namespace llvm {
     }
   };
 
-  /// Use SCEVTraversal to visit all nodes in the givien expression tree.
+  /// Use SCEVTraversal to visit all nodes in the given expression tree.
   template<typename SV>
   void visitAll(const SCEV *Root, SV& Visitor) {
     SCEVTraversal<SV> T(Visitor);

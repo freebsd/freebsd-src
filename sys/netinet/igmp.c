@@ -1539,8 +1539,7 @@ igmp_input(struct mbuf **mp, int *offp, int proto)
 		case IGMP_VERSION_3: {
 				struct igmpv3 *igmpv3;
 				uint16_t igmpv3len;
-				uint16_t srclen;
-				int nsrc;
+				uint16_t nsrc;
 
 				IGMPSTAT_INC(igps_rcv_v3_queries);
 				igmpv3 = (struct igmpv3 *)igmp;
@@ -1548,8 +1547,8 @@ igmp_input(struct mbuf **mp, int *offp, int proto)
 				 * Validate length based on source count.
 				 */
 				nsrc = ntohs(igmpv3->igmp_numsrc);
-				srclen = sizeof(struct in_addr) * nsrc;
-				if (nsrc * sizeof(in_addr_t) > srclen) {
+				if (nsrc * sizeof(in_addr_t) >
+				    UINT16_MAX - iphlen - IGMP_V3_QUERY_MINLEN) {
 					IGMPSTAT_INC(igps_rcv_tooshort);
 					return (IPPROTO_DONE);
 				}
@@ -1558,7 +1557,7 @@ igmp_input(struct mbuf **mp, int *offp, int proto)
 				 * this scope.
 				 */
 				igmpv3len = iphlen + IGMP_V3_QUERY_MINLEN +
-				    srclen;
+				   sizeof(struct in_addr) * nsrc;
 				if ((!M_WRITABLE(m) ||
 				     m->m_len < igmpv3len) &&
 				    (m = m_pullup(m, igmpv3len)) == NULL) {

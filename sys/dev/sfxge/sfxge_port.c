@@ -50,7 +50,7 @@ sfxge_mac_stat_update(struct sfxge_softc *sc)
 
 	SFXGE_PORT_LOCK_ASSERT_OWNED(port);
 
-	if (port->init_state != SFXGE_PORT_STARTED) {
+	if (__predict_false(port->init_state != SFXGE_PORT_STARTED)) {
 		rc = 0;
 		goto out;
 	}
@@ -83,6 +83,68 @@ sfxge_mac_stat_update(struct sfxge_softc *sc)
 	rc = ETIMEDOUT;
 out:
 	return (rc);
+}
+
+uint64_t
+sfxge_get_counter(struct ifnet *ifp, ift_counter c)
+{
+	struct sfxge_softc *sc = ifp->if_softc;
+	uint64_t *mac_stats;
+	uint64_t val;
+
+	SFXGE_PORT_LOCK(&sc->port);
+
+	/* Ignore error and use old values */
+	(void)sfxge_mac_stat_update(sc);
+
+	mac_stats = (uint64_t *)sc->port.mac_stats.decode_buf;
+
+	switch (c) {
+	case IFCOUNTER_IPACKETS:
+		val = mac_stats[EFX_MAC_RX_PKTS];
+		break;
+	case IFCOUNTER_IERRORS:
+		val = mac_stats[EFX_MAC_RX_ERRORS];
+		break;
+	case IFCOUNTER_OPACKETS:
+		val = mac_stats[EFX_MAC_TX_PKTS];
+		break;
+	case IFCOUNTER_OERRORS:
+		val = mac_stats[EFX_MAC_TX_ERRORS];
+		break;
+	case IFCOUNTER_COLLISIONS:
+		val = mac_stats[EFX_MAC_TX_SGL_COL_PKTS] +
+		      mac_stats[EFX_MAC_TX_MULT_COL_PKTS] +
+		      mac_stats[EFX_MAC_TX_EX_COL_PKTS] +
+		      mac_stats[EFX_MAC_TX_LATE_COL_PKTS];
+		break;
+	case IFCOUNTER_IBYTES:
+		val = mac_stats[EFX_MAC_RX_OCTETS];
+		break;
+	case IFCOUNTER_OBYTES:
+		val = mac_stats[EFX_MAC_TX_OCTETS];
+		break;
+	case IFCOUNTER_OMCASTS:
+		val = mac_stats[EFX_MAC_TX_MULTICST_PKTS] +
+		      mac_stats[EFX_MAC_TX_BRDCST_PKTS];
+		break;
+	case IFCOUNTER_OQDROPS:
+		SFXGE_PORT_UNLOCK(&sc->port);
+		return (sfxge_tx_get_drops(sc));
+	case IFCOUNTER_IMCASTS:
+		/* if_imcasts is maintained in net/if_ethersubr.c */
+	case IFCOUNTER_IQDROPS:
+		/* if_iqdrops is maintained in net/if_ethersubr.c */
+	case IFCOUNTER_NOPROTO:
+		/* if_noproto is maintained in net/if_ethersubr.c */
+	default:
+		SFXGE_PORT_UNLOCK(&sc->port);
+		return (if_get_counter_default(ifp, c));
+	}
+
+	SFXGE_PORT_UNLOCK(&sc->port);
+
+	return (val);
 }
 
 static int
@@ -210,7 +272,8 @@ sfxge_port_link_fc_handler(SYSCTL_HANDLER_ARGS)
 	port = &sc->port;
 
 	SFXGE_PORT_LOCK(port);
-	if (port->init_state == SFXGE_PORT_STARTED && SFXGE_LINK_UP(sc))
+	if (__predict_true(port->init_state == SFXGE_PORT_STARTED) &&
+	    SFXGE_LINK_UP(sc))
 		efx_mac_fcntl_get(sc->enp, &wanted_fc, &link_fc);
 	else
 		link_fc = 0;
@@ -228,7 +291,7 @@ static const uint64_t sfxge_link_baudrate[EFX_LINK_NMODES] = {
 	[EFX_LINK_100FDX]	= IF_Mbps(100),
 	[EFX_LINK_1000HDX]	= IF_Gbps(1),
 	[EFX_LINK_1000FDX]	= IF_Gbps(1),
-	[EFX_LINK_10000FDX]     = IF_Gbps(10),
+	[EFX_LINK_10000FDX]	= IF_Gbps(10),
 };
 
 void
@@ -265,7 +328,7 @@ sfxge_mac_poll_work(void *arg, int npending)
 
 	SFXGE_PORT_LOCK(port);
 
-	if (port->init_state != SFXGE_PORT_STARTED)
+	if (__predict_false(port->init_state != SFXGE_PORT_STARTED))
 		goto done;
 
 	/* This may sleep waiting for MCDI completion */
@@ -332,7 +395,7 @@ sfxge_mac_filter_set(struct sfxge_softc *sc)
 	 * lock is held in sleeping thread. Both problems are repeatable
 	 * on LAG with LACP proto bring up.
 	 */
-	if (port->init_state == SFXGE_PORT_STARTED)
+	if (__predict_true(port->init_state == SFXGE_PORT_STARTED))
 		rc = sfxge_mac_filter_set_locked(sc);
 	else
 		rc = 0;
@@ -456,7 +519,7 @@ sfxge_phy_stat_update(struct sfxge_softc *sc)
 
 	SFXGE_PORT_LOCK_ASSERT_OWNED(port);
 
-	if (port->init_state != SFXGE_PORT_STARTED) {
+	if (__predict_false(port->init_state != SFXGE_PORT_STARTED)) {
 		rc = 0;
 		goto out;
 	}

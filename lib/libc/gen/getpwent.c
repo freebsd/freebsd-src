@@ -1942,7 +1942,7 @@ docompat:
 			break;
 	}
 fin:
-	if (!stayopen && st->db != NULL) {
+	if (st->db != NULL && !stayopen) {
 		(void)st->db->close(st->db);
 		st->db = NULL;
 	}

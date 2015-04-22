@@ -419,7 +419,7 @@ inet6_opt_append(void *extbuf, socklen_t extlen, int offset, u_int8_t type,
 	 * The option data length must have a value between 0 and 255,
 	 * inclusive, and is the length of the option data that follows.
 	 */
-	if (len < 0 || len > 255)
+	if (len > 255 || len < 0 )
 		return(-1);
 
 	/*

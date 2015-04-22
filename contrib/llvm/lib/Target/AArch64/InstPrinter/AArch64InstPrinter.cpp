@@ -16,8 +16,8 @@
 #include "Utils/AArch64BaseInfo.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
-#include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCExpr.h"
+#include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
@@ -1223,7 +1223,7 @@ void AArch64InstPrinter::printAlignedLabel(const MCInst *MI, unsigned OpNum,
   // If the label has already been resolved to an immediate offset (say, when
   // we're running the disassembler), just print the immediate.
   if (Op.isImm()) {
-    O << "#" << (Op.getImm() << 2);
+    O << "#" << (Op.getImm() * 4);
     return;
   }
 
@@ -1247,7 +1247,7 @@ void AArch64InstPrinter::printAdrpLabel(const MCInst *MI, unsigned OpNum,
   // If the label has already been resolved to an immediate offset (say, when
   // we're running the disassembler), just print the immediate.
   if (Op.isImm()) {
-    O << "#" << (Op.getImm() << 12);
+    O << "#" << (Op.getImm() * (1 << 12));
     return;
   }
 
@@ -1276,24 +1276,20 @@ void AArch64InstPrinter::printMRSSystemRegister(const MCInst *MI, unsigned OpNo,
                                                 raw_ostream &O) {
   unsigned Val = MI->getOperand(OpNo).getImm();
 
-  bool Valid;
   auto Mapper = AArch64SysReg::MRSMapper(getAvailableFeatures());
-  std::string Name = Mapper.toString(Val, Valid);
+  std::string Name = Mapper.toString(Val);
 
-  if (Valid)
-    O << StringRef(Name).upper();
+  O << StringRef(Name).upper();
 }
 
 void AArch64InstPrinter::printMSRSystemRegister(const MCInst *MI, unsigned OpNo,
                                                 raw_ostream &O) {
   unsigned Val = MI->getOperand(OpNo).getImm();
 
-  bool Valid;
   auto Mapper = AArch64SysReg::MSRMapper(getAvailableFeatures());
-  std::string Name = Mapper.toString(Val, Valid);
+  std::string Name = Mapper.toString(Val);
 
-  if (Valid)
-    O << StringRef(Name).upper();
+  O << StringRef(Name).upper();
 }
 
 void AArch64InstPrinter::printSystemPStateField(const MCInst *MI, unsigned OpNo,

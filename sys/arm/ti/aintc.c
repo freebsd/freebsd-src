@@ -78,6 +78,14 @@ static struct ti_aintc_softc *ti_aintc_sc = NULL;
     bus_space_write_4((_sc)->aintc_bst, (_sc)->aintc_bsh, (reg), (val))
 
 
+static void
+aintc_post_filter(void *arg)
+{
+
+	arm_irq_memory_barrier(0);
+	aintc_write_4(ti_aintc_sc, INTC_CONTROL, 1); /* EOI */
+}
+
 static int
 ti_aintc_probe(device_t dev)
 {
@@ -124,6 +132,8 @@ ti_aintc_attach(device_t dev)
 	/*Set Priority Threshold */
 	aintc_write_4(sc, INTC_THRESHOLD, 0xFF);
 
+	arm_post_filter = aintc_post_filter;
+
 	return (0);
 }
 
@@ -149,12 +159,6 @@ arm_get_next_irq(int last_irq)
 	struct ti_aintc_softc *sc = ti_aintc_sc;
 	uint32_t active_irq;
 
-	if (last_irq != -1) {
-		aintc_write_4(sc, INTC_ISR_CLEAR(last_irq >> 5),
-			1UL << (last_irq & 0x1F));
-		aintc_write_4(sc, INTC_CONTROL, 1);
-	}
-
 	/* Get the next active interrupt */
 	active_irq = aintc_read_4(sc, INTC_SIR_IRQ);
 
@@ -178,6 +182,7 @@ arm_mask_irq(uintptr_t nb)
 	struct ti_aintc_softc *sc = ti_aintc_sc;
 
 	aintc_write_4(sc, INTC_MIR_SET(nb >> 5), (1UL << (nb & 0x1F)));
+	aintc_write_4(sc, INTC_CONTROL, 1); /* EOI */
 }
 
 void

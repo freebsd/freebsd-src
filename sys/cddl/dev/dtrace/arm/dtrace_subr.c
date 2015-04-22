@@ -46,11 +46,16 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #define	DELAYBRANCH(x)	((int)(x) < 0)
-		
+
+#define	BIT_PC		15
+#define	BIT_LR		14
+#define	BIT_SP		13
+
 extern uintptr_t 	dtrace_in_probe_addr;
 extern int		dtrace_in_probe;
 extern dtrace_id_t	dtrace_probeid_error;
 extern int (*dtrace_invop_jump_addr)(struct trapframe *);
+extern void dtrace_getnanotime(struct timespec *tsp);
 
 int dtrace_invop(uintptr_t, uintptr_t *, uintptr_t);
 void dtrace_invop_init(void);
@@ -169,11 +174,11 @@ dtrace_gethrtime()
 uint64_t
 dtrace_gethrestime(void)
 {
-	struct	timespec curtime;
+	struct timespec current_time;
 
-	getnanotime(&curtime);
+	dtrace_getnanotime(&current_time);
 
-	return (curtime.tv_sec * 1000000000UL + curtime.tv_nsec);
+	return (current_time.tv_sec * 1000000000UL + current_time.tv_nsec);
 }
 
 /* Function to handle DTrace traps during probes. See amd64/amd64/trap.c */
@@ -231,16 +236,97 @@ dtrace_probe_error(dtrace_state_t *state, dtrace_epid_t epid, int which,
 static int
 dtrace_invop_start(struct trapframe *frame)
 {
-	printf("IMPLEMENT ME: %s\n", __func__);
-	switch (dtrace_invop(frame->tf_pc, (uintptr_t *)frame, frame->tf_pc)) {
+	register_t *r0, *sp;
+	int data, invop, reg, update_sp;
+
+	invop = dtrace_invop(frame->tf_pc, (uintptr_t *)frame, frame->tf_pc);
+	switch (invop & DTRACE_INVOP_MASK) {
 	case DTRACE_INVOP_PUSHM:
-		// TODO:
+		sp = (register_t *)frame->tf_svc_sp;
+		r0 = &frame->tf_r0;
+		data = DTRACE_INVOP_DATA(invop);
+
+		/*
+		 * Store the pc, lr, and sp. These have their own
+		 * entries in the struct.
+		 */
+		if (data & (1 << BIT_PC)) {
+			sp--;
+			*sp = frame->tf_pc;
+		}
+		if (data & (1 << BIT_LR)) {
+			sp--;
+			*sp = frame->tf_svc_lr;
+		}
+		if (data & (1 << BIT_SP)) {
+			sp--;
+			*sp = frame->tf_svc_sp;
+		}
+
+		/* Store the general registers */
+		for (reg = 12; reg >= 0; reg--) {
+			if (data & (1 << reg)) {
+				sp--;
+				*sp = r0[reg];
+			}
+		}
+
+		/* Update the stack pointer and program counter to continue */
+		frame->tf_svc_sp = (register_t)sp;
+		frame->tf_pc += 4;
 		break;
 	case DTRACE_INVOP_POPM:
-		// TODO:
+		sp = (register_t *)frame->tf_svc_sp;
+		r0 = &frame->tf_r0;
+		data = DTRACE_INVOP_DATA(invop);
+
+		/* Read the general registers */
+		for (reg = 0; reg <= 12; reg++) {
+			if (data & (1 << reg)) {
+				r0[reg] = *sp;
+				sp++;
+			}
+		}
+
+		/*
+		 * Set the stack pointer. If we don't update it here we will
+		 * need to update it at the end as the instruction would do
+		 */
+		update_sp = 1;
+		if (data & (1 << BIT_SP)) {
+			frame->tf_svc_sp = *sp;
+			*sp++;
+			update_sp = 0;
+		}
+
+		/* Update the link register, we need to use the correct copy */
+		if (data & (1 << BIT_LR)) {
+			frame->tf_svc_lr = *sp;
+			*sp++;
+		}
+		/*
+		 * And the program counter. If it's not in the list skip over
+		 * it when we return so to not hit this again.
+		 */
+		if (data & (1 << BIT_PC)) {
+			frame->tf_pc = *sp;
+			*sp++;
+		} else
+			frame->tf_pc += 4;
+
+		/* Update the stack pointer if we haven't already done so */
+		if (update_sp)
+			frame->tf_svc_sp = (register_t)sp;
 		break;
 	case DTRACE_INVOP_B:
-		// TODO
+		data = DTRACE_INVOP_DATA(invop) & 0x00ffffff;
+		/* Sign extend the data */
+		if ((data & (1 << 23)) != 0)
+			data |= 0xff000000;
+		/* The data is the number of 4-byte words to change the pc */
+		data *= 4;
+		data += 8;
+		frame->tf_pc += data;
 		break;
 	default:
 		return (-1);

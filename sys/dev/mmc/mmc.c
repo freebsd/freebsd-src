@@ -1622,7 +1622,7 @@ mmc_go_discovery(struct mmc_softc *sc)
 		mmc_send_app_op_cond(sc,
 		    (err ? 0 : MMC_OCR_CCS) | mmcbr_get_ocr(dev), NULL);
 	} else
-		mmc_send_op_cond(sc, mmcbr_get_ocr(dev), NULL);
+		mmc_send_op_cond(sc, MMC_OCR_CCS | mmcbr_get_ocr(dev), NULL);
 	mmc_discover_cards(sc);
 	mmc_rescan_cards(sc);
 
@@ -1797,6 +1797,8 @@ static driver_t mmc_driver = {
 };
 static devclass_t mmc_devclass;
 
+DRIVER_MODULE(mmc, aml8726_mmc, mmc_driver, mmc_devclass, NULL, NULL);
+DRIVER_MODULE(mmc, aml8726_sdxc, mmc_driver, mmc_devclass, NULL, NULL);
 DRIVER_MODULE(mmc, at91_mci, mmc_driver, mmc_devclass, NULL, NULL);
 DRIVER_MODULE(mmc, sdhci_bcm, mmc_driver, mmc_devclass, NULL, NULL);
 DRIVER_MODULE(mmc, sdhci_fdt, mmc_driver, mmc_devclass, NULL, NULL);

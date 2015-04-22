@@ -1,7 +1,7 @@
-/*	$Id: man_macro.c,v 1.91 2014/11/28 05:51:32 schwarze Exp $ */
+/*	$Id: man_macro.c,v 1.98 2015/02/06 11:54:36 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2012, 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2012, 2013, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2013 Franco Fichtner <franco@lastsummer.de>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -72,11 +72,10 @@ const	struct man_macro __man_macros[MAN_MAX] = {
 	{ in_line_eoln, MAN_SCOPED | MAN_JOIN }, /* I */
 	{ in_line_eoln, 0 }, /* IR */
 	{ in_line_eoln, 0 }, /* RI */
-	{ in_line_eoln, MAN_NSCOPED }, /* na */
 	{ in_line_eoln, MAN_NSCOPED }, /* sp */
 	{ in_line_eoln, MAN_BSCOPE }, /* nf */
 	{ in_line_eoln, MAN_BSCOPE }, /* fi */
-	{ blk_close, 0 }, /* RE */
+	{ blk_close, MAN_BSCOPE }, /* RE */
 	{ blk_exp, MAN_BSCOPE | MAN_EXPLICIT }, /* RS */
 	{ in_line_eoln, 0 }, /* DT */
 	{ in_line_eoln, 0 }, /* UC */
@@ -88,7 +87,7 @@ const	struct man_macro __man_macros[MAN_MAX] = {
 	{ in_line_eoln, MAN_BSCOPE }, /* EX */
 	{ in_line_eoln, MAN_BSCOPE }, /* EE */
 	{ blk_exp, MAN_BSCOPE | MAN_EXPLICIT }, /* UR */
-	{ blk_close, 0 }, /* UE */
+	{ blk_close, MAN_BSCOPE }, /* UE */
 	{ in_line_eoln, 0 }, /* ll */
 };
 
@@ -279,10 +278,30 @@ blk_close(MACRO_PROT_ARGS)
 {
 	enum mant		 ntok;
 	const struct man_node	*nn;
+	char			*p;
+	int			 nrew, target;
 
+	nrew = 1;
 	switch (tok) {
 	case MAN_RE:
 		ntok = MAN_RS;
+		if ( ! man_args(man, line, pos, buf, &p))
+			break;
+		for (nn = man->last->parent; nn; nn = nn->parent)
+			if (nn->tok == ntok && nn->type == MAN_BLOCK)
+				nrew++;
+		target = strtol(p, &p, 10);
+		if (*p != '\0')
+			mandoc_vmsg(MANDOCERR_ARG_EXCESS, man->parse,
+			    line, p - buf, "RE ... %s", p);
+		if (target == 0)
+			target = 1;
+		nrew -= target;
+		if (nrew < 1) {
+			mandoc_vmsg(MANDOCERR_RE_NOTOPEN, man->parse,
+			    line, ppos, "RE %d", target);
+			return;
+		}
 		break;
 	case MAN_UE:
 		ntok = MAN_UR;
@@ -293,45 +312,50 @@ blk_close(MACRO_PROT_ARGS)
 	}
 
 	for (nn = man->last->parent; nn; nn = nn->parent)
-		if (nn->tok == ntok && nn->type == MAN_BLOCK)
+		if (nn->tok == ntok && nn->type == MAN_BLOCK && ! --nrew)
 			break;
 
 	if (nn == NULL) {
 		mandoc_msg(MANDOCERR_BLK_NOTOPEN, man->parse,
 		    line, ppos, man_macronames[tok]);
 		rew_scope(MAN_BLOCK, man, MAN_PP);
-	} else
+	} else {
+		line = man->last->line;
+		ppos = man->last->pos;
+		ntok = man->last->tok;
 		man_unscope(man, nn);
+
+		/* Move a trailing paragraph behind the block. */
+
+		if (ntok == MAN_LP || ntok == MAN_PP || ntok == MAN_P) {
+			*pos = strlen(buf);
+			blk_imp(man, ntok, line, ppos, pos, buf);
+		}
+	}
 }
 
 void
 blk_exp(MACRO_PROT_ARGS)
 {
-	struct man_node	*n;
-	int		 la;
+	struct man_node	*head;
 	char		*p;
+	int		 la;
 
 	rew_scope(MAN_BLOCK, man, tok);
 	man_block_alloc(man, line, ppos, tok);
 	man_head_alloc(man, line, ppos, tok);
+	head = man->last;
 
-	for (;;) {
-		la = *pos;
-		if ( ! man_args(man, line, pos, buf, &p))
-			break;
+	la = *pos;
+	if (man_args(man, line, pos, buf, &p))
 		man_word_alloc(man, line, la, p);
-	}
 
-	assert(man);
-	assert(tok != MAN_MAX);
+	if (buf[*pos] != '\0')
+		mandoc_vmsg(MANDOCERR_ARG_EXCESS,
+		    man->parse, line, *pos, "%s ... %s",
+		    man_macronames[tok], buf + *pos);
 
-	for (n = man->last; n; n = n->parent)
-		if (n->tok == tok) {
-			assert(n->type == MAN_HEAD);
-			man_unscope(man, n);
-			break;
-		}
-
+	man_unscope(man, head);
 	man_body_alloc(man, line, ppos, tok);
 }
 
@@ -390,6 +414,20 @@ in_line_eoln(MACRO_PROT_ARGS)
 	n = man->last;
 
 	for (;;) {
+		if (buf[*pos] != '\0' && (tok == MAN_br ||
+		    tok == MAN_fi || tok == MAN_nf)) {
+			mandoc_vmsg(MANDOCERR_ARG_SKIP,
+			    man->parse, line, *pos, "%s %s",
+			    man_macronames[tok], buf + *pos);
+			break;
+		}
+		if (buf[*pos] != '\0' && man->last != n &&
+		    (tok == MAN_PD || tok == MAN_ft || tok == MAN_sp)) {
+			mandoc_vmsg(MANDOCERR_ARG_EXCESS,
+			    man->parse, line, *pos, "%s ... %s",
+			    man_macronames[tok], buf + *pos);
+			break;
+		}
 		la = *pos;
 		if ( ! man_args(man, line, pos, buf, &p))
 			break;

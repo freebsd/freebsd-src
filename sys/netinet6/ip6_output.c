@@ -214,7 +214,7 @@ in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset)
 
 int
 ip6_fragment(struct ifnet *ifp, struct mbuf *m0, int hlen, u_char nextproto,
-    int mtu)
+    int mtu, uint32_t id)
 {
 	struct mbuf *m, **mnext, *m_frgpart;
 	struct ip6_hdr *ip6, *mhip6;
@@ -222,7 +222,6 @@ ip6_fragment(struct ifnet *ifp, struct mbuf *m0, int hlen, u_char nextproto,
 	int off;
 	int error;
 	int tlen = m0->m_pkthdr.len;
-	uint32_t id = htonl(ip6_randomid());
 
 	m = m0;
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -318,6 +317,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	int needfiblookup;
 	uint32_t fibnum;
 	struct m_tag *fwd_tag = NULL;
+	uint32_t id;
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	if (ip6 == NULL) {
@@ -910,19 +910,12 @@ passout:
 		 * Even if the DONTFRAG option is specified, we cannot send the
 		 * packet when the data length is larger than the MTU of the
 		 * outgoing interface.
-		 * Notify the error by sending IPV6_PATHMTU ancillary data as
-		 * well as returning an error code (the latter is not described
-		 * in the API spec.)
+		 * Notify the error by sending IPV6_PATHMTU ancillary data if
+		 * application wanted to know the MTU value. Also return an
+		 * error code (this is not described in the API spec).
 		 */
-		u_int32_t mtu32;
-		struct ip6ctlparam ip6cp;
-
-		mtu32 = (u_int32_t)mtu;
-		bzero(&ip6cp, sizeof(ip6cp));
-		ip6cp.ip6c_cmdarg = (void *)&mtu32;
-		pfctlinput2(PRC_MSGSIZE, (struct sockaddr *)&ro_pmtu->ro_dst,
-		    (void *)&ip6cp);
-
+		if (inp != NULL)
+			ip6_notify_pmtu(inp, &dst_sa, (u_int32_t)mtu);
 		error = EMSGSIZE;
 		goto bad;
 	}
@@ -1017,7 +1010,8 @@ passout:
 		 * chain.
 		 */
 		m0 = m;
-		if ((error = ip6_fragment(ifp, m, hlen, nextproto, len)))
+		id = htonl(ip6_randomid());
+		if ((error = ip6_fragment(ifp, m, hlen, nextproto, len, id)))
 			goto sendorfree;
 
 		in6_ifstat_inc(ifp, ifs6_out_fragok);

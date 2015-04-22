@@ -146,6 +146,18 @@ ahci_ctlr_reset(device_t dev)
 	}
 	/* Reenable AHCI mode */
 	ATA_OUTL(ctlr->r_mem, AHCI_GHC, AHCI_GHC_AE);
+
+	if (ctlr->quirks & AHCI_Q_RESTORE_CAP) {
+		/*
+		 * Restore capability field.
+		 * This is write to a read-only register to restore its state.
+		 * On fully standard-compliant hardware this is not needed and
+		 * this operation shall not take place. See ahci_pci.c for
+		 * platforms using this quirk.
+		 */
+		ATA_OUTL(ctlr->r_mem, AHCI_CAP, ctlr->caps);
+	}
+
 	return (0);
 }
 
@@ -185,6 +197,22 @@ ahci_attach(device_t dev)
 		ctlr->caps2 = ATA_INL(ctlr->r_mem, AHCI_CAP2);
 	if (ctlr->caps & AHCI_CAP_EMS)
 		ctlr->capsem = ATA_INL(ctlr->r_mem, AHCI_EM_CTL);
+
+	if (ctlr->quirks & AHCI_Q_FORCE_PI) {
+		/*
+		 * Enable ports. 
+		 * The spec says that BIOS sets up bits corresponding to
+		 * available ports. On platforms where this information
+		 * is missing, the driver can define available ports on its own.
+		 */
+		int nports = (ctlr->caps & AHCI_CAP_NPMASK) + 1;
+		int nmask = (1 << nports) - 1;
+
+		ATA_OUTL(ctlr->r_mem, AHCI_PI, nmask);
+		device_printf(dev, "Forcing PI to %d ports (mask = %x)\n",
+		    nports, nmask);
+	}
+
 	ctlr->ichannels = ATA_INL(ctlr->r_mem, AHCI_PI);
 
 	/* Identify and set separate quirks for HBA and RAID f/w Marvells. */
@@ -610,7 +638,7 @@ ahci_ch_probe(device_t dev)
 {
 
 	device_set_desc_copy(dev, "AHCI channel");
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -668,8 +696,8 @@ ahci_ch_attach(device_t dev)
 		return (ENXIO);
 	ahci_dmainit(dev);
 	ahci_slotsalloc(dev);
-	ahci_ch_init(dev);
 	mtx_lock(&ch->mtx);
+	ahci_ch_init(dev);
 	rid = ATA_IRQ_RID;
 	if (!(ch->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 	    &rid, RF_SHAREABLE | RF_ACTIVE))) {

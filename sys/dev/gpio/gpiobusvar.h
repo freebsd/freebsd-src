@@ -60,6 +60,12 @@
 #define	GPIOBUS_WAIT		1
 #define	GPIOBUS_DONTWAIT	2
 
+struct gpiobus_pin_data
+{
+	int		mapped;		/* pin is mapped/reserved. */
+	char		*name;		/* pin name. */
+};
+
 struct gpiobus_softc
 {
 	struct mtx	sc_mtx;		/* bus mutex */
@@ -68,7 +74,14 @@ struct gpiobus_softc
 	device_t	sc_owner;	/* bus owner */
 	device_t	sc_dev;		/* driver device */
 	int		sc_npins;	/* total pins on bus */
-	int		*sc_pins_mapped; /* mark mapped pins */
+	struct gpiobus_pin_data	*sc_pins; /* pin data */
+};
+
+struct gpiobus_pin
+{
+	device_t	dev;	/* gpio device */
+	uint32_t	flags;	/* pin flags */
+	uint32_t	pin;	/* pin number */
 };
 
 struct gpiobus_ivar
@@ -92,7 +105,8 @@ gpio_map_gpios(device_t bus, phandle_t dev, phandle_t gparent, int gcells,
 	return (GPIO_MAP_GPIOS(bus, dev, gparent, gcells, gpios, pin, flags));
 }
 
-device_t ofw_gpiobus_add_fdt_child(device_t, phandle_t);
+device_t ofw_gpiobus_add_fdt_child(device_t, const char *, phandle_t);
+int ofw_gpiobus_parse_gpios(device_t, char *, struct gpiobus_pin **);
 void ofw_gpiobus_register_provider(device_t);
 void ofw_gpiobus_unregister_provider(device_t);
 #endif
@@ -100,6 +114,9 @@ int gpio_check_flags(uint32_t, uint32_t);
 device_t gpiobus_attach_bus(device_t);
 int gpiobus_detach_bus(device_t);
 int gpiobus_init_softc(device_t);
+int gpiobus_alloc_ivars(struct gpiobus_ivar *);
+void gpiobus_free_ivars(struct gpiobus_ivar *);
+int gpiobus_map_pin(device_t, uint32_t);
 
 extern driver_t gpiobus_driver;
 

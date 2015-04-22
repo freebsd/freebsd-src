@@ -97,6 +97,7 @@ device		cpufreq
 # Bus support.
 device		acpi
 device		pci
+options		PCI_IOV			# PCI SR-IOV support
 
 # Floppy drives
 device		fdc

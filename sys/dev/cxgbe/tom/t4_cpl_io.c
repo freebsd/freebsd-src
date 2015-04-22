@@ -390,19 +390,17 @@ t4_rcvd(struct toedev *tod, struct tcpcb *tp)
 		toep->rx_credits += toep->sb_cc - sbused(sb);
 		toep->sb_cc = sbused(sb);
 	}
-	credits = toep->rx_credits;
-	SOCKBUF_UNLOCK(sb);
+	if (toep->rx_credits > 0 &&
+	    (tp->rcv_wnd <= 32 * 1024 || toep->rx_credits >= 64 * 1024 ||
+	    (toep->rx_credits >= 16 * 1024 && tp->rcv_wnd <= 128 * 1024) ||
+	    toep->sb_cc + tp->rcv_wnd < sb->sb_lowat)) {
 
-	if (credits > 0 &&
-	    (credits + 16384 >= tp->rcv_wnd || credits >= 15 * 1024)) {
-
-		credits = send_rx_credits(sc, toep, credits);
-		SOCKBUF_LOCK(sb);
+		credits = send_rx_credits(sc, toep, toep->rx_credits);
 		toep->rx_credits -= credits;
-		SOCKBUF_UNLOCK(sb);
 		tp->rcv_wnd += credits;
 		tp->rcv_adv += credits;
 	}
+	SOCKBUF_UNLOCK(sb);
 }
 
 /*
@@ -1105,19 +1103,7 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	sb = &so->so_rcv;
 	SOCKBUF_LOCK(sb);
 	if (__predict_false(toep->ddp_flags & (DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE))) {
-		m = get_ddp_mbuf(be32toh(cpl->rcv_nxt) - tp->rcv_nxt);
-		tp->rcv_nxt = be32toh(cpl->rcv_nxt);
-		toep->ddp_flags &= ~(DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE);
-
-		KASSERT(toep->sb_cc >= sbused(sb),
-		    ("%s: sb %p has more data (%d) than last time (%d).",
-		    __func__, sb, sbused(sb), toep->sb_cc));
-		toep->rx_credits += toep->sb_cc - sbused(sb);
-#ifdef USE_DDP_RX_FLOW_CONTROL
-		toep->rx_credits -= m->m_len;	/* adjust for F_RX_FC_DDP */
-#endif
-		sbappendstream_locked(sb, m, 0);
-		toep->sb_cc = sbused(sb);
+		handle_ddp_close(toep, tp, sb, cpl->rcv_nxt);
 	}
 	socantrcvmore_locked(so);	/* unlocks the sockbuf */
 
@@ -1618,6 +1604,14 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	toep->rx_credits += toep->sb_cc - sbused(sb);
 	sbappendstream_locked(sb, m, 0);
 	toep->sb_cc = sbused(sb);
+	if (toep->rx_credits > 0 && toep->sb_cc + tp->rcv_wnd < sb->sb_lowat) {
+		int credits;
+
+		credits = send_rx_credits(sc, toep, toep->rx_credits);
+		toep->rx_credits -= credits;
+		tp->rcv_wnd += credits;
+		tp->rcv_adv += credits;
+	}
 	sorwakeup_locked(so);
 	SOCKBUF_UNLOCK_ASSERT(sb);
 

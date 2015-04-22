@@ -72,11 +72,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 ENTRY(armv7_setttb)
-	stmdb   sp!, {r0, lr}
- 	bl      _C_LABEL(armv7_idcache_wbinv_all) /* clean the D cache */
- 	ldmia   sp!, {r0, lr}
  	dsb
-				
 	orr 	r0, r0, #PT_ATTR
  	mcr	CP15_TTBR0(r0)
 	isb
@@ -251,8 +247,8 @@ ENTRY(armv7_idcache_wbinv_range)
 	add	r0, r0, ip
 	subs	r1, r1, ip
 	bhi	.Larmv7_id_wbinv_next
-	isb				/* instruction synchronization barrier */
 	dsb				/* data synchronization barrier */
+	isb				/* instruction synchronization barrier */
 	RET
 END(armv7_idcache_wbinv_range)
 
@@ -262,8 +258,8 @@ ENTRY_NP(armv7_icache_sync_all)
 #else
 	mcr	CP15_ICIALLU
 #endif
-	isb				/* instruction synchronization barrier */
 	dsb				/* data synchronization barrier */
+	isb				/* instruction synchronization barrier */
 	RET
 END(armv7_icache_sync_all)
 
@@ -271,13 +267,13 @@ ENTRY_NP(armv7_icache_sync_range)
 	ldr	ip, .Larmv7_icache_line_size
 	ldr	ip, [ip]
 .Larmv7_sync_next:
-	mcr	CP15_ICIMVAU(r0)
 	mcr	CP15_DCCMVAC(r0)
+	mcr	CP15_ICIMVAU(r0)
 	add	r0, r0, ip
 	subs	r1, r1, ip
 	bhi	.Larmv7_sync_next
-	isb				/* instruction synchronization barrier */
 	dsb				/* data synchronization barrier */
+	isb				/* instruction synchronization barrier */
 	RET
 END(armv7_icache_sync_range)
 

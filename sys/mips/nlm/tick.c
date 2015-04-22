@@ -12,11 +12,11 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY Netlogic Microsystems ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL NETLOGIC OR CONTRIBUTORS BE 
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL NETLOGIC OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -85,7 +85,7 @@ static void clock_identify(driver_t *, device_t);
 static int clock_attach(device_t);
 static unsigned counter_get_timecount(struct timecounter *tc);
 
-void 
+void
 mips_timer_early_init(uint64_t clock_hz)
 {
 	/* Initialize clock early so that we can use DELAY sooner */
@@ -287,7 +287,7 @@ clock_intr(void *arg)
 		 */
 		lost_ticks = DPCPU_GET(lost_ticks);
 		lost_ticks += count - compare_last;
-	
+
 		/*
 		 * If the COUNT and COMPARE registers are no longer in sync
 		 * then make up some reasonable value for the 'lost_ticks'.

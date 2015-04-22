@@ -7,20 +7,33 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "DWARFDebugInfoEntry.h"
-#include "DWARFCompileUnit.h"
-#include "DWARFContext.h"
-#include "DWARFDebugAbbrev.h"
+#include "SyntaxHighlighting.h"
+#include "llvm/DebugInfo/DWARFCompileUnit.h"
+#include "llvm/DebugInfo/DWARFContext.h"
+#include "llvm/DebugInfo/DWARFDebugAbbrev.h"
+#include "llvm/DebugInfo/DWARFDebugInfoEntry.h"
 #include "llvm/DebugInfo/DWARFFormValue.h"
+#include "llvm/Support/DataTypes.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 using namespace dwarf;
-typedef DILineInfoSpecifier::FunctionNameKind FunctionNameKind;
+using namespace syntax;
 
-void DWARFDebugInfoEntryMinimal::dump(raw_ostream &OS, const DWARFUnit *u,
+// Small helper to extract a DIE pointed by a reference
+// attribute. It looks up the Unit containing the DIE and calls
+// DIE.extractFast with the right unit. Returns new unit on success,
+// nullptr otherwise.
+static const DWARFUnit *findUnitAndExtractFast(DWARFDebugInfoEntryMinimal &DIE,
+                                               const DWARFUnit *Unit,
+                                               uint32_t *Offset) {
+  Unit = Unit->getUnitSection().getUnitForOffset(*Offset);
+  return (Unit && DIE.extractFast(Unit, Offset)) ? Unit : nullptr;
+}
+
+void DWARFDebugInfoEntryMinimal::dump(raw_ostream &OS, DWARFUnit *u,
                                       unsigned recurseDepth,
                                       unsigned indent) const {
   DataExtractor debug_info_data = u->getDebugInfoExtractor();
@@ -28,15 +41,17 @@ void DWARFDebugInfoEntryMinimal::dump(raw_ostream &OS, const DWARFUnit *u,
 
   if (debug_info_data.isValidOffset(offset)) {
     uint32_t abbrCode = debug_info_data.getULEB128(&offset);
+    WithColor(OS, syntax::Address).get() << format("\n0x%8.8x: ", Offset);
 
-    OS << format("\n0x%8.8x: ", Offset);
     if (abbrCode) {
       if (AbbrevDecl) {
-        const char *tagString = TagString(getTag());
-        if (tagString)
-          OS.indent(indent) << tagString;
-        else
-          OS.indent(indent) << format("DW_TAG_Unknown_%x", getTag());
+          const char *tagString = TagString(getTag());
+          if (tagString)
+            WithColor(OS, syntax::Tag).get().indent(indent) << tagString;
+          else
+            WithColor(OS, syntax::Tag).get().indent(indent) <<
+              format("DW_TAG_Unknown_%x", getTag());
+
         OS << format(" [%u] %c\n", abbrCode,
                      AbbrevDecl->hasChildren() ? '*' : ' ');
 
@@ -62,18 +77,51 @@ void DWARFDebugInfoEntryMinimal::dump(raw_ostream &OS, const DWARFUnit *u,
   }
 }
 
+static void dumpApplePropertyAttribute(raw_ostream &OS, uint64_t Val) {
+  OS << " (";
+  do {
+    uint64_t Shift = countTrailingZeros(Val);
+    assert(Shift < 64 && "undefined behavior");
+    uint64_t Bit = 1ULL << Shift;
+    if (const char *PropName = ApplePropertyString(Bit))
+      OS << PropName;
+    else
+      OS << format("DW_APPLE_PROPERTY_0x%" PRIx64, Bit);
+    if (!(Val ^= Bit))
+      break;
+    OS << ", ";
+  } while (true);
+  OS << ")";
+}
+
+static void dumpRanges(raw_ostream &OS, const DWARFAddressRangesVector& Ranges,
+                       unsigned AddressSize, unsigned Indent) {
+  if (Ranges.empty())
+    return;
+
+  for (const auto &Range: Ranges) {
+    OS << '\n';
+    OS.indent(Indent);
+    OS << format("[0x%0*" PRIx64 " - 0x%0*" PRIx64 ")",
+                 AddressSize*2, Range.first,
+                 AddressSize*2, Range.second);
+  }
+}
+
 void DWARFDebugInfoEntryMinimal::dumpAttribute(raw_ostream &OS,
-                                               const DWARFUnit *u,
+                                               DWARFUnit *u,
                                                uint32_t *offset_ptr,
                                                uint16_t attr, uint16_t form,
                                                unsigned indent) const {
-  OS << "            ";
+  const char BaseIndent[] = "            ";
+  OS << BaseIndent;
   OS.indent(indent+2);
   const char *attrString = AttributeString(attr);
   if (attrString)
-    OS << attrString;
+    WithColor(OS, syntax::Attribute) << attrString;
   else
-    OS << format("DW_AT_Unknown_%x", attr);
+    WithColor(OS, syntax::Attribute).get() << format("DW_AT_Unknown_%x", attr);
+
   const char *formString = FormEncodingString(form);
   if (formString)
     OS << " [" << formString << ']';
@@ -86,7 +134,49 @@ void DWARFDebugInfoEntryMinimal::dumpAttribute(raw_ostream &OS,
     return;
 
   OS << "\t(";
-  formValue.dump(OS, u);
+  
+  const char *Name = nullptr;
+  std::string File;
+  auto Color = syntax::Enumerator;
+  if (attr == DW_AT_decl_file || attr == DW_AT_call_file) {
+  Color = syntax::String;
+    if (const auto *LT = u->getContext().getLineTableForUnit(u))
+      if (LT->getFileNameByIndex(
+             formValue.getAsUnsignedConstant().getValue(),
+             u->getCompilationDir(),
+             DILineInfoSpecifier::FileLineInfoKind::AbsoluteFilePath, File)) {
+        File = '"' + File + '"';
+        Name = File.c_str();
+      }
+  } else if (Optional<uint64_t> Val = formValue.getAsUnsignedConstant())
+    Name = AttributeValueString(attr, *Val);
+
+  if (Name)
+    WithColor(OS, Color) << Name;
+  else if (attr == DW_AT_decl_line || attr == DW_AT_call_line)
+    OS << *formValue.getAsUnsignedConstant();
+  else
+    formValue.dump(OS, u);
+
+  // We have dumped the attribute raw value. For some attributes
+  // having both the raw value and the pretty-printed value is
+  // interesting. These attributes are handled below.
+  if ((attr == DW_AT_specification || attr == DW_AT_abstract_origin) &&
+      // The signature references aren't handled.
+      formValue.getForm() != DW_FORM_ref_sig8) {
+    uint32_t Ref = formValue.getAsReference(u).getValue();
+    DWARFDebugInfoEntryMinimal DIE;
+    if (const DWARFUnit *RefU = findUnitAndExtractFast(DIE, u, &Ref))
+      if (const char *Ref = DIE.getName(RefU, DINameKind::LinkageName))
+        OS << " \"" << Ref << '\"';
+  } else if (attr == DW_AT_APPLE_property_attribute) {
+    if (Optional<uint64_t> OptVal = formValue.getAsUnsignedConstant())
+      dumpApplePropertyAttribute(OS, *OptVal);
+  } else if (attr == DW_AT_ranges) {
+    dumpRanges(OS, getAddressRanges(u), u->getAddressByteSize(),
+               sizeof(BaseIndent)+indent+4);
+  }
+
   OS << ")\n";
 }
 
@@ -284,11 +374,19 @@ bool DWARFDebugInfoEntryMinimal::addressRangeContainsAddress(
 
 const char *
 DWARFDebugInfoEntryMinimal::getSubroutineName(const DWARFUnit *U,
-                                              FunctionNameKind Kind) const {
-  if (!isSubroutineDIE() || Kind == FunctionNameKind::None)
+                                              DINameKind Kind) const {
+  if (!isSubroutineDIE())
+    return nullptr;
+  return getName(U, Kind);
+}
+
+const char *
+DWARFDebugInfoEntryMinimal::getName(const DWARFUnit *U,
+                                    DINameKind Kind) const {
+  if (Kind == DINameKind::None)
     return nullptr;
   // Try to get mangled name only if it was asked for.
-  if (Kind == FunctionNameKind::LinkageName) {
+  if (Kind == DINameKind::LinkageName) {
     if (const char *name =
             getAttributeValueAsString(U, DW_AT_MIPS_linkage_name, nullptr))
       return name;
@@ -303,8 +401,8 @@ DWARFDebugInfoEntryMinimal::getSubroutineName(const DWARFUnit *U,
       getAttributeValueAsReference(U, DW_AT_specification, -1U);
   if (spec_ref != -1U) {
     DWARFDebugInfoEntryMinimal spec_die;
-    if (spec_die.extractFast(U, &spec_ref)) {
-      if (const char *name = spec_die.getSubroutineName(U, Kind))
+    if (const DWARFUnit *RefU = findUnitAndExtractFast(spec_die, U, &spec_ref)) {
+      if (const char *name = spec_die.getName(RefU, Kind))
         return name;
     }
   }
@@ -313,8 +411,9 @@ DWARFDebugInfoEntryMinimal::getSubroutineName(const DWARFUnit *U,
       getAttributeValueAsReference(U, DW_AT_abstract_origin, -1U);
   if (abs_origin_ref != -1U) {
     DWARFDebugInfoEntryMinimal abs_origin_die;
-    if (abs_origin_die.extractFast(U, &abs_origin_ref)) {
-      if (const char *name = abs_origin_die.getSubroutineName(U, Kind))
+    if (const DWARFUnit *RefU = findUnitAndExtractFast(abs_origin_die, U,
+                                                       &abs_origin_ref)) {
+      if (const char *name = abs_origin_die.getName(RefU, Kind))
         return name;
     }
   }

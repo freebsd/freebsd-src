@@ -56,17 +56,11 @@ public:
   /// module.
   Module *Parent;
 
-  /// \brief The module map file that (along with the module name) uniquely
-  /// identifies this module.
-  ///
-  /// The particular module that \c Name refers to may depend on how the module
-  /// was found in header search. However, the combination of \c Name and
-  /// \c ModuleMap will be globally unique for top-level modules. In the case of
-  /// inferred modules, \c ModuleMap will contain the module map that allowed
-  /// the inference (e.g. contained 'Module *') rather than the virtual
-  /// inferred module map file.
-  const FileEntry *ModuleMap;
-  
+  /// \brief The build directory of this module. This is the directory in
+  /// which the module is notionally built, and relative to which its headers
+  /// are found.
+  const DirectoryEntry *Directory;
+
   /// \brief The umbrella header or directory.
   llvm::PointerUnion<const DirectoryEntry *, const FileEntry *> Umbrella;
   
@@ -92,18 +86,28 @@ private:
   mutable llvm::DenseSet<const Module*> VisibleModulesCache;
 
 public:
-  /// \brief The headers that are part of this module.
-  SmallVector<const FileEntry *, 2> NormalHeaders;
-
-  /// \brief The headers that are explicitly excluded from this module.
-  SmallVector<const FileEntry *, 2> ExcludedHeaders;
-
-  /// \brief The headers that are private to this module.
-  SmallVector<const FileEntry *, 2> PrivateHeaders;
+  enum HeaderKind {
+    HK_Normal,
+    HK_Textual,
+    HK_Private,
+    HK_PrivateTextual,
+    HK_Excluded
+  };
+  static const int NumHeaderKinds = HK_Excluded + 1;
 
   /// \brief Information about a header directive as found in the module map
   /// file.
-  struct HeaderDirective {
+  struct Header {
+    std::string NameAsWritten;
+    const FileEntry *Entry;
+  };
+
+  /// \brief The headers that are part of this module.
+  SmallVector<Header, 2> Headers[5];
+
+  /// \brief Stored information about a header directive that was found in the
+  /// module map file but has not been resolved to a file.
+  struct UnresolvedHeaderDirective {
     SourceLocation FileNameLoc;
     std::string FileName;
     bool IsUmbrella;
@@ -111,7 +115,7 @@ public:
 
   /// \brief Headers that are mentioned in the module map file but could not be
   /// found on the file system.
-  SmallVector<HeaderDirective, 1> MissingHeaders;
+  SmallVector<UnresolvedHeaderDirective, 1> MissingHeaders;
 
   /// \brief An individual requirement: a feature name and a flag indicating
   /// the required state of that feature.
@@ -283,10 +287,8 @@ public:
   std::vector<Conflict> Conflicts;
 
   /// \brief Construct a new module or submodule.
-  ///
-  /// For an explanation of \p ModuleMap, see Module::ModuleMap.
   Module(StringRef Name, SourceLocation DefinitionLoc, Module *Parent,
-         const FileEntry *ModuleMap, bool IsFramework, bool IsExplicit);
+         bool IsFramework, bool IsExplicit);
   
   ~Module();
   
@@ -308,7 +310,7 @@ public:
   bool isAvailable(const LangOptions &LangOpts, 
                    const TargetInfo &Target,
                    Requirement &Req,
-                   HeaderDirective &MissingHeader) const;
+                   UnresolvedHeaderDirective &MissingHeader) const;
 
   /// \brief Determine whether this module is a submodule.
   bool isSubModule() const { return Parent != nullptr; }

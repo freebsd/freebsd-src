@@ -112,7 +112,7 @@ remote_event_signal(REMOTE_EVENT_T *event)
 		has completed */
 	if (event->armed) {
 		/* trigger vc interrupt */
- 		__asm __volatile ("mcr p15, 0, %0, c7, c10, 4" : : "r" (0) : "memory");
+		dsb();
 		vchiq_write_4(0x48, 0);
 	}
 }

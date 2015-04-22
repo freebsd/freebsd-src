@@ -702,7 +702,7 @@ vtmmio_describe_features(struct vtmmio_softc *sc, const char *msg,
 	dev = sc->dev;
 	child = sc->vtmmio_child_dev;
 
-	if (device_is_attached(child) && bootverbose == 0)
+	if (device_is_attached(child) || bootverbose == 0)
 		return;
 
 	virtio_describe(dev, msg, features, sc->vtmmio_child_feat_desc);

@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef AArch64DISASSEMBLER_H
-#define AArch64DISASSEMBLER_H
+#ifndef LLVM_LIB_TARGET_AARCH64_DISASSEMBLER_AARCH64DISASSEMBLER_H
+#define LLVM_LIB_TARGET_AARCH64_DISASSEMBLER_AARCH64DISASSEMBLER_H
 
 #include "llvm/MC/MCDisassembler.h"
 
@@ -28,11 +28,10 @@ public:
 
   ~AArch64Disassembler() {}
 
-  /// getInstruction - See MCDisassembler.
   MCDisassembler::DecodeStatus
-  getInstruction(MCInst &instr, uint64_t &size, const MemoryObject &region,
-                 uint64_t address, raw_ostream &vStream,
-                 raw_ostream &cStream) const override;
+  getInstruction(MCInst &Instr, uint64_t &Size, ArrayRef<uint8_t> Bytes,
+                 uint64_t Address, raw_ostream &VStream,
+                 raw_ostream &CStream) const override;
 };
 
 } // namespace llvm

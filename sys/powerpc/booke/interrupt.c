@@ -32,6 +32,8 @@
  * Interrupts are dispatched to here from locore asm
  */
 
+#include "opt_hwpmc_hooks.h"
+
 #include <sys/cdefs.h>                  /* RCS ID & Copyright macro defns */
 __FBSDID("$FreeBSD$");
 
@@ -45,6 +47,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
 #include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/unistd.h>
@@ -67,6 +72,9 @@ void powerpc_decr_interrupt(struct trapframe *);
 void powerpc_extr_interrupt(struct trapframe *);
 void powerpc_crit_interrupt(struct trapframe *);
 void powerpc_mchk_interrupt(struct trapframe *);
+#ifdef HWPMC_HOOKS
+void powerpc_pmc_interrupt(struct trapframe *framep);
+#endif
 
 static void dump_frame(struct trapframe *framep);
 
@@ -79,7 +87,7 @@ dump_frame(struct trapframe *frame)
 	printf("  exc  = 0x%x\n", frame->exc);
 	printf("  srr0 = 0x%08x\n", frame->srr0);
 	printf("  srr1 = 0x%08x\n", frame->srr1);
-	printf("  dear = 0x%08x\n", frame->cpu.booke.dear);
+	printf("  dear = 0x%08x\n", frame->dar);
 	printf("  esr  = 0x%08x\n", frame->cpu.booke.esr);
 	printf("  lr   = 0x%08x\n", frame->lr);
 	printf("  cr   = 0x%08x\n", frame->cr);
@@ -142,3 +150,20 @@ powerpc_extr_interrupt(struct trapframe *framep)
 	critical_exit();
 	framep->srr1 &= ~PSL_WE;
 }
+
+#ifdef HWPMC_HOOKS
+/*
+ * Performance Counter interrupt routine
+ */
+void
+powerpc_pmc_interrupt(struct trapframe *framep)
+{
+
+	critical_enter();
+	KASSERT(pmc_intr != NULL, ("Performance exception, but no handler!"));
+	(*pmc_intr)(PCPU_GET(cpuid), framep);
+	critical_exit();
+	if (pmc_hook && (PCPU_GET(curthread)->td_pflags & TDP_CALLCHAIN))
+		pmc_hook(PCPU_GET(curthread), PMC_FN_USER_CALLCHAIN, framep);
+}
+#endif

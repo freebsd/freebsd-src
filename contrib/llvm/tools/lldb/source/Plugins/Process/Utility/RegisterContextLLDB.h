@@ -16,6 +16,7 @@
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Symbol/UnwindPlan.h"
 #include "lldb/Symbol/SymbolContext.h"
+#include "lldb/Utility/RegisterNumber.h"
 #include "UnwindLLDB.h"
 
 namespace lldb_private {
@@ -98,6 +99,12 @@ private:
     // UnwindLLDB needs to pass around references to RegisterLocations
     friend class UnwindLLDB;
 
+
+    // Returns true if we have an unwind loop -- the same stack frame unwinding 
+    // multiple times.
+    bool
+    CheckIfLoopingStack ();
+
     // Indicates whether this frame is frame zero -- the currently
     // executing frame -- or not.
     bool
@@ -175,10 +182,29 @@ private:
     bool
     TryFallbackUnwindPlan ();
 
+    //------------------------------------------------------------------
+    /// Switch to the fallback unwind plan unconditionally without any safety
+    /// checks that it is providing better results than the normal unwind plan.
+    ///
+    /// The only time it is valid to call this method is if the full unwindplan is
+    /// found to be fundamentally incorrect/impossible.
+    ///
+    /// Returns true if it was able to install the fallback unwind plan.
+    //------------------------------------------------------------------
+    bool
+    ForceSwitchToFallbackUnwindPlan ();
+
     // Get the contents of a general purpose (address-size) register for this frame
     // (usually retrieved from the next frame)
     bool
     ReadGPRValue (lldb::RegisterKind register_kind, uint32_t regnum, lldb::addr_t &value);
+
+    bool
+    ReadGPRValue (const RegisterNumber &reg_num, lldb::addr_t &value);
+
+    // Get the CFA register for a given frame.
+    bool
+    ReadCFAValueForRow (lldb::RegisterKind register_kind, const UnwindPlan::RowSP &row, lldb::addr_t &value);
 
     lldb::UnwindPlanSP
     GetFastUnwindPlanForFrame ();

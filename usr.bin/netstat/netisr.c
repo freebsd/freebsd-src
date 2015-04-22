@@ -46,8 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
-
+#include <libxo/xo.h>
 #include "netstat.h"
 
 /*
@@ -112,13 +113,13 @@ netisr_load_kvm_uint(kvm_t *kd, const char *name, u_int *p)
 
 	ret = kvm_nlist(kd, nl);
 	if (ret < 0)
-		errx(-1, "%s: kvm_nlist(%s): %s", __func__, name,
+		xo_errx(-1, "%s: kvm_nlist(%s): %s", __func__, name,
 		    kvm_geterr(kd));
 	if (ret != 0)
-		errx(-1, "%s: kvm_nlist(%s): unresolved symbol", __func__,
+		xo_errx(-1, "%s: kvm_nlist(%s): unresolved symbol", __func__,
 		    name);
 	if (kvm_read(kd, nl[0].n_value, p, sizeof(*p)) != sizeof(*p))
-		errx(-1, "%s: kvm_read(%s): %s", __func__, name,
+		xo_errx(-1, "%s: kvm_read(%s): %s", __func__, name,
 		    kvm_geterr(kd));
 }
 
@@ -134,7 +135,7 @@ netisr_load_kvm_string(kvm_t *kd, uintptr_t addr, char *dest, u_int limit)
 	for (i = 0; i < limit; i++) {
 		if (kvm_read(kd, addr + i, &dest[i], sizeof(dest[i])) !=
 		    sizeof(dest[i]))
-			err(-1, "%s: kvm_read: %s", __func__,
+			xo_err(-1, "%s: kvm_read: %s", __func__,
 			    kvm_geterr(kd));
 		if (dest[i] == '\0')
 			break;
@@ -190,9 +191,9 @@ netisr_load_sysctl_uint(const char *name, u_int *p)
 
 	retlen = sizeof(u_int);
 	if (sysctlbyname(name, p, &retlen, NULL, 0) < 0)
-		err(-1, "%s", name);
+		xo_err(-1, "%s", name);
 	if (retlen != sizeof(u_int))
-		errx(-1, "%s: invalid len %ju", name, (uintmax_t)retlen);
+		xo_errx(-1, "%s: invalid len %ju", name, (uintmax_t)retlen);
 }
 
 static void
@@ -202,7 +203,7 @@ netisr_load_sysctl_string(const char *name, char *p, size_t len)
 
 	retlen = len;
 	if (sysctlbyname(name, p, &retlen, NULL, 0) < 0)
-		err(-1, "%s", name);
+		xo_err(-1, "%s", name);
 	p[len - 1] = '\0';
 }
 
@@ -241,21 +242,21 @@ netisr_load_kvm_proto(kvm_t *kd)
 	 */
 	netisr_load_kvm_uint(kd, "_netisr_maxprot", &maxprot);
 	if (maxprot != NETISR_MAXPROT)
-		errx(-1, "%s: NETISR_MAXPROT mismatch", __func__);
+		xo_errx(-1, "%s: NETISR_MAXPROT mismatch", __func__);
 	len = maxprot * sizeof(*np_array);
 	np_array = malloc(len);
 	if (np_array == NULL)
-		err(-1, "%s: malloc", __func__);
+		xo_err(-1, "%s: malloc", __func__);
 	ret = kvm_nlist(kd, nl);
 	if (ret < 0)
-		errx(-1, "%s: kvm_nlist(_netisr_proto): %s", __func__,
+		xo_errx(-1, "%s: kvm_nlist(_netisr_proto): %s", __func__,
 		    kvm_geterr(kd));
 	if (ret != 0)
-		errx(-1, "%s: kvm_nlist(_netisr_proto): unresolved symbol",
+		xo_errx(-1, "%s: kvm_nlist(_netisr_proto): unresolved symbol",
 		    __func__);
 	if (kvm_read(kd, nl[NLIST_NETISR_PROTO].n_value, np_array, len) !=
 	    (ssize_t)len)
-		errx(-1, "%s: kvm_read(_netisr_proto): %s", __func__,
+		xo_errx(-1, "%s: kvm_read(_netisr_proto): %s", __func__,
 		    kvm_geterr(kd));
 
 	/*
@@ -301,21 +302,21 @@ netisr_load_sysctl_proto(void)
 	size_t len;
 
 	if (sysctlbyname("net.isr.proto", NULL, &len, NULL, 0) < 0)
-		err(-1, "net.isr.proto: query len");
+		xo_err(-1, "net.isr.proto: query len");
 	if (len % sizeof(*proto_array) != 0)
-		errx(-1, "net.isr.proto: invalid len");
+		xo_errx(-1, "net.isr.proto: invalid len");
 	proto_array = malloc(len);
 	if (proto_array == NULL)
-		err(-1, "malloc");
+		xo_err(-1, "malloc");
 	if (sysctlbyname("net.isr.proto", proto_array, &len, NULL, 0) < 0)
-		err(-1, "net.isr.proto: query data");
+		xo_err(-1, "net.isr.proto: query data");
 	if (len % sizeof(*proto_array) != 0)
-		errx(-1, "net.isr.proto: invalid len");
+		xo_errx(-1, "net.isr.proto: invalid len");
 	proto_array_len = len / sizeof(*proto_array);
 	if (proto_array_len < 1)
-		errx(-1, "net.isr.proto: no data");
+		xo_errx(-1, "net.isr.proto: no data");
 	if (proto_array[0].snp_version != sizeof(proto_array[0]))
-		errx(-1, "net.isr.proto: invalid version");
+		xo_errx(-1, "net.isr.proto: invalid version");
 }
 
 static void
@@ -338,41 +339,41 @@ netisr_load_kvm_workstream(kvm_t *kd)
 	len = numthreads * sizeof(*nws_array);
 	nws_array = malloc(len);
 	if (nws_array == NULL)
-		err(-1, "malloc");
+		xo_err(-1, "malloc");
 	ret = kvm_nlist(kd, nl);
 	if (ret < 0)
-		errx(-1, "%s: kvm_nlist: %s", __func__, kvm_geterr(kd));
+		xo_errx(-1, "%s: kvm_nlist: %s", __func__, kvm_geterr(kd));
 	if (ret != 0)
-		errx(-1, "%s: kvm_nlist: unresolved symbol", __func__);
+		xo_errx(-1, "%s: kvm_nlist: unresolved symbol", __func__);
 	if (kvm_read(kd, nl[NLIST_NWS_ARRAY].n_value, nws_array, len) !=
 	    (ssize_t)len)
-		errx(-1, "%s: kvm_read(_nws_array): %s", __func__,
+		xo_errx(-1, "%s: kvm_read(_nws_array): %s", __func__,
 		    kvm_geterr(kd));
 	workstream_array = calloc(numthreads, sizeof(*workstream_array));
 	if (workstream_array == NULL)
-		err(-1, "calloc");
+		xo_err(-1, "calloc");
 	workstream_array_len = numthreads;
 	work_array = calloc(numthreads * proto_array_len, sizeof(*work_array));
 	if (work_array == NULL)
-		err(-1, "calloc");
+		xo_err(-1, "calloc");
 	counter = 0;
 	for (wsid = 0; wsid < numthreads; wsid++) {
 		cpuid = nws_array[wsid];
 		if (kvm_dpcpu_setcpu(kd, cpuid) < 0)
-			errx(-1, "%s: kvm_dpcpu_setcpu(%u): %s", __func__,
+			xo_errx(-1, "%s: kvm_dpcpu_setcpu(%u): %s", __func__,
 			    cpuid, kvm_geterr(kd));
 		bzero(nl_nws, sizeof(nl_nws));
 		nl_nws[0].n_name = "_nws";
 		ret = kvm_nlist(kd, nl_nws);
 		if (ret < 0)
-			errx(-1, "%s: kvm_nlist looking up nws on CPU %u: %s",
-			    __func__, cpuid, kvm_geterr(kd));
+			xo_errx(-1, "%s: kvm_nlist looking up nws on CPU "
+			    "%u: %s", __func__, cpuid, kvm_geterr(kd));
 		if (ret != 0)
-			errx(-1, "%s: kvm_nlist(nws): unresolved symbol on "
+			xo_errx(-1, "%s: kvm_nlist(nws): unresolved symbol on "
 			    "CPU %u", __func__, cpuid);
 		if (kvm_read(kd, nl_nws[0].n_value, &nws, sizeof(nws)) !=
 		    sizeof(nws))
-			errx(-1, "%s: kvm_read(nw): %s", __func__,
+			xo_errx(-1, "%s: kvm_read(nw): %s", __func__,
 			    kvm_geterr(kd));
 		snwsp = &workstream_array[wsid];
 		snwsp->snws_version = sizeof(*snwsp);
@@ -384,7 +385,7 @@ netisr_load_kvm_workstream(kvm_t *kd)
 		/*
 		 * Extract the CPU's per-protocol work information.
 		 */
-		printf("counting to maxprot: %u\n", maxprot);
+		xo_emit("counting to maxprot: {:maxprot/%u}\n", maxprot);
 		for (proto = 0; proto < maxprot; proto++) {
 			if (!netisr_protoispresent(proto))
 				continue;
@@ -413,22 +414,22 @@ netisr_load_sysctl_workstream(void)
 	size_t len;
 
 	if (sysctlbyname("net.isr.workstream", NULL, &len, NULL, 0) < 0)
-		err(-1, "net.isr.workstream: query len");
+		xo_err(-1, "net.isr.workstream: query len");
 	if (len % sizeof(*workstream_array) != 0)
-		errx(-1, "net.isr.workstream: invalid len");
+		xo_errx(-1, "net.isr.workstream: invalid len");
 	workstream_array = malloc(len);
 	if (workstream_array == NULL)
-		err(-1, "malloc");
+		xo_err(-1, "malloc");
 	if (sysctlbyname("net.isr.workstream", workstream_array, &len, NULL,
 	    0) < 0)
-		err(-1, "net.isr.workstream: query data");
+		xo_err(-1, "net.isr.workstream: query data");
 	if (len % sizeof(*workstream_array) != 0)
-		errx(-1, "net.isr.workstream: invalid len");
+		xo_errx(-1, "net.isr.workstream: invalid len");
 	workstream_array_len = len / sizeof(*workstream_array);
 	if (workstream_array_len < 1)
-		errx(-1, "net.isr.workstream: no data");
+		xo_errx(-1, "net.isr.workstream: no data");
 	if (workstream_array[0].snws_version != sizeof(workstream_array[0]))
-		errx(-1, "net.isr.workstream: invalid version");
+		xo_errx(-1, "net.isr.workstream: invalid version");
 }
 
 static void
@@ -437,21 +438,21 @@ netisr_load_sysctl_work(void)
 	size_t len;
 
 	if (sysctlbyname("net.isr.work", NULL, &len, NULL, 0) < 0)
-		err(-1, "net.isr.work: query len");
+		xo_err(-1, "net.isr.work: query len");
 	if (len % sizeof(*work_array) != 0)
-		errx(-1, "net.isr.work: invalid len");
+		xo_errx(-1, "net.isr.work: invalid len");
 	work_array = malloc(len);
 	if (work_array == NULL)
-		err(-1, "malloc");
+		xo_err(-1, "malloc");
 	if (sysctlbyname("net.isr.work", work_array, &len, NULL, 0) < 0)
-		err(-1, "net.isr.work: query data");
+		xo_err(-1, "net.isr.work: query data");
 	if (len % sizeof(*work_array) != 0)
-		errx(-1, "net.isr.work: invalid len");
+		xo_errx(-1, "net.isr.work: invalid len");
 	work_array_len = len / sizeof(*work_array);
 	if (work_array_len < 1)
-		errx(-1, "net.isr.work: no data");
+		xo_errx(-1, "net.isr.work: no data");
 	if (work_array[0].snw_version != sizeof(work_array[0]))
-		errx(-1, "net.isr.work: invalid version");
+		xo_errx(-1, "net.isr.work: invalid version");
 }
 
 static void
@@ -459,17 +460,17 @@ netisr_print_proto(struct sysctl_netisr_proto *snpp)
 {
 	char tmp[20];
 
-	printf("%-6s", snpp->snp_name);
-	printf(" %5u", snpp->snp_proto);
-	printf(" %6u", snpp->snp_qlimit);
-	printf(" %6s",
+	xo_emit("{[:-6}{k:name/%s}{]:}", snpp->snp_name);
+	xo_emit(" {:protocol/%5u}", snpp->snp_proto);
+	xo_emit(" {:queue-limit/%6u}", snpp->snp_qlimit);
+	xo_emit(" {:policy-type/%6s}",
 	    (snpp->snp_policy == NETISR_POLICY_SOURCE) ?  "source" :
 	    (snpp->snp_policy == NETISR_POLICY_FLOW) ? "flow" :
 	    (snpp->snp_policy == NETISR_POLICY_CPU) ? "cpu" : "-");
 	netisr_dispatch_policy_to_string(snpp->snp_dispatch, tmp,
 	    sizeof(tmp));
-	printf(" %8s", tmp);
-	printf("   %s%s%s\n",
+	xo_emit(" {:policy/%8s}", tmp);
+	xo_emit("   {:flags/%s%s%s}\n",
 	    (snpp->snp_flags & NETISR_SNP_FLAGS_M2CPUID) ?  "C" : "-",
 	    (snpp->snp_flags & NETISR_SNP_FLAGS_DRAINEDCPU) ?  "D" : "-",
 	    (snpp->snp_flags & NETISR_SNP_FLAGS_M2FLOW) ? "F" : "-");
@@ -481,23 +482,28 @@ netisr_print_workstream(struct sysctl_netisr_workstream *snwsp)
 	struct sysctl_netisr_work *snwp;
 	u_int i;
 
+	xo_open_list("work");
 	for (i = 0; i < work_array_len; i++) {
 		snwp = &work_array[i];
 		if (snwp->snw_wsid != snwsp->snws_wsid)
 			continue;
-		printf("%4u ", snwsp->snws_wsid);
-		printf("%3u ", snwsp->snws_cpu);
-		printf("%2s", "");
-		printf("%-6s", netisr_proto2name(snwp->snw_proto));
-		printf(" %5u", snwp->snw_len);
-		printf(" %5u", snwp->snw_watermark);
-		printf(" %8ju", snwp->snw_dispatched);
-		printf(" %8ju", snwp->snw_hybrid_dispatched);
-		printf(" %8ju", snwp->snw_qdrops);
-		printf(" %8ju", snwp->snw_queued);
-		printf(" %8ju", snwp->snw_handled);
-		printf("\n");
+		xo_open_instance("work");
+		xo_emit("{t:workstream/%4u} ", snwsp->snws_wsid);
+		xo_emit("{t:cpu/%3u} ", snwsp->snws_cpu);
+		xo_emit("{P:  }");
+		xo_emit("{t:name/%-6s}", netisr_proto2name(snwp->snw_proto));
+		xo_emit(" {t:length/%5u}", snwp->snw_len);
+		xo_emit(" {t:watermark/%5u}", snwp->snw_watermark);
+		xo_emit(" {t:dispatched/%8ju}", snwp->snw_dispatched);
+		xo_emit(" {t:hybrid-dispatched/%8ju}",
+		    snwp->snw_hybrid_dispatched);
+		xo_emit(" {t:queue-drops/%8ju}", snwp->snw_qdrops);
+		xo_emit(" {t:queued/%8ju}", snwp->snw_queued);
+		xo_emit(" {t:handled/%8ju}", snwp->snw_handled);
+		xo_emit("\n");
+		xo_close_instance("work");
 	}
+	xo_close_list("work");
 }
 
 void
@@ -515,39 +521,55 @@ netisr_stats(void *kvmd)
 		netisr_load_sysctl_work();
 	} else {
 		if (kd == NULL)
-			errx(-1, "netisr_stats: !live but !kd");
+			xo_errx(-1, "netisr_stats: !live but !kd");
 		netisr_load_kvm_config(kd);
 		netisr_load_kvm_proto(kd);
 		netisr_load_kvm_workstream(kd);		/* Also does work. */
 	}
 
-	printf("Configuration:\n");
-	printf("%-25s %12s %12s\n", "Setting", "Current", "Limit");
-	printf("%-25s %12u %12u\n", "Thread count", numthreads, maxthreads);
-	printf("%-25s %12u %12u\n", "Default queue limit", defaultqlimit,
-	    maxqlimit);
-	printf("%-25s %12s %12s\n", "Dispatch policy", dispatch_policy,
-	    "n/a");
-	printf("%-25s %12s %12s\n", "Threads bound to CPUs",
-	    bindthreads ? "enabled" : "disabled", "n/a");
-	printf("\n");
+	xo_open_container("netisr");
 
-	printf("Protocols:\n");
-	printf("%-6s %5s %6s %-6s %-8s %-5s\n", "Name", "Proto", "QLimit",
-	    "Policy", "Dispatch", "Flags");
+	xo_emit("{T:Configuration}:\n");
+	xo_emit("{T:/%-25s} {T:/%12s} {T:/%12s}\n",
+	    "Setting", "Current", "Limit");
+	xo_emit("{T:/%-25s} {T:/%12u} {T:/%12u}\n",
+	    "Thread count", numthreads, maxthreads);
+	xo_emit("{T:/%-25s} {T:/%12u} {T:/%12u}\n",
+	    "Default queue limit", defaultqlimit, maxqlimit);
+	xo_emit("{T:/%-25s} {T:/%12s} {T:/%12s}\n",
+	    "Dispatch policy", dispatch_policy, "n/a");
+	xo_emit("{T:/%-25s} {T:/%12s} {T:/%12s}\n",
+	    "Threads bound to CPUs", bindthreads ? "enabled" : "disabled",
+	    "n/a");
+	xo_emit("\n");
+
+	xo_emit("{T:Protocols}:\n");
+	xo_emit("{T:/%-6s} {T:/%5s} {T:/%6s} {T:/%-6s} {T:/%-8s} {T:/%-5s}\n",
+	    "Name", "Proto", "QLimit", "Policy", "Dispatch", "Flags");
+	xo_open_list("protocol");
 	for (i = 0; i < proto_array_len; i++) {
+		xo_open_instance("protocol");
 		snpp = &proto_array[i];
 		netisr_print_proto(snpp);
+		xo_close_instance("protocol");
 	}
-	printf("\n");
+	xo_close_list("protocol");
+	xo_emit("\n");
 
-	printf("Workstreams:\n");
-	printf("%4s %3s ", "WSID", "CPU");
-	printf("%2s", "");
-	printf("%-6s %5s %5s %8s %8s %8s %8s %8s\n", "Name", "Len", "WMark",
-	    "Disp'd", "HDisp'd", "QDrops", "Queued", "Handled");
+	xo_emit("{T:Workstreams}:\n");
+	xo_emit("{T:/%4s} {T:/%3s} ", "WSID", "CPU");
+	xo_emit("{P:/%2s}", "");
+	xo_emit("{T:/%-6s} {T:/%5s} {T:/%5s} {T:/%8s} {T:/%8s} {T:/%8s} "
+	    "{T:/%8s} {T:/%8s}\n",
+	    "Name", "Len", "WMark", "Disp'd", "HDisp'd", "QDrops", "Queued",
+	    "Handled");
+	xo_open_list("workstream");
 	for (i = 0; i < workstream_array_len; i++) {
+		xo_open_instance("workstream");
 		snwsp = &workstream_array[i];
 		netisr_print_workstream(snwsp);
+		xo_close_instance("workstream");
 	}
+	xo_close_list("workstream");
+	xo_close_container("netisr");
 }

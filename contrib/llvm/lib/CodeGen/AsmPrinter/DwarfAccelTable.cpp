@@ -12,11 +12,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "DwarfAccelTable.h"
-#include "DIE.h"
+#include "DwarfCompileUnit.h"
 #include "DwarfDebug.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/CodeGen/AsmPrinter.h"
+#include "llvm/CodeGen/DIE.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
@@ -174,7 +175,8 @@ void DwarfAccelTable::EmitOffsets(AsmPrinter *Asm, MCSymbol *SecBegin) {
 // Walk through the buckets and emit the full data for each element in
 // the bucket. For the string case emit the dies and the various offsets.
 // Terminate each HashData bucket with 0.
-void DwarfAccelTable::EmitData(AsmPrinter *Asm, DwarfFile *D) {
+void DwarfAccelTable::EmitData(AsmPrinter *Asm, DwarfDebug *D,
+                               MCSymbol *StrSym) {
   uint64_t PrevHash = UINT64_MAX;
   for (size_t i = 0, e = Buckets.size(); i < e; ++i) {
     for (HashList::const_iterator HI = Buckets[i].begin(),
@@ -183,13 +185,14 @@ void DwarfAccelTable::EmitData(AsmPrinter *Asm, DwarfFile *D) {
       // Remember to emit the label for our offset.
       Asm->OutStreamer.EmitLabel((*HI)->Sym);
       Asm->OutStreamer.AddComment((*HI)->Str);
-      Asm->EmitSectionOffset((*HI)->Data.StrSym,
-                             D->getStringPool().getSectionSymbol());
+      Asm->EmitSectionOffset((*HI)->Data.StrSym, StrSym);
       Asm->OutStreamer.AddComment("Num DIEs");
       Asm->EmitInt32((*HI)->Data.Values.size());
       for (HashDataContents *HD : (*HI)->Data.Values) {
         // Emit the DIE offset
-        Asm->EmitInt32(HD->Die->getOffset());
+        DwarfCompileUnit *CU = D->lookupUnit(HD->Die->getUnit());
+        assert(CU && "Accelerated DIE should belong to a CU.");
+        Asm->EmitInt32(HD->Die->getOffset() + CU->getDebugInfoOffset());
         // If we have multiple Atoms emit that info too.
         // FIXME: A bit of a hack, we either emit only one atom or all info.
         if (HeaderData.Atoms.size() > 1) {
@@ -206,7 +209,8 @@ void DwarfAccelTable::EmitData(AsmPrinter *Asm, DwarfFile *D) {
 }
 
 // Emit the entire data structure to the output file.
-void DwarfAccelTable::Emit(AsmPrinter *Asm, MCSymbol *SecBegin, DwarfFile *D) {
+void DwarfAccelTable::Emit(AsmPrinter *Asm, MCSymbol *SecBegin, DwarfDebug *D,
+                           MCSymbol *StrSym) {
   // Emit the header.
   EmitHeader(Asm);
 
@@ -220,7 +224,7 @@ void DwarfAccelTable::Emit(AsmPrinter *Asm, MCSymbol *SecBegin, DwarfFile *D) {
   EmitOffsets(Asm, SecBegin);
 
   // Emit the hash data.
-  EmitData(Asm, D);
+  EmitData(Asm, D, StrSym);
 }
 
 #ifndef NDEBUG

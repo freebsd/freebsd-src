@@ -108,12 +108,19 @@
    GINTSTS_WKUPINT | GINTSTS_USBSUSP | GINTMSK_OTGINTMSK |	\
    GINTSTS_SESSREQINT)
 
-static int dwc_otg_use_hsic;
+#define	DWC_OTG_PHY_ULPI 0
+#define	DWC_OTG_PHY_HSIC 1
+#define	DWC_OTG_PHY_INTERNAL 2
+
+#ifndef DWC_OTG_PHY_DEFAULT
+#define	DWC_OTG_PHY_DEFAULT DWC_OTG_PHY_ULPI
+#endif
+
+static int dwc_otg_phy_type = DWC_OTG_PHY_DEFAULT;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, dwc_otg, CTLFLAG_RW, 0, "USB DWC OTG");
-
-SYSCTL_INT(_hw_usb_dwc_otg, OID_AUTO, use_hsic, CTLFLAG_RDTUN,
-    &dwc_otg_use_hsic, 0, "DWC OTG uses HSIC interface");
+SYSCTL_INT(_hw_usb_dwc_otg, OID_AUTO, phy_type, CTLFLAG_RDTUN,
+    &dwc_otg_phy_type, 0, "DWC OTG PHY TYPE - 0/1/2 - ULPI/HSIC/INTERNAL");
 
 #ifdef USB_DEBUG
 static int dwc_otg_debug;
@@ -3766,8 +3773,9 @@ dwc_otg_init(struct dwc_otg_softc *sc)
 		break;
 	}
 
-	/* select HSIC or non-HSIC mode */
-	if (dwc_otg_use_hsic) {
+	/* select HSIC, ULPI or internal PHY mode */
+	switch (dwc_otg_phy_type) {
+	case DWC_OTG_PHY_HSIC:
 		DWC_OTG_WRITE_4(sc, DOTG_GUSBCFG,
 		    GUSBCFG_PHYIF |
 		    GUSBCFG_TRD_TIM_SET(5) | temp);
@@ -3779,7 +3787,8 @@ dwc_otg_init(struct dwc_otg_softc *sc)
 		    temp & ~GLPMCFG_HSIC_CONN);
 		DWC_OTG_WRITE_4(sc, DOTG_GLPMCFG,
 		    temp | GLPMCFG_HSIC_CONN);
-	} else {
+		break;
+	case DWC_OTG_PHY_ULPI:
 		DWC_OTG_WRITE_4(sc, DOTG_GUSBCFG,
 		    GUSBCFG_ULPI_UTMI_SEL |
 		    GUSBCFG_TRD_TIM_SET(5) | temp);
@@ -3788,6 +3797,25 @@ dwc_otg_init(struct dwc_otg_softc *sc)
 		temp = DWC_OTG_READ_4(sc, DOTG_GLPMCFG);
 		DWC_OTG_WRITE_4(sc, DOTG_GLPMCFG,
 		    temp & ~GLPMCFG_HSIC_CONN);
+		break;
+	case DWC_OTG_PHY_INTERNAL:
+		DWC_OTG_WRITE_4(sc, DOTG_GUSBCFG,
+		    GUSBCFG_PHYSEL |
+		    GUSBCFG_TRD_TIM_SET(5) | temp);
+		DWC_OTG_WRITE_4(sc, DOTG_GOTGCTL, 0);
+
+		temp = DWC_OTG_READ_4(sc, DOTG_GLPMCFG);
+		DWC_OTG_WRITE_4(sc, DOTG_GLPMCFG,
+		    temp & ~GLPMCFG_HSIC_CONN);
+
+		temp = DWC_OTG_READ_4(sc, DOTG_GGPIO);
+		temp &= ~(DOTG_GGPIO_NOVBUSSENS | DOTG_GGPIO_I2CPADEN);
+		temp |= (DOTG_GGPIO_VBUSASEN | DOTG_GGPIO_VBUSBSEN |
+		    DOTG_GGPIO_PWRDWN);
+		DWC_OTG_WRITE_4(sc, DOTG_GGPIO, temp);
+		break;
+	default:
+		break;
 	}
 
 	/* clear global nak */
@@ -3806,9 +3834,6 @@ dwc_otg_init(struct dwc_otg_softc *sc)
 
 	/* wait 10ms */
 	usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 100);
-
-	/* pull up D+ */
-	dwc_otg_pull_up(sc);
 
 	temp = DWC_OTG_READ_4(sc, DOTG_GHWCFG3);
 
@@ -4548,11 +4573,15 @@ tr_handle_set_port_feature:
 		/* nops */
 		break;
 	case UHF_PORT_POWER:
+		sc->sc_flags.port_powered = 1;
 		if (sc->sc_mode == DWC_MODE_HOST || sc->sc_mode == DWC_MODE_OTG) {
 			sc->sc_hprt_val |= HPRT_PRTPWR;
 			DWC_OTG_WRITE_4(sc, DOTG_HPRT, sc->sc_hprt_val);
 		}
-		sc->sc_flags.port_powered = 1;
+		if (sc->sc_mode == DWC_MODE_DEVICE || sc->sc_mode == DWC_MODE_OTG) {
+			/* pull up D+, if any */
+			dwc_otg_pull_up(sc);
+		}
 		break;
 	default:
 		err = USB_ERR_IOERROR;

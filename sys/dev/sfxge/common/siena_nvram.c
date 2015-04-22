@@ -330,6 +330,14 @@ static siena_parttbl_entry_t siena_parttbl[] = {
 	{MC_CMD_NVRAM_TYPE_EXP_ROM_CFG_PORT1,	2, EFX_NVRAM_BOOTROM_CFG},
 	{MC_CMD_NVRAM_TYPE_PHY_PORT0,		1, EFX_NVRAM_PHY},
 	{MC_CMD_NVRAM_TYPE_PHY_PORT1,		2, EFX_NVRAM_PHY},
+	{MC_CMD_NVRAM_TYPE_FPGA,		1, EFX_NVRAM_FPGA},
+	{MC_CMD_NVRAM_TYPE_FPGA,		2, EFX_NVRAM_FPGA},
+	{MC_CMD_NVRAM_TYPE_FPGA_BACKUP,		1, EFX_NVRAM_FPGA_BACKUP},
+	{MC_CMD_NVRAM_TYPE_FPGA_BACKUP,		2, EFX_NVRAM_FPGA_BACKUP},
+	{MC_CMD_NVRAM_TYPE_FC_FW,		1, EFX_NVRAM_FCFW},
+	{MC_CMD_NVRAM_TYPE_FC_FW,		2, EFX_NVRAM_FCFW},
+	{MC_CMD_NVRAM_TYPE_CPLD,		1, EFX_NVRAM_CPLD},
+	{MC_CMD_NVRAM_TYPE_CPLD,		2, EFX_NVRAM_CPLD},
 	{0, 0, 0},
 };
 
@@ -612,7 +620,7 @@ siena_nvram_get_subtype(
 
 	if (req.emr_out_length_used <
 	    MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_OFST +
-	    (partn + 1) * sizeof(efx_word_t)) {
+	    (partn + 1) * sizeof (efx_word_t)) {
 		rc = ENOENT;
 		goto fail3;
 	}

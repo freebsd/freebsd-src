@@ -41,7 +41,7 @@ int wps_process_authenticator(struct wps_data *wps, const u8 *authenticator,
 	len[1] = wpabuf_len(msg) - 4 - WPS_AUTHENTICATOR_LEN;
 	hmac_sha256_vector(wps->authkey, WPS_AUTHKEY_LEN, 2, addr, len, hash);
 
-	if (os_memcmp(hash, authenticator, WPS_AUTHENTICATOR_LEN) != 0) {
+	if (os_memcmp_const(hash, authenticator, WPS_AUTHENTICATOR_LEN) != 0) {
 		wpa_printf(MSG_DEBUG, "WPS: Incorrect Authenticator");
 		return -1;
 	}
@@ -71,7 +71,7 @@ int wps_process_key_wrap_auth(struct wps_data *wps, struct wpabuf *msg,
 	}
 
 	hmac_sha256(wps->authkey, WPS_AUTHKEY_LEN, head, len, hash);
-	if (os_memcmp(hash, key_wrap_auth, WPS_KWA_LEN) != 0) {
+	if (os_memcmp_const(hash, key_wrap_auth, WPS_KWA_LEN) != 0) {
 		wpa_printf(MSG_DEBUG, "WPS: Invalid KWA");
 		return -1;
 	}
@@ -207,70 +207,6 @@ static int wps_process_cred_mac_addr(struct wps_credential *cred,
 }
 
 
-static int wps_process_cred_eap_type(struct wps_credential *cred,
-				     const u8 *eap_type, size_t eap_type_len)
-{
-	if (eap_type == NULL)
-		return 0; /* optional attribute */
-
-	wpa_hexdump(MSG_DEBUG, "WPS: EAP Type", eap_type, eap_type_len);
-
-	return 0;
-}
-
-
-static int wps_process_cred_eap_identity(struct wps_credential *cred,
-					 const u8 *identity,
-					 size_t identity_len)
-{
-	if (identity == NULL)
-		return 0; /* optional attribute */
-
-	wpa_hexdump_ascii(MSG_DEBUG, "WPS: EAP Identity",
-			  identity, identity_len);
-
-	return 0;
-}
-
-
-static int wps_process_cred_key_prov_auto(struct wps_credential *cred,
-					  const u8 *key_prov_auto)
-{
-	if (key_prov_auto == NULL)
-		return 0; /* optional attribute */
-
-	wpa_printf(MSG_DEBUG, "WPS: Key Provided Automatically: %d",
-		   *key_prov_auto);
-
-	return 0;
-}
-
-
-static int wps_process_cred_802_1x_enabled(struct wps_credential *cred,
-					   const u8 *dot1x_enabled)
-{
-	if (dot1x_enabled == NULL)
-		return 0; /* optional attribute */
-
-	wpa_printf(MSG_DEBUG, "WPS: 802.1X Enabled: %d", *dot1x_enabled);
-
-	return 0;
-}
-
-
-static int wps_process_cred_ap_channel(struct wps_credential *cred,
-				       const u8 *ap_channel)
-{
-	if (ap_channel == NULL)
-		return 0; /* optional attribute */
-
-	cred->ap_channel = WPA_GET_BE16(ap_channel);
-	wpa_printf(MSG_DEBUG, "WPS: AP Channel: %u", cred->ap_channel);
-
-	return 0;
-}
-
-
 static int wps_workaround_cred_key(struct wps_credential *cred)
 {
 	if (cred->auth_type & (WPS_AUTH_WPAPSK | WPS_AUTH_WPA2PSK) &&
@@ -310,14 +246,7 @@ int wps_process_cred(struct wps_parse_attr *attr,
 	    wps_process_cred_network_key_idx(cred, attr->network_key_idx) ||
 	    wps_process_cred_network_key(cred, attr->network_key,
 					 attr->network_key_len) ||
-	    wps_process_cred_mac_addr(cred, attr->mac_addr) ||
-	    wps_process_cred_eap_type(cred, attr->eap_type,
-				      attr->eap_type_len) ||
-	    wps_process_cred_eap_identity(cred, attr->eap_identity,
-					  attr->eap_identity_len) ||
-	    wps_process_cred_key_prov_auto(cred, attr->key_prov_auto) ||
-	    wps_process_cred_802_1x_enabled(cred, attr->dot1x_enabled) ||
-	    wps_process_cred_ap_channel(cred, attr->ap_channel))
+	    wps_process_cred_mac_addr(cred, attr->mac_addr))
 		return -1;
 
 	return wps_workaround_cred_key(cred);

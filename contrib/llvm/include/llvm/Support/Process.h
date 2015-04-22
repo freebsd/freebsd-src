@@ -38,111 +38,13 @@ class StringRef;
 
 namespace sys {
 
-class self_process;
-
-/// \brief Generic base class which exposes information about an operating
-/// system process.
-///
-/// This base class is the core interface behind any OS process. It exposes
-/// methods to query for generic information about a particular process.
-///
-/// Subclasses implement this interface based on the mechanisms available, and
-/// can optionally expose more interfaces unique to certain process kinds.
-class process {
-protected:
-  /// \brief Only specific subclasses of process objects can be destroyed.
-  virtual ~process();
-
-public:
-  /// \brief Operating system specific type to identify a process.
-  ///
-  /// Note that the windows one is defined to 'unsigned long' as this is the
-  /// documented type for DWORD on windows, and we don't want to pull in the
-  /// Windows headers here.
-#if defined(LLVM_ON_UNIX)
-  typedef pid_t id_type;
-#elif defined(LLVM_ON_WIN32)
-  typedef unsigned long id_type; // Must match the type of DWORD.
-#else
-#error Unsupported operating system.
-#endif
-
-  /// \brief Get the operating system specific identifier for this process.
-  virtual id_type get_id() = 0;
-
-  /// \brief Get the user time consumed by this process.
-  ///
-  /// Note that this is often an approximation and may be zero on platforms
-  /// where we don't have good support for the functionality.
-  virtual TimeValue get_user_time() const = 0;
-
-  /// \brief Get the system time consumed by this process.
-  ///
-  /// Note that this is often an approximation and may be zero on platforms
-  /// where we don't have good support for the functionality.
-  virtual TimeValue get_system_time() const = 0;
-
-  /// \brief Get the wall time consumed by this process.
-  ///
-  /// Note that this is often an approximation and may be zero on platforms
-  /// where we don't have good support for the functionality.
-  virtual TimeValue get_wall_time() const = 0;
-
-  /// \name Static factory routines for processes.
-  /// @{
-
-  /// \brief Get the process object for the current process.
-  static self_process *get_self();
-
-  /// @}
-
-};
-
-/// \brief The specific class representing the current process.
-///
-/// The current process can both specialize the implementation of the routines
-/// and can expose certain information not available for other OS processes.
-class self_process : public process {
-  friend class process;
-
-  /// \brief Private destructor, as users shouldn't create objects of this
-  /// type.
-  virtual ~self_process();
-
-public:
-  id_type get_id() override;
-  TimeValue get_user_time() const override;
-  TimeValue get_system_time() const override;
-  TimeValue get_wall_time() const override;
-
-  /// \name Process configuration (sysconf on POSIX)
-  /// @{
-
-  /// \brief Get the virtual memory page size.
-  ///
-  /// Query the operating system for this process's page size.
-  size_t page_size() const { return PageSize; };
-
-  /// @}
-
-private:
-  /// \name Cached process state.
-  /// @{
-
-  /// \brief Cached page size, this cannot vary during the life of the process.
-  size_t PageSize;
-
-  /// @}
-
-  /// \brief Constructor, used by \c process::get_self() only.
-  self_process();
-};
-
 
 /// \brief A collection of legacy interfaces for querying information about the
 /// current executing process.
 class Process {
 public:
+  static unsigned getPageSize();
+
   /// \brief Return process memory usage.
   /// This static function will return the total amount of memory allocated
   /// by the process. This only counts the memory allocated via the malloc,
@@ -185,6 +87,21 @@ public:
   GetArgumentVector(SmallVectorImpl<const char *> &Args,
                     ArrayRef<const char *> ArgsFromMain,
                     SpecificBumpPtrAllocator<char> &ArgAllocator);
+
+  // This functions ensures that the standard file descriptors (input, output,
+  // and error) are properly mapped to a file descriptor before we use any of
+  // them.  This should only be called by standalone programs, library
+  // components should not call this.
+  static std::error_code FixupStandardFileDescriptors();
+
+  // This function safely closes a file descriptor.  It is not safe to retry
+  // close(2) when it returns with errno equivalent to EINTR; this is because
+  // *nixen cannot agree if the file descriptor is, in fact, closed when this
+  // occurs.
+  //
+  // N.B. Some operating systems, due to thread cancellation, cannot properly
+  // guarantee that it will or will not be closed one way or the other!
+  static std::error_code SafelyCloseFileDescriptor(int FD);
 
   /// This function determines if the standard input is connected directly
   /// to a user's input (keyboard probably), rather than coming from a file

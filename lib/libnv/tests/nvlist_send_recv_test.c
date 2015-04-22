@@ -58,8 +58,10 @@ static void
 child(int sock)
 {
 	nvlist_t *nvl;
+	nvlist_t *empty;
 
 	nvl = nvlist_create(0);
+	empty = nvlist_create(0);
 
 	nvlist_add_bool(nvl, "nvlist/bool/true", true);
 	nvlist_add_bool(nvl, "nvlist/bool/false", false);
@@ -75,6 +77,7 @@ child(int sock)
 	nvlist_add_descriptor(nvl, "nvlist/descriptor/STDERR_FILENO", STDERR_FILENO);
 	nvlist_add_binary(nvl, "nvlist/binary/x", "x", 1);
 	nvlist_add_binary(nvl, "nvlist/binary/abcdefghijklmnopqrstuvwxyz", "abcdefghijklmnopqrstuvwxyz", sizeof("abcdefghijklmnopqrstuvwxyz"));
+	nvlist_move_nvlist(nvl, "nvlist/nvlist/empty", empty);
 	nvlist_add_nvlist(nvl, "nvlist/nvlist", nvl);
 
 	nvlist_send(sock, nvl);
@@ -86,7 +89,7 @@ static void
 parent(int sock)
 {
 	nvlist_t *nvl;
-	const nvlist_t *cnvl;
+	const nvlist_t *cnvl, *empty;
 	const char *name, *cname;
 	void *cookie, *ccookie;
 	int type, ctype;
@@ -190,6 +193,13 @@ parent(int sock)
 	name = nvlist_next(nvl, &type, &cookie);
 	CHECK(name != NULL);
 	CHECK(type == NV_TYPE_NVLIST);
+	CHECK(strcmp(name, "nvlist/nvlist/empty") == 0);
+	cnvl = nvlist_get_nvlist(nvl, name);
+	CHECK(nvlist_empty(cnvl));
+
+	name = nvlist_next(nvl, &type, &cookie);
+	CHECK(name != NULL);
+	CHECK(type == NV_TYPE_NVLIST);
 	CHECK(strcmp(name, "nvlist/nvlist") == 0);
 	cnvl = nvlist_get_nvlist(nvl, name);
 
@@ -284,6 +294,13 @@ parent(int sock)
 	CHECK(size == sizeof("abcdefghijklmnopqrstuvwxyz"));
 
 	cname = nvlist_next(cnvl, &ctype, &ccookie);
+	CHECK(cname != NULL);
+	CHECK(ctype == NV_TYPE_NVLIST);
+	CHECK(strcmp(cname, "nvlist/nvlist/empty") == 0);
+	empty = nvlist_get_nvlist(cnvl, cname);
+	CHECK(nvlist_empty(empty));
+
+	cname = nvlist_next(cnvl, &ctype, &ccookie);
 	CHECK(cname == NULL);
 
 	name = nvlist_next(nvl, &type, &cookie);
@@ -296,7 +313,7 @@ main(void)
 	int status, socks[2];
 	pid_t pid;
 
-	printf("1..126\n");
+	printf("1..134\n");
 	fflush(stdout);
 
 	if (socketpair(PF_UNIX, SOCK_STREAM, 0, socks) < 0)

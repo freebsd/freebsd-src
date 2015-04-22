@@ -34,7 +34,6 @@ extern "C" {
  * @{
  */
 
-void LLVMLinkInJIT(void);
 void LLVMLinkInMCJIT(void);
 void LLVMLinkInInterpreter(void);
 
@@ -170,6 +169,10 @@ void LLVMAddGlobalMapping(LLVMExecutionEngineRef EE, LLVMValueRef Global,
                           void* Addr);
 
 void *LLVMGetPointerToGlobal(LLVMExecutionEngineRef EE, LLVMValueRef Global);
+
+uint64_t LLVMGetGlobalValueAddress(LLVMExecutionEngineRef EE, const char *Name);
+
+uint64_t LLVMGetFunctionAddress(LLVMExecutionEngineRef EE, const char *Name);
 
 /*===-- Operations on memory managers -------------------------------------===*/
 

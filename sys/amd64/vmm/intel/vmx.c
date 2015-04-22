@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include "vmm_lapic.h"
 #include "vmm_host.h"
 #include "vmm_ioport.h"
-#include "vmm_ipi.h"
 #include "vmm_ktr.h"
 #include "vmm_stat.h"
 #include "vatpic.h"
@@ -100,13 +99,11 @@ __FBSDID("$FreeBSD$");
 	(VM_EXIT_HOST_LMA			|			\
 	VM_EXIT_SAVE_EFER			|			\
 	VM_EXIT_LOAD_EFER			|			\
-	VM_EXIT_ACKNOWLEDGE_INTERRUPT		|			\
-	VM_EXIT_SAVE_PAT			|			\
-	VM_EXIT_LOAD_PAT)
+	VM_EXIT_ACKNOWLEDGE_INTERRUPT)
 
 #define	VM_EXIT_CTLS_ZERO_SETTING	VM_EXIT_SAVE_DEBUG_CONTROLS
 
-#define	VM_ENTRY_CTLS_ONE_SETTING	(VM_ENTRY_LOAD_EFER | VM_ENTRY_LOAD_PAT)
+#define	VM_ENTRY_CTLS_ONE_SETTING	(VM_ENTRY_LOAD_EFER)
 
 #define	VM_ENTRY_CTLS_ZERO_SETTING					\
 	(VM_ENTRY_LOAD_DEBUG_CONTROLS		|			\
@@ -177,7 +174,7 @@ static int posted_interrupts;
 SYSCTL_INT(_hw_vmm_vmx_cap, OID_AUTO, posted_interrupts, CTLFLAG_RD,
     &posted_interrupts, 0, "APICv posted interrupt support");
 
-static int pirvec;
+static int pirvec = -1;
 SYSCTL_INT(_hw_vmm_vmx, OID_AUTO, posted_interrupt_vector, CTLFLAG_RD,
     &pirvec, 0, "APICv posted interrupt vector");
 
@@ -487,8 +484,8 @@ static int
 vmx_cleanup(void)
 {
 	
-	if (pirvec != 0)
-		vmm_ipi_free(pirvec);
+	if (pirvec >= 0)
+		lapic_ipi_free(pirvec);
 
 	if (vpid_unr != NULL) {
 		delete_unrhdr(vpid_unr);
@@ -696,8 +693,8 @@ vmx_init(int ipinum)
 		    MSR_VMX_TRUE_PINBASED_CTLS, PINBASED_POSTED_INTERRUPT, 0,
 		    &tmp);
 		if (error == 0) {
-			pirvec = vmm_ipi_alloc();
-			if (pirvec == 0) {
+			pirvec = lapic_ipi_alloc(&IDTVEC(justreturn));
+			if (pirvec < 0) {
 				if (bootverbose) {
 					printf("vmx_init: unable to allocate "
 					    "posted interrupt vector\n");
@@ -859,10 +856,6 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	 * VM exit and entry respectively. It is also restored from the
 	 * host VMCS area on a VM exit.
 	 *
-	 * MSR_PAT is saved and restored in the guest VMCS are on a VM exit
-	 * and entry respectively. It is also restored from the host VMCS
-	 * area on a VM exit.
-	 *
 	 * The TSC MSR is exposed read-only. Writes are disallowed as that
 	 * will impact the host TSC.
 	 * XXX Writes would be implemented with a wrmsr trap, and
@@ -874,7 +867,6 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	    guest_msr_rw(vmx, MSR_SYSENTER_ESP_MSR) ||
 	    guest_msr_rw(vmx, MSR_SYSENTER_EIP_MSR) ||
 	    guest_msr_rw(vmx, MSR_EFER) ||
-	    guest_msr_rw(vmx, MSR_PAT) ||
 	    guest_msr_ro(vmx, MSR_TSC))
 		panic("vmx_vminit: error setting guest msr access");
 
@@ -1792,12 +1784,18 @@ vmexit_inst_emul(struct vm_exit *vmexit, uint64_t gpa, uint64_t gla)
 	vmexit->u.inst_emul.gla = gla;
 	vmx_paging_info(paging);
 	switch (paging->cpu_mode) {
+	case CPU_MODE_REAL:
+		vmexit->u.inst_emul.cs_base = vmcs_read(VMCS_GUEST_CS_BASE);
+		vmexit->u.inst_emul.cs_d = 0;
+		break;
 	case CPU_MODE_PROTECTED:
 	case CPU_MODE_COMPATIBILITY:
+		vmexit->u.inst_emul.cs_base = vmcs_read(VMCS_GUEST_CS_BASE);
 		csar = vmcs_read(VMCS_GUEST_CS_ACCESS_RIGHTS);
 		vmexit->u.inst_emul.cs_d = SEG_DESC_DEF32(csar);
 		break;
 	default:
+		vmexit->u.inst_emul.cs_base = 0;
 		vmexit->u.inst_emul.cs_d = 0;
 		break;
 	}

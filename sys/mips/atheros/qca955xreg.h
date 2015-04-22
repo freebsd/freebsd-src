@@ -188,9 +188,31 @@
 
 
 /* GMAC Interface */
-#define	QCA955X_GMAC_REG_ETH_CFG	0x00	/* XXX register base? */
+#define	QCA955X_GMAC_REG_ETH_CFG	(QCA955X_GMAC_BASE + 0x00)
 
 #define	QCA955X_ETH_CFG_RGMII_EN	BIT(0)
 #define	QCA955X_ETH_CFG_GE0_SGMII	BIT(6)
+
+/* XXX Same as AR934x values */
+#define	QCA955X_PLL_VAL_1000	0x16000000
+#define	QCA955X_PLL_VAL_100	0x00000101
+#define	QCA955X_PLL_VAL_10	0x00001616
+
+/* DDR block */
+#define	QCA955X_DDR_REG_FLUSH_GE0	(AR71XX_APB_BASE + 0x9c)
+#define	QCA955X_DDR_REG_FLUSH_GE1	(AR71XX_APB_BASE + 0xa0)
+#define	QCA955X_DDR_REG_FLUSH_USB	(AR71XX_APB_BASE + 0xa4)
+#define	QCA955X_DDR_REG_FLUSH_PCIE	(AR71XX_APB_BASE + 0xa8)
+#define	QCA955X_DDR_REG_FLUSH_WMAC	(AR71XX_APB_BASE + 0xac)
+
+/* PCIe control block - relative to PCI_CTRL_BASE0/PCI_CTRL_BASE1 */
+
+#define	QCA955X_PCI_APP                  0x0
+#define	QCA955X_PCI_APP_LTSSM_ENABLE     (1 << 0)
+#define	QCA955X_PCI_RESET                0x18
+#define	QCA955X_PCI_RESET_LINK_UP        (1 << 0)
+#define	QCA955X_PCI_INTR_STATUS          0x4c
+#define	QCA955X_PCI_INTR_MASK            0x50
+#define	QCA955X_PCI_INTR_DEV0            (1 << 14)
 
 #endif	/* __QCA955XREG_H__ */

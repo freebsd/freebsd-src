@@ -10,8 +10,8 @@
 // This file defines the interface of a subengine of the CoreEngine.
 //
 //===----------------------------------------------------------------------===//
-#ifndef LLVM_CLANG_GR_SUBENGINE_H
-#define LLVM_CLANG_GR_SUBENGINE_H
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_SUBENGINE_H
+#define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_SUBENGINE_H
 
 #include "clang/Analysis/ProgramPoint.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
@@ -71,6 +71,16 @@ public:
                              ExplodedNodeSet &Dst,
                              const CFGBlock *DstT,
                              const CFGBlock *DstF) = 0;
+
+  /// Called by CoreEngine.
+  /// Used to generate successor nodes for temporary destructors depending
+  /// on whether the corresponding constructor was visited.
+  virtual void processCleanupTemporaryBranch(const CXXBindTemporaryExpr *BTE,
+                                             NodeBuilderContext &BldCtx,
+                                             ExplodedNode *Pred,
+                                             ExplodedNodeSet &Dst,
+                                             const CFGBlock *DstT,
+                                             const CFGBlock *DstF) = 0;
 
   /// Called by CoreEngine.  Used to processing branching behavior
   /// at static initalizers.

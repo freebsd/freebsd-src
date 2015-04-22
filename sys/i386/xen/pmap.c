@@ -1652,107 +1652,6 @@ retry:
 * Pmap allocation/deallocation routines.
  ***************************************************/
 
-#ifdef SMP
-/*
- * Deal with a SMP shootdown of other users of the pmap that we are
- * trying to dispose of.  This can be a bit hairy.
- */
-static cpuset_t *lazymask;
-static u_int lazyptd;
-static volatile u_int lazywait;
-
-void pmap_lazyfix_action(void);
-
-void
-pmap_lazyfix_action(void)
-{
-
-#ifdef COUNT_IPIS
-	(*ipi_lazypmap_counts[PCPU_GET(cpuid)])++;
-#endif
-	if (rcr3() == lazyptd)
-		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
-	CPU_CLR_ATOMIC(PCPU_GET(cpuid), lazymask);
-	atomic_store_rel_int(&lazywait, 1);
-}
-
-static void
-pmap_lazyfix_self(u_int cpuid)
-{
-
-	if (rcr3() == lazyptd)
-		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
-	CPU_CLR_ATOMIC(cpuid, lazymask);
-}
-
-
-static void
-pmap_lazyfix(pmap_t pmap)
-{
-	cpuset_t mymask, mask;
-	u_int cpuid, spins;
-	int lsb;
-
-	mask = pmap->pm_active;
-	while (!CPU_EMPTY(&mask)) {
-		spins = 50000000;
-
-		/* Find least significant set bit. */
-		lsb = CPU_FFS(&mask);
-		MPASS(lsb != 0);
-		lsb--;
-		CPU_SETOF(lsb, &mask);
-		mtx_lock_spin(&smp_ipi_mtx);
-#ifdef PAE
-		lazyptd = vtophys(pmap->pm_pdpt);
-#else
-		lazyptd = vtophys(pmap->pm_pdir);
-#endif
-		cpuid = PCPU_GET(cpuid);
-
-		/* Use a cpuset just for having an easy check. */
-		CPU_SETOF(cpuid, &mymask);
-		if (!CPU_CMP(&mask, &mymask)) {
-			lazymask = &pmap->pm_active;
-			pmap_lazyfix_self(cpuid);
-		} else {
-			atomic_store_rel_int((u_int *)&lazymask,
-			    (u_int)&pmap->pm_active);
-			atomic_store_rel_int(&lazywait, 0);
-			ipi_selected(mask, IPI_LAZYPMAP);
-			while (lazywait == 0) {
-				ia32_pause();
-				if (--spins == 0)
-					break;
-			}
-		}
-		mtx_unlock_spin(&smp_ipi_mtx);
-		if (spins == 0)
-			printf("pmap_lazyfix: spun for 50000000\n");
-		mask = pmap->pm_active;
-	}
-}
-
-#else	/* SMP */
-
-/*
- * Cleaning up on uniprocessor is easy.  For various reasons, we're
- * unlikely to have to even execute this code, including the fact
- * that the cleanup is deferred until the parent does a wait(2), which
- * means that another userland process has run.
- */
-static void
-pmap_lazyfix(pmap_t pmap)
-{
-	u_int cr3;
-
-	cr3 = vtophys(pmap->pm_pdir);
-	if (cr3 == rcr3()) {
-		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
-		CPU_CLR(PCPU_GET(cpuid), &pmap->pm_active);
-	}
-}
-#endif	/* SMP */
 
 /*
  * Release any resources held by the given physical map.
@@ -1780,7 +1679,8 @@ pmap_release(pmap_t pmap)
 	mtx_lock(&createdelete_lock);
 #endif
 
-	pmap_lazyfix(pmap);
+	KASSERT(CPU_EMPTY(&pmap->pm_active),
+	    ("releasing active pmap %p", pmap));
 	mtx_lock_spin(&allpmaps_lock);
 	LIST_REMOVE(pmap, pm_list);
 	mtx_unlock_spin(&allpmaps_lock);

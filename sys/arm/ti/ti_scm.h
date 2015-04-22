@@ -59,8 +59,8 @@ struct ti_scm_padstate {
 struct ti_scm_device {
 	uint16_t		padconf_muxmode_mask;
 	uint16_t		padconf_sate_mask;
-	struct ti_scm_padstate	*padstate;
-	struct ti_scm_padconf	*padconf;
+	const struct ti_scm_padstate	*padstate;
+	const struct ti_scm_padconf	*padconf;
 };
 
 struct ti_scm_softc {

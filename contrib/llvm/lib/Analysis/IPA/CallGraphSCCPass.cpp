@@ -21,8 +21,8 @@
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IntrinsicInst.h"
-#include "llvm/IR/LegacyPassManagers.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/LegacyPassManagers.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Timer.h"
@@ -243,7 +243,14 @@ bool CGPassManager::RefreshCallGraph(CallGraphSCC &CurSCC,
       
       assert(!CallSites.count(I->first) &&
              "Call site occurs in node multiple times");
-      CallSites.insert(std::make_pair(I->first, I->second));
+      
+      CallSite CS(I->first);
+      if (CS) {
+        Function *Callee = CS.getCalledFunction();
+        // Ignore intrinsics because they're not really function calls.
+        if (!Callee || !(Callee->isIntrinsic()))
+          CallSites.insert(std::make_pair(I->first, I->second));
+      }
       ++I;
     }
     

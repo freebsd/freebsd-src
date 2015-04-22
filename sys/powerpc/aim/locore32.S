@@ -108,36 +108,47 @@ kernel_text:
 	.text
 	.globl	__start
 __start:
-	li	8,0
-	li	9,0x100
-	mtctr	9
-1:
-	dcbf	0,8
-	icbi	0,8
-	addi	8,8,0x20
-	bdnz	1b
-	sync
-	isync
+	/* Figure out where we are */
+	bl	1f
+	.long	_DYNAMIC-.
+	.long	_GLOBAL_OFFSET_TABLE_-.
+	.long	tmpstk-.
+1:	mflr	%r30
 
-	/* Zero bss, in case we were started by something unhelpful */
-	li	0,0
-	lis	8,_edata@ha
-	addi	8,8,_edata@l
-	lis	9,_end@ha
-	addi	9,9,_end@l
-2:	stw     0,0(8)
-	addi	8,8,4
-	cmplw	8,9
-	blt	2b
+	/* Set up temporary stack pointer */
+	lwz	%r1,8(%r30)
+	add	%r1,%r1,%r30
+	addi	%r1,%r1,(8+TMPSTKSZ-32)
+
+	/* Relocate self */
+	stw	%r3,16(%r1)
+	stw	%r4,20(%r1)
+	stw	%r5,24(%r1)
+	stw	%r6,28(%r1)
+
+	lwz	%r3,0(%r30) /* _DYNAMIC in %r3 */
+	add	%r3,%r3,%r30
+	lwz	%r4,4(%r30) /* GOT pointer */
+	add	%r4,%r4,%r30
+	lwz	%r4,4(%r4)  /* got[0] is _DYNAMIC link addr */
+	subf	%r4,%r4,%r3 /* subtract to calculate relocbase */
+	bl	elf_reloc_self
 	
-	lis	1,(tmpstk+TMPSTKSZ-16)@ha
-	addi	1,1,(tmpstk+TMPSTKSZ-16)@l
+	lwz	%r3,16(%r1)
+	lwz	%r4,20(%r1)
+	lwz	%r5,24(%r1)
+	lwz	%r6,28(%r1)
 
+	/* MD setup */
 	bl	powerpc_init
+
+	/* Set stack pointer to new value and branch to mi_startup */
 	mr	%r1, %r3
 	li	%r3, 0
 	stw	%r3, 0(%r1)
 	bl	mi_startup
+
+	/* If mi_startup somehow returns, exit. This would be bad. */
 	b	OF_exit
 
 /*

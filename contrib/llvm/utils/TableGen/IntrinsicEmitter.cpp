@@ -244,19 +244,22 @@ enum IIT_Info {
   IIT_ARG  = 15,
 
   // Values from 16+ are only encodable with the inefficient encoding.
-  IIT_MMX  = 16,
-  IIT_METADATA = 17,
-  IIT_EMPTYSTRUCT = 18,
-  IIT_STRUCT2 = 19,
-  IIT_STRUCT3 = 20,
-  IIT_STRUCT4 = 21,
-  IIT_STRUCT5 = 22,
-  IIT_EXTEND_ARG = 23,
-  IIT_TRUNC_ARG = 24,
-  IIT_ANYPTR = 25,
-  IIT_V1   = 26,
-  IIT_VARARG = 27,
-  IIT_HALF_VEC_ARG = 28
+  IIT_V64  = 16,
+  IIT_MMX  = 17,
+  IIT_METADATA = 18,
+  IIT_EMPTYSTRUCT = 19,
+  IIT_STRUCT2 = 20,
+  IIT_STRUCT3 = 21,
+  IIT_STRUCT4 = 22,
+  IIT_STRUCT5 = 23,
+  IIT_EXTEND_ARG = 24,
+  IIT_TRUNC_ARG = 25,
+  IIT_ANYPTR = 26,
+  IIT_V1   = 27,
+  IIT_VARARG = 28,
+  IIT_HALF_VEC_ARG = 29,
+  IIT_SAME_VEC_WIDTH_ARG = 30,
+  IIT_PTR_TO_ARG = 31
 };
 
 
@@ -304,6 +307,16 @@ static void EncodeFixedType(Record *R, std::vector<unsigned char> &ArgCodes,
       Sig.push_back(IIT_TRUNC_ARG);
     else if (R->isSubClassOf("LLVMHalfElementsVectorType"))
       Sig.push_back(IIT_HALF_VEC_ARG);
+    else if (R->isSubClassOf("LLVMVectorSameWidth")) {
+      Sig.push_back(IIT_SAME_VEC_WIDTH_ARG);
+      Sig.push_back((Number << 2) | ArgCodes[Number]);
+      MVT::SimpleValueType VT = getValueType(R->getValueAsDef("ElTy"));
+      EncodeFixedValueType(VT, Sig);
+      return;
+    }
+    else if (R->isSubClassOf("LLVMPointerTo")) {
+      Sig.push_back(IIT_PTR_TO_ARG);
+    }
     else
       Sig.push_back(IIT_ARG);
     return Sig.push_back((Number << 2) | ArgCodes[Number]);
@@ -356,6 +369,7 @@ static void EncodeFixedType(Record *R, std::vector<unsigned char> &ArgCodes,
     case 8: Sig.push_back(IIT_V8); break;
     case 16: Sig.push_back(IIT_V16); break;
     case 32: Sig.push_back(IIT_V32); break;
+    case 64: Sig.push_back(IIT_V64); break;
     }
 
     return EncodeFixedValueType(VVT.getVectorElementType().SimpleTy, Sig);
@@ -680,8 +694,7 @@ EmitAttributes(const std::vector<CodeGenIntrinsic> &Ints, raw_ostream &OS) {
 
   OS << "    }\n";
   OS << "  }\n";
-  OS << "  return AttributeSet::get(C, ArrayRef<AttributeSet>(AS, "
-             "NumAttrs));\n";
+  OS << "  return AttributeSet::get(C, makeArrayRef(AS, NumAttrs));\n";
   OS << "}\n";
   OS << "#endif // GET_INTRINSIC_ATTRIBUTES\n\n";
 }

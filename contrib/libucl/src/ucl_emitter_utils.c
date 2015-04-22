@@ -289,6 +289,7 @@ ucl_fd_append_character (unsigned char c, size_t len, void *ud)
 		else {
 			memset (buf, c, len);
 			if (write (fd, buf, len) == -1) {
+				free(buf);
 				return -1;
 			}
 			free (buf);

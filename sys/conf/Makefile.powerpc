@@ -37,10 +37,9 @@ INCLUDES+= -I$S/contrib/libfdt
 
 CFLAGS+= -msoft-float -Wa,-many
 
-.if ${MACHINE_ARCH} == "powerpc64"
+# Build position-independent kernel
 CFLAGS+= -fPIC
 LDFLAGS+= -pie
-.endif
 
 .if !empty(DDB_ENABLED)
 CFLAGS+=	-fno-omit-frame-pointer

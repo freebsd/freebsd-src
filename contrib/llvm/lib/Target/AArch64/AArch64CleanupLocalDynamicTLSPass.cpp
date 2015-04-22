@@ -62,10 +62,10 @@ struct LDTLSCleanup : public MachineFunctionPass {
     for (MachineBasicBlock::iterator I = BB->begin(), E = BB->end(); I != E;
          ++I) {
       switch (I->getOpcode()) {
-      case AArch64::TLSDESC_BLR:
+      case AArch64::TLSDESC_CALLSEQ:
         // Make sure it's a local dynamic access.
-        if (!I->getOperand(1).isSymbol() ||
-            strcmp(I->getOperand(1).getSymbolName(), "_TLS_MODULE_BASE_"))
+        if (!I->getOperand(0).isSymbol() ||
+            strcmp(I->getOperand(0).getSymbolName(), "_TLS_MODULE_BASE_"))
           break;
 
         if (TLSBaseAddrReg)
@@ -94,7 +94,7 @@ struct LDTLSCleanup : public MachineFunctionPass {
     MachineFunction *MF = I->getParent()->getParent();
     const AArch64TargetMachine *TM =
         static_cast<const AArch64TargetMachine *>(&MF->getTarget());
-    const AArch64InstrInfo *TII = TM->getInstrInfo();
+    const AArch64InstrInfo *TII = TM->getSubtargetImpl()->getInstrInfo();
 
     // Insert a Copy from TLSBaseAddrReg to x0, which is where the rest of the
     // code sequence assumes the address will be.
@@ -114,7 +114,7 @@ struct LDTLSCleanup : public MachineFunctionPass {
     MachineFunction *MF = I->getParent()->getParent();
     const AArch64TargetMachine *TM =
         static_cast<const AArch64TargetMachine *>(&MF->getTarget());
-    const AArch64InstrInfo *TII = TM->getInstrInfo();
+    const AArch64InstrInfo *TII = TM->getSubtargetImpl()->getInstrInfo();
 
     // Create a virtual register for the TLS base address.
     MachineRegisterInfo &RegInfo = MF->getRegInfo();

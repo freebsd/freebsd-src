@@ -123,6 +123,6 @@ else
 fi
 
 cd /
-/usr/bin/rm -rf $DIR
+rm -rf $DIR
 
 exit $status

@@ -247,14 +247,6 @@ compat/freebsd32/freebsd32_ioctl.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_misc.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_syscalls.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_sysent.c	optional compat_freebsd32
-contrib/altq/altq/altq_cbq.c		optional altq
-contrib/altq/altq/altq_cdnr.c		optional altq
-contrib/altq/altq/altq_hfsc.c		optional altq
-contrib/altq/altq/altq_priq.c		optional altq
-contrib/altq/altq/altq_red.c		optional altq
-contrib/altq/altq/altq_rio.c		optional altq
-contrib/altq/altq/altq_rmclass.c	optional altq
-contrib/altq/altq/altq_subr.c		optional altq
 contrib/dev/acpica/common/ahids.c			optional acpi acpi_debug
 contrib/dev/acpica/common/ahuuids.c			optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbcmds.c		optional acpi acpi_debug
@@ -684,12 +676,8 @@ dev/ata/ata-card.c		optional ata pccard | atapccard
 dev/ata/ata-cbus.c		optional ata pc98 | atapc98
 dev/ata/ata-isa.c		optional ata isa | ataisa
 dev/ata/ata-pci.c		optional ata pci | atapci
-dev/ata/chipsets/ata-ahci.c	optional ata pci | ataahci | ataacerlabs | \
-					 ataati | ataintel | atajmicron | \
-					 atavia | atanvidia
 dev/ata/chipsets/ata-acard.c	optional ata pci | ataacard
 dev/ata/chipsets/ata-acerlabs.c	optional ata pci | ataacerlabs
-dev/ata/chipsets/ata-adaptec.c	optional ata pci | ataadaptec
 dev/ata/chipsets/ata-amd.c	optional ata pci | ataamd
 dev/ata/chipsets/ata-ati.c	optional ata pci | ataati
 dev/ata/chipsets/ata-cenatek.c	optional ata pci | atacenatek
@@ -699,7 +687,7 @@ dev/ata/chipsets/ata-highpoint.c	optional ata pci | atahighpoint
 dev/ata/chipsets/ata-intel.c	optional ata pci | ataintel
 dev/ata/chipsets/ata-ite.c	optional ata pci | ataite
 dev/ata/chipsets/ata-jmicron.c	optional ata pci | atajmicron
-dev/ata/chipsets/ata-marvell.c	optional ata pci | atamarvell | ataadaptec
+dev/ata/chipsets/ata-marvell.c	optional ata pci | atamarvell
 dev/ata/chipsets/ata-micron.c	optional ata pci | atamicron
 dev/ata/chipsets/ata-national.c	optional ata pci | atanational
 dev/ata/chipsets/ata-netcell.c	optional ata pci | atanetcell
@@ -1449,9 +1437,11 @@ dev/ida/ida_pci.c		optional ida pci
 dev/ie/if_ie.c			optional ie isa nowerror
 dev/ie/if_ie_isa.c		optional ie isa
 dev/iicbus/ad7418.c		optional ad7418
+dev/iicbus/ds1307.c		optional ds1307
 dev/iicbus/ds133x.c		optional ds133x
 dev/iicbus/ds1374.c		optional ds1374
 dev/iicbus/ds1672.c		optional ds1672
+dev/iicbus/ds3231.c		optional ds3231
 dev/iicbus/icee.c		optional icee
 dev/iicbus/if_ic.c		optional ic
 dev/iicbus/iic.c		optional iic
@@ -1768,31 +1758,33 @@ iwn6050.fw			optional iwn6050fw | iwnfw		\
 dev/ixgb/if_ixgb.c		optional ixgb
 dev/ixgb/ixgb_ee.c		optional ixgb
 dev/ixgb/ixgb_hw.c		optional ixgb
-dev/ixgbe/ixgbe.c		optional ixgbe inet \
+dev/ixgbe/if_ix.c		optional ix inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe -DSMP"
-dev/ixgbe/ixv.c			optional ixgbe inet \
+dev/ixgbe/if_ixv.c		optional ixv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe -DSMP"
+dev/ixgbe/ix_txrx.c		optional ix ixv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe -DSMP"
+dev/ixgbe/ixgbe_phy.c		optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_phy.c		optional ixgbe inet \
+dev/ixgbe/ixgbe_api.c		optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_api.c		optional ixgbe inet \
+dev/ixgbe/ixgbe_common.c	optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_common.c	optional ixgbe inet \
+dev/ixgbe/ixgbe_mbx.c		optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_mbx.c		optional ixgbe inet \
+dev/ixgbe/ixgbe_vf.c		optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_vf.c		optional ixgbe inet \
+dev/ixgbe/ixgbe_82598.c		optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_82598.c		optional ixgbe inet \
+dev/ixgbe/ixgbe_82599.c		optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_82599.c		optional ixgbe inet \
+dev/ixgbe/ixgbe_x540.c		optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_x540.c		optional ixgbe inet \
+dev/ixgbe/ixgbe_dcb.c		optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_dcb.c		optional ixgbe inet \
+dev/ixgbe/ixgbe_dcb_82598.c	optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_dcb_82598.c	optional ixgbe inet \
-	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_dcb_82599.c	optional ixgbe inet \
+dev/ixgbe/ixgbe_dcb_82599.c	optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/jme/if_jme.c		optional jme pci
 dev/joy/joy.c			optional joy
@@ -2030,6 +2022,8 @@ dev/pci/ignore_pci.c		optional pci
 dev/pci/isa_pci.c		optional pci isa
 dev/pci/pci.c			optional pci
 dev/pci/pci_if.m		standard
+dev/pci/pci_iov.c		optional pci pci_iov
+dev/pci/pci_iov_schema.c	optional pci pci_iov
 dev/pci/pci_pci.c		optional pci
 dev/pci/pci_subr.c		optional pci
 dev/pci/pci_user.c		optional pci
@@ -2161,6 +2155,37 @@ dev/sdhci/sdhci.c		optional sdhci
 dev/sdhci/sdhci_if.m		optional sdhci
 dev/sdhci/sdhci_pci.c		optional sdhci pci
 dev/sf/if_sf.c			optional sf pci
+dev/sfxge/common/efx_bootcfg.c	optional sfxge pci
+dev/sfxge/common/efx_ev.c	optional sfxge pci
+dev/sfxge/common/efx_filter.c	optional sfxge pci
+dev/sfxge/common/efx_intr.c	optional sfxge pci
+dev/sfxge/common/efx_mac.c	optional sfxge pci
+dev/sfxge/common/efx_mcdi.c	optional sfxge pci
+dev/sfxge/common/efx_mon.c	optional sfxge pci
+dev/sfxge/common/efx_nic.c	optional sfxge pci
+dev/sfxge/common/efx_nvram.c	optional sfxge pci
+dev/sfxge/common/efx_phy.c	optional sfxge pci
+dev/sfxge/common/efx_port.c	optional sfxge pci
+dev/sfxge/common/efx_rx.c	optional sfxge pci
+dev/sfxge/common/efx_sram.c	optional sfxge pci
+dev/sfxge/common/efx_tx.c	optional sfxge pci
+dev/sfxge/common/efx_vpd.c	optional sfxge pci
+dev/sfxge/common/efx_wol.c	optional sfxge pci
+dev/sfxge/common/siena_mac.c	optional sfxge pci
+dev/sfxge/common/siena_mon.c	optional sfxge pci
+dev/sfxge/common/siena_nic.c	optional sfxge pci
+dev/sfxge/common/siena_nvram.c	optional sfxge pci
+dev/sfxge/common/siena_phy.c	optional sfxge pci
+dev/sfxge/common/siena_sram.c	optional sfxge pci
+dev/sfxge/common/siena_vpd.c	optional sfxge pci
+dev/sfxge/sfxge.c		optional sfxge pci
+dev/sfxge/sfxge_dma.c		optional sfxge pci
+dev/sfxge/sfxge_ev.c		optional sfxge pci
+dev/sfxge/sfxge_intr.c		optional sfxge pci
+dev/sfxge/sfxge_mcdi.c		optional sfxge pci
+dev/sfxge/sfxge_port.c		optional sfxge pci
+dev/sfxge/sfxge_rx.c		optional sfxge pci
+dev/sfxge/sfxge_tx.c		optional sfxge pci
 dev/sge/if_sge.c		optional sge pci
 dev/si/si.c			optional si
 dev/si/si2_z280.c		optional si
@@ -2669,6 +2694,7 @@ dev/xen/xenstore/xenstore_dev.c	optional xen | xenhvm
 dev/xen/xenstore/xenstored_dev.c	optional xen | xenhvm
 dev/xen/evtchn/evtchn_dev.c	optional xen | xenhvm
 dev/xen/privcmd/privcmd.c	optional xen | xenhvm
+dev/xen/debug/debug.c		optional xen | xenhvm
 dev/xl/if_xl.c			optional xl pci
 dev/xl/xlphy.c			optional xl pci
 fs/autofs/autofs.c		optional autofs
@@ -2907,8 +2933,6 @@ fs/ext2fs/ext2_bmap.c		optional ext2fs
 fs/ext2fs/ext2_extents.c	optional ext2fs
 fs/ext2fs/ext2_inode.c		optional ext2fs
 fs/ext2fs/ext2_inode_cnv.c	optional ext2fs
-fs/ext2fs/ext2_hash.c		optional ext2fs
-fs/ext2fs/ext2_htree.c		optional ext2fs
 fs/ext2fs/ext2_lookup.c		optional ext2fs
 fs/ext2fs/ext2_subr.c		optional ext2fs
 fs/ext2fs/ext2_vfsops.c		optional ext2fs
@@ -3044,6 +3068,7 @@ kern/subr_clock.c		standard
 kern/subr_counter.c		standard
 kern/subr_devstat.c		standard
 kern/subr_disk.c		standard
+kern/subr_dnvlist.c		standard
 kern/subr_eventhandler.c	standard
 kern/subr_fattime.c		standard
 kern/subr_firmware.c		optional firmware
@@ -3057,6 +3082,8 @@ kern/subr_mbpool.c		optional libmbpool
 kern/subr_mchain.c		optional libmchain
 kern/subr_module.c		standard
 kern/subr_msgbuf.c		standard
+kern/subr_nvlist.c		standard
+kern/subr_nvpair.c		standard
 kern/subr_param.c		standard
 kern/subr_pcpu.c		standard
 kern/subr_pctrie.c		standard
@@ -3103,6 +3130,7 @@ kern/uipc_debug.c		optional ddb
 kern/uipc_domain.c		standard
 kern/uipc_mbuf.c		standard
 kern/uipc_mbuf2.c		standard
+kern/uipc_mbufhash.c		standard
 kern/uipc_mqueue.c		optional p1003_1b_mqueue
 kern/uipc_sem.c			optional p1003_1b_semaphores
 kern/uipc_shm.c			standard
@@ -3184,6 +3212,7 @@ kgssapi/gsstest.c		optional kgssapi_debug
 # the file should be moved to conf/files.<arch> from here.
 #
 libkern/arc4random.c		standard
+libkern/asprintf.c		standard
 libkern/bcd.c			standard
 libkern/bsearch.c		standard
 libkern/crc32.c			standard
@@ -3233,6 +3262,14 @@ libkern/strtoul.c		standard
 libkern/strtouq.c		standard
 libkern/strvalid.c		standard
 libkern/timingsafe_bcmp.c	standard
+net/altq/altq_cbq.c		optional altq
+net/altq/altq_cdnr.c		optional altq
+net/altq/altq_hfsc.c		optional altq
+net/altq/altq_priq.c		optional altq
+net/altq/altq_red.c		optional altq
+net/altq/altq_rio.c		optional altq
+net/altq/altq_rmclass.c		optional altq
+net/altq/altq_subr.c		optional altq
 net/bpf.c			standard
 net/bpf_buffer.c		optional bpf
 net/bpf_jitter.c		optional bpf_jitter
@@ -3446,6 +3483,7 @@ netinet/ip_ipsec.c		optional inet ipsec
 netinet/ip_mroute.c		optional mrouting inet
 netinet/ip_options.c		optional inet
 netinet/ip_output.c		optional inet
+netinet/ip_reass.c		optional inet
 netinet/raw_ip.c		optional inet | inet6
 netinet/cc/cc.c			optional inet | inet6
 netinet/cc/cc_newreno.c		optional inet | inet6
@@ -3525,7 +3563,6 @@ netipsec/keysock.c		optional ipsec inet | ipsec inet6
 netipsec/xform_ah.c		optional ipsec inet | ipsec inet6
 netipsec/xform_esp.c		optional ipsec inet | ipsec inet6
 netipsec/xform_ipcomp.c		optional ipsec inet | ipsec inet6
-netipsec/xform_ipip.c		optional ipsec inet | ipsec inet6
 netipsec/xform_tcp.c		optional ipsec inet tcp_signature | \
 					 ipsec inet6 tcp_signature
 netnatm/natm.c			optional natm
@@ -3817,9 +3854,6 @@ ofed/drivers/net/mlx4/sys_tune.c		optional mlx4ib | mlxen	\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
 
 ofed/drivers/net/mlx4/en_cq.c			optional mlxen		\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/utils.c			optional mlxen		\
 	no-depend obj-prefix "mlx4_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
 ofed/drivers/net/mlx4/en_main.c			optional mlxen		\

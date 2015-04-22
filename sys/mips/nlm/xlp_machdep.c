@@ -12,11 +12,11 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY Netlogic Microsystems ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL NETLOGIC OR CONTRIBUTORS BE 
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL NETLOGIC OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -136,7 +136,7 @@ xlp_setup_core(void)
 	nlm_mtcr(SCHED_DEFEATURE, reg);
 }
 
-static void 
+static void
 xlp_setup_mmu(void)
 {
 	uint32_t pagegrain;
@@ -197,15 +197,15 @@ xlp_parse_mmu_options(void)
 	case 1:
 		xlp_threads_per_core = 1;
 		xlp_mmuval = 0;
-	       	break;
+		break;
 	case 3:
 		xlp_threads_per_core = 2;
 		xlp_mmuval = 2;
-	       	break;
-	case 0xf: 
+		break;
+	case 0xf:
 		xlp_threads_per_core = 4;
 		xlp_mmuval = 3;
-	       	break;
+		break;
 	default:
 		goto unsupp;
 	}
@@ -224,20 +224,20 @@ xlp_parse_mmu_options(void)
 			cpu_map &= ~(0xfu << (4 * i));
 	}
 
- 	/* Verify other cores' CPU masks */
+	/* Verify other cores' CPU masks */
 	for (i = 1; i < XLP_MAX_CORES; i++) {
 		core_thr_mask = (cpu_map >> (4 * i)) & 0xf;
 		if (core_thr_mask == 0)
-	       		continue;
+			continue;
 		if (core_thr_mask != core0_thr_mask)
-			goto unsupp; 
+			goto unsupp;
 		xlp_ncores++;
 	}
 
 	xlp_hw_thread_mask = cpu_map;
 	/* setup hardware processor id to cpu id mapping */
 	for (i = 0; i< MAXCPU; i++)
-		xlp_cpuid_to_hwtid[i] = 
+		xlp_cpuid_to_hwtid[i] =
 		    xlp_hwtid_to_cpuid[i] = -1;
 	for (i = 0, k = 0; i < XLP_MAX_CORES; i++) {
 		if (((cpu_map >> (i * 4)) & 0xf) == 0)
@@ -396,7 +396,7 @@ platform_get_timecount(struct timecounter *tc __unused)
 	return (unsigned int)~count;
 }
 
-static void 
+static void
 xlp_pic_init(void)
 {
 	struct timecounter pic_timecounter = {
@@ -452,7 +452,7 @@ mem_exclude_add(vm_paddr_t *avail, vm_paddr_t mstart, vm_paddr_t mend)
 			continue;
 		if (mstart < xlp_mem_excl[i]) {
 			avail[pos++] = mstart;
-			if (mend < xlp_mem_excl[i]) 
+			if (mend < xlp_mem_excl[i])
 				avail[pos++] = mend;
 			else
 				avail[pos++] = xlp_mem_excl[i];
@@ -523,7 +523,7 @@ xlp_mem_init(void)
 	phys_avail[j] = phys_avail[j + 1] = 0;
 
 	/* copy phys_avail to dump_avail */
-	for (i = 0; i <= j + 1; i++) 
+	for (i = 0; i <= j + 1; i++)
 		dump_avail[i] = phys_avail[i];
 
 	realmem = physmem = btoc(physsz);
@@ -562,7 +562,7 @@ platform_start(__register_t a0 __unused,
 	bcopy(XLPResetEntry, (void *)MIPS_RESET_EXC_VEC,
               XLPResetEntryEnd - XLPResetEntry);
 #ifdef SMP
-	/* 
+	/*
 	 * We will enable the other threads in core 0 here
 	 * so that the TLB and cache info is correct when
 	 * mips_init runs
@@ -582,14 +582,14 @@ platform_start(__register_t a0 __unused,
 
 	/*
 	 * XLP specific post initialization
- 	 * initialize other on chip stuff
+	 * initialize other on chip stuff
 	 */
 	xlp_pic_init();
 
 	mips_timer_init_params(xlp_cpu_frequency, 0);
 }
 
-void 
+void
 platform_cpu_init()
 {
 }
@@ -607,7 +607,7 @@ platform_reset(void)
 #ifdef SMP
 /*
  * XLP threads are started simultaneously when we enable threads, this will
- * ensure that the threads are blocked in platform_init_ap, until they are 
+ * ensure that the threads are blocked in platform_init_ap, until they are
  * ready to proceed to smp_init_secondary()
  */
 static volatile int thr_unblock[4];
@@ -642,7 +642,7 @@ platform_start_ap(int cpuid)
 		/* Poll for CPU to mark itself coherent */
 		do {
 			val = nlm_read_sys_reg(sysbase, SYS_CPU_NONCOHERENT_MODE);
-       		} while ((val & coremask) != 0);
+		} while ((val & coremask) != 0);
 		if (bootverbose)
 			printf("Done\n");
         } else {
@@ -666,7 +666,7 @@ platform_init_ap(int cpuid)
 		xlp_enable_threads(xlp_mmuval);
 	} else {
 		/*
-		 * FIXME busy wait here eats too many cycles, especially 
+		 * FIXME busy wait here eats too many cycles, especially
 		 * in the core 0 while bootup
 		 */
 		while (thr_unblock[thr] == 0)
@@ -690,7 +690,7 @@ platform_init_ap(int cpuid)
 }
 
 int
-platform_ipi_intrnum(void) 
+platform_ipi_intrnum(void)
 {
 
 	return (IRQ_IPI);

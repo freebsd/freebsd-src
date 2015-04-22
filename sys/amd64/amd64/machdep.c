@@ -443,6 +443,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
+	regs->tf_ss = _udatasel;
 	regs->tf_es = _udatasel;
 	regs->tf_fs = _ufssel;
 	regs->tf_gs = _ugssel;
@@ -728,15 +729,6 @@ cpu_idle_hlt(sbintime_t sbt)
 		__asm __volatile("sti; hlt");
 	*state = STATE_RUNNING;
 }
-
-/*
- * MWAIT cpu power states.  Lower 4 bits are sub-states.
- */
-#define	MWAIT_C0	0xf0
-#define	MWAIT_C1	0x00
-#define	MWAIT_C2	0x10
-#define	MWAIT_C3	0x20
-#define	MWAIT_C4	0x30
 
 static void
 cpu_idle_mwait(sbintime_t sbt)

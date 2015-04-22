@@ -5149,7 +5149,7 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 {
 	u_int8_t type;
 	char *dtype, *qtype;
-	char vendor[16], product[48], revision[16], rstr[4];
+	char vendor[16], product[48], revision[16], rstr[12];
 
 	type = SID_TYPE(inq_data);
 
@@ -5157,7 +5157,7 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 	 * Figure out basic device type and qualifier.
 	 */
 	if (SID_QUAL_IS_VENDOR_UNIQUE(inq_data)) {
-		qtype = "(vendor-unique qualifier)";
+		qtype = " (vendor-unique qualifier)";
 	} else {
 		switch (SID_QUAL(inq_data)) {
 		case SID_QUAL_LU_CONNECTED:
@@ -5165,15 +5165,15 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 			break;
 
 		case SID_QUAL_LU_OFFLINE:
-			qtype = "(offline)";
+			qtype = " (offline)";
 			break;
 
 		case SID_QUAL_RSVD:
-			qtype = "(reserved qualifier)";
+			qtype = " (reserved qualifier)";
 			break;
 		default:
 		case SID_QUAL_BAD_LU:
-			qtype = "(LUN not supported)";
+			qtype = " (LUN not supported)";
 			break;
 		}
 	}
@@ -5242,11 +5242,16 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 	cam_strvis(revision, inq_data->revision, sizeof(inq_data->revision),
 		   sizeof(revision));
 
-	if (SID_ANSI_REV(inq_data) == SCSI_REV_CCS)
-		bcopy("CCS", rstr, 4);
-	else
-		snprintf(rstr, sizeof (rstr), "%d", SID_ANSI_REV(inq_data));
-	printf("<%s %s %s> %s %s SCSI-%s device %s\n",
+	if (SID_ANSI_REV(inq_data) == SCSI_REV_0)
+		snprintf(rstr, sizeof(rstr), "SCSI");
+	else if (SID_ANSI_REV(inq_data) <= SCSI_REV_SPC) {
+		snprintf(rstr, sizeof(rstr), "SCSI-%d",
+		    SID_ANSI_REV(inq_data));
+	} else {
+		snprintf(rstr, sizeof(rstr), "SPC-%d SCSI",
+		    SID_ANSI_REV(inq_data) - 2);
+	}
+	printf("<%s %s %s> %s %s %s device%s\n",
 	       vendor, product, revision,
 	       SID_IS_REMOVABLE(inq_data) ? "Removable" : "Fixed",
 	       dtype, rstr, qtype);
@@ -6034,7 +6039,7 @@ scsi_parse_transportid_rdma(char *id_str, struct scsi_transportid_header **hdr,
 		goto bailout;
 	}
 	*alloc_len = sizeof(*rdma);
-	bzero(rdma, sizeof(rdma));
+	bzero(rdma, *alloc_len);
 
 	rdma->format_protocol = SCSI_PROTO_RDMA | SCSI_TRN_RDMA_FORMAT_DEFAULT;
 	bcopy(rdma_id, rdma->initiator_port_id, SCSI_TRN_RDMA_PORT_LEN);
@@ -7442,6 +7447,71 @@ scsi_persistent_reserve_out(struct ccb_scsiio *csio, uint32_t retries,
 	scsi_cmd->opcode = PERSISTENT_RES_OUT;
 	scsi_cmd->action = service_action;
 	scsi_cmd->scope_type = scope | res_type;
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_OUT,
+		      tag_action,
+		      /*data_ptr*/data_ptr,
+		      /*dxfer_len*/dxfer_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
+
+void
+scsi_security_protocol_in(struct ccb_scsiio *csio, uint32_t retries, 
+			  void (*cbfcnp)(struct cam_periph *, union ccb *),
+			  uint8_t tag_action, uint32_t security_protocol,
+			  uint32_t security_protocol_specific, int byte4,
+			  uint8_t *data_ptr, uint32_t dxfer_len, int sense_len,
+			  int timeout)
+{
+	struct scsi_security_protocol_in *scsi_cmd;
+
+	scsi_cmd = (struct scsi_security_protocol_in *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+
+	scsi_cmd->opcode = SECURITY_PROTOCOL_IN;
+
+	scsi_cmd->security_protocol = security_protocol;
+	scsi_ulto2b(security_protocol_specific,
+		    scsi_cmd->security_protocol_specific); 
+	scsi_cmd->byte4 = byte4;
+	scsi_ulto4b(dxfer_len, scsi_cmd->length);
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_IN,
+		      tag_action,
+		      data_ptr,
+		      dxfer_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
+
+void
+scsi_security_protocol_out(struct ccb_scsiio *csio, uint32_t retries, 
+			   void (*cbfcnp)(struct cam_periph *, union ccb *),
+			   uint8_t tag_action, uint32_t security_protocol,
+			   uint32_t security_protocol_specific, int byte4,
+			   uint8_t *data_ptr, uint32_t dxfer_len, int sense_len,
+			   int timeout)
+{
+	struct scsi_security_protocol_out *scsi_cmd;
+
+	scsi_cmd = (struct scsi_security_protocol_out *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+
+	scsi_cmd->opcode = SECURITY_PROTOCOL_OUT;
+
+	scsi_cmd->security_protocol = security_protocol;
+	scsi_ulto2b(security_protocol_specific,
+		    scsi_cmd->security_protocol_specific); 
+	scsi_cmd->byte4 = byte4;
 	scsi_ulto4b(dxfer_len, scsi_cmd->length);
 
 	cam_fill_csio(csio,

@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/scope6_var.h>
 #endif
 
 #include <netgraph/ng_ipfw.h>
@@ -197,8 +198,20 @@ again:
 		}
 #ifdef INET6
 		if (args.next_hop6 != NULL) {
-			bcopy(args.next_hop6, (fwd_tag+1), len);
-			if (in6_localip(&args.next_hop6->sin6_addr))
+			struct sockaddr_in6 *sa6;
+
+			sa6 = (struct sockaddr_in6 *)(fwd_tag + 1);
+			bcopy(args.next_hop6, sa6, len);
+			/*
+			 * If nh6 address is link-local we should convert
+			 * it to kernel internal form before doing any
+			 * comparisons.
+			 */
+			if (sa6_embedscope(sa6, V_ip6_use_defzone) != 0) {
+				ret = EACCES;
+				break;
+			}
+			if (in6_localip(&sa6->sin6_addr))
 				(*m0)->m_flags |= M_FASTFWD_OURS;
 			(*m0)->m_flags |= M_IP6_NEXTHOP;
 		}

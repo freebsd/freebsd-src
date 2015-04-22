@@ -49,7 +49,10 @@ void Preprocessor::appendMacroDirective(IdentifierInfo *II, MacroDirective *MD){
   MacroDirective *&StoredMD = Macros[II];
   MD->setPrevious(StoredMD);
   StoredMD = MD;
-  II->setHasMacroDefinition(MD->isDefined());
+  // Setup the identifier as having associated macro history.
+  II->setHasMacroDefinition(true);
+  if (!MD->isDefined())
+    II->setHasMacroDefinition(false);
   bool isImportedMacro = isa<DefMacroDirective>(MD) &&
                          cast<DefMacroDirective>(MD)->isImported();
   if (II->isFromAST() && !isImportedMacro)
@@ -93,6 +96,9 @@ void Preprocessor::RegisterBuiltinMacros() {
   Ident__COUNTER__ = RegisterBuiltinMacro(*this, "__COUNTER__");
   Ident_Pragma  = RegisterBuiltinMacro(*this, "_Pragma");
 
+  // C++ Standing Document Extensions.
+  Ident__has_cpp_attribute = RegisterBuiltinMacro(*this, "__has_cpp_attribute");
+
   // GCC Extensions.
   Ident__BASE_FILE__     = RegisterBuiltinMacro(*this, "__BASE_FILE__");
   Ident__INCLUDE_LEVEL__ = RegisterBuiltinMacro(*this, "__INCLUDE_LEVEL__");
@@ -112,6 +118,7 @@ void Preprocessor::RegisterBuiltinMacros() {
   Ident__has_extension    = RegisterBuiltinMacro(*this, "__has_extension");
   Ident__has_builtin      = RegisterBuiltinMacro(*this, "__has_builtin");
   Ident__has_attribute    = RegisterBuiltinMacro(*this, "__has_attribute");
+  Ident__has_declspec = RegisterBuiltinMacro(*this, "__has_declspec_attribute");
   Ident__has_include      = RegisterBuiltinMacro(*this, "__has_include");
   Ident__has_include_next = RegisterBuiltinMacro(*this, "__has_include_next");
   Ident__has_warning      = RegisterBuiltinMacro(*this, "__has_warning");
@@ -857,144 +864,148 @@ static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
     Feature = Feature.substr(2, Feature.size() - 4);
 
   return llvm::StringSwitch<bool>(Feature)
-           .Case("address_sanitizer", LangOpts.Sanitize.Address)
-           .Case("attribute_analyzer_noreturn", true)
-           .Case("attribute_availability", true)
-           .Case("attribute_availability_with_message", true)
-           .Case("attribute_cf_returns_not_retained", true)
-           .Case("attribute_cf_returns_retained", true)
-           .Case("attribute_deprecated_with_message", true)
-           .Case("attribute_ext_vector_type", true)
-           .Case("attribute_ns_returns_not_retained", true)
-           .Case("attribute_ns_returns_retained", true)
-           .Case("attribute_ns_consumes_self", true)
-           .Case("attribute_ns_consumed", true)
-           .Case("attribute_cf_consumed", true)
-           .Case("attribute_objc_ivar_unused", true)
-           .Case("attribute_objc_method_family", true)
-           .Case("attribute_overloadable", true)
-           .Case("attribute_unavailable_with_message", true)
-           .Case("attribute_unused_on_fields", true)
-           .Case("blocks", LangOpts.Blocks)
-           .Case("c_thread_safety_attributes", true)
-           .Case("cxx_exceptions", LangOpts.CXXExceptions)
-           .Case("cxx_rtti", LangOpts.RTTI)
-           .Case("enumerator_attributes", true)
-           .Case("memory_sanitizer", LangOpts.Sanitize.Memory)
-           .Case("thread_sanitizer", LangOpts.Sanitize.Thread)
-           .Case("dataflow_sanitizer", LangOpts.Sanitize.DataFlow)
-           // Objective-C features
-           .Case("objc_arr", LangOpts.ObjCAutoRefCount) // FIXME: REMOVE?
-           .Case("objc_arc", LangOpts.ObjCAutoRefCount)
-           .Case("objc_arc_weak", LangOpts.ObjCARCWeak)
-           .Case("objc_default_synthesize_properties", LangOpts.ObjC2)
-           .Case("objc_fixed_enum", LangOpts.ObjC2)
-           .Case("objc_instancetype", LangOpts.ObjC2)
-           .Case("objc_modules", LangOpts.ObjC2 && LangOpts.Modules)
-           .Case("objc_nonfragile_abi", LangOpts.ObjCRuntime.isNonFragile())
-           .Case("objc_property_explicit_atomic", true) // Does clang support explicit "atomic" keyword?
-           .Case("objc_protocol_qualifier_mangling", true)
-           .Case("objc_weak_class", LangOpts.ObjCRuntime.hasWeakClassImport())
-           .Case("ownership_holds", true)
-           .Case("ownership_returns", true)
-           .Case("ownership_takes", true)
-           .Case("objc_bool", true)
-           .Case("objc_subscripting", LangOpts.ObjCRuntime.isNonFragile())
-           .Case("objc_array_literals", LangOpts.ObjC2)
-           .Case("objc_dictionary_literals", LangOpts.ObjC2)
-           .Case("objc_boxed_expressions", LangOpts.ObjC2)
-           .Case("arc_cf_code_audited", true)
-           // C11 features
-           .Case("c_alignas", LangOpts.C11)
-           .Case("c_atomic", LangOpts.C11)
-           .Case("c_generic_selections", LangOpts.C11)
-           .Case("c_static_assert", LangOpts.C11)
-           .Case("c_thread_local",
-                 LangOpts.C11 && PP.getTargetInfo().isTLSSupported())
-           // C++11 features
-           .Case("cxx_access_control_sfinae", LangOpts.CPlusPlus11)
-           .Case("cxx_alias_templates", LangOpts.CPlusPlus11)
-           .Case("cxx_alignas", LangOpts.CPlusPlus11)
-           .Case("cxx_atomic", LangOpts.CPlusPlus11)
-           .Case("cxx_attributes", LangOpts.CPlusPlus11)
-           .Case("cxx_auto_type", LangOpts.CPlusPlus11)
-           .Case("cxx_constexpr", LangOpts.CPlusPlus11)
-           .Case("cxx_decltype", LangOpts.CPlusPlus11)
-           .Case("cxx_decltype_incomplete_return_types", LangOpts.CPlusPlus11)
-           .Case("cxx_default_function_template_args", LangOpts.CPlusPlus11)
-           .Case("cxx_defaulted_functions", LangOpts.CPlusPlus11)
-           .Case("cxx_delegating_constructors", LangOpts.CPlusPlus11)
-           .Case("cxx_deleted_functions", LangOpts.CPlusPlus11)
-           .Case("cxx_explicit_conversions", LangOpts.CPlusPlus11)
-           .Case("cxx_generalized_initializers", LangOpts.CPlusPlus11)
-           .Case("cxx_implicit_moves", LangOpts.CPlusPlus11)
-           .Case("cxx_inheriting_constructors", LangOpts.CPlusPlus11)
-           .Case("cxx_inline_namespaces", LangOpts.CPlusPlus11)
-           .Case("cxx_lambdas", LangOpts.CPlusPlus11)
-           .Case("cxx_local_type_template_args", LangOpts.CPlusPlus11)
-           .Case("cxx_nonstatic_member_init", LangOpts.CPlusPlus11)
-           .Case("cxx_noexcept", LangOpts.CPlusPlus11)
-           .Case("cxx_nullptr", LangOpts.CPlusPlus11)
-           .Case("cxx_override_control", LangOpts.CPlusPlus11)
-           .Case("cxx_range_for", LangOpts.CPlusPlus11)
-           .Case("cxx_raw_string_literals", LangOpts.CPlusPlus11)
-           .Case("cxx_reference_qualified_functions", LangOpts.CPlusPlus11)
-           .Case("cxx_rvalue_references", LangOpts.CPlusPlus11)
-           .Case("cxx_strong_enums", LangOpts.CPlusPlus11)
-           .Case("cxx_static_assert", LangOpts.CPlusPlus11)
-           .Case("cxx_thread_local",
-                 LangOpts.CPlusPlus11 && PP.getTargetInfo().isTLSSupported())
-           .Case("cxx_trailing_return", LangOpts.CPlusPlus11)
-           .Case("cxx_unicode_literals", LangOpts.CPlusPlus11)
-           .Case("cxx_unrestricted_unions", LangOpts.CPlusPlus11)
-           .Case("cxx_user_literals", LangOpts.CPlusPlus11)
-           .Case("cxx_variadic_templates", LangOpts.CPlusPlus11)
-           // C++1y features
-           .Case("cxx_aggregate_nsdmi", LangOpts.CPlusPlus1y)
-           .Case("cxx_binary_literals", LangOpts.CPlusPlus1y)
-           .Case("cxx_contextual_conversions", LangOpts.CPlusPlus1y)
-           .Case("cxx_decltype_auto", LangOpts.CPlusPlus1y)
-           .Case("cxx_generic_lambdas", LangOpts.CPlusPlus1y)
-           .Case("cxx_init_captures", LangOpts.CPlusPlus1y)
-           .Case("cxx_relaxed_constexpr", LangOpts.CPlusPlus1y)
-           .Case("cxx_return_type_deduction", LangOpts.CPlusPlus1y)
-           .Case("cxx_variable_templates", LangOpts.CPlusPlus1y)
-           // C++ TSes
-           //.Case("cxx_runtime_arrays", LangOpts.CPlusPlusTSArrays)
-           //.Case("cxx_concepts", LangOpts.CPlusPlusTSConcepts)
-           // FIXME: Should this be __has_feature or __has_extension?
-           //.Case("raw_invocation_type", LangOpts.CPlusPlus)
-           // Type traits
-           .Case("has_nothrow_assign", LangOpts.CPlusPlus)
-           .Case("has_nothrow_copy", LangOpts.CPlusPlus)
-           .Case("has_nothrow_constructor", LangOpts.CPlusPlus)
-           .Case("has_trivial_assign", LangOpts.CPlusPlus)
-           .Case("has_trivial_copy", LangOpts.CPlusPlus)
-           .Case("has_trivial_constructor", LangOpts.CPlusPlus)
-           .Case("has_trivial_destructor", LangOpts.CPlusPlus)
-           .Case("has_virtual_destructor", LangOpts.CPlusPlus)
-           .Case("is_abstract", LangOpts.CPlusPlus)
-           .Case("is_base_of", LangOpts.CPlusPlus)
-           .Case("is_class", LangOpts.CPlusPlus)
-           .Case("is_constructible", LangOpts.CPlusPlus)
-           .Case("is_convertible_to", LangOpts.CPlusPlus)
-           .Case("is_empty", LangOpts.CPlusPlus)
-           .Case("is_enum", LangOpts.CPlusPlus)
-           .Case("is_final", LangOpts.CPlusPlus)
-           .Case("is_literal", LangOpts.CPlusPlus)
-           .Case("is_standard_layout", LangOpts.CPlusPlus)
-           .Case("is_pod", LangOpts.CPlusPlus)
-           .Case("is_polymorphic", LangOpts.CPlusPlus)
-           .Case("is_sealed", LangOpts.MicrosoftExt)
-           .Case("is_trivial", LangOpts.CPlusPlus)
-           .Case("is_trivially_assignable", LangOpts.CPlusPlus)
-           .Case("is_trivially_constructible", LangOpts.CPlusPlus)
-           .Case("is_trivially_copyable", LangOpts.CPlusPlus)
-           .Case("is_union", LangOpts.CPlusPlus)
-           .Case("modules", LangOpts.Modules)
-           .Case("tls", PP.getTargetInfo().isTLSSupported())
-           .Case("underlying_type", LangOpts.CPlusPlus)
-           .Default(false);
+      .Case("address_sanitizer", LangOpts.Sanitize.has(SanitizerKind::Address))
+      .Case("attribute_analyzer_noreturn", true)
+      .Case("attribute_availability", true)
+      .Case("attribute_availability_with_message", true)
+      .Case("attribute_cf_returns_not_retained", true)
+      .Case("attribute_cf_returns_retained", true)
+      .Case("attribute_deprecated_with_message", true)
+      .Case("attribute_ext_vector_type", true)
+      .Case("attribute_ns_returns_not_retained", true)
+      .Case("attribute_ns_returns_retained", true)
+      .Case("attribute_ns_consumes_self", true)
+      .Case("attribute_ns_consumed", true)
+      .Case("attribute_cf_consumed", true)
+      .Case("attribute_objc_ivar_unused", true)
+      .Case("attribute_objc_method_family", true)
+      .Case("attribute_overloadable", true)
+      .Case("attribute_unavailable_with_message", true)
+      .Case("attribute_unused_on_fields", true)
+      .Case("blocks", LangOpts.Blocks)
+      .Case("c_thread_safety_attributes", true)
+      .Case("cxx_exceptions", LangOpts.CXXExceptions)
+      .Case("cxx_rtti", LangOpts.RTTI)
+      .Case("enumerator_attributes", true)
+      .Case("memory_sanitizer", LangOpts.Sanitize.has(SanitizerKind::Memory))
+      .Case("thread_sanitizer", LangOpts.Sanitize.has(SanitizerKind::Thread))
+      .Case("dataflow_sanitizer", LangOpts.Sanitize.has(SanitizerKind::DataFlow))
+      // Objective-C features
+      .Case("objc_arr", LangOpts.ObjCAutoRefCount) // FIXME: REMOVE?
+      .Case("objc_arc", LangOpts.ObjCAutoRefCount)
+      .Case("objc_arc_weak", LangOpts.ObjCARCWeak)
+      .Case("objc_default_synthesize_properties", LangOpts.ObjC2)
+      .Case("objc_fixed_enum", LangOpts.ObjC2)
+      .Case("objc_instancetype", LangOpts.ObjC2)
+      .Case("objc_modules", LangOpts.ObjC2 && LangOpts.Modules)
+      .Case("objc_nonfragile_abi", LangOpts.ObjCRuntime.isNonFragile())
+      .Case("objc_property_explicit_atomic",
+            true) // Does clang support explicit "atomic" keyword?
+      .Case("objc_protocol_qualifier_mangling", true)
+      .Case("objc_weak_class", LangOpts.ObjCRuntime.hasWeakClassImport())
+      .Case("ownership_holds", true)
+      .Case("ownership_returns", true)
+      .Case("ownership_takes", true)
+      .Case("objc_bool", true)
+      .Case("objc_subscripting", LangOpts.ObjCRuntime.isNonFragile())
+      .Case("objc_array_literals", LangOpts.ObjC2)
+      .Case("objc_dictionary_literals", LangOpts.ObjC2)
+      .Case("objc_boxed_expressions", LangOpts.ObjC2)
+      .Case("arc_cf_code_audited", true)
+      .Case("objc_bridge_id", LangOpts.ObjC2)
+      // C11 features
+      .Case("c_alignas", LangOpts.C11)
+      .Case("c_alignof", LangOpts.C11)
+      .Case("c_atomic", LangOpts.C11)
+      .Case("c_generic_selections", LangOpts.C11)
+      .Case("c_static_assert", LangOpts.C11)
+      .Case("c_thread_local",
+            LangOpts.C11 && PP.getTargetInfo().isTLSSupported())
+      // C++11 features
+      .Case("cxx_access_control_sfinae", LangOpts.CPlusPlus11)
+      .Case("cxx_alias_templates", LangOpts.CPlusPlus11)
+      .Case("cxx_alignas", LangOpts.CPlusPlus11)
+      .Case("cxx_alignof", LangOpts.CPlusPlus11)
+      .Case("cxx_atomic", LangOpts.CPlusPlus11)
+      .Case("cxx_attributes", LangOpts.CPlusPlus11)
+      .Case("cxx_auto_type", LangOpts.CPlusPlus11)
+      .Case("cxx_constexpr", LangOpts.CPlusPlus11)
+      .Case("cxx_decltype", LangOpts.CPlusPlus11)
+      .Case("cxx_decltype_incomplete_return_types", LangOpts.CPlusPlus11)
+      .Case("cxx_default_function_template_args", LangOpts.CPlusPlus11)
+      .Case("cxx_defaulted_functions", LangOpts.CPlusPlus11)
+      .Case("cxx_delegating_constructors", LangOpts.CPlusPlus11)
+      .Case("cxx_deleted_functions", LangOpts.CPlusPlus11)
+      .Case("cxx_explicit_conversions", LangOpts.CPlusPlus11)
+      .Case("cxx_generalized_initializers", LangOpts.CPlusPlus11)
+      .Case("cxx_implicit_moves", LangOpts.CPlusPlus11)
+      .Case("cxx_inheriting_constructors", LangOpts.CPlusPlus11)
+      .Case("cxx_inline_namespaces", LangOpts.CPlusPlus11)
+      .Case("cxx_lambdas", LangOpts.CPlusPlus11)
+      .Case("cxx_local_type_template_args", LangOpts.CPlusPlus11)
+      .Case("cxx_nonstatic_member_init", LangOpts.CPlusPlus11)
+      .Case("cxx_noexcept", LangOpts.CPlusPlus11)
+      .Case("cxx_nullptr", LangOpts.CPlusPlus11)
+      .Case("cxx_override_control", LangOpts.CPlusPlus11)
+      .Case("cxx_range_for", LangOpts.CPlusPlus11)
+      .Case("cxx_raw_string_literals", LangOpts.CPlusPlus11)
+      .Case("cxx_reference_qualified_functions", LangOpts.CPlusPlus11)
+      .Case("cxx_rvalue_references", LangOpts.CPlusPlus11)
+      .Case("cxx_strong_enums", LangOpts.CPlusPlus11)
+      .Case("cxx_static_assert", LangOpts.CPlusPlus11)
+      .Case("cxx_thread_local",
+            LangOpts.CPlusPlus11 && PP.getTargetInfo().isTLSSupported())
+      .Case("cxx_trailing_return", LangOpts.CPlusPlus11)
+      .Case("cxx_unicode_literals", LangOpts.CPlusPlus11)
+      .Case("cxx_unrestricted_unions", LangOpts.CPlusPlus11)
+      .Case("cxx_user_literals", LangOpts.CPlusPlus11)
+      .Case("cxx_variadic_templates", LangOpts.CPlusPlus11)
+      // C++1y features
+      .Case("cxx_aggregate_nsdmi", LangOpts.CPlusPlus14)
+      .Case("cxx_binary_literals", LangOpts.CPlusPlus14)
+      .Case("cxx_contextual_conversions", LangOpts.CPlusPlus14)
+      .Case("cxx_decltype_auto", LangOpts.CPlusPlus14)
+      .Case("cxx_generic_lambdas", LangOpts.CPlusPlus14)
+      .Case("cxx_init_captures", LangOpts.CPlusPlus14)
+      .Case("cxx_relaxed_constexpr", LangOpts.CPlusPlus14)
+      .Case("cxx_return_type_deduction", LangOpts.CPlusPlus14)
+      .Case("cxx_variable_templates", LangOpts.CPlusPlus14)
+      // C++ TSes
+      //.Case("cxx_runtime_arrays", LangOpts.CPlusPlusTSArrays)
+      //.Case("cxx_concepts", LangOpts.CPlusPlusTSConcepts)
+      // FIXME: Should this be __has_feature or __has_extension?
+      //.Case("raw_invocation_type", LangOpts.CPlusPlus)
+      // Type traits
+      .Case("has_nothrow_assign", LangOpts.CPlusPlus)
+      .Case("has_nothrow_copy", LangOpts.CPlusPlus)
+      .Case("has_nothrow_constructor", LangOpts.CPlusPlus)
+      .Case("has_trivial_assign", LangOpts.CPlusPlus)
+      .Case("has_trivial_copy", LangOpts.CPlusPlus)
+      .Case("has_trivial_constructor", LangOpts.CPlusPlus)
+      .Case("has_trivial_destructor", LangOpts.CPlusPlus)
+      .Case("has_virtual_destructor", LangOpts.CPlusPlus)
+      .Case("is_abstract", LangOpts.CPlusPlus)
+      .Case("is_base_of", LangOpts.CPlusPlus)
+      .Case("is_class", LangOpts.CPlusPlus)
+      .Case("is_constructible", LangOpts.CPlusPlus)
+      .Case("is_convertible_to", LangOpts.CPlusPlus)
+      .Case("is_empty", LangOpts.CPlusPlus)
+      .Case("is_enum", LangOpts.CPlusPlus)
+      .Case("is_final", LangOpts.CPlusPlus)
+      .Case("is_literal", LangOpts.CPlusPlus)
+      .Case("is_standard_layout", LangOpts.CPlusPlus)
+      .Case("is_pod", LangOpts.CPlusPlus)
+      .Case("is_polymorphic", LangOpts.CPlusPlus)
+      .Case("is_sealed", LangOpts.MicrosoftExt)
+      .Case("is_trivial", LangOpts.CPlusPlus)
+      .Case("is_trivially_assignable", LangOpts.CPlusPlus)
+      .Case("is_trivially_constructible", LangOpts.CPlusPlus)
+      .Case("is_trivially_copyable", LangOpts.CPlusPlus)
+      .Case("is_union", LangOpts.CPlusPlus)
+      .Case("modules", LangOpts.Modules)
+      .Case("tls", PP.getTargetInfo().isTLSSupported())
+      .Case("underlying_type", LangOpts.CPlusPlus)
+      .Default(false);
 }
 
 /// HasExtension - Return true if we recognize and implement the feature
@@ -1023,6 +1034,7 @@ static bool HasExtension(const Preprocessor &PP, const IdentifierInfo *II) {
   return llvm::StringSwitch<bool>(Extension)
            // C11 features supported by other languages as extensions.
            .Case("c_alignas", true)
+           .Case("c_alignof", true)
            .Case("c_atomic", true)
            .Case("c_generic_selections", true)
            .Case("c_static_assert", true)
@@ -1050,7 +1062,8 @@ static bool HasExtension(const Preprocessor &PP, const IdentifierInfo *II) {
 /// Returns true if successful.
 static bool EvaluateHasIncludeCommon(Token &Tok,
                                      IdentifierInfo *II, Preprocessor &PP,
-                                     const DirectoryLookup *LookupFrom) {
+                                     const DirectoryLookup *LookupFrom,
+                                     const FileEntry *LookupFromFile) {
   // Save the location of the current token.  If a '(' is later found, use
   // that location.  If not, use the end of this location instead.
   SourceLocation LParenLoc = Tok.getLocation();
@@ -1145,8 +1158,8 @@ static bool EvaluateHasIncludeCommon(Token &Tok,
   // Search include directories.
   const DirectoryLookup *CurDir;
   const FileEntry *File =
-      PP.LookupFile(FilenameLoc, Filename, isAngled, LookupFrom, CurDir,
-                    nullptr, nullptr, nullptr);
+      PP.LookupFile(FilenameLoc, Filename, isAngled, LookupFrom, LookupFromFile,
+                    CurDir, nullptr, nullptr, nullptr);
 
   // Get the result value.  A result of true means the file exists.
   return File != nullptr;
@@ -1156,7 +1169,7 @@ static bool EvaluateHasIncludeCommon(Token &Tok,
 /// Returns true if successful.
 static bool EvaluateHasInclude(Token &Tok, IdentifierInfo *II,
                                Preprocessor &PP) {
-  return EvaluateHasIncludeCommon(Tok, II, PP, nullptr);
+  return EvaluateHasIncludeCommon(Tok, II, PP, nullptr, nullptr);
 }
 
 /// EvaluateHasIncludeNext - Process '__has_include_next("path")' expression.
@@ -1166,10 +1179,19 @@ static bool EvaluateHasIncludeNext(Token &Tok,
   // __has_include_next is like __has_include, except that we start
   // searching after the current found directory.  If we can't do this,
   // issue a diagnostic.
+  // FIXME: Factor out duplication wiht
+  // Preprocessor::HandleIncludeNextDirective.
   const DirectoryLookup *Lookup = PP.GetCurDirLookup();
+  const FileEntry *LookupFromFile = nullptr;
   if (PP.isInPrimaryFile()) {
     Lookup = nullptr;
     PP.Diag(Tok, diag::pp_include_next_in_primary);
+  } else if (PP.getCurrentSubmodule()) {
+    // Start looking up in the directory *after* the one in which the current
+    // file would be found, if any.
+    assert(PP.getCurrentLexer() && "#include_next directive in macro?");
+    LookupFromFile = PP.getCurrentLexer()->getFileEntry();
+    Lookup = nullptr;
   } else if (!Lookup) {
     PP.Diag(Tok, diag::pp_include_next_absolute_path);
   } else {
@@ -1177,7 +1199,7 @@ static bool EvaluateHasIncludeNext(Token &Tok,
     ++Lookup;
   }
 
-  return EvaluateHasIncludeCommon(Tok, II, PP, Lookup);
+  return EvaluateHasIncludeCommon(Tok, II, PP, Lookup, LookupFromFile);
 }
 
 /// \brief Process __building_module(identifier) expression.
@@ -1360,12 +1382,15 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
              II == Ident__has_extension ||
              II == Ident__has_builtin   ||
              II == Ident__is_identifier ||
-             II == Ident__has_attribute) {
+             II == Ident__has_attribute ||
+             II == Ident__has_declspec  ||
+             II == Ident__has_cpp_attribute) {
     // The argument to these builtins should be a parenthesized identifier.
     SourceLocation StartLoc = Tok.getLocation();
 
     bool IsValid = false;
     IdentifierInfo *FeatureII = nullptr;
+    IdentifierInfo *ScopeII = nullptr;
 
     // Read the '('.
     LexUnexpandedToken(Tok);
@@ -1373,14 +1398,30 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
       // Read the identifier
       LexUnexpandedToken(Tok);
       if ((FeatureII = Tok.getIdentifierInfo())) {
-        // Read the ')'.
+        // If we're checking __has_cpp_attribute, it is possible to receive a
+        // scope token. Read the "::", if it's available.
         LexUnexpandedToken(Tok);
-        if (Tok.is(tok::r_paren))
+        bool IsScopeValid = true;
+        if (II == Ident__has_cpp_attribute && Tok.is(tok::coloncolon)) {
+          LexUnexpandedToken(Tok);
+          // The first thing we read was not the feature, it was the scope.
+          ScopeII = FeatureII;
+          if ((FeatureII = Tok.getIdentifierInfo()))
+            LexUnexpandedToken(Tok);
+          else
+            IsScopeValid = false;          
+        }
+        // Read the closing paren.
+        if (IsScopeValid && Tok.is(tok::r_paren))
           IsValid = true;
       }
+      // Eat tokens until ')'.
+      while (Tok.isNot(tok::r_paren) && Tok.isNot(tok::eod) &&
+             Tok.isNot(tok::eof))
+        LexUnexpandedToken(Tok);
     }
 
-    bool Value = false;
+    int Value = 0;
     if (!IsValid)
       Diag(StartLoc, diag::err_feature_check_malformed);
     else if (II == Ident__is_identifier)
@@ -1389,7 +1430,13 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
       // Check for a builtin is trivial.
       Value = FeatureII->getBuiltinID() != 0;
     } else if (II == Ident__has_attribute)
-      Value = hasAttribute(AttrSyntax::Generic, nullptr, FeatureII,
+      Value = hasAttribute(AttrSyntax::GNU, nullptr, FeatureII,
+                           getTargetInfo().getTriple(), getLangOpts());
+    else if (II == Ident__has_cpp_attribute)
+      Value = hasAttribute(AttrSyntax::CXX, ScopeII, FeatureII,
+                           getTargetInfo().getTriple(), getLangOpts());
+    else if (II == Ident__has_declspec)
+      Value = hasAttribute(AttrSyntax::Declspec, nullptr, FeatureII,
                            getTargetInfo().getTriple(), getLangOpts());
     else if (II == Ident__has_extension)
       Value = HasExtension(*this, FeatureII);
@@ -1398,9 +1445,10 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
       Value = HasFeature(*this, FeatureII);
     }
 
-    OS << (int)Value;
-    if (IsValid)
-      Tok.setKind(tok::numeric_constant);
+    if (!IsValid)
+      return;
+    OS << Value;
+    Tok.setKind(tok::numeric_constant);
   } else if (II == Ident__has_include ||
              II == Ident__has_include_next) {
     // The argument to these two builtins should be a parenthesized
@@ -1464,9 +1512,10 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
                               WarningName.substr(2), Diags);
     } while (false);
 
+    if (!IsValid)
+      return;
     OS << (int)Value;
-    if (IsValid)
-      Tok.setKind(tok::numeric_constant);
+    Tok.setKind(tok::numeric_constant);
   } else if (II == Ident__building_module) {
     // The argument to this builtin should be an identifier. The
     // builtin evaluates to 1 when that identifier names the module we are

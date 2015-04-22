@@ -757,6 +757,19 @@ static int mlx4_cmd_wait(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 			 "in_mod=0x%x, op_mod=0x%x, fw status = 0x%x\n",
 			 cmd_to_str(op), op, (unsigned long long) in_param, in_modifier,
 			 op_modifier, context->fw_status);
+
+		switch(context->fw_status) {
+		case CMD_STAT_BAD_PARAM:
+			mlx4_err(dev, "Parameter is not supported, "
+			    "parameter is out of range\n");
+			break;
+		case CMD_STAT_EXCEED_LIM:
+			mlx4_err(dev, "Required capability exceeded "
+			    "device limits\n");
+			break;
+		default:
+			break;
+		}
 		goto out;
 	}
 

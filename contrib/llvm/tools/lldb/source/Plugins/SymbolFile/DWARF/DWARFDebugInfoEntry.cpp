@@ -88,9 +88,10 @@ DWARFDebugInfoEntry::Attributes::RemoveAttribute(dw_attr_t attr)
 bool
 DWARFDebugInfoEntry::Attributes::ExtractFormValueAtIndex (SymbolFileDWARF* dwarf2Data, uint32_t i, DWARFFormValue &form_value) const
 {
+    form_value.SetCompileUnit(CompileUnitAtIndex(i));
     form_value.SetForm(FormAtIndex(i));
     lldb::offset_t offset = DIEOffsetAtIndex(i);
-    return form_value.ExtractValue(dwarf2Data->get_debug_info_data(), &offset, CompileUnitAtIndex(i));
+    return form_value.ExtractValue(dwarf2Data->get_debug_info_data(), &offset);
 }
 
 uint64_t
@@ -107,7 +108,7 @@ DWARFDebugInfoEntry::Attributes::FormValueAsUnsignedAtIndex(SymbolFileDWARF* dwa
 {
     DWARFFormValue form_value;
     if (ExtractFormValueAtIndex(dwarf2Data, i, form_value))
-        return form_value.Reference(CompileUnitAtIndex(i));
+        return form_value.Reference();
     return fail_value;
 }
 
@@ -190,7 +191,7 @@ DWARFDebugInfoEntry::FastExtract
                         if (cu->GetVersion() <= 2)
                             form_size = cu->GetAddressByteSize();
                         else
-                            form_size = 4; // 4 bytes for DWARF 32, 8 bytes for DWARF 64, but we don't support DWARF64 yet
+                            form_size = cu->IsDWARF64() ? 8 : 4;
                         break;
 
                     // 0 sized form
@@ -212,7 +213,6 @@ DWARFDebugInfoEntry::FastExtract
                         break;
 
                     // 4 byte values
-                    case DW_FORM_strp        :
                     case DW_FORM_data4       :
                     case DW_FORM_ref4        :
                         form_size = 4;
@@ -237,11 +237,12 @@ DWARFDebugInfoEntry::FastExtract
                         form = debug_info_data.GetULEB128 (&offset);
                         break;
 
+                    case DW_FORM_strp        :
                     case DW_FORM_sec_offset  :
-                        if (cu->GetAddressByteSize () == 4)
-                            debug_info_data.GetU32 (offset_ptr);
-                        else
+                        if (cu->IsDWARF64 ())
                             debug_info_data.GetU64 (offset_ptr);
+                        else
+                            debug_info_data.GetU32 (offset_ptr);
                         break;
 
                     default:
@@ -284,7 +285,6 @@ DWARFDebugInfoEntry::Extract
     const DWARFDataExtractor& debug_info_data = dwarf2Data->get_debug_info_data();
 //    const DWARFDataExtractor& debug_str_data = dwarf2Data->get_debug_str_data();
     const uint32_t cu_end_offset = cu->GetNextCompileUnitOffset();
-    const uint8_t cu_addr_size = cu->GetAddressByteSize();
     lldb::offset_t offset = *offset_ptr;
 //  if (offset >= cu_end_offset)
 //      Log::Error("DIE at offset 0x%8.8x is beyond the end of the current compile unit (0x%8.8x)", m_offset, cu_end_offset);
@@ -319,8 +319,8 @@ DWARFDebugInfoEntry::Extract
 
                     if (isCompileUnitTag && ((attr == DW_AT_entry_pc) || (attr == DW_AT_low_pc)))
                     {
-                        DWARFFormValue form_value(form);
-                        if (form_value.ExtractValue(debug_info_data, &offset, cu))
+                        DWARFFormValue form_value(cu, form);
+                        if (form_value.ExtractValue(debug_info_data, &offset))
                         {
                             if (attr == DW_AT_low_pc || attr == DW_AT_entry_pc)
                                 ((DWARFCompileUnit*)cu)->SetBaseAddress(form_value.Unsigned());
@@ -348,13 +348,13 @@ DWARFDebugInfoEntry::Extract
 
                             // Compile unit address sized values
                             case DW_FORM_addr        :
-                                form_size = cu_addr_size;
+                                form_size = cu->GetAddressByteSize();
                                 break;
                             case DW_FORM_ref_addr    :
                                 if (cu->GetVersion() <= 2)
-                                    form_size = cu_addr_size;
+                                    form_size = cu->GetAddressByteSize();
                                 else
-                                    form_size = 4; // 4 bytes for DWARF 32, 8 bytes for DWARF 64, but we don't support DWARF64 yet
+                                    form_size = cu->IsDWARF64() ? 8 : 4;
                                 break;
 
                             // 0 sized form
@@ -376,10 +376,6 @@ DWARFDebugInfoEntry::Extract
                                 break;
 
                             // 4 byte values
-                            case DW_FORM_strp        :
-                                form_size = 4;
-                                break;
-
                             case DW_FORM_data4       :
                             case DW_FORM_ref4        :
                                 form_size = 4;
@@ -404,11 +400,12 @@ DWARFDebugInfoEntry::Extract
                                 form_is_indirect = true;
                                 break;
 
+                            case DW_FORM_strp        :
                             case DW_FORM_sec_offset  :
-                                if (cu->GetAddressByteSize () == 4)
-                                    debug_info_data.GetU32 (offset_ptr);
-                                else
+                                if (cu->IsDWARF64 ())
                                     debug_info_data.GetU64 (offset_ptr);
+                                else
+                                    debug_info_data.GetU32 (offset_ptr);
                                 break;
 
                             default:
@@ -781,8 +778,8 @@ DWARFDebugInfoEntry::GetDIENamesAndRanges
         for (i=0; i<numAttributes; ++i)
         {
             abbrevDecl->GetAttrAndFormByIndexUnchecked(i, attr, form);
-            DWARFFormValue form_value(form);
-            if (form_value.ExtractValue(debug_info_data, &offset, cu))
+            DWARFFormValue form_value(cu, form);
+            if (form_value.ExtractValue(debug_info_data, &offset))
             {
                 switch (attr)
                 {
@@ -832,11 +829,11 @@ DWARFDebugInfoEntry::GetDIENamesAndRanges
                     break;
 
                 case DW_AT_abstract_origin:
-                    die_offsets.push_back(form_value.Reference(cu));
+                    die_offsets.push_back(form_value.Reference());
                     break;
 
                 case DW_AT_specification:
-                    die_offsets.push_back(form_value.Reference(cu));
+                    die_offsets.push_back(form_value.Reference());
                     break;
 
                 case DW_AT_decl_file:
@@ -1033,7 +1030,7 @@ DWARFDebugInfoEntry::DumpLocation
     const char *obj_file_name = NULL;
     ObjectFile *obj_file = dwarf2Data->GetObjectFile();
     if (obj_file)
-        obj_file_name = obj_file->GetFileSpec().GetFilename().AsCString();
+        obj_file_name = obj_file->GetFileSpec().GetFilename().AsCString("<Unknown>");
     const char *die_name = GetName (dwarf2Data, cu);
     s.Printf ("0x%8.8x/0x%8.8x: %-30s (from %s in %s)", 
               cu->GetOffset(),
@@ -1077,9 +1074,9 @@ DWARFDebugInfoEntry::DumpAttribute
         s.Printf( "[%s", DW_FORM_value_to_name(form));
     }
 
-    DWARFFormValue form_value(form);
+    DWARFFormValue form_value(cu, form);
 
-    if (!form_value.ExtractValue(debug_info_data, offset_ptr, cu))
+    if (!form_value.ExtractValue(debug_info_data, offset_ptr))
         return;
 
     if (show_form)
@@ -1097,7 +1094,7 @@ DWARFDebugInfoEntry::DumpAttribute
     // Always dump form value if verbose is enabled
     if (verbose)
     {
-        form_value.Dump(s, debug_str_data, cu);
+        form_value.Dump(s, debug_str_data);
     }
 
 
@@ -1130,7 +1127,7 @@ DWARFDebugInfoEntry::DumpAttribute
             if (blockData)
             {
                 if (!verbose)
-                    form_value.Dump(s, debug_str_data, cu);
+                    form_value.Dump(s, debug_str_data);
 
                 // Location description is inlined in data in the form value
                 DWARFDataExtractor locationData(debug_info_data, (*offset_ptr) - form_value.Unsigned(), form_value.Unsigned());
@@ -1147,13 +1144,13 @@ DWARFDebugInfoEntry::DumpAttribute
                 if (dwarf2Data)
                 {
                     if ( !verbose )
-                        form_value.Dump(s, debug_str_data, cu);
+                        form_value.Dump(s, debug_str_data);
                     DWARFLocationList::Dump(s, cu, dwarf2Data->get_debug_loc_data(), debug_loc_offset);
                 }
                 else
                 {
                     if ( !verbose )
-                        form_value.Dump(s, NULL, cu);
+                        form_value.Dump(s, NULL);
                 }
             }
         }
@@ -1162,8 +1159,8 @@ DWARFDebugInfoEntry::DumpAttribute
     case DW_AT_abstract_origin:
     case DW_AT_specification:
         {
-            uint64_t abstract_die_offset = form_value.Reference(cu);
-            form_value.Dump(s, debug_str_data, cu);
+            uint64_t abstract_die_offset = form_value.Reference();
+            form_value.Dump(s, debug_str_data);
         //  *ostrm_ptr << HEX32 << abstract_die_offset << " ( ";
             if ( verbose ) s.PutCString(" ( ");
             GetName(dwarf2Data, cu, abstract_die_offset, s);
@@ -1173,9 +1170,9 @@ DWARFDebugInfoEntry::DumpAttribute
 
     case DW_AT_type:
         {
-            uint64_t type_die_offset = form_value.Reference(cu);
+            uint64_t type_die_offset = form_value.Reference();
             if (!verbose)
-                form_value.Dump(s, debug_str_data, cu);
+                form_value.Dump(s, debug_str_data);
             s.PutCString(" ( ");
             AppendTypeName(dwarf2Data, cu, type_die_offset, s);
             s.PutCString(" )");
@@ -1185,7 +1182,7 @@ DWARFDebugInfoEntry::DumpAttribute
     case DW_AT_ranges:
         {
             if ( !verbose )
-                form_value.Dump(s, debug_str_data, cu);
+                form_value.Dump(s, debug_str_data);
             lldb::offset_t ranges_offset = form_value.Unsigned();
             dw_addr_t base_addr = cu ? cu->GetBaseAddress() : 0;
             if (dwarf2Data)
@@ -1195,7 +1192,7 @@ DWARFDebugInfoEntry::DumpAttribute
 
     default:
         if ( !verbose )
-            form_value.Dump(s, debug_str_data, cu);
+            form_value.Dump(s, debug_str_data);
         break;
     }
 
@@ -1226,13 +1223,12 @@ DWARFDebugInfoEntry::GetAttributes
         const DWARFDataExtractor& debug_info_data = dwarf2Data->get_debug_info_data();
 
         if (fixed_form_sizes == NULL)
-            fixed_form_sizes = DWARFFormValue::GetFixedFormSizesForAddressSize(cu->GetAddressByteSize());
+            fixed_form_sizes = DWARFFormValue::GetFixedFormSizesForAddressSize(cu->GetAddressByteSize(), cu->IsDWARF64());
 
         const uint32_t num_attributes = abbrevDecl->NumAttributes();
         uint32_t i;
         dw_attr_t attr;
         dw_form_t form;
-        DWARFFormValue form_value;
         for (i=0; i<num_attributes; ++i)
         {
             abbrevDecl->GetAttrAndFormByIndexUnchecked (i, attr, form);
@@ -1259,11 +1255,11 @@ DWARFDebugInfoEntry::GetAttributes
 
             if ((attr == DW_AT_specification) || (attr == DW_AT_abstract_origin))
             {
-                form_value.SetForm(form);
-                if (form_value.ExtractValue(debug_info_data, &offset, cu))
+                DWARFFormValue form_value (cu, form);
+                if (form_value.ExtractValue(debug_info_data, &offset))
                 {
                     const DWARFDebugInfoEntry* die = NULL;
-                    dw_offset_t die_offset = form_value.Reference(cu);
+                    dw_offset_t die_offset = form_value.Reference();
                     if (cu->ContainsDIEOffset(die_offset))
                     {
                         die = const_cast<DWARFCompileUnit*>(cu)->GetDIEPtr(die_offset);
@@ -1331,8 +1327,9 @@ DWARFDebugInfoEntry::GetAttributeValue
                 DWARFFormValue::SkipValue(abbrevDecl->GetFormByIndex(idx++), debug_info_data, &offset, cu);
 
             const dw_offset_t attr_offset = offset;
+            form_value.SetCompileUnit(cu);
             form_value.SetForm(abbrevDecl->GetFormByIndex(idx));
-            if (form_value.ExtractValue(debug_info_data, &offset, cu))
+            if (form_value.ExtractValue(debug_info_data, &offset))
             {
                 if (end_attr_offset_ptr)
                     *end_attr_offset_ptr = offset;
@@ -1423,7 +1420,7 @@ DWARFDebugInfoEntry::GetAttributeValueAsReference
 {
     DWARFFormValue form_value;
     if (GetAttributeValue(dwarf2Data, cu, attr, form_value))
-        return form_value.Reference(cu);
+        return form_value.Reference();
     return fail_value;
 }
 
@@ -1590,7 +1587,7 @@ DWARFDebugInfoEntry::GetName
         if (GetAttributeValue(dwarf2Data, cu, DW_AT_specification, form_value))
         {
             DWARFCompileUnitSP cu_sp_ptr;
-            const DWARFDebugInfoEntry* die = const_cast<SymbolFileDWARF*>(dwarf2Data)->DebugInfo()->GetDIEPtr(form_value.Reference(cu), &cu_sp_ptr);
+            const DWARFDebugInfoEntry* die = const_cast<SymbolFileDWARF*>(dwarf2Data)->DebugInfo()->GetDIEPtr(form_value.Reference(), &cu_sp_ptr);
             if (die)
                 return die->GetName(dwarf2Data, cu_sp_ptr.get());
         }
@@ -1661,7 +1658,7 @@ DWARFDebugInfoEntry::GetPubname
         // The specification DIE may be in another compile unit so we need
         // to get a die and its compile unit.
         DWARFCompileUnitSP cu_sp_ptr;
-        const DWARFDebugInfoEntry* die = const_cast<SymbolFileDWARF*>(dwarf2Data)->DebugInfo()->GetDIEPtr(form_value.Reference(cu), &cu_sp_ptr);
+        const DWARFDebugInfoEntry* die = const_cast<SymbolFileDWARF*>(dwarf2Data)->DebugInfo()->GetDIEPtr(form_value.Reference(), &cu_sp_ptr);
         if (die)
             return die->GetPubname(dwarf2Data, cu_sp_ptr.get());
     }
@@ -1798,7 +1795,7 @@ DWARFDebugInfoEntry::AppendTypeName
                 DWARFFormValue form_value;
                 if (die.GetAttributeValue(dwarf2Data, cu, DW_AT_type, form_value))
                 {
-                    uint64_t next_die_offset = form_value.Reference(cu);
+                    uint64_t next_die_offset = form_value.Reference();
                     result = AppendTypeName(dwarf2Data, cu, next_die_offset, s);
                 }
 

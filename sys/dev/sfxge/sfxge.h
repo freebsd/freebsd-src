@@ -55,31 +55,32 @@
  */
 #define	CACHE_LINE_SIZE 128
 #endif
+
 #ifndef IFCAP_LINKSTATE
 #define	IFCAP_LINKSTATE 0
 #endif
+
 #ifndef IFCAP_VLAN_HWTSO
 #define	IFCAP_VLAN_HWTSO 0
 #endif
+
 #ifndef IFM_10G_T
 #define	IFM_10G_T IFM_UNKNOWN
 #endif
+
 #ifndef IFM_10G_KX4
 #define	IFM_10G_KX4 IFM_10G_CX4
 #endif
-#if __FreeBSD_version >= 800054
-/* Networking core is multiqueue aware. We can manage our own TX
- * queues and use m_pkthdr.flowid.
- */
-#define	SFXGE_HAVE_MQ
-#endif
+
 #if (__FreeBSD_version >= 800501 && __FreeBSD_version < 900000) || \
 	__FreeBSD_version >= 900003
 #define	SFXGE_HAVE_DESCRIBE_INTR
 #endif
+
 #ifdef IFM_ETH_RXPAUSE
 #define	SFXGE_HAVE_PAUSE_MEDIAOPTS
 #endif
+
 #ifndef CTLTYPE_U64
 #define	CTLTYPE_U64 CTLTYPE_QUAD
 #endif
@@ -243,22 +244,13 @@ struct sfxge_softc {
 	struct sfxge_rxq		*rxq[SFXGE_RX_SCALE_MAX];
 	unsigned int			rx_indir_table[SFXGE_RX_SCALE_MAX];
 
-#ifdef SFXGE_HAVE_MQ
 	struct sfxge_txq		*txq[SFXGE_TXQ_NTYPES + SFXGE_RX_SCALE_MAX];
-#else
-	struct sfxge_txq		*txq[SFXGE_TXQ_NTYPES];
-#endif
 
 	struct ifmedia			media;
 
 	size_t				rx_prefix_size;
 	size_t				rx_buffer_size;
 	uma_zone_t			rx_buffer_zone;
-
-#ifndef SFXGE_HAVE_MQ
-	struct mtx			tx_lock __aligned(CACHE_LINE_SIZE);
-	char				tx_lock_name[SFXGE_LOCK_NAME_MAX];
-#endif
 
 	unsigned int			evq_count;
 	unsigned int			rxq_count;
@@ -324,6 +316,7 @@ extern void sfxge_mac_link_update(struct sfxge_softc *sc,
     efx_link_mode_t mode);
 extern int sfxge_mac_filter_set(struct sfxge_softc *sc);
 extern int sfxge_port_ifmedia_init(struct sfxge_softc *sc);
+extern uint64_t sfxge_get_counter(struct ifnet *ifp, ift_counter c);
 
 #define	SFXGE_MAX_MTU (9 * 1024)
 

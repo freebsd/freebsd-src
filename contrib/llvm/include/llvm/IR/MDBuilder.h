@@ -15,6 +15,7 @@
 #ifndef LLVM_IR_MDBUILDER_H
 #define LLVM_IR_MDBUILDER_H
 
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/DataTypes.h"
 #include <utility>
 
@@ -23,9 +24,10 @@ namespace llvm {
 class APInt;
 template <typename T> class ArrayRef;
 class LLVMContext;
+class Constant;
+class ConstantAsMetadata;
 class MDNode;
 class MDString;
-class StringRef;
 
 class MDBuilder {
   LLVMContext &Context;
@@ -35,6 +37,9 @@ public:
 
   /// \brief Return the given string as metadata.
   MDString *createString(StringRef Str);
+
+  /// \brief Return the given constant as metadata.
+  ConstantAsMetadata *createConstant(Constant *C);
 
   //===------------------------------------------------------------------===//
   // FPMath metadata.
@@ -63,18 +68,53 @@ public:
   MDNode *createRange(const APInt &Lo, const APInt &Hi);
 
   //===------------------------------------------------------------------===//
-  // TBAA metadata.
+  // AA metadata.
   //===------------------------------------------------------------------===//
 
-  /// \brief Return metadata appropriate for a TBAA root node.  Each returned
+protected:
+  /// \brief Return metadata appropriate for a AA root node (scope or TBAA).
+  /// Each returned node is distinct from all other metadata and will never
+  /// be identified (uniqued) with anything else.
+  MDNode *createAnonymousAARoot(StringRef Name = StringRef(),
+                                MDNode *Extra = nullptr);
+
+public:
+  /// \brief Return metadata appropriate for a TBAA root node. Each returned
   /// node is distinct from all other metadata and will never be identified
   /// (uniqued) with anything else.
-  MDNode *createAnonymousTBAARoot();
+  MDNode *createAnonymousTBAARoot() {
+    return createAnonymousAARoot();
+  }
+
+  /// \brief Return metadata appropriate for an alias scope domain node.
+  /// Each returned node is distinct from all other metadata and will never
+  /// be identified (uniqued) with anything else.
+  MDNode *createAnonymousAliasScopeDomain(StringRef Name = StringRef()) {
+    return createAnonymousAARoot(Name);
+  }
+
+  /// \brief Return metadata appropriate for an alias scope root node.
+  /// Each returned node is distinct from all other metadata and will never
+  /// be identified (uniqued) with anything else.
+  MDNode *createAnonymousAliasScope(MDNode *Domain,
+                                    StringRef Name = StringRef()) {
+    return createAnonymousAARoot(Name, Domain);
+  }
 
   /// \brief Return metadata appropriate for a TBAA root node with the given
   /// name.  This may be identified (uniqued) with other roots with the same
   /// name.
   MDNode *createTBAARoot(StringRef Name);
+
+  /// \brief Return metadata appropriate for an alias scope domain node with
+  /// the given name. This may be identified (uniqued) with other roots with
+  /// the same name.
+  MDNode *createAliasScopeDomain(StringRef Name);
+
+  /// \brief Return metadata appropriate for an alias scope node with
+  /// the given name. This may be identified (uniqued) with other scopes with
+  /// the same name and domain.
+  MDNode *createAliasScope(StringRef Name, MDNode *Domain);
 
   /// \brief Return metadata for a non-root TBAA node with the given name,
   /// parent in the TBAA tree, and value for 'pointsToConstantMemory'.

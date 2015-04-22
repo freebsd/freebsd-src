@@ -98,7 +98,7 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_XENNETBACK, "xnb", "Xen Net Back Driver Data");
 
 #define	XNB_SG	1	/* netback driver supports feature-sg */
-#define	XNB_GSO_TCPV4 1	/* netback driver supports feature-gso-tcpv4 */
+#define	XNB_GSO_TCPV4 0	/* netback driver supports feature-gso-tcpv4 */
 #define	XNB_RX_COPY 1	/* netback driver supports feature-rx-copy */
 #define	XNB_RX_FLIP 0	/* netback driver does not support feature-rx-flip */
 

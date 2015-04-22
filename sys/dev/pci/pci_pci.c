@@ -64,6 +64,9 @@ static void		pcib_write_config(device_t dev, u_int b, u_int s,
 static int		pcib_ari_maxslots(device_t dev);
 static int		pcib_ari_maxfuncs(device_t dev);
 static int		pcib_try_enable_ari(device_t pcib, device_t dev);
+static int		pcib_ari_enabled(device_t pcib);
+static void		pcib_ari_decode_rid(device_t pcib, uint16_t rid,
+			    int *bus, int *slot, int *func);
 
 static device_method_t pcib_methods[] = {
     /* Device interface */
@@ -104,6 +107,8 @@ static device_method_t pcib_methods[] = {
     DEVMETHOD(pcib_power_for_sleep,	pcib_power_for_sleep),
     DEVMETHOD(pcib_get_rid,		pcib_ari_get_rid),
     DEVMETHOD(pcib_try_enable_ari,	pcib_try_enable_ari),
+    DEVMETHOD(pcib_ari_enabled,		pcib_ari_enabled),
+    DEVMETHOD(pcib_decode_rid,		pcib_ari_decode_rid),
 
     DEVMETHOD_END
 };
@@ -1883,6 +1888,24 @@ pcib_ari_maxfuncs(device_t dev)
 		return (PCI_FUNCMAX);
 }
 
+static void
+pcib_ari_decode_rid(device_t pcib, uint16_t rid, int *bus, int *slot,
+    int *func)
+{
+	struct pcib_softc *sc;
+
+	sc = device_get_softc(pcib);
+
+	*bus = PCI_RID2BUS(rid);
+	if (sc->flags & PCIB_ENABLE_ARI) {
+		*slot = PCIE_ARI_RID2SLOT(rid);
+		*func = PCIE_ARI_RID2FUNC(rid);
+	} else {
+		*slot = PCI_RID2SLOT(rid);
+		*func = PCI_RID2FUNC(rid);
+	}
+}
+
 /*
  * Since we are a child of a PCI bus, its parent must support the pcib interface.
  */
@@ -2012,6 +2035,16 @@ pcib_power_for_sleep(device_t pcib, device_t dev, int *pstate)
 
 	bus = device_get_parent(pcib);
 	return (PCIB_POWER_FOR_SLEEP(bus, dev, pstate));
+}
+
+static int
+pcib_ari_enabled(device_t pcib)
+{
+	struct pcib_softc *sc;
+
+	sc = device_get_softc(pcib);
+
+	return ((sc->flags & PCIB_ENABLE_ARI) != 0);
 }
 
 static uint16_t

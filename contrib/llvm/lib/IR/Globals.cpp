@@ -18,7 +18,6 @@
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/GlobalAlias.h"
 #include "llvm/IR/GlobalVariable.h"
-#include "llvm/IR/LeakDetector.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Operator.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -29,13 +28,15 @@ using namespace llvm;
 //===----------------------------------------------------------------------===//
 
 bool GlobalValue::isMaterializable() const {
-  return getParent() && getParent()->isMaterializable(this);
+  if (const Function *F = dyn_cast<Function>(this))
+    return F->isMaterializable();
+  return false;
 }
 bool GlobalValue::isDematerializable() const {
   return getParent() && getParent()->isDematerializable(this);
 }
-bool GlobalValue::Materialize(std::string *ErrInfo) {
-  return getParent()->Materialize(this, ErrInfo);
+std::error_code GlobalValue::materialize() {
+  return getParent()->materialize(this);
 }
 void GlobalValue::Dematerialize() {
   getParent()->Dematerialize(this);
@@ -77,8 +78,22 @@ void GlobalObject::setAlignment(unsigned Align) {
   assert((Align & (Align-1)) == 0 && "Alignment is not a power of 2!");
   assert(Align <= MaximumAlignment &&
          "Alignment is greater than MaximumAlignment!");
-  setGlobalValueSubClassData(Log2_32(Align) + 1);
+  unsigned AlignmentData = Log2_32(Align) + 1;
+  unsigned OldData = getGlobalValueSubClassData();
+  setGlobalValueSubClassData((OldData & ~AlignmentMask) | AlignmentData);
   assert(getAlignment() == Align && "Alignment representation error!");
+}
+
+unsigned GlobalObject::getGlobalObjectSubClassData() const {
+  unsigned ValueData = getGlobalValueSubClassData();
+  return ValueData >> AlignmentBits;
+}
+
+void GlobalObject::setGlobalObjectSubClassData(unsigned Val) {
+  unsigned OldData = getGlobalValueSubClassData();
+  setGlobalValueSubClassData((OldData & AlignmentMask) |
+                             (Val << AlignmentBits));
+  assert(getGlobalObjectSubClassData() == Val && "representation error");
 }
 
 void GlobalObject::copyAttributesFrom(const GlobalValue *Src) {
@@ -117,7 +132,7 @@ bool GlobalValue::isDeclaration() const {
 
   // Functions are definitions if they have a body.
   if (const Function *F = dyn_cast<Function>(this))
-    return F->empty();
+    return F->empty() && !F->isMaterializable();
 
   // Aliases are always definitions.
   assert(isa<GlobalAlias>(this));
@@ -143,8 +158,6 @@ GlobalVariable::GlobalVariable(Type *Ty, bool constant, LinkageTypes Link,
            "Initializer should be the same type as the GlobalVariable!");
     Op<0>() = InitVal;
   }
-
-  LeakDetector::addGarbageObject(this);
 }
 
 GlobalVariable::GlobalVariable(Module &M, Type *Ty, bool constant,
@@ -164,8 +177,6 @@ GlobalVariable::GlobalVariable(Module &M, Type *Ty, bool constant,
     Op<0>() = InitVal;
   }
 
-  LeakDetector::addGarbageObject(this);
-
   if (Before)
     Before->getParent()->getGlobalList().insert(Before, this);
   else
@@ -173,11 +184,7 @@ GlobalVariable::GlobalVariable(Module &M, Type *Ty, bool constant,
 }
 
 void GlobalVariable::setParent(Module *parent) {
-  if (getParent())
-    LeakDetector::addGarbageObject(this);
   Parent = parent;
-  if (getParent())
-    LeakDetector::removeGarbageObject(this);
 }
 
 void GlobalVariable::removeFromParent() {
@@ -230,6 +237,7 @@ void GlobalVariable::copyAttributesFrom(const GlobalValue *Src) {
   GlobalObject::copyAttributesFrom(Src);
   const GlobalVariable *SrcVar = cast<GlobalVariable>(Src);
   setThreadLocalMode(SrcVar->getThreadLocalMode());
+  setExternallyInitialized(SrcVar->isExternallyInitialized());
 }
 
 
@@ -242,7 +250,6 @@ GlobalAlias::GlobalAlias(Type *Ty, unsigned AddressSpace, LinkageTypes Link,
                          Module *ParentModule)
     : GlobalValue(PointerType::get(Ty, AddressSpace), Value::GlobalAliasVal,
                   &Op<0>(), 1, Link, Name) {
-  LeakDetector::addGarbageObject(this);
   Op<0>() = Aliasee;
 
   if (ParentModule)
@@ -279,11 +286,7 @@ GlobalAlias *GlobalAlias::create(const Twine &Name, GlobalValue *Aliasee) {
 }
 
 void GlobalAlias::setParent(Module *parent) {
-  if (getParent())
-    LeakDetector::addGarbageObject(this);
   Parent = parent;
-  if (getParent())
-    LeakDetector::removeGarbageObject(this);
 }
 
 void GlobalAlias::removeFromParent() {

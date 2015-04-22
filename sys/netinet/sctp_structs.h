@@ -1174,7 +1174,6 @@ struct sctp_association {
 
 	struct sctp_scoping scope;
 	/* flags to handle send alternate net tracking */
-	uint8_t used_alt_onsack;
 	uint8_t used_alt_asconfack;
 	uint8_t fast_retran_loss_recovery;
 	uint8_t sat_t3_loss_recovery;
@@ -1199,6 +1198,7 @@ struct sctp_association {
 	uint8_t sctp_cmt_pf;
 	uint8_t use_precise_time;
 	uint64_t sctp_features;
+	uint32_t max_cwnd;
 	uint16_t port;		/* remote UDP encapsulation port */
 	/*
 	 * The mapping array is used to track out of order sequences above

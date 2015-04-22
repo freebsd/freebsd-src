@@ -833,7 +833,7 @@ setup:
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
-			   CISS_MAX_SG_ELEMENTS,	/* nsegments */
+			   BUS_SPACE_UNRESTRICTED,	/* nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,				/* flags */
 			   NULL, NULL,			/* lockfunc, lockarg */
@@ -851,7 +851,8 @@ setup:
 			   BUS_SPACE_MAXADDR,		/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
-			   MAXBSIZE, CISS_MAX_SG_ELEMENTS,	/* maxsize, nsegments */
+			   (CISS_MAX_SG_ELEMENTS - 1) * PAGE_SIZE, /* maxsize */
+			   CISS_MAX_SG_ELEMENTS,	/* nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   BUS_DMA_ALLOCNOW,		/* flags */
 			   busdma_lock_mutex, &sc->ciss_mtx,	/* lockfunc, lockarg */
@@ -3437,11 +3438,9 @@ ciss_name_device(struct ciss_softc *sc, int bus, int target)
 			     target, 0);
 
     if (status == CAM_REQ_CMP) {
-	mtx_lock(&sc->ciss_mtx);
 	xpt_path_lock(path);
 	periph = cam_periph_find(path, NULL);
 	xpt_path_unlock(path);
-	mtx_unlock(&sc->ciss_mtx);
 	xpt_free_path(path);
 	if (periph != NULL) {
 		sprintf(sc->ciss_logical[bus][target].cl_name, "%s%d",

@@ -57,14 +57,15 @@ __FBSDID("$FreeBSD$");
 
 #include "sfxge.h"
 #include "sfxge_rx.h"
+#include "sfxge_version.h"
 
 #define	SFXGE_CAP (IFCAP_VLAN_MTU | \
 		   IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM | IFCAP_TSO |	\
 		   IFCAP_JUMBO_MTU | IFCAP_LRO |			\
-		   IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE)
+		   IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE | IFCAP_HWSTATS)
 #define	SFXGE_CAP_ENABLE SFXGE_CAP
 #define	SFXGE_CAP_FIXED (IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM | \
-			 IFCAP_JUMBO_MTU | IFCAP_LINKSTATE)
+			 IFCAP_JUMBO_MTU | IFCAP_LINKSTATE | IFCAP_HWSTATS)
 
 MALLOC_DEFINE(M_SFXGE, "sfxge", "Solarflare 10GigE driver");
 
@@ -329,19 +330,10 @@ sfxge_ifnet_init(struct ifnet *ifp, struct sfxge_softc *sc)
 
 	ether_ifattach(ifp, encp->enc_mac_addr);
 
-#ifdef SFXGE_HAVE_MQ
 	ifp->if_transmit = sfxge_if_transmit;
 	ifp->if_qflush = sfxge_if_qflush;
-#else
-	ifp->if_start = sfxge_if_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, sc->txq_entries - 1);
-	ifp->if_snd.ifq_drv_maxlen = sc->txq_entries - 1;
-	IFQ_SET_READY(&ifp->if_snd);
 
-	snprintf(sc->tx_lock_name, sizeof(sc->tx_lock_name),
-		 "%s:tx", device_get_nameunit(sc->dev));
-	mtx_init(&sc->tx_lock, sc->tx_lock_name, NULL, MTX_DEF);
-#endif
+	ifp->if_get_counter = sfxge_get_counter;
 
 	if ((rc = sfxge_port_ifmedia_init(sc)) != 0)
 		goto fail;
@@ -472,6 +464,12 @@ sfxge_create(struct sfxge_softc *sc)
 	/* Probe the NIC and build the configuration data area. */
 	if ((error = efx_nic_probe(enp)) != 0)
 		goto fail5;
+
+	SYSCTL_ADD_STRING(device_get_sysctl_ctx(dev),
+			  SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+			  OID_AUTO, "version", CTLFLAG_RD,
+			  SFXGE_VERSION_STRING, 0,
+			  "Driver version");
 
 	/* Initialize the NVRAM. */
 	if ((error = efx_nvram_init(enp)) != 0)

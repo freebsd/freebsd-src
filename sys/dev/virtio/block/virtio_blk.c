@@ -205,6 +205,7 @@ TUNABLE_INT("hw.vtblk.writecache_mode", &vtblk_writecache_mode);
      VIRTIO_BLK_F_RO			| \
      VIRTIO_BLK_F_BLK_SIZE		| \
      VIRTIO_BLK_F_WCE			| \
+     VIRTIO_BLK_F_TOPOLOGY		| \
      VIRTIO_BLK_F_CONFIG_WCE		| \
      VIRTIO_RING_F_INDIRECT_DESC)
 
@@ -709,7 +710,8 @@ vtblk_alloc_disk(struct vtblk_softc *sc, struct virtio_blk_config *blkcfg)
 		dp->d_fwheads = blkcfg->geometry.heads;
 	}
 
-	if (virtio_with_feature(dev, VIRTIO_BLK_F_TOPOLOGY)) {
+	if (virtio_with_feature(dev, VIRTIO_BLK_F_TOPOLOGY) &&
+	    blkcfg->topology.physical_block_exp > 0) {
 		dp->d_stripesize = dp->d_sectorsize *
 		    (1 << blkcfg->topology.physical_block_exp);
 		dp->d_stripeoffset = (dp->d_stripesize -

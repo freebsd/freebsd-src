@@ -182,7 +182,7 @@
 									\
 	__count = 0;							\
 	for (__i = 0; __i < __bitset_words((_s)); __i++)		\
-		__count += __builtin_popcountl((p)->__bits[__i]);	\
+		__count += __bitcountl((p)->__bits[__i]);		\
 	__count;							\
 })
 	

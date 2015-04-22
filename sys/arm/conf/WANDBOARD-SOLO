@@ -17,10 +17,10 @@
 #
 # $FreeBSD$
 
-#NO_UNIVERSE
-
 include  	"IMX6"
 ident		WANDBOARD-SOLO
+
+nooptions	SMP
 
 # Flattened Device Tree
 options 	FDT_DTB_STATIC

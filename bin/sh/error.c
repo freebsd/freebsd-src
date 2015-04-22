@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "shell.h"
+#include "eval.h"
 #include "main.h"
 #include "options.h"
 #include "output.h"
@@ -64,7 +65,6 @@ struct jmploc *handler;
 volatile sig_atomic_t exception;
 volatile sig_atomic_t suppressint;
 volatile sig_atomic_t intpending;
-char *commandname;
 
 
 static void exverror(int, const char *, va_list) __printf0like(2, 0) __dead2;

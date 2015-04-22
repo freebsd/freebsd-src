@@ -53,10 +53,10 @@ static void EmitAbsDifference(MCStreamer &Streamer, const MCSymbol *LHS,
   const MCExpr *Diff =
       MCBinaryExpr::CreateSub(MCSymbolRefExpr::Create(LHS, Context),
                               MCSymbolRefExpr::Create(RHS, Context), Context);
-  Streamer.EmitAbsValue(Diff, 1);
+  Streamer.EmitValue(Diff, 1);
 }
 
-static void EmitUnwindCode(MCStreamer &streamer, MCSymbol *begin,
+static void EmitUnwindCode(MCStreamer &streamer, const MCSymbol *begin,
                            WinEH::Instruction &inst) {
   uint8_t b2;
   uint16_t w;
@@ -136,7 +136,7 @@ static void EmitSymbolRefWithOfs(MCStreamer &streamer,
 }
 
 static void EmitRuntimeFunction(MCStreamer &streamer,
-                                const MCWinFrameInfo *info) {
+                                const WinEH::FrameInfo *info) {
   MCContext &context = streamer.getContext();
 
   streamer.EmitValueToAlignment(4);
@@ -147,14 +147,17 @@ static void EmitRuntimeFunction(MCStreamer &streamer,
                                              context), 4);
 }
 
-static void EmitUnwindInfo(MCStreamer &streamer, MCWinFrameInfo *info) {
+static void EmitUnwindInfo(MCStreamer &streamer, WinEH::FrameInfo *info) {
   // If this UNWIND_INFO already has a symbol, it's already been emitted.
-  if (info->Symbol) return;
+  if (info->Symbol)
+    return;
 
   MCContext &context = streamer.getContext();
+  MCSymbol *Label = context.CreateTempSymbol();
+
   streamer.EmitValueToAlignment(4);
-  info->Symbol = context.CreateTempSymbol();
-  streamer.EmitLabel(info->Symbol);
+  streamer.EmitLabel(Label);
+  info->Symbol = Label;
 
   // Upper 3 bits are the version number (currently 1).
   uint8_t flags = 0x01;
@@ -215,65 +218,14 @@ static void EmitUnwindInfo(MCStreamer &streamer, MCWinFrameInfo *info) {
   }
 }
 
-StringRef MCWin64EHUnwindEmitter::GetSectionSuffix(const MCSymbol *func) {
-  if (!func || !func->isInSection()) return "";
-  const MCSection *section = &func->getSection();
-  const MCSectionCOFF *COFFSection;
-  if ((COFFSection = dyn_cast<MCSectionCOFF>(section))) {
-    StringRef name = COFFSection->getSectionName();
-    size_t dollar = name.find('$');
-    size_t dot = name.find('.', 1);
-    if (dollar == StringRef::npos && dot == StringRef::npos)
-      return "";
-    if (dot == StringRef::npos)
-      return name.substr(dollar);
-    if (dollar == StringRef::npos || dot < dollar)
-      return name.substr(dot);
-    return name.substr(dollar);
-  }
-  return "";
-}
-
-static const MCSection *getWin64EHTableSection(StringRef suffix,
-                                               MCContext &context) {
-  if (suffix == "")
-    return context.getObjectFileInfo()->getXDataSection();
-
-  return context.getCOFFSection((".xdata"+suffix).str(),
-                                COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
-                                COFF::IMAGE_SCN_MEM_READ,
-                                SectionKind::getDataRel());
-}
-
-static const MCSection *getWin64EHFuncTableSection(StringRef suffix,
-                                                   MCContext &context) {
-  if (suffix == "")
-    return context.getObjectFileInfo()->getPDataSection();
-  return context.getCOFFSection((".pdata"+suffix).str(),
-                                COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
-                                COFF::IMAGE_SCN_MEM_READ,
-                                SectionKind::getDataRel());
-}
-
-void MCWin64EHUnwindEmitter::EmitUnwindInfo(MCStreamer &streamer,
-                                            MCWinFrameInfo *info) {
-  // Switch sections (the static function above is meant to be called from
-  // here and from Emit().
-  MCContext &context = streamer.getContext();
-  const MCSection *xdataSect =
-    getWin64EHTableSection(GetSectionSuffix(info->Function), context);
-  streamer.SwitchSection(xdataSect);
-
-  llvm::EmitUnwindInfo(streamer, info);
-}
-
-void MCWin64EHUnwindEmitter::Emit(MCStreamer &Streamer) {
+namespace Win64EH {
+void UnwindEmitter::Emit(MCStreamer &Streamer) const {
   MCContext &Context = Streamer.getContext();
 
   // Emit the unwind info structs first.
   for (const auto &CFI : Streamer.getWinFrameInfos()) {
     const MCSection *XData =
-        getWin64EHTableSection(GetSectionSuffix(CFI->Function), Context);
+        getXDataSection(CFI->Function, Context);
     Streamer.SwitchSection(XData);
     EmitUnwindInfo(Streamer, CFI);
   }
@@ -281,11 +233,23 @@ void MCWin64EHUnwindEmitter::Emit(MCStreamer &Streamer) {
   // Now emit RUNTIME_FUNCTION entries.
   for (const auto &CFI : Streamer.getWinFrameInfos()) {
     const MCSection *PData =
-        getWin64EHFuncTableSection(GetSectionSuffix(CFI->Function), Context);
+        getPDataSection(CFI->Function, Context);
     Streamer.SwitchSection(PData);
     EmitRuntimeFunction(Streamer, CFI);
   }
 }
 
+void UnwindEmitter::EmitUnwindInfo(MCStreamer &Streamer,
+                                   WinEH::FrameInfo *info) const {
+  // Switch sections (the static function above is meant to be called from
+  // here and from Emit().
+  MCContext &context = Streamer.getContext();
+  const MCSection *xdataSect =
+    getXDataSection(info->Function, context);
+  Streamer.SwitchSection(xdataSect);
+
+  llvm::EmitUnwindInfo(Streamer, info);
+}
+}
 } // End of namespace llvm
 

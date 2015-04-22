@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef PPCMCEXPR_H
-#define PPCMCEXPR_H
+#ifndef LLVM_LIB_TARGET_POWERPC_MCTARGETDESC_PPCMCEXPR_H
+#define LLVM_LIB_TARGET_POWERPC_MCTARGETDESC_PPCMCEXPR_H
 
 #include "llvm/MC/MCAsmLayout.h"
 #include "llvm/MC/MCExpr.h"
@@ -33,6 +33,8 @@ private:
   const VariantKind Kind;
   const MCExpr *Expr;
   bool IsDarwin;
+
+  int64_t EvaluateAsInt64(int64_t Value) const;
 
   explicit PPCMCExpr(VariantKind _Kind, const MCExpr *_Expr,
                      bool _IsDarwin)
@@ -78,7 +80,8 @@ public:
 
   void PrintImpl(raw_ostream &OS) const override;
   bool EvaluateAsRelocatableImpl(MCValue &Res,
-                                 const MCAsmLayout *Layout) const override;
+                                 const MCAsmLayout *Layout,
+                                 const MCFixup *Fixup) const override;
   void visitUsedExpr(MCStreamer &Streamer) const override;
   const MCSection *FindAssociatedSection() const override {
     return getSubExpr()->FindAssociatedSection();
@@ -86,6 +89,8 @@ public:
 
   // There are no TLS PPCMCExprs at the moment.
   void fixELFSymbolsInTLSFixups(MCAssembler &Asm) const override {}
+
+  bool EvaluateAsConstant(int64_t &Res) const;
 
   static bool classof(const MCExpr *E) {
     return E->getKind() == MCExpr::Target;

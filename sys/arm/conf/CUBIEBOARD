@@ -23,9 +23,6 @@ ident		CUBIEBOARD
 
 include		"../allwinner/std.a10"
 
-makeoptions	MODULES_OVERRIDE=""
-makeoptions	WITHOUT_MODULES="ahc"
-
 options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
@@ -142,4 +139,4 @@ device		miibus
 options 	FDT			# Configure using FDT/DTB data
 options 	FDT_DTB_STATIC
 makeoptions	FDT_DTS_FILE=cubieboard.dts
-
+makeoptions	MODULES_EXTRA=dtb/allwinner

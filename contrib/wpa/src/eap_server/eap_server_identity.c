@@ -102,6 +102,7 @@ static void eap_identity_process(struct eap_sm *sm, void *priv,
 	struct eap_identity_data *data = priv;
 	const u8 *pos;
 	size_t len;
+	char *buf;
 
 	if (data->pick_up) {
 		if (eap_identity_check(sm, data, respData)) {
@@ -119,6 +120,12 @@ static void eap_identity_process(struct eap_sm *sm, void *priv,
 		return; /* Should not happen - frame already validated */
 
 	wpa_hexdump_ascii(MSG_DEBUG, "EAP-Identity: Peer identity", pos, len);
+	buf = os_malloc(len * 4 + 1);
+	if (buf) {
+		printf_encode(buf, len * 4 + 1, pos, len);
+		eap_log_msg(sm, "EAP-Response/Identity '%s'", buf);
+		os_free(buf);
+	}
 	if (sm->identity)
 		sm->update_user = TRUE;
 	os_free(sm->identity);

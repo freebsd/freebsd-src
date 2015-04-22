@@ -79,6 +79,8 @@ perform_test (const ucl_object_t *schema, const ucl_object_t *obj,
 				ucl_object_tostring (description),
 				ucl_object_toboolean (valid) ? "valid" : "invalid",
 						err->msg);
+		fprintf (stdout, "%s\n", ucl_object_emit (data, UCL_EMIT_CONFIG));
+		fprintf (stdout, "%s\n", ucl_object_emit (schema, UCL_EMIT_CONFIG));
 		return false;
 	}
 

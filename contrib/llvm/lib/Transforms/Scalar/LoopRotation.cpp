@@ -13,6 +13,7 @@
 
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/CodeMetrics.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LoopPass.h"
@@ -53,6 +54,7 @@ namespace {
 
     // LCSSA form makes instruction renaming easier.
     void getAnalysisUsage(AnalysisUsage &AU) const override {
+      AU.addRequired<AssumptionCacheTracker>();
       AU.addPreserved<DominatorTreeWrapperPass>();
       AU.addRequired<LoopInfo>();
       AU.addPreserved<LoopInfo>();
@@ -72,12 +74,14 @@ namespace {
     unsigned MaxHeaderSize;
     LoopInfo *LI;
     const TargetTransformInfo *TTI;
+    AssumptionCache *AC;
   };
 }
 
 char LoopRotate::ID = 0;
 INITIALIZE_PASS_BEGIN(LoopRotate, "loop-rotate", "Rotate Loops", false, false)
 INITIALIZE_AG_DEPENDENCY(TargetTransformInfo)
+INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
 INITIALIZE_PASS_DEPENDENCY(LoopInfo)
 INITIALIZE_PASS_DEPENDENCY(LoopSimplify)
 INITIALIZE_PASS_DEPENDENCY(LCSSA)
@@ -98,6 +102,8 @@ bool LoopRotate::runOnLoop(Loop *L, LPPassManager &LPM) {
 
   LI = &getAnalysis<LoopInfo>();
   TTI = &getAnalysis<TargetTransformInfo>();
+  AC = &getAnalysis<AssumptionCacheTracker>().getAssumptionCache(
+      *L->getHeader()->getParent());
 
   // Simplify the loop latch before attempting to rotate the header
   // upward. Rotation may not be needed if the loop tail can be folded into the
@@ -184,13 +190,18 @@ static void RewriteUsesOfClonedInstructions(BasicBlock *OrigHeader,
   }
 }
 
-/// Determine whether the instructions in this range my be safely and cheaply
+/// Determine whether the instructions in this range may be safely and cheaply
 /// speculated. This is not an important enough situation to develop complex
 /// heuristics. We handle a single arithmetic instruction along with any type
 /// conversions.
 static bool shouldSpeculateInstrs(BasicBlock::iterator Begin,
-                                  BasicBlock::iterator End) {
+                                  BasicBlock::iterator End, Loop *L) {
   bool seenIncrement = false;
+  bool MultiExitLoop = false;
+
+  if (!L->getExitingBlock())
+    MultiExitLoop = true;
+
   for (BasicBlock::iterator I = Begin; I != End; ++I) {
 
     if (!isSafeToSpeculativelyExecute(I))
@@ -214,11 +225,33 @@ static bool shouldSpeculateInstrs(BasicBlock::iterator Begin,
     case Instruction::Xor:
     case Instruction::Shl:
     case Instruction::LShr:
-    case Instruction::AShr:
+    case Instruction::AShr: {
+      Value *IVOpnd = nullptr;
+      if (isa<ConstantInt>(I->getOperand(0)))
+        IVOpnd = I->getOperand(1);
+
+      if (isa<ConstantInt>(I->getOperand(1))) {
+        if (IVOpnd)
+          return false;
+
+        IVOpnd = I->getOperand(0);
+      }
+
+      // If increment operand is used outside of the loop, this speculation
+      // could cause extra live range interference.
+      if (MultiExitLoop && IVOpnd) {
+        for (User *UseI : IVOpnd->users()) {
+          auto *UserInst = cast<Instruction>(UseI);
+          if (!L->contains(UserInst))
+            return false;
+        }
+      }
+
       if (seenIncrement)
         return false;
       seenIncrement = true;
       break;
+    }
     case Instruction::Trunc:
     case Instruction::ZExt:
     case Instruction::SExt:
@@ -232,7 +265,7 @@ static bool shouldSpeculateInstrs(BasicBlock::iterator Begin,
 /// Fold the loop tail into the loop exit by speculating the loop tail
 /// instructions. Typically, this is a single post-increment. In the case of a
 /// simple 2-block loop, hoisting the increment can be much better than
-/// duplicating the entire loop header. In the cast of loops with early exits,
+/// duplicating the entire loop header. In the case of loops with early exits,
 /// rotation will not work anyway, but simplifyLoopLatch will put the loop in
 /// canonical form so downstream passes can handle it.
 ///
@@ -254,7 +287,7 @@ bool LoopRotate::simplifyLoopLatch(Loop *L) {
   if (!BI)
     return false;
 
-  if (!shouldSpeculateInstrs(Latch->begin(), Jmp))
+  if (!shouldSpeculateInstrs(Latch->begin(), Jmp, L))
     return false;
 
   DEBUG(dbgs() << "Folding loop latch " << Latch->getName() << " into "
@@ -323,8 +356,11 @@ bool LoopRotate::rotateLoop(Loop *L, bool SimplifiedLatch) {
   // Check size of original header and reject loop if it is very big or we can't
   // duplicate blocks inside it.
   {
+    SmallPtrSet<const Value *, 32> EphValues;
+    CodeMetrics::collectEphemeralValues(L, AC, EphValues);
+
     CodeMetrics Metrics;
-    Metrics.analyzeBasicBlock(OrigHeader, *TTI);
+    Metrics.analyzeBasicBlock(OrigHeader, *TTI, EphValues);
     if (Metrics.notDuplicatable) {
       DEBUG(dbgs() << "LoopRotation: NOT rotating - contains non-duplicatable"
             << " instructions: "; L->dump());
@@ -406,6 +442,7 @@ bool LoopRotate::rotateLoop(Loop *L, bool SimplifiedLatch) {
     // With the operands remapped, see if the instruction constant folds or is
     // otherwise simplifyable.  This commonly occurs because the entry from PHI
     // nodes allows icmps and other instructions to fold.
+    // FIXME: Provide DL, TLI, DT, AC to SimplifyInstruction.
     Value *V = SimplifyInstruction(C);
     if (V && LI->replacementPreservesLCSSAForm(C, V)) {
       // If so, then delete the temporary instruction and stick the folded value
@@ -497,6 +534,8 @@ bool LoopRotate::rotateLoop(Loop *L, bool SimplifiedLatch) {
       // We only need to split loop exit edges.
       Loop *PredLoop = LI->getLoopFor(*PI);
       if (!PredLoop || PredLoop->contains(Exit))
+        continue;
+      if (isa<IndirectBrInst>((*PI)->getTerminator()))
         continue;
       SplitLatchEdge |= L->getLoopLatch() == *PI;
       BasicBlock *ExitSplit = SplitCriticalEdge(*PI, Exit, this);

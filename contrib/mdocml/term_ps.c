@@ -1,7 +1,7 @@
-/*	$Id: term_ps.c,v 1.70 2014/12/01 08:05:52 schwarze Exp $ */
+/*	$Id: term_ps.c,v 1.72 2015/01/21 19:40:54 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -60,6 +60,7 @@ struct	termp_ps {
 #define	PS_NEWPAGE	 (1 << 2)	/* new page, no words yet */
 #define	PS_BACKSP	 (1 << 3)	/* last character was backspace */
 	size_t		  pscol;	/* visible column (AFM units) */
+	size_t		  pscolnext;	/* used for overstrike */
 	size_t		  psrow;	/* visible row (AFM units) */
 	char		 *psmarg;	/* margin buf */
 	size_t		  psmargsz;	/* margin buf size */
@@ -540,6 +541,9 @@ pspdf_alloc(const struct mchars *mchars, char *outopts)
 	p = mandoc_calloc(1, sizeof(struct termp));
 	p->symtab = mchars;
 	p->enc = TERMENC_ASCII;
+	p->fontq = mandoc_reallocarray(NULL,
+	    (p->fontsz = 8), sizeof(enum termfont));
+	p->fontq[0] = p->fontl = TERMFONT_NONE;
 	p->ps = mandoc_calloc(1, sizeof(struct termp_ps));
 
 	p->advance = ps_advance;
@@ -1069,7 +1073,7 @@ ps_fclose(struct termp *p)
 static void
 ps_letter(struct termp *p, int arg)
 {
-	size_t		savecol;
+	size_t		savecol, wx;
 	char		c;
 
 	c = arg >= 128 || arg <= 0 ? '?' : arg;
@@ -1141,7 +1145,30 @@ ps_letter(struct termp *p, int arg)
 			ps_setfont(p, p->ps->nextf);
 		}
 		p->ps->nextf = TERMFONT_NONE;
+
+		/*
+		 * For an overstrike, if a previous character
+		 * was wider, advance to center the new one.
+		 */
+
+		if (p->ps->pscolnext) {
+			wx = fonts[p->ps->lastf].gly[(int)p->ps->last-32].wx;
+			if (p->ps->pscol + wx < p->ps->pscolnext)
+				p->ps->pscol = (p->ps->pscol +
+				    p->ps->pscolnext - wx) / 2;
+		}
+
 		ps_pletter(p, p->ps->last);
+
+		/*
+		 * For an overstrike, if a previous character
+		 * was wider, advance to the end of the old one.
+		 */
+
+		if (p->ps->pscol < p->ps->pscolnext) {
+			ps_pclose(p);
+			p->ps->pscol = p->ps->pscolnext;
+		}
 	}
 
 	/*
@@ -1155,13 +1182,19 @@ ps_letter(struct termp *p, int arg)
 
 	/*
 	 * For an overstrike, back up to the previous position.
+	 * If the previous character is wider than any it overstrikes,
+	 * remember the current position, because it might also be
+	 * wider than all that will overstrike it.
 	 */
 
 	if (savecol != SIZE_MAX) {
+		if (p->ps->pscolnext < p->ps->pscol)
+			p->ps->pscolnext = p->ps->pscol;
 		ps_pclose(p);
 		p->ps->pscol = savecol;
 		p->ps->flags &= ~PS_BACKSP;
-	}
+	} else
+		p->ps->pscolnext = 0;
 }
 
 static void

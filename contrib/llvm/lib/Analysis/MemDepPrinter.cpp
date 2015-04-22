@@ -92,7 +92,6 @@ const char *const MemDepPrinter::DepTypeStr[]
 
 bool MemDepPrinter::runOnFunction(Function &F) {
   this->F = &F;
-  AliasAnalysis &AA = getAnalysis<AliasAnalysis>();
   MemoryDependenceAnalysis &MDA = getAnalysis<MemoryDependenceAnalysis>();
 
   // All this code uses non-const interfaces because MemDep is not
@@ -119,30 +118,9 @@ bool MemDepPrinter::runOnFunction(Function &F) {
       }
     } else {
       SmallVector<NonLocalDepResult, 4> NLDI;
-      if (LoadInst *LI = dyn_cast<LoadInst>(Inst)) {
-        if (!LI->isUnordered()) {
-          // FIXME: Handle atomic/volatile loads.
-          Deps[Inst].insert(std::make_pair(getInstTypePair(nullptr, Unknown),
-                                           static_cast<BasicBlock *>(nullptr)));
-          continue;
-        }
-        AliasAnalysis::Location Loc = AA.getLocation(LI);
-        MDA.getNonLocalPointerDependency(Loc, true, LI->getParent(), NLDI);
-      } else if (StoreInst *SI = dyn_cast<StoreInst>(Inst)) {
-        if (!SI->isUnordered()) {
-          // FIXME: Handle atomic/volatile stores.
-          Deps[Inst].insert(std::make_pair(getInstTypePair(nullptr, Unknown),
-                                           static_cast<BasicBlock *>(nullptr)));
-          continue;
-        }
-        AliasAnalysis::Location Loc = AA.getLocation(SI);
-        MDA.getNonLocalPointerDependency(Loc, false, SI->getParent(), NLDI);
-      } else if (VAArgInst *VI = dyn_cast<VAArgInst>(Inst)) {
-        AliasAnalysis::Location Loc = AA.getLocation(VI);
-        MDA.getNonLocalPointerDependency(Loc, false, VI->getParent(), NLDI);
-      } else {
-        llvm_unreachable("Unknown memory instruction!");
-      }
+      assert( (isa<LoadInst>(Inst) || isa<StoreInst>(Inst) ||
+               isa<VAArgInst>(Inst)) && "Unknown memory instruction!"); 
+      MDA.getNonLocalPointerDependency(Inst, NLDI);
 
       DepSet &InstDeps = Deps[Inst];
       for (SmallVectorImpl<NonLocalDepResult>::const_iterator

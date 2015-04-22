@@ -66,7 +66,7 @@ db_stack_trace_cmd(struct unwind_state *state)
 
 	finished = false;
 	while (!finished) {
-		finished = unwind_stack_one(state, 0);
+		finished = unwind_stack_one(state, 1);
 
 		/* Print the frame details */
 		sym = db_search_symbol(state->start_pc, DB_STGY_ANY, &offset);

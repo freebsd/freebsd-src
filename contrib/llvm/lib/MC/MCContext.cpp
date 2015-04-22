@@ -73,7 +73,10 @@ void MCContext::reset() {
   Symbols.clear();
   Allocator.Reset();
   Instances.clear();
+  CompilationDir.clear();
+  MainFileName.clear();
   MCDwarfLineTablesCUMap.clear();
+  SectionStartEndSyms.clear();
   MCGenDwarfLabelEntries.clear();
   DwarfDebugFlags = StringRef();
   DwarfCompileUnitID = 0;
@@ -97,17 +100,39 @@ void MCContext::reset() {
 MCSymbol *MCContext::GetOrCreateSymbol(StringRef Name) {
   assert(!Name.empty() && "Normal symbols cannot be unnamed!");
 
-  // Do the lookup and get the entire StringMapEntry.  We want access to the
-  // key if we are creating the entry.
-  StringMapEntry<MCSymbol*> &Entry = Symbols.GetOrCreateValue(Name);
-  MCSymbol *Sym = Entry.getValue();
+  MCSymbol *&Sym = Symbols[Name];
 
+  if (!Sym)
+    Sym = CreateSymbol(Name);
+
+  return Sym;
+}
+
+MCSymbol *MCContext::getOrCreateSectionSymbol(const MCSectionELF &Section) {
+  MCSymbol *&Sym = SectionSymbols[&Section];
   if (Sym)
     return Sym;
 
-  Sym = CreateSymbol(Name);
-  Entry.setValue(Sym);
+  StringRef Name = Section.getSectionName();
+
+  MCSymbol *&OldSym = Symbols[Name];
+  if (OldSym && OldSym->isUndefined()) {
+    Sym = OldSym;
+    return OldSym;
+  }
+
+  auto NameIter = UsedNames.insert(std::make_pair(Name, true)).first;
+  Sym = new (*this) MCSymbol(NameIter->getKey(), /*isTemporary*/ false);
+
+  if (!OldSym)
+    OldSym = Sym;
+
   return Sym;
+}
+
+MCSymbol *MCContext::getOrCreateFrameAllocSymbol(StringRef FuncName) {
+  return GetOrCreateSymbol(Twine(MAI->getPrivateGlobalPrefix()) +
+                           "frameallocation_" + FuncName);
 }
 
 MCSymbol *MCContext::CreateSymbol(StringRef Name) {
@@ -116,21 +141,21 @@ MCSymbol *MCContext::CreateSymbol(StringRef Name) {
   if (AllowTemporaryLabels)
     isTemporary = Name.startswith(MAI->getPrivateGlobalPrefix());
 
-  StringMapEntry<bool> *NameEntry = &UsedNames.GetOrCreateValue(Name);
-  if (NameEntry->getValue()) {
+  auto NameEntry = UsedNames.insert(std::make_pair(Name, true));
+  if (!NameEntry.second) {
     assert(isTemporary && "Cannot rename non-temporary symbols");
     SmallString<128> NewName = Name;
     do {
       NewName.resize(Name.size());
       raw_svector_ostream(NewName) << NextUniqueID++;
-      NameEntry = &UsedNames.GetOrCreateValue(NewName);
-    } while (NameEntry->getValue());
+      NameEntry = UsedNames.insert(std::make_pair(NewName, true));
+    } while (!NameEntry.second);
   }
-  NameEntry->setValue(true);
 
   // Ok, the entry doesn't already exist.  Have the MCSymbol object itself refer
   // to the copy of the string that is embedded in the UsedNames entry.
-  MCSymbol *Result = new (*this) MCSymbol(NameEntry->getKey(), isTemporary);
+  MCSymbol *Result =
+      new (*this) MCSymbol(NameEntry.first->getKey(), isTemporary);
 
   return Result;
 }
@@ -315,6 +340,22 @@ const MCSectionCOFF *MCContext::getCOFFSection(StringRef Section) {
   if (Iter == COFFUniquingMap.end())
     return nullptr;
   return Iter->second;
+}
+
+const MCSectionCOFF *
+MCContext::getAssociativeCOFFSection(const MCSectionCOFF *Sec,
+                                     const MCSymbol *KeySym) {
+  // Return the normal section if we don't have to be associative.
+  if (!KeySym)
+    return Sec;
+
+  // Make an associative section with the same name and kind as the normal
+  // section.
+  unsigned Characteristics =
+      Sec->getCharacteristics() | COFF::IMAGE_SCN_LNK_COMDAT;
+  return getCOFFSection(Sec->getSectionName(), Characteristics, Sec->getKind(),
+                        KeySym->getName(),
+                        COFF::IMAGE_COMDAT_SELECT_ASSOCIATIVE);
 }
 
 //===----------------------------------------------------------------------===//

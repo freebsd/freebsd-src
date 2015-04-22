@@ -59,18 +59,15 @@ extern void do_call(void *, void *, void *, int);
 #if defined(CPU_ARM9)
 #define cpu_idcache_wbinv_all	arm9_idcache_wbinv_all
 extern void arm9_idcache_wbinv_all(void);
-#elif defined(CPU_FA526) || defined(CPU_FA626TE)
+#elif defined(CPU_FA526)
 #define cpu_idcache_wbinv_all	fa526_idcache_wbinv_all
 extern void fa526_idcache_wbinv_all(void);
 #elif defined(CPU_ARM9E)
 #define cpu_idcache_wbinv_all	armv5_ec_idcache_wbinv_all
 extern void armv5_ec_idcache_wbinv_all(void);
-#elif defined(CPU_ARM10)
-#define cpu_idcache_wbinv_all	arm10_idcache_wbinv_all
-extern void arm10_idcache_wbinv_all(void);
-#elif defined(CPU_ARM1136) || defined(CPU_ARM1176)
+#elif defined(CPU_ARM1176)
 #define cpu_idcache_wbinv_all	armv6_idcache_wbinv_all
-#elif defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
+#elif defined(CPU_XSCALE_80321) || \
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	\
   defined(CPU_XSCALE_80219)
 #define cpu_idcache_wbinv_all	xscale_cache_purgeID

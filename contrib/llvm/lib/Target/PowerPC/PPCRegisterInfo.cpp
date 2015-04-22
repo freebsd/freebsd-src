@@ -99,6 +99,14 @@ PPCRegisterInfo::getPointerRegClass(const MachineFunction &MF, unsigned Kind)
 
 const MCPhysReg*
 PPCRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
+  if (MF->getFunction()->getCallingConv() == CallingConv::AnyReg) {
+    if (Subtarget.hasVSX())
+      return CSR_64_AllRegs_VSX_SaveList;
+    if (Subtarget.hasAltivec())
+      return CSR_64_AllRegs_Altivec_SaveList;
+    return CSR_64_AllRegs_SaveList;
+  }
+
   if (Subtarget.isDarwinABI())
     return Subtarget.isPPC64() ? (Subtarget.hasAltivec() ?
                                   CSR_Darwin64_Altivec_SaveList :
@@ -117,6 +125,14 @@ PPCRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
 
 const uint32_t*
 PPCRegisterInfo::getCallPreservedMask(CallingConv::ID CC) const {
+  if (CC == CallingConv::AnyReg) {
+    if (Subtarget.hasVSX())
+      return CSR_64_AllRegs_VSX_RegMask;
+    if (Subtarget.hasAltivec())
+      return CSR_64_AllRegs_Altivec_RegMask;
+    return CSR_64_AllRegs_RegMask;
+  }
+
   if (Subtarget.isDarwinABI())
     return Subtarget.isPPC64() ? (Subtarget.hasAltivec() ?
                                   CSR_Darwin64_Altivec_RegMask :
@@ -138,10 +154,18 @@ PPCRegisterInfo::getNoPreservedMask() const {
   return CSR_NoRegs_RegMask;
 }
 
+void PPCRegisterInfo::adjustStackMapLiveOutMask(uint32_t *Mask) const {
+  unsigned PseudoRegs[] = { PPC::ZERO, PPC::ZERO8, PPC::RM };
+  for (unsigned i = 0, ie = array_lengthof(PseudoRegs); i != ie; ++i) {
+    unsigned Reg = PseudoRegs[i];
+    Mask[Reg / 32] &= ~(1u << (Reg % 32));
+  }
+}
+
 BitVector PPCRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
-  const PPCFrameLowering *PPCFI =
-    static_cast<const PPCFrameLowering*>(MF.getTarget().getFrameLowering());
+  const PPCFrameLowering *PPCFI = static_cast<const PPCFrameLowering *>(
+      MF.getSubtarget().getFrameLowering());
 
   // The ZERO register is not really a register, but the representation of r0
   // when used in instructions that treat r0 as the constant 0.
@@ -223,7 +247,7 @@ BitVector PPCRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
 unsigned
 PPCRegisterInfo::getRegPressureLimit(const TargetRegisterClass *RC,
                                          MachineFunction &MF) const {
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
   const unsigned DefaultSafety = 1;
 
   switch (RC->getID()) {
@@ -287,7 +311,7 @@ void PPCRegisterInfo::lowerDynamicAlloc(MachineBasicBlock::iterator II) const {
   // Get the frame info.
   MachineFrameInfo *MFI = MF.getFrameInfo();
   // Get the instruction info.
-  const TargetInstrInfo &TII = *MF.getTarget().getInstrInfo();
+  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   // Determine whether 64-bit pointers are used.
   bool LP64 = Subtarget.isPPC64();
   DebugLoc dl = MI.getDebugLoc();
@@ -298,7 +322,10 @@ void PPCRegisterInfo::lowerDynamicAlloc(MachineBasicBlock::iterator II) const {
   unsigned FrameSize = MFI->getStackSize();
   
   // Get stack alignments.
-  unsigned TargetAlign = MF.getTarget().getFrameLowering()->getStackAlignment();
+  unsigned TargetAlign = MF.getTarget()
+                             .getSubtargetImpl()
+                             ->getFrameLowering()
+                             ->getStackAlignment();
   unsigned MaxAlign = MFI->getMaxAlignment();
   assert((maxCallFrameSize & (MaxAlign-1)) == 0 &&
          "Maximum call-frame size not sufficiently aligned");
@@ -403,7 +430,7 @@ void PPCRegisterInfo::lowerCRSpilling(MachineBasicBlock::iterator II,
   // Get the instruction's basic block.
   MachineBasicBlock &MBB = *MI.getParent();
   MachineFunction &MF = *MBB.getParent();
-  const TargetInstrInfo &TII = *MF.getTarget().getInstrInfo();
+  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   DebugLoc dl = MI.getDebugLoc();
 
   bool LP64 = Subtarget.isPPC64();
@@ -447,7 +474,7 @@ void PPCRegisterInfo::lowerCRRestore(MachineBasicBlock::iterator II,
   // Get the instruction's basic block.
   MachineBasicBlock &MBB = *MI.getParent();
   MachineFunction &MF = *MBB.getParent();
-  const TargetInstrInfo &TII = *MF.getTarget().getInstrInfo();
+  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   DebugLoc dl = MI.getDebugLoc();
 
   bool LP64 = Subtarget.isPPC64();
@@ -520,7 +547,7 @@ void PPCRegisterInfo::lowerCRBitSpilling(MachineBasicBlock::iterator II,
   // Get the instruction's basic block.
   MachineBasicBlock &MBB = *MI.getParent();
   MachineFunction &MF = *MBB.getParent();
-  const TargetInstrInfo &TII = *MF.getTarget().getInstrInfo();
+  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   DebugLoc dl = MI.getDebugLoc();
 
   bool LP64 = Subtarget.isPPC64();
@@ -563,7 +590,7 @@ void PPCRegisterInfo::lowerCRBitRestore(MachineBasicBlock::iterator II,
   // Get the instruction's basic block.
   MachineBasicBlock &MBB = *MI.getParent();
   MachineFunction &MF = *MBB.getParent();
-  const TargetInstrInfo &TII = *MF.getTarget().getInstrInfo();
+  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   DebugLoc dl = MI.getDebugLoc();
 
   bool LP64 = Subtarget.isPPC64();
@@ -610,7 +637,7 @@ void PPCRegisterInfo::lowerVRSAVESpilling(MachineBasicBlock::iterator II,
   // Get the instruction's basic block.
   MachineBasicBlock &MBB = *MI.getParent();
   MachineFunction &MF = *MBB.getParent();
-  const TargetInstrInfo &TII = *MF.getTarget().getInstrInfo();
+  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   DebugLoc dl = MI.getDebugLoc();
 
   const TargetRegisterClass *GPRC = &PPC::GPRCRegClass;
@@ -635,7 +662,7 @@ void PPCRegisterInfo::lowerVRSAVERestore(MachineBasicBlock::iterator II,
   // Get the instruction's basic block.
   MachineBasicBlock &MBB = *MI.getParent();
   MachineFunction &MF = *MBB.getParent();
-  const TargetInstrInfo &TII = *MF.getTarget().getInstrInfo();
+  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   DebugLoc dl = MI.getDebugLoc();
 
   const TargetRegisterClass *GPRC = &PPC::GPRCRegClass;
@@ -697,7 +724,10 @@ static unsigned getOffsetONFromFION(const MachineInstr &MI,
   // Take into account whether it's an add or mem instruction
   unsigned OffsetOperandNo = (FIOperandNum == 2) ? 1 : 2;
   if (MI.isInlineAsm())
-    OffsetOperandNo = FIOperandNum-1;
+    OffsetOperandNo = FIOperandNum - 1;
+  else if (MI.getOpcode() == TargetOpcode::STACKMAP ||
+           MI.getOpcode() == TargetOpcode::PATCHPOINT)
+    OffsetOperandNo = FIOperandNum + 1;
 
   return OffsetOperandNo;
 }
@@ -715,7 +745,7 @@ PPCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   // Get the basic block's function.
   MachineFunction &MF = *MBB.getParent();
   // Get the instruction info.
-  const TargetInstrInfo &TII = *MF.getTarget().getInstrInfo();
+  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   // Get the frame info.
   MachineFrameInfo *MFI = MF.getFrameInfo();
   DebugLoc dl = MI.getDebugLoc();
@@ -769,7 +799,8 @@ PPCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
   // If the instruction is not present in ImmToIdxMap, then it has no immediate
   // form (and must be r+r).
-  bool noImmForm = !MI.isInlineAsm() && !ImmToIdxMap.count(OpC);
+  bool noImmForm = !MI.isInlineAsm() && OpC != TargetOpcode::STACKMAP &&
+                   OpC != TargetOpcode::PATCHPOINT && !ImmToIdxMap.count(OpC);
 
   // Now add the frame object offset to the offset from r1.
   int Offset = MFI->getObjectOffset(FrameIndex);
@@ -793,8 +824,10 @@ PPCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   // only "std" to a stack slot that is at least 4-byte aligned, but it can
   // happen in invalid code.
   assert(OpC != PPC::DBG_VALUE &&
-         "This should be handle in a target independent way");
-  if (!noImmForm && isInt<16>(Offset) && (!isIXAddr || (Offset & 3) == 0)) {
+         "This should be handled in a target-independent way");
+  if (!noImmForm && ((isInt<16>(Offset) && (!isIXAddr || (Offset & 3) == 0)) ||
+                     OpC == TargetOpcode::STACKMAP ||
+                     OpC == TargetOpcode::PATCHPOINT)) {
     MI.getOperand(OffsetOperandNo).ChangeToImmediate(Offset);
     return;
   }
@@ -840,7 +873,7 @@ PPCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 }
 
 unsigned PPCRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
 
   if (!Subtarget.isPPC64())
     return TFI->hasFP(MF) ? PPC::R31 : PPC::R1;
@@ -884,7 +917,10 @@ bool PPCRegisterInfo::canRealignStack(const MachineFunction &MF) const {
 bool PPCRegisterInfo::needsStackRealignment(const MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
   const Function *F = MF.getFunction();
-  unsigned StackAlign = MF.getTarget().getFrameLowering()->getStackAlignment();
+  unsigned StackAlign = MF.getTarget()
+                            .getSubtargetImpl()
+                            ->getFrameLowering()
+                            ->getStackAlignment();
   bool requiresRealignment =
     ((MFI->getMaxAlignment() > StackAlign) ||
      F->getAttributes().hasAttribute(AttributeSet::FunctionIndex,
@@ -922,8 +958,8 @@ needsFrameBaseReg(MachineInstr *MI, int64_t Offset) const {
   MachineBasicBlock &MBB = *MI->getParent();
   MachineFunction &MF = *MBB.getParent();
 
-  const PPCFrameLowering *PPCFI =
-    static_cast<const PPCFrameLowering*>(MF.getTarget().getFrameLowering());
+  const PPCFrameLowering *PPCFI = static_cast<const PPCFrameLowering *>(
+      MF.getSubtarget().getFrameLowering());
   unsigned StackEst =
     PPCFI->determineFrameLayout(MF, false, true);
 
@@ -957,7 +993,7 @@ materializeFrameBaseRegister(MachineBasicBlock *MBB,
     DL = Ins->getDebugLoc();
 
   const MachineFunction &MF = *MBB->getParent();
-  const TargetInstrInfo &TII = *MF.getTarget().getInstrInfo();
+  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   const MCInstrDesc &MCID = TII.get(ADDriOpc);
   MachineRegisterInfo &MRI = MBB->getParent()->getRegInfo();
   MRI.constrainRegClass(BaseReg, TII.getRegClass(MCID, 0, this, MF));
@@ -982,7 +1018,7 @@ void PPCRegisterInfo::resolveFrameIndex(MachineInstr &MI, unsigned BaseReg,
 
   MachineBasicBlock &MBB = *MI.getParent();
   MachineFunction &MF = *MBB.getParent();
-  const TargetInstrInfo &TII = *MF.getTarget().getInstrInfo();
+  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   const MCInstrDesc &MCID = MI.getDesc();
   MachineRegisterInfo &MRI = MF.getRegInfo();
   MRI.constrainRegClass(BaseReg,
@@ -1002,6 +1038,8 @@ bool PPCRegisterInfo::isFrameOffsetLegal(const MachineInstr *MI,
   Offset += MI->getOperand(OffsetOperandNo).getImm();
 
   return MI->getOpcode() == PPC::DBG_VALUE || // DBG_VALUE is always Reg+Imm
+         MI->getOpcode() == TargetOpcode::STACKMAP ||
+         MI->getOpcode() == TargetOpcode::PATCHPOINT ||
          (isInt<16>(Offset) && (!usesIXAddr(*MI) || (Offset & 3) == 0));
 }
 

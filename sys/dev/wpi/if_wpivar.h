@@ -52,7 +52,7 @@ struct wpi_tx_radiotap_header {
 
 struct wpi_dma_info {
 	bus_dma_tag_t		tag;
-	bus_dmamap_t            map;
+	bus_dmamap_t		map;
 	bus_addr_t		paddr;
 	caddr_t			vaddr;
 	bus_size_t		size;
@@ -96,6 +96,7 @@ struct wpi_node {
 	struct ieee80211_node	ni;	/* must be the first */
 	uint8_t			id;
 };
+#define WPI_NODE(ni)	((struct wpi_node *)(ni))
 
 struct wpi_power_sample {
 	uint8_t	index;
@@ -111,7 +112,7 @@ struct wpi_power_group {
 };
 
 struct wpi_buf {
-	void			*data;
+	uint8_t			data[56];  /* sizeof(struct wpi_cmd_beacon) */
 	struct ieee80211_node	*ni;
 	struct mbuf		*m;
 	size_t			size;
@@ -120,13 +121,27 @@ struct wpi_buf {
 };
 
 struct wpi_vap {
-	struct ieee80211vap	vap;
-	struct wpi_buf		wv_bcbuf;
+	struct ieee80211vap		wv_vap;
 
-	int			(*newstate)(struct ieee80211vap *,
-				    enum ieee80211_state, int);
+	struct wpi_buf			wv_bcbuf;
+	struct ieee80211_beacon_offsets	wv_boff;
+	struct mtx			wv_mtx;
+
+	uint32_t			wv_gtk;
+#define WPI_VAP_KEY(kid)		(1 << kid)
+
+	int				(*wv_newstate)(struct ieee80211vap *,
+					    enum ieee80211_state, int);
 };
 #define	WPI_VAP(vap)	((struct wpi_vap *)(vap))
+
+#define WPI_VAP_LOCK_INIT(_wvp)	\
+	mtx_init(&(_wvp)->wv_mtx, "lock for wv_bcbuf/wv_boff structures", \
+	    NULL, MTX_DEF)
+#define WPI_VAP_LOCK(_wvp)		mtx_lock(&(_wvp)->wv_mtx)
+#define WPI_VAP_UNLOCK(_wvp)		mtx_unlock(&(_wvp)->wv_mtx)
+#define WPI_VAP_LOCK_ASSERT(_wvp)	mtx_assert(&(_wvp)->wv_mtx, MA_OWNED)
+#define WPI_VAP_LOCK_DESTROY(_wvp)	mtx_destroy(&(_wvp)->wv_mtx)
 
 struct wpi_fw_part {
 	const uint8_t	*text;
@@ -150,27 +165,27 @@ struct wpi_softc {
 	int			sc_debug;
 
 	struct mtx		sc_mtx;
-	struct unrhdr		*sc_unr;
-
-	/* Flags indicating the current state the driver
-	 * expects the hardware to be in
-	 */
-	uint32_t		flags;
-#define WPI_FLAG_BUSY		(1 << 0)
+	struct mtx		tx_mtx;
 
 	/* Shared area. */
 	struct wpi_dma_info	shared_dma;
 	struct wpi_shared	*shared;
 
 	struct wpi_tx_ring	txq[WPI_NTXQUEUES];
+	struct mtx		txq_mtx;
+	struct mtx		txq_state_mtx;
+	uint32_t		txq_active;
+
 	struct wpi_rx_ring	rxq;
 
 	/* TX Thermal Callibration. */
 	struct callout		calib_to;
 	int			calib_cnt;
 
-	/* Watch dog timers. */
-	struct callout		watchdog_to;
+	struct callout		scan_timeout;
+	struct callout		tx_timeout;
+
+	/* Watch dog timer. */
 	struct callout		watchdog_rfkill;
 
 	/* Firmware image. */
@@ -183,21 +198,23 @@ struct wpi_softc {
 	bus_space_handle_t	sc_sh;
 	void			*sc_ih;
 	bus_size_t		sc_sz;
-	int			sc_cap_off;     /* PCIe Capabilities. */
+	int			sc_cap_off;	/* PCIe Capabilities. */
 
 	struct wpi_rxon		rxon;
+	struct mtx		rxon_mtx;
+
 	int			temp;
 	uint32_t		qfullmsk;
 
-	int			sc_tx_timer;
-	int			sc_scan_timer;
+	uint32_t		nodesmsk;
+	struct mtx		nt_mtx;
 
 	void			(*sc_node_free)(struct ieee80211_node *);
 	void			(*sc_scan_curchan)(struct ieee80211_scan_state *,
 				    unsigned long);
 
-	struct wpi_rx_radiotap_header sc_rxtap;
-	struct wpi_tx_radiotap_header sc_txtap;
+	struct wpi_rx_radiotap_header	sc_rxtap;
+	struct wpi_tx_radiotap_header	sc_txtap;
 
 	/* Firmware image. */
 	const struct firmware	*fw_fp;
@@ -209,6 +226,10 @@ struct wpi_softc {
 	struct task		sc_reinittask;
 	struct task		sc_radiooff_task;
 	struct task		sc_radioon_task;
+	struct task		sc_start_task;
+
+	/* Taskqueue */
+	struct taskqueue	*sc_tq;
 
 	/* Eeprom info. */
 	uint8_t			cap;
@@ -221,10 +242,51 @@ struct wpi_softc {
 	char			domain[4];	/* Regulatory domain. */
 };
 
+/*
+ * Locking order:
+ * 1. WPI_LOCK;
+ * 2. WPI_RXON_LOCK;
+ * 3. WPI_TX_LOCK;
+ * 4. WPI_NT_LOCK / WPI_VAP_LOCK;
+ * 5. WPI_TXQ_LOCK;
+ * 6. WPI_TXQ_STATE_LOCK;
+ */
+
 #define WPI_LOCK_INIT(_sc) \
 	mtx_init(&(_sc)->sc_mtx, device_get_nameunit((_sc)->sc_dev), \
-            MTX_NETWORK_LOCK, MTX_DEF)
+	    MTX_NETWORK_LOCK, MTX_DEF)
 #define WPI_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define WPI_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#define WPI_LOCK_ASSERT(sc)     mtx_assert(&(sc)->sc_mtx, MA_OWNED)
+#define WPI_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
 #define WPI_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
+
+#define WPI_RXON_LOCK_INIT(_sc) \
+	mtx_init(&(_sc)->rxon_mtx, "lock for wpi_rxon structure", NULL, MTX_DEF)
+#define WPI_RXON_LOCK(_sc)		mtx_lock(&(_sc)->rxon_mtx)
+#define WPI_RXON_UNLOCK(_sc)		mtx_unlock(&(_sc)->rxon_mtx)
+#define WPI_RXON_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->rxon_mtx, MA_OWNED)
+#define WPI_RXON_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->rxon_mtx)
+
+#define WPI_TX_LOCK_INIT(_sc) \
+	mtx_init(&(_sc)->tx_mtx, "tx path lock", NULL, MTX_DEF)
+#define WPI_TX_LOCK(_sc)		mtx_lock(&(_sc)->tx_mtx)
+#define WPI_TX_UNLOCK(_sc)		mtx_unlock(&(_sc)->tx_mtx)
+#define WPI_TX_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->tx_mtx)
+
+#define WPI_NT_LOCK_INIT(_sc) \
+	mtx_init(&(_sc)->nt_mtx, "node table lock", NULL, MTX_DEF)
+#define WPI_NT_LOCK(_sc)		mtx_lock(&(_sc)->nt_mtx)
+#define WPI_NT_UNLOCK(_sc)		mtx_unlock(&(_sc)->nt_mtx)
+#define WPI_NT_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->nt_mtx)
+
+#define WPI_TXQ_LOCK_INIT(_sc) \
+	mtx_init(&(_sc)->txq_mtx, "txq/cmdq lock", NULL, MTX_DEF)
+#define WPI_TXQ_LOCK(_sc)		mtx_lock(&(_sc)->txq_mtx)
+#define WPI_TXQ_UNLOCK(_sc)		mtx_unlock(&(_sc)->txq_mtx)
+#define WPI_TXQ_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->txq_mtx)
+
+#define WPI_TXQ_STATE_LOCK_INIT(_sc) \
+	mtx_init(&(_sc)->txq_state_mtx, "txq state lock", NULL, MTX_DEF)
+#define WPI_TXQ_STATE_LOCK(_sc)		mtx_lock(&(_sc)->txq_state_mtx)
+#define WPI_TXQ_STATE_UNLOCK(_sc)	mtx_unlock(&(_sc)->txq_state_mtx)
+#define WPI_TXQ_STATE_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->txq_state_mtx)

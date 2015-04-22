@@ -94,6 +94,22 @@ extern "C" {
 #define	ISP2(x)			(((x) & ((x) - 1)) == 0)
 #endif
 
+#if defined(__x86_64__) && __FreeBSD_version >= 1000000
+
+#define	SFXGE_USE_BUS_SPACE_8		1
+
+#if !defined(bus_space_read_stream_8)
+
+#define	bus_space_read_stream_8(t, h, o)				\
+	bus_space_read_8((t), (h), (o))
+
+#define	bus_space_write_stream_8(t, h, o, v)				\
+	bus_space_write_8((t), (h), (o), (v))
+
+#endif
+
+#endif
+
 #define	ENOTACTIVE EINVAL
 
 /* Memory type to use on FreeBSD */
@@ -641,8 +657,9 @@ typedef struct efsys_bar_s {
 		if (_lock)						\
 			SFXGE_BAR_LOCK(_esbp);				\
 									\
-		(_edp)->ed_u32[0] = bus_space_read_4((_esbp)->esb_tag,	\
-		    (_esbp)->esb_handle, (_offset));			\
+		(_edp)->ed_u32[0] = bus_space_read_stream_4(		\
+		    (_esbp)->esb_tag, (_esbp)->esb_handle,		\
+		    (_offset));						\
 									\
 		EFSYS_PROBE2(bar_readd, unsigned int, (_offset),	\
 		    uint32_t, (_edp)->ed_u32[0]);			\
@@ -653,7 +670,7 @@ typedef struct efsys_bar_s {
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
-#if defined(__x86_64__)
+#if defined(SFXGE_USE_BUS_SPACE_8)
 #define	EFSYS_BAR_READQ(_esbp, _offset, _eqp)				\
 	do {								\
 		_NOTE(CONSTANTCONDITION)				\
@@ -662,57 +679,9 @@ typedef struct efsys_bar_s {
 									\
 		SFXGE_BAR_LOCK(_esbp);					\
 									\
-		(_eqp)->eq_u64[0] = bus_space_read_8((_esbp)->esb_tag,	\
-		    (_esbp)->esb_handle, (_offset));			\
-									\
-		EFSYS_PROBE3(bar_readq, unsigned int, (_offset),	\
-		    uint32_t, (_eqp)->eq_u32[1],			\
-		    uint32_t, (_eqp)->eq_u32[0]);			\
-									\
-		mtx_unlock(&((_esbp)->esb_lock));			\
-	_NOTE(CONSTANTCONDITION)					\
-	} while (B_FALSE)
-
-#define	EFSYS_BAR_READO(_esbp, _offset, _eop, _lock)			\
-	do {								\
-		_NOTE(CONSTANTCONDITION)				\
-		KASSERT(IS_P2ALIGNED(_offset, sizeof (efx_oword_t)),	\
-		    ("not power of 2 aligned"));			\
-									\
-		_NOTE(CONSTANTCONDITION)				\
-		if (_lock)						\
-			mtx_lock(&((_esbp)->esb_lock));			\
-									\
-		(_eop)->eo_u64[0] = bus_space_read_8((_esbp)->esb_tag,	\
-		    (_esbp)->esb_handle, (_offset));			\
-		(_eop)->eo_u64[1] = bus_space_read_8((_esbp)->esb_tag,	\
-		    (_esbp)->esb_handle, (_offset+8));			\
-									\
-		EFSYS_PROBE5(bar_reado, unsigned int, (_offset),	\
-		    uint32_t, (_eop)->eo_u32[3],			\
-		    uint32_t, (_eop)->eo_u32[2],			\
-		    uint32_t, (_eop)->eo_u32[1],			\
-		    uint32_t, (_eop)->eo_u32[0]);			\
-									\
-		_NOTE(CONSTANTCONDITION)				\
-		if (_lock)						\
-			mtx_unlock(&((_esbp)->esb_lock));		\
-	_NOTE(CONSTANTCONDITION)					\
-	} while (B_FALSE)
-
-#else
-#define	EFSYS_BAR_READQ(_esbp, _offset, _eqp)				\
-	do {								\
-		_NOTE(CONSTANTCONDITION)				\
-		KASSERT(IS_P2ALIGNED(_offset, sizeof (efx_qword_t)),	\
-		    ("not power of 2 aligned"));			\
-									\
-		mtx_lock(&((_esbp)->esb_lock));				\
-									\
-		(_eqp)->eq_u32[0] = bus_space_read_4((_esbp)->esb_tag,	\
-		    (_esbp)->esb_handle, (_offset));			\
-		(_eqp)->eq_u32[1] = bus_space_read_4((_esbp)->esb_tag,	\
-		    (_esbp)->esb_handle, (_offset+4));			\
+		(_eqp)->eq_u64[0] = bus_space_read_stream_8(		\
+		    (_esbp)->esb_tag, (_esbp)->esb_handle,		\
+		    (_offset));						\
 									\
 		EFSYS_PROBE3(bar_readq, unsigned int, (_offset),	\
 		    uint32_t, (_eqp)->eq_u32[1],			\
@@ -732,14 +701,71 @@ typedef struct efsys_bar_s {
 		if (_lock)						\
 			SFXGE_BAR_LOCK(_esbp);				\
 									\
-		(_eop)->eo_u32[0] = bus_space_read_4((_esbp)->esb_tag,	\
-		    (_esbp)->esb_handle, (_offset));			\
-		(_eop)->eo_u32[1] = bus_space_read_4((_esbp)->esb_tag,	\
-		    (_esbp)->esb_handle, (_offset+4));			\
-		(_eop)->eo_u32[2] = bus_space_read_4((_esbp)->esb_tag,	\
-		    (_esbp)->esb_handle, (_offset+8));			\
-		(_eop)->eo_u32[3] = bus_space_read_4((_esbp)->esb_tag,	\
-		    (_esbp)->esb_handle, (_offset+12));			\
+		(_eop)->eo_u64[0] = bus_space_read_stream_8(		\
+		    (_esbp)->esb_tag, (_esbp)->esb_handle,		\
+		    (_offset));						\
+		(_eop)->eo_u64[1] = bus_space_read_stream_8(		\
+		    (_esbp)->esb_tag, (_esbp)->esb_handle,		\
+		    (_offset) + 8);					\
+									\
+		EFSYS_PROBE5(bar_reado, unsigned int, (_offset),	\
+		    uint32_t, (_eop)->eo_u32[3],			\
+		    uint32_t, (_eop)->eo_u32[2],			\
+		    uint32_t, (_eop)->eo_u32[1],			\
+		    uint32_t, (_eop)->eo_u32[0]);			\
+									\
+		_NOTE(CONSTANTCONDITION)				\
+		if (_lock)						\
+			SFXGE_BAR_UNLOCK(_esbp);			\
+	_NOTE(CONSTANTCONDITION)					\
+	} while (B_FALSE)
+
+#else
+#define	EFSYS_BAR_READQ(_esbp, _offset, _eqp)				\
+	do {								\
+		_NOTE(CONSTANTCONDITION)				\
+		KASSERT(IS_P2ALIGNED(_offset, sizeof (efx_qword_t)),	\
+		    ("not power of 2 aligned"));			\
+									\
+		SFXGE_BAR_LOCK(_esbp);					\
+									\
+		(_eqp)->eq_u32[0] = bus_space_read_stream_4(		\
+		    (_esbp)->esb_tag, (_esbp)->esb_handle,		\
+		    (_offset));						\
+		(_eqp)->eq_u32[1] = bus_space_read_stream_4(		\
+		    (_esbp)->esb_tag, (_esbp)->esb_handle,		\
+		    (_offset) + 4);					\
+									\
+		EFSYS_PROBE3(bar_readq, unsigned int, (_offset),	\
+		    uint32_t, (_eqp)->eq_u32[1],			\
+		    uint32_t, (_eqp)->eq_u32[0]);			\
+									\
+		SFXGE_BAR_UNLOCK(_esbp);				\
+	_NOTE(CONSTANTCONDITION)					\
+	} while (B_FALSE)
+
+#define	EFSYS_BAR_READO(_esbp, _offset, _eop, _lock)			\
+	do {								\
+		_NOTE(CONSTANTCONDITION)				\
+		KASSERT(IS_P2ALIGNED(_offset, sizeof (efx_oword_t)),	\
+		    ("not power of 2 aligned"));			\
+									\
+		_NOTE(CONSTANTCONDITION)				\
+		if (_lock)						\
+			SFXGE_BAR_LOCK(_esbp);				\
+									\
+		(_eop)->eo_u32[0] = bus_space_read_stream_4(		\
+		    (_esbp)->esb_tag, (_esbp)->esb_handle,		\
+		    (_offset));						\
+		(_eop)->eo_u32[1] = bus_space_read_stream_4(		\
+		    (_esbp)->esb_tag, (_esbp)->esb_handle,		\
+		    (_offset) + 4);					\
+		(_eop)->eo_u32[2] = bus_space_read_stream_4(		\
+		    (_esbp)->esb_tag, (_esbp)->esb_handle,		\
+		    (_offset) + 8);					\
+		(_eop)->eo_u32[3] = bus_space_read_stream_4(		\
+		    (_esbp)->esb_tag, (_esbp)->esb_handle,		\
+		    (_offset) + 12);					\
 									\
 		EFSYS_PROBE5(bar_reado, unsigned int, (_offset),	\
 		    uint32_t, (_eop)->eo_u32[3],			\
@@ -762,21 +788,30 @@ typedef struct efsys_bar_s {
 									\
 		_NOTE(CONSTANTCONDITION)				\
 		if (_lock)						\
-			SFXGE_BAR_LOCK(_esbp);			\
+			SFXGE_BAR_LOCK(_esbp);				\
 									\
 		EFSYS_PROBE2(bar_writed, unsigned int, (_offset),	\
 		    uint32_t, (_edp)->ed_u32[0]);			\
 									\
-		bus_space_write_4((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		/*							\
+		 * Make sure that previous writes to the dword have	\
+		 * been done. It should be cheaper than barrier just	\
+		 * after the write below.				\
+		 */							\
+		bus_space_barrier((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		    (_offset), sizeof (efx_dword_t),			\
+		    BUS_SPACE_BARRIER_WRITE);				\
+		bus_space_write_stream_4((_esbp)->esb_tag,		\
+		    (_esbp)->esb_handle,				\
 		    (_offset), (_edp)->ed_u32[0]);			\
 									\
 		_NOTE(CONSTANTCONDITION)				\
 		if (_lock)						\
-			SFXGE_BAR_UNLOCK(_esbp);		\
+			SFXGE_BAR_UNLOCK(_esbp);			\
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
-#if defined(__x86_64__)
+#if defined(SFXGE_USE_BUS_SPACE_8)
 #define	EFSYS_BAR_WRITEQ(_esbp, _offset, _eqp)				\
 	do {								\
 		_NOTE(CONSTANTCONDITION)				\
@@ -789,10 +824,19 @@ typedef struct efsys_bar_s {
 		    uint32_t, (_eqp)->eq_u32[1],			\
 		    uint32_t, (_eqp)->eq_u32[0]);			\
 									\
-		bus_space_write_8((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		/*							\
+		 * Make sure that previous writes to the qword have	\
+		 * been done. It should be cheaper than barrier just	\
+		 * after the write below.				\
+		 */							\
+		bus_space_barrier((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		    (_offset), sizeof (efx_qword_t),			\
+		    BUS_SPACE_BARRIER_WRITE);				\
+		bus_space_write_stream_8((_esbp)->esb_tag,		\
+		    (_esbp)->esb_handle,				\
 		    (_offset), (_eqp)->eq_u64[0]);			\
 									\
-		mtx_unlock(&((_esbp)->esb_lock));			\
+		SFXGE_BAR_UNLOCK(_esbp);				\
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 #else
@@ -802,23 +846,41 @@ typedef struct efsys_bar_s {
 		KASSERT(IS_P2ALIGNED(_offset, sizeof (efx_qword_t)),	\
 		    ("not power of 2 aligned"));			\
 									\
-		mtx_lock(&((_esbp)->esb_lock));				\
+		SFXGE_BAR_LOCK(_esbp);					\
 									\
 		EFSYS_PROBE3(bar_writeq, unsigned int, (_offset),	\
 		    uint32_t, (_eqp)->eq_u32[1],			\
 		    uint32_t, (_eqp)->eq_u32[0]);			\
 									\
-		bus_space_write_4((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		/*							\
+		 * Make sure that previous writes to the qword have	\
+		 * been done. It should be cheaper than barrier just	\
+		 * after the last write below.				\
+		 */							\
+		bus_space_barrier((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		    (_offset), sizeof (efx_qword_t),			\
+		    BUS_SPACE_BARRIER_WRITE);				\
+		bus_space_write_stream_4((_esbp)->esb_tag,		\
+		    (_esbp)->esb_handle,				\
 		    (_offset), (_eqp)->eq_u32[0]);			\
-		bus_space_write_4((_esbp)->esb_tag, (_esbp)->esb_handle,\
-		    (_offset+4), (_eqp)->eq_u32[1]);			\
+		/*							\
+		 * It should be guaranteed that the last dword comes	\
+		 * the last, so barrier entire qword to be sure that	\
+		 * neither above nor below writes are reordered.	\
+		 */							\
+		bus_space_barrier((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		    (_offset), sizeof (efx_qword_t),			\
+		    BUS_SPACE_BARRIER_WRITE);				\
+		bus_space_write_stream_4((_esbp)->esb_tag,		\
+		    (_esbp)->esb_handle,				\
+		    (_offset) + 4, (_eqp)->eq_u32[1]);			\
 									\
 		SFXGE_BAR_UNLOCK(_esbp);				\
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 #endif
 
-#if defined(__x86_64__)
+#if defined(SFXGE_USE_BUS_SPACE_8)
 #define	EFSYS_BAR_WRITEO(_esbp, _offset, _eop, _lock)			\
 	do {								\
 		_NOTE(CONSTANTCONDITION)				\
@@ -835,14 +897,32 @@ typedef struct efsys_bar_s {
 		    uint32_t, (_eop)->eo_u32[1],			\
 		    uint32_t, (_eop)->eo_u32[0]);			\
 									\
-		bus_space_write_8((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		/*							\
+		 * Make sure that previous writes to the oword have	\
+		 * been done. It should be cheaper than barrier just	\
+		 * after the last write below.				\
+		 */							\
+		bus_space_barrier((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		    (_offset), sizeof (efx_oword_t),			\
+		    BUS_SPACE_BARRIER_WRITE);				\
+		bus_space_write_stream_8((_esbp)->esb_tag,		\
+		    (_esbp)->esb_handle,				\
 		    (_offset), (_eop)->eo_u64[0]);			\
-		bus_space_write_8((_esbp)->esb_tag, (_esbp)->esb_handle,\
-		    (_offset+8), (_eop)->eo_u64[1]);			\
+		/*							\
+		 * It should be guaranteed that the last qword comes	\
+		 * the last, so barrier entire oword to be sure that	\
+		 * neither above nor below writes are reordered.	\
+		 */							\
+		bus_space_barrier((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		    (_offset), sizeof (efx_oword_t),			\
+		    BUS_SPACE_BARRIER_WRITE);				\
+		bus_space_write_stream_8((_esbp)->esb_tag,		\
+		    (_esbp)->esb_handle,				\
+		    (_offset) + 8, (_eop)->eo_u64[1]);			\
 									\
 		_NOTE(CONSTANTCONDITION)				\
 		if (_lock)						\
-			mtx_unlock(&((_esbp)->esb_lock));		\
+			SFXGE_BAR_UNLOCK(_esbp);			\
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
@@ -855,7 +935,7 @@ typedef struct efsys_bar_s {
 									\
 		_NOTE(CONSTANTCONDITION)				\
 		if (_lock)						\
-			mtx_lock(&((_esbp)->esb_lock));			\
+			SFXGE_BAR_LOCK(_esbp);				\
 									\
 		EFSYS_PROBE5(bar_writeo, unsigned int, (_offset),	\
 		    uint32_t, (_eop)->eo_u32[3],			\
@@ -863,14 +943,34 @@ typedef struct efsys_bar_s {
 		    uint32_t, (_eop)->eo_u32[1],			\
 		    uint32_t, (_eop)->eo_u32[0]);			\
 									\
-		bus_space_write_4((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		/*							\
+		 * Make sure that previous writes to the oword have	\
+		 * been done. It should be cheaper than barrier just	\
+		 * after the last write below.				\
+		 */							\
+		bus_space_barrier((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		    (_offset), sizeof (efx_oword_t),			\
+		    BUS_SPACE_BARRIER_WRITE);				\
+		bus_space_write_stream_4((_esbp)->esb_tag,		\
+		    (_esbp)->esb_handle,				\
 		    (_offset), (_eop)->eo_u32[0]);			\
-		bus_space_write_4((_esbp)->esb_tag, (_esbp)->esb_handle,\
-		    (_offset+4), (_eop)->eo_u32[1]);			\
-		bus_space_write_4((_esbp)->esb_tag, (_esbp)->esb_handle,\
-		    (_offset+8), (_eop)->eo_u32[2]);			\
-		bus_space_write_4((_esbp)->esb_tag, (_esbp)->esb_handle,\
-		    (_offset+12), (_eop)->eo_u32[3]);			\
+		bus_space_write_stream_4((_esbp)->esb_tag,		\
+		    (_esbp)->esb_handle,				\
+		    (_offset) + 4, (_eop)->eo_u32[1]);			\
+		bus_space_write_stream_4((_esbp)->esb_tag,		\
+		    (_esbp)->esb_handle,				\
+		    (_offset) + 8, (_eop)->eo_u32[2]);			\
+		/*							\
+		 * It should be guaranteed that the last dword comes	\
+		 * the last, so barrier entire oword to be sure that	\
+		 * neither above nor below writes are reordered.	\
+		 */							\
+		bus_space_barrier((_esbp)->esb_tag, (_esbp)->esb_handle,\
+		    (_offset), sizeof (efx_oword_t),			\
+		    BUS_SPACE_BARRIER_WRITE);				\
+		bus_space_write_stream_4((_esbp)->esb_tag,		\
+		    (_esbp)->esb_handle,				\
+		    (_offset) + 12, (_eop)->eo_u32[3]);			\
 									\
 		_NOTE(CONSTANTCONDITION)				\
 		if (_lock)						\
@@ -912,7 +1012,11 @@ typedef	clock_t	efsys_timestamp_t;
 #define	EFSYS_KMEM_ALLOC(_esip, _size, _p)				\
 	do {								\
 		(_esip) = (_esip);					\
-		(_p) = malloc((_size), M_SFXGE, M_WAITOK|M_ZERO);	\
+		/*							\
+		 * The macro is used in non-sleepable contexts, for	\
+		 * example, holding a mutex.				\
+		 */							\
+		(_p) = malloc((_size), M_SFXGE, M_NOWAIT|M_ZERO);	\
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 

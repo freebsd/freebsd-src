@@ -90,7 +90,10 @@ class MallocAllocator : public AllocatorBase<MallocAllocator> {
 public:
   void Reset() {}
 
-  void *Allocate(size_t Size, size_t /*Alignment*/) { return malloc(Size); }
+  LLVM_ATTRIBUTE_RETURNS_NONNULL void *Allocate(size_t Size,
+                                                size_t /*Alignment*/) {
+    return malloc(Size);
+  }
 
   // Pull in base class overloads.
   using AllocatorBase<MallocAllocator>::Allocate;
@@ -116,8 +119,8 @@ void printBumpPtrAllocatorStats(unsigned NumSlabs, size_t BytesAllocated,
 /// \brief Allocate memory in an ever growing pool, as if by bump-pointer.
 ///
 /// This isn't strictly a bump-pointer allocator as it uses backing slabs of
-/// memory rather than relying on boundless contiguous heap. However, it has
-/// bump-pointer semantics in that is a monotonically growing pool of memory
+/// memory rather than relying on a boundless contiguous heap. However, it has
+/// bump-pointer semantics in that it is a monotonically growing pool of memory
 /// where every allocation is found by merely allocating the next N bytes in
 /// the slab, or the next N bytes in the next slab.
 ///
@@ -200,28 +203,24 @@ public:
   }
 
   /// \brief Allocate space at the specified alignment.
-  void *Allocate(size_t Size, size_t Alignment) {
-    if (!CurPtr) // Start a new slab if we haven't allocated one already.
-      StartNewSlab();
+  LLVM_ATTRIBUTE_RETURNS_NONNULL void *Allocate(size_t Size, size_t Alignment) {
+    assert(Alignment > 0 && "0-byte alignnment is not allowed. Use 1 instead.");
 
     // Keep track of how many bytes we've allocated.
     BytesAllocated += Size;
 
-    // 0-byte alignment means 1-byte alignment.
-    if (Alignment == 0)
-      Alignment = 1;
+    size_t Adjustment = alignmentAdjustment(CurPtr, Alignment);
+    assert(Adjustment + Size >= Size && "Adjustment + Size must not overflow");
 
-    // Allocate the aligned space, going forwards from CurPtr.
-    char *Ptr = alignPtr(CurPtr, Alignment);
-
-    // Check if we can hold it.
-    if (Ptr + Size <= End) {
-      CurPtr = Ptr + Size;
+    // Check if we have enough space.
+    if (Adjustment + Size <= size_t(End - CurPtr)) {
+      char *AlignedPtr = CurPtr + Adjustment;
+      CurPtr = AlignedPtr + Size;
       // Update the allocation point of this memory block in MemorySanitizer.
       // Without this, MemorySanitizer messages for values originated from here
       // will point to the allocation of the entire slab.
-      __msan_allocated_memory(Ptr, Size);
-      return Ptr;
+      __msan_allocated_memory(AlignedPtr, Size);
+      return AlignedPtr;
     }
 
     // If Size is really big, allocate a separate slab for it.
@@ -230,19 +229,22 @@ public:
       void *NewSlab = Allocator.Allocate(PaddedSize, 0);
       CustomSizedSlabs.push_back(std::make_pair(NewSlab, PaddedSize));
 
-      Ptr = alignPtr((char *)NewSlab, Alignment);
-      assert((uintptr_t)Ptr + Size <= (uintptr_t)NewSlab + PaddedSize);
-      __msan_allocated_memory(Ptr, Size);
-      return Ptr;
+      uintptr_t AlignedAddr = alignAddr(NewSlab, Alignment);
+      assert(AlignedAddr + Size <= (uintptr_t)NewSlab + PaddedSize);
+      char *AlignedPtr = (char*)AlignedAddr;
+      __msan_allocated_memory(AlignedPtr, Size);
+      return AlignedPtr;
     }
 
     // Otherwise, start a new slab and try again.
     StartNewSlab();
-    Ptr = alignPtr(CurPtr, Alignment);
-    CurPtr = Ptr + Size;
-    assert(CurPtr <= End && "Unable to allocate memory!");
-    __msan_allocated_memory(Ptr, Size);
-    return Ptr;
+    uintptr_t AlignedAddr = alignAddr(CurPtr, Alignment);
+    assert(AlignedAddr + Size <= (uintptr_t)End &&
+           "Unable to allocate memory!");
+    char *AlignedPtr = (char*)AlignedAddr;
+    CurPtr = AlignedPtr + Size;
+    __msan_allocated_memory(AlignedPtr, Size);
+    return AlignedPtr;
   }
 
   // Pull in base class overloads.
@@ -320,8 +322,10 @@ private:
 #ifndef NDEBUG
       // Poison the memory so stale pointers crash sooner.  Note we must
       // preserve the Size and NextPtr fields at the beginning.
-      sys::Memory::setRangeWritable(*I, AllocatedSlabSize);
-      memset(*I, 0xCD, AllocatedSlabSize);
+      if (AllocatedSlabSize != 0) {
+        sys::Memory::setRangeWritable(*I, AllocatedSlabSize);
+        memset(*I, 0xCD, AllocatedSlabSize);
+      }
 #endif
       Allocator.Deallocate(*I, AllocatedSlabSize);
     }
@@ -373,7 +377,7 @@ public:
   /// all memory allocated so far.
   void DestroyAll() {
     auto DestroyElements = [](char *Begin, char *End) {
-      assert(Begin == alignPtr(Begin, alignOf<T>()));
+      assert(Begin == (char*)alignAddr(Begin, alignOf<T>()));
       for (char *Ptr = Begin; Ptr + sizeof(T) <= End; Ptr += sizeof(T))
         reinterpret_cast<T *>(Ptr)->~T();
     };
@@ -382,7 +386,7 @@ public:
          ++I) {
       size_t AllocatedSlabSize = BumpPtrAllocator::computeSlabSize(
           std::distance(Allocator.Slabs.begin(), I));
-      char *Begin = alignPtr((char *)*I, alignOf<T>());
+      char *Begin = (char*)alignAddr(*I, alignOf<T>());
       char *End = *I == Allocator.Slabs.back() ? Allocator.CurPtr
                                                : (char *)*I + AllocatedSlabSize;
 
@@ -392,7 +396,7 @@ public:
     for (auto &PtrAndSize : Allocator.CustomSizedSlabs) {
       void *Ptr = PtrAndSize.first;
       size_t Size = PtrAndSize.second;
-      DestroyElements(alignPtr((char *)Ptr, alignOf<T>()), (char *)Ptr + Size);
+      DestroyElements((char*)alignAddr(Ptr, alignOf<T>()), (char *)Ptr + Size);
     }
 
     Allocator.Reset();

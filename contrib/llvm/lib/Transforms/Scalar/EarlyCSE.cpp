@@ -16,17 +16,21 @@
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/ScopedHashTable.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/PatternMatch.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/RecyclingAllocator.h"
 #include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Transforms/Utils/Local.h"
-#include <vector>
+#include <deque>
 using namespace llvm;
+using namespace llvm::PatternMatch;
 
 #define DEBUG_TYPE "early-cse"
 
@@ -266,6 +270,7 @@ public:
   const DataLayout *DL;
   const TargetLibraryInfo *TLI;
   DominatorTree *DT;
+  AssumptionCache *AC;
   typedef RecyclingAllocator<BumpPtrAllocator,
                       ScopedHashTableVal<SimpleValue, Value*> > AllocatorTy;
   typedef ScopedHashTable<SimpleValue, Value*, DenseMapInfo<SimpleValue>,
@@ -378,6 +383,7 @@ private:
 
   // This transformation requires dominator postdominator info
   void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.addRequired<AssumptionCacheTracker>();
     AU.addRequired<DominatorTreeWrapperPass>();
     AU.addRequired<TargetLibraryInfo>();
     AU.setPreservesCFG();
@@ -393,6 +399,7 @@ FunctionPass *llvm::createEarlyCSEPass() {
 }
 
 INITIALIZE_PASS_BEGIN(EarlyCSE, "early-cse", "Early CSE", false, false)
+INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfo)
 INITIALIZE_PASS_END(EarlyCSE, "early-cse", "Early CSE", false, false)
@@ -431,9 +438,18 @@ bool EarlyCSE::processNode(DomTreeNode *Node) {
       continue;
     }
 
+    // Skip assume intrinsics, they don't really have side effects (although
+    // they're marked as such to ensure preservation of control dependencies),
+    // and this pass will not disturb any of the assumption's control
+    // dependencies.
+    if (match(Inst, m_Intrinsic<Intrinsic::assume>())) {
+      DEBUG(dbgs() << "EarlyCSE skipping assumption: " << *Inst << '\n');
+      continue;
+    }
+
     // If the instruction can be simplified (e.g. X+0 = X) then replace it with
     // its simpler value.
-    if (Value *V = SimplifyInstruction(Inst, DL, TLI, DT)) {
+    if (Value *V = SimplifyInstruction(Inst, DL, TLI, DT, AC)) {
       DEBUG(dbgs() << "EarlyCSE Simplify: " << *Inst << "  to: " << *V << '\n');
       Inst->replaceAllUsesWith(V);
       Inst->eraseFromParent();
@@ -464,6 +480,9 @@ bool EarlyCSE::processNode(DomTreeNode *Node) {
       // Ignore volatile loads.
       if (!LI->isSimple()) {
         LastStore = nullptr;
+        // Don't CSE across synchronization boundaries.
+        if (Inst->mayWriteToMemory())
+          ++CurrentGeneration;
         continue;
       }
 
@@ -530,7 +549,7 @@ bool EarlyCSE::processNode(DomTreeNode *Node) {
           Changed = true;
           ++NumDSE;
           LastStore = nullptr;
-          continue;
+          // fallthrough - we can exploit information about this store
         }
 
         // Okay, we just invalidated anything we knew about loaded values.  Try
@@ -556,12 +575,17 @@ bool EarlyCSE::runOnFunction(Function &F) {
   if (skipOptnoneFunction(F))
     return false;
 
-  std::vector<StackNode *> nodesToProcess;
+  // Note, deque is being used here because there is significant performance gains
+  // over vector when the container becomes very large due to the specific access
+  // patterns. For more information see the mailing list discussion on this:
+  // http://lists.cs.uiuc.edu/pipermail/llvm-commits/Week-of-Mon-20120116/135228.html
+  std::deque<StackNode *> nodesToProcess;
 
   DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
   DL = DLP ? &DLP->getDataLayout() : nullptr;
   TLI = &getAnalysis<TargetLibraryInfo>();
   DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
+  AC = &getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
 
   // Tables that the pass uses when walking the domtree.
   ScopedHTType AVTable;

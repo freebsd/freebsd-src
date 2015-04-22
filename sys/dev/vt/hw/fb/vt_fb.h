@@ -35,8 +35,10 @@
 int vt_fb_attach(struct fb_info *info);
 void vt_fb_resume(struct vt_device *vd);
 void vt_fb_suspend(struct vt_device *vd);
+int vt_fb_detach(struct fb_info *info);
 
 vd_init_t		vt_fb_init;
+vd_fini_t		vt_fb_fini;
 vd_blank_t		vt_fb_blank;
 vd_bitblt_text_t	vt_fb_bitblt_text;
 vd_bitblt_bmp_t		vt_fb_bitblt_bitmap;

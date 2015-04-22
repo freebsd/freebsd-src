@@ -506,12 +506,12 @@ Instruction *InstCombiner::FoldPHIArgOpIntoPHI(PHINode &PN) {
 /// DeadPHICycle - Return true if this PHI node is only used by a PHI node cycle
 /// that is dead.
 static bool DeadPHICycle(PHINode *PN,
-                         SmallPtrSet<PHINode*, 16> &PotentiallyDeadPHIs) {
+                         SmallPtrSetImpl<PHINode*> &PotentiallyDeadPHIs) {
   if (PN->use_empty()) return true;
   if (!PN->hasOneUse()) return false;
 
   // Remember this node, and if we find the cycle, return.
-  if (!PotentiallyDeadPHIs.insert(PN))
+  if (!PotentiallyDeadPHIs.insert(PN).second)
     return true;
 
   // Don't scan crazily complex things.
@@ -528,9 +528,9 @@ static bool DeadPHICycle(PHINode *PN,
 /// NonPhiInVal.  This happens with mutually cyclic phi nodes like:
 ///   z = some value; x = phi (y, z); y = phi (x, z)
 static bool PHIsEqualValue(PHINode *PN, Value *NonPhiInVal,
-                           SmallPtrSet<PHINode*, 16> &ValueEqualPHIs) {
+                           SmallPtrSetImpl<PHINode*> &ValueEqualPHIs) {
   // See if we already saw this PHI node.
-  if (!ValueEqualPHIs.insert(PN))
+  if (!ValueEqualPHIs.insert(PN).second)
     return true;
 
   // Don't scan crazily complex things.
@@ -654,7 +654,7 @@ Instruction *InstCombiner::SliceUpIllegalIntegerPHI(PHINode &FirstPhi) {
 
       // If the user is a PHI, inspect its uses recursively.
       if (PHINode *UserPN = dyn_cast<PHINode>(UserI)) {
-        if (PHIsInspected.insert(UserPN))
+        if (PHIsInspected.insert(UserPN).second)
           PHIsToSlice.push_back(UserPN);
         continue;
       }
@@ -788,7 +788,7 @@ Instruction *InstCombiner::SliceUpIllegalIntegerPHI(PHINode &FirstPhi) {
 // PHINode simplification
 //
 Instruction *InstCombiner::visitPHINode(PHINode &PN) {
-  if (Value *V = SimplifyInstruction(&PN, DL, TLI))
+  if (Value *V = SimplifyInstruction(&PN, DL, TLI, DT, AC))
     return ReplaceInstUsesWith(PN, V);
 
   // If all PHI operands are the same operation, pull them through the PHI,

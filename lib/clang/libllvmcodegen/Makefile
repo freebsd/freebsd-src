@@ -8,7 +8,7 @@ SRCDIR=	lib/CodeGen
 SRCS=	AggressiveAntiDepBreaker.cpp \
 	AllocationOrder.cpp \
 	Analysis.cpp \
-	AtomicExpandLoadLinkedPass.cpp \
+	AtomicExpandPass.cpp \
 	BasicTargetTransformInfo.cpp \
 	BranchFolding.cpp \
 	CalcSpillWeights.cpp \
@@ -25,6 +25,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	ExecutionDepsFix.cpp \
 	ExpandISelPseudos.cpp \
 	ExpandPostRAPseudos.cpp \
+	ForwardControlFlowIntegrity.cpp \
 	GCMetadata.cpp \
 	GCMetadataPrinter.cpp \
 	GCStrategy.cpp \
@@ -33,7 +34,6 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	InlineSpiller.cpp \
 	InterferenceCache.cpp \
 	IntrinsicLowering.cpp \
-	JITCodeEmitter.cpp \
 	JumpInstrTables.cpp \
 	LLVMTargetMachine.cpp \
 	LatencyPriorityQueue.cpp \
@@ -54,7 +54,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	MachineBlockPlacement.cpp \
 	MachineBranchProbabilityInfo.cpp \
 	MachineCSE.cpp \
-	MachineCodeEmitter.cpp \
+	MachineCombiner.cpp \
 	MachineCopyPropagation.cpp \
 	MachineDominanceFrontier.cpp \
 	MachineDominators.cpp \
@@ -104,13 +104,13 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	SjLjEHPrepare.cpp \
 	SlotIndexes.cpp \
 	SpillPlacement.cpp \
-	Spiller.cpp \
 	SplitKit.cpp \
 	StackColoring.cpp \
 	StackMapLivenessAnalysis.cpp \
 	StackMaps.cpp \
 	StackProtector.cpp \
 	StackSlotColoring.cpp \
+	StatepointExampleGC.cpp \
 	TailDuplication.cpp \
 	TargetFrameLoweringImpl.cpp \
 	TargetInstrInfo.cpp \

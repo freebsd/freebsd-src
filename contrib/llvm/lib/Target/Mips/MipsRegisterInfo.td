@@ -212,8 +212,13 @@ let Namespace = "Mips" in {
   // PC register
   def PC : Register<"pc">;
 
-  // Hardware register $29
-  foreach I = 0-31 in
+  // Hardware registers
+  def HWR0 : MipsReg<0, "hwr_cpunum">;
+  def HWR1 : MipsReg<1, "hwr_synci_step">;
+  def HWR2 : MipsReg<2, "hwr_cc">;
+  def HWR3 : MipsReg<3, "hwr_ccres">;
+
+  foreach I = 4-31 in
   def HWR#I : MipsReg<#I, ""#I>;
 
   // Accum registers
@@ -282,6 +287,20 @@ class GPR32Class<list<ValueType> regTypes> :
 
 def GPR32 : GPR32Class<[i32]>;
 def DSPR  : GPR32Class<[v4i8, v2i16]>;
+
+def GPRMM16 : RegisterClass<"Mips", [i32], 32, (add
+  // Callee save
+  S0, S1,
+  // Return Values and Arguments
+  V0, V1, A0, A1, A2, A3)>;
+
+def GPRMM16Zero : RegisterClass<"Mips", [i32], 32, (add
+  // Reserved
+  ZERO,
+  // Callee save
+  S1,
+  // Return Values and Arguments
+  V0, V1, A0, A1, A2, A3)>;
 
 def GPR64 : RegisterClass<"Mips", [i64], 64, (add
 // Reserved
@@ -417,7 +436,7 @@ def OCTEON_P : RegisterClass<"Mips", [i64], 64, (add P0, P1, P2)>,
 // Register Operands.
 
 class MipsAsmRegOperand : AsmOperandClass {
-  let ParserMethod = "ParseAnyRegister";
+  let ParserMethod = "parseAnyRegister";
 }
 
 def GPR64AsmOperand : MipsAsmRegOperand {
@@ -428,6 +447,16 @@ def GPR64AsmOperand : MipsAsmRegOperand {
 def GPR32AsmOperand : MipsAsmRegOperand {
   let Name = "GPR32AsmReg";
   let PredicateMethod = "isGPRAsmReg";
+}
+
+def GPRMM16AsmOperand : MipsAsmRegOperand {
+  let Name = "GPRMM16AsmReg";
+  let PredicateMethod = "isMM16AsmReg";
+}
+
+def GPRMM16AsmOperandZero : MipsAsmRegOperand {
+  let Name = "GPRMM16AsmRegZero";
+  let PredicateMethod = "isMM16AsmRegZero";
 }
 
 def ACC64DSPAsmOperand : MipsAsmRegOperand {
@@ -483,6 +512,14 @@ def MSACtrlAsmOperand : MipsAsmRegOperand {
 
 def GPR32Opnd : RegisterOperand<GPR32> {
   let ParserMatchClass = GPR32AsmOperand;
+}
+
+def GPRMM16Opnd : RegisterOperand<GPRMM16> {
+  let ParserMatchClass = GPRMM16AsmOperand;
+}
+
+def GPRMM16OpndZero : RegisterOperand<GPRMM16Zero> {
+  let ParserMatchClass = GPRMM16AsmOperandZero;
 }
 
 def GPR64Opnd : RegisterOperand<GPR64> {
@@ -578,4 +615,3 @@ def MSA128DOpnd : RegisterOperand<MSA128D> {
 def MSA128CROpnd : RegisterOperand<MSACtrl> {
   let ParserMatchClass = MSACtrlAsmOperand;
 }
-

@@ -51,7 +51,6 @@ static const char rcsid[] =
 
 #include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/route.h>
@@ -1280,9 +1279,8 @@ ifmaybeload(const char *name)
 		}
 
 	/* turn interface and unit into module name */
-	strcpy(ifkind, "if_");
-	strlcpy(ifkind + MOD_PREFIX_LEN, ifname,
-	    sizeof(ifkind) - MOD_PREFIX_LEN);
+	strlcpy(ifkind, "if_", sizeof(ifkind));
+	strlcat(ifkind, ifname, sizeof(ifkind));
 
 	/* scan files in kernel */
 	mstat.version = sizeof(struct module_stat);
@@ -1299,8 +1297,8 @@ ifmaybeload(const char *name)
 				cp = mstat.name;
 			}
 			/* already loaded? */
-			if (strncmp(ifname, cp, strlen(ifname) + 1) == 0 ||
-			    strncmp(ifkind, cp, strlen(ifkind) + 1) == 0)
+			if (strcmp(ifname, cp) == 0 ||
+			    strcmp(ifkind, cp) == 0)
 				return;
 		}
 	}

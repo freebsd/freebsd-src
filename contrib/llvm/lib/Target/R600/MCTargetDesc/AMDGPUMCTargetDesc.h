@@ -13,8 +13,8 @@
 //===----------------------------------------------------------------------===//
 //
 
-#ifndef AMDGPUMCTARGETDESC_H
-#define AMDGPUMCTARGETDESC_H
+#ifndef LLVM_LIB_TARGET_R600_MCTARGETDESC_AMDGPUMCTARGETDESC_H
+#define LLVM_LIB_TARGET_R600_MCTARGETDESC_AMDGPUMCTARGETDESC_H
 
 #include "llvm/ADT/StringRef.h"
 
@@ -30,6 +30,7 @@ class Target;
 class raw_ostream;
 
 extern Target TheAMDGPUTarget;
+extern Target TheGCNTarget;
 
 MCCodeEmitter *createR600MCCodeEmitter(const MCInstrInfo &MCII,
                                        const MCRegisterInfo &MRI,
@@ -55,4 +56,4 @@ MCObjectWriter *createAMDGPUELFObjectWriter(raw_ostream &OS);
 #define GET_SUBTARGETINFO_ENUM
 #include "AMDGPUGenSubtargetInfo.inc"
 
-#endif // AMDGPUMCTARGETDESC_H
+#endif

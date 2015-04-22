@@ -1,7 +1,7 @@
-/*	$Id: mandoc.h,v 1.176 2014/12/01 08:05:52 schwarze Exp $ */
+/*	$Id: mandoc.h,v 1.201 2015/02/23 13:31:04 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010-2014 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2010-2015 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -31,7 +31,7 @@ enum	mandoclevel {
 	MANDOCLEVEL_RESERVED,
 	MANDOCLEVEL_WARNING, /* warnings: syntax, whitespace, etc. */
 	MANDOCLEVEL_ERROR, /* input has been thrown away */
-	MANDOCLEVEL_FATAL, /* input is borked */
+	MANDOCLEVEL_UNSUPP, /* input needs unimplemented features */
 	MANDOCLEVEL_BADARG, /* bad argument in invocation */
 	MANDOCLEVEL_SYSERR, /* system error */
 	MANDOCLEVEL_MAX
@@ -65,7 +65,11 @@ enum	mandocerr {
 	MANDOCERR_DOC_EMPTY, /* no document body */
 	MANDOCERR_SEC_BEFORE, /* content before first section header: macro */
 	MANDOCERR_NAMESEC_FIRST, /* first section is not NAME: Sh title */
-	MANDOCERR_NAMESEC_BAD, /* bad NAME section contents: macro */
+	MANDOCERR_NAMESEC_NONM, /* NAME section without name */
+	MANDOCERR_NAMESEC_NOND, /* NAME section without description */
+	MANDOCERR_NAMESEC_ND, /* description not at the end of NAME */
+	MANDOCERR_NAMESEC_BAD, /* bad NAME section content: macro */
+	MANDOCERR_ND_EMPTY, /* missing description line, using "" */
 	MANDOCERR_SEC_ORDER, /* sections out of conventional order: Sh title */
 	MANDOCERR_SEC_REP, /* duplicate section title: Sh title */
 	MANDOCERR_SEC_MSEC, /* unexpected section: Sh title for ... only */
@@ -91,18 +95,22 @@ enum	mandocerr {
 	MANDOCERR_REQ_EMPTY, /* skipping empty request: request */
 	MANDOCERR_COND_EMPTY, /* conditional request controls empty scope */
 	MANDOCERR_MACRO_EMPTY, /* skipping empty macro: macro */
+	MANDOCERR_BLK_EMPTY, /* empty block: macro */
 	MANDOCERR_ARG_EMPTY, /* empty argument, using 0n: macro arg */
-	MANDOCERR_ARGCWARN, /* argument count wrong */
 	MANDOCERR_BD_NOTYPE, /* missing display type, using -ragged: Bd */
 	MANDOCERR_BL_LATETYPE, /* list type is not the first argument: Bl arg */
 	MANDOCERR_BL_NOWIDTH, /* missing -width in -tag list, using 8n */
 	MANDOCERR_EX_NONAME, /* missing utility name, using "": Ex */
+	MANDOCERR_FO_NOHEAD, /* missing function name, using "": Fo */
 	MANDOCERR_IT_NOHEAD, /* empty head in list item: Bl -type It */
 	MANDOCERR_IT_NOBODY, /* empty list item: Bl -type It */
 	MANDOCERR_BF_NOFONT, /* missing font type, using \fR: Bf */
 	MANDOCERR_BF_BADFONT, /* unknown font type, using \fR: Bf font */
 	MANDOCERR_PF_SKIP, /* nothing follows prefix: Pf arg */
+	MANDOCERR_RS_EMPTY, /* empty reference block: Rs */
 	MANDOCERR_ARG_STD, /* missing -std argument, adding it: macro */
+	MANDOCERR_OP_EMPTY, /* missing option string, using "": OP */
+	MANDOCERR_UR_NOHEAD, /* missing resource identifier, using "": UR */
 	MANDOCERR_EQN_NOBOX, /* missing eqn box, using "": op */
 
 	/* related to bad arguments */
@@ -112,12 +120,14 @@ enum	mandocerr {
 	MANDOCERR_BD_REP, /* skipping duplicate display type: Bd -type */
 	MANDOCERR_BL_REP, /* skipping duplicate list type: Bl -type */
 	MANDOCERR_BL_SKIPW, /* skipping -width argument: Bl -type */
+	MANDOCERR_BL_COL, /* wrong number of cells */
 	MANDOCERR_AT_BAD, /* unknown AT&T UNIX version: At version */
 	MANDOCERR_FA_COMMA, /* comma in function argument: arg */
 	MANDOCERR_FN_PAREN, /* parenthesis in function name: arg */
 	MANDOCERR_RS_BAD, /* invalid content in Rs block: macro */
 	MANDOCERR_SM_BAD, /* invalid Boolean argument: macro arg */
 	MANDOCERR_FT_BAD, /* unknown font, skipping request: ft font */
+	MANDOCERR_TR_ODD, /* odd number of characters in request: tr char */
 
 	/* related to plain text */
 	MANDOCERR_FI_BLANK, /* blank line in fill mode, using .sp */
@@ -127,65 +137,61 @@ enum	mandocerr {
 	MANDOCERR_ESC_BAD, /* invalid escape sequence: esc */
 	MANDOCERR_STR_UNDEF, /* undefined string, using "": name */
 
+	/* related to tables */
+	MANDOCERR_TBLLAYOUT_SPAN, /* tbl line starts with span */
+	MANDOCERR_TBLLAYOUT_DOWN, /* tbl column starts with span */
+	MANDOCERR_TBLLAYOUT_VERT, /* skipping vertical bar in tbl layout */
+
 	MANDOCERR_ERROR, /* ===== start of errors ===== */
 
-	/* related to equations */
-	MANDOCERR_EQNNSCOPE, /* unexpected equation scope closure*/
-	MANDOCERR_EQNSCOPE, /* equation scope open on exit */
-	MANDOCERR_EQNBADSCOPE, /* overlapping equation scopes */
-	MANDOCERR_EQNEOF, /* unexpected end of equation */
-
 	/* related to tables */
-	MANDOCERR_TBL, /* bad table syntax */
-	MANDOCERR_TBLOPT, /* bad table option */
-	MANDOCERR_TBLLAYOUT, /* bad table layout */
-	MANDOCERR_TBLNOLAYOUT, /* no table layout cells specified */
-	MANDOCERR_TBLNODATA, /* no table data cells specified */
-	MANDOCERR_TBLIGNDATA, /* ignore data in cell */
-	MANDOCERR_TBLBLOCK, /* data block still open */
-	MANDOCERR_TBLEXTRADAT, /* ignoring extra data cells */
+	MANDOCERR_TBLOPT_ALPHA, /* non-alphabetic character in tbl options */
+	MANDOCERR_TBLOPT_BAD, /* skipping unknown tbl option: option */
+	MANDOCERR_TBLOPT_NOARG, /* missing tbl option argument: option */
+	MANDOCERR_TBLOPT_ARGSZ, /* wrong tbl option argument size: option */
+	MANDOCERR_TBLLAYOUT_NONE, /* empty tbl layout */
+	MANDOCERR_TBLLAYOUT_CHAR, /* invalid character in tbl layout: char */
+	MANDOCERR_TBLLAYOUT_PAR, /* unmatched parenthesis in tbl layout */
+	MANDOCERR_TBLDATA_NONE, /* tbl without any data cells */
+	MANDOCERR_TBLDATA_SPAN, /* ignoring data in spanned tbl cell: data */
+	MANDOCERR_TBLDATA_EXTRA, /* ignoring extra tbl data cells: data */
+	MANDOCERR_TBLDATA_BLK, /* data block open at end of tbl: macro */
 
 	/* related to document structure and macros */
+	MANDOCERR_FILE, /* cannot open file */
 	MANDOCERR_ROFFLOOP, /* input stack limit exceeded, infinite loop? */
-	MANDOCERR_BADCHAR, /* skipping bad character: number */
+	MANDOCERR_CHAR_BAD, /* skipping bad character: number */
 	MANDOCERR_MACRO, /* skipping unknown macro: macro */
+	MANDOCERR_REQ_INSEC, /* skipping insecure request: request */
 	MANDOCERR_IT_STRAY, /* skipping item outside list: It ... */
 	MANDOCERR_TA_STRAY, /* skipping column outside column list: Ta */
 	MANDOCERR_BLK_NOTOPEN, /* skipping end of block that is not open */
+	MANDOCERR_RE_NOTOPEN, /* fewer RS blocks open, skipping: RE arg */
 	MANDOCERR_BLK_BROKEN, /* inserting missing end of block: macro ... */
 	MANDOCERR_BLK_NOEND, /* appending missing end of block: macro */
 
 	/* related to request and macro arguments */
 	MANDOCERR_NAMESC, /* escaped character not allowed in a name: name */
-	MANDOCERR_ARGCOUNT, /* argument count wrong */
 	MANDOCERR_BD_FILE, /* NOT IMPLEMENTED: Bd -file */
 	MANDOCERR_BL_NOTYPE, /* missing list type, using -item: Bl */
 	MANDOCERR_NM_NONAME, /* missing manual name, using "": Nm */
 	MANDOCERR_OS_UNAME, /* uname(3) system call failed, using UNKNOWN */
 	MANDOCERR_ST_BAD, /* unknown standard specifier: St standard */
 	MANDOCERR_IT_NONUM, /* skipping request without numeric argument */
+	MANDOCERR_SO_PATH, /* NOT IMPLEMENTED: .so with absolute path or ".." */
+	MANDOCERR_SO_FAIL, /* .so request failed */
 	MANDOCERR_ARG_SKIP, /* skipping all arguments: macro args */
 	MANDOCERR_ARG_EXCESS, /* skipping excess arguments: macro ... args */
 	MANDOCERR_DIVZERO, /* divide by zero */
 
-	MANDOCERR_FATAL, /* ===== start of fatal errors ===== */
+	MANDOCERR_UNSUPP, /* ===== start of unsupported features ===== */
 
 	MANDOCERR_TOOLARGE, /* input too large */
-	MANDOCERR_SO_PATH, /* NOT IMPLEMENTED: .so with absolute path or ".." */
-	MANDOCERR_SO_FAIL, /* .so request failed */
-
-	/* ===== system errors ===== */
-
-	MANDOCERR_SYSDUP, /* cannot dup file descriptor */
-	MANDOCERR_SYSEXEC, /* cannot exec */
-	MANDOCERR_SYSEXIT, /* gunzip failed with code */
-	MANDOCERR_SYSFORK, /* cannot fork */
-	MANDOCERR_SYSOPEN, /* cannot open file */
-	MANDOCERR_SYSPIPE, /* cannot open pipe */
-	MANDOCERR_SYSREAD, /* cannot read file */
-	MANDOCERR_SYSSIG, /* gunzip died from signal */
-	MANDOCERR_SYSSTAT, /* cannot stat file */
-	MANDOCERR_SYSWAIT, /* wait failed */
+	MANDOCERR_CHAR_UNSUPP, /* unsupported control character: number */
+	MANDOCERR_REQ_UNSUPP, /* unsupported roff request: request */
+	MANDOCERR_TBLOPT_EQN, /* eqn delim option in tbl: arg */
+	MANDOCERR_TBLLAYOUT_MOD, /* unsupported tbl layout modifier: m */
+	MANDOCERR_TBLMACRO, /* ignoring macro in table: macro */
 
 	MANDOCERR_MAX
 };
@@ -193,7 +199,6 @@ enum	mandocerr {
 struct	tbl_opts {
 	char		  tab; /* cell-separator */
 	char		  decimal; /* decimal point */
-	int		  linesize;
 	int		  opts;
 #define	TBL_OPT_CENTRE	 (1 << 0)
 #define	TBL_OPT_EXPAND	 (1 << 1)
@@ -202,19 +207,10 @@ struct	tbl_opts {
 #define	TBL_OPT_ALLBOX	 (1 << 4)
 #define	TBL_OPT_NOKEEP	 (1 << 5)
 #define	TBL_OPT_NOSPACE	 (1 << 6)
+#define	TBL_OPT_NOWARN	 (1 << 7)
 	int		  cols; /* number of columns */
-};
-
-/*
- * The head of a table specifies all of its columns.  When formatting a
- * tbl_span, iterate over these and plug in data from the tbl_span when
- * appropriate, using tbl_cell as a guide to placement.
- */
-struct	tbl_head {
-	int		  ident; /* 0 <= unique id < cols */
-	int		  vert; /* width of preceding vertical line */
-	struct tbl_head	 *next;
-	struct tbl_head	 *prev;
+	int		  lvert; /* width of left vertical line */
+	int		  rvert; /* width of right vertical line */
 };
 
 enum	tbl_cellt {
@@ -235,9 +231,10 @@ enum	tbl_cellt {
  */
 struct	tbl_cell {
 	struct tbl_cell	 *next;
-	int		  vert; /* width of preceding vertical line */
+	int		  vert; /* width of subsequent vertical line */
 	enum tbl_cellt	  pos;
 	size_t		  spacing;
+	int		  col; /* column number, starting from 0 */
 	int		  flags;
 #define	TBL_CELL_TALIGN	 (1 << 0) /* t, T */
 #define	TBL_CELL_BALIGN	 (1 << 1) /* d, D */
@@ -247,7 +244,6 @@ struct	tbl_cell {
 #define	TBL_CELL_UP	 (1 << 5) /* u, U */
 #define	TBL_CELL_WIGN	 (1 << 6) /* z, Z */
 #define	TBL_CELL_WMAX	 (1 << 7) /* x, X */
-	struct tbl_head	 *head;
 };
 
 /*
@@ -257,7 +253,7 @@ struct	tbl_row {
 	struct tbl_row	 *next;
 	struct tbl_cell	 *first;
 	struct tbl_cell	 *last;
-	int		  vert; /* trailing vertical line */
+	int		  vert; /* width of left vertical line */
 };
 
 enum	tbl_datt {
@@ -292,16 +288,13 @@ enum	tbl_spant {
  */
 struct	tbl_span {
 	struct tbl_opts	 *opts;
-	struct tbl_head	 *head;
 	struct tbl_row	 *layout; /* layout row */
 	struct tbl_dat	 *first;
 	struct tbl_dat	 *last;
-	int		  line; /* parse line */
-	int		  flags;
-#define	TBL_SPAN_FIRST	 (1 << 0)
-#define	TBL_SPAN_LAST	 (1 << 1)
-	enum tbl_spant	  pos;
+	struct tbl_span	 *prev;
 	struct tbl_span	 *next;
+	int		  line; /* parse line */
+	enum tbl_spant	  pos;
 };
 
 enum	eqn_boxt {
@@ -408,7 +401,8 @@ enum	mandoc_esc {
 	ESCAPE_NUMBERED, /* a numbered glyph */
 	ESCAPE_UNICODE, /* a unicode codepoint */
 	ESCAPE_NOSPACE, /* suppress space if the last on a line */
-	ESCAPE_SKIPCHAR /* skip the next character */
+	ESCAPE_SKIPCHAR, /* skip the next character */
+	ESCAPE_OVERSTRIKE /* overstrike all chars in the argument */
 };
 
 typedef	void	(*mandocmsg)(enum mandocerr, enum mandoclevel,

@@ -410,7 +410,7 @@ iaf_start_pmc(int cpu, int ri)
 		iafc->pc_resync = 0;
 		iafc->pc_globalctrl |= (1ULL << (ri + IAF_OFFSET));
  		msr = rdmsr(IA_GLOBAL_CTRL) & ~IAF_GLOBAL_CTRL_MASK;
- 		wrmsr(IA_GLOBAL_CTRL, msr | (iafc->pc_globalctrl & 
+ 		wrmsr(IA_GLOBAL_CTRL, msr | (iafc->pc_globalctrl &
  					     IAF_GLOBAL_CTRL_MASK));
 	} while (iafc->pc_resync != 0);
 
@@ -487,7 +487,7 @@ iaf_write_pmc(int cpu, int ri, pmc_value_t v)
 
 	/* Turn off fixed counters */
 	msr = rdmsr(IAF_CTRL) & ~IAF_CTRL_MASK;
-	wrmsr(IAF_CTRL, msr); 
+	wrmsr(IAF_CTRL, msr);
 
 	wrmsr(IAF_CTR0 + ri, v & ((1ULL << core_iaf_width) - 1));
 
@@ -574,7 +574,8 @@ struct iap_event_descr {
 #define	IAP_F_HW	(1 << 10)	/* CPU: Haswell */
 #define	IAP_F_CAS	(1 << 11)	/* CPU: Atom Silvermont */
 #define	IAP_F_HWX	(1 << 12)	/* CPU: Haswell Xeon */
-#define	IAP_F_FM	(1 << 13)	/* Fixed mask */
+#define	IAP_F_BW	(1 << 13)	/* CPU: Broadwell */
+#define	IAP_F_FM	(1 << 14)	/* Fixed mask */
 
 #define	IAP_F_ALLCPUSCORE2					\
     (IAP_F_CC | IAP_F_CC2 | IAP_F_CC2E | IAP_F_CA)
@@ -704,7 +705,7 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(0CH_02H, 0x0C, 0x02, IAP_F_FM | IAP_F_CC2),
     IAPDESCR(0CH_03H, 0x0C, 0x03, IAP_F_FM | IAP_F_CA),
 
-    IAPDESCR(0DH_03H, 0x0D, 0x03, IAP_F_FM | IAP_F_SB | IAP_F_SBX | IAP_F_HW | 
+    IAPDESCR(0DH_03H, 0x0D, 0x03, IAP_F_FM | IAP_F_SB | IAP_F_SBX | IAP_F_HW |
        IAP_F_IB | IAP_F_IBX | IAP_F_HWX),
     IAPDESCR(0DH_40H, 0x0D, 0x40, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
 
@@ -1126,6 +1127,10 @@ static struct iap_event_descr iap_events[] = {
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
     IAPDESCR(79H_18H, 0x79, 0x18, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW |
         IAP_F_HWX),
+    IAPDESCR(79H_24H, 0x79, 0x24, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW |
+        IAP_F_HWX),
+    IAPDESCR(79H_3CH, 0x79, 0x3C, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW |
+        IAP_F_HWX),
 
     IAPDESCR(7AH, 0x7A, IAP_M_AGENT, IAP_F_CA | IAP_F_CC2),
 
@@ -1188,46 +1193,57 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(87H_0FH, 0x87, 0x0F, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
 
     IAPDESCR(88H_00H, 0x88, 0x00, IAP_F_FM | IAP_F_ALLCPUSCORE2),
-    IAPDESCR(88H_01H, 0x88, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
-    IAPDESCR(88H_02H, 0x88, 0x02, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
-    IAPDESCR(88H_04H, 0x88, 0x04, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(88H_01H, 0x88, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
+    IAPDESCR(88H_02H, 0x88, 0x02, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
+    IAPDESCR(88H_04H, 0x88, 0x04, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
     IAPDESCR(88H_07H, 0x88, 0x07, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
-    IAPDESCR(88H_08H, 0x88, 0x08, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
-    IAPDESCR(88H_10H, 0x88, 0x10, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
-    IAPDESCR(88H_20H, 0x88, 0x20, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(88H_08H, 0x88, 0x08, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
+    IAPDESCR(88H_10H, 0x88, 0x10, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
+    IAPDESCR(88H_20H, 0x88, 0x20, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
     IAPDESCR(88H_30H, 0x88, 0x30, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
-    IAPDESCR(88H_40H, 0x88, 0x40, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(88H_40H, 0x88, 0x40, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
     IAPDESCR(88H_7FH, 0x88, 0x7F, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
-    IAPDESCR(88H_80H, 0x88, 0x80, IAP_F_FM | IAP_F_SB | IAP_F_IB |
+    IAPDESCR(88H_41H, 0x88, 0x41, IAP_F_FM | IAP_F_SB | IAP_F_IB |
+	IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(88H_81H, 0x88, 0x81, IAP_F_FM | IAP_F_SB | IAP_F_IB |
+	IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(88H_82H, 0x88, 0x82, IAP_F_FM | IAP_F_SB | IAP_F_IB |
+	IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(88H_84H, 0x88, 0x84, IAP_F_FM | IAP_F_SB | IAP_F_IB |
+	IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(88H_88H, 0x88, 0x88, IAP_F_FM | IAP_F_SB | IAP_F_IB |
+	IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(88H_90H, 0x88, 0x90, IAP_F_FM | IAP_F_SB | IAP_F_IB |
+	IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(88H_A0H, 0x88, 0xA0, IAP_F_FM | IAP_F_SB | IAP_F_IB |
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
     IAPDESCR(88H_FFH, 0x88, 0xFF, IAP_F_FM | IAP_F_SB | IAP_F_IB |
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
 
     IAPDESCR(89H_00H, 0x89, 0x00, IAP_F_FM | IAP_F_ALLCPUSCORE2),
-    IAPDESCR(89H_01H, 0x89, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(89H_01H, 0x89, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
     IAPDESCR(89H_02H, 0x89, 0x02, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
-    IAPDESCR(89H_04H, 0x89, 0x04, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(89H_04H, 0x89, 0x04, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
     IAPDESCR(89H_07H, 0x89, 0x07, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
-    IAPDESCR(89H_08H, 0x89, 0x08, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
-    IAPDESCR(89H_10H, 0x89, 0x10, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
-    IAPDESCR(89H_20H, 0x89, 0x20, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(89H_08H, 0x89, 0x08, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
+    IAPDESCR(89H_10H, 0x89, 0x10, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
+    IAPDESCR(89H_20H, 0x89, 0x20, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
     IAPDESCR(89H_30H, 0x89, 0x30, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
-    IAPDESCR(89H_40H, 0x89, 0x40, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(89H_40H, 0x89, 0x40, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
     IAPDESCR(89H_7FH, 0x89, 0x7F, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
-    IAPDESCR(89H_80H, 0x89, 0x80, IAP_F_FM | IAP_F_SB | IAP_F_IB |
+    IAPDESCR(89H_41H, 0x89, 0x41, IAP_F_FM | IAP_F_SB | IAP_F_IB |
+	IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(89H_81H, 0x89, 0x81, IAP_F_FM | IAP_F_SB | IAP_F_IB |
+	IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(89H_82H, 0x89, 0x82, IAP_F_FM | IAP_F_SB | IAP_F_IB |
+	IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(89H_84H, 0x89, 0x84, IAP_F_FM | IAP_F_SB | IAP_F_IB |
+	IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(89H_88H, 0x89, 0x88, IAP_F_FM | IAP_F_SB | IAP_F_IB |
+	IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(89H_90H, 0x89, 0x90, IAP_F_FM | IAP_F_SB | IAP_F_IB |
+	IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(89H_A0H, 0x89, 0xA0, IAP_F_FM | IAP_F_SB | IAP_F_IB |
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
     IAPDESCR(89H_FFH, 0x89, 0xFF, IAP_F_FM | IAP_F_SB | IAP_F_IB |
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
@@ -1261,7 +1277,8 @@ static struct iap_event_descr iap_events[] = {
 	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
     IAPDESCR(A1H_08H, 0xA1, 0x08, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |   /* No desc in IB for this*/
 	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
-    IAPDESCR(A1H_0CH, 0xA1, 0x0C, IAP_F_IB | IAP_F_IBX),
+    IAPDESCR(A1H_0CH, 0xA1, 0x0C, IAP_F_FM | IAP_F_SB | IAP_F_IB |
+	IAP_F_SBX | IAP_F_IBX),
     IAPDESCR(A1H_10H, 0xA1, 0x10, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |   /* No desc in IB for this*/
 	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
     IAPDESCR(A1H_20H, 0xA1, 0x20, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |   /* No desc in IB for this*/
@@ -1300,7 +1317,7 @@ static struct iap_event_descr iap_events[] = {
 
     IAPDESCR(A6H_01H, 0xA6, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
     IAPDESCR(A7H_01H, 0xA7, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
-    IAPDESCR(A8H_01H, 0xA8, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_IBX | 
+    IAPDESCR(A8H_01H, 0xA8, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_IBX |
 	IAP_F_IB |IAP_F_SB |  IAP_F_SBX | IAP_F_HW | IAP_F_HWX),
 
     IAPDESCR(AAH_01H, 0xAA, 0x01, IAP_F_FM | IAP_F_CC2),
@@ -1450,7 +1467,7 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(C3H_01H, 0xC3, 0x01, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
 	IAP_F_I7 | IAP_F_WM | IAP_F_CAS),
     IAPDESCR(C3H_02H, 0xC3, 0x02, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | 
+	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW |
 	IAP_F_CAS | IAP_F_HWX),
     IAPDESCR(C3H_04H, 0xC3, 0x04, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
 	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX |
@@ -1586,39 +1603,31 @@ static struct iap_event_descr iap_events[] = {
 
     /* Sandy Bridge / Sandy Bridge Xeon - 11, 12, 21, 41, 42, 81, 82 */
     IAPDESCR(D0H_00H, 0xD0, 0x00, IAP_F_FM | IAP_F_CC),
-    IAPDESCR(D0H_01H, 0xD0, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_IB |
-	IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
-    IAPDESCR(D0H_02H, 0xD0, 0x02, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW |
-	IAP_F_HWX),
-    IAPDESCR(D0H_10H, 0xD0, 0x10, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW |
-	IAP_F_HWX),
-    IAPDESCR(D0H_11H, 0xD0, 0x11, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
-    IAPDESCR(D0H_12H, 0xD0, 0x12, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
-    IAPDESCR(D0H_20H, 0xD0, 0x20, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW |
-        IAP_F_HWX),
+    IAPDESCR(D0H_01H, 0xD0, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
+    IAPDESCR(D0H_11H, 0xD0, 0x11, IAP_F_FM | IAP_F_SB | IAP_F_SBX | IAP_F_IB |
+        IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(D0H_12H, 0xD0, 0x12, IAP_F_FM | IAP_F_SB | IAP_F_SBX | IAP_F_IB |
+        IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
     IAPDESCR(D0H_21H, 0xD0, 0x21, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
-    IAPDESCR(D0H_40H, 0xD0, 0x40, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW |
-        IAP_F_HWX),
-    IAPDESCR(D0H_41H, 0xD0, 0x41, IAP_F_FM | IAP_F_SB | IAP_F_SBX |
-        IAP_F_IB | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),	/* Not in spec but in linux and Vtune guide */
-    IAPDESCR(D0H_42H, 0xD0, 0x42, IAP_F_FM | IAP_F_SB | IAP_F_SBX | 
-        IAP_F_IB | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),	/* Not in spec but in linux and Vtune guide */
-    IAPDESCR(D0H_80H, 0xD0, 0x80, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW |
-        IAP_F_HWX),
-    IAPDESCR(D0H_81H, 0xD0, 0x81, IAP_F_FM | IAP_F_SB | IAP_F_SBX |
-	IAP_F_IB | IAP_F_IBX),	/* Not in spec but in linux and Vtune guide */
-    IAPDESCR(D0H_82H, 0xD0, 0x82, IAP_F_FM | IAP_F_SB | IAP_F_SBX | 
-	IAP_F_IB | IAP_F_IBX),	/* Not in spec but in linux and Vtune guide */
+    IAPDESCR(D0H_41H, 0xD0, 0x41, IAP_F_FM | IAP_F_SB | IAP_F_SBX | IAP_F_IB |
+        IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(D0H_42H, 0xD0, 0x42, IAP_F_FM | IAP_F_SB | IAP_F_SBX | IAP_F_IB |
+        IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(D0H_81H, 0xD0, 0x81, IAP_F_FM | IAP_F_SB | IAP_F_SBX | IAP_F_IB |
+        IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+    IAPDESCR(D0H_82H, 0xD0, 0x82, IAP_F_FM | IAP_F_SB | IAP_F_SBX | IAP_F_IB |
+        IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
+
     IAPDESCR(D1H_01H, 0xD1, 0x01, IAP_F_FM | IAP_F_WM | IAP_F_SB |
 	IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
     IAPDESCR(D1H_02H, 0xD1, 0x02, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
 	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
     IAPDESCR(D1H_04H, 0xD1, 0x04, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
 	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
-    IAPDESCR(D1H_08H, 0xD1, 0x08, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_IB | 
+    IAPDESCR(D1H_08H, 0xD1, 0x08, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_IB |
         IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
     IAPDESCR(D1H_10H, 0xD1, 0x10, IAP_F_HW | IAP_F_IB | IAP_F_IBX | IAP_F_HWX),
-    IAPDESCR(D1H_20H, 0xD1, 0x20, IAP_F_FM | IAP_F_SBX | IAP_F_IBX | IAP_F_IB | 
+    IAPDESCR(D1H_20H, 0xD1, 0x20, IAP_F_FM | IAP_F_SBX | IAP_F_IBX | IAP_F_IB |
         IAP_F_HW | IAP_F_HWX),
     IAPDESCR(D1H_40H, 0xD1, 0x40, IAP_F_FM | IAP_F_SB | IAP_F_IB |
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
@@ -1643,9 +1652,9 @@ static struct iap_event_descr iap_events[] = {
 
     IAPDESCR(D3H_01H, 0xD3, 0x01, IAP_F_FM | IAP_F_IB | IAP_F_SBX |
 	IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
-    IAPDESCR(D3H_03H, 0xD0, 0x3, IAP_F_IBX  ),
+    IAPDESCR(D3H_03H, 0xD3, 0x03, IAP_F_IBX),
     IAPDESCR(D3H_04H, 0xD3, 0x04, IAP_F_FM | IAP_F_SBX | IAP_F_IBX),	/* Not defined for IBX */
-    IAPDESCR(D3H_0CH, 0xD0, 0x0, IAP_F_IBX  ),
+    IAPDESCR(D3H_0CH, 0xD3, 0x0C, IAP_F_IBX),
     IAPDESCR(D3H_10H, 0xD3, 0x10, IAP_F_IBX  ),
     IAPDESCR(D3H_20H, 0xD3, 0x20, IAP_F_IBX  ),
 
@@ -1708,7 +1717,7 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(E6H_02H, 0xE6, 0x02, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
     IAPDESCR(E6H_08H, 0xE6, 0x08, IAP_F_CAS),
     IAPDESCR(E6H_10H, 0xE6, 0x10, IAP_F_CAS),
-    IAPDESCR(E6H_1FH, 0xE6, 0x1F, IAP_F_FM | IAP_F_IB | 
+    IAPDESCR(E6H_1FH, 0xE6, 0x1F, IAP_F_FM | IAP_F_IB |
         IAP_F_IBX | IAP_F_HW | IAP_F_HWX),
 
     IAPDESCR(E7H_01H, 0xE7, 0x01, IAP_F_CAS),
@@ -1868,7 +1877,7 @@ iap_is_event_architectural(enum pmc_event pe, enum pmc_event *map)
 		return (EV_IS_NOTARCH);
 	}
 
-	return (((core_architectural_events & (1 << ae)) == 0) ? 
+	return (((core_architectural_events & (1 << ae)) == 0) ?
 	    EV_IS_ARCH_NOTSUPP : EV_IS_ARCH_SUPP);
 }
 
@@ -1965,15 +1974,15 @@ iap_event_sb_sbx_ib_ibx_ok_on_counter(enum pmc_event pe, int ri)
 		break;
 		/* Events valid only on counter 1. */
 	case PMC_EV_IAP_EVENT_C0H_01H:
-		mask = 0x1;
+		mask = 0x2;
 		break;
 		/* Events valid only on counter 2. */
 	case PMC_EV_IAP_EVENT_48H_01H:
 	case PMC_EV_IAP_EVENT_A2H_02H:
+	case PMC_EV_IAP_EVENT_A3H_08H:
 		mask = 0x4;
 		break;
 		/* Events valid only on counter 3. */
-	case PMC_EV_IAP_EVENT_A3H_08H:
 	case PMC_EV_IAP_EVENT_BBH_01H:
 	case PMC_EV_IAP_EVENT_CDH_01H:
 	case PMC_EV_IAP_EVENT_CDH_02H:
@@ -2066,6 +2075,7 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		if (iap_event_corei7_ok_on_counter(ev, ri) == 0)
 			return (EINVAL);
 		break;
+	case PMC_CPU_INTEL_BROADWELL:
 	case PMC_CPU_INTEL_SANDYBRIDGE:
 	case PMC_CPU_INTEL_SANDYBRIDGE_XEON:
 	case PMC_CPU_INTEL_IVYBRIDGE:
@@ -2097,6 +2107,9 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		break;
 	case PMC_CPU_INTEL_ATOM_SILVERMONT:
 		cpuflag = IAP_F_CAS;
+		break;
+	case PMC_CPU_INTEL_BROADWELL:
+		cpuflag = IAP_F_BW;
 		break;
 	case PMC_CPU_INTEL_CORE:
 		cpuflag = IAP_F_CC;

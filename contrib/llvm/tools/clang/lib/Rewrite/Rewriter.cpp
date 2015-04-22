@@ -13,9 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Rewrite/Core/Rewriter.h"
-#include "clang/AST/Decl.h"
-#include "clang/AST/PrettyPrinter.h"
-#include "clang/AST/Stmt.h"
+#include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticIDs.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
@@ -326,35 +324,6 @@ bool Rewriter::ReplaceText(SourceRange range, SourceRange replacementRange) {
                                                 FID);
   StringRef MB = SourceMgr->getBufferData(FID);
   return ReplaceText(start, origLength, MB.substr(newOffs, newLength));
-}
-
-/// ReplaceStmt - This replaces a Stmt/Expr with another, using the pretty
-/// printer to generate the replacement code.  This returns true if the input
-/// could not be rewritten, or false if successful.
-bool Rewriter::ReplaceStmt(Stmt *From, Stmt *To) {
-  assert(From != nullptr && To != nullptr && "Expected non-null Stmt's");
-
-  // Measaure the old text.
-  int Size = getRangeSize(From->getSourceRange());
-  if (Size == -1)
-    return true;
-
-  // Get the new text.
-  std::string SStr;
-  llvm::raw_string_ostream S(SStr);
-  To->printPretty(S, nullptr, PrintingPolicy(*LangOpts));
-  const std::string &Str = S.str();
-
-  ReplaceText(From->getLocStart(), Size, Str);
-  return false;
-}
-
-std::string Rewriter::ConvertToString(Stmt *From) {
-  assert(From != nullptr && "Expected non-null Stmt");
-  std::string SStr;
-  llvm::raw_string_ostream S(SStr);
-  From->printPretty(S, nullptr, PrintingPolicy(*LangOpts));
-  return S.str();
 }
 
 bool Rewriter::IncreaseIndentation(CharSourceRange range,

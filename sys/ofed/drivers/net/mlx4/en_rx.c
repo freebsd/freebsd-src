@@ -500,7 +500,7 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
                         goto fail;
 
 		/* Unmap buffer */
-		pci_unmap_single(mdev->pdev, dma, frag_info[nr].frag_size,
+		pci_unmap_single(mdev->pdev, dma, frag_info->frag_size,
 				 PCI_DMA_FROMDEVICE);
 	}
 	/* Adjust size of last fragment to match actual length */

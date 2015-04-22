@@ -1365,9 +1365,7 @@ fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx)
 int
 fpu_kern_thread(u_int flags)
 {
-	struct pcb *pcb;
 
-	pcb = curpcb;
 	KASSERT((curthread->td_pflags & TDP_KTHREAD) != 0,
 	    ("Only kthread may use fpu_kern_thread"));
 	KASSERT(curpcb->pcb_save == get_pcb_user_save_pcb(curpcb),

@@ -61,7 +61,7 @@ public:
   ConstStmtRange children() const {
     return const_cast<OMPClause *>(this)->children();
   }
-  static bool classof(const OMPClause *T) { return true; }
+  static bool classof(const OMPClause *) { return true; }
 };
 
 /// \brief This represents clauses with the list of variables like 'private',
@@ -135,10 +135,10 @@ public:
 
   /// \brief Fetches list of all variables in the clause.
   ArrayRef<const Expr *> getVarRefs() const {
-    return ArrayRef<const Expr *>(
+    return llvm::makeArrayRef(
         reinterpret_cast<const Expr *const *>(
             reinterpret_cast<const char *>(this) +
-            llvm::RoundUpToAlignment(sizeof(T), llvm::alignOf<Expr *>())),
+            llvm::RoundUpToAlignment(sizeof(T), llvm::alignOf<const Expr *>())),
         NumVars);
   }
 };
@@ -770,6 +770,153 @@ public:
   StmtRange children() { return StmtRange(); }
 };
 
+/// \brief This represents 'read' clause in the '#pragma omp atomic' directive.
+///
+/// \code
+/// #pragma omp atomic read
+/// \endcode
+/// In this example directive '#pragma omp atomic' has 'read' clause.
+///
+class OMPReadClause : public OMPClause {
+public:
+  /// \brief Build 'read' clause.
+  ///
+  /// \param StartLoc Starting location of the clause.
+  /// \param EndLoc Ending location of the clause.
+  ///
+  OMPReadClause(SourceLocation StartLoc, SourceLocation EndLoc)
+      : OMPClause(OMPC_read, StartLoc, EndLoc) {}
+
+  /// \brief Build an empty clause.
+  ///
+  OMPReadClause() : OMPClause(OMPC_read, SourceLocation(), SourceLocation()) {}
+
+  static bool classof(const OMPClause *T) {
+    return T->getClauseKind() == OMPC_read;
+  }
+
+  StmtRange children() { return StmtRange(); }
+};
+
+/// \brief This represents 'write' clause in the '#pragma omp atomic' directive.
+///
+/// \code
+/// #pragma omp atomic write
+/// \endcode
+/// In this example directive '#pragma omp atomic' has 'write' clause.
+///
+class OMPWriteClause : public OMPClause {
+public:
+  /// \brief Build 'write' clause.
+  ///
+  /// \param StartLoc Starting location of the clause.
+  /// \param EndLoc Ending location of the clause.
+  ///
+  OMPWriteClause(SourceLocation StartLoc, SourceLocation EndLoc)
+      : OMPClause(OMPC_write, StartLoc, EndLoc) {}
+
+  /// \brief Build an empty clause.
+  ///
+  OMPWriteClause()
+      : OMPClause(OMPC_write, SourceLocation(), SourceLocation()) {}
+
+  static bool classof(const OMPClause *T) {
+    return T->getClauseKind() == OMPC_write;
+  }
+
+  StmtRange children() { return StmtRange(); }
+};
+
+/// \brief This represents 'update' clause in the '#pragma omp atomic'
+/// directive.
+///
+/// \code
+/// #pragma omp atomic update
+/// \endcode
+/// In this example directive '#pragma omp atomic' has 'update' clause.
+///
+class OMPUpdateClause : public OMPClause {
+public:
+  /// \brief Build 'update' clause.
+  ///
+  /// \param StartLoc Starting location of the clause.
+  /// \param EndLoc Ending location of the clause.
+  ///
+  OMPUpdateClause(SourceLocation StartLoc, SourceLocation EndLoc)
+      : OMPClause(OMPC_update, StartLoc, EndLoc) {}
+
+  /// \brief Build an empty clause.
+  ///
+  OMPUpdateClause()
+      : OMPClause(OMPC_update, SourceLocation(), SourceLocation()) {}
+
+  static bool classof(const OMPClause *T) {
+    return T->getClauseKind() == OMPC_update;
+  }
+
+  StmtRange children() { return StmtRange(); }
+};
+
+/// \brief This represents 'capture' clause in the '#pragma omp atomic'
+/// directive.
+///
+/// \code
+/// #pragma omp atomic capture
+/// \endcode
+/// In this example directive '#pragma omp atomic' has 'capture' clause.
+///
+class OMPCaptureClause : public OMPClause {
+public:
+  /// \brief Build 'capture' clause.
+  ///
+  /// \param StartLoc Starting location of the clause.
+  /// \param EndLoc Ending location of the clause.
+  ///
+  OMPCaptureClause(SourceLocation StartLoc, SourceLocation EndLoc)
+      : OMPClause(OMPC_capture, StartLoc, EndLoc) {}
+
+  /// \brief Build an empty clause.
+  ///
+  OMPCaptureClause()
+      : OMPClause(OMPC_capture, SourceLocation(), SourceLocation()) {}
+
+  static bool classof(const OMPClause *T) {
+    return T->getClauseKind() == OMPC_capture;
+  }
+
+  StmtRange children() { return StmtRange(); }
+};
+
+/// \brief This represents 'seq_cst' clause in the '#pragma omp atomic'
+/// directive.
+///
+/// \code
+/// #pragma omp atomic seq_cst
+/// \endcode
+/// In this example directive '#pragma omp atomic' has 'seq_cst' clause.
+///
+class OMPSeqCstClause : public OMPClause {
+public:
+  /// \brief Build 'seq_cst' clause.
+  ///
+  /// \param StartLoc Starting location of the clause.
+  /// \param EndLoc Ending location of the clause.
+  ///
+  OMPSeqCstClause(SourceLocation StartLoc, SourceLocation EndLoc)
+      : OMPClause(OMPC_seq_cst, StartLoc, EndLoc) {}
+
+  /// \brief Build an empty clause.
+  ///
+  OMPSeqCstClause()
+      : OMPClause(OMPC_seq_cst, SourceLocation(), SourceLocation()) {}
+
+  static bool classof(const OMPClause *T) {
+    return T->getClauseKind() == OMPC_seq_cst;
+  }
+
+  StmtRange children() { return StmtRange(); }
+};
+
 /// \brief This represents clause 'private' in the '#pragma omp ...' directives.
 ///
 /// \code
@@ -779,6 +926,7 @@ public:
 /// with the variables 'a' and 'b'.
 ///
 class OMPPrivateClause : public OMPVarListClause<OMPPrivateClause> {
+  friend class OMPClauseReader;
   /// \brief Build clause with number of variables \a N.
   ///
   /// \param StartLoc Starting location of the clause.
@@ -800,6 +948,20 @@ class OMPPrivateClause : public OMPVarListClause<OMPPrivateClause> {
                                            SourceLocation(), SourceLocation(),
                                            N) {}
 
+  /// \brief Sets the list of references to private copies with initializers for
+  /// new private variables.
+  /// \param VL List of references.
+  void setPrivateCopies(ArrayRef<Expr *> VL);
+
+  /// \brief Gets the list of references to private copies with initializers for
+  /// new private variables.
+  MutableArrayRef<Expr *> getPrivateCopies() {
+    return MutableArrayRef<Expr *>(varlist_end(), varlist_size());
+  }
+  ArrayRef<const Expr *> getPrivateCopies() const {
+    return llvm::makeArrayRef(varlist_end(), varlist_size());
+  }
+
 public:
   /// \brief Creates clause with a list of variables \a VL.
   ///
@@ -808,16 +970,33 @@ public:
   /// \param LParenLoc Location of '('.
   /// \param EndLoc Ending location of the clause.
   /// \param VL List of references to the variables.
+  /// \param PrivateVL List of references to private copies with initializers.
   ///
   static OMPPrivateClause *Create(const ASTContext &C, SourceLocation StartLoc,
                                   SourceLocation LParenLoc,
-                                  SourceLocation EndLoc, ArrayRef<Expr *> VL);
+                                  SourceLocation EndLoc, ArrayRef<Expr *> VL,
+                                  ArrayRef<Expr *> PrivateVL);
   /// \brief Creates an empty clause with the place for \a N variables.
   ///
   /// \param C AST context.
   /// \param N The number of variables.
   ///
   static OMPPrivateClause *CreateEmpty(const ASTContext &C, unsigned N);
+
+  typedef MutableArrayRef<Expr *>::iterator private_copies_iterator;
+  typedef ArrayRef<const Expr *>::iterator private_copies_const_iterator;
+  typedef llvm::iterator_range<private_copies_iterator> private_copies_range;
+  typedef llvm::iterator_range<private_copies_const_iterator>
+      private_copies_const_range;
+
+  private_copies_range private_copies() {
+    return private_copies_range(getPrivateCopies().begin(),
+                                getPrivateCopies().end());
+  }
+  private_copies_const_range private_copies() const {
+    return private_copies_const_range(getPrivateCopies().begin(),
+                                      getPrivateCopies().end());
+  }
 
   StmtRange children() {
     return StmtRange(reinterpret_cast<Stmt **>(varlist_begin()),
@@ -839,6 +1018,8 @@ public:
 /// with the variables 'a' and 'b'.
 ///
 class OMPFirstprivateClause : public OMPVarListClause<OMPFirstprivateClause> {
+  friend class OMPClauseReader;
+
   /// \brief Build clause with number of variables \a N.
   ///
   /// \param StartLoc Starting location of the clause.
@@ -859,6 +1040,33 @@ class OMPFirstprivateClause : public OMPVarListClause<OMPFirstprivateClause> {
       : OMPVarListClause<OMPFirstprivateClause>(
             OMPC_firstprivate, SourceLocation(), SourceLocation(),
             SourceLocation(), N) {}
+  /// \brief Sets the list of references to private copies with initializers for
+  /// new private variables.
+  /// \param VL List of references.
+  void setPrivateCopies(ArrayRef<Expr *> VL);
+
+  /// \brief Gets the list of references to private copies with initializers for
+  /// new private variables.
+  MutableArrayRef<Expr *> getPrivateCopies() {
+    return MutableArrayRef<Expr *>(varlist_end(), varlist_size());
+  }
+  ArrayRef<const Expr *> getPrivateCopies() const {
+    return llvm::makeArrayRef(varlist_end(), varlist_size());
+  }
+
+  /// \brief Sets the list of references to initializer variables for new
+  /// private variables.
+  /// \param VL List of references.
+  void setInits(ArrayRef<Expr *> VL);
+
+  /// \brief Gets the list of references to initializer variables for new
+  /// private variables.
+  MutableArrayRef<Expr *> getInits() {
+    return MutableArrayRef<Expr *>(getPrivateCopies().end(), varlist_size());
+  }
+  ArrayRef<const Expr *> getInits() const {
+    return llvm::makeArrayRef(getPrivateCopies().end(), varlist_size());
+  }
 
 public:
   /// \brief Creates clause with a list of variables \a VL.
@@ -867,17 +1075,49 @@ public:
   /// \param StartLoc Starting location of the clause.
   /// \param LParenLoc Location of '('.
   /// \param EndLoc Ending location of the clause.
-  /// \param VL List of references to the variables.
+  /// \param VL List of references to the original variables.
+  /// \param PrivateVL List of references to private copies with initializers.
+  /// \param InitVL List of references to auto generated variables used for
+  /// initialization of a single array element. Used if firstprivate variable is
+  /// of array type.
   ///
   static OMPFirstprivateClause *
   Create(const ASTContext &C, SourceLocation StartLoc, SourceLocation LParenLoc,
-         SourceLocation EndLoc, ArrayRef<Expr *> VL);
+         SourceLocation EndLoc, ArrayRef<Expr *> VL, ArrayRef<Expr *> PrivateVL,
+         ArrayRef<Expr *> InitVL);
   /// \brief Creates an empty clause with the place for \a N variables.
   ///
   /// \param C AST context.
   /// \param N The number of variables.
   ///
   static OMPFirstprivateClause *CreateEmpty(const ASTContext &C, unsigned N);
+
+  typedef MutableArrayRef<Expr *>::iterator private_copies_iterator;
+  typedef ArrayRef<const Expr *>::iterator private_copies_const_iterator;
+  typedef llvm::iterator_range<private_copies_iterator> private_copies_range;
+  typedef llvm::iterator_range<private_copies_const_iterator>
+      private_copies_const_range;
+
+  private_copies_range private_copies() {
+    return private_copies_range(getPrivateCopies().begin(),
+                                getPrivateCopies().end());
+  }
+  private_copies_const_range private_copies() const {
+    return private_copies_const_range(getPrivateCopies().begin(),
+                                      getPrivateCopies().end());
+  }
+
+  typedef MutableArrayRef<Expr *>::iterator inits_iterator;
+  typedef ArrayRef<const Expr *>::iterator inits_const_iterator;
+  typedef llvm::iterator_range<inits_iterator> inits_range;
+  typedef llvm::iterator_range<inits_const_iterator> inits_const_range;
+
+  inits_range inits() {
+    return inits_range(getInits().begin(), getInits().end());
+  }
+  inits_const_range inits() const {
+    return inits_const_range(getInits().begin(), getInits().end());
+  }
 
   StmtRange children() {
     return StmtRange(reinterpret_cast<Stmt **>(varlist_begin()),
@@ -1390,13 +1630,17 @@ public:
   }
 };
 
-/// \brief This represents pseudo clause 'flush' for the '#pragma omp flush'
+/// \brief This represents implicit clause 'flush' for the '#pragma omp flush'
 /// directive.
+/// This clause does not exist by itself, it can be only as a part of 'omp
+/// flush' directive. This clause is introduced to keep the original structure
+/// of \a OMPExecutableDirective class and its derivatives and to use the
+/// existing infrastructure of clauses with the list of variables.
 ///
 /// \code
 /// #pragma omp flush(a,b)
 /// \endcode
-/// In this example directive '#pragma omp flush' has pseudo clause 'flush'
+/// In this example directive '#pragma omp flush' has implicit clause 'flush'
 /// with the variables 'a' and 'b'.
 ///
 class OMPFlushClause : public OMPVarListClause<OMPFlushClause> {
@@ -1453,3 +1697,4 @@ public:
 } // end namespace clang
 
 #endif
+

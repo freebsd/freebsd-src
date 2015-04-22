@@ -133,6 +133,7 @@ SUBDIR=	${_addr2line} \
 	procstat \
 	protect \
 	rctl \
+	${_readelf} \
 	renice \
 	rev \
 	revoke \
@@ -196,12 +197,9 @@ SUBDIR=	${_addr2line} \
 	write \
 	xargs \
 	xinstall \
-	${_xlint} \
 	xo \
-	${_xstr} \
 	xz \
 	xzdec \
-	${_yacc} \
 	yes \
 	${_ypcat} \
 	${_ypmatch} \
@@ -241,6 +239,7 @@ SUBDIR+=	ee
 _addr2line=	addr2line
 _elfcopy=	elfcopy
 _nm=		nm
+_readelf=	readelf
 _size=		size
 _strings=	strings
 .endif
@@ -285,7 +284,9 @@ SUBDIR+=	iscsictl
 
 .if ${MK_KDUMP} != "no"
 SUBDIR+=        kdump
+.if ${MACHINE_ARCH} != "aarch64" # ARM64TODO truss does not build
 SUBDIR+=        truss
+.endif
 .endif
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
@@ -383,13 +384,17 @@ SUBDIR+=	c89
 SUBDIR+=	c99
 SUBDIR+=	ctags
 SUBDIR+=	file2c
+.if ${MACHINE_ARCH} != "aarch64" # ARM64TODO gprof does not build
 SUBDIR+=	gprof
+.endif
 SUBDIR+=	indent
 SUBDIR+=	lex
 SUBDIR+=	mkstr
 SUBDIR+=	rpcgen
 SUBDIR+=	unifdef
+.if ${MACHINE_ARCH} != "aarch64" # ARM64TODO xlint does not build
 SUBDIR+=	xlint
+.endif
 SUBDIR+=	xstr
 SUBDIR+=	yacc
 .endif

@@ -35,6 +35,7 @@ SUBDIR=	adduser \
 	i2c \
 	ifmcstat \
 	iostat \
+	iovctl \
 	kldxref \
 	mailwrapper \
 	makefs \
@@ -86,6 +87,7 @@ SUBDIR=	adduser \
 	traceroute \
 	trpt \
 	tzsetup \
+	uefisign \
 	ugidfw \
 	vigr \
 	vipw \

@@ -659,30 +659,6 @@ taskqueue_start_threads_cpuset(struct taskqueue **tqp, int count, int pri,
 	return (error);
 }
 
-int
-taskqueue_start_threads_pinned(struct taskqueue **tqp, int count, int pri,
-    int cpu_id, const char *name, ...)
-{
-	cpuset_t mask;
-	va_list ap;
-	int error;
-
-	/*
-	 * In case someone passes in NOCPU, just fall back to the
-	 * default behaviour of "don't pin".
-	 */
-	if (cpu_id != NOCPU) {
-		CPU_ZERO(&mask);
-		CPU_SET(cpu_id, &mask);
-	}
-
-	va_start(ap, name);
-	error = _taskqueue_start_threads(tqp, count, pri,
-	    cpu_id == NOCPU ? NULL : &mask, name, ap);
-	va_end(ap);
-	return (error);
-}
-
 static inline void
 taskqueue_run_callback(struct taskqueue *tq,
     enum taskqueue_callback_type cb_type)

@@ -2775,7 +2775,11 @@ zvol_geom_worker(void *arg)
 			break;
 		case BIO_READ:
 		case BIO_WRITE:
+		case BIO_DELETE:
 			zvol_strategy(bp);
+			break;
+		default:
+			g_io_deliver(bp, EOPNOTSUPP);
 			break;
 		}
 	}
@@ -3130,7 +3134,9 @@ zvol_d_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 		struct diocgattr_arg *arg = (struct diocgattr_arg *)data;
 		uint64_t refd, avail, usedobjs, availobjs;
 
-		if (strcmp(arg->name, "blocksavail") == 0) {
+		if (strcmp(arg->name, "GEOM::candelete") == 0)
+			arg->value.i = 1;
+		else if (strcmp(arg->name, "blocksavail") == 0) {
 			dmu_objset_space(zv->zv_objset, &refd, &avail,
 			    &usedobjs, &availobjs);
 			arg->value.off = avail / DEV_BSIZE;

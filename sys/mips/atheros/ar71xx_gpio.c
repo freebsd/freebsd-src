@@ -49,10 +49,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/ar71xx_setup.h>
+#include <mips/atheros/ar71xx_cpudef.h>
 #include <mips/atheros/ar71xx_gpiovar.h>
+#include <dev/gpio/gpiobusvar.h>
 #include <mips/atheros/ar933xreg.h>
 #include <mips/atheros/ar934xreg.h>
-#include <dev/gpio/gpiobusvar.h>
+#include <mips/atheros/qca955xreg.h>
 
 #include "gpio_if.h"
 
@@ -91,12 +93,20 @@ static int ar71xx_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value);
 static int ar71xx_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val);
 static int ar71xx_gpio_pin_toggle(device_t dev, uint32_t pin);
 
+/*
+ * Enable/disable the GPIO function control space.
+ *
+ * This is primarily for the AR71xx, which has SPI CS1/CS2, UART, SLIC, I2S
+ * as GPIO pin options.
+ */
 static void
 ar71xx_gpio_function_enable(struct ar71xx_gpio_softc *sc, uint32_t mask)
 {
 	if (ar71xx_soc == AR71XX_SOC_AR9341 ||
 	    ar71xx_soc == AR71XX_SOC_AR9342 ||
-	    ar71xx_soc == AR71XX_SOC_AR9344)
+	    ar71xx_soc == AR71XX_SOC_AR9344 ||
+	    ar71xx_soc == AR71XX_SOC_QCA9556 ||
+	    ar71xx_soc == AR71XX_SOC_QCA9558)
 		GPIO_SET_BITS(sc, AR934X_GPIO_REG_FUNC, mask);
 	else
 		GPIO_SET_BITS(sc, AR71XX_GPIO_FUNCTION, mask);
@@ -107,7 +117,9 @@ ar71xx_gpio_function_disable(struct ar71xx_gpio_softc *sc, uint32_t mask)
 {
 	if (ar71xx_soc == AR71XX_SOC_AR9341 ||
 	    ar71xx_soc == AR71XX_SOC_AR9342 ||
-	    ar71xx_soc == AR71XX_SOC_AR9344)
+	    ar71xx_soc == AR71XX_SOC_AR9344 ||
+	    ar71xx_soc == AR71XX_SOC_QCA9556 ||
+	    ar71xx_soc == AR71XX_SOC_QCA9558)
 		GPIO_CLEAR_BITS(sc, AR934X_GPIO_REG_FUNC, mask);
 	else
 		GPIO_CLEAR_BITS(sc, AR71XX_GPIO_FUNCTION, mask);
@@ -169,6 +181,10 @@ ar71xx_gpio_pin_max(device_t dev, int *maxpin)
 		case AR71XX_SOC_AR9342:
 		case AR71XX_SOC_AR9344:
 			*maxpin = AR934X_GPIO_COUNT - 1;
+			break;
+		case AR71XX_SOC_QCA9556:
+		case AR71XX_SOC_QCA9558:
+			*maxpin = QCA955X_GPIO_COUNT - 1;
 			break;
 		default:
 			*maxpin = AR71XX_GPIO_PINS - 1;
@@ -437,6 +453,7 @@ ar71xx_gpio_attach(device_t dev)
 			sc->gpio_pins[i].gp_flags = GPIO_PIN_INPUT;
 		i++;
 	}
+
 	/* Turn on the hinted pins. */
 	for (i = 0; i < sc->gpio_npins; i++) {
 		j = sc->gpio_pins[i].gp_pin;
@@ -445,6 +462,56 @@ ar71xx_gpio_attach(device_t dev)
 			ar71xx_gpio_pin_set(dev, j, 1);
 		}
 	}
+
+	/*
+	 * Search through the function hints, in case there's some
+	 * overrides such as LNA control.
+	 *
+	 * hint.gpio.X.func.<pin>.gpiofunc=<func value>
+	 * hint.gpio.X.func.<pin>.gpiomode=1 (for output, default low)
+	 */
+	for (i = 0; i <= maxpin; i++) {
+		char buf[32];
+		int gpiofunc, gpiomode;
+
+		snprintf(buf, 32, "func.%d.gpiofunc", i);
+		if (resource_int_value(device_get_name(dev),
+		    device_get_unit(dev),
+		    buf,
+		    &gpiofunc) != 0)
+			continue;
+		/* Get the mode too */
+		snprintf(buf, 32, "func.%d.gpiomode", i);
+		if (resource_int_value(device_get_name(dev),
+		    device_get_unit(dev),
+		    buf,
+		    &gpiomode) != 0)
+			continue;
+
+		/* We only handle mode=1 for now */
+		if (gpiomode != 1)
+			continue;
+
+		device_printf(dev, "%s: GPIO %d: func=%d, mode=%d\n",
+		    __func__,
+		    i,
+		    gpiofunc,
+		    gpiomode);
+
+		/* Set output (bit == 0) */
+		oe = GPIO_READ(sc, AR71XX_GPIO_OE);
+		oe &= ~ (1 << i);
+		GPIO_WRITE(sc, AR71XX_GPIO_OE, oe);
+
+		/* Set pin value = 0, so it stays low by default */
+		oe = GPIO_READ(sc, AR71XX_GPIO_OUT);
+		oe &= ~ (1 << i);
+		GPIO_WRITE(sc, AR71XX_GPIO_OUT, oe);
+
+		/* Finally: Set the output config */
+		ar71xx_gpio_ouput_configure(i, gpiofunc);
+	}
+
 	sc->busdev = gpiobus_attach_bus(dev);
 	if (sc->busdev == NULL) {
 		ar71xx_gpio_detach(dev);

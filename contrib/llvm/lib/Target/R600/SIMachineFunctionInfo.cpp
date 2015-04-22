@@ -10,8 +10,10 @@
 
 
 #include "SIMachineFunctionInfo.h"
+#include "AMDGPUSubtarget.h"
 #include "SIInstrInfo.h"
-#include "SIRegisterInfo.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/LLVMContext.h"
@@ -26,72 +28,50 @@ void SIMachineFunctionInfo::anchor() {}
 
 SIMachineFunctionInfo::SIMachineFunctionInfo(const MachineFunction &MF)
   : AMDGPUMachineFunction(MF),
+    TIDReg(AMDGPU::NoRegister),
+    HasSpilledVGPRs(false),
     PSInputAddr(0),
-    SpillTracker(),
-    NumUserSGPRs(0) { }
+    NumUserSGPRs(0),
+    LDSWaveSpillSize(0) { }
 
-static unsigned createLaneVGPR(MachineRegisterInfo &MRI, MachineFunction *MF) {
-  unsigned VGPR = MRI.createVirtualRegister(&AMDGPU::VReg_32RegClass);
+SIMachineFunctionInfo::SpilledReg SIMachineFunctionInfo::getSpilledReg(
+                                                       MachineFunction *MF,
+                                                       unsigned FrameIndex,
+                                                       unsigned SubIdx) {
+  const MachineFrameInfo *FrameInfo = MF->getFrameInfo();
+  const SIRegisterInfo *TRI = static_cast<const SIRegisterInfo*>(
+      MF->getTarget().getSubtarget<AMDGPUSubtarget>().getRegisterInfo());
+  MachineRegisterInfo &MRI = MF->getRegInfo();
+  int64_t Offset = FrameInfo->getObjectOffset(FrameIndex);
+  Offset += SubIdx * 4;
 
-  // We need to add this register as live out for the function, in order to
-  // have the live range calculated directly.
-  //
-  // When register spilling begins, we have already calculated the live
-  // live intervals for all the registers.  Since we are spilling SGPRs to
-  // VGPRs, we need to update the Lane VGPR's live interval every time we
-  // spill or restore a register.
-  //
-  // Unfortunately, there is no good way to update the live interval as
-  // the TargetInstrInfo callbacks for spilling and restoring don't give
-  // us access to the live interval information.
-  //
-  // We are lucky, though, because the InlineSpiller calls
-  // LiveRangeEdit::calculateRegClassAndHint() which iterates through
-  // all the new register that have been created when restoring a register
-  // and calls LiveIntervals::getInterval(), which creates and computes
-  // the live interval for the newly created register.  However, once this
-  // live intervals is created, it doesn't change and since we usually reuse
-  // the Lane VGPR multiple times, this means any uses after the first aren't
-  // added to the live interval.
-  //
-  // To work around this, we add Lane VGPRs to the functions live out list,
-  // so that we can guarantee its live range will cover all of its uses.
+  unsigned LaneVGPRIdx = Offset / (64 * 4);
+  unsigned Lane = (Offset / 4) % 64;
 
-  for (MachineBasicBlock &MBB : *MF) {
-    if (MBB.back().getOpcode() == AMDGPU::S_ENDPGM) {
-      MBB.back().addOperand(*MF, MachineOperand::CreateReg(VGPR, false, true));
-      return VGPR;
+  struct SpilledReg Spill;
+
+  if (!LaneVGPRs.count(LaneVGPRIdx)) {
+    unsigned LaneVGPR = TRI->findUnusedRegister(MRI, &AMDGPU::VGPR_32RegClass);
+    LaneVGPRs[LaneVGPRIdx] = LaneVGPR;
+    MRI.setPhysRegUsed(LaneVGPR);
+
+    // Add this register as live-in to all blocks to avoid machine verifer
+    // complaining about use of an undefined physical register.
+    for (MachineFunction::iterator BI = MF->begin(), BE = MF->end();
+         BI != BE; ++BI) {
+      BI->addLiveIn(LaneVGPR);
     }
   }
 
-  LLVMContext &Ctx = MF->getFunction()->getContext();
-  Ctx.emitError("Could not find S_ENDPGM instruction.");
-
-  return VGPR;
+  Spill.VGPR = LaneVGPRs[LaneVGPRIdx];
+  Spill.Lane = Lane;
+  return Spill;
 }
 
-unsigned SIMachineFunctionInfo::RegSpillTracker::reserveLanes(
-    MachineRegisterInfo &MRI, MachineFunction *MF, unsigned NumRegs) {
-  unsigned StartLane = CurrentLane;
-  CurrentLane += NumRegs;
-  if (!LaneVGPR) {
-    LaneVGPR = createLaneVGPR(MRI, MF);
-  } else {
-    if (CurrentLane >= MAX_LANES) {
-      StartLane = CurrentLane = 0;
-      LaneVGPR = createLaneVGPR(MRI, MF);
-    }
-  }
-  return StartLane;
-}
-
-void SIMachineFunctionInfo::RegSpillTracker::addSpilledReg(unsigned FrameIndex,
-                                                           unsigned Reg,
-                                                           int Lane) {
-  SpilledRegisters[FrameIndex] = SpilledReg(Reg, Lane);
-}
-
-const SIMachineFunctionInfo::SpilledReg&
-SIMachineFunctionInfo::RegSpillTracker::getSpilledReg(unsigned FrameIndex) {
-  return SpilledRegisters[FrameIndex];
+unsigned SIMachineFunctionInfo::getMaximumWorkGroupSize(
+                                              const MachineFunction &MF) const {
+  const AMDGPUSubtarget &ST = MF.getTarget().getSubtarget<AMDGPUSubtarget>();
+  // FIXME: We should get this information from kernel attributes if it
+  // is available.
+  return getShaderType() == ShaderType::COMPUTE ? 256 : ST.getWavefrontSize();
 }

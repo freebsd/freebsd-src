@@ -1732,8 +1732,8 @@ extern "C" {
 #define	ESF_DZ_RX_U_QST1_SPARE_WIDTH 12
 #define	ESF_DZ_RX_U_SOFT16_B0R3_0_LBN 48
 #define	ESF_DZ_RX_U_SOFT16_B0R3_0_WIDTH 16
-#define	ESF_DZ_RX_U_PKT_EDIT_LBN 51
-#define	ESF_DZ_RX_U_PKT_EDIT_WIDTH 1
+#define	ESF_DZ_RX_U_TIMESTAMP_LBN 51
+#define	ESF_DZ_RX_U_TIMESTAMP_WIDTH 1
 #define	ESF_DZ_RX_U_DOORBELL_ENABLED_LBN 50
 #define	ESF_DZ_RX_U_DOORBELL_ENABLED_WIDTH 1
 #define	ESF_DZ_RX_U_WORK_PENDING_LBN 49
@@ -2677,6 +2677,138 @@ extern "C" {
 #define	ESF_DZ_B2T_CPL_RSP_CPL_ADRS_WIDTH 7
 
 
+
+/* Enum DPCPU_INSTR_BRTYPE */
+#define	ESE_DZ_BNEZAL 19
+#define	ESE_DZ_BEQZAL 18
+#define	ESE_DZ_BGEZAL 17
+#define	ESE_DZ_BLTZAL 16
+#define	ESE_DZ_BNEZ 3
+#define	ESE_DZ_BEQZ 2
+#define	ESE_DZ_BGEZ 1
+#define	ESE_DZ_BLTZ 0
+
+/* Enum DPCPU_INSTR_FUNCT */
+#define	ESE_DZ_MASKMOD 44
+#define	ESE_DZ_SLTU 43
+#define	ESE_DZ_SLT 42
+#define	ESE_DZ_INCMOD 40
+#define	ESE_DZ_NOR 39
+#define	ESE_DZ_XOR 38
+#define	ESE_DZ_OR 37
+#define	ESE_DZ_AND 36
+#define	ESE_DZ_SUBU 35
+#define	ESE_DZ_SUB 34
+#define	ESE_DZ_ADDU 33
+#define	ESE_DZ_ADD 32
+#define	ESE_DZ_MULT 25
+#define	ESE_DZ_MFLO 18
+#define	ESE_DZ_MFHI 16
+#define	ESE_DZ_JALR 9
+#define	ESE_DZ_JR 8
+#define	ESE_DZ_SRAV 7
+#define	ESE_DZ_SRLV 6
+#define	ESE_DZ_SLLV 4
+#define	ESE_DZ_SRA 3
+#define	ESE_DZ_SRL 2
+#define	ESE_DZ_SLL 0
+
+/* Enum DPCPU_INSTR_OP */
+#define	ESE_DZ_LM_MSG 49
+#define	ESE_DZ_MSG 48
+#define	ESE_DZ_SHA 43
+#define	ESE_DZ_SBA 42
+#define	ESE_DZ_SH 41
+#define	ESE_DZ_SB 40
+#define	ESE_DZ_LHUA 39
+#define	ESE_DZ_LBUA 38
+#define	ESE_DZ_LHU 37
+#define	ESE_DZ_LBU 36
+#define	ESE_DZ_LHA 35
+#define	ESE_DZ_LBA 34
+#define	ESE_DZ_LH 33
+#define	ESE_DZ_LB 32
+#define	ESE_DZ_BGTU 31
+#define	ESE_DZ_BLEU 30
+#define	ESE_DZ_MODI 28
+#define	ESE_DZ_NEGU 27
+#define	ESE_DZ_NEG 26
+#define	ESE_DZ_LI 25
+#define	ESE_DZ_INCMODI 24
+#define	ESE_DZ_BGT 23
+#define	ESE_DZ_BLE 22
+#define	ESE_DZ_BBS 21
+#define	ESE_DZ_BBC 20
+#define	ESE_DZ_JAL_EVT 19
+#define	ESE_DZ_J_EVT 18
+#define	ESE_DZ_HALT 16
+#define	ESE_DZ_NORI 15
+#define	ESE_DZ_XORI 14
+#define	ESE_DZ_ORI 13
+#define	ESE_DZ_ANDI 12
+#define	ESE_DZ_SLTIU 11
+#define	ESE_DZ_SLTI 10
+#define	ESE_DZ_ADDIU 9
+#define	ESE_DZ_ADDI 8
+#define	ESE_DZ_BGTZ 7
+#define	ESE_DZ_BLEZ 6
+#define	ESE_DZ_BNE 5
+#define	ESE_DZ_BEQ 4
+#define	ESE_DZ_JAL 3
+#define	ESE_DZ_J 2
+#define	ESE_DZ_BRANCH 1
+#define	ESE_DZ_REG2REG 0
+
+/* Enum DPCPU_MSG_DIR */
+#define	ESE_DPCPU_MSG_DZ_OUTB 0x1
+#define	ESE_DPCPU_MSG_DZ_INB 0x0
+
+/* Enum DPCPU_PDBUS_OP */
+#define	ESE_DPCPU_PDBUS_DZ_RD 0x1
+#define	ESE_DPCPU_PDBUS_DZ_WR 0x0
+
+/* Enum INI_OP */
+#define	ESE_DZ_RD_COMPL 0x3
+#define	ESE_DZ_NOP 0x2
+#define	ESE_DZ_WR 0x1
+#define	ESE_DZ_RD 0x0
+
+/* Enum INT_OP */
+#define	ESE_DZ_LEGACY 0x2
+#define	ESE_DZ_MSI 0x1
+#define	ESE_DZ_MSIX 0x0
+
+/* Enum PKT_STRM_CTL */
+#define	ESE_DZ_EOP_TRUNC 0x3
+#define	ESE_DZ_EOP_CRC_ERR 0x2
+#define	ESE_DZ_EOP 0x1
+#define	ESE_DZ_NOOP 0x0
+
+/* Enum PM_EPI_PKT_MARKER */
+#define	ESE_DZ_PM_EPI_LST 0x3
+#define	ESE_DZ_PM_EPI_OBL 0x2
+#define	ESE_DZ_PM_EPI_TBL 0x1
+#define	ESE_DZ_PM_EPI_MDL 0x0
+
+/* Enum PM_IPI_TO_PM_MM_COMMAND */
+#define	ESE_DZ_FREE_CHAIN 0x3
+#define	ESE_DZ_FREE_BUFFER 0x2
+#define	ESE_DZ_ADD_BUFFER 0x1
+#define	ESE_DZ_PM_MM_NOOP 0x0
+
+/* Enum PM_MA_TO_PM_EPI_COMMAND */
+#define	ESE_DZ_FROM_PORT_D 0x4
+#define	ESE_DZ_FROM_PORT_C 0x3
+#define	ESE_DZ_FROM_PORT_B 0x2
+#define	ESE_DZ_FROM_PORT_A 0x1
+#define	ESE_DZ_PM_EPI_NOOP 0x0
+
+/* Enum PM_MA_TO_PM_IPI_COMMAND */
+#define	ESE_DZ_TO_PORT_D 0x4
+#define	ESE_DZ_TO_PORT_C 0x3
+#define	ESE_DZ_TO_PORT_B 0x2
+#define	ESE_DZ_TO_PORT_A 0x1
+#define	ESE_DZ_PM_IPI_NOOP 0x0
 #ifdef	__cplusplus
 }
 #endif

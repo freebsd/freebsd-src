@@ -266,20 +266,25 @@ brgphy_attach(device_t dev)
 		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
 	device_printf(dev, " ");
 
-#define	ADD(m, c)	ifmedia_add(&sc->mii_pdata->mii_media, (m), (c), NULL)
-
 	/* Add the supported media types */
 	if ((sc->mii_flags & MIIF_HAVEFIBER) == 0) {
 		mii_phy_add_media(sc);
 		printf("\n");
 	} else {
 		sc->mii_anegticks = MII_ANEGTICKS_GIGE;
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_SX, IFM_FDX, sc->mii_inst),
-			BRGPHY_S1000 | BRGPHY_BMCR_FDX);
+		ifmedia_add(&sc->mii_pdata->mii_media,
+		    IFM_MAKEWORD(IFM_ETHER, IFM_1000_SX, IFM_FDX, sc->mii_inst),
+		    0, NULL);
 		printf("1000baseSX-FDX, ");
-		/* 2.5G support is a software enabled feature on the 5708S and 5709S. */
-		if (bce_sc && (bce_sc->bce_phy_flags & BCE_PHY_2_5G_CAPABLE_FLAG)) {
-			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_2500_SX, IFM_FDX, sc->mii_inst), 0);
+		/*
+		 * 2.5G support is a software enabled feature
+		 * on the 5708S and 5709S.
+		 */
+		if (bce_sc && (bce_sc->bce_phy_flags &
+		    BCE_PHY_2_5G_CAPABLE_FLAG)) {
+			ifmedia_add(&sc->mii_pdata->mii_media,
+			    IFM_MAKEWORD(IFM_ETHER, IFM_2500_SX, IFM_FDX,
+			    sc->mii_inst), 0, NULL);
 			printf("2500baseSX-FDX, ");
 		} else if ((bsc->serdes_flags & BRGPHY_5708S) && bce_sc &&
 		    (detect_hs21(bce_sc) != 0)) {
@@ -295,11 +300,11 @@ brgphy_attach(device_t dev)
 			printf("auto-neg workaround, ");
 			bsc->serdes_flags |= BRGPHY_NOANWAIT;
 		}
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, sc->mii_inst), 0);
+		ifmedia_add(&sc->mii_pdata->mii_media, IFM_MAKEWORD(IFM_ETHER,
+		    IFM_AUTO, 0, sc->mii_inst), 0, NULL);
 		printf("auto\n");
 	}
 
-#undef ADD
 	MIIBUS_MEDIAINIT(sc->mii_dev);
 	return (0);
 }

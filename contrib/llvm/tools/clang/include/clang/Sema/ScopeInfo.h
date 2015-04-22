@@ -12,9 +12,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SEMA_SCOPE_INFO_H
-#define LLVM_CLANG_SEMA_SCOPE_INFO_H
+#ifndef LLVM_CLANG_SEMA_SCOPEINFO_H
+#define LLVM_CLANG_SEMA_SCOPEINFO_H
 
+#include "clang/AST/Expr.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/CapturedStmt.h"
 #include "clang/Basic/PartialDiagnostic.h"
@@ -41,8 +42,6 @@ class SwitchStmt;
 class TemplateTypeParmDecl;
 class TemplateParameterList;
 class VarDecl;
-class DeclRefExpr;
-class MemberExpr;
 class ObjCIvarRefExpr;
 class ObjCPropertyRefExpr;
 class ObjCMessageExpr;
@@ -145,6 +144,10 @@ public:
   /// current function scope.  These diagnostics are vetted for reachability
   /// prior to being emitted.
   SmallVector<PossiblyUnreachableDiag, 4> PossiblyUnreachableDiags;
+  
+  /// \brief A list of parameters which have the nonnull attribute and are
+  /// modified in the function.
+  llvm::SmallPtrSet<const ParmVarDecl*, 8>  ModifiedNonNullParams;
 
 public:
   /// Represents a simple identification of a weak object.
@@ -187,8 +190,6 @@ public:
     /// Used to find the proper base profile for a given base expression.
     static BaseInfoTy getBaseInfo(const Expr *BaseE);
 
-    // For use in DenseMap.
-    friend class DenseMapInfo;
     inline WeakObjectProfileTy();
     static inline WeakObjectProfileTy getSentinel();
 
@@ -381,7 +382,7 @@ public:
     /// capture (if this is a capture and not an init-capture). The expression
     /// is only required if we are capturing ByVal and the variable's type has
     /// a non-trivial copy constructor.
-    llvm::PointerIntPair<Expr*, 2, CaptureKind> InitExprAndCaptureKind;
+    llvm::PointerIntPair<void *, 2, CaptureKind> InitExprAndCaptureKind;
 
     /// \brief The source location at which the first capture occurred.
     SourceLocation Loc;
@@ -413,10 +414,11 @@ public:
       return InitExprAndCaptureKind.getInt() == Cap_This;
     }
     bool isVariableCapture() const {
-      return InitExprAndCaptureKind.getInt() != Cap_This;
+      return InitExprAndCaptureKind.getInt() != Cap_This && !isVLATypeCapture();
     }
     bool isCopyCapture() const {
-      return InitExprAndCaptureKind.getInt() == Cap_ByCopy;
+      return InitExprAndCaptureKind.getInt() == Cap_ByCopy &&
+             !isVLATypeCapture();
     }
     bool isReferenceCapture() const {
       return InitExprAndCaptureKind.getInt() == Cap_ByRef;
@@ -424,7 +426,11 @@ public:
     bool isBlockCapture() const {
       return InitExprAndCaptureKind.getInt() == Cap_Block;
     }
-    bool isNested() { return VarAndNested.getInt(); }
+    bool isVLATypeCapture() const {
+      return InitExprAndCaptureKind.getInt() == Cap_ByCopy &&
+             getVariable() == nullptr;
+    }
+    bool isNested() const { return VarAndNested.getInt(); }
 
     VarDecl *getVariable() const {
       return VarAndNested.getPointer();
@@ -443,7 +449,8 @@ public:
     QualType getCaptureType() const { return CaptureType; }
     
     Expr *getInitExpr() const {
-      return InitExprAndCaptureKind.getPointer();
+      assert(!isVLATypeCapture() && "no init expression for type capture");
+      return static_cast<Expr *>(InitExprAndCaptureKind.getPointer());
     }
   };
 
@@ -478,6 +485,13 @@ public:
     CaptureMap[Var] = Captures.size();
   }
 
+  void addVLATypeCapture(SourceLocation Loc, QualType CaptureType) {
+    Captures.push_back(Capture(/*Var*/ nullptr, /*isBlock*/ false,
+                               /*isByref*/ false, /*isNested*/ false, Loc,
+                               /*EllipsisLoc*/ SourceLocation(), CaptureType,
+                               /*Cpy*/ nullptr));
+  }
+
   void addThisCapture(bool isNested, SourceLocation Loc, QualType CaptureType,
                       Expr *Cpy);
 
@@ -494,7 +508,10 @@ public:
   bool isCaptured(VarDecl *Var) const {
     return CaptureMap.count(Var);
   }
-  
+
+  /// \brief Determine whether the given variable-array type has been captured.
+  bool isVLATypeCaptured(const VariableArrayType *VAT) const;
+
   /// \brief Retrieve the capture of the given variable, if it has been
   /// captured already.
   Capture &getCapture(VarDecl *Var) {

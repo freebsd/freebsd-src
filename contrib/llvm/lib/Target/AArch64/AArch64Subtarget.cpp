@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "AArch64InstrInfo.h"
+#include "AArch64PBQPRegAlloc.h"
 #include "AArch64Subtarget.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/MachineScheduler.h"
@@ -43,8 +44,8 @@ AArch64Subtarget::initializeSubtargetDependencies(StringRef FS) {
 
 AArch64Subtarget::AArch64Subtarget(const std::string &TT,
                                    const std::string &CPU,
-                                   const std::string &FS, TargetMachine &TM,
-                                   bool LittleEndian)
+                                   const std::string &FS,
+                                   const TargetMachine &TM, bool LittleEndian)
     : AArch64GenSubtargetInfo(TT, CPU, FS), ARMProcFamily(Others),
       HasFPARMv8(false), HasNEON(false), HasCrypto(false), HasCRC(false),
       HasZeroCycleRegMove(false), HasZeroCycleZeroing(false), CPUString(CPU),
@@ -64,13 +65,7 @@ AArch64Subtarget::AArch64Subtarget(const std::string &TT,
 unsigned char
 AArch64Subtarget::ClassifyGlobalReference(const GlobalValue *GV,
                                         const TargetMachine &TM) const {
-
-  // Determine whether this is a reference to a definition or a declaration.
-  // Materializable GVs (in JIT lazy compilation mode) do not require an extra
-  // load from stub.
-  bool isDecl = GV->hasAvailableExternallyLinkage();
-  if (GV->isDeclaration() && !GV->isMaterializable())
-    isDecl = true;
+  bool isDecl = GV->isDeclarationForLinker();
 
   // MachO large model always goes via a GOT, simply to get a single 8-byte
   // absolute relocation on all global addresses.
@@ -78,10 +73,15 @@ AArch64Subtarget::ClassifyGlobalReference(const GlobalValue *GV,
     return AArch64II::MO_GOT;
 
   // The small code mode's direct accesses use ADRP, which cannot necessarily
-  // produce the value 0 (if the code is above 4GB). Therefore they must use the
-  // GOT.
-  if (TM.getCodeModel() == CodeModel::Small && GV->isWeakForLinker() && isDecl)
-    return AArch64II::MO_GOT;
+  // produce the value 0 (if the code is above 4GB).
+  if (TM.getCodeModel() == CodeModel::Small &&
+      GV->isWeakForLinker() && isDecl) {
+    // In PIC mode use the GOT, but in absolute mode use a constant pool load.
+    if (TM.getRelocationModel() == Reloc::Static)
+        return AArch64II::MO_CONSTPOOL;
+    else
+        return AArch64II::MO_GOT;
+  }
 
   // If symbol visibility is hidden, the extra load is not needed if
   // the symbol is definitely defined in the current translation unit.
@@ -127,4 +127,12 @@ void AArch64Subtarget::overrideSchedPolicy(MachineSchedPolicy &Policy,
 
 bool AArch64Subtarget::enableEarlyIfConversion() const {
   return EnableEarlyIfConvert;
+}
+
+std::unique_ptr<PBQPRAConstraint>
+AArch64Subtarget::getCustomPBQPConstraints() const {
+  if (!isCortexA57())
+    return nullptr;
+
+  return llvm::make_unique<A57ChainingConstraint>();
 }

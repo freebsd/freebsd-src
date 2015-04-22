@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_acpi.h"
 #include "opt_isa.h"
 
 #include <sys/param.h>
@@ -51,16 +52,12 @@ __FBSDID("$FreeBSD$");
 #include <x86/apicvar.h>
 #include <machine/resource.h>
 #include <machine/segments.h>
+#include <x86/iommu/iommu_intrmap.h>
 
 #define IOAPIC_ISA_INTS		16
 #define	IOAPIC_MEM_REGION	32
 #define	IOAPIC_REDTBL_LO(i)	(IOAPIC_REDTBL + (i) * 2)
 #define	IOAPIC_REDTBL_HI(i)	(IOAPIC_REDTBL_LO(i) + 1)
-
-#define	IRQ_EXTINT		(NUM_IO_INTS + 1)
-#define	IRQ_NMI			(NUM_IO_INTS + 2)
-#define	IRQ_SMI			(NUM_IO_INTS + 3)
-#define	IRQ_DISABLED		(NUM_IO_INTS + 4)
 
 static MALLOC_DEFINE(M_IOAPIC, "io_apic", "I/O APIC structures");
 
@@ -83,12 +80,13 @@ struct ioapic_intsrc {
 	u_int io_irq;
 	u_int io_intpin:8;
 	u_int io_vector:8;
-	u_int io_cpu:8;
+	u_int io_cpu;
 	u_int io_activehi:1;
 	u_int io_edgetrigger:1;
 	u_int io_masked:1;
 	int io_bus:4;
 	uint32_t io_lowreg;
+	u_int io_remap_cookie;
 };
 
 struct ioapic {
@@ -97,6 +95,7 @@ struct ioapic {
 	u_int io_apic_id:4;
 	u_int io_intbase:8;		/* System Interrupt base */
 	u_int io_numintr:8;
+	u_int io_haseoi:1;
 	volatile ioapic_t *io_addr;	/* XXX: should use bus_space */
 	vm_paddr_t io_paddr;
 	STAILQ_ENTRY(ioapic) io_next;
@@ -119,13 +118,23 @@ static int	ioapic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 static void	ioapic_resume(struct pic *pic, bool suspend_cancelled);
 static int	ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id);
 static void	ioapic_program_intpin(struct ioapic_intsrc *intpin);
+static void	ioapic_reprogram_intpin(struct intsrc *isrc);
 
 static STAILQ_HEAD(,ioapic) ioapic_list = STAILQ_HEAD_INITIALIZER(ioapic_list);
-struct pic ioapic_template = { ioapic_enable_source, ioapic_disable_source,
-			       ioapic_eoi_source, ioapic_enable_intr,
-			       ioapic_disable_intr, ioapic_vector,
-			       ioapic_source_pending, NULL, ioapic_resume,
-			       ioapic_config_intr, ioapic_assign_cpu };
+struct pic ioapic_template = {
+	.pic_enable_source = ioapic_enable_source,
+	.pic_disable_source = ioapic_disable_source,
+	.pic_eoi_source = ioapic_eoi_source,
+	.pic_enable_intr = ioapic_enable_intr,
+	.pic_disable_intr = ioapic_disable_intr,
+	.pic_vector = ioapic_vector,
+	.pic_source_pending = ioapic_source_pending,
+	.pic_suspend = NULL,
+	.pic_resume = ioapic_resume,
+	.pic_config_intr = ioapic_config_intr,
+	.pic_assign_cpu = ioapic_assign_cpu,
+	.pic_reprogram_pin = ioapic_reprogram_intpin,
+};
 
 static int next_ioapic_base;
 static u_int next_id;
@@ -134,10 +143,53 @@ static int enable_extint;
 SYSCTL_INT(_hw_apic, OID_AUTO, enable_extint, CTLFLAG_RDTUN, &enable_extint, 0,
     "Enable the ExtINT pin in the first I/O APIC");
 
-static __inline void
-_ioapic_eoi_source(struct intsrc *isrc)
+static void
+_ioapic_eoi_source(struct intsrc *isrc, int locked)
 {
+	struct ioapic_intsrc *src;
+	struct ioapic *io;
+	volatile uint32_t *apic_eoi;
+	uint32_t low1;
+
 	lapic_eoi();
+	if (!lapic_eoi_suppression)
+		return;
+	src = (struct ioapic_intsrc *)isrc;
+	if (src->io_edgetrigger)
+		return;
+	io = (struct ioapic *)isrc->is_pic;
+
+	/*
+	 * Handle targeted EOI for level-triggered pins, if broadcast
+	 * EOI suppression is supported by LAPICs.
+	 */
+	if (io->io_haseoi) {
+		/*
+		 * If IOAPIC has EOI Register, simply write vector
+		 * number into the reg.
+		 */
+		apic_eoi = (volatile uint32_t *)((volatile char *)
+		    io->io_addr + IOAPIC_EOIR);
+		*apic_eoi = src->io_vector;
+	} else {
+		/*
+		 * Otherwise, if IO-APIC is too old to provide EOIR,
+		 * do what Intel did for the Linux kernel. Temporary
+		 * switch the pin to edge-trigger and back, masking
+		 * the pin during the trick.
+		 */
+		if (!locked)
+			mtx_lock_spin(&icu_lock);
+		low1 = src->io_lowreg;
+		low1 &= ~IOART_TRGRLVL;
+		low1 |= IOART_TRGREDG | IOART_INTMSET;
+		ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(src->io_intpin),
+		    low1);
+		ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(src->io_intpin),
+		    src->io_lowreg);
+		if (!locked)
+			mtx_unlock_spin(&icu_lock);
+	}
 }
 
 static u_int
@@ -230,7 +282,7 @@ ioapic_disable_source(struct intsrc *isrc, int eoi)
 	}
 
 	if (eoi == PIC_EOI)
-		_ioapic_eoi_source(isrc);
+		_ioapic_eoi_source(isrc, 1);
 
 	mtx_unlock_spin(&icu_lock);
 }
@@ -239,7 +291,7 @@ static void
 ioapic_eoi_source(struct intsrc *isrc)
 {
 
-	_ioapic_eoi_source(isrc);
+	_ioapic_eoi_source(isrc, 0);
 }
 
 /*
@@ -251,6 +303,9 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 {
 	struct ioapic *io = (struct ioapic *)intpin->io_intsrc.is_pic;
 	uint32_t low, high, value;
+#ifdef ACPI_DMAR
+	int error;
+#endif
 
 	/*
 	 * If a pin is completely invalid or if it is valid but hasn't
@@ -265,8 +320,33 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 			ioapic_write(io->io_addr,
 			    IOAPIC_REDTBL_LO(intpin->io_intpin),
 			    low | IOART_INTMSET);
+#ifdef ACPI_DMAR
+		mtx_unlock_spin(&icu_lock);
+		iommu_unmap_ioapic_intr(io->io_apic_id,
+		    &intpin->io_remap_cookie);
+		mtx_lock_spin(&icu_lock);
+#endif
 		return;
 	}
+
+#ifdef ACPI_DMAR
+	mtx_unlock_spin(&icu_lock);
+	error = iommu_map_ioapic_intr(io->io_apic_id,
+	    intpin->io_cpu, intpin->io_vector, intpin->io_edgetrigger,
+	    intpin->io_activehi, intpin->io_irq, &intpin->io_remap_cookie,
+	    &high, &low);
+	mtx_lock_spin(&icu_lock);
+	if (error == 0) {
+		ioapic_write(io->io_addr, IOAPIC_REDTBL_HI(intpin->io_intpin),
+		    high);
+		intpin->io_lowreg = low;
+		ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(intpin->io_intpin),
+		    low);
+		return;
+	} else if (error != EOPNOTSUPP) {
+		return;
+	}
+#endif
 
 	/* Set the destination. */
 	low = IOART_DESTPHY;
@@ -312,6 +392,15 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 	ioapic_write(io->io_addr, IOAPIC_REDTBL_HI(intpin->io_intpin), value);
 	intpin->io_lowreg = low;
 	ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(intpin->io_intpin), low);
+}
+
+static void
+ioapic_reprogram_intpin(struct intsrc *isrc)
+{
+
+	mtx_lock_spin(&icu_lock);
+	ioapic_program_intpin((struct ioapic_intsrc *)isrc);
+	mtx_unlock_spin(&icu_lock);
 }
 
 static int
@@ -545,6 +634,22 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 	io->io_addr = apic;
 	io->io_paddr = addr;
 
+	if (bootverbose) {
+		printf("ioapic%u: ver 0x%02x maxredir 0x%02x\n", io->io_id,
+		    (value & IOART_VER_VERSION), (value & IOART_VER_MAXREDIR)
+		    >> MAXREDIRSHIFT);
+	}
+	/*
+	 * The  summary information about IO-APIC versions is taken from
+	 * the Linux kernel source:
+	 *     0Xh     82489DX
+	 *     1Xh     I/OAPIC or I/O(x)APIC which are not PCI 2.2 Compliant
+	 *     2Xh     I/O(x)APIC which is PCI 2.2 Compliant
+	 *     30h-FFh Reserved
+	 * IO-APICs with version >= 0x20 have working EOIR register.
+	 */
+	io->io_haseoi = (value & IOART_VER_VERSION) >= 0x20;
+
 	/*
 	 * Initialize pins.  Start off with interrupts disabled.  Default
 	 * to active-hi and edge-triggered for ISA interrupts and active-lo
@@ -583,6 +688,15 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 		intpin->io_cpu = PCPU_GET(apic_id);
 		value = ioapic_read(apic, IOAPIC_REDTBL_LO(i));
 		ioapic_write(apic, IOAPIC_REDTBL_LO(i), value | IOART_INTMSET);
+#ifdef ACPI_DMAR
+		/* dummy, but sets cookie */
+		mtx_unlock_spin(&icu_lock);
+		iommu_map_ioapic_intr(io->io_apic_id,
+		    intpin->io_cpu, intpin->io_vector, intpin->io_edgetrigger,
+		    intpin->io_activehi, intpin->io_irq,
+		    &intpin->io_remap_cookie, NULL, NULL);
+		mtx_lock_spin(&icu_lock);
+#endif
 	}
 	mtx_unlock_spin(&icu_lock);
 

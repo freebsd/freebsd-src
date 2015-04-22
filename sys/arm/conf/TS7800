@@ -8,7 +8,6 @@ ident		TS7800
 include		"../mv/orion/std.ts7800"
 
 options 	SOC_MV_ORION
-makeoptions	MODULES_OVERRIDE=""
 
 #makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	WERROR="-Werror"

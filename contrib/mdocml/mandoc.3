@@ -1,7 +1,7 @@
-.\"	$Id: mandoc.3,v 1.29 2014/11/26 23:42:14 schwarze Exp $
+.\"	$Id: mandoc.3,v 1.31 2015/01/15 04:26:40 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2010 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2010, 2013, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: November 26 2014 $
+.Dd $Mdocdate: January 15 2015 $
 .Dt MANDOC 3
 .Os
 .Sh NAME
@@ -39,11 +39,10 @@
 .Nm mparse_strlevel
 .Nm mparse_wait ,
 .Nd mandoc macro compiler library
-.Sh LIBRARY
-.Lb libmandoc
 .Sh SYNOPSIS
 .In sys/types.h
 .In mandoc.h
+.Pp
 .Fd "#define ASCII_NBRSP"
 .Fd "#define ASCII_HYPH"
 .Fd "#define ASCII_BREAK"
@@ -176,10 +175,15 @@ initiate a parsing sequence with
 and
 .Fn mparse_alloc ;
 .It
-parse files or file descriptors with
+open a file with
+.Xr open 2
+or
+.Fn mparse_open ;
+.It
+parse it with
 .Fn mparse_readfd ;
 .It
-retrieve a parsed syntax tree, if the parse was successful, with
+retrieve the syntax tree with
 .Fn mparse_result ;
 .It
 iterate over parse nodes with
@@ -206,7 +210,7 @@ and
 .Ss Types
 .Bl -ohang
 .It Vt "enum mandocerr"
-A fatal error, error, or warning message during parsing.
+An error or warning message during parsing.
 .It Vt "enum mandoclevel"
 A classification of an
 .Vt "enum mandocerr"
@@ -227,7 +231,7 @@ This may be used across parsed input if
 .Fn mparse_reset
 is called between parses.
 .It Vt "mandocmsg"
-A prototype for a function to handle fatal error, error, and warning
+A prototype for a function to handle error and warning
 messages emitted by the parser.
 .El
 .Ss Functions
@@ -331,7 +335,7 @@ This is for example useful in
 to quickly build minimal databases.
 .It Ar wlevel
 Can be set to
-.Dv MANDOCLEVEL_FATAL ,
+.Dv MANDOCLEVEL_BADARG ,
 .Dv MANDOCLEVEL_ERROR ,
 or
 .Dv MANDOCLEVEL_WARNING .
@@ -413,17 +417,12 @@ Declared in
 implemented in
 .Pa read.c .
 .It Fn mparse_readfd
-Parse a file or file descriptor.
-If
-.Va fd
-is -1, open
-.Va fname
-with
+Parse a file descriptor opened with
+.Xr open 2
+or
 .Fn mparse_open .
-Otherwise,
-.Va fname
-is assumed to be the name associated with
-.Va fd .
+Pass the associated filename in
+.Va fname .
 Calls
 .Fn mparse_wait
 before returning.
@@ -444,14 +443,7 @@ implemented in
 .Pa read.c .
 .It Fn mparse_result
 Obtain the result of a parse.
-Only successful parses
-.Po
-i.e., those where
-.Fn mparse_readfd
-returned less than MANDOCLEVEL_FATAL
-.Pc
-should invoke this function, in which case one of the three pointers will
-be filled in.
+One of the three pointers will be filled in.
 Declared in
 .In mandoc.h ,
 implemented in

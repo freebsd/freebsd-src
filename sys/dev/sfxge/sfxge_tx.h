@@ -36,18 +36,22 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 
+/* Maximum size of TSO packet */
+#define	SFXGE_TSO_MAX_SIZE		(65535)
+
+/*
+ * Maximum number of segments to be created for a TSO packet.
+ * Allow for a reasonable minimum MSS of 512.
+ */
+#define	SFXGE_TSO_MAX_SEGS		howmany(SFXGE_TSO_MAX_SIZE, 512)
+
 /* Maximum number of DMA segments needed to map an mbuf chain.  With
  * TSO, the mbuf length may be just over 64K, divided into 2K mbuf
  * clusters.  (The chain could be longer than this initially, but can
  * be shortened with m_collapse().)
  */
-#define	SFXGE_TX_MAPPING_MAX_SEG (64 / 2 + 1)
-
-/* Maximum number of DMA segments needed to map an output packet.  It
- * could overlap all mbufs in the chain and also require an extra
- * segment for a TSO header.
- */
-#define	SFXGE_TX_PACKET_MAX_SEG (SFXGE_TX_MAPPING_MAX_SEG + 1)
+#define	SFXGE_TX_MAPPING_MAX_SEG					\
+	(1 + howmany(SFXGE_TSO_MAX_SIZE, MCLBYTES))
 
 /*
  * Buffer mapping flags.
@@ -77,7 +81,7 @@ struct sfxge_tx_mapping {
 
 #define	SFXGE_TX_DPL_GET_PKT_LIMIT_DEFAULT		(64 * 1024)
 #define	SFXGE_TX_DPL_GET_NON_TCP_PKT_LIMIT_DEFAULT	1024
-#define	SFXGE_TX_DPL_PUT_PKT_LIMIT_DEFAULT		64
+#define	SFXGE_TX_DPL_PUT_PKT_LIMIT_DEFAULT		1024
 
 /*
  * Deferred packet list.
@@ -97,6 +101,8 @@ struct sfxge_tx_dpl {
 	unsigned int	std_get_non_tcp_count;	/* Non-TCP packets
 						 * in get list */
 	unsigned int	std_get_hiwat;		/* Packets in get list
+						 * high watermark */
+	unsigned int	std_put_hiwat;		/* Packets in put list
 						 * high watermark */
 };
 
@@ -122,12 +128,6 @@ enum sfxge_txq_type {
 
 #define	SFXGE_TX_BATCH	64
 
-#ifdef SFXGE_HAVE_MQ
-#define	SFXGE_TX_LOCK(txq)		(&(txq)->lock)
-#else
-#define	SFXGE_TX_LOCK(txq)		(&(txq)->sc->tx_lock)
-#endif
-
 #define	SFXGE_TXQ_LOCK_INIT(_txq, _ifname, _txq_index)			\
 	do {								\
 		struct sfxge_txq  *__txq = (_txq);			\
@@ -141,13 +141,13 @@ enum sfxge_txq_type {
 #define	SFXGE_TXQ_LOCK_DESTROY(_txq)					\
 	mtx_destroy(&(_txq)->lock)
 #define	SFXGE_TXQ_LOCK(_txq)						\
-	mtx_lock(SFXGE_TX_LOCK(_txq))
+	mtx_lock(&(_txq)->lock)
 #define	SFXGE_TXQ_TRYLOCK(_txq)						\
-	mtx_trylock(SFXGE_TX_LOCK(_txq))
+	mtx_trylock(&(_txq)->lock)
 #define	SFXGE_TXQ_UNLOCK(_txq)						\
-	mtx_unlock(SFXGE_TX_LOCK(_txq))
+	mtx_unlock(&(_txq)->lock)
 #define	SFXGE_TXQ_LOCK_ASSERT_OWNED(_txq)				\
-	mtx_assert(SFXGE_TX_LOCK(_txq), MA_OWNED)
+	mtx_assert(&(_txq)->lock, MA_OWNED)
 
 
 struct sfxge_txq {
@@ -180,13 +180,9 @@ struct sfxge_txq {
 	/* The following fields change more often, and are used mostly
 	 * on the initiation path
 	 */
-#ifdef SFXGE_HAVE_MQ
 	struct mtx			lock __aligned(CACHE_LINE_SIZE);
 	struct sfxge_tx_dpl		dpl;	/* Deferred packet list. */
 	unsigned int			n_pend_desc;
-#else
-	unsigned int			n_pend_desc __aligned(CACHE_LINE_SIZE);
-#endif
 	unsigned int			added;
 	unsigned int			reaped;
 	/* Statistics */
@@ -213,6 +209,7 @@ struct sfxge_txq {
 struct sfxge_evq;
 
 extern int sfxge_tx_packet_add(struct sfxge_txq *, struct mbuf *);
+extern uint64_t sfxge_tx_get_drops(struct sfxge_softc *sc);
 
 extern int sfxge_tx_init(struct sfxge_softc *sc);
 extern void sfxge_tx_fini(struct sfxge_softc *sc);
@@ -220,11 +217,7 @@ extern int sfxge_tx_start(struct sfxge_softc *sc);
 extern void sfxge_tx_stop(struct sfxge_softc *sc);
 extern void sfxge_tx_qcomplete(struct sfxge_txq *txq, struct sfxge_evq *evq);
 extern void sfxge_tx_qflush_done(struct sfxge_txq *txq);
-#ifdef SFXGE_HAVE_MQ
 extern void sfxge_if_qflush(struct ifnet *ifp);
 extern int sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m);
-#else
-extern void sfxge_if_start(struct ifnet *ifp);
-#endif
 
 #endif

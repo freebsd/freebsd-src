@@ -337,7 +337,7 @@ struct pthread_key {
 
 /*
  * lwpid_t is 32bit but kernel thr API exports tid as long type
- * in very earily date.
+ * to preserve the ABI for M:N model in very early date (r131431).
  */
 #define TID(thread)	((uint32_t) ((thread)->tid))
 

@@ -2322,18 +2322,33 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 			    ic->ic_curchan);
 			frm = ieee80211_add_supportedchannels(frm, ic);
 		}
+
+		/*
+		 * Check the channel - we may be using an 11n NIC with an
+		 * 11n capable station, but we're configured to be an 11b
+		 * channel.
+		 */
 		if ((vap->iv_flags_ht & IEEE80211_FHT_HT) &&
+		    IEEE80211_IS_CHAN_HT(ni->ni_chan) &&
 		    ni->ni_ies.htcap_ie != NULL &&
-		    ni->ni_ies.htcap_ie[0] == IEEE80211_ELEMID_HTCAP)
+		    ni->ni_ies.htcap_ie[0] == IEEE80211_ELEMID_HTCAP) {
 			frm = ieee80211_add_htcap(frm, ni);
+		}
 		frm = ieee80211_add_wpa(frm, vap);
 		if ((ic->ic_flags & IEEE80211_F_WME) &&
 		    ni->ni_ies.wme_ie != NULL)
 			frm = ieee80211_add_wme_info(frm, &ic->ic_wme);
+
+		/*
+		 * Same deal - only send HT info if we're on an 11n
+		 * capable channel.
+		 */
 		if ((vap->iv_flags_ht & IEEE80211_FHT_HT) &&
+		    IEEE80211_IS_CHAN_HT(ni->ni_chan) &&
 		    ni->ni_ies.htcap_ie != NULL &&
-		    ni->ni_ies.htcap_ie[0] == IEEE80211_ELEMID_VENDOR)
+		    ni->ni_ies.htcap_ie[0] == IEEE80211_ELEMID_VENDOR) {
 			frm = ieee80211_add_htcap_vendor(frm, ni);
+		}
 #ifdef IEEE80211_SUPPORT_SUPERG
 		if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_F_ATHEROS)) {
 			frm = ieee80211_add_ath(frm, 

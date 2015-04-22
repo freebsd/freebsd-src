@@ -725,7 +725,7 @@ interpret:
 		 */
 		change_svuid(newcred, newcred->cr_uid);
 		change_svgid(newcred, newcred->cr_gid);
-		p->p_ucred = newcred;
+		proc_set_cred(p, newcred);
 	} else {
 		if (oldcred->cr_uid == oldcred->cr_ruid &&
 		    oldcred->cr_gid == oldcred->cr_rgid)
@@ -751,7 +751,7 @@ interpret:
 			PROC_LOCK(p);
 			change_svuid(newcred, newcred->cr_uid);
 			change_svgid(newcred, newcred->cr_gid);
-			p->p_ucred = newcred;
+			proc_set_cred(p, newcred);
 		}
 	}
 
@@ -933,10 +933,7 @@ exec_map_first_page(imgp)
 		return (EACCES);
 	VM_OBJECT_WLOCK(object);
 #if VM_NRESERVLEVEL > 0
-	if ((object->flags & OBJ_COLORED) == 0) {
-		object->flags |= OBJ_COLORED;
-		object->pg_color = 0;
-	}
+	vm_object_color(object, 0);
 #endif
 	ma[0] = vm_page_grab(object, 0, VM_ALLOC_NORMAL);
 	if (ma[0]->valid != VM_PAGE_BITS_ALL) {
@@ -1012,6 +1009,7 @@ exec_new_vmspace(imgp, sv)
 	struct proc *p = imgp->proc;
 	struct vmspace *vmspace = p->p_vmspace;
 	vm_object_t obj;
+	struct rlimit rlim_stack;
 	vm_offset_t sv_minuser, stack_addr;
 	vm_map_t map;
 	u_long ssiz;
@@ -1061,10 +1059,22 @@ exec_new_vmspace(imgp, sv)
 	}
 
 	/* Allocate a new stack */
-	if (sv->sv_maxssiz != NULL)
+	if (imgp->stack_sz != 0) {
+		ssiz = imgp->stack_sz;
+		PROC_LOCK(p);
+		lim_rlimit(p, RLIMIT_STACK, &rlim_stack);
+		PROC_UNLOCK(p);
+		if (ssiz > rlim_stack.rlim_max)
+			ssiz = rlim_stack.rlim_max;
+		if (ssiz > rlim_stack.rlim_cur) {
+			rlim_stack.rlim_cur = ssiz;
+			kern_setrlimit(curthread, RLIMIT_STACK, &rlim_stack);
+		}
+	} else if (sv->sv_maxssiz != NULL) {
 		ssiz = *sv->sv_maxssiz;
-	else
+	} else {
 		ssiz = maxssiz;
+	}
 	stack_addr = sv->sv_usrstack - ssiz;
 	error = vm_map_stack(map, stack_addr, (vm_size_t)ssiz,
 	    obj != NULL && imgp->stack_prot != 0 ? imgp->stack_prot :

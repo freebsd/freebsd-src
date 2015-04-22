@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_GR_VALUESTATE_H
-#define LLVM_CLANG_GR_VALUESTATE_H
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_PROGRAMSTATE_H
+#define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_PROGRAMSTATE_H
 
 #include "clang/Basic/LLVM.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ConstraintManager.h"
@@ -39,9 +39,10 @@ namespace ento {
 class CallEvent;
 class CallEventManager;
 
-typedef ConstraintManager* (*ConstraintManagerCreator)(ProgramStateManager&,
-                                                       SubEngine*);
-typedef StoreManager* (*StoreManagerCreator)(ProgramStateManager&);
+typedef std::unique_ptr<ConstraintManager>(*ConstraintManagerCreator)(
+    ProgramStateManager &, SubEngine *);
+typedef std::unique_ptr<StoreManager>(*StoreManagerCreator)(
+    ProgramStateManager &);
 
 //===----------------------------------------------------------------------===//
 // ProgramStateTrait - Traits used by the Generic Data Map of a ProgramState.

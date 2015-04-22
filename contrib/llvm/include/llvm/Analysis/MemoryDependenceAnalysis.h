@@ -28,6 +28,7 @@ namespace llvm {
   class Instruction;
   class CallSite;
   class AliasAnalysis;
+  class AssumptionCache;
   class DataLayout;
   class MemoryDependenceAnalysis;
   class PredIteratorCache;
@@ -281,12 +282,12 @@ namespace llvm {
       /// Size - The maximum size of the dereferences of the
       /// pointer. May be UnknownSize if the sizes are unknown.
       uint64_t Size;
-      /// TBAATag - The TBAA tag associated with dereferences of the
-      /// pointer. May be null if there are no tags or conflicting tags.
-      const MDNode *TBAATag;
+      /// AATags - The AA tags associated with dereferences of the
+      /// pointer. The members may be null if there are no tags or
+      /// conflicting tags.
+      AAMDNodes AATags;
 
-      NonLocalPointerInfo()
-        : Size(AliasAnalysis::UnknownSize), TBAATag(nullptr) {}
+      NonLocalPointerInfo() : Size(AliasAnalysis::UnknownSize) {}
     };
 
     /// CachedNonLocalPointerInfo - This map stores the cached results of doing
@@ -325,6 +326,7 @@ namespace llvm {
     AliasAnalysis *AA;
     const DataLayout *DL;
     DominatorTree *DT;
+    AssumptionCache *AC;
     std::unique_ptr<PredIteratorCache> PredCache;
 
   public:
@@ -364,12 +366,16 @@ namespace llvm {
 
 
     /// getNonLocalPointerDependency - Perform a full dependency query for an
-    /// access to the specified (non-volatile) memory location, returning the
-    /// set of instructions that either define or clobber the value.
+    /// access to the QueryInst's specified memory location, returning the set
+    /// of instructions that either define or clobber the value.
     ///
-    /// This method assumes the pointer has a "NonLocal" dependency within BB.
-    void getNonLocalPointerDependency(const AliasAnalysis::Location &Loc,
-                                      bool isLoad, BasicBlock *BB,
+    /// Warning: For a volatile query instruction, the dependencies will be
+    /// accurate, and thus usable for reordering, but it is never legal to
+    /// remove the query instruction.  
+    ///
+    /// This method assumes the pointer has a "NonLocal" dependency within
+    /// QueryInst's parent basic block.
+    void getNonLocalPointerDependency(Instruction *QueryInst,
                                     SmallVectorImpl<NonLocalDepResult> &Result);
 
     /// removeInstruction - Remove an instruction from the dependence analysis,

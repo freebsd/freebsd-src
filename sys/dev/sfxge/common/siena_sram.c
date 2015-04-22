@@ -44,20 +44,21 @@ siena_sram_init(
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_SIENA);
 
 	rx_base = encp->enc_buftbl_limit;
-	tx_base = rx_base + (encp->enc_rxq_limit * 64);
+	tx_base = rx_base + (encp->enc_rxq_limit *
+	    EFX_RXQ_DC_NDESCS(EFX_RXQ_DC_SIZE));
 
 	/* Initialize the transmit descriptor cache */
 	EFX_POPULATE_OWORD_1(oword, FRF_AZ_SRM_TX_DC_BASE_ADR, tx_base);
 	EFX_BAR_WRITEO(enp, FR_AZ_SRM_TX_DC_CFG_REG, &oword);
 
-	EFX_POPULATE_OWORD_1(oword, FRF_AZ_TX_DC_SIZE, 1); /* 16 descriptors */
+	EFX_POPULATE_OWORD_1(oword, FRF_AZ_TX_DC_SIZE, EFX_TXQ_DC_SIZE);
 	EFX_BAR_WRITEO(enp, FR_AZ_TX_DC_CFG_REG, &oword);
 
 	/* Initialize the receive descriptor cache */
 	EFX_POPULATE_OWORD_1(oword, FRF_AZ_SRM_RX_DC_BASE_ADR, rx_base);
 	EFX_BAR_WRITEO(enp, FR_AZ_SRM_RX_DC_CFG_REG, &oword);
 
-	EFX_POPULATE_OWORD_1(oword, FRF_AZ_RX_DC_SIZE, 3); /* 64 descriptors */
+	EFX_POPULATE_OWORD_1(oword, FRF_AZ_RX_DC_SIZE, EFX_RXQ_DC_SIZE);
 	EFX_BAR_WRITEO(enp, FR_AZ_RX_DC_CFG_REG, &oword);
 
 	/* Set receive descriptor pre-fetch low water mark */

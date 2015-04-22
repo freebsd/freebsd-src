@@ -12,25 +12,22 @@
 //===----------------------------------------------------------------------===//
 
 #include "RuntimeDyldELF.h"
-#include "JITRegistrar.h"
-#include "ObjectImageCommon.h"
 #include "llvm/ADT/IntervalMap.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
-#include "llvm/ExecutionEngine/ObjectBuffer.h"
-#include "llvm/ExecutionEngine/ObjectImage.h"
+#include "llvm/MC/MCStreamer.h"
 #include "llvm/Object/ELFObjectFile.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/ELF.h"
+#include "llvm/Support/Endian.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/TargetRegistry.h"
 
 using namespace llvm;
 using namespace llvm::object;
 
 #define DEBUG_TYPE "dyld"
-
-namespace {
 
 static inline std::error_code check(std::error_code Err) {
   if (Err) {
@@ -38,6 +35,8 @@ static inline std::error_code check(std::error_code Err) {
   }
   return Err;
 }
+
+namespace {
 
 template <class ELFT> class DyldELFObject : public ELFObjectFile<ELFT> {
   LLVM_ELF_IMPORT_TYPES_ELFT(ELFT)
@@ -51,16 +50,12 @@ template <class ELFT> class DyldELFObject : public ELFObjectFile<ELFT> {
 
   typedef typename ELFDataTypeTypedefHelper<ELFT>::value_type addr_type;
 
-  std::unique_ptr<ObjectFile> UnderlyingFile;
-
 public:
-  DyldELFObject(std::unique_ptr<ObjectFile> UnderlyingFile,
-                std::unique_ptr<MemoryBuffer> Wrapper, std::error_code &ec);
-
-  DyldELFObject(std::unique_ptr<MemoryBuffer> Wrapper, std::error_code &ec);
+  DyldELFObject(MemoryBufferRef Wrapper, std::error_code &ec);
 
   void updateSectionAddress(const SectionRef &Sec, uint64_t Addr);
-  void updateSymbolAddress(const SymbolRef &Sym, uint64_t Addr);
+
+  void updateSymbolAddress(const SymbolRef &SymRef, uint64_t Addr);
 
   // Methods for type inquiry through isa, cast and dyn_cast
   static inline bool classof(const Binary *v) {
@@ -70,57 +65,17 @@ public:
   static inline bool classof(const ELFObjectFile<ELFT> *v) {
     return v->isDyldType();
   }
+
 };
 
-template <class ELFT> class ELFObjectImage : public ObjectImageCommon {
-  bool Registered;
 
-public:
-  ELFObjectImage(ObjectBuffer *Input, std::unique_ptr<DyldELFObject<ELFT>> Obj)
-      : ObjectImageCommon(Input, std::move(Obj)), Registered(false) {}
-
-  virtual ~ELFObjectImage() {
-    if (Registered)
-      deregisterWithDebugger();
-  }
-
-  // Subclasses can override these methods to update the image with loaded
-  // addresses for sections and common symbols
-  void updateSectionAddress(const SectionRef &Sec, uint64_t Addr) override {
-    static_cast<DyldELFObject<ELFT>*>(getObjectFile())
-        ->updateSectionAddress(Sec, Addr);
-  }
-
-  void updateSymbolAddress(const SymbolRef &Sym, uint64_t Addr) override {
-    static_cast<DyldELFObject<ELFT>*>(getObjectFile())
-        ->updateSymbolAddress(Sym, Addr);
-  }
-
-  void registerWithDebugger() override {
-    JITRegistrar::getGDBRegistrar().registerObject(*Buffer);
-    Registered = true;
-  }
-  void deregisterWithDebugger() override {
-    JITRegistrar::getGDBRegistrar().deregisterObject(*Buffer);
-  }
-};
 
 // The MemoryBuffer passed into this constructor is just a wrapper around the
 // actual memory.  Ultimately, the Binary parent class will take ownership of
 // this MemoryBuffer object but not the underlying memory.
 template <class ELFT>
-DyldELFObject<ELFT>::DyldELFObject(std::unique_ptr<MemoryBuffer> Wrapper,
-                                   std::error_code &EC)
-    : ELFObjectFile<ELFT>(std::move(Wrapper), EC) {
-  this->isDyldELFObject = true;
-}
-
-template <class ELFT>
-DyldELFObject<ELFT>::DyldELFObject(std::unique_ptr<ObjectFile> UnderlyingFile,
-                                   std::unique_ptr<MemoryBuffer> Wrapper,
-                                   std::error_code &EC)
-    : ELFObjectFile<ELFT>(std::move(Wrapper), EC),
-      UnderlyingFile(std::move(UnderlyingFile)) {
+DyldELFObject<ELFT>::DyldELFObject(MemoryBufferRef Wrapper, std::error_code &EC)
+    : ELFObjectFile<ELFT>(Wrapper, EC) {
   this->isDyldELFObject = true;
 }
 
@@ -148,9 +103,88 @@ void DyldELFObject<ELFT>::updateSymbolAddress(const SymbolRef &SymRef,
   sym->st_value = static_cast<addr_type>(Addr);
 }
 
+class LoadedELFObjectInfo : public RuntimeDyld::LoadedObjectInfo {
+public:
+  LoadedELFObjectInfo(RuntimeDyldImpl &RTDyld, unsigned BeginIdx,
+                      unsigned EndIdx)
+    : RuntimeDyld::LoadedObjectInfo(RTDyld, BeginIdx, EndIdx) {}
+
+  OwningBinary<ObjectFile>
+  getObjectForDebug(const ObjectFile &Obj) const override;
+};
+
+template <typename ELFT>
+std::unique_ptr<DyldELFObject<ELFT>>
+createRTDyldELFObject(MemoryBufferRef Buffer,
+                      const LoadedELFObjectInfo &L,
+                      std::error_code &ec) {
+  typedef typename ELFFile<ELFT>::Elf_Shdr Elf_Shdr;
+  typedef typename ELFDataTypeTypedefHelper<ELFT>::value_type addr_type;
+
+  std::unique_ptr<DyldELFObject<ELFT>> Obj =
+    llvm::make_unique<DyldELFObject<ELFT>>(Buffer, ec);
+
+  // Iterate over all sections in the object.
+  for (const auto &Sec : Obj->sections()) {
+    StringRef SectionName;
+    Sec.getName(SectionName);
+    if (SectionName != "") {
+      DataRefImpl ShdrRef = Sec.getRawDataRefImpl();
+      Elf_Shdr *shdr = const_cast<Elf_Shdr *>(
+          reinterpret_cast<const Elf_Shdr *>(ShdrRef.p));
+
+      if (uint64_t SecLoadAddr = L.getSectionLoadAddress(SectionName)) {
+        // This assumes that the address passed in matches the target address
+        // bitness. The template-based type cast handles everything else.
+        shdr->sh_addr = static_cast<addr_type>(SecLoadAddr);
+      }
+    }
+  }
+
+  return Obj;
+}
+
+OwningBinary<ObjectFile> createELFDebugObject(const ObjectFile &Obj,
+                                              const LoadedELFObjectInfo &L) {
+  assert(Obj.isELF() && "Not an ELF object file.");
+
+  std::unique_ptr<MemoryBuffer> Buffer =
+    MemoryBuffer::getMemBufferCopy(Obj.getData(), Obj.getFileName());
+
+  std::error_code ec;
+
+  std::unique_ptr<ObjectFile> DebugObj;
+  if (Obj.getBytesInAddress() == 4 && Obj.isLittleEndian()) {
+    typedef ELFType<support::little, 2, false> ELF32LE;
+    DebugObj = createRTDyldELFObject<ELF32LE>(Buffer->getMemBufferRef(), L, ec);
+  } else if (Obj.getBytesInAddress() == 4 && !Obj.isLittleEndian()) {
+    typedef ELFType<support::big, 2, false> ELF32BE;
+    DebugObj = createRTDyldELFObject<ELF32BE>(Buffer->getMemBufferRef(), L, ec);
+  } else if (Obj.getBytesInAddress() == 8 && !Obj.isLittleEndian()) {
+    typedef ELFType<support::big, 2, true> ELF64BE;
+    DebugObj = createRTDyldELFObject<ELF64BE>(Buffer->getMemBufferRef(), L, ec);
+  } else if (Obj.getBytesInAddress() == 8 && Obj.isLittleEndian()) {
+    typedef ELFType<support::little, 2, true> ELF64LE;
+    DebugObj = createRTDyldELFObject<ELF64LE>(Buffer->getMemBufferRef(), L, ec);
+  } else
+    llvm_unreachable("Unexpected ELF format");
+
+  assert(!ec && "Could not construct copy ELF object file");
+
+  return OwningBinary<ObjectFile>(std::move(DebugObj), std::move(Buffer));
+}
+
+OwningBinary<ObjectFile>
+LoadedELFObjectInfo::getObjectForDebug(const ObjectFile &Obj) const {
+  return createELFDebugObject(Obj, *this);
+}
+
 } // namespace
 
 namespace llvm {
+
+RuntimeDyldELF::RuntimeDyldELF(RTDyldMemoryManager *mm) : RuntimeDyldImpl(mm) {}
+RuntimeDyldELF::~RuntimeDyldELF() {}
 
 void RuntimeDyldELF::registerEHFrames() {
   if (!MemMgr)
@@ -179,80 +213,13 @@ void RuntimeDyldELF::deregisterEHFrames() {
   RegisteredEHFrameSections.clear();
 }
 
-ObjectImage *
-RuntimeDyldELF::createObjectImageFromFile(std::unique_ptr<object::ObjectFile> ObjFile) {
-  if (!ObjFile)
-    return nullptr;
-
-  std::error_code ec;
-  std::unique_ptr<MemoryBuffer> Buffer(
-      MemoryBuffer::getMemBuffer(ObjFile->getData(), "", false));
-
-  if (ObjFile->getBytesInAddress() == 4 && ObjFile->isLittleEndian()) {
-    auto Obj =
-        llvm::make_unique<DyldELFObject<ELFType<support::little, 2, false>>>(
-            std::move(ObjFile), std::move(Buffer), ec);
-    return new ELFObjectImage<ELFType<support::little, 2, false>>(
-        nullptr, std::move(Obj));
-  } else if (ObjFile->getBytesInAddress() == 4 && !ObjFile->isLittleEndian()) {
-    auto Obj =
-        llvm::make_unique<DyldELFObject<ELFType<support::big, 2, false>>>(
-            std::move(ObjFile), std::move(Buffer), ec);
-    return new ELFObjectImage<ELFType<support::big, 2, false>>(nullptr, std::move(Obj));
-  } else if (ObjFile->getBytesInAddress() == 8 && !ObjFile->isLittleEndian()) {
-    auto Obj = llvm::make_unique<DyldELFObject<ELFType<support::big, 2, true>>>(
-        std::move(ObjFile), std::move(Buffer), ec);
-    return new ELFObjectImage<ELFType<support::big, 2, true>>(nullptr,
-                                                              std::move(Obj));
-  } else if (ObjFile->getBytesInAddress() == 8 && ObjFile->isLittleEndian()) {
-    auto Obj =
-        llvm::make_unique<DyldELFObject<ELFType<support::little, 2, true>>>(
-            std::move(ObjFile), std::move(Buffer), ec);
-    return new ELFObjectImage<ELFType<support::little, 2, true>>(
-        nullptr, std::move(Obj));
-  } else
-    llvm_unreachable("Unexpected ELF format");
+std::unique_ptr<RuntimeDyld::LoadedObjectInfo>
+RuntimeDyldELF::loadObject(const object::ObjectFile &O) {
+  unsigned SectionStartIdx, SectionEndIdx;
+  std::tie(SectionStartIdx, SectionEndIdx) = loadObjectImpl(O);
+  return llvm::make_unique<LoadedELFObjectInfo>(*this, SectionStartIdx,
+                                                SectionEndIdx);
 }
-
-ObjectImage *RuntimeDyldELF::createObjectImage(ObjectBuffer *Buffer) {
-  if (Buffer->getBufferSize() < ELF::EI_NIDENT)
-    llvm_unreachable("Unexpected ELF object size");
-  std::pair<unsigned char, unsigned char> Ident =
-      std::make_pair((uint8_t)Buffer->getBufferStart()[ELF::EI_CLASS],
-                     (uint8_t)Buffer->getBufferStart()[ELF::EI_DATA]);
-  std::error_code ec;
-
-  std::unique_ptr<MemoryBuffer> Buf(Buffer->getMemBuffer());
-
-  if (Ident.first == ELF::ELFCLASS32 && Ident.second == ELF::ELFDATA2LSB) {
-    auto Obj =
-        llvm::make_unique<DyldELFObject<ELFType<support::little, 4, false>>>(
-            std::move(Buf), ec);
-    return new ELFObjectImage<ELFType<support::little, 4, false>>(
-        Buffer, std::move(Obj));
-  } else if (Ident.first == ELF::ELFCLASS32 &&
-             Ident.second == ELF::ELFDATA2MSB) {
-    auto Obj =
-        llvm::make_unique<DyldELFObject<ELFType<support::big, 4, false>>>(
-            std::move(Buf), ec);
-    return new ELFObjectImage<ELFType<support::big, 4, false>>(Buffer,
-                                                               std::move(Obj));
-  } else if (Ident.first == ELF::ELFCLASS64 &&
-             Ident.second == ELF::ELFDATA2MSB) {
-    auto Obj = llvm::make_unique<DyldELFObject<ELFType<support::big, 8, true>>>(
-        std::move(Buf), ec);
-    return new ELFObjectImage<ELFType<support::big, 8, true>>(Buffer, std::move(Obj));
-  } else if (Ident.first == ELF::ELFCLASS64 &&
-             Ident.second == ELF::ELFDATA2LSB) {
-    auto Obj =
-        llvm::make_unique<DyldELFObject<ELFType<support::little, 8, true>>>(
-            std::move(Buf), ec);
-    return new ELFObjectImage<ELFType<support::little, 8, true>>(Buffer, std::move(Obj));
-  } else
-    llvm_unreachable("Unexpected ELF format");
-}
-
-RuntimeDyldELF::~RuntimeDyldELF() {}
 
 void RuntimeDyldELF::resolveX86_64Relocation(const SectionEntry &Section,
                                              uint64_t Offset, uint64_t Value,
@@ -263,10 +230,9 @@ void RuntimeDyldELF::resolveX86_64Relocation(const SectionEntry &Section,
     llvm_unreachable("Relocation type not implemented yet!");
     break;
   case ELF::R_X86_64_64: {
-    uint64_t *Target = reinterpret_cast<uint64_t *>(Section.Address + Offset);
-    *Target = Value + Addend;
+    support::ulittle64_t::ref(Section.Address + Offset) = Value + Addend;
     DEBUG(dbgs() << "Writing " << format("%p", (Value + Addend)) << " at "
-                 << format("%p\n", Target));
+                 << format("%p\n", Section.Address + Offset));
     break;
   }
   case ELF::R_X86_64_32:
@@ -276,17 +242,15 @@ void RuntimeDyldELF::resolveX86_64Relocation(const SectionEntry &Section,
            (Type == ELF::R_X86_64_32S &&
             ((int64_t)Value <= INT32_MAX && (int64_t)Value >= INT32_MIN)));
     uint32_t TruncatedAddr = (Value & 0xFFFFFFFF);
-    uint32_t *Target = reinterpret_cast<uint32_t *>(Section.Address + Offset);
-    *Target = TruncatedAddr;
+    support::ulittle32_t::ref(Section.Address + Offset) = TruncatedAddr;
     DEBUG(dbgs() << "Writing " << format("%p", TruncatedAddr) << " at "
-                 << format("%p\n", Target));
+                 << format("%p\n", Section.Address + Offset));
     break;
   }
   case ELF::R_X86_64_GOTPCREL: {
     // findGOTEntry returns the 'G + GOT' part of the relocation calculation
     // based on the load/target address of the GOT (not the current/local addr).
     uint64_t GOTAddr = findGOTEntry(Value, SymOffset);
-    uint32_t *Target = reinterpret_cast<uint32_t *>(Section.Address + Offset);
     uint64_t FinalAddress = Section.LoadAddress + Offset;
     // The processRelocationRef method combines the symbol offset and the addend
     // and in most cases that's what we want.  For this relocation type, we need
@@ -294,30 +258,29 @@ void RuntimeDyldELF::resolveX86_64Relocation(const SectionEntry &Section,
     int64_t RealOffset = GOTAddr + Addend - SymOffset - FinalAddress;
     assert(RealOffset <= INT32_MAX && RealOffset >= INT32_MIN);
     int32_t TruncOffset = (RealOffset & 0xFFFFFFFF);
-    *Target = TruncOffset;
+    support::ulittle32_t::ref(Section.Address + Offset) = TruncOffset;
     break;
   }
   case ELF::R_X86_64_PC32: {
     // Get the placeholder value from the generated object since
     // a previous relocation attempt may have overwritten the loaded version
-    uint32_t *Placeholder =
-        reinterpret_cast<uint32_t *>(Section.ObjAddress + Offset);
-    uint32_t *Target = reinterpret_cast<uint32_t *>(Section.Address + Offset);
+    support::ulittle32_t::ref Placeholder(
+        (void *)(Section.ObjAddress + Offset));
     uint64_t FinalAddress = Section.LoadAddress + Offset;
-    int64_t RealOffset = *Placeholder + Value + Addend - FinalAddress;
+    int64_t RealOffset = Placeholder + Value + Addend - FinalAddress;
     assert(RealOffset <= INT32_MAX && RealOffset >= INT32_MIN);
     int32_t TruncOffset = (RealOffset & 0xFFFFFFFF);
-    *Target = TruncOffset;
+    support::ulittle32_t::ref(Section.Address + Offset) = TruncOffset;
     break;
   }
   case ELF::R_X86_64_PC64: {
     // Get the placeholder value from the generated object since
     // a previous relocation attempt may have overwritten the loaded version
-    uint64_t *Placeholder =
-        reinterpret_cast<uint64_t *>(Section.ObjAddress + Offset);
-    uint64_t *Target = reinterpret_cast<uint64_t *>(Section.Address + Offset);
+    support::ulittle64_t::ref Placeholder(
+        (void *)(Section.ObjAddress + Offset));
     uint64_t FinalAddress = Section.LoadAddress + Offset;
-    *Target = *Placeholder + Value + Addend - FinalAddress;
+    support::ulittle64_t::ref(Section.Address + Offset) =
+        Placeholder + Value + Addend - FinalAddress;
     break;
   }
   }
@@ -330,21 +293,20 @@ void RuntimeDyldELF::resolveX86Relocation(const SectionEntry &Section,
   case ELF::R_386_32: {
     // Get the placeholder value from the generated object since
     // a previous relocation attempt may have overwritten the loaded version
-    uint32_t *Placeholder =
-        reinterpret_cast<uint32_t *>(Section.ObjAddress + Offset);
-    uint32_t *Target = reinterpret_cast<uint32_t *>(Section.Address + Offset);
-    *Target = *Placeholder + Value + Addend;
+    support::ulittle32_t::ref Placeholder(
+        (void *)(Section.ObjAddress + Offset));
+    support::ulittle32_t::ref(Section.Address + Offset) =
+        Placeholder + Value + Addend;
     break;
   }
   case ELF::R_386_PC32: {
     // Get the placeholder value from the generated object since
     // a previous relocation attempt may have overwritten the loaded version
-    uint32_t *Placeholder =
-        reinterpret_cast<uint32_t *>(Section.ObjAddress + Offset);
-    uint32_t *Target = reinterpret_cast<uint32_t *>(Section.Address + Offset);
+    support::ulittle32_t::ref Placeholder(
+        (void *)(Section.ObjAddress + Offset));
     uint32_t FinalAddress = ((Section.LoadAddress + Offset) & 0xFFFFFFFF);
-    uint32_t RealOffset = *Placeholder + Value + Addend - FinalAddress;
-    *Target = RealOffset;
+    uint32_t RealOffset = Placeholder + Value + Addend - FinalAddress;
+    support::ulittle32_t::ref(Section.Address + Offset) = RealOffset;
     break;
   }
   default:
@@ -617,7 +579,7 @@ void RuntimeDyldELF::resolveMIPSRelocation(const SectionEntry &Section,
 }
 
 // Return the .TOC. section and offset.
-void RuntimeDyldELF::findPPC64TOCSection(ObjectImage &Obj,
+void RuntimeDyldELF::findPPC64TOCSection(const ObjectFile &Obj,
                                          ObjSectionToIDMap &LocalSections,
                                          RelocationValueRef &Rel) {
   // Set a default SectionID in case we do not find a TOC section below.
@@ -630,7 +592,7 @@ void RuntimeDyldELF::findPPC64TOCSection(ObjectImage &Obj,
 
   // The TOC consists of sections .got, .toc, .tocbss, .plt in that
   // order. The TOC starts where the first of these sections starts.
-  for (section_iterator si = Obj.begin_sections(), se = Obj.end_sections();
+  for (section_iterator si = Obj.section_begin(), se = Obj.section_end();
        si != se; ++si) {
 
     StringRef SectionName;
@@ -652,15 +614,15 @@ void RuntimeDyldELF::findPPC64TOCSection(ObjectImage &Obj,
 
 // Returns the sections and offset associated with the ODP entry referenced
 // by Symbol.
-void RuntimeDyldELF::findOPDEntrySection(ObjectImage &Obj,
+void RuntimeDyldELF::findOPDEntrySection(const ObjectFile &Obj,
                                          ObjSectionToIDMap &LocalSections,
                                          RelocationValueRef &Rel) {
   // Get the ELF symbol value (st_value) to compare with Relocation offset in
   // .opd entries
-  for (section_iterator si = Obj.begin_sections(), se = Obj.end_sections();
+  for (section_iterator si = Obj.section_begin(), se = Obj.section_end();
        si != se; ++si) {
     section_iterator RelSecI = si->getRelocatedSection();
-    if (RelSecI == Obj.end_sections())
+    if (RelSecI == Obj.section_end())
       continue;
 
     StringRef RelSectionName;
@@ -702,10 +664,9 @@ void RuntimeDyldELF::findOPDEntrySection(ObjectImage &Obj,
       if (Rel.Addend != (int64_t)TargetSymbolOffset)
         continue;
 
-      section_iterator tsi(Obj.end_sections());
+      section_iterator tsi(Obj.section_end());
       check(TargetSymbol->getSection(tsi));
-      bool IsCode = false;
-      tsi->isText(IsCode);
+      bool IsCode = tsi->isText();
       Rel.SectionID = findOrEmitSection(Obj, (*tsi), IsCode, LocalSections);
       Rel.Addend = (intptr_t)Addend;
       return;
@@ -911,8 +872,6 @@ void RuntimeDyldELF::resolveRelocation(const SectionEntry &Section,
     break;
   case Triple::aarch64:
   case Triple::aarch64_be:
-  case Triple::arm64:
-  case Triple::arm64_be:
     resolveAArch64Relocation(Section, Offset, Value, Type, Addend);
     break;
   case Triple::arm: // Fall through.
@@ -940,8 +899,9 @@ void RuntimeDyldELF::resolveRelocation(const SectionEntry &Section,
 }
 
 relocation_iterator RuntimeDyldELF::processRelocationRef(
-    unsigned SectionID, relocation_iterator RelI, ObjectImage &Obj,
-    ObjSectionToIDMap &ObjSectionToID, const SymbolTableMap &Symbols,
+    unsigned SectionID, relocation_iterator RelI,
+    const ObjectFile &Obj,
+    ObjSectionToIDMap &ObjSectionToID,
     StubMap &Stubs) {
   uint64_t RelType;
   Check(RelI->getType(RelType));
@@ -951,75 +911,65 @@ relocation_iterator RuntimeDyldELF::processRelocationRef(
 
   // Obtain the symbol name which is referenced in the relocation
   StringRef TargetName;
-  if (Symbol != Obj.end_symbols())
+  if (Symbol != Obj.symbol_end())
     Symbol->getName(TargetName);
   DEBUG(dbgs() << "\t\tRelType: " << RelType << " Addend: " << Addend
                << " TargetName: " << TargetName << "\n");
   RelocationValueRef Value;
   // First search for the symbol in the local symbol table
-  SymbolTableMap::const_iterator lsi = Symbols.end();
   SymbolRef::Type SymType = SymbolRef::ST_Unknown;
-  if (Symbol != Obj.end_symbols()) {
-    lsi = Symbols.find(TargetName.data());
+
+  // Search for the symbol in the global symbol table
+  SymbolTableMap::const_iterator gsi = GlobalSymbolTable.end();
+  if (Symbol != Obj.symbol_end()) {
+    gsi = GlobalSymbolTable.find(TargetName.data());
     Symbol->getType(SymType);
   }
-  if (lsi != Symbols.end()) {
-    Value.SectionID = lsi->second.first;
-    Value.Offset = lsi->second.second;
-    Value.Addend = lsi->second.second + Addend;
+  if (gsi != GlobalSymbolTable.end()) {
+    Value.SectionID = gsi->second.first;
+    Value.Offset = gsi->second.second;
+    Value.Addend = gsi->second.second + Addend;
   } else {
-    // Search for the symbol in the global symbol table
-    SymbolTableMap::const_iterator gsi = GlobalSymbolTable.end();
-    if (Symbol != Obj.end_symbols())
-      gsi = GlobalSymbolTable.find(TargetName.data());
-    if (gsi != GlobalSymbolTable.end()) {
-      Value.SectionID = gsi->second.first;
-      Value.Offset = gsi->second.second;
-      Value.Addend = gsi->second.second + Addend;
-    } else {
-      switch (SymType) {
-      case SymbolRef::ST_Debug: {
-        // TODO: Now ELF SymbolRef::ST_Debug = STT_SECTION, it's not obviously
-        // and can be changed by another developers. Maybe best way is add
-        // a new symbol type ST_Section to SymbolRef and use it.
-        section_iterator si(Obj.end_sections());
-        Symbol->getSection(si);
-        if (si == Obj.end_sections())
-          llvm_unreachable("Symbol section not found, bad object file format!");
-        DEBUG(dbgs() << "\t\tThis is section symbol\n");
-        // Default to 'true' in case isText fails (though it never does).
-        bool isCode = true;
-        si->isText(isCode);
-        Value.SectionID = findOrEmitSection(Obj, (*si), isCode, ObjSectionToID);
-        Value.Addend = Addend;
-        break;
-      }
-      case SymbolRef::ST_Data:
-      case SymbolRef::ST_Unknown: {
-        Value.SymbolName = TargetName.data();
-        Value.Addend = Addend;
+    switch (SymType) {
+    case SymbolRef::ST_Debug: {
+      // TODO: Now ELF SymbolRef::ST_Debug = STT_SECTION, it's not obviously
+      // and can be changed by another developers. Maybe best way is add
+      // a new symbol type ST_Section to SymbolRef and use it.
+      section_iterator si(Obj.section_end());
+      Symbol->getSection(si);
+      if (si == Obj.section_end())
+        llvm_unreachable("Symbol section not found, bad object file format!");
+      DEBUG(dbgs() << "\t\tThis is section symbol\n");
+      bool isCode = si->isText();
+      Value.SectionID = findOrEmitSection(Obj, (*si), isCode, ObjSectionToID);
+      Value.Addend = Addend;
+      break;
+    }
+    case SymbolRef::ST_Data:
+    case SymbolRef::ST_Unknown: {
+      Value.SymbolName = TargetName.data();
+      Value.Addend = Addend;
 
-        // Absolute relocations will have a zero symbol ID (STN_UNDEF), which
-        // will manifest here as a NULL symbol name.
-        // We can set this as a valid (but empty) symbol name, and rely
-        // on addRelocationForSymbol to handle this.
-        if (!Value.SymbolName)
-          Value.SymbolName = "";
-        break;
-      }
-      default:
-        llvm_unreachable("Unresolved symbol type!");
-        break;
-      }
+      // Absolute relocations will have a zero symbol ID (STN_UNDEF), which
+      // will manifest here as a NULL symbol name.
+      // We can set this as a valid (but empty) symbol name, and rely
+      // on addRelocationForSymbol to handle this.
+      if (!Value.SymbolName)
+        Value.SymbolName = "";
+      break;
+    }
+    default:
+      llvm_unreachable("Unresolved symbol type!");
+      break;
     }
   }
+
   uint64_t Offset;
   Check(RelI->getOffset(Offset));
 
   DEBUG(dbgs() << "\t\tSectionID: " << SectionID << " Offset: " << Offset
                << "\n");
-  if ((Arch == Triple::aarch64 || Arch == Triple::aarch64_be ||
-       Arch == Triple::arm64 || Arch == Triple::arm64_be) &&
+  if ((Arch == Triple::aarch64 || Arch == Triple::aarch64_be) &&
       (RelType == ELF::R_AARCH64_CALL26 || RelType == ELF::R_AARCH64_JUMP26)) {
     // This is an AArch64 branch relocation, need to use a stub function.
     DEBUG(dbgs() << "\t\tThis is an AArch64 branch relocation.");
@@ -1143,7 +1093,7 @@ relocation_iterator RuntimeDyldELF::processRelocationRef(
     if (RelType == ELF::R_PPC64_REL24) {
       // Determine ABI variant in use for this object.
       unsigned AbiVariant;
-      Obj.getObjectFile()->getPlatformFlags(AbiVariant);
+      Obj.getPlatformFlags(AbiVariant);
       AbiVariant &= ELF::EF_PPC64_ABI;
       // A PPC branch relocation will need a stub function if the target is
       // an external symbol (Symbol::ST_Unknown) or if the target address
@@ -1323,7 +1273,7 @@ relocation_iterator RuntimeDyldELF::processRelocationRef(
       Stubs[Value] = StubOffset;
       createStubFunction((uint8_t *)StubAddress);
       RelocationEntry RE(SectionID, StubOffset + 8, ELF::R_390_64,
-                         Value.Addend - Addend);
+                         Value.Offset);
       if (Value.SymbolName)
         addRelocationForSymbol(RE, Value.SymbolName);
       else
@@ -1431,8 +1381,6 @@ size_t RuntimeDyldELF::getGOTEntrySize() {
   case Triple::x86_64:
   case Triple::aarch64:
   case Triple::aarch64_be:
-  case Triple::arm64:
-  case Triple::arm64_be:
   case Triple::ppc64:
   case Triple::ppc64le:
   case Triple::systemz:
@@ -1505,7 +1453,7 @@ uint64_t RuntimeDyldELF::findGOTEntry(uint64_t LoadAddress, uint64_t Offset) {
   return 0;
 }
 
-void RuntimeDyldELF::finalizeLoad(ObjectImage &ObjImg,
+void RuntimeDyldELF::finalizeLoad(const ObjectFile &Obj,
                                   ObjSectionToIDMap &SectionMap) {
   // If necessary, allocate the global offset table
   if (MemMgr) {
@@ -1543,15 +1491,8 @@ void RuntimeDyldELF::finalizeLoad(ObjectImage &ObjImg,
   }
 }
 
-bool RuntimeDyldELF::isCompatibleFormat(const ObjectBuffer *Buffer) const {
-  if (Buffer->getBufferSize() < strlen(ELF::ElfMagic))
-    return false;
-  return (memcmp(Buffer->getBufferStart(), ELF::ElfMagic,
-                 strlen(ELF::ElfMagic))) == 0;
-}
-
-bool RuntimeDyldELF::isCompatibleFile(const object::ObjectFile *Obj) const {
-  return Obj->isELF();
+bool RuntimeDyldELF::isCompatibleFile(const object::ObjectFile &Obj) const {
+  return Obj.isELF();
 }
 
 } // namespace llvm

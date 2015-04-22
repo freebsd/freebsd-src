@@ -1422,8 +1422,8 @@ static void
 findmust(struct parse *p, struct re_guts *g)
 {
 	sop *scan;
-	sop *start;
-	sop *newstart;
+	sop *start = NULL;
+	sop *newstart = NULL;
 	sopno newlen;
 	sop s;
 	char *cp;

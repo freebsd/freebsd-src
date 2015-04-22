@@ -119,6 +119,6 @@ fi
 
 kill $background
 cd /
-/usr/bin/rm -rf $DIR
+rm -rf $DIR
 
 exit $status

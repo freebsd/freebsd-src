@@ -218,21 +218,6 @@ blocked_loop:
 	ld	%r1,PCB_SP(%r3)		/* Load the stack pointer */
 	ld	%r2,PCB_TOC(%r3)	/* Load the TOC pointer */
 
-	lis	%r5,USER_ADDR@highesta	/* Load the copyin/out segment reg */
-	ori	%r5,%r5,USER_ADDR@highera
-	sldi	%r5,%r5,32
-	oris	%r5,%r5,USER_ADDR@ha
-	isync
-	slbie	%r5
-	lis	%r6,USER_SLB_SLBE@highesta
-	ori	%r6,%r6,USER_SLB_SLBE@highera
-	sldi	%r6,%r6,32
-	oris	%r6,%r6,USER_SLB_SLBE@ha
-	ori	%r6,%r6,USER_SLB_SLBE@l
-	ld	%r5,PCB_AIM_USR_VSID(%r3)
-	slbmte	%r5,%r6
-	isync
-
 	/*
 	 * Perform a dummy stdcx. to clear any reservations we may have
 	 * inherited from the previous thread. It doesn't matter if the

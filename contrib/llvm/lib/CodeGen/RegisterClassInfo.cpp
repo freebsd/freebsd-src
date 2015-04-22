@@ -20,7 +20,6 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetMachine.h"
 
 using namespace llvm;
 
@@ -38,8 +37,8 @@ void RegisterClassInfo::runOnMachineFunction(const MachineFunction &mf) {
   MF = &mf;
 
   // Allocate new array the first time we see a new target.
-  if (MF->getTarget().getRegisterInfo() != TRI) {
-    TRI = MF->getTarget().getRegisterInfo();
+  if (MF->getSubtarget().getRegisterInfo() != TRI) {
+    TRI = MF->getSubtarget().getRegisterInfo();
     RegClass.reset(new RCInfo[TRI->getNumRegClasses()]);
     unsigned NumPSets = TRI->getNumRegPressureSets();
     PSetLimits.reset(new unsigned[NumPSets]);
@@ -48,6 +47,7 @@ void RegisterClassInfo::runOnMachineFunction(const MachineFunction &mf) {
   }
 
   // Does this MF have different CSRs?
+  assert(TRI && "no register info set");
   const MCPhysReg *CSR = TRI->getCalleeSavedRegs(MF);
   if (Update || CSR != CalleeSaved) {
     // Build a CSRNum map. Every CSR alias gets an entry pointing to the last
@@ -77,6 +77,7 @@ void RegisterClassInfo::runOnMachineFunction(const MachineFunction &mf) {
 /// registers filtered out. Volatile registers come first followed by CSR
 /// aliases ordered according to the CSR order specified by the target.
 void RegisterClassInfo::compute(const TargetRegisterClass *RC) const {
+  assert(RC && "no register class given");
   RCInfo &RCI = RegClass[RC->getID()];
 
   // Raw register count, including all reserved regs.
@@ -138,7 +139,7 @@ void RegisterClassInfo::compute(const TargetRegisterClass *RC) const {
   RCI.LastCostChange = LastCostChange;
 
   DEBUG({
-    dbgs() << "AllocationOrder(" << RC->getName() << ") = [";
+    dbgs() << "AllocationOrder(" << TRI->getRegClassName(RC) << ") = [";
     for (unsigned I = 0; I != RCI.NumRegs; ++I)
       dbgs() << ' ' << PrintReg(RCI.Order[I], TRI);
     dbgs() << (RCI.ProperSubClass ? " ] (sub-class)\n" : " ]\n");

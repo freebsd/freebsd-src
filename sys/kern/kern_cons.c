@@ -292,7 +292,8 @@ sysctl_kern_console(SYSCTL_HANDLER_ARGS)
 	int delete, error;
 	struct sbuf *sb;
 
-	sb = sbuf_new(NULL, NULL, CNDEVPATHMAX * 2, SBUF_AUTOEXTEND);
+	sb = sbuf_new(NULL, NULL, CNDEVPATHMAX * 2, SBUF_AUTOEXTEND |
+	    SBUF_INCLUDENUL);
 	if (sb == NULL)
 		return (ENOMEM);
 	sbuf_clear(sb);

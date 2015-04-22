@@ -230,6 +230,25 @@ westmere_cpu(void)
 	return (false);
 }
 
+static bool
+pat_valid(uint64_t val)
+{
+	int i, pa;
+
+	/*
+	 * From Intel SDM: Table "Memory Types That Can Be Encoded With PAT"
+	 *
+	 * Extract PA0 through PA7 and validate that each one encodes a
+	 * valid memory type.
+	 */
+	for (i = 0; i < 8; i++) {
+		pa = (val >> (i * 8)) & 0xff;
+		if (pa == 2 || pa == 3 || pa >= 8)
+			return (false);
+	}
+	return (true);
+}
+
 void
 vmx_msr_init(void)
 {
@@ -302,6 +321,10 @@ vmx_msr_init(void)
 void
 vmx_msr_guest_init(struct vmx *vmx, int vcpuid)
 {
+	uint64_t *guest_msrs;
+
+	guest_msrs = vmx->guest_msrs[vcpuid];
+
 	/*
 	 * The permissions bitmap is shared between all vcpus so initialize it
 	 * once when initializing the vBSP.
@@ -313,6 +336,19 @@ vmx_msr_guest_init(struct vmx *vmx, int vcpuid)
 		guest_msr_rw(vmx, MSR_SF_MASK);
 		guest_msr_rw(vmx, MSR_KGSBASE);
 	}
+
+	/*
+	 * Initialize guest IA32_PAT MSR with default value after reset.
+	 */
+	guest_msrs[IDX_MSR_PAT] = PAT_VALUE(0, PAT_WRITE_BACK) |
+	    PAT_VALUE(1, PAT_WRITE_THROUGH)	|
+	    PAT_VALUE(2, PAT_UNCACHED)		|
+	    PAT_VALUE(3, PAT_UNCACHEABLE)	|
+	    PAT_VALUE(4, PAT_WRITE_BACK)	|
+	    PAT_VALUE(5, PAT_WRITE_THROUGH)	|
+	    PAT_VALUE(6, PAT_UNCACHED)		|
+	    PAT_VALUE(7, PAT_UNCACHEABLE);
+
 	return;
 }
 
@@ -353,7 +389,11 @@ vmx_msr_guest_exit(struct vmx *vmx, int vcpuid)
 int
 vmx_rdmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t *val, bool *retu)
 {
-	int error = 0;
+	const uint64_t *guest_msrs;
+	int error;
+
+	guest_msrs = vmx->guest_msrs[vcpuid];
+	error = 0;
 
 	switch (num) {
 	case MSR_IA32_MISC_ENABLE:
@@ -366,6 +406,9 @@ vmx_rdmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t *val, bool *retu)
 	case MSR_TURBO_RATIO_LIMIT1:
 		*val = turbo_ratio_limit;
 		break;
+	case MSR_PAT:
+		*val = guest_msrs[IDX_MSR_PAT];
+		break;
 	default:
 		error = EINVAL;
 		break;
@@ -376,10 +419,13 @@ vmx_rdmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t *val, bool *retu)
 int
 vmx_wrmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t val, bool *retu)
 {
+	uint64_t *guest_msrs;
 	uint64_t changed;
 	int error;
 	
+	guest_msrs = vmx->guest_msrs[vcpuid];
 	error = 0;
+
 	switch (num) {
 	case MSR_IA32_MISC_ENABLE:
 		changed = val ^ misc_enable;
@@ -400,6 +446,12 @@ vmx_wrmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t val, bool *retu)
 		if (changed)
 			error = EINVAL;
 
+		break;
+	case MSR_PAT:
+		if (pat_valid(val))
+			guest_msrs[IDX_MSR_PAT] = val;
+		else
+			vm_inject_gp(vmx->vm, vcpuid);
 		break;
 	default:
 		error = EINVAL;

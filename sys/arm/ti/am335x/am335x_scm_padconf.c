@@ -298,6 +298,6 @@ const static struct ti_scm_padconf ti_padconf_devmap[] = {
 const struct ti_scm_device ti_scm_dev = {
 	.padconf_muxmode_mask	= 0x7,
 	.padconf_sate_mask	= 0x78,
-	.padstate		= (struct ti_scm_padstate *) &ti_padstate_devmap,
-	.padconf		= (struct ti_scm_padconf *) &ti_padconf_devmap,
+	.padstate		= ti_padstate_devmap,
+	.padconf		= ti_padconf_devmap,
 };

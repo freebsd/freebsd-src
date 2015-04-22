@@ -60,9 +60,7 @@ bool LiveRangeEdit::checkRematerializable(VNInfo *VNI,
 }
 
 void LiveRangeEdit::scanRemattable(AliasAnalysis *aa) {
-  for (LiveInterval::vni_iterator I = getParent().vni_begin(),
-       E = getParent().vni_end(); I != E; ++I) {
-    VNInfo *VNI = *I;
+  for (VNInfo *VNI : getParent().valnos) {
     if (VNI->isUnused())
       continue;
     MachineInstr *DefMI = LIS.getInstructionFromIndex(VNI->def);
@@ -135,7 +133,7 @@ bool LiveRangeEdit::canRematerializeAt(Remat &RM,
   }
 
   // If only cheap remats were requested, bail out early.
-  if (cheapAsAMove && !RM.OrigMI->isAsCheapAsAMove())
+  if (cheapAsAMove && !TII.isAsCheapAsAMove(RM.OrigMI))
     return false;
 
   // Verify that all used registers are available with the same values.
@@ -286,8 +284,16 @@ void LiveRangeEdit::eliminateDeadDef(MachineInstr *MI, ToShrinkSet &ToShrink) {
         if (TheDelegate)
           TheDelegate->LRE_WillShrinkVirtReg(LI.reg);
         LI.removeValNo(VNI);
-        if (LI.empty())
+        if (LI.empty()) {
           RegsToErase.push_back(Reg);
+        } else {
+          // Also remove the value in subranges.
+          for (LiveInterval::SubRange &S : LI.subranges()) {
+            if (VNInfo *SVNI = S.getVNInfoAt(Idx))
+              S.removeValNo(SVNI);
+          }
+          LI.removeEmptySubRanges();
+        }
       }
     }
   }
@@ -411,8 +417,11 @@ LiveRangeEdit::calculateRegClassAndHint(MachineFunction &MF,
   for (unsigned I = 0, Size = size(); I < Size; ++I) {
     LiveInterval &LI = LIS.getInterval(get(I));
     if (MRI.recomputeRegClass(LI.reg, MF.getTarget()))
-      DEBUG(dbgs() << "Inflated " << PrintReg(LI.reg) << " to "
-                   << MRI.getRegClass(LI.reg)->getName() << '\n');
+      DEBUG({
+        const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
+        dbgs() << "Inflated " << PrintReg(LI.reg) << " to "
+               << TRI->getRegClassName(MRI.getRegClass(LI.reg)) << '\n';
+      });
     VRAI.calculateSpillWeightAndHint(LI);
   }
 }

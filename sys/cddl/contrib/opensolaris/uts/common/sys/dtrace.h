@@ -1423,8 +1423,9 @@ typedef struct dof_helper {
 	char dofhp_mod[DTRACE_MODNAMELEN];	/* executable or library name */
 	uint64_t dofhp_addr;			/* base address of object */
 	uint64_t dofhp_dof;			/* address of helper DOF */
-#ifndef illumos
-	int gen;
+#ifdef __FreeBSD__
+	pid_t dofhp_pid;			/* target process ID */
+	int dofhp_gen;
 #endif
 } dof_helper_t;
 
@@ -2435,6 +2436,10 @@ extern void dtrace_helpers_destroy(proc_t *);
 #define DTRACE_INVOP_NOP	6
 
 #elif defined(__arm__)
+
+#define	DTRACE_INVOP_SHIFT	4
+#define	DTRACE_INVOP_MASK	((1 << DTRACE_INVOP_SHIFT) - 1)
+#define	DTRACE_INVOP_DATA(x)	((x) >> DTRACE_INVOP_SHIFT)
 
 #define DTRACE_INVOP_PUSHM	1
 #define DTRACE_INVOP_POPM	2

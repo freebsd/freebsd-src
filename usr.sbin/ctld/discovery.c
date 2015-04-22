@@ -32,7 +32,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <assert.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -75,6 +74,8 @@ text_receive(struct connection *conn)
 		    conn->conn_statsn);
 	}
 	conn->conn_cmdsn = ntohl(bhstr->bhstr_cmdsn);
+	if ((bhstr->bhstr_opcode & ISCSI_BHS_OPCODE_IMMEDIATE) == 0)
+		conn->conn_cmdsn++;
 
 	return (request);
 }
@@ -131,6 +132,8 @@ logout_receive(struct connection *conn)
 		    conn->conn_statsn);
 	}
 	conn->conn_cmdsn = ntohl(bhslr->bhslr_cmdsn);
+	if ((bhslr->bhslr_opcode & ISCSI_BHS_OPCODE_IMMEDIATE) == 0)
+		conn->conn_cmdsn++;
 
 	return (request);
 }

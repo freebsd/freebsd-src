@@ -140,7 +140,8 @@ ncl_getpages(struct vop_getpages_args *ap)
 	 * can only occur at the file EOF.
 	 */
 	if (pages[ap->a_reqpage]->valid != 0) {
-		vm_pager_free_nonreq(object, pages, ap->a_reqpage, npages);
+		vm_pager_free_nonreq(object, pages, ap->a_reqpage, npages,
+		    FALSE);
 		return (VM_PAGER_OK);
 	}
 
@@ -172,7 +173,8 @@ ncl_getpages(struct vop_getpages_args *ap)
 
 	if (error && (uio.uio_resid == count)) {
 		ncl_printf("nfs_getpages: error %d\n", error);
-		vm_pager_free_nonreq(object, pages, ap->a_reqpage, npages);
+		vm_pager_free_nonreq(object, pages, ap->a_reqpage, npages,
+		    FALSE);
 		return (VM_PAGER_ERROR);
 	}
 

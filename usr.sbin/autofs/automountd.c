@@ -177,7 +177,7 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 	const char *map;
 	struct node *root, *parent, *node;
 	FILE *f;
-	char *options, *fstype, *nobrowse, *retrycnt, *tmp;
+	char *key, *options, *fstype, *nobrowse, *retrycnt, *tmp;
 	int error;
 	bool wildcards;
 
@@ -199,11 +199,25 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 	map = adr->adr_from + 4; /* 4 for strlen("map "); */
 	root = node_new_root();
 	if (adr->adr_prefix[0] == '\0' || strcmp(adr->adr_prefix, "/") == 0) {
+		/*
+		 * Direct map.  autofs(4) doesn't have a way to determine
+		 * correct map key, but since it's a direct map, we can just
+		 * use adr_path instead.
+		 */
 		parent = root;
+		key = checked_strdup(adr->adr_path);
 	} else {
+		/*
+		 * Indirect map.
+		 */
 		parent = node_new_map(root, checked_strdup(adr->adr_prefix),
-		    checked_strdup(adr->adr_options), checked_strdup(map),
+		    NULL,  checked_strdup(map),
 		    checked_strdup("[kernel request]"), lineno);
+
+		if (adr->adr_key[0] == '\0')
+			key = NULL;
+		else
+			key = checked_strdup(adr->adr_key);
 	}
 
 	/*
@@ -213,8 +227,7 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 	 * needs to be done for maps with wildcard entries, but also
 	 * for special and executable maps.
 	 */
-	parse_map(parent, map, adr->adr_key[0] != '\0' ? adr->adr_key : NULL,
-	    &wildcards);
+	parse_map(parent, map, key, &wildcards);
 	if (!wildcards)
 		wildcards = node_has_wildcards(parent);
 	if (wildcards)
@@ -222,8 +235,8 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 	else
 		log_debugx("map does not contain wildcard entries");
 
-	if (adr->adr_key[0] != '\0')
-		node_expand_wildcard(root, adr->adr_key);
+	if (key != NULL)
+		node_expand_wildcard(root, key);
 
 	node = node_find(root, adr->adr_path);
 	if (node == NULL) {
@@ -231,22 +244,24 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 		    "failing mount", map, adr->adr_path);
 	}
 
+	options = node_options(node);
+
+	/*
+	 * Append options from auto_master.
+	 */
+	options = concat(options, ',', adr->adr_options);
+
+	/*
+	 * Prepend options passed via automountd(8) command line.
+	 */
+	options = concat(cmdline_options, ',', options);
+
 	if (node->n_location == NULL) {
 		log_debugx("found node defined at %s:%d; not a mountpoint",
 		    node->n_config_file, node->n_config_line);
 
-		options = node_options(node);
-
-		/*
-		 * Prepend options passed via automountd(8) command line.
-		 */
-		if (cmdline_options != NULL) {
-			options =
-			    separated_concat(cmdline_options, options, ',');
-		}
-
 		nobrowse = pick_option("nobrowse", &options);
-		if (nobrowse != NULL && adr->adr_key[0] == '\0') {
+		if (nobrowse != NULL && key == NULL) {
 			log_debugx("skipping map %s due to \"nobrowse\" "
 			    "option; exiting", map);
 			done(0, true);
@@ -263,13 +278,12 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 		 */
 		create_subtree(node, incomplete_hierarchy);
 
-		if (incomplete_hierarchy && adr->adr_key[0] != '\0') {
+		if (incomplete_hierarchy && key != NULL) {
 			/*
 			 * We still need to create the single subdirectory
 			 * user is trying to access.
 			 */
-			tmp = separated_concat(adr->adr_path,
-			    adr->adr_key, '/');
+			tmp = concat(adr->adr_path, '/', key);
 			node = node_find(root, tmp);
 			if (node != NULL)
 				create_subtree(node, false);
@@ -287,26 +301,18 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 	log_debugx("found node defined at %s:%d; it is a mountpoint",
 	    node->n_config_file, node->n_config_line);
 
-	node_expand_ampersand(node,
-	    adr->adr_key[0] != '\0' ? adr->adr_key : NULL);
+	if (key != NULL)
+		node_expand_ampersand(node, key);
 	error = node_expand_defined(node);
 	if (error != 0) {
 		log_errx(1, "variable expansion failed for %s; "
 		    "failing mount", adr->adr_path);
 	}
 
-	options = node_options(node);
-
-	/*
-	 * Prepend options passed via automountd(8) command line.
-	 */
-	if (cmdline_options != NULL)
-		options = separated_concat(cmdline_options, options, ',');
-
 	/*
 	 * Append "automounted".
 	 */
-	options = separated_concat(options, "automounted", ',');
+	options = concat(options, ',', "automounted");
 
 	/*
 	 * Remove "nobrowse", mount(8) doesn't understand it.
@@ -334,11 +340,10 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 		if (retrycnt == NULL) {
 			log_debugx("retrycnt not specified in options; "
 			    "defaulting to 1");
-			options = separated_concat(options,
-			    separated_concat("retrycnt", "1", '='), ',');
+			options = concat(options, ',', "retrycnt=1");
 		} else {
-			options = separated_concat(options,
-			    separated_concat("retrycnt", retrycnt, '='), ',');
+			options = concat(options, ',',
+			    concat("retrycnt", '=', retrycnt));
 		}
 	}
 
@@ -462,12 +467,7 @@ main_automountd(int argc, char **argv)
 			maxproc = atoi(optarg);
 			break;
 		case 'o':
-			if (options == NULL) {
-				options = checked_strdup(optarg);
-			} else {
-				options =
-				    separated_concat(options, optarg, ',');
-			}
+			options = concat(options, ',', optarg);
 			break;
 		case 'v':
 			debug++;

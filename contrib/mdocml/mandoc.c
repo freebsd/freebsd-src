@@ -1,7 +1,7 @@
-/*	$Id: mandoc.c,v 1.88 2014/10/28 13:24:44 schwarze Exp $ */
+/*	$Id: mandoc.c,v 1.92 2015/02/20 23:55:10 schwarze Exp $ */
 /*
- * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2011, 2012, 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2008-2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2011-2015 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -156,16 +156,18 @@ mandoc_escape(const char **end, const char **start, int *sz)
 		/* FALLTHROUGH */
 	case 'D':
 		/* FALLTHROUGH */
-	case 'o':
-		/* FALLTHROUGH */
 	case 'R':
 		/* FALLTHROUGH */
 	case 'X':
 		/* FALLTHROUGH */
 	case 'Z':
-		if ('\0' == **start)
-			return(ESCAPE_ERROR);
 		gly = ESCAPE_IGNORE;
+		/* FALLTHROUGH */
+	case 'o':
+		if (**start == '\0')
+			return(ESCAPE_ERROR);
+		if (gly == ESCAPE_ERROR)
+			gly = ESCAPE_OVERSTRIKE;
 		term = **start;
 		*start = ++*end;
 		break;
@@ -225,7 +227,7 @@ mandoc_escape(const char **end, const char **start, int *sz)
 
 		/* See +/- counts as a sign. */
 		if ('+' == **end || '-' == **end || ASCII_HYPH == **end)
-			(*end)++;
+			*start = ++*end;
 
 		switch (**end) {
 		case '(':
@@ -239,6 +241,14 @@ mandoc_escape(const char **end, const char **start, int *sz)
 		case '\'':
 			*start = ++*end;
 			term = '\'';
+			break;
+		case '3':
+			/* FALLTHROUGH */
+		case '2':
+			/* FALLTHROUGH */
+		case '1':
+			*sz = (*end)[-1] == 's' &&
+			    isdigit((unsigned char)(*end)[1]) ? 2 : 1;
 			break;
 		default:
 			*sz = 1;
@@ -480,6 +490,8 @@ time2a(time_t t)
 	int		 isz;
 
 	tm = localtime(&t);
+	if (tm == NULL)
+		return(NULL);
 
 	/*
 	 * Reserve space:

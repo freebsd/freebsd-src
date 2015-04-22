@@ -68,6 +68,10 @@ asan_rt_version_t  __asan_rt_version;
 
 namespace __asan {
 
+void DisableReexec() {
+  // No need to re-exec on Linux.
+}
+
 void MaybeReexec() {
   // No need to re-exec on Linux.
 }
@@ -218,10 +222,6 @@ void GetPcSpBp(void *context, uptr *pc, uptr *sp, uptr *bp) {
 #else
 # error "Unsupported arch"
 #endif
-}
-
-bool AsanInterceptsSignal(int signum) {
-  return signum == SIGSEGV && common_flags()->handle_segv;
 }
 
 void AsanPlatformThreadInit() {

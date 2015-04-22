@@ -49,7 +49,7 @@ static const char sccsid[] = "$Id: v_sentence.c,v 10.9 2001/06/25 15:19:35 skimo
  * v_sentencef -- [count])
  *	Move forward count sentences.
  *
- * PUBLIC: int v_sentencef __P((SCR *, VICMD *));
+ * PUBLIC: int v_sentencef(SCR *, VICMD *);
  */
 int
 v_sentencef(SCR *sp, VICMD *vp)
@@ -188,7 +188,7 @@ okret:	vp->m_stop.lno = cs.cs_lno;
  * v_sentenceb -- [count](
  *	Move backward count sentences.
  *
- * PUBLIC: int v_sentenceb __P((SCR *, VICMD *));
+ * PUBLIC: int v_sentenceb(SCR *, VICMD *);
  */
 int
 v_sentenceb(SCR *sp, VICMD *vp)

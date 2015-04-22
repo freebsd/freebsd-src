@@ -83,7 +83,7 @@ struct	netmap_adapter;
 
 #define	IF_DUNIT_NONE	-1
 
-#include <altq/if_altq.h>
+#include <net/altq/if_altq.h>
 
 TAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */
 TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
@@ -402,7 +402,6 @@ struct ifaddr {
 struct ifaddr *	ifa_alloc(size_t size, int flags);
 void	ifa_free(struct ifaddr *ifa);
 void	ifa_ref(struct ifaddr *ifa);
-#endif /* _KERNEL */
 
 /*
  * Multicast address structure.  This is analogous to the ifaddr
@@ -417,8 +416,6 @@ struct ifmultiaddr {
 	void	*ifma_protospec;	/* protocol-specific state, if any */
 	struct	ifmultiaddr *ifma_llifma; /* pointer to ifma for ifma_lladdr */
 };
-
-#ifdef _KERNEL
 
 extern	struct rwlock ifnet_rwlock;
 extern	struct sx ifnet_sxlock;

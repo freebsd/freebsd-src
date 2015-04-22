@@ -22,7 +22,6 @@
 
 #ifdef _MSC_VER
 #include <intrin.h>
-#include <limits>
 #endif
 
 namespace llvm {
@@ -73,7 +72,7 @@ countTrailingZeros(T Val, ZeroBehavior ZB = ZB_Width) {
 template <typename T>
 typename std::enable_if<std::numeric_limits<T>::is_integer &&
                         std::numeric_limits<T>::is_signed, std::size_t>::type
-countTrailingZeros(T Val, ZeroBehavior ZB = ZB_Width) LLVM_DELETED_FUNCTION;
+countTrailingZeros(T, ZeroBehavior = ZB_Width) LLVM_DELETED_FUNCTION;
 
 #if __GNUC__ >= 4 || _MSC_VER
 template <>
@@ -81,7 +80,7 @@ inline std::size_t countTrailingZeros<uint32_t>(uint32_t Val, ZeroBehavior ZB) {
   if (ZB != ZB_Undefined && Val == 0)
     return 32;
 
-#if __has_builtin(__builtin_ctz) || __GNUC_PREREQ(4, 0)
+#if __has_builtin(__builtin_ctz) || LLVM_GNUC_PREREQ(4, 0, 0)
   return __builtin_ctz(Val);
 #elif _MSC_VER
   unsigned long Index;
@@ -96,7 +95,7 @@ inline std::size_t countTrailingZeros<uint64_t>(uint64_t Val, ZeroBehavior ZB) {
   if (ZB != ZB_Undefined && Val == 0)
     return 64;
 
-#if __has_builtin(__builtin_ctzll) || __GNUC_PREREQ(4, 0)
+#if __has_builtin(__builtin_ctzll) || LLVM_GNUC_PREREQ(4, 0, 0)
   return __builtin_ctzll(Val);
 #elif _MSC_VER
   unsigned long Index;
@@ -139,7 +138,7 @@ countLeadingZeros(T Val, ZeroBehavior ZB = ZB_Width) {
 template <typename T>
 typename std::enable_if<std::numeric_limits<T>::is_integer &&
                         std::numeric_limits<T>::is_signed, std::size_t>::type
-countLeadingZeros(T Val, ZeroBehavior ZB = ZB_Width) LLVM_DELETED_FUNCTION;
+countLeadingZeros(T, ZeroBehavior = ZB_Width) LLVM_DELETED_FUNCTION;
 
 #if __GNUC__ >= 4 || _MSC_VER
 template <>
@@ -147,7 +146,7 @@ inline std::size_t countLeadingZeros<uint32_t>(uint32_t Val, ZeroBehavior ZB) {
   if (ZB != ZB_Undefined && Val == 0)
     return 32;
 
-#if __has_builtin(__builtin_clz) || __GNUC_PREREQ(4, 0)
+#if __has_builtin(__builtin_clz) || LLVM_GNUC_PREREQ(4, 0, 0)
   return __builtin_clz(Val);
 #elif _MSC_VER
   unsigned long Index;
@@ -162,7 +161,7 @@ inline std::size_t countLeadingZeros<uint64_t>(uint64_t Val, ZeroBehavior ZB) {
   if (ZB != ZB_Undefined && Val == 0)
     return 64;
 
-#if __has_builtin(__builtin_clzll) || __GNUC_PREREQ(4, 0)
+#if __has_builtin(__builtin_clzll) || LLVM_GNUC_PREREQ(4, 0, 0)
   return __builtin_clzll(Val);
 #elif _MSC_VER
   unsigned long Index;
@@ -194,7 +193,7 @@ findFirstSet(T Val, ZeroBehavior ZB = ZB_Max) {
 template <typename T>
 typename std::enable_if<std::numeric_limits<T>::is_integer &&
                         std::numeric_limits<T>::is_signed, T>::type
-findFirstSet(T Val, ZeroBehavior ZB = ZB_Max) LLVM_DELETED_FUNCTION;
+findFirstSet(T, ZeroBehavior = ZB_Max) LLVM_DELETED_FUNCTION;
 
 /// \brief Get the index of the last set bit starting from the least
 ///   significant bit.
@@ -220,7 +219,7 @@ findLastSet(T Val, ZeroBehavior ZB = ZB_Max) {
 template <typename T>
 typename std::enable_if<std::numeric_limits<T>::is_integer &&
                         std::numeric_limits<T>::is_signed, T>::type
-findLastSet(T Val, ZeroBehavior ZB = ZB_Max) LLVM_DELETED_FUNCTION;
+findLastSet(T, ZeroBehavior = ZB_Max) LLVM_DELETED_FUNCTION;
 
 /// \brief Macro compressed bit reversal table for 256 bits.
 ///
@@ -550,16 +549,23 @@ inline uint64_t MinAlign(uint64_t A, uint64_t B) {
   return (A | B) & (1 + ~(A | B));
 }
 
-/// \brief Aligns \c Ptr to \c Alignment bytes, rounding up.
+/// \brief Aligns \c Addr to \c Alignment bytes, rounding up.
 ///
 /// Alignment should be a power of two.  This method rounds up, so
-/// AlignPtr(7, 4) == 8 and AlignPtr(8, 4) == 8.
-inline char *alignPtr(char *Ptr, size_t Alignment) {
+/// alignAddr(7, 4) == 8 and alignAddr(8, 4) == 8.
+inline uintptr_t alignAddr(void *Addr, size_t Alignment) {
   assert(Alignment && isPowerOf2_64((uint64_t)Alignment) &&
          "Alignment is not a power of two!");
 
-  return (char *)(((uintptr_t)Ptr + Alignment - 1) &
-                  ~(uintptr_t)(Alignment - 1));
+  assert((uintptr_t)Addr + Alignment - 1 >= (uintptr_t)Addr);
+
+  return (((uintptr_t)Addr + Alignment - 1) & ~(uintptr_t)(Alignment - 1));
+}
+
+/// \brief Returns the necessary adjustment for aligning \c Ptr to \c Alignment
+/// bytes, rounding up.
+inline size_t alignmentAdjustment(void *Ptr, size_t Alignment) {
+  return alignAddr(Ptr, Alignment) - (uintptr_t)Ptr;
 }
 
 /// NextPowerOf2 - Returns the next power of two (in 64-bits)
@@ -589,9 +595,10 @@ inline uint64_t PowerOf2Floor(uint64_t A) {
 ///   RoundUpToAlignment(5, 8) = 8
 ///   RoundUpToAlignment(17, 8) = 24
 ///   RoundUpToAlignment(~0LL, 8) = 0
+///   RoundUpToAlignment(321, 255) = 510
 /// \endcode
 inline uint64_t RoundUpToAlignment(uint64_t Value, uint64_t Align) {
-  return ((Value + Align - 1) / Align) * Align;
+  return (Value + Align - 1) / Align * Align;
 }
 
 /// Returns the offset to the next integer (mod 2**64) that is greater than
@@ -632,13 +639,7 @@ inline int64_t SignExtend64(uint64_t X, unsigned B) {
   return int64_t(X << (64 - B)) >> (64 - B);
 }
 
-#if defined(_MSC_VER)
-  // Visual Studio defines the HUGE_VAL class of macros using purposeful
-  // constant arithmetic overflow, which it then warns on when encountered.
-  const float huge_valf = std::numeric_limits<float>::infinity();
-#else
-  const float huge_valf = HUGE_VALF;
-#endif
+extern const float huge_valf;
 } // End llvm namespace
 
 #endif

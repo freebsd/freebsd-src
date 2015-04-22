@@ -232,7 +232,7 @@ fgcmd(int argc __unused, char **argv __unused)
 
 
 int
-bgcmd(int argc, char **argv)
+bgcmd(int argc __unused, char **argv __unused)
 {
 	struct job *jp;
 

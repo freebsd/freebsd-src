@@ -1,15 +1,10 @@
-#if !defined __recvbuff_h
-#define __recvbuff_h
-
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
+#ifndef RECVBUFF_H
+#define RECVBUFF_H
 
 #include "ntp.h"
-#include "ntp_fp.h"
-#include "ntp_types.h"
+#include "ntp_net.h"
+#include "ntp_lists.h"
 
-#include <isc/list.h>
 #include <isc/result.h>
 
 /*
@@ -22,14 +17,14 @@
 
 #if defined HAVE_IO_COMPLETION_PORT
 # include "ntp_iocompletionport.h"
-#include "ntp_timer.h"
+# include "ntp_timer.h"
 
 # define RECV_BLOCK_IO()	EnterCriticalSection(&RecvCritSection)
 # define RECV_UNBLOCK_IO()	LeaveCriticalSection(&RecvCritSection)
 
 /*  Return the event which is set when items are added to the full list
  */
-extern HANDLE	get_recv_buff_event P((void));
+extern HANDLE	get_recv_buff_event(void);
 #else
 # define RECV_BLOCK_IO()	
 # define RECV_UNBLOCK_IO()	
@@ -52,41 +47,40 @@ extern HANDLE	get_recv_buff_event P((void));
 typedef struct recvbuf recvbuf_t;
 
 struct recvbuf {
-	ISC_LINK(recvbuf_t)	link;
+	recvbuf_t *	link;	/* next in list */
 	union {
-		struct sockaddr_storage X_recv_srcadr;
-		caddr_t X_recv_srcclock;
-		struct peer *X_recv_peer;
+		sockaddr_u	X_recv_srcadr;
+		caddr_t		X_recv_srcclock;
+		struct peer *	X_recv_peer;
 	} X_from_where;
-#define recv_srcadr	X_from_where.X_recv_srcadr
-#define	recv_srcclock	X_from_where.X_recv_srcclock
-#define recv_peer	X_from_where.X_recv_peer
-#if defined HAVE_IO_COMPLETION_PORT
-	WSABUF		wsabuff;
+#define recv_srcadr		X_from_where.X_recv_srcadr
+#define	recv_srcclock		X_from_where.X_recv_srcclock
+#define recv_peer		X_from_where.X_recv_peer
+#ifndef HAVE_IO_COMPLETION_PORT
+	sockaddr_u	srcadr;		/* where packet came from */
 #else
-	struct sockaddr_storage srcadr;	/* where packet came from */
+	int		recv_srcadr_len;/* filled in on completion */
 #endif
-	int src_addr_len;		/* source address length */
-	struct interface *dstadr;	/* interface datagram arrived thru */
-	SOCKET	fd;			/* fd on which it was received */
-	int msg_flags;			/* Flags received about the packet */
-	l_fp recv_time;			/* time of arrival */
-	void (*receiver) P((struct recvbuf *)); /* routine to receive buffer */
-	int recv_length;		/* number of octets received */
+	endpt *		dstadr;		/* address pkt arrived on */
+	SOCKET		fd;		/* fd on which it was received */
+	int		msg_flags;	/* Flags received about the packet */
+	l_fp		recv_time;	/* time of arrival */
+	void		(*receiver)(struct recvbuf *); /* callback */
+	int		recv_length;	/* number of octets received */
 	union {
-		struct pkt X_recv_pkt;
-		u_char X_recv_buffer[RX_BUFF_SIZE];
+		struct pkt	X_recv_pkt;
+		u_char		X_recv_buffer[RX_BUFF_SIZE];
 	} recv_space;
-	int used;
-#define	recv_pkt	recv_space.X_recv_pkt
-#define	recv_buffer	recv_space.X_recv_buffer
+#define	recv_pkt		recv_space.X_recv_pkt
+#define	recv_buffer		recv_space.X_recv_buffer
+	int used;		/* reference count */
 };
 
-extern	void	init_recvbuff	P((int));
+extern	void	init_recvbuff(int);
 
 /* freerecvbuf - make a single recvbuf available for reuse
  */
-extern	void	freerecvbuf P((struct recvbuf *));
+extern	void	freerecvbuf(struct recvbuf *);
 
 /*  Get a free buffer (typically used so an async
  *  read can directly place data into the buffer
@@ -94,30 +88,36 @@ extern	void	freerecvbuf P((struct recvbuf *));
  *  The buffer is removed from the free list. Make sure
  *  you put it back with freerecvbuf() or 
  */
-extern	struct recvbuf *get_free_recv_buffer P((void)); /* signal safe - no malloc */
-extern	struct recvbuf *get_free_recv_buffer_alloc P((void)); /* signal unsafe - may malloc */
+
+/* signal safe - no malloc */
+extern	struct recvbuf *get_free_recv_buffer(void);
+/* signal unsafe - may malloc */
+extern	struct recvbuf *get_free_recv_buffer_alloc(void);
 
 /*   Add a buffer to the full list
  */
-extern	void	add_full_recv_buffer	 P((struct recvbuf *));
-
-/*extern	void	process_recv_buffers	 P((void)); */
+extern	void	add_full_recv_buffer(struct recvbuf *);
 
 /* number of recvbufs on freelist */
-extern u_long free_recvbuffs P((void));		
-extern u_long full_recvbuffs P((void));		
-extern u_long total_recvbuffs P((void));
-extern u_long lowater_additions P((void));
+extern u_long free_recvbuffs(void);		
+extern u_long full_recvbuffs(void);		
+extern u_long total_recvbuffs(void);
+extern u_long lowater_additions(void);
 		
 /*  Returns the next buffer in the full list.
  *
  */
-extern	struct recvbuf *get_full_recv_buffer P((void));
+extern	struct recvbuf *get_full_recv_buffer(void);
+
+/*
+ * purge_recv_buffers_for_fd() - purges any previously-received input
+ *				 from a given file descriptor.
+ */
+extern	void purge_recv_buffers_for_fd(SOCKET);
 
 /*
  * Checks to see if there are buffers to process
  */
-extern isc_boolean_t has_full_recv_buffer P((void));
+extern isc_boolean_t has_full_recv_buffer(void);
 
-#endif /* defined __recvbuff_h */
-
+#endif	/* RECVBUFF_H */

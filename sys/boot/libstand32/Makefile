@@ -83,7 +83,6 @@ SRCS+=	aeabi_memcmp.S aeabi_memcpy.S aeabi_memmove.S aeabi_memset.S
 .if ${MACHINE_CPUARCH} == "powerpc"
 .PATH: ${LIBC}/quad
 SRCS+=	ashldi3.c ashrdi3.c
-.PATH: ${LIBC}/powerpc/gen
 SRCS+=	syncicache.c
 .endif
 
@@ -94,8 +93,6 @@ SRCS+= uuid_equal.c uuid_is_nil.c
 # _setjmp/_longjmp
 .if ${MACHINE_CPUARCH} == "amd64"
 .PATH: ${S}/i386
-.elif ${MACHINE_ARCH} == "powerpc64"
-.PATH: ${S}/powerpc
 .else
 .PATH: ${S}/${MACHINE_CPUARCH}
 .endif

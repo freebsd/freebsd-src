@@ -13,7 +13,9 @@
         aout
         ..
         clang
-            3.5.1
+            3.6.0
+                include
+                ..
                 lib
                     freebsd
                     ..
@@ -181,8 +183,6 @@
             ..
             atm
             ..
-            binutils
-            ..
             legal
                 intel_ipw
                 ..
@@ -198,6 +198,20 @@
             ncurses
             ..
             ntp
+                drivers
+                    icons
+                    ..
+                    scripts
+                    ..
+                ..
+                hints
+                ..
+                icons
+                ..
+                pic
+                ..
+                scripts
+                ..
             ..
             papers
             ..
@@ -277,14 +291,6 @@
                 06.bc
                 ..
                 07.mail
-                ..
-                10.exref
-                ..
-                11.edit
-                ..
-                12.vi
-                ..
-                13.viref
                 ..
                 18.msdiffs
                 ..
@@ -414,6 +420,8 @@
                 ..
             ..
             tcsh
+            ..
+            uefisign
             ..
         ..
         games

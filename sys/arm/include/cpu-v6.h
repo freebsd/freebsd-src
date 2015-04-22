@@ -37,6 +37,9 @@
 
 #define CPU_ASID_KERNEL 0
 
+vm_offset_t dcache_wb_pou_checked(vm_offset_t, vm_size_t);
+vm_offset_t icache_inv_pou_checked(vm_offset_t, vm_size_t);
+
 /*
  * Macros to generate CP15 (system control processor) read/write functions.
  */
@@ -48,6 +51,15 @@ fname(void)								\
 {									\
 	register_t reg;							\
 	__asm __volatile("mrc\t" _FX(aname): "=r" (reg));		\
+	return(reg);							\
+}
+
+#define _R64F0(fname, aname)						\
+static __inline uint64_t						\
+fname(void)								\
+{									\
+	uint64_t reg;							\
+	__asm __volatile("mrrc\t" _FX(aname): "=r" (reg));		\
 	return(reg);							\
 }
 
@@ -63,6 +75,13 @@ static __inline void							\
 fname(register_t reg)							\
 {									\
 	__asm __volatile("mcr\t" _FX(aname):: "r" (reg));		\
+}
+
+#define _W64F1(fname, aname...)						\
+static __inline void							\
+fname(uint64_t reg)							\
+{									\
+	__asm __volatile("mcrr\t" _FX(aname):: "r" (reg));		\
 }
 
 /*
@@ -186,6 +205,37 @@ _WF1(cp15_tpidruro_set, CP15_TPIDRURO(%0))
 _RF0(cp15_tpidrpwr_get, CP15_TPIDRPRW(%0))
 _WF1(cp15_tpidrpwr_set, CP15_TPIDRPRW(%0))
 
+/* Generic Timer registers - only use when you know the hardware is available */
+_RF0(cp15_cntfrq_get, CP15_CNTFRQ(%0))
+_WF1(cp15_cntfrq_set, CP15_CNTFRQ(%0))
+_RF0(cp15_cntkctl_get, CP15_CNTKCTL(%0))
+_WF1(cp15_cntkctl_set, CP15_CNTKCTL(%0))
+_RF0(cp15_cntp_tval_get, CP15_CNTP_TVAL(%0))
+_WF1(cp15_cntp_tval_set, CP15_CNTP_TVAL(%0))
+_RF0(cp15_cntp_ctl_get, CP15_CNTP_CTL(%0))
+_WF1(cp15_cntp_ctl_set, CP15_CNTP_CTL(%0))
+_RF0(cp15_cntv_tval_get, CP15_CNTV_TVAL(%0))
+_WF1(cp15_cntv_tval_set, CP15_CNTV_TVAL(%0))
+_RF0(cp15_cntv_ctl_get, CP15_CNTV_CTL(%0))
+_WF1(cp15_cntv_ctl_set, CP15_CNTV_CTL(%0))
+_RF0(cp15_cnthctl_get, CP15_CNTHCTL(%0))
+_WF1(cp15_cnthctl_set, CP15_CNTHCTL(%0))
+_RF0(cp15_cnthp_tval_get, CP15_CNTHP_TVAL(%0))
+_WF1(cp15_cnthp_tval_set, CP15_CNTHP_TVAL(%0))
+_RF0(cp15_cnthp_ctl_get, CP15_CNTHP_CTL(%0))
+_WF1(cp15_cnthp_ctl_set, CP15_CNTHP_CTL(%0))
+
+_R64F0(cp15_cntpct_get, CP15_CNTPCT(%Q0, %R0))
+_R64F0(cp15_cntvct_get, CP15_CNTVCT(%Q0, %R0))
+_R64F0(cp15_cntp_cval_get, CP15_CNTP_CVAL(%Q0, %R0))
+_W64F1(cp15_cntp_cval_set, CP15_CNTP_CVAL(%Q0, %R0))
+_R64F0(cp15_cntv_cval_get, CP15_CNTV_CVAL(%Q0, %R0))
+_W64F1(cp15_cntv_cval_set, CP15_CNTV_CVAL(%Q0, %R0))
+_R64F0(cp15_cntvoff_get, CP15_CNTVOFF(%Q0, %R0))
+_W64F1(cp15_cntvoff_set, CP15_CNTVOFF(%Q0, %R0))
+_R64F0(cp15_cnthp_cval_get, CP15_CNTHP_CVAL(%Q0, %R0))
+_W64F1(cp15_cnthp_cval_set, CP15_CNTHP_CVAL(%Q0, %R0))
+
 #undef	_FX
 #undef	_RF0
 #undef	_WF0
@@ -302,7 +352,7 @@ icache_sync(vm_offset_t sva, vm_size_t size)
 	vm_offset_t eva = sva + size;
 
 	dsb();
-	for (va = sva; va < eva; va += arm_dcache_align) {
+	for (va = sva; va < eva; va += cpuinfo.dcache_line_size) {
 #if __ARM_ARCH >= 7 && defined SMP
 		_CP15_DCCMVAU(va);
 #else
@@ -332,6 +382,19 @@ icache_inv_all(void)
 	isb();
 }
 
+/* Invalidate branch predictor buffer */
+static __inline void
+bpb_inv_all(void)
+{
+#if __ARM_ARCH >= 7 && defined SMP
+	_CP15_BPIALLIS();
+#else
+	_CP15_BPIALL();
+#endif
+	dsb();
+	isb();
+}
+
 /* Write back D-cache to PoU */
 static __inline void
 dcache_wb_pou(vm_offset_t sva, vm_size_t size)
@@ -340,7 +403,7 @@ dcache_wb_pou(vm_offset_t sva, vm_size_t size)
 	vm_offset_t eva = sva + size;
 
 	dsb();
-	for (va = sva; va < eva; va += arm_dcache_align) {
+	for (va = sva; va < eva; va += cpuinfo.dcache_line_size) {
 #if __ARM_ARCH >= 7 && defined SMP
 		_CP15_DCCMVAU(va);
 #else
@@ -358,7 +421,7 @@ dcache_inv_poc(vm_offset_t sva, vm_paddr_t pa, vm_size_t size)
 	vm_offset_t eva = sva + size;
 
 	/* invalidate L1 first */
-	for (va = sva; va < eva; va += arm_dcache_align) {
+	for (va = sva; va < eva; va += cpuinfo.dcache_line_size) {
 		_CP15_DCIMVAC(va);
 	}
 	dsb();
@@ -368,7 +431,7 @@ dcache_inv_poc(vm_offset_t sva, vm_paddr_t pa, vm_size_t size)
 	dsb();
 
 	/* then L1 again */
-	for (va = sva; va < eva; va += arm_dcache_align) {
+	for (va = sva; va < eva; va += cpuinfo.dcache_line_size) {
 		_CP15_DCIMVAC(va);
 	}
 	dsb();
@@ -383,7 +446,7 @@ dcache_wb_poc(vm_offset_t sva, vm_paddr_t pa, vm_size_t size)
 
 	dsb();
 
-	for (va = sva; va < eva; va += arm_dcache_align) {
+	for (va = sva; va < eva; va += cpuinfo.dcache_line_size) {
 		_CP15_DCCMVAC(va);
 	}
 	dsb();
@@ -401,7 +464,7 @@ dcache_wbinv_poc(vm_offset_t sva, vm_paddr_t pa, vm_size_t size)
 	dsb();
 
 	/* write back L1 first */
-	for (va = sva; va < eva; va += arm_dcache_align) {
+	for (va = sva; va < eva; va += cpuinfo.dcache_line_size) {
 		_CP15_DCCMVAC(va);
 	}
 	dsb();
@@ -410,7 +473,7 @@ dcache_wbinv_poc(vm_offset_t sva, vm_paddr_t pa, vm_size_t size)
 	cpu_l2cache_wbinv_range(pa, size);
 
 	/* then invalidate L1 */
-	for (va = sva; va < eva; va += arm_dcache_align) {
+	for (va = sva; va < eva; va += cpuinfo.dcache_line_size) {
 		_CP15_DCIMVAC(va);
 	}
 	dsb();

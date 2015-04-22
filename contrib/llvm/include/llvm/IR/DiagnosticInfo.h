@@ -12,12 +12,13 @@
 // Diagnostics reporting is still done as part of the LLVMContext.
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SUPPORT_DIAGNOSTICINFO_H
-#define LLVM_SUPPORT_DIAGNOSTICINFO_H
+#ifndef LLVM_IR_DIAGNOSTICINFO_H
+#define LLVM_IR_DIAGNOSTICINFO_H
 
 #include "llvm-c/Core.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/IR/DebugLoc.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Support/Casting.h"
 
 namespace llvm {
@@ -44,8 +45,10 @@ enum DiagnosticSeverity {
 /// \brief Defines the different supported kind of a diagnostic.
 /// This enum should be extended with a new ID for each added concrete subclass.
 enum DiagnosticKind {
+  DK_Bitcode,
   DK_InlineAsm,
   DK_StackSize,
+  DK_Linker,
   DK_DebugMetadataVersion,
   DK_SampleProfile,
   DK_OptimizationRemark,
@@ -94,6 +97,8 @@ public:
   /// keyword.
   virtual void print(DiagnosticPrinter &DP) const = 0;
 };
+
+typedef std::function<void(const DiagnosticInfo &)> DiagnosticHandlerFunction;
 
 /// Diagnostic information for inline asm reporting.
 /// This is basically a message and an optional location.
@@ -324,7 +329,7 @@ public:
   }
 
   /// \see DiagnosticInfoOptimizationBase::isEnabled.
-  virtual bool isEnabled() const override;
+  bool isEnabled() const override;
 };
 
 /// Diagnostic information for missed-optimization remarks.
@@ -350,7 +355,7 @@ public:
   }
 
   /// \see DiagnosticInfoOptimizationBase::isEnabled.
-  virtual bool isEnabled() const override;
+  bool isEnabled() const override;
 };
 
 /// Diagnostic information for optimization analysis remarks.
@@ -377,7 +382,7 @@ public:
   }
 
   /// \see DiagnosticInfoOptimizationBase::isEnabled.
-  virtual bool isEnabled() const override;
+  bool isEnabled() const override;
 };
 
 // Create wrappers for C Binding types (see CBindingWrapping.h).
@@ -432,7 +437,7 @@ public:
   }
 
   /// \see DiagnosticInfoOptimizationBase::isEnabled.
-  virtual bool isEnabled() const override;
+  bool isEnabled() const override;
 };
 
 /// Emit a warning when loop vectorization is specified but fails. \p Fn is the

@@ -66,5 +66,5 @@ $dtrace -s $tmpfile
 status=$?
 
 rm $tmpfile
-pkill sleep
+pkill -P $$ sleep
 exit $status

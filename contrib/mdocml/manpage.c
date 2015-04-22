@@ -1,4 +1,4 @@
-/*	$Id: manpage.c,v 1.9 2014/08/17 03:24:47 schwarze Exp $ */
+/*	$Id: manpage.c,v 1.10 2015/02/10 08:05:30 schwarze Exp $ */
 /*
  * Copyright (c) 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013 Ingo Schwarze <schwarze@openbsd.org>
@@ -107,7 +107,7 @@ main(int argc, char *argv[])
 		return(EXIT_FAILURE);
 
 	for (i = 0; i < sz; i++) {
-		printf("%6zu  %s: %s\n", 
+		printf("%6zu  %s: %s\n",
 			i + 1, res[i].names, res[i].output);
 		free(res[i].names);
 		free(res[i].output);
@@ -148,11 +148,11 @@ show:
 	/* NOTREACHED */
 usage:
 	fprintf(stderr, "usage: %s [-C conf] "
-			 	  "[-M paths] "
+				  "[-M paths] "
 				  "[-m paths] "
 				  "[-S arch] "
 				  "[-s section] "
-			          "expr ...\n", 
+			          "expr ...\n",
 				  progname);
 	return(EXIT_FAILURE);
 }
@@ -174,9 +174,9 @@ show(const char *cmd, const char *file)
 	} else if (pid > 0) {
 		dup2(fds[0], STDIN_FILENO);
 		close(fds[1]);
-		cmd = NULL != getenv("MANPAGER") ? 
+		cmd = NULL != getenv("MANPAGER") ?
 			getenv("MANPAGER") :
-			(NULL != getenv("PAGER") ? 
+			(NULL != getenv("PAGER") ?
 			 getenv("PAGER") : "more");
 		execlp(cmd, cmd, (char *)NULL);
 		perror(cmd);

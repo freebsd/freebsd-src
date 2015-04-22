@@ -21,9 +21,6 @@
 ident		VYBRID
 include		"../freescale/vybrid/std.vybrid"
 
-makeoptions	MODULES_OVERRIDE=""
-makeoptions	WITHOUT_MODULES="ahc"
-
 makeoptions	WERROR="-Werror"
 
 options 	HZ=100

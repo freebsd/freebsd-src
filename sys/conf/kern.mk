@@ -58,6 +58,8 @@ CWARNEXTRA?=	-Wno-uninitialized
 # to be disabled.  WARNING: format checking is disabled in this case.
 .if ${MK_FORMAT_EXTENSIONS} == "no"
 FORMAT_EXTENSIONS=	-Wno-format
+.elif ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 30600
+FORMAT_EXTENSIONS=	-D__printf__=__freebsd_kprintf__
 .else
 FORMAT_EXTENSIONS=	-fformat-extensions
 .endif
@@ -131,7 +133,9 @@ INLINE_LIMIT?=	8000
 # Also explicitly disable Altivec instructions inside the kernel.
 #
 .if ${MACHINE_CPUARCH} == "powerpc"
-CFLAGS+=	-msoft-float -mno-altivec
+CFLAGS+=	-mno-altivec
+CFLAGS.clang+=	-mllvm -disable-ppc-float-in-variadic=true
+CFLAGS.gcc+=	-msoft-float
 INLINE_LIMIT?=	15000
 .endif
 
@@ -139,7 +143,7 @@ INLINE_LIMIT?=	15000
 # Use dot symbols on powerpc64 to make ddb happy
 #
 .if ${MACHINE_ARCH} == "powerpc64"
-CFLAGS+=	-mcall-aixdesc
+CFLAGS.gcc+=	-mcall-aixdesc
 .endif
 
 #

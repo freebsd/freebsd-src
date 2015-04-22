@@ -163,7 +163,6 @@ u_long *ipi_invlrng_counts[MAXCPU];
 u_long *ipi_invlpg_counts[MAXCPU];
 u_long *ipi_invlcache_counts[MAXCPU];
 u_long *ipi_rendezvous_counts[MAXCPU];
-u_long *ipi_lazypmap_counts[MAXCPU];
 static u_long *ipi_hardclock_counts[MAXCPU];
 #endif
 
@@ -576,10 +575,6 @@ cpu_mp_start(void)
 	setidt(IPI_INVLCACHE, IDTVEC(invlcache),
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 
-	/* Install an inter-CPU IPI for lazy pmap release */
-	setidt(IPI_LAZYPMAP, IDTVEC(lazypmap),
-	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-
 	/* Install an inter-CPU IPI for all-CPU rendezvous */
 	setidt(IPI_RENDEZVOUS, IDTVEC(rendezvous),
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
@@ -719,12 +714,6 @@ init_secondary(void)
 	load_cr0(cr0);
 	CHECK_WRITE(0x38, 5);
 	
-	/*
-	 * On real hardware, switch to x2apic mode if possible.
-	 * Disable local APIC until BSP directed APs to run.
-	 */
-	lapic_xapic_mode();
-
 	/* signal our startup to the BSP. */
 	mp_naps++;
 	CHECK_WRITE(0x39, 6);
@@ -741,6 +730,14 @@ init_secondary(void)
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 	lidt(&r_idt);
 #endif
+
+	/*
+	 * On real hardware, switch to x2apic mode if possible.  Do it
+	 * after aps_ready was signalled, to avoid manipulating the
+	 * mode while BSP might still want to send some IPI to us
+	 * (second startup IPI is ignored on modern hardware etc).
+	 */
+	lapic_xapic_mode();
 
 	/* Initialize the PAT MSR if present. */
 	pmap_init_pat();
@@ -840,8 +837,8 @@ set_interrupt_apic_ids(void)
 			continue;
 
 		/* Don't let hyperthreads service interrupts. */
-		if (hyperthreading_cpus > 1 &&
-		    apic_id % hyperthreading_cpus != 0)
+		if (cpu_logical > 1 &&
+		    apic_id % cpu_logical != 0)
 			continue;
 
 		intr_add_cpu(i);
@@ -1155,7 +1152,7 @@ ipi_startup(int apic_id, int vector)
 	 */
 	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_LEVEL |
 	    APIC_LEVEL_ASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_INIT, apic_id);
-	lapic_ipi_wait(20);
+	lapic_ipi_wait(100);
 
 	/* Explicitly deassert the INIT IPI. */
 	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_LEVEL |
@@ -1175,7 +1172,7 @@ ipi_startup(int apic_id, int vector)
 	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
 	    APIC_LEVEL_ASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_STARTUP |
 	    vector, apic_id);
-	if (!lapic_ipi_wait(20))
+	if (!lapic_ipi_wait(100))
 		panic("Failed to deliver first STARTUP IPI to APIC %d",
 		    apic_id);
 	DELAY(200);		/* wait ~200uS */
@@ -1189,7 +1186,7 @@ ipi_startup(int apic_id, int vector)
 	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
 	    APIC_LEVEL_ASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_STARTUP |
 	    vector, apic_id);
-	if (!lapic_ipi_wait(20))
+	if (!lapic_ipi_wait(100))
 		panic("Failed to deliver second STARTUP IPI to APIC %d",
 		    apic_id);
 
@@ -1670,8 +1667,6 @@ mp_ipi_intrcnt(void *dummy)
 		intrcnt_add(buf, &ipi_ast_counts[i]);
 		snprintf(buf, sizeof(buf), "cpu%d:rendezvous", i);
 		intrcnt_add(buf, &ipi_rendezvous_counts[i]);
-		snprintf(buf, sizeof(buf), "cpu%d:lazypmap", i);
-		intrcnt_add(buf, &ipi_lazypmap_counts[i]);
 		snprintf(buf, sizeof(buf), "cpu%d:hardclock", i);
 		intrcnt_add(buf, &ipi_hardclock_counts[i]);
 	}		

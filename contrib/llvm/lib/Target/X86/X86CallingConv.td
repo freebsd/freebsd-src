@@ -14,7 +14,9 @@
 
 /// CCIfSubtarget - Match if the current subtarget has a feature F.
 class CCIfSubtarget<string F, CCAction A>
- : CCIf<!strconcat("State.getTarget().getSubtarget<X86Subtarget>().", F), A>;
+    : CCIf<!strconcat("static_cast<const X86Subtarget&>"
+                       "(State.getMachineFunction().getSubtarget()).", F),
+           A>;
 
 //===----------------------------------------------------------------------===//
 // Return Value Calling Conventions
@@ -59,20 +61,20 @@ def RetCC_X86Common : CallingConv<[
   // MM0, it doesn't support these vector types.
   CCIfType<[x86mmx], CCAssignToReg<[MM0]>>,
 
-  // Long double types are always returned in ST0 (even with SSE).
-  CCIfType<[f80], CCAssignToReg<[ST0, ST1]>>
+  // Long double types are always returned in FP0 (even with SSE).
+  CCIfType<[f80], CCAssignToReg<[FP0, FP1]>>
 ]>;
 
 // X86-32 C return-value convention.
 def RetCC_X86_32_C : CallingConv<[
-  // The X86-32 calling convention returns FP values in ST0, unless marked
+  // The X86-32 calling convention returns FP values in FP0, unless marked
   // with "inreg" (used here to distinguish one kind of reg from another,
   // weirdly; this is really the sse-regparm calling convention) in which
   // case they use XMM0, otherwise it is the same as the common X86 calling
   // conv.
   CCIfInReg<CCIfSubtarget<"hasSSE2()",
     CCIfType<[f32, f64], CCAssignToReg<[XMM0,XMM1,XMM2]>>>>,
-  CCIfType<[f32,f64], CCAssignToReg<[ST0, ST1]>>,
+  CCIfType<[f32,f64], CCAssignToReg<[FP0, FP1]>>,
   CCDelegateTo<RetCC_X86Common>
 ]>;
 
@@ -120,6 +122,24 @@ def RetCC_X86_32_HiPE : CallingConv<[
 
   // Return: HP, P, VAL1, VAL2
   CCIfType<[i32], CCAssignToReg<[ESI, EBP, EAX, EDX]>>
+]>;
+
+// X86-32 HiPE return-value convention.
+def RetCC_X86_32_VectorCall : CallingConv<[
+  // Vector types are returned in XMM0,XMM1,XMMM2 and XMM3.
+  CCIfType<[f32, f64, v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],
+            CCAssignToReg<[XMM0,XMM1,XMM2,XMM3]>>,
+
+  // 256-bit FP vectors
+  CCIfType<[v32i8, v16i16, v8i32, v4i64, v8f32, v4f64],
+            CCAssignToReg<[YMM0,YMM1,YMM2,YMM3]>>,
+
+  // 512-bit FP vectors
+  CCIfType<[v64i8, v32i16, v16i32, v8i64, v16f32, v8f64],
+            CCAssignToReg<[ZMM0,ZMM1,ZMM2,ZMM3]>>,
+
+  // Return integers in the standard way.
+  CCDelegateTo<RetCC_X86Common>
 ]>;
 
 // X86-64 C return-value convention.
@@ -177,6 +197,7 @@ def RetCC_X86_32 : CallingConv<[
   CCIfCC<"CallingConv::Fast", CCDelegateTo<RetCC_X86_32_Fast>>,
   // If HiPE, use RetCC_X86_32_HiPE.
   CCIfCC<"CallingConv::HiPE", CCDelegateTo<RetCC_X86_32_HiPE>>,
+  CCIfCC<"CallingConv::X86_VectorCall", CCDelegateTo<RetCC_X86_32_VectorCall>>,
 
   // Otherwise, use RetCC_X86_32_C.
   CCDelegateTo<RetCC_X86_32_C>
@@ -224,6 +245,7 @@ def CC_X86_64_C : CallingConv<[
   CCIfType<[i8, i16], CCPromoteToType<i32>>,
 
   // The 'nest' parameter, if any, is passed in R10.
+  CCIfNest<CCIfSubtarget<"isTarget64BitILP32()", CCAssignToReg<[R10D]>>>,
   CCIfNest<CCAssignToReg<[R10]>>,
 
   // The first 6 integer arguments are passed in integer registers.
@@ -326,6 +348,25 @@ def CC_X86_Win64_C : CallingConv<[
   // subtarget.
   CCIfType<[f80], CCAssignToStack<0, 0>>
 ]>;
+
+def CC_X86_Win64_VectorCall : CallingConv<[
+  // The first 6 floating point and vector types of 128 bits or less use
+  // XMM0-XMM5.
+  CCIfType<[f32, f64, v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],
+           CCAssignToReg<[XMM0, XMM1, XMM2, XMM3, XMM4, XMM5]>>,
+
+  // 256-bit vectors use YMM registers.
+  CCIfType<[v32i8, v16i16, v8i32, v4i64, v8f32, v4f64],
+           CCAssignToReg<[YMM0, YMM1, YMM2, YMM3, YMM4, YMM5]>>,
+
+  // 512-bit vectors use ZMM registers.
+  CCIfType<[v64i8, v32i16, v16i32, v8i64, v16f32, v8f64],
+           CCAssignToReg<[ZMM0, ZMM1, ZMM2, ZMM3, ZMM4, ZMM5]>>,
+
+  // Delegate to fastcall to handle integer types.
+  CCDelegateTo<CC_X86_Win64_C>
+]>;
+
 
 def CC_X86_64_GHC : CallingConv<[
   // Promote i8/i16/i32 arguments to i64.
@@ -460,6 +501,30 @@ def CC_X86_32_FastCall : CallingConv<[
   CCDelegateTo<CC_X86_32_Common>
 ]>;
 
+def CC_X86_32_VectorCall : CallingConv<[
+  // The first 6 floating point and vector types of 128 bits or less use
+  // XMM0-XMM5.
+  CCIfType<[f32, f64, v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],
+           CCAssignToReg<[XMM0, XMM1, XMM2, XMM3, XMM4, XMM5]>>,
+
+  // 256-bit vectors use YMM registers.
+  CCIfType<[v32i8, v16i16, v8i32, v4i64, v8f32, v4f64],
+           CCAssignToReg<[YMM0, YMM1, YMM2, YMM3, YMM4, YMM5]>>,
+
+  // 512-bit vectors use ZMM registers.
+  CCIfType<[v64i8, v32i16, v16i32, v8i64, v16f32, v8f64],
+           CCAssignToReg<[ZMM0, ZMM1, ZMM2, ZMM3, ZMM4, ZMM5]>>,
+
+  // Otherwise, pass it indirectly.
+  CCIfType<[v16i8, v8i16, v4i32, v2i64, v4f32, v2f64,
+            v32i8, v16i16, v8i32, v4i64, v8f32, v4f64,
+            v64i8, v32i16, v16i32, v8i64, v16f32, v8f64],
+           CCCustom<"CC_X86_32_VectorCallIndirect">>,
+
+  // Delegate to fastcall to handle integer types.
+  CCDelegateTo<CC_X86_32_FastCall>
+]>;
+
 def CC_X86_32_ThisCall_Common : CallingConv<[
   // The first integer argument is passed in ECX
   CCIfType<[i32], CCAssignToReg<[ECX]>>,
@@ -573,6 +638,7 @@ def CC_Intel_OCL_BI : CallingConv<[
 // This is the root argument convention for the X86-32 backend.
 def CC_X86_32 : CallingConv<[
   CCIfCC<"CallingConv::X86_FastCall", CCDelegateTo<CC_X86_32_FastCall>>,
+  CCIfCC<"CallingConv::X86_VectorCall", CCDelegateTo<CC_X86_32_VectorCall>>,
   CCIfCC<"CallingConv::X86_ThisCall", CCDelegateTo<CC_X86_32_ThisCall>>,
   CCIfCC<"CallingConv::Fast", CCDelegateTo<CC_X86_32_FastCC>>,
   CCIfCC<"CallingConv::GHC", CCDelegateTo<CC_X86_32_GHC>>,
@@ -590,6 +656,7 @@ def CC_X86_64 : CallingConv<[
   CCIfCC<"CallingConv::AnyReg", CCDelegateTo<CC_X86_64_AnyReg>>,
   CCIfCC<"CallingConv::X86_64_Win64", CCDelegateTo<CC_X86_Win64_C>>,
   CCIfCC<"CallingConv::X86_64_SysV", CCDelegateTo<CC_X86_64_C>>,
+  CCIfCC<"CallingConv::X86_VectorCall", CCDelegateTo<CC_X86_Win64_VectorCall>>,
 
   // Mingw64 and native Win64 use Win64 CC
   CCIfSubtarget<"isTargetWin64()", CCDelegateTo<CC_X86_Win64_C>>,

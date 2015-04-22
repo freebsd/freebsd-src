@@ -40,7 +40,7 @@ STATISTIC(NumElimRem     , "Number of IV remainder operations eliminated");
 STATISTIC(NumElimCmp     , "Number of IV comparisons eliminated");
 
 namespace {
-  /// SimplifyIndvar - This is a utility for simplifying induction variables
+  /// This is a utility for simplifying induction variables
   /// based on ScalarEvolution. It is the primary instrument of the
   /// IndvarSimplify pass, but it may also be directly invoked to cleanup after
   /// other loop passes that preserve SCEV.
@@ -80,13 +80,14 @@ namespace {
     void eliminateIVComparison(ICmpInst *ICmp, Value *IVOperand);
     void eliminateIVRemainder(BinaryOperator *Rem, Value *IVOperand,
                               bool IsSigned);
+    bool strengthenOverflowingOperation(BinaryOperator *OBO, Value *IVOperand);
 
     Instruction *splitOverflowIntrinsic(Instruction *IVUser,
                                         const DominatorTree *DT);
   };
 }
 
-/// foldIVUser - Fold an IV operand into its use.  This removes increments of an
+/// Fold an IV operand into its use.  This removes increments of an
 /// aligned IV when used by a instruction that ignores the low bits.
 ///
 /// IVOperand is guaranteed SCEVable, but UseInst may not be.
@@ -152,7 +153,7 @@ Value *SimplifyIndvar::foldIVUser(Instruction *UseInst, Instruction *IVOperand) 
   return IVSrc;
 }
 
-/// eliminateIVComparison - SimplifyIVUsers helper for eliminating useless
+/// SimplifyIVUsers helper for eliminating useless
 /// comparisons against an induction variable.
 void SimplifyIndvar::eliminateIVComparison(ICmpInst *ICmp, Value *IVOperand) {
   unsigned IVOperIdx = 0;
@@ -188,7 +189,7 @@ void SimplifyIndvar::eliminateIVComparison(ICmpInst *ICmp, Value *IVOperand) {
   DeadInsts.push_back(ICmp);
 }
 
-/// eliminateIVRemainder - SimplifyIVUsers helper for eliminating useless
+/// SimplifyIVUsers helper for eliminating useless
 /// remainder operations operating on an induction variable.
 void SimplifyIndvar::eliminateIVRemainder(BinaryOperator *Rem,
                                       Value *IVOperand,
@@ -239,7 +240,7 @@ void SimplifyIndvar::eliminateIVRemainder(BinaryOperator *Rem,
   DeadInsts.push_back(Rem);
 }
 
-/// eliminateIVUser - Eliminate an operation that consumes a simple IV and has
+/// Eliminate an operation that consumes a simple IV and has
 /// no observable side-effect given the range of IV values.
 /// IVOperand is guaranteed SCEVable, but UseInst may not be.
 bool SimplifyIndvar::eliminateIVUser(Instruction *UseInst,
@@ -269,6 +270,110 @@ bool SimplifyIndvar::eliminateIVUser(Instruction *UseInst,
   Changed = true;
   DeadInsts.push_back(UseInst);
   return true;
+}
+
+/// Annotate BO with nsw / nuw if it provably does not signed-overflow /
+/// unsigned-overflow.  Returns true if anything changed, false otherwise.
+bool SimplifyIndvar::strengthenOverflowingOperation(BinaryOperator *BO,
+                                                    Value *IVOperand) {
+
+  // Currently we only handle instructions of the form "add <indvar> <value>"
+  unsigned Op = BO->getOpcode();
+  if (Op != Instruction::Add)
+    return false;
+
+  // If BO is already both nuw and nsw then there is nothing left to do
+  if (BO->hasNoUnsignedWrap() && BO->hasNoSignedWrap())
+    return false;
+
+  IntegerType *IT = cast<IntegerType>(IVOperand->getType());
+  Value *OtherOperand = nullptr;
+  int OtherOperandIdx = -1;
+  if (BO->getOperand(0) == IVOperand) {
+    OtherOperand = BO->getOperand(1);
+    OtherOperandIdx = 1;
+  } else {
+    assert(BO->getOperand(1) == IVOperand && "only other use!");
+    OtherOperand = BO->getOperand(0);
+    OtherOperandIdx = 0;
+  }
+
+  bool Changed = false;
+  const SCEV *OtherOpSCEV = SE->getSCEV(OtherOperand);
+  if (OtherOpSCEV == SE->getCouldNotCompute())
+    return false;
+
+  const SCEV *IVOpSCEV = SE->getSCEV(IVOperand);
+  const SCEV *ZeroSCEV = SE->getConstant(IVOpSCEV->getType(), 0);
+
+  if (!BO->hasNoSignedWrap()) {
+    // Upgrade the add to an "add nsw" if we can prove that it will never
+    // sign-overflow or sign-underflow.
+
+    const SCEV *SignedMax =
+      SE->getConstant(APInt::getSignedMaxValue(IT->getBitWidth()));
+    const SCEV *SignedMin =
+      SE->getConstant(APInt::getSignedMinValue(IT->getBitWidth()));
+
+    // The addition "IVOperand + OtherOp" does not sign-overflow if the result
+    // is sign-representable in 2's complement in the given bit-width.
+    //
+    // If OtherOp is SLT 0, then for an IVOperand in [SignedMin - OtherOp,
+    // SignedMax], "IVOperand + OtherOp" is in [SignedMin, SignedMax + OtherOp].
+    // Everything in [SignedMin, SignedMax + OtherOp] is representable since
+    // SignedMax + OtherOp is at least -1.
+    //
+    // If OtherOp is SGE 0, then for an IVOperand in [SignedMin, SignedMax -
+    // OtherOp], "IVOperand + OtherOp" is in [SignedMin + OtherOp, SignedMax].
+    // Everything in [SignedMin + OtherOp, SignedMax] is representable since
+    // SignedMin + OtherOp is at most -1.
+    //
+    // It follows that for all values of IVOperand in [SignedMin - smin(0,
+    // OtherOp), SignedMax - smax(0, OtherOp)] the result of the add is
+    // representable (i.e. there is no sign-overflow).
+
+    const SCEV *UpperDelta = SE->getSMaxExpr(ZeroSCEV, OtherOpSCEV);
+    const SCEV *UpperLimit = SE->getMinusSCEV(SignedMax, UpperDelta);
+
+    bool NeverSignedOverflows =
+      SE->isKnownPredicate(ICmpInst::ICMP_SLE, IVOpSCEV, UpperLimit);
+
+    if (NeverSignedOverflows) {
+      const SCEV *LowerDelta = SE->getSMinExpr(ZeroSCEV, OtherOpSCEV);
+      const SCEV *LowerLimit = SE->getMinusSCEV(SignedMin, LowerDelta);
+
+      bool NeverSignedUnderflows =
+        SE->isKnownPredicate(ICmpInst::ICMP_SGE, IVOpSCEV, LowerLimit);
+      if (NeverSignedUnderflows) {
+        BO->setHasNoSignedWrap(true);
+        Changed = true;
+      }
+    }
+  }
+
+  if (!BO->hasNoUnsignedWrap()) {
+    // Upgrade the add computing "IVOperand + OtherOp" to an "add nuw" if we can
+    // prove that it will never unsigned-overflow (i.e. the result will always
+    // be representable in the given bit-width).
+    //
+    // "IVOperand + OtherOp" is unsigned-representable in 2's complement iff it
+    // does not produce a carry.  "IVOperand + OtherOp" produces no carry iff
+    // IVOperand ULE (UnsignedMax - OtherOp).
+
+    const SCEV *UnsignedMax =
+      SE->getConstant(APInt::getMaxValue(IT->getBitWidth()));
+    const SCEV *UpperLimit = SE->getMinusSCEV(UnsignedMax, OtherOpSCEV);
+
+    bool NeverUnsignedOverflows =
+        SE->isKnownPredicate(ICmpInst::ICMP_ULE, IVOpSCEV, UpperLimit);
+
+    if (NeverUnsignedOverflows) {
+      BO->setHasNoUnsignedWrap(true);
+      Changed = true;
+    }
+  }
+
+  return Changed;
 }
 
 /// \brief Split sadd.with.overflow into add + sadd.with.overflow to allow
@@ -334,8 +439,7 @@ Instruction *SimplifyIndvar::splitOverflowIntrinsic(Instruction *IVUser,
   return AddInst;
 }
 
-/// pushIVUsers - Add all uses of Def to the current IV's worklist.
-///
+/// Add all uses of Def to the current IV's worklist.
 static void pushIVUsers(
   Instruction *Def,
   SmallPtrSet<Instruction*,16> &Simplified,
@@ -348,12 +452,12 @@ static void pushIVUsers(
     // Also ensure unique worklist users.
     // If Def is a LoopPhi, it may not be in the Simplified set, so check for
     // self edges first.
-    if (UI != Def && Simplified.insert(UI))
+    if (UI != Def && Simplified.insert(UI).second)
       SimpleIVUsers.push_back(std::make_pair(UI, Def));
   }
 }
 
-/// isSimpleIVUser - Return true if this instruction generates a simple SCEV
+/// Return true if this instruction generates a simple SCEV
 /// expression in terms of that IV.
 ///
 /// This is similar to IVUsers' isInteresting() but processes each instruction
@@ -374,7 +478,7 @@ static bool isSimpleIVUser(Instruction *I, const Loop *L, ScalarEvolution *SE) {
   return false;
 }
 
-/// simplifyUsers - Iteratively perform simplification on a worklist of users
+/// Iteratively perform simplification on a worklist of users
 /// of the specified induction variable. Each successive simplification may push
 /// more users which may themselves be candidates for simplification.
 ///
@@ -431,6 +535,16 @@ void SimplifyIndvar::simplifyUsers(PHINode *CurrIV, IVVisitor *V) {
       pushIVUsers(IVOperand, Simplified, SimpleIVUsers);
       continue;
     }
+
+    if (BinaryOperator *BO = dyn_cast<BinaryOperator>(UseOper.first)) {
+      if (isa<OverflowingBinaryOperator>(BO) &&
+          strengthenOverflowingOperation(BO, IVOperand)) {
+        // re-queue uses of the now modified binary operator and fall
+        // through to the checks that remain.
+        pushIVUsers(IVOperand, Simplified, SimpleIVUsers);
+      }
+    }
+
     CastInst *Cast = dyn_cast<CastInst>(UseOper.first);
     if (V && Cast) {
       V->visitCast(Cast);
@@ -446,7 +560,7 @@ namespace llvm {
 
 void IVVisitor::anchor() { }
 
-/// simplifyUsersOfIV - Simplify instructions that use this induction variable
+/// Simplify instructions that use this induction variable
 /// by using ScalarEvolution to analyze the IV's recurrence.
 bool simplifyUsersOfIV(PHINode *CurrIV, ScalarEvolution *SE, LPPassManager *LPM,
                        SmallVectorImpl<WeakVH> &Dead, IVVisitor *V)
@@ -457,7 +571,7 @@ bool simplifyUsersOfIV(PHINode *CurrIV, ScalarEvolution *SE, LPPassManager *LPM,
   return SIV.hasChanged();
 }
 
-/// simplifyLoopIVs - Simplify users of induction variables within this
+/// Simplify users of induction variables within this
 /// loop. This does not actually change or add IVs.
 bool simplifyLoopIVs(Loop *L, ScalarEvolution *SE, LPPassManager *LPM,
                      SmallVectorImpl<WeakVH> &Dead) {

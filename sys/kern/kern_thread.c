@@ -209,6 +209,7 @@ thread_init(void *mem, int size, int flags)
 	td->td_sched = (struct td_sched *)&td[1];
 	umtx_thread_init(td);
 	td->td_kstack = 0;
+	td->td_sel = NULL;
 	return (0);
 }
 
@@ -413,7 +414,6 @@ thread_exit(void)
 #ifdef AUDIT
 	AUDIT_SYSCALL_EXIT(0, td);
 #endif
-	umtx_thread_exit(td);
 	/*
 	 * drop FPU & debug register state storage, or any other
 	 * architecture specific resources that
@@ -864,6 +864,7 @@ thread_suspend_check(int return_instead)
 			tidhash_remove(td);
 			PROC_LOCK(p);
 			tdsigcleanup(td);
+			umtx_thread_exit(td);
 			PROC_SLOCK(p);
 			thread_stopped(p);
 			thread_exit();

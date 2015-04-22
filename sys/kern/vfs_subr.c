@@ -2645,6 +2645,7 @@ loop:
 		 */
 		if (vp->v_usecount == 0 || (flags & FORCECLOSE)) {
 			VNASSERT(vp->v_usecount == 0 ||
+			    vp->v_op != &devfs_specops ||
 			    (vp->v_type != VCHR && vp->v_type != VBLK), vp,
 			    ("device VNODE %p is FORCECLOSED", vp));
 			vgonel(vp);
@@ -3146,6 +3147,7 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_KERN_FLAG(MNTK_VGONE_WAITER);
 	MNT_KERN_FLAG(MNTK_LOOKUP_EXCL_DOTDOT);
 	MNT_KERN_FLAG(MNTK_MARKER);
+	MNT_KERN_FLAG(MNTK_USES_BCACHE);
 	MNT_KERN_FLAG(MNTK_NOASYNC);
 	MNT_KERN_FLAG(MNTK_UNMOUNT);
 	MNT_KERN_FLAG(MNTK_MWAIT);

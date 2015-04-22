@@ -8,19 +8,86 @@
 /// \file
 //===----------------------------------------------------------------------===//
 
-#ifndef SIDEFINES_H_
-#define SIDEFINES_H_
+#include "llvm/MC/MCInstrDesc.h"
+
+#ifndef LLVM_LIB_TARGET_R600_SIDEFINES_H
+#define LLVM_LIB_TARGET_R600_SIDEFINES_H
 
 namespace SIInstrFlags {
+// This needs to be kept in sync with the field bits in InstSI.
 enum {
-  MIMG = 1 << 3,
-  SMRD = 1 << 4,
-  VOP1 = 1 << 5,
-  VOP2 = 1 << 6,
-  VOP3 = 1 << 7,
-  VOPC = 1 << 8,
-  SALU = 1 << 9
+  SALU = 1 << 3,
+  VALU = 1 << 4,
+
+  SOP1 = 1 << 5,
+  SOP2 = 1 << 6,
+  SOPC = 1 << 7,
+  SOPK = 1 << 8,
+  SOPP = 1 << 9,
+
+  VOP1 = 1 << 10,
+  VOP2 = 1 << 11,
+  VOP3 = 1 << 12,
+  VOPC = 1 << 13,
+
+  MUBUF = 1 << 14,
+  MTBUF = 1 << 15,
+  SMRD = 1 << 16,
+  DS = 1 << 17,
+  MIMG = 1 << 18,
+  FLAT = 1 << 19
 };
+}
+
+namespace llvm {
+namespace AMDGPU {
+  enum OperandType {
+    /// Operand with register or 32-bit immediate
+    OPERAND_REG_IMM32 = llvm::MCOI::OPERAND_FIRST_TARGET,
+    /// Operand with register or inline constant
+    OPERAND_REG_INLINE_C
+  };
+}
+}
+
+namespace SIInstrFlags {
+  enum Flags {
+    // First 4 bits are the instruction encoding
+    VM_CNT = 1 << 0,
+    EXP_CNT = 1 << 1,
+    LGKM_CNT = 1 << 2
+  };
+
+  // v_cmp_class_* etc. use a 10-bit mask for what operation is checked.
+  // The result is true if any of these tests are true.
+  enum ClassFlags {
+    S_NAN = 1 << 0,        // Signaling NaN
+    Q_NAN = 1 << 1,        // Quiet NaN
+    N_INFINITY = 1 << 2,   // Negative infinity
+    N_NORMAL = 1 << 3,     // Negative normal
+    N_SUBNORMAL = 1 << 4,  // Negative subnormal
+    N_ZERO = 1 << 5,       // Negative zero
+    P_ZERO = 1 << 6,       // Positive zero
+    P_SUBNORMAL = 1 << 7,  // Positive subnormal
+    P_NORMAL = 1 << 8,     // Positive normal
+    P_INFINITY = 1 << 9    // Positive infinity
+  };
+}
+
+namespace SISrcMods {
+  enum {
+   NEG = 1 << 0,
+   ABS = 1 << 1
+  };
+}
+
+namespace SIOutMods {
+  enum {
+    NONE = 0,
+    MUL2 = 1,
+    MUL4 = 2,
+    DIV2 = 3
+  };
 }
 
 #define R_00B028_SPI_SHADER_PGM_RSRC1_PS                                0x00B028
@@ -32,7 +99,14 @@ enum {
 #define   S_00B028_VGPRS(x)                                           (((x) & 0x3F) << 0)
 #define   S_00B028_SGPRS(x)                                           (((x) & 0x0F) << 6)
 #define R_00B84C_COMPUTE_PGM_RSRC2                                      0x00B84C
-#define   S_00B02C_SCRATCH_EN(x)                                      (((x) & 0x1) << 0)
+#define   S_00B84C_SCRATCH_EN(x)                                      (((x) & 0x1) << 0)
+#define   S_00B84C_USER_SGPR(x)                                       (((x) & 0x1F) << 1)
+#define   S_00B84C_TGID_X_EN(x)                                       (((x) & 0x1) << 7)
+#define   S_00B84C_TGID_Y_EN(x)                                       (((x) & 0x1) << 8)
+#define   S_00B84C_TGID_Z_EN(x)                                       (((x) & 0x1) << 9)
+#define   S_00B84C_TG_SIZE_EN(x)                                      (((x) & 0x1) << 10)
+#define   S_00B84C_TIDIG_COMP_CNT(x)                                  (((x) & 0x03) << 11)
+
 #define   S_00B84C_LDS_SIZE(x)                                        (((x) & 0x1FF) << 15)
 #define R_0286CC_SPI_PS_INPUT_ENA                                       0x0286CC
 
@@ -89,4 +163,8 @@ enum {
 #define R_00B860_COMPUTE_TMPRING_SIZE                                   0x00B860
 #define   S_00B860_WAVESIZE(x)                                        (((x) & 0x1FFF) << 12)
 
-#endif // SIDEFINES_H_
+#define R_0286E8_SPI_TMPRING_SIZE                                       0x0286E8
+#define   S_0286E8_WAVESIZE(x)                                        (((x) & 0x1FFF) << 12)
+
+
+#endif
