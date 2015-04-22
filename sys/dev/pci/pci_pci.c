@@ -1101,32 +1101,15 @@ pcib_attach(device_t dev)
 int
 pcib_suspend(device_t dev)
 {
-	device_t	pcib;
-	int		dstate, error;
 
 	pcib_cfg_save(device_get_softc(dev));
-	error = bus_generic_suspend(dev);
-	if (error == 0 && pci_do_power_suspend) {
-		dstate = PCI_POWERSTATE_D3;
-		pcib = device_get_parent(device_get_parent(dev));
-		if (PCIB_POWER_FOR_SLEEP(pcib, dev, &dstate) == 0)
-			pci_set_powerstate(dev, dstate);
-	}
-	return (error);
+	return (bus_generic_suspend(dev));
 }
 
 int
 pcib_resume(device_t dev)
 {
-	device_t	pcib;
-	int dstate;
 
-	if (pci_do_power_resume) {
-		pcib = device_get_parent(device_get_parent(dev));
-		dstate = PCI_POWERSTATE_D0;
-		if (PCIB_POWER_FOR_SLEEP(pcib, dev, &dstate) == 0)
-			pci_set_powerstate(dev, dstate);
-	}
 	pcib_cfg_restore(device_get_softc(dev));
 	return (bus_generic_resume(dev));
 }
