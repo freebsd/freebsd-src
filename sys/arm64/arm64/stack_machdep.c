@@ -43,11 +43,18 @@ __FBSDID("$FreeBSD$");
 void
 stack_save_td(struct stack *st, struct thread *td)
 {
-	panic("stack_save_td");
+
+	if (TD_IS_SWAPPED(td))
+		panic("stack_save_td: swapped");
+	if (TD_IS_RUNNING(td))
+		panic("stack_save_td: running");
+
+	stack_zero(st);
 }
 
 void
 stack_save(struct stack *st)
 {
-	panic("stack_save");
+
+	stack_zero(st);
 }
