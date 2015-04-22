@@ -336,7 +336,7 @@ static void eap_ttls_reset(struct eap_sm *sm, void *priv)
 		data->phase2_method->reset(sm, data->phase2_priv);
 	eap_server_tls_ssl_deinit(sm, &data->ssl);
 	wpabuf_free(data->pending_phase2_eap_resp);
-	os_free(data);
+	bin_clear_free(data, sizeof(*data));
 }
 
 
@@ -409,7 +409,7 @@ static struct wpabuf * eap_ttls_build_phase2_mschapv2(
 				       RADIUS_VENDOR_ID_MICROSOFT, 1, 43);
 		*pos++ = data->mschapv2_ident;
 		ret = os_snprintf((char *) pos, end - pos, "S=");
-		if (ret >= 0 && ret < end - pos)
+		if (!os_snprintf_error(end - pos, ret))
 			pos += ret;
 		pos += wpa_snprintf_hex_uppercase(
 			(char *) pos, end - pos, data->mschapv2_auth_response,
@@ -509,8 +509,8 @@ static void eap_ttls_process_phase2_pap(struct eap_sm *sm,
 	}
 
 	if (sm->user->password_len != user_password_len ||
-	    os_memcmp(sm->user->password, user_password, user_password_len) !=
-	    0) {
+	    os_memcmp_const(sm->user->password, user_password,
+			    user_password_len) != 0) {
 		wpa_printf(MSG_DEBUG, "EAP-TTLS/PAP: Invalid user password");
 		eap_ttls_state(data, FAILURE);
 		return;
@@ -558,7 +558,8 @@ static void eap_ttls_process_phase2_chap(struct eap_sm *sm,
 		return;
 	}
 
-	if (os_memcmp(challenge, chal, EAP_TTLS_CHAP_CHALLENGE_LEN) != 0 ||
+	if (os_memcmp_const(challenge, chal, EAP_TTLS_CHAP_CHALLENGE_LEN)
+	    != 0 ||
 	    password[0] != chal[EAP_TTLS_CHAP_CHALLENGE_LEN]) {
 		wpa_printf(MSG_DEBUG, "EAP-TTLS/CHAP: Challenge mismatch");
 		os_free(chal);
@@ -571,7 +572,8 @@ static void eap_ttls_process_phase2_chap(struct eap_sm *sm,
 	chap_md5(password[0], sm->user->password, sm->user->password_len,
 		 challenge, challenge_len, hash);
 
-	if (os_memcmp(hash, password + 1, EAP_TTLS_CHAP_PASSWORD_LEN) == 0) {
+	if (os_memcmp_const(hash, password + 1, EAP_TTLS_CHAP_PASSWORD_LEN) ==
+	    0) {
 		wpa_printf(MSG_DEBUG, "EAP-TTLS/CHAP: Correct user password");
 		eap_ttls_state(data, SUCCESS);
 	} else {
@@ -616,7 +618,8 @@ static void eap_ttls_process_phase2_mschap(struct eap_sm *sm,
 		return;
 	}
 
-	if (os_memcmp(challenge, chal, EAP_TTLS_MSCHAP_CHALLENGE_LEN) != 0 ||
+	if (os_memcmp_const(challenge, chal, EAP_TTLS_MSCHAP_CHALLENGE_LEN)
+	    != 0 ||
 	    response[0] != chal[EAP_TTLS_MSCHAP_CHALLENGE_LEN]) {
 		wpa_printf(MSG_DEBUG, "EAP-TTLS/MSCHAP: Challenge mismatch");
 		os_free(chal);
@@ -631,7 +634,7 @@ static void eap_ttls_process_phase2_mschap(struct eap_sm *sm,
 		nt_challenge_response(challenge, sm->user->password,
 				      sm->user->password_len, nt_response);
 
-	if (os_memcmp(nt_response, response + 2 + 24, 24) == 0) {
+	if (os_memcmp_const(nt_response, response + 2 + 24, 24) == 0) {
 		wpa_printf(MSG_DEBUG, "EAP-TTLS/MSCHAP: Correct response");
 		eap_ttls_state(data, SUCCESS);
 	} else {
@@ -703,7 +706,8 @@ static void eap_ttls_process_phase2_mschapv2(struct eap_sm *sm,
 		return;
 	}
 
-	if (os_memcmp(challenge, chal, EAP_TTLS_MSCHAPV2_CHALLENGE_LEN) != 0 ||
+	if (os_memcmp_const(challenge, chal, EAP_TTLS_MSCHAPV2_CHALLENGE_LEN)
+	    != 0 ||
 	    response[0] != chal[EAP_TTLS_MSCHAPV2_CHALLENGE_LEN]) {
 		wpa_printf(MSG_DEBUG, "EAP-TTLS/MSCHAPV2: Challenge mismatch");
 		os_free(chal);
@@ -736,7 +740,7 @@ static void eap_ttls_process_phase2_mschapv2(struct eap_sm *sm,
 	}
 
 	rx_resp = response + 2 + EAP_TTLS_MSCHAPV2_CHALLENGE_LEN + 8;
-	if (os_memcmp(nt_response, rx_resp, 24) == 0) {
+	if (os_memcmp_const(nt_response, rx_resp, 24) == 0) {
 		wpa_printf(MSG_DEBUG, "EAP-TTLS/MSCHAPV2: Correct "
 			   "NT-Response");
 		data->mschapv2_resp_ok = 1;
@@ -984,6 +988,16 @@ static void eap_ttls_process_phase2(struct eap_sm *sm,
 	}
 
 	if (parse.user_name) {
+		char *nbuf;
+		nbuf = os_malloc(parse.user_name_len * 4 + 1);
+		if (nbuf) {
+			printf_encode(nbuf, parse.user_name_len * 4 + 1,
+				      parse.user_name,
+				      parse.user_name_len);
+			eap_log_msg(sm, "TTLS-User-Name '%s'", nbuf);
+			os_free(nbuf);
+		}
+
 		os_free(sm->identity);
 		sm->identity = os_malloc(parse.user_name_len);
 		if (sm->identity == NULL) {
@@ -1167,6 +1181,50 @@ static Boolean eap_ttls_isSuccess(struct eap_sm *sm, void *priv)
 }
 
 
+static u8 * eap_ttls_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
+{
+	struct eap_ttls_data *data = priv;
+
+	if (data->state != SUCCESS)
+		return NULL;
+
+	return eap_server_tls_derive_session_id(sm, &data->ssl, EAP_TYPE_TTLS,
+						len);
+}
+
+
+static u8 * eap_ttls_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
+{
+	struct eap_ttls_data *data = priv;
+	u8 *eapKeyData, *emsk;
+
+	if (data->state != SUCCESS)
+		return NULL;
+
+	eapKeyData = eap_server_tls_derive_key(sm, &data->ssl,
+					       "ttls keying material",
+					       EAP_TLS_KEY_LEN + EAP_EMSK_LEN);
+	if (eapKeyData) {
+		emsk = os_malloc(EAP_EMSK_LEN);
+		if (emsk)
+			os_memcpy(emsk, eapKeyData + EAP_TLS_KEY_LEN,
+				  EAP_EMSK_LEN);
+		bin_clear_free(eapKeyData, EAP_TLS_KEY_LEN + EAP_EMSK_LEN);
+	} else
+		emsk = NULL;
+
+	if (emsk) {
+		*len = EAP_EMSK_LEN;
+		wpa_hexdump(MSG_DEBUG, "EAP-TTLS: Derived EMSK",
+			    emsk, EAP_EMSK_LEN);
+	} else {
+		wpa_printf(MSG_DEBUG, "EAP-TTLS: Failed to derive EMSK");
+	}
+
+	return emsk;
+}
+
+
 int eap_server_ttls_register(void)
 {
 	struct eap_method *eap;
@@ -1185,6 +1243,8 @@ int eap_server_ttls_register(void)
 	eap->isDone = eap_ttls_isDone;
 	eap->getKey = eap_ttls_getKey;
 	eap->isSuccess = eap_ttls_isSuccess;
+	eap->getSessionId = eap_ttls_get_session_id;
+	eap->get_emsk = eap_ttls_get_emsk;
 
 	ret = eap_server_method_register(eap);
 	if (ret)

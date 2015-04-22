@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: elfcopy.h 3134 2014-12-23 10:43:59Z kaiwang27 $
+ * $Id: elfcopy.h 3173 2015-03-27 16:46:13Z emaste $
  */
 
 #include <sys/queue.h>
@@ -190,7 +190,9 @@ struct elfcopy {
 		STRIP_NONE = 0,
 		STRIP_ALL,
 		STRIP_DEBUG,
+		STRIP_DWO,
 		STRIP_NONDEBUG,
+		STRIP_NONDWO,
 		STRIP_UNNEEDED
 	} strip;
 
@@ -216,6 +218,7 @@ struct elfcopy {
 #define	SEC_REMOVE	0x00800000U
 #define	SEC_COPY	0x01000000U
 #define	DISCARD_LLABEL	0x02000000U
+#define	LOCALIZE_HIDDEN	0x04000000U
 
 	int		 flags;		/* elfcopy run control flags. */
 	int64_t		 change_addr;	/* Section address adjustment. */

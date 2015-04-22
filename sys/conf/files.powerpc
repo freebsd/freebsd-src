@@ -29,11 +29,14 @@ dev/adb/adb_buttons.c		optional	adb
 dev/agp/agp_apple.c		optional	agp powermac
 dev/fb/fb.c			optional	sc
 dev/fdt/fdt_powerpc.c		optional	fdt
-dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
+# ofwbus depends on simplebus.
+dev/fdt/simplebus.c		optional	aim | fdt
+dev/hwpmc/hwpmc_e500.c		optional	hwpmc
 dev/hwpmc/hwpmc_mpc7xxx.c	optional	hwpmc
+dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
 dev/hwpmc/hwpmc_ppc970.c	optional	hwpmc
 dev/iicbus/ad7417.c		optional	ad7417 powermac
-dev/iicbus/adm1030.c	optional	powermac windtunnel | adm1030 powermac
+dev/iicbus/adm1030.c		optional	powermac windtunnel | adm1030 powermac
 dev/iicbus/adt746x.c		optional        adt746x powermac
 dev/iicbus/ds1631.c		optional	ds1631 powermac
 dev/iicbus/ds1775.c		optional	ds1775 powermac
@@ -101,7 +104,6 @@ powerpc/aim/moea64_if.m		optional	aim
 powerpc/aim/moea64_native.c	optional	aim
 powerpc/aim/mp_cpudep.c		optional	aim
 powerpc/aim/slb.c		optional	aim powerpc64
-powerpc/aim/trap.c		optional	aim
 powerpc/aim/uma_machdep.c	optional	aim
 powerpc/booke/interrupt.c	optional	booke
 powerpc/booke/locore.S		optional	booke no-obj
@@ -110,7 +112,6 @@ powerpc/booke/machdep_e500.c	optional	booke_e500
 powerpc/booke/mp_cpudep.c	optional	booke smp
 powerpc/booke/platform_bare.c	optional	booke
 powerpc/booke/pmap.c		optional	booke
-powerpc/booke/trap.c		optional	booke
 powerpc/cpufreq/dfs.c		optional	cpufreq
 powerpc/cpufreq/pcr.c		optional	cpufreq aim
 powerpc/cpufreq/pmufreq.c	optional	cpufreq aim pmu
@@ -134,6 +135,7 @@ powerpc/mpc85xx/i2c.c		optional	iicbus fdt
 powerpc/mpc85xx/isa.c		optional	mpc85xx isa
 powerpc/mpc85xx/lbc.c		optional	mpc85xx
 powerpc/mpc85xx/mpc85xx.c	optional	mpc85xx
+powerpc/mpc85xx/mpc85xx_gpio.c	optional	mpc85xx gpio
 powerpc/mpc85xx/platform_mpc85xx.c	optional	mpc85xx
 powerpc/mpc85xx/pci_mpc85xx.c	optional	pci mpc85xx
 powerpc/ofw/ofw_machdep.c	standard
@@ -213,6 +215,7 @@ powerpc/powerpc/stack_machdep.c	optional	ddb | stack
 powerpc/powerpc/suswintr.c	standard
 powerpc/powerpc/syncicache.c	standard
 powerpc/powerpc/sys_machdep.c	standard
+powerpc/powerpc/trap.c		standard
 powerpc/powerpc/uio_machdep.c	standard
 powerpc/powerpc/vm_machdep.c	standard
 powerpc/ps3/ehci_ps3.c		optional	ps3 ehci

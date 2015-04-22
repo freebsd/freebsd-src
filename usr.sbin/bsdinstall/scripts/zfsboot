@@ -1128,6 +1128,9 @@ zfs_create_boot()
 			f_eval_catch $funcname dd "$DD_WITH_OPTIONS" \
 			             /dev/random "$bootpool/$zroot_key" \
 			             "bs=4096 count=1" || return $FAILURE
+			f_eval_catch $funcname chmod "$CHMOD_MODE" \
+			             go-wrx "$bootpool/$zroot_key" ||
+			             return $FAILURE
 		else
 			# Clean up
 			f_eval_catch $funcname zfs "$ZFS_UNMOUNT" \
@@ -1342,6 +1345,9 @@ zfs_create_boot()
 	f_eval_catch $funcname echo "$ECHO_APPEND" 'aesni_load=\"YES\"' \
 		$BSDINSTALL_TMPBOOT/loader.conf.aesni || return $FAILURE
 	f_eval_catch $funcname echo "$ECHO_APPEND" 'geom_eli_load=\"YES\"' \
+		$BSDINSTALL_TMPBOOT/loader.conf.geli || return $FAILURE
+	f_eval_catch $funcname echo "$ECHO_APPEND" \
+		'geom_eli_passphrase_prompt=\"YES\"' \
 		$BSDINSTALL_TMPBOOT/loader.conf.geli || return $FAILURE
 	for disk in $disks; do
 		f_eval_catch $funcname printf "$PRINTF_CONF" \

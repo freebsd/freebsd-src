@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -46,7 +45,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: strings.c 3124 2014-12-21 05:46:28Z kaiwang27 $");
+ELFTC_VCSID("$Id: strings.c 3174 2015-03-27 17:13:41Z emaste $");
 
 enum return_code {
 	RETURN_OK,

@@ -273,7 +273,8 @@ static struct uart_class uart_pl011_class = {
 	sizeof(struct uart_pl011_softc),
 	.uc_ops = &uart_pl011_ops,
 	.uc_range = 0x48,
-	.uc_rclk = 0
+	.uc_rclk = 0,
+	.uc_rshift = 2
 };
 
 static struct ofw_compat_data compat_data[] = {

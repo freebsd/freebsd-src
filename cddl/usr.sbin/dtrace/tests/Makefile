@@ -8,10 +8,8 @@ TESTS_SUBDIRS+=	common
 .PATH:		${.CURDIR:H:H:H:H}/tests
 KYUAFILE=	YES
 
-.PATH:		${.CURDIR:H:H:H}/contrib/opensolaris/cmd/dtrace/test/cmd/scripts
+.PATH:		${.CURDIR}/tools
 SCRIPTSDIR=	${TESTSDIR}
-SCRIPTS=	dtest.pl
-
-SUBDIR_PARALLEL=
+SCRIPTS=	dtest.sh
 
 .include <bsd.test.mk>

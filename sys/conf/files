@@ -247,14 +247,6 @@ compat/freebsd32/freebsd32_ioctl.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_misc.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_syscalls.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_sysent.c	optional compat_freebsd32
-contrib/altq/altq/altq_cbq.c		optional altq
-contrib/altq/altq/altq_cdnr.c		optional altq
-contrib/altq/altq/altq_hfsc.c		optional altq
-contrib/altq/altq/altq_priq.c		optional altq
-contrib/altq/altq/altq_red.c		optional altq
-contrib/altq/altq/altq_rio.c		optional altq
-contrib/altq/altq/altq_rmclass.c	optional altq
-contrib/altq/altq/altq_subr.c		optional altq
 contrib/dev/acpica/common/ahids.c			optional acpi acpi_debug
 contrib/dev/acpica/common/ahuuids.c			optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbcmds.c		optional acpi acpi_debug
@@ -2702,6 +2694,7 @@ dev/xen/xenstore/xenstore_dev.c	optional xen | xenhvm
 dev/xen/xenstore/xenstored_dev.c	optional xen | xenhvm
 dev/xen/evtchn/evtchn_dev.c	optional xen | xenhvm
 dev/xen/privcmd/privcmd.c	optional xen | xenhvm
+dev/xen/debug/debug.c		optional xen | xenhvm
 dev/xl/if_xl.c			optional xl pci
 dev/xl/xlphy.c			optional xl pci
 fs/autofs/autofs.c		optional autofs
@@ -2940,8 +2933,6 @@ fs/ext2fs/ext2_bmap.c		optional ext2fs
 fs/ext2fs/ext2_extents.c	optional ext2fs
 fs/ext2fs/ext2_inode.c		optional ext2fs
 fs/ext2fs/ext2_inode_cnv.c	optional ext2fs
-fs/ext2fs/ext2_hash.c		optional ext2fs
-fs/ext2fs/ext2_htree.c		optional ext2fs
 fs/ext2fs/ext2_lookup.c		optional ext2fs
 fs/ext2fs/ext2_subr.c		optional ext2fs
 fs/ext2fs/ext2_vfsops.c		optional ext2fs
@@ -3271,6 +3262,14 @@ libkern/strtoul.c		standard
 libkern/strtouq.c		standard
 libkern/strvalid.c		standard
 libkern/timingsafe_bcmp.c	standard
+net/altq/altq_cbq.c		optional altq
+net/altq/altq_cdnr.c		optional altq
+net/altq/altq_hfsc.c		optional altq
+net/altq/altq_priq.c		optional altq
+net/altq/altq_red.c		optional altq
+net/altq/altq_rio.c		optional altq
+net/altq/altq_rmclass.c		optional altq
+net/altq/altq_subr.c		optional altq
 net/bpf.c			standard
 net/bpf_buffer.c		optional bpf
 net/bpf_jitter.c		optional bpf_jitter
@@ -3484,6 +3483,7 @@ netinet/ip_ipsec.c		optional inet ipsec
 netinet/ip_mroute.c		optional mrouting inet
 netinet/ip_options.c		optional inet
 netinet/ip_output.c		optional inet
+netinet/ip_reass.c		optional inet
 netinet/raw_ip.c		optional inet | inet6
 netinet/cc/cc.c			optional inet | inet6
 netinet/cc/cc_newreno.c		optional inet | inet6
@@ -3563,7 +3563,6 @@ netipsec/keysock.c		optional ipsec inet | ipsec inet6
 netipsec/xform_ah.c		optional ipsec inet | ipsec inet6
 netipsec/xform_esp.c		optional ipsec inet | ipsec inet6
 netipsec/xform_ipcomp.c		optional ipsec inet | ipsec inet6
-netipsec/xform_ipip.c		optional ipsec inet | ipsec inet6
 netipsec/xform_tcp.c		optional ipsec inet tcp_signature | \
 					 ipsec inet6 tcp_signature
 netnatm/natm.c			optional natm

@@ -33,6 +33,7 @@
  *
  */
 
+#include <config.h>
 #ifdef PARSESTREAM
 #define NEED_BOPS
 #include "ntp_string.h"
@@ -46,8 +47,8 @@
 #include "binio.h"
 #include "ieee754io.h"
 
-static void get_mbg_tzname P((unsigned char **, char *));
-static void mbg_time_status_str P((char **, unsigned int, int));
+static void get_mbg_tzname (unsigned char **, char *);
+static void mbg_time_status_str (char **, unsigned int, int);
 
 #if 0				/* no actual floats on Meinberg binary interface */
 static offsets_t mbg_float  = { 1, 0, 3, 2, 0, 0, 0, 0 }; /* byte order for meinberg floats */
@@ -176,7 +177,7 @@ get_mbg_tzname(
 	char *tznamep
 	)
 {
-  strncpy(tznamep, (char *)*buffpp, sizeof(TZ_NAME));
+  strlcpy(tznamep, (char *)*buffpp, sizeof(TZ_NAME));
   *buffpp += sizeof(TZ_NAME);
 }
 
@@ -241,10 +242,10 @@ mbg_time_status_str(
 			{
 				if (p != *buffpp)
 				{
-					strncpy(p, ", ", size - (p - start));
+					strlcpy(p, ", ", size - (p - start));
 					p += 2;
 				}
-				strncpy(p, s->string, size - (p - start));
+				strlcpy(p, s->string, size - (p - start));
 				p += strlen(p);
 			}
 		}
@@ -265,8 +266,8 @@ mbg_tm_str(
 		 tmp->year, tmp->month, tmp->mday,
 		 tmp->hour, tmp->minute, tmp->second, tmp->frac,
 		 (tmp->offs_from_utc < 0) ? '-' : '+',
-		 abs(tmp->offs_from_utc) / 3600,
-		 (abs(tmp->offs_from_utc) / 60) % 60);
+		 abs((int)tmp->offs_from_utc) / 3600,
+		 (abs((int)tmp->offs_from_utc) / 60) % 60);
 	*buffpp += strlen(*buffpp);
 
 	mbg_time_status_str(buffpp, tmp->status, size - (*buffpp - s));
@@ -382,7 +383,7 @@ get_mbg_comparam(
 	COM_PARM *comparamp
 	)
 {
-  int i;
+  size_t i;
   
   comparamp->baud_rate = get_lsb_long(buffpp);
   for (i = 0; i < sizeof(comparamp->framing); i++)

@@ -298,7 +298,8 @@ static struct uart_class uart_imx_class = {
 	sizeof(struct imx_uart_softc),
 	.uc_ops = &uart_imx_uart_ops,
 	.uc_range = 0x100,
-	.uc_rclk = 24000000 /* TODO: get value from CCM */
+	.uc_rclk = 24000000, /* TODO: get value from CCM */
+	.uc_rshift = 0
 };
 
 static struct ofw_compat_data compat_data[] = {

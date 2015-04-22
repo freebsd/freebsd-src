@@ -43,6 +43,7 @@ __RCSID("$NetBSD: tap.c,v 1.1 2008/08/17 13:20:57 plunky Exp $");
 #include <stdio.h>
 #include <unistd.h>
 
+#define L2CAP_SOCKET_CHECKED
 #include "btpand.h"
 
 static bool tap_send(channel_t *, packet_t *);

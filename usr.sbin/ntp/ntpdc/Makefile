@@ -2,6 +2,7 @@
 
 MAN=
 
+.include <src.opts.mk>
 .include <bsd.own.mk>
 
 .PATH: ${.CURDIR}/../../../contrib/ntp/ntpdc
@@ -9,12 +10,21 @@ MAN=
 PROG=	ntpdc
 SRCS= 	ntpdc.c ntpdc_ops.c ntpdc-opts.c version.c
 
-CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../ \
-	-I${.CURDIR}/../../../contrib/ntp/libopts
+CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include \
+	-I${.CURDIR}/../../../contrib/ntp/lib/isc/include \
+	-I${.CURDIR}/../../../contrib/ntp/lib/isc/unix/include \
+	-I${.CURDIR}/../../../contrib/ntp/lib/isc/pthreads/include \
+	-I${.CURDIR}/../../../contrib/ntp/sntp/libopts \
+	-I${.CURDIR}/../../../lib/libc/${MACHINE_ARCH} \
+	-I${.CURDIR}/../ -I${.CURDIR}
 
-LIBADD=	edit md ntp opts
+LIBADD=	edit md ntp m readline opts ncurses pthread
 CFLAGS+=	-DHAVE_LIBEDIT -DHAVE_READLINE_READLINE_H \
 		-I${DESTDIR}/${INCLUDEDIR}/edit
+
+.if ${MK_OPENSSL} != "no"
+LIBADD+=	ssl crypto
+.endif
 
 CLEANFILES+= .version version.c
 

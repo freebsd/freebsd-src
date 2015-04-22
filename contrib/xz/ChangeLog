@@ -1,3 +1,233 @@
+commit dec11497a71518423b5ff0e759100cf8aadf6c7b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-02-26 16:53:44 +0200
+
+    Bump version and soname for 5.2.1.
+
+ src/liblzma/Makefile.am        | 2 +-
+ src/liblzma/api/lzma/version.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+commit 29e39c79975ab89ee5dd671e97064534a9f3a649
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-02-26 13:01:09 +0200
+
+    Update NEWS for 5.2.1.
+
+ NEWS | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+commit 7a11c4a8e5e15f13d5fa59233b3172e65428efdd
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-02-22 19:38:48 +0200
+
+    xz: Use pipe2() if available.
+
+ configure.ac     | 4 ++--
+ src/xz/file_io.c | 9 ++++++++-
+ 2 files changed, 10 insertions(+), 3 deletions(-)
+
+commit 117d962685c72682c63edc9bb765367189800202
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-02-21 23:40:26 +0200
+
+    liblzma: Fix a compression-ratio regression in LZMA1/2 in fast mode.
+    
+    The bug was added in the commit
+    f48fce093b07aeda95c18850f5e086d9f2383380 and thus
+    affected 5.1.4beta and 5.2.0. Luckily the bug cannot
+    cause data corruption or other nasty things.
+
+ src/liblzma/lzma/lzma_encoder_optimum_fast.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit ae984e31c167d3bc52972ec422dd1ebd5f5d5719
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-02-21 23:00:19 +0200
+
+    xz: Fix the fcntl() usage when creating a pipe for the self-pipe trick.
+    
+    Now it reads the old flags instead of blindly setting O_NONBLOCK.
+    The old code may have worked correctly, but this is better.
+
+ src/xz/file_io.c | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)
+
+commit 2205bb5853098aea36a56df6f5747037175f66b4
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-02-10 15:29:34 +0200
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit d935b0cdf3db440269b9d952b2b281b18f8c7b08
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-02-10 15:28:30 +0200
+
+    tuklib_cpucores: Use cpuset_getaffinity() on FreeBSD if available.
+    
+    In FreeBSD, cpuset_getaffinity() is the preferred way to get
+    the number of available cores.
+    
+    Thanks to Rui Paulo for the patch. I edited it slightly, but
+    hopefully I didn't break anything.
+
+ m4/tuklib_cpucores.m4        | 23 ++++++++++++++++++++++-
+ src/common/tuklib_cpucores.c | 18 ++++++++++++++++++
+ 2 files changed, 40 insertions(+), 1 deletion(-)
+
+commit eb61bc58c20769cac4d05f363b9c0e8c9c71a560
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-02-09 22:08:37 +0200
+
+    xzdiff: Make the mktemp usage compatible with FreeBSD's mktemp.
+    
+    Thanks to Rui Paulo for the fix.
+
+ src/scripts/xzdiff.in | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+commit b9a5b6b7a29029680af733082b6a46e0fc01623a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-02-03 21:45:53 +0200
+
+    Add a few casts to tuklib_integer.h to silence possible warnings.
+    
+    I heard that Visual Studio 2013 gave warnings without the casts.
+    
+    Thanks to Gabi Davar.
+
+ src/common/tuklib_integer.h | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)
+
+commit c45757135f40e4a0de730ba5fff0100219493982
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-01-26 21:24:39 +0200
+
+    liblzma: Set LZMA_MEMCMPLEN_EXTRA depending on the compare method.
+
+ src/liblzma/common/memcmplen.h | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)
+
+commit 3c500174ed5485f550972a2a6109c361e875f069
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-01-26 20:40:16 +0200
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit fec88d41e672d9e197c9442aecf02bd0dfa6d516
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-01-26 20:39:28 +0200
+
+    liblzma: Silence harmless Valgrind errors.
+    
+    Thanks to Torsten Rupp for reporting this. I had
+    forgotten to run Valgrind before the 5.2.0 release.
+
+ src/liblzma/lz/lz_encoder.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+commit a9b45badfec0928d20a27c7176c005fa637f7d1e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-01-09 21:50:19 +0200
+
+    xz: Fix comments.
+
+ src/xz/file_io.c | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+commit 541aee6dd4aa97a809aba281475a21b641bb89e2
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-01-09 21:35:06 +0200
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 4170edc914655310d2363baccf5e615e09b04911
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-01-09 21:34:06 +0200
+
+    xz: Don't fail if stdout doesn't support O_NONBLOCK.
+    
+    This is similar to the case with stdin.
+    
+    Thanks to Brad Smith for the bug report and testing
+    on OpenBSD.
+
+ src/xz/file_io.c | 36 +++++++++++++++---------------------
+ 1 file changed, 15 insertions(+), 21 deletions(-)
+
+commit 04bbc0c2843c50c8ad1cba42b937118e38b0508d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-01-07 19:18:20 +0200
+
+    xz: Fix a memory leak in DOS-specific code.
+
+ src/xz/file_io.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit f0f1f6c7235ffa901cf76fe18e33749e200b3eea
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-01-07 19:08:06 +0200
+
+    xz: Don't fail if stdin doesn't support O_NONBLOCK.
+    
+    It's a problem at least on OpenBSD which doesn't support
+    O_NONBLOCK on e.g. /dev/null. I'm not surprised if it's
+    a problem on other OSes too since this behavior is allowed
+    in POSIX-1.2008.
+    
+    The code relying on this behavior was committed in June 2013
+    and included in 5.1.3alpha released on 2013-10-26. Clearly
+    the development releases only get limited testing.
+
+ src/xz/file_io.c | 18 +++++++-----------
+ 1 file changed, 7 insertions(+), 11 deletions(-)
+
+commit d2d484647d9d9d679f03c75abb0404f67069271c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-01-06 20:30:15 +0200
+
+    Tests: Don't hide unexpected error messages in test_files.sh.
+    
+    Hiding them makes no sense since normally there's no error
+    when testing the "good" files. With "bad" files errors are
+    expected and then it makes sense to keep the messages hidden.
+
+ tests/test_files.sh | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit aae6a6aeda51cf94a47e39ad624728f9bee75e30
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2014-12-30 11:17:16 +0200
+
+    Update Solaris notes in INSTALL.
+    
+    Mention the possible "make check" failure on Solaris in the
+    Solaris-specific section of INSTALL. It was already in
+    section 4.5 but it is better mention it in the OS-specific
+    section too.
+
+ INSTALL | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+commit 7815112153178800a3521b9f31960e7cdc26cfba
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2014-12-26 12:00:05 +0200
+
+    Build: POSIX shell isn't required if scripts are disabled.
+
+ INSTALL      | 3 ++-
+ configure.ac | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
 commit a0cd05ee71d330b79ead6eb9222e1b24e1559d3a
 Author: Lasse Collin <lasse.collin@tukaani.org>
 Date:   2014-12-21 20:48:37 +0200

@@ -44,5 +44,12 @@ __sym_compat(shmctl, freebsd7_shmctl, FBSD_1.0);
 
 #undef __sym_compat
 
+#define	__weak_reference(sym,alias)	\
+	.weak	alias;.equ	alias,sym
+
+__weak_reference(__sys_fcntl,__fcntl_compat)
+
+#undef __weak_reference
+
 #endif	/* __LIBC_COMPAT_H__ */
 

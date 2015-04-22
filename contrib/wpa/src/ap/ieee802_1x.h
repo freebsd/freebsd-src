@@ -29,6 +29,7 @@ void ieee802_1x_set_sta_authorized(struct hostapd_data *hapd,
 				   struct sta_info *sta, int authorized);
 void ieee802_1x_dump_state(FILE *f, const char *prefix, struct sta_info *sta);
 int ieee802_1x_init(struct hostapd_data *hapd);
+void ieee802_1x_erp_flush(struct hostapd_data *hapd);
 void ieee802_1x_deinit(struct hostapd_data *hapd);
 int ieee802_1x_tx_status(struct hostapd_data *hapd, struct sta_info *sta,
 			 const u8 *buf, size_t len, int ack);

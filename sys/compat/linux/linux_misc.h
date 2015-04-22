@@ -55,6 +55,8 @@
 #define	LINUX_MREMAP_MAYMOVE	1
 #define	LINUX_MREMAP_FIXED	2
 
+#define	LINUX_PATH_MAX		4096
+
 extern const char *linux_platform;
 
 /*

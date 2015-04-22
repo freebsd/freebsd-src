@@ -39,6 +39,9 @@ CFLAGS+=	-msoft-float -D_STANDALONE -DNETIF_DEBUG
 .if ${MACHINE_CPUARCH} == "arm"
 CFLAGS+=	-msoft-float -D_STANDALONE
 .endif
+.if ${MACHINE_CPUARCH} == "aarch64"
+CFLAGS+=	-D_STANDALONE -mgeneral-regs-only
+.endif
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS+=	-G0 -fno-pic -mno-abicalls
 .endif
@@ -75,8 +78,12 @@ SRCS+=	udivmoddi4.c udivmodsi4.c udivdi3.c udivsi3.c umoddi3.c umodsi3.c
 .PATH: ${.CURDIR}/../../contrib/compiler-rt/lib/builtins/arm/
 SRCS+=	aeabi_idivmod.S aeabi_ldivmod.S aeabi_uidivmod.S aeabi_uldivmod.S
 SRCS+=	aeabi_memcmp.S aeabi_memcpy.S aeabi_memmove.S aeabi_memset.S
-
 .endif
+
+.if ${MACHINE_CPUARCH} == "aarch64"
+.PATH: ${.CURDIR}/../libc/aarch64/gen
+.endif
+
 .if ${MACHINE_CPUARCH} == "powerpc"
 .PATH: ${.CURDIR}/../libc/quad
 SRCS+=	ashldi3.c ashrdi3.c
