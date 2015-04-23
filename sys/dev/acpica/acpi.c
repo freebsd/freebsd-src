@@ -1112,7 +1112,7 @@ acpi_sysres_alloc(device_t dev)
 	if (res != NULL) {
 	    rman_manage_region(rm, rman_get_start(res), rman_get_end(res));
 	    rle->res = res;
-	} else
+	} else if (bootverbose)
 	    device_printf(dev, "reservation of %lx, %lx (%d) failed\n",
 		rle->start, rle->count, rle->type);
     }
