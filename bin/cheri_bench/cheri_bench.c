@@ -236,7 +236,7 @@ int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capability ch
 
 static void usage(void)
 {
-  errx(1,  "usage: cheri_bench [-fipsSt] -r <reps> -o <in offset> -O <out offset> <size>...\n");
+  errx(1,  "usage: cheri_bench [-afipsSt] -r <reps> -o <in offset> -O <out offset> <size>...\n");
 }
 
 int
@@ -263,8 +263,16 @@ main(int argc, char *argv[])
 	// use unbuffered output to avoid dropped characters on uart
 	setbuf(stdout, NULL);
 
-	while ((ch = getopt(argc, argv, "fipsStr:o:O:")) != -1) {
+	while ((ch = getopt(argc, argv, "afipsStr:o:O:")) != -1) {
 	  switch (ch) {
+	  case 'a':
+	    func = 1;
+	    invoke = 1;
+	    do_pipe = 1;
+	    do_socket = 1;
+	    shared = 1;
+	    threads = 1;
+	    break;
 	  case 'f':
 	    func = 1;
 	    break;
