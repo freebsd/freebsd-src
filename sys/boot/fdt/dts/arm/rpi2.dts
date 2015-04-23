@@ -322,18 +322,14 @@
 	leds {
 		compatible = "gpio-leds";
 
-		ok {
-			label = "ok";
-			gpios = <&gpio 16 1>;
+		pwr {
+			label = "pwr";
+			gpios = <&gpio 35 0>;
+		};
 
-			/* Don't change this - it configures
-			 * how the led driver determines if
-			 * the led is on or off when it loads.
-			 */
-			default-state = "keep";
-
-			/* This is the real default state. */
-			linux,default-trigger = "default-on";
+		act {
+			label = "act";
+			gpios = <&gpio 47 0>;
 		};
 	};
 
