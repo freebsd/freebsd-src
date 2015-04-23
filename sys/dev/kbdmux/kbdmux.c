@@ -472,11 +472,6 @@ kbdmux_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		KBDMUX_UNLOCK(state);
 	}
 
-	if (needfree) {
-		free(accmap, M_KBDMUX);
-		free(fkeymap, M_KBDMUX);
-		free(keymap, M_KBDMUX);
-	}
 	return (0);
 bad:
 	if (needfree) {
