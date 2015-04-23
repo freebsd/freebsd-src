@@ -131,11 +131,11 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pins_reserved>;
 
-			/* Pins that can short 3.3V to GND in output mode: 46-47
+			/* Pins that can short 3.3V to GND in output mode: 46
 			 * Pins used by VideoCore: 48-53
 			 */
-			broadcom,read-only = <46>, <47>, <48>, <49>, <50>, 
-			                     <51>, <52>, <53>;
+			broadcom,read-only = <46>, <48>, <49>, <50>,
+					     <51>, <52>, <53>;
 
 			/* BSC0 */
 			pins_bsc0_a: bsc0_a {
