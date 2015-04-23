@@ -101,6 +101,12 @@
 			 */
 		};
 
+		watchdog0 {
+			compatible = "broadcom,bcm2835-wdt",
+				     "broadcom,bcm2708-wdt";
+			reg = <0x10001c 0x0c>; /* 0x1c, 0x20, 0x24 */
+		};
+
 		gpio: gpio {
 			compatible = "broadcom,bcm2835-gpio",
 				     "broadcom,bcm2708-gpio";
