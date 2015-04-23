@@ -9,8 +9,11 @@ arm/freescale/imx/imx_machdep.c		standard
 arm/freescale/imx/imx51_machdep.c	standard
 arm/arm/bus_space_base.c		standard
 
-# Dummy serial console
+# Special serial console for debuging early boot code
 #arm/freescale/imx/console.c		standard
+
+# UART driver (includes serial console support)
+dev/uart/uart_dev_imx.c			optional uart
 
 # TrustZone Interrupt Controller
 arm/freescale/imx/tzic.c		standard
@@ -29,9 +32,6 @@ arm/freescale/imx/imx51_ccm.c		standard
 
 # i.MX5xx PATA controller
 dev/ata/chipsets/ata-fsl.c		optional imxata
-
-# UART driver
-dev/uart/uart_dev_imx.c			optional uart
 
 # USB OH3 controller (1 OTG, 3 EHCI)
 arm/freescale/imx/imx_nop_usbphy.c	optional ehci

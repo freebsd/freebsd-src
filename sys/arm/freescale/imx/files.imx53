@@ -13,7 +13,7 @@ arm/arm/bus_space_base.c		standard
 #arm/freescale/imx/console.c		standard
 
 # UART driver (includes serial console support)
-dev/uart/uart_dev_imx.c 		optional uart
+dev/uart/uart_dev_imx.c			optional uart
 
 # TrustZone Interrupt Controller
 arm/freescale/imx/tzic.c		standard
