@@ -40,6 +40,9 @@ PV_STATS		opt_pmap.h
 QEMU_WORKAROUNDS	opt_global.h
 SOC_BCM2835		opt_global.h
 SOC_BCM2836		opt_global.h
+SOC_IMX51		opt_global.h
+SOC_IMX53		opt_global.h
+SOC_IMX6		opt_global.h
 SOC_MV_ARMADAXP		opt_global.h
 SOC_MV_DISCOVERY	opt_global.h
 SOC_MV_DOVE		opt_global.h

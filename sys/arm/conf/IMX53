@@ -22,6 +22,8 @@ ident		IMX53
 
 include 	"../freescale/imx/std.imx53"
 
+options 	SOC_IMX53
+
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking

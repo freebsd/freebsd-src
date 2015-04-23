@@ -24,6 +24,8 @@ include 	"../freescale/imx/std.imx51"
 
 makeoptions	WITHOUT_MODULES="ahc"
 
+options 	SOC_IMX51
+
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
