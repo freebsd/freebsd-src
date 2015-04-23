@@ -41,6 +41,8 @@
 #include <sys/mman.h>
 #include <assert.h>
 #include <sys/uio.h>
+#include <pthread.h>
+#include <semaphore.h>
 
 #if __has_feature(capabilities)
 
@@ -71,6 +73,11 @@ struct cheri_object cheri_bench;
 #endif
 
 typedef uint64_t memcpy_t(__capability char *, __capability char *, size_t, int fd);
+
+static sem_t sem_request, sem_response;
+static __capability char * volatile thread_dataout;
+static __capability char * volatile thread_datain;
+static volatile size_t thread_len;
 
 static uint64_t do_memcpy (__capability char *dataout, __capability char *datain, size_t len, int __unused fd)
 {
@@ -175,6 +182,28 @@ static void shmem_sandbox_func(int fd, __capability char *datain, __capability c
     }
 }
 
+static uint64_t pthread_memcpy(__capability char *dataout, __capability char *datain, size_t len, int fd __unused)
+{
+  uint32_t start_count = get_cyclecount();
+  thread_dataout = dataout;
+  thread_datain  = datain;
+  thread_len     = len;
+  // XXX rmn30 need sync?
+  sem_post(&sem_request);
+  sem_wait(&sem_response);
+  return get_cyclecount() - start_count;
+}
+
+static void *pthread_sandbox_func(void * arg __unused)
+{
+  while(1)
+    {
+      sem_wait(&sem_request);
+      memcpy_c(thread_dataout, thread_datain, thread_len);
+      sem_post(&sem_response);
+    }
+}
+
 int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capability char *datain, size_t size, uint reps, uint64_t *samples, int fd) __attribute__((__noinline__));
 int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capability char *datain, size_t size, uint reps, uint64_t *samples, int fd)
 {
@@ -197,13 +226,17 @@ int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capability ch
 	}
 
       for (uint rep = 0; rep < reps; rep++)
-	printf(",%lu", samples[rep]);
+	{
+	  if (rep & 0xf == 0)
+	    usleep(1);
+	  printf(",%lu", samples[rep]);
+	}
       return 0;
 }
 
 static void usage(void)
 {
-  errx(1,  "usage: cheri_bench [-fipsS] -r <reps> -o <in offset> -O <out offset> <size>...\n");
+  errx(1,  "usage: cheri_bench [-fipsSt] -r <reps> -o <in offset> -O <out offset> <size>...\n");
 }
 
 int
@@ -222,14 +255,15 @@ main(int argc, char *argv[])
 	size_t size, max_size = 0;
 	char *endp;
 	int ch;
-	int func = 0, invoke = 0, do_socket = 0, do_pipe=0, shared = 0;
+	int func = 0, invoke = 0, do_socket = 0, do_pipe=0, shared = 0, threads = 0;
 	int inOffset = 0, outOffset = 0;
 	uint64_t *samples;
+	pthread_t sb_thread;
 	
 	// use unbuffered output to avoid dropped characters on uart
 	setbuf(stdout, NULL);
 
-	while ((ch = getopt(argc, argv, "fipsSr:o:O:")) != -1) {
+	while ((ch = getopt(argc, argv, "fipsStr:o:O:")) != -1) {
 	  switch (ch) {
 	  case 'f':
 	    func = 1;
@@ -245,6 +279,9 @@ main(int argc, char *argv[])
 	    break;
 	  case 'S':
 	    shared = 1;
+	    break;
+	  case 't':
+	    threads = 1;
 	    break;
 	  case 'r':
 	    reps = strtol(optarg, &endp, 0);
@@ -348,6 +385,16 @@ main(int argc, char *argv[])
 	    close(shmem_socket_pair[1]);
 	  }
 
+	if (threads)
+	  {
+	    if(pthread_create(&sb_thread, NULL, pthread_sandbox_func, NULL))
+	      err(1, "pthread create");
+	    if(sem_init(&sem_request, 0, 0))
+	      err(1, "sem_init sem_request");
+	    if(sem_init(&sem_response, 0, 0))
+	      err(1, "sem_init sem_request");
+	  }
+
 	printf("#reps=%u inOffset=%u outOffset=%u datain=%p dataout=%p\n", reps, inOffset, outOffset, (void *) (datain + inOffset), (void*) (dataout + outOffset));
 
 	samples = malloc(sizeof(uint64_t) * reps);
@@ -382,6 +429,11 @@ main(int argc, char *argv[])
 	      {
 		printf("\n#pipe %zu\n%zu", size, size);
 		benchmark(socket_memcpy, dataout_cap, datain_cap, size, reps, samples, pipe_pair[0]);
+	      }
+	    if(threads)
+	      {
+		printf("\n#pthread %zu\n%zu", size, size);
+		benchmark(pthread_memcpy, dataout_cap, datain_cap, size, reps, samples, 0);
 	      }
 	  }
 	if (samples != NULL)

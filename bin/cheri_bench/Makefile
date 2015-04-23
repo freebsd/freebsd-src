@@ -13,8 +13,9 @@ NO_SHARED?=	YES
 NO_WERROR=	YES
 
 .include <bsd.prog.mk>
+LIBADD+= pthread
 
 .if ${MK_CHERI} != "no"
-LIBADD=  cheri
-LDADD=  -static -lcheri
+LIBADD+=  cheri
+LDADD+=  -static -lcheri -lpthread
 .endif
