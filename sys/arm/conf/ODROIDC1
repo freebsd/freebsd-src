@@ -19,7 +19,7 @@
 
 ident		ODROIDC1
 
-include 	"../amlogic/aml8726/std.odroidc1"
+include 	"../amlogic/aml8726/std.aml8726"
 
 options 	HZ=100
 options 	SCHED_ULE		# ULE scheduler
@@ -56,6 +56,7 @@ options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
 options 	LINUX_BOOT_ABI
 options 	VFP			# Enable floating point hardware support
+options 	SMP			# Enable multiple cores
 
 # Debugging
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
@@ -141,3 +142,4 @@ device		axe			# ASIX Electronics USB Ethernet
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
 options 	FDT_DTB_STATIC
+makeoptions	FDT_DTS_FILE=odroidc1.dts

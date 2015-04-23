@@ -1,7 +1,0 @@
-# $FreeBSD$
-
-include		"../amlogic/aml8726/std.aml8726"
-
-makeoptions	FDT_DTS_FILE=vsatv102-m6.dts
-
-options		SMP				# Enable multiple cores
