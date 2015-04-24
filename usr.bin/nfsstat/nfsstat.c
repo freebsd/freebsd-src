@@ -70,15 +70,6 @@ static const char rcsid[] =
 #include <paths.h>
 #include <err.h>
 
-struct nlist nl[] = {
-#define	N_NFSSTAT	0
-	{ .n_name = "nfsstats" },
-#define	N_NFSRVSTAT	1
-	{ .n_name = "nfsrvstats" },
-	{ .n_name = NULL },
-};
-kvm_t *kd;
-
 static int widemode = 0;
 static int zflag = 0;
 static int printtitle = 1;
