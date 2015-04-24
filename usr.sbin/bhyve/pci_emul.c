@@ -59,17 +59,6 @@ __FBSDID("$FreeBSD$");
 
 #define CONF1_ENABLE	   0x80000000ul
 
-#define	CFGWRITE(pi,off,val,b)						\
-do {									\
-	if ((b) == 1) {							\
-		pci_set_cfgdata8((pi),(off),(val));			\
-	} else if ((b) == 2) {						\
-		pci_set_cfgdata16((pi),(off),(val));			\
-	} else {							\
-		pci_set_cfgdata32((pi),(off),(val));			\
-	}								\
-} while (0)
-
 #define	MAXBUSES	(PCI_BUSMAX + 1)
 #define MAXSLOTS	(PCI_SLOTMAX + 1)
 #define	MAXFUNCS	(PCI_FUNCMAX + 1)
@@ -123,6 +112,30 @@ static void pci_lintr_route(struct pci_devinst *pi);
 static void pci_lintr_update(struct pci_devinst *pi);
 static void pci_cfgrw(struct vmctx *ctx, int vcpu, int in, int bus, int slot,
     int func, int coff, int bytes, uint32_t *val);
+
+static __inline void
+CFGWRITE(struct pci_devinst *pi, int coff, uint32_t val, int bytes)
+{
+
+	if (bytes == 1)
+		pci_set_cfgdata8(pi, coff, val);
+	else if (bytes == 2)
+		pci_set_cfgdata16(pi, coff, val);
+	else
+		pci_set_cfgdata32(pi, coff, val);
+}
+
+static __inline uint32_t
+CFGREAD(struct pci_devinst *pi, int coff, int bytes)
+{
+
+	if (bytes == 1)
+		return (pci_get_cfgdata8(pi, coff));
+	else if (bytes == 2)
+		return (pci_get_cfgdata16(pi, coff));
+	else
+		return (pci_get_cfgdata32(pi, coff));
+}
 
 /*
  * I/O access
@@ -1653,27 +1666,31 @@ pci_emul_hdrtype_fixup(int bus, int slot, int off, int bytes, uint32_t *rv)
 	}
 }
 
-static uint32_t
-bits_changed(uint32_t old, uint32_t new, uint32_t mask)
-{
-
-	return ((old ^ new) & mask);
-}
-
 static void
-pci_emul_cmdwrite(struct pci_devinst *pi, uint32_t new, int bytes)
+pci_emul_cmdsts_write(struct pci_devinst *pi, int coff, uint32_t new, int bytes)
 {
-	int i;
-	uint16_t old;
+	int i, rshift;
+	uint32_t cmd, cmd2, changed, old, readonly;
+
+	cmd = pci_get_cfgdata16(pi, PCIR_COMMAND);	/* stash old value */
 
 	/*
-	 * The command register is at an offset of 4 bytes and thus the
-	 * guest could write 1, 2 or 4 bytes starting at this offset.
+	 * From PCI Local Bus Specification 3.0 sections 6.2.2 and 6.2.3.
+	 *
+	 * XXX Bits 8, 11, 12, 13, 14 and 15 in the status register are
+	 * 'write 1 to clear'. However these bits are not set to '1' by
+	 * any device emulation so it is simpler to treat them as readonly.
 	 */
+	rshift = (coff & 0x3) * 8;
+	readonly = 0xFFFFF880 >> rshift;
 
-	old = pci_get_cfgdata16(pi, PCIR_COMMAND);	/* stash old value */
-	CFGWRITE(pi, PCIR_COMMAND, new, bytes);		/* update config */
-	new = pci_get_cfgdata16(pi, PCIR_COMMAND);	/* get updated value */
+	old = CFGREAD(pi, coff, bytes);
+	new &= ~readonly;
+	new |= (old & readonly);
+	CFGWRITE(pi, coff, new, bytes);			/* update config */
+
+	cmd2 = pci_get_cfgdata16(pi, PCIR_COMMAND);	/* get updated value */
+	changed = cmd ^ cmd2;
 
 	/*
 	 * If the MMIO or I/O address space decoding has changed then
@@ -1686,7 +1703,7 @@ pci_emul_cmdwrite(struct pci_devinst *pi, uint32_t new, int bytes)
 				break;
 			case PCIBAR_IO:
 				/* I/O address space decoding changed? */
-				if (bits_changed(old, new, PCIM_CMD_PORTEN)) {
+				if (changed & PCIM_CMD_PORTEN) {
 					if (porten(pi))
 						register_bar(pi, i);
 					else
@@ -1696,7 +1713,7 @@ pci_emul_cmdwrite(struct pci_devinst *pi, uint32_t new, int bytes)
 			case PCIBAR_MEM32:
 			case PCIBAR_MEM64:
 				/* MMIO address space decoding changed? */
-				if (bits_changed(old, new, PCIM_CMD_MEMEN)) {
+				if (changed & PCIM_CMD_MEMEN) {
 					if (memen(pi))
 						register_bar(pi, i);
 					else
@@ -1776,14 +1793,8 @@ pci_cfgrw(struct vmctx *ctx, int vcpu, int in, int bus, int slot, int func,
 			needcfg = 1;
 		}
 
-		if (needcfg) {
-			if (bytes == 1)
-				*eax = pci_get_cfgdata8(pi, coff);
-			else if (bytes == 2)
-				*eax = pci_get_cfgdata16(pi, coff);
-			else
-				*eax = pci_get_cfgdata32(pi, coff);
-		}
+		if (needcfg)
+			*eax = CFGREAD(pi, coff, bytes);
 
 		pci_emul_hdrtype_fixup(bus, slot, coff, bytes, eax);
 	} else {
@@ -1853,8 +1864,8 @@ pci_cfgrw(struct vmctx *ctx, int vcpu, int in, int bus, int slot, int func,
 
 		} else if (pci_emul_iscap(pi, coff)) {
 			pci_emul_capwrite(pi, coff, bytes, *eax);
-		} else if (coff == PCIR_COMMAND) {
-			pci_emul_cmdwrite(pi, *eax, bytes);
+		} else if (coff >= PCIR_COMMAND && coff < PCIR_REVID) {
+			pci_emul_cmdsts_write(pi, coff, *eax, bytes);
 		} else {
 			CFGWRITE(pi, coff, *eax, bytes);
 		}
