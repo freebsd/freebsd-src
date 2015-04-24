@@ -206,6 +206,16 @@ struct mbuf {
 #define	m_pktdat	M_dat.MH.MH_dat.MH_databuf
 #define	m_dat		M_dat.M_databuf
 
+/* 
+ * NOTE: forwards compatibility definitions for mbuf(9)
+ *
+ * These aren't 1:1 with the macros in r277203; in particular they're exposed
+ * to both userland and kernel, whereas this is exposed to just _KERNEL -- to
+ * avoid disruption with existing KBI/KPIs
+ */
+#define	MHSIZE		offsetof(struct mbuf, m_dat)
+#define	MPKTHSIZE	offsetof(struct mbuf, m_pktdat)
+
 /*
  * mbuf flags of global significance and layer crossing.
  * Those of only protocol/layer specific significance are to be mapped
