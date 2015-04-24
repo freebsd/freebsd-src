@@ -1135,6 +1135,7 @@ MLINKS+=osd.9 osd_call.9 \
 	osd.9 osd_get.9 \
 	osd.9 osd_register.9 \
 	osd.9 osd_set.9
+MLINKS+=panic.9 vpanic.9
 MLINKS+=pbuf.9 getpbuf.9 \
 	pbuf.9 relpbuf.9 \
 	pbuf.9 trypbuf.9
