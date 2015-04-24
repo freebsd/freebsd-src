@@ -30,6 +30,7 @@ int hmac_md5_vector(const u8 *key, size_t key_len, size_t num_elem,
 	u8 tk[16];
 	const u8 *_addr[6];
 	size_t i, _len[6];
+	int res;
 
 	if (num_elem > 5) {
 		/*
@@ -85,7 +86,10 @@ int hmac_md5_vector(const u8 *key, size_t key_len, size_t num_elem,
 	_len[0] = 64;
 	_addr[1] = mac;
 	_len[1] = MD5_MAC_LEN;
-	return md5_vector(2, _addr, _len, mac);
+	res = md5_vector(2, _addr, _len, mac);
+	os_memset(k_pad, 0, sizeof(k_pad));
+	os_memset(tk, 0, sizeof(tk));
+	return res;
 }
 
 

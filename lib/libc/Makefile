@@ -157,10 +157,6 @@ libkern.${LIBC_ARCH}:: ${KMSRCS}
 	${CP} ${.ALLSRC} ${DESTDIR}/sys/libkern/${LIBC_ARCH}
 .endif
 
-.if ${MK_SYSCALL_COMPAT} != "no"
-CFLAGS+=-DSYSCALL_COMPAT
-.endif
-
 .if ${MK_TESTS} != "no"
 SUBDIR+=	tests
 .endif

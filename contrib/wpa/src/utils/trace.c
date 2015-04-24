@@ -18,11 +18,9 @@ static struct dl_list active_references =
 
 #ifdef WPA_TRACE_BFD
 #include <bfd.h>
-#ifdef __linux__
-#include <demangle.h>
-#else /* __linux__ */
-#include <libiberty/demangle.h>
-#endif /* __linux__ */
+
+#define DMGL_PARAMS      (1 << 0)
+#define DMGL_ANSI        (1 << 1)
 
 static char *prg_fname = NULL;
 static bfd *cached_abfd = NULL;
@@ -35,7 +33,7 @@ static void get_prg_fname(void)
 	os_snprintf(exe, sizeof(exe) - 1, "/proc/%u/exe", getpid());
 	len = readlink(exe, fname, sizeof(fname) - 1);
 	if (len < 0 || len >= (int) sizeof(fname)) {
-		perror("readlink");
+		wpa_printf(MSG_ERROR, "readlink: %s", strerror(errno));
 		return;
 	}
 	fname[len] = '\0';
@@ -162,7 +160,7 @@ static void wpa_trace_bfd_addr(void *pc)
 	if (abfd == NULL)
 		return;
 
-	data.pc = (bfd_vma) pc;
+	data.pc = (bfd_hostptr_t) pc;
 	data.found = FALSE;
 	bfd_map_over_sections(abfd, find_addr_sect, &data);
 
@@ -187,6 +185,7 @@ static void wpa_trace_bfd_addr(void *pc)
 		wpa_printf(MSG_INFO, "     %s() %s:%u",
 			   name, filename, data.line);
 		free(aname);
+		aname = NULL;
 
 		data.found = bfd_find_inliner_info(abfd, &data.filename,
 						   &data.function, &data.line);
@@ -202,7 +201,7 @@ static const char * wpa_trace_bfd_addr2func(void *pc)
 	if (abfd == NULL)
 		return NULL;
 
-	data.pc = (bfd_vma) pc;
+	data.pc = (bfd_hostptr_t) pc;
 	data.found = FALSE;
 	bfd_map_over_sections(abfd, find_addr_sect, &data);
 
@@ -242,6 +241,53 @@ void wpa_trace_dump_funcname(const char *title, void *pc)
 	wpa_printf(MSG_INFO, "WPA_TRACE: %s: %p", title, pc);
 	wpa_trace_bfd_init();
 	wpa_trace_bfd_addr(pc);
+}
+
+
+size_t wpa_trace_calling_func(const char *buf[], size_t len)
+{
+	bfd *abfd;
+	void *btrace_res[WPA_TRACE_LEN];
+	int i, btrace_num;
+	size_t pos = 0;
+
+	if (len == 0)
+		return 0;
+	if (len > WPA_TRACE_LEN)
+		len = WPA_TRACE_LEN;
+
+	wpa_trace_bfd_init();
+	abfd = cached_abfd;
+	if (!abfd)
+		return 0;
+
+	btrace_num = backtrace(btrace_res, len);
+	if (btrace_num < 1)
+		return 0;
+
+	for (i = 0; i < btrace_num; i++) {
+		struct bfd_data data;
+
+		data.pc = (bfd_hostptr_t) btrace_res[i];
+		data.found = FALSE;
+		bfd_map_over_sections(abfd, find_addr_sect, &data);
+
+		while (data.found) {
+			if (data.function &&
+			    (pos > 0 ||
+			     os_strcmp(data.function, __func__) != 0)) {
+				buf[pos++] = data.function;
+				if (pos == len)
+					return pos;
+			}
+
+			data.found = bfd_find_inliner_info(abfd, &data.filename,
+							   &data.function,
+							   &data.line);
+		}
+	}
+
+	return pos;
 }
 
 #else /* WPA_TRACE_BFD */

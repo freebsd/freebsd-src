@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sx.h>
 #include <sys/taskqueue.h>
+#include <sys/zlib.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -58,7 +59,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
-#include <net/zlib.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>

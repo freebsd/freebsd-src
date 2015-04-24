@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
 #include "opt_ddb.h"
+#include "opt_hwpmc_hooks.h"
 #include "opt_kstack_pages.h"
 #include "opt_platform.h"
 
@@ -208,6 +209,9 @@ extern void *int_watchdog;
 extern void *int_data_tlb_error;
 extern void *int_inst_tlb_error;
 extern void *int_debug;
+#ifdef HWPMC_HOOKS
+extern void *int_performance_counter;
+#endif
 
 #define SET_TRAP(ivor, handler) \
 	KASSERT(((uintptr_t)(&handler) & ~0xffffUL) == \
@@ -235,6 +239,9 @@ ivor_setup(void)
 	SET_TRAP(SPR_IVOR13, int_data_tlb_error);
 	SET_TRAP(SPR_IVOR14, int_inst_tlb_error);
 	SET_TRAP(SPR_IVOR15, int_debug);
+#ifdef HWPMC_HOOKS
+	SET_TRAP(SPR_IVOR35, int_performance_counter);
+#endif
 }
 
 static void

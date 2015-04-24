@@ -2165,7 +2165,7 @@ load_object(const char *name, int fd_u, const Obj_Entry *refobj, int flags)
 	 * To avoid a race, we open the file and use fstat() rather than
 	 * using stat().
 	 */
-	if ((fd = open(path, O_RDONLY | O_CLOEXEC)) == -1) {
+	if ((fd = open(path, O_RDONLY | O_CLOEXEC | O_VERIFY)) == -1) {
 	    _rtld_error("Cannot open \"%s\"", path);
 	    free(path);
 	    return (NULL);
@@ -2855,7 +2855,7 @@ search_library_pathfds(const char *name, const char *path, int *fdp)
 		dirfd = parse_libdir(fdstr);
 		if (dirfd < 0)
 			break;
-		fd = __sys_openat(dirfd, name, O_RDONLY | O_CLOEXEC);
+		fd = __sys_openat(dirfd, name, O_RDONLY | O_CLOEXEC | O_VERIFY);
 		if (fd >= 0) {
 			*fdp = fd;
 			len = strlen(fdstr) + strlen(name) + 3;

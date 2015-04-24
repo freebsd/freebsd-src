@@ -61,10 +61,6 @@ SYMLINKS+=lib${LIB}.so ${LIBDIR}/libpthread.so
 SYMLINKS+=lib${LIB}_p.a ${LIBDIR}/libpthread_p.a
 .endif
 
-.if ${MK_SYSCALL_COMPAT} != "no"
-CFLAGS+=-DSYSCALL_COMPAT
-.endif
-
 .if ${MK_TESTS} != "no"
 SUBDIR+=	tests
 .endif
