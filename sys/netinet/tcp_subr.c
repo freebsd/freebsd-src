@@ -2159,6 +2159,7 @@ tcp_signature_do_compute(struct mbuf *m, int len, int optlen,
 		break;
 #endif
 	default:
+		KEY_FREESAV(&sav);
 		return (-1);
 		/* NOTREACHED */
 		break;
