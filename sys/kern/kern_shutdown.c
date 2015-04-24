@@ -154,7 +154,6 @@ static void poweroff_wait(void *, int);
 static void shutdown_halt(void *junk, int howto);
 static void shutdown_panic(void *junk, int howto);
 static void shutdown_reset(void *junk, int howto);
-static void vpanic(const char *fmt, va_list ap) __dead2;
 
 /* register various local shutdown events */
 static void
@@ -676,7 +675,7 @@ panic(const char *fmt, ...)
 	vpanic(fmt, ap);
 }
 
-static void
+void
 vpanic(const char *fmt, va_list ap)
 {
 #ifdef SMP
