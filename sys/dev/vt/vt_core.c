@@ -559,7 +559,6 @@ vt_allocate_keyboard(struct vt_device *vd)
 	idx0 = kbd_allocate("kbdmux", -1, (void *)&vd->vd_keyboard,
 	    vt_kbdevent, vd);
 	/* XXX: kb_token lost */
-	vd->vd_keyboard = idx0;
 	if (idx0 != -1) {
 		DPRINTF(20, "%s: kbdmux allocated, idx = %d\n", __func__, idx0);
 		k0 = kbd_get_keyboard(idx0);
@@ -583,6 +582,7 @@ vt_allocate_keyboard(struct vt_device *vd)
 		idx0 = kbd_allocate("*", -1, (void *)&vd->vd_keyboard,
 		    vt_kbdevent, vd);
 	}
+	vd->vd_keyboard = idx0;
 	DPRINTF(20, "%s: vd_keyboard = %d\n", __func__, vd->vd_keyboard);
 
 	return (idx0);
