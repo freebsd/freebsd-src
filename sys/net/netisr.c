@@ -686,12 +686,13 @@ netisr_select_cpuid(struct netisr_proto *npp, u_int dispatch_policy,
 	}
 
 	if (policy == NETISR_POLICY_FLOW) {
-		if (!(m->m_flags & M_FLOWID) && npp->np_m2flow != NULL) {
+		if (M_HASHTYPE_GET(m) == M_HASHTYPE_NONE &&
+		    npp->np_m2flow != NULL) {
 			m = npp->np_m2flow(m, source);
 			if (m == NULL)
 				return (NULL);
 		}
-		if (m->m_flags & M_FLOWID) {
+		if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
 			*cpuidp =
 			    netisr_default_flow2cpu(m->m_pkthdr.flowid);
 			return (m);

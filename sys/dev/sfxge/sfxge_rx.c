@@ -334,7 +334,7 @@ sfxge_rx_deliver(struct sfxge_softc *sc, struct sfxge_rx_sw_desc *rx_desc)
 	if (rx_desc->flags & EFX_PKT_TCP) {
 		m->m_pkthdr.flowid = EFX_RX_HASH_VALUE(EFX_RX_HASHALG_TOEPLITZ,
 						       mtod(m, uint8_t *));
-		m->m_flags |= M_FLOWID;
+		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 	}
 	m->m_data += sc->rx_prefix_size;
 	m->m_len = rx_desc->size - sc->rx_prefix_size;
@@ -385,7 +385,7 @@ sfxge_lro_deliver(struct sfxge_lro_state *st, struct sfxge_lro_conn *c)
 	}
 
 	m->m_pkthdr.flowid = c->conn_hash;
-	m->m_flags |= M_FLOWID;
+	M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 
 	m->m_pkthdr.csum_flags = csum_flags;
 	__sfxge_rx_deliver(sc, m);

@@ -1703,7 +1703,7 @@ vtnet_rxq_input(struct vtnet_rxq *rxq, struct mbuf *m,
 	}
 
 	m->m_pkthdr.flowid = rxq->vtnrx_id;
-	m->m_flags |= M_FLOWID;
+	M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 
 	/*
 	 * BMV: FreeBSD does not have the UNNECESSARY and PARTIAL checksum
@@ -2349,7 +2349,8 @@ vtnet_txq_mq_start(struct ifnet *ifp, struct mbuf *m)
 	sc = ifp->if_softc;
 	npairs = sc->vtnet_act_vq_pairs;
 
-	if (m->m_flags & M_FLOWID)
+	/* check if flowid is set */
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
 		i = m->m_pkthdr.flowid % npairs;
 	else
 		i = curcpu % npairs;

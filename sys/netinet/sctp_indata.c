@@ -2296,7 +2296,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
     struct sockaddr *src, struct sockaddr *dst,
     struct sctphdr *sh, struct sctp_inpcb *inp,
     struct sctp_tcb *stcb, struct sctp_nets *net, uint32_t * high_tsn,
-    uint8_t use_mflowid, uint32_t mflowid,
+    uint8_t mflowtype, uint32_t mflowid,
     uint32_t vrf_id, uint16_t port)
 {
 	struct sctp_data_chunk *ch, chunk_buf;
@@ -2391,7 +2391,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_19;
 				sctp_abort_association(inp, stcb, m, iphlen,
 				    src, dst, sh, op_err,
-				    use_mflowid, mflowid,
+				    mflowtype, mflowid,
 				    vrf_id, port);
 				return (2);
 			}
@@ -2406,7 +2406,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_19;
 				sctp_abort_association(inp, stcb, m, iphlen,
 				    src, dst, sh, op_err,
-				    use_mflowid, mflowid,
+				    mflowtype, mflowid,
 				    vrf_id, port);
 				return (2);
 			}
@@ -2475,7 +2475,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 					    m, iphlen,
 					    src, dst,
 					    sh, op_err,
-					    use_mflowid, mflowid,
+					    mflowtype, mflowid,
 					    vrf_id, port);
 					return (2);
 				}

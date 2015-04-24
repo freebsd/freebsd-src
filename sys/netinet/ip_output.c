@@ -144,9 +144,9 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	if (inp != NULL) {
 		INP_LOCK_ASSERT(inp);
 		M_SETFIB(m, inp->inp_inc.inc_fibnum);
-		if (inp->inp_flags & (INP_HW_FLOWID|INP_SW_FLOWID)) {
+		if (inp->inp_flowtype != M_HASHTYPE_NONE) {
 			m->m_pkthdr.flowid = inp->inp_flowid;
-			m->m_flags |= M_FLOWID;
+			M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 		}
 	}
 
@@ -796,11 +796,14 @@ smart_frag_failure:
 			IPSTAT_INC(ips_odropped);
 			goto done;
 		}
-		/* make sure the flowid is the same for the fragmented mbufs */
+		/*
+		 * make sure the flowid and flowtype are the same for the
+		 * fragmented mbufs
+		 */
 		M_HASHTYPE_SET(m, M_HASHTYPE_GET(m0));
 		m->m_pkthdr.flowid = m0->m_pkthdr.flowid;
-		/* copy multicast and flowid flags, if any */
-		m->m_flags |= (m0->m_flags & (M_MCAST | M_FLOWID));
+		/* copy multicast flags, if any */
+		m->m_flags |= (m0->m_flags & M_MCAST);
 		/*
 		 * In the first mbuf, leave room for the link header, then
 		 * copy the original IP header including options. The payload

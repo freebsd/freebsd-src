@@ -723,9 +723,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	 * If there's an mbuf and it has a flowid, then let's initialise the
 	 * inp with that particular flowid.
 	 */
-	if (m != NULL && m->m_flags & M_FLOWID) {
-		inp->inp_flags |= INP_HW_FLOWID;
-		inp->inp_flags &= ~INP_SW_FLOWID;
+	if (m != NULL && M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
 		inp->inp_flowid = m->m_pkthdr.flowid;
 	}
 
