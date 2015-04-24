@@ -611,7 +611,11 @@ dtrace_panic(const char *format, ...)
 	va_list alist;
 
 	va_start(alist, format);
+#ifdef __FreeBSD__
+	vpanic(format, alist);
+#else
 	dtrace_vpanic(format, alist);
+#endif
 	va_end(alist);
 }
 
