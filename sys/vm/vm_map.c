@@ -2717,6 +2717,96 @@ done:
 	return (rv);
 }
 
+static boolean_t
+vm_map_pageout_range(vm_map_t map, vm_map_entry_t entry,
+    vm_offset_t start, vm_offset_t end, vm_offset_t *size)
+{
+	vm_object_t object, tobject;
+	vm_page_t m;
+	vm_pindex_t pi;
+	vm_offset_t offset, offset1;
+	int rtval, last_timestamp;
+	boolean_t ret;
+
+	ret = TRUE;
+	for (offset = start, *size = 0; offset < end; offset += PAGE_SIZE) {
+		*size += PAGE_SIZE;
+retry:
+		pi = OFF_TO_IDX(offset - entry->start + entry->offset);
+		object = entry->object.vm_object;
+		VM_OBJECT_WLOCK(object);
+		for (;;) {
+			m = vm_page_lookup(object, pi);
+			if (m != NULL)
+				break;
+			tobject = object->backing_object;
+			if (tobject == NULL) {
+				VM_OBJECT_WUNLOCK(object);
+				break;
+			}
+			pi += object->backing_object_offset;
+			VM_OBJECT_WLOCK(tobject);
+			VM_OBJECT_WUNLOCK(object);
+			object = tobject;
+		}
+		if (m == NULL)
+			continue;
+		if (m->wire_count != 0 || m->hold_count != 0) {
+			VM_OBJECT_WUNLOCK(object);
+			ret = FALSE;
+			continue;
+		}
+		if (vm_page_sleep_if_busy(m, "mpgout")) {
+			VM_OBJECT_WUNLOCK(object);
+			goto retry;
+		}
+		offset1 = offset - entry->start + entry->offset;
+		if (object->type == OBJT_VNODE) {
+			last_timestamp = map->timestamp;
+			vm_map_unlock_read(map);
+			if (!vm_object_sync(object, offset1, PAGE_SIZE,
+			    FALSE, TRUE))
+				ret = FALSE;
+			VM_OBJECT_WUNLOCK(object);
+			vm_map_lock_read(map);
+			if (last_timestamp != map->timestamp) {
+				if (!vm_map_lookup_entry(map, offset, &entry) ||
+				    entry->end < end)
+					break;
+			}
+		} else {
+			KASSERT(object->type == OBJT_DEFAULT ||
+			    object->type == OBJT_SWAP,
+			    ("XXX"));
+			if (m->valid != 0) {
+				vm_page_sbusy(m);
+				vm_page_sbusy(m);
+				pmap_remove_all(m);
+				vm_object_pip_add(object, 1);
+				vm_pager_put_pages(object, &m, 1,
+				    VM_PAGER_PUT_SYNC, &rtval);
+				vm_page_lock(m);
+				vm_page_flash(m);
+				vm_page_sunbusy(m);
+				if (rtval != VM_PAGER_PEND) {
+					vm_page_sunbusy(m);
+					vm_object_pip_wakeup(object);
+					ret = FALSE;
+				} else {
+					vm_page_free(m);
+				}
+				vm_page_unlock(m);
+			} else {
+				vm_page_lock(m);
+				vm_page_free(m);
+				vm_page_unlock(m);
+			}
+			VM_OBJECT_WUNLOCK(object);
+		}
+	}
+	return (ret);
+}
+
 /*
  * vm_map_sync
  *
@@ -2734,12 +2824,8 @@ done:
  * Returns an error if any part of the specified range is not mapped.
  */
 int
-vm_map_sync(
-	vm_map_t map,
-	vm_offset_t start,
-	vm_offset_t end,
-	boolean_t syncio,
-	boolean_t invalidate)
+vm_map_sync(vm_map_t map, vm_offset_t start, vm_offset_t end,
+    boolean_t syncio, boolean_t invalidate, boolean_t pageout)
 {
 	vm_map_entry_t current;
 	vm_map_entry_t entry;
@@ -2763,7 +2849,8 @@ vm_map_sync(
 	 */
 	for (current = entry; current != &map->header && current->start < end;
 	    current = current->next) {
-		if (invalidate && (current->eflags & MAP_ENTRY_USER_WIRED)) {
+		if ((invalidate || pageout) &&
+		    (current->eflags & MAP_ENTRY_USER_WIRED)) {
 			vm_map_unlock_read(map);
 			return (KERN_INVALID_ARGUMENT);
 		}
@@ -2775,7 +2862,7 @@ vm_map_sync(
 		}
 	}
 
-	if (invalidate)
+	if (invalidate || pageout)
 		pmap_remove(map->pmap, start, end);
 	failed = FALSE;
 
@@ -2805,12 +2892,30 @@ vm_map_sync(
 		}
 		vm_object_reference(object);
 		last_timestamp = map->timestamp;
-		vm_map_unlock_read(map);
-		if (!vm_object_sync(object, offset, size, syncio, invalidate))
-			failed = TRUE;
-		start += size;
+		if (pageout) {
+			if (object->type == OBJT_DEFAULT ||
+			    object->type == OBJT_SWAP) {
+				if (!vm_map_pageout_range(map, entry,
+				    start, start + size, &size))
+					failed = TRUE;
+			} else if (object->type == OBJT_VNODE /* also COW */) {
+				vm_map_unlock_read(map);
+				if (!vm_object_sync(object, offset, size,
+				    FALSE, TRUE))
+					failed = TRUE;
+				vm_map_lock_read(map);
+			} else {
+				failed = TRUE;
+			}
+		} else {
+			vm_map_unlock_read(map);
+			if (!vm_object_sync(object, offset, size, syncio,
+			    invalidate))
+				failed = TRUE;
+			vm_map_lock_read(map);
+		}
 		vm_object_deallocate(object);
-		vm_map_lock_read(map);
+		start += size;
 		if (last_timestamp == map->timestamp ||
 		    !vm_map_lookup_entry(map, start, &current))
 			current = current->next;
