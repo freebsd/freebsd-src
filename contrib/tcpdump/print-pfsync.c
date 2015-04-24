@@ -374,7 +374,7 @@ print_src_dst(netdissect_options *ndo, const struct pfsync_state_peer *src,
 }
 
 static void
-print_state(struct netdissect_options *ndo, struct pfsync_state *s)
+print_state(netdissect_options *ndo, struct pfsync_state *s)
 {
 	struct pfsync_state_peer *src, *dst;
 	struct pfsync_state_key *sk, *nk;
