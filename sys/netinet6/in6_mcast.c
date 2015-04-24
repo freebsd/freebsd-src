@@ -2350,11 +2350,15 @@ in6p_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 		return (error);
 	if (V_if_index < ifindex)
 		return (EINVAL);
-
-	ifp = ifnet_byindex(ifindex);
-	if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0)
-		return (EADDRNOTAVAIL);
-
+	if (ifindex == 0)
+		ifp = NULL;
+	else {
+		ifp = ifnet_byindex(ifindex);
+		if (ifp == NULL)
+			return (EINVAL);
+		if ((ifp->if_flags & IFF_MULTICAST) == 0)
+			return (EADDRNOTAVAIL);
+	}
 	imo = in6p_findmoptions(inp);
 	imo->im6o_multicast_ifp = ifp;
 	INP_WUNLOCK(inp);
