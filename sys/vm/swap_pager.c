@@ -147,10 +147,12 @@ __FBSDID("$FreeBSD$");
 #define SWCORRECT(n) (sizeof(void *) * (n) / sizeof(daddr_t))
 #define SWAP_META_PAGES		(SWB_NPAGES * 2)
 #define SWAP_META_MASK		(SWAP_META_PAGES - 1)
+#ifdef CPU_CHERI
 #define	BITS_PER_TAGS_PER_PAGE					\
 	((PAGE_SIZE / CHERICAP_SIZE) / (8 * sizeof(uint64_t)))
 
 CTASSERT((PAGE_SIZE / CHERICAP_SIZE) % (8 * sizeof(uint64_t)) == 0);
+#endif
 
 struct swblock {
 	struct swblock	*swb_hnext;
