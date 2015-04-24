@@ -179,12 +179,12 @@ static int lagg_failover_rx_all = 0; /* Allow input on any failover links */
 SYSCTL_INT(_net_link_lagg, OID_AUTO, failover_rx_all, CTLFLAG_RW,
     &lagg_failover_rx_all, 0,
     "Accept input from any interface in a failover lagg");
-static int def_use_flowid = 1; /* Default value for using M_FLOWID */
+static int def_use_flowid = 1; /* Default value for using flowid */
 TUNABLE_INT("net.link.lagg.default_use_flowid", &def_use_flowid);
 SYSCTL_INT(_net_link_lagg, OID_AUTO, default_use_flowid, CTLFLAG_RW,
     &def_use_flowid, 0,
     "Default setting for using flow id for load sharing");
-static int def_flowid_shift = 16; /* Default value for using M_FLOWID */
+static int def_flowid_shift = 16; /* Default value for using flow shift */
 TUNABLE_INT("net.link.lagg.default_flowid_shift", &def_flowid_shift);
 SYSCTL_INT(_net_link_lagg, OID_AUTO, default_flowid_shift, CTLFLAG_RW,
     &def_flowid_shift, 0,
@@ -1879,7 +1879,8 @@ lagg_lb_start(struct lagg_softc *sc, struct mbuf *m)
 	struct lagg_port *lp = NULL;
 	uint32_t p = 0;
 
-	if (sc->use_flowid && (m->m_flags & M_FLOWID))
+	if (sc->use_flowid &&
+	    M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
 		p = m->m_pkthdr.flowid >> sc->flowid_shift;
 	else
 		p = lagg_hashmbuf(sc, m, lb->lb_key);

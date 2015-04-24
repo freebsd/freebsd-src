@@ -231,8 +231,8 @@ struct lagg_softc {
 	struct callout			sc_callout;
 	struct sysctl_ctx_list		ctx;		/* sysctl variables */
 	struct sysctl_oid		*sc_oid;	/* sysctl tree oid */
-	int				use_flowid;	/* use M_FLOWID */
-	int				flowid_shift;	/* shift the flowid */
+	int				use_flowid;	/* enable use of flowid */
+	int				flowid_shift;	/* set flowid shift*/
 };
 
 struct lagg_port {

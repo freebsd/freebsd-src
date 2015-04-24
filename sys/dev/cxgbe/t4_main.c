@@ -1392,7 +1392,8 @@ cxgbe_transmit(struct ifnet *ifp, struct mbuf *m)
 		return (ENETDOWN);
 	}
 
-	if (m->m_flags & M_FLOWID)
+	/* check if flowid is set */
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
 		txq += ((m->m_pkthdr.flowid % (pi->ntxq - pi->rsrv_noflowq))
 		    + pi->rsrv_noflowq);
 	br = txq->br;

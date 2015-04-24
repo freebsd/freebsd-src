@@ -1738,8 +1738,9 @@ cxgb_transmit(struct ifnet *ifp, struct mbuf *m)
 		m_freem(m);
 		return (0);
 	}
-	
-	if (m->m_flags & M_FLOWID)
+
+	/* check if flowid is set */
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)	
 		qidx = (m->m_pkthdr.flowid % pi->nqsets) + pi->first_qset;
 
 	qs = &pi->adapter->sge.qs[qidx];
@@ -2904,9 +2905,10 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			
 			eop = get_packet(adap, drop_thresh, qs, mh, r);
 			if (eop) {
-				if (r->rss_hdr.hash_type && !adap->timestamp)
-					mh->mh_head->m_flags |= M_FLOWID;
-				mh->mh_head->m_pkthdr.flowid = rss_hash;
+				if (r->rss_hdr.hash_type && !adap->timestamp) {
+					M_HASHTYPE_SET(mh->mh_head, M_HASHTYPE_OPAQUE);
+					mh->mh_head->m_pkthdr.flowid = rss_hash;
+				}
 			}
 			
 			ethpad = 2;

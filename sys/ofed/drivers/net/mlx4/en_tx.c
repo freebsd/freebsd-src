@@ -720,8 +720,11 @@ u16 mlx4_en_select_queue(struct net_device *dev, struct mbuf *mb)
 	        up = (vlan_tag >> 13) % MLX4_EN_NUM_UP;
 	}
 #endif
-	/* hash mbuf */
-	queue_index = mlx4_en_hashmbuf(MLX4_F_HASHL3 | MLX4_F_HASHL4, mb, hashrandom);
+	/* check if flowid is set */
+	if (M_HASHTYPE_GET(mb) != M_HASHTYPE_NONE)
+		queue_index = mb->m_pkthdr.flowid;
+	else
+		queue_index = mlx4_en_hashmbuf(MLX4_F_HASHL3 | MLX4_F_HASHL4, mb, hashrandom);
 
 	return ((queue_index % rings_p_up) + (up * rings_p_up));
 }
@@ -1066,15 +1069,11 @@ mlx4_en_transmit(struct ifnet *dev, struct mbuf *m)
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_tx_ring *ring;
 	struct mlx4_en_cq *cq;
-	int i = 0, err = 0;
+	int i, err = 0;
 
-	/* Which queue to use */
-	if ((m->m_flags & (M_FLOWID | M_VLANTAG)) == M_FLOWID) {
-		i = m->m_pkthdr.flowid % (priv->tx_ring_num - 1);
-	}
-	else {
-		i = mlx4_en_select_queue(dev, m);
-	}
+	/* Compute which queue to use */
+	i = mlx4_en_select_queue(dev, m);
+
 	ring = priv->tx_ring[i];
 
 	if (spin_trylock(&ring->tx_lock)) {

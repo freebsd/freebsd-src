@@ -977,7 +977,7 @@ igb_mq_start(struct ifnet *ifp, struct mbuf *m)
 	int 			i, err = 0;
 
 	/* Which queue to use */
-	if ((m->m_flags & M_FLOWID) != 0)
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
 		i = m->m_pkthdr.flowid % adapter->num_queues;
 	else
 		i = curcpu % adapter->num_queues;
@@ -4972,7 +4972,7 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 			}
 #ifndef IGB_LEGACY_TX
 			rxr->fmp->m_pkthdr.flowid = que->msix;
-			rxr->fmp->m_flags |= M_FLOWID;
+			M_HASHTYPE_SET(rxr->fmp, M_HASHTYPE_OPAQUE);
 #endif
 			sendmp = rxr->fmp;
 			/* Make sure to set M_PKTHDR. */

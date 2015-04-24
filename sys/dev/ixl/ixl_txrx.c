@@ -66,8 +66,8 @@ ixl_mq_start(struct ifnet *ifp, struct mbuf *m)
 	struct tx_ring		*txr;
 	int 			err, i;
 
-	/* Which queue to use */
-	if ((m->m_flags & M_FLOWID) != 0)
+	/* check if flowid is set */
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
 		i = m->m_pkthdr.flowid % vsi->num_queues;
 	else
 		i = curcpu % vsi->num_queues;
@@ -1543,7 +1543,7 @@ ixl_rxeof(struct ixl_queue *que, int count)
 			if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
 				ixl_rx_checksum(sendmp, status, error, ptype);
 			sendmp->m_pkthdr.flowid = que->msix;
-			sendmp->m_flags |= M_FLOWID;
+			M_HASHTYPE_SET(sendmp, M_HASHTYPE_OPAQUE);
 		}
 next_desc:
 		bus_dmamap_sync(rxr->dma.tag, rxr->dma.map,

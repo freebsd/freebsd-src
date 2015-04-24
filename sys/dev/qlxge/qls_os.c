@@ -1141,7 +1141,8 @@ qls_send(qla_host_t *ha, struct mbuf **m_headp)
 
 	QL_DPRINT8((ha->pci_dev, "%s: enter\n", __func__));
 
-	if (m_head->m_flags & M_FLOWID)
+	/* check if flowid is set */
+	if (M_HASHTYPE_GET(m_head) != M_HASHTYPE_NONE)
 		txr_idx = m_head->m_pkthdr.flowid & (ha->num_tx_rings - 1);
 
 	tx_idx = ha->tx_ring[txr_idx].txr_next;
