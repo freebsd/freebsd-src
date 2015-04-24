@@ -395,6 +395,12 @@
 #define	__alloc_size(x)
 #endif
 
+#if __has_attribute(alloc_align) || __GNUC_PREREQ__(4, 9)
+#define	__alloc_align(x)	__attribute__((__alloc_align__(x)))
+#else
+#define	__alloc_align(x)
+#endif
+
 /* XXX: should use `#if __STDC_VERSION__ < 199901'. */
 #if !__GNUC_PREREQ__(2, 7) && !defined(__INTEL_COMPILER)
 #define	__func__	NULL
