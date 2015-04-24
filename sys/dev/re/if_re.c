@@ -2918,9 +2918,9 @@ re_transmit(if_t ifp, struct mbuf *m)
 
 	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	RL_LOCK(sc);
-	error = re_start(sc);
+	(void )re_start(sc);
 	RL_UNLOCK(sc);
-	return (error);
+	return (0);
 }
 
 static int

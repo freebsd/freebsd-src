@@ -5398,9 +5398,9 @@ bge_transmit(if_t ifp, struct mbuf *m)
 
 	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	BGE_LOCK(sc);
-	error = bge_start_locked(sc);
+	(void )bge_start_locked(sc);
 	BGE_UNLOCK(sc);
-	return (error);
+	return (0);
 }
 
 static void

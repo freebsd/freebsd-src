@@ -2881,9 +2881,9 @@ alc_transmit(if_t ifp, struct mbuf *m)
 
 	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	ALC_LOCK(sc);
-	error = alc_start(sc);
+	(void )alc_start(sc);
 	ALC_UNLOCK(sc);
-	return (error);
+	return (0);
 }
 
 static int
