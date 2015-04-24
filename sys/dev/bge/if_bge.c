@@ -3866,6 +3866,7 @@ again:
 		 */
 		if (sc->bge_asf_mode & ASF_STACKUP)
 			BGE_SETBIT(sc, BGE_MODE_CTL, BGE_MODECTL_STACKUP);
+		ifat.ifat_capabilities |= IFCAP_LINKSTATE;
 	}
 
 	/*

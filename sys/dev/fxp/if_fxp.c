@@ -842,6 +842,7 @@ fxp_attach(device_t dev)
 			device_printf(dev, "attaching PHYs failed\n");
 			goto fail;
 		}
+		ifat.ifat_capabilities |= IFCAP_LINKSTATE;
 	}
 
 	/*

@@ -1381,6 +1381,7 @@ xl_attach(device_t dev)
 		}
 		mii = device_get_softc(sc->xl_miibus);
 		ifat.ifat_baudrate = ifmedia_baudrate(mii->mii_media_active);
+		ifat.ifat_capabilities |= IFCAP_LINKSTATE;
 		goto media_done;
 	}
 

@@ -1366,7 +1366,8 @@ alc_attach(device_t dev)
 		.ifat_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST,
 		.ifat_capabilities = IFCAP_TXCSUM | IFCAP_TSO4 |
 		    IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING |
-		    IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWTSO,
+		    IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWTSO |
+		    IFCAP_LINKSTATE,
 		.ifat_hwassist = ALC_CSUM_FEATURES | CSUM_TSO,
 	};
 	struct alc_softc *sc;

@@ -648,7 +648,7 @@ rl_attach(device_t dev)
 		.ifat_version = IF_ATTACH_VERSION,
 		.ifat_drv = &rl_ifdrv,
 		.ifat_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST,
-		.ifat_capabilities = IFCAP_VLAN_MTU,
+		.ifat_capabilities = IFCAP_VLAN_MTU | IFCAP_LINKSTATE,
 	};
 	uint8_t			eaddr[ETHER_ADDR_LEN];
 	uint16_t		as[3];

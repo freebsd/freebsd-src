@@ -1605,7 +1605,7 @@ cgem_attach(device_t dev)
 		.ifat_drv = &cgem_ifdrv,
 		.ifat_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST,
 		.ifat_capabilities = IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6 |
-				IFCAP_VLAN_MTU | IFCAP_VLAN_HWCSUM,
+		    IFCAP_LINKSTATE | IFCAP_VLAN_MTU | IFCAP_VLAN_HWCSUM,
 	};
 	struct cgem_softc *sc = device_get_softc(dev);
 	phandle_t node;
