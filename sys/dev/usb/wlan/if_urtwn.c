@@ -1236,8 +1236,10 @@ urtwn_efuse_read(struct urtwn_softc *sc)
 static void
 urtwn_efuse_switch_power(struct urtwn_softc *sc)
 {
-	uint8_t vol;
 	uint32_t reg;
+
+	if (sc->chip & URTWN_CHIP_88E)
+		urtwn_write_1(sc, R92C_EFUSE_ACCESS, R92C_EFUSE_ACCESS_ON);
 
 	reg = urtwn_read_2(sc, R92C_SYS_ISO_CTRL);
 	if (!(reg & R92C_SYS_ISO_CTRL_PWC_EV12V)) {
@@ -1256,11 +1258,15 @@ urtwn_efuse_switch_power(struct urtwn_softc *sc)
 		    reg | R92C_SYS_CLKR_LOADER_EN | R92C_SYS_CLKR_ANA8M);
 	}
 
-	/* Enable LDO 2.5V. */
-	vol = urtwn_read_1(sc, R92C_EFUSE_TEST + 3);
-	vol &= 0x0f;
-	vol |= 0x30;
-	urtwn_write_1(sc, R92C_EFUSE_TEST + 3, (vol | 0x80));
+	if (!(sc->chip & URTWN_CHIP_88E)) {
+		uint8_t vol;
+
+		/* Enable LDO 2.5V. */
+		vol = urtwn_read_1(sc, R92C_EFUSE_TEST + 3);
+		vol &= 0x0f;
+		vol |= 0x30;
+		urtwn_write_1(sc, R92C_EFUSE_TEST + 3, (vol | 0x80));
+	}
 }
 
 static int
@@ -1328,7 +1334,7 @@ urtwn_r88e_read_rom(struct urtwn_softc *sc)
 
 	/* Read full ROM image. */
 	memset(&sc->r88e_rom, 0xff, sizeof(sc->r88e_rom));
-	while (addr < 1024) {
+	while (addr < 512) {
 		reg = urtwn_efuse_read_1(sc, addr);
 		if (reg == 0xff)
 			break;
@@ -1353,6 +1359,8 @@ urtwn_r88e_read_rom(struct urtwn_softc *sc)
 			addr++;
 		}
 	}
+
+	urtwn_write_1(sc, R92C_EFUSE_ACCESS, R92C_EFUSE_ACCESS_OFF);
 
 	addr = 0x10;
 	for (i = 0; i < 6; i++)
@@ -2193,14 +2201,12 @@ urtwn_r92c_power_on(struct urtwn_softc *sc)
 static int
 urtwn_r88e_power_on(struct urtwn_softc *sc)
 {
-	uint8_t val;
 	uint32_t reg;
 	int ntries;
 
 	/* Wait for power ready bit. */
 	for (ntries = 0; ntries < 5000; ntries++) {
-		val = urtwn_read_1(sc, 0x6) & 0x2;
-		if (val == 0x2)
+		if (urtwn_read_4(sc, R92C_APS_FSMCO) & R92C_APS_FSMCO_SUS_HOST)
 			break;
 		urtwn_ms_delay(sc);
 	}
@@ -2215,17 +2221,23 @@ urtwn_r88e_power_on(struct urtwn_softc *sc)
 	    urtwn_read_1(sc, R92C_SYS_FUNC_EN) & ~(R92C_SYS_FUNC_EN_BBRSTB |
 	    R92C_SYS_FUNC_EN_BB_GLB_RST));
 
-	urtwn_write_1(sc, 0x26, urtwn_read_1(sc, 0x26) | 0x80);
+	urtwn_write_1(sc, R92C_AFE_XTAL_CTRL + 2,
+	    urtwn_read_1(sc, R92C_AFE_XTAL_CTRL + 2) | 0x80);
 
 	/* Disable HWPDN. */
-	urtwn_write_1(sc, 0x5, urtwn_read_1(sc, 0x5) & ~0x80);
+	urtwn_write_2(sc, R92C_APS_FSMCO,
+	    urtwn_read_2(sc, R92C_APS_FSMCO) & ~R92C_APS_FSMCO_APDM_HPDN);
 
 	/* Disable WL suspend. */
-	urtwn_write_1(sc, 0x5, urtwn_read_1(sc, 0x5) & ~0x18);
+	urtwn_write_2(sc, R92C_APS_FSMCO,
+	    urtwn_read_2(sc, R92C_APS_FSMCO) &
+	    ~(R92C_APS_FSMCO_AFSM_HSUS | R92C_APS_FSMCO_AFSM_PCIE));
 
-	urtwn_write_1(sc, 0x5, urtwn_read_1(sc, 0x5) | 0x1);
+	urtwn_write_2(sc, R92C_APS_FSMCO,
+	    urtwn_read_2(sc, R92C_APS_FSMCO) | R92C_APS_FSMCO_APFM_ONMAC);
 	for (ntries = 0; ntries < 5000; ntries++) {
-		if (!(urtwn_read_1(sc, 0x5) & 0x1))
+		if (!(urtwn_read_2(sc, R92C_APS_FSMCO) &
+		    R92C_APS_FSMCO_APFM_ONMAC))
 			break;
 		urtwn_ms_delay(sc);
 	}
@@ -2233,7 +2245,8 @@ urtwn_r88e_power_on(struct urtwn_softc *sc)
 		return (ETIMEDOUT);
 
 	/* Enable LDO normal mode. */
-	urtwn_write_1(sc, 0x23, urtwn_read_1(sc, 0x23) & ~0x10);
+	urtwn_write_1(sc, R92C_LPLDO_CTRL,
+	    urtwn_read_1(sc, R92C_LPLDO_CTRL) & ~0x10);
 
 	/* Enable MAC DMA/WMAC/SCHEDULE/SEC blocks. */
 	urtwn_write_2(sc, R92C_CR, 0);
