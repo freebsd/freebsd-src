@@ -201,16 +201,16 @@ newnfs_iosize(struct nfsmount *nmp)
 	}
 	if (nmp->nm_rsize > maxio || nmp->nm_rsize == 0)
 		nmp->nm_rsize = maxio;
-	if (nmp->nm_rsize > MAXBSIZE)
-		nmp->nm_rsize = MAXBSIZE;
+	if (nmp->nm_rsize > NFS_MAXBSIZE)
+		nmp->nm_rsize = NFS_MAXBSIZE;
 	if (nmp->nm_readdirsize > maxio || nmp->nm_readdirsize == 0)
 		nmp->nm_readdirsize = maxio;
 	if (nmp->nm_readdirsize > nmp->nm_rsize)
 		nmp->nm_readdirsize = nmp->nm_rsize;
 	if (nmp->nm_wsize > maxio || nmp->nm_wsize == 0)
 		nmp->nm_wsize = maxio;
-	if (nmp->nm_wsize > MAXBSIZE)
-		nmp->nm_wsize = MAXBSIZE;
+	if (nmp->nm_wsize > NFS_MAXBSIZE)
+		nmp->nm_wsize = NFS_MAXBSIZE;
 
 	/*
 	 * Calculate the size used for io buffers.  Use the larger

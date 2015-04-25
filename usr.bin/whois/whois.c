@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1980, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/poll.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <ctype.h>
@@ -55,6 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #define	ABUSEHOST	"whois.abuse.net"
 #define	NICHOST		"whois.crsnic.net"
@@ -280,21 +283,136 @@ whois(const char *query, const char *hostname, int flags)
 	FILE *fp;
 	struct addrinfo *hostres, *res;
 	char *buf, *host, *nhost, *p;
-	int i, s;
+	int i, j, s = -1, count;
 	size_t c, len;
+	struct pollfd *fds;
+	int timeout = 180;
 
-	s = -1;
 	hostres = gethostinfo(hostname, 1);
-	for (res = hostres; res; res = res->ai_next) {
-		s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+	for (res = hostres, count = 0; res; res = res->ai_next)
+		count++;
+
+	fds = calloc(count, sizeof(*fds));
+	if (fds == NULL)
+		err(EX_OSERR, "calloc()");
+
+	/*
+	 * Traverse the result list elements and make non-block
+	 * connection attempts.
+	 */
+	count = i = 0;
+	for (res = hostres; res != NULL; res = res->ai_next) {
+		s = socket(res->ai_family, res->ai_socktype | SOCK_NONBLOCK,
+		    res->ai_protocol);
 		if (s < 0)
 			continue;
-		if (connect(s, res->ai_addr, res->ai_addrlen) == 0)
-			break;
-		close(s);
+		if (connect(s, res->ai_addr, res->ai_addrlen) < 0) {
+			if (errno == EINPROGRESS) {
+				/* Add the socket to poll list */
+				fds[i].fd = s;
+				fds[i].events = POLLERR | POLLHUP |
+						POLLIN | POLLOUT;
+				count++;
+				i++;
+			} else {
+				close(s);
+				s = -1;
+
+				/*
+				 * Poll only if we have something to poll,
+				 * otherwise just go ahead and try next
+				 * address
+				 */
+				if (count == 0)
+					continue;
+			}
+		} else
+			goto done;
+
+		/*
+		 * If we are at the last address, poll until a connection is
+		 * established or we failed all connection attempts.
+		 */
+		if (res->ai_next == NULL)
+			timeout = INFTIM;
+
+		/*
+		 * Poll the watched descriptors for successful connections:
+		 * if we still have more untried resolved addresses, poll only
+		 * once; otherwise, poll until all descriptors have errors,
+		 * which will be considered as ETIMEDOUT later.
+		 */
+		do {
+			int n;
+
+			n = poll(fds, i, timeout);
+			if (n == 0) {
+				/*
+				 * No event reported in time.  Try with a
+				 * smaller timeout (but cap at 2-3ms)
+				 * after a new host have been added.
+				 */
+				if (timeout >= 3)
+					timeout <<= 1;
+
+				break;
+			} else if (n < 0) {
+				/*
+				 * errno here can only be EINTR which we would want
+				 * to clean up and bail out.
+				 */
+				s = -1;
+				goto done;
+			}
+
+			/*
+			 * Check for the event(s) we have seen.
+			 */
+			for (j = 0; j < i; j++) {
+				if (fds[j].fd == -1 || fds[j].events == 0 ||
+				    fds[j].revents == 0)
+					continue;
+				if (fds[j].revents & ~(POLLIN | POLLOUT)) {
+					close(s);
+					fds[j].fd = -1;
+					fds[j].events = 0;
+					count--;
+					continue;
+				} else if (fds[j].revents & (POLLIN | POLLOUT)) {
+					/* Connect succeeded. */
+					s = fds[j].fd;
+
+					goto done;
+				}
+
+			}
+		} while (timeout == INFTIM && count != 0);
 	}
+
+	/* All attempts were failed */
+	s = -1;
+	if (count == 0)
+		errno = ETIMEDOUT;
+
+done:
+	/* Close all watched fds except the succeeded one */
+	for (j = 0; j < i; j++)
+		if (fds[j].fd != s && fds[j].fd != -1)
+			close(fds[j].fd);
+
+	if (s != -1) {
+                /* Restore default blocking behavior.  */
+                if ((flags = fcntl(s, F_GETFL)) != -1) {
+                        flags &= ~O_NONBLOCK;
+                        if (fcntl(s, F_SETFL, flags) == -1)
+                                err(EX_OSERR, "fcntl()");
+                } else
+			err(EX_OSERR, "fcntl()");
+        }
+
+	free(fds);
 	freeaddrinfo(hostres);
-	if (res == NULL)
+	if (s == -1)
 		err(EX_OSERR, "connect()");
 
 	fp = fdopen(s, "r+");

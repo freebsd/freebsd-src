@@ -45,10 +45,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
+#include <sys/zlib.h>
 
 #include <geom/geom.h>
 
-#include <net/zlib.h>
 #include <contrib/xz-embedded/linux/include/linux/xz.h>
 
 #ifdef GEOM_UNCOMPRESS_DEBUG
