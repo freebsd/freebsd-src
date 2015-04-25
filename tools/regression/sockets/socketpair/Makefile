@@ -4,6 +4,6 @@
 
 PROG=	socketpair
 MAN=
-WARNS?=	2
+WARNS?=	6
 
 .include <bsd.prog.mk>

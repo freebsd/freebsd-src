@@ -29,11 +29,14 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
+#include <sys/un.h>
 
 #include <err.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -106,11 +109,10 @@ samefile(const char *test, struct stat *sb1, struct stat *sb2)
 }
 
 static void
-sendfd(const char *test, int sockfd, int sendfd)
+sendfd_payload(const char *test, int sockfd, int sendfd,
+    void *payload, size_t paylen)
 {
 	struct iovec iovec;
-	char ch;
-
 	char message[CMSG_SPACE(sizeof(int))];
 	struct cmsghdr *cmsghdr;
 	struct msghdr msghdr;
@@ -118,13 +120,12 @@ sendfd(const char *test, int sockfd, int sendfd)
 
 	bzero(&msghdr, sizeof(msghdr));
 	bzero(&message, sizeof(message));
-	ch = 0;
 
 	msghdr.msg_control = message;
 	msghdr.msg_controllen = sizeof(message);
 
-	iovec.iov_base = &ch;
-	iovec.iov_len = sizeof(ch);
+	iovec.iov_base = payload;
+	iovec.iov_len = paylen;
 
 	msghdr.msg_iov = &iovec;
 	msghdr.msg_iovlen = 1;
@@ -138,33 +139,35 @@ sendfd(const char *test, int sockfd, int sendfd)
 	len = sendmsg(sockfd, &msghdr, 0);
 	if (len < 0)
 		err(-1, "%s: sendmsg", test);
-	if (len != sizeof(ch))
+	if ((size_t)len != paylen)
 		errx(-1, "%s: sendmsg: %zd bytes sent", test, len);
 }
 
 static void
-recvfd(const char *test, int sockfd, int *recvfd)
+sendfd(const char *test, int sockfd, int sendfd)
+{
+	char ch;
+
+	return (sendfd_payload(test, sockfd, sendfd, &ch, sizeof(ch)));
+}
+
+static void
+recvfd_payload(const char *test, int sockfd, int *recvfd,
+    void *buf, size_t buflen)
 {
 	struct cmsghdr *cmsghdr;
-	char message[CMSG_SPACE(sizeof(int))];
+	char message[CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) + sizeof(int)];
 	struct msghdr msghdr;
 	struct iovec iovec;
 	ssize_t len;
-	char ch;
 
 	bzero(&msghdr, sizeof(msghdr));
-	ch = 0;
 
 	msghdr.msg_control = message;
 	msghdr.msg_controllen = sizeof(message);
 
-	iovec.iov_base = &ch;
-	iovec.iov_len = sizeof(ch);
-
-	msghdr.msg_iov = &iovec;
-	msghdr.msg_iovlen = 1;
-
-	iovec.iov_len = sizeof(ch);
+	iovec.iov_base = buf;
+	iovec.iov_len = buflen;
 
 	msghdr.msg_iov = &iovec;
 	msghdr.msg_iovlen = 1;
@@ -172,23 +175,37 @@ recvfd(const char *test, int sockfd, int *recvfd)
 	len = recvmsg(sockfd, &msghdr, 0);
 	if (len < 0)
 		err(-1, "%s: recvmsg", test);
-	if (len != sizeof(ch))
+	if ((size_t)len != buflen)
 		errx(-1, "%s: recvmsg: %zd bytes received", test, len);
+
 	cmsghdr = CMSG_FIRSTHDR(&msghdr);
 	if (cmsghdr == NULL)
 		errx(-1, "%s: recvmsg: did not receive control message", test);
-	if (cmsghdr->cmsg_len != CMSG_LEN(sizeof(int)) ||
-	    cmsghdr->cmsg_level != SOL_SOCKET ||
-	    cmsghdr->cmsg_type != SCM_RIGHTS)
+	*recvfd = -1;
+	for (; cmsghdr != NULL; cmsghdr = CMSG_NXTHDR(&msghdr, cmsghdr)) {
+		if (cmsghdr->cmsg_level == SOL_SOCKET &&
+		    cmsghdr->cmsg_type == SCM_RIGHTS &&
+		    cmsghdr->cmsg_len == CMSG_LEN(sizeof(int))) {
+			*recvfd = *(int *)CMSG_DATA(cmsghdr);
+			if (*recvfd == -1)
+				errx(-1, "%s: recvmsg: received fd -1", test);
+		}
+	}
+	if (*recvfd == -1)
 		errx(-1, "%s: recvmsg: did not receive single-fd message",
 		    test);
-	*recvfd = *(int *)CMSG_DATA(cmsghdr);
-	if (*recvfd == -1)
-		errx(-1, "%s: recvmsg: received fd -1", test);
+}
+
+static void
+recvfd(const char *test, int sockfd, int *recvfd)
+{
+	char ch;
+
+	return (recvfd_payload(test, sockfd, recvfd, &ch, sizeof(ch)));
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 	struct stat putfd_1_stat, putfd_2_stat, getfd_1_stat, getfd_2_stat;
 	int fd[2], putfd_1, putfd_2, getfd_1, getfd_2;
@@ -328,6 +345,43 @@ main(int argc, char *argv[])
 	sendfd(test, fd[0], putfd_1);
 	close(putfd_1);
 	closesocketpair(fd);
+
+	printf("%s passed\n", test);
+
+	/*
+	 * Test for PR 181741. Receiver sets LOCAL_CREDS, and kernel
+	 * prepends a control message to the data. Sender sends large
+	 * payload. Payload + SCM_RIGHTS + LOCAL_CREDS hit socket buffer
+	 * limit, and receiver receives truncated data.
+	 */
+	test = "test8-rights+creds+payload";
+	printf("beginning %s\n", test);
+
+	{
+		const int on = 1;
+		u_long sendspace;
+		size_t len;
+		void *buf;
+
+		len = sizeof(sendspace);
+		if (sysctlbyname("net.local.stream.sendspace", &sendspace,
+		    &len, NULL, 0) < 0)
+			err(-1, "%s: sysctlbyname(net.local.stream.sendspace)",
+			    test);
+
+		if ((buf = malloc(sendspace)) == NULL)
+			err(-1, "%s: malloc", test);
+
+		domainsocketpair(test, fd);
+		if (setsockopt(fd[1], 0, LOCAL_CREDS, &on, sizeof(on)) < 0)
+			err(-1, "%s: setsockopt(LOCAL_CREDS)", test);
+		tempfile(test, &putfd_1);
+		sendfd_payload(test, fd[0], putfd_1, buf, sendspace);
+		recvfd_payload(test, fd[1], &getfd_1, buf, sendspace);
+		close(putfd_1);
+		close(getfd_1);
+		closesocketpair(fd);
+	}
 
 	printf("%s passed\n", test);
 	
