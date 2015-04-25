@@ -235,6 +235,10 @@ __DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC
 .if ${__T} == "aarch64"
 BROKEN_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP GDB
 .endif
+# LLVM lacks support for FreeBSD 64-bit atomic operations for ARMv4/ARMv5
+.if ${__T} == "arm" || ${__T} == "armeb"
+BROKEN_OPTIONS+=LLDB
+.endif
 
 .include <bsd.mkopt.mk>
 
