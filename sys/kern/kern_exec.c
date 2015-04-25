@@ -1089,7 +1089,7 @@ exec_new_vmspace(imgp, sv)
 
 	/* Allocate a new stack */
 	if (imgp->stack_sz != 0) {
-		ssiz = imgp->stack_sz;
+		ssiz = trunc_page(imgp->stack_sz);
 		PROC_LOCK(p);
 		lim_rlimit(p, RLIMIT_STACK, &rlim_stack);
 		PROC_UNLOCK(p);
