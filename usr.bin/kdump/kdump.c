@@ -586,6 +586,7 @@ dumpheader(struct ktr_header *kth)
 	static char unknown[64];
 	static struct timeval prevtime, prevtime_e, temp;
 	const char *type;
+	const char *sign;
 
 	switch (kth->ktr_type) {
 	case KTR_SYSCALL:
@@ -662,10 +663,20 @@ dumpheader(struct ktr_header *kth)
 			timevaladd(&kth->ktr_time, &prevtime_e);
 		}
 		if (timestamp & TIMESTAMP_RELATIVE) {
+			if (prevtime.tv_sec == 0)
+				prevtime = kth->ktr_time;
 			temp = kth->ktr_time;
 			timevalsub(&kth->ktr_time, &prevtime);
-			prevtime = temp;
-			printf("%jd.%06ld ", (intmax_t)kth->ktr_time.tv_sec,
+			if ((intmax_t)kth->ktr_time.tv_sec < 0) {
+                        	kth->ktr_time = prevtime;
+				prevtime = temp;
+				timevalsub(&kth->ktr_time, &prevtime);
+				sign = "-";
+			} else {
+				prevtime = temp;
+				sign = "";
+			}
+			printf("%s%jd.%06ld ", sign, (intmax_t)kth->ktr_time.tv_sec,
 			    kth->ktr_time.tv_usec);
 		}
 	}
