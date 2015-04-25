@@ -2746,7 +2746,8 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 			touchpad_buttons |= MOUSE_BUTTON4DOWN;
 		if ((pb->ipacket[3] ^ pb->ipacket[0]) & 0x02)
 			touchpad_buttons |= MOUSE_BUTTON5DOWN;
-	} else if (sc->synhw.capExtended && sc->synhw.capMiddle) {
+	} else if (sc->synhw.capExtended && sc->synhw.capMiddle &&
+	    !sc->synhw.capClickPad) {
 		/* Middle Button */
 		if ((pb->ipacket[0] ^ pb->ipacket[3]) & 0x01)
 			touchpad_buttons |= MOUSE_BUTTON2DOWN;
