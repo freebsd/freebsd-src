@@ -72,6 +72,7 @@ enum {
 	VIE_OP_TYPE_POP,
 	VIE_OP_TYPE_MOVS,
 	VIE_OP_TYPE_GROUP1,
+	VIE_OP_TYPE_STOS,
 	VIE_OP_TYPE_LAST
 };
 
@@ -144,6 +145,16 @@ static const struct vie_op one_byte_opcodes[256] = {
 	[0xA5] = {
 		.op_byte = 0xA5,
 		.op_type = VIE_OP_TYPE_MOVS,
+		.op_flags = VIE_OP_F_NO_MODRM | VIE_OP_F_NO_GLA_VERIFICATION
+	},
+	[0xAA] = {
+		.op_byte = 0xAA,
+		.op_type = VIE_OP_TYPE_STOS,
+		.op_flags = VIE_OP_F_NO_MODRM | VIE_OP_F_NO_GLA_VERIFICATION
+	},
+	[0xAB] = {
+		.op_byte = 0xAB,
+		.op_type = VIE_OP_TYPE_STOS,
 		.op_flags = VIE_OP_F_NO_MODRM | VIE_OP_F_NO_GLA_VERIFICATION
 	},
 	[0xC6] = {
@@ -803,6 +814,68 @@ done:
 }
 
 static int
+emulate_stos(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
+    struct vm_guest_paging *paging, mem_region_read_t memread,
+    mem_region_write_t memwrite, void *arg)
+{
+	int error, opsize, repeat;
+	uint64_t val;
+	uint64_t rcx, rdi, rflags;
+
+	opsize = (vie->op.op_byte == 0xAA) ? 1 : vie->opsize;
+	repeat = vie->repz_present | vie->repnz_present;
+
+	if (repeat) {
+		error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RCX, &rcx);
+		KASSERT(!error, ("%s: error %d getting rcx", __func__, error));
+
+		/*
+		 * The count register is %rcx, %ecx or %cx depending on the
+		 * address size of the instruction.
+		 */
+		if ((rcx & vie_size2mask(vie->addrsize)) == 0)
+			return (0);
+	}
+
+	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RAX, &val);
+	KASSERT(!error, ("%s: error %d getting rax", __func__, error));
+
+	error = memwrite(vm, vcpuid, gpa, val, opsize, arg);
+	if (error)
+		return (error);
+
+	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RDI, &rdi);
+	KASSERT(error == 0, ("%s: error %d getting rdi", __func__, error));
+
+	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, &rflags);
+	KASSERT(error == 0, ("%s: error %d getting rflags", __func__, error));
+
+	if (rflags & PSL_D)
+		rdi -= opsize;
+	else
+		rdi += opsize;
+
+	error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RDI, rdi,
+	    vie->addrsize);
+	KASSERT(error == 0, ("%s: error %d updating rdi", __func__, error));
+
+	if (repeat) {
+		rcx = rcx - 1;
+		error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RCX,
+		    rcx, vie->addrsize);
+		KASSERT(!error, ("%s: error %d updating rcx", __func__, error));
+
+		/*
+		 * Repeat the instruction if the count register is not zero.
+		 */
+		if ((rcx & vie_size2mask(vie->addrsize)) != 0)
+			vm_restart_instruction(vm, vcpuid);
+	}
+
+	return (0);
+}
+
+static int
 emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
 {
@@ -1300,6 +1373,10 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		break;
 	case VIE_OP_TYPE_MOVS:
 		error = emulate_movs(vm, vcpuid, gpa, vie, paging, memread,
+		    memwrite, memarg);
+		break;
+	case VIE_OP_TYPE_STOS:
+		error = emulate_stos(vm, vcpuid, gpa, vie, paging, memread,
 		    memwrite, memarg);
 		break;
 	case VIE_OP_TYPE_AND:
