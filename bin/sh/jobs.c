@@ -1057,7 +1057,7 @@ waitforjob(struct job *jp, int *origstatus)
 			CLEAR_PENDING_INT;
 	}
 #if JOBS
-	else if (rootshell && iflag && propagate_int &&
+	else if (rootshell && propagate_int &&
 			WIFSIGNALED(status) && WTERMSIG(status) == SIGINT)
 		kill(getpid(), SIGINT);
 #endif
