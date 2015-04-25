@@ -1,14 +1,16 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG=	so_setfib
 MAN=
 WARNS?=	6
 
-.ifdef INET6
-CFLAGS+=	-DINET6
-.endif
-.ifdef INET
+.if ${MK_INET} != "no"
 CFLAGS+=	-DINET
+.endif
+.if ${MK_INET6} != "no"
+CFLAGS+=	-DINET6
 .endif
 
 .include <bsd.prog.mk>

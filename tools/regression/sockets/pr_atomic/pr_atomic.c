@@ -42,31 +42,31 @@
 #include <errno.h>
 #include <unistd.h>
 
-#define TEST_SOCKET "/tmp/test_socket"
+static char socket_path[] = "tmp.XXXXXX";
 
 static jmp_buf myjmpbuf;
 
-void handle_sigalrm(int signo);
-
-void handle_sigalrm(int signo)
+static void handle_sigalrm(int signo __unused)
 {
 	longjmp(myjmpbuf, 1);
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 	struct sockaddr_un un;
 	pid_t pid;
 	int s;
 
+	if (mkstemp(socket_path) == -1)
+		err(1, "mkstemp");
 	s = socket(PF_LOCAL, SOCK_DGRAM, 0);
 	if (s == -1)
 		errx(-1, "socket");
 	memset(&un, 0, sizeof(un));
 	un.sun_family = AF_LOCAL;
-	unlink(TEST_SOCKET);
-	strcpy(un.sun_path, TEST_SOCKET);
+	unlink(socket_path);
+	strcpy(un.sun_path, socket_path);
 	if (bind(s, (struct sockaddr *)&un, sizeof(un)) == -1)
 		errx(-1, "bind");
 	pid = fork();

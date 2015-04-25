@@ -69,7 +69,7 @@ got_signal(void)
 }
 
 static void
-signal_handler(int signum)
+signal_handler(int signum __unused)
 {
 
 	signaled = 1;
