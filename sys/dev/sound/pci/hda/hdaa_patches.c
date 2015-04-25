@@ -392,6 +392,13 @@ hdac_pin_patch(struct hdaa_widget *w)
 			patch = "as=1 seq=15";
 			break;
 		}
+	} else if (id == HDA_CODEC_ALC292 &&
+	    subid == LENOVO_X120BS_SUBVENDOR) {
+		switch (nid) {
+		case 21:
+			patch = "as=1 seq=15";
+			break;
+		}
 	}
 
 	if (patch != NULL)
