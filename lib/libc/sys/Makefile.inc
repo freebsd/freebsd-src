@@ -53,6 +53,7 @@ INTERPOSED = \
 	open \
 	openat \
 	poll \
+	ppoll \
 	pselect \
 	read \
 	readv \
@@ -69,6 +70,7 @@ INTERPOSED = \
 	sigwaitinfo \
 	swapcontext \
 	wait4 \
+	wait6 \
 	write \
 	writev
 
