@@ -67,7 +67,6 @@
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_dl.h>
-#include <net/if_media.h>
 #ifdef	RSS
 #include <net/rss_config.h>
 #endif
@@ -195,7 +194,7 @@ static uint64_t	igb_get_counter(if_t, ift_counter);
 static void	igb_init(struct adapter *);
 static void	igb_stop(void *);
 static void	igb_media_status(if_t, struct ifmediareq *);
-static int	igb_media_change(if_t);
+static int	igb_media_change(if_t, if_media_t);
 static void	igb_identify_hardware(struct adapter *);
 static int	igb_allocate_pci_resources(struct adapter *);
 static int	igb_allocate_msix(struct adapter *);
@@ -304,12 +303,33 @@ static driver_t igb_driver = {
 	"igb", igb_methods, sizeof(struct adapter),
 };
 
+static if_media_t igb_media_fiber[] = {
+	IFM_ETHER | IFM_1000_SX | IFM_FDX,
+	IFM_ETHER | IFM_1000_SX,
+	IFM_ETHER | IFM_AUTO, 0 };
+static if_media_t igb_media_ife[] = {
+	IFM_ETHER | IFM_10_T,
+	IFM_ETHER | IFM_10_T | IFM_FDX,
+	IFM_ETHER | IFM_100_TX,
+	IFM_ETHER | IFM_100_TX | IFM_FDX,
+	IFM_ETHER | IFM_AUTO, 0 };
+static if_media_t igb_media_copper[] = {
+	IFM_ETHER | IFM_10_T,
+	IFM_ETHER | IFM_10_T | IFM_FDX,
+	IFM_ETHER | IFM_100_TX,
+	IFM_ETHER | IFM_100_TX | IFM_FDX,
+	IFM_ETHER | IFM_1000_T | IFM_FDX,
+	IFM_ETHER | IFM_1000_T,
+	IFM_ETHER | IFM_AUTO, 0 };
+
 static struct ifdriver igb_ifdrv = {
 	.ifdrv_ops = {
 		.ifop_ioctl = igb_ioctl,
 		.ifop_get_counter = igb_get_counter,
 		.ifop_transmit = igb_mq_start,
 		.ifop_qflush = igb_qflush,
+		.ifop_media_change = igb_media_change,
+		.ifop_media_status = igb_media_status,
 #ifdef DEVICE_POLLING
 		.ifop_poll = igb_poll,
 #endif
@@ -1060,21 +1080,6 @@ igb_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 			IGB_CORE_UNLOCK(adapter);
 		}
 		break;
-	case SIOCSIFMEDIA:
-		/* Check SOL/IDER usage */
-		IGB_CORE_LOCK(adapter);
-		if (e1000_check_reset_block(&adapter->hw)) {
-			IGB_CORE_UNLOCK(adapter);
-			device_printf(adapter->dev, "Media change is"
-			    " blocked due to SOL/IDER session.\n");
-			break;
-		}
-		IGB_CORE_UNLOCK(adapter);
-	case SIOCGIFMEDIA:
-		IOCTL_DEBUGOUT("ioctl rcv'd: \
-		    SIOCxIFMEDIA (Get/Set Interface Media)");
-		error = ifmedia_ioctl(ifp, ifr, &adapter->media, command);
-		break;
 	case SIOCSIFCAP:
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFCAP (Set Capabilities)");
 		mask = ifr->ifr_reqcap ^ ifr->ifr_curcap;
@@ -1561,18 +1566,25 @@ igb_media_status(if_t ifp, struct ifmediareq *ifmr)
  *
  **********************************************************************/
 static int
-igb_media_change(if_t ifp)
+igb_media_change(if_t ifp, if_media_t media)
 {
 	struct adapter *adapter = if_getsoftc(ifp, IF_DRIVER_SOFTC);
-	struct ifmedia  *ifm = &adapter->media;
 
 	INIT_DEBUGOUT("igb_media_change: begin");
 
-	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
+	if (IFM_TYPE(media) != IFM_ETHER)
 		return (EINVAL);
 
+	/* Check SOL/IDER usage */
 	IGB_CORE_LOCK(adapter);
-	switch (IFM_SUBTYPE(ifm->ifm_media)) {
+	if (e1000_check_reset_block(&adapter->hw)) {
+		IGB_CORE_UNLOCK(adapter);
+		device_printf(adapter->dev, "Media change is"
+		    " blocked due to SOL/IDER session.\n");
+		return (EBUSY);
+	}
+
+	switch (IFM_SUBTYPE(media)) {
 	case IFM_AUTO:
 		adapter->hw.mac.autoneg = DO_AUTO_NEG;
 		adapter->hw.phy.autoneg_advertised = AUTONEG_ADV_DEFAULT;
@@ -1586,7 +1598,7 @@ igb_media_change(if_t ifp)
 	case IFM_100_TX:
 		adapter->hw.mac.autoneg = FALSE;
 		adapter->hw.phy.autoneg_advertised = 0;
-		if ((ifm->ifm_media & IFM_GMASK) == IFM_FDX)
+		if ((media & IFM_GMASK) == IFM_FDX)
 			adapter->hw.mac.forced_speed_duplex = ADVERTISE_100_FULL;
 		else
 			adapter->hw.mac.forced_speed_duplex = ADVERTISE_100_HALF;
@@ -1594,7 +1606,7 @@ igb_media_change(if_t ifp)
 	case IFM_10_T:
 		adapter->hw.mac.autoneg = FALSE;
 		adapter->hw.phy.autoneg_advertised = 0;
-		if ((ifm->ifm_media & IFM_GMASK) == IFM_FDX)
+		if ((media & IFM_GMASK) == IFM_FDX)
 			adapter->hw.mac.forced_speed_duplex = ADVERTISE_10_FULL;
 		else
 			adapter->hw.mac.forced_speed_duplex = ADVERTISE_10_HALF;
@@ -2945,6 +2957,7 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 #endif
 		    IFCAP_TSO | IFCAP_JUMBO_MTU | IFCAP_LRO |
 		    IFCAP_VLAN_HWFILTER,
+		.ifat_media = IFM_ETHER | IFM_AUTO,
 	};
 
 	INIT_DEBUGOUT("igb_setup_interface: begin");
@@ -2965,36 +2978,18 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 	    ifat.ifat_capabilities &
 	    ~(IFCAP_LRO | IFCAP_VLAN_HWFILTER | IFCAP_POLLING);
 
-	adapter->ifp = if_attach(&ifat);
-
 	/*
-	 * Specify the media types supported by this adapter and register
-	 * callbacks to update media and link information
+	 * Specify the media types supported by this adapter.
 	 */
-	ifmedia_init(&adapter->media, IFM_IMASK,
-	    igb_media_change, igb_media_status);
 	if ((adapter->hw.phy.media_type == e1000_media_type_fiber) ||
-	    (adapter->hw.phy.media_type == e1000_media_type_internal_serdes)) {
-		ifmedia_add(&adapter->media, IFM_ETHER | IFM_1000_SX | IFM_FDX, 
-			    0, NULL);
-		ifmedia_add(&adapter->media, IFM_ETHER | IFM_1000_SX, 0, NULL);
-	} else {
-		ifmedia_add(&adapter->media, IFM_ETHER | IFM_10_T, 0, NULL);
-		ifmedia_add(&adapter->media, IFM_ETHER | IFM_10_T | IFM_FDX,
-			    0, NULL);
-		ifmedia_add(&adapter->media, IFM_ETHER | IFM_100_TX,
-			    0, NULL);
-		ifmedia_add(&adapter->media, IFM_ETHER | IFM_100_TX | IFM_FDX,
-			    0, NULL);
-		if (adapter->hw.phy.type != e1000_phy_ife) {
-			ifmedia_add(&adapter->media,
-				IFM_ETHER | IFM_1000_T | IFM_FDX, 0, NULL);
-			ifmedia_add(&adapter->media,
-				IFM_ETHER | IFM_1000_T, 0, NULL);
-		}
-	}
-	ifmedia_add(&adapter->media, IFM_ETHER | IFM_AUTO, 0, NULL);
-	ifmedia_set(&adapter->media, IFM_ETHER | IFM_AUTO);
+	    (adapter->hw.phy.media_type == e1000_media_type_internal_serdes))
+		ifat.ifat_mediae = igb_media_fiber;
+	else if (adapter->hw.phy.type == e1000_phy_ife)
+		ifat.ifat_mediae = igb_media_ife;
+	else
+		ifat.ifat_mediae = igb_media_copper;
+
+	adapter->ifp = if_attach(&ifat);
 }
 
 

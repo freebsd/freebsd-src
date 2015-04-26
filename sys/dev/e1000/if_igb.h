@@ -382,7 +382,6 @@ struct adapter {
 	void			*tag;
 	struct resource 	*res;
 
-	struct ifmedia		media;
 	struct callout		timer;
 	int			msix;
 	u32			if_flags;
