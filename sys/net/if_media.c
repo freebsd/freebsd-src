@@ -1,6 +1,3 @@
-/*	$NetBSD: if_media.c,v 1.1 1997/03/17 02:55:15 thorpej Exp $	*/
-/* $FreeBSD$ */
-
 /*-
  * Copyright (c) 1997
  *	Jonathan Stone and Jason R. Thorpe.  All rights reserved.
@@ -33,18 +30,12 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $NetBSD: if_media.c,v 1.1 1997/03/17 02:55:15 thorpej Exp $
  */
 
-/*
- * BSD/OS-compatible network interface media selection.
- *
- * Where it is safe to do so, this code strays slightly from the BSD/OS
- * design.  Software which uses the API (device drivers, basically)
- * shouldn't notice any difference.
- *
- * Many thanks to Matt Thomas for providing the information necessary
- * to implement this interface.
- */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_ifmedia.h"
 
@@ -52,155 +43,233 @@
 #include <sys/systm.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
-#include <net/if_media.h>
-
-/*
- * Compile-time options:
- * IFMEDIA_DEBUG:
- *	turn on implementation-level debug printfs.
- * 	Useful for debugging newly-ported  drivers.
- */
-
-static struct ifmedia_entry *ifmedia_match(struct ifmedia *ifm,
-    int flags, int mask);
-
-#ifdef IFMEDIA_DEBUG
 #include <net/if_var.h>
-int	ifmedia_debug = 0;
-SYSCTL_INT(_debug, OID_AUTO, ifmedia, CTLFLAG_RW, &ifmedia_debug,
-	    0, "if_media debugging msgs");
-static	void ifmedia_printword(int);
+
+static MALLOC_DEFINE(M_IFMEDIA, "if_media", "interface media info");
+
+struct ifmedia {
+	if_media_t      ifm_media;	/* current user-set media word */
+	if_media_t      ifm_mask;	/* mask of changes we don't care */
+	if_media_t      *ifm_array;	/* array of all supported mediae */
+	if_media_t	*ifm_cur;	/* currently selected media */
+};
+
+void 	ifmedia_alloc(struct ifnet *, struct if_attach_args *);
+void 	ifmedia_free(struct ifnet *);
+int	ifmedia_ioctl(struct ifnet *, struct ifreq *, u_long);
+
+static if_media_t *	ifmedia_match(struct ifmedia *, if_media_t);
+static if_media_t	ifmedia_compat(if_media_t media);
+static uint64_t		ifmedia_baudrate(if_media_t);
+static int		ifmedia_link_state(u_int);
+#ifdef IFMEDIA_DEBUG
+static void		ifmedia_printword(int);
+static int ifmedia_debug;
 #endif
 
 /*
- * Initialize if_media struct for a specific interface instance.
+ * Called by if_attach(), if interface reports media.
  */
 void
-ifmedia_init(ifm, dontcare_mask, change_callback, status_callback)
-	struct ifmedia *ifm;
-	int dontcare_mask;
-	ifm_change_cb_t change_callback;
-	ifm_stat_cb_t status_callback;
+ifmedia_alloc(struct ifnet *ifp, struct if_attach_args *ifat)
 {
-
-	LIST_INIT(&ifm->ifm_list);
-	ifm->ifm_cur = NULL;
-	ifm->ifm_media = 0;
-	ifm->ifm_mask = dontcare_mask;		/* IF don't-care bits */
-	ifm->ifm_change = change_callback;
-	ifm->ifm_status = status_callback;
-}
-
-void
-ifmedia_removeall(ifm)
 	struct ifmedia *ifm;
-{
-	struct ifmedia_entry *entry;
 
-	for (entry = LIST_FIRST(&ifm->ifm_list); entry;
-	     entry = LIST_FIRST(&ifm->ifm_list)) {
-		LIST_REMOVE(entry, ifm_list);
-		free(entry, M_IFADDR);
-	}
+	ifm = malloc(sizeof(struct ifmedia), M_IFMEDIA, M_WAITOK);
+	ifm->ifm_array = ifat->ifat_mediae;
+	ifm->ifm_mask = ifat->ifat_mediamask;
+	ifm->ifm_cur = ifmedia_match(ifm, ifat->ifat_media);
+	ifm->ifm_media = *ifm->ifm_cur;
+
+	if_setsoftc(ifp, IF_MEDIA, ifm);
+
+	ifp->if_baudrate = ifmedia_baudrate(ifm->ifm_media);
 }
 
 /*
- * Add a media configuration to the list of supported media
- * for a specific interface instance.
+ * Called by if_free().
  */
 void
-ifmedia_add(ifm, mword, data, aux)
-	struct ifmedia *ifm;
-	int mword;
-	int data;
-	void *aux;
+ifmedia_free(struct ifnet *ifp)
 {
-	register struct ifmedia_entry *entry;
+	struct ifmedia *ifm;
 
+	ifm = if_getsoftc(ifp, IF_MEDIA);
+	if_setsoftc(ifp, IF_MEDIA, NULL);
+	free(ifm, M_IFMEDIA);
+}
+
+/*
+ * Device-independent media ioctl support function.
+ */
+int
+ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr, u_long cmd)
+{
+	struct ifmediareq *ifmr = (struct ifmediareq *) ifr;
+	struct ifmedia *ifm;
+	if_media_t newmedia, *match;
+	int i, error;
+
+	ifm = if_getsoftc(ifp, IF_MEDIA);
+	if (ifm == NULL)
+		return (ENODEV);
+
+	error = 0;
+	switch (cmd) {
+	case  SIOCSIFMEDIA:
+		newmedia = ifr->ifr_media;
+		match = ifmedia_match(ifm, newmedia);
+		if (match == NULL) {
 #ifdef IFMEDIA_DEBUG
-	if (ifmedia_debug) {
-		if (ifm == NULL) {
-			printf("ifmedia_add: null ifm\n");
-			return;
+			if (ifmedia_debug) {
+				printf("%s: no media found for 0x%x\n", 
+				    __func__, newmedia);
+			}
+#endif
+			return (ENXIO);
 		}
-		printf("Adding entry for ");
-		ifmedia_printword(mword);
-	}
-#endif
 
-	entry = malloc(sizeof(*entry), M_IFADDR, M_NOWAIT);
-	if (entry == NULL)
-		panic("ifmedia_add: can't malloc entry");
+		/*
+		 * If no change, we're done.
+		 */
+		if ((IFM_SUBTYPE(newmedia) != IFM_AUTO) &&
+		    (newmedia == ifm->ifm_media) &&
+		    (match == ifm->ifm_cur))
+			return (0);
 
-	entry->ifm_media = mword;
-	entry->ifm_data = data;
-	entry->ifm_aux = aux;
-
-	LIST_INSERT_HEAD(&ifm->ifm_list, entry, ifm_list);
-}
-
-/*
- * Add an array of media configurations to the list of
- * supported media for a specific interface instance.
- */
-void
-ifmedia_list_add(ifm, lp, count)
-	struct ifmedia *ifm;
-	struct ifmedia_entry *lp;
-	int count;
-{
-	int i;
-
-	for (i = 0; i < count; i++)
-		ifmedia_add(ifm, lp[i].ifm_media, lp[i].ifm_data,
-		    lp[i].ifm_aux);
-}
-
-/*
- * Set the default active media. 
- *
- * Called by device-specific code which is assumed to have already
- * selected the default media in hardware.  We do _not_ call the
- * media-change callback.
- */
-void
-ifmedia_set(ifm, target)
-	struct ifmedia *ifm; 
-	int target;
-
-{
-	struct ifmedia_entry *match;
-
-	match = ifmedia_match(ifm, target, ifm->ifm_mask);
-
-	if (match == NULL) {
-		printf("ifmedia_set: no match for 0x%x/0x%x\n",
-		    target, ~ifm->ifm_mask);
-		panic("ifmedia_set");
-	}
-	ifm->ifm_cur = match;
-
+		/*
+		 * We found a match, now make the driver switch to it.
+		 * Make sure to preserve our old media type in case the
+		 * driver can't switch.
+		 */
 #ifdef IFMEDIA_DEBUG
-	if (ifmedia_debug) {
-		printf("ifmedia_set: target ");
-		ifmedia_printword(target);
-		printf("ifmedia_set: setting to ");
-		ifmedia_printword(ifm->ifm_cur->ifm_media);
-	}
+		if (ifmedia_debug) {
+			printf("%s: switching %s to ", __func__, ifp->if_xname);
+			ifmedia_printword(*match);
+		}
 #endif
+		error = ifp->if_ops->ifop_media_change(ifp, newmedia);
+		if (error)
+			break;
+		ifm->ifm_cur = match;
+		ifm->ifm_media = newmedia;
+		/*
+		 * Some drivers, e.g. miibus(4) enabled, already set the
+		 * baudrate in ifop_media_change, but some may not.
+		 */
+		ifp->if_baudrate = ifmedia_baudrate(newmedia);
+		
+		break;
+
+	/*
+	 * Get list of available media and current media on interface.
+	 */
+	case  SIOCGIFMEDIA: 
+	case  SIOCGIFXMEDIA: 
+		if (ifmr->ifm_count < 0)
+			return (EINVAL);
+
+		if (cmd == SIOCGIFMEDIA) {
+			ifmr->ifm_active = ifmr->ifm_current = ifm->ifm_cur ?
+			    ifmedia_compat(*ifm->ifm_cur) : IFM_NONE;
+		} else {
+			ifmr->ifm_active = ifmr->ifm_current = ifm->ifm_cur ?
+			    *ifm->ifm_cur : IFM_NONE;
+		}
+		ifmr->ifm_mask = ifm->ifm_mask;
+		ifmr->ifm_status = 0;
+		ifp->if_ops->ifop_media_status(ifp, ifmr);
+
+		/*
+		 * If there are more supported mediae on the list, count
+		 * them.  This allows the caller to set ifmr->ifm_count
+		 * to 0 on the first call to know how much space to
+		 * allocate.
+		 */
+		for (i = 0; ifm->ifm_array[i] != 0; i++)
+			if (i < ifmr->ifm_count) {
+				error = copyout(&ifm->ifm_array[i],
+				    ifmr->ifm_ulist + i, sizeof(if_media_t));
+				if (error)
+					break;
+			}
+		if (error == 0 && i > ifmr->ifm_count)
+			error = ifmr->ifm_count ? E2BIG : 0;
+		ifmr->ifm_count = i;
+		break;
+
+	default:
+		return (EINVAL);
+	}
+
+	return (error);
+}
+
+/*
+ * Upcall from driver to report new media status.
+ * We intentionally don't change ifm_cur or ifm_media, since this
+ * upcall should come only in case if media is set to autonegotiation.
+ */
+void
+if_media_status(struct ifnet *ifp, if_media_t media)
+{
+
+	if_setbaudrate(ifp, ifmedia_baudrate(media));
+	if_link_state_change(ifp, ifmedia_link_state(media));
+}
+
+/*
+ * Interface wants to change its media list.
+ */
+void
+if_media_change(struct ifnet *ifp, if_media_t *array, if_media_t cur)
+{
+	struct ifmedia *ifm;
+
+	ifm = if_getsoftc(ifp, IF_MEDIA);
+	ifm->ifm_array = array;
+	ifm->ifm_cur = ifmedia_match(ifm, cur);
+	ifm->ifm_media = *ifm->ifm_cur;
+
+	ifp->if_baudrate = ifmedia_baudrate(ifm->ifm_media);
+}
+
+/*
+ * Find media entry index matching a given ifm word.
+ */
+static if_media_t *
+ifmedia_match(struct ifmedia *ifm, if_media_t target)
+{
+	if_media_t *match, mask;
+
+	mask = ~ifm->ifm_mask;
+	match = NULL;
+
+	for (int i = 0; ifm->ifm_array[i] != 0; i++)
+		if ((ifm->ifm_array[i] & mask) == (target & mask)) {
+#if defined(IFMEDIA_DEBUG) || defined(DIAGNOSTIC)
+			if (match != NULL)
+				printf("%s: multiple match for "
+				    "0x%x/0x%x\n", __func__, target, mask);
+#endif
+			match = &ifm->ifm_array[i];
+		}
+
+	return (match);
 }
 
 /*
  * Given a media word, return one suitable for an application
  * using the original encoding.
  */
-static int
-compat_media(int media)
+static if_media_t
+ifmedia_compat(if_media_t media)
 {
 
 	if (IFM_TYPE(media) == IFM_ETHER && IFM_SUBTYPE(media) > IFM_OTHER) {
@@ -211,169 +280,14 @@ compat_media(int media)
 }
 
 /*
- * Device-independent media ioctl support function.
- */
-int
-ifmedia_ioctl(ifp, ifr, ifm, cmd)
-	struct ifnet *ifp;
-	struct ifreq *ifr;
-	struct ifmedia *ifm;
-	u_long cmd;
-{
-	struct ifmedia_entry *match;
-	struct ifmediareq *ifmr = (struct ifmediareq *) ifr;
-	int error = 0;
-
-	if (ifp == NULL || ifr == NULL || ifm == NULL)
-		return(EINVAL);
-
-	switch (cmd) {
-
-	/*
-	 * Set the current media.
-	 */
-	case  SIOCSIFMEDIA:
-	{
-		struct ifmedia_entry *oldentry;
-		int oldmedia;
-		int newmedia = ifr->ifr_media;
-
-		match = ifmedia_match(ifm, newmedia, ifm->ifm_mask);
-		if (match == NULL) {
-#ifdef IFMEDIA_DEBUG
-			if (ifmedia_debug) {
-				printf(
-				    "ifmedia_ioctl: no media found for 0x%x\n", 
-				    newmedia);
-			}
-#endif
-			return (ENXIO);
-		}
-
-		/*
-		 * If no change, we're done.
-		 * XXX Automedia may invole software intervention.
-		 *     Keep going in case the connected media changed.
-		 *     Similarly, if best match changed (kernel debugger?).
-		 */
-		if ((IFM_SUBTYPE(newmedia) != IFM_AUTO) &&
-		    (newmedia == ifm->ifm_media) &&
-		    (match == ifm->ifm_cur))
-			return 0;
-
-		/*
-		 * We found a match, now make the driver switch to it.
-		 * Make sure to preserve our old media type in case the
-		 * driver can't switch.
-		 */
-#ifdef IFMEDIA_DEBUG
-		if (ifmedia_debug) {
-			printf("ifmedia_ioctl: switching %s to ",
-			    ifp->if_xname);
-			ifmedia_printword(match->ifm_media);
-		}
-#endif
-		oldentry = ifm->ifm_cur;
-		oldmedia = ifm->ifm_media;
-		ifm->ifm_cur = match;
-		ifm->ifm_media = newmedia;
-		error = (*ifm->ifm_change)(ifp);
-		if (error) {
-			ifm->ifm_cur = oldentry;
-			ifm->ifm_media = oldmedia;
-		}
-		break;
-	}
-
-	/*
-	 * Get list of available media and current media on interface.
-	 */
-	case  SIOCGIFMEDIA: 
-	case  SIOCGIFXMEDIA: 
-	{
-		struct ifmedia_entry *ep;
-		int i;
-
-		if (ifmr->ifm_count < 0)
-			return (EINVAL);
-
-		if (cmd == SIOCGIFMEDIA) {
-			ifmr->ifm_active = ifmr->ifm_current = ifm->ifm_cur ?
-			    compat_media(ifm->ifm_cur->ifm_media) : IFM_NONE;
-		} else {
-			ifmr->ifm_active = ifmr->ifm_current = ifm->ifm_cur ?
-			    ifm->ifm_cur->ifm_media : IFM_NONE;
-		}
-		ifmr->ifm_mask = ifm->ifm_mask;
-		ifmr->ifm_status = 0;
-		(*ifm->ifm_status)(ifp, ifmr);
-
-		/*
-		 * If there are more interfaces on the list, count
-		 * them.  This allows the caller to set ifmr->ifm_count
-		 * to 0 on the first call to know how much space to
-		 * allocate.
-		 */
-		i = 0;
-		LIST_FOREACH(ep, &ifm->ifm_list, ifm_list)
-			if (i++ < ifmr->ifm_count) {
-				error = copyout(&ep->ifm_media,
-				    ifmr->ifm_ulist + i - 1, sizeof(int));
-				if (error)
-					break;
-			}
-		if (error == 0 && i > ifmr->ifm_count)
-			error = ifmr->ifm_count ? E2BIG : 0;
-		ifmr->ifm_count = i;
-		break;
-	}
-
-	default:
-		return (EINVAL);
-	}
-
-	return (error);
-}
-
-/*
- * Find media entry matching a given ifm word.
- *
- */
-static struct ifmedia_entry *
-ifmedia_match(ifm, target, mask)
-	struct ifmedia *ifm; 
-	int target;
-	int mask;
-{
-	struct ifmedia_entry *match, *next;
-
-	match = NULL;
-	mask = ~mask;
-
-	LIST_FOREACH(next, &ifm->ifm_list, ifm_list) {
-		if ((next->ifm_media & mask) == (target & mask)) {
-#if defined(IFMEDIA_DEBUG) || defined(DIAGNOSTIC)
-			if (match) {
-				printf("ifmedia_match: multiple match for "
-				    "0x%x/0x%x\n", target, mask);
-			}
-#endif
-			match = next;
-		}
-	}
-
-	return match;
-}
-
-/*
  * Compute the interface `baudrate' from the media, for the interface
  * metrics (used by routing daemons).
  */
 static const struct ifmedia_baudrate ifmedia_baudrate_descriptions[] =   
     IFM_BAUDRATE_DESCRIPTIONS;
 
-uint64_t
-ifmedia_baudrate(int mword)
+static uint64_t
+ifmedia_baudrate(if_media_t mword)
 {
 	int i;
 
@@ -386,7 +300,7 @@ ifmedia_baudrate(int mword)
 	return (0);
 }
 
-int
+static int
 ifmedia_link_state(u_int mstatus)
 {
 
@@ -400,6 +314,9 @@ ifmedia_link_state(u_int mstatus)
 }
  
 #ifdef IFMEDIA_DEBUG
+SYSCTL_INT(_debug, OID_AUTO, ifmedia, CTLFLAG_RW, &ifmedia_debug,
+	    0, "if_media debugging msgs");
+
 struct ifmedia_description ifm_type_descriptions[] =
     IFM_TYPE_DESCRIPTIONS;
 

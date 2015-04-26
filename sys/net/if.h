@@ -539,6 +539,7 @@ __END_DECLS
 
 #ifdef _KERNEL
 #include <net/if_types.h>
+#include <net/if_media.h>
 /*
  * Under _KERNEL there live declarations from net/if.c, that are public
  * and available to network device drivers.  Declarations that are protected
@@ -586,6 +587,7 @@ typedef enum {
 	IF_CARP,
 	IF_VLAN,
 	IF_TOEDEV,
+	IF_MEDIA,
 	/*
 	 * Space above 99999 is split among different vendors.
 	 *
@@ -603,6 +605,8 @@ typedef int	(*if_output_t)(if_t, struct mbuf *, const struct sockaddr *,
 typedef int	(*if_ioctl_t)(if_t, u_long, void *, struct thread *);
 typedef uint64_t (*if_get_counter_t)(if_t, ift_counter);
 typedef void	(*if_qflush_t)(if_t);
+typedef int	(*if_media_change_t)(if_t, if_media_t);
+typedef void	(*if_media_status_t)(if_t, struct ifmediareq *);
 typedef int	(*if_resolvemulti_t)(if_t, struct sockaddr **,
     struct sockaddr *);
 typedef void	(*if_reassign_t)(if_t, struct vnet *);
@@ -623,6 +627,8 @@ struct ifops {
 	if_ioctl_t	ifop_ioctl;	/* ioctl routine */
 	if_get_counter_t ifop_get_counter; /* get counter values */
 	if_qflush_t	ifop_qflush;	/* flush any queue */	
+	if_media_change_t ifop_media_change; /* change media */
+	if_media_status_t ifop_media_status; /* query media */
 	if_resolvemulti_t ifop_resolvemulti; /* validate/resolve multicast */
 	if_reassign_t	ifop_reassign;	/* reassign to vnet routine */
 	if_vlan_event_t	ifop_vlan_event;/* VLAN config/unconfig */
@@ -694,10 +700,17 @@ struct if_attach_args {
 #define	IFAT_DUNIT_NONE	(-1)
 	char *		ifat_name;	/* If driver wants a specific name. */
 	/*
-	 * Variables that may differ between two instances of a same
-	 * driver, but are constant within instance lifetime.
+	 * Capabilities can be different for two interfaces of the same
+	 * driver, e.g. different chip revisions.
 	 */
 	uint64_t	ifat_capabilities;
+	/*
+	 * Pointer to static array of supported mediae, current media
+	 * word, and ignore mask for ifmedia_match().
+	 */
+	if_media_t	*ifat_mediae;
+	if_media_t	ifat_media;
+	if_media_t	ifat_mediamask;
 	/*
 	 * MTU, flags, capabilities at attach time.  Driver
 	 * can change them later.
@@ -730,6 +743,12 @@ int	if_setsoftc(if_t, ift_feature, void *);
 int	if_printf(if_t, const char *, ...) __printflike(2, 3);
 int	if_drvioctl(if_t, u_long, void *, struct thread *);
 uint64_t if_get_counter_default(if_t, ift_counter);
+
+/*
+ * Interface media manipulation by drivers.
+ */
+void	if_media_status(if_t, if_media_t);
+void	if_media_change(if_t, if_media_t *, if_media_t);
 
 /*
  * Interface if_ops that are available for drivers.

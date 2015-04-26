@@ -100,6 +100,11 @@
 #include <compat/freebsd32/freebsd32.h>
 #endif
 
+/* Interface media functions, living in if_media.c. */
+extern void 	ifmedia_alloc(struct ifnet *, struct if_attach_args *);
+extern void	ifmedia_free(struct ifnet *);
+extern int	ifmedia_ioctl(struct ifnet *, struct ifreq *, u_long);
+
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
 SYSCTL_NODE(_net_link, 0, generic, CTLFLAG_RW, 0, "Generic link-management");
 
@@ -543,6 +548,7 @@ if_attach(struct if_attach_args *ifat)
 	mac_ifnet_init(ifp);
 	mac_ifnet_create(ifp);
 #endif
+	rw_init(&ifp->if_lock, "if_lock");
 
 	ifp->if_ops = &ifdrv->ifdrv_ops;
 	ifp->if_drv = ifdrv;
@@ -557,6 +563,13 @@ if_attach(struct if_attach_args *ifat)
 	COPY(hwassist);
 	COPY(baudrate);
 #undef COPY
+
+	if (ifat->ifat_mediae) {
+		KASSERT(ifp->if_ops->ifop_media_change != NULL &&
+		    ifp->if_ops->ifop_media_status != NULL,
+		    ("%s: media array but no callbacks", ifdrv->ifdrv_name));
+		ifmedia_alloc(ifp, ifat);
+	}
 
 	if (ifat->ifat_tsomax) {
 		/*
@@ -578,7 +591,6 @@ if_attach(struct if_attach_args *ifat)
 	if (ifdrv->ifdrv_maxqlen > 0)
 		ifp->if_snd = if_snd_alloc(ifdrv->ifdrv_maxqlen);
 
-	rw_init(&ifp->if_lock, "if_lock");
 	IF_AFDATA_LOCK_INIT(ifp);
 	TASK_INIT(&ifp->if_linktask, 0, do_link_state_change, ifp);
 	TAILQ_INIT(&ifp->if_addrhead);
@@ -669,6 +681,8 @@ if_free_internal(struct ifnet *ifp)
 
 	if (ifp->if_tsomax != ifp->if_drv->ifdrv_tsomax)
 		free(ifp->if_tsomax, M_IFNET);
+
+	ifmedia_free(ifp);
 
 	free(ifp, M_IFNET);
 }
@@ -2749,7 +2763,6 @@ if_drvioctl(struct ifnet *ifp, u_long cmd, void *data, struct thread *td)
 #ifdef INET6
 	case SIOCSIFPHYADDR_IN6:
 #endif
-	case SIOCSIFMEDIA:
 	case SIOCSIFGENERIC:
 		error = priv_check(td, PRIV_NET_HWIOCTL);
 		if (error)
@@ -2762,8 +2775,6 @@ if_drvioctl(struct ifnet *ifp, u_long cmd, void *data, struct thread *td)
 	case SIOCGIFSTATUS:
 	case SIOCGIFPSRCADDR:
 	case SIOCGIFPDSTADDR:
-	case SIOCGIFMEDIA:
-	case SIOCGIFXMEDIA:
 	case SIOCGIFGENERIC:
 		error = if_ioctl(ifp, cmd, data, td);
 		break;
@@ -2805,6 +2816,15 @@ if_drvioctl(struct ifnet *ifp, u_long cmd, void *data, struct thread *td)
 			return (error);
 		break;
 	}
+
+	case SIOCSIFMEDIA:
+		error = priv_check(td, PRIV_NET_HWIOCTL);
+		if (error)
+			return (error);
+		/* FALLTHROUGH */
+	case SIOCGIFMEDIA:
+	case SIOCGIFXMEDIA:
+		return (ifmedia_ioctl(ifp, ifr, cmd));
 
 	default:
 		error = ENOIOCTL;

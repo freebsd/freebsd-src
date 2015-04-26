@@ -39,83 +39,10 @@
 #define	_NET_IF_MEDIA_H_
 
 /*
- * Prototypes and definitions for BSD/OS-compatible network interface
- * media selection.
+ * Interface media description could be bigger than a 32-bit word,   
+ * but a conservative decision was taken in r281236.
  *
- * Where it is safe to do so, this code strays slightly from the BSD/OS
- * design.  Software which uses the API (device drivers, basically)
- * shouldn't notice any difference.
- *
- * Many thanks to Matt Thomas for providing the information necessary
- * to implement this interface.
- */
-
-#ifdef _KERNEL
-
-#include <sys/queue.h>
-
-struct ifnet;
-
-/*
- * Driver callbacks for media status and change requests.
- */
-typedef	int (*ifm_change_cb_t)(struct ifnet *);
-typedef	void (*ifm_stat_cb_t)(struct ifnet *, struct ifmediareq *req);
-
-/*
- * In-kernel representation of a single supported media type.
- */
-struct ifmedia_entry {
-	LIST_ENTRY(ifmedia_entry) ifm_list;
-	int	ifm_media;	/* description of this media attachment */
-	int	ifm_data;	/* for driver-specific use */
-	void	*ifm_aux;	/* for driver-specific use */
-};
-
-/*
- * One of these goes into a network interface's softc structure.
- * It is used to keep general media state.
- */
-struct ifmedia {
-	int	ifm_mask;	/* mask of changes we don't care about */
-	int	ifm_media;	/* current user-set media word */
-	struct ifmedia_entry *ifm_cur;	/* currently selected media */
-	LIST_HEAD(, ifmedia_entry) ifm_list; /* list of all supported media */
-	ifm_change_cb_t	ifm_change;	/* media change driver callback */
-	ifm_stat_cb_t	ifm_status;	/* media status driver callback */
-};
-
-/* Initialize an interface's struct if_media field. */
-void	ifmedia_init(struct ifmedia *ifm, int dontcare_mask,
-	    ifm_change_cb_t change_callback, ifm_stat_cb_t status_callback);
-
-/* Remove all mediums from a struct ifmedia.  */
-void	ifmedia_removeall( struct ifmedia *ifm);
-
-/* Add one supported medium to a struct ifmedia. */
-void	ifmedia_add(struct ifmedia *ifm, int mword, int data, void *aux);
-
-/* Add an array (of ifmedia_entry) media to a struct ifmedia. */
-void	ifmedia_list_add(struct ifmedia *mp, struct ifmedia_entry *lp,
-	    int count);
-
-/* Set default media type on initialization. */
-void	ifmedia_set(struct ifmedia *ifm, int mword);
-
-/* Common ioctl function for getting/setting media, called by driver. */
-int	ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr,
-	    struct ifmedia *ifm, u_long cmd);
-
-/* Compute baudrate for a given media. */
-uint64_t	ifmedia_baudrate(int);
-
-/* Convert media status to link state. */
-int	ifmedia_link_state(u_int);
-
-#endif /*_KERNEL */
-
-/*
- * if_media Options word:
+ * Options word:
  *	Bits	Use
  *	----	-------
  *	0-4	Media variant
@@ -126,6 +53,7 @@ int	ifmedia_link_state(u_int);
  *	20-27	Shared (global) options
  *	28-31	Instance
  */
+typedef int if_media_t;
 
 /*
  * Ethernet
