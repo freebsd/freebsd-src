@@ -181,7 +181,7 @@ static void rl_eeprom_getword(struct rl_softc *, int, uint16_t *);
 static int rl_encap(struct rl_softc *, struct mbuf **);
 static int rl_list_tx_init(struct rl_softc *);
 static int rl_list_rx_init(struct rl_softc *);
-static int rl_ifmedia_upd(if_t);
+static int rl_ifmedia_upd(if_t, if_media_t);
 static void rl_ifmedia_sts(if_t, struct ifmediareq *);
 static int rl_ioctl(if_t, u_long, void *, struct thread *);
 static void rl_intr(void *);
@@ -260,6 +260,8 @@ static struct ifdriver rl_ifdrv = {
 	.ifdrv_ops = {
 		.ifop_ioctl = rl_ioctl,
 		.ifop_transmit = rl_transmit,
+		.ifop_media_change = rl_ifmedia_upd,
+		.ifop_media_status = rl_ifmedia_sts,
 #ifdef DEVICE_POLLING
 		.ifop_poll = rl_poll,
 #endif
@@ -512,6 +514,7 @@ rl_miibus_statchg(device_t dev)
 	 * Tx/Rx MACs for resolved speed, duplex and flow-control
 	 * parameters.
 	 */
+	if_media_status(ifp, mii->mii_media_active | mii->mii_media_status);
 }
 
 /*
@@ -649,10 +652,12 @@ rl_attach(device_t dev)
 		.ifat_drv = &rl_ifdrv,
 		.ifat_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST,
 		.ifat_capabilities = IFCAP_VLAN_MTU | IFCAP_LINKSTATE,
+		.ifat_mediamask = MII_MEDIA_MASK,
 	};
 	uint8_t			eaddr[ETHER_ADDR_LEN];
 	uint16_t		as[3];
 	struct rl_softc		*sc;
+	struct mii_data		*mii;
 	const struct rl_type	*t;
 	struct sysctl_ctx_list	*ctx;
 	struct sysctl_oid_list	*children;
@@ -801,12 +806,13 @@ rl_attach(device_t dev)
 	phy = MII_PHY_ANY;
 	if (sc->rl_type == RL_8139)
 		phy = RL_PHYAD_INTERNAL;
-	error = mii_attach(dev, &sc->rl_miibus, rl_ifmedia_upd,
-	    rl_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
+	error = mii_attach(dev, &sc->rl_miibus, BMSR_DEFCAPMASK, phy,
+	    MII_OFFSET_ANY, 0);
 	if (error != 0) {
 		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
+	mii = device_get_softc(sc->rl_miibus);
 	error = bus_setup_intr(dev, sc->rl_irq[0], INTR_TYPE_NET | INTR_MPSAFE,
 	    NULL, rl_intr, sc, &sc->rl_intrhand[0]);
 	if (error) {
@@ -817,6 +823,8 @@ rl_attach(device_t dev)
 	ifat.ifat_softc = sc;
 	ifat.ifat_dunit = device_get_unit(dev);
 	ifat.ifat_lla = eaddr;
+	ifat.ifat_mediae = mii->mii_mediae;
+	ifat.ifat_media = mii->mii_media;
 	/* Check WOL for RTL8139B or newer controllers. */
 	if (sc->rl_type == RL_8139 &&
 	    pci_find_cap(sc->rl_dev, PCIY_PMG, &pmc) == 0) {
@@ -1642,8 +1650,6 @@ rl_init(struct rl_softc *sc)
 
 	RL_LOCK_ASSERT(sc);
 
-	mii = device_get_softc(sc->rl_miibus);
-
 	if ((sc->rl_flags & RL_FLAG_RUNNING) != 0)
 		return;
 
@@ -1716,7 +1722,9 @@ rl_init(struct rl_softc *sc)
 	CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_TX_ENB|RL_CMD_RX_ENB);
 
 	sc->rl_flags &= ~RL_FLAG_LINK;
-	mii_mediachg(mii);
+
+	mii = device_get_softc(sc->rl_miibus);
+	mii_mediachg(mii, mii->mii_media);
 
 	CSR_WRITE_1(sc, sc->rl_cfg1, RL_CFG1_DRVLOAD|RL_CFG1_FULLDUPLEX);
 
@@ -1729,7 +1737,7 @@ rl_init(struct rl_softc *sc)
  * Set media options.
  */
 static int
-rl_ifmedia_upd(if_t ifp)
+rl_ifmedia_upd(if_t ifp, if_media_t media)
 {
 	struct rl_softc		*sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	struct mii_data		*mii;
@@ -1737,7 +1745,7 @@ rl_ifmedia_upd(if_t ifp)
 	mii = device_get_softc(sc->rl_miibus);
 
 	RL_LOCK(sc);
-	mii_mediachg(mii);
+	mii_mediachg(mii, media);
 	RL_UNLOCK(sc);
 
 	return (0);
@@ -1765,7 +1773,6 @@ static int
 rl_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 {
 	struct ifreq		*ifr = data;
-	struct mii_data		*mii;
 	struct rl_softc		*sc;
 	uint32_t		oflags;
 	int			error = 0;
@@ -1792,11 +1799,6 @@ rl_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 		RL_LOCK(sc);
 		rl_rxfilter(sc);
 		RL_UNLOCK(sc);
-		break;
-	case SIOCGIFMEDIA:
-	case SIOCSIFMEDIA:
-		mii = device_get_softc(sc->rl_miibus);
-		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
 		RL_LOCK(sc);
