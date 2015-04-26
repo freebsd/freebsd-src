@@ -289,7 +289,7 @@ static void msk_set_tx_stfwd(struct msk_if_softc *);
 static void msk_init(struct msk_if_softc *);
 static void msk_stop(struct msk_if_softc *);
 static void msk_watchdog(struct msk_if_softc *);
-static int msk_mediachange(if_t);
+static int msk_mediachange(if_t, if_media_t);
 static void msk_mediastatus(if_t, struct ifmediareq *);
 static void msk_phy_power(struct msk_softc *, int);
 static void msk_dmamap_cb(void *, bus_dma_segment_t *, int, int);
@@ -398,6 +398,8 @@ static struct ifdriver msk_ifdrv = {
 	.ifdrv_ops = {
 		.ifop_ioctl = msk_ioctl,
 		.ifop_transmit = msk_transmit,
+		.ifop_media_change = msk_mediachange,
+		.ifop_media_status = msk_mediastatus,
 	},
 	.ifdrv_name = "msk",
 	.ifdrv_type = IFT_ETHER,
@@ -578,8 +580,7 @@ msk_miibus_statchg(device_t dev)
 			GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
 		}
 	}
-	if_setbaudrate(ifp, ifmedia_baudrate(mii->mii_media_active));
-	if_link_state_change(ifp, ifmedia_link_state(mii->mii_media_status));
+	if_media_status(ifp, mii->mii_media_active | mii->mii_media_status);
 }
 
 static void
@@ -1026,7 +1027,7 @@ msk_jumbo_newbuf(struct msk_if_softc *sc_if, int idx)
  * Set media options.
  */
 static int
-msk_mediachange(if_t ifp)
+msk_mediachange(if_t ifp, if_media_t media)
 {
 	struct msk_if_softc *sc_if;
 	struct mii_data	*mii;
@@ -1036,7 +1037,7 @@ msk_mediachange(if_t ifp)
 
 	MSK_IF_LOCK(sc_if);
 	mii = device_get_softc(sc_if->msk_miibus);
-	error = mii_mediachg(mii);
+	error = mii_mediachg(mii, media);
 	MSK_IF_UNLOCK(sc_if);
 
 	return (error);
@@ -1069,7 +1070,6 @@ msk_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 {
 	struct msk_if_softc *sc_if;
 	struct ifreq *ifr;
-	struct mii_data	*mii;
 	int error, reinit, setvlan;
 	uint32_t oflags, mask;
 
@@ -1130,11 +1130,6 @@ msk_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 		if ((sc_if->msk_flags & MSK_FLAG_RUNNING) != 0)
 			msk_rxfilter(sc_if);
 		MSK_IF_UNLOCK(sc_if);
-		break;
-	case SIOCGIFMEDIA:
-	case SIOCSIFMEDIA:
-		mii = device_get_softc(sc_if->msk_miibus);
-		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
 		reinit = 0;
@@ -1590,6 +1585,7 @@ msk_attach(device_t dev)
 		.ifat_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST,
 		.ifat_capabilities = IFCAP_TXCSUM | IFCAP_TSO4 |
 		    IFCAP_LINKSTATE,
+		.ifat_mediamask = MII_MEDIA_MASK,
 	};
 	struct msk_softc *sc;
 	struct msk_if_softc *sc_if;
@@ -1634,9 +1630,8 @@ msk_attach(device_t dev)
 	/*
 	 * Do miibus setup.
 	 */
-	error = mii_attach(dev, &sc_if->msk_miibus, msk_mediachange,
-	    msk_mediastatus, BMSR_DEFCAPMASK, PHY_ADDR_MARV, MII_OFFSET_ANY,
-	    mmd->mii_flags);
+	error = mii_attach(dev, &sc_if->msk_miibus, BMSR_DEFCAPMASK,
+	    PHY_ADDR_MARV, MII_OFFSET_ANY, mmd->mii_flags);
 	if (error)
 		goto fail;
 	mii = device_get_softc(sc_if->msk_miibus);
@@ -1673,7 +1668,8 @@ msk_attach(device_t dev)
 	}
 	ifat.ifat_hwassist = MSK_CSUM_FEATURES | CSUM_TSO;
 	ifat.ifat_capenable = ifat.ifat_capabilities;
-	ifat.ifat_baudrate = ifmedia_baudrate(mii->mii_media_active);
+	ifat.ifat_mediae = mii->mii_mediae;
+	ifat.ifat_media = mii->mii_media;
 
 	/*
 	 * Disable RX checksum offloading on controllers that don't use
@@ -3753,7 +3749,6 @@ msk_init(struct msk_if_softc *sc_if)
 
 	ifp = sc_if->msk_ifp;
 	sc = sc_if->msk_softc;
-	mii = device_get_softc(sc_if->msk_miibus);
 
 	if ((sc_if->msk_flags & MSK_FLAG_RUNNING) != 0)
 		return;
@@ -3996,7 +3991,8 @@ msk_init(struct msk_if_softc *sc_if)
 	sc_if->msk_flags |= MSK_FLAG_RUNNING;
 
 	sc_if->msk_flags &= ~MSK_FLAG_LINK;
-	mii_mediachg(mii);
+	mii = device_get_softc(sc_if->msk_miibus);
+	mii_mediachg(mii, mii->mii_media);
 
 	callout_reset(&sc_if->msk_tick_ch, hz, msk_tick, sc_if);
 }
