@@ -1291,8 +1291,8 @@ bge_miibus_statchg(device_t dev)
 		sc->bge_link = 0;
 
 	if (sc->bge_ifp != NULL)
-        	if_media_status(sc->bge_ifp,
-		    mii->mii_media_active | mii->mii_media_status);
+        	if_media_status(sc->bge_ifp, mii->mii_media_active,
+		    mii->mii_media_status);
 
 	if (sc->bge_link == 0)
 		return;

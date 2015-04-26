@@ -217,11 +217,11 @@ ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr, u_long cmd)
  * upcall should come only in case if media is set to autonegotiation.
  */
 void
-if_media_status(struct ifnet *ifp, if_media_t media)
+if_media_status(struct ifnet *ifp, if_media_t media, if_media_t status)
 {
 
 	if_setbaudrate(ifp, ifmedia_baudrate(media));
-	if_link_state_change(ifp, ifmedia_link_state(media));
+	if_link_state_change(ifp, ifmedia_link_state(status));
 }
 
 /*

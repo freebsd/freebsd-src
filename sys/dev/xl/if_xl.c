@@ -477,8 +477,8 @@ xl_miibus_statchg(device_t dev)
 	}
 	CSR_WRITE_1(sc, XL_W3_MAC_CTRL, macctl);
 	if (sc->xl_ifp != NULL)
-		if_media_status(sc->xl_ifp,
-		    mii->mii_media_active | mii->mii_media_status);
+		if_media_status(sc->xl_ifp, mii->mii_media_active,
+		    mii->mii_media_status);
 }
 
 /*

@@ -747,7 +747,7 @@ uint64_t if_get_counter_default(if_t, ift_counter);
 /*
  * Interface media manipulation by drivers.
  */
-void	if_media_status(if_t, if_media_t);
+void	if_media_status(if_t, if_media_t, if_media_t);
 void	if_media_change(if_t, if_media_t *, if_media_t);
 
 /*

@@ -514,7 +514,7 @@ rl_miibus_statchg(device_t dev)
 	 * Tx/Rx MACs for resolved speed, duplex and flow-control
 	 * parameters.
 	 */
-	if_media_status(ifp, mii->mii_media_active | mii->mii_media_status);
+	if_media_status(ifp, mii->mii_media_active, mii->mii_media_status);
 }
 
 /*

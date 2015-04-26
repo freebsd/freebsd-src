@@ -442,8 +442,8 @@ alc_miibus_statchg(device_t dev)
 	alc_aspm(sc, 0, IFM_SUBTYPE(mii->mii_media_active));
 	alc_dsp_fixup(sc, IFM_SUBTYPE(mii->mii_media_active));
 	if (sc->alc_ifp != NULL)
-		if_media_status(sc->alc_ifp,
-		    mii->mii_media_active | mii->mii_media_status);
+		if_media_status(sc->alc_ifp, mii->mii_media_active,
+		    mii->mii_media_status);
 }
 
 static uint32_t

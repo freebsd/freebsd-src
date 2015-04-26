@@ -580,7 +580,7 @@ msk_miibus_statchg(device_t dev)
 			GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
 		}
 	}
-	if_media_status(ifp, mii->mii_media_active | mii->mii_media_status);
+	if_media_status(ifp, mii->mii_media_active, mii->mii_media_status);
 }
 
 static void

@@ -644,7 +644,7 @@ re_miibus_statchg(device_t dev)
 		}
 	}
 
-	if_media_status(ifp, mii->mii_media_active | mii->mii_media_status);
+	if_media_status(ifp, mii->mii_media_active, mii->mii_media_status);
 
 	/*
 	 * RealTek controllers does not provide any interface to
