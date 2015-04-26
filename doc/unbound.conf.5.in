@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Feb 19, 2015" "NLnet Labs" "unbound 1.5.2"
+.TH "unbound.conf" "5" "Mar 10, 2015" "NLnet Labs" "unbound 1.5.3"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"

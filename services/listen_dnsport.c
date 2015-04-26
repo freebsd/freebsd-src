@@ -609,7 +609,7 @@ create_local_accept_sock(const char *path, int* noproto)
 	/* length is 92-108, 104 on FreeBSD */
 	(void)strlcpy(usock.sun_path, path, sizeof(usock.sun_path));
 
-	if ((s = socket(PF_LOCAL, SOCK_STREAM, 0)) == -1) {
+	if ((s = socket(AF_LOCAL, SOCK_STREAM, 0)) == -1) {
 		log_err("Cannot create local socket %s (%s)",
 			path, strerror(errno));
 		return -1;

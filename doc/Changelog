@@ -1,3 +1,18 @@
+2 March 2015: Wouter
+	- iana portlist update.
+
+20 February 2015: Wouter
+	- Use the getrandom syscall introduced in Linux 3.17 (from Heiner
+	  Kallweit).
+	- Fix #645 Portability to Solaris 10, use AF_LOCAL.
+	- Fix #646 Portability to Solaris, -lrt for getentropy_solaris.
+	- Fix #647 crash in 1.5.2 because pwd.db no longer accessible after
+	  reload.
+
+19 February 2015: Wouter
+	- 1.5.2 release tag.
+	- svn trunk contains 1.5.3 under development.
+
 13 February 2015: Wouter
 	- Fix #643: doc/example.conf.in: unnecessary whitespace.
 
