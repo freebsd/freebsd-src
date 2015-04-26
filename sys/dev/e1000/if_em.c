@@ -1552,8 +1552,8 @@ em_handle_que(void *context, int pending)
 {
 	struct em_queue *que = context;
 	struct adapter	*adapter = que->adapter;
-	if_t ifp = adapter->ifp;
 	struct tx_ring	*txr = que->txr;
+	if_t ifp = adapter->ifp;
 
 	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 		bool more = em_rxeof(que, adapter->rx_process_limit, NULL);
@@ -4445,6 +4445,11 @@ em_rxeof(struct em_queue *que, int count, int *done)
 
 	EM_RX_LOCK(rxr);
 
+	/* Sync the ring */
+	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+
+
 #ifdef DEV_NETMAP
 	if (netmap_rx_irq(ifp, rxr->me, &processed)) {
 		EM_RX_UNLOCK(rxr);
@@ -4456,9 +4461,6 @@ em_rxeof(struct em_queue *que, int count, int *done)
 
 		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 			break;
-
-		bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
-		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
 		cur = &rxr->rx_base[i];
 		status = cur->status;
@@ -4525,6 +4527,10 @@ skip:
 			rxr->fmp = rxr->lmp = NULL;
 		}
 next_desc:
+		/* Sync the ring */
+		bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
+	    		BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+
 		/* Zero out the receive descriptors status. */
 		cur->status = 0;
 		++rxdone;	/* cumulative for POLL */
