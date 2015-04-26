@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <net/if.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -166,7 +165,7 @@ micphy_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &micphy_funcs, 1);
-	mii_phy_setmedia(sc);
+	mii_phy_setmedia(sc, media);
 
 	miibus = device_get_parent(dev);
 	parent = device_get_parent(miibus);
@@ -198,7 +197,7 @@ micphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		mii_phy_setmedia(sc);
+		mii_phy_setmedia(sc, media);
 		break;
 
 	case MII_TICK:
@@ -208,7 +207,7 @@ micphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);

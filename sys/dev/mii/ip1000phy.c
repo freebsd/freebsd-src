@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/bus.h>
 
-#include <net/if.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -78,10 +77,11 @@ static driver_t ip1000phy_driver = {
 
 DRIVER_MODULE(ip1000phy, miibus, ip1000phy_driver, ip1000phy_devclass, 0, 0);
 
-static int	ip1000phy_service(struct mii_softc *, struct mii_data *, int);
-static void	ip1000phy_status(struct mii_softc *);
-static void	ip1000phy_reset(struct mii_softc *);
-static int	ip1000phy_mii_phy_auto(struct mii_softc *, int);
+static int	ip1000phy_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
+static void	ip1000phy_status(struct mii_softc *, if_media_t);
+static void	ip1000phy_reset(struct mii_softc *, if_media_t);
+static int	ip1000phy_mii_phy_auto(struct mii_softc *, if_media_t);
 
 static const struct mii_phydesc ip1000phys[] = {
 	MII_PHY_DESC(xxICPLUS, IP1000A),
@@ -119,9 +119,9 @@ ip1000phy_attach(device_t dev)
 }
 
 static int
-ip1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+ip1000phy_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	uint32_t gig, reg, speed;
 
 	switch (cmd) {
@@ -129,10 +129,10 @@ ip1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		PHY_RESET(sc);
-		switch (IFM_SUBTYPE(ife->ifm_media)) {
+		PHY_RESET(sc, media);
+		switch (IFM_SUBTYPE(media)) {
 		case IFM_AUTO:
-			(void)ip1000phy_mii_phy_auto(sc, ife->ifm_media);
+			(void)ip1000phy_mii_phy_auto(sc, media);
 			goto done;
 
 		case IFM_1000_T:
@@ -155,16 +155,16 @@ ip1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			return (EINVAL);
 		}
 
-		if ((ife->ifm_media & IFM_FDX) != 0) {
+		if ((media & IFM_FDX) != 0) {
 			speed |= IP1000PHY_BMCR_FDX;
 			gig = IP1000PHY_1000CR_1000T_FDX;
 		} else
 			gig = IP1000PHY_1000CR_1000T;
 
-		if (IFM_SUBTYPE(ife->ifm_media) == IFM_1000_T) {
+		if (IFM_SUBTYPE(media) == IFM_1000_T) {
 			gig |=
 			    IP1000PHY_1000CR_MASTER | IP1000PHY_1000CR_MANUAL;
-			if ((ife->ifm_media & IFM_ETH_MASTER) != 0)
+			if ((media & IFM_ETH_MASTER) != 0)
 				gig |= IP1000PHY_1000CR_MMASTER;
 		} else
 			gig = 0;
@@ -178,7 +178,7 @@ done:
 		/*
 		 * Only used for autonegotiation.
 		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO) {
+		if (IFM_SUBTYPE(media) != IFM_AUTO) {
 			sc->mii_ticks = 0;
 			break;
 		}
@@ -203,12 +203,12 @@ done:
 			break;
 
 		sc->mii_ticks = 0;
-		ip1000phy_mii_phy_auto(sc, ife->ifm_media);
+		ip1000phy_mii_phy_auto(sc, media);
 		break;
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -216,7 +216,7 @@ done:
 }
 
 static void
-ip1000phy_status(struct mii_softc *sc)
+ip1000phy_status(struct mii_softc *sc, if_media_t media)
 {
 	struct mii_data *mii = sc->mii_pdata;
 	uint32_t bmsr, bmcr, stat;
@@ -297,7 +297,7 @@ ip1000phy_status(struct mii_softc *sc)
 }
 
 static int
-ip1000phy_mii_phy_auto(struct mii_softc *sc, int media)
+ip1000phy_mii_phy_auto(struct mii_softc *sc, if_media_t media)
 {
 	uint32_t reg;
 
@@ -339,11 +339,11 @@ ip1000phy_load_dspcode(struct mii_softc *sc)
 }
 
 static void
-ip1000phy_reset(struct mii_softc *sc)
+ip1000phy_reset(struct mii_softc *sc, if_media_t media)
 {
 	uint32_t reg;
 
-	mii_phy_reset(sc);
+	mii_phy_reset(sc, media);
 
 	/* clear autoneg/full-duplex as we don't want it after reset */
 	reg = PHY_READ(sc, IP1000PHY_MII_BMCR);

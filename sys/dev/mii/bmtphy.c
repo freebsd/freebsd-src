@@ -71,7 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/bus.h>
 
-#include <net/if.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -104,9 +103,10 @@ static driver_t	bmtphy_driver = {
 
 DRIVER_MODULE(bmtphy, miibus, bmtphy_driver, bmtphy_devclass, 0, 0);
 
-static int	bmtphy_service(struct mii_softc *, struct mii_data *, int);
-static void	bmtphy_status(struct mii_softc *);
-static void	bmtphy_reset(struct mii_softc *);
+static int	bmtphy_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
+static void	bmtphy_status(struct mii_softc *, if_media_t);
+static void	bmtphy_reset(struct mii_softc *, if_media_t);
 
 static const struct mii_phydesc bmtphys_dp[] = {
 	MII_PHY_DESC(xxBROADCOM, BCM4401),
@@ -151,7 +151,8 @@ bmtphy_attach(device_t dev)
 }
 
 static int
-bmtphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+bmtphy_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
 
 	switch (cmd) {
@@ -159,7 +160,7 @@ bmtphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		mii_phy_setmedia(sc);
+		mii_phy_setmedia(sc, media);
 		break;
 
 	case MII_TICK:
@@ -169,7 +170,7 @@ bmtphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -177,14 +178,12 @@ bmtphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 }
 
 static void
-bmtphy_status(struct mii_softc *sc)
+bmtphy_status(struct mii_softc *sc, if_media_t media)
 {
 	struct mii_data *mii;
-	struct ifmedia_entry *ife;
 	int bmsr, bmcr, aux_csr;
 
 	mii = sc->mii_pdata;
-	ife = mii->mii_media.ifm_cur;
 
 	mii->mii_media_status = IFM_AVALID;
 	mii->mii_media_active = IFM_ETHER;
@@ -226,15 +225,15 @@ bmtphy_status(struct mii_softc *sc)
 		else
 			mii->mii_media_active |= IFM_HDX;
 	} else
-		mii->mii_media_active = ife->ifm_media;
+		mii->mii_media_active = media;
 }
 
 static void
-bmtphy_reset(struct mii_softc *sc)
+bmtphy_reset(struct mii_softc *sc, if_media_t media)
 {
 	u_int16_t data;
 
-	mii_phy_reset(sc);
+	mii_phy_reset(sc, media);
 
 	if (sc->mii_mpd_model == MII_MODEL_xxBROADCOM_BCM5221) {
 		/* Enable shadow register mode. */

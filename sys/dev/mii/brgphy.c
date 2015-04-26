@@ -47,8 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/taskqueue.h>
 
-#include <net/if.h>
 #include <net/ethernet.h>
+#include <net/if.h>		/* XXXGL: if_b[cg]ereg.h contamination */
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -97,11 +97,12 @@ static driver_t brgphy_driver = {
 
 DRIVER_MODULE(brgphy, miibus, brgphy_driver, brgphy_devclass, 0, 0);
 
-static int	brgphy_service(struct mii_softc *, struct mii_data *, int);
-static void	brgphy_setmedia(struct mii_softc *, int);
-static void	brgphy_status(struct mii_softc *);
-static void	brgphy_mii_phy_auto(struct mii_softc *, int);
-static void	brgphy_reset(struct mii_softc *);
+static int	brgphy_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
+static void	brgphy_setmedia(struct mii_softc *, if_media_t);
+static void	brgphy_status(struct mii_softc *, if_media_t);
+static void	brgphy_mii_phy_auto(struct mii_softc *, if_media_t);
+static void	brgphy_reset(struct mii_softc *, if_media_t);
 static void	brgphy_enable_loopback(struct mii_softc *);
 static void	bcm5401_load_dspcode(struct mii_softc *);
 static void	bcm5411_load_dspcode(struct mii_softc *);
@@ -266,7 +267,7 @@ brgphy_attach(device_t dev)
 		break;
 	}
 
-	PHY_RESET(sc);
+	PHY_RESET(sc, 0);
 
 	/* Read the PHY's capabilities. */
 	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & sc->mii_capmask;
@@ -276,13 +277,12 @@ brgphy_attach(device_t dev)
 
 	/* Add the supported media types */
 	if ((sc->mii_flags & MIIF_HAVEFIBER) == 0) {
-		mii_phy_add_media(sc);
+		mii_phy_generic_media(sc);
 		printf("\n");
 	} else {
 		sc->mii_anegticks = MII_ANEGTICKS_GIGE;
-		ifmedia_add(&sc->mii_pdata->mii_media,
-		    IFM_MAKEWORD(IFM_ETHER, IFM_1000_SX, IFM_FDX, sc->mii_inst),
-		    0, NULL);
+		mii_phy_add_media(sc->mii_pdata, IFM_MAKEWORD(IFM_ETHER,
+		    IFM_1000_SX, IFM_FDX, sc->mii_inst));
 		printf("1000baseSX-FDX, ");
 		/*
 		 * 2.5G support is a software enabled feature
@@ -290,9 +290,9 @@ brgphy_attach(device_t dev)
 		 */
 		if (bce_sc && (bce_sc->bce_phy_flags &
 		    BCE_PHY_2_5G_CAPABLE_FLAG)) {
-			ifmedia_add(&sc->mii_pdata->mii_media,
+			mii_phy_add_media(sc->mii_pdata,
 			    IFM_MAKEWORD(IFM_ETHER, IFM_2500_SX, IFM_FDX,
-			    sc->mii_inst), 0, NULL);
+			    sc->mii_inst));
 			printf("2500baseSX-FDX, ");
 		} else if ((bsc->serdes_flags & BRGPHY_5708S) && bce_sc &&
 		    (detect_hs21(bce_sc) != 0)) {
@@ -308,8 +308,8 @@ brgphy_attach(device_t dev)
 			printf("auto-neg workaround, ");
 			bsc->serdes_flags |= BRGPHY_NOANWAIT;
 		}
-		ifmedia_add(&sc->mii_pdata->mii_media, IFM_MAKEWORD(IFM_ETHER,
-		    IFM_AUTO, 0, sc->mii_inst), 0, NULL);
+		mii_phy_add_media(sc->mii_pdata, IFM_MAKEWORD(IFM_ETHER,
+		    IFM_AUTO, 0, sc->mii_inst));
 		printf("auto\n");
 	}
 
@@ -318,9 +318,9 @@ brgphy_attach(device_t dev)
 }
 
 static int
-brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+brgphy_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int val;
 
 	switch (cmd) {
@@ -328,18 +328,18 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 	case MII_MEDIACHG:
 		/* Todo: Why is this here?  Is it really needed? */
-		PHY_RESET(sc);	/* XXX hardware bug work-around */
+		PHY_RESET(sc, media);	/* XXX hardware bug work-around */
 
-		switch (IFM_SUBTYPE(ife->ifm_media)) {
+		switch (IFM_SUBTYPE(media)) {
 		case IFM_AUTO:
-			brgphy_mii_phy_auto(sc, ife->ifm_media);
+			brgphy_mii_phy_auto(sc, media);
 			break;
 		case IFM_2500_SX:
 		case IFM_1000_SX:
 		case IFM_1000_T:
 		case IFM_100_TX:
 		case IFM_10_T:
-			brgphy_setmedia(sc, ife->ifm_media);
+			brgphy_setmedia(sc, media);
 			break;
 		default:
 			return (EINVAL);
@@ -347,7 +347,7 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 	case MII_TICK:
 		/* Bail if autoneg isn't in process. */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO) {
+		if (IFM_SUBTYPE(media) != IFM_AUTO) {
 			sc->mii_ticks = 0;
 			break;
 		}
@@ -373,12 +373,12 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 		/* Retry autonegotiation */
 		sc->mii_ticks = 0;
-		brgphy_mii_phy_auto(sc, ife->ifm_media);
+		brgphy_mii_phy_auto(sc, media);
 		break;
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 
 	/*
 	 * Callback if something changed. Note that we need to poke
@@ -418,7 +418,7 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 /*   None                                                                   */
 /****************************************************************************/
 static void
-brgphy_setmedia(struct mii_softc *sc, int media)
+brgphy_setmedia(struct mii_softc *sc, if_media_t media)
 {
 	int bmcr = 0, gig;
 
@@ -474,7 +474,7 @@ brgphy_setmedia(struct mii_softc *sc, int media)
 /*   None                                                                   */
 /****************************************************************************/
 static void
-brgphy_status(struct mii_softc *sc)
+brgphy_status(struct mii_softc *sc, if_media_t media)
 {
 	struct brgphy_softc *bsc = (struct brgphy_softc *)sc;
 	struct mii_data *mii = sc->mii_pdata;
@@ -611,7 +611,7 @@ brgphy_mii_phy_auto(struct mii_softc *sc, int media)
 {
 	int anar, ktcr = 0;
 
-	PHY_RESET(sc);
+	PHY_RESET(sc, media);
 
 	if ((sc->mii_flags & MIIF_HAVEFIBER) == 0) {
 		anar = BMSR_MEDIA_TO_ANAR(sc->mii_capabilities) | ANAR_CSMA;
@@ -887,7 +887,7 @@ brgphy_jumbo_settings(struct mii_softc *sc, u_long mtu)
 }
 
 static void
-brgphy_reset(struct mii_softc *sc)
+brgphy_reset(struct mii_softc *sc, if_media_t media)
 {
 	struct bge_softc *bge_sc = NULL;
 	struct bce_softc *bce_sc = NULL;

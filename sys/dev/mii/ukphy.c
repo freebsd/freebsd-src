@@ -69,7 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 
-#include <net/if.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -99,7 +98,8 @@ static driver_t ukphy_driver = {
 
 DRIVER_MODULE(ukphy, miibus, ukphy_driver, ukphy_devclass, 0, 0);
 
-static int	ukphy_service(struct mii_softc *, struct mii_data *, int);
+static int	ukphy_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
 
 static const struct mii_phy_funcs ukphy_funcs = {
 	ukphy_service,
@@ -126,13 +126,14 @@ ukphy_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &ukphy_funcs, 1);
-	mii_phy_setmedia(sc);
+	mii_phy_setmedia(sc, (IFM_ETHER | IFM_AUTO));
 
 	return (0);
 }
 
 static int
-ukphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+ukphy_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
 
 	switch (cmd) {
@@ -140,7 +141,7 @@ ukphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		mii_phy_setmedia(sc);
+		mii_phy_setmedia(sc, media);
 		break;
 
 	case MII_TICK:
@@ -150,7 +151,7 @@ ukphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);

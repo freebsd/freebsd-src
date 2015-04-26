@@ -38,18 +38,21 @@
 #include <sys/queue.h>
 
 /*
- * Media Independent Interface data structure defintions
+ * Media Independent Interface data structure definitions.
  */
-
-struct mii_softc;
 
 /*
- * A network interface driver has one of these structures in its softc.
- * It is the interface from the network interface driver to the MII
- * layer.
+ * This is the interface from the network interface driver to the MII
+ * layer.  A NIC driver grabs the structure via device_get_softc(miibus).
  */
 struct mii_data {
-	struct ifmedia mii_media;	/* media information */
+	/*
+	 * Current media word.  Matches the one that if_media.c stores.
+	 * Modified by mii_mediachg().  Most functions descent from
+	 * mii_mediachg(), and carry requested media word as argument,
+	 * however some require it to be saved in softc.
+	 */
+	if_media_t mii_media;
 
 	/*
 	 * For network interfaces with multiple PHYs, a list of all
@@ -64,24 +67,45 @@ struct mii_data {
 	 */
 	u_int mii_media_status;
 	u_int mii_media_active;
+
+	/*
+	 * The number of MII_MAX_MEDIAE was taken quite carelessly.
+	 * The mii_physubr.c can add at maximum 20 mediae per phy.
+	 * Some phys (acphy) can a couple of extra mediae on top of
+	 * that.  However, there could be several phys per miibus(4).
+	 * On the other hand, all known NICs that may have several
+	 * phys, are quite old and their twisted pair phy can run
+	 * at maximum of 100 Mbit/s.
+	 * We could allocate this array dynamically, but looks like
+	 * miibus(4) enabled drivers are now legacy, so a more simple
+	 * static design was chosen.
+	 */
+#define	MII_MAX_MEDIAE	30
+	u_int mii_index;
+	if_media_t mii_mediae[MII_MAX_MEDIAE + 1];
 };
 typedef struct mii_data mii_data_t;
+
+/*
+ * Requests that can be made to the downcall.
+ */
+typedef enum {
+	MII_TICK = 1,	/* once-per-second tick */
+	MII_MEDIACHG,	/* user changed media; perform the switch */
+	MII_POLLSTAT,	/* user requested media status; fill it in */
+} mii_cmd_t;
+
+struct mii_softc;
 
 /*
  * Functions provided by the PHY to perform various functions.
  */
 struct mii_phy_funcs {
-	int (*pf_service)(struct mii_softc *, struct mii_data *, int);
-	void (*pf_status)(struct mii_softc *);
-	void (*pf_reset)(struct mii_softc *);
+	int (*pf_service)(struct mii_softc *, struct mii_data *, mii_cmd_t,
+	    if_media_t media);
+	void (*pf_status)(struct mii_softc *, if_media_t);
+	void (*pf_reset)(struct mii_softc *, if_media_t);
 };
-
-/*
- * Requests that can be made to the downcall.
- */
-#define	MII_TICK	1	/* once-per-second tick */
-#define	MII_MEDIACHG	2	/* user changed media; perform the switch */
-#define	MII_POLLSTAT	3	/* user requested media status; fill it in */
 
 /*
  * Each PHY driver's softc has one of these as the first member.
@@ -186,14 +210,14 @@ struct mii_phydesc {
 #define PHY_WRITE(p, r, v) \
 	MIIBUS_WRITEREG((p)->mii_dev, (p)->mii_phy, (r), (v))
 
-#define	PHY_SERVICE(p, d, o) \
-	(*(p)->mii_funcs->pf_service)((p), (d), (o))
+#define	PHY_SERVICE(p, d, o, m) \
+	(*(p)->mii_funcs->pf_service)((p), (d), (o), (m))
 
-#define	PHY_STATUS(p) \
-	(*(p)->mii_funcs->pf_status)(p)
+#define	PHY_STATUS(p, m) \
+	(*(p)->mii_funcs->pf_status)((p), (m))
 
-#define	PHY_RESET(p) \
-	(*(p)->mii_funcs->pf_reset)(p)
+#define	PHY_RESET(p, m) \
+	(*(p)->mii_funcs->pf_reset)((p), (m))
 
 enum miibus_device_ivars {
 	MIIBUS_IVAR_FLAGS
@@ -210,19 +234,19 @@ MIIBUS_ACCESSOR(flags,		FLAGS,		u_int)
 extern devclass_t	miibus_devclass;
 extern driver_t		miibus_driver;
 
-int	mii_attach(device_t, device_t *, ifm_change_cb_t, ifm_stat_cb_t,
-	    int, int, int, int);
-int	mii_mediachg(struct mii_data *);
+int	mii_attach(device_t, device_t *, int, int, int, int);
+int	mii_mediachg(struct mii_data *, if_media_t);
 void	mii_tick(struct mii_data *);
 void	mii_pollstat(struct mii_data *);
-void	mii_phy_add_media(struct mii_softc *);
+void	mii_phy_add_media(struct mii_data *, if_media_t);
+void	mii_phy_generic_media(struct mii_softc *);
 
-int	mii_phy_auto(struct mii_softc *);
+int	mii_phy_auto(struct mii_softc *, if_media_t);
 int	mii_phy_detach(device_t dev);
 u_int	mii_phy_flowstatus(struct mii_softc *);
-void	mii_phy_reset(struct mii_softc *);
-void	mii_phy_setmedia(struct mii_softc *sc);
-void	mii_phy_update(struct mii_softc *, int);
+void	mii_phy_reset(struct mii_softc *, if_media_t);
+void	mii_phy_setmedia(struct mii_softc *, if_media_t);
+void	mii_phy_update(struct mii_softc *, mii_cmd_t);
 int	mii_phy_tick(struct mii_softc *);
 int	mii_phy_mac_match(struct mii_softc *, const char *);
 int	mii_dev_mac_match(device_t, const char *);
@@ -237,7 +261,7 @@ int mii_phy_dev_probe(device_t dev, const struct mii_phydesc *mpd, int mrv);
 void mii_phy_dev_attach(device_t dev, u_int flags,
     const struct mii_phy_funcs *mpf, int add_media);
 
-void	ukphy_status(struct mii_softc *);
+void	ukphy_status(struct mii_softc *, if_media_t);
 
 u_int	mii_oui(u_int, u_int);
 #define	MII_OUI(id1, id2)	mii_oui(id1, id2)
@@ -248,6 +272,9 @@ u_int	mii_oui(u_int, u_int);
 enum {
 	MIIVAR_MTU,
 };
+
+/* miibus(4) uses some bits of if_media_t for its own cookies. */
+#define MII_MEDIA_MASK    (IFM_IMASK | IFM_FLAG0 | IFM_FLAG1 | IFM_FLAG2)
 
 #endif /* _KERNEL */
 

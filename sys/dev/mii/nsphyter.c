@@ -74,7 +74,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/socket.h>
 
-#include <net/if.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -107,9 +106,10 @@ static driver_t nsphyter_driver = {
 
 DRIVER_MODULE(nsphyter, miibus, nsphyter_driver, nsphyter_devclass, 0, 0);
 
-static int	nsphyter_service(struct mii_softc *, struct mii_data *, int);
-static void	nsphyter_status(struct mii_softc *);
-static void	nsphyter_reset(struct mii_softc *);
+static int	nsphyter_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
+static void	nsphyter_status(struct mii_softc *, if_media_t);
+static void	nsphyter_reset(struct mii_softc *, if_media_t);
 
 static const struct mii_phydesc nsphyters[] = {
 	MII_PHY_DESC(xxNATSEMI, DP83815),
@@ -141,7 +141,8 @@ nsphyter_attach(device_t dev)
 }
 
 static int
-nsphyter_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+nsphyter_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
 
 	switch (cmd) {
@@ -149,7 +150,7 @@ nsphyter_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		mii_phy_setmedia(sc);
+		mii_phy_setmedia(sc, media);
 		break;
 
 	case MII_TICK:
@@ -159,7 +160,7 @@ nsphyter_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -167,10 +168,9 @@ nsphyter_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 }
 
 static void
-nsphyter_status(struct mii_softc *sc)
+nsphyter_status(struct mii_softc *sc, if_media_t media)
 {
 	struct mii_data *mii = sc->mii_pdata;
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int bmsr, bmcr, physts;
 
 	mii->mii_media_status = IFM_AVALID;
@@ -213,13 +213,12 @@ nsphyter_status(struct mii_softc *sc)
 		else
 			mii->mii_media_active |= IFM_HDX;
 	} else
-		mii->mii_media_active = ife->ifm_media;
+		mii->mii_media_active = media;
 }
 
 static void
-nsphyter_reset(struct mii_softc *sc)
+nsphyter_reset(struct mii_softc *sc, if_media_t media)
 {
-	struct ifmedia_entry *ife = sc->mii_pdata->mii_media.ifm_cur;
 	int reg, i;
 
 	if ((sc->mii_flags & MIIF_NOISOLATE) != 0)
@@ -255,8 +254,8 @@ nsphyter_reset(struct mii_softc *sc)
 	}
 
 	if ((sc->mii_flags & MIIF_NOISOLATE) == 0) {
-		if ((ife == NULL && sc->mii_inst != 0) ||
-		    (ife != NULL && IFM_INST(ife->ifm_media) != sc->mii_inst))
+		if ((media == 0 && sc->mii_inst != 0) ||
+		    (media != 0 && IFM_INST(media) != sc->mii_inst))
 			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
 	}
 }

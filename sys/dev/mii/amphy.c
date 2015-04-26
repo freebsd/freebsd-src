@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/bus.h>
 
-#include <net/if.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -79,8 +78,9 @@ static driver_t amphy_driver = {
 
 DRIVER_MODULE(amphy, miibus, amphy_driver, amphy_devclass, 0, 0);
 
-static int	amphy_service(struct mii_softc *, struct mii_data *, int);
-static void	amphy_status(struct mii_softc *);
+static int	amphy_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
+static void	amphy_status(struct mii_softc *, if_media_t);
 
 static const struct mii_phydesc amphys[] = {
 	MII_PHY_DESC(xxDAVICOM, DM9102),
@@ -111,7 +111,8 @@ amphy_attach(device_t dev)
 }
 
 static int
-amphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+amphy_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
 
 	switch (cmd) {
@@ -119,7 +120,7 @@ amphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		mii_phy_setmedia(sc);
+		mii_phy_setmedia(sc, media);
 		break;
 
 	case MII_TICK:
@@ -129,7 +130,7 @@ amphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -137,10 +138,9 @@ amphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 }
 
 static void
-amphy_status(struct mii_softc *sc)
+amphy_status(struct mii_softc *sc, if_media_t media)
 {
 	struct mii_data *mii = sc->mii_pdata;
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int bmsr, bmcr, par, anlpar;
 
 	mii->mii_media_status = IFM_AVALID;
@@ -205,5 +205,5 @@ amphy_status(struct mii_softc *sc)
 		if ((mii->mii_media_active & IFM_FDX) != 0)
 			mii->mii_media_active |= mii_phy_flowstatus(sc);
 	} else
-		mii->mii_media_active = ife->ifm_media;
+		mii->mii_media_active = media;
 }

@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 
-#include <net/if.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -105,8 +104,6 @@ driver_t miibus_driver = {
 };
 
 struct miibus_ivars {
-	ifm_change_cb_t	ifmedia_upd;
-	ifm_stat_cb_t	ifmedia_sts;
 	u_int		mii_flags;
 	u_int		mii_offset;
 };
@@ -123,7 +120,6 @@ miibus_probe(device_t dev)
 static int
 miibus_attach(device_t dev)
 {
-	struct miibus_ivars	*ivars;
 	struct mii_attach_args	*ma;
 	struct mii_data		*mii;
 	device_t		*children;
@@ -141,9 +137,6 @@ miibus_attach(device_t dev)
 		device_printf(dev, "cannot get children\n");
 		return (ENXIO);
 	}
-	ivars = device_get_ivars(dev);
-	ifmedia_init(&mii->mii_media, IFM_IMASK, ivars->ifmedia_upd,
-	    ivars->ifmedia_sts);
 	LIST_INIT(&mii->mii_phys);
 
 	return (bus_generic_attach(dev));
@@ -156,7 +149,6 @@ miibus_detach(device_t dev)
 
 	bus_generic_detach(dev);
 	mii = device_get_softc(dev);
-	ifmedia_removeall(&mii->mii_media);
 
 	return (0);
 }
@@ -308,21 +300,22 @@ miibus_readvar(device_t dev, int var)
 static void
 miibus_mediainit(device_t dev)
 {
-	struct mii_data		*mii;
-	struct ifmedia_entry	*m;
-	int			media = 0;
+	struct mii_data *mii;
+	int i;
 
 	/* Poke the parent in case it has any media of its own to add. */
 	MIIBUS_MEDIAINIT(device_get_parent(dev));
 
+	/*
+	 * Prefer (IFM_ETHER | IFM_AUTO), but if not found set the last
+	 * media word set by phys.
+	 */
 	mii = device_get_softc(dev);
-	LIST_FOREACH(m, &mii->mii_media.ifm_list, ifm_list) {
-		media = m->ifm_media;
-		if (media == (IFM_ETHER | IFM_AUTO))
+	for (i = 0; mii->mii_mediae[i + 1] != 0; i++)
+		if (mii->mii_mediae[i] == (IFM_ETHER | IFM_AUTO))
 			break;
-	}
 
-	ifmedia_set(&mii->mii_media, media);
+	mii->mii_media = mii->mii_mediae[i];
 }
 
 /*
@@ -330,8 +323,8 @@ miibus_mediainit(device_t dev)
  * the PHYs to the network interface driver parent.
  */
 int
-mii_attach(device_t dev, device_t *miibus, ifm_change_cb_t ifmedia_upd,
-    ifm_stat_cb_t ifmedia_sts, int capmask, int phyloc, int offloc, int flags)
+mii_attach(device_t dev, device_t *miibus, int capmask, int phyloc, int offloc,
+    int flags)
 {
 	struct miibus_ivars *ivars;
 	struct mii_attach_args *args, ma;
@@ -366,8 +359,6 @@ mii_attach(device_t dev, device_t *miibus, ifm_change_cb_t ifmedia_upd,
 		ivars = malloc(sizeof(*ivars), M_DEVBUF, M_NOWAIT);
 		if (ivars == NULL)
 			return (ENOMEM);
-		ivars->ifmedia_upd = ifmedia_upd;
-		ivars->ifmedia_sts = ifmedia_sts;
 		ivars->mii_flags = flags;
 		*miibus = device_add_child(dev, "miibus", -1);
 		if (*miibus == NULL) {
@@ -377,9 +368,7 @@ mii_attach(device_t dev, device_t *miibus, ifm_change_cb_t ifmedia_upd,
 		device_set_ivars(*miibus, ivars);
 	} else {
 		ivars = device_get_ivars(*miibus);
-		if (ivars->ifmedia_upd != ifmedia_upd ||
-		    ivars->ifmedia_sts != ifmedia_sts ||
-		    ivars->mii_flags != flags) {
+		if (ivars->mii_flags != flags) {
 			printf("%s: non-matching invariant\n", __func__);
 			return (EINVAL);
 		}
@@ -505,13 +494,14 @@ mii_attach(device_t dev, device_t *miibus, ifm_change_cb_t ifmedia_upd,
 }
 
 /*
- * Media changed; notify all PHYs.
+ * Media changed; notify all PHYs.  This function is called from drivers
+ * ifop_media_change method, which propagates media parameter to this
+ * layer.
  */
 int
-mii_mediachg(struct mii_data *mii)
+mii_mediachg(struct mii_data *mii, if_media_t media)
 {
 	struct mii_softc *child;
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int rv;
 
 	mii->mii_media_status = 0;
@@ -522,7 +512,7 @@ mii_mediachg(struct mii_data *mii)
 		 * If the media indicates a different PHY instance,
 		 * isolate this one.
 		 */
-		if (IFM_INST(ife->ifm_media) != child->mii_inst) {
+		if (IFM_INST(media) != child->mii_inst) {
 			if ((child->mii_flags & MIIF_NOISOLATE) != 0) {
 				device_printf(child->mii_dev, "%s: "
 				    "can't handle non-zero PHY instance %d\n",
@@ -533,10 +523,11 @@ mii_mediachg(struct mii_data *mii)
 			    BMCR_ISO);
 			continue;
 		}
-		rv = PHY_SERVICE(child, mii, MII_MEDIACHG);
+		rv = PHY_SERVICE(child, mii, MII_MEDIACHG, media);
 		if (rv)
 			return (rv);
 	}
+	mii->mii_media = media;
 	return (0);
 }
 
@@ -547,16 +538,15 @@ void
 mii_tick(struct mii_data *mii)
 {
 	struct mii_softc *child;
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 
 	LIST_FOREACH(child, &mii->mii_phys, mii_list) {
 		/*
 		 * If this PHY instance isn't currently selected, just skip
 		 * it.
 		 */
-		if (IFM_INST(ife->ifm_media) != child->mii_inst)
+		if (IFM_INST(mii->mii_media) != child->mii_inst)
 			continue;
-		(void)PHY_SERVICE(child, mii, MII_TICK);
+		(void)PHY_SERVICE(child, mii, MII_TICK, mii->mii_media);
 	}
 }
 
@@ -567,7 +557,6 @@ void
 mii_pollstat(struct mii_data *mii)
 {
 	struct mii_softc *child;
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 
 	mii->mii_media_status = 0;
 	mii->mii_media_active = IFM_NONE;
@@ -576,9 +565,9 @@ mii_pollstat(struct mii_data *mii)
 		/*
 		 * If we're not polling this PHY instance, just skip it.
 		 */
-		if (IFM_INST(ife->ifm_media) != child->mii_inst)
+		if (IFM_INST(mii->mii_media) != child->mii_inst)
 			continue;
-		(void)PHY_SERVICE(child, mii, MII_POLLSTAT);
+		(void)PHY_SERVICE(child, mii, MII_POLLSTAT, mii->mii_media);
 	}
 }
 

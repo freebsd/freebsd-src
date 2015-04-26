@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/bus.h>
 
-#include <net/if.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -71,11 +70,12 @@ static driver_t atphy_driver = {
 
 DRIVER_MODULE(atphy, miibus, atphy_driver, atphy_devclass, 0, 0);
 
-static int	atphy_service(struct mii_softc *, struct mii_data *, int);
-static void	atphy_status(struct mii_softc *);
-static void	atphy_reset(struct mii_softc *);
-static uint16_t	atphy_anar(struct ifmedia_entry *);
-static int	atphy_setmedia(struct mii_softc *, int);
+static int	atphy_service(struct mii_softc *, struct mii_data *, mii_cmd_t,
+		    if_media_t);
+static void	atphy_status(struct mii_softc *, if_media_t);
+static void	atphy_reset(struct mii_softc *, if_media_t);
+static uint16_t	atphy_anar(if_media_t);
+static int	atphy_setmedia(struct mii_softc *, if_media_t);
 
 static const struct mii_phydesc atphys[] = {
 	MII_PHY_DESC(xxATHEROS, F1),
@@ -107,9 +107,9 @@ atphy_attach(device_t dev)
 }
 
 static int
-atphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+atphy_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	uint16_t anar, bmcr, bmsr;
 
 	switch (cmd) {
@@ -117,14 +117,14 @@ atphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		if (IFM_SUBTYPE(ife->ifm_media) == IFM_AUTO ||
-		    IFM_SUBTYPE(ife->ifm_media) == IFM_1000_T) {
-			atphy_setmedia(sc, ife->ifm_media);
+		if (IFM_SUBTYPE(media) == IFM_AUTO ||
+		    IFM_SUBTYPE(media) == IFM_1000_T) {
+			atphy_setmedia(sc, media);
 			break;
 		}
 
 		bmcr = 0;
-		switch (IFM_SUBTYPE(ife->ifm_media)) {
+		switch (IFM_SUBTYPE(media)) {
 		case IFM_100_TX:
 			bmcr = BMCR_S100;
 			break;
@@ -147,10 +147,10 @@ atphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			return (EINVAL);
 		}
 
-		anar = atphy_anar(ife);
-		if ((ife->ifm_media & IFM_FDX) != 0) {
+		anar = atphy_anar(media);
+		if ((media & IFM_FDX) != 0) {
 			bmcr |= BMCR_FDX;
-			if ((ife->ifm_media & IFM_FLOW) != 0 ||
+			if ((media & IFM_FLOW) != 0 ||
 			    (sc->mii_flags & MIIF_FORCEPAUSE) != 0)
 				anar |= ANAR_PAUSE_TOWARDS;
 		}
@@ -172,7 +172,7 @@ done:
 		/*
 		 * Only used for autonegotiation.
 		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO) {
+		if (IFM_SUBTYPE(media) != IFM_AUTO) {
 			sc->mii_ticks = 0;
 			break;
 		}
@@ -194,12 +194,12 @@ done:
 			return (0);
 
 		sc->mii_ticks = 0;
-		atphy_setmedia(sc, ife->ifm_media);
+		atphy_setmedia(sc, media);
 		break;
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -207,7 +207,7 @@ done:
 }
 
 static void
-atphy_status(struct mii_softc *sc)
+atphy_status(struct mii_softc *sc, if_media_t media)
 {
 	struct mii_data *mii = sc->mii_pdata;
 	uint32_t bmsr, bmcr, ssr;
@@ -270,9 +270,8 @@ atphy_status(struct mii_softc *sc)
 }
 
 static void
-atphy_reset(struct mii_softc *sc)
+atphy_reset(struct mii_softc *sc, if_media_t media)
 {
-	struct ifmedia_entry *ife = sc->mii_pdata->mii_media.ifm_cur;
 	uint32_t reg;
 	int i;
 
@@ -292,7 +291,7 @@ atphy_reset(struct mii_softc *sc)
 	PHY_WRITE(sc, ATPHY_SCR, reg);
 
 	/* Workaround F1 bug to reset phy. */
-	atphy_setmedia(sc, ife == NULL ? IFM_AUTO : ife->ifm_media);
+	atphy_setmedia(sc, media);
 
 	for (i = 0; i < 1000; i++) {
 		DELAY(1);
@@ -302,12 +301,12 @@ atphy_reset(struct mii_softc *sc)
 }
 
 static uint16_t
-atphy_anar(struct ifmedia_entry *ife)
+atphy_anar(if_media_t media)
 {
 	uint16_t anar;
 
 	anar = 0;
-	switch (IFM_SUBTYPE(ife->ifm_media)) {
+	switch (IFM_SUBTYPE(media)) {
 	case IFM_AUTO:
 		anar |= ANAR_TX_FD | ANAR_TX | ANAR_10_FD | ANAR_10;
 		return (anar);
@@ -323,8 +322,8 @@ atphy_anar(struct ifmedia_entry *ife)
 		return (0);
 	}
 
-	if ((ife->ifm_media & IFM_FDX) != 0) {
-		if (IFM_SUBTYPE(ife->ifm_media) == IFM_100_TX)
+	if ((media & IFM_FDX) != 0) {
+		if (IFM_SUBTYPE(media) == IFM_100_TX)
 			anar |= ANAR_TX_FD;
 		else
 			anar |= ANAR_10_FD;
@@ -334,7 +333,7 @@ atphy_anar(struct ifmedia_entry *ife)
 }
 
 static int
-atphy_setmedia(struct mii_softc *sc, int media)
+atphy_setmedia(struct mii_softc *sc, if_media_t media)
 {
 	uint16_t anar;
 

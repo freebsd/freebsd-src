@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 
-#include <net/if.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -84,8 +83,9 @@ static driver_t tdkphy_driver = {
 
 DRIVER_MODULE(tdkphy, miibus, tdkphy_driver, tdkphy_devclass, 0, 0);
 
-static int tdkphy_service(struct mii_softc *, struct mii_data *, int);
-static void tdkphy_status(struct mii_softc *);
+static int	tdkphy_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
+static void	tdkphy_status(struct mii_softc *, if_media_t);
 
 static const struct mii_phydesc tdkphys[] = {
 	MII_PHY_DESC(xxTSC, 78Q2120),
@@ -114,7 +114,8 @@ tdkphy_attach(device_t dev)
 }
 
 static int
-tdkphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+tdkphy_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
 
 	switch (cmd) {
@@ -122,7 +123,7 @@ tdkphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		mii_phy_setmedia(sc);
+		mii_phy_setmedia(sc, media);
 		break;
 
 	case MII_TICK:
@@ -132,7 +133,7 @@ tdkphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 	if (sc->mii_pdata->mii_media_active & IFM_FDX)
 		PHY_WRITE(sc, MII_BMCR, PHY_READ(sc, MII_BMCR) | BMCR_FDX);
 	else
@@ -144,10 +145,9 @@ tdkphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 }
 
 static void
-tdkphy_status(struct mii_softc *phy)
+tdkphy_status(struct mii_softc *phy, if_media_t media)
 {
 	struct mii_data *mii = phy->mii_pdata;
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int bmsr, bmcr, anlpar, diag;
 
 	mii->mii_media_status = IFM_AVALID;
@@ -219,5 +219,5 @@ tdkphy_status(struct mii_softc *phy)
 		if ((mii->mii_media_active & IFM_FDX) != 0)
 			mii->mii_media_active |= mii_phy_flowstatus(phy);
 	} else
-		mii->mii_media_active = ife->ifm_media;
+		mii->mii_media_active = media;
 }

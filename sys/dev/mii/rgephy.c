@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/bus.h>
 
-#include <net/if.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -83,10 +82,11 @@ static driver_t rgephy_driver = {
 
 DRIVER_MODULE(rgephy, miibus, rgephy_driver, rgephy_devclass, 0, 0);
 
-static int	rgephy_service(struct mii_softc *, struct mii_data *, int);
-static void	rgephy_status(struct mii_softc *);
-static int	rgephy_mii_phy_auto(struct mii_softc *, int);
-static void	rgephy_reset(struct mii_softc *);
+static int	rgephy_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
+static void	rgephy_status(struct mii_softc *, if_media_t);
+static int	rgephy_mii_phy_auto(struct mii_softc *, if_media_t);
+static void	rgephy_reset(struct mii_softc *, if_media_t);
 static int	rgephy_linkup(struct mii_softc *);
 static void	rgephy_loop(struct mii_softc *);
 static void	rgephy_load_dspcode(struct mii_softc *);
@@ -128,26 +128,19 @@ rgephy_attach(device_t dev)
 	if (sc->mii_capabilities & BMSR_EXTSTAT)
 		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
 	device_printf(dev, " ");
-	mii_phy_add_media(sc);
+	mii_phy_generic_media(sc);
 	printf("\n");
-	/*
-	 * Allow IFM_FLAG0 to be set indicating that auto-negotiation with
-	 * manual configuration, which is used to work around issues with
-	 * certain setups by default, should not be triggered as it may in
-	 * turn cause harm in some edge cases.
-	 */
-	sc->mii_pdata->mii_media.ifm_mask |= IFM_FLAG0;
 
-	PHY_RESET(sc);
+	PHY_RESET(sc, sc->mii_pdata->mii_media);
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
 	return (0);
 }
 
 static int
-rgephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+rgephy_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int speed, gig, anar;
 
 	switch (cmd) {
@@ -155,14 +148,14 @@ rgephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		PHY_RESET(sc);	/* XXX hardware bug work-around */
+		PHY_RESET(sc, media);	/* XXX hardware bug work-around */
 
 		anar = PHY_READ(sc, RGEPHY_MII_ANAR);
 		anar &= ~(RGEPHY_ANAR_PC | RGEPHY_ANAR_ASP |
 		    RGEPHY_ANAR_TX_FD | RGEPHY_ANAR_TX |
 		    RGEPHY_ANAR_10_FD | RGEPHY_ANAR_10);
 
-		switch (IFM_SUBTYPE(ife->ifm_media)) {
+		switch (IFM_SUBTYPE(media)) {
 		case IFM_AUTO:
 #ifdef foo
 			/*
@@ -171,7 +164,7 @@ rgephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			if (PHY_READ(sc, RGEPHY_MII_BMCR) & RGEPHY_BMCR_AUTOEN)
 				return (0);
 #endif
-			(void)rgephy_mii_phy_auto(sc, ife->ifm_media);
+			(void)rgephy_mii_phy_auto(sc, media);
 			break;
 		case IFM_1000_T:
 			speed = RGEPHY_S1000;
@@ -181,18 +174,24 @@ rgephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			anar |= RGEPHY_ANAR_TX_FD | RGEPHY_ANAR_TX;
 			goto setit;
 		case IFM_10_T:
+			/*
+	 		 * Allow IFM_FLAG0 to be set indicating that
+			 * auto-negotiation with manual configuration,
+			 * which is used to work around issues with certain
+			 * setups by default, should not be triggered as it
+			 * may in turn cause harm in some edge cases.
+			 */
 			speed = RGEPHY_S10;
 			anar |= RGEPHY_ANAR_10_FD | RGEPHY_ANAR_10;
 setit:
-			if ((ife->ifm_media & IFM_FLOW) != 0 &&
-			    (mii->mii_media.ifm_media & IFM_FLAG0) != 0)
+			if ((media & IFM_FLOW) != 0 && (media & IFM_FLAG0) != 0)
 				return (EINVAL);
 
-			if ((ife->ifm_media & IFM_FDX) != 0) {
+			if ((media & IFM_FDX) != 0) {
 				speed |= RGEPHY_BMCR_FDX;
 				gig = RGEPHY_1000CTL_AFD;
 				anar &= ~(RGEPHY_ANAR_TX | RGEPHY_ANAR_10);
-				if ((ife->ifm_media & IFM_FLOW) != 0 ||
+				if ((media & IFM_FLOW) != 0 ||
 				    (sc->mii_flags & MIIF_FORCEPAUSE) != 0)
 					anar |=
 					    RGEPHY_ANAR_PC | RGEPHY_ANAR_ASP;
@@ -201,15 +200,15 @@ setit:
 				anar &=
 				    ~(RGEPHY_ANAR_TX_FD | RGEPHY_ANAR_10_FD);
 			}
-			if (IFM_SUBTYPE(ife->ifm_media) == IFM_1000_T) {
+			if (IFM_SUBTYPE(media) == IFM_1000_T) {
 				gig |= RGEPHY_1000CTL_MSE;
-				if ((ife->ifm_media & IFM_ETH_MASTER) != 0)
+				if ((media & IFM_ETH_MASTER) != 0)
 				    gig |= RGEPHY_1000CTL_MSC;
 			} else {
 				gig = 0;
 				anar &= ~RGEPHY_ANAR_ASP;
 			}
-			if ((mii->mii_media.ifm_media & IFM_FLAG0) == 0)
+			if ((media & IFM_FLAG0) == 0)
 				speed |=
 				    RGEPHY_BMCR_AUTOEN | RGEPHY_BMCR_STARTNEG;
 			rgephy_loop(sc);
@@ -229,7 +228,7 @@ setit:
 		/*
 		 * Only used for autonegotiation.
 		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO) {
+		if (IFM_SUBTYPE(media) != IFM_AUTO) {
 			sc->mii_ticks = 0;
 			break;
 		}
@@ -252,12 +251,12 @@ setit:
 			return (0);
 
 		sc->mii_ticks = 0;
-		rgephy_mii_phy_auto(sc, ife->ifm_media);
+		rgephy_mii_phy_auto(sc, media);
 		break;
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 
 	/*
 	 * Callback if something changed. Note that we need to poke
@@ -301,7 +300,7 @@ rgephy_linkup(struct mii_softc *sc)
 }
 
 static void
-rgephy_status(struct mii_softc *sc)
+rgephy_status(struct mii_softc *sc, if_media_t media)
 {
 	struct mii_data *mii = sc->mii_pdata;
 	int bmsr, bmcr;
@@ -401,12 +400,12 @@ rgephy_status(struct mii_softc *sc)
 }
 
 static int
-rgephy_mii_phy_auto(struct mii_softc *sc, int media)
+rgephy_mii_phy_auto(struct mii_softc *sc, if_media_t media)
 {
 	int anar;
 
 	rgephy_loop(sc);
-	PHY_RESET(sc);
+	PHY_RESET(sc, media);
 
 	anar = BMSR_MEDIA_TO_ANAR(sc->mii_capabilities) | ANAR_CSMA;
 	if ((media & IFM_FLOW) != 0 || (sc->mii_flags & MIIF_FORCEPAUSE) != 0)
@@ -510,7 +509,7 @@ rgephy_load_dspcode(struct mii_softc *sc)
 }
 
 static void
-rgephy_reset(struct mii_softc *sc)
+rgephy_reset(struct mii_softc *sc, if_media_t media)
 {
 	uint16_t pcr, ssr;
 
@@ -544,7 +543,7 @@ rgephy_reset(struct mii_softc *sc)
 		break;
 	}
 
-	mii_phy_reset(sc);
+	mii_phy_reset(sc, media);
 	DELAY(1000);
 	rgephy_load_dspcode(sc);
 }

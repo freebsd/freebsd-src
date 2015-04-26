@@ -71,7 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 
-#include <net/if.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -104,9 +103,10 @@ static driver_t qsphy_driver = {
 
 DRIVER_MODULE(qsphy, miibus, qsphy_driver, qsphy_devclass, 0, 0);
 
-static int	qsphy_service(struct mii_softc *, struct mii_data *, int);
-static void	qsphy_reset(struct mii_softc *);
-static void	qsphy_status(struct mii_softc *);
+static int	qsphy_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
+static void	qsphy_reset(struct mii_softc *, if_media_t);
+static void	qsphy_status(struct mii_softc *, if_media_t);
 
 static const struct mii_phydesc qsphys[] = {
 	MII_PHY_DESC(xxQUALSEMI, QS6612),
@@ -135,7 +135,8 @@ qsphy_attach(device_t dev)
 }
 
 static int
-qsphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+qsphy_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
 
 	switch (cmd) {
@@ -143,7 +144,7 @@ qsphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		mii_phy_setmedia(sc);
+		mii_phy_setmedia(sc, media);
 		break;
 
 	case MII_TICK:
@@ -154,7 +155,7 @@ qsphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -162,7 +163,7 @@ qsphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 }
 
 static void
-qsphy_status(struct mii_softc *sc)
+qsphy_status(struct mii_softc *sc, if_media_t media)
 {
 	struct mii_data *mii = sc->mii_pdata;
 	int bmsr, bmcr, pctl;
@@ -215,9 +216,9 @@ qsphy_status(struct mii_softc *sc)
 }
 
 static void
-qsphy_reset(struct mii_softc *sc)
+qsphy_reset(struct mii_softc *sc, if_media_t media)
 {
 
-	mii_phy_reset(sc);
+	mii_phy_reset(sc, media);
 	PHY_WRITE(sc, MII_QSPHY_IMASK, 0);
 }

@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/bus.h>
 
-#include <net/if.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -52,9 +51,8 @@ __FBSDID("$FreeBSD$");
 
 static int	jmphy_probe(device_t);
 static int	jmphy_attach(device_t);
-static void	jmphy_reset(struct mii_softc *);
-static uint16_t	jmphy_anar(struct ifmedia_entry *);
-static int	jmphy_setmedia(struct mii_softc *, struct ifmedia_entry *);
+static uint16_t	jmphy_anar(if_media_t);
+static int	jmphy_setmedia(struct mii_softc *, if_media_t);
 
 static device_method_t jmphy_methods[] = {
 	/* Device interface. */
@@ -74,8 +72,10 @@ static driver_t jmphy_driver = {
 
 DRIVER_MODULE(jmphy, miibus, jmphy_driver, jmphy_devclass, 0, 0);
 
-static int	jmphy_service(struct mii_softc *, struct mii_data *, int);
-static void	jmphy_status(struct mii_softc *);
+static int	jmphy_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
+static void	jmphy_status(struct mii_softc *, if_media_t);
+static void	jmphy_reset(struct mii_softc *, if_media_t);
 
 static const struct mii_phydesc jmphys[] = {
 	MII_PHY_DESC(JMICRON, JMP202),
@@ -110,16 +110,16 @@ jmphy_attach(device_t dev)
 }
 
 static int
-jmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+jmphy_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 
 	switch (cmd) {
 	case MII_POLLSTAT:
 		break;
 
 	case MII_MEDIACHG:
-		if (jmphy_setmedia(sc, ife) != EJUSTRETURN)
+		if (jmphy_setmedia(sc, media) != EJUSTRETURN)
 			return (EINVAL);
 		break;
 
@@ -127,7 +127,7 @@ jmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		/*
 		 * Only used for autonegotiation.
 		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO) {
+		if (IFM_SUBTYPE(media) != IFM_AUTO) {
 			sc->mii_ticks = 0;
 			break;
 		}
@@ -145,12 +145,12 @@ jmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			return (0);
 
 		sc->mii_ticks = 0;
-		(void)jmphy_setmedia(sc, ife);
+		(void)jmphy_setmedia(sc, media);
 		break;
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -158,7 +158,7 @@ jmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 }
 
 static void
-jmphy_status(struct mii_softc *sc)
+jmphy_status(struct mii_softc *sc, if_media_t media)
 {
 	struct mii_data *mii = sc->mii_pdata;
 	int bmcr, ssr;
@@ -221,7 +221,7 @@ jmphy_status(struct mii_softc *sc)
 }
 
 static void
-jmphy_reset(struct mii_softc *sc)
+jmphy_reset(struct mii_softc *sc, if_media_t media)
 {
 	uint16_t t2cr, val;
 	int i;
@@ -272,12 +272,12 @@ jmphy_reset(struct mii_softc *sc)
 }
 
 static uint16_t
-jmphy_anar(struct ifmedia_entry *ife)
+jmphy_anar(if_media_t media)
 {
 	uint16_t anar;
 
 	anar = 0;
-	switch (IFM_SUBTYPE(ife->ifm_media)) {
+	switch (IFM_SUBTYPE(media)) {
 	case IFM_AUTO:
 		anar |= ANAR_TX_FD | ANAR_TX | ANAR_10_FD | ANAR_10;
 		break;
@@ -297,13 +297,13 @@ jmphy_anar(struct ifmedia_entry *ife)
 }
 
 static int
-jmphy_setmedia(struct mii_softc *sc, struct ifmedia_entry *ife)
+jmphy_setmedia(struct mii_softc *sc, if_media_t media)
 {
 	uint16_t anar, bmcr, gig;
 
 	gig = 0;
 	bmcr = PHY_READ(sc, MII_BMCR);
-	switch (IFM_SUBTYPE(ife->ifm_media)) {
+	switch (IFM_SUBTYPE(media)) {
 	case IFM_AUTO:
 		gig |= GTCR_ADV_1000TFDX | GTCR_ADV_1000THDX;
 		break;
@@ -320,17 +320,17 @@ jmphy_setmedia(struct mii_softc *sc, struct ifmedia_entry *ife)
 		return (EINVAL);
 	}
 
-	anar = jmphy_anar(ife);
-	if ((IFM_SUBTYPE(ife->ifm_media) == IFM_AUTO ||
-	    (ife->ifm_media & IFM_FDX) != 0) &&
-	    ((ife->ifm_media & IFM_FLOW) != 0 ||
+	anar = jmphy_anar(media);
+	if ((IFM_SUBTYPE(media) == IFM_AUTO ||
+	    (media & IFM_FDX) != 0) &&
+	    ((media & IFM_FLOW) != 0 ||
 	    (sc->mii_flags & MIIF_FORCEPAUSE) != 0))
 		anar |= ANAR_PAUSE_TOWARDS;
 
 	if ((sc->mii_flags & MIIF_HAVE_GTCR) != 0) {
-		if (IFM_SUBTYPE(ife->ifm_media) == IFM_1000_T) {
+		if (IFM_SUBTYPE(media) == IFM_1000_T) {
 			gig |= GTCR_MAN_MS;
-			if ((ife->ifm_media & IFM_ETH_MASTER) != 0)
+			if ((media & IFM_ETH_MASTER) != 0)
 				gig |= GTCR_ADV_MS;
 		}
 		PHY_WRITE(sc, MII_100T2CR, gig);
