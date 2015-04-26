@@ -187,9 +187,9 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	}
 
 #ifdef RACCT
-	PROC_LOCK(td->td_proc);
+	PROC_LOCK(p);
 	error = racct_add(p, RACCT_NTHR, 1);
-	PROC_UNLOCK(td->td_proc);
+	PROC_UNLOCK(p);
 	if (error != 0)
 		return (EPROCLIM);
 #endif
@@ -250,9 +250,9 @@ create_thread(struct thread *td, mcontext_t *ctx,
 		}
 	}
 
-	PROC_LOCK(td->td_proc);
-	td->td_proc->p_flag |= P_HADTHREADS;
-	thread_link(newtd, p); 
+	PROC_LOCK(p);
+	p->p_flag |= P_HADTHREADS;
+	thread_link(newtd, p);
 	bcopy(p->p_comm, newtd->td_name, sizeof(newtd->td_name));
 	thread_lock(td);
 	/* let the scheduler know about these things. */
