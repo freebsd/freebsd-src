@@ -275,7 +275,7 @@ static void re_watchdog		(struct rl_softc *);
 static int re_suspend		(device_t);
 static int re_resume		(device_t);
 static int re_shutdown		(device_t);
-static int re_ifmedia_upd	(if_t);
+static int re_ifmedia_upd	(if_t, if_media_t);
 static void re_ifmedia_sts	(if_t, struct ifmediareq *);
 
 static void re_eeprom_putbyte	(struct rl_softc *, int);
@@ -313,6 +313,8 @@ static struct ifdriver re_ifdrv = {
 	.ifdrv_ops = {
 		.ifop_ioctl = re_ioctl,
 		.ifop_transmit = re_transmit,
+		.ifop_media_change = re_ifmedia_upd,
+		.ifop_media_status = re_ifmedia_sts,
 #ifdef DEVICE_POLLING
 		.ifop_poll = re_poll,
 #endif
@@ -642,8 +644,7 @@ re_miibus_statchg(device_t dev)
 		}
 	}
 
-	if_setbaudrate(ifp, ifmedia_baudrate(mii->mii_media_active));
-	if_link_state_change(ifp, ifmedia_link_state(mii->mii_media_status));
+	if_media_status(ifp, mii->mii_media_active | mii->mii_media_status);
 
 	/*
 	 * RealTek controllers does not provide any interface to
@@ -1228,6 +1229,7 @@ re_attach(device_t dev)
 		.ifat_drv = &re_ifdrv,
 		.ifat_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST,
 		.ifat_capabilities = IFCAP_LINKSTATE,
+		.ifat_mediamask = MII_MEDIA_MASK,
 	};
 	u_char			eaddr[ETHER_ADDR_LEN];
 	u_int16_t		as[ETHER_ADDR_LEN / 2];
@@ -1669,19 +1671,15 @@ re_attach(device_t dev)
 	phy = RE_PHYAD_INTERNAL;
 	if (sc->rl_type == RL_8169)
 		phy = 1;
-	error = mii_attach(dev, &sc->rl_miibus, re_ifmedia_upd, re_ifmedia_sts,
-	    BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, MIIF_DOPAUSE);
+	error = mii_attach(dev, &sc->rl_miibus, BMSR_DEFCAPMASK, phy,
+	    MII_OFFSET_ANY, MIIF_DOPAUSE);
 	if (error != 0) {
 		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
-
 	mii = device_get_softc(sc->rl_miibus);
-	ifat.ifat_baudrate = ifmedia_baudrate(mii->mii_media_active);
-
-	/*
-	 * Call MI attach routine.
-	 */
+	ifat.ifat_media = mii->mii_media;
+	ifat.ifat_mediae = mii->mii_mediae;
 
 	/* VLAN capability setup */
 	ifat.ifat_capabilities |= IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING;
@@ -3062,8 +3060,6 @@ re_init(struct rl_softc *sc)
 
 	RL_LOCK_ASSERT(sc);
 
-	mii = device_get_softc(sc->rl_miibus);
-
 	if ((sc->rl_flags & RL_FLAG_RUNNING) != 0)
 		return;
 
@@ -3294,7 +3290,8 @@ re_init(struct rl_softc *sc)
 	sc->rl_flags |= RL_FLAG_RUNNING;
 
 	sc->rl_flags &= ~RL_FLAG_LINK;
-	mii_mediachg(mii);
+	mii = device_get_softc(sc->rl_miibus);
+	mii_mediachg(mii, mii->mii_media);
 
 	sc->rl_watchdog_timer = 0;
 	callout_reset(&sc->rl_stat_callout, hz, re_tick, sc);
@@ -3304,7 +3301,7 @@ re_init(struct rl_softc *sc)
  * Set media options.
  */
 static int
-re_ifmedia_upd(if_t ifp)
+re_ifmedia_upd(if_t ifp, if_media_t media)
 {
 	struct rl_softc		*sc;
 	struct mii_data		*mii;
@@ -3313,7 +3310,7 @@ re_ifmedia_upd(if_t ifp)
 	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	mii = device_get_softc(sc->rl_miibus);
 	RL_LOCK(sc);
-	error = mii_mediachg(mii);
+	error = mii_mediachg(mii, media);
 	RL_UNLOCK(sc);
 
 	return (error);
@@ -3344,7 +3341,6 @@ re_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 {
 	struct rl_softc		*sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	struct ifreq		*ifr = (struct ifreq *) data;
-	struct mii_data		*mii;
 	int			error = 0;
 	uint32_t		oflags;
 
@@ -3413,11 +3409,6 @@ re_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 		if ((sc->rl_flags & RL_FLAG_RUNNING) != 0)
 			re_set_rxmode(sc);
 		RL_UNLOCK(sc);
-		break;
-	case SIOCGIFMEDIA:
-	case SIOCSIFMEDIA:
-		mii = device_get_softc(sc->rl_miibus);
-		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
 	    {
@@ -3748,7 +3739,7 @@ re_set_linkspeed(struct rl_softc *sc)
 	miisc = LIST_FIRST(&mii->mii_phys);
 	phyno = miisc->mii_phy;
 	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-		PHY_RESET(miisc);
+		PHY_RESET(miisc, mii->mii_media);
 	re_miibus_writereg(sc->rl_dev, phyno, MII_100T2CR, 0);
 	re_miibus_writereg(sc->rl_dev, phyno,
 	    MII_ANAR, ANAR_TX_FD | ANAR_TX | ANAR_10_FD | ANAR_10 | ANAR_CSMA);
