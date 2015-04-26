@@ -169,7 +169,6 @@ Lunmapped:
 	adr	r0, Lpagetable
 	bl	translate_va_to_pa
 
-#ifndef _ARM_ARCH_6
 	/*
 	 * Some of the older ports (the various XScale, mostly) assume
 	 * that the memory before the kernel is mapped, and use it for
@@ -191,25 +190,6 @@ Lunmapped:
 	ldr     r2, =(KERNBASE)
 	bl      build_pagetables
 	ldr	r5, =(KERNPHYSADDR)
-#else
-	/*
-	 * Map PA == VA
-	 */    
-	/* Find the start kernels load address */
-	adr	r5, _start
-	ldr	r2, =(L1_S_OFFSET)
-	bic	r5, r2
-	mov	r1, r5
-	mov	r2, r5
-	/* Map 64MiB, preserved over calls to build_pagetables */
-	mov	r3, #64
-	bl	build_pagetables
-
-	/* Create the kernel map to jump to */
-	mov	r1, r5
-	ldr	r2, =(KERNVIRTADDR)
-	bl	build_pagetables
-#endif
 	
 #if defined(SOCDEV_PA) && defined(SOCDEV_VA)
 	/* Create the custom map */
@@ -221,11 +201,6 @@ Lunmapped:
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
 
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B) || defined(CPU_KRAIT)
-	mov	r0, #0
-	mcr	p15, 0, r0, c13, c0, 1	/* Set ASID to 0 */
-#endif
-
 	/* Set the Domain Access register.  Very important! */
 	mov     r0, #((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
 	mcr	p15, 0, r0, c3, c0, 0
@@ -236,11 +211,6 @@ Lunmapped:
 	 * instructions emitted by clang.
 	 */
 	mrc	p15, 0, r0, c1, c0, 0
-#ifdef _ARM_ARCH_6
-	orr	r0, r0, #(CPU_CONTROL_V6_EXTPAGE | CPU_CONTROL_UNAL_ENABLE)
-	orr	r0, r0, #(CPU_CONTROL_AFLT_ENABLE)
-	orr	r0, r0, #(CPU_CONTROL_AF_ENABLE)
-#endif
 	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE)
 	mcr	p15, 0, r0, c1, c0, 0
 	nop
