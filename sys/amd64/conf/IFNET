@@ -1,5 +1,7 @@
 include GENERIC
 
+device		cxgbe
+
 # Untrivial stuff
 nodevice	netmap
 nodevice	wlan
