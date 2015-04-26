@@ -206,7 +206,6 @@ struct fxp_softc {
 	int watchdog_timer;		/* seconds until chip reset */
 	struct fxp_cb_mcs *mcsp;	/* Pointer to mcast setup descriptor */
 	uint32_t mcs_addr;		/* DMA address of the multicast cmd */
-	struct ifmedia sc_media;	/* media information */
 	device_t miibus;
 	device_t dev;
 	int tunable_int_delay;		/* interrupt delay value for ucode */

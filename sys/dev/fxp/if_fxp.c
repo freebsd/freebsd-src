@@ -250,12 +250,8 @@ static void		fxp_read_eeprom(struct fxp_softc *sc, u_short *data,
 			    int offset, int words);
 static void		fxp_write_eeprom(struct fxp_softc *sc, u_short *data,
 			    int offset, int words);
-static int		fxp_ifmedia_upd(if_t ifp);
-static void		fxp_ifmedia_sts(if_t ifp,
-			    struct ifmediareq *ifmr);
-static int		fxp_serial_ifmedia_upd(if_t ifp);
-static void		fxp_serial_ifmedia_sts(if_t ifp,
-			    struct ifmediareq *ifmr);
+static int		fxp_ifmedia_upd(if_t, if_media_t);
+static void		fxp_ifmedia_sts(if_t, struct ifmediareq *);
 static int		fxp_miibus_readreg(device_t dev, int phy, int reg);
 static int		fxp_miibus_writereg(device_t dev, int phy, int reg,
 			    int value);
@@ -314,10 +310,14 @@ static struct resource_spec fxp_res_spec_io[] = {
 	{ -1, 0 }
 };
 
+static if_media_t fxp_serial_mediae[] = { IFM_ETHER | IFM_MANUAL, 0 };
+
 static struct ifdriver fxp_ifdrv = {
 	.ifdrv_ops = {
 		.ifop_ioctl = fxp_ioctl,
 		.ifop_transmit = fxp_transmit,
+		.ifop_media_change = fxp_ifmedia_upd,
+		.ifop_media_status = fxp_ifmedia_sts,
 #ifdef DEVICE_POLLING
 		.ifop_poll = fxp_poll,
 #endif
@@ -454,8 +454,6 @@ fxp_attach(device_t dev)
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
 	callout_init_mtx(&sc->stat_ch, &sc->sc_mtx, 0);
-	ifmedia_init(&sc->sc_media, 0, fxp_serial_ifmedia_upd,
-	    fxp_serial_ifmedia_sts);
 
 	/*
 	 * Enable bus mastering.
@@ -826,22 +824,28 @@ fxp_attach(device_t dev)
 	 * is configured.  This is, in essence, manual configuration.
 	 */
 	if (sc->flags & FXP_FLAG_SERIAL_MEDIA) {
-		ifmedia_add(&sc->sc_media, IFM_ETHER|IFM_MANUAL, 0, NULL);
-		ifmedia_set(&sc->sc_media, IFM_ETHER|IFM_MANUAL);
+		ifat.ifat_mediae = fxp_serial_mediae;
+		ifat.ifat_media = IFM_ETHER | IFM_MANUAL;
 	} else {
+		struct mii_data *mii;
+
 		/*
 		 * i82557 wedge when isolating all of their PHYs.
 		 */
 		flags = MIIF_NOISOLATE;
 		if (sc->revision >= FXP_REV_82558_A4)
 			flags |= MIIF_DOPAUSE;
-		error = mii_attach(dev, &sc->miibus, fxp_ifmedia_upd,
-		    fxp_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY,
-		    MII_OFFSET_ANY, flags);
+		error = mii_attach(dev, &sc->miibus, BMSR_DEFCAPMASK,
+		    MII_PHY_ANY, MII_OFFSET_ANY, flags);
 		if (error != 0) {
 			device_printf(dev, "attaching PHYs failed\n");
 			goto fail;
 		}
+
+		mii = device_get_softc(sc->miibus);
+		ifat.ifat_mediae = mii->mii_mediae;
+		ifat.ifat_media = mii->mii_media;
+		ifat.ifat_mediamask = MII_MEDIA_MASK;
 		ifat.ifat_capabilities |= IFCAP_LINKSTATE;
 	}
 
@@ -853,19 +857,6 @@ fxp_attach(device_t dev)
 	if (error) {
 		device_printf(dev, "could not setup irq\n");
 		goto fail;
-	}
-
-	/*
-	 * Configure hardware to reject magic frames otherwise
-	 * system will hang on recipt of magic frames.
-	 */
-	if ((sc->flags & FXP_FLAG_WOLCAP) != 0) {
-		FXP_LOCK(sc);
-		/* Clear wakeup events. */
-		CSR_WRITE_1(sc, FXP_CSR_PMDR, CSR_READ_1(sc, FXP_CSR_PMDR));
-		fxp_init(sc, 0);
-		fxp_stop(sc);
-		FXP_UNLOCK(sc);
 	}
 
 	/*
@@ -893,6 +884,19 @@ fxp_attach(device_t dev)
 	sc->if_flags = ifat.ifat_flags;
 	sc->ifp = if_attach(&ifat);
 
+	/*
+	 * Configure hardware to reject magic frames otherwise
+	 * system will hang on recipt of magic frames.
+	 */
+	if ((sc->flags & FXP_FLAG_WOLCAP) != 0) {
+		FXP_LOCK(sc);
+		/* Clear wakeup events. */
+		CSR_WRITE_1(sc, FXP_CSR_PMDR, CSR_READ_1(sc, FXP_CSR_PMDR));
+		fxp_init(sc, 0);
+		fxp_stop(sc);
+		FXP_UNLOCK(sc);
+	}
+
 	return (0);
 
 fail:
@@ -917,7 +921,6 @@ fxp_release(struct fxp_softc *sc)
 	if (sc->miibus)
 		device_delete_child(sc->dev, sc->miibus);
 	bus_generic_detach(sc->dev);
-	ifmedia_removeall(&sc->sc_media);
 	if (sc->fxp_desc.cbl_list) {
 		bus_dmamap_unload(sc->cbl_tag, sc->cbl_map);
 		bus_dmamem_free(sc->cbl_tag, sc->fxp_desc.cbl_list,
@@ -2488,10 +2491,14 @@ fxp_init(struct fxp_softc *sc, int setmedia)
 	CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, sc->fxp_desc.rx_head->rx_addr);
 	fxp_scb_cmd(sc, FXP_SCB_COMMAND_RU_START);
 
-	if (sc->miibus != NULL && setmedia != 0)
-		mii_mediachg(device_get_softc(sc->miibus));
-
 	sc->flags |= FXP_FLAG_RUNNING;
+
+	if (sc->miibus != NULL && setmedia != 0) {
+		struct mii_data *mii;
+
+		mii = device_get_softc(sc->miibus);
+		mii_mediachg(mii, mii->mii_media);
+	}
 
 	/*
 	 * Enable interrupts.
@@ -2513,35 +2520,24 @@ fxp_init(struct fxp_softc *sc, int setmedia)
 	callout_reset(&sc->stat_ch, hz, fxp_tick, sc);
 }
 
-static int
-fxp_serial_ifmedia_upd(if_t ifp)
-{
-
-	return (0);
-}
-
-static void
-fxp_serial_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
-{
-
-	ifmr->ifm_active = IFM_ETHER|IFM_MANUAL;
-}
-
 /*
  * Change media according to request.
  */
 static int
-fxp_ifmedia_upd(if_t ifp)
+fxp_ifmedia_upd(if_t ifp, if_media_t media)
 {
 	struct fxp_softc *sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	struct mii_data *mii;
-	struct mii_softc	*miisc;
+	struct mii_softc *miisc;
+
+	if (sc->flags & FXP_FLAG_SERIAL_MEDIA)
+		return (0);
 
 	mii = device_get_softc(sc->miibus);
 	FXP_LOCK(sc);
 	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-		PHY_RESET(miisc);
-	mii_mediachg(mii);
+		PHY_RESET(miisc, media);
+	mii_mediachg(mii, media);
 	FXP_UNLOCK(sc);
 	return (0);
 }
@@ -2554,6 +2550,11 @@ fxp_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct fxp_softc *sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	struct mii_data *mii;
+
+	if (sc->flags & FXP_FLAG_SERIAL_MEDIA) {
+		ifmr->ifm_active = IFM_ETHER|IFM_MANUAL;
+		return;
+	}
 
 	mii = device_get_softc(sc->miibus);
 	FXP_LOCK(sc);
@@ -2746,9 +2747,7 @@ fxp_miibus_statchg(device_t dev)
 	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->miibus);
 	ifp = sc->ifp;
-	if (ifp == NULL || (sc->flags & FXP_FLAG_RUNNING) == 0 ||
-	    (mii->mii_media_status & (IFM_AVALID | IFM_ACTIVE)) !=
-	    (IFM_AVALID | IFM_ACTIVE))
+	if (ifp == NULL || (sc->flags & FXP_FLAG_RUNNING) == 0)
 		return;
 
 	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_10_T &&
@@ -2760,10 +2759,11 @@ fxp_miibus_statchg(device_t dev)
 	 * Call fxp_init() in order to adjust the flow control settings.
 	 * Note that the 82557 doesn't support hardware flow control.
 	 */
-	if (sc->revision == FXP_REV_82557)
-		return;
-	sc->flags &= ~FXP_FLAG_RUNNING;
-	fxp_init(sc, 0);
+	if (sc->revision != FXP_REV_82557) {
+		sc->flags &= ~FXP_FLAG_RUNNING;
+		fxp_init(sc, 0);
+	}
+	if_media_status(ifp, mii->mii_media_active, mii->mii_media_status);
 }
 
 static int
@@ -2771,7 +2771,6 @@ fxp_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 {
 	struct fxp_softc *sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	struct ifreq *ifr = data;
-	struct mii_data *mii;
 	int oflags, flag, mask, error = 0, reinit;
 
 	switch (command) {
@@ -2806,17 +2805,6 @@ fxp_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 			fxp_init(sc, 0);
 		}
 		FXP_UNLOCK(sc);
-		break;
-
-	case SIOCSIFMEDIA:
-	case SIOCGIFMEDIA:
-		if (sc->miibus != NULL) {
-			mii = device_get_softc(sc->miibus);
-                        error = ifmedia_ioctl(ifp, ifr,
-                            &mii->mii_media, command);
-		} else {
-                        error = ifmedia_ioctl(ifp, ifr, &sc->sc_media, command);
-		}
 		break;
 
 	case SIOCSIFCAP:
