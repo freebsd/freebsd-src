@@ -589,14 +589,12 @@ struct xl_type {
 struct xl_softc {
 	if_t			xl_ifp;	/* interface info */
 	device_t		xl_dev;		/* device info */
-	struct ifmedia		ifmedia;	/* media info */
 	bus_space_handle_t	xl_bhandle;
 	bus_space_tag_t		xl_btag;
 	void			*xl_intrhand;
 	struct resource		*xl_irq;
 	struct resource		*xl_res;
 	device_t		xl_miibus;
-	const struct xl_type	*xl_info;	/* 3Com adapter info */
 	bus_dma_tag_t		xl_mtag;
 	bus_dmamap_t		xl_tmpmap;	/* spare DMA map */
 	u_int8_t		xl_type;
@@ -620,6 +618,8 @@ struct xl_softc {
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif
+#define	XL_MAX_MEDIAE 10
+	if_media_t		xl_mediae[XL_MAX_MEDIAE + 1];
 };
 
 #define XL_LOCK(_sc)		mtx_lock(&(_sc)->xl_mtx)

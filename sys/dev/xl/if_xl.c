@@ -250,7 +250,7 @@ static void xl_setwol(struct xl_softc *);
 static int xl_poll(if_t, enum poll_cmd cmd, int count);
 #endif
 
-static int xl_ifmedia_upd(if_t);
+static int xl_ifmedia_upd(if_t, if_media_t);
 static void xl_ifmedia_sts(if_t, struct ifmediareq *);
 
 static int xl_eeprom_wait(struct xl_softc *);
@@ -260,14 +260,14 @@ static void xl_rxfilter(struct xl_softc *);
 static void xl_rxfilter_90x(struct xl_softc *);
 static void xl_rxfilter_90xB(struct xl_softc *);
 static void xl_setcfg(struct xl_softc *);
-static void xl_setmode(struct xl_softc *, int);
+static void xl_setmode(struct xl_softc *, if_media_t);
 static void xl_reset(struct xl_softc *);
 static int xl_list_rx_init(struct xl_softc *);
 static int xl_list_tx_init(struct xl_softc *);
 static int xl_list_tx_init_90xB(struct xl_softc *);
 static void xl_wait(struct xl_softc *);
 static void xl_mediacheck(struct xl_softc *);
-static void xl_choose_media(struct xl_softc *sc, int *media);
+static void xl_choose_media(struct xl_softc *, if_media_t *);
 static void xl_choose_xcvr(struct xl_softc *, int);
 static void xl_dma_map_addr(void *, bus_dma_segment_t *, int, int);
 #ifdef notdef
@@ -331,6 +331,8 @@ static struct ifdriver xl_ifdrv = {
 	.ifdrv_ops = {
 		.ifop_ioctl = xl_ioctl,
 		.ifop_transmit = xl_transmit,
+		.ifop_media_change = xl_ifmedia_upd,
+		.ifop_media_status = xl_ifmedia_sts,
 #ifdef DEVICE_POLLING
 		.ifop_poll = xl_poll,
 #endif
@@ -474,19 +476,16 @@ xl_miibus_statchg(device_t dev)
 			macctl &= ~XL_MACCTRL_FLOW_CONTROL_ENB;
 	}
 	CSR_WRITE_1(sc, XL_W3_MAC_CTRL, macctl);
-	if (sc->xl_ifp != NULL) {
-		if_setbaudrate(sc->xl_ifp,
-		    ifmedia_baudrate(mii->mii_media_active));
-		if_link_state_change(sc->xl_ifp,
-		    ifmedia_link_state(mii->mii_media_status));
-	}
+	if (sc->xl_ifp != NULL)
+		if_media_status(sc->xl_ifp,
+		    mii->mii_media_active | mii->mii_media_status);
 }
 
 /*
  * Special support for the 3c905B-COMBO. This card has 10/100 support
  * plus BNC and AUI ports. This means we will have both an miibus attached
  * plus some non-MII media settings. In order to allow this, we have to
- * add the extra media to the miibus's ifmedia struct, but we can't do
+ * add the extra media to the miibus's mii_data struct, but we can't do
  * that during xl_attach() because the miibus hasn't been attached yet.
  * So instead, we wait until the miibus probe/attach is done, at which
  * point we will get a callback telling is that it's safe to add our
@@ -497,11 +496,9 @@ xl_miibus_mediainit(device_t dev)
 {
 	struct xl_softc		*sc;
 	struct mii_data		*mii;
-	struct ifmedia		*ifm;
 
 	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->xl_miibus);
-	ifm = &mii->mii_media;
 
 	if (sc->xl_media & (XL_MEDIAOPT_AUI | XL_MEDIAOPT_10FL)) {
 		/*
@@ -511,23 +508,22 @@ xl_miibus_mediainit(device_t dev)
 		    sc->xl_media == XL_MEDIAOPT_10FL) {
 			if (bootverbose)
 				device_printf(sc->xl_dev, "found 10baseFL\n");
-			ifmedia_add(ifm, IFM_ETHER | IFM_10_FL, 0, NULL);
-			ifmedia_add(ifm, IFM_ETHER | IFM_10_FL|IFM_HDX, 0,
-			    NULL);
+			mii_phy_add_media(mii, IFM_ETHER | IFM_10_FL);
+			mii_phy_add_media(mii, IFM_ETHER | IFM_10_FL | IFM_HDX);
 			if (sc->xl_caps & XL_CAPS_FULL_DUPLEX)
-				ifmedia_add(ifm,
-				    IFM_ETHER | IFM_10_FL | IFM_FDX, 0, NULL);
+				mii_phy_add_media(mii,
+				    IFM_ETHER | IFM_10_FL | IFM_FDX);
 		} else {
 			if (bootverbose)
 				device_printf(sc->xl_dev, "found AUI\n");
-			ifmedia_add(ifm, IFM_ETHER | IFM_10_5, 0, NULL);
+			mii_phy_add_media(mii, IFM_ETHER | IFM_10_5);
 		}
 	}
 
 	if (sc->xl_media & XL_MEDIAOPT_BNC) {
 		if (bootverbose)
 			device_printf(sc->xl_dev, "found BNC\n");
-		ifmedia_add(ifm, IFM_ETHER | IFM_10_2, 0, NULL);
+		mii_phy_add_media(mii, IFM_ETHER | IFM_10_2);
 	}
 }
 
@@ -740,7 +736,7 @@ xl_setcfg(struct xl_softc *sc)
 }
 
 static void
-xl_setmode(struct xl_softc *sc, int media)
+xl_setmode(struct xl_softc *sc, if_media_t media)
 {
 	u_int32_t		icfg;
 	u_int16_t		mediastat;
@@ -1069,13 +1065,14 @@ xl_attach(device_t dev)
 		.ifat_version = IF_ATTACH_VERSION,
 		.ifat_drv = &xl_ifdrv,
 		.ifat_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST,
-		.ifat_capabilities = IFCAP_VLAN_MTU | IFCAP_LINKSTATE,
+		.ifat_capabilities = IFCAP_VLAN_MTU,
 	};
 	u_char			eaddr[ETHER_ADDR_LEN];
 	u_int16_t		sinfo2, xcvr[2];
 	struct xl_softc		*sc;
 	if_t			ifp;
-	int			media, pmcap;
+	if_media_t		media;
+	int			midx, pmcap;
 	int			error = 0, rid, res, unit;
 	uint16_t		did;
 
@@ -1086,8 +1083,6 @@ xl_attach(device_t dev)
 
 	mtx_init(&sc->xl_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
-	ifmedia_init(&sc->ifmedia, 0, xl_ifmedia_upd, xl_ifmedia_sts);
-
 	did = pci_get_device(dev);
 
 	sc->xl_flags = 0;
@@ -1372,15 +1367,17 @@ xl_attach(device_t dev)
 		phy = MII_PHY_ANY;
 		if ((sc->xl_flags & XL_FLAG_PHYOK) == 0)
 			phy = 24;
-		error = mii_attach(dev, &sc->xl_miibus, xl_ifmedia_upd,
-		    xl_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY,
+		error = mii_attach(dev, &sc->xl_miibus, BMSR_DEFCAPMASK, phy,
+		    MII_OFFSET_ANY,
 		    sc->xl_type == XL_TYPE_905B ? MIIF_DOPAUSE : 0);
 		if (error != 0) {
 			device_printf(dev, "attaching PHYs failed\n");
 			goto fail;
 		}
 		mii = device_get_softc(sc->xl_miibus);
-		ifat.ifat_baudrate = ifmedia_baudrate(mii->mii_media_active);
+		ifat.ifat_mediae = mii->mii_mediae;
+		ifat.ifat_media = mii->mii_media;
+		ifat.ifat_mediamask = MII_MEDIA_MASK;
 		ifat.ifat_capabilities |= IFCAP_LINKSTATE;
 		goto media_done;
 	}
@@ -1396,14 +1393,14 @@ xl_attach(device_t dev)
 	/*
 	 * Do ifmedia setup.
 	 */
+	midx = 0;
 	if (sc->xl_media & XL_MEDIAOPT_BT) {
 		if (bootverbose)
 			device_printf(dev, "found 10baseT\n");
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T, 0, NULL);
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T|IFM_HDX, 0, NULL);
+		sc->xl_mediae[midx++] = IFM_ETHER | IFM_10_T;
+		sc->xl_mediae[midx++] = IFM_ETHER | IFM_10_T | IFM_HDX;
 		if (sc->xl_caps & XL_CAPS_FULL_DUPLEX)
-			ifmedia_add(&sc->ifmedia,
-			    IFM_ETHER|IFM_10_T|IFM_FDX, 0, NULL);
+			sc->xl_mediae[midx++] = IFM_ETHER | IFM_10_T | IFM_FDX;
 	}
 
 	if (sc->xl_media & (XL_MEDIAOPT_AUI|XL_MEDIAOPT_10FL)) {
@@ -1414,37 +1411,35 @@ xl_attach(device_t dev)
 		    sc->xl_media == XL_MEDIAOPT_10FL) {
 			if (bootverbose)
 				device_printf(dev, "found 10baseFL\n");
-			ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_FL, 0, NULL);
-			ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_FL|IFM_HDX,
-			    0, NULL);
+			sc->xl_mediae[midx++] = IFM_ETHER | IFM_10_FL;
+			sc->xl_mediae[midx++] = IFM_ETHER | IFM_10_FL | IFM_HDX;
 			if (sc->xl_caps & XL_CAPS_FULL_DUPLEX)
-				ifmedia_add(&sc->ifmedia,
-				    IFM_ETHER|IFM_10_FL|IFM_FDX, 0, NULL);
+				sc->xl_mediae[midx++] = 
+				    IFM_ETHER | IFM_10_FL | IFM_FDX;
 		} else {
 			if (bootverbose)
 				device_printf(dev, "found AUI\n");
-			ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_5, 0, NULL);
+			sc->xl_mediae[midx++] = IFM_ETHER | IFM_10_5;
 		}
 	}
 
 	if (sc->xl_media & XL_MEDIAOPT_BNC) {
 		if (bootverbose)
 			device_printf(dev, "found BNC\n");
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_2, 0, NULL);
+		sc->xl_mediae[midx++] = IFM_ETHER | IFM_10_2;
 	}
 
 	if (sc->xl_media & XL_MEDIAOPT_BFX) {
 		if (bootverbose)
 			device_printf(dev, "found 100baseFX\n");
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_FX, 0, NULL);
+		sc->xl_mediae[midx++] = IFM_ETHER | IFM_100_FX;
 	}
 
 	media = IFM_ETHER|IFM_100_TX|IFM_FDX;
 	xl_choose_media(sc, &media);
 
-	if (sc->xl_miibus == NULL)
-		ifmedia_set(&sc->ifmedia, media);
-	ifat.ifat_baudrate = ifmedia_baudrate(sc->ifmedia.ifm_media);
+	ifat.ifat_mediae = sc->xl_mediae;
+	ifat.ifat_media = media;
 
 media_done:
 	if (sc->xl_flags & XL_FLAG_NO_XCVR_PWR) {
@@ -1494,7 +1489,7 @@ fail:
  *     satisfy lock assertions.
  */
 static void
-xl_choose_media(struct xl_softc *sc, int *media)
+xl_choose_media(struct xl_softc *sc, if_media_t *media)
 {
 
 	XL_LOCK(sc);
@@ -1579,7 +1574,6 @@ xl_detach(device_t dev)
 	if (sc->xl_miibus)
 		device_delete_child(dev, sc->xl_miibus);
 	bus_generic_detach(dev);
-	ifmedia_removeall(&sc->ifmedia);
 
 	if (sc->xl_intrhand)
 		bus_teardown_intr(dev, sc->xl_irq, sc->xl_intrhand);
@@ -2625,7 +2619,7 @@ static void
 xl_init(struct xl_softc *sc)
 {
 	int			error, i;
-	struct mii_data		*mii = NULL;
+	struct mii_data		*mii;
 
 	XL_LOCK_ASSERT(sc);
 
@@ -2646,9 +2640,6 @@ xl_init(struct xl_softc *sc)
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_RESET);
 	xl_wait(sc);
 	DELAY(10000);
-
-	if (sc->xl_miibus != NULL)
-		mii = device_get_softc(sc->xl_miibus);
 
 	/*
 	 * Clear WOL status and disable all WOL feature as WOL
@@ -2812,8 +2803,10 @@ xl_init(struct xl_softc *sc)
 	xl_wait(sc);
 
 	/* XXX Downcall to miibus. */
-	if (mii != NULL)
-		mii_mediachg(mii);
+	if (sc->xl_miibus != NULL) {
+		mii = device_get_softc(sc->xl_miibus);
+		mii_mediachg(mii, mii->mii_media);
+	}
 
 	/* Select window 7 for normal operations. */
 	XL_SEL_WIN(7);
@@ -2828,10 +2821,9 @@ xl_init(struct xl_softc *sc)
  * Set media options.
  */
 static int
-xl_ifmedia_upd(if_t ifp)
+xl_ifmedia_upd(if_t ifp, if_media_t media)
 {
 	struct xl_softc		*sc;
-	struct ifmedia		*ifm = NULL;
 	struct mii_data		*mii = NULL;
 
 	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
@@ -2839,17 +2831,13 @@ xl_ifmedia_upd(if_t ifp)
 
 	if (sc->xl_miibus != NULL)
 		mii = device_get_softc(sc->xl_miibus);
-	if (mii == NULL)
-		ifm = &sc->ifmedia;
-	else
-		ifm = &mii->mii_media;
 
-	switch (IFM_SUBTYPE(ifm->ifm_media)) {
+	switch (IFM_SUBTYPE(media)) {
 	case IFM_100_FX:
 	case IFM_10_FL:
 	case IFM_10_2:
 	case IFM_10_5:
-		xl_setmode(sc, ifm->ifm_media);
+		xl_setmode(sc, media);
 		XL_UNLOCK(sc);
 		return (0);
 	}
@@ -2860,7 +2848,7 @@ xl_ifmedia_upd(if_t ifp)
 		sc->xl_flags &= ~XL_FLAG_RUNNING;
 		xl_init(sc);
 	} else {
-		xl_setmode(sc, ifm->ifm_media);
+		xl_setmode(sc, media);
 	}
 
 	XL_UNLOCK(sc);
@@ -2951,7 +2939,6 @@ xl_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 	struct ifreq		*ifr = (struct ifreq *) data;
 	uint32_t		oflags;
 	int			error = 0;
-	struct mii_data		*mii = NULL;
 
 	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 
@@ -2978,17 +2965,6 @@ xl_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 		if (sc->xl_flags & XL_FLAG_RUNNING)
 			xl_rxfilter(sc);
 		XL_UNLOCK(sc);
-		break;
-	case SIOCGIFMEDIA:
-	case SIOCSIFMEDIA:
-		if (sc->xl_miibus != NULL)
-			mii = device_get_softc(sc->xl_miibus);
-		if (mii == NULL)
-			error = ifmedia_ioctl(ifp, ifr,
-			    &sc->ifmedia, command);
-		else
-			error = ifmedia_ioctl(ifp, ifr,
-			    &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
 #ifdef DEVICE_POLLING
