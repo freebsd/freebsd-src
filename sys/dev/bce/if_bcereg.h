@@ -6382,9 +6382,6 @@ struct bce_softc
 	/* Device resource handle */
 	struct resource		*bce_res_mem;
 
-	/* TBI media info */
-	struct ifmedia		bce_ifmedia;
-
 	/* Device bus tag */
 	bus_space_tag_t		bce_btag;
 
