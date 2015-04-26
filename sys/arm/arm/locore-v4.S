@@ -250,7 +250,7 @@ virt_done:
 	/* init arm will return the new stack pointer. */
 	mov	sp, r0
 
-	bl	_C_LABEL(mi_startup)		/* call mi_startup()! */
+	bl	_C_LABEL(mi_startup)	/* call mi_startup()! */
 
 	adr	r0, .Lmainreturned
 	b	_C_LABEL(panic)
@@ -428,7 +428,7 @@ ENTRY(longjmp)
 END(longjmp)
 
 	.data
-	.global _C_LABEL(esym)
+	.global	_C_LABEL(esym)
 _C_LABEL(esym):	.word	_C_LABEL(end)
 
 ENTRY_NP(abort)
@@ -441,7 +441,7 @@ ENTRY_NP(sigcode)
 
 	/*
 	 * Call the sigreturn system call.
-	 * 
+	 *
 	 * We have to load r7 manually rather than using
 	 * "ldr r7, =SYS_sigreturn" to ensure the value of szsigcode is
 	 * correct. Using the alternative places esigcode at the address
