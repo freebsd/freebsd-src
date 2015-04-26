@@ -474,22 +474,24 @@ getentropy_fallback(void *buf, size_t len)
 
 			HD(cnt);
 		}
-#ifdef AT_RANDOM
+#ifdef HAVE_GETAUXVAL
+#  ifdef AT_RANDOM
 		/* Not as random as you think but we take what we are given */
 		p = (char *) getauxval(AT_RANDOM);
 		if (p)
 			HR(p, 16);
-#endif
-#ifdef AT_SYSINFO_EHDR
+#  endif
+#  ifdef AT_SYSINFO_EHDR
 		p = (char *) getauxval(AT_SYSINFO_EHDR);
 		if (p)
 			HR(p, pgs);
-#endif
-#ifdef AT_BASE
+#  endif
+#  ifdef AT_BASE
 		p = (char *) getauxval(AT_BASE);
 		if (p)
 			HD(p);
-#endif
+#  endif
+#endif /* HAVE_GETAUXVAL */
 
 		SHA512_Final(results, &ctx);
 		memcpy((char*)buf + i, results, min(sizeof(results), len - i));

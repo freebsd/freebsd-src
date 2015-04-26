@@ -504,16 +504,18 @@ perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 	if(cfg->pidfile && cfg->pidfile[0]) {
 		writepid(daemon->pidfile, getpid());
 		if(cfg->username && cfg->username[0]) {
+#  ifdef HAVE_CHOWN
 			if(chown(daemon->pidfile, cfg->uid, cfg->gid) == -1) {
 				log_err("cannot chown %u.%u %s: %s",
 					(unsigned)cfg->uid, (unsigned)cfg->gid,
 					daemon->pidfile, strerror(errno));
 			}
+#  endif /* HAVE_CHOWN */
 		}
 	}
 #else
 	(void)daemon;
-#endif
+#endif /* HAVE_KILL */
 
 	/* Set user context */
 #ifdef HAVE_GETPWNAM
