@@ -96,7 +96,7 @@ el_init_fd(const char *prog, FILE *fin, FILE *fout, FILE *ferr,
          */
 	el->el_flags = 0;
 #ifdef WIDECHAR
-	if (setlocale(LC_CTYPE, "") != NULL) {
+	if (setlocale(LC_CTYPE, NULL) != NULL) {
 		if (strcmp(nl_langinfo(CODESET), "UTF-8") == 0)
 			el->el_flags |= CHARSET_IS_UTF8;
 	}
