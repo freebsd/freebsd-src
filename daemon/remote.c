@@ -329,7 +329,7 @@ add_open(const char* ip, int nr, struct listen_port** list, int noproto_is_err,
 		if(fd != -1) {
 #ifdef HAVE_CHOWN
 			if (cfg->username && cfg->username[0])
-				chown(ip, cfg->uid, cfg->gid);
+				chown(ip, cfg_uid, cfg_gid);
 			chmod(ip, (mode_t)(S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP));
 #else
 			(void)cfg;

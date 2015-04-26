@@ -194,8 +194,6 @@ struct config_file {
 	char* chrootdir;
 	/** username to change to, if not "". */
 	char* username;
-	uid_t uid;
-	gid_t gid;
 	/** working directory */
 	char* directory;
 	/** filename to log to. */
@@ -345,6 +343,11 @@ struct config_file {
 	int dnstap_log_forwarder_response_messages;
 };
 
+/** from cfg username, after daemonise setup performed */
+extern uid_t cfg_uid;
+/** from cfg username, after daemonise setup performed */
+extern gid_t cfg_gid;
+
 /**
  * Stub config options
  */
@@ -429,7 +432,7 @@ void config_delete(struct config_file* config);
 void config_apply(struct config_file* config);
 
 /**
- * Find username, sets uid and gid.
+ * Find username, sets cfg_uid and cfg_gid.
  * @param config: the config structure.
  */
 void config_lookup_uid(struct config_file* config);

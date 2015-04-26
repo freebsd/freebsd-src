@@ -93,6 +93,13 @@ getentropy(void *buf, size_t len)
 		return -1;
 	}
 
+#ifdef SYS_getrandom
+	/* try to use getrandom syscall introduced with kernel 3.17 */
+	ret = syscall(SYS_getrandom, buf, len, 0);
+	if (ret != -1)
+		return (ret);
+#endif /* SYS_getrandom */
+
 	/*
 	 * Try to get entropy with /dev/urandom
 	 *
