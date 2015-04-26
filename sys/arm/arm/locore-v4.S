@@ -116,7 +116,7 @@ ASENTRY_NP(_start)
 	 * If we're running with MMU disabled, test against the
 	 * physical address instead.
 	 */
-	mrc     p15, 0, r2, c1, c0, 0
+	mrc	p15, 0, r2, c1, c0, 0
 	ands	r2, r2, #CPU_CONTROL_MMU_ENABLE
 	ldreq	r6, =PHYSADDR
 	ldrne	r6, =LOADERRAMADDR
@@ -125,7 +125,7 @@ ASENTRY_NP(_start)
 	cmp	r7, pc
 	bhi	from_ram
 	b	do_copy
-	
+
 flash_lower:
 	cmp	r6, pc
 	bls	from_ram
@@ -148,12 +148,12 @@ from_ram:
 
 disable_mmu:
 	/* Disable MMU for a while */
-	mrc     p15, 0, r2, c1, c0, 0
+	mrc	p15, 0, r2, c1, c0, 0
 	bic	r2, r2, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE |\
 	    CPU_CONTROL_WBUF_ENABLE)
 	bic	r2, r2, #(CPU_CONTROL_IC_ENABLE)
 	bic	r2, r2, #(CPU_CONTROL_BPRD_ENABLE)
-	mcr     p15, 0, r2, c1, c0, 0
+	mcr	p15, 0, r2, c1, c0, 0
 
 	nop
 	nop
@@ -172,25 +172,25 @@ Lunmapped:
 	/*
 	 * Some of the older ports (the various XScale, mostly) assume
 	 * that the memory before the kernel is mapped, and use it for
-	 * the various stacks, page tables, etc. For those CPUs, map the 
-	 * 64 first MB of RAM, as it used to be. 
+	 * the various stacks, page tables, etc. For those CPUs, map the
+	 * 64 first MB of RAM, as it used to be.
 	 */
 	/*
 	 * Map PA == VA
-	 */    
-	ldr     r5, =PHYSADDR
-	mov     r1, r5
-	mov     r2, r5
+	 */
+	ldr	r5, =PHYSADDR
+	mov	r1, r5
+	mov	r2, r5
 	/* Map 64MiB, preserved over calls to build_pagetables */
-	mov     r3, #64
-	bl      build_pagetables
-	
+	mov	r3, #64
+	bl	build_pagetables
+
 	/* Create the kernel map to jump to */
-	mov     r1, r5
-	ldr     r2, =(KERNBASE)
-	bl      build_pagetables
+	mov	r1, r5
+	ldr	r2, =(KERNBASE)
+	bl	build_pagetables
 	ldr	r5, =(KERNPHYSADDR)
-	
+
 #if defined(SOCDEV_PA) && defined(SOCDEV_VA)
 	/* Create the custom map */
 	ldr	r1, =SOCDEV_PA
@@ -202,9 +202,9 @@ Lunmapped:
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
 
 	/* Set the Domain Access register.  Very important! */
-	mov     r0, #((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
+	mov	r0, #((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
 	mcr	p15, 0, r0, c3, c0, 0
-	/* 
+	/*
 	 * Enable MMU.
 	 * On armv6 enable extended page tables, and set alignment checking
 	 * to modulo-4 (CPU_CONTROL_UNAL_ENABLE) for the ldrd/strd
@@ -359,11 +359,11 @@ pagetable:
 	.word	_C_LABEL(cpufuncs)
 
 ENTRY_NP(cpu_halt)
-	mrs     r2, cpsr
+	mrs	r2, cpsr
 	bic	r2, r2, #(PSR_MODE)
-	orr     r2, r2, #(PSR_SVC32_MODE)
+	orr	r2, r2, #(PSR_SVC32_MODE)
 	orr	r2, r2, #(PSR_I | PSR_F)
-	msr     cpsr_fsxc, r2
+	msr	cpsr_fsxc, r2
 
 	ldr	r4, .Lcpu_reset_address
 	ldr	r4, [r4]
@@ -389,9 +389,9 @@ ENTRY_NP(cpu_halt)
 	 * Hurl ourselves into the ROM
 	 */
 	mov	r0, #(CPU_CONTROL_32BP_ENABLE | CPU_CONTROL_32BD_ENABLE)
-	mcr     p15, 0, r0, c1, c0, 0
-	mcrne   p15, 0, r2, c8, c7, 0 	/* nail I+D TLB on ARMv4 and greater */
-	mov     pc, r4
+	mcr	p15, 0, r0, c1, c0, 0
+	mcrne	p15, 0, r2, c8, c7, 0 	/* nail I+D TLB on ARMv4 and greater */
+	mov	pc, r4
 
 	/*
 	 * _cpu_reset_address contains the address to branch to, to complete
