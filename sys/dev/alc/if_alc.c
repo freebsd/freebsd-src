@@ -162,8 +162,8 @@ static uint32_t	alc_miidbg_readreg(struct alc_softc *, int);
 static uint32_t	alc_miidbg_writereg(struct alc_softc *, int, int);
 static uint32_t	alc_miiext_readreg(struct alc_softc *, int, int);
 static uint32_t	alc_miiext_writereg(struct alc_softc *, int, int, int);
-static int	alc_mediachange(if_t);
-static int	alc_mediachange_locked(struct alc_softc *);
+static int	alc_mediachange(if_t, if_media_t);
+static int	alc_mediachange_locked(struct alc_softc *, if_media_t);
 static void	alc_mediastatus(if_t, struct ifmediareq *);
 static int	alc_newbuf(struct alc_softc *, struct alc_rxdesc *);
 static void	alc_osc_reset(struct alc_softc *);
@@ -232,6 +232,8 @@ static struct ifdriver alc_ifdrv = {
 	.ifdrv_ops = {
 		.ifop_ioctl = alc_ioctl,
 		.ifop_transmit = alc_transmit,
+		.ifop_media_change = alc_mediachange,
+		.ifop_media_status = alc_mediastatus,
 	},
 	.ifdrv_name = "alc",
 	.ifdrv_type = IFT_ETHER,
@@ -439,6 +441,9 @@ alc_miibus_statchg(device_t dev)
 	}
 	alc_aspm(sc, 0, IFM_SUBTYPE(mii->mii_media_active));
 	alc_dsp_fixup(sc, IFM_SUBTYPE(mii->mii_media_active));
+	if (sc->alc_ifp != NULL)
+		if_media_status(sc->alc_ifp,
+		    mii->mii_media_active | mii->mii_media_status);
 }
 
 static uint32_t
@@ -613,21 +618,21 @@ alc_mediastatus(if_t ifp, struct ifmediareq *ifmr)
 }
 
 static int
-alc_mediachange(if_t ifp)
+alc_mediachange(if_t ifp, if_media_t media)
 {
 	struct alc_softc *sc;
 	int error;
 
 	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	ALC_LOCK(sc);
-	error = alc_mediachange_locked(sc);
+	error = alc_mediachange_locked(sc, media);
 	ALC_UNLOCK(sc);
 
 	return (error);
 }
 
 static int
-alc_mediachange_locked(struct alc_softc *sc)
+alc_mediachange_locked(struct alc_softc *sc, if_media_t media)
 {
 	struct mii_data *mii;
 	struct mii_softc *miisc;
@@ -637,8 +642,8 @@ alc_mediachange_locked(struct alc_softc *sc)
 
 	mii = device_get_softc(sc->alc_miibus);
 	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-		PHY_RESET(miisc);
-	error = mii_mediachg(mii);
+		PHY_RESET(miisc, media);
+	error = mii_mediachg(mii, media);
 
 	return (error);
 }
@@ -1366,11 +1371,12 @@ alc_attach(device_t dev)
 		.ifat_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST,
 		.ifat_capabilities = IFCAP_TXCSUM | IFCAP_TSO4 |
 		    IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING |
-		    IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWTSO |
-		    IFCAP_LINKSTATE,
+		    IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWTSO,
 		.ifat_hwassist = ALC_CSUM_FEATURES | CSUM_TSO,
+		.ifat_mediamask = MII_MEDIA_MASK,
 	};
 	struct alc_softc *sc;
+	struct mii_data *mii;
 	int base, error, i, msic, msixc;
 	uint16_t burst;
 
@@ -1548,13 +1554,13 @@ alc_attach(device_t dev)
 	alc_get_macaddr(sc);
 
 	/* Set up MII bus. */
-	error = mii_attach(dev, &sc->alc_miibus, alc_mediachange,
-	    alc_mediastatus, BMSR_DEFCAPMASK, sc->alc_phyaddr, MII_OFFSET_ANY,
-	    MIIF_DOPAUSE);
+	error = mii_attach(dev, &sc->alc_miibus, BMSR_DEFCAPMASK,
+	    sc->alc_phyaddr, MII_OFFSET_ANY, MIIF_DOPAUSE);
 	if (error != 0) {
 		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
+	mii = device_get_softc(sc->alc_miibus);
 
 	/* Create local taskq. */
 	sc->alc_tq = taskqueue_create_fast("alc_taskq", M_WAITOK,
@@ -1591,6 +1597,8 @@ alc_attach(device_t dev)
 	ifat.ifat_softc = sc;
 	ifat.ifat_dunit = device_get_unit(dev);
 	ifat.ifat_lla = sc->alc_eaddr;
+	ifat.ifat_mediae = mii->mii_mediae;
+	ifat.ifat_media = mii->mii_media;
 	if (pci_find_cap(dev, PCIY_PMG, &base) == 0) {
 		ifat.ifat_capabilities |= IFCAP_WOL_MAGIC | IFCAP_WOL_MCAST;
 		sc->alc_flags |= ALC_FLAG_PM;
@@ -2972,7 +2980,6 @@ alc_ioctl(if_t ifp, u_long cmd, void *data, struct thread *td)
 {
 	struct alc_softc *sc;
 	struct ifreq *ifr;
-	struct mii_data *mii;
 	uint32_t oflags;
 	int error, mask;
 
@@ -3019,11 +3026,6 @@ alc_ioctl(if_t ifp, u_long cmd, void *data, struct thread *td)
 		if ((sc->alc_flags & ALC_FLAG_RUNNING) != 0)
 			alc_rxfilter(sc);
 		ALC_UNLOCK(sc);
-		break;
-	case SIOCSIFMEDIA:
-	case SIOCGIFMEDIA:
-		mii = device_get_softc(sc->alc_miibus);
-		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, cmd);
 		break;
 	case SIOCSIFCAP:
 		ALC_LOCK(sc);
@@ -3815,8 +3817,6 @@ alc_init(struct alc_softc *sc)
 
 	ALC_LOCK_ASSERT(sc);
 
-	mii = device_get_softc(sc->alc_miibus);
-
 	if ((sc->alc_flags & ALC_FLAG_RUNNING) != 0)
 		return;
 	/*
@@ -4184,8 +4184,10 @@ alc_init(struct alc_softc *sc)
 
 	sc->alc_flags |= ALC_FLAG_RUNNING;
 	sc->alc_flags &= ~ALC_FLAG_LINK;
+
 	/* Switch to the current media. */
-	alc_mediachange_locked(sc);
+	mii = device_get_softc(sc->alc_miibus);
+	alc_mediachange_locked(sc, mii->mii_media);
 
 	callout_reset(&sc->alc_tick_ch, hz, alc_tick, sc);
 }
