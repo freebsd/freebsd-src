@@ -2961,7 +2961,6 @@ struct bge_softc {
 	struct resource		*bge_irq;
 	struct resource		*bge_res;	/* MAC mapped I/O */
 	struct resource		*bge_res2;	/* APE mapped I/O */
-	struct ifmedia		bge_ifmedia;	/* TBI media info */
 	int			bge_expcap;
 	int			bge_expmrq;
 	int			bge_msicap;

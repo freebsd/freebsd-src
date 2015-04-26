@@ -424,8 +424,8 @@ static void bge_stop_block(struct bge_softc *, bus_size_t, uint32_t);
 static void bge_stop(struct bge_softc *);
 static void bge_watchdog(struct bge_softc *);
 static int bge_shutdown(device_t);
-static int bge_ifmedia_upd_locked(if_t);
-static int bge_ifmedia_upd(if_t);
+static int bge_ifmedia_upd_locked(if_t, if_media_t);
+static int bge_ifmedia_upd(if_t, if_media_t);
 static void bge_ifmedia_sts(if_t, struct ifmediareq *);
 static uint64_t bge_get_counter(if_t, ift_counter);
 
@@ -531,11 +531,20 @@ static driver_t bge_driver = {
 	sizeof(struct bge_softc)
 };
 
+static if_media_t bge_tbi_mediae[] = {
+	IFM_ETHER | IFM_1000_SX,
+	IFM_ETHER | IFM_1000_SX | IFM_FDX,
+	IFM_ETHER | IFM_AUTO,
+	0
+};
+
 static struct ifdriver bge_ifdrv = {
 	.ifdrv_ops = {
 		.ifop_ioctl = bge_ioctl,
 		.ifop_transmit = bge_transmit,
 		.ifop_get_counter = bge_get_counter,
+		.ifop_media_change = bge_ifmedia_upd,
+		.ifop_media_status = bge_ifmedia_sts,
 #ifdef DEVICE_POLLING
 		.ifop_poll = bge_poll,
 #endif
@@ -1281,12 +1290,9 @@ bge_miibus_statchg(device_t dev)
 	} else
 		sc->bge_link = 0;
 
-        if (sc->bge_ifp != NULL) { 
-		if_setbaudrate(sc->bge_ifp,
-		    ifmedia_baudrate(mii->mii_media_active));
-		if_link_state_change(sc->bge_ifp,
-		    ifmedia_link_state(mii->mii_media_status));
-        }
+	if (sc->bge_ifp != NULL)
+        	if_media_status(sc->bge_ifp,
+		    mii->mii_media_active | mii->mii_media_status);
 
 	if (sc->bge_link == 0)
 		return;
@@ -3826,15 +3832,11 @@ bge_attach(device_t dev)
 		sc->bge_phy_flags |= BGE_PHY_NO_WIRESPEED;
 
 	if (sc->bge_flags & BGE_FLAG_TBI) {
-		ifmedia_init(&sc->bge_ifmedia, IFM_IMASK, bge_ifmedia_upd,
-		    bge_ifmedia_sts);
-		ifmedia_add(&sc->bge_ifmedia, IFM_ETHER | IFM_1000_SX, 0, NULL);
-		ifmedia_add(&sc->bge_ifmedia, IFM_ETHER | IFM_1000_SX | IFM_FDX,
-		    0, NULL);
-		ifmedia_add(&sc->bge_ifmedia, IFM_ETHER | IFM_AUTO, 0, NULL);
-		ifmedia_set(&sc->bge_ifmedia, IFM_ETHER | IFM_AUTO);
-		sc->bge_ifmedia.ifm_media = sc->bge_ifmedia.ifm_cur->ifm_media;
+		ifat.ifat_mediae = bge_tbi_mediae;
+		ifat.ifat_media = IFM_ETHER | IFM_AUTO;
 	} else {
+		 struct mii_data *mii;
+
 		/*
 		 * Do transceiver setup and tell the firmware the
 		 * driver is down so we can try to get access the
@@ -3847,9 +3849,8 @@ bge_attach(device_t dev)
 again:
 		bge_asf_driver_up(sc);
 
-		error = mii_attach(dev, &sc->bge_miibus, bge_ifmedia_upd,
-		    bge_ifmedia_sts, capmask, sc->bge_phy_addr, 
-		    MII_OFFSET_ANY, MIIF_DOPAUSE);
+		error = mii_attach(dev, &sc->bge_miibus, capmask,
+		    sc->bge_phy_addr, MII_OFFSET_ANY, MIIF_DOPAUSE);
 		if (error != 0) {
 			if (trys++ < 4) {
 				device_printf(sc->bge_dev, "Try again\n");
@@ -3866,6 +3867,11 @@ again:
 		 */
 		if (sc->bge_asf_mode & ASF_STACKUP)
 			BGE_SETBIT(sc, BGE_MODE_CTL, BGE_MODECTL_STACKUP);
+
+		mii = device_get_softc(sc->bge_miibus);
+		ifat.ifat_mediae = mii->mii_mediae;
+		ifat.ifat_media = mii->mii_media;
+		ifat.ifat_mediamask = MII_MEDIA_MASK;
 		ifat.ifat_capabilities |= IFCAP_LINKSTATE;
 	}
 
@@ -3964,9 +3970,7 @@ bge_detach(device_t dev)
 	if (sc->bge_tq)
 		taskqueue_drain(sc->bge_tq, &sc->bge_intr_task);
 
-	if (sc->bge_flags & BGE_FLAG_TBI)
-		ifmedia_removeall(&sc->bge_ifmedia);
-	else if (sc->bge_miibus != NULL) {
+	if (sc->bge_miibus != NULL) {
 		bus_generic_detach(dev);
 		device_delete_child(dev, sc->bge_miibus);
 	}
@@ -5570,7 +5574,7 @@ bge_init(struct bge_softc *sc)
 
 	sc->bge_flags |= BGE_FLAG_RUNNING;
 
-	bge_ifmedia_upd_locked(ifp);
+	bge_ifmedia_upd_locked(ifp, IFM_ETHER | IFM_AUTO);
 
 	callout_reset(&sc->bge_stat_ch, hz, bge_tick, sc);
 }
@@ -5579,35 +5583,32 @@ bge_init(struct bge_softc *sc)
  * Set media options.
  */
 static int
-bge_ifmedia_upd(if_t ifp)
+bge_ifmedia_upd(if_t ifp, if_media_t media)
 {
 	struct bge_softc *sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	int res;
 
 	BGE_LOCK(sc);
-	res = bge_ifmedia_upd_locked(ifp);
+	res = bge_ifmedia_upd_locked(ifp, media);
 	BGE_UNLOCK(sc);
 
 	return (res);
 }
 
 static int
-bge_ifmedia_upd_locked(if_t ifp)
+bge_ifmedia_upd_locked(if_t ifp, if_media_t media)
 {
 	struct bge_softc *sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	struct mii_data *mii;
 	struct mii_softc *miisc;
-	struct ifmedia *ifm;
 
 	BGE_LOCK_ASSERT(sc);
 
-	ifm = &sc->bge_ifmedia;
-
 	/* If this is a 1000baseX NIC, enable the TBI port. */
 	if (sc->bge_flags & BGE_FLAG_TBI) {
-		if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
+		if (IFM_TYPE(media) != IFM_ETHER)
 			return (EINVAL);
-		switch(IFM_SUBTYPE(ifm->ifm_media)) {
+		switch(IFM_SUBTYPE(media)) {
 		case IFM_AUTO:
 			/*
 			 * The BCM5704 ASIC appears to have a special
@@ -5631,7 +5632,7 @@ bge_ifmedia_upd_locked(if_t ifp)
 			}
 			break;
 		case IFM_1000_SX:
-			if ((ifm->ifm_media & IFM_GMASK) == IFM_FDX) {
+			if ((media & IFM_GMASK) == IFM_FDX) {
 				BGE_CLRBIT(sc, BGE_MAC_MODE,
 				    BGE_MACMODE_HALF_DUPLEX);
 			} else {
@@ -5649,8 +5650,8 @@ bge_ifmedia_upd_locked(if_t ifp)
 	sc->bge_link_evt++;
 	mii = device_get_softc(sc->bge_miibus);
 	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-		PHY_RESET(miisc);
-	mii_mediachg(mii);
+		PHY_RESET(miisc, media);
+	mii_mediachg(mii, media);
 
 	/*
 	 * Force an interrupt so that we will call bge_link_upd
@@ -5721,7 +5722,6 @@ bge_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 {
 	struct bge_softc *sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	struct ifreq *ifr = (struct ifreq *) data;
-	struct mii_data *mii;
 	int oflags, mask, error = 0;
 
 	switch (command) {
@@ -5776,17 +5776,6 @@ bge_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 			bge_setmulti(sc);
 			BGE_UNLOCK(sc);
 			error = 0;
-		}
-		break;
-	case SIOCSIFMEDIA:
-	case SIOCGIFMEDIA:
-		if (sc->bge_flags & BGE_FLAG_TBI) {
-			error = ifmedia_ioctl(ifp, ifr,
-			    &sc->bge_ifmedia, command);
-		} else {
-			mii = device_get_softc(sc->bge_miibus);
-			error = ifmedia_ioctl(ifp, ifr,
-			    &mii->mii_media, command);
 		}
 		break;
 	case SIOCSIFCAP:
