@@ -39,7 +39,7 @@
 
 __FBSDID("$FreeBSD$");
 
-#ifndef	ARM_NEW_PMAP
+#ifndef ARM_NEW_PMAP
 #define	PTE1_OFFSET	L1_S_OFFSET
 #define	PTE1_SHIFT	L1_S_SHIFT
 #define	PTE1_SIZE	L1_S_SIZE
@@ -93,7 +93,7 @@ ASENTRY_NP(_start)
 	 * valid.  Disable all caches and the MMU, and invalidate everything
 	 * before setting up new page tables and re-enabling the mmu.
 	 */
-1:	
+1:
 	bic	r7, #CPU_CONTROL_DC_ENABLE
 	bic	r7, #CPU_CONTROL_MMU_ENABLE
 	bic	r7, #CPU_CONTROL_IC_ENABLE
@@ -422,7 +422,7 @@ ASENTRY_NP(mpentry)
 	/* Find the delta between VA and PA */
 	adr	r0, Lpagetable
 	bl	translate_va_to_pa
-	
+
 	bl	init_mmu
 
 	adr	r1, .Lstart+8		/* Get initstack pointer from */
@@ -459,7 +459,7 @@ ENTRY_NP(cpu_halt)
 	ldr	r4, [r4]
 	teq	r4, #0
 	movne	pc, r4
-1:	
+1:
 	WFI
 	b	1b
 
