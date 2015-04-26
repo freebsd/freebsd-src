@@ -194,7 +194,7 @@ static void	vtnet_unregister_vlan(void *, if_t, uint16_t);
 
 static int	vtnet_is_link_up(struct vtnet_softc *);
 static void	vtnet_update_link_status(struct vtnet_softc *);
-static int	vtnet_ifmedia_upd(if_t);
+static int	vtnet_ifmedia_upd(if_t, if_media_t);
 static void	vtnet_ifmedia_sts(if_t, struct ifmediareq *);
 static void	vtnet_get_hwaddr(struct vtnet_softc *);
 static void	vtnet_set_hwaddr(struct vtnet_softc *);
@@ -294,12 +294,16 @@ DRIVER_MODULE(vtnet, virtio_pci, vtnet_driver, vtnet_devclass,
 MODULE_VERSION(vtnet, 1);
 MODULE_DEPEND(vtnet, virtio, 1, 1, 1);
 
+static if_media_t vtnet_mediae[] = { VTNET_MEDIATYPE, 0 };
+
 static struct ifdriver vtnet_ifdrv = {
 	.ifdrv_ops = {
 		.ifop_ioctl = vtnet_ioctl,
 		.ifop_get_counter = vtnet_get_counter,
 		.ifop_transmit = vtnet_txq_mq_start,
 		.ifop_qflush = vtnet_qflush,
+		.ifop_media_change = vtnet_ifmedia_upd,
+		.ifop_media_status = vtnet_ifmedia_sts,
 	},
 	.ifdrv_name = "vtnet",
 	.ifdrv_type = IFT_ETHER,
@@ -439,8 +443,6 @@ vtnet_detach(device_t dev)
 		EVENTHANDLER_DEREGISTER(vlan_unconfg, sc->vtnet_vlan_detach);
 		sc->vtnet_vlan_detach = NULL;
 	}
-
-	ifmedia_removeall(&sc->vtnet_media);
 
 	vtnet_free_rxtx_queues(sc);
 	vtnet_free_rx_filters(sc);
@@ -891,6 +893,8 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 		.ifat_baudrate = IF_Gbps(10), /* Approx. */
 		.ifat_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST,
 		.ifat_capabilities = IFCAP_JUMBO_MTU | IFCAP_VLAN_MTU,
+		.ifat_mediae = vtnet_mediae,
+		.ifat_media = VTNET_MEDIATYPE,
 	};
 	device_t dev;
 
@@ -959,11 +963,6 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 
 	vtnet_set_rx_process_limit(sc);
 	vtnet_set_tx_intr_threshold(sc);
-
-	ifmedia_init(&sc->vtnet_media, IFM_IMASK, vtnet_ifmedia_upd,
-	    vtnet_ifmedia_sts);
-	ifmedia_add(&sc->vtnet_media, VTNET_MEDIATYPE, 0, NULL);
-	ifmedia_set(&sc->vtnet_media, VTNET_MEDIATYPE);
 
 	sc->vtnet_ifp = if_attach(&ifat);
 }
@@ -1053,11 +1052,6 @@ vtnet_ioctl(if_t ifp, u_long cmd, void *data, struct thread *td)
 		if (sc->vtnet_flags & VTNET_FLAG_RUNNING)
 			vtnet_rx_filter_mac(sc);
 		VTNET_CORE_UNLOCK(sc);
-		break;
-
-	case SIOCSIFMEDIA:
-	case SIOCGIFMEDIA:
-		error = ifmedia_ioctl(ifp, ifr, &sc->vtnet_media, cmd);
 		break;
 
 	case SIOCSIFCAP:
@@ -3350,15 +3344,10 @@ vtnet_update_link_status(struct vtnet_softc *sc)
 }
 
 static int
-vtnet_ifmedia_upd(if_t ifp)
+vtnet_ifmedia_upd(if_t ifp, if_media_t media)
 {
-	struct vtnet_softc *sc;
-	struct ifmedia *ifm;
 
-	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
-	ifm = &sc->vtnet_media;
-
-	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
+	if (IFM_TYPE(media) != IFM_ETHER)
 		return (EINVAL);
 
 	return (0);

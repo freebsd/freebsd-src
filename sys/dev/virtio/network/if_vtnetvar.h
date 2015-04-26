@@ -166,7 +166,6 @@ struct vtnet_softc {
 	uint64_t		 vtnet_features;
 	struct vtnet_statistics	 vtnet_stats;
 	struct callout		 vtnet_tick_ch;
-	struct ifmedia		 vtnet_media;
 	eventhandler_tag	 vtnet_vlan_attach;
 	eventhandler_tag	 vtnet_vlan_detach;
 
