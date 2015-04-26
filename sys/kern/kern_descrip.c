@@ -1609,7 +1609,7 @@ fdalloc(struct thread *td, int minfd, int *result)
 {
 	struct proc *p = td->td_proc;
 	struct filedesc *fdp = p->p_fd;
-	int fd = -1, maxfd, allocfd;
+	int fd, maxfd, allocfd;
 #ifdef RACCT
 	int error;
 #endif
