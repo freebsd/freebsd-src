@@ -503,7 +503,7 @@ perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 #ifdef HAVE_KILL
 	if(cfg->pidfile && cfg->pidfile[0]) {
 		writepid(daemon->pidfile, getpid());
-		if(cfg->username && cfg->username[0]) {
+		if(cfg->username && cfg->username[0] && cfg_uid != (uid_t)-1) {
 #  ifdef HAVE_CHOWN
 			if(chown(daemon->pidfile, cfg_uid, cfg_gid) == -1) {
 				log_err("cannot chown %u.%u %s: %s",
@@ -519,7 +519,7 @@ perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 
 	/* Set user context */
 #ifdef HAVE_GETPWNAM
-	if(cfg->username && cfg->username[0]) {
+	if(cfg->username && cfg->username[0] && cfg_uid != (uid_t)-1) {
 #ifdef HAVE_SETUSERCONTEXT
 		/* setusercontext does initgroups, setuid, setgid, and
 		 * also resource limits from login config, but we
@@ -586,7 +586,7 @@ perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 
 	/* drop permissions after chroot, getpwnam, pidfile, syslog done*/
 #ifdef HAVE_GETPWNAM
-	if(cfg->username && cfg->username[0]) {
+	if(cfg->username && cfg->username[0] && cfg_uid != (uid_t)-1) {
 #  ifdef HAVE_INITGROUPS
 		if(initgroups(cfg->username, cfg_gid) != 0)
 			log_warn("unable to initgroups %s: %s",
