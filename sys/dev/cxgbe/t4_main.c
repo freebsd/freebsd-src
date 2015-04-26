@@ -154,7 +154,7 @@ static int cxgbe_transmit(if_t, struct mbuf *);
 static void cxgbe_qflush(if_t);
 static uint64_t cxgbe_get_counter(if_t, ift_counter);
 static void cxgbe_vlan_event(if_t, uint16_t, if_t);
-static int cxgbe_media_change(if_t);
+static int cxgbe_media_change(if_t, if_media_t);
 static void cxgbe_media_status(if_t, struct ifmediareq *);
 
 static struct iftsomax cxgbe_tsomax = {
@@ -162,6 +162,38 @@ static struct iftsomax cxgbe_tsomax = {
 	.tsomax_segcount = TX_SGL_SEGS,
 	.tsomax_segsize = 65536,
 };
+
+static if_media_t cxgbe_media_xfi[] = {
+	IFM_ETHER | IFM_AUTO,
+	IFM_ETHER | IFM_FDX | IFM_10G_T,
+	IFM_ETHER | IFM_FDX | IFM_1000_T,
+	IFM_ETHER | IFM_FDX | IFM_100_TX, 0
+};
+static if_media_t cxgbe_media_sgmii[] = {
+	IFM_ETHER | IFM_AUTO,
+	IFM_ETHER | IFM_FDX | IFM_1000_T,
+	IFM_ETHER | IFM_FDX | IFM_100_TX, 0
+};
+static if_media_t cxgbe_media_cx4[] = {
+	IFM_ETHER | IFM_FDX | IFM_10G_CX4, 0 };
+static if_media_t cxgbe_media_lr[] = {
+	IFM_ETHER | IFM_FDX | IFM_10G_LR, 0 };
+static if_media_t cxgbe_media_sr[] = {
+	IFM_ETHER | IFM_FDX | IFM_10G_SR, 0 };
+static if_media_t cxgbe_media_lrm[] = {
+	IFM_ETHER | IFM_FDX | IFM_10G_LRM, 0 };
+static if_media_t cxgbe_media_twinax[] = {
+	IFM_ETHER | IFM_FDX | IFM_10G_TWINAX, 0 };
+static if_media_t cxgbe_media_lr4[] = {
+	IFM_ETHER | IFM_FDX | IFM_40G_LR4, 0 };
+static if_media_t cxgbe_media_sr4[] = {
+	IFM_ETHER | IFM_FDX | IFM_40G_SR4, 0 };
+static if_media_t cxgbe_media_cr4[] = {
+	IFM_ETHER | IFM_FDX | IFM_40G_CR4, 0 };
+static if_media_t cxgbe_media_none[] = {
+	IFM_ETHER | IFM_NONE, 0 };
+static if_media_t cxgbe_media_unknown[] = {
+	IFM_ETHER | IFM_FDX | IFM_UNKNOWN, 0 };
 
 static struct ifdriver cxgbe_ifdrv = {
 	.ifdrv_ops = {
@@ -171,6 +203,8 @@ static struct ifdriver cxgbe_ifdrv = {
 		.ifop_qflush = cxgbe_qflush,
 		.ifop_get_counter = cxgbe_get_counter,
 		.ifop_vlan_event = cxgbe_vlan_event,
+		.ifop_media_change = cxgbe_media_change,
+		.ifop_media_status = cxgbe_media_status,
 	},
 	.ifdrv_name = "cxgbe",
 	.ifdrv_type = IFT_ETHER,
@@ -396,7 +430,7 @@ static int get_params__pre_init(struct adapter *);
 static int get_params__post_init(struct adapter *);
 static int set_params__post_init(struct adapter *);
 static void t4_set_desc(struct adapter *);
-static void build_medialist(struct port_info *, struct ifmedia *);
+static if_media_t * choose_mediae(struct port_info *);
 static int cxgbe_init_synchronized(struct port_info *);
 static int cxgbe_uninit_synchronized(struct port_info *);
 static int setup_intr_handlers(struct adapter *);
@@ -1103,11 +1137,6 @@ cxgbe_attach(device_t dev)
 
 	callout_init(&pi->tick, CALLOUT_MPSAFE);
 
-	/* Initialize ifmedia for this port */
-	ifmedia_init(&pi->media, IFM_IMASK, cxgbe_media_change,
-	    cxgbe_media_status);
-	build_medialist(pi, &pi->media);
-
 	n = 128;
 	s = malloc(n, M_CXGBE, M_WAITOK);
 	o = snprintf(s, n, "%d txq, %d rxq (NIC)", pi->ntxq, pi->nrxq);
@@ -1134,14 +1163,12 @@ cxgbe_attach(device_t dev)
 	ifat.ifat_lla = pi->hw_addr;
 	ifat.ifat_softc = pi;
 	ifat.ifat_dunit = device_get_unit(dev);
+	ifat.ifat_mediae = choose_mediae(pi);
+	ifat.ifat_media = ifat.ifat_mediae[0];
 	pi->ifp = if_attach(&ifat);
 	if_setsoftc(pi->ifp, IF_CXGBE_PORT, pi);
 
 #ifdef DEV_NETMAP
-	/* nm_media handled here to keep implementation private to this file */
-	ifmedia_init(&pi->nm_media, IFM_IMASK, cxgbe_media_change,
-	    cxgbe_media_status);
-	build_medialist(pi, &pi->nm_media);
 	create_netmap_ifnet(pi);	/* logs errors it something fails */
 #endif
 	cxgbe_sysctls(pi);
@@ -1182,7 +1209,6 @@ cxgbe_detach(device_t dev)
 	cxgbe_uninit_synchronized(pi);
 	port_full_uninit(pi);
 
-	ifmedia_removeall(&pi->media);
 	if_detach(pi->ifp);
 
 #ifdef DEV_NETMAP
@@ -1315,11 +1341,6 @@ redo_sifflags:
 			rc = update_mac_settings(ifp, XGMAC_VLANEX);
 fail:
 		end_synchronized_op(sc, 0);
-		break;
-
-	case SIOCSIFMEDIA:
-	case SIOCGIFMEDIA:
-		ifmedia_ioctl(ifp, ifr, &pi->media, cmd);
 		break;
 
 	case SIOCGI2C: {
@@ -1471,7 +1492,7 @@ cxgbe_get_counter(if_t ifp, ift_counter c)
 }
 
 static int
-cxgbe_media_change(if_t ifp)
+cxgbe_media_change(if_t ifp, if_media_t media)
 {
 	struct port_info *pi = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 
@@ -1484,23 +1505,7 @@ static void
 cxgbe_media_status(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct port_info *pi = if_getsoftc(ifp, IF_DRIVER_SOFTC);
-	struct ifmedia *media = NULL;
-	struct ifmedia_entry *cur;
 	int speed = pi->link_cfg.speed;
-#ifdef INVARIANTS
-	int data = (pi->port_type << 8) | pi->mod_type;
-#endif
-
-	if (ifp == pi->ifp)
-		media = &pi->media;
-#ifdef DEV_NETMAP
-	else if (ifp == pi->nm_ifp)
-		media = &pi->nm_media;
-#endif
-	MPASS(media != NULL);
-
-	cur = media->ifm_cur;
-	MPASS(cur->ifm_data == data);
 
 	ifmr->ifm_status = IFM_AVALID;
 	if (!pi->link_cfg.link_ok)
@@ -1509,7 +1514,7 @@ cxgbe_media_status(if_t ifp, struct ifmediareq *ifmr)
 	ifmr->ifm_status |= IFM_ACTIVE;
 
 	/* active and current will differ iff current media is autoselect. */
-	if (IFM_SUBTYPE(cur->ifm_media) != IFM_AUTO)
+	if (IFM_SUBTYPE(ifmr->ifm_current) != IFM_AUTO)
 		return;
 
 	ifmr->ifm_active = IFM_ETHER | IFM_FDX;
@@ -2797,35 +2802,20 @@ t4_set_desc(struct adapter *sc)
 	device_set_desc_copy(sc->dev, buf);
 }
 
-static void
-build_medialist(struct port_info *pi, struct ifmedia *media)
+static if_media_t *
+choose_mediae(struct port_info *pi)
 {
-	int data, m;
-
-	PORT_LOCK(pi);
-
-	ifmedia_removeall(media);
-
-	m = IFM_ETHER | IFM_FDX;
-	data = (pi->port_type << 8) | pi->mod_type;
 
 	switch(pi->port_type) {
 	case FW_PORT_TYPE_BT_XFI:
 	case FW_PORT_TYPE_BT_XAUI:
-		ifmedia_add(media, m | IFM_10G_T, data, NULL);
-		/* fall through */
+		return (cxgbe_media_xfi);
 
 	case FW_PORT_TYPE_BT_SGMII:
-		ifmedia_add(media, m | IFM_1000_T, data, NULL);
-		ifmedia_add(media, m | IFM_100_TX, data, NULL);
-		ifmedia_add(media, IFM_ETHER | IFM_AUTO, data, NULL);
-		ifmedia_set(media, IFM_ETHER | IFM_AUTO);
-		break;
+		return (cxgbe_media_sgmii);
 
 	case FW_PORT_TYPE_CX4:
-		ifmedia_add(media, m | IFM_10G_CX4, data, NULL);
-		ifmedia_set(media, m | IFM_10G_CX4);
-		break;
+		return (cxgbe_media_cx4);
 
 	case FW_PORT_TYPE_QSFP_10G:
 	case FW_PORT_TYPE_SFP:
@@ -2834,89 +2824,48 @@ build_medialist(struct port_info *pi, struct ifmedia *media)
 		switch (pi->mod_type) {
 
 		case FW_PORT_MOD_TYPE_LR:
-			ifmedia_add(media, m | IFM_10G_LR, data, NULL);
-			ifmedia_set(media, m | IFM_10G_LR);
-			break;
+			return (cxgbe_media_lr);
 
 		case FW_PORT_MOD_TYPE_SR:
-			ifmedia_add(media, m | IFM_10G_SR, data, NULL);
-			ifmedia_set(media, m | IFM_10G_SR);
-			break;
+			return (cxgbe_media_sr);
 
 		case FW_PORT_MOD_TYPE_LRM:
-			ifmedia_add(media, m | IFM_10G_LRM, data, NULL);
-			ifmedia_set(media, m | IFM_10G_LRM);
-			break;
+			return (cxgbe_media_lrm);
 
 		case FW_PORT_MOD_TYPE_TWINAX_PASSIVE:
 		case FW_PORT_MOD_TYPE_TWINAX_ACTIVE:
-			ifmedia_add(media, m | IFM_10G_TWINAX, data, NULL);
-			ifmedia_set(media, m | IFM_10G_TWINAX);
-			break;
+			return (cxgbe_media_twinax);
 
 		case FW_PORT_MOD_TYPE_NONE:
-			m &= ~IFM_FDX;
-			ifmedia_add(media, m | IFM_NONE, data, NULL);
-			ifmedia_set(media, m | IFM_NONE);
-			break;
+			return (cxgbe_media_none);
 
 		case FW_PORT_MOD_TYPE_NA:
 		case FW_PORT_MOD_TYPE_ER:
 		default:
-			device_printf(pi->dev,
-			    "unknown port_type (%d), mod_type (%d)\n",
-			    pi->port_type, pi->mod_type);
-			ifmedia_add(media, m | IFM_UNKNOWN, data, NULL);
-			ifmedia_set(media, m | IFM_UNKNOWN);
-			break;
+			return (cxgbe_media_unknown);
 		}
-		break;
-
 	case FW_PORT_TYPE_QSFP:
 		switch (pi->mod_type) {
 
 		case FW_PORT_MOD_TYPE_LR:
-			ifmedia_add(media, m | IFM_40G_LR4, data, NULL);
-			ifmedia_set(media, m | IFM_40G_LR4);
-			break;
+			return (cxgbe_media_lr4);
 
 		case FW_PORT_MOD_TYPE_SR:
-			ifmedia_add(media, m | IFM_40G_SR4, data, NULL);
-			ifmedia_set(media, m | IFM_40G_SR4);
-			break;
+			return (cxgbe_media_sr4);
 
 		case FW_PORT_MOD_TYPE_TWINAX_PASSIVE:
 		case FW_PORT_MOD_TYPE_TWINAX_ACTIVE:
-			ifmedia_add(media, m | IFM_40G_CR4, data, NULL);
-			ifmedia_set(media, m | IFM_40G_CR4);
-			break;
+			return (cxgbe_media_cr4);
 
 		case FW_PORT_MOD_TYPE_NONE:
-			m &= ~IFM_FDX;
-			ifmedia_add(media, m | IFM_NONE, data, NULL);
-			ifmedia_set(media, m | IFM_NONE);
-			break;
+			return (cxgbe_media_none);
 
 		default:
-			device_printf(pi->dev,
-			    "unknown port_type (%d), mod_type (%d)\n",
-			    pi->port_type, pi->mod_type);
-			ifmedia_add(media, m | IFM_UNKNOWN, data, NULL);
-			ifmedia_set(media, m | IFM_UNKNOWN);
-			break;
+			return (cxgbe_media_unknown);
 		}
-		break;
-
 	default:
-		device_printf(pi->dev,
-		    "unknown port_type (%d), mod_type (%d)\n", pi->port_type,
-		    pi->mod_type);
-		ifmedia_add(media, m | IFM_UNKNOWN, data, NULL);
-		ifmedia_set(media, m | IFM_UNKNOWN);
-		break;
+		return (cxgbe_media_unknown);
 	}
-
-	PORT_UNLOCK(pi);
 }
 
 struct mc_addr_ctx {
@@ -7879,10 +7828,12 @@ t4_os_portmod_changed(const struct adapter *sc, int idx)
 	static const char *mod_str[] = {
 		NULL, "LR", "SR", "ER", "TWINAX", "active TWINAX", "LRM"
 	};
+	if_media_t *newmediae;
 
-	build_medialist(pi, &pi->media);
+	newmediae = choose_mediae(pi);
+	if_media_change(pi->ifp, newmediae, newmediae[0]);
 #ifdef DEV_NETMAP
-	build_medialist(pi, &pi->nm_media);
+	if_media_change(pi->nm_ifp, newmediae, newmediae[0]);
 #endif
 
 	if (pi->mod_type == FW_PORT_MOD_TYPE_NONE)

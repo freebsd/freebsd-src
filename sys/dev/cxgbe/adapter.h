@@ -49,7 +49,6 @@
 #include <sys/sysctl.h>
 #include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_media.h>
 #include <netinet/in.h>
 #include <netinet/tcp_lro.h>
 
@@ -219,7 +218,6 @@ struct port_info {
 	struct adapter *adapter;
 
 	if_t ifp;
-	struct ifmedia media;
 
 	struct mtx pi_lock;
 	char lockname[16];
@@ -259,7 +257,6 @@ struct port_info {
 	int first_nm_rxq;	/* index of first netmap rx queue */
 
 	if_t nm_ifp;
-	struct ifmedia nm_media;
 	int nmif_flags;
 	uint16_t nm_viid;
 	int16_t nm_xact_addr_filt;
@@ -766,7 +763,6 @@ struct adapter {
 	char ifp_lockname[16];
 	struct mtx ifp_lock;
 	struct ifnet *ifp;	/* tracer ifp */
-	struct ifmedia media;
 	int traceq;		/* iq used by all tracers, -1 if none */
 	int tracer_valid;	/* bitmap of valid tracers */
 	int tracer_enabled;	/* bitmap of enabled tracers */

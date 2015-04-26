@@ -85,12 +85,16 @@ static struct sx t4_trace_lock;
 
 /* tracer interface ops.  mostly no-ops. */
 static int tracer_ioctl(if_t, unsigned long, void *, struct thread *);
-static int tracer_media_change(if_t);
+static int tracer_media_change(if_t, if_media_t);
 static void tracer_media_status(if_t, struct ifmediareq *);
+
+static if_media_t tracer_mediae[] = { IFM_ETHER | IFM_FDX | IFM_NONE, 0 };
 
 static struct ifdriver t4_tracer_ifdrv = {
 	.ifdrv_ops = {
 		.ifop_ioctl = tracer_ioctl,
+		.ifop_media_change = tracer_media_change,
+		.ifop_media_status = tracer_media_status,
 	},
 	.ifdrv_name = "tXnex",
 	.ifdrv_type = IFT_ETHER,
@@ -145,6 +149,8 @@ t4_cloner_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 		.ifat_flags = IFF_SIMPLEX,
 		.ifat_capabilities = IFCAP_JUMBO_MTU | IFCAP_VLAN_MTU,
 		.ifat_lla = lla,
+		.ifat_mediae = tracer_mediae,
+		.ifat_media = tracer_mediae[0],
 	};
 	struct match_rr mrr;
 	struct adapter *sc;
@@ -179,11 +185,6 @@ t4_cloner_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifat.ifat_softc = sc;
 	ifp = if_attach(&ifat);
 
-	ifmedia_init(&sc->media, IFM_IMASK, tracer_media_change,
-	    tracer_media_status);
-	ifmedia_add(&sc->media, IFM_ETHER | IFM_FDX | IFM_NONE, 0, NULL);
-	ifmedia_set(&sc->media, IFM_ETHER | IFM_FDX | IFM_NONE);
-
 	mtx_lock(&sc->ifp_lock);
 	sc->ifp = ifp;
 	mtx_unlock(&sc->ifp_lock);
@@ -204,7 +205,6 @@ t4_cloner_destroy(struct if_clone *ifc, if_t ifp)
 		mtx_lock(&sc->ifp_lock);
 		sc->ifp = NULL;
 		mtx_unlock(&sc->ifp_lock);
-		ifmedia_removeall(&sc->media);
 	}
 	if_detach(ifp);
 	sx_xunlock(&t4_trace_lock);
@@ -249,7 +249,6 @@ t4_tracer_port_detach(struct adapter *sc)
 		sc->ifp = NULL;
 		mtx_unlock(&sc->ifp_lock);
 	}
-	ifmedia_removeall(&sc->media);
 	sx_xunlock(&t4_trace_lock);
 }
 
@@ -435,9 +434,6 @@ t5_trace_pkt(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 static int
 tracer_ioctl(if_t ifp, unsigned long cmd, void *data, struct thread *td)
 {
-	int rc = 0;
-	struct adapter *sc;
-	struct ifreq *ifr = (struct ifreq *)data;
 
 	switch (cmd) {
 	case SIOCSIFMTU:
@@ -445,26 +441,14 @@ tracer_ioctl(if_t ifp, unsigned long cmd, void *data, struct thread *td)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 	case SIOCSIFCAP:
-		break;
-	case SIOCSIFMEDIA:
-	case SIOCGIFMEDIA:
-		sx_xlock(&t4_trace_lock);
-		sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
-		if (sc == NULL)
-			rc = EIO;
-		else
-			rc = ifmedia_ioctl(ifp, ifr, &sc->media, cmd);
-		sx_xunlock(&t4_trace_lock);
-		break;
+		return (0);
 	default:
-		rc = EOPNOTSUPP;
+		return (EOPNOTSUPP);
 	}
-
-	return (rc);
 }
 
 static int
-tracer_media_change(if_t ifp)
+tracer_media_change(if_t ifp, if_media_t media)
 {
 
 	return (EOPNOTSUPP);
