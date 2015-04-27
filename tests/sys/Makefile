@@ -10,7 +10,6 @@ TESTS_SUBDIRS+=		file
 TESTS_SUBDIRS+=		kern
 TESTS_SUBDIRS+=		kqueue
 TESTS_SUBDIRS+=		mqueue
-TESTS_SUBDIRS+=		mmap
 TESTS_SUBDIRS+=		netinet
 TESTS_SUBDIRS+=		opencrypto
 TESTS_SUBDIRS+=		posixshm

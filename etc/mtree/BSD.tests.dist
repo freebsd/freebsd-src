@@ -366,8 +366,6 @@
         ..
         kqueue
         ..
-        mmap
-        ..
         mqueue
         ..
         netinet
