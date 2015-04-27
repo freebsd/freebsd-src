@@ -45,11 +45,16 @@ em_netmap_block_tasks(struct adapter *adapter)
 {
 	if (adapter->msix > 1) { /* MSIX */
 		int i;
-		struct em_queue *que = adapter->queues;
+		struct tx_ring *txr = adapter->tx_rings;
+		struct rx_ring *rxr = adapter->rx_rings;
 
-		for (i = 0; i < adapter->num_queues; i++, que++) {
-			taskqueue_block(que->tq);
-			taskqueue_drain(que->tq, &que->que_task);
+		for (i = 0; i < adapter->num_tx_queues; i++, txr++) {
+			taskqueue_block(txr->tq);
+			taskqueue_drain(txr->tq, &txr->tx_task);
+		}
+		for (i = 0; i < adapter->num_rx_queues; i++, rxr++) {
+			taskqueue_block(rxr->tq);
+			taskqueue_drain(rxr->tq, &rxr->rx_task);
 		}
 	} else {	/* legacy */
 		taskqueue_block(adapter->tq);
@@ -63,11 +68,15 @@ static void
 em_netmap_unblock_tasks(struct adapter *adapter)
 {
 	if (adapter->msix > 1) {
-		struct em_queue *que = adapter->queues;
+		struct tx_ring *txr = adapter->tx_rings;
+		struct rx_ring *rxr = adapter->rx_rings;
 		int i;
 
-		for (i = 0; i < adapter->num_queues; i++) {
-			taskqueue_unblock(que->tq);
+		for (i = 0; i < adapter->num_tx_queues; i++) {
+			taskqueue_unblock(txr->tq);
+		}
+		for (i = 0; i < adapter->num_rx_queues; i++) {
+			taskqueue_unblock(rxr->tq);
 		}
 	} else { /* legacy */
 		taskqueue_unblock(adapter->tq);
@@ -322,8 +331,8 @@ em_netmap_attach(struct adapter *adapter)
 	na.nm_txsync = em_netmap_txsync;
 	na.nm_rxsync = em_netmap_rxsync;
 	na.nm_register = em_netmap_reg;
-	na.num_tx_rings = adapter->num_queues;
-	na.num_rx_rings = adapter->num_queues;
+	na.num_tx_rings = adapter->num_tx_queues;
+	na.num_rx_rings = adapter->num_rx_queues;
 	netmap_attach(&na);
 }
 

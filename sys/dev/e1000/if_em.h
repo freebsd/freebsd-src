@@ -265,6 +265,14 @@
  * solve it just using this define.
  */
 #define EM_EIAC 0x000DC
+/*
+ * 82574 only reports 3 MSI-X vectors by default;
+ * defines assisting with making it report 5 are
+ * located here.
+ */
+#define EM_NVM_PCIE_CTRL	0x1B
+#define EM_NVM_MSIX_N_MASK	(0x7 << EM_NVM_MSIX_N_SHIFT)
+#define EM_NVM_MSIX_N_SHIFT	7
 
 /*
  * Bus dma allocation structure used by
@@ -288,24 +296,6 @@ struct em_int_delay_info {
 };
 
 /*
-** Driver queue struct: this is the interrupt container
-**  for the associated tx and rx ring.
-*/
-struct em_queue {
-        struct adapter          *adapter;
-        u32                     msix;		/* This queue's MSIX vector */
-        u32                     ims;		/* This queue's EIMS bit */
-        u32                     eitr_setting;
-        struct resource         *res;
-        void                    *tag;
-        struct tx_ring          *txr;
-        struct rx_ring          *rxr;
-        struct task             que_task;
-        struct taskqueue        *tq;
-        u64                     irqs;
-};
-
-/*
  * The transmit ring, one per tx queue
  */
 struct tx_ring {
@@ -313,10 +303,14 @@ struct tx_ring {
         struct mtx              tx_mtx;
         char                    mtx_name[16];
         u32                     me;
+        u32                     msix;
+	u32			ims;
         int			queue_status;
         int                     watchdog_time;
 	struct em_dma_alloc	txdma;
 	struct e1000_tx_desc	*tx_base;
+        struct task             tx_task;
+        struct taskqueue        *tq;
         u32                     next_avail_desc;
         u32                     next_to_clean;
         struct em_buffer	*tx_buffers;
@@ -332,6 +326,9 @@ struct tx_ring {
 #endif
 	/* Interrupt resources */
         bus_dma_tag_t           txtag;
+	void                    *tag;
+	struct resource         *res;
+        unsigned long		tx_irq;
         unsigned long		no_desc_avail;
 };
 
@@ -341,9 +338,13 @@ struct tx_ring {
 struct rx_ring {
         struct adapter          *adapter;
         u32                     me;
+        u32                     msix;
+	u32			ims;
         struct mtx              rx_mtx;
         char                    mtx_name[16];
         u32                     payload;
+        struct task             rx_task;
+        struct taskqueue        *tq;
         struct e1000_rx_desc	*rx_base;
         struct em_dma_alloc	rxdma;
         u32			next_to_refresh;
@@ -353,10 +354,13 @@ struct rx_ring {
 	struct mbuf		*lmp;
 
         /* Interrupt resources */
+        void                    *tag;
+        struct resource         *res;
         bus_dma_tag_t           rxtag;
 	bool			discard;
 
         /* Soft stats */
+        unsigned long		rx_irq;
         unsigned long		rx_discarded;
         unsigned long		rx_packets;
         unsigned long		rx_bytes;
@@ -403,10 +407,10 @@ struct adapter {
 	eventhandler_tag vlan_detach;
 
 	u16	num_vlans;
-	u8	num_queues;
+	/* Allow number of tx queues != num of rx_queues */
+	u8	num_tx_queues;
+	u8	num_rx_queues;
 
-	 /* Interface queues */
-	struct em_queue        *queues;
         /*
          * Transmit rings:
          *      Allocated at run time, an array of rings.
@@ -423,8 +427,6 @@ struct adapter {
         int             num_rx_desc;
         u32             rx_process_limit;
 	u32		rx_mbuf_sz;
-
-	u64		que_mask;
 
 	/* Management and WOL features */
 	u32		wol;
