@@ -60,6 +60,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <fnmatch.h>
 #include <inttypes.h>
 #include <signal.h>
 #include <stdio.h>
@@ -698,6 +699,7 @@ usage(void)
 	fprintf(stderr, "cheritest -a               -- Run all tests\n");
 	fprintf(stderr, "cheritest -a -f            -- Run fast tests\n");
 	fprintf(stderr, "cheritest [-v] <test> ...  -- Run specified tests\n");
+	fprintf(stderr, "cheritest -g <glob> ...    -- Run specified tests\n");
 #endif
 	exit(EX_USAGE);
 }
@@ -1058,6 +1060,7 @@ int
 main(int argc, char *argv[])
 {
 	int opt;
+	int glob;
 #ifndef LIST_ONLY
 	stack_t stack;
 	int i;
@@ -1067,13 +1070,16 @@ main(int argc, char *argv[])
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
 		errx(1, "xo_parse_args failed\n");
-	while ((opt = getopt(argc, argv, "aflsv")) != -1) {
+	while ((opt = getopt(argc, argv, "afglsv")) != -1) {
 		switch (opt) {
 		case 'a':
 			run_all = 1;
 			break;
 		case 'f':
 			fast_tests_only = 1;
+			break;
+		case 'g':
+			glob = 1;
 			break;
 		case 'l':
 			list = 1;
@@ -1093,6 +1099,10 @@ main(int argc, char *argv[])
 	argv += optind;
 	if (run_all && list) {
 		warnx("-a and -l are incompatible");
+		usage();
+	}
+	if (run_all && glob) {
+		warnx("-a and -g are incompatible");
 		usage();
 	}
 	if (list) {
@@ -1157,7 +1167,18 @@ main(int argc, char *argv[])
 				cheritest_run_test(&cheri_tests[t]);
 				if (sleep_after_test)
 					sleep(1);
+			}
+	} else if (glob) {
+		for (i = 0; i < argc; i++) {
+			for (t = 0; t < cheri_tests_len; t++)
+				if ((fnmatch(argv[i], cheri_tests[t].ct_name,
+				    0) == 0) && (!fast_tests_only ||
+				    !(cheri_tests[t].ct_flags & CT_FLAG_SLOW))) {
+					cheritest_run_test(&cheri_tests[t]);
+					if (sleep_after_test)
+						sleep(1);
 				}
+		}
 	} else {
 		for (i = 0; i < argc; i++)
 			cheritest_run_test_name(argv[i]);
