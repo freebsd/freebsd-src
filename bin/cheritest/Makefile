@@ -12,6 +12,7 @@ SRCS+=	cheritest_ccall.c						\
 	cheritest_registers.c						\
 	cheritest_sandbox.S						\
 	cheritest_stack.c						\
+	cheritest_string.c						\
 	cheritest_syscall.c						\
 	cheritest_util.c						\
 	cheritest_var.c							\

@@ -145,5 +145,7 @@
 #define	test_sandbox_var_data_getset			NULL
 #define	test_2sandbox_var_data_getset			NULL
 #define	test_sandbox_var_constructor			NULL
+#define test_string_memcpy				NULL
+#define test_string_memcpy_c				NULL
 
 #endif /* !_CHERITEST_LIST_ONLY_H_ */

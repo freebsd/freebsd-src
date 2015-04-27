@@ -662,6 +662,16 @@ static const struct cheri_test cheri_tests[] = {
 	{ .ct_name = "test_sandbox_var_constructor",
 	  .ct_desc = "Check initial value of constructor-initalised variable",
 	  .ct_func = test_sandbox_var_constructor },
+
+	/*
+	 * Standard library string tests.
+	 */
+	{ .ct_name = "test_string_memcpy",
+	  .ct_desc = "Test implicit capability memcpy",
+	  .ct_func = test_string_memcpy },
+	{ .ct_name = "test_string_memcpy_c",
+	  .ct_desc = "Test explicit capability memcpy",
+	  .ct_func = test_string_memcpy_c },
 };
 static const u_int cheri_tests_len = sizeof(cheri_tests) /
 	    sizeof(cheri_tests[0]);
