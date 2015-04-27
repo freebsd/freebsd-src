@@ -104,6 +104,7 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
 	IPSEC_ASSERT(isr != NULL, ("null ISR"));
+	IPSEC_ASSERT(isr->sp != NULL, ("NULL isr->sp"));
 	sav = isr->sav;
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
 	IPSEC_ASSERT(sav->sah != NULL, ("null SAH"));
@@ -163,6 +164,10 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 	 * If this is a problem we'll need to introduce a queue
 	 * to set the packet on so we can unwind the stack before
 	 * doing further processing.
+	 *
+	 * If ipsec[46]_process_packet() will successfully queue
+	 * the request, we need to take additional reference to SP,
+	 * because xform callback will release reference.
 	 */
 	if (isr->next) {
 		/* XXX-BZ currently only support same AF bundles. */
@@ -170,7 +175,11 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 #ifdef INET
 		case AF_INET:
 			IPSECSTAT_INC(ips_out_bundlesa);
-			return ipsec4_process_packet(m, isr->next);
+			key_addref(isr->sp);
+			error = ipsec4_process_packet(m, isr->next);
+			if (error != 0)
+				KEY_FREESP(&isr->sp);
+			return (error);
 			/* NOTREACHED */
 #endif
 #ifdef notyet
@@ -178,7 +187,11 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 		case AF_INET6:
 			/* XXX */
 			IPSEC6STAT_INC(ips_out_bundlesa);
-			return ipsec6_process_packet(m, isr->next);
+			key_addref(isr->sp);
+			error = ipsec6_process_packet(m, isr->next);
+			if (error != 0)
+				KEY_FREESP(&isr->sp);
+			return (error);
 			/* NOTREACHED */
 #endif /* INET6 */
 #endif
