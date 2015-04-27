@@ -91,7 +91,7 @@ cheritest_vm_tag_mmap_anon(const struct cheri_test *ctp __unused)
 	cp_value = *cp;
 	if (cheri_gettag(cp_value) == 0)
 		cheritest_failure_errx("tag lost");
-	if (munmap((void *)cp, getpagesize()) < 0)
+	if (munmap(__DEVOLATILE(void *, cp), getpagesize()) < 0)
 		cheritest_failure_err("munmap");
 	cheritest_success();
 }
@@ -117,7 +117,7 @@ cheritest_vm_tag_shm_open_anon_shared(const struct cheri_test *ctp __unused)
 	cp_value = *cp;
 	if (cheri_gettag(cp_value) == 0)
 		cheritest_failure_errx("tag lost");
-	if (munmap((void *)cp, getpagesize()) < 0)
+	if (munmap(__DEVOLATILE(void *, cp), getpagesize()) < 0)
 		cheritest_failure_err("munmap");
 	if (close(fd) < 0)
 		cheritest_failure_err("close");
@@ -145,7 +145,7 @@ cheritest_vm_tag_shm_open_anon_private(const struct cheri_test *ctp __unused)
 	cp_value = *cp;
 	if (cheri_gettag(cp_value) == 0)
 		cheritest_failure_errx("tag lost");
-	if (munmap((void *)cp, getpagesize()) < 0)
+	if (munmap(__DEVOLATILE(void *, cp), getpagesize()) < 0)
 		cheritest_failure_err("munmap");
 	if (close(fd) < 0)
 		cheritest_failure_err("close");
@@ -171,7 +171,7 @@ cheritest_vm_tag_dev_zero_shared(const struct cheri_test *ctp __unused)
 	cp_value = *cp;
 	if (cheri_gettag(cp_value) == 0)
 		cheritest_failure_errx("tag lost");
-	if (munmap((void *)cp, getpagesize()) < 0)
+	if (munmap(__DEVOLATILE(void *, cp), getpagesize()) < 0)
 		cheritest_failure_err("munmap");
 	if (close(fd) < 0)
 		cheritest_failure_err("close");
@@ -197,7 +197,7 @@ cheritest_vm_tag_dev_zero_private(const struct cheri_test *ctp __unused)
 	cp_value = *cp;
 	if (cheri_gettag(cp_value) == 0)
 		cheritest_failure_errx("tag lost");
-	if (munmap((void *)cp, getpagesize()) < 0)
+	if (munmap(__DEVOLATILE(void *, cp), getpagesize()) < 0)
 		cheritest_failure_err("munmap");
 	if (close(fd) < 0)
 		cheritest_failure_err("close");
@@ -251,7 +251,7 @@ cheritest_vm_tag_tmpfile_private(const struct cheri_test *ctp __unused)
 	cp_value = *cp;
 	if (cheri_gettag(cp_value) == 0)
 		cheritest_failure_errx("tag lost");
-	if (munmap((void *)cp, getpagesize()) < 0)
+	if (munmap(__DEVOLATILE(void *, cp), getpagesize()) < 0)
 		cheritest_failure_err("munmap");
 	if (close(fd) < 0)
 		cheritest_failure_err("close");
@@ -280,7 +280,7 @@ cheritest_vm_tag_tmpfile_private_prefault(const struct cheri_test *ctp __unused)
 	cp_value = *cp;
 	if (cheri_gettag(cp_value) == 0)
 		cheritest_failure_errx("tag lost");
-	if (munmap((void *)cp, getpagesize()) < 0)
+	if (munmap(__DEVOLATILE(void *, cp), getpagesize()) < 0)
 		cheritest_failure_err("munmap");
 	if (close(fd) < 0)
 		cheritest_failure_err("close");
@@ -351,9 +351,9 @@ cheritest_vm_cow_read(const struct cheri_test *ctp __unused)
 	/*
 	 * Clean up.
 	 */
-	if (munmap((void *)cp_real, getpagesize()) < 0)
+	if (munmap(__DEVOLATILE(void *, cp_real), getpagesize()) < 0)
 		cheritest_failure_err("munmap cp_real");
-	if (munmap((void *)cp_copy, getpagesize()) < 0)
+	if (munmap(__DEVOLATILE(void *, cp_copy), getpagesize()) < 0)
 		cheritest_failure_err("munmap cp_copy");
 	if (close(fd) < 0)
 		cheritest_failure_err("close");
@@ -428,9 +428,9 @@ cheritest_vm_cow_write(const struct cheri_test *ctp __unused)
 	/*
 	 * Clean up.
 	 */
-	if (munmap((void *)cp_real, getpagesize()) < 0)
+	if (munmap(__DEVOLATILE(void *, cp_real), getpagesize()) < 0)
 		cheritest_failure_err("munmap cp_real");
-	if (munmap((void *)cp_copy, getpagesize()) < 0)
+	if (munmap(__DEVOLATILE(void *, cp_copy), getpagesize()) < 0)
 		cheritest_failure_err("munmap cp_copy");
 	if (close(fd) < 0)
 		cheritest_failure_err("close");
