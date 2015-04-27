@@ -1091,6 +1091,7 @@ ah_output_cb(struct cryptop *crp)
 	m = (struct mbuf *) crp->crp_buf;
 
 	isr = tc->tc_isr;
+	IPSEC_ASSERT(isr->sp != NULL, ("NULL isr->sp"));
 	IPSECREQUEST_LOCK(isr);
 	sav = tc->tc_sav;
 	/* With the isr lock released SA pointer can be updated. */
@@ -1154,16 +1155,18 @@ ah_output_cb(struct cryptop *crp)
 	error = ipsec_process_done(m, isr);
 	KEY_FREESAV(&sav);
 	IPSECREQUEST_UNLOCK(isr);
-	return error;
+	KEY_FREESP(&isr->sp);
+	return (error);
 bad:
 	if (sav)
 		KEY_FREESAV(&sav);
 	IPSECREQUEST_UNLOCK(isr);
+	KEY_FREESP(&isr->sp);
 	if (m)
 		m_freem(m);
 	free(tc, M_XDATA);
 	crypto_freereq(crp);
-	return error;
+	return (error);
 }
 
 static struct xformsw ah_xformsw = {

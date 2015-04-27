@@ -961,39 +961,39 @@ oshmctl(struct thread *td, struct oshmctl_args *uap)
 
 	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
+	if (uap->cmd != IPC_STAT) {
+		return (freebsd7_shmctl(td,
+		    (struct freebsd7_shmctl_args *)uap));
+	}
 	SYSVSHM_LOCK();
 	shmseg = shm_find_segment(uap->shmid, true);
 	if (shmseg == NULL) {
 		SYSVSHM_UNLOCK();
 		return (EINVAL);
 	}
-	switch (uap->cmd) {
-	case IPC_STAT:
-		error = ipcperm(td, &shmseg->u.shm_perm, IPC_R);
-		if (error != 0)
-			break;
-#ifdef MAC
-		error = mac_sysvshm_check_shmctl(td->td_ucred, shmseg,
-		    uap->cmd);
-		if (error != 0)
-			break;
-#endif
-		ipcperm_new2old(&shmseg->u.shm_perm, &outbuf.shm_perm);
-		outbuf.shm_segsz = shmseg->u.shm_segsz;
-		outbuf.shm_cpid = shmseg->u.shm_cpid;
-		outbuf.shm_lpid = shmseg->u.shm_lpid;
-		outbuf.shm_nattch = shmseg->u.shm_nattch;
-		outbuf.shm_atime = shmseg->u.shm_atime;
-		outbuf.shm_dtime = shmseg->u.shm_dtime;
-		outbuf.shm_ctime = shmseg->u.shm_ctime;
-		outbuf.shm_handle = shmseg->object;
-		error = copyout(&outbuf, uap->ubuf, sizeof(outbuf));
-		break;
-	default:
-		error = freebsd7_shmctl(td, (struct freebsd7_shmctl_args *)uap);
-		break;
+	error = ipcperm(td, &shmseg->u.shm_perm, IPC_R);
+	if (error != 0) {
+		SYSVSHM_UNLOCK();
+		return (error);
 	}
+#ifdef MAC
+	error = mac_sysvshm_check_shmctl(td->td_ucred, shmseg, uap->cmd);
+	if (error != 0) {
+		SYSVSHM_UNLOCK();
+		return (error);
+	}
+#endif
+	ipcperm_new2old(&shmseg->u.shm_perm, &outbuf.shm_perm);
+	outbuf.shm_segsz = shmseg->u.shm_segsz;
+	outbuf.shm_cpid = shmseg->u.shm_cpid;
+	outbuf.shm_lpid = shmseg->u.shm_lpid;
+	outbuf.shm_nattch = shmseg->u.shm_nattch;
+	outbuf.shm_atime = shmseg->u.shm_atime;
+	outbuf.shm_dtime = shmseg->u.shm_dtime;
+	outbuf.shm_ctime = shmseg->u.shm_ctime;
+	outbuf.shm_handle = shmseg->object;
 	SYSVSHM_UNLOCK();
+	error = copyout(&outbuf, uap->ubuf, sizeof(outbuf));
 	return (error);
 #else
 	return (EINVAL);
@@ -1025,9 +1025,7 @@ sys_shmsys(struct thread *td, struct shmsys_args *uap)
 		return (ENOSYS);
 	if (uap->which < 0 || uap->which >= nitems(shmcalls))
 		return (EINVAL);
-	SYSVSHM_LOCK();
 	error = (*shmcalls[uap->which])(td, &uap->a2);
-	SYSVSHM_UNLOCK();
 	return (error);
 }
 

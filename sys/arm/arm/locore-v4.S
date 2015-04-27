@@ -116,7 +116,7 @@ ASENTRY_NP(_start)
 	 * If we're running with MMU disabled, test against the
 	 * physical address instead.
 	 */
-	mrc     p15, 0, r2, c1, c0, 0
+	mrc	p15, 0, r2, c1, c0, 0
 	ands	r2, r2, #CPU_CONTROL_MMU_ENABLE
 	ldreq	r6, =PHYSADDR
 	ldrne	r6, =LOADERRAMADDR
@@ -125,7 +125,7 @@ ASENTRY_NP(_start)
 	cmp	r7, pc
 	bhi	from_ram
 	b	do_copy
-	
+
 flash_lower:
 	cmp	r6, pc
 	bls	from_ram
@@ -148,12 +148,12 @@ from_ram:
 
 disable_mmu:
 	/* Disable MMU for a while */
-	mrc     p15, 0, r2, c1, c0, 0
+	mrc	p15, 0, r2, c1, c0, 0
 	bic	r2, r2, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE |\
 	    CPU_CONTROL_WBUF_ENABLE)
 	bic	r2, r2, #(CPU_CONTROL_IC_ENABLE)
 	bic	r2, r2, #(CPU_CONTROL_BPRD_ENABLE)
-	mcr     p15, 0, r2, c1, c0, 0
+	mcr	p15, 0, r2, c1, c0, 0
 
 	nop
 	nop
@@ -169,36 +169,16 @@ Lunmapped:
 	adr	r0, Lpagetable
 	bl	translate_va_to_pa
 
-#ifndef _ARM_ARCH_6
 	/*
 	 * Some of the older ports (the various XScale, mostly) assume
 	 * that the memory before the kernel is mapped, and use it for
-	 * the various stacks, page tables, etc. For those CPUs, map the 
-	 * 64 first MB of RAM, as it used to be. 
+	 * the various stacks, page tables, etc. For those CPUs, map the
+	 * 64 first MB of RAM, as it used to be.
 	 */
 	/*
 	 * Map PA == VA
-	 */    
-	ldr     r5, =PHYSADDR
-	mov     r1, r5
-	mov     r2, r5
-	/* Map 64MiB, preserved over calls to build_pagetables */
-	mov     r3, #64
-	bl      build_pagetables
-	
-	/* Create the kernel map to jump to */
-	mov     r1, r5
-	ldr     r2, =(KERNBASE)
-	bl      build_pagetables
-	ldr	r5, =(KERNPHYSADDR)
-#else
-	/*
-	 * Map PA == VA
-	 */    
-	/* Find the start kernels load address */
-	adr	r5, _start
-	ldr	r2, =(L1_S_OFFSET)
-	bic	r5, r2
+	 */
+	ldr	r5, =PHYSADDR
 	mov	r1, r5
 	mov	r2, r5
 	/* Map 64MiB, preserved over calls to build_pagetables */
@@ -207,10 +187,10 @@ Lunmapped:
 
 	/* Create the kernel map to jump to */
 	mov	r1, r5
-	ldr	r2, =(KERNVIRTADDR)
+	ldr	r2, =(KERNBASE)
 	bl	build_pagetables
-#endif
-	
+	ldr	r5, =(KERNPHYSADDR)
+
 #if defined(SOCDEV_PA) && defined(SOCDEV_VA)
 	/* Create the custom map */
 	ldr	r1, =SOCDEV_PA
@@ -221,26 +201,16 @@ Lunmapped:
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
 
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B) || defined(CPU_KRAIT)
-	mov	r0, #0
-	mcr	p15, 0, r0, c13, c0, 1	/* Set ASID to 0 */
-#endif
-
 	/* Set the Domain Access register.  Very important! */
-	mov     r0, #((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
+	mov	r0, #((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
 	mcr	p15, 0, r0, c3, c0, 0
-	/* 
+	/*
 	 * Enable MMU.
 	 * On armv6 enable extended page tables, and set alignment checking
 	 * to modulo-4 (CPU_CONTROL_UNAL_ENABLE) for the ldrd/strd
 	 * instructions emitted by clang.
 	 */
 	mrc	p15, 0, r0, c1, c0, 0
-#ifdef _ARM_ARCH_6
-	orr	r0, r0, #(CPU_CONTROL_V6_EXTPAGE | CPU_CONTROL_UNAL_ENABLE)
-	orr	r0, r0, #(CPU_CONTROL_AFLT_ENABLE)
-	orr	r0, r0, #(CPU_CONTROL_AF_ENABLE)
-#endif
 	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE)
 	mcr	p15, 0, r0, c1, c0, 0
 	nop
@@ -280,7 +250,7 @@ virt_done:
 	/* init arm will return the new stack pointer. */
 	mov	sp, r0
 
-	bl	_C_LABEL(mi_startup)		/* call mi_startup()! */
+	bl	_C_LABEL(mi_startup)	/* call mi_startup()! */
 
 	adr	r0, .Lmainreturned
 	b	_C_LABEL(panic)
@@ -389,11 +359,11 @@ pagetable:
 	.word	_C_LABEL(cpufuncs)
 
 ENTRY_NP(cpu_halt)
-	mrs     r2, cpsr
+	mrs	r2, cpsr
 	bic	r2, r2, #(PSR_MODE)
-	orr     r2, r2, #(PSR_SVC32_MODE)
+	orr	r2, r2, #(PSR_SVC32_MODE)
 	orr	r2, r2, #(PSR_I | PSR_F)
-	msr     cpsr_fsxc, r2
+	msr	cpsr_fsxc, r2
 
 	ldr	r4, .Lcpu_reset_address
 	ldr	r4, [r4]
@@ -419,9 +389,9 @@ ENTRY_NP(cpu_halt)
 	 * Hurl ourselves into the ROM
 	 */
 	mov	r0, #(CPU_CONTROL_32BP_ENABLE | CPU_CONTROL_32BD_ENABLE)
-	mcr     p15, 0, r0, c1, c0, 0
-	mcrne   p15, 0, r2, c8, c7, 0 	/* nail I+D TLB on ARMv4 and greater */
-	mov     pc, r4
+	mcr	p15, 0, r0, c1, c0, 0
+	mcrne	p15, 0, r2, c8, c7, 0 	/* nail I+D TLB on ARMv4 and greater */
+	mov	pc, r4
 
 	/*
 	 * _cpu_reset_address contains the address to branch to, to complete
@@ -458,7 +428,7 @@ ENTRY(longjmp)
 END(longjmp)
 
 	.data
-	.global _C_LABEL(esym)
+	.global	_C_LABEL(esym)
 _C_LABEL(esym):	.word	_C_LABEL(end)
 
 ENTRY_NP(abort)
@@ -471,7 +441,7 @@ ENTRY_NP(sigcode)
 
 	/*
 	 * Call the sigreturn system call.
-	 * 
+	 *
 	 * We have to load r7 manually rather than using
 	 * "ldr r7, =SYS_sigreturn" to ensure the value of szsigcode is
 	 * correct. Using the alternative places esigcode at the address

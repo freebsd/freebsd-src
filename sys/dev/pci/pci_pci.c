@@ -553,18 +553,22 @@ void
 pcib_setup_secbus(device_t dev, struct pcib_secbus *bus, int min_count)
 {
 	char buf[64];
-	int error, rid;
+	int error, rid, sec_reg;
 
 	switch (pci_read_config(dev, PCIR_HDRTYPE, 1) & PCIM_HDRTYPE) {
 	case PCIM_HDRTYPE_BRIDGE:
+		sec_reg = PCIR_SECBUS_1;
 		bus->sub_reg = PCIR_SUBBUS_1;
 		break;
 	case PCIM_HDRTYPE_CARDBUS:
+		sec_reg = PCIR_SECBUS_2;
 		bus->sub_reg = PCIR_SUBBUS_2;
 		break;
 	default:
 		panic("not a PCI bridge");
 	}
+	bus->sec = pci_read_config(dev, sec_reg, 1);
+	bus->sub = pci_read_config(dev, bus->sub_reg, 1);
 	bus->dev = dev;
 	bus->rman.rm_start = 0;
 	bus->rman.rm_end = PCI_BUSMAX;
@@ -849,20 +853,16 @@ pcib_set_mem_decode(struct pcib_softc *sc)
 static void
 pcib_cfg_save(struct pcib_softc *sc)
 {
+#ifndef NEW_PCIB
 	device_t	dev;
+	uint16_t command;
 
 	dev = sc->dev;
 
-	sc->command = pci_read_config(dev, PCIR_COMMAND, 2);
-	sc->pribus = pci_read_config(dev, PCIR_PRIBUS_1, 1);
-	sc->bus.sec = pci_read_config(dev, PCIR_SECBUS_1, 1);
-	sc->bus.sub = pci_read_config(dev, PCIR_SUBBUS_1, 1);
-	sc->bridgectl = pci_read_config(dev, PCIR_BRIDGECTL_1, 2);
-	sc->seclat = pci_read_config(dev, PCIR_SECLAT_1, 1);
-#ifndef NEW_PCIB
-	if (sc->command & PCIM_CMD_PORTEN)
+	command = pci_read_config(dev, PCIR_COMMAND, 2);
+	if (command & PCIM_CMD_PORTEN)
 		pcib_get_io_decode(sc);
-	if (sc->command & PCIM_CMD_MEMEN)
+	if (command & PCIM_CMD_MEMEN)
 		pcib_get_mem_decode(sc);
 #endif
 }
@@ -874,21 +874,18 @@ static void
 pcib_cfg_restore(struct pcib_softc *sc)
 {
 	device_t	dev;
-
+#ifndef NEW_PCIB
+	uint16_t command;
+#endif
 	dev = sc->dev;
 
-	pci_write_config(dev, PCIR_COMMAND, sc->command, 2);
-	pci_write_config(dev, PCIR_PRIBUS_1, sc->pribus, 1);
-	pci_write_config(dev, PCIR_SECBUS_1, sc->bus.sec, 1);
-	pci_write_config(dev, PCIR_SUBBUS_1, sc->bus.sub, 1);
-	pci_write_config(dev, PCIR_BRIDGECTL_1, sc->bridgectl, 2);
-	pci_write_config(dev, PCIR_SECLAT_1, sc->seclat, 1);
 #ifdef NEW_PCIB
 	pcib_write_windows(sc, WIN_IO | WIN_MEM | WIN_PMEM);
 #else
-	if (sc->command & PCIM_CMD_PORTEN)
+	command = pci_read_config(dev, PCIR_COMMAND, 2);
+	if (command & PCIM_CMD_PORTEN)
 		pcib_set_io_decode(sc);
-	if (sc->command & PCIM_CMD_MEMEN)
+	if (command & PCIM_CMD_MEMEN)
 		pcib_set_mem_decode(sc);
 #endif
 }
@@ -922,7 +919,11 @@ pcib_attach_common(device_t dev)
      * Get current bridge configuration.
      */
     sc->domain = pci_get_domain(dev);
-    sc->secstat = pci_read_config(dev, PCIR_SECSTAT_1, 2);
+#if !(defined(NEW_PCIB) && defined(PCI_RES_BUS))
+    sc->bus.sec = pci_read_config(dev, PCIR_SECBUS_1, 1);
+    sc->bus.sub = pci_read_config(dev, PCIR_SUBBUS_1, 1);
+#endif
+    sc->bridgectl = pci_read_config(dev, PCIR_BRIDGECTL_1, 2);
     pcib_cfg_save(sc);
 
     /*
@@ -950,7 +951,7 @@ pcib_attach_common(device_t dev)
      * Quirk handling.
      */
     switch (pci_get_devid(dev)) {
-#if !defined(NEW_PCIB) && !defined(PCI_RES_BUS)
+#if !(defined(NEW_PCIB) && defined(PCI_RES_BUS))
     case 0x12258086:		/* Intel 82454KX/GX (Orion) */
 	{
 	    uint8_t	supbus;
@@ -976,7 +977,7 @@ pcib_attach_common(device_t dev)
 	sc->flags |= PCIB_SUBTRACTIVE;
 	break;
 
-#if !defined(NEW_PCIB) && !defined(PCI_RES_BUS)
+#if !(defined(NEW_PCIB) && defined(PCI_RES_BUS))
     /* Compaq R3000 BIOS sets wrong subordinate bus number. */
     case 0x00dd10de:
 	{
@@ -1101,32 +1102,15 @@ pcib_attach(device_t dev)
 int
 pcib_suspend(device_t dev)
 {
-	device_t	pcib;
-	int		dstate, error;
 
 	pcib_cfg_save(device_get_softc(dev));
-	error = bus_generic_suspend(dev);
-	if (error == 0 && pci_do_power_suspend) {
-		dstate = PCI_POWERSTATE_D3;
-		pcib = device_get_parent(device_get_parent(dev));
-		if (PCIB_POWER_FOR_SLEEP(pcib, dev, &dstate) == 0)
-			pci_set_powerstate(dev, dstate);
-	}
-	return (error);
+	return (bus_generic_suspend(dev));
 }
 
 int
 pcib_resume(device_t dev)
 {
-	device_t	pcib;
-	int dstate;
 
-	if (pci_do_power_resume) {
-		pcib = device_get_parent(device_get_parent(dev));
-		dstate = PCI_POWERSTATE_D0;
-		if (PCIB_POWER_FOR_SLEEP(pcib, dev, &dstate) == 0)
-			pci_set_powerstate(dev, dstate);
-	}
 	pcib_cfg_restore(device_get_softc(dev));
 	return (bus_generic_resume(dev));
 }

@@ -97,6 +97,10 @@ __sflags(const char *mode, int *optr)
 			/* set close-on-exec */
 			o |= O_CLOEXEC;
 			break;
+		case 'v':
+			/* verify */
+			o |= O_VERIFY;
+			break;
 		default:
 			known = 0;
 			break;

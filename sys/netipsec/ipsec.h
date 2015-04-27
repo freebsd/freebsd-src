@@ -309,7 +309,6 @@ struct inpcb;
 extern int ipsec_init_policy(struct socket *so, struct inpcbpolicy **);
 extern int ipsec_copy_policy(struct inpcbpolicy *, struct inpcbpolicy *);
 extern u_int ipsec_get_reqlevel(struct ipsecrequest *);
-extern int ipsec_in_reject(struct secpolicy *, struct mbuf *);
 
 extern int ipsec_set_policy(struct inpcb *inp, int optname,
 	caddr_t request, size_t len, struct ucred *cred);

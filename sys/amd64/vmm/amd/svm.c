@@ -802,6 +802,7 @@ svm_handle_inst_emul(struct vmcb *vmcb, uint64_t gpa, struct vm_exit *vmexit)
 	case CPU_MODE_REAL:
 		vmexit->u.inst_emul.cs_base = seg.base;
 		vmexit->u.inst_emul.cs_d = 0;
+		break;
 	case CPU_MODE_PROTECTED:
 	case CPU_MODE_COMPATIBILITY:
 		vmexit->u.inst_emul.cs_base = seg.base;
