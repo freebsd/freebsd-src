@@ -354,6 +354,10 @@
         ..
     ..
     sys
+        fifo
+        ..
+        file
+        ..
         kern
             execve
             ..
