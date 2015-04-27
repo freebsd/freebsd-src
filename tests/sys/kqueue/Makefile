@@ -6,8 +6,14 @@
 # libkqueue and test suite by Mark Heily <mark@heily.com>
 #
 
-PROG=kqtest
-SRCS=			\
+TAP_TESTS_SH=	kqueue_test
+
+TESTSDIR=	${TESTSBASE}/sys/kqueue
+BINDIR=		${TESTSDIR}
+
+PROGS=	kqtest
+
+SRCS.kqtest=		\
 	main.c		\
 	read.c		\
 	timer.c		\
@@ -15,7 +21,6 @@ SRCS=			\
 	proc.c		\
 	signal.c	\
 	user.c
-MAN=
 WARNS?=	2
 
-.include "bsd.prog.mk"
+.include <bsd.test.mk>
