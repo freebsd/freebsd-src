@@ -7,7 +7,7 @@ TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libm
 TESTSDIR=	${TESTSBASE}/lib/msun
 
 .if ${MACHINE} == "sparc" || ${MACHINE} == "i386" \
-	|| ${MACHINE} == "amd64" || ${MACHINE_CPU} == "arm"	\
+	|| ${MACHINE} == "amd64" || ${MACHINE_CPUARCH} == "arm"	\
 	|| ${MACHINE} == "sparc64"
 CFLAGS+=	-DHAVE_FENV_H
 .endif
