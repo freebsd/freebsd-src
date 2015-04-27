@@ -3080,7 +3080,7 @@ init386(first)
 	    dblfault_tss.tss_esp2 = (int)&dblfault_stack[sizeof(dblfault_stack)];
 	dblfault_tss.tss_ss = dblfault_tss.tss_ss0 = dblfault_tss.tss_ss1 =
 	    dblfault_tss.tss_ss2 = GSEL(GDATA_SEL, SEL_KPL);
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 	dblfault_tss.tss_cr3 = (int)IdlePDPT;
 #else
 	dblfault_tss.tss_cr3 = (int)IdlePTD;
@@ -3133,7 +3133,7 @@ init386(first)
 
 	/* setup proc 0's pcb */
 	thread0.td_pcb->pcb_flags = 0;
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 	thread0.td_pcb->pcb_cr3 = (int)IdlePDPT;
 #else
 	thread0.td_pcb->pcb_cr3 = (int)IdlePTD;
@@ -3385,7 +3385,7 @@ init386(first)
 	    dblfault_tss.tss_esp2 = (int)&dblfault_stack[sizeof(dblfault_stack)];
 	dblfault_tss.tss_ss = dblfault_tss.tss_ss0 = dblfault_tss.tss_ss1 =
 	    dblfault_tss.tss_ss2 = GSEL(GDATA_SEL, SEL_KPL);
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 	dblfault_tss.tss_cr3 = (int)IdlePDPT;
 #else
 	dblfault_tss.tss_cr3 = (int)IdlePTD;
@@ -3457,7 +3457,7 @@ init386(first)
 
 	/* setup proc 0's pcb */
 	thread0.td_pcb->pcb_flags = 0;
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 	thread0.td_pcb->pcb_cr3 = (int)IdlePDPT;
 #else
 	thread0.td_pcb->pcb_cr3 = (int)IdlePTD;

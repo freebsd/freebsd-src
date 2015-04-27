@@ -368,7 +368,7 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 	/* Save pointers to some global data. */
 	WAKECODE_FIXUP(wakeup_ret, void *, resumectx);
 #ifndef __amd64__
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 	WAKECODE_FIXUP(wakeup_cr3, register_t, vtophys(kernel_pmap->pm_pdpt));
 #else
 	WAKECODE_FIXUP(wakeup_cr3, register_t, vtophys(kernel_pmap->pm_pdir));
