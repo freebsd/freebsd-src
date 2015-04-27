@@ -148,8 +148,10 @@ static void unlink_object(Obj_Entry *);
 static void unload_object(Obj_Entry *);
 static void unref_dag(Obj_Entry *);
 static void ref_dag(Obj_Entry *);
-static char *origin_subst_one(char *, const char *, const char *, bool);
-static char *origin_subst(char *, const char *);
+static char *origin_subst_one(Obj_Entry *, char *, const char *,
+    const char *, bool);
+static char *origin_subst(Obj_Entry *, char *);
+static bool obj_resolve_origin(Obj_Entry *obj);
 static void preinit_main(void);
 static int  rtld_verify_versions(const Objlist *);
 static int  rtld_verify_object_versions(Obj_Entry *);
@@ -788,8 +790,8 @@ basename(const char *name)
 static struct utsname uts;
 
 static char *
-origin_subst_one(char *real, const char *kw, const char *subst,
-    bool may_free)
+origin_subst_one(Obj_Entry *obj, char *real, const char *kw,
+    const char *subst, bool may_free)
 {
 	char *p, *p1, *res, *resp;
 	int subst_len, kw_len, subst_count, old_len, new_len;
@@ -808,9 +810,15 @@ origin_subst_one(char *real, const char *kw, const char *subst,
 
 	/*
 	 * If the keyword is not found, just return.
+	 *
+	 * Return non-substituted string if resolution failed.  We
+	 * cannot do anything more reasonable, the failure mode of the
+	 * caller is unresolved library anyway.
 	 */
-	if (subst_count == 0)
+	if (subst_count == 0 || (obj != NULL && !obj_resolve_origin(obj)))
 		return (may_free ? real : xstrdup(real));
+	if (obj != NULL)
+		subst = obj->origin_path;
 
 	/*
 	 * There is indeed something to substitute.  Calculate the
@@ -847,20 +855,22 @@ origin_subst_one(char *real, const char *kw, const char *subst,
 }
 
 static char *
-origin_subst(char *real, const char *origin_path)
+origin_subst(Obj_Entry *obj, char *real)
 {
 	char *res1, *res2, *res3, *res4;
 
+	if (obj == NULL || !trust)
+		return (xstrdup(real));
 	if (uts.sysname[0] == '\0') {
 		if (uname(&uts) != 0) {
 			_rtld_error("utsname failed: %d", errno);
 			return (NULL);
 		}
 	}
-	res1 = origin_subst_one(real, "$ORIGIN", origin_path, false);
-	res2 = origin_subst_one(res1, "$OSNAME", uts.sysname, true);
-	res3 = origin_subst_one(res2, "$OSREL", uts.release, true);
-	res4 = origin_subst_one(res3, "$PLATFORM", uts.machine, true);
+	res1 = origin_subst_one(obj, real, "$ORIGIN", NULL, false);
+	res2 = origin_subst_one(NULL, res1, "$OSNAME", uts.sysname, true);
+	res3 = origin_subst_one(NULL, res2, "$OSREL", uts.release, true);
+	res4 = origin_subst_one(NULL, res3, "$PLATFORM", uts.machine, true);
 	return (res4);
 }
 
@@ -1124,7 +1134,7 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 #endif
 
 	case DT_FLAGS:
-		if ((dynp->d_un.d_val & DF_ORIGIN) && trust)
+		if (dynp->d_un.d_val & DF_ORIGIN)
 		    obj->z_origin = true;
 		if (dynp->d_un.d_val & DF_SYMBOLIC)
 		    obj->symbolic = true;
@@ -1156,7 +1166,7 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 	case DT_FLAGS_1:
 		if (dynp->d_un.d_val & DF_1_NOOPEN)
 		    obj->z_noopen = true;
-		if ((dynp->d_un.d_val & DF_1_ORIGIN) && trust)
+		if (dynp->d_un.d_val & DF_1_ORIGIN)
 		    obj->z_origin = true;
 		if (dynp->d_un.d_val & DF_1_GLOBAL)
 		    obj->z_global = true;
@@ -1207,30 +1217,33 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
     }
 }
 
+static bool
+obj_resolve_origin(Obj_Entry *obj)
+{
+
+	if (obj->origin_path != NULL)
+		return (true);
+	obj->origin_path = xmalloc(PATH_MAX);
+	return (rtld_dirname_abs(obj->path, obj->origin_path) != -1);
+}
+
 static void
 digest_dynamic2(Obj_Entry *obj, const Elf_Dyn *dyn_rpath,
     const Elf_Dyn *dyn_soname, const Elf_Dyn *dyn_runpath)
 {
 
-    if (obj->z_origin && obj->origin_path == NULL) {
-	obj->origin_path = xmalloc(PATH_MAX);
-	if (rtld_dirname_abs(obj->path, obj->origin_path) == -1)
-	    rtld_die();
-    }
+	if (obj->z_origin && !obj_resolve_origin(obj))
+		rtld_die();
 
-    if (dyn_runpath != NULL) {
-	obj->runpath = (char *)obj->strtab + dyn_runpath->d_un.d_val;
-	if (obj->z_origin)
-	    obj->runpath = origin_subst(obj->runpath, obj->origin_path);
-    }
-    else if (dyn_rpath != NULL) {
-	obj->rpath = (char *)obj->strtab + dyn_rpath->d_un.d_val;
-	if (obj->z_origin)
-	    obj->rpath = origin_subst(obj->rpath, obj->origin_path);
-    }
-
-    if (dyn_soname != NULL)
-	object_add_name(obj, obj->strtab + dyn_soname->d_un.d_val);
+	if (dyn_runpath != NULL) {
+		obj->runpath = (char *)obj->strtab + dyn_runpath->d_un.d_val;
+		obj->runpath = origin_subst(obj, obj->runpath);
+	} else if (dyn_rpath != NULL) {
+		obj->rpath = (char *)obj->strtab + dyn_rpath->d_un.d_val;
+		obj->rpath = origin_subst(obj, obj->rpath);
+	}
+	if (dyn_soname != NULL)
+		object_add_name(obj, obj->strtab + dyn_soname->d_un.d_val);
 }
 
 static void
@@ -1480,12 +1493,8 @@ find_library(const char *xname, const Obj_Entry *refobj, int *fdp)
 	      xname);
 	    return NULL;
 	}
-	if (objgiven && refobj->z_origin) {
-		return (origin_subst(__DECONST(char *, xname),
-		    refobj->origin_path));
-	} else {
-		return (xstrdup(xname));
-	}
+	return (origin_subst(__DECONST(Obj_Entry *, refobj),
+	  __DECONST(char *, xname)));
     }
 
     if (libmap_disable || !objgiven ||
