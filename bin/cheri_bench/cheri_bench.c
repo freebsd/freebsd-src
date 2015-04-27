@@ -44,6 +44,14 @@
 #include <pthread.h>
 #include <semaphore.h>
 
+static inline uint32_t get_cyclecount(void)
+{
+  uint64_t _time;
+  //__asm __volatile("rdhwr %0, $2" : "=r" (_time));
+  __asm __volatile(".word 0x7c10103b\n\tmove %0, $16" : "=r" (_time) :: "$16"); // rdhwr $16, $2 manually assembled due to gas issues
+  return (_time & 0xffffffff);
+}
+
 #if __has_feature(capabilities)
 
 #include <machine/cheri.h>
@@ -52,15 +60,6 @@
 #include <cheri/sandbox.h>
 #include <cheri/cheri_invoke.h>
 #include <cheri_bench-helper.h>
-
-static inline uint32_t get_cyclecount(void)
-{
-  uint64_t _time;
-  //__asm __volatile("rdhwr %0, $2" : "=r" (_time));
-  __asm __volatile(".word 0x7c10103b\n\tmove %0, $16" : "=r" (_time) :: "$16"); // rdhwr $16, $2 manually assembled due to gas issuesa
-  return (_time & 0xffffffff);
-}
-
 #define CAP
 struct cheri_object cheri_bench;
 

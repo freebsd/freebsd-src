@@ -14,8 +14,9 @@ NO_WERROR=	YES
 
 .include <bsd.prog.mk>
 LIBADD+= pthread
+LDADD+= -lpthread
 
 .if ${MK_CHERI} != "no"
 LIBADD+=  cheri
-LDADD+=  -static -lcheri -lpthread
+LDADD+=  -static -lcheri
 .endif
