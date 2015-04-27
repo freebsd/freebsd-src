@@ -306,8 +306,7 @@ bcm2835_mbox_init_dma(device_t dev, size_t len, bus_dma_tag_t *tag,
 		return (NULL);
 	}
 
-	err = bus_dmamap_load(*tag, *map, buf,
-	    sizeof(struct msg_set_power_state), bcm2835_mbox_dma_cb,
+	err = bus_dmamap_load(*tag, *map, buf, len, bcm2835_mbox_dma_cb,
 	    phys, 0);
 	if (err != 0) {
 		bus_dmamem_free(*tag, buf, *map);
