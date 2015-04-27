@@ -375,7 +375,7 @@ kernel-toolchains:
 .if make(universe) || make(universe_kernels) || make(tinderbox) || make(targets)
 TARGETS?=amd64 arm i386 mips pc98 powerpc sparc64
 # XXX Add arm64 to universe only if we have an external binutils installed.
-# It does not build with the in-tree linnker.
+# It does not build with the in-tree linker.
 .if exists(/usr/local/aarch64-freebsd/bin/ld)
 TARGETS+=arm64
 TARGET_ARCHES_arm64?=	aarch64
