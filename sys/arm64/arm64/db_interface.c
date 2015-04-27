@@ -131,7 +131,7 @@ db_read_bytes(vm_offset_t addr, size_t size, char *data)
 	const char *src = (const char *)addr;
 
 	while (size-- > 0) {
-		if (db_validate_address((u_int)src)) {
+		if (db_validate_address((vm_offset_t)src)) {
 			db_printf("address %p is invalid\n", src);
 			return (-1);
 		}
@@ -150,7 +150,7 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 
 	dst = (char *)addr;
 	while (size-- > 0) {
-		if (db_validate_address((u_int)dst)) {
+		if (db_validate_address((vm_offset_t)dst)) {
 			db_printf("address %p is invalid\n", dst);
 			return (-1);
 		}
