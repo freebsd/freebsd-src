@@ -34,25 +34,21 @@
  * $FreeBSD$
  */
 
+#include <err.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char **argv)
 {
+
 	if (argc != 2) {
 		fprintf(stderr, "usage: %s <progname>\n", argv[0]);
 		exit(2);
 	}
 
-	unsetenv("LANG");	/* we compare C error strings */
-	if (execve(argv[1], &argv[1], NULL) == -1) {
-		printf("%s\n", strerror(errno));
-		exit(1);
-	}
+	execve(argv[1], &argv[1], NULL);
+	err(1, "");
 }

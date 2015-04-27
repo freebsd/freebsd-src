@@ -1,4 +1,4 @@
-#! /bin/csh
+#!/bin/sh
 # $FreeBSD$
 
 echo succeeded

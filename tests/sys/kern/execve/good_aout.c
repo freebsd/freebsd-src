@@ -38,9 +38,7 @@
 #include <stdlib.h>
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(void)
 {
 	printf("succeeded\n");
 	exit(0);
