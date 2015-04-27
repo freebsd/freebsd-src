@@ -62,7 +62,7 @@ main(int argc, char *argv[])
 	int error, fd, fds[2], i, read_only_fd;
 	char path[PATH_MAX];
 	struct stat sb;
-	size_t size;
+	ssize_t size;
 	off_t len;
 	char ch;
 
@@ -78,7 +78,7 @@ main(int argc, char *argv[])
 	snprintf(path, PATH_MAX, "/tmp/ftruncate.XXXXXXXXXXXXX");
 	fd = mkstemp(path);
 	if (fd < 0)
-		err(-1, "makestemp");
+		err(-1, "mkstemp");
 	read_only_fd = open(path, O_RDONLY);
 	if (read_only_fd < 0) {
 		error = errno;
@@ -96,34 +96,34 @@ main(int argc, char *argv[])
 	for (i = 0; i < lengths_count; i++) {
 		len = lengths[i];
 		if (ftruncate(fd, len) < 0)
-			err(-1, "ftruncate(%llu) up", len);
+			err(-1, "ftruncate(%jd) up", (intmax_t)len);
 		if (fstat(fd, &sb) < 0)
 			err(-1, "stat");
 		if (sb.st_size != len)
-			errx(-1, "fstat(%llu) returned len %llu up", len,
-			    sb.st_size);
+			errx(-1, "fstat with len=%jd returned len %jd up",
+			    (intmax_t)len, (intmax_t)sb.st_size);
 		if (len != 0) {
 			size = pread(fd, &ch, sizeof(ch), len - 1);
 			if (size < 0)
-				err(-1, "pread on len %llu up", len);
+				err(-1, "pread on len %jd up", (intmax_t)len);
 			if (size != sizeof(ch))
-				errx(-1, "pread len %llu size %jd up",
-				    len, (intmax_t)size);
+				errx(-1, "pread len %jd size %jd up",
+				    (intmax_t)len, (intmax_t)size);
 			if (ch != 0)
 				errx(-1,
-				    "pread length %llu size %jd ch %d up",
-				    len, (intmax_t)size, ch);
+				    "pread length %jd size %jd ch %d up",
+				    (intmax_t)len, (intmax_t)size, ch);
 		}
 	}
 
 	for (i = lengths_count - 1; i >= 0; i--) {
 		len = lengths[i];
 		if (ftruncate(fd, len) < 0)
-			err(-1, "ftruncate(%llu) down", len);
+			err(-1, "ftruncate(%jd) down", (intmax_t)len);
 		if (fstat(fd, &sb) < 0)
 			err(-1, "stat");
 		if (sb.st_size != len)
-			errx(-1, "fstat(%llu) returned %llu down", len,
+			errx(-1, "fstat(%jd) returned %jd down", (intmax_t)len,
 			    sb.st_size);
 	}
 	close(fd);
