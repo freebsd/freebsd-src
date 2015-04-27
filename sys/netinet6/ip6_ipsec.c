@@ -251,9 +251,7 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *error)
 		/* No IPsec processing for this packet. */
 	}
 done:
-	if (sp != NULL)
-		KEY_FREESP(&sp);
-	return 0;
+	return (0);
 reinjected:
 	return (-1);
 bad:
