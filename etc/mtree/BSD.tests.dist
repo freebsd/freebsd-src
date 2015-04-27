@@ -364,6 +364,8 @@
         ..
         kqueue
         ..
+        mqueue
+        ..
         netinet
         ..
         opencrypto

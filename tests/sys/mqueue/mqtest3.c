@@ -1,7 +1,6 @@
 /* $FreeBSD$ */
 
 #include <sys/types.h>
-#include <sys/event.h>
 #include <sys/select.h>
 #include <sys/wait.h>
 #include <err.h>
@@ -12,35 +11,27 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#define MQNAME	"/mytstqueue5"
+#define MQNAME	"/mytstqueue3"
 #define LOOPS	1000
 #define PRIO	10
 
-void sighandler(int sig)
+static void
+sighandler(int sig __unused)
 {
 	write(1, "timeout\n", 8);
 	_exit(1);
 }
 
-int main()
+int
+main(void)
 {
-	mqd_t mq;
-	int status;
+	fd_set set;
 	struct mq_attr attr;
-	int pid;
-	sigset_t set;
-	struct sigaction sa;
-	siginfo_t info;
+	int status;
+	mqd_t mq;
+	pid_t pid;
 
 	mq_unlink(MQNAME);
-
-	sigemptyset(&set);
-	sigaddset(&set, SIGRTMIN);
-	sigprocmask(SIG_BLOCK, &set, NULL);
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_SIGINFO;
-	sa.sa_sigaction = (void *) SIG_DFL;
-	sigaction(SIGRTMIN, &sa, NULL);
 
 	attr.mq_maxmsg  = 5;
 	attr.mq_msgsize = 128;
@@ -50,42 +41,36 @@ int main()
 	status = mq_getattr(mq, &attr);
 	if (status)
 		err(1, "mq_getattr()");
+	
 	pid = fork();
 	if (pid == 0) { /* child */
-		int prio, j, i;
 		char *buf;
-		struct sigevent sigev;
+		int j, i;
+		unsigned int prio;
+
+		mq_close(mq);
 
 		signal(SIGALRM, sighandler);
 
-		sigev.sigev_notify = SIGEV_SIGNAL;
-		sigev.sigev_signo = SIGRTMIN;
-		sigev.sigev_value.sival_int = 2;
-
-		mq_close(mq);
-		mq = mq_open(MQNAME, O_RDWR | O_NONBLOCK);
+		mq = mq_open(MQNAME, O_RDWR);
 		if (mq == (mqd_t)-1)
-			err(1, "child: mq_open");
+			err(1, "child process: mq_open");
 		buf = malloc(attr.mq_msgsize);
 		for (j = 0; j < LOOPS; ++j) {
+			FD_ZERO(&set);
+			FD_SET(__mq_oshandle(mq), &set);
 			alarm(3);
-			status = mq_notify(mq, &sigev);
-			if (status)
-				err(1, "child: mq_notify");
-			status = sigwaitinfo(&set, &info);
-			if (status == -1)
-				err(1, "child: sigwaitinfo");
-			if (info.si_value.sival_int != 2)
-				err(1, "child: sival_int");
+			status = select(__mq_oshandle(mq)+1, &set, NULL, NULL, NULL);
+			if (status != 1)
+				err(1, "child process: select()");
 			status = mq_receive(mq, buf, attr.mq_msgsize, &prio);
 			if (status == -1)
-				err(2, "child: mq_receive");
+				err(2, "child process: mq_receive");
 			for (i = 0; i < attr.mq_msgsize; ++i)
 				if (buf[i] != i)
-					err(3, "child: message data corrupted");
+					err(3, "message data corrupted");
 			if (prio != PRIO)
-				err(4, "child: priority is incorrect: %d",
-					 prio);
+				err(4, "priority is incorrect: %d", prio);
 		}
 		alarm(0);
 		free(buf);
@@ -95,7 +80,7 @@ int main()
 		err(1, "fork()");
 	} else {
 		char *buf;
-		int i, j, prio;
+		int i, j;
 
 		signal(SIGALRM, sighandler);
 		buf = malloc(attr.mq_msgsize);
@@ -104,6 +89,11 @@ int main()
 				buf[i] = i;
 			}
 			alarm(3);
+			FD_ZERO(&set);
+			FD_SET(__mq_oshandle(mq), &set);
+			status = select(__mq_oshandle(mq)+1, NULL, &set, NULL, NULL);
+			if (status != 1)
+				err(1, "select()");
 			status = mq_send(mq, buf, attr.mq_msgsize, PRIO);
 			if (status) {
 				kill(pid, SIGKILL);

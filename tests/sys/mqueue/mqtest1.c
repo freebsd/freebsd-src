@@ -9,7 +9,8 @@
 
 #define MQNAME	"/mytstqueue1"
 
-int main()
+int
+main(void)
 {
 	struct mq_attr attr, attr2;
 	struct sigevent sigev;
