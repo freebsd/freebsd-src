@@ -36,8 +36,6 @@ if [ $? -ne 0 ]; then
 fi
 rm ${1}/etc/fstab
 
-mkimg -s bsd -p freebsd-ufs:=${2}.part -p freebsd-swap::1M -o ${2}.tmp
-mkimg -s mbr -p efi:=${1}/boot/boot1.efifat -p freebsd:=${2}.tmp -o ${2}
-rm ${2}.tmp
+mkimg -s mbr -p efi:=${1}/boot/boot1.efifat -p freebsd:=${2}.part -o ${2}
 rm ${2}.part
 
