@@ -404,6 +404,8 @@
             unlink
             ..
         ..
+        vm
+        ..
     ..
     usr.bin
         apply
