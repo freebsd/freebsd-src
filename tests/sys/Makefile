@@ -4,6 +4,8 @@
 
 TESTSDIR= ${TESTSBASE}/sys
 
+TESTS_SUBDIRS+=		fifo
+TESTS_SUBDIRS+=		file
 TESTS_SUBDIRS+=		kern
 TESTS_SUBDIRS+=		kqueue
 TESTS_SUBDIRS+=		netinet
