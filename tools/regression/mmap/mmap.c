@@ -31,10 +31,11 @@
 #include <sys/sysctl.h>
 #include <sys/types.h>
 
+#include <errno.h>
 #include <stdio.h>
-#include <err.h>
+#include <string.h>
 
-const struct tests {
+static const struct {
 	void	*addr;
 	int	ok[2];	/* Depending on security.bsd.map_at_zero {0, !=0}. */
 } tests[] = {
@@ -49,6 +50,8 @@ const struct tests {
 	{ (void *)(0x1000 * PAGE_SIZE),	{ 1, 1 } },
 };
 
+#define	MAP_AT_ZERO	"security.bsd.map_at_zero"
+
 int
 main(void)
 {
@@ -60,37 +63,43 @@ main(void)
 
 	/* Get the current sysctl value of security.bsd.map_at_zero. */
 	len = sizeof(mib) / sizeof(*mib);
-	if (sysctlnametomib("security.bsd.map_at_zero", mib, &len) == -1)
-		err(1, "sysctlnametomib(security.bsd.map_at_zero)");
+	if (sysctlnametomib(MAP_AT_ZERO, mib, &len) == -1) {
+		printf("1..0 # SKIP: sysctlnametomib(\"%s\") failed: %s\n",
+		    MAP_AT_ZERO, strerror(errno));
+		return (0);
+	}
 
 	len = sizeof(map_at_zero);
-	if (sysctl(mib, 3, &map_at_zero, &len, NULL, 0) == -1)
-		err(1, "sysctl(security.bsd.map_at_zero)");
+	if (sysctl(mib, 3, &map_at_zero, &len, NULL, 0) == -1) {
+		printf("1..0 # SKIP: sysctl for %s failed: %s\n", MAP_AT_ZERO,
+		    strerror(errno));
+		return (0);
+	}
 
 	/* Normalize to 0 or 1 for array access. */
 	map_at_zero = !!map_at_zero;
 
-	for (i=0; i < (sizeof(tests) / sizeof(*tests)); i++) {
+	printf("1..%zu\n", nitems(tests));
+	for (i = 0; i < (int)nitems(tests); i++) {
 		p = mmap((void *)tests[i].addr, PAGE_SIZE,
 		    PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANON | MAP_FIXED,
 		    -1, 0);
 		if (p == MAP_FAILED) {
 			if (tests[i].ok[map_at_zero] != 0)
 				error++;
-			warnx("%s: mmap(%p, ...) failed.",
-			    (tests[i].ok[map_at_zero] == 0) ? "OK " : "ERR",
-			     tests[i].addr);
+			printf("%sok %d # mmap(%p, ...) failed\n",
+			    tests[i].ok[map_at_zero] == 0 ? "" : "not ",
+			    i + 1,
+			    tests[i].addr);
 		} else {
 			if (tests[i].ok[map_at_zero] != 1)
 				error++;
-			warnx("%s: mmap(%p, ...) succeeded: p=%p",
-			    (tests[i].ok[map_at_zero] == 1) ? "OK " : "ERR",
+			printf("%sok %d # mmap(%p, ...) succeeded: p=%p\n",
+			    tests[i].ok[map_at_zero] == 1 ? "" : "not ",
+			    i + 1,
 			    tests[i].addr, p);
 		}
 	}
-
-	if (error)
-		err(1, "---\nERROR: %d unexpected results.", error);
 
 	return (error != 0);
 }
