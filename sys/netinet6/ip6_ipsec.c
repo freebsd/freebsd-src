@@ -213,7 +213,9 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *error)
 
 		/* NB: callee frees mbuf */
 		*error = ipsec6_process_packet(*m, sp->req);
-
+		/* Release SP if an error occured */
+		if (*error != 0)
+			KEY_FREESP(&sp);
 		if (*error == EJUSTRETURN) {
 			/*
 			 * We had a SP with a level of 'use' and no SA. We
@@ -253,9 +255,7 @@ done:
 		KEY_FREESP(&sp);
 	return 0;
 reinjected:
-	if (sp != NULL)
-		KEY_FREESP(&sp);
-	return -1;
+	return (-1);
 bad:
 	if (sp != NULL)
 		KEY_FREESP(&sp);
