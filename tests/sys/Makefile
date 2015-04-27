@@ -4,6 +4,7 @@
 
 TESTSDIR= ${TESTSBASE}/sys
 
+TESTS_SUBDIRS+=		aio
 TESTS_SUBDIRS+=		fifo
 TESTS_SUBDIRS+=		file
 TESTS_SUBDIRS+=		kern

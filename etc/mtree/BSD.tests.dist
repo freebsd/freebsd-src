@@ -354,6 +354,8 @@
         ..
     ..
     sys
+        aio
+        ..
         fifo
         ..
         file
