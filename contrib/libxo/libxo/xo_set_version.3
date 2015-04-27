@@ -1,5 +1,5 @@
 .\" #
-.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # Copyright (c) 2015, Juniper Networks, Inc.
 .\" # All rights reserved.
 .\" # This SOFTWARE is licensed under the LICENSE provided in the
 .\" # ../Copyright file. By downloading, installing, copying, or 
@@ -11,30 +11,24 @@
 .Dt LIBXO 3
 .Os
 .Sh NAME
-.Nm xo_error
-.Nd generate error messages
+.Nm xo_set_version
+.Nd record content version information in encoded output
 .Sh LIBRARY
 .Lb libxo
 .Sh SYNOPSIS
 .In libxo/xo.h
 .Ft void
-.Fn xo_error "const char *fmt" "..."
+.Fn xo_set_version "const char *version"
+.Ft void
+.Fn xo_set_version_h "xo_handle_t *xop" "const char *version"
 .Sh DESCRIPTION
-Use the
-.Fn xo_error
-function to generate error messages to standard error.
-The 
-.Fa fmt
-argument is a string containing printf-style formatting
-instructions that describe the remaining arguments.
-.Pp
-When converting an application to
-.Nm libxo ,
-one can replace
-.Em "fprintf(stderr,...)"
-calls with
-.Fn xo_error
-calls.
+The
+.Nm xo_set_version
+function records a version number to be emitted as
+part of the data for encoding styles (XML and JSON).
+This version number is suitable for tracking changes in the content,
+allowing a user of the data to discern which version of the data model
+is in use.
 .Sh ADDITIONAL DOCUMENTATION
 Complete documentation can be found on github:
 .Bd -literal -offset indent
@@ -54,8 +48,8 @@ is available at:
 https://github.com/Juniper/libxo/releases
 .Ed
 .Sh SEE ALSO
-.Xr printf 3 ,
-.Xr xo_emit 3
+.Xr xo_emit 3 ,
+.Xr libxo 3
 .Sh HISTORY
 The
 .Nm libxo

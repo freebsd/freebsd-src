@@ -26,6 +26,7 @@ MAN+=	xo_attr.3 \
 	xo_flush.3 \
 	xo_no_setlocale.3 \
 	xo_open_container.3 \
+	xo_open_marker.3 \
 	xo_open_list.3 \
 	xo_parse_args.3 \
 	xo_set_allocator.3 \
@@ -33,6 +34,7 @@ MAN+=	xo_attr.3 \
 	xo_set_info.3 \
 	xo_set_options.3 \
 	xo_set_style.3 \
+	xo_set_version.3 \
 	xo_set_writer.3
 MAN+=	xo_format.5
 
