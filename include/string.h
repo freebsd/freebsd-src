@@ -150,6 +150,9 @@ __capability void
 	*memcpy_c_tocap(__capability void * __restrict,
 	    const void * __restrict, size_t);
 __capability void
+	*memmove_c(__capability void * __restrict,
+	    __capability const void * __restrict, size_t);
+__capability void
 	*memset_c(__capability void *, int, size_t);
 
 __capability char
