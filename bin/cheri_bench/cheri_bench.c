@@ -226,7 +226,7 @@ int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capability ch
 
       for (uint rep = 0; rep < reps; rep++)
 	{
-	  if (rep & 0xf == 0)
+	  if ((rep & 0xf) == 0) // attempt to avoid flooding the uart
 	    usleep(1);
 	  printf(",%lu", samples[rep]);
 	}
