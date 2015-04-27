@@ -242,6 +242,8 @@ add_redir_spool_cfg(char *buf, struct cfg_nat *ptr)
 		}
 		if (r->alink[0] == NULL) {
 			printf("LibAliasRedirect* returned NULL\n");
+			free(r->alink, M_IPFW);
+			free(r, M_IPFW);
 			return (EINVAL);
 		}
 		/* LSNAT handling. */
