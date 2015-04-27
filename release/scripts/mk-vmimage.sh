@@ -102,6 +102,7 @@ main() {
 	vm_extra_pre_umount
 	vm_extra_pkg_rmcache
 	cleanup
+	vm_copy_base
 	vm_create_disk || return 0
 	vm_extra_create_disk
 
