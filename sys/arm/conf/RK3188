@@ -72,8 +72,8 @@ options 	WITNESS			# Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 options 	DIAGNOSTIC
 
-# Boot device is 2nd slice on USB
-options 	ROOTDEVNAME=\"ufs:/dev/da0s2\"
+# Root mount from MMC/SD card
+options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0\"
 
 # MMC/SD/SDIO Card slot support
 device		mmc			# mmc/sd bus
