@@ -2211,7 +2211,7 @@ create_objects_compat(struct ip_fw_chain *ch, ipfw_insn *cmd,
 		return (error);
 	}
 
-	return (error);
+	return (0);
 }
 
 /*
