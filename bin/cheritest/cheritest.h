@@ -224,6 +224,8 @@ void	test_sandbox_setstack_nop(const struct cheri_test *ctp);
 /* cheritest_string.c */
 void	test_string_memcpy(const struct cheri_test *ctp);
 void	test_string_memcpy_c(const struct cheri_test *ctp);
+void	test_string_memmove(const struct cheri_test *ctp);
+void	test_string_memmove_c(const struct cheri_test *ctp);
 
 /* cheritest_syscall.c */
 void	test_sandbox_syscall(const struct cheri_test *ctp);

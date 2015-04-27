@@ -244,3 +244,157 @@ test_string_memcpy(const struct cheri_test *ctp __unused)
 
 	cheritest_success();
 }
+
+void
+test_string_memmove_c(const struct cheri_test *ctp __unused)
+{
+	int i;
+	__capability void *cpy;
+	struct Test t1, t2;
+
+	invalidate(&t1);
+	for (i = 0; i < 32; i++) {
+		t1.pad0[i] = i;
+		t1.pad1[i] = i;
+	}
+	t1.y = CAP(&t2);
+
+	/* Simple case: aligned start and end */
+	invalidate(&t2);
+	cpy = memmove_c(CAP(&t2), CAP(&t1), sizeof(t1));
+	if ((void *)cpy != &t2)
+		cheritest_failure_errx("memmove_c did not return dst (&t2)");
+	check(&t2, 0, 32);
+
+	/* Test that it still works with an unaligned start... */
+	invalidate(&t2);
+	cpy = memmove_c(CAP(&t2.pad0[3]), CAP(&t1.pad0[3]), sizeof(t1) - 3);
+	if ((void*)cpy != &t2.pad0[3])
+		cheritest_failure_errx("memmove_c did not return dst "
+		    "(&t2.pad0[3])");
+	check(&t2, 3, 32);
+
+	/* ...or and unaligned end... */
+	invalidate(&t2);
+	cpy = memmove_c(CAP(&t2), CAP(&t1), sizeof(t1) - 3);
+	if ((void *)cpy != &t2)
+		cheritest_failure_errx("memmove_c did not return dst (&t2)");
+	check(&t2, 0, 29);
+
+	/* ...or both... */
+	invalidate(&t2);
+	cpy = memmove_c(CAP(&t2.pad0[3]), CAP(&t1.pad0[3]), sizeof(t1) - 6);
+	if ((void*)cpy != &t2.pad0[3])
+		cheritest_failure_errx("memmove_c did not return dst "
+		    "(&t2.pad0[3])");
+	check(&t2, 3, 29);
+
+	/* ...and case where the alignment is different for both... */
+	invalidate(&t2);
+	cpy = memmove_c(CAP(&t2), CAP(&t1.pad0[1]), sizeof(t1) - 1);
+	if ((void*)cpy != &t2)
+		cheritest_failure_errx("memmove_c did not return dst (&t2)");
+	/* This should have invalidated the capability */
+	if (cheri_gettag(t2.y) != 0)
+		cheritest_failure_errx("dst has capability after unaligned "
+		    "write");
+	for (i = 0; i < 31; i++) {
+		if (t2.pad0[i] != i+1)
+			cheritest_failure_errx("t2.pad0[%d] != %d", i, i+1);
+		if (t2.pad1[i] != i+1)
+			cheritest_failure_errx("t2.pad1[%d] != %d", i, i+1);
+	}
+
+	/*
+	 * ...and finally finally tests that offsets are taken into
+	 * account when checking alignment.  These are regression tests
+	 * for a bug in memmove_c.
+	 */
+	/* aligned base, unaligned offset + base */
+	invalidate(&t2);
+	cpy = memmove_c(
+	    __builtin_cheri_cap_offset_set(CAP(&t2), 3),
+	    __builtin_cheri_cap_offset_set(CAP(&t1), 3),
+	    sizeof(t1)-6);
+	if ((void*)cpy != &t2.pad0[3])
+		cheritest_failure_errx("memmove_c did not return dst "
+		    "(&t2.pad0[3])");
+	check(&t2, 3, 29);
+
+	/* unaligned base, aligned offset + base */
+	invalidate(&t2);
+	cpy = memmove_c(
+	    __builtin_cheri_cap_offset_set(CAP(t2.pad0-1), 1),
+	    __builtin_cheri_cap_offset_set(CAP(t1.pad0-1), 1),
+	    sizeof(t1));
+	if ((void*)cpy != &t2.pad0)
+		cheritest_failure_errx("(void*)cpy != &t2.pad0");
+	check(&t2, 0, 32);
+
+	/* XXX-BD: test overlapping cases */
+
+	cheritest_success();
+}
+
+void
+test_string_memmove(const struct cheri_test *ctp __unused)
+{
+	int i;
+	void *copy;
+	struct Test t1, t2;
+
+	invalidate(&t1);
+	for (i = 0; i < 32; i++) {
+		t1.pad0[i] = i;
+		t1.pad1[i] = i;
+	}
+	t1.y = CAP(&t2);
+
+	/* Simple case: aligned start and end */
+	invalidate(&t2);
+	copy = memmove(&t2, &t1, sizeof(t1));
+	if (copy != &t2)
+		cheritest_failure_errx("copy != &t2");
+	check(&t2, 0, 32);
+
+	/* Test that it still works with an unaligned start... */
+	invalidate(&t2);
+	copy = memmove(&t2.pad0[3], &t1.pad0[3], sizeof(t1) - 3);
+	if ((void*)copy != &t2.pad0[3])
+		cheritest_failure_errx("memmove_c did not return dst "
+		    "(&t2.pad0[3])");
+	check(&t2, 3, 32);
+
+	/* ...or an unaligned end... */
+	invalidate(&t2);
+	copy = memmove(&t2, &t1, sizeof(t1) - 3);
+	if (copy != &t2)
+		cheritest_failure_errx("copy != &t2");
+	check(&t2, 0, 29);
+
+	/* ...or both... */
+	invalidate(&t2);
+	copy = memmove(&t2.pad0[3], &t1.pad0[3], sizeof(t1) - 6);
+	if ((void*)copy != &t2.pad0[3])
+		cheritest_failure_errx("memmove_c did not return dst "
+		    "(&t2.pad0[3])");
+	check(&t2, 3, 29);
+
+	/* ...and finally a case where the alignment is different for both */
+	copy = memmove(&t2, &t1.pad0[1], sizeof(t1) - 1);
+	if (copy != &t2)
+		cheritest_failure_errx("copy != &t2");
+	if (cheri_gettag(t2.y) != 0)
+		cheritest_failure_errx("dst has capability after unaligned "
+		    "write");
+	for (i = 0; i < 31; i++) {
+		if (t2.pad0[i] != i+1)
+			cheritest_failure_errx("t2.pad0[%d] != %d", i, i+1);
+		if (t2.pad1[i] != i+1)
+			cheritest_failure_errx("t2.pad1[%d] != %d", i, i+1);
+	}
+
+	/* XXX-BD: test overlapping cases */
+
+	cheritest_success();
+}

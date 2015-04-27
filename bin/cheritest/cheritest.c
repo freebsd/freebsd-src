@@ -673,6 +673,12 @@ static const struct cheri_test cheri_tests[] = {
 	{ .ct_name = "test_string_memcpy_c",
 	  .ct_desc = "Test explicit capability memcpy",
 	  .ct_func = test_string_memcpy_c },
+	{ .ct_name = "test_string_memmove",
+	  .ct_desc = "Test implicit capability memmove",
+	  .ct_func = test_string_memmove },
+	{ .ct_name = "test_string_memmove_c",
+	  .ct_desc = "Test explicit capability memmove",
+	  .ct_func = test_string_memmove_c },
 };
 static const u_int cheri_tests_len = sizeof(cheri_tests) /
 	    sizeof(cheri_tests[0]);
