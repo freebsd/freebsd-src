@@ -3520,7 +3520,7 @@ xo_colors_handle_text (xo_handle_t *xop UNUSED, xo_colors_t *newp)
     char *cp = buf, *ep = buf + sizeof(buf);
     unsigned i, bit;
     xo_colors_t *oldp = &xop->xo_colors;
-    const char *code;
+    const char *code = NULL;
 
     /*
      * Start the buffer with an escape.  We don't want to add the '['
