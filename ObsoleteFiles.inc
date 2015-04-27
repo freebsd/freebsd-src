@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150427: test/sys/kern/mmap_test moved to test/sys/vm/mmap_test
+OLD_FILES+=usr/tests/sys/kern/mmap_test
 # 20150418
 OLD_FILES+=sbin/mount_oldnfs
 OLD_FILES+=usr/share/man/man8/mount_oldnfs.8.gz
