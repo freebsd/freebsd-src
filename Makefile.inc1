@@ -472,6 +472,7 @@ LIBCHERI_OBJTREE=	${OBJTREE}${.CURDIR}/worldcheri
 # Yes, the flags are redundant.
 LIBCHERIWMAKEENV= \
 		NEED_CHERI=pure \
+		COMPILER_TYPE=clang \
 		LIBCHERI=yes \
 		NO_SHARED=yes NO_PROFILE=yes \
 		SYSROOT=${WORLDTMP} \
