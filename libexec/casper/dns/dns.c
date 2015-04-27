@@ -228,8 +228,10 @@ dns_getnameinfo(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 		goto out;
 	}
 
-	if (!dns_allowed_family(limits, (int)sast.ss_family))
-		return (NO_RECOVERY);
+	if (!dns_allowed_family(limits, (int)sast.ss_family)) {
+		error = NO_RECOVERY;
+		goto out;
+	}
 
 	flags = (int)nvlist_get_number(nvlin, "flags");
 
