@@ -10,6 +10,10 @@ arm64/arm64/clock.c		standard
 arm64/arm64/copyinout.S		standard
 arm64/arm64/copystr.c		standard
 arm64/arm64/cpufunc_asm.S	standard
+arm64/arm64/db_disasm.c		optional	ddb
+arm64/arm64/db_interface.c	optional	ddb
+arm64/arm64/db_trace.c		optional	ddb
+arm64/arm64/debug_monitor.c	optional	kdb
 arm64/arm64/dump_machdep.c	standard
 arm64/arm64/elf_machdep.c	standard
 arm64/arm64/exception.S		standard
