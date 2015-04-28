@@ -674,11 +674,12 @@
 	and <literal>kern.osreldate</literal> are now configurable
 	&man.jail.8; parameters.</para>
 
-      <para revision="280308" contrib="sponsor" sponsor="&ix;">The
-	&man.devfs.5; device filesystem has been changed to disable
-	updating timestamps for read/write operations.  A new
-	&man.sysctl.8;, <literal>vfs.devfs.dotimes</literal> has been
-	added, which when set to a non-zero value, enables updating
+      <para revision="280308,280949" contrib="sponsor"
+	sponsor="&ix;, &ff;">The &man.devfs.5; device filesystem has
+	been changed to update timestamps for read/write operations
+	using seconds precision.  A new &man.sysctl.8;,
+	<literal>vfs.devfs.dotimes</literal> has been added, which
+	when set to a non-zero value, enables default precision
 	timestamps for these operations.</para>
     </sect2>
   </sect1>
