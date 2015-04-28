@@ -883,7 +883,7 @@ void drm_vblank_off(struct drm_device *dev, int crtc)
  */
 void drm_vblank_pre_modeset(struct drm_device *dev, int crtc)
 {
-	/* vblank is not initialized (IRQ not installed ?) */
+	/* vblank is not initialized (IRQ not installed ?), or has been freed */
 	if (!dev->num_crtcs)
 		return;
 	/*
@@ -902,6 +902,9 @@ void drm_vblank_pre_modeset(struct drm_device *dev, int crtc)
 
 void drm_vblank_post_modeset(struct drm_device *dev, int crtc)
 {
+	/* vblank is not initialized (IRQ not installed ?), or has been freed */
+	if (!dev->num_crtcs)
+		return;
 
 	if (dev->vblank_inmodeset[crtc]) {
 		mtx_lock(&dev->vbl_lock);
