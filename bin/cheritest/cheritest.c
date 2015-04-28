@@ -1026,10 +1026,9 @@ cheritest_run_test(const struct cheri_test *ctp)
 
 fail:
 	/*
-	 * Escape non-printing characters and JSON and XML special characters.
+	 * Escape non-printing characters.
 	 */
-	strsnvis(visreason, sizeof(visreason), reason, VIS_TAB|VIS_NL,
-	    "\\\"&'<>/");
+	strnvis(visreason, sizeof(visreason), reason, VIS_TAB);
 	if (ctp->ct_xfail_reason == NULL)
 		xo_emit("{:status/%s}: {d:name/%s}: {:failure-reason/%s}\n",
 		    "FAIL", ctp->ct_name, visreason);
