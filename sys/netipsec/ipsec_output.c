@@ -578,6 +578,7 @@ ipsec4_process_packet(struct mbuf *m, struct ipsecrequest *isr)
 	/* pass the mbuf to enc0 for packet filtering */
 	if ((error = ipsec_filter(&m, PFIL_OUT, ENC_OUT|ENC_BEFORE)) != 0)
 		goto bad;
+	ip = mtod(m, struct ip *);
 #endif
 	/* Do the appropriate encapsulation, if necessary */
 	if (isr->saidx.mode == IPSEC_MODE_TUNNEL || /* Tunnel requ'd */
@@ -699,6 +700,7 @@ ipsec6_process_packet(struct mbuf *m, struct ipsecrequest *isr)
 	/* pass the mbuf to enc0 for packet filtering */
 	if ((error = ipsec_filter(&m, PFIL_OUT, ENC_OUT|ENC_BEFORE)) != 0)
 		goto bad;
+	ip6 = mtod(m, struct ip6_hdr *);
 #endif /* DEV_ENC */
 
 	/* Do the appropriate encapsulation, if necessary */
