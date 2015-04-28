@@ -894,6 +894,10 @@
       <para revision="279957">The &man.bhyve.8; hypervisor has been
 	updated to support <literal>DSM TRIM</literal> commands for
 	virtual <acronym>AHCI</acronym> disks.</para>
+
+      <para revision="281439" arch="arm">Support for the
+	<application>QEMU</application> <literal>virt</literal> system
+	has been added.</para>
     </sect2>
 
     <sect2 xml:id="hardware-arm">
