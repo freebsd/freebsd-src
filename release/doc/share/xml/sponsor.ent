@@ -32,7 +32,9 @@
 
 <!ENTITY mitail		"MIT Computer Science &amp; Artificial Intelligence Laboratory">
 
+<!ENTITY netflix	"Netflix">
 <!ENTITY netgate	"Netgate">
+<!ENTITY nginx		"Nginx, Inc.">
 
 <!ENTITY sandvine	"Sandvine, Inc.">
 <!ENTITY scaleengine	"ScaleEngine, Inc.">
