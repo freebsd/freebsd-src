@@ -6,6 +6,8 @@ ATF_TESTS_SH=	mqueue_test
 
 BINDIR=		${TESTSDIR}
 
+CFLAGS+=	-I${.CURDIR:H:H}
+
 PROGS+=		mqtest1
 PROGS+=		mqtest2
 PROGS+=		mqtest3

@@ -12,6 +12,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "freebsd_test_suite/macros.h"
+
 #define MQNAME	"/mytstqueue4"
 #define LOOPS	1000
 #define PRIO	10
@@ -31,6 +33,8 @@ main(void)
 	mqd_t mq;
 	int kq, status;
 	pid_t pid;
+
+	PLAIN_REQUIRE_KERNEL_MODULE("mqueuefs", 0);
 
 	mq_unlink(MQNAME);
 
