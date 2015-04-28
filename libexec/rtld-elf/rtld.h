@@ -355,6 +355,7 @@ typedef struct Struct_SymLook {
 } SymLook;
 
 void _rtld_error(const char *, ...) __printflike(1, 2) __exported;
+void rtld_die(void) __dead2;
 const char *rtld_strerror(int);
 Obj_Entry *map_object(int, const char *, const struct stat *);
 void *xcalloc(size_t, size_t);
