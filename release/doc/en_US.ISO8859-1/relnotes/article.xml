@@ -216,6 +216,10 @@
 
       <para revision="275040">A new file configuration library,
 	&man.figpar.3;, has been added to the base system.</para>
+
+      <para revision="280392">The &man.setmode.3; function has been
+	updated to consistently set <literal>errno</literal> on
+	failure.</para>
     </sect2>
 
     <sect2 xml:id="userland-abi">
