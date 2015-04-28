@@ -395,7 +395,11 @@
     <sect2 xml:id="boot-loader">
       <title>Boot Loader Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="281843">The boot loader has been updated to
+	support entering the <acronym>GELI</acronym> passphrase before
+	loading the kernel.  To enable this behavior, add
+	<literal>geom_eli_passphrase_prompt="YES"</literal> to
+	&man.loader.conf.5;.</para>
     </sect2>
 
     <sect2 xml:id="boot-menu">
