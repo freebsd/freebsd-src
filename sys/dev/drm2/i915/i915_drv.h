@@ -248,6 +248,10 @@ struct intel_opregion {
 };
 #define OPREGION_SIZE            (8*1024)
 
+struct drm_i915_master_private {
+	drm_local_map_t *sarea;
+	struct _drm_i915_sarea *sarea_priv;
+};
 #define I915_FENCE_REG_NONE -1
 #define I915_MAX_NUM_FENCES 16
 /* 16 fences + sign bit for FENCE_REG_NONE */
@@ -295,7 +299,6 @@ typedef struct drm_i915_private {
 
 	int relative_constants_mode;
 
-	drm_local_map_t *sarea;
 	drm_local_map_t *mmio_map;
 
 	/** gt_fifo_count and the subsequent register write are synchronized
@@ -306,7 +309,6 @@ typedef struct drm_i915_private {
 	/** gt_lock is also taken in irq contexts. */
 	struct mtx gt_lock;
 
-	drm_i915_sarea_t *sarea_priv;
 	/* drm_i915_ring_buffer_t ring; */
 	struct intel_ring_buffer rings[I915_NUM_RINGS];
 	uint32_t next_seqno;
@@ -1067,7 +1069,7 @@ struct drm_i915_error_state {
 
 extern int intel_iommu_enabled;
 extern struct drm_ioctl_desc i915_ioctls[];
-extern struct drm_driver_info i915_driver_info;
+extern struct drm_driver i915_driver_info;
 extern struct cdev_pager_ops i915_gem_pager_ops;
 extern unsigned int i915_fbpercrtc;
 extern int i915_panel_ignore_lid;
@@ -1093,6 +1095,9 @@ extern int intel_gpu_reset(struct drm_device *dev);
 int i915_sysctl_init(struct drm_device *dev, struct sysctl_ctx_list *ctx,
     struct sysctl_oid *top);
 void i915_sysctl_cleanup(struct drm_device *dev);
+
+extern int i915_master_create(struct drm_device *dev, struct drm_master *master);
+extern void i915_master_destroy(struct drm_device *dev, struct drm_master *master);
 
 				/* i915_dma.c */
 int i915_batchbuffer(struct drm_device *dev, void *data,

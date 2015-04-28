@@ -219,7 +219,12 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 
 	rbo = gem_to_radeon_bo(gobj);
 
-	info = malloc(sizeof(*info), DRM_MEM_KMS, M_WAITOK | M_ZERO);
+	/* okay we have an object now allocate the framebuffer */
+	info = framebuffer_alloc();
+	if (info == NULL) {
+		ret = -ENOMEM;
+		goto out_unref;
+	}
 
 	ret = radeon_framebuffer_init(rdev->ddev, &rfbdev->rfb, &mode_cmd, gobj);
 	if (ret) {
@@ -235,13 +240,15 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 
 	memset(rbo->kptr, 0x0, radeon_bo_size(rbo));
 
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
+
 	tmp = radeon_bo_gpu_offset(rbo) - rdev->mc.vram_start;
 	info->fb_size  = radeon_bo_size(rbo);
 	info->fb_bpp = sizes->surface_bpp;
-	info->fb_width = sizes->surface_width;
-	info->fb_height = sizes->surface_height;
 	info->fb_pbase = rdev->mc.aper_base + tmp;
 	info->fb_vbase = (vm_offset_t)rbo->kptr;
+
+	drm_fb_helper_fill_var(info, &rfbdev->helper, sizes->fb_width, sizes->fb_height);
 
 	DRM_INFO("fb mappable at 0x%" PRIXPTR "\n",  info->fb_pbase);
 	DRM_INFO("vram apper at 0x%lX\n",  (unsigned long)rdev->mc.aper_base);
@@ -291,14 +298,11 @@ static int radeon_fbdev_destroy(struct drm_device *dev, struct radeon_fbdev *rfb
 
 	if (rfbdev->helper.fbdev) {
 		info = rfbdev->helper.fbdev;
-		free(info->fb_priv, DRM_MEM_KMS);
-		free(info, DRM_MEM_KMS);
+		framebuffer_release(info);
 	}
 
 	if (rfb->obj) {
-		DRM_UNLOCK(dev); /* Work around lock recursion. dumbbell@ */
 		radeonfb_destroy_pinned_object(rfb->obj);
-		DRM_LOCK(dev);
 		rfb->obj = NULL;
 	}
 	drm_fb_helper_fini(&rfbdev->helper);
@@ -324,7 +328,7 @@ int radeon_fbdev_init(struct radeon_device *rdev)
 		bpp_sel = 8;
 
 	rfbdev = malloc(sizeof(struct radeon_fbdev),
-	    DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
+	    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (!rfbdev)
 		return -ENOMEM;
 
@@ -357,9 +361,9 @@ void radeon_fbdev_fini(struct radeon_device *rdev)
 
 void radeon_fbdev_set_suspend(struct radeon_device *rdev, int state)
 {
-#ifdef DUMBBELL_WIP
+#ifdef FREEBSD_WIP
 	fb_set_suspend(rdev->mode_info.rfbdev->helper.fbdev, state);
-#endif /* DUMBBELL_WIP */
+#endif /* FREEBSD_WIP */
 }
 
 int radeon_fbdev_total_size(struct radeon_device *rdev)
