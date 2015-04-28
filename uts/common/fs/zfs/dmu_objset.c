@@ -24,6 +24,7 @@
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
+ * Copyright 2015 Nexenta Systems, Inc. All rights reserved.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -904,11 +905,7 @@ dmu_objset_clone_check(void *arg, dmu_tx_t *tx)
 		dsl_dir_rele(pdd, FTAG);
 		return (SET_ERROR(EEXIST));
 	}
-	/* You can't clone across pools. */
-	if (pdd->dd_pool != dp) {
-		dsl_dir_rele(pdd, FTAG);
-		return (SET_ERROR(EXDEV));
-	}
+
 	error = dsl_fs_ss_limit_check(pdd, 1, ZFS_PROP_FILESYSTEM_LIMIT, NULL,
 	    doca->doca_cred);
 	if (error != 0) {
@@ -920,12 +917,6 @@ dmu_objset_clone_check(void *arg, dmu_tx_t *tx)
 	error = dsl_dataset_hold(dp, doca->doca_origin, FTAG, &origin);
 	if (error != 0)
 		return (error);
-
-	/* You can't clone across pools. */
-	if (origin->ds_dir->dd_pool != dp) {
-		dsl_dataset_rele(origin, FTAG);
-		return (SET_ERROR(EXDEV));
-	}
 
 	/* You can only clone snapshots, not the head datasets. */
 	if (!origin->ds_is_snapshot) {
