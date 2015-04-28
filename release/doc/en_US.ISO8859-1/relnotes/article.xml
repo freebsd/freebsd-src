@@ -381,6 +381,7 @@
 	<application>addr2line</application>,
 	<application>elfcopy (strip)</application>,
 	<application>nm</application>,
+	<application>readelf</application>,
 	<application>size</application>, and
 	<application>strings</application> were switched to the
 	versions from the ELF Tool Chain project.</para>
