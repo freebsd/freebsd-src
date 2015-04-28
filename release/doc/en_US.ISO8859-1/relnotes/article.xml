@@ -393,14 +393,14 @@
       <para revision="277270"><application>OpenSSL</application> has
 	been updated to version 1.0.1l.</para>
 
-      <para revision="278433">The &man.xz.1; utility has been udpated
-	to version 5.2.0.</para>
-
       <para revision="278433">The &man.xz.1; utility has been updated
 	to support multi-threaded compression.</para>
 
       <para revision="278970">The &man.acpi.4; subsystem has been
 	updated to version 20150204.</para>
+
+      <para revision="281316">The &man.xz.1; utility has been udpated
+	to version 5.2.1.</para>
 
       <para revision="281373">The &man.nvi.1; utility has been updated
 	to version 2.1.3.</para>
