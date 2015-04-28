@@ -839,6 +839,10 @@
 	driver has been updated to correct performance counter
 	sampling on G4 (MPC74xxx) and G5 class processors.</para>
 
+      <para revision="281713" arch="powerpc">The &man.hwpmc.4;
+	driver has been updated to support the Freescale e500
+	core.</para>
+
       <para revision="275732" contrib="sponsor"
 	sponsor="&ff;,&netgate;">The
 	<application>OpenCrypto</application> framework has been
