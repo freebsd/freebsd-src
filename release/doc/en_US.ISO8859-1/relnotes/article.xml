@@ -316,7 +316,7 @@
       <para revision="279571" contrib="sponsor"
 	sponsor="&scaleengine;">The &man.freebsd-update.8; utility has
 	been updated to prevent fetching updated binary patches when
-	a previous upgrade has not been throughly completed.</para>
+	a previous upgrade has not been thoroughly completed.</para>
 
       <para revision="279122" contrib="sponsor"
 	sponsor="&juniper;">The &man.netstat.1; utility has been
@@ -583,7 +583,7 @@
 	</listitem>
 
 	<listitem>
-	  <para>Avoids unecessary throttling by not deferring
+	  <para>Avoids unnecessary throttling by not deferring
 	    accounting for completed requests.</para>
 	</listitem>
 
