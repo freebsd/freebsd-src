@@ -200,8 +200,8 @@
       <para revision="280304"><application>OpenSSL</application> has
 	been updated to version 1.0.1m.</para>
 
-      <para revision="281075">The &man.acpi.4; subsystem has been
-	updated to version 20150204.</para>
+      <para revision="281687">The &man.acpi.4; subsystem has been
+	updated to version 20150410.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
