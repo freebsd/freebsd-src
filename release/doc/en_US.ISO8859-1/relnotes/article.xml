@@ -300,7 +300,9 @@
     <sect2 xml:id="hardware-virtualization">
       <title>Virtualization Support</title>
 
-      <para>&nbsp;</para>
+      <para revision="280370">The &man.bhyve.8; hypervisor has been
+	updated to support <literal>DSM TRIM</literal> commands for
+	virtual <acronym>AHCI</acronym> disks.</para>
     </sect2>
 
     <sect2 xml:id="hardware-arm">
