@@ -187,6 +187,11 @@
 	library that would prevent a directory from being included in
 	the archive when <literal>--one-file-system</literal> is used
 	has been fixed.</para>
+
+      <para revision="281161" contrib="sponsor"
+	sponsor="&limelight;">A new flag, <literal>-R</literal>, has
+	been added to the &man.netstat.8; utility, which is used to
+	dump <acronym>RSS</acronym>/flow information.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
