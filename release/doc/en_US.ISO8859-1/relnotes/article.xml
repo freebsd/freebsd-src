@@ -838,6 +838,10 @@
       <para revision="273515">The &man.virtio.console.4; driver has
 	been added, which provides an interface to VirtIO console
 	devices through a &man.tty.4; device.</para>
+
+      <para revision="279957">The &man.bhyve.8; hypervisor has been
+	updated to support <literal>DSM TRIM</literal> commands for
+	virtual <acronym>AHCI</acronym> disks.</para>
     </sect2>
 
     <sect2 xml:id="hardware-arm">
