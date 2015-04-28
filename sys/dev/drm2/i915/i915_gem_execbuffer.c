@@ -1240,14 +1240,16 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		goto pre_struct_lock_err;
 
 	if (dev_priv->mm.suspended) {
+		DRM_UNLOCK(dev);
 		ret = -EBUSY;
-		goto struct_lock_err;
+		goto pre_struct_lock_err;
 	}
 
 	eb = eb_create(args->buffer_count);
 	if (eb == NULL) {
+		DRM_UNLOCK(dev);
 		ret = -ENOMEM;
-		goto struct_lock_err;
+		goto pre_struct_lock_err;
 	}
 
 	/* Look up object handles */
@@ -1394,7 +1396,6 @@ err:
 		list_del_init(&obj->exec_list);
 		drm_gem_object_unreference(&obj->base);
 	}
-struct_lock_err:
 	DRM_UNLOCK(dev);
 
 pre_struct_lock_err:
