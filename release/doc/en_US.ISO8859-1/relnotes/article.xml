@@ -192,6 +192,13 @@
 	sponsor="&limelight;">A new flag, <literal>-R</literal>, has
 	been added to the &man.netstat.8; utility, which is used to
 	dump <acronym>RSS</acronym>/flow information.</para>
+
+      <para revision="281936" contrib="sponsor" sponsor="&ff;">The
+	&man.ar.1; utility has been updated to set
+	<literal>ARCHIVE_EXTRACT_SECURE_SYMLINKS</literal> and
+	<literal>ARCHIVE_EXTRACT_SECURE_NODOTDOT</literal> to disallow
+	directory traversal when extracting an archive, similar to
+	&man.tar.1;.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
