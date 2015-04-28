@@ -187,8 +187,8 @@
     <sect2 xml:id="userland-contrib">
       <title>Contributed Software</title>
 
-      <para revision="277597"><application>OpenSSL</application> has
-	been updated to version 1.0.1l.</para>
+      <para revision="280304"><application>OpenSSL</application> has
+	been updated to version 1.0.1m.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
