@@ -597,6 +597,10 @@
 	  <para>Fixes an integer overflow and signedness bugs.</para>
 	</listitem>
       </itemizedlist>
+
+      <para revision="281261" arch="powerpc">Support for
+	&man.dtrace.1; has been added for the
+	Book-E&nbsp;&trade;.</para>
     </sect2>
 
     <sect2 xml:id="kernel-config">
