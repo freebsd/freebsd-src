@@ -861,6 +861,10 @@
 	driver has been added, which supports <acronym>CPU</acronym>
 	frequency and voltage control on the Raspberry Pi
 	<acronym>SOC</acronym>.</para>
+
+      <para revision="280259" contrib="sponsor" sponsor="&ff;">Initial
+	support for the ARM AArch64 architecture has been
+	added.</para>
     </sect2>
   </sect1>
 
