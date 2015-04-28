@@ -46,25 +46,29 @@
 #include <string.h>
 #include <unistd.h>
 
-#define PATH_TEMPLATE   "/tmp/aio.XXXXXXXXXX"
+#include "freebsd_test_suite/macros.h"
 
-#define MAX 128
+#define PATH_TEMPLATE   "aio.XXXXXXXXXX"
+
+#define MAX_IOCBS 128
 #define MAX_RUNS 300
 /* #define DEBUG */
 
 int
 main (int argc, char *argv[])
 {
-	int fd;
-	struct aiocb *iocb[MAX], *kq_iocb;
-	int i, result, run, error, j;
-	char buffer[32768];
-	int kq = kqueue();
+	struct aiocb *iocb[MAX_IOCBS], *kq_iocb;
+	char *file, pathname[sizeof(PATH_TEMPLATE)+1];
 	struct kevent ke, kq_returned;
 	struct timespec ts;
-	int cancel, pending, tmp_file = 0, failed = 0;
-	char *file, pathname[sizeof(PATH_TEMPLATE)+1];
+	char buffer[32768];
+	int cancel, error, failed = 0, fd, kq, pending, result, run;
+	int tmp_file = 0;
+	unsigned i, j;
 
+	PLAIN_REQUIRE_KERNEL_MODULE("aio", 0);
+
+	kq = kqueue();
 	if (kq < 0) {
 		perror("No kqeueue\n");
 		exit(1);
@@ -86,7 +90,7 @@ main (int argc, char *argv[])
 #ifdef DEBUG
 		printf("Run %d\n", run);
 #endif
-		for (i = 0; i < MAX; i++) {
+		for (i = 0; i < nitems(iocb); i++) {
 			iocb[i] = (struct aiocb *)calloc(1,
 			    sizeof(struct aiocb));
 			if (iocb[i] == NULL)
@@ -94,7 +98,7 @@ main (int argc, char *argv[])
 		}
 		
 		pending = 0;	
-		for (i = 0; i < MAX; i++) {
+		for (i = 0; i < nitems(iocb); i++) {
 			pending++;
 			iocb[i]->aio_nbytes = sizeof(buffer);
 			iocb[i]->aio_buf = buffer;
@@ -129,8 +133,8 @@ main (int argc, char *argv[])
 				}
 			}
 		}
-		cancel = MAX - pending;
-		
+		cancel = nitems(iocb) - pending;
+
 		i = 0;
 		while (pending) {
 
@@ -159,11 +163,11 @@ main (int argc, char *argv[])
 					break;
 #ifdef DEBUG
 				printf("Try again left %d out of %d %d\n",
-				    pending, MAX, cancel);
+				    pending, nitems(iocb), cancel);
 #endif
 			}			
 			
-			for (j = 0; j < MAX && iocb[j] != kq_iocb;
+			for (j = 0; j < nitems(iocb) && iocb[j] != kq_iocb;
 			   j++) ;
 #ifdef DEBUG
 			printf("kq_iocb %p\n", kq_iocb);
@@ -190,7 +194,7 @@ main (int argc, char *argv[])
 			i++;
 		}	
 
-		for (i = 0; i < MAX; i++)
+		for (i = 0; i < nitems(iocb); i++)
 			free(iocb[i]);
 
 	}
