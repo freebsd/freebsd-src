@@ -206,8 +206,7 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 
 	/*
 	 * We're done with IPsec processing, transmit the packet using the
-	 * appropriate network protocol (IP or IPv6). SPD lookup will be
-	 * performed again there.
+	 * appropriate network protocol (IP or IPv6).
 	 */
 	switch (saidx->dst.sa.sa_family) {
 #ifdef INET
