@@ -1065,7 +1065,7 @@ int
 main(int argc, char *argv[])
 {
 	int opt;
-	int glob;
+	int glob = 0;
 #ifndef LIST_ONLY
 	stack_t stack;
 	int i;
