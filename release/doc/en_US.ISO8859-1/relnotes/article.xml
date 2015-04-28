@@ -279,6 +279,14 @@
 	&man.hwpmc.4; default and maximum callchain depths have been
 	increased.  The default has been increased from 16 to 32, and
 	the maximum increased from 32 to 128.</para>
+
+      <para revision="281255" contrib="sponsor"
+	sponsor="&ix;, &ff;">The &man.devfs.5; device filesystem has
+	been changed to update timestamps for read/write operations
+	using seconds precision.  A new &man.sysctl.8;,
+	<literal>vfs.devfs.dotimes</literal> has been added, which
+	when set to a non-zero value, enables default precision
+	timestamps for these operations.</para>
     </sect2>
   </sect1>
 
