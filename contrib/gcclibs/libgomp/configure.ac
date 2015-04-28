@@ -15,12 +15,6 @@ LIBGOMP_ENABLE(version-specific-runtime-libs, no, ,
    permit yes|no)
 AC_MSG_RESULT($enable_version_specific_runtime_libs)
 
-AC_MSG_CHECKING([for --enable-linux-futex])
-LIBGOMP_ENABLE(linux-futex, default, ,
-  [Use the Linux futex system call],
-  permit yes|no|default)
-AC_MSG_RESULT($enable_linux_futex)
-
 # We would like our source tree to be readonly. However when releases or
 # pre-releases are generated, the flex/bison generated files as well as the
 # various formats of manuals need to be included along with the rest of the
@@ -64,11 +58,11 @@ target_alias=${target_alias-$host_alias}
 #              we can do about that; they come from AC_INIT).
 #  foreign:  we don't follow the normal rules for GNU packages (no COPYING
 #            file in the top srcdir, etc, etc), so stop complaining.
-#  no-dependencies:  turns off auto dependency generation (just for now)
+#  no-dist:  we don't want 'dist' and related rules.
 #  -Wall:  turns on all automake warnings...
 #  -Wno-portability:  ...except this one, since GNU make is required.
 #  -Wno-override: ... and this one, since we do want this in testsuite.
-AM_INIT_AUTOMAKE([1.9.0 foreign -Wall -Wno-portability -Wno-override])
+AM_INIT_AUTOMAKE([1.9.0 foreign no-dist -Wall -Wno-portability -Wno-override])
 AM_ENABLE_MULTILIB(, ..)
 
 # Calculate toolexeclibdir
@@ -135,7 +129,7 @@ AC_PROG_INSTALL
 # that we can use it.
 ACX_CHECK_PROG_VER([MAKEINFO], [makeinfo], [--version],
                    [GNU texinfo.* \([0-9][0-9.]*\)],
-                   [4.[4-9]*])
+                   [4.[4-9]*|4.[1-9][0-9]*|[5-9]*|[1-9][0-9]*])
 AM_CONDITIONAL(BUILD_INFO, test $gcc_cv_prog_makeinfo_modern = "yes")
 
 
@@ -193,49 +187,9 @@ case "$host" in
     AC_DEFINE(HAVE_BROKEN_POSIX_SEMAPHORES, 1,
 	Define if the POSIX Semaphores do not work on your system.)
     ;;
-  *-linux*)
-    case "$enable_linux_futex" in
-      default)
-	# If headers don't have gettid/futex syscalls definition, then
-	# default to no, otherwise there will be compile time failures.
-	# Otherwise, default to yes.  If we don't detect we are
-	# compiled/linked against NPTL and not cross-compiling, check
-	# if programs are run by default against NPTL and if not, issue
-	# a warning.
-	enable_linux_futex=no
-	AC_LINK_IFELSE(
-	 [AC_LANG_PROGRAM(
-	  [#include <sys/syscall.h>
-	   int lk;],
-	  [syscall (SYS_gettid); syscall (SYS_futex, &lk, 0, 0, 0);])],
-	  [AC_LINK_IFELSE(
-	   [AC_LANG_PROGRAM(
-	    [#ifndef _GNU_SOURCE
-	     #define _GNU_SOURCE 1
-	     #endif
-	     #include <pthread.h>
-	     pthread_t th; void *status;],
-	    [pthread_tryjoin_np (th, &status);])],[enable_linux_futex=yes],
-	    [if test x$cross_compiling = xno; then
-	       if getconf GNU_LIBPTHREAD_VERSION 2>/dev/null \
-		  | LC_ALL=C grep -i NPTL > /dev/null 2>/dev/null; then
-		 AC_MSG_WARN([The kernel might not support futex or gettid syscalls.
-If so, please configure with --disable-linux-futex])
-	       fi
-	     fi
-	     enable_linux_futex=yes])])
-	;;
-      yes)
-	AC_LINK_IFELSE(
-	 [AC_LANG_PROGRAM(
-	  [#include <sys/syscall.h>
-	   int lk;],
-	  [syscall (SYS_gettid); syscall (SYS_futex, &lk, 0, 0, 0);])],[],
-	  [AC_MSG_ERROR([SYS_gettid and SYS_futex required for --enable-linux-futex])])
-	;;
-    esac
-    ;;
 esac
+
+GCC_LINUX_FUTEX(:)
 
 # Check for pthread_{,attr_}[sg]etaffinity_np.
 AC_LINK_IFELSE(
