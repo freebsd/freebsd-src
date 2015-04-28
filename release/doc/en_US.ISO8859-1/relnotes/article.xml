@@ -317,6 +317,11 @@
 	sponsor="&scaleengine;">The &man.freebsd-update.8; utility has
 	been updated to prevent fetching updated binary patches when
 	a previous upgrade has not been throughly completed.</para>
+
+      <para revision="279122" contrib="sponsor"
+	sponsor="&juniper;">The &man.netstat.1; utility has been
+	updated to link against the &man.libxo.3; shared
+	library.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
