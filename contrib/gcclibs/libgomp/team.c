@@ -295,11 +295,10 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
       start_data->fn_data = data;
       start_data->nested = nested;
 
-            if (gomp_cpu_affinity != NULL)
+      if (gomp_cpu_affinity != NULL)
 	gomp_init_thread_affinity (attr);
 
       err = pthread_create (&pt, attr, gomp_thread_start, start_data);
-
       if (err != 0)
 	gomp_fatal ("Thread creation failed: %s", strerror (err));
     }
