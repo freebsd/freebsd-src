@@ -107,6 +107,10 @@ case "${target}" in
 	XLDFLAGS="${XLDFLAGS} -lposix4"
 	;;
 
+  *-*-darwin*)
+	config_path="bsd posix"
+	;;
+
   *)
 	;;
 
