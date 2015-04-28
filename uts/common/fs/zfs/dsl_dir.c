@@ -24,6 +24,7 @@
  * Copyright (c) 2013 Martin Matuska. All rights reserved.
  * Copyright (c) 2014 Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
+ * Copyright 2015 Nexenta Systems, Inc. All rights reserved.
  */
 
 #include <sys/dmu.h>
@@ -421,7 +422,7 @@ dsl_dir_hold(dsl_pool_t *dp, const char *name, void *tag,
 	/* Make sure the name is in the specified pool. */
 	spaname = spa_name(dp->dp_spa);
 	if (strcmp(buf, spaname) != 0)
-		return (SET_ERROR(EINVAL));
+		return (SET_ERROR(EXDEV));
 
 	ASSERT(dsl_pool_config_held(dp));
 
