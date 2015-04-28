@@ -345,6 +345,7 @@
 
     <sect2 xml:id="storage-general">
       <title>General Storage</title>
+
       <para revision="279002" contrib="sponsor" sponsor="&ix;">The
 	&man.ctl.4; <acronym>LUN</acronym> mapping has been rewritten,
 	replacing <acronym>iSCSI</acronym>-specific mapping mechanisms
