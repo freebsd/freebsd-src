@@ -1070,6 +1070,13 @@
 	  </tbody>
 	</tgroup>
       </informaltable>
+
+      <para revision="280971" contrib="sponsor"
+	sponsor="&netflix;, &nginx;">Support for <acronym>IP</acronym>
+	identification for atomic datagrams (<acronym>RFC</acronym>
+	6864) has been added.  Support for this feature can be toggled
+	with the <literal>net.inet.ip.rfc6864</literal>
+	&man.sysctl.8;, which is enabled by default.</para>
     </sect2>
   </sect1>
 
