@@ -567,6 +567,26 @@
       <para revision="272089">A bug in &man.ipfw.4; that could
 	potentially lead to a kernel panic when using &man.dummynet.4;
 	at layer 2 has been fixed.</para>
+
+      <para revision="280930" contrib="sponsor" sponsor="&mitail;">The
+	kernel <acronym>RPC</acronym> has been updated to include
+	several enhancements:</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>The 45 MiB limit on requests queued for
+	    &man.nfsd.8; threads has been removed.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Avoids unecessary throttling by not deferring
+	    accounting for completed requests.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Fixes an integer overflow and signedness bugs.</para>
+	</listitem>
+      </itemizedlist>
     </sect2>
 
     <sect2 xml:id="kernel-config">
