@@ -322,6 +322,13 @@
 	sponsor="&juniper;">The &man.netstat.1; utility has been
 	updated to link against the &man.libxo.3; shared
 	library.</para>
+
+      <para revision="281311" contrib="sponsor" sponsor="&ff;">The
+	&man.ar.1; utility has been updated to set
+	<literal>ARCHIVE_EXTRACT_SECURE_SYMLINKS</literal> and
+	<literal>ARCHIVE_EXTRACT_SECURE_NODOTDOT</literal> to disallow
+	directory traversal when extracting an archive, similar to
+	&man.tar.1;.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
