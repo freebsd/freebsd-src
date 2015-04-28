@@ -154,7 +154,7 @@ AC_SUBST(libtool_VERSION)
 # Check header files.
 AC_STDC_HEADERS
 AC_HEADER_TIME
-AC_CHECK_HEADERS(unistd.h semaphore.h sys/loadavg.h sys/time.h)
+AC_CHECK_HEADERS(unistd.h semaphore.h sys/loadavg.h sys/sysctl.h sys/time.h)
 
 GCC_HEADER_STDINT(gstdint.h)
 
