@@ -408,8 +408,7 @@ struct adapter {
 
 	u16	num_vlans;
 	/* Allow number of tx queues != num of rx_queues */
-	u8	num_tx_queues;
-	u8	num_rx_queues;
+	u8	num_queues;
 
         /*
          * Transmit rings:

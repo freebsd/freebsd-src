@@ -48,11 +48,9 @@ em_netmap_block_tasks(struct adapter *adapter)
 		struct tx_ring *txr = adapter->tx_rings;
 		struct rx_ring *rxr = adapter->rx_rings;
 
-		for (i = 0; i < adapter->num_tx_queues; i++, txr++) {
+		for (i = 0; i < adapter->num_queues; i++, txr++, rxr++) {
 			taskqueue_block(txr->tq);
 			taskqueue_drain(txr->tq, &txr->tx_task);
-		}
-		for (i = 0; i < adapter->num_rx_queues; i++, rxr++) {
 			taskqueue_block(rxr->tq);
 			taskqueue_drain(rxr->tq, &rxr->rx_task);
 		}
@@ -72,10 +70,8 @@ em_netmap_unblock_tasks(struct adapter *adapter)
 		struct rx_ring *rxr = adapter->rx_rings;
 		int i;
 
-		for (i = 0; i < adapter->num_tx_queues; i++) {
+		for (i = 0; i < adapter->num_queues; i++, txr++, rxr++) {
 			taskqueue_unblock(txr->tq);
-		}
-		for (i = 0; i < adapter->num_rx_queues; i++) {
 			taskqueue_unblock(rxr->tq);
 		}
 	} else { /* legacy */
@@ -331,8 +327,8 @@ em_netmap_attach(struct adapter *adapter)
 	na.nm_txsync = em_netmap_txsync;
 	na.nm_rxsync = em_netmap_rxsync;
 	na.nm_register = em_netmap_reg;
-	na.num_tx_rings = adapter->num_tx_queues;
-	na.num_rx_rings = adapter->num_rx_queues;
+	na.num_tx_rings = adapter->num_queues;
+	na.num_rx_rings = adapter->num_queues;
 	netmap_attach(&na);
 }
 
