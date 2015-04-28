@@ -63,9 +63,12 @@ struct rtcdev {
 	uint8_t	reg_b;
 	uint8_t	reg_c;
 	uint8_t	reg_d;
-	uint8_t	nvram[128 - 14];
+	uint8_t	nvram[36];
+	uint8_t	century;
+	uint8_t	nvram2[128 - 51];
 } __packed;
 CTASSERT(sizeof(struct rtcdev) == 128);
+CTASSERT(offsetof(struct rtcdev, century) == RTC_CENTURY);
 
 struct vrtc {
 	struct vm	*vm;
@@ -245,6 +248,7 @@ secs_to_rtc(time_t rtctime, struct vrtc *vrtc, int force_update)
 	rtc->day_of_month = rtcset(rtc, ct.day);
 	rtc->month = rtcset(rtc, ct.mon);
 	rtc->year = rtcset(rtc, ct.year % 100);
+	rtc->century = rtcset(rtc, ct.year / 100);
 }
 
 static int
@@ -274,7 +278,7 @@ rtc_to_secs(struct vrtc *vrtc)
 	struct timespec ts;
 	struct rtcdev *rtc;
 	struct vm *vm;
-	int error, hour, pm, year;
+	int century, error, hour, pm, year;
 
 	KASSERT(VRTC_LOCKED(vrtc), ("%s: vrtc not locked", __func__));
 
@@ -358,10 +362,14 @@ rtc_to_secs(struct vrtc *vrtc)
 		VM_CTR2(vm, "Invalid RTC year %#x/%d", rtc->year, year);
 		goto fail;
 	}
-	if (year >= 70)
-		ct.year = 1900 + year;
-	else
-		ct.year = 2000 + year;
+
+	error = rtcget(rtc, rtc->century, &century);
+	ct.year = century * 100 + year;
+	if (error || ct.year < POSIX_BASE_YEAR) {
+		VM_CTR2(vm, "Invalid RTC century %#x/%d", rtc->century,
+		    ct.year);
+		goto fail;
+	}
 
 	error = clock_ct_to_ts(&ct, &ts);
 	if (error || ts.tv_sec < 0) {
@@ -373,7 +381,12 @@ rtc_to_secs(struct vrtc *vrtc)
 	}
 	return (ts.tv_sec);		/* success */
 fail:
-	return (VRTC_BROKEN_TIME);	/* failure */
+	/*
+	 * Stop updating the RTC if the date/time fields programmed by
+	 * the guest are invalid.
+	 */
+	VM_CTR0(vrtc->vm, "Invalid RTC date/time programming detected");
+	return (VRTC_BROKEN_TIME);
 }
 
 static int
@@ -628,13 +641,6 @@ vrtc_set_reg_b(struct vrtc *vrtc, uint8_t newval)
 		if ((newval & RTCSB_HALT) == 0) {
 			rtctime = rtc_to_secs(vrtc);
 			if (rtctime == VRTC_BROKEN_TIME) {
-				/*
-				 * Stop updating the RTC if the date/time
-				 * programmed by the guest is not correct.
-				 */
-				VM_CTR0(vrtc->vm, "Invalid RTC date/time "
-				    "programming detected");
-
 				if (rtc_flag_broken_time)
 					return (-1);
 			}
@@ -777,7 +783,7 @@ vrtc_nvram_write(struct vm *vm, int offset, uint8_t value)
 	 * Don't allow writes to RTC control registers or the date/time fields.
 	 */
 	if (offset < offsetof(struct rtcdev, nvram[0]) ||
-	    offset >= sizeof(struct rtcdev)) {
+	    offset == RTC_CENTURY || offset >= sizeof(struct rtcdev)) {
 		VM_CTR1(vrtc->vm, "RTC nvram write to invalid offset %d",
 		    offset);
 		return (EINVAL);
@@ -811,7 +817,7 @@ vrtc_nvram_read(struct vm *vm, int offset, uint8_t *retval)
 	/*
 	 * Update RTC date/time fields if necessary.
 	 */
-	if (offset < 10) {
+	if (offset < 10 || offset == RTC_CENTURY) {
 		curtime = vrtc_curtime(vrtc);
 		secs_to_rtc(curtime, vrtc, 0);
 	}
@@ -872,13 +878,17 @@ vrtc_data_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
 	curtime = vrtc_curtime(vrtc);
 	vrtc_time_update(vrtc, curtime);
 
-	if (in) {
-		/*
-		 * Update RTC date/time fields if necessary.
-		 */
-		if (offset < 10)
-			secs_to_rtc(curtime, vrtc, 0);
+	/*
+	 * Update RTC date/time fields if necessary.
+	 *
+	 * This is not just for reads of the RTC. The side-effect of writing
+	 * the century byte requires other RTC date/time fields (e.g. sec)
+	 * to be updated here.
+	 */
+	if (offset < 10 || offset == RTC_CENTURY)
+		secs_to_rtc(curtime, vrtc, 0);
 
+	if (in) {
 		if (offset == 12) {
 			/*
 			 * XXX
@@ -921,6 +931,18 @@ vrtc_data_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
 			    offset, *val);
 			*((uint8_t *)rtc + offset) = *val;
 			break;
+		}
+
+		/*
+		 * XXX some guests (e.g. OpenBSD) write the century byte
+		 * outside of RTCSB_HALT so re-calculate the RTC date/time.
+		 */
+		if (offset == RTC_CENTURY && !rtc_halted(vrtc)) {
+			curtime = rtc_to_secs(vrtc);
+			error = vrtc_time_update(vrtc, curtime);
+			KASSERT(!error, ("vrtc_time_update error %d", error));
+			if (curtime == VRTC_BROKEN_TIME && rtc_flag_broken_time)
+				error = -1;
 		}
 	}
 	VRTC_UNLOCK(vrtc);
