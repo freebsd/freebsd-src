@@ -1647,7 +1647,6 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 				return EINVAL;
 			if (cmdlen != F_INSN_SIZE(ipfw_insn_nat))
  				goto bad_size;		
-			ci->object_opcodes++;
  			goto check_action;
 		case O_FORWARD_MAC: /* XXX not implemented yet */
 		case O_CHECK_STATE:
