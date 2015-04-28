@@ -400,6 +400,10 @@
       <para revision="278970">The &man.acpi.4; subsystem has been
 	updated to version 20150204.</para>
 
+      <para revision="280932" contrib="sponsor" sponsor="&ff;">The
+	<application>elftoolchain</application> utilities have been
+	updated to version 3179.</para>
+
       <para revision="281316">The &man.xz.1; utility has been udpated
 	to version 5.2.1.</para>
 
