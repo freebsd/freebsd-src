@@ -323,6 +323,11 @@
 	updated to link against the &man.libxo.3; shared
 	library.</para>
 
+      <para revision="280870">A regression in the &man.libarchive.3;
+	library that would prevent a directory from being included in
+	the archive when <literal>--one-file-system</literal> is used
+	has been fixed.</para>
+
       <para revision="281311" contrib="sponsor" sponsor="&ff;">The
 	&man.ar.1; utility has been updated to set
 	<literal>ARCHIVE_EXTRACT_SECURE_SYMLINKS</literal> and
