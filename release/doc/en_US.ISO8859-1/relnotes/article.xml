@@ -481,6 +481,10 @@
 	<acronym>ELF</acronym> object in the
 	<literal>dlpi_name</literal> structure member.</para>
 
+      <para revision="273562" contrib="sponsor"
+	sponsor="&juniper;">The &man.libxo.3; library has been
+	imported to the base system.</para>
+
       <para revision="273806" contrib="sponsor" sponsor="&chelsio;">A
 	userland library for Chelsio Terminator 5 based iWARP cards
 	has been added, allowing userland <acronym>RDMA</acronym>
