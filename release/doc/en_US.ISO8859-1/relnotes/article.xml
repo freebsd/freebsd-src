@@ -546,6 +546,9 @@
 	attributes, such as <literal>__result_use_check()</literal>,
 	<literal>__alloc_size()</literal>, and
 	<literal>__nonnull()</literal>.</para>
+
+      <para revision="281845">Support for file verification in
+	<acronym>MAC</acronym> has been added.</para>
     </sect2>
 
     <sect2 xml:id="userland-abi">
