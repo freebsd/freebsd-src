@@ -48,16 +48,18 @@
 #include <string.h>
 #include <unistd.h>
 
-#define PATH_TEMPLATE   "/tmp/aio.XXXXXXXXXX"
+#include "freebsd_test_suite/macros.h"
+
+#define PATH_TEMPLATE   "aio.XXXXXXXXXX"
 
 #define LIO_MAX 5
-#define MAX LIO_MAX * 16
+#define MAX_IOCBS LIO_MAX * 16
 #define MAX_RUNS 300
 
 int
 main(int argc, char *argv[]){
 	int fd;
-	struct aiocb *iocb[MAX];
+	struct aiocb *iocb[MAX_IOCBS];
 	struct aiocb **lio[LIO_MAX], **lio_element, **kq_lio;
 	int i, result, run, error, j, k;
 	char buffer[32768];
@@ -68,6 +70,8 @@ main(int argc, char *argv[]){
 	time_t time1, time2;
 	char *file, pathname[sizeof(PATH_TEMPLATE)-1];
 	int tmp_file = 0, failed = 0;
+
+	PLAIN_REQUIRE_KERNEL_MODULE("aio", 0);
 
 	if (kq < 0) {
 		perror("No kqeueue\n");
@@ -99,9 +103,9 @@ main(int argc, char *argv[]){
 #endif
 		for (j = 0; j < LIO_MAX; j++) {
 			lio[j] = (struct aiocb **)
-				malloc(sizeof(struct aiocb *) * MAX/LIO_MAX);
-			for(i = 0; i < MAX / LIO_MAX; i++) {
-				k = (MAX / LIO_MAX * j) + i;
+			    malloc(sizeof(struct aiocb *) * MAX_IOCBS/LIO_MAX);
+			for(i = 0; i < MAX_IOCBS / LIO_MAX; i++) {
+				k = (MAX_IOCBS / LIO_MAX * j) + i;
 				lio_element = lio[j];
 				lio[j][i] = iocb[k] = (struct aiocb *)
 					malloc(sizeof(struct aiocb));
@@ -123,7 +127,7 @@ main(int argc, char *argv[]){
 			sig.sigev_notify = SIGEV_KEVENT;
 			time(&time1);
 			result = lio_listio(LIO_NOWAIT, lio[j],
-					    MAX / LIO_MAX, &sig);
+					    MAX_IOCBS / LIO_MAX, &sig);
 			error = errno;
 			time(&time2);
 #ifdef DEBUG
@@ -203,7 +207,7 @@ main(int argc, char *argv[]){
 			} else {
 				printf("PASS: run %d, operation %d result %d \n", run, LIO_MAX - i -1, result);
 			}
-			for(k = 0; k < MAX / LIO_MAX; k++){
+			for(k = 0; k < MAX_IOCBS / LIO_MAX; k++){
 				result = aio_return(kq_lio[k]);
 #ifdef DEBUG
 				printf("Return Resulto for %d %d is %d\n", j, k, result);
@@ -220,7 +224,7 @@ main(int argc, char *argv[]){
 			printf("\n");
 #endif
 
-			for(k = 0; k < MAX / LIO_MAX; k++) {
+			for(k = 0; k < MAX_IOCBS / LIO_MAX; k++) {
 				free(lio[j][k]);
 			}
 			free(lio[j]);
