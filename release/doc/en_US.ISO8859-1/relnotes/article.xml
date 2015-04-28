@@ -533,6 +533,12 @@
 	updated to be able to handle 32-bit aligned data on 64-bit
 	platforms, also providing a significant improvement in 32-bit
 	workloads.</para>
+
+      <para revision="281130">Several standard include headers have
+	been updated to use of <application>gcc</application>
+	attributes, such as <literal>__result_use_check()</literal>,
+	<literal>__alloc_size()</literal>, and
+	<literal>__nonnull()</literal>.</para>
     </sect2>
 
     <sect2 xml:id="userland-abi">
