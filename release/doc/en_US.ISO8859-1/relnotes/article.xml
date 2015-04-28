@@ -404,6 +404,9 @@
 
       <para revision="278970">The &man.acpi.4; subsystem has been
 	updated to version 20150204.</para>
+
+      <para revision="282089">The &man.unbound.8; utility has been
+	updated to version 1.5.3.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
