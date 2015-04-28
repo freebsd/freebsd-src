@@ -661,6 +661,9 @@
 	<filename>/dev/hpet<replaceable>N</replaceable></filename>
 	device, providing access to <acronym>HPET</acronym> from
 	userspace.</para>
+
+      <para revision="280183">The <literal>drm</literal> code has
+	been updated to match &linux; version 3.8.13.</para>
     </sect2>
 
     <sect2 xml:id="drivers-storage">
