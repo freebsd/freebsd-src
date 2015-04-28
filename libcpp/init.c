@@ -1,6 +1,6 @@
 /* CPP Library.
    Copyright (C) 1986, 1987, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007 Free Software Foundation, Inc.
    Contributed by Per Bothner, 1994-95.
    Based on CCCP program by Paul Rubin, June 1986
    Adapted to ANSI C, Richard Stallman, Jan 1987
@@ -80,18 +80,20 @@ struct lang_flags
 
 static const struct lang_flags lang_defaults[] =
 { /*              c99 c++ xnum xid std  //   digr  */
-  /* GNUC89 */  { 0,  0,  1,   0,  0,   1,   1     },
-  /* GNUC99 */  { 1,  0,  1,   0,  0,   1,   1     },
-  /* STDC89 */  { 0,  0,  0,   0,  1,   0,   0     },
-  /* STDC94 */  { 0,  0,  0,   0,  1,   0,   1     },
-  /* STDC99 */  { 1,  0,  1,   0,  1,   1,   1     },
-  /* GNUCXX */  { 0,  1,  1,   0,  0,   1,   1     },
-  /* CXX98  */  { 0,  1,  1,   0,  1,   1,   1     },
-  /* ASM    */  { 0,  0,  1,   0,  0,   1,   0     }
-  /* xid should be 1 for GNUC99, STDC99, GNUCXX and CXX98 when no
-     longer experimental (when all uses of identifiers in the compiler
-     have been audited for correct handling of extended
-     identifiers).  */
+  /* GNUC89   */  { 0,  0,  1,   0,  0,   1,   1     },
+  /* GNUC99   */  { 1,  0,  1,   0,  0,   1,   1     },
+  /* STDC89   */  { 0,  0,  0,   0,  1,   0,   0     },
+  /* STDC94   */  { 0,  0,  0,   0,  1,   0,   1     },
+  /* STDC99   */  { 1,  0,  1,   0,  1,   1,   1     },
+  /* GNUCXX   */  { 0,  1,  1,   0,  0,   1,   1     },
+  /* CXX98    */  { 0,  1,  1,   0,  1,   1,   1     },
+  /* GNUCXX0X */  { 1,  1,  1,   0,  0,   1,   1     },
+  /* CXX0X    */  { 1,  1,  1,   0,  1,   1,   1     },
+  /* ASM      */  { 0,  0,  1,   0,  0,   1,   0     }
+  /* xid should be 1 for GNUC99, STDC99, GNUCXX, CXX98, GNUCXX0X, and
+     CXX0X when no longer experimental (when all uses of identifiers
+     in the compiler have been audited for correct handling of
+     extended identifiers).  */
 };
 
 /* Sets internal flags correctly for a given language.  */
@@ -225,6 +227,14 @@ cpp_create_reader (enum c_lang lang, hash_table *table,
   return pfile;
 }
 
+/* Set the line_table entry in PFILE.  This is called after reading a
+   PCH file, as the old line_table will be incorrect.  */
+void
+cpp_set_line_map (cpp_reader *pfile, struct line_maps *line_table)
+{
+  pfile->line_table = line_table;
+}
+
 /* Free resources used by PFILE.  Accessing PFILE after this function
    returns leads to undefined behavior.  Returns the error count.  */
 void
@@ -308,6 +318,7 @@ static const struct builtin builtin_array[] =
   B("__BASE_FILE__",	 BT_BASE_FILE),
   B("__LINE__",		 BT_SPECLINE),
   B("__INCLUDE_LEVEL__", BT_INCLUDE_LEVEL),
+  B("__COUNTER__",	 BT_COUNTER),
   /* Keep builtins not used for -traditional-cpp at the end, and
      update init_builtins() if any more are added.  */
   B("_Pragma",		 BT_PRAGMA),
@@ -347,11 +358,8 @@ mark_named_operators (cpp_reader *pfile)
     }
 }
 
-/* Read the builtins table above and enter them, and language-specific
-   macros, into the hash table.  HOSTED is true if this is a hosted
-   environment.  */
 void
-cpp_init_builtins (cpp_reader *pfile, int hosted)
+cpp_init_special_builtins (cpp_reader *pfile)
 {
   const struct builtin *b;
   size_t n = ARRAY_SIZE (builtin_array);
@@ -360,10 +368,7 @@ cpp_init_builtins (cpp_reader *pfile, int hosted)
     n -= 2;
   else if (! CPP_OPTION (pfile, stdc_0_in_system_headers)
 	   || CPP_OPTION (pfile, std))
-    {
-      n--;
-      _cpp_define_builtin (pfile, "__STDC__ 1");
-    }
+    n--;
 
   for (b = builtin_array; b < builtin_array + n; b++)
     {
@@ -372,6 +377,20 @@ cpp_init_builtins (cpp_reader *pfile, int hosted)
       hp->flags |= NODE_BUILTIN | NODE_WARN;
       hp->value.builtin = (enum builtin_type) b->value;
     }
+}
+
+/* Read the builtins table above and enter them, and language-specific
+   macros, into the hash table.  HOSTED is true if this is a hosted
+   environment.  */
+void
+cpp_init_builtins (cpp_reader *pfile, int hosted)
+{
+  cpp_init_special_builtins (pfile);
+
+  if (!CPP_OPTION (pfile, traditional)
+      && (! CPP_OPTION (pfile, stdc_0_in_system_headers)
+	  || CPP_OPTION (pfile, std)))
+    _cpp_define_builtin (pfile, "__STDC__ 1");
 
   if (CPP_OPTION (pfile, cplusplus))
     _cpp_define_builtin (pfile, "__cplusplus 1");
@@ -619,7 +638,8 @@ post_options (cpp_reader *pfile)
      preprocessed text.  Read preprocesed source in ISO mode.  */
   if (CPP_OPTION (pfile, preprocessed))
     {
-      pfile->state.prevent_expansion = 1;
+      if (!CPP_OPTION (pfile, directives_only))
+	pfile->state.prevent_expansion = 1;
       CPP_OPTION (pfile, traditional) = 0;
     }
 

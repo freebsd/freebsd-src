@@ -82,26 +82,77 @@ static void check_promotion (cpp_reader *, const struct op *);
 static unsigned int
 interpret_float_suffix (const uchar *s, size_t len)
 {
-  size_t f = 0, l = 0, i = 0, d = 0;
+  size_t f, l, w, q, i, d;
+  size_t r, k, u, h;
+
+  f = l = w = q = i = d = 0;
+  r = k = u = h = 0;
 
   while (len--)
     switch (s[len])
       {
-      case 'f': case 'F': f++; break;
-      case 'l': case 'L': l++; break;
+      case 'r': case 'R': r++; break;
+      case 'k': case 'K': k++; break;
+      case 'u': case 'U': u++; break;
+      case 'h': case 'H': h++; break;
+      case 'f': case 'F':
+	if (d > 0)
+	  return 0;
+	f++;
+	break;
+      case 'l': case 'L':
+	if (d > 0)
+	  return 0;
+	l++;
+	/* If there are two Ls, they must be adjacent and the same case.  */
+	if (l == 2 && s[len] != s[len + 1])
+	  return 0;
+	break;
+      case 'w': case 'W':
+	if (d > 0)
+	  return 0;
+	w++;
+	break;
+      case 'q': case 'Q':
+	if (d > 0)
+	  return 0;
+	q++;
+	break;
       case 'i': case 'I':
       case 'j': case 'J': i++; break;
-      case 'd': case 'D': 
-	/* Disallow fd, ld suffixes.  */
-	if (d && (f || l))
-	  return 0;
-	d++;
-	break;
+      case 'd': case 'D': d++; break;
       default:
 	return 0;
       }
 
-  if (f + l > 1 || i > 1)
+  if (r + k > 1 || h > 1 || l > 2 || u > 1)
+    return 0;
+
+  if (r == 1)
+    {
+      if (f || i || d || w || q)
+	return 0;
+
+      return (CPP_N_FRACT
+	      | (u ? CPP_N_UNSIGNED : 0)
+	      | (h ? CPP_N_SMALL :
+		 l == 2 ? CPP_N_LARGE :
+		 l == 1 ? CPP_N_MEDIUM :  0));
+    }
+
+  if (k == 1)
+    {
+      if (f || i || d || w || q)
+	return 0;
+
+      return (CPP_N_ACCUM
+	      | (u ? CPP_N_UNSIGNED : 0)
+	      | (h ? CPP_N_SMALL :
+		 l == 2 ? CPP_N_LARGE :
+		 l == 1 ? CPP_N_MEDIUM :  0));
+    }
+
+  if (f + l + w + q > 1 || i > 1 || h + u > 0)
     return 0;
 
   /* Allow dd, df, dl suffixes for decimal float constants.  */
@@ -110,7 +161,9 @@ interpret_float_suffix (const uchar *s, size_t len)
 
   return ((i ? CPP_N_IMAGINARY : 0)
 	  | (f ? CPP_N_SMALL :
-	     l ? CPP_N_LARGE : CPP_N_MEDIUM)
+	     l ? CPP_N_LARGE :
+	     w ? CPP_N_MD_W :
+	     q ? CPP_N_MD_Q : CPP_N_MEDIUM)
 	  | (d ? CPP_N_DFLOAT : 0));
 }
 
@@ -182,6 +235,11 @@ cpp_classify_number (cpp_reader *pfile, const cpp_token *token)
 	  radix = 16;
 	  str++;
 	}
+      else if ((*str == 'b' || *str == 'B') && (str[1] == '0' || str[1] == '1'))
+	{
+	  radix = 2;
+	  str++;
+	}
     }
 
   /* Now scan for a well-formed integer or float.  */
@@ -216,14 +274,46 @@ cpp_classify_number (cpp_reader *pfile, const cpp_token *token)
 	}
     }
 
+  /* The suffix may be for decimal fixed-point constants without exponent.  */
+  if (radix != 16 && float_flag == NOT_FLOAT)
+    {
+      result = interpret_float_suffix (str, limit - str);
+      if ((result & CPP_N_FRACT) || (result & CPP_N_ACCUM))
+	{
+	  result |= CPP_N_FLOATING;
+	  /* We need to restore the radix to 10, if the radix is 8.  */
+	  if (radix == 8)
+	    radix = 10;
+
+	  if (CPP_PEDANTIC (pfile))
+	    cpp_error (pfile, CPP_DL_PEDWARN,
+		       "fixed-point constants are a GCC extension");
+	  goto syntax_ok;
+	}
+      else
+	result = 0;
+    }
+
   if (float_flag != NOT_FLOAT && radix == 8)
     radix = 10;
 
   if (max_digit >= radix)
-    SYNTAX_ERROR2 ("invalid digit \"%c\" in octal constant", '0' + max_digit);
+    {
+      if (radix == 2)
+	SYNTAX_ERROR2 ("invalid digit \"%c\" in binary constant", '0' + max_digit);
+      else
+	SYNTAX_ERROR2 ("invalid digit \"%c\" in octal constant", '0' + max_digit);
+    }
 
   if (float_flag != NOT_FLOAT)
     {
+      if (radix == 2)
+	{
+	  cpp_error (pfile, CPP_DL_ERROR,
+		     "invalid prefix \"0b\" for floating constant");
+	  return CPP_N_INVALID;
+	}
+
       if (radix == 16 && CPP_PEDANTIC (pfile) && !CPP_OPTION (pfile, c99))
 	cpp_error (pfile, CPP_DL_PEDWARN,
 		   "use of C99 hexadecimal floating constant");
@@ -270,6 +360,14 @@ cpp_classify_number (cpp_reader *pfile, const cpp_token *token)
           return CPP_N_INVALID;
         }
 
+      if ((result & (CPP_N_FRACT | CPP_N_ACCUM)) && CPP_PEDANTIC (pfile))
+	cpp_error (pfile, CPP_DL_PEDWARN,
+		   "fixed-point constants are a GCC extension");
+
+      if ((result & CPP_N_DFLOAT) && CPP_PEDANTIC (pfile))
+	cpp_error (pfile, CPP_DL_PEDWARN,
+		   "decimal float constants are a GCC extension");
+
       result |= CPP_N_FLOATING;
     }
   else
@@ -305,14 +403,20 @@ cpp_classify_number (cpp_reader *pfile, const cpp_token *token)
       result |= CPP_N_INTEGER;
     }
 
+ syntax_ok:
   if ((result & CPP_N_IMAGINARY) && CPP_PEDANTIC (pfile))
     cpp_error (pfile, CPP_DL_PEDWARN,
 	       "imaginary constants are a GCC extension");
+  if (radix == 2 && CPP_PEDANTIC (pfile))
+    cpp_error (pfile, CPP_DL_PEDWARN,
+	       "binary constants are a GCC extension");
 
   if (radix == 10)
     result |= CPP_N_DECIMAL;
   else if (radix == 16)
     result |= CPP_N_HEX;
+  else if (radix == 2)
+    result |= CPP_N_BINARY;
   else
     result |= CPP_N_OCTAL;
 
@@ -361,6 +465,11 @@ cpp_interpret_integer (cpp_reader *pfile, const cpp_token *token,
       else if ((type & CPP_N_RADIX) == CPP_N_HEX)
 	{
 	  base = 16;
+	  p += 2;
+	}
+      else if ((type & CPP_N_RADIX) == CPP_N_BINARY)
+	{
+	  base = 2;
 	  p += 2;
 	}
 
@@ -418,12 +527,25 @@ static cpp_num
 append_digit (cpp_num num, int digit, int base, size_t precision)
 {
   cpp_num result;
-  unsigned int shift = 3 + (base == 16);
+  unsigned int shift;
   bool overflow;
   cpp_num_part add_high, add_low;
 
-  /* Multiply by 8 or 16.  Catching this overflow here means we don't
+  /* Multiply by 2, 8 or 16.  Catching this overflow here means we don't
      need to worry about add_high overflowing.  */
+  switch (base)
+    {
+    case 2:
+      shift = 1;
+      break;
+
+    case 16:
+      shift = 4;
+      break;
+
+    default:
+      shift = 3;
+    }
   overflow = !!(num.high >> (PART_PRECISION - shift));
   result.high = num.high << shift;
   result.low = num.low << shift;
@@ -441,7 +563,7 @@ append_digit (cpp_num num, int digit, int base, size_t precision)
   if (add_low + digit < add_low)
     add_high++;
   add_low += digit;
-    
+
   if (result.low + add_low < result.low)
     add_high++;
   if (result.high + add_high < result.high)
@@ -1527,7 +1649,8 @@ num_div_op (cpp_reader *pfile, cpp_num lhs, cpp_num rhs, enum cpp_ttype op)
 	{
 	  if (negate)
 	    result = num_negate (result, precision);
-	  result.overflow = num_positive (result, precision) ^ !negate;
+	  result.overflow = (num_positive (result, precision) ^ !negate
+			     && !num_zerop (result));
 	}
 
       return result;
