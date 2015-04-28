@@ -181,6 +181,16 @@ test_string_memcpy_c(const struct cheri_test *ctp __unused)
 		cheritest_failure_errx("(void*)cpy != &t2.pad0");
 	check(&t2, 0, 32);
 
+	/* Unaligned, but offset=32 */
+	invalidate(&t2);
+	cpy = memmove_c(
+	    __builtin_cheri_cap_offset_set(CAP(t2.pad0-1), 32),
+	    __builtin_cheri_cap_offset_set(CAP(t1.pad0-1), 32),
+	    sizeof(t1) - 31);
+	if ((void*)cpy != t2.pad0+31)
+		cheritest_failure_errx("(void*)cpy != t2.pad0+31");
+	check(&t2, 31, 32);
+
 	cheritest_success();
 }
 
@@ -330,6 +340,16 @@ test_string_memmove_c(const struct cheri_test *ctp __unused)
 	if ((void*)cpy != &t2.pad0)
 		cheritest_failure_errx("(void*)cpy != &t2.pad0");
 	check(&t2, 0, 32);
+
+	/* Unaligned, but offset=32 */
+	invalidate(&t2);
+	cpy = memmove_c(
+	    __builtin_cheri_cap_offset_set(CAP(t2.pad0-1), 32),
+	    __builtin_cheri_cap_offset_set(CAP(t1.pad0-1), 32),
+	    sizeof(t1) - 31);
+	if ((void*)cpy != t2.pad0+31)
+		cheritest_failure_errx("(void*)cpy != t2.pad0+31");
+	check(&t2, 31, 32);
 
 	/* XXX-BD: test overlapping cases */
 
