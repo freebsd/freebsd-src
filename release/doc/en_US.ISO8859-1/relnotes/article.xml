@@ -755,6 +755,9 @@
 
       <para revision="276526">The <literal>asr(4)</literal> driver has
 	been removed, and is no longer supported.</para>
+
+      <para revision="281387">The &man.hptnr.4; driver has been
+	updated to version 1.1.1.</para>
     </sect2>
 
     <sect2 xml:id="drivers-network">
