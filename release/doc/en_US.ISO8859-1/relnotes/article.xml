@@ -340,9 +340,6 @@
       <para revision="261071">&man.jemalloc.3; has been updated to
 	version 3.5.0.</para>
 
-      <para revision="261212"><application>bmake</application> has
-	been updated to version 20140101.</para>
-
       <para revision="261283"><application>libc++</application> has
 	been updated to version 3.4.</para>
 
@@ -404,6 +401,9 @@
 
       <para revision="278970">The &man.acpi.4; subsystem has been
 	updated to version 20150204.</para>
+
+      <para revision="281812"><application>bmake</application> has
+	been updated to version 20150418.</para>
 
       <para revision="282089">The &man.unbound.8; utility has been
 	updated to version 1.5.3.</para>
