@@ -1707,7 +1707,7 @@ dsl_dir_rename_check(void *arg, dmu_tx_t *tx)
 	if (dd->dd_pool != newparent->dd_pool) {
 		dsl_dir_rele(newparent, FTAG);
 		dsl_dir_rele(dd, FTAG);
-		return (SET_ERROR(ENXIO));
+		return (SET_ERROR(EXDEV));
 	}
 
 	/* new name should not already exist */
