@@ -963,7 +963,7 @@ nvlist_recv(int sock)
 	nfds = (size_t)nvlhdr.nvlh_descriptors;
 	size = sizeof(nvlhdr) + (size_t)nvlhdr.nvlh_size;
 
-	buf = malloc(size);
+	buf = nv_malloc(size);
 	if (buf == NULL)
 		return (NULL);
 
@@ -976,7 +976,7 @@ nvlist_recv(int sock)
 		goto out;
 
 	if (nfds > 0) {
-		fds = malloc(nfds * sizeof(fds[0]));
+		fds = nv_malloc(nfds * sizeof(fds[0]));
 		if (fds == NULL)
 			goto out;
 		if (fd_recv(sock, fds, nfds) == -1)
