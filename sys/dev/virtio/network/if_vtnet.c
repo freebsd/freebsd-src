@@ -2745,6 +2745,11 @@ vtnet_drain_rxtx_queues(struct vtnet_softc *sc)
 	struct vtnet_txq *txq;
 	int i;
 
+#ifdef DEV_NETMAP
+	if (nm_native_on(NA(sc->vtnet_ifp)))
+		return;
+#endif /* DEV_NETMAP */
+
 	for (i = 0; i < sc->vtnet_act_vq_pairs; i++) {
 		rxq = &sc->vtnet_rxqs[i];
 		vtnet_rxq_free_mbufs(rxq);
