@@ -1260,8 +1260,9 @@ nvlist_add_stringv(nvlist_t *nvl, const char *name, const char *valuefmt,
 	if (nvp == NULL) {
 		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);
 		RESTORE_ERRNO(nvl->nvl_error);
-	} else
+	} else {
 		nvlist_move_nvpair(nvl, nvp);
+	}
 }
 
 void
@@ -1376,8 +1377,9 @@ nvlist_addv_null(nvlist_t *nvl, const char *namefmt, va_list nameap)
 	if (nvp == NULL) {
 		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);
 		RESTORE_ERRNO(nvl->nvl_error);
-	} else
+	} else {
 		nvlist_move_nvpair(nvl, nvp);
+	}
 }
 
 void
@@ -1394,8 +1396,9 @@ nvlist_addv_bool(nvlist_t *nvl, bool value, const char *namefmt, va_list nameap)
 	if (nvp == NULL) {
 		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);
 		RESTORE_ERRNO(nvl->nvl_error);
-	} else
+	} else {
 		nvlist_move_nvpair(nvl, nvp);
+	}
 }
 
 void
@@ -1413,8 +1416,9 @@ nvlist_addv_number(nvlist_t *nvl, uint64_t value, const char *namefmt,
 	if (nvp == NULL) {
 		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);
 		RESTORE_ERRNO(nvl->nvl_error);
-	} else
+	} else {
 		nvlist_move_nvpair(nvl, nvp);
+	}
 }
 
 void
@@ -1432,8 +1436,9 @@ nvlist_addv_string(nvlist_t *nvl, const char *value, const char *namefmt,
 	if (nvp == NULL) {
 		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);
 		RESTORE_ERRNO(nvl->nvl_error);
-	} else
+	} else {
 		nvlist_move_nvpair(nvl, nvp);
+	}
 }
 
 void
@@ -1451,8 +1456,9 @@ nvlist_addv_nvlist(nvlist_t *nvl, const nvlist_t *value, const char *namefmt,
 	if (nvp == NULL) {
 		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);
 		RESTORE_ERRNO(nvl->nvl_error);
-	} else
+	} else {
 		nvlist_move_nvpair(nvl, nvp);
+	}
 }
 
 #ifndef _KERNEL
@@ -1490,8 +1496,9 @@ nvlist_addv_binary(nvlist_t *nvl, const void *value, size_t size,
 	if (nvp == NULL) {
 		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);
 		RESTORE_ERRNO(nvl->nvl_error);
-	} else
+	} else {
 		nvlist_move_nvpair(nvl, nvp);
+	}
 }
 
 void
@@ -1586,8 +1593,9 @@ nvlist_movev_string(nvlist_t *nvl, char *value, const char *namefmt,
 	if (nvp == NULL) {
 		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);
 		RESTORE_ERRNO(nvl->nvl_error);
-	} else
+	} else {
 		nvlist_move_nvpair(nvl, nvp);
+	}
 }
 
 void
@@ -1607,8 +1615,9 @@ nvlist_movev_nvlist(nvlist_t *nvl, nvlist_t *value, const char *namefmt,
 	if (nvp == NULL) {
 		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);
 		RESTORE_ERRNO(nvl->nvl_error);
-	} else
+	} else {
 		nvlist_move_nvpair(nvl, nvp);
+	}
 }
 
 #ifndef _KERNEL
@@ -1648,8 +1657,9 @@ nvlist_movev_binary(nvlist_t *nvl, void *value, size_t size,
 	if (nvp == NULL) {
 		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);
 		RESTORE_ERRNO(nvl->nvl_error);
-	} else
+	} else {
 		nvlist_move_nvpair(nvl, nvp);
+	}
 }
 
 const nvpair_t *
