@@ -317,7 +317,7 @@ enosys(void)
 
 	if (error != 0) {
 		if (errno == ENOENT)
-			errx(1, "RACCT/RCTL support not present in kernel; see rctl(8) for details.");
+			errx(1, "RACCT/RCTL support not present in kernel; see rctl(8) for details");
 
 		err(1, "sysctlbyname");
 	}
