@@ -40,7 +40,7 @@
 
 #define	ATF_REQUIRE_KERNEL_MODULE(_mod_name) do {			\
 	if (modfind(_mod_name) == -1) {					\
-		atf_skip("module %s could not be resolved: %s",		\
+		atf_tc_skip("module %s could not be resolved: %s",	\
 		    _mod_name, strerror(errno));			\
 	}								\
 } while(0)
