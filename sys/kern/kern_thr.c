@@ -187,11 +187,13 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	}
 
 #ifdef RACCT
-	PROC_LOCK(p);
-	error = racct_add(p, RACCT_NTHR, 1);
-	PROC_UNLOCK(p);
-	if (error != 0)
-		return (EPROCLIM);
+	if (racct_enable) {
+		PROC_LOCK(p);
+		error = racct_add(p, RACCT_NTHR, 1);
+		PROC_UNLOCK(p);
+		if (error != 0)
+			return (EPROCLIM);
+	}
 #endif
 
 	/* Initialize our td */
@@ -280,9 +282,11 @@ create_thread(struct thread *td, mcontext_t *ctx,
 
 fail:
 #ifdef RACCT
-	PROC_LOCK(p);
-	racct_sub(p, RACCT_NTHR, 1);
-	PROC_UNLOCK(p);
+	if (racct_enable) {
+		PROC_LOCK(p);
+		racct_sub(p, RACCT_NTHR, 1);
+		PROC_UNLOCK(p);
+	}
 #endif
 	return (error);
 }
