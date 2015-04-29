@@ -848,6 +848,7 @@ nvpair_t *
 nvpair_create_descriptor(const char *name, int value)
 {
 	nvpair_t *nvp;
+	int serrno;
 
 	if (value < 0 || !fd_is_valid(value)) {
 		errno = EBADF;
@@ -860,8 +861,11 @@ nvpair_create_descriptor(const char *name, int value)
 
 	nvp = nvpair_allocv(name, NV_TYPE_DESCRIPTOR, (uint64_t)value,
 	    sizeof(int64_t));
-	if (nvp == NULL)
+	if (nvp == NULL) {
+		SAVE_ERRNO(serrno);
 		close(value);
+		RESTORE_ERRNO(serrno);
+	}
 
 	return (nvp);
 }
