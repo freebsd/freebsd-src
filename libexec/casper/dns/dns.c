@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 
+#include <assert.h>
 #include <errno.h>
 #include <netdb.h>
 #include <stdlib.h>
@@ -103,6 +104,8 @@ static void
 hostent_pack(const struct hostent *hp, nvlist_t *nvl)
 {
 	unsigned int ii;
+	char nvlname[64];
+	int n;
 
 	nvlist_add_string(nvl, "name", hp->h_name);
 	nvlist_add_number(nvl, "addrtype", (uint64_t)hp->h_addrtype);
@@ -112,8 +115,9 @@ hostent_pack(const struct hostent *hp, nvlist_t *nvl)
 		nvlist_add_number(nvl, "naliases", 0);
 	} else {
 		for (ii = 0; hp->h_aliases[ii] != NULL; ii++) {
-			nvlist_addf_string(nvl, hp->h_aliases[ii], "alias%u",
-			    ii);
+			n = snprintf(nvlname, sizeof(nvlname), "alias%u", ii);
+			assert(n > 0 && n < (int)sizeof(nvlname));
+			nvlist_add_string(nvl, nvlname, hp->h_aliases[ii]);
 		}
 		nvlist_add_number(nvl, "naliases", (uint64_t)ii);
 	}
@@ -122,8 +126,10 @@ hostent_pack(const struct hostent *hp, nvlist_t *nvl)
 		nvlist_add_number(nvl, "naddrs", 0);
 	} else {
 		for (ii = 0; hp->h_addr_list[ii] != NULL; ii++) {
-			nvlist_addf_binary(nvl, hp->h_addr_list[ii],
-			    (size_t)hp->h_length, "addr%u", ii);
+			n = snprintf(nvlname, sizeof(nvlname), "addr%u", ii);
+			assert(n > 0 && n < (int)sizeof(nvlname));
+			nvlist_add_binary(nvl, nvlname, hp->h_addr_list[ii],
+			    (size_t)hp->h_length);
 		}
 		nvlist_add_number(nvl, "naddrs", (uint64_t)ii);
 	}
@@ -271,9 +277,10 @@ dns_getaddrinfo(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 {
 	struct addrinfo hints, *hintsp, *res, *cur;
 	const char *hostname, *servname;
+	char nvlname[64];
 	nvlist_t *elem;
 	unsigned int ii;
-	int error, family;
+	int error, family, n;
 
 	if (!dns_allowed_type(limits, "ADDR"))
 		return (NO_RECOVERY);
@@ -310,7 +317,9 @@ dns_getaddrinfo(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 
 	for (cur = res, ii = 0; cur != NULL; cur = cur->ai_next, ii++) {
 		elem = addrinfo_pack(cur);
-		nvlist_movef_nvlist(nvlout, elem, "res%u", ii);
+		n = snprintf(nvlname, sizeof(nvlname), "res%u", ii);
+		assert(n > 0 && n < (int)sizeof(nvlname));
+		nvlist_move_nvlist(nvlout, nvlname, elem);
 	}
 
 	freeaddrinfo(res);
