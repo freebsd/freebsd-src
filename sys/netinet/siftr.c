@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
+#include <sys/sdt.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -86,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <net/pfil.h>
 
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
@@ -547,6 +549,7 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 	}
 #endif
 
+	TCP_PROBE1(siftr, pkt_node);
 	alq_post_flags(siftr_alq, log_buf, 0);
 }
 
