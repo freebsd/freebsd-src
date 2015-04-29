@@ -290,6 +290,10 @@
 	<literal>vfs.devfs.dotimes</literal> has been added, which
 	when set to a non-zero value, enables default precision
 	timestamps for these operations.</para>
+
+      <para revision="280632">The <literal>kern.osrelease</literal>
+	and <literal>kern.osreldate</literal> are now configurable
+	&man.jail.8; parameters.</para>
     </sect2>
   </sect1>
 
