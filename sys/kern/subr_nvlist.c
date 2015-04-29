@@ -533,27 +533,30 @@ out:
 
 #ifndef _KERNEL
 static int *
-nvlist_xdescriptors(const nvlist_t *nvl, int *descs, int level)
+nvlist_xdescriptors(const nvlist_t *nvl, int *descs)
 {
-	const nvpair_t *nvp;
+	nvpair_t *nvp;
+	const char *name;
+	int type;
 
 	NVLIST_ASSERT(nvl);
 	PJDLOG_ASSERT(nvl->nvl_error == 0);
-	PJDLOG_ASSERT(level < 3);
 
-	for (nvp = nvlist_first_nvpair(nvl); nvp != NULL;
-	    nvp = nvlist_next_nvpair(nvl, nvp)) {
-		switch (nvpair_type(nvp)) {
-		case NV_TYPE_DESCRIPTOR:
-			*descs = nvpair_get_descriptor(nvp);
-			descs++;
-			break;
-		case NV_TYPE_NVLIST:
-			descs = nvlist_xdescriptors(nvpair_get_nvlist(nvp),
-			    descs, level + 1);
-			break;
+	nvp = NULL;
+	do {
+		while ((name = nvlist_next(nvl, &type, (void**)&nvp)) != NULL) {
+			switch (type) {
+			case NV_TYPE_DESCRIPTOR:
+				*descs = nvpair_get_descriptor(nvp);
+				descs++;
+				break;
+			case NV_TYPE_NVLIST:
+				nvl = nvpair_get_nvlist(nvp);
+				nvp = NULL;
+				break;
+			}
 		}
-	}
+	} while ((nvl = nvlist_get_parent(nvl, (void**)&nvp)) != NULL);
 
 	return (descs);
 }
@@ -571,7 +574,7 @@ nvlist_descriptors(const nvlist_t *nvl, size_t *nitemsp)
 	if (fds == NULL)
 		return (NULL);
 	if (nitems > 0)
-		nvlist_xdescriptors(nvl, fds, 0);
+		nvlist_xdescriptors(nvl, fds);
 	fds[nitems] = -1;
 	if (nitemsp != NULL)
 		*nitemsp = nitems;
@@ -579,42 +582,38 @@ nvlist_descriptors(const nvlist_t *nvl, size_t *nitemsp)
 }
 #endif
 
-static size_t
-nvlist_xndescriptors(const nvlist_t *nvl, int level)
+size_t
+nvlist_ndescriptors(const nvlist_t *nvl)
 {
 #ifndef _KERNEL
-	const nvpair_t *nvp;
+	nvpair_t *nvp;
+	const char *name;
 	size_t ndescs;
+	int type;
 
 	NVLIST_ASSERT(nvl);
 	PJDLOG_ASSERT(nvl->nvl_error == 0);
-	PJDLOG_ASSERT(level < 3);
 
 	ndescs = 0;
-	for (nvp = nvlist_first_nvpair(nvl); nvp != NULL;
-	    nvp = nvlist_next_nvpair(nvl, nvp)) {
-		switch (nvpair_type(nvp)) {
-		case NV_TYPE_DESCRIPTOR:
-			ndescs++;
-			break;
-		case NV_TYPE_NVLIST:
-			ndescs += nvlist_xndescriptors(nvpair_get_nvlist(nvp),
-			    level + 1);
-			break;
+	nvp = NULL;
+	do {
+		while ((name = nvlist_next(nvl, &type, (void**)&nvp)) != NULL) {
+			switch (type) {
+			case NV_TYPE_DESCRIPTOR:
+				ndescs++;
+				break;
+			case NV_TYPE_NVLIST:
+				nvl = nvpair_get_nvlist(nvp);
+				nvp = NULL;
+				break;
+			}
 		}
-	}
+	} while ((nvl = nvlist_get_parent(nvl, (void**)&nvp)) != NULL);
 
 	return (ndescs);
 #else
 	return (0);
 #endif
-}
-
-size_t
-nvlist_ndescriptors(const nvlist_t *nvl)
-{
-
-	return (nvlist_xndescriptors(nvl, 0));
 }
 
 static unsigned char *
