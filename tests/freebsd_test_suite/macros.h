@@ -32,21 +32,24 @@
 #include <sys/param.h>
 #include <sys/module.h>
 #include <string.h>
-#include <err.h>
 #include <errno.h>
+#include <stdio.h>
+#include <unistd.h>
 
 #include <atf-c.h>
 
 #define	ATF_REQUIRE_KERNEL_MODULE(_mod_name) do {			\
-	ATF_REQUIRE_MSG(modfind(_mod_name) != -1,			\
-	    "module %s could not be resolved: %s",			\
-	    _mod_name, strerror(errno));				\
+	if (modfind(_mod_name) == -1) {					\
+		atf_skip("module %s could not be resolved: %s",		\
+		    _mod_name, strerror(errno));			\
+	}								\
 } while(0)
 
-#define	PLAIN_REQUIRE_KERNEL_MODULE(_mod_name, _exit_code) do {	\
+#define	PLAIN_REQUIRE_KERNEL_MODULE(_mod_name, _exit_code) do {		\
 	if (modfind(_mod_name) == -1) {					\
-		err(_exit_code, "module %s could not be resolved",	\
-		    _mod_name);						\
+		printf("module %s could not be resolved: %s\n",		\
+		    _mod_name, strerror(errno));			\
+		_exit(_exit_code);					\
 	}								\
 } while(0)
 
