@@ -929,8 +929,10 @@ nvlist_recv(int sock)
 
 	nvl = nvlist_xunpack(buf, size, fds, nfds);
 	if (nvl == NULL) {
+		SAVE_ERRNO(serrno);
 		for (i = 0; i < nfds; i++)
 			close(fds[i]);
+		RESTORE_ERRNO(serrno);
 		goto out;
 	}
 
