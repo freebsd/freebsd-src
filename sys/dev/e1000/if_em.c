@@ -2580,7 +2580,7 @@ em_allocate_msix(struct adapter *adapter)
 			return (error);
 		}
 #if __FreeBSD_version >= 800504
-		bus_describe_intr(dev, rxr->res, rxr->tag, "rx %d", i);
+		bus_describe_intr(dev, rxr->res, rxr->tag, "rx%d", i);
 #endif
 		rxr->msix = vector;
 

@@ -407,7 +407,6 @@ struct adapter {
 	eventhandler_tag vlan_detach;
 
 	u16	num_vlans;
-	/* Allow number of tx queues != num of rx_queues */
 	u8	num_queues;
 
         /*
