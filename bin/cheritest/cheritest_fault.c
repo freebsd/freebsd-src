@@ -167,7 +167,7 @@ test_nofault_cfromptr(const struct cheri_test *ctp __unused)
 	 */
 	cb = cheri_ptr(buf, 256);
 	rt = 10;
-	__asm__ __volatile__ ("cfromptr %0, %1, %2" :: "r"(cd), "r"(cb),
+	__asm__ __volatile__ ("cfromptr %0, %1, %2" : "=r"(cd) : "r"(cb),
 	    "r"(rt) : "memory");
 	cheritest_success();
 }
