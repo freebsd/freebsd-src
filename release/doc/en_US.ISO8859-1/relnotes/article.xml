@@ -306,7 +306,8 @@
     <sect2 xml:id="drivers-device">
       <title>Device Drivers</title>
 
-      <para>&nbsp;</para>
+      <para revision="282199">The <literal>drm</literal> code has
+	been updated to match &linux; version 3.8.13.</para>
     </sect2>
 
     <sect2 xml:id="drivers-storage">
