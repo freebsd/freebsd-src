@@ -2008,7 +2008,6 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				       " with status %#x, bus scan halted\n",
 				       status);
 				free(scan_info, M_CAMXPT);
-				scan_info = NULL;
 				request_ccb->ccb_h.status = status;
 				xpt_free_ccb(work_ccb);
 				xpt_done(request_ccb);
@@ -2018,7 +2017,6 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			if (work_ccb == NULL) {
 				xpt_free_ccb((union ccb *)scan_info->cpi);
 				free(scan_info, M_CAMXPT);
-				scan_info = NULL;
 				xpt_free_path(path);
 				request_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
 				xpt_done(request_ccb);
@@ -2034,7 +2032,6 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			xpt_action(work_ccb);
 		}
 
-		free(scan_info, M_CAMXPT);
 		mtx_lock(mtx);
 		break;
 	}
