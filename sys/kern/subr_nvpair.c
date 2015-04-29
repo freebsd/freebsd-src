@@ -716,22 +716,15 @@ nvpair_name(const nvpair_t *nvp)
 }
 
 static nvpair_t *
-nvpair_allocv(int type, uint64_t data, size_t datasize, const char *namefmt,
-    va_list nameap)
+nvpair_allocv(const char *name, int type, uint64_t data, size_t datasize)
 {
 	nvpair_t *nvp;
-	char *name;
-	int namelen;
+	size_t namelen;
 
 	PJDLOG_ASSERT(type >= NV_TYPE_FIRST && type <= NV_TYPE_LAST);
 
-	namelen = nv_vasprintf(&name, namefmt, nameap);
-	if (namelen < 0)
-		return (NULL);
-
-	PJDLOG_ASSERT(namelen > 0);
+	namelen = strlen(name);
 	if (namelen >= NV_NAME_MAX) {
-		nv_free(name);
 		RESTORE_ERRNO(ENAMETOOLONG);
 		return (NULL);
 	}
@@ -739,44 +732,16 @@ nvpair_allocv(int type, uint64_t data, size_t datasize, const char *namefmt,
 	nvp = nv_calloc(1, sizeof(*nvp) + namelen + 1);
 	if (nvp != NULL) {
 		nvp->nvp_name = (char *)(nvp + 1);
-		memcpy(nvp->nvp_name, name, namelen + 1);
+		memcpy(nvp->nvp_name, name, namelen);
+		nvp->nvp_name[namelen + 1] = '\0';
 		nvp->nvp_type = type;
 		nvp->nvp_data = data;
 		nvp->nvp_datasize = datasize;
 		nvp->nvp_magic = NVPAIR_MAGIC;
 	}
-	nv_free(name);
 
 	return (nvp);
 };
-
-nvpair_t *
-nvpair_create_null(const char *name)
-{
-
-	return (nvpair_createf_null("%s", name));
-}
-
-nvpair_t *
-nvpair_create_bool(const char *name, bool value)
-{
-
-	return (nvpair_createf_bool(value, "%s", name));
-}
-
-nvpair_t *
-nvpair_create_number(const char *name, uint64_t value)
-{
-
-	return (nvpair_createf_number(value, "%s", name));
-}
-
-nvpair_t *
-nvpair_create_string(const char *name, const char *value)
-{
-
-	return (nvpair_createf_string(value, "%s", name));
-}
 
 nvpair_t *
 nvpair_create_stringf(const char *name, const char *valuefmt, ...)
@@ -808,146 +773,29 @@ nvpair_create_stringv(const char *name, const char *valuefmt, va_list valueap)
 }
 
 nvpair_t *
-nvpair_create_nvlist(const char *name, const nvlist_t *value)
+nvpair_create_null(const char *name)
 {
 
-	return (nvpair_createf_nvlist(value, "%s", name));
-}
-
-#ifndef _KERNEL
-nvpair_t *
-nvpair_create_descriptor(const char *name, int value)
-{
-
-	return (nvpair_createf_descriptor(value, "%s", name));
-}
-#endif
-
-nvpair_t *
-nvpair_create_binary(const char *name, const void *value, size_t size)
-{
-
-	return (nvpair_createf_binary(value, size, "%s", name));
+	return (nvpair_allocv(name, NV_TYPE_NULL, 0, 0));
 }
 
 nvpair_t *
-nvpair_createf_null(const char *namefmt, ...)
+nvpair_create_bool(const char *name, bool value)
 {
-	va_list nameap;
-	nvpair_t *nvp;
 
-	va_start(nameap, namefmt);
-	nvp = nvpair_createv_null(namefmt, nameap);
-	va_end(nameap);
-
-	return (nvp);
+	return (nvpair_allocv(name, NV_TYPE_BOOL, value ? 1 : 0,
+	    sizeof(uint8_t)));
 }
 
 nvpair_t *
-nvpair_createf_bool(bool value, const char *namefmt, ...)
+nvpair_create_number(const char *name, uint64_t value)
 {
-	va_list nameap;
-	nvpair_t *nvp;
 
-	va_start(nameap, namefmt);
-	nvp = nvpair_createv_bool(value, namefmt, nameap);
-	va_end(nameap);
-
-	return (nvp);
+	return (nvpair_allocv(name, NV_TYPE_NUMBER, value, sizeof(value)));
 }
 
 nvpair_t *
-nvpair_createf_number(uint64_t value, const char *namefmt, ...)
-{
-	va_list nameap;
-	nvpair_t *nvp;
-
-	va_start(nameap, namefmt);
-	nvp = nvpair_createv_number(value, namefmt, nameap);
-	va_end(nameap);
-
-	return (nvp);
-}
-
-nvpair_t *
-nvpair_createf_string(const char *value, const char *namefmt, ...)
-{
-	va_list nameap;
-	nvpair_t *nvp;
-
-	va_start(nameap, namefmt);
-	nvp = nvpair_createv_string(value, namefmt, nameap);
-	va_end(nameap);
-
-	return (nvp);
-}
-
-nvpair_t *
-nvpair_createf_nvlist(const nvlist_t *value, const char *namefmt, ...)
-{
-	va_list nameap;
-	nvpair_t *nvp;
-
-	va_start(nameap, namefmt);
-	nvp = nvpair_createv_nvlist(value, namefmt, nameap);
-	va_end(nameap);
-
-	return (nvp);
-}
-
-#ifndef _KERNEL
-nvpair_t *
-nvpair_createf_descriptor(int value, const char *namefmt, ...)
-{
-	va_list nameap;
-	nvpair_t *nvp;
-
-	va_start(nameap, namefmt);
-	nvp = nvpair_createv_descriptor(value, namefmt, nameap);
-	va_end(nameap);
-
-	return (nvp);
-}
-#endif
-
-nvpair_t *
-nvpair_createf_binary(const void *value, size_t size, const char *namefmt, ...)
-{
-	va_list nameap;
-	nvpair_t *nvp;
-
-	va_start(nameap, namefmt);
-	nvp = nvpair_createv_binary(value, size, namefmt, nameap);
-	va_end(nameap);
-
-	return (nvp);
-}
-
-nvpair_t *
-nvpair_createv_null(const char *namefmt, va_list nameap)
-{
-
-	return (nvpair_allocv(NV_TYPE_NULL, 0, 0, namefmt, nameap));
-}
-
-nvpair_t *
-nvpair_createv_bool(bool value, const char *namefmt, va_list nameap)
-{
-
-	return (nvpair_allocv(NV_TYPE_BOOL, value ? 1 : 0, sizeof(uint8_t),
-	    namefmt, nameap));
-}
-
-nvpair_t *
-nvpair_createv_number(uint64_t value, const char *namefmt, va_list nameap)
-{
-
-	return (nvpair_allocv(NV_TYPE_NUMBER, value, sizeof(value), namefmt,
-	    nameap));
-}
-
-nvpair_t *
-nvpair_createv_string(const char *value, const char *namefmt, va_list nameap)
+nvpair_create_string(const char *name, const char *value)
 {
 	nvpair_t *nvp;
 	size_t size;
@@ -963,8 +811,8 @@ nvpair_createv_string(const char *value, const char *namefmt, va_list nameap)
 		return (NULL);
 	size = strlen(value) + 1;
 
-	nvp = nvpair_allocv(NV_TYPE_STRING, (uint64_t)(uintptr_t)data, size,
-	    namefmt, nameap);
+	nvp = nvpair_allocv(name, NV_TYPE_STRING, (uint64_t)(uintptr_t)data,
+	    size);
 	if (nvp == NULL)
 		nv_free(data);
 
@@ -972,8 +820,7 @@ nvpair_createv_string(const char *value, const char *namefmt, va_list nameap)
 }
 
 nvpair_t *
-nvpair_createv_nvlist(const nvlist_t *value, const char *namefmt,
-    va_list nameap)
+nvpair_create_nvlist(const char *name, const nvlist_t *value)
 {
 	nvlist_t *nvl;
 	nvpair_t *nvp;
@@ -987,8 +834,7 @@ nvpair_createv_nvlist(const nvlist_t *value, const char *namefmt,
 	if (nvl == NULL)
 		return (NULL);
 
-	nvp = nvpair_allocv(NV_TYPE_NVLIST, (uint64_t)(uintptr_t)nvl, 0,
-	    namefmt, nameap);
+	nvp = nvpair_allocv(name, NV_TYPE_NVLIST, (uint64_t)(uintptr_t)nvl, 0);
 	if (nvp == NULL)
 		nvlist_destroy(nvl);
 	else
@@ -999,7 +845,7 @@ nvpair_createv_nvlist(const nvlist_t *value, const char *namefmt,
 
 #ifndef _KERNEL
 nvpair_t *
-nvpair_createv_descriptor(int value, const char *namefmt, va_list nameap)
+nvpair_create_descriptor(const char *name, int value)
 {
 	nvpair_t *nvp;
 
@@ -1012,8 +858,8 @@ nvpair_createv_descriptor(int value, const char *namefmt, va_list nameap)
 	if (value < 0)
 		return (NULL);
 
-	nvp = nvpair_allocv(NV_TYPE_DESCRIPTOR, (uint64_t)value,
-	    sizeof(int64_t), namefmt, nameap);
+	nvp = nvpair_allocv(name, NV_TYPE_DESCRIPTOR, (uint64_t)value,
+	    sizeof(int64_t));
 	if (nvp == NULL)
 		close(value);
 
@@ -1022,8 +868,7 @@ nvpair_createv_descriptor(int value, const char *namefmt, va_list nameap)
 #endif
 
 nvpair_t *
-nvpair_createv_binary(const void *value, size_t size, const char *namefmt,
-    va_list nameap)
+nvpair_create_binary(const char *name, const void *value, size_t size)
 {
 	nvpair_t *nvp;
 	void *data;
@@ -1038,8 +883,8 @@ nvpair_createv_binary(const void *value, size_t size, const char *namefmt,
 		return (NULL);
 	memcpy(data, value, size);
 
-	nvp = nvpair_allocv(NV_TYPE_BINARY, (uint64_t)(uintptr_t)data, size,
-	    namefmt, nameap);
+	nvp = nvpair_allocv(name, NV_TYPE_BINARY, (uint64_t)(uintptr_t)data,
+	    size);
 	if (nvp == NULL)
 		nv_free(data);
 
@@ -1049,90 +894,6 @@ nvpair_createv_binary(const void *value, size_t size, const char *namefmt,
 nvpair_t *
 nvpair_move_string(const char *name, char *value)
 {
-
-	return (nvpair_movef_string(value, "%s", name));
-}
-
-nvpair_t *
-nvpair_move_nvlist(const char *name, nvlist_t *value)
-{
-
-	return (nvpair_movef_nvlist(value, "%s", name));
-}
-
-#ifndef _KERNEL
-nvpair_t *
-nvpair_move_descriptor(const char *name, int value)
-{
-
-	return (nvpair_movef_descriptor(value, "%s", name));
-}
-#endif
-
-nvpair_t *
-nvpair_move_binary(const char *name, void *value, size_t size)
-{
-
-	return (nvpair_movef_binary(value, size, "%s", name));
-}
-
-nvpair_t *
-nvpair_movef_string(char *value, const char *namefmt, ...)
-{
-	va_list nameap;
-	nvpair_t *nvp;
-
-	va_start(nameap, namefmt);
-	nvp = nvpair_movev_string(value, namefmt, nameap);
-	va_end(nameap);
-
-	return (nvp);
-}
-
-nvpair_t *
-nvpair_movef_nvlist(nvlist_t *value, const char *namefmt, ...)
-{
-	va_list nameap;
-	nvpair_t *nvp;
-
-	va_start(nameap, namefmt);
-	nvp = nvpair_movev_nvlist(value, namefmt, nameap);
-	va_end(nameap);
-
-	return (nvp);
-}
-
-#ifndef _KERNEL
-nvpair_t *
-nvpair_movef_descriptor(int value, const char *namefmt, ...)
-{
-	va_list nameap;
-	nvpair_t *nvp;
-
-	va_start(nameap, namefmt);
-	nvp = nvpair_movev_descriptor(value, namefmt, nameap);
-	va_end(nameap);
-
-	return (nvp);
-}
-#endif
-
-nvpair_t *
-nvpair_movef_binary(void *value, size_t size, const char *namefmt, ...)
-{
-	va_list nameap;
-	nvpair_t *nvp;
-
-	va_start(nameap, namefmt);
-	nvp = nvpair_movev_binary(value, size, namefmt, nameap);
-	va_end(nameap);
-
-	return (nvp);
-}
-
-nvpair_t *
-nvpair_movev_string(char *value, const char *namefmt, va_list nameap)
-{
 	nvpair_t *nvp;
 	int serrno;
 
@@ -1141,8 +902,8 @@ nvpair_movev_string(char *value, const char *namefmt, va_list nameap)
 		return (NULL);
 	}
 
-	nvp = nvpair_allocv(NV_TYPE_STRING, (uint64_t)(uintptr_t)value,
-	    strlen(value) + 1, namefmt, nameap);
+	nvp = nvpair_allocv(name, NV_TYPE_STRING, (uint64_t)(uintptr_t)value,
+	    strlen(value) + 1);
 	if (nvp == NULL) {
 		SAVE_ERRNO(serrno);
 		nv_free(value);
@@ -1153,7 +914,7 @@ nvpair_movev_string(char *value, const char *namefmt, va_list nameap)
 }
 
 nvpair_t *
-nvpair_movev_nvlist(nvlist_t *value, const char *namefmt, va_list nameap)
+nvpair_move_nvlist(const char *name, nvlist_t *value)
 {
 	nvpair_t *nvp;
 
@@ -1168,8 +929,8 @@ nvpair_movev_nvlist(nvlist_t *value, const char *namefmt, va_list nameap)
 		return (NULL);
 	}
 
-	nvp = nvpair_allocv(NV_TYPE_NVLIST, (uint64_t)(uintptr_t)value, 0,
-	    namefmt, nameap);
+	nvp = nvpair_allocv(name, NV_TYPE_NVLIST, (uint64_t)(uintptr_t)value,
+	    0);
 	if (nvp == NULL)
 		nvlist_destroy(value);
 	else
@@ -1180,7 +941,7 @@ nvpair_movev_nvlist(nvlist_t *value, const char *namefmt, va_list nameap)
 
 #ifndef _KERNEL
 nvpair_t *
-nvpair_movev_descriptor(int value, const char *namefmt, va_list nameap)
+nvpair_move_descriptor(const char *name, int value)
 {
 	nvpair_t *nvp;
 	int serrno;
@@ -1190,8 +951,8 @@ nvpair_movev_descriptor(int value, const char *namefmt, va_list nameap)
 		return (NULL);
 	}
 
-	nvp = nvpair_allocv(NV_TYPE_DESCRIPTOR, (uint64_t)value,
-	    sizeof(int64_t), namefmt, nameap);
+	nvp = nvpair_allocv(name, NV_TYPE_DESCRIPTOR, (uint64_t)value,
+	    sizeof(int64_t));
 	if (nvp == NULL) {
 		serrno = errno;
 		close(value);
@@ -1203,8 +964,7 @@ nvpair_movev_descriptor(int value, const char *namefmt, va_list nameap)
 #endif
 
 nvpair_t *
-nvpair_movev_binary(void *value, size_t size, const char *namefmt,
-    va_list nameap)
+nvpair_move_binary(const char *name, void *value, size_t size)
 {
 	nvpair_t *nvp;
 	int serrno;
@@ -1214,8 +974,8 @@ nvpair_movev_binary(void *value, size_t size, const char *namefmt,
 		return (NULL);
 	}
 
-	nvp = nvpair_allocv(NV_TYPE_BINARY, (uint64_t)(uintptr_t)value, size,
-	    namefmt, nameap);
+	nvp = nvpair_allocv(name, NV_TYPE_BINARY, (uint64_t)(uintptr_t)value,
+	    size);
 	if (nvp == NULL) {
 		SAVE_ERRNO(serrno);
 		nv_free(value);
@@ -1348,3 +1108,4 @@ nvpair_type_string(int type)
 		return ("<UNKNOWN>");
 	}
 }
+
