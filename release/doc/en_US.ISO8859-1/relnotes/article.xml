@@ -403,11 +403,11 @@
 	adding <acronym>UTF-8</acronym> support to the &man.sh.1;
 	shell.</para>
 
-      <para revision="277270"><application>OpenSSL</application> has
-	been updated to version 1.0.1l.</para>
-
       <para revision="278433">The &man.xz.1; utility has been updated
 	to support multi-threaded compression.</para>
+
+      <para revision="280297"><application>OpenSSL</application> has
+	been updated to version 1.0.1m.</para>
 
       <para revision="280932" contrib="sponsor" sponsor="&ff;">The
 	<application>elftoolchain</application> utilities have been
