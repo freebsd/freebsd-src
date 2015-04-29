@@ -204,6 +204,9 @@
     <sect2 xml:id="userland-contrib">
       <title>Contributed Software</title>
 
+      <para revision="277592"><application>file</application> has been
+	updated to version 5.22.</para>
+
       <para revision="280304"><application>OpenSSL</application> has
 	been updated to version 1.0.1m.</para>
 
