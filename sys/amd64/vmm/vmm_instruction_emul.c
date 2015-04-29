@@ -73,6 +73,7 @@ enum {
 	VIE_OP_TYPE_MOVS,
 	VIE_OP_TYPE_GROUP1,
 	VIE_OP_TYPE_STOS,
+	VIE_OP_TYPE_BITTEST,
 	VIE_OP_TYPE_LAST
 };
 
@@ -91,6 +92,11 @@ static const struct vie_op two_byte_opcodes[256] = {
 	[0xB7] = {
 		.op_byte = 0xB7,
 		.op_type = VIE_OP_TYPE_MOVZX,
+	},
+	[0xBA] = {
+		.op_byte = 0xBA,
+		.op_type = VIE_OP_TYPE_BITTEST,
+		.op_flags = VIE_OP_F_IMM8,
 	},
 	[0xBE] = {
 		.op_byte = 0xBE,
@@ -1335,6 +1341,48 @@ emulate_group1(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	return (error);
 }
 
+static int
+emulate_bittest(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
+    mem_region_read_t memread, mem_region_write_t memwrite, void *memarg)
+{
+	uint64_t val, rflags;
+	int error, bitmask, bitoff;
+
+	/*
+	 * 0F BA is a Group 8 extended opcode.
+	 *
+	 * Currently we only emulate the 'Bit Test' instruction which is
+	 * identified by a ModR/M:reg encoding of 100b.
+	 */
+	if ((vie->reg & 7) != 4)
+		return (EINVAL);
+
+	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, &rflags);
+	KASSERT(error == 0, ("%s: error %d getting rflags", __func__, error));
+
+	error = memread(vm, vcpuid, gpa, &val, vie->opsize, memarg);
+	if (error)
+		return (error);
+
+	/*
+	 * Intel SDM, Vol 2, Table 3-2:
+	 * "Range of Bit Positions Specified by Bit Offset Operands"
+	 */
+	bitmask = vie->opsize * 8 - 1;
+	bitoff = vie->immediate & bitmask;
+
+	/* Copy the bit into the Carry flag in %rflags */
+	if (val & (1UL << bitoff))
+		rflags |= PSL_C;
+	else
+		rflags &= ~PSL_C;
+
+	error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, rflags, 8);
+	KASSERT(error == 0, ("%s: error %d updating rflags", __func__, error));
+
+	return (0);
+}
+
 int
 vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
     struct vm_guest_paging *paging, mem_region_read_t memread,
@@ -1390,6 +1438,10 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	case VIE_OP_TYPE_SUB:
 		error = emulate_sub(vm, vcpuid, gpa, vie,
 				    memread, memwrite, memarg);
+		break;
+	case VIE_OP_TYPE_BITTEST:
+		error = emulate_bittest(vm, vcpuid, gpa, vie,
+		    memread, memwrite, memarg);
 		break;
 	default:
 		error = EINVAL;
