@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 13, 2015
+.Dd March 26, 2015
 .Dt PERIODIC.CONF 5
 .Os
 .Sh NAME
@@ -410,6 +410,16 @@ Set to
 .Dq Li YES
 if you want to run
 .Nm netstat Fl i .
+.It Va daily_status_network_netstat_flags
+.Pq Vt str
+Set to additional arguments for the
+.Xr netstat 1
+utility when
+.Va daily_status_network_enable
+is set to
+.Dq Li YES .
+The default is
+.Fl d .
 .It Va daily_status_network_usedns
 .Pq Vt bool
 Set to
