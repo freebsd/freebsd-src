@@ -1238,12 +1238,14 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	coresize = round_page(hdrsize + notesz) + seginfo.size;
 
 #ifdef RACCT
-	PROC_LOCK(td->td_proc);
-	error = racct_add(td->td_proc, RACCT_CORE, coresize);
-	PROC_UNLOCK(td->td_proc);
-	if (error != 0) {
-		error = EFAULT;
-		goto done;
+	if (racct_enable) {
+		PROC_LOCK(td->td_proc);
+		error = racct_add(td->td_proc, RACCT_CORE, coresize);
+		PROC_UNLOCK(td->td_proc);
+		if (error != 0) {
+			error = EFAULT;
+			goto done;
+		}
 	}
 #endif
 	if (coresize >= limit) {
