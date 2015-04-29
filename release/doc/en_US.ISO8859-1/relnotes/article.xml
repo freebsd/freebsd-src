@@ -344,7 +344,10 @@
     <sect2 xml:id="hardware-arm">
       <title>ARM Support</title>
 
-      <para>&nbsp;</para>
+      <para revision="278608">The <literal>bcm2835_cpufreq</literal>
+	driver has been added, which supports <acronym>CPU</acronym>
+	frequency and voltage control on the Raspberry Pi
+	<acronym>SOC</acronym>.</para>
     </sect2>
   </sect1>
 
