@@ -41,8 +41,8 @@ typedef struct nvpair nvpair_t;
 
 #define	NV_TYPE_NVLIST_UP		255
 
-#define	NV_TYPE_FIRST		NV_TYPE_NULL
-#define	NV_TYPE_LAST		NV_TYPE_BINARY
+#define	NV_TYPE_FIRST			NV_TYPE_NULL
+#define	NV_TYPE_LAST			NV_TYPE_BINARY
 
 #define	NV_FLAG_BIG_ENDIAN		0x80
 
@@ -70,8 +70,8 @@ typedef struct nvpair nvpair_t;
 #define	nv_strdup(buf)			strdup((buf))
 #define	nv_vasprintf(ptr, ...)		vasprintf(ptr, __VA_ARGS__)
 
-#define	SAVE_ERRNO(var) 		(var) = errno
-#define	RESTORE_ERRNO(var) 		errno = (var)
+#define	SAVE_ERRNO(var)			(var) = errno
+#define	RESTORE_ERRNO(var)		errno = (var)
 
 #define	ERRNO_OR_DEFAULT(default)	(errno == 0 ? (default) : errno)
 
