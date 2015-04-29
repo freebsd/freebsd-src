@@ -77,9 +77,8 @@ ATF_TEST_CASE_BODY(nvlist_add_null__single_insert)
 
 	ATF_REQUIRE(!nvlist_empty(nvl));
 	ATF_REQUIRE(nvlist_exists(nvl, key));
-	ATF_REQUIRE(nvlist_existsf(nvl, "%s", key));
 	ATF_REQUIRE(nvlist_exists_null(nvl, key));
-	ATF_REQUIRE(nvlist_existsf_null(nvl, "key"));
+	ATF_REQUIRE(nvlist_exists_null(nvl, "key"));
 
 	/* Iterate over the nvlist; ensure that it has only our one key. */
 	it = NULL;
@@ -108,11 +107,10 @@ ATF_TEST_CASE_BODY(nvlist_add_bool__single_insert)
 
 	ATF_REQUIRE(!nvlist_empty(nvl));
 	ATF_REQUIRE(nvlist_exists(nvl, key));
-	ATF_REQUIRE(nvlist_existsf(nvl, "%s%s", "na", "me"));
+	ATF_REQUIRE(nvlist_exists(nvl, "name"));
 	ATF_REQUIRE(nvlist_exists_bool(nvl, key));
-	ATF_REQUIRE(nvlist_existsf_bool(nvl, "%s%c", "nam", 'e'));
+	ATF_REQUIRE(nvlist_exists_bool(nvl, "name"));
 	ATF_REQUIRE_EQ(nvlist_get_bool(nvl, key), true);
-	ATF_REQUIRE_EQ(nvlist_getf_bool(nvl, "%c%s", 'n', "ame"), true);
 
 	/* Iterate over the nvlist; ensure that it has only our one key. */
 	it = NULL;
@@ -143,11 +141,9 @@ ATF_TEST_CASE_BODY(nvlist_add_number__single_insert)
 
 	ATF_REQUIRE(!nvlist_empty(nvl));
 	ATF_REQUIRE(nvlist_exists(nvl, key));
-	ATF_REQUIRE(nvlist_existsf(nvl, "%s%d", "foo", 123));
+	ATF_REQUIRE(nvlist_exists(nvl, "foo123"));
 	ATF_REQUIRE(nvlist_exists_number(nvl, key));
-	ATF_REQUIRE(nvlist_existsf_number(nvl, "%s", key));
 	ATF_REQUIRE_EQ(nvlist_get_number(nvl, key), value);
-	ATF_REQUIRE_EQ(nvlist_getf_number(nvl, "%s", key), value);
 
 	/* Iterate over the nvlist; ensure that it has only our one key. */
 	it = NULL;
@@ -178,11 +174,10 @@ ATF_TEST_CASE_BODY(nvlist_add_string__single_insert)
 
 	ATF_REQUIRE(!nvlist_empty(nvl));
 	ATF_REQUIRE(nvlist_exists(nvl, key));
-	ATF_REQUIRE(nvlist_existsf(nvl, "%s", key));
+	ATF_REQUIRE(nvlist_exists(nvl, "test"));
 	ATF_REQUIRE(nvlist_exists_string(nvl, key));
-	ATF_REQUIRE(nvlist_existsf_string(nvl, "%s", key));
+	ATF_REQUIRE(nvlist_exists_string(nvl, "test"));
 	ATF_REQUIRE_EQ(strcmp(nvlist_get_string(nvl, key), value), 0);
-	ATF_REQUIRE_EQ(strcmp(nvlist_getf_string(nvl, "%s", key), value), 0);
 
 	/* nvlist_add_* is required to clone the value, so check for that. */
 	ATF_REQUIRE(nvlist_get_string(nvl, key) != value);
@@ -219,18 +214,14 @@ ATF_TEST_CASE_BODY(nvlist_add_nvlist__single_insert)
 
 	ATF_REQUIRE(!nvlist_empty(nvl));
 	ATF_REQUIRE(nvlist_exists(nvl, key));
-	ATF_REQUIRE(nvlist_existsf(nvl, "%s", key));
+	ATF_REQUIRE(nvlist_exists(nvl, "test"));
 	ATF_REQUIRE(nvlist_exists_nvlist(nvl, key));
-	ATF_REQUIRE(nvlist_existsf_nvlist(nvl, "%s", key));
+	ATF_REQUIRE(nvlist_exists_nvlist(nvl, "test"));
 
 	value = nvlist_get_nvlist(nvl, key);
 	ATF_REQUIRE(nvlist_exists_null(value, subkey));
 
 	/* nvlist_add_* is required to clone the value, so check for that. */
-	ATF_REQUIRE(sublist != value);
-
-	value = nvlist_getf_nvlist(nvl, "%s", key);
-	ATF_REQUIRE(nvlist_exists_null(value, subkey));
 	ATF_REQUIRE(sublist != value);
 
 	/* Iterate over the nvlist; ensure that it has only our one key. */
@@ -283,20 +274,15 @@ ATF_TEST_CASE_BODY(nvlist_add_binary__single_insert)
 
 	ATF_REQUIRE(!nvlist_empty(nvl));
 	ATF_REQUIRE(nvlist_exists(nvl, key));
-	ATF_REQUIRE(nvlist_existsf(nvl, "%s", key));
+	ATF_REQUIRE(nvlist_exists(nvl, "binary"));
 	ATF_REQUIRE(nvlist_exists_binary(nvl, key));
-	ATF_REQUIRE(nvlist_existsf_binary(nvl, "%s", key));
+	ATF_REQUIRE(nvlist_exists_binary(nvl, "binary"));
 
 	ret_value = nvlist_get_binary(nvl, key, &ret_size);
 	ATF_REQUIRE_EQ(value_size, ret_size);
 	ATF_REQUIRE_EQ(memcmp(value, ret_value, ret_size), 0);
 
 	/* nvlist_add_* is required to clone the value, so check for that. */
-	ATF_REQUIRE(value != ret_value);
-
-	ret_value = nvlist_getf_binary(nvl, &ret_size, "%s", key);
-	ATF_REQUIRE_EQ(value_size, ret_size);
-	ATF_REQUIRE_EQ(memcmp(value, ret_value, ret_size), 0);
 	ATF_REQUIRE(value != ret_value);
 
 	/* Iterate over the nvlist; ensure that it has only our one key. */
