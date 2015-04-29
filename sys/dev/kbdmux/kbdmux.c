@@ -470,6 +470,10 @@ kbdmux_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		KBDMUX_LOCK(state);
 		callout_reset(&state->ks_timo, TICKS, kbdmux_kbd_intr_timo, state);
 		KBDMUX_UNLOCK(state);
+	} else if (needfree) {
+		free(accmap, M_KBDMUX);
+		free(fkeymap, M_KBDMUX);
+		free(keymap, M_KBDMUX);
 	}
 
 	return (0);
