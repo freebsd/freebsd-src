@@ -30,11 +30,13 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)ex.rm	8.5 (Berkeley) 8/18/96
+.\" $FreeBSD$
 .\"
 .nr LL 6.5i
 .nr FL 6.5i
 .EH 'USD:12-%''Ex Reference Manual'
 .OH 'Ex Reference Manual''USD:12-%'
+.ND
 .nr )P 0
 .de ZP
 .nr pd \\n()P
