@@ -47,11 +47,11 @@ typedef struct nvpair nvpair_t;
 #define	NV_FLAG_BIG_ENDIAN		0x80
 
 #ifdef _KERNEL
-#define	nv_malloc(size)			malloc((size), M_NVLIST, M_NOWAIT)
+#define	nv_malloc(size)			malloc((size), M_NVLIST, M_WAITOK)
 #define	nv_calloc(n, size)		malloc((n) * (size), M_NVLIST, \
-					    M_NOWAIT | M_ZERO)
+					    M_WAITOK | M_ZERO)
 #define	nv_realloc(buf, size)		realloc((buf), (size), M_NVLIST, \
-					    M_NOWAIT)
+					    M_WAITOK)
 #define	nv_free(buf)			free((buf), M_NVLIST)
 #define	nv_strdup(buf)			strdup((buf), M_NVLIST)
 #define	nv_vasprintf(ptr, ...)		vasprintf(ptr, M_NVLIST, __VA_ARGS__)
