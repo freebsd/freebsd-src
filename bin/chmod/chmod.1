@@ -32,7 +32,7 @@
 .\"	@(#)chmod.1	8.4 (Berkeley) 3/31/94
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2009
+.Dd April 20, 2015
 .Dt CHMOD 1
 .Os
 .Sh NAME
@@ -63,9 +63,9 @@ nor modify the exit status to reflect such failures.
 .It Fl H
 If the
 .Fl R
-option is specified, symbolic links on the command line are followed.
-(Symbolic links encountered in the tree traversal are not followed by
-default.)
+option is specified, symbolic links on the command line are followed
+and hence unaffected by the command.
+(Symbolic links encountered during tree traversal are not followed.)
 .It Fl h
 If the file is a symbolic link, change the mode of the link itself
 rather than the file that the link points to.
@@ -79,8 +79,12 @@ If the
 option is specified, no symbolic links are followed.
 This is the default.
 .It Fl R
-Change the modes of the file hierarchies rooted in the files
+Change the modes of the file hierarchies rooted in the files,
 instead of just the files themselves.
+Beware of unintentionally matching the
+.Dq Pa ".."
+hard link to the parent directory when using wildcards like
+.Dq Li ".*" .
 .It Fl v
 Cause
 .Nm
