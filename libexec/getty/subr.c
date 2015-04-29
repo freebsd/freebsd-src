@@ -38,9 +38,6 @@ static const char rcsid[] =
 /*
  * Melbourne getty.
  */
-#ifdef DEBUG
-#include <stdio.h>
-#endif
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
@@ -160,17 +157,6 @@ gettable(const char *name, char *buf)
 			fp->value = 1 ^ fp->invrt;
 		}
 	}
-
-#ifdef DEBUG
-	printf("name=\"%s\", buf=\"%s\"\r\n", name, buf);
-	for (sp = gettystrs; sp->field; sp++)
-		printf("cgetstr: %s=%s\r\n", sp->field, sp->value);
-	for (np = gettynums; np->field; np++)
-		printf("cgetnum: %s=%d\r\n", np->field, np->value);
-	for (fp = gettyflags; fp->field; fp++)
-		printf("cgetflags: %s='%c' set='%c'\r\n", fp->field, 
-		       fp->value + '0', fp->set + '0');
-#endif /* DEBUG */
 }
 
 void
