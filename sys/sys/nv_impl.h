@@ -128,30 +128,4 @@ const void	*nvpair_get_binary(const nvpair_t *nvp, size_t *sizep);
 
 void nvpair_free(nvpair_t *nvp);
 
-nvpair_t *nvpair_createf_null(const char *namefmt, ...) __printflike(1, 2);
-nvpair_t *nvpair_createf_bool(bool value, const char *namefmt, ...) __printflike(2, 3);
-nvpair_t *nvpair_createf_number(uint64_t value, const char *namefmt, ...) __printflike(2, 3);
-nvpair_t *nvpair_createf_string(const char *value, const char *namefmt, ...) __printflike(2, 3);
-nvpair_t *nvpair_createf_nvlist(const nvlist_t *value, const char *namefmt, ...) __printflike(2, 3);
-nvpair_t *nvpair_createf_descriptor(int value, const char *namefmt, ...) __printflike(2, 3);
-nvpair_t *nvpair_createf_binary(const void *value, size_t size, const char *namefmt, ...) __printflike(3, 4);
-
-nvpair_t *nvpair_createv_null(const char *namefmt, va_list nameap) __printflike(1, 0);
-nvpair_t *nvpair_createv_bool(bool value, const char *namefmt, va_list nameap) __printflike(2, 0);
-nvpair_t *nvpair_createv_number(uint64_t value, const char *namefmt, va_list nameap) __printflike(2, 0);
-nvpair_t *nvpair_createv_string(const char *value, const char *namefmt, va_list nameap) __printflike(2, 0);
-nvpair_t *nvpair_createv_nvlist(const nvlist_t *value, const char *namefmt, va_list nameap) __printflike(2, 0);
-nvpair_t *nvpair_createv_descriptor(int value, const char *namefmt, va_list nameap) __printflike(2, 0);
-nvpair_t *nvpair_createv_binary(const void *value, size_t size, const char *namefmt, va_list nameap) __printflike(3, 0);
-
-nvpair_t *nvpair_movef_string(char *value, const char *namefmt, ...) __printflike(2, 3);
-nvpair_t *nvpair_movef_nvlist(nvlist_t *value, const char *namefmt, ...) __printflike(2, 3);
-nvpair_t *nvpair_movef_descriptor(int value, const char *namefmt, ...) __printflike(2, 3);
-nvpair_t *nvpair_movef_binary(void *value, size_t size, const char *namefmt, ...) __printflike(3, 4);
-
-nvpair_t *nvpair_movev_string(char *value, const char *namefmt, va_list nameap) __printflike(2, 0);
-nvpair_t *nvpair_movev_nvlist(nvlist_t *value, const char *namefmt, va_list nameap) __printflike(2, 0);
-nvpair_t *nvpair_movev_descriptor(int value, const char *namefmt, va_list nameap) __printflike(2, 0);
-nvpair_t *nvpair_movev_binary(void *value, size_t size, const char *namefmt, va_list nameap) __printflike(3, 0);
-
 #endif	/* !_NV_IMPL_H_ */
