@@ -175,8 +175,10 @@ vm_extra_install_ports() {
 }
 
 vm_extra_pre_umount() {
-	# Prototype.  When overridden, installs additional ports within the
-	# virtual machine environment.
+	# Prototype.  When overridden, performs additional tasks within the
+	# virtual machine environment prior to unmounting the filesystem.
+	# Note: When overriding this function, removing resolv.conf in the
+	# disk image must be included.
 
 	rm -f ${DESTDIR}/etc/resolv.conf
 	return 0
