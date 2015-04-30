@@ -625,26 +625,26 @@
 #endif
 
 #ifndef	__DECONST
-#ifndef __CHERI_SANDBOX__
+#if !__has_feature(capabilities)
 #define	__DECONST(type, var)	((type)(__uintptr_t)(const void *)(var))
 #else
-#define	__DECONST(type, var)	((type)(__intcap_t)(const void *)(var))
+#define	__DECONST(type, var)	((type)(__intcap_t)(__capability const void *)(var))
 #endif
 #endif
 
 #ifndef	__DEVOLATILE
-#ifndef __CHERI_SANDBOX__
+#if !__has_feature(capabilities)
 #define	__DEVOLATILE(type, var)	((type)(__uintptr_t)(volatile void *)(var))
 #else
-#define	__DEVOLATILE(type, var)	((type)(__intcap_t)(volatile void *)(var))
+#define	__DEVOLATILE(type, var)	((type)(__intcap_t)(__capability volatile void *)(var))
 #endif
 #endif
 
 #ifndef	__DEQUALIFY
-#ifndef __CHERI_SANDBOX__
+#if !__has_feature(capabilities)
 #define	__DEQUALIFY(type, var)	((type)(__uintptr_t)(const volatile void *)(var))
 #else
-#define	__DEQUALIFY(type, var)	((type)(__intcap_t)(const volatile void *)(var))
+#define	__DEQUALIFY(type, var)	((type)(__intcap_t)(__capability const volatile void *)(var))
 #endif
 #endif
 
