@@ -41,29 +41,48 @@
  * CHERI-aware Clang/LLVM, and full CP2 context switching, so not yet usable
  * in the kernel.
  */
-#define	cheri_getlen(x)		__builtin_cheri_get_cap_length(x)
-#define	cheri_getbase(x)	__builtin_cheri_get_cap_base(x)
-#define	cheri_getoffset(x)	__builtin_cheri_cap_offset_get(x)
-#define	cheri_getperm(x)	__builtin_cheri_get_cap_perms(x)
-#define	cheri_getsealed(x)	__builtin_cheri_get_cap_unsealed(x)
-#define	cheri_gettag(x)		__builtin_cheri_get_cap_tag(x)
-#define	cheri_gettype(x)	__builtin_cheri_get_cap_type(x)
+#define	cheri_getlen(x)		__builtin_cheri_get_cap_length(		\
+				    __DECONST(__capability void *, (x)))
+#define	cheri_getbase(x)	__builtin_cheri_get_cap_base(		\
+				    __DECONST(__capability void *, (x)))
+#define	cheri_getoffset(x)	__builtin_cheri_cap_offset_get(		\
+				    __DECONST(__capability void *, (x)))
+#define	cheri_getperm(x)	__builtin_cheri_get_cap_perms(		\
+				    __DECONST(__capability void *, (x)))
+#define	cheri_getsealed(x)	__builtin_cheri_get_cap_unsealed(	\
+				    __DECONST(__capability void *, (x)))
+#define	cheri_gettag(x)		__builtin_cheri_get_cap_tag(		\
+				    __DECONST(__capability void *, (x)))
+#define	cheri_gettype(x)	__builtin_cheri_get_cap_type(		\
+				    __DECONST(__capability void *, (x)))
 
-#define	cheri_andperm(x, y)	__builtin_cheri_and_cap_perms((x), (y))
-#define	cheri_cleartag(x)	__builtin_cheri_clear_cap_tag(x)
-#define	cheri_incbase(x, y)	__builtin_cheri_inc_cap_base((x), (y))
-#define	cheri_incoffset(x, y)	__builtin_cheri_cap_offset_increment((x), (y))
-#define	cheri_setlen(x, y)	__builtin_cheri_set_cap_length((x), (y))
-#define	cheri_setoffset(x, y)	__builtin_cheri_cap_offset_set((x), (y))
+#define	cheri_andperm(x, y)	__builtin_cheri_and_cap_perms(		\
+				    __DECONST(__capability void *, (x)), (y))
+#define	cheri_cleartag(x)	__builtin_cheri_clear_cap_tag(		\
+				    __DECONST(__capability void *, (x)))
+#define	cheri_incbase(x, y)	__builtin_cheri_inc_cap_base(		\
+				    __DECONST(__capability void *, (x)), (y))
+#define	cheri_incoffset(x, y)	__builtin_cheri_cap_offset_increment(	\
+				    __DECONST(__capability void *, (x)), (y))
+#define	cheri_setlen(x, y)	__builtin_cheri_set_cap_length(		\
+				    __DECONST(__capability void *, (x)), (y))
+#define	cheri_setoffset(x, y)	__builtin_cheri_cap_offset_set(		\
+				    __DECONST(__capability void *, (x)), (y))
 
-#define	cheri_seal(x, y)	__builtin_cheri_seal_cap((x), (y))
-#define	cheri_unseal(x, y)	__builtin_cheri_unseal_cap((x), (y))
+#define	cheri_seal(x, y)	__builtin_cheri_seal_cap(		 \
+				    __DECONST(__capability void *, (x)), \
+				    __DECONST(__capability void *, (y)))
+#define	cheri_unseal(x, y)	__builtin_cheri_unseal_cap(		 \
+				    __DECONST(__capability void *, (x)), \
+				    __DECONST(__capability void *, (y)))
 
 #define	cheri_getcause()	__builtin_cheri_get_cause()
 #define	cheri_setcause(x)	__builtin_cheri_set_cause(x)
 
-#define	cheri_ccheckperm(c, p)	__builtin_cheri_check_perms((c), (p))
-#define	cheri_cchecktype(c, t)	__builtin_cheri_check_type((c), (t))
+#define	cheri_ccheckperm(c, p)	__builtin_cheri_check_perms(		\
+				    __DECONST(__capability void *, (c)), (p))
+#define	cheri_cchecktype(c, t)	__builtin_cheri_check_type(		\
+				    __DECONST(__capability void *, (c)), (t))
 
 #define	cheri_getdefault()	__builtin_cheri_get_global_data_cap()
 #define	cheri_getidc()		__builtin_cheri_get_invoke_data_cap()
