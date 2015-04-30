@@ -32,6 +32,7 @@ options 	PSIM			#GDB PSIM ppc simulator
 options 	MAMBO			#IBM Mambo Full System Simulator
 options 	PSERIES			#PAPR-compliant systems
 
+options		FDT
 options 	SCHED_ULE		#ULE scheduler
 options 	PREEMPTION		#Enable kernel thread preemption
 options 	INET			#InterNETworking
