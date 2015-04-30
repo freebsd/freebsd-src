@@ -121,8 +121,6 @@ NPX_DEBUG		opt_npx.h
 # BPF just-in-time compiler
 BPF_JITTER		opt_bpf.h
 
-NATIVE			opt_global.h
-XEN			opt_global.h
 XENHVM			opt_global.h
 
 HYPERV			opt_global.h
