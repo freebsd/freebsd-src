@@ -549,7 +549,6 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 	}
 #endif
 
-	TCP_PROBE1(siftr, pkt_node);
 	alq_post_flags(siftr_alq, log_buf, 0);
 }
 
@@ -814,6 +813,8 @@ siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
 	 * maximum pps throughput processing when SIFTR is loaded and enabled.
 	 */
 	microtime(&pn->tval);
+	TCP_PROBE1(siftr, &pn);
+
 }
 
 
