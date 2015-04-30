@@ -96,22 +96,22 @@
 #define	cheri_local(c)		cheri_andperm((c), ~CHERI_PERM_GLOBAL)
 
 static __inline __capability void *
-cheri_ptr(void *ptr, size_t len)
+cheri_ptr(const void *ptr, size_t len)
 {
 
-	return (cheri_setlen((__capability void *)ptr, len));
+	return (cheri_setlen((const __capability void *)ptr, len));
 }
 
 static __inline __capability void *
-cheri_ptrperm(void *ptr, size_t len, register_t perm)
+cheri_ptrperm(const void *ptr, size_t len, register_t perm)
 {
 
-	return (cheri_andperm(cheri_setlen((__capability void *)ptr, len),
+	return (cheri_andperm(cheri_setlen((const __capability void *)ptr, len),
 	    perm | CHERI_PERM_GLOBAL));
 }
 
 static __inline __capability void *
-cheri_ptrpermoff(void *ptr, size_t len, register_t perm, off_t off)
+cheri_ptrpermoff(const void *ptr, size_t len, register_t perm, off_t off)
 {
 
 	return (cheri_setoffset(cheri_ptrperm(ptr, len, perm), off));
@@ -122,7 +122,7 @@ cheri_ptrpermoff(void *ptr, size_t len, register_t perm, off_t off)
  * set it to zero-length with the offset equal to the base.
  */
 static __inline __capability void *
-cheri_maketype(void *ptr, register_t perm)
+cheri_maketype(const void *ptr, register_t perm)
 {
 
 	return (cheri_ptrpermoff(ptr, 1, perm, 0));
