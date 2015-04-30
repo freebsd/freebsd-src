@@ -6,6 +6,9 @@
 .error NEED_CHERI must be 'hybrid' or 'pure'
 .endif
 WANT_CHERI:= yes
+.if ${NEED_CHERI} == "pure"
+LIBDIR:=	/usr/libcheri
+.endif
 .endif
 
 .if ${MK_CHERI} != "no" && defined(WANT_CHERI)
@@ -16,21 +19,25 @@ WANT_CHERI:= yes
 .error CHERI_CC is defined to ${CHERI_CC} which does not exist
 .endif
 
-CC:=	${CHERI_CC} -integrated-as --target=cheri-unknown-freebsd -msoft-float
+_CHERI_CC=	${CHERI_CC} -integrated-as --target=cheri-unknown-freebsd \
+		-msoft-float
 .if defined(SYSROOT)
-CC+=	--sysroot=${SYSROOT}
+_CHERI_CC+=	--sysroot=${SYSROOT}
 .endif
 .if defined(NEED_CHERI) && ${NEED_CHERI} == "pure"
-CC+=    -mabi=sandbox
-LIBDIR:=	/usr/libcheri
+_CHERI_CC+=    -mabi=sandbox
 .endif
 .if ${MK_CHERI128} == "yes"
-CC+=	-mllvm -cheri128
+_CHERI_CC+=	-mllvm -cheri128
 # XXX: Needed as Clang rejects -mllvm -cheri128 when using $CC to link.
-CFLAGS+=        -Qunused-arguments
+_CHERI_CFLAGS+=	-Qunused-arguments
 .endif
 
+.if ${WANT_CHERI} != "variables"
+CC:=	${_CHERI_CC}
+CFLAGS+=	${_CHERI_CFLAGS}
 # Don't remove CHERI symbols from the symbol table
 STRIP_FLAGS+=	-w --keep-symbol=__cheri_callee_method.\* \
 		--keep-symbol=__cheri_method.\*
+.endif
 .endif
