@@ -870,7 +870,7 @@ nfsrvd_write(struct nfsrv_descript *nd, __unused int isdgram,
 			i = mbuf_len(mp);
 	}
 
-	if (retlen > NFS_MAXDATA || retlen < 0)
+	if (retlen > NFS_SRVMAXIO || retlen < 0)
 		nd->nd_repstat = EIO;
 	if (vnode_vtype(vp) != VREG && !nd->nd_repstat) {
 		if (nd->nd_flag & ND_NFSV3)
