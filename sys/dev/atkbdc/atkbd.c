@@ -44,17 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 
-#if defined(__i386__) || defined(__amd64__)
-#include <machine/md_var.h>
-#include <machine/psl.h>
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#include <vm/vm_param.h>
-
-#include <isa/isareg.h>
-#endif /* __i386__ || __amd64__ */
-
 #include <sys/kbio.h>
 #include <dev/kbd/kbdreg.h>
 #include <dev/atkbdc/atkbdreg.h>
