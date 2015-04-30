@@ -14,7 +14,7 @@ _CHERI_CC=	${CHERI_CC} -integrated-as --target=cheri-unknown-freebsd \
 .if defined(SYSROOT)
 _CHERI_CC+=	--sysroot=${SYSROOT}
 .endif
-.if {MK_CHERI128} != "no"
+.if ${MK_CHERI128} != "no"
 _CHERI_CC+=	-mllvm -cheri128
 .endif
 
