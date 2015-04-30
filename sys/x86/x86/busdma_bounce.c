@@ -147,11 +147,6 @@ static void _bus_dmamap_count_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 static int _bus_dmamap_reserve_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
 				     int flags);
 
-#ifdef XEN
-#undef pmap_kextract
-#define pmap_kextract pmap_kextract_ma
-#endif
-
 /*
  * Allocate a device specific dma_tag.
  */
