@@ -583,7 +583,7 @@ nvlist_pack_header(const nvlist_t *nvl, unsigned char *ptr, size_t *leftp)
 	return (ptr);
 }
 
-void *
+static void *
 nvlist_xpack(const nvlist_t *nvl, int64_t *fdidxp, size_t *sizep)
 {
 	unsigned char *buf, *ptr;
@@ -762,7 +762,7 @@ failed:
 	return (NULL);
 }
 
-nvlist_t *
+static nvlist_t *
 nvlist_xunpack(const void *buf, size_t size, const int *fds, size_t nfds)
 {
 	const unsigned char *ptr;
