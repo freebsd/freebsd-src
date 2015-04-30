@@ -27,12 +27,18 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/errno.h>
+#include <sys/systm.h>
+#include <sys/cpuset.h>
 
 #include <machine/cpufunc.h>
 #include <machine/specialreg.h>
+#include <machine/vmm.h>
 
+#include "svm.h"
+#include "vmcb.h"
+#include "svm_softc.h"
 #include "svm_msr.h"
 
 #ifndef MSR_AMDK8_IPM
@@ -105,6 +111,13 @@ svm_rdmsr(struct svm_softc *sc, int vcpu, u_int num, uint64_t *result,
 	int error = 0;
 
 	switch (num) {
+	case MSR_MTRRcap:
+	case MSR_MTRRdefType:
+	case MSR_MTRR4kBase ... MSR_MTRR4kBase + 8:
+	case MSR_MTRR16kBase ... MSR_MTRR16kBase + 1:
+	case MSR_MTRR64kBase:
+		*result = 0;
+		break;
 	case MSR_AMDK8_IPM:
 		*result = 0;
 		break;
@@ -122,6 +135,14 @@ svm_wrmsr(struct svm_softc *sc, int vcpu, u_int num, uint64_t val, bool *retu)
 	int error = 0;
 
 	switch (num) {
+	case MSR_MTRRcap:
+		vm_inject_gp(sc->vm, vcpu);
+		break;
+	case MSR_MTRRdefType:
+	case MSR_MTRR4kBase ... MSR_MTRR4kBase + 8:
+	case MSR_MTRR16kBase ... MSR_MTRR16kBase + 1:
+	case MSR_MTRR64kBase:
+		break;		/* Ignore writes */
 	case MSR_AMDK8_IPM:
 		/*
 		 * Ignore writes to the "Interrupt Pending Message" MSR.
