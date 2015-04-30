@@ -97,17 +97,16 @@ libkern/udivdi3.c		optional	powerpc
 libkern/umoddi3.c		optional	powerpc
 powerpc/aim/interrupt.c		optional	aim
 powerpc/aim/locore.S		optional	aim no-obj
-powerpc/aim/machdep.c		optional	aim
+powerpc/aim/aim_machdep.c	optional	aim
 powerpc/aim/mmu_oea.c		optional	aim powerpc
 powerpc/aim/mmu_oea64.c		optional	aim
 powerpc/aim/moea64_if.m		optional	aim
 powerpc/aim/moea64_native.c	optional	aim
 powerpc/aim/mp_cpudep.c		optional	aim
 powerpc/aim/slb.c		optional	aim powerpc64
-powerpc/aim/uma_machdep.c	optional	aim
 powerpc/booke/interrupt.c	optional	booke
 powerpc/booke/locore.S		optional	booke no-obj
-powerpc/booke/machdep.c		optional	booke
+powerpc/booke/booke_machdep.c	optional	booke
 powerpc/booke/machdep_e500.c	optional	booke_e500
 powerpc/booke/mp_cpudep.c	optional	booke smp
 powerpc/booke/platform_bare.c	optional	booke
@@ -195,6 +194,7 @@ powerpc/powerpc/gdb_machdep.c	optional	gdb
 powerpc/powerpc/in_cksum.c	optional	inet | inet6
 powerpc/powerpc/intr_machdep.c	standard
 powerpc/powerpc/iommu_if.m	standard
+powerpc/powerpc/machdep.c	standard
 powerpc/powerpc/mem.c		optional	mem
 powerpc/powerpc/mmu_if.m	standard
 powerpc/powerpc/mp_machdep.c	optional	smp
@@ -217,6 +217,7 @@ powerpc/powerpc/syncicache.c	standard
 powerpc/powerpc/sys_machdep.c	standard
 powerpc/powerpc/trap.c		standard
 powerpc/powerpc/uio_machdep.c	standard
+powerpc/powerpc/uma_machdep.c	standard
 powerpc/powerpc/vm_machdep.c	standard
 powerpc/ps3/ehci_ps3.c		optional	ps3 ehci
 powerpc/ps3/ohci_ps3.c		optional	ps3 ohci
