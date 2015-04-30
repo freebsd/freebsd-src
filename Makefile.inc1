@@ -1522,7 +1522,8 @@ cross-tools: .MAKE
 
 NXBENV=		MAKEOBJDIRPREFIX=${OBJTREE}/nxb \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
-		VERSION="${VERSION}"
+		VERSION="${VERSION}" \
+		PATH=${PATH}:${OBJTREE}/gperf_for_gcc/usr/bin
 NXBMAKE=	${NXBENV} ${MAKE} \
 		TBLGEN=${OBJTREE}/nxb-bin/usr/bin/tblgen \
 		CLANG_TBLGEN=${OBJTREE}/nxb-bin/usr/bin/clang-tblgen \
@@ -1549,7 +1550,6 @@ native-xtools: .MAKE
 	${NXBMAKE} DIRPRFX=${_gperf}/ depend && \
 	${NXBMAKE} DIRPRFX=${_gperf}/ all && \
 	${NXBMAKE} DIRPRFX=${_gperf}/ DESTDIR=${OBJTREE}/gperf_for_gcc install
-	PATH=${PATH}:${OBJTREE}/gperf_for_gcc/usr/bin
 .endif
 	mkdir -p ${OBJTREE}/nxb-bin/bin
 	mkdir -p ${OBJTREE}/nxb-bin/sbin
