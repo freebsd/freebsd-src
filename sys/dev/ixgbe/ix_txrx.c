@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2014, Intel Corporation 
+  Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -210,7 +210,11 @@ ixgbe_mq_start(struct ifnet *ifp, struct mbuf *m)
 	 * If everything is setup correctly, it should be the
 	 * same bucket that the current CPU we're on is.
 	 */
+#if __FreeBSD_version < 1100054
+	if (m->m_flags & M_FLOWID) {
+#else
 	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
+#endif
 #ifdef	RSS
 		if (rss_hash2bucket(m->m_pkthdr.flowid,
 		    M_HASHTYPE_GET(m), &bucket_id) == 0)
@@ -276,7 +280,12 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 		enqueued++;
 #if 0 // this is VF-only
 #if __FreeBSD_version >= 1100036
-		if (next->m_flags & M_MCAST)
+		/*
+		 * Since we're looking at the tx ring, we can check
+		 * to see if we're a VF by examing our tail register
+		 * address.
+		 */
+		if (txr->tail < IXGBE_TDT(0) && next->m_flags & M_MCAST)
 			if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
 #endif
 #endif
@@ -312,8 +321,8 @@ ixgbe_deferred_mq_start(void *arg, int pending)
 }
 
 /*
-** Flush all ring buffers
-*/
+ * Flush all ring buffers
+ */
 void
 ixgbe_qflush(struct ifnet *ifp)
 {
@@ -387,6 +396,10 @@ retry:
 			/* Try it again? - one try */
 			if (remap == TRUE) {
 				remap = FALSE;
+				/*
+				 * XXX: m_defrag will choke on
+				 * non-MCLBYTES-sized clusters
+				 */
 				m = m_defrag(*m_headp, M_NOWAIT);
 				if (m == NULL) {
 					adapter->mbuf_defrag_failed++;
@@ -418,9 +431,9 @@ retry:
 	m_head = *m_headp;
 
 	/*
-	** Set up the appropriate offload context
-	** this will consume the first descriptor
-	*/
+	 * Set up the appropriate offload context
+	 * this will consume the first descriptor
+	 */
 	error = ixgbe_tx_ctx_setup(txr, m_head, &cmd_type_len, &olinfo_status);
 	if (__predict_false(error)) {
 		if (error == ENOBUFS)
@@ -439,7 +452,6 @@ retry:
 	}
 #endif
 
-	olinfo_status |= IXGBE_ADVTXD_CC;
 	i = txr->next_avail_desc;
 	for (j = 0; j < nsegs; j++) {
 		bus_size_t seglen;
@@ -466,11 +478,11 @@ retry:
 
 	txbuf->m_head = m_head;
 	/*
-	** Here we swap the map so the last descriptor,
-	** which gets the completion interrupt has the
-	** real map, and the first descriptor gets the
-	** unused map from this descriptor.
-	*/
+	 * Here we swap the map so the last descriptor,
+	 * which gets the completion interrupt has the
+	 * real map, and the first descriptor gets the
+	 * unused map from this descriptor.
+	 */
 	txr->tx_buffers[first].map = txbuf->map;
 	txbuf->map = map;
 	bus_dmamap_sync(txr->txtag, map, BUS_DMASYNC_PREWRITE);
@@ -493,7 +505,6 @@ retry:
 		txr->busy = 1;
 
 	return (0);
-
 }
 
 
@@ -732,6 +743,7 @@ static int
 ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp,
     u32 *cmd_type_len, u32 *olinfo_status)
 {
+	struct adapter *adapter = txr->adapter;
 	struct ixgbe_adv_tx_context_desc *TXD;
 	struct ether_vlan_header *eh;
 	struct ip *ip;
@@ -766,6 +778,8 @@ ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp,
 		vtag = htole16(mp->m_pkthdr.ether_vtag);
 		vlan_macip_lens |= (vtag << IXGBE_ADVTXD_VLAN_SHIFT);
 	} 
+	else if (!IXGBE_IS_X550VF(adapter) && (offload == FALSE))
+		return (0);
 
 	/*
 	 * Determine where frame payload starts.
@@ -1727,9 +1741,6 @@ ixgbe_rx_discard(struct rx_ring *rxr, int i)
  *  the mbufs in the descriptor and sends data which has been
  *  dma'ed into host memory to upper layer.
  *
- *  We loop at most count times if count is > 0, or until done if
- *  count < 0.
- *
  *  Return TRUE for more work, FALSE for all clean.
  *********************************************************************/
 bool
@@ -1792,10 +1803,9 @@ ixgbe_rxeof(struct ix_queue *que)
 
 		/* Make sure bad packets are discarded */
 		if (eop && (staterr & IXGBE_RXDADV_ERR_FRAME_ERR_MASK) != 0) {
-#if 0 // VF-only
 #if __FreeBSD_version >= 1100036
-		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
-#endif
+			if (IXGBE_IS_VF(adapter))
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 #endif
 			rxr->rx_discarded++;
 			ixgbe_rx_discard(rxr, i);
@@ -1906,6 +1916,9 @@ ixgbe_rxeof(struct ix_queue *que)
 #ifdef RSS
 			sendmp->m_pkthdr.flowid =
 			    le32toh(cur->wb.lower.hi_dword.rss);
+#if __FreeBSD_version < 1100054
+			sendmp->m_flags |= M_FLOWID;
+#endif
 			switch (pkt_info & IXGBE_RXDADV_RSSTYPE_MASK) {
 			case IXGBE_RXDADV_RSSTYPE_IPV4_TCP:
 				M_HASHTYPE_SET(sendmp, M_HASHTYPE_RSS_TCP_IPV4);
@@ -1939,7 +1952,11 @@ ixgbe_rxeof(struct ix_queue *que)
 			}
 #else /* RSS */
 			sendmp->m_pkthdr.flowid = que->msix;
+#if __FreeBSD_version >= 1100054
 			M_HASHTYPE_SET(sendmp, M_HASHTYPE_OPAQUE);
+#else
+			sendmp->m_flags |= M_FLOWID;
+#endif
 #endif /* RSS */
 #endif /* FreeBSD_version */
 		}
