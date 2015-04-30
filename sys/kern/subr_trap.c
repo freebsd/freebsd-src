@@ -80,12 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 #endif
 
-#ifdef XEN
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
-#endif
-
 #ifdef	HWPMC_HOOKS
 #include <sys/pmckern.h>
 #endif
@@ -136,9 +130,6 @@ userret(struct thread *td, struct trapframe *frame)
 	 * Let the scheduler adjust our priority etc.
 	 */
 	sched_userret(td);
-#ifdef XEN
-	PT_UPDATES_FLUSH();
-#endif
 
 	/*
 	 * Check for misbehavior.

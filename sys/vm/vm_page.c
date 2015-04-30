@@ -431,14 +431,6 @@ vm_page_startup(vm_offset_t vaddr)
 		phys_avail[i + 1] = trunc_page(phys_avail[i + 1]);
 	}
 
-#ifdef XEN
-	/*
-	 * There is no obvious reason why i386 PV Xen needs vm_page structs
-	 * created for these pseudo-physical addresses.  XXX
-	 */
-	vm_phys_add_seg(0, phys_avail[0]);
-#endif
-
 	low_water = phys_avail[0];
 	high_water = phys_avail[1];
 
