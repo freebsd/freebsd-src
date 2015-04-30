@@ -29,12 +29,7 @@
 #ifndef _XEN_XENFUNC_H_
 #define _XEN_XENFUNC_H_
 
-#ifdef XENHVM
 #include <machine/xen/xenvar.h>
-#else
-#include <machine/xen/xenpmap.h>
-#include <machine/segments.h>
-#endif
 
 #define BKPT __asm__("int3");
 #define XPQ_CALL_DEPTH 5
@@ -63,10 +58,6 @@ void _xen_machphys_update(vm_paddr_t, vm_paddr_t, char *file, int line);
 #else
 #define xen_machphys_update(a, b) _xen_machphys_update((a), (b), NULL, 0)
 #endif	
-
-#ifndef XENHVM
-void xen_update_descriptor(union descriptor *, union descriptor *);
-#endif
 
 extern struct mtx balloon_lock;
 #if 0
