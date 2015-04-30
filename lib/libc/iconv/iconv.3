@@ -48,7 +48,7 @@
 .Ft size_t
 .Fn iconv "iconv_t cd" "char ** restrict src" "size_t * restrict srcleft" "char ** restrict dst" "size_t * restrict dstleft"
 .Ft size_t
-.Fn __iconv "iconv_t cd" "const char ** restrict src" "size_t * restrict srcleft" "char ** restrict dst" "size_t * restrict dstleft" "uint32_t flags" "size_t invalids"
+.Fn __iconv "iconv_t cd" "char ** restrict src" "size_t * restrict srcleft" "char ** restrict dst" "size_t * restrict dstleft" "uint32_t flags" "size_t * invalids"
 .Sh DESCRIPTION
 The
 .Fn iconv_open

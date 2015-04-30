@@ -37,7 +37,7 @@ LDADD+=	-lmd
 .if ${MK_ICONV} != "no"
 # TODO: This can be changed back to CFLAGS once iconv works correctly
 # with statically linked binaries.
-SHARED_CFLAGS+=	-DHAVE_ICONV=1 -DHAVE_ICONV_H=1 -DICONV_CONST=const
+SHARED_CFLAGS+=	-DHAVE_ICONV=1 -DHAVE_ICONV_H=1 -DICONV_CONST=
 .endif
 
 .if ${MACHINE_ARCH:Marm*} != "" || ${MACHINE_ARCH:Mmips*} != "" || \
