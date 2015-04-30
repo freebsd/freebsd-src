@@ -2578,7 +2578,6 @@ urtwn_r88e_dma_init(struct urtwn_softc *sc)
 		return (EIO);
 
 	/* Set number of pages for normal priority queue. */
-	urtwn_write_2(sc, R92C_RQPN_NPQ, 0);
 	urtwn_write_2(sc, R92C_RQPN_NPQ, 0x000d);
 	urtwn_write_4(sc, R92C_RQPN, 0x808e000d);
 
@@ -3397,16 +3396,17 @@ urtwn_init_locked(void *arg)
 	urtwn_write_1(sc, R92C_TRXDMA_CTRL,
 	    urtwn_read_1(sc, R92C_TRXDMA_CTRL) |
 	    R92C_TRXDMA_CTRL_RXDMA_AGG_EN);
-	urtwn_write_1(sc, R92C_USB_SPECIAL_OPTION,
-	    urtwn_read_1(sc, R92C_USB_SPECIAL_OPTION) |
-	    R92C_USB_SPECIAL_OPTION_AGG_EN);
 	urtwn_write_1(sc, R92C_RXDMA_AGG_PG_TH, 48);
 	if (sc->chip & URTWN_CHIP_88E)
 		urtwn_write_1(sc, R92C_RXDMA_AGG_PG_TH + 1, 4);
-	else
+	else {
 		urtwn_write_1(sc, R92C_USB_DMA_AGG_TO, 4);
-	urtwn_write_1(sc, R92C_USB_AGG_TH, 8);
-	urtwn_write_1(sc, R92C_USB_AGG_TO, 6);
+		urtwn_write_1(sc, R92C_USB_SPECIAL_OPTION,
+		    urtwn_read_1(sc, R92C_USB_SPECIAL_OPTION) |
+		    R92C_USB_SPECIAL_OPTION_AGG_EN);
+		urtwn_write_1(sc, R92C_USB_AGG_TH, 8);
+		urtwn_write_1(sc, R92C_USB_AGG_TO, 6);
+	}
 
 	/* Initialize beacon parameters. */
 	urtwn_write_2(sc, R92C_BCN_CTRL, 0x1010);
