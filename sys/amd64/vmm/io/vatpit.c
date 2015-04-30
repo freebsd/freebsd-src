@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/queue.h>
-#include <sys/cpuset.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
