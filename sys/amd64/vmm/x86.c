@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/pcpu.h>
 #include <sys/systm.h>
-#include <sys/cpuset.h>
 #include <sys/sysctl.h>
 
 #include <machine/clock.h>
