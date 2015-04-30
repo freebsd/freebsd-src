@@ -56,8 +56,9 @@ typedef struct nvpair nvpair_t;
 #define	nv_strdup(buf)			strdup((buf), M_NVLIST)
 #define	nv_vasprintf(ptr, ...)		vasprintf(ptr, M_NVLIST, __VA_ARGS__)
 
-#define	SAVE_ERRNO(var)			((void)(var))
-#define	RESTORE_ERRNO(var)		((void)(var))
+#define	ERRNO_SET(var)			do { } while (0)
+#define	ERRNO_SAVE()			do { do { } while(0)
+#define	ERRNO_RESTORE()			} while (0)
 
 #define	ERRNO_OR_DEFAULT(default)	(default)
 
@@ -70,8 +71,14 @@ typedef struct nvpair nvpair_t;
 #define	nv_strdup(buf)			strdup((buf))
 #define	nv_vasprintf(ptr, ...)		vasprintf(ptr, __VA_ARGS__)
 
-#define	SAVE_ERRNO(var)			(var) = errno
-#define	RESTORE_ERRNO(var)		errno = (var)
+#define	ERRNO_SET(var)			do { errno = (var); } while (0)
+#define	ERRNO_SAVE()			do {				\
+						int _serrno;		\
+									\
+						_serrno = errno
+
+#define	ERRNO_RESTORE()				errno = _serrno;	\
+					} while (0)
 
 #define	ERRNO_OR_DEFAULT(default)	(errno == 0 ? (default) : errno)
 
