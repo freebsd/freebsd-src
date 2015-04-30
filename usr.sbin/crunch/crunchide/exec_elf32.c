@@ -178,6 +178,9 @@ ELFNAMEEND(check)(int fd, const char *fn)
 	switch (xe16toh(eh.e_machine)) {
 	case EM_386: break;
 	case EM_ALPHA: break;
+#ifndef EM_AARCH64
+#define	EM_AARCH64	183
+#endif
 	case EM_AARCH64: break;
 	case EM_ARM: break;
 	case EM_MIPS: break;
