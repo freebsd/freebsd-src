@@ -59,6 +59,8 @@
 
 #include <atf-c.h>
 
+#include "freebsd_test_suite/macros.h"
+
 #define	PATH_TEMPLATE	"aio.XXXXXXXXXX"
 
 /*
@@ -81,15 +83,6 @@ struct aio_context {
 };
 
 static int	aio_timedout;
-
-static void
-aio_available(void)
-{
-
-	if (modfind("aio") == -1)
-		atf_tc_skip("aio support not available in the kernel; "
-		    "skipping testcases");
-}
 
 /*
  * Each test run specifies a timeout in seconds.  Use the somewhat obsoleted
@@ -211,7 +204,7 @@ aio_write_test(struct aio_context *ac)
 	struct aiocb aio, *aiop;
 	ssize_t len;
 
-	aio_available();
+	ATF_REQUIRE_KERNEL_MODULE("aio");
 
 	bzero(&aio, sizeof(aio));
 	aio.aio_buf = ac->ac_buffer;
@@ -263,7 +256,7 @@ aio_read_test(struct aio_context *ac)
 	struct aiocb aio, *aiop;
 	ssize_t len;
 
-	aio_available();
+	ATF_REQUIRE_KERNEL_MODULE("aio");
 
 	bzero(ac->ac_buffer, ac->ac_buflen);
 	bzero(&aio, sizeof(aio));
@@ -346,7 +339,7 @@ ATF_TC_BODY(aio_file_test, tc)
 	struct aio_context ac;
 	int fd;
 
-	aio_available();
+	ATF_REQUIRE_KERNEL_MODULE("aio");
 
 	strcpy(pathname, PATH_TEMPLATE);
 	fd = mkstemp(pathname);
@@ -392,7 +385,7 @@ ATF_TC_BODY(aio_fifo_test, tc)
 	char pathname[PATH_MAX];
 	struct aio_context ac;
 
-	aio_available();
+	ATF_REQUIRE_KERNEL_MODULE("aio");
 
 	/*
 	 * In theory, mkstemp() can return a name that is then collided with.
@@ -461,7 +454,7 @@ ATF_TC_BODY(aio_unix_socketpair_test, tc)
 	struct aio_context ac;
 	int sockets[2];
 
-	aio_available();
+	ATF_REQUIRE_KERNEL_MODULE("aio");
 
 	ATF_REQUIRE_MSG(socketpair(PF_UNIX, SOCK_STREAM, 0, sockets) != -1,
 	    "socketpair failed: %s", strerror(errno));
@@ -503,7 +496,7 @@ ATF_TC_BODY(aio_pty_test, tc)
 	struct termios ts;
 	int error;
 
-	aio_available();
+	ATF_REQUIRE_KERNEL_MODULE("aio");
 
 	ATF_REQUIRE_MSG(openpty(&read_fd, &write_fd, NULL, NULL, NULL) == 0,
 	    "openpty failed: %s", strerror(errno));
@@ -550,7 +543,7 @@ ATF_TC_BODY(aio_pipe_test, tc)
 	struct aio_context ac;
 	int pipes[2];
 
-	aio_available();
+	ATF_REQUIRE_KERNEL_MODULE("aio");
 
 	ATF_REQUIRE_MSG(pipe(pipes) != -1,
 	    "pipe failed: %s", strerror(errno));
@@ -613,7 +606,7 @@ ATF_TC_BODY(aio_md_test, tc)
 	struct aio_context ac;
 	struct md_ioctl mdio;
 
-	aio_available();
+	ATF_REQUIRE_KERNEL_MODULE("aio");
 
 	mdctl_fd = open("/dev/" MDCTL_NAME, O_RDWR, 0);
 	ATF_REQUIRE_MSG(mdctl_fd != -1,

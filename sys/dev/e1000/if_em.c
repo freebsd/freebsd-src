@@ -1011,9 +1011,7 @@ em_mq_start(if_t ifp, struct mbuf *m)
 
 	txr = &adapter->tx_rings[i];
 
-	EM_TX_LOCK(txr);
 	error = drbr_enqueue(ifp, txr->br, m);
-	EM_TX_UNLOCK(txr);
 	if (error)
 		return (error);
 

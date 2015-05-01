@@ -7,6 +7,8 @@
 #include <signal.h>
 #include <stdio.h>
 
+#include "freebsd_test_suite/macros.h"
+
 #define MQNAME	"/mytstqueue1"
 
 int
@@ -16,6 +18,8 @@ main(void)
 	struct sigevent sigev;
 	mqd_t mq;
 	int status;
+
+	PLAIN_REQUIRE_KERNEL_MODULE("mqueuefs", 0);
 
 	attr.mq_maxmsg  = 2;
 	attr.mq_msgsize = 100;

@@ -303,7 +303,9 @@ void	 qsort_r(void *, size_t, size_t, void *,
 	    int (*)(void *, const void *, const void *));
 int	 radixsort(const unsigned char **, int, const unsigned char *,
 	    unsigned);
-void	*reallocf(void *, size_t) __result_use_check __alloc_size(2);
+void	*reallocarray(void *, size_t, size_t) __result_use_check __alloc_size(2)
+	    __alloc_size(3);
+void	*reallocf(void *, size_t) __alloc_size(2);
 int	 rpmatch(const char *);
 void	 setprogname(const char *);
 int	 sradixsort(const unsigned char **, int, const unsigned char *,

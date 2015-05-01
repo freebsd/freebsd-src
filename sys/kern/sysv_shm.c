@@ -651,17 +651,19 @@ shmget_allocate_segment(struct thread *td, struct shmget_args *uap, int mode)
 	    ("segnum %d shmalloced %d", segnum, shmalloced));
 	shmseg = &shmsegs[segnum];
 #ifdef RACCT
-	PROC_LOCK(td->td_proc);
-	if (racct_add(td->td_proc, RACCT_NSHM, 1)) {
+	if (racct_enable) {
+		PROC_LOCK(td->td_proc);
+		if (racct_add(td->td_proc, RACCT_NSHM, 1)) {
+			PROC_UNLOCK(td->td_proc);
+			return (ENOSPC);
+		}
+		if (racct_add(td->td_proc, RACCT_SHMSIZE, size)) {
+			racct_sub(td->td_proc, RACCT_NSHM, 1);
+			PROC_UNLOCK(td->td_proc);
+			return (ENOMEM);
+		}
 		PROC_UNLOCK(td->td_proc);
-		return (ENOSPC);
 	}
-	if (racct_add(td->td_proc, RACCT_SHMSIZE, size)) {
-		racct_sub(td->td_proc, RACCT_NSHM, 1);
-		PROC_UNLOCK(td->td_proc);
-		return (ENOMEM);
-	}
-	PROC_UNLOCK(td->td_proc);
 #endif
 
 	/*
@@ -672,10 +674,12 @@ shmget_allocate_segment(struct thread *td, struct shmget_args *uap, int mode)
 	    0, size, VM_PROT_DEFAULT, 0, cred);
 	if (shm_object == NULL) {
 #ifdef RACCT
-		PROC_LOCK(td->td_proc);
-		racct_sub(td->td_proc, RACCT_NSHM, 1);
-		racct_sub(td->td_proc, RACCT_SHMSIZE, size);
-		PROC_UNLOCK(td->td_proc);
+		if (racct_enable) {
+			PROC_LOCK(td->td_proc);
+			racct_sub(td->td_proc, RACCT_NSHM, 1);
+			racct_sub(td->td_proc, RACCT_SHMSIZE, size);
+			PROC_UNLOCK(td->td_proc);
+		}
 #endif
 		return (ENOMEM);
 	}

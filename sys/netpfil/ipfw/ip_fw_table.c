@@ -3399,6 +3399,11 @@ ref_rule_objects(struct ip_fw_chain *ch, struct ip_fw *rule,
 
 	IPFW_UH_WUNLOCK(ch);
 
+	found = pidx - oib;
+	KASSERT(found == ci->object_opcodes,
+	    ("refcount inconsistency: found: %d total: %d",
+	    found, ci->object_opcodes));
+
 	/* Perform auto-creation for non-existing objects */
 	if (numnew != 0)
 		error = create_objects_compat(ch, rule->cmd, oib, pidx, ti);
