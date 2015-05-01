@@ -204,10 +204,6 @@ static void	ixgbe_handle_phy(void *, int);
 static void	ixgbe_reinit_fdir(void *, int);
 #endif
 
-
-/* Missing shared code prototype */
-extern void ixgbe_stop_mac_link_on_d3_82599(struct ixgbe_hw *hw);
-
 /*********************************************************************
  *  FreeBSD Device Interface Entry Points
  *********************************************************************/
