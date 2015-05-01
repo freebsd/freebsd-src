@@ -321,7 +321,7 @@ main(int argc, char **argv)
 
 	/* make sure we leave things in a sane state */
 	if (last_set != CS_NORMAL)
-		PUTC('\017');
+		PUTC(SI);
 
 	/* flush out the last few blank lines */
 	nblank_lines = max_line - this_line;
@@ -377,8 +377,8 @@ flush_blanks(void)
 	for (i = nb; --i >= 0;)
 		PUTC('\n');
 	if (half) {
-		PUTC('\033');
-		PUTC('9');
+		PUTC(ESC);
+		PUTC(FHLF);
 		if (!nb)
 			PUTC('\r');
 	}
@@ -480,10 +480,10 @@ flush_line(LINE *l)
 			if (c->c_set != last_set) {
 				switch (c->c_set) {
 				case CS_NORMAL:
-					PUTC('\017');
+					PUTC(SI);
 					break;
 				case CS_ALTERNATE:
-					PUTC('\016');
+					PUTC(SO);
 				}
 				last_set = c->c_set;
 			}
