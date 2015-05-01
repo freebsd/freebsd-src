@@ -57,6 +57,9 @@ soelim_fopen(const char *name)
 	char path[MAXPATHLEN];
 	size_t i;
 
+	if (strcmp(name, "-") == 0)
+		return (stdin);
+
 	if ((f = fopen(name, "r")) != NULL)
 		return (f);
 
