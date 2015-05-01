@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150501
+OLD_FILES+=usr/bin/soeliminate
+OLD_FILES+=usr/share/man/man1/soeliminate.1.gz
 # 20150501: Remove the nvlist_.*[vf] functions manpages.
 OLD_FILES+=usr/share/man/man3/nvlist_addf_binary.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_addf_bool.3.gz

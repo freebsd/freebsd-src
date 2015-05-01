@@ -45,7 +45,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: soeliminate [-Crtv] [-I dir] [files]\n");
+	fprintf(stderr, "usage: soelim [-Crtv] [-I dir] [files]\n");
 
 	exit(EXIT_FAILURE);
 }

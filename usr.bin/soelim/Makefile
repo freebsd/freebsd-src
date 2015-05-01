@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-PROG=	soeliminate
+PROG=	soelim
 
 .include <bsd.prog.mk>
