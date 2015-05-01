@@ -1263,7 +1263,8 @@ _gperf=		gnu/usr.bin/gperf
 .endif
 
 .if ${MK_GROFF} != "no"
-_groff=		gnu/usr.bin/groff
+_groff=		gnu/usr.bin/groff \
+		usr.bin/soelim
 .endif
 
 .if ${MK_VT} != "no"
