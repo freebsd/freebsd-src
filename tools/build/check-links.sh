@@ -83,7 +83,7 @@ if [ ${CHECK_UNRESOLVED} -eq 1 ]; then
 	libkey "crt1.o"
 	setvar "${libkey}" "${lib_symbols}"
 
-	# No search libs for all symbols and report missing ones.
+	# Now search libs for all symbols and report missing ones.
 	for sym in ${unresolved_symbols}; do
 		found=0
 		for lib in ${list_libs}; do
