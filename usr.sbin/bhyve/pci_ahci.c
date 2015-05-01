@@ -930,7 +930,6 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		buf[88] = 0x7f;
 		if (p->xfermode & ATA_UDMA0)
 			buf[88] |= (1 << ((p->xfermode & 7) + 8));
-		buf[93] = (1 | 1 <<14);
 		buf[100] = sectors;
 		buf[101] = (sectors >> 16);
 		buf[102] = (sectors >> 32);
