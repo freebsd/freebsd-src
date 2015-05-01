@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 30, 2015
+.Dd May 1, 2015
 .Dt NV 3
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Nm nvlist_error ,
 .Nm nvlist_set_error ,
 .Nm nvlist_empty ,
+.Nm nvlist_flags ,
 .Nm nvlist_exists ,
 .Nm nvlist_free ,
 .Nm nvlist_clone ,
@@ -68,6 +69,8 @@
 .Fn nvlist_set_error "nvlist_t *nvl, int error"
 .Ft bool
 .Fn nvlist_empty "const nvlist_t *nvl"
+.Ft int
+.Fn nvlist_flags "const nvlist_t *nvl"
 .\"
 .Ft "nvlist_t *"
 .Fn nvlist_clone "const nvlist_t *nvl"
@@ -267,6 +270,12 @@ if the given nvlist is empty and
 .Dv false
 otherwise.
 The nvlist must not be in error state.
+.Pp
+The
+.Fn nvlist_flags
+function returns flags used to create the nvlist with the
+.Fn nvlist_create
+function.
 .Pp
 The
 .Fn nvlist_clone
