@@ -28,11 +28,9 @@ LIBROFF_SRCS=	eqn.c \
 		tbl_layout.c \
 		tbl_opts.c
 
-COMPAT_SRCS=	compat_reallocarray.c
 SRCS=		${LIBMAN_SRCS} \
 		${LIBMDOC_SRCS} \
 		${LIBROFF_SRCS} \
-		${COMPAT_SRCS} \
 		chars.c \
 		mandoc.c \
 		mandoc_aux.c \
