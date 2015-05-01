@@ -132,12 +132,12 @@ constructors:
 	sd	$t1, 0($t2)
 
 	# Code capability
-	clc	$c12, $t0, CHERICAP_SIZE($c0)
+	clc	$c12, $t0, 32($c0)
 	dla	$t2, _cheri_system_object;
 	csc	$c12, $t2, 0($c0)
 
 	# Data capability
-	clc	$c12, $t0, 2*CHERICAP_SIZE($c0)
+	clc	$c12, $t0, 32+CHERICAP_SIZE($c0)
 	dla	$t2, _cheri_system_object;
 	csc	$c12, $t2, CHERICAP_SIZE($c0)
 
