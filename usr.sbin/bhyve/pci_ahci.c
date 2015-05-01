@@ -571,6 +571,7 @@ ahci_build_iov(struct ahci_port *p, struct ahci_ioreq *aior,
 	}
 
 	breq->br_iovcnt = j;
+	breq->br_resid = todo;
 	aior->done += todo;
 	aior->more = (aior->done < aior->len && i < prdtl);
 }
@@ -776,8 +777,7 @@ next:
 
 	breq = &aior->io_req;
 	breq->br_offset = elba * blockif_sectsz(p->bctx);
-	breq->br_iovcnt = 1;
-	breq->br_iov[0].iov_len = elen * blockif_sectsz(p->bctx);
+	breq->br_resid = elen * blockif_sectsz(p->bctx);
 
 	/*
 	 * Mark this command in-flight.
