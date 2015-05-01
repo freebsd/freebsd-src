@@ -388,6 +388,12 @@
 #define	__alloc_size(x)
 #endif
 
+#if __has_attribute(alloc_align) || __GNUC_PREREQ__(4, 9)
+#define	__alloc_align(x)	__attribute__((__alloc_align__(x)))
+#else
+#define	__alloc_align(x)
+#endif
+
 /* XXX: should use `#if __STDC_VERSION__ < 199901'. */
 #if !__GNUC_PREREQ__(2, 7) && !defined(__INTEL_COMPILER)
 #define	__func__	NULL
@@ -760,6 +766,24 @@
 
 #if defined(__mips) || defined(__powerpc64__)
 #define	__NO_TLS 1
+#endif
+
+/*
+ * Type Safety Checking
+ *
+ * Clang provides additional attributes to enable checking type safety
+ * properties that cannot be enforced by the C type system. 
+ */
+
+#if __has_attribute(argument_with_type_tag) && \
+    __has_attribute(type_tag_for_datatype) && !defined(lint)
+#define	__arg_type_tag(arg_kind, arg_idx, type_tag_idx) \
+	    __attribute__((__argument_with_type_tag__(arg_kind, arg_idx, type_tag_idx)))
+#define	__datatype_type_tag(kind, type) \
+	    __attribute__((__type_tag_for_datatype__(kind, type)))
+#else
+#define	__arg_type_tag(arg_kind, arg_idx, type_tag_idx)
+#define	__datatype_type_tag(kind, type)
 #endif
 
 /*

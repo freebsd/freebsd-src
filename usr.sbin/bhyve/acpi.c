@@ -386,7 +386,7 @@ basl_fwrite_fadt(FILE *fp)
 	EFPRINTF(fp, "[0001]\t\tDuty Cycle Width : 00\n");
 	EFPRINTF(fp, "[0001]\t\tRTC Day Alarm Index : 00\n");
 	EFPRINTF(fp, "[0001]\t\tRTC Month Alarm Index : 00\n");
-	EFPRINTF(fp, "[0001]\t\tRTC Century Index : 00\n");
+	EFPRINTF(fp, "[0001]\t\tRTC Century Index : 32\n");
 	EFPRINTF(fp, "[0002]\t\tBoot Flags (decoded below) : 0000\n");
 	EFPRINTF(fp, "\t\t\tLegacy Devices Supported (V2) : 0\n");
 	EFPRINTF(fp, "\t\t\t8042 Present on ports 60/64 (V2) : 0\n");

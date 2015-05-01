@@ -1004,7 +1004,9 @@ OLD_DIRS+=usr/include/fs/cuse
 .if ${MK_CXX} == no
 OLD_FILES+=usr/bin/CC
 OLD_FILES+=usr/bin/c++
+.if ${MK_ELFTOOLCHAIN_TOOLS} == no
 OLD_FILES+=usr/bin/c++filt
+.endif
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/libexec/cc1plus
 .if ${MK_GCC} == no
@@ -1720,7 +1722,9 @@ OLD_FILES+=usr/share/man/man8/unstr.8.gz
 .endif
 
 .if ${MK_GCC} == no
+.if ${MK_ELFTOOLCHAIN_TOOLS} == no
 OLD_FILES+=usr/bin/c++filt
+.endif
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/bin/gcc
 OLD_FILES+=usr/bin/gcov

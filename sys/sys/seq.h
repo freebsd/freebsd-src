@@ -79,7 +79,7 @@ typedef uint32_t seq_t;
  * on amd64 but still has unnecessary cost.
  */
 static __inline int
-atomic_load_rmb_int(volatile u_int *p)
+atomic_load_rmb_int(volatile const u_int *p)
 {
 	volatile u_int v;
 
@@ -89,7 +89,7 @@ atomic_load_rmb_int(volatile u_int *p)
 }
 
 static __inline int
-atomic_rmb_load_int(volatile u_int *p)
+atomic_rmb_load_int(volatile const u_int *p)
 {
 	volatile u_int v = 0;
 
@@ -122,7 +122,7 @@ seq_write_end(seq_t *seqp)
 }
 
 static __inline seq_t
-seq_read(seq_t *seqp)
+seq_read(const seq_t *seqp)
 {
 	seq_t ret;
 
@@ -139,7 +139,7 @@ seq_read(seq_t *seqp)
 }
 
 static __inline seq_t
-seq_consistent(seq_t *seqp, seq_t oldseq)
+seq_consistent(const seq_t *seqp, seq_t oldseq)
 {
 
 	return (atomic_rmb_load_int(seqp) == oldseq);

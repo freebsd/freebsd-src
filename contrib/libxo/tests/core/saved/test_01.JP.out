@@ -91,7 +91,11 @@
     },
     "data": {
       "item": [
-         "gum", "rope", "ladder", "bolt", "water"
+        "gum",
+        "rope",
+        "ladder",
+        "bolt",
+        "water"
       ]
     },
     "cost": 425,

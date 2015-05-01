@@ -364,7 +364,9 @@ cap_pwd_limit_users(cap_channel_t *chan, const char * const *names,
     size_t nnames, uid_t *uids, size_t nuids)
 {
 	nvlist_t *limits, *users;
+	char nvlname[64];
 	unsigned int i;
+	int n;
 
 	if (cap_limit_get(chan, &limits) < 0)
 		return (-1);
@@ -375,10 +377,16 @@ cap_pwd_limit_users(cap_channel_t *chan, const char * const *names,
 			nvlist_free_nvlist(limits, "users");
 	}
 	users = nvlist_create(0);
-	for (i = 0; i < nuids; i++)
-		nvlist_addf_number(users, (uint64_t)uids[i], "uid%u", i);
-	for (i = 0; i < nnames; i++)
-		nvlist_addf_string(users, names[i], "name%u", i);
+	for (i = 0; i < nuids; i++) {
+		n = snprintf(nvlname, sizeof(nvlname), "uid%u", i);
+		assert(n > 0 && n < (int)sizeof(nvlname));
+		nvlist_add_number(users, nvlname, (uint64_t)uids[i]);
+	}
+	for (i = 0; i < nnames; i++) {
+		n = snprintf(nvlname, sizeof(nvlname), "name%u", i);
+		assert(n > 0 && n < (int)sizeof(nvlname));
+		nvlist_add_string(users, nvlname, names[i]);
+	}
 	nvlist_move_nvlist(limits, "users", users);
 	return (cap_limit_set(chan, limits));
 }

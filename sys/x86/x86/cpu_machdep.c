@@ -100,15 +100,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/vm_param.h>
 
-#ifdef XEN
-/* XEN includes */
-#include <xen/xen-os.h>
-#include <xen/hypervisor.h>
-#include <machine/xen/xenvar.h>
-#include <machine/xen/xenfunc.h>
-#include <xen/xen_intr.h>
-#endif
-
 /*
  * Machine dependent boot() routine
  *
@@ -193,33 +184,6 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 	return (0);
 }
 
-#if defined(__i386__) && defined(XEN)
-
-static void
-idle_block(void)
-{
-
-	HYPERVISOR_sched_op(SCHEDOP_block, 0);
-}
-
-void
-cpu_halt(void)
-{
-	HYPERVISOR_shutdown(SHUTDOWN_poweroff);
-}
-
-int scheduler_running;
-
-static void
-cpu_idle_hlt(sbintime_t sbt)
-{
-
-	scheduler_running = 1;
-	enable_intr();
-	idle_block();
-}
-
-#else
 /*
  * Shutdown the CPU as much as possible
  */
@@ -229,8 +193,6 @@ cpu_halt(void)
 	for (;;)
 		halt();
 }
-
-#endif
 
 void (*cpu_idle_hook)(sbintime_t) = NULL;	/* ACPI idle hook. */
 static int	cpu_ident_amdc1e = 0;	/* AMD C1E supported. */
@@ -263,7 +225,6 @@ cpu_idle_acpi(sbintime_t sbt)
 }
 #endif /* !PC98 */
 
-#if !defined(__i386__) || !defined(XEN)
 static void
 cpu_idle_hlt(sbintime_t sbt)
 {
@@ -295,7 +256,6 @@ cpu_idle_hlt(sbintime_t sbt)
 		__asm __volatile("sti; hlt");
 	*state = STATE_RUNNING;
 }
-#endif
 
 static void
 cpu_idle_mwait(sbintime_t sbt)
@@ -370,7 +330,7 @@ cpu_probe_amdc1e(void)
 	}
 }
 
-#if defined(__i386__) && (defined(PC98) || defined(XEN))
+#if defined(__i386__) && defined(PC98)
 void (*cpu_idle_fn)(sbintime_t) = cpu_idle_hlt;
 #else
 void (*cpu_idle_fn)(sbintime_t) = cpu_idle_acpi;
@@ -379,17 +339,15 @@ void (*cpu_idle_fn)(sbintime_t) = cpu_idle_acpi;
 void
 cpu_idle(int busy)
 {
-#if !defined(__i386__) || !defined(XEN)
 	uint64_t msr;
-#endif
 	sbintime_t sbt = -1;
 
 	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
 	    busy, curcpu);
-#if defined(MP_WATCHDOG) && (!defined(__i386__) || !defined(XEN))
+#ifdef MP_WATCHDOG
 	ap_watchdog(PCPU_GET(cpuid));
 #endif
-#if !defined(__i386__) || !defined(XEN)
+
 	/* If we are busy - try to use fast methods. */
 	if (busy) {
 		if ((cpu_feature2 & CPUID2_MON) && idle_mwait) {
@@ -397,7 +355,6 @@ cpu_idle(int busy)
 			goto out;
 		}
 	}
-#endif
 
 	/* If we have time - switch timers into idle mode. */
 	if (!busy) {
@@ -405,14 +362,12 @@ cpu_idle(int busy)
 		sbt = cpu_idleclock();
 	}
 
-#if !defined(__i386__) || !defined(XEN)
 	/* Apply AMD APIC timer C1E workaround. */
 	if (cpu_ident_amdc1e && cpu_disable_c3_sleep) {
 		msr = rdmsr(MSR_AMDK8_IPM);
 		if (msr & AMDK8_CMPHALT)
 			wrmsr(MSR_AMDK8_IPM, msr & ~AMDK8_CMPHALT);
 	}
-#endif
 
 	/* Call main idle method. */
 	cpu_idle_fn(sbt);
@@ -422,9 +377,7 @@ cpu_idle(int busy)
 		cpu_activeclock();
 		critical_exit();
 	}
-#if !defined(__i386__) || !defined(XEN)
 out:
-#endif
 	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done",
 	    busy, curcpu);
 }

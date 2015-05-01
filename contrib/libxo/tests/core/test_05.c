@@ -39,23 +39,38 @@ main (int argc, char **argv)
 	{ "Ashley", "Ash", "Meter & Smith", 1440, 40 },
 	{ "0123456789", "0123456789", "012345678901234567890", 1440, 40 },
 	{ "ახლა", "გაიარო", "საერთაშორისო", 123, 90 },
+	{ "෴ණ්ණ෴෴ණ්ණ෴", "Mick",
+	  "෴ණ්ණ෴෴ණ්ණ෴෴ණ්ණ෴෴෴", 110, 20 },
 	{ NULL, NULL }
     }, *ep = employees;
+    int rc;
 
     argc = xo_parse_args(argc, argv);
     if (argc < 0)
 	return 1;
 
     xo_set_info(NULL, info, info_count);
+    xo_set_flags(NULL, XOF_COLUMNS);
 
     xo_open_container("employees");
 
     xo_emit("Οὐχὶ ταὐτὰ παρίσταταί μοι {:v1/%s}, {:v2/%s}\n",
 	    "γιγνώσκειν", "ὦ ἄνδρες ᾿Αθηναῖοι");
 
-    xo_emit("გთხოვთ {:v1/%s} {:v2/%s}\n",
+    rc = xo_emit("გთხოვთ {:v1/%s} {:v2/%s}\n",
 	    "ახლავე გაიაროთ რეგისტრაცია",
 	    "Unicode-ის მეათე საერთაშორისო");
+    xo_emit("{Twc:Width}{:width/%d}\n", rc);
+
+    /* Okay, Sinhala is uber cool ... */
+    rc = xo_emit("[{:sinhala}]\n", "෴ණ්ණ෴");
+    xo_emit("{Twc:Width}{:width/%d}\n", rc);
+    rc = xo_emit("[{:sinhala}]\n", "෴");
+    xo_emit("{Twc:Width}{:width/%d}\n", rc);
+    rc = xo_emit("[{:sinhala/%-4..4s/%s}]\n", "෴ණ්ණ෴෴ණ්ණ෴");
+    xo_emit("[{:not-sinhala/%-4..4s/%s}]\n", "123456");
+    rc = xo_emit("[{:tag/%s}]\n", "ර්‍ඝ");
+    xo_emit("{Twc:Width}{:width/%d}\n", rc);
 
     xo_open_list("employee");
 

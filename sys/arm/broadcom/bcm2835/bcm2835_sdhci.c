@@ -181,16 +181,15 @@ bcm_sdhci_attach(device_t dev)
 	if (err == 0) {
 		/* Convert to MHz */
 		default_freq /= 1000000;
-		if (bootverbose)
-			device_printf(dev, "default frequency: %dMHz\n",
-			    default_freq);
+	}
+	if (default_freq == 0) {
+		node = ofw_bus_get_node(sc->sc_dev);
+		if ((OF_getencprop(node, "clock-frequency", &cell,
+		    sizeof(cell))) > 0)
+			default_freq = cell / 1000000;
 	}
 	if (default_freq == 0)
 		default_freq = BCM2835_DEFAULT_SDHCI_FREQ;
-
-	node = ofw_bus_get_node(sc->sc_dev);
-	if ((OF_getprop(node, "clock-frequency", &cell, sizeof(cell))) > 0)
-		default_freq = fdt32_to_cpu(cell)/1000000;
 
 	if (bootverbose)
 		device_printf(dev, "SDHCI frequency: %dMHz\n", default_freq);

@@ -1522,7 +1522,8 @@ cross-tools: .MAKE
 
 NXBENV=		MAKEOBJDIRPREFIX=${OBJTREE}/nxb \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
-		VERSION="${VERSION}"
+		VERSION="${VERSION}" \
+		PATH=${PATH}:${OBJTREE}/gperf_for_gcc/usr/bin
 NXBMAKE=	${NXBENV} ${MAKE} \
 		TBLGEN=${OBJTREE}/nxb-bin/usr/bin/tblgen \
 		CLANG_TBLGEN=${OBJTREE}/nxb-bin/usr/bin/clang-tblgen \
@@ -1535,7 +1536,21 @@ NXBMAKE=	${NXBENV} ${MAKE} \
 		MK_CLANG_EXTRAS=no MK_CLANG_FULL=no \
 		MK_LLDB=no
 
+# native-xtools is the current target for qemu-user cross builds of ports
+# via poudriere and the imgact_binmisc kernel module.
+# For non-clang enabled targets that are still using the in tree gcc
+# we must build a gperf binary for one instance of its Makefiles.  On
+# clang-enabled systems, the gperf binary is obsolete.
 native-xtools: .MAKE
+.if ${MK_GCC_BOOTSTRAP} != "no"
+	mkdir -p ${OBJTREE}/gperf_for_gcc/usr/bin
+	${_+_}@${ECHODIR} "===> ${_gperf} (obj,depend,all,install)"; \
+	cd ${.CURDIR}/${_gperf} && \
+	${NXBMAKE} DIRPRFX=${_gperf}/ obj && \
+	${NXBMAKE} DIRPRFX=${_gperf}/ depend && \
+	${NXBMAKE} DIRPRFX=${_gperf}/ all && \
+	${NXBMAKE} DIRPRFX=${_gperf}/ DESTDIR=${OBJTREE}/gperf_for_gcc install
+.endif
 	mkdir -p ${OBJTREE}/nxb-bin/bin
 	mkdir -p ${OBJTREE}/nxb-bin/sbin
 	mkdir -p ${OBJTREE}/nxb-bin/usr

@@ -391,6 +391,7 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	ipsec_bpf(m, sav, AF_INET, ENC_IN|ENC_BEFORE);
 	if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_BEFORE)) != 0)
 		return (error);
+	ip = mtod(m, struct ip *);
 #endif /* DEV_ENC */
 
 	/* IP-in-IP encapsulation */

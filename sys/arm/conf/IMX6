@@ -21,6 +21,8 @@
 ident		IMX6
 include 	"../freescale/imx/std.imx6"
 
+options 	SOC_IMX6
+
 options 	HZ=500			# Scheduling quantum is 2 milliseconds.
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption

@@ -181,6 +181,25 @@ IDTVEC(xen_intr_upcall)
 	jmp	doreti
 #endif
 
+#ifdef HYPERV
+/*
+ * This is the Hyper-V vmbus channel direct callback interrupt.
+ * Only used when it is running on Hyper-V.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(hv_vmbus_callback)
+	PUSH_FRAME
+	SET_KERNEL_SREGS
+	cld
+	FAKE_MCOUNT(TF_EIP(%esp))
+	pushl	%esp
+	call	hv_vector_handler
+	add	$4, %esp
+	MEXITCOUNT
+	jmp	doreti
+#endif
+
 #ifdef SMP
 /*
  * Global address space TLB shootdown.
@@ -247,7 +266,6 @@ IDTVEC(invlcache)
 /*
  * Handler for IPIs sent via the per-cpu IPI bitmap.
  */
-#ifndef XEN
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(ipi_intr_bitmap_handler)	
@@ -262,7 +280,7 @@ IDTVEC(ipi_intr_bitmap_handler)
 	call	ipi_bitmap_handler
 	MEXITCOUNT
 	jmp	doreti
-#endif
+
 /*
  * Executed by a CPU when it receives an IPI_STOP from another CPU.
  */
@@ -282,7 +300,6 @@ IDTVEC(cpustop)
 /*
  * Executed by a CPU when it receives an IPI_SUSPEND from another CPU.
  */
-#ifndef XEN
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(cpususpend)
@@ -295,7 +312,6 @@ IDTVEC(cpususpend)
 
 	POP_FRAME
 	jmp	doreti_iret
-#endif
 
 /*
  * Executed by a CPU when it receives a RENDEZVOUS IPI from another CPU.

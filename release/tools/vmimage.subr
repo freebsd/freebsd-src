@@ -30,10 +30,9 @@ write_partition_layout() {
 				-o ${VMIMAGE}
 			;;
 		arm64:aarch64)
-			mkimg -s gpt \
-				-p efi/efiboot:=${BOOTFILES}/efi/boot1/boot1.efifat \
-				${SWAPOPT} \
-				-p freebsd-ufs/rootfs:=${VMBASE} \
+			mkimg -s mbr \
+				-p efi:=${BOOTFILES}/efi/boot1/boot1.efifat \
+				-p freebsd:=${VMBASE} \
 				-o ${VMIMAGE}
 			;;
 		powerpc:powerpc*)
@@ -77,7 +76,7 @@ vm_create_base() {
 	mkdir -p ${DESTDIR}
 	truncate -s ${VMSIZE} ${VMBASE}
 	mddev=$(mdconfig -f ${VMBASE})
-	newfs /dev/${mddev}
+	newfs -L rootfs /dev/${mddev}
 	mount /dev/${mddev} ${DESTDIR}
 
 	return 0
@@ -97,7 +96,7 @@ vm_copy_base() {
 	truncate -s ${VMSIZE} ${VMBASE}.tmp
 	mkdir -p ${DESTDIR}/new
 	mdnew=$(mdconfig -f ${VMBASE}.tmp)
-	newfs /dev/${mdnew}
+	newfs -L rootfs /dev/${mdnew}
 	mount /dev/${mdnew} ${DESTDIR}/new
 
 	tar -cf- -C ${DESTDIR}/old . | tar -xUf- -C ${DESTDIR}/new
@@ -123,7 +122,7 @@ vm_install_base() {
 
 	echo '# Custom /etc/fstab for FreeBSD VM images' \
 		> ${DESTDIR}/etc/fstab
-	echo '/dev/gpt/rootfs   /       ufs     rw      1       1' \
+	echo "/dev/${ROOTLABEL}/rootfs   /       ufs     rw      1       1" \
 		>> ${DESTDIR}/etc/fstab
 	if [ -z "${NOSWAP}" ]; then
 		echo '/dev/gpt/swapfs  none    swap    sw      0       0' \
@@ -182,8 +181,10 @@ vm_extra_install_ports() {
 }
 
 vm_extra_pre_umount() {
-	# Prototype.  When overridden, installs additional ports within the
-	# virtual machine environment.
+	# Prototype.  When overridden, performs additional tasks within the
+	# virtual machine environment prior to unmounting the filesystem.
+	# Note: When overriding this function, removing resolv.conf in the
+	# disk image must be included.
 
 	rm -f ${DESTDIR}/etc/resolv.conf
 	return 0

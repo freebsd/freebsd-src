@@ -1455,12 +1455,7 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	/* Schedule the ithread if needed. */
 	if (thread) {
 		error = intr_event_schedule_thread(ie);
-#ifndef XEN		
 		KASSERT(error == 0, ("bad stray interrupt"));
-#else
-		if (error != 0)
-			log(LOG_WARNING, "bad stray interrupt");
-#endif		
 	}
 	critical_exit();
 	td->td_intr_nesting_level--;

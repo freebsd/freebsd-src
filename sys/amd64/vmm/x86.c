@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/pcpu.h>
 #include <sys/systm.h>
-#include <sys/cpuset.h>
 #include <sys/sysctl.h>
 
 #include <machine/clock.h>
@@ -289,9 +288,8 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			
 			/*
 			 * Machine check handling is done in the host.
-			 * Hide MTRR capability.
 			 */
-			regs[3] &= ~(CPUID_MCA | CPUID_MCE | CPUID_MTRR);
+			regs[3] &= ~(CPUID_MCA | CPUID_MCE);
 
                         /*
                         * Hide the debug store capability.

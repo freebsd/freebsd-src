@@ -354,7 +354,19 @@
         ..
     ..
     sys
+        aio
+        ..
+        fifo
+        ..
+        file
+        ..
         kern
+            execve
+            ..
+        ..
+        kqueue
+        ..
+        mqueue
         ..
         netinet
         ..
@@ -391,6 +403,8 @@
             ..
             unlink
             ..
+        ..
+        vm
         ..
     ..
     usr.bin
