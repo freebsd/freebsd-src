@@ -357,7 +357,7 @@ cap_dns_family_limit(cap_channel_t *chan, const int *families,
 	else
 		limit_remove(limits, "family");
 	for (i = 0; i < nfamilies; i++) {
-		n = snprintf(nvlname, sizeof(nvlname), "type%u", i);
+		n = snprintf(nvlname, sizeof(nvlname), "family%u", i);
 		assert(n > 0 && n < (int)sizeof(nvlname));
 		nvlist_add_number(limits, nvlname, (uint64_t)families[i]);
 	}
