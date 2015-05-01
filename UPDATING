@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150501:
+	soelim(1) from gnu/usr.bin/groff has been replaced by usr.bin/soelim.
+	If you need the GNU extension from groff soelim(1), install groff
+	from package: pkg install groff, or via ports: textproc/groff.
+
 20150423:
 	chmod, chflags, chown and chgrp now affect symlinks in -R mode as
 	defined in symlink(7); previously symlinks were silently ignored.
