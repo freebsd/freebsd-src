@@ -111,6 +111,9 @@ long double
 	 strtold(const char * __restrict, char ** __restrict);
 unsigned long
 	 strtoul(const char * __restrict, char ** __restrict, int);
+#ifdef __BSD_VISIBLE
+void	*reallocarray(void *, size_t, size_t);
+#endif
 int	 system(const char *);
 int	 wctomb(char *, wchar_t);
 size_t	 wcstombs(char * __restrict, const wchar_t * __restrict, size_t);
