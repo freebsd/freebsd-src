@@ -698,15 +698,20 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage:\n");
-	fprintf(stderr, "cheritest -l               -- List tests\n");
-	fprintf(stderr, "cheritest -l -f            -- List fast tests\n");
+	fprintf(stderr,
+"usage:\n"
+"    cheritest [options] -l               -- List tests\n"
 #ifndef LIST_ONLY
-	fprintf(stderr, "cheritest -a               -- Run all tests\n");
-	fprintf(stderr, "cheritest -a -f            -- Run fast tests\n");
-	fprintf(stderr, "cheritest [-v] <test> ...  -- Run specified tests\n");
-	fprintf(stderr, "cheritest -g <glob> ...    -- Run specified tests\n");
+"    cheritest [options] -a               -- Run all tests\n"
+"    cheritest [options] <test> [...]     -- Run specified tests\n"
+"    cheritest [options] -g <glob> [...]  -- Run matching tests\n"
 #endif
+"\n"
+"options:\n"
+"    -f  -- Only include \"fast\" tests\n"
+"    -s  -- Sleep one second after each test\n"
+"    -v  -- Increase verbosity\n"
+	     );
 	exit(EX_USAGE);
 }
 
