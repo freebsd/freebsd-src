@@ -327,8 +327,7 @@ em_netmap_attach(struct adapter *adapter)
 	na.nm_txsync = em_netmap_txsync;
 	na.nm_rxsync = em_netmap_rxsync;
 	na.nm_register = em_netmap_reg;
-	na.num_tx_rings = adapter->num_queues;
-	na.num_rx_rings = adapter->num_queues;
+	na.num_tx_rings = na.num_rx_rings = adapter->num_queues;
 	netmap_attach(&na);
 }
 
