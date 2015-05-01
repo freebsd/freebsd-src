@@ -230,6 +230,17 @@ nvlist_empty(const nvlist_t *nvl)
 	return (nvlist_first_nvpair(nvl) == NULL);
 }
 
+int
+nvlist_flags(const nvlist_t *nvl)
+{
+
+	NVLIST_ASSERT(nvl);
+	PJDLOG_ASSERT(nvl->nvl_error == 0);
+	PJDLOG_ASSERT((nvl->nvl_flags & ~(NV_FLAG_PUBLIC_MASK)) == 0);
+
+	return (nvl->nvl_flags);
+}
+
 static void
 nvlist_report_missing(int type, const char *name)
 {

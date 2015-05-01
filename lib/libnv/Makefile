@@ -47,6 +47,7 @@ MLINKS+=nv.3 nvlist_add_binary.3 \
 	nv.3 nvlist_exists_string.3 \
 	nv.3 nvlist_exists_type.3 \
 	nv.3 nvlist_fdump.3 \
+	nv.3 nvlist_flags.3 \
 	nv.3 nvlist_free.3 \
 	nv.3 nvlist_free_binary.3 \
 	nv.3 nvlist_free_bool.3 \
