@@ -63,9 +63,9 @@ __FBSDID("$FreeBSD$");
 #define	SI	'\017'		/* shift in to normal character set */
 #define	SO	'\016'		/* shift out to alternate character set */
 #define	VT	'\013'		/* vertical tab (aka reverse line feed) */
-#define	RLF	'\007'		/* ESC-07 reverse line feed */
-#define	RHLF	'\010'		/* ESC-010 reverse half-line feed */
-#define	FHLF	'\011'		/* ESC-011 forward half-line feed */
+#define	RLF	'7'		/* ESC-7 reverse line feed */
+#define	RHLF	'8'		/* ESC-8 reverse half-line feed */
+#define	FHLF	'9'		/* ESC-9 forward half-line feed */
 
 /* build up at least this many lines before flushing them out */
 #define	BUFFER_MARGIN		32
@@ -321,7 +321,7 @@ main(int argc, char **argv)
 
 	/* make sure we leave things in a sane state */
 	if (last_set != CS_NORMAL)
-		PUTC('\017');
+		PUTC(SI);
 
 	/* flush out the last few blank lines */
 	nblank_lines = max_line - this_line;
@@ -377,8 +377,8 @@ flush_blanks(void)
 	for (i = nb; --i >= 0;)
 		PUTC('\n');
 	if (half) {
-		PUTC('\033');
-		PUTC('\011');
+		PUTC(ESC);
+		PUTC(FHLF);
 		if (!nb)
 			PUTC('\r');
 	}
@@ -480,10 +480,10 @@ flush_line(LINE *l)
 			if (c->c_set != last_set) {
 				switch (c->c_set) {
 				case CS_NORMAL:
-					PUTC('\017');
+					PUTC(SI);
 					break;
 				case CS_ALTERNATE:
-					PUTC('\016');
+					PUTC(SO);
 				}
 				last_set = c->c_set;
 			}

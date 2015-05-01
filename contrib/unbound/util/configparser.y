@@ -107,6 +107,7 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_SSL_SERVICE_KEY VAR_SSL_SERVICE_PEM VAR_SSL_PORT VAR_FORWARD_FIRST
 %token VAR_STUB_FIRST VAR_MINIMAL_RESPONSES VAR_RRSET_ROUNDROBIN
 %token VAR_MAX_UDP_SIZE VAR_DELAY_CLOSE VAR_UNBLOCK_LAN_ZONES
+%token VAR_INFRA_CACHE_MIN_RTT
 %token VAR_DNS64_PREFIX VAR_DNS64_SYNTHALL
 %token VAR_DNSTAP VAR_DNSTAP_ENABLE VAR_DNSTAP_SOCKET_PATH
 %token VAR_DNSTAP_SEND_IDENTITY VAR_DNSTAP_SEND_VERSION
@@ -175,7 +176,8 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_ssl_service_key | server_ssl_service_pem | server_ssl_port |
 	server_minimal_responses | server_rrset_roundrobin | server_max_udp_size |
 	server_so_reuseport | server_delay_close | server_unblock_lan_zones |
-	server_dns64_prefix | server_dns64_synthall
+	server_dns64_prefix | server_dns64_synthall |
+	server_infra_cache_min_rtt
 	;
 stubstart: VAR_STUB_ZONE
 	{
@@ -768,6 +770,15 @@ server_infra_cache_slabs: VAR_INFRA_CACHE_SLABS STRING_ARG
 		free($2);
 	}
 	;
+server_infra_cache_min_rtt: VAR_INFRA_CACHE_MIN_RTT STRING_ARG
+	{
+		OUTYY(("P(server_infra_cache_min_rtt:%s)\n", $2));
+		if(atoi($2) == 0 && strcmp($2, "0") != 0)
+			yyerror("number expected");
+		else cfg_parser->cfg->infra_cache_min_rtt = atoi($2);
+		free($2);
+	}
+	;
 server_target_fetch_policy: VAR_TARGET_FETCH_POLICY STRING_ARG
 	{
 		OUTYY(("P(server_target_fetch_policy:%s)\n", $2));
@@ -1105,10 +1116,11 @@ server_local_zone: VAR_LOCAL_ZONE STRING_ARG STRING_ARG
 		if(strcmp($3, "static")!=0 && strcmp($3, "deny")!=0 &&
 		   strcmp($3, "refuse")!=0 && strcmp($3, "redirect")!=0 &&
 		   strcmp($3, "transparent")!=0 && strcmp($3, "nodefault")!=0
-		   && strcmp($3, "typetransparent")!=0)
+		   && strcmp($3, "typetransparent")!=0 &&
+		   strcmp($3, "inform")!=0)
 			yyerror("local-zone type: expected static, deny, "
 				"refuse, redirect, transparent, "
-				"typetransparent or nodefault");
+				"typetransparent, inform or nodefault");
 		else if(strcmp($3, "nodefault")==0) {
 			if(!cfg_strlist_insert(&cfg_parser->cfg->
 				local_zones_nodefault, $2))

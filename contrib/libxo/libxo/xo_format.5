@@ -74,7 +74,7 @@ function as an unsigned integer.
 .Ed
 .Pp
 This single line of code can generate text ("In stock: 65\\n"), XML
-("<in-stock>65</in-stock>"), JSON ('"in-stock": 6'), or HTML (too
+("<in-stock>65</in-stock>"), JSON ('"in-stock": 65'), or HTML (too
 lengthy to be listed here).
 .Ss Modifier Roles
 Modifiers are optional, and indicate the role and formatting of the
@@ -96,6 +96,55 @@ The roles are listed below; only one role is permitted:
 .It \&] "stop anchor " "End a section of anchored variable-width text"
 .El
 .Pp
+.Ss The Color Role ({C:})
+Colors and effects control how text values are displayed; they are
+used for display styles (TEXT and HTML).
+The color content can be
+either static, when placed directly within the field descriptor, or a
+printf-style format descriptor can be used, if preceded by a slash ("/"):
+.Bd -literal -offset indent
+    xo_emit("{C:bold}{Lwc:Cost}{:cost/%u}{C:reset}\n", cost);
+    xo_emit("{C:/fg-%s,bg-%s}{Lwc:Cost}{:cost/%u}{C:reset}\n",
+            fg_color, bg_color, cost);
+.Ed
+.Pp
+The content should be a comma-separated list of zero or more colors or
+display effects.
+.Pp
+Colors and effects remain in effect until modified by other "C" roles.
+.Pp
+If the content is empty, the "reset" action is performed.
+.Pp
+.Bl -column "no-underline"
+.It Sy "Name          Description"
+.It "bg-xxxxx     " "Change background color"
+.It "bold         " "Start bold text effect"
+.It "fg-xxxxx     " "Change foreground color"
+.It "inverse      " "Start inverse (aka reverse) text effect"
+.It "no-bold      " "Stop bold text effect"
+.It "no-inverse   " "Stop inverse (aka reverse) text effect"
+.It "no-underline " "Stop underline text effect"
+.It "normal       " "Reset effects (only)"
+.It "reset        " "Reset colors and effects (restore defaults)"
+.It "underline    " "Start underline text effect"
+.El
+.Pp
+The following color names are supported:
+.Bl -column "no-underline"
+.It Sy "Name"
+.It black
+.It blue
+.It cyan
+.It default
+.It green
+.It magenta
+.It red
+.It white
+.It yellow
+.El
+.Pp
+Color names are prefixed with either "fg-" or "bg-" to change the
+foreground and background colors, respectively.
 .Ss The Decoration Role ({D:})
 Decorations are typically punctuation marks such as colons,
 semi-colons, and commas used to decorate the text and make it simpler
@@ -230,6 +279,7 @@ content emitted for some output styles:
 .It d "display     " "Only emit field for display styles (text/HTML)"
 .It e "encoding    " "Only emit for encoding styles (XML/JSON)"
 .It k "key         " "Field is a key, suitable for XPath predicates"
+.It l "leaf        " "Field is a leaf-list, a list of leaf values"
 .It n "no-quotes   " "Do not quote the field when using JSON style"
 .It q "quotes      " "Quote the field when using JSON style"
 .It w "white space " "A blank ("" "") is appended after the label"
@@ -269,8 +319,8 @@ the display output styles, TEXT and HTML.
 The display modifier is the opposite of the encoding modifier, and
 they are often used to give to distinct views of the underlying data.
 .Ss The Encoding Modifier ({e:})
-The display modifier indicated the field should only be generated for
-the display output styles, TEXT and HTML.
+The encoding modifier indicated the field should only be generated for
+the encoding output styles, such as JSON and XML.
 .Bd -literal -offset indent
     EXAMPLE:
       xo_emit("{Lcw:Name}{:name} {e:id/%d}\\n", "phil", 1);

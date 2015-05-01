@@ -72,6 +72,8 @@ enum {
 	VIE_OP_TYPE_POP,
 	VIE_OP_TYPE_MOVS,
 	VIE_OP_TYPE_GROUP1,
+	VIE_OP_TYPE_STOS,
+	VIE_OP_TYPE_BITTEST,
 	VIE_OP_TYPE_LAST
 };
 
@@ -90,6 +92,11 @@ static const struct vie_op two_byte_opcodes[256] = {
 	[0xB7] = {
 		.op_byte = 0xB7,
 		.op_type = VIE_OP_TYPE_MOVZX,
+	},
+	[0xBA] = {
+		.op_byte = 0xBA,
+		.op_type = VIE_OP_TYPE_BITTEST,
+		.op_flags = VIE_OP_F_IMM8,
 	},
 	[0xBE] = {
 		.op_byte = 0xBE,
@@ -144,6 +151,16 @@ static const struct vie_op one_byte_opcodes[256] = {
 	[0xA5] = {
 		.op_byte = 0xA5,
 		.op_type = VIE_OP_TYPE_MOVS,
+		.op_flags = VIE_OP_F_NO_MODRM | VIE_OP_F_NO_GLA_VERIFICATION
+	},
+	[0xAA] = {
+		.op_byte = 0xAA,
+		.op_type = VIE_OP_TYPE_STOS,
+		.op_flags = VIE_OP_F_NO_MODRM | VIE_OP_F_NO_GLA_VERIFICATION
+	},
+	[0xAB] = {
+		.op_byte = 0xAB,
+		.op_type = VIE_OP_TYPE_STOS,
 		.op_flags = VIE_OP_F_NO_MODRM | VIE_OP_F_NO_GLA_VERIFICATION
 	},
 	[0xC6] = {
@@ -803,6 +820,68 @@ done:
 }
 
 static int
+emulate_stos(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
+    struct vm_guest_paging *paging, mem_region_read_t memread,
+    mem_region_write_t memwrite, void *arg)
+{
+	int error, opsize, repeat;
+	uint64_t val;
+	uint64_t rcx, rdi, rflags;
+
+	opsize = (vie->op.op_byte == 0xAA) ? 1 : vie->opsize;
+	repeat = vie->repz_present | vie->repnz_present;
+
+	if (repeat) {
+		error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RCX, &rcx);
+		KASSERT(!error, ("%s: error %d getting rcx", __func__, error));
+
+		/*
+		 * The count register is %rcx, %ecx or %cx depending on the
+		 * address size of the instruction.
+		 */
+		if ((rcx & vie_size2mask(vie->addrsize)) == 0)
+			return (0);
+	}
+
+	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RAX, &val);
+	KASSERT(!error, ("%s: error %d getting rax", __func__, error));
+
+	error = memwrite(vm, vcpuid, gpa, val, opsize, arg);
+	if (error)
+		return (error);
+
+	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RDI, &rdi);
+	KASSERT(error == 0, ("%s: error %d getting rdi", __func__, error));
+
+	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, &rflags);
+	KASSERT(error == 0, ("%s: error %d getting rflags", __func__, error));
+
+	if (rflags & PSL_D)
+		rdi -= opsize;
+	else
+		rdi += opsize;
+
+	error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RDI, rdi,
+	    vie->addrsize);
+	KASSERT(error == 0, ("%s: error %d updating rdi", __func__, error));
+
+	if (repeat) {
+		rcx = rcx - 1;
+		error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RCX,
+		    rcx, vie->addrsize);
+		KASSERT(!error, ("%s: error %d updating rcx", __func__, error));
+
+		/*
+		 * Repeat the instruction if the count register is not zero.
+		 */
+		if ((rcx & vie_size2mask(vie->addrsize)) != 0)
+			vm_restart_instruction(vm, vcpuid);
+	}
+
+	return (0);
+}
+
+static int
 emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
 {
@@ -1262,6 +1341,48 @@ emulate_group1(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	return (error);
 }
 
+static int
+emulate_bittest(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
+    mem_region_read_t memread, mem_region_write_t memwrite, void *memarg)
+{
+	uint64_t val, rflags;
+	int error, bitmask, bitoff;
+
+	/*
+	 * 0F BA is a Group 8 extended opcode.
+	 *
+	 * Currently we only emulate the 'Bit Test' instruction which is
+	 * identified by a ModR/M:reg encoding of 100b.
+	 */
+	if ((vie->reg & 7) != 4)
+		return (EINVAL);
+
+	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, &rflags);
+	KASSERT(error == 0, ("%s: error %d getting rflags", __func__, error));
+
+	error = memread(vm, vcpuid, gpa, &val, vie->opsize, memarg);
+	if (error)
+		return (error);
+
+	/*
+	 * Intel SDM, Vol 2, Table 3-2:
+	 * "Range of Bit Positions Specified by Bit Offset Operands"
+	 */
+	bitmask = vie->opsize * 8 - 1;
+	bitoff = vie->immediate & bitmask;
+
+	/* Copy the bit into the Carry flag in %rflags */
+	if (val & (1UL << bitoff))
+		rflags |= PSL_C;
+	else
+		rflags &= ~PSL_C;
+
+	error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, rflags, 8);
+	KASSERT(error == 0, ("%s: error %d updating rflags", __func__, error));
+
+	return (0);
+}
+
 int
 vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
     struct vm_guest_paging *paging, mem_region_read_t memread,
@@ -1302,6 +1423,10 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		error = emulate_movs(vm, vcpuid, gpa, vie, paging, memread,
 		    memwrite, memarg);
 		break;
+	case VIE_OP_TYPE_STOS:
+		error = emulate_stos(vm, vcpuid, gpa, vie, paging, memread,
+		    memwrite, memarg);
+		break;
 	case VIE_OP_TYPE_AND:
 		error = emulate_and(vm, vcpuid, gpa, vie,
 				    memread, memwrite, memarg);
@@ -1313,6 +1438,10 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	case VIE_OP_TYPE_SUB:
 		error = emulate_sub(vm, vcpuid, gpa, vie,
 				    memread, memwrite, memarg);
+		break;
+	case VIE_OP_TYPE_BITTEST:
+		error = emulate_bittest(vm, vcpuid, gpa, vie,
+		    memread, memwrite, memarg);
 		break;
 	default:
 		error = EINVAL;
