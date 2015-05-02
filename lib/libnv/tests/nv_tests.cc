@@ -450,6 +450,40 @@ ATF_TEST_CASE_BODY(nvlist_pack__empty_nvlist)
 	free(packed);
 }
 
+ATF_TEST_CASE_WITHOUT_HEAD(nvlist_unpack__flags_nvlist);
+ATF_TEST_CASE_BODY(nvlist_unpack__flags_nvlist)
+{
+	nvlist_t *nvl, *unpacked;
+	void *packed;
+	size_t packed_size;
+
+	nvl = nvlist_create(NV_FLAG_NO_UNIQUE);
+	ATF_REQUIRE(nvl != NULL);
+
+	nvlist_add_bool(nvl, "name", true);
+	ATF_REQUIRE(!nvlist_empty(nvl));
+	ATF_REQUIRE(nvlist_exists_bool(nvl, "name"));
+
+	packed = nvlist_pack(nvl, &packed_size);
+	ATF_REQUIRE(packed != NULL);
+
+	unpacked = nvlist_unpack(packed, packed_size, 0);
+	ATF_REQUIRE(unpacked == NULL);
+
+	unpacked = nvlist_unpack(packed, packed_size, NV_FLAG_IGNORE_CASE);
+	ATF_REQUIRE(unpacked == NULL);
+
+	unpacked = nvlist_unpack(packed, packed_size, NV_FLAG_NO_UNIQUE);
+	ATF_REQUIRE(unpacked != NULL);
+	ATF_REQUIRE(unpacked != nvl);
+	ATF_REQUIRE(!nvlist_empty(unpacked));
+	ATF_REQUIRE(nvlist_exists_bool(unpacked, "name"));
+
+	nvlist_destroy(unpacked);
+	nvlist_destroy(nvl);
+	free(packed);
+}
+
 static void
 verify_null(const nvlist_t *nvl, int type)
 {
@@ -1206,6 +1240,7 @@ ATF_INIT_TEST_CASES(tp)
 	ATF_ADD_TEST_CASE(tp, nvlist_pack__multiple_values);
 	ATF_ADD_TEST_CASE(tp, nvlist_pack__error_nvlist);
 	ATF_ADD_TEST_CASE(tp, nvlist_unpack__duplicate_key);
+	ATF_ADD_TEST_CASE(tp, nvlist_unpack__flags_nvlist);
 
 	ATF_ADD_TEST_CASE(tp, nvlist_move_string__single_insert);
 	ATF_ADD_TEST_CASE(tp, nvlist_move_nvlist__single_insert);
