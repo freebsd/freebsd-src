@@ -230,10 +230,11 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			regs[1] |= (vcpu_id << CPUID_0000_0001_APICID_SHIFT);
 
 			/*
-			 * Don't expose VMX, SpeedStep or TME capability.
+			 * Don't expose VMX, SpeedStep, TME or SMX capability.
 			 * Advertise x2APIC capability and Hypervisor guest.
 			 */
 			regs[2] &= ~(CPUID2_VMX | CPUID2_EST | CPUID2_TM2);
+			regs[2] &= ~(CPUID2_SMX);
 
 			regs[2] |= CPUID2_HV;
 
