@@ -87,11 +87,11 @@ void nvlist_fdump(const nvlist_t *nvl, FILE *fp);
 
 size_t		 nvlist_size(const nvlist_t *nvl);
 void		*nvlist_pack(const nvlist_t *nvl, size_t *sizep);
-nvlist_t	*nvlist_unpack(const void *buf, size_t size);
+nvlist_t	*nvlist_unpack(const void *buf, size_t size, int flags);
 
 int nvlist_send(int sock, const nvlist_t *nvl);
-nvlist_t *nvlist_recv(int sock);
-nvlist_t *nvlist_xfer(int sock, nvlist_t *nvl);
+nvlist_t *nvlist_recv(int sock, int flags);
+nvlist_t *nvlist_xfer(int sock, nvlist_t *nvl, int flags);
 
 const char *nvlist_next(const nvlist_t *nvl, int *typep, void **cookiep);
 

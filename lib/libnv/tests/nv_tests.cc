@@ -440,7 +440,7 @@ ATF_TEST_CASE_BODY(nvlist_pack__empty_nvlist)
 	packed = nvlist_pack(nvl, &packed_size);
 	ATF_REQUIRE(packed != NULL);
 
-	unpacked = nvlist_unpack(packed, packed_size);
+	unpacked = nvlist_unpack(packed, packed_size, 0);
 	ATF_REQUIRE(unpacked != NULL);
 	ATF_REQUIRE(unpacked != nvl);
 	ATF_REQUIRE(nvlist_empty(unpacked));
@@ -534,7 +534,7 @@ ATF_TEST_CASE_BODY(nvlist_pack__multiple_values)
 	packed = nvlist_pack(nvl, &packed_size);
 	ATF_REQUIRE(packed != NULL);
 
-	unpacked = nvlist_unpack(packed, packed_size);
+	unpacked = nvlist_unpack(packed, packed_size, 0);
 	ATF_REQUIRE(unpacked != 0);
 
 	it = NULL;
@@ -614,7 +614,7 @@ ATF_TEST_CASE_BODY(nvlist_unpack__duplicate_key)
 	ATF_REQUIRE(keypos != NULL);
 	memcpy(keypos, key2, keylen);
 
-	unpacked = nvlist_unpack(packed, size);
+	unpacked = nvlist_unpack(packed, size, 0);
 	ATF_REQUIRE(nvlist_error(unpacked) != 0);
 
 	free(packed);

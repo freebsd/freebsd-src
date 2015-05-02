@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 1, 2015
+.Dd May 2, 2015
 .Dt NV 3
 .Os
 .Sh NAME
@@ -85,14 +85,14 @@
 .Ft "void *"
 .Fn nvlist_pack "const nvlist_t *nvl" "size_t *sizep"
 .Ft "nvlist_t *"
-.Fn nvlist_unpack "const void *buf" "size_t size"
+.Fn nvlist_unpack "const void *buf" "size_t size" "int flags"
 .\"
 .Ft int
 .Fn nvlist_send "int sock" "const nvlist_t *nvl"
 .Ft "nvlist_t *"
-.Fn nvlist_recv "int sock"
+.Fn nvlist_recv "int sock" "int flags"
 .Ft "nvlist_t *"
-.Fn nvlist_xfer "int sock" "nvlist_t *nvl"
+.Fn nvlist_xfer "int sock" "nvlist_t *nvl" "int flags"
 .\"
 .Ft "const char *"
 .Fn nvlist_next "const nvlist_t *nvl" "int *typep" "void **cookiep"
@@ -325,6 +325,18 @@ The nvlist must not be in error state.
 The
 .Fn nvlist_unpack
 function converts the given buffer to the nvlist.
+The
+.Fa flags
+argument defines what type of the top level nvlist is expected to be.
+Flags are set up using the
+.Fn nvlist_create
+function.
+If the nvlist flags do not match the flags passed to
+.Fn nvlist_unpack ,
+the nvlist will not be returned.
+Every nested nvlist list should be checked using
+.Fn nvlist_flags
+function.
 The function returns
 .Dv NULL
 in case of an error.
@@ -343,12 +355,36 @@ The
 function receives nvlist over the socket given by the
 .Fa sock
 argument.
+The
+.Fa flags
+argument defines what type of the top level nvlist is expected to be.
+Flags are set up using the
+.Fn nvlist_create
+function.
+If the nvlist flags do not match the flags passed to
+.Fn nvlist_recv ,
+the nvlist will not be returned.
+Every nested nvlist list should be checked using
+.Fn nvlist_flags
+function.
 .Pp
 The
 .Fn nvlist_xfer
 function sends the given nvlist over the socket given by the
 .Fa sock
 argument and receives nvlist over the same socket.
+The
+.Fa flags
+argument defines what type of the top level nvlist is expected to be.
+Flags are set up using the
+.Fn nvlist_create
+function.
+If the nvlist flags do not match the flags passed to
+.Fn nvlist_xfer ,
+the nvlist will not be returned.
+Every nested nvlist list should be checked using
+.Fn nvlist_flags
+function.
 The given nvlist is always destroyed.
 .Pp
 The
@@ -559,7 +595,7 @@ const char *command;
 char *filename;
 int fd;
 
-nvl = nvlist_recv(sock);
+nvl = nvlist_recv(sock, 0);
 if (nvl == NULL)
 	err(1, "nvlist_recv() failed");
 
@@ -588,7 +624,7 @@ const char *name;
 void *cookie;
 int type;
 
-nvl = nvlist_recv(sock);
+nvl = nvlist_recv(sock, 0);
 if (nvl == NULL)
 	err(1, "nvlist_recv() failed");
 
@@ -617,7 +653,7 @@ const char *name;
 void *cookie;
 int type;
 
-nvl = nvlist_recv(sock);
+nvl = nvlist_recv(sock, 0);
 if (nvl == NULL)
 	err(1, "nvlist_recv() failed");
 

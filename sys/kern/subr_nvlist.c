@@ -774,13 +774,16 @@ failed:
 }
 
 static nvlist_t *
-nvlist_xunpack(const void *buf, size_t size, const int *fds, size_t nfds)
+nvlist_xunpack(const void *buf, size_t size, const int *fds, size_t nfds,
+    int flags)
 {
 	const unsigned char *ptr;
 	nvlist_t *nvl, *retnvl, *tmpnvl;
 	nvpair_t *nvp;
 	size_t left;
 	bool isbe;
+
+	PJDLOG_ASSERT((flags & ~(NV_FLAG_PUBLIC_MASK)) == 0);
 
 	left = size;
 	ptr = buf;
@@ -793,6 +796,10 @@ nvlist_xunpack(const void *buf, size_t size, const int *fds, size_t nfds)
 	ptr = nvlist_unpack_header(nvl, ptr, nfds, &isbe, &left);
 	if (ptr == NULL)
 		goto failed;
+	if (nvl->nvl_flags != flags) {
+		ERRNO_SET(EILSEQ);
+		goto failed;
+	}
 
 	while (left > 0) {
 		ptr = nvpair_unpack(isbe, ptr, &left, &nvp);
@@ -849,10 +856,10 @@ failed:
 }
 
 nvlist_t *
-nvlist_unpack(const void *buf, size_t size)
+nvlist_unpack(const void *buf, size_t size, int flags)
 {
 
-	return (nvlist_xunpack(buf, size, NULL, 0));
+	return (nvlist_xunpack(buf, size, NULL, 0, flags));
 }
 
 #ifndef _KERNEL
@@ -900,7 +907,7 @@ out:
 }
 
 nvlist_t *
-nvlist_recv(int sock)
+nvlist_recv(int sock, int flags)
 {
 	struct nvlist_header nvlhdr;
 	nvlist_t *nvl, *ret;
@@ -937,7 +944,7 @@ nvlist_recv(int sock)
 			goto out;
 	}
 
-	nvl = nvlist_xunpack(buf, size, fds, nfds);
+	nvl = nvlist_xunpack(buf, size, fds, nfds, flags);
 	if (nvl == NULL) {
 		ERRNO_SAVE();
 		for (i = 0; i < nfds; i++)
@@ -957,7 +964,7 @@ out:
 }
 
 nvlist_t *
-nvlist_xfer(int sock, nvlist_t *nvl)
+nvlist_xfer(int sock, nvlist_t *nvl, int flags)
 {
 
 	if (nvlist_send(sock, nvl) < 0) {
@@ -965,7 +972,7 @@ nvlist_xfer(int sock, nvlist_t *nvl)
 		return (NULL);
 	}
 	nvlist_destroy(nvl);
-	return (nvlist_recv(sock));
+	return (nvlist_recv(sock, flags));
 }
 #endif
 
