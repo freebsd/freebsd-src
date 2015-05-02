@@ -15,22 +15,16 @@ rlf_body()
 		col < $(atf_get_srcdir)/rlf.in
 
 	atf_check \
-		-o inline:"a	b3\n" \
+		-o inline:"a	b\n" \
 		-e empty \
 		-s exit:0 \
 		col < $(atf_get_srcdir)/rlf2.in
 
 	atf_check \
-		-o inline:"a       b3\n" \
+		-o inline:"a       b\n" \
 		-e empty \
 		-s exit:0 \
 		col -x < $(atf_get_srcdir)/rlf2.in
-
-	atf_check \
-		-o inline:"a	b3\n" \
-		-e empty \
-		-s exit:0 \
-		col -p < $(atf_get_srcdir)/rlf2.in
 }
 
 atf_init_test_cases()
