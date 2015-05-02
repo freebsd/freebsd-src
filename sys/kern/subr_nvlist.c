@@ -88,7 +88,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #define	NV_FLAG_PRIVATE_MASK	(NV_FLAG_BIG_ENDIAN)
-#define	NV_FLAG_PUBLIC_MASK	(NV_FLAG_IGNORE_CASE)
+#define	NV_FLAG_PUBLIC_MASK	(NV_FLAG_IGNORE_CASE | NV_FLAG_NO_UNIQUE)
 #define	NV_FLAG_ALL_MASK	(NV_FLAG_PRIVATE_MASK | NV_FLAG_PUBLIC_MASK)
 
 #define	NVLIST_MAGIC	0x6e766c	/* "nvl" */
@@ -1074,10 +1074,12 @@ nvlist_add_nvpair(nvlist_t *nvl, const nvpair_t *nvp)
 		ERRNO_SET(nvlist_error(nvl));
 		return;
 	}
-	if (nvlist_exists(nvl, nvpair_name(nvp))) {
-		nvl->nvl_error = EEXIST;
-		ERRNO_SET(nvlist_error(nvl));
-		return;
+	if ((nvl->nvl_flags & NV_FLAG_NO_UNIQUE) == 0) {
+		if (nvlist_exists(nvl, nvpair_name(nvp))) {
+			nvl->nvl_error = EEXIST;
+			ERRNO_SET(nvlist_error(nvl));
+			return;
+		}
 	}
 
 	newnvp = nvpair_clone(nvp);
@@ -1266,11 +1268,13 @@ nvlist_move_nvpair(nvlist_t *nvl, nvpair_t *nvp)
 		ERRNO_SET(nvlist_error(nvl));
 		return;
 	}
-	if (nvlist_exists(nvl, nvpair_name(nvp))) {
-		nvpair_free(nvp);
-		nvl->nvl_error = EEXIST;
-		ERRNO_SET(nvl->nvl_error);
-		return;
+	if ((nvl->nvl_flags & NV_FLAG_NO_UNIQUE) == 0) {
+		if (nvlist_exists(nvl, nvpair_name(nvp))) {
+			nvpair_free(nvp);
+			nvl->nvl_error = EEXIST;
+			ERRNO_SET(nvl->nvl_error);
+			return;
+		}
 	}
 
 	nvpair_insert(&nvl->nvl_head, nvp, nvl);

@@ -143,7 +143,8 @@ nvpair_insert(struct nvl_head *head, nvpair_t *nvp, nvlist_t *nvl)
 
 	NVPAIR_ASSERT(nvp);
 	PJDLOG_ASSERT(nvp->nvp_list == NULL);
-	PJDLOG_ASSERT(!nvlist_exists(nvl, nvpair_name(nvp)));
+	PJDLOG_ASSERT((nvlist_flags(nvl) & NV_FLAG_NO_UNIQUE) != 0 ||
+	    !nvlist_exists(nvl, nvpair_name(nvp)));
 
 	TAILQ_INSERT_TAIL(head, nvp, nvp_next);
 	nvp->nvp_list = nvl;
