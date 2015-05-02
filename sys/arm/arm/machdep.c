@@ -1055,7 +1055,6 @@ kenv_next(char *cp)
 static void
 print_kenv(void)
 {
-	int len;
 	char *cp;
 
 	debugf("loader passed (static) kenv:\n");
@@ -1065,7 +1064,6 @@ print_kenv(void)
 	}
 	debugf(" kern_envp = 0x%08x\n", (uint32_t)kern_envp);
 
-	len = 0;
 	for (cp = kern_envp; cp != NULL; cp = kenv_next(cp))
 		debugf(" %x %s\n", (uint32_t)cp, cp);
 }
