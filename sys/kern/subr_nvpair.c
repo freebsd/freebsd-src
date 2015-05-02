@@ -733,7 +733,7 @@ nvpair_allocv(const char *name, int type, uint64_t data, size_t datasize)
 	if (nvp != NULL) {
 		nvp->nvp_name = (char *)(nvp + 1);
 		memcpy(nvp->nvp_name, name, namelen);
-		nvp->nvp_name[namelen + 1] = '\0';
+		nvp->nvp_name[namelen] = '\0';
 		nvp->nvp_type = type;
 		nvp->nvp_data = data;
 		nvp->nvp_datasize = datasize;
