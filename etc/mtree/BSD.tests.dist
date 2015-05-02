@@ -514,6 +514,8 @@
         ..
         cmp
         ..
+        col
+        ..
         comm
         ..
         cut
