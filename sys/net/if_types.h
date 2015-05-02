@@ -254,4 +254,20 @@ typedef enum {
 	IFT_PFLOG	= 0xf6,		/* PF packet filter logging */
 	IFT_PFSYNC	= 0xf7,		/* PF packet filter synchronization */
 } ifType;
+
+/*
+ * Some (broken) software uses #ifdef IFT_TYPE to check whether
+ * an operating systems supports certain interface type.  Lack of
+ * ifdef leads to a piece of functionality compiled out.
+ */
+#ifndef BURN_BRIDGES
+#define	IFT_BRIDGE	IFT_BRIDGE
+#define	IFT_PPP		IFT_PPP
+#define	IFT_PROPVIRTUAL	IFT_PROPVIRTUAL
+#define	IFT_L2VLAN	IFT_L2VLAN
+#define	IFT_L3IPVLAN	IFT_L3IPVLAN
+#define	IFT_IEEE1394	IFT_IEEE1394
+#define	IFT_INFINIBAND	IFT_INFINIBAND
+#endif
+
 #endif /* !_NET_IF_TYPES_H_ */
