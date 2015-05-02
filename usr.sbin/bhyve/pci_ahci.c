@@ -490,6 +490,9 @@ ahci_reset(struct pci_ahci_softc *sc)
 	for (i = 0; i < sc->ports; i++) {
 		sc->port[i].ie = 0;
 		sc->port[i].is = 0;
+		sc->port[i].cmd = (AHCI_P_CMD_SUD | AHCI_P_CMD_POD);
+		if (sc->port[i].bctx)
+			sc->port[i].cmd |= AHCI_P_CMD_CPS;
 		sc->port[i].sctl = 0;
 		ahci_port_reset(&sc->port[i]);
 	}
@@ -1941,8 +1944,15 @@ pci_ahci_port_write(struct pci_ahci_softc *sc, uint64_t offset, uint64_t value)
 		break;
 	case AHCI_P_CMD:
 	{
-		p->cmd = value;
-		
+		p->cmd &= ~(AHCI_P_CMD_ST | AHCI_P_CMD_SUD | AHCI_P_CMD_POD |
+		    AHCI_P_CMD_CLO | AHCI_P_CMD_FRE | AHCI_P_CMD_APSTE |
+		    AHCI_P_CMD_ATAPI | AHCI_P_CMD_DLAE | AHCI_P_CMD_ALPE |
+		    AHCI_P_CMD_ASP | AHCI_P_CMD_ICC_MASK);
+		p->cmd |= (AHCI_P_CMD_ST | AHCI_P_CMD_SUD | AHCI_P_CMD_POD |
+		    AHCI_P_CMD_CLO | AHCI_P_CMD_FRE | AHCI_P_CMD_APSTE |
+		    AHCI_P_CMD_ATAPI | AHCI_P_CMD_DLAE | AHCI_P_CMD_ALPE |
+		    AHCI_P_CMD_ASP | AHCI_P_CMD_ICC_MASK) & value;
+
 		if (!(value & AHCI_P_CMD_ST)) {
 			ahci_port_stop(p);
 		} else {
@@ -1968,6 +1978,10 @@ pci_ahci_port_write(struct pci_ahci_softc *sc, uint64_t offset, uint64_t value)
 		if (value & AHCI_P_CMD_CLO) {
 			p->tfd = 0;
 			p->cmd &= ~AHCI_P_CMD_CLO;
+		}
+
+		if (value & AHCI_P_CMD_ICC_MASK) {
+			p->cmd &= ~AHCI_P_CMD_ICC_MASK;
 		}
 
 		ahci_handle_port(p);
