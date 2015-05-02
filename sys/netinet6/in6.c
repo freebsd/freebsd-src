@@ -1997,18 +1997,9 @@ in6_if2idlen(struct ifnet *ifp)
 {
 	switch (ifp->if_type) {
 	case IFT_ETHER:		/* RFC2464 */
-#ifdef IFT_PROPVIRTUAL
 	case IFT_PROPVIRTUAL:	/* XXX: no RFC. treat it as ether */
-#endif
-#ifdef IFT_L2VLAN
 	case IFT_L2VLAN:	/* ditto */
-#endif
-#ifdef IFT_IEEE80211
 	case IFT_IEEE80211:	/* ditto */
-#endif
-#ifdef IFT_MIP
-	case IFT_MIP:	/* ditto */
-#endif
 	case IFT_INFINIBAND:
 		return (64);
 	case IFT_FDDI:		/* RFC2467 */
