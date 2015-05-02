@@ -1142,101 +1142,6 @@ nvlist_add_null(nvlist_t *nvl, const char *name)
 }
 
 void
-nvlist_add_bool(nvlist_t *nvl, const char *name, bool value)
-{
-	nvpair_t *nvp;
-
-	if (nvlist_error(nvl) != 0) {
-		ERRNO_SET(nvlist_error(nvl));
-		return;
-	}
-
-	nvp = nvpair_create_bool(name, value);
-	if (nvp == NULL) {
-		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);
-		ERRNO_SET(nvl->nvl_error);
-	} else {
-		nvlist_move_nvpair(nvl, nvp);
-	}
-}
-
-void
-nvlist_add_number(nvlist_t *nvl, const char *name, uint64_t value)
-{
-	nvpair_t *nvp;
-
-	if (nvlist_error(nvl) != 0) {
-		ERRNO_SET(nvlist_error(nvl));
-		return;
-	}
-
-	nvp = nvpair_create_number(name, value);
-	if (nvp == NULL) {
-		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);
-		ERRNO_SET(nvl->nvl_error);
-	} else {
-		nvlist_move_nvpair(nvl, nvp);
-	}
-}
-
-void
-nvlist_add_string(nvlist_t *nvl, const char *name, const char *value)
-{
-	nvpair_t *nvp;
-
-	if (nvlist_error(nvl) != 0) {
-		ERRNO_SET(nvlist_error(nvl));
-		return;
-	}
-
-	nvp = nvpair_create_string(name, value);
-	if (nvp == NULL) {
-		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);
-		ERRNO_SET(nvl->nvl_error);
-	} else {
-		nvlist_move_nvpair(nvl, nvp);
-	}
-}
-
-void
-nvlist_add_nvlist(nvlist_t *nvl, const char *name, const nvlist_t *value)
-{
-	nvpair_t *nvp;
-
-	if (nvlist_error(nvl) != 0) {
-		ERRNO_SET(nvlist_error(nvl));
-		return;
-	}
-
-	nvp = nvpair_create_nvlist(name, value);
-	if (nvp == NULL) {
-		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);
-		ERRNO_SET(nvl->nvl_error);
-	} else {
-		nvlist_move_nvpair(nvl, nvp);
-	}
-}
-
-#ifndef _KERNEL
-void
-nvlist_add_descriptor(nvlist_t *nvl, const char *name, int value)
-{
-	nvpair_t *nvp;
-
-	if (nvlist_error(nvl) != 0) {
-		errno = nvlist_error(nvl);
-		return;
-	}
-
-	nvp = nvpair_create_descriptor(name, value);
-	if (nvp == NULL)
-		nvl->nvl_error = errno = (errno != 0 ? errno : ENOMEM);
-	else
-		nvlist_move_nvpair(nvl, nvp);
-}
-#endif
-
-void
 nvlist_add_binary(nvlist_t *nvl, const char *name, const void *value,
     size_t size)
 {
@@ -1255,6 +1160,37 @@ nvlist_add_binary(nvlist_t *nvl, const char *name, const void *value,
 		nvlist_move_nvpair(nvl, nvp);
 	}
 }
+
+
+#define	NVLIST_ADD(vtype, type)						\
+void									\
+nvlist_add_##type(nvlist_t *nvl, const char *name, vtype value)		\
+{									\
+	nvpair_t *nvp;							\
+									\
+	if (nvlist_error(nvl) != 0) {					\
+		ERRNO_SET(nvlist_error(nvl));				\
+		return;							\
+	}								\
+									\
+	nvp = nvpair_create_##type(name, value);			\
+	if (nvp == NULL) {						\
+		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);		\
+		ERRNO_SET(nvl->nvl_error);				\
+	} else {							\
+		nvlist_move_nvpair(nvl, nvp);				\
+	}								\
+}
+
+NVLIST_ADD(bool, bool)
+NVLIST_ADD(uint64_t, number)
+NVLIST_ADD(const char *, string)
+NVLIST_ADD(const nvlist_t *, nvlist)
+#ifndef _KERNEL
+NVLIST_ADD(int, descriptor);
+#endif
+
+#undef	NVLIST_ADD
 
 void
 nvlist_move_nvpair(nvlist_t *nvl, nvpair_t *nvp)
