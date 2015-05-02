@@ -1,5 +1,5 @@
 #
-# RPI-B -- Custom configuration for the Raspberry Pi
+# RPI2 -- Custom configuration for the Raspberry Pi 2
 #
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
@@ -18,7 +18,7 @@
 #
 # $FreeBSD$
 
-ident		RPI-B
+ident		RPI2
 
 include		"../broadcom/bcm2835/std.rpi"
 include		"../broadcom/bcm2835/std.bcm2836"
