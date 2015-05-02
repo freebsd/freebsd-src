@@ -64,6 +64,10 @@ typedef struct nvlist nvlist_t;
  * Perform case-insensitive lookups of provided names.
  */
 #define	NV_FLAG_IGNORE_CASE		0x01
+/*
+ * Names don't have to be unique.
+ */
+#define	NV_FLAG_NO_UNIQUE		0x02
 
 #if defined(_KERNEL) && defined(MALLOC_DECLARE)
 MALLOC_DECLARE(M_NVLIST);
