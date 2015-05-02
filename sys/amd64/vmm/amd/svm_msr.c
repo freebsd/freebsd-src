@@ -110,6 +110,10 @@ svm_rdmsr(struct svm_softc *sc, int vcpu, u_int num, uint64_t *result,
 	int error = 0;
 
 	switch (num) {
+	case MSR_MCG_CAP:
+	case MSR_MCG_STATUS:
+		*result = 0;
+		break;
 	case MSR_MTRRcap:
 	case MSR_MTRRdefType:
 	case MSR_MTRR4kBase ... MSR_MTRR4kBase + 8:
@@ -135,6 +139,9 @@ svm_wrmsr(struct svm_softc *sc, int vcpu, u_int num, uint64_t val, bool *retu)
 	int error = 0;
 
 	switch (num) {
+	case MSR_MCG_CAP:
+	case MSR_MCG_STATUS:
+		break;		/* ignore writes */
 	case MSR_MTRRcap:
 		vm_inject_gp(sc->vm, vcpu);
 		break;

@@ -285,16 +285,19 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			 * Hide thermal monitoring
 			 */
 			regs[3] &= ~(CPUID_ACPI | CPUID_TM);
-			
-			/*
-			 * Machine check handling is done in the host.
-			 */
-			regs[3] &= ~(CPUID_MCA | CPUID_MCE);
 
-                        /*
-                        * Hide the debug store capability.
-                        */
+			/*
+			 * Hide the debug store capability.
+			 */
 			regs[3] &= ~CPUID_DS;
+
+			/*
+			 * Advertise the Machine Check and MTRR capability.
+			 *
+			 * Some guest OSes (e.g. Windows) will not boot if
+			 * these features are absent.
+			 */
+			regs[3] |= (CPUID_MCA | CPUID_MCE | CPUID_MTRR);
 
 			logical_cpus = threads_per_core * cores_per_package;
 			regs[1] &= ~CPUID_HTT_CORES;
