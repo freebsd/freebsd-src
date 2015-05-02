@@ -418,7 +418,8 @@ ahci_port_stop(struct ahci_port *p)
 		slot = aior->slot;
 		cfis = aior->cfis;
 		if (cfis[2] == ATA_WRITE_FPDMA_QUEUED ||
-		    cfis[2] == ATA_READ_FPDMA_QUEUED)
+		    cfis[2] == ATA_READ_FPDMA_QUEUED ||
+		    cfis[2] == ATA_SEND_FPDMA_QUEUED)
 			ncq = 1;
 
 		if (ncq)
