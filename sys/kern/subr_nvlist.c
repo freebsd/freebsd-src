@@ -129,6 +129,8 @@ nvlist_create(int flags)
 	PJDLOG_ASSERT((flags & ~(NV_FLAG_PUBLIC_MASK)) == 0);
 
 	nvl = nv_malloc(sizeof(*nvl));
+	if (nvl == NULL)
+		return (NULL);
 	nvl->nvl_error = 0;
 	nvl->nvl_flags = flags;
 	nvl->nvl_parent = NULL;
