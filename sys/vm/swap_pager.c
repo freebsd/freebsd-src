@@ -328,16 +328,15 @@ static int nsw_wcount_async;	/* limit write buffers / asynchronous	*/
 static int nsw_wcount_async_max;/* assigned maximum			*/
 static int nsw_cluster_max;	/* maximum VOP I/O allowed		*/
 
+static int sysctl_swap_async_max(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_vm, OID_AUTO, swap_async_max, CTLTYPE_INT | CTLFLAG_RW,
+    NULL, 0, sysctl_swap_async_max, "I", "Maximum running async swap ops");
+
 static struct swblock **swhash;
 static int swhash_mask;
 static struct mtx swhash_mtx;
 
-static int swap_async_max = 4;	/* maximum in-progress async I/O's	*/
 static struct sx sw_alloc_sx;
-
-
-SYSCTL_INT(_vm, OID_AUTO, swap_async_max,
-	CTLFLAG_RW, &swap_async_max, 0, "Maximum running async swap ops");
 
 /*
  * "named" and "unnamed" anon region objects.  Try to reduce the overhead
@@ -1349,39 +1348,6 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 
 	/*
 	 * Step 2
-	 *
-	 * Update nsw parameters from swap_async_max sysctl values.
-	 * Do not let the sysop crash the machine with bogus numbers.
-	 */
-	mtx_lock(&pbuf_mtx);
-	if (swap_async_max != nsw_wcount_async_max) {
-		int n;
-
-		/*
-		 * limit range
-		 */
-		if ((n = swap_async_max) > nswbuf / 2)
-			n = nswbuf / 2;
-		if (n < 1)
-			n = 1;
-		swap_async_max = n;
-
-		/*
-		 * Adjust difference ( if possible ).  If the current async
-		 * count is too low, we may not be able to make the adjustment
-		 * at this time.
-		 */
-		n -= nsw_wcount_async_max;
-		if (nsw_wcount_async + n >= 0) {
-			nsw_wcount_async += n;
-			nsw_wcount_async_max += n;
-			wakeup(&nsw_wcount_async);
-		}
-	}
-	mtx_unlock(&pbuf_mtx);
-
-	/*
-	 * Step 3
 	 *
 	 * Assign swap blocks and issue I/O.  We reallocate swap on the fly.
 	 * The page is left dirty until the pageout operation completes
@@ -2833,5 +2799,42 @@ swaponvp(struct thread *td, struct vnode *vp, u_long nblks)
 
 	swaponsomething(vp, vp, nblks, swapdev_strategy, swapdev_close,
 	    NODEV, 0);
+	return (0);
+}
+
+static int
+sysctl_swap_async_max(SYSCTL_HANDLER_ARGS)
+{
+	int error, new, n;
+
+	new = nsw_wcount_async_max;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	if (new > nswbuf / 2 || new < 1)
+		return (EINVAL);
+
+	mtx_lock(&pbuf_mtx);
+	while (nsw_wcount_async_max != new) {
+		/*
+		 * Adjust difference.  If the current async count is too low,
+		 * we will need to sqeeze our update slowly in.  Sleep with a
+		 * higher priority than getpbuf() to finish faster.
+		 */
+		n = new - nsw_wcount_async_max;
+		if (nsw_wcount_async + n >= 0) {
+			nsw_wcount_async += n;
+			nsw_wcount_async_max += n;
+			wakeup(&nsw_wcount_async);
+		} else {
+			nsw_wcount_async_max -= nsw_wcount_async;
+			nsw_wcount_async = 0;
+			msleep(&nsw_wcount_async, &pbuf_mtx, PSWP,
+			    "swpsysctl", 0);
+		}
+	}
+	mtx_unlock(&pbuf_mtx);
+
 	return (0);
 }
