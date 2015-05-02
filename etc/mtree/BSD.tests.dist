@@ -546,6 +546,8 @@
             regress.multitest.out
             ..
         ..
+        soelim
+        ..
         timeout
         ..
         tr
