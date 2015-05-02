@@ -1938,7 +1938,7 @@ INOUT_PORT(pci_cfgdata, CONF1_DATA_PORT+3, IOPORT_F_INOUT, pci_emul_cfgdata);
 #define DMEMSZ	4096
 struct pci_emul_dsoftc {
 	uint8_t   ioregs[DIOSZ];
-	uint8_t	  memregs[DMEMSZ];
+	uint8_t	  memregs[2][DMEMSZ];
 };
 
 #define	PCI_EMUL_MSI_MSGS	 4
@@ -1965,6 +1965,9 @@ pci_emul_dinit(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	assert(error == 0);
 
 	error = pci_emul_alloc_bar(pi, 1, PCIBAR_MEM32, DMEMSZ);
+	assert(error == 0);
+
+	error = pci_emul_alloc_bar(pi, 2, PCIBAR_MEM32, DMEMSZ);
 	assert(error == 0);
 
 	return (0);
@@ -2006,21 +2009,23 @@ pci_emul_diow(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 		}
 	}
 
-	if (baridx == 1) {
+	if (baridx == 1 || baridx == 2) {
 		if (offset + size > DMEMSZ) {
 			printf("diow: memw too large, offset %ld size %d\n",
 			       offset, size);
 			return;
 		}
 
+		i = baridx - 1;		/* 'memregs' index */
+
 		if (size == 1) {
-			sc->memregs[offset] = value;
+			sc->memregs[i][offset] = value;
 		} else if (size == 2) {
-			*(uint16_t *)&sc->memregs[offset] = value;
+			*(uint16_t *)&sc->memregs[i][offset] = value;
 		} else if (size == 4) {
-			*(uint32_t *)&sc->memregs[offset] = value;
+			*(uint32_t *)&sc->memregs[i][offset] = value;
 		} else if (size == 8) {
-			*(uint64_t *)&sc->memregs[offset] = value;
+			*(uint64_t *)&sc->memregs[i][offset] = value;
 		} else {
 			printf("diow: memw unknown size %d\n", size);
 		}
@@ -2030,7 +2035,7 @@ pci_emul_diow(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 		 */
 	}
 
-	if (baridx > 1) {
+	if (baridx > 2) {
 		printf("diow: unknown bar idx %d\n", baridx);
 	}
 }
@@ -2041,6 +2046,7 @@ pci_emul_dior(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 {
 	struct pci_emul_dsoftc *sc = pi->pi_arg;
 	uint32_t value;
+	int i;
 
 	if (baridx == 0) {
 		if (offset + size > DIOSZ) {
@@ -2059,29 +2065,31 @@ pci_emul_dior(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 			printf("dior: ior unknown size %d\n", size);
 		}
 	}
-	
-	if (baridx == 1) {
+
+	if (baridx == 1 || baridx == 2) {
 		if (offset + size > DMEMSZ) {
 			printf("dior: memr too large, offset %ld size %d\n",
 			       offset, size);
 			return (0);
 		}
-	
+		
+		i = baridx - 1;		/* 'memregs' index */
+
 		if (size == 1) {
-			value = sc->memregs[offset];
+			value = sc->memregs[i][offset];
 		} else if (size == 2) {
-			value = *(uint16_t *) &sc->memregs[offset];
+			value = *(uint16_t *) &sc->memregs[i][offset];
 		} else if (size == 4) {
-			value = *(uint32_t *) &sc->memregs[offset];
+			value = *(uint32_t *) &sc->memregs[i][offset];
 		} else if (size == 8) {
-			value = *(uint64_t *) &sc->memregs[offset];
+			value = *(uint64_t *) &sc->memregs[i][offset];
 		} else {
 			printf("dior: ior unknown size %d\n", size);
 		}
 	}
 
 
-	if (baridx > 1) {
+	if (baridx > 2) {
 		printf("dior: unknown bar idx %d\n", baridx);
 		return (0);
 	}
