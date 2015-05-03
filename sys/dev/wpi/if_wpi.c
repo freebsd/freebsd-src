@@ -2135,11 +2135,18 @@ wpi_notif_intr(struct wpi_softc *sc)
 			    __func__, misses, le32toh(miss->total), received,
 			    expected);
 
-			if (vap->iv_state == IEEE80211_S_RUN &&
-			    (ic->ic_flags & IEEE80211_F_SCAN) == 0 &&
-			    (misses >= threshold ||
-			    (received == 0 && expected >= threshold)))
-				ieee80211_beacon_miss(ic);
+			if (misses >= threshold ||
+			    (received == 0 && expected >= threshold)) {
+				WPI_RXON_LOCK(sc);
+				if (callout_pending(&sc->scan_timeout)) {
+					wpi_cmd(sc, WPI_CMD_SCAN_ABORT, NULL,
+					    0, 1);
+				}
+				WPI_RXON_UNLOCK(sc);
+				if (vap->iv_state == IEEE80211_S_RUN &&
+				    (ic->ic_flags & IEEE80211_F_SCAN) == 0)
+					ieee80211_beacon_miss(ic);
+			}
 
 			break;
 		}
@@ -2202,17 +2209,21 @@ wpi_notif_intr(struct wpi_softc *sc)
 		{
 			bus_dmamap_sync(sc->rxq.data_dmat, data->map,
 			    BUS_DMASYNC_POSTREAD);
-#ifdef WPI_DEBUG
+
 			struct wpi_stop_scan *scan =
 			    (struct wpi_stop_scan *)(desc + 1);
+
 			DPRINTF(sc, WPI_DEBUG_SCAN,
 			    "scan finished nchan=%d status=%d chan=%d\n",
 			    scan->nchan, scan->status, scan->chan);
-#endif
+
 			WPI_RXON_LOCK(sc);
 			callout_stop(&sc->scan_timeout);
 			WPI_RXON_UNLOCK(sc);
-			ieee80211_scan_next(vap);
+			if (scan->status == WPI_SCAN_ABORTED)
+				ieee80211_cancel_scan(vap);
+			else
+				ieee80211_scan_next(vap);
 			break;
 		}
 		}
