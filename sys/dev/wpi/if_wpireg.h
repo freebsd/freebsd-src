@@ -619,6 +619,9 @@ struct wpi_scan_hdr {
 	uint16_t	reserved2;
 	uint32_t	max_svc;	/* background scans */
 	uint32_t	pause_svc;	/* background scans */
+#define WPI_PAUSE_MAX_TIME		((1 << 20) - 1)
+#define WPI_PAUSE_SCAN(nbeacons, time)	((nbeacons << 24) | time)
+
 	uint32_t	flags;
 	uint32_t	filter;
 
