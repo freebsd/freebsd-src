@@ -269,22 +269,24 @@ ahci_write_fis(struct ahci_port *p, enum sata_fis_type ft, uint8_t *fis)
 	case FIS_TYPE_REGD2H:
 		offset = 0x40;
 		len = 20;
-		irq = AHCI_P_IX_DHR;
+		irq = (fis[1] & (1 << 6)) ? AHCI_P_IX_DHR : 0;
 		break;
 	case FIS_TYPE_SETDEVBITS:
 		offset = 0x58;
 		len = 8;
-		irq = AHCI_P_IX_SDB;
+		irq = (fis[1] & (1 << 6)) ? AHCI_P_IX_SDB : 0;
 		break;
 	case FIS_TYPE_PIOSETUP:
 		offset = 0x20;
 		len = 20;
-		irq = 0;
+		irq = (fis[1] & (1 << 6)) ? AHCI_P_IX_PS : 0;
 		break;
 	default:
 		WPRINTF("unsupported fis type %d\n", ft);
 		return;
 	}
+	if (fis[2] & ATA_S_ERROR)
+		irq |= AHCI_P_IX_TFE;
 	memcpy(p->rfis + offset, fis, len);
 	if (irq) {
 		p->is |= irq;
@@ -309,22 +311,23 @@ ahci_write_fis_sdb(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t tfd)
 	uint8_t error;
 
 	error = (tfd >> 8) & 0xff;
+	tfd &= 0x77;
 	memset(fis, 0, sizeof(fis));
 	fis[0] = FIS_TYPE_SETDEVBITS;
 	fis[1] = (1 << 6);
-	fis[2] = tfd & 0x77;
+	fis[2] = tfd;
 	fis[3] = error;
 	if (fis[2] & ATA_S_ERROR) {
-		p->is |= AHCI_P_IX_TFE;
 		p->err_cfis[0] = slot;
-		p->err_cfis[2] = tfd & 0x77;
+		p->err_cfis[2] = tfd;
 		p->err_cfis[3] = error;
 		memcpy(&p->err_cfis[4], cfis + 4, 16);
 	} else {
 		*(uint32_t *)(fis + 4) = (1 << slot);
 		p->sact &= ~(1 << slot);
 	}
-	p->tfd = tfd;
+	p->tfd &= ~0x77;
+	p->tfd |= tfd;
 	ahci_write_fis(p, FIS_TYPE_SETDEVBITS, fis);
 }
 
@@ -351,7 +354,6 @@ ahci_write_fis_d2h(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t tfd)
 	fis[12] = cfis[12];
 	fis[13] = cfis[13];
 	if (fis[2] & ATA_S_ERROR) {
-		p->is |= AHCI_P_IX_TFE;
 		p->err_cfis[0] = 0x80;
 		p->err_cfis[2] = tfd & 0xff;
 		p->err_cfis[3] = error;
@@ -359,6 +361,21 @@ ahci_write_fis_d2h(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t tfd)
 	} else
 		p->ci &= ~(1 << slot);
 	p->tfd = tfd;
+	ahci_write_fis(p, FIS_TYPE_REGD2H, fis);
+}
+
+static void
+ahci_write_fis_d2h_ncq(struct ahci_port *p, int slot)
+{
+	uint8_t fis[20];
+
+	p->tfd = ATA_S_READY | ATA_S_DSC;
+	memset(fis, 0, sizeof(fis));
+	fis[0] = FIS_TYPE_REGD2H;
+	fis[1] = 0;			/* No interrupt */
+	fis[2] = p->tfd;		/* Status */
+	fis[3] = 0;			/* No error */
+	p->ci &= ~(1 << slot);
 	ahci_write_fis(p, FIS_TYPE_REGD2H, fis);
 }
 
@@ -589,12 +606,13 @@ ahci_handle_rw(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done)
 	struct ahci_cmd_hdr *hdr;
 	uint64_t lba;
 	uint32_t len;
-	int err, ncq, readop;
+	int err, first, ncq, readop;
 
 	prdt = (struct ahci_prdt_entry *)(cfis + 0x80);
 	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
 	ncq = 0;
 	readop = 1;
+	first = (done == 0);
 
 	if (cfis[2] == ATA_WRITE || cfis[2] == ATA_WRITE48 ||
 	    cfis[2] == ATA_WRITE_MUL || cfis[2] == ATA_WRITE_MUL48 ||
@@ -655,14 +673,14 @@ ahci_handle_rw(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done)
 	/* Stuff request onto busy list. */
 	TAILQ_INSERT_HEAD(&p->iobhd, aior, io_blist);
 
+	if (ncq && first)
+		ahci_write_fis_d2h_ncq(p, slot);
+
 	if (readop)
 		err = blockif_read(p->bctx, breq);
 	else
 		err = blockif_write(p->bctx, breq);
 	assert(err == 0);
-
-	if (ncq)
-		p->ci &= ~(1 << slot);
 }
 
 static void
@@ -735,15 +753,18 @@ ahci_handle_dsm_trim(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done
 	uint8_t *entry;
 	uint64_t elba;
 	uint32_t len, elen;
-	int err;
+	int err, first, ncq;
 	uint8_t buf[512];
 
+	first = (done == 0);
 	if (cfis[2] == ATA_DATA_SET_MANAGEMENT) {
 		len = (uint16_t)cfis[13] << 8 | cfis[12];
 		len *= 512;
+		ncq = 0;
 	} else { /* ATA_SEND_FPDMA_QUEUED */
 		len = (uint16_t)cfis[11] << 8 | cfis[3];
 		len *= 512;
+		ncq = 1;
 	}
 	read_prdt(p, slot, cfis, buf, sizeof(buf));
 
@@ -792,6 +813,9 @@ next:
 	 * Stuff request onto busy list
 	 */
 	TAILQ_INSERT_HEAD(&p->iobhd, aior, io_blist);
+
+	if (ncq && first)
+		ahci_write_fis_d2h_ncq(p, slot);
 
 	err = blockif_delete(p->bctx, breq);
 	assert(err == 0);
@@ -1548,6 +1572,7 @@ static void
 ahci_handle_cmd(struct ahci_port *p, int slot, uint8_t *cfis)
 {
 
+	p->tfd |= ATA_S_BUSY;
 	switch (cfis[2]) {
 	case ATA_ATA_IDENTIFY:
 		handle_identify(p, slot, cfis);
