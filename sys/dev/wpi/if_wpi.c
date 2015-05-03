@@ -3716,7 +3716,6 @@ wpi_config(struct wpi_softc *sc)
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct ieee80211_channel *c = ic->ic_curchan;
-	uint32_t flags;
 	int error;
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_BEGIN, __func__);
@@ -3786,15 +3785,6 @@ wpi_config(struct wpi_softc *sc)
 	if ((error = wpi_mrr_setup(sc)) != 0) {
 		device_printf(sc->sc_dev, "could not setup MRR, error %d\n",
 		    error);
-		return error;
-	}
-
-	/* Disable beacon notifications (unused). */
-	flags = WPI_STATISTICS_BEACON_DISABLE;
-	error = wpi_cmd(sc, WPI_CMD_GET_STATISTICS, &flags, sizeof flags, 1);
-	if (error != 0) {
-		device_printf(sc->sc_dev,
-		    "could not disable beacon statistics, error %d\n", error);
 		return error;
 	}
 
