@@ -1687,8 +1687,7 @@ wpi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	switch (nstate) {
 	case IEEE80211_S_SCAN:
 		WPI_RXON_LOCK(sc);
-		if (wpi_check_bss_filter(sc) != 0 &&
-		    vap->iv_opmode != IEEE80211_M_STA) {
+		if (wpi_check_bss_filter(sc) != 0) {
 			sc->rxon.filter &= ~htole32(WPI_FILTER_BSS);
 			if ((error = wpi_send_rxon(sc, 0, 1)) != 0) {
 				device_printf(sc->sc_dev,
