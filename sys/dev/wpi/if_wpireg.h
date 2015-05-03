@@ -547,6 +547,8 @@ struct wpi_mrr_setup {
 		uint8_t	plcp;
 		uint8_t	flags;
 		uint8_t	ntries;
+#define		WPI_NTRIES_DEFAULT	2
+
 		uint8_t	next;
 	} __packed	rates[WPI_RIDX_MAX + 1];
 } __packed;
