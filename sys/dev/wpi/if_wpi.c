@@ -1672,13 +1672,15 @@ wpi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		ieee80211_state_name[vap->iv_state],
 		ieee80211_state_name[nstate]);
 
-	if (vap->iv_state == IEEE80211_S_RUN && nstate != IEEE80211_S_RUN) {
+	if (vap->iv_state == IEEE80211_S_RUN && nstate < IEEE80211_S_RUN) {
 		if ((error = wpi_set_pslevel(sc, 0, 0, 1)) != 0) {
 			device_printf(sc->sc_dev,
 			    "%s: could not set power saving level\n",
 			    __func__);
 			return error;
 		}
+
+		wpi_set_led(sc, WPI_LED_LINK, 1, 0);
 	}
 
 	switch (nstate) {
