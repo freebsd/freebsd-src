@@ -1957,7 +1957,7 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	struct ieee80211vap *vap;
 	struct ieee80211com *ic;
 	uint32_t status = le32toh(stat->status);
-	int ackfailcnt = stat->ackfailcnt / 2;	/* wpi_mrr_setup() */
+	int ackfailcnt = stat->ackfailcnt / WPI_NTRIES_DEFAULT;
 
 	KASSERT(data->ni != NULL, ("no node"));
 	KASSERT(data->m != NULL, ("no mbuf"));
@@ -1966,7 +1966,7 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 
 	DPRINTF(sc, WPI_DEBUG_XMIT, "%s: "
 	    "qid %d idx %d retries %d btkillcnt %d rate %x duration %d "
-	    "status %x\n", __func__, desc->qid, desc->idx, ackfailcnt,
+	    "status %x\n", __func__, desc->qid, desc->idx, stat->ackfailcnt,
 	    stat->btkillcnt, stat->rate, le32toh(stat->duration), status);
 
 	/* Unmap and free mbuf. */
@@ -3125,8 +3125,8 @@ wpi_mrr_setup(struct wpi_softc *sc)
 		/* Fallback to the immediate lower CCK rate (if any.) */
 		mrr.rates[i].next =
 		    (i == WPI_RIDX_CCK1) ? WPI_RIDX_CCK1 : i - 1;
-		/* Try one time at this rate before falling back to "next". */
-		mrr.rates[i].ntries = 1;
+		/* Try twice at this rate before falling back to "next". */
+		mrr.rates[i].ntries = WPI_NTRIES_DEFAULT;
 	}
 	/* OFDM rates (not used with 802.11b). */
 	for (i = WPI_RIDX_OFDM6; i <= WPI_RIDX_OFDM54; i++) {
@@ -3138,8 +3138,8 @@ wpi_mrr_setup(struct wpi_softc *sc)
 		    ((ic->ic_curmode == IEEE80211_MODE_11A) ?
 			WPI_RIDX_OFDM6 : WPI_RIDX_CCK2) :
 		    i - 1;
-		/* Try one time at this rate before falling back to "next". */
-		mrr.rates[i].ntries = 1;
+		/* Try twice at this rate before falling back to "next". */
+		mrr.rates[i].ntries = WPI_NTRIES_DEFAULT;
 	}
 	/* Setup MRR for control frames. */
 	mrr.which = htole32(WPI_MRR_CTL);
