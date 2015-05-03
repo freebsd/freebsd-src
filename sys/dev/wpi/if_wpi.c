@@ -1651,6 +1651,12 @@ wpi_node_free(struct ieee80211_node *ni)
 	sc->sc_node_free(ni);
 }
 
+static __inline int
+wpi_check_bss_filter(struct wpi_softc *sc)
+{
+	return (sc->rxon.filter & htole32(WPI_FILTER_BSS)) != 0;
+}
+
 /**
  * Called by net80211 when ever there is a change to 80211 state machine
  */
@@ -1681,7 +1687,7 @@ wpi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	switch (nstate) {
 	case IEEE80211_S_SCAN:
 		WPI_RXON_LOCK(sc);
-		if ((sc->rxon.filter & htole32(WPI_FILTER_BSS)) &&
+		if (wpi_check_bss_filter(sc) != 0 &&
 		    vap->iv_opmode != IEEE80211_M_STA) {
 			sc->rxon.filter &= ~htole32(WPI_FILTER_BSS);
 			if ((error = wpi_send_rxon(sc, 0, 1)) != 0) {
@@ -1749,7 +1755,7 @@ wpi_calib_timeout(void *arg)
 {
 	struct wpi_softc *sc = arg;
 
-	if (!(sc->rxon.filter & htole32(WPI_FILTER_BSS)))
+	if (wpi_check_bss_filter(sc) == 0)
 		return;
 
 	wpi_power_calibration(sc);
@@ -3642,7 +3648,7 @@ wpi_send_rxon(struct wpi_softc *sc, int assoc, int async)
 	if (async)
 		WPI_RXON_LOCK_ASSERT(sc);
 
-	if (assoc && (sc->rxon.filter & htole32(WPI_FILTER_BSS))) {
+	if (assoc && wpi_check_bss_filter(sc) != 0) {
 		struct wpi_assoc rxon_assoc;
 
 		rxon_assoc.flags = sc->rxon.flags;
