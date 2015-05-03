@@ -164,6 +164,9 @@ struct wpi_softc {
 	struct ifnet		*sc_ifp;
 	int			sc_debug;
 
+	int			sc_flags;
+#define WPI_PS_PATH		(1 << 0)
+
 	struct mtx		sc_mtx;
 	struct mtx		tx_mtx;
 
@@ -210,6 +213,9 @@ struct wpi_softc {
 	struct mtx		nt_mtx;
 
 	void			(*sc_node_free)(struct ieee80211_node *);
+	void			(*sc_update_rx_ring)(struct wpi_softc *);
+	void			(*sc_update_tx_ring)(struct wpi_softc *,
+				    struct wpi_tx_ring *);
 
 	struct wpi_rx_radiotap_header	sc_rxtap;
 	struct wpi_tx_radiotap_header	sc_txtap;
