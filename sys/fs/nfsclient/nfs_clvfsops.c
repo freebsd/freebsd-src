@@ -1265,10 +1265,13 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	nmp->nm_timeo = NFS_TIMEO;
 	nmp->nm_retry = NFS_RETRANS;
 	nmp->nm_readahead = NFS_DEFRAHEAD;
-	if (desiredvnodes >= 11000)
-		nmp->nm_wcommitsize = hibufspace / (desiredvnodes / 1000);
-	else
-		nmp->nm_wcommitsize = hibufspace / 10;
+
+	/* This is empirical approximation of sqrt(hibufspace) * 256. */
+	nmp->nm_wcommitsize = NFS_MAXBSIZE / 256;
+	while ((long)nmp->nm_wcommitsize * nmp->nm_wcommitsize < hibufspace)
+		nmp->nm_wcommitsize *= 2;
+	nmp->nm_wcommitsize *= 256;
+
 
 	nfs_decode_args(mp, nmp, argp, hst, cred, td);
 
