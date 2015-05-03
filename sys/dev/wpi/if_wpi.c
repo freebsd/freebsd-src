@@ -2080,7 +2080,7 @@ wpi_notif_intr(struct wpi_softc *sc)
 	bus_dmamap_sync(sc->shared_dma.tag, sc->shared_dma.map,
 	    BUS_DMASYNC_POSTREAD);
 
-	hw = le32toh(sc->shared->next);
+	hw = le32toh(sc->shared->next) & 0xfff;
 	hw = (hw == 0) ? WPI_RX_RING_COUNT - 1 : hw - 1;
 
 	while (sc->rxq.cur != hw) {
@@ -2305,7 +2305,7 @@ wpi_wakeup_intr(struct wpi_softc *sc)
 static void
 wpi_debug_registers(struct wpi_softc *sc)
 {
-	int i;
+	size_t i;
 	static const uint32_t csr_tbl[] = {
 		WPI_HW_IF_CONFIG,
 		WPI_INT,
