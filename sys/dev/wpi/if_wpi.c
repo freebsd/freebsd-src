@@ -2121,7 +2121,7 @@ wpi_notif_intr(struct wpi_softc *sc)
 			    BUS_DMASYNC_POSTREAD);
 			misses = le32toh(miss->consecutive);
 
-			DPRINTF(sc, WPI_DEBUG_STATE,
+			DPRINTF(sc, WPI_DEBUG_BMISS,
 			    "%s: beacons missed %d/%d\n", __func__, misses,
 			    le32toh(miss->total));
 
