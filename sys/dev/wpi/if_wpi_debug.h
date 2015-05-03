@@ -99,7 +99,7 @@ static const char *wpi_cmd_str(int cmd)
 /*
  * Translate CSR code to string
  */
-static const char *wpi_get_csr_string(int csr)
+static const char *wpi_get_csr_string(size_t csr)
 {
 	switch (csr) {
 		WPI_DESC(WPI_HW_IF_CONFIG);
@@ -123,7 +123,7 @@ static const char *wpi_get_csr_string(int csr)
 	}
 }
 
-static const char *wpi_get_prph_string(int prph)
+static const char *wpi_get_prph_string(size_t prph)
 {
 	switch (prph) {
 		WPI_DESC(WPI_APMG_CLK_CTRL);
