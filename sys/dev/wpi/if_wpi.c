@@ -2301,7 +2301,6 @@ wpi_wakeup_intr(struct wpi_softc *sc)
 static void
 wpi_debug_registers(struct wpi_softc *sc)
 {
-#define COUNTOF(array) (sizeof(array) / sizeof(array[0]))
 	int i;
 	static const uint32_t csr_tbl[] = {
 		WPI_HW_IF_CONFIG,
@@ -2329,7 +2328,7 @@ wpi_debug_registers(struct wpi_softc *sc)
 
 	DPRINTF(sc, WPI_DEBUG_REGISTER,"%s","\n");
 
-	for (i = 0; i <  COUNTOF(csr_tbl); i++) {
+	for (i = 0; i < nitems(csr_tbl); i++) {
 		DPRINTF(sc, WPI_DEBUG_REGISTER, "  %-18s: 0x%08x ",
 		    wpi_get_csr_string(csr_tbl[i]), WPI_READ(sc, csr_tbl[i]));
 
@@ -2339,7 +2338,7 @@ wpi_debug_registers(struct wpi_softc *sc)
 	DPRINTF(sc, WPI_DEBUG_REGISTER, "\n\n");
 
 	if (wpi_nic_lock(sc) == 0) {
-		for (i = 0; i < COUNTOF(prph_tbl); i++) {
+		for (i = 0; i < nitems(prph_tbl); i++) {
 			DPRINTF(sc, WPI_DEBUG_REGISTER, "  %-18s: 0x%08x ",
 			    wpi_get_prph_string(prph_tbl[i]),
 			    wpi_prph_read(sc, prph_tbl[i]));
@@ -2353,7 +2352,6 @@ wpi_debug_registers(struct wpi_softc *sc)
 		DPRINTF(sc, WPI_DEBUG_REGISTER,
 		    "Cannot access internal registers.\n");
 	}
-#undef COUNTOF
 }
 #endif
 
@@ -2367,8 +2365,6 @@ wpi_fatal_intr(struct wpi_softc *sc)
 {
 	struct wpi_fw_dump dump;
 	uint32_t i, offset, count;
-	const uint32_t size_errmsg =
-	    (sizeof (wpi_fw_errmsg) / sizeof ((wpi_fw_errmsg)[0]));
 
 	/* Check that the error log address is valid. */
 	if (sc->errptr < WPI_FW_DATA_BASE ||
@@ -2398,7 +2394,7 @@ wpi_fatal_intr(struct wpi_softc *sc)
 		    sizeof (dump) / sizeof (uint32_t));
 
 		printf("  error type = \"%s\" (0x%08X)\n",
-		    (dump.desc < size_errmsg) ?
+		    (dump.desc < nitems(wpi_fw_errmsg)) ?
 		        wpi_fw_errmsg[dump.desc] : "UNKNOWN",
 		    dump.desc);
 		printf("  error data      = 0x%08X\n",
