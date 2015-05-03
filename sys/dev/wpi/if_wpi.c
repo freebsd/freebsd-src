@@ -2218,19 +2218,21 @@ wpi_notif_intr(struct wpi_softc *sc)
 			}
 			break;
 		}
+#ifdef WPI_DEBUG
 		case WPI_START_SCAN:
 		{
 			bus_dmamap_sync(sc->rxq.data_dmat, data->map,
 			    BUS_DMASYNC_POSTREAD);
-#ifdef WPI_DEBUG
+
 			struct wpi_start_scan *scan =
 			    (struct wpi_start_scan *)(desc + 1);
 			DPRINTF(sc, WPI_DEBUG_SCAN,
 			    "%s: scanning channel %d status %x\n",
 			    __func__, scan->chan, le32toh(scan->status));
-#endif
+
 			break;
 		}
+#endif
 		case WPI_STOP_SCAN:
 		{
 			bus_dmamap_sync(sc->rxq.data_dmat, data->map,
