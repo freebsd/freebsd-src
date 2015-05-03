@@ -1152,6 +1152,7 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag)
 	for (t = m; m; m = t) {
 		t = m->m_nextpkt;
 		m->m_nextpkt = NULL;
+		m->m_flags |= M_SKIP_FIREWALL;
 		memset(&pd, 0, sizeof(pd));
 		pd.pf_mtag = pf_find_mtag(m);
 		if (error == 0)
@@ -1642,7 +1643,7 @@ pf_normalize_tcp(int dir, struct pfi_kif *kif, struct mbuf *m, int ipoff,
 			goto tcp_drop;
 
 		if (flags & TH_FIN)
-			flags &= ~TH_FIN;
+			goto tcp_drop;
 	} else {
 		/* Illegal packet */
 		if (!(flags & (TH_ACK|TH_RST)))

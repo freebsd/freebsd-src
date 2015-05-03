@@ -266,6 +266,10 @@ FILES+=		routed
 FILES+=		sendmail
 .endif
 
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
+
 .if ${MK_TIMED} != "no"
 FILES+=		timed
 .endif

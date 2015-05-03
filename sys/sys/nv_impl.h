@@ -41,23 +41,24 @@ typedef struct nvpair nvpair_t;
 
 #define	NV_TYPE_NVLIST_UP		255
 
-#define	NV_TYPE_FIRST		NV_TYPE_NULL
-#define	NV_TYPE_LAST		NV_TYPE_BINARY
+#define	NV_TYPE_FIRST			NV_TYPE_NULL
+#define	NV_TYPE_LAST			NV_TYPE_BINARY
 
 #define	NV_FLAG_BIG_ENDIAN		0x80
 
 #ifdef _KERNEL
-#define	nv_malloc(size)			malloc((size), M_NVLIST, M_NOWAIT)
+#define	nv_malloc(size)			malloc((size), M_NVLIST, M_WAITOK)
 #define	nv_calloc(n, size)		malloc((n) * (size), M_NVLIST, \
-					    M_NOWAIT | M_ZERO)
+					    M_WAITOK | M_ZERO)
 #define	nv_realloc(buf, size)		realloc((buf), (size), M_NVLIST, \
-					    M_NOWAIT)
+					    M_WAITOK)
 #define	nv_free(buf)			free((buf), M_NVLIST)
 #define	nv_strdup(buf)			strdup((buf), M_NVLIST)
 #define	nv_vasprintf(ptr, ...)		vasprintf(ptr, M_NVLIST, __VA_ARGS__)
 
-#define	SAVE_ERRNO(var)			((void)(var))
-#define	RESTORE_ERRNO(var)		((void)(var))
+#define	ERRNO_SET(var)			do { } while (0)
+#define	ERRNO_SAVE()			do { do { } while(0)
+#define	ERRNO_RESTORE()			} while (0)
 
 #define	ERRNO_OR_DEFAULT(default)	(default)
 
@@ -70,8 +71,14 @@ typedef struct nvpair nvpair_t;
 #define	nv_strdup(buf)			strdup((buf))
 #define	nv_vasprintf(ptr, ...)		vasprintf(ptr, __VA_ARGS__)
 
-#define	SAVE_ERRNO(var) 		(var) = errno
-#define	RESTORE_ERRNO(var) 		errno = (var)
+#define	ERRNO_SET(var)			do { errno = (var); } while (0)
+#define	ERRNO_SAVE()			do {				\
+						int _serrno;		\
+									\
+						_serrno = errno
+
+#define	ERRNO_RESTORE()				errno = _serrno;	\
+					} while (0)
 
 #define	ERRNO_OR_DEFAULT(default)	(errno == 0 ? (default) : errno)
 
@@ -127,31 +134,5 @@ int		 nvpair_get_descriptor(const nvpair_t *nvp);
 const void	*nvpair_get_binary(const nvpair_t *nvp, size_t *sizep);
 
 void nvpair_free(nvpair_t *nvp);
-
-nvpair_t *nvpair_createf_null(const char *namefmt, ...) __printflike(1, 2);
-nvpair_t *nvpair_createf_bool(bool value, const char *namefmt, ...) __printflike(2, 3);
-nvpair_t *nvpair_createf_number(uint64_t value, const char *namefmt, ...) __printflike(2, 3);
-nvpair_t *nvpair_createf_string(const char *value, const char *namefmt, ...) __printflike(2, 3);
-nvpair_t *nvpair_createf_nvlist(const nvlist_t *value, const char *namefmt, ...) __printflike(2, 3);
-nvpair_t *nvpair_createf_descriptor(int value, const char *namefmt, ...) __printflike(2, 3);
-nvpair_t *nvpair_createf_binary(const void *value, size_t size, const char *namefmt, ...) __printflike(3, 4);
-
-nvpair_t *nvpair_createv_null(const char *namefmt, va_list nameap) __printflike(1, 0);
-nvpair_t *nvpair_createv_bool(bool value, const char *namefmt, va_list nameap) __printflike(2, 0);
-nvpair_t *nvpair_createv_number(uint64_t value, const char *namefmt, va_list nameap) __printflike(2, 0);
-nvpair_t *nvpair_createv_string(const char *value, const char *namefmt, va_list nameap) __printflike(2, 0);
-nvpair_t *nvpair_createv_nvlist(const nvlist_t *value, const char *namefmt, va_list nameap) __printflike(2, 0);
-nvpair_t *nvpair_createv_descriptor(int value, const char *namefmt, va_list nameap) __printflike(2, 0);
-nvpair_t *nvpair_createv_binary(const void *value, size_t size, const char *namefmt, va_list nameap) __printflike(3, 0);
-
-nvpair_t *nvpair_movef_string(char *value, const char *namefmt, ...) __printflike(2, 3);
-nvpair_t *nvpair_movef_nvlist(nvlist_t *value, const char *namefmt, ...) __printflike(2, 3);
-nvpair_t *nvpair_movef_descriptor(int value, const char *namefmt, ...) __printflike(2, 3);
-nvpair_t *nvpair_movef_binary(void *value, size_t size, const char *namefmt, ...) __printflike(3, 4);
-
-nvpair_t *nvpair_movev_string(char *value, const char *namefmt, va_list nameap) __printflike(2, 0);
-nvpair_t *nvpair_movev_nvlist(nvlist_t *value, const char *namefmt, va_list nameap) __printflike(2, 0);
-nvpair_t *nvpair_movev_descriptor(int value, const char *namefmt, va_list nameap) __printflike(2, 0);
-nvpair_t *nvpair_movev_binary(void *value, size_t size, const char *namefmt, va_list nameap) __printflike(3, 0);
 
 #endif	/* !_NV_IMPL_H_ */

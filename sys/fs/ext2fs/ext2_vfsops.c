@@ -399,22 +399,8 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	if (es->e2fs_rev == E2FS_REV0 ||
 	    !EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_LARGEFILE))
 		fs->e2fs_maxfilesize = 0x7fffffff;
-	else {
-		fs->e2fs_maxfilesize = 0xffffffffffff;
-		if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_HUGE_FILE))
-			fs->e2fs_maxfilesize = 0x7fffffffffffffff;
-	}
-	if (es->e4fs_flags & E2FS_UNSIGNED_HASH) {
-		fs->e2fs_uhash = 3;
-	} else if ((es->e4fs_flags & E2FS_SIGNED_HASH) == 0) {
-#ifdef __CHAR_UNSIGNED__
-		es->e4fs_flags |= E2FS_UNSIGNED_HASH;
-		fs->e2fs_uhash = 3;
-#else
-		es->e4fs_flags |= E2FS_SIGNED_HASH;
-#endif
-	}
-
+	else
+		fs->e2fs_maxfilesize = 0x7fffffffffffffff;
 	return (0);
 }
 
@@ -675,7 +661,8 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 	 * Initialize filesystem stat information in mount struct.
 	 */
 	MNT_ILOCK(mp);
-	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED;
+	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED |
+	    MNTK_USES_BCACHE;
 	MNT_IUNLOCK(mp);
 	return (0);
 out:

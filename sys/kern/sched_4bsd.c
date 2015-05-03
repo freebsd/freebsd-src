@@ -1585,7 +1585,7 @@ sched_pctcpu(struct thread *td)
 	return (ts->ts_pctcpu);
 }
 
-#ifdef	RACCT
+#ifdef RACCT
 /*
  * Calculates the contribution to the thread cpu usage for the latest
  * (unfinished) second.

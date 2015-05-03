@@ -6051,11 +6051,38 @@ retry:
 }
 
 void
-pmap_kenter_device(vm_offset_t va, vm_paddr_t pa)
+pmap_kenter_device(vm_offset_t va, vm_size_t size, vm_paddr_t pa)
 {
+	vm_offset_t sva;
 
-	pmap_kenter_prot_attr(va, pa, PTE2_AP_KRW, PTE2_ATTR_DEVICE);
-	tlb_flush(va);
+	KASSERT((size & PAGE_MASK) == 0, 
+	    ("%s: device mapping not page-sized", __func__));
+
+	sva = va;
+	while (size != 0) {
+		pmap_kenter_prot_attr(va, pa, PTE2_AP_KRW, PTE2_ATTR_DEVICE);
+		va += PAGE_SIZE;
+		pa += PAGE_SIZE;
+		size -= PAGE_SIZE;
+	}
+	tlb_flush_range(sva, va - sva);
+}
+
+void
+pmap_kremove_device(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t sva;
+
+	KASSERT((size & PAGE_MASK) == 0, 
+	    ("%s: device mapping not page-sized", __func__));
+
+	sva = va;
+	while (size != 0) {
+		pmap_kremove(va);
+		va += PAGE_SIZE;
+		size -= PAGE_SIZE;
+	}
+	tlb_flush_range(sva, va - sva);
 }
 
 void
@@ -6067,13 +6094,13 @@ pmap_set_pcb_pagedir(pmap_t pmap, struct pcb *pcb)
 
 
 /*
- *  Clean L1 data cache range on a single page, which is not mapped yet.
+ *  Clean L1 data cache range by physical address.
+ *  The range must be within a single page.
  */
 static void
 pmap_dcache_wb_pou(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 {
 	struct sysmaps *sysmaps;
-	vm_offset_t va;
 
 	KASSERT(((pa & PAGE_MASK) + size) <= PAGE_SIZE,
 	    ("%s: not on single page", __func__));
@@ -6084,9 +6111,8 @@ pmap_dcache_wb_pou(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 	if (*sysmaps->CMAP3)
 		panic("%s: CMAP3 busy", __func__);
 	pte2_store(sysmaps->CMAP3, PTE2_KERN_NG(pa, PTE2_AP_KRW, ma));
-	va = (vm_offset_t)sysmaps->CADDR3;
-	tlb_flush_local(va);
-	dcache_wb_pou(va, size);
+	tlb_flush_local((vm_offset_t)sysmaps->CADDR3);
+	dcache_wb_pou((vm_offset_t)sysmaps->CADDR3 + (pa & PAGE_MASK), size);
 	pte2_clear(sysmaps->CMAP3);
 	sched_unpin();
 	mtx_unlock(&sysmaps->lock);

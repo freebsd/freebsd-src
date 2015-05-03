@@ -606,7 +606,7 @@ acpi_attach(device_t dev)
 	sc->acpi_handle_reboot = 1;
 
     /* Only enable S4BIOS by default if the FACS says it is available. */
-    if (AcpiGbl_FACS->Flags & ACPI_FACS_S4_BIOS_PRESENT)
+    if (AcpiGbl_FACS != NULL && AcpiGbl_FACS->Flags & ACPI_FACS_S4_BIOS_PRESENT)
 	sc->acpi_s4bios = 1;
 
     /* Probe all supported sleep states. */
@@ -1071,6 +1071,33 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
 }
 
 /*
+ * Fetch the VM domain for the given device 'dev'.
+ *
+ * Return 1 + domain if there's a domain, 0 if not found;
+ * -1 upon an error.
+ */
+int
+acpi_parse_pxm(device_t dev, int *domain)
+{
+#if MAXMEMDOM > 1
+	ACPI_HANDLE h;
+	int d, pxm;
+
+	h = acpi_get_handle(dev);
+	if ((h != NULL) &&
+	    ACPI_SUCCESS(acpi_GetInteger(h, "_PXM", &pxm))) {
+		d = acpi_map_pxm_to_vm_domainid(pxm);
+		if (d < 0)
+			return (-1);
+		*domain = d;
+		return (1);
+	}
+#endif
+
+	return (0);
+}
+
+/*
  * Fetch the NUMA domain for the given device.
  *
  * If a device has a _PXM method, map that to a NUMA domain.
@@ -1081,20 +1108,16 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
 int
 acpi_get_domain(device_t dev, device_t child, int *domain)
 {
-#if MAXMEMDOM > 1
-	ACPI_HANDLE h;
-	int d, pxm;
+	int ret;
 
-	h = acpi_get_handle(child);
-	if ((h != NULL) &&
-	    ACPI_SUCCESS(acpi_GetInteger(h, "_PXM", &pxm))) {
-		d = acpi_map_pxm_to_vm_domainid(pxm);
-		if (d < 0)
-			return (ENOENT);
-		*domain = d;
+	ret = acpi_parse_pxm(child, domain);
+	/* Error */
+	if (ret == -1)
+		return (ENOENT);
+	/* Found */
+	if (ret == 1)
 		return (0);
-	}
-#endif
+
 	/* No _PXM node; go up a level */
 	return (bus_generic_get_domain(dev, child, domain));
 }
@@ -1151,7 +1174,7 @@ acpi_sysres_alloc(device_t dev)
 	if (res != NULL) {
 	    rman_manage_region(rm, rman_get_start(res), rman_get_end(res));
 	    rle->res = res;
-	} else
+	} else if (bootverbose)
 	    device_printf(dev, "reservation of %lx, %lx (%d) failed\n",
 		rle->start, rle->count, rle->type);
     }

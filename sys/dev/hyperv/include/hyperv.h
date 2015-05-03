@@ -46,6 +46,7 @@
 #include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/sema.h>
+#include <sys/smp.h>
 #include <sys/mutex.h>
 #include <sys/bus.h>
 #include <vm/vm.h>
@@ -63,11 +64,22 @@ typedef uint8_t	hv_bool_uint8_t;
 #define HV_ERROR_MACHINE_LOCKED	0x800704F7
 
 /*
- * A revision number of vmbus that is used for ensuring both ends on a
- * partition are using compatible versions.
+ * VMBUS version is 32 bit, upper 16 bit for major_number and lower
+ * 16 bit for minor_number.
+ *
+ * 0.13  --  Windows Server 2008
+ * 1.1   --  Windows 7
+ * 2.4   --  Windows 8
+ * 3.0   --  Windows 8.1
  */
+#define HV_VMBUS_VERSION_WS2008		((0 << 16) | (13))
+#define HV_VMBUS_VERSION_WIN7		((1 << 16) | (1))
+#define HV_VMBUS_VERSION_WIN8		((2 << 16) | (4))
+#define HV_VMBUS_VERSION_WIN8_1		((3 << 16) | (0))
 
-#define HV_VMBUS_REVISION_NUMBER	13
+#define HV_VMBUS_VERSION_INVALID	-1
+
+#define HV_VMBUS_VERSION_CURRENT	HV_VMBUS_VERSION_WIN8_1
 
 /*
  * Make maximum size of pipe payload of 16K
@@ -112,6 +124,18 @@ typedef struct hv_guid {
 	 unsigned char data[16];
 } __packed hv_guid;
 
+#define HV_NIC_GUID							\
+	.data = {0x63, 0x51, 0x61, 0xF8, 0x3E, 0xDF, 0xc5, 0x46,	\
+		0x91, 0x3F, 0xF2, 0xD2, 0xF9, 0x65, 0xED, 0x0E}
+
+#define HV_IDE_GUID							\
+	.data = {0x32, 0x26, 0x41, 0x32, 0xcb, 0x86, 0xa2, 0x44,	\
+		 0x9b, 0x5c, 0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5}
+
+#define HV_SCSI_GUID							\
+	.data = {0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d,	\
+		 0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f}
+
 /*
  * At the center of the Channel Management library is
  * the Channel Offer. This struct contains the
@@ -147,7 +171,11 @@ typedef struct hv_vmbus_channel_offer {
 		} __packed pipe;
 	} u;
 
-	uint32_t	padding;
+	/*
+	 * Sub_channel_index, newly added in Win8.
+	 */
+	uint16_t	sub_channel_index;
+	uint16_t	padding;
 
 } __packed hv_vmbus_channel_offer;
 
@@ -344,7 +372,25 @@ typedef struct {
 	hv_vmbus_channel_offer		offer;
 	uint32_t			child_rel_id;
 	uint8_t				monitor_id;
-	hv_bool_uint8_t			monitor_allocated;
+	/*
+	 * This field has been split into a bit field on Win7
+	 * and higher.
+	 */
+	uint8_t				monitor_allocated:1;
+	uint8_t				reserved:7;
+	/*
+	 * Following fields were added in win7 and higher.
+	 * Make sure to check the version before accessing these fields.
+	 *
+	 * If "is_dedicated_interrupt" is set, we must not set the
+	 * associated bit in the channel bitmap while sending the
+	 * interrupt to the host.
+	 *
+	 * connection_id is used in signaling the host.
+	 */
+	uint16_t			is_dedicated_interrupt:1;
+	uint16_t			reserved1:15;
+	uint32_t			connection_id;
 } __packed hv_vmbus_channel_offer_channel;
 
 /*
@@ -394,9 +440,11 @@ typedef struct
     hv_gpadl_handle	ring_buffer_gpadl_handle;
 
     /*
-     * GPADL for the channel's server context save area.
+     * Before win8, all incoming channel interrupts are only
+     * delivered on cpu 0. Setting this value to 0 would
+     * preserve the earlier behavior.
      */
-    hv_gpadl_handle	server_context_area_gpadl_handle;
+    uint32_t		target_vcpu;
 
     /*
      * The upstream ring buffer begins at offset zero in the memory described
@@ -646,13 +694,41 @@ typedef struct {
 } hv_vmbus_ring_buffer_info;
 
 typedef void (*hv_vmbus_pfn_channel_callback)(void *context);
+typedef void (*hv_vmbus_sc_creation_callback)(void *context);
 
 typedef enum {
 	HV_CHANNEL_OFFER_STATE,
 	HV_CHANNEL_OPENING_STATE,
 	HV_CHANNEL_OPEN_STATE,
+	HV_CHANNEL_OPENED_STATE,
 	HV_CHANNEL_CLOSING_NONDESTRUCTIVE_STATE,
 } hv_vmbus_channel_state;
+
+/*
+ *  Connection identifier type
+ */
+typedef union {
+	uint32_t		as_uint32_t;
+	struct {
+		uint32_t	id:24;
+		uint32_t	reserved:8;
+	} u;
+
+} __packed hv_vmbus_connection_id;
+
+/*
+ * Definition of the hv_vmbus_signal_event hypercall input structure
+ */
+typedef struct {
+	hv_vmbus_connection_id	connection_id;
+	uint16_t		flag_number;
+	uint16_t		rsvd_z;
+} __packed hv_vmbus_input_signal_event;
+
+typedef struct {
+	uint64_t			align8;
+	hv_vmbus_input_signal_event	event;
+} __packed hv_vmbus_input_signal_event_buffer;
 
 typedef struct hv_vmbus_channel {
 	TAILQ_ENTRY(hv_vmbus_channel)	list_entry;
@@ -688,7 +764,81 @@ typedef struct hv_vmbus_channel {
 	hv_vmbus_pfn_channel_callback	on_channel_callback;
 	void*				channel_callback_context;
 
+	/*
+	 * If batched_reading is set to "true", mask the interrupt
+	 * and read until the channel is empty.
+	 * If batched_reading is set to "false", the channel is not
+	 * going to perform batched reading.
+	 *
+	 * Batched reading is enabled by default; specific
+	 * drivers that don't want this behavior can turn it off.
+	 */
+	boolean_t			batched_reading;
+
+	boolean_t			is_dedicated_interrupt;
+
+	/*
+	 * Used as an input param for HV_CALL_SIGNAL_EVENT hypercall.
+	 */
+	hv_vmbus_input_signal_event_buffer	signal_event_buffer;
+	/*
+	 * 8-bytes aligned of the buffer above
+	 */
+	hv_vmbus_input_signal_event	*signal_event_param;
+
+	/*
+	 * From Win8, this field specifies the target virtual process
+	 * on which to deliver the interupt from the host to guest.
+	 * Before Win8, all channel interrupts would only be
+	 * delivered on cpu 0. Setting this value to 0 would preserve
+	 * the earlier behavior.
+	 */
+	uint32_t			target_vcpu;
+	/* The corresponding CPUID in the guest */
+	uint32_t			target_cpu;
+
+	/*
+	 * Support for multi-channels.
+	 * The initial offer is considered the primary channel and this
+	 * offer message will indicate if the host supports multi-channels.
+	 * The guest is free to ask for multi-channels to be offerred and can
+	 * open these multi-channels as a normal "primary" channel. However,
+	 * all multi-channels will have the same type and instance guids as the
+	 * primary channel. Requests sent on a given channel will result in a
+	 * response on the same channel.
+	 */
+
+	/*
+	 * Multi-channel creation callback. This callback will be called in
+	 * process context when a Multi-channel offer is received from the host.
+	 * The guest can open the Multi-channel in the context of this callback.
+	 */
+	hv_vmbus_sc_creation_callback	sc_creation_callback;
+
+	struct mtx			sc_lock;
+
+	/*
+	 * Link list of all the multi-channels if this is a primary channel
+	 */
+	TAILQ_HEAD(, hv_vmbus_channel)	sc_list_anchor;
+	TAILQ_ENTRY(hv_vmbus_channel)	sc_list_entry;
+
+	/*
+	 * The primary channel this sub-channle belongs to.
+	 * This will be NULL for the primary channel.
+	 */
+	struct hv_vmbus_channel		*primary_channel;
+	/*
+	 * Support per channel state for use by vmbus drivers.
+	 */
+	void				*per_channel_state;
 } hv_vmbus_channel;
+
+static inline void
+hv_set_channel_read_state(hv_vmbus_channel* channel, boolean_t state)
+{
+	channel->batched_reading = state;
+}
 
 typedef struct hv_device {
 	hv_guid		    class_id;
@@ -760,6 +910,8 @@ int		hv_vmbus_channel_teardown_gpdal(
 				hv_vmbus_channel*	channel,
 				uint32_t		gpadl_handle);
 
+struct hv_vmbus_channel* vmbus_select_outgoing_channel(struct hv_vmbus_channel *promary);
+
 /*
  * Work abstraction defines
  */
@@ -819,6 +971,7 @@ typedef struct hv_vmbus_service {
 
 extern uint8_t* receive_buffer[];
 extern hv_vmbus_service service_table[];
+extern uint32_t hv_vmbus_protocal_version;
 
 void hv_kvp_callback(void *context);
 int hv_kvp_init(hv_vmbus_service *serv);

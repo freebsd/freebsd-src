@@ -11,6 +11,9 @@ MK_SSP=		no
 
 .include <src.opts.mk>
 
+LIBSTAND_SRC=	${.CURDIR}
+LIBC_SRC=	${LIBSTAND_SRC}/../libc
+
 LIB=		stand
 NO_PIC=
 INCS=		stand.h
@@ -19,7 +22,7 @@ MAN=		libstand.3
 WARNS?=		0
 
 CFLAGS+= -ffreestanding -Wformat
-CFLAGS+= -I${.CURDIR}
+CFLAGS+= -I${LIBSTAND_SRC}
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 -msoft-float
@@ -39,6 +42,9 @@ CFLAGS+=	-msoft-float -D_STANDALONE -DNETIF_DEBUG
 .if ${MACHINE_CPUARCH} == "arm"
 CFLAGS+=	-msoft-float -D_STANDALONE
 .endif
+.if ${MACHINE_CPUARCH} == "aarch64"
+CFLAGS+=	-D_STANDALONE -mgeneral-regs-only
+.endif
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS+=	-G0 -fno-pic -mno-abicalls
 .endif
@@ -51,50 +57,54 @@ SRCS+=	gzguts.h zutil.h __main.c assert.c bcd.c bswap.c environment.c getopt.c g
 # private (pruned) versions of libc string functions
 SRCS+=	strcasecmp.c
 
-.PATH: ${.CURDIR}/../libc/net
+.PATH: ${LIBC_SRC}/net
 
 SRCS+= ntoh.c
 
 # string functions from libc
-.PATH: ${.CURDIR}/../libc/string
+.PATH: ${LIBC_SRC}/string
 SRCS+=	bcmp.c bcopy.c bzero.c ffs.c memccpy.c memchr.c memcmp.c memcpy.c \
 	memmove.c memset.c qdivrem.c strcat.c strchr.c strcmp.c strcpy.c \
 	strcspn.c strlen.c strncat.c strncmp.c strncpy.c strpbrk.c \
 	strrchr.c strsep.c strspn.c strstr.c strtok.c swab.c
 .if ${MACHINE_CPUARCH} == "arm"
-.PATH: ${.CURDIR}/../libc/arm/gen
+.PATH: ${LIBC_SRC}/arm/gen
 
 # Compiler support functions
-.PATH: ${.CURDIR}/../../contrib/compiler-rt/lib/builtins/
+.PATH: ${LIBSTAND_SRC}/../../contrib/compiler-rt/lib/builtins/
 # __clzsi2 and ctzsi2 for various builtin functions
 SRCS+=	clzsi2.c ctzsi2.c
 # Divide and modulus functions called by the compiler
 SRCS+=	 divmoddi4.c  divmodsi4.c  divdi3.c  divsi3.c  moddi3.c  modsi3.c
 SRCS+=	udivmoddi4.c udivmodsi4.c udivdi3.c udivsi3.c umoddi3.c umodsi3.c
 
-.PATH: ${.CURDIR}/../../contrib/compiler-rt/lib/builtins/arm/
+.PATH: ${LIBSTAND_SRC}/../../contrib/compiler-rt/lib/builtins/arm/
 SRCS+=	aeabi_idivmod.S aeabi_ldivmod.S aeabi_uidivmod.S aeabi_uldivmod.S
 SRCS+=	aeabi_memcmp.S aeabi_memcpy.S aeabi_memmove.S aeabi_memset.S
-
 .endif
+
+.if ${MACHINE_CPUARCH} == "aarch64"
+.PATH: ${LIBC_SRC}/aarch64/gen
+.endif
+
 .if ${MACHINE_CPUARCH} == "powerpc"
-.PATH: ${.CURDIR}/../libc/quad
+.PATH: ${LIBC_SRC}/quad
 SRCS+=	ashldi3.c ashrdi3.c
 SRCS+=	syncicache.c
 .endif
 
 # uuid functions from libc
-.PATH: ${.CURDIR}/../libc/uuid
+.PATH: ${LIBC_SRC}/uuid
 SRCS+= uuid_equal.c uuid_is_nil.c
 
 # _setjmp/_longjmp
-.PATH: ${.CURDIR}/${MACHINE_CPUARCH}
+.PATH: ${LIBSTAND_SRC}/${MACHINE_CPUARCH}
 SRCS+=	_setjmp.S
 
 # decompression functionality from libbz2
 # NOTE: to actually test this functionality after libbz2 upgrade compile
 # loader(8) with LOADER_BZIP2_SUPPORT defined
-.PATH: ${.CURDIR}/../../contrib/bzip2
+.PATH: ${LIBSTAND_SRC}/../../contrib/bzip2
 CFLAGS+= -DBZ_NO_STDIO -DBZ_NO_COMPRESS
 SRCS+=	libstand_bzlib_private.h
 
@@ -103,7 +113,8 @@ SRCS+=	_${file}
 CLEANFILES+=	_${file}
 
 _${file}: ${file}
-	sed "s|bzlib_private\.h|libstand_bzlib_private.h|" ${.ALLSRC} > ${.TARGET}
+	sed "s|bzlib_private\.h|libstand_bzlib_private.h|" \
+	    ${.ALLSRC} > ${.TARGET}
 .endfor
 
 CLEANFILES+= libstand_bzlib_private.h
@@ -112,8 +123,8 @@ libstand_bzlib_private.h: bzlib_private.h
 		${.ALLSRC} > ${.TARGET}
 
 # decompression functionality from libz
-.PATH: ${.CURDIR}/../libz
-CFLAGS+=-DHAVE_MEMCPY -I${.CURDIR}/../libz
+.PATH: ${LIBSTAND_SRC}/../libz
+CFLAGS+=-DHAVE_MEMCPY -I${LIBSTAND_SRC}/../libz
 SRCS+=	adler32.c crc32.c libstand_zutil.h libstand_gzguts.h
 
 .for file in infback.c inffast.c inflate.c inftrees.c zutil.c
@@ -158,4 +169,3 @@ SRCS+=	nandfs.c
 .endif
 
 .include <bsd.lib.mk>
-

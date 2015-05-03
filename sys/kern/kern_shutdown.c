@@ -154,7 +154,6 @@ static void poweroff_wait(void *, int);
 static void shutdown_halt(void *junk, int howto);
 static void shutdown_panic(void *junk, int howto);
 static void shutdown_reset(void *junk, int howto);
-static void vpanic(const char *fmt, va_list ap) __dead2;
 
 /* register various local shutdown events */
 static void
@@ -676,7 +675,7 @@ panic(const char *fmt, ...)
 	vpanic(fmt, ap);
 }
 
-static void
+void
 vpanic(const char *fmt, va_list ap)
 {
 #ifdef SMP
@@ -701,10 +700,8 @@ vpanic(const char *fmt, va_list ap)
 	}
 
 	/*
-	 * We set stop_scheduler here and not in the block above,
-	 * because we want to ensure that if panic has been called and
-	 * stop_scheduler_on_panic is true, then stop_scheduler will
-	 * always be set.  Even if panic has been entered from kdb.
+	 * Ensure that the scheduler is stopped while panicking, even if panic
+	 * has been entered from kdb.
 	 */
 	td->td_stopsched = 1;
 #endif

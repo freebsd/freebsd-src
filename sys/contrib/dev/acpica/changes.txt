@@ -1,7 +1,84 @@
 ----------------------------------------
-04 February 2015. Summary of changes for version 20150204:
+10 April 2015. Summary of changes for version 20150410:
 
-This release is available at https://acpica.org/downloads
+Reverted a change introduced in version 20150408 that caused
+a regression in the disassembler where incorrect operator
+symbols could be emitted.
+
+----------------------------------------
+08 April 2015. Summary of changes for version 20150408:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Permanently set the return value for the _REV predefined name. It now 
+returns 2 (was 5). This matches other ACPI implementations. _REV will be 
+deprecated in the future, and is now defined to be 1 for ACPI 1.0, and 2 
+for ACPI 2.0 and later. It should never be used to differentiate or 
+identify operating systems.
+
+Added the "Windows 2015" string to the _OSI support. ACPICA will now 
+return TRUE to a query with this string.
+
+Fixed several issues with the local version of the printf function.
+
+Added the C99 compiler option (-std=c99) to the Unix makefiles.
+
+  Current Release:
+    Non-Debug Version:  99.9K Code, 27.4K Data, 127.3K Total
+    Debug Version:     195.2K Code, 80.7K Data, 275.9K Total
+  Previous Release:
+    Non-Debug Version:  98.8K Code, 27.3K Data, 126.1K Total
+    Debug Version:     192.1K Code, 79.8K Data, 271.9K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Implemented an enhancement to the constant folding feature to 
+transform the parse tree to a simple Store operation whenever possible:
+    Add (2, 3, X) ==> is converted to: Store (5, X)
+    X = 2 + 3     ==> is converted to: Store (5, X)
+
+Updated support for the SLIC table (Software Licensing Description Table) 
+in both the Data Table compiler and the disassembler. The SLIC table 
+support now conforms to "Microsoft Software Licensing Tables (SLIC and 
+MSDM). November 29, 2011. Copyright 2011 Microsoft". Note: Any SLIC data 
+following the ACPI header is now defined to be "Proprietary Data", and as 
+such, can only be entered or displayed as a hex data block.
+
+Implemented full support for the MSDM table as described in the document 
+above. Note: The format of MSDM is similar to SLIC. Any MSDM data 
+following the ACPI header is defined to be "Proprietary Data", and can 
+only be entered or displayed as a hex data block.
+
+Implemented the -Pn option for the iASL Table Compiler (was only 
+implemented for the ASL compiler). This option disables the iASL 
+preprocessor.
+
+Disassembler: For disassembly of Data Tables, added a comment field 
+around the Ascii equivalent data that is emitted as part of the "Raw 
+Table Data" block. This prevents the iASL Preprocessor from possible 
+confusion if/when the table is compiled.
+
+Disassembler: Added an option (-df) to force the disassembler to assume 
+that the table being disassembled contains valid AML. This feature is 
+useful for disassembling AML files that contain ACPI signatures other 
+than DSDT or SSDT (such as OEMx or other signatures).
+
+Changes for the EFI version of the tools:
+1) Fixed a build error/issue
+2) Fixed a cast warning
+
+iASL: Fixed a path issue with the __FILE__ operator by making the 
+directory prefix optional within the internal SplitInputFilename 
+function.
+
+Debugger: Removed some unused global variables.
+
+Tests: Updated the makefile for proper generation of the AAPITS suite.
+
+----------------------------------------
+04 February 2015. Summary of changes for version 20150204:
 
 ACPICA kernel-resident subsystem:
 
@@ -14,24 +91,26 @@ Events: Introduce ACPI_GPE_DISPATCH_RAW_HANDLER to fix GPE storm issues.
 A raw gpe handling mechanism was created to allow better handling of GPE
 storms that aren't easily managed by the normal handler. The raw handler
 allows disabling/renabling of the the GPE so that interrupt storms can be
-avoided in cases where events cannot be timely serviced. In this scenario,
-handlers should use the AcpiSetGpe() API to disable/enable the GPE. This API
-will leave the reference counts undisturbed, thereby preventing unintentional
-clearing of the GPE when the intent in only to temporarily disable it. Raw
-handlers allow enabling and disabling of a GPE by removing GPE register
-locking. As such, raw handlers much provide their own locks while using
-GPE API's to protect access to GPE data structures.
+avoided in cases where events cannot be timely serviced. In this 
+scenario, handlers should use the AcpiSetGpe() API to disable/enable the 
+GPE. This API will leave the reference counts undisturbed, thereby 
+preventing unintentional clearing of the GPE when the intent in only to 
+temporarily disable it. Raw handlers allow enabling and disabling of a 
+GPE by removing GPE register locking. As such, raw handlers much provide 
+their own locks while using GPE API's to protect access to GPE data 
+structures.
 Lv Zheng
 
 Events: Always modify GPE registers under the GPE lock.
 Applies GPE lock around AcpiFinishGpe() to protect access to GPE register
 values. Reported as bug by joe.liu@apple.com.
 
-Unix makefiles: Separate option to disable optimizations and _FORTIFY_SOURCE.
-This change removes the _FORTIFY_SOURCE flag from the NOOPT disable option and
-creates a separate flag (NOFORTIFY) for this purpose. Some toolchains may
-define _FORTIFY_SOURCE which leads redefined errors when building ACPICA. This
-allows disabling the option without also having to disable optimazations.
+Unix makefiles: Separate option to disable optimizations and 
+_FORTIFY_SOURCE. This change removes the _FORTIFY_SOURCE flag from the 
+NOOPT disable option and creates a separate flag (NOFORTIFY) for this 
+purpose. Some toolchains may define _FORTIFY_SOURCE which leads redefined 
+errors when building ACPICA. This allows disabling the option without 
+also having to disable optimazations.
 David Box
 
   Current Release:

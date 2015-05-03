@@ -187,7 +187,15 @@ read_archive(struct bsdar *bsdar, char mode)
 
 				if (bsdar->options & AR_V)
 					(void)fprintf(stdout, "x - %s\n", name);
-				flags = 0;
+				/* Disallow absolute paths. */
+				if (name[0] == '/') {
+					bsdar_warnc(bsdar, 0,
+					    "Absolute path '%s'", name);
+					continue;
+				}
+				/* Basic path security flags. */
+				flags = ARCHIVE_EXTRACT_SECURE_SYMLINKS |
+				    ARCHIVE_EXTRACT_SECURE_NODOTDOT;
 				if (bsdar->options & AR_O)
 					flags |= ARCHIVE_EXTRACT_TIME;
 

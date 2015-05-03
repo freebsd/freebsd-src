@@ -96,10 +96,14 @@
 	__PMC_CPU(INTEL_NEHALEM_EX, 0x93,   "Intel Nehalem Xeon 7500")	\
 	__PMC_CPU(INTEL_WESTMERE_EX, 0x94,   "Intel Westmere Xeon E7")	\
 	__PMC_CPU(INTEL_HASWELL_XEON, 0x95,   "Intel Haswell Xeon E5 v3") \
+	__PMC_CPU(INTEL_BROADWELL, 0x96,   "Intel Broadwell") \
 	__PMC_CPU(INTEL_XSCALE,	0x100,	"Intel XScale")		\
 	__PMC_CPU(MIPS_24K,     0x200,  "MIPS 24K")		\
 	__PMC_CPU(MIPS_OCTEON,  0x201,  "Cavium Octeon")	\
+	__PMC_CPU(MIPS_74K,     0x202,  "MIPS 74K")		\
 	__PMC_CPU(PPC_7450,     0x300,  "PowerPC MPC7450")	\
+	__PMC_CPU(PPC_E500,     0x340,  "PowerPC e500 Core")	\
+	__PMC_CPU(PPC_MPC85XX,  0x340,  "Freescale PowerPC MPC85XX")	\
 	__PMC_CPU(PPC_970,      0x380,  "IBM PowerPC 970")	\
 	__PMC_CPU(GENERIC, 	0x400,  "Generic")
 
@@ -131,8 +135,10 @@ enum pmc_cputype {
 	__PMC_CLASS(ARMV7)	/* ARMv7 */				\
 	__PMC_CLASS(MIPS24K)	/* MIPS 24K */				\
 	__PMC_CLASS(OCTEON)	/* Cavium Octeon */			\
+	__PMC_CLASS(MIPS74K)	/* MIPS 74K */				\
 	__PMC_CLASS(PPC7450)	/* Motorola MPC7450 class */		\
 	__PMC_CLASS(PPC970)	/* IBM PowerPC 970 class */		\
+	__PMC_CLASS(E500)	/* Freescale e500 class */		\
 	__PMC_CLASS(SOFT)	/* Software events */
 
 enum pmc_class {

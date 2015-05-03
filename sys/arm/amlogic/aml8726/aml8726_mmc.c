@@ -70,6 +70,7 @@ struct aml8726_mmc_softc {
 	device_t		dev;
 	struct resource		*res[2];
 	struct mtx		mtx;
+	struct callout		ch;
 	uint32_t		port;
 	unsigned int		ref_freq;
 	struct aml8726_mmc_gpio pwr_en;
@@ -81,7 +82,7 @@ struct aml8726_mmc_softc {
 	struct mmc_host		host;
 	int			bus_busy;
 	struct mmc_command 	*cmd;
-	unsigned int		timeout_remaining;
+	uint32_t		stop_timeout;
 };
 
 static struct resource_spec aml8726_mmc_spec[] = {
@@ -92,6 +93,7 @@ static struct resource_spec aml8726_mmc_spec[] = {
 
 #define	AML_MMC_LOCK(sc)		mtx_lock(&(sc)->mtx)
 #define	AML_MMC_UNLOCK(sc)		mtx_unlock(&(sc)->mtx)
+#define	AML_MMC_LOCK_ASSERT(sc)		mtx_assert(&(sc)->mtx, MA_OWNED)
 #define	AML_MMC_LOCK_INIT(sc)		\
     mtx_init(&(sc)->mtx, device_get_nameunit((sc)->dev),	\
     "mmc", MTX_DEF)
@@ -106,6 +108,60 @@ static struct resource_spec aml8726_mmc_spec[] = {
     GPIO_PIN_HIGH)
 #define	PWR_OFF_FLAG(pol)		((pol) == 0 ? GPIO_PIN_HIGH :	\
     GPIO_PIN_LOW)
+
+#define	MSECS_TO_TICKS(ms)		(((ms)*hz)/1000 + 1)
+
+static void aml8726_mmc_timeout(void *arg);
+
+static unsigned int
+aml8726_mmc_clk(phandle_t node)
+{
+	pcell_t prop;
+	ssize_t len;
+	phandle_t clk_node;
+
+	len = OF_getencprop(node, "clocks", &prop, sizeof(prop));
+	if ((len / sizeof(prop)) != 1 || prop == 0 ||
+	    (clk_node = OF_node_from_xref(prop)) == 0)
+		return (0);
+
+	len = OF_getencprop(clk_node, "clock-frequency", &prop, sizeof(prop));
+	if ((len / sizeof(prop)) != 1 || prop == 0)
+		return (0);
+
+	return ((unsigned int)prop);
+}
+
+static uint32_t
+aml8726_mmc_freq(struct aml8726_mmc_softc *sc, uint32_t divisor)
+{
+
+	return (sc->ref_freq / ((divisor + 1) * 2));
+}
+
+static uint32_t
+aml8726_mmc_div(struct aml8726_mmc_softc *sc, uint32_t desired_freq)
+{
+	uint32_t divisor;
+
+	divisor = sc->ref_freq / (desired_freq * 2);
+
+	if (divisor == 0)
+		divisor = 1;
+
+	divisor -= 1;
+
+	if (aml8726_mmc_freq(sc, divisor) > desired_freq)
+		divisor += 1;
+
+	if (divisor > (AML_MMC_CONFIG_CMD_CLK_DIV_MASK >>
+	    AML_MMC_CONFIG_CMD_CLK_DIV_SHIFT)) {
+		divisor = AML_MMC_CONFIG_CMD_CLK_DIV_MASK >>
+		    AML_MMC_CONFIG_CMD_CLK_DIV_SHIFT;
+	}
+
+	return (divisor);
+}
 
 static void
 aml8726_mmc_mapmem(void *arg, bus_dma_segment_t *segs, int nseg, int error)
@@ -143,25 +199,18 @@ aml8726_mmc_power_on(struct aml8726_mmc_softc *sc)
 	    PWR_ON_FLAG(sc->pwr_en.pol)));
 }
 
-static int
-aml8726_mmc_restart_timer(struct aml8726_mmc_softc *sc)
+static void
+aml8726_mmc_soft_reset(struct aml8726_mmc_softc *sc, boolean_t enable_irq)
 {
-	uint32_t count;
-	uint32_t isr;
+	uint32_t icr;
 
-	if (sc->cmd == NULL || sc->timeout_remaining == 0)
-		return (0);
+	icr = AML_MMC_IRQ_CONFIG_SOFT_RESET;
 
-	count = (sc->timeout_remaining > 0x1fff) ? 0x1fff :
-	    sc->timeout_remaining;
-	sc->timeout_remaining -= count;
+	if (enable_irq == true)
+		icr |= AML_MMC_IRQ_CONFIG_CMD_DONE_EN;
 
-	isr = (count << AML_MMC_IRQ_STATUS_TIMER_CNT_SHIFT) |
-	    AML_MMC_IRQ_STATUS_TIMER_EN | AML_MMC_IRQ_STATUS_TIMEOUT_IRQ;
-
-	CSR_WRITE_4(sc, AML_MMC_IRQ_STATUS_REG, isr);
-
-	return (1);
+	CSR_WRITE_4(sc, AML_MMC_IRQ_CONFIG_REG, icr);
+	CSR_BARRIER(sc, AML_MMC_IRQ_CONFIG_REG);
 }
 
 static int
@@ -172,7 +221,6 @@ aml8726_mmc_start_command(struct aml8726_mmc_softc *sc, struct mmc_command *cmd)
 	uint32_t block_size;
 	uint32_t bus_width;
 	uint32_t cmdr;
-	uint32_t cycles_per_msec;
 	uint32_t extr;
 	uint32_t mcfgr;
 	uint32_t nbits_per_pkg;
@@ -184,14 +232,9 @@ aml8726_mmc_start_command(struct aml8726_mmc_softc *sc, struct mmc_command *cmd)
 		return (MMC_ERR_INVALID);
 
 	/*
-	 * Ensure the hardware state machine is in a known state,
-	 * the command done interrupt is enabled, and previous
-	 * IRQ status bits have been cleared.
+	 * Ensure the hardware state machine is in a known state.
 	 */
-	CSR_WRITE_4(sc, AML_MMC_IRQ_CONFIG_REG,
-	    (AML_MMC_IRQ_CONFIG_SOFT_RESET | AML_MMC_IRQ_CONFIG_CMD_DONE_EN));
-	CSR_BARRIER(sc, AML_MMC_IRQ_CONFIG_REG);
-	CSR_WRITE_4(sc, AML_MMC_IRQ_STATUS_REG, AML_MMC_IRQ_STATUS_CLEAR_IRQ);
+	aml8726_mmc_soft_reset(sc, true);
 
 	/*
 	 * Start and transmission bits are per section 4.7.2 of the:
@@ -205,6 +248,13 @@ aml8726_mmc_start_command(struct aml8726_mmc_softc *sc, struct mmc_command *cmd)
 	extr = 0;
 	mcfgr = sc->port;
 	timeout = AML_MMC_CMD_TIMEOUT;
+
+	/*
+	 * If this is a linked command, then use the previous timeout.
+	 */
+	if (cmd == cmd->mrq->stop && sc->stop_timeout)
+		timeout = sc->stop_timeout;
+	sc->stop_timeout = 0;
 
 	if ((cmd->flags & MMC_RSP_136) != 0) {
 		cmdr |= AML_MMC_CMD_RESP_CRC7_FROM_8;
@@ -272,32 +322,24 @@ aml8726_mmc_start_command(struct aml8726_mmc_softc *sc, struct mmc_command *cmd)
 			timeout = AML_MMC_WRITE_TIMEOUT *
 			    (data->len / block_size);
 		}
+
+		/*
+		 * Stop terminates a multiblock read / write and thus
+		 * can take as long to execute as an actual read / write.
+		 */
+		if (cmd->mrq->stop != NULL)
+			sc->stop_timeout = timeout;
 	}
 
 	sc->cmd = cmd;
 
 	cmd->error = MMC_ERR_NONE;
 
-	/*
-	 * Round up while calculating the number of cycles which
-	 * correspond to a millisecond.  Use that to determine
-	 * the count from the desired timeout in milliseconds.
-	 *
-	 * The counter has a limited range which is not sufficient
-	 * for directly implementing worst case timeouts at high clock
-	 * rates so a 32 bit counter is implemented in software.
-	 *
-	 * The documentation isn't clear on when the timer starts
-	 * so add 48 cycles for the command and 136 cycles for the
-	 * response (the values are from the previously mentioned
-	 * standard).
-	 */
 	if (timeout > AML_MMC_MAX_TIMEOUT)
 		timeout = AML_MMC_MAX_TIMEOUT;
-	cycles_per_msec = (ios->clock + 1000 - 1) / 1000;
-	sc->timeout_remaining = 48 + 136 + timeout * cycles_per_msec;
 
-	aml8726_mmc_restart_timer(sc);
+	callout_reset(&sc->ch, MSECS_TO_TICKS(timeout),
+	    aml8726_mmc_timeout, sc);
 
 	CSR_WRITE_4(sc, AML_MMC_CMD_ARGUMENT_REG, cmd->arg);
 	CSR_WRITE_4(sc, AML_MMC_MULT_CONFIG_REG, mcfgr);
@@ -311,126 +353,26 @@ aml8726_mmc_start_command(struct aml8726_mmc_softc *sc, struct mmc_command *cmd)
 }
 
 static void
-aml8726_mmc_intr(void *arg)
+aml8726_mmc_finish_command(struct aml8726_mmc_softc *sc, int mmc_error)
 {
-	struct aml8726_mmc_softc *sc = (struct aml8726_mmc_softc *)arg;
+	int mmc_stop_error;
 	struct mmc_command *cmd;
 	struct mmc_command *stop_cmd;
 	struct mmc_data *data;
-	uint32_t cmdr;
-	uint32_t icr;
-	uint32_t isr;
-	uint32_t mcfgr;
-	uint32_t previous_byte;
-	uint32_t resp;
-	int mmc_error;
-	int mmc_stop_error;
-	unsigned int i;
 
-	AML_MMC_LOCK(sc);
-
-	isr = CSR_READ_4(sc, AML_MMC_IRQ_STATUS_REG);
-	cmdr = CSR_READ_4(sc, AML_MMC_CMD_SEND_REG);
-
-	if (sc->cmd == NULL)
-		goto spurious;
-
-	mmc_error = MMC_ERR_NONE;
-
-	if ((isr & AML_MMC_IRQ_STATUS_CMD_DONE_IRQ) != 0) {
-		/* Check for CRC errors if the command has completed. */
-		if ((cmdr & AML_MMC_CMD_RESP_NO_CRC7) == 0 &&
-		    (isr & AML_MMC_IRQ_STATUS_RESP_CRC7_OK) == 0)
-			mmc_error = MMC_ERR_BADCRC;
-		if ((cmdr & AML_MMC_CMD_RESP_HAS_DATA) != 0 &&
-		    (isr & AML_MMC_IRQ_STATUS_RD_CRC16_OK) == 0)
-			mmc_error = MMC_ERR_BADCRC;
-		if ((cmdr & AML_MMC_CMD_CMD_HAS_DATA) != 0 &&
-		    (isr & AML_MMC_IRQ_STATUS_WR_CRC16_OK) == 0)
-			mmc_error = MMC_ERR_BADCRC;
-	} else if ((isr & AML_MMC_IRQ_STATUS_TIMEOUT_IRQ) != 0) {
-		if (aml8726_mmc_restart_timer(sc) != 0) {
-			AML_MMC_UNLOCK(sc);
-			return;
-		}
-		mmc_error = MMC_ERR_TIMEOUT;
-	} else {
-spurious:
-
-		/*
-		 * Clear spurious interrupts while leaving intacted any
-		 * interrupts that may have occurred after we read the
-		 * interrupt status register.
-		 */
-
-		CSR_WRITE_4(sc, AML_MMC_IRQ_STATUS_REG,
-		    (AML_MMC_IRQ_STATUS_CLEAR_IRQ & isr));
-		CSR_BARRIER(sc, AML_MMC_IRQ_STATUS_REG);
-		AML_MMC_UNLOCK(sc);
-		return;
-	}
-
-	if ((isr & AML_MMC_IRQ_STATUS_CMD_BUSY) != 0 &&
-	    /*
-	     * A multiblock operation may keep the hardware
-	     * busy until stop transmission is executed.
-	     */
-	    (isr & AML_MMC_IRQ_STATUS_CMD_DONE_IRQ) == 0) {
-		if (mmc_error == MMC_ERR_NONE)
-			mmc_error = MMC_ERR_FAILED;
-
-		/*
-		 * Issue a soft reset (while leaving the command complete
-		 * interrupt enabled) to terminate the command.
-		 *
-		 * Ensure the command has terminated before continuing on
-		 * to things such as bus_dmamap_sync / bus_dmamap_unload.
-		 */
-
-		icr = AML_MMC_IRQ_CONFIG_SOFT_RESET |
-		    AML_MMC_IRQ_CONFIG_CMD_DONE_EN;
-
-		CSR_WRITE_4(sc, AML_MMC_IRQ_CONFIG_REG, icr);
-
-		while ((CSR_READ_4(sc, AML_MMC_IRQ_STATUS_REG) &
-		    AML_MMC_IRQ_STATUS_CMD_BUSY) != 0)
-			cpu_spinwait();
-	}
+	AML_MMC_LOCK_ASSERT(sc);
 
 	/* Clear all interrupts since the request is no longer in flight. */
 	CSR_WRITE_4(sc, AML_MMC_IRQ_STATUS_REG, AML_MMC_IRQ_STATUS_CLEAR_IRQ);
 	CSR_BARRIER(sc, AML_MMC_IRQ_STATUS_REG);
 
+	/* In some cases (e.g. finish called via timeout) this is a NOP. */
+	callout_stop(&sc->ch);
+
 	cmd = sc->cmd;
 	sc->cmd = NULL;
 
 	cmd->error = mmc_error;
-
-	if ((cmd->flags & MMC_RSP_PRESENT) != 0 &&
-	    mmc_error == MMC_ERR_NONE) {
-		mcfgr = sc->port;
-		mcfgr |= AML_MMC_MULT_CONFIG_RESP_READOUT_EN;
-		CSR_WRITE_4(sc, AML_MMC_MULT_CONFIG_REG, mcfgr);
-
-		if ((cmd->flags & MMC_RSP_136) != 0) {
-
-			/*
-			 * Controller supplies 135:8 instead of
-			 * 127:0 so discard the leading 8 bits
-			 * and provide a trailing 8 zero bits
-			 * where the CRC belongs.
-			 */
-
-			previous_byte = 0;
-
-			for (i = 0; i < 4; i++) {
-				resp = CSR_READ_4(sc, AML_MMC_CMD_ARGUMENT_REG);
-				cmd->resp[3 - i] = (resp << 8) | previous_byte;
-				previous_byte = (resp >> 24) & 0xff;
-			}
-		} else
-			cmd->resp[0] = CSR_READ_4(sc, AML_MMC_CMD_ARGUMENT_REG);
-	}
 
 	data = cmd->data;
 
@@ -469,6 +411,130 @@ spurious:
 		cmd->mrq->done(cmd->mrq);
 }
 
+static void
+aml8726_mmc_timeout(void *arg)
+{
+	struct aml8726_mmc_softc *sc = (struct aml8726_mmc_softc *)arg;
+
+	/*
+	 * The command failed to complete in time so forcefully
+	 * terminate it.
+	 */
+	aml8726_mmc_soft_reset(sc, false);
+
+	/*
+	 * Ensure the command has terminated before continuing on
+	 * to things such as bus_dmamap_sync / bus_dmamap_unload.
+	 */
+	while ((CSR_READ_4(sc, AML_MMC_IRQ_STATUS_REG) &
+	    AML_MMC_IRQ_STATUS_CMD_BUSY) != 0)
+		cpu_spinwait();
+
+	aml8726_mmc_finish_command(sc, MMC_ERR_TIMEOUT);
+}
+
+static void
+aml8726_mmc_intr(void *arg)
+{
+	struct aml8726_mmc_softc *sc = (struct aml8726_mmc_softc *)arg;
+	uint32_t cmdr;
+	uint32_t isr;
+	uint32_t mcfgr;
+	uint32_t previous_byte;
+	uint32_t resp;
+	int mmc_error;
+	unsigned int i;
+
+	AML_MMC_LOCK(sc);
+
+	isr = CSR_READ_4(sc, AML_MMC_IRQ_STATUS_REG);
+	cmdr = CSR_READ_4(sc, AML_MMC_CMD_SEND_REG);
+
+	if (sc->cmd == NULL)
+		goto spurious;
+
+	mmc_error = MMC_ERR_NONE;
+
+	if ((isr & AML_MMC_IRQ_STATUS_CMD_DONE_IRQ) != 0) {
+		/* Check for CRC errors if the command has completed. */
+		if ((cmdr & AML_MMC_CMD_RESP_NO_CRC7) == 0 &&
+		    (isr & AML_MMC_IRQ_STATUS_RESP_CRC7_OK) == 0)
+			mmc_error = MMC_ERR_BADCRC;
+		if ((cmdr & AML_MMC_CMD_RESP_HAS_DATA) != 0 &&
+		    (isr & AML_MMC_IRQ_STATUS_RD_CRC16_OK) == 0)
+			mmc_error = MMC_ERR_BADCRC;
+		if ((cmdr & AML_MMC_CMD_CMD_HAS_DATA) != 0 &&
+		    (isr & AML_MMC_IRQ_STATUS_WR_CRC16_OK) == 0)
+			mmc_error = MMC_ERR_BADCRC;
+	} else {
+spurious:
+
+		/*
+		 * Clear spurious interrupts while leaving intacted any
+		 * interrupts that may have occurred after we read the
+		 * interrupt status register.
+		 */
+
+		CSR_WRITE_4(sc, AML_MMC_IRQ_STATUS_REG,
+		    (AML_MMC_IRQ_STATUS_CLEAR_IRQ & isr));
+		CSR_BARRIER(sc, AML_MMC_IRQ_STATUS_REG);
+		AML_MMC_UNLOCK(sc);
+		return;
+	}
+
+	if ((cmdr & AML_MMC_CMD_RESP_BITS_MASK) != 0) {
+		mcfgr = sc->port;
+		mcfgr |= AML_MMC_MULT_CONFIG_RESP_READOUT_EN;
+		CSR_WRITE_4(sc, AML_MMC_MULT_CONFIG_REG, mcfgr);
+
+		if ((cmdr & AML_MMC_CMD_RESP_CRC7_FROM_8) != 0) {
+
+			/*
+			 * Controller supplies 135:8 instead of
+			 * 127:0 so discard the leading 8 bits
+			 * and provide a trailing 8 zero bits
+			 * where the CRC belongs.
+			 */
+
+			previous_byte = 0;
+
+			for (i = 0; i < 4; i++) {
+				resp = CSR_READ_4(sc, AML_MMC_CMD_ARGUMENT_REG);
+				sc->cmd->resp[3 - i] = (resp << 8) |
+				    previous_byte;
+				previous_byte = (resp >> 24) & 0xff;
+			}
+		} else
+			sc->cmd->resp[0] = CSR_READ_4(sc,
+			    AML_MMC_CMD_ARGUMENT_REG);
+	}
+
+	if ((isr & AML_MMC_IRQ_STATUS_CMD_BUSY) != 0 &&
+	    /*
+	     * A multiblock operation may keep the hardware
+	     * busy until stop transmission is executed.
+	     */
+	    (isr & AML_MMC_IRQ_STATUS_CMD_DONE_IRQ) == 0) {
+		if (mmc_error == MMC_ERR_NONE)
+			mmc_error = MMC_ERR_FAILED;
+
+		/*
+		 * Issue a soft reset to terminate the command.
+		 *
+		 * Ensure the command has terminated before continuing on
+		 * to things such as bus_dmamap_sync / bus_dmamap_unload.
+		 */
+
+		aml8726_mmc_soft_reset(sc, false);
+
+		while ((CSR_READ_4(sc, AML_MMC_IRQ_STATUS_REG) &
+		    AML_MMC_IRQ_STATUS_CMD_BUSY) != 0)
+			cpu_spinwait();
+	}
+
+	aml8726_mmc_finish_command(sc, mmc_error);
+}
+
 static int
 aml8726_mmc_probe(device_t dev)
 {
@@ -502,14 +568,12 @@ aml8726_mmc_attach(device_t dev)
 
 	node = ofw_bus_get_node(dev);
 
-	len = OF_getencprop(OF_parent(node), "bus-frequency",
-	    prop, sizeof(prop));
-	if ((len / sizeof(prop[0])) != 1 || prop[0] == 0) {
-		device_printf(dev, "missing bus-frequency attribute in FDT\n");
+	sc->ref_freq = aml8726_mmc_clk(node);
+
+	if (sc->ref_freq == 0) {
+		device_printf(dev, "missing clocks attribute in FDT\n");
 		return (ENXIO);
 	}
-
-	sc->ref_freq = prop[0];
 
 	/*
 	 * The pins must be specified as part of the device in order
@@ -681,8 +745,10 @@ aml8726_mmc_attach(device_t dev)
 		goto fail;
 	}
 
-	sc->host.f_min = 200000;
-	sc->host.f_max = 50000000;
+	callout_init_mtx(&sc->ch, &sc->mtx, CALLOUT_RETURNUNLOCKED);
+
+	sc->host.f_min = aml8726_mmc_freq(sc, aml8726_mmc_div(sc, 200000));
+	sc->host.f_max = aml8726_mmc_freq(sc, aml8726_mmc_div(sc, 50000000));
 	sc->host.host_ocr = sc->voltages[0] | sc->voltages[1];
 	sc->host.caps = MMC_CAP_4_BIT_DATA | MMC_CAP_HSPEED;
 
@@ -739,9 +805,11 @@ aml8726_mmc_detach(device_t dev)
 	 * disable the interrupts, and clear the interrupts.
 	 */
 	(void)aml8726_mmc_power_off(sc);
-	CSR_WRITE_4(sc, AML_MMC_IRQ_CONFIG_REG, AML_MMC_IRQ_CONFIG_SOFT_RESET);
-	CSR_BARRIER(sc, AML_MMC_IRQ_CONFIG_REG);
+	aml8726_mmc_soft_reset(sc, false);
 	CSR_WRITE_4(sc, AML_MMC_IRQ_STATUS_REG, AML_MMC_IRQ_STATUS_CLEAR_IRQ);
+
+	/* This should be a NOP since no command was in flight. */
+	callout_stop(&sc->ch);
 
 	AML_MMC_UNLOCK(sc);
 
@@ -770,8 +838,7 @@ aml8726_mmc_shutdown(device_t dev)
 	 * disable the interrupts, and clear the interrupts.
 	 */
 	(void)aml8726_mmc_power_off(sc);
-	CSR_WRITE_4(sc, AML_MMC_IRQ_CONFIG_REG, AML_MMC_IRQ_CONFIG_SOFT_RESET);
-	CSR_BARRIER(sc, AML_MMC_IRQ_CONFIG_REG);
+	aml8726_mmc_soft_reset(sc, false);
 	CSR_WRITE_4(sc, AML_MMC_IRQ_STATUS_REG, AML_MMC_IRQ_STATUS_CLEAR_IRQ);
 
 	return (0);
@@ -782,7 +849,6 @@ aml8726_mmc_update_ios(device_t bus, device_t child)
 {
 	struct aml8726_mmc_softc *sc = device_get_softc(bus);
 	struct mmc_ios *ios = &sc->host.ios;
-	unsigned int divisor;
 	int error;
 	int i;
 	uint32_t cfgr;
@@ -803,15 +869,8 @@ aml8726_mmc_update_ios(device_t bus, device_t child)
 		return (EINVAL);
 	}
 
-	divisor = sc->ref_freq  / (ios->clock * 2) - 1;
-	if (divisor == 0 || divisor == -1)
-		divisor = 1;
-	if ((sc->ref_freq / ((divisor + 1) * 2)) > ios->clock)
-		divisor += 1;
-	if (divisor > 0x3ff)
-		divisor = 0x3ff;
-
-	cfgr |= divisor;
+	cfgr |= aml8726_mmc_div(sc, ios->clock) <<
+	    AML_MMC_CONFIG_CMD_CLK_DIV_SHIFT;
 
 	CSR_WRITE_4(sc, AML_MMC_CONFIG_REG, cfgr);
 

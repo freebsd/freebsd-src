@@ -98,19 +98,4 @@ hint.gpio.0.function_set=0x00000000
 hint.gpio.0.function_clear=0x00000000
 
 # These are the GPIO LEDs and buttons which can be software controlled.
-#hint.gpio.0.pinmask=0x001c02ae
-hint.gpio.0.pinmask=0x00001803
-
-# gpio0 - WLAN LED
-# gpio1 - USB LED
-# gpio11 - Jumpstart button
-# gpio12 - Reset button
-
-# LEDs are configured separately and driven by the LED device
-hint.gpioled.0.at="gpiobus0"
-hint.gpioled.0.name="wlan"
-hint.gpioled.0.pins=0x0001
-
-hint.gpioled.1.at="gpiobus0"
-hint.gpioled.1.name="usb"
-hint.gpioled.1.pins=0x0002
+hint.gpio.0.pinmask=0x00fc1803

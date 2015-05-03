@@ -29,9 +29,6 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <net/if.h>
-#if __FreeBSD_version >= 300000
-# include <net/if_var.h>
-#endif
 #if defined(linux) || defined(__osf__) || defined(__sgi) || defined(__hpux)
 # include <stdlib.h>
 #endif

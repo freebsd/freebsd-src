@@ -243,6 +243,7 @@ typedef struct hpt_raw_disk
 #endif
 	__HPT_RAW_LBA real_capacity;
 	__HPT_RAW_LBA head_position;
+	HPT_U32	logical_sector_size;
 
 	HPT_U16 max_sectors_per_cmd;
 	HPT_U8  max_queue_depth;

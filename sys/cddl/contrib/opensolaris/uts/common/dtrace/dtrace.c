@@ -611,7 +611,11 @@ dtrace_panic(const char *format, ...)
 	va_list alist;
 
 	va_start(alist, format);
+#ifdef __FreeBSD__
+	vpanic(format, alist);
+#else
 	dtrace_vpanic(format, alist);
+#endif
 	va_end(alist);
 }
 
@@ -15374,12 +15378,14 @@ dtrace_helper_action_destroy(dtrace_helper_action_t *helper,
 }
 
 static int
-dtrace_helper_destroygen(int gen)
+dtrace_helper_destroygen(dtrace_helpers_t *help, int gen)
 {
 	proc_t *p = curproc;
-	dtrace_helpers_t *help = p->p_dtrace_helpers;
 	dtrace_vstate_t *vstate;
 	int i;
+
+	if (help == NULL)
+		help = p->p_dtrace_helpers;
 
 	ASSERT(MUTEX_HELD(&dtrace_lock));
 
@@ -15478,9 +15484,9 @@ dtrace_helper_validate(dtrace_helper_action_t *helper)
 }
 
 static int
-dtrace_helper_action_add(int which, dtrace_ecbdesc_t *ep)
+dtrace_helper_action_add(int which, dtrace_ecbdesc_t *ep,
+    dtrace_helpers_t *help)
 {
-	dtrace_helpers_t *help;
 	dtrace_helper_action_t *helper, *last;
 	dtrace_actdesc_t *act;
 	dtrace_vstate_t *vstate;
@@ -15490,7 +15496,6 @@ dtrace_helper_action_add(int which, dtrace_ecbdesc_t *ep)
 	if (which < 0 || which >= DTRACE_NHELPER_ACTIONS)
 		return (EINVAL);
 
-	help = curproc->p_dtrace_helpers;
 	last = help->dthps_actions[which];
 	vstate = &help->dthps_vstate;
 
@@ -15614,15 +15619,12 @@ dtrace_helper_provider_register(proc_t *p, dtrace_helpers_t *help,
 }
 
 static int
-dtrace_helper_provider_add(dof_helper_t *dofhp, int gen)
+dtrace_helper_provider_add(dof_helper_t *dofhp, dtrace_helpers_t *help, int gen)
 {
-	dtrace_helpers_t *help;
 	dtrace_helper_provider_t *hprov, **tmp_provs;
 	uint_t tmp_maxprovs, i;
 
 	ASSERT(MUTEX_HELD(&dtrace_lock));
-
-	help = curproc->p_dtrace_helpers;
 	ASSERT(help != NULL);
 
 	/*
@@ -15914,13 +15916,28 @@ dtrace_helper_slurp(dof_hdr_t *dof, dof_helper_t *dhp)
 	dtrace_helpers_t *help;
 	dtrace_vstate_t *vstate;
 	dtrace_enabling_t *enab = NULL;
+	proc_t *p = curproc;
 	int i, gen, rv, nhelpers = 0, nprovs = 0, destroy = 1;
 	uintptr_t daddr = (uintptr_t)dof;
 
 	ASSERT(MUTEX_HELD(&dtrace_lock));
 
-	if ((help = curproc->p_dtrace_helpers) == NULL)
-		help = dtrace_helpers_create(curproc);
+#ifdef __FreeBSD__
+	if (dhp->dofhp_pid != p->p_pid) {
+		if ((p = pfind(dhp->dofhp_pid)) == NULL)
+			return (-1);
+		if (!P_SHOULDSTOP(p) ||
+		    (p->p_flag & P_TRACED) == 0 ||
+		    p->p_pptr->p_pid != curproc->p_pid) {
+			PROC_UNLOCK(p);
+			return (-1);
+		}
+		PROC_UNLOCK(p);
+	}
+#endif
+
+	if ((help = p->p_dtrace_helpers) == NULL)
+		help = dtrace_helpers_create(p);
 
 	vstate = &help->dthps_vstate;
 
@@ -15968,12 +15985,13 @@ dtrace_helper_slurp(dof_hdr_t *dof, dof_helper_t *dhp)
 			continue;
 
 		if ((rv = dtrace_helper_action_add(DTRACE_HELPER_ACTION_USTACK,
-		    ep)) != 0) {
+		    ep, help)) != 0) {
 			/*
 			 * Adding this helper action failed -- we are now going
 			 * to rip out the entire generation and return failure.
 			 */
-			(void) dtrace_helper_destroygen(help->dthps_generation);
+			(void) dtrace_helper_destroygen(help,
+			    help->dthps_generation);
 			dtrace_enabling_destroy(enab);
 			dtrace_dof_destroy(dof);
 			return (-1);
@@ -15990,9 +16008,9 @@ dtrace_helper_slurp(dof_hdr_t *dof, dof_helper_t *dhp)
 
 	if (dhp != NULL && nprovs > 0) {
 		dhp->dofhp_dof = (uint64_t)(uintptr_t)dof;
-		if (dtrace_helper_provider_add(dhp, gen) == 0) {
+		if (dtrace_helper_provider_add(dhp, help, gen) == 0) {
 			mutex_exit(&dtrace_lock);
-			dtrace_helper_provider_register(curproc, help, dhp);
+			dtrace_helper_provider_register(p, help, dhp);
 			mutex_enter(&dtrace_lock);
 
 			destroy = 0;
@@ -16956,7 +16974,7 @@ dtrace_ioctl_helper(int cmd, intptr_t arg, int *rv)
 
 	case DTRACEHIOC_REMOVE: {
 		mutex_enter(&dtrace_lock);
-		rval = dtrace_helper_destroygen(arg);
+		rval = dtrace_helper_destroygen(NULL, arg);
 		mutex_exit(&dtrace_lock);
 
 		return (rval);

@@ -27,6 +27,8 @@
  *
  */
 
+#include <crypto/aesni/aesni_os.h>
+
 #include <wmmintrin.h>
 
 static inline void
