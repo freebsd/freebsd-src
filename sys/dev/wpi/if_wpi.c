@@ -2150,6 +2150,27 @@ wpi_notif_intr(struct wpi_softc *sc)
 
 			break;
 		}
+#ifdef WPI_DEBUG
+		case WPI_BEACON_SENT:
+		{
+			struct wpi_tx_stat *stat =
+			    (struct wpi_tx_stat *)(desc + 1);
+			uint64_t *tsf = (uint64_t *)(stat + 1);
+			uint32_t *mode = (uint32_t *)(tsf + 1);
+
+			bus_dmamap_sync(sc->rxq.data_dmat, data->map,
+			    BUS_DMASYNC_POSTREAD);
+
+			DPRINTF(sc, WPI_DEBUG_BEACON,
+			    "beacon sent: rts %u, ack %u, btkill %u, rate %u, "
+			    "duration %u, status %x, tsf %ju, mode %x\n",
+			    stat->rtsfailcnt, stat->ackfailcnt,
+			    stat->btkillcnt, stat->rate, le32toh(stat->duration),
+			    le32toh(stat->status), *tsf, *mode);
+
+			break;
+		}
+#endif
 		case WPI_UC_READY:
 		{
 			struct wpi_ucode_info *uc =
