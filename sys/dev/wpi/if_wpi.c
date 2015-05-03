@@ -3710,6 +3710,7 @@ wpi_config(struct wpi_softc *sc)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+	struct ieee80211_channel *c = ic->ic_curchan;
 	uint32_t flags;
 	int error;
 
@@ -3734,9 +3735,9 @@ wpi_config(struct wpi_softc *sc)
 	IEEE80211_ADDR_COPY(sc->rxon.myaddr, vap->iv_myaddr);
 
 	/* Set default channel. */
-	sc->rxon.chan = ieee80211_chan2ieee(ic, ic->ic_curchan);
+	sc->rxon.chan = ieee80211_chan2ieee(ic, c);
 	sc->rxon.flags = htole32(WPI_RXON_TSF | WPI_RXON_CTS_TO_SELF);
-	if (IEEE80211_IS_CHAN_2GHZ(ic->ic_curchan))
+	if (IEEE80211_IS_CHAN_2GHZ(c))
 		sc->rxon.flags |= htole32(WPI_RXON_AUTO | WPI_RXON_24GHZ);
 
 	sc->rxon.filter = WPI_FILTER_MULTICAST;
@@ -4044,6 +4045,7 @@ wpi_auth(struct wpi_softc *sc, struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_node *ni = vap->iv_bss;
+	struct ieee80211_channel *c = ni->ni_chan;
 	int error;
 
 	WPI_RXON_LOCK(sc);
@@ -4054,18 +4056,18 @@ wpi_auth(struct wpi_softc *sc, struct ieee80211vap *vap)
 	sc->rxon.associd = 0;
 	sc->rxon.filter &= ~htole32(WPI_FILTER_BSS);
 	IEEE80211_ADDR_COPY(sc->rxon.bssid, ni->ni_bssid);
-	sc->rxon.chan = ieee80211_chan2ieee(ic, ni->ni_chan);
+	sc->rxon.chan = ieee80211_chan2ieee(ic, c);
 	sc->rxon.flags = htole32(WPI_RXON_TSF | WPI_RXON_CTS_TO_SELF);
-	if (IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
+	if (IEEE80211_IS_CHAN_2GHZ(c))
 		sc->rxon.flags |= htole32(WPI_RXON_AUTO | WPI_RXON_24GHZ);
 	if (ic->ic_flags & IEEE80211_F_SHSLOT)
 		sc->rxon.flags |= htole32(WPI_RXON_SHSLOT);
 	if (ic->ic_flags & IEEE80211_F_SHPREAMBLE)
 		sc->rxon.flags |= htole32(WPI_RXON_SHPREAMBLE);
-	if (IEEE80211_IS_CHAN_A(ni->ni_chan)) {
+	if (IEEE80211_IS_CHAN_A(c)) {
 		sc->rxon.cck_mask  = 0;
 		sc->rxon.ofdm_mask = 0x15;
-	} else if (IEEE80211_IS_CHAN_B(ni->ni_chan)) {
+	} else if (IEEE80211_IS_CHAN_B(c)) {
 		sc->rxon.cck_mask  = 0x03;
 		sc->rxon.ofdm_mask = 0;
 	} else {
@@ -4243,6 +4245,7 @@ wpi_run(struct wpi_softc *sc, struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_node *ni = vap->iv_bss;
+	struct ieee80211_channel *c = ni->ni_chan;
 	int error;
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_BEGIN, __func__);
@@ -4254,7 +4257,7 @@ wpi_run(struct wpi_softc *sc, struct ieee80211vap *vap)
 	}
 
 	/* XXX kernel panic workaround */
-	if (ni->ni_chan == IEEE80211_CHAN_ANYC) {
+	if (c == IEEE80211_CHAN_ANYC) {
 		device_printf(sc->sc_dev, "%s: incomplete configuration\n",
 		    __func__);
 		return EINVAL;
@@ -4270,18 +4273,18 @@ wpi_run(struct wpi_softc *sc, struct ieee80211vap *vap)
 	WPI_RXON_LOCK(sc);
 	IEEE80211_ADDR_COPY(sc->rxon.bssid, ni->ni_bssid);
 	sc->rxon.associd = htole16(IEEE80211_NODE_AID(ni));
-	sc->rxon.chan = ieee80211_chan2ieee(ic, ni->ni_chan);
+	sc->rxon.chan = ieee80211_chan2ieee(ic, c);
 	sc->rxon.flags = htole32(WPI_RXON_TSF | WPI_RXON_CTS_TO_SELF);
-	if (IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
+	if (IEEE80211_IS_CHAN_2GHZ(c))
 		sc->rxon.flags |= htole32(WPI_RXON_AUTO | WPI_RXON_24GHZ);
 	if (ic->ic_flags & IEEE80211_F_SHSLOT)
 		sc->rxon.flags |= htole32(WPI_RXON_SHSLOT);
 	if (ic->ic_flags & IEEE80211_F_SHPREAMBLE)
 		sc->rxon.flags |= htole32(WPI_RXON_SHPREAMBLE);
-	if (IEEE80211_IS_CHAN_A(ni->ni_chan)) {
+	if (IEEE80211_IS_CHAN_A(c)) {
 		sc->rxon.cck_mask  = 0;
 		sc->rxon.ofdm_mask = 0x15;
-	} else if (IEEE80211_IS_CHAN_B(ni->ni_chan)) {
+	} else if (IEEE80211_IS_CHAN_B(c)) {
 		sc->rxon.cck_mask  = 0x03;
 		sc->rxon.ofdm_mask = 0;
 	} else {
