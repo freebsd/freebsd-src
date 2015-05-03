@@ -688,8 +688,6 @@ wpi_detach(device_t dev)
 	if (ifp != NULL) {
 		ic = ifp->if_l2com;
 
-		ieee80211_draintask(ic, &sc->sc_reinittask);
-		ieee80211_draintask(ic, &sc->sc_radiooff_task);
 		ieee80211_draintask(ic, &sc->sc_radioon_task);
 		ieee80211_draintask(ic, &sc->sc_start_task);
 
@@ -2168,7 +2166,8 @@ wpi_notif_intr(struct wpi_softc *sc)
 				WPI_NT_LOCK(sc);
 				wpi_clear_node_table(sc);
 				WPI_NT_UNLOCK(sc);
-				ieee80211_runtask(ic, &sc->sc_radiooff_task);
+				taskqueue_enqueue(sc->sc_tq,
+				    &sc->sc_radiooff_task);
 				return;
 			}
 			break;
