@@ -516,7 +516,6 @@ wpi_attach(device_t dev)
 	ic->ic_scan_start = wpi_scan_start;
 	ic->ic_scan_end = wpi_scan_end;
 	ic->ic_set_channel = wpi_set_channel;
-	sc->sc_scan_curchan = ic->ic_scan_curchan;
 	ic->ic_scan_curchan = wpi_scan_curchan;
 	ic->ic_scan_mindwell = wpi_scan_mindwell;
 	ic->ic_setregdomain = wpi_setregdomain;
@@ -4020,6 +4019,20 @@ wpi_scan(struct wpi_softc *sc, struct ieee80211_channel *c)
 	    chan->chan, IEEE80211_IS_CHAN_PASSIVE(c));
 
 	hdr->nchan++;
+
+	if (hdr->nchan == 1 && sc->rxon.chan == chan->chan) {
+		/* XXX Force probe request transmission. */
+		memcpy(chan + 1, chan, sizeof (struct wpi_scan_chan));
+
+		chan++;
+
+		/* Reduce unnecessary delay. */
+		chan->flags = 0;
+		chan->passive = chan->active = hdr->quiet_time;
+
+		hdr->nchan++;
+	}
+
 	chan++;
 
 	buflen = (uint8_t *)chan - buf;
@@ -5400,16 +5413,10 @@ wpi_scan_curchan(struct ieee80211_scan_state *ss, unsigned long maxdwell)
 	int error;
 
 	WPI_RXON_LOCK(sc);
-	if (sc->rxon.chan != ieee80211_chan2ieee(ic, ic->ic_curchan)) {
-		error = wpi_scan(sc, ic->ic_curchan);
-		WPI_RXON_UNLOCK(sc);
-		if (error != 0)
-			ieee80211_cancel_scan(vap);
-	} else {
-		WPI_RXON_UNLOCK(sc);
-		/* Send probe request when associated. */
-		sc->sc_scan_curchan(ss, maxdwell);
-	}
+	error = wpi_scan(sc, ic->ic_curchan);
+	WPI_RXON_UNLOCK(sc);
+	if (error != 0)
+		ieee80211_cancel_scan(vap);
 }
 
 /**
