@@ -8262,6 +8262,12 @@ t4_activate_uld(struct adapter *sc, int id)
 
 	SLIST_FOREACH(ui, &t4_uld_list, link) {
 		if (ui->uld_id == id) {
+			if (!(sc->flags & FULL_INIT_DONE)) {
+				rc = adapter_full_init(sc);
+				if (rc != 0)
+					goto done;
+			}
+
 			rc = ui->activate(sc);
 			if (rc == 0)
 				ui->refcount++;
