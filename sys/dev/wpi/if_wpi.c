@@ -1703,6 +1703,11 @@ wpi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		/* FALLTHROUGH */
 	case IEEE80211_S_AUTH:
 		/*
+		 * NB: do not optimize AUTH -> AUTH state transmission -
+		 * this will break powersave with non-QoS AP!
+		 */
+
+		/*
 		 * The node must be registered in the firmware before auth.
 		 * Also the associd must be cleared on RUN -> ASSOC
 		 * transitions.
@@ -2609,7 +2614,7 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 
 	/* Select EDCA Access Category and TX ring for this frame. */
 	if (IEEE80211_QOS_HAS_SEQ(wh)) {
- 		qos = ((const struct ieee80211_qosframe *)wh)->i_qos[0];
+		qos = ((const struct ieee80211_qosframe *)wh)->i_qos[0];
 		tid = qos & IEEE80211_QOS_TID;
 	} else {
 		qos = 0;
@@ -3764,7 +3769,6 @@ wpi_config(struct wpi_softc *sc)
 		sc->rxon.filter |= WPI_FILTER_ASSOC | WPI_FILTER_PROMISC;
 		break;
 	case IEEE80211_M_AHDEMO:
-		/* XXX workaround for passive channels selection */
 		sc->rxon.mode = WPI_MODE_HOSTAP;
 		break;
 	case IEEE80211_M_MONITOR:
@@ -4664,7 +4668,7 @@ wpi_post_alive(struct wpi_softc *sc)
 
 	/* NB: Runtime firmware must be up and running. */
 	if (!(wpi_prph_read(sc, WPI_APMG_RFKILL) & 1)) {
- 		device_printf(sc->sc_dev,
+		device_printf(sc->sc_dev,
 		    "RF switch: radio disabled (%s)\n", __func__);
 		wpi_nic_unlock(sc);
 		return EPERM;   /* :-) */
@@ -4988,7 +4992,7 @@ wpi_apm_stop_master(struct wpi_softc *sc)
 
 	/* Stop busmaster DMA activity. */
 	WPI_SETBITS(sc, WPI_RESET, WPI_RESET_STOP_MASTER);
- 	 
+
 	if ((WPI_READ(sc, WPI_GP_CNTRL) & WPI_GP_CNTRL_PS_MASK) ==
 	    WPI_GP_CNTRL_MAC_PS)
 		return; /* Already asleep. */
