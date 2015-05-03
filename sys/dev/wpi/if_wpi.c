@@ -1972,7 +1972,7 @@ wpi_rx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 		goto fail1;
 	}
 	/* Discard frames that are too short. */
-	if (len < sizeof (*wh)) {
+	if (len < sizeof (struct ieee80211_frame_ack)) {
 		DPRINTF(sc, WPI_DEBUG_RECV, "%s: frame too short: %d\n",
 		    __func__, len);
 		goto fail1;
@@ -2033,7 +2033,11 @@ wpi_rx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 		m->m_flags |= M_WEP;
 	}
 
-	ni = ieee80211_find_rxnode(ic, (struct ieee80211_frame_min *)wh);
+	if (len >= sizeof(struct ieee80211_frame_min))
+		ni = ieee80211_find_rxnode(ic, (struct ieee80211_frame_min *)wh);
+	else
+		ni = NULL;
+
 	sc->rx_tstamp = tail->tstamp;
 
 	if (ieee80211_radiotap_active(ic)) {
