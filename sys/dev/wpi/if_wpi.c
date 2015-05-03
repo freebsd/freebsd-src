@@ -2705,9 +2705,6 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		tx->id = wn->id;
 	}
 
-	if (type != IEEE80211_FC0_TYPE_MGT)
-		tx->data_ntries = tp->maxretry;
-
 	if (k != NULL && !swcrypt) {
 		switch (k->wk_cipher->ic_cipher) {
 		case IEEE80211_CIPHER_AES_CCM:
@@ -2729,6 +2726,7 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	tx->ofdm_mask = 0xff;
 	tx->cck_mask = 0x0f;
 	tx->rts_ntries = 7;
+	tx->data_ntries = tp->maxretry;
 
 	tx_data.ni = ni;
 	tx_data.m = m;
