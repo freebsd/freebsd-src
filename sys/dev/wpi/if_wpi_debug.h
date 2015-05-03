@@ -90,7 +90,6 @@ static const char *wpi_cmd_str(int cmd)
 		WPI_DESC(WPI_CMD_BT_COEX);
 
 	default:
-		KASSERT(1, ("Unknown Command: %d\n", cmd));
 		return "UNKNOWN CMD";
 	}
 }
@@ -117,7 +116,7 @@ static const char *wpi_get_csr_string(int csr)
 		WPI_DESC(WPI_ANA_PLL);
 		WPI_DESC(WPI_DBG_HPET_MEM);
 	default:
-		KASSERT(1, ("Unknown CSR: %d\n", csr));
+		KASSERT(0, ("Unknown CSR: %d\n", csr));
 		return "UNKNOWN CSR";
 	}
 }
@@ -130,7 +129,7 @@ static const char *wpi_get_prph_string(int prph)
 		WPI_DESC(WPI_APMG_PCI_STT);
 		WPI_DESC(WPI_APMG_RFKILL);
 	default:
-		KASSERT(1, ("Unknown register: %d\n", prph));
+		KASSERT(0, ("Unknown register: %d\n", prph));
 		return "UNKNOWN PRPH";
 	}
 }
