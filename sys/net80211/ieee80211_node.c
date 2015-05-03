@@ -93,6 +93,8 @@ static void node_getmimoinfo(const struct ieee80211_node *,
 
 static void _ieee80211_free_node(struct ieee80211_node *);
 
+static void node_reclaim(struct ieee80211_node_table *nt,
+	struct ieee80211_node *ni);
 static void ieee80211_node_table_init(struct ieee80211com *ic,
 	struct ieee80211_node_table *nt, const char *name,
 	int inact, int keymaxix);
@@ -719,9 +721,15 @@ ieee80211_sta_join1(struct ieee80211_node *selbs)
 		IEEE80211_ADDR_EQ(obss->ni_macaddr, selbs->ni_macaddr));
 	vap->iv_bss = selbs;		/* NB: caller assumed to bump refcnt */
 	if (obss != NULL) {
+		struct ieee80211_node_table *nt = obss->ni_table;
+
 		copy_bss(selbs, obss);
 		ieee80211_node_decref(obss);	/* iv_bss reference */
-		ieee80211_free_node(obss);	/* station table reference */
+
+		IEEE80211_NODE_LOCK(nt);
+		node_reclaim(nt, obss);		/* station table reference */
+		IEEE80211_NODE_UNLOCK(nt);
+
 		obss = NULL;		/* NB: guard against later use */
 	}
 
