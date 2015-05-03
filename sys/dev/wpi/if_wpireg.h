@@ -611,8 +611,10 @@ struct wpi_scan_hdr {
 	uint16_t	len;
 	uint8_t		reserved1;
 	uint8_t		nchan;
-	uint16_t	quiet_time;
-	uint16_t	quiet_threshold;
+	uint16_t	quiet_time;	/* timeout in milliseconds */
+#define WPI_QUIET_TIME_DEFAULT		10
+
+	uint16_t	quiet_threshold; /* min # of packets */
 	uint16_t	crc_threshold;
 	uint16_t	reserved2;
 	uint32_t	max_svc;	/* background scans */
@@ -652,6 +654,7 @@ struct wpi_scan_chan {
 #define WPI_PASSIVE_DWELL_TIME_2GHZ	( 20)
 #define WPI_PASSIVE_DWELL_TIME_5GHZ	( 10)
 #define WPI_PASSIVE_DWELL_BASE		(100)
+#define WPI_CHANNEL_TUNE_TIME		(  6)
 
 /* Structure for command WPI_CMD_TXPOWER. */
 struct wpi_cmd_txpower {
