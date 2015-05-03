@@ -64,7 +64,7 @@
  */
 
 int
-ng_l2cap_lp_con_req(ng_l2cap_p l2cap, bdaddr_p bdaddr)
+ng_l2cap_lp_con_req(ng_l2cap_p l2cap, bdaddr_p bdaddr, int type)
 {
 	struct ng_mesg		*msg = NULL;
 	ng_hci_lp_con_req_ep	*ep = NULL;
@@ -72,7 +72,7 @@ ng_l2cap_lp_con_req(ng_l2cap_p l2cap, bdaddr_p bdaddr)
 	int			 error = 0;
 
 	/* Verify that we DO NOT have connection to the remote unit */
-	con = ng_l2cap_con_by_addr(l2cap, bdaddr);
+	con = ng_l2cap_con_by_addr(l2cap, bdaddr, type);
 	if (con != NULL) {
 		NG_L2CAP_ALERT(
 "%s: %s - unexpected LP_ConnectReq event. " \
@@ -93,7 +93,7 @@ ng_l2cap_lp_con_req(ng_l2cap_p l2cap, bdaddr_p bdaddr)
 	}
 
 	/* Create and intialize new connection descriptor */
-	con = ng_l2cap_new_con(l2cap, bdaddr);
+	con = ng_l2cap_new_con(l2cap, bdaddr, type);
 	if (con == NULL)
 		return (ENOMEM);
 
@@ -108,7 +108,7 @@ ng_l2cap_lp_con_req(ng_l2cap_p l2cap, bdaddr_p bdaddr)
 
 	ep = (ng_hci_lp_con_req_ep *) (msg->data);
 	bcopy(bdaddr, &ep->bdaddr, sizeof(ep->bdaddr));
-	ep->link_type = NG_HCI_LINK_ACL;
+	ep->link_type = type;
 
 	con->flags |= NG_L2CAP_CON_OUTGOING;
 	con->state = NG_L2CAP_W4_LP_CON_CFM;
@@ -152,9 +152,8 @@ ng_l2cap_lp_con_cfm(ng_l2cap_p l2cap, struct ng_mesg *msg)
 	}
 
 	ep = (ng_hci_lp_con_cfm_ep *) (msg->data);
-
 	/* Check if we have requested/accepted this connection */
-	con = ng_l2cap_con_by_addr(l2cap, &ep->bdaddr);
+	con = ng_l2cap_con_by_addr(l2cap, &ep->bdaddr, ep->link_type);
 	if (con == NULL) {
 		NG_L2CAP_ERR(
 "%s: %s - unexpected LP_ConnectCfm event. Connection does not exist\n",
@@ -224,7 +223,7 @@ ng_l2cap_lp_con_ind(ng_l2cap_p l2cap, struct ng_mesg *msg)
  	ep = (ng_hci_lp_con_ind_ep *) (msg->data);
 
 	/* Make sure we have only one connection to the remote unit */
-	con = ng_l2cap_con_by_addr(l2cap, &ep->bdaddr);
+	con = ng_l2cap_con_by_addr(l2cap, &ep->bdaddr, ep->link_type);
 	if (con != NULL) {
 		NG_L2CAP_ALERT(
 "%s: %s - unexpected LP_ConnectInd event. " \
@@ -245,7 +244,7 @@ ng_l2cap_lp_con_ind(ng_l2cap_p l2cap, struct ng_mesg *msg)
 	}
 
 	/* Create and intialize new connection descriptor */
-	con = ng_l2cap_new_con(l2cap, &ep->bdaddr);
+	con = ng_l2cap_new_con(l2cap, &ep->bdaddr, ep->link_type);
 	if (con == NULL)
 		return (ENOMEM);
 
@@ -773,6 +772,10 @@ ng_l2cap_lp_deliver(ng_l2cap_con_p con)
 		con->tx_pkt = con->tx_pkt->m_nextpkt;
 		m->m_nextpkt = NULL;
 
+		if(m->m_flags &M_PROTO2){
+			ng_l2cap_lp_receive(con->l2cap, m);
+			continue;
+		}
 		NG_L2CAP_INFO(
 "%s: %s - sending ACL packet, con_handle=%d, len=%d\n", 
 			__func__, NG_NODE_NAME(l2cap->node), con->con_handle, 

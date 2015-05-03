@@ -386,7 +386,7 @@ pci_iov_parse_config(struct pcicfg_iov *iov, struct pci_iov_arg *arg,
 	if (error != 0)
 		goto out;
 
-	config = nvlist_unpack(packed_config, arg->len);
+	config = nvlist_unpack(packed_config, arg->len, NV_FLAG_IGNORE_CASE);
 	if (config == NULL) {
 		error = EINVAL;
 		goto out;

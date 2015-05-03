@@ -31,7 +31,7 @@ static const char sccsid[] = "$Id: ex_visual.c,v 10.16 2001/08/29 11:04:13 skimo
  * ex_visual -- :[line] vi[sual] [^-.+] [window_size] [flags]
  *	Switch to visual mode.
  *
- * PUBLIC: int ex_visual __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_visual(SCR *, EXCMD *);
  */
 int
 ex_visual(SCR *sp, EXCMD *cmdp)

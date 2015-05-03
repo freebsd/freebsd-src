@@ -309,7 +309,6 @@ struct inpcb;
 extern int ipsec_init_policy(struct socket *so, struct inpcbpolicy **);
 extern int ipsec_copy_policy(struct inpcbpolicy *, struct inpcbpolicy *);
 extern u_int ipsec_get_reqlevel(struct ipsecrequest *);
-extern int ipsec_in_reject(struct secpolicy *, struct mbuf *);
 
 extern int ipsec_set_policy(struct inpcb *inp, int optname,
 	caddr_t request, size_t len, struct ucred *cred);
@@ -327,8 +326,8 @@ extern size_t ipsec_hdrsiz(struct mbuf *, u_int, struct inpcb *);
 extern size_t ipsec_hdrsiz_tcp(struct tcpcb *);
 
 union sockaddr_union;
-extern char * ipsec_address(union sockaddr_union* sa);
-extern const char *ipsec_logsastr(struct secasvar *);
+extern char *ipsec_address(union sockaddr_union *, char *, socklen_t);
+extern char *ipsec_logsastr(struct secasvar *, char *, size_t);
 
 extern void ipsec_dumpmbuf(struct mbuf *);
 

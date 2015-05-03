@@ -218,7 +218,7 @@ static int	wpi_set_timing(struct wpi_softc *, struct ieee80211_node *);
 static void	wpi_power_calibration(struct wpi_softc *);
 static int	wpi_set_txpower(struct wpi_softc *, int);
 static int	wpi_get_power_index(struct wpi_softc *,
-		    struct wpi_power_group *, struct ieee80211_channel *, int);
+		    struct wpi_power_group *, uint8_t, int, int);
 static int	wpi_set_pslevel(struct wpi_softc *, uint8_t, int, int);
 static int	wpi_send_btcoex(struct wpi_softc *);
 static int	wpi_send_rxon(struct wpi_softc *, int, int);
@@ -3455,19 +3455,17 @@ wpi_power_calibration(struct wpi_softc *sc)
 static int
 wpi_set_txpower(struct wpi_softc *sc, int async)
 {
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
-	struct ieee80211_channel *ch;
 	struct wpi_power_group *group;
 	struct wpi_cmd_txpower cmd;
 	uint8_t chan;
-	int idx, i;
+	int idx, is_chan_5ghz, i;
 
 	/* Retrieve current channel from last RXON. */
 	chan = sc->rxon.chan;
-	ch = &ic->ic_channels[chan];
+	is_chan_5ghz = (sc->rxon.flags & htole32(WPI_RXON_24GHZ)) == 0;
 
 	/* Find the TX power group to which this channel belongs. */
-	if (IEEE80211_IS_CHAN_5GHZ(ch)) {
+	if (is_chan_5ghz) {
 		for (group = &sc->groups[1]; group < &sc->groups[4]; group++)
 			if (chan <= group->chan)
 				break;
@@ -3475,17 +3473,17 @@ wpi_set_txpower(struct wpi_softc *sc, int async)
 		group = &sc->groups[0];
 
 	memset(&cmd, 0, sizeof cmd);
-	cmd.band = IEEE80211_IS_CHAN_5GHZ(ch) ? 0 : 1;
+	cmd.band = is_chan_5ghz ? WPI_BAND_5GHZ : WPI_BAND_2GHZ;
 	cmd.chan = htole16(chan);
 
 	/* Set TX power for all OFDM and CCK rates. */
 	for (i = 0; i <= WPI_RIDX_MAX ; i++) {
 		/* Retrieve TX power for this channel/rate. */
-		idx = wpi_get_power_index(sc, group, ch, i);
+		idx = wpi_get_power_index(sc, group, chan, is_chan_5ghz, i);
 
 		cmd.rates[i].plcp = wpi_ridx_to_plcp[i];
 
-		if (IEEE80211_IS_CHAN_5GHZ(ch)) {
+		if (is_chan_5ghz) {
 			cmd.rates[i].rf_gain = wpi_rf_gain_5ghz[idx];
 			cmd.rates[i].dsp_gain = wpi_dsp_gain_5ghz[idx];
 		} else {
@@ -3506,7 +3504,7 @@ wpi_set_txpower(struct wpi_softc *sc, int async)
  */
 static int
 wpi_get_power_index(struct wpi_softc *sc, struct wpi_power_group *group,
-    struct ieee80211_channel *c, int ridx)
+    uint8_t chan, int is_chan_5ghz, int ridx)
 {
 /* Fixed-point arithmetic division using a n-bit fractional part. */
 #define fdivround(a, b, n)	\
@@ -3516,13 +3514,8 @@ wpi_get_power_index(struct wpi_softc *sc, struct wpi_power_group *group,
 #define interpolate(x, x1, y1, x2, y2, n)	\
 	((y1) + fdivround(((x) - (x1)) * ((y2) - (y1)), (x2) - (x1), n))
 
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 	struct wpi_power_sample *sample;
 	int pwr, idx;
-	u_int chan;
-
-	/* Get channel number. */
-	chan = ieee80211_chan2ieee(ic, c);
 
 	/* Default TX power is group maximum TX power minus 3dB. */
 	pwr = group->maxpwr / 2;
@@ -3530,13 +3523,13 @@ wpi_get_power_index(struct wpi_softc *sc, struct wpi_power_group *group,
 	/* Decrease TX power for highest OFDM rates to reduce distortion. */
 	switch (ridx) {
 	case WPI_RIDX_OFDM36:
-		pwr -= IEEE80211_IS_CHAN_2GHZ(c) ? 0 :  5;
+		pwr -= is_chan_5ghz ?  5 : 0;
 		break;
 	case WPI_RIDX_OFDM48:
-		pwr -= IEEE80211_IS_CHAN_2GHZ(c) ? 7 : 10;
+		pwr -= is_chan_5ghz ? 10 : 7;
 		break;
 	case WPI_RIDX_OFDM54:
-		pwr -= IEEE80211_IS_CHAN_2GHZ(c) ? 9 : 12;
+		pwr -= is_chan_5ghz ? 12 : 9;
 		break;
 	}
 
@@ -4912,10 +4905,6 @@ wpi_apm_init(struct wpi_softc *sc)
 	/* Set FH wait threshold to max (HW bug under stress workaround). */
 	WPI_SETBITS(sc, WPI_DBG_HPET_MEM, 0xffff0000);
 
-	/* Cleanup. */
-	wpi_prph_write(sc, WPI_APMG_CLK_DIS, 0x00000400);
-	wpi_prph_clrbits(sc, WPI_APMG_PS, 0x00000E00);
-
 	/* Retrieve PCIe Active State Power Management (ASPM). */
 	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + 0x10, 1);
 	/* Workaround for HW instability in PCIe L0->L0s->L1 transition. */
@@ -4932,6 +4921,10 @@ wpi_apm_init(struct wpi_softc *sc)
 
 	if ((error = wpi_nic_lock(sc)) != 0)
 		return error;
+	/* Cleanup. */
+	wpi_prph_write(sc, WPI_APMG_CLK_DIS, 0x00000400);
+	wpi_prph_clrbits(sc, WPI_APMG_PS, 0x00000200);
+
 	/* Enable DMA and BSM (Bootstrap State Machine). */
 	wpi_prph_write(sc, WPI_APMG_CLK_EN,
 	    WPI_APMG_CLK_CTRL_DMA_CLK_RQT | WPI_APMG_CLK_CTRL_BSM_CLK_RQT);

@@ -44,7 +44,7 @@ SRCS=	\
 .PATH:	${.CURDIR}/../../sys/amd64/vmm
 SRCS+=	vmm_instruction_emul.c
 
-LIBADD=	vmmapi md util pthread
+LIBADD=	vmmapi md pthread
 
 WARNS?=	2
 

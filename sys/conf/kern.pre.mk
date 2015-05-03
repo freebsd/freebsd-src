@@ -26,7 +26,7 @@ KODIR?=		/boot/${KERNEL}
 LDSCRIPT_NAME?=	ldscript.$M
 LDSCRIPT?=	$S/conf/${LDSCRIPT_NAME}
 
-M=		${MACHINE_CPUARCH}
+M=		${MACHINE}
 
 AWK?=		awk
 CP?=		cp
@@ -64,13 +64,10 @@ NOSTDINC= -nostdinc
 
 INCLUDES= ${NOSTDINC} ${INCLMAGIC} -I. -I$S
 
-# This hack lets us use the OpenBSD altq code without spamming a new
-# include path into contrib'ed source files.
-INCLUDES+= -I$S/contrib/altq
-
 .if make(depend) || make(kernel-depend)
 
-# ... and the same for ipfilter
+# This hack lets us use the ipfilter code without spamming a new
+# include path into contrib'ed source files.
 INCLUDES+= -I$S/contrib/ipfilter
 
 # ... and the same for ath
@@ -90,7 +87,7 @@ INCLUDES+= -I$S/dev/cxgb -I$S/dev/cxgbe
 
 .endif
 
-CFLAGS=	${COPTFLAGS} ${DEBUG} ${CWARNFLAGS}
+CFLAGS=	${COPTFLAGS} ${DEBUG}
 CFLAGS+= ${INCLUDES} -D_KERNEL -DHAVE_KERNEL_OPTION_HEADERS -include opt_global.h
 CFLAGS_PARAM_INLINE_UNIT_GROWTH?=100
 CFLAGS_PARAM_LARGE_FUNCTION_GROWTH?=1000

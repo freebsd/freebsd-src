@@ -28,6 +28,8 @@
 
 #include "assym.s"
 
+#include "opt_hwpmc_hooks.h"
+
 #include <machine/asm.h>
 #include <machine/hid.h>
 #include <machine/param.h>
@@ -722,12 +724,10 @@ setfault:
 	lwz	%r4, TD_PCB(%r2)
 	stw	%r3, PCB_ONFAULT(%r4)
 	mfcr	%r10
-	mfctr	%r11
-	mfxer	%r12
 	stw	%r0, 0(%r3)
 	stw	%r1, 4(%r3)
 	stw	%r2, 8(%r3)
-	stmw	%r10, 12(%r3)		/* store CR, CTR, XER, [r13 .. r31] */
+	stmw	%r13, 12(%r3)		/* store CR, CTR, XER, [r13 .. r31] */
 	li	%r3, 0			/* return FALSE */
 	blr
 

@@ -215,12 +215,12 @@ distribution:
 	@false
 .endif
 	cd ${.CURDIR}; \
-	    ${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		${BIN1} ${DESTDIR}/etc; \
 	    cap_mkdb ${CAP_MKDB_ENDIAN} ${DESTDIR}/etc/login.conf; \
-	    ${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 755 \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 755 \
 		${BIN2} ${DESTDIR}/etc; \
-	    ${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 600 \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
 		master.passwd nsmb.conf opieaccess ${DESTDIR}/etc;
 .if ${MK_AT} == "no"
 	sed -i "" -e 's;.*/usr/libexec/atrun;#&;' ${DESTDIR}/etc/crontab
@@ -261,74 +261,74 @@ distribution:
 	${_+_}cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap
 	${_+_}cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt
 	${_+_}cd ${.CURDIR}/pam.d; ${MAKE} install
-	cd ${.CURDIR}; ${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 0444 \
+	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0444 \
 	    ${BSM_ETC_OPEN_FILES} ${BSM_ETC_DIR}
-	cd ${.CURDIR}; ${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 0600 \
+	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0600 \
 	    ${BSM_ETC_RESTRICTED_FILES} ${BSM_ETC_DIR}
-	cd ${.CURDIR}; ${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 0500 \
+	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0500 \
 	    ${BSM_ETC_EXEC_FILES} ${BSM_ETC_DIR}
 .if ${MK_UNBOUND} != "no"
 	if [ ! -e ${DESTDIR}/etc/unbound ]; then \
-		${INSTALL_SYMLINK} -T package=unbound ../var/unbound ${DESTDIR}/etc/unbound; \
+		${INSTALL_SYMLINK} ../var/unbound ${DESTDIR}/etc/unbound; \
 	fi
 .endif
 .if ${MK_SENDMAIL} != "no"
 	${_+_}cd ${.CURDIR}/sendmail; ${MAKE} distribution
 .endif
 .if ${MK_OPENSSH} != "no"
-	cd ${.CURDIR}; ${INSTALL} -T package=ssh,config -o ${BINOWN} -g ${BINGRP} -m 644 \
+	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${SSH} ${DESTDIR}/etc/ssh
 .endif
 .if ${MK_OPENSSL} != "no"
-	cd ${.CURDIR}; ${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${SSL} ${DESTDIR}/etc/ssl
 .endif
 .if ${MK_KERBEROS} != "no"
 	cd ${.CURDIR}/root; \
-	    ${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		dot.k5login ${DESTDIR}/root/.k5login;
 .endif
 	cd ${.CURDIR}/root; \
-	    ${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		dot.profile ${DESTDIR}/root/.profile; \
 	    rm -f ${DESTDIR}/.profile; \
 	    ln ${DESTDIR}/root/.profile ${DESTDIR}/.profile
 .if ${MK_TCSH} != "no"
 	cd ${.CURDIR}/root; \
-	    ${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		dot.cshrc ${DESTDIR}/root/.cshrc; \
-	    ${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		dot.login ${DESTDIR}/root/.login; \
 	    rm -f ${DESTDIR}/.cshrc; \
 	    ln ${DESTDIR}/root/.cshrc ${DESTDIR}/.cshrc
 .endif
-	cd ${.CURDIR}/mtree; ${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	cd ${.CURDIR}/mtree; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${MTREE} ${DESTDIR}/etc/mtree
 .if ${MK_PPP} != "no"
-	cd ${.CURDIR}/ppp; ${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 600 \
+	cd ${.CURDIR}/ppp; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
 	    ${PPPCNF} ${DESTDIR}/etc/ppp
 .endif
 .if ${MK_MAIL} != "no"
-	cd ${.CURDIR}/mail; ${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	cd ${.CURDIR}/mail; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${ETCMAIL} ${DESTDIR}/etc/mail
 	if [ -d ${DESTDIR}/etc/mail -a -f ${DESTDIR}/etc/mail/aliases -a \
 	      ! -f ${DESTDIR}/etc/aliases ]; then \
 		ln -s mail/aliases ${DESTDIR}/etc/aliases; \
 	fi
 .endif
-	${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g operator -m 664 /dev/null \
+	${INSTALL} -o ${BINOWN} -g operator -m 664 /dev/null \
 	    ${DESTDIR}/etc/dumpdates
 .if ${MK_LOCATE} != "no"
-	${INSTALL} ${TAG_ARGS} -o nobody -g ${BINGRP} -m 644 /dev/null \
+	${INSTALL} -o nobody -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/db/locate.database
 .endif
-	${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 644 ${.CURDIR}/minfree \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 ${.CURDIR}/minfree \
 	    ${DESTDIR}/var/crash
-	cd ${.CURDIR}/..; ${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	cd ${.CURDIR}/..; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${FREEBSD} ${DESTDIR}/
 .if ${MK_BOOT} != "no"
 .if exists(${.CURDIR}/../sys/${MACHINE}/conf/GENERIC.hints)
-	${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${.CURDIR}/../sys/${MACHINE}/conf/GENERIC.hints \
 	    ${DESTDIR}/boot/device.hints
 .endif
@@ -377,11 +377,12 @@ distrib-dirs: ${MTREES:N/*}
 		shift; \
 		d=$$1; \
 		test "$$d" == "/" && d=""; \
-		d=$$d; \
+		d=${DISTBASE}$$d; \
 		shift; \
-		${ECHO} "${MTREE_CMD:N-W} -C -f $$m -K all | " \
+		test -d ${DESTDIR}/$$d || mkdir -p ${DESTDIR}/$$d; \
+		${ECHO} "${MTREE_CMD:N-W} -C -f $$m -K uname,gname | " \
 		    "sed s#^\.#.$$d# | ${METALOG.add}" ; \
-		${MTREE_CMD:N-W} -C -f $$m -K all | sed s#^\.#.$$d# | \
+		${MTREE_CMD:N-W} -C -f $$m -K uname,gname | sed s#^\.#.$$d# | \
 		    ${METALOG.add} ; \
 	done; true
 .endif
@@ -420,7 +421,7 @@ distrib-dirs: ${MTREES:N/*}
 .endif
 
 etc-examples:
-	cd ${.CURDIR}; ${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${BIN1} ${BIN2} nsmb.conf opieaccess \
 	    ${DESTDIR}/usr/share/examples/etc
 	${_+_}cd ${.CURDIR}/defaults; ${MAKE} install \

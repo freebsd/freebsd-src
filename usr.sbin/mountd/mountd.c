@@ -253,7 +253,6 @@ static int have_v6 = 1;
 
 int v4root_phase = 0;
 char v4root_dirpath[PATH_MAX + 1];
-int run_v4server = 1;
 int has_publicfh = 0;
 
 struct pidfh *pfh = NULL;
@@ -312,7 +311,7 @@ main(int argc, char **argv)
 	else
 		close(s);
 
-	while ((c = getopt(argc, argv, "2deh:lnop:rS")) != -1)
+	while ((c = getopt(argc, argv, "2deh:lnp:rS")) != -1)
 		switch (c) {
 		case '2':
 			force_v2 = 1;
@@ -331,9 +330,6 @@ main(int argc, char **argv)
 			break;
 		case 'l':
 			dolog = 1;
-			break;
-		case 'o':
-			run_v4server = 0;
 			break;
 		case 'p':
 			endptr = NULL;
@@ -371,19 +367,9 @@ main(int argc, char **argv)
 			usage();
 		};
 
-	/*
-	 * Unless the "-o" option was specified, try and run "nfsd".
-	 * If "-o" was specified, try and run "nfsserver".
-	 */
-	if (run_v4server > 0) {
-		if (modfind("nfsd") < 0) {
-			/* Not present in kernel, try loading it */
-			if (kldload("nfsd") < 0 || modfind("nfsd") < 0)
-				errx(1, "NFS server is not available");
-		}
-	} else if (modfind("nfsserver") < 0) {
+	if (modfind("nfsd") < 0) {
 		/* Not present in kernel, try loading it */
-		if (kldload("nfsserver") < 0 || modfind("nfsserver") < 0)
+		if (kldload("nfsd") < 0 || modfind("nfsd") < 0)
 			errx(1, "NFS server is not available");
 	}
 
@@ -1697,8 +1683,7 @@ get_exportlist(void)
 	 */
 	bzero(&eargs, sizeof (eargs));
 	eargs.export.ex_flags = MNT_DELEXPORT;
-	if (run_v4server > 0 &&
-	    nfssvc(NFSSVC_V4ROOTEXPORT, (caddr_t)&eargs) < 0 &&
+	if (nfssvc(NFSSVC_V4ROOTEXPORT, (caddr_t)&eargs) < 0 &&
 	    errno != ENOENT)
 		syslog(LOG_ERR, "Can't delete exports for V4:");
 
@@ -1731,6 +1716,12 @@ get_exportlist(void)
 			continue;
 		}
 
+		/*
+		 * We do not need to delete "export" flag from
+		 * filesystems that do not have it set.
+		 */
+		if (!(fsp->f_flags & MNT_EXPORTED))
+		    continue;
 		/*
 		 * Do not delete export for network filesystem by
 		 * passing "export" arg to nmount().
@@ -1797,7 +1788,7 @@ get_exportlist(void)
 	/*
 	 * If there was no public fh, clear any previous one set.
 	 */
-	if (run_v4server > 0 && has_publicfh == 0)
+	if (has_publicfh == 0)
 		(void) nfssvc(NFSSVC_NOPUBLICFH, NULL);
 
 	/* Resume the nfsd. If they weren't suspended, this is harmless. */
@@ -2394,7 +2385,7 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 {
 	struct statfs fsb1;
 	struct addrinfo *ai;
-	struct export_args ea, *eap;
+	struct export_args *eap;
 	char errmsg[255];
 	char *cp;
 	int done;
@@ -2404,10 +2395,7 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 	int ret;
 	struct nfsex_args nfsea;
 
-	if (run_v4server > 0)
-		eap = &nfsea.export;
-	else
-		eap = &ea;
+	eap = &nfsea.export;
 
 	cp = NULL;
 	savedc = '\0';
@@ -2487,8 +2475,7 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 		 */
 		if (v4root_phase == 2) {
 			nfsea.fspec = v4root_dirpath;
-			if (run_v4server > 0 &&
-			    nfssvc(NFSSVC_V4ROOTEXPORT, (caddr_t)&nfsea) < 0) {
+			if (nfssvc(NFSSVC_V4ROOTEXPORT, (caddr_t)&nfsea) < 0) {
 				syslog(LOG_ERR, "Exporting V4: failed");
 				return (2);
 			}
@@ -2577,7 +2564,7 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 		 * If this is the public directory, get the file handle
 		 * and load it into the kernel via the nfssvc() syscall.
 		 */
-		if (run_v4server > 0 && (exflags & MNT_EXPUBLIC) != 0) {
+		if ((exflags & MNT_EXPUBLIC) != 0) {
 			fhandle_t fh;
 			char *public_name;
 

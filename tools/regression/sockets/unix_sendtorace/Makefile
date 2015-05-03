@@ -2,6 +2,6 @@
 
 PROG=	unix_sendtorace
 MAN=
-WARNS?=	3
+WARNS?=	6
 
 .include <bsd.prog.mk>

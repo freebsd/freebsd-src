@@ -11,8 +11,8 @@
 .Dt LIBXO 3
 .Os
 .Sh NAME
-.Nm xo_emit
-.Nd emit formatted output based on format string and arguments
+.Nm xo_open_container
+.Nd open (and close) container constructs
 .Sh LIBRARY
 .Lb libxo
 .Sh SYNOPSIS
@@ -48,7 +48,7 @@
 .Fn xo_close_container_d "void"
 .Sh DESCRIPTION
 .Nm libxo
-represents to types of hierarchy:
+represents two types of hierarchy:
 .Dq containers
 and
 .Dq lists .
@@ -72,7 +72,7 @@ or
 .Fn xo_close_container_h
 functions.
 .Pp
-Each open call must have a matching close call.
+Each open call should have a matching close call.
 If the
 .Dv XOF_WARN
 flag is set and the name given does not match the name of 

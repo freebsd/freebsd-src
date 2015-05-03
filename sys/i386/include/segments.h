@@ -82,14 +82,8 @@ struct region_descriptor {
 
 #ifdef _KERNEL
 extern int	_default_ldt;
-#ifdef XEN
-extern struct proc_ldt default_proc_ldt;
-extern union descriptor *gdt;
-extern union descriptor *ldt;
-#else
 extern union descriptor gdt[];
 extern union descriptor ldt[NLDT];
-#endif
 extern struct soft_segment_descriptor gdt_segs[];
 extern struct gate_descriptor *idt;
 extern struct region_descriptor r_gdt, r_idt;

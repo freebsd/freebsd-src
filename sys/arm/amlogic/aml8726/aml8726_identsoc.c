@@ -59,8 +59,8 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/amlogic/aml8726/aml8726_soc.h>
 
-uint32_t aml8726_soc_hw_rev = 0xffffffff;
-uint32_t aml8726_soc_metal_rev = 0xffffffff;
+uint32_t aml8726_soc_hw_rev = AML_SOC_HW_REV_UNKNOWN;
+uint32_t aml8726_soc_metal_rev = AML_SOC_METAL_REV_UNKNOWN;
 
 static const struct {
 	uint32_t hw_rev;
@@ -86,11 +86,10 @@ static const struct {
 	{ 0xff, NULL }
 };
 
-static void
-aml8726_identify_soc(void *dummy)
+void
+aml8726_identify_soc()
 {
 	int err;
-	int i;
 	struct resource res;
 
 	memset(&res, 0, sizeof(res));
@@ -108,6 +107,12 @@ aml8726_identify_soc(void *dummy)
 	aml8726_soc_metal_rev = bus_read_4(&res, AML_SOC_METAL_REV_REG);
 
 	bus_space_unmap(res.r_bustag, res.r_bushandle, 0x100000);
+}
+
+static void
+aml8726_identify_announce_soc(void *dummy)
+{
+	int i;
 
 	for (i = 0; aml8726_soc_desc[i].desc; i++)
 		if (aml8726_soc_desc[i].hw_rev == aml8726_soc_hw_rev)
@@ -133,5 +138,5 @@ aml8726_identify_soc(void *dummy)
 	printf("\n");
 }
 
-SYSINIT(aml8726_identify_soc, SI_SUB_CPU, SI_ORDER_SECOND,
-    aml8726_identify_soc, NULL);
+SYSINIT(aml8726_identify_announce_soc, SI_SUB_CPU, SI_ORDER_SECOND,
+    aml8726_identify_announce_soc, NULL);

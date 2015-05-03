@@ -101,6 +101,12 @@
 			 */
 		};
 
+		watchdog0 {
+			compatible = "broadcom,bcm2835-wdt",
+				     "broadcom,bcm2708-wdt";
+			reg = <0x10001c 0x0c>; /* 0x1c, 0x20, 0x24 */
+		};
+
 		gpio: gpio {
 			compatible = "broadcom,bcm2835-gpio",
 				     "broadcom,bcm2708-gpio";
@@ -125,11 +131,11 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pins_reserved>;
 
-			/* Pins that can short 3.3V to GND in output mode: 46-47
+			/* Pins that can short 3.3V to GND in output mode: 46
 			 * Pins used by VideoCore: 48-53
 			 */
-			broadcom,read-only = <46>, <47>, <48>, <49>, <50>, 
-			                     <51>, <52>, <53>;
+			broadcom,read-only = <46>, <48>, <49>, <50>,
+					     <51>, <52>, <53>;
 
 			/* BSC0 */
 			pins_bsc0_a: bsc0_a {
@@ -431,7 +437,7 @@
 			interrupts = <70>;
 			interrupt-parent = <&intc>;
 
-			clock-frequency = <2500000000>;	/* Set by VideoCore */
+			clock-frequency = <250000000>;	/* Set by VideoCore */
 		};
 
 		uart0: uart0 {

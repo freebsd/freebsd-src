@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 #include <efilib.h>
 
 #include <bootstrap.h>
+#include <smbios.h>
+
 #include "loader_efi.h"
 
 extern char bootprog_name[];
@@ -63,6 +65,7 @@ main(int argc, CHAR16 *argv[])
 {
 	char vendor[128];
 	EFI_LOADED_IMAGE *img;
+	EFI_GUID *guid;
 	int i;
 
 	/*
@@ -127,6 +130,14 @@ main(int argc, CHAR16 *argv[])
 	archsw.arch_copyin = efi_copyin;
 	archsw.arch_copyout = efi_copyout;
 	archsw.arch_readin = efi_readin;
+
+	for (i = 0; i < ST->NumberOfTableEntries; i++) {
+		guid = &ST->ConfigurationTable[i].VendorGuid;
+		if (!memcmp(guid, &smbios, sizeof(EFI_GUID))) {
+			smbios_detect(ST->ConfigurationTable[i].VendorTable);
+			break;
+		}
+	}
 
 	interact(NULL);			/* doesn't return */
 
@@ -285,7 +296,7 @@ command_configuration(int argc, char *argv[])
 }
 
 
-COMMAND_SET(mode, "mode", "change or display text modes", command_mode);
+COMMAND_SET(mode, "mode", "change or display EFI text modes", command_mode);
 
 static int
 command_mode(int argc, char *argv[])
@@ -331,7 +342,7 @@ command_mode(int argc, char *argv[])
 	}
 
 	if (i != 0)
-		printf("Choose the mode with \"col <mode number>\"\n");
+		printf("Select a mode with the command \"mode <number>\"\n");
 
 	return (CMD_OK);
 }
@@ -387,3 +398,22 @@ command_nvram(int argc, char *argv[])
 
 	return (CMD_OK);
 }
+
+#ifdef LOADER_FDT_SUPPORT
+extern int command_fdt_internal(int argc, char *argv[]);
+
+/*
+ * Since proper fdt command handling function is defined in fdt_loader_cmd.c,
+ * and declaring it as extern is in contradiction with COMMAND_SET() macro
+ * (which uses static pointer), we're defining wrapper function, which
+ * calls the proper fdt handling routine.
+ */
+static int
+command_fdt(int argc, char *argv[])
+{
+
+	return (command_fdt_internal(argc, argv));
+}
+
+COMMAND_SET(fdt, "fdt", "flattened device tree handling", command_fdt);
+#endif

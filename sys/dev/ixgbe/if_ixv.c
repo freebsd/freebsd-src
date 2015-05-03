@@ -60,7 +60,6 @@ static ixgbe_vendor_info_t ixv_vendor_info_array[] =
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_VF, 0, 0, 0},
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X540_VF, 0, 0, 0},
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550_VF, 0, 0, 0},
-	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_VF, 0, 0, 0},
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_X_VF, 0, 0, 0},
 	/* required last entry */
 	{0, 0, 0, 0, 0}
@@ -882,7 +881,7 @@ ixv_msix_mbx(void *arg)
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32		reg;
 
-	++adapter->vector_irq;
+	++adapter->link_irq;
 
 	/* First get the cause */
 	reg = IXGBE_READ_REG(hw, IXGBE_VTEICS);
@@ -2034,8 +2033,8 @@ ixv_add_stats_sysctls(struct adapter *adapter)
 	SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_packets",
 			CTLFLAG_RD, &(txr->total_packets),
 			"TX Packets");
-	SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_bytes",
-			CTLFLAG_RD, &(txr->tx_bytes),
+	SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "tx_bytes",
+			CTLFLAG_RD, &(txr->bytes), 0,
 			"TX Bytes");
 	SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_no_desc",
 			CTLFLAG_RD, &(txr->no_desc_avail),
@@ -2083,7 +2082,7 @@ ixv_print_debug_info(struct adapter *adapter)
         }
 
         device_printf(dev,"MBX IRQ Handled: %lu\n",
-            (long)adapter->vector_irq);
+            (long)adapter->link_irq);
         return;
 }
 

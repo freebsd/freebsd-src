@@ -8,7 +8,7 @@ PACKAGE=	bhyve
 
 MAN=
 
-LIBADD=	vmmapi util
+LIBADD=	vmmapi
 
 WARNS?=	3
 
