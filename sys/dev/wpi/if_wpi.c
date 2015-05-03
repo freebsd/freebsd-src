@@ -1983,7 +1983,7 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	/*
 	 * Update rate control statistics for the node.
 	 */
-	if ((status & 0xff) != 1) {
+	if (status & WPI_TX_STATUS_FAIL) {
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		ieee80211_ratectl_tx_complete(vap, ni,
 		    IEEE80211_RATECTL_TX_FAILURE, &ackfailcnt, NULL);
@@ -1993,7 +1993,7 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 		    IEEE80211_RATECTL_TX_SUCCESS, &ackfailcnt, NULL);
 	}
 
-	ieee80211_tx_complete(ni, m, (status & 0xff) != 1);
+	ieee80211_tx_complete(ni, m, (status & WPI_TX_STATUS_FAIL) != 0);
 
 	WPI_TXQ_STATE_LOCK(sc);
 	ring->queued -= 1;
