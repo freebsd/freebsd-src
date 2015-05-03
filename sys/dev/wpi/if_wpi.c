@@ -4274,8 +4274,6 @@ wpi_run(struct wpi_softc *sc, struct ieee80211vap *vap)
 	sc->rxon.flags = htole32(WPI_RXON_TSF | WPI_RXON_CTS_TO_SELF);
 	if (IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
 		sc->rxon.flags |= htole32(WPI_RXON_AUTO | WPI_RXON_24GHZ);
-	/* Short preamble and slot time are negotiated when associating. */
-	sc->rxon.flags &= ~htole32(WPI_RXON_SHPREAMBLE | WPI_RXON_SHSLOT);
 	if (ic->ic_flags & IEEE80211_F_SHSLOT)
 		sc->rxon.flags |= htole32(WPI_RXON_SHSLOT);
 	if (ic->ic_flags & IEEE80211_F_SHPREAMBLE)
