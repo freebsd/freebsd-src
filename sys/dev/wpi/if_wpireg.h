@@ -352,6 +352,7 @@ struct wpi_tx_cmd {
 #define WPI_CMD_SET_LED		 72
 #define WPI_CMD_SET_POWER_MODE	119
 #define WPI_CMD_SCAN		128
+#define WPI_CMD_SCAN_ABORT	129
 #define WPI_CMD_SET_BEACON	145
 #define WPI_CMD_TXPOWER		151
 #define WPI_CMD_BT_COEX		155
@@ -725,6 +726,9 @@ struct wpi_start_scan {
 struct wpi_stop_scan {
 	uint8_t		nchan;
 	uint8_t		status;
+#define WPI_SCAN_COMPLETED	1
+#define WPI_SCAN_ABORTED	2
+
 	uint8_t		reserved;
 	uint8_t		chan;
 	uint64_t	tsf;
