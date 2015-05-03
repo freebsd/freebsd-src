@@ -210,8 +210,6 @@ struct wpi_softc {
 	struct mtx		nt_mtx;
 
 	void			(*sc_node_free)(struct ieee80211_node *);
-	void			(*sc_scan_curchan)(struct ieee80211_scan_state *,
-				    unsigned long);
 
 	struct wpi_rx_radiotap_header	sc_rxtap;
 	struct wpi_tx_radiotap_header	sc_txtap;
