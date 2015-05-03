@@ -2606,8 +2606,11 @@ arc_reclaim_needed(void)
 		    (vmem_size(heap_arena, VMEM_FREE | VMEM_ALLOC)) >> 2);
 		return (1);
 	}
+#define	zio_arena	NULL
+#else
+#define	zio_arena	heap_arena
 #endif
-#ifdef sun
+
 	/*
 	 * If zio data pages are being allocated out of a separate heap segment,
 	 * then enforce that the size of available vmem for this arena remains
@@ -2621,7 +2624,14 @@ arc_reclaim_needed(void)
 	    vmem_size(zio_arena, VMEM_FREE) <
 	    (vmem_size(zio_arena, VMEM_ALLOC) >> 4))
 		return (1);
-#endif	/* sun */
+
+	/*
+	 * Above limits know nothing about real level of KVA fragmentation.
+	 * Start aggressive reclamation if too little sequential KVA left.
+	 */
+	if (vmem_size(heap_arena, VMEM_MAXFREE) < zfs_max_recordsize)
+		return (1);
+
 #else	/* _KERNEL */
 	if (spa_get_random(100) == 0)
 		return (1);
