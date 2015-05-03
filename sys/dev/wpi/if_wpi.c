@@ -3818,7 +3818,7 @@ wpi_get_active_dwell_time(struct wpi_softc *sc,
 }
 
 /*
- * Limit the total dwell time to 85% of the beacon interval.
+ * Limit the total dwell time.
  *
  * Returns the dwell time in milliseconds.
  */
@@ -3843,11 +3843,11 @@ wpi_limit_dwell(struct wpi_softc *sc, uint16_t dwell_time)
 	if (bintval > 0) {
 		DPRINTF(sc, WPI_DEBUG_SCAN, "%s: bintval=%d\n", __func__,
 		    bintval);
-		return (MIN(WPI_PASSIVE_DWELL_BASE, ((bintval * 85) / 100)));
+		return (MIN(dwell_time, bintval - WPI_CHANNEL_TUNE_TIME * 2));
 	}
 
 	/* No association context? Default. */
-	return (WPI_PASSIVE_DWELL_BASE);
+	return dwell_time;
 }
 
 static uint16_t
@@ -3882,7 +3882,7 @@ wpi_scan(struct wpi_softc *sc, struct ieee80211_channel *c)
 	struct ieee80211_rateset *rs;
 	uint16_t dwell_active, dwell_passive;
 	uint8_t *buf, *frm;
-	int buflen, error, i, nssid;
+	int bgscan, bintval, buflen, error, i, nssid;
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_BEGIN, __func__);
 
@@ -3893,10 +3893,16 @@ wpi_scan(struct wpi_softc *sc, struct ieee80211_channel *c)
 	if (callout_pending(&sc->scan_timeout)) {
 		device_printf(sc->sc_dev, "%s: called whilst scanning!\n",
 		    __func__);
+		error = EAGAIN;
+		goto fail;
+	}
 
-		DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END_ERR, __func__);
-
-		return (EAGAIN);
+	bgscan = wpi_check_bss_filter(sc);
+	bintval = vap->iv_bss->ni_intval;
+	if (bgscan != 0 &&
+	    bintval < WPI_QUIET_TIME_DEFAULT + WPI_CHANNEL_TUNE_TIME * 2) {
+		error = EOPNOTSUPP;
+		goto fail;
 	}
 
 	buf = malloc(WPI_SCAN_MAXSZ, M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -3913,8 +3919,8 @@ wpi_scan(struct wpi_softc *sc, struct ieee80211_channel *c)
 	 * Move to the next channel if no packets are received within 10 msecs
 	 * after sending the probe request.
 	 */
-	hdr->quiet_time = htole16(10);		/* timeout in milliseconds */
-	hdr->quiet_threshold = htole16(1);	/* min # of packets */
+	hdr->quiet_time = htole16(WPI_QUIET_TIME_DEFAULT);
+	hdr->quiet_threshold = htole16(1);
 	/*
 	 * Max needs to be greater than active and passive and quiet!
 	 * It's also in microseconds!
@@ -4003,8 +4009,8 @@ wpi_scan(struct wpi_softc *sc, struct ieee80211_channel *c)
 	dwell_passive = wpi_get_passive_dwell_time(sc, c);
 
 	/* Make sure they're valid. */
-	if (dwell_passive <= dwell_active)
-		dwell_passive = dwell_active + 1;
+	if (dwell_active > dwell_passive)
+		dwell_active = dwell_passive;
 
 	chan->active = htole16(dwell_active);
 	chan->passive = htole16(dwell_passive);
