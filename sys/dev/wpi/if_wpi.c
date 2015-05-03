@@ -174,9 +174,13 @@ static int	wpi_setregdomain(struct ieee80211com *,
 		    struct ieee80211_channel[]);
 static int	wpi_read_eeprom_group(struct wpi_softc *, int);
 static int	wpi_add_node_entry_adhoc(struct wpi_softc *);
-static void	wpi_node_free(struct ieee80211_node *);
 static struct ieee80211_node *wpi_node_alloc(struct ieee80211vap *,
 		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+static void	wpi_node_free(struct ieee80211_node *);
+static void	wpi_recv_mgmt(struct ieee80211_node *, struct mbuf *, int, int,
+		    int);
+static void	wpi_restore_node(void *, struct ieee80211_node *);
+static void	wpi_restore_node_table(struct wpi_softc *, struct wpi_vap *);
 static int	wpi_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	wpi_calib_timeout(void *);
 static void	wpi_rx_done(struct wpi_softc *, struct wpi_rx_desc *,
@@ -654,6 +658,8 @@ wpi_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	/* Override with driver methods. */
 	vap->iv_key_set = wpi_key_set;
 	vap->iv_key_delete = wpi_key_delete;
+	wvp->wv_recv_mgmt = vap->iv_recv_mgmt;
+	vap->iv_recv_mgmt = wpi_recv_mgmt;
 	wvp->wv_newstate = vap->iv_newstate;
 	vap->iv_newstate = wpi_newstate;
 	vap->iv_update_beacon = wpi_update_beacon;
@@ -1685,6 +1691,66 @@ wpi_check_bss_filter(struct wpi_softc *sc)
 	return (sc->rxon.filter & htole32(WPI_FILTER_BSS)) != 0;
 }
 
+static void
+wpi_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m, int subtype, int rssi,
+    int nf)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct wpi_softc *sc = vap->iv_ic->ic_ifp->if_softc;
+	struct wpi_vap *wvp = WPI_VAP(vap);
+	uint64_t ni_tstamp, rx_tstamp;
+
+	wvp->wv_recv_mgmt(ni, m, subtype, rssi, nf);
+
+	if (vap->iv_opmode == IEEE80211_M_IBSS &&
+	    vap->iv_state == IEEE80211_S_RUN &&
+	    (subtype == IEEE80211_FC0_SUBTYPE_BEACON ||
+	    subtype == IEEE80211_FC0_SUBTYPE_PROBE_RESP)) {
+		ni_tstamp = le64toh(ni->ni_tstamp.tsf);
+		rx_tstamp = le64toh(sc->rx_tstamp);
+
+		if (ni_tstamp >= rx_tstamp) {
+			DPRINTF(sc, WPI_DEBUG_STATE,
+			    "ibss merge, tsf %ju tstamp %ju\n",
+			    (uintmax_t)rx_tstamp, (uintmax_t)ni_tstamp);
+			(void) ieee80211_ibss_merge(ni);
+		}
+	}
+}
+
+static void
+wpi_restore_node(void *arg, struct ieee80211_node *ni)
+{
+	struct wpi_softc *sc = arg;
+	struct wpi_node *wn = WPI_NODE(ni);
+	int error;
+
+	WPI_NT_LOCK(sc);
+	if (wn->id != WPI_ID_UNDEFINED) {
+		wn->id = WPI_ID_UNDEFINED;
+		if ((error = wpi_add_ibss_node(sc, ni)) != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: could not add IBSS node, error %d\n",
+			    __func__, error);
+		}
+	}
+	WPI_NT_UNLOCK(sc);
+}
+
+static void
+wpi_restore_node_table(struct wpi_softc *sc, struct wpi_vap *wvp)
+{
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+
+	/* Set group keys once. */
+	WPI_NT_LOCK(sc);
+	wvp->wv_gtk = 0;
+	WPI_NT_UNLOCK(sc);
+
+	ieee80211_iterate_nodes(&ic->ic_sta, wpi_restore_node, sc);
+	ieee80211_crypto_reload_keys(ic);
+}
+
 /**
  * Called by net80211 when ever there is a change to 80211 state machine
  */
@@ -1751,13 +1817,36 @@ wpi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 	case IEEE80211_S_RUN:
 		/*
-		 * RUN -> RUN transition; Just restart the timers.
+		 * RUN -> RUN transition:
+		 * STA mode: Just restart the timers.
+		 * IBSS mode: Process IBSS merge.
 		 */
 		if (vap->iv_state == IEEE80211_S_RUN) {
-			WPI_RXON_LOCK(sc);
-			wpi_calib_timeout(sc);
-			WPI_RXON_UNLOCK(sc);
-			break;
+			if (vap->iv_opmode != IEEE80211_M_IBSS) {
+				WPI_RXON_LOCK(sc);
+				wpi_calib_timeout(sc);
+				WPI_RXON_UNLOCK(sc);
+				break;
+			} else {
+				/*
+				 * Drop the BSS_FILTER bit
+				 * (there is no another way to change bssid).
+				 */
+				WPI_RXON_LOCK(sc);
+				sc->rxon.filter &= ~htole32(WPI_FILTER_BSS);
+				if ((error = wpi_send_rxon(sc, 0, 1)) != 0) {
+					device_printf(sc->sc_dev,
+					    "%s: could not send RXON\n",
+					    __func__);
+				}
+				WPI_RXON_UNLOCK(sc);
+
+				/* Restore all what was lost. */
+				wpi_restore_node_table(sc, wvp);
+
+				/* XXX set conditionally? */
+				wpi_updateedca(ic);
+			}
 		}
 
 		/*
@@ -1945,6 +2034,7 @@ wpi_rx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 	}
 
 	ni = ieee80211_find_rxnode(ic, (struct ieee80211_frame_min *)wh);
+	sc->rx_tstamp = tail->tstamp;
 
 	if (ieee80211_radiotap_active(ic)) {
 		struct wpi_rx_radiotap_header *tap = &sc->sc_rxtap;
