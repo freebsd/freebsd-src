@@ -43,6 +43,7 @@ enum {
 	WPI_DEBUG_KEY		= 0x00020000,	/* node key management */
 	WPI_DEBUG_EDCA		= 0x00040000,	/* WME info */
 	WPI_DEBUG_REGISTER	= 0x00080000,	/* print chipset register */
+	WPI_DEBUG_BMISS		= 0x00100000,	/* print number of missed beacons */
 	WPI_DEBUG_ANY		= 0xffffffff
 };
 
