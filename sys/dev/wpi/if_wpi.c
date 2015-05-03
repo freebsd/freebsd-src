@@ -228,6 +228,7 @@ static uint16_t	wpi_get_active_dwell_time(struct wpi_softc *,
 static uint16_t	wpi_limit_dwell(struct wpi_softc *, uint16_t);
 static uint16_t	wpi_get_passive_dwell_time(struct wpi_softc *,
 		    struct ieee80211_channel *);
+static uint32_t	wpi_get_scan_pause_time(uint32_t, uint16_t);
 static int	wpi_scan(struct wpi_softc *, struct ieee80211_channel *);
 static int	wpi_auth(struct wpi_softc *, struct ieee80211vap *);
 static int	wpi_config_beacon(struct wpi_vap *);
@@ -3864,6 +3865,18 @@ wpi_get_passive_dwell_time(struct wpi_softc *sc, struct ieee80211_channel *c)
 	return (wpi_limit_dwell(sc, passive));
 }
 
+static uint32_t
+wpi_get_scan_pause_time(uint32_t time, uint16_t bintval)
+{
+	uint32_t mod = (time % bintval) * IEEE80211_DUR_TU;
+	uint32_t nbeacons = time / bintval;
+
+	if (mod > WPI_PAUSE_MAX_TIME)
+		mod = WPI_PAUSE_MAX_TIME;
+
+	return WPI_PAUSE_SCAN(nbeacons, mod);
+}
+
 /*
  * Send a scan request to the firmware.
  */
@@ -3921,13 +3934,17 @@ wpi_scan(struct wpi_softc *sc, struct ieee80211_channel *c)
 	 */
 	hdr->quiet_time = htole16(WPI_QUIET_TIME_DEFAULT);
 	hdr->quiet_threshold = htole16(1);
-	/*
-	 * Max needs to be greater than active and passive and quiet!
-	 * It's also in microseconds!
-	 */
-	hdr->max_svc = htole32(250 * IEEE80211_DUR_TU);
-	hdr->pause_svc = htole32((4 << 24) |
-	    (100 * IEEE80211_DUR_TU));	/* Hardcode for now */
+
+	if (bgscan != 0) {
+		/*
+		 * Max needs to be greater than active and passive and quiet!
+		 * It's also in microseconds!
+		 */
+		hdr->max_svc = htole32(250 * IEEE80211_DUR_TU);
+		hdr->pause_svc = htole32(wpi_get_scan_pause_time(100,
+		    bintval));
+	}
+
 	hdr->filter = htole32(WPI_FILTER_MULTICAST | WPI_FILTER_BEACON);
 
 	tx = (struct wpi_cmd_data *)(hdr + 1);
