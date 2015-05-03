@@ -2115,7 +2115,7 @@ wpi_notif_intr(struct wpi_softc *sc)
 		{
 			struct wpi_beacon_missed *miss =
 			    (struct wpi_beacon_missed *)(desc + 1);
-			uint32_t expected, misses, received;
+			uint32_t expected, misses, received, threshold;
 
 			bus_dmamap_sync(sc->rxq.data_dmat, data->map,
 			    BUS_DMASYNC_POSTREAD);
@@ -2123,6 +2123,7 @@ wpi_notif_intr(struct wpi_softc *sc)
 			misses = le32toh(miss->consecutive);
 			expected = le32toh(miss->expected);
 			received = le32toh(miss->received);
+			threshold = MAX(2, vap->iv_bmissthreshold);
 
 			DPRINTF(sc, WPI_DEBUG_BMISS,
 			    "%s: beacons missed %d/%d\n", __func__, misses,
@@ -2130,9 +2131,8 @@ wpi_notif_intr(struct wpi_softc *sc)
 
 			if (vap->iv_state == IEEE80211_S_RUN &&
 			    (ic->ic_flags & IEEE80211_F_SCAN) == 0 &&
-			    (misses >= vap->iv_bmissthreshold ||
-			    (received == 0 &&
-			    expected >= vap->iv_bmissthreshold)))
+			    (misses >= threshold ||
+			    (received == 0 && expected >= threshold)))
 				ieee80211_beacon_miss(ic);
 
 			break;
