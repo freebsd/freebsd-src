@@ -152,11 +152,14 @@ static int	wpi_alloc_fwmem(struct wpi_softc *);
 static void	wpi_free_fwmem(struct wpi_softc *);
 static int	wpi_alloc_rx_ring(struct wpi_softc *);
 static void	wpi_update_rx_ring(struct wpi_softc *);
+static void	wpi_update_rx_ring_ps(struct wpi_softc *);
 static void	wpi_reset_rx_ring(struct wpi_softc *);
 static void	wpi_free_rx_ring(struct wpi_softc *);
 static int	wpi_alloc_tx_ring(struct wpi_softc *, struct wpi_tx_ring *,
 		    int);
 static void	wpi_update_tx_ring(struct wpi_softc *, struct wpi_tx_ring *);
+static void	wpi_update_tx_ring_ps(struct wpi_softc *,
+		    struct wpi_tx_ring *);
 static void	wpi_reset_tx_ring(struct wpi_softc *, struct wpi_tx_ring *);
 static void	wpi_free_tx_ring(struct wpi_softc *, struct wpi_tx_ring *);
 static int	wpi_read_eeprom(struct wpi_softc *,
@@ -520,6 +523,9 @@ wpi_attach(device_t dev)
 	ic->ic_scan_curchan = wpi_scan_curchan;
 	ic->ic_scan_mindwell = wpi_scan_mindwell;
 	ic->ic_setregdomain = wpi_setregdomain;
+
+	sc->sc_update_rx_ring = wpi_update_rx_ring;
+	sc->sc_update_tx_ring = wpi_update_tx_ring;
 
 	wpi_radiotap_attach(sc);
 
@@ -1089,6 +1095,12 @@ fail:	wpi_free_rx_ring(sc);
 static void
 wpi_update_rx_ring(struct wpi_softc *sc)
 {
+	WPI_WRITE(sc, WPI_FH_RX_WPTR, sc->rxq.cur & ~7);
+}
+
+static void
+wpi_update_rx_ring_ps(struct wpi_softc *sc)
+{
 	struct wpi_rx_ring *ring = &sc->rxq;
 
 	if (ring->update != 0) {
@@ -1096,14 +1108,15 @@ wpi_update_rx_ring(struct wpi_softc *sc)
 		return;
 	}
 
-	if (WPI_READ(sc, WPI_UCODE_GP1) & WPI_UCODE_GP1_MAC_SLEEP) {
+	WPI_SETBITS(sc, WPI_GP_CNTRL, WPI_GP_CNTRL_MAC_ACCESS_REQ);
+	if (WPI_READ(sc, WPI_GP_CNTRL) & WPI_GP_CNTRL_SLEEP) {
 		DPRINTF(sc, WPI_DEBUG_PWRSAVE, "%s: wakeup request\n",
 		    __func__);
-
-		WPI_SETBITS(sc, WPI_GP_CNTRL, WPI_GP_CNTRL_MAC_ACCESS_REQ);
 		ring->update = 1;
-	} else
-		WPI_WRITE(sc, WPI_FH_RX_WPTR, ring->cur & ~7);
+	} else {
+		wpi_update_rx_ring(sc);
+		WPI_CLRBITS(sc, WPI_GP_CNTRL, WPI_GP_CNTRL_MAC_ACCESS_REQ);
+	}
 }
 
 static void
@@ -1247,19 +1260,27 @@ fail:	wpi_free_tx_ring(sc, ring);
 static void
 wpi_update_tx_ring(struct wpi_softc *sc, struct wpi_tx_ring *ring)
 {
+	WPI_WRITE(sc, WPI_HBUS_TARG_WRPTR, ring->qid << 8 | ring->cur);
+}
+
+static void
+wpi_update_tx_ring_ps(struct wpi_softc *sc, struct wpi_tx_ring *ring)
+{
+
 	if (ring->update != 0) {
 		/* Wait for INT_WAKEUP event. */
 		return;
 	}
 
-	if (WPI_READ(sc, WPI_UCODE_GP1) & WPI_UCODE_GP1_MAC_SLEEP) {
+	WPI_SETBITS(sc, WPI_GP_CNTRL, WPI_GP_CNTRL_MAC_ACCESS_REQ);
+	if (WPI_READ(sc, WPI_GP_CNTRL) & WPI_GP_CNTRL_SLEEP) {
 		DPRINTF(sc, WPI_DEBUG_PWRSAVE, "%s (%d): requesting wakeup\n",
 		    __func__, ring->qid);
-
-		WPI_SETBITS(sc, WPI_GP_CNTRL, WPI_GP_CNTRL_MAC_ACCESS_REQ);
 		ring->update = 1;
-	} else
-		WPI_WRITE(sc, WPI_HBUS_TARG_WRPTR, ring->qid << 8 | ring->cur);
+	} else {
+		wpi_update_tx_ring(sc, ring);
+		WPI_CLRBITS(sc, WPI_GP_CNTRL, WPI_GP_CNTRL_MAC_ACCESS_REQ);
+	}
 }
 
 static void
@@ -2067,6 +2088,18 @@ wpi_cmd_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	}
 
 	wakeup(&ring->cmd[desc->idx]);
+
+	if (desc->type == WPI_CMD_SET_POWER_MODE) {
+		WPI_TXQ_LOCK(sc);
+		if (sc->sc_flags & WPI_PS_PATH) {
+			sc->sc_update_rx_ring = wpi_update_rx_ring_ps;
+			sc->sc_update_tx_ring = wpi_update_tx_ring_ps;
+		} else {
+			sc->sc_update_rx_ring = wpi_update_rx_ring;
+			sc->sc_update_tx_ring = wpi_update_tx_ring;
+		}
+		WPI_TXQ_UNLOCK(sc);
+	}
 }
 
 static void
@@ -2262,7 +2295,7 @@ wpi_notif_intr(struct wpi_softc *sc)
 
 		if (sc->rxq.cur % 8 == 0) {
 			/* Tell the firmware what we have processed. */
-			wpi_update_rx_ring(sc);
+			sc->sc_update_rx_ring(sc);
 		}
 	}
 }
@@ -2293,9 +2326,8 @@ wpi_wakeup_intr(struct wpi_softc *sc)
 			wpi_update_tx_ring(sc, ring);
 		}
 	}
-	WPI_TXQ_UNLOCK(sc);
-
 	WPI_CLRBITS(sc, WPI_GP_CNTRL, WPI_GP_CNTRL_MAC_ACCESS_REQ);
+	WPI_TXQ_UNLOCK(sc);
 }
 
 /*
@@ -2595,7 +2627,7 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 
 	/* Kick TX ring. */
 	ring->cur = (ring->cur + 1) % WPI_TX_RING_COUNT;
-	wpi_update_tx_ring(sc, ring);
+	sc->sc_update_tx_ring(sc, ring);
 
 	if (ring->qid < WPI_CMD_QUEUE_NUM) {
 		/* Mark TX ring as full if we reach a certain threshold. */
@@ -3147,7 +3179,7 @@ wpi_cmd(struct wpi_softc *sc, int code, const void *buf, size_t size,
 
 	/* Kick command ring. */
 	ring->cur = (ring->cur + 1) % WPI_TX_RING_COUNT;
-	wpi_update_tx_ring(sc, ring);
+	sc->sc_update_tx_ring(sc, ring);
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
 
@@ -3648,8 +3680,13 @@ wpi_set_pslevel(struct wpi_softc *sc, uint8_t dtim, int level, int async)
 		pmgt = &wpi_pmgt[1][level];
 
 	memset(&cmd, 0, sizeof cmd);
-	if (level != 0)	/* not CAM */
+	WPI_TXQ_LOCK(sc);
+	if (level != 0)	{	/* not CAM */
 		cmd.flags |= htole16(WPI_PS_ALLOW_SLEEP);
+		sc->sc_flags |= WPI_PS_PATH;
+	} else
+		sc->sc_flags &= ~WPI_PS_PATH;
+	WPI_TXQ_UNLOCK(sc);
 	/* Retrieve PCIe Active State Power Management (ASPM). */
 	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + 0x10, 1);
 	if (!(reg & 0x1))	/* L0s Entry disabled. */
