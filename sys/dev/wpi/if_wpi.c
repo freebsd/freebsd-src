@@ -2714,6 +2714,8 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 			flags |= WPI_TX_NEED_ACK;
 	}
 
+	if (!IEEE80211_QOS_HAS_SEQ(wh))
+		flags |= WPI_TX_AUTO_SEQ;
 	if (wh->i_fc[1] & IEEE80211_FC1_MORE_FRAG)
 		flags |= WPI_TX_MORE_FRAG;	/* Cannot happen yet. */
 
@@ -2818,6 +2820,8 @@ wpi_tx_data_raw(struct wpi_softc *sc, struct mbuf *m,
 	rate = params->ibp_rate0;
 
 	flags = 0;
+	if (!IEEE80211_QOS_HAS_SEQ(wh))
+		flags |= WPI_TX_AUTO_SEQ;
 	if ((params->ibp_flags & IEEE80211_BPF_NOACK) == 0)
 		flags |= WPI_TX_NEED_ACK;
 	if (params->ibp_flags & IEEE80211_BPF_RTS)
