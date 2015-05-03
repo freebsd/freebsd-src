@@ -609,7 +609,12 @@ wpi_init_beacon(struct wpi_vap *wvp)
 	cmd->ofdm_mask = 0xff;
 	cmd->cck_mask = 0x0f;
 	cmd->lifetime = htole32(WPI_LIFETIME_INFINITE);
-	cmd->flags = htole32(WPI_TX_AUTO_SEQ | WPI_TX_INSERT_TSTAMP);
+
+	/*
+	 * XXX WPI_TX_AUTO_SEQ seems to be ignored - workaround this issue
+	 * XXX by using WPI_TX_NEED_ACK instead (with some side effects).
+	 */
+	cmd->flags = htole32(WPI_TX_NEED_ACK | WPI_TX_INSERT_TSTAMP);
 
 	bcn->code = WPI_CMD_SET_BEACON;
 	bcn->ac = WPI_CMD_QUEUE_NUM;
