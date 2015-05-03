@@ -2126,8 +2126,9 @@ wpi_notif_intr(struct wpi_softc *sc)
 			threshold = MAX(2, vap->iv_bmissthreshold);
 
 			DPRINTF(sc, WPI_DEBUG_BMISS,
-			    "%s: beacons missed %d/%d\n", __func__, misses,
-			    le32toh(miss->total));
+			    "%s: beacons missed %u(%u) (received %u/%u)\n",
+			    __func__, misses, le32toh(miss->total), received,
+			    expected);
 
 			if (vap->iv_state == IEEE80211_S_RUN &&
 			    (ic->ic_flags & IEEE80211_F_SCAN) == 0 &&
