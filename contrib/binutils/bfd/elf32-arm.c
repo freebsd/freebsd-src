@@ -9372,6 +9372,16 @@ elf32_arm_post_process_headers (bfd * abfd, struct bfd_link_info * link_info ATT
       if (globals->byteswap_code)
 	i_ehdrp->e_flags |= EF_ARM_BE8;
     }
+
+  /*
+   * For EABI 5, we have to tag dynamic binaries and execs as either
+   * soft float or hard float.
+   */
+  if (EF_ARM_EABI_VERSION (i_ehdrp->e_flags) == EF_ARM_EABI_VER5 &&
+      (i_ehdrp->e_type == ET_DYN || i_ehdrp->e_type == ET_EXEC))
+    i_ehdrp->e_flags |=
+      bfd_elf_get_obj_attr_int (abfd, OBJ_ATTR_PROC, Tag_ABI_VFP_args) ?
+      EF_ARM_VFP_FLOAT : EF_ARM_SOFT_FLOAT;
 }
 
 static enum elf_reloc_type_class
