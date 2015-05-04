@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2013-2014 Daisuke Aoyama <aoyama@peach.ne.jp>
+ * Copyright (C) 2013-2015 Daisuke Aoyama <aoyama@peach.ne.jp>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,21 +60,28 @@ __FBSDID("$FreeBSD$");
 #define DPRINTF(fmt, ...)
 #endif
 
-#define HZ2MHZ(freq) ((freq) / (1000 * 1000))
-#define MHZ2HZ(freq) ((freq) * (1000 * 1000))
-#define OFFSET2MVOLT(val) (1200 + ((val) * 25))
-#define MVOLT2OFFSET(val) (((val) - 1200) / 25)
+#define	HZ2MHZ(freq) ((freq) / (1000 * 1000))
+#define	MHZ2HZ(freq) ((freq) * (1000 * 1000))
 
-#define DEFAULT_ARM_FREQUENCY	 700
-#define DEFAULT_CORE_FREQUENCY	 250
-#define DEFAULT_SDRAM_FREQUENCY	 400
-#define DEFAULT_LOWEST_FREQ	 300
-#define TRANSITION_LATENCY	1000
-#define MIN_OVER_VOLTAGE	 -16
-#define MAX_OVER_VOLTAGE	   6
-#define MSG_ERROR	  -999999999
-#define MHZSTEP			 100
-#define HZSTEP	   (MHZ2HZ(MHZSTEP))
+#ifdef SOC_BCM2836
+#define	OFFSET2MVOLT(val) (((val) / 1000))
+#define	MVOLT2OFFSET(val) (((val) * 1000))
+#define	DEFAULT_ARM_FREQUENCY	 600
+#define	DEFAULT_LOWEST_FREQ	 600
+#else
+#define	OFFSET2MVOLT(val) (1200 + ((val) * 25))
+#define	MVOLT2OFFSET(val) (((val) - 1200) / 25)
+#define	DEFAULT_ARM_FREQUENCY	 700
+#define	DEFAULT_LOWEST_FREQ	 300
+#endif
+#define	DEFAULT_CORE_FREQUENCY	 250
+#define	DEFAULT_SDRAM_FREQUENCY	 400
+#define	TRANSITION_LATENCY	1000
+#define	MIN_OVER_VOLTAGE	 -16
+#define	MAX_OVER_VOLTAGE	   6
+#define	MSG_ERROR	  -999999999
+#define	MHZSTEP			 100
+#define	HZSTEP	   (MHZ2HZ(MHZSTEP))
 #define	TZ_ZEROC		2732
 
 #define VC_LOCK(sc) do {			\
@@ -1740,6 +1747,23 @@ bcm2835_cpufreq_make_freq_list(device_t dev, struct cf_setting *sets,
 		if (min_freq > cpufreq_lowest_freq)
 			min_freq = cpufreq_lowest_freq;
 
+#ifdef SOC_BCM2836
+	/* XXX RPi2 have only 900/600MHz */
+	idx = 0;
+	volts = sc->min_voltage_core;
+	sets[idx].freq = freq;
+	sets[idx].volts = volts;
+	sets[idx].lat = TRANSITION_LATENCY;
+	sets[idx].dev = dev;
+	idx++;
+	if (freq != min_freq) {
+		sets[idx].freq = min_freq;
+		sets[idx].volts = volts;
+		sets[idx].lat = TRANSITION_LATENCY;
+		sets[idx].dev = dev;
+		idx++;
+	}
+#else
 	/* from freq to min_freq */
 	for (idx = 0; idx < *count && freq >= min_freq; idx++) {
 		if (freq > sc->arm_min_freq)
@@ -1752,7 +1776,8 @@ bcm2835_cpufreq_make_freq_list(device_t dev, struct cf_setting *sets,
 		sets[idx].dev = dev;
 		freq -= MHZSTEP;
 	}
-	*count = ++idx;
+#endif
+	*count = idx;
 
 	return (0);
 }
