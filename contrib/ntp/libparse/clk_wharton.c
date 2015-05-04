@@ -74,8 +74,11 @@ extern void printf (const char *, ...);
  * 
  */
 
+static parse_cvt_fnc_t cvt_wharton_400a;
+static parse_inp_fnc_t inp_wharton_400a;
+
 /*
- * cvt_wharton_400a
+ * parse_cvt_fnc_t cvt_wharton_400a
  * 
  * convert simple type format
  */
@@ -121,14 +124,14 @@ cvt_wharton_400a(
 }
 
 /*
- * inp_wharton_400a
+ * parse_inp_fnc_t inp_wharton_400a
  *
- * grep data from input stream
+ * grab data from input stream
  */
 static u_long
 inp_wharton_400a(
 	      parse_t      *parseio,
-	      unsigned int  ch,
+	      char         ch,
 	      timestamp_t  *tstamp
 	      )
 {
@@ -166,7 +169,7 @@ clockformat_t   clock_wharton_400a =
 	0,			/* conversion configuration */
 	"WHARTON 400A Series clock Output Format 1",	/* String format name */
 	15,			/* string buffer */
-	0			/* no private data (complete pakets) */
+	0			/* no private data (complete packets) */
 };
 
 #else /* not (REFCLOCK && CLOCK_PARSE && CLOCK_WHARTON_400A) */

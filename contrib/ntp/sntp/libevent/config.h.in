@@ -24,9 +24,6 @@
 /* Define to 1 if you have the `clock_gettime' function. */
 #undef HAVE_CLOCK_GETTIME
 
-/* Define to 1 if you have the <cthreads.h> header file. */
-#undef HAVE_CTHREADS_H
-
 /* Define to 1 if you have the declaration of `CTL_KERN', and to 0 if you
    don't. */
 #undef HAVE_DECL_CTL_KERN
@@ -109,9 +106,6 @@
 /* Define to 1 if you have the `gettimeofday' function. */
 #undef HAVE_GETTIMEOFDAY
 
-/* if you have GNU Pth */
-#undef HAVE_GNU_PTH
-
 /* Define to 1 if you have the <ifaddrs.h> header file. */
 #undef HAVE_IFADDRS_H
 
@@ -133,23 +127,8 @@
 /* Define if the system has zlib */
 #undef HAVE_LIBZ
 
-/* if you have LinuxThreads */
-#undef HAVE_LINUX_THREADS
-
-/* if you have SunOS LWP package */
-#undef HAVE_LWP
-
-/* Define to 1 if you have the <lwp/lwp.h> header file. */
-#undef HAVE_LWP_LWP_H
-
 /* Define to 1 if you have the `mach_absolute_time' function. */
 #undef HAVE_MACH_ABSOLUTE_TIME
-
-/* define if you have Mach Cthreads */
-#undef HAVE_MACH_CTHREADS
-
-/* Define to 1 if you have the <mach/cthreads.h> header file. */
-#undef HAVE_MACH_CTHREADS_H
 
 /* Define to 1 if you have the <mach/mach_time.h> header file. */
 #undef HAVE_MACH_MACH_TIME_H
@@ -175,15 +154,6 @@
 /* Define to 1 if you have the <netinet/tcp.h> header file. */
 #undef HAVE_NETINET_TCP_H
 
-/* if you have NT Event Log */
-#undef HAVE_NT_EVENT_LOG
-
-/* if you have NT Service Manager */
-#undef HAVE_NT_SERVICE_MANAGER
-
-/* if you have NT Threads */
-#undef HAVE_NT_THREADS
-
 /* Define if the system has openssl */
 #undef HAVE_OPENSSL
 
@@ -208,47 +178,14 @@
 /* Define if you have POSIX threads libraries and header files. */
 #undef HAVE_PTHREAD
 
-/* define to pthreads API spec revision */
+/* Define if we have pthreads on this system */
 #undef HAVE_PTHREADS
-
-/* define if you have pthread_detach function */
-#undef HAVE_PTHREAD_DETACH
-
-/* Define to 1 if you have the `pthread_getconcurrency' function. */
-#undef HAVE_PTHREAD_GETCONCURRENCY
-
-/* Define to 1 if you have the <pthread.h> header file. */
-#undef HAVE_PTHREAD_H
-
-/* Define to 1 if you have the `pthread_kill' function. */
-#undef HAVE_PTHREAD_KILL
-
-/* Define to 1 if you have the `pthread_kill_other_threads_np' function. */
-#undef HAVE_PTHREAD_KILL_OTHER_THREADS_NP
-
-/* define if you have pthread_rwlock_destroy function */
-#undef HAVE_PTHREAD_RWLOCK_DESTROY
-
-/* Define to 1 if you have the `pthread_setconcurrency' function. */
-#undef HAVE_PTHREAD_SETCONCURRENCY
-
-/* Define to 1 if you have the `pthread_yield' function. */
-#undef HAVE_PTHREAD_YIELD
-
-/* Define to 1 if you have the <pth.h> header file. */
-#undef HAVE_PTH_H
 
 /* Define to 1 if you have the `putenv' function. */
 #undef HAVE_PUTENV
 
 /* Define to 1 if the system has the type `sa_family_t'. */
 #undef HAVE_SA_FAMILY_T
-
-/* Define to 1 if you have the <sched.h> header file. */
-#undef HAVE_SCHED_H
-
-/* Define to 1 if you have the `sched_yield' function. */
-#undef HAVE_SCHED_YIELD
 
 /* Define to 1 if you have the `select' function. */
 #undef HAVE_SELECT
@@ -337,9 +274,6 @@
 /* Define to 1 if the system has the type `struct so_linger'. */
 #undef HAVE_STRUCT_SO_LINGER
 
-/* Define to 1 if you have the <synch.h> header file. */
-#undef HAVE_SYNCH_H
-
 /* Define to 1 if you have the `sysctl' function. */
 #undef HAVE_SYSCTL
 
@@ -403,21 +337,6 @@
 /* Define if TAILQ_FOREACH is defined in <sys/queue.h> */
 #undef HAVE_TAILQFOREACH
 
-/* if you have Solaris LWP (thr) package */
-#undef HAVE_THR
-
-/* Define to 1 if you have the <thread.h> header file. */
-#undef HAVE_THREAD_H
-
-/* Define to 1 if you have the `thr_getconcurrency' function. */
-#undef HAVE_THR_GETCONCURRENCY
-
-/* Define to 1 if you have the `thr_setconcurrency' function. */
-#undef HAVE_THR_SETCONCURRENCY
-
-/* Define to 1 if you have the `thr_yield' function. */
-#undef HAVE_THR_YIELD
-
 /* Define if timeradd is defined in <sys/time.h> */
 #undef HAVE_TIMERADD
 
@@ -466,14 +385,8 @@
 /* Define if kqueue works correctly with pipes */
 #undef HAVE_WORKING_KQUEUE
 
-/* define if select implicitly yields */
-#undef HAVE_YIELDING_SELECT
-
 /* Define to 1 if you have the <zlib.h> header file. */
 #undef HAVE_ZLIB_H
-
-/* define to 1 if library is thread safe */
-#undef LDAP_API_FEATURE_X_OPENLDAP_THREAD_SAFE
 
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
@@ -481,9 +394,6 @@
 
 /* Define to 1 if your C compiler doesn't accept -c and -o together. */
 #undef NO_MINUS_C_MINUS_O
-
-/* define if you have (or want) no threads */
-#undef NO_THREADS
 
 /* Numeric representation of the version */
 #undef NUMERIC_VERSION
@@ -509,11 +419,9 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
-/* enable thread safety */
-#undef REENTRANT
-
-/* define if sched_yield yields the entire process */
-#undef REPLACE_BROKEN_YIELD
+/* Define to necessary symbol if this constant uses a non-standard name on
+   your system. */
+#undef PTHREAD_CREATE_JOINABLE
 
 /* The size of `int', as computed by sizeof. */
 #undef SIZEOF_INT
@@ -542,12 +450,6 @@
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
-/* enable thread safety */
-#undef THREADSAFE
-
-/* enable thread safety */
-#undef THREAD_SAFE
-
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #undef TIME_WITH_SYS_TIME
 
@@ -569,18 +471,6 @@
 
 /* Define to 1 if you need to in order for `stat' and other things to work. */
 #undef _POSIX_SOURCE
-
-/* enable thread safety */
-#undef _REENTRANT
-
-/* enable thread safety */
-#undef _SGI_MP_SOURCE
-
-/* enable thread safety */
-#undef _THREADSAFE
-
-/* enable thread safety */
-#undef _THREAD_SAFE
 
 /* Define to 500 only on HP-UX. */
 #undef _XOPEN_SOURCE

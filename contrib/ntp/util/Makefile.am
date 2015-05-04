@@ -112,7 +112,7 @@ $(srcdir)/ntp-keygen.html: $(srcdir)/ntp-keygen.texi $(top_srcdir)/sntp/include/
 	cd $(srcdir) && ( makeinfo --force --html --no-split -o ntp-keygen.html ntp-keygen.texi || true )
 
 
-jitter_SOURCES=	jitter.c jitter.h
+jitter_SOURCES=	jitter.c
 jitter_LDADD=
 
 kern.o: kern.c
