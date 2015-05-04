@@ -745,7 +745,12 @@ kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 	if (newlim != NULL)
 		lim_free(oldlim);
 
-	if (which == RLIMIT_STACK) {
+	if (which == RLIMIT_STACK &&
+	    /*
+	     * Skip calls from exec_new_vmspace(), done when stack is
+	     * not mapped yet.
+	     */
+	    (td != curthread || (p->p_flag & P_INEXEC) == 0)) {
 		/*
 		 * Stack is allocated to the max at exec time with only
 		 * "rlim_cur" bytes accessible.  If stack limit is going

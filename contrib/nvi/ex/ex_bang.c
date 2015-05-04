@@ -44,7 +44,7 @@ static const char sccsid[] = "$Id: ex_bang.c,v 10.36 2001/06/25 15:19:14 skimo E
  * ways of getting here display the right things.  It took a long time to
  * get it right (wrong?), so be careful.
  *
- * PUBLIC: int ex_bang __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_bang(SCR *, EXCMD *);
  */
 int
 ex_bang(SCR *sp, EXCMD *cmdp)

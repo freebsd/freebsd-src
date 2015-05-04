@@ -44,19 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 
-#if defined(__i386__) || defined(__amd64__)
-#include <machine/md_var.h>
-#include <machine/psl.h>
-#include <compat/x86bios/x86bios.h>
-#include <machine/pc/bios.h>
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#include <vm/vm_param.h>
-
-#include <isa/isareg.h>
-#endif /* __i386__ || __amd64__ */
-
 #include <sys/kbio.h>
 #include <dev/kbd/kbdreg.h>
 #include <dev/atkbdc/atkbdreg.h>
@@ -81,6 +68,9 @@ static int		atkbd_reset(KBDC kbdc, int flags, int c);
 
 #define HAS_QUIRK(p, q)		(((atkbdc_softc_t *)(p))->quirks & q)
 #define ALLOW_DISABLE_KBD(kbdc)	!HAS_QUIRK(kbdc, KBDC_QUIRK_KEEP_ACTIVATED)
+
+#define DEFAULT_DELAY		0x1  /* 500ms */
+#define DEFAULT_RATE		0x10 /* 14Hz */
 
 int
 atkbd_probe_unit(device_t dev, int irq, int flags)
@@ -249,7 +239,7 @@ static keyboard_switch_t atkbdsw = {
 KEYBOARD_DRIVER(atkbd, atkbdsw, atkbd_configure);
 
 /* local functions */
-static int		get_typematic(keyboard_t *kbd);
+static int		set_typematic(keyboard_t *kbd);
 static int		setup_kbd_port(KBDC kbdc, int port, int intr);
 static int		get_kbd_echo(KBDC kbdc);
 static int		probe_keyboard(KBDC kbdc, int flags);
@@ -443,7 +433,7 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 			goto bad;
 		}
 		atkbd_ioctl(kbd, KDSETLED, (caddr_t)&state->ks_state);
-		get_typematic(kbd);
+		set_typematic(kbd);
 		delay[0] = kbd->kb_delay1;
 		delay[1] = kbd->kb_delay2;
 		atkbd_ioctl(kbd, KDSETREPEAT, (caddr_t)delay);
@@ -503,7 +493,7 @@ atkbd_intr(keyboard_t *kbd, void *arg)
 		init_keyboard(state->kbdc, &kbd->kb_type, kbd->kb_config);
 		KBD_FOUND_DEVICE(kbd);
 		atkbd_ioctl(kbd, KDSETLED, (caddr_t)&state->ks_state);
-		get_typematic(kbd);
+		set_typematic(kbd);
 		delay[0] = kbd->kb_delay1;
 		delay[1] = kbd->kb_delay2;
 		atkbd_ioctl(kbd, KDSETREPEAT, (caddr_t)delay);
@@ -1135,57 +1125,19 @@ atkbd_reset(KBDC kbdc, int flags, int c)
 /* local functions */
 
 static int
-get_typematic(keyboard_t *kbd)
+set_typematic(keyboard_t *kbd)
 {
-#if defined(__i386__) || defined(__amd64__)
-	/*
-	 * Only some systems allow us to retrieve the keyboard repeat
-	 * rate previously set via the BIOS...
-	 */
-	x86regs_t regs;
-	uint8_t *p;
+	int val, error;
+	atkbd_state_t *state = kbd->kb_data;
 
-	/*
-	 * Traditional entry points of int 0x15 and 0x16 are fixed
-	 * and later BIOSes follow them.  (U)EFI CSM specification
-	 * also mandates these fixed entry points.
-	 *
-	 * Validate the entry points here before we proceed further.
-	 * It's known that some recent laptops does not have the
-	 * same entry point and hang on boot if we call it.
-	 */
-	if (x86bios_get_intr(0x15) != 0xf000f859 ||
-	    x86bios_get_intr(0x16) != 0xf000e82e)
-		return (ENODEV);
+	val = typematic(DEFAULT_DELAY, DEFAULT_RATE);
+	error = write_kbd(state->kbdc, KBDC_SET_TYPEMATIC, val);
+	if (error == 0) {
+		kbd->kb_delay1 = typematic_delay(val);
+		kbd->kb_delay2 = typematic_rate(val);
+	}
 
-	/* Is BIOS system configuration table supported? */
-	x86bios_init_regs(&regs);
-	regs.R_AH = 0xc0;
-	x86bios_intr(&regs, 0x15);
-	if ((regs.R_FLG & PSL_C) != 0 || regs.R_AH != 0)
-		return (ENODEV);
-
-	/* Is int 0x16, function 0x09 supported? */
-	p = x86bios_offset((regs.R_ES << 4) + regs.R_BX);
-	if (readw(p) < 5 || (readb(p + 6) & 0x40) == 0)
-		return (ENODEV);
-
-	/* Is int 0x16, function 0x0306 supported? */
-	x86bios_init_regs(&regs);
-	regs.R_AH = 0x09;
-	x86bios_intr(&regs, 0x16);
-	if ((regs.R_AL & 0x08) == 0)
-		return (ENODEV);
-
-	x86bios_init_regs(&regs);
-	regs.R_AX = 0x0306;
-	x86bios_intr(&regs, 0x16);
-	kbd->kb_delay1 = typematic_delay(regs.R_BH << 5);
-	kbd->kb_delay2 = typematic_rate(regs.R_BL);
-	return (0);
-#else
-	return (ENODEV);
-#endif /* __i386__ || __amd64__ */
+	return (error);
 }
 
 static int

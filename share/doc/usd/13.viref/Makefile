@@ -9,7 +9,6 @@ CLEANFILES=	vi.ref-patched index
 TRFLAGS=	-U		# this is to hide warnings only
 USE_SOELIM=
 USE_TBL=
-SRCDIR=		${.CURDIR}/../../../../contrib/nvi/docs/USD.doc/vi.ref
 
 vi.ref-patched: vi.ref
 	sed -e 's:^\.so index.so$$:&.\\*[.T]:' ${.ALLSRC} > ${.TARGET}

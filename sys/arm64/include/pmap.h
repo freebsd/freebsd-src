@@ -136,12 +136,15 @@ extern vm_offset_t virtual_end;
 
 void	pmap_bootstrap(vm_offset_t, vm_paddr_t, vm_size_t);
 void	pmap_kenter(vm_offset_t, vm_paddr_t);
-void	pmap_kenter_device(vm_offset_t, vm_paddr_t);
+void	pmap_kenter_device(vm_offset_t, vm_size_t, vm_paddr_t);
 vm_paddr_t pmap_kextract(vm_offset_t va);
 void	pmap_kremove(vm_offset_t);
+void	pmap_kremove_device(vm_offset_t, vm_size_t);
 
 void	*pmap_mapdev(vm_offset_t, vm_size_t);
+void	*pmap_mapbios(vm_paddr_t, vm_size_t);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
+void	pmap_unmapbios(vm_offset_t, vm_size_t);
 
 boolean_t pmap_map_io_transient(vm_page_t *, vm_offset_t *, int, boolean_t);
 void	pmap_unmap_io_transient(vm_page_t *, vm_offset_t *, int, boolean_t);

@@ -86,8 +86,8 @@ extern struct nfsmount *ncl_iodmount[NFS_MAXASYNCDAEMON];
 extern struct mtx ncl_iod_mutex;
 NFSCLSTATEMUTEX;
 
-MALLOC_DEFINE(M_NEWNFSREQ, "newnfsclient_req", "New NFS request header");
-MALLOC_DEFINE(M_NEWNFSMNT, "newnfsmnt", "New NFS mount struct");
+MALLOC_DEFINE(M_NEWNFSREQ, "newnfsclient_req", "NFS request header");
+MALLOC_DEFINE(M_NEWNFSMNT, "newnfsmnt", "NFS mount struct");
 
 SYSCTL_DECL(_vfs_nfs);
 static int nfs_ip_paranoia = 1;
@@ -201,16 +201,16 @@ newnfs_iosize(struct nfsmount *nmp)
 	}
 	if (nmp->nm_rsize > maxio || nmp->nm_rsize == 0)
 		nmp->nm_rsize = maxio;
-	if (nmp->nm_rsize > MAXBSIZE)
-		nmp->nm_rsize = MAXBSIZE;
+	if (nmp->nm_rsize > NFS_MAXBSIZE)
+		nmp->nm_rsize = NFS_MAXBSIZE;
 	if (nmp->nm_readdirsize > maxio || nmp->nm_readdirsize == 0)
 		nmp->nm_readdirsize = maxio;
 	if (nmp->nm_readdirsize > nmp->nm_rsize)
 		nmp->nm_readdirsize = nmp->nm_rsize;
 	if (nmp->nm_wsize > maxio || nmp->nm_wsize == 0)
 		nmp->nm_wsize = maxio;
-	if (nmp->nm_wsize > MAXBSIZE)
-		nmp->nm_wsize = MAXBSIZE;
+	if (nmp->nm_wsize > NFS_MAXBSIZE)
+		nmp->nm_wsize = NFS_MAXBSIZE;
 
 	/*
 	 * Calculate the size used for io buffers.  Use the larger
@@ -1198,7 +1198,8 @@ nfs_mount(struct mount *mp)
 out:
 	if (!error) {
 		MNT_ILOCK(mp);
-		mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_NO_IOPF;
+		mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_NO_IOPF |
+		    MNTK_USES_BCACHE;
 		MNT_IUNLOCK(mp);
 	}
 	return (error);
@@ -1323,10 +1324,13 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	nmp->nm_timeo = NFS_TIMEO;
 	nmp->nm_retry = NFS_RETRANS;
 	nmp->nm_readahead = NFS_DEFRAHEAD;
-	if (desiredvnodes >= 11000)
-		nmp->nm_wcommitsize = hibufspace / (desiredvnodes / 1000);
-	else
-		nmp->nm_wcommitsize = hibufspace / 10;
+
+	/* This is empirical approximation of sqrt(hibufspace) * 256. */
+	nmp->nm_wcommitsize = NFS_MAXBSIZE / 256;
+	while ((long)nmp->nm_wcommitsize * nmp->nm_wcommitsize < hibufspace)
+		nmp->nm_wcommitsize *= 2;
+	nmp->nm_wcommitsize *= 256;
+
 	if ((argp->flags & NFSMNT_NFSV4) != 0)
 		nmp->nm_minorvers = minvers;
 	else

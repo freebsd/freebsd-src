@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mman.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
@@ -113,7 +114,8 @@ static int vm_fault_additional_pages(vm_page_t, int, int, vm_page_t *, int *);
 #define	VM_FAULT_READ_MAX	(1 + VM_FAULT_READ_AHEAD_MAX)
 #define	VM_FAULT_NINCR		(VM_FAULT_READ_MAX / VM_FAULT_READ_BEHIND)
 #define	VM_FAULT_SUM		(VM_FAULT_NINCR * (VM_FAULT_NINCR + 1) / 2)
-#define	VM_FAULT_CACHE_BEHIND	(VM_FAULT_READ_BEHIND * VM_FAULT_SUM)
+
+#define	VM_FAULT_DONTNEED_MIN	1048576
 
 struct faultstate {
 	vm_page_t m;
@@ -128,7 +130,8 @@ struct faultstate {
 	struct vnode *vp;
 };
 
-static void vm_fault_cache_behind(const struct faultstate *fs, int distance);
+static void vm_fault_dontneed(const struct faultstate *fs, vm_offset_t vaddr,
+	    int ahead);
 static void vm_fault_prefault(const struct faultstate *fs, vm_offset_t addra,
 	    int faultcount, int reqpage);
 
@@ -345,6 +348,10 @@ RetryFault:;
 		vm_map_lock(fs.map);
 		if (vm_map_lookup_entry(fs.map, vaddr, &fs.entry) &&
 		    (fs.entry->eflags & MAP_ENTRY_IN_TRANSITION)) {
+			if (fs.vp != NULL) {
+				vput(fs.vp);
+				fs.vp = NULL;
+			}
 			fs.entry->eflags |= MAP_ENTRY_NEEDS_WAKEUP;
 			vm_map_unlock_and_wait(fs.map, 0);
 		} else
@@ -566,8 +573,7 @@ readrest:
 				nera = VM_FAULT_READ_AHEAD_MAX;
 				ahead = nera;
 				if (fs.pindex == fs.entry->next_read)
-					vm_fault_cache_behind(&fs,
-					    VM_FAULT_READ_MAX);
+					vm_fault_dontneed(&fs, vaddr, ahead);
 			} else if (fs.pindex == fs.entry->next_read) {
 				/*
 				 * This is a sequential fault.  Arithmetically
@@ -585,8 +591,7 @@ readrest:
 				}
 				ahead = nera;
 				if (era == VM_FAULT_READ_AHEAD_MAX)
-					vm_fault_cache_behind(&fs,
-					    VM_FAULT_CACHE_BEHIND);
+					vm_fault_dontneed(&fs, vaddr, ahead);
 			} else {
 				/*
 				 * This is a non-sequential fault.  Request a
@@ -1034,15 +1039,26 @@ vnode_locked:
 }
 
 /*
- * Speed up the reclamation of up to "distance" pages that precede the
- * faulting pindex within the first object of the shadow chain.
+ * Speed up the reclamation of pages that precede the faulting pindex within
+ * the first object of the shadow chain.  Essentially, perform the equivalent
+ * to madvise(..., MADV_DONTNEED) on a large cluster of pages that precedes
+ * the faulting pindex by the cluster size when the pages read by vm_fault()
+ * cross a cluster-size boundary.  The cluster size is the greater of the
+ * smallest superpage size and VM_FAULT_DONTNEED_MIN.
+ *
+ * When "fs->first_object" is a shadow object, the pages in the backing object
+ * that precede the faulting pindex are deactivated by vm_fault().  So, this
+ * function must only be concerned with pages in the first object.
  */
 static void
-vm_fault_cache_behind(const struct faultstate *fs, int distance)
+vm_fault_dontneed(const struct faultstate *fs, vm_offset_t vaddr, int ahead)
 {
+	vm_map_entry_t entry;
 	vm_object_t first_object, object;
-	vm_page_t m, m_prev;
-	vm_pindex_t pindex;
+	vm_offset_t end, start;
+	vm_page_t m, m_next;
+	vm_pindex_t pend, pstart;
+	vm_size_t size;
 
 	object = fs->object;
 	VM_OBJECT_ASSERT_WLOCKED(object);
@@ -1054,32 +1070,34 @@ vm_fault_cache_behind(const struct faultstate *fs, int distance)
 			VM_OBJECT_WLOCK(object);
 		}
 	}
-	/* Neither fictitious nor unmanaged pages can be cached. */
+	/* Neither fictitious nor unmanaged pages can be reclaimed. */
 	if ((first_object->flags & (OBJ_FICTITIOUS | OBJ_UNMANAGED)) == 0) {
-		if (fs->first_pindex < distance)
-			pindex = 0;
-		else
-			pindex = fs->first_pindex - distance;
-		if (pindex < OFF_TO_IDX(fs->entry->offset))
-			pindex = OFF_TO_IDX(fs->entry->offset);
-		m = first_object != object ? fs->first_m : fs->m;
-		vm_page_assert_xbusied(m);
-		m_prev = vm_page_prev(m);
-		while ((m = m_prev) != NULL && m->pindex >= pindex &&
-		    m->valid == VM_PAGE_BITS_ALL) {
-			m_prev = vm_page_prev(m);
-			if (vm_page_busied(m))
-				continue;
-			vm_page_lock(m);
-			if (m->hold_count == 0 && m->wire_count == 0) {
-				pmap_remove_all(m);
-				vm_page_aflag_clear(m, PGA_REFERENCED);
-				if (m->dirty != 0)
-					vm_page_deactivate(m);
-				else
-					vm_page_cache(m);
+		size = VM_FAULT_DONTNEED_MIN;
+		if (MAXPAGESIZES > 1 && size < pagesizes[1])
+			size = pagesizes[1];
+		end = rounddown2(vaddr, size);
+		if (vaddr - end >= size - PAGE_SIZE - ptoa(ahead) &&
+		    (entry = fs->entry)->start < end) {
+			if (end - entry->start < size)
+				start = entry->start;
+			else
+				start = end - size;
+			pmap_advise(fs->map->pmap, start, end, MADV_DONTNEED);
+			pstart = OFF_TO_IDX(entry->offset) + atop(start -
+			    entry->start);
+			m_next = vm_page_find_least(first_object, pstart);
+			pend = OFF_TO_IDX(entry->offset) + atop(end -
+			    entry->start);
+			while ((m = m_next) != NULL && m->pindex < pend) {
+				m_next = TAILQ_NEXT(m, listq);
+				if (m->valid != VM_PAGE_BITS_ALL ||
+				    vm_page_busied(m))
+					continue;
+				vm_page_lock(m);
+				if (m->hold_count == 0 && m->wire_count == 0)
+					vm_page_advise(m, MADV_DONTNEED);
+				vm_page_unlock(m);
 			}
-			vm_page_unlock(m);
 		}
 	}
 	if (first_object != object)

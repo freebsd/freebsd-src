@@ -247,14 +247,6 @@ compat/freebsd32/freebsd32_ioctl.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_misc.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_syscalls.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_sysent.c	optional compat_freebsd32
-contrib/altq/altq/altq_cbq.c		optional altq
-contrib/altq/altq/altq_cdnr.c		optional altq
-contrib/altq/altq/altq_hfsc.c		optional altq
-contrib/altq/altq/altq_priq.c		optional altq
-contrib/altq/altq/altq_red.c		optional altq
-contrib/altq/altq/altq_rio.c		optional altq
-contrib/altq/altq/altq_rmclass.c	optional altq
-contrib/altq/altq/altq_subr.c		optional altq
 contrib/dev/acpica/common/ahids.c			optional acpi acpi_debug
 contrib/dev/acpica/common/ahuuids.c			optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbcmds.c		optional acpi acpi_debug
@@ -592,7 +584,6 @@ dev/acpica/acpi_button.c	optional acpi
 dev/acpica/acpi_cmbat.c		optional acpi
 dev/acpica/acpi_cpu.c		optional acpi
 dev/acpica/acpi_ec.c		optional acpi
-dev/acpica/acpi_hpet.c		optional acpi
 dev/acpica/acpi_isab.c		optional acpi isa
 dev/acpica/acpi_lid.c		optional acpi
 dev/acpica/acpi_package.c	optional acpi
@@ -1788,6 +1779,8 @@ dev/ixgbe/ixgbe_82599.c		optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_x540.c		optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixgbe/ixgbe_x550.c		optional ix ixv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_dcb.c		optional ix ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_dcb_82598.c	optional ix ixv inet \
@@ -2685,24 +2678,24 @@ wpi.fw			optional wpifw					\
 	clean		"wpi.fw"
 dev/xe/if_xe.c			optional xe
 dev/xe/if_xe_pccard.c		optional xe pccard
-dev/xen/balloon/balloon.c	optional xen | xenhvm
-dev/xen/blkfront/blkfront.c	optional xen | xenhvm
-dev/xen/blkback/blkback.c	optional xen | xenhvm
-dev/xen/console/console.c	optional xen | xenhvm
-dev/xen/console/xencons_ring.c	optional xen | xenhvm
-dev/xen/control/control.c	optional xen | xenhvm
-dev/xen/grant_table/grant_table.c	optional xen | xenhvm
-dev/xen/netback/netback.c	optional xen | xenhvm
-dev/xen/netfront/netfront.c	optional xen | xenhvm
+dev/xen/balloon/balloon.c	optional xenhvm
+dev/xen/blkfront/blkfront.c	optional xenhvm
+dev/xen/blkback/blkback.c	optional xenhvm
+dev/xen/console/console.c	optional xenhvm
+dev/xen/console/xencons_ring.c	optional xenhvm
+dev/xen/control/control.c	optional xenhvm
+dev/xen/grant_table/grant_table.c	optional xenhvm
+dev/xen/netback/netback.c	optional xenhvm
+dev/xen/netfront/netfront.c	optional xenhvm
 dev/xen/xenpci/xenpci.c		optional xenpci
-dev/xen/timer/timer.c		optional xen | xenhvm
-dev/xen/pvcpu/pvcpu.c		optional xen | xenhvm
-dev/xen/xenstore/xenstore.c	optional xen | xenhvm
-dev/xen/xenstore/xenstore_dev.c	optional xen | xenhvm
-dev/xen/xenstore/xenstored_dev.c	optional xen | xenhvm
-dev/xen/evtchn/evtchn_dev.c	optional xen | xenhvm
-dev/xen/privcmd/privcmd.c	optional xen | xenhvm
-dev/xen/debug/debug.c		optional xen | xenhvm
+dev/xen/timer/timer.c		optional xenhvm
+dev/xen/pvcpu/pvcpu.c		optional xenhvm
+dev/xen/xenstore/xenstore.c	optional xenhvm
+dev/xen/xenstore/xenstore_dev.c	optional xenhvm
+dev/xen/xenstore/xenstored_dev.c	optional xenhvm
+dev/xen/evtchn/evtchn_dev.c	optional xenhvm
+dev/xen/privcmd/privcmd.c	optional xenhvm
+dev/xen/debug/debug.c		optional xenhvm
 dev/xl/if_xl.c			optional xl pci
 dev/xl/xlphy.c			optional xl pci
 fs/autofs/autofs.c		optional autofs
@@ -2941,8 +2934,6 @@ fs/ext2fs/ext2_bmap.c		optional ext2fs
 fs/ext2fs/ext2_extents.c	optional ext2fs
 fs/ext2fs/ext2_inode.c		optional ext2fs
 fs/ext2fs/ext2_inode_cnv.c	optional ext2fs
-fs/ext2fs/ext2_hash.c		optional ext2fs
-fs/ext2fs/ext2_htree.c		optional ext2fs
 fs/ext2fs/ext2_lookup.c		optional ext2fs
 fs/ext2fs/ext2_subr.c		optional ext2fs
 fs/ext2fs/ext2_vfsops.c		optional ext2fs
@@ -3272,6 +3263,17 @@ libkern/strtoul.c		standard
 libkern/strtouq.c		standard
 libkern/strvalid.c		standard
 libkern/timingsafe_bcmp.c	standard
+libkern/zlib.c			optional crypto | geom_uzip | ipsec | \
+					 mxge | netgraph_deflate | \
+					 ddb_ctf | gzio | geom_uncompress
+net/altq/altq_cbq.c		optional altq
+net/altq/altq_cdnr.c		optional altq
+net/altq/altq_hfsc.c		optional altq
+net/altq/altq_priq.c		optional altq
+net/altq/altq_red.c		optional altq
+net/altq/altq_rio.c		optional altq
+net/altq/altq_rmclass.c		optional altq
+net/altq/altq_subr.c		optional altq
 net/bpf.c			standard
 net/bpf_buffer.c		optional bpf
 net/bpf_jitter.c		optional bpf_jitter
@@ -3326,9 +3328,6 @@ net/slcompress.c		optional netgraph_vjc | sppp | \
 					 netgraph_sppp
 net/toeplitz.c			optional inet rss | inet6 rss
 net/vnet.c			optional vimage
-net/zlib.c			optional crypto | geom_uzip | ipsec | \
-					 mxge | netgraph_deflate | \
-					 ddb_ctf | gzio | geom_uncompress
 net80211/ieee80211.c		optional wlan
 net80211/ieee80211_acl.c	optional wlan wlan_acl
 net80211/ieee80211_action.c	optional wlan
@@ -3485,6 +3484,7 @@ netinet/ip_ipsec.c		optional inet ipsec
 netinet/ip_mroute.c		optional mrouting inet
 netinet/ip_options.c		optional inet
 netinet/ip_output.c		optional inet
+netinet/ip_reass.c		optional inet
 netinet/raw_ip.c		optional inet | inet6
 netinet/cc/cc.c			optional inet | inet6
 netinet/cc/cc_newreno.c		optional inet | inet6
@@ -3504,6 +3504,7 @@ netinet/sctp_sysctl.c		optional inet sctp | inet6 sctp
 netinet/sctp_timer.c		optional inet sctp | inet6 sctp
 netinet/sctp_usrreq.c		optional inet sctp | inet6 sctp
 netinet/sctputil.c		optional inet sctp | inet6 sctp
+netinet/siftr.c			optional inet siftr alq | inet6 siftr alq
 netinet/tcp_debug.c		optional tcpdebug
 netinet/tcp_hostcache.c		optional inet | inet6
 netinet/tcp_input.c		optional inet | inet6
@@ -3564,7 +3565,6 @@ netipsec/keysock.c		optional ipsec inet | ipsec inet6
 netipsec/xform_ah.c		optional ipsec inet | ipsec inet6
 netipsec/xform_esp.c		optional ipsec inet | ipsec inet6
 netipsec/xform_ipcomp.c		optional ipsec inet | ipsec inet6
-netipsec/xform_ipip.c		optional ipsec inet | ipsec inet6
 netipsec/xform_tcp.c		optional ipsec inet tcp_signature | \
 					 ipsec inet6 tcp_signature
 netnatm/natm.c			optional natm
@@ -4045,13 +4045,13 @@ vm/vm_reserv.c			standard
 vm/vm_unix.c			standard
 vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard
-xen/features.c			optional xen | xenhvm
-xen/xenbus/xenbus_if.m		optional xen | xenhvm
-xen/xenbus/xenbus.c		optional xen | xenhvm
-xen/xenbus/xenbusb_if.m		optional xen | xenhvm
-xen/xenbus/xenbusb.c		optional xen | xenhvm
-xen/xenbus/xenbusb_front.c	optional xen | xenhvm
-xen/xenbus/xenbusb_back.c	optional xen | xenhvm
+xen/features.c			optional xenhvm
+xen/xenbus/xenbus_if.m		optional xenhvm
+xen/xenbus/xenbus.c		optional xenhvm
+xen/xenbus/xenbusb_if.m		optional xenhvm
+xen/xenbus/xenbusb.c		optional xenhvm
+xen/xenbus/xenbusb_front.c	optional xenhvm
+xen/xenbus/xenbusb_back.c	optional xenhvm
 xdr/xdr.c			optional krpc | nfslockd | nfscl | nfsd
 xdr/xdr_array.c			optional krpc | nfslockd | nfscl | nfsd
 xdr/xdr_mbuf.c			optional krpc | nfslockd | nfscl | nfsd

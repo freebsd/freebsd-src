@@ -2,6 +2,7 @@ CREATE TABLE users(
 	identity TEXT PRIMARY KEY,
 	methods TEXT,
 	password TEXT,
+	remediation TEXT,
 	phase2 INTEGER
 );
 
@@ -15,3 +16,11 @@ INSERT INTO users(identity,methods,password,phase2) VALUES ('DOMAIN\mschapv2 use
 
 INSERT INTO wildcards(identity,methods) VALUES ('','TTLS,TLS');
 INSERT INTO wildcards(identity,methods) VALUES ('0','AKA');
+
+CREATE TABLE authlog(
+	timestamp TEXT,
+	session TEXT,
+	nas_ip TEXT,
+	username TEXT,
+	note TEXT
+);

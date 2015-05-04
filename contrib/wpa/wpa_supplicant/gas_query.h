@@ -17,7 +17,8 @@ struct gas_query;
 struct gas_query * gas_query_init(struct wpa_supplicant *wpa_s);
 void gas_query_deinit(struct gas_query *gas);
 int gas_query_rx(struct gas_query *gas, const u8 *da, const u8 *sa,
-		 const u8 *bssid, const u8 *data, size_t len, int freq);
+		 const u8 *bssid, u8 categ, const u8 *data, size_t len,
+		 int freq);
 
 /**
  * enum gas_query_result - GAS query result

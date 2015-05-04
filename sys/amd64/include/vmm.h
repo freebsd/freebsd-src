@@ -204,13 +204,12 @@ int vm_get_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state *state);
 int vm_set_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state state);
 int vm_apicid2vcpuid(struct vm *vm, int apicid);
 int vm_activate_cpu(struct vm *vm, int vcpu);
-cpuset_t vm_active_cpus(struct vm *vm);
-cpuset_t vm_suspended_cpus(struct vm *vm);
 struct vm_exit *vm_exitinfo(struct vm *vm, int vcpuid);
 void vm_exit_suspended(struct vm *vm, int vcpuid, uint64_t rip);
 void vm_exit_rendezvous(struct vm *vm, int vcpuid, uint64_t rip);
 void vm_exit_astpending(struct vm *vm, int vcpuid, uint64_t rip);
 
+#ifdef _SYS__CPUSET_H_
 /*
  * Rendezvous all vcpus specified in 'dest' and execute 'func(arg)'.
  * The rendezvous 'func(arg)' is not allowed to do anything that will
@@ -228,6 +227,9 @@ void vm_exit_astpending(struct vm *vm, int vcpuid, uint64_t rip);
 typedef void (*vm_rendezvous_func_t)(struct vm *vm, int vcpuid, void *arg);
 void vm_smp_rendezvous(struct vm *vm, int vcpuid, cpuset_t dest,
     vm_rendezvous_func_t func, void *arg);
+cpuset_t vm_active_cpus(struct vm *vm);
+cpuset_t vm_suspended_cpus(struct vm *vm);
+#endif	/* _SYS__CPUSET_H_ */
 
 static __inline int
 vcpu_rendezvous_pending(void *rendezvous_cookie)

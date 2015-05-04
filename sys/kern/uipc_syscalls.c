@@ -150,17 +150,17 @@ SYSCTL_PROC(_kern_ipc, OID_AUTO, sfstat, CTLTYPE_OPAQUE | CTLFLAG_RW,
  * A reference on the file entry is held upon returning.
  */
 int
-getsock_cap(struct filedesc *fdp, int fd, cap_rights_t *rightsp,
+getsock_cap(struct thread *td, int fd, cap_rights_t *rightsp,
     struct file **fpp, u_int *fflagp)
 {
 	struct file *fp;
 	int error;
 
-	error = fget_unlocked(fdp, fd, rightsp, &fp, NULL);
+	error = fget_unlocked(td->td_proc->p_fd, fd, rightsp, &fp, NULL);
 	if (error != 0)
 		return (error);
 	if (fp->f_type != DTYPE_SOCKET) {
-		fdrop(fp, curthread);
+		fdrop(fp, td);
 		return (ENOTSOCK);
 	}
 	if (fflagp != NULL)
@@ -216,7 +216,7 @@ sys_socket(td, uap)
 	error = socreate(uap->domain, &so, type, uap->protocol,
 	    td->td_ucred, td);
 	if (error != 0) {
-		fdclose(td->td_proc->p_fd, fp, fd, td);
+		fdclose(td, fp, fd);
 	} else {
 		finit(fp, FREAD | FWRITE | fflag, DTYPE_SOCKET, so, &socketops);
 		if ((fflag & FNONBLOCK) != 0)
@@ -258,8 +258,8 @@ kern_bindat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 
 	AUDIT_ARG_FD(fd);
 	AUDIT_ARG_SOCKADDR(td, dirfd, sa);
-	error = getsock_cap(td->td_proc->p_fd, fd,
-	    cap_rights_init(&rights, CAP_BIND), &fp, NULL);
+	error = getsock_cap(td, fd, cap_rights_init(&rights, CAP_BIND),
+	    &fp, NULL);
 	if (error != 0)
 		return (error);
 	so = fp->f_data;
@@ -319,8 +319,8 @@ sys_listen(td, uap)
 	int error;
 
 	AUDIT_ARG_FD(uap->s);
-	error = getsock_cap(td->td_proc->p_fd, uap->s,
-	    cap_rights_init(&rights, CAP_LISTEN), &fp, NULL);
+	error = getsock_cap(td, uap->s, cap_rights_init(&rights, CAP_LISTEN),
+	    &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
 #ifdef MAC
@@ -373,7 +373,7 @@ accept1(td, s, uname, anamelen, flags)
 		error = copyout(&namelen, anamelen,
 		    sizeof(namelen));
 	if (error != 0)
-		fdclose(td->td_proc->p_fd, fp, td->td_retval[0], td);
+		fdclose(td, fp, td->td_retval[0]);
 	fdrop(fp, td);
 	free(name, M_SONAME);
 	return (error);
@@ -390,7 +390,6 @@ int
 kern_accept4(struct thread *td, int s, struct sockaddr **name,
     socklen_t *namelen, int flags, struct file **fp)
 {
-	struct filedesc *fdp;
 	struct file *headfp, *nfp = NULL;
 	struct sockaddr *sa = NULL;
 	struct socket *head, *so;
@@ -403,8 +402,7 @@ kern_accept4(struct thread *td, int s, struct sockaddr **name,
 		*name = NULL;
 
 	AUDIT_ARG_FD(s);
-	fdp = td->td_proc->p_fd;
-	error = getsock_cap(fdp, s, cap_rights_init(&rights, CAP_ACCEPT),
+	error = getsock_cap(td, s, cap_rights_init(&rights, CAP_ACCEPT),
 	    &headfp, &fflag);
 	if (error != 0)
 		return (error);
@@ -520,7 +518,7 @@ noconnection:
 	 * out from under us.
 	 */
 	if (error != 0)
-		fdclose(fdp, nfp, fd, td);
+		fdclose(td, nfp, fd);
 
 	/*
 	 * Release explicitly held references before returning.  We return
@@ -604,8 +602,8 @@ kern_connectat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 
 	AUDIT_ARG_FD(fd);
 	AUDIT_ARG_SOCKADDR(td, dirfd, sa);
-	error = getsock_cap(td->td_proc->p_fd, fd,
-	    cap_rights_init(&rights, CAP_CONNECT), &fp, NULL);
+	error = getsock_cap(td, fd, cap_rights_init(&rights, CAP_CONNECT),
+	    &fp, NULL);
 	if (error != 0)
 		return (error);
 	so = fp->f_data;
@@ -683,7 +681,6 @@ int
 kern_socketpair(struct thread *td, int domain, int type, int protocol,
     int *rsv)
 {
-	struct filedesc *fdp = td->td_proc->p_fd;
 	struct file *fp1, *fp2;
 	struct socket *so1, *so2;
 	int fd, error, oflag, fflag;
@@ -747,10 +744,10 @@ kern_socketpair(struct thread *td, int domain, int type, int protocol,
 	fdrop(fp2, td);
 	return (0);
 free4:
-	fdclose(fdp, fp2, rsv[1], td);
+	fdclose(td, fp2, rsv[1]);
 	fdrop(fp2, td);
 free3:
-	fdclose(fdp, fp1, rsv[0], td);
+	fdclose(td, fp1, rsv[0]);
 	fdrop(fp1, td);
 free2:
 	if (so2 != NULL)
@@ -866,7 +863,7 @@ kern_sendit(td, s, mp, flags, control, segflg)
 		AUDIT_ARG_SOCKADDR(td, AT_FDCWD, mp->msg_name);
 		cap_rights_set(&rights, CAP_CONNECT);
 	}
-	error = getsock_cap(td->td_proc->p_fd, s, &rights, &fp, NULL);
+	error = getsock_cap(td, s, &rights, &fp, NULL);
 	if (error != 0)
 		return (error);
 	so = (struct socket *)fp->f_data;
@@ -1066,8 +1063,8 @@ kern_recvit(td, s, mp, fromseg, controlp)
 		*controlp = NULL;
 
 	AUDIT_ARG_FD(s);
-	error = getsock_cap(td->td_proc->p_fd, s,
-	    cap_rights_init(&rights, CAP_RECV), &fp, NULL);
+	error = getsock_cap(td, s, cap_rights_init(&rights, CAP_RECV),
+	    &fp, NULL);
 	if (error != 0)
 		return (error);
 	so = fp->f_data;
@@ -1381,8 +1378,8 @@ sys_shutdown(td, uap)
 	int error;
 
 	AUDIT_ARG_FD(uap->s);
-	error = getsock_cap(td->td_proc->p_fd, uap->s,
-	    cap_rights_init(&rights, CAP_SHUTDOWN), &fp, NULL);
+	error = getsock_cap(td, uap->s, cap_rights_init(&rights, CAP_SHUTDOWN),
+	    &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
 		error = soshutdown(so, uap->how);
@@ -1446,8 +1443,8 @@ kern_setsockopt(td, s, level, name, val, valseg, valsize)
 	}
 
 	AUDIT_ARG_FD(s);
-	error = getsock_cap(td->td_proc->p_fd, s,
-	    cap_rights_init(&rights, CAP_SETSOCKOPT), &fp, NULL);
+	error = getsock_cap(td, s, cap_rights_init(&rights, CAP_SETSOCKOPT),
+	    &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
 		error = sosetopt(so, &sopt);
@@ -1527,8 +1524,8 @@ kern_getsockopt(td, s, level, name, val, valseg, valsize)
 	}
 
 	AUDIT_ARG_FD(s);
-	error = getsock_cap(td->td_proc->p_fd, s,
-	    cap_rights_init(&rights, CAP_GETSOCKOPT), &fp, NULL);
+	error = getsock_cap(td, s, cap_rights_init(&rights, CAP_GETSOCKOPT),
+	    &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
 		error = sogetopt(so, &sopt);
@@ -1588,8 +1585,8 @@ kern_getsockname(struct thread *td, int fd, struct sockaddr **sa,
 	int error;
 
 	AUDIT_ARG_FD(fd);
-	error = getsock_cap(td->td_proc->p_fd, fd,
-	    cap_rights_init(&rights, CAP_GETSOCKNAME), &fp, NULL);
+	error = getsock_cap(td, fd, cap_rights_init(&rights, CAP_GETSOCKNAME),
+	    &fp, NULL);
 	if (error != 0)
 		return (error);
 	so = fp->f_data;
@@ -1687,8 +1684,8 @@ kern_getpeername(struct thread *td, int fd, struct sockaddr **sa,
 	int error;
 
 	AUDIT_ARG_FD(fd);
-	error = getsock_cap(td->td_proc->p_fd, fd,
-	    cap_rights_init(&rights, CAP_GETPEERNAME), &fp, NULL);
+	error = getsock_cap(td, fd, cap_rights_init(&rights, CAP_GETPEERNAME),
+	    &fp, NULL);
 	if (error != 0)
 		return (error);
 	so = fp->f_data;
@@ -2154,8 +2151,8 @@ kern_sendfile_getsock(struct thread *td, int s, struct file **sock_fp,
 	/*
 	 * The socket must be a stream socket and connected.
 	 */
-	error = getsock_cap(td->td_proc->p_fd, s, cap_rights_init(&rights,
-	    CAP_SEND), sock_fp, NULL);
+	error = getsock_cap(td, s, cap_rights_init(&rights, CAP_SEND),
+	    sock_fp, NULL);
 	if (error != 0)
 		return (error);
 	*so = (*sock_fp)->f_data;

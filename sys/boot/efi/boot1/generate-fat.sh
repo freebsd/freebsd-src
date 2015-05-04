@@ -17,18 +17,21 @@ BOOT1_SIZE=128k
 
 #
 # Known filenames
-# amd64: BOOTx64.efi
-# arm64: BOOTaa64.efi
+# amd64:   BOOTx64.efi
+# arm64:   BOOTaa64.efi
+# arm:     BOOTarm.efi
+# i386:    BOOTia32.efi
 #
-if [ -z "$1" ]; then
-	echo "Usage: $0 filename"
+if [ -z "$2" ]; then
+	echo "Usage: $0 arch boot-filename"
 	exit 1
 fi
 
-FILENAME=$1
+ARCH=$1
+FILENAME=$2
 
 # Generate 800K FAT image
-OUTPUT_FILE=fat.tmpl
+OUTPUT_FILE=fat-${ARCH}.tmpl
 
 dd if=/dev/zero of=$OUTPUT_FILE bs=512 count=$FAT_SIZE
 DEVICE=`mdconfig -a -f $OUTPUT_FILE`

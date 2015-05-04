@@ -121,17 +121,19 @@ struct wpi_buf {
 };
 
 struct wpi_vap {
-	struct ieee80211vap		wv_vap;
+	struct ieee80211vap	wv_vap;
 
-	struct wpi_buf			wv_bcbuf;
-	struct ieee80211_beacon_offsets	wv_boff;
-	struct mtx			wv_mtx;
+	struct wpi_buf		wv_bcbuf;
+	struct ieee80211_beacon_offsets wv_boff;
+	struct mtx		wv_mtx;
 
-	uint32_t			wv_gtk;
-#define WPI_VAP_KEY(kid)		(1 << kid)
+	uint32_t		wv_gtk;
+#define WPI_VAP_KEY(kid)	(1 << kid)
 
-	int				(*wv_newstate)(struct ieee80211vap *,
-					    enum ieee80211_state, int);
+	int			(*wv_newstate)(struct ieee80211vap *,
+				    enum ieee80211_state, int);
+	void			(*wv_recv_mgmt)(struct ieee80211_node *,
+				    struct mbuf *, int, int, int);
 };
 #define	WPI_VAP(vap)	((struct wpi_vap *)(vap))
 
@@ -164,6 +166,9 @@ struct wpi_softc {
 	struct ifnet		*sc_ifp;
 	int			sc_debug;
 
+	int			sc_flags;
+#define WPI_PS_PATH		(1 << 0)
+
 	struct mtx		sc_mtx;
 	struct mtx		tx_mtx;
 
@@ -177,6 +182,7 @@ struct wpi_softc {
 	uint32_t		txq_active;
 
 	struct wpi_rx_ring	rxq;
+	uint64_t		rx_tstamp;
 
 	/* TX Thermal Callibration. */
 	struct callout		calib_to;
@@ -210,8 +216,9 @@ struct wpi_softc {
 	struct mtx		nt_mtx;
 
 	void			(*sc_node_free)(struct ieee80211_node *);
-	void			(*sc_scan_curchan)(struct ieee80211_scan_state *,
-				    unsigned long);
+	void			(*sc_update_rx_ring)(struct wpi_softc *);
+	void			(*sc_update_tx_ring)(struct wpi_softc *,
+				    struct wpi_tx_ring *);
 
 	struct wpi_rx_radiotap_header	sc_rxtap;
 	struct wpi_tx_radiotap_header	sc_txtap;

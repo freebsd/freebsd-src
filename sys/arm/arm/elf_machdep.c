@@ -105,7 +105,6 @@ elf32_arm_abi_supported(struct image_params *imgp)
 {
 	const Elf_Ehdr *hdr = (const Elf_Ehdr *)imgp->image_header;
 
-#ifdef __ARM_EABI__
 	/*
 	 * When configured for EABI, FreeBSD supports EABI vesions 4 and 5.
 	 */
@@ -115,17 +114,6 @@ elf32_arm_abi_supported(struct image_params *imgp)
 			    EF_ARM_EABI_VERSION(hdr->e_flags), imgp->args->fname);
 		return (FALSE);
 	}
-#else
-	/*
-	 * When configured for OABI, that's all we do, so reject EABI binaries.
-	 */
-	if (EF_ARM_EABI_VERSION(hdr->e_flags) != EF_ARM_EABI_VERSION_UNKNOWN) {
-		if (bootverbose)
-			uprintf("Attempting to execute EABI binary (rev %d) image %s",
-			    EF_ARM_EABI_VERSION(hdr->e_flags), imgp->args->fname);
-		return (FALSE);
-	}
-#endif
 	return (TRUE);
 }
 

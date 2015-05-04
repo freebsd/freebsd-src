@@ -105,11 +105,11 @@ int	cap_send_nvlist(const cap_channel_t *chan, const nvlist_t *nvl);
 /*
  * Function receives nvlist over the given capability.
  */
-nvlist_t *cap_recv_nvlist(const cap_channel_t *chan);
+nvlist_t *cap_recv_nvlist(const cap_channel_t *chan, int flags);
 /*
  * Function sends the given nvlist, destroys it and receives new nvlist in
  * response over the given capability.
  */
-nvlist_t *cap_xfer_nvlist(const cap_channel_t *chan, nvlist_t *nvl);
+nvlist_t *cap_xfer_nvlist(const cap_channel_t *chan, nvlist_t *nvl, int flags);
 
 #endif	/* !_LIBCAPSICUM_H_ */

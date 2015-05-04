@@ -432,6 +432,7 @@ ROUTETABLES		opt_route.h
 RSS			opt_rss.h
 SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
+SIFTR
 TCP_OFFLOAD		opt_inet.h # Enable code to dispatch TCP offloading
 TCP_SIGNATURE		opt_inet.h
 VLAN_ARRAY		opt_vlan.h
@@ -553,6 +554,7 @@ LPT_DEBUG		opt_lpt.h
 PLIP_DEBUG		opt_plip.h
 LOCKF_DEBUG		opt_debug_lockf.h
 SI_DEBUG		opt_debug_si.h
+IFMEDIA_DEBUG		opt_ifmedia.h
 
 # Fb options
 FB_DEBUG		opt_fb.h
@@ -927,6 +929,7 @@ IPOIB_CM	opt_ofed.h
 
 # Resource Accounting
 RACCT		opt_global.h
+RACCT_DISABLED	opt_global.h
 
 # Resource Limits
 RCTL		opt_global.h

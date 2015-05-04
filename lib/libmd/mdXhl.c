@@ -74,7 +74,7 @@ MDXFileChunk(const char *filename, char *buf, off_t ofs, off_t len)
 			i = read(f, buffer, sizeof(buffer));
 		else
 			i = read(f, buffer, n);
-		if (i < 0) 
+		if (i <= 0) 
 			break;
 		MDXUpdate(&ctx, buffer, i);
 		n -= i;

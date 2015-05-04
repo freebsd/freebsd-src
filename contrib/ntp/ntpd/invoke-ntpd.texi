@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntpd.texi)
 #
-# It has been AutoGen-ed  February  4, 2015 at 02:42:04 AM by AutoGen 5.18.5pre4
+# It has been AutoGen-ed  April  7, 2015 at 04:25:54 AM by AutoGen 5.18.5pre4
 # From the definitions    ntpd-opts.def
 # and the template file   agtexi-cmd.tpl
 @end ignore
@@ -95,6 +95,7 @@ This software is released under the NTP license, <http://ntp.org/license>.
 * ntpd configfile::             configfile option (-c)
 * ntpd driftfile::              driftfile option (-f)
 * ntpd panicgate::              panicgate option (-g)
+* ntpd force-step-once::        force-step-once option (-G)
 * ntpd jaildir::                jaildir option (-i)
 * ntpd interface::              interface option (-I)
 * ntpd keyfile::                keyfile option (-k)
@@ -141,7 +142,7 @@ with a status code of 0.
 
 @exampleindent 0
 @example
-ntpd - NTP daemon program - Ver. 4.2.8p1
+ntpd - NTP daemon program - Ver. 4.2.8p2
 Usage:  ntpd [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]... \
                 [ <server1> ... <serverN> ]
   Flg Arg Option-Name    Description
@@ -162,6 +163,7 @@ Usage:  ntpd [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]... \
    -f Str driftfile      frequency drift file name
    -g no  panicgate      Allow the first adjustment to be Big
                                 - may appear multiple times
+   -G no  force-step-once Step any initial offset correction.
    -i Str jaildir        Jail directory
    -I Str interface      Listen on an interface name or address
                                 - may appear multiple times
@@ -298,7 +300,7 @@ The name and path of the frequency file,
 by default.
 This is the same operation as the
 @code{driftfile} @kbd{driftfile}
-configuration specification in the 
+configuration specification in the
 @file{/etc/ntp.conf}
 file.
 @node ntpd panicgate
@@ -326,6 +328,21 @@ options.
 See the
 @code{tinker}
 configuration file directive for other options.
+@node ntpd force-step-once
+@subsection force-step-once option (-G)
+@cindex ntpd-force-step-once
+
+This is the ``step any initial offset correction.'' option.
+Normally,
+@code{ntpd}
+steps the time if the time offset exceeds the step threshold,
+which is 128 ms by default, and otherwise slews the time.
+This option forces the initial offset correction to be stepped,
+so the highest time accuracy can be achieved quickly.
+However, this may also cause the time to be stepped back
+so this option must not be used if
+applications requiring monotonic time are running.
+See the @code{tinker} configuration file directive for other options.
 @node ntpd jaildir
 @subsection jaildir option (-i)
 @cindex ntpd-jaildir
@@ -370,7 +387,7 @@ Open the network address given, or all the addresses associated with the
 given interface name.  This option may appear multiple times.  This option
 also implies not opening other addresses, except wildcard and localhost.
 This option is deprecated. Please consider using the configuration file
-@code{interface} command, which is more versatile. 
+@code{interface} command, which is more versatile.
 @node ntpd keyfile
 @subsection keyfile option (-k)
 @cindex ntpd-keyfile

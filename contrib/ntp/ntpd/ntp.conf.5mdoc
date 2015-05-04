@@ -1,9 +1,9 @@
-.Dd February 4 2015
+.Dd April 7 2015
 .Dt NTP_CONF 5mdoc File Formats
 .Os
 .\"  EDIT THIS FILE WITH CAUTION  (ntp.mdoc)
 .\"
-.\"  It has been AutoGen-ed  February  4, 2015 at 02:42:07 AM by AutoGen 5.18.5pre4
+.\"  It has been AutoGen-ed  April  7, 2015 at 04:25:57 AM by AutoGen 5.18.5pre4
 .\"  From the definitions    ntp.conf.def
 .\"  and the template file   agmdoc-cmd.tpl
 .Sh NAME
@@ -2618,7 +2618,9 @@ holds the names of the reference clock variables.
 .Cm freq Ar freq |
 .Cm huffpuff Ar huffpuff |
 .Cm panic Ar panic |
-.Cm step Ar srep |
+.Cm step Ar step |
+.Cm stepback Ar stepback |
+.Cm stepfwd Ar stepfwd |
 .Cm stepout Ar stepout
 .Oc
 .Xc
@@ -2678,6 +2680,19 @@ adjustments will never occur.
 Note: The kernel time discipline is
 disabled if the step threshold is set to zero or greater than the
 default.
+.It Cm stepback Ar stepback
+The argument is the step threshold for the backward direction,
+which by default is 0.128 s.
+It can
+be set to any positive number in seconds.
+If both the forward and backward step thresholds are set to zero, step
+adjustments will never occur.
+Note: The kernel time discipline is
+disabled if
+each direction of step threshold are either
+set to zero or greater than .5 second.
+.It Cm stepfwd Ar stepfwd
+As for stepback, but for the forward direction.
 .It Cm stepout Ar stepout
 The argument is the stepout timeout, which by default is 900 s.
 It can

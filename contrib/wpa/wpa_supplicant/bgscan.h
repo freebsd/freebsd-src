@@ -29,7 +29,8 @@ struct bgscan_ops {
 
 #ifdef CONFIG_BGSCAN
 
-int bgscan_init(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid);
+int bgscan_init(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid,
+		const char *name);
 void bgscan_deinit(struct wpa_supplicant *wpa_s);
 int bgscan_notify_scan(struct wpa_supplicant *wpa_s,
 		       struct wpa_scan_results *scan_res);
@@ -41,7 +42,7 @@ void bgscan_notify_signal_change(struct wpa_supplicant *wpa_s, int above,
 #else /* CONFIG_BGSCAN */
 
 static inline int bgscan_init(struct wpa_supplicant *wpa_s,
-			      struct wpa_ssid *ssid)
+			      struct wpa_ssid *ssid, const char name)
 {
 	return 0;
 }
