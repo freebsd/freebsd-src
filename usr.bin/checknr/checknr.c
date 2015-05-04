@@ -250,7 +250,7 @@ main(int argc, char **argv)
 	nfiles = argc - 1;
 
 	if (nfiles > 0) {
-		for (i=1; i<argc; i++) {
+		for (i = 1; i < argc; i++) {
 			cfilename = argv[i];
 			f = fopen(cfilename, "r");
 			if (f == NULL)
@@ -320,9 +320,9 @@ process(FILE *f)
 		 * At this point we process the line looking
 		 * for \s and \f.
 		 */
-		for (i=0; line[i]; i++)
-			if (line[i]=='\\' && (i==0 || line[i-1]!='\\')) {
-				if (!sflag && line[++i]=='s') {
+		for (i = 0; line[i]; i++)
+			if (line[i] == '\\' && (i == 0 || line[i-1] != '\\')) {
+				if (!sflag && line[++i] == 's') {
 					pl = line[++i];
 					if (isdigit(pl)) {
 						n = pl - '0';
@@ -345,7 +345,7 @@ process(FILE *f)
 						stk[stktop].parm = n;
 						stk[stktop].lno = lineno;
 					}
-				} else if (!fflag && line[i]=='f') {
+				} else if (!fflag && line[i] == 'f') {
 					n = line[++i];
 					if (n == 'P') {
 						if (stk[stktop].opno == FT) {
@@ -367,7 +367,7 @@ process(FILE *f)
 	 * We've hit the end and look at all this stuff that hasn't been
 	 * matched yet!  Complain, complain.
 	 */
-	for (i=stktop; i>=0; i--) {
+	for (i = stktop; i >= 0; i--) {
 		complain(i);
 	}
 }
@@ -386,7 +386,7 @@ prop(int i)
 {
 	if (stk[i].pl == 0)
 		printf(".%s", br[stk[i].opno].opbr);
-	else switch(stk[i].opno) {
+	else switch (stk[i].opno) {
 	case SZ:
 		printf("\\s%c%d", stk[i].pl, stk[i].parm);
 		break;
@@ -395,7 +395,8 @@ prop(int i)
 		break;
 	default:
 		printf("Bug: stk[%d].opno = %d = .%s, .%s",
-			i, stk[i].opno, br[stk[i].opno].opbr, br[stk[i].opno].clbr);
+			i, stk[i].opno, br[stk[i].opno].opbr,
+			br[stk[i].opno].clbr);
 	}
 }
 
@@ -567,7 +568,9 @@ printf("binsrch(%s) -> %d\n", mac, slot);
 	*loc = strcpy(malloc(3), mac);
 	ncmds++;
 #ifdef DEBUG
-printf("after: %s %s %s %s %s, %d cmds\n", knowncmds[slot-2], knowncmds[slot-1], knowncmds[slot], knowncmds[slot+1], knowncmds[slot+2], ncmds);
+	printf("after: %s %s %s %s %s, %d cmds\n",
+	    knowncmds[slot-2], knowncmds[slot-1], knowncmds[slot],
+	    knowncmds[slot+1], knowncmds[slot+2], ncmds);
 #endif
 }
 
@@ -592,12 +595,12 @@ binsrch(const char *mac)
 		if (d == 0)
 			d = p[1] - mac[1];
 		if (d == 0)
-			return mid;
+			return (mid);
 		if (d < 0)
 			bot = mid + 1;
 		else
 			top = mid - 1;
 	}
 	slot = bot;	/* place it would have gone */
-	return -1;
+	return (-1);
 }
