@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
  * structured typesetting.
  */
 #include <err.h>
+#define _WITH_GETLINE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -284,11 +285,14 @@ process(FILE *f)
 {
 	int i, n;
 	char mac[5];	/* The current macro or nroff command */
+	char *line;
+	size_t linecap;
 	int pl;
-	static char line[256];	/* the current line */
 
+	line = NULL;
+	linecap = 0;
 	stktop = -1;
-	for (lineno = 1; fgets(line, sizeof line, f); lineno++) {
+	for (lineno = 1; getline(&line, &linecap, f) > 0; lineno++) {
 		if (line[0] == '.') {
 			/*
 			 * find and isolate the macro/command name.
@@ -367,6 +371,7 @@ process(FILE *f)
 				}
 			}
 	}
+	free(line);
 	/*
 	 * We've hit the end and look at all this stuff that hasn't been
 	 * matched yet!  Complain, complain.
