@@ -1469,13 +1469,21 @@
 /* #undef SCO5_CLOCK */
 
 /* The size of `char*', as computed by sizeof. */
+#if defined(__alpha__) || defined(__sparc64__) || defined(__amd64__)
 #define SIZEOF_CHARP 8
+#else
+#define SIZEOF_CHARP 4
+#endif
 
 /* The size of `int', as computed by sizeof. */
 #define SIZEOF_INT 4
 
 /* The size of `long', as computed by sizeof. */
+#if defined(__alpha__) || defined(__sparc64__) || defined(__amd64__)
 #define SIZEOF_LONG 8
+#else
+#define SIZEOF_LONG 4
+#endif
 
 /* The size of `long long', as computed by sizeof. */
 #define SIZEOF_LONG_LONG 8
@@ -1490,7 +1498,11 @@
 #define SIZEOF_SIGNED_CHAR 1
 
 /* The size of `time_t', as computed by sizeof. */
+#if defined(__alpha__) || defined(__sparc64__) || defined(__amd64__)
 #define SIZEOF_TIME_T 8
+#else
+#define SIZEOF_TIME_T 4
+#endif
 
 /* Does SIOCGIFCONF return size in the buffer? */
 /* #undef SIZE_RETURNED_IN_BUFFER */
@@ -1516,7 +1528,15 @@
 /* #undef STRERROR_R_CHAR_P */
 
 /* canonical system (cpu-vendor-os) of where we should run */
-#define STR_SYSTEM "amd64-portbld-freebsd10.1"
+#if defined(__alpha__)
+#define STR_SYSTEM "alpha-undermydesk-freebsd"
+#elif defined(__sparc64__)
+#define STR_SYSTEM "sparc64-undermydesk-freebsd"
+#elif defined(__amd64__)
+#define STR_SYSTEM "amd64-undermydesk-freebsd"
+#else
+#define STR_SYSTEM "i386-undermydesk-freebsd"
+#endif
 
 /* Does Xettimeofday take 1 arg? */
 /* #undef SYSV_TIMEOFDAY */
