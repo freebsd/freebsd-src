@@ -39,6 +39,7 @@
 # done
 
 # 20150504
+OLD_FILES+=etc/libmap32.conf
 OLD_LIBS+=usr/lib32/private/libatf-c++.so.2
 OLD_LIBS+=usr/lib32/private/libbsdstat.so.1
 OLD_LIBS+=usr/lib32/private/libheimipcs.so.11
