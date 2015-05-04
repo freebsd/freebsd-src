@@ -600,7 +600,7 @@ bpf_attachd(struct bpf_d *d, struct bpf_if *bp)
 	 * Save sysctl value to protect from sysctl change
 	 * between reads
 	 */
-	op_w = V_bpf_optimize_writers;
+	op_w = V_bpf_optimize_writers || d->bd_writer;
 
 	if (d->bd_bif != NULL)
 		bpf_detachd_locked(d);
@@ -802,6 +802,8 @@ bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	 * particular buffer method.
 	 */
 	bpf_buffer_init(d);
+	if ((flags & FREAD) == 0)
+		d->bd_writer = 2;
 	d->bd_hbuf_in_use = 0;
 	d->bd_bufmode = BPF_BUFMODE_BUFFER;
 	d->bd_sig = SIGIO;
