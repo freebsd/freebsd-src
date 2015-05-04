@@ -108,11 +108,12 @@ soelim_file(FILE *f, int flag)
 		while (isspace(*walk))
 			walk++;
 
-		cp = walk + strlen(walk) - 1;
-		while (cp > walk && isspace(*cp)) {
-			*cp = 0;
-			cp--;
-		}
+		cp = walk;
+		while (*cp != '\0' && !isspace(*cp))
+			cp++;
+		*cp = 0;
+		if (cp < line + linelen)
+			cp++;
 
 		if (*walk == '\0') {
 			printf("%s", line);
@@ -122,6 +123,8 @@ soelim_file(FILE *f, int flag)
 			free(line);
 			return (1);
 		}
+		if (*cp != '\0')
+			printf("%s", cp);
 	}
 
 	free(line);
