@@ -229,6 +229,8 @@ adhoc_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			}
 #endif
 			break;
+		case IEEE80211_S_RUN:	/* IBSS merge */
+			break;
 		default:
 			goto invalid;
 		}
@@ -369,7 +371,10 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 		/*
 		 * Validate the bssid.
 		 */
-		if (!IEEE80211_ADDR_EQ(bssid, vap->iv_bss->ni_bssid) &&
+		if (!(type == IEEE80211_FC0_TYPE_MGT &&
+		     (subtype == IEEE80211_FC0_SUBTYPE_BEACON ||
+		      subtype == IEEE80211_FC0_SUBTYPE_PROBE_REQ)) &&
+		    !IEEE80211_ADDR_EQ(bssid, vap->iv_bss->ni_bssid) &&
 		    !IEEE80211_ADDR_EQ(bssid, ifp->if_broadcastaddr)) {
 			/* not interested in */
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
@@ -409,7 +414,7 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 		}
 		IEEE80211_RSSI_LPF(ni->ni_avgrssi, rssi);
 		ni->ni_noise = nf;
-		if (HAS_SEQ(type)) {
+		if (HAS_SEQ(type) && IEEE80211_ADDR_EQ(wh->i_addr2, ni->ni_macaddr)) {
 			uint8_t tid = ieee80211_gettid(wh);
 			if (IEEE80211_QOS_HAS_SEQ(wh) &&
 			    TID_TO_WME_AC(tid) >= WME_AC_VI)
