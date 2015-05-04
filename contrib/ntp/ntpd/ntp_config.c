@@ -2705,6 +2705,14 @@ config_tinker(
 			item = LOOP_MAX;
 			break;
 
+		case T_Stepback:
+			item = LOOP_MAX_BACK;
+			break;
+
+		case T_Stepfwd:
+			item = LOOP_MAX_FWD;
+			break;
+
 		case T_Stepout:
 			item = LOOP_MINSTEP;
 			break;

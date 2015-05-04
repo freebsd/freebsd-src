@@ -15,3 +15,4 @@ ntptrace,bin,1
 sntp,bin,1
 tickadj,bin,1
 timetrim,bin,1
+update-leap,bin,1

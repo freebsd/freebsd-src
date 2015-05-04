@@ -12,3 +12,4 @@ ntptime,sbin,8
 ntpsweep,noinst,8
 ntptrace,sbin,8
 sntp,sbin,8
+update-leap,sbin,8
