@@ -382,7 +382,7 @@ fork_blocking_child(
 	int		rc;
 	int		was_pipe;
 	int		is_pipe;
-	int		saved_errno;
+	int		saved_errno = 0;
 	int		childpid;
 	int		keep_fd;
 	int		fd;

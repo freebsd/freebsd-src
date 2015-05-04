@@ -194,44 +194,46 @@ extern int yydebug;
     T_Stats = 404,
     T_Statsdir = 405,
     T_Step = 406,
-    T_Stepout = 407,
-    T_Stratum = 408,
-    T_String = 409,
-    T_Sys = 410,
-    T_Sysstats = 411,
-    T_Tick = 412,
-    T_Time1 = 413,
-    T_Time2 = 414,
-    T_Timer = 415,
-    T_Timingstats = 416,
-    T_Tinker = 417,
-    T_Tos = 418,
-    T_Trap = 419,
-    T_True = 420,
-    T_Trustedkey = 421,
-    T_Ttl = 422,
-    T_Type = 423,
-    T_U_int = 424,
-    T_Unconfig = 425,
-    T_Unpeer = 426,
-    T_Version = 427,
-    T_WanderThreshold = 428,
-    T_Week = 429,
-    T_Wildcard = 430,
-    T_Xleave = 431,
-    T_Year = 432,
-    T_Flag = 433,
-    T_EOC = 434,
-    T_Simulate = 435,
-    T_Beep_Delay = 436,
-    T_Sim_Duration = 437,
-    T_Server_Offset = 438,
-    T_Duration = 439,
-    T_Freq_Offset = 440,
-    T_Wander = 441,
-    T_Jitter = 442,
-    T_Prop_Delay = 443,
-    T_Proc_Delay = 444
+    T_Stepback = 407,
+    T_Stepfwd = 408,
+    T_Stepout = 409,
+    T_Stratum = 410,
+    T_String = 411,
+    T_Sys = 412,
+    T_Sysstats = 413,
+    T_Tick = 414,
+    T_Time1 = 415,
+    T_Time2 = 416,
+    T_Timer = 417,
+    T_Timingstats = 418,
+    T_Tinker = 419,
+    T_Tos = 420,
+    T_Trap = 421,
+    T_True = 422,
+    T_Trustedkey = 423,
+    T_Ttl = 424,
+    T_Type = 425,
+    T_U_int = 426,
+    T_Unconfig = 427,
+    T_Unpeer = 428,
+    T_Version = 429,
+    T_WanderThreshold = 430,
+    T_Week = 431,
+    T_Wildcard = 432,
+    T_Xleave = 433,
+    T_Year = 434,
+    T_Flag = 435,
+    T_EOC = 436,
+    T_Simulate = 437,
+    T_Beep_Delay = 438,
+    T_Sim_Duration = 439,
+    T_Server_Offset = 440,
+    T_Duration = 441,
+    T_Freq_Offset = 442,
+    T_Wander = 443,
+    T_Jitter = 444,
+    T_Prop_Delay = 445,
+    T_Proc_Delay = 446
   };
 #endif
 /* Tokens.  */
@@ -384,44 +386,46 @@ extern int yydebug;
 #define T_Stats 404
 #define T_Statsdir 405
 #define T_Step 406
-#define T_Stepout 407
-#define T_Stratum 408
-#define T_String 409
-#define T_Sys 410
-#define T_Sysstats 411
-#define T_Tick 412
-#define T_Time1 413
-#define T_Time2 414
-#define T_Timer 415
-#define T_Timingstats 416
-#define T_Tinker 417
-#define T_Tos 418
-#define T_Trap 419
-#define T_True 420
-#define T_Trustedkey 421
-#define T_Ttl 422
-#define T_Type 423
-#define T_U_int 424
-#define T_Unconfig 425
-#define T_Unpeer 426
-#define T_Version 427
-#define T_WanderThreshold 428
-#define T_Week 429
-#define T_Wildcard 430
-#define T_Xleave 431
-#define T_Year 432
-#define T_Flag 433
-#define T_EOC 434
-#define T_Simulate 435
-#define T_Beep_Delay 436
-#define T_Sim_Duration 437
-#define T_Server_Offset 438
-#define T_Duration 439
-#define T_Freq_Offset 440
-#define T_Wander 441
-#define T_Jitter 442
-#define T_Prop_Delay 443
-#define T_Proc_Delay 444
+#define T_Stepback 407
+#define T_Stepfwd 408
+#define T_Stepout 409
+#define T_Stratum 410
+#define T_String 411
+#define T_Sys 412
+#define T_Sysstats 413
+#define T_Tick 414
+#define T_Time1 415
+#define T_Time2 416
+#define T_Timer 417
+#define T_Timingstats 418
+#define T_Tinker 419
+#define T_Tos 420
+#define T_Trap 421
+#define T_True 422
+#define T_Trustedkey 423
+#define T_Ttl 424
+#define T_Type 425
+#define T_U_int 426
+#define T_Unconfig 427
+#define T_Unpeer 428
+#define T_Version 429
+#define T_WanderThreshold 430
+#define T_Week 431
+#define T_Wildcard 432
+#define T_Xleave 433
+#define T_Year 434
+#define T_Flag 435
+#define T_EOC 436
+#define T_Simulate 437
+#define T_Beep_Delay 438
+#define T_Sim_Duration 439
+#define T_Server_Offset 440
+#define T_Duration 441
+#define T_Freq_Offset 442
+#define T_Wander 443
+#define T_Jitter 444
+#define T_Prop_Delay 445
+#define T_Proc_Delay 446
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
@@ -447,7 +451,7 @@ union YYSTYPE
 	script_info *		Sim_script;
 	script_info_fifo *	Sim_script_fifo;
 
-#line 451 "ntp_parser.h" /* yacc.c:1909  */
+#line 455 "ntp_parser.h" /* yacc.c:1909  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1

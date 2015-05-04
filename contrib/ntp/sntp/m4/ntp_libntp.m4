@@ -878,13 +878,13 @@ AC_CACHE_CHECK(
     [for SIGIO],
     [ntp_cv_hdr_def_sigio],
     [AC_PREPROC_IFELSE(
-	[
+	[AC_LANG_SOURCE([
 	    #include <signal.h>
 
 	    #ifndef SIGIO
 	    # error
 	    #endif
-	],
+	])],
 	[ntp_cv_hdr_def_sigio=yes],
 	[ntp_cv_hdr_def_sigio=no]
     )]
@@ -947,13 +947,13 @@ AC_CACHE_CHECK(
     [for SIGPOLL],
     [ntp_cv_hdr_def_sigpoll],
     [AC_PREPROC_IFELSE(
-	[
+	[AC_LANG_SOURCE([
 	    #include <signal.h>
 	    
 	    #ifndef SIGPOLL
 	    # error
 	    #endif
-	],
+	])],
 	[ntp_cv_hdr_def_sigpoll=yes],
 	[ntp_cv_hdr_def_sigpoll=no]
     )]

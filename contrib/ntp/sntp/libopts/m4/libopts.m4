@@ -216,7 +216,7 @@ AC_DEFUN([LIBOPTS_WITHLIB_REGEX],[
   LIBREGEX_LIBS=""
   AC_MSG_CHECKING([whether libregex functions properly])
   AC_CACHE_VAL([libopts_cv_with_libregex],[
-  AC_RUN_IFELSE([@%:@include <stdio.h>
+  AC_RUN_IFELSE([AC_LANG_SOURCE([@%:@include <stdio.h>
 @%:@include <stdlib.h>
 @%:@include <sys/types.h>
 @%:@include REGEX_HEADER
@@ -235,7 +235,7 @@ int main() {
     fputs( "error: regex -->.<-- did not match\n", stderr );
     return 1;
   }
-  return 0; }],
+  return 0; }])],
     [libopts_cv_with_libregex=yes], [libopts_cv_with_libregex=no],
     [libopts_cv_with_libregex=no]) # end of AC_RUN_IFELSE 
   ]) # end of AC_CACHE_VAL for libopts_cv_with_libregex
@@ -260,12 +260,12 @@ libopts_cv_with_libregex=no
 AC_DEFUN([LIBOPTS_RUN_PATHFIND],[
   AC_MSG_CHECKING([whether pathfind(3) works])
   AC_CACHE_VAL([libopts_cv_run_pathfind],[
-  AC_RUN_IFELSE([@%:@include <string.h>
+  AC_RUN_IFELSE([AC_LANG_SOURCE([@%:@include <string.h>
 @%:@include <stdlib.h>
 int main (int argc, char** argv) {
    char* pz = pathfind( getenv( "PATH" ), "sh", "x" );
    return (pz == 0) ? 1 : 0;
-}],
+}])],
     [libopts_cv_run_pathfind=yes],[libopts_cv_run_pathfind=no],[libopts_cv_run_pathfind=no]
   ) # end of RUN_IFELSE
   ]) # end of AC_CACHE_VAL for libopts_cv_run_pathfind
@@ -303,7 +303,7 @@ echo ${dzero}`
 AC_DEFUN([LIBOPTS_RUN_REALPATH],[
   AC_MSG_CHECKING([whether we have a functional realpath(3C)])
   AC_CACHE_VAL([libopts_cv_run_realpath],[
-  AC_RUN_IFELSE([@%:@include <limits.h>
+  AC_RUN_IFELSE([AC_LANG_SOURCE([@%:@include <limits.h>
 @%:@include <stdlib.h>
 int main (int argc, char** argv) {
 @%:@ifndef PATH_MAX
@@ -313,7 +313,7 @@ choke me!!
 @%:@endif
    char *pz = realpath(argv@<:@0@:>@, zPath);
    return (pz == zPath) ? 0 : 1;
-}],
+}])],
     [libopts_cv_run_realpath=yes],[libopts_cv_run_realpath=no],[libopts_cv_run_realpath=no]
   ) # end of RUN_IFELSE
   ]) # end of AC_CACHE_VAL for libopts_cv_run_realpath
@@ -330,7 +330,7 @@ choke me!!
 AC_DEFUN([LIBOPTS_RUN_STRFTIME],[
   AC_MSG_CHECKING([whether strftime() works])
   AC_CACHE_VAL([libopts_cv_run_strftime],[
-  AC_RUN_IFELSE([@%:@include <time.h>
+  AC_RUN_IFELSE([AC_LANG_SOURCE([@%:@include <time.h>
 @%:@include <string.h>
 char t_buf@<:@ 64 @:>@;
 int main() {
@@ -346,7 +346,7 @@ int main() {
   tm.tm_yday  = 239; /* days since January 1 @<:@0, 365@:>@ */
   tm.tm_isdst =  1;  /* flag for daylight savings time */
   strftime( t_buf, sizeof( t_buf ), "%A %b %d %j", &tm );
-  return (strcmp( t_buf, z ) != 0); }],
+  return (strcmp( t_buf, z ) != 0); }])],
     [libopts_cv_run_strftime=yes],[libopts_cv_run_strftime=no],[libopts_cv_run_strftime=no]
   ) # end of RUN_IFELSE
   ]) # end of AC_CACHE_VAL for libopts_cv_run_strftime
@@ -363,10 +363,10 @@ int main() {
 AC_DEFUN([LIBOPTS_RUN_FOPEN_BINARY],[
   AC_MSG_CHECKING([whether fopen accepts "b" mode])
   AC_CACHE_VAL([libopts_cv_run_fopen_binary],[
-  AC_RUN_IFELSE([@%:@include <stdio.h>
+  AC_RUN_IFELSE([AC_LANG_SOURCE([@%:@include <stdio.h>
 int main (int argc, char** argv) {
 FILE* fp = fopen("conftest.@S|@ac_ext", "rb");
-return (fp == NULL) ? 1 : fclose(fp); }],
+return (fp == NULL) ? 1 : fclose(fp); }])],
     [libopts_cv_run_fopen_binary=yes],[libopts_cv_run_fopen_binary=no],[libopts_cv_run_fopen_binary=no]
   ) # end of RUN_IFELSE
   ]) # end of AC_CACHE_VAL for libopts_cv_run_fopen_binary
@@ -386,10 +386,10 @@ return (fp == NULL) ? 1 : fclose(fp); }],
 AC_DEFUN([LIBOPTS_RUN_FOPEN_TEXT],[
   AC_MSG_CHECKING([whether fopen accepts "t" mode])
   AC_CACHE_VAL([libopts_cv_run_fopen_text],[
-  AC_RUN_IFELSE([@%:@include <stdio.h>
+  AC_RUN_IFELSE([AC_LANG_SOURCE([@%:@include <stdio.h>
 int main (int argc, char** argv) {
 FILE* fp = fopen("conftest.@S|@ac_ext", "rt");
-return (fp == NULL) ? 1 : fclose(fp); }],
+return (fp == NULL) ? 1 : fclose(fp); }])],
     [libopts_cv_run_fopen_text=yes],[libopts_cv_run_fopen_text=no],[libopts_cv_run_fopen_text=no]
   ) # end of RUN_IFELSE
   ]) # end of AC_CACHE_VAL for libopts_cv_run_fopen_text

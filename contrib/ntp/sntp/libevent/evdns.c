@@ -541,6 +541,17 @@ nameserver_probe_failed(struct nameserver *const ns) {
 	}
 }
 
+static void
+request_swap_ns(struct request *req, struct nameserver *ns) {
+	if (ns && req->ns != ns) {
+		EVUTIL_ASSERT(req->ns->requests_inflight > 0);
+		req->ns->requests_inflight--;
+		ns->requests_inflight++;
+
+		req->ns = ns;
+	}
+}
+
 /* called when a nameserver has been deemed to have failed. For example, too */
 /* many packets have timed out etc */
 static void
@@ -595,7 +606,7 @@ nameserver_failed(struct nameserver *const ns, const char *msg) {
 				if (req->tx_count == 0 && req->ns == ns) {
 					/* still waiting to go out, can be moved */
 					/* to another server */
-					req->ns = nameserver_pick(base);
+					request_swap_ns(req, nameserver_pick(base));
 				}
 				req = req->next;
 			} while (req != started_at);
@@ -659,6 +670,7 @@ request_finished(struct request *const req, struct request **head, int free_hand
 	    req->ns->requests_inflight == 0 &&
 	    req->base->disable_when_inactive) {
 		event_del(&req->ns->event);
+		evtimer_del(&req->ns->timeout_event);
 	}
 
 	if (!req->request_appended) {
@@ -707,7 +719,7 @@ request_reissue(struct request *req) {
 	/* the last nameserver should have been marked as failing */
 	/* by the caller of this function, therefore pick will try */
 	/* not to return it */
-	req->ns = nameserver_pick(req->base);
+	request_swap_ns(req, nameserver_pick(req->base));
 	if (req->ns == last_ns) {
 		/* ... but pick did return it */
 		/* not a lot of point in trying again with the */
@@ -2158,29 +2170,30 @@ evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg) {
 	log(EVDNS_LOG_DEBUG, "Request %p timed out", arg);
 	EVDNS_LOCK(base);
 
-	req->ns->timedout++;
-	if (req->ns->timedout > req->base->global_max_nameserver_timeout) {
-		req->ns->timedout = 0;
-		nameserver_failed(req->ns, "request timed out.");
-	}
-
 	if (req->tx_count >= req->base->global_max_retransmits) {
+		struct nameserver *ns = req->ns;
 		/* this request has failed */
 		log(EVDNS_LOG_DEBUG, "Giving up on request %p; tx_count==%d",
 		    arg, req->tx_count);
 		reply_schedule_callback(req, 0, DNS_ERR_TIMEOUT, NULL);
+
 		request_finished(req, &REQ_HEAD(req->base, req->trans_id), 1);
+		nameserver_failed(ns, "request timed out.");
 	} else {
 		/* retransmit it */
-		struct nameserver *new_ns;
 		log(EVDNS_LOG_DEBUG, "Retransmitting request %p; tx_count==%d",
 		    arg, req->tx_count);
 		(void) evtimer_del(&req->timeout_event);
-		new_ns = nameserver_pick(base);
-		if (new_ns)
-			req->ns = new_ns;
+		request_swap_ns(req, nameserver_pick(base));
 		evdns_request_transmit(req);
+
+		req->ns->timedout++;
+		if (req->ns->timedout > req->base->global_max_nameserver_timeout) {
+			req->ns->timedout = 0;
+			nameserver_failed(req->ns, "request timed out.");
+		}
 	}
+
 	EVDNS_UNLOCK(base);
 }
 
@@ -2637,6 +2650,34 @@ evdns_base_nameserver_sockaddr_add(struct evdns_base *base,
 	res = evdns_nameserver_add_impl_(base, sa, len);
 	EVDNS_UNLOCK(base);
 	return res;
+}
+
+int
+evdns_base_get_nameserver_addr(struct evdns_base *base, int idx,
+    struct sockaddr *sa, ev_socklen_t len)
+{
+	int result = -1;
+	int i;
+	struct nameserver *server;
+	EVDNS_LOCK(base);
+	server = base->server_head;
+	for (i = 0; i < idx && server; ++i, server = server->next) {
+		if (server->next == base->server_head)
+			goto done;
+	}
+	if (! server)
+		goto done;
+
+	if (server->addrlen > len) {
+		result = (int) server->addrlen;
+		goto done;
+	}
+
+	memcpy(sa, &server->address, server->addrlen);
+	result = (int) server->addrlen;
+done:
+	EVDNS_UNLOCK(base);
+	return result;
 }
 
 /* remove from the queue */
@@ -3311,7 +3352,7 @@ strtoint(const char *const str)
 
 /* Parse a number of seconds into a timeval; return -1 on error. */
 static int
-strtotimeval(const char *const str, struct timeval *out)
+evdns_strtotimeval(const char *const str, struct timeval *out)
 {
 	double d;
 	char *endptr;
@@ -3414,13 +3455,13 @@ evdns_base_set_option_impl(struct evdns_base *base,
 		base->global_search_state->ndots = ndots;
 	} else if (str_matches_option(option, "timeout:")) {
 		struct timeval tv;
-		if (strtotimeval(val, &tv) == -1) return -1;
+		if (evdns_strtotimeval(val, &tv) == -1) return -1;
 		if (!(flags & DNS_OPTION_MISC)) return 0;
 		log(EVDNS_LOG_DEBUG, "Setting timeout to %s", val);
 		memcpy(&base->global_timeout, &tv, sizeof(struct timeval));
 	} else if (str_matches_option(option, "getaddrinfo-allow-skew:")) {
 		struct timeval tv;
-		if (strtotimeval(val, &tv) == -1) return -1;
+		if (evdns_strtotimeval(val, &tv) == -1) return -1;
 		if (!(flags & DNS_OPTION_MISC)) return 0;
 		log(EVDNS_LOG_DEBUG, "Setting getaddrinfo-allow-skew to %s",
 		    val);
@@ -3462,7 +3503,7 @@ evdns_base_set_option_impl(struct evdns_base *base,
 		base->global_outgoing_addrlen = len;
 	} else if (str_matches_option(option, "initial-probe-timeout:")) {
 		struct timeval tv;
-		if (strtotimeval(val, &tv) == -1) return -1;
+		if (evdns_strtotimeval(val, &tv) == -1) return -1;
 		if (tv.tv_sec > 3600)
 			tv.tv_sec = 3600;
 		if (!(flags & DNS_OPTION_MISC)) return 0;
@@ -3555,8 +3596,8 @@ evdns_get_default_hosts_filename(void)
 
 	if (! SHGetSpecialFolderPathA(NULL, path, CSIDL_SYSTEM, 0))
 		return NULL;
-	len_out = strlen(path)+strlen(hostfile);
-	path_out = mm_malloc(len_out+1);
+	len_out = strlen(path)+strlen(hostfile)+1;
+	path_out = mm_malloc(len_out);
 	evutil_snprintf(path_out, len_out, "%s%s", path, hostfile);
 	return path_out;
 #else
@@ -3826,16 +3867,17 @@ evdns_base_config_windows_nameservers(struct evdns_base *base)
 	if (base == NULL)
 		return -1;
 	EVDNS_LOCK(base);
+	fname = evdns_get_default_hosts_filename();
+	log(EVDNS_LOG_DEBUG, "Loading hosts entries from %s", fname);
+	evdns_base_load_hosts(base, fname);
+	if (fname)
+		mm_free(fname);
+
 	if (load_nameservers_with_getnetworkparams(base) == 0) {
 		EVDNS_UNLOCK(base);
 		return 0;
 	}
 	r = load_nameservers_from_registry(base);
-
-	fname = evdns_get_default_hosts_filename();
-	evdns_base_load_hosts(base, fname);
-	if (fname)
-		mm_free(fname);
 
 	EVDNS_UNLOCK(base);
 	return r;
@@ -3973,6 +4015,10 @@ evdns_nameserver_free(struct nameserver *server)
 	event_debug_unassign(&server->event);
 	if (server->state == 0)
 		(void) event_del(&server->timeout_event);
+	if (server->probe_request) {
+		evdns_cancel_request(server->base, server->probe_request);
+		server->probe_request = NULL;
+	}
 	event_debug_unassign(&server->timeout_event);
 	mm_free(server);
 }
@@ -3988,6 +4034,15 @@ evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 
 	/* TODO(nickm) we might need to refcount here. */
 
+	for (server = base->server_head; server; server = server_next) {
+		server_next = server->next;
+		evdns_nameserver_free(server);
+		if (server_next == base->server_head)
+			break;
+	}
+	base->server_head = NULL;
+	base->global_good_nameservers = 0;
+
 	for (i = 0; i < base->n_req_heads; ++i) {
 		while (base->req_heads[i]) {
 			if (fail_requests)
@@ -4002,14 +4057,6 @@ evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 	}
 	base->global_requests_inflight = base->global_requests_waiting = 0;
 
-	for (server = base->server_head; server; server = server_next) {
-		server_next = server->next;
-		evdns_nameserver_free(server);
-		if (server_next == base->server_head)
-			break;
-	}
-	base->server_head = NULL;
-	base->global_good_nameservers = 0;
 
 	if (base->global_search_state) {
 		for (dom = base->global_search_state->head; dom; dom = dom_next) {
@@ -4663,7 +4710,7 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 		data->ipv4_request.r = evdns_base_resolve_ipv4(dns_base,
 		    nodename, 0, evdns_getaddrinfo_gotresolve,
 		    &data->ipv4_request);
-		if (want_cname)
+		if (want_cname && data->ipv4_request.r)
 			data->ipv4_request.r->current_req->put_cname_in_ptr =
 			    &data->cname_result;
 	}
@@ -4674,7 +4721,7 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 		data->ipv6_request.r = evdns_base_resolve_ipv6(dns_base,
 		    nodename, 0, evdns_getaddrinfo_gotresolve,
 		    &data->ipv6_request);
-		if (want_cname)
+		if (want_cname && data->ipv6_request.r)
 			data->ipv6_request.r->current_req->put_cname_in_ptr =
 			    &data->cname_result;
 	}

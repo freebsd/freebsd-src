@@ -228,7 +228,8 @@ static const struct ctl_proc control_codes[] = {
 #define	CS_TIMER_OVERRUNS	86
 #define	CS_TIMER_XMTS		87
 #define	CS_FUZZ			88
-#define	CS_MAX_NOAUTOKEY	CS_FUZZ
+#define	CS_WANDER_THRESH	89
+#define	CS_MAX_NOAUTOKEY	CS_WANDER_THRESH
 #ifdef AUTOKEY
 #define	CS_FLAGS		(1 + CS_MAX_NOAUTOKEY)
 #define	CS_HOST			(2 + CS_MAX_NOAUTOKEY)
@@ -423,6 +424,7 @@ static const struct ctl_var sys_var[] = {
 	{ CS_TIMER_OVERRUNS,	RO, "timer_overruns" },	/* 86 */
 	{ CS_TIMER_XMTS,	RO, "timer_xmts" },	/* 87 */
 	{ CS_FUZZ,		RO, "fuzz" },		/* 88 */
+	{ CS_WANDER_THRESH,	RO, "clk_wander_threshold" }, /* 89 */
 #ifdef AUTOKEY
 	{ CS_FLAGS,	RO, "flags" },		/* 1 + CS_MAX_NOAUTOKEY */
 	{ CS_HOST,	RO, "host" },		/* 2 + CS_MAX_NOAUTOKEY */
@@ -485,7 +487,7 @@ static const struct ctl_var peer_var[] = {
 	{ 0,		PADDING, "" },		/* 0 */
 	{ CP_CONFIG,	RO, "config" },		/* 1 */
 	{ CP_AUTHENABLE, RO,	"authenable" },	/* 2 */
-	{ CP_AUTHENTIC, RO, "authentic" }, 	/* 3 */
+	{ CP_AUTHENTIC, RO, "authentic" },	/* 3 */
 	{ CP_SRCADR,	RO, "srcadr" },		/* 4 */
 	{ CP_SRCPORT,	RO, "srcport" },	/* 5 */
 	{ CP_DSTADR,	RO, "dstadr" },		/* 6 */
@@ -537,7 +539,7 @@ static const struct ctl_var peer_var[] = {
 	{ CP_FLAGS,	RO, "flags" },		/* 1 + CP_MAX_NOAUTOKEY */
 	{ CP_HOST,	RO, "host" },		/* 2 + CP_MAX_NOAUTOKEY */
 	{ CP_VALID,	RO, "valid" },		/* 3 + CP_MAX_NOAUTOKEY */
-	{ CP_INITSEQ,	RO, "initsequence" },   /* 4 + CP_MAX_NOAUTOKEY */
+	{ CP_INITSEQ,	RO, "initsequence" },	/* 4 + CP_MAX_NOAUTOKEY */
 	{ CP_INITKEY,	RO, "initkey" },	/* 5 + CP_MAX_NOAUTOKEY */
 	{ CP_INITTSP,	RO, "timestamp" },	/* 6 + CP_MAX_NOAUTOKEY */
 	{ CP_SIGNATURE,	RO, "signature" },	/* 7 + CP_MAX_NOAUTOKEY */
@@ -690,37 +692,37 @@ int num_ctl_traps;
  */
 #ifdef REFCLOCK
 static const u_char clocktypes[] = {
-	CTL_SST_TS_NTP, 	/* REFCLK_NONE (0) */
+	CTL_SST_TS_NTP,		/* REFCLK_NONE (0) */
 	CTL_SST_TS_LOCAL,	/* REFCLK_LOCALCLOCK (1) */
-	CTL_SST_TS_UHF, 	/* deprecated REFCLK_GPS_TRAK (2) */
+	CTL_SST_TS_UHF,		/* deprecated REFCLK_GPS_TRAK (2) */
 	CTL_SST_TS_HF,		/* REFCLK_WWV_PST (3) */
 	CTL_SST_TS_LF,		/* REFCLK_WWVB_SPECTRACOM (4) */
-	CTL_SST_TS_UHF, 	/* REFCLK_TRUETIME (5) */
-	CTL_SST_TS_UHF, 	/* REFCLK_IRIG_AUDIO (6) */
+	CTL_SST_TS_UHF,		/* REFCLK_TRUETIME (5) */
+	CTL_SST_TS_UHF,		/* REFCLK_IRIG_AUDIO (6) */
 	CTL_SST_TS_HF,		/* REFCLK_CHU (7) */
 	CTL_SST_TS_LF,		/* REFCLOCK_PARSE (default) (8) */
 	CTL_SST_TS_LF,		/* REFCLK_GPS_MX4200 (9) */
-	CTL_SST_TS_UHF, 	/* REFCLK_GPS_AS2201 (10) */
-	CTL_SST_TS_UHF, 	/* REFCLK_GPS_ARBITER (11) */
-	CTL_SST_TS_UHF, 	/* REFCLK_IRIG_TPRO (12) */
+	CTL_SST_TS_UHF,		/* REFCLK_GPS_AS2201 (10) */
+	CTL_SST_TS_UHF,		/* REFCLK_GPS_ARBITER (11) */
+	CTL_SST_TS_UHF,		/* REFCLK_IRIG_TPRO (12) */
 	CTL_SST_TS_ATOM,	/* REFCLK_ATOM_LEITCH (13) */
 	CTL_SST_TS_LF,		/* deprecated REFCLK_MSF_EES (14) */
-	CTL_SST_TS_NTP, 	/* not used (15) */
-	CTL_SST_TS_UHF, 	/* REFCLK_IRIG_BANCOMM (16) */
-	CTL_SST_TS_UHF, 	/* REFCLK_GPS_DATU (17) */
+	CTL_SST_TS_NTP,		/* not used (15) */
+	CTL_SST_TS_UHF,		/* REFCLK_IRIG_BANCOMM (16) */
+	CTL_SST_TS_UHF,		/* REFCLK_GPS_DATU (17) */
 	CTL_SST_TS_TELEPHONE,	/* REFCLK_NIST_ACTS (18) */
 	CTL_SST_TS_HF,		/* REFCLK_WWV_HEATH (19) */
-	CTL_SST_TS_UHF, 	/* REFCLK_GPS_NMEA (20) */
-	CTL_SST_TS_UHF, 	/* REFCLK_GPS_VME (21) */
+	CTL_SST_TS_UHF,		/* REFCLK_GPS_NMEA (20) */
+	CTL_SST_TS_UHF,		/* REFCLK_GPS_VME (21) */
 	CTL_SST_TS_ATOM,	/* REFCLK_ATOM_PPS (22) */
 	CTL_SST_TS_NTP,		/* not used (23) */
 	CTL_SST_TS_NTP,		/* not used (24) */
-	CTL_SST_TS_NTP, 	/* not used (25) */
-	CTL_SST_TS_UHF, 	/* REFCLK_GPS_HP (26) */
+	CTL_SST_TS_NTP,		/* not used (25) */
+	CTL_SST_TS_UHF,		/* REFCLK_GPS_HP (26) */
 	CTL_SST_TS_LF,		/* REFCLK_ARCRON_MSF (27) */
 	CTL_SST_TS_UHF,		/* REFCLK_SHM (28) */
-	CTL_SST_TS_UHF, 	/* REFCLK_PALISADE (29) */
-	CTL_SST_TS_UHF, 	/* REFCLK_ONCORE (30) */
+	CTL_SST_TS_UHF,		/* REFCLK_PALISADE (29) */
+	CTL_SST_TS_UHF,		/* REFCLK_ONCORE (30) */
 	CTL_SST_TS_UHF,		/* REFCLK_JUPITER (31) */
 	CTL_SST_TS_LF,		/* REFCLK_CHRONOLOG (32) */
 	CTL_SST_TS_LF,		/* REFCLK_DUMBCLOCK (33) */
@@ -728,7 +730,7 @@ static const u_char clocktypes[] = {
 	CTL_SST_TS_LF,		/* REFCLK_PCF (35) */
 	CTL_SST_TS_HF,		/* REFCLK_WWV (36) */
 	CTL_SST_TS_LF,		/* REFCLK_FG (37) */
-	CTL_SST_TS_UHF, 	/* REFCLK_HOPF_SERIAL (38) */
+	CTL_SST_TS_UHF,		/* REFCLK_HOPF_SERIAL (38) */
 	CTL_SST_TS_UHF,		/* REFCLK_HOPF_PCI (39) */
 	CTL_SST_TS_LF,		/* REFCLK_JJY (40) */
 	CTL_SST_TS_UHF,		/* REFCLK_TT560 (41) */
@@ -759,17 +761,17 @@ static	u_char ctl_sys_num_events;
 u_long ctltimereset;		/* time stats reset */
 u_long numctlreq;		/* number of requests we've received */
 u_long numctlbadpkts;		/* number of bad control packets */
-u_long numctlresponses; 	/* number of resp packets sent with data */
-u_long numctlfrags; 		/* number of fragments sent */
+u_long numctlresponses;		/* number of resp packets sent with data */
+u_long numctlfrags;		/* number of fragments sent */
 u_long numctlerrors;		/* number of error responses sent */
 u_long numctltooshort;		/* number of too short input packets */
-u_long numctlinputresp; 	/* number of responses on input */
-u_long numctlinputfrag; 	/* number of fragments on input */
+u_long numctlinputresp;		/* number of responses on input */
+u_long numctlinputfrag;		/* number of fragments on input */
 u_long numctlinputerr;		/* number of input pkts with err bit set */
-u_long numctlbadoffset; 	/* number of input pkts with nonzero offset */
+u_long numctlbadoffset;		/* number of input pkts with nonzero offset */
 u_long numctlbadversion;	/* number of input pkts with unknown version */
 u_long numctldatatooshort;	/* data too short for count */
-u_long numctlbadop; 		/* bad op code found in packet */
+u_long numctlbadop;		/* bad op code found in packet */
 u_long numasyncmsgs;		/* number of async messages we've sent */
 
 /*
@@ -788,7 +790,7 @@ static int	res_offset;	/* offset of payload in response */
 static u_char * datapt;
 static u_char * dataend;
 static int	datalinelen;
-static int	datasent;       /* flag to avoid initial ", " */
+static int	datasent;	/* flag to avoid initial ", " */
 static int	datanotbinflag;
 static sockaddr_u *rmt_addr;
 static struct interface *lcl_inter;
@@ -852,7 +854,7 @@ ctl_error(
 	 * Fill in the fields. We assume rpkt.sequence and rpkt.associd
 	 * have already been filled in.
 	 */
-	rpkt.r_m_e_op = (u_char)CTL_RESPONSE | CTL_ERROR | 
+	rpkt.r_m_e_op = (u_char)CTL_RESPONSE | CTL_ERROR |
 			(res_opcode & CTL_OP_MASK);
 	rpkt.status = htons((u_short)(errcode << 8) & 0xff00);
 	rpkt.count = 0;
@@ -870,7 +872,7 @@ ctl_error(
 			CTL_HEADER_LEN);
 }
 
-/* 
+/*
  * save_config - Implements ntpq -c "saveconfig <filename>"
  *		 Writes current configuration including any runtime
  *		 changes by ntpq's :config or config-from-file
@@ -934,7 +936,7 @@ save_config(
 	if (0 == strftime(filename, sizeof(filename), filespec,
 			       localtime(&now)))
 		strlcpy(filename, filespec, sizeof(filename));
-	
+
 	/*
 	 * Conceptually we should be searching for DIRSEP in filename,
 	 * however Windows actually recognizes both forward and
@@ -1324,7 +1326,7 @@ static void
 ctl_putdata(
 	const char *dp,
 	unsigned int dlen,
-	int bin 		/* set to 1 when data is binary */
+	int bin			/* set to 1 when data is binary */
 	)
 {
 	int overhead;
@@ -1694,7 +1696,7 @@ ctl_putrefid(
 		return;
 	iptr = (char *)&refid;
 	iplim = iptr + sizeof(refid);
-	for ( ; optr < oplim && iptr < iplim && '\0' != *iptr; 
+	for ( ; optr < oplim && iptr < iplim && '\0' != *iptr;
 	     iptr++, optr++)
 		if (isprint((int)*iptr))
 			*optr = *iptr;
@@ -1762,7 +1764,7 @@ ctl_putsys(
 
 	static const double to_ms =
 # ifdef STA_NANO
-	    	1.0e-6; /* nsec to msec */
+		1.0e-6; /* nsec to msec */
 # else
 		1.0e-3; /* usec to msec */
 # endif
@@ -1954,12 +1956,12 @@ ctl_putsys(
 		ctl_putdata(buf, (unsigned)( buffp - buf ), 0);
 		break;
 	}
-    
+
 	case CS_TAI:
 		if (sys_tai > 0)
 			ctl_putuint(sys_var[CS_TAI].text, sys_tai);
 		break;
-		
+
 	case CS_LEAPTAB:
 	{
 		leap_signature_t lsig;
@@ -1968,7 +1970,7 @@ ctl_putsys(
 			ctl_putfs(sys_var[CS_LEAPTAB].text, lsig.ttime);
 		break;
 	}
-		
+
 	case CS_LEAPEND:
 	{
 		leap_signature_t lsig;
@@ -2113,7 +2115,7 @@ ctl_putsys(
 		break;
 
 	case CS_AUTHRESET:
-		ctl_putuint(sys_var[varid].text, 
+		ctl_putuint(sys_var[varid].text,
 			    current_time - auth_timereset);
 		break;
 
@@ -2147,7 +2149,7 @@ ctl_putsys(
 
 	case CS_K_OFFSET:
 		CTL_IF_KERNLOOP(
-			ctl_putdblf, 
+			ctl_putdblf,
 			(sys_var[varid].text, 0, -1, to_ms * ntx.offset)
 		);
 		break;
@@ -2326,6 +2328,9 @@ ctl_putsys(
 
 	case CS_FUZZ:
 		ctl_putdbl(sys_var[varid].text, sys_fuzz * 1e3);
+		break;
+	case CS_WANDER_THRESH:
+		ctl_putdbl(sys_var[varid].text, wander_threshold * 1e6);
 		break;
 #ifdef AUTOKEY
 	case CS_FLAGS:
@@ -2633,7 +2638,7 @@ ctl_putpeer(
 			memcpy(s, k->text, i);
 			s += i;
 		}
-		if (s + 2 < be) { 
+		if (s + 2 < be) {
 			*s++ = '"';
 			*s = '\0';
 			ctl_putdata(buf, (u_int)(s - buf), 0);
@@ -2712,7 +2717,7 @@ ctl_putpeer(
 			    strlen(p->ident));
 		break;
 
-		
+
 #endif	/* AUTOKEY */
 	}
 }
@@ -2821,7 +2826,7 @@ ctl_putclock(
 		    sizeof(buf))
 			break;	/* really long var name */
 
-		snprintf(s, sizeof(buf), "%s=\"", 
+		snprintf(s, sizeof(buf), "%s=\"",
 			 clock_var[CC_VARLIST].text);
 		s += strlen(s);
 		t = s;
@@ -3309,7 +3314,7 @@ static void configure(
 		snprintf(remote_config.err_msg,
 			 sizeof(remote_config.err_msg),
 			 "runtime configuration prohibited by restrict ... nomodify");
-		ctl_putdata(remote_config.err_msg, 
+		ctl_putdata(remote_config.err_msg,
 			    strlen(remote_config.err_msg), 0);
 		ctl_flushpkt(0);
 		NLOG(NLOG_SYSINFO)
@@ -3365,7 +3370,7 @@ static void configure(
 
 	config_remotely(&rbufp->recv_srcadr);
 
-	/* 
+	/*
 	 * Check if errors were reported. If not, output 'Config
 	 * Succeeded'.  Else output the error count.  It would be nice
 	 * to output any parser error messages.
@@ -3374,10 +3379,10 @@ static void configure(
 		retval = snprintf(remote_config.err_msg,
 				  sizeof(remote_config.err_msg),
 				  "Config Succeeded");
-		if (retval > 0) 
+		if (retval > 0)
 			remote_config.err_pos += retval;
 	}
-	
+
 	ctl_putdata(remote_config.err_msg, remote_config.err_pos, 0);
 	ctl_flushpkt(0);
 
@@ -3790,7 +3795,7 @@ static void read_mru_list(
 
 	while (NULL != (v = ctl_getitem(in_parms, &val)) &&
 	       !(EOV & v->flags)) {
-	        int si;
+		int si;
 
 		if (!strcmp(nonce_text, v->text)) {
 			if (NULL != pnonce)
@@ -3887,7 +3892,7 @@ static void read_mru_list(
 		pch = sptoa(&mon->rmtadr);
 		ctl_putunqstr("addr.older", pch, strlen(pch));
 
-		/* 
+		/*
 		 * Move on to the first entry the client doesn't have,
 		 * except in the special case of a limit of one.  In
 		 * that case return the starting point entry.
@@ -3897,7 +3902,7 @@ static void read_mru_list(
 	} else {	/* start with the oldest */
 		mon = TAIL_DLIST(mon_mru_list, mru);
 	}
-	
+
 	/*
 	 * send up to limit= entries in up to frags= datagrams
 	 */
@@ -4656,7 +4661,7 @@ ctlfindtrap(
 	for (n = 0; n < COUNTOF(ctl_traps); n++)
 		if ((ctl_traps[n].tr_flags & TRAP_INUSE)
 		    && ADDR_PORT_EQ(raddr, &ctl_traps[n].tr_addr)
-	 	    && (linter == ctl_traps[n].tr_localaddr))
+		    && (linter == ctl_traps[n].tr_localaddr))
 			return &ctl_traps[n];
 
 	return NULL;
@@ -4713,7 +4718,7 @@ report_event(
 		const char *	src;
 		u_char		errlast;
 
-		errlast = (u_char)err & ~PEER_EVENT; 
+		errlast = (u_char)err & ~PEER_EVENT;
 		if (peer->last_event == errlast)
 			peer->num_events = 0;
 		if (peer->num_events >= CTL_PEER_MAXEVENTS)
@@ -4985,7 +4990,7 @@ get_ext_sys_var(const char *tag)
 			}
 		}
 	}
-	
+
 	return val;
 }
 
