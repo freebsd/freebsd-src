@@ -87,6 +87,13 @@ files_body()
 		-e empty \
 		-s exit:0 \
 		soelim -I$(atf_get_srcdir) $(atf_get_srcdir)/basic.in
+
+	atf_check \
+		-o file:$(atf_get_srcdir)/basic-with-space.out \
+		-e empty \
+		-s exit:0 \
+		soelim -I$(atf_get_srcdir) $(atf_get_srcdir)/basic-with-space.in
+
 }
 
 atf_init_test_cases()
