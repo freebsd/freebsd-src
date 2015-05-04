@@ -178,14 +178,20 @@ static const struct vie_op one_byte_opcodes[256] = {
 		.op_byte = 0x23,
 		.op_type = VIE_OP_TYPE_AND,
 	},
+	[0x80] = {
+		/* Group 1 extended opcode */
+		.op_byte = 0x80,
+		.op_type = VIE_OP_TYPE_GROUP1,
+		.op_flags = VIE_OP_F_IMM8,
+	},
 	[0x81] = {
-		/* XXX Group 1 extended opcode */
+		/* Group 1 extended opcode */
 		.op_byte = 0x81,
 		.op_type = VIE_OP_TYPE_GROUP1,
 		.op_flags = VIE_OP_F_IMM,
 	},
 	[0x83] = {
-		/* XXX Group 1 extended opcode */
+		/* Group 1 extended opcode */
 		.op_byte = 0x83,
 		.op_type = VIE_OP_TYPE_GROUP1,
 		.op_flags = VIE_OP_F_IMM8,
@@ -1066,9 +1072,13 @@ emulate_cmp(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 
 		rflags2 = getcc(size, op1, op2);
 		break;
+	case 0x80:
 	case 0x81:
 	case 0x83:
 		/*
+		 * 80 /7		cmp r/m8, imm8
+		 * REX + 80 /7		cmp r/m8, imm8
+		 *
 		 * 81 /7		cmp r/m16, imm16
 		 * 81 /7		cmp r/m32, imm32
 		 * REX.W + 81 /7	cmp r/m64, imm32 sign-extended to 64
@@ -1084,6 +1094,8 @@ emulate_cmp(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		 * the status flags.
 		 *
 		 */
+		if (vie->op.op_byte == 0x80)
+			size = 1;
 
 		/* get the first operand */
                 error = memread(vm, vcpuid, gpa, &op1, size, arg);
