@@ -233,8 +233,8 @@ _DP_vmmapi=	util
 
 # Define spacial cases
 LDADD_supcplusplus=	-lsupc++
-LIBATF_C=	$(DESTDIR)$(LIBDIR)/libprivateatf-c.a
-LIBATF_CXX=	$(DESTDIR)$(LIBDIR)/libprivateatf-c++.a
+LIBATF_C=	${DESTDIR}${LIBDIR}/libprivateatf-c.a
+LIBATF_CXX=	${DESTDIR}${LIBDIR}/libprivateatf-c++.a
 LDADD_atf_c=	-lprivateatf-c
 LDADD_atf_cxx=	-lprivateatf-c++
 
