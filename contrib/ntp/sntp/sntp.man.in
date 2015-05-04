@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH sntp @SNTP_MS@ "04 Feb 2015" "4.2.8p1" "User Commands"
+.TH sntp @SNTP_MS@ "07 Apr 2015" "4.2.8p2" "User Commands"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-apayaT/ag-zpaq_S)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-E6aqmA/ag-76ailA)
 .\"
-.\" It has been AutoGen-ed February 4, 2015 at 02:34:13 AM by AutoGen 5.18.5pre4
+.\" It has been AutoGen-ed April 7, 2015 at 04:18:00 AM by AutoGen 5.18.5pre4
 .\" From the definitions sntp-opts.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -72,7 +72,8 @@ Otherwise, only the
 is displayed.
 Finally, the
 \fIstratum\f[]
-of the host is reported.
+of the host is reported
+and the leap indicator is decoded and displayed.
 .SH "OPTIONS"
 .TP
 .NOP \f\*[B-Font]\-4\f[], \f\*[B-Font]\-\-ipv4\f[]

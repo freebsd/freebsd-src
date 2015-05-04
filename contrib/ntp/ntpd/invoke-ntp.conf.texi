@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntp.conf.texi)
 #
-# It has been AutoGen-ed  February  4, 2015 at 02:41:59 AM by AutoGen 5.18.5pre4
+# It has been AutoGen-ed  April  7, 2015 at 04:25:50 AM by AutoGen 5.18.5pre4
 # From the definitions    ntp.conf.def
 # and the template file   agtexi-file.tpl
 @end ignore
@@ -2482,7 +2482,7 @@ holds
 the names of all peer variables and the
 @code{clock_var_list}
 holds the names of the reference clock variables.
-@item @code{tinker} @code{[@code{allan} @kbd{allan} | @code{dispersion} @kbd{dispersion} | @code{freq} @kbd{freq} | @code{huffpuff} @kbd{huffpuff} | @code{panic} @kbd{panic} | @code{step} @kbd{srep} | @code{stepout} @kbd{stepout}]}
+@item @code{tinker} @code{[@code{allan} @kbd{allan} | @code{dispersion} @kbd{dispersion} | @code{freq} @kbd{freq} | @code{huffpuff} @kbd{huffpuff} | @code{panic} @kbd{panic} | @code{step} @kbd{step} | @code{stepback} @kbd{stepback} | @code{stepfwd} @kbd{stepfwd} | @code{stepout} @kbd{stepout}]}
 This command can be used to alter several system variables in
 very exceptional circumstances.
 It should occur in the
@@ -2539,6 +2539,19 @@ adjustments will never occur.
 Note: The kernel time discipline is
 disabled if the step threshold is set to zero or greater than the
 default.
+@item @code{stepback} @kbd{stepback}
+The argument is the step threshold for the backward direction,
+which by default is 0.128 s.
+It can
+be set to any positive number in seconds.
+If both the forward and backward step thresholds are set to zero, step
+adjustments will never occur.
+Note: The kernel time discipline is
+disabled if
+each direction of step threshold are either
+set to zero or greater than .5 second.
+@item @code{stepfwd} @kbd{stepfwd}
+As for stepback, but for the forward direction.
 @item @code{stepout} @kbd{stepout}
 The argument is the stepout timeout, which by default is 900 s.
 It can

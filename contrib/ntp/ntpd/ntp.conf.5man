@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntp.conf 5man "04 Feb 2015" "4.2.8p1" "File Formats"
+.TH ntp.conf 5man "07 Apr 2015" "4.2.8p2" "File Formats"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-sPaOCn/ag-RPaGBn)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-gKaW.1/ag-tKaO91)
 .\"
-.\" It has been AutoGen-ed February 4, 2015 at 02:41:46 AM by AutoGen 5.18.5pre4
+.\" It has been AutoGen-ed April 7, 2015 at 04:25:37 AM by AutoGen 5.18.5pre4
 .\" From the definitions ntp.conf.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -2786,7 +2786,7 @@ the names of all peer variables and the
 \fIclock_var_list\f[]
 holds the names of the reference clock variables.
 .TP 7
-.NOP \f\*[B-Font]tinker\f[] [\f\*[B-Font]allan\f[] \f\*[I-Font]allan\f[] | \f\*[B-Font]dispersion\f[] \f\*[I-Font]dispersion\f[] | \f\*[B-Font]freq\f[] \f\*[I-Font]freq\f[] | \f\*[B-Font]huffpuff\f[] \f\*[I-Font]huffpuff\f[] | \f\*[B-Font]panic\f[] \f\*[I-Font]panic\f[] | \f\*[B-Font]step\f[] \f\*[I-Font]srep\f[] | \f\*[B-Font]stepout\f[] \f\*[I-Font]stepout\f[]]
+.NOP \f\*[B-Font]tinker\f[] [\f\*[B-Font]allan\f[] \f\*[I-Font]allan\f[] | \f\*[B-Font]dispersion\f[] \f\*[I-Font]dispersion\f[] | \f\*[B-Font]freq\f[] \f\*[I-Font]freq\f[] | \f\*[B-Font]huffpuff\f[] \f\*[I-Font]huffpuff\f[] | \f\*[B-Font]panic\f[] \f\*[I-Font]panic\f[] | \f\*[B-Font]step\f[] \f\*[I-Font]step\f[] | \f\*[B-Font]stepback\f[] \f\*[I-Font]stepback\f[] | \f\*[B-Font]stepfwd\f[] \f\*[I-Font]stepfwd\f[] | \f\*[B-Font]stepout\f[] \f\*[I-Font]stepout\f[]]
 This command can be used to alter several system variables in
 very exceptional circumstances.
 It should occur in the
@@ -2851,6 +2851,21 @@ adjustments will never occur.
 Note: The kernel time discipline is
 disabled if the step threshold is set to zero or greater than the
 default.
+.TP 7
+.NOP \f\*[B-Font]stepback\f[] \f\*[I-Font]stepback\f[]
+The argument is the step threshold for the backward direction,
+which by default is 0.128 s.
+It can
+be set to any positive number in seconds.
+If both the forward and backward step thresholds are set to zero, step
+adjustments will never occur.
+Note: The kernel time discipline is
+disabled if
+each direction of step threshold are either
+set to zero or greater than .5 second.
+.TP 7
+.NOP \f\*[B-Font]stepfwd\f[] \f\*[I-Font]stepfwd\f[]
+As for stepback, but for the forward direction.
 .TP 7
 .NOP \f\*[B-Font]stepout\f[] \f\*[I-Font]stepout\f[]
 The argument is the stepout timeout, which by default is 900 s.
