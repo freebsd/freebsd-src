@@ -149,6 +149,9 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 	audit_thread_alloc(td);
 #endif
 	umtx_thread_alloc(td);
+
+	mtx_init(&td->td_slpmutex, "td_slpmutex", NULL, MTX_SPIN);
+	callout_init_mtx(&td->td_slpcallout, &td->td_slpmutex, 0);
 	return (0);
 }
 
@@ -161,6 +164,10 @@ thread_dtor(void *mem, int size, void *arg)
 	struct thread *td;
 
 	td = (struct thread *)mem;
+
+	/* make sure to drain any use of the "td->td_slpcallout" */
+	callout_drain(&td->td_slpcallout);
+	mtx_destroy(&td->td_slpmutex);
 
 #ifdef INVARIANTS
 	/* Verify that this thread is in a safe state to free. */
@@ -544,7 +551,6 @@ thread_link(struct thread *td, struct proc *p)
 	LIST_INIT(&td->td_lprof[0]);
 	LIST_INIT(&td->td_lprof[1]);
 	sigqueue_init(&td->td_sigqueue, p);
-	callout_init(&td->td_slpcallout, CALLOUT_MPSAFE);
 	TAILQ_INSERT_TAIL(&p->p_threads, td, td_plist);
 	p->p_numthreads++;
 }

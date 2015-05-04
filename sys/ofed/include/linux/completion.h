@@ -64,3 +64,4 @@ extern int linux_try_wait_for_completion(struct completion *);
 extern int linux_completion_done(struct completion *);
 
 #endif					/* _LINUX_COMPLETION_H_ */
+

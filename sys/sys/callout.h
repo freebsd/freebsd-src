@@ -45,10 +45,12 @@
 #define	CALLOUT_PENDING		0x0004 /* callout is waiting for timeout */
 #define	CALLOUT_MPSAFE		0x0008 /* callout handler is mp safe */
 #define	CALLOUT_RETURNUNLOCKED	0x0010 /* handler returns with mtx unlocked */
-#define	CALLOUT_SHAREDLOCK	0x0020 /* callout lock held in shared mode */
-#define	CALLOUT_DFRMIGRATION	0x0040 /* callout in deferred migration mode */
+#define	CALLOUT_UNUSED_5	0x0020 /* --available-- */
+#define	CALLOUT_DEFRESTART	0x0040 /* callout restart is deferred */
 #define	CALLOUT_PROCESSED	0x0080 /* callout in wheel or processing list? */
 #define	CALLOUT_DIRECT 		0x0100 /* allow exec from hw int context */
+#define	CALLOUT_SET_LC(x)	(((x) & 7) << 16) /* set lock class */
+#define	CALLOUT_GET_LC(x)	(((x) >> 16) & 7) /* get lock class */
 
 #define	C_DIRECT_EXEC		0x0001 /* direct execution of callout */
 #define	C_PRELBITS		7
@@ -63,25 +65,10 @@ struct callout_handle {
 };
 
 #ifdef _KERNEL
-/* 
- * Note the flags field is actually *two* fields. The c_flags
- * field is the one that caller operations that may, or may not have
- * a lock touches i.e. callout_deactivate(). The other, the c_iflags,
- * is the internal flags that *must* be kept correct on which the
- * callout system depend on e.g. callout_pending().
- * The c_iflag is used internally by the callout system to determine which
- * list the callout is on and track internal state. Callers *should not* 
- * use the c_flags field directly but should use the macros provided.
- *  
- * The c_iflags field holds internal flags that are protected by internal
- * locks of the callout subsystem.  The c_flags field holds external flags.
- * The caller must hold its own lock while manipulating or reading external
- * flags via callout_active(), callout_deactivate(), callout_reset*(), or
- * callout_stop() to avoid races.
- */
 #define	callout_active(c)	((c)->c_flags & CALLOUT_ACTIVE)
 #define	callout_deactivate(c)	((c)->c_flags &= ~CALLOUT_ACTIVE)
-#define	callout_drain(c)	_callout_stop_safe(c, 1)
+int	callout_drain(struct callout *);
+int	callout_drain_async(struct callout *, callout_func_t *, void *);
 void	callout_init(struct callout *, int);
 void	_callout_init_lock(struct callout *, struct lock_object *, int);
 #define	callout_init_mtx(c, mtx, flags)					\
@@ -93,9 +80,9 @@ void	_callout_init_lock(struct callout *, struct lock_object *, int);
 #define	callout_init_rw(c, rw, flags)					\
 	_callout_init_lock((c), ((rw) != NULL) ? &(rw)->lock_object :	\
 	   NULL, (flags))
-#define	callout_pending(c)	((c)->c_iflags & CALLOUT_PENDING)
+#define	callout_pending(c)	((c)->c_flags & CALLOUT_PENDING)
 int	callout_reset_sbt_on(struct callout *, sbintime_t, sbintime_t,
-	    void (*)(void *), void *, int, int);
+	    callout_func_t *, void *, int, int);
 #define	callout_reset_sbt(c, sbt, pr, fn, arg, flags)			\
     callout_reset_sbt_on((c), (sbt), (pr), (fn), (arg), -1, (flags))
 #define	callout_reset_sbt_curcpu(c, sbt, pr, fn, arg, flags)		\
@@ -119,8 +106,7 @@ int	callout_schedule(struct callout *, int);
 int	callout_schedule_on(struct callout *, int, int);
 #define	callout_schedule_curcpu(c, on_tick)				\
     callout_schedule_on((c), (on_tick), PCPU_GET(cpuid))
-#define	callout_stop(c)		_callout_stop_safe(c, 0)
-int	_callout_stop_safe(struct callout *, int);
+int	callout_stop(struct callout *);
 void	callout_process(sbintime_t now);
 
 #endif

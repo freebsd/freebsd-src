@@ -210,9 +210,11 @@ sleeplk(struct lock *lk, u_int flags, struct lock_object *ilk,
 	GIANT_SAVE();
 	sleepq_add(&lk->lock_object, NULL, wmesg, SLEEPQ_LK | (catch ?
 	    SLEEPQ_INTERRUPTIBLE : 0), queue);
-	if ((flags & LK_TIMELOCK) && timo)
+	if ((flags & LK_TIMELOCK) && timo) {
+		sleepq_release(&lk->lock_object);
 		sleepq_set_timeout(&lk->lock_object, timo);
-
+		sleepq_lock(&lk->lock_object);
+	}
 	/*
 	 * Decisional switch for real sleeping.
 	 */

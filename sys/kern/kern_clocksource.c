@@ -160,6 +160,9 @@ handleevents(sbintime_t now, int fake)
 	int usermode;
 	int done, runs;
 
+	KASSERT(curthread->td_critnest != 0,
+	    ("Must be in a critical section"));
+
 	CTR3(KTR_SPARE2, "handle at %d:  now  %d.%08x",
 	    curcpu, (int)(now >> 32), (u_int)(now & 0xffffffff));
 	done = 0;
