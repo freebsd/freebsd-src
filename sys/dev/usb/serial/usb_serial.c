@@ -415,8 +415,9 @@ ucom_attach_tty(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 	sc->sc_tty = tp;
 
 	sc->sc_pps.ppscap = PPS_CAPTUREBOTH;
-	sc->sc_pps.mtx = sc->sc_mtx;
-	pps_init(&sc->sc_pps);
+	sc->sc_pps.driver_abi = PPS_ABI_VERSION;
+	sc->sc_pps.driver_mtx = sc->sc_mtx;
+	pps_init_abi(&sc->sc_pps);
 
 	DPRINTF("ttycreate: %s\n", buf);
 
