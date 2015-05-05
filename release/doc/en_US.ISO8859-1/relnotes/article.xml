@@ -423,7 +423,7 @@
 	updated to version 20150410.</para>
 
       <para revision="281806">The &man.wpa.supplicant.8; and
-	&man.hostapd.8; utilties have been updated to version
+	&man.hostapd.8; utilities have been updated to version
 	2.4.</para>
 
       <para revision="281812"><application>bmake</application> has
