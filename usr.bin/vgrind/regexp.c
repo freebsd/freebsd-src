@@ -44,19 +44,18 @@ static const char sccsid[] = "@(#)regexp.c	8.1 (Berkeley) 6/6/93";
 
 #include <ctype.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 
 #include "extern.h"
 
-#define FALSE	0
-#define TRUE	!(FALSE)
 #define NIL	0
 
 static void	expconv(void);
 
-boolean	 _escaped;	/* true if we are currently _escaped */
+bool	 _escaped;	/* true if we are currently x_escaped */
 char	*s_start;	/* start of string */
-boolean	 l_onecase;	/* true if upper and lower equivalent */
+bool	 l_onecase;	/* true if upper and lower equivalent */
 
 #define makelower(c) (isupper((c)) ? tolower((c)) : (c))
 
@@ -352,13 +351,13 @@ expmatch (register char *s, register char *re, register char *mstring)
 {
     register char *cs;		/* the current symbol */
     register char *ptr,*s1;	/* temporary pointer */
-    boolean matched;		/* a temporary boolean */
+    bool matched;	/* a temporary bool */
 
     /* initial conditions */
     if (re == NIL)
 	return (NIL);
     cs = re;
-    matched = FALSE;
+    matched = false;
 
     /* loop till expression string is exhausted (or at least pretty tired) */
     while (*cs) {
@@ -464,12 +463,12 @@ expmatch (register char *s, register char *re, register char *mstring)
 			  *s1 == '~' ||
 			  /* C++ scope operator */
 			  (strlen(s1) > 1 && *s1 == ':' && s1[1] == ':' &&
-			   (s1++, TRUE))))
+			   (s1++, true))))
 			return (NIL);
 		    if (*s1 == '\\')
-			_escaped = _escaped ? FALSE : TRUE;
+			_escaped = _escaped ? false : true;
 		    else
-			_escaped = FALSE;
+			_escaped = false;
 		} while (*s1++);
 		return (NIL);
 
@@ -497,9 +496,9 @@ expmatch (register char *s, register char *re, register char *mstring)
 			return (NIL);
 		    }
 		    if (*s1 == '\\')
-			_escaped = _escaped ? FALSE : TRUE;
+			_escaped = _escaped ? false : true;
 		    else
-			_escaped = FALSE;
+			_escaped = false;
 		} while (*s1++);
 		return (NIL);
 
