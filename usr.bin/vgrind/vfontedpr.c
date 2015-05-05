@@ -128,9 +128,7 @@ const char *language = "c";	/* the language indicator */
 #define	ps(x)	printf("%s", x)
 
 int
-main(argc, argv)
-    int argc;
-    char *argv[];
+main(int argc, char **argv)
 {
     const char *fname = "";
     struct stat stbuf;
