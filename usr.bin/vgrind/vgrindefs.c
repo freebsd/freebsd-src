@@ -79,7 +79,7 @@ tgetent(char *bp, char *name, char *file)
 	tbuf = bp;
 	tf = 0;
 	filename = file;
-	tf = open(filename, 0);
+	tf = open(filename, O_RDONLY);
 	if (tf < 0)
 		return (-1);
 	for (;;) {
