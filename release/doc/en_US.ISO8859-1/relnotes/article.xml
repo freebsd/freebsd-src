@@ -340,6 +340,11 @@
 	&man.chmod.1;, and &man.chown.8; utilities now affect symbolic
 	links when the <literal>-R</literal> flag is specified, as
 	documented in &man.symlink.7;.</para>
+
+      <para revision="281617">A race condition in &man.wc.1; that
+	would cause final results to be sent to &man.stderr.4; when
+	receiving the <literal>SIGINFO</literal> signal has been
+	fixed.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
