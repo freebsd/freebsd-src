@@ -542,11 +542,13 @@ skip:
     } while (*s);
 }
 
+/*
+ * start: start of string to write
+ * end: end of string to write
+ * force: true if we should force nokeyw
+ */
 static void
-putKcp (start, end, force)
-    char	*start;		/* start of string to write */
-    char	*end;		/* end of string to write */
-    boolean	force;		/* true if we should force nokeyw */
+putKcp (char *start, char *end, boolean force)
 {
     int i;
     int xfld = 0;
@@ -593,16 +595,14 @@ putKcp (start, end, force)
 
 
 static int
-tabs(s, os)
-    char *s, *os;
+tabs(char *s, char *os)
 {
 
     return (width(s, os) / 8);
 }
 
 static int
-width(s, os)
-	register char *s, *os;
+width(register char *s, register char *os)
 {
 	register int i = 0;
 
@@ -690,8 +690,7 @@ putcp(c)
  *	look for a process beginning on this line
  */
 static boolean
-isproc(s)
-    char *s;
+isproc(char *s)
 {
     pname[0] = '\0';
     if (!l_toplex || blklevel == 0)
@@ -706,8 +705,7 @@ isproc(s)
  */
 
 static int
-iskw(s)
-	register char *s;
+iskw(register char *s)
 {
 	register char **ss = l_keywds;
 	register int i = 1;

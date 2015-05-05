@@ -66,9 +66,7 @@ boolean	 l_onecase;	/* true if upper and lower equivalent */
  */
 
 int
-STRNCMP(s1, s2, len)
-	register char *s1,*s2;
-	register int len;
+STRNCMP(register char *s1, register char *s2, register int len)
 {
 	if (l_onecase) {
 	    do
@@ -147,9 +145,9 @@ STRNCMP(s1, s2, len)
 static char *ccre;	/* pointer to current position in converted exp*/
 static char *ure;	/* pointer current position in unconverted exp */
 
+/* re: unconverted irregular expression */
 char *
-convexp(re)
-    char *re;		/* unconverted irregular expression */
+convexp(char *re)
 {
     register char *cre;		/* pointer to converted regular expression */
 
@@ -344,11 +342,13 @@ expconv()
  *	character matched.
  */
 
+/*
+ *  s: string to check for a match in
+ *  re: a converted irregular expression
+ *  mstring: where to put whatever matches a \p
+ */
 char *
-expmatch (s, re, mstring)
-    register char *s;		/* string to check for a match in */
-    register char *re;		/* a converted irregular expression */
-    register char *mstring;	/* where to put whatever matches a \p */
+expmatch (register char *s, register char *re, register char *mstring)
 {
     register char *cs;		/* the current symbol */
     register char *ptr,*s1;	/* temporary pointer */
