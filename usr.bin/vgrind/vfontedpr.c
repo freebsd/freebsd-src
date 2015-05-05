@@ -53,7 +53,6 @@ static const char sccsid[] = "@(#)vfontedpr.c	8.1 (Berkeley) 6/6/93";
 #include "pathnames.h"
 #include "extern.h"
 
-#define NIL 0
 #define STANDARD 0
 #define ALTERNATE 1
 
@@ -247,7 +246,7 @@ main(int argc, char **argv)
 		while (*cp != ' ' && *cp  != '\t' && *cp)
 		    cp++;
 	    }
-	    *cpp = NIL;
+	    *cpp = NULL;
 	}
 	cgetustr(defs, "pb", &cp);
 	l_prcbeg = convexp(cp);
@@ -388,9 +387,9 @@ skip:
 	    nocomptr = expmatch (s, l_nocom, dummy);
 
 	    /* start of non-comment? */
-	    if (nocomptr != NIL)
-		if ((nocomptr <= comptr || comptr == NIL)
-		  && (nocomptr <= acmptr || acmptr == NIL)) {
+	    if (nocomptr != NULL)
+		if ((nocomptr <= comptr || comptr == NULL)
+		  && (nocomptr <= acmptr || acmptr == NULL)) {
 		    /* continue after non-comment */
 		    putKcp (s, nocomptr-1, false);
 		    s = nocomptr;
@@ -398,12 +397,12 @@ skip:
 		}
 
 	    /* start of a comment? */
-	    if (comptr != NIL)
-		if ((comptr < strptr || strptr == NIL)
-		  && (comptr < acmptr || acmptr == NIL)
-		  && (comptr < chrptr || chrptr == NIL)
-		  && (comptr < blksptr || blksptr == NIL)
-		  && (comptr < blkeptr || blkeptr == NIL)) {
+	    if (comptr != NULL)
+		if ((comptr < strptr || strptr == NULL)
+		  && (comptr < acmptr || acmptr == NULL)
+		  && (comptr < chrptr || chrptr == NULL)
+		  && (comptr < blksptr || blksptr == NULL)
+		  && (comptr < blkeptr || blkeptr == NULL)) {
 		    putKcp (s, comptr-1, false);
 		    s = comptr;
 		    incomm = true;
@@ -415,11 +414,11 @@ skip:
 		}
 
 	    /* start of a comment? */
-	    if (acmptr != NIL)
-		if ((acmptr < strptr || strptr == NIL)
-		  && (acmptr < chrptr || chrptr == NIL)
-		  && (acmptr < blksptr || blksptr == NIL)
-		  && (acmptr < blkeptr || blkeptr == NIL)) {
+	    if (acmptr != NULL)
+		if ((acmptr < strptr || strptr == NULL)
+		  && (acmptr < chrptr || chrptr == NULL)
+		  && (acmptr < blksptr || blksptr == NULL)
+		  && (acmptr < blkeptr || blkeptr == NULL)) {
 		    putKcp (s, acmptr-1, false);
 		    s = acmptr;
 		    incomm = true;
@@ -431,10 +430,10 @@ skip:
 		}
 
 	    /* start of a string? */
-	    if (strptr != NIL)
-		if ((strptr < chrptr || chrptr == NIL)
-		  && (strptr < blksptr || blksptr == NIL)
-		  && (strptr < blkeptr || blkeptr == NIL)) {
+	    if (strptr != NULL)
+		if ((strptr < chrptr || chrptr == NULL)
+		  && (strptr < blksptr || blksptr == NULL)
+		  && (strptr < blkeptr || blkeptr == NULL)) {
 		    putKcp(s, strptr-1, false);
 		    s = strptr;
 		    instr = true;
@@ -442,9 +441,9 @@ skip:
 		}
 
 	    /* start of a character string? */
-	    if (chrptr != NIL)
-		if ((chrptr < blksptr || blksptr == NIL)
-		  && (chrptr < blkeptr || blkeptr == NIL)) {
+	    if (chrptr != NULL)
+		if ((chrptr < blksptr || blksptr == NULL)
+		  && (chrptr < blkeptr || blkeptr == NULL)) {
 		    putKcp(s, chrptr-1, false);
 		    s = chrptr;
 		    inchr = true;
@@ -452,8 +451,8 @@ skip:
 		}
 
 	    /* end of a lexical block */
-	    if (blkeptr != NIL) {
-		if (blkeptr < blksptr || blksptr == NIL) {
+	    if (blkeptr != NULL) {
+		if (blkeptr < blksptr || blksptr == NULL) {
 		    putKcp(s, blkeptr - 1, false);
 		    s = blkeptr;
 		    if (blklevel > 0 /* sanity */)
@@ -477,7 +476,7 @@ skip:
 	    }
 
 	    /* start of a lexical block */
-	    if (blksptr != NIL) {
+	    if (blksptr != NULL) {
 		putKcp(s, blksptr - 1, false);
 		s = blksptr;
 		blklevel++;
@@ -488,8 +487,8 @@ skip:
 	} else if (incomm) {
 	    comptr = expmatch (s, l_comend, dummy);
 	    acmptr = expmatch (s, l_acmend, dummy);
-	    if (((comtype == STANDARD) && (comptr != NIL)) ||
-	        ((comtype == ALTERNATE) && (acmptr != NIL))) {
+	    if (((comtype == STANDARD) && (comptr != NULL)) ||
+	        ((comtype == ALTERNATE) && (acmptr != NULL))) {
 		if (comtype == STANDARD) {
 		    putKcp(s, comptr-1, true);
 		    s = comptr;
@@ -508,7 +507,7 @@ skip:
 
 	/* check for end of string */
 	} else if (instr) {
-	    if ((strptr = expmatch (s, l_strend, dummy)) != NIL) {
+	    if ((strptr = expmatch (s, l_strend, dummy)) != NULL) {
 		putKcp(s, strptr-1, true);
 		s = strptr;
 		instr = false;
@@ -521,7 +520,7 @@ skip:
 
 	/* check for end of character string */
 	} else if (inchr) {
-	    if ((chrptr = expmatch (s, l_chrend, dummy)) != NIL) {
+	    if ((chrptr = expmatch (s, l_chrend, dummy)) != NULL) {
 		putKcp(s, chrptr-1, true);
 		s = chrptr;
 		inchr = false;
@@ -691,7 +690,7 @@ isproc(char *s)
 {
     pname[0] = '\0';
     if (!l_toplex || blklevel == 0)
-	if (expmatch (s, l_prcbeg, pname) != NIL) {
+	if (expmatch (s, l_prcbeg, pname) != NULL) {
 	    return (true);
 	}
     return (false);
