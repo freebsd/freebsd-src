@@ -6,6 +6,7 @@
 
 ident		ATMEL
 
+include		"std.arm"
 include "../at91/std.atmel"
 
 # Typical values for most SoCs and board configurations.  Will not work for

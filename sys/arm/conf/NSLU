@@ -21,6 +21,7 @@
 
 ident		NSLU
 
+include		"std.arm"
 # XXX What is defined in std.avila does not exactly match the following:
 #options 	PHYSADDR=0x10000000
 #options 	KERNPHYSADDR=0x10200000	

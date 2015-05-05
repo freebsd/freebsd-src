@@ -21,6 +21,7 @@
 
 ident		SAM9260EK
 
+include		"std.arm"
 include "../at91/std.sam9260ek"
 
 # To statically compile in device wiring instead of /boot/device.hints

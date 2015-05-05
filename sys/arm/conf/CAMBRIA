@@ -20,6 +20,7 @@
 
 ident		CAMBRIA
 
+include		"std.arm"
 include		"../xscale/ixp425/std.ixp435"
 # NB: memory mapping is defined in std.avila
 include		"../xscale/ixp425/std.avila"

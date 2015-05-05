@@ -5,6 +5,7 @@
 #
 
 ident		DB-88F6XXX
+include		"std.arm"
 include		"../mv/kirkwood/std.db88f6xxx"
 
 options 	SOC_MV_KIRKWOOD

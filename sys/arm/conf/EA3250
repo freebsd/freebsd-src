@@ -5,6 +5,7 @@
 #
 
 ident		EA3250
+include		"std.arm"
 include		"../lpc/std.lpc"
 hints		"EA3250.hints"
 

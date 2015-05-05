@@ -21,6 +21,7 @@
 
 ident		CUBIEBOARD2
 
+include		"std.armv6"
 include		"../allwinner/a20/std.a20"
 
 options 	HZ=100
