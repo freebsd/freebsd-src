@@ -55,18 +55,19 @@ __FBSDID("$FreeBSD$");
 static	char *tbuf;
 static	char *filename;
 static	int hopcount;	/* detect infinite loops in termcap, init 0 */
-char	*tskip();
-char	*tgetstr();
-char	*tdecode();
-char	*getenv();
+
+static int	tnchktc(void);
+static int	tnamatch(char *);
+static char	*tskip(register char *);
+static char	*tdecode(register char *, char **);
 
 /*
  * Get an entry for terminal name in buffer bp,
  * from the termcap file.  Parse is very rudimentary;
  * we just notice escaped newlines.
  */
-tgetent(bp, name, file)
-	char *bp, *name, *file;
+int
+tgetent(char *bp, char *name, char *file)
 {
 	register char *cp;
 	register int c;
@@ -125,7 +126,8 @@ tgetent(bp, name, file)
  * entries to say "like an HP2621 but doesn't turn on the labels".
  * Note that this works because of the left to right scan.
  */
-tnchktc()
+static int
+tnchktc(void)
 {
 	register char *p, *q;
 	char tcname[16];	/* name of similar terminal */
@@ -172,8 +174,8 @@ tnchktc()
  * against each such name.  The normal : terminator after the last
  * name (before the first field) stops us.
  */
-tnamatch(np)
-	char *np;
+static int
+tnamatch(char *np)
 {
 	register char *Np, *Bp;
 
@@ -199,8 +201,7 @@ tnamatch(np)
  * into the termcap file in octal.
  */
 static char *
-tskip(bp)
-	register char *bp;
+tskip(register char *bp)
 {
 
 	while (*bp && *bp != ':')
@@ -251,8 +252,8 @@ tgetnum(id)
  * of the buffer.  Return 1 if we find the option, or 0 if it is
  * not given.
  */
-tgetflag(id)
-	char *id;
+int
+tgetflag(char *id)
 {
 	register char *bp = tbuf;
 
@@ -278,8 +279,7 @@ tgetflag(id)
  * No checking on area overflow.
  */
 char *
-tgetstr(id, area)
-	char *id, **area;
+tgetstr(char *id, char **area)
 {
 	register char *bp = tbuf;
 
@@ -303,9 +303,7 @@ tgetstr(id, area)
  * string capability escapes.
  */
 static char *
-tdecode(str, area)
-	register char *str;
-	char **area;
+tdecode(register char *str, char **area)
 {
 	register char *cp;
 	register int c;
