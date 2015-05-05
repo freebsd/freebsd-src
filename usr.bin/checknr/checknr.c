@@ -313,7 +313,7 @@ static void
 process(FILE *f)
 {
 	int i, n;
-	char mac[5];	/* The current macro or nroff command */
+	char mac[512];	/* The current macro or nroff command */
 	char *line;
 	size_t linecap;
 	int pl;
