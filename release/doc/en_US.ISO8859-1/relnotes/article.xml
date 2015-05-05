@@ -1216,6 +1216,11 @@
 	been updated to use multi-threaded &man.xz.1;.  By default,
 	the number of &man.xz.1; threads is set to the number of cores
 	available.</para>
+
+      <para revision="281802" contrib="sponsor" sponsor="&ff;">The
+	Release Engineering build tools have been updated to include
+	support for building &os;/&arch.arm64; virtual machine and
+	memory stick installation images.</para>
     </sect2>
   </sect1>
 </article>
