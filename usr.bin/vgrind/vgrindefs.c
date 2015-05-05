@@ -73,7 +73,6 @@ tgetent(char *bp, char *name, char *file)
 	register int c;
 	register int i = 0, cnt = 0;
 	char ibuf[BUFSIZ];
-	char *cp2;
 	int tf;
 
 	tbuf = bp;
@@ -307,7 +306,6 @@ tdecode(register char *str, char **area)
 {
 	register char *cp;
 	register int c;
-	int i;
 
 	cp = *area;
 	while (c = *str++) {
