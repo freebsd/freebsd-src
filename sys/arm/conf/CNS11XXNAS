@@ -20,6 +20,7 @@
 
 ident		CNS11XXNAS
 
+include		"std.arm"
 #options 	PHYSADDR=0x10000000
 #options 	KERNPHYSADDR=0x10200000
 #options 	KERNVIRTADDR=0xc0200000	# Used in ldscript.arm

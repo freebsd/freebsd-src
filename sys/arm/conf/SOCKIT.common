@@ -18,6 +18,7 @@
 #
 # $FreeBSD$
 
+include		"std.armv6"
 include 	"../altera/socfpga/std.socfpga"
 
 makeoptions	MODULES_OVERRIDE=""

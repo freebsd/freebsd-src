@@ -1,0 +1,6 @@
+# Standard kernel config items for all ARMv6/v7 systems.
+#
+# $FreeBSD$
+
+options 	ARM_NEW_PMAP		# Use new pmap code.
+
