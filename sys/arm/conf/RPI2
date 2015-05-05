@@ -131,8 +131,8 @@ device		smsc
 device		spibus
 device		bcm2835_spi
 
-#device		vchiq
-#device		sound
+device		vchiq
+device		sound
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
