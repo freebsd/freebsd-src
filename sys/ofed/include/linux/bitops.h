@@ -288,8 +288,14 @@ bitmap_empty(unsigned long *addr, int size)
 
 #define	NBLONG	(NBBY * sizeof(long))
 
+#define	__set_bit(i, a)							\
+    atomic_set_long(&((volatile long *)(a))[(i)/NBLONG], 1UL << ((i) % NBLONG))
+
 #define	set_bit(i, a)							\
     atomic_set_long(&((volatile long *)(a))[(i)/NBLONG], 1UL << ((i) % NBLONG))
+
+#define	__clear_bit(i, a)						\
+    atomic_clear_long(&((volatile long *)(a))[(i)/NBLONG], 1UL << ((i) % NBLONG))
 
 #define	clear_bit(i, a)							\
     atomic_clear_long(&((volatile long *)(a))[(i)/NBLONG], 1UL << ((i) % NBLONG))
