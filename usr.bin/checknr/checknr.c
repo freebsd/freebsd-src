@@ -395,7 +395,7 @@ prop(int i)
 {
 	if (stk[i].pl == 0)
 		printf(".%s", br[stk[i].opno].opbr);
-	else switch (stk[i].opno) {
+	else switch(stk[i].opno) {
 	case SZ:
 		printf("\\s%c%d", stk[i].pl, stk[i].parm);
 		break;
@@ -567,7 +567,7 @@ addmac(const char *mac)
 	}
 	/* binsrch sets slot as a side effect */
 #ifdef DEBUG
-printf("binsrch(%s) -> %d\n", mac, slot);
+	printf("binsrch(%s) -> %d\n", mac, slot);
 #endif
 	loc = &knowncmds[slot];
 	src = &knowncmds[ncmds-1];
