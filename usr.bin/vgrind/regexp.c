@@ -153,7 +153,7 @@ convexp(char *re)
 	return (NULL);
     if (*re == '\0')
 	return (NULL);
-    cre = malloc (4 * strlen(re) + 3);
+    cre = malloc(4 * strlen(re) + 3);
     ccre = cre;
     ure = re;
 
@@ -255,7 +255,7 @@ expconv()
 	    *cs = OPER;
 	    OSYM(cs) = '(';
 	    ccre = ONEXT(cs);
-	    expconv ();
+	    expconv();
 	    OCNT(cs) = ccre - cs;		/* offset to next symbol */
 	    break;
 
@@ -403,7 +403,7 @@ expmatch (register char *s, register char *re, register char *mstring)
 
 	    /* this is a grouping, recurse */
 	    case '(':
-		ptr = expmatch (s, ONEXT(cs), mstring);
+		ptr = expmatch(s, ONEXT(cs), mstring);
 		if (ptr != NULL) {
 
 		    /* the subexpression matched */
@@ -440,7 +440,7 @@ expmatch (register char *s, register char *re, register char *mstring)
 		 */
 		s1 = s;
 		do {
-		    ptr = expmatch (s1, MNEXT(cs), mstring);
+		    ptr = expmatch(s1, MNEXT(cs), mstring);
 		    if (ptr != NULL && s1 != s) {
 
 			/* we have a match, remember the match */
@@ -479,7 +479,7 @@ expmatch (register char *s, register char *re, register char *mstring)
 		 */
 		s1 = s;
 		do {
-		    ptr = expmatch (s1, MNEXT(cs), mstring);
+		    ptr = expmatch(s1, MNEXT(cs), mstring);
 		    if (ptr != NULL && s1 != s) {
 
 			/* we have a match */
