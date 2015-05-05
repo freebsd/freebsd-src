@@ -21,6 +21,7 @@
 
 ident		DOCKSTAR
 
+include		"std.arm"
 include		"../mv/kirkwood/std.db88f6xxx"
 
 makeoptions	FDT_DTS_FILE=dockstar.dts

@@ -21,6 +21,7 @@
 
 ident		ZEDBOARD
 
+include		"std.armv6"
 include 	"../xilinx/zedboard/std.zedboard"
 
 options 	SCHED_ULE		# ULE scheduler
@@ -56,7 +57,6 @@ options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
 options 	VFP			# Enable floating point hardware support
 options 	SMP			# Enable multiple cores
-options 	ARM_NEW_PMAP		# Enable the new v6 pmap
 
 # Debugging for use in -current
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols

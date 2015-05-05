@@ -19,6 +19,7 @@
 
 ident		EP80219
 
+include		"std.arm"
 options 	PHYSADDR=0xa0000000
 options 	KERNPHYSADDR=0xa0200000	
 options 	KERNVIRTADDR=0xc0200000	# Used in ldscript.arm

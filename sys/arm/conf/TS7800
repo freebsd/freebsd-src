@@ -5,6 +5,7 @@
 #
 
 ident		TS7800
+include		"std.arm"
 include		"../mv/orion/std.ts7800"
 
 options 	SOC_MV_ORION
