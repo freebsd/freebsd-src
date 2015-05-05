@@ -148,6 +148,10 @@ nexus_attach(device_t dev)
 	if (rman_init(&mem_rman) || rman_manage_region(&mem_rman, 0, ~0))
 		panic("nexus_probe mem_rman");
 
+	/* Add the ofwbus device */
+	/* ARM64TODO: Alternatively add acpi */
+	nexus_add_child(dev, 10, "ofwbus", 0);
+
 	/*
 	 * First, deal with the children we know about already
 	 */
