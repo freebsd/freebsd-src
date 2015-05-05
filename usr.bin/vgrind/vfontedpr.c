@@ -124,6 +124,8 @@ bool	 l_toplex;		/* procedures only defined at top lex level */
 const char *language = "c";	/* the language indicator */
 
 #define	ps(x)	printf("%s", x)
+static char minus[] = "-";
+static char minusn[] = "-n";
 
 int
 main(int argc, char **argv)
@@ -158,7 +160,7 @@ main(int argc, char **argv)
 	    if (!strcmp(argv[0], "-f")) {
 		filter = true;
 		argv[0] = argv[argc-1];
-		argv[argc-1] = strdup("-");
+		argv[argc-1] = minus;
 		continue;
 	    }
 
@@ -171,7 +173,7 @@ main(int argc, char **argv)
 	    /* build an index */
 	    if (!strcmp(argv[0], "-x")) {
 		idx = true;
-		argv[0] = strdup("-n");
+		argv[0] = minusn;
 	    }
 
 	    /* indicate no keywords */
