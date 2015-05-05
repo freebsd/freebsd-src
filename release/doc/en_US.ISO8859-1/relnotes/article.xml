@@ -334,6 +334,12 @@
 	<literal>ARCHIVE_EXTRACT_SECURE_NODOTDOT</literal> to disallow
 	directory traversal when extracting an archive, similar to
 	&man.tar.1;.</para>
+
+      <para revision="282208" contrib="sponsor"
+	sponsor="&multiplay;">The &man.chflags.1;, &man.chgrp.1;,
+	&man.chmod.1;, and &man.chown.8; utilities now affect symbolic
+	links when the <literal>-R</literal> flag is specified, as
+	documented in &man.symlink.7;.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
