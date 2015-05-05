@@ -225,10 +225,10 @@ main(int argc, char **argv)
 	i = cgetent(&defs, defsfile, language);
 	if (i == -1) {
 	    fprintf (stderr, "no entry for language %s\n", language);
-	    exit (0);
+	    exit(0);
 	} else  if (i == -2) { fprintf(stderr,
 	    "cannot find vgrindefs file %s\n", defsfile[0]);
-	    exit (0);
+	    exit(0);
 	} else if (i == -3) { fprintf(stderr,
 	    "potential reference loop detected in vgrindefs file %s\n",
             defsfile[0]);
@@ -347,8 +347,7 @@ main(int argc, char **argv)
 #define isidchr(c) (isalnum(c) || (c) == '_')
 
 static void
-putScp(os)
-    char *os;
+putScp(char *os)
 {
     register char *s = os;		/* pointer to unmatched string */
     char dummy[BUFSIZ];			/* dummy to be used by expmatch */
@@ -380,12 +379,12 @@ skip:
 	/* check for string, comment, blockstart, etc */
 	if (!incomm && !instr && !inchr) {
 
-	    blkeptr = expmatch (s, l_blkend, dummy);
-	    blksptr = expmatch (s, l_blkbeg, dummy);
-	    comptr = expmatch (s, l_combeg, dummy);
-	    acmptr = expmatch (s, l_acmbeg, dummy);
-	    strptr = expmatch (s, l_strbeg, dummy);
-	    chrptr = expmatch (s, l_chrbeg, dummy);
+	    blkeptr = expmatch(s, l_blkend, dummy);
+	    blksptr = expmatch(s, l_blkbeg, dummy);
+	    comptr = expmatch(s, l_combeg, dummy);
+	    acmptr = expmatch(s, l_acmbeg, dummy);
+	    strptr = expmatch(s, l_strbeg, dummy);
+	    chrptr = expmatch(s, l_chrbeg, dummy);
 	    nocomptr = expmatch (s, l_nocom, dummy);
 
 	    /* start of non-comment? */
@@ -405,13 +404,13 @@ skip:
 		  && (comptr < chrptr || chrptr == NULL)
 		  && (comptr < blksptr || blksptr == NULL)
 		  && (comptr < blkeptr || blkeptr == NULL)) {
-		    putKcp (s, comptr-1, false);
+		    putKcp(s, comptr-1, false);
 		    s = comptr;
 		    incomm = true;
 		    comtype = STANDARD;
 		    if (s != os)
-			ps ("\\c");
-		    ps ("\\c\n'+C\n");
+			ps("\\c");
+		    ps("\\c\n'+C\n");
 		    continue;
 		}
 
@@ -421,13 +420,13 @@ skip:
 		  && (acmptr < chrptr || chrptr == NULL)
 		  && (acmptr < blksptr || blksptr == NULL)
 		  && (acmptr < blkeptr || blkeptr == NULL)) {
-		    putKcp (s, acmptr-1, false);
+		    putKcp(s, acmptr-1, false);
 		    s = acmptr;
 		    incomm = true;
 		    comtype = ALTERNATE;
 		    if (s != os)
-			ps ("\\c");
-		    ps ("\\c\n'+C\n");
+			ps("\\c");
+		    ps("\\c\n'+C\n");
 		    continue;
 		}
 
@@ -463,8 +462,8 @@ skip:
 
 			/* end of current procedure */
 			if (s != os)
-			    ps ("\\c");
-			ps ("\\c\n'-F\n");
+			    ps("\\c");
+			ps("\\c\n'-F\n");
 			blklevel = plstack[psptr];
 
 			/* see if we should print the last proc name */
@@ -487,8 +486,8 @@ skip:
 
 	/* check for end of comment */
 	} else if (incomm) {
-	    comptr = expmatch (s, l_comend, dummy);
-	    acmptr = expmatch (s, l_acmend, dummy);
+	    comptr = expmatch(s, l_comend, dummy);
+	    acmptr = expmatch(s, l_acmend, dummy);
 	    if (((comtype == STANDARD) && (comptr != NULL)) ||
 	        ((comtype == ALTERNATE) && (acmptr != NULL))) {
 		if (comtype == STANDARD) {
@@ -509,7 +508,7 @@ skip:
 
 	/* check for end of string */
 	} else if (instr) {
-	    if ((strptr = expmatch (s, l_strend, dummy)) != NULL) {
+	    if ((strptr = expmatch(s, l_strend, dummy)) != NULL) {
 		putKcp(s, strptr-1, true);
 		s = strptr;
 		instr = false;
@@ -522,7 +521,7 @@ skip:
 
 	/* check for end of character string */
 	} else if (inchr) {
-	    if ((chrptr = expmatch (s, l_chrend, dummy)) != NULL) {
+	    if ((chrptr = expmatch(s, l_chrend, dummy)) != NULL) {
 		putKcp(s, chrptr-1, true);
 		s = chrptr;
 		inchr = false;
@@ -587,7 +586,7 @@ putKcp(char *start, char *end, bool force)
 		}
 	    }
 
-	putcp ((unsigned char)*start++);
+	putcp((unsigned char)*start++);
     }
 }
 
@@ -620,8 +619,7 @@ width(register char *s, register char *os)
 }
 
 static void
-putcp(c)
-	register int c;
+putcp(register int c)
 {
 
 	switch(c) {
@@ -692,7 +690,7 @@ isproc(char *s)
 {
     pname[0] = '\0';
     if (!l_toplex || blklevel == 0)
-	if (expmatch (s, l_prcbeg, pname) != NULL) {
+	if (expmatch(s, l_prcbeg, pname) != NULL) {
 	    return (true);
 	}
     return (false);
