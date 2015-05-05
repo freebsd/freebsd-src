@@ -6816,6 +6816,9 @@ elf32_arm_merge_eabi_attributes (bfd *ibfd, bfd *obfd)
 
   for (i = 4; i < NUM_KNOWN_OBJ_ATTRIBUTES; i++)
     {
+      if (out_attr[i].type == 0)
+        out_attr[i].type = in_attr[i].type;
+
       /* Merge this attribute with existing attributes.  */
       switch (i)
 	{
