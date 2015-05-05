@@ -38,6 +38,12 @@ CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	-I${.CURDIR}/../../i386/libi386
 CFLAGS+=	-DNO_PCI -DEFI
 
+# make buildenv doesn't set DESTDIR, this means LIBSTAND
+# will be wrong when crossbuilding.
+.if exists(${.OBJDIR}/../../../../lib/libstand/libstand.a)
+LIBSTAND=	${.OBJDIR}/../../../../lib/libstand/libstand.a
+.endif
+
 .if ${MK_FORTH} != "no"
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH
