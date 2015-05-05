@@ -386,6 +386,7 @@ static int t4_free_irq(struct adapter *, struct irq *);
 static void reg_block_dump(struct adapter *, uint8_t *, unsigned int,
     unsigned int);
 static void t4_get_regs(struct adapter *, struct t4_regdump *, uint8_t *);
+static void cxgbe_refresh_stats(struct adapter *, struct port_info *);
 static void cxgbe_tick(void *);
 static void cxgbe_vlan_config(void *, struct ifnet *, uint16_t);
 static int cpl_not_handled(struct sge_iq *, const struct rss_header *,
@@ -610,6 +611,8 @@ t4_attach(device_t dev)
 	mtx_init(&sc->sfl_lock, "starving freelists", 0, MTX_DEF);
 	TAILQ_INIT(&sc->sfl);
 	callout_init(&sc->sfl_callout, CALLOUT_MPSAFE);
+
+	mtx_init(&sc->regwin_lock, "register and memory window", 0, MTX_DEF);
 
 	rc = map_bars_0_and_4(sc);
 	if (rc != 0)
@@ -1011,6 +1014,8 @@ t4_detach(device_t dev)
 		mtx_destroy(&sc->sfl_lock);
 	if (mtx_initialized(&sc->ifp_lock))
 		mtx_destroy(&sc->ifp_lock);
+	if (mtx_initialized(&sc->regwin_lock))
+		mtx_destroy(&sc->regwin_lock);
 
 	bzero(sc, sizeof(*sc));
 
@@ -4243,20 +4248,19 @@ t4_get_regs(struct adapter *sc, struct t4_regdump *regs, uint8_t *buf)
 }
 
 static void
-cxgbe_tick(void *arg)
+cxgbe_refresh_stats(struct adapter *sc, struct port_info *pi)
 {
-	struct port_info *pi = arg;
-	struct adapter *sc = pi->adapter;
 	struct ifnet *ifp = pi->ifp;
 	struct sge_txq *txq;
 	int i, drops;
 	struct port_stats *s = &pi->stats;
+	struct timeval tv;
+	const struct timeval interval = {0, 250000};	/* 250ms */
 
-	PORT_LOCK(pi);
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-		PORT_UNLOCK(pi);
-		return;	/* without scheduling another callout */
-	}
+	getmicrotime(&tv);
+	timevalsub(&tv, &interval);
+	if (timevalcmp(&tv, &pi->last_refreshed, <))
+		return;
 
 	t4_get_port_stats(sc, pi->tx_chan, s);
 
@@ -4269,16 +4273,14 @@ cxgbe_tick(void *arg)
 	ifp->if_iqdrops = s->rx_ovflow0 + s->rx_ovflow1 + s->rx_ovflow2 +
 	    s->rx_ovflow3 + s->rx_trunc0 + s->rx_trunc1 + s->rx_trunc2 +
 	    s->rx_trunc3;
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < NCHAN; i++) {
 		if (pi->rx_chan_map & (1 << i)) {
 			uint32_t v;
 
-			/*
-			 * XXX: indirect reads from the same ADDR/DATA pair can
-			 * race with each other.
-			 */
+			mtx_lock(&sc->regwin_lock);
 			t4_read_indirect(sc, A_TP_MIB_INDEX, A_TP_MIB_DATA, &v,
 			    1, A_TP_MIB_TNL_CNG_DROP_0 + i);
+			mtx_unlock(&sc->regwin_lock);
 			ifp->if_iqdrops += v;
 		}
 	}
@@ -4291,6 +4293,24 @@ cxgbe_tick(void *arg)
 	ifp->if_oerrors = s->tx_error_frames;
 	ifp->if_ierrors = s->rx_jabber + s->rx_runt + s->rx_too_long +
 	    s->rx_fcs_err + s->rx_len_err;
+
+	getmicrotime(&pi->last_refreshed);
+}
+
+static void
+cxgbe_tick(void *arg)
+{
+	struct port_info *pi = arg;
+	struct adapter *sc = pi->adapter;
+	struct ifnet *ifp = pi->ifp;
+
+	PORT_LOCK(pi);
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		PORT_UNLOCK(pi);
+		return;	/* without scheduling another callout */
+	}
+
+	cxgbe_refresh_stats(sc, pi);
 
 	callout_schedule(&pi->tick, hz);
 	PORT_UNLOCK(pi);

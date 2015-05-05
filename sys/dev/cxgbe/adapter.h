@@ -263,7 +263,9 @@ struct port_info {
 
 	int linkdnrc;
 	struct link_config link_cfg;
-	struct port_stats stats;
+
+	struct timeval last_refreshed;
+ 	struct port_stats stats;
 
 	eventhandler_tag vlan_c;
 
@@ -785,6 +787,8 @@ struct adapter {
 	struct mtx sfl_lock;	/* same cache-line as sc_lock? but that's ok */
 	TAILQ_HEAD(, sge_fl) sfl;
 	struct callout sfl_callout;
+
+	struct mtx regwin_lock;	/* for indirect reads and memory windows */
 
 	an_handler_t an_handler __aligned(CACHE_LINE_SIZE);
 	fw_msg_handler_t fw_msg_handler[5];	/* NUM_FW6_TYPES */
