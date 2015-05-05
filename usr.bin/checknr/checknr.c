@@ -215,8 +215,18 @@ main(int argc, char **argv)
 			for (i=0; br[i].opbr; i++)
 				;
 			for (cp=argv[1]+3; cp[-1]; cp += 6) {
-				br[i].opbr = strncpy(malloc(3), cp, 2);
-				br[i].clbr = strncpy(malloc(3), cp+3, 2);
+				char *tmp;
+
+				if (i >= MAXBR)
+					errx(1, "too many pairs");
+				if ((tmp = malloc(3)) == NULL)
+					err(1, "malloc");
+				strlcpy(tmp, cp, 3);
+				br[i].opbr = tmp;
+				if ((tmp = malloc(3)) == NULL)
+					err(1, "malloc");
+				strlcpy(tmp, cp+3, 3);
+				br[i].clbr = tmp;
 				addmac(br[i].opbr);	/* knows pairs are also known cmds */
 				addmac(br[i].clbr);
 				i++;
