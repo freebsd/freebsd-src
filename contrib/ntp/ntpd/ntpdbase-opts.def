@@ -87,7 +87,7 @@ flag = {
 	by default.
 	This is the same operation as the
 	@code{driftfile} @kbd{driftfile}
-	configuration specification in the 
+	configuration specification in the
 	@file{/etc/ntp.conf}
 	file.
 	_EndOfDoc_;
@@ -111,6 +111,24 @@ flag = {
 	See the
 	@code{tinker}
 	configuration file directive for other options.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = force_step_once;
+    value     = G;
+    descrip   = "Step any initial offset correction.";
+    doc = <<-  _EndOfDoc_
+	Normally,
+	@code{ntpd}
+	steps the time if the time offset exceeds the step threshold,
+	which is 128 ms by default, and otherwise slews the time.
+	This option forces the initial offset correction to be stepped,
+	so the highest time accuracy can be achieved quickly.
+	However, this may also cause the time to be stepped back
+	so this option must not be used if
+	applications requiring monotonic time are running.
+	See the @code{tinker} configuration file directive for other options.
 	_EndOfDoc_;
 };
 
@@ -150,7 +168,7 @@ flag = {
 	given interface name.  This option may appear multiple times.  This option
 	also implies not opening other addresses, except wildcard and localhost.
 	This option is deprecated. Please consider using the configuration file
-	@code{interface} command, which is more versatile. 
+	@code{interface} command, which is more versatile.
 	_EndOfDoc_;
 };
 

@@ -94,9 +94,10 @@ group_unpack_members(const nvlist_t *nvl, char ***fieldp, char **bufferp,
     size_t *bufsizep)
 {
 	const char *mem;
-	char **outstrs, *str;
+	char **outstrs, *str, nvlname[64];
 	size_t nmem, datasize, strsize;
 	unsigned int ii;
+	int n;
 
 	if (!nvlist_exists_number(nvl, "gr_nmem")) {
 		datasize = _ALIGNBYTES + sizeof(char *);
@@ -113,7 +114,9 @@ group_unpack_members(const nvlist_t *nvl, char ***fieldp, char **bufferp,
 	nmem = (size_t)nvlist_get_number(nvl, "gr_nmem");
 	datasize = _ALIGNBYTES + sizeof(char *) * (nmem + 1);
 	for (ii = 0; ii < nmem; ii++) {
-		mem = dnvlist_getf_string(nvl, NULL, "gr_mem[%u]", ii);
+		n = snprintf(nvlname, sizeof(nvlname), "gr_mem[%u]", ii);
+		assert(n > 0 && n < (int)sizeof(nvlname));
+		mem = dnvlist_get_string(nvl, nvlname, NULL);
 		if (mem == NULL)
 			return (EINVAL);
 		datasize += strlen(mem) + 1;
@@ -125,7 +128,9 @@ group_unpack_members(const nvlist_t *nvl, char ***fieldp, char **bufferp,
 	outstrs = (char **)_ALIGN(*bufferp);
 	str = (char *)outstrs + sizeof(char *) * (nmem + 1);
 	for (ii = 0; ii < nmem; ii++) {
-		mem = nvlist_getf_string(nvl, "gr_mem[%u]", ii);
+		n = snprintf(nvlname, sizeof(nvlname), "gr_mem[%u]", ii);
+		assert(n > 0 && n < (int)sizeof(nvlname));
+		mem = nvlist_get_string(nvl, nvlname);
 		strsize = strlen(mem) + 1;
 		memcpy(str, mem, strsize);
 		outstrs[ii] = str;
@@ -190,7 +195,7 @@ cap_getgrcommon_r(cap_channel_t *chan, const char *cmd, const char *name,
 	} else {
 		abort();
 	}
-	nvl = cap_xfer_nvlist(chan, nvl);
+	nvl = cap_xfer_nvlist(chan, nvl, 0);
 	if (nvl == NULL) {
 		assert(errno != 0);
 		*result = NULL;
@@ -314,7 +319,7 @@ cap_setgroupent(cap_channel_t *chan, int stayopen)
 	nvl = nvlist_create(0);
 	nvlist_add_string(nvl, "cmd", "setgroupent");
 	nvlist_add_bool(nvl, "stayopen", stayopen != 0);
-	nvl = cap_xfer_nvlist(chan, nvl);
+	nvl = cap_xfer_nvlist(chan, nvl, 0);
 	if (nvl == NULL)
 		return (0);
 	if (nvlist_get_number(nvl, "error") != 0) {
@@ -334,7 +339,7 @@ cap_setgrent(cap_channel_t *chan)
 
 	nvl = nvlist_create(0);
 	nvlist_add_string(nvl, "cmd", "setgrent");
-	nvl = cap_xfer_nvlist(chan, nvl);
+	nvl = cap_xfer_nvlist(chan, nvl, 0);
 	if (nvl == NULL)
 		return (0);
 	if (nvlist_get_number(nvl, "error") != 0) {
@@ -355,7 +360,7 @@ cap_endgrent(cap_channel_t *chan)
 	nvl = nvlist_create(0);
 	nvlist_add_string(nvl, "cmd", "endgrent");
 	/* Ignore any errors, we have no way to report them. */
-	nvlist_destroy(cap_xfer_nvlist(chan, nvl));
+	nvlist_destroy(cap_xfer_nvlist(chan, nvl, 0));
 }
 
 int
@@ -407,6 +412,8 @@ cap_grp_limit_groups(cap_channel_t *chan, const char * const *names,
 {
 	nvlist_t *limits, *groups;
 	unsigned int i;
+	char nvlname[64];
+	int n;
 
 	if (cap_limit_get(chan, &limits) < 0)
 		return (-1);
@@ -417,10 +424,16 @@ cap_grp_limit_groups(cap_channel_t *chan, const char * const *names,
 			nvlist_free_nvlist(limits, "groups");
 	}
 	groups = nvlist_create(0);
-	for (i = 0; i < ngids; i++)
-		nvlist_addf_number(groups, (uint64_t)gids[i], "gid%u", i);
-	for (i = 0; i < nnames; i++)
-		nvlist_addf_string(groups, names[i], "name%u", i);
+	for (i = 0; i < ngids; i++) {
+		n = snprintf(nvlname, sizeof(nvlname), "gid%u", i);
+		assert(n > 0 && n < (int)sizeof(nvlname));
+		nvlist_add_number(groups, nvlname, (uint64_t)gids[i]);
+	}
+	for (i = 0; i < nnames; i++) {
+		n = snprintf(nvlname, sizeof(nvlname), "gid%u", i);
+		assert(n > 0 && n < (int)sizeof(nvlname));
+		nvlist_add_string(groups, nvlname, names[i]);
+	}
 	nvlist_move_nvlist(limits, "groups", groups);
 	return (cap_limit_set(chan, limits));
 }

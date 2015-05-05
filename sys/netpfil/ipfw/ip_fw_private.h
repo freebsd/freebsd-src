@@ -264,10 +264,10 @@ struct ip_fw_chain {
 	struct ip_fw	**map;		/* array of rule ptrs to ease lookup */
 	uint32_t	id;		/* ruleset id */
 	int		n_rules;	/* number of static rules */
-	LIST_HEAD(nat_list, cfg_nat) nat;       /* list of nat entries */
 	void		*tablestate;	/* runtime table info */
 	void		*valuestate;	/* runtime table value info */
 	int		*idxmap;	/* skipto array of rules */
+	void		**srvstate;	/* runtime service mappings */
 #if defined( __linux__ ) || defined( _WIN32 )
 	spinlock_t rwmtx;
 #else
@@ -275,10 +275,12 @@ struct ip_fw_chain {
 #endif
 	int		static_len;	/* total len of static rules (v0) */
 	uint32_t	gencnt;		/* NAT generation count */
+	LIST_HEAD(nat_list, cfg_nat) nat;       /* list of nat entries */
 	struct ip_fw	*default_rule;
 	struct tables_config *tblcfg;	/* tables module data */
 	void		*ifcfg;		/* interface module data */
 	int		*idxmap_back;	/* standby skipto array of rules */
+	struct namedobj_instance	*srvmap; /* cfg name->number mappings */
 #if defined( __linux__ ) || defined( _WIN32 )
 	spinlock_t uh_lock;
 #else
@@ -306,16 +308,15 @@ struct table_value {
 	uint64_t	refcnt;		/* Number of references */
 };
 
-struct namedobj_instance;
 
 struct named_object {
 	TAILQ_ENTRY(named_object)	nn_next;	/* namehash */
 	TAILQ_ENTRY(named_object)	nv_next;	/* valuehash */
 	char			*name;	/* object name */
-	uint8_t			type;	/* object type */
-	uint8_t			compat;	/* Object name is number */
+	uint8_t			subtype;	/* object subtype within class */
+	uint8_t			etlv;	/* Export TLV id */
+	uint16_t		spare[2];
 	uint16_t		kidx;	/* object kernel index */
-	uint16_t		uidx;	/* userland idx for compat records */
 	uint32_t		set;	/* set object belongs to */
 	uint32_t		refcnt;	/* number of references */
 };
@@ -450,7 +451,7 @@ struct obj_idx {
 
 struct rule_check_info {
 	uint16_t	flags;		/* rule-specific check flags */
-	uint16_t	table_opcodes;	/* count of opcodes referencing table */
+	uint16_t	object_opcodes;	/* num of opcodes referencing objects */
 	uint16_t	urule_numoff;	/* offset of rulenum in bytes */
 	uint8_t		version;	/* rule version */
 	uint8_t		spare;
@@ -507,6 +508,84 @@ struct ip_fw_bcounter0 {
     (r)->cmd_len * 4 - 4, 8))
 #define	RULEKSIZE1(r)	roundup2((sizeof(struct ip_fw) + (r)->cmd_len*4 - 4), 8)
 
+/*
+ * Tables/Objects index rewriting code
+ */
+
+/* Default and maximum number of ipfw tables/objects. */
+#define	IPFW_TABLES_MAX		65536
+#define	IPFW_TABLES_DEFAULT	128
+#define	IPFW_OBJECTS_MAX	65536
+#define	IPFW_OBJECTS_DEFAULT	128
+
+#define	CHAIN_TO_SRV(ch)	((ch)->srvmap)
+
+struct tid_info {
+	uint32_t	set;	/* table set */
+	uint16_t	uidx;	/* table index */
+	uint8_t		type;	/* table type */
+	uint8_t		atype;
+	uint8_t		spare;
+	int		tlen;	/* Total TLV size block */
+	void		*tlvs;	/* Pointer to first TLV */
+};
+
+/*
+ * Classifier callback. Checks if @cmd opcode contains kernel object reference.
+ * If true, returns its index and type.
+ * Returns 0 if match is found, 1 overwise.
+ */
+typedef int (ipfw_obj_rw_cl)(ipfw_insn *cmd, uint16_t *puidx, uint8_t *ptype);
+/*
+ * Updater callback. Sets kernel object reference index to @puidx
+ */
+typedef void (ipfw_obj_rw_upd)(ipfw_insn *cmd, uint16_t puidx);
+/*
+ * Finder callback. Tries to find named object by name (specified via @ti).
+ * Stores found named object pointer in @pno.
+ * If object was not found, NULL is stored.
+ *
+ * Return 0 if input data was valid.
+ */
+typedef int (ipfw_obj_fname_cb)(struct ip_fw_chain *ch,
+    struct tid_info *ti, struct named_object **pno);
+/*
+ * Another finder callback. Tries to findex named object by kernel index.
+ *
+ * Returns pointer to named object or NULL.
+ */
+typedef struct named_object *(ipfw_obj_fidx_cb)(struct ip_fw_chain *ch,
+    uint16_t kidx);
+/*
+ * Object creator callback. Tries to create object specified by @ti.
+ * Stores newly-allocated object index in @pkidx.
+ *
+ * Returns 0 on success.
+ */
+typedef int (ipfw_obj_create_cb)(struct ip_fw_chain *ch, struct tid_info *ti,
+    uint16_t *pkidx);
+
+
+struct opcode_obj_rewrite {
+	uint32_t		opcode;		/* Opcode to act upon */
+	uint32_t		etlv;		/* Relevant export TLV id  */
+	ipfw_obj_rw_cl		*classifier;	/* Check if rewrite is needed */
+	ipfw_obj_rw_upd		*update;	/* update cmd with new value */
+	ipfw_obj_fname_cb	*find_byname;	/* Find named object by name */
+	ipfw_obj_fidx_cb	*find_bykidx;	/* Find named object by kidx */
+	ipfw_obj_create_cb	*create_object;	/* Create named object */
+};
+
+#define	IPFW_ADD_OBJ_REWRITER(f, c)	do {	\
+	if ((f) != 0) 				\
+		ipfw_add_obj_rewriter(c,	\
+		    sizeof(c) / sizeof(c[0]));	\
+	} while(0)
+#define	IPFW_DEL_OBJ_REWRITER(l, c)	do {	\
+	if ((l) != 0) 				\
+		ipfw_del_obj_rewriter(c,	\
+		    sizeof(c) / sizeof(c[0]));	\
+	} while(0)
 
 /* In ip_fw_iface.c */
 int ipfw_iface_init(void);
@@ -562,6 +641,7 @@ caddr_t ipfw_get_sopt_header(struct sockopt_data *sd, size_t needed);
 		    sizeof(c) / sizeof(c[0]));	\
 	} while(0)
 
+struct namedobj_instance;
 typedef void (objhash_cb_t)(struct namedobj_instance *ni, struct named_object *,
     void *arg);
 typedef uint32_t (objhash_hash_f)(struct namedobj_instance *ni, void *key,
@@ -578,6 +658,8 @@ void ipfw_objhash_bitmap_free(void *idx, int blocks);
 void ipfw_objhash_set_hashf(struct namedobj_instance *ni, objhash_hash_f *f);
 struct named_object *ipfw_objhash_lookup_name(struct namedobj_instance *ni,
     uint32_t set, char *name);
+struct named_object *ipfw_objhash_lookup_name_type(struct namedobj_instance *ni,
+    uint32_t set, uint32_t type, char *name);
 struct named_object *ipfw_objhash_lookup_kidx(struct namedobj_instance *ni,
     uint16_t idx);
 int ipfw_objhash_same_name(struct namedobj_instance *ni, struct named_object *a,
@@ -591,6 +673,25 @@ int ipfw_objhash_free_idx(struct namedobj_instance *ni, uint16_t idx);
 int ipfw_objhash_alloc_idx(void *n, uint16_t *pidx);
 void ipfw_objhash_set_funcs(struct namedobj_instance *ni,
     objhash_hash_f *hash_f, objhash_cmp_f *cmp_f);
+void ipfw_init_obj_rewriter(void);
+void ipfw_destroy_obj_rewriter(void);
+void ipfw_add_obj_rewriter(struct opcode_obj_rewrite *rw, size_t count);
+int ipfw_del_obj_rewriter(struct opcode_obj_rewrite *rw, size_t count);
+
+int ipfw_rewrite_rule_uidx(struct ip_fw_chain *chain,
+    struct rule_check_info *ci);
+int ipfw_mark_object_kidx(struct ip_fw_chain *chain, struct ip_fw *rule,
+    uint32_t *bmask);
+int ref_opcode_object(struct ip_fw_chain *ch, ipfw_insn *cmd, struct tid_info *ti,
+    struct obj_idx *pidx, int *found, int *unresolved);
+void unref_oib_objects(struct ip_fw_chain *ch, ipfw_insn *cmd,
+    struct obj_idx *oib, struct obj_idx *end);
+int create_objects_compat(struct ip_fw_chain *ch, ipfw_insn *cmd,
+    struct obj_idx *oib, struct obj_idx *pidx, struct tid_info *ti);
+void update_opcode_kidx(ipfw_insn *cmd, uint16_t idx);
+int classify_opcode_kidx(ipfw_insn *cmd, uint16_t *puidx);
+void ipfw_init_srv(struct ip_fw_chain *ch);
+void ipfw_destroy_srv(struct ip_fw_chain *ch);
 
 /* In ip_fw_table.c */
 struct table_info;

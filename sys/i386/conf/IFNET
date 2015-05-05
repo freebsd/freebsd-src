@@ -60,6 +60,8 @@ nodevice	pcn
 nodevice	nfe
 nodevice	xenpci	# netfront
 nooptions	XENHVM	# netfront
+nodevice	hyperv
+nooptions	HYPERV
 
 # i386 only, are they all ISA?
 nodevice	cs

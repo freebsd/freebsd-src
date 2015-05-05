@@ -1787,11 +1787,13 @@ vm_daemon(void)
 
 	while (TRUE) {
 		mtx_lock(&vm_daemon_mtx);
+		msleep(&vm_daemon_needed, &vm_daemon_mtx, PPAUSE, "psleep",
 #ifdef RACCT
-		msleep(&vm_daemon_needed, &vm_daemon_mtx, PPAUSE, "psleep", hz);
+		    racct_enable ? hz : 0
 #else
-		msleep(&vm_daemon_needed, &vm_daemon_mtx, PPAUSE, "psleep", 0);
+		    0
 #endif
+		);
 		swapout_flags = vm_pageout_req_swapout;
 		vm_pageout_req_swapout = 0;
 		mtx_unlock(&vm_daemon_mtx);
@@ -1866,33 +1868,40 @@ again:
 				    &vm->vm_map, limit);
 			}
 #ifdef RACCT
-			rsize = IDX_TO_OFF(size);
-			PROC_LOCK(p);
-			racct_set(p, RACCT_RSS, rsize);
-			ravailable = racct_get_available(p, RACCT_RSS);
-			PROC_UNLOCK(p);
-			if (rsize > ravailable) {
-				/*
-				 * Don't be overly aggressive; this might be
-				 * an innocent process, and the limit could've
-				 * been exceeded by some memory hog.  Don't
-				 * try to deactivate more than 1/4th of process'
-				 * resident set size.
-				 */
-				if (attempts <= 8) {
-					if (ravailable < rsize - (rsize / 4))
-						ravailable = rsize - (rsize / 4);
-				}
-				vm_pageout_map_deactivate_pages(
-				    &vm->vm_map, OFF_TO_IDX(ravailable));
-				/* Update RSS usage after paging out. */
-				size = vmspace_resident_count(vm);
+			if (racct_enable) {
 				rsize = IDX_TO_OFF(size);
 				PROC_LOCK(p);
 				racct_set(p, RACCT_RSS, rsize);
+				ravailable = racct_get_available(p, RACCT_RSS);
 				PROC_UNLOCK(p);
-				if (rsize > ravailable)
-					tryagain = 1;
+				if (rsize > ravailable) {
+					/*
+					 * Don't be overly aggressive; this
+					 * might be an innocent process,
+					 * and the limit could've been exceeded
+					 * by some memory hog.  Don't try
+					 * to deactivate more than 1/4th
+					 * of process' resident set size.
+					 */
+					if (attempts <= 8) {
+						if (ravailable < rsize -
+						    (rsize / 4)) {
+							ravailable = rsize -
+							    (rsize / 4);
+						}
+					}
+					vm_pageout_map_deactivate_pages(
+					    &vm->vm_map,
+					    OFF_TO_IDX(ravailable));
+					/* Update RSS usage after paging out. */
+					size = vmspace_resident_count(vm);
+					rsize = IDX_TO_OFF(size);
+					PROC_LOCK(p);
+					racct_set(p, RACCT_RSS, rsize);
+					PROC_UNLOCK(p);
+					if (rsize > ravailable)
+						tryagain = 1;
+				}
 			}
 #endif
 			vmspace_free(vm);

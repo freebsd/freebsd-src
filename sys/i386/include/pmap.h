@@ -219,76 +219,6 @@ extern pd_entry_t *IdlePTD;	/* physical address of "Idle" state directory */
  */
 #define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
 
-#if defined(XEN)
-#include <sys/param.h>
-
-#include <xen/xen-os.h>
-
-#include <machine/xen/xenvar.h>
-#include <machine/xen/xenpmap.h>
-
-extern pt_entry_t pg_nx;
-
-#define PG_KERNEL  (PG_V | PG_A | PG_RW | PG_M)
-
-#define MACH_TO_VM_PAGE(ma) PHYS_TO_VM_PAGE(xpmap_mtop((ma)))
-#define VM_PAGE_TO_MACH(m) xpmap_ptom(VM_PAGE_TO_PHYS((m)))
-
-#define VTOM(va) xpmap_ptom(VTOP(va))
-
-static __inline vm_paddr_t
-pmap_kextract_ma(vm_offset_t va)
-{
-        vm_paddr_t ma;
-        if ((ma = PTD[va >> PDRSHIFT]) & PG_PS) {
-                ma = (ma & ~(NBPDR - 1)) | (va & (NBPDR - 1));
-        } else {
-                ma = (*vtopte(va) & PG_FRAME) | (va & PAGE_MASK);
-        }
-        return ma;
-}
-
-static __inline vm_paddr_t
-pmap_kextract(vm_offset_t va)
-{
-        return xpmap_mtop(pmap_kextract_ma(va));
-}
-#define vtomach(va)     pmap_kextract_ma(((vm_offset_t) (va)))
-
-vm_paddr_t pmap_extract_ma(struct pmap *pmap, vm_offset_t va);
-
-void    pmap_kenter_ma(vm_offset_t va, vm_paddr_t pa);
-void    pmap_map_readonly(struct pmap *pmap, vm_offset_t va, int len);
-void    pmap_map_readwrite(struct pmap *pmap, vm_offset_t va, int len);
-
-static __inline pt_entry_t
-pte_load_store(pt_entry_t *ptep, pt_entry_t v)
-{
-	pt_entry_t r;
-
-	r = *ptep;
-	PT_SET_VA(ptep, v, TRUE);
-	return (r);
-}
-
-static __inline pt_entry_t
-pte_load_store_ma(pt_entry_t *ptep, pt_entry_t v)
-{
-	pt_entry_t r;
-
-	r = *ptep;
-	PT_SET_VA_MA(ptep, v, TRUE);
-	return (r);
-}
-
-#define	pte_load_clear(ptep)	pte_load_store((ptep), (pt_entry_t)0ULL)
-
-#define	pte_store(ptep, pte)	pte_load_store((ptep), (pt_entry_t)pte)
-#define	pte_store_ma(ptep, pte)	pte_load_store_ma((ptep), (pt_entry_t)pte)
-#define	pde_store_ma(ptep, pte)	pte_load_store_ma((ptep), (pt_entry_t)pte)
-
-#elif !defined(XEN)
-
 /*
  * KPTmap is a linear mapping of the kernel page table.  It differs from the
  * recursive mapping in two ways: (1) it only provides access to kernel page
@@ -328,13 +258,8 @@ pmap_kextract(vm_offset_t va)
 	}
 	return (pa);
 }
-#endif
 
-#if !defined(XEN)
-#define PT_UPDATES_FLUSH()
-#endif
-
-#if (defined(PAE) || defined(PAE_TABLES)) && !defined(XEN)
+#if (defined(PAE) || defined(PAE_TABLES))
 
 #define	pde_cmpset(pdep, old, new)	atomic_cmpset_64_i586(pdep, old, new)
 #define	pte_load_store(ptep, pte)	atomic_swap_64_i586(ptep, pte)
@@ -343,7 +268,7 @@ pmap_kextract(vm_offset_t va)
 
 extern pt_entry_t pg_nx;
 
-#elif !defined(PAE) && !defined(PAE_TABLES) && !defined(XEN)
+#else /* !(PAE || PAE_TABLES) */
 
 #define	pde_cmpset(pdep, old, new)	atomic_cmpset_int(pdep, old, new)
 #define	pte_load_store(ptep, pte)	atomic_swap_int(ptep, pte)
@@ -352,7 +277,7 @@ extern pt_entry_t pg_nx;
 	*(u_int *)(ptep) = (u_int)(pte); \
 } while (0)
 
-#endif /* PAE */
+#endif /* !(PAE || PAE_TABLES) */
 
 #define	pte_clear(ptep)			pte_store(ptep, 0)
 

@@ -62,6 +62,8 @@ nodevice	pcn
 nodevice	nfe
 nodevice	xenpci	# netfront
 nooptions	XENHVM	# netfront
+nodevice	hyperv
+nooptions	HYPERV
 
 # Could be not easy
 nodevice	ixgb

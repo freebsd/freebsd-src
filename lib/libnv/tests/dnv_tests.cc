@@ -45,7 +45,7 @@ ATF_TEST_CASE_BODY(dnvlist_get_bool__present)
 	nvlist_add_bool(nvl, key, value);
 
 	ATF_REQUIRE_EQ(dnvlist_get_bool(nvl, key, false), value);
-	ATF_REQUIRE_EQ(dnvlist_getf_bool(nvl, false, "%c%s", 'n', "ame"), value);
+	ATF_REQUIRE_EQ(dnvlist_get_bool(nvl, "name", false), value);
 
 	nvlist_destroy(nvl);
 }
@@ -60,12 +60,12 @@ ATF_TEST_CASE_BODY(dnvlist_get_bool__default_value)
 	nvl = nvlist_create(0);
 
 	ATF_REQUIRE_EQ(dnvlist_get_bool(nvl, key, false), false);
-	ATF_REQUIRE_EQ(dnvlist_getf_bool(nvl, true, "%d", 123), true);
+	ATF_REQUIRE_EQ(dnvlist_get_bool(nvl, "123", true), true);
 
 	nvlist_add_bool(nvl, key, true);
 
 	ATF_REQUIRE_EQ(dnvlist_get_bool(nvl, "otherkey", true), true);
-	ATF_REQUIRE_EQ(dnvlist_getf_bool(nvl, false, "%d%c", 12, 'c'), false);
+	ATF_REQUIRE_EQ(dnvlist_get_bool(nvl, "12c", false), false);
 
 	nvlist_destroy(nvl);
 }
@@ -84,7 +84,7 @@ ATF_TEST_CASE_BODY(dnvlist_get_number__present)
 	nvlist_add_number(nvl, key, value);
 
 	ATF_REQUIRE_EQ(dnvlist_get_number(nvl, key, 19), value);
-	ATF_REQUIRE_EQ(dnvlist_getf_number(nvl, 65, "key"), value);
+	ATF_REQUIRE_EQ(dnvlist_get_number(nvl, "key", 65), value);
 
 	nvlist_destroy(nvl);
 }
@@ -99,12 +99,11 @@ ATF_TEST_CASE_BODY(dnvlist_get_number__default_value)
 	nvl = nvlist_create(0);
 
 	ATF_REQUIRE_EQ(dnvlist_get_number(nvl, key, 5), 5);
-	ATF_REQUIRE_EQ(dnvlist_getf_number(nvl, 12, "%s", key), 12);
+	ATF_REQUIRE_EQ(dnvlist_get_number(nvl, "1234", 5), 5);
 
 	nvlist_add_number(nvl, key, 24841);
 
-	ATF_REQUIRE_EQ(dnvlist_get_number(nvl, "hthth", 184), 184);
-	ATF_REQUIRE_EQ(dnvlist_getf_number(nvl, 5641, "%d", 1234), 5641);
+	ATF_REQUIRE_EQ(dnvlist_get_number(nvl, "1234", 5641), 5641);
 
 	nvlist_destroy(nvl);
 }
@@ -124,7 +123,7 @@ ATF_TEST_CASE_BODY(dnvlist_get_string__present)
 
 	ATF_REQUIRE_EQ(strcmp(dnvlist_get_string(nvl, key, "g"), value), 0);
 
-	actual_value = dnvlist_getf_string(nvl, "rs", "%s", key);
+	actual_value = dnvlist_get_string(nvl, key, "rs");
 	ATF_REQUIRE_EQ(strcmp(actual_value, value), 0);
 
 	nvlist_destroy(nvl);
@@ -142,13 +141,13 @@ ATF_TEST_CASE_BODY(dnvlist_get_string__default_value)
 
 	ATF_REQUIRE_EQ(strcmp(dnvlist_get_string(nvl, key, "bar"), "bar"), 0);
 
-	actual_value = dnvlist_getf_string(nvl, "d", "%s", key);
+	actual_value = dnvlist_get_string(nvl, key, "d");
 	ATF_REQUIRE_EQ(strcmp(actual_value, "d"), 0);
 
 	nvlist_add_string(nvl, key, "cxhweh");
 
 	ATF_REQUIRE_EQ(strcmp(dnvlist_get_string(nvl, "hthth", "fd"), "fd"), 0);
-	actual_value = dnvlist_getf_string(nvl, "5", "%s", "5");
+	actual_value = dnvlist_get_string(nvl, "5", "5");
 	ATF_REQUIRE_EQ(strcmp("5", "5"), 0);
 
 	nvlist_destroy(nvl);
@@ -172,10 +171,6 @@ ATF_TEST_CASE_BODY(dnvlist_get_nvlist__present)
 	ATF_REQUIRE(actual_value != NULL);
 	ATF_REQUIRE(nvlist_empty(actual_value));
 
-	actual_value = dnvlist_getf_nvlist(nvl, NULL, "%s", key);
-	ATF_REQUIRE(actual_value != NULL);
-	ATF_REQUIRE(nvlist_empty(actual_value));
-
 	nvlist_destroy(nvl);
 }
 
@@ -191,11 +186,10 @@ ATF_TEST_CASE_BODY(dnvlist_get_nvlist__default_value)
 	dummy = nvlist_create(0);
 
 	ATF_REQUIRE_EQ(dnvlist_get_nvlist(nvl, key, dummy), dummy);
-	ATF_REQUIRE_EQ(dnvlist_getf_nvlist(nvl, dummy, "%s", key), dummy);
 
 	nvlist_move_nvlist(nvl, key, nvlist_create(0));
 	ATF_REQUIRE_EQ(dnvlist_get_nvlist(nvl, "456", dummy), dummy);
-	ATF_REQUIRE_EQ(dnvlist_getf_nvlist(nvl, dummy, "%s", "gh"), dummy);
+	ATF_REQUIRE_EQ(dnvlist_get_nvlist(nvl, "gh", dummy), dummy);
 
 	nvlist_destroy(nvl);
 }
@@ -226,10 +220,6 @@ ATF_TEST_CASE_BODY(dnvlist_get_binary__present)
 	ATF_REQUIRE_EQ(value_size, actual_size);
 	ATF_REQUIRE_EQ(memcmp(actual_value, value, actual_size), 0);
 
-	actual_value = dnvlist_getf_binary(nvl, &actual_size, "g", 1, "%s", k);
-	ATF_REQUIRE_EQ(value_size, actual_size);
-	ATF_REQUIRE_EQ(memcmp(actual_value, value, actual_size), 0);
-
 	nvlist_destroy(nvl);
 }
 
@@ -251,8 +241,8 @@ ATF_TEST_CASE_BODY(dnvlist_get_binary__default_value)
 	ATF_REQUIRE_EQ(memcmp(actual_value, default_value, actual_size), 0);
 
 	set_const_binary_value(default_value, default_size, "atf");
-	actual_value = dnvlist_getf_binary(nvl, &actual_size, default_value,
-	    default_size, "%s", key);
+	actual_value = dnvlist_get_binary(nvl, key, &actual_size, default_value,
+	    default_size);
 	ATF_REQUIRE_EQ(default_size, actual_size);
 	ATF_REQUIRE_EQ(memcmp(actual_value, default_value, actual_size), 0);
 
@@ -266,8 +256,8 @@ ATF_TEST_CASE_BODY(dnvlist_get_binary__default_value)
 
 	set_const_binary_value(default_value, default_size,
 	     "rrhgrythtyrtgbrhgrtdsvdfbtjlkul");
-	actual_value = dnvlist_getf_binary(nvl, &actual_size, default_value,
-	    default_size, "s");
+	actual_value = dnvlist_get_binary(nvl, "s", &actual_size, default_value,
+	    default_size);
 	ATF_REQUIRE_EQ(default_size, actual_size);
 	ATF_REQUIRE_EQ(memcmp(actual_value, default_value, actual_size), 0);
 

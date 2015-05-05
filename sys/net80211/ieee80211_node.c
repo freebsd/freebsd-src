@@ -93,6 +93,8 @@ static void node_getmimoinfo(const struct ieee80211_node *,
 
 static void _ieee80211_free_node(struct ieee80211_node *);
 
+static void node_reclaim(struct ieee80211_node_table *nt,
+	struct ieee80211_node *ni);
 static void ieee80211_node_table_init(struct ieee80211com *ic,
 	struct ieee80211_node_table *nt, const char *name,
 	int inact, int keymaxix);
@@ -719,9 +721,15 @@ ieee80211_sta_join1(struct ieee80211_node *selbs)
 		IEEE80211_ADDR_EQ(obss->ni_macaddr, selbs->ni_macaddr));
 	vap->iv_bss = selbs;		/* NB: caller assumed to bump refcnt */
 	if (obss != NULL) {
+		struct ieee80211_node_table *nt = obss->ni_table;
+
 		copy_bss(selbs, obss);
 		ieee80211_node_decref(obss);	/* iv_bss reference */
-		ieee80211_free_node(obss);	/* station table reference */
+
+		IEEE80211_NODE_LOCK(nt);
+		node_reclaim(nt, obss);		/* station table reference */
+		IEEE80211_NODE_UNLOCK(nt);
+
 		obss = NULL;		/* NB: guard against later use */
 	}
 
@@ -871,7 +879,7 @@ ieee80211_sta_leave(struct ieee80211_node *ni)
 void
 ieee80211_node_deauth(struct ieee80211_node *ni, int reason)
 {
-	/* NB: bump the refcnt to be sure temporay nodes are not reclaimed */
+	/* NB: bump the refcnt to be sure temporary nodes are not reclaimed */
 	ieee80211_ref_node(ni);
 	if (ni->ni_associd != 0)
 		IEEE80211_SEND_MGMT(ni, IEEE80211_FC0_SUBTYPE_DEAUTH, reason);
@@ -1749,6 +1757,28 @@ _ieee80211_free_node(struct ieee80211_node *ni)
 	ni->ni_ic->ic_node_free(ni);
 }
 
+/*
+ * Clear any entry in the unicast key mapping table.
+ */
+static int
+node_clear_keyixmap(struct ieee80211_node_table *nt, struct ieee80211_node *ni)
+{
+	ieee80211_keyix keyix;
+
+	keyix = ni->ni_ucastkey.wk_rxkeyix;
+	if (nt->nt_keyixmap != NULL && keyix < nt->nt_keyixmax &&
+	    nt->nt_keyixmap[keyix] == ni) {
+		IEEE80211_DPRINTF(ni->ni_vap, IEEE80211_MSG_NODE,
+			"%s: %p<%s> clear key map entry %u\n",
+			__func__, ni, ether_sprintf(ni->ni_macaddr), keyix);
+		nt->nt_keyixmap[keyix] = NULL;
+		ieee80211_node_decref(ni);
+		return 1;
+	}
+
+	return 0;
+}
+
 void
 #ifdef IEEE80211_DEBUG_REFCNT
 ieee80211_free_node_debug(struct ieee80211_node *ni, const char *func, int line)
@@ -1770,24 +1800,9 @@ ieee80211_free_node(struct ieee80211_node *ni)
 			 * Last reference, reclaim state.
 			 */
 			_ieee80211_free_node(ni);
-		} else if (ieee80211_node_refcnt(ni) == 1 &&
-		    nt->nt_keyixmap != NULL) {
-			ieee80211_keyix keyix;
-			/*
-			 * Check for a last reference in the key mapping table.
-			 */
-			keyix = ni->ni_ucastkey.wk_rxkeyix;
-			if (keyix < nt->nt_keyixmax &&
-			    nt->nt_keyixmap[keyix] == ni) {
-				IEEE80211_DPRINTF(ni->ni_vap,
-				    IEEE80211_MSG_NODE,
-				    "%s: %p<%s> clear key map entry", __func__,
-				    ni, ether_sprintf(ni->ni_macaddr));
-				nt->nt_keyixmap[keyix] = NULL;
-				ieee80211_node_decref(ni); /* XXX needed? */
+		} else if (ieee80211_node_refcnt(ni) == 1)
+			if (node_clear_keyixmap(nt, ni))
 				_ieee80211_free_node(ni);
-			}
-		}
 		IEEE80211_NODE_UNLOCK(nt);
 	} else {
 		if (ieee80211_node_dectestref(ni))
@@ -1855,7 +1870,6 @@ ieee80211_node_delucastkey(struct ieee80211_node *ni)
 static void
 node_reclaim(struct ieee80211_node_table *nt, struct ieee80211_node *ni)
 {
-	ieee80211_keyix keyix;
 
 	IEEE80211_NODE_LOCK_ASSERT(nt);
 
@@ -1870,15 +1884,7 @@ node_reclaim(struct ieee80211_node_table *nt, struct ieee80211_node *ni)
 	 * table.  We cannot depend on the mapping table entry
 	 * being cleared because the node may not be free'd.
 	 */
-	keyix = ni->ni_ucastkey.wk_rxkeyix;
-	if (nt->nt_keyixmap != NULL && keyix < nt->nt_keyixmax &&
-	    nt->nt_keyixmap[keyix] == ni) {
-		IEEE80211_DPRINTF(ni->ni_vap, IEEE80211_MSG_NODE,
-			"%s: %p<%s> clear key map entry %u\n",
-			__func__, ni, ether_sprintf(ni->ni_macaddr), keyix);
-		nt->nt_keyixmap[keyix] = NULL;
-		ieee80211_node_decref(ni);	/* NB: don't need free */
-	}
+	(void)node_clear_keyixmap(nt, ni);
 	if (!ieee80211_node_dectestref(ni)) {
 		/*
 		 * Other references are present, just remove the

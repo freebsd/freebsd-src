@@ -90,9 +90,7 @@ inthand_t
 void	assign_cpu_ids(void);
 void	cpu_add(u_int apic_id, char boot_cpu);
 void	cpustop_handler(void);
-#ifndef XEN
 void	cpususpend_handler(void);
-#endif
 void	init_secondary_tail(void);
 void	invltlb_handler(void);
 void	invlpg_handler(void);
@@ -101,9 +99,7 @@ void	invlcache_handler(void);
 void	init_secondary(void);
 void	ipi_startup(int apic_id, int vector);
 void	ipi_all_but_self(u_int ipi);
-#ifndef XEN
 void 	ipi_bitmap_handler(struct trapframe frame);
-#endif
 void	ipi_cpu(int cpu, u_int ipi);
 int	ipi_nmi_handler(void);
 void	ipi_selected(cpuset_t cpus, u_int ipi);
@@ -121,9 +117,6 @@ void	mem_range_AP_init(void);
 void	topo_probe(void);
 void	ipi_send_cpu(int cpu, u_int ipi);
 
-#ifdef XEN
-void ipi_to_irq_init(void);
-#endif
 #endif /* !LOCORE */
 #endif /* SMP */
 

@@ -72,11 +72,10 @@ MAN.${_T}?= # empty
 SRCS.${_T}?= ${_T}.c
 DPADD.${_T}+= ${LIBATF_C}
 .if empty(LDFLAGS:M-static) && empty(LDFLAGS.${_T}:M-static)
-LDADD.${_T}+= ${LDATF_C}
+LDADD.${_T}+= ${LDADD_atf_c}
 .else
 LDADD.${_T}+= ${LIBATF_C}
 .endif
-USEPRIVATELIB+= atf-c
 TEST_INTERFACE.${_T}= atf
 .endfor
 .endif
@@ -90,11 +89,10 @@ MAN.${_T}?= # empty
 SRCS.${_T}?= ${_T}${CXX_SUFFIX:U.cc}
 DPADD.${_T}+= ${LIBATF_CXX} ${LIBATF_C}
 .if empty(LDFLAGS:M-static) && empty(LDFLAGS.${_T}:M-static)
-LDADD.${_T}+= ${LDATF_CXX} ${LDATF_C}
+LDADD.${_T}+= ${LDADD_atf_cxx} ${LDADD_atf_c}
 .else
 LDADD.${_T}+= ${LIBATF_CXX} ${LIBATF_C}
 .endif
-USEPRIVATELIB+= atf-c++
 TEST_INTERFACE.${_T}= atf
 .endfor
 .endif

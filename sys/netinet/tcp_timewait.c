@@ -251,6 +251,13 @@ tcp_twstart(struct tcpcb *tp)
 		}
 	}
 
+
+	/*
+	 * For use only by DTrace.  We do not reference the state
+	 * after this point so modifying it in place is not a problem.
+	 */
+	tcp_state_change(tp, TCPS_TIME_WAIT);
+
 	tw = uma_zalloc(V_tcptw_zone, M_NOWAIT);
 	if (tw == NULL) {
 		/*

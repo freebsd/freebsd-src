@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Dec  8, 2014" "NLnet Labs" "unbound 1.5.1"
+.TH "unbound.conf" "5" "Mar 10, 2015" "NLnet Labs" "unbound 1.5.3"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -300,6 +300,11 @@ by threads. Must be set to a power of 2.
 .TP
 .B infra\-cache\-numhosts: \fI<number>
 Number of hosts for which information is cached. Default is 10000.
+.TP
+.B infra\-cache\-min\-rtt: \fI<msec>
+Lower limit for dynamic retransmit timeout calculation in infrastructure
+cache. Default is 50 milliseconds. Increase this value if using forwarders
+needing more time to do recursive name resolution.
 .TP
 .B do\-ip4: \fI<yes or no>
 Enable or disable whether ip4 queries are answered or issued. Default is yes.
@@ -791,7 +796,7 @@ data leakage about the local network to the upstream DNS servers.
 .B local\-zone: \fI<zone> <type>
 Configure a local zone. The type determines the answer to give if
 there is no match from local\-data. The types are deny, refuse, static,
-transparent, redirect, nodefault, typetransparent, and are explained
+transparent, redirect, nodefault, typetransparent, inform, and are explained
 below. After that the default settings are listed. Use local\-data: to
 enter data into the local zone. Answers for local zones are authoritative
 DNS answers. By default the zones are class IN.
@@ -840,6 +845,13 @@ local\-zone: "example.com." redirect and
 local\-data: "example.com. A 127.0.0.1"
 queries for www.example.com and www.foo.example.com are redirected, so
 that users with web browsers cannot access sites with suffix example.com.
+.TP 10
+\h'5'\fIinform\fR 
+The query is answered normally.  The client IP address (@portnumber)
+is printed to the logfile.  The log message is: timestamp, unbound-pid,
+info: zonename inform IP@port queryname type class.  This option can be
+used for normal resolution, but machines looking up infected names are
+logged, eg. to run antivirus on them.
 .TP 10
 \h'5'\fInodefault\fR 
 Used to turn off default contents for AS112 zones. The other types

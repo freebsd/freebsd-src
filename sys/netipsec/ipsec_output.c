@@ -104,6 +104,7 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
 	IPSEC_ASSERT(isr != NULL, ("null ISR"));
+	IPSEC_ASSERT(isr->sp != NULL, ("NULL isr->sp"));
 	sav = isr->sav;
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
 	IPSEC_ASSERT(sav->sah != NULL, ("null SAH"));
@@ -163,6 +164,10 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 	 * If this is a problem we'll need to introduce a queue
 	 * to set the packet on so we can unwind the stack before
 	 * doing further processing.
+	 *
+	 * If ipsec[46]_process_packet() will successfully queue
+	 * the request, we need to take additional reference to SP,
+	 * because xform callback will release reference.
 	 */
 	if (isr->next) {
 		/* XXX-BZ currently only support same AF bundles. */
@@ -170,7 +175,11 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 #ifdef INET
 		case AF_INET:
 			IPSECSTAT_INC(ips_out_bundlesa);
-			return ipsec4_process_packet(m, isr->next);
+			key_addref(isr->sp);
+			error = ipsec4_process_packet(m, isr->next);
+			if (error != 0)
+				KEY_FREESP(&isr->sp);
+			return (error);
 			/* NOTREACHED */
 #endif
 #ifdef notyet
@@ -178,7 +187,11 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 		case AF_INET6:
 			/* XXX */
 			IPSEC6STAT_INC(ips_out_bundlesa);
-			return ipsec6_process_packet(m, isr->next);
+			key_addref(isr->sp);
+			error = ipsec6_process_packet(m, isr->next);
+			if (error != 0)
+				KEY_FREESP(&isr->sp);
+			return (error);
 			/* NOTREACHED */
 #endif /* INET6 */
 #endif
@@ -193,8 +206,7 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 
 	/*
 	 * We're done with IPsec processing, transmit the packet using the
-	 * appropriate network protocol (IP or IPv6). SPD lookup will be
-	 * performed again there.
+	 * appropriate network protocol (IP or IPv6).
 	 */
 	switch (saidx->dst.sa.sa_family) {
 #ifdef INET
@@ -565,6 +577,7 @@ ipsec4_process_packet(struct mbuf *m, struct ipsecrequest *isr)
 	/* pass the mbuf to enc0 for packet filtering */
 	if ((error = ipsec_filter(&m, PFIL_OUT, ENC_OUT|ENC_BEFORE)) != 0)
 		goto bad;
+	ip = mtod(m, struct ip *);
 #endif
 	/* Do the appropriate encapsulation, if necessary */
 	if (isr->saidx.mode == IPSEC_MODE_TUNNEL || /* Tunnel requ'd */
@@ -686,6 +699,7 @@ ipsec6_process_packet(struct mbuf *m, struct ipsecrequest *isr)
 	/* pass the mbuf to enc0 for packet filtering */
 	if ((error = ipsec_filter(&m, PFIL_OUT, ENC_OUT|ENC_BEFORE)) != 0)
 		goto bad;
+	ip6 = mtod(m, struct ip6_hdr *);
 #endif /* DEV_ENC */
 
 	/* Do the appropriate encapsulation, if necessary */

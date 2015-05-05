@@ -3614,24 +3614,17 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 			send_s = asoc->sending_seq;
 		}
 		if (SCTP_TSN_GE(cumack, send_s)) {
-#ifndef INVARIANTS
 			struct mbuf *op_err;
 			char msg[SCTP_DIAG_INFO_LEN];
 
-#endif
-#ifdef INVARIANTS
-			panic("Impossible sack 1");
-#else
-
 			*abort_now = 1;
 			/* XXX */
-			snprintf(msg, sizeof(msg), "Cum ack %8.8x greater or equal then TSN %8.8x",
+			snprintf(msg, sizeof(msg), "Cum ack %8.8x greater or equal than TSN %8.8x",
 			    cumack, send_s);
 			op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
 			stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_25;
 			sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
 			return;
-#endif
 		}
 	}
 	asoc->this_sack_highest_gap = cumack;
@@ -4195,7 +4188,7 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 	hopeless_peer:
 			*abort_now = 1;
 			/* XXX */
-			snprintf(msg, sizeof(msg), "Cum ack %8.8x greater or equal then TSN %8.8x",
+			snprintf(msg, sizeof(msg), "Cum ack %8.8x greater or equal than TSN %8.8x",
 			    cum_ack, send_s);
 			op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
 			stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_25;

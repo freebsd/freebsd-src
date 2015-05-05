@@ -38,6 +38,95 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150504
+OLD_LIBS+=usr/lib32/private/libatf-c++.so.2
+OLD_LIBS+=usr/lib32/private/libbsdstat.so.1
+OLD_LIBS+=usr/lib32/private/libheimipcs.so.11
+OLD_LIBS+=usr/lib32/private/libsqlite3.so.0
+OLD_LIBS+=usr/lib32/private/libunbound.so.5
+OLD_LIBS+=usr/lib32/private/libatf-c.so.1
+OLD_LIBS+=usr/lib32/private/libheimipcc.so.11
+OLD_LIBS+=usr/lib32/private/libldns.so.5
+OLD_LIBS+=usr/lib32/private/libssh.so.5
+OLD_LIBS+=usr/lib32/private/libucl.so.1
+OLD_DIRS+=usr/lib32/private
+OLD_LIBS+=usr/lib/private/libatf-c++.so.2
+OLD_LIBS+=usr/lib/private/libbsdstat.so.1
+OLD_LIBS+=usr/lib/private/libheimipcs.so.11
+OLD_LIBS+=usr/lib/private/libsqlite3.so.0
+OLD_LIBS+=usr/lib/private/libunbound.so.5
+OLD_LIBS+=usr/lib/private/libatf-c.so.1
+OLD_LIBS+=usr/lib/private/libheimipcc.so.11
+OLD_LIBS+=usr/lib/private/libldns.so.5
+OLD_LIBS+=usr/lib/private/libssh.so.5
+OLD_LIBS+=usr/lib/private/libucl.so.1
+OLD_DIRS+=usr/lib/private
+# 20150501
+OLD_FILES+=usr/bin/soeliminate
+OLD_FILES+=usr/share/man/man1/soeliminate.1.gz
+# 20150501: Remove the nvlist_.*[vf] functions manpages.
+OLD_FILES+=usr/share/man/man3/nvlist_addf_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addf_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addf_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addf_null.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addf_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addf_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addf_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addv_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addv_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addv_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addv_null.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addv_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addv_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addv_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsf_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsf_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsf_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsf_null.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsf_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsf_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsf_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsf_type.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsv_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsv_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsv_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsv_null.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsv_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsv_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsv_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsv_type.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freef_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freef_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freef_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freef_null.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freef_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freef_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freef_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freef_type.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freev_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freev_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freev_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freev_null.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freev_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freev_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freev_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freev_type.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getf_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getf_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getf_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getf_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getf_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getf_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getv_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getv_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getv_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getv_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getv_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getv_string.3.gz
+# 20150429:
+OLD_FILES+=usr/share/docs/papers/hwpmc.ascii.gz
+# 20150427: test/sys/kern/mmap_test moved to test/sys/vm/mmap_test
+OLD_FILES+=usr/tests/sys/kern/mmap_test
 # 20150418
 OLD_FILES+=sbin/mount_oldnfs
 OLD_FILES+=usr/share/man/man8/mount_oldnfs.8.gz
@@ -341,6 +430,10 @@ OLD_FILES+=usr/lib/debug/usr/lib32/i18n
 OLD_FILES+=usr/lib/debug/usr/lib32/private
 # 20141015: OpenSSL 1.0.1j import
 OLD_FILES+=usr/share/openssl/man/man3/CMS_sign_add1_signer.3.gz
+.if ${MK_GCC} == "no"
+# 20141009: gperf disabled by default
+OLD_FILES+=usr/bin/gperf
+.endif
 # 20140922: sleepq_calc_signal_retval.9 and sleepq_catch_signals.9 removed
 OLD_FILES+=usr/share/man/man9/sleepq_calc_signal_retval.9.gz
 OLD_FILES+=usr/share/man/man9/sleepq_catch_signals.9.gz

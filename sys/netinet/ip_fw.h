@@ -40,10 +40,12 @@
 #define	IPFW_MAX_SETS		32	/* Number of sets supported by ipfw*/
 
 /*
- * Default number of ipfw tables.
+ * Compat values for old clients
  */
+#ifndef	_KERNEL
 #define	IPFW_TABLES_MAX		65535
 #define	IPFW_TABLES_DEFAULT	128
+#endif
 
 /*
  * Most commands (queue, pipe, tag, untag, limit...) can have a 16-bit
@@ -963,7 +965,6 @@ typedef struct _ipfw_ta_info {
 	uint64_t	spare1;
 } ipfw_ta_info;
 
-#define	IPFW_OBJTYPE_TABLE	1
 typedef struct _ipfw_obj_header {
 	ip_fw3_opheader	opheader;	/* IP_FW3 opcode		*/
 	uint32_t	spare;

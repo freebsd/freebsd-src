@@ -45,11 +45,15 @@ static char sccsid[] = "@(#)col.c	8.5 (Berkeley) 5/4/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/capsicum.h>
+
 #include <err.h>
+#include <errno.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
 #include <wchar.h>
 #include <wctype.h>
@@ -63,9 +67,9 @@ __FBSDID("$FreeBSD$");
 #define	SI	'\017'		/* shift in to normal character set */
 #define	SO	'\016'		/* shift out to alternate character set */
 #define	VT	'\013'		/* vertical tab (aka reverse line feed) */
-#define	RLF	'\007'		/* ESC-07 reverse line feed */
-#define	RHLF	'\010'		/* ESC-010 reverse half-line feed */
-#define	FHLF	'\011'		/* ESC-011 forward half-line feed */
+#define	RLF	'7'		/* ESC-7 reverse line feed */
+#define	RHLF	'8'		/* ESC-8 reverse half-line feed */
+#define	FHLF	'9'		/* ESC-9 forward half-line feed */
 
 /* build up at least this many lines before flushing them out */
 #define	BUFFER_MARGIN		32
@@ -129,8 +133,23 @@ main(int argc, char **argv)
 	int this_line;			/* line l points to */
 	int nflushd_lines;		/* number of lines that were flushed */
 	int adjust, opt, warned, width;
+	cap_rights_t rights;
+	unsigned long cmd;
 
 	(void)setlocale(LC_CTYPE, "");
+
+	cap_rights_init(&rights, CAP_FSTAT, CAP_READ);
+	if (cap_rights_limit(STDIN_FILENO, &rights) < 0 && errno != ENOSYS)
+		err(1, "unable to limit rights for stdin");
+	cap_rights_init(&rights, CAP_FSTAT, CAP_WRITE, CAP_IOCTL);
+	if (cap_rights_limit(STDOUT_FILENO, &rights) < 0 && errno != ENOSYS)
+		err(1, "unable to limit rights for stdout");
+	cmd = TIOCGETA; /* required by isatty(3) in printf(3) */
+	if (cap_ioctls_limit(STDOUT_FILENO, &cmd, 1) < 0 && errno != ENOSYS)
+		err(1, "unable to limit ioctls for stdout");
+
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(1, "unable to enter capability mode");
 
 	max_bufd_lines = 128;
 	compress_spaces = 1;		/* compress spaces into tabs */
@@ -321,7 +340,7 @@ main(int argc, char **argv)
 
 	/* make sure we leave things in a sane state */
 	if (last_set != CS_NORMAL)
-		PUTC('\017');
+		PUTC(SI);
 
 	/* flush out the last few blank lines */
 	nblank_lines = max_line - this_line;
@@ -377,8 +396,8 @@ flush_blanks(void)
 	for (i = nb; --i >= 0;)
 		PUTC('\n');
 	if (half) {
-		PUTC('\033');
-		PUTC('\011');
+		PUTC(ESC);
+		PUTC(FHLF);
 		if (!nb)
 			PUTC('\r');
 	}
@@ -480,10 +499,10 @@ flush_line(LINE *l)
 			if (c->c_set != last_set) {
 				switch (c->c_set) {
 				case CS_NORMAL:
-					PUTC('\017');
+					PUTC(SI);
 					break;
 				case CS_ALTERNATE:
-					PUTC('\016');
+					PUTC(SO);
 				}
 				last_set = c->c_set;
 			}

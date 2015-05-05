@@ -1,5 +1,5 @@
 #
-# RPI-B -- Custom configuration for the Raspberry Pi
+# RPI2 -- Custom configuration for the Raspberry Pi 2
 #
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
@@ -18,7 +18,7 @@
 #
 # $FreeBSD$
 
-ident		RPI-B
+ident		RPI2
 
 include		"../broadcom/bcm2835/std.rpi"
 include		"../broadcom/bcm2835/std.bcm2836"
@@ -57,6 +57,7 @@ options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	PLATFORM
 options 	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
 options 	VFP			# Enable floating point hardware support
+options 	ARM_NEW_PMAP		# Enable the new v6 pmap
 
 # Debugging for use in -current
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
@@ -130,8 +131,8 @@ device		smsc
 device		spibus
 device		bcm2835_spi
 
-#device		vchiq
-#device		sound
+device		vchiq
+device		sound
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data

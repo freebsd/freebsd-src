@@ -36,6 +36,7 @@ SUBDIR=	${_addr2line} \
 	csplit \
 	ctlstat \
 	cut \
+	${_cxxfilt} \
 	demandoc \
 	dirname \
 	dpv \
@@ -150,7 +151,7 @@ SUBDIR=	${_addr2line} \
 	showmount \
 	${_size} \
 	sockstat \
-	soeliminate \
+	soelim \
 	sort \
 	split \
 	stat \
@@ -237,6 +238,7 @@ SUBDIR+=	ee
 
 .if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
 _addr2line=	addr2line
+_cxxfilt=	cxxfilt
 _elfcopy=	elfcopy
 _nm=		nm
 _readelf=	readelf

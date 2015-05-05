@@ -742,7 +742,6 @@ struct xbb_softc {
 	/** Mutex protecting per-instance data. */
 	struct mtx		  lock;
 
-#ifdef XENHVM
 	/**
 	 * Resource representing allocated physical address space
 	 * associated with our per-instance kva region.
@@ -751,7 +750,6 @@ struct xbb_softc {
 
 	/** Resource id for allocated physical address space. */
 	int			  pseudo_phys_res_id;
-#endif
 
 	/**
 	 * I/O statistics from BlockBack dispatch down.  These are
@@ -2818,16 +2816,12 @@ static void
 xbb_free_communication_mem(struct xbb_softc *xbb)
 {
 	if (xbb->kva != 0) {
-#ifndef XENHVM
-		kva_free(xbb->kva, xbb->kva_size);
-#else
 		if (xbb->pseudo_phys_res != NULL) {
 			bus_release_resource(xbb->dev, SYS_RES_MEMORY,
 					     xbb->pseudo_phys_res_id,
 					     xbb->pseudo_phys_res);
 			xbb->pseudo_phys_res = NULL;
 		}
-#endif
 	}
 	xbb->kva = 0;
 	xbb->gnt_base_addr = 0;
@@ -3055,12 +3049,6 @@ xbb_alloc_communication_mem(struct xbb_softc *xbb)
 	DPRINTF("%s: kva_size = %d, reqlist_kva_size = %d\n",
 		device_get_nameunit(xbb->dev), xbb->kva_size,
 		xbb->reqlist_kva_size);
-#ifndef XENHVM
-	xbb->kva = kva_alloc(xbb->kva_size);
-	if (xbb->kva == 0)
-		return (ENOMEM);
-	xbb->gnt_base_addr = xbb->kva;
-#else /* XENHVM */
 	/*
 	 * Reserve a range of pseudo physical memory that we can map
 	 * into kva.  These pages will only be backed by machine
@@ -3078,7 +3066,6 @@ xbb_alloc_communication_mem(struct xbb_softc *xbb)
 	}
 	xbb->kva = (vm_offset_t)rman_get_virtual(xbb->pseudo_phys_res);
 	xbb->gnt_base_addr = rman_get_start(xbb->pseudo_phys_res);
-#endif /* XENHVM */
 
 	DPRINTF("%s: kva: %#jx, gnt_base_addr: %#jx\n",
 		device_get_nameunit(xbb->dev), (uintmax_t)xbb->kva,

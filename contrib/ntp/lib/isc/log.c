@@ -1143,7 +1143,7 @@ sync_channellist(isc_logconfig_t *lcfg) {
 static isc_result_t
 greatest_version(isc_logchannel_t *channel, int *greatestp) {
 	/* XXXDCL HIGHLY NT */
-	char *basename, *digit_end;
+	char *basenam, *digit_end;
 	const char *dirname;
 	int version, greatest = -1;
 	unsigned int basenamelen;
@@ -1160,23 +1160,23 @@ greatest_version(isc_logchannel_t *channel, int *greatestp) {
 	 * It is safe to DE_CONST the file.name because it was copied
 	 * with isc_mem_strdup in isc_log_createchannel.
 	 */
-	basename = strrchr(FILE_NAME(channel), sep);
+	basenam = strrchr(FILE_NAME(channel), sep);
 #ifdef _WIN32
 	basename2 = strrchr(FILE_NAME(channel), '\\');
-	if ((basename != NULL && basename2 != NULL && basename2 > basename) ||
-	    (basename == NULL && basename2 != NULL)) {
-		basename = basename2;
+	if ((basenam != NULL && basename2 != NULL && basename2 > basenam) ||
+	    (basenam == NULL && basename2 != NULL)) {
+		basenam = basename2;
 		sep = '\\';
 	}
 #endif
-	if (basename != NULL) {
-		*basename++ = '\0';
+	if (basenam != NULL) {
+		*basenam++ = '\0';
 		dirname = FILE_NAME(channel);
 	} else {
-		DE_CONST(FILE_NAME(channel), basename);
+		DE_CONST(FILE_NAME(channel), basenam);
 		dirname = ".";
 	}
-	basenamelen = strlen(basename);
+	basenamelen = strlen(basenam);
 
 	isc_dir_init(&dir);
 	result = isc_dir_open(&dir, dirname);
@@ -1184,8 +1184,8 @@ greatest_version(isc_logchannel_t *channel, int *greatestp) {
 	/*
 	 * Replace the file separator if it was taken out.
 	 */
-	if (basename != FILE_NAME(channel))
-		*(basename - 1) = sep;
+	if (basenam != FILE_NAME(channel))
+		*(basenam - 1) = sep;
 
 	/*
 	 * Return if the directory open failed.
@@ -1195,7 +1195,7 @@ greatest_version(isc_logchannel_t *channel, int *greatestp) {
 
 	while (isc_dir_read(&dir) == ISC_R_SUCCESS) {
 		if (dir.entry.length > basenamelen &&
-		    strncmp(dir.entry.name, basename, basenamelen) == 0 &&
+		    strncmp(dir.entry.name, basenam, basenamelen) == 0 &&
 		    dir.entry.name[basenamelen] == '.') {
 
 			version = strtol(&dir.entry.name[basenamelen + 1],

@@ -372,29 +372,47 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
  * (and also uses the interface mtu to determine the size of the packets).
  * So there won't be any EMSGSIZE error.  Against DNS fragmentation attacks.
  * FreeBSD already has same semantics without setting the option. */
-#    if defined(IP_PMTUDISC_OMIT)
-		int action = IP_PMTUDISC_OMIT;
-#    else
-		int action = IP_PMTUDISC_DONT;
-#    endif
+		int omit_set = 0;
+		int action;
+#   if defined(IP_PMTUDISC_OMIT)
+		action = IP_PMTUDISC_OMIT;
 		if (setsockopt(s, IPPROTO_IP, IP_MTU_DISCOVER, 
 			&action, (socklen_t)sizeof(action)) < 0) {
-			log_err("setsockopt(..., IP_MTU_DISCOVER, "
-#    if defined(IP_PMTUDISC_OMIT)
-				"IP_PMTUDISC_OMIT"
-#    else
-				"IP_PMTUDISC_DONT"
-#    endif
-				"...) failed: %s",
-				strerror(errno));
+
+			if (errno != EINVAL) {
+				log_err("setsockopt(..., IP_MTU_DISCOVER, IP_PMTUDISC_OMIT...) failed: %s",
+					strerror(errno));
+
 #    ifndef USE_WINSOCK
-			close(s);
+				close(s);
 #    else
-			closesocket(s);
+				closesocket(s);
 #    endif
-			*noproto = 0;
-			*inuse = 0;
-			return -1;
+				*noproto = 0;
+				*inuse = 0;
+				return -1;
+			}
+		}
+		else
+		{
+		    omit_set = 1;
+		}
+#   endif
+		if (omit_set == 0) {
+   			action = IP_PMTUDISC_DONT;
+			if (setsockopt(s, IPPROTO_IP, IP_MTU_DISCOVER,
+				&action, (socklen_t)sizeof(action)) < 0) {
+				log_err("setsockopt(..., IP_MTU_DISCOVER, IP_PMTUDISC_DONT...) failed: %s",
+					strerror(errno));
+#    ifndef USE_WINSOCK
+				close(s);
+#    else
+				closesocket(s);
+#    endif
+				*noproto = 0;
+				*inuse = 0;
+				return -1;
+			}
 		}
 #  elif defined(IP_DONTFRAG)
 		int off = 0;
@@ -580,17 +598,18 @@ create_local_accept_sock(const char *path, int* noproto)
 {
 #ifdef HAVE_SYS_UN_H
 	int s;
-	struct sockaddr_un sun;
+	struct sockaddr_un usock;
 
+	verbose(VERB_ALGO, "creating unix socket %s", path);
 #ifdef HAVE_STRUCT_SOCKADDR_UN_SUN_LEN
 	/* this member exists on BSDs, not Linux */
-	sun.sun_len = (sa_family_t)sizeof(sun);
+	usock.sun_len = (socklen_t)sizeof(usock);
 #endif
-	sun.sun_family = AF_LOCAL;
+	usock.sun_family = AF_LOCAL;
 	/* length is 92-108, 104 on FreeBSD */
-	(void)strlcpy(sun.sun_path, path, sizeof(sun.sun_path));
+	(void)strlcpy(usock.sun_path, path, sizeof(usock.sun_path));
 
-	if ((s = socket(PF_LOCAL, SOCK_STREAM, 0)) == -1) {
+	if ((s = socket(AF_LOCAL, SOCK_STREAM, 0)) == -1) {
 		log_err("Cannot create local socket %s (%s)",
 			path, strerror(errno));
 		return -1;
@@ -603,7 +622,7 @@ create_local_accept_sock(const char *path, int* noproto)
 		return -1;
 	}
 
-	if (bind(s, (struct sockaddr *)&sun,
+	if (bind(s, (struct sockaddr *)&usock,
 		(socklen_t)sizeof(struct sockaddr_un)) == -1) {
 		log_err("Cannot bind local socket %s (%s)",
 			path, strerror(errno));
@@ -623,6 +642,7 @@ create_local_accept_sock(const char *path, int* noproto)
 	(void)noproto; /*unused*/
 	return s;
 #else
+	(void)path;
 	log_err("Local sockets are not supported");
 	*noproto = 1;
 	return -1;

@@ -28,12 +28,13 @@ The
 argument is a string containing printf-style formatting
 instructions that describe the remaining arguments.
 .Pp
-When converting an application to libxo, one can replace
+When converting an application to
+.Nm libxo ,
+one can replace
 .Em "fprintf(stderr,...)"
 calls with
 .Fn xo_error
 calls.
-.Pp
 .Sh ADDITIONAL DOCUMENTATION
 Complete documentation can be found on github:
 .Bd -literal -offset indent
@@ -53,7 +54,7 @@ is available at:
 https://github.com/Juniper/libxo/releases
 .Ed
 .Sh SEE ALSO
-.Xr printf 3
+.Xr printf 3 ,
 .Xr xo_emit 3
 .Sh HISTORY
 The

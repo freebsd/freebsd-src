@@ -355,8 +355,8 @@ wlan_##name##_modevent(module_t mod, int type, void *unused)		\
 	case MOD_UNLOAD:						\
 	case MOD_QUIESCE:						\
 		if (nrefs) {						\
-			printf("wlan_##name: still in use (%u dynamic refs)\n",\
-				nrefs);					\
+			printf("wlan_" #name ": still in use "		\
+				"(%u dynamic refs)\n", nrefs);		\
 			return EBUSY;					\
 		}							\
 		if (type == MOD_UNLOAD) {				\

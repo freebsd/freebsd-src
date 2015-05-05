@@ -73,6 +73,7 @@ enum {
 	VIE_OP_TYPE_MOVS,
 	VIE_OP_TYPE_GROUP1,
 	VIE_OP_TYPE_STOS,
+	VIE_OP_TYPE_BITTEST,
 	VIE_OP_TYPE_LAST
 };
 
@@ -91,6 +92,11 @@ static const struct vie_op two_byte_opcodes[256] = {
 	[0xB7] = {
 		.op_byte = 0xB7,
 		.op_type = VIE_OP_TYPE_MOVZX,
+	},
+	[0xBA] = {
+		.op_byte = 0xBA,
+		.op_type = VIE_OP_TYPE_BITTEST,
+		.op_flags = VIE_OP_F_IMM8,
 	},
 	[0xBE] = {
 		.op_byte = 0xBE,
@@ -172,14 +178,20 @@ static const struct vie_op one_byte_opcodes[256] = {
 		.op_byte = 0x23,
 		.op_type = VIE_OP_TYPE_AND,
 	},
+	[0x80] = {
+		/* Group 1 extended opcode */
+		.op_byte = 0x80,
+		.op_type = VIE_OP_TYPE_GROUP1,
+		.op_flags = VIE_OP_F_IMM8,
+	},
 	[0x81] = {
-		/* XXX Group 1 extended opcode */
+		/* Group 1 extended opcode */
 		.op_byte = 0x81,
 		.op_type = VIE_OP_TYPE_GROUP1,
 		.op_flags = VIE_OP_F_IMM,
 	},
 	[0x83] = {
-		/* XXX Group 1 extended opcode */
+		/* Group 1 extended opcode */
 		.op_byte = 0x83,
 		.op_type = VIE_OP_TYPE_GROUP1,
 		.op_flags = VIE_OP_F_IMM8,
@@ -1060,9 +1072,13 @@ emulate_cmp(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 
 		rflags2 = getcc(size, op1, op2);
 		break;
+	case 0x80:
 	case 0x81:
 	case 0x83:
 		/*
+		 * 80 /7		cmp r/m8, imm8
+		 * REX + 80 /7		cmp r/m8, imm8
+		 *
 		 * 81 /7		cmp r/m16, imm16
 		 * 81 /7		cmp r/m32, imm32
 		 * REX.W + 81 /7	cmp r/m64, imm32 sign-extended to 64
@@ -1078,6 +1094,8 @@ emulate_cmp(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		 * the status flags.
 		 *
 		 */
+		if (vie->op.op_byte == 0x80)
+			size = 1;
 
 		/* get the first operand */
                 error = memread(vm, vcpuid, gpa, &op1, size, arg);
@@ -1335,6 +1353,48 @@ emulate_group1(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	return (error);
 }
 
+static int
+emulate_bittest(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
+    mem_region_read_t memread, mem_region_write_t memwrite, void *memarg)
+{
+	uint64_t val, rflags;
+	int error, bitmask, bitoff;
+
+	/*
+	 * 0F BA is a Group 8 extended opcode.
+	 *
+	 * Currently we only emulate the 'Bit Test' instruction which is
+	 * identified by a ModR/M:reg encoding of 100b.
+	 */
+	if ((vie->reg & 7) != 4)
+		return (EINVAL);
+
+	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, &rflags);
+	KASSERT(error == 0, ("%s: error %d getting rflags", __func__, error));
+
+	error = memread(vm, vcpuid, gpa, &val, vie->opsize, memarg);
+	if (error)
+		return (error);
+
+	/*
+	 * Intel SDM, Vol 2, Table 3-2:
+	 * "Range of Bit Positions Specified by Bit Offset Operands"
+	 */
+	bitmask = vie->opsize * 8 - 1;
+	bitoff = vie->immediate & bitmask;
+
+	/* Copy the bit into the Carry flag in %rflags */
+	if (val & (1UL << bitoff))
+		rflags |= PSL_C;
+	else
+		rflags &= ~PSL_C;
+
+	error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, rflags, 8);
+	KASSERT(error == 0, ("%s: error %d updating rflags", __func__, error));
+
+	return (0);
+}
+
 int
 vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
     struct vm_guest_paging *paging, mem_region_read_t memread,
@@ -1390,6 +1450,10 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	case VIE_OP_TYPE_SUB:
 		error = emulate_sub(vm, vcpuid, gpa, vie,
 				    memread, memwrite, memarg);
+		break;
+	case VIE_OP_TYPE_BITTEST:
+		error = emulate_bittest(vm, vcpuid, gpa, vie,
+		    memread, memwrite, memarg);
 		break;
 	default:
 		error = EINVAL;

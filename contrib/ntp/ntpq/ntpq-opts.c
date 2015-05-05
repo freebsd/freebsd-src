@@ -1,7 +1,7 @@
 /*
  *  EDIT THIS FILE WITH CAUTION  (ntpq-opts.c)
  *
- *  It has been AutoGen-ed  February  4, 2015 at 02:42:46 AM by AutoGen 5.18.5pre4
+ *  It has been AutoGen-ed  April  7, 2015 at 04:26:37 AM by AutoGen 5.18.5pre4
  *  From the definitions    ntpq-opts.def
  *  and the template file   options
  *
@@ -69,7 +69,7 @@ extern FILE * option_usage_fp;
  *  static const strings for ntpq options
  */
 static char const ntpq_opt_strs[1925] =
-/*     0 */ "ntpq 4.2.8p1\n"
+/*     0 */ "ntpq 4.2.8p2\n"
             "Copyright (C) 1992-2015 The University of Delaware and Network Time Foundation, all rights reserved.\n"
             "This is free software. It is licensed for use, modification and\n"
             "redistribution under the terms of the NTP License, copies of which\n"
@@ -129,13 +129,13 @@ static char const ntpq_opt_strs[1925] =
 /*  1723 */ "no-load-opts\0"
 /*  1736 */ "no\0"
 /*  1739 */ "NTPQ\0"
-/*  1744 */ "ntpq - standard NTP query program - Ver. 4.2.8p1\n"
+/*  1744 */ "ntpq - standard NTP query program - Ver. 4.2.8p2\n"
             "Usage:  %s [ -<flag> [<val>] | --<name>[{=| }<val>] ]... [ host ...]\n\0"
 /*  1863 */ "$HOME\0"
 /*  1869 */ ".\0"
 /*  1871 */ ".ntprc\0"
 /*  1878 */ "http://bugs.ntp.org, bugs@ntp.org\0"
-/*  1912 */ "ntpq 4.2.8p1";
+/*  1912 */ "ntpq 4.2.8p2";
 
 /**
  *  ipv4 option description with
@@ -786,7 +786,7 @@ static void bogus_function(void) {
      translate option names.
    */
   /* referenced via ntpqOptions.pzCopyright */
-  puts(_("ntpq 4.2.8p1\n\
+  puts(_("ntpq 4.2.8p2\n\
 Copyright (C) 1992-2015 The University of Delaware and Network Time Foundation, all rights reserved.\n\
 This is free software. It is licensed for use, modification and\n\
 redistribution under the terms of the NTP License, copies of which\n\
@@ -852,11 +852,11 @@ implied warranty.\n"));
   puts(_("load options from a config file"));
 
   /* referenced via ntpqOptions.pzUsageTitle */
-  puts(_("ntpq - standard NTP query program - Ver. 4.2.8p1\n\
+  puts(_("ntpq - standard NTP query program - Ver. 4.2.8p2\n\
 Usage:  %s [ -<flag> [<val>] | --<name>[{=| }<val>] ]... [ host ...]\n"));
 
   /* referenced via ntpqOptions.pzFullVersion */
-  puts(_("ntpq 4.2.8p1"));
+  puts(_("ntpq 4.2.8p2"));
 
   /* referenced via ntpqOptions.pzFullUsage */
   puts(_("<<<NOT-FOUND>>>"));

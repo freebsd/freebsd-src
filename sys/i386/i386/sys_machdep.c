@@ -59,20 +59,6 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 
-#ifdef XEN 
-#include <machine/xen/xenfunc.h>
-
-void i386_reset_ldt(struct proc_ldt *pldt); 
-
-void 
-i386_reset_ldt(struct proc_ldt *pldt) 
-{ 
-        xen_set_ldt((vm_offset_t)pldt->ldt_base, pldt->ldt_len); 
-} 
-#else  
-#define i386_reset_ldt(x) 
-#endif 
-
 #include <vm/vm_kern.h>		/* for kernel_map */
 
 #define MAX_LD 8192
@@ -211,12 +197,7 @@ sysarch(td, uap)
 			 */
 			sd.sd_lobase = base & 0xffffff;
 			sd.sd_hibase = (base >> 24) & 0xff;
-#ifdef XEN
-			/* need to do nosegneg like Linux */
-			sd.sd_lolimit = (HYPERVISOR_VIRT_START >> 12) & 0xffff;
-#else			
 			sd.sd_lolimit = 0xffff;	/* 4GB limit, wraps around */
-#endif
 			sd.sd_hilimit = 0xf;
 			sd.sd_type  = SDT_MEMRWA;
 			sd.sd_dpl   = SEL_UPL;
@@ -226,12 +207,7 @@ sysarch(td, uap)
 			sd.sd_gran  = 1;
 			critical_enter();
 			td->td_pcb->pcb_fsd = sd;
-#ifdef XEN
-			HYPERVISOR_update_descriptor(vtomach(&PCPU_GET(fsgs_gdt)[0]),
-			    *(uint64_t *)&sd);
-#else
 			PCPU_GET(fsgs_gdt)[0] = sd;
-#endif
 			critical_exit();
 			td->td_frame->tf_fs = GSEL(GUFS_SEL, SEL_UPL);
 		}
@@ -252,12 +228,7 @@ sysarch(td, uap)
 			sd.sd_lobase = base & 0xffffff;
 			sd.sd_hibase = (base >> 24) & 0xff;
 
-#ifdef XEN
-			/* need to do nosegneg like Linux */
-			sd.sd_lolimit = (HYPERVISOR_VIRT_START >> 12) & 0xffff;
-#else	
 			sd.sd_lolimit = 0xffff;	/* 4GB limit, wraps around */
-#endif
 			sd.sd_hilimit = 0xf;
 			sd.sd_type  = SDT_MEMRWA;
 			sd.sd_dpl   = SEL_UPL;
@@ -267,12 +238,7 @@ sysarch(td, uap)
 			sd.sd_gran  = 1;
 			critical_enter();
 			td->td_pcb->pcb_gsd = sd;
-#ifdef XEN
-			HYPERVISOR_update_descriptor(vtomach(&PCPU_GET(fsgs_gdt)[1]),
-			    *(uint64_t *)&sd);
-#else			
 			PCPU_GET(fsgs_gdt)[1] = sd;
-#endif
 			critical_exit();
 			load_gs(GSEL(GUGS_SEL, SEL_UPL));
 		}
@@ -434,10 +400,6 @@ set_user_ldt(struct mdproc *mdp)
 	}
 
 	pldt = mdp->md_ldt;
-#ifdef XEN
-	i386_reset_ldt(pldt);
-	PCPU_SET(currentldt, (int)pldt);
-#else	
 #ifdef SMP
 	gdt[PCPU_GET(cpuid) * NGDT + GUSERLDT_SEL].sd = pldt->ldt_sd;
 #else
@@ -445,7 +407,6 @@ set_user_ldt(struct mdproc *mdp)
 #endif
 	lldt(GSEL(GUSERLDT_SEL, SEL_KPL));
 	PCPU_SET(currentldt, GSEL(GUSERLDT_SEL, SEL_KPL));
-#endif /* XEN */ 
 	if (dtlocked)
 		mtx_unlock_spin(&dt_lock);
 }
@@ -464,43 +425,6 @@ set_user_ldt_rv(struct vmspace *vmsp)
 }
 #endif
 
-#ifdef XEN
-
-/* 
- * dt_lock must be held. Returns with dt_lock held. 
- */ 
-struct proc_ldt * 
-user_ldt_alloc(struct mdproc *mdp, int len) 
-{ 
-        struct proc_ldt *pldt, *new_ldt; 
- 
-        mtx_assert(&dt_lock, MA_OWNED); 
-        mtx_unlock_spin(&dt_lock); 
-        new_ldt = malloc(sizeof(struct proc_ldt), 
-                M_SUBPROC, M_WAITOK); 
- 
-        new_ldt->ldt_len = len = NEW_MAX_LD(len); 
-        new_ldt->ldt_base = (caddr_t)kmem_malloc(kernel_arena, 
-	    round_page(len * sizeof(union descriptor)), M_WAITOK);
-        new_ldt->ldt_refcnt = 1; 
-        new_ldt->ldt_active = 0; 
- 
-	mtx_lock_spin(&dt_lock);
-        if ((pldt = mdp->md_ldt)) { 
-                if (len > pldt->ldt_len) 
-                        len = pldt->ldt_len; 
-                bcopy(pldt->ldt_base, new_ldt->ldt_base, 
-                    len * sizeof(union descriptor)); 
-        } else { 
-                bcopy(ldt, new_ldt->ldt_base, PAGE_SIZE); 
-        } 
-        mtx_unlock_spin(&dt_lock);  /* XXX kill once pmap locking fixed. */
-        pmap_map_readonly(kernel_pmap, (vm_offset_t)new_ldt->ldt_base, 
-                          new_ldt->ldt_len*sizeof(union descriptor)); 
-        mtx_lock_spin(&dt_lock);  /* XXX kill once pmap locking fixed. */
-        return (new_ldt);
-} 
-#else
 /*
  * dt_lock must be held. Returns with dt_lock held.
  */
@@ -535,7 +459,6 @@ user_ldt_alloc(struct mdproc *mdp, int len)
 	
 	return (new_ldt);
 }
-#endif /* !XEN */
 
 /*
  * Must be called with dt_lock held.  Returns with dt_lock unheld.
@@ -553,13 +476,8 @@ user_ldt_free(struct thread *td)
 	}
 
 	if (td == curthread) {
-#ifdef XEN
-		i386_reset_ldt(&default_proc_ldt);
-		PCPU_SET(currentldt, (int)&default_proc_ldt);
-#else
 		lldt(_default_ldt);
 		PCPU_SET(currentldt, _default_ldt);
-#endif
 	}
 
 	mdp->md_ldt = NULL;
@@ -785,27 +703,7 @@ again:
 		td->td_retval[0] = uap->start;
 	return (error);
 }
-#ifdef XEN
-static int
-i386_set_ldt_data(struct thread *td, int start, int num,
-	union descriptor *descs)
-{
-	struct mdproc *mdp = &td->td_proc->p_md;
-	struct proc_ldt *pldt = mdp->md_ldt;
 
-	mtx_assert(&dt_lock, MA_OWNED);
-
-	while (num) {
-		xen_update_descriptor(
-		    &((union descriptor *)(pldt->ldt_base))[start],
-		    descs);
-		num--;
-		start++;
-		descs++;
-	}
-	return (0);
-}
-#else
 static int
 i386_set_ldt_data(struct thread *td, int start, int num,
 	union descriptor *descs)
@@ -821,7 +719,6 @@ i386_set_ldt_data(struct thread *td, int start, int num,
 	    num * sizeof(union descriptor));
 	return (0);
 }
-#endif /* !XEN */
 
 static int
 i386_ldt_grow(struct thread *td, int len) 

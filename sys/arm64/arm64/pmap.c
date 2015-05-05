@@ -2936,6 +2936,18 @@ pmap_clear_modify(vm_page_t m)
 	/* TODO: We lack support for tracking if a page is modified */
 }
 
+void *
+pmap_mapbios(vm_paddr_t pa, vm_size_t size)
+{
+
+        return ((void *)PHYS_TO_DMAP(pa));
+}
+
+void
+pmap_unmapbios(vm_paddr_t pa, vm_size_t size)
+{
+}
+
 /*
  * Sets the memory attribute for the specified page.
  */
