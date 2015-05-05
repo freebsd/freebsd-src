@@ -42,13 +42,17 @@
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 
-#ifdef INET
 static inline void inet_get_local_port_range(int *low, int *high)
 {
+#ifdef INET
 	CURVNET_SET_QUIET(TD_TO_VNET(curthread));
 	*low = V_ipport_firstauto;
 	*high = V_ipport_lastauto;
 	CURVNET_RESTORE();
+#else
+	*low = IPPORT_EPHEMERALFIRST;     /* 10000 */
+	*high = IPPORT_EPHEMERALLAST;     /* 65535 */
+#endif
 }
 
 static inline void
@@ -79,6 +83,5 @@ ip_ib_mc_map(uint32_t addr, const unsigned char *bcast, char *buf)
 	buf[18] = (addr >> 8) & 0xff;
 	buf[19] = addr & 0xff;
 }
-#endif
 
 #endif	/* _LINUX_NET_IP_H_ */
