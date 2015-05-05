@@ -238,6 +238,7 @@ fi
 
 # Embedded builds do not use the 'make release' target.
 if [ -n "${EMBEDDEDBUILD}" ]; then
+	buildenv_setup
 	# If a crochet configuration file exists in *this* checkout of
 	# release/, copy it to the /tmp/external directory within the chroot.
 	# This allows building embedded releases without relying on updated
