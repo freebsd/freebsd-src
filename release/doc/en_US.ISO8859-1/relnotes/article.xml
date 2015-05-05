@@ -695,9 +695,9 @@
       <para revision="282213" contrib="sponsor" sponsor="&ff;">A new
 	&man.sysctl.8;, <literal>kern.racct.enable</literal>, has been
 	added, which when set to a non-zero value allows using
-	&man.rctl.8; with the <literal>GENERIC</literal> kernel. A new
-	kernel configuration option, <literal>RACCT_DISABLED</literal>
-	has also been added.</para>
+	&man.rctl.8; with the <literal>GENERIC</literal> kernel.
+	A new kernel configuration option,
+	<literal>RACCT_DISABLED</literal> has also been added.</para>
     </sect2>
   </sect1>
 
