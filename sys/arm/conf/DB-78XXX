@@ -5,6 +5,7 @@
 #
 
 ident		DB-88F78XX
+include		"std.arm"
 include		"../mv/discovery/std.db78xxx"
 
 options 	SOC_MV_DISCOVERY

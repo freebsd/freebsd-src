@@ -20,6 +20,7 @@
 
 ident		AVILA
 
+include		"std.arm"
 include		"../xscale/ixp425/std.ixp425"
 # NB: memory mapping is defined in std.avila
 include		"../xscale/ixp425/std.avila"

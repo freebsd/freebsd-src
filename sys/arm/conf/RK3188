@@ -20,6 +20,7 @@
 
 ident		RK3188
 
+include		"std.armv6"
 include		"../rockchip/std.rk30xx"
 
 options 	HZ=100
