@@ -145,7 +145,7 @@ tnchktc(void)
 	/* p now points to beginning of last field */
 	if (p[0] != 't' || p[1] != 'c')
 		return(1);
-	strcpy(tcname,p+3);
+	strlcpy(tcname, p+3, 16);
 	q = tcname;
 	while (q && *q != ':')
 		q++;
@@ -163,7 +163,7 @@ tnchktc(void)
 		write(STDERR_FILENO, "Vgrind entry too long\n", 23);
 		q[BUFSIZ - (p-tbuf)] = 0;
 	}
-	strcpy(p, q+1);
+	strlcpy(p, q+1, BUFSIZ - (p - holdtbuf));
 	tbuf = holdtbuf;
 	return(1);
 }
