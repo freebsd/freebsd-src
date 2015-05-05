@@ -574,7 +574,8 @@ addmac(const char *mac)
 	dest = src+1;
 	while (dest > loc)
 		*dest-- = *src--;
-	*loc = strcpy(malloc(3), mac);
+	if ((*loc = strdup(mac)) == NULL)
+		err(1, "strdup");
 	ncmds++;
 #ifdef DEBUG
 	printf("after: %s %s %s %s %s, %d cmds\n",
