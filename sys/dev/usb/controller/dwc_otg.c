@@ -3872,20 +3872,18 @@ dwc_otg_init(struct dwc_otg_softc *sc)
 		if (temp & GHWCFG2_MPI) {
 			uint8_t x;
 
-			DPRINTF("Multi Process Interrupts\n");
+			DPRINTF("Disable Multi Process Interrupts\n");
 
 			for (x = 0; x != sc->sc_dev_in_ep_max; x++) {
-				DWC_OTG_WRITE_4(sc, DOTG_DIEPEACHINTMSK(x),
-				    DIEPMSK_XFERCOMPLMSK);
+				DWC_OTG_WRITE_4(sc, DOTG_DIEPEACHINTMSK(x), 0);
 				DWC_OTG_WRITE_4(sc, DOTG_DOEPEACHINTMSK(x), 0);
 			}
-			DWC_OTG_WRITE_4(sc, DOTG_DEACHINTMSK, 0xFFFF);
-		} else {
-			DWC_OTG_WRITE_4(sc, DOTG_DIEPMSK,
-			    DIEPMSK_XFERCOMPLMSK);
-			DWC_OTG_WRITE_4(sc, DOTG_DOEPMSK, 0);
-			DWC_OTG_WRITE_4(sc, DOTG_DAINTMSK, 0xFFFF);
+			DWC_OTG_WRITE_4(sc, DOTG_DEACHINTMSK, 0);
 		}
+		DWC_OTG_WRITE_4(sc, DOTG_DIEPMSK,
+		    DIEPMSK_XFERCOMPLMSK);
+		DWC_OTG_WRITE_4(sc, DOTG_DOEPMSK, 0);
+		DWC_OTG_WRITE_4(sc, DOTG_DAINTMSK, 0xFFFF);
 	}
 
 	if (sc->sc_mode == DWC_MODE_OTG || sc->sc_mode == DWC_MODE_HOST) {
