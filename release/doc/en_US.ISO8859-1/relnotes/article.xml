@@ -199,6 +199,11 @@
 	<literal>ARCHIVE_EXTRACT_SECURE_NODOTDOT</literal> to disallow
 	directory traversal when extracting an archive, similar to
 	&man.tar.1;.</para>
+
+      <para revision="282278">A race condition in &man.wc.1; that
+	would cause final results to be sent to &man.stderr.4; when
+	receiving the <literal>SIGINFO</literal> signal has been
+	fixed.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
