@@ -218,8 +218,8 @@ tskip(register char *bp)
  * a # character.  If the option is not found we return -1.
  * Note that we handle octal numbers beginning with 0.
  */
-tgetnum(id)
-	char *id;
+int
+tgetnum(char *id)
 {
 	register int i, base;
 	register char *bp = tbuf;
