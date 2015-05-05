@@ -341,7 +341,8 @@ process(FILE *f)
 						n = 10 * n + line[i] - '0';
 					i--;
 					if (n == 0) {
-						if (stk[stktop].opno == SZ) {
+						if (stktop >= 0 &&
+						    stk[stktop].opno == SZ) {
 							stktop--;
 						} else {
 							pe(lineno);
@@ -356,7 +357,8 @@ process(FILE *f)
 				} else if (!fflag && line[i] == 'f') {
 					n = line[++i];
 					if (n == 'P') {
-						if (stk[stktop].opno == FT) {
+						if (stktop >= 0 && 
+						    stk[stktop].opno == FT) {
 							stktop--;
 						} else {
 							pe(lineno);
