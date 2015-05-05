@@ -511,6 +511,13 @@ cbb_chipinit(struct cbb_softc *sc)
 		 * register since changing them have subtle side effects
 		 * for different variants of the card and are
 		 * extremely difficult to exaustively test.
+		 *
+		 * Also, the TI 1510/1520 changed the default for the MFUNC
+		 * register from 0x0 to 0x1000 to enable IRQSER by default.
+		 * We want to be careful to avoid overriding that, and the
+		 * below test will do that. Should this check prove to be
+		 * too permissive, we should just check against 0 and 0x1000
+		 * and not touch it otherwise.
 		 */
 		mux = pci_read_config(sc->dev, CBBR_MFUNC, 4);
 		sysctrl = pci_read_config(sc->dev, CBBR_SYSCTRL, 4);
