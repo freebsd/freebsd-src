@@ -1315,6 +1315,13 @@ typedef enum _REGION_TYPE {
 #define	MRSAS_REQ_STATE_TRAN			2
 #define	MRSAS_REQ_STATE_COMPLETE		3
 
+typedef enum _MR_SCSI_CMD_TYPE {
+	READ_WRITE_LDIO = 0,
+	NON_READ_WRITE_LDIO = 1,
+	READ_WRITE_SYSPDIO = 2,
+	NON_READ_WRITE_SYSPDIO = 3,
+} MR_SCSI_CMD_TYPE;
+
 enum mrsas_req_flags {
 	MRSAS_DIR_UNKNOWN = 0x1,
 	MRSAS_DIR_IN = 0x2,
@@ -1897,10 +1904,27 @@ struct mrsas_ctrl_info {
 	char	reserved6[4];		/* 0x7E4 RESERVED FOR IOV */
 
 	struct {			/* 0x7E8 */
-		u_int32_t resrved:5;
-		u_int32_t supportMaxExtLDs:1;
-		u_int32_t reserved1:26;
-	}	adapterOperations3;
+	u_int32_t     supportPersonalityChange:2;
+	u_int32_t     supportThermalPollInterval:1;
+	u_int32_t     supportDisableImmediateIO:1;
+	u_int32_t     supportT10RebuildAssist:1;
+	u_int32_t     supportMaxExtLDs:1;
+	u_int32_t     supportCrashDump:1;
+	u_int32_t     supportSwZone:1;
+	u_int32_t     supportDebugQueue:1;
+	u_int32_t     supportNVCacheErase:1;
+	u_int32_t     supportForceTo512e:1;
+	u_int32_t     supportHOQRebuild:1;
+	u_int32_t     supportAllowedOpsforDrvRemoval:1;
+	u_int32_t     supportDrvActivityLEDSetting:1;
+	u_int32_t     supportNVDRAM:1;
+	u_int32_t     supportForceFlash:1;
+	u_int32_t     supportDisableSESMonitoring:1;
+	u_int32_t     supportCacheBypassModes:1;
+	u_int32_t     supportSecurityonJBOD:1;
+	u_int32_t     discardCacheDuringLDDelete:1;
+	u_int32_t     reserved:12;
+	} adapterOperations3;
 
 	u_int8_t pad[0x800 - 0x7EC];	/* 0x7EC */
 } __packed;
@@ -1970,8 +1994,11 @@ typedef union _MFI_CAPABILITIES {
 		u_int32_t support_additional_msix:1;
 		u_int32_t support_fastpath_wb:1;
 		u_int32_t support_max_255lds:1;
-		u_int32_t reserved:28;
-	}	mfi_capabilities;
+		u_int32_t support_ndrive_r1_lb:1;
+		u_int32_t support_core_affinity:1;
+		u_int32_t security_protocol_cmds_fw:1;
+		u_int32_t reserved:25;
+	} mfi_capabilities;
 	u_int32_t reg;
 }	MFI_CAPABILITIES;
 
@@ -2710,6 +2737,7 @@ struct mrsas_softc {
 	LD_LOAD_BALANCE_INFO load_balance_info[MAX_LOGICAL_DRIVES_EXT];
 	LD_SPAN_INFO log_to_span[MAX_LOGICAL_DRIVES_EXT];
 
+	u_int8_t secure_jbod_support;
 	u_int8_t max256vdSupport;
 	u_int16_t fw_supported_vd_count;
 	u_int16_t fw_supported_pd_count;
