@@ -151,7 +151,7 @@ SUBDIR=	${_addr2line} \
 	showmount \
 	${_size} \
 	sockstat \
-	soeliminate \
+	soelim \
 	sort \
 	split \
 	stat \

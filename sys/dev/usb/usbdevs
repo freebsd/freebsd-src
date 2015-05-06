@@ -1872,6 +1872,7 @@ product FREECOM HDD		0xfc05	Classic SL Hard Drive
 product FSC E5400		0x1009	PrismGT USB 2.0 WLAN
 
 /* Future Technology Devices products */
+product FTDI SCX8_USB_PHOENIX	0x5259  SCx8 USB Phoenix interface
 product FTDI SERIAL_8U100AX	0x8372	8U100AX Serial
 product FTDI SERIAL_8U232AM	0x6001	8U232AM Serial
 product FTDI SERIAL_8U232AM4	0x6004	8U232AM Serial
@@ -4029,6 +4030,7 @@ product SIERRA C22		0x6891	C22
 product SIERRA E6892		0x6892	E6892
 product SIERRA E6893		0x6893	E6893
 product SIERRA MC8700		0x68A3	MC8700
+product SIERRA MC7354		0x6820	MC7354
 product SIERRA AIRCARD875	0x6820	Aircard 875 HSDPA
 product SIERRA AC313U		0x68aa	Sierra Wireless AirCard 313U
 product SIERRA TRUINSTALL	0x0fff	Aircard Tru Installer

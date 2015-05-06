@@ -19,6 +19,7 @@
 # $FreeBSD$
 
 ident		GUMSTIX
+include		"std.arm"
 cpu		CPU_XSCALE_PXA2X0
 
 # This probably wants to move somewhere else.  Maybe we can create a basic

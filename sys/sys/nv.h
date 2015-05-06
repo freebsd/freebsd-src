@@ -64,6 +64,10 @@ typedef struct nvlist nvlist_t;
  * Perform case-insensitive lookups of provided names.
  */
 #define	NV_FLAG_IGNORE_CASE		0x01
+/*
+ * Names don't have to be unique.
+ */
+#define	NV_FLAG_NO_UNIQUE		0x02
 
 #if defined(_KERNEL) && defined(MALLOC_DECLARE)
 MALLOC_DECLARE(M_NVLIST);
@@ -87,11 +91,11 @@ void nvlist_fdump(const nvlist_t *nvl, FILE *fp);
 
 size_t		 nvlist_size(const nvlist_t *nvl);
 void		*nvlist_pack(const nvlist_t *nvl, size_t *sizep);
-nvlist_t	*nvlist_unpack(const void *buf, size_t size);
+nvlist_t	*nvlist_unpack(const void *buf, size_t size, int flags);
 
 int nvlist_send(int sock, const nvlist_t *nvl);
-nvlist_t *nvlist_recv(int sock);
-nvlist_t *nvlist_xfer(int sock, nvlist_t *nvl);
+nvlist_t *nvlist_recv(int sock, int flags);
+nvlist_t *nvlist_xfer(int sock, nvlist_t *nvl, int flags);
 
 const char *nvlist_next(const nvlist_t *nvl, int *typep, void **cookiep);
 

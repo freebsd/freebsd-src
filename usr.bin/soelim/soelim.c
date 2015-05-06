@@ -39,13 +39,15 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <ctype.h>
 
+#define C_OPTION 0x1
+
 static StringList *includes;
 
 static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: soeliminate [-Crtv] [-I dir] [files]\n");
+	fprintf(stderr, "usage: soelim [-Crtv] [-I dir] [files]\n");
 
 	exit(EXIT_FAILURE);
 }
@@ -56,6 +58,9 @@ soelim_fopen(const char *name)
 	FILE *f;
 	char path[MAXPATHLEN];
 	size_t i;
+
+	if (strcmp(name, "-") == 0)
+		return (stdin);
 
 	if ((f = fopen(name, "r")) != NULL)
 		return (f);
@@ -78,10 +83,10 @@ soelim_fopen(const char *name)
 }
 
 static int
-soelim_file(FILE *f)
+soelim_file(FILE *f, int flag)
 {
 	char *line = NULL;
-	char *walk;
+	char *walk, *cp;
 	size_t linecap = 0;
 	ssize_t linelen;
 
@@ -93,16 +98,33 @@ soelim_file(FILE *f)
 			printf("%s", line);
 			continue;
 		}
+
 		walk = line + 3;
+		if (!isspace(*walk) && ((flag & C_OPTION) == 0)) {
+			printf("%s", line);
+			continue;
+		}
+
 		while (isspace(*walk))
 			walk++;
 
-		while (isspace(walk[strlen(walk) - 1]))
-			walk[strlen(walk) - 1] = '\0';
-		if (soelim_file(soelim_fopen(walk)) == 1) {
+		cp = walk;
+		while (*cp != '\0' && !isspace(*cp))
+			cp++;
+		*cp = 0;
+		if (cp < line + linelen)
+			cp++;
+
+		if (*walk == '\0') {
+			printf("%s", line);
+			continue;
+		}
+		if (soelim_file(soelim_fopen(walk), flag) == 1) {
 			free(line);
 			return (1);
 		}
+		if (*cp != '\0')
+			printf("%s", cp);
 	}
 
 	free(line);
@@ -116,6 +138,7 @@ main(int argc, char **argv)
 {
 	int ch, i;
 	int ret = 0;
+	int flags = 0;
 
 	includes = sl_init();
 	if (includes == NULL)
@@ -124,6 +147,8 @@ main(int argc, char **argv)
 	while ((ch = getopt(argc, argv, "CrtvI:")) != -1) {
 		switch (ch) {
 		case 'C':
+			flags |= C_OPTION;
+			break;
 		case 'r':
 		case 'v':
 		case 't':
@@ -142,10 +167,10 @@ main(int argc, char **argv)
 	argv += optind;
 
 	if (argc == 0)
-		ret = soelim_file(stdin);
+		ret = soelim_file(stdin, flags);
 
 	for (i = 0; i < argc; i++)
-		ret = soelim_file(soelim_fopen(argv[i]));
+		ret = soelim_file(soelim_fopen(argv[i]), flags);
 
 	sl_free(includes, 0);
 

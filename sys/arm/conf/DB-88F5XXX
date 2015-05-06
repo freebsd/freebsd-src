@@ -5,6 +5,7 @@
 #
 
 ident		DB-88F5XXX
+include		"std.arm"
 include		"../mv/orion/std.db88f5xxx"
 
 options 	SOC_MV_ORION
