@@ -229,8 +229,6 @@ chroot_setup() {
 		env ${CHROOT_MAKEENV} make ${CHROOT_DMAKEFLAGS} distribution \
 			DESTDIR=${CHROOTDIR}
 	fi
-	mount -t devfs devfs ${CHROOTDIR}/dev
-	cp /etc/resolv.conf ${CHROOTDIR}/etc/resolv.conf
 
 	return 0
 } # chroot_setup()
@@ -238,6 +236,14 @@ chroot_setup() {
 # extra_chroot_setup(): Prepare anything additional within the build
 # necessary for the release build.
 extra_chroot_setup() {
+
+	mount -t devfs devfs ${CHROOTDIR}/dev
+	[ -e /etc/resolv.conf ] && cp /etc/resolv.conf \
+		${CHROOTDIR}/etc/resolv.conf
+	# Run ldconfig(8) in the chroot directory so /var/run/ld-elf*.so.hints
+	# is created.  This is needed by ports-mgmt/pkg.
+	eval chroot ${CHROOTDIR} /etc/rc.d/ldconfig forcerestart
+
 	# If MAKE_CONF and/or SRC_CONF are set and not character devices (/dev/null),
 	# copy them to the chroot.
 	if [ -e ${MAKE_CONF} ] && [ ! -c ${MAKE_CONF} ]; then
@@ -250,10 +256,6 @@ extra_chroot_setup() {
 	fi
 
 	if [ -d ${CHROOTDIR}/usr/ports ]; then
-		# Run ldconfig(8) in the chroot directory so /var/run/ld-elf*.so.hints
-		# is created.  This is needed by ports-mgmt/pkg.
-		chroot ${CHROOTDIR} /etc/rc.d/ldconfig forcerestart
-
 		## Trick the ports 'run-autotools-fixup' target to do the right thing.
 		_OSVERSION=$(sysctl -n kern.osreldate)
 		REVISION=$(chroot ${CHROOTDIR} make -C /usr/src/release -V REVISION)
