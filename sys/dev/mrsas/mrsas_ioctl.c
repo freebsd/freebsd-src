@@ -1,6 +1,7 @@
 /*
+ * Copyright (c) 2015, AVAGO Tech. All rights reserved. Author: Marian Choy
  * Copyright (c) 2014, LSI Corp. All rights reserved. Author: Marian Choy
- * Support: freebsdraid@lsi.com
+ * Support: freebsdraid@avagotech.com
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -31,7 +32,7 @@
  * those of the authors and should not be interpreted as representing
  * official policies,either expressed or implied, of the FreeBSD Project.
  *
- * Send feedback to: <megaraidfbsd@lsi.com> Mail to: LSI Corporation, 1621
+ * Send feedback to: <megaraidfbsd@avagotech.com> Mail to: AVAGO TECHNOLOGIES, 1621
  * Barber Lane, Milpitas, CA 95035 ATTN: MegaRaid FreeBSD
  *
  */
@@ -238,7 +239,7 @@ mrsas_passthru(struct mrsas_softc *sc, void *arg, u_long ioctlCmd)
 		}
 		sense_ptr =
 		    (unsigned long *)((unsigned long)cmd->frame + user_ioc->sense_off);
-		sense_ptr = ioctl_sense_mem;
+		*sense_ptr = ioctl_sense_phys_addr;
 	}
 	/*
 	 * Set the sync_cmd flag so that the ISR knows not to complete this
@@ -296,12 +297,14 @@ out:
 	/*
 	 * Release sense buffer
 	 */
-	if (ioctl_sense_phys_addr)
-		bus_dmamap_unload(ioctl_sense_tag, ioctl_sense_dmamap);
-	if (ioctl_sense_mem != NULL)
-		bus_dmamem_free(ioctl_sense_tag, ioctl_sense_mem, ioctl_sense_dmamap);
-	if (ioctl_sense_tag != NULL)
-		bus_dma_tag_destroy(ioctl_sense_tag);
+	if (user_ioc->sense_len) {
+		if (ioctl_sense_phys_addr)
+			bus_dmamap_unload(ioctl_sense_tag, ioctl_sense_dmamap);
+		if (ioctl_sense_mem != NULL)
+			bus_dmamem_free(ioctl_sense_tag, ioctl_sense_mem, ioctl_sense_dmamap);
+		if (ioctl_sense_tag != NULL)
+			bus_dma_tag_destroy(ioctl_sense_tag);
+	}
 
 	/*
 	 * Release data buffers

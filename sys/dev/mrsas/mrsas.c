@@ -1,6 +1,7 @@
 /*
+ * Copyright (c) 2015, AVAGO Tech. All rights reserved. Author: Marian Choy
  * Copyright (c) 2014, LSI Corp. All rights reserved. Author: Marian Choy
- * Support: freebsdraid@lsi.com
+ * Support: freebsdraid@avagotech.com
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -31,7 +32,7 @@
  * those of the authors and should not be interpreted as representing
  * official policies,either expressed or implied, of the FreeBSD Project.
  *
- * Send feedback to: <megaraidfbsd@lsi.com> Mail to: LSI Corporation, 1621
+ * Send feedback to: <megaraidfbsd@avagotech.com> Mail to: AVAGO TECHNOLOGIES 1621
  * Barber Lane, Milpitas, CA 95035 ATTN: MegaRaid FreeBSD
  *
  */
@@ -177,9 +178,9 @@ typedef struct mrsas_ident {
 }	MRSAS_CTLR_ID;
 
 MRSAS_CTLR_ID device_table[] = {
-	{0x1000, MRSAS_TBOLT, 0xffff, 0xffff, "LSI Thunderbolt SAS Controller"},
-	{0x1000, MRSAS_INVADER, 0xffff, 0xffff, "LSI Invader SAS Controller"},
-	{0x1000, MRSAS_FURY, 0xffff, 0xffff, "LSI Fury SAS Controller"},
+	{0x1000, MRSAS_TBOLT, 0xffff, 0xffff, "AVAGO Thunderbolt SAS Controller"},
+	{0x1000, MRSAS_INVADER, 0xffff, 0xffff, "AVAGO Invader SAS Controller"},
+	{0x1000, MRSAS_FURY, 0xffff, 0xffff, "AVAGO Fury SAS Controller"},
 	{0, 0, 0, 0, NULL}
 };
 
@@ -356,7 +357,7 @@ mrsas_probe(device_t dev)
 
 	if ((id = mrsas_find_ident(dev)) != NULL) {
 		if (first_ctrl) {
-			printf("LSI MegaRAID SAS FreeBSD mrsas driver version: %s\n",
+			printf("AVAGO MegaRAID SAS FreeBSD mrsas driver version: %s\n",
 			    MRSAS_VERSION);
 			first_ctrl = 0;
 		}
@@ -1385,8 +1386,10 @@ mrsas_poll(struct cdev *dev, int poll_events, struct thread *td)
 	}
 	if (revents == 0) {
 		if (poll_events & (POLLIN | POLLRDNORM)) {
+			mtx_lock(&sc->aen_lock);
 			sc->mrsas_poll_waiting = 1;
 			selrecord(td, &sc->mrsas_select);
+			mtx_unlock(&sc->aen_lock);
 		}
 	}
 	return revents;
@@ -4099,10 +4102,12 @@ mrsas_complete_aen(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd)
 	 */
 	if ((!cmd->abort_aen) && (sc->remove_in_progress == 0)) {
 		sc->mrsas_aen_triggered = 1;
+		mtx_lock(&sc->aen_lock);
 		if (sc->mrsas_poll_waiting) {
 			sc->mrsas_poll_waiting = 0;
 			selwakeup(&sc->mrsas_select);
 		}
+		mtx_unlock(&sc->aen_lock);
 	} else
 		cmd->abort_aen = 0;
 

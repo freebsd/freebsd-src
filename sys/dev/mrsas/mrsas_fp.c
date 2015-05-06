@@ -1,6 +1,7 @@
 /*
+ * Copyright (c) 2015, AVAGO Tech. All rights reserved. Author: Marian Choy
  * Copyright (c) 2014, LSI Corp. All rights reserved. Author: Marian Choy
- * Support: freebsdraid@lsi.com
+ * Support: freebsdraid@avagotech.com
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -31,7 +32,7 @@
  * those of the authors and should not be interpreted as representing
  * official policies,either expressed or implied, of the FreeBSD Project.
  *
- * Send feedback to: <megaraidfbsd@lsi.com> Mail to: LSI Corporation, 1621
+ * Send feedback to: <megaraidfbsd@avagotech.com> Mail to: AVAGO TECHNOLOGIES, 1621
  * Barber Lane, Milpitas, CA 95035 ATTN: MegaRaid FreeBSD
  *
  */
@@ -564,12 +565,12 @@ get_row_from_strip(struct mrsas_softc *sc,
 				else
 					break;
 			}
-		mrsas_dprint(sc, MRSAS_PRL11, "LSI Debug : Strip 0x%llx, span_set_Strip 0x%llx, span_set_Row 0x%llx "
+		mrsas_dprint(sc, MRSAS_PRL11, "AVAGO Debug : Strip 0x%llx, span_set_Strip 0x%llx, span_set_Row 0x%llx "
 		    "data width 0x%llx span offset 0x%llx\n", (unsigned long long)strip,
 		    (unsigned long long)span_set_Strip,
 		    (unsigned long long)span_set_Row,
 		    (unsigned long long)span_set->span_row_data_width, (unsigned long long)span_offset);
-		mrsas_dprint(sc, MRSAS_PRL11, "LSI Debug : For strip 0x%llx row is 0x%llx\n", (unsigned long long)strip,
+		mrsas_dprint(sc, MRSAS_PRL11, "AVAGO Debug : For strip 0x%llx row is 0x%llx\n", (unsigned long long)strip,
 		    (unsigned long long)span_set->data_row_start +
 		    (unsigned long long)span_set_Row + (span_offset - 1));
 		return (span_set->data_row_start + span_set_Row + (span_offset - 1));
@@ -629,7 +630,7 @@ get_strip_from_row(struct mrsas_softc *sc,
 				}
 			}
 	}
-	mrsas_dprint(sc, MRSAS_PRL11, "LSI Debug - get_strip_from_row: returns invalid "
+	mrsas_dprint(sc, MRSAS_PRL11, "AVAGO Debug - get_strip_from_row: returns invalid "
 	    "strip for ld=%x, row=%lx\n", ld, (long unsigned int)row);
 	return -1;
 }
@@ -677,13 +678,13 @@ get_arm_from_strip(struct mrsas_softc *sc,
 				else
 					break;
 			}
-		mrsas_dprint(sc, MRSAS_PRL11, "LSI PRL11: get_arm_from_strip: "
+		mrsas_dprint(sc, MRSAS_PRL11, "AVAGO PRL11: get_arm_from_strip: "
 		    "for ld=0x%x strip=0x%lx arm is  0x%x\n", ld,
 		    (long unsigned int)strip, (strip_offset - span_offset));
 		return (strip_offset - span_offset);
 	}
 
-	mrsas_dprint(sc, MRSAS_PRL11, "LSI Debug: - get_arm_from_strip: returns invalid arm"
+	mrsas_dprint(sc, MRSAS_PRL11, "AVAGO Debug: - get_arm_from_strip: returns invalid arm"
 	    " for ld=%x strip=%lx\n", ld, (long unsigned int)strip);
 
 	return -1;
@@ -832,7 +833,7 @@ MR_BuildRaidContext(struct mrsas_softc *sc, struct IO_REQUEST_INFO *io_info,
 		else if (sc->UnevenSpanSupport) {
 			io_info->IoforUnevenSpan = 1;
 		} else {
-			mrsas_dprint(sc, MRSAS_PRL11, "LSI Debug: raid->rowDataSize is 0, but has SPAN[0] rowDataSize = 0x%0x,"
+			mrsas_dprint(sc, MRSAS_PRL11, "AVAGO Debug: raid->rowDataSize is 0, but has SPAN[0] rowDataSize = 0x%0x,"
 			    " but there is _NO_ UnevenSpanSupport\n",
 			    MR_LdSpanPtrGet(ld, 0, map)->spanRowDataSize);
 			return FALSE;
@@ -859,13 +860,13 @@ MR_BuildRaidContext(struct mrsas_softc *sc, struct IO_REQUEST_INFO *io_info,
 			startlba_span = (u_int8_t)mr_spanset_get_span_block(sc, ld, start_row,
 			    pdBlock, map, &error_code);
 			if (error_code == 1) {
-				mrsas_dprint(sc, MRSAS_PRL11, "LSI Debug: return from %s %d. Send IO w/o region lock.\n",
+				mrsas_dprint(sc, MRSAS_PRL11, "AVAGO Debug: return from %s %d. Send IO w/o region lock.\n",
 				    __func__, __LINE__);
 				return FALSE;
 			}
 		}
 		if (startlba_span == SPAN_INVALID) {
-			mrsas_dprint(sc, MRSAS_PRL11, "LSI Debug: return from %s %d for row 0x%llx,"
+			mrsas_dprint(sc, MRSAS_PRL11, "AVAGO Debug: return from %s %d for row 0x%llx,"
 			    "start strip %llx endSrip %llx\n", __func__,
 			    __LINE__, (unsigned long long)start_row,
 			    (unsigned long long)start_strip,
@@ -874,12 +875,12 @@ MR_BuildRaidContext(struct mrsas_softc *sc, struct IO_REQUEST_INFO *io_info,
 		}
 		io_info->start_span = startlba_span;
 		io_info->start_row = start_row;
-		mrsas_dprint(sc, MRSAS_PRL11, "LSI Debug: Check Span number from %s %d for row 0x%llx, "
+		mrsas_dprint(sc, MRSAS_PRL11, "AVAGO Debug: Check Span number from %s %d for row 0x%llx, "
 		    " start strip 0x%llx endSrip 0x%llx span 0x%x\n",
 		    __func__, __LINE__, (unsigned long long)start_row,
 		    (unsigned long long)start_strip,
 		    (unsigned long long)endStrip, startlba_span);
-		mrsas_dprint(sc, MRSAS_PRL11, "LSI Debug : 1. start_row 0x%llx endRow 0x%llx Start span 0x%x\n",
+		mrsas_dprint(sc, MRSAS_PRL11, "AVAGO Debug : 1. start_row 0x%llx endRow 0x%llx Start span 0x%x\n",
 		    (unsigned long long)start_row, (unsigned long long)endRow, startlba_span);
 	} else {
 		start_row = mega_div64_32(start_strip, raid->rowDataSize);
@@ -1043,7 +1044,7 @@ mr_update_span_set(MR_DRV_RAID_MAP_ALL * map, PLD_SPAN_INFO ldSpanInfo)
 						span_row_width +=
 						    MR_LdSpanPtrGet(ld, count, map)->spanRowDataSize;
 #if SPAN_DEBUG
-						printf("LSI Debug span %x rowDataSize %x\n", count,
+						printf("AVAGO Debug span %x rowDataSize %x\n", count,
 						    MR_LdSpanPtrGet(ld, count, map)->spanRowDataSize);
 #endif
 					}
@@ -1382,7 +1383,7 @@ u_int8_t mrsas_get_best_arm_pd(struct mrsas_softc *sc,
 	io_info->pd_after_lb = (bestArm == arm) ? pd0:pd1;
 #if SPAN_DEBUG
 	if(arm != bestArm)
-	printf("LSI Debug R1 Load balance occur - span 0x%x arm 0x%x bestArm 0x%x "
+	printf("AVAGO Debug R1 Load balance occur - span 0x%x arm 0x%x bestArm 0x%x "
 			"io_info->span_arm 0x%x\n",
 			span, arm, bestArm, io_info->span_arm);
 #endif
