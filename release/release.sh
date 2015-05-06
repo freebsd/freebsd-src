@@ -236,7 +236,6 @@ chroot_setup() {
 # extra_chroot_setup(): Prepare anything additional within the build
 # necessary for the release build.
 extra_chroot_setup() {
-
 	mount -t devfs devfs ${CHROOTDIR}/dev
 	[ -e /etc/resolv.conf ] && cp /etc/resolv.conf \
 		${CHROOTDIR}/etc/resolv.conf
@@ -282,8 +281,24 @@ chroot_build_target() {
 	eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_WMAKEFLAGS} buildworld
 	eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_KMAKEFLAGS} buildkernel
 
+	return 0
+} # chroot_build_target
+
+# chroot_build_release(): Invoke the 'make release' target.
+chroot_build_release() {
+	buildenv_setup
+	load_target_env
+
+	if [ -z "${EMBEDDEDBUILD}" ]; then
+		eval chroot ${CHROOTDIR} make -C /usr/src/release \
+			${RELEASE_RMAKEFLAGS} release
+		eval chroot ${CHROOTDIR} make -C /usr/src/release \
+			${RELEASE_RMAKEFLAGS} install DESTDIR=/R \
+			WITH_COMPRESSED_IMAGES=${WITH_COMPRESSED_IMAGES} \
+			WITH_COMPRESSED_VMIMAGES=${WITH_COMPRESSED_VMIMAGES}
+		return 0
+	else
 	# Embedded builds do not use the 'make release' target.
-	if [ -n "${EMBEDDEDBUILD}" ]; then
 		buildenv_setup
 		# If a crochet configuration file exists in *this* checkout of
 		# release/, copy it to the /tmp/external directory within the
@@ -297,29 +312,14 @@ chroot_build_target() {
 				cp ${RELENGDIR}/tools/${XDEV}/crochet-${KERNEL}.conf \
 					${CHROOTDIR}/tmp/external/${XDEV}/crochet-${KERNEL}.conf
 				/bin/sh ${RELENGDIR}/${XDEV}/release.sh
+				return 0
 		fi
 		# If the script does not exist for this architecture, exit.
 		# This probably should be checked earlier, but allowing the
 		# rest of the build process to get this far will at least set
 		# up the chroot environment for testing.
 		return 1
-	else
-		# Not embedded.
-		return 0
 	fi
-
-	return 0
-} # chroot_build_target
-
-# chroot_build_release(): Invoke the 'make release' target.
-chroot_build_release() {
-	buildenv_setup
-	load_target_env
-	eval chroot ${CHROOTDIR} make -C /usr/src/release ${RELEASE_RMAKEFLAGS} \
-		release
-	eval chroot ${CHROOTDIR} make -C /usr/src/release ${RELEASE_RMAKEFLAGS} \
-		install DESTDIR=/R WITH_COMPRESSED_IMAGES=${WITH_COMPRESSED_IMAGES} \
-		WITH_COMPRESSED_VMIMAGES=${WITH_COMPRESSED_VMIMAGES}
 
 	return 0
 } # chroot_build_release()
