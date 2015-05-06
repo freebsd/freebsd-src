@@ -1,0 +1,121 @@
+#!/bin/sh
+#-
+# Copyright (c) 2015 The FreeBSD Foundation
+# All rights reserved.
+#
+# Portions of this software were developed by Glen Barber
+# under sponsorship from the FreeBSD Foundation.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# Common subroutines used to build arm/armv6 images.
+#
+# $FreeBSD$
+#
+
+cleanup() {
+	if [ -c "${DESTDIR}/dev/null" ]; then
+		umount_loop ${DESTDIR}/dev 2>/dev/null
+	fi
+	umount_loop ${DESTDIR}
+	if [ ! -z "${mddev}" ]; then
+		mdconfig -d -u ${mddev}
+	fi
+
+	return 0
+}
+
+umount_loop() {
+	DIR=$1
+	i=0
+	sync
+	while ! umount ${DIR}; do
+		i=$(( $i + 1 ))
+		if [ $i -ge 10 ]; then
+			# This should never happen.  But, it has happened.
+			echo "Cannot umount(8) ${DIR}"
+			echo "Something has gone horribly wrong."
+			return 1
+		fi
+		sleep 1
+	done
+
+	return 0
+}
+
+arm_create_disk() {
+	# Create the target raw file and temporary work directory.
+	gpart create -s ${PART_SCHEME} ${IMGBASE}
+	gpart add -t '\!12' -a 63 -s ${FAT_SIZE} ${mddev}
+	gpart set -a active -i 1 ${mddev}
+	newfs_msdos -L msdosboot -F ${FAT_TYPE} /dev/${mddev}s1
+	gpart add -t freebsd ${mddev}
+	gpart create -s bsd ${mddev}s2
+	gpart add -t freebsd-ufs -a 64k /dev/${mddev}s2
+	newfs -U -L rootfs /dev/${mddev}s2a
+	tunefs -j enable -N enable /dev/${mddev}s2a
+
+	return 0
+}
+
+arm_install_base() {
+	mount /dev/${mddev}s2a ${DESTDIR}
+	cd ${WORLDDIR} && \
+		eval make TARGET=${EMBEDDED_TARGET} \
+			TARGET_ARCH=${EMBEDDED_TARGET_ARCH} \
+			DESTDIR=${DESTDIR} KERNCONF=${KERNEL} \
+			installworld installkernel distribution
+
+	echo '# Custom /etc/fstab for FreeBSD embedded images' \
+		> ${DESTDIR}/etc/fstab
+	echo "/dev/msdosfs/MSDOSBOOT /boot/msdos msdosfs rw,noatime 0 0" \
+		>> ${DESTDIR}/etc/fstab
+	echo "/dev/ufs/rootfs   /       ufs     rw      1       1" \
+		>> ${DESTDIR}/etc/fstab
+	echo "md /tmp mfs rw,noatime,-s30m 0 0" \
+		>> ${DESTDIR}/etc/fstab
+	echo "md /var/log mfs rw,noatime,-s15m 0 0" \
+		>> ${DESTDIR}/etc/fstab
+	echo "md /var/tmp mfs rw,noatime,-s12m 0 0" \
+		>> ${DESTDIR}/etc/fstab
+
+	local hostname
+	hostname="$(echo ${KERNEL} | tr '[:upper:]' '[:lower:]')"
+	echo "hostname=\"${hostname}\"" > ${DESTDIR}/etc/rc.conf
+	echo 'ifconfig_DEFAULT="DHCP"' >> ${DESTDIR}/etc/rc.conf
+	echo 'sshd_enable="YES"' >> ${DESTDIR}/etc/rc.conf
+	echo 'sendmail_enable="NONE"' >> ${DESTDIR}/etc/rc.conf
+	echo 'sendmail_submit_enable="NO"' >> ${DESTDIR}/etc/rc.conf
+	echo 'sendmail_outbound_enable="NO"' >> ${DESTDIR}/etc/rc.conf
+	echo 'sendmail_msp_queue_enable="NO"' >> ${DESTDIR}/etc/rc.conf
+
+	sync
+	umount_loop ${DESTDIR}
+
+	return 0
+}
+
+arm_install_uboot() {
+	# Override in the arm/KERNEL.conf file.
+
+	return 0
+}
