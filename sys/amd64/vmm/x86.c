@@ -488,3 +488,34 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 
 	return (1);
 }
+
+bool
+vm_cpuid_capability(struct vm *vm, int vcpuid, enum vm_cpuid_capability cap)
+{
+	bool rv;
+
+	KASSERT(cap > 0 && cap < VCC_LAST, ("%s: invalid vm_cpu_capability %d",
+	    __func__, cap));
+
+	/*
+	 * Simply passthrough the capabilities of the host cpu for now.
+	 */
+	rv = false;
+	switch (cap) {
+	case VCC_NO_EXECUTE:
+		if (amd_feature & AMDID_NX)
+			rv = true;
+		break;
+	case VCC_FFXSR:
+		if (amd_feature & AMDID_FFXSR)
+			rv = true;
+		break;
+	case VCC_TCE:
+		if (amd_feature2 & AMDID2_TCE)
+			rv = true;
+		break;
+	default:
+		panic("%s: unknown vm_cpu_capability %d", __func__, cap);
+	}
+	return (rv);
+}
