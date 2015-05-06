@@ -2710,6 +2710,7 @@ struct mrsas_softc {
 	bus_dmamap_t evt_detail_dmamap;
 	struct mrsas_evt_detail *evt_detail_mem;
 	bus_addr_t evt_detail_phys_addr;
+	struct mrsas_ctrl_info *ctrl_info;
 	bus_dma_tag_t ctlr_info_tag;
 	bus_dmamap_t ctlr_info_dmamap;
 	void   *ctlr_info_mem;
