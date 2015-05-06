@@ -327,6 +327,17 @@ chroot_arm_armv6_build_release() {
 	if [ -e "${RELENGDIR}/tools/${TARGET}.subr" ]; then
 		. "${RELENGDIR}/tools/${TARGET}.subr"
 	fi
+	. "${RELENGDIR}/arm/${KERNEL}.conf"
+	WORLDDIR="$(eval chroot ${CHROOTDIR} make -C /usr/src/release -V WORLDDIR)"
+	OBJDIR="$(eval chroot ${CHROOTDIR} make -C /usr/src/release -V .OBJDIR)"
+	DESTDIR="${OBJDIR}/${KERNEL}"
+	IMGBASE="${OBJDIR}/${KERNEL}.img"
+	mkdir -p ${DESTDIR}
+	truncate -s ${IMAGE_SIZE} ${IMGBASE}
+	mddev=$(mdconfig -f ${IMGBASE} ${MD_ARGS})
+	arm_create_disk
+	arm_install_base
+	arm_install_uboot
 
 	return 0
 } # chroot_arm_armv6_build_release()
