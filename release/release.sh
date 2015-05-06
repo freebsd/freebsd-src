@@ -257,7 +257,7 @@ extra_chroot_setup() {
 	if [ -d ${CHROOTDIR}/usr/ports ]; then
 		# Trick the ports 'run-autotools-fixup' target to do the right
 		# thing.
-		_OSVERSION=$(sysctl -n kern.osreldate)
+		_OSVERSION=$(chroot ${CHROOTDIR} /usr/bin/uname -U)
 		REVISION=$(chroot ${CHROOTDIR} make -C /usr/src/release -V REVISION)
 		BRANCH=$(chroot ${CHROOTDIR} make -C /usr/src/release -V BRANCH)
 		UNAME_r=${REVISION}-${BRANCH}
@@ -269,6 +269,13 @@ extra_chroot_setup() {
 				${PBUILD_FLAGS} OPTIONS_UNSET="FOP IGOR" \
 				install clean distclean
 		fi
+	fi
+
+	if [ ! -z "${EMBEDDEDPORTS}" ]; then
+		for _PORT in ${EMBEDDEDPORTS}; do
+			eval chroot ${CHROOTDIR} make -C /usr/ports/${_PORT} \
+				BATCH=1 FORCE_PKG_REGISTER=1 install clean distclean
+		done
 	fi
 
 	return 0
