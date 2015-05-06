@@ -2095,6 +2095,12 @@ mrsas_init_fw(struct mrsas_softc *sc)
 	if (mrsas_get_ctrl_info(sc, ctrl_info)) {
 		device_printf(sc->mrsas_dev, "Unable to get FW ctrl_info.\n");
 	}
+	sc->secure_jbod_support =
+		(u_int8_t) ctrl_info->adapterOperations3.supportSecurityonJBOD;
+
+	if (sc->secure_jbod_support)
+		device_printf(sc->mrsas_dev, "FW supports SED \n");
+
 	sc->max256vdSupport =
 	    (u_int8_t)ctrl_info->adapterOperations3.supportMaxExtLDs;
 
@@ -2326,6 +2332,7 @@ mrsas_ioc_init(struct mrsas_softc *sc)
 		init_frame->driver_ver_hi = 0;
 	}
 	init_frame->driver_operations.mfi_capabilities.support_max_255lds = 1;
+	init_frame->driver_operations.mfi_capabilities.security_protocol_cmds_fw = 1;
 	phys_addr = (bus_addr_t)sc->ioc_init_phys_mem + 1024;
 	init_frame->queue_info_new_phys_addr_lo = phys_addr;
 	init_frame->data_xfer_len = sizeof(Mpi2IOCInitRequest_t);

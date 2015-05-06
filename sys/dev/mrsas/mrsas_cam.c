@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
  * Function prototypes
  */
 int	mrsas_cam_attach(struct mrsas_softc *sc);
-int	mrsas_ldio_inq(struct cam_sim *sim, union ccb *ccb);
+int mrsas_find_io_type(struct cam_sim *sim, union ccb *ccb);
 int	mrsas_bus_scan(struct mrsas_softc *sc);
 int	mrsas_bus_scan_sim(struct mrsas_softc *sc, struct cam_sim *sim);
 int	mrsas_map_request(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd);
@@ -499,7 +499,9 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 		bcopy(csio->cdb_io.cdb_bytes, cmd->io_request->CDB.CDB32, csio->cdb_len);
 	mtx_lock(&sc->raidmap_lock);
 
-	if (mrsas_ldio_inq(sim, ccb)) {
+	/* Check for IO type READ-WRITE targeted for Logical Volume */
+	if (mrsas_find_io_type(sim, ccb) == READ_WRITE_LDIO) {
+		/* Build READ-WRITE IO for Logical Volume  */
 		if (mrsas_build_ldio(sc, cmd, ccb)) {
 			device_printf(sc->mrsas_dev, "Build LDIO failed.\n");
 			mtx_unlock(&sc->raidmap_lock);
@@ -546,19 +548,15 @@ done:
 }
 
 /*
- * mrsas_ldio_inq:	Determines if IO is read/write or inquiry
+ * mrsas_find_io_type:	Determines if IO is read/write or inquiry
  * input:			pointer to CAM Control Block
  *
  * This function determines if the IO is read/write or inquiry.  It returns a 1
  * if the IO is read/write and 0 if it is inquiry.
  */
-int
-mrsas_ldio_inq(struct cam_sim *sim, union ccb *ccb)
+int mrsas_find_io_type(struct cam_sim *sim, union ccb *ccb)
 {
 	struct ccb_scsiio *csio = &(ccb->csio);
-
-	if (cam_sim_bus(sim) == 1)
-		return (0);
 
 	switch (csio->cdb_io.cdb_bytes[0]) {
 	case READ_10:
@@ -569,9 +567,11 @@ mrsas_ldio_inq(struct cam_sim *sim, union ccb *ccb)
 	case WRITE_6:
 	case READ_16:
 	case WRITE_16:
-		return 1;
+		return (cam_sim_bus(sim) ?
+				READ_WRITE_SYSPDIO : READ_WRITE_LDIO);
 	default:
-		return 0;
+		return (cam_sim_bus(sim) ?
+				NON_READ_WRITE_SYSPDIO : NON_READ_WRITE_LDIO);
 	}
 }
 
@@ -876,35 +876,54 @@ mrsas_build_dcdb(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	device_id = ccb_h->target_id;
 	map_ptr = sc->ld_drv_map[(sc->map_id & 1)];
 
-	/* Check if this is for system PD */
+    /*
+     * Check if this is RW for system PD or
+     * it's a NON RW for sys PD and there is NO secure jbod FW support
+     */
 	if (cam_sim_bus(sim) == 1 &&
-	    sc->pd_list[device_id].driveState == MR_PD_STATE_SYSTEM) {
-		io_request->Function = 0;
-		io_request->DevHandle = map_ptr->raidMap.devHndlInfo[device_id].
-		    curDevHdl;
-		io_request->RaidContext.timeoutValue = map_ptr->raidMap.fpPdIoTimeoutSec;
-		io_request->RaidContext.regLockFlags = 0;
-		io_request->RaidContext.regLockRowLBA = 0;
-		io_request->RaidContext.regLockLength = 0;
+		sc->pd_list[device_id].driveState == MR_PD_STATE_SYSTEM){
 
-		io_request->RaidContext.RAIDFlags = MR_RAID_FLAGS_IO_SUB_TYPE_SYSTEM_PD
-		    << MR_RAID_CTX_RAID_FLAGS_IO_SUB_TYPE_SHIFT;
-		if ((sc->device_id == MRSAS_INVADER) || (sc->device_id == MRSAS_FURY))
-			io_request->IoFlags |= MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH;
-		cmd->request_desc->SCSIIO.RequestFlags =
-		    (MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY <<
-		    MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-		cmd->request_desc->SCSIIO.DevHandle =
-		    map_ptr->raidMap.devHndlInfo[device_id].curDevHdl;
+		io_request->DevHandle =
+			map_ptr->raidMap.devHndlInfo[device_id].curDevHdl;
+		io_request->RaidContext.RAIDFlags =
+				MR_RAID_FLAGS_IO_SUB_TYPE_SYSTEM_PD <<
+				MR_RAID_CTX_RAID_FLAGS_IO_SUB_TYPE_SHIFT;
+		cmd->request_desc->SCSIIO.DevHandle = io_request->DevHandle;
 		cmd->request_desc->SCSIIO.MSIxIndex =
-		    sc->msix_vectors ? smp_processor_id() % sc->msix_vectors : 0;
+				sc->msix_vectors ? smp_processor_id() % sc->msix_vectors : 0;
 
+		if(sc->secure_jbod_support && (mrsas_find_io_type(sim, ccb) == NON_READ_WRITE_SYSPDIO)) {
+			/* system pd firmware path */
+			io_request->Function  = MRSAS_MPI2_FUNCTION_LD_IO_REQUEST;
+			cmd->request_desc->SCSIIO.RequestFlags =
+			(MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO << MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
+		} else {
+			/* system pd fast path */
+			io_request->Function = MPI2_FUNCTION_SCSI_IO_REQUEST;
+			io_request->RaidContext.timeoutValue = map_ptr->raidMap.fpPdIoTimeoutSec;
+			io_request->RaidContext.regLockFlags = 0;
+			io_request->RaidContext.regLockRowLBA = 0;
+			io_request->RaidContext.regLockLength = 0;
+
+			cmd->request_desc->SCSIIO.RequestFlags =
+				(MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY <<
+				MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
+
+			/*
+			 * NOTE - For system pd RW cmds only IoFlags will be FAST_PATH
+			 * Because the NON RW cmds will now go via FW Queue
+			 * and not the Exception queue
+			 */
+			if ((sc->device_id == MRSAS_INVADER) || (sc->device_id == MRSAS_FURY))
+				io_request->IoFlags |= MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH;
+			}
 	} else {
-		io_request->Function = MRSAS_MPI2_FUNCTION_LD_IO_REQUEST;
+		/* FW path for SysPD or LD Non-RW (SCSI management commands)*/
+		io_request->Function  = MRSAS_MPI2_FUNCTION_LD_IO_REQUEST;
 		io_request->DevHandle = device_id;
 		cmd->request_desc->SCSIIO.RequestFlags =
-		    (MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO <<
-		    MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
+			(MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO <<
+			MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 	}
 
 	io_request->RaidContext.VirtualDiskTgtId = device_id;
