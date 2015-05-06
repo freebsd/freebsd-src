@@ -305,7 +305,6 @@ out:
 		if (ioctl_sense_tag != NULL)
 			bus_dma_tag_destroy(ioctl_sense_tag);
 	}
-
 	/*
 	 * Release data buffers
 	 */

@@ -84,16 +84,17 @@ static int mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex);
 static int mrsas_clear_intr(struct mrsas_softc *sc);
 static int mrsas_get_ctrl_info(struct mrsas_softc *sc);
 static void mrsas_update_ext_vd_details(struct mrsas_softc *sc);
-static int 
+static int
 mrsas_issue_blocked_abort_cmd(struct mrsas_softc *sc,
     struct mrsas_mfi_cmd *cmd_to_abort);
-static struct mrsas_softc *mrsas_get_softc_instance(struct cdev *dev,
-						u_long cmd, caddr_t arg);
+static struct mrsas_softc *
+mrsas_get_softc_instance(struct cdev *dev,
+    u_long cmd, caddr_t arg);
 u_int32_t mrsas_read_reg(struct mrsas_softc *sc, int offset);
-u_int8_t 
+u_int8_t
 mrsas_build_mptmfi_passthru(struct mrsas_softc *sc,
     struct mrsas_mfi_cmd *mfi_cmd);
-void mrsas_complete_outstanding_ioctls (struct mrsas_softc *sc);
+void	mrsas_complete_outstanding_ioctls(struct mrsas_softc *sc);
 int	mrsas_transition_to_ready(struct mrsas_softc *sc, int ocr);
 int	mrsas_init_adapter(struct mrsas_softc *sc);
 int	mrsas_alloc_mpt_cmds(struct mrsas_softc *sc);
@@ -105,10 +106,10 @@ int	mrsas_issue_dcmd(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd);
 int	mrsas_issue_polled(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd);
 int	mrsas_reset_ctrl(struct mrsas_softc *sc);
 int	mrsas_wait_for_outstanding(struct mrsas_softc *sc);
-int 
+int
 mrsas_issue_blocked_cmd(struct mrsas_softc *sc,
     struct mrsas_mfi_cmd *cmd);
-int 
+int
 mrsas_alloc_tmp_dcmd(struct mrsas_softc *sc, struct mrsas_tmp_dcmd *tcmd,
     int size);
 void	mrsas_release_mfi_cmd(struct mrsas_mfi_cmd *cmd);
@@ -125,17 +126,17 @@ void	mrsas_teardown_intr(struct mrsas_softc *sc);
 void	mrsas_addr_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error);
 void	mrsas_kill_hba(struct mrsas_softc *sc);
 void	mrsas_aen_handler(struct mrsas_softc *sc);
-void 
+void
 mrsas_write_reg(struct mrsas_softc *sc, int offset,
     u_int32_t value);
-void 
+void
 mrsas_fire_cmd(struct mrsas_softc *sc, u_int32_t req_desc_lo,
     u_int32_t req_desc_hi);
 void	mrsas_free_ctlr_info_cmd(struct mrsas_softc *sc);
-void 
+void
 mrsas_complete_mptmfi_passthru(struct mrsas_softc *sc,
     struct mrsas_mfi_cmd *cmd, u_int8_t status);
-void 
+void
 mrsas_map_mpt_cmd_status(struct mrsas_mpt_cmd *cmd, u_int8_t status,
     u_int8_t extStatus);
 struct mrsas_mfi_cmd *mrsas_get_mfi_cmd(struct mrsas_softc *sc);
@@ -275,7 +276,7 @@ mrsas_disable_intr(struct mrsas_softc *sc)
 	u_int32_t mask = 0xFFFFFFFF;
 	u_int32_t status;
 
-	sc->mask_interrupts=1;
+	sc->mask_interrupts = 1;
 	mrsas_write_reg(sc, offsetof(mrsas_reg_set, outbound_intr_mask), mask);
 	/* Dummy read to force pci flush */
 	status = mrsas_read_reg(sc, offsetof(mrsas_reg_set, outbound_intr_mask));
@@ -287,7 +288,7 @@ mrsas_enable_intr(struct mrsas_softc *sc)
 	u_int32_t mask = MFI_FUSION_ENABLE_INTERRUPT_MASK;
 	u_int32_t status;
 
-	sc->mask_interrupts=0;
+	sc->mask_interrupts = 0;
 	mrsas_write_reg(sc, offsetof(mrsas_reg_set, outbound_intr_status), ~0);
 	status = mrsas_read_reg(sc, offsetof(mrsas_reg_set, outbound_intr_status));
 
@@ -1262,18 +1263,22 @@ mrsas_get_softc_instance(struct cdev *dev, u_long cmd, caddr_t arg)
 {
 	struct mrsas_softc *sc = NULL;
 	struct mrsas_iocpacket *user_ioc = (struct mrsas_iocpacket *)arg;
-	if (cmd == MRSAS_IOC_GET_PCI_INFO){
-	sc = dev->si_drv1;
+
+	if (cmd == MRSAS_IOC_GET_PCI_INFO) {
+		sc = dev->si_drv1;
 	} else {
-	/* get the Host number & the softc from data sent by the Application */
-	sc = mrsas_mgmt_info.sc_ptr[user_ioc->host_no];
+		/*
+		 * get the Host number & the softc from data sent by the
+		 * Application
+		 */
+		sc = mrsas_mgmt_info.sc_ptr[user_ioc->host_no];
 		if ((user_ioc->host_no >= mrsas_mgmt_info.max_index) || (sc == NULL)) {
 			if (sc == NULL)
 				mrsas_dprint(sc, MRSAS_FAULT,
-					"There is no Controller number %d .\n", user_ioc->host_no);
+				    "There is no Controller number %d .\n", user_ioc->host_no);
 			else
 				mrsas_dprint(sc, MRSAS_FAULT,
-					"Invalid Controller number %d .\n", user_ioc->host_no);
+				    "Invalid Controller number %d .\n", user_ioc->host_no);
 		}
 	}
 
@@ -1343,17 +1348,17 @@ do_ioctl:
 		break;
 
 	case MRSAS_IOC_GET_PCI_INFO:
-		pciDrvInfo = (MRSAS_DRV_PCI_INFORMATION *)arg;
-		memset (pciDrvInfo, 0, sizeof(MRSAS_DRV_PCI_INFORMATION));
+		pciDrvInfo = (MRSAS_DRV_PCI_INFORMATION *) arg;
+		memset(pciDrvInfo, 0, sizeof(MRSAS_DRV_PCI_INFORMATION));
 		pciDrvInfo->busNumber = pci_get_bus(sc->mrsas_dev);
 		pciDrvInfo->deviceNumber = pci_get_slot(sc->mrsas_dev);
 		pciDrvInfo->functionNumber = pci_get_function(sc->mrsas_dev);
 		pciDrvInfo->domainID = pci_get_domain(sc->mrsas_dev);
-		mrsas_dprint (sc, MRSAS_INFO, "pci bus no: %d,"
-			"pci device no: %d, pci function no: %d,"
-			"pci domain ID: %d\n",
-			pciDrvInfo->busNumber, pciDrvInfo->deviceNumber,
-			pciDrvInfo->functionNumber, pciDrvInfo->domainID);
+		mrsas_dprint(sc, MRSAS_INFO, "pci bus no: %d,"
+		    "pci device no: %d, pci function no: %d,"
+		    "pci domain ID: %d\n",
+		    pciDrvInfo->busNumber, pciDrvInfo->deviceNumber,
+		    pciDrvInfo->functionNumber, pciDrvInfo->domainID);
 		ret = 0;
 		break;
 
@@ -1670,8 +1675,8 @@ mrsas_map_mpt_cmd_status(struct mrsas_mpt_cmd *cmd, u_int8_t status, u_int8_t ex
 static int
 mrsas_alloc_mem(struct mrsas_softc *sc)
 {
-	u_int32_t verbuf_size, io_req_size, reply_desc_size, sense_size, chain_frame_size,
-	          evt_detail_size, count;
+	u_int32_t verbuf_size, io_req_size, reply_desc_size, sense_size,
+	          chain_frame_size, evt_detail_size, count;
 
 	/*
 	 * Allocate parent DMA tag
@@ -1996,7 +2001,7 @@ ABORT:
  * get_pdlist, get_ld_list and max_sectors are currently not being used, it
  * is left here as placeholder.
  */
-static int 
+static int
 mrsas_init_fw(struct mrsas_softc *sc)
 {
 
@@ -2065,11 +2070,10 @@ mrsas_init_fw(struct mrsas_softc *sc)
 		device_printf(sc->mrsas_dev, "Allocate MFI cmd failed.\n");
 		return (1);
 	}
-
 	sc->ctrl_info = malloc(sizeof(struct mrsas_ctrl_info), M_MRSAS, M_NOWAIT);
 	if (!sc->ctrl_info) {
 		device_printf(sc->mrsas_dev, "Malloc for ctrl_info failed.\n");
-		return(1);
+		return (1);
 	}
 	/*
 	 * Get the controller info from FW, so that the MAX VD support
@@ -2077,10 +2081,10 @@ mrsas_init_fw(struct mrsas_softc *sc)
 	 */
 	if (mrsas_get_ctrl_info(sc)) {
 		device_printf(sc->mrsas_dev, "Unable to get FW ctrl_info.\n");
-		return(1);
+		return (1);
 	}
 	sc->secure_jbod_support =
-		(u_int8_t) sc->ctrl_info->adapterOperations3.supportSecurityonJBOD;
+	    (u_int8_t)sc->ctrl_info->adapterOperations3.supportSecurityonJBOD;
 
 	if (sc->secure_jbod_support)
 		device_printf(sc->mrsas_dev, "FW supports SED \n");
@@ -2109,7 +2113,7 @@ mrsas_init_fw(struct mrsas_softc *sc)
 	 */
 	tmp_sectors = 0;
 	max_sectors_1 = (1 << sc->ctrl_info->stripe_sz_ops.min) *
-		sc->ctrl_info->max_strips_per_io;
+	    sc->ctrl_info->max_strips_per_io;
 	max_sectors_2 = sc->ctrl_info->max_request_size;
 	tmp_sectors = min(max_sectors_1, max_sectors_2);
 	sc->max_sectors_per_req = sc->max_num_sge * MRSAS_PAGE_SIZE / 512;
@@ -2118,9 +2122,9 @@ mrsas_init_fw(struct mrsas_softc *sc)
 		sc->max_sectors_per_req = tmp_sectors;
 
 	sc->disableOnlineCtrlReset =
-		sc->ctrl_info->properties.OnOffProperties.disableOnlineCtrlReset;
+	    sc->ctrl_info->properties.OnOffProperties.disableOnlineCtrlReset;
 	sc->UnevenSpanSupport =
-		sc->ctrl_info->adapterOperations2.supportUnevenSpans;
+	    sc->ctrl_info->adapterOperations2.supportUnevenSpans;
 	if (sc->UnevenSpanSupport) {
 		device_printf(sc->mrsas_dev, "FW supports: UnevenSpanSupport=%x\n\n",
 		    sc->UnevenSpanSupport);
@@ -2130,7 +2134,6 @@ mrsas_init_fw(struct mrsas_softc *sc)
 		else
 			sc->fast_path_io = 0;
 	}
-
 	return (0);
 }
 
@@ -2451,7 +2454,7 @@ mrsas_alloc_mpt_cmds(struct mrsas_softc *sc)
  * This functions fires the command to Firmware by writing to the
  * inbound_low_queue_port and inbound_high_queue_port.
  */
-void 
+void
 mrsas_fire_cmd(struct mrsas_softc *sc, u_int32_t req_desc_lo,
     u_int32_t req_desc_hi)
 {
@@ -2815,7 +2818,6 @@ mrsas_reset_ctrl(struct mrsas_softc *sc)
 				mrsas_dprint(sc, MRSAS_OCR, "mrsas_ioc_init() failed!\n");
 				continue;
 			}
-
 			/* Re-fire management commands */
 			for (j = 0; j < sc->max_fw_cmds; j++) {
 				mpt_cmd = sc->mpt_cmd_list[j];
@@ -2850,7 +2852,6 @@ mrsas_reset_ctrl(struct mrsas_softc *sc)
 				retval = FAIL;
 				goto out;
 			}
-
 			if (!mrsas_get_map_info(sc))
 				mrsas_sync_map_info(sc);
 
@@ -2895,7 +2896,7 @@ mrsas_kill_hba(struct mrsas_softc *sc)
 	    MFI_STOP_ADP);
 	/* Flush */
 	mrsas_read_reg(sc, offsetof(mrsas_reg_set, doorbell));
-	mrsas_complete_outstanding_ioctls (sc);
+	mrsas_complete_outstanding_ioctls(sc);
 }
 
 /**
@@ -2904,22 +2905,24 @@ mrsas_kill_hba(struct mrsas_softc *sc)
  *
  * Returns void
  */
-void mrsas_complete_outstanding_ioctls (struct mrsas_softc *sc){
+void 
+mrsas_complete_outstanding_ioctls(struct mrsas_softc *sc)
+{
 	int i;
-    struct mrsas_mpt_cmd *cmd_mpt;
-    struct mrsas_mfi_cmd *cmd_mfi;
-    u_int32_t count, MSIxIndex;
+	struct mrsas_mpt_cmd *cmd_mpt;
+	struct mrsas_mfi_cmd *cmd_mfi;
+	u_int32_t count, MSIxIndex;
 
 	count = sc->msix_vectors > 0 ? sc->msix_vectors : 1;
-	for (i=0; i<sc->max_fw_cmds; i++){
+	for (i = 0; i < sc->max_fw_cmds; i++) {
 		cmd_mpt = sc->mpt_cmd_list[i];
 
-		if (cmd_mpt->sync_cmd_idx != (u_int32_t)MRSAS_ULONG_MAX){
+		if (cmd_mpt->sync_cmd_idx != (u_int32_t)MRSAS_ULONG_MAX) {
 			cmd_mfi = sc->mfi_cmd_list[cmd_mpt->sync_cmd_idx];
-			if (cmd_mfi->sync_cmd && cmd_mfi->frame->hdr.cmd != MFI_CMD_ABORT){
-				for (MSIxIndex = 0 ; MSIxIndex < count; MSIxIndex++)
+			if (cmd_mfi->sync_cmd && cmd_mfi->frame->hdr.cmd != MFI_CMD_ABORT) {
+				for (MSIxIndex = 0; MSIxIndex < count; MSIxIndex++)
 					mrsas_complete_mptmfi_passthru(sc, cmd_mfi,
-								cmd_mpt->io_request->RaidContext.status);
+					    cmd_mpt->io_request->RaidContext.status);
 			}
 		}
 	}
@@ -3058,18 +3061,19 @@ mrsas_get_ctrl_info(struct mrsas_softc *sc)
  * input:
  *	sc - Controller's softc
 */
-static void mrsas_update_ext_vd_details(struct mrsas_softc *sc)
+static void 
+mrsas_update_ext_vd_details(struct mrsas_softc *sc)
 {
 	sc->max256vdSupport =
-		sc->ctrl_info->adapterOperations3.supportMaxExtLDs;
+	sc->ctrl_info->adapterOperations3.supportMaxExtLDs;
 	/* Below is additional check to address future FW enhancement */
 	if (sc->ctrl_info->max_lds > 64)
 		sc->max256vdSupport = 1;
 
 	sc->drv_supported_vd_count = MRSAS_MAX_LD_CHANNELS
-					* MRSAS_MAX_DEV_PER_CHANNEL;
+	    * MRSAS_MAX_DEV_PER_CHANNEL;
 	sc->drv_supported_pd_count = MRSAS_MAX_PD_CHANNELS
-					* MRSAS_MAX_DEV_PER_CHANNEL;
+	    * MRSAS_MAX_DEV_PER_CHANNEL;
 	if (sc->max256vdSupport) {
 		sc->fw_supported_vd_count = MAX_LOGICAL_DRIVES_EXT;
 		sc->fw_supported_pd_count = MAX_PHYSICAL_DEVICES;
@@ -3078,13 +3082,13 @@ static void mrsas_update_ext_vd_details(struct mrsas_softc *sc)
 		sc->fw_supported_pd_count = MAX_PHYSICAL_DEVICES;
 	}
 
-	sc->old_map_sz =  sizeof(MR_FW_RAID_MAP) +
-				(sizeof(MR_LD_SPAN_MAP) *
-				(sc->fw_supported_vd_count - 1));
-	sc->new_map_sz =  sizeof(MR_FW_RAID_MAP_EXT);
-	sc->drv_map_sz =  sizeof(MR_DRV_RAID_MAP) +
-				(sizeof(MR_LD_SPAN_MAP) *
-				(sc->drv_supported_vd_count - 1));
+	sc->old_map_sz = sizeof(MR_FW_RAID_MAP) +
+	    (sizeof(MR_LD_SPAN_MAP) *
+	    (sc->fw_supported_vd_count - 1));
+	sc->new_map_sz = sizeof(MR_FW_RAID_MAP_EXT);
+	sc->drv_map_sz = sizeof(MR_DRV_RAID_MAP) +
+	    (sizeof(MR_LD_SPAN_MAP) *
+	    (sc->drv_supported_vd_count - 1));
 
 	sc->max_map_sz = max(sc->old_map_sz, sc->new_map_sz);
 
@@ -3869,7 +3873,7 @@ mrsas_get_ld_list(struct mrsas_softc *sc)
  * memory is initialized to all zeros upon successful loading of the dma
  * mapped memory.
  */
-int 
+int
 mrsas_alloc_tmp_dcmd(struct mrsas_softc *sc,
     struct mrsas_tmp_dcmd *tcmd, int size)
 {

@@ -58,18 +58,19 @@ __FBSDID("$FreeBSD$");
  * Function prototypes
  */
 int	mrsas_cam_attach(struct mrsas_softc *sc);
-int mrsas_find_io_type(struct cam_sim *sim, union ccb *ccb);
+int	mrsas_find_io_type(struct cam_sim *sim, union ccb *ccb);
 int	mrsas_bus_scan(struct mrsas_softc *sc);
 int	mrsas_bus_scan_sim(struct mrsas_softc *sc, struct cam_sim *sim);
-int mrsas_map_request(struct mrsas_softc *sc,
-		struct mrsas_mpt_cmd *cmd, union ccb *ccb);
 int 
+mrsas_map_request(struct mrsas_softc *sc,
+    struct mrsas_mpt_cmd *cmd, union ccb *ccb);
+int
 mrsas_build_ldio(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
     union ccb *ccb);
-int 
+int
 mrsas_build_dcdb(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
     union ccb *ccb, struct cam_sim *sim);
-int 
+int
 mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
     union ccb *ccb, u_int32_t device_id,
     MRSAS_RAID_SCSI_IO_REQUEST * io_request);
@@ -79,10 +80,10 @@ void	mrsas_cam_detach(struct mrsas_softc *sc);
 void	mrsas_release_mpt_cmd(struct mrsas_mpt_cmd *cmd);
 void	mrsas_unmap_request(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd);
 void	mrsas_cmd_done(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd);
-void 
+void
 mrsas_fire_cmd(struct mrsas_softc *sc, u_int32_t req_desc_lo,
     u_int32_t req_desc_hi);
-void 
+void
 mrsas_set_pd_lba(MRSAS_RAID_SCSI_IO_REQUEST * io_request,
     u_int8_t cdb_len, struct IO_REQUEST_INFO *io_info, union ccb *ccb,
     MR_DRV_RAID_MAP_ALL * local_map_ptr, u_int32_t ref_tag,
@@ -91,10 +92,10 @@ static void mrsas_freeze_simq(struct mrsas_mpt_cmd *cmd, struct cam_sim *sim);
 static void mrsas_cam_poll(struct cam_sim *sim);
 static void mrsas_action(struct cam_sim *sim, union ccb *ccb);
 static void mrsas_scsiio_timeout(void *data);
-static void 
+static void
 mrsas_data_load_cb(void *arg, bus_dma_segment_t *segs,
     int nseg, int error);
-static int32_t 
+static int32_t
 mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
     union ccb *ccb);
 struct mrsas_mpt_cmd *mrsas_get_mpt_cmd(struct mrsas_softc *sc);
@@ -114,8 +115,9 @@ MR_BuildRaidContext(struct mrsas_softc *sc,
 extern u_int16_t
 MR_LdSpanArrayGet(u_int32_t ld, u_int32_t span,
     MR_DRV_RAID_MAP_ALL * map);
-extern u_int16_t mrsas_get_updated_dev_handle(struct mrsas_softc *sc,
-		PLD_LOAD_BALANCE_INFO lbInfo, struct IO_REQUEST_INFO *io_info);
+extern u_int16_t 
+mrsas_get_updated_dev_handle(struct mrsas_softc *sc,
+    PLD_LOAD_BALANCE_INFO lbInfo, struct IO_REQUEST_INFO *io_info);
 extern u_int8_t
 megasas_get_best_arm(PLD_LOAD_BALANCE_INFO lbInfo, u_int8_t arm,
     u_int64_t block, u_int32_t count);
@@ -385,10 +387,10 @@ mrsas_scsiio_timeout(void *data)
 	 */
 #if (__FreeBSD_version >= 1000510)
 	callout_reset_sbt(&cmd->cm_callout, SBT_1S * 600, 0,
-							mrsas_scsiio_timeout, cmd, 0);
+	    mrsas_scsiio_timeout, cmd, 0);
 #else
 	callout_reset(&cmd->cm_callout, (600000 * hz) / 1000,
-							mrsas_scsiio_timeout, cmd);
+	    mrsas_scsiio_timeout, cmd);
 #endif
 	sc->do_timedout_reset = 1;
 	if (sc->ocr_thread_active)
@@ -549,10 +551,10 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 	 */
 #if (__FreeBSD_version >= 1000510)
 	callout_reset_sbt(&cmd->cm_callout, SBT_1S * 600, 0,
-							mrsas_scsiio_timeout, cmd, 0);
+	    mrsas_scsiio_timeout, cmd, 0);
 #else
 	callout_reset(&cmd->cm_callout, (600000 * hz) / 1000,
-							mrsas_scsiio_timeout, cmd);
+	    mrsas_scsiio_timeout, cmd);
 #endif
 	mrsas_atomic_inc(&sc->fw_outstanding);
 
@@ -574,7 +576,8 @@ done:
  * This function determines if the IO is read/write or inquiry.  It returns a 1
  * if the IO is read/write and 0 if it is inquiry.
  */
-int mrsas_find_io_type(struct cam_sim *sim, union ccb *ccb)
+int 
+mrsas_find_io_type(struct cam_sim *sim, union ccb *ccb)
 {
 	struct ccb_scsiio *csio = &(ccb->csio);
 
@@ -588,10 +591,10 @@ int mrsas_find_io_type(struct cam_sim *sim, union ccb *ccb)
 	case READ_16:
 	case WRITE_16:
 		return (cam_sim_bus(sim) ?
-				READ_WRITE_SYSPDIO : READ_WRITE_LDIO);
+		    READ_WRITE_SYSPDIO : READ_WRITE_LDIO);
 	default:
 		return (cam_sim_bus(sim) ?
-				NON_READ_WRITE_SYSPDIO : NON_READ_WRITE_LDIO);
+		    NON_READ_WRITE_SYSPDIO : NON_READ_WRITE_LDIO);
 	}
 }
 
@@ -844,8 +847,8 @@ mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 		if ((sc->load_balance_info[device_id].loadBalanceFlag) &&
 		    (io_info.isRead)) {
 			io_info.devHandle =
-				mrsas_get_updated_dev_handle(sc,
-					&sc->load_balance_info[device_id], &io_info);
+			    mrsas_get_updated_dev_handle(sc,
+			    &sc->load_balance_info[device_id], &io_info);
 			cmd->load_balance = MRSAS_LOAD_BALANCE_FLAG;
 			cmd->pd_r1_lb = io_info.pd_after_lb;
 		} else
@@ -897,27 +900,27 @@ mrsas_build_dcdb(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	device_id = ccb_h->target_id;
 	map_ptr = sc->ld_drv_map[(sc->map_id & 1)];
 
-    /*
-     * Check if this is RW for system PD or
-     * it's a NON RW for sys PD and there is NO secure jbod FW support
-     */
+	/*
+         * Check if this is RW for system PD or
+         * it's a NON RW for sys PD and there is NO secure jbod FW support
+         */
 	if (cam_sim_bus(sim) == 1 &&
-		sc->pd_list[device_id].driveState == MR_PD_STATE_SYSTEM){
+	    sc->pd_list[device_id].driveState == MR_PD_STATE_SYSTEM) {
 
 		io_request->DevHandle =
-			map_ptr->raidMap.devHndlInfo[device_id].curDevHdl;
+		    map_ptr->raidMap.devHndlInfo[device_id].curDevHdl;
 		io_request->RaidContext.RAIDFlags =
-				MR_RAID_FLAGS_IO_SUB_TYPE_SYSTEM_PD <<
-				MR_RAID_CTX_RAID_FLAGS_IO_SUB_TYPE_SHIFT;
+		    MR_RAID_FLAGS_IO_SUB_TYPE_SYSTEM_PD <<
+		    MR_RAID_CTX_RAID_FLAGS_IO_SUB_TYPE_SHIFT;
 		cmd->request_desc->SCSIIO.DevHandle = io_request->DevHandle;
 		cmd->request_desc->SCSIIO.MSIxIndex =
-				sc->msix_vectors ? smp_processor_id() % sc->msix_vectors : 0;
+		    sc->msix_vectors ? smp_processor_id() % sc->msix_vectors : 0;
 
-		if(sc->secure_jbod_support && (mrsas_find_io_type(sim, ccb) == NON_READ_WRITE_SYSPDIO)) {
+		if (sc->secure_jbod_support && (mrsas_find_io_type(sim, ccb) == NON_READ_WRITE_SYSPDIO)) {
 			/* system pd firmware path */
-			io_request->Function  = MRSAS_MPI2_FUNCTION_LD_IO_REQUEST;
+			io_request->Function = MRSAS_MPI2_FUNCTION_LD_IO_REQUEST;
 			cmd->request_desc->SCSIIO.RequestFlags =
-			(MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO << MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
+			    (MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO << MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 		} else {
 			/* system pd fast path */
 			io_request->Function = MPI2_FUNCTION_SCSI_IO_REQUEST;
@@ -927,8 +930,8 @@ mrsas_build_dcdb(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 			io_request->RaidContext.regLockLength = 0;
 
 			cmd->request_desc->SCSIIO.RequestFlags =
-				(MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY <<
-				MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
+			    (MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY <<
+			    MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 
 			/*
 			 * NOTE - For system pd RW cmds only IoFlags will be FAST_PATH
@@ -937,14 +940,14 @@ mrsas_build_dcdb(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 			 */
 			if ((sc->device_id == MRSAS_INVADER) || (sc->device_id == MRSAS_FURY))
 				io_request->IoFlags |= MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH;
-			}
+		}
 	} else {
-		/* FW path for SysPD or LD Non-RW (SCSI management commands)*/
-		io_request->Function  = MRSAS_MPI2_FUNCTION_LD_IO_REQUEST;
+		/* FW path for SysPD or LD Non-RW (SCSI management commands) */
+		io_request->Function = MRSAS_MPI2_FUNCTION_LD_IO_REQUEST;
 		io_request->DevHandle = device_id;
 		cmd->request_desc->SCSIIO.RequestFlags =
-			(MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO <<
-			MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
+		    (MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO <<
+		    MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 	}
 
 	io_request->RaidContext.VirtualDiskTgtId = device_id;
@@ -974,8 +977,9 @@ mrsas_build_dcdb(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
  * is built in the callback.  If the  bus dmamap load is not successful,
  * cmd->error_code will contain the  error code and a 1 is returned.
  */
-int mrsas_map_request(struct mrsas_softc *sc,
-		struct mrsas_mpt_cmd *cmd, union ccb *ccb)
+int 
+mrsas_map_request(struct mrsas_softc *sc,
+    struct mrsas_mpt_cmd *cmd, union ccb *ccb)
 {
 	u_int32_t retcode = 0;
 	struct cam_sim *sim;
@@ -987,10 +991,10 @@ int mrsas_map_request(struct mrsas_softc *sc,
 		mtx_lock(&sc->io_lock);
 #if (__FreeBSD_version >= 902001)
 		retcode = bus_dmamap_load_ccb(sc->data_tag, cmd->data_dmamap, ccb,
-						mrsas_data_load_cb, cmd, 0);
+		    mrsas_data_load_cb, cmd, 0);
 #else
 		retcode = bus_dmamap_load(sc->data_tag, cmd->data_dmamap, cmd->data,
-						cmd->length, mrsas_data_load_cb, cmd, BUS_DMA_NOWAIT);
+		    cmd->length, mrsas_data_load_cb, cmd, BUS_DMA_NOWAIT);
 #endif
 		mtx_unlock(&sc->io_lock);
 		if (retcode)
