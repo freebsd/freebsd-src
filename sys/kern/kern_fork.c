@@ -943,7 +943,8 @@ fail:
 #endif
 	racct_proc_exit(newproc);
 fail1:
-	crfree(proc_set_cred(newproc, NULL));
+	crfree(newproc->p_ucred);
+	newproc->p_ucred = NULL;
 fail2:
 	if (vm2 != NULL)
 		vmspace_free(vm2);
