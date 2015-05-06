@@ -36,8 +36,7 @@
 # $FreeBSD$
 #
 
-PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin"
-export PATH
+export PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin"
 
 VERSION=2
 
@@ -60,7 +59,13 @@ env_setup() {
 	RELENGDIR="$(realpath $(dirname $(basename ${0})))"
 
 	# The default version control system command to obtain the sources.
-	VCSCMD="svn checkout"
+	for _dir in /usr/bin /usr/local/bin; do
+		for _svn in svn svnlite; do
+			[ -x "${_dir}/${_svn}" ] && VCSCMD="${_dir}/${_svn}"
+			[ ! -z "${VCSCMD}" ] && break 2
+		done
+	done
+	VCSCMD="${VCSCMD} checkout"
 
 	# The default svn checkout server, and svn branches for src/, doc/,
 	# and ports/.
