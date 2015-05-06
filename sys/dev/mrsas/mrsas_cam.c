@@ -1,6 +1,7 @@
 /*
+ * Copyright (c) 2015, AVAGO Tech. All rights reserved. Author: Marian Choy
  * Copyright (c) 2014, LSI Corp. All rights reserved. Author: Marian Choy
- * Support: freebsdraid@lsi.com
+ * Support: freebsdraid@avagotech.com
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -322,7 +323,7 @@ mrsas_action(struct cam_sim *sim, union ccb *ccb)
 			ccb->cpi.initiator_id = MRSAS_SCSI_INITIATOR_ID;
 			ccb->cpi.base_transfer_speed = 150000;
 			strncpy(ccb->cpi.sim_vid, "FreeBSD", SIM_IDLEN);
-			strncpy(ccb->cpi.hba_vid, "LSI", HBA_IDLEN);
+			strncpy(ccb->cpi.hba_vid, "AVAGO", HBA_IDLEN);
 			strncpy(ccb->cpi.dev_name, cam_sim_name(sim), DEV_IDLEN);
 			ccb->cpi.transport = XPORT_SPI;
 			ccb->cpi.transport_version = 2;
