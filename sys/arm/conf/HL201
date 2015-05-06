@@ -21,6 +21,7 @@
 
 ident		HL201
 
+include		"std.arm"
 include "../at91/std.hl201"
 
 makeoptions	MODULES_OVERRIDE=""

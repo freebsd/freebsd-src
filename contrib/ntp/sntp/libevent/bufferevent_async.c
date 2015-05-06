@@ -381,9 +381,10 @@ be_async_destruct(struct bufferevent *bev)
 	bev_async_del_write(bev_async);
 
 	fd = evbuffer_overlapped_get_fd_(bev->input);
-	if (bev_p->options & BEV_OPT_CLOSE_ON_FREE) {
-		/* XXXX possible double-close */
+	if (fd != (evutil_socket_t)INVALID_SOCKET &&
+		(bev_p->options & BEV_OPT_CLOSE_ON_FREE)) {
 		evutil_closesocket(fd);
+		evbuffer_overlapped_set_fd_(bev->input, INVALID_SOCKET);
 	}
 }
 
@@ -564,9 +565,9 @@ bufferevent_async_new_(struct event_base *base,
 	event_overlapped_init_(&bev_a->read_overlapped, read_complete);
 	event_overlapped_init_(&bev_a->write_overlapped, write_complete);
 
+	bufferevent_init_generic_timeout_cbs_(bev);
+
 	bev_a->ok = fd >= 0;
-	if (bev_a->ok)
-		bufferevent_init_generic_timeout_cbs_(bev);
 
 	return bev;
 err:
@@ -671,6 +672,7 @@ be_async_ctrl(struct bufferevent *bev, enum bufferevent_ctrl_op op,
 		if (fd != (evutil_socket_t)INVALID_SOCKET &&
 		    (bev_a->bev.options & BEV_OPT_CLOSE_ON_FREE)) {
 			closesocket(fd);
+			evbuffer_overlapped_set_fd_(bev->input, INVALID_SOCKET);
 		}
 		bev_a->ok = 0;
 		return 0;

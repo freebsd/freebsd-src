@@ -38,6 +38,32 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150504
+OLD_LIBS+=usr/lib32/private/libatf-c++.so.2
+OLD_LIBS+=usr/lib32/private/libbsdstat.so.1
+OLD_LIBS+=usr/lib32/private/libheimipcs.so.11
+OLD_LIBS+=usr/lib32/private/libsqlite3.so.0
+OLD_LIBS+=usr/lib32/private/libunbound.so.5
+OLD_LIBS+=usr/lib32/private/libatf-c.so.1
+OLD_LIBS+=usr/lib32/private/libheimipcc.so.11
+OLD_LIBS+=usr/lib32/private/libldns.so.5
+OLD_LIBS+=usr/lib32/private/libssh.so.5
+OLD_LIBS+=usr/lib32/private/libucl.so.1
+OLD_DIRS+=usr/lib32/private
+OLD_LIBS+=usr/lib/private/libatf-c++.so.2
+OLD_LIBS+=usr/lib/private/libbsdstat.so.1
+OLD_LIBS+=usr/lib/private/libheimipcs.so.11
+OLD_LIBS+=usr/lib/private/libsqlite3.so.0
+OLD_LIBS+=usr/lib/private/libunbound.so.5
+OLD_LIBS+=usr/lib/private/libatf-c.so.1
+OLD_LIBS+=usr/lib/private/libheimipcc.so.11
+OLD_LIBS+=usr/lib/private/libldns.so.5
+OLD_LIBS+=usr/lib/private/libssh.so.5
+OLD_LIBS+=usr/lib/private/libucl.so.1
+OLD_DIRS+=usr/lib/private
+# 20150501
+OLD_FILES+=usr/bin/soeliminate
+OLD_FILES+=usr/share/man/man1/soeliminate.1.gz
 # 20150501: Remove the nvlist_.*[vf] functions manpages.
 OLD_FILES+=usr/share/man/man3/nvlist_addf_binary.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_addf_bool.3.gz

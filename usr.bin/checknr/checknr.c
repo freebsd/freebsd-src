@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
  * structured typesetting.
  */
 #include <err.h>
+#define _WITH_GETLINE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -57,7 +58,7 @@ __FBSDID("$FreeBSD$");
 
 #define MAXSTK	100	/* Stack size */
 #define MAXBR	100	/* Max number of bracket pairs known */
-#define MAXCMDS	500	/* Max number of commands known */
+#define MAXCMDS	600	/* Max number of commands known */
 
 static void addcmd(char *);
 static void addmac(const char *);
@@ -133,6 +134,19 @@ static struct brstr {
 	{"(q",	")q"},
 	{"(x",	")x"},
 	{"(z",	")z"},
+	/* The -mdoc package */
+	{"Ao",  "Ac"},
+	{"Bd",  "Ed"},
+	{"Bk",  "Ek"},
+	{"Bo",  "Bc"},
+	{"Do",  "Dc"},
+	{"Fo",  "Fc"},
+	{"Oo",  "Oc"},
+	{"Po",  "Pc"},
+	{"Qo",  "Qc"},
+	{"Rs",  "Re"},
+	{"So",  "Sc"},
+	{"Xo",  "Xc"},
 	/* Things needed by preprocessors */
 	{"EQ",	"EN"},
 	{"TS",	"TE"},
@@ -146,37 +160,47 @@ static struct brstr {
  * Used so we can complain about unrecognized commands.
  */
 static const char *knowncmds[MAXCMDS] = {
-"$c", "$f", "$h", "$p", "$s", "(b", "(c", "(d", "(f", "(l", "(q", "(t",
-"(x", "(z", ")b", ")c", ")d", ")f", ")l", ")q", ")t", ")x", ")z", "++",
-"+c", "1C", "1c", "2C", "2c", "@(", "@)", "@C", "@D", "@F", "@I", "@M",
-"@c", "@e", "@f", "@h", "@m", "@n", "@o", "@p", "@r", "@t", "@z", "AB",
-"AE", "AF", "AI", "AL", "AM", "AS", "AT", "AU", "AX", "B",  "B1", "B2",
-"BD", "BE", "BG", "BL", "BS", "BT", "BX", "C1", "C2", "CD", "CM", "CT",
-"D",  "DA", "DE", "DF", "DL", "DS", "DT", "EC", "EF", "EG", "EH", "EM",
-"EN", "EQ", "EX", "FA", "FD", "FE", "FG", "FJ", "FK", "FL", "FN", "FO",
-"FQ", "FS", "FV", "FX", "H",  "HC", "HD", "HM", "HO", "HU", "I",  "ID",
-"IE", "IH", "IM", "IP", "IX", "IZ", "KD", "KE", "KF", "KQ", "KS", "LB",
-"LC", "LD", "LE", "LG", "LI", "LP", "MC", "ME", "MF", "MH", "ML", "MR",
-"MT", "ND", "NE", "NH", "NL", "NP", "NS", "OF", "OH", "OK", "OP", "P",
-"P1", "PF", "PH", "PP", "PT", "PX", "PY", "QE", "QP", "QS", "R",  "RA",
-"RC", "RE", "RL", "RP", "RQ", "RS", "RT", "S",  "S0", "S2", "S3", "SA",
-"SG", "SH", "SK", "SM", "SP", "SY", "T&", "TA", "TB", "TC", "TD", "TE",
-"TH", "TL", "TM", "TP", "TQ", "TR", "TS", "TX", "UL", "US", "UX", "VL",
-"WC", "WH", "XA", "XD", "XE", "XF", "XK", "XP", "XS", "[",  "[-", "[0",
-"[1", "[2", "[3", "[4", "[5", "[<", "[>", "[]", "]",  "]-", "]<", "]>",
-"][", "ab", "ac", "ad", "af", "am", "ar", "as", "b",  "ba", "bc", "bd",
-"bi", "bl", "bp", "br", "bx", "c.", "c2", "cc", "ce", "cf", "ch", "cs",
-"ct", "cu", "da", "de", "di", "dl", "dn", "ds", "dt", "dw", "dy", "ec",
-"ef", "eh", "el", "em", "eo", "ep", "ev", "ex", "fc", "fi", "fl", "fo",
-"fp", "ft", "fz", "hc", "he", "hl", "hp", "ht", "hw", "hx", "hy", "i",
-"ie", "if", "ig", "in", "ip", "it", "ix", "lc", "lg", "li", "ll", "ln",
-"lo", "lp", "ls", "lt", "m1", "m2", "m3", "m4", "mc", "mk", "mo", "n1",
-"n2", "na", "ne", "nf", "nh", "nl", "nm", "nn", "np", "nr", "ns", "nx",
-"of", "oh", "os", "pa", "pc", "pi", "pl", "pm", "pn", "po", "pp", "ps",
-"q",  "r",  "rb", "rd", "re", "rm", "rn", "ro", "rr", "rs", "rt", "sb",
-"sc", "sh", "sk", "so", "sp", "ss", "st", "sv", "sz", "ta", "tc", "th",
-"ti", "tl", "tm", "tp", "tr", "u",  "uf", "uh", "ul", "vs", "wh", "xp",
-"yr", 0
+"$c", "$f", "$h", "$p", "$s", "%A", "%B", "%C", "%D", "%I", "%J", "%N", "%O",
+"%P", "%Q", "%R", "%T", "%V", "(b", "(c", "(d", "(f", "(l", "(q", "(t", "(x",
+"(z", ")b", ")c", ")d", ")f", ")l", ")q", ")t", ")x", ")z", "++", "+c", "1C",
+"1c", "2C", "2c", "@(", "@)", "@C", "@D", "@F", "@I", "@M", "@c", "@e", "@f",
+"@h", "@m", "@n", "@o", "@p", "@r", "@t", "@z", "AB", "AE", "AF", "AI", "AL",
+"AM", "AS", "AT", "AU", "AX", "Ac", "Ad", "An", "Ao", "Ap", "Aq", "Ar", "At",
+"B", "B" , "B1", "B2", "BD", "BE", "BG", "BL", "BS", "BT", "BX", "Bc", "Bd",
+"Bf", "Bk", "Bl", "Bo", "Bq", "Bsx", "Bx", "C1", "C2", "CD", "CM", "CT", "Cd",
+"Cm", "D", "D" , "D1", "DA", "DE", "DF", "DL", "DS", "DT", "Db", "Dc", "Dd",
+"Dl", "Do", "Dq", "Dt", "Dv", "EC", "EF", "EG", "EH", "EM", "EN", "EQ", "EX",
+"Ec", "Ed", "Ef", "Ek", "El", "Em", "Eo", "Er", "Ev", "FA", "FD", "FE", "FG",
+"FJ", "FK", "FL", "FN", "FO", "FQ", "FS", "FV", "FX", "Fa", "Fc", "Fd", "Fl",
+"Fn", "Fo", "Ft", "Fx", "H", "H" , "HC", "HD", "HM", "HO", "HU", "I", "I" ,
+"ID", "IE", "IH", "IM", "IP", "IX", "IZ", "Ic", "In", "It", "KD", "KE", "KF",
+"KQ", "KS", "LB", "LC", "LD", "LE", "LG", "LI", "LP", "Lb", "Li", "MC", "ME",
+"MF", "MH", "ML", "MR", "MT", "ND", "NE", "NH", "NL", "NP", "NS", "Nd", "Nm",
+"No", "Ns", "Nx", "OF", "OH", "OK", "OP", "Oc", "Oo", "Op", "Os", "Ot", "Ox",
+"P", "P" , "P1", "PF", "PH", "PP", "PT", "PX", "PY", "Pa", "Pc", "Pf", "Po",
+"Pp", "Pq", "QE", "QP", "QS", "Qc", "Ql", "Qo", "Qq", "R", "R" , "RA", "RC",
+"RE", "RL", "RP", "RQ", "RS", "RT", "Re", "Rs", "S", "S" , "S0", "S2", "S3",
+"SA", "SG", "SH", "SK", "SM", "SP", "SY", "Sc", "Sh", "Sm", "So", "Sq", "Ss",
+"St", "Sx", "Sy", "T&", "TA", "TB", "TC", "TD", "TE", "TH", "TL", "TM", "TP",
+"TQ", "TR", "TS", "TX", "Tn", "UL", "US", "UX", "Ud", "Ux", "VL", "Va", "Vt",
+"WC", "WH", "XA", "XD", "XE", "XF", "XK", "XP", "XS", "Xc", "Xo", "Xr", "[",
+"[" , "[-", "[0", "[1", "[2", "[3", "[4", "[5", "[<", "[>", "[]", "\\{", "\\}",
+"]", "]" , "]-", "]<", "]>", "][", "ab", "ac", "ad", "af", "am", "ar", "as",
+"b", "b" , "ba", "bc", "bd", "bi", "bl", "bp", "br", "bx", "c.", "c2", "cc",
+"ce", "cf", "ch", "chop", "cs", "ct", "cu", "da", "de", "di", "dl", "dn", "do",
+"ds", "dt", "dw", "dy", "ec", "ef", "eh", "el", "em", "eo", "ep", "ev", "evc",
+"ex", "fallback", "fc", "feature", "fi", "fl", "flig", "fo", "fp", "ft", "ftr",
+"fz", "fzoom", "hc", "he", "hidechar", "hl", "hp", "ht", "hw", "hx", "hy",
+"hylang", "i", "i" , "ie", "if", "ig", "in", "ip", "it", "ix", "kern",
+"kernafter", "kernbefore", "kernpair", "lc", "lc_ctype", "lg", "lhang", "li",
+"ll", "ln", "lo", "lp", "ls", "lt", "m1", "m2", "m3", "m4", "mc", "mk", "mo",
+"n1", "n2", "na", "ne", "nf", "nh", "nl", "nm", "nn", "np", "nr", "ns", "nx",
+"of", "oh", "os", "pa", "papersize", "pc", "pi", "pl", "pm", "pn", "po", "pp",
+"ps", "q", "q" , "r", "r" , "rb", "rd", "re", "recursionlimit", "return",
+"rhang", "rm", "rn", "ro", "rr", "rs", "rt", "sb", "sc", "sh", "shift", "sk",
+"so", "sp", "ss", "st", "sv", "sz", "ta", "tc", "th", "ti", "tl", "tm", "tp",
+"tr", "track", "u", "uf", "uh", "ul", "vs", "wh", "xflag", "xp", "yr",
+0
 };
 
 static int	lineno;		/* current line number in input file */
@@ -210,8 +234,18 @@ main(int argc, char **argv)
 			for (i=0; br[i].opbr; i++)
 				;
 			for (cp=argv[1]+3; cp[-1]; cp += 6) {
-				br[i].opbr = strncpy(malloc(3), cp, 2);
-				br[i].clbr = strncpy(malloc(3), cp+3, 2);
+				char *tmp;
+
+				if (i >= MAXBR)
+					errx(1, "too many pairs");
+				if ((tmp = malloc(3)) == NULL)
+					err(1, "malloc");
+				strlcpy(tmp, cp, 3);
+				br[i].opbr = tmp;
+				if ((tmp = malloc(3)) == NULL)
+					err(1, "malloc");
+				strlcpy(tmp, cp+3, 3);
+				br[i].clbr = tmp;
 				addmac(br[i].opbr);	/* knows pairs are also known cmds */
 				addmac(br[i].clbr);
 				i++;
@@ -250,7 +284,7 @@ main(int argc, char **argv)
 	nfiles = argc - 1;
 
 	if (nfiles > 0) {
-		for (i=1; i<argc; i++) {
+		for (i = 1; i < argc; i++) {
 			cfilename = argv[i];
 			f = fopen(cfilename, "r");
 			if (f == NULL)
@@ -279,12 +313,15 @@ static void
 process(FILE *f)
 {
 	int i, n;
-	char mac[5];	/* The current macro or nroff command */
+	char mac[512];	/* The current macro or nroff command */
+	char *line;
+	size_t linecap;
 	int pl;
-	static char line[256];	/* the current line */
 
+	line = NULL;
+	linecap = 0;
 	stktop = -1;
-	for (lineno = 1; fgets(line, sizeof line, f); lineno++) {
+	for (lineno = 1; getline(&line, &linecap, f) > 0; lineno++) {
 		if (line[0] == '.') {
 			/*
 			 * find and isolate the macro/command name.
@@ -320,9 +357,9 @@ process(FILE *f)
 		 * At this point we process the line looking
 		 * for \s and \f.
 		 */
-		for (i=0; line[i]; i++)
-			if (line[i]=='\\' && (i==0 || line[i-1]!='\\')) {
-				if (!sflag && line[++i]=='s') {
+		for (i = 0; line[i]; i++)
+			if (line[i] == '\\' && (i == 0 || line[i-1] != '\\')) {
+				if (!sflag && line[++i] == 's') {
 					pl = line[++i];
 					if (isdigit(pl)) {
 						n = pl - '0';
@@ -333,7 +370,8 @@ process(FILE *f)
 						n = 10 * n + line[i] - '0';
 					i--;
 					if (n == 0) {
-						if (stk[stktop].opno == SZ) {
+						if (stktop >= 0 &&
+						    stk[stktop].opno == SZ) {
 							stktop--;
 						} else {
 							pe(lineno);
@@ -345,10 +383,11 @@ process(FILE *f)
 						stk[stktop].parm = n;
 						stk[stktop].lno = lineno;
 					}
-				} else if (!fflag && line[i]=='f') {
+				} else if (!fflag && line[i] == 'f') {
 					n = line[++i];
 					if (n == 'P') {
-						if (stk[stktop].opno == FT) {
+						if (stktop >= 0 && 
+						    stk[stktop].opno == FT) {
 							stktop--;
 						} else {
 							pe(lineno);
@@ -363,11 +402,12 @@ process(FILE *f)
 				}
 			}
 	}
+	free(line);
 	/*
 	 * We've hit the end and look at all this stuff that hasn't been
 	 * matched yet!  Complain, complain.
 	 */
-	for (i=stktop; i>=0; i--) {
+	for (i = stktop; i >= 0; i--) {
 		complain(i);
 	}
 }
@@ -395,7 +435,8 @@ prop(int i)
 		break;
 	default:
 		printf("Bug: stk[%d].opno = %d = .%s, .%s",
-			i, stk[i].opno, br[stk[i].opno].opbr, br[stk[i].opno].clbr);
+			i, stk[i].opno, br[stk[i].opno].opbr,
+			br[stk[i].opno].clbr);
 	}
 }
 
@@ -557,17 +598,20 @@ addmac(const char *mac)
 	}
 	/* binsrch sets slot as a side effect */
 #ifdef DEBUG
-printf("binsrch(%s) -> %d\n", mac, slot);
+	printf("binsrch(%s) -> %d\n", mac, slot);
 #endif
 	loc = &knowncmds[slot];
 	src = &knowncmds[ncmds-1];
 	dest = src+1;
 	while (dest > loc)
 		*dest-- = *src--;
-	*loc = strcpy(malloc(3), mac);
+	if ((*loc = strdup(mac)) == NULL)
+		err(1, "strdup");
 	ncmds++;
 #ifdef DEBUG
-printf("after: %s %s %s %s %s, %d cmds\n", knowncmds[slot-2], knowncmds[slot-1], knowncmds[slot], knowncmds[slot+1], knowncmds[slot+2], ncmds);
+	printf("after: %s %s %s %s %s, %d cmds\n",
+	    knowncmds[slot-2], knowncmds[slot-1], knowncmds[slot],
+	    knowncmds[slot+1], knowncmds[slot+2], ncmds);
 #endif
 }
 
@@ -592,12 +636,12 @@ binsrch(const char *mac)
 		if (d == 0)
 			d = p[1] - mac[1];
 		if (d == 0)
-			return mid;
+			return (mid);
 		if (d < 0)
 			bot = mid + 1;
 		else
 			top = mid - 1;
 	}
 	slot = bot;	/* place it would have gone */
-	return -1;
+	return (-1);
 }

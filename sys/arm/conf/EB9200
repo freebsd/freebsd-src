@@ -16,6 +16,7 @@
 
 ident		EB9200
 
+include		"std.arm"
 include		"../at91/std.eb9200"
 # The AT91 platform doesn't use /boot/loader, so we have to statically wire
 # hints.

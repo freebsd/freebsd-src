@@ -352,8 +352,6 @@ main(int argc, char *argv[])
 	limitfd(STDIN_FILENO);
 	limitfd(STDOUT_FILENO);
 	limitfd(STDERR_FILENO);
-	if (cap_sandboxed())
-		fprintf(stderr, "capability mode sandbox enabled\n");
 
 	TAILQ_INIT(&trace_procs);
 	drop_logged = 0;

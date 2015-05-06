@@ -1,4 +1,80 @@
 ---
+(4.2.8p2) 2015/04/07 Released by Harlan Stenn <stenn@ntp.org>
+(4.2.8p2-RC3) 2015/04/03 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 2763] Fix for different thresholds for forward and backward steps.
+---
+(4.2.8p2-RC2) 2015/04/03 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 2592] FLAG_TSTAMP_PPS cleanup for refclock_parse.c.
+* [Bug 2769] New script: update-leap
+* [Bug 2769] cleannup for update-leap
+* [Bug 2788] New flag -G (force_step_once).
+* [Bug 2794] Clean up kernel clock status reports.
+* [Bug 2795] Cannot build without OpenSLL (on Win32).
+  Provided a Win32 specific wrapper around libevent/arc4random.c.
+  fixed some minor warnings.
+* [Bug 2796] ntp-keygen crashes in 'getclock()' on Win32.
+* [Bug 2797] ntp-keygen trapped in endless loop for MD5 keys
+  on big-endian machines.
+* [Bug 2798] sntp should decode and display the leap indicator.
+* Simple cleanup to html/build.html
+---
+(4.2.8p2-RC1) 2015/03/30 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 2794] Don't let reports on normal kernel status changes
+  look like errors.
+* [Bug 2788] New flag -G (force_step_once).
+* [Bug 2592] Account for PPS sources which can provide an accurate
+  absolute time stamp, and status information.
+  Fixed indention and removed trailing whitespace.
+* [Bug 1787] DCF77's formerly "antenna" bit is "call bit" since 2003.
+* [Bug 1960] setsockopt IPV6_MULTICAST_IF: Invalid argument.
+* [Bug 2346] "graceful termination" signals do not do peer cleanup.
+* [Bug 2728] See if C99-style structure initialization works.
+* [Bug 2747] Upgrade libevent to 2.1.5-beta.
+* [Bug 2749] ntp/lib/NTP/Util.pm needs update for ntpq -w, IPv6, .POOL. .
+* [Bug 2751] jitter.h has stale copies of l_fp macros.
+* [Bug 2756] ntpd hangs in startup with gcc 3.3.5 on ARM.
+* [Bug 2757] Quiet compiler warnings.
+* [Bug 2759] Expose nonvolatile/clk_wander_threshold to ntpq.
+* [Bug 2763] Allow different thresholds for forward and backward steps.
+* [Bug 2766] ntp-keygen output files should not be world-readable.
+* [Bug 2767] ntp-keygen -M should symlink to ntp.keys.
+* [Bug 2771] nonvolatile value is documented in wrong units.
+* [Bug 2773] Early leap announcement from Palisade/Thunderbolt
+* [Bug 2774] Unreasonably verbose printout - leap pending/warning
+* [Bug 2775] ntp-keygen.c fails to compile under Windows.
+* [Bug 2777] Fixed loops and decoding of Meinberg GPS satellite info.
+  Removed non-ASCII characters from some copyright comments.
+  Removed trailing whitespace.
+  Updated definitions for Meinberg clocks from current Meinberg header files.
+  Now use C99 fixed-width types and avoid non-ASCII characters in comments.
+  Account for updated definitions pulled from Meinberg header files.
+  Updated comments on Meinberg GPS receivers which are not only called GPS16x.
+  Replaced some constant numbers by defines from ntp_calendar.h
+  Modified creation of parse-specific variables for Meinberg devices
+  in gps16x_message().
+  Reworked mk_utcinfo() to avoid printing of ambiguous leap second dates.
+  Modified mbg_tm_str() which now expexts an additional parameter controlling
+  if the time status shall be printed.
+* [Sec 2779] ntpd accepts unauthenticated packets with symmetric key crypto.
+* [Sec 2781] Authentication doesn't protect symmetric associations against
+  DoS attacks.
+* [Bug 2783] Quiet autoconf warnings about missing AC_LANG_SOURCE.
+* [Bug 2789] Quiet compiler warnings from libevent.
+* [Bug 2790] If ntpd sets the Windows MM timer highest resolution
+  pause briefly before measuring system clock precision to yield
+  correct results.
+* Comment from Juergen Perlinger in ntp_calendar.c to make the code clearer.
+* Use predefined function types for parse driver functions
+  used to set up function pointers.
+  Account for changed prototype of parse_inp_fnc_t functions.
+  Cast parse conversion results to appropriate types to avoid
+  compiler warnings.
+  Let ioctl() for Windows accept a (void *) to avoid compiler warnings
+  when called with pointers to different types.
+---
 (4.2.8p1) 2015/02/04 Released by Harlan Stenn <stenn@ntp.org>
 
 * Update the NEWS file.
@@ -14,7 +90,7 @@
   (This should work for all versions of Windows >= W2K)
 * [Bug 2738] Missing buffer initialization in refclocK_parse.c::parsestate().
 * [Bug 2739] Parse driver with PPS enabled occasionally evaluates
-  PPS timestamp with wrong sign. 
+  PPS timestamp with wrong sign.
   Removed some German umlauts.
 * [Bug 2740] Removed some obsolete code from the parse driver.
 * [Bug 2741] Incorrect buffer check in refclocK_parse.c::parsestatus().
@@ -94,7 +170,7 @@
 * [Bug 2678] nmea_control() now checks 'refclock_params()' result.
 (4.2.7p481) 2014/11/22 Released by Harlan Stenn <stenn@ntp.org>
 * [Bug 2314] Only enable PPS if kernel consumer binding succeeds.
-* [Bug 2314] Kernel PPS binding EOPNOTSUPP is a failure condition. 
+* [Bug 2314] Kernel PPS binding EOPNOTSUPP is a failure condition.
 * Rename pps_enable to hardpps_enable.
 (4.2.7p480) 2014/11/21 Released by Harlan Stenn <stenn@ntp.org>
 * [Bug 2677] PATH_MAX isn't #define'd under Windows.

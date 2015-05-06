@@ -143,7 +143,8 @@ nvpair_insert(struct nvl_head *head, nvpair_t *nvp, nvlist_t *nvl)
 
 	NVPAIR_ASSERT(nvp);
 	PJDLOG_ASSERT(nvp->nvp_list == NULL);
-	PJDLOG_ASSERT(!nvlist_exists(nvl, nvpair_name(nvp)));
+	PJDLOG_ASSERT((nvlist_flags(nvl) & NV_FLAG_NO_UNIQUE) != 0 ||
+	    !nvlist_exists(nvl, nvpair_name(nvp)));
 
 	TAILQ_INSERT_TAIL(head, nvp, nvp_next);
 	nvp->nvp_list = nvl;
@@ -733,7 +734,7 @@ nvpair_allocv(const char *name, int type, uint64_t data, size_t datasize)
 	if (nvp != NULL) {
 		nvp->nvp_name = (char *)(nvp + 1);
 		memcpy(nvp->nvp_name, name, namelen);
-		nvp->nvp_name[namelen + 1] = '\0';
+		nvp->nvp_name[namelen] = '\0';
 		nvp->nvp_type = type;
 		nvp->nvp_data = data;
 		nvp->nvp_datasize = datasize;
