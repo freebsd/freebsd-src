@@ -112,9 +112,8 @@ MR_BuildRaidContext(struct mrsas_softc *sc,
 extern u_int16_t
 MR_LdSpanArrayGet(u_int32_t ld, u_int32_t span,
     MR_DRV_RAID_MAP_ALL * map);
-extern u_int16_t
-mrsas_get_updated_dev_handle(PLD_LOAD_BALANCE_INFO lbInfo,
-    struct IO_REQUEST_INFO *io_info);
+extern u_int16_t mrsas_get_updated_dev_handle(struct mrsas_softc *sc,
+		PLD_LOAD_BALANCE_INFO lbInfo, struct IO_REQUEST_INFO *io_info);
 extern u_int8_t
 megasas_get_best_arm(PLD_LOAD_BALANCE_INFO lbInfo, u_int8_t arm,
     u_int64_t block, u_int32_t count);
@@ -824,9 +823,10 @@ mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 		if ((sc->load_balance_info[device_id].loadBalanceFlag) &&
 		    (io_info.isRead)) {
 			io_info.devHandle =
-			    mrsas_get_updated_dev_handle(&sc->load_balance_info[device_id],
-			    &io_info);
+				mrsas_get_updated_dev_handle(sc,
+					&sc->load_balance_info[device_id], &io_info);
 			cmd->load_balance = MRSAS_LOAD_BALANCE_FLAG;
+			cmd->pd_r1_lb = io_info.pd_after_lb;
 		} else
 			cmd->load_balance = 0;
 		cmd->request_desc->SCSIIO.DevHandle = io_info.devHandle;

@@ -813,9 +813,8 @@ typedef struct _MR_DRV_RAID_MAP_ALL {
 typedef struct _LD_LOAD_BALANCE_INFO {
 	u_int8_t loadBalanceFlag;
 	u_int8_t reserved1;
-	u_int16_t raid1DevHandle[2];
-	mrsas_atomic_t scsi_pending_cmds[2];
-	u_int64_t last_accessed_block[2];
+	mrsas_atomic_t scsi_pending_cmds[MAX_PHYSICAL_DEVICES];
+	u_int64_t last_accessed_block[MAX_PHYSICAL_DEVICES];
 }	LD_LOAD_BALANCE_INFO, *PLD_LOAD_BALANCE_INFO;
 
 /* SPAN_SET is info caclulated from span info from Raid map per ld */
@@ -858,6 +857,9 @@ struct IO_REQUEST_INFO {
 	u_int8_t start_span;
 	u_int8_t reserved;
 	u_int64_t start_row;
+	/* span[7:5], arm[4:0] */
+	u_int8_t span_arm;
+	u_int8_t pd_after_lb;
 };
 
 typedef struct _MR_LD_TARGET_SYNC {
@@ -1357,6 +1359,7 @@ struct mrsas_mpt_cmd {
 	u_int32_t sync_cmd_idx;
 	u_int32_t index;
 	u_int8_t flags;
+	u_int8_t pd_r1_lb;
 	u_int8_t load_balance;
 	bus_size_t length;
 	u_int32_t error_code;
@@ -2734,6 +2737,7 @@ struct mrsas_softc {
 	struct task ev_task;
 	u_int32_t CurLdCount;
 	u_int64_t reset_flags;
+	int lb_pending_cmds;
 	LD_LOAD_BALANCE_INFO load_balance_info[MAX_LOGICAL_DRIVES_EXT];
 	LD_SPAN_INFO log_to_span[MAX_LOGICAL_DRIVES_EXT];
 

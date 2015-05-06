@@ -462,6 +462,11 @@ mrsas_get_tunables(struct mrsas_softc *sc)
 	 */
 	TUNABLE_INT_FETCH("hw.mrsas.debug_level", &sc->mrsas_debug);
 
+	/*
+	 * Grab the global variables.
+	 */
+	TUNABLE_INT_FETCH("hw.mrsas.lb_pending_cmds", &sc->lb_pending_cmds);
+
 	/* Grab the unit-instance variables */
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mrsas.%d.debug_level",
 	    device_get_unit(sc->mrsas_dev));
@@ -1468,7 +1473,7 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 	MRSAS_RAID_SCSI_IO_REQUEST *scsi_io_req;
 	struct mrsas_mpt_cmd *cmd_mpt;
 	struct mrsas_mfi_cmd *cmd_mfi;
-	u_int8_t arm, reply_descript_type;
+	u_int8_t reply_descript_type;
 	u_int16_t smid, num_completed;
 	u_int8_t status, extStatus;
 	union desc_value desc_val;
@@ -1506,8 +1511,7 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 			device_id = cmd_mpt->ccb_ptr->ccb_h.target_id;
 			lbinfo = &sc->load_balance_info[device_id];
 			if (cmd_mpt->load_balance == MRSAS_LOAD_BALANCE_FLAG) {
-				arm = lbinfo->raid1DevHandle[0] == scsi_io_req->DevHandle ? 0 : 1;
-				mrsas_atomic_dec(&lbinfo->scsi_pending_cmds[arm]);
+				mrsas_atomic_dec(&lbinfo->scsi_pending_cmds[cmd_mpt->pd_r1_lb]);
 				cmd_mpt->load_balance &= ~MRSAS_LOAD_BALANCE_FLAG;
 			}
 			/* Fall thru and complete IO */
@@ -2331,6 +2335,7 @@ mrsas_ioc_init(struct mrsas_softc *sc)
 		init_frame->driver_ver_lo = (bus_addr_t)sc->verbuf_phys_addr;
 		init_frame->driver_ver_hi = 0;
 	}
+	init_frame->driver_operations.mfi_capabilities.support_ndrive_r1_lb = 1;
 	init_frame->driver_operations.mfi_capabilities.support_max_255lds = 1;
 	init_frame->driver_operations.mfi_capabilities.security_protocol_cmds_fw = 1;
 	phys_addr = (bus_addr_t)sc->ioc_init_phys_mem + 1024;
