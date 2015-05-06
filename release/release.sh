@@ -124,6 +124,7 @@ env_setup() {
 # necessary.  This is called unconditionally, and overrides the defaults set
 # in env_setup() if '-c <release.conf>' is specified.
 env_check() {
+	chroot_build_release_cmd="chroot_build_release"
 	# Fix for backwards-compatibility with release.conf that does not have
 	# the trailing '/'.
 	case ${SVNROOT} in
@@ -143,6 +144,12 @@ env_check() {
 		WITH_DVD=
 		WITH_COMPRESSED_IMAGES=
 		NODOC=yes
+		case ${EMBEDDED_TARGET}:${EMBEDDED_TARGET_ARCH} in
+			arm:armv6)
+				chroot_build_release_cmd="chroot_arm_armv6_build_release"
+				;;
+			*)
+		esac
 	fi
 
 	# If PORTS is set and NODOC is unset, force NODOC=yes because the ports
@@ -303,23 +310,26 @@ chroot_build_target() {
 # chroot_build_release(): Invoke the 'make release' target.
 chroot_build_release() {
 	load_target_env
-
-	if [ -z "${EMBEDDEDBUILD}" ]; then
-		eval chroot ${CHROOTDIR} make -C /usr/src/release \
-			${RELEASE_RMAKEFLAGS} release
-		eval chroot ${CHROOTDIR} make -C /usr/src/release \
-			${RELEASE_RMAKEFLAGS} install DESTDIR=/R \
-			WITH_COMPRESSED_IMAGES=${WITH_COMPRESSED_IMAGES} \
-			WITH_COMPRESSED_VMIMAGES=${WITH_COMPRESSED_VMIMAGES}
-		return 0
-	else
-		load_target_env
-		# XXX: In progress.
-		return 0
-	fi
+	eval chroot ${CHROOTDIR} make -C /usr/src/release \
+		${RELEASE_RMAKEFLAGS} release
+	eval chroot ${CHROOTDIR} make -C /usr/src/release \
+		${RELEASE_RMAKEFLAGS} install DESTDIR=/R \
+		WITH_COMPRESSED_IMAGES=${WITH_COMPRESSED_IMAGES} \
+		WITH_COMPRESSED_VMIMAGES=${WITH_COMPRESSED_VMIMAGES}
 
 	return 0
 } # chroot_build_release()
+
+# chroot_arm_armv6_build_release(): Create arm/armv6 SD card image.
+chroot_arm_armv6_build_release() {
+	load_target_env
+	# XXX: In progress.
+	if [ -e "${RELENGDIR}/tools/${TARGET}.subr" ]; then
+		. "${RELENGDIR}/tools/${TARGET}.subr"
+	fi
+
+	return 0
+} # chroot_arm_armv6_build_release()
 
 # main(): Start here.
 main() {
@@ -349,7 +359,7 @@ main() {
 	chroot_setup
 	extra_chroot_setup
 	chroot_build_target
-	chroot_build_release
+	${chroot_build_release_cmd}
 
 	return 0
 } # main()
