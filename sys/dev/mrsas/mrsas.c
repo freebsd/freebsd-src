@@ -274,6 +274,7 @@ mrsas_disable_intr(struct mrsas_softc *sc)
 	u_int32_t mask = 0xFFFFFFFF;
 	u_int32_t status;
 
+	sc->mask_interrupts=1;
 	mrsas_write_reg(sc, offsetof(mrsas_reg_set, outbound_intr_mask), mask);
 	/* Dummy read to force pci flush */
 	status = mrsas_read_reg(sc, offsetof(mrsas_reg_set, outbound_intr_mask));
@@ -285,6 +286,7 @@ mrsas_enable_intr(struct mrsas_softc *sc)
 	u_int32_t mask = MFI_FUSION_ENABLE_INTERRUPT_MASK;
 	u_int32_t status;
 
+	sc->mask_interrupts=0;
 	mrsas_write_reg(sc, offsetof(mrsas_reg_set, outbound_intr_status), ~0);
 	status = mrsas_read_reg(sc, offsetof(mrsas_reg_set, outbound_intr_status));
 
@@ -1442,6 +1444,9 @@ mrsas_isr(void *arg)
 	struct mrsas_softc *sc = irq_context->sc;
 	int status = 0;
 
+	if (sc->mask_interrupts)
+		return;
+
 	if (!sc->msix_vectors) {
 		status = mrsas_clear_intr(sc);
 		if (!status)
@@ -2154,7 +2159,7 @@ mrsas_init_adapter(struct mrsas_softc *sc)
 	max_cmd = sc->max_fw_cmds;
 
 	/* Determine allocation size of command frames */
-	sc->reply_q_depth = ((max_cmd + 1 + 15) / 16 * 16);
+	sc->reply_q_depth = ((max_cmd + 1 + 15) / 16 * 16) * 2;
 	sc->request_alloc_sz = sizeof(MRSAS_REQUEST_DESCRIPTOR_UNION) * max_cmd;
 	sc->reply_alloc_sz = sizeof(MPI2_REPLY_DESCRIPTORS_UNION) * (sc->reply_q_depth);
 	sc->io_frames_alloc_sz = MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE + (MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE * (max_cmd + 1));
@@ -2807,9 +2812,6 @@ mrsas_reset_ctrl(struct mrsas_softc *sc)
 				mrsas_dprint(sc, MRSAS_OCR, "mrsas_ioc_init() failed!\n");
 				continue;
 			}
-			mrsas_clear_bit(MRSAS_FUSION_IN_RESET, &sc->reset_flags);
-			mrsas_enable_intr(sc);
-			sc->adprecovery = MRSAS_HBA_OPERATIONAL;
 
 			/* Re-fire management commands */
 			for (j = 0; j < sc->max_fw_cmds; j++) {
@@ -2842,11 +2844,16 @@ mrsas_reset_ctrl(struct mrsas_softc *sc)
 
 			if (mrsas_get_ctrl_info(sc)) {
 				mrsas_kill_hba(sc);
-				retval = -1;
+				retval = FAIL;
+				goto out;
 			}
 
 			if (!mrsas_get_map_info(sc))
 				mrsas_sync_map_info(sc);
+
+			mrsas_clear_bit(MRSAS_FUSION_IN_RESET, &sc->reset_flags);
+			mrsas_enable_intr(sc);
+			sc->adprecovery = MRSAS_HBA_OPERATIONAL;
 
 			/* Adapter reset completed successfully */
 			device_printf(sc->mrsas_dev, "Reset successful\n");

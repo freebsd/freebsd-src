@@ -2667,6 +2667,7 @@ struct mrsas_softc {
 	int	msix_vectors;
 	int	msix_enable;
 	uint32_t msix_reg_offset[16];
+	uint8_t mask_interrupts;
 	struct mrsas_mpt_cmd **mpt_cmd_list;
 	struct mrsas_mfi_cmd **mfi_cmd_list;
 	TAILQ_HEAD(, mrsas_mpt_cmd) mrsas_mpt_cmd_list_head;
