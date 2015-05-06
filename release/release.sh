@@ -324,8 +324,8 @@ chroot_build_release() {
 chroot_arm_armv6_build_release() {
 	load_target_env
 	# XXX: In progress.
-	if [ -e "${RELENGDIR}/tools/${TARGET}.subr" ]; then
-		. "${RELENGDIR}/tools/${TARGET}.subr"
+	if [ -e "${RELENGDIR}/tools/${EMBEDDED_TARGET}.subr" ]; then
+		. "${RELENGDIR}/tools/${EMBEDDED_TARGET}.subr"
 	fi
 	. "${RELENGDIR}/arm/${KERNEL}.conf"
 	WORLDDIR="$(eval chroot ${CHROOTDIR} make -C /usr/src/release -V WORLDDIR)"
