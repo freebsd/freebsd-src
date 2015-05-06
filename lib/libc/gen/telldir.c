@@ -101,11 +101,12 @@ _seekdir(dirp, loc)
 		return;
 	if (lp->loc_loc == dirp->dd_loc && lp->loc_seek == dirp->dd_seek)
 		return;
-	/* If it's within the same chunk of data, don't bother reloading */
+
+	/* If it's within the same chunk of data, don't bother reloading. */
 	if (lp->loc_seek == dirp->dd_seek) {
 		/*
 		 * If we go back to 0 don't make the next readdir
-		 * trigger a call to getdirentries()
+		 * trigger a call to getdirentries().
 		 */
 		if (lp->loc_loc == 0)
 			dirp->dd_flags |= __DTF_SKIPREAD;
@@ -124,10 +125,13 @@ _seekdir(dirp, loc)
 }
 
 /*
- * when we do a read and cross a boundary, any telldir we
- * just did will have wrong information in it.
- * We need to move it from "beyond the end of the previous chunk"
- * to "the beginning of the new chunk"
+ * A call to telldir after readdir returns the last entry in a block
+ * returns a location that is after the end of the last entry in that
+ * block.  However, that location doesn't refer to a valid directory
+ * entry.  Instead, these locations should refer to the first entry in
+ * the next block.  That location is not known until the next block is
+ * read, so readdir calls this function after fetching a new block to
+ * fix any such telldir locations.
  */
 void
 _fixtelldir(DIR *dirp, long oldseek, long oldloc)
