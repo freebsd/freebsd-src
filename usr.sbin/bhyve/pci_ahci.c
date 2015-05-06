@@ -135,6 +135,7 @@ struct ahci_port {
 	char ident[20 + 1];
 	int atapi;
 	int reset;
+	int waitforclear;
 	int mult_sectors;
 	uint8_t xfermode;
 	uint8_t err_cfis[20];
@@ -288,8 +289,10 @@ ahci_write_fis(struct ahci_port *p, enum sata_fis_type ft, uint8_t *fis)
 		WPRINTF("unsupported fis type %d\n", ft);
 		return;
 	}
-	if (fis[2] & ATA_S_ERROR)
+	if (fis[2] & ATA_S_ERROR) {
+		p->waitforclear = 1;
 		irq |= AHCI_P_IX_TFE;
+	}
 	memcpy(p->rfis + offset, fis, len);
 	if (irq) {
 		p->is |= irq;
@@ -413,6 +416,7 @@ ahci_check_stopped(struct ahci_port *p)
 			p->cmd &= ~(AHCI_P_CMD_CR | AHCI_P_CMD_CCS_MASK);
 			p->ci = 0;
 			p->sact = 0;
+			p->waitforclear = 0;
 		}
 	}
 }
@@ -1769,7 +1773,9 @@ ahci_handle_port(struct ahci_port *p)
 	 * are already in-flight.  Stop if device is busy or in error.
 	 */
 	for (; (p->ci & ~p->pending) != 0; p->ccs = ((p->ccs + 1) & 31)) {
-		if ((p->tfd & (ATA_S_BUSY | ATA_S_DRQ | ATA_S_ERROR)) != 0)
+		if ((p->tfd & (ATA_S_BUSY | ATA_S_DRQ)) != 0)
+			break;
+		if (p->waitforclear)
 			break;
 		if ((p->ci & ~p->pending & (1 << p->ccs)) != 0) {
 			p->cmd &= ~AHCI_P_CMD_CCS_MASK;
@@ -2010,7 +2016,7 @@ pci_ahci_port_write(struct pci_ahci_softc *sc, uint64_t offset, uint64_t value)
 		}
 
 		if (value & AHCI_P_CMD_CLO) {
-			p->tfd = 0;
+			p->tfd &= ~(ATA_S_BUSY | ATA_S_DRQ);
 			p->cmd &= ~AHCI_P_CMD_CLO;
 		}
 
