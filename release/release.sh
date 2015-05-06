@@ -278,12 +278,13 @@ extra_chroot_setup() {
 		done
 	fi
 
+	buildenv_setup
+
 	return 0
 } # extra_chroot_setup()
 
 # chroot_build_target(): Build the userland and kernel for the build target.
 chroot_build_target() {
-	buildenv_setup
 	load_target_env
 	if [ ! -z "${EMBEDDEDBUILD}" ]; then
 		RELEASE_WMAKEFLAGS="${RELEASE_WMAKEFLAGS} \
@@ -301,7 +302,6 @@ chroot_build_target() {
 
 # chroot_build_release(): Invoke the 'make release' target.
 chroot_build_release() {
-	buildenv_setup
 	load_target_env
 
 	if [ -z "${EMBEDDEDBUILD}" ]; then
