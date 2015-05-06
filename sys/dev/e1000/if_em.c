@@ -2590,7 +2590,7 @@ em_allocate_msix(struct adapter *adapter)
 		TASK_INIT(&rxr->rx_task, 0, em_handle_rx, rxr);
 		rxr->tq = taskqueue_create_fast("em_rxq", M_NOWAIT,
 		    taskqueue_thread_enqueue, &rxr->tq);
-		taskqueue_start_threads(&rxr->tq, 1, PI_NET, "%s rxq (qid %d)",
+		taskqueue_start_threads(&rxr->tq, 1, PI_NET, "%s rxq (cpuid %d)",
 		    device_get_nameunit(adapter->dev), cpu_id);
 		/*
 		** Set the bit to enable interrupt
@@ -2622,7 +2622,7 @@ em_allocate_msix(struct adapter *adapter)
 			return (error);
 		}
 #if __FreeBSD_version >= 800504
-		bus_describe_intr(dev, txr->res, txr->tag, "tx %d", i);
+		bus_describe_intr(dev, txr->res, txr->tag, "tx%d", i);
 #endif
 		txr->msix = vector;
 
@@ -2634,7 +2634,7 @@ em_allocate_msix(struct adapter *adapter)
 		TASK_INIT(&txr->tx_task, 0, em_handle_tx, txr);
 		txr->tq = taskqueue_create_fast("em_txq", M_NOWAIT,
 		    taskqueue_thread_enqueue, &txr->tq);
-		taskqueue_start_threads(&txr->tq, 1, PI_NET, "%s txq (qid %d)",
+		taskqueue_start_threads(&txr->tq, 1, PI_NET, "%s txq (cpuid %d)",
 		    device_get_nameunit(adapter->dev), cpu_id);
 		/*
 		** Set the bit to enable interrupt
