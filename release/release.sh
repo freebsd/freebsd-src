@@ -51,6 +51,9 @@ usage() {
 	exit 1
 }
 
+# env_setup(): Set up the default build environment variables, such as the
+# CHROOTDIR, VCSCMD, SVNROOT, etc.  This is called before the release.conf
+# file is sourced, if '-c <release.conf>' is specified.
 env_setup() {
 	# The directory within which the release will be built.
 	CHROOTDIR="/scratch"
@@ -108,19 +111,13 @@ env_setup() {
 	# cloud providers as part of the release.
 	WITH_CLOUDWARE=
 
-	CHROOT_MAKEENV="${CHROOT_MAKEENV} MAKEOBJDIRPREFIX=${CHROOTDIR}/tmp/obj"
-	CHROOT_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${CONF_FILES}"
-	CHROOT_IMAKEFLAGS="${CONF_FILES}"
-	CHROOT_DMAKEFLAGS="${CONF_FILES}"
-	RELEASE_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${ARCH_FLAGS} ${CONF_FILES}"
-	RELEASE_KMAKEFLAGS="${MAKE_FLAGS} ${KERNEL_FLAGS} KERNCONF=\"${KERNEL}\" ${ARCH_FLAGS} ${CONF_FILES}"
-	RELEASE_RMAKEFLAGS="${ARCH_FLAGS} KERNCONF=\"${KERNEL}\" ${CONF_FILES} \
-		${DOCPORTS} WITH_DVD=${WITH_DVD} WITH_VMIMAGES=${WITH_VMIMAGES} \
-		WITH_CLOUDWARE=${WITH_CLOUDWARE} XZ_THREADS=${XZ_THREADS}"
-
 	return 0
 } # env_setup()
 
+# env_check(): Perform sanity tests on the build environment, such as ensuring
+# files/directories exist, as well as adding backwards-compatibility hacks if
+# necessary.  This is called unconditionally, and overrides the defaults set
+# in env_setup() if '-c <release.conf>' is specified.
 env_check() {
 	# Fix for backwards-compatibility with release.conf that does not have the
 	# trailing '/'.
@@ -187,9 +184,20 @@ env_check() {
 		exit 1
 	fi
 
+	CHROOT_MAKEENV="${CHROOT_MAKEENV} MAKEOBJDIRPREFIX=${CHROOTDIR}/tmp/obj"
+	CHROOT_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${CONF_FILES}"
+	CHROOT_IMAKEFLAGS="${CONF_FILES}"
+	CHROOT_DMAKEFLAGS="${CONF_FILES}"
+	RELEASE_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${ARCH_FLAGS} ${CONF_FILES}"
+	RELEASE_KMAKEFLAGS="${MAKE_FLAGS} ${KERNEL_FLAGS} KERNCONF=\"${KERNEL}\" ${ARCH_FLAGS} ${CONF_FILES}"
+	RELEASE_RMAKEFLAGS="${ARCH_FLAGS} KERNCONF=\"${KERNEL}\" ${CONF_FILES} \
+		${DOCPORTS} WITH_DVD=${WITH_DVD} WITH_VMIMAGES=${WITH_VMIMAGES} \
+		WITH_CLOUDWARE=${WITH_CLOUDWARE} XZ_THREADS=${XZ_THREADS}"
+
 	return 0
 } # env_check()
 
+# chroot_setup(): Prepare the build chroot environment for the release build.
 chroot_setup() {
 	load_chroot_env
 	mkdir -p ${CHROOTDIR}/usr
@@ -218,6 +226,8 @@ chroot_setup() {
 	return 0
 } # chroot_setup()
 
+# extra_chroot_setup(): Prepare anything additional within the build
+# necessary for the release build.
 extra_chroot_setup() {
 	# If MAKE_CONF and/or SRC_CONF are set and not character devices (/dev/null),
 	# copy them to the chroot.
@@ -253,6 +263,7 @@ extra_chroot_setup() {
 	return 0
 } # extra_chroot_setup()
 
+# chroot_build_target(): Build the userland and kernel for the build target.
 chroot_build_target() {
 	buildenv_setup
 	load_target_env
@@ -287,6 +298,7 @@ chroot_build_target() {
 	return 0
 } # chroot_build_target
 
+# chroot_build_release(): Invoke the 'make release' target.
 chroot_build_release() {
 	buildenv_setup
 	load_target_env
@@ -299,6 +311,7 @@ chroot_build_release() {
 	return 0
 } # chroot_build_release()
 
+# main(): Start here.
 main() {
 	set -e # Everything must succeed
 	env_setup
