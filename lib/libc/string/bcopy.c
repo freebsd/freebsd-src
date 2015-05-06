@@ -87,7 +87,7 @@ bcopy(const void *src0, void *dst0, size_t length)
 #define	TLOOP(s) if (t) TLOOP1(s)
 #define	TLOOP1(s) do { s; } while (--t)
 
-	if ((unsigned long)dst < (unsigned long)src) {
+	if (dst < src) {
 		/*
 		 * Copy forward.
 		 */
