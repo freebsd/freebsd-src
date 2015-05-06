@@ -87,8 +87,8 @@ env_setup() {
 	MAKE_CONF="/dev/null"
 	SRC_CONF="/dev/null"
 
-	# The number of make(1) jobs, defaults to the number of CPUs available for
-	# buildworld, and half of number of CPUs available for buildkernel.
+	# The number of make(1) jobs, defaults to the number of CPUs available
+	# for buildworld, and half of number of CPUs available for buildkernel.
 	WORLD_FLAGS="-j$(sysctl -n hw.ncpu)"
 	KERNEL_FLAGS="-j$(( $(( $(sysctl -n hw.ncpu) + 1 )) / 2))"
 
@@ -97,8 +97,8 @@ env_setup() {
 	# The name of the kernel to build, defaults to GENERIC.
 	KERNEL="GENERIC"
 
-	# Set to non-empty value to disable checkout of doc/ and/or ports/.  Disabling
-	# ports/ checkout also forces NODOC to be set.
+	# Set to non-empty value to disable checkout of doc/ and/or ports/.
+	# Disabling ports/ checkout also forces NODOC to be set.
 	NODOC=
 	NOPORTS=
 
@@ -124,8 +124,8 @@ env_setup() {
 # necessary.  This is called unconditionally, and overrides the defaults set
 # in env_setup() if '-c <release.conf>' is specified.
 env_check() {
-	# Fix for backwards-compatibility with release.conf that does not have the
-	# trailing '/'.
+	# Fix for backwards-compatibility with release.conf that does not have
+	# the trailing '/'.
 	case ${SVNROOT} in
 		*svn*)
 			SVNROOT="${SVNROOT}/"
@@ -145,17 +145,17 @@ env_check() {
 		NODOC=yes
 	fi
 
-	# If PORTS is set and NODOC is unset, force NODOC=yes because the ports tree
-	# is required to build the documentation set.
+	# If PORTS is set and NODOC is unset, force NODOC=yes because the ports
+	# tree is required to build the documentation set.
 	if [ -n "${NOPORTS}" ] && [ -z "${NODOC}" ]; then
 		echo "*** NOTICE: Setting NODOC=1 since ports tree is required"
 		echo "            and NOPORTS is set."
 		NODOC=yes
 	fi
 
-	# If NOPORTS and/or NODOC are unset, they must not pass to make as variables.
-	# The release makefile verifies definedness of NOPORTS/NODOC variables
-	# instead of their values.
+	# If NOPORTS and/or NODOC are unset, they must not pass to make as
+	# variables.  The release makefile verifies definedness of the
+	# NOPORTS/NODOC variables instead of their values.
 	DOCPORTS=
 	if [ -n "${NOPORTS}" ]; then
 		DOCPORTS="NOPORTS=yes "
@@ -244,8 +244,8 @@ extra_chroot_setup() {
 	# is created.  This is needed by ports-mgmt/pkg.
 	eval chroot ${CHROOTDIR} /etc/rc.d/ldconfig forcerestart
 
-	# If MAKE_CONF and/or SRC_CONF are set and not character devices (/dev/null),
-	# copy them to the chroot.
+	# If MAKE_CONF and/or SRC_CONF are set and not character devices
+	# (/dev/null), copy them to the chroot.
 	if [ -e ${MAKE_CONF} ] && [ ! -c ${MAKE_CONF} ]; then
 		mkdir -p ${CHROOTDIR}/$(dirname ${MAKE_CONF})
 		cp ${MAKE_CONF} ${CHROOTDIR}/${MAKE_CONF}
@@ -256,7 +256,8 @@ extra_chroot_setup() {
 	fi
 
 	if [ -d ${CHROOTDIR}/usr/ports ]; then
-		## Trick the ports 'run-autotools-fixup' target to do the right thing.
+		# Trick the ports 'run-autotools-fixup' target to do the right
+		# thing.
 		_OSVERSION=$(sysctl -n kern.osreldate)
 		REVISION=$(chroot ${CHROOTDIR} make -C /usr/src/release -V REVISION)
 		BRANCH=$(chroot ${CHROOTDIR} make -C /usr/src/release -V BRANCH)
@@ -285,9 +286,10 @@ chroot_build_target() {
 	if [ -n "${EMBEDDEDBUILD}" ]; then
 		buildenv_setup
 		# If a crochet configuration file exists in *this* checkout of
-		# release/, copy it to the /tmp/external directory within the chroot.
-		# This allows building embedded releases without relying on updated
-		# scripts and/or configurations to exist in the branch being built.
+		# release/, copy it to the /tmp/external directory within the
+		# chroot.  This allows building embedded releases without
+		# relying on updated scripts and/or configurations to exist in
+		# the branch being built.
 		load_target_env
 		if [ -e ${RELENGDIR}/tools/${XDEV}/crochet-${KERNEL}.conf ] && \
 			[ -e ${RELENGDIR}/${XDEV}/release.sh ]; then
@@ -297,9 +299,9 @@ chroot_build_target() {
 				/bin/sh ${RELENGDIR}/${XDEV}/release.sh
 		fi
 		# If the script does not exist for this architecture, exit.
-		# This probably should be checked earlier, but allowing the rest
-		# of the build process to get this far will at least set up the
-		# chroot environment for testing.
+		# This probably should be checked earlier, but allowing the
+		# rest of the build process to get this far will at least set
+		# up the chroot environment for testing.
 		return 1
 	else
 		# Not embedded.
