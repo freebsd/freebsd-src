@@ -313,27 +313,9 @@ chroot_build_release() {
 			WITH_COMPRESSED_VMIMAGES=${WITH_COMPRESSED_VMIMAGES}
 		return 0
 	else
-	# Embedded builds do not use the 'make release' target.
-		buildenv_setup
-		# If a crochet configuration file exists in *this* checkout of
-		# release/, copy it to the /tmp/external directory within the
-		# chroot.  This allows building embedded releases without
-		# relying on updated scripts and/or configurations to exist in
-		# the branch being built.
 		load_target_env
-		if [ -e ${RELENGDIR}/tools/${XDEV}/crochet-${KERNEL}.conf ] && \
-			[ -e ${RELENGDIR}/${XDEV}/release.sh ]; then
-				mkdir -p ${CHROOTDIR}/tmp/external/${XDEV}/
-				cp ${RELENGDIR}/tools/${XDEV}/crochet-${KERNEL}.conf \
-					${CHROOTDIR}/tmp/external/${XDEV}/crochet-${KERNEL}.conf
-				/bin/sh ${RELENGDIR}/${XDEV}/release.sh
-				return 0
-		fi
-		# If the script does not exist for this architecture, exit.
-		# This probably should be checked earlier, but allowing the
-		# rest of the build process to get this far will at least set
-		# up the chroot environment for testing.
-		return 1
+		# XXX: In progress.
+		return 0
 	fi
 
 	return 0
