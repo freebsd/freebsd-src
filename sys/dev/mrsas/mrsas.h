@@ -2413,6 +2413,167 @@ struct mrsas_mgmt_info {
 	int	max_index;
 };
 
+#define PCI_TYPE0_ADDRESSES             6
+#define PCI_TYPE1_ADDRESSES             2
+#define PCI_TYPE2_ADDRESSES             5
+
+typedef struct _MRSAS_DRV_PCI_COMMON_HEADER
+{
+	u_int16_t vendorID;                  // (ro)
+	u_int16_t deviceID;                  // (ro)
+	u_int16_t command;                   // Device control
+	u_int16_t status;
+	u_int8_t revisionID;                 // (ro)
+	u_int8_t progIf;                     // (ro)
+	u_int8_t subClass;                   // (ro)
+	u_int8_t baseClass;                  // (ro)
+	u_int8_t cacheLineSize;              // (ro+)
+	u_int8_t latencyTimer;               // (ro+)
+	u_int8_t headerType;                 // (ro)
+	u_int8_t bist;                       // Built in self test
+
+	union
+	{
+		struct _MRSAS_DRV_PCI_HEADER_TYPE_0
+		{
+			u_int32_t baseAddresses[PCI_TYPE0_ADDRESSES];
+			u_int32_t cis;
+			u_int16_t subVendorID;
+			u_int16_t subSystemID;
+			u_int32_t romBaseAddress;
+			u_int8_t capabilitiesPtr;
+			u_int8_t reserved1[3];
+			u_int32_t reserved2;
+			u_int8_t interruptLine;
+			u_int8_t    interruptPin;       // (ro)
+			u_int8_t    minimumGrant;       // (ro)
+			u_int8_t    maximumLatency;     // (ro)
+		} type0;
+
+        /*
+         * PCI to PCI Bridge
+         */
+
+		struct _MRSAS_DRV_PCI_HEADER_TYPE_1
+		{
+			u_int32_t   baseAddresses[PCI_TYPE1_ADDRESSES];
+			u_int8_t    primaryBus;
+			u_int8_t    secondaryBus;
+			u_int8_t    subordinateBus;
+			u_int8_t    secondaryLatency;
+			u_int8_t    ioBase;
+			u_int8_t    ioLimit;
+			u_int16_t   secondaryStatus;
+			u_int16_t   memoryBase;
+			u_int16_t   memoryLimit;
+			u_int16_t   prefetchBase;
+			u_int16_t   prefetchLimit;
+			u_int32_t   prefetchBaseUpper32;
+			u_int32_t   prefetchLimitUpper32;
+			u_int16_t   ioBaseUpper16;
+			u_int16_t   ioLimitUpper16;
+			u_int8_t    capabilitiesPtr;
+			u_int8_t    reserved1[3];
+			u_int32_t   romBaseAddress;
+			u_int8_t    interruptLine;
+			u_int8_t    interruptPin;
+			u_int16_t   bridgeControl;
+		} type1;
+
+        /*
+         * PCI to CARDBUS Bridge
+         */
+
+		struct _MRSAS_DRV_PCI_HEADER_TYPE_2
+		{
+			u_int32_t   socketRegistersBaseAddress;
+			u_int8_t    capabilitiesPtr;
+			u_int8_t    reserved;
+			u_int16_t   secondaryStatus;
+			u_int8_t    primaryBus;
+			u_int8_t    secondaryBus;
+			u_int8_t    subordinateBus;
+			u_int8_t    secondaryLatency;
+			struct
+			{
+				u_int32_t   base;
+				u_int32_t   limit;
+			}    range[PCI_TYPE2_ADDRESSES-1];
+			u_int8_t   interruptLine;
+			u_int8_t   interruptPin;
+			u_int16_t  bridgeControl;
+		} type2;
+	} u;
+
+} MRSAS_DRV_PCI_COMMON_HEADER, *PMRSAS_DRV_PCI_COMMON_HEADER;
+
+#define MRSAS_DRV_PCI_COMMON_HEADER_SIZE sizeof(MRSAS_DRV_PCI_COMMON_HEADER)   //64 bytes
+
+typedef struct _MRSAS_DRV_PCI_LINK_CAPABILITY
+{
+	union
+	{
+		struct
+		{
+			u_int32_t linkSpeed         :4;
+			u_int32_t linkWidth         :6;
+			u_int32_t aspmSupport       :2;
+			u_int32_t losExitLatency    :3;
+			u_int32_t l1ExitLatency     :3;
+			u_int32_t rsvdp             :6;
+			u_int32_t portNumber        :8;
+		}bits;
+
+		u_int32_t asUlong;
+	}u;
+}MRSAS_DRV_PCI_LINK_CAPABILITY, *PMRSAS_DRV_PCI_LINK_CAPABILITY;
+
+#define MRSAS_DRV_PCI_LINK_CAPABILITY_SIZE sizeof(MRSAS_DRV_PCI_LINK_CAPABILITY)
+
+typedef struct _MRSAS_DRV_PCI_LINK_STATUS_CAPABILITY
+{
+	union
+	{
+		struct
+		{
+			u_int16_t linkSpeed             :4;
+			u_int16_t negotiatedLinkWidth   :6;
+			u_int16_t linkTrainingError     :1;
+			u_int16_t linkTraning           :1;
+			u_int16_t slotClockConfig       :1;
+			u_int16_t rsvdZ                  :3;
+		}bits;
+
+		u_int16_t asUshort;
+	}u;
+	u_int16_t reserved;
+} MRSAS_DRV_PCI_LINK_STATUS_CAPABILITY, *PMRSAS_DRV_PCI_LINK_STATUS_CAPABILITY;
+
+#define MRSAS_DRV_PCI_LINK_STATUS_CAPABILITY_SIZE sizeof(MRSAS_DRV_PCI_LINK_STATUS_CAPABILITY)
+
+
+typedef struct _MRSAS_DRV_PCI_CAPABILITIES
+{
+	MRSAS_DRV_PCI_LINK_CAPABILITY         linkCapability;
+	MRSAS_DRV_PCI_LINK_STATUS_CAPABILITY  linkStatusCapability;
+}MRSAS_DRV_PCI_CAPABILITIES, *PMRSAS_DRV_PCI_CAPABILITIES;
+
+#define MRSAS_DRV_PCI_CAPABILITIES_SIZE sizeof(MRSAS_DRV_PCI_CAPABILITIES)
+
+/* PCI information */
+typedef struct _MRSAS_DRV_PCI_INFORMATION
+{
+	u_int32_t	busNumber;
+	u_int8_t	deviceNumber;
+	u_int8_t	functionNumber;
+	u_int8_t	interruptVector;
+	u_int8_t	reserved1;
+	MRSAS_DRV_PCI_COMMON_HEADER	pciHeaderInfo;
+	MRSAS_DRV_PCI_CAPABILITIES	capability;
+	u_int32_t	domainID;
+	u_int8_t	reserved2[28];
+}MRSAS_DRV_PCI_INFORMATION, *PMRSAS_DRV_PCI_INFORMATION;
+
 /*******************************************************************
  * per-instance data
  ********************************************************************/

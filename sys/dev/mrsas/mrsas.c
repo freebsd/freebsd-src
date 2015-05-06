@@ -87,6 +87,8 @@ mrsas_get_ctrl_info(struct mrsas_softc *sc,
 static int 
 mrsas_issue_blocked_abort_cmd(struct mrsas_softc *sc,
     struct mrsas_mfi_cmd *cmd_to_abort);
+static struct mrsas_softc *mrsas_get_softc_instance(struct cdev *dev,
+						u_long cmd, caddr_t arg);
 u_int32_t mrsas_read_reg(struct mrsas_softc *sc, int offset);
 u_int8_t 
 mrsas_build_mptmfi_passthru(struct mrsas_softc *sc,
@@ -1231,6 +1233,39 @@ mrsas_resume(device_t dev)
 	return (0);
 }
 
+/**
+ * mrsas_get_softc_instance:    Find softc instance based on cmd type
+ *
+ * This function will return softc instance based on cmd type.
+ * In some case, application fire ioctl on required management instance and
+ * do not provide host_no. Use cdev->si_drv1 to get softc instance for those
+ * case, else get the softc instance from host_no provided by application in
+ * user data.
+ */
+
+static struct mrsas_softc *
+mrsas_get_softc_instance(struct cdev *dev, u_long cmd, caddr_t arg)
+{
+	struct mrsas_softc *sc = NULL;
+	struct mrsas_iocpacket *user_ioc = (struct mrsas_iocpacket *)arg;
+	if (cmd == MRSAS_IOC_GET_PCI_INFO){
+	sc = dev->si_drv1;
+	} else {
+	/* get the Host number & the softc from data sent by the Application */
+	sc = mrsas_mgmt_info.sc_ptr[user_ioc->host_no];
+		if ((user_ioc->host_no >= mrsas_mgmt_info.max_index) || (sc == NULL)) {
+			if (sc == NULL)
+				mrsas_dprint(sc, MRSAS_FAULT,
+					"There is no Controller number %d .\n", user_ioc->host_no);
+			else
+				mrsas_dprint(sc, MRSAS_FAULT,
+					"Invalid Controller number %d .\n", user_ioc->host_no);
+		}
+	}
+
+	return sc;
+}
+
 /*
  * mrsas_ioctl:	IOCtl commands entry point.
  *
@@ -1243,19 +1278,12 @@ mrsas_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag,
 {
 	struct mrsas_softc *sc;
 	int ret = 0, i = 0;
+	MRSAS_DRV_PCI_INFORMATION *pciDrvInfo;
 
-	struct mrsas_iocpacket *user_ioc = (struct mrsas_iocpacket *)arg;
-
-	/* get the Host number & the softc from data sent by the Application */
-	sc = mrsas_mgmt_info.sc_ptr[user_ioc->host_no];
-
-	if ((mrsas_mgmt_info.max_index == user_ioc->host_no) || (sc == NULL)) {
-		printf("Please check the controller number\n");
-		if (sc == NULL)
-			printf("There is NO such Host no. %d\n", user_ioc->host_no);
-
+	sc = mrsas_get_softc_instance(dev, cmd, arg);
+	if (!sc)
 		return ENOENT;
-	}
+
 	if (sc->remove_in_progress) {
 		mrsas_dprint(sc, MRSAS_INFO,
 		    "Driver remove or shutdown called.\n");
@@ -1299,6 +1327,22 @@ do_ioctl:
 	case MRSAS_IOC_SCAN_BUS:
 		ret = mrsas_bus_scan(sc);
 		break;
+
+	case MRSAS_IOC_GET_PCI_INFO:
+		pciDrvInfo = (MRSAS_DRV_PCI_INFORMATION *)arg;
+		memset (pciDrvInfo, 0, sizeof(MRSAS_DRV_PCI_INFORMATION));
+		pciDrvInfo->busNumber = pci_get_bus(sc->mrsas_dev);
+		pciDrvInfo->deviceNumber = pci_get_slot(sc->mrsas_dev);
+		pciDrvInfo->functionNumber = pci_get_function(sc->mrsas_dev);
+		pciDrvInfo->domainID = pci_get_domain(sc->mrsas_dev);
+		mrsas_dprint (sc, MRSAS_INFO, "pci bus no: %d,"
+			"pci device no: %d, pci function no: %d,"
+			"pci domain ID: %d\n",
+			pciDrvInfo->busNumber, pciDrvInfo->deviceNumber,
+			pciDrvInfo->functionNumber, pciDrvInfo->domainID);
+		ret = 0;
+		break;
+
 	default:
 		mrsas_dprint(sc, MRSAS_TRACE, "IOCTL command 0x%lx is not handled\n", cmd);
 		ret = ENOENT;
