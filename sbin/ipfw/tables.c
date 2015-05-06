@@ -715,6 +715,7 @@ table_print_valheader(char *buf, size_t bufsize, uint32_t vmask)
 		return;
 	}
 
+	memset(buf, 0, bufsize);
 	print_flags_buffer(buf, bufsize, tablevaltypes, vmask);
 }
 
