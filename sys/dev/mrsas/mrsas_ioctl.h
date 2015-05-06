@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
  * into a somewhat unique, 32-bit value.
  */
 
-#define MRSAS_IOC_GET_PCI_INFO				_IOR('M', 7, MRSAS_DRV_PCI_INFORMATION)
+#define	MRSAS_IOC_GET_PCI_INFO				_IOR('M', 7, MRSAS_DRV_PCI_INFORMATION)
 #define	MRSAS_IOC_FIRMWARE_PASS_THROUGH64	_IOWR('M', 1, struct mrsas_iocpacket)
 #ifdef COMPAT_FREEBSD32
 #define	MRSAS_IOC_FIRMWARE_PASS_THROUGH32	_IOWR('M', 1, struct mrsas_iocpacket32)
