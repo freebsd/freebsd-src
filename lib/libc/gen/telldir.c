@@ -125,13 +125,13 @@ _seekdir(dirp, loc)
 }
 
 /*
- * A call to telldir after readdir returns the last entry in a block
- * returns a location that is after the end of the last entry in that
- * block.  However, that location doesn't refer to a valid directory
- * entry.  Instead, these locations should refer to the first entry in
- * the next block.  That location is not known until the next block is
- * read, so readdir calls this function after fetching a new block to
- * fix any such telldir locations.
+ * After readdir returns the last entry in a block, a call to telldir
+ * returns a location that is after the end of that last entry.
+ * However, that location doesn't refer to a valid directory entry.
+ * Ideally, the call to telldir would return a location that refers to
+ * the first entry in the next block.  That location is not known
+ * until the next block is read, so readdir calls this function after
+ * fetching a new block to fix any such telldir locations.
  */
 void
 _fixtelldir(DIR *dirp, long oldseek, long oldloc)
