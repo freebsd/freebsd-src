@@ -114,7 +114,57 @@ __FBSDID("$FreeBSD$");
 
 #ifdef DDB
 #include <ddb/ddb.h>
-#endif
+
+#if __ARM_ARCH >= 6
+#include <machine/cpu-v6.h>
+
+DB_SHOW_COMMAND(cp15, db_show_cp15)
+{
+	u_int reg;
+
+	reg = cp15_midr_get();
+	db_printf("Cpu ID: 0x%08x\n", reg);
+	reg = cp15_ctr_get();
+	db_printf("Current Cache Lvl ID: 0x%08x\n",reg);
+
+	reg = cp15_sctlr_get();
+	db_printf("Ctrl: 0x%08x\n",reg);
+	reg = cp15_actlr_get();
+	db_printf("Aux Ctrl: 0x%08x\n",reg);
+
+	reg = cp15_id_pfr0_get();
+	db_printf("Processor Feat 0: 0x%08x\n", reg);
+	reg = cp15_id_pfr1_get();
+	db_printf("Processor Feat 1: 0x%08x\n", reg);
+	reg = cp15_id_dfr0_get();
+	db_printf("Debug Feat 0: 0x%08x\n", reg);
+	reg = cp15_id_afr0_get();
+	db_printf("Auxiliary Feat 0: 0x%08x\n", reg);
+	reg = cp15_id_mmfr0_get();
+	db_printf("Memory Model Feat 0: 0x%08x\n", reg);
+	reg = cp15_id_mmfr1_get();
+	db_printf("Memory Model Feat 1: 0x%08x\n", reg);
+	reg = cp15_id_mmfr2_get();
+	db_printf("Memory Model Feat 2: 0x%08x\n", reg);
+	reg = cp15_id_mmfr3_get();
+	db_printf("Memory Model Feat 3: 0x%08x\n", reg);
+	reg = cp15_ttbr_get();
+	db_printf("TTB0: 0x%08x\n", reg);
+}
+
+DB_SHOW_COMMAND(vtop, db_show_vtop)
+{
+	u_int reg;
+
+	if (have_addr) {
+		cp15_ats1cpr_set(addr);
+		reg = cp15_par_get();
+		db_printf("Physical address reg: 0x%08x\n",reg);
+	} else
+		db_printf("show vtop <virt_addr>\n");
+}
+#endif /* __ARM_ARCH >= 6 */
+#endif /* DDB */
 
 #ifdef DEBUG
 #define	debugf(fmt, args...) printf(fmt, ##args)
