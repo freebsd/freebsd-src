@@ -564,6 +564,19 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	return (svm_sc);
 }
 
+/*
+ * Collateral for a generic SVM VM-exit.
+ */
+static void
+vm_exit_svm(struct vm_exit *vme, uint64_t code, uint64_t info1, uint64_t info2)
+{
+
+	vme->exitcode = VM_EXITCODE_SVM;
+	vme->u.svm.exitcode = code;
+	vme->u.svm.exitinfo1 = info1;
+	vme->u.svm.exitinfo2 = info2;
+}
+
 static int
 svm_cpl(struct vmcb_state *state)
 {
@@ -1080,6 +1093,76 @@ clear_nmi_blocking(struct svm_softc *sc, int vcpu)
 	KASSERT(!error, ("%s: error %d setting intr_shadow", __func__, error));
 }
 
+#define	EFER_MBZ_BITS	0xFFFFFFFFFFFF0200UL
+
+static int
+svm_write_efer(struct svm_softc *sc, int vcpu, uint64_t newval, bool *retu)
+{
+	struct vm_exit *vme;
+	struct vmcb_state *state;
+	uint64_t changed, lma, oldval;
+	int error;
+
+	state = svm_get_vmcb_state(sc, vcpu);
+
+	oldval = state->efer;
+	VCPU_CTR2(sc->vm, vcpu, "wrmsr(efer) %#lx/%#lx", oldval, newval);
+
+	newval &= ~0xFE;		/* clear the Read-As-Zero (RAZ) bits */
+	changed = oldval ^ newval;
+
+	if (newval & EFER_MBZ_BITS)
+		goto gpf;
+
+	/* APMv2 Table 14-5 "Long-Mode Consistency Checks" */
+	if (changed & EFER_LME) {
+		if (state->cr0 & CR0_PG)
+			goto gpf;
+	}
+
+	/* EFER.LMA = EFER.LME & CR0.PG */
+	if ((newval & EFER_LME) != 0 && (state->cr0 & CR0_PG) != 0)
+		lma = EFER_LMA;
+	else
+		lma = 0;
+
+	if ((newval & EFER_LMA) != lma)
+		goto gpf;
+
+	if (newval & EFER_NXE) {
+		if (!vm_cpuid_capability(sc->vm, vcpu, VCC_NO_EXECUTE))
+			goto gpf;
+	}
+
+	/*
+	 * XXX bhyve does not enforce segment limits in 64-bit mode. Until
+	 * this is fixed flag guest attempt to set EFER_LMSLE as an error.
+	 */
+	if (newval & EFER_LMSLE) {
+		vme = vm_exitinfo(sc->vm, vcpu);
+		vm_exit_svm(vme, VMCB_EXIT_MSR, 1, 0);
+		*retu = true;
+		return (0);
+	}
+
+	if (newval & EFER_FFXSR) {
+		if (!vm_cpuid_capability(sc->vm, vcpu, VCC_FFXSR))
+			goto gpf;
+	}
+
+	if (newval & EFER_TCE) {
+		if (!vm_cpuid_capability(sc->vm, vcpu, VCC_TCE))
+			goto gpf;
+	}
+
+	error = svm_setreg(sc, vcpu, VM_REG_GUEST_EFER, newval);
+	KASSERT(error == 0, ("%s: error %d updating efer", __func__, error));
+	return (0);
+gpf:
+	vm_inject_gp(sc->vm, vcpu);
+	return (0);
+}
+
 static int
 emulate_wrmsr(struct svm_softc *sc, int vcpu, u_int num, uint64_t val,
     bool *retu)
@@ -1089,7 +1172,7 @@ emulate_wrmsr(struct svm_softc *sc, int vcpu, u_int num, uint64_t val,
 	if (lapic_msr(num))
 		error = lapic_wrmsr(sc->vm, vcpu, num, val, retu);
 	else if (num == MSR_EFER)
-		error = svm_setreg(sc, vcpu, VM_REG_GUEST_EFER, val);
+		error = svm_write_efer(sc, vcpu, val, retu);
 	else
 		error = svm_wrmsr(sc, vcpu, num, val, retu);
 
@@ -1187,19 +1270,6 @@ nrip_valid(uint64_t exitcode)
 	default:
 		return (0);
 	}
-}
-
-/*
- * Collateral for a generic SVM VM-exit.
- */
-static void
-vm_exit_svm(struct vm_exit *vme, uint64_t code, uint64_t info1, uint64_t info2)
-{
-
-	vme->exitcode = VM_EXITCODE_SVM;
-	vme->u.svm.exitcode = code;
-	vme->u.svm.exitinfo1 = info1;
-	vme->u.svm.exitinfo2 = info2;
 }
 
 static int
