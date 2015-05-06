@@ -81,9 +81,8 @@ static int mrsas_init_fw(struct mrsas_softc *sc);
 static int mrsas_setup_raidmap(struct mrsas_softc *sc);
 static int mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex);
 static int mrsas_clear_intr(struct mrsas_softc *sc);
-static int 
-mrsas_get_ctrl_info(struct mrsas_softc *sc,
-    struct mrsas_ctrl_info *ctrl_info);
+static int mrsas_get_ctrl_info(struct mrsas_softc *sc);
+static void mrsas_update_ext_vd_details(struct mrsas_softc *sc);
 static int 
 mrsas_issue_blocked_abort_cmd(struct mrsas_softc *sc,
     struct mrsas_mfi_cmd *cmd_to_abort);
@@ -1170,6 +1169,12 @@ mrsas_free_mem(struct mrsas_softc *sc)
 	 */
 	if (sc->mrsas_parent_tag != NULL)
 		bus_dma_tag_destroy(sc->mrsas_parent_tag);
+
+	/*
+	 * Free ctrl_info memory
+	 */
+	if (sc->ctrl_info != NULL)
+		free(sc->ctrl_info, M_MRSAS);
 }
 
 /*
@@ -1909,34 +1914,6 @@ mrsas_setup_raidmap(struct mrsas_softc *sc)
 {
 	int i;
 
-	sc->drv_supported_vd_count =
-	    MRSAS_MAX_LD_CHANNELS * MRSAS_MAX_DEV_PER_CHANNEL;
-	sc->drv_supported_pd_count =
-	    MRSAS_MAX_PD_CHANNELS * MRSAS_MAX_DEV_PER_CHANNEL;
-
-	if (sc->max256vdSupport) {
-		sc->fw_supported_vd_count = MAX_LOGICAL_DRIVES_EXT;
-		sc->fw_supported_pd_count = MAX_PHYSICAL_DEVICES;
-	} else {
-		sc->fw_supported_vd_count = MAX_LOGICAL_DRIVES;
-		sc->fw_supported_pd_count = MAX_PHYSICAL_DEVICES;
-	}
-
-#if VD_EXT_DEBUG
-	device_printf(sc->mrsas_dev, "FW supports: max256vdSupport = %s\n",
-	    sc->max256vdSupport ? "YES" : "NO");
-	device_printf(sc->mrsas_dev, "FW supports %dVDs %dPDs\n"
-	    "DRIVER supports %dVDs  %dPDs \n",
-	    sc->fw_supported_vd_count, sc->fw_supported_pd_count,
-	    sc->drv_supported_vd_count, sc->drv_supported_pd_count);
-#endif
-
-	sc->old_map_sz = sizeof(MR_FW_RAID_MAP) +
-	    (sizeof(MR_LD_SPAN_MAP) * (sc->fw_supported_vd_count - 1));
-	sc->new_map_sz = sizeof(MR_FW_RAID_MAP_EXT);
-	sc->drv_map_sz = sizeof(MR_DRV_RAID_MAP) +
-	    (sizeof(MR_LD_SPAN_MAP) * (sc->drv_supported_vd_count - 1));
-
 	for (i = 0; i < 2; i++) {
 		sc->ld_drv_map[i] =
 		    (void *)malloc(sc->drv_map_sz, M_MRSAS, M_NOWAIT);
@@ -1950,14 +1927,6 @@ mrsas_setup_raidmap(struct mrsas_softc *sc)
 			goto ABORT;
 		}
 	}
-
-	sc->max_map_sz = max(sc->old_map_sz, sc->new_map_sz);
-
-	if (sc->max256vdSupport)
-		sc->current_map_sz = sc->new_map_sz;
-	else
-		sc->current_map_sz = sc->old_map_sz;
-
 
 	for (int i = 0; i < 2; i++) {
 		if (bus_dma_tag_create(sc->mrsas_parent_tag,
@@ -2026,7 +1995,6 @@ mrsas_init_fw(struct mrsas_softc *sc)
 	u_int32_t max_sectors_1;
 	u_int32_t max_sectors_2;
 	u_int32_t tmp_sectors;
-	struct mrsas_ctrl_info *ctrl_info;
 	u_int32_t scratch_pad_2;
 	int msix_enable = 0;
 	int fw_msix_count = 0;
@@ -2088,29 +2056,26 @@ mrsas_init_fw(struct mrsas_softc *sc)
 		device_printf(sc->mrsas_dev, "Allocate MFI cmd failed.\n");
 		return (1);
 	}
+
+	sc->ctrl_info = malloc(sizeof(struct mrsas_ctrl_info), M_MRSAS, M_NOWAIT);
+	if (!sc->ctrl_info) {
+		device_printf(sc->mrsas_dev, "Malloc for ctrl_info failed.\n");
+		return(1);
+	}
 	/*
 	 * Get the controller info from FW, so that the MAX VD support
 	 * availability can be decided.
 	 */
-	ctrl_info = malloc(sizeof(struct mrsas_ctrl_info), M_MRSAS, M_NOWAIT);
-	if (!ctrl_info)
-		device_printf(sc->mrsas_dev, "Malloc for ctrl_info failed.\n");
-
-	if (mrsas_get_ctrl_info(sc, ctrl_info)) {
+	if (mrsas_get_ctrl_info(sc)) {
 		device_printf(sc->mrsas_dev, "Unable to get FW ctrl_info.\n");
+		return(1);
 	}
 	sc->secure_jbod_support =
-		(u_int8_t) ctrl_info->adapterOperations3.supportSecurityonJBOD;
+		(u_int8_t) sc->ctrl_info->adapterOperations3.supportSecurityonJBOD;
 
 	if (sc->secure_jbod_support)
 		device_printf(sc->mrsas_dev, "FW supports SED \n");
 
-	sc->max256vdSupport =
-	    (u_int8_t)ctrl_info->adapterOperations3.supportMaxExtLDs;
-
-	if (ctrl_info->max_lds > 64) {
-		sc->max256vdSupport = 1;
-	}
 	if (mrsas_setup_raidmap(sc) != SUCCESS) {
 		device_printf(sc->mrsas_dev, "Set up RAID map failed.\n");
 		return (1);
@@ -2134,9 +2099,9 @@ mrsas_init_fw(struct mrsas_softc *sc)
 	 * calculate max_sectors_1. So the number ended up as zero always.
 	 */
 	tmp_sectors = 0;
-	max_sectors_1 = (1 << ctrl_info->stripe_sz_ops.min) *
-	    ctrl_info->max_strips_per_io;
-	max_sectors_2 = ctrl_info->max_request_size;
+	max_sectors_1 = (1 << sc->ctrl_info->stripe_sz_ops.min) *
+		sc->ctrl_info->max_strips_per_io;
+	max_sectors_2 = sc->ctrl_info->max_request_size;
 	tmp_sectors = min(max_sectors_1, max_sectors_2);
 	sc->max_sectors_per_req = sc->max_num_sge * MRSAS_PAGE_SIZE / 512;
 
@@ -2144,9 +2109,9 @@ mrsas_init_fw(struct mrsas_softc *sc)
 		sc->max_sectors_per_req = tmp_sectors;
 
 	sc->disableOnlineCtrlReset =
-	    ctrl_info->properties.OnOffProperties.disableOnlineCtrlReset;
+		sc->ctrl_info->properties.OnOffProperties.disableOnlineCtrlReset;
 	sc->UnevenSpanSupport =
-	    ctrl_info->adapterOperations2.supportUnevenSpans;
+		sc->ctrl_info->adapterOperations2.supportUnevenSpans;
 	if (sc->UnevenSpanSupport) {
 		device_printf(sc->mrsas_dev, "FW supports: UnevenSpanSupport=%x\n\n",
 		    sc->UnevenSpanSupport);
@@ -2156,8 +2121,6 @@ mrsas_init_fw(struct mrsas_softc *sc)
 		else
 			sc->fast_path_io = 0;
 	}
-	if (ctrl_info)
-		free(ctrl_info, M_MRSAS);
 
 	return (0);
 }
@@ -2877,6 +2840,12 @@ mrsas_reset_ctrl(struct mrsas_softc *sc)
 			memset(sc->load_balance_info, 0,
 			    sizeof(LD_LOAD_BALANCE_INFO) * MAX_LOGICAL_DRIVES_EXT);
 
+			if (mrsas_get_ctrl_info(sc)) {
+				sc->adprecovery = MRSAS_HW_CRITICAL_ERROR;
+				mrsas_kill_hba(sc);
+				retval = -1;
+			}
+
 			if (!mrsas_get_map_info(sc))
 				mrsas_sync_map_info(sc);
 
@@ -3001,8 +2970,7 @@ mrsas_release_mfi_cmd(struct mrsas_mfi_cmd *cmd)
  * supported by the FW.
  */
 static int
-mrsas_get_ctrl_info(struct mrsas_softc *sc,
-    struct mrsas_ctrl_info *ctrl_info)
+mrsas_get_ctrl_info(struct mrsas_softc *sc)
 {
 	int retcode = 0;
 	struct mrsas_mfi_cmd *cmd;
@@ -3035,13 +3003,56 @@ mrsas_get_ctrl_info(struct mrsas_softc *sc,
 	dcmd->sgl.sge32[0].length = sizeof(struct mrsas_ctrl_info);
 
 	if (!mrsas_issue_polled(sc, cmd))
-		memcpy(ctrl_info, sc->ctlr_info_mem, sizeof(struct mrsas_ctrl_info));
+		memcpy(sc->ctrl_info, sc->ctlr_info_mem, sizeof(struct mrsas_ctrl_info));
 	else
 		retcode = 1;
+
+	mrsas_update_ext_vd_details(sc);
 
 	mrsas_free_ctlr_info_cmd(sc);
 	mrsas_release_mfi_cmd(cmd);
 	return (retcode);
+}
+
+/*
+ * mrsas_update_ext_vd_details : Update details w.r.t Extended VD
+ * input:
+ *	sc - Controller's softc
+*/
+static void mrsas_update_ext_vd_details(struct mrsas_softc *sc)
+{
+	sc->max256vdSupport =
+		sc->ctrl_info->adapterOperations3.supportMaxExtLDs;
+	/* Below is additional check to address future FW enhancement */
+	if (sc->ctrl_info->max_lds > 64)
+		sc->max256vdSupport = 1;
+
+	sc->drv_supported_vd_count = MRSAS_MAX_LD_CHANNELS
+					* MRSAS_MAX_DEV_PER_CHANNEL;
+	sc->drv_supported_pd_count = MRSAS_MAX_PD_CHANNELS
+					* MRSAS_MAX_DEV_PER_CHANNEL;
+	if (sc->max256vdSupport) {
+		sc->fw_supported_vd_count = MAX_LOGICAL_DRIVES_EXT;
+		sc->fw_supported_pd_count = MAX_PHYSICAL_DEVICES;
+	} else {
+		sc->fw_supported_vd_count = MAX_LOGICAL_DRIVES;
+		sc->fw_supported_pd_count = MAX_PHYSICAL_DEVICES;
+	}
+
+	sc->old_map_sz =  sizeof(MR_FW_RAID_MAP) +
+				(sizeof(MR_LD_SPAN_MAP) *
+				(sc->fw_supported_vd_count - 1));
+	sc->new_map_sz =  sizeof(MR_FW_RAID_MAP_EXT);
+	sc->drv_map_sz =  sizeof(MR_DRV_RAID_MAP) +
+				(sizeof(MR_LD_SPAN_MAP) *
+				(sc->drv_supported_vd_count - 1));
+
+	sc->max_map_sz = max(sc->old_map_sz, sc->new_map_sz);
+
+	if (sc->max256vdSupport)
+		sc->current_map_sz = sc->new_map_sz;
+	else
+		sc->current_map_sz = sc->old_map_sz;
 }
 
 /*
