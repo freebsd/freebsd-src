@@ -285,6 +285,14 @@ extra_chroot_setup() {
 chroot_build_target() {
 	buildenv_setup
 	load_target_env
+	if [ ! -z "${EMBEDDEDBUILD}" ]; then
+		RELEASE_WMAKEFLAGS="${RELEASE_WMAKEFLAGS} \
+			TARGET=${EMBEDDED_TARGET} \
+			TARGET_ARCH=${EMBEDDED_TARGET_ARCH}"
+		RELEASE_KMAKEFLAGS="${RELEASE_KMAKEFLAGS} \
+			TARGET=${EMBEDDED_TARGET} \
+			TARGET_ARCH=${EMBEDDED_TARGET_ARCH}"
+	fi
 	eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_WMAKEFLAGS} buildworld
 	eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_KMAKEFLAGS} buildkernel
 
