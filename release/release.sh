@@ -328,12 +328,6 @@ main() {
 		case ${opt} in
 			c)
 				RELEASECONF="${OPTARG}"
-				if [ ! -e "${RELEASECONF}" ]; then
-					echo "ERROR: Configuration file ${RELEASECONF} does not exist."
-					exit 1
-				fi
-				# Source the specified configuration file for overrides
-				. ${RELEASECONF}
 				;;
 			\?)
 				usage
@@ -341,6 +335,14 @@ main() {
 		esac
 	done
 	shift $(($OPTIND - 1))
+	if [ ! -z "${RELEASECONF}" ]; then
+		if [ -e "${RELEASECONF}" ]; then
+			. ${RELEASECONF}
+		else
+			echo "Nonexistent configuration file: ${RELEASECONF}"
+			echo "Using default build environment."
+		fi
+	fi
 	env_check
 	trap "umount ${CHROOTDIR}/dev" EXIT # Clean up devfs mount on exit
 	chroot_setup
