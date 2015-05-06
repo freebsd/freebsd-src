@@ -341,8 +341,8 @@ main() {
 		esac
 	done
 	shift $(($OPTIND - 1))
-	trap "umount ${CHROOTDIR}/dev" EXIT # Clean up devfs mount on exit
 	env_check
+	trap "umount ${CHROOTDIR}/dev" EXIT # Clean up devfs mount on exit
 	chroot_setup
 	extra_chroot_setup
 	chroot_build_target
