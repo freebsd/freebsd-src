@@ -55,13 +55,14 @@ __FBSDID("$FreeBSD$");
  * Function prototypes
  */
 u_int8_t MR_ValidateMapInfo(struct mrsas_softc *sc);
-u_int8_t mrsas_get_best_arm_pd(struct mrsas_softc *sc,
-		PLD_LOAD_BALANCE_INFO lbInfo, struct IO_REQUEST_INFO *io_info);
 u_int8_t 
+mrsas_get_best_arm_pd(struct mrsas_softc *sc,
+    PLD_LOAD_BALANCE_INFO lbInfo, struct IO_REQUEST_INFO *io_info);
+u_int8_t
 MR_BuildRaidContext(struct mrsas_softc *sc,
     struct IO_REQUEST_INFO *io_info,
     RAID_CONTEXT * pRAID_Context, MR_DRV_RAID_MAP_ALL * map);
-u_int8_t 
+u_int8_t
 MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
     u_int64_t stripRow, u_int16_t stripRef, struct IO_REQUEST_INFO *io_info,
     RAID_CONTEXT * pRAID_Context,
@@ -69,31 +70,33 @@ MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
 u_int16_t MR_TargetIdToLdGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL * map);
 u_int32_t MR_LdBlockSizeGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL * map);
 u_int16_t MR_GetLDTgtId(u_int32_t ld, MR_DRV_RAID_MAP_ALL * map);
-u_int16_t mrsas_get_updated_dev_handle(struct mrsas_softc *sc,
-		PLD_LOAD_BALANCE_INFO lbInfo, struct IO_REQUEST_INFO *io_info);
+u_int16_t 
+mrsas_get_updated_dev_handle(struct mrsas_softc *sc,
+    PLD_LOAD_BALANCE_INFO lbInfo, struct IO_REQUEST_INFO *io_info);
 u_int32_t mega_mod64(u_int64_t dividend, u_int32_t divisor);
-u_int32_t 
+u_int32_t
 MR_GetSpanBlock(u_int32_t ld, u_int64_t row, u_int64_t *span_blk,
     MR_DRV_RAID_MAP_ALL * map, int *div_error);
 u_int64_t mega_div64_32(u_int64_t dividend, u_int32_t divisor);
-void mrsas_update_load_balance_params(struct mrsas_softc *sc,
-		MR_DRV_RAID_MAP_ALL *map, PLD_LOAD_BALANCE_INFO lbInfo);
 void 
+mrsas_update_load_balance_params(struct mrsas_softc *sc,
+    MR_DRV_RAID_MAP_ALL * map, PLD_LOAD_BALANCE_INFO lbInfo);
+void
 mrsas_set_pd_lba(MRSAS_RAID_SCSI_IO_REQUEST * io_request,
     u_int8_t cdb_len, struct IO_REQUEST_INFO *io_info, union ccb *ccb,
     MR_DRV_RAID_MAP_ALL * local_map_ptr, u_int32_t ref_tag,
     u_int32_t ld_block_size);
-static u_int16_t 
+static u_int16_t
 MR_LdSpanArrayGet(u_int32_t ld, u_int32_t span,
     MR_DRV_RAID_MAP_ALL * map);
 static u_int16_t MR_PdDevHandleGet(u_int32_t pd, MR_DRV_RAID_MAP_ALL * map);
-static u_int16_t 
+static u_int16_t
 MR_ArPdGet(u_int32_t ar, u_int32_t arm,
     MR_DRV_RAID_MAP_ALL * map);
 static MR_LD_SPAN *
 MR_LdSpanPtrGet(u_int32_t ld, u_int32_t span,
     MR_DRV_RAID_MAP_ALL * map);
-static u_int8_t 
+static u_int8_t
 MR_LdDataArmGet(u_int32_t ld, u_int32_t armIdx,
     MR_DRV_RAID_MAP_ALL * map);
 static MR_SPAN_BLOCK_INFO *
@@ -144,7 +147,7 @@ typedef u_int32_t REGION_LEN;
 #define	FALSE					0
 #define	TRUE					1
 
-#define LB_PENDING_CMDS_DEFAULT 4
+#define	LB_PENDING_CMDS_DEFAULT 4
 
 
 /*
@@ -1107,16 +1110,16 @@ mr_update_span_set(MR_DRV_RAID_MAP_ALL * map, PLD_SPAN_INFO ldSpanInfo)
  * This function updates the load balance parameters for the LD config of a two
  * drive optimal RAID-1.
  */
-void 
+void
 mrsas_update_load_balance_params(struct mrsas_softc *sc,
-	MR_DRV_RAID_MAP_ALL * drv_map, PLD_LOAD_BALANCE_INFO lbInfo)
+    MR_DRV_RAID_MAP_ALL * drv_map, PLD_LOAD_BALANCE_INFO lbInfo)
 {
 	int ldCount;
 	u_int16_t ld;
 	MR_LD_RAID *raid;
 
-	if(sc->lb_pending_cmds > 128 || sc->lb_pending_cmds < 1)
-			sc-> lb_pending_cmds = LB_PENDING_CMDS_DEFAULT;
+	if (sc->lb_pending_cmds > 128 || sc->lb_pending_cmds < 1)
+		sc->lb_pending_cmds = LB_PENDING_CMDS_DEFAULT;
 
 	for (ldCount = 0; ldCount < MAX_LOGICAL_DRIVES_EXT; ldCount++) {
 		ld = MR_TargetIdToLdGet(ldCount, drv_map);
@@ -1124,10 +1127,9 @@ mrsas_update_load_balance_params(struct mrsas_softc *sc,
 			lbInfo[ldCount].loadBalanceFlag = 0;
 			continue;
 		}
-
 		raid = MR_LdRaidGet(ld, drv_map);
 		if ((raid->level != 1) ||
-			(raid->ldState != MR_LD_STATE_OPTIMAL)) {
+		    (raid->ldState != MR_LD_STATE_OPTIMAL)) {
 			lbInfo[ldCount].loadBalanceFlag = 0;
 			continue;
 		}
@@ -1147,7 +1149,7 @@ mrsas_update_load_balance_params(struct mrsas_softc *sc,
  *
  * Used to set the PD logical block address in CDB for FP IOs.
  */
-void 
+void
 mrsas_set_pd_lba(MRSAS_RAID_SCSI_IO_REQUEST * io_request, u_int8_t cdb_len,
     struct IO_REQUEST_INFO *io_info, union ccb *ccb,
     MR_DRV_RAID_MAP_ALL * local_map_ptr, u_int32_t ref_tag,
@@ -1294,6 +1296,7 @@ mrsas_set_pd_lba(MRSAS_RAID_SCSI_IO_REQUEST * io_request, u_int8_t cdb_len,
 		}
 		/* Fall through normal case, just load LBA here */
 		u_int8_t val = cdb[1] & 0xE0;
+
 		switch (cdb_len) {
 		case 6:
 			cdb[3] = (u_int8_t)(start_blk & 0xff);
@@ -1336,10 +1339,11 @@ mrsas_set_pd_lba(MRSAS_RAID_SCSI_IO_REQUEST * io_request, u_int8_t cdb_len,
  * This function determines and returns the best arm by looking at the
  * parameters of the last PD access.
  */
-u_int8_t mrsas_get_best_arm_pd(struct mrsas_softc *sc,
-		PLD_LOAD_BALANCE_INFO lbInfo, struct IO_REQUEST_INFO *io_info)
+u_int8_t 
+mrsas_get_best_arm_pd(struct mrsas_softc *sc,
+    PLD_LOAD_BALANCE_INFO lbInfo, struct IO_REQUEST_INFO *io_info)
 {
-	MR_LD_RAID  *raid;
+	MR_LD_RAID *raid;
 	MR_DRV_RAID_MAP_ALL *drv_map;
 	u_int16_t pend0, pend1, ld;
 	u_int64_t diff0, diff1;
@@ -1350,19 +1354,19 @@ u_int8_t mrsas_get_best_arm_pd(struct mrsas_softc *sc,
 	u_int32_t count = io_info->numBlocks;
 
 	span = ((io_info->span_arm & RAID_CTX_SPANARM_SPAN_MASK)
-				>> RAID_CTX_SPANARM_SPAN_SHIFT);
+	    >> RAID_CTX_SPANARM_SPAN_SHIFT);
 	arm = (io_info->span_arm & RAID_CTX_SPANARM_ARM_MASK);
 
 	drv_map = sc->ld_drv_map[(sc->map_id & 1)];
 	ld = MR_TargetIdToLdGet(io_info->ldTgtId, drv_map);
 	raid = MR_LdRaidGet(ld, drv_map);
 	span_row_size = sc->UnevenSpanSupport ?
-				SPAN_ROW_SIZE(drv_map, ld, span) : raid->rowSize;
+	    SPAN_ROW_SIZE(drv_map, ld, span) : raid->rowSize;
 
-		arRef = MR_LdSpanArrayGet(ld, span, drv_map);
-		pd0 = MR_ArPdGet(arRef, arm, drv_map);
-		pd1 = MR_ArPdGet(arRef, (arm + 1) >= span_row_size ?
-				(arm + 1 - span_row_size): arm + 1, drv_map);
+	arRef = MR_LdSpanArrayGet(ld, span, drv_map);
+	pd0 = MR_ArPdGet(arRef, arm, drv_map);
+	pd1 = MR_ArPdGet(arRef, (arm + 1) >= span_row_size ?
+	    (arm + 1 - span_row_size) : arm + 1, drv_map);
 
 	/* get the pending cmds for the data and mirror arms */
 	pend0 = mrsas_atomic_read(&lbInfo->scsi_pending_cmds[pd0]);
@@ -1374,18 +1378,18 @@ u_int8_t mrsas_get_best_arm_pd(struct mrsas_softc *sc,
 	bestArm = (diff0 <= diff1 ? arm : arm ^ 1);
 
 	if ((bestArm == arm && pend0 > pend1 + sc->lb_pending_cmds) ||
-			(bestArm != arm && pend1 > pend0 + sc->lb_pending_cmds))
+	    (bestArm != arm && pend1 > pend0 + sc->lb_pending_cmds))
 		bestArm ^= 1;
 
 	/* Update the last accessed block on the correct pd */
-	lbInfo->last_accessed_block[bestArm==arm ? pd0 : pd1] = block + count - 1;
+	lbInfo->last_accessed_block[bestArm == arm ? pd0 : pd1] = block + count - 1;
 	io_info->span_arm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | bestArm;
-	io_info->pd_after_lb = (bestArm == arm) ? pd0:pd1;
+	io_info->pd_after_lb = (bestArm == arm) ? pd0 : pd1;
 #if SPAN_DEBUG
-	if(arm != bestArm)
-	printf("AVAGO Debug R1 Load balance occur - span 0x%x arm 0x%x bestArm 0x%x "
-			"io_info->span_arm 0x%x\n",
-			span, arm, bestArm, io_info->span_arm);
+	if (arm != bestArm)
+		printf("AVAGO Debug R1 Load balance occur - span 0x%x arm 0x%x bestArm 0x%x "
+		    "io_info->span_arm 0x%x\n",
+		    span, arm, bestArm, io_info->span_arm);
 #endif
 
 	return io_info->pd_after_lb;
@@ -1400,8 +1404,9 @@ u_int8_t mrsas_get_best_arm_pd(struct mrsas_softc *sc,
  *
  * This function determines and returns the updated dev handle.
  */
-u_int16_t mrsas_get_updated_dev_handle(struct mrsas_softc *sc,
-			PLD_LOAD_BALANCE_INFO lbInfo, struct IO_REQUEST_INFO *io_info)
+u_int16_t 
+mrsas_get_updated_dev_handle(struct mrsas_softc *sc,
+    PLD_LOAD_BALANCE_INFO lbInfo, struct IO_REQUEST_INFO *io_info)
 {
 	u_int8_t arm_pd;
 	u_int16_t devHandle;
@@ -1410,7 +1415,7 @@ u_int16_t mrsas_get_updated_dev_handle(struct mrsas_softc *sc,
 	drv_map = sc->ld_drv_map[(sc->map_id & 1)];
 
 	/* get best new arm */
-	arm_pd  = mrsas_get_best_arm_pd(sc, lbInfo, io_info);
+	arm_pd = mrsas_get_best_arm_pd(sc, lbInfo, io_info);
 	devHandle = MR_PdDevHandleGet(arm_pd, drv_map);
 	mrsas_atomic_inc(&lbInfo->scsi_pending_cmds[arm_pd]);
 
