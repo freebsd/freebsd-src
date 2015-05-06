@@ -92,6 +92,7 @@ u_int32_t mrsas_read_reg(struct mrsas_softc *sc, int offset);
 u_int8_t 
 mrsas_build_mptmfi_passthru(struct mrsas_softc *sc,
     struct mrsas_mfi_cmd *mfi_cmd);
+void mrsas_complete_outstanding_ioctls (struct mrsas_softc *sc);
 int	mrsas_transition_to_ready(struct mrsas_softc *sc, int ocr);
 int	mrsas_init_adapter(struct mrsas_softc *sc);
 int	mrsas_alloc_mpt_cmds(struct mrsas_softc *sc);
@@ -2722,7 +2723,6 @@ mrsas_reset_ctrl(struct mrsas_softc *sc)
 			/* Reset not supported, kill adapter */
 			mrsas_dprint(sc, MRSAS_OCR, "Reset not supported, killing adapter.\n");
 			mrsas_kill_hba(sc);
-			sc->adprecovery = MRSAS_HW_CRITICAL_ERROR;
 			retval = FAIL;
 			goto out;
 		}
@@ -2841,7 +2841,6 @@ mrsas_reset_ctrl(struct mrsas_softc *sc)
 			    sizeof(LD_LOAD_BALANCE_INFO) * MAX_LOGICAL_DRIVES_EXT);
 
 			if (mrsas_get_ctrl_info(sc)) {
-				sc->adprecovery = MRSAS_HW_CRITICAL_ERROR;
 				mrsas_kill_hba(sc);
 				retval = -1;
 			}
@@ -2879,11 +2878,41 @@ out:
 void
 mrsas_kill_hba(struct mrsas_softc *sc)
 {
+	sc->adprecovery = MRSAS_HW_CRITICAL_ERROR;
+	pause("mrsas_kill_hba", 1000);
 	mrsas_dprint(sc, MRSAS_OCR, "%s\n", __func__);
 	mrsas_write_reg(sc, offsetof(mrsas_reg_set, doorbell),
 	    MFI_STOP_ADP);
 	/* Flush */
 	mrsas_read_reg(sc, offsetof(mrsas_reg_set, doorbell));
+	mrsas_complete_outstanding_ioctls (sc);
+}
+
+/**
+ * mrsas_complete_outstanding_ioctls	Complete pending IOCTLS after kill_hba
+ * input:			Controller softc
+ *
+ * Returns void
+ */
+void mrsas_complete_outstanding_ioctls (struct mrsas_softc *sc){
+	int i;
+    struct mrsas_mpt_cmd *cmd_mpt;
+    struct mrsas_mfi_cmd *cmd_mfi;
+    u_int32_t count, MSIxIndex;
+
+	count = sc->msix_vectors > 0 ? sc->msix_vectors : 1;
+	for (i=0; i<sc->max_fw_cmds; i++){
+		cmd_mpt = sc->mpt_cmd_list[i];
+
+		if (cmd_mpt->sync_cmd_idx != (u_int32_t)MRSAS_ULONG_MAX){
+			cmd_mfi = sc->mfi_cmd_list[cmd_mpt->sync_cmd_idx];
+			if (cmd_mfi->sync_cmd && cmd_mfi->frame->hdr.cmd != MFI_CMD_ABORT){
+				for (MSIxIndex = 0 ; MSIxIndex < count; MSIxIndex++)
+					mrsas_complete_mptmfi_passthru(sc, cmd_mfi,
+								cmd_mpt->io_request->RaidContext.status);
+			}
+		}
+	}
 }
 
 /*
