@@ -514,6 +514,8 @@
         ..
         cmp
         ..
+        col
+        ..
         comm
         ..
         cut
@@ -545,6 +547,8 @@
         sed
             regress.multitest.out
             ..
+        ..
+        soelim
         ..
         timeout
         ..

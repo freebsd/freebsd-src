@@ -21,6 +21,7 @@
 
 ident		BWCT
 
+include		"std.arm"
 options 	VERBOSE_INIT_ARM
 
 include		"../at91/std.bwct"

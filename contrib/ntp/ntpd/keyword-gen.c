@@ -206,6 +206,8 @@ struct key_tok ntp_keywords[] = {
 { "filenum",		T_Filenum,		FOLLBY_TOKEN },
 /* tinker_option */
 { "step",		T_Step,			FOLLBY_TOKEN },
+{ "stepback",		T_Stepback,		FOLLBY_TOKEN },
+{ "stepfwd",		T_Stepfwd,		FOLLBY_TOKEN },
 { "panic",		T_Panic,		FOLLBY_TOKEN },
 { "dispersion",		T_Dispersion,		FOLLBY_TOKEN },
 { "stepout",		T_Stepout,		FOLLBY_TOKEN },

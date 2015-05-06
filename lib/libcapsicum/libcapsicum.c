@@ -142,7 +142,7 @@ cap_clone(const cap_channel_t *chan)
 
 	nvl = nvlist_create(0);
 	nvlist_add_string(nvl, "cmd", "clone");
-	nvl = cap_xfer_nvlist(chan, nvl);
+	nvl = cap_xfer_nvlist(chan, nvl, 0);
 	if (nvl == NULL)
 		return (NULL);
 	if (nvlist_get_number(nvl, "error") != 0) {
@@ -195,7 +195,7 @@ cap_limit_set(const cap_channel_t *chan, nvlist_t *limits)
 	nvlmsg = nvlist_create(0);
 	nvlist_add_string(nvlmsg, "cmd", "limit_set");
 	nvlist_add_nvlist(nvlmsg, "limits", limits);
-	nvlmsg = cap_xfer_nvlist(chan, nvlmsg);
+	nvlmsg = cap_xfer_nvlist(chan, nvlmsg, 0);
 	if (nvlmsg == NULL) {
 		nvlist_destroy(limits);
 		return (-1);
@@ -218,7 +218,7 @@ cap_limit_get(const cap_channel_t *chan, nvlist_t **limitsp)
 
 	nvlmsg = nvlist_create(0);
 	nvlist_add_string(nvlmsg, "cmd", "limit_get");
-	nvlmsg = cap_xfer_nvlist(chan, nvlmsg);
+	nvlmsg = cap_xfer_nvlist(chan, nvlmsg, 0);
 	if (nvlmsg == NULL)
 		return (-1);
 	error = (int)nvlist_get_number(nvlmsg, "error");
@@ -246,21 +246,21 @@ cap_send_nvlist(const cap_channel_t *chan, const nvlist_t *nvl)
 }
 
 nvlist_t *
-cap_recv_nvlist(const cap_channel_t *chan)
+cap_recv_nvlist(const cap_channel_t *chan, int flags)
 {
 
 	assert(chan != NULL);
 	assert(chan->cch_magic == CAP_CHANNEL_MAGIC);
 
-	return (nvlist_recv(chan->cch_sock));
+	return (nvlist_recv(chan->cch_sock, flags));
 }
 
 nvlist_t *
-cap_xfer_nvlist(const cap_channel_t *chan, nvlist_t *nvl)
+cap_xfer_nvlist(const cap_channel_t *chan, nvlist_t *nvl, int flags)
 {
 
 	assert(chan != NULL);
 	assert(chan->cch_magic == CAP_CHANNEL_MAGIC);
 
-	return (nvlist_xfer(chan->cch_sock, nvl));
+	return (nvlist_xfer(chan->cch_sock, nvl, flags));
 }
