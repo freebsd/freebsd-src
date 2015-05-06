@@ -61,7 +61,8 @@ int	mrsas_cam_attach(struct mrsas_softc *sc);
 int mrsas_find_io_type(struct cam_sim *sim, union ccb *ccb);
 int	mrsas_bus_scan(struct mrsas_softc *sc);
 int	mrsas_bus_scan_sim(struct mrsas_softc *sc, struct cam_sim *sim);
-int	mrsas_map_request(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd);
+int mrsas_map_request(struct mrsas_softc *sc,
+		struct mrsas_mpt_cmd *cmd, union ccb *ccb);
 int 
 mrsas_build_ldio(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
     union ccb *ccb);
@@ -315,7 +316,11 @@ mrsas_action(struct cam_sim *sim, union ccb *ccb)
 			ccb->cpi.version_num = 1;
 			ccb->cpi.hba_inquiry = 0;
 			ccb->cpi.target_sprt = 0;
+#if (__FreeBSD_version >= 902001)
+			ccb->cpi.hba_misc = PIM_UNMAPPED;
+#else
 			ccb->cpi.hba_misc = 0;
+#endif
 			ccb->cpi.hba_eng_cnt = 0;
 			ccb->cpi.max_lun = MRSAS_SCSI_MAX_LUNS;
 			ccb->cpi.unit_number = cam_sim_unit(sim);
@@ -378,8 +383,13 @@ mrsas_scsiio_timeout(void *data)
 	 * on OCR enable/disable property of Controller from ocr_thread
 	 * context.
 	 */
+#if (__FreeBSD_version >= 1000510)
 	callout_reset_sbt(&cmd->cm_callout, SBT_1S * 600, 0,
-	     mrsas_scsiio_timeout, cmd, 0);
+							mrsas_scsiio_timeout, cmd, 0);
+#else
+	callout_reset(&cmd->cm_callout, (600000 * hz) / 1000,
+							mrsas_scsiio_timeout, cmd);
+#endif
 	sc->do_timedout_reset = 1;
 	if (sc->ocr_thread_active)
 		wakeup(&sc->ocr_chan);
@@ -425,8 +435,8 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 	} else
 		cmd->flags = MRSAS_DIR_NONE;	/* no data */
 
-	/* For FreeBSD 10.0 and higher */
-#if (__FreeBSD_version >= 1000000)
+/* For FreeBSD 9.2 and higher */
+#if (__FreeBSD_version >= 902001)
 	/*
 	 * XXX We don't yet support physical addresses here.
 	 */
@@ -451,6 +461,11 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 			ccb_h->status = CAM_REQ_TOO_BIG;
 			goto done;
 		}
+		cmd->length = csio->dxfer_len;
+		if (cmd->length)
+			cmd->data = csio->data_ptr;
+		break;
+	case CAM_DATA_BIO:
 		cmd->length = csio->dxfer_len;
 		if (cmd->length)
 			cmd->data = csio->data_ptr;
@@ -532,8 +547,13 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 	/*
 	 * Start timer for IO timeout. Default timeout value is 90 second.
 	 */
-	callout_reset_sbt(&cmd->cm_callout, SBT_1MS * sc->mrsas_io_timeout, 0,
-	    mrsas_scsiio_timeout, cmd, 0);
+#if (__FreeBSD_version >= 1000510)
+	callout_reset_sbt(&cmd->cm_callout, SBT_1S * 600, 0,
+							mrsas_scsiio_timeout, cmd, 0);
+#else
+	callout_reset(&cmd->cm_callout, (600000 * hz) / 1000,
+							mrsas_scsiio_timeout, cmd);
+#endif
 	mrsas_atomic_inc(&sc->fw_outstanding);
 
 	if (mrsas_atomic_read(&sc->fw_outstanding) > sc->io_cmds_highwater)
@@ -677,7 +697,7 @@ mrsas_build_ldio(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 
 	io_request->DataLength = cmd->length;
 
-	if (mrsas_map_request(sc, cmd) == SUCCESS) {
+	if (mrsas_map_request(sc, cmd, ccb) == SUCCESS) {
 		if (cmd->sge_count > MRSAS_MAX_SGL) {
 			device_printf(sc->mrsas_dev, "Error: sge_count (0x%x) exceeds"
 			    "max (0x%x) allowed\n", cmd->sge_count, sc->max_num_sge);
@@ -931,7 +951,7 @@ mrsas_build_dcdb(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	io_request->LUN[1] = ccb_h->target_lun & 0xF;
 	io_request->DataLength = cmd->length;
 
-	if (mrsas_map_request(sc, cmd) == SUCCESS) {
+	if (mrsas_map_request(sc, cmd, ccb) == SUCCESS) {
 		if (cmd->sge_count > sc->max_num_sge) {
 			device_printf(sc->mrsas_dev, "Error: sge_count (0x%x) exceeds"
 			    "max (0x%x) allowed\n", cmd->sge_count, sc->max_num_sge);
@@ -954,20 +974,24 @@ mrsas_build_dcdb(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
  * is built in the callback.  If the  bus dmamap load is not successful,
  * cmd->error_code will contain the  error code and a 1 is returned.
  */
-int
-mrsas_map_request(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd)
+int mrsas_map_request(struct mrsas_softc *sc,
+		struct mrsas_mpt_cmd *cmd, union ccb *ccb)
 {
 	u_int32_t retcode = 0;
 	struct cam_sim *sim;
-	int flag = BUS_DMA_NOWAIT;
 
 	sim = xpt_path_sim(cmd->ccb_ptr->ccb_h.path);
 
 	if (cmd->data != NULL) {
-		mtx_lock(&sc->io_lock);
 		/* Map data buffer into bus space */
+		mtx_lock(&sc->io_lock);
+#if (__FreeBSD_version >= 902001)
+		retcode = bus_dmamap_load_ccb(sc->data_tag, cmd->data_dmamap, ccb,
+						mrsas_data_load_cb, cmd, 0);
+#else
 		retcode = bus_dmamap_load(sc->data_tag, cmd->data_dmamap, cmd->data,
-		    cmd->length, mrsas_data_load_cb, cmd, flag);
+						cmd->length, mrsas_data_load_cb, cmd, BUS_DMA_NOWAIT);
+#endif
 		mtx_unlock(&sc->io_lock);
 		if (retcode)
 			device_printf(sc->mrsas_dev, "bus_dmamap_load(): retcode = %d\n", retcode);
