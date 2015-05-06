@@ -375,7 +375,6 @@ MR_ValidateMapInfo(struct mrsas_softc *sc)
 		return 1;
 	}
 	if (sc->UnevenSpanSupport) {
-		printf("Updating span set\n\n");
 		mr_update_span_set(drv_map, ldSpanInfo);
 	}
 	mrsas_update_load_balance_params(sc, drv_map, sc->load_balance_info);
