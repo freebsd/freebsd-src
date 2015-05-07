@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150506
+OLD_FILES+=usr/share/man/man9/NDHASGIANT.9.gz
 # 20150504
 OLD_LIBS+=usr/lib32/private/libatf-c++.so.2
 OLD_LIBS+=usr/lib32/private/libbsdstat.so.1
