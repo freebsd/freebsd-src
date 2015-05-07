@@ -452,6 +452,7 @@ vendor GLOBESPAN	0x0915	Globespan
 vendor CONCORDCAMERA	0x0919	Concord Camera
 vendor GARMIN		0x091e	Garmin International
 vendor GOHUBS		0x0921	GoHubs
+vendor DYMO		0x0922	DYMO
 vendor XEROX		0x0924	Xerox
 vendor BIOMETRIC	0x0929	American Biometric Company
 vendor TOSHIBA		0x0930	Toshiba
@@ -1693,6 +1694,9 @@ product DRESDENELEKTRONIK SENSORTERMINALBOARD  0x0001 SensorTerminalBoard
 product DRESDENELEKTRONIK WIRELESSHANDHELDTERMINAL  0x0004 Wireless Handheld Terminal
 product DRESDENELEKTRONIK DE_RFNODE                 0x001c deRFnode
 product DRESDENELEKTRONIK LEVELSHIFTERSTICKLOWCOST  0x0022 Levelshifter Stick Low Cost
+
+/* DYMO */
+product DYMO LABELMANAGERPNP	0x1001	DYMO LabelManager PnP
 
 /* Dynastream Innovations */
 product DYNASTREAM ANTDEVBOARD	0x1003	ANT dev board
