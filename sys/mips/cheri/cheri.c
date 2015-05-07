@@ -144,12 +144,13 @@ cheri_capability_set(struct chericap *cp, uint32_t perms, void *otypep,
 #endif
 
 	/*
-	 * NB: Set fields in this order (offset first), in the absence of a
-	 * CSetBounds instruction, such that maximum precision is available
-	 * when using compressed capabilities.
+	 * XXXRW: For now, use the SOFT_CHERI_CSETBOUNDS() macro, as the
+	 * CSetBounds instruction is not consistently available in CHERI ISA
+	 * models and prototypes.  Switch to the actual instruction once it is
+	 * more consistently available.
 	 */
 	CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_KDC, (register_t)basep);
-	CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+	SOFT_CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
 	    (register_t)length);
 	CHERI_CANDPERM(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)perms);
 

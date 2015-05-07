@@ -315,7 +315,7 @@
  * maintain precision.  Remove this macro and migrate users to CSetBounds once
  * available.
  */
-#define	ASM_CSetBounds(cd, cb, rt, r_temp)				\
+#define	SOFT_CSetBounds(cd, cb, rt, r_temp)				\
 	cgetoffset	r_temp, cb;					\
 	csetoffset	cd, cb, $zero;					\
 	cincbase	cd, cd, r_temp;					\

@@ -486,13 +486,22 @@ struct cheri_stack {
 		    "i" (cd), "i" (cb), "r" (v));			\
 } while (0)
 
+#define	CHERI_CSETBOUNDS(cd, cb, v) do {				\
+	if ((cd) == 0)							\
+		__asm__ __volatile__ ("csetbounds $c%0, $c%1, %2" : :	\
+		    "i" (cd), "i" (cb), "r" (v) : "memory");		\
+	else								\
+		__asm__ __volatile__ ("csetbounds $c%0, $c%1, %2" : :	\
+		    "i" (cd), "i" (cb), "r" (v));			\
+} while (0)
+
 /*
  * Temporary macro for CSetBounds to allow us to adopt a CSetBounds-like code
  * structure prior to it being fully available in the assembler and hardware.
  *
  * XXXRW: Remove this macro and migrate users to CSetBounds once available.
  */
-#define	CHERI_CSETBOUNDS(cd, cb, rt) do {				\
+#define	SOFT_CHERI_CSETBOUNDS(cd, cb, rt) do {				\
 	register_t v;							\
 									\
 	CHERI_CGETOFFSET(v, cb);					\
