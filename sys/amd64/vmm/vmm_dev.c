@@ -441,19 +441,9 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		CTASSERT(PROT_EXEC == VM_PROT_EXECUTE);
 		gg = (struct vm_gla2gpa *)data;
 		error = vm_gla2gpa(sc->vm, gg->vcpuid, &gg->paging, gg->gla,
-		    gg->prot, &gg->gpa);
-		KASSERT(error == 0 || error == 1 || error == -1,
+		    gg->prot, &gg->gpa, &gg->fault);
+		KASSERT(error == 0 || error == EFAULT,
 		    ("%s: vm_gla2gpa unknown error %d", __func__, error));
-		if (error >= 0) {
-			/*
-			 * error = 0: the translation was successful
-			 * error = 1: a fault was injected into the guest
-			 */
-			gg->fault = error;
-			error = 0;
-		} else {
-			error = EFAULT;
-		}
 		break;
 	}
 	case VM_ACTIVATE_CPU:

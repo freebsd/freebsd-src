@@ -7,7 +7,6 @@
 LIB=		event
 SHLIB_MAJOR=	1
 PRIVATELIB=
-INTERNALLIB=
 
 SRCS=	buffer.c evbuffer.c event.c kqueue.c log.c poll.c select.c signal.c
 HDRS=	event.h

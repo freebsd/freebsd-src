@@ -1921,8 +1921,6 @@ main(int argc, char **argv)
 #endif
 	if (cansandbox && cap_enter() < 0 && errno != ENOSYS)
 		error("unable to enter the capability mode");
-	if (cap_sandboxed())
-		fprintf(stderr, "capability mode sandbox enabled\n");
 #endif	/* __FreeBSD__ */
 
 	do {

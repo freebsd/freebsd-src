@@ -22,7 +22,8 @@
 
 ident		KB920X
 
-include		"../at91/std.kb920x"
+include 	"std.arm"
+include 	"../at91/std.kb920x"
 # The AT91 platform doesn't use /boot/loader, so we have to statically wire
 # hints.
 hints		"KB920X.hints"

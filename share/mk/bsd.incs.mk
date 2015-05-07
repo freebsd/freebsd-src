@@ -30,7 +30,7 @@ all: buildincludes
 ${group}OWN?=	${BINOWN}
 ${group}GRP?=	${BINGRP}
 ${group}MODE?=	${NOBINMODE}
-${group}DIR?=	${INCLUDEDIR}
+${group}DIR?=	${INCLUDEDIR}${PRIVATELIB:D/private/${LIB}}
 
 _${group}INCS=
 .for header in ${${group}}

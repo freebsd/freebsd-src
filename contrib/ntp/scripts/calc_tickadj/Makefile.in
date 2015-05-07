@@ -42,8 +42,7 @@ DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
 	$(top_srcdir)/sntp/libopts/m4/stdnoreturn.m4 \
-	$(top_srcdir)/sntp/libevent/m4/openldap-thread-check.m4 \
-	$(top_srcdir)/sntp/libevent/m4/openldap.m4 \
+	$(top_srcdir)/sntp/m4/ax_c99_struct_init.m4 \
 	$(top_srcdir)/sntp/m4/define_dir.m4 \
 	$(top_srcdir)/sntp/m4/hms_search_lib.m4 \
 	$(top_srcdir)/sntp/m4/libtool.m4 \
@@ -72,6 +71,8 @@ am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
 	$(top_srcdir)/sntp/m4/ntp_sntp.m4 \
 	$(top_srcdir)/sntp/m4/ntp_ver_suffix.m4 \
 	$(top_srcdir)/sntp/m4/ntp_vpathhack.m4 \
+	$(top_srcdir)/sntp/m4/openldap-thread-check.m4 \
+	$(top_srcdir)/sntp/m4/openldap.m4 \
 	$(top_srcdir)/sntp/m4/os_cflags.m4 \
 	$(top_srcdir)/sntp/m4/snprintf.m4 \
 	$(top_srcdir)/sntp/m4/version.m4 $(top_srcdir)/configure.ac
@@ -318,6 +319,11 @@ TIMETRIM_DL = @TIMETRIM_DL@
 TIMETRIM_DS = @TIMETRIM_DS@
 TIMETRIM_MS = @TIMETRIM_MS@
 TIMETRIM_NI = @TIMETRIM_NI@
+UPDATE_LEAP_DB = @UPDATE_LEAP_DB@
+UPDATE_LEAP_DL = @UPDATE_LEAP_DL@
+UPDATE_LEAP_DS = @UPDATE_LEAP_DS@
+UPDATE_LEAP_MS = @UPDATE_LEAP_MS@
+UPDATE_LEAP_NI = @UPDATE_LEAP_NI@
 VERSION = @VERSION@
 VER_SUFFIX = @VER_SUFFIX@
 YACC = @YACC@
