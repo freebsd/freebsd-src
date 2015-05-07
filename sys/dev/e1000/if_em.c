@@ -5918,7 +5918,7 @@ em_print_debug_info(struct adapter *adapter)
 	else
 		printf("and ACTIVE\n");
 
-	for (int i = 0; i < adapter->num_queues; i++, txr++) {
+	for (int i = 0; i < adapter->num_queues; i++, txr++, rxr++) {
 		device_printf(dev, "TX Queue %d ------\n", i);
 		device_printf(dev, "hw tdh = %d, hw tdt = %d\n",
 	    		E1000_READ_REG(&adapter->hw, E1000_TDH(i)),
@@ -5928,8 +5928,6 @@ em_print_debug_info(struct adapter *adapter)
 	    		txr->tx_avail);
 		device_printf(dev, "Tx Descriptors avail failure = %ld\n",
 	    		txr->no_desc_avail);
-	}
-	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
 		device_printf(dev, "RX Queue %d ------\n", i);
 		device_printf(dev, "hw rdh = %d, hw rdt = %d\n",
 	    		E1000_READ_REG(&adapter->hw, E1000_RDH(i)),
