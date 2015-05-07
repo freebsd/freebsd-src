@@ -165,7 +165,7 @@ VECTOR(_locore, unknown)
 	 * number registers available via rdhwr.
 	 */
 	MFC0	t0, MIPS_COP_0_HWRENA
-	or	t0, MIPS_HWRENA_CC | MIPS_HWRENA_CCRES | MIPS_HWRENA_CPUNUM
+	or	t0, MIPS_HWRENA_CC | MIPS_HWRENA_CCRES | MIPS_HWRENA_CPUNUM | (7 << 4)
 	MTC0	t0, MIPS_COP_0_HWRENA
 #endif
 

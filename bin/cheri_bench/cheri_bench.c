@@ -44,14 +44,6 @@
 #include <pthread.h>
 #include <semaphore.h>
 
-static inline uint32_t get_cyclecount(void)
-{
-  uint64_t _time;
-  //__asm __volatile("rdhwr %0, $2" : "=r" (_time));
-  __asm __volatile(".word 0x7c10103b\n\tmove %0, $16" : "=r" (_time) :: "$16"); // rdhwr $16, $2 manually assembled due to gas issues
-  return (_time & 0xffffffff);
-}
-
 #if __has_feature(capabilities)
 
 #include <machine/cheri.h>
@@ -63,44 +55,78 @@ static inline uint32_t get_cyclecount(void)
 #define CAP
 struct cheri_object cheri_bench;
 
+
+#define DEFINE_RDHWR_COUNTER_GETTER(name,regno)      \
+  static inline int32_t get_##name##_count (void) \
+  {					       \
+  int32_t ret;				       \
+  __asm __volatile("rdhwr %0, $"#regno : "=r" (ret)); \
+  return ret;						\
+  }
+
+
 #else
 
 #define __capability
 #define memcpy_c memcpy
 #define __builtin_cheri_set_cap_length(c,l) c
 
+// Manually assembled due to gcc/gas refusing to recognise custom rdhwr registers:
+// rdhwr $12, $rdhwrreg
+// move  $ret, $12
+// Move is needed because we can't get a raw register number for ret in the assembler
+// template without it being prefixed by $. Note that $12 == $t0.
+#define DEFINE_RDHWR_COUNTER_GETTER(name,regno)				\
+  static inline int32_t get_##name##_count (void)			\
+  {									\
+    int32_t ret;							\
+    __asm __volatile(".word (0x1f << 26) | (12 << 16) | (" #regno  " << 11) | 0x3b\n\tmove %0,$12" : "=r" (ret) :: "$12"); \
+    return ret;								\
+  }
+
 #endif
+  
+DEFINE_RDHWR_COUNTER_GETTER(cycle,2)
+DEFINE_RDHWR_COUNTER_GETTER(inst,4)
+DEFINE_RDHWR_COUNTER_GETTER(tlb_inst,5)
+DEFINE_RDHWR_COUNTER_GETTER(tlb_data,6)
 
-typedef uint64_t memcpy_t(__capability char *, __capability char *, size_t, int fd);
+typedef void memcpy_t(__capability char *, __capability char *, size_t, void *data);
 
-static sem_t sem_request, sem_response;
-static __capability char * volatile thread_dataout;
-static __capability char * volatile thread_datain;
-static volatile size_t thread_len;
+struct semaphore_shared_data {
+  sem_t sem_request;
+  sem_t sem_response;
+  __capability char * volatile datain;
+  __capability char * volatile dataout;
+  volatile size_t len;
+};
 
-static uint64_t do_memcpy (__capability char *dataout, __capability char *datain, size_t len, int __unused fd)
+struct counters {
+  // NB we use signed 32-bit because that is what rdhwr returns (annoyingly) and casting
+  // causes compiler to emit a lot of extra code which can be avoided if we just keep
+  // everything int32 then cast to uint32 just before displaying. Roll-over is fine
+  // so long as test is shorter than 2*32 cycles (42 seconds @ 100MHz).
+  int32_t insts;
+  int32_t cycles;
+  int32_t instTLB;
+  int32_t dataTLB;
+};
+
+static void do_memcpy (__capability char *dataout, __capability char *datain, size_t len, void * __unused data)
 {
-  uint32_t start_count, end_count;
-  start_count = get_cyclecount();
   memcpy_c(dataout, datain, len);
-  end_count = get_cyclecount();
-  return end_count - start_count;
 }
 
 #ifdef CAP
-static uint64_t invoke_memcpy(__capability char *dataout, __capability char *datain, size_t len, int __unused fd)
+static void invoke_memcpy(__capability char *dataout, __capability char *datain, size_t len, void * __unused data)
 {
   int ret;
-  uint32_t start_count, end_count;
-  start_count = get_cyclecount();
   ret = cheri_bench_memcpy_cap(
 			cheri_bench,
 		     (__capability void *) dataout,
 		     (__capability void *) datain,
 		     len);
-  end_count = get_cyclecount();
   if (ret != 0) err(1, "Invoke failed.");
-  return end_count - start_count;
 }
 #endif
 
@@ -117,10 +143,10 @@ static inline void read_retry(int fd, char *buf, size_t len)
     }
 }
 
-static uint64_t socket_memcpy(__capability char *dataout, __capability char *datain, size_t len, int fd)
+static void socket_memcpy(__capability char *dataout, __capability char *datain, size_t len, void *data)
 {
+  int fd = *((int *) data);
   ssize_t  io_len;
-  uint32_t start_count = get_cyclecount();
 
   struct iovec iovs[2];
   iovs[0].iov_base = &len;
@@ -133,8 +159,6 @@ static uint64_t socket_memcpy(__capability char *dataout, __capability char *dat
     err(1, "socket parent write");
 
   read_retry(fd, (char *) dataout, len);
-  
-  return get_cyclecount() - start_count;
 }
 
 static void socket_sandbox_func(int fd, size_t max_size)
@@ -154,15 +178,14 @@ static void socket_sandbox_func(int fd, size_t max_size)
     }
 }
 
-static uint64_t shmem_memcpy(__capability char *dataout __unused, __capability char *datain __unused, size_t len, int fd)
+static void shmem_memcpy(__capability char *dataout __unused, __capability char *datain __unused, size_t len, void *data)
 {
   ssize_t  io_len;
-  uint32_t start_count = get_cyclecount();
+  int fd = *((int *) data);
   io_len = write(fd, &len, sizeof(len));
   assert(io_len == sizeof(len)); // XXX rmn30 lazy
   io_len = read(fd, &len, sizeof(len));
   assert(io_len == sizeof(len));
-  return get_cyclecount() - start_count;
 }
 
 static void shmem_sandbox_func(int fd, __capability char *datain, __capability char *dataout)
@@ -181,31 +204,32 @@ static void shmem_sandbox_func(int fd, __capability char *datain, __capability c
     }
 }
 
-static uint64_t pthread_memcpy(__capability char *dataout, __capability char *datain, size_t len, int fd __unused)
+static void semaphore_memcpy(__capability char *dataout, __capability char *datain, size_t len, void *data)
 {
-  uint32_t start_count = get_cyclecount();
-  thread_dataout = dataout;
-  thread_datain  = datain;
-  thread_len     = len;
+  struct semaphore_shared_data *sdata = (struct semaphore_shared_data *) data;
+  sdata->dataout = dataout;
+  sdata->datain  = datain;
+  sdata->len     = len;
   // XXX rmn30 need sync?
-  sem_post(&sem_request);
-  sem_wait(&sem_response);
-  return get_cyclecount() - start_count;
+  sem_post(&(sdata->sem_request));
+  sem_wait(&(sdata->sem_response));
 }
 
-static void *pthread_sandbox_func(void * arg __unused)
+static void *semaphore_sandbox_func(void *arg)
 {
+  struct semaphore_shared_data *data = (struct semaphore_shared_data *) arg;
   while(1)
     {
-      sem_wait(&sem_request);
-      memcpy_c(thread_dataout, thread_datain, thread_len);
-      sem_post(&sem_response);
+      sem_wait(&(data->sem_request));
+      memcpy_c(data->dataout, data->datain, data->len);
+      sem_post(&(data->sem_response));
     }
 }
 
-int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capability char *datain, size_t size, uint reps, uint64_t *samples, int fd) __attribute__((__noinline__));
-int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capability char *datain, size_t size, uint reps, uint64_t *samples, int fd)
+int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capability char *datain, size_t size, const char* name, uint reps, struct counters *samples, void *data) __attribute__((__noinline__));
+int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capability char *datain, size_t size, const char* name, uint reps, struct counters *samples, void *data)
 {
+      int32_t cycles, cycles2, insts, insts2, instTLB, instTLB2, dataTLB, dataTLB2;
       // Initialise arrays
       for (uint i=0; i < size; i++) 
 	{
@@ -215,7 +239,19 @@ int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capability ch
 
       for (uint rep = 0; rep < reps; rep++) 
 	{
-	  samples[rep] = memcpy_func(dataout, datain, size, fd);
+	  cycles  = get_cycle_count();
+	  insts   = get_inst_count();
+	  instTLB = get_tlb_inst_count();
+	  dataTLB = get_tlb_data_count();
+	  memcpy_func(dataout, datain, size, data);
+	  cycles2  = get_cycle_count();
+	  insts2   = get_inst_count();
+	  instTLB2 = get_tlb_inst_count();
+	  dataTLB2 = get_tlb_data_count();
+	  samples[rep].cycles = cycles2 - cycles;
+	  samples[rep].insts  = insts2 - insts;
+	  samples[rep].instTLB = instTLB2 - instTLB;
+	  samples[rep].dataTLB = dataTLB2 - dataTLB;
 	  for (uint i=0; i < size; i+=8)
 	    {
 	      assert(dataout[i] == (char) i);
@@ -224,12 +260,21 @@ int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capability ch
 	    }
 	}
 
-      for (uint rep = 0; rep < reps; rep++)
-	{
-	  if ((rep & 0xf) == 0) // attempt to avoid flooding the uart
-	    usleep(1);
-	  printf(",%lu", samples[rep]);
-	}
+#define flushit() do { fflush(stdout); usleep(100000); } while (0)
+#define dump_metric(metric) \
+      do {							\
+	flushit();						\
+	printf("\n%zu,%s,"#metric, size, name);			\
+	for (uint rep = 0; rep < reps; rep++) {			\
+	  if ((rep & 0x7) == 0) flushit();			\
+	  printf(",%u", (uint32_t) samples[rep].metric);	\
+	}							\
+	flushit();						\
+      } while(0)
+      dump_metric(cycles);
+      dump_metric(insts);
+      dump_metric(instTLB);
+      dump_metric(dataTLB);
       return 0;
 }
 
@@ -249,20 +294,21 @@ main(int argc, char *argv[])
 	__capability char *datain_cap, *dataout_cap;
 	int socket_pair[2], pipe_pair[2], shmem_socket_pair[2];
 	int arg;
-	uint reps = 100;
+	uint rep, reps = 100;
 	pid_t child_pid;
 	size_t size, max_size = 0;
 	char *endp;
 	int ch;
-	int func = 0, invoke = 0, do_socket = 0, do_pipe=0, shared = 0, threads = 0;
+	int func = 0, invoke = 0, do_socket = 0, do_pipe=0, shared = 0, threads = 0, mutex = 0;
 	int inOffset = 0, outOffset = 0;
-	uint64_t *samples;
+	struct counters *samples;
 	pthread_t sb_thread;
-	
+	struct semaphore_shared_data *mutex_shared;
+	struct semaphore_shared_data *pthread_shared;
 	// use unbuffered output to avoid dropped characters on uart
 	setbuf(stdout, NULL);
 
-	while ((ch = getopt(argc, argv, "afipsStr:o:O:")) != -1) {
+	while ((ch = getopt(argc, argv, "afipsStmr:o:O:")) != -1) {
 	  switch (ch) {
 	  case 'a':
 	    func = 1;
@@ -271,6 +317,7 @@ main(int argc, char *argv[])
 	    do_socket = 1;
 	    shared = 1;
 	    threads = 1;
+	    mutex = 1;
 	    break;
 	  case 'f':
 	    func = 1;
@@ -289,6 +336,9 @@ main(int argc, char *argv[])
 	    break;
 	  case 't':
 	    threads = 1;
+	    break;
+	  case 'm':
+	    mutex = 1;
 	    break;
 	  case 'r':
 	    reps = strtol(optarg, &endp, 0);
@@ -394,17 +444,43 @@ main(int argc, char *argv[])
 
 	if (threads)
 	  {
-	    if(pthread_create(&sb_thread, NULL, pthread_sandbox_func, NULL))
+	    pthread_shared = malloc(sizeof(*pthread_shared));
+	    if (pthread_shared == NULL)
+	      err(1, "malloc pthread shared");
+	    if(sem_init(&pthread_shared->sem_request, 0, 0))
+	      err(1, "sem_init sem_request");
+	    if(sem_init(&pthread_shared->sem_response, 0, 0))
+	      err(1, "sem_init sem_request");
+	    if(pthread_create(&sb_thread, NULL, semaphore_sandbox_func, pthread_shared))
 	      err(1, "pthread create");
-	    if(sem_init(&sem_request, 0, 0))
-	      err(1, "sem_init sem_request");
-	    if(sem_init(&sem_response, 0, 0))
-	      err(1, "sem_init sem_request");
+	  }
+
+	if (mutex)
+	  {
+	    mutex_shared = mmap(NULL, sizeof(*mutex_shared), PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
+	    if (mutex_shared == NULL)
+	      err(1, "mutex alloc shared");
+	    if(sem_init(&(mutex_shared->sem_request), 1, 0))
+	      err(1, "sem_init mutex sem_request");
+	    if(sem_init(&(mutex_shared->sem_response), 1, 0))
+	      err(1, "sem_init mutex sem_response");
+	    child_pid = fork();
+	    if (child_pid < 0)
+	      err(1, "fork mutex");
+	    // XXX remap regions read/write only?
+	    if (!child_pid)
+	      {
+		semaphore_sandbox_func(mutex_shared);
+	      }
 	  }
 
 	printf("#reps=%u inOffset=%u outOffset=%u datain=%p dataout=%p\n", reps, inOffset, outOffset, (void *) (datain + inOffset), (void*) (dataout + outOffset));
-
-	samples = malloc(sizeof(uint64_t) * reps);
+	printf("size,method,metric");
+	for(rep=0;rep<reps;rep++)
+	  {
+	    printf(",r%d",rep);
+	  }
+	samples = malloc(sizeof(struct counters) * reps);
 	if (samples == NULL)
 	  err(1, "malloc samples");
 	for(arg = 0; arg < argc; arg++)
@@ -412,36 +488,35 @@ main(int argc, char *argv[])
 	    size = strtol(argv[arg], &endp, 0);
 	    if(func)
 	      {
-		printf("\n#func %zu\n%zu", size, size);
-		benchmark(do_memcpy, dataout_cap, datain_cap, size, reps, samples, 0);
+		benchmark(do_memcpy, dataout_cap, datain_cap, size, "func", reps, samples, 0);
 	      }
 #ifdef CAP
 	    if (invoke)
 	      {
-		printf("\n#invoke %zu\n%zu", size, size);
-		benchmark(invoke_memcpy, dataout_cap, datain_cap, size, reps, samples, 0);
+		benchmark(invoke_memcpy, dataout_cap, datain_cap, size, "invoke", reps, samples, 0);
 	      }
 #endif
 	    if(shared)
 	      {
-		printf("\n#shmem %zu\n%zu", size, size);
-		benchmark(shmem_memcpy, dataout_cap, datain_cap, size, reps, samples, shmem_socket_pair[0]);
+		benchmark(shmem_memcpy, dataout_cap, datain_cap, size, "shmem", reps, samples, & shmem_socket_pair[0]);
 	      }
 	    if(do_socket)
 	      {
-		printf("\n#socket %zu\n%zu", size, size);
-		benchmark(socket_memcpy, dataout_cap, datain_cap, size, reps, samples, socket_pair[0]);
+		benchmark(socket_memcpy, dataout_cap, datain_cap, size,  "socket", reps, samples, & socket_pair[0]);
 	      }
 	    if(do_pipe)
 	      {
-		printf("\n#pipe %zu\n%zu", size, size);
-		benchmark(socket_memcpy, dataout_cap, datain_cap, size, reps, samples, pipe_pair[0]);
+		benchmark(socket_memcpy, dataout_cap, datain_cap, size, "pipe", reps, samples, & pipe_pair[0]);
 	      }
 	    if(threads)
 	      {
-		printf("\n#pthread %zu\n%zu", size, size);
-		benchmark(pthread_memcpy, dataout_cap, datain_cap, size, reps, samples, 0);
+		benchmark(semaphore_memcpy, dataout_cap, datain_cap, size, "pthread", reps, samples, pthread_shared);
 	      }
+	    if(mutex)
+	      {
+		benchmark(semaphore_memcpy, dataout_cap, datain_cap, size, "mutex", reps, samples, mutex_shared);
+	      }
+
 	  }
 	if (samples != NULL)
 	  free(samples);
