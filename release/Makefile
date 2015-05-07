@@ -303,4 +303,3 @@ release-install:
 	cd ${DESTDIR} && md5 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.MD5
 
 .include "${.CURDIR}/Makefile.vm"
-.include "${.CURDIR}/Makefile.arm"

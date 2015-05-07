@@ -1,9 +1,0 @@
-#
-# $FreeBSD$
-#
-
-BOARD=		ZEDBOARD
-${BOARD}PARTSCHEME=	mbr
-
-build-arm-${BOARD:tl}:
-	touch ${.TARGET}
