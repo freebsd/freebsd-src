@@ -20,7 +20,7 @@
 
 ident		AML8726
 
-include		"std.armv6"
+include 	"std.armv6"
 include 	"../amlogic/aml8726/std.aml8726"
 
 options 	HZ=100
