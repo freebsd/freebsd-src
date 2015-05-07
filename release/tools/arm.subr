@@ -107,6 +107,7 @@ arm_install_base() {
 	echo 'sendmail_submit_enable="NO"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
 	echo 'sendmail_outbound_enable="NO"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
 	echo 'sendmail_msp_queue_enable="NO"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
+	echo 'growfs_enable="YES"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
 
 	sync
 	umount_loop ${CHROOTDIR}/${DESTDIR}
