@@ -21,7 +21,8 @@
 
 ident		SN9G45
 
-include "../at91/std.sn9g45"
+include 	"std.arm"
+include 	"../at91/std.sn9g45"
 
 #To statically compile in device wiring instead of /boot/device.hints
 #hints		"SN9G45.hints"

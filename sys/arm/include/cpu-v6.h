@@ -143,6 +143,13 @@ _RF0(cp15_ttbr_get, CP15_TTBR0(%0))
 _RF0(cp15_dfar_get, CP15_DFAR(%0))
 #if __ARM_ARCH >= 7
 _RF0(cp15_ifar_get, CP15_IFAR(%0))
+_RF0(cp15_l2ctlr_get, CP15_L2CTLR(%0))
+#endif
+#if __ARM_ARCH >= 6
+_RF0(cp15_actlr_get, CP15_ACTLR(%0))
+_WF1(cp15_ats1cpr_set, CP15_ATS1CPR(%0));
+_RF0(cp15_par_get, CP15_PAR);
+_RF0(cp15_sctlr_get, CP15_SCTLR(%0))
 #endif
 
 /*CPU id registers */

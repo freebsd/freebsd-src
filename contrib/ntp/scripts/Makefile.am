@@ -6,6 +6,7 @@ SUBDIRS=		\
 	ntpsweep	\
 	ntptrace	\
 	lib		\
+	update-leap	\
 	$(NULL)
 
 man1_MANS=

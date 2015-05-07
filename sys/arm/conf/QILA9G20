@@ -22,7 +22,8 @@
 
 ident		QILA9G20
 
-include "../at91/std.qila9g20"
+include 	"std.arm"
+include 	"../at91/std.qila9g20"
 
 #To statically compile in device wiring instead of /boot/device.hints
 hints		"QILA9G20.hints"

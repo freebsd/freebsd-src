@@ -523,6 +523,9 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	USB_QUIRK(FEIYA, DUMMY, 0x0000, 0xffff, UQ_MSC_NO_SYNC_CACHE, UQ_MATCH_VENDOR_ONLY),
 	USB_QUIRK(REALTEK, DUMMY, 0x0000, 0xffff, UQ_MSC_NO_SYNC_CACHE, UQ_MATCH_VENDOR_ONLY),
 	USB_QUIRK(INITIO, DUMMY, 0x0000, 0xffff, UQ_MSC_NO_SYNC_CACHE, UQ_MATCH_VENDOR_ONLY),
+
+	/* DYMO LabelManager Pnp */
+	USB_QUIRK(DYMO, LABELMANAGERPNP, 0x0000, 0xffff, UQ_MSC_DYMO_EJECT),
 };
 #undef USB_QUIRK_VP
 #undef USB_QUIRK
@@ -592,6 +595,7 @@ static const char *usb_quirk_str[USB_QUIRK_MAX] = {
 	[UQ_BAD_MIDI]			= "UQ_BAD_MIDI",
 	[UQ_AU_VENDOR_CLASS]		= "UQ_AU_VENDOR_CLASS",
 	[UQ_SINGLE_CMD_MIDI]		= "UQ_SINGLE_CMD_MIDI",
+	[UQ_MSC_DYMO_EJECT]		= "UQ_MSC_DYMO_EJECT",
 };
 
 /*------------------------------------------------------------------------*

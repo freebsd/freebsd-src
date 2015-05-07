@@ -21,7 +21,8 @@
 
 ident		ETHERNUT5
 
-include "../at91/std.ethernut5"
+include 	"std.arm"
+include 	"../at91/std.ethernut5"
 
 # To statically compile in device wiring instead of /boot/device.hints
 hints		"ETHERNUT5.hints"

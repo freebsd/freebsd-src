@@ -5,7 +5,8 @@
 #
 
 ident		EA3250
-include		"../lpc/std.lpc"
+include 	"std.arm"
+include 	"../lpc/std.lpc"
 hints		"EA3250.hints"
 
 makeoptions	MODULES_OVERRIDE=""
