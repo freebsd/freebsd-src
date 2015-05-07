@@ -21,8 +21,8 @@
 
 ident		CUBIEBOARD
 
-include		"std.armv6"
-include		"../allwinner/std.a10"
+include 	"std.armv6"
+include 	"../allwinner/std.a10"
 
 options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler
