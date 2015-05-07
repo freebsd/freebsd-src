@@ -64,52 +64,52 @@ umount_loop() {
 
 arm_create_disk() {
 	# Create the target raw file and temporary work directory.
-	gpart create -s ${PART_SCHEME} ${mddev}
-	gpart add -t '!12' -a 63 -s ${FAT_SIZE} ${mddev}
-	gpart set -a active -i 1 ${mddev}
-	newfs_msdos -L msdosboot -F ${FAT_TYPE} /dev/${mddev}s1
-	gpart add -t freebsd ${mddev}
-	gpart create -s bsd ${mddev}s2
-	gpart add -t freebsd-ufs -a 64k /dev/${mddev}s2
-	newfs -U -L rootfs /dev/${mddev}s2a
-	tunefs -j enable -N enable /dev/${mddev}s2a
+	chroot ${CHROOTDIR} gpart create -s ${PART_SCHEME} ${mddev}
+	chroot ${CHROOTDIR} gpart add -t '!12' -a 63 -s ${FAT_SIZE} ${mddev}
+	chroot ${CHROOTDIR} gpart set -a active -i 1 ${mddev}
+	chroot ${CHROOTDIR} newfs_msdos -L msdosboot -F ${FAT_TYPE} /dev/${mddev}s1
+	chroot ${CHROOTDIR} gpart add -t freebsd ${mddev}
+	chroot ${CHROOTDIR} gpart create -s bsd ${mddev}s2
+	chroot ${CHROOTDIR} gpart add -t freebsd-ufs -a 64k /dev/${mddev}s2
+	chroot ${CHROOTDIR} newfs -U -L rootfs /dev/${mddev}s2a
+	chroot ${CHROOTDIR} tunefs -j enable -N enable /dev/${mddev}s2a
 
 	return 0
 }
 
 arm_install_base() {
-	mount /dev/${mddev}s2a ${DESTDIR}
-	cd ${WORLDDIR} && \
-		eval make TARGET=${EMBEDDED_TARGET} \
-			TARGET_ARCH=${EMBEDDED_TARGET_ARCH} \
-			DESTDIR=${DESTDIR} KERNCONF=${KERNEL} \
-			installworld installkernel distribution
+	chroot ${CHROOTDIR} mount /dev/${mddev}s2a ${DESTDIR}
+	eval chroot ${CHROOTDIR} make -C ${WORLDDIR} \
+		TARGET=${EMBEDDED_TARGET} \
+		TARGET_ARCH=${EMBEDDED_TARGET_ARCH} \
+		DESTDIR=${DESTDIR} KERNCONF=${KERNEL} \
+		installworld installkernel distribution
 
 	echo '# Custom /etc/fstab for FreeBSD embedded images' \
-		> ${DESTDIR}/etc/fstab
+		> ${CHROOTDIR}/${DESTDIR}/etc/fstab
 	echo "/dev/msdosfs/MSDOSBOOT /boot/msdos msdosfs rw,noatime 0 0" \
-		>> ${DESTDIR}/etc/fstab
+		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
 	echo "/dev/ufs/rootfs   /       ufs     rw      1       1" \
-		>> ${DESTDIR}/etc/fstab
+		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
 	echo "md /tmp mfs rw,noatime,-s30m 0 0" \
-		>> ${DESTDIR}/etc/fstab
+		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
 	echo "md /var/log mfs rw,noatime,-s15m 0 0" \
-		>> ${DESTDIR}/etc/fstab
+		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
 	echo "md /var/tmp mfs rw,noatime,-s12m 0 0" \
-		>> ${DESTDIR}/etc/fstab
+		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
 
 	local hostname
 	hostname="$(echo ${KERNEL} | tr '[:upper:]' '[:lower:]')"
-	echo "hostname=\"${hostname}\"" > ${DESTDIR}/etc/rc.conf
-	echo 'ifconfig_DEFAULT="DHCP"' >> ${DESTDIR}/etc/rc.conf
-	echo 'sshd_enable="YES"' >> ${DESTDIR}/etc/rc.conf
-	echo 'sendmail_enable="NONE"' >> ${DESTDIR}/etc/rc.conf
-	echo 'sendmail_submit_enable="NO"' >> ${DESTDIR}/etc/rc.conf
-	echo 'sendmail_outbound_enable="NO"' >> ${DESTDIR}/etc/rc.conf
-	echo 'sendmail_msp_queue_enable="NO"' >> ${DESTDIR}/etc/rc.conf
+	echo "hostname=\"${hostname}\"" > ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
+	echo 'ifconfig_DEFAULT="DHCP"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
+	echo 'sshd_enable="YES"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
+	echo 'sendmail_enable="NONE"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
+	echo 'sendmail_submit_enable="NO"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
+	echo 'sendmail_outbound_enable="NO"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
+	echo 'sendmail_msp_queue_enable="NO"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
 
 	sync
-	umount_loop ${DESTDIR}
+	umount_loop ${CHROOTDIR}/${DESTDIR}
 
 	return 0
 }
