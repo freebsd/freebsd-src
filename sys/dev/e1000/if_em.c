@@ -2787,7 +2787,6 @@ em_setup_msix(struct adapter *adapter)
 				val = 5;
 			else {
 				adapter->num_queues = 1;
-				adapter->num_queues = 1;
 				device_printf(adapter->dev,
 				    "Insufficient MSIX vectors for >1 queue, "
 				    "using single queue...\n");
@@ -5456,7 +5455,7 @@ em_add_hw_stats(struct adapter *adapter)
 			CTLFLAG_RD, &adapter->hw.fc.low_water, 0,
 			"Flow Control Low Watermark");
 
-	for (int i = 0; i < adapter->num_queues; i++, txr++) {
+	for (int i = 0; i < adapter->num_queues; i++, txr++, rxr++) {
 		snprintf(namebuf, QUEUE_NAME_LEN, "queue_tx_%d", i);
 		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
 					    CTLFLAG_RD, NULL, "TX Queue Name");
@@ -5478,8 +5477,7 @@ em_add_hw_stats(struct adapter *adapter)
 		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "no_desc_avail", 
 				CTLFLAG_RD, &txr->no_desc_avail,
 				"Queue No Descriptor Available");
-	}
-	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
+
 		snprintf(namebuf, QUEUE_NAME_LEN, "queue_rx_%d", i);
 		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
 					    CTLFLAG_RD, NULL, "RX Queue Name");
