@@ -304,4 +304,21 @@
  */
 #define	CHERI_CCALL_EXC_VEC	((intptr_t)(int32_t)0x80000280)
 
+/*
+ * Temporary macro for a CSetBounds-like pseudo-instruction to allow us to
+ * adopt CSetBounds-like code structure prior to it being fully available in
+ * the assembler and hardware.
+ *
+ * XXXRW: Unlike the real CSetBounds, this has a greater register-file
+ * footprint to hold the original offset.  It also relies on a temporary ISA
+ * feature to detect sequences such as these, setting the offset to 0, to
+ * maintain precision.  Remove this macro and migrate users to CSetBounds once
+ * available.
+ */
+#define	ASM_CSetBounds(cd, cb, rt, r_temp)				\
+	cgetoffset	r_temp, cb;					\
+	csetoffset	cd, cb, $zero;					\
+	cincbase	cd, cd, r_temp;					\
+	csetlen		cd, cd, rt
+
 #endif /* _MIPS_INCLUDE_CHERIREG_H_ */
