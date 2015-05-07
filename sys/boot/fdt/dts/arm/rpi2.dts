@@ -43,6 +43,24 @@
 			reg = <0xf00>;			/* CPU ID=0xf00 */
 			clock-frequency = <800000000>;	/* 800MHz */
 		};
+		cpu@1 {
+			compatible = "arm,cortex-a7";
+			device_type = "cpu";
+			reg = <0xf01>;			/* CPU ID=0xf01 */
+			clock-frequency = <800000000>;	/* 800MHz */
+		};
+		cpu@2 {
+			compatible = "arm,cortex-a7";
+			device_type = "cpu";
+			reg = <0xf02>;			/* CPU ID=0xf02 */
+			clock-frequency = <800000000>;	/* 800MHz */
+		};
+		cpu@3 {
+			compatible = "arm,cortex-a7";
+			device_type = "cpu";
+			reg = <0xf03>;			/* CPU ID=0xf03 */
+			clock-frequency = <800000000>;	/* 800MHz */
+		};
 	};
 
 	memory {
