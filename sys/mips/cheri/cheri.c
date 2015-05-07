@@ -131,8 +131,10 @@ SYSINIT(cheri_cpu_startup, SI_SUB_CPU, SI_ORDER_FIRST, cheri_cpu_startup,
  * downgrade, with permissions last.
  *
  * XXXRW: How about the sealed bit?
+ *
+ * XXXRW: In the new world order of CSetBounds, it's not clear that taking
+ * explicit base/length/offset arguments is quite the right thing.
  */
-
 void
 cheri_capability_set(struct chericap *cp, uint32_t perms, void *otypep,
     void *basep, size_t length, off_t off)
@@ -143,12 +145,12 @@ cheri_capability_set(struct chericap *cp, uint32_t perms, void *otypep,
 
 	/*
 	 * NB: Set fields in this order (offset first), in the absence of a
-	 * CSetBound instruction, such that maximum precision is available
+	 * CSetBounds instruction, such that maximum precision is available
 	 * when using compressed capabilities.
 	 */
-	CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_KDC, 0);
-	CHERI_CINCBASE(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)basep);
-	CHERI_CSETLEN(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)length);
+	CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_KDC, (register_t)basep);
+	CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+	    (register_t)length);
 	CHERI_CANDPERM(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)perms);
 
 	/*
@@ -156,7 +158,8 @@ cheri_capability_set(struct chericap *cp, uint32_t perms, void *otypep,
 	 * bounds.  We therefore need to add the requested offset to the
 	 * actual one before installing, rather than simply setting it.
 	 */
-	CHERI_CINCOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)off);
+	CHERI_CINCOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+	    (register_t)off - (register_t)basep);
 #if 0
 	/* XXXRW: For now, don't set type. */
 	CHERI_CSETTYPE(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)otypep);
