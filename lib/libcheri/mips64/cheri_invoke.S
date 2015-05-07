@@ -150,7 +150,7 @@ cheri_invoke_bundle_idc:
 	csc		$c26, $sp, 0($c11)	# Save original $idc
 	cfromptr	$c26, $c11, $sp
 	dli		$t0, 4*CHERICAP_SIZE
-	csetlen		$c26, $c26, $t0
+	ASM_CSetBounds($c26, $c26, $t0, $t1)
 
 	#
 	# The compiler is responsible for scrubbing unused argument registers
