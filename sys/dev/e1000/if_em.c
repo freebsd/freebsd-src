@@ -2289,7 +2289,6 @@ em_local_timer(void *arg)
 	for (int i = 0; i < adapter->num_queues; i++, txr++) {
 		if ((txr->queue_status == EM_QUEUE_HUNG) &&
 		    (adapter->pause_frames == 0)) {
-			em_print_debug_info(adapter);
 			goto hung;
 		}
 		/* Schedule a TX tasklet if needed */
