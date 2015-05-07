@@ -64,8 +64,8 @@ umount_loop() {
 
 arm_create_disk() {
 	# Create the target raw file and temporary work directory.
-	gpart create -s ${PART_SCHEME} ${IMGBASE}
-	gpart add -t '\!12' -a 63 -s ${FAT_SIZE} ${mddev}
+	gpart create -s ${PART_SCHEME} ${mddev}
+	gpart add -t '!12' -a 63 -s ${FAT_SIZE} ${mddev}
 	gpart set -a active -i 1 ${mddev}
 	newfs_msdos -L msdosboot -F ${FAT_TYPE} /dev/${mddev}s1
 	gpart add -t freebsd ${mddev}

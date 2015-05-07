@@ -243,6 +243,7 @@ chroot_setup() {
 # extra_chroot_setup(): Prepare anything additional within the build
 # necessary for the release build.
 extra_chroot_setup() {
+	mkdir -p ${CHROOTDIR}/dev
 	mount -t devfs devfs ${CHROOTDIR}/dev
 	[ -e /etc/resolv.conf ] && cp /etc/resolv.conf \
 		${CHROOTDIR}/etc/resolv.conf
@@ -323,6 +324,7 @@ chroot_build_release() {
 # chroot_arm_armv6_build_release(): Create arm/armv6 SD card image.
 chroot_arm_armv6_build_release() {
 	load_target_env
+	eval chroot ${CHROOTDIR} make -C /usr/src/release obj
 	# XXX: In progress.
 	if [ -e "${RELENGDIR}/tools/${EMBEDDED_TARGET}.subr" ]; then
 		. "${RELENGDIR}/tools/${EMBEDDED_TARGET}.subr"
