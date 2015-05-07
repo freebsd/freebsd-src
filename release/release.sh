@@ -333,13 +333,15 @@ chroot_arm_armv6_build_release() {
 	WORLDDIR="$(eval chroot ${CHROOTDIR} make -C /usr/src/release -V WORLDDIR)"
 	OBJDIR="$(eval chroot ${CHROOTDIR} make -C /usr/src/release -V .OBJDIR)"
 	DESTDIR="${OBJDIR}/${KERNEL}"
-	IMGBASE="${OBJDIR}/${KERNEL}.img"
-	mkdir -p ${DESTDIR}
+	IMGBASE="${CHROOTDIR}/${OBJDIR}/${KERNEL}.img"
+	mkdir -p ${CHROOTDIR}/${DESTDIR}
 	truncate -s ${IMAGE_SIZE} ${IMGBASE}
-	mddev=$(mdconfig -f ${IMGBASE} ${MD_ARGS})
+	export mddev=$(mdconfig -f ${IMGBASE} ${MD_ARGS})
 	arm_create_disk
 	arm_install_base
 	arm_install_uboot
+	mdconfig -d -u ${mddev}
+	rmdir ${CHROOTDIR}/${DESTDIR}
 
 	return 0
 } # chroot_arm_armv6_build_release()
