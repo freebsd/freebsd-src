@@ -19,8 +19,8 @@
 # $FreeBSD$
 
 ident		VYBRID
-include		"std.armv6"
-include		"../freescale/vybrid/std.vybrid"
+include 	"std.armv6"
+include 	"../freescale/vybrid/std.vybrid"
 
 makeoptions	WERROR="-Werror"
 

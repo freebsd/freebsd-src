@@ -19,13 +19,13 @@
 
 ident		EP80219
 
-include		"std.arm"
+include 	"std.arm"
 options 	PHYSADDR=0xa0000000
 options 	KERNPHYSADDR=0xa0200000	
 options 	KERNVIRTADDR=0xc0200000	# Used in ldscript.arm
 
 #options 	ARM32_NEW_VM_LAYOUT
-include	"../xscale/i80321/std.ep80219"
+include 	"../xscale/i80321/std.ep80219"
 makeoptions	MODULES_OVERRIDE=""
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols

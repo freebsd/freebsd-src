@@ -21,10 +21,10 @@
 
 ident		BWCT
 
-include		"std.arm"
+include 	"std.arm"
 options 	VERBOSE_INIT_ARM
 
-include		"../at91/std.bwct"
+include 	"../at91/std.bwct"
 
 #To statically compile in device wiring instead of /boot/device.hints
 hints		"BWCT.hints"

@@ -19,7 +19,7 @@
 
 #NO_UNIVERSE
 
-include  	"IMX6"
+include 	"IMX6"
 ident		WANDBOARD-QUAD
 
 # Flattened Device Tree
