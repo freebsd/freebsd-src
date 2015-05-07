@@ -88,9 +88,9 @@ arm_install_base() {
 
 	echo '# Custom /etc/fstab for FreeBSD embedded images' \
 		> ${CHROOTDIR}/${DESTDIR}/etc/fstab
-	echo "/dev/msdosfs/MSDOSBOOT /boot/msdos msdosfs rw,noatime 0 0" \
-		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
 	echo "/dev/ufs/rootfs   /       ufs     rw      1       1" \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
+	echo "/dev/msdosfs/MSDOSBOOT /boot/msdos msdosfs rw,noatime 0 0" \
 		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
 	echo "md /tmp mfs rw,noatime,-s30m 0 0" \
 		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
