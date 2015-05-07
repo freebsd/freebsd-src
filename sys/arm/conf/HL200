@@ -21,8 +21,8 @@
 
 ident		HL200
 
-include		"std.arm"
-include "../at91/std.hl200"
+include 	"std.arm"
+include 	"../at91/std.hl200"
 
 #To statically compile in device wiring instead of /boot/device.hints
 hints		"KB920X.hints"

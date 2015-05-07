@@ -20,8 +20,8 @@
 
 ident		VIRT
 
-include		"std.armv6"
-include		"../qemu/std.virt"
+include 	"std.armv6"
+include 	"../qemu/std.virt"
 
 options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler

@@ -17,7 +17,7 @@
 #
 # $FreeBSD$
 
-include  	"IMX6"
+include 	"IMX6"
 ident		WANDBOARD-SOLO
 
 nooptions	SMP

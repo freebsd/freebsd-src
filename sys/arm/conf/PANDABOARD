@@ -27,7 +27,7 @@ ident		PANDABOARD
 
 hints		"PANDABOARD.hints"
 
-include		"std.armv6"
+include 	"std.armv6"
 include 	"../ti/omap4/pandaboard/std.pandaboard"
 
 options 	HZ=100

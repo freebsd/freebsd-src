@@ -19,7 +19,7 @@
 
 #NO_UNIVERSE
 
-include  	"IMX6"
+include 	"IMX6"
 ident		APALIS-IMX6
 
 makeoptions	MODULES_OVERRIDE=""
