@@ -557,7 +557,7 @@ main(int argc, char **argv)
 	int c, check_driver_stats, current_sampling_count;
 	int do_callchain, do_descendants, do_logproccsw, do_logprocexit;
 	int do_print, do_read;
-	size_t dummy;
+	size_t len;
 	int graphdepth;
 	int pipefd[2], rfd;
 	int use_cumulative_counts;
@@ -586,7 +586,6 @@ main(int argc, char **argv)
 	args.pa_verbosity	= 1;
 	args.pa_logfd		= -1;
 	args.pa_fsroot		= "";
-	args.pa_kernel		= strdup("/boot/kernel");
 	args.pa_samplesdir	= ".";
 	args.pa_printfile	= stderr;
 	args.pa_graphdepth	= DEFAULT_CALLGRAPH_DEPTH;
@@ -610,12 +609,20 @@ main(int argc, char **argv)
 	ev = NULL;
 	CPU_ZERO(&cpumask);
 
+	/* Default to using the running system kernel. */
+	len = 0;
+	if (sysctlbyname("kern.bootfile", NULL, &len, NULL, 0) == -1)
+		err(EX_OSERR, "ERROR: Cannot determine path of running kernel");
+	args.pa_kernel = malloc(len + 1);
+	if (sysctlbyname("kern.bootfile", args.pa_kernel, &len, NULL, 0) == -1)
+		err(EX_OSERR, "ERROR: Cannot determine path of running kernel");
+
 	/*
 	 * The initial CPU mask specifies all non-halted CPUS in the
 	 * system.
 	 */
-	dummy = sizeof(int);
-	if (sysctlbyname("hw.ncpu", &ncpu, &dummy, NULL, 0) < 0)
+	len = sizeof(int);
+	if (sysctlbyname("hw.ncpu", &ncpu, &len, NULL, 0) < 0)
 		err(EX_OSERR, "ERROR: Cannot determine the number of CPUs");
 	for (hcpu = 0; hcpu < ncpu; hcpu++)
 		CPU_SET(hcpu, &cpumask);
@@ -1061,33 +1068,31 @@ main(int argc, char **argv)
 		    );
 
 	/*
-	 * Check if "-k kerneldir" was specified, and if whether
-	 * 'kerneldir' actually refers to a file.  If so, use
-	 * `dirname path` to determine the kernel directory.
+	 * Check if 'kerneldir' refers to a file rather than a
+	 * directory.  If so, use `dirname path` to determine the
+	 * kernel directory.
 	 */
-	if (args.pa_flags & FLAG_HAS_KERNELPATH) {
-		(void) snprintf(buffer, sizeof(buffer), "%s%s", args.pa_fsroot,
-		    args.pa_kernel);
+	(void) snprintf(buffer, sizeof(buffer), "%s%s", args.pa_fsroot,
+	    args.pa_kernel);
+	if (stat(buffer, &sb) < 0)
+		err(EX_OSERR, "ERROR: Cannot locate kernel \"%s\"",
+		    buffer);
+	if (!S_ISREG(sb.st_mode) && !S_ISDIR(sb.st_mode))
+		errx(EX_USAGE, "ERROR: \"%s\": Unsupported file type.",
+		    buffer);
+	if (!S_ISDIR(sb.st_mode)) {
+		tmp = args.pa_kernel;
+		args.pa_kernel = strdup(dirname(args.pa_kernel));
+		free(tmp);
+		(void) snprintf(buffer, sizeof(buffer), "%s%s",
+		    args.pa_fsroot, args.pa_kernel);
 		if (stat(buffer, &sb) < 0)
-			err(EX_OSERR, "ERROR: Cannot locate kernel \"%s\"",
+			err(EX_OSERR, "ERROR: Cannot stat \"%s\"",
 			    buffer);
-		if (!S_ISREG(sb.st_mode) && !S_ISDIR(sb.st_mode))
-			errx(EX_USAGE, "ERROR: \"%s\": Unsupported file type.",
+		if (!S_ISDIR(sb.st_mode))
+			errx(EX_USAGE,
+			    "ERROR: \"%s\" is not a directory.",
 			    buffer);
-		if (!S_ISDIR(sb.st_mode)) {
-			tmp = args.pa_kernel;
-			args.pa_kernel = strdup(dirname(args.pa_kernel));
-			free(tmp);
-			(void) snprintf(buffer, sizeof(buffer), "%s%s",
-			    args.pa_fsroot, args.pa_kernel);
-			if (stat(buffer, &sb) < 0)
-				err(EX_OSERR, "ERROR: Cannot stat \"%s\"",
-				    buffer);
-			if (!S_ISDIR(sb.st_mode))
-				errx(EX_USAGE,
-				    "ERROR: \"%s\" is not a directory.",
-				    buffer);
-		}
 	}
 
 	/*
