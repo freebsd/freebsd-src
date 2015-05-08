@@ -345,7 +345,7 @@ chroot_arm_armv6_build_release() {
 	arm_install_uboot
 	mdconfig -d -u ${mddev}
 	rmdir ${CHROOTDIR}/${DESTDIR}
-	mv ${IMGBASE} ${IMGBASE}-${KERNEL}.img
+	mv ${IMGBASE} ${CHROOTDIR}/${OBJDIR}/${OSRELEASE}-${KERNEL}.img
 
 	return 0
 } # chroot_arm_armv6_build_release()
