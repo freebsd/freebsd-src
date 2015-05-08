@@ -71,6 +71,7 @@ _Static_assert(sizeof(long) * NBBY >= VM_PHYSSEG_MAX,
     "Too many physsegs.");
 
 struct mem_affinity *mem_affinity;
+int *mem_locality;
 
 int vm_ndomains = 1;
 
@@ -139,6 +140,10 @@ SYSCTL_OID(_vm, OID_AUTO, phys_free, CTLTYPE_STRING | CTLFLAG_RD,
 static int sysctl_vm_phys_segs(SYSCTL_HANDLER_ARGS);
 SYSCTL_OID(_vm, OID_AUTO, phys_segs, CTLTYPE_STRING | CTLFLAG_RD,
     NULL, 0, sysctl_vm_phys_segs, "A", "Phys Seg Info");
+
+static int sysctl_vm_phys_locality(SYSCTL_HANDLER_ARGS);
+SYSCTL_OID(_vm, OID_AUTO, phys_locality, CTLTYPE_STRING | CTLFLAG_RD,
+    NULL, 0, sysctl_vm_phys_locality, "A", "Phys Locality Info");
 
 SYSCTL_INT(_vm, OID_AUTO, ndomains, CTLFLAG_RD,
     &vm_ndomains, 0, "Number of physical memory domains available.");
@@ -291,6 +296,48 @@ sysctl_vm_phys_segs(SYSCTL_HANDLER_ARGS)
 		    (uintmax_t)seg->end);
 		sbuf_printf(&sbuf, "domain:    %d\n", seg->domain);
 		sbuf_printf(&sbuf, "free list: %p\n", seg->free_queues);
+	}
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
+	return (error);
+}
+
+/*
+ * Return affinity, or -1 if there's no affinity information.
+ */
+static int
+vm_phys_mem_affinity(int f, int t)
+{
+
+	if (mem_locality == NULL)
+		return (-1);
+	if (f >= vm_ndomains || t >= vm_ndomains)
+		return (-1);
+	return (mem_locality[f * vm_ndomains + t]);
+}
+
+/*
+ * Outputs the VM locality table.
+ */
+static int
+sysctl_vm_phys_locality(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf sbuf;
+	int error, i, j;
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+
+	sbuf_printf(&sbuf, "\n");
+
+	for (i = 0; i < vm_ndomains; i++) {
+		sbuf_printf(&sbuf, "%d: ", i);
+		for (j = 0; j < vm_ndomains; j++) {
+			sbuf_printf(&sbuf, "%d ", vm_phys_mem_affinity(i, j));
+		}
+		sbuf_printf(&sbuf, "\n");
 	}
 	error = sbuf_finish(&sbuf);
 	sbuf_delete(&sbuf);
