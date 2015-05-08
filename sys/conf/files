@@ -4052,6 +4052,7 @@ xen/xenbus/xenbusb_if.m		optional xenhvm
 xen/xenbus/xenbusb.c		optional xenhvm
 xen/xenbus/xenbusb_front.c	optional xenhvm
 xen/xenbus/xenbusb_back.c	optional xenhvm
+xen/xenmem/xenmem_if.m		optional xenhvm
 xdr/xdr.c			optional krpc | nfslockd | nfscl | nfsd
 xdr/xdr_array.c			optional krpc | nfslockd | nfscl | nfsd
 xdr/xdr_mbuf.c			optional krpc | nfslockd | nfscl | nfsd
