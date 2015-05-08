@@ -2817,9 +2817,8 @@ xbb_free_communication_mem(struct xbb_softc *xbb)
 {
 	if (xbb->kva != 0) {
 		if (xbb->pseudo_phys_res != NULL) {
-			bus_release_resource(xbb->dev, SYS_RES_MEMORY,
-					     xbb->pseudo_phys_res_id,
-					     xbb->pseudo_phys_res);
+			xenmem_free(xbb->dev, xbb->pseudo_phys_res_id,
+			    xbb->pseudo_phys_res);
 			xbb->pseudo_phys_res = NULL;
 		}
 	}
@@ -3056,10 +3055,8 @@ xbb_alloc_communication_mem(struct xbb_softc *xbb)
 	 * via grant table operations.
 	 */
 	xbb->pseudo_phys_res_id = 0;
-	xbb->pseudo_phys_res = bus_alloc_resource(xbb->dev, SYS_RES_MEMORY,
-						  &xbb->pseudo_phys_res_id,
-						  0, ~0, xbb->kva_size,
-						  RF_ACTIVE);
+	xbb->pseudo_phys_res = xenmem_alloc(xbb->dev, &xbb->pseudo_phys_res_id,
+	    xbb->kva_size);
 	if (xbb->pseudo_phys_res == NULL) {
 		xbb->kva = 0;
 		return (ENOMEM);
