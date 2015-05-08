@@ -325,7 +325,6 @@ chroot_build_release() {
 chroot_arm_armv6_build_release() {
 	load_target_env
 	eval chroot ${CHROOTDIR} make -C /usr/src/release obj
-	# XXX: In progress.
 	if [ -e "${RELENGDIR}/tools/${EMBEDDED_TARGET}.subr" ]; then
 		. "${RELENGDIR}/tools/${EMBEDDED_TARGET}.subr"
 	fi
