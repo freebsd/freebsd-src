@@ -1179,7 +1179,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		/*
 		 * MX-ES USB Drive by Mach Xtreme
 		 */
-		{ T_DIRECT, SIP_MEDIA_REMOVABLE, "MX", "MXUB3SES*", "*"},
+		{ T_DIRECT, SIP_MEDIA_REMOVABLE, "MX", "MXUB3*", "*"},
 		/*quirks*/DA_Q_NO_RC16
 	},
 };
