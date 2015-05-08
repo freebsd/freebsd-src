@@ -451,11 +451,34 @@ vt_proc_window_switch(struct vt_window *vw)
 	struct vt_device *vd;
 	int ret;
 
+	/* Prevent switching to NULL */
+	if (vw == NULL) {
+		DPRINTF(30, "%s: Cannot switch: vw is NULL.", __func__);
+		return (EINVAL);
+	}
 	vd = vw->vw_device;
 	curvw = vd->vd_curwindow;
 
+	/* Check if virtual terminal is locked */
 	if (curvw->vw_flags & VWF_VTYLOCK)
 		return (EBUSY);
+
+	/* Check if switch already in progress */
+	if (curvw->vw_flags & VWF_SWWAIT_REL) {
+		/* Check if switching to same window */
+		if (curvw->vw_switch_to == vw) {
+			DPRINTF(30, "%s: Switch in progress to same vw.", __func__);
+			return (0);	/* success */
+		}
+		DPRINTF(30, "%s: Switch in progress to different vw.", __func__);
+		return (EBUSY);
+	}
+
+	/* Avoid switching to already selected window */
+	if (vw == curvw) {
+		DPRINTF(30, "%s: Cannot switch: vw == curvw.", __func__);
+		return (0);	/* success */
+	}
 
 	/* Ask current process permission to switch away. */
 	if (curvw->vw_smode.mode == VT_PROCESS) {
@@ -664,8 +687,7 @@ vt_scrollmode_kbdevent(struct vt_window *vw, int c, int console)
 	if (console == 0) {
 		if (c >= F_SCR && c <= MIN(L_SCR, F_SCR + VT_MAXWINDOWS - 1)) {
 			vw = vd->vd_windows[c - F_SCR];
-			if (vw != NULL)
-				vt_proc_window_switch(vw);
+			vt_proc_window_switch(vw);
 			return;
 		}
 		VT_LOCK(vd);
@@ -750,8 +772,7 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 
 		if (c >= F_SCR && c <= MIN(L_SCR, F_SCR + VT_MAXWINDOWS - 1)) {
 			vw = vd->vd_windows[c - F_SCR];
-			if (vw != NULL)
-				vt_proc_window_switch(vw);
+			vt_proc_window_switch(vw);
 			return (0);
 		}
 
@@ -760,15 +781,13 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 			/* Switch to next VT. */
 			c = (vw->vw_number + 1) % VT_MAXWINDOWS;
 			vw = vd->vd_windows[c];
-			if (vw != NULL)
-				vt_proc_window_switch(vw);
+			vt_proc_window_switch(vw);
 			return (0);
 		case PREV:
 			/* Switch to previous VT. */
 			c = (vw->vw_number - 1) % VT_MAXWINDOWS;
 			vw = vd->vd_windows[c];
-			if (vw != NULL)
-				vt_proc_window_switch(vw);
+			vt_proc_window_switch(vw);
 			return (0);
 		case SLK: {
 			vt_save_kbd_state(vw, kbd);
@@ -2774,8 +2793,7 @@ vt_resume(struct vt_device *vd)
 
 	if (vt_suspendswitch == 0)
 		return;
-	/* Switch back to saved window */
-	if (vd->vd_savedwindow != NULL)
-		vt_proc_window_switch(vd->vd_savedwindow);
+	/* Switch back to saved window, if any */
+	vt_proc_window_switch(vd->vd_savedwindow);
 	vd->vd_savedwindow = NULL;
 }
