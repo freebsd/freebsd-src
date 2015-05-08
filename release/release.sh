@@ -350,10 +350,10 @@ chroot_arm_armv6_build_release() {
 	chroot ${CHROOTDIR} cp -p ${OBJDIR}/${OSRELEASE}-${KERNEL}.img \
 		/R/${OSRELEASE}-${KERNEL}.img
 	chroot ${CHROOTDIR} xz -T ${XZ_THREADS} /R/${OSRELEASE}-${KERNEL}.img
-	chroot ${CHROOTDIR} (cd /R && sha256 ${OSRELEASE}* \
-		> /R/CHECKSUM.SHA256)
-	chroot ${CHROOTDIR} (cd /R && md5 ${OSRELEASE}* \
-		> /R/CHECKSUM.MD5)
+	cd ${CHROOTDIR}/R && sha256 ${OSRELEASE}* \
+		> CHECKSUM.SHA256
+	cd ${CHROOTDIR}/R && md5 ${OSRELEASE}* \
+		> CHECKSUM.MD5
 
 	return 0
 } # chroot_arm_armv6_build_release()
