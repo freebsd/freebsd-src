@@ -2263,7 +2263,7 @@ em_local_timer(void *arg)
 	if_t ifp = adapter->ifp;
 	struct tx_ring	*txr = adapter->tx_rings;
 	struct rx_ring	*rxr = adapter->rx_rings;
-	u32		trigger;
+	u32		trigger = 0;
 
 	EM_CORE_LOCK_ASSERT(adapter);
 
@@ -2276,9 +2276,11 @@ em_local_timer(void *arg)
 		e1000_rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
 
 	/* Mask to use in the irq trigger */
-	if (adapter->msix_mem)
-		trigger = rxr->ims;
-	else
+	if (adapter->msix_mem) {
+		for (int i = 0; i < adapter->num_queues; i++, rxr++)
+			trigger |= rxr->ims;
+		rxr = adapter->rx_rings;
+	} else
 		trigger = E1000_ICS_RXDMT0;
 
 	/*
