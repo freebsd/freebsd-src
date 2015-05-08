@@ -101,7 +101,7 @@ uncore_pcpu_init(struct pmc_mdep *md, int cpu)
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[ucf,%d] insane cpu number %d", __LINE__, cpu));
 
-	PMCDBG(MDP,INI,1,"uncore-init cpu=%d", cpu);
+	PMCDBG1(MDP,INI,1,"uncore-init cpu=%d", cpu);
 
 	uncore_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_UCP].pcd_ri;
 	npmc = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_UCP].pcd_num;
@@ -137,7 +137,7 @@ uncore_pcpu_fini(struct pmc_mdep *md, int cpu)
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[uncore,%d] insane cpu number (%d)", __LINE__, cpu));
 
-	PMCDBG(MDP,INI,1,"uncore-pcpu-fini cpu=%d", cpu);
+	PMCDBG1(MDP,INI,1,"uncore-pcpu-fini cpu=%d", cpu);
 
 	if ((cc = uncore_pcpu[cpu]) == NULL)
 		return (0);
@@ -193,7 +193,7 @@ ucf_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[uncore,%d] illegal CPU %d", __LINE__, cpu));
 
-	PMCDBG(MDP,ALL,1, "ucf-allocate ri=%d reqcaps=0x%x", ri, pm->pm_caps);
+	PMCDBG2(MDP,ALL,1, "ucf-allocate ri=%d reqcaps=0x%x", ri, pm->pm_caps);
 
 	if (ri < 0 || ri > uncore_ucf_npmc)
 		return (EINVAL);
@@ -212,7 +212,7 @@ ucf_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	pm->pm_md.pm_ucf.pm_ucf_ctrl = (flags << (ri * 4));
 
-	PMCDBG(MDP,ALL,2, "ucf-allocate config=0x%jx",
+	PMCDBG1(MDP,ALL,2, "ucf-allocate config=0x%jx",
 	    (uintmax_t) pm->pm_md.pm_ucf.pm_ucf_ctrl);
 
 	return (0);
@@ -227,7 +227,7 @@ ucf_config_pmc(int cpu, int ri, struct pmc *pm)
 	KASSERT(ri >= 0 && ri < uncore_ucf_npmc,
 	    ("[uncore,%d] illegal row-index %d", __LINE__, ri));
 
-	PMCDBG(MDP,CFG,1, "ucf-config cpu=%d ri=%d pm=%p", cpu, ri, pm);
+	PMCDBG3(MDP,CFG,1, "ucf-config cpu=%d ri=%d pm=%p", cpu, ri, pm);
 
 	KASSERT(uncore_pcpu[cpu] != NULL, ("[uncore,%d] null per-cpu %d", __LINE__,
 	    cpu));
@@ -296,7 +296,7 @@ ucf_read_pmc(int cpu, int ri, pmc_value_t *v)
 	else
 		*v = tmp;
 
-	PMCDBG(MDP,REA,1, "ucf-read cpu=%d ri=%d -> v=%jx", cpu, ri, *v);
+	PMCDBG3(MDP,REA,1, "ucf-read cpu=%d ri=%d -> v=%jx", cpu, ri, *v);
 
 	return (0);
 }
@@ -304,7 +304,7 @@ ucf_read_pmc(int cpu, int ri, pmc_value_t *v)
 static int
 ucf_release_pmc(int cpu, int ri, struct pmc *pmc)
 {
-	PMCDBG(MDP,REL,1, "ucf-release cpu=%d ri=%d pm=%p", cpu, ri, pmc);
+	PMCDBG3(MDP,REL,1, "ucf-release cpu=%d ri=%d pm=%p", cpu, ri, pmc);
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[uncore,%d] illegal CPU value %d", __LINE__, cpu));
@@ -328,7 +328,7 @@ ucf_start_pmc(int cpu, int ri)
 	KASSERT(ri >= 0 && ri < uncore_ucf_npmc,
 	    ("[uncore,%d] illegal row-index %d", __LINE__, ri));
 
-	PMCDBG(MDP,STA,1,"ucf-start cpu=%d ri=%d", cpu, ri);
+	PMCDBG2(MDP,STA,1,"ucf-start cpu=%d ri=%d", cpu, ri);
 
 	ucfc = uncore_pcpu[cpu];
 	pm = ucfc->pc_uncorepmcs[ri + uncore_ucf_ri].phw_pmc;
@@ -343,7 +343,7 @@ ucf_start_pmc(int cpu, int ri)
 		wrmsr(UC_GLOBAL_CTRL, ucfc->pc_globalctrl);
 	} while (ucfc->pc_resync != 0);
 
-	PMCDBG(MDP,STA,1,"ucfctrl=%x(%x) globalctrl=%jx(%jx)",
+	PMCDBG4(MDP,STA,1,"ucfctrl=%x(%x) globalctrl=%jx(%jx)",
 	    ucfc->pc_ucfctrl, (uint32_t) rdmsr(UCF_CTRL),
 	    ucfc->pc_globalctrl, rdmsr(UC_GLOBAL_CTRL));
 
@@ -356,7 +356,7 @@ ucf_stop_pmc(int cpu, int ri)
 	uint32_t fc;
 	struct uncore_cpu *ucfc;
 
-	PMCDBG(MDP,STO,1,"ucf-stop cpu=%d ri=%d", cpu, ri);
+	PMCDBG2(MDP,STO,1,"ucf-stop cpu=%d ri=%d", cpu, ri);
 
 	ucfc = uncore_pcpu[cpu];
 
@@ -369,7 +369,7 @@ ucf_stop_pmc(int cpu, int ri)
 
 	ucfc->pc_ucfctrl &= ~fc;
 
-	PMCDBG(MDP,STO,1,"ucf-stop ucfctrl=%x", ucfc->pc_ucfctrl);
+	PMCDBG1(MDP,STO,1,"ucf-stop ucfctrl=%x", ucfc->pc_ucfctrl);
 	wrmsr(UCF_CTRL, ucfc->pc_ucfctrl);
 
 	do {
@@ -378,7 +378,7 @@ ucf_stop_pmc(int cpu, int ri)
 		wrmsr(UC_GLOBAL_CTRL, ucfc->pc_globalctrl);
 	} while (ucfc->pc_resync != 0);
 
-	PMCDBG(MDP,STO,1,"ucfctrl=%x(%x) globalctrl=%jx(%jx)",
+	PMCDBG4(MDP,STO,1,"ucfctrl=%x(%x) globalctrl=%jx(%jx)",
 	    ucfc->pc_ucfctrl, (uint32_t) rdmsr(UCF_CTRL),
 	    ucfc->pc_globalctrl, rdmsr(UC_GLOBAL_CTRL));
 
@@ -409,7 +409,7 @@ ucf_write_pmc(int cpu, int ri, pmc_value_t v)
 	wrmsr(UCF_CTR0 + ri, v);
 	wrmsr(UCF_CTRL, cc->pc_ucfctrl);
 
-	PMCDBG(MDP,WRI,1, "ucf-write cpu=%d ri=%d v=%jx ucfctrl=%jx ",
+	PMCDBG4(MDP,WRI,1, "ucf-write cpu=%d ri=%d v=%jx ucfctrl=%jx ",
 	    cpu, ri, v, (uintmax_t) rdmsr(UCF_CTRL));
 
 	return (0);
@@ -423,7 +423,7 @@ ucf_initialize(struct pmc_mdep *md, int maxcpu, int npmc, int pmcwidth)
 
 	KASSERT(md != NULL, ("[ucf,%d] md is NULL", __LINE__));
 
-	PMCDBG(MDP,INI,1, "%s", "ucf-initialize");
+	PMCDBG0(MDP,INI,1, "ucf-initialize");
 
 	pcd = &md->pmd_classdep[PMC_MDEP_CLASS_INDEX_UCF];
 
@@ -933,7 +933,7 @@ ucp_config_pmc(int cpu, int ri, struct pmc *pm)
 	KASSERT(ri >= 0 && ri < uncore_ucp_npmc,
 	    ("[uncore,%d] illegal row-index %d", __LINE__, ri));
 
-	PMCDBG(MDP,CFG,1, "ucp-config cpu=%d ri=%d pm=%p", cpu, ri, pm);
+	PMCDBG3(MDP,CFG,1, "ucp-config cpu=%d ri=%d pm=%p", cpu, ri, pm);
 
 	KASSERT(uncore_pcpu[cpu] != NULL, ("[uncore,%d] null per-cpu %d", __LINE__,
 	    cpu));
@@ -1001,7 +1001,7 @@ ucp_read_pmc(int cpu, int ri, pmc_value_t *v)
 	else
 		*v = tmp;
 
-	PMCDBG(MDP,REA,1, "ucp-read cpu=%d ri=%d msr=0x%x -> v=%jx", cpu, ri,
+	PMCDBG4(MDP,REA,1, "ucp-read cpu=%d ri=%d msr=0x%x -> v=%jx", cpu, ri,
 	    ri, *v);
 
 	return (0);
@@ -1012,7 +1012,7 @@ ucp_release_pmc(int cpu, int ri, struct pmc *pm)
 {
 	(void) pm;
 
-	PMCDBG(MDP,REL,1, "ucp-release cpu=%d ri=%d pm=%p", cpu, ri,
+	PMCDBG3(MDP,REL,1, "ucp-release cpu=%d ri=%d pm=%p", cpu, ri,
 	    pm);
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -1045,11 +1045,11 @@ ucp_start_pmc(int cpu, int ri)
 	    ("[uncore,%d] starting cpu%d,ri%d with no pmc configured",
 		__LINE__, cpu, ri));
 
-	PMCDBG(MDP,STA,1, "ucp-start cpu=%d ri=%d", cpu, ri);
+	PMCDBG2(MDP,STA,1, "ucp-start cpu=%d ri=%d", cpu, ri);
 
 	evsel = pm->pm_md.pm_ucp.pm_ucp_evsel;
 
-	PMCDBG(MDP,STA,2,
+	PMCDBG4(MDP,STA,2,
 	    "ucp-start/2 cpu=%d ri=%d evselmsr=0x%x evsel=0x%x",
 	    cpu, ri, SELECTSEL(uncore_cputype) + ri, evsel);
 
@@ -1104,7 +1104,7 @@ ucp_stop_pmc(int cpu, int ri)
 	    ("[uncore,%d] cpu%d ri%d no configured PMC to stop", __LINE__,
 		cpu, ri));
 
-	PMCDBG(MDP,STO,1, "ucp-stop cpu=%d ri=%d", cpu, ri);
+	PMCDBG2(MDP,STO,1, "ucp-stop cpu=%d ri=%d", cpu, ri);
 
 	/* stop hw. */
 	wrmsr(SELECTSEL(uncore_cputype) + ri, 0);
@@ -1136,7 +1136,7 @@ ucp_write_pmc(int cpu, int ri, pmc_value_t v)
 	    ("[uncore,%d] cpu%d ri%d no configured PMC to stop", __LINE__,
 		cpu, ri));
 
-	PMCDBG(MDP,WRI,1, "ucp-write cpu=%d ri=%d msr=0x%x v=%jx", cpu, ri,
+	PMCDBG4(MDP,WRI,1, "ucp-write cpu=%d ri=%d msr=0x%x v=%jx", cpu, ri,
 	    UCP_PMC0 + ri, v);
 
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
@@ -1160,7 +1160,7 @@ ucp_initialize(struct pmc_mdep *md, int maxcpu, int npmc, int pmcwidth)
 
 	KASSERT(md != NULL, ("[ucp,%d] md is NULL", __LINE__));
 
-	PMCDBG(MDP,INI,1, "%s", "ucp-initialize");
+	PMCDBG0(MDP,INI,1, "ucp-initialize");
 
 	pcd = &md->pmd_classdep[PMC_MDEP_CLASS_INDEX_UCP];
 
@@ -1213,7 +1213,7 @@ pmc_uncore_initialize(struct pmc_mdep *md, int maxcpu)
 	ucf_initialize(md, maxcpu, uncore_ucf_npmc, uncore_ucf_width);
 	uncore_pmcmask |= ((1ULL << uncore_ucf_npmc) - 1) << SELECTOFF(uncore_cputype);
 
-	PMCDBG(MDP,INI,1,"uncore-init pmcmask=0x%jx ucfri=%d", uncore_pmcmask,
+	PMCDBG2(MDP,INI,1,"uncore-init pmcmask=0x%jx ucfri=%d", uncore_pmcmask,
 	    uncore_ucf_ri);
 
 	uncore_pcpu = malloc(sizeof(*uncore_pcpu) * maxcpu, M_PMC,
@@ -1225,7 +1225,7 @@ pmc_uncore_initialize(struct pmc_mdep *md, int maxcpu)
 void
 pmc_uncore_finalize(struct pmc_mdep *md)
 {
-	PMCDBG(MDP,INI,1, "%s", "uncore-finalize");
+	PMCDBG0(MDP,INI,1, "uncore-finalize");
 
 	free(uncore_pcpu, M_PMC);
 	uncore_pcpu = NULL;
