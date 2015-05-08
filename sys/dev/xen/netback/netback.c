@@ -625,8 +625,7 @@ xnb_free_communication_mem(struct xnb_softc *xnb)
 {
 	if (xnb->kva != 0) {
 		if (xnb->pseudo_phys_res != NULL) {
-			bus_release_resource(xnb->dev, SYS_RES_MEMORY,
-			    xnb->pseudo_phys_res_id,
+			xenmem_free(xnb->dev, xnb->pseudo_phys_res_id,
 			    xnb->pseudo_phys_res);
 			xnb->pseudo_phys_res = NULL;
 		}
@@ -819,10 +818,8 @@ xnb_alloc_communication_mem(struct xnb_softc *xnb)
 	 * into this space.
 	 */
 	xnb->pseudo_phys_res_id = 0;
-	xnb->pseudo_phys_res = bus_alloc_resource(xnb->dev, SYS_RES_MEMORY,
-						  &xnb->pseudo_phys_res_id,
-						  0, ~0, xnb->kva_size,
-						  RF_ACTIVE);
+	xnb->pseudo_phys_res = xenmem_alloc(xnb->dev, &xnb->pseudo_phys_res_id,
+	    xnb->kva_size);
 	if (xnb->pseudo_phys_res == NULL) {
 		xnb->kva = 0;
 		return (ENOMEM);
