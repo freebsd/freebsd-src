@@ -334,6 +334,9 @@ chroot_arm_armv6_build_release() {
 	OBJDIR="$(eval chroot ${CHROOTDIR} make -C /usr/src/release -V .OBJDIR)"
 	DESTDIR="${OBJDIR}/${KERNEL}"
 	IMGBASE="${CHROOTDIR}/${OBJDIR}/${KERNEL}.img"
+	OSRELEASE="$(eval chroot ${CHROOTDIR} make -C /usr/src/release \
+		TARGET=${EMBEDDED_TARGET} TARGET_ARCH=${EMBEDDED_TARGET_ARCH} \
+		-V OSRELEASE)"
 	mkdir -p ${CHROOTDIR}/${DESTDIR}
 	truncate -s ${IMAGE_SIZE} ${IMGBASE}
 	export mddev=$(mdconfig -f ${IMGBASE} ${MD_ARGS})
@@ -342,6 +345,7 @@ chroot_arm_armv6_build_release() {
 	arm_install_uboot
 	mdconfig -d -u ${mddev}
 	rmdir ${CHROOTDIR}/${DESTDIR}
+	mv ${IMGBASE} ${IMGBASE}-${KERNEL}.img
 
 	return 0
 } # chroot_arm_armv6_build_release()
