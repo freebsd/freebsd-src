@@ -6,8 +6,8 @@
 #NO_UNIVERSE
 
 ident		SHEEVAPLUG
-include		"std.arm"
-include		"../mv/kirkwood/std.db88f6xxx"
+include 	"std.arm"
+include 	"../mv/kirkwood/std.db88f6xxx"
 
 options 	SOC_MV_KIRKWOOD
 

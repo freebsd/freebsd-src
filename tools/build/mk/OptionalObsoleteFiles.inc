@@ -1009,12 +1009,6 @@ OLD_FILES+=usr/bin/c++filt
 .endif
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/libexec/cc1plus
-.if ${MK_GCC} == no
-OLD_FILES+=usr/bin/gperf
-OLD_FILES+=usr/share/info/gperf.info.gz
-OLD_FILES+=usr/share/man/man1/gperf.1.gz
-OLD_FILES+=usr/share/man/man1/gperf.7.gz
-.endif
 .endif
 
 .if ${MK_FMTREE} == no
@@ -1729,6 +1723,7 @@ OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/bin/gcc
 OLD_FILES+=usr/bin/gcov
 OLD_FILES+=usr/bin/gcpp
+OLD_FILES+=usr/bin/gperf
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/include/gcc/4.2/__wmmintrin_aes.h
 OLD_FILES+=usr/include/gcc/4.2/__wmmintrin_pclmul.h
@@ -1754,10 +1749,13 @@ OLD_FILES+=usr/share/info/cpp.info.gz
 OLD_FILES+=usr/share/info/cppinternals.info.gz
 OLD_FILES+=usr/share/info/gcc.info.gz
 OLD_FILES+=usr/share/info/gccint.info.gz
+OLD_FILES+=usr/share/info/gperf.info.gz
 OLD_FILES+=usr/share/man/man1/g++.1.gz
 OLD_FILES+=usr/share/man/man1/gcc.1.gz
 OLD_FILES+=usr/share/man/man1/gcov.1.gz
 OLD_FILES+=usr/share/man/man1/gcpp.1.gz
+OLD_FILES+=usr/share/man/man1/gperf.1.gz
+OLD_FILES+=usr/share/man/man1/gperf.7.gz
 .endif
 
 .if ${MK_GCOV} == no

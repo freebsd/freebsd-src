@@ -24,7 +24,7 @@ _PRIVATELIBS=	\
 		ucl \
 		unbound
 
-_INTERNALIBS=	\
+_INTERNALLIBS=	\
 		amu \
 		bsnmptools \
 		cron \
@@ -49,7 +49,7 @@ _INTERNALIBS=	\
 
 _LIBRARIES=	\
 		${_PRIVATELIBS} \
-		${_INTERNALIBS} \
+		${_INTERNALLIBS} \
 		alias \
 		archive \
 		asn1 \
@@ -243,7 +243,7 @@ LIB${_l:tu}?=	${DESTDIR}${LIBDIR}/libprivate${_l}.a
 .endfor
 
 .for _l in ${_LIBRARIES}
-.if ${_INTERNALIBS:M${_l}}
+.if ${_INTERNALLIBS:M${_l}}
 LDADD_${_l}_L+=		-L${LIB${_l:tu}DIR}
 .endif
 DPADD_${_l}?=	${LIB${_l:tu}}

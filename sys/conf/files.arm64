@@ -5,6 +5,7 @@ arm64/arm64/autoconf.c		standard
 arm64/arm64/bcopy.c		standard
 arm64/arm64/bus_machdep.c	standard
 arm64/arm64/bus_space_asm.S	standard
+arm64/arm64/busdma_bounce.c	standard
 arm64/arm64/busdma_machdep.c	standard
 arm64/arm64/clock.c		standard
 arm64/arm64/copyinout.S		standard

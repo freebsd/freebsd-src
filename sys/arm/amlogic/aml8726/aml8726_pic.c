@@ -121,6 +121,8 @@ aml8726_pic_eoi(void *arg)
 	if (nb >= AML_PIC_NIRQS)
 		return;
 
+	arm_irq_memory_barrier(nb);
+
 	CSR_WRITE_4(aml8726_pic_sc, AML_PIC_STAT_CLR_REG(nb), AML_PIC_BIT(nb));
 
 	CSR_BARRIER(aml8726_pic_sc, AML_PIC_STAT_CLR_REG(nb));
@@ -265,8 +267,12 @@ arm_unmask_irq(uintptr_t nb)
 	if (nb >= AML_PIC_NIRQS)
 		return;
 
+	arm_irq_memory_barrier(nb);
+
 	mask = CSR_READ_4(aml8726_pic_sc, AML_PIC_MASK_REG(nb));
 	mask |= AML_PIC_BIT(nb);
 	CSR_WRITE_4(aml8726_pic_sc, AML_PIC_MASK_REG(nb), mask);
+
+	CSR_BARRIER(aml8726_pic_sc, AML_PIC_MASK_REG(nb));
 }
 #endif

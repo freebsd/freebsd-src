@@ -291,14 +291,14 @@ iicbus_get_frequency(device_t dev, u_char speed)
 }
 
 static device_method_t iicbus_methods[] = {
-        /* device interface */
-        DEVMETHOD(device_probe,         iicbus_probe),
-        DEVMETHOD(device_attach,        iicbus_attach),
-        DEVMETHOD(device_detach,        iicbus_detach),
+	/* device interface */
+	DEVMETHOD(device_probe,		iicbus_probe),
+	DEVMETHOD(device_attach,	iicbus_attach),
+	DEVMETHOD(device_detach,	iicbus_detach),
 
-        /* bus interface */
-        DEVMETHOD(bus_add_child,	iicbus_add_child),
-        DEVMETHOD(bus_print_child,      iicbus_print_child),
+	/* bus interface */
+	DEVMETHOD(bus_add_child,	iicbus_add_child),
+	DEVMETHOD(bus_print_child,	iicbus_print_child),
 	DEVMETHOD(bus_probe_nomatch,	iicbus_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	iicbus_read_ivar),
 	DEVMETHOD(bus_child_pnpinfo_str, iicbus_child_pnpinfo_str),
@@ -322,4 +322,3 @@ devclass_t iicbus_devclass;
 
 MODULE_VERSION(iicbus, IICBUS_MODVER);
 DRIVER_MODULE(iicbus, iichb, iicbus_driver, iicbus_devclass, 0, 0);
-

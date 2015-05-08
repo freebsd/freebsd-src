@@ -19,8 +19,8 @@
 
 ident		SAM9G20EK
 
-include		"std.arm"
-include "../at91/std.sam9g20ek"
+include 	"std.arm"
+include 	"../at91/std.sam9g20ek"
 
 #To statically compile in device wiring instead of /boot/device.hints
 hints		"SAM9G20EK.hints"

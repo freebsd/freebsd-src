@@ -23,8 +23,8 @@
 
 ident		BEAGLEBONE
 
-include		"std.armv6"
-include		"../ti/am335x/std.am335x"
+include 	"std.armv6"
+include 	"../ti/am335x/std.am335x"
 
 makeoptions	MODULES_EXTRA="dtb/am335x"
 
