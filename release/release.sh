@@ -328,7 +328,7 @@ chroot_arm_armv6_build_release() {
 	if [ -e "${RELENGDIR}/tools/${EMBEDDED_TARGET}.subr" ]; then
 		. "${RELENGDIR}/tools/${EMBEDDED_TARGET}.subr"
 	fi
-	. "${RELENGDIR}/arm/${KERNEL}.conf"
+	. "${RELEASECONF}"
 	WORLDDIR="$(eval chroot ${CHROOTDIR} make -C /usr/src/release -V WORLDDIR)"
 	OBJDIR="$(eval chroot ${CHROOTDIR} make -C /usr/src/release -V .OBJDIR)"
 	DESTDIR="${OBJDIR}/${KERNEL}"
