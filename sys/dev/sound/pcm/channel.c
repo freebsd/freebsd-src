@@ -1020,32 +1020,17 @@ static const struct {
 	{    NULL,  NULL, NULL, 0           }
 };
 
-static const struct {
-	char *name, *alias1, *alias2;
-	int matrix_id;
-} matrix_id_tab[] = {
-	{ "1.0",  "1",   "mono", SND_CHN_MATRIX_1_0     },
-	{ "2.0",  "2", "stereo", SND_CHN_MATRIX_2_0     },
-	{ "2.1", NULL,     NULL, SND_CHN_MATRIX_2_1     },
-	{ "3.0",  "3",     NULL, SND_CHN_MATRIX_3_0     },
-	{ "3.1", NULL,     NULL, SND_CHN_MATRIX_3_1     },
-	{ "4.0",  "4",   "quad", SND_CHN_MATRIX_4_0     },
-	{ "4.1", NULL,     NULL, SND_CHN_MATRIX_4_1     },
-	{ "5.0",  "5",     NULL, SND_CHN_MATRIX_5_0     },
-	{ "5.1",  "6",     NULL, SND_CHN_MATRIX_5_1     },
-	{ "6.0", NULL,     NULL, SND_CHN_MATRIX_6_0     },
-	{ "6.1",  "7",     NULL, SND_CHN_MATRIX_6_1     },
-	{ "7.0", NULL,     NULL, SND_CHN_MATRIX_7_0     },
-	{ "7.1",  "8",     NULL, SND_CHN_MATRIX_7_1     },
-	{  NULL, NULL,     NULL, SND_CHN_MATRIX_UNKNOWN }
-};
-
 uint32_t
 snd_str2afmt(const char *req)
 {
-	uint32_t i, afmt;
-	int matrix_id;
-	char b1[8], b2[8];
+	int ext;
+	int ch;
+	int i;
+	char b1[8];
+	char b2[8];
+
+	memset(b1, 0, sizeof(b1));
+	memset(b2, 0, sizeof(b2));
 
 	i = sscanf(req, "%5[^:]:%6s", b1, b2);
 
@@ -1059,88 +1044,78 @@ snd_str2afmt(const char *req)
 	} else
 		return (0);
 
-	afmt = 0;
-	matrix_id = SND_CHN_MATRIX_UNKNOWN;
+	i = sscanf(b2, "%d.%d", &ch, &ext);
 
-	for (i = 0; afmt == 0 && afmt_tab[i].name != NULL; i++) {
-		if (strcasecmp(afmt_tab[i].name, b1) == 0 ||
-		    (afmt_tab[i].alias1 != NULL &&
-		    strcasecmp(afmt_tab[i].alias1, b1) == 0) ||
-		    (afmt_tab[i].alias2 != NULL &&
-		    strcasecmp(afmt_tab[i].alias2, b1) == 0)) {
-			afmt = afmt_tab[i].afmt;
-			strlcpy(b1, afmt_tab[i].name, sizeof(b1));
-		}
-	}
-
-	if (afmt == 0)
+	if (i == 0) {
+		if (strcasecmp(b2, "mono") == 0) {
+			ch = 1;
+			ext = 0;
+		} else if (strcasecmp(b2, "stereo") == 0) {
+			ch = 2;
+			ext = 0;
+		} else if (strcasecmp(b2, "quad") == 0) {
+			ch = 4;
+			ext = 0;
+		} else
+			return (0);
+	} else if (i == 1) {
+		if (ch < 1 || ch > AFMT_CHANNEL_MAX)
+			return (0);
+		ext = 0;
+	} else if (i == 2) {
+		if (ext < 0 || ext > AFMT_EXTCHANNEL_MAX)
+			return (0);
+		if (ch < 1 || (ch + ext) > AFMT_CHANNEL_MAX)
+			return (0);
+	} else
 		return (0);
 
-	for (i = 0; matrix_id == SND_CHN_MATRIX_UNKNOWN &&
-	    matrix_id_tab[i].name != NULL; i++) {
-		if (strcmp(matrix_id_tab[i].name, b2) == 0 ||
-		    (matrix_id_tab[i].alias1 != NULL &&
-		    strcmp(matrix_id_tab[i].alias1, b2) == 0) ||
-		    (matrix_id_tab[i].alias2 != NULL &&
-		    strcasecmp(matrix_id_tab[i].alias2, b2) == 0)) {
-			matrix_id = matrix_id_tab[i].matrix_id;
-			strlcpy(b2, matrix_id_tab[i].name, sizeof(b2));
+	for (i = 0; afmt_tab[i].name != NULL; i++) {
+		if (strcasecmp(afmt_tab[i].name, b1) != 0) {
+			if (afmt_tab[i].alias1 == NULL)
+				continue;
+			if (strcasecmp(afmt_tab[i].alias1, b1) != 0) {
+				if (afmt_tab[i].alias2 == NULL)
+					continue;
+				if (strcasecmp(afmt_tab[i].alias2, b1) != 0)
+					continue;
+			}
 		}
+		/* found a match */
+		return (SND_FORMAT(afmt_tab[i].afmt, ch + ext, ext));	
 	}
-
-	if (matrix_id == SND_CHN_MATRIX_UNKNOWN)
-		return (0);
-
-#ifndef _KERNEL
-	printf("Parse OK: '%s' -> '%s:%s' %d\n", req, b1, b2,
-	    (int)(b2[0]) - '0' + (int)(b2[2]) - '0');
-#endif
-
-	return (SND_FORMAT(afmt, b2[0] - '0' + b2[2] - '0', b2[2] - '0'));
+	/* not a valid format */
+	return (0);
 }
 
 uint32_t
 snd_afmt2str(uint32_t afmt, char *buf, size_t len)
 {
-	uint32_t i, enc, ch, ext;
-	char tmp[AFMTSTR_LEN];
+	uint32_t enc;
+	uint32_t ext;
+	uint32_t ch;
+	int i;
 
 	if (buf == NULL || len < AFMTSTR_LEN)
 		return (0);
 
-	
-	bzero(tmp, sizeof(tmp));
+	memset(buf, 0, len);
 
 	enc = AFMT_ENCODING(afmt);
 	ch = AFMT_CHANNEL(afmt);
 	ext = AFMT_EXTCHANNEL(afmt);
-
+	/* check there is at least one channel */
+	if (ch <= ext)
+		return (0);
 	for (i = 0; afmt_tab[i].name != NULL; i++) {
-		if (enc == afmt_tab[i].afmt) {
-			strlcpy(tmp, afmt_tab[i].name, sizeof(tmp));
-			strlcat(tmp, ":", sizeof(tmp));
-			break;
-		}
+		if (enc != afmt_tab[i].afmt)
+			continue;
+		/* found a match */
+		snprintf(buf, len, "%s:%d.%d",
+		    afmt_tab[i].name, ch - ext, ext);
+		return (SND_FORMAT(enc, ch, ext));
 	}
-
-	if (strlen(tmp) == 0)
-		return (0);
-	
-	for (i = 0; matrix_id_tab[i].name != NULL; i++) {
-		if (ch == (matrix_id_tab[i].name[0] - '0' +
-		    matrix_id_tab[i].name[2] - '0') &&
-		    ext == (matrix_id_tab[i].name[2] - '0')) {
-			strlcat(tmp, matrix_id_tab[i].name, sizeof(tmp));
-			break;
-		}
-	}
-
-	if (strlen(tmp) == 0)
-		return (0);
-
-	strlcpy(buf, tmp, len);
-
-	return (snd_str2afmt(buf));
+	return (0);
 }
 
 int
