@@ -84,7 +84,7 @@ arm_install_base() {
 		TARGET_ARCH=${EMBEDDED_TARGET_ARCH} \
 		DESTDIR=${DESTDIR} KERNCONF=${KERNEL} \
 		installworld installkernel distribution
-	chroot ${CHROOTDIR} mkdir -p /boot/msdos
+	chroot ${CHROOTDIR} mkdir -p ${DESTDIR}/boot/msdos
 
 	echo '# Custom /etc/fstab for FreeBSD embedded images' \
 		> ${CHROOTDIR}/${DESTDIR}/etc/fstab
