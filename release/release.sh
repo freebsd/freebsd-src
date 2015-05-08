@@ -346,6 +346,14 @@ chroot_arm_armv6_build_release() {
 	mdconfig -d -u ${mddev}
 	rmdir ${CHROOTDIR}/${DESTDIR}
 	mv ${IMGBASE} ${CHROOTDIR}/${OBJDIR}/${OSRELEASE}-${KERNEL}.img
+	chroot ${CHROOTDIR} mkdir -p /R
+	chroot ${CHROOTDIR} cp -p ${OBJDIR}/${OSRELEASE}-${KERNEL}.img \
+		/R/${OSRELEASE}-${KERNEL}.img
+	chroot ${CHROOTDIR} xz -T ${XZ_THREADS} /R/${OSRELEASE}-${KERNEL}.img
+	chroot ${CHROOTDIR} cd /R && sha256 /R/${OSRELEASE}* \
+		> /R/CHECKSUM.SHA256
+	chroot ${CHROOTDIR} cd /R && md5 /R/${OSRELEASE}* \
+		> /R/CHECKSUM.MD5
 
 	return 0
 } # chroot_arm_armv6_build_release()
