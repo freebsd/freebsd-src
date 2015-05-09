@@ -1348,7 +1348,7 @@ pf_normalize_tcp(int dir, struct pfi_kif *kif, struct mbuf *m, int ipoff,
 			goto tcp_drop;
 
 		if (flags & TH_FIN)
-			flags &= ~TH_FIN;
+			goto tcp_drop;
 	} else {
 		/* Illegal packet */
 		if (!(flags & (TH_ACK|TH_RST)))
