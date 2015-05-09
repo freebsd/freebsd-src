@@ -222,9 +222,6 @@ newstr(char const * p)
 	return q;
 }
 
-#define LNBUFSZ 1024
-
-
 struct userconf *
 read_userconfig(char const * file)
 {
