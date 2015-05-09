@@ -40,7 +40,6 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <unistd.h>
 #include <login_cap.h>
 #include <pwd.h>
 #include <grp.h>
