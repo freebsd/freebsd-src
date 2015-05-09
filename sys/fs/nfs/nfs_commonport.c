@@ -274,11 +274,11 @@ nfsvno_getfs(struct nfsfsinfo *sip, int isdgram)
 	if (isdgram)
 		pref = NFS_MAXDGRAMDATA;
 	else
-		pref = NFS_MAXDATA;
-	sip->fs_rtmax = NFS_MAXDATA;
+		pref = NFS_SRVMAXIO;
+	sip->fs_rtmax = NFS_SRVMAXIO;
 	sip->fs_rtpref = pref;
 	sip->fs_rtmult = NFS_FABLKSIZE;
-	sip->fs_wtmax = NFS_MAXDATA;
+	sip->fs_wtmax = NFS_SRVMAXIO;
 	sip->fs_wtpref = pref;
 	sip->fs_wtmult = NFS_FABLKSIZE;
 	sip->fs_dtpref = pref;
