@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #ifdef SMP
 #include <machine/smp.h>
 #endif
+#include <x86/acpica_machdep.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -119,6 +120,27 @@ void
 cpu_flush_dcache(void *ptr, size_t len)
 {
 	/* Not applicable */
+}
+
+void
+acpi_cpu_c1(void)
+{
+
+	__asm __volatile("sti; hlt");
+}
+
+void
+acpi_cpu_idle_mwait(uint32_t mwait_hint)
+{
+	int *state;
+
+	state = (int *)PCPU_PTR(monitorbuf);
+	/*
+	 * XXXKIB.  Software coordination mode should be supported,
+	 * but all Intel CPUs provide hardware coordination.
+	 */
+	cpu_monitor(state, 0, 0);
+	cpu_mwait(MWAIT_INTRBREAK, mwait_hint);
 }
 
 /* Get current clock frequency for the given cpu id. */
@@ -194,6 +216,15 @@ cpu_halt(void)
 		halt();
 }
 
+bool
+cpu_mwait_usable(void)
+{
+
+	return ((cpu_feature2 & CPUID2_MON) != 0 && ((cpu_mon_mwait_flags &
+	    (CPUID5_MON_MWAIT_EXT | CPUID5_MWAIT_INTRBREAK)) ==
+	    (CPUID5_MON_MWAIT_EXT | CPUID5_MWAIT_INTRBREAK)));
+}
+
 void (*cpu_idle_hook)(sbintime_t) = NULL;	/* ACPI idle hook. */
 static int	cpu_ident_amdc1e = 0;	/* AMD C1E supported. */
 static int	idle_mwait = 1;		/* Use MONITOR/MWAIT for short idle. */
@@ -220,7 +251,7 @@ cpu_idle_acpi(sbintime_t sbt)
 	else if (cpu_idle_hook)
 		cpu_idle_hook(sbt);
 	else
-		__asm __volatile("sti; hlt");
+		acpi_cpu_c1();
 	*state = STATE_RUNNING;
 }
 #endif /* !PC98 */
@@ -253,7 +284,7 @@ cpu_idle_hlt(sbintime_t sbt)
 	if (sched_runnable())
 		enable_intr();
 	else
-		__asm __volatile("sti; hlt");
+		acpi_cpu_c1();
 	*state = STATE_RUNNING;
 }
 
