@@ -42,19 +42,6 @@ static const char rcsid[] =
 #include "pwupd.h"
 
 int
-extendline(char **buf, int * buflen, int needed)
-{
-	if (needed > *buflen) {
-		char	*tmp = realloc(*buf, needed);
-		if (tmp == NULL)
-			return -1;
-		*buf = tmp;
-		*buflen = needed;
-	}
-	return *buflen;
-}
-
-int
 extendarray(char ***buf, int * buflen, int needed)
 {
 	if (needed > *buflen) {
