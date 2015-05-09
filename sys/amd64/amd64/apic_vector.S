@@ -196,8 +196,6 @@ IDTVEC(hv_vmbus_callback)
  */
 	.text
 
-#define	NAKE_INTR_CS	24
-
 	SUPERALIGN_TEXT
 invltlb_ret:
 	call	as_lapic_eoi
