@@ -1018,17 +1018,16 @@ static char    *
 pw_homepolicy(struct userconf * cnf, struct cargs * args, char const * user)
 {
 	struct carg    *arg = getarg(args, 'd');
+	static char     home[128];
 
 	if (arg)
-		return arg->val;
-	else {
-		static char     home[128];
+		return (arg->val);
 
-		if (cnf->home == NULL || *cnf->home == '\0')
-			errx(EX_CONFIG, "no base home directory set");
-		sprintf(home, "%s/%s", cnf->home, user);
-		return home;
-	}
+	if (cnf->home == NULL || *cnf->home == '\0')
+		errx(EX_CONFIG, "no base home directory set");
+	snprintf(home, sizeof(home), "%s/%s", cnf->home, user);
+
+	return (home);
 }
 
 static char    *
