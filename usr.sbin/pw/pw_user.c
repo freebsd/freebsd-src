@@ -397,7 +397,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				 */
 				snprintf(file, sizeof(file), "/var/cron/tabs/%s", pwd->pw_name);
 				if (access(file, F_OK) == 0) {
-					sprintf(file, "crontab -u %s -r", pwd->pw_name);
+					snprintf(file, sizeof(file), "crontab -u %s -r", pwd->pw_name);
 					system(file);
 				}
 			}
@@ -405,7 +405,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			 * Save these for later, since contents of pwd may be
 			 * invalidated by deletion
 			 */
-			sprintf(file, "%s/%s", _PATH_MAILDIR, pwd->pw_name);
+			snprintf(file, sizeof(file), "%s/%s", _PATH_MAILDIR, pwd->pw_name);
 			strlcpy(home, pwd->pw_dir, sizeof(home));
 			gr = GETGRGID(pwd->pw_gid);
 			if (gr != NULL)
@@ -811,7 +811,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 */
 	if (mode == M_ADD) {
 		if (!PWALTDIR()) {
-			sprintf(line, "%s/%s", _PATH_MAILDIR, pwd->pw_name);
+			snprintf(line, sizeof(line), "%s/%s", _PATH_MAILDIR, pwd->pw_name);
 			close(open(line, O_RDWR | O_CREAT, 0600));	/* Preserve contents &
 									 * mtime */
 			chown(line, pwd->pw_uid, pwd->pw_gid);
@@ -955,7 +955,7 @@ pw_gidpolicy(struct userconf * cnf, struct cargs * args, char *nam, gid_t prefer
 		 * function will happily handle that case for us and exit.
 		 */
 		if (GETGRGID(prefer) == NULL) {
-			sprintf(tmp, "%lu", (unsigned long) prefer);
+			snprintf(tmp, sizeof(tmp), "%u", prefer);
 			addarg(&grpargs, 'g', tmp);
 		}
 		if (getarg(args, 'N'))
@@ -1048,12 +1048,12 @@ shell_path(char const * path, char *shells[], char *sh)
 			static char     shellpath[256];
 
 			if (sh != NULL) {
-				sprintf(shellpath, "%s/%s", p, sh);
+				snprintf(shellpath, sizeof(shellpath), "%s/%s", p, sh);
 				if (access(shellpath, X_OK) == 0)
 					return shellpath;
 			} else
 				for (i = 0; i < _UC_MAXSHELLS && shells[i] != NULL; i++) {
-					sprintf(shellpath, "%s/%s", p, shells[i]);
+					snprintf(shellpath, sizeof(shellpath), "%s/%s", p, shells[i]);
 					if (access(shellpath, X_OK) == 0)
 						return shellpath;
 				}
@@ -1303,7 +1303,7 @@ rmat(uid_t uid)
 			    st.st_uid == uid) {
 				char            tmp[MAXPATHLEN];
 
-				sprintf(tmp, "/usr/bin/atrm %s", e->d_name);
+				snprintf(tmp, sizeof(tmp), "/usr/bin/atrm %s", e->d_name);
 				system(tmp);
 			}
 		}
