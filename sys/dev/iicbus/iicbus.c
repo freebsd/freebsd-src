@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h> 
 
@@ -147,6 +148,7 @@ iicbus_print_child(device_t dev, device_t child)
 	retval += bus_print_child_header(dev, child);
 	if (devi->addr != 0)
 		retval += printf(" at addr %#x", devi->addr);
+	resource_list_print_type(&devi->rl, "irq", SYS_RES_IRQ, "%ld");
 	retval += bus_print_child_footer(dev, child);
 
 	return (retval);
@@ -157,9 +159,9 @@ iicbus_probe_nomatch(device_t bus, device_t child)
 {
 	struct iicbus_ivar *devi = IICBUS_IVAR(child);
 
-	device_printf(bus, "<unknown card>");
-	printf(" at addr %#x\n", devi->addr);
-	return;
+	device_printf(bus, "<unknown card> at addr %#x", devi->addr);
+	resource_list_print_type(&devi->rl, "irq", SYS_RES_IRQ, "%ld");
+	printf("\n");
 }
 
 static int
@@ -209,6 +211,7 @@ iicbus_add_child(device_t dev, u_int order, const char *name, int unit)
 		device_delete_child(dev, child);
 		return (0);
 	}
+	resource_list_init(&devi->rl);
 	device_set_ivars(child, devi);
 	return (child);
 }
@@ -217,11 +220,77 @@ static void
 iicbus_hinted_child(device_t bus, const char *dname, int dunit)
 {
 	device_t child;
+	int irq;
 	struct iicbus_ivar *devi;
 
 	child = BUS_ADD_CHILD(bus, 0, dname, dunit);
 	devi = IICBUS_IVAR(child);
 	resource_int_value(dname, dunit, "addr", &devi->addr);
+	if (resource_int_value(dname, dunit, "irq", &irq) == 0) {
+		if (bus_set_resource(child, SYS_RES_IRQ, 0, irq, 1) != 0)
+			device_printf(bus,
+			    "warning: bus_set_resource() failed\n");
+	}
+}
+
+static int
+iicbus_set_resource(device_t dev, device_t child, int type, int rid,
+    u_long start, u_long count)
+{
+	struct iicbus_ivar *devi;
+	struct resource_list_entry *rle;
+
+	devi = IICBUS_IVAR(child);
+	rle = resource_list_add(&devi->rl, type, rid, start,
+	    start + count - 1, count);
+	if (rle == NULL)
+		return (ENXIO);
+
+	return (0);
+}
+
+static struct resource *
+iicbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	struct resource_list *rl;
+	struct resource_list_entry *rle;
+
+	/* Only IRQ resources are supported. */
+	if (type != SYS_RES_IRQ)
+		return (NULL);
+
+	/*
+	 * Request for the default allocation with a given rid: use resource
+	 * list stored in the local device info.
+	 */
+	if ((start == 0UL) && (end == ~0UL)) {
+		rl = BUS_GET_RESOURCE_LIST(bus, child);
+		if (rl == NULL)
+			return (NULL);
+		rle = resource_list_find(rl, type, *rid);
+		if (rle == NULL) {
+			if (bootverbose)
+				device_printf(bus, "no default resources for "
+				    "rid = %d, type = %d\n", *rid, type);
+			return (NULL);
+		}
+		start = rle->start;
+		end = rle->end;
+		count = rle->count;
+	}
+
+	return (bus_generic_alloc_resource(bus, child, type, rid, start, end,
+	    count, flags));
+}
+
+static struct resource_list *
+iicbus_get_resource_list(device_t bus __unused, device_t child)
+{
+	struct iicbus_ivar *devi;
+
+	devi = IICBUS_IVAR(child);
+	return (&devi->rl);
 }
 
 int
@@ -297,6 +366,16 @@ static device_method_t iicbus_methods[] = {
 	DEVMETHOD(device_detach,	iicbus_detach),
 
 	/* bus interface */
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_release_resource, bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+	DEVMETHOD(bus_alloc_resource,	iicbus_alloc_resource),
+	DEVMETHOD(bus_get_resource_list, iicbus_get_resource_list),
+	DEVMETHOD(bus_set_resource,	iicbus_set_resource),
 	DEVMETHOD(bus_add_child,	iicbus_add_child),
 	DEVMETHOD(bus_print_child,	iicbus_print_child),
 	DEVMETHOD(bus_probe_nomatch,	iicbus_probe_nomatch),
