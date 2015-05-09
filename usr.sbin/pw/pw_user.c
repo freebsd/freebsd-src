@@ -185,8 +185,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			 * But we create a symlink from cnf->home -> "/usr" -> cnf->home
 			 */
 			if (strchr(cnf->home+1, '/') == NULL) {
-				strcpy(dbuf, "/usr");
-				strncat(dbuf, cnf->home, MAXPATHLEN-5);
+				snprintf(dbuf, MAXPATHLEN, "/usr%s", cnf->home);
 				if (mkdir(dbuf, _DEF_DIRMODE) != -1 || errno == EEXIST) {
 					chown(dbuf, 0, 0);
 					/*
