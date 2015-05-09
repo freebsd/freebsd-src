@@ -759,6 +759,29 @@ stopme:
 			PROC_LOCK(p);
 			PROC_SLOCK(p);
 		}
+	} else if (mode == SINGLE_BOUNDARY) {
+		/*
+		 * Wait until all suspended threads are removed from
+		 * the processors.  The thread_suspend_check()
+		 * increments p_boundary_count while it is still
+		 * running, which makes it possible for the execve()
+		 * to destroy vmspace while our other threads are
+		 * still using the address space.
+		 *
+		 * We lock the thread, which is only allowed to
+		 * succeed after context switch code finished using
+		 * the address space.
+		 */
+		FOREACH_THREAD_IN_PROC(p, td2) {
+			if (td2 == td)
+				continue;
+			thread_lock(td2);
+			KASSERT((td2->td_flags & TDF_BOUNDARY) != 0,
+			    ("td %p not on boundary", td2));
+			KASSERT(TD_IS_SUSPENDED(td2),
+			    ("td %p is not suspended", td2));
+			thread_unlock(td2);
+		}
 	}
 	PROC_SUNLOCK(p);
 	return (0);
