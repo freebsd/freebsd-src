@@ -89,7 +89,7 @@ device		bpf			# Berkeley packet filter
 # Ethernet
 device		mii			# Minimal MII support
 device		ate			# Atmel AT91 Ethernet driver
-option 		AT91_ATE_USE_RMII
+options 	AT91_ATE_USE_RMII
 
 # I2C
 device		at91_twi		# Atmel AT91 Two-wire Interface
