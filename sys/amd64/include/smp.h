@@ -46,6 +46,7 @@ extern struct mtx ap_boot_mtx;
 extern int cpu_logical;
 extern int cpu_cores;
 extern int pmap_pcid_enabled;
+extern int invpcid_works;
 extern u_int xhits_gbl[];
 extern u_int xhits_pg[];
 extern u_int xhits_rng[];
@@ -53,10 +54,6 @@ extern u_int ipi_global;
 extern u_int ipi_page;
 extern u_int ipi_range;
 extern u_int ipi_range_size;
-extern u_int ipi_masked_global;
-extern u_int ipi_masked_page;
-extern u_int ipi_masked_range;
-extern u_int ipi_masked_range_size;
 
 extern volatile int smp_tlb_wait;
 
@@ -78,9 +75,9 @@ extern u_long *ipi_rendezvous_counts[MAXCPU];
 
 /* IPI handlers */
 inthand_t
-	IDTVEC(invltlb_pcid),	/* TLB shootdowns - global, pcid enabled */
 	IDTVEC(invltlb),	/* TLB shootdowns - global */
-	IDTVEC(invlpg_pcid),	/* TLB shootdowns - 1 page, pcid enabled */
+	IDTVEC(invltlb_pcid),	/* TLB shootdowns - global, pcid */
+	IDTVEC(invltlb_invpcid),/* TLB shootdowns - global, invpcid */
 	IDTVEC(invlpg),		/* TLB shootdowns - 1 page */
 	IDTVEC(invlrng),	/* TLB shootdowns - page range */
 	IDTVEC(invlcache),	/* Write back and invalidate cache */
@@ -100,8 +97,8 @@ void	cpususpend_handler(void);
 void	init_secondary_tail(void);
 void	invltlb_handler(void);
 void	invltlb_pcid_handler(void);
+void	invltlb_invpcid_handler(void);
 void	invlpg_handler(void);
-void	invlpg_pcid_handler(void);
 void	invlrng_handler(void);
 void	invlcache_handler(void);
 void	init_secondary(void);
@@ -114,13 +111,9 @@ void	ipi_selected(cpuset_t cpus, u_int ipi);
 u_int	mp_bootaddress(u_int);
 void	set_interrupt_apic_ids(void);
 void	smp_cache_flush(void);
-void	smp_invlpg(struct pmap *pmap, vm_offset_t addr);
-void	smp_masked_invlpg(cpuset_t mask, struct pmap *pmap, vm_offset_t addr);
-void	smp_invlpg_range(struct pmap *pmap, vm_offset_t startva,
+void	smp_masked_invlpg(cpuset_t mask, vm_offset_t addr);
+void	smp_masked_invlpg_range(cpuset_t mask, vm_offset_t startva,
 	    vm_offset_t endva);
-void	smp_masked_invlpg_range(cpuset_t mask, struct pmap *pmap,
-	    vm_offset_t startva, vm_offset_t endva);
-void	smp_invltlb(struct pmap *pmap);
 void	smp_masked_invltlb(cpuset_t mask, struct pmap *pmap);
 int	native_start_all_aps(void);
 void	mem_range_AP_init(void);
