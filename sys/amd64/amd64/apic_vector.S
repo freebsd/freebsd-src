@@ -203,30 +203,28 @@ invltlb_ret:
 	jmp	doreti_iret
 
 	SUPERALIGN_TEXT
-IDTVEC(invltlb_pcid)
-	PUSH_FRAME
-
-	call	invltlb_pcid_handler
-	jmp	invltlb_ret
-
-
-	SUPERALIGN_TEXT
 IDTVEC(invltlb)
 	PUSH_FRAME
 
 	call	invltlb_handler
 	jmp	invltlb_ret
 
+IDTVEC(invltlb_pcid)
+	PUSH_FRAME
+
+	call	invltlb_pcid_handler
+	jmp	invltlb_ret
+
+IDTVEC(invltlb_invpcid)
+	PUSH_FRAME
+
+	call	invltlb_invpcid_handler
+	jmp	invltlb_ret
+
 /*
  * Single page TLB shootdown
  */
 	.text
-	SUPERALIGN_TEXT
-IDTVEC(invlpg_pcid)
-	PUSH_FRAME
-
-	call	invlpg_pcid_handler
-	jmp	invltlb_ret
 
 	SUPERALIGN_TEXT
 IDTVEC(invlpg)
