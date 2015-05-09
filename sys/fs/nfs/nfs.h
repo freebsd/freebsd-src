@@ -151,7 +151,7 @@
 	(t).tv_sec = time.tv_sec; (t).tv_nsec = 1000 * time.tv_usec; } while (0)
 #define	NFS_SRVMAXDATA(n) 						\
 		(((n)->nd_flag & (ND_NFSV3 | ND_NFSV4)) ? 		\
-		 NFS_MAXDATA : NFS_V2MAXDATA)
+		 NFS_SRVMAXIO : NFS_V2MAXDATA)
 #define	NFS64BITSSET	0xffffffffffffffffull
 #define	NFS64BITSMINUS1	0xfffffffffffffffeull
 
