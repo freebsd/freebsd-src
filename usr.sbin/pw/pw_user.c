@@ -40,7 +40,6 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <unistd.h>
 #include <login_cap.h>
 #include <pwd.h>
 #include <grp.h>
@@ -185,8 +184,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			 * But we create a symlink from cnf->home -> "/usr" -> cnf->home
 			 */
 			if (strchr(cnf->home+1, '/') == NULL) {
-				strcpy(dbuf, "/usr");
-				strncat(dbuf, cnf->home, MAXPATHLEN-5);
+				snprintf(dbuf, MAXPATHLEN, "/usr%s", cnf->home);
 				if (mkdir(dbuf, _DEF_DIRMODE) != -1 || errno == EEXIST) {
 					chown(dbuf, 0, 0);
 					/*
@@ -364,11 +362,9 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		if (mode == M_LOCK) {
 			if (strncmp(pwd->pw_passwd, locked_str, sizeof(locked_str)-1) == 0)
 				errx(EX_DATAERR, "user '%s' is already locked", pwd->pw_name);
-			passtmp = malloc(strlen(pwd->pw_passwd) + sizeof(locked_str));
+			asprintf(&passtmp, "%s%s", locked_str, pwd->pw_passwd);
 			if (passtmp == NULL)	/* disaster */
 				errx(EX_UNAVAILABLE, "out of memory");
-			strcpy(passtmp, locked_str);
-			strcat(passtmp, pwd->pw_passwd);
 			pwd->pw_passwd = passtmp;
 			edited = 1;
 		} else if (mode == M_UNLOCK) {

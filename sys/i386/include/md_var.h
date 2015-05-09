@@ -97,6 +97,7 @@ struct	dumperinfo;
 void	*alloc_fpusave(int flags);
 void	bcopyb(const void *from, void *to, size_t len);
 void	busdma_swi(void);
+bool	cpu_mwait_usable(void);
 void	cpu_probe_amdc1e(void);
 void	cpu_setregs(void);
 void	cpu_switch_load_gs(void) __asm(__STRING(cpu_switch_load_gs));

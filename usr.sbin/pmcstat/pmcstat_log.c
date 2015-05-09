@@ -1531,7 +1531,9 @@ pmcstat_analyze_log(void)
 				free(ppm);
 			}
 
-			/* associate this process  image */
+			/*
+			 * Associate this process image.
+			 */
 			image_path = pmcstat_string_intern(
 				ev.pl_u.pl_x.pl_pathname);
 			assert(image_path != NULL);
