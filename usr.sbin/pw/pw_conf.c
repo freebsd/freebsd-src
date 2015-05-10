@@ -213,15 +213,12 @@ char           *
 newstr(char const * p)
 {
 	char	*q;
-	size_t	 l;
 
 	if ((p = unquote(p)) == NULL)
 		return (NULL);
 
-	l = strlen(p) + 1;
-
-	if ((q = strndup(p, l)) == NULL)
-		err(1, "strndup()");
+	if ((q = strdup(p)) == NULL)
+		err(1, "strdup()");
 
 	return (q);
 }
