@@ -1,3 +1,9 @@
+2015-04-30  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20150430
+	
+	* dirdeps.mk: fix _count_dirdeps for non-cache case.
+
 2015-04-16  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20150411
