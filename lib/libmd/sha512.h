@@ -41,16 +41,34 @@ __BEGIN_DECLS
 
 /* Ensure libmd symbols do not clash with libcrypto */
 
+#ifndef SHA512_Init
 #define SHA512_Init		_libmd_SHA512_Init
+#endif
+#ifndef SHA512_Update
 #define SHA512_Update		_libmd_SHA512_Update
+#endif
+#ifndef SHA512_Final
 #define SHA512_Final		_libmd_SHA512_Final
+#endif
+#ifndef SHA512_End
 #define SHA512_End		_libmd_SHA512_End
+#endif
+#ifndef SHA512_File
 #define SHA512_File		_libmd_SHA512_File
+#endif
+#ifndef SHA512_FileChunk
 #define SHA512_FileChunk	_libmd_SHA512_FileChunk
+#endif
+#ifndef SHA512_Data
 #define SHA512_Data		_libmd_SHA512_Data
+#endif
 
+#ifndef SHA512_Transform
 #define SHA512_Transform	_libmd_SHA512_Transform
+#endif
+#ifndef SHA512_version
 #define SHA512_version		_libmd_SHA512_version
+#endif
 
 void	SHA512_Init(SHA512_CTX *);
 void	SHA512_Update(SHA512_CTX *, const void *, size_t);
