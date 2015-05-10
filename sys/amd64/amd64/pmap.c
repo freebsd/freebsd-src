@@ -6604,8 +6604,8 @@ pmap_activate_sw(struct thread *td)
 		    pmap->pm_pcids[cpuid].pm_pcid));
 		KASSERT(pmap->pm_pcids[cpuid].pm_pcid != PMAP_PCID_KERN ||
 		    pmap == kernel_pmap,
-		    ("non-kernel pmap %p cpu %d pcid %#x", pmap, cpuid,
-		    pmap->pm_pcids[cpuid].pm_pcid));
+		    ("non-kernel pmap thread %p pmap %p cpu %d pcid %#x",
+		    td, pmap, cpuid, pmap->pm_pcids[cpuid].pm_pcid));
 		if (!cached || (cr3 & ~CR3_PCID_MASK) != pmap->pm_cr3) {
 			load_cr3(pmap->pm_cr3 | pmap->pm_pcids[cpuid].pm_pcid |
 			    cached);
