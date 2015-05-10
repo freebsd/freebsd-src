@@ -438,7 +438,6 @@ write_userconfig(char const * file)
 			    config.default_group : "");
 			break;
 		case _UC_EXTRAGROUPS:
-			extendarray(&config.groups, &config.numgroups, 200);
 			for (j = 0; j < config.numgroups &&
 			    config.groups[j] != NULL; j++)
 				sbuf_printf(buf, "%s\"%s\"", j ?
