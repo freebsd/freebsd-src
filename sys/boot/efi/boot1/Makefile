@@ -13,7 +13,7 @@ PROG=		loader.sym
 INTERNALPROG=
 
 # architecture-specific loader code
-SRCS=	boot1.c reloc.c start.S
+SRCS=	boot1.c self_reloc.c start.S
 
 CFLAGS+=	-I.
 CFLAGS+=	-I${.CURDIR}/../include

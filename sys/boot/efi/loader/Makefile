@@ -20,7 +20,7 @@ SRCS=	autoload.c \
 	copy.c \
 	devicename.c \
 	main.c \
-	reloc.c \
+	self_reloc.c \
 	smbios.c \
 	vers.c
 
