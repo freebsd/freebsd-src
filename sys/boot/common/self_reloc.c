@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <elf.h>
-#include <efi.h>
 #include <bootstrap.h>
 
 #if defined(__aarch64__)
@@ -38,11 +37,11 @@ __FBSDID("$FreeBSD$");
 #define	ELFW_R_TYPE	ELF64_R_TYPE
 #define	ELF_RELA
 #elif defined(__arm__) || defined(__i386__)
-#define ElfW_Rel	Elf32_Rel
+#define	ElfW_Rel	Elf32_Rel
 #define	ElfW_Dyn	Elf32_Dyn
 #define	ELFW_R_TYPE	ELF32_R_TYPE
 #elif defined(__amd64__)
-#define ElfW_Rel	Elf64_Rel
+#define	ElfW_Rel	Elf64_Rel
 #define	ElfW_Dyn	Elf64_Dyn
 #define	ELFW_R_TYPE	ELF64_R_TYPE
 #else
@@ -63,14 +62,13 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /*
- * A simple relocator for EFI binaries.
+ * A simple elf relocator.
  */
-EFI_STATUS
-_reloc(unsigned long ImageBase, ElfW_Dyn *dynamic, EFI_HANDLE image_handle,
-    EFI_SYSTEM_TABLE *system_table)
+void
+self_reloc(Elf_Addr baseaddr, ElfW_Dyn *dynamic)
 {
-	unsigned long relsz, relent;
-	unsigned long *newaddr;
+	Elf_Word relsz, relent;
+	Elf_Addr *newaddr;
 	ElfW_Rel *rel;
 	ElfW_Dyn *dynp;
 
@@ -83,8 +81,7 @@ _reloc(unsigned long ImageBase, ElfW_Dyn *dynamic, EFI_HANDLE image_handle,
 		switch (dynp->d_tag) {
 		case DT_REL:
 		case DT_RELA:
-			rel = (ElfW_Rel *) ((unsigned long) dynp->d_un.d_ptr +
-			    ImageBase);
+			rel = (ElfW_Rel *)(dynp->d_un.d_ptr + baseaddr);
 			break;
 		case DT_RELSZ:
 		case DT_RELASZ:
@@ -110,8 +107,8 @@ _reloc(unsigned long ImageBase, ElfW_Dyn *dynamic, EFI_HANDLE image_handle,
 
 		case RELOC_TYPE_RELATIVE:
 			/* Address relative to the base address. */
-			newaddr = (unsigned long *)(ImageBase + rel->r_offset);
-			*newaddr += ImageBase;
+			newaddr = (Elf_Addr *)(rel->r_offset + baseaddr);
+			*newaddr += baseaddr;
 			/* Add the addend when the ABI uses them */ 
 #ifdef ELF_RELA
 			*newaddr += rel->r_addend;
@@ -123,6 +120,4 @@ _reloc(unsigned long ImageBase, ElfW_Dyn *dynamic, EFI_HANDLE image_handle,
 		}
 		rel = (ElfW_Rel *) ((caddr_t) rel + relent);
 	}
-
-	return (EFI_SUCCESS);
 }
