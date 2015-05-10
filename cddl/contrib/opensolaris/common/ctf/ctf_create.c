@@ -1328,15 +1328,28 @@ ctf_add_type(ctf_file_t *dst_fp, ctf_file_t *src_fp, ctf_id_t src_type)
 	 * we are looking for.  This is necessary to permit ctf_add_type() to
 	 * operate recursively on entities such as a struct that contains a
 	 * pointer member that refers to the same struct type.
+	 *
+	 * In the case of integer and floating point types, we match using the
+	 * type encoding as well - else we may incorrectly return a bitfield
+	 * type, for instance.
 	 */
 	if (dst_type == CTF_ERR && name[0] != '\0') {
 		for (dtd = ctf_list_prev(&dst_fp->ctf_dtdefs); dtd != NULL &&
 		    CTF_TYPE_TO_INDEX(dtd->dtd_type) > dst_fp->ctf_dtoldid;
 		    dtd = ctf_list_prev(dtd)) {
-			if (CTF_INFO_KIND(dtd->dtd_data.ctt_info) == kind &&
-			    dtd->dtd_name != NULL &&
-			    strcmp(dtd->dtd_name, name) == 0)
-				return (dtd->dtd_type);
+			if (CTF_INFO_KIND(dtd->dtd_data.ctt_info) != kind ||
+			    dtd->dtd_name == NULL ||
+			    strcmp(dtd->dtd_name, name) != 0)
+				continue;
+			if (kind == CTF_K_INTEGER || kind == CTF_K_FLOAT) {
+				if (ctf_type_encoding(src_fp, src_type,
+				    &src_en) != 0)
+					continue;
+				if (bcmp(&src_en, &dtd->dtd_u.dtu_enc,
+				    sizeof (ctf_encoding_t)) != 0)
+					continue;
+			}
+			return (dtd->dtd_type);
 		}
 	}
 
