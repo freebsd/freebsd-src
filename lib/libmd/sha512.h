@@ -38,6 +38,20 @@ typedef struct SHA512Context {
 } SHA512_CTX;
 
 __BEGIN_DECLS
+
+/* Ensure libmd symbols do not clash with libcrypto */
+
+#define SHA512_Init		_libmd_SHA512_Init
+#define SHA512_Update		_libmd_SHA512_Update
+#define SHA512_Final		_libmd_SHA512_Final
+#define SHA512_End		_libmd_SHA512_End
+#define SHA512_File		_libmd_SHA512_File
+#define SHA512_FileChunk	_libmd_SHA512_FileChunk
+#define SHA512_Data		_libmd_SHA512_Data
+
+#define SHA512_Transform	_libmd_SHA512_Transform
+#define SHA512_version		_libmd_SHA512_version
+
 void	SHA512_Init(SHA512_CTX *);
 void	SHA512_Update(SHA512_CTX *, const void *, size_t);
 void	SHA512_Final(unsigned char [64], SHA512_CTX *);
