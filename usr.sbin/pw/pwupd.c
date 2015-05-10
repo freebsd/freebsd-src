@@ -33,7 +33,6 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <stdarg.h>
 #include <pwd.h>
 #include <libutil.h>
 #include <errno.h>
@@ -72,19 +71,15 @@ getpwpath(char const * file)
 }
 
 static int
-pwdb(char *arg,...)
+pwdb_check(void)
 {
 	int             i = 0;
 	pid_t           pid;
-	va_list         ap;
 	char           *args[10];
 
 	args[i++] = _PATH_PWD_MKDB;
-	va_start(ap, arg);
-	while (i < 6 && arg != NULL) {
-		args[i++] = arg;
-		arg = va_arg(ap, char *);
-	}
+	args[i++] = "-C";
+
 	if (pwpath != pathpwd) {
 		args[i++] = "-d";
 		args[i++] = pwpath;
@@ -102,7 +97,6 @@ pwdb(char *arg,...)
 		if (WEXITSTATUS(i))
 			i = EIO;
 	}
-	va_end(ap);
 
 	return (i);
 }
@@ -114,7 +108,7 @@ pw_update(struct passwd * pwd, char const * user)
 	struct passwd	*old_pw = NULL;
 	int		 rc, pfd, tfd;
 
-	if ((rc = pwdb("-C", NULL)) != 0)
+	if ((rc = pwdb_check()) != 0)
 		return (rc);
 
 	if (pwd != NULL)
