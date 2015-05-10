@@ -562,12 +562,14 @@ ieee80211_scan_dump_probe_beacon(uint8_t subtype, int isnew,
  */
 void
 ieee80211_add_scan(struct ieee80211vap *vap,
+	struct ieee80211_channel *curchan,
 	const struct ieee80211_scanparams *sp,
 	const struct ieee80211_frame *wh,
 	int subtype, int rssi, int noise)
 {
 
-	return (ieee80211_swscan_add_scan(vap, sp, wh, subtype, rssi, noise));
+	return (ieee80211_swscan_add_scan(vap, curchan, sp, wh, subtype,
+	    rssi, noise));
 }
 
 /*
