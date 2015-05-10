@@ -1361,6 +1361,9 @@ _kerberos5_bootstrap_tools= \
 .ORDER: ${_kerberos5_bootstrap_tools:C/^/${_bt}-/g}
 .endif
 
+# Rebuild up-to-date libmd for xinstall
+${_bt}-usr.bin/xinstall: ${_bt}-lib/libmd
+
 bootstrap-tools: .PHONY
 
 #	Please document (add comment) why something is in 'bootstrap-tools'.
