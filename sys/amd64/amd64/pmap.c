@@ -2108,6 +2108,7 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, pd_entry_t ptepde,
 void
 pmap_pinit0(pmap_t pmap)
 {
+	int i;
 
 	PMAP_LOCK_INIT(pmap);
 	pmap->pm_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(KPML4phys);
@@ -2118,6 +2119,10 @@ pmap_pinit0(pmap_t pmap)
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 	pmap->pm_flags = pmap_flags;
+	CPU_FOREACH(i) {
+		pmap->pm_pcids[i].pm_pcid = PMAP_PCID_NONE;
+		pmap->pm_pcids[i].pm_gen = 0;
+	}
 }
 
 /*
