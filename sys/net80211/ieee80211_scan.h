@@ -307,10 +307,6 @@ void	ieee80211_scan_copy_ssid(struct ieee80211vap *vap,
 void	ieee80211_scan_dump_probe_beacon(uint8_t subtype, int isnew,
 		const uint8_t mac[IEEE80211_ADDR_LEN],
 		const struct ieee80211_scanparams *sp, int rssi);
-int	ieee80211_start_scan_locked(const struct ieee80211_scanner *scan,
-	struct ieee80211vap *vap, int flags, u_int duration,
-	u_int mindwell, u_int maxdwell,
-	u_int nssid, const struct ieee80211_scan_ssid ssids[]);
 void	ieee80211_scan_dump(struct ieee80211_scan_state *ss);
 
 #endif /* _NET80211_IEEE80211_SCAN_H_ */
