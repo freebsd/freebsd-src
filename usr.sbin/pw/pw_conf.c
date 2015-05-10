@@ -34,6 +34,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <ctype.h>
 #include <fcntl.h>
+#include <err.h>
 
 #include "pw.h"
 
@@ -211,15 +212,18 @@ boolean_str(int val)
 char           *
 newstr(char const * p)
 {
-	char           *q = NULL;
+	char	*q;
+	size_t	 l;
 
-	if ((p = unquote(p)) != NULL) {
-		int             l = strlen(p) + 1;
+	if ((p = unquote(p)) == NULL)
+		return (NULL);
 
-		if ((q = malloc(l)) != NULL)
-			memcpy(q, p, l);
-	}
-	return q;
+	l = strlen(p) + 1;
+
+	if ((q = strndup(p, l)) == NULL)
+		err(1, "strndup()");
+
+	return (q);
 }
 
 struct userconf *
