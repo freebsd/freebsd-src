@@ -2662,9 +2662,23 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 			caps |= IEEE80211_HTCAP_CHWIDTH40;
 		else
 			caps &= ~IEEE80211_HTCAP_CHWIDTH40;
-		/* use advertised setting (XXX locally constraint) */
+
+		/* Start by using the advertised settings */
 		rxmax = MS(ni->ni_htparam, IEEE80211_HTCAP_MAXRXAMPDU);
 		density = MS(ni->ni_htparam, IEEE80211_HTCAP_MPDUDENSITY);
+
+		/* Cap at VAP rxmax */
+		if (rxmax > vap->iv_ampdu_rxmax)
+			rxmax = vap->iv_ampdu_rxmax;
+
+		/*
+		 * If the VAP ampdu density value greater, use that.
+		 *
+		 * (Larger density value == larger minimum gap between A-MPDU
+		 * subframes.)
+		 */
+		if (vap->iv_ampdu_density > density)
+			density = vap->iv_ampdu_density;
 
 		/*
 		 * NB: Hardware might support HT40 on some but not all
@@ -2682,9 +2696,12 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 			caps |= IEEE80211_HTCAP_CHWIDTH40;
 		else
 			caps &= ~IEEE80211_HTCAP_CHWIDTH40;
+
+		/* XXX TODO should it start by using advertised settings? */
 		rxmax = vap->iv_ampdu_rxmax;
 		density = vap->iv_ampdu_density;
 	}
+
 	/* adjust short GI based on channel and config */
 	if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20) == 0)
 		caps &= ~IEEE80211_HTCAP_SHORTGI20;
