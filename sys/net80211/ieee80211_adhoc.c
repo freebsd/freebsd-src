@@ -373,7 +373,7 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 		 */
 		if (!(type == IEEE80211_FC0_TYPE_MGT &&
 		     (subtype == IEEE80211_FC0_SUBTYPE_BEACON ||
-		      subtype == IEEE80211_FC0_SUBTYPE_PROBE_REQ)) &&
+		      subtype == IEEE80211_FC0_SUBTYPE_PROBE_RESP)) &&
 		    !IEEE80211_ADDR_EQ(bssid, vap->iv_bss->ni_bssid) &&
 		    !IEEE80211_ADDR_EQ(bssid, ifp->if_broadcastaddr)) {
 			/* not interested in */
