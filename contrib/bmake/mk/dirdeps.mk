@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.49 2015/03/11 21:39:28 sjg Exp $
+# $Id: dirdeps.mk,v 1.51 2015/05/06 06:07:30 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -349,7 +349,7 @@ BUILD_DIRDEPS ?= yes
 .if !defined(NO_DIRDEPS)
 .if ${MK_DIRDEPS_CACHE} == "yes"
 # this is where we will cache all our work
-DIRDEPS_CACHE?= ${_OBJDIR}/dirdeps.cache${.TARGETS:Nall:O:u:ts-:S,^,.,:N.}
+DIRDEPS_CACHE?= ${_OBJDIR}/dirdeps.cache${.TARGETS:Nall:O:u:ts-:S,/,_,g:S,^,.,:N.}
 
 # just ensure this exists
 build-dirdeps:
@@ -394,13 +394,14 @@ _count_dirdeps: .NOMETA
 	@echo '.info $${.newline}$${TRACER}Makefiles read: total=${.MAKE.MAKEFILES:[#]} depend=${.MAKE.MAKEFILES:M*depend*:[#]} dirdeps=${.ALLTARGETS:M${SRCTOP}*:O:u:[#]}' >&3
 
 .endif
-.endif
-.elif !target(_count_dirdeps)
+.elif !make(dirdeps) && !target(_count_dirdeps)
 beforedirdeps: _count_dirdeps
 _count_dirdeps: .NOMETA
 	@echo "${TRACER}Makefiles read: total=${.MAKE.MAKEFILES:[#]} depend=${.MAKE.MAKEFILES:M*depend*:[#]} dirdeps=${.ALLTARGETS:M${SRCTOP}*:O:u:[#]} seconds=`expr ${now_utc} - ${start_utc}`"
 
 .endif
+.endif
+
 .if ${BUILD_DIRDEPS} == "yes"
 .if ${DEBUG_DIRDEPS:@x@${DEP_RELDIR:M$x}${${DEP_RELDIR}.${DEP_MACHINE}:L:M$x}@} != ""
 _debug_reldir = 1

@@ -1,3 +1,16 @@
+2015-05-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20150505
+	  Merge with NetBSD make, pick up
+	  o cond.c: be strict about lhs of comparison when evaluating .if
+	    but less so when called from variable expansion.
+	  o unit-tests/cond2.mk: test various error conditions
+
+2015-05-04  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* machine.sh (MACHINE): Add Bitrig 
+	  patch from joerg@netbsd.org
+
 2015-04-18  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (MAKE_VERSION): 20150418
