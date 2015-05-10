@@ -205,12 +205,23 @@ main(int argc, char **argv)
 				continue;
 			case ESC:		/* just ignore EOF */
 				switch(getwchar()) {
+				/*
+				 * In the input stream, accept both the
+				 * XPG5 sequences ESC-digit and the
+				 * traditional BSD sequences ESC-ctrl.
+				 */
+				case '\007':
+					/* FALLTHROUGH */
 				case RLF:
 					addto_lineno(&cur_line, -2);
 					break;
+				case '\010':
+					/* FALLTHROUGH */
 				case RHLF:
 					addto_lineno(&cur_line, -1);
 					break;
+				case '\011':
+					/* FALLTHROUGH */
 				case FHLF:
 					addto_lineno(&cur_line, 1);
 					if (cur_line > max_line)
