@@ -110,45 +110,43 @@ pwdb(char *arg,...)
 static int
 pw_update(struct passwd * pwd, char const * user)
 {
-	int             rc = 0;
+	struct passwd	*pw = NULL;
+	struct passwd	*old_pw = NULL;
+	int		 rc, pfd, tfd;
 
-	rc = pwdb("-C", (char *)NULL);	/* Check only */
-	if (rc == 0) {
-		int pfd, tfd;
-		struct passwd *pw = NULL;
-		struct passwd *old_pw = NULL;
+	if ((rc = pwdb("-C", NULL)) != 0)
+		return (rc);
 
-		if (pwd != NULL)
-			pw = pw_dup(pwd);
+	if (pwd != NULL)
+		pw = pw_dup(pwd);
 
-		if (user != NULL)
-			old_pw = GETPWNAM(user);
+	if (user != NULL)
+		old_pw = GETPWNAM(user);
 
-		if (pw_init(pwpath, NULL))
-			err(1, "pw_init()");
-		if ((pfd = pw_lock()) == -1) {
-			pw_fini();
-			err(1, "pw_lock()");
-		}
-		if ((tfd = pw_tmp(-1)) == -1) {
-			pw_fini();
-			err(1, "pw_tmp()");
-		}
-		if (pw_copy(pfd, tfd, pw, old_pw) == -1) {
-			pw_fini();
-			err(1, "pw_copy()");
-		}
-		/*
-		 * in case of deletion of a user, the whole database
-		 * needs to be regenerated
-		 */
-		if (pw_mkdb(pw != NULL ? pw->pw_name : NULL) == -1) {
-			pw_fini();
-			err(1, "pw_mkdb()");
-		}
-		free(pw);
+	if (pw_init(pwpath, NULL))
+		err(1, "pw_init()");
+	if ((pfd = pw_lock()) == -1) {
 		pw_fini();
+		err(1, "pw_lock()");
 	}
+	if ((tfd = pw_tmp(-1)) == -1) {
+		pw_fini();
+		err(1, "pw_tmp()");
+	}
+	if (pw_copy(pfd, tfd, pw, old_pw) == -1) {
+		pw_fini();
+		err(1, "pw_copy()");
+	}
+	/*
+	 * in case of deletion of a user, the whole database
+	 * needs to be regenerated
+	 */
+	if (pw_mkdb(pw != NULL ? pw->pw_name : NULL) == -1) {
+		pw_fini();
+		err(1, "pw_mkdb()");
+	}
+	free(pw);
+	pw_fini();
 
 	return (0);
 }
