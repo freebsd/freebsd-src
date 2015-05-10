@@ -237,6 +237,12 @@ retry:
 			 * Object has been created while we were sleeping
 			 */
 			VI_UNLOCK(vp);
+			VM_OBJECT_WLOCK(object);
+			KASSERT(object->ref_count == 1,
+			    ("leaked ref %p %d", object, object->ref_count));
+			object->type = OBJT_DEAD;
+			object->ref_count = 0;
+			VM_OBJECT_WUNLOCK(object);
 			vm_object_destroy(object);
 			goto retry;
 		}
