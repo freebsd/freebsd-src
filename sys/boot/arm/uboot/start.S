@@ -29,12 +29,38 @@
 #include <machine/asm.h>
 #include <machine/armreg.h>
 
+	.text
+	.extern	_C_LABEL(self_reloc), _C_LABEL(main)
+	.weak	_DYNAMIC
+
 /*
  * Entry point to the loader that U-Boot passes control to.
  */
-	.text
 	.globl	_start
 _start:
+
+#ifdef _ARM_ARCH_6
+	mrc     p15, 0, ip, c1, c0, 0
+	orr	ip, ip, #(CPU_CONTROL_UNAL_ENABLE)
+	orr	ip, ip, #(CPU_CONTROL_AFLT_ENABLE)
+	mcr     p15, 0, ip, c1, c0, 0
+#endif
+	/* 
+	 * Do self-relocation when the weak external symbol _DYNAMIC is non-NULL.
+	 * When linked as a dynamic relocatable file, the linker automatically
+	 * defines _DYNAMIC with a value that is the offset of the dynamic
+	 * relocation info section.
+	 * Note that we're still on u-boot's stack here, but the self_reloc 
+	 * code uses only a couple dozen bytes of stack space.
+	 */
+	adr	ip, .here_off		/* .here_off is a symbol whose value */
+	ldr	r0, [ip]		/* is its own offset in the text seg. */
+	sub	r0, ip, r0		/* Get its pc-relative address and */
+	ldr	r1, .dynamic_off	/* subtract its value and we get */
+	teq	r1, #0			/* r0 = physaddr we were loaded at. */
+	addne	r1, r1, r0		/* r1 = dynamic section physaddr. */
+	blne	_C_LABEL(self_reloc)	/* Do reloc if _DYNAMIC is non-NULL. */
+
 	/* Hint where to look for the API signature */
 	ldr	ip, =uboot_address
 	str	sp, [ip]
@@ -44,15 +70,19 @@ _start:
 	str	r8, [ip, #0]
 	str	r9, [ip, #4]
 
-#ifdef _ARM_ARCH_6
-	mrc     p15, 0, r2, c1, c0, 0
-	orr	r2, r2, #(CPU_CONTROL_UNAL_ENABLE)
-	orr	r2, r2, #(CPU_CONTROL_AFLT_ENABLE)
-	mcr     p15, 0, r2, c1, c0, 0
-#endif
-
-	/* Start loader */
+	/* 
+	 * Start loader.  This is basically a tail-recursion call; if main()
+	 * returns, it returns to u-boot (which reports the value returned r0).
+	 */
 	b	main
+
+	/* 
+	 * Data for self-relocation, in the text segment for pc-rel access.
+	 */
+.here_off:
+	.word	.
+.dynamic_off:
+	.word	_DYNAMIC
 
 /*
  * syscall()
