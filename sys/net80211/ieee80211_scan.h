@@ -148,6 +148,7 @@ struct ieee80211_channel *ieee80211_scan_pickchannel(struct ieee80211com *, int)
 
 struct ieee80211_scanparams;
 void	ieee80211_add_scan(struct ieee80211vap *,
+		struct ieee80211_channel *,
 		const struct ieee80211_scanparams *,
 		const struct ieee80211_frame *,
 		int subtype, int rssi, int noise);
@@ -273,6 +274,7 @@ struct ieee80211_scanner {
 			struct ieee80211_scan_state *, int);
 	/* add an entry to the cache */
 	int	(*scan_add)(struct ieee80211_scan_state *,
+			struct ieee80211_channel *,
 			const struct ieee80211_scanparams *,
 			const struct ieee80211_frame *,
 			int subtype, int rssi, int noise);

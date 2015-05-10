@@ -1484,8 +1484,8 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			 * our ap.
 			 */
 			if (ic->ic_flags & IEEE80211_F_SCAN) {
-				ieee80211_add_scan(vap, &scan, wh,
-					subtype, rssi, nf);
+				ieee80211_add_scan(vap, ic->ic_curchan,
+				    &scan, wh, subtype, rssi, nf);
 			} else if (contbgscan(vap)) {
 				ieee80211_bg_scan(vap, 0);
 			} else if (startbgscan(vap)) {
@@ -1529,7 +1529,8 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				ieee80211_probe_curchan(vap, 1);
 				ic->ic_flags_ext &= ~IEEE80211_FEXT_PROBECHAN;
 			}
-			ieee80211_add_scan(vap, &scan, wh, subtype, rssi, nf);
+			ieee80211_add_scan(vap, ic->ic_curchan, &scan, wh,
+			    subtype, rssi, nf);
 			return;
 		}
 		break;
