@@ -52,12 +52,13 @@ int
 setpwdir(const char * dir)
 {
 	if (dir == NULL)
-		return -1;
+		return (-1);
 	else
 		pwpath = strdup(dir);
 	if (pwpath == NULL)
-		return -1;
-	return 0;
+		return (-1);
+
+	return (0);
 }
 
 char *
@@ -66,7 +67,8 @@ getpwpath(char const * file)
 	static char pathbuf[MAXPATHLEN];
 
 	snprintf(pathbuf, sizeof pathbuf, "%s/%s", pwpath, file);
-	return pathbuf;
+
+	return (pathbuf);
 }
 
 static int
@@ -101,7 +103,8 @@ pwdb(char *arg,...)
 			i = EIO;
 	}
 	va_end(ap);
-	return i;
+
+	return (i);
 }
 
 static int
@@ -146,19 +149,22 @@ pw_update(struct passwd * pwd, char const * user)
 		free(pw);
 		pw_fini();
 	}
-	return 0;
+
+	return (0);
 }
 
 int
 addpwent(struct passwd * pwd)
 {
-	return pw_update(pwd, NULL);
+
+	return (pw_update(pwd, NULL));
 }
 
 int
 chgpwent(char const * login, struct passwd * pwd)
 {
-	return pw_update(pwd, login);
+
+	return (pw_update(pwd, login));
 }
 
 int
@@ -167,5 +173,6 @@ delpwent(struct passwd * pwd)
 	char login[MAXLOGNAME];
 	
 	strlcpy(login, pwd->pw_name, MAXLOGNAME);
-	return pw_update(NULL, login);
+
+	return (pw_update(NULL, login));
 }
