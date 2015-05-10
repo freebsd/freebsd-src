@@ -50,6 +50,9 @@ options 	DDB			# Enable the kernel debugger
 
 options 	ROOTDEVNAME=\"ufs:mmcsd0s2a\"
 
+# Interrupt controller
+device		gic
+
 device		loop
 device		random
 device		ether

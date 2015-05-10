@@ -59,6 +59,9 @@ device		mmcsd			# mmc/sd flash cards
 # Boot device is 2nd slice on MMC/SD card
 options 	ROOTDEVNAME=\"ufs:mmcsd0s2\"
 
+# Interrupt controller
+device		gic
+
 # GPIO
 device		gpio
 device		gpioled

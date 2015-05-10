@@ -58,6 +58,9 @@ options 	ALT_BREAK_TO_DEBUGGER	# Use <CR><tilde><ctrl-b> to enter debugger.
 # U-Boot stuff lives on slice 1, FreeBSD on slice 2.
 options 	ROOTDEVNAME=\"ufs:mmcsd0s2a\"
 
+# Interrupt controller
+device		gic
+
 # Pseudo devices.
 device		loop			# Network loopback
 device		random			# Entropy device
