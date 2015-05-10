@@ -60,6 +60,9 @@ options 	RWLOCK_NOINLINE
 options 	NO_FFS_SNAPSHOT
 options 	NO_SWAPPING
 
+# Interrupt controller
+device		gic
+
 # MMC/SD/SDIO Card slot support
 device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards

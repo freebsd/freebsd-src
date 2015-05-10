@@ -85,6 +85,9 @@ device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
 device		dwmmc
 
+# Interrupt controller
+device		gic
+
 # Pseudo devices
 
 device		loop
