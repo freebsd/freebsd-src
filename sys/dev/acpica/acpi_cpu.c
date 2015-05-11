@@ -746,6 +746,7 @@ acpi_cpu_generic_cx_probe(struct acpi_cpu_softc *sc)
     }
 }
 
+#if defined(__i386__) || defined(__amd64__)
 static void
 acpi_cpu_cx_cst_mwait(struct acpi_cx *cx_ptr, uint64_t address, int accsize)
 {
@@ -755,6 +756,7 @@ acpi_cpu_cx_cst_mwait(struct acpi_cx *cx_ptr, uint64_t address, int accsize)
 	cx_ptr->mwait_hw_coord = (accsize & CST_FFH_MWAIT_HW_COORD) != 0;
 	cx_ptr->mwait_bm_avoidance = (accsize & CST_FFH_MWAIT_BM_AVOID) != 0;
 }
+#endif
 
 static void
 acpi_cpu_cx_cst_free_plvlx(device_t cpu_dev, struct acpi_cx *cx_ptr)
@@ -781,8 +783,11 @@ acpi_cpu_cx_cst(struct acpi_cpu_softc *sc)
     ACPI_OBJECT	*top;
     ACPI_OBJECT	*pkg;
     uint32_t	 count;
+    int		 i;
+#if defined(__i386__) || defined(__amd64__)
     uint64_t	 address;
-    int		 i, vendor, class, accsize;
+    int		 vendor, class, accsize;
+#endif
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
