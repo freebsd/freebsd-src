@@ -309,12 +309,6 @@ ipi_handler(void *arg)
 			CTR1(KTR_SMP, "%s: IPI_TLB", __func__);
 			cpufuncs.cf_tlb_flushID();
 			break;
-#ifdef ARM_NEW_PMAP
-		case IPI_LAZYPMAP:
-			CTR1(KTR_SMP, "%s: IPI_LAZYPMAP", __func__);
-			pmap_lazyfix_action();
-			break;
-#endif
 		default:
 			panic("Unknown IPI 0x%0x on cpu %d", ipi, curcpu);
 		}
