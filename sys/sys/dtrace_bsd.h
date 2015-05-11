@@ -42,15 +42,6 @@ struct devstat;
 struct bio;
 
 /*
- * Cyclic clock function type definition used to hook the cyclic
- * subsystem into the appropriate timer interrupt.
- */
-typedef	void (*cyclic_clock_func_t)(struct trapframe *);
-extern cyclic_clock_func_t	cyclic_clock_func;
-
-void clocksource_cyc_set(const struct bintime *t);
-
-/*
  * The dtrace module handles traps that occur during a DTrace probe.
  * This type definition is used in the trap handler to provide a
  * hook for the dtrace module to register it's handler with.

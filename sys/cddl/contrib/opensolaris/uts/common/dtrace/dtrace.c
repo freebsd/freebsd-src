@@ -17947,6 +17947,5 @@ SYSINIT(dtrace_anon_init, SI_SUB_DTRACE_ANON, SI_ORDER_FIRST, dtrace_anon_init, 
 
 DEV_MODULE(dtrace, dtrace_modevent, NULL);
 MODULE_VERSION(dtrace, 1);
-MODULE_DEPEND(dtrace, cyclic, 1, 1, 1);
 MODULE_DEPEND(dtrace, opensolaris, 1, 1, 1);
 #endif
