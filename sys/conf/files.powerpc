@@ -138,6 +138,7 @@ powerpc/mpc85xx/mpc85xx.c	optional	mpc85xx
 powerpc/mpc85xx/mpc85xx_gpio.c	optional	mpc85xx gpio
 powerpc/mpc85xx/platform_mpc85xx.c	optional	mpc85xx
 powerpc/mpc85xx/pci_mpc85xx.c	optional	pci mpc85xx
+powerpc/mpc85xx/pci_mpc85xx_pcib.c	optional	pci mpc85xx
 powerpc/ofw/ofw_machdep.c	standard
 powerpc/ofw/ofw_pci.c		optional	pci
 powerpc/ofw/ofw_pcibus.c	optional	pci
