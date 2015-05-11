@@ -53,6 +53,8 @@ static struct vt_driver vt_fb_driver = {
 	.vd_priority = VD_PRIORITY_GENERIC+10,
 	.vd_fb_ioctl = vt_fb_ioctl,
 	.vd_fb_mmap = vt_fb_mmap,
+	.vd_suspend = vt_fb_suspend,
+	.vd_resume = vt_fb_resume,
 };
 
 VT_DRIVER_DECLARE(vt_fb, vt_fb_driver);
@@ -441,15 +443,15 @@ vt_fb_attach(struct fb_info *info)
 }
 
 void
-vt_fb_resume(void)
+vt_fb_suspend(struct vt_device *vd)
 {
 
-	vt_resume();
+	vt_suspend(vd);
 }
 
 void
-vt_fb_suspend(void)
+vt_fb_resume(struct vt_device *vd)
 {
 
-	vt_suspend();
+	vt_resume(vd);
 }
