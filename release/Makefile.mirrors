@@ -1,0 +1,128 @@
+#
+# This Makefile helps create the directory structure on ftp-master,
+# making staging builds a bit more sane.
+#
+# You probably do not want to use this.  Really.
+# You have been warned.
+#
+# $FreeBSD$
+#
+
+.include "${.CURDIR}/Makefile"
+
+FTPDIR?=		/ftp
+STAGE_TARGETS?=		iso-images-stage
+
+# snapshot
+.if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT"
+SNAPSHOT=		1
+TLD?=			${FTPDIR}/snapshots
+BUILDDATE!=		date -j -f '%s' $$(stat -f "%c" ${.OBJDIR}/dist/base/bin/sh) +%Y%m%d
+. if ${TARGET} == "arm" && ${TARGET_ARCH} == "armv6"
+.  if !defined(BOARDNAME) || empty(BOARDNAME)
+BOARDNAME=		${KERNCONF}
+.  endif
+_SNAP_SUFFIX:=		-${BOARDNAME}-${BUILDDATE}
+. else		# not arm/armv6
+_SNAP_SUFFIX:=		-${BUILDDATE}
+. endif
+. for _D in /usr/bin /usr/local/bin
+.  for _S in svnversion svnliteversion
+.   if exists(${_D}/${_S})
+SVNVERSION?=		${_D}/${_S}
+.   endif
+.  endfor
+. endfor
+. if exists(${SVNVERSION}) && !empty(SVNVERSION)
+SVNREVISION!=		${SVNVERSION} ${WORLDDIR}/Makefile
+_SNAP_SUFFIX:=		${_SNAP_SUFFIX}-r${SVNREVISION}
+. endif
+.else
+# release
+SNAPSHOT=
+TLD?=			${FTPDIR}/releases
+.endif
+
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+STAGE_TARGETS+=		vm-images-stage
+VM_DIR=			${TLD}/VM-IMAGES/${REVISION}-${BRANCH}/${TARGET_ARCH}
+.endif
+
+CLEANFILES+=		${STAGE_TARGETS}
+CHECKSUM_FILES?=	SHA256 MD5
+SNAP_SUFFIX!=		echo ${_SNAP_SUFFIX:S,^-,,1} | tr -d ' '
+ISO_DIR=		${TLD}/${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}
+FTP_DIR=		${TLD}/${TARGET}/${TARGET_ARCH}/${REVISION}-${BRANCH}
+
+iso-images-stage:
+	mkdir -p ${ISO_DIR}
+	mkdir -p ${TLD}/ISO-IMAGES/${REVISION}
+.for IMAGE in ${IMAGES}
+	cp -p ${.OBJDIR}/${IMAGE} ${ISO_DIR}/${OSRELEASE}-${IMAGE}
+. if exists(/R/${IMAGE}.xz)
+	cp -p ${.OBJDIR}/${IMAGE}.xz ${ISO_DIR}/${OSRELEASE}-${IMAGE}.xz
+. endif
+.endfor
+.if defined(SNAPSHOT) && !empty(SNAPSHOT)
+. for IMAGE in ${IMAGES}
+	cd ${ISO_DIR} && mv ${OSRELEASE}-${IMAGE} \
+		${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}
+	cd ${TLD}/ISO-IMAGES/${REVISION} && \
+		ln -s \
+		../../${TARGET}/${TARGET_ARCH}/${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}
+. endfor
+. for CHECKSUM in ${CHECKSUM_FILES}
+.  if exists(${ISO_DIR}/CHECKSUM.${CHECKSUM})
+	rm -f ${ISO_DIR}/CHECKSUM.${CHECKSUM}
+.  endif
+	cd ${ISO_DIR} && ${CHECKSUM:tl} ${OSRELEASE}* > \
+		CHECKSUM.${CHECKSUM}-${REVISION}-${BRANCH}-${SNAP_SUFFIX}
+. endfor
+.else	# !snapshot
+	cd ${TLD}/ISO-IMAGES/${REVISION} && ln -s \
+		../../${TARGET}/${TARGET_ARCH}/${OSRELEASE}-${IMAGE} .
+	cd ${ISO_DIR} && ${CHECKSUM:tl} ${OSRELEASE}* > \
+		CHECKSUM.${CHECKSUM}-${REVISION}-${BRANCH}-${SNAP_SUFFIX}
+.endif
+.if exists(${.OBJDIR}/ftp)
+	mkdir -p ${FTP_DIR}
+	cp ${.OBJDIR}/ftp/*.txz ${.OBJDIR}/ftp/MANIFEST ${FTP_DIR}
+	cd ${TLD}/${TARGET} && \
+		ln -s ${TARGET_ARCH}/${REVISION}-${BRANCH} \
+			${REVISION}-${BRANCH}
+.endif
+
+vm-images-stage:
+	@true
+#	mkdir -p ${VM_DIR}
+#.if defined(SNAPSHOT) && !empty(SNAPSHOT)
+#	mkdir -p ${VM_DIR}/${BUILDDATE}
+#. if exists(${VM_DIR}/Latest)
+#	unlink ${VM_DIR}/Latest
+#	cd ${VM_DIR} && ln -s ${BUILDDATE} Latest
+#. endif
+#. for VMIMAGE in ${VMIMAGES}
+#	cd /R/vmimages && cp -p ${VMIMAGE}.xz \
+#		${VM_DIR}/${BUILDDATE}/${OSRELEASE}-${SNAP_SUFFIX}-${VMIMAGE}.xz
+#	cd ${VM_DIR}/Latest && ln -s \
+#		../${BUILDDATE}/${OSRELEASE}-${SNAP_SUFFIX}-${VMIMAGE}.xz \
+#		${OSRELEASE}-${VMIMAGE}.xz
+#. endfor
+#. for CHECKSUM in ${CHECKSUM_FILES}
+#.  if exists(${VM_DIR}/${BUILDDATE}/CHECKSUM.${CHECKSUM})
+#	rm -f ${VM_DIR}/${BUILDDATE}/CHECKSUM.${CHECKSUM}
+#.  endif
+#	cd ${VM_DIR}/${BUILDDATE} && ${CHECKSUM:tl} ${OSRELEASE}* > \
+#		CHECKSUM.${CHECKSUM}-${REVISION}-${BRANCH}-${SNAP_SUFFIX}
+#	cd ${VM_DIR}/Latest && ln -s \
+#		${VM_DIR}/${BUILDDATE}/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX} \
+#		CHECKSUM.${CHECKSUM}
+#. endfor
+#.else	# !snapshot
+#. for CHECKSUM in ${CHECKSUM_FILES}
+#	cd /R/vmimages && cp -p CHECKSUM.${CHECKSUM}* \
+#		${VM_DIR}/${BUILDDATE}/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX}
+#.endif
+
+ftp-stage:	${STAGE_TARGETS}
+
