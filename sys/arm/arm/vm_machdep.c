@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <vm/uma_int.h>
 
+#include <machine/acle-compat.h>
 #include <machine/md_var.h>
 #include <machine/vfp.h>
 
@@ -204,7 +205,12 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		/*
 		 * Reconstruct the pc to point at the swi.
 		 */
-		frame->tf_pc -= INSN_SIZE;
+#if __ARM_ARCH >= 7
+		if ((frame->tf_spsr & PSR_T) != 0)
+			frame->tf_pc -= THUMB_INSN_SIZE;
+		else
+#endif
+			frame->tf_pc -= INSN_SIZE;
 		break;
 	case EJUSTRETURN:
 		/* nothing to do */
