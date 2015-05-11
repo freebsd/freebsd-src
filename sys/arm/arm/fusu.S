@@ -33,6 +33,7 @@
  *
  */
 
+#include <machine/acle-compat.h>
 #include <machine/asm.h>
 #include <machine/armreg.h>
 #include "assym.s"
@@ -40,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 	.syntax	unified
 
-#ifdef _ARM_ARCH_6
+#if __ARM_ARCH >= 6
 #define GET_PCB(tmp) \
 	mrc p15, 0, tmp, c13, c0, 4; \
 	add	tmp, tmp, #(TD_PCB)
@@ -68,7 +69,7 @@ EENTRY_NP(casuword32)
 	stmfd	sp!, {r4, r5}
 	adr	r4, .Lcasuwordfault
 	str	r4, [r3, #PCB_ONFAULT]
-#ifdef _ARM_ARCH_6
+#if __ARM_ARCH >= 6
 1:    
 	cmp     r0, #KERNBASE
 	mvnhs   r0, #0
