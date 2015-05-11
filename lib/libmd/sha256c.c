@@ -296,6 +296,11 @@ SHA256_Final(unsigned char digest[32], SHA256_CTX * ctx)
 	memset((void *)ctx, 0, sizeof(*ctx));
 }
 
+#ifdef WEAK_REFS
+/* When building libmd, provide weak references. Note: this is not
+   activated in the context of compiling these sources for internal
+   use in libcrypt.
+ */
 #undef SHA256_Init
 __weak_reference(_libmd_SHA256_Init, SHA256_Init);
 #undef SHA256_Update
@@ -304,5 +309,4 @@ __weak_reference(_libmd_SHA256_Update, SHA256_Update);
 __weak_reference(_libmd_SHA256_Final, SHA256_Final);
 #undef SHA256_Transform
 __weak_reference(_libmd_SHA256_Transform, SHA256_Transform);
-#undef SHA256_version
-__weak_reference(_libmd_SHA256_version, SHA256_version);
+#endif
