@@ -81,6 +81,7 @@
 #include "assym.s"
 #include "opt_sched.h"
 
+#include <machine/acle-compat.h>
 #include <machine/asm.h>
 #include <machine/asmacros.h>
 #include <machine/armreg.h>
@@ -88,7 +89,7 @@
 
 __FBSDID("$FreeBSD$");
 
-#if defined(_ARM_ARCH_6) && defined(SMP)
+#if __ARM_ARCH >= 6 && defined(SMP)
 #define GET_PCPU(tmp, tmp2) \
 	mrc 	p15, 0, tmp, c0, c0, 5;	\
 	and	tmp, tmp, #0xf;		\
