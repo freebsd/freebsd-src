@@ -29,6 +29,11 @@
 #ifndef MACHINE_CPU_V6_H
 #define MACHINE_CPU_V6_H
 
+/* There are no user serviceable parts here, they may change without notice */
+#ifndef _KERNEL
+#error Only include this file in the kernel
+#else
+
 #include "machine/atomic.h"
 #include "machine/cpufunc.h"
 #include "machine/cpuinfo.h"
@@ -498,5 +503,7 @@ cp15_ttbr_set(uint32_t reg)
 	isb();
 	tlb_flush_all_ng_local();
 }
+
+#endif /* _KERNEL */
 
 #endif /* !MACHINE_CPU_V6_H */
