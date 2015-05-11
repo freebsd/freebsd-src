@@ -55,11 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
-#ifdef KDTRACE_HOOKS
-#include <sys/dtrace_bsd.h>
-cyclic_clock_func_t	cyclic_clock_func = NULL;
-#endif
-
 int			cpu_deepest_sleep = 0;	/* Deepest Cx state available. */
 int			cpu_disable_c2_sleep = 0; /* Timer dies in C2. */
 int			cpu_disable_c3_sleep = 0; /* Timer dies in C3. */
@@ -129,9 +124,6 @@ struct pcpu_state {
 	sbintime_t	nextprof;	/* Next profclock() event. */
 	sbintime_t	nextcall;	/* Next callout event. */
 	sbintime_t	nextcallopt;	/* Next optional callout event. */
-#ifdef KDTRACE_HOOKS
-	sbintime_t	nextcyc;	/* Next OpenSolaris cyclics event. */
-#endif
 	int		ipi;		/* This CPU needs IPI. */
 	int		idle;		/* This CPU is in idle mode. */
 };
@@ -223,13 +215,6 @@ handleevents(sbintime_t now, int fake)
 		callout_process(now);
 	}
 
-#ifdef KDTRACE_HOOKS
-	if (fake == 0 && now >= state->nextcyc && cyclic_clock_func != NULL) {
-		state->nextcyc = INT64_MAX;
-		(*cyclic_clock_func)(frame);
-	}
-#endif
-
 	t = getnextcpuevent(0);
 	ET_HW_LOCK(state);
 	if (!busy) {
@@ -275,10 +260,6 @@ getnextcpuevent(int idle)
 		if (profiling && event > state->nextprof)
 			event = state->nextprof;
 	}
-#ifdef KDTRACE_HOOKS
-	if (event > state->nextcyc)
-		event = state->nextcyc;
-#endif
 	return (event);
 }
 
@@ -599,9 +580,6 @@ cpu_initclocks_bsp(void)
 	CPU_FOREACH(cpu) {
 		state = DPCPU_ID_PTR(cpu, timerstate);
 		mtx_init(&state->et_hw_mtx, "et_hw_mtx", NULL, MTX_SPIN);
-#ifdef KDTRACE_HOOKS
-		state->nextcyc = INT64_MAX;
-#endif
 		state->nextcall = INT64_MAX;
 		state->nextcallopt = INT64_MAX;
 	}
@@ -819,41 +797,6 @@ cpu_et_frequency(struct eventtimer *et, uint64_t newfreq)
 		et->et_frequency = newfreq;
 	ET_UNLOCK();
 }
-
-#ifdef KDTRACE_HOOKS
-void
-clocksource_cyc_set(const struct bintime *bt)
-{
-	sbintime_t now, t;
-	struct pcpu_state *state;
-
-	/* Do not touch anything if somebody reconfiguring timers. */
-	if (busy)
-		return;
-	t = bttosbt(*bt);
-	state = DPCPU_PTR(timerstate);
-	if (periodic)
-		now = state->now;
-	else
-		now = sbinuptime();
-
-	CTR5(KTR_SPARE2, "set_cyc at %d:  now  %d.%08x  t  %d.%08x",
-	    curcpu, (int)(now >> 32), (u_int)(now & 0xffffffff),
-	    (int)(t >> 32), (u_int)(t & 0xffffffff));
-
-	ET_HW_LOCK(state);
-	if (t == state->nextcyc)
-		goto done;
-	state->nextcyc = t;
-	if (t >= state->nextevent)
-		goto done;
-	state->nextevent = t;
-	if (!periodic)
-		loadtimer(now, 0);
-done:
-	ET_HW_UNLOCK(state);
-}
-#endif
 
 void
 cpu_new_callout(int cpu, sbintime_t bt, sbintime_t bt_opt)

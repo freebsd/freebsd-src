@@ -428,13 +428,6 @@ fbt_provide_module(void *arg, modctl_t *lf)
 		return;
 
 	/*
-	 * The cyclic timer subsystem can be built as a module and DTrace
-	 * depends on that, so it is ineligible too.
-	 */
-	if (strcmp(modname, "cyclic") == 0)
-		return;
-
-	/*
 	 * To register with DTrace, a module must list 'dtrace' as a
 	 * dependency in order for the kernel linker to resolve
 	 * symbols like dtrace_register(). All modules with such a
