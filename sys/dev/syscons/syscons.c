@@ -550,7 +550,7 @@ sc_attach_unit(int unit, int flags)
 
     /* Register suspend/resume/shutdown callbacks for the kernel console. */
     if (sc_console_unit == unit) {
-	EVENTHANDLER_REGISTER(power_suspend, scsuspend, NULL,
+	EVENTHANDLER_REGISTER(power_suspend_early, scsuspend, NULL,
 			      EVENTHANDLER_PRI_ANY);
 	EVENTHANDLER_REGISTER(power_resume, scresume, NULL,
 			      EVENTHANDLER_PRI_ANY);
