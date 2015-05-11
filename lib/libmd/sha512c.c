@@ -319,6 +319,11 @@ SHA512_Final(unsigned char digest[64], SHA512_CTX * ctx)
 	memset((void *)ctx, 0, sizeof(*ctx));
 }
 
+#ifdef WEAK_REFS
+/* When building libmd, provide weak references. Note: this is not
+   activated in the context of compiling these sources for internal
+   use in libcrypt.
+ */
 #undef SHA512_Init
 __weak_reference(_libmd_SHA512_Init, SHA512_Init);
 #undef SHA512_Update
@@ -327,5 +332,4 @@ __weak_reference(_libmd_SHA512_Update, SHA512_Update);
 __weak_reference(_libmd_SHA512_Final, SHA512_Final);
 #undef SHA512_Transform
 __weak_reference(_libmd_SHA512_Transform, SHA512_Transform);
-#undef SHA512_version
-__weak_reference(_libmd_SHA512_version, SHA512_version);
+#endif
