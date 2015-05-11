@@ -145,6 +145,7 @@ void		pcib_setup_secbus(device_t dev, struct pcib_secbus *bus,
 #endif
 int		pcib_attach(device_t dev);
 void		pcib_attach_common(device_t dev);
+void		pcib_bridge_init(device_t dev);	
 #ifdef NEW_PCIB
 const char	*pcib_child_name(device_t child);
 #endif
