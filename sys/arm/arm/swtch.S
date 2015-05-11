@@ -624,14 +624,6 @@ ENTRY(cpu_switch)
 	cmp	r0, r1			/* Switching to the TTB? */
 	beq	sw0			/* same TTB, skip */
 
-#if 1 /* Lazy context switch */
-	/* Don't switch mapping for kernel threads */
-	ldr	r1, =pmap_kern_ttb
-	ldr	r1, [r1]		/* r1 = kernel TTB */
-	cmp	r0, r1			/* Switching to kernel TTB? */
-	beq	sw0			/* kernel TTB, skip */
-#endif
-
 #ifdef INVARIANTS
 	cmp	r0, #0			/* new thread? */
 	beq	badsw4			/* no, panic */
