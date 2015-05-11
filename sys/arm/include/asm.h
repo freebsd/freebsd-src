@@ -126,7 +126,7 @@
 	ldr	x, [x, got]
 #define	GOT_INIT(got,gotsym,pclabel) \
 	ldr	got, gotsym;	\
-	pclabel: add	got, got, pc
+	pclabel: add	got, pc
 #ifdef __thumb__
 #define	GOT_INITSYM(gotsym,pclabel) \
 	.align 2;		\
