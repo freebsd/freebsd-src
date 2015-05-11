@@ -58,7 +58,7 @@ hostid_set()
 
 valid_hostid()
 {
-	uuid=$(echo $1 | tr '[:upper:]' '[:lower:]')
+	uuid=$1
 
 	x="[0-9a-f]"
 	y=$x$x$x$x
