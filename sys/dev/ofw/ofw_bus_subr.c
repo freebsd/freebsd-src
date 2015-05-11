@@ -176,12 +176,37 @@ ofw_bus_status_okay(device_t dev)
 	return (0);
 }
 
+static int
+ofw_bus_node_is_compatible(const char *compat, int len, const char *onecompat)
+{
+	int onelen, l, ret;
+
+	onelen = strlen(onecompat);
+
+	ret = 0;
+	while (len > 0) {
+		if (strlen(compat) == onelen &&
+		    strncasecmp(compat, onecompat, onelen) == 0) {
+			/* Found it. */
+			ret = 1;
+			break;
+		}
+
+		/* Slide to the next sub-string. */
+		l = strlen(compat) + 1;
+		compat += l;
+		len -= l;
+	}
+
+	return (ret);
+}
+
 int
 ofw_bus_is_compatible(device_t dev, const char *onecompat)
 {
 	phandle_t node;
 	const char *compat;
-	int len, onelen, l;
+	int len;
 
 	if ((compat = ofw_bus_get_compat(dev)) == NULL)
 		return (0);
@@ -193,20 +218,7 @@ ofw_bus_is_compatible(device_t dev, const char *onecompat)
 	if ((len = OF_getproplen(node, "compatible")) <= 0)
 		return (0);
 
-	onelen = strlen(onecompat);
-
-	while (len > 0) {
-		if (strlen(compat) == onelen &&
-		    strncasecmp(compat, onecompat, onelen) == 0)
-			/* Found it. */
-			return (1);
-
-		/* Slide to the next sub-string. */
-		l = strlen(compat) + 1;
-		compat += l;
-		len -= l;
-	}
-	return (0);
+	return (ofw_bus_node_is_compatible(compat, len, onecompat));
 }
 
 int
@@ -487,3 +499,30 @@ ofw_bus_intr_to_rl(device_t dev, phandle_t node, struct resource_list *rl)
 	return (err);
 }
 
+phandle_t
+ofw_bus_find_compatible(phandle_t node, const char *onecompat)
+{
+	phandle_t child, ret;
+	void *compat;
+	int len;
+
+	/*
+	 * Traverse all children of 'start' node, and find first with
+	 * matching 'compatible' property.
+	 */
+	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
+		len = OF_getprop_alloc(node, "compatible", 1, &compat);
+		if (len >= 0) {
+			ret = ofw_bus_node_is_compatible(compat, len,
+			    onecompat);
+			free(compat, M_OFWPROP);
+			if (ret != 0)
+				return (child);
+		}
+
+		ret = ofw_bus_find_compatible(child, onecompat);
+		if (ret != 0)
+			return (ret);
+	}
+	return (0);
+}
