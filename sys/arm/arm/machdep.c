@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 
+#include <machine/acle-compat.h>
 #include <machine/armreg.h>
 #include <machine/atags.h>
 #include <machine/cpu.h>
@@ -337,6 +338,13 @@ sendsig(catcher, ksi, mask)
 	tf->tf_pc = (register_t)catcher;
 	tf->tf_usr_sp = (register_t)fp;
 	tf->tf_usr_lr = (register_t)(PS_STRINGS - *(p->p_sysent->sv_szsigcode));
+	/* Set the mode to enter in the signal handler */
+#if __ARM_ARCH >= 7
+	if ((register_t)catcher & 1)
+		tf->tf_spsr |= PSR_T;
+	else
+		tf->tf_spsr &= ~PSR_T;
+#endif
 
 	CTR3(KTR_SIG, "sendsig: return td=%p pc=%#x sp=%#x", td, tf->tf_usr_lr,
 	    tf->tf_usr_sp);
@@ -626,6 +634,10 @@ ptrace_single_step(struct thread *td)
 	struct proc *p;
 	int error;
 	
+	/* TODO: This needs to be updated for Thumb-2 */
+	if ((td->td_frame->tf_spsr & PSR_T) != 0)
+		return (EINVAL);
+
 	KASSERT(td->td_md.md_ptrace_instr == 0,
 	 ("Didn't clear single step"));
 	p = td->td_proc;
@@ -648,6 +660,10 @@ int
 ptrace_clear_single_step(struct thread *td)
 {
 	struct proc *p;
+
+	/* TODO: This needs to be updated for Thumb-2 */
+	if ((td->td_frame->tf_spsr & PSR_T) != 0)
+		return (EINVAL);
 
 	if (td->td_md.md_ptrace_instr) {
 		p = td->td_proc;
