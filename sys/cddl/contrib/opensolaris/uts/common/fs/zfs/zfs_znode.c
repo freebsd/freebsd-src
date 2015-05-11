@@ -1319,15 +1319,25 @@ zfs_rezget(znode_t *zp)
 	}
 
 	/*
-	 * XXXPJD: Not sure how is that possible, but under heavy
-	 * zfs recv -F load it happens that z_gen is the same, but
-	 * vnode type is different than znode type. This would mean
-	 * that for example regular file was replaced with directory
-	 * which has the same object number.
+	 * It is highly improbable but still quite possible that two
+	 * objects in different datasets are created with the same
+	 * object numbers and in transaction groups with the same
+	 * numbers.  znodes corresponding to those objects would
+	 * have the same z_id and z_gen, but their other attributes
+	 * may be different.
+	 * zfs recv -F may replace one of such objects with the other.
+	 * As a result file properties recorded in the replaced
+	 * object's vnode may no longer match the received object's
+	 * properties.  At present the only cached property is the
+	 * files type recorded in v_type.
+	 * So, handle this case by leaving the old vnode and znode
+	 * disassociated from the actual object.  A new vnode and a
+	 * znode will be created if the object is accessed
+	 * (e.g. via a look-up).  The old vnode and znode will be
+	 * recycled when the last vnode reference is dropped.
 	 */
 	vp = ZTOV(zp);
-	if (vp != NULL &&
-	    vp->v_type != IFTOVT((mode_t)zp->z_mode)) {
+	if (vp != NULL && vp->v_type != IFTOVT((mode_t)zp->z_mode)) {
 		zfs_znode_dmu_fini(zp);
 		ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
 		return (EIO);
