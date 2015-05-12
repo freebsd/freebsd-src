@@ -169,6 +169,11 @@ struct ieee80211_qosframe_addr4 {
 #define	IEEE80211_FC1_PROTECTED			0x40
 #define	IEEE80211_FC1_ORDER			0x80
 
+#define IEEE80211_HAS_SEQ(type, subtype) \
+	((type) != IEEE80211_FC0_TYPE_CTL && \
+	!((type) == IEEE80211_FC0_TYPE_DATA && \
+	 ((subtype) & IEEE80211_FC0_SUBTYPE_QOS_NULL) == \
+		      IEEE80211_FC0_SUBTYPE_QOS_NULL))
 #define	IEEE80211_SEQ_FRAG_MASK			0x000f
 #define	IEEE80211_SEQ_FRAG_SHIFT		0
 #define	IEEE80211_SEQ_SEQ_MASK			0xfff0
