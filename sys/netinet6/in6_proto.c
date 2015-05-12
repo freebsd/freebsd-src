@@ -474,8 +474,6 @@ sysctl_ip6_temppltime(SYSCTL_HANDLER_ARGS)
 	int error = 0;
 	int old;
 
-	VNET_SYSCTL_ARG(req, arg1);
-
 	error = SYSCTL_OUT(req, arg1, sizeof(int));
 	if (error || !req->newptr)
 		return (error);
@@ -494,8 +492,6 @@ sysctl_ip6_tempvltime(SYSCTL_HANDLER_ARGS)
 {
 	int error = 0;
 	int old;
-
-	VNET_SYSCTL_ARG(req, arg1);
 
 	error = SYSCTL_OUT(req, arg1, sizeof(int));
 	if (error || !req->newptr)
