@@ -730,7 +730,12 @@ ieee80211_send_setup(
 	if (tid != IEEE80211_NONQOS_TID && IEEE80211_AMPDU_RUNNING(tap))
 		m->m_flags |= M_AMPDU_MPDU;
 	else {
-		seqno = ni->ni_txseqs[tid]++;
+		if (IEEE80211_HAS_SEQ(type & IEEE80211_FC0_TYPE_MASK,
+				      type & IEEE80211_FC0_SUBTYPE_MASK))
+			seqno = ni->ni_txseqs[tid]++;
+		else
+			seqno = 0;
+
 		*(uint16_t *)&wh->i_seq[0] =
 		    htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
 		M_SEQNO_SET(m, seqno);
