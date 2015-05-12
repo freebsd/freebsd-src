@@ -114,6 +114,9 @@
 #define	SIOCGIFFIB	_IOWR('i', 92, struct ifreq)	/* get IF fib */
 #define	SIOCSIFFIB	 _IOW('i', 93, struct ifreq)	/* set IF fib */
 
+#define	SIOCGTUNFIB	_IOWR('i', 94, struct ifreq)	/* get tunnel fib */
+#define	SIOCSTUNFIB	 _IOW('i', 95, struct ifreq)	/* set tunnel fib */
+
 #define	SIOCSDRVSPEC	_IOW('i', 123, struct ifdrv)	/* set driver-specific
 								  parameters */
 #define	SIOCGDRVSPEC	_IOWR('i', 123, struct ifdrv)	/* get driver-specific
