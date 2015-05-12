@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
+#include <machine/cpufunc.h>
 #include <machine/devmap.h>
 #include <machine/machdep.h>
 #include <machine/platform.h>
@@ -112,6 +113,19 @@ platform_gpio_init(void)
 	 * change in the future).
 	 */
 	aml8726_identify_soc();
+
+	/*
+	 * My aml8726-m3 development box which identifies the CPU as
+	 * a Cortex A9-r2 rev 4 randomly locks up during boot when WFI
+	 * is used.
+	 */
+	switch (aml8726_soc_hw_rev) {
+	case AML_SOC_HW_REV_M3:
+		cpufuncs.cf_sleep = (void *)cpufunc_nullop;
+		break;
+	default:
+		break;
+	}
 
 	/*
 	 * This FDT fixup should arguably be called through fdt_fixup_table,
