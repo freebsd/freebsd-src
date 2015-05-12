@@ -91,6 +91,9 @@ iso-images-stage:
 .  endif
 	cd ${ISO_DIR} && ${CHECKSUM:tl} ${OSRELEASE}* > \
 		CHECKSUM.${CHECKSUM}-${REVISION}-${BRANCH}-${SNAP_SUFFIX}
+	cd ${ISO_DIR} && \
+		ln -s \
+		../../${TARGET}/${TARGET_ARCH}/${CHECKSUM}-${REVISION}-${BRANCH}-${SNAP_SUFFIX}
 . endfor
 .else	# !snapshot
 	cd ${TLD}/ISO-IMAGES/${REVISION} && ln -s \
