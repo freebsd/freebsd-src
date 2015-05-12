@@ -55,6 +55,9 @@ SNAP_SUFFIX!=		echo ${_SNAP_SUFFIX:S,^-,,1} | tr -d ' '
 ISO_DIR=		${TLD}/${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}
 FTP_DIR=		${TLD}/${TARGET}/${TARGET_ARCH}/${REVISION}-${BRANCH}
 
+remove-old-bits:
+	rm -rf ${FTPDIR}
+
 iso-images-stage:
 	mkdir -p ${ISO_DIR}
 	mkdir -p ${TLD}/ISO-IMAGES/${REVISION}
@@ -130,5 +133,5 @@ vm-images-stage:
 #		${VM_DIR}/${BUILDDATE}/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX}
 #.endif
 
-ftp-stage:	${STAGE_TARGETS}
+ftp-stage:	remove-old-bits ${STAGE_TARGETS}
 
