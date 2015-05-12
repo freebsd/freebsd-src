@@ -193,8 +193,13 @@ format.
 .Pp
 Block storage devices:
 .Bl -tag -width 10n
-.It Pa /filename Ns Oo , Ns Li nocache Oc Ns Oo , Ns Li direct Oc Ns Oo , Ns Li ro Oc
-.It Pa /dev/xxx Ns Oo , Ns Ar nocache Oc Ns Oo , Ns Ar direct Oc Ns Oo , Ns Ar ro Oc
+.It Pa /filename Ns Oo , Ns Ar block-device-options Oc
+.It Pa /dev/xxx Ns Oo , Ns Ar block-device-options Oc
+.El
+.Pp
+The
+.Ar block-device-options
+are:
 .Bl -tag -width 8n
 .It Li nocache
 Open the file with
@@ -204,14 +209,10 @@ Open the file using
 .Dv O_SYNC .
 .It Li ro
 Force the file to be opened read-only.
-.El
-.Pp
-The
-.Li nocache ,
-.Li direct ,
-and
-.Li ro
-options are not available for virtio block devices.
+.It Li sectorsize= Ns Ar logical Ns Oo / Ns Ar physical Oc
+Specify the logical and physical sector sizes of the emulated disk.
+The physical sector size is optional and is equal to the logical sector size
+if not explicitly specified.
 .El
 .Pp
 TTY devices:
