@@ -300,8 +300,9 @@ struct mbuf {
 /*
  * Handle M_FLOWID for legacy drivers still using them.
  */
-#define	M_HASHTYPE_GET(m)	((m->m_flags & M_FLOWID) ? M_HASHTYPE_OPAQUE \
-						    : (m)->m_pkthdr.rsstype)
+#define	M_HASHTYPE_GET(m)	(((m->m_flags & M_FLOWID) &&	    \
+    (m)->m_pkthdr.rsstype == M_HASHTYPE_NONE) ? M_HASHTYPE_OPAQUE : \
+    (m)->m_pkthdr.rsstype)
 #define	M_HASHTYPE_SET(m, v)	do {	    \
 	    if ((v) != M_HASHTYPE_NONE)	    \
 		m->m_flags |= M_FLOWID;	    \
