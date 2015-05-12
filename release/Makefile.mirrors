@@ -66,8 +66,8 @@ iso-images-stage:
 . for IMAGE in ${IMAGES}
 	cp -p ${RELEASEDIR}/${OSRELEASE}-${IMAGE} \
 		${ISO_DIR}/${OSRELEASE}-${IMAGE}
-.  if exists(/R/${IMAGE}.xz)
-	cp -p ${RELEASEDIR}/${IMAGE}.xz \
+.  if exists(${RELEASEDIR}/${OSRELEASE}-${IMAGE}.xz)
+	cp -p ${RELEASEDIR}/${OSRELEASE}-${IMAGE}.xz \
 		${ISO_DIR}/${OSRELEASE}-${IMAGE}.xz
 .  endif
 . endfor
