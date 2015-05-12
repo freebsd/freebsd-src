@@ -14,8 +14,8 @@
 
 .include "${.CURDIR}/Makefile"
 
-FTPDIR?=		/ftp
 RELEASEDIR?=		/R
+FTPDIR?=		${RELEASEDIR}/ftp-stage
 STAGE_TARGETS?=		iso-images-stage
 
 # snapshot
