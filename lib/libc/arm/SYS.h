@@ -62,6 +62,7 @@
 
 #define _SYSCALL(x)							\
 	_SYSCALL_NOERROR(x);						\
+	it	cs;							\
 	bcs PIC_SYM(CERROR, PLT)
 
 #define SYSCALL(x)							\
@@ -72,6 +73,7 @@
 	.weak _C_LABEL(__CONCAT(_,x));					\
 	.set _C_LABEL(__CONCAT(_,x)),_C_LABEL(__CONCAT(__sys_,x));	\
 	SYSTRAP(x);							\
+	it	cs;							\
 	bcs PIC_SYM(CERROR, PLT);					\
 	RET
 
