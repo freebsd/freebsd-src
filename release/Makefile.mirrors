@@ -11,6 +11,7 @@
 .include "${.CURDIR}/Makefile"
 
 FTPDIR?=		/ftp
+RELEASEDIR?=		/R
 STAGE_TARGETS?=		iso-images-stage
 
 # snapshot
@@ -57,12 +58,17 @@ FTP_DIR=		${TLD}/${TARGET}/${TARGET_ARCH}/${REVISION}-${BRANCH}
 iso-images-stage:
 	mkdir -p ${ISO_DIR}
 	mkdir -p ${TLD}/ISO-IMAGES/${REVISION}
-.for IMAGE in ${IMAGES}
-	cp -p ${.OBJDIR}/${IMAGE} ${ISO_DIR}/${OSRELEASE}-${IMAGE}
-. if exists(/R/${IMAGE}.xz)
-	cp -p ${.OBJDIR}/${IMAGE}.xz ${ISO_DIR}/${OSRELEASE}-${IMAGE}.xz
+.if exists(${RELEASEDIR})
+	@# Assume we have images to copy.
+. for IMAGE in ${IMAGES}
+	cp -p ${RELEASEDIR}/${OSRELEASE}-${IMAGE} \
+		${ISO_DIR}/${OSRELEASE}-${IMAGE}
+.  if exists(/R/${IMAGE}.xz)
+	cp -p ${RELEASEDIR}/${IMAGE}.xz \
+		${ISO_DIR}/${OSRELEASE}-${IMAGE}.xz
 . endif
-.endfor
+.endif
+
 .if defined(SNAPSHOT) && !empty(SNAPSHOT)
 . for IMAGE in ${IMAGES}
 	cd ${ISO_DIR} && mv ${OSRELEASE}-${IMAGE} \
@@ -84,9 +90,9 @@ iso-images-stage:
 	cd ${ISO_DIR} && ${CHECKSUM:tl} ${OSRELEASE}* > \
 		CHECKSUM.${CHECKSUM}-${REVISION}-${BRANCH}-${SNAP_SUFFIX}
 .endif
-.if exists(${.OBJDIR}/ftp)
+.if exists(${RELEASEDIR}/ftp)
 	mkdir -p ${FTP_DIR}
-	cp ${.OBJDIR}/ftp/*.txz ${.OBJDIR}/ftp/MANIFEST ${FTP_DIR}
+	cp ${RELEASEDIR}/ftp/*.txz ${RELEASEDIR}/ftp/MANIFEST ${FTP_DIR}
 	cd ${TLD}/${TARGET} && \
 		ln -s ${TARGET_ARCH}/${REVISION}-${BRANCH} \
 			${REVISION}-${BRANCH}
