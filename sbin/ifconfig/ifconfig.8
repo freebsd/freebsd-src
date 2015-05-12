@@ -316,6 +316,14 @@ using the
 kernel configuration option, or the
 .Va net.fibs
 tunable.
+.It Cm tunnelfib Ar fib_number
+Specify tunnel FIB.
+A FIB
+.Ar fib_number
+is assigned to all packets encapsulated by tunnel interface, e.g.,
+.Xr gif 4
+and
+.Xr gre 4 .
 .It Cm maclabel Ar label
 If Mandatory Access Control support is enabled in the kernel,
 set the MAC label to
