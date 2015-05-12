@@ -70,6 +70,10 @@ iso-images-stage:
 	cp -p ${RELEASEDIR}/${OSRELEASE}-${IMAGE}.xz \
 		${ISO_DIR}/${OSRELEASE}-${IMAGE}.xz
 .  endif
+.  if exists(${RELEASEDIR}/CHECKSUM.${CHECKSUM})
+	cp -p ${RELEASEDIR}/CHECKSUM.${CHECKSUM} \
+		${ISO_DIR}/CHECKSUM.${CHECKSUM}
+.  endif
 . endfor
 .endif
 
