@@ -69,6 +69,7 @@ iso-images-stage:
 .  if exists(/R/${IMAGE}.xz)
 	cp -p ${RELEASEDIR}/${IMAGE}.xz \
 		${ISO_DIR}/${OSRELEASE}-${IMAGE}.xz
+.  endfor
 . endif
 .endif
 
