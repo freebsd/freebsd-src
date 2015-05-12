@@ -1,5 +1,5 @@
 # Czech month and day names
-# by Rudolf Cejka <cejkar@dcse.fee.vutbr.cz>
+# by Rudolf Cejka <cejkar@dcse.fee.vutbr.cz> and Michael Grafnetter <michael.grafnetter@outlook.com>
 #
 # $FreeBSD$
 #
@@ -62,7 +62,7 @@ sobota
 #
 # x_fmt
 #
-%Y/%m/%d
+%d.%m.%Y
 #
 # c_fmt
 #
@@ -70,11 +70,11 @@ sobota
 #
 # am
 #
-dp
+dop
 #
 # pm
 #
-od
+odp
 #
 # date_fmt
 #
