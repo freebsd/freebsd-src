@@ -87,8 +87,7 @@ struct nd_ifinfo {
 #define ND6_IFF_AUTO_LINKLOCAL	0x20
 #define	ND6_IFF_NO_RADR		0x40
 #define ND6_IFF_NO_PREFER_IFACE	0x80 /* XXX: not related to ND. */
-#define ND6_IFF_IGNORELOOP	0x100
-#define ND6_IFF_NO_DAD		0x200
+#define ND6_IFF_NO_DAD		0x100
 
 #define	ND6_CREATE		LLE_CREATE
 #define	ND6_EXCLUSIVE		LLE_EXCLUSIVE
