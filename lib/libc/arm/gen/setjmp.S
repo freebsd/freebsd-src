@@ -90,7 +90,13 @@ ENTRY(setjmp)
 
 	/* Store integer registers */
 	add	r0, r0, #(_JB_REG_R4 * 4)
+#ifndef __thumb__
         stmia	r0, {r4-r14}
+#else
+	stmia	r0, {r4-r12}
+	str	r13, [r0, #((_JB_REG_R13 - _JB_REG_R4) * 4)]
+	str	r14, [r0, #((_JB_REG_R14 - _JB_REG_R4) * 4)]
+#endif
         mov	r0, #0x00000000
 	RET
 
@@ -133,15 +139,24 @@ ENTRY(__longjmp)
 
 	add	r0, r0, #(_JB_REG_R4 * 4)
 	/* Restore integer registers */
+#ifndef __thumb__
         ldmia	r0, {r4-r14}
+#else
+        ldmia	r0, {r4-r12}
+	ldr	r13, [r0, #((_JB_REG_R13 - _JB_REG_R4) * 4)]
+	ldr	r14, [r0, #((_JB_REG_R14 - _JB_REG_R4) * 4)]
+#endif
 
 	/* Validate sp and r14 */
 	teq	sp, #0
+	it	ne
 	teqne	r14, #0
+	it	eq
 	beq	.Lbotch
 
 	/* Set return value */
 	movs	r0, r1
+	it	eq
 	moveq	r0, #0x00000001
 	RET
 
@@ -149,5 +164,5 @@ ENTRY(__longjmp)
 .Lbotch:
 	bl	PIC_SYM(_C_LABEL(longjmperror), PLT)
 	bl	PIC_SYM(_C_LABEL(abort), PLT)
-	b	. - 8		/* Cannot get here */
+1:	b	1b		/* Cannot get here */
 END(__longjmp)
