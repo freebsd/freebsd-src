@@ -672,9 +672,6 @@ _ciss=		ciss
 _coretemp=	coretemp
 _cpuctl=	cpuctl
 _cpufreq=	cpufreq
-.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
-_cyclic=	cyclic
-.endif
 _dpms=		dpms
 _drm=		drm
 _drm2=		drm2
