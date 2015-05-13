@@ -180,6 +180,8 @@
     sys
         kern
         ..
+        kqueue
+        ..
         netinet
         ..
         pjdfstest
