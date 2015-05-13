@@ -177,7 +177,7 @@ main (int argc, char *argv[])
 #endif
 			if (result != sizeof(buffer)) {
 				printf("FAIL: run %d, operation %d, result %d "
-				    " (errno=%d) should be %d\n", run, pending,
+				    " (errno=%d) should be %zu\n", run, pending,
 				    result, errno, sizeof(buffer));
 				failed++;
 			} else
