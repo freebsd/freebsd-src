@@ -178,6 +178,8 @@
         ..
     ..
     sys
+        aio
+        ..
         fifo
         ..
         file
@@ -185,6 +187,8 @@
         kern
         ..
         kqueue
+        ..
+        mqueue
         ..
         netinet
         ..
