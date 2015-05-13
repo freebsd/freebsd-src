@@ -149,6 +149,8 @@
 			pmic@48 {
 				compatible = "ti,am335x-pmic";
 				reg = <0x48>;
+				interrupts = <7>; /* nNMI */
+				interrupt-parent = <&AINTC>;
 			};
 		};
 	};
