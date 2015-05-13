@@ -50,7 +50,7 @@
  * All activity occurs within a temporary directory created early in the
  * test.
  */
-char	temp_dir[PATH_MAX];
+static char	temp_dir[PATH_MAX];
 
 static void __unused
 atexit_temp_dir(void)
@@ -79,8 +79,7 @@ cleanfifo(const char *fifoname, int fd1, int fd2)
 }
 
 static int
-openfifo(const char *fifoname, const char *testname, int *reader_fdp,
-    int *writer_fdp)
+openfifo(const char *fifoname, int *reader_fdp, int *writer_fdp)
 {
 	int error, fd1, fd2;
 
@@ -110,7 +109,7 @@ test_lseek(void)
 
 	makefifo("testfifo", __func__);
 
-	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd) < 0) {
+	if (openfifo("testfifo", &reader_fd, &writer_fd) < 0) {
 		warn("%s: openfifo", __func__);
 		cleanfifo("testfifo", -1, -1);
 		exit(-1);
@@ -185,7 +184,7 @@ test_ioctl(void)
 
 	makefifo("testfifo", __func__);
 
-	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd) < 0) {
+	if (openfifo("testfifo", &reader_fd, &writer_fd) < 0) {
 		warn("%s: openfifo", __func__);
 		cleanfifo("testfifo", -1, -1);
 		exit(-1);
@@ -237,7 +236,7 @@ test_chmodchown(void)
 
 	makefifo("testfifo", __func__);
 
-	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd) < 0) {
+	if (openfifo("testfifo", &reader_fd, &writer_fd) < 0) {
 		warn("%s: openfifo", __func__);
 		cleanfifo("testfifo", -1, -1);
 		exit(-1);
@@ -316,10 +315,10 @@ test_chmodchown(void)
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 
-	strcpy(temp_dir, "/tmp/fifo_misc.XXXXXXXXXXX");
+	strcpy(temp_dir, "fifo_misc.XXXXXXXXXXX");
 	if (mkdtemp(temp_dir) == NULL)
 		err(-1, "mkdtemp");
 	atexit(atexit_temp_dir);
