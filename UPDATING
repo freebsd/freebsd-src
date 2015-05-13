@@ -11,6 +11,11 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20150513:	p14	FreeBSD-EN-15:04.freebsd-update
+
+	Fix bug with freebsd-update(8) that does not ensure the previous
+	upgrade was completed. [EN-15:04]
+
 20150407:	p13	FreeBSD-SA-15:04.igmp [revised]
 			FreeBSD-SA-15:07.ntp
 			FreeBSD-SA-15:09.ipv6

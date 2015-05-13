@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 14, 2010
+.Dd March 2, 2015
 .Dt FREEBSD-UPDATE 8
 .Os FreeBSD
 .Sh NAME
@@ -36,10 +36,12 @@
 .Op Fl b Ar basedir
 .Op Fl d Ar workdir
 .Op Fl f Ar conffile
+.Op Fl F
 .Op Fl k Ar KEY
 .Op Fl r Ar newrelease
 .Op Fl s Ar server
 .Op Fl t Ar address
+.Op Fl -not-running-from-cron
 .Cm command ...
 .Sh DESCRIPTION
 The
@@ -54,16 +56,16 @@ by the
 .Fx
 Release Engineering Team, e.g.,
 .Fx
-7.3-RELEASE and
+9.3-RELEASE and
 .Fx
-8.0-RELEASE, but not
+10.1-RELEASE, but not
 .Fx
-6.3-STABLE or
+9.3-STABLE or
 .Fx
-9.0-CURRENT.
+11-CURRENT.
 .Sh OPTIONS
 The following options are supported:
-.Bl -tag -width "-f conffile"
+.Bl -tag -width "-r newrelease"
 .It Fl b Ar basedir
 Operate on a system mounted at
 .Ar basedir .
@@ -81,6 +83,10 @@ Read configuration options from
 .Ar conffile .
 (default:
 .Pa /etc/freebsd-update.conf )
+.It Fl F
+Force
+.Nm Cm fetch
+to proceed where it normally would not, such as an unfinished upgrade
 .It Fl k Ar KEY
 Trust an RSA key with SHA256 of
 .Ar KEY .
@@ -98,12 +104,21 @@ Mail output of
 command, if any, to
 .Ar address .
 (default: root, or as given in the configuration file.)
+.It Fl -not-running-from-cron
+Force
+.Nm Cm fetch
+to proceed when there is no controlling tty.
+This is for use by automated scripts and orchestration tools.
+Please do not run
+.Nm Cm fetch
+from crontab or similar using this flag, see:
+.Nm Cm cron
 .El
 .Sh COMMANDS
 The
 .Cm command
 can be any one of the following:
-.Bl -tag -width "-f conffile"
+.Bl -tag -width "rollback"
 .It Cm fetch
 Based on the currently installed world and the configuration
 options set, fetch all available binary updates.
