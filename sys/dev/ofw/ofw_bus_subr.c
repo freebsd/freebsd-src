@@ -511,7 +511,7 @@ ofw_bus_find_compatible(phandle_t node, const char *onecompat)
 	 * matching 'compatible' property.
 	 */
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
-		len = OF_getprop_alloc(node, "compatible", 1, &compat);
+		len = OF_getprop_alloc(child, "compatible", 1, &compat);
 		if (len >= 0) {
 			ret = ofw_bus_node_is_compatible(compat, len,
 			    onecompat);
