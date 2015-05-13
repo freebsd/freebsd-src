@@ -123,6 +123,8 @@ platform_mp_start_ap(void)
 		BSWR4(MBOX3CLR_CORE(i), 0xffffffff);
 	}
 	wmb();
+	cpu_idcache_wbinv_all();
+	cpu_l2cache_wbinv_all();
 
 	/* boot secondary CPUs */
 	for (i = 1; i < mp_ncpus; i++) {
@@ -152,9 +154,6 @@ platform_mp_start_ap(void)
 		/* recode AP in CPU map */
 		CPU_SET(i, &all_cpus);
 	}
-
-	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
 }
 
 void
