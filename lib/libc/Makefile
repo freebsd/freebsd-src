@@ -160,7 +160,9 @@ libkern.${LIBC_ARCH}:: ${KMSRCS}
 CFLAGS+=-DSYSCALL_COMPAT
 .endif
 
-.include <bsd.arch.inc.mk>
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.lib.mk>
 

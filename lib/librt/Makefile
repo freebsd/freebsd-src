@@ -20,6 +20,8 @@ PRECIOUSLIB=
 
 VERSION_MAP=	${.CURDIR}/Version.map
 
-.include <bsd.arch.inc.mk>
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.lib.mk>
