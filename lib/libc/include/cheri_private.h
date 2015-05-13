@@ -32,6 +32,9 @@
 #define __LIBC_CHERI_PRIVATE_H__
 
 #ifdef CAPABILITY_VERSION
+#if !__has_feature(capabilities)
+#error	This code requires a capability aware compiler.
+#endif
 #define	__CAPSUFFIX(func)	func ## _c
 #define	__CAPABILITY		__capability
 #else
