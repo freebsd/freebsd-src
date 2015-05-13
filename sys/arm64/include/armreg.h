@@ -96,6 +96,24 @@
 #define	 EXCP_WATCHPT_EL1	0x35	/* Watchpoint, from same EL */
 #define	 EXCP_BRK		0x3c	/* Breakpoint */
 
+/* ICC_CTLR_EL1 */
+#define	ICC_CTLR_EL1_EOIMODE	(1U << 1)
+
+/* ICC_IAR1_EL1 */
+#define	ICC_IAR1_EL1_SPUR	(0x03ff)
+
+/* ICC_IGRPEN0_EL1 */
+#define	ICC_IGRPEN0_EL1_EN	(1U << 0)
+
+/* ICC_PMR_EL1 */
+#define	ICC_PMR_EL1_PRIO_MASK	(0xFFUL)
+
+/* ICC_SRE_EL1 */
+#define	ICC_SRE_EL1_SRE		(1U << 0)
+
+/* ICC_SRE_EL2 */
+#define	ICC_SRE_EL2_EN		(1U << 3)
+
 /* ID_AA64PFR0_EL1 */
 #define	ID_AA64PFR0_EL0_MASK	(0xf << 0)
 #define	ID_AA64PFR0_EL1_MASK	(0xf << 4)
@@ -105,7 +123,10 @@
 #define	 ID_AA64PFR0_FP_IMPL	(0x0 << 16) /* Floating-point implemented */
 #define	 ID_AA64PFR0_FP_NONE	(0xf << 16) /* Floating-point not implemented */
 #define	ID_AA64PFR0_ADV_SIMD_MASK (0xf << 20)
-#define	ID_AA64PFR0_GIC_MASK	(0xf << 24)
+#define	ID_AA64PFR0_GIC_SHIFT	(24)
+#define	ID_AA64PFR0_GIC_BITS	(0x4) /* Number of bits in GIC field */
+#define	ID_AA64PFR0_GIC_MASK	(0xf << ID_AA64PFR0_GIC_SHIFT)
+#define	 ID_AA64PFR0_GIC_CPUIF_EN (0x1 << ID_AA64PFR0_GIC_SHIFT)
 
 /* MAIR_EL1 - Memory Attribute Indirection Register */
 #define	MAIR_ATTR_MASK(idx)	(0xff << ((n)* 8))
