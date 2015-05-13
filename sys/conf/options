@@ -439,6 +439,7 @@ RADIX_MPATH		opt_mpath.h
 ROUTETABLES		opt_route.h
 SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
+SIFTR
 TCP_OFFLOAD		opt_inet.h # Enable code to dispatch TCP offloading
 TCP_SIGNATURE		opt_inet.h
 VLAN_ARRAY		opt_vlan.h
