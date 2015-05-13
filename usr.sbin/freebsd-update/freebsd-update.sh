@@ -43,12 +43,15 @@ Options:
                   (default: /var/db/freebsd-update/)
   -f conffile  -- Read configuration options from conffile
                   (default: /etc/freebsd-update.conf)
+  -F           -- Force a fetch operation to proceed
   -k KEY       -- Trust an RSA key with SHA256 hash of KEY
   -r release   -- Target for upgrade (e.g., 6.2-RELEASE)
   -s server    -- Server from which to fetch updates
                   (default: update.FreeBSD.org)
   -t address   -- Mail output of cron command, if any, to address
                   (default: root)
+  --not-running-from-cron
+               -- Run without a tty, for use by automated tools
 Commands:
   fetch        -- Fetch updates from server
   cron         -- Sleep rand(3600) seconds, fetch updates, and send an
@@ -399,6 +402,12 @@ init_params () {
 
 	# No commands specified yet
 	COMMANDS=""
+
+	# Force fetch to proceed
+	FORCEFETCH=0
+
+	# Run without a TTY
+	NOTTYOK=0
 }
 
 # Parse the command line
@@ -410,6 +419,12 @@ parse_cmdline () {
 			if [ $# -eq 1 ]; then usage; fi
 			if [ ! -z "${CONFFILE}" ]; then usage; fi
 			shift; CONFFILE="$1"
+			;;
+		-F)
+			FORCEFETCH=1
+			;;
+		--not-running-from-cron)
+			NOTTYOK=1
 			;;
 
 		# Configuration file equivalents
@@ -663,6 +678,14 @@ fetch_check_params () {
 		echo -n "`basename $0`: "
 		echo -n "-r option is meaningless with 'fetch' command.  "
 		echo "(Did you mean 'upgrade' instead?)"
+		exit 1
+	fi
+
+	# Check that we have updates ready to install
+	if [ -f ${BDHASH}-install/kerneldone -a $FORCEFETCH -eq 0 ]; then
+		echo "You have a partially completed upgrade pending"
+		echo "Run '$0 install' first."
+		echo "Run '$0 fetch -F' to proceed anyway."
 		exit 1
 	fi
 }
@@ -3202,7 +3225,7 @@ get_params () {
 # Fetch command.  Make sure that we're being called
 # interactively, then run fetch_check_params and fetch_run
 cmd_fetch () {
-	if [ ! -t 0 ]; then
+	if [ ! -t 0 -a $NOTTYOK -eq 0 ]; then
 		echo -n "`basename $0` fetch should not "
 		echo "be run non-interactively."
 		echo "Run `basename $0` cron instead."
