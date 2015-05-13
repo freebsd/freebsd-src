@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 14, 2010
+.Dd March 2, 2015
 .Dt FREEBSD-UPDATE 8
 .Os FreeBSD
 .Sh NAME
@@ -36,10 +36,12 @@
 .Op Fl b Ar basedir
 .Op Fl d Ar workdir
 .Op Fl f Ar conffile
+.Op Fl F
 .Op Fl k Ar KEY
 .Op Fl r Ar newrelease
 .Op Fl s Ar server
 .Op Fl t Ar address
+.Op Fl -not-running-from-cron
 .Cm command ...
 .Sh DESCRIPTION
 The
@@ -49,21 +51,21 @@ updates to the FreeBSD base system.
 Note that updates are only available if they are being built for the
 FreeBSD release and architecture being used; in particular, the
 .Fx
-Security Team only builds updates for releases shipped in binary form 
+Security Team only builds updates for releases shipped in binary form
 by the
 .Fx
 Release Engineering Team, e.g.,
 .Fx
-7.3-RELEASE and
+9.3-RELEASE and
 .Fx
-8.0, but not
+10.1-RELEASE, but not
 .Fx
-6.3-STABLE or
+9.3-STABLE or
 .Fx
-9.0-CURRENT.
+11-CURRENT.
 .Sh OPTIONS
 The following options are supported:
-.Bl -tag -width "-f conffile"
+.Bl -tag -width "-r newrelease"
 .It Fl b Ar basedir
 Operate on a system mounted at
 .Ar basedir .
@@ -81,6 +83,10 @@ Read configuration options from
 .Ar conffile .
 (default:
 .Pa /etc/freebsd-update.conf )
+.It Fl F
+Force
+.Nm Cm fetch
+to proceed where it normally would not, such as an unfinished upgrade
 .It Fl k Ar KEY
 Trust an RSA key with SHA256 of
 .Ar KEY .
@@ -98,13 +104,21 @@ Mail output of
 command, if any, to
 .Ar address .
 (default: root, or as given in the configuration file.)
+.It Fl -not-running-from-cron
+Force
+.Nm Cm fetch
+to proceed when there is no controlling tty.
+This is for use by automated scripts and orchestration tools.
+Please do not run
+.Nm Cm fetch
+from crontab or similar using this flag, see:
+.Nm Cm cron
 .El
 .Sh COMMANDS
 The
 .Cm command
 can be any one of the following:
-.Pp
-.Bl -tag -width "-f conffile"
+.Bl -tag -width "rollback"
 .It Cm fetch
 Based on the currently installed world and the configuration
 options set, fetch all available binary updates.
@@ -128,6 +142,11 @@ Fetch files necessary for upgrading to a new release.
 Before using this command, make sure that you read the
 announcement and release notes for the new release in
 case there are any special steps needed for upgrading.
+Note that this command may require up to 500 MB of space in
+.Ar workdir
+depending on which components of the
+.Fx
+base system are installed.
 .It Cm install
 Install the most recently fetched updates or upgrade.
 .It Cm rollback
@@ -149,7 +168,7 @@ other than 3AM, to avoid overly imposing an uneven load
 on the server(s) hosting the updates.
 .It
 In spite of its name,
-.Cm
+.Nm
 IDS should not be relied upon as an "Intrusion Detection
 System", since if the system has been tampered with
 it cannot be trusted to operate correctly.
@@ -158,11 +177,11 @@ purposes, make sure you boot from a secure disk (e.g., a CD).
 .El
 .Sh FILES
 .Bl -tag -width "/etc/freebsd-update.conf"
-.It /etc/freebsd-update.conf
+.It Pa /etc/freebsd-update.conf
 Default location of the
 .Nm
 configuration file.
-.It /var/db/freebsd-update/
+.It Pa /var/db/freebsd-update/
 Default location where
 .Nm
 stores temporary files and downloaded updates.
@@ -170,4 +189,4 @@ stores temporary files and downloaded updates.
 .Sh SEE ALSO
 .Xr freebsd-update.conf 5
 .Sh AUTHORS
-.An Colin Percival Aq cperciva@FreeBSD.org
+.An Colin Percival Aq Mt cperciva@FreeBSD.org
