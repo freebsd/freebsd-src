@@ -178,6 +178,10 @@
         ..
     ..
     sys
+        fifo
+        ..
+        file
+        ..
         kern
         ..
         kqueue
