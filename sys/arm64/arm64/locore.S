@@ -187,6 +187,20 @@ drop_to_el1:
 	mov	x2, #(PSR_F | PSR_I | PSR_A | PSR_D | PSR_M_EL1h)
 	msr	spsr_el2, x2
 
+	/* Configure GICv3 CPU interface */
+	mrs	x2, id_aa64pfr0_el1
+	/* Extract GIC bits from the register */
+	ubfx	x2, x2, #ID_AA64PFR0_GIC_SHIFT, #ID_AA64PFR0_GIC_BITS
+	/* GIC[3:0] == 0001 - GIC CPU interface via special regs. supported */
+	cmp	x2, #(ID_AA64PFR0_GIC_CPUIF_EN >> ID_AA64PFR0_GIC_SHIFT)
+	b.ne	2f
+
+	mrs	x2, icc_sre_el2
+	orr	x2, x2, #ICC_SRE_EL2_EN	/* Enable access from insecure EL1 */
+	msr	icc_sre_el2, x2
+	isb
+2:
+
 	/* Set the address to return to our return address */
 	msr	elr_el2, x30
 
