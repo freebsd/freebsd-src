@@ -372,6 +372,7 @@ SUBDIR_PARALLEL=
 .if defined(LIBCHERI)
 SUBDIR:=	libmd	\
 		libpng	\
+		libstand \
 		libz
 .endif
 
