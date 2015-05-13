@@ -643,8 +643,8 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 
 	pci_lintr_request(pi);
 
-	/* link always up */
-	sc->vsc_config.status = 1;
+	/* Link is up if we managed to open tap device. */
+	sc->vsc_config.status = (opts == NULL || sc->vsc_tapfd >= 0);
 	
 	/* use BAR 1 to map MSI-X table and PBA, if we're using MSI-X */
 	if (vi_intr_init(&sc->vsc_vs, 1, fbsdrun_virtio_msix()))
