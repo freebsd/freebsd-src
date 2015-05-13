@@ -91,13 +91,13 @@ bcopy(const void *src0, void *dst0, size_t length)
 		/*
 		 * Copy forward.
 		 */
-		t = (uintptr_t)src;	/* only need low bits */
-		if ((t | (uintptr_t)dst) & wmask) {
+		t = __ptr2vaddr(src);	/* only need low bits */
+		if ((t | __ptr2vaddr(dst)) & wmask) {
 			/*
 			 * Try to align operands.  This cannot be done
 			 * unless the low bits match.
 			 */
-			if ((t ^ (uintptr_t)dst) & wmask || length < wsize)
+			if ((t ^ __ptr2vaddr(dst)) & wmask || length < wsize)
 				t = length;
 			else
 				t = wsize - (t & wmask);
@@ -119,9 +119,9 @@ bcopy(const void *src0, void *dst0, size_t length)
 		 */
 		src += length;
 		dst += length;
-		t = (uintptr_t)src;
-		if ((t | (uintptr_t)dst) & wmask) {
-			if ((t ^ (uintptr_t)dst) & wmask || length <= wsize)
+		t = __ptr2vaddr(src);
+		if ((t | __ptr2vaddr(dst)) & wmask) {
+			if ((t ^ __ptr2vaddr(dst)) & wmask || length <= wsize)
 				t = length;
 			else
 				t &= wmask;
