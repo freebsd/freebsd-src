@@ -4970,10 +4970,27 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 				rxr->fmp->m_pkthdr.ether_vtag = vtag;
 				rxr->fmp->m_flags |= M_VLANTAG;
 			}
+
+			/*
+			 * In case of multiqueue, we have RXCSUM.PCSD bit set
+			 * and never cleared. This means we have RSS hash
+			 * available to be used.
+			 */
+			if (adapter->num_queues > 1) {
+				rxr->fmp->m_pkthdr.flowid = 
+				    le32toh(cur->wb.lower.hi_dword.rss);
+				/*
+				 * Full RSS support is not avilable in
+				 * FreeBSD 10 so setting the hash type to
+				 * OPAQUE.
+				 */
+				M_HASHTYPE_SET(rxr->fmp, M_HASHTYPE_OPAQUE);
+			} else {
 #ifndef IGB_LEGACY_TX
-			rxr->fmp->m_pkthdr.flowid = que->msix;
-			M_HASHTYPE_SET(rxr->fmp, M_HASHTYPE_OPAQUE);
+				rxr->fmp->m_pkthdr.flowid = que->msix;
+				M_HASHTYPE_SET(rxr->fmp, M_HASHTYPE_OPAQUE);
 #endif
+			}
 			sendmp = rxr->fmp;
 			/* Make sure to set M_PKTHDR. */
 			sendmp->m_flags |= M_PKTHDR;
