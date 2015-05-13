@@ -16,6 +16,14 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20150513:	p10	FreeBSD-EN-15:04.freebsd-update
+			FreeBSD-EN-15:05.ufs
+
+	Fix bug with freebsd-update(8) that does not ensure the previous
+	upgrade was completed. [EN-15:04]
+
+	Fix deadlock on reboot with UFS tuned with SU+J. [EN-15:05]
+
 20150407:	p9	FreeBSD-SA-15:04.igmp [revised]
 			FreeBSD-SA-15:07.ntp
 			FreeBSD-SA-15:08.bsdinstall
