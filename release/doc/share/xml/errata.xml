@@ -48,6 +48,22 @@
 	<entry><para>&man.freebsd-update.8; updates libraries in
 	    suboptimal order</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-15:04.freebsd-update.asc">FreeBSD-EN-15:04.freebsd-update</link></entry>
+	<entry>13&nbsp;May&nbsp;2015</entry>
+	<entry><para>&man.freebsd-update.8; does not ensure the
+	    previous upgrade has completed</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-15:05.ufs.asc">FreeBSD-EN-15:05.ufs</link></entry>
+	<entry>13&nbsp;May&nbsp;2015</entry>
+	<entry><para>Deadlock on reboot with UFS tuned with
+	    SU+J</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
