@@ -33,7 +33,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: symbols.c 3174 2015-03-27 17:13:41Z emaste $");
+ELFTC_VCSID("$Id: symbols.c 3191 2015-05-04 17:07:01Z jkoshy $");
 
 /* Symbol table buffer structure. */
 struct symbuf {
@@ -1090,7 +1090,7 @@ str_hash(const char *s)
 {
 	uint32_t hash;
 
-	for (hash = 2166136261; *s; s++)
+	for (hash = 2166136261UL; *s; s++)
 		hash = (hash ^ *s) * 16777619;
 
 	return (hash & (STHASHSIZE - 1));

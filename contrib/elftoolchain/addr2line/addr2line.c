@@ -39,7 +39,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: addr2line.c 3174 2015-03-27 17:13:41Z emaste $");
+ELFTC_VCSID("$Id: addr2line.c 3197 2015-05-12 21:01:31Z emaste $");
 
 static struct option longopts[] = {
 	{"target" , required_argument, NULL, 'b'},
@@ -84,6 +84,44 @@ version(void)
 	exit(0);
 }
 
+/*
+ * Handle DWARF 4 'offset from' DW_AT_high_pc.  Although we don't
+ * fully support DWARF 4, some compilers (like FreeBSD Clang 3.5.1)
+ * generate DW_AT_high_pc as an offset from DW_AT_low_pc.
+ *
+ * "If the value of the DW_AT_high_pc is of class address, it is the
+ * relocated address of the first location past the last instruction
+ * associated with the entity; if it is of class constant, the value
+ * is an unsigned integer offset which when added to the low PC gives
+ * the address of the first location past the last instruction
+ * associated with the entity."
+ *
+ * DWARF4 spec, section 2.17.2.
+ */
+static int
+handle_high_pc(Dwarf_Die die, Dwarf_Unsigned lopc, Dwarf_Unsigned *hipc)
+{
+	Dwarf_Error de;
+	Dwarf_Half form;
+	Dwarf_Attribute at;
+	int ret;
+
+	ret = dwarf_attr(die, DW_AT_high_pc, &at, &de);
+	if (ret == DW_DLV_ERROR) {
+		warnx("dwarf_attr failed: %s", dwarf_errmsg(de));
+		return (ret);
+	}
+	ret = dwarf_whatform(at, &form, &de);
+	if (ret == DW_DLV_ERROR) {
+		warnx("dwarf_whatform failed: %s", dwarf_errmsg(de));
+		return (ret);
+	}
+	if (dwarf_get_form_class(2, 0, 0, form) == DW_FORM_CLASS_CONSTANT)
+		*hipc += lopc;
+
+	return (DW_DLV_OK);
+}
+
 static void
 search_func(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Addr addr,
     const char **rlt_func)
@@ -107,6 +145,8 @@ search_func(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Addr addr,
 	if (tag == DW_TAG_subprogram) {
 		if (dwarf_attrval_unsigned(die, DW_AT_low_pc, &lopc, &de) ||
 		    dwarf_attrval_unsigned(die, DW_AT_high_pc, &hipc, &de))
+			goto cont_search;
+		if (handle_high_pc(die, lopc, &hipc) != DW_DLV_OK)
 			goto cont_search;
 		if (addr < lopc || addr >= hipc)
 			goto cont_search;
@@ -202,6 +242,8 @@ translate(Dwarf_Debug dbg, const char* addrstr)
 			 * Check if the address falls into the PC range of
 			 * this CU.
 			 */
+			if (handle_high_pc(die, lopc, &hipc) != DW_DLV_OK)
+				continue;
 			if (addr < lopc || addr >= hipc)
 				continue;
 		}

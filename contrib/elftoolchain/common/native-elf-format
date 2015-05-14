@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: native-elf-format 3167 2015-02-24 19:10:08Z emaste $
+# $Id: native-elf-format 3186 2015-04-16 22:16:40Z emaste $
 #
 # Find the native ELF format for a host platform by compiling a
 # test object and examining the resulting object.
@@ -33,7 +33,7 @@ $1 ~ "Data:"  {
 $1 ~ "Machine:" {
         if (match($0, "Intel.*386")) {
             elfarch = "EM_386";
-        } else if (match($0, ".*X86-64")) {
+        } else if (match($0, ".*[xX]86-64")) {
             elfarch = "EM_X86_64";
         } else {
             elfarch = "unknown";
