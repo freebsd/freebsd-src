@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #define	RNICHOST	"whois.ripe.net"
 #define	PNICHOST	"whois.apnic.net"
 #define	MNICHOST	"whois.ra.net"
+#define	QNICHOST_HEAD	"whois.nic."
 #define	QNICHOST_TAIL	".whois-servers.net"
 #define	BNICHOST	"whois.registro.br"
 #define	IANAHOST	"whois.iana.org"
@@ -101,7 +102,7 @@ static const char *ip_whois[] = { LNICHOST, RNICHOST, PNICHOST, BNICHOST,
 static const char *port = DEFAULT_PORT;
 
 static char *choose_server(char *);
-static struct addrinfo *gethostinfo(char const *host, int exit_on_error);
+static struct addrinfo *gethostinfo(char const *host, int exitnoname);
 static void s_asprintf(char **ret, const char *format, ...) __printflike(2, 3);
 static void usage(void);
 static void whois(const char *, const char *, int);
@@ -214,14 +215,15 @@ main(int argc, char *argv[])
  * caller must remember to free(3) the allocated memory.
  *
  * If the domain is an IPv6 address or has a known suffix, that determines
- * the server, else if the TLD is a number, query ARIN, else use
- * TLD.whois-server.net. Fail if the domain does not contain '.'.
+ * the server, else if the TLD is a number, query ARIN, else try a couple of
+ * formulaic server names. Fail if the domain does not contain '.'.
  */
 static char *
 choose_server(char *domain)
 {
 	char *pos, *retval;
 	int i;
+	struct addrinfo *res;
 
 	if (strchr(domain, ':')) {
 		s_asprintf(&retval, "%s", ANICHOST);
@@ -243,15 +245,35 @@ choose_server(char *domain)
 		--pos;
 	if (pos <= domain)
 		return (NULL);
-	if (isdigit((unsigned char)*++pos))
+	if (isdigit((unsigned char)*++pos)) {
 		s_asprintf(&retval, "%s", ANICHOST);
-	else
-		s_asprintf(&retval, "%s%s", pos, QNICHOST_TAIL);
-	return (retval);
+		return (retval);
+	}
+	/* Try possible alternative whois server name formulae. */
+	for (i = 0; ; ++i) {
+		switch (i) {
+		case 0:
+			s_asprintf(&retval, "%s%s", pos, QNICHOST_TAIL);
+			break;
+		case 1:
+			s_asprintf(&retval, "%s%s", QNICHOST_HEAD, pos);
+			break;
+		default:
+			return (NULL);
+		}
+		res = gethostinfo(retval, 0);
+		if (res) {
+			freeaddrinfo(res);
+			return (retval);
+		} else {
+			free(retval);
+			continue;
+		}
+	}
 }
 
 static struct addrinfo *
-gethostinfo(char const *host, int exit_on_error)
+gethostinfo(char const *host, int exit_on_noname)
 {
 	struct addrinfo hints, *res;
 	int error;
@@ -260,13 +282,10 @@ gethostinfo(char const *host, int exit_on_error)
 	hints.ai_flags = 0;
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
+	res = NULL;
 	error = getaddrinfo(host, port, &hints, &res);
-	if (error) {
-		warnx("%s: %s", host, gai_strerror(error));
-		if (exit_on_error)
-			exit(EX_NOHOST);
-		return (NULL);
-	}
+	if (error && (exit_on_noname || error != EAI_NONAME))
+		err(EX_NOHOST, "%s: %s", host, gai_strerror(error));
 	return (res);
 }
 
