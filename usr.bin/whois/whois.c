@@ -119,7 +119,7 @@ main(int argc, char *argv[])
 
 	country = host = qnichost = NULL;
 	flags = use_qnichost = 0;
-	while ((ch = getopt(argc, argv, "aAbc:fgh:iIklmp:QrR6")) != -1) {
+	while ((ch = getopt(argc, argv, "aAbc:fgh:iIklmp:Qr")) != -1) {
 		switch (ch) {
 		case 'a':
 			host = ANICHOST;
@@ -165,15 +165,6 @@ main(int argc, char *argv[])
 			break;
 		case 'r':
 			host = RNICHOST;
-			break;
-		case 'R':
-			warnx("-R is deprecated; use '-c ru' instead");
-			country = "ru";
-			break;
-		/* Remove in FreeBSD 10 */
-		case '6':
-			errx(EX_USAGE,
-				"-6 is deprecated; use -[aAflr] instead");
 			break;
 		case '?':
 		default:
@@ -300,8 +291,9 @@ whois(const char *query, const char *hostname, int flags)
 	FILE *fp;
 	struct addrinfo *hostres, *res;
 	char *buf, *host, *nhost, *p;
-	int i, j, s = -1, count;
-	size_t c, len;
+	int s = -1;
+	nfds_t i, j;
+	size_t c, len, count;
 	struct pollfd *fds;
 	int timeout = 180;
 
@@ -497,7 +489,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: whois [-aAbfgiIklmQrR6] [-c country-code | -h hostname] "
+	    "usage: whois [-aAbfgiIklmQr] [-c country-code | -h hostname] "
 	    "[-p port] name ...\n");
 	exit(EX_USAGE);
 }
