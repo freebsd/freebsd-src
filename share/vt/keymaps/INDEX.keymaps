@@ -20,15 +20,15 @@
 #
 # Language support: MENU, FONT
 #
-MENU:en:Choose your keyboard language
+MENU:en:Choose your keyboard layout
 MENU:da,no,sv:Vælg dit keyboard layout
 MENU:de:Wählen Sie Ihre Tastaturbelegung
-MENU:fr:Choisissez la nationalité de votre clavier
+MENU:fr:Choisissez la disposition de votre clavier
 MENU:pl:Wybierz układ klawiatury
 MENU:pt:Escolha o layout do teclado
-MENU:es:Seleccione el idioma de su teclado
+MENU:es:Seleccione la disposición de su teclado
 MENU:he:ךלש תדלקמה תפש תא רחב
-MENU:uk:Bиберіть розкладку клавіатури
+MENU:uk:Оберiть розкладку клавіатури
 MENU:el:Επιλέξτε το πληκτρολόγιο της κονσόλας
 MENU:hy:Ընտրեք ստեղնաշարի դասավորությունը
 
