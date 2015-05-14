@@ -864,8 +864,11 @@ header_bin_le(struct archive_read *a, struct cpio *cpio,
 
 	/* Read fixed-size portion of header. */
 	h = __archive_read_ahead(a, bin_header_size, NULL);
-	if (h == NULL)
+	if (h == NULL) {
+	    archive_set_error(&a->archive, 0,
+		"End of file trying to read next cpio header");
 	    return (ARCHIVE_FATAL);
+	}
 
 	/* Parse out binary fields. */
 	header = (const unsigned char *)h;
@@ -900,8 +903,11 @@ header_bin_be(struct archive_read *a, struct cpio *cpio,
 
 	/* Read fixed-size portion of header. */
 	h = __archive_read_ahead(a, bin_header_size, NULL);
-	if (h == NULL)
+	if (h == NULL) {
+	    archive_set_error(&a->archive, 0,
+		"End of file trying to read next cpio header");
 	    return (ARCHIVE_FATAL);
+	}
 
 	/* Parse out binary fields. */
 	header = (const unsigned char *)h;
