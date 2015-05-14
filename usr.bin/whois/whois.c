@@ -183,7 +183,8 @@ main(int argc, char *argv[])
 	 * level domain from the query, or fall back to NICHOST.
 	 */
 	if (host == NULL && country == NULL) {
-		if ((host = getenv("RA_SERVER")) == NULL) {
+		if ((host = getenv("WHOIS_SERVER")) == NULL &&
+		    (host = getenv("RA_SERVER")) == NULL) {
 			use_qnichost = 1;
 			host = NICHOST;
 			if (!(flags & WHOIS_QUICK))
