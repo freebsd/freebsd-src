@@ -158,25 +158,33 @@ static const struct mii_phy_funcs brgphy_funcs = {
 	brgphy_reset
 };
 
-#define HS21_PRODUCT_ID	"IBM eServer BladeCenter HS21"
-#define HS21_BCM_CHIPID	0x57081021
+static const struct hs21_type {
+	const uint32_t id;
+	const char *prod;
+} hs21_type_lists[] = {
+	{ 0x57081021, "IBM eServer BladeCenter HS21" },
+	{ 0x57081011, "IBM eServer BladeCenter HS21 -[8853PAU]-" },
+};
 
 static int
 detect_hs21(struct bce_softc *bce_sc)
 {
 	char *sysenv;
-	int found;
+	int found, i;
 
 	found = 0;
-	if (bce_sc->bce_chipid == HS21_BCM_CHIPID) {
-		sysenv = getenv("smbios.system.product");
-		if (sysenv != NULL) {
-			if (strncmp(sysenv, HS21_PRODUCT_ID,
-			    strlen(HS21_PRODUCT_ID)) == 0)
-				found = 1;
-			freeenv(sysenv);
+	sysenv = getenv("smbios.system.product");
+	if (sysenv == NULL)
+		return (found);
+	for (i = 0; i < nitems(hs21_type_lists); i++) {
+		if (bce_sc->bce_chipid == hs21_type_lists[i].id &&
+		    strncmp(sysenv, hs21_type_lists[i].prod,
+		    strlen(hs21_type_lists[i].prod)) == 0) {
+			found++;
+			break;
 		}
 	}
+	freeenv(sysenv);
 	return (found);
 }
 
