@@ -647,11 +647,11 @@ OLD_FILES+=usr/libexec/bsdconfig/070.usermgmt/groupinput
 # 20140223: Remove libyaml
 OLD_FILES+=usr/lib/private/libyaml.a
 OLD_FILES+=usr/lib/private/libyaml.so
-OLD_FILES+=usr/lib/private/libyaml.so.1
+OLD_LIBS+=usr/lib/private/libyaml.so.1
 OLD_FILES+=usr/lib/private/libyaml_p.a
 OLD_FILES+=usr/lib32/private/libyaml.a
 OLD_FILES+=usr/lib32/private/libyaml.so
-OLD_FILES+=usr/lib32/private/libyaml.so.1
+OLD_LIBS+=usr/lib32/private/libyaml.so.1
 OLD_FILES+=usr/lib32/private/libyaml_p.a
 # 20140216: new clang import which bumps version from 3.3 to 3.4.
 OLD_FILES+=usr/bin/llvm-prof
