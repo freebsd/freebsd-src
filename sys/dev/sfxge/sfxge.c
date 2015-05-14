@@ -61,10 +61,12 @@ __FBSDID("$FreeBSD$");
 
 #define	SFXGE_CAP (IFCAP_VLAN_MTU | IFCAP_VLAN_HWCSUM |			\
 		   IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_TSO |		\
+		   IFCAP_RXCSUM_IPV6 | IFCAP_TXCSUM_IPV6 |		\
 		   IFCAP_JUMBO_MTU | IFCAP_LRO |			\
 		   IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE | IFCAP_HWSTATS)
 #define	SFXGE_CAP_ENABLE SFXGE_CAP
 #define	SFXGE_CAP_FIXED (IFCAP_VLAN_MTU | IFCAP_RXCSUM | IFCAP_VLAN_HWCSUM | \
+			 IFCAP_RXCSUM_IPV6 |				\
 			 IFCAP_JUMBO_MTU | IFCAP_LINKSTATE | IFCAP_HWSTATS)
 
 MALLOC_DEFINE(M_SFXGE, "sfxge", "Solarflare 10GigE driver");
@@ -276,6 +278,10 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 			ifp->if_hwassist |= (CSUM_IP | CSUM_TCP | CSUM_UDP);
 		else
 			ifp->if_hwassist &= ~(CSUM_IP | CSUM_TCP | CSUM_UDP);
+		if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
+			ifp->if_hwassist |= (CSUM_TCP_IPV6 | CSUM_UDP_IPV6);
+		else
+			ifp->if_hwassist &= ~(CSUM_TCP_IPV6 | CSUM_UDP_IPV6);
 		if (ifp->if_capenable & IFCAP_TSO)
 			ifp->if_hwassist |= CSUM_TSO;
 		else
@@ -326,7 +332,8 @@ sfxge_ifnet_init(struct ifnet *ifp, struct sfxge_softc *sc)
 
 	ifp->if_capabilities = SFXGE_CAP;
 	ifp->if_capenable = SFXGE_CAP_ENABLE;
-	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_IP | CSUM_TSO;
+	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_IP | CSUM_TSO |
+			   CSUM_TCP_IPV6 | CSUM_UDP_IPV6;
 
 	ether_ifattach(ifp, encp->enc_mac_addr);
 
