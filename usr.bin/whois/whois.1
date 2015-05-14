@@ -49,17 +49,18 @@ Network Information Centers
 .Pp
 By default
 .Nm
-constructs the name of a whois server to use from the top-level domain
+automatically discovers the name of a whois server to use
+from the top-level domain
 .Pq Tn TLD
-of the supplied (single) argument, and appending
-.Qq Li .whois-servers.net .
-This effectively allows a suitable whois server to be selected
-automatically for a large number of
-.Tn TLDs .
+of the supplied (single) argument.
+It tries
+.Qq Va TLD Ns Li .whois-servers.net
+and
+.Qq Li whois.nic. Ns Va TLD
+and if neither host exists it falls back to its default server.
 .Pp
-In the event that an IP
-address is specified, the whois server will default to the American
-Registry for Internet Numbers
+If an IP address is specified, the whois server will default to
+the American Registry for Internet Numbers
 .Pq Tn ARIN .
 If a query to
 .Tn ARIN
@@ -71,9 +72,10 @@ that server will be queried also, provided that the
 .Fl Q
 option is not specified.
 .Pp
-If the query is not a domain name or IP address,
+If
 .Nm
-will fall back to
+cannot automatically discover a server,
+it will fall back to
 the host specified in the
 .Ev WHOIS_SERVER
 or
@@ -122,7 +124,7 @@ Use the US non-military federal government database, which contains points of
 contact for subdomains of
 .Pa .GOV .
 .It Fl h Ar host
-Use the specified host instead of the default variant.
+Use the specified host instead of the default.
 Either a host name or an IP address may be specified.
 .It Fl i
 Use the obsolete Network Solutions Registry for Internet Numbers
