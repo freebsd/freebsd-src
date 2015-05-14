@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #define	LNICHOST	"whois.lacnic.net"
 #define	MNICHOST	"whois.ra.net"
 #define	NICHOST		"whois.crsnic.net"
+#define	PDBHOST		"whois.peeringdb.com"
 #define	PNICHOST	"whois.apnic.net"
 #define	QNICHOST_HEAD	"whois.nic."
 #define	QNICHOST_TAIL	".whois-servers.net"
@@ -122,7 +123,7 @@ main(int argc, char *argv[])
 
 	country = host = qnichost = NULL;
 	flags = use_qnichost = 0;
-	while ((ch = getopt(argc, argv, "aAbc:fgh:iIklmp:Qr")) != -1) {
+	while ((ch = getopt(argc, argv, "aAbc:fgh:iIklmp:PQr")) != -1) {
 		switch (ch) {
 		case 'a':
 			host = ANICHOST;
@@ -162,6 +163,9 @@ main(int argc, char *argv[])
 			break;
 		case 'p':
 			port = optarg;
+			break;
+		case 'P':
+			host = PDBHOST;
 			break;
 		case 'Q':
 			flags |= WHOIS_QUICK;
@@ -511,7 +515,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: whois [-aAbfgiIklmQr] [-c country-code | -h hostname] "
+	    "usage: whois [-aAbfgiIklmPQr] [-c country-code | -h hostname] "
 	    "[-p port] name ...\n");
 	exit(EX_USAGE);
 }
