@@ -774,6 +774,7 @@ bufinit(void)
 	struct buf *bp;
 	int i;
 
+	CTASSERT(MAXBCACHEBUF >= MAXBSIZE);
 	mtx_init(&bqclean, "bufq clean lock", NULL, MTX_DEF);
 	mtx_init(&bqdirty, "bufq dirty lock", NULL, MTX_DEF);
 	mtx_init(&rbreqlock, "runningbufspace lock", NULL, MTX_DEF);
@@ -815,8 +816,8 @@ bufinit(void)
 	 * by the system.
 	 */
 	maxbufspace = (long)nbuf * BKVASIZE;
-	hibufspace = lmax(3 * maxbufspace / 4, maxbufspace - MAXBSIZE * 10);
-	lobufspace = hibufspace - MAXBSIZE;
+	hibufspace = lmax(3 * maxbufspace / 4, maxbufspace - MAXBCACHEBUF * 10);
+	lobufspace = hibufspace - MAXBCACHEBUF;
 
 	/*
 	 * Note: The 16 MiB upper limit for hirunningspace was chosen
@@ -826,9 +827,9 @@ bufinit(void)
 	 * The lower 1 MiB limit is the historical upper limit for
 	 * hirunningspace.
 	 */
-	hirunningspace = lmax(lmin(roundup(hibufspace / 64, MAXBSIZE),
+	hirunningspace = lmax(lmin(roundup(hibufspace / 64, MAXBCACHEBUF),
 	    16 * 1024 * 1024), 1024 * 1024);
-	lorunningspace = roundup((hirunningspace * 2) / 3, MAXBSIZE);
+	lorunningspace = roundup((hirunningspace * 2) / 3, MAXBCACHEBUF);
 
 /*
  * Limit the amount of malloc memory since it is wired permanently into
@@ -3076,8 +3077,9 @@ getblk(struct vnode *vp, daddr_t blkno, int size, int slpflag, int slptimeo,
 	KASSERT((flags & (GB_UNMAPPED | GB_KVAALLOC)) != GB_KVAALLOC,
 	    ("GB_KVAALLOC only makes sense with GB_UNMAPPED"));
 	ASSERT_VOP_LOCKED(vp, "getblk");
-	if (size > MAXBSIZE)
-		panic("getblk: size(%d) > MAXBSIZE(%d)\n", size, MAXBSIZE);
+	if (size > MAXBCACHEBUF)
+		panic("getblk: size(%d) > MAXBCACHEBUF(%d)\n", size,
+		    MAXBCACHEBUF);
 	if (!unmapped_buf_allowed)
 		flags &= ~(GB_UNMAPPED | GB_KVAALLOC);
 
