@@ -87,7 +87,6 @@ static struct _pcsid
 	const char	*desc;
 } pci_ids[] = {
 	{ 0x01118086,		0, 0, "NVMe Controller"  },
-	{ CHATHAM_PCI_ID,	0, 0, "Chatham Prototype NVMe Controller"  },
 	{ IDT32_PCI_ID,		0, 0, "IDT NVMe Controller (32 channel)"  },
 	{ IDT8_PCI_ID,		0, 0, "IDT NVMe Controller (8 channel)" },
 	{ 0x09538086,		1, 0x3702, "DC P3700 SSD" },
