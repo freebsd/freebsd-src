@@ -15,6 +15,7 @@ operating systems.
   -----------------   --------   -----------------------
   `DragonFly BSD`_    2.10.1     i386
   FreeBSD_            v8.2       amd64 & i386
+  FreeBSD_            v10.1      i386
   Minix_              3.0.2      i386
   NetBSD_             v5.0.2     i386
   OpenBSD_            v5.0       i386
@@ -74,6 +75,22 @@ Prerequisites
       needed::
 
             % sudo pkg_add -r latex-pgf
+
+:FreeBSD 10.1:
+    - The core libraries and utilities should build out of the box on
+      a stock install of FreeBSD.
+
+    - To build and run the test suite:
+
+      #. The current release of the `Test Execution Toolkit`_ needs to
+         be downloaded and unpacked into the ``test/tet/`` directory.
+
+      #. The ``python`` and ``py27-yaml`` packages need to be installed::
+
+            % sudo pkg install python py27-yaml
+
+    - Building additional documentation is not currently supported under
+      FreeBSD 10.1.
 
 :Minix 3.2.0:
     - The following packages are pre-requisites for building the
@@ -299,7 +316,7 @@ website`_.
 
 .. _project website:  http://elftoolchain.sourceforge.net/
 
-.. $Id: INSTALL 3165 2015-02-20 20:52:18Z emaste $
+.. $Id: INSTALL 3193 2015-05-04 17:47:14Z jkoshy $
 
 .. Local Variables:
 .. mode: rst

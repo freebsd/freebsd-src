@@ -38,7 +38,7 @@
 
 #include "ar.h"
 
-ELFTC_VCSID("$Id: read.c 3174 2015-03-27 17:13:41Z emaste $");
+ELFTC_VCSID("$Id: read.c 3180 2015-04-09 15:13:57Z emaste $");
 
 /*
  * Handle read modes: 'x', 't' and 'p'.
@@ -181,7 +181,7 @@ ar_read_archive(struct bsdar *bsdar, int mode)
 					continue;
 				}
 				/* Basic path security flags. */
-				flags = ARCHIVE_EXTRACT_SECURE_SYMLINKS | \
+				flags = ARCHIVE_EXTRACT_SECURE_SYMLINKS |
 	 			    ARCHIVE_EXTRACT_SECURE_NODOTDOT;
 				if (bsdar->options & AR_O)
 					flags |= ARCHIVE_EXTRACT_TIME;

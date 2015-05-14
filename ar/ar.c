@@ -72,7 +72,7 @@
 
 #include "ar.h"
 
-ELFTC_VCSID("$Id: ar.c 3174 2015-03-27 17:13:41Z emaste $");
+ELFTC_VCSID("$Id: ar.c 3183 2015-04-10 16:18:42Z emaste $");
 
 enum options
 {
@@ -117,7 +117,7 @@ main(int argc, char **argv)
 
 	/*
 	 * Act like ranlib if our name ends in "ranlib"; this
-	 * accomodates names like "arm-freebsd7.1-ranlib",
+	 * accommodates names like "arm-freebsd7.1-ranlib",
 	 * "bsdranlib", etc.
 	 */
 	len = strlen(bsdar->progname);
