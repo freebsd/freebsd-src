@@ -36,7 +36,7 @@
 
 #include "_libelftc.h"
 
-ELFTC_VCSID("$Id: libelftc_dem_gnu3.c 3123 2014-12-21 05:46:19Z kaiwang27 $");
+ELFTC_VCSID("$Id: libelftc_dem_gnu3.c 3194 2015-05-05 17:55:16Z emaste $");
 
 /**
  * @file cpp_demangle.c
@@ -316,7 +316,7 @@ cpp_demangle_push_fp(struct cpp_demangle_data *ddata,
 
 	rtn = 0;
 	if ((len = strlen(f)) > 0)
-	    rtn = cpp_demangle_push_str(ddata, f, len);
+		rtn = cpp_demangle_push_str(ddata, f, len);
 
 	free(f);
 
