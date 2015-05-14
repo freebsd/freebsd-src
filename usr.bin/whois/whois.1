@@ -75,8 +75,10 @@ If the query is not a domain name or IP address,
 .Nm
 will fall back to
 the host specified in the
+.Ev WHOIS_SERVER
+or
 .Ev RA_SERVER
-environment variable, or if that is not set, it will use
+environment variables, or if those are not set, it will use
 .Pa whois.crsnic.net .
 .Pp
 The options are as follows:
@@ -176,8 +178,15 @@ are treated independently and may be used
 as queries on different whois servers.
 .Sh ENVIRONMENT
 .Bl -tag
+.It Ev WHOIS_SERVER
+The primary default whois server.
+If this is unset,
+.Nm
+uses the
+.Ev RA_SERVER
+environment variable.
 .It Ev RA_SERVER
-The default whois server.
+The secondary default whois server.
 If this is unset,
 .Nm
 will use
