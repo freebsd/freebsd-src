@@ -322,23 +322,24 @@ static void
 sfxge_rx_deliver(struct sfxge_softc *sc, struct sfxge_rx_sw_desc *rx_desc)
 {
 	struct mbuf *m = rx_desc->mbuf;
+	int flags = rx_desc->flags;
 	int csum_flags;
 
 	/* Convert checksum flags */
-	csum_flags = (rx_desc->flags & EFX_CKSUM_IPV4) ?
+	csum_flags = (flags & EFX_CKSUM_IPV4) ?
 		(CSUM_IP_CHECKED | CSUM_IP_VALID) : 0;
-	if (rx_desc->flags & EFX_CKSUM_TCPUDP)
+	if (flags & EFX_CKSUM_TCPUDP)
 		csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 
-	if (rx_desc->flags & (EFX_PKT_IPV4 | EFX_PKT_IPV6)) {
+	if (flags & (EFX_PKT_IPV4 | EFX_PKT_IPV6)) {
 		m->m_pkthdr.flowid = EFX_RX_HASH_VALUE(EFX_RX_HASHALG_TOEPLITZ,
 						       mtod(m, uint8_t *));
 		/* The hash covers a 4-tuple for TCP only */
 		M_HASHTYPE_SET(m,
-		    (rx_desc->flags & EFX_PKT_IPV4) ?
-			((rx_desc->flags & EFX_PKT_TCP) ?
+		    (flags & EFX_PKT_IPV4) ?
+			((flags & EFX_PKT_TCP) ?
 			    M_HASHTYPE_RSS_TCP_IPV4 : M_HASHTYPE_RSS_IPV4) :
-			((rx_desc->flags & EFX_PKT_TCP) ?
+			((flags & EFX_PKT_TCP) ?
 			    M_HASHTYPE_RSS_TCP_IPV6 : M_HASHTYPE_RSS_IPV6));
 	}
 	m->m_data += sc->rx_prefix_size;
