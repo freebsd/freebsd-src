@@ -682,7 +682,6 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 	switch (newstate) {
 	case XenbusStateInitialising:
 	case XenbusStateInitialised:
-	case XenbusStateConnected:
 	case XenbusStateUnknown:
 	case XenbusStateClosed:
 	case XenbusStateReconfigured:
@@ -694,12 +693,14 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 		if (network_connect(sc) != 0)
 			break;
 		xenbus_set_state(dev, XenbusStateConnected);
-#ifdef INET
-		netfront_send_fake_arp(dev, sc);
-#endif
 		break;
 	case XenbusStateClosing:
 		xenbus_set_state(dev, XenbusStateClosed);
+		break;
+	case XenbusStateConnected:
+#ifdef INET
+		netfront_send_fake_arp(dev, sc);
+#endif
 		break;
 	}
 }
