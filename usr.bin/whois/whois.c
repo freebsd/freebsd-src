@@ -311,7 +311,7 @@ whois(const char *query, const char *hostname, int flags)
 	FILE *fp;
 	struct addrinfo *hostres, *res;
 	char *buf, *host, *nhost, *p;
-	int s = -1;
+	int s = -1, f;
 	nfds_t i, j;
 	size_t c, len, count;
 	struct pollfd *fds;
@@ -431,9 +431,9 @@ done:
 
 	if (s != -1) {
                 /* Restore default blocking behavior.  */
-                if ((flags = fcntl(s, F_GETFL)) != -1) {
-                        flags &= ~O_NONBLOCK;
-                        if (fcntl(s, F_SETFL, flags) == -1)
+                if ((f = fcntl(s, F_GETFL)) != -1) {
+                        f &= ~O_NONBLOCK;
+                        if (fcntl(s, F_SETFL, f) == -1)
                                 err(EX_OSERR, "fcntl()");
                 } else
 			err(EX_OSERR, "fcntl()");
