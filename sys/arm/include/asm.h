@@ -87,7 +87,13 @@
  */
 #define	GLOBAL(x)	.global x
 
-#define	_LEENTRY(x) 	.type x,_ASM_TYPE_FUNCTION; x:
+#ifdef __thumb__
+#define	_FUNC_MODE	.code 16; .thumb_func
+#else
+#define	_FUNC_MODE	.code 32
+#endif
+
+#define	_LEENTRY(x) 	.type x,_ASM_TYPE_FUNCTION; _FUNC_MODE; x:
 #define	_LEEND(x)	/* nothing */
 #define	_EENTRY(x) 	GLOBAL(x); _LEENTRY(x)
 #define	_EEND(x)	_LEEND(x)
@@ -126,7 +132,7 @@
 	ldr	x, [x, got]
 #define	GOT_INIT(got,gotsym,pclabel) \
 	ldr	got, gotsym;	\
-	pclabel: add	got, got, pc
+	pclabel: add	got, pc
 #ifdef __thumb__
 #define	GOT_INITSYM(gotsym,pclabel) \
 	.align 2;		\

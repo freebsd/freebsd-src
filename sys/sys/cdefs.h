@@ -388,6 +388,12 @@
 #define	__alloc_size(x)
 #endif
 
+#if __has_builtin(__builtin_unreachable) || __GNUC_PREREQ__(4, 6)
+#define	__unreachable()	__builtin_unreachable()
+#else
+#define	__unreachable()	do {} while (/*CONSTCOND*/0)
+#endif
+
 #if __has_attribute(alloc_align) || __GNUC_PREREQ__(4, 9)
 #define	__alloc_align(x)	__attribute__((__alloc_align__(x)))
 #else
@@ -464,7 +470,7 @@
 #define	__predict_false(exp)    (exp)
 #endif
 
-#if __GNUC_PREREQ__(4, 2)
+#if __GNUC_PREREQ__(4, 0)
 #define	__hidden	__attribute__((__visibility__("hidden")))
 #define	__exported	__attribute__((__visibility__("default")))
 #else
