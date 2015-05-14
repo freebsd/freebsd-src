@@ -23,14 +23,15 @@ write_partition_layout() {
 
 	case "${TARGET}:${TARGET_ARCH}" in
 		amd64:amd64 | i386:i386)
-			mkimg -s gpt -b ${BOOTFILES}/i386/pmbr/pmbr \
+			mkimg -s gpt -f ${VMFORMAT} \
+				-b ${BOOTFILES}/i386/pmbr/pmbr \
 				-p freebsd-boot/bootfs:=${BOOTFILES}/i386/gptboot/gptboot \
 				${SWAPOPT} \
 				-p freebsd-ufs/rootfs:=${VMBASE} \
 				-o ${VMIMAGE}
 			;;
 		powerpc:powerpc*)
-			mkimg -s apm \
+			mkimg -s apm -f ${VMFORMAT} \
 				-p apple-boot/bootfs:=${BOOTFILES}/powerpc/boot1.chrp/boot1.hfs \
 				${SWAPOPT} \
 				-p freebsd-ufs/rootfs:=${VMBASE} \
