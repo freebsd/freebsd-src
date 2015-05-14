@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-SRCS+=	flt_rounds.c \
+SRCS+=	fabs.S \
+	flt_rounds.c \
 	ldexp.c \
 	_setjmp.S \
 	_set_tp.c \
