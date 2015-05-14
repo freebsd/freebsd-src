@@ -71,7 +71,6 @@ __FBSDID("$FreeBSD$");
 #define	MNICHOST	"whois.ra.net"
 #define	QNICHOST_TAIL	".whois-servers.net"
 #define	BNICHOST	"whois.registro.br"
-#define NORIDHOST	"whois.norid.no"
 #define	IANAHOST	"whois.iana.org"
 #define GERMNICHOST	"de.whois-servers.net"
 #define FNICHOST	"whois.afrinic.net"
@@ -83,6 +82,19 @@ __FBSDID("$FreeBSD$");
 #define WHOIS_QUICK		0x02
 
 #define ishost(h) (isalnum((unsigned char)h) || h == '.' || h == '-')
+
+static struct {
+	const char *suffix, *server;
+} whoiswhere[] = {
+	/* Various handles */
+	{ "-ARIN", ANICHOST },
+	{ "-NICAT", "at" QNICHOST_TAIL },
+	{ "-NORID", "no" QNICHOST_TAIL },
+	{ "-RIPE", RNICHOST },
+	/* Nominet's whois server doesn't return referrals to JANET */
+	{ ".ac.uk", "ac.uk" QNICHOST_TAIL },
+	{ NULL, NULL }
+};
 
 static const char *ip_whois[] = { LNICHOST, RNICHOST, PNICHOST, BNICHOST,
 				  FNICHOST, NULL };
@@ -176,10 +188,8 @@ main(int argc, char *argv[])
 		usage();
 
 	/*
-	 * If no host or country is specified determine the top level domain
-	 * from the query.  If the TLD is a number, query ARIN.  Otherwise, use 
-	 * TLD.whois-server.net.  If the domain does not contain '.', fall
-	 * back to NICHOST.
+	 * If no host or country is specified, try to determine the top
+	 * level domain from the query, or fall back to NICHOST.
 	 */
 	if (host == NULL && country == NULL) {
 		if ((host = getenv("RA_SERVER")) == NULL) {
@@ -210,25 +220,32 @@ main(int argc, char *argv[])
  * returns a pointer to newly allocated memory containing the whois server to
  * be queried, or a NULL if the correct server couldn't be determined.  The
  * caller must remember to free(3) the allocated memory.
+ *
+ * If the domain is an IPv6 address or has a known suffix, that determines
+ * the server, else if the TLD is a number, query ARIN, else use
+ * TLD.whois-server.net. Fail if the domain does not contain '.'.
  */
 static char *
 choose_server(char *domain)
 {
 	char *pos, *retval;
+	int i;
 
 	if (strchr(domain, ':')) {
 		s_asprintf(&retval, "%s", ANICHOST);
 		return (retval);
 	}
-	for (pos = strchr(domain, '\0'); pos > domain && *--pos == '.';)
-		*pos = '\0';
+	for (pos = strchr(domain, '\0'); pos > domain && pos[-1] == '.';)
+		*--pos = '\0';
 	if (*domain == '\0')
 		errx(EX_USAGE, "can't search for a null string");
-	if (strlen(domain) > sizeof("-NORID")-1 &&
-	    strcasecmp(domain + strlen(domain) - sizeof("-NORID") + 1,
-		"-NORID") == 0) {
-		s_asprintf(&retval, "%s", NORIDHOST);
-		return (retval);
+	for (i = 0; whoiswhere[i].suffix != NULL; i++) {
+		size_t suffix_len = strlen(whoiswhere[i].suffix);
+		if (domain + suffix_len < pos &&
+		    strcasecmp(pos - suffix_len, whoiswhere[i].suffix) == 0) {
+			s_asprintf(&retval, "%s", whoiswhere[i].server);
+			return (retval);
+		}
 	}
 	while (pos > domain && *pos != '.')
 		--pos;
