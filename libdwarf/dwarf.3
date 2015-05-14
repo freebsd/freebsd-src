@@ -21,7 +21,7 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: dwarf.3 3130 2014-12-21 20:06:29Z jkoshy $
+.\" $Id: dwarf.3 3195 2015-05-12 17:22:19Z emaste $
 .\"
 .Dd December 21, 2014
 .Os
@@ -44,7 +44,7 @@ is defined by the DWARF standard, see
 .Xr dwarf 4 .
 .Pp
 The
-.Xr DWARF 3 
+.Xr DWARF 3
 API has two parts:
 .Bl -bullet
 .It
@@ -349,7 +349,7 @@ Retrieve a debugging information entry given an offset.
 .It Fn dwarf_siblingof , Fn dwarf_siblingof_b
 Retrieve the sibling descriptor for a debugging information entry.
 .It Fn dwarf_srclang
-Retrive the source language attribute for a debugging information
+Retrieve the source language attribute for a debugging information
 entry.
 .It Fn dwarf_tag
 Retrieve the tag for a debugging information entry.
@@ -742,12 +742,12 @@ The DWARF standard is defined by
 The DWARF(3) API originated at Silicon Graphics Inc.
 .Pp
 A BSD-licensed implementation of a subset of the API was written by
-.An "John Birrell" Aq jb@FreeBSD.org
+.An John Birrell Aq Mt jb@FreeBSD.org
 for the FreeBSD project.
 The implementation was subsequently revised and completed by
-.An "Kai Wang" Aq kaiwang27@users.sourceforge.net .
+.An Kai Wang Aq Mt kaiwang27@users.sourceforge.net .
 .Pp
 Manual pages for this implementation were written by
-.An "Joseph Koshy" Aq jkoshy@users.sourceforge.net
+.An Joseph Koshy Aq Mt jkoshy@users.sourceforge.net
 and
-.An "Kai Wang" Aq kaiwang27@users.sourceforge.net .
+.An Kai Wang Aq Mt kaiwang27@users.sourceforge.net .

@@ -21,7 +21,7 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: ar.1 2742 2012-12-10 18:47:36Z jkoshy $
+.\" $Id: ar.1 3195 2015-05-12 17:22:19Z emaste $
 .\"
 .Dd December 10, 2012
 .Os
@@ -194,11 +194,11 @@ from the archive specified by argument
 The archive's symbol table, if present, is updated to reflect
 the new contents of the archive.
 .It Fl D
-When used in combination with the 
+When used in combination with the
 .Fl r
 or
 .Fl q
-option, insert 0's instead of the real mtime, uid and gid values 
+option, insert 0's instead of the real mtime, uid and gid values
 and 0644 instead of file mode from the members named by arguments
 .Ar .
 This ensures that checksums on the resulting archives are reproducible
@@ -346,7 +346,7 @@ or
 options,
 .Nm
 gives a file-by-file description of the archive modification being
-performed, which consists of three white-space seperated fields:
+performed, which consists of three white-space separated fields:
 the option letter, a dash
 .Dq "-" ,
 and the file name.
@@ -554,7 +554,7 @@ using MRI librarian commands, use the following script:
 .Bd -literal -offset indent
 create ex.a		 * specify the output archive
 addmod ex1.o ex2.o	 * add modules
-save			 * save pending changes 
+save			 * save pending changes
 end			 * exit the utility
 .Ed
 .Sh DIAGNOSTICS
@@ -594,7 +594,7 @@ An
 command first appeared in AT&T UNIX Version 1.
 In
 .Fx 8.0 ,
-.An "Kai Wang" Aq kaiw@FreeBSD.org
+.An Kai Wang Aq Mt kaiw@FreeBSD.org
 reimplemented
 .Nm
 using the
