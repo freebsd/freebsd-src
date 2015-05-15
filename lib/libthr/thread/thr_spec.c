@@ -30,6 +30,7 @@
  */
 
 #include "namespace.h"
+#include <sys/mman.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,7 +41,6 @@
 
 #include "thr_private.h"
 
-/* Static variables: */
 struct pthread_key _thread_keytable[PTHREAD_KEYS_MAX];
 
 __weak_reference(_pthread_key_create, pthread_key_create);
@@ -50,7 +50,7 @@ __weak_reference(_pthread_setspecific, pthread_setspecific);
 
 
 int
-_pthread_key_create(pthread_key_t *key, void (*destructor) (void *))
+_pthread_key_create(pthread_key_t *key, void (*destructor)(void *))
 {
 	struct pthread *curthread;
 	int i;
@@ -59,7 +59,6 @@ _pthread_key_create(pthread_key_t *key, void (*destructor) (void *))
 
 	curthread = _get_curthread();
 
-	/* Lock the key table: */
 	THR_LOCK_ACQUIRE(curthread, &_keytable_lock);
 	for (i = 0; i < PTHREAD_KEYS_MAX; i++) {
 
@@ -68,14 +67,12 @@ _pthread_key_create(pthread_key_t *key, void (*destructor) (void *))
 			_thread_keytable[i].destructor = destructor;
 			_thread_keytable[i].seqno++;
 
-			/* Unlock the key table: */
 			THR_LOCK_RELEASE(curthread, &_keytable_lock);
 			*key = i + 1;
 			return (0);
 		}
 
 	}
-	/* Unlock the key table: */
 	THR_LOCK_RELEASE(curthread, &_keytable_lock);
 	return (EAGAIN);
 }
@@ -83,44 +80,40 @@ _pthread_key_create(pthread_key_t *key, void (*destructor) (void *))
 int
 _pthread_key_delete(pthread_key_t userkey)
 {
-	struct pthread *curthread = _get_curthread();
-	int key = userkey - 1;
-	int ret = 0;
+	struct pthread *curthread;
+	int key, ret;
 
-	if ((unsigned int)key < PTHREAD_KEYS_MAX) {
-		/* Lock the key table: */
-		THR_LOCK_ACQUIRE(curthread, &_keytable_lock);
-
-		if (_thread_keytable[key].allocated)
-			_thread_keytable[key].allocated = 0;
-		else
-			ret = EINVAL;
-
-		/* Unlock the key table: */
-		THR_LOCK_RELEASE(curthread, &_keytable_lock);
-	} else
+	key = userkey - 1;
+	if ((unsigned int)key >= PTHREAD_KEYS_MAX)
+		return (EINVAL);
+	curthread = _get_curthread();
+	THR_LOCK_ACQUIRE(curthread, &_keytable_lock);
+	if (_thread_keytable[key].allocated) {
+		_thread_keytable[key].allocated = 0;
+		ret = 0;
+	} else {
 		ret = EINVAL;
+	}
+	THR_LOCK_RELEASE(curthread, &_keytable_lock);
 	return (ret);
 }
 
 void 
 _thread_cleanupspecific(void)
 {
-	struct pthread	*curthread = _get_curthread();
-	void		(*destructor)( void *);
-	const void	*data = NULL;
-	int		key;
-	int		i;
+	struct pthread *curthread;
+	void (*destructor)(void *);
+	const void *data;
+	int i, key;
 
+	curthread = _get_curthread();
 	if (curthread->specific == NULL)
 		return;
-
-	/* Lock the key table: */
 	THR_LOCK_ACQUIRE(curthread, &_keytable_lock);
-	for (i = 0; (i < PTHREAD_DESTRUCTOR_ITERATIONS) &&
-	    (curthread->specific_data_count > 0); i++) {
-		for (key = 0; (key < PTHREAD_KEYS_MAX) &&
-		    (curthread->specific_data_count > 0); key++) {
+	for (i = 0; i < PTHREAD_DESTRUCTOR_ITERATIONS &&
+	    curthread->specific_data_count > 0; i++) {
+		for (key = 0; key < PTHREAD_KEYS_MAX &&
+		    curthread->specific_data_count > 0; key++) {
 			destructor = NULL;
 
 			if (_thread_keytable[key].allocated &&
@@ -128,31 +121,29 @@ _thread_cleanupspecific(void)
 				if (curthread->specific[key].seqno ==
 				    _thread_keytable[key].seqno) {
 					data = curthread->specific[key].data;
-					destructor = _thread_keytable[key].destructor;
+					destructor = _thread_keytable[key].
+					    destructor;
 				}
 				curthread->specific[key].data = NULL;
 				curthread->specific_data_count--;
-			}
-			else if (curthread->specific[key].data != NULL) {
+			} else if (curthread->specific[key].data != NULL) {
 				/* 
-				 * This can happen if the key is deleted via
-				 * pthread_key_delete without first setting the value
-				 * to NULL in all threads.  POSIX says that the
-				 * destructor is not invoked in this case.
+				 * This can happen if the key is
+				 * deleted via pthread_key_delete
+				 * without first setting the value to
+				 * NULL in all threads.  POSIX says
+				 * that the destructor is not invoked
+				 * in this case.
 				 */
 				curthread->specific[key].data = NULL;
 				curthread->specific_data_count--;
 			}
 
 			/*
-			 * If there is a destructor, call it
-			 * with the key table entry unlocked:
+			 * If there is a destructor, call it with the
+			 * key table entry unlocked.
 			 */
 			if (destructor != NULL) {
-				/*
-				 * Don't hold the lock while calling the
-				 * destructor:
-				 */
 				THR_LOCK_RELEASE(curthread, &_keytable_lock);
 				destructor(__DECONST(void *, data));
 				THR_LOCK_ACQUIRE(curthread, &_keytable_lock);
@@ -160,102 +151,92 @@ _thread_cleanupspecific(void)
 		}
 	}
 	THR_LOCK_RELEASE(curthread, &_keytable_lock);
-	free(curthread->specific);
+	munmap(curthread->specific, PTHREAD_KEYS_MAX * sizeof(struct
+	    pthread_specific_elem));
 	curthread->specific = NULL;
-	if (curthread->specific_data_count > 0)
+	if (curthread->specific_data_count > 0) {
 		stderr_debug("Thread %p has exited with leftover "
 		    "thread-specific data after %d destructor iterations\n",
 		    curthread, PTHREAD_DESTRUCTOR_ITERATIONS);
-}
-
-static inline struct pthread_specific_elem *
-pthread_key_allocate_data(void)
-{
-	struct pthread_specific_elem *new_data;
-
-	new_data = (struct pthread_specific_elem *)
-	    calloc(1, sizeof(struct pthread_specific_elem) * PTHREAD_KEYS_MAX);
-	return (new_data);
+	}
 }
 
 int 
 _pthread_setspecific(pthread_key_t userkey, const void *value)
 {
-	struct pthread	*pthread;
-	pthread_key_t	key = userkey - 1;
-	int		ret = 0;
+	struct pthread *pthread;
+	void *tmp;
+	pthread_key_t key;
 
-	/* Point to the running thread: */
+	key = userkey - 1;
+	if ((unsigned int)key >= PTHREAD_KEYS_MAX ||
+	    !_thread_keytable[key].allocated)
+		return (EINVAL);
+
 	pthread = _get_curthread();
-
-	if ((pthread->specific) ||
-	    (pthread->specific = pthread_key_allocate_data())) {
-		if ((unsigned int)key < PTHREAD_KEYS_MAX) {
-			if (_thread_keytable[key].allocated) {
-				if (pthread->specific[key].data == NULL) {
-					if (value != NULL)
-						pthread->specific_data_count++;
-				} else if (value == NULL)
-					pthread->specific_data_count--;
-				pthread->specific[key].data = value;
-				pthread->specific[key].seqno =
-				    _thread_keytable[key].seqno;
-				ret = 0;
-			} else
-				ret = EINVAL;
-		} else
-			ret = EINVAL;
-	} else
-		ret = ENOMEM;
-	return (ret);
+	if (pthread->specific == NULL) {
+		tmp = mmap(NULL, PTHREAD_KEYS_MAX *
+		    sizeof(struct pthread_specific_elem),
+		    PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+		if (tmp == MAP_FAILED)
+			return (ENOMEM);
+		pthread->specific = tmp;
+	}
+	if (pthread->specific[key].data == NULL) {
+		if (value != NULL)
+			pthread->specific_data_count++;
+	} else if (value == NULL)
+		pthread->specific_data_count--;
+	pthread->specific[key].data = value;
+	pthread->specific[key].seqno = _thread_keytable[key].seqno;
+	return (0);
 }
 
 void *
 _pthread_getspecific(pthread_key_t userkey)
 {
-	struct pthread	*pthread;
-	pthread_key_t	key = userkey - 1;
-	const void	*data;
+	struct pthread *pthread;
+	const void *data;
+	pthread_key_t key;
 
-	/* Point to the running thread: */
+	/* Check if there is specific data. */
+	key = userkey - 1;
+	if ((unsigned int)key >= PTHREAD_KEYS_MAX)
+		return (NULL);
+
 	pthread = _get_curthread();
-
-	/* Check if there is specific data: */
-	if (pthread->specific != NULL && (unsigned int)key < PTHREAD_KEYS_MAX) {
-		/* Check if this key has been used before: */
-		if (_thread_keytable[key].allocated &&
-		    (pthread->specific[key].seqno == _thread_keytable[key].seqno)) {
-			/* Return the value: */
-			data = pthread->specific[key].data;
-		} else {
-			/*
-			 * This key has not been used before, so return NULL
-			 * instead: 
-			 */
-			data = NULL;
-		}
-	} else
-		/* No specific data has been created, so just return NULL: */
+	/* Check if this key has been used before. */
+	if (_thread_keytable[key].allocated && pthread->specific != NULL &&
+	    pthread->specific[key].seqno == _thread_keytable[key].seqno) {
+		/* Return the value: */
+		data = pthread->specific[key].data;
+	} else {
+		/*
+		 * This key has not been used before, so return NULL
+		 * instead.
+		 */
 		data = NULL;
+	}
 	return (__DECONST(void *, data));
 }
 
 void
 _thr_tsd_unload(struct dl_phdr_info *phdr_info)
 {
-	struct pthread *curthread = _get_curthread();
+	struct pthread *curthread;
 	void (*destructor)(void *);
 	int key;
 
+	curthread = _get_curthread();
 	THR_LOCK_ACQUIRE(curthread, &_keytable_lock);
 	for (key = 0; key < PTHREAD_KEYS_MAX; key++) {
-		if (_thread_keytable[key].allocated) {
-			destructor = _thread_keytable[key].destructor;
-			if (destructor != NULL) {
-				if (__elf_phdr_match_addr(phdr_info, destructor))
-					_thread_keytable[key].destructor = NULL;
-			}
-		}
+		if (!_thread_keytable[key].allocated)
+			continue;
+		destructor = _thread_keytable[key].destructor;
+		if (destructor == NULL)
+			continue;
+		if (__elf_phdr_match_addr(phdr_info, destructor))
+			_thread_keytable[key].destructor = NULL;
 	}
 	THR_LOCK_RELEASE(curthread, &_keytable_lock);
 }
