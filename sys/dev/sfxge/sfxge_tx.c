@@ -521,18 +521,10 @@ sfxge_tx_qdpl_service(struct sfxge_txq *txq)
 }
 
 /*
- * Put a packet on the deferred packet list.
- *
- * If we are called with the txq lock held, we put the packet on the "get
- * list", otherwise we atomically push it on the "put list".  The swizzle
- * function takes care of ordering.
- *
- * The length of the put list is bounded by SFXGE_TX_MAX_DEFERRED.  We
- * overload the csum_data field in the mbuf to keep track of this length
- * because there is no cheap alternative to avoid races.
+ * Put a packet on the deferred packet get-list.
  */
 static int
-sfxge_tx_qdpl_put(struct sfxge_txq *txq, struct mbuf *mbuf, int locked)
+sfxge_tx_qdpl_put_locked(struct sfxge_txq *txq, struct mbuf *mbuf)
 {
 	struct sfxge_tx_dpl *stdp;
 
@@ -540,51 +532,65 @@ sfxge_tx_qdpl_put(struct sfxge_txq *txq, struct mbuf *mbuf, int locked)
 
 	KASSERT(mbuf->m_nextpkt == NULL, ("mbuf->m_nextpkt != NULL"));
 
-	if (locked) {
-		SFXGE_TXQ_LOCK_ASSERT_OWNED(txq);
+	SFXGE_TXQ_LOCK_ASSERT_OWNED(txq);
 
-		sfxge_tx_qdpl_swizzle(txq);
-
-		if (stdp->std_get_count >= stdp->std_get_max) {
-			txq->get_overflow++;
+	if (stdp->std_get_count >= stdp->std_get_max) {
+		txq->get_overflow++;
+		return (ENOBUFS);
+	}
+	if (sfxge_is_mbuf_non_tcp(mbuf)) {
+		if (stdp->std_get_non_tcp_count >=
+		    stdp->std_get_non_tcp_max) {
+			txq->get_non_tcp_overflow++;
 			return (ENOBUFS);
 		}
-		if (sfxge_is_mbuf_non_tcp(mbuf)) {
-			if (stdp->std_get_non_tcp_count >=
-			    stdp->std_get_non_tcp_max) {
-				txq->get_non_tcp_overflow++;
-				return (ENOBUFS);
-			}
-			stdp->std_get_non_tcp_count++;
-		}
-
-		*(stdp->std_getp) = mbuf;
-		stdp->std_getp = &mbuf->m_nextpkt;
-		stdp->std_get_count++;
-	} else {
-		volatile uintptr_t *putp;
-		uintptr_t old;
-		uintptr_t new;
-		unsigned old_len;
-
-		putp = &stdp->std_put;
-		new = (uintptr_t)mbuf;
-
-		do {
-			old = *putp;
-			if (old != 0) {
-				struct mbuf *mp = (struct mbuf *)old;
-				old_len = mp->m_pkthdr.csum_data;
-			} else
-				old_len = 0;
-			if (old_len >= stdp->std_put_max) {
-				atomic_add_long(&txq->put_overflow, 1);
-				return (ENOBUFS);
-			}
-			mbuf->m_pkthdr.csum_data = old_len + 1;
-			mbuf->m_nextpkt = (void *)old;
-		} while (atomic_cmpset_ptr(putp, old, new) == 0);
+		stdp->std_get_non_tcp_count++;
 	}
+
+	*(stdp->std_getp) = mbuf;
+	stdp->std_getp = &mbuf->m_nextpkt;
+	stdp->std_get_count++;
+
+	return (0);
+}
+
+/*
+ * Put a packet on the deferred packet put-list.
+ *
+ * We overload the csum_data field in the mbuf to keep track of this length
+ * because there is no cheap alternative to avoid races.
+ */
+static int
+sfxge_tx_qdpl_put_unlocked(struct sfxge_txq *txq, struct mbuf *mbuf)
+{
+	struct sfxge_tx_dpl *stdp;
+	volatile uintptr_t *putp;
+	uintptr_t old;
+	uintptr_t new;
+	unsigned old_len;
+
+	KASSERT(mbuf->m_nextpkt == NULL, ("mbuf->m_nextpkt != NULL"));
+
+	SFXGE_TXQ_LOCK_ASSERT_NOTOWNED(txq);
+
+	stdp = &txq->dpl;
+	putp = &stdp->std_put;
+	new = (uintptr_t)mbuf;
+
+	do {
+		old = *putp;
+		if (old != 0) {
+			struct mbuf *mp = (struct mbuf *)old;
+			old_len = mp->m_pkthdr.csum_data;
+		} else
+			old_len = 0;
+		if (old_len >= stdp->std_put_max) {
+			atomic_add_long(&txq->put_overflow, 1);
+			return (ENOBUFS);
+		}
+		mbuf->m_pkthdr.csum_data = old_len + 1;
+		mbuf->m_nextpkt = (void *)old;
+	} while (atomic_cmpset_ptr(putp, old, new) == 0);
 
 	return (0);
 }
@@ -612,22 +618,29 @@ sfxge_tx_packet_add(struct sfxge_txq *txq, struct mbuf *m)
 	 */
 	locked = SFXGE_TXQ_TRYLOCK(txq);
 
-	if (sfxge_tx_qdpl_put(txq, m, locked) != 0) {
-		if (locked)
-			SFXGE_TXQ_UNLOCK(txq);
-		rc = ENOBUFS;
-		goto fail;
-	}
+	if (locked) {
+		/* First swizzle put-list to get-list to keep order */
+		sfxge_tx_qdpl_swizzle(txq);
 
-	/*
-	 * Try to grab the lock again.
-	 *
-	 * If we are able to get the lock, we need to process the deferred
-	 * packet list.  If we are not able to get the lock, another thread
-	 * is processing the list.
-	 */
-	if (!locked)
+		rc = sfxge_tx_qdpl_put_locked(txq, m);
+		if (rc != 0) {
+			SFXGE_TXQ_UNLOCK(txq);
+			goto fail;
+		}
+	} else {
+		rc = sfxge_tx_qdpl_put_unlocked(txq, m);
+		if (rc != 0)
+			goto fail;
+
+		/*
+		 * Try to grab the lock again.
+		 *
+		 * If we are able to get the lock, we need to process
+		 * the deferred packet list.  If we are not able to get
+		 * the lock, another thread is processing the list.
+		 */
 		locked = SFXGE_TXQ_TRYLOCK(txq);
+	}
 
 	if (locked) {
 		/* Try to service the list. */
