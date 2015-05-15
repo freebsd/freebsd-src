@@ -156,7 +156,8 @@ _Noreturn void	 _Exit(int);
  * If we're in a mode greater than C99, expose C11 functions.
  */
 #if __ISO_C_VISIBLE >= 2011 || __cplusplus >= 201103L
-void *	aligned_alloc(size_t, size_t) __malloc_like __alloc_size(2);
+void *	aligned_alloc(size_t, size_t) __malloc_like __alloc_align(1)
+	    __alloc_size(2);
 int	at_quick_exit(void (*)(void));
 _Noreturn void
 	quick_exit(int);
@@ -171,7 +172,7 @@ char	*realpath(const char * __restrict, char * __restrict);
 int	 rand_r(unsigned *);			/* (TSF) */
 #endif
 #if __POSIX_VISIBLE >= 200112
-int	 posix_memalign(void **, size_t, size_t) __nonnull(1)
+int	 posix_memalign(void **, size_t, size_t) __nonnull(1) __alloc_align(2)
 	    __alloc_size(3);			/* (ADV) */
 int	 setenv(const char *, const char *, int);
 int	 unsetenv(const char *);
