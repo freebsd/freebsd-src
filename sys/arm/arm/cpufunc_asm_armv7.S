@@ -366,9 +366,3 @@ ENTRY(armv7_idcache_inv_all)
 	bx      lr                      @ return
 END(armv7_idcache_inv_all)
 
-ENTRY_NP(armv7_sleep)
-	dsb
-	wfi
-	bx	lr
-END(armv7_sleep)
-
