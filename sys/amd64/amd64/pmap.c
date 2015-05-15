@@ -909,11 +909,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 		 * pc_pcid_next and pc_pcid_gen are initialized by AP
 		 * during pcpu setup.
 		 */
-#ifdef SMP
 		load_cr4(rcr4() | CR4_PCIDE);
-#else
-		pmap_pcid_enabled = 0;
-#endif
 	} else {
 		pmap_pcid_enabled = 0;
 	}
@@ -1559,61 +1555,79 @@ pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
 #else /* !SMP */
 /*
  * Normal, non-SMP, invalidation functions.
- * We inline these within pmap.c for speed.
  */
-PMAP_INLINE void
+void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
 
-	switch (pmap->pm_type) {
-	case PT_X86:
-		if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
-			invlpg(va);
-		break;
-	case PT_RVI:
-	case PT_EPT:
+	if (pmap->pm_type == PT_RVI || pmap->pm_type == PT_EPT) {
 		pmap->pm_eptgen++;
-		break;
-	default:
-		panic("pmap_invalidate_page: unknown type: %d", pmap->pm_type);
+		return;
 	}
+	KASSERT(pmap->pm_type == PT_X86,
+	    ("pmap_invalidate_range: unknown type %d", pmap->pm_type));
+
+	if (pmap == kernel_pmap || pmap == PCPU_GET(curpmap))
+		invlpg(va);
+	else if (pmap_pcid_enabled)
+		pmap->pm_pcids[0].pm_gen = 0;
 }
 
-PMAP_INLINE void
+void
 pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	vm_offset_t addr;
 
-	switch (pmap->pm_type) {
-	case PT_X86:
-		if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
-			for (addr = sva; addr < eva; addr += PAGE_SIZE)
-				invlpg(addr);
-		break;
-	case PT_RVI:
-	case PT_EPT:
+	if (pmap->pm_type == PT_RVI || pmap->pm_type == PT_EPT) {
 		pmap->pm_eptgen++;
-		break;
-	default:
-		panic("pmap_invalidate_range: unknown type: %d", pmap->pm_type);
+		return;
+	}
+	KASSERT(pmap->pm_type == PT_X86,
+	    ("pmap_invalidate_range: unknown type %d", pmap->pm_type));
+
+	if (pmap == kernel_pmap || pmap == PCPU_GET(curpmap)) {
+		for (addr = sva; addr < eva; addr += PAGE_SIZE)
+			invlpg(addr);
+	} else if (pmap_pcid_enabled) {
+		pmap->pm_pcids[0].pm_gen = 0;
 	}
 }
 
-PMAP_INLINE void
+void
 pmap_invalidate_all(pmap_t pmap)
 {
+	struct invpcid_descr d;
 
-	switch (pmap->pm_type) {
-	case PT_X86:
-		if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
-			invltlb();
-		break;
-	case PT_RVI:
-	case PT_EPT:
+	if (pmap->pm_type == PT_RVI || pmap->pm_type == PT_EPT) {
 		pmap->pm_eptgen++;
-		break;
-	default:
-		panic("pmap_invalidate_all: unknown type %d", pmap->pm_type);
+		return;
+	}
+	KASSERT(pmap->pm_type == PT_X86,
+	    ("pmap_invalidate_all: unknown type %d", pmap->pm_type));
+
+	if (pmap == kernel_pmap) {
+		if (pmap_pcid_enabled && invpcid_works) {
+			bzero(&d, sizeof(d));
+			invpcid(&d, INVPCID_CTXGLOB);
+		} else {
+			invltlb_globpcid();
+		}
+	} else if (pmap == PCPU_GET(curpmap)) {
+		if (pmap_pcid_enabled) {
+			if (invpcid_works) {
+				d.pcid = pmap->pm_pcids[0].pm_pcid;
+				d.pad = 0;
+				d.addr = 0;
+				invpcid(&d, INVPCID_CTX);
+			} else {
+				load_cr3(pmap->pm_cr3 | pmap->pm_pcids[0].
+				    pm_pcid);
+			}
+		} else {
+			invltlb();
+		}
+	} else if (pmap_pcid_enabled) {
+		pmap->pm_pcids[0].pm_gen = 0;
 	}
 }
 
@@ -1629,10 +1643,10 @@ pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
 {
 
 	pmap_update_pde_store(pmap, pde, newpde);
-	if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
+	if (pmap == kernel_pmap || pmap == PCPU_GET(curpmap))
 		pmap_update_pde_invalidate(pmap, va, newpde);
 	else
-		CPU_ZERO(&pmap->pm_save);
+		pmap->pm_pcids[0].pm_gen = 0;
 }
 #endif /* !SMP */
 
