@@ -2,7 +2,11 @@
 
 .include <src.opts.mk>
 
-SUBDIR= csu libgcc libgcov libdialog libgomp libregex libreadline
+SUBDIR= csu libgcc libgcov libdialog libregex libreadline
+
+.if ${MK_GCC} != "no"
+SUBDIR+= libgomp
+.endif
 
 .if ${MK_SSP} != "no"
 SUBDIR+= libssp
