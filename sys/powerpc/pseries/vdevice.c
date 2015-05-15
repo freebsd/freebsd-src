@@ -146,7 +146,7 @@ vdevice_attach(device_t dev)
                 }
 		resource_list_init(&dinfo->mdi_resources);
 
-		ofw_bus_intr_to_rl(dev, child, &dinfo->mdi_resources);
+		ofw_bus_intr_to_rl(dev, child, &dinfo->mdi_resources, NULL);
 
                 cdev = device_add_child(dev, NULL, -1);
                 if (cdev == NULL) {

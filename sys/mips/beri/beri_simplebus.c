@@ -198,7 +198,7 @@ simplebus_attach(device_t dev)
 			continue;
 		}
 
-		if (ofw_bus_intr_to_rl(dev, dt_child, &di->di_res)) {
+		if (ofw_bus_intr_to_rl(dev, dt_child, &di->di_res, NULL)) {
 			device_printf(dev, "%s: could not process "
 			    "'interrupts' property\n", di->di_ofw.obd_name);
 			resource_list_free(&di->di_res);

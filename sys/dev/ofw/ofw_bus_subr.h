@@ -75,7 +75,7 @@ int	ofw_bus_search_intrmap(void *, int, void *, int, void *, int, void *,
 /* Routines for parsing device-tree data into resource lists. */
 int ofw_bus_reg_to_rl(device_t, phandle_t, pcell_t, pcell_t,
     struct resource_list *);
-int ofw_bus_intr_to_rl(device_t, phandle_t, struct resource_list *);
+int ofw_bus_intr_to_rl(device_t, phandle_t, struct resource_list *, int *);
 
 /* Helper to get device status property */
 const char *ofw_bus_get_status(device_t dev);

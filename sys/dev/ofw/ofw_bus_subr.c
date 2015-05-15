@@ -430,7 +430,8 @@ ofw_bus_reg_to_rl(device_t dev, phandle_t node, pcell_t acells, pcell_t scells,
 }
 
 int
-ofw_bus_intr_to_rl(device_t dev, phandle_t node, struct resource_list *rl)
+ofw_bus_intr_to_rl(device_t dev, phandle_t node,
+    struct resource_list *rl, int *rlen)
 {
 	phandle_t iparent;
 	uint32_t icells, *intr;
@@ -495,6 +496,8 @@ ofw_bus_intr_to_rl(device_t dev, phandle_t node, struct resource_list *rl)
 		irqnum = ofw_bus_map_intr(dev, iparent, icells, &intr[i]);
 		resource_list_add(rl, SYS_RES_IRQ, rid++, irqnum, irqnum, 1);
 	}
+	if (rlen != NULL)
+		*rlen = rid;
 	free(intr, M_OFWPROP);
 	return (err);
 }
