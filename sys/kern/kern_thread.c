@@ -74,6 +74,8 @@ static struct mtx zombie_lock;
 MTX_SYSINIT(zombie_lock, &zombie_lock, "zombie lock", MTX_SPIN);
 
 static void thread_zombie(struct thread *);
+static int thread_unsuspend_one(struct thread *td, struct proc *p,
+    bool boundary);
 
 #define TID_BUFFER_SIZE	1024
 
@@ -445,7 +447,7 @@ thread_exit(void)
 				if (p->p_numthreads == p->p_suspcount) {
 					thread_lock(p->p_singlethread);
 					wakeup_swapper = thread_unsuspend_one(
-						p->p_singlethread, p);
+						p->p_singlethread, p, false);
 					thread_unlock(p->p_singlethread);
 					if (wakeup_swapper)
 						kick_proc0();
@@ -603,19 +605,19 @@ weed_inhib(int mode, struct thread *td2, struct proc *p)
 	switch (mode) {
 	case SINGLE_EXIT:
 		if (TD_IS_SUSPENDED(td2))
-			wakeup_swapper |= thread_unsuspend_one(td2, p);
+			wakeup_swapper |= thread_unsuspend_one(td2, p, true);
 		if (TD_ON_SLEEPQ(td2) && (td2->td_flags & TDF_SINTR) != 0)
 			wakeup_swapper |= sleepq_abort(td2, EINTR);
 		break;
 	case SINGLE_BOUNDARY:
 		if (TD_IS_SUSPENDED(td2) && (td2->td_flags & TDF_BOUNDARY) == 0)
-			wakeup_swapper |= thread_unsuspend_one(td2, p);
+			wakeup_swapper |= thread_unsuspend_one(td2, p, false);
 		if (TD_ON_SLEEPQ(td2) && (td2->td_flags & TDF_SINTR) != 0)
 			wakeup_swapper |= sleepq_abort(td2, ERESTART);
 		break;
 	case SINGLE_NO_EXIT:
 		if (TD_IS_SUSPENDED(td2) && (td2->td_flags & TDF_BOUNDARY) == 0)
-			wakeup_swapper |= thread_unsuspend_one(td2, p);
+			wakeup_swapper |= thread_unsuspend_one(td2, p, false);
 		if (TD_ON_SLEEPQ(td2) && (td2->td_flags & TDF_SINTR) != 0)
 			wakeup_swapper |= sleepq_abort(td2, ERESTART);
 		break;
@@ -630,7 +632,7 @@ weed_inhib(int mode, struct thread *td2, struct proc *p)
 		 */
 		if (TD_IS_SUSPENDED(td2) && (td2->td_flags & (TDF_BOUNDARY |
 		    TDF_ALLPROCSUSP)) == 0)
-			wakeup_swapper |= thread_unsuspend_one(td2, p);
+			wakeup_swapper |= thread_unsuspend_one(td2, p, false);
 		if (TD_ON_SLEEPQ(td2) && (td2->td_flags & TDF_SINTR) != 0) {
 			if ((td2->td_flags & TDF_SBDRY) == 0) {
 				thread_suspend_one(td2);
@@ -898,8 +900,8 @@ thread_suspend_check(int return_instead)
 		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {
 			if (p->p_numthreads == p->p_suspcount + 1) {
 				thread_lock(p->p_singlethread);
-				wakeup_swapper =
-				    thread_unsuspend_one(p->p_singlethread, p);
+				wakeup_swapper = thread_unsuspend_one(
+				    p->p_singlethread, p, false);
 				thread_unlock(p->p_singlethread);
 				if (wakeup_swapper)
 					kick_proc0();
@@ -918,15 +920,8 @@ thread_suspend_check(int return_instead)
 		}
 		PROC_SUNLOCK(p);
 		mi_switch(SW_INVOL | SWT_SUSPEND, NULL);
-		if (return_instead == 0)
-			td->td_flags &= ~TDF_BOUNDARY;
 		thread_unlock(td);
 		PROC_LOCK(p);
-		if (return_instead == 0) {
-			PROC_SLOCK(p);
-			p->p_boundary_count--;
-			PROC_SUNLOCK(p);
-		}
 	}
 	return (0);
 }
@@ -975,8 +970,8 @@ thread_suspend_one(struct thread *td)
 	sched_sleep(td, 0);
 }
 
-int
-thread_unsuspend_one(struct thread *td, struct proc *p)
+static int
+thread_unsuspend_one(struct thread *td, struct proc *p, bool boundary)
 {
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
@@ -986,6 +981,10 @@ thread_unsuspend_one(struct thread *td, struct proc *p)
 	if (td->td_proc == p) {
 		PROC_SLOCK_ASSERT(p, MA_OWNED);
 		p->p_suspcount--;
+		if (boundary && (td->td_flags & TDF_BOUNDARY) != 0) {
+			td->td_flags &= ~TDF_BOUNDARY;
+			p->p_boundary_count--;
+		}
 	}
 	return (setrunnable(td));
 }
@@ -1006,12 +1005,13 @@ thread_unsuspend(struct proc *p)
                 FOREACH_THREAD_IN_PROC(p, td) {
 			thread_lock(td);
 			if (TD_IS_SUSPENDED(td)) {
-				wakeup_swapper |= thread_unsuspend_one(td, p);
+				wakeup_swapper |= thread_unsuspend_one(td, p,
+				    true);
 			}
 			thread_unlock(td);
 		}
-	} else if ((P_SHOULDSTOP(p) == P_STOPPED_SINGLE) &&
-	    (p->p_numthreads == p->p_suspcount)) {
+	} else if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE &&
+	    p->p_numthreads == p->p_suspcount) {
 		/*
 		 * Stopping everything also did the job for the single
 		 * threading request. Now we've downgraded to single-threaded,
@@ -1020,7 +1020,7 @@ thread_unsuspend(struct proc *p)
 		if (p->p_singlethread->td_proc == p) {
 			thread_lock(p->p_singlethread);
 			wakeup_swapper = thread_unsuspend_one(
-			    p->p_singlethread, p);
+			    p->p_singlethread, p, false);
 			thread_unlock(p->p_singlethread);
 		}
 	}
@@ -1044,6 +1044,12 @@ thread_single_end(struct proc *p, int mode)
 	KASSERT((mode == SINGLE_ALLPROC && (p->p_flag & P_TOTAL_STOP) != 0) ||
 	    (mode != SINGLE_ALLPROC && (p->p_flag & P_TOTAL_STOP) == 0),
 	    ("mode %d does not match P_TOTAL_STOP", mode));
+	KASSERT(mode == SINGLE_ALLPROC || p->p_singlethread == curthread,
+	    ("thread_single_end from other thread %p %p",
+	    curthread, p->p_singlethread));
+	KASSERT(mode != SINGLE_BOUNDARY ||
+	    (p->p_flag & P_SINGLE_BOUNDARY) != 0,
+	    ("mis-matched SINGLE_BOUNDARY flags %x", p->p_flag));
 	p->p_flag &= ~(P_STOPPED_SINGLE | P_SINGLE_EXIT | P_SINGLE_BOUNDARY |
 	    P_TOTAL_STOP);
 	PROC_SLOCK(p);
@@ -1059,11 +1065,14 @@ thread_single_end(struct proc *p, int mode)
                 FOREACH_THREAD_IN_PROC(p, td) {
 			thread_lock(td);
 			if (TD_IS_SUSPENDED(td)) {
-				wakeup_swapper |= thread_unsuspend_one(td, p);
+				wakeup_swapper |= thread_unsuspend_one(td, p,
+				    mode == SINGLE_BOUNDARY);
 			}
 			thread_unlock(td);
 		}
 	}
+	KASSERT(mode != SINGLE_BOUNDARY || p->p_boundary_count == 0,
+	    ("inconsistent boundary count %d", p->p_boundary_count));
 	PROC_SUNLOCK(p);
 	if (wakeup_swapper)
 		kick_proc0();
