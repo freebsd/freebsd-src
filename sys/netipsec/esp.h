@@ -42,8 +42,7 @@ struct esp {
 	/*variable size, 32bit bound*/	/* Initialization Vector */
 	/*variable size*/		/* Payload data */
 	/*variable size*/		/* padding */
-	/*8bit*/			/* pad size */
-	/*8bit*/			/* next header */
+	/*8bit*/			/* pad length */
 	/*8bit*/			/* next header */
 	/*variable size, 32bit bound*/	/* Authentication data (new IPsec) */
 };
@@ -53,8 +52,7 @@ struct newesp {
 	u_int32_t	esp_seq;	/* Sequence number */
 	/*variable size*/		/* (IV and) Payload data */
 	/*variable size*/		/* padding */
-	/*8bit*/			/* pad size */
-	/*8bit*/			/* next header */
+	/*8bit*/			/* pad length */
 	/*8bit*/			/* next header */
 	/*variable size, 32bit bound*/	/* Authentication data */
 };
