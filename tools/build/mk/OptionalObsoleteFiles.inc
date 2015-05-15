@@ -1743,6 +1743,11 @@ OLD_FILES+=usr/include/gcc/4.2/altivec.h
 OLD_FILES+=usr/include/gcc/4.2/ppc-asm.h
 OLD_FILES+=usr/include/gcc/4.2/spe.h
 .endif
+OLD_FILES+=usr/include/omp.h
+OLD_FILES+=usr/lib/libgomp.a
+OLD_FILES+=usr/lib/libgomp.so
+OLD_FILES+=usr/lib/libgomp.so.1
+OLD_FILES+=usr/lib/libgomp_p.a
 OLD_FILES+=usr/libexec/cc1
 OLD_FILES+=usr/libexec/cc1plus
 OLD_FILES+=usr/share/info/cpp.info.gz
