@@ -547,9 +547,9 @@
 #define	__gnu_inline	__attribute__((__gnu_inline__, __artificial__))
 #else
 #define	__gnu_inline	__attribute__((__gnu_inline__))
+#endif /* artificial */
 #else
 #define	__gnu_inline
-#endif
 #endif
 
 /* Compiler-dependent macros that rely on FreeBSD-specific extensions. */
