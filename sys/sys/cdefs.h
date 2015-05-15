@@ -550,6 +550,7 @@
 #else
 #define	__gnu_inline
 #endif
+#endif
 
 /* Compiler-dependent macros that rely on FreeBSD-specific extensions. */
 #if defined(__FreeBSD_cc_version) && __FreeBSD_cc_version >= 300001 && \
