@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #pragma weak __vdso_gettc
 u_int
-__vdso_gettc(const struct vdso_timehands *th)
+__vdso_gettc(const struct vdso_timehands *th __unused)
 {
 
 	return (0);
@@ -41,7 +41,7 @@ __vdso_gettc(const struct vdso_timehands *th)
 
 #pragma weak __vdso_gettimekeep
 int
-__vdso_gettimekeep(struct vdso_timekeep **tk)
+__vdso_gettimekeep(struct vdso_timekeep **tk __unused)
 {
 
 	return (ENOSYS);
