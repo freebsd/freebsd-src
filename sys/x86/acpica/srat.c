@@ -428,7 +428,7 @@ init_mem_locality(void)
 	int i;
 
 	/*
-	 * For now, assume 255 == "no locality information for
+	 * For now, assume -1 == "no locality information for
 	 * this pairing.
 	 */
 	for (i = 0; i < MAXMEMDOM * MAXMEMDOM; i++)
