@@ -282,10 +282,14 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 			ifp->if_hwassist |= (CSUM_TCP_IPV6 | CSUM_UDP_IPV6);
 		else
 			ifp->if_hwassist &= ~(CSUM_TCP_IPV6 | CSUM_UDP_IPV6);
-		if (ifp->if_capenable & IFCAP_TSO)
-			ifp->if_hwassist |= CSUM_TSO;
-		else
-			ifp->if_hwassist &= ~CSUM_TSO;
+
+		/*
+		 * The kernel takes both IFCAP_TSOx and CSUM_TSO into
+		 * account before using TSO. So, we do not touch
+		 * checksum flags when IFCAP_TSOx is modified.
+		 * Note that CSUM_TSO is (CSUM_IP_TSO|CSUM_IP6_TSO),
+		 * but both bits are set in IPv4 and IPv6 mbufs.
+		 */
 
 		SFXGE_ADAPTER_UNLOCK(sc);
 		break;
