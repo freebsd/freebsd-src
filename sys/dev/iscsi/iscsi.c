@@ -425,6 +425,7 @@ iscsi_maintenance_thread_terminate(struct iscsi_session *is)
 	sx_xunlock(&sc->sc_lock);
 
 	icl_conn_close(is->is_conn);
+	callout_drain(&is->is_callout);
 
 	ISCSI_SESSION_LOCK(is);
 
@@ -437,8 +438,6 @@ iscsi_maintenance_thread_terminate(struct iscsi_session *is)
 	}
 	cv_signal(&is->is_login_cv);
 #endif
-
-	callout_drain(&is->is_callout);
 
 	iscsi_session_cleanup(is, true);
 
@@ -515,6 +514,7 @@ iscsi_session_reconnect(struct iscsi_session *is)
 static void
 iscsi_session_terminate(struct iscsi_session *is)
 {
+
 	if (is->is_terminating)
 		return;
 
@@ -536,12 +536,14 @@ iscsi_callout(void *context)
 
 	is = context;
 
-	if (is->is_terminating)
+	ISCSI_SESSION_LOCK(is);
+	if (is->is_terminating) {
+		ISCSI_SESSION_UNLOCK(is);
 		return;
+	}
 
 	callout_schedule(&is->is_callout, 1 * hz);
 
-	ISCSI_SESSION_LOCK(is);
 	is->is_timeout++;
 
 	if (is->is_waiting_for_iscsid) {
