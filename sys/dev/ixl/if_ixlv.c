@@ -1646,7 +1646,6 @@ ixlv_setup_queues(struct ixlv_sc *sc)
 	return (0);
 
 fail:
-	free(vsi->queues, M_DEVBUF);
 	for (int i = 0; i < vsi->num_queues; i++) {
 		que = &vsi->queues[i];
 		rxr = &que->rxr;
@@ -1656,6 +1655,7 @@ fail:
 		if (txr->base)
 			i40e_free_dma_mem(&sc->hw, &txr->dma);
 	}
+	free(vsi->queues, M_DEVBUF);
 
 early:
 	return (error);
