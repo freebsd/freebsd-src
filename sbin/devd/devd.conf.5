@@ -41,7 +41,7 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\"
-.Dd February 22, 2013
+.Dd January 14, 2015
 .Dt DEVD.CONF 5
 .Os
 .Sh NAME
@@ -367,6 +367,33 @@ node is created.
 The
 .Xr devfs 5
 node is destroyed.
+.El
+.El
+.Pp
+.It Li GEOM
+Events related to the
+.Xr geom 4
+framework.
+The difference compared to
+.Li DEVFS
+is that
+.Li GEOM
+only includes disk-like devices.
+.Bl -tag -width ".Sy Subsystem" -compact
+.It Sy Subsystem
+.It Li DEV
+.Bl -tag -width ".Li MEDIACHANGE" -compact
+.It Sy Type
+.It Li CREATE
+A
+.Xr geom 4
+device node is created.
+.It Li DESTROY
+A
+.Xr geom 4
+device node is destroyed.
+.It Li MEDIACHANGE
+Physical media has changed.
 .El
 .El
 .Pp
