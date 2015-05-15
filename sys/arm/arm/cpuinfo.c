@@ -131,8 +131,17 @@ cpuinfo_init(void)
 	cpuinfo.security_ext = (cpuinfo.id_pfr1 >> 4) & 0xF;
 
 	/* L1 Cache sizes */
-	cpuinfo.dcache_line_size = 1 << (CPU_CT_DMINLINE(cpuinfo.ctr ) + 2);
+	if (CPU_CT_FORMAT(cpuinfo.ctr) == CPU_CT_ARMV7) {
+		cpuinfo.dcache_line_size =
+		    1 << (CPU_CT_DMINLINE(cpuinfo.ctr) + 2);
+		cpuinfo.icache_line_size =
+		    1 << (CPU_CT_IMINLINE(cpuinfo.ctr) + 2);
+	} else {
+		cpuinfo.dcache_line_size =
+		    1 << (CPU_CT_xSIZE_LEN(CPU_CT_DSIZE(cpuinfo.ctr)) + 3);
+		cpuinfo.icache_line_size =
+		    1 << (CPU_CT_xSIZE_LEN(CPU_CT_ISIZE(cpuinfo.ctr)) + 3);
+	}
 	cpuinfo.dcache_line_mask = cpuinfo.dcache_line_size - 1;
-	cpuinfo.icache_line_size= 1 << (CPU_CT_IMINLINE(cpuinfo.ctr ) + 2);
 	cpuinfo.icache_line_mask = cpuinfo.icache_line_size - 1;
 }
