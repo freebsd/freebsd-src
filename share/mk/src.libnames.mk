@@ -340,7 +340,7 @@ LIBNTPDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libntp
 LIBNTP?=	${LIBNTPDIR}/libntp.a
 
 LIBNTPEVENTDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libntpevent
-LIBNTPEVENT?=	${LIBNTPDIR}/libntpevent.a
+LIBNTPEVENT?=	${LIBNTPEVENTDIR}/libntpevent.a
 
 LIBOPTSDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libopts
 LIBOTPS?=	${LIBOPTSDIR}/libopts.a
