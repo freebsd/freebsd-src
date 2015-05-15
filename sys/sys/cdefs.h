@@ -391,7 +391,7 @@
 #if __has_builtin(__builtin_unreachable) || __GNUC_PREREQ__(4, 6)
 #define	__unreachable()	__builtin_unreachable()
 #else
-#define	__unreachable()	do {} while (/*CONSTCOND*/0)
+#define	__unreachable()	((void)0)
 #endif
 
 #if __has_attribute(alloc_align) || __GNUC_PREREQ__(4, 9)
