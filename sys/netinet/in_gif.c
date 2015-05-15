@@ -168,13 +168,19 @@ in_gif_input(struct mbuf **mp, int *offp, int proto)
 static int
 gif_validate4(const struct ip *ip, struct gif_softc *sc, struct ifnet *ifp)
 {
+	int ret;
 
 	GIF_RLOCK_ASSERT(sc);
 
 	/* check for address match */
-	if (sc->gif_iphdr->ip_src.s_addr != ip->ip_dst.s_addr ||
-	    sc->gif_iphdr->ip_dst.s_addr != ip->ip_src.s_addr)
+	if (sc->gif_iphdr->ip_src.s_addr != ip->ip_dst.s_addr)
 		return (0);
+	ret = 32;
+	if (sc->gif_iphdr->ip_dst.s_addr != ip->ip_src.s_addr) {
+		if ((sc->gif_options & GIF_IGNORE_SOURCE) == 0)
+			return (0);
+	} else
+		ret += 32;
 
 	/* martian filters on outer source - NOT done in ip_input! */
 	if (IN_MULTICAST(ntohl(ip->ip_src.s_addr)))
@@ -205,7 +211,7 @@ gif_validate4(const struct ip *ip, struct gif_softc *sc, struct ifnet *ifp)
 		}
 		RTFREE_LOCKED(rt);
 	}
-	return (32 * 2);
+	return (ret);
 }
 
 /*
