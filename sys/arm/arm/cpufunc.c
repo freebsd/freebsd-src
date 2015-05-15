@@ -673,7 +673,7 @@ struct cpu_functions cortexa_cpufuncs = {
 	cpufunc_nullop,                 /* flush_brnchtgt_C     */
 	(void *)cpufunc_nullop,         /* flush_brnchtgt_E     */
 	
-	armv7_sleep,                    /* sleep                */
+	armv7_cpu_sleep,                /* sleep                */
 	
 	/* Soft functions */
 	
