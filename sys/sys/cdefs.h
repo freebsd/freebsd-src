@@ -375,10 +375,8 @@
 #endif
 
 #if __GNUC_PREREQ__(4, 1)
-#define	__gnu_inline	__attribute__((__gnu_inline__))
 #define	__returns_twice	__attribute__((__returns_twice__))
 #else
-#define	__gnu_inline
 #define	__returns_twice
 #endif
 
@@ -536,6 +534,21 @@
 	    __attribute__((__format__ (__strfmon__, fmtarg, firstvararg)))
 #define	__strftimelike(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__strftime__, fmtarg, firstvararg)))
+#endif
+
+/*
+ * FORTIFY_SOURCE, and perhaps other compiler-specific features, require
+ * the use of non-standard inlining.  In general we should try to avoid
+ * using these but GCC-compatible compilers tend to support the extensions
+ * well enough to use them in limited cases.
+ */ 
+#if __GNUC_PREREQ__(4, 1)
+#if __has_attribute(artificial) || __GNUC_PREREQ__(4, 3)
+#define	__gnu_inline	__attribute__((__gnu_inline__, __artificial__))
+#else
+#define	__gnu_inline	__attribute__((__gnu_inline__))
+#else
+#define	__gnu_inline
 #endif
 
 /* Compiler-dependent macros that rely on FreeBSD-specific extensions. */
