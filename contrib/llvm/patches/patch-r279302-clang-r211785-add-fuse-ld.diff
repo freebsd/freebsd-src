@@ -1,0 +1,342 @@
+Pull in r211785 from upstream clang trunk (by Logan Chien):
+
+  Implement the -fuse-ld= option.
+
+  This commit implements the -fuse-ld= option, so that the user
+  can specify -fuse-ld=bfd to use ld.bfd.
+
+  This commit re-applies r194328 with some test case changes.
+  It seems that r194328 was breaking macosx or mingw build
+  because clang can't find ld.bfd or ld.gold in the given sysroot.
+  We should use -B to specify the executable search path instead.
+
+  Patch originally by David Chisnall.
+
+Pull in r211786 from upstream clang trunk (by Logan Chien):
+
+  Propset the executables for GetProgramPath().
+
+Introduced here: http://svnweb.freebsd.org/changeset/base/279302
+
+Index: tools/clang/include/clang/Basic/DiagnosticDriverKinds.td
+===================================================================
+--- tools/clang/include/clang/Basic/DiagnosticDriverKinds.td
++++ tools/clang/include/clang/Basic/DiagnosticDriverKinds.td
+@@ -20,6 +20,8 @@ def err_drv_unknown_stdin_type : Error<
+ def err_drv_unknown_language : Error<"language not recognized: '%0'">;
+ def err_drv_invalid_arch_name : Error<
+   "invalid arch name '%0'">;
++def err_drv_invalid_linker_name : Error<
++  "invalid linker name in argument '%0'">;
+ def err_drv_invalid_rtlib_name : Error<
+   "invalid runtime library name in argument '%0'">;
+ def err_drv_unsupported_rtlib_for_platform : Error<
+Index: tools/clang/include/clang/Driver/Options.td
+===================================================================
+--- tools/clang/include/clang/Driver/Options.td
++++ tools/clang/include/clang/Driver/Options.td
+@@ -1453,7 +1453,7 @@ def fprofile_dir : Joined<["-"], "fprofile-dir=">,
+ 
+ defm profile_use : BooleanFFlag<"profile-use">, Group<clang_ignored_f_Group>;
+ def fprofile_use_EQ : Joined<["-"], "fprofile-use=">, Group<clang_ignored_f_Group>;
+-def fuse_ld_EQ : Joined<["-"], "fuse-ld=">, Group<clang_ignored_f_Group>;
++def fuse_ld_EQ : Joined<["-"], "fuse-ld=">, Group<f_Group>;
+ 
+ defm align_functions : BooleanFFlag<"align-functions">, Group<clang_ignored_f_Group>;
+ def falign_functions_EQ : Joined<["-"], "falign-functions=">, Group<clang_ignored_f_Group>;
+Index: tools/clang/include/clang/Driver/ToolChain.h
+===================================================================
+--- tools/clang/include/clang/Driver/ToolChain.h
++++ tools/clang/include/clang/Driver/ToolChain.h
+@@ -150,6 +150,10 @@ class ToolChain {
+   std::string GetFilePath(const char *Name) const;
+   std::string GetProgramPath(const char *Name) const;
+ 
++  /// Returns the linker path, respecting the -fuse-ld= argument to determine
++  /// the linker suffix or name.
++  std::string GetLinkerPath() const;
++
+   /// \brief Dispatch to the specific toolchain for verbose printing.
+   ///
+   /// This is used when handling the verbose option to print detailed,
+Index: tools/clang/lib/Driver/ToolChain.cpp
+===================================================================
+--- tools/clang/lib/Driver/ToolChain.cpp
++++ tools/clang/lib/Driver/ToolChain.cpp
+@@ -15,6 +15,7 @@
+ #include "clang/Driver/Options.h"
+ #include "clang/Driver/SanitizerArgs.h"
+ #include "clang/Driver/ToolChain.h"
++#include "llvm/ADT/SmallString.h"
+ #include "llvm/ADT/StringSwitch.h"
+ #include "llvm/Option/Arg.h"
+ #include "llvm/Option/ArgList.h"
+@@ -146,6 +147,30 @@ std::string ToolChain::GetProgramPath(const char *
+   return D.GetProgramPath(Name, *this);
+ }
+ 
++std::string ToolChain::GetLinkerPath() const {
++  if (Arg *A = Args.getLastArg(options::OPT_fuse_ld_EQ)) {
++    StringRef Suffix = A->getValue();
++
++    // If we're passed -fuse-ld= with no argument, or with the argument ld,
++    // then use whatever the default system linker is.
++    if (Suffix.empty() || Suffix == "ld")
++      return GetProgramPath("ld");
++
++    llvm::SmallString<8> LinkerName("ld.");
++    LinkerName.append(Suffix);
++
++    std::string LinkerPath(GetProgramPath(LinkerName.c_str()));
++    if (llvm::sys::fs::exists(LinkerPath))
++      return LinkerPath;
++
++    getDriver().Diag(diag::err_drv_invalid_linker_name) << A->getAsString(Args);
++    return "";
++  }
++
++  return GetProgramPath("ld");
++}
++
++
+ types::ID ToolChain::LookupTypeForExtension(const char *Ext) const {
+   return types::lookupTypeForExtension(Ext);
+ }
+Index: tools/clang/lib/Driver/ToolChains.cpp
+===================================================================
+--- tools/clang/lib/Driver/ToolChains.cpp
++++ tools/clang/lib/Driver/ToolChains.cpp
+@@ -2420,7 +2420,7 @@ Linux::Linux(const Driver &D, const llvm::Triple &
+   PPaths.push_back(Twine(GCCInstallation.getParentLibPath() + "/../" +
+                          GCCInstallation.getTriple().str() + "/bin").str());
+ 
+-  Linker = GetProgramPath("ld");
++  Linker = GetLinkerPath();
+ 
+   Distro Distro = DetectDistro(Arch);
+ 
+Index: tools/clang/lib/Driver/Tools.cpp
+===================================================================
+--- tools/clang/lib/Driver/Tools.cpp
++++ tools/clang/lib/Driver/Tools.cpp
+@@ -5088,7 +5088,7 @@ void darwin::Link::ConstructJob(Compilation &C, co
+   Args.AddAllArgs(CmdArgs, options::OPT_F);
+ 
+   const char *Exec =
+-    Args.MakeArgString(getToolChain().GetProgramPath("ld"));
++    Args.MakeArgString(getToolChain().GetLinkerPath());
+   C.addCommand(new Command(JA, *this, Exec, CmdArgs));
+ }
+ 
+@@ -5285,7 +5285,7 @@ void solaris::Link::ConstructJob(Compilation &C, c
+   addProfileRT(getToolChain(), Args, CmdArgs, getToolChain().getTriple());
+ 
+   const char *Exec =
+-    Args.MakeArgString(getToolChain().GetProgramPath("ld"));
++    Args.MakeArgString(getToolChain().GetLinkerPath());
+   C.addCommand(new Command(JA, *this, Exec, CmdArgs));
+ }
+ 
+@@ -5397,7 +5397,7 @@ void auroraux::Link::ConstructJob(Compilation &C,
+   addProfileRT(getToolChain(), Args, CmdArgs, getToolChain().getTriple());
+ 
+   const char *Exec =
+-    Args.MakeArgString(getToolChain().GetProgramPath("ld"));
++    Args.MakeArgString(getToolChain().GetLinkerPath());
+   C.addCommand(new Command(JA, *this, Exec, CmdArgs));
+ }
+ 
+@@ -5587,7 +5587,7 @@ void openbsd::Link::ConstructJob(Compilation &C, c
+   }
+ 
+   const char *Exec =
+-    Args.MakeArgString(getToolChain().GetProgramPath("ld"));
++    Args.MakeArgString(getToolChain().GetLinkerPath());
+   C.addCommand(new Command(JA, *this, Exec, CmdArgs));
+ }
+ 
+@@ -5727,7 +5727,7 @@ void bitrig::Link::ConstructJob(Compilation &C, co
+   }
+ 
+   const char *Exec =
+-    Args.MakeArgString(getToolChain().GetProgramPath("ld"));
++    Args.MakeArgString(getToolChain().GetLinkerPath());
+   C.addCommand(new Command(JA, *this, Exec, CmdArgs));
+ }
+ 
+@@ -6016,7 +6016,7 @@ void freebsd::Link::ConstructJob(Compilation &C, c
+   addProfileRT(ToolChain, Args, CmdArgs, ToolChain.getTriple());
+ 
+   const char *Exec =
+-    Args.MakeArgString(ToolChain.GetProgramPath("ld"));
++    Args.MakeArgString(ToolChain.GetLinkerPath());
+   C.addCommand(new Command(JA, *this, Exec, CmdArgs));
+ }
+ 
+@@ -6204,7 +6204,7 @@ void netbsd::Link::ConstructJob(Compilation &C, co
+ 
+   addProfileRT(getToolChain(), Args, CmdArgs, getToolChain().getTriple());
+ 
+-  const char *Exec = Args.MakeArgString(getToolChain().GetProgramPath("ld"));
++  const char *Exec = Args.MakeArgString(getToolChain().GetLinkerPath());
+   C.addCommand(new Command(JA, *this, Exec, CmdArgs));
+ }
+ 
+@@ -6749,7 +6749,7 @@ void minix::Link::ConstructJob(Compilation &C, con
+          Args.MakeArgString(getToolChain().GetFilePath("crtend.o")));
+   }
+ 
+-  const char *Exec = Args.MakeArgString(getToolChain().GetProgramPath("ld"));
++  const char *Exec = Args.MakeArgString(getToolChain().GetLinkerPath());
+   C.addCommand(new Command(JA, *this, Exec, CmdArgs));
+ }
+ 
+@@ -6933,7 +6933,7 @@ void dragonfly::Link::ConstructJob(Compilation &C,
+   addProfileRT(getToolChain(), Args, CmdArgs, getToolChain().getTriple());
+ 
+   const char *Exec =
+-    Args.MakeArgString(getToolChain().GetProgramPath("ld"));
++    Args.MakeArgString(getToolChain().GetLinkerPath());
+   C.addCommand(new Command(JA, *this, Exec, CmdArgs));
+ }
+ 
+Index: tools/clang/test/Driver/Inputs/basic_android_tree/arm-linux-androideabi/bin/ld
+===================================================================
+
+Property changes on: tools/clang/test/Driver/Inputs/basic_android_tree/arm-linux-androideabi/bin/ld
+___________________________________________________________________
+Added: svn:executable
+## -0,0 +1 ##
++*
+\ No newline at end of property
+Index: tools/clang/test/Driver/Inputs/basic_android_tree/arm-linux-androideabi/bin/ld.bfd
+===================================================================
+
+Property changes on: tools/clang/test/Driver/Inputs/basic_android_tree/arm-linux-androideabi/bin/ld.bfd
+___________________________________________________________________
+Added: svn:executable
+## -0,0 +1 ##
++*
+\ No newline at end of property
+Index: tools/clang/test/Driver/Inputs/basic_android_tree/arm-linux-androideabi/bin/ld.gold
+===================================================================
+
+Property changes on: tools/clang/test/Driver/Inputs/basic_android_tree/arm-linux-androideabi/bin/ld.gold
+___________________________________________________________________
+Added: svn:executable
+## -0,0 +1 ##
++*
+\ No newline at end of property
+Index: tools/clang/test/Driver/Inputs/basic_android_tree/bin/arm-linux-androideabi-ld
+===================================================================
+
+Property changes on: tools/clang/test/Driver/Inputs/basic_android_tree/bin/arm-linux-androideabi-ld
+___________________________________________________________________
+Added: svn:executable
+## -0,0 +1 ##
++*
+\ No newline at end of property
+Index: tools/clang/test/Driver/Inputs/basic_android_tree/bin/arm-linux-androideabi-ld.bfd
+===================================================================
+
+Property changes on: tools/clang/test/Driver/Inputs/basic_android_tree/bin/arm-linux-androideabi-ld.bfd
+___________________________________________________________________
+Added: svn:executable
+## -0,0 +1 ##
++*
+\ No newline at end of property
+Index: tools/clang/test/Driver/Inputs/basic_android_tree/bin/arm-linux-androideabi-ld.gold
+===================================================================
+
+Property changes on: tools/clang/test/Driver/Inputs/basic_android_tree/bin/arm-linux-androideabi-ld.gold
+___________________________________________________________________
+Added: svn:executable
+## -0,0 +1 ##
++*
+\ No newline at end of property
+Index: tools/clang/test/Driver/Inputs/basic_freebsd_tree/usr/bin/ld.bfd
+===================================================================
+
+Property changes on: tools/clang/test/Driver/Inputs/basic_freebsd_tree/usr/bin/ld.bfd
+___________________________________________________________________
+Added: svn:executable
+## -0,0 +1 ##
++*
+\ No newline at end of property
+Index: tools/clang/test/Driver/Inputs/basic_freebsd_tree/usr/bin/ld.gold
+===================================================================
+
+Property changes on: tools/clang/test/Driver/Inputs/basic_freebsd_tree/usr/bin/ld.gold
+___________________________________________________________________
+Added: svn:executable
+## -0,0 +1 ##
++*
+\ No newline at end of property
+Index: tools/clang/test/Driver/fuse-ld.c
+===================================================================
+--- tools/clang/test/Driver/fuse-ld.c
++++ tools/clang/test/Driver/fuse-ld.c
+@@ -0,0 +1,63 @@
++// RUN: %clang %s -### \
++// RUN:     -target x86_64-unknown-freebsd 2>&1 \
++// RUN:   | FileCheck %s --check-prefix=CHECK-FREEBSD-LD
++// CHECK-FREEBSD-LD: ld
++
++// RUN: %clang %s -### -fuse-ld=bfd \
++// RUN:     --sysroot=%S/Inputs/basic_freebsd_tree \
++// RUN:     -target x86_64-unknown-freebsd \
++// RUN:     -B%S/Inputs/basic_freebsd_tree/usr/bin 2>&1 \
++// RUN:   | FileCheck %s -check-prefix=CHECK-FREEBSD-BFD
++// CHECK-FREEBSD-BFD: Inputs/basic_freebsd_tree/usr/bin/ld.bfd
++
++// RUN: %clang %s -### -fuse-ld=gold \
++// RUN:     --sysroot=%S/Inputs/basic_freebsd_tree \
++// RUN:     -target x86_64-unknown-freebsd \
++// RUN:     -B%S/Inputs/basic_freebsd_tree/usr/bin 2>&1 \
++// RUN:   | FileCheck %s -check-prefix=CHECK-FREEBSD-GOLD
++// CHECK-FREEBSD-GOLD: Inputs/basic_freebsd_tree/usr/bin/ld.gold
++
++// RUN: %clang %s -### -fuse-ld=plib \
++// RUN:     --sysroot=%S/Inputs/basic_freebsd_tree \
++// RUN:     -target x86_64-unknown-freebsd \
++// RUN:     -B%S/Inputs/basic_freebsd_tree/usr/bin 2>&1 \
++// RUN:   | FileCheck %s -check-prefix=CHECK-FREEBSD-PLIB
++// CHECK-FREEBSD-PLIB: error: invalid linker name
++
++
++
++// RUN: %clang %s -### \
++// RUN:     -target arm-linux-androideabi \
++// RUN:     -B%S/Inputs/basic_android_tree/bin 2>&1 \
++// RUN:   | FileCheck %s --check-prefix=CHECK-ANDROID-ARM-LD
++// CHECK-ANDROID-ARM-LD: Inputs/basic_android_tree/bin/arm-linux-androideabi-ld
++
++// RUN: %clang %s -### -fuse-ld=bfd \
++// RUN:     -target arm-linux-androideabi \
++// RUN:     -B%S/Inputs/basic_android_tree/bin 2>&1 \
++// RUN:   | FileCheck %s -check-prefix=CHECK-ANDROID-ARM-BFD
++// CHECK-ANDROID-ARM-BFD: Inputs/basic_android_tree/bin/arm-linux-androideabi-ld.bfd
++
++// RUN: %clang %s -### -fuse-ld=gold \
++// RUN:     -target arm-linux-androideabi \
++// RUN:     -B%S/Inputs/basic_android_tree/bin 2>&1 \
++// RUN:   | FileCheck %s -check-prefix=CHECK-ANDROID-ARM-GOLD
++// CHECK-ANDROID-ARM-GOLD: Inputs/basic_android_tree/bin/arm-linux-androideabi-ld.gold
++
++// RUN: %clang %s -### \
++// RUN:     -target arm-linux-androideabi \
++// RUN:     -gcc-toolchain %S/Inputs/basic_android_tree 2>&1 \
++// RUN:   | FileCheck %s --check-prefix=CHECK-ANDROID-ARM-LD-TC
++// CHECK-ANDROID-ARM-LD-TC: Inputs/basic_android_tree/lib/gcc/arm-linux-androideabi/4.4.3/../../../../arm-linux-androideabi/bin/ld
++
++// RUN: %clang %s -### -fuse-ld=bfd \
++// RUN:     -target arm-linux-androideabi \
++// RUN:     -gcc-toolchain %S/Inputs/basic_android_tree 2>&1 \
++// RUN:   | FileCheck %s -check-prefix=CHECK-ANDROID-ARM-BFD-TC
++// CHECK-ANDROID-ARM-BFD-TC: Inputs/basic_android_tree/lib/gcc/arm-linux-androideabi/4.4.3/../../../../arm-linux-androideabi/bin/ld.bfd
++
++// RUN: %clang %s -### -fuse-ld=gold \
++// RUN:     -target arm-linux-androideabi \
++// RUN:     -gcc-toolchain %S/Inputs/basic_android_tree 2>&1 \
++// RUN:   | FileCheck %s -check-prefix=CHECK-ANDROID-ARM-GOLD-TC
++// CHECK-ANDROID-ARM-GOLD-TC: Inputs/basic_android_tree/lib/gcc/arm-linux-androideabi/4.4.3/../../../../arm-linux-androideabi/bin/ld.gold
