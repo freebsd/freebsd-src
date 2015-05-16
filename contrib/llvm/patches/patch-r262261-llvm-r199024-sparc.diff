@@ -2,7 +2,7 @@ Pull in r199024 from upstream llvm trunk (by Venkatraman Govindaraju):
 
   [Sparc] Add missing processor types: v7 and niagara
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/Sparc/Sparc.td
 ===================================================================

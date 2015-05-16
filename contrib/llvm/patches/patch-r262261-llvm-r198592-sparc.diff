@@ -2,7 +2,7 @@ Pull in r198592 from upstream llvm trunk (by Venkatraman Govindaraju):
 
   [Sparc] Explicitly cast -1 to unsigned to fix buildbot errors.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/Sparc/Disassembler/SparcDisassembler.cpp
 ===================================================================

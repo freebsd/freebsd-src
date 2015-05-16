@@ -1,7 +1,7 @@
 This patch adds support for the FreeBSD-specific -fformat-extension option,
 which enables additional printf modifiers for the kernel.
 
-Introduced here: http://svn.freebsd.org/changeset/base/208987
+Introduced here: http://svnweb.freebsd.org/changeset/base/208987
 
 Index: tools/clang/lib/Frontend/CompilerInvocation.cpp
 ===================================================================

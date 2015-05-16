@@ -2,7 +2,7 @@ Pull in r198740 from upstream llvm trunk (by Venkatraman Govindaraju):
 
   [SparcV9] Rename operands in some sparc64 instructions so that TableGen can encode them correctly. 
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: test/MC/Sparc/sparc64-alu-instructions.s
 ===================================================================

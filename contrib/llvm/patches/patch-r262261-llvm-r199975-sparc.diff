@@ -4,7 +4,7 @@ Pull in r199975 from upstream llvm trunk (by Jakob Stoklund Olesen):
 
   These all use the compare-and-swap CASA/CASXA instructions.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: test/CodeGen/SPARC/atomics.ll
 ===================================================================

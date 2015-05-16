@@ -16,7 +16,7 @@ Pull in r202930 from upstream llvm trunk (by Hans Wennborg):
 
   Differential Revision: http://llvm-reviews.chandlerc.com/D2954
 
-Introduced here: http://svn.freebsd.org/changeset/base/263312
+Introduced here: http://svnweb.freebsd.org/changeset/base/263312
 
 Index: lib/CodeGen/MachineFunction.cpp
 ===================================================================

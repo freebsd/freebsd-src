@@ -4,7 +4,7 @@ Pull in r200376 from upstream llvm trunk (by Venkatraman Govindaraju):
 
   This makes MCAsmInfo::getExprForFDESymbol() a virtual function and overrides it in SparcMCAsmInfo.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/Sparc/MCTargetDesc/SparcMCAsmInfo.h
 ===================================================================

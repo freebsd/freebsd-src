@@ -15,7 +15,7 @@ Pull in r200899 from upstream clang trunk (by Serge Pavlov):
 
   Differential Revision: http://llvm-reviews.chandlerc.com/D2688
 
-Introduced here: http://svn.freebsd.org/changeset/base/261680
+Introduced here: http://svnweb.freebsd.org/changeset/base/261680
 
 Index: tools/clang/test/SemaCXX/c99-variable-length-array.cpp
 ===================================================================

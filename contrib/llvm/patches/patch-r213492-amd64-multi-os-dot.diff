@@ -1,7 +1,7 @@
 This patch makes "clang -print-multi-os-directory" print "." on amd64, which is
 required by certain ports.
 
-Introduced here: http://svn.freebsd.org/changeset/base/213492
+Introduced here: http://svnweb.freebsd.org/changeset/base/213492
 
 Index: tools/clang/lib/Driver/Driver.cpp
 ===================================================================

@@ -2,7 +2,7 @@ Pull in r199033 from upstream llvm trunk (by Venkatraman Govindaraju):
 
   [Sparc] Add support for parsing floating point instructions.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/Sparc/SparcInstrInfo.td
 ===================================================================
