@@ -605,9 +605,8 @@ sfxge_tx_packet_add(struct sfxge_txq *txq, struct mbuf *m)
 	int rc;
 
 	if (!SFXGE_LINK_UP(txq->sc)) {
-		rc = ENETDOWN;
 		atomic_add_long(&txq->netdown_drops, 1);
-		goto fail;
+		return (ENETDOWN);
 	}
 
 	/*
@@ -622,7 +621,7 @@ sfxge_tx_packet_add(struct sfxge_txq *txq, struct mbuf *m)
 		rc = sfxge_tx_qdpl_put_locked(txq, m);
 		if (rc != 0) {
 			SFXGE_TXQ_UNLOCK(txq);
-			goto fail;
+			return (rc);
 		}
 
 		/* Try to service the list. */
@@ -631,7 +630,7 @@ sfxge_tx_packet_add(struct sfxge_txq *txq, struct mbuf *m)
 	} else {
 		rc = sfxge_tx_qdpl_put_unlocked(txq, m);
 		if (rc != 0)
-			goto fail;
+			return (rc);
 
 		/*
 		 * Try to grab the lock again.
@@ -649,10 +648,6 @@ sfxge_tx_packet_add(struct sfxge_txq *txq, struct mbuf *m)
 	SFXGE_TXQ_LOCK_ASSERT_NOTOWNED(txq);
 
 	return (0);
-
-fail:
-	m_freem(m);
-	return (rc);
 }
 
 static void
@@ -730,6 +725,8 @@ sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m)
 	}
 
 	rc = sfxge_tx_packet_add(txq, m);
+	if (rc != 0)
+		m_freem(m);
 
 	return (rc);
 }
