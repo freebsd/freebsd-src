@@ -12,8 +12,14 @@
 /* Define if the POSIX Semaphores do not work on your system. */
 #undef HAVE_BROKEN_POSIX_SEMAPHORES
 
+/* Define to 1 if the target assembler supports thread-local storage. */
+#undef HAVE_CC_TLS
+
 /* Define to 1 if you have the `clock_gettime' function. */
 #undef HAVE_CLOCK_GETTIME
+
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#undef HAVE_DLFCN_H
 
 /* Define to 1 if you have the `getloadavg' function. */
 #undef HAVE_GETLOADAVG
@@ -23,6 +29,9 @@
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
+
+/* Define if pthread_{,attr_}{g,s}etaffinity_np is supported. */
+#undef HAVE_PTHREAD_AFFINITY_NP
 
 /* Define to 1 if you have the <semaphore.h> header file. */
 #undef HAVE_SEMAPHORE_H
@@ -48,6 +57,9 @@
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
 
+/* Define to 1 if you have the <sys/sysctl.h> header file. */
+#undef HAVE_SYS_SYSCTL_H
+
 /* Define to 1 if you have the <sys/time.h> header file. */
 #undef HAVE_SYS_TIME_H
 
@@ -59,6 +71,10 @@
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
+
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
+#undef LT_OBJDIR
 
 /* Name of package */
 #undef PACKAGE
