@@ -2,7 +2,7 @@ Pull in r199037 from upstream clang trunk (by Jakob Stokund Olesen):
 
   SPARC passes non-trivial C++ objects indirectly like everybody else.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262262
+Introduced here: http://svnweb.freebsd.org/changeset/base/262262
 
 Index: tools/clang/lib/CodeGen/TargetInfo.cpp
 ===================================================================

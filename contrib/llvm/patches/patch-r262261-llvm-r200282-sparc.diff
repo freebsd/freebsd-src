@@ -5,7 +5,7 @@ Pull in r200282 from upstream llvm trunk (by Jakob Stoklund Olesen):
   Also emit the stubs that were generated for references to typeinfo
   symbols.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/Sparc/SparcAsmPrinter.cpp
 ===================================================================

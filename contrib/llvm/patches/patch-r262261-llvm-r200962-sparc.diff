@@ -2,7 +2,7 @@ Pull in r200962 from upstream llvm trunk (by Venkatraman Govindaraju):
 
   [Sparc] Emit relocations for Thread Local Storage (TLS) when integrated assembler is used.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/Sparc/MCTargetDesc/SparcAsmBackend.cpp
 ===================================================================

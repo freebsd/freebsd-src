@@ -1,7 +1,7 @@
 This patch adds "CC" and "clang-CC" to the list of program name aliases which
 invoke the C++ compiler.
 
-Introduced here: http://svn.freebsd.org/changeset/base/257109
+Introduced here: http://svnweb.freebsd.org/changeset/base/257109
 
 Index: tools/clang/tools/driver/driver.cpp
 ===================================================================

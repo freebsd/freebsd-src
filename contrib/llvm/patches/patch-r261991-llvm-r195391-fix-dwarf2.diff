@@ -18,7 +18,7 @@ Pull in r195391 from upstream llvm trunk (by Eric Christopher):
 
   Patch (slightly modified) by Keith Walker!
 
-Introduced here: http://svn.freebsd.org/changeset/base/261991
+Introduced here: http://svnweb.freebsd.org/changeset/base/261991
 
 Index: lib/CodeGen/AsmPrinter/DIE.cpp
 ===================================================================
