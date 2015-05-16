@@ -130,11 +130,11 @@ ldscript.abs:
 ldscript.pie:
 	echo "UBLDR_LOADADDR = 0;" >${.TARGET}
 
-ubldr: ${OBJS} ldscript.abs ${.CURDIR}/ldscript.${MACHINE_CPUARCH}
+ubldr: ${OBJS} ldscript.abs ${.CURDIR}/ldscript.${MACHINE_CPUARCH} ${DPADD}
 	${CC} ${CFLAGS} -T ldscript.abs ${LDFLAGS} \
 	    -o ${.TARGET} ${OBJS} ${LDADD}
 
-ubldr.pie: ${OBJS} ldscript.pie ${.CURDIR}/ldscript.${MACHINE_CPUARCH}
+ubldr.pie: ${OBJS} ldscript.pie ${.CURDIR}/ldscript.${MACHINE_CPUARCH} ${DPADD}
 	${CC} ${CFLAGS} -T ldscript.pie ${LDFLAGS} -pie -Wl,-Bsymbolic \
 	    -o ${.TARGET} ${OBJS} ${LDADD}
 
