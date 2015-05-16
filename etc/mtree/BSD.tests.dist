@@ -185,6 +185,8 @@
         file
         ..
         kern
+            execve
+            ..
         ..
         kqueue
         ..
