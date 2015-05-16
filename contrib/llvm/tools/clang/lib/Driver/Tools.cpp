@@ -499,7 +499,8 @@ static std::string getARMTargetCPU(const ArgList &Args,
     MArch = Triple.getArchName();
   }
 
-  if (Triple.getOS() == llvm::Triple::NetBSD) {
+  if (Triple.getOS() == llvm::Triple::NetBSD ||
+      Triple.getOS() == llvm::Triple::FreeBSD) {
     if (MArch == "armv6")
       return "arm1176jzf-s";
   }
@@ -2988,8 +2989,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   Args.AddLastArg(CmdArgs, options::OPT_femit_all_decls);
   Args.AddLastArg(CmdArgs, options::OPT_fformat_extensions);
   Args.AddLastArg(CmdArgs, options::OPT_fheinous_gnu_extensions);
-  Args.AddLastArg(CmdArgs, options::OPT_flimit_debug_info);
-  Args.AddLastArg(CmdArgs, options::OPT_fno_limit_debug_info);
+  Args.AddLastArg(CmdArgs, options::OPT_fstandalone_debug);
+  Args.AddLastArg(CmdArgs, options::OPT_fno_standalone_debug);
   Args.AddLastArg(CmdArgs, options::OPT_fno_operator_names);
   // AltiVec language extensions aren't relevant for assembling.
   if (!isa<PreprocessJobAction>(JA) || 

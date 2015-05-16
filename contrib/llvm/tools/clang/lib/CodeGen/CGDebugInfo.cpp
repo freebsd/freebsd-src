@@ -760,6 +760,8 @@ llvm::DIType CGDebugInfo::CreateType(const FunctionType *Ty,
   else if (const FunctionProtoType *FPT = dyn_cast<FunctionProtoType>(Ty)) {
     for (unsigned i = 0, e = FPT->getNumArgs(); i != e; ++i)
       EltTys.push_back(getOrCreateType(FPT->getArgType(i), Unit));
+    if (FPT->isVariadic())
+      EltTys.push_back(DBuilder.createUnspecifiedParameter());
   }
 
   llvm::DIArray EltTypeArray = DBuilder.getOrCreateArray(EltTys);
@@ -1454,13 +1456,13 @@ llvm::DIType CGDebugInfo::CreateType(const RecordType *Ty) {
   // declaration. The completeType, completeRequiredType, and completeClassData
   // callbacks will handle promoting the declaration to a definition.
   if (T ||
+      // Under -flimit-debug-info:
       (DebugKind <= CodeGenOptions::LimitedDebugInfo &&
-       // Under -flimit-debug-info, emit only a declaration unless the type is
-       // required to be complete.
-       !RD->isCompleteDefinitionRequired() && CGM.getLangOpts().CPlusPlus) ||
-      // If the class is dynamic, only emit a declaration. A definition will be
-      // emitted whenever the vtable is emitted.
-      (CXXDecl && CXXDecl->hasDefinition() && CXXDecl->isDynamicClass()) || T) {
+       // Emit only a forward declaration unless the type is required.
+       ((!RD->isCompleteDefinitionRequired() && CGM.getLangOpts().CPlusPlus) ||
+        // If the class is dynamic, only emit a declaration. A definition will be
+        // emitted whenever the vtable is emitted.
+        (CXXDecl && CXXDecl->hasDefinition() && CXXDecl->isDynamicClass())))) {
     llvm::DIDescriptor FDContext =
       getContextDescriptor(cast<Decl>(RD->getDeclContext()));
     if (!T)
@@ -2421,6 +2423,20 @@ llvm::DICompositeType CGDebugInfo::getOrCreateFunctionType(const Decl *D,
     llvm::DIArray EltTypeArray = DBuilder.getOrCreateArray(Elts);
     return DBuilder.createSubroutineType(F, EltTypeArray);
   }
+
+  // Variadic function.
+  if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D))
+    if (FD->isVariadic()) {
+      SmallVector<llvm::Value *, 16> EltTys;
+      EltTys.push_back(getOrCreateType(FD->getResultType(), F));
+      if (const FunctionProtoType *FPT = dyn_cast<FunctionProtoType>(FnType))
+        for (unsigned i = 0, e = FPT->getNumArgs(); i != e; ++i)
+          EltTys.push_back(getOrCreateType(FPT->getArgType(i), F));
+      EltTys.push_back(DBuilder.createUnspecifiedParameter());
+      llvm::DIArray EltTypeArray = DBuilder.getOrCreateArray(EltTys);
+      return DBuilder.createSubroutineType(F, EltTypeArray);
+    }
+
   return llvm::DICompositeType(getOrCreateType(FnType, F));
 }
 
