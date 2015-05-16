@@ -4310,7 +4310,13 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	pmap_copy_page_func(VM_PAGE_TO_PHYS(src), VM_PAGE_TO_PHYS(dst));
 }
 
-int unmapped_buf_allowed = 1;
+/*
+ * We have code to do unmapped I/O. However, it isn't quite right
+ * an causes un-page-aligned I/O to devices to fail (most notably
+ * newfs or fsck). We give up a little performance to do this, but
+ * we trade that for rock-solid stability so it is a good trade.
+ */
+int unmapped_buf_allowed = 0;
 
 void
 pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
