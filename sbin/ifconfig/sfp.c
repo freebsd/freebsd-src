@@ -182,6 +182,18 @@ static struct _nv eth_1040g[] = {
 	{ 0, NULL }
 };
 
+/* SFF-8636 Rev. 2.5 table 6.3: Revision compliance */
+static struct _nv rev_compl[] = {
+	{ 0x1, "SFF-8436 rev <=4.8" },
+	{ 0x2, "SFF-8436 rev <=4.8" },
+	{ 0x3, "SFF-8636 rev <=1.3" },
+	{ 0x4, "SFF-8636 rev <=1.4" },
+	{ 0x5, "SFF-8636 rev <=1.5" },
+	{ 0x6, "SFF-8636 rev <=2.0" },
+	{ 0x7, "SFF-8636 rev <=2.5" },
+	{ 0x0, "Unspecified" }
+};
+
 const char *
 find_value(struct _nv *x, int value)
 {
@@ -241,6 +253,19 @@ convert_sff_connector(char *buf, size_t size, uint8_t value)
 		else
 			x = "Vendor specific";
 	}
+
+	snprintf(buf, size, "%s", x);
+}
+
+static void
+convert_sff_rev_compliance(char *buf, size_t size, uint8_t value)
+{
+	const char *x;
+
+	if (value > 0x07)
+		x = "Unallocated";
+	else
+		x = find_value(rev_compl, value);
 
 	snprintf(buf, size, "%s", x);
 }
@@ -604,21 +629,48 @@ get_sfp_tx_power(struct i2c_info *ii, char *buf, size_t size)
 static void
 get_qsfp_rx_power(struct i2c_info *ii, char *buf, size_t size, int chan)
 {
-	char xbuf[2];
+	uint8_t xbuf[2];
 
 	memset(xbuf, 0, sizeof(xbuf));
-	read_i2c(ii, SFF_8436_BASE, SFF_8436_RX_CH1_MSB + (chan - 1) * 2, 2, xbuf);
+	read_i2c(ii, SFF_8436_BASE, SFF_8436_RX_CH1_MSB + (chan-1)*2, 2, xbuf);
 	convert_sff_power(ii, buf, size, xbuf);
 }
 
 static void
 get_qsfp_tx_power(struct i2c_info *ii, char *buf, size_t size, int chan)
 {
-	char xbuf[2];
+	uint8_t xbuf[2];
 
 	memset(xbuf, 0, sizeof(xbuf));
-	read_i2c(ii, SFF_8436_BASE, SFF_8436_TX_CH1_MSB + (chan -1) * 2, 2, xbuf);
+	read_i2c(ii, SFF_8436_BASE, SFF_8436_TX_CH1_MSB + (chan-1)*2, 2, xbuf);
 	convert_sff_power(ii, buf, size, xbuf);
+}
+
+static void
+get_qsfp_rev_compliance(struct i2c_info *ii, char *buf, size_t size)
+{
+	uint8_t xbuf;
+
+	xbuf = 0;
+	read_i2c(ii, SFF_8436_BASE, SFF_8436_STATUS, 1, &xbuf);
+	convert_sff_rev_compliance(buf, size, xbuf);
+}
+
+static uint32_t 
+get_qsfp_br(struct i2c_info *ii)
+{
+	uint8_t xbuf;
+	uint32_t rate;
+
+	xbuf = 0;
+	read_i2c(ii, SFF_8436_BASE, SFF_8436_BITRATE, 1, &xbuf);
+	rate = xbuf * 100;
+	if (xbuf == 0xFF) {
+		read_i2c(ii, SFF_8436_BASE, SFF_8636_BITRATE, 1, &xbuf);
+		rate = xbuf * 250;
+	}
+
+	return (rate);
 }
 
 /*
@@ -689,6 +741,7 @@ print_qsfp_status(struct i2c_info *ii, int verbose)
 {
 	char buf[80], buf2[40], buf3[40];
 	uint8_t diag_type;
+	uint32_t bitrate;
 	int i;
 
 	/* Read diagnostic monitoring type */
@@ -714,6 +767,16 @@ print_qsfp_status(struct i2c_info *ii, int verbose)
 	print_sfp_vendor(ii, buf, sizeof(buf));
 	if (ii->error == 0)
 		printf("\t%s\n", buf);
+
+	if (verbose > 1) {
+		get_qsfp_rev_compliance(ii, buf, sizeof(buf));
+		if (ii->error == 0)
+			printf("\tcompliance level: %s\n", buf);
+
+		bitrate = get_qsfp_br(ii);
+		if (ii->error == 0 && bitrate > 0)
+			printf("\tnominal bitrate: %u Mbps\n", bitrate);
+	}
 
 	/* Request current measurements if they are provided: */
 	if (ii->do_diag != 0) {
