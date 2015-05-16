@@ -1875,7 +1875,7 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 		    &paddr, BUS_DMA_NOWAIT);
 		if (error != 0 && error != EFBIG) {
 			device_printf(sc->sc_dev,
-			    "%s: can't not map mbuf, error %d\n", __func__,
+			    "%s: can't map mbuf, error %d\n", __func__,
 			    error);
 			goto fail;
 		}
@@ -2035,6 +2035,10 @@ iwn_reset_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring)
 			bus_dmamap_unload(ring->data_dmat, data->map);
 			m_freem(data->m);
 			data->m = NULL;
+		}
+		if (data->ni != NULL) {
+			ieee80211_free_node(data->ni);
+			data->ni = NULL;
 		}
 	}
 	/* Clear TX descriptors. */
@@ -2969,7 +2973,7 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 		return;
 	}
 	/* Discard frames that are too short. */
-	if (len < sizeof (*wh)) {
+	if (len < sizeof (struct ieee80211_frame_ack)) {
 		DPRINTF(sc, IWN_DEBUG_RECV, "%s: frame too short: %d\n",
 		    __func__, len);
 		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
@@ -3021,7 +3025,10 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 
 	/* Grab a reference to the source node. */
 	wh = mtod(m, struct ieee80211_frame *);
-	ni = ieee80211_find_rxnode(ic, (struct ieee80211_frame_min *)wh);
+	if (len >= sizeof(struct ieee80211_frame_min))
+		ni = ieee80211_find_rxnode(ic, (struct ieee80211_frame_min *)wh);
+	else
+		ni = NULL;
 	nf = (ni != NULL && ni->ni_vap->iv_state == IEEE80211_S_RUN &&
 	    (ic->ic_flags & IEEE80211_F_SCAN) == 0) ? sc->noise : -95;
 
@@ -4047,8 +4054,10 @@ iwn_intr(void *arg)
 		r2 = 0;	/* Unused. */
 	} else {
 		r1 = IWN_READ(sc, IWN_INT);
-		if (r1 == 0xffffffff || (r1 & 0xfffffff0) == 0xa5a5a5a0)
+		if (r1 == 0xffffffff || (r1 & 0xfffffff0) == 0xa5a5a5a0) {
+			IWN_UNLOCK(sc);
 			return;	/* Hardware gone! */
+		}
 		r2 = IWN_READ(sc, IWN_FH_INT);
 	}
 
@@ -4519,7 +4528,7 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 			return error;
 		}
 		/* Too many DMA segments, linearize mbuf. */
-		m1 = m_collapse(m, M_NOWAIT, IWN_MAX_SCATTER);
+		m1 = m_collapse(m, M_NOWAIT, IWN_MAX_SCATTER - 1);
 		if (m1 == NULL) {
 			device_printf(sc->sc_dev,
 			    "%s: could not defrag mbuf\n", __func__);
@@ -4725,7 +4734,7 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 			return error;
 		}
 		/* Too many DMA segments, linearize mbuf. */
-		m1 = m_collapse(m, M_NOWAIT, IWN_MAX_SCATTER);
+		m1 = m_collapse(m, M_NOWAIT, IWN_MAX_SCATTER - 1);
 		if (m1 == NULL) {
 			device_printf(sc->sc_dev,
 			    "%s: could not defrag mbuf\n", __func__);
@@ -4825,8 +4834,8 @@ iwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		/* NB: m is reclaimed on tx failure */
 		ieee80211_free_node(ni);
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-	}
-	sc->sc_tx_timer = 5;
+	} else
+		sc->sc_tx_timer = 5;
 
 	IWN_UNLOCK(sc);
 
@@ -4872,9 +4881,8 @@ iwn_start_locked(struct ifnet *ifp)
 		if (iwn_tx_data(sc, m, ni) != 0) {
 			ieee80211_free_node(ni);
 			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-			continue;
-		}
-		sc->sc_tx_timer = 5;
+		} else
+			sc->sc_tx_timer = 5;
 	}
 
 	DPRINTF(sc, IWN_DEBUG_XMIT, "%s: done\n", __func__);
@@ -4950,7 +4958,6 @@ iwn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		IWN_LOCK(sc);
 		memset(&sc->last_stat, 0, sizeof(struct iwn_stats));
 		IWN_UNLOCK(sc);
-		error = 0;
 		break;
 	default:
 		error = EINVAL;
@@ -6818,16 +6825,10 @@ iwn_scan(struct iwn_softc *sc, struct ieee80211vap *vap,
 	chan->active = htole16(dwell_active);
 	chan->passive = htole16(dwell_passive);
 
-	if (IEEE80211_IS_CHAN_5GHZ(c) &&
-	    !(c->ic_flags & IEEE80211_CHAN_PASSIVE)) {
+	if (IEEE80211_IS_CHAN_5GHZ(c))
 		chan->rf_gain = 0x3b;
-	} else if (IEEE80211_IS_CHAN_5GHZ(c)) {
-		chan->rf_gain = 0x3b;
-	} else if (!(c->ic_flags & IEEE80211_CHAN_PASSIVE)) {
+	else
 		chan->rf_gain = 0x28;
-	} else {
-		chan->rf_gain = 0x28;
-	}
 
 	DPRINTF(sc, IWN_DEBUG_STATE,
 	    "%s: chan %u flags 0x%x rf_gain 0x%x "
@@ -8809,7 +8810,6 @@ iwn_hw_reset(void *arg0, int pending)
 }
 #ifdef	IWN_DEBUG
 #define	IWN_DESC(x) case x:	return #x
-#define	COUNTOF(array) (sizeof(array) / sizeof(array[0]))
 
 /*
  * Translate CSR code to string
@@ -8880,7 +8880,7 @@ iwn_debug_register(struct iwn_softc *sc)
 	DPRINTF(sc, IWN_DEBUG_REGISTER,
 	    "CSR values: (2nd byte of IWN_INT_COALESCING is IWN_INT_PERIODIC)%s",
 	    "\n");
-	for (i = 0; i <  COUNTOF(csr_tbl); i++){
+	for (i = 0; i <  nitems(csr_tbl); i++){
 		DPRINTF(sc, IWN_DEBUG_REGISTER,"  %10s: 0x%08x ",
 			iwn_get_csr_string(csr_tbl[i]), IWN_READ(sc, csr_tbl[i]));
 		if ((i+1) % 3 == 0)
