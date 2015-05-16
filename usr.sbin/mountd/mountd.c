@@ -1410,6 +1410,9 @@ get_exportlist_one(void)
 			    }
 			    if (check_dirpath(cp) &&
 				statfs(cp, &fsb) >= 0) {
+				if ((fsb.f_flags & MNT_AUTOMOUNTED) != 0)
+				    syslog(LOG_ERR, "Warning: exporting of "
+					"automounted fs %s not supported", cp);
 				if (got_nondir) {
 				    syslog(LOG_ERR, "dirs must be first");
 				    getexp_err(ep, tgrp);
