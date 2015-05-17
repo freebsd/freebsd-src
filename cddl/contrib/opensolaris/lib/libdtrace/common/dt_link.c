@@ -1945,7 +1945,7 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 done:
 	dtrace_dof_destroy(dtp, dof);
 
-#ifdef illumos
+#ifdef __FreeBSD__
 	if (!dtp->dt_lazyload)
 		(void) unlink(tfile);
 #endif
