@@ -236,7 +236,7 @@ pr_rthdr(int af1)
 		xo_emit("{T:/%-8.8s} ","Address");
 	if (Wflag) {
 		xo_emit("{T:/%-*.*s} {T:/%-*.*s} {T:/%-*.*s} {T:/%*.*s} "
-		    "{T:/%*.*s} {T:/%*.*s} {T:/%*.*s} {T:/%*s}\n",
+		    "{T:/%*.*s} {T:/%*.*s} {T:/%*s}\n",
 			wid_dst,	wid_dst,	"Destination",
 			wid_gw,		wid_gw,		"Gateway",
 			wid_flags,	wid_flags,	"Flags",
