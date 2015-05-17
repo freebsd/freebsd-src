@@ -1862,23 +1862,9 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		(void) snprintf(cmd, len, fmt, dtp->dt_ld_path, file, fd, drti);
 #else
 		const char *fmt = "%s -o %s -r %s %s";
+		dt_dirpath_t *dp = dt_list_next(&dtp->dt_lib_path);
 
-#if defined(__amd64__)
-		/*
-		 * Arches which default to 64-bit need to explicitly use
-		 * the 32-bit library path.
-		 */
-		int use_32 = (dtp->dt_oflags & DTRACE_O_ILP32);
-#else
-		/*
-		 * Arches which are 32-bit only just use the normal
-		 * library path.
-		 */
-		int use_32 = 0;
-#endif
-
-		(void) snprintf(drti, sizeof (drti), "/usr/lib%s/dtrace/drti.o",
-		    use_32 ? "32" : "");
+		(void) snprintf(drti, sizeof (drti), "%s/drti.o", dp->dir_path);
 
 		len = snprintf(&tmp, 1, fmt, dtp->dt_ld_path, file, tfile,
 		    drti) + 1;
