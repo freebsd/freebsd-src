@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #include "math.h"
 #include "math_private.h"
 
-static double pzero(double), qzero(double);
+static __inline double pzero(double), qzero(double);
 
 static const volatile double vone = 1, vzero = 0;
 
