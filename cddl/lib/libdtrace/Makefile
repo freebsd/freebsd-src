@@ -50,6 +50,7 @@ DSRCS=		errno.d			\
 		io.d			\
 		ip.d			\
 		psinfo.d		\
+		siftr.d			\
 		signal.d		\
 		tcp.d			\
 		udp.d			\
