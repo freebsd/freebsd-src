@@ -1,0 +1,15 @@
+# $FreeBSD: $
+
+mips/ingenic/apbus.c		optional ingenic_abp
+mips/ingenic/ingenic_com.c	optional uart_ignenic
+mips/ingenic/ingenic_dwctwo.c	optional test
+mips/ingenic/ingenic_ohci.c	optional test
+mips/ingenic/ingenic_ehci.c	optional test
+mips/ingenic/ingenic_dme.c	optional test
+mips/ingenic/jziic.c		optional test
+
+mips/ingenic/ingenic_machdep.c	standard
+mips/mips/intr_machdep.c        standard
+mips/mips/tick.c                standard
+
+dev/hwpmc/hwpmc_mips24k.c	optional hwpmc_mips24k
