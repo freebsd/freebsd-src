@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd May 12, 2015
+.Dd May 15, 2015
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -2428,6 +2428,14 @@ This is for backward compatibility with
 .It Cm -accept_rev_ethip_ver
 Clear a flag
 .Cm accept_rev_ethip_ver .
+.It Cm ignore_source
+Set a flag to accept encapsulated packets destined to this host
+independently from source address.
+This may be useful for hosts, that receive encapsulated packets
+from the load balancers.
+.It Cm -ignore_source
+Clear a flag
+.Cm ignore_source .
 .It Cm send_rev_ethip_ver
 Set a flag to send EtherIP packets with reversed version
 field intentionally.

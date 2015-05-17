@@ -148,6 +148,8 @@ enum sfxge_txq_type {
 	mtx_unlock(&(_txq)->lock)
 #define	SFXGE_TXQ_LOCK_ASSERT_OWNED(_txq)				\
 	mtx_assert(&(_txq)->lock, MA_OWNED)
+#define	SFXGE_TXQ_LOCK_ASSERT_NOTOWNED(_txq)				\
+	mtx_assert(&(_txq)->lock, MA_NOTOWNED)
 
 
 struct sfxge_txq {

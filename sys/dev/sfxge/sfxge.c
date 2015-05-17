@@ -65,8 +65,7 @@ __FBSDID("$FreeBSD$");
 		   IFCAP_JUMBO_MTU | IFCAP_LRO |			\
 		   IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE | IFCAP_HWSTATS)
 #define	SFXGE_CAP_ENABLE SFXGE_CAP
-#define	SFXGE_CAP_FIXED (IFCAP_VLAN_MTU | IFCAP_RXCSUM | IFCAP_VLAN_HWCSUM | \
-			 IFCAP_RXCSUM_IPV6 |				\
+#define	SFXGE_CAP_FIXED (IFCAP_VLAN_MTU | IFCAP_VLAN_HWCSUM |		\
 			 IFCAP_JUMBO_MTU | IFCAP_LINKSTATE | IFCAP_HWSTATS)
 
 MALLOC_DEFINE(M_SFXGE, "sfxge", "Solarflare 10GigE driver");
@@ -259,7 +258,14 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 			sfxge_mac_filter_set(sc);
 		break;
 	case SIOCSIFCAP:
+	{
+		int reqcap = ifr->ifr_reqcap;
+		int capchg_mask;
+
 		SFXGE_ADAPTER_LOCK(sc);
+
+		/* Capabilities to be changed in accordance with request */
+		capchg_mask = ifp->if_capenable ^ reqcap;
 
 		/*
 		 * The networking core already rejects attempts to
@@ -267,28 +273,38 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 		 * to reject attempts to disable capabilities that we
 		 * can't (yet) disable.
 		 */
-		if (~ifr->ifr_reqcap & SFXGE_CAP_FIXED) {
+		KASSERT((reqcap & ~ifp->if_capabilities) == 0,
+		    ("Unsupported capabilities %x requested %x vs %x",
+		     reqcap & ~ifp->if_capabilities,
+		     reqcap , ifp->if_capabilities));
+		if (capchg_mask & SFXGE_CAP_FIXED) {
 			error = EINVAL;
 			SFXGE_ADAPTER_UNLOCK(sc);
 			break;
 		}
 
-		ifp->if_capenable = ifr->ifr_reqcap;
-		if (ifp->if_capenable & IFCAP_TXCSUM)
+		if (reqcap & IFCAP_TXCSUM)
 			ifp->if_hwassist |= (CSUM_IP | CSUM_TCP | CSUM_UDP);
 		else
 			ifp->if_hwassist &= ~(CSUM_IP | CSUM_TCP | CSUM_UDP);
-		if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
+		if (reqcap & IFCAP_TXCSUM_IPV6)
 			ifp->if_hwassist |= (CSUM_TCP_IPV6 | CSUM_UDP_IPV6);
 		else
 			ifp->if_hwassist &= ~(CSUM_TCP_IPV6 | CSUM_UDP_IPV6);
-		if (ifp->if_capenable & IFCAP_TSO)
-			ifp->if_hwassist |= CSUM_TSO;
-		else
-			ifp->if_hwassist &= ~CSUM_TSO;
+
+		/*
+		 * The kernel takes both IFCAP_TSOx and CSUM_TSO into
+		 * account before using TSO. So, we do not touch
+		 * checksum flags when IFCAP_TSOx is modified.
+		 * Note that CSUM_TSO is (CSUM_IP_TSO|CSUM_IP6_TSO),
+		 * but both bits are set in IPv4 and IPv6 mbufs.
+		 */
+
+		ifp->if_capenable = reqcap;
 
 		SFXGE_ADAPTER_UNLOCK(sc);
 		break;
+	}
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &sc->media, command);
