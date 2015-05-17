@@ -118,22 +118,25 @@ Index: tools/clang/lib/Sema/SemaChecking.cpp
 ===================================================================
 --- tools/clang/lib/Sema/SemaChecking.cpp
 +++ tools/clang/lib/Sema/SemaChecking.cpp
-@@ -2980,6 +2980,40 @@ CheckPrintfHandler::HandlePrintfSpecifier(const an
+@@ -2980,6 +2980,42 @@ CheckPrintfHandler::HandlePrintfSpecifier(const an
      CoveredArgs.set(argIndex);
    }
  
-+  // FreeBSD extensions
++  // FreeBSD kernel extensions.
 +  if (CS.getKind() == ConversionSpecifier::FreeBSDbArg ||
 +      CS.getKind() == ConversionSpecifier::FreeBSDDArg) { 
-+    // claim the second argument
++    // We need at least two arguments.
++    if (!CheckNumArgs(FS, CS, startSpecifier, specifierLen, argIndex + 1))
++      return false;
++
++    // Claim the second argument.
 +    CoveredArgs.set(argIndex + 1);
 +
-+    // Now type check the data expression that matches the
-+    // format specifier.
++    // Type check the first argument (int for %b, pointer for %D)
 +    const Expr *Ex = getDataArg(argIndex);
-+    const analyze_printf::ArgType &AT = 
++    const analyze_printf::ArgType &AT =
 +      (CS.getKind() == ConversionSpecifier::FreeBSDbArg) ?
-+        ArgType(S.Context.IntTy) : ArgType::CStrTy;
++        ArgType(S.Context.IntTy) : ArgType::CPointerTy;
 +    if (AT.isValid() && !AT.matchesType(S.Context, Ex->getType()))
 +      S.Diag(getLocationOfByte(CS.getStart()),
 +             diag::warn_printf_conversion_argument_type_mismatch)
@@ -141,8 +144,7 @@ Index: tools/clang/lib/Sema/SemaChecking.cpp
 +        << getSpecifierRange(startSpecifier, specifierLen)
 +        << Ex->getSourceRange();
 +
-+    // Now type check the data expression that matches the
-+    // format specifier.
++    // Type check the second argument (char * for both %b and %D)
 +    Ex = getDataArg(argIndex + 1);
 +    const analyze_printf::ArgType &AT2 = ArgType::CStrTy;
 +    if (AT2.isValid() && !AT2.matchesType(S.Context, Ex->getType()))
@@ -163,7 +165,7 @@ Index: tools/clang/lib/Driver/Tools.cpp
 ===================================================================
 --- tools/clang/lib/Driver/Tools.cpp
 +++ tools/clang/lib/Driver/Tools.cpp
-@@ -2991,6 +2991,7 @@ void Clang::ConstructJob(Compilation &C, const Job
+@@ -2984,6 +2984,7 @@ void Clang::ConstructJob(Compilation &C, const Job
  
    // Forward -f (flag) options which we can pass directly.
    Args.AddLastArg(CmdArgs, options::OPT_femit_all_decls);

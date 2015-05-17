@@ -2980,18 +2980,21 @@ CheckPrintfHandler::HandlePrintfSpecifier(const analyze_printf::PrintfSpecifier
     CoveredArgs.set(argIndex);
   }
 
-  // FreeBSD extensions
+  // FreeBSD kernel extensions.
   if (CS.getKind() == ConversionSpecifier::FreeBSDbArg ||
       CS.getKind() == ConversionSpecifier::FreeBSDDArg) { 
-    // claim the second argument
+    // We need at least two arguments.
+    if (!CheckNumArgs(FS, CS, startSpecifier, specifierLen, argIndex + 1))
+      return false;
+
+    // Claim the second argument.
     CoveredArgs.set(argIndex + 1);
 
-    // Now type check the data expression that matches the
-    // format specifier.
+    // Type check the first argument (int for %b, pointer for %D)
     const Expr *Ex = getDataArg(argIndex);
-    const analyze_printf::ArgType &AT = 
+    const analyze_printf::ArgType &AT =
       (CS.getKind() == ConversionSpecifier::FreeBSDbArg) ?
-        ArgType(S.Context.IntTy) : ArgType::CStrTy;
+        ArgType(S.Context.IntTy) : ArgType::CPointerTy;
     if (AT.isValid() && !AT.matchesType(S.Context, Ex->getType()))
       S.Diag(getLocationOfByte(CS.getStart()),
              diag::warn_printf_conversion_argument_type_mismatch)
@@ -2999,8 +3002,7 @@ CheckPrintfHandler::HandlePrintfSpecifier(const analyze_printf::PrintfSpecifier
         << getSpecifierRange(startSpecifier, specifierLen)
         << Ex->getSourceRange();
 
-    // Now type check the data expression that matches the
-    // format specifier.
+    // Type check the second argument (char * for both %b and %D)
     Ex = getDataArg(argIndex + 1);
     const analyze_printf::ArgType &AT2 = ArgType::CStrTy;
     if (AT2.isValid() && !AT2.matchesType(S.Context, Ex->getType()))
