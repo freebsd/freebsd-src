@@ -543,7 +543,7 @@ db_textdump_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 		db_printf("textdump unset\n");
 	} else if (strcmp(db_tok_string, "dump") == 0) {
 		textdump_pending = 1;
-		doadump(TRUE);
+		doadump(true);
 	} else {
 		db_textdump_usage();
 	}
