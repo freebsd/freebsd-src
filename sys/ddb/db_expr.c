@@ -57,32 +57,32 @@ db_term(db_expr_t *valuep)
 		db_error("Symbol not found\n");
 		/*NOTREACHED*/
 	    }
-	    return (TRUE);
+	    return (true);
 	}
 	if (t == tNUMBER) {
 	    *valuep = (db_expr_t)db_tok_number;
-	    return (TRUE);
+	    return (true);
 	}
 	if (t == tDOT) {
 	    *valuep = (db_expr_t)db_dot;
-	    return (TRUE);
+	    return (true);
 	}
 	if (t == tDOTDOT) {
 	    *valuep = (db_expr_t)db_prev;
-	    return (TRUE);
+	    return (true);
 	}
 	if (t == tPLUS) {
 	    *valuep = (db_expr_t) db_next;
-	    return (TRUE);
+	    return (true);
 	}
 	if (t == tDITTO) {
 	    *valuep = (db_expr_t)db_last_addr;
-	    return (TRUE);
+	    return (true);
 	}
 	if (t == tDOLLAR) {
 	    if (!db_get_variable(valuep))
-		return (FALSE);
-	    return (TRUE);
+		return (false);
+	    return (true);
 	}
 	if (t == tLPAREN) {
 	    if (!db_expression(valuep)) {
@@ -94,10 +94,10 @@ db_term(db_expr_t *valuep)
 		db_error("Syntax error\n");
 		/*NOTREACHED*/
 	    }
-	    return (TRUE);
+	    return (true);
 	}
 	db_unread_token(t);
-	return (FALSE);
+	return (false);
 }
 
 static boolean_t
@@ -112,7 +112,7 @@ db_unary(db_expr_t *valuep)
 		/*NOTREACHED*/
 	    }
 	    *valuep = -*valuep;
-	    return (TRUE);
+	    return (true);
 	}
 	if (t == tSTAR) {
 	    /* indirection */
@@ -120,8 +120,8 @@ db_unary(db_expr_t *valuep)
 		db_error("Syntax error\n");
 		/*NOTREACHED*/
 	    }
-	    *valuep = db_get_value((db_addr_t)*valuep, sizeof(void *), FALSE);
-	    return (TRUE);
+	    *valuep = db_get_value((db_addr_t)*valuep, sizeof(void *), false);
+	    return (true);
 	}
 	db_unread_token(t);
 	return (db_term(valuep));
@@ -134,7 +134,7 @@ db_mult_expr(db_expr_t *valuep)
 	int		t;
 
 	if (!db_unary(&lhs))
-	    return (FALSE);
+	    return (false);
 
 	t = db_read_token();
 	while (t == tSTAR || t == tSLASH || t == tPCT || t == tHASH) {
@@ -160,7 +160,7 @@ db_mult_expr(db_expr_t *valuep)
 	}
 	db_unread_token(t);
 	*valuep = lhs;
-	return (TRUE);
+	return (true);
 }
 
 static boolean_t
@@ -170,7 +170,7 @@ db_add_expr(db_expr_t *valuep)
 	int		t;
 
 	if (!db_mult_expr(&lhs))
-	    return (FALSE);
+	    return (false);
 
 	t = db_read_token();
 	while (t == tPLUS || t == tMINUS) {
@@ -186,7 +186,7 @@ db_add_expr(db_expr_t *valuep)
 	}
 	db_unread_token(t);
 	*valuep = lhs;
-	return (TRUE);
+	return (true);
 }
 
 static boolean_t
@@ -196,7 +196,7 @@ db_shift_expr(db_expr_t *valuep)
 	int		t;
 
 	if (!db_add_expr(&lhs))
-	    return (FALSE);
+	    return (false);
 
 	t = db_read_token();
 	while (t == tSHIFT_L || t == tSHIFT_R) {
@@ -218,7 +218,7 @@ db_shift_expr(db_expr_t *valuep)
 	}
 	db_unread_token(t);
 	*valuep = lhs;
-	return (TRUE);
+	return (true);
 }
 
 int

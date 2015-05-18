@@ -151,7 +151,7 @@ static struct command	*db_last_command = 0;
  * and '+' points to next line.
  * Otherwise: 'dot' points to next item, '..' points to last.
  */
-static boolean_t	db_ed_style = TRUE;
+static boolean_t	db_ed_style = true;
 
 /*
  * Utility routine - discard tokens through end-of-line.
@@ -327,7 +327,7 @@ db_command(struct command **last_cmdp, struct command_table *cmd_table,
 	int		t;
 	char		modif[TOK_STRING_SIZE];
 	db_expr_t	addr, count;
-	boolean_t	have_addr = FALSE;
+	boolean_t	have_addr = false;
 	int		result;
 
 	t = db_read_token();
@@ -335,7 +335,7 @@ db_command(struct command **last_cmdp, struct command_table *cmd_table,
 	    /* empty line repeats last command, at 'next' */
 	    cmd = *last_cmdp;
 	    addr = (db_expr_t)db_next;
-	    have_addr = FALSE;
+	    have_addr = false;
 	    count = 1;
 	    modif[0] = '\0';
 	}
@@ -405,11 +405,11 @@ db_command(struct command **last_cmdp, struct command_table *cmd_table,
 		if (db_expression(&addr)) {
 		    db_dot = (db_addr_t) addr;
 		    db_last_addr = db_dot;
-		    have_addr = TRUE;
+		    have_addr = true;
 		}
 		else {
 		    addr = (db_expr_t) db_dot;
-		    have_addr = FALSE;
+		    have_addr = false;
 		}
 		t = db_read_token();
 		if (t == tCOMMA) {
@@ -530,7 +530,7 @@ db_dump(db_expr_t dummy, boolean_t dummy2, db_expr_t dummy3, char *dummy4)
 		    "run \"textdump unset\" first or \"textdump dump\" for a textdump.\n");
 		return;
 	}
-	error = doadump(FALSE);
+	error = doadump(false);
 	if (error) {
 		db_printf("Cannot dump: ");
 		switch (error) {
