@@ -43,14 +43,14 @@ struct g_command class_commands[] = {
 	    {
 		G_OPT_SENTINEL
 	    },
-	    "[-v] dev ..."
+	    "[-v] prov ..."
 	},
 	{ "destroy", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-fv] prov ..."
+	    "[-fv] name"
 	},
 	G_CMD_SENTINEL
 };
