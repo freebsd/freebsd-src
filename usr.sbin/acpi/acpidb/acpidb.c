@@ -478,7 +478,7 @@ load_dsdt(const char *dsdtfile)
 		return (-1);
 	}
 
-	AcpiDbGetTableFromFile(filetmp, NULL);
+	AcpiDbGetTableFromFile(filetmp, NULL, TRUE);
 
 	AcpiDbInitialize();
 	AcpiGbl_DebuggerConfiguration = 0;

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Name: acenvex.h - Extra host and compiler configuration
+ * Name: acuuid.h - ACPI-related UUID/GUID definitions
  *
  *****************************************************************************/
 
@@ -41,26 +41,24 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#ifndef __ACENVEX_H__
-#define __ACENVEX_H__
+#ifndef __ACUUID_H__
+#define __ACUUID_H__
 
-/*! [Begin] no source code translation */
-
-/******************************************************************************
+/*
+ * Note1: UUIDs and GUIDs are defined to be identical in ACPI.
  *
- * Extra host configuration files. All ACPICA headers are included before
- * including these files.
- *
- *****************************************************************************/
+ * Note2: This file is standalone and should remain that way.
+ */
 
-#if defined(_LINUX) || defined(__linux__)
-#include "aclinuxex.h"
+/* NFIT/NVDIMM */
 
-#elif defined(__DragonFly__)
-#include "acdragonflyex.h"
+#define UUID_VOLATILE_MEMORY            "4F940573-DAFD-E344-B16C-3F22D252E5D0"
+#define UUID_PERSISTENT_MEMORY          "79D3F066-F3B4-7440-AC43-0D3318B78CDB"
+#define UUID_CONTROL_REGION             "F601F792-B413-5D40-910B-299367E8234C"
+#define UUID_DATA_REGION                "3005AF91-865D-0E47-A6B0-0A2DB9408249"
+#define UUID_VOLATILE_VIRTUAL_DISK      "5A53AB77-FC45-4B62-5560-F7B281D1F96E"
+#define UUID_VOLATILE_VIRTUAL_CD        "30BD5A3D-7541-CE87-6D64-D2ADE523C4BB"
+#define UUID_PERSISTENT_VIRTUAL_DISK    "C902EA5C-074D-69D3-269F-4496FBE096F9"
+#define UUID_PERSISTENT_VIRTUAL_CD      "88810108-CD42-48BB-100F-5387D53DED3D"
 
-#endif
-
-/*! [End] no source code translation !*/
-
-#endif /* __ACENVEX_H__ */
+#endif /* __AUUID_H__ */
