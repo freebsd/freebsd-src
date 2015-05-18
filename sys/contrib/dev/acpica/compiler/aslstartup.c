@@ -159,10 +159,10 @@ AslDetectSourceFileType (
 
     /* Check for 100% ASCII source file (comments are ignored) */
 
-    Status = FlCheckForAscii (Info->Handle, Info->Filename, TRUE);
+    Status = FlCheckForAscii (Info->Filename, TRUE);
     if (ACPI_FAILURE (Status))
     {
-        printf ("Non-ascii input file - %s\n", Info->Filename);
+        printf ("Invalid characters in input file - %s\n", Info->Filename);
 
         if (!Gbl_IgnoreErrors)
         {

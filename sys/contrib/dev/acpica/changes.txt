@@ -1,4 +1,52 @@
 ----------------------------------------
+08 April 2015. Summary of changes for version 20150515:
+
+This release implements most of ACPI 6.0 as described below.
+
+1) ACPICA kernel-resident subsystem:
+
+Implemented runtime argument checking and return value checking for all 
+new ACPI 6.0 predefined names. This includes: _BTH, _CR3, _DSD, _LPI, 
+_MTL, _PRR, _RDI, _RST, _TFP, _TSN.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version:  99.9K Code, 27.5K Data, 127.4K Total
+    Debug Version:     195.2K Code, 80.8K Data, 276.0K Total
+  Previous Release:
+    Non-Debug Version:  99.1K Code, 27.3K Data, 126.4K Total
+    Debug Version:     192.8K Code, 79.9K Data, 272.7K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL compiler: Added compile-time support for all new ACPI 6.0 predefined 
+names (argument count validation and return value typechecking.)
+
+iASL disassembler and table compiler: implemented support for all new 
+ACPI 6.0 tables. This includes: DRTM, IORT, LPIT, NFIT, STAO, WPBT, XENV. 
+
+iASL disassembler and table compiler: Added ACPI 6.0 changes to existing 
+tables: FADT, MADT.
+
+iASL preprocessor: Added a new directive to enable inclusion of binary 
+blobs into ASL code. The new directive is #includebinary. It takes a 
+binary file as input and emits a named ascii buffer object into the ASL 
+code.
+
+AcpiHelp: Added support for all new ACPI 6.0 predefined names.
+
+AcpiHelp: Added a new option, -d, to display all iASL preprocessor 
+directives.
+
+AcpiHelp: Added a new option, -t, to display all known/supported ACPI 
+tables.
+
+----------------------------------------
 10 April 2015. Summary of changes for version 20150410:
 
 Reverted a change introduced in version 20150408 that caused

@@ -70,7 +70,10 @@
 #define ACPI_SIG_PCCT           "PCCT"      /* Platform Communications Channel Table */
 #define ACPI_SIG_PMTT           "PMTT"      /* Platform Memory Topology Table */
 #define ACPI_SIG_RASF           "RASF"      /* RAS Feature table */
+#define ACPI_SIG_STAO           "STAO"      /* Status Override table */
 #define ACPI_SIG_TPM2           "TPM2"      /* Trusted Platform Module 2.0 H/W interface table */
+#define ACPI_SIG_WPBT           "WPBT"      /* Windows Platform Binary Table */
+#define ACPI_SIG_XENV           "XENV"      /* Xen Environment table */
 
 #define ACPI_SIG_S3PT           "S3PT"      /* S3 Performance (sub)Table */
 #define ACPI_SIG_PCCS           "PCC"       /* PCC Shared Memory Region */
@@ -79,7 +82,6 @@
 
 #define ACPI_SIG_MATR           "MATR"      /* Memory Address Translation Table */
 #define ACPI_SIG_MSDM           "MSDM"      /* Microsoft Data Management Table */
-#define ACPI_SIG_WPBT           "WPBT"      /* Windows Platform Binary Table */
 
 /*
  * All tables must be byte-packed to match the ACPI specification, since
@@ -123,6 +125,8 @@ typedef struct acpi_table_bgrt
 /*******************************************************************************
  *
  * DRTM - Dynamic Root of Trust for Measurement table
+ * Conforms to "TCG D-RTM Architecture" June 17 2013, Version 1.0.0
+ * Table version 1
  *
  ******************************************************************************/
 
@@ -141,29 +145,50 @@ typedef struct acpi_table_drtm
 
 } ACPI_TABLE_DRTM;
 
-/* 1) Validated Tables List */
+/* Flag Definitions for above */
 
-typedef struct acpi_drtm_vtl_list
+#define ACPI_DRTM_ACCESS_ALLOWED            (1)
+#define ACPI_DRTM_ENABLE_GAP_CODE           (1<<1)
+#define ACPI_DRTM_INCOMPLETE_MEASUREMENTS   (1<<2)
+#define ACPI_DRTM_AUTHORITY_ORDER           (1<<3)
+
+
+/* 1) Validated Tables List (64-bit addresses) */
+
+typedef struct acpi_drtm_vtable_list
 {
-    UINT32                  ValidatedTableListCount;
+    UINT32                  ValidatedTableCount;
+    UINT64                  ValidatedTables[1];
 
-} ACPI_DRTM_VTL_LIST;
+} ACPI_DRTM_VTABLE_LIST;
 
-/* 2) Resources List */
+/* 2) Resources List (of Resource Descriptors) */
+
+/* Resource Descriptor */
+
+typedef struct acpi_drtm_resource
+{
+    UINT8                   Size[7];
+    UINT8                   Type;
+    UINT64                  Address;
+
+} ACPI_DRTM_RESOURCE;
 
 typedef struct acpi_drtm_resource_list
 {
-    UINT32                  ResourceListCount;
+    UINT32                  ResourceCount;
+    ACPI_DRTM_RESOURCE      Resources[1];
 
 } ACPI_DRTM_RESOURCE_LIST;
 
 /* 3) Platform-specific Identifiers List */
 
-typedef struct acpi_drtm_id_list
+typedef struct acpi_drtm_dps_id
 {
-    UINT32                  IdListCount;
+    UINT32                  DpsIdLength;
+    UINT8                   DpsId[16];
 
-} ACPI_DRTM_ID_LIST;
+} ACPI_DRTM_DPS_ID;
 
 
 /*******************************************************************************
@@ -805,6 +830,24 @@ enum AcpiRasfStatus
 
 /*******************************************************************************
  *
+ * STAO - Status Override Table (_STA override) - ACPI 6.0
+ *        Version 1
+ *
+ * Conforms to "ACPI Specification for Status Override Table"
+ * 6 January 2015
+ *
+ ******************************************************************************/
+
+typedef struct acpi_table_stao
+{
+    ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
+    UINT8                   IgnoreUart;
+
+} ACPI_TABLE_STAO;
+
+
+/*******************************************************************************
+ *
  * TPM2 - Trusted Platform Module (TPM) 2.0 Hardware Interface Table
  *        Version 3
  *
@@ -836,6 +879,47 @@ typedef struct acpi_tpm2_control
     UINT64                  ResponseAddress;
 
 } ACPI_TPM2_CONTROL;
+
+
+/*******************************************************************************
+ *
+ * WPBT - Windows Platform Environment Table (ACPI 6.0)
+ *        Version 1
+ *
+ * Conforms to "Windows Platform Binary Table (WPBT)" 29 November 2011
+ *
+ ******************************************************************************/
+
+typedef struct acpi_table_wpbt
+{
+    ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
+    UINT32                  HandoffSize;
+    UINT64                  HandoffAddress;
+    UINT8                   Layout;
+    UINT8                   Type;
+    UINT16                  ArgumentsLength;
+
+} ACPI_TABLE_WPBT;
+
+
+/*******************************************************************************
+ *
+ * XENV - Xen Environment Table (ACPI 6.0)
+ *        Version 1
+ *
+ * Conforms to "ACPI Specification for Xen Environment Table" 4 January 2015
+ *
+ ******************************************************************************/
+
+typedef struct acpi_table_xenv
+{
+    ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
+    UINT64                  GrantTableAddress;
+    UINT64                  GrantTableSize;
+    UINT32                  EventInterrupt;
+    UINT8                   EventFlags;
+
+} ACPI_TABLE_XENV;
 
 
 /* Reset to default packing */
