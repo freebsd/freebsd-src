@@ -96,8 +96,6 @@ device		umass
 device		loop
 device		ether
 device		mii
-device		smscphy
-#device		cpsw
 device		bpf
 
 device		emac
