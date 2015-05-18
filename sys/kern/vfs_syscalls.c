@@ -4158,13 +4158,13 @@ sys_umask(td, uap)
 		int newmask;
 	} */ *uap;
 {
-	register struct filedesc *fdp;
+	struct filedesc *fdp;
 
-	FILEDESC_XLOCK(td->td_proc->p_fd);
 	fdp = td->td_proc->p_fd;
+	FILEDESC_XLOCK(fdp);
 	td->td_retval[0] = fdp->fd_cmask;
 	fdp->fd_cmask = uap->newmask & ALLPERMS;
-	FILEDESC_XUNLOCK(td->td_proc->p_fd);
+	FILEDESC_XUNLOCK(fdp);
 	return (0);
 }
 
