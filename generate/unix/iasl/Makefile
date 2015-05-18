@@ -48,6 +48,7 @@ OBJECTS = \
 	$(OBJDIR)/adwalk.o\
 	$(OBJDIR)/ahids.o\
 	$(OBJDIR)/ahpredef.o\
+	$(OBJDIR)/ahtable.o\
 	$(OBJDIR)/ahuuids.o\
 	$(OBJDIR)/aslanalyze.o\
 	$(OBJDIR)/aslascii.o\

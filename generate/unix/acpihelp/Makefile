@@ -35,6 +35,7 @@ OBJECTS = \
 	$(OBJDIR)/ahids.o\
 	$(OBJDIR)/ahpredef.o\
 	$(OBJDIR)/ahmain.o\
+	$(OBJDIR)/ahtable.o\
 	$(OBJDIR)/ahuuids.o\
 	$(OBJDIR)/getopt.o\
 	$(OBJDIR)/oslibcfs.o\

@@ -80,7 +80,7 @@ OslGetTableViaRoot (
 
 
 /* Hints for RSDP */
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
 #define SYSTEM_KENV         "hint.acpi.0.rsdp"
 #define SYSTEM_SYSCTL       "machdep.acpi_root"
 #elif defined(__NetBSD__)
