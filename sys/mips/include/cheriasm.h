@@ -140,9 +140,9 @@
 	 * adjust $epcc.offset, which will overwrite an earlier $epc	\
 	 * assignment.							\
 	 */								\
+	cmove	CHERI_REG_EPCC, CHERI_REG_KCC;				\
 	MFC0	reg, MIPS_COP_0_EXC_PC;					\
 	csetoffset	CHERI_REG_EPCC, CHERI_REG_EPCC, reg;		\
-	cmove	CHERI_REG_EPCC, CHERI_REG_KCC;				\
 66:
 
 /*
