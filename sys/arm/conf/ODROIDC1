@@ -22,5 +22,8 @@
 include 	"AML8726"
 ident		ODROIDC1
 
+# Interrupt controller
+device		gic
+
 options 	FDT_DTB_STATIC
 makeoptions	FDT_DTS_FILE=odroidc1.dts
