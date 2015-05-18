@@ -112,7 +112,7 @@ db_delete(n, bwd)
 	db_le -= n;
 }
 
-/* returns TRUE at end-of-line */
+/* returns true at end-of-line */
 static int
 db_inputchar(c)
 	int	c;

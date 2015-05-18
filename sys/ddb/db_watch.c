@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
  * Watchpoints.
  */
 
-static boolean_t	db_watchpoints_inserted = TRUE;
+static boolean_t	db_watchpoints_inserted = true;
 
 #define	NWATCHPOINTS	100
 static struct db_watchpoint	db_watch_table[NWATCHPOINTS];
@@ -129,7 +129,7 @@ db_set_watchpoint(vm_map_t map, db_addr_t addr, vm_size_t size)
 	watch->link = db_watchpoint_list;
 	db_watchpoint_list = watch;
 
-	db_watchpoints_inserted = FALSE;
+	db_watchpoints_inserted = false;
 }
 
 static void
@@ -231,14 +231,14 @@ db_set_watchpoints(void)
 			     round_page(watch->hiaddr),
 			     VM_PROT_READ);
 
-	    db_watchpoints_inserted = TRUE;
+	    db_watchpoints_inserted = true;
 	}
 }
 
 void
 db_clear_watchpoints(void)
 {
-	db_watchpoints_inserted = FALSE;
+	db_watchpoints_inserted = false;
 }
 
 #ifdef notused
@@ -254,7 +254,7 @@ db_find_watchpoint(vm_map_t map, db_addr_t addr, db_regs_t regs)
 	    if (db_map_equal(watch->map, map)) {
 		if ((watch->loaddr <= addr) &&
 		    (addr < watch->hiaddr))
-		    return (TRUE);
+		    return (true);
 		else if ((trunc_page(watch->loaddr) <= addr) &&
 			 (addr < round_page(watch->hiaddr)))
 		    found = watch;
@@ -267,11 +267,11 @@ db_find_watchpoint(vm_map_t map, db_addr_t addr, db_regs_t regs)
 	 */
 
 	if (found) {
-	    db_watchpoints_inserted = FALSE;
+	    db_watchpoints_inserted = false;
 	    db_single_step(regs);
 	}
 
-	return (FALSE);
+	return (false);
 }
 #endif
 

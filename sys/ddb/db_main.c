@@ -67,7 +67,7 @@ boolean_t
 X_db_line_at_pc(db_symtab_t *symtab, c_db_sym_t sym, char **file, int *line,
     db_expr_t off)
 {
-	return (FALSE);
+	return (false);
 }
 
 c_db_sym_t
@@ -149,7 +149,7 @@ boolean_t
 X_db_sym_numargs(db_symtab_t *symtab, c_db_sym_t sym, int *nargp,
     char **argp)
 {
-	return (FALSE);
+	return (false);
 }
 
 void
