@@ -87,6 +87,8 @@ __FBSDID("$FreeBSD$");
 #define STORVSC_WIN8_MAJOR 5
 #define STORVSC_WIN8_MINOR 1
 
+#define VSTOR_PKT_SIZE	(sizeof(struct vstor_packet) - vmscsi_size_delta)
+
 #define HV_ALIGN(x, a) roundup2(x, a)
 
 struct storvsc_softc;
@@ -202,6 +204,21 @@ static struct storvsc_driver_props g_drv_props_table[] = {
 	 STORVSC_RINGBUFFER_SIZE}
 };
 
+/*
+ * Sense buffer size changed in win8; have a run-time
+ * variable to track the size we should use.
+ */
+static int sense_buffer_size;
+
+/*
+ * The size of the vmscsi_request has changed in win8. The
+ * additional size is for the newly added elements in the
+ * structure. These elements are valid only when we are talking
+ * to a win8 host.
+ * Track the correct size we need to apply.
+ */
+static int vmscsi_size_delta;
+
 static int storvsc_current_major;
 static int storvsc_current_minor;
 
@@ -214,6 +231,7 @@ static void storvsc_action(struct cam_sim * sim, union ccb * ccb);
 static int create_storvsc_request(union ccb *ccb, struct hv_storvsc_request *reqp);
 static void storvsc_free_request(struct storvsc_softc *sc, struct hv_storvsc_request *reqp);
 static enum hv_storage_type storvsc_get_storage_type(device_t dev);
+static void hv_storvsc_rescan_target(struct storvsc_softc *sc);
 static void hv_storvsc_on_channel_callback(void *context);
 static void hv_storvsc_on_iocompletion( struct storvsc_softc *sc,
 					struct vstor_packet *vstor_packet,
@@ -381,7 +399,7 @@ storvsc_send_multichannel_request(struct hv_device *dev, int max_chans)
 	ret = hv_vmbus_channel_send_packet(
 	    dev->channel,
 	    vstor_packet,
-	    sizeof(struct vstor_packet),
+	    VSTOR_PKT_SIZE,
 	    (uint64_t)(uintptr_t)request,
 	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 	    HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
@@ -448,7 +466,7 @@ hv_storvsc_channel_init(struct hv_device *dev)
 	ret = hv_vmbus_channel_send_packet(
 			dev->channel,
 			vstor_packet,
-			sizeof(struct vstor_packet),
+			VSTOR_PKT_SIZE,
 			(uint64_t)(uintptr_t)request,
 			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 			HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
@@ -481,7 +499,7 @@ hv_storvsc_channel_init(struct hv_device *dev)
 	ret = hv_vmbus_channel_send_packet(
 			dev->channel,
 			vstor_packet,
-			sizeof(struct vstor_packet),
+			VSTOR_PKT_SIZE,
 			(uint64_t)(uintptr_t)request,
 			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 			HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
@@ -510,7 +528,7 @@ hv_storvsc_channel_init(struct hv_device *dev)
 	ret = hv_vmbus_channel_send_packet(
 				dev->channel,
 				vstor_packet,
-				sizeof(struct vstor_packet),
+				VSTOR_PKT_SIZE,
 				(uint64_t)(uintptr_t)request,
 				HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 				HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
@@ -546,7 +564,7 @@ hv_storvsc_channel_init(struct hv_device *dev)
 	ret = hv_vmbus_channel_send_packet(
 			dev->channel,
 			vstor_packet,
-			sizeof(struct vstor_packet),
+			VSTOR_PKT_SIZE,
 			(uint64_t)(uintptr_t)request,
 			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 			HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
@@ -644,7 +662,7 @@ hv_storvsc_host_reset(struct hv_device *dev)
 
 	ret = hv_vmbus_channel_send_packet(dev->channel,
 			vstor_packet,
-			sizeof(struct vstor_packet),
+			VSTOR_PKT_SIZE,
 			(uint64_t)(uintptr_t)&sc->hs_reset_req,
 			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 			HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
@@ -695,9 +713,9 @@ hv_storvsc_io_request(struct hv_device *device,
 
 	vstor_packet->flags |= REQUEST_COMPLETION_FLAG;
 
-	vstor_packet->u.vm_srb.length = sizeof(struct vmscsi_req);
+	vstor_packet->u.vm_srb.length = VSTOR_PKT_SIZE;
 	
-	vstor_packet->u.vm_srb.sense_info_len = SENSE_BUFFER_SIZE;
+	vstor_packet->u.vm_srb.sense_info_len = sense_buffer_size;
 
 	vstor_packet->u.vm_srb.transfer_len = request->data_buf.length;
 
@@ -711,14 +729,14 @@ hv_storvsc_io_request(struct hv_device *device,
 				outgoing_channel,
 				&request->data_buf,
 				vstor_packet,
-				sizeof(struct vstor_packet),
+				VSTOR_PKT_SIZE,
 				(uint64_t)(uintptr_t)request);
 
 	} else {
 		ret = hv_vmbus_channel_send_packet(
 			outgoing_channel,
 			vstor_packet,
-			sizeof(struct vstor_packet),
+			VSTOR_PKT_SIZE,
 			(uint64_t)(uintptr_t)request,
 			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 			HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
@@ -772,6 +790,41 @@ hv_storvsc_on_iocompletion(struct storvsc_softc *sc,
 }
 
 static void
+hv_storvsc_rescan_target(struct storvsc_softc *sc)
+{
+	path_id_t pathid;
+	target_id_t targetid;
+	union ccb *ccb;
+
+	pathid = cam_sim_path(sc->hs_sim);
+	targetid = CAM_TARGET_WILDCARD;
+
+	/*
+	 * Allocate a CCB and schedule a rescan.
+	 */
+	ccb = xpt_alloc_ccb_nowait();
+	if (ccb == NULL) {
+		printf("unable to alloc CCB for rescan\n");
+		return;
+	}
+
+	if (xpt_create_path(&ccb->ccb_h.path, NULL, pathid, targetid,
+	    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+		printf("unable to create path for rescan, pathid: %d,"
+		    "targetid: %d\n", pathid, targetid);
+		xpt_free_ccb(ccb);
+		return;
+	}
+
+	if (targetid == CAM_TARGET_WILDCARD)
+		ccb->ccb_h.func_code = XPT_SCAN_BUS;
+	else
+		ccb->ccb_h.func_code = XPT_SCAN_TGT;
+
+	xpt_rescan(ccb);
+}
+
+static void
 hv_storvsc_on_channel_callback(void *context)
 {
 	int ret = 0;
@@ -801,7 +854,7 @@ hv_storvsc_on_channel_callback(void *context)
 	ret = hv_vmbus_channel_recv_packet(
 			channel,
 			packet,
-			roundup2(sizeof(struct vstor_packet), 8),
+			roundup2(VSTOR_PKT_SIZE, 8),
 			&bytes_recvd,
 			&request_id);
 
@@ -826,10 +879,12 @@ hv_storvsc_on_channel_callback(void *context)
 							vstor_packet, request);
 				break;
 			case VSTOR_OPERATION_REMOVEDEVICE:
-			case VSTOR_OPERATION_ENUMERATE_BUS:
 				printf("VMBUS: storvsc operation %d not "
 				    "implemented.\n", vstor_packet->operation);
 				/* TODO: implement */
+				break;
+			case VSTOR_OPERATION_ENUMERATE_BUS:
+				hv_storvsc_rescan_target(sc);
 				break;
 			default:
 				break;
@@ -838,7 +893,7 @@ hv_storvsc_on_channel_callback(void *context)
 		ret = hv_vmbus_channel_recv_packet(
 				channel,
 				packet,
-				roundup2(sizeof(struct vstor_packet), 8),
+				roundup2(VSTOR_PKT_SIZE, 8),
 				&bytes_recvd,
 				&request_id);
 	}
@@ -861,13 +916,17 @@ storvsc_probe(device_t dev)
 	int ata_disk_enable = 0;
 	int ret	= ENXIO;
 	
-	if ((HV_VMBUS_VERSION_WIN8 == hv_vmbus_protocal_version) ||
-	    (HV_VMBUS_VERSION_WIN8_1 == hv_vmbus_protocal_version)){
-		storvsc_current_major = STORVSC_WIN8_MAJOR;
-		storvsc_current_minor = STORVSC_WIN8_MINOR;
-	} else {
+	if (hv_vmbus_protocal_version == HV_VMBUS_VERSION_WS2008 ||
+	    hv_vmbus_protocal_version == HV_VMBUS_VERSION_WIN7) {
+		sense_buffer_size = PRE_WIN8_STORVSC_SENSE_BUFFER_SIZE;
+		vmscsi_size_delta = sizeof(struct vmscsi_win8_extension);
 		storvsc_current_major = STORVSC_WIN7_MAJOR;
 		storvsc_current_minor = STORVSC_WIN7_MINOR;
+	} else {
+		sense_buffer_size = POST_WIN7_STORVSC_SENSE_BUFFER_SIZE;
+		vmscsi_size_delta = 0;
+		storvsc_current_major = STORVSC_WIN8_MAJOR;
+		storvsc_current_minor = STORVSC_WIN8_MINOR;
 	}
 	
 	switch (storvsc_get_storage_type(dev)) {
