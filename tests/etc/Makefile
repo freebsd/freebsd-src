@@ -4,7 +4,9 @@
 
 TESTSDIR=	${TESTSBASE}/etc
 
-.PATH:		${.CURDIR:H:H}/tests
+.PATH:		${.CURDIR:H}
 KYUAFILE=	yes
+
+SUBDIR+=	rc.d
 
 .include <bsd.test.mk>
