@@ -1,6 +1,7 @@
 /******************************************************************************
  *
- * Module Name: ahaslkey - Table of all known ASL non-operator keywords
+ * Module Name: ahaslkey - Table of all known ASL non-operator keywords and
+ *                         table of iASL Preprocessor directives
  *
  *****************************************************************************/
 
@@ -146,4 +147,32 @@ const AH_ASL_KEYWORD        AslKeywordInfo[] =
     {"XferTypeKeyword", "DMA Transfer Types",
         ":= Transfer8 | Transfer16 | Transfer8_16"},
     {NULL, NULL, NULL}
+};
+
+/* Preprocessor directives */
+
+const AH_DIRECTIVE_INFO      PreprocessorDirectives[] =
+{
+    {"#define",         "OriginalName, DefinedName"},
+    {"#elif",           "Expression"},
+    {"#else",           ""},
+    {"#endif",          ""},
+    {"#error",          "Message"},
+    {"#if",             "Expression"},
+    {"#ifdef",          "DefinedName"},
+    {"#ifndef",         "DefinedName"},
+    {"#include",        "\"Filename\""},
+    {"#include",        "<Filename>"},
+    {"#includebuffer",  "\"Filename\""},
+    {"#includebuffer",  "<Filename>"},
+    {"#line",           ""},
+    {"#pragma",         "Disable error-number"},
+    {"#pragma",         "Message"},
+    {"#undef",          "DefinedName"},
+    {"#warning",        ""},
+    {"__DATE__",        "Returns current date"},
+    {"__FILE__",        "Returns name of current ASL file"},
+    {"__LINE__",        "Returns line number in ASL file"},
+    {"__PATH__",        "Returns full pathname of current ASL file"},
+    {NULL,              0}
 };

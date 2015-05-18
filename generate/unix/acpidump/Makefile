@@ -51,6 +51,10 @@ OBJECTS = \
 #
 # Per-host interfaces
 #
+ifeq ($(HOST), _DragonFly)
+HOST_FAMILY = BSD
+endif
+
 ifeq ($(HOST), _FreeBSD)
 HOST_FAMILY = BSD
 endif

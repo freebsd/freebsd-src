@@ -60,6 +60,7 @@
 static char         Gbl_Buffer[BUFFER_LENGTH];
 static char         Gbl_LineBuffer[LINE_BUFFER_LENGTH];
 
+
 /* Local prototypes */
 
 static BOOLEAN
@@ -99,6 +100,22 @@ AhPrintOneField (
     const char              *Field);
 
 
+void
+AhDisplayDirectives (
+    void)
+{
+    const AH_DIRECTIVE_INFO *Info;
+
+
+    printf ("iASL Preprocessor directives:\n\n");
+
+    for (Info = PreprocessorDirectives; Info->Name; Info++)
+    {
+        printf ("%16s : %s\n", Info->Name, Info->Operands);
+    }
+}
+
+
 /*******************************************************************************
  *
  * FUNCTION:    AhFindPredefinedNames (entry point for predefined name search)
@@ -125,7 +142,7 @@ AhFindPredefinedNames (
 
     if (!NamePrefix)
     {
-        Found = AhDisplayPredefinedName (Name, 0);
+        Found = AhDisplayPredefinedName (NULL, 0);
         return;
     }
 
@@ -176,7 +193,7 @@ AhDisplayPredefinedName (
     const AH_PREDEFINED_NAME    *Info;
     BOOLEAN                     Found = FALSE;
     BOOLEAN                     Matched;
-    UINT32                      i;
+    UINT32                      i = 0;
 
 
     /* Find/display all names that match the input name prefix */
@@ -190,6 +207,7 @@ AhDisplayPredefinedName (
             printf ("%*s%s\n", 6, " ", Info->Action);
 
             AhDisplayPredefinedInfo (Info->Name);
+            i++;
             continue;
         }
 
@@ -213,6 +231,10 @@ AhDisplayPredefinedName (
         }
     }
 
+    if (!Name)
+    {
+        printf ("\nFound %d Predefined ACPI Names\n", i);
+    }
     return (Found);
 }
 
@@ -896,6 +918,38 @@ AhDisplayUuids (
     {
         printf ("%32s : %s\n", Info->Description, Info->String);
     }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AhDisplayTables
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Display all known ACPI tables
+ *
+ ******************************************************************************/
+
+void
+AhDisplayTables (
+    void)
+{
+    const AH_TABLE          *Info;
+    UINT32                  i = 0;
+
+
+    printf ("Known ACPI tables:\n");
+
+    for (Info = AcpiSupportedTables; Info->Signature; Info++)
+    {
+        printf ("%8s : %s\n", Info->Signature, Info->Description);
+        i++;
+    }
+
+    printf ("\nTotal %u ACPI tables\n\n", i);
 }
 
 

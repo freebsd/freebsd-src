@@ -72,6 +72,9 @@
  *
  *****************************************************************************/
 
+extern const UINT8      AcpiGbl_ShortOpIndex[];
+extern const UINT8      AcpiGbl_LongOpIndex[];
+
 
 /*
  * psxface - Parser external interfaces
