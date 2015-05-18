@@ -27,7 +27,6 @@ options 	HZ=100
 options 	SCHED_ULE		# ULE scheduler
 options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	LINUX_BOOT_ABI
-options 	SMP			# Enable multiple cores
 
 # Debugging
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
@@ -52,15 +51,15 @@ options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 #options 	BOOTP_NFSV3
 #options 	BOOTP_WIRED_TO=axe0
 
+# Interrupt controller
+device		aml_pic
+
 # MMC/SD/SDIO Card slot support
 device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
 
 # Boot device is 2nd slice on MMC/SD card
 options 	ROOTDEVNAME=\"ufs:mmcsd0s2\"
-
-# Interrupt controller
-device		gic
 
 # GPIO
 device		gpio

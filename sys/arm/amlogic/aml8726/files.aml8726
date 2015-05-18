@@ -13,7 +13,7 @@ arm/amlogic/aml8726/aml8726_mp.c		optional	smp
 arm/amlogic/aml8726/aml8726_identsoc.c		standard
 arm/amlogic/aml8726/aml8726_ccm.c		standard
 arm/amlogic/aml8726/aml8726_clkmsr.c		standard
-arm/amlogic/aml8726/aml8726_pic.c		standard
+arm/amlogic/aml8726/aml8726_pic.c		optional	aml_pic
 arm/amlogic/aml8726/aml8726_rtc.c		standard
 arm/amlogic/aml8726/aml8726_timer.c		standard
 arm/amlogic/aml8726/aml8726_wdt.c		standard
