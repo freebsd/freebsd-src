@@ -19,8 +19,8 @@
 
 ident		ALPINE
 
-include		"std.armv6"
-include		"../annapurna/alpine/std.alpine"
+include 	"std.armv6"
+include 	"../annapurna/alpine/std.alpine"
 
 makeoptions	MODULES_OVERRIDE=""
 makeoptions	WERROR="-Werror"
@@ -34,11 +34,6 @@ makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 options 	BREAK_TO_DEBUGGER
 options 	KDB
 options 	DDB			#Enable the kernel debugger
-
-# NFS support
-options 	NFSCL			#Network Filesystem Client
-options 	NFSLOCKD		#Network Lock Manager
-options 	NFS_ROOT		#NFS usable as /, requires NFSCLIENT
 
 # Interrupt controller
 device		gic
