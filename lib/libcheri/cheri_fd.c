@@ -250,7 +250,7 @@ cheri_fd_read(__capability void *buf_c, size_t nbytes)
 
 	/* Forward to operating system. */
 	ret.cfr_retval0 = read(cfp->cf_fd, buf,
-	    min(nbytes, cheri_getlen(buf_c)));
+	    min(nbytes, cheri_getlen(buf_c) - cheri_getoffset(buf_c)));
 	ret.cfr_retval1 = (ret.cfr_retval0 < 0 ? errno : 0);
 	return (ret);
 }
@@ -285,7 +285,7 @@ cheri_fd_write(__capability const void *buf_c, size_t nbytes)
 
 	/* Forward to operating system. */
 	ret.cfr_retval0 = write(cfp->cf_fd, buf,
-	    min(nbytes, cheri_getlen(buf_c)));
+	    min(nbytes, cheri_getlen(buf_c) - cheri_getoffset(buf_c)));
 	ret.cfr_retval1 = (ret.cfr_retval0 < 0 ? errno : 0);
 	return (ret);
 }
