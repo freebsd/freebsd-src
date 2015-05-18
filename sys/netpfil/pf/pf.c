@@ -5903,13 +5903,14 @@ done:
 		    ((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
 			action = PF_DROP;
 			REASON_SET(&reason, PFRES_MEMORY);
+		} else {
+			if (pqid || (pd.tos & IPTOS_LOWDELAY))
+				pd.pf_mtag->qid = r->pqid;
+			else
+				pd.pf_mtag->qid = r->qid;
+			/* Add hints for ecn. */
+			pd.pf_mtag->hdr = h;
 		}
-		if (pqid || (pd.tos & IPTOS_LOWDELAY))
-			pd.pf_mtag->qid = r->pqid;
-		else
-			pd.pf_mtag->qid = r->qid;
-		/* add hints for ecn */
-		pd.pf_mtag->hdr = h;
 
 	}
 #endif /* ALTQ */
@@ -6332,13 +6333,14 @@ done:
 		    ((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
 			action = PF_DROP;
 			REASON_SET(&reason, PFRES_MEMORY);
+		} else {
+			if (pd.tos & IPTOS_LOWDELAY)
+				pd.pf_mtag->qid = r->pqid;
+			else
+				pd.pf_mtag->qid = r->qid;
+			/* Add hints for ecn. */
+			pd.pf_mtag->hdr = h;
 		}
-		if (pd.tos & IPTOS_LOWDELAY)
-			pd.pf_mtag->qid = r->pqid;
-		else
-			pd.pf_mtag->qid = r->qid;
-		/* add hints for ecn */
-		pd.pf_mtag->hdr = h;
 	}
 #endif /* ALTQ */
 
