@@ -1331,14 +1331,9 @@ Zone America/Moncton	-4:19:08 -	LMT	1883 Dec  9
 
 # Quebec
 
-# From Paul Eggert (2013-08-30):
-# Since 1970 most of Quebec has been like Toronto.
-# However, because earlier versions of the tz database mistakenly relied on data
-# from Shanks & Pottenger saying that Quebec differed from Ontario after 1970,
-# a separate entry was created for most of Quebec.  We're loath to lose
-# its pre-1970 info, even though the tz database is normally limited to
-# zones that differ after 1970, so keep this otherwise out-of-scope entry.
-
+# From Paul Eggert (2015-03-24):
+# See America/Toronto for most of Quebec, including Montreal.
+#
 # Matthews and Vincent (1998) also write that Quebec east of the -63
 # meridian is supposed to observe AST, but residents as far east as
 # Natashquan use EST/EDT, and residents east of Natashquan use AST.
@@ -1352,39 +1347,10 @@ Zone America/Moncton	-4:19:08 -	LMT	1883 Dec  9
 # For lack of better info, guess this practice began around 1970, contra to
 # Shanks & Pottenger who have this region observing AST/ADT.
 
-# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Mont	1917	only	-	Mar	25	2:00	1:00	D
-Rule	Mont	1917	only	-	Apr	24	0:00	0	S
-Rule	Mont	1919	only	-	Mar	31	2:30	1:00	D
-Rule	Mont	1919	only	-	Oct	25	2:30	0	S
-Rule	Mont	1920	only	-	May	 2	2:30	1:00	D
-Rule	Mont	1920	1922	-	Oct	Sun>=1	2:30	0	S
-Rule	Mont	1921	only	-	May	 1	2:00	1:00	D
-Rule	Mont	1922	only	-	Apr	30	2:00	1:00	D
-Rule	Mont	1924	only	-	May	17	2:00	1:00	D
-Rule	Mont	1924	1926	-	Sep	lastSun	2:30	0	S
-Rule	Mont	1925	1926	-	May	Sun>=1	2:00	1:00	D
-Rule	Mont	1927	1937	-	Apr	lastSat	24:00	1:00	D
-Rule	Mont	1927	1937	-	Sep	lastSat	24:00	0	S
-Rule	Mont	1938	1940	-	Apr	lastSun	0:00	1:00	D
-Rule	Mont	1938	1939	-	Sep	lastSun	0:00	0	S
-Rule	Mont	1946	1973	-	Apr	lastSun	2:00	1:00	D
-Rule	Mont	1945	1948	-	Sep	lastSun	2:00	0	S
-Rule	Mont	1949	1950	-	Oct	lastSun	2:00	0	S
-Rule	Mont	1951	1956	-	Sep	lastSun	2:00	0	S
-Rule	Mont	1957	1973	-	Oct	lastSun	2:00	0	S
-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Blanc-Sablon -3:48:28 -	LMT	1884
 			-4:00	Canada	A%sT	1970
 			-4:00	-	AST
-Zone America/Montreal	-4:54:16 -	LMT	1884
-			-5:00	Mont	E%sT	1918
-			-5:00	Canada	E%sT	1919
-			-5:00	Mont	E%sT	1942 Feb  9  2:00s
-			-5:00	Canada	E%sT	1946
-			-5:00	Mont	E%sT	1974
-			-5:00	Canada	E%sT
 
 # Ontario
 
