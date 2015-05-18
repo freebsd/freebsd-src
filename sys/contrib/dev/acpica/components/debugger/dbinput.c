@@ -969,7 +969,7 @@ AcpiDbCommandDispatch (
 
     case CMD_LOAD:
 
-        Status = AcpiDbGetTableFromFile (AcpiGbl_DbArgs[1], NULL);
+        Status = AcpiDbGetTableFromFile (AcpiGbl_DbArgs[1], NULL, FALSE);
         break;
 
     case CMD_LOCKS:
