@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
 		   IFCAP_RXCSUM | IFCAP_TXCSUM |			\
 		   IFCAP_RXCSUM_IPV6 | IFCAP_TXCSUM_IPV6 |		\
 		   IFCAP_TSO4 | IFCAP_TSO6 |				\
-		   IFCAP_JUMBO_MTU | IFCAP_LRO |			\
+		   IFCAP_JUMBO_MTU |					\
 		   IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE | IFCAP_HWSTATS)
 #define	SFXGE_CAP_ENABLE SFXGE_CAP
 #define	SFXGE_CAP_FIXED (IFCAP_VLAN_MTU |				\
@@ -88,7 +88,6 @@ TUNABLE_INT(SFXGE_PARAM_TX_RING, &sfxge_tx_ring_entries);
 SYSCTL_INT(_hw_sfxge, OID_AUTO, tx_ring, CTLFLAG_RDTUN,
 	   &sfxge_tx_ring_entries, 0,
 	   "Maximum number of descriptors in a transmit ring");
-
 
 static void
 sfxge_reset(void *arg, int npending);
@@ -377,6 +376,12 @@ sfxge_ifnet_init(struct ifnet *ifp, struct sfxge_softc *sc)
 
 	ifp->if_capabilities = SFXGE_CAP;
 	ifp->if_capenable = SFXGE_CAP_ENABLE;
+
+#ifdef SFXGE_LRO
+	ifp->if_capabilities |= IFCAP_LRO;
+	ifp->if_capenable |= IFCAP_LRO;
+#endif
+
 	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_IP | CSUM_TSO |
 			   CSUM_TCP_IPV6 | CSUM_UDP_IPV6;
 
