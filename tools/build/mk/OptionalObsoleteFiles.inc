@@ -1744,6 +1744,7 @@ OLD_FILES+=usr/include/gcc/4.2/ppc-asm.h
 OLD_FILES+=usr/include/gcc/4.2/spe.h
 .endif
 OLD_FILES+=usr/include/omp.h
+OLD_FILES+=usr/lib/libgcov.a
 OLD_FILES+=usr/lib/libgomp.a
 OLD_FILES+=usr/lib/libgomp.so
 OLD_FILES+=usr/lib/libgomp.so.1
