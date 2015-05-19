@@ -50,7 +50,12 @@ options 	GEOM_UNCOMPRESS
 # Used for the static uboot partition map
 device          geom_map
 
-# yes, this board has a PCI connected atheros device
+# yes, this board has a PCIe connected atheros device
+# add ath_pci so it can at least attach things when there's a
+# ath(4) in there, rather than the 11ac chip we don't support.
+device		pci
+device		qca955x_pci
+
 device		ath_pci
 options 	AR71XX_ATH_EEPROM
 device		firmware		# Used by the above
@@ -58,3 +63,6 @@ options 	ATH_EEPROM_FIRMWARE
 
 # Boot off of the rootfs, as defined in the geom_map setup.
 options 	ROOTDEVNAME=\"ufs:map/rootfs.uncompress\"
+
+# Default to accept
+options		IPFIREWALL_DEFAULT_TO_ACCEPT
