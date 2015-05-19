@@ -101,6 +101,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/vm_param.h>
 
+#define	STATE_RUNNING	0x0
+#define	STATE_MWAIT	0x1
+#define	STATE_SLEEPING	0x2
+
 /*
  * Machine dependent boot() routine
  *
@@ -134,13 +138,24 @@ acpi_cpu_idle_mwait(uint32_t mwait_hint)
 {
 	int *state;
 
-	state = (int *)PCPU_PTR(monitorbuf);
 	/*
 	 * XXXKIB.  Software coordination mode should be supported,
 	 * but all Intel CPUs provide hardware coordination.
 	 */
+
+	state = (int *)PCPU_PTR(monitorbuf);
+	KASSERT(*state == STATE_SLEEPING,
+		("cpu_mwait_cx: wrong monitorbuf state"));
+	*state = STATE_MWAIT;
 	cpu_monitor(state, 0, 0);
-	cpu_mwait(MWAIT_INTRBREAK, mwait_hint);
+	if (*state == STATE_MWAIT)
+		cpu_mwait(MWAIT_INTRBREAK, mwait_hint);
+
+	/*
+	 * We should exit on any event that interrupts mwait, because
+	 * that event might be a wanted interrupt.
+	 */
+	*state = STATE_RUNNING;
 }
 
 /* Get current clock frequency for the given cpu id. */
@@ -230,10 +245,6 @@ static int	cpu_ident_amdc1e = 0;	/* AMD C1E supported. */
 static int	idle_mwait = 1;		/* Use MONITOR/MWAIT for short idle. */
 SYSCTL_INT(_machdep, OID_AUTO, idle_mwait, CTLFLAG_RWTUN, &idle_mwait,
     0, "Use MONITOR/MWAIT for short idle");
-
-#define	STATE_RUNNING	0x0
-#define	STATE_MWAIT	0x1
-#define	STATE_SLEEPING	0x2
 
 #ifndef PC98
 static void
