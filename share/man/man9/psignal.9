@@ -63,10 +63,11 @@ function posts signal number
 to the process represented by the process structure
 .Fa p .
 The
-.Fn kernel_psignal
-function used to be called 
+.Fn kern_psignal
+function used to be called
 .Fn psignal
-but was renamed.
+but was renamed in order to eliminate a name collision with the libc
+function of that name and facilitate code reuse.
 With a few exceptions noted below, the target process signal disposition is
 updated and is marked as runnable, so further handling of the signal is done
 in the context of the target process after a context switch.
@@ -158,7 +159,7 @@ to the thread represented by the thread structure
 .Sh HISTORY
 The
 .Fn psignal
-call was renamed to 
+function was renamed to
 .Fn kern_psignal
-in 
+in
 .Fx 9.0 .
