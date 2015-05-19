@@ -1297,7 +1297,9 @@ _cat=		bin/cat
 _lex=		usr.bin/lex
 .endif
 
-.if ${BOOTSTRAPPING} < 1001507
+# r277259 crunchide: Correct 64-bit section header offset
+# r281674 crunchide: always include both 32- and 64-bit ELF support
+.if ${BOOTSTRAPPING} < 1100071
 _crunch=	usr.sbin/crunch
 .endif
 
@@ -1464,11 +1466,6 @@ kernel-tools: .MAKE
 .if ${TARGET_ARCH} != ${MACHINE_ARCH}
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 _btxld=		usr.sbin/btxld
-.endif
-.endif
-.if ${TARGET_ARCH} != ${MACHINE_ARCH}
-.if ${MK_RESCUE} != "no"
-_crunchide=	usr.sbin/crunch/crunchide
 .endif
 .endif
 
