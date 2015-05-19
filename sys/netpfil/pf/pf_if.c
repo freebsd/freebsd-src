@@ -103,6 +103,8 @@ LIST_HEAD(pfi_list, pfi_kif);
 static VNET_DEFINE(struct pfi_list, pfi_unlinked_kifs);
 #define	V_pfi_unlinked_kifs	VNET(pfi_unlinked_kifs)
 static struct mtx pfi_unlnkdkifs_mtx;
+MTX_SYSINIT(pfi_unlnkdkifs_mtx, &pfi_unlnkdkifs_mtx, "pf unlinked interfaces",
+    MTX_DEF);
 
 void
 pfi_initialize(void)
@@ -114,8 +116,6 @@ pfi_initialize(void)
 	V_pfi_buffer_max = 64;
 	V_pfi_buffer = malloc(V_pfi_buffer_max * sizeof(*V_pfi_buffer),
 	    PFI_MTYPE, M_WAITOK);
-
-	mtx_init(&pfi_unlnkdkifs_mtx, "pf unlinked interfaces", NULL, MTX_DEF);
 
 	kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
 	PF_RULES_WLOCK();
@@ -165,8 +165,6 @@ pfi_cleanup(void)
 		LIST_REMOVE(p, pfik_list);
 		free(p, PFI_MTYPE);
 	}
-
-	mtx_destroy(&pfi_unlnkdkifs_mtx);
 
 	free(V_pfi_buffer, PFI_MTYPE);
 }
