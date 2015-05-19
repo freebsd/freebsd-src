@@ -4311,10 +4311,10 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 }
 
 /*
- * We have code to do unmapped I/O. However, it isn't quite right
- * an causes un-page-aligned I/O to devices to fail (most notably
- * newfs or fsck). We give up a little performance to do this, but
- * we trade that for rock-solid stability so it is a good trade.
+ * We have code to do unmapped I/O. However, it isn't quite right and
+ * causes un-page-aligned I/O to devices to fail (most notably newfs
+ * or fsck). We give up a little performance to not allow unmapped I/O
+ * to gain stability.
  */
 int unmapped_buf_allowed = 0;
 
