@@ -473,6 +473,9 @@ typedef struct {
 #define	SHF_MASKOS	0x0ff00000	/* OS-specific semantics. */
 #define	SHF_MASKPROC	0xf0000000	/* Processor-specific semantics. */
 
+/* Flags for section groups. */
+#define	GRP_COMDAT	0x1	/* COMDAT semantics. */
+
 /* Values for p_type. */
 #define	PT_NULL		0	/* Unused entry. */
 #define	PT_LOAD		1	/* Loadable segment. */
