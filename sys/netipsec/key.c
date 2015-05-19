@@ -4283,8 +4283,8 @@ key_flush_sad(time_t now)
 
 			if (sav->lft_h->addtime != 0 &&
 			    now - sav->created > sav->lft_h->addtime) {
-				key_expire(sav, 1);
 				key_sa_chgstate(sav, SADB_SASTATE_DEAD);
+				key_expire(sav, 1);
 				KEY_FREESAV(&sav);
 			}
 #if 0	/* XXX Should we keep to send expire message until HARD lifetime ? */
@@ -4306,8 +4306,8 @@ key_flush_sad(time_t now)
 			/* check HARD lifetime by bytes */
 			else if (sav->lft_h->bytes != 0 &&
 			    sav->lft_h->bytes < sav->lft_c->bytes) {
-				key_expire(sav, 1);
 				key_sa_chgstate(sav, SADB_SASTATE_DEAD);
+				key_expire(sav, 1);
 				KEY_FREESAV(&sav);
 			}
 		}
