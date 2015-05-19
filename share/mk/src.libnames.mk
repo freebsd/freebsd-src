@@ -78,6 +78,7 @@ _LIBRARIES=	\
 		devstat \
 		dialog \
 		dpv \
+		dtrace \
 		dwarf \
 		edit \
 		elf \
@@ -133,6 +134,7 @@ _LIBRARIES=	\
 		rpcsec_gss \
 		rpcsvc \
 		rt \
+		rtld_db \
 		sbuf \
 		sdp \
 		sm \
@@ -230,6 +232,9 @@ _DP_gssapi_krb5+=	gssapi krb5 crypto roken asn1 com_err
 _DP_lzma=	pthread
 _DP_ucl=	m
 _DP_vmmapi=	util
+_DP_ctf=	z
+_DP_proc=	rtld_db util
+_DP_dtrace=	rtld_db pthread
 
 # Define spacial cases
 LDADD_supcplusplus=	-lsupc++
@@ -274,6 +279,9 @@ LDADD_ipf+=	${LDADD_kvm}
 
 DPADD_mt+=	${DPADD_sbuf}
 LDADD_mt+=	${LDADD_sbuf}
+
+DPADD_dtrace+=	${DPADD_ctf} ${DPADD_elf} ${DPADD_proc}
+LDADD_dtrace+=	${LDADD_ctf} ${LDADD_elf} ${LDADD_proc}
 
 # The following depends on libraries which are using pthread
 DPADD_hdb+=	${DPADD_pthread}
