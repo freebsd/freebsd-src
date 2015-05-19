@@ -33,6 +33,7 @@
 .Os
 .Sh NAME
 .Nm psignal ,
+.Nm kern_psignal ,
 .Nm pgsignal ,
 .Nm gsignal ,
 .Nm tdsignal
@@ -41,7 +42,7 @@
 .In sys/types.h
 .In sys/signalvar.h
 .Ft void
-.Fn psignal "struct proc *p" "int signum"
+.Fn kern_psignal "struct proc *p" "int signum"
 .Ft void
 .Fn pgsignal "struct pgrp *pgrp" "int signum" "int checkctty"
 .Ft void
@@ -56,16 +57,21 @@ common to all three functions should be in the range
 .Bq 1- Ns Dv NSIG .
 .Pp
 The
-.Fn psignal
+.Fn kern_psignal
 function posts signal number
 .Fa signum
 to the process represented by the process structure
 .Fa p .
+The
+.Fn kernel_psignal
+function used to be called 
+.Fn psignal
+but was renamed.
 With a few exceptions noted below, the target process signal disposition is
 updated and is marked as runnable, so further handling of the signal is done
 in the context of the target process after a context switch.
 Note that
-.Fn psignal
+.Fn kern_psignal
 does not by itself cause a context switch to happen.
 .Pp
 The target process is not marked as runnable in the following cases:
@@ -91,7 +97,7 @@ regardless of the signal action
 .El
 .Pp
 If the target process is being traced
-.Fn psignal
+.Fn kern_psignal
 behaves as if the target process were taking the default action for
 .Fa signum .
 This allows the tracing process to be notified of the signal.
@@ -113,7 +119,7 @@ of the process group structure
 pointed at by
 .Fa pgrp
 and calling
-.Fn psignal
+.Fn kern_psignal
 as appropriate.
 If
 .Fa pgrp
@@ -149,3 +155,10 @@ to the thread represented by the thread structure
 .Xr sigaction 2 ,
 .Xr signal 9 ,
 .Xr tsleep 9
+.Sh HISTORY
+The
+.Fn psignal
+call was renamed to 
+.Fn kern_psignal
+in 
+.Fx 9.0 .
