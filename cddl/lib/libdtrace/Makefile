@@ -104,6 +104,8 @@ LFLAGS+=-l
 
 YFLAGS+=-d
 
+LIBADD=	ctf elf proc pthread rtld_db
+
 CLEANFILES=	dt_errtags.c dt_names.c
 
 dt_errtags.c:
