@@ -423,9 +423,14 @@ static const char * pmc_capability_names[] = {
 	__PMC_CAPS()
 };
 
-static const char * pmc_class_names[] = {
+struct pmc_class_map {
+	enum pmc_class	pm_class;
+	const char	*pm_name;
+};
+
+static const struct pmc_class_map pmc_class_names[] = {
 #undef	__PMC_CLASS
-#define __PMC_CLASS(C)	#C ,
+#define __PMC_CLASS(S,V,D) { .pm_class = PMC_CLASS_##S, .pm_name = #S } ,
 	__PMC_CLASSES()
 };
 
@@ -3362,9 +3367,11 @@ pmc_name_of_capability(enum pmc_caps cap)
 const char *
 pmc_name_of_class(enum pmc_class pc)
 {
-	if ((int) pc >= PMC_CLASS_FIRST &&
-	    pc <= PMC_CLASS_LAST)
-		return (pmc_class_names[pc]);
+	size_t n;
+
+	for (n = 0; n < PMC_TABLE_SIZE(pmc_class_names); n++)
+		if (pc == pmc_class_names[n].pm_class)
+			return (pmc_class_names[n].pm_name);
 
 	errno = EINVAL;
 	return (NULL);

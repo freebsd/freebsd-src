@@ -123,30 +123,30 @@ enum pmc_cputype {
  */
 
 #define	__PMC_CLASSES()							\
-	__PMC_CLASS(TSC)	/* CPU Timestamp counter */		\
-	__PMC_CLASS(K7)		/* AMD K7 performance counters */	\
-	__PMC_CLASS(K8)		/* AMD K8 performance counters */	\
-	__PMC_CLASS(P5)		/* Intel Pentium counters */		\
-	__PMC_CLASS(P6)		/* Intel Pentium Pro counters */	\
-	__PMC_CLASS(P4)		/* Intel Pentium-IV counters */		\
-	__PMC_CLASS(IAF)	/* Intel Core2/Atom, fixed function */	\
-	__PMC_CLASS(IAP)	/* Intel Core...Atom, programmable */	\
-	__PMC_CLASS(UCF)	/* Intel Uncore fixed function */	\
-	__PMC_CLASS(UCP)	/* Intel Uncore programmable */		\
-	__PMC_CLASS(XSCALE)	/* Intel XScale counters */		\
-	__PMC_CLASS(ARMV7)	/* ARMv7 */				\
-	__PMC_CLASS(ARMV8)	/* ARMv8 */				\
-	__PMC_CLASS(MIPS24K)	/* MIPS 24K */				\
-	__PMC_CLASS(OCTEON)	/* Cavium Octeon */			\
-	__PMC_CLASS(MIPS74K)	/* MIPS 74K */				\
-	__PMC_CLASS(PPC7450)	/* Motorola MPC7450 class */		\
-	__PMC_CLASS(PPC970)	/* IBM PowerPC 970 class */		\
-	__PMC_CLASS(E500)	/* Freescale e500 class */		\
-	__PMC_CLASS(SOFT)	/* Software events */
+	__PMC_CLASS(TSC,	0x000,	"CPU Timestamp counter")	\
+	__PMC_CLASS(K7,		0x100,	"AMD K7 performance counters")	\
+	__PMC_CLASS(K8,		0x101,	"AMD K8 performance counters")	\
+	__PMC_CLASS(P5,		0x102,	"Intel Pentium counters")	\
+	__PMC_CLASS(P6,		0x103,	"Intel Pentium Pro counters")	\
+	__PMC_CLASS(P4,		0x104,	"Intel Pentium-IV counters")	\
+	__PMC_CLASS(IAF,	0x105,	"Intel Core2/Atom, fixed function") \
+	__PMC_CLASS(IAP,	0x106,	"Intel Core...Atom, programmable") \
+	__PMC_CLASS(UCF,	0x107,	"Intel Uncore fixed function")	\
+	__PMC_CLASS(UCP,	0x108,	"Intel Uncore programmable")	\
+	__PMC_CLASS(XSCALE,	0x200,	"Intel XScale counters")	\
+	__PMC_CLASS(ARMV7,	0x201,	"ARMv7")			\
+	__PMC_CLASS(ARMV8,	0x202,	"ARMv8")			\
+	__PMC_CLASS(MIPS24K,	0x300,	"MIPS 24K")			\
+	__PMC_CLASS(OCTEON,	0x301,	"Cavium Octeon")		\
+	__PMC_CLASS(MIPS74K,	0x302,	"MIPS 74K")			\
+	__PMC_CLASS(PPC7450,	0x400,	"Motorola MPC7450 class")	\
+	__PMC_CLASS(PPC970,	0x401,	"IBM PowerPC 970 class")	\
+	__PMC_CLASS(E500,	0x402,	"Freescale e500 class")		\
+	__PMC_CLASS(SOFT,	0x8000,	"Software events")
 
 enum pmc_class {
 #undef  __PMC_CLASS
-#define	__PMC_CLASS(N)	PMC_CLASS_##N ,
+#define	__PMC_CLASS(S,V,D)	PMC_CLASS_##S = V,
 	__PMC_CLASSES()
 };
 

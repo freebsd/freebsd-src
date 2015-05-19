@@ -4625,12 +4625,20 @@ pmc_kld_unload(void *arg __unused, const char *filename __unused,
 /*
  * initialization
  */
+static const char *
+pmc_name_of_pmcclass(enum pmc_class class)
+{
 
-static const char *pmc_name_of_pmcclass[] = {
+	switch (class) {
 #undef	__PMC_CLASS
-#define	__PMC_CLASS(N) #N ,
-	__PMC_CLASSES()
-};
+#define	__PMC_CLASS(S,V,D)						\
+	case PMC_CLASS_##S:						\
+		return #S;
+	__PMC_CLASSES();
+	default:
+		return ("<unknown>");
+	}
+}
 
 /*
  * Base class initializer: allocate structure and set default classes.
@@ -4909,7 +4917,7 @@ pmc_initialize(void)
 		for (n = 0; n < (int) md->pmd_nclass; n++) {
 			pcd = &md->pmd_classdep[n];
 			printf(" %s/%d/%d/0x%b",
-			    pmc_name_of_pmcclass[pcd->pcd_class],
+			    pmc_name_of_pmcclass(pcd->pcd_class),
 			    pcd->pcd_num,
 			    pcd->pcd_width,
 			    pcd->pcd_caps,
