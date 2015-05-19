@@ -1557,6 +1557,22 @@ dwc_otg_data_rx(struct dwc_otg_softc *sc, struct dwc_otg_td *td)
 	/* release FIFO */
 	dwc_otg_common_rx_ack(sc);
 
+	temp = sc->sc_out_ctl[td->ep_no];
+
+	/* check for isochronous mode */
+	if ((temp & DIEPCTL_EPTYPE_MASK) ==
+	    (DIEPCTL_EPTYPE_ISOC << DIEPCTL_EPTYPE_SHIFT)) {
+		/* toggle odd or even frame bit */
+		if (temp & DIEPCTL_SETD1PID) {
+			temp &= ~DIEPCTL_SETD1PID;
+			temp |= DIEPCTL_SETD0PID;
+		} else {
+			temp &= ~DIEPCTL_SETD0PID;
+			temp |= DIEPCTL_SETD1PID;
+		}
+		sc->sc_out_ctl[td->ep_no] = temp;
+	}
+
 	/* check if we are complete */
 	if ((td->remainder == 0) || got_short) {
 		if (td->short_pkt) {
@@ -2132,10 +2148,23 @@ repeat:
 
 	temp = sc->sc_in_ctl[td->ep_no];
 
+	/* check for isochronous mode */
+	if ((temp & DIEPCTL_EPTYPE_MASK) ==
+	    (DIEPCTL_EPTYPE_ISOC << DIEPCTL_EPTYPE_SHIFT)) {
+		/* toggle odd or even frame bit */
+		if (temp & DIEPCTL_SETD1PID) {
+			temp &= ~DIEPCTL_SETD1PID;
+			temp |= DIEPCTL_SETD0PID;
+		} else {
+			temp &= ~DIEPCTL_SETD0PID;
+			temp |= DIEPCTL_SETD1PID;
+		}
+		sc->sc_in_ctl[td->ep_no] = temp;
+	}
+
 	/* must enable before writing data to FIFO */
 	DWC_OTG_WRITE_4(sc, DOTG_DIEPCTL(td->ep_no), temp |
-	    DIEPCTL_EPENA |
-	    DIEPCTL_CNAK);
+	    DIEPCTL_EPENA | DIEPCTL_CNAK);
 
 	td->tx_bytes = count;
 
