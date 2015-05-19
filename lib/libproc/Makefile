@@ -23,6 +23,8 @@ LIBADD+=		cxxrt
 LIBADD+=	supcplusplus
 .endif
 
+LIBADD+=	elf rtld_db util
+
 .if ${MK_CDDL} != "no"
 LIBADD+=	ctf
 IGNORE_PRAGMA=	YES
