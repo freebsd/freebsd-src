@@ -1435,7 +1435,7 @@ pmc_process_csw_out(struct thread *td)
 					tmp += pm->pm_sc.pm_reloadcount;
 				mtx_pool_lock_spin(pmc_mtxpool, pm);
 				pp->pp_pmcs[ri].pp_pmcval -= tmp;
-				if ((int64_t) pp->pp_pmcs[ri].pp_pmcval < 0)
+				if ((int64_t) pp->pp_pmcs[ri].pp_pmcval <= 0)
 					pp->pp_pmcs[ri].pp_pmcval +=
 					    pm->pm_sc.pm_reloadcount;
 				mtx_pool_unlock_spin(pmc_mtxpool, pm);

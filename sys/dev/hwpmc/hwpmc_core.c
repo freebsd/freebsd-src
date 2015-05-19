@@ -203,6 +203,10 @@ core_pcpu_fini(struct pmc_mdep *md, int cpu)
 static pmc_value_t
 iaf_perfctr_value_to_reload_count(pmc_value_t v)
 {
+
+	/* If the PMC has overflowed, return a reload count of zero. */
+	if ((v & (1ULL << (core_iaf_width - 1))) == 0)
+		return (0);
 	v &= (1ULL << core_iaf_width) - 1;
 	return (1ULL << core_iaf_width) - v;
 }
@@ -1806,6 +1810,10 @@ static const int niap_events = sizeof(iap_events) / sizeof(iap_events[0]);
 static pmc_value_t
 iap_perfctr_value_to_reload_count(pmc_value_t v)
 {
+
+	/* If the PMC has overflowed, return a reload count of zero. */
+	if ((v & (1ULL << (core_iap_width - 1))) == 0)
+		return (0);
 	v &= (1ULL << core_iap_width) - 1;
 	return (1ULL << core_iap_width) - v;
 }
