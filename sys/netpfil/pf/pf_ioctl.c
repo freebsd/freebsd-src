@@ -3756,6 +3756,7 @@ pf_unload(void)
 		wakeup_one(pf_purge_thread);
 		rw_sleep(pf_purge_thread, &pf_rules_lock, 0, "pftmo", 0);
 	}
+	PF_RULES_WUNLOCK();
 	pf_normalize_cleanup();
 	pfi_cleanup();
 	pfr_cleanup();
@@ -3763,7 +3764,6 @@ pf_unload(void)
 	pf_cleanup();
 	if (IS_DEFAULT_VNET(curvnet))
 		pf_mtag_cleanup();
-	PF_RULES_WUNLOCK();
 	destroy_dev(pf_dev);
 	rw_destroy(&pf_rules_lock);
 	sx_destroy(&pf_ioctl_lock);
