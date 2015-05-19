@@ -58,13 +58,16 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
+#define	MAX_RLEN	8
+
 struct pmu_softc {
-	struct resource		*res[1];
+	struct resource		*res[MAX_RLEN];
 	device_t		dev;
-	void			*ih;
+	void			*ih[MAX_RLEN];
 };
 
 static struct ofw_compat_data compat_data[] = {
+	{"arm,armv8-pmuv3",	1},
 	{"arm,cortex-a17-pmu",	1},
 	{"arm,cortex-a15-pmu",	1},
 	{"arm,cortex-a12-pmu",	1},
@@ -81,6 +84,13 @@ static struct ofw_compat_data compat_data[] = {
 
 static struct resource_spec pmu_spec[] = {
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
+	{ SYS_RES_IRQ,		1,	RF_ACTIVE | RF_OPTIONAL },
+	{ SYS_RES_IRQ,		2,	RF_ACTIVE | RF_OPTIONAL },
+	{ SYS_RES_IRQ,		3,	RF_ACTIVE | RF_OPTIONAL },
+	{ SYS_RES_IRQ,		4,	RF_ACTIVE | RF_OPTIONAL },
+	{ SYS_RES_IRQ,		5,	RF_ACTIVE | RF_OPTIONAL },
+	{ SYS_RES_IRQ,		6,	RF_ACTIVE | RF_OPTIONAL },
+	{ SYS_RES_IRQ,		7,	RF_ACTIVE | RF_OPTIONAL },
 	{ -1, 0 }
 };
 
@@ -119,6 +129,7 @@ pmu_attach(device_t dev)
 {
 	struct pmu_softc *sc;
 	int err;
+	int i;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -129,11 +140,16 @@ pmu_attach(device_t dev)
 	}
 
 	/* Setup interrupt handler */
-	err = bus_setup_intr(dev, sc->res[0], INTR_MPSAFE | INTR_TYPE_MISC,
-	    pmu_intr, NULL, NULL, &sc->ih);
-	if (err) {
-		device_printf(dev, "Unable to setup interrupt handler.\n");
-		return (ENXIO);
+	for (i = 0; i < MAX_RLEN; i++) {
+		if (sc->res[i] == NULL)
+			break;
+
+		err = bus_setup_intr(dev, sc->res[i], INTR_MPSAFE | INTR_TYPE_MISC,
+		    pmu_intr, NULL, NULL, &sc->ih[i]);
+		if (err) {
+			device_printf(dev, "Unable to setup interrupt handler.\n");
+			return (ENXIO);
+		}
 	}
 
 	return (0);

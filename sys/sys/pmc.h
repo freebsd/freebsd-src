@@ -73,7 +73,6 @@
 #define	__PMC_CPUS()						\
 	__PMC_CPU(AMD_K7,	0x00,	"AMD K7")		\
 	__PMC_CPU(AMD_K8,	0x01,	"AMD K8")		\
-	__PMC_CPU(ARMV7,	0x500,	"ARMv7")		\
 	__PMC_CPU(INTEL_P5,	0x80,	"Intel Pentium")	\
 	__PMC_CPU(INTEL_P6,	0x81,	"Intel Pentium Pro")	\
 	__PMC_CPU(INTEL_CL,	0x82,	"Intel Celeron")	\
@@ -105,7 +104,10 @@
 	__PMC_CPU(PPC_E500,     0x340,  "PowerPC e500 Core")	\
 	__PMC_CPU(PPC_MPC85XX,  0x340,  "Freescale PowerPC MPC85XX")	\
 	__PMC_CPU(PPC_970,      0x380,  "IBM PowerPC 970")	\
-	__PMC_CPU(GENERIC, 	0x400,  "Generic")
+	__PMC_CPU(GENERIC, 	0x400,  "Generic")		\
+	__PMC_CPU(ARMV7,	0x500,	"ARMv7")		\
+	__PMC_CPU(ARMV8_CORTEX_A53,	0x600,	"ARMv8 Cortex A53")	\
+	__PMC_CPU(ARMV8_CORTEX_A57,	0x601,	"ARMv8 Cortex A57")
 
 enum pmc_cputype {
 #undef	__PMC_CPU
@@ -133,6 +135,7 @@ enum pmc_cputype {
 	__PMC_CLASS(UCP)	/* Intel Uncore programmable */		\
 	__PMC_CLASS(XSCALE)	/* Intel XScale counters */		\
 	__PMC_CLASS(ARMV7)	/* ARMv7 */				\
+	__PMC_CLASS(ARMV8)	/* ARMv8 */				\
 	__PMC_CLASS(MIPS24K)	/* MIPS 24K */				\
 	__PMC_CLASS(OCTEON)	/* Cavium Octeon */			\
 	__PMC_CLASS(MIPS74K)	/* MIPS 74K */				\
