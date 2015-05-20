@@ -10,4 +10,4 @@ MDASM+=	brk.S sbrk.S
 .endif
 
 # Don't generate default code for these syscalls:
-NOASM=	break.o exit.o getlogin.o openbsd_poll.o sstk.o vfork.o yield.o
+NOASM=	vfork.o

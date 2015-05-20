@@ -33,6 +33,9 @@ SRCS+= futimens.c utimensat.c
 NOASM+= futimens.o utimensat.o
 PSEUDO+= _futimens.o _utimensat.o
 
+# Don't generate default code for these syscalls:
+NOASM+=  break.o exit.o getlogin.o openbsd_poll.o sstk.o yield.o
+
 PSEUDO+= _exit.o _getlogin.o
 
 INTERPOSED = \
