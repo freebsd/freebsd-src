@@ -1502,6 +1502,9 @@ _clang_libs=	lib/clang
 _cc=		gnu/usr.bin/cc
 .endif
 .endif
+.if ${MK_USB} != "no"
+_usb_tools=	sys/boot/usb/tools
+.endif
 
 cross-tools: .MAKE
 .for _tool in \
@@ -1512,7 +1515,7 @@ cross-tools: .MAKE
     ${_cc} \
     ${_btxld} \
     ${_crunchide} \
-    sys/boot/usb/tools
+    ${_usb_tools}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool} && \
 		${MAKE} DIRPRFX=${_tool}/ obj && \
