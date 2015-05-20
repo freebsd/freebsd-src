@@ -1756,6 +1756,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 				m->wire_count = 0;
 			}
 			m->object = NULL;
+			m->oflags = VPO_UNMANAGED;
 			vm_page_free(m);
 			return (NULL);
 		}
