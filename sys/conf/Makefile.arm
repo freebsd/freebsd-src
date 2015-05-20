@@ -66,10 +66,6 @@ SYSTEM_LD_TAIL +=;sed s/" + SIZEOF_HEADERS"// ldscript.$M\
 		${KERNEL_KO}.bin; \
 		rm ${FULLKERNEL}.noheader
 
-.if defined(MFS_IMAGE)
-SYSTEM_LD_TAIL += ;sh ${S}/tools/embed_mfs.sh ${KERNEL_KO}.bin ${MFS_IMAGE};
-.endif
-
 FILES_CPU_FUNC = \
 	$S/$M/$M/cpufunc_asm_arm9.S \
 	$S/$M/$M/cpufunc_asm_arm10.S \
