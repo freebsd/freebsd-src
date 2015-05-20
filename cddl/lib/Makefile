@@ -34,7 +34,9 @@ _libdtrace=	libdtrace
 .endif
 
 SUBDIR_DEPEND_libdtrace=	libctf
+SUBDIR_DEPEND_libzfs_core=	libnvpair
 SUBDIR_DEPEND_libzfs=	libavl libnvpair libumem libuutil libzfs_core
+SUBDIR_DEPEND_libzpool=	libavl libnvpair libumem
 
 SUBDIR_PARALLEL=
 
