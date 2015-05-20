@@ -838,6 +838,7 @@ nvlist_xunpack(const void *buf, size_t size, const int *fds, size_t nfds,
 			if (nvl->nvl_parent == NULL)
 				goto failed;
 			nvl = nvpair_nvlist(nvl->nvl_parent);
+			nvpair_free_structure(nvp);
 			continue;
 		default:
 			PJDLOG_ABORT("Invalid type (%d).", nvpair_type(nvp));
