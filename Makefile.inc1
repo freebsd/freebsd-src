@@ -1746,7 +1746,15 @@ _generic_libs+= ${_DIR}
 
 lib/libopie__L lib/libtacplus__L: lib/libmd__L
 
-lib/libproc__L: lib/libelf__L lib/librtld_db__L lib/libutil__L
+lib/libproc__L: \
+    cddl/lib/libctf__L lib/libelf__L lib/librtld_db__L lib/libutil__L
+.if ${MK_CXX} != "no"
+.if ${MK_LIBCPLUSPLUS} != "no"
+lib/libproc__L: lib/libc++
+.else
+lib/libproc__L: gnu/lib/libsupc++__L
+.endif
+.endif
 
 .if ${MK_CDDL} != "no"
 _cddl_lib_libumem= cddl/lib/libumem
