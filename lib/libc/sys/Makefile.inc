@@ -21,7 +21,6 @@ MIASM:=	${MIASM:S/^cheriabi_//}
 .sinclude "${LIBC_SRCTOP}/${LIBC_ARCH}/sys/Makefile.inc"
 
 SRCS+= clock_gettime.c gettimeofday.c __vdso_gettimeofday.c
-NOASM+=  clock_gettime.o gettimeofday.o
 PSEUDO+= _clock_gettime.o _gettimeofday.o
 
 # Sources common to both syscall interfaces:
@@ -30,11 +29,10 @@ SRCS+=	\
 	interposing_table.c
 
 SRCS+= futimens.c utimensat.c
-NOASM+= futimens.o utimensat.o
 PSEUDO+= _futimens.o _utimensat.o
 
 # Don't generate default code for these syscalls:
-NOASM+=  break.o exit.o getlogin.o openbsd_poll.o sstk.o yield.o
+NOASM+=  break.o openbsd_poll.o sstk.o yield.o
 
 PSEUDO+= _exit.o _getlogin.o
 
@@ -93,8 +91,10 @@ OBJS+=		${S_NU:S/.S$/.o/}
 .endif
 
 SRCS+=	${INTERPOSED:S/$/.c/}
-NOASM+=	${INTERPOSED:S/$/.o/}
 PSEUDO+=	${INTERPOSED:C/^.*$/_&.o/}
+
+# Don't generate default assembly for PSEUDOs
+NOASM+=	${PSEUDO:S/^_//}
 
 # Add machine dependent asm sources:
 SRCS+=${MDASM}
