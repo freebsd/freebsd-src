@@ -70,7 +70,8 @@ static void 			ti_pruss_kq_read_detach(struct knote *);
 static int 			ti_pruss_kq_read_event(struct knote *, long);
 static d_kqfilter_t		ti_pruss_kqfilter;
 
-#define	TI_PRUSS_IRQS	8
+#define	TI_PRUSS_IRQS		8
+
 struct ti_pruss_softc {
 	struct mtx		sc_mtx;
 	struct resource 	*sc_mem_res;
@@ -119,6 +120,7 @@ static struct resource_spec ti_pruss_irq_spec[] = {
 	{ SYS_RES_IRQ,	    7,  RF_ACTIVE },
 	{ -1,               0,  0 }
 };
+CTASSERT(TI_PRUSS_IRQS == nitems(ti_pruss_irq_spec) - 1);
 
 static struct ti_pruss_irq_arg {
 	int 		       irq;
@@ -166,6 +168,7 @@ ti_pruss_attach(device_t dev)
 	sc = device_get_softc(dev);
 	rid = 0;
 	mtx_init(&sc->sc_mtx, "TI PRUSS", NULL, MTX_DEF);
+	knlist_init_mtx(&sc->sc_selinfo.si_note, &sc->sc_mtx);
 	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (sc->sc_mem_res == NULL) {
@@ -219,6 +222,9 @@ ti_pruss_detach(device_t dev)
 			    rman_get_rid(sc->sc_irq_res[i]),
 			    sc->sc_irq_res[i]);
 	}
+	knlist_clear(&sc->sc_selinfo.si_note, 0);
+	knlist_destroy(&sc->sc_selinfo.si_note);
+	mtx_destroy(&sc->sc_mtx);
 	if (sc->sc_mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY, rman_get_rid(sc->sc_mem_res),
 		    sc->sc_mem_res);
@@ -231,13 +237,23 @@ ti_pruss_detach(device_t dev)
 static void
 ti_pruss_intr(void *arg)
 {
-	struct ti_pruss_irq_arg *iap;
-	struct ti_pruss_softc *sc;
+	int val;
+	struct ti_pruss_irq_arg *iap = arg;
+	struct ti_pruss_softc *sc = iap->sc;
+	/*
+	 * Interrupts pr1_host_intr[0:7] are mapped to 
+	 * Host-2 to Host-9 of PRU-ICSS IRQ-controller.
+	 */
+	const int pru_int = iap->irq + 2;
+	const int pru_int_mask = (1 << pru_int);
 
-	iap = arg;
-	sc = iap->sc;
-	DPRINTF("interrupt %p", sc);
-	KNOTE_UNLOCKED(&sc->sc_selinfo.si_note, iap->irq);
+	val = ti_pruss_reg_read(sc, PRUSS_AM33XX_INTC + PRUSS_INTC_HIER);
+	DPRINTF("interrupt %p, %d", sc, pru_int);
+	if (!(val & pru_int_mask))
+		return;
+ 	ti_pruss_reg_write(sc, PRUSS_AM33XX_INTC + PRUSS_INTC_HIDISR, 
+	    pru_int);
+	KNOTE_UNLOCKED(&sc->sc_selinfo.si_note, pru_int);
 }
 
 static int
