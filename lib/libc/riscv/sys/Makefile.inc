@@ -20,6 +20,3 @@ NOASM=	break.o \
 	sstk.o \
 	vfork.o \
 	yield.o
-
-PSEUDO= _exit.o \
-	_getlogin.o

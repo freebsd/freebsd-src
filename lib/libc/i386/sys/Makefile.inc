@@ -14,8 +14,6 @@ MDASM=	Ovfork.S brk.S cerror.S exect.S getcontext.S pipe.S ptrace.S \
 # Don't generate default code for these syscalls:
 NOASM=	break.o exit.o getlogin.o openbsd_poll.o sstk.o vfork.o yield.o
 
-PSEUDO=	_getlogin.o _exit.o
-
 MAN+=	i386_get_ioperm.2 i386_get_ldt.2 i386_vm86.2
 MAN+=	i386_set_watch.3
 

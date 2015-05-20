@@ -9,5 +9,3 @@ MDASM=	vfork.S brk.S cerror.S exect.S getcontext.S pipe.S ptrace.S \
 
 # Don't generate default code for these syscalls:
 NOASM=	break.o exit.o getlogin.o openbsd_poll.o sstk.o vfork.o yield.o
-
-PSEUDO=	_getlogin.o _exit.o

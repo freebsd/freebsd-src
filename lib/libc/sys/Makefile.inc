@@ -33,6 +33,8 @@ SRCS+= futimens.c utimensat.c
 NOASM+= futimens.o utimensat.o
 PSEUDO+= _futimens.o _utimensat.o
 
+PSEUDO+= _exit.o _getlogin.o
+
 INTERPOSED = \
 	accept \
 	accept4 \
