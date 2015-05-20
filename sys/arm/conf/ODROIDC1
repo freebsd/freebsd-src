@@ -22,6 +22,8 @@
 include 	"AML8726"
 ident		ODROIDC1
 
+options 	SMP			# Enable multiple cores
+
 # Interrupt controller
 device		gic
 
