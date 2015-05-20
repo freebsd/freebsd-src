@@ -873,14 +873,8 @@ wlan_modevent(module_t mod, int type, void *unused)
 			printf("wlan: <802.11 Link Layer>\n");
 		wlan_bpfevent = EVENTHANDLER_REGISTER(bpf_track,
 		    bpf_track, 0, EVENTHANDLER_PRI_ANY);
-		if (wlan_bpfevent == NULL)
-			return ENOMEM;
 		wlan_ifllevent = EVENTHANDLER_REGISTER(iflladdr_event,
 		    wlan_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
-		if (wlan_ifllevent == NULL) {
-			EVENTHANDLER_DEREGISTER(bpf_track, wlan_bpfevent);
-			return ENOMEM;
-		}
 #if __FreeBSD_version >= 1000020
 		wlan_cloner = if_clone_simple(wlanname, wlan_clone_create,
 		    wlan_clone_destroy, 0);
