@@ -3154,8 +3154,8 @@ vm_page_zero_invalid(vm_page_t m, boolean_t setvalid)
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	/*
 	 * Scan the valid bits looking for invalid sections that
-	 * must be zerod.  Invalid sub-DEV_BSIZE'd areas ( where the
-	 * valid bit may be set ) have already been zerod by
+	 * must be zeroed.  Invalid sub-DEV_BSIZE'd areas ( where the
+	 * valid bit may be set ) have already been zeroed by
 	 * vm_page_set_validclean().
 	 */
 	for (b = i = 0; i <= PAGE_SIZE / DEV_BSIZE; ++i) {
