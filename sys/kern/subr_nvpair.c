@@ -742,7 +742,7 @@ nvpair_allocv(const char *name, int type, uint64_t data, size_t datasize)
 	}
 
 	return (nvp);
-};
+}
 
 nvpair_t *
 nvpair_create_stringf(const char *name, const char *valuefmt, ...)
