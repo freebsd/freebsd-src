@@ -38,6 +38,15 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150520
+OLD_FILES+=usr/lib/libheimsqlite.a
+OLD_FILES+=usr/lib/libheimsqlite.so
+OLD_LIBS+=usr/lib/libheimsqlite.so.11
+OLD_FILES+=usr/lib/libheimsqlite_p.a
+OLD_FILES+=usr/lib32/libheimsqlite.a
+OLD_FILES+=usr/lib32/libheimsqlite.so
+OLD_LIBS+=usr/lib32/libheimsqlite.so.11
+OLD_FILES+=usr/lib32/libheimsqlite_p.a
 # 20150506
 OLD_FILES+=usr/share/man/man9/NDHASGIANT.9.gz
 # 20150504
