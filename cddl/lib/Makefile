@@ -33,6 +33,11 @@ _drti=		drti
 _libdtrace=	libdtrace
 .endif
 
+SUBDIR_DEPEND_libdtrace=	libctf
+SUBDIR_DEPEND_libzfs=	libavl libnvpair libumem libuutil libzfs_core
+
+SUBDIR_PARALLEL=
+
 .if defined(LIBCHERI)
 .if ${MK_LIBCHERI_ALL} == "no"
 SUBDIR:=
