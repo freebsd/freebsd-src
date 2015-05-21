@@ -19,8 +19,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#include "pax.h"
-#include "extern.h"
+int getoldopt(int, char **, const char *);
 
 int
 getoldopt(int argc, char **argv, const char *optstring)
