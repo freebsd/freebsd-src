@@ -57,7 +57,7 @@ static int	db_run_mode;
 #define	STEP_INVISIBLE	5
 #define	STEP_COUNT	6
 
-static boolean_t	db_sstep_print;
+static bool		db_sstep_print;
 static int		db_loop_count;
 static int		db_call_depth;
 
@@ -77,8 +77,8 @@ db_breakpoint_t	db_not_taken_bkpt = 0;
 db_breakpoint_t	db_taken_bkpt = 0;
 #endif
 
-boolean_t
-db_stop_at_pc(boolean_t *is_breakpoint)
+bool
+db_stop_at_pc(bool *is_breakpoint)
 {
 	register db_addr_t	pc;
 	register db_breakpoint_t bkpt;
@@ -179,7 +179,7 @@ db_stop_at_pc(boolean_t *is_breakpoint)
 }
 
 void
-db_restart_at_pc(boolean_t watchpt)
+db_restart_at_pc(bool watchpt)
 {
 	register db_addr_t	pc = PC_REGS();
 
@@ -234,7 +234,7 @@ db_restart_at_pc(boolean_t watchpt)
  *	Just define the above conditional and provide
  *	the functions/macros defined below.
  *
- * extern boolean_t
+ * extern bool
  *	inst_branch(),		returns true if the instruction might branch
  * extern unsigned
  *	branch_taken(),		return the address the instruction might
@@ -299,13 +299,9 @@ extern int	db_cmd_loop_done;
 /* single-step */
 /*ARGSUSED*/
 void
-db_single_step_cmd(addr, have_addr, count, modif)
-	db_expr_t	addr;
-	boolean_t	have_addr;
-	db_expr_t	count;
-	char *		modif;
+db_single_step_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 {
-	boolean_t	print = false;
+	bool		print = false;
 
 	if (count == -1)
 	    count = 1;
@@ -326,10 +322,10 @@ db_single_step_cmd(addr, have_addr, count, modif)
 /* trace and print until call/return */
 /*ARGSUSED*/
 void
-db_trace_until_call_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
+db_trace_until_call_cmd(db_expr_t addr, bool have_addr, db_expr_t count,
     char *modif)
 {
-	boolean_t	print = false;
+	bool	print = false;
 
 	if (modif[0] == 'p')
 	    print = true;
@@ -345,10 +341,10 @@ db_trace_until_call_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 
 /*ARGSUSED*/
 void
-db_trace_until_matching_cmd(db_expr_t addr, boolean_t have_addr,
-    db_expr_t count, char *modif)
+db_trace_until_matching_cmd(db_expr_t addr, bool have_addr, db_expr_t count,
+    char *modif)
 {
-	boolean_t	print = false;
+	bool	print = false;
 
 	if (modif[0] == 'p')
 	    print = true;
@@ -366,8 +362,7 @@ db_trace_until_matching_cmd(db_expr_t addr, boolean_t have_addr,
 /* continue */
 /*ARGSUSED*/
 void
-db_continue_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
-    char *modif)
+db_continue_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 {
 	if (modif[0] == 'c')
 	    db_run_mode = STEP_COUNT;

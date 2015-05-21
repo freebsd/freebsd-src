@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Exported global variables
  */
-boolean_t	db_cmd_loop_done;
+bool		db_cmd_loop_done;
 db_addr_t	db_dot;
 db_addr_t	db_last_addr;
 db_addr_t	db_prev;
@@ -151,7 +151,7 @@ static struct command	*db_last_command = 0;
  * and '+' points to next line.
  * Otherwise: 'dot' points to next item, '..' points to last.
  */
-static boolean_t	db_ed_style = true;
+static bool	db_ed_style = true;
 
 /*
  * Utility routine - discard tokens through end-of-line.
@@ -327,7 +327,7 @@ db_command(struct command **last_cmdp, struct command_table *cmd_table,
 	int		t;
 	char		modif[TOK_STRING_SIZE];
 	db_expr_t	addr, count;
-	boolean_t	have_addr = false;
+	bool		have_addr = false;
 	int		result;
 
 	t = db_read_token();
@@ -340,7 +340,7 @@ db_command(struct command **last_cmdp, struct command_table *cmd_table,
 	    modif[0] = '\0';
 	}
 	else if (t == tEXCL) {
-	    db_fncall((db_expr_t)0, (boolean_t)0, (db_expr_t)0, (char *)0);
+	    db_fncall((db_expr_t)0, (bool)false, (db_expr_t)0, (char *)0);
 	    return;
 	}
 	else if (t != tIDENT) {
@@ -521,7 +521,7 @@ db_error(const char *s)
 }
 
 static void
-db_dump(db_expr_t dummy, boolean_t dummy2, db_expr_t dummy3, char *dummy4)
+db_dump(db_expr_t dummy, bool dummy2, db_expr_t dummy3, char *dummy4)
 {
 	int error;
 
@@ -571,7 +571,7 @@ db_fncall_generic(db_expr_t addr, db_expr_t *rv, int nargs, db_expr_t args[])
 }
 
 static void
-db_fncall(db_expr_t dummy1, boolean_t dummy2, db_expr_t dummy3, char *dummy4)
+db_fncall(db_expr_t dummy1, bool dummy2, db_expr_t dummy3, char *dummy4)
 {
 	db_expr_t	fn_addr;
 	db_expr_t	args[DB_MAXARGS];
@@ -618,14 +618,14 @@ db_fncall(db_expr_t dummy1, boolean_t dummy2, db_expr_t dummy3, char *dummy4)
 }
 
 static void
-db_halt(db_expr_t dummy, boolean_t dummy2, db_expr_t dummy3, char *dummy4)
+db_halt(db_expr_t dummy, bool dummy2, db_expr_t dummy3, char *dummy4)
 {
 
 	cpu_halt();
 }
 
 static void
-db_kill(db_expr_t dummy1, boolean_t dummy2, db_expr_t dummy3, char *dummy4)
+db_kill(db_expr_t dummy1, bool dummy2, db_expr_t dummy3, char *dummy4)
 {
 	db_expr_t old_radix, pid, sig;
 	struct proc *p;
@@ -684,7 +684,7 @@ out:
 #endif
 
 static void
-db_reset(db_expr_t addr, boolean_t have_addr, db_expr_t count __unused,
+db_reset(db_expr_t addr, bool have_addr, db_expr_t count __unused,
     char *modif __unused)
 {
 	int delay, loop;
@@ -714,7 +714,7 @@ db_reset(db_expr_t addr, boolean_t have_addr, db_expr_t count __unused,
 }
 
 static void
-db_watchdog(db_expr_t dummy1, boolean_t dummy2, db_expr_t dummy3, char *dummy4)
+db_watchdog(db_expr_t dummy1, bool dummy2, db_expr_t dummy3, char *dummy4)
 {
 	db_expr_t old_radix, tout;
 	int err, i;
@@ -737,7 +737,7 @@ db_watchdog(db_expr_t dummy1, boolean_t dummy2, db_expr_t dummy3, char *dummy4)
 }
 
 static void
-db_gdb(db_expr_t dummy1, boolean_t dummy2, db_expr_t dummy3, char *dummy4)
+db_gdb(db_expr_t dummy1, bool dummy2, db_expr_t dummy3, char *dummy4)
 {
 
 	if (kdb_dbbe_select("gdb") != 0) {
@@ -753,7 +753,7 @@ db_gdb(db_expr_t dummy1, boolean_t dummy2, db_expr_t dummy3, char *dummy4)
 }
 
 static void
-db_stack_trace(db_expr_t tid, boolean_t hastid, db_expr_t count, char *modif)
+db_stack_trace(db_expr_t tid, bool hastid, db_expr_t count, char *modif)
 {
 	struct thread *td;
 	db_expr_t radix;
@@ -799,7 +799,7 @@ db_stack_trace(db_expr_t tid, boolean_t hastid, db_expr_t count, char *modif)
 }
 
 static void
-db_stack_trace_all(db_expr_t dummy, boolean_t dummy2, db_expr_t dummy3,
+db_stack_trace_all(db_expr_t dummy, bool dummy2, db_expr_t dummy3,
     char *dummy4)
 {
 	struct proc *p;

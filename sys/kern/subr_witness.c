@@ -2440,7 +2440,7 @@ DB_SHOW_COMMAND(locks, db_witness_list)
 	struct thread *td;
 
 	if (have_addr)
-		td = db_lookup_thread(addr, TRUE);
+		td = db_lookup_thread(addr, true);
 	else
 		td = kdb_thread;
 	witness_ddb_list(td);
