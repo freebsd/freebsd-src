@@ -46,6 +46,12 @@ SYSCTL_INT(_hw_snd, OID_AUTO, compat_linux_mmap, CTLFLAG_RW,
     &dsp_mmap_allow_prot_exec, 0,
     "linux mmap compatibility (-1=force disable 0=auto 1=force enable)");
 
+static int dsp_basename_clone = 1;
+SYSCTL_INT(_hw_snd, OID_AUTO, basename_clone, CTLFLAG_RWTUN,
+    &dsp_basename_clone, 0,
+    "DSP basename cloning (0: Disable; 1: Enabled)");
+TUNABLE_INT("hw.snd.basename_clone", &dsp_basename_clone);
+
 struct dsp_cdevinfo {
 	struct pcm_channel *rdch, *wrch;
 	struct pcm_channel *volch;
@@ -2357,9 +2363,10 @@ dsp_clone(void *arg,
 			devname = devcmp;
 		devhw = dsp_cdevs[i].hw;
 		devcmax = dsp_cdevs[i].max - 1;
-		if (strcmp(name, devcmp) == 0)
-			unit = snd_unit;
-		else if (dsp_stdclone(name, devcmp, devsep,
+		if (strcmp(name, devcmp) == 0) {
+			if (dsp_basename_clone != 0)
+				unit = snd_unit;
+		} else if (dsp_stdclone(name, devcmp, devsep,
 		    dsp_cdevs[i].use_sep, &unit, &cunit) != 0) {
 			unit = -1;
 			cunit = -1;
