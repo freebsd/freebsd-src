@@ -63,7 +63,7 @@ KDB_BACKEND(ddb, db_init, db_trace_self_wrapper, db_trace_thread_wrapper,
  */
 vm_offset_t ksymtab, kstrtab, ksymtab_size;
 
-boolean_t
+bool
 X_db_line_at_pc(db_symtab_t *symtab, c_db_sym_t sym, char **file, int *line,
     db_expr_t off)
 {
@@ -145,7 +145,7 @@ X_db_search_symbol(db_symtab_t *symtab, db_addr_t off, db_strategy_t strat,
 	return ((c_db_sym_t)match);
 }
 
-boolean_t
+bool
 X_db_sym_numargs(db_symtab_t *symtab, c_db_sym_t sym, int *nargp,
     char **argp)
 {
@@ -216,7 +216,7 @@ db_trap(int type, int code)
 {
 	jmp_buf jb;
 	void *prev_jb;
-	boolean_t bkpt, watchpt;
+	bool bkpt, watchpt;
 	const char *why;
 
 	/*
