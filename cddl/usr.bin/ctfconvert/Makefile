@@ -3,8 +3,6 @@
 .PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/tools/ctf/common
 .PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/tools/ctf/cvt
 
-DEBUG_FLAGS=	-g
-
 PROG=		ctfconvert
 SRCS=		alist.c \
 		ctf.c \
