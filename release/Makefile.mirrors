@@ -104,9 +104,11 @@ iso-images-stage:
 . endfor
 .else	# !snapshot
 	cd ${TLD}/ISO-IMAGES/${REVISION} && ln -s \
-		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${IMAGE} .
+		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${IMAGE}
+	cd ${TLD}/ISO-IMAGES/${REVISION} && ln -s \
+		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${IMAGE}.xz
 	cd ${ISO_DIR} && ${CHECKSUM:tl} ${OSRELEASE}* > \
-		CHECKSUM.${CHECKSUM}-${OSRELEASE}-${SNAP_SUFFIX}
+		CHECKSUM.${CHECKSUM}-${OSRELEASE}
 .endif
 .if exists(${RELEASEDIR}/ftp)
 	mkdir -p ${FTP_DIR}
