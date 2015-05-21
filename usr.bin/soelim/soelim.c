@@ -27,10 +27,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-
 #include <ctype.h>
 #include <err.h>
+#include <limits.h>
 #include <stdbool.h>
 #define _WITH_GETLINE
 #include <stdio.h>
@@ -56,7 +55,7 @@ static FILE *
 soelim_fopen(const char *name)
 {
 	FILE *f;
-	char path[MAXPATHLEN];
+	char path[PATH_MAX];
 	size_t i;
 
 	if (strcmp(name, "-") == 0)
