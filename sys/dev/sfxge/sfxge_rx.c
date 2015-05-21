@@ -788,7 +788,8 @@ void
 sfxge_rx_qcomplete(struct sfxge_rxq *rxq, boolean_t eop)
 {
 	struct sfxge_softc *sc = rxq->sc;
-	int lro_enabled = sc->ifnet->if_capenable & IFCAP_LRO;
+	int if_capenable = sc->ifnet->if_capenable;
+	int lro_enabled = if_capenable & IFCAP_LRO;
 	unsigned int index;
 	struct sfxge_evq *evq;
 	unsigned int completed;
@@ -818,21 +819,37 @@ sfxge_rx_qcomplete(struct sfxge_rxq *rxq, boolean_t eop)
 
 		prefetch_read_many(mtod(m, caddr_t));
 
-		/* Check for loopback packets */
-		if (!(rx_desc->flags & EFX_PKT_IPV4) &&
-		    !(rx_desc->flags & EFX_PKT_IPV6)) {
-			struct ether_header *etherhp;
+		switch (rx_desc->flags & (EFX_PKT_IPV4 | EFX_PKT_IPV6)) {
+		case EFX_PKT_IPV4:
+			if (~if_capenable & IFCAP_RXCSUM)
+				rx_desc->flags &=
+				    ~(EFX_CKSUM_IPV4 | EFX_CKSUM_TCPUDP);
+			break;
+		case EFX_PKT_IPV6:
+			if (~if_capenable & IFCAP_RXCSUM_IPV6)
+				rx_desc->flags &= ~EFX_CKSUM_TCPUDP;
+			break;
+		case 0:
+			/* Check for loopback packets */
+			{
+				struct ether_header *etherhp;
 
-			/*LINTED*/
-			etherhp = mtod(m, struct ether_header *);
+				/*LINTED*/
+				etherhp = mtod(m, struct ether_header *);
 
-			if (etherhp->ether_type ==
-			    htons(SFXGE_ETHERTYPE_LOOPBACK)) {
-				EFSYS_PROBE(loopback);
+				if (etherhp->ether_type ==
+				    htons(SFXGE_ETHERTYPE_LOOPBACK)) {
+					EFSYS_PROBE(loopback);
 
-				rxq->loopback++;
-				goto discard;
+					rxq->loopback++;
+					goto discard;
+				}
 			}
+			break;
+		default:
+			KASSERT(B_FALSE,
+			    ("Rx descriptor with both IPv4 and IPv6 flags"));
+			goto discard;
 		}
 
 		/* Pass packet up the stack or into LRO (pipelined) */
