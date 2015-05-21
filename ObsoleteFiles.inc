@@ -38,6 +38,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150521
+OLD_FILES+=usr/bin/demandoc
+OLD_FILES+=usr/share/man/man1/demandoc.1.gz
+OLD_FILES+=usr/share/man/man3/mandoc.3.gz
+OLD_FILES+=usr/share/man/man3/mandoc_headers.3.gz
 # 20150520
 OLD_FILES+=usr/lib/libheimsqlite.a
 OLD_FILES+=usr/lib/libheimsqlite.so
