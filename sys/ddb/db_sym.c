@@ -58,8 +58,8 @@ static db_symtab_t	*db_last_symtab; /* where last symbol was found */
 
 static c_db_sym_t	db_lookup( const char *symstr);
 static char		*db_qualify(c_db_sym_t sym, char *symtabname);
-static boolean_t	db_symbol_is_ambiguous(c_db_sym_t sym);
-static boolean_t	db_line_at_pc(c_db_sym_t, char **, int *, db_expr_t);
+static bool		db_symbol_is_ambiguous(c_db_sym_t sym);
+static bool		db_line_at_pc(c_db_sym_t, char **, int *, db_expr_t);
 
 static int db_cpu = -1;
 
@@ -202,7 +202,7 @@ db_qualify(c_db_sym_t sym, char *symtabname)
 }
 
 
-boolean_t
+bool
 db_eqname(const char *src, const char *dst, int c)
 {
 	if (!strcmp(src, dst))
@@ -212,7 +212,7 @@ db_eqname(const char *src, const char *dst, int c)
 	return (false);
 }
 
-boolean_t
+bool
 db_value_of_name(const char *name, db_expr_t *valuep)
 {
 	c_db_sym_t	sym;
@@ -224,7 +224,7 @@ db_value_of_name(const char *name, db_expr_t *valuep)
 	return (true);
 }
 
-boolean_t
+bool
 db_value_of_name_pcpu(const char *name, db_expr_t *valuep)
 {
 	static char     tmp[256];
@@ -247,7 +247,7 @@ db_value_of_name_pcpu(const char *name, db_expr_t *valuep)
 	return (true);
 }
 
-boolean_t
+bool
 db_value_of_name_vnet(const char *name, db_expr_t *valuep)
 {
 #ifdef VIMAGE
@@ -331,19 +331,18 @@ db_lookup(const char *symstr)
  * If true, check across symbol tables for multiple occurrences
  * of a name.  Might slow things down quite a bit.
  */
-static volatile boolean_t db_qualify_ambiguous_names = false;
+static volatile bool db_qualify_ambiguous_names = false;
 
 /*
  * Does this symbol name appear in more than one symbol table?
  * Used by db_symbol_values to decide whether to qualify a symbol.
  */
-static boolean_t
+static bool
 db_symbol_is_ambiguous(c_db_sym_t sym)
 {
 	const char	*sym_name;
 	register int	i;
-	register
-	boolean_t	found_once = false;
+	register bool	found_once = false;
 
 	if (!db_qualify_ambiguous_names)
 		return (false);
@@ -352,7 +351,7 @@ db_symbol_is_ambiguous(c_db_sym_t sym)
 	for (i = 0; i < db_nsymtab; i++) {
 		if (X_db_lookup(&db_symtabs[i], sym_name)) {
 			if (found_once)
-				return true;
+				return (true);
 			found_once = true;
 		}
 	}
@@ -460,14 +459,14 @@ db_printsym(db_expr_t off, db_strategy_t strategy)
 	}
 }
 
-static boolean_t
+static bool
 db_line_at_pc(c_db_sym_t sym, char **filename, int *linenum, db_expr_t pc)
 {
-	return X_db_line_at_pc( db_last_symtab, sym, filename, linenum, pc);
+	return (X_db_line_at_pc(db_last_symtab, sym, filename, linenum, pc));
 }
 
-int
+bool
 db_sym_numargs(c_db_sym_t sym, int *nargp, char **argnames)
 {
-	return X_db_sym_numargs(db_last_symtab, sym, nargp, argnames);
+	return (X_db_sym_numargs(db_last_symtab, sym, nargp, argnames));
 }

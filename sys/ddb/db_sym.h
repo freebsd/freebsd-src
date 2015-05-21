@@ -86,20 +86,20 @@ void		db_symbol_values(c_db_sym_t, const char **, db_expr_t *);
 	db_symbol_values(db_search_symbol(val,DB_STGY_XTRN,offp),namep,0)
 					/* ditto, but no locals */
 
-int		db_eqname(const char *, const char *, int);
+bool		db_eqname(const char *, const char *, int);
 					/* strcmp, modulo leading char */
 
 void		db_printsym(db_expr_t, db_strategy_t);
 					/* print closest symbol to a value */
 
-int		db_sym_numargs(c_db_sym_t, int *, char **);
+bool		db_sym_numargs(c_db_sym_t, int *, char **);
 
-boolean_t	X_db_line_at_pc(db_symtab_t *symtab, c_db_sym_t cursym,
+bool		X_db_line_at_pc(db_symtab_t *symtab, c_db_sym_t cursym,
 		    char **filename, int *linenum, db_expr_t off);
 c_db_sym_t	X_db_lookup(db_symtab_t *stab, const char *symstr);
 c_db_sym_t	X_db_search_symbol(db_symtab_t *symtab, db_addr_t off,
 		    db_strategy_t strategy, db_expr_t *diffp);
-int		X_db_sym_numargs(db_symtab_t *, c_db_sym_t, int *, char **);
+bool		X_db_sym_numargs(db_symtab_t *, c_db_sym_t, int *, char **);
 void		X_db_symbol_values(db_symtab_t *symtab, c_db_sym_t sym,
 		    const char **namep, db_expr_t *valuep);
 

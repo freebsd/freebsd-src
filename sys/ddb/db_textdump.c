@@ -516,8 +516,7 @@ db_textdump_usage(void)
 }
 
 void
-db_textdump_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
-    char *modif)
+db_textdump_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 {
 	int t;
 
