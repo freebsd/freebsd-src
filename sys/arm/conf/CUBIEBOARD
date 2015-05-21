@@ -53,8 +53,8 @@ options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 options 	ROOTDEVNAME=\"ufs:/dev/da0s2\"
 
 # MMC/SD/SDIO Card slot support
-#device		mmc			# mmc/sd bus
-#device		mmcsd			# mmc/sd flash cards
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
 
 # ATA controllers
 #device		ahci			# AHCI-compatible SATA controllers
