@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150506
+OLD_FILES+=usr/share/man/man9/NDHASGIANT.9.gz
 # 20141205: convert sbin/mdconfig/tests to ATF format tests
 OLD_FILES+=usr/tests/sbin/mdconfig/legacy_test
 OLD_FILES+=usr/tests/sbin/mdconfig/mdconfig.test
