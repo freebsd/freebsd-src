@@ -18,12 +18,14 @@ RELEASEDIR?=		/R
 FTPDIR?=		${RELEASEDIR}/ftp-stage
 STAGE_TARGETS?=		iso-images-stage
 
+.if ${TARGET} == "arm" || ${EMBEDDED_TARGET} == "arm"
+EMBEDDED=		1
+.endif
+
 # snapshot
 .if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT"
 SNAPSHOT=		1
 TLD?=			${FTPDIR}/snapshots
-BUILDDATE!=		cd ${.CURDIR} && date -j -f '%s' $$(stat -f "%c" ${.OBJDIR}/dist/base/bin/sh) +%Y%m%d
-_SNAP_SUFFIX:=		-${BUILDDATE}
 . for _D in /usr/bin /usr/local/bin
 .  for _S in svnversion svnliteversion
 .   if exists(${_D}/${_S})
@@ -31,15 +33,36 @@ SVNVERSION?=		${_D}/${_S}
 .   endif
 .  endfor
 . endfor
+. if exists(${.CURDIR}/${.OBJDIR}/dist/base/bin/sh)
+BUILDDATE!=		cd ${.CURDIR} && date -j -f '%s' $$(stat -f "%c" ${.OBJDIR}/dist/base/bin/sh) +%Y%m%d
+. else
+BUILDDATE!=		date +%Y%m%d
+. endif
 . if exists(${SVNVERSION}) && !empty(SVNVERSION)
 SVNREVISION!=		${SVNVERSION} ${WORLDDIR}/Makefile
-_SNAP_SUFFIX:=		${_SNAP_SUFFIX}-r${SVNREVISION}
+_SNAP_SUFFIX:=		-r${SVNREVISION}-${BUILDDATE}
+. else
+_SNAP_SUFFIX:=		-${BUILDDATE}
 . endif
 .else
 # release
 SNAPSHOT=
 TLD?=			${FTPDIR}/releases
 .endif
+
+.if defined(EMBEDDED) && !empty(EMBEDDED)
+. if ${TARGET} == "arm" && ${TARGET_ARCH} == "armv6"
+.  if !defined(BOARDNAME) && empty(BOARDNAME)
+BOARDNAME:=		${KERNCONF}
+.  else
+OLDNAME:=		${KERNCONF}
+.  endif
+.  if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT"
+SNAPSHOT=		1
+.  endif
+IMAGES:=		${BOARDNAME}.img
+. endif # arm/armv6
+.endif # embedded
 
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
 STAGE_TARGETS+=		vm-images-stage
@@ -61,10 +84,19 @@ iso-images-stage:
 .if exists(${RELEASEDIR})
 	@# Assume we have images to copy.
 . for IMAGE in ${IMAGES}
+	@# arm/armv6 IMX6 -> WANDBOARD, for example.
+.  if defined(OLDNAME) && !empty(OLDNAME)
+	cd ${RELEASEDIR} && mv ${OSRELEASE}-${IMAGE:S,${BOARDNAME},${OLDNAME},}.xz \
+		${OSRELEASE}-${IMAGE}.xz
+.  endif
+.  if exists(${RELEASEDIR}/${OSRELEASE}-${IMAGE})
 	cp -p ${RELEASEDIR}/${OSRELEASE}-${IMAGE} \
 		${ISO_DIR}/${OSRELEASE}-${IMAGE}
+.  endif
+.  if exists(${RELEASEDIR}/${OSRELEASE}-${IMAGE}.xz)
 	cp -p ${RELEASEDIR}/${OSRELEASE}-${IMAGE}.xz \
 		${ISO_DIR}/${OSRELEASE}-${IMAGE}.xz
+.  endif
 .  if exists(${RELEASEDIR}/CHECKSUM.${CHECKSUM})
 	cp -p ${RELEASEDIR}/CHECKSUM.${CHECKSUM} \
 		${ISO_DIR}/CHECKSUM.${CHECKSUM}
@@ -75,31 +107,40 @@ iso-images-stage:
 .if defined(SNAPSHOT) && !empty(SNAPSHOT)
 . for IMAGE in ${IMAGES}
 	cd ${ISO_DIR} && mv ${OSRELEASE}-${IMAGE} \
-		${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}
+		${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE} || true
 	cd ${ISO_DIR} && mv ${OSRELEASE}-${IMAGE}.xz \
-		${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}.xz
+		${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}.xz || true
 	cd ${TLD}/ISO-IMAGES/${REVISION} && \
 		ln -s \
-		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}
+		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE} || true
 	cd ${TLD}/ISO-IMAGES/${REVISION} && \
 		ln -s \
-		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}.xz
+		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}.xz || true
+	cd ${TLD} && find -L . -type l | xargs rm
 . endfor
 . for CHECKSUM in ${CHECKSUM_FILES}
 .  if exists(${ISO_DIR}/CHECKSUM.${CHECKSUM})
 	rm -f ${ISO_DIR}/CHECKSUM.${CHECKSUM}
 .  endif
+.  if defined(EMBEDDED) && !empty(EMBEDDED)
+	cd ${ISO_DIR} && ${CHECKSUM:tl} ${OSRELEASE}* > \
+		CHECKSUM.${CHECKSUM}-${OSRELEASE}-${BOARDNAME}-${SNAP_SUFFIX}
+	cd ${TLD}/ISO-IMAGES/${REVISION} && \
+		ln -s \
+		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/CHECKSUM.${CHECKSUM}-${OSRELEASE}-${BOARDNAME}-${SNAP_SUFFIX}
+.  else
 	cd ${ISO_DIR} && ${CHECKSUM:tl} ${OSRELEASE}* > \
 		CHECKSUM.${CHECKSUM}-${OSRELEASE}-${SNAP_SUFFIX}
 	cd ${TLD}/ISO-IMAGES/${REVISION} && \
 		ln -s \
 		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/CHECKSUM.${CHECKSUM}-${OSRELEASE}-${SNAP_SUFFIX}
+.  endif
 . endfor
 .else	# !snapshot
 	cd ${TLD}/ISO-IMAGES/${REVISION} && ln -s \
-		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${IMAGE}
+		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${IMAGE} || true
 	cd ${TLD}/ISO-IMAGES/${REVISION} && ln -s \
-		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${IMAGE}.xz
+		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${IMAGE}.xz || true
 	cd ${ISO_DIR} && ${CHECKSUM:tl} ${OSRELEASE}* > \
 		CHECKSUM.${CHECKSUM}-${OSRELEASE}
 .endif
