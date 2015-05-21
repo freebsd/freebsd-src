@@ -23,14 +23,7 @@ STAGE_TARGETS?=		iso-images-stage
 SNAPSHOT=		1
 TLD?=			${FTPDIR}/snapshots
 BUILDDATE!=		cd ${.CURDIR} && date -j -f '%s' $$(stat -f "%c" ${.OBJDIR}/dist/base/bin/sh) +%Y%m%d
-. if ${TARGET} == "arm" && ${TARGET_ARCH} == "armv6"
-.  if !defined(BOARDNAME) || empty(BOARDNAME)
-BOARDNAME=		${KERNCONF}
-.  endif
-_SNAP_SUFFIX:=		-${BOARDNAME}-${BUILDDATE}
-. else		# not arm/armv6
 _SNAP_SUFFIX:=		-${BUILDDATE}
-. endif
 . for _D in /usr/bin /usr/local/bin
 .  for _S in svnversion svnliteversion
 .   if exists(${_D}/${_S})
