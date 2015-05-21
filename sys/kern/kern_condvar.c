@@ -122,7 +122,7 @@ _cv_wait(struct cv *cvp, struct lock_object *lock)
 
 	sleepq_lock(cvp);
 
-	atomic_add_int(&cvp->cv_waiters, 1);
+	cvp->cv_waiters++;
 	if (lock == &Giant.lock_object)
 		mtx_assert(&Giant, MA_OWNED);
 	DROP_GIANT();
@@ -137,7 +137,6 @@ _cv_wait(struct cv *cvp, struct lock_object *lock)
 			sleepq_lock(cvp);
 	}
 	sleepq_wait(cvp, 0);
-	atomic_subtract_int(&cvp->cv_waiters, 1);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
@@ -185,7 +184,7 @@ _cv_wait_unlock(struct cv *cvp, struct lock_object *lock)
 
 	sleepq_lock(cvp);
 
-	atomic_add_int(&cvp->cv_waiters, 1);
+	cvp->cv_waiters++;
 	DROP_GIANT();
 
 	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR, 0);
@@ -195,7 +194,6 @@ _cv_wait_unlock(struct cv *cvp, struct lock_object *lock)
 	if (class->lc_flags & LC_SLEEPABLE)
 		sleepq_lock(cvp);
 	sleepq_wait(cvp, 0);
-	atomic_subtract_int(&cvp->cv_waiters, 1);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
@@ -242,7 +240,7 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 
 	sleepq_lock(cvp);
 
-	atomic_add_int(&cvp->cv_waiters, 1);
+	cvp->cv_waiters++;
 	if (lock == &Giant.lock_object)
 		mtx_assert(&Giant, MA_OWNED);
 	DROP_GIANT();
@@ -258,7 +256,6 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 			sleepq_lock(cvp);
 	}
 	rval = sleepq_wait_sig(cvp, 0);
-	atomic_subtract_int(&cvp->cv_waiters, 1);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
@@ -310,7 +307,7 @@ _cv_timedwait_sbt(struct cv *cvp, struct lock_object *lock, sbintime_t sbt,
 
 	sleepq_lock(cvp);
 
-	atomic_add_int(&cvp->cv_waiters, 1);
+	cvp->cv_waiters++;
 	if (lock == &Giant.lock_object)
 		mtx_assert(&Giant, MA_OWNED);
 	DROP_GIANT();
@@ -326,7 +323,6 @@ _cv_timedwait_sbt(struct cv *cvp, struct lock_object *lock, sbintime_t sbt,
 			sleepq_lock(cvp);
 	}
 	rval = sleepq_timedwait(cvp, 0);
-	atomic_subtract_int(&cvp->cv_waiters, 1);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
@@ -380,7 +376,7 @@ _cv_timedwait_sig_sbt(struct cv *cvp, struct lock_object *lock,
 
 	sleepq_lock(cvp);
 
-	atomic_add_int(&cvp->cv_waiters, 1);
+	cvp->cv_waiters++;
 	if (lock == &Giant.lock_object)
 		mtx_assert(&Giant, MA_OWNED);
 	DROP_GIANT();
@@ -397,7 +393,6 @@ _cv_timedwait_sig_sbt(struct cv *cvp, struct lock_object *lock,
 			sleepq_lock(cvp);
 	}
 	rval = sleepq_timedwait_sig(cvp, 0);
-	atomic_subtract_int(&cvp->cv_waiters, 1);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
@@ -426,8 +421,10 @@ cv_signal(struct cv *cvp)
 
 	wakeup_swapper = 0;
 	sleepq_lock(cvp);
-	if (cvp->cv_waiters > 0)
+	if (cvp->cv_waiters > 0) {
+		cvp->cv_waiters--;
 		wakeup_swapper = sleepq_signal(cvp, SLEEPQ_CONDVAR, 0, 0);
+	}
 	sleepq_release(cvp);
 	if (wakeup_swapper)
 		kick_proc0();
@@ -450,8 +447,10 @@ cv_broadcastpri(struct cv *cvp, int pri)
 	if (pri == -1)
 		pri = 0;
 	sleepq_lock(cvp);
-	if (cvp->cv_waiters > 0)
+	if (cvp->cv_waiters > 0) {
+		cvp->cv_waiters = 0;
 		wakeup_swapper = sleepq_broadcast(cvp, SLEEPQ_CONDVAR, pri, 0);
+	}
 	sleepq_release(cvp);
 	if (wakeup_swapper)
 		kick_proc0();
