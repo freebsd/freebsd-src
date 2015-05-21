@@ -87,7 +87,7 @@ void	node_expand_ampersand(struct node *root, const char *key);
 void	node_expand_wildcard(struct node *root, const char *key);
 int	node_expand_defined(struct node *root);
 void	node_expand_indirect_maps(struct node *n);
-void	node_print(const struct node *n);
+void	node_print(const struct node *n, const char *cmdline_options);
 void	parse_master(struct node *root, const char *path);
 void	parse_map(struct node *parent, const char *map, const char *args,
 	    bool *wildcards);
