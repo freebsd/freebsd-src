@@ -37,7 +37,6 @@ SUBDIR=	${_addr2line} \
 	ctlstat \
 	cut \
 	${_cxxfilt} \
-	demandoc \
 	dirname \
 	dpv \
 	du \
