@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 22, 2014
+.Dd January 9, 2015
 .Dt AUTO_MASTER 5
 .Os
 .Sh NAME
@@ -172,6 +172,42 @@ This is typically used with wildcards, like:
 .Li *	192.168.1.1:/share/&
 .Ed
 .Pp
+The
+.Ar location
+field may contain references to variables, like:
+.Bd -literal -offset indent
+.Li sys	192.168.1.1:/sys/${OSNAME}
+.Ed
+.Pp
+Defined variables are:
+.Pp
+.Bl -tag -width "-OSNAME" -compact
+.It Li ARCH
+Expands to the output of
+.Li "uname -p" .
+.It Li CPU
+Same as ARCH.
+.It Li HOST
+Expands to the output of
+.Li "uname -n" .
+.It Li OSNAME
+Expands to the output of
+.Li "uname -s" .
+.It Li OSREL
+Expands to the output of
+.Li "uname -r" .
+.It Li OSVERS
+Expands to the output of
+.Li "uname -v" .
+.El
+.Pp
+Additional variables can be defined with the
+.Fl D
+option of
+.Xr automount 8
+and
+.Xr automountd 8 .
+.Pp
 To pass a location that begins with
 .Li / ,
 prefix it with a colon.
@@ -217,8 +253,10 @@ Query the remote NFS server and map exported shares.
 This map is traditionally mounted on
 .Pa /net .
 Access to files on a remote NFS server is provided through the
-.Pa /net/nfs-server-ip/share-name/
+.Pf /net/ Ar nfs-server-ip Ns / Ns Ar share-name Ns/
 directory without any additional configuration.
+Directories for individual NFS servers are not present until the first access,
+when they are automatically created.
 .It Li -media
 Query devices that are not yet mounted, but contain valid filesystems.
 Generally used to access files on removable media.
@@ -227,13 +265,27 @@ Prevent
 .Xr automountd 8
 from mounting anything on the mountpoint.
 .El
+.Pp
+It is possible to add custom special maps by adding them, as executable
+maps named
+.Pa special_foo ,
+to the
+.Pa /etc/autofs/
+directory.
 .Sh EXECUTABLE MAPS
 If the map file specified in
 .Nm
-has execute bit set, the
+has the execute bit set,
 .Xr automountd 8
 will execute it and parse the standard output instead of parsing
 the file contents.
+When called without command line arguments, the executable is
+expected to output a list of available map keys separated by
+newline characters.
+Otherwise, the executable will be called with a key name as
+a command line argument.
+Output from the executable is expected to be the entry for that key,
+not including the key itself.
 .Sh INDIRECT VERSUS DIRECT MAPS
 Indirect maps are referred to in
 .Nm
@@ -300,6 +352,9 @@ It can be symlinked to
 The default location of the
 .Pa auto_master
 file.
+.It Pa /etc/autofs/
+Directory containing shell scripts to implement special maps and directory
+services.
 .El
 .Sh SEE ALSO
 .Xr autofs 5 ,
