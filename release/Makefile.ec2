@@ -53,7 +53,7 @@ ec2ami: cw-ec2 ${CW_EC2_PORTINSTALL}
 .endif
 	/usr/local/bin/bsdec2-image-upload ${PUBLISH}		\
 	    ${.OBJDIR}/ec2.raw					\
-	    "${TYPE} ${REVISION}-${BRANCH}${AMINAMESUFFIX}"	\
-	    "${TYPE} ${REVISION}-${BRANCH}"			\
+	    "${TYPE} ${REVISION}-${BRANCH}-${TARGET}${AMINAMESUFFIX}"	\
+	    "${TYPE} ${REVISION}-${BRANCH}-${TARGET}"			\
 	    ${AWSREGION} ${AWSBUCKET} ${AWSKEYFILE}
 	@touch ${.TARGET}
