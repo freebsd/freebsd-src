@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 21, 2014
+.Dd November 22, 2014
 .Dt AUTO_MASTER 5
 .Os
 .Sh NAME
@@ -213,14 +213,17 @@ Supported special maps are:
 .Pp
 .Bl -tag -width "-hosts" -compact
 .It Li -hosts
-This map queries the remote NFS server and maps exported volumes.
-It is traditionally mounted on
+Query the remote NFS server and map exported shares.
+This map is traditionally mounted on
 .Pa /net .
-It enables access to files on a remote NFS server by accessing
+Access to files on a remote NFS server is provided through the
 .Pa /net/nfs-server-ip/share-name/
-directory, without the need for any further configuration.
+directory without any additional configuration.
+.It Li -media
+Query devices that are not yet mounted, but contain valid filesystems.
+Generally used to access files on removable media.
 .It Li -null
-This map prevents the
+Prevent
 .Xr automountd 8
 from mounting anything on the mountpoint.
 .El
