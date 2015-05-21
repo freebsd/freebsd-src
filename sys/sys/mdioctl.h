@@ -81,12 +81,13 @@ struct md_ioctl {
 #define MDIOCLIST	_IOWR('m', 3, struct md_ioctl)	/* query status */
 #define MDIOCRESIZE	_IOWR('m', 4, struct md_ioctl)	/* resize disk */
 
-#define MD_CLUSTER	0x01	/* Don't cluster */
-#define MD_RESERVE	0x02	/* Pre-reserve swap */
-#define MD_AUTOUNIT	0x04	/* Assign next free unit */
-#define MD_READONLY	0x08	/* Readonly mode */
-#define MD_COMPRESS	0x10	/* Compression mode */
-#define MD_FORCE	0x20	/* Don't try to prevent foot-shooting */
-#define MD_ASYNC	0x40	/* Asynchronous mode */
+#define MD_CLUSTER	0x0001	/* Don't cluster */
+#define MD_RESERVE	0x0002	/* Pre-reserve swap */
+#define MD_AUTOUNIT	0x0004	/* Assign next free unit */
+#define MD_READONLY	0x0008	/* Readonly mode */
+#define MD_COMPRESS	0x0010	/* Compression mode */
+#define MD_FORCE	0x0020	/* Don't try to prevent foot-shooting */
+#define MD_ASYNC	0x0040	/* Asynchronous mode */
+#define MD_VERIFY	0x0100	/* Open file with O_VERIFY (vnode only) */
 
 #endif	/* _SYS_MDIOCTL_H_*/

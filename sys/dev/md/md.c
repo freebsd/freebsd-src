@@ -87,6 +87,7 @@
 #include <sys/sf_buf.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
+#include <sys/disk.h>
 
 #include <geom/geom.h>
 
@@ -785,6 +786,8 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 		    sc->cred);
 		VOP_UNLOCK(vp, 0);
 		vn_finished_write(mp);
+		if (error == 0)
+			sc->flags &= ~MD_VERIFY;
 	}
 	if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
 		pmap_qremove((vm_offset_t)pb->b_data, bp->bio_ma_n);
@@ -954,12 +957,16 @@ md_kthread(void *arg)
 		}
 		mtx_unlock(&sc->queue_mtx);
 		if (bp->bio_cmd == BIO_GETATTR) {
+			int isv = ((sc->flags & MD_VERIFY) != 0);
+
 			if ((sc->fwsectors && sc->fwheads &&
 			    (g_handleattr_int(bp, "GEOM::fwsectors",
 			    sc->fwsectors) ||
 			    g_handleattr_int(bp, "GEOM::fwheads",
 			    sc->fwheads))) ||
 			    g_handleattr_int(bp, "GEOM::candelete", 1))
+				error = -1;
+			else if (g_handleattr_int(bp, "MNT::verified", isv))
 				error = -1;
 			else
 				error = EOPNOTSUPP;
@@ -1163,7 +1170,8 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	 * If the user specified that this is a read only device, don't
 	 * set the FWRITE mask before trying to open the backing store.
 	 */
-	flags = FREAD | ((mdio->md_options & MD_READONLY) ? 0 : FWRITE);
+	flags = FREAD | ((mdio->md_options & MD_READONLY) ? 0 : FWRITE) \
+	    | ((mdio->md_options & MD_VERIFY) ? 0 : O_VERIFY);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, sc->file, td);
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error != 0)
@@ -1191,7 +1199,7 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 		sc->fwsectors = mdio->md_fwsectors;
 	if (mdio->md_fwheads != 0)
 		sc->fwheads = mdio->md_fwheads;
-	sc->flags = mdio->md_options & (MD_FORCE | MD_ASYNC);
+	sc->flags = mdio->md_options & (MD_FORCE | MD_ASYNC | MD_VERIFY);
 	if (!(flags & FWRITE))
 		sc->flags |= MD_READONLY;
 	sc->vnode = nd.ni_vp;
@@ -1334,6 +1342,8 @@ mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	 * Note the truncation.
 	 */
 
+	if ((mdio->md_options & MD_VERIFY) != 0)
+		return (EINVAL);
 	npage = mdio->md_mediasize / PAGE_SIZE;
 	if (mdio->md_fwsectors != 0)
 		sc->fwsectors = mdio->md_fwsectors;
