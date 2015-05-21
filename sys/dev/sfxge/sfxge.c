@@ -59,8 +59,9 @@ __FBSDID("$FreeBSD$");
 #include "sfxge_version.h"
 
 #define	SFXGE_CAP (IFCAP_VLAN_MTU | IFCAP_VLAN_HWCSUM |			\
-		   IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_TSO |		\
+		   IFCAP_RXCSUM | IFCAP_TXCSUM |			\
 		   IFCAP_RXCSUM_IPV6 | IFCAP_TXCSUM_IPV6 |		\
+		   IFCAP_TSO4 | IFCAP_TSO6 |				\
 		   IFCAP_JUMBO_MTU | IFCAP_LRO |			\
 		   IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE)
 #define	SFXGE_CAP_ENABLE SFXGE_CAP
@@ -282,14 +283,42 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 			break;
 		}
 
-		if (reqcap & IFCAP_TXCSUM)
+		/* Check request before any changes */
+		if ((capchg_mask & IFCAP_TSO4) &&
+		    (reqcap & (IFCAP_TSO4 | IFCAP_TXCSUM)) == IFCAP_TSO4) {
+			error = EAGAIN;
+			SFXGE_ADAPTER_UNLOCK(sc);
+			if_printf(ifp, "enable txcsum before tso4\n");
+			break;
+		}
+		if ((capchg_mask & IFCAP_TSO6) &&
+		    (reqcap & (IFCAP_TSO6 | IFCAP_TXCSUM_IPV6)) == IFCAP_TSO6) {
+			error = EAGAIN;
+			SFXGE_ADAPTER_UNLOCK(sc);
+			if_printf(ifp, "enable txcsum6 before tso6\n");
+			break;
+		}
+
+		if (reqcap & IFCAP_TXCSUM) {
 			ifp->if_hwassist |= (CSUM_IP | CSUM_TCP | CSUM_UDP);
-		else
+		} else {
 			ifp->if_hwassist &= ~(CSUM_IP | CSUM_TCP | CSUM_UDP);
-		if (reqcap & IFCAP_TXCSUM_IPV6)
+			if (reqcap & IFCAP_TSO4) {
+				reqcap &= ~IFCAP_TSO4;
+				if_printf(ifp,
+				    "tso4 disabled due to -txcsum\n");
+			}
+		}
+		if (reqcap & IFCAP_TXCSUM_IPV6) {
 			ifp->if_hwassist |= (CSUM_TCP_IPV6 | CSUM_UDP_IPV6);
-		else
+		} else {
 			ifp->if_hwassist &= ~(CSUM_TCP_IPV6 | CSUM_UDP_IPV6);
+			if (reqcap & IFCAP_TSO6) {
+				reqcap &= ~IFCAP_TSO6;
+				if_printf(ifp,
+				    "tso6 disabled due to -txcsum6\n");
+			}
+		}
 
 		/*
 		 * The kernel takes both IFCAP_TSOx and CSUM_TSO into
