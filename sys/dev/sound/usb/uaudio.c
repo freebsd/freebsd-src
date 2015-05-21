@@ -1574,6 +1574,19 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 			asf1d.v1 = NULL;
 			ed1 = NULL;
 			sed.v1 = NULL;
+
+			/*
+			 * There can only be one USB audio instance
+			 * per USB device. Grab all USB audio
+			 * interfaces on this USB device so that we
+			 * don't attach USB audio twice:
+			 */
+			if (alt_index == 0 && curidx != sc->sc_mixer_iface_index &&
+			    (id->bInterfaceClass == UICLASS_AUDIO || audio_if != 0 ||
+			    midi_if != 0)) {
+				usbd_set_parent_iface(sc->sc_udev, curidx,
+				    sc->sc_mixer_iface_index);
+			}
 		}
 
 		if (audio_if == 0) {
@@ -1808,9 +1821,6 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 		chan_alt->p_sed = sed;
 		chan_alt->iface_index = curidx;
 		chan_alt->iface_alt_index = alt_index;
-
-		usbd_set_parent_iface(sc->sc_udev, curidx,
-		    sc->sc_mixer_iface_index);
 
 		if (ep_dir == UE_DIR_IN)
 			chan_alt->usb_cfg = uaudio_cfg_record;
