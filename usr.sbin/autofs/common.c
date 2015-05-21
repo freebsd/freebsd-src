@@ -615,9 +615,11 @@ node_options_x(const struct node *n, char *x)
 {
 	char *options;
 
+	if (n == NULL)
+		return (x);
+
 	options = separated_concat(x, n->n_options, ',');
-	if (n->n_parent == NULL)
-		return (options);
+	free(x);
 
 	return (node_options_x(n->n_parent, options));
 }
