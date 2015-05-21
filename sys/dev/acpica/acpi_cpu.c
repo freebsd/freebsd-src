@@ -185,7 +185,8 @@ static void	acpi_cpu_startup_cx(struct acpi_cpu_softc *sc);
 static void	acpi_cpu_cx_list(struct acpi_cpu_softc *sc);
 static void	acpi_cpu_idle(sbintime_t sbt);
 static void	acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context);
-static int	acpi_cpu_quirks(void);
+static void	acpi_cpu_quirks(void);
+static void	acpi_cpu_quirks_piix4(void);
 static int	acpi_cpu_usage_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_cpu_usage_counters_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_cpu_set_cx_lowest(struct acpi_cpu_softc *sc);
@@ -1239,12 +1240,9 @@ acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context)
     acpi_UserNotify("PROCESSOR", sc->cpu_handle, notify);
 }
 
-static int
+static void
 acpi_cpu_quirks(void)
 {
-    device_t acpi_dev;
-    uint32_t val;
-
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     /*
@@ -1278,6 +1276,16 @@ acpi_cpu_quirks(void)
     }
 
     /* Look for various quirks of the PIIX4 part. */
+    acpi_cpu_quirks_piix4();
+}
+
+static void
+acpi_cpu_quirks_piix4(void)
+{
+#ifdef __i386__
+    device_t acpi_dev;
+    uint32_t val;
+
     acpi_dev = pci_find_device(PCI_VENDOR_INTEL, PCI_DEVICE_82371AB_3);
     if (acpi_dev != NULL) {
 	switch (pci_get_revid(acpi_dev)) {
@@ -1326,8 +1334,7 @@ acpi_cpu_quirks(void)
 	    break;
 	}
     }
-
-    return (0);
+#endif
 }
 
 static int
