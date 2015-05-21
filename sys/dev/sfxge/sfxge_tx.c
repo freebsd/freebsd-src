@@ -699,7 +699,8 @@ sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m)
 		("interface not up"));
 
 	/* Pick the desired transmit queue. */
-	if (m->m_pkthdr.csum_flags & (CSUM_DELAY_DATA | CSUM_TSO)) {
+	if (m->m_pkthdr.csum_flags &
+	    (CSUM_DELAY_DATA | CSUM_TCP_IPV6 | CSUM_UDP_IPV6 | CSUM_TSO)) {
 		int index = 0;
 
 		/* check if flowid is set */
