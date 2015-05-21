@@ -1851,6 +1851,7 @@ product FREECOM HDD		0xfc05	Classic SL Hard Drive
 product FSC E5400		0x1009	PrismGT USB 2.0 WLAN
 
 /* Future Technology Devices products */
+product FTDI SCX8_USB_PHOENIX	0x5259  SCx8 USB Phoenix interface
 product FTDI SERIAL_8U100AX	0x8372	8U100AX Serial
 product FTDI SERIAL_8U232AM	0x6001	8U232AM Serial
 product FTDI SERIAL_8U232AM4	0x6004	8U232AM Serial
