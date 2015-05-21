@@ -624,7 +624,7 @@ fail:
 	return (rc);
 }
 
-static int sfxge_link_mode[EFX_PHY_MEDIA_NTYPES][EFX_LINK_NMODES] = {
+static const int sfxge_link_mode[EFX_PHY_MEDIA_NTYPES][EFX_LINK_NMODES] = {
 	[EFX_PHY_MEDIA_CX4] = {
 		[EFX_LINK_10000FDX]	= IFM_ETHER | IFM_FDX | IFM_10G_CX4,
 	},
