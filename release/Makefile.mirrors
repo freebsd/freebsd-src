@@ -22,7 +22,7 @@ STAGE_TARGETS?=		iso-images-stage
 .if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT"
 SNAPSHOT=		1
 TLD?=			${FTPDIR}/snapshots
-BUILDDATE!=		date -j -f '%s' $$(stat -f "%c" ${.OBJDIR}/dist/base/bin/sh) +%Y%m%d
+BUILDDATE!=		cd ${.CURDIR} && date -j -f '%s' $$(stat -f "%c" ${.OBJDIR}/dist/base/bin/sh) +%Y%m%d
 . if ${TARGET} == "arm" && ${TARGET_ARCH} == "armv6"
 .  if !defined(BOARDNAME) || empty(BOARDNAME)
 BOARDNAME=		${KERNCONF}
@@ -70,10 +70,8 @@ iso-images-stage:
 . for IMAGE in ${IMAGES}
 	cp -p ${RELEASEDIR}/${OSRELEASE}-${IMAGE} \
 		${ISO_DIR}/${OSRELEASE}-${IMAGE}
-.  if exists(${RELEASEDIR}/${OSRELEASE}-${IMAGE}.xz)
 	cp -p ${RELEASEDIR}/${OSRELEASE}-${IMAGE}.xz \
 		${ISO_DIR}/${OSRELEASE}-${IMAGE}.xz
-.  endif
 .  if exists(${RELEASEDIR}/CHECKSUM.${CHECKSUM})
 	cp -p ${RELEASEDIR}/CHECKSUM.${CHECKSUM} \
 		${ISO_DIR}/CHECKSUM.${CHECKSUM}
@@ -85,25 +83,30 @@ iso-images-stage:
 . for IMAGE in ${IMAGES}
 	cd ${ISO_DIR} && mv ${OSRELEASE}-${IMAGE} \
 		${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}
+	cd ${ISO_DIR} && mv ${OSRELEASE}-${IMAGE}.xz \
+		${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}.xz
 	cd ${TLD}/ISO-IMAGES/${REVISION} && \
 		ln -s \
 		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}
+	cd ${TLD}/ISO-IMAGES/${REVISION} && \
+		ln -s \
+		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}.xz
 . endfor
 . for CHECKSUM in ${CHECKSUM_FILES}
 .  if exists(${ISO_DIR}/CHECKSUM.${CHECKSUM})
 	rm -f ${ISO_DIR}/CHECKSUM.${CHECKSUM}
 .  endif
 	cd ${ISO_DIR} && ${CHECKSUM:tl} ${OSRELEASE}* > \
-		CHECKSUM.${CHECKSUM}-${REVISION}-${BRANCH}-${SNAP_SUFFIX}
+		CHECKSUM.${CHECKSUM}-${OSRELEASE}-${SNAP_SUFFIX}
 	cd ${TLD}/ISO-IMAGES/${REVISION} && \
 		ln -s \
-		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/CHECKSUM.${CHECKSUM}-${REVISION}-${BRANCH}-${SNAP_SUFFIX}
+		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/CHECKSUM.${CHECKSUM}-${OSRELEASE}-${SNAP_SUFFIX}
 . endfor
 .else	# !snapshot
 	cd ${TLD}/ISO-IMAGES/${REVISION} && ln -s \
 		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${IMAGE} .
 	cd ${ISO_DIR} && ${CHECKSUM:tl} ${OSRELEASE}* > \
-		CHECKSUM.${CHECKSUM}-${REVISION}-${BRANCH}-${SNAP_SUFFIX}
+		CHECKSUM.${CHECKSUM}-${OSRELEASE}-${SNAP_SUFFIX}
 .endif
 .if exists(${RELEASEDIR}/ftp)
 	mkdir -p ${FTP_DIR}
