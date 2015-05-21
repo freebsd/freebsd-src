@@ -1744,16 +1744,6 @@ _generic_libs+= ${_DIR}
 
 lib/libopie__L lib/libtacplus__L: lib/libmd__L
 
-lib/libproc__L: \
-    ${_cddl_lib_libctf:D${_cddl_lib_libctf}__L} lib/libelf__L lib/librtld_db__L lib/libutil__L
-.if ${MK_CXX} != "no"
-.if ${MK_LIBCPLUSPLUS} != "no"
-lib/libproc__L: lib/libc++
-.else
-lib/libproc__L: gnu/lib/libsupc++__L
-.endif
-.endif
-
 .if ${MK_CDDL} != "no"
 _cddl_lib_libumem= cddl/lib/libumem
 _cddl_lib_libnvpair= cddl/lib/libnvpair
@@ -1844,6 +1834,16 @@ _lib_libypclnt=	lib/libypclnt
 
 .if ${MK_OPENSSL} == "no"
 lib/libradius__L: lib/libmd__L
+.endif
+
+lib/libproc__L: \
+    ${_cddl_lib_libctf:D${_cddl_lib_libctf}__L} lib/libelf__L lib/librtld_db__L lib/libutil__L
+.if ${MK_CXX} != "no"
+.if ${MK_LIBCPLUSPLUS} != "no"
+lib/libproc__L: lib/libcxxrt__L
+.else # This implies MK_GNUCXX != "no"; see lib/libproc
+lib/libproc__L: gnu/lib/libsupc++__L
+.endif
 .endif
 
 gnu/lib/libdialog__L: lib/msun__L lib/ncurses/ncursesw__L
