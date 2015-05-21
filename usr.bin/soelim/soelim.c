@@ -29,15 +29,15 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
+#include <ctype.h>
+#include <err.h>
+#include <stdbool.h>
 #define _WITH_GETLINE
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 #include <stringlist.h>
-#include <err.h>
-#include <ctype.h>
+#include <unistd.h>
 
 #define C_OPTION 0x1
 
