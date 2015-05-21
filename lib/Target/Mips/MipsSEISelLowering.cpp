@@ -122,6 +122,8 @@ MipsSETargetLowering::MipsSETargetLowering(const MipsTargetMachine &TM,
     setOperationAction(ISD::MUL,              MVT::i64, Custom);
 
   if (Subtarget.isGP64bit()) {
+    setOperationAction(ISD::SMUL_LOHI,        MVT::i64, Custom);
+    setOperationAction(ISD::UMUL_LOHI,        MVT::i64, Custom);
     setOperationAction(ISD::MULHS,            MVT::i64, Custom);
     setOperationAction(ISD::MULHU,            MVT::i64, Custom);
     setOperationAction(ISD::SDIVREM,          MVT::i64, Custom);
@@ -200,6 +202,8 @@ MipsSETargetLowering::MipsSETargetLowering(const MipsTargetMachine &TM,
   if (Subtarget.hasMips64r6()) {
     // MIPS64r6 replaces the accumulator-based multiplies with a three register
     // instruction
+    setOperationAction(ISD::SMUL_LOHI, MVT::i64, Expand);
+    setOperationAction(ISD::UMUL_LOHI, MVT::i64, Expand);
     setOperationAction(ISD::MUL, MVT::i64, Legal);
     setOperationAction(ISD::MULHS, MVT::i64, Legal);
     setOperationAction(ISD::MULHU, MVT::i64, Legal);
@@ -2879,10 +2883,21 @@ emitCOPY_FW(MachineInstr *MI, MachineBasicBlock *BB) const{
   unsigned Ws = MI->getOperand(1).getReg();
   unsigned Lane = MI->getOperand(2).getImm();
 
-  if (Lane == 0)
-    BuildMI(*BB, MI, DL, TII->get(Mips::COPY), Fd).addReg(Ws, 0, Mips::sub_lo);
-  else {
-    unsigned Wt = RegInfo.createVirtualRegister(&Mips::MSA128WRegClass);
+  if (Lane == 0) {
+    unsigned Wt = Ws;
+    if (!Subtarget.useOddSPReg()) {
+      // We must copy to an even-numbered MSA register so that the
+      // single-precision sub-register is also guaranteed to be even-numbered.
+      Wt = RegInfo.createVirtualRegister(&Mips::MSA128WEvensRegClass);
+
+      BuildMI(*BB, MI, DL, TII->get(Mips::COPY), Wt).addReg(Ws);
+    }
+
+    BuildMI(*BB, MI, DL, TII->get(Mips::COPY), Fd).addReg(Wt, 0, Mips::sub_lo);
+  } else {
+    unsigned Wt = RegInfo.createVirtualRegister(
+        Subtarget.useOddSPReg() ? &Mips::MSA128WRegClass :
+                                  &Mips::MSA128WEvensRegClass);
 
     BuildMI(*BB, MI, DL, TII->get(Mips::SPLATI_W), Wt).addReg(Ws).addImm(Lane);
     BuildMI(*BB, MI, DL, TII->get(Mips::COPY), Fd).addReg(Wt, 0, Mips::sub_lo);
@@ -2944,7 +2959,9 @@ MipsSETargetLowering::emitINSERT_FW(MachineInstr *MI,
   unsigned Wd_in = MI->getOperand(1).getReg();
   unsigned Lane = MI->getOperand(2).getImm();
   unsigned Fs = MI->getOperand(3).getReg();
-  unsigned Wt = RegInfo.createVirtualRegister(&Mips::MSA128WRegClass);
+  unsigned Wt = RegInfo.createVirtualRegister(
+      Subtarget.useOddSPReg() ? &Mips::MSA128WRegClass :
+                                &Mips::MSA128WEvensRegClass);
 
   BuildMI(*BB, MI, DL, TII->get(Mips::SUBREG_TO_REG), Wt)
       .addImm(0)

@@ -1,4 +1,5 @@
 ; RUN: llc -march=amdgcn -mcpu=SI -verify-machineinstrs < %s | FileCheck -check-prefix=SI -check-prefix=FUNC %s
+; RUN: llc -march=amdgcn -mcpu=tonga -verify-machineinstrs < %s | FileCheck -check-prefix=SI -check-prefix=FUNC %s
 
 ; FUNC-LABEL: {{^}}test_concat_v1i32:
 ; 0x80f000 is the high 32 bits of the resource descriptor used by MUBUF
@@ -280,5 +281,16 @@ define void @test_concat_v8i16(<16 x i16> addrspace(1)* %out, <8 x i16> %a, <8 x
 define void @test_concat_v16i16(<32 x i16> addrspace(1)* %out, <16 x i16> %a, <16 x i16> %b) nounwind {
   %concat = shufflevector <16 x i16> %a, <16 x i16> %b, <32 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15, i32 16, i32 17, i32 18, i32 19, i32 20, i32 21, i32 22, i32 23, i32 24, i32 25, i32 26, i32 27, i32 28, i32 29, i32 30, i32 31>
   store <32 x i16> %concat, <32 x i16> addrspace(1)* %out, align 64
+  ret void
+}
+
+; FUNC-LABEL: {{^}}concat_vector_crash:
+; SI: s_endpgm
+define void @concat_vector_crash(<8 x float> addrspace(1)* %out, <2 x float> addrspace(1)* %in) {
+bb:
+  %tmp = load <2 x float> addrspace(1)* %in, align 4
+  %tmp1 = shufflevector <2 x float> %tmp, <2 x float> undef, <8 x i32> <i32 0, i32 1, i32 undef, i32 undef, i32 undef, i32 undef, i32 undef, i32 undef>
+  %tmp2 = shufflevector <8 x float> undef, <8 x float> %tmp1, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 8, i32 9>
+  store <8 x float> %tmp2, <8 x float> addrspace(1)* %out, align 32
   ret void
 }
