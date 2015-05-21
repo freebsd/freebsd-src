@@ -113,6 +113,10 @@ static const struct vie_op one_byte_opcodes[256] = {
 		.op_byte = 0x2B,
 		.op_type = VIE_OP_TYPE_SUB,
 	},
+	[0x39] = {
+		.op_byte = 0x39,
+		.op_type = VIE_OP_TYPE_CMP,
+	},
 	[0x3B] = {
 		.op_byte = 0x3B,
 		.op_type = VIE_OP_TYPE_CMP,
@@ -1050,34 +1054,46 @@ emulate_cmp(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
 {
 	int error, size;
-	uint64_t op1, op2, rflags, rflags2;
+	uint64_t regop, memop, op1, op2, rflags, rflags2;
 	enum vm_reg_name reg;
 
 	size = vie->opsize;
 	switch (vie->op.op_byte) {
+	case 0x39:
 	case 0x3B:
 		/*
+		 * 39/r		CMP r/m16, r16
+		 * 39/r		CMP r/m32, r32
+		 * REX.W 39/r	CMP r/m64, r64
+		 *
 		 * 3B/r		CMP r16, r/m16
 		 * 3B/r		CMP r32, r/m32
 		 * REX.W + 3B/r	CMP r64, r/m64
 		 *
-		 * Compare first operand (reg) with second operand (r/m) and
+		 * Compare the first operand with the second operand and
 		 * set status flags in EFLAGS register. The comparison is
 		 * performed by subtracting the second operand from the first
 		 * operand and then setting the status flags.
 		 */
 
-		/* Get the first operand */
+		/* Get the register operand */
 		reg = gpr_map[vie->reg];
-		error = vie_read_register(vm, vcpuid, reg, &op1);
+		error = vie_read_register(vm, vcpuid, reg, &regop);
 		if (error)
 			return (error);
 
-		/* Get the second operand */
-		error = memread(vm, vcpuid, gpa, &op2, size, arg);
+		/* Get the memory operand */
+		error = memread(vm, vcpuid, gpa, &memop, size, arg);
 		if (error)
 			return (error);
 
+		if (vie->op.op_byte == 0x3B) {
+			op1 = regop;
+			op2 = memop;
+		} else {
+			op1 = memop;
+			op2 = regop;
+		}
 		rflags2 = getcc(size, op1, op2);
 		break;
 	case 0x80:
