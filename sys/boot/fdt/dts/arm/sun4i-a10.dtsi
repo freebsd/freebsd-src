@@ -103,6 +103,14 @@
 			interrupt-parent = <&AINTC>;
 		};
 
+		mmc0: mmc@01c0f000 {
+			compatible = "allwinner,sun4i-a10-mmc";
+			reg = <0x01c0f000 0x1000>;
+			interrupts = <32>;
+			interrupt-parent = <&AINTC>;
+			status = "disabled";
+		};
+
 		sata@01c18000 {
 			compatible = "allwinner,sun4i-ahci";
 			reg = <0x01c18000 0x1000>;

@@ -57,8 +57,8 @@ options 	ROOTDEVNAME=\"ufs:/dev/da0s2\"
 device		gic
 
 # MMC/SD/SDIO Card slot support
-#device		mmc			# mmc/sd bus
-#device		mmcsd			# mmc/sd flash cards
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
 
 # ATA controllers
 #device		ahci			# AHCI-compatible SATA controllers

@@ -103,6 +103,7 @@
 #define	CCM_AHB_GATING_USB0	(1 << 0)
 #define	CCM_AHB_GATING_EHCI0	(1 << 1)
 #define	CCM_AHB_GATING_EHCI1	(1 << 3)
+#define	CCM_AHB_GATING_SDMMC0	(1 << 8)
 #define	CCM_AHB_GATING_EMAC	(1 << 17)
 
 #define	CCM_USB_PHY		(1 << 8)
@@ -110,8 +111,36 @@
 #define	CCM_USB1_RESET		(1 << 1)
 #define	CCM_USB2_RESET		(1 << 2)
 
+#define	CCM_PLL_CFG_ENABLE	(1U << 31)
+#define	CCM_PLL_CFG_BYPASS	(1U << 30)
+#define	CCM_PLL_CFG_PLL5	(1U << 25)
+#define	CCM_PLL_CFG_PLL6	(1U << 24)
+#define	CCM_PLL_CFG_FACTOR_N		0x1f00
+#define	CCM_PLL_CFG_FACTOR_N_SHIFT	8
+#define	CCM_PLL_CFG_FACTOR_K		0x30
+#define	CCM_PLL_CFG_FACTOR_K_SHIFT	4
+#define	CCM_PLL_CFG_FACTOR_M		0x3
+
+#define	CCM_PLL6_CFG_SATA_CLKEN	(1U << 14)
+
+#define	CCM_SD_CLK_SRC_SEL		0x3000000
+#define	CCM_SD_CLK_SRC_SEL_SHIFT	24
+#define	CCM_SD_CLK_SRC_SEL_OSC24M	0
+#define	CCM_SD_CLK_SRC_SEL_PLL6		1
+#define	CCM_SD_CLK_PHASE_CTR		0x700000
+#define	CCM_SD_CLK_PHASE_CTR_SHIFT	20
+#define	CCM_SD_CLK_DIV_RATIO_N		0x30000
+#define	CCM_SD_CLK_DIV_RATIO_N_SHIFT	16
+#define	CCM_SD_CLK_OPHASE_CTR		0x700
+#define	CCM_SD_CLK_OPHASE_CTR_SHIFT	8
+#define	CCM_SD_CLK_DIV_RATIO_M		0xf
+
+#define	CCM_CLK_REF_FREQ	24000000U
+
 int a10_clk_usb_activate(void);
 int a10_clk_usb_deactivate(void);
 int a10_clk_emac_activate(void);
+int a10_clk_mmc_activate(int);
+int a10_clk_mmc_cfg(int, int);
 
 #endif /* _A10_CLK_H_ */
