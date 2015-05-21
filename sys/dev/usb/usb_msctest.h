@@ -43,5 +43,7 @@ usb_error_t usb_msc_eject(struct usb_device *udev,
 	    uint8_t iface_index, int method);
 usb_error_t usb_msc_auto_quirk(struct usb_device *udev,
 	    uint8_t iface_index);
+usb_error_t usb_dymo_eject(struct usb_device *udev,
+	    uint8_t iface_index);
 
 #endif					/* _USB_MSCTEST_H_ */
