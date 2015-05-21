@@ -70,7 +70,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libldns} \
 	liblzma \
 	${_libmagic} \
-	libmandoc \
 	libmemstat \
 	libmd \
 	${_libmilter} \

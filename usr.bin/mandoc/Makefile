@@ -9,6 +9,37 @@ FILESDIR=	${SHAREDIR}/mdocml
 MAN=	mandoc.1 eqn.7 mandoc_char.7 tbl.7 man.7 mdoc.7 # roff.7
 MLINKS= mandoc.1 mdocml.1
 
+LIBMAN_SRCS=	man.c \
+		man_hash.c \
+		man_macro.c \
+		man_validate.c
+
+LIBMDOC_SRCS=	att.c \
+		lib.c \
+		mdoc.c \
+		mdoc_argv.c \
+		mdoc_hash.c \
+		mdoc_macro.c \
+		mdoc_validate.c \
+		st.c \
+
+LIBROFF_SRCS=	eqn.c \
+		roff.c \
+		tbl.c \
+		tbl_data.c \
+		tbl_layout.c \
+		tbl_opts.c \
+
+LIB_SRCS=	${LIBMAN_SRCS} \
+		${LIBMDOC_SRCS} \
+		${LIBROFF_SRCS} \
+		chars.c \
+		mandoc.c \
+		mandoc_aux.c \
+		msec.c \
+		preconv.c \
+		read.c
+
 HTML_SRCS=	eqn_html.c \
 		html.c \
 		man_html.c \
@@ -30,7 +61,8 @@ DB_SRCS=	mandocdb.c \
 		mansearch_const.c \
 		manpath.c
 
-SRCS=		${HTML_SRCS} \
+SRCS=		${LIB_SRCS} \
+		${HTML_SRCS} \
 		${MAN_SRCS} \
 		${TERM_SRCS} \
 		main.c \
@@ -43,6 +75,6 @@ WARNS?=	2
 CFLAGS+= -DHAVE_CONFIG_H \
 	 -I${.CURDIR}/../../lib/libohash/ \
 	 -I${.CURDIR}/../../contrib/sqlite3
-LIBADD=	mandoc ohash sqlite3
+LIBADD=	ohash sqlite3
 
 .include <bsd.prog.mk>

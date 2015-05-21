@@ -32,7 +32,6 @@ _INTERNALLIBS=	\
 		fifolog \
 		ipf \
 		lpr \
-		mandoc \
 		netbsd \
 		ntp \
 		ntpevent \
@@ -114,7 +113,6 @@ _LIBRARIES=	\
 		lzma \
 		m \
 		magic \
-		mandoc \
 		md \
 		memstat \
 		mp \
@@ -329,9 +327,6 @@ LIBREADLINE?=	${LIBREADLINEDIR}/libreadline.a
 
 LIBOHASHDIR=	${ROOTOBJDIR}/lib/libohash
 LIBOHASH?=	${LIBOHASHDIR}/libohash.a
-
-LIBMANDOCDIR=	${ROOTOBJDIR}/lib/libmandoc
-LIBMANDOC?=	${LIBMANDOCDIR}/libmandoc.a
 
 LIBSMDIR=	${ROOTOBJDIR}/lib/libsm
 LIBSM?=		${LIBSMDIR}/libsm.a
