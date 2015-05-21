@@ -241,8 +241,7 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 	/*
 	 * Prepend options passed via automountd(8) command line.
 	 */
-	if (cmdline_options != NULL)
-		options = concat(cmdline_options, ',', options);
+	options = concat(cmdline_options, ',', options);
 
 	if (node->n_location == NULL) {
 		log_debugx("found node defined at %s:%d; not a mountpoint",
@@ -455,11 +454,7 @@ main_automountd(int argc, char **argv)
 			maxproc = atoi(optarg);
 			break;
 		case 'o':
-			if (options == NULL) {
-				options = checked_strdup(optarg);
-			} else {
-				options = concat(options, ',', optarg);
-			}
+			options = concat(options, ',', optarg);
 			break;
 		case 'v':
 			debug++;

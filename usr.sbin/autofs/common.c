@@ -94,8 +94,10 @@ concat(const char *s1, char separator, const char *s2)
 	char *result;
 	int ret;
 
-	assert(s1 != NULL);
-	assert(s2 != NULL);
+	if (s1 == NULL)
+		s1 = "";
+	if (s2 == NULL)
+		s2 = "";
 
 	/*
 	 * If s2 starts with separator - skip it; otherwise concatenating
