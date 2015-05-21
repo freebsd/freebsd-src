@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 
 vm_offset_t
-db_disasm(vm_offset_t loc, boolean_t altfmt)
+db_disasm(vm_offset_t loc, bool altfmt)
 {
 	return 0;
 }

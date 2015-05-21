@@ -38,13 +38,13 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_access.h>
 #include <ddb/db_command.h>
 
-static boolean_t	db_add_expr(db_expr_t *valuep);
-static boolean_t	db_mult_expr(db_expr_t *valuep);
-static boolean_t	db_shift_expr(db_expr_t *valuep);
-static boolean_t	db_term(db_expr_t *valuep);
-static boolean_t	db_unary(db_expr_t *valuep);
+static bool	db_add_expr(db_expr_t *valuep);
+static bool	db_mult_expr(db_expr_t *valuep);
+static bool	db_shift_expr(db_expr_t *valuep);
+static bool	db_term(db_expr_t *valuep);
+static bool	db_unary(db_expr_t *valuep);
 
-static boolean_t
+static bool
 db_term(db_expr_t *valuep)
 {
 	int	t;
@@ -100,7 +100,7 @@ db_term(db_expr_t *valuep)
 	return (false);
 }
 
-static boolean_t
+static bool
 db_unary(db_expr_t *valuep)
 {
 	int	t;
@@ -127,7 +127,7 @@ db_unary(db_expr_t *valuep)
 	return (db_term(valuep));
 }
 
-static boolean_t
+static bool
 db_mult_expr(db_expr_t *valuep)
 {
 	db_expr_t	lhs, rhs;
@@ -163,7 +163,7 @@ db_mult_expr(db_expr_t *valuep)
 	return (true);
 }
 
-static boolean_t
+static bool
 db_add_expr(db_expr_t *valuep)
 {
 	db_expr_t	lhs, rhs;
@@ -189,7 +189,7 @@ db_add_expr(db_expr_t *valuep)
 	return (true);
 }
 
-static boolean_t
+static bool
 db_shift_expr(db_expr_t *valuep)
 {
 	db_expr_t	lhs, rhs;

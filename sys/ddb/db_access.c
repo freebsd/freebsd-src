@@ -54,7 +54,7 @@ static unsigned db_extend[] = {	/* table for sign-extending */
 #endif
 
 db_expr_t
-db_get_value(db_addr_t addr, int size, boolean_t is_signed)
+db_get_value(db_addr_t addr, int size, bool is_signed)
 {
 	char		data[sizeof(u_int64_t)];
 	register db_expr_t value;

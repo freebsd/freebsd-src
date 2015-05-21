@@ -161,7 +161,7 @@ static const char *c2_reg[32] = {
 static int md_printins(int ins, int mdbdot);
 
 db_addr_t
-db_disasm(db_addr_t loc, boolean_t altfmt)
+db_disasm(db_addr_t loc, bool altfmt)
 
 {
 	int ins;

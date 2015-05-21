@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
  */
 /*ARGSUSED*/
 void
-db_write_cmd(db_expr_t address, boolean_t have_addr, db_expr_t count,
+db_write_cmd(db_expr_t address, bool have_addr, db_expr_t count,
     char * modif)
 {
 	register
@@ -52,7 +52,7 @@ db_write_cmd(db_expr_t address, boolean_t have_addr, db_expr_t count,
 	db_expr_t	old_value;
 	db_expr_t	new_value;
 	register int	size;
-	boolean_t	wrote_one = false;
+	bool		wrote_one = false;
 
 	addr = (db_addr_t) address;
 

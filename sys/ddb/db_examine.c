@@ -52,8 +52,7 @@ static void	db_search(db_addr_t, int, db_expr_t, db_expr_t, u_int);
  */
 /*ARGSUSED*/
 void
-db_examine_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
-    char *modif)
+db_examine_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 {
 	if (modif[0] != '\0')
 	    db_strcpy(db_examine_format, modif);
@@ -190,8 +189,7 @@ static char	db_print_format = 'x';
 
 /*ARGSUSED*/
 void
-db_print_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
-    char *modif)
+db_print_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 {
 	db_expr_t	value;
 
@@ -244,8 +242,7 @@ db_print_loc_and_inst(db_addr_t loc)
  * Syntax: search [/bhl] addr value [mask] [,count]
  */
 void
-db_search_cmd(db_expr_t dummy1, boolean_t dummy2, db_expr_t dummy3,
-    char *dummy4)
+db_search_cmd(db_expr_t dummy1, bool dummy2, db_expr_t dummy3, char *dummy4)
 {
 	int		t;
 	db_addr_t	addr;
