@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <arm/amlogic/aml8726/aml8726_soc.h>
+
 #include "clock_if.h"
 
 /*
@@ -372,44 +374,27 @@ static int
 aml8726_rtc_attach(device_t dev)
 {
 	struct aml8726_rtc_softc *sc = device_get_softc(dev);
-	boolean_t init_always_valid;
-	char *init_always;
-	pcell_t prop;
-	phandle_t node;
-	ssize_t len;
 
 	sc->dev = dev;
 
-	node = ofw_bus_get_node(dev);
-
-	len = OF_getprop_alloc(node, "init-always",
-	    sizeof(char), (void **)&init_always);
-	sc->init.always = FALSE;
-	init_always_valid = FALSE;
-	if (len > 0) {
-		if (strncmp(init_always, "true", len) == 0) {
-			sc->init.always = TRUE;
-			init_always_valid = TRUE;
-		} else if (strncmp(init_always, "false", len) == 0)
-			init_always_valid = TRUE;
-		free(init_always, M_OFWPROP);
-	}
-	if (init_always_valid == FALSE) {
-		device_printf(dev, "missing init-always attribute in FDT\n");
+	switch (aml8726_soc_hw_rev) {
+	case AML_SOC_HW_REV_M3:
+		sc->init.always = true;
+		sc->init.xo = 0x3c0a;
+		sc->init.gpo = 0x100000;
+		break;
+	case AML_SOC_HW_REV_M6:
+	case AML_SOC_HW_REV_M8:
+	case AML_SOC_HW_REV_M8B:
+		sc->init.always = false;
+		sc->init.xo = 0x180a;
+		sc->init.gpo = 0x500000;
+		break;
+	default:
+		device_printf(dev, "unsupported SoC\n");
 		return (ENXIO);
+		/* NOTREACHED */
 	}
-
-	if (OF_getencprop(node, "xo-init", &prop, sizeof(prop)) <= 0) {
-		device_printf(dev, "missing xo-init attribute in FDT\n");
-		return (ENXIO);
-	}
-	sc->init.xo = prop;
-
-	if (OF_getencprop(node, "gpo-init", &prop, sizeof(prop)) <= 0) {
-		device_printf(dev, "missing gpo-init attribute in FDT\n");
-		return (ENXIO);
-	}
-	sc->init.gpo = prop;
 
 	if (bus_alloc_resources(dev, aml8726_rtc_spec, sc->res)) {
 		device_printf(dev, "can not allocate resources for device\n");
