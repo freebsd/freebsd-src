@@ -194,10 +194,6 @@
 			compatible = "amlogic,aml8726-rtc";
 			reg = <0xc8100740 20>;	/* aobus 0x1d0 */
 			interrupts = <0 72 1>;
-
-			init-always = "false";
-			xo-init = <0x180a>;
-			gpo-init = <0x500000>;
 		};
 
 		clkmsr: clkmsr@c1108758 {
