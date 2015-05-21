@@ -867,6 +867,7 @@ m_dup(struct mbuf *m, int how)
 			}
 			if ((n->m_flags & M_EXT) == 0)
 				nsize = MHLEN;
+			n->m_flags &= ~M_RDONLY;
 		}
 		n->m_len = 0;
 
