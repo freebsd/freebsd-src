@@ -146,7 +146,6 @@ aml8726_pinctrl_attach(device_t dev)
 		device_printf(dev, "unsupported SoC\n");
 		return (ENXIO);
 		/* NOTREACHED */
-		break;
 	}
 
 	if (bus_alloc_resources(dev, aml8726_pinctrl_spec, sc->res)) {
