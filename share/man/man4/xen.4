@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 17, 2010
+.Dd April 30, 2015
 .Dt XEN 4
 .Os
 .Sh NAME
@@ -44,8 +44,8 @@ the following lines in your kernel configuration file:
 .Ed
 .Pp
 To compile hardware-assisted virtualization (HVM) Xen guest support with
-para-virtualized drivers into an amd64 kernel, place the following lines in
-your kernel configuration file:
+para-virtualized drivers into an amd64 or i386 kernel,
+place the following lines in your kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options XENHVM"
 .Cd "device xenpci"
@@ -175,9 +175,6 @@ is only able to run as a Xen guest (DomU) and not as a Xen host (Dom0).
 .Pp
 A fully para-virtualized (PV) kernel is only supported on i386, and not
 amd64.
-.Pp
-Para-virtualized drivers under hardware-assisted virtualization (HVM) kernel
-are only supported on amd64, not i386.
 .Pp
 As of this release, Xen PV DomU support is not heavily tested; instability
 has been reported during VM migration of PV kernels.
