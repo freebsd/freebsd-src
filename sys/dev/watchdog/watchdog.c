@@ -389,8 +389,8 @@ watchdog_modevent(module_t mod __unused, int type, void *data __unused)
 {
 	switch(type) {
 	case MOD_LOAD:
-		callout_init(&wd_pretimeo_handle, true);
-		callout_init(&wd_softtimeo_handle, true);
+		callout_init(&wd_pretimeo_handle, 1);
+		callout_init(&wd_softtimeo_handle, 1);
 		wd_dev = make_dev(&wd_cdevsw, 0,
 		    UID_ROOT, GID_WHEEL, 0600, _PATH_WATCHDOG);
 		return 0;

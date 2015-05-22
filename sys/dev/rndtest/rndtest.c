@@ -98,7 +98,7 @@ rndtest_attach(device_t dev)
 #if __FreeBSD_version < 500000
 		callout_init(&rsp->rs_to);
 #else
-		callout_init(&rsp->rs_to, CALLOUT_MPSAFE);
+		callout_init(&rsp->rs_to, 1);
 #endif
 	} else
 		device_printf(dev, "rndtest_init: no memory for state block\n");

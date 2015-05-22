@@ -7560,7 +7560,7 @@ key_init(void)
 	SPACQ_LOCK_INIT();
 
 #ifndef IPSEC_DEBUG2
-	callout_init(&key_timer, CALLOUT_MPSAFE);
+	callout_init(&key_timer, 1);
 	callout_reset(&key_timer, hz, key_timehandler, NULL);
 #endif /*IPSEC_DEBUG2*/
 

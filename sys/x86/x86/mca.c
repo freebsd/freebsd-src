@@ -762,7 +762,7 @@ mca_setup(uint64_t mcg_cap)
 	mtx_init(&mca_lock, "mca", NULL, MTX_SPIN);
 	STAILQ_INIT(&mca_records);
 	TASK_INIT(&mca_scan_task, 0, mca_scan_cpus, NULL);
-	callout_init(&mca_timer, CALLOUT_MPSAFE);
+	callout_init(&mca_timer, 1);
 	STAILQ_INIT(&mca_freelist);
 	TASK_INIT(&mca_refill_task, 0, mca_refill, NULL);
 	mca_fill_freelist();

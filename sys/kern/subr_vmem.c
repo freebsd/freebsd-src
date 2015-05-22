@@ -766,7 +766,7 @@ vmem_start_callout(void *unused)
 
 	TASK_INIT(&vmem_periodic_wk, 0, vmem_periodic, NULL);
 	vmem_periodic_interval = hz * 10;
-	callout_init(&vmem_periodic_ch, CALLOUT_MPSAFE);
+	callout_init(&vmem_periodic_ch, 1);
 	callout_reset(&vmem_periodic_ch, vmem_periodic_interval,
 	    vmem_periodic_kick, NULL);
 }

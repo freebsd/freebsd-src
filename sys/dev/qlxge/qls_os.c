@@ -453,7 +453,7 @@ qls_pci_attach(device_t dev)
 	taskqueue_start_threads(&ha->tx_tq, 1, PI_NET, "%s txq",
 		device_get_nameunit(ha->pci_dev));
 	
-	callout_init(&ha->tx_callout, TRUE);
+	callout_init(&ha->tx_callout, 1);
 	ha->flags.qla_callout_init = 1;
 
         /* create ioctl device interface */

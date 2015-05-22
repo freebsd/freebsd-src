@@ -436,7 +436,7 @@ vatpit_init(struct vm *vm)
 	vatpit->freq_sbt = bttosbt(bt);
 
 	for (i = 0; i < 3; i++) {
-		callout_init(&vatpit->channel[i].callout, true);
+		callout_init(&vatpit->channel[i].callout, 1);
 		arg = &vatpit->channel[i].callout_arg;
 		arg->vatpit = vatpit;
 		arg->channel_num = i;

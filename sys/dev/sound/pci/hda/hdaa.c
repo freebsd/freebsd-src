@@ -6592,7 +6592,7 @@ hdaa_attach(device_t dev)
 	devinfo->newquirks = -1;
 	devinfo->newgpio = -1;
 	devinfo->newgpo = -1;
-	callout_init(&devinfo->poll_jack, CALLOUT_MPSAFE);
+	callout_init(&devinfo->poll_jack, 1);
 	devinfo->poll_ival = hz;
 
 	hdaa_lock(devinfo);
