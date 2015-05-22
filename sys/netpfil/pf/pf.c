@@ -195,7 +195,7 @@ VNET_DEFINE(uint64_t, pf_stateid[MAXCPU]);
 #define	PFID_CPUSHIFT	(sizeof(uint64_t) * NBBY - PFID_CPUBITS)
 #define	PFID_CPUMASK	((uint64_t)((1 << PFID_CPUBITS) - 1) <<	PFID_CPUSHIFT)
 #define	PFID_MAXID	(~PFID_CPUMASK)
-CTASSERT((1 << PFID_CPUBITS) > MAXCPU);
+CTASSERT((1 << PFID_CPUBITS) >= MAXCPU);
 
 static void		 pf_src_tree_remove_state(struct pf_state *);
 static void		 pf_init_threshold(struct pf_threshold *, u_int32_t,
