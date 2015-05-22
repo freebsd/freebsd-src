@@ -113,6 +113,7 @@ static int cpsw_ioctl(struct ifnet *, u_long command, caddr_t data);
 
 static int cpsw_miibus_readreg(device_t, int phy, int reg);
 static int cpsw_miibus_writereg(device_t, int phy, int reg, int value);
+static void cpsw_miibus_statchg(device_t);
 
 /* Send/Receive packets. */
 static void cpsw_intr_rx(void *arg);
@@ -179,6 +180,7 @@ static device_method_t cpsw_methods[] = {
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	cpsw_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	cpsw_miibus_writereg),
+	DEVMETHOD(miibus_statchg,	cpsw_miibus_statchg),
 	{ 0, 0 }
 };
 
@@ -1263,6 +1265,36 @@ cpsw_miibus_writereg(device_t dev, int phy, int reg, int value)
 		device_printf(dev, "Failed to write to PHY.\n");
 
 	return 0;
+}
+
+static void
+cpsw_miibus_statchg(device_t dev)
+{
+	struct cpsw_softc *sc = device_get_softc(dev);
+	uint32_t mac_control;
+	int i;
+
+	CPSW_DEBUGF((""));
+
+	for (i = 0; i < 2; i++) {
+		mac_control = cpsw_read_4(sc, CPSW_SL_MACCONTROL(i));
+		mac_control &= ~(1 << 15 | 1 << 7);
+
+		switch(IFM_SUBTYPE(sc->mii->mii_media_active)) {
+		case IFM_1000_SX:
+		case IFM_1000_LX:
+		case IFM_1000_CX:
+		case IFM_1000_T:
+			mac_control |= 1 << 7;
+			break;
+
+		default:
+			mac_control |= 1 << 15;
+			break;
+		}
+
+		cpsw_write_4(sc, CPSW_SL_MACCONTROL(i), mac_control);
+	}
 }
 
 /*
