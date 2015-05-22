@@ -242,7 +242,7 @@ am335x_lcd_sysctl_backlight(SYSCTL_HANDLER_ARGS)
 		backlight = 100;
 
 	LCD_LOCK(sc);
-	error = am335x_pwm_config_ecas(PWM_UNIT, PWM_PERIOD,
+	error = am335x_pwm_config_ecap(PWM_UNIT, PWM_PERIOD,
 	    backlight*PWM_PERIOD/100);
 	if (error == 0)
 		sc->sc_backlight = backlight;
@@ -252,12 +252,10 @@ am335x_lcd_sysctl_backlight(SYSCTL_HANDLER_ARGS)
 }
 
 static int
-am335x_read_panel_property(device_t dev, const char *name, uint32_t *val)
+am335x_read_property(device_t dev, phandle_t node, const char *name, uint32_t *val)
 {
-	phandle_t node;
 	pcell_t cell;
 
-	node = ofw_bus_get_node(dev);
 	if ((OF_getprop(node, name, &cell, sizeof(cell))) <= 0) {
 		device_printf(dev, "missing '%s' attribute in LCD panel info\n",
 		    name);
@@ -270,85 +268,116 @@ am335x_read_panel_property(device_t dev, const char *name, uint32_t *val)
 }
 
 static int
-am335x_read_panel_info(device_t dev, struct panel_info *panel)
+am335x_read_timing(device_t dev, phandle_t node, struct panel_info *panel)
 {
 	int error;
+	phandle_t timings_node, timing_node, native;
+
+	timings_node = fdt_find_child(node, "display-timings");
+	if (timings_node == 0) {
+		device_printf(dev, "no \"display-timings\" node\n");
+		return (-1);
+	}
+
+	if (OF_searchencprop(timings_node, "native-mode", &native,
+	    sizeof(native)) == -1) {
+		device_printf(dev, "no \"native-mode\" reference in \"timings\" node\n");
+		return (-1);
+	}
+
+	timing_node = OF_node_from_xref(native);
 
 	error = 0;
-	if ((error = am335x_read_panel_property(dev,
-	    "panel_width", &panel->panel_width)))
+	if ((error = am335x_read_property(dev, timing_node,
+	    "hactive", &panel->panel_width)))
 		goto out;
 
-	if ((error = am335x_read_panel_property(dev,
-	    "panel_height", &panel->panel_height)))
+	if ((error = am335x_read_property(dev, timing_node,
+	    "vactive", &panel->panel_height)))
 		goto out;
 
-	if ((error = am335x_read_panel_property(dev,
-	    "panel_hfp", &panel->panel_hfp)))
+	if ((error = am335x_read_property(dev, timing_node,
+	    "hfront-porch", &panel->panel_hfp)))
 		goto out;
 
-	if ((error = am335x_read_panel_property(dev,
-	    "panel_hbp", &panel->panel_hbp)))
+	if ((error = am335x_read_property(dev, timing_node,
+	    "hback-porch", &panel->panel_hbp)))
 		goto out;
 
-	if ((error = am335x_read_panel_property(dev,
-	    "panel_hsw", &panel->panel_hsw)))
+	if ((error = am335x_read_property(dev, timing_node,
+	    "hsync-len", &panel->panel_hsw)))
 		goto out;
 
-	if ((error = am335x_read_panel_property(dev,
-	    "panel_vfp", &panel->panel_vfp)))
+	if ((error = am335x_read_property(dev, timing_node,
+	    "vfront-porch", &panel->panel_vfp)))
 		goto out;
 
-	if ((error = am335x_read_panel_property(dev,
-	    "panel_vbp", &panel->panel_vbp)))
+	if ((error = am335x_read_property(dev, timing_node,
+	    "vback-porch", &panel->panel_vbp)))
 		goto out;
 
-	if ((error = am335x_read_panel_property(dev,
-	    "panel_vsw", &panel->panel_vsw)))
+	if ((error = am335x_read_property(dev, timing_node,
+	    "vsync-len", &panel->panel_vsw)))
 		goto out;
 
-	if ((error = am335x_read_panel_property(dev,
-	    "panel_pxl_clk", &panel->panel_pxl_clk)))
+	if ((error = am335x_read_property(dev, timing_node,
+	    "clock-frequency", &panel->panel_pxl_clk)))
 		goto out;
 
-	if ((error = am335x_read_panel_property(dev,
-	    "panel_invert_pxl_clk", &panel->panel_invert_pxl_clk)))
+	if ((error = am335x_read_property(dev, timing_node,
+	    "pixelclk-active", &panel->pixelclk_active)))
 		goto out;
 
-	if ((error = am335x_read_panel_property(dev,
-	    "ac_bias", &panel->ac_bias)))
+	if ((error = am335x_read_property(dev, timing_node,
+	    "hsync-active", &panel->hsync_active)))
 		goto out;
 
-	if ((error = am335x_read_panel_property(dev,
-	    "ac_bias_intrpt", &panel->ac_bias_intrpt)))
+	if ((error = am335x_read_property(dev, timing_node,
+	    "vsync-active", &panel->vsync_active)))
 		goto out;
 
-	if ((error = am335x_read_panel_property(dev,
-	    "dma_burst_sz", &panel->dma_burst_sz)))
+out:
+	return (error);
+}
+
+static int
+am335x_read_panel_info(device_t dev, phandle_t node, struct panel_info *panel)
+{
+	int error;
+	phandle_t panel_info_node;
+
+	panel_info_node = fdt_find_child(node, "panel-info");
+	if (panel_info_node == 0)
+		return (-1);
+
+	error = 0;
+
+	if ((error = am335x_read_property(dev, panel_info_node,
+	    "ac-bias", &panel->ac_bias)))
 		goto out;
 
-	if ((error = am335x_read_panel_property(dev,
+	if ((error = am335x_read_property(dev, panel_info_node,
+	    "ac-bias-intrpt", &panel->ac_bias_intrpt)))
+		goto out;
+
+	if ((error = am335x_read_property(dev, panel_info_node,
+	    "dma-burst-sz", &panel->dma_burst_sz)))
+		goto out;
+
+	if ((error = am335x_read_property(dev, panel_info_node,
 	    "bpp", &panel->bpp)))
 		goto out;
 
-	if ((error = am335x_read_panel_property(dev,
+	if ((error = am335x_read_property(dev, panel_info_node,
 	    "fdd", &panel->fdd)))
 		goto out;
 
-	if ((error = am335x_read_panel_property(dev,
-	    "invert_line_clock", &panel->invert_line_clock)))
+	if ((error = am335x_read_property(dev, panel_info_node,
+	    "sync-edge", &panel->sync_edge)))
 		goto out;
 
-	if ((error = am335x_read_panel_property(dev,
-	    "invert_frm_clock", &panel->invert_frm_clock)))
-		goto out;
-
-	if ((error = am335x_read_panel_property(dev,
-	    "sync_edge", &panel->sync_edge)))
-		goto out;
-
-	error = am335x_read_panel_property(dev,
-	    "sync_ctrl", &panel->sync_ctrl);
+	error = am335x_read_property(dev, panel_info_node,
+	    "sync-ctrl", &panel->sync_ctrl);
 
 out:
 	return (error);
@@ -423,7 +452,7 @@ am335x_lcd_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "ti,am335x-lcd"))
+	if (!ofw_bus_is_compatible(dev, "ti,am33xx-tilcdc"))
 		return (ENXIO);
 
 	device_set_desc(dev, "AM335x LCD controller");
@@ -454,12 +483,32 @@ am335x_lcd_attach(device_t dev)
 	uint32_t hbp, hfp, hsw;
 	uint32_t vbp, vfp, vsw;
 	uint32_t width, height;
+	phandle_t root, panel_node;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 
-	if (am335x_read_panel_info(dev, &panel))
+	root = OF_finddevice("/");
+	if (root == 0) {
+		device_printf(dev, "failed to get FDT root node\n");
 		return (ENXIO);
+	}
+
+	panel_node = fdt_find_compatible(root, "ti,tilcdc,panel", 1);
+	if (panel_node == 0) {
+		device_printf(dev, "failed to find compatible panel in FDT blob\n");
+		return (ENXIO);
+	}
+
+	if (am335x_read_panel_info(dev, panel_node, &panel)) {
+		device_printf(dev, "failed to read panel info\n");
+		return (ENXIO);
+	}
+
+	if (am335x_read_timing(dev, panel_node, &panel)) {
+		device_printf(dev, "failed to read timings\n");
+		return (ENXIO);
+	}
 
 	int ref_freq = 0;
 	ti_prcm_clk_enable(LCDC_CLK);
@@ -593,11 +642,11 @@ am335x_lcd_attach(device_t dev)
 		timing2 |= RASTER_TIMING_2_PHSVS_RISE;
 	else
 		timing2 |= RASTER_TIMING_2_PHSVS_FALL;
-	if (panel.invert_line_clock)
+	if (panel.hsync_active == 0)
 		timing2 |= RASTER_TIMING_2_IHS;
-	if (panel.invert_frm_clock)
+	if (panel.vsync_active == 0)
 		timing2 |= RASTER_TIMING_2_IVS;
-	if (panel.panel_invert_pxl_clk)
+	if (panel.pixelclk_active == 0)
 		timing2 |= RASTER_TIMING_2_IPC;
 
 	/* AC bias */
@@ -676,7 +725,7 @@ am335x_lcd_attach(device_t dev)
 	    am335x_lcd_sysctl_backlight, "I", "LCD backlight");
 	sc->sc_backlight = 0;
 	/* Check if eCAS interface is available at this point */
-	if (am335x_pwm_config_ecas(PWM_UNIT,
+	if (am335x_pwm_config_ecap(PWM_UNIT,
 	    PWM_PERIOD, PWM_PERIOD) == 0)
 		sc->sc_backlight = 100;
 

@@ -133,5 +133,8 @@ device		axe			# ASIX Electronics USB Ethernet
 device		usb_template    	# Control of the gadget
 device		usfs
 
+# Pinmux
+device		fdt_pinctrl
+
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data

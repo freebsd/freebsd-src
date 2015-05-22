@@ -28,6 +28,6 @@
 #ifndef __AM335X_PWM_H__
 #define __AM335X_PWM_H__
 
-int am335x_pwm_config_ecas(int unit, int period, int duty);
+int am335x_pwm_config_ecap(int unit, int period, int duty);
 
 #endif /* __AM335X_PWM_H__ */

@@ -57,6 +57,7 @@ options 	DDB			# Enable the kernel debugger
 #options 	BOOTP_NFSV3
 #options 	BOOTP_WIRED_TO=ue0
 
+device		fdt_pinctrl
 # Interrupt controller
 device		gic
 
@@ -81,6 +82,7 @@ device		pl310			# PL310 L2 cache controller
 
 # GPIO
 device		gpio
+device		gpioled
 
 # The following enables MFS as root, this seems similar to an initramfs or initrd
 # as used in Linux.
