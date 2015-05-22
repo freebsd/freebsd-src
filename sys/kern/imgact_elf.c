@@ -972,6 +972,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	elf_auxargs->base = addr;
 	elf_auxargs->flags = 0;
 	elf_auxargs->entry = entry;
+	elf_auxargs->hdr_eflags = hdr->e_flags;
 
 	imgp->auxargs = elf_auxargs;
 	imgp->interpreted = 0;
@@ -1002,6 +1003,9 @@ __elfN(freebsd_fixup)(register_t **stack_base, struct image_params *imgp)
 	AUXARGS_ENTRY(pos, AT_FLAGS, args->flags);
 	AUXARGS_ENTRY(pos, AT_ENTRY, args->entry);
 	AUXARGS_ENTRY(pos, AT_BASE, args->base);
+#ifdef AT_EHDREFLAGS
+	AUXARGS_ENTRY(pos, AT_EHDRFLAGS, args->hdr_eflags);
+#endif
 	if (imgp->execpathp != 0)
 		AUXARGS_ENTRY(pos, AT_EXECPATH, imgp->execpathp);
 	AUXARGS_ENTRY(pos, AT_OSRELDATE,
