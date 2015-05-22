@@ -207,36 +207,47 @@ iso-images-stage:
 .endif # no RELEASEDIR
 
 vm-images-stage:
-	@true
-#	mkdir -p ${VM_DIR}
-#.if defined(SNAPSHOT) && !empty(SNAPSHOT)
-#	mkdir -p ${VM_DIR}/${BUILDDATE}
-#. if exists(${VM_DIR}/Latest)
-#	unlink ${VM_DIR}/Latest
-#	cd ${VM_DIR} && ln -s ${BUILDDATE} Latest
-#. endif
-#. for VMIMAGE in ${VMIMAGES}
-#	cd /R/vmimages && cp -p ${VMIMAGE}.xz \
-#		${VM_DIR}/${BUILDDATE}/${OSRELEASE}-${SNAP_SUFFIX}-${VMIMAGE}.xz
-#	cd ${VM_DIR}/Latest && ln -s \
-#		../${BUILDDATE}/${OSRELEASE}-${SNAP_SUFFIX}-${VMIMAGE}.xz \
-#		${OSRELEASE}-${VMIMAGE}.xz
-#. endfor
-#. for CHECKSUM in ${CHECKSUM_FILES}
-#.  if exists(${VM_DIR}/${BUILDDATE}/CHECKSUM.${CHECKSUM})
-#	rm -f ${VM_DIR}/${BUILDDATE}/CHECKSUM.${CHECKSUM}
-#.  endif
-#	cd ${VM_DIR}/${BUILDDATE} && ${CHECKSUM:tl} ${OSRELEASE}* > \
-#		CHECKSUM.${CHECKSUM}-${REVISION}-${BRANCH}-${SNAP_SUFFIX}
-#	cd ${VM_DIR}/Latest && ln -s \
-#		${VM_DIR}/${BUILDDATE}/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX} \
-#		CHECKSUM.${CHECKSUM}
-#. endfor
-#.else	# !snapshot
-#. for CHECKSUM in ${CHECKSUM_FILES}
-#	cd /R/vmimages && cp -p CHECKSUM.${CHECKSUM}* \
-#		${VM_DIR}/${BUILDDATE}/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX}
-#.endif
+	mkdir -p ${VM_DIR}
+.if defined(SNAPSHOT) && !empty(SNAPSHOT)
+. if exists(${VM_DIR}/Latest)
+	rm -rf ${VM_DIR}/Latest
+. endif
+	mkdir -p ${VM_DIR}/Latest
+	mkdir -p ${VM_DIR}/${BUILDDATE}
+. for VMFORMAT in ${VMFORMATS}
+	cd ${RELEASEDIR}/vmimages && \
+		mv ${OSRELEASE}.${VMFORMAT}.xz \
+		${OSRELEASE}-${SNAP_SUFFIX}.${VMFORMAT}.xz
+	cp -p ${RELEASEDIR}/vmimages/${OSRELEASE}-${SNAP_SUFFIX}.${VMFORMAT}.xz \
+		${VM_DIR}/${BUILDDATE}/${OSRELEASE}-${SNAP_SUFFIX}.${VMFORMAT}.xz
+	cd ${VM_DIR}/Latest && \
+		ln -s ../${BUILDDATE}/${OSRELEASE}-${SNAP_SUFFIX}.${VMFORMAT}.xz \
+		${OSRELEASE}.${VMFORMAT}.xz
+. endfor
+	cd ${RELEASEDIR}/vmimages && rm -f CHECKSUM.*
+. for CHECKSUM in ${CHECKSUM_FILES}
+	cd ${RELEASEDIR}/vmimages && \
+		${CHECKSUM:tl} ${OSRELEASE}* > CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX}
+	cp -p ${RELEASEDIR}/vmimages/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX} \
+		${VM_DIR}/${BUILDDATE}/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX}
+	cd ${VM_DIR}/Latest && \
+		ln -s ../${BUILDDATE}/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX} \
+		CHECKSUM.${CHECKSUM}
+. endfor
+.else # not snapshot
+. if exists(${VM_DIR}/Latest)
+	rm -rf ${VM_DIR}/Latest
+. endif
+	mkdir -p ${VM_DIR}/Latest
+. for VMFORMAT in ${VMFORMATS}
+	cp -p ${RELEASEDIR}/vmimages/${OSRELEASE}.${VMFORMAT}.xz \
+		${VM_DIR}/Latest/${OSRELEASE}.${VMFORMAT}.xz
+. endfor
+. for CHECKSUM in ${CHECKSUM_FILES}
+	cp -p ${RELEASEDIR}/vmimages/CHECKSUM.${CHECKSUM} \
+		${VM_DIR}/Latest/CHECKSUM.${CHECKSUM}
+. endfor
+.endif
 
 ftp-stage:	remove-old-bits ${STAGE_TARGETS}
 
