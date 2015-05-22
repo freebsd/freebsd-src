@@ -53,22 +53,17 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 #include <machine/intr_machdep.h>
+#include <machine/md_var.h>
+#include <machine/segments.h>
 #include <sys/pcpu.h>
+#include <machine/apicvar.h>
 
 #include "hv_vmbus_priv.h"
 
 
 #define VMBUS_IRQ	0x5
 
-static struct intr_event *hv_msg_intr_event;
-static struct intr_event *hv_event_intr_event;
-static void *msg_swintr;
-static void *event_swintr;
 static device_t vmbus_devp;
-static void *vmbus_cookiep;
-static int vmbus_rid;
-struct resource *intr_res;
-static int vmbus_irq = VMBUS_IRQ;
 static int vmbus_inited;
 static hv_setup_args setup_args; /* only CPU 0 supported at this time */
 
@@ -77,14 +72,17 @@ static hv_setup_args setup_args; /* only CPU 0 supported at this time */
  * the hypervisor.
  */
 static void
-vmbus_msg_swintr(void *dummy)
+vmbus_msg_swintr(void *arg)
 {
 	int 			cpu;
 	void*			page_addr;
 	hv_vmbus_message*	msg;
 	hv_vmbus_message*	copied;
 
-	cpu = PCPU_GET(cpuid);
+	cpu = (int)(long)arg;
+	KASSERT(cpu <= mp_maxid, ("VMBUS: vmbus_msg_swintr: "
+	    "cpu out of range!"));
+
 	page_addr = hv_vmbus_g_context.syn_ic_msg_page[cpu];
 	msg = (hv_vmbus_message*) page_addr + HV_VMBUS_MESSAGE_SINT;
 
@@ -130,17 +128,8 @@ vmbus_msg_swintr(void *dummy)
  *
  * The purpose of this routine is to determine the type of VMBUS protocol
  * message to process - an event or a channel message.
- * As this is an interrupt filter routine, the function runs in a very
- * restricted envinronment.  From the manpage for bus_setup_intr(9)
- *
- *   In this restricted environment, care must be taken to account for all
- *   races.  A careful analysis of races should be done as well.  It is gener-
- *   ally cheaper to take an extra interrupt, for example, than to protect
- *   variables with spinlocks.	Read, modify, write cycles of hardware regis-
- *   ters need to be carefully analyzed if other threads are accessing the
- *   same registers.
  */
-static int
+static inline int
 hv_vmbus_isr(void *unused) 
 {
 	int				cpu;
@@ -149,8 +138,6 @@ hv_vmbus_isr(void *unused)
 	void*				page_addr;
 
 	cpu = PCPU_GET(cpuid);
-	/* (Temporary limit) */
-	KASSERT(cpu == 0, ("hv_vmbus_isr: Interrupt on CPU other than zero"));
 
 	/*
 	 * The Windows team has advised that we check for events
@@ -162,9 +149,21 @@ hv_vmbus_isr(void *unused)
 	event = (hv_vmbus_synic_event_flags*)
 		    page_addr + HV_VMBUS_MESSAGE_SINT;
 
-	/* Since we are a child, we only need to check bit 0 */
-	if (synch_test_and_clear_bit(0, &event->flags32[0])) {
-		swi_sched(event_swintr, 0);
+	if ((hv_vmbus_protocal_version == HV_VMBUS_VERSION_WS2008) ||
+	    (hv_vmbus_protocal_version == HV_VMBUS_VERSION_WIN7)) {
+		/* Since we are a child, we only need to check bit 0 */
+		if (synch_test_and_clear_bit(0, &event->flags32[0])) {
+			swi_sched(hv_vmbus_g_context.event_swintr[cpu], 0);
+		}
+	} else {
+		/*
+		 * On host with Win8 or above, we can directly look at
+		 * the event page. If bit n is set, we have an interrupt 
+		 * on the channel with id n.
+		 * Directly schedule the event software interrupt on
+		 * current cpu.
+		 */
+		swi_sched(hv_vmbus_g_context.event_swintr[cpu], 0);
 	}
 
 	/* Check if there are actual msgs to be process */
@@ -172,10 +171,45 @@ hv_vmbus_isr(void *unused)
 	msg = (hv_vmbus_message*) page_addr + HV_VMBUS_MESSAGE_SINT;
 
 	if (msg->header.message_type != HV_MESSAGE_TYPE_NONE) {
-		swi_sched(msg_swintr, 0);
+		swi_sched(hv_vmbus_g_context.msg_swintr[cpu], 0);
 	}
 
 	return FILTER_HANDLED;
+}
+
+#ifdef HV_DEBUG_INTR 
+uint32_t hv_intr_count = 0;
+#endif
+uint32_t hv_vmbus_swintr_event_cpu[MAXCPU];
+uint32_t hv_vmbus_intr_cpu[MAXCPU];
+
+void
+hv_vector_handler(struct trapframe *trap_frame)
+{
+#ifdef HV_DEBUG_INTR
+	int cpu;
+#endif
+
+	/*
+	 * Disable preemption.
+	 */
+	critical_enter();
+
+#ifdef HV_DEBUG_INTR
+	/*
+	 * Do a little interrupt counting.
+	 */
+	cpu = PCPU_GET(cpuid);
+	hv_vmbus_intr_cpu[cpu]++;
+	hv_intr_count++;
+#endif
+
+	hv_vmbus_isr(NULL); 
+
+	/*
+	 * Enable preemption.
+	 */
+	critical_exit();
 }
 
 static int
@@ -316,6 +350,81 @@ vmbus_probe(device_t dev) {
 	return (BUS_PROBE_NOWILDCARD);
 }
 
+#ifdef HYPERV
+extern inthand_t IDTVEC(rsvd), IDTVEC(hv_vmbus_callback);
+
+/**
+ * @brief Find a free IDT slot and setup the interrupt handler.
+ */
+static int
+vmbus_vector_alloc(void)
+{
+	int vector;
+	uintptr_t func;
+	struct gate_descriptor *ip;
+
+	/*
+	 * Search backwards form the highest IDT vector available for use
+	 * as vmbus channel callback vector. We install 'hv_vmbus_callback'
+	 * handler at that vector and use it to interrupt vcpus.
+	 */
+	vector = APIC_SPURIOUS_INT;
+	while (--vector >= APIC_IPI_INTS) {
+		ip = &idt[vector];
+		func = ((long)ip->gd_hioffset << 16 | ip->gd_looffset);
+		if (func == (uintptr_t)&IDTVEC(rsvd)) {
+#ifdef __i386__
+			setidt(vector , IDTVEC(hv_vmbus_callback), SDT_SYS386IGT,
+			    SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+#else
+			setidt(vector , IDTVEC(hv_vmbus_callback), SDT_SYSIGT,
+			    SEL_KPL, 0);
+#endif
+
+			return (vector);
+		}
+	}
+	return (0);
+}
+
+/**
+ * @brief Restore the IDT slot to rsvd.
+ */
+static void
+vmbus_vector_free(int vector)
+{
+        uintptr_t func;
+        struct gate_descriptor *ip;
+
+	if (vector == 0)
+		return;
+
+        KASSERT(vector >= APIC_IPI_INTS && vector < APIC_SPURIOUS_INT,
+            ("invalid vector %d", vector));
+
+        ip = &idt[vector];
+        func = ((long)ip->gd_hioffset << 16 | ip->gd_looffset);
+        KASSERT(func == (uintptr_t)&IDTVEC(hv_vmbus_callback),
+            ("invalid vector %d", vector));
+
+        setidt(vector, IDTVEC(rsvd), SDT_SYSIGT, SEL_KPL, 0);
+}
+
+#else /* HYPERV */
+
+static int
+vmbus_vector_alloc(void)
+{
+	return(0);
+}
+
+static void
+vmbus_vector_free(int vector)
+{
+}
+
+#endif /* HYPERV */
+
 /**
  * @brief Main vmbus driver initialization routine.
  *
@@ -331,22 +440,7 @@ vmbus_probe(device_t dev) {
 static int
 vmbus_bus_init(void)
 {
-	struct ioapic_intsrc {
-		struct intsrc io_intsrc;
-		u_int io_irq;
-		u_int io_intpin:8;
-		u_int io_vector:8;
-		u_int io_cpu:8;
-		u_int io_activehi:1;
-		u_int io_edgetrigger:1;
-		u_int io_masked:1;
-		int io_bus:4;
-		uint32_t io_lowreg;
-	};
-	int i, ret;
-	unsigned int vector = 0;
-	struct intsrc *isrc;
-	struct ioapic_intsrc *intpin;
+	int i, j, n, ret;
 
 	if (vmbus_inited)
 		return (0);
@@ -361,80 +455,100 @@ vmbus_bus_init(void)
 		return (ret);
 	}
 
-	ret = swi_add(&hv_msg_intr_event, "hv_msg", vmbus_msg_swintr,
-	    NULL, SWI_CLOCK, 0, &msg_swintr);
-
-	if (ret)
-	    goto cleanup;
-
 	/*
-	 * Message SW interrupt handler checks a per-CPU page and
-	 * thus the thread needs to be bound to CPU-0 - which is where
-	 * all interrupts are processed.
+	 * Find a free IDT slot for vmbus callback.
 	 */
-	ret = intr_event_bind(hv_msg_intr_event, 0);
+	hv_vmbus_g_context.hv_cb_vector = vmbus_vector_alloc();
 
-	if (ret)
-		goto cleanup1;
-
-	ret = swi_add(&hv_event_intr_event, "hv_event", hv_vmbus_on_events,
-	    NULL, SWI_CLOCK, 0, &event_swintr);
-
-	if (ret)
-		goto cleanup1;
-
-	intr_res = bus_alloc_resource(vmbus_devp,
-	    SYS_RES_IRQ, &vmbus_rid, vmbus_irq, vmbus_irq, 1, RF_ACTIVE);
-
-	if (intr_res == NULL) {
-		ret = ENOMEM; /* XXXKYS: Need a better errno */
-		goto cleanup2;
+	if (hv_vmbus_g_context.hv_cb_vector == 0) {
+		if(bootverbose)
+			printf("Error VMBUS: Cannot find free IDT slot for "
+			    "vmbus callback!\n");
+		goto cleanup;
 	}
-
-	/*
-	 * Setup interrupt filter handler
-	 */
-	ret = bus_setup_intr(vmbus_devp, intr_res,
-	    INTR_TYPE_NET | INTR_MPSAFE, hv_vmbus_isr, NULL,
-	    NULL, &vmbus_cookiep);
-
-	if (ret != 0)
-		goto cleanup3;
-
-	ret = bus_bind_intr(vmbus_devp, intr_res, 0);
-	if (ret != 0)
-		goto cleanup4;
-
-	isrc = intr_lookup_source(vmbus_irq);
-	if ((isrc == NULL) || (isrc->is_event == NULL)) {
-		ret = EINVAL;
-		goto cleanup4;
-	}
-
-	/* vector = isrc->is_event->ie_vector; */
-	intpin = (struct ioapic_intsrc *)isrc;
-	vector = intpin->io_vector;
 
 	if(bootverbose)
-		printf("VMBUS: irq 0x%x vector 0x%x\n", vmbus_irq, vector);
+		printf("VMBUS: vmbus callback vector %d\n",
+		    hv_vmbus_g_context.hv_cb_vector);
 
-	/**
-	 * Notify the hypervisor of our irq.
+	/*
+	 * Notify the hypervisor of our vector.
 	 */
-	setup_args.vector = vector;
-	for(i = 0; i < 2; i++) {
-		setup_args.page_buffers[i] =
+	setup_args.vector = hv_vmbus_g_context.hv_cb_vector;
+
+	CPU_FOREACH(j) {
+		hv_vmbus_intr_cpu[j] = 0;
+		hv_vmbus_swintr_event_cpu[j] = 0;
+		hv_vmbus_g_context.hv_event_intr_event[j] = NULL;
+		hv_vmbus_g_context.hv_msg_intr_event[j] = NULL;
+		hv_vmbus_g_context.event_swintr[j] = NULL;
+		hv_vmbus_g_context.msg_swintr[j] = NULL;
+
+		for (i = 0; i < 2; i++)
+			setup_args.page_buffers[2 * j + i] = NULL;
+	}
+
+	/*
+	 * Per cpu setup.
+	 */
+	CPU_FOREACH(j) {
+		/*
+		 * Setup software interrupt thread and handler for msg handling.
+		 */
+		ret = swi_add(&hv_vmbus_g_context.hv_msg_intr_event[j],
+		    "hv_msg", vmbus_msg_swintr, (void *)(long)j, SWI_CLOCK, 0,
+		    &hv_vmbus_g_context.msg_swintr[j]);
+		if (ret) {
+			if(bootverbose)
+				printf("VMBUS: failed to setup msg swi for "
+				    "cpu %d\n", j);
+			goto cleanup1;
+		}
+
+		/*
+		 * Bind the swi thread to the cpu.
+		 */
+		ret = intr_event_bind(hv_vmbus_g_context.hv_msg_intr_event[j],
+		    j);
+	 	if (ret) {
+			if(bootverbose)
+				printf("VMBUS: failed to bind msg swi thread "
+				    "to cpu %d\n", j);
+			goto cleanup1;
+		}
+
+		/*
+		 * Setup software interrupt thread and handler for
+		 * event handling.
+		 */
+		ret = swi_add(&hv_vmbus_g_context.hv_event_intr_event[j],
+		    "hv_event", hv_vmbus_on_events, (void *)(long)j,
+		    SWI_CLOCK, 0, &hv_vmbus_g_context.event_swintr[j]);
+		if (ret) {
+			if(bootverbose)
+				printf("VMBUS: failed to setup event swi for "
+				    "cpu %d\n", j);
+			goto cleanup1;
+		}
+
+		/*
+		 * Prepare the per cpu msg and event pages to be called on each cpu.
+		 */
+		for(i = 0; i < 2; i++) {
+			setup_args.page_buffers[2 * j + i] =
 				malloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT | M_ZERO);
-		if (setup_args.page_buffers[i] == NULL) {
-			KASSERT(setup_args.page_buffers[i] != NULL,
+			if (setup_args.page_buffers[2 * j + i] == NULL) {
+				KASSERT(setup_args.page_buffers[2 * j + i] != NULL,
 					("Error VMBUS: malloc failed!"));
-			if (i > 0)
-				free(setup_args.page_buffers[0], M_DEVBUF);
-			goto cleanup4;
+				goto cleanup1;
+			}
 		}
 	}
 
-	/* only CPU #0 supported at this time */
+	if (bootverbose)
+		printf("VMBUS: Calling smp_rendezvous, smp_started = %d\n",
+		    smp_started);
+
 	smp_rendezvous(NULL, hv_vmbus_synic_init, NULL, &setup_args);
 
 	/*
@@ -443,26 +557,32 @@ vmbus_bus_init(void)
 	ret = hv_vmbus_connect();
 
 	if (ret != 0)
-	    goto cleanup4;
+		goto cleanup1;
 
 	hv_vmbus_request_channel_offers();
 	return (ret);
 
-	cleanup4:
+	cleanup1:
+	/*
+	 * Free pages alloc'ed
+	 */
+	for (n = 0; n < 2 * MAXCPU; n++)
+		if (setup_args.page_buffers[n] != NULL)
+			free(setup_args.page_buffers[n], M_DEVBUF);
 
 	/*
-	 * remove swi, bus and intr resource
+	 * remove swi and vmbus callback vector;
 	 */
-	bus_teardown_intr(vmbus_devp, intr_res, vmbus_cookiep);
+	CPU_FOREACH(j) {
+		if (hv_vmbus_g_context.msg_swintr[j] != NULL)
+			swi_remove(hv_vmbus_g_context.msg_swintr[j]);
+		if (hv_vmbus_g_context.event_swintr[j] != NULL)
+			swi_remove(hv_vmbus_g_context.event_swintr[j]);
+		hv_vmbus_g_context.hv_msg_intr_event[j] = NULL;	
+		hv_vmbus_g_context.hv_event_intr_event[j] = NULL;	
+	}
 
-	cleanup3:
-	bus_release_resource(vmbus_devp, SYS_RES_IRQ, vmbus_rid, intr_res);
-
-	cleanup2:
-	swi_remove(event_swintr);
-
-	cleanup1:
-	swi_remove(msg_swintr);
+	vmbus_vector_free(hv_vmbus_g_context.hv_cb_vector);
 
 	cleanup:
 	hv_vmbus_cleanup();
@@ -515,20 +635,24 @@ vmbus_bus_exit(void)
 
 	smp_rendezvous(NULL, hv_vmbus_synic_cleanup, NULL, NULL);
 
-	for(i = 0; i < 2; i++) {
+	for(i = 0; i < 2 * MAXCPU; i++) {
 		if (setup_args.page_buffers[i] != 0)
 			free(setup_args.page_buffers[i], M_DEVBUF);
 	}
 
 	hv_vmbus_cleanup();
 
-	/* remove swi, bus and intr resource */
-	bus_teardown_intr(vmbus_devp, intr_res, vmbus_cookiep);
+	/* remove swi */
+	CPU_FOREACH(i) {
+		if (hv_vmbus_g_context.msg_swintr[i] != NULL)
+			swi_remove(hv_vmbus_g_context.msg_swintr[i]);
+		if (hv_vmbus_g_context.event_swintr[i] != NULL)
+			swi_remove(hv_vmbus_g_context.event_swintr[i]);
+		hv_vmbus_g_context.hv_msg_intr_event[i] = NULL;	
+		hv_vmbus_g_context.hv_event_intr_event[i] = NULL;	
+	}
 
-	bus_release_resource(vmbus_devp, SYS_RES_IRQ, vmbus_rid, intr_res);
-
-	swi_remove(msg_swintr);
-	swi_remove(event_swintr);
+	vmbus_vector_free(hv_vmbus_g_context.hv_cb_vector);
 
 	return;
 }
@@ -603,6 +727,6 @@ devclass_t vmbus_devclass;
 DRIVER_MODULE(vmbus, nexus, vmbus_driver, vmbus_devclass, vmbus_modevent, 0);
 MODULE_VERSION(vmbus,1);
 
-/* TODO: We want to be earlier than SI_SUB_VFS */
-SYSINIT(vmb_init, SI_SUB_VFS, SI_ORDER_MIDDLE, vmbus_init, NULL);
+/* We want to be started after SMP is initialized */
+SYSINIT(vmb_init, SI_SUB_SMP + 1, SI_ORDER_FIRST, vmbus_init, NULL);
 

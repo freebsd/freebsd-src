@@ -26,6 +26,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/lock.h>
@@ -144,6 +146,69 @@ get_ring_buffer_indices(hv_vmbus_ring_buffer_info* ring_info)
 	return (uint64_t) ring_info->ring_buffer->write_index << 32;
 }
 
+void
+hv_ring_buffer_read_begin(
+	hv_vmbus_ring_buffer_info*	ring_info)
+{
+	ring_info->ring_buffer->interrupt_mask = 1;
+	mb();
+}
+
+uint32_t
+hv_ring_buffer_read_end(
+	hv_vmbus_ring_buffer_info*	ring_info)
+{
+	uint32_t read, write;	
+
+	ring_info->ring_buffer->interrupt_mask = 0;
+	mb();
+
+	/*
+	 * Now check to see if the ring buffer is still empty.
+	 * If it is not, we raced and we need to process new
+	 * incoming messages.
+	 */
+	get_ring_buffer_avail_bytes(ring_info, &read, &write);
+
+	return (read);
+}
+
+/*
+ * When we write to the ring buffer, check if the host needs to
+ * be signaled. Here is the details of this protocol:
+ *
+ *	1. The host guarantees that while it is draining the
+ *	   ring buffer, it will set the interrupt_mask to
+ *	   indicate it does not need to be interrupted when
+ *	   new data is placed.
+ *
+ *	2. The host guarantees that it will completely drain
+ *	   the ring buffer before exiting the read loop. Further,
+ *	   once the ring buffer is empty, it will clear the
+ *	   interrupt_mask and re-check to see if new data has
+ *	   arrived.
+ */
+static boolean_t
+hv_ring_buffer_needsig_on_write(
+	uint32_t			old_write_location,
+	hv_vmbus_ring_buffer_info*	rbi)
+{
+	mb();
+	if (rbi->ring_buffer->interrupt_mask)
+		return (FALSE);
+
+	/* Read memory barrier */
+	rmb();
+	/*
+	 * This is the only case we need to signal when the
+	 * ring transitions from being empty to non-empty.
+	 */
+	if (old_write_location == rbi->ring_buffer->read_index)
+		return (TRUE);
+
+	return (FALSE);
+}
+
 static uint32_t	copy_to_ring_buffer(
 			hv_vmbus_ring_buffer_info*	ring_info,
 			uint32_t			start_write_offset,
@@ -204,11 +269,13 @@ int
 hv_ring_buffer_write(
 	hv_vmbus_ring_buffer_info*	out_ring_info,
 	hv_vmbus_sg_buffer_list		sg_buffers[],
-	uint32_t			sg_buffer_count)
+	uint32_t			sg_buffer_count,
+	boolean_t			*need_sig)
 {
 	int i = 0;
 	uint32_t byte_avail_to_write;
 	uint32_t byte_avail_to_read;
+	uint32_t old_write_location;
 	uint32_t total_bytes_to_write = 0;
 
 	volatile uint32_t next_write_location;
@@ -242,6 +309,8 @@ hv_ring_buffer_write(
 	 */
 	next_write_location = get_next_write_location(out_ring_info);
 
+	old_write_location = next_write_location;
+
 	for (i = 0; i < sg_buffer_count; i++) {
 	    next_write_location = copy_to_ring_buffer(out_ring_info,
 		next_write_location, (char *) sg_buffers[i].data,
@@ -258,9 +327,9 @@ hv_ring_buffer_write(
 		(char *) &prev_indices, sizeof(uint64_t));
 
 	/*
-	 * Make sure we flush all writes before updating the writeIndex
+	 * Full memory barrier before upding the write index. 
 	 */
-	wmb();
+	mb();
 
 	/*
 	 * Now, update the write location
@@ -268,6 +337,9 @@ hv_ring_buffer_write(
 	set_next_write_location(out_ring_info, next_write_location);
 
 	mtx_unlock_spin(&out_ring_info->ring_lock);
+
+	*need_sig = hv_ring_buffer_needsig_on_write(old_write_location,
+	    out_ring_info);
 
 	return (0);
 }
