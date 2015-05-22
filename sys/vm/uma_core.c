@@ -1891,7 +1891,7 @@ uma_startup3(void)
 #ifdef UMA_DEBUG
 	printf("Starting callout.\n");
 #endif
-	callout_init(&uma_callout, CALLOUT_MPSAFE);
+	callout_init(&uma_callout, 1);
 	callout_reset(&uma_callout, UMA_TIMEOUT * hz, uma_timeout, NULL);
 #ifdef UMA_DEBUG
 	printf("UMA startup3 complete.\n");

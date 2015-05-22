@@ -615,7 +615,7 @@ filt_timerattach(struct knote *kn)
 	kn->kn_status &= ~KN_DETACHED;		/* knlist_add clears it */
 	kn->kn_ptr.p_nexttime = malloc(sizeof(sbintime_t), M_KQUEUE, M_WAITOK);
 	calloutp = malloc(sizeof(*calloutp), M_KQUEUE, M_WAITOK);
-	callout_init(calloutp, CALLOUT_MPSAFE);
+	callout_init(calloutp, 1);
 	kn->kn_hook = calloutp;
 	*kn->kn_ptr.p_nexttime = to + sbinuptime();
 	callout_reset_sbt_on(calloutp, *kn->kn_ptr.p_nexttime, 0,
