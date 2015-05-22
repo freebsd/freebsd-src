@@ -143,8 +143,8 @@ procfs_control(struct thread *td, struct proc *p, int op)
 		p->p_flag |= P_TRACED;
 		faultin(p);
 		p->p_xstat = 0;		/* XXX ? */
+		p->p_oppid = p->p_pptr->p_pid;
 		if (p->p_pptr != td->td_proc) {
-			p->p_oppid = p->p_pptr->p_pid;
 			proc_reparent(p, td->td_proc);
 		}
 		kern_psignal(p, SIGSTOP);
