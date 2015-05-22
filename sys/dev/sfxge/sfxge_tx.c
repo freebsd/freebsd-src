@@ -865,8 +865,14 @@ static void tso_start(struct sfxge_tso_state *tso, struct mbuf *mbuf)
 	tso->seqnum = ntohl(th->th_seq);
 
 	/* These flags must not be duplicated */
-	KASSERT(!(th->th_flags & (TH_URG | TH_SYN | TH_RST)),
-		("incompatible TCP flag on TSO packet"));
+	/*
+	 * RST should not be duplicated as well, but FreeBSD kernel
+	 * generates TSO packets with RST flag. So, do not assert
+	 * its absence.
+	 */
+	KASSERT(!(th->th_flags & (TH_URG | TH_SYN)),
+		("incompatible TCP flag 0x%x on TSO packet",
+		 th->th_flags & (TH_URG | TH_SYN)));
 
 	tso->out_len = mbuf->m_pkthdr.len - tso->header_len;
 }
