@@ -59,12 +59,14 @@ __FBSDID("$FreeBSD$");
 #include "sfxge_rx.h"
 #include "sfxge_version.h"
 
-#define	SFXGE_CAP (IFCAP_VLAN_MTU | \
-		   IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM | IFCAP_TSO |	\
-		   IFCAP_JUMBO_MTU | IFCAP_LRO |			\
+#define	SFXGE_CAP (IFCAP_VLAN_MTU | IFCAP_VLAN_HWCSUM |			\
+		   IFCAP_RXCSUM | IFCAP_TXCSUM |			\
+		   IFCAP_RXCSUM_IPV6 | IFCAP_TXCSUM_IPV6 |		\
+		   IFCAP_TSO4 | IFCAP_TSO6 |				\
+		   IFCAP_JUMBO_MTU |					\
 		   IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE | IFCAP_HWSTATS)
 #define	SFXGE_CAP_ENABLE SFXGE_CAP
-#define	SFXGE_CAP_FIXED (IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM | \
+#define	SFXGE_CAP_FIXED (IFCAP_VLAN_MTU |				\
 			 IFCAP_JUMBO_MTU | IFCAP_LINKSTATE | IFCAP_HWSTATS)
 
 MALLOC_DEFINE(M_SFXGE, "sfxge", "Solarflare 10GigE driver");
@@ -86,7 +88,6 @@ TUNABLE_INT(SFXGE_PARAM_TX_RING, &sfxge_tx_ring_entries);
 SYSCTL_INT(_hw_sfxge, OID_AUTO, tx_ring, CTLFLAG_RDTUN,
 	   &sfxge_tx_ring_entries, 0,
 	   "Maximum number of descriptors in a transmit ring");
-
 
 static void
 sfxge_reset(void *arg, int npending);
@@ -257,7 +258,14 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 			sfxge_mac_filter_set(sc);
 		break;
 	case SIOCSIFCAP:
+	{
+		int reqcap = ifr->ifr_reqcap;
+		int capchg_mask;
+
 		SFXGE_ADAPTER_LOCK(sc);
+
+		/* Capabilities to be changed in accordance with request */
+		capchg_mask = ifp->if_capenable ^ reqcap;
 
 		/*
 		 * The networking core already rejects attempts to
@@ -265,24 +273,66 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 		 * to reject attempts to disable capabilities that we
 		 * can't (yet) disable.
 		 */
-		if (~ifr->ifr_reqcap & SFXGE_CAP_FIXED) {
+		KASSERT((reqcap & ~ifp->if_capabilities) == 0,
+		    ("Unsupported capabilities %x requested %x vs %x",
+		     reqcap & ~ifp->if_capabilities,
+		     reqcap , ifp->if_capabilities));
+		if (capchg_mask & SFXGE_CAP_FIXED) {
 			error = EINVAL;
 			SFXGE_ADAPTER_UNLOCK(sc);
 			break;
 		}
 
-		ifp->if_capenable = ifr->ifr_reqcap;
-		if (ifp->if_capenable & IFCAP_TXCSUM)
+		/* Check request before any changes */
+		if ((capchg_mask & IFCAP_TSO4) &&
+		    (reqcap & (IFCAP_TSO4 | IFCAP_TXCSUM)) == IFCAP_TSO4) {
+			error = EAGAIN;
+			SFXGE_ADAPTER_UNLOCK(sc);
+			if_printf(ifp, "enable txcsum before tso4\n");
+			break;
+		}
+		if ((capchg_mask & IFCAP_TSO6) &&
+		    (reqcap & (IFCAP_TSO6 | IFCAP_TXCSUM_IPV6)) == IFCAP_TSO6) {
+			error = EAGAIN;
+			SFXGE_ADAPTER_UNLOCK(sc);
+			if_printf(ifp, "enable txcsum6 before tso6\n");
+			break;
+		}
+
+		if (reqcap & IFCAP_TXCSUM) {
 			ifp->if_hwassist |= (CSUM_IP | CSUM_TCP | CSUM_UDP);
-		else
+		} else {
 			ifp->if_hwassist &= ~(CSUM_IP | CSUM_TCP | CSUM_UDP);
-		if (ifp->if_capenable & IFCAP_TSO)
-			ifp->if_hwassist |= CSUM_TSO;
-		else
-			ifp->if_hwassist &= ~CSUM_TSO;
+			if (reqcap & IFCAP_TSO4) {
+				reqcap &= ~IFCAP_TSO4;
+				if_printf(ifp,
+				    "tso4 disabled due to -txcsum\n");
+			}
+		}
+		if (reqcap & IFCAP_TXCSUM_IPV6) {
+			ifp->if_hwassist |= (CSUM_TCP_IPV6 | CSUM_UDP_IPV6);
+		} else {
+			ifp->if_hwassist &= ~(CSUM_TCP_IPV6 | CSUM_UDP_IPV6);
+			if (reqcap & IFCAP_TSO6) {
+				reqcap &= ~IFCAP_TSO6;
+				if_printf(ifp,
+				    "tso6 disabled due to -txcsum6\n");
+			}
+		}
+
+		/*
+		 * The kernel takes both IFCAP_TSOx and CSUM_TSO into
+		 * account before using TSO. So, we do not touch
+		 * checksum flags when IFCAP_TSOx is modified.
+		 * Note that CSUM_TSO is (CSUM_IP_TSO|CSUM_IP6_TSO),
+		 * but both bits are set in IPv4 and IPv6 mbufs.
+		 */
+
+		ifp->if_capenable = reqcap;
 
 		SFXGE_ADAPTER_UNLOCK(sc);
 		break;
+	}
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &sc->media, command);
@@ -326,7 +376,14 @@ sfxge_ifnet_init(struct ifnet *ifp, struct sfxge_softc *sc)
 
 	ifp->if_capabilities = SFXGE_CAP;
 	ifp->if_capenable = SFXGE_CAP_ENABLE;
-	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_IP | CSUM_TSO;
+
+#ifdef SFXGE_LRO
+	ifp->if_capabilities |= IFCAP_LRO;
+	ifp->if_capenable |= IFCAP_LRO;
+#endif
+
+	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_IP | CSUM_TSO |
+			   CSUM_TCP_IPV6 | CSUM_UDP_IPV6;
 
 	ether_ifattach(ifp, encp->enc_mac_addr);
 

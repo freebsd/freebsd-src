@@ -151,6 +151,7 @@ ApCheckPackage (
         case ACPI_PTYPE2_FIXED:
         case ACPI_PTYPE2_MIN:
         case ACPI_PTYPE2_FIX_VAR:
+        case ACPI_PTYPE2_VAR_VAR:
         default:
 
             break;
@@ -324,6 +325,32 @@ ApCheckPackage (
 
         break;
 
+    case ACPI_PTYPE2_VAR_VAR:
+
+        /* Check for minimum size (ints at beginning + 1 subpackage) */
+
+        ExpectedCount = Package->RetInfo4.Count1 + 1;
+        if (Count < ExpectedCount)
+        {
+            goto PackageTooSmall;
+        }
+
+        /* Check the non-package elements at beginning of main package */
+
+        for (i = 0; i < Package->RetInfo4.Count1; ++i)
+        {
+            Status = ApCheckObjectType (Predefined->Info.Name, Op,
+                Package->RetInfo4.ObjectType1, i);
+            Op = Op->Asl.Next;
+        }
+
+        /* Examine the variable-length list of subpackages */
+
+        ApCheckPackageList (Predefined->Info.Name, Op,
+            Package, Package->RetInfo4.Count1, Count);
+
+        break;
+
     case ACPI_PTYPE2:
     case ACPI_PTYPE2_FIXED:
     case ACPI_PTYPE2_MIN:
@@ -427,6 +454,7 @@ ApCheckPackageElements (
  *              ACPI_PTYPE2_MIN
  *              ACPI_PTYPE2_COUNT
  *              ACPI_PTYPE2_FIX_VAR
+ *              ACPI_PTYPE2_VAR_VAR
  *
  ******************************************************************************/
 
@@ -473,9 +501,12 @@ ApCheckPackageList (
         Count = (UINT32) Op->Asl.Value.Integer;
         Op = Op->Asl.Next;
 
-        /* The subpackage must have at least one element */
-
-        if (!Count)
+        /*
+         * Most subpackage must have at least one element, with
+         * only rare exceptions. (_RDI)
+         */
+        if (!Count &&
+            (Package->RetInfo.Type != ACPI_PTYPE2_VAR_VAR))
         {
             ApZeroLengthPackage (PredefinedName, SubPackageOp);
             goto NextSubpackage;
@@ -531,6 +562,25 @@ ApCheckPackageList (
                 Package->RetInfo.ObjectType1, Package->RetInfo.Count1,
                 Package->RetInfo.ObjectType2,
                 Count - Package->RetInfo.Count1);
+            break;
+
+        case ACPI_PTYPE2_VAR_VAR:
+            /*
+             * Must have at least the minimum number elements.
+             * A zero PkgCount means the number of elements is variable.
+             */
+            ExpectedCount = Package->RetInfo4.PkgCount;
+            if (ExpectedCount && (Count < ExpectedCount))
+            {
+                ApPackageTooSmall (PredefinedName, SubPackageOp,
+                    Count, 1);
+                break;
+            }
+
+            ApCheckPackageElements (PredefinedName, Op,
+                Package->RetInfo4.SubObjectTypes,
+                Package->RetInfo4.PkgCount,
+                0, 0);
             break;
 
         case ACPI_PTYPE2_FIXED:

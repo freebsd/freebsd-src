@@ -78,7 +78,7 @@ int (*arm_config_irq)(int irq, enum intr_trigger trig,
 
 /* Data for statistics reporting. */
 u_long intrcnt[NIRQ];
-char intrnames[NIRQ * INTRNAME_LEN];
+char intrnames[(NIRQ * INTRNAME_LEN) + 1];
 size_t sintrcnt = sizeof(intrcnt);
 size_t sintrnames = sizeof(intrnames);
 

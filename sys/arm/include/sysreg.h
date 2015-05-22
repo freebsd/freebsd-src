@@ -212,6 +212,7 @@
 #if __ARM_ARCH == 6 && defined(CPU_ARM1176)
 #define	CP15_PMCCNTR(rr)	p15, 0, rr, c15, c12, 1 /* PM Cycle Count Register */
 #elif __ARM_ARCH > 6
+#define	CP15_L2CTLR(rr)		p15, 1, rr,  c9, c0,  2 /* L2 Control Register */
 #define	CP15_PMCR(rr)		p15, 0, rr,  c9, c12, 0 /* Performance Monitor Control Register */
 #define	CP15_PMCNTENSET(rr)	p15, 0, rr,  c9, c12, 1 /* PM Count Enable Set Register */
 #define	CP15_PMCNTENCLR(rr)	p15, 0, rr,  c9, c12, 2 /* PM Count Enable Clear Register */

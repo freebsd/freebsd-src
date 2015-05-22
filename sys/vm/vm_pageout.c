@@ -1724,8 +1724,9 @@ vm_pageout_init(void)
 static void
 vm_pageout(void)
 {
+	int error;
 #if MAXMEMDOM > 1
-	int error, i;
+	int i;
 #endif
 
 	swap_pager_swap_init();
@@ -1739,6 +1740,10 @@ vm_pageout(void)
 		}
 	}
 #endif
+	error = kthread_add(uma_reclaim_worker, NULL, curproc, NULL,
+	    0, 0, "uma");
+	if (error != 0)
+		panic("starting uma_reclaim helper, error %d\n", error);
 	vm_pageout_worker((void *)(uintptr_t)0);
 }
 

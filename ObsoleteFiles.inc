@@ -38,6 +38,22 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150521
+OLD_FILES+=usr/bin/demandoc
+OLD_FILES+=usr/share/man/man1/demandoc.1.gz
+OLD_FILES+=usr/share/man/man3/mandoc.3.gz
+OLD_FILES+=usr/share/man/man3/mandoc_headers.3.gz
+# 20150520
+OLD_FILES+=usr/lib/libheimsqlite.a
+OLD_FILES+=usr/lib/libheimsqlite.so
+OLD_LIBS+=usr/lib/libheimsqlite.so.11
+OLD_FILES+=usr/lib/libheimsqlite_p.a
+OLD_FILES+=usr/lib32/libheimsqlite.a
+OLD_FILES+=usr/lib32/libheimsqlite.so
+OLD_LIBS+=usr/lib32/libheimsqlite.so.11
+OLD_FILES+=usr/lib32/libheimsqlite_p.a
+# 20150506
+OLD_FILES+=usr/share/man/man9/NDHASGIANT.9.gz
 # 20150504
 OLD_LIBS+=usr/lib32/private/libatf-c++.so.2
 OLD_LIBS+=usr/lib32/private/libbsdstat.so.1
@@ -430,10 +446,6 @@ OLD_FILES+=usr/lib/debug/usr/lib32/i18n
 OLD_FILES+=usr/lib/debug/usr/lib32/private
 # 20141015: OpenSSL 1.0.1j import
 OLD_FILES+=usr/share/openssl/man/man3/CMS_sign_add1_signer.3.gz
-.if ${MK_GCC} == "no"
-# 20141009: gperf disabled by default
-OLD_FILES+=usr/bin/gperf
-.endif
 # 20140922: sleepq_calc_signal_retval.9 and sleepq_catch_signals.9 removed
 OLD_FILES+=usr/share/man/man9/sleepq_calc_signal_retval.9.gz
 OLD_FILES+=usr/share/man/man9/sleepq_catch_signals.9.gz
@@ -450,6 +462,33 @@ OLD_LIBS+=usr/lib32/libopie.so.7
 OLD_FILES+=usr/bin/otp-sha
 OLD_FILES+=usr/share/man/man1/otp-sha.1.gz
 # 20140807: Remove private lib files that should not be installed.
+OLD_FILES+=usr/lib32/private/libatf-c.a
+OLD_FILES+=usr/lib32/private/libatf-c.so
+OLD_FILES+=usr/lib32/private/libatf-c_p.a
+OLD_FILES+=usr/lib32/private/libatf-c++.a
+OLD_FILES+=usr/lib32/private/libatf-c++.so
+OLD_FILES+=usr/lib32/private/libatf-c++_p.a
+OLD_FILES+=usr/lib32/private/libbsdstat.a
+OLD_FILES+=usr/lib32/private/libbsdstat.so
+OLD_FILES+=usr/lib32/private/libbsdstat_p.a
+OLD_FILES+=usr/lib32/private/libheimipcc.a
+OLD_FILES+=usr/lib32/private/libheimipcc.so
+OLD_FILES+=usr/lib32/private/libheimipcc_p.a
+OLD_FILES+=usr/lib32/private/libheimipcs.a
+OLD_FILES+=usr/lib32/private/libheimipcs.so
+OLD_FILES+=usr/lib32/private/libheimipcs_p.a
+OLD_FILES+=usr/lib32/private/libldns.a
+OLD_FILES+=usr/lib32/private/libldns.so
+OLD_FILES+=usr/lib32/private/libldns_p.a
+OLD_FILES+=usr/lib32/private/libssh.a
+OLD_FILES+=usr/lib32/private/libssh.so
+OLD_FILES+=usr/lib32/private/libssh_p.a
+OLD_FILES+=usr/lib32/private/libunbound.a
+OLD_FILES+=usr/lib32/private/libunbound.so
+OLD_FILES+=usr/lib32/private/libunbound_p.a
+OLD_FILES+=usr/lib32/private/libucl.a
+OLD_FILES+=usr/lib32/private/libucl.so
+OLD_FILES+=usr/lib32/private/libucl_p.a
 OLD_FILES+=usr/lib/private/libatf-c.a
 OLD_FILES+=usr/lib/private/libatf-c.so
 OLD_FILES+=usr/lib/private/libatf-c_p.a
@@ -470,7 +509,7 @@ OLD_FILES+=usr/lib/private/libldns.so
 OLD_FILES+=usr/lib/private/libldns_p.a
 OLD_FILES+=usr/lib/private/libssh.a
 OLD_FILES+=usr/lib/private/libssh.so
-OLD_FILES+=usr/lib/private/libssh.p.a
+OLD_FILES+=usr/lib/private/libssh_p.a
 OLD_FILES+=usr/lib/private/libunbound.a
 OLD_FILES+=usr/lib/private/libunbound.so
 OLD_FILES+=usr/lib/private/libunbound_p.a
@@ -622,8 +661,12 @@ OLD_FILES+=usr/libexec/bsdconfig/070.usermgmt/groupinput
 # 20140223: Remove libyaml
 OLD_FILES+=usr/lib/private/libyaml.a
 OLD_FILES+=usr/lib/private/libyaml.so
-OLD_FILES+=usr/lib/private/libyaml.so.1
+OLD_LIBS+=usr/lib/private/libyaml.so.1
 OLD_FILES+=usr/lib/private/libyaml_p.a
+OLD_FILES+=usr/lib32/private/libyaml.a
+OLD_FILES+=usr/lib32/private/libyaml.so
+OLD_LIBS+=usr/lib32/private/libyaml.so.1
+OLD_FILES+=usr/lib32/private/libyaml_p.a
 # 20140216: new clang import which bumps version from 3.3 to 3.4.
 OLD_FILES+=usr/bin/llvm-prof
 OLD_FILES+=usr/bin/llvm-ranlib

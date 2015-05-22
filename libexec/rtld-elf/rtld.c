@@ -34,10 +34,6 @@
  * John Polstra <jdp@polstra.com>.
  */
 
-#ifndef __GNUC__
-#error "GCC is needed to compile this file"
-#endif
-
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/mman.h>

@@ -847,13 +847,13 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	PROC_LOCK(q);
 	sigqueue_take(p->p_ksi);
 	PROC_UNLOCK(q);
-	PROC_UNLOCK(p);
 
 	/*
 	 * If we got the child via a ptrace 'attach', we need to give it back
 	 * to the old parent.
 	 */
-	if (p->p_oppid != 0) {
+	if (p->p_oppid != 0 && p->p_oppid != p->p_pptr->p_pid) {
+		PROC_UNLOCK(p);
 		t = proc_realparent(p);
 		PROC_LOCK(t);
 		PROC_LOCK(p);
@@ -867,6 +867,8 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 		sx_xunlock(&proctree_lock);
 		return;
 	}
+	p->p_oppid = 0;
+	PROC_UNLOCK(p);
 
 	/*
 	 * Remove other references to this process to ensure we have an

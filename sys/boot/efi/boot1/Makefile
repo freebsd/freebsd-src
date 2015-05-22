@@ -13,7 +13,7 @@ PROG=		loader.sym
 INTERNALPROG=
 
 # architecture-specific loader code
-SRCS=	boot1.c reloc.c start.S
+SRCS=	boot1.c self_reloc.c start.S
 
 CFLAGS+=	-I.
 CFLAGS+=	-I${.CURDIR}/../include
@@ -33,6 +33,9 @@ FILESMODE_boot1.efi=	${BINMODE}
 LDSCRIPT=	${.CURDIR}/../loader/arch/${MACHINE}/ldscript.${MACHINE}
 LDFLAGS=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared
 
+.if ${MACHINE_CPUARCH} == "aarch64"
+CFLAGS+=	-msoft-float -mgeneral-regs-only
+.endif
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 CFLAGS+=	-fPIC
 LDFLAGS+=	-Wl,-znocombreloc

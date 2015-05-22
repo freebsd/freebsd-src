@@ -86,6 +86,7 @@ struct image_params {
 #ifdef _KERNEL
 struct sysentvec;
 struct thread;
+struct vmspace;
 
 #define IMGACT_CORE_COMPRESS	0x01
 
@@ -98,6 +99,8 @@ void	exec_setregs(struct thread *, struct image_params *, u_long);
 int	exec_shell_imgact(struct image_params *);
 int	exec_copyin_args(struct image_args *, char *, enum uio_seg,
 	char **, char **);
+int	pre_execve(struct thread *td, struct vmspace **oldvmspace);
+void	post_execve(struct thread *td, int error, struct vmspace *oldvmspace);
 #endif
 
 #endif /* !_SYS_IMGACT_H_ */

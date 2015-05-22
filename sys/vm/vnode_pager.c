@@ -237,6 +237,12 @@ retry:
 			 * Object has been created while we were sleeping
 			 */
 			VI_UNLOCK(vp);
+			VM_OBJECT_WLOCK(object);
+			KASSERT(object->ref_count == 1,
+			    ("leaked ref %p %d", object, object->ref_count));
+			object->type = OBJT_DEAD;
+			object->ref_count = 0;
+			VM_OBJECT_WUNLOCK(object);
 			vm_object_destroy(object);
 			goto retry;
 		}
@@ -342,12 +348,12 @@ vnode_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before,
 		if (after) {
 			/*
 			 * The BMAP vop can report a partial block in the
-			 * 'after', but must not count blocks after EOF.
+			 * 'after', but must not report blocks after EOF.
 			 * Assert the latter, and truncate 'after' in case
 			 * of the former.
 			 */
-			KASSERT(reqblock + *after <=
-			    object->size * pagesperblock,
+			KASSERT((reqblock + *after) * pagesperblock <
+			    roundup2(object->size, pagesperblock),
 			    ("%s: reqblock %jd after %d size %ju", __func__,
 			    (intmax_t )reqblock, *after,
 			    (uintmax_t )object->size));

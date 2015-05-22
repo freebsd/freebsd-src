@@ -41,7 +41,7 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\"
-.Dd January 14, 2015
+.Dd May 13, 2015
 .Dt DEVD.CONF 5
 .Os
 .Sh NAME
@@ -270,6 +270,8 @@ Interface Class (USB)
 Interface Protocol  (USB)
 .It Li intsubclass
 Interface Sub-class (USB)
+.It Li jail
+Jail name for the process triggering the rule (RCTL)
 .It Li manufacturer
 Manufacturer ID (pccard).
 .It Li mode
@@ -280,12 +282,18 @@ Match the value of the
 variable.
 .It Li parent
 Parent device
+.It Li pid
+PID of the process triggering the rule (RCTL)
 .It Li port
 Hub port number (USB)
 .It Li product
 Product ID (pccard/USB).
 .It Li release
 Hardware revision (USB)
+.It Li ruid
+Real UID of the process triggering the rule (RCTL)
+.It Li rule
+Rule (RCTL)
 .It Li sernum
 Serial Number (USB).
 .It Li slot
@@ -394,6 +402,20 @@ A
 device node is destroyed.
 .It Li MEDIACHANGE
 Physical media has changed.
+.El
+.El
+.Pp
+.It Li RCTL
+Events related to the
+.Xr rctl 8
+framework.
+.Bl -tag -width ".Sy Subsystem" -compact
+.It Sy Subsystem
+.It Li rule
+.Bl -tag -width ".Li matched" -compact
+.It Sy Type
+.It Li matched
+A rule with action specified as "devctl" was triggered.
 .El
 .El
 .Pp

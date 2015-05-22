@@ -650,6 +650,7 @@ static void mlx4_en_cache_mclist(struct net_device *dev)
 	struct mlx4_en_mc_list *tmp;
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 
+        if_maddr_rlock(dev);
         TAILQ_FOREACH(ifma, &dev->if_multiaddrs, ifma_link) {
                 if (ifma->ifma_addr->sa_family != AF_LINK)
                         continue;
@@ -658,10 +659,13 @@ static void mlx4_en_cache_mclist(struct net_device *dev)
                         continue;
                 /* Make sure the list didn't grow. */
 		tmp = kzalloc(sizeof(struct mlx4_en_mc_list), GFP_ATOMIC);
+		if (tmp == NULL)
+			break;
 		memcpy(tmp->addr,
 			LLADDR((struct sockaddr_dl *)ifma->ifma_addr), ETH_ALEN);
 		list_add_tail(&tmp->list, &priv->mc_list);
         }
+        if_maddr_runlock(dev);
 }
 
 static void update_mclist_flags(struct mlx4_en_priv *priv,

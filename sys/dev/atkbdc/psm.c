@@ -483,6 +483,8 @@ static probefunc_t	enable_versapad;
 static void set_trackpoint_parameters(struct psm_softc *sc);
 static void synaptics_passthrough_on(struct psm_softc *sc);
 static void synaptics_passthrough_off(struct psm_softc *sc);
+static int synaptics_preferred_mode(struct psm_softc *sc);
+static void synaptics_set_mode(struct psm_softc *sc, int mode_byte);
 
 static struct {
 	int		model;
@@ -933,14 +935,8 @@ doopen(struct psm_softc *sc, int command_byte)
 		get_mouse_status(sc->kbdc, stat, 0, 3);
 		if ((SYNAPTICS_VERSION_GE(sc->synhw, 7, 5) ||
 		     stat[1] == 0x47) &&
-		    stat[2] == 0x40) {
-			/* Set the mode byte -- request wmode where
-			 * available */
-			if (sc->synhw.capExtended)
-				mouse_ext_command(sc->kbdc, 0xc1);
-			else
-				mouse_ext_command(sc->kbdc, 0xc0);
-			set_mouse_sampling_rate(sc->kbdc, 20);
+		     stat[2] == 0x40) {
+			synaptics_set_mode(sc, synaptics_preferred_mode(sc));
 			VLOG(5, (LOG_DEBUG, "psm%d: Synaptis Absolute Mode "
 			    "hopefully restored\n",
 			    sc->unit));
@@ -2176,6 +2172,20 @@ psmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		    (*(int *)addr > PSM_LEVEL_MAX))
 			return (EINVAL);
 		sc->mode.level = *(int *)addr;
+
+		if (sc->hw.model == MOUSE_MODEL_SYNAPTICS) {
+			/*
+			 * If we are entering PSM_LEVEL_NATIVE, we want to
+			 * enable sending of "extended W mode" packets to
+			 * userland. Reset the mode of the touchpad so that the
+			 * change in the level is picked up.
+			 */
+			error = block_mouse_data(sc, &command_byte);
+			if (error)
+				return (error);
+			synaptics_set_mode(sc, synaptics_preferred_mode(sc));
+			unblock_mouse_data(sc, command_byte);
+		}
 		break;
 
 	case MOUSE_GETSTATUS:
@@ -2865,7 +2875,8 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 
 		/* Palm detection. */
 		if (!(
-		    (sc->synhw.capMultiFinger && (w == 0 || w == 1)) ||
+		    ((sc->synhw.capMultiFinger ||
+		      sc->synhw.capAdvancedGestures) && (w == 0 || w == 1)) ||
 		    (sc->synhw.capPalmDetect && w >= 4 && w <= max_width) ||
 		    (!sc->synhw.capPalmDetect && *z <= max_pressure) ||
 		    (sc->synhw.capPen && w == 2))) {
@@ -4192,7 +4203,8 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	 * physical area reserved for scrolling or when
 	 * there's no multi finger support.
 	 */
-	if (sc->synhw.verticalScroll || sc->synhw.capMultiFinger == 0)
+	if (sc->synhw.verticalScroll || (sc->synhw.capMultiFinger == 0 &&
+					 sc->synhw.capAdvancedGestures == 0))
 		sc->syninfo.two_finger_scroll = 0;
 	else
 		sc->syninfo.two_finger_scroll = 1;
@@ -4494,6 +4506,43 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 }
 
 static int
+synaptics_preferred_mode(struct psm_softc *sc) {
+	int mode_byte;
+
+	mode_byte = 0xc0;
+
+	/* request wmode where available */
+	if (sc->synhw.capExtended)
+		mode_byte |= 1;
+
+	/*
+	 * Disable gesture processing when native packets are requested. This
+	 * enables sending of encapsulated "extended W mode" packets.
+	 */
+	if (sc->mode.level == PSM_LEVEL_NATIVE)
+		mode_byte |= (1 << 2);
+
+	return mode_byte;
+}
+
+static void
+synaptics_set_mode(struct psm_softc *sc, int mode_byte) {
+	mouse_ext_command(sc->kbdc, mode_byte);
+
+	/* "Commit" the Set Mode Byte command sent above. */
+	set_mouse_sampling_rate(sc->kbdc, 20);
+
+	/*
+	 * Enable advanced gestures mode if supported and we are not entering
+	 * passthrough mode.
+	 */
+	if (sc->synhw.capAdvancedGestures && !(mode_byte & (1 << 5))) {
+		mouse_ext_command(sc->kbdc, 3);
+		set_mouse_sampling_rate(sc->kbdc, 0xc8);
+	}
+}
+
+static int
 enable_synaptics(KBDC kbdc, struct psm_softc *sc)
 {
 	synapticshw_t synhw;
@@ -4576,7 +4625,7 @@ enable_synaptics(KBDC kbdc, struct psm_softc *sc)
 	buttons = 0;
 	synhw.capExtended = (status[0] & 0x80) != 0;
 	if (synhw.capExtended) {
-		synhw.nExtendedQueries = (status[0] & 0x70) != 0;
+		synhw.nExtendedQueries = (status[0] & 0x70) >> 4;
 		synhw.capMiddle        = (status[0] & 0x04) != 0;
 		synhw.capPassthrough   = (status[2] & 0x80) != 0;
 		synhw.capLowPower      = (status[2] & 0x40) != 0;
@@ -4587,6 +4636,16 @@ enable_synaptics(KBDC kbdc, struct psm_softc *sc)
 		synhw.capBallistics    = (status[2] & 0x04) != 0;
 		synhw.capMultiFinger   = (status[2] & 0x02) != 0;
 		synhw.capPalmDetect    = (status[2] & 0x01) != 0;
+
+		if (!set_mouse_scaling(kbdc, 1))
+			return (FALSE);
+		if (mouse_ext_command(kbdc, 0x08) == 0)
+			return (FALSE);
+		if (get_mouse_status(kbdc, status, 0, 3) != 3)
+			return (FALSE);
+
+		synhw.infoXupmm = status[0];
+		synhw.infoYupmm = status[2];
 
 		if (verbose >= 2) {
 			printf("  Extended capabilities:\n");
@@ -4603,6 +4662,8 @@ enable_synaptics(KBDC kbdc, struct psm_softc *sc)
 			printf("   capBallistics: %d\n", synhw.capBallistics);
 			printf("   capMultiFinger: %d\n", synhw.capMultiFinger);
 			printf("   capPalmDetect: %d\n", synhw.capPalmDetect);
+			printf("   infoXupmm: %d\n", synhw.infoXupmm);
+			printf("   infoYupmm: %d\n", synhw.infoYupmm);
 		}
 
 		/*
@@ -4610,7 +4671,9 @@ enable_synaptics(KBDC kbdc, struct psm_softc *sc)
 		 * supports this number of extended queries. We can load
 		 * more information about buttons using query 0x09.
 		 */
-		if (synhw.capExtended && synhw.nExtendedQueries) {
+		if (synhw.nExtendedQueries >= 1) {
+			if (!set_mouse_scaling(kbdc, 1))
+				return (FALSE);
 			if (mouse_ext_command(kbdc, 0x09) == 0)
 				return (FALSE);
 			if (get_mouse_status(kbdc, status, 0, 3) != 3)
@@ -4619,6 +4682,7 @@ enable_synaptics(KBDC kbdc, struct psm_softc *sc)
 			synhw.horizontalScroll = (status[0] & 0x02) != 0;
 			synhw.verticalWheel    = (status[0] & 0x08) != 0;
 			synhw.nExtendedButtons = (status[1] & 0xf0) >> 4;
+			synhw.capEWmode        = (status[0] & 0x04) != 0;
 			if (verbose >= 2) {
 				printf("  Extended model ID:\n");
 				printf("   verticalScroll: %d\n",
@@ -4629,6 +4693,8 @@ enable_synaptics(KBDC kbdc, struct psm_softc *sc)
 				    synhw.verticalWheel);
 				printf("   nExtendedButtons: %d\n",
 				    synhw.nExtendedButtons);
+				printf("   capEWmode: %d\n",
+				    synhw.capEWmode);
 			}
 			/*
 			 * Add the number of extended buttons to the total
@@ -4642,48 +4708,102 @@ enable_synaptics(KBDC kbdc, struct psm_softc *sc)
 			 * add a fourth button to the total button count.
 			 */
 			buttons = synhw.capFourButtons ? 1 : 0;
+
+		/* Read the continued capabilities bits. */
+		if (synhw.nExtendedQueries >= 4) {
+			if (!set_mouse_scaling(kbdc, 1))
+				return (FALSE);
+			if (mouse_ext_command(kbdc, 0x0c) == 0)
+				return (FALSE);
+			if (get_mouse_status(kbdc, status, 0, 3) != 3)
+				return (FALSE);
+
+			synhw.capClickPad         = (status[1] & 0x01) << 1;
+			synhw.capClickPad        |= (status[0] & 0x10) != 0;
+			synhw.capDeluxeLEDs       = (status[1] & 0x02) != 0;
+			synhw.noAbsoluteFilter    = (status[1] & 0x04) != 0;
+			synhw.capReportsV         = (status[1] & 0x08) != 0;
+			synhw.capUniformClickPad  = (status[1] & 0x10) != 0;
+			synhw.capReportsMin       = (status[1] & 0x20) != 0;
+			synhw.capInterTouch       = (status[1] & 0x40) != 0;
+			synhw.capReportsMax       = (status[0] & 0x02) != 0;
+			synhw.capClearPad         = (status[0] & 0x04) != 0;
+			synhw.capAdvancedGestures = (status[0] & 0x08) != 0;
+			synhw.capCoveredPad       = (status[0] & 0x80) != 0;
+
+			if (synhw.capReportsMax) {
+				if (!set_mouse_scaling(kbdc, 1))
+					return (FALSE);
+				if (mouse_ext_command(kbdc, 0x0d) == 0)
+					return (FALSE);
+				if (get_mouse_status(kbdc, status, 0, 3) != 3)
+					return (FALSE);
+
+				synhw.maximumXCoord = (status[0] << 5) |
+						     ((status[1] & 0x0f) << 1);
+				synhw.maximumYCoord = (status[2] << 5) |
+						     ((status[1] & 0xf0) >> 3);
+			}
+			if (synhw.capReportsMin) {
+				if (!set_mouse_scaling(kbdc, 1))
+					return (FALSE);
+				if (mouse_ext_command(kbdc, 0x0f) == 0)
+					return (FALSE);
+				if (get_mouse_status(kbdc, status, 0, 3) != 3)
+					return (FALSE);
+
+				synhw.minimumXCoord = (status[0] << 5) |
+						     ((status[1] & 0x0f) << 1);
+				synhw.minimumYCoord = (status[2] << 5) |
+						     ((status[1] & 0xf0) >> 3);
+			}
+
+			if (verbose >= 2) {
+				printf("  Continued capabilities:\n");
+				printf("   capClickPad: %d\n",
+				       synhw.capClickPad);
+				printf("   capDeluxeLEDs: %d\n",
+				       synhw.capDeluxeLEDs);
+				printf("   noAbsoluteFilter: %d\n",
+				       synhw.noAbsoluteFilter);
+				printf("   capReportsV: %d\n",
+				       synhw.capReportsV);
+				printf("   capUniformClickPad: %d\n",
+				       synhw.capUniformClickPad);
+				printf("   capReportsMin: %d\n",
+				       synhw.capReportsMin);
+				printf("   capInterTouch: %d\n",
+				       synhw.capInterTouch);
+				printf("   capReportsMax: %d\n",
+				       synhw.capReportsMax);
+				printf("   capClearPad: %d\n",
+				       synhw.capClearPad);
+				printf("   capAdvancedGestures: %d\n",
+				       synhw.capAdvancedGestures);
+				printf("   capCoveredPad: %d\n",
+				       synhw.capCoveredPad);
+				if (synhw.capReportsMax) {
+					printf("   maximumXCoord: %d\n",
+					       synhw.maximumXCoord);
+					printf("   maximumYCoord: %d\n",
+					       synhw.maximumYCoord);
+				}
+				if (synhw.capReportsMin) {
+					printf("   minimumXCoord: %d\n",
+					       synhw.minimumXCoord);
+					printf("   minimumYCoord: %d\n",
+					       synhw.minimumYCoord);
+				}
+			}
+			buttons += synhw.capClickPad;
+		}
 	}
+
 	if (verbose >= 2) {
 		if (synhw.capExtended)
 			printf("  Additional Buttons: %d\n", buttons);
 		else
 			printf("  No extended capabilities\n");
-	}
-
-	/* Read the continued capabilities bits. */
-	if (mouse_ext_command(kbdc, 0xc) != 0 &&
-	    get_mouse_status(kbdc, status, 0, 3) == 3) {
-		synhw.capClickPad         = (status[1] & 0x01) << 1;
-		synhw.capClickPad        |= (status[0] & 0x10) != 0;
-		synhw.capDeluxeLEDs       = (status[1] & 0x02) != 0;
-		synhw.noAbsoluteFilter    = (status[1] & 0x04) != 0;
-		synhw.capReportsV         = (status[1] & 0x08) != 0;
-		synhw.capUniformClickPad  = (status[1] & 0x10) != 0;
-		synhw.capReportsMin       = (status[1] & 0x20) != 0;
-		synhw.capInterTouch       = (status[1] & 0x40) != 0;
-		synhw.capReportsMax       = (status[2] & 0x02) != 0;
-		synhw.capClearPad         = (status[2] & 0x04) != 0;
-		synhw.capAdvancedGestures = (status[2] & 0x08) != 0;
-		synhw.capCoveredPad       = (status[2] & 0x80) != 0;
-
-		if (verbose >= 2) {
-			printf("  Continued capabilities:\n");
-			printf("   capClickPad: %d\n", synhw.capClickPad);
-			printf("   capDeluxeLEDs: %d\n", synhw.capDeluxeLEDs);
-			printf("   noAbsoluteFilter: %d\n",
-			    synhw.noAbsoluteFilter);
-			printf("   capReportsV: %d\n", synhw.capReportsV);
-			printf("   capUniformClickPad: %d\n",
-			    synhw.capUniformClickPad);
-			printf("   capReportsMin: %d\n", synhw.capReportsMin);
-			printf("   capInterTouch: %d\n", synhw.capInterTouch);
-			printf("   capReportsMax: %d\n", synhw.capReportsMax);
-			printf("   capClearPad: %d\n", synhw.capClearPad);
-			printf("   capAdvancedGestures: %d\n",
-			    synhw.capAdvancedGestures);
-			printf("   capCoveredPad: %d\n", synhw.capCoveredPad);
-		}
-		buttons += synhw.capClickPad;
 	}
 
 	/*
@@ -4713,15 +4833,10 @@ enable_synaptics(KBDC kbdc, struct psm_softc *sc)
 	if (!synaptics_support)
 		return (FALSE);
 
-	/* Set the mode byte; request wmode where available. */
-	mouse_ext_command(kbdc, synhw.capExtended ? 0xc1 : 0xc0);
-
-	/* "Commit" the Set Mode Byte command sent above. */
-	set_mouse_sampling_rate(kbdc, 20);
-
 	VLOG(3, (LOG_DEBUG, "synaptics: END init (%d buttons)\n", buttons));
 
 	if (sc != NULL) {
+		synaptics_set_mode(sc, synaptics_preferred_mode(sc));
 		if (trackpoint_support && synhw.capPassthrough) {
 			synaptics_passthrough_on(sc);
 			enable_trackpoint(kbdc, sc);
@@ -4738,30 +4853,17 @@ enable_synaptics(KBDC kbdc, struct psm_softc *sc)
 static void
 synaptics_passthrough_on(struct psm_softc *sc)
 {
-	int mode_byte;
-
-	mode_byte = 0xc1 | (1 << 5);
-	VLOG(2, (LOG_NOTICE, "psm: setting pass-through mode. %d\n",
-		mode_byte));
-	mouse_ext_command(sc->kbdc, mode_byte);
-
-	/* "Commit" the Set Mode Byte command sent above. */
-	set_mouse_sampling_rate(sc->kbdc, 20);
+	VLOG(2, (LOG_NOTICE, "psm: setting pass-through mode.\n"));
+	synaptics_set_mode(sc, synaptics_preferred_mode(sc) | (1 << 5));
 }
 
 static void
 synaptics_passthrough_off(struct psm_softc *sc)
 {
-	int mode_byte;
-
-	mode_byte = 0xc1;
 	VLOG(2, (LOG_NOTICE, "psm: turning pass-through mode off.\n"));
 	set_mouse_scaling(sc->kbdc, 2);
 	set_mouse_scaling(sc->kbdc, 1);
-	mouse_ext_command(sc->kbdc, mode_byte);
-
-	/* "Commit" the Set Mode Byte command sent above. */
-	set_mouse_sampling_rate(sc->kbdc, 20);
+	synaptics_set_mode(sc, synaptics_preferred_mode(sc));
 }
 
 /* IBM/Lenovo TrackPoint */

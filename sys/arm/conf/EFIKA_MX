@@ -20,6 +20,7 @@
 
 ident		EFIKA_MX
 
+include 	"std.armv6"
 include 	"../freescale/imx/std.imx51"
 
 makeoptions	WITHOUT_MODULES="ahc"
@@ -27,43 +28,13 @@ makeoptions	WITHOUT_MODULES="ahc"
 options 	SOC_IMX51
 
 options 	SCHED_4BSD		# 4BSD scheduler
-options 	PREEMPTION		# Enable kernel thread preemption
-options 	INET			# InterNETworking
-options 	INET6			# IPv6 communications protocols
-options 	SCTP			# Stream Control Transmission Protocol
-options 	FFS			# Berkeley Fast Filesystem
-options 	SOFTUPDATES		# Enable FFS soft updates support
-options 	UFS_ACL			# Support for access control lists
-options 	UFS_DIRHASH		# Improve performance on big directories
-options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
-options 	QUOTA			# Enable disk quotas for UFS
 #options 	MD_ROOT			# MD is a potential root device
-options 	NFSCL			# Network Filesystem Client
 #options 	NFSD			# Network Filesystem Server
-options 	NFSLOCKD		# Network Lock Manager
-options 	NFS_ROOT		# NFS usable as /, requires NFSCL
-options 	MSDOSFS			# MSDOS Filesystem
-options 	CD9660			# ISO 9660 Filesystem
-options 	PROCFS			# Process filesystem (requires PSEUDOFS)
-options 	PSEUDOFS		# Pseudo-filesystem framework
-options 	TMPFS			# Efficient memory filesystem
-options 	GEOM_PART_GPT		# GUID Partition Tables
-options 	GEOM_PART_BSD		# BSD partition scheme
-options 	GEOM_PART_MBR		# MBR partition scheme
-options 	GEOM_LABEL		# Provides labelization
 #options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
 #options 	COMPAT_FREEBSD6		# Compatible with FreeBSD6
 #options 	COMPAT_FREEBSD7		# Compatible with FreeBSD7
-options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
-options 	KTRACE			# ktrace(1) support
-options 	SYSVSHM			# SYSV-style shared memory
-options 	SYSVMSG			# SYSV-style message queues
-options 	SYSVSEM			# SYSV-style semaphores
-options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
-options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	PLATFORM
 options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
-options 	VFP			# Enable floating point hardware support
 
 # Debugging for use in -current
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols

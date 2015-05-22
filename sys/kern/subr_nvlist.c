@@ -838,6 +838,7 @@ nvlist_xunpack(const void *buf, size_t size, const int *fds, size_t nfds,
 			if (nvl->nvl_parent == NULL)
 				goto failed;
 			nvl = nvpair_nvlist(nvl->nvl_parent);
+			nvpair_free_structure(nvp);
 			continue;
 		default:
 			PJDLOG_ABORT("Invalid type (%d).", nvpair_type(nvp));
@@ -902,8 +903,8 @@ nvlist_send(int sock, const nvlist_t *nvl)
 	ret = 0;
 out:
 	ERRNO_SAVE();
-	free(fds);
-	free(data);
+	nv_free(fds);
+	nv_free(data);
 	ERRNO_RESTORE();
 	return (ret);
 }
@@ -958,8 +959,8 @@ nvlist_recv(int sock, int flags)
 	ret = nvl;
 out:
 	ERRNO_SAVE();
-	free(buf);
-	free(fds);
+	nv_free(buf);
+	nv_free(fds);
 	ERRNO_RESTORE();
 
 	return (ret);

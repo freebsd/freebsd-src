@@ -99,8 +99,6 @@ u_int	arm_cache_level;
 u_int	arm_cache_type[14];
 u_int	arm_cache_loc;
 
-/* 1 == use cpu_sleep(), 0 == don't */
-int cpu_do_powersave;
 int ctrl;
 
 #ifdef CPU_ARM9
@@ -675,7 +673,7 @@ struct cpu_functions cortexa_cpufuncs = {
 	cpufunc_nullop,                 /* flush_brnchtgt_C     */
 	(void *)cpufunc_nullop,         /* flush_brnchtgt_E     */
 	
-	armv7_sleep,                    /* sleep                */
+	armv7_cpu_sleep,                /* sleep                */
 	
 	/* Soft functions */
 	
@@ -838,11 +836,6 @@ set_cpufuncs()
 	cputype = cpufunc_id();
 	cputype &= CPU_ID_CPU_MASK;
 
-	/*
-	 * NOTE: cpu_do_powersave defaults to off.  If we encounter a
-	 * CPU type where we want to use it by default, then we set it.
-	 */
-
 #ifdef CPU_ARM9
 	if (((cputype & CPU_ID_IMPLEMENTOR_MASK) == CPU_ID_ARM_LTD ||
 	     (cputype & CPU_ID_IMPLEMENTOR_MASK) == CPU_ID_TI) &&
@@ -922,8 +915,6 @@ set_cpufuncs()
 		get_cachetype_cp15();
 		
 		pmap_pte_init_mmu_v6();
-		/* Use powersave on this CPU. */
-		cpu_do_powersave = 1;
 		goto out;
 	}
 #endif /* CPU_CORTEXA */
@@ -945,9 +936,6 @@ set_cpufuncs()
 		cpu_reset_needs_v4_MMU_disable = 1;	/* SA needs it	*/
 		get_cachetype_cp15();
 		pmap_pte_init_generic();
-
-		/* Use powersave on this CPU. */
-		cpu_do_powersave = 1;
 
 		goto out;
 	}
@@ -984,9 +972,6 @@ set_cpufuncs()
 		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
 		get_cachetype_cp15();
 		pmap_pte_init_xscale();
-
-		/* Use powersave on this CPU. */
-		cpu_do_powersave = 1;
 
 		goto out;
 	}

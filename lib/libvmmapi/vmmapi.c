@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/param.h>
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -958,9 +959,9 @@ vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities)
 	return (error);
 }
 
-static int
-gla2gpa(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
-    uint64_t gla, int prot, int *fault, uint64_t *gpa)
+int
+vm_gla2gpa(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
+    uint64_t gla, int prot, uint64_t *gpa, int *fault)
 {
 	struct vm_gla2gpa gg;
 	int error;
@@ -979,29 +980,18 @@ gla2gpa(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
 	return (error);
 }
 
-int
-vm_gla2gpa(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
-    uint64_t gla, int prot, uint64_t *gpa)
-{
-	int error, fault;
-
-	error = gla2gpa(ctx, vcpu, paging, gla, prot, &fault, gpa);
-	if (fault)
-		error = fault;
-	return (error);
-}
-
 #ifndef min
 #define	min(a,b)	(((a) < (b)) ? (a) : (b))
 #endif
 
 int
 vm_copy_setup(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
-    uint64_t gla, size_t len, int prot, struct iovec *iov, int iovcnt)
+    uint64_t gla, size_t len, int prot, struct iovec *iov, int iovcnt,
+    int *fault)
 {
 	void *va;
 	uint64_t gpa;
-	int error, fault, i, n, off;
+	int error, i, n, off;
 
 	for (i = 0; i < iovcnt; i++) {
 		iov[i].iov_base = 0;
@@ -1010,18 +1000,16 @@ vm_copy_setup(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
 
 	while (len) {
 		assert(iovcnt > 0);
-		error = gla2gpa(ctx, vcpu, paging, gla, prot, &fault, &gpa);
-		if (error)
-			return (-1);
-		if (fault)
-			return (1);
+		error = vm_gla2gpa(ctx, vcpu, paging, gla, prot, &gpa, fault);
+		if (error || *fault)
+			return (error);
 
 		off = gpa & PAGE_MASK;
 		n = min(len, PAGE_SIZE - off);
 
 		va = vm_map_gpa(ctx, gpa, n);
 		if (va == NULL)
-			return (-1);
+			return (EFAULT);
 
 		iov->iov_base = va;
 		iov->iov_len = n;

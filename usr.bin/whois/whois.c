@@ -60,22 +60,25 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 
 #define	ABUSEHOST	"whois.abuse.net"
-#define	NICHOST		"whois.crsnic.net"
-#define	INICHOST	"whois.networksolutions.com"
-#define	GNICHOST	"whois.nic.gov"
 #define	ANICHOST	"whois.arin.net"
-#define	LNICHOST	"whois.lacnic.net"
-#define	KNICHOST	"whois.krnic.net"
-#define	RNICHOST	"whois.ripe.net"
-#define	PNICHOST	"whois.apnic.net"
-#define	MNICHOST	"whois.ra.net"
-#define	QNICHOST_TAIL	".whois-servers.net"
 #define	BNICHOST	"whois.registro.br"
-#define NORIDHOST	"whois.norid.no"
+#define	FNICHOST	"whois.afrinic.net"
+#define	GERMNICHOST	"de.whois-servers.net"
+#define	GNICHOST	"whois.nic.gov"
 #define	IANAHOST	"whois.iana.org"
-#define GERMNICHOST	"de.whois-servers.net"
-#define FNICHOST	"whois.afrinic.net"
+#define	INICHOST	"whois.networksolutions.com"
+#define	KNICHOST	"whois.krnic.net"
+#define	LNICHOST	"whois.lacnic.net"
+#define	MNICHOST	"whois.ra.net"
+#define	NICHOST		"whois.crsnic.net"
+#define	PDBHOST		"whois.peeringdb.com"
+#define	PNICHOST	"whois.apnic.net"
+#define	QNICHOST_HEAD	"whois.nic."
+#define	QNICHOST_TAIL	".whois-servers.net"
+#define	RNICHOST	"whois.ripe.net"
+
 #define	DEFAULT_PORT	"whois"
+
 #define	WHOIS_SERVER_ID	"Whois Server: "
 #define	WHOIS_ORG_SERVER_ID	"Registrant Street1:Whois Server:"
 
@@ -84,12 +87,25 @@ __FBSDID("$FreeBSD$");
 
 #define ishost(h) (isalnum((unsigned char)h) || h == '.' || h == '-')
 
+static struct {
+	const char *suffix, *server;
+} whoiswhere[] = {
+	/* Various handles */
+	{ "-ARIN", ANICHOST },
+	{ "-NICAT", "at" QNICHOST_TAIL },
+	{ "-NORID", "no" QNICHOST_TAIL },
+	{ "-RIPE", RNICHOST },
+	/* Nominet's whois server doesn't return referrals to JANET */
+	{ ".ac.uk", "ac.uk" QNICHOST_TAIL },
+	{ NULL, NULL }
+};
+
 static const char *ip_whois[] = { LNICHOST, RNICHOST, PNICHOST, BNICHOST,
 				  FNICHOST, NULL };
 static const char *port = DEFAULT_PORT;
 
 static char *choose_server(char *);
-static struct addrinfo *gethostinfo(char const *host, int exit_on_error);
+static struct addrinfo *gethostinfo(char const *host, int exitnoname);
 static void s_asprintf(char **ret, const char *format, ...) __printflike(2, 3);
 static void usage(void);
 static void whois(const char *, const char *, int);
@@ -107,7 +123,7 @@ main(int argc, char *argv[])
 
 	country = host = qnichost = NULL;
 	flags = use_qnichost = 0;
-	while ((ch = getopt(argc, argv, "aAbc:fgh:iIklmp:QrR6")) != -1) {
+	while ((ch = getopt(argc, argv, "aAbc:fgh:iIklmp:PQr")) != -1) {
 		switch (ch) {
 		case 'a':
 			host = ANICHOST;
@@ -148,20 +164,14 @@ main(int argc, char *argv[])
 		case 'p':
 			port = optarg;
 			break;
+		case 'P':
+			host = PDBHOST;
+			break;
 		case 'Q':
 			flags |= WHOIS_QUICK;
 			break;
 		case 'r':
 			host = RNICHOST;
-			break;
-		case 'R':
-			warnx("-R is deprecated; use '-c ru' instead");
-			country = "ru";
-			break;
-		/* Remove in FreeBSD 10 */
-		case '6':
-			errx(EX_USAGE,
-				"-6 is deprecated; use -[aAflr] instead");
 			break;
 		case '?':
 		default:
@@ -176,13 +186,12 @@ main(int argc, char *argv[])
 		usage();
 
 	/*
-	 * If no host or country is specified determine the top level domain
-	 * from the query.  If the TLD is a number, query ARIN.  Otherwise, use 
-	 * TLD.whois-server.net.  If the domain does not contain '.', fall
-	 * back to NICHOST.
+	 * If no host or country is specified, try to determine the top
+	 * level domain from the query, or fall back to NICHOST.
 	 */
 	if (host == NULL && country == NULL) {
-		if ((host = getenv("RA_SERVER")) == NULL) {
+		if ((host = getenv("WHOIS_SERVER")) == NULL &&
+		    (host = getenv("RA_SERVER")) == NULL) {
 			use_qnichost = 1;
 			host = NICHOST;
 			if (!(flags & WHOIS_QUICK))
@@ -210,39 +219,67 @@ main(int argc, char *argv[])
  * returns a pointer to newly allocated memory containing the whois server to
  * be queried, or a NULL if the correct server couldn't be determined.  The
  * caller must remember to free(3) the allocated memory.
+ *
+ * If the domain is an IPv6 address or has a known suffix, that determines
+ * the server, else if the TLD is a number, query ARIN, else try a couple of
+ * formulaic server names. Fail if the domain does not contain '.'.
  */
 static char *
 choose_server(char *domain)
 {
 	char *pos, *retval;
+	int i;
+	struct addrinfo *res;
 
 	if (strchr(domain, ':')) {
 		s_asprintf(&retval, "%s", ANICHOST);
 		return (retval);
 	}
-	for (pos = strchr(domain, '\0'); pos > domain && *--pos == '.';)
-		*pos = '\0';
+	for (pos = strchr(domain, '\0'); pos > domain && pos[-1] == '.';)
+		*--pos = '\0';
 	if (*domain == '\0')
 		errx(EX_USAGE, "can't search for a null string");
-	if (strlen(domain) > sizeof("-NORID")-1 &&
-	    strcasecmp(domain + strlen(domain) - sizeof("-NORID") + 1,
-		"-NORID") == 0) {
-		s_asprintf(&retval, "%s", NORIDHOST);
-		return (retval);
+	for (i = 0; whoiswhere[i].suffix != NULL; i++) {
+		size_t suffix_len = strlen(whoiswhere[i].suffix);
+		if (domain + suffix_len < pos &&
+		    strcasecmp(pos - suffix_len, whoiswhere[i].suffix) == 0) {
+			s_asprintf(&retval, "%s", whoiswhere[i].server);
+			return (retval);
+		}
 	}
 	while (pos > domain && *pos != '.')
 		--pos;
 	if (pos <= domain)
 		return (NULL);
-	if (isdigit((unsigned char)*++pos))
+	if (isdigit((unsigned char)*++pos)) {
 		s_asprintf(&retval, "%s", ANICHOST);
-	else
-		s_asprintf(&retval, "%s%s", pos, QNICHOST_TAIL);
-	return (retval);
+		return (retval);
+	}
+	/* Try possible alternative whois server name formulae. */
+	for (i = 0; ; ++i) {
+		switch (i) {
+		case 0:
+			s_asprintf(&retval, "%s%s", pos, QNICHOST_TAIL);
+			break;
+		case 1:
+			s_asprintf(&retval, "%s%s", QNICHOST_HEAD, pos);
+			break;
+		default:
+			return (NULL);
+		}
+		res = gethostinfo(retval, 0);
+		if (res) {
+			freeaddrinfo(res);
+			return (retval);
+		} else {
+			free(retval);
+			continue;
+		}
+	}
 }
 
 static struct addrinfo *
-gethostinfo(char const *host, int exit_on_error)
+gethostinfo(char const *host, int exit_on_noname)
 {
 	struct addrinfo hints, *res;
 	int error;
@@ -251,13 +288,10 @@ gethostinfo(char const *host, int exit_on_error)
 	hints.ai_flags = 0;
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
+	res = NULL;
 	error = getaddrinfo(host, port, &hints, &res);
-	if (error) {
-		warnx("%s: %s", host, gai_strerror(error));
-		if (exit_on_error)
-			exit(EX_NOHOST);
-		return (NULL);
-	}
+	if (error && (exit_on_noname || error != EAI_NONAME))
+		err(EX_NOHOST, "%s: %s", host, gai_strerror(error));
 	return (res);
 }
 
@@ -283,8 +317,9 @@ whois(const char *query, const char *hostname, int flags)
 	FILE *fp;
 	struct addrinfo *hostres, *res;
 	char *buf, *host, *nhost, *p;
-	int i, j, s = -1, count;
-	size_t c, len;
+	int s = -1, f;
+	nfds_t i, j;
+	size_t c, len, count;
 	struct pollfd *fds;
 	int timeout = 180;
 
@@ -402,9 +437,9 @@ done:
 
 	if (s != -1) {
                 /* Restore default blocking behavior.  */
-                if ((flags = fcntl(s, F_GETFL)) != -1) {
-                        flags &= ~O_NONBLOCK;
-                        if (fcntl(s, F_SETFL, flags) == -1)
+                if ((f = fcntl(s, F_GETFL)) != -1) {
+                        f &= ~O_NONBLOCK;
+                        if (fcntl(s, F_SETFL, f) == -1)
                                 err(EX_OSERR, "fcntl()");
                 } else
 			err(EX_OSERR, "fcntl()");
@@ -480,7 +515,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: whois [-aAbfgiIklmQrR6] [-c country-code | -h hostname] "
+	    "usage: whois [-aAbfgiIklmPQr] [-c country-code | -h hostname] "
 	    "[-p port] name ...\n");
 	exit(EX_USAGE);
 }

@@ -87,13 +87,6 @@ acpi_machdep_quirks(int *quirks)
 	return (0);
 }
 
-void
-acpi_cpu_c1()
-{
-
-	__asm __volatile("sti; hlt");
-}
-
 /*
  * Support for mapping ACPI tables during early boot.  Currently this
  * uses the crashdump map to map each table.  However, the crashdump

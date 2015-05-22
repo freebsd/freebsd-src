@@ -31,7 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
-#include "opt_inet6.h"
+#include "opt_sctp.h"
 #include "opt_ipsec.h"
 
 #include <sys/param.h>
@@ -58,10 +58,12 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
+#ifdef SCTP
+#include <netinet/sctp_crc32.h>
+#endif
 
 #include <machine/in_cksum.h>
 
-#ifdef IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/ipsec6.h>
 #include <netipsec/xform.h>
@@ -71,16 +73,12 @@ __FBSDID("$FreeBSD$");
 #else
 #define	KEYDEBUG(lev,arg)
 #endif
-#endif /*IPSEC*/
 
 #include <netinet6/ip6_ipsec.h>
 #include <netinet6/ip6_var.h>
 
 extern	struct protosw inet6sw[];
 
-
-#ifdef INET6 
-#ifdef IPSEC
 #ifdef IPSEC_FILTERTUNNEL
 static VNET_DEFINE(int, ip6_ipsec6_filtertunnel) = 1;
 #else
@@ -92,8 +90,6 @@ SYSCTL_DECL(_net_inet6_ipsec6);
 SYSCTL_INT(_net_inet6_ipsec6, OID_AUTO, filtertunnel,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_ipsec6_filtertunnel),  0,
 	"If set filter packets from an IPsec tunnel.");
-#endif /* IPSEC */
-#endif /* INET6 */
 
 /*
  * Check if we have to jump over firewall processing for this packet.
@@ -103,16 +99,14 @@ SYSCTL_INT(_net_inet6_ipsec6, OID_AUTO, filtertunnel,
 int
 ip6_ipsec_filtertunnel(struct mbuf *m)
 {
-#ifdef IPSEC
 
 	/*
 	 * Bypass packet filtering for packets previously handled by IPsec.
 	 */
 	if (!V_ip6_ipsec6_filtertunnel &&
 	    m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL) != NULL)
-		return 1;
-#endif
-	return 0;
+		return (1);
+	return (0);
 }
 
 /*
@@ -125,11 +119,7 @@ int
 ip6_ipsec_fwd(struct mbuf *m)
 {
 
-#ifdef IPSEC
 	return (ipsec6_in_reject(m, NULL));
-#else
-	return (0);
-#endif /* !IPSEC */
 }
 
 /*
@@ -143,7 +133,6 @@ int
 ip6_ipsec_input(struct mbuf *m, int nxt)
 {
 
-#ifdef IPSEC
 	/*
 	 * enforce IPsec policy checking if we are seeing last header.
 	 * note that we do not visit this with protocols with pcb layer
@@ -151,7 +140,6 @@ ip6_ipsec_input(struct mbuf *m, int nxt)
 	 */
 	if ((inet6sw[ip6_protox[nxt]].pr_flags & PR_LASTHDR) != 0)
 		return (ipsec6_in_reject(m, NULL));
-#endif /* IPSEC */
 	return (0);
 }
 
@@ -164,7 +152,6 @@ ip6_ipsec_input(struct mbuf *m, int nxt)
 int
 ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *error)
 {
-#ifdef IPSEC
 	struct secpolicy *sp;
 
 	/*
@@ -257,9 +244,7 @@ reinjected:
 bad:
 	if (sp != NULL)
 		KEY_FREESP(&sp);
-	return 1;
-#endif /* IPSEC */
-	return 0;
+	return (1);
 }
 
 #if 0

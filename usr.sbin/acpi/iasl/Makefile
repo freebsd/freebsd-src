@@ -4,8 +4,8 @@ PROG=	iasl
 
 # common
 SRCS=	adfile.c adisasm.c adwalk.c ahids.c ahpredef.c		\
-	ahuuids.c cmfsize.c dmextern.c dmrestag.c dmtable.c	\
-	dmtbdump.c dmtbinfo.c getopt.c
+	ahtable.c ahuuids.c cmfsize.c dmextern.c dmrestag.c	\
+	dmtable.c dmtbdump.c dmtbinfo.c getopt.c
 
 # compiler
 SRCS+=	aslanalyze.c aslascii.c aslbtypes.c aslcodegen.c	\

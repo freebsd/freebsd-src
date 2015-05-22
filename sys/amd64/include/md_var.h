@@ -91,6 +91,7 @@ struct	dumperinfo;
 void	*alloc_fpusave(int flags);
 void	amd64_syscall(struct thread *td, int traced);
 void	busdma_swi(void);
+bool	cpu_mwait_usable(void);
 void	cpu_probe_amdc1e(void);
 void	cpu_setregs(void);
 void	doreti_iret(void) __asm(__STRING(doreti_iret));
