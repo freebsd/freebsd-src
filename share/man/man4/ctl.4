@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd April 8, 2015
+.Dd May 22, 2015
 .Dt CTL 4
 .Os
 .Sh NAME
@@ -84,6 +84,22 @@ All I/O handled in-kernel, no userland context switch overhead
 .El
 .Pp
 It also serves as a kernel component of the native iSCSI target.
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va kern.cam.ctl.iscsi.maxcmdsn_delta
+The number of outstanding commands to advertise to the initiator.
+Technically, it's the difference between ExpCmdSN and MaxCmdSN fields
+in the iSCSI PDU.
+.It Va kern.cam.ctl.iscsi.ping_timeout
+The number of seconds to wait for the initiator to respond to a NOP-In
+PDU.
+In the event that there is no response within that time the session gets
+forcibly terminated.
 .Sh SEE ALSO
 .Xr ctladm 8 ,
 .Xr ctld 8 ,
