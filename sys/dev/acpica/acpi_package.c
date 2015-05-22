@@ -120,6 +120,28 @@ acpi_PkgGas(device_t dev, ACPI_OBJECT *res, int idx, int *type, int *rid,
     return (acpi_bus_alloc_gas(dev, type, rid, &gas, dst, flags));
 }
 
+int
+acpi_PkgFFH_IntelCpu(ACPI_OBJECT *res, int idx, int *vendor, int *class,
+    uint64_t *address, int *accsize)
+{
+    ACPI_GENERIC_ADDRESS gas;
+    ACPI_OBJECT *obj;
+
+    obj = &res->Package.Elements[idx];
+    if (obj == NULL || obj->Type != ACPI_TYPE_BUFFER ||
+	obj->Buffer.Length < sizeof(ACPI_GENERIC_ADDRESS) + 3)
+	return (EINVAL);
+
+    memcpy(&gas, obj->Buffer.Pointer + 3, sizeof(gas));
+    if (gas.SpaceId != ACPI_ADR_SPACE_FIXED_HARDWARE)
+	return (ERESTART);
+    *vendor = gas.BitWidth;
+    *class = gas.BitOffset;
+    *address = gas.Address;
+    *accsize = gas.AccessWidth;
+    return (0);
+}
+
 ACPI_HANDLE
 acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj)
 {

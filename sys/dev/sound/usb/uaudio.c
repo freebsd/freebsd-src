@@ -115,6 +115,8 @@ SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_channels, CTLFLAG_RWTUN,
 #define	UAUDIO_NFRAMES		64	/* must be factor of 8 due HS-USB */
 #define	UAUDIO_NCHANBUFS	2	/* number of outstanding request */
 #define	UAUDIO_RECURSE_LIMIT	255	/* rounds */
+#define	UAUDIO_CHANNELS_MAX	MIN(64, AFMT_CHANNEL_MAX)
+#define	UAUDIO_MATRIX_MAX	8	/* channels */
 
 #define	MAKE_WORD(h,l) (((h) << 8) | (l))
 #define	BIT_TEST(bm,bno) (((bm)[(bno) / 8] >> (7 - ((bno) % 8))) & 1)
@@ -346,6 +348,7 @@ struct uaudio_softc {
 	uint8_t	sc_uq_au_no_xu:1;
 	uint8_t	sc_uq_bad_adc:1;
 	uint8_t	sc_uq_au_vendor_class:1;
+	uint8_t	sc_pcm_bitperfect:1;
 };
 
 struct uaudio_terminal_node {
@@ -1062,6 +1065,10 @@ uaudio_attach_sub(device_t dev, kobj_class_t mixer_class, kobj_class_t chan_clas
 		 */
 		uaudio_pcm_setflags(dev, SD_F_SOFTPCMVOL);
 	}
+	if (sc->sc_pcm_bitperfect) {
+		DPRINTF("device needs bitperfect by default\n");
+		uaudio_pcm_setflags(dev, SD_F_BITPERFECT);
+	}
 	if (mixer_init(dev, mixer_class, sc))
 		goto detach;
 	sc->sc_mixer_init = 1;
@@ -1568,6 +1575,19 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 			asf1d.v1 = NULL;
 			ed1 = NULL;
 			sed.v1 = NULL;
+
+			/*
+			 * There can only be one USB audio instance
+			 * per USB device. Grab all USB audio
+			 * interfaces on this USB device so that we
+			 * don't attach USB audio twice:
+			 */
+			if (alt_index == 0 && curidx != sc->sc_mixer_iface_index &&
+			    (id->bInterfaceClass == UICLASS_AUDIO || audio_if != 0 ||
+			    midi_if != 0)) {
+				usbd_set_parent_iface(sc->sc_udev, curidx,
+				    sc->sc_mixer_iface_index);
+			}
 		}
 
 		if (audio_if == 0) {
@@ -1803,9 +1823,6 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 		chan_alt->iface_index = curidx;
 		chan_alt->iface_alt_index = alt_index;
 
-		usbd_set_parent_iface(sc->sc_udev, curidx,
-		    sc->sc_mixer_iface_index);
-
 		if (ep_dir == UE_DIR_IN)
 			chan_alt->usb_cfg = uaudio_cfg_record;
 		else
@@ -1826,19 +1843,21 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 
 		format = chan_alt->p_fmt->freebsd_fmt;
 
+		/* get default SND_FORMAT() */
+		format = SND_FORMAT(format, chan_alt->channels, 0);
+
 		switch (chan_alt->channels) {
-		case 2:
-			/* stereo */
-			format = SND_FORMAT(format, 2, 0);
-			break;
+		uint32_t temp_fmt;
 		case 1:
-			/* mono */
-			format = SND_FORMAT(format, 1, 0);
+		case 2:
+			/* mono and stereo */
 			break;
 		default:
 			/* surround and more */
-			format = feeder_matrix_default_format(
-			    SND_FORMAT(format, chan_alt->channels, 0));
+			temp_fmt = feeder_matrix_default_format(format);
+			/* if multichannel, then format can be zero */
+			if (temp_fmt != 0)
+				format = temp_fmt;
 			break;
 		}
 
@@ -1864,6 +1883,10 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 		}
 		chan->pcm_cap.fmtlist = chan->pcm_format;
 		chan->pcm_cap.fmtlist[0] = format;
+
+		/* check if device needs bitperfect */
+		if (chan_alt->channels > UAUDIO_MATRIX_MAX)
+			sc->sc_pcm_bitperfect = 1;
 
 		if (rate < chan->pcm_cap.minspeed || chan->pcm_cap.minspeed == 0)
 			chan->pcm_cap.minspeed = rate;
@@ -1939,15 +1962,15 @@ uaudio_chan_fill_info(struct uaudio_softc *sc, struct usb_device *udev)
 			channels = 4;
 			break;
 		default:
-			channels = 16;
+			channels = UAUDIO_CHANNELS_MAX;
 			break;
 		}
-	} else if (channels > 16) {
-		channels = 16;
-	}
-	if (sbuf_new(&sc->sc_sndstat, NULL, 4096, SBUF_AUTOEXTEND)) {
+	} else if (channels > UAUDIO_CHANNELS_MAX)
+		channels = UAUDIO_CHANNELS_MAX;
+
+	if (sbuf_new(&sc->sc_sndstat, NULL, 4096, SBUF_AUTOEXTEND))
 		sc->sc_sndstat_valid = 1;
-	}
+
 	/* try to search for a valid config */
 
 	for (x = channels; x; x--) {

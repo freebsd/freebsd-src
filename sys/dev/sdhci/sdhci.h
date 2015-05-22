@@ -271,6 +271,7 @@ struct sdhci_slot {
 #define SDHCI_HAVE_DMA			1
 #define SDHCI_PLATFORM_TRANSFER		2
 	u_char		version;
+	int		timeout;	/* Transfer timeout */
 	uint32_t	max_clk;	/* Max possible freq */
 	uint32_t	timeout_clk;	/* Timeout freq */
 	bus_dma_tag_t 	dmatag;

@@ -276,7 +276,13 @@ vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
 static int __inline
 vcpu_should_yield(struct vm *vm, int vcpu)
 {
-	return (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED));
+
+	if (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED))
+		return (1);
+	else if (curthread->td_owepreempt)
+		return (1);
+	else
+		return (0);
 }
 #endif
 
@@ -345,9 +351,10 @@ struct vm_copyinfo {
  * at 'gla' and 'len' bytes long. The 'prot' should be set to PROT_READ for
  * a copyin or PROT_WRITE for a copyout. 
  *
- * Returns 0 on success.
- * Returns 1 if an exception was injected into the guest.
- * Returns -1 otherwise.
+ * retval	is_fault	Intepretation
+ *   0		   0		Success
+ *   0		   1		An exception was injected into the guest
+ * EFAULT	  N/A		Unrecoverable error
  *
  * The 'copyinfo[]' can be passed to 'vm_copyin()' or 'vm_copyout()' only if
  * the return value is 0. The 'copyinfo[]' resources should be freed by calling
@@ -355,7 +362,7 @@ struct vm_copyinfo {
  */
 int vm_copy_setup(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
     uint64_t gla, size_t len, int prot, struct vm_copyinfo *copyinfo,
-    int num_copyinfo);
+    int num_copyinfo, int *is_fault);
 void vm_copy_teardown(struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo,
     int num_copyinfo);
 void vm_copyin(struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo,

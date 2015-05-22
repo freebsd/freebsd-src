@@ -19,13 +19,13 @@
 
 ident		CRB
 
-include		"std.arm"
+include 	"std.arm"
 options 	PHYSADDR=0x00000000
 options 	KERNPHYSADDR=0x00200000
 options 	KERNVIRTADDR=0xc0200000	# Used in ldscript.arm
 
 options 	COUNTS_PER_SEC=400000000
-include		"../xscale/i8134x/std.crb"
+include 	"../xscale/i8134x/std.crb"
 makeoptions	MODULES_OVERRIDE=""
 
 #makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols

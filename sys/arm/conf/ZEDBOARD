@@ -21,7 +21,7 @@
 
 ident		ZEDBOARD
 
-include		"std.armv6"
+include 	"std.armv6"
 include 	"../xilinx/zedboard/std.zedboard"
 
 options 	SCHED_ULE		# ULE scheduler
@@ -49,6 +49,9 @@ options 	DDB			# Enable the kernel debugger
 #options 	BOOTP_NFSV3
 
 options 	ROOTDEVNAME=\"ufs:mmcsd0s2a\"
+
+# Interrupt controller
+device		gic
 
 device		loop
 device		random

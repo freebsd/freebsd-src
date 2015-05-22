@@ -40,7 +40,6 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <unistd.h>
 #include <login_cap.h>
 #include <pwd.h>
 #include <grp.h>
@@ -185,8 +184,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			 * But we create a symlink from cnf->home -> "/usr" -> cnf->home
 			 */
 			if (strchr(cnf->home+1, '/') == NULL) {
-				strcpy(dbuf, "/usr");
-				strncat(dbuf, cnf->home, MAXPATHLEN-5);
+				snprintf(dbuf, MAXPATHLEN, "/usr%s", cnf->home);
 				if (mkdir(dbuf, _DEF_DIRMODE) != -1 || errno == EEXIST) {
 					chown(dbuf, 0, 0);
 					/*
@@ -364,11 +362,9 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		if (mode == M_LOCK) {
 			if (strncmp(pwd->pw_passwd, locked_str, sizeof(locked_str)-1) == 0)
 				errx(EX_DATAERR, "user '%s' is already locked", pwd->pw_name);
-			passtmp = malloc(strlen(pwd->pw_passwd) + sizeof(locked_str));
+			asprintf(&passtmp, "%s%s", locked_str, pwd->pw_passwd);
 			if (passtmp == NULL)	/* disaster */
 				errx(EX_UNAVAILABLE, "out of memory");
-			strcpy(passtmp, locked_str);
-			strcat(passtmp, pwd->pw_passwd);
 			pwd->pw_passwd = passtmp;
 			edited = 1;
 		} else if (mode == M_UNLOCK) {
@@ -401,7 +397,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				 */
 				snprintf(file, sizeof(file), "/var/cron/tabs/%s", pwd->pw_name);
 				if (access(file, F_OK) == 0) {
-					sprintf(file, "crontab -u %s -r", pwd->pw_name);
+					snprintf(file, sizeof(file), "crontab -u %s -r", pwd->pw_name);
 					system(file);
 				}
 			}
@@ -409,7 +405,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			 * Save these for later, since contents of pwd may be
 			 * invalidated by deletion
 			 */
-			sprintf(file, "%s/%s", _PATH_MAILDIR, pwd->pw_name);
+			snprintf(file, sizeof(file), "%s/%s", _PATH_MAILDIR, pwd->pw_name);
 			strlcpy(home, pwd->pw_dir, sizeof(home));
 			gr = GETGRGID(pwd->pw_gid);
 			if (gr != NULL)
@@ -815,7 +811,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 */
 	if (mode == M_ADD) {
 		if (!PWALTDIR()) {
-			sprintf(line, "%s/%s", _PATH_MAILDIR, pwd->pw_name);
+			snprintf(line, sizeof(line), "%s/%s", _PATH_MAILDIR, pwd->pw_name);
 			close(open(line, O_RDWR | O_CREAT, 0600));	/* Preserve contents &
 									 * mtime */
 			chown(line, pwd->pw_uid, pwd->pw_gid);
@@ -959,7 +955,7 @@ pw_gidpolicy(struct userconf * cnf, struct cargs * args, char *nam, gid_t prefer
 		 * function will happily handle that case for us and exit.
 		 */
 		if (GETGRGID(prefer) == NULL) {
-			sprintf(tmp, "%lu", (unsigned long) prefer);
+			snprintf(tmp, sizeof(tmp), "%u", prefer);
 			addarg(&grpargs, 'g', tmp);
 		}
 		if (getarg(args, 'N'))
@@ -1022,17 +1018,16 @@ static char    *
 pw_homepolicy(struct userconf * cnf, struct cargs * args, char const * user)
 {
 	struct carg    *arg = getarg(args, 'd');
+	static char     home[128];
 
 	if (arg)
-		return arg->val;
-	else {
-		static char     home[128];
+		return (arg->val);
 
-		if (cnf->home == NULL || *cnf->home == '\0')
-			errx(EX_CONFIG, "no base home directory set");
-		sprintf(home, "%s/%s", cnf->home, user);
-		return home;
-	}
+	if (cnf->home == NULL || *cnf->home == '\0')
+		errx(EX_CONFIG, "no base home directory set");
+	snprintf(home, sizeof(home), "%s/%s", cnf->home, user);
+
+	return (home);
 }
 
 static char    *
@@ -1053,12 +1048,12 @@ shell_path(char const * path, char *shells[], char *sh)
 			static char     shellpath[256];
 
 			if (sh != NULL) {
-				sprintf(shellpath, "%s/%s", p, sh);
+				snprintf(shellpath, sizeof(shellpath), "%s/%s", p, sh);
 				if (access(shellpath, X_OK) == 0)
 					return shellpath;
 			} else
 				for (i = 0; i < _UC_MAXSHELLS && shells[i] != NULL; i++) {
-					sprintf(shellpath, "%s/%s", p, shells[i]);
+					snprintf(shellpath, sizeof(shellpath), "%s/%s", p, shells[i]);
 					if (access(shellpath, X_OK) == 0)
 						return shellpath;
 				}
@@ -1308,7 +1303,7 @@ rmat(uid_t uid)
 			    st.st_uid == uid) {
 				char            tmp[MAXPATHLEN];
 
-				sprintf(tmp, "/usr/bin/atrm %s", e->d_name);
+				snprintf(tmp, sizeof(tmp), "/usr/bin/atrm %s", e->d_name);
 				system(tmp);
 			}
 		}

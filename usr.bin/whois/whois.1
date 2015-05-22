@@ -28,7 +28,7 @@
 .\"     From: @(#)whois.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd October 2, 2009
+.Dd May 14, 2015
 .Dt WHOIS 1
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Nd "Internet domain name and network number directory service"
 .Sh SYNOPSIS
 .Nm
-.Op Fl aAbfgiIklmQrR
+.Op Fl aAbfgiIklmPQr
 .Op Fl c Ar country-code | Fl h Ar host
 .Op Fl p Ar port
 .Ar name ...
@@ -46,6 +46,42 @@ The
 utility looks up records in the databases maintained by several
 Network Information Centers
 .Pq Tn NICs .
+.Pp
+By default
+.Nm
+automatically discovers the name of a whois server to use
+from the top-level domain
+.Pq Tn TLD
+of the supplied (single) argument.
+It tries
+.Qq Va TLD Ns Li .whois-servers.net
+and
+.Qq Li whois.nic. Ns Va TLD
+and if neither host exists it falls back to its default server.
+.Pp
+If an IP address is specified, the whois server will default to
+the American Registry for Internet Numbers
+.Pq Tn ARIN .
+If a query to
+.Tn ARIN
+references
+.Tn APNIC , AfriNIC , LACNIC ,
+or
+.Tn RIPE ,
+that server will be queried also, provided that the
+.Fl Q
+option is not specified.
+.Pp
+If
+.Nm
+cannot automatically discover a server,
+it will fall back to
+the host specified in the
+.Ev WHOIS_SERVER
+or
+.Ev RA_SERVER
+environment variables, or if those are not set, it will use
+.Pa whois.crsnic.net .
 .Pp
 The options are as follows:
 .Bl -tag -width indent
@@ -88,66 +124,12 @@ Use the US non-military federal government database, which contains points of
 contact for subdomains of
 .Pa .GOV .
 .It Fl h Ar host
-Use the specified host instead of the default variant.
+Use the specified host instead of the default.
 Either a host name or an IP address may be specified.
-.Pp
-By default
-.Nm
-constructs the name of a whois server to use from the top-level domain
-.Pq Tn TLD
-of the supplied (single) argument, and appending
-.Qq Li .whois-servers.net .
-This effectively allows a suitable whois server to be selected
-automatically for a large number of
-.Tn TLDs .
-.Pp
-In the event that an IP
-address is specified, the whois server will default to the American
-Registry for Internet Numbers
-.Pq Tn ARIN .
-If a query to
-.Tn ARIN
-references
-.Tn APNIC , AfriNIC , LACNIC ,
-or
-.Tn RIPE ,
-that server will be queried also, provided that the
-.Fl Q
-option is not specified.
-.Pp
-If the query is not a domain name or IP address,
-.Nm
-will fall back to
-.Pa whois.crsnic.net .
 .It Fl i
-Use the Network Solutions Registry for Internet Numbers
+Use the obsolete Network Solutions Registry for Internet Numbers
 .Pq Pa whois.networksolutions.com
 database.
-It contains network numbers and domain contact information for most of
-.Pa .COM , .NET , .ORG
-and
-.Pa .EDU
-domains.
-.Pp
-.Sy NOTE !
-The registration of these domains is now done by a number of
-independent and competing registrars and this database holds no information
-on the domains registered by organizations other than Network Solutions, Inc.
-Also, note that the
-.Tn InterNIC
-database
-.Pq Pa whois.internic.net
-is no longer handled by Network Solutions, Inc.
-For details, see
-.Pa http://www.internic.net/ .
-.Pp
-(Hint: Contact information, identified by the term
-.Em handle ,
-can be looked up by prefixing
-.Qq Li "handle "
-to the
-.Tn NIC
-handle in the query.)
 .It Fl I
 Use the Internet Assigned Numbers Authority
 .Pq Tn IANA
@@ -177,6 +159,10 @@ Connect to the whois server on
 If this option is not specified,
 .Nm
 defaults to port 43.
+.It Fl P
+Use the PeeringDB database of AS numbers.
+It contains details about presence at internet peering points
+for many network operators.
 .It Fl Q
 Do a quick lookup.
 This means that
@@ -190,24 +176,28 @@ Use the R\(aaeseaux IP Europ\(aaeens
 database.
 It contains network numbers and domain contact information
 for Europe.
-.It Fl R
-Use the Russia Network Information Center
-.Pq Tn RIPN
-database.
-It contains network numbers and domain contact information
-for subdomains of
-.Pa .RU .
-This option is deprecated; use the
-.Fl c
-option with an argument of
-.Qq Li RU
-instead.
 .El
 .Pp
 The operands specified to
 .Nm
 are treated independently and may be used
 as queries on different whois servers.
+.Sh ENVIRONMENT
+.Bl -tag
+.It Ev WHOIS_SERVER
+The primary default whois server.
+If this is unset,
+.Nm
+uses the
+.Ev RA_SERVER
+environment variable.
+.It Ev RA_SERVER
+The secondary default whois server.
+If this is unset,
+.Nm
+will use
+.Pa whois.crsnic.net .
+.El
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES

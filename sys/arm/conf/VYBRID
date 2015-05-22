@@ -19,8 +19,8 @@
 # $FreeBSD$
 
 ident		VYBRID
-include		"std.armv6"
-include		"../freescale/vybrid/std.vybrid"
+include 	"std.armv6"
+include 	"../freescale/vybrid/std.vybrid"
 
 makeoptions	WERROR="-Werror"
 
@@ -59,6 +59,9 @@ options 	MUTEX_NOINLINE
 options 	RWLOCK_NOINLINE
 options 	NO_FFS_SNAPSHOT
 options 	NO_SWAPPING
+
+# Interrupt controller
+device		gic
 
 # MMC/SD/SDIO Card slot support
 device		mmc			# mmc/sd bus

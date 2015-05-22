@@ -3243,7 +3243,7 @@ DB_SHOW_COMMAND(ptable, ddb_pid_dump)
 	vm_offset_t va;
 
 	if (have_addr) {
-		td = db_lookup_thread(addr, TRUE);
+		td = db_lookup_thread(addr, true);
 		if (td == NULL) {
 			db_printf("Invalid pid or tid");
 			return;

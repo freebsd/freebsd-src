@@ -521,18 +521,10 @@ sfxge_tx_qdpl_service(struct sfxge_txq *txq)
 }
 
 /*
- * Put a packet on the deferred packet list.
- *
- * If we are called with the txq lock held, we put the packet on the "get
- * list", otherwise we atomically push it on the "put list".  The swizzle
- * function takes care of ordering.
- *
- * The length of the put list is bounded by SFXGE_TX_MAX_DEFERRED.  We
- * overload the csum_data field in the mbuf to keep track of this length
- * because there is no cheap alternative to avoid races.
+ * Put a packet on the deferred packet get-list.
  */
 static int
-sfxge_tx_qdpl_put(struct sfxge_txq *txq, struct mbuf *mbuf, int locked)
+sfxge_tx_qdpl_put_locked(struct sfxge_txq *txq, struct mbuf *mbuf)
 {
 	struct sfxge_tx_dpl *stdp;
 
@@ -540,51 +532,65 @@ sfxge_tx_qdpl_put(struct sfxge_txq *txq, struct mbuf *mbuf, int locked)
 
 	KASSERT(mbuf->m_nextpkt == NULL, ("mbuf->m_nextpkt != NULL"));
 
-	if (locked) {
-		SFXGE_TXQ_LOCK_ASSERT_OWNED(txq);
+	SFXGE_TXQ_LOCK_ASSERT_OWNED(txq);
 
-		sfxge_tx_qdpl_swizzle(txq);
-
-		if (stdp->std_get_count >= stdp->std_get_max) {
-			txq->get_overflow++;
+	if (stdp->std_get_count >= stdp->std_get_max) {
+		txq->get_overflow++;
+		return (ENOBUFS);
+	}
+	if (sfxge_is_mbuf_non_tcp(mbuf)) {
+		if (stdp->std_get_non_tcp_count >=
+		    stdp->std_get_non_tcp_max) {
+			txq->get_non_tcp_overflow++;
 			return (ENOBUFS);
 		}
-		if (sfxge_is_mbuf_non_tcp(mbuf)) {
-			if (stdp->std_get_non_tcp_count >=
-			    stdp->std_get_non_tcp_max) {
-				txq->get_non_tcp_overflow++;
-				return (ENOBUFS);
-			}
-			stdp->std_get_non_tcp_count++;
-		}
-
-		*(stdp->std_getp) = mbuf;
-		stdp->std_getp = &mbuf->m_nextpkt;
-		stdp->std_get_count++;
-	} else {
-		volatile uintptr_t *putp;
-		uintptr_t old;
-		uintptr_t new;
-		unsigned old_len;
-
-		putp = &stdp->std_put;
-		new = (uintptr_t)mbuf;
-
-		do {
-			old = *putp;
-			if (old != 0) {
-				struct mbuf *mp = (struct mbuf *)old;
-				old_len = mp->m_pkthdr.csum_data;
-			} else
-				old_len = 0;
-			if (old_len >= stdp->std_put_max) {
-				atomic_add_long(&txq->put_overflow, 1);
-				return (ENOBUFS);
-			}
-			mbuf->m_pkthdr.csum_data = old_len + 1;
-			mbuf->m_nextpkt = (void *)old;
-		} while (atomic_cmpset_ptr(putp, old, new) == 0);
+		stdp->std_get_non_tcp_count++;
 	}
+
+	*(stdp->std_getp) = mbuf;
+	stdp->std_getp = &mbuf->m_nextpkt;
+	stdp->std_get_count++;
+
+	return (0);
+}
+
+/*
+ * Put a packet on the deferred packet put-list.
+ *
+ * We overload the csum_data field in the mbuf to keep track of this length
+ * because there is no cheap alternative to avoid races.
+ */
+static int
+sfxge_tx_qdpl_put_unlocked(struct sfxge_txq *txq, struct mbuf *mbuf)
+{
+	struct sfxge_tx_dpl *stdp;
+	volatile uintptr_t *putp;
+	uintptr_t old;
+	uintptr_t new;
+	unsigned old_len;
+
+	KASSERT(mbuf->m_nextpkt == NULL, ("mbuf->m_nextpkt != NULL"));
+
+	SFXGE_TXQ_LOCK_ASSERT_NOTOWNED(txq);
+
+	stdp = &txq->dpl;
+	putp = &stdp->std_put;
+	new = (uintptr_t)mbuf;
+
+	do {
+		old = *putp;
+		if (old != 0) {
+			struct mbuf *mp = (struct mbuf *)old;
+			old_len = mp->m_pkthdr.csum_data;
+		} else
+			old_len = 0;
+		if (old_len >= stdp->std_put_max) {
+			atomic_add_long(&txq->put_overflow, 1);
+			return (ENOBUFS);
+		}
+		mbuf->m_pkthdr.csum_data = old_len + 1;
+		mbuf->m_nextpkt = (void *)old;
+	} while (atomic_cmpset_ptr(putp, old, new) == 0);
 
 	return (0);
 }
@@ -596,13 +602,11 @@ sfxge_tx_qdpl_put(struct sfxge_txq *txq, struct mbuf *mbuf, int locked)
 int
 sfxge_tx_packet_add(struct sfxge_txq *txq, struct mbuf *m)
 {
-	int locked;
 	int rc;
 
 	if (!SFXGE_LINK_UP(txq->sc)) {
-		rc = ENETDOWN;
 		atomic_add_long(&txq->netdown_drops, 1);
-		goto fail;
+		return (ENETDOWN);
 	}
 
 	/*
@@ -610,35 +614,33 @@ sfxge_tx_packet_add(struct sfxge_txq *txq, struct mbuf *m)
 	 * the packet will be appended to the "get list" of the deferred
 	 * packet list.  Otherwise, it will be pushed on the "put list".
 	 */
-	locked = SFXGE_TXQ_TRYLOCK(txq);
+	if (SFXGE_TXQ_TRYLOCK(txq)) {
+		/* First swizzle put-list to get-list to keep order */
+		sfxge_tx_qdpl_swizzle(txq);
 
-	if (sfxge_tx_qdpl_put(txq, m, locked) != 0) {
-		if (locked)
-			SFXGE_TXQ_UNLOCK(txq);
-		rc = ENOBUFS;
-		goto fail;
-	}
+		rc = sfxge_tx_qdpl_put_locked(txq, m);
 
-	/*
-	 * Try to grab the lock again.
-	 *
-	 * If we are able to get the lock, we need to process the deferred
-	 * packet list.  If we are not able to get the lock, another thread
-	 * is processing the list.
-	 */
-	if (!locked)
-		locked = SFXGE_TXQ_TRYLOCK(txq);
-
-	if (locked) {
 		/* Try to service the list. */
 		sfxge_tx_qdpl_service(txq);
 		/* Lock has been dropped. */
+	} else {
+		rc = sfxge_tx_qdpl_put_unlocked(txq, m);
+
+		/*
+		 * Try to grab the lock again.
+		 *
+		 * If we are able to get the lock, we need to process
+		 * the deferred packet list.  If we are not able to get
+		 * the lock, another thread is processing the list.
+		 */
+		if ((rc == 0) && SFXGE_TXQ_TRYLOCK(txq)) {
+			sfxge_tx_qdpl_service(txq);
+			/* Lock has been dropped. */
+		}
 	}
 
-	return (0);
+	SFXGE_TXQ_LOCK_ASSERT_NOTOWNED(txq);
 
-fail:
-	m_freem(m);
 	return (rc);
 }
 
@@ -699,7 +701,8 @@ sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m)
 		("interface not up"));
 
 	/* Pick the desired transmit queue. */
-	if (m->m_pkthdr.csum_flags & (CSUM_DELAY_DATA | CSUM_TSO)) {
+	if (m->m_pkthdr.csum_flags &
+	    (CSUM_DELAY_DATA | CSUM_TCP_IPV6 | CSUM_UDP_IPV6 | CSUM_TSO)) {
 		int index = 0;
 
 		/* check if flowid is set */
@@ -716,6 +719,8 @@ sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m)
 	}
 
 	rc = sfxge_tx_packet_add(txq, m);
+	if (rc != 0)
+		m_freem(m);
 
 	return (rc);
 }
@@ -860,8 +865,14 @@ static void tso_start(struct sfxge_tso_state *tso, struct mbuf *mbuf)
 	tso->seqnum = ntohl(th->th_seq);
 
 	/* These flags must not be duplicated */
-	KASSERT(!(th->th_flags & (TH_URG | TH_SYN | TH_RST)),
-		("incompatible TCP flag on TSO packet"));
+	/*
+	 * RST should not be duplicated as well, but FreeBSD kernel
+	 * generates TSO packets with RST flag. So, do not assert
+	 * its absence.
+	 */
+	KASSERT(!(th->th_flags & (TH_URG | TH_SYN)),
+		("incompatible TCP flag 0x%x on TSO packet",
+		 th->th_flags & (TH_URG | TH_SYN)));
 
 	tso->out_len = mbuf->m_pkthdr.len - tso->header_len;
 }

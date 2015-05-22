@@ -53,6 +53,7 @@
 #define	CR0_CD  0x40000000	/* Cache Disable */
 
 #define	CR3_PCID_SAVE 0x8000000000000000
+#define	CR3_PCID_MASK 0xfff
 
 /*
  * Bits in PPro special registers

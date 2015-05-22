@@ -6,8 +6,8 @@
 
 ident		ATMEL
 
-include		"std.arm"
-include "../at91/std.atmel"
+include 	"std.arm"
+include 	"../at91/std.atmel"
 
 # Typical values for most SoCs and board configurations.  Will not work for
 # at91sam9g45 or on some boards with non u-boot boot loaders.

@@ -1,5 +1,3 @@
 # $FreeBSD$
 
-arm/arm/gic.c				standard
-
 arm/allwinner/a20/a20_mp.c		optional	smp

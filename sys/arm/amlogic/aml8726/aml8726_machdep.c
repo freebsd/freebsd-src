@@ -38,7 +38,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
+#include <machine/cpufunc.h>
 #include <machine/devmap.h>
+#include <machine/intr.h>
 #include <machine/machdep.h>
 #include <machine/platform.h>
 
@@ -114,6 +116,19 @@ platform_gpio_init(void)
 	aml8726_identify_soc();
 
 	/*
+	 * My aml8726-m3 development box which identifies the CPU as
+	 * a Cortex A9-r2 rev 4 randomly locks up during boot when WFI
+	 * is used.
+	 */
+	switch (aml8726_soc_hw_rev) {
+	case AML_SOC_HW_REV_M3:
+		cpufuncs.cf_sleep = (void *)cpufunc_nullop;
+		break;
+	default:
+		break;
+	}
+
+	/*
 	 * This FDT fixup should arguably be called through fdt_fixup_table,
 	 * however currently there's no mechanism to specify a fixup which
 	 * should always be invoked.
@@ -167,43 +182,31 @@ struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ NULL, NULL }
 };
 
+#ifndef DEV_GIC
 static int
 fdt_pic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
     int *pol)
 {
 
 	/*
-	 * The single core chips have just an Amlogic PIC.  However the
-	 * multi core chips also have a GIC.
+	 * The single core chips have just an Amlogic PIC.
 	 */
-#ifdef SMP
-	if (!fdt_is_compatible_strict(node, "arm,cortex-a9-gic"))
-#else
 	if (!fdt_is_compatible_strict(node, "amlogic,aml8726-pic"))
-#endif
 		return (ENXIO);
 
 	*interrupt = fdt32_to_cpu(intr[1]);
 	*trig = INTR_TRIGGER_EDGE;
 	*pol = INTR_POLARITY_HIGH;
 
-	switch (*interrupt) {
-	case 30: /* INT_USB_A */
-	case 31: /* INT_USB_B */
-		*trig = INTR_TRIGGER_LEVEL;
-		break;
-	default:
-		break;
-	}
-
-#ifdef SMP
-	*interrupt += 32;
-#endif
-
 	return (0);
 }
+#endif
 
 fdt_pic_decode_t fdt_pic_table[] = {
+#ifdef DEV_GIC
+	&gic_decode_fdt,
+#else
 	&fdt_pic_decode_ic,
+#endif
 	NULL
 };

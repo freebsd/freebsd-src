@@ -196,21 +196,11 @@ IDTVEC(hv_vmbus_callback)
  */
 	.text
 
-#define	NAKE_INTR_CS	24
-
 	SUPERALIGN_TEXT
 invltlb_ret:
 	call	as_lapic_eoi
 	POP_FRAME
 	jmp	doreti_iret
-
-	SUPERALIGN_TEXT
-IDTVEC(invltlb_pcid)
-	PUSH_FRAME
-
-	call	invltlb_pcid_handler
-	jmp	invltlb_ret
-
 
 	SUPERALIGN_TEXT
 IDTVEC(invltlb)
@@ -219,16 +209,22 @@ IDTVEC(invltlb)
 	call	invltlb_handler
 	jmp	invltlb_ret
 
+IDTVEC(invltlb_pcid)
+	PUSH_FRAME
+
+	call	invltlb_pcid_handler
+	jmp	invltlb_ret
+
+IDTVEC(invltlb_invpcid)
+	PUSH_FRAME
+
+	call	invltlb_invpcid_handler
+	jmp	invltlb_ret
+
 /*
  * Single page TLB shootdown
  */
 	.text
-	SUPERALIGN_TEXT
-IDTVEC(invlpg_pcid)
-	PUSH_FRAME
-
-	call	invlpg_pcid_handler
-	jmp	invltlb_ret
 
 	SUPERALIGN_TEXT
 IDTVEC(invlpg)

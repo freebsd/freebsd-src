@@ -51,6 +51,8 @@
  * V1 Beta                    0.1
  * V1 RC < 2008/1/31          1.0
  * V1 RC > 2008/1/31          2.0
+ * Win7: 4.2
+ * Win8: 5.1
  */
 
 #define VMSTOR_PROTOCOL_VERSION_CURRENT	VMSTOR_PROTOCOL_VERSION(5, 1)
@@ -83,8 +85,24 @@ enum vstor_packet_ops {
  */
 
 #define CDB16GENERIC_LENGTH			0x10
-#define SENSE_BUFFER_SIZE			0x12
+#define SENSE_BUFFER_SIZE			0x14
 #define MAX_DATA_BUFFER_LENGTH_WITH_PADDING	0x14
+
+#define POST_WIN7_STORVSC_SENSE_BUFFER_SIZE	0x14
+#define PRE_WIN8_STORVSC_SENSE_BUFFER_SIZE	0x12
+
+
+struct vmscsi_win8_extension {
+	/*
+	 * The following were added in Windows 8
+	 */
+	uint16_t reserve;
+	uint8_t  queue_tag;
+	uint8_t  queue_action;
+	uint32_t srb_flags;
+	uint32_t time_out_value;
+	uint32_t queue_sort_ey;
+} __packed;
 
 struct vmscsi_req {
 	uint16_t length;
@@ -113,6 +131,11 @@ struct vmscsi_req {
 
 	    uint8_t reserved_array[MAX_DATA_BUFFER_LENGTH_WITH_PADDING];
 	} u;
+
+	/*
+	 * The following was added in win8.
+	 */
+	struct vmscsi_win8_extension win8_extension;
 
 } __packed;
 

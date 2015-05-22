@@ -19,7 +19,7 @@
 # $FreeBSD$
 
 ident		IMX6
-include		"std.armv6"
+include 	"std.armv6"
 include 	"../freescale/imx/std.imx6"
 
 options 	SOC_IMX6
@@ -57,6 +57,9 @@ options 	ALT_BREAK_TO_DEBUGGER	# Use <CR><tilde><ctrl-b> to enter debugger.
 
 # U-Boot stuff lives on slice 1, FreeBSD on slice 2.
 options 	ROOTDEVNAME=\"ufs:mmcsd0s2a\"
+
+# Interrupt controller
+device		gic
 
 # Pseudo devices.
 device		loop			# Network loopback

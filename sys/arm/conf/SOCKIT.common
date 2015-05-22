@@ -18,7 +18,7 @@
 #
 # $FreeBSD$
 
-include		"std.armv6"
+include 	"std.armv6"
 include 	"../altera/socfpga/std.socfpga"
 
 makeoptions	MODULES_OVERRIDE=""
@@ -50,6 +50,9 @@ options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, require
 #options 	BOOTP_COMPAT
 #options 	BOOTP_NFSV3
 #options 	BOOTP_WIRED_TO=ue0
+
+# Interrupt controller
+device		gic
 
 # MMC/SD/SDIO Card slot support
 device		mmc			# mmc/sd bus

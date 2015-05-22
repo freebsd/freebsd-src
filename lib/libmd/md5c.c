@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/endian.h>
 #include <sys/endian.h>
-#include <sys/md5.h>
+#include "md5.h"
 
 static void MD5Transform(u_int32_t [4], const unsigned char [64]);
 
@@ -335,3 +335,20 @@ MD5Transform (state, block)
 	/* Zeroize sensitive information. */
 	memset ((void *)x, 0, sizeof (x));
 }
+
+#ifdef WEAK_REFS
+/* When building libmd, provide weak references. Note: this is not
+   activated in the context of compiling these sources for internal
+   use in libcrypt.
+ */
+#undef MD5Init
+__weak_reference(_libmd_MD5Init, MD5Init);
+#undef MD5Update
+__weak_reference(_libmd_MD5Update, MD5Update);
+#undef MD5Pad
+__weak_reference(_libmd_MD5Pad, MD5Pad);
+#undef MD5Final
+__weak_reference(_libmd_MD5Final, MD5Final);
+#undef MD5Transform
+__weak_reference(_libmd_MD5Transform, MD5Transform);
+#endif

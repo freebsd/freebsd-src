@@ -290,3 +290,18 @@ unsigned int len;
     output[i] = ((UINT4)input[j]) | (((UINT4)input[j+1]) << 8) |
       (((UINT4)input[j+2]) << 16) | (((UINT4)input[j+3]) << 24);
 }
+
+#ifdef WEAK_REFS
+/* When building libmd, provide weak references. Note: this is not
+   activated in the context of compiling these sources for internal
+   use in libcrypt.
+ */
+#undef MD4Init
+__weak_reference(_libmd_MD4Init, MD4Init);
+#undef MD4Update
+__weak_reference(_libmd_MD4Update, MD4Update);
+#undef MD4Pad
+__weak_reference(_libmd_MD4Pad, MD4Pad);
+#undef MD4Final
+__weak_reference(_libmd_MD4Final, MD4Final);
+#endif

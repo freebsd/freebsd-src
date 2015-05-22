@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 
 #include "sfxge.h"
 
+static int sfxge_phy_cap_mask(struct sfxge_softc *, int, uint32_t *);
+
 static int
 sfxge_mac_stat_update(struct sfxge_softc *sc)
 {
@@ -443,6 +445,7 @@ sfxge_port_start(struct sfxge_softc *sc)
 	efx_nic_t *enp;
 	size_t pdu;
 	int rc;
+	uint32_t phy_cap_mask;
 
 	port = &sc->port;
 	enp = sc->enp;
@@ -483,9 +486,12 @@ sfxge_port_start(struct sfxge_softc *sc)
 	if ((rc = efx_mac_drain(enp, B_FALSE)) != 0)
 		goto fail3;
 
-	if ((rc = efx_phy_adv_cap_set(sc->enp, sc->media.ifm_cur->ifm_data))
-	    != 0)
+	if ((rc = sfxge_phy_cap_mask(sc, sc->media.ifm_cur->ifm_media,
+				     &phy_cap_mask)) != 0)
 		goto fail4;
+
+	if ((rc = efx_phy_adv_cap_set(sc->enp, phy_cap_mask)) != 0)
+		goto fail5;
 
 	port->init_state = SFXGE_PORT_STARTED;
 
@@ -495,6 +501,7 @@ sfxge_port_start(struct sfxge_softc *sc)
 
 	return (0);
 
+fail5:
 fail4:
 	(void)efx_mac_drain(enp, B_TRUE);
 fail3:
@@ -686,7 +693,7 @@ fail:
 	return (rc);
 }
 
-static int sfxge_link_mode[EFX_PHY_MEDIA_NTYPES][EFX_LINK_NMODES] = {
+static const int sfxge_link_mode[EFX_PHY_MEDIA_NTYPES][EFX_LINK_NMODES] = {
 	[EFX_PHY_MEDIA_CX4] = {
 		[EFX_LINK_10000FDX]	= IFM_ETHER | IFM_FDX | IFM_10G_CX4,
 	},
@@ -738,12 +745,95 @@ sfxge_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 	SFXGE_ADAPTER_UNLOCK(sc);
 }
 
+static efx_phy_cap_type_t
+sfxge_link_mode_to_phy_cap(efx_link_mode_t mode)
+{
+	switch (mode) {
+	case EFX_LINK_10HDX:
+		return (EFX_PHY_CAP_10HDX);
+	case EFX_LINK_10FDX:
+		return (EFX_PHY_CAP_10FDX);
+	case EFX_LINK_100HDX:
+		return (EFX_PHY_CAP_100HDX);
+	case EFX_LINK_100FDX:
+		return (EFX_PHY_CAP_100FDX);
+	case EFX_LINK_1000HDX:
+		return (EFX_PHY_CAP_1000HDX);
+	case EFX_LINK_1000FDX:
+		return (EFX_PHY_CAP_1000FDX);
+	case EFX_LINK_10000FDX:
+		return (EFX_PHY_CAP_10000FDX);
+	default:
+		EFSYS_ASSERT(B_FALSE);
+		return (EFX_PHY_CAP_INVALID);
+	}
+}
+
+static int
+sfxge_phy_cap_mask(struct sfxge_softc *sc, int ifmedia, uint32_t *phy_cap_mask)
+{
+	efx_phy_media_type_t medium_type;
+	boolean_t mode_found = B_FALSE;
+	uint32_t cap_mask, mode_cap_mask;
+	efx_link_mode_t mode;
+	efx_phy_cap_type_t phy_cap;
+
+	efx_phy_media_type_get(sc->enp, &medium_type);
+	if (medium_type >= nitems(sfxge_link_mode)) {
+		if_printf(sc->ifnet, "unexpected media type %d\n", medium_type);
+		return (EINVAL);
+	}
+
+	efx_phy_adv_cap_get(sc->enp, EFX_PHY_CAP_PERM, &cap_mask);
+
+	for (mode = EFX_LINK_10HDX; mode < EFX_LINK_NMODES; mode++) {
+		if (ifmedia == sfxge_link_mode[medium_type][mode]) {
+			mode_found = B_TRUE;
+			break;
+		}
+	}
+
+	if (!mode_found) {
+		/*
+		 * If media is not in the table, it must be IFM_AUTO.
+		 */
+		KASSERT((cap_mask & (1 << EFX_PHY_CAP_AN)) &&
+		    ifmedia == (IFM_ETHER | IFM_AUTO),
+		    ("%s: no mode for media %d", __func__, ifmedia));
+		*phy_cap_mask = (cap_mask & ~(1 << EFX_PHY_CAP_ASYM));
+		return (0);
+	}
+
+	phy_cap = sfxge_link_mode_to_phy_cap(mode);
+	if (phy_cap == EFX_PHY_CAP_INVALID) {
+		if_printf(sc->ifnet,
+			  "cannot map link mode %d to phy capability\n",
+			  mode);
+		return (EINVAL);
+	}
+
+	mode_cap_mask = (1 << phy_cap);
+	mode_cap_mask |= cap_mask & (1 << EFX_PHY_CAP_AN);
+#ifdef SFXGE_HAVE_PAUSE_MEDIAOPTS
+	if (ifmedia & IFM_ETH_RXPAUSE)
+		mode_cap_mask |= cap_mask & (1 << EFX_PHY_CAP_PAUSE);
+	if (!(ifmedia & IFM_ETH_TXPAUSE))
+		mode_cap_mask |= cap_mask & (1 << EFX_PHY_CAP_ASYM);
+#else
+	mode_cap_mask |= cap_mask & (1 << EFX_PHY_CAP_PAUSE);
+#endif
+
+	*phy_cap_mask = mode_cap_mask;
+	return (0);
+}
+
 static int
 sfxge_media_change(struct ifnet *ifp)
 {
 	struct sfxge_softc *sc;
 	struct ifmedia_entry *ifm;
 	int rc;
+	uint32_t phy_cap_mask;
 
 	sc = ifp->if_softc;
 	ifm = sc->media.ifm_cur;
@@ -759,7 +849,10 @@ sfxge_media_change(struct ifnet *ifp)
 	if (rc != 0)
 		goto out;
 
-	rc = efx_phy_adv_cap_set(sc->enp, ifm->ifm_data);
+	if ((rc = sfxge_phy_cap_mask(sc, ifm->ifm_media, &phy_cap_mask)) != 0)
+		goto out;
+
+	rc = efx_phy_adv_cap_set(sc->enp, phy_cap_mask);
 out:
 	SFXGE_ADAPTER_UNLOCK(sc);
 
@@ -771,6 +864,7 @@ int sfxge_port_ifmedia_init(struct sfxge_softc *sc)
 	efx_phy_media_type_t medium_type;
 	uint32_t cap_mask, mode_cap_mask;
 	efx_link_mode_t mode;
+	efx_phy_cap_type_t phy_cap;
 	int mode_ifm, best_mode_ifm = 0;
 	int rc;
 
@@ -801,41 +895,30 @@ int sfxge_port_ifmedia_init(struct sfxge_softc *sc)
 	efx_phy_media_type_get(sc->enp, &medium_type);
 	efx_phy_adv_cap_get(sc->enp, EFX_PHY_CAP_PERM, &cap_mask);
 
-	EFX_STATIC_ASSERT(EFX_LINK_10HDX == EFX_PHY_CAP_10HDX + 1);
-	EFX_STATIC_ASSERT(EFX_LINK_10FDX == EFX_PHY_CAP_10FDX + 1);
-	EFX_STATIC_ASSERT(EFX_LINK_100HDX == EFX_PHY_CAP_100HDX + 1);
-	EFX_STATIC_ASSERT(EFX_LINK_100FDX == EFX_PHY_CAP_100FDX + 1);
-	EFX_STATIC_ASSERT(EFX_LINK_1000HDX == EFX_PHY_CAP_1000HDX + 1);
-	EFX_STATIC_ASSERT(EFX_LINK_1000FDX == EFX_PHY_CAP_1000FDX + 1);
-	EFX_STATIC_ASSERT(EFX_LINK_10000FDX == EFX_PHY_CAP_10000FDX + 1);
+	for (mode = EFX_LINK_10HDX; mode < EFX_LINK_NMODES; mode++) {
+		phy_cap = sfxge_link_mode_to_phy_cap(mode);
+		if (phy_cap == EFX_PHY_CAP_INVALID)
+			continue;
 
-	for (mode = EFX_LINK_10HDX; mode <= EFX_LINK_10000FDX; mode++) {
-		mode_cap_mask = 1 << (mode - 1);
+		mode_cap_mask = (1 << phy_cap);
 		mode_ifm = sfxge_link_mode[medium_type][mode];
 
 		if ((cap_mask & mode_cap_mask) && mode_ifm) {
-			mode_cap_mask |= cap_mask & (1 << EFX_PHY_CAP_AN);
+			/* No flow-control */
+			ifmedia_add(&sc->media, mode_ifm, 0, NULL);
 
 #ifdef SFXGE_HAVE_PAUSE_MEDIAOPTS
-			/* No flow-control */
-			ifmedia_add(&sc->media, mode_ifm, mode_cap_mask, NULL);
-
 			/* Respond-only.  If using AN, we implicitly
 			 * offer symmetric as well, but that doesn't
 			 * mean we *have* to generate pause frames.
 			 */
-			mode_cap_mask |= cap_mask & ((1 << EFX_PHY_CAP_PAUSE) |
-						     (1 << EFX_PHY_CAP_ASYM));
 			mode_ifm |= IFM_ETH_RXPAUSE;
-			ifmedia_add(&sc->media, mode_ifm, mode_cap_mask, NULL);
+			ifmedia_add(&sc->media, mode_ifm, 0, NULL);
 
 			/* Symmetric */
-			mode_cap_mask &= ~(1 << EFX_PHY_CAP_ASYM);
 			mode_ifm |= IFM_ETH_TXPAUSE;
-#else /* !SFXGE_HAVE_PAUSE_MEDIAOPTS */
-			mode_cap_mask |= cap_mask & (1 << EFX_PHY_CAP_PAUSE);
+			ifmedia_add(&sc->media, mode_ifm, 0, NULL);
 #endif
-			ifmedia_add(&sc->media, mode_ifm, mode_cap_mask, NULL);
 
 			/* Link modes are numbered in order of speed,
 			 * so assume the last one available is the best.
@@ -847,8 +930,7 @@ int sfxge_port_ifmedia_init(struct sfxge_softc *sc)
 	if (cap_mask & (1 << EFX_PHY_CAP_AN)) {
 		/* Add autoselect mode. */
 		mode_ifm = IFM_ETHER | IFM_AUTO;
-		ifmedia_add(&sc->media, mode_ifm,
-			    cap_mask & ~(1 << EFX_PHY_CAP_ASYM), NULL);
+		ifmedia_add(&sc->media, mode_ifm, 0, NULL);
 		best_mode_ifm = mode_ifm;
 	}
 

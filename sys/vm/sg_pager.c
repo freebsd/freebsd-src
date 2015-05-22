@@ -130,6 +130,8 @@ sg_pager_dealloc(vm_object_t object)
 	
 	sg = object->handle;
 	sglist_free(sg);
+	object->handle = NULL;
+	object->type = OBJT_DEAD;
 }
 
 static int

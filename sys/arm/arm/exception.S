@@ -364,7 +364,6 @@ END(data_abort_entry)
  * on exit (without transitioning back through the undefined mode stack).
  */
 ASENTRY_NP(undefined_entry)
-	sub	lr, lr, #4		/* Adjust the lr. Transition to scv32 */
 	PUSHFRAMEINSVC			/* mode stack, build trapframe there. */
 	adr	lr, exception_exit      /* Return from handler via standard */
 	mov	r0, sp			/* exception exit routine.  Pass the */

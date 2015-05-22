@@ -202,6 +202,7 @@ typedef struct {
 #define	EM_386		3	/* Intel i386. */
 #define	EM_68K		4	/* Motorola 68000. */
 #define	EM_88K		5	/* Motorola 88000. */
+#define	EM_IAMCU	6	/* Intel MCU. */
 #define	EM_860		7	/* Intel i860. */
 #define	EM_MIPS		8	/* MIPS R3000 Big-Endian only. */
 #define	EM_S370		9	/* IBM System/370. */
@@ -471,6 +472,9 @@ typedef struct {
 #define	SHF_TLS			0x400	/* Section contains TLS data. */
 #define	SHF_MASKOS	0x0ff00000	/* OS-specific semantics. */
 #define	SHF_MASKPROC	0xf0000000	/* Processor-specific semantics. */
+
+/* Flags for section groups. */
+#define	GRP_COMDAT	0x1	/* COMDAT semantics. */
 
 /* Values for p_type. */
 #define	PT_NULL		0	/* Unused entry. */

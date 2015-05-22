@@ -20,8 +20,8 @@
 
 ident		RK3188
 
-include		"std.armv6"
-include		"../rockchip/std.rk30xx"
+include 	"std.armv6"
+include 	"../rockchip/std.rk30xx"
 
 options 	HZ=100
 options 	SCHED_ULE		# ULE scheduler
@@ -44,6 +44,9 @@ options 	DIAGNOSTIC
 
 # Root mount from MMC/SD card
 options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0\"
+
+# Interrupt controller
+device		gic
 
 # MMC/SD/SDIO Card slot support
 device		mmc			# mmc/sd bus

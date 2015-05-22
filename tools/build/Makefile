@@ -25,6 +25,14 @@ CFLAGS+=	-I${.CURDIR}/../../contrib/libc-vis \
 		-I${.CURDIR}/../../lib/libc/include
 .endif
 
+_WITH_REALLOCARRAY!= grep -c reallocarray /usr/include/stdlib.h || true
+.if ${_WITH_REALLOCARRAY} == 0
+.PATH: ${.CURDIR}/../../lib/libc/stdlib
+INCS+=		stdlib.h
+SRCS+=		reallocarray.c
+CFLAGS+=	-I${.CURDIR}/../../lib/libc/include
+.endif
+
 .if empty(SRCS)
 SRCS=		dummy.c
 .endif
