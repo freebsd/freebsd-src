@@ -1256,10 +1256,13 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	mem_region_read_t mread;
 	mem_region_write_t mwrite;
 	enum vm_cpu_mode cpu_mode;
-	int cs_d, error, fault, length;
+	int cs_d, error, fault;
 
 	vcpu = &vm->vcpu[vcpuid];
 	vme = &vcpu->exitinfo;
+
+	KASSERT(vme->inst_length == 0, ("%s: invalid inst_length %d",
+	    __func__, vme->inst_length));
 
 	gla = vme->u.inst_emul.gla;
 	gpa = vme->u.inst_emul.gpa;
@@ -1273,13 +1276,8 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 
 	/* Fetch, decode and emulate the faulting instruction */
 	if (vie->num_valid == 0) {
-		/*
-		 * If the instruction length is not known then assume a
-		 * maximum size instruction.
-		 */
-		length = vme->inst_length ? vme->inst_length : VIE_INST_SIZE;
 		error = vmm_fetch_instruction(vm, vcpuid, paging, vme->rip +
-		    cs_base, length, vie, &fault);
+		    cs_base, VIE_INST_SIZE, vie, &fault);
 	} else {
 		/*
 		 * The instruction bytes have already been copied into 'vie'
@@ -1297,13 +1295,12 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	}
 
 	/*
-	 * If the instruction length was not specified then update it now
-	 * along with 'nextrip'.
+	 * Update 'nextrip' based on the length of the emulated instruction.
 	 */
-	if (vme->inst_length == 0) {
-		vme->inst_length = vie->num_processed;
-		vcpu->nextrip += vie->num_processed;
-	}
+	vme->inst_length = vie->num_processed;
+	vcpu->nextrip += vie->num_processed;
+	VCPU_CTR1(vm, vcpuid, "nextrip updated to %#lx after instruction "
+	    "decoding", vcpu->nextrip);
  
 	/* return to userland unless this is an in-kernel emulated device */
 	if (gpa >= DEFAULT_APIC_BASE && gpa < DEFAULT_APIC_BASE + PAGE_SIZE) {
