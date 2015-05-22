@@ -1217,7 +1217,7 @@ sfxge_rx_qinit(struct sfxge_softc *sc, unsigned int index)
 	    M_SFXGE, M_WAITOK | M_ZERO);
 	sfxge_lro_init(rxq);
 
-	callout_init(&rxq->refill_callout, B_TRUE);
+	callout_init(&rxq->refill_callout, 1);
 
 	rxq->init_state = SFXGE_RXQ_INITIALIZED;
 
