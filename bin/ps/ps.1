@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd December 9, 2014
+.Dd May 22, 2015
 .Dt PS 1
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Nd process status
 .Sh SYNOPSIS
 .Nm
+.Op Fl -libxo
 .Op Fl aCcdefHhjlmrSTuvwXxZ
 .Op Fl O Ar fmt | Fl o Ar fmt
 .Op Fl G Ar gid Ns Op , Ns Ar gid Ns Ar ...
@@ -47,6 +48,7 @@
 .Op Fl t Ar tty Ns Op , Ns Ar tty Ns Ar ...
 .Op Fl U Ar user Ns Op , Ns Ar user Ns Ar ...
 .Nm
+.Op Fl -libxo
 .Op Fl L
 .Sh DESCRIPTION
 The
@@ -733,7 +735,9 @@ Display information on all system processes:
 .Xr procstat 1 ,
 .Xr w 1 ,
 .Xr kvm 3 ,
+.Xr libxo 3
 .Xr strftime 3 ,
+.Xr xo_parse_args 3
 .Xr mac 4 ,
 .Xr procfs 5 ,
 .Xr pstat 8 ,
