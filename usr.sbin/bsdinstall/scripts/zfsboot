@@ -974,7 +974,7 @@ zfs_create_diskpart()
 		             /dev/$disk${swappart}.eli none swap sw 0 0 \
 		             $BSDINSTALL_TMPETC/fstab ||
 		             return $FAILURE
-	elif [ ${swapsize:-0} -eq 0 ]
+	elif [ ${swapsize:-0} -eq 0 ]; then
 		# If swap is 0 sized, don't add it to fstab
 	else
 		f_eval_catch $funcname printf "$PRINTF_FSTAB" \
