@@ -153,12 +153,13 @@ am335x_pmic_probe(device_t dev)
 {
 	struct am335x_pmic_softc *sc;
 
-	if (!ofw_bus_is_compatible(dev, "ti,am335x-pmic"))
+	if (!ofw_bus_is_compatible(dev, "ti,tps65217"))
 		return (ENXIO);
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
-	sc->sc_addr = iicbus_get_addr(dev);
+	/* Convert to 8-bit addressing */
+	sc->sc_addr = iicbus_get_addr(dev) << 1;
 
 	device_set_desc(dev, "TI TPS65217 Power Management IC");
 

@@ -46,11 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <arm/ti/ti_prcm.h>
-#include <arm/ti/ti_scm.h>
-
 #include "am335x_pwm.h"
-#include "am335x_scm.h"
 
 /* In ticks */
 #define	DEFAULT_PWM_PERIOD	1000
@@ -59,47 +55,12 @@ __FBSDID("$FreeBSD$");
 #define	PWM_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	PWM_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #define	PWM_LOCK_INIT(_sc)	mtx_init(&(_sc)->sc_mtx, \
-    device_get_nameunit(_sc->sc_dev), "am335x_pwm softc", MTX_DEF)
+    device_get_nameunit(_sc->sc_dev), "am335x_ehrpwm softc", MTX_DEF)
 #define	PWM_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
 
-static struct resource_spec am335x_pwm_mem_spec[] = {
-	{ SYS_RES_MEMORY, 0, RF_ACTIVE }, /* PWMSS */
-	{ SYS_RES_MEMORY, 1, RF_ACTIVE }, /* eCAP */
-	{ SYS_RES_MEMORY, 2, RF_ACTIVE }, /* eQEP */
-	{ SYS_RES_MEMORY, 3, RF_ACTIVE }, /*ePWM */
-	{ -1, 0, 0 }
-};
-
-#define	PWMSS_READ4(_sc, reg)	bus_read_4((_sc)->sc_mem_res[0], reg);
-#define	PWMSS_WRITE4(_sc, reg, value)	\
-    bus_write_4((_sc)->sc_mem_res[0], reg, value);
-
-#define	ECAP_READ2(_sc, reg)	bus_read_2((_sc)->sc_mem_res[1], reg);
-#define	ECAP_WRITE2(_sc, reg, value)	\
-    bus_write_2((_sc)->sc_mem_res[1], reg, value);
-#define	ECAP_READ4(_sc, reg)	bus_read_4((_sc)->sc_mem_res[1], reg);
-#define	ECAP_WRITE4(_sc, reg, value)	\
-    bus_write_4((_sc)->sc_mem_res[1], reg, value);
-
-#define	EPWM_READ2(_sc, reg)	bus_read_2((_sc)->sc_mem_res[3], reg);
+#define	EPWM_READ2(_sc, reg)	bus_read_2((_sc)->sc_mem_res, reg);
 #define	EPWM_WRITE2(_sc, reg, value)	\
-    bus_write_2((_sc)->sc_mem_res[3], reg, value);
-
-#define	PWMSS_IDVER		0x00
-#define	PWMSS_SYSCONFIG		0x04
-#define	PWMSS_CLKCONFIG		0x08
-#define		CLKCONFIG_EPWMCLK_EN	(1 << 8)
-#define	PWMSS_CLKSTATUS		0x0C
-
-#define	ECAP_TSCTR		0x00
-#define	ECAP_CAP1		0x08
-#define	ECAP_CAP2		0x0C
-#define	ECAP_CAP3		0x10
-#define	ECAP_CAP4		0x14
-#define	ECAP_ECCTL2		0x2A
-#define		ECCTL2_MODE_APWM		(1 << 9)
-#define		ECCTL2_SYNCO_SEL		(3 << 6)
-#define		ECCTL2_TSCTRSTOP_FREERUN	(1 << 4)
+    bus_write_2((_sc)->sc_mem_res, reg, value);
 
 #define	EPWM_TBCTL		0x00
 #define		TBCTL_FREERUN		(2 << 14)
@@ -169,17 +130,17 @@ static struct resource_spec am335x_pwm_mem_spec[] = {
 #define		HRCTL_DELMODE_FALL	2
 #define		HRCTL_DELMODE_RISE	1
 
-static device_probe_t am335x_pwm_probe;
-static device_attach_t am335x_pwm_attach;
-static device_detach_t am335x_pwm_detach;
-        
-static int am335x_pwm_clkdiv[8] = { 1, 2, 4, 8, 16, 32, 64, 128 };
+static device_probe_t am335x_ehrpwm_probe;
+static device_attach_t am335x_ehrpwm_attach;
+static device_detach_t am335x_ehrpwm_detach;
 
-struct am335x_pwm_softc {
+static int am335x_ehrpwm_clkdiv[8] = { 1, 2, 4, 8, 16, 32, 64, 128 };
+
+struct am335x_ehrpwm_softc {
 	device_t		sc_dev;
 	struct mtx		sc_mtx;
-	struct resource		*sc_mem_res[4];
-	int			sc_id;
+	struct resource		*sc_mem_res;
+	int			sc_mem_rid;
 	/* sysctl for configuration */
 	int			sc_pwm_clkdiv;
 	int			sc_pwm_freq;
@@ -193,79 +154,39 @@ struct am335x_pwm_softc {
 	uint32_t		sc_pwm_dutyB;
 };
 
-static device_method_t am335x_pwm_methods[] = {
-	DEVMETHOD(device_probe,		am335x_pwm_probe),
-	DEVMETHOD(device_attach,	am335x_pwm_attach),
-	DEVMETHOD(device_detach,	am335x_pwm_detach),
+static device_method_t am335x_ehrpwm_methods[] = {
+	DEVMETHOD(device_probe,		am335x_ehrpwm_probe),
+	DEVMETHOD(device_attach,	am335x_ehrpwm_attach),
+	DEVMETHOD(device_detach,	am335x_ehrpwm_detach),
 
 	DEVMETHOD_END
 };
 
-static driver_t am335x_pwm_driver = {
-	"am335x_pwm",
-	am335x_pwm_methods,
-	sizeof(struct am335x_pwm_softc),
+static driver_t am335x_ehrpwm_driver = {
+	"am335x_ehrpwm",
+	am335x_ehrpwm_methods,
+	sizeof(struct am335x_ehrpwm_softc),
 };
 
-static devclass_t am335x_pwm_devclass;
-
-/*
- * API function to set period/duty cycles for ECASx 
- */
-int
-am335x_pwm_config_ecas(int unit, int period, int duty)
-{
-	device_t dev;
-	struct am335x_pwm_softc *sc;
-	uint16_t reg;
-
-	dev = devclass_get_device(am335x_pwm_devclass, unit);
-	if (dev == NULL)
-		return (ENXIO);
-
-	if (duty > period)
-		return (EINVAL);
-
-	if (period == 0)
-		return (EINVAL);
-
-	sc = device_get_softc(dev);
-	PWM_LOCK(sc);
-
-	reg = ECAP_READ2(sc, ECAP_ECCTL2);
-	reg |= ECCTL2_MODE_APWM | ECCTL2_TSCTRSTOP_FREERUN | ECCTL2_SYNCO_SEL;
-	ECAP_WRITE2(sc, ECAP_ECCTL2, reg);
-
-	/* CAP3 in APWM mode is APRD shadow register */
-	ECAP_WRITE4(sc, ECAP_CAP3, period - 1);
-
-	/* CAP4 in APWM mode is ACMP shadow register */
-	ECAP_WRITE4(sc, ECAP_CAP4, duty);
-	/* Restart counter */
-	ECAP_WRITE4(sc, ECAP_TSCTR, 0);
-
-	PWM_UNLOCK(sc);
-
-	return (0);
-}
+static devclass_t am335x_ehrpwm_devclass;
 
 static void
-am335x_pwm_freq(struct am335x_pwm_softc *sc)
+am335x_ehrpwm_freq(struct am335x_ehrpwm_softc *sc)
 {
 	int clkdiv;
 
-	clkdiv = am335x_pwm_clkdiv[sc->sc_pwm_clkdiv];
+	clkdiv = am335x_ehrpwm_clkdiv[sc->sc_pwm_clkdiv];
 	sc->sc_pwm_freq = PWM_CLOCK / (1 * clkdiv) / sc->sc_pwm_period;
 }
 
 static int
-am335x_pwm_sysctl_freq(SYSCTL_HANDLER_ARGS)
+am335x_ehrpwm_sysctl_freq(SYSCTL_HANDLER_ARGS)
 {
 	int clkdiv, error, freq, i, period;
-	struct am335x_pwm_softc *sc;
+	struct am335x_ehrpwm_softc *sc;
 	uint32_t reg;
 
-	sc = (struct am335x_pwm_softc *)arg1;
+	sc = (struct am335x_ehrpwm_softc *)arg1;
 
 	PWM_LOCK(sc);
 	freq = sc->sc_pwm_freq;
@@ -280,8 +201,8 @@ am335x_pwm_sysctl_freq(SYSCTL_HANDLER_ARGS)
 
 	PWM_LOCK(sc);
 	if (freq != sc->sc_pwm_freq) {
-		for (i = nitems(am335x_pwm_clkdiv) - 1; i >= 0; i--) {
-			clkdiv = am335x_pwm_clkdiv[i];
+		for (i = nitems(am335x_ehrpwm_clkdiv) - 1; i >= 0; i--) {
+			clkdiv = am335x_ehrpwm_clkdiv[i];
 			period = PWM_CLOCK / clkdiv / freq;
 			if (period > USHRT_MAX)
 				break;
@@ -300,7 +221,7 @@ am335x_pwm_sysctl_freq(SYSCTL_HANDLER_ARGS)
 		EPWM_WRITE2(sc, EPWM_TBCTL, reg);
 		/* Update the period settings. */
 		EPWM_WRITE2(sc, EPWM_TBPRD, sc->sc_pwm_period - 1);
-		am335x_pwm_freq(sc);
+		am335x_ehrpwm_freq(sc);
 	}
 	PWM_UNLOCK(sc);
 
@@ -308,16 +229,16 @@ am335x_pwm_sysctl_freq(SYSCTL_HANDLER_ARGS)
 }
 
 static int
-am335x_pwm_sysctl_clkdiv(SYSCTL_HANDLER_ARGS)
+am335x_ehrpwm_sysctl_clkdiv(SYSCTL_HANDLER_ARGS)
 {
 	int error, i, clkdiv;
-	struct am335x_pwm_softc *sc;
+	struct am335x_ehrpwm_softc *sc;
 	uint32_t reg;
 
-	sc = (struct am335x_pwm_softc *)arg1;
+	sc = (struct am335x_ehrpwm_softc *)arg1;
 
 	PWM_LOCK(sc);
-	clkdiv = am335x_pwm_clkdiv[sc->sc_pwm_clkdiv];
+	clkdiv = am335x_ehrpwm_clkdiv[sc->sc_pwm_clkdiv];
 	PWM_UNLOCK(sc);
 
 	error = sysctl_handle_int(oidp, &clkdiv, sizeof(clkdiv), req);
@@ -325,16 +246,16 @@ am335x_pwm_sysctl_clkdiv(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	PWM_LOCK(sc);
-	if (clkdiv != am335x_pwm_clkdiv[sc->sc_pwm_clkdiv]) {
-		for (i = 0; i < nitems(am335x_pwm_clkdiv); i++)
-			if (clkdiv >= am335x_pwm_clkdiv[i])
+	if (clkdiv != am335x_ehrpwm_clkdiv[sc->sc_pwm_clkdiv]) {
+		for (i = 0; i < nitems(am335x_ehrpwm_clkdiv); i++)
+			if (clkdiv >= am335x_ehrpwm_clkdiv[i])
 				sc->sc_pwm_clkdiv = i;
 
 		reg = EPWM_READ2(sc, EPWM_TBCTL);
 		reg &= ~TBCTL_CLKDIV_MASK;
 		reg |= TBCTL_CLKDIV(sc->sc_pwm_clkdiv);
 		EPWM_WRITE2(sc, EPWM_TBCTL, reg);
-		am335x_pwm_freq(sc);
+		am335x_ehrpwm_freq(sc);
 	}
 	PWM_UNLOCK(sc);
 
@@ -342,12 +263,12 @@ am335x_pwm_sysctl_clkdiv(SYSCTL_HANDLER_ARGS)
 }
 
 static int
-am335x_pwm_sysctl_duty(SYSCTL_HANDLER_ARGS)
+am335x_ehrpwm_sysctl_duty(SYSCTL_HANDLER_ARGS)
 {
-	struct am335x_pwm_softc *sc = (struct am335x_pwm_softc*)arg1;
+	struct am335x_ehrpwm_softc *sc = (struct am335x_ehrpwm_softc*)arg1;
 	int error;
 	uint32_t duty;
-       
+
 	if (oidp == sc->sc_chanA_oid)
 		duty = sc->sc_pwm_dutyA;
 	else
@@ -377,12 +298,12 @@ am335x_pwm_sysctl_duty(SYSCTL_HANDLER_ARGS)
 }
 
 static int
-am335x_pwm_sysctl_period(SYSCTL_HANDLER_ARGS)
+am335x_ehrpwm_sysctl_period(SYSCTL_HANDLER_ARGS)
 {
-	struct am335x_pwm_softc *sc = (struct am335x_pwm_softc*)arg1;
+	struct am335x_ehrpwm_softc *sc = (struct am335x_ehrpwm_softc*)arg1;
 	int error;
 	uint32_t period;
-       
+
 	period = sc->sc_pwm_period;
 	error = sysctl_handle_int(oidp, &period, 0, req);
 
@@ -404,61 +325,46 @@ am335x_pwm_sysctl_period(SYSCTL_HANDLER_ARGS)
 	/* Update the period settings. */
 	sc->sc_pwm_period = period;
 	EPWM_WRITE2(sc, EPWM_TBPRD, period - 1);
-	am335x_pwm_freq(sc);
+	am335x_ehrpwm_freq(sc);
 	PWM_UNLOCK(sc);
 
 	return (error);
 }
 
 static int
-am335x_pwm_probe(device_t dev)
+am335x_ehrpwm_probe(device_t dev)
 {
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "ti,am335x-pwm"))
+	if (!ofw_bus_is_compatible(dev, "ti,am33xx-ehrpwm"))
 		return (ENXIO);
 
-	device_set_desc(dev, "AM335x PWM");
+	device_set_desc(dev, "AM335x EHRPWM");
 
 	return (BUS_PROBE_DEFAULT);
 }
 
 static int
-am335x_pwm_attach(device_t dev)
+am335x_ehrpwm_attach(device_t dev)
 {
-	struct am335x_pwm_softc *sc;
-	int err;
+	struct am335x_ehrpwm_softc *sc;
 	uint32_t reg;
-	phandle_t node;
-	pcell_t did;
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid *tree;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
-	/* Get the PWM module id */
-	node = ofw_bus_get_node(dev);
-	if ((OF_getprop(node, "pwm-device-id", &did, sizeof(did))) <= 0) {
-		device_printf(dev, "missing pwm-device-id attribute in FDT\n");
-		return (ENXIO);
-	}
-	sc->sc_id = fdt32_to_cpu(did);
 
 	PWM_LOCK_INIT(sc);
 
-	err = bus_alloc_resources(dev, am335x_pwm_mem_spec,
-	    sc->sc_mem_res);
-	if (err) {
+	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &sc->sc_mem_rid, RF_ACTIVE);
+	if (sc->sc_mem_res == NULL) {
 		device_printf(dev, "cannot allocate memory resources\n");
 		goto fail;
 	}
-
-	ti_prcm_clk_enable(PWMSS0_CLK + sc->sc_id);
-	ti_scm_reg_read_4(SCM_PWMSS_CTRL, &reg);
-	reg |= (1 << sc->sc_id);
-	ti_scm_reg_write_4(SCM_PWMSS_CTRL, reg);
 
 	/* Init backlight interface */
 	ctx = device_get_sysctl_ctx(sc->sc_dev);
@@ -466,23 +372,23 @@ am335x_pwm_attach(device_t dev)
 
 	sc->sc_clkdiv_oid = SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 	    "clkdiv", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-	    am335x_pwm_sysctl_clkdiv, "I", "PWM clock prescaler");
+	    am335x_ehrpwm_sysctl_clkdiv, "I", "PWM clock prescaler");
 
 	sc->sc_freq_oid = SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 	    "freq", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-	    am335x_pwm_sysctl_freq, "I", "PWM frequency");
+	    am335x_ehrpwm_sysctl_freq, "I", "PWM frequency");
 
 	sc->sc_period_oid = SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 	    "period", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-	    am335x_pwm_sysctl_period, "I", "PWM period");
+	    am335x_ehrpwm_sysctl_period, "I", "PWM period");
 
 	sc->sc_chanA_oid = SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 	    "dutyA", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-	    am335x_pwm_sysctl_duty, "I", "Channel A duty cycles");
+	    am335x_ehrpwm_sysctl_duty, "I", "Channel A duty cycles");
 
 	sc->sc_chanB_oid = SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 	    "dutyB", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-	    am335x_pwm_sysctl_duty, "I", "Channel B duty cycles");
+	    am335x_ehrpwm_sysctl_duty, "I", "Channel B duty cycles");
 
 	/* CONFIGURE EPWM1 */
 	reg = EPWM_READ2(sc, EPWM_TBCTL);
@@ -492,7 +398,7 @@ am335x_pwm_attach(device_t dev)
 	sc->sc_pwm_period = DEFAULT_PWM_PERIOD;
 	sc->sc_pwm_dutyA = 0;
 	sc->sc_pwm_dutyB = 0;
-	am335x_pwm_freq(sc);
+	am335x_ehrpwm_freq(sc);
 
 	EPWM_WRITE2(sc, EPWM_TBPRD, sc->sc_pwm_period - 1);
 	EPWM_WRITE2(sc, EPWM_CMPA, sc->sc_pwm_dutyA);
@@ -512,24 +418,24 @@ am335x_pwm_attach(device_t dev)
 	return (0);
 fail:
 	PWM_LOCK_DESTROY(sc);
-	if (sc->sc_mem_res[0])
-		bus_release_resources(dev, am335x_pwm_mem_spec,
-		    sc->sc_mem_res);
+	if (sc->sc_mem_res)
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    sc->sc_mem_rid, sc->sc_mem_res);
 
 	return(ENXIO);
 }
 
 static int
-am335x_pwm_detach(device_t dev)
+am335x_ehrpwm_detach(device_t dev)
 {
-	struct am335x_pwm_softc *sc;
+	struct am335x_ehrpwm_softc *sc;
 
 	sc = device_get_softc(dev);
 
 	PWM_LOCK(sc);
-	if (sc->sc_mem_res[0])
-		bus_release_resources(dev, am335x_pwm_mem_spec,
-		    sc->sc_mem_res);
+	if (sc->sc_mem_res)
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    sc->sc_mem_rid, sc->sc_mem_res);
 	PWM_UNLOCK(sc);
 
 	PWM_LOCK_DESTROY(sc);
@@ -537,6 +443,6 @@ am335x_pwm_detach(device_t dev)
 	return (0);
 }
 
-DRIVER_MODULE(am335x_pwm, simplebus, am335x_pwm_driver, am335x_pwm_devclass, 0, 0);
-MODULE_VERSION(am335x_pwm, 1);
-MODULE_DEPEND(am335x_pwm, simplebus, 1, 1, 1);
+DRIVER_MODULE(am335x_ehrpwm, am335x_pwmss, am335x_ehrpwm_driver, am335x_ehrpwm_devclass, 0, 0);
+MODULE_VERSION(am335x_ehrpwm, 1);
+MODULE_DEPEND(am335x_ehrpwm, am335x_pwmss, 1, 1, 1);
