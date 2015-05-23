@@ -28,6 +28,7 @@ IPI_IRQ_START		opt_smp.h
 IPI_IRQ_END		opt_smp.h
 FREEBSD_BOOT_LOADER	opt_global.h
 IXP4XX_FLASH_SIZE	opt_global.h
+KERNBASE		opt_global.h
 KERNPHYSADDR		opt_global.h
 KERNVIRTADDR		opt_global.h
 LINUX_BOOT_ABI		opt_global.h

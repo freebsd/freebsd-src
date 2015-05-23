@@ -182,7 +182,7 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 #ifdef ARM_TP_ADDRESS
 	td2->td_md.md_tp = *(register_t *)ARM_TP_ADDRESS;
 #else
-	td2->td_md.md_tp = (register_t) get_tls();
+	td2->td_md.md_tp = td1->td_md.md_tp;
 #endif
 }
 				
@@ -411,7 +411,7 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 #ifdef ARM_TP_ADDRESS
 		*(register_t *)ARM_TP_ADDRESS = (register_t)tls_base;
 #else
-		set_tls((void *)tls_base);
+		set_tls(tls_base);
 #endif
 		critical_exit();
 	}
