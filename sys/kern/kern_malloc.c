@@ -667,13 +667,15 @@ reallocf(void *addr, unsigned long size, struct malloc_type *mtp, int flags)
 }
 
 /*
- * Wake the page daemon when we exhaust KVA.  It will call the lowmem handler
- * and uma_reclaim() callbacks in a context that is safe.
+ * Wake the uma reclamation pagedaemon thread when we exhaust KVA.  It
+ * will call the lowmem handler and uma_reclaim() callbacks in a
+ * context that is safe.
  */
 static void
 kmem_reclaim(vmem_t *vm, int flags)
 {
 
+	uma_reclaim_wakeup();
 	pagedaemon_wakeup();
 }
 
