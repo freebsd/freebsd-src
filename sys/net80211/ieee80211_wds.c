@@ -301,8 +301,12 @@ ieee80211_dwds_mcast(struct ieee80211vap *vap0, struct mbuf *m)
 			/* NB: IFQ_HANDOFF reclaims mbuf */
 			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			ieee80211_free_node(ni);
-		} else
+		} else {
 			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+			if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
+			if_inc_counter(ifp, IFCOUNTER_OBYTES,
+			    m->m_pkthdr.len);
+		}
 	}
 }
 
