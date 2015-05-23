@@ -1785,6 +1785,7 @@ vm_inject_exception(struct vm *vm, int vcpuid, int vector, int errcode_valid,
     uint32_t errcode, int restart_instruction)
 {
 	struct vcpu *vcpu;
+	uint64_t regval;
 	int error;
 
 	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
@@ -1807,6 +1808,16 @@ vm_inject_exception(struct vm *vm, int vcpuid, int vector, int errcode_valid,
 		VCPU_CTR2(vm, vcpuid, "Unable to inject exception %d due to "
 		    "pending exception %d", vector, vcpu->exc_vector);
 		return (EBUSY);
+	}
+
+	if (errcode_valid) {
+		/*
+		 * Exceptions don't deliver an error code in real mode.
+		 */
+		error = vm_get_register(vm, vcpuid, VM_REG_GUEST_CR0, &regval);
+		KASSERT(!error, ("%s: error %d getting CR0", __func__, error));
+		if (!(regval & CR0_PE))
+			errcode_valid = 0;
 	}
 
 	/*
