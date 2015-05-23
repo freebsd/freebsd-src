@@ -1423,5 +1423,6 @@ static driver_t omap4_prcm_driver = {
 
 static devclass_t omap4_prcm_devclass;
 
-DRIVER_MODULE(omap4_prcm, simplebus, omap4_prcm_driver, omap4_prcm_devclass, 0, 0);
+EARLY_DRIVER_MODULE(omap4_prcm, simplebus, omap4_prcm_driver,
+    omap4_prcm_devclass, 0, 0, BUS_PASS_TIMER + BUS_PASS_ORDER_EARLY);
 MODULE_VERSION(omap4_prcm, 1);
