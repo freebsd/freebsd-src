@@ -51,6 +51,7 @@ bus_space_tag_t uart_bus_space_io;
 bus_space_tag_t uart_bus_space_mem;
 
 extern struct bus_space at91_bs_tag;
+extern struct uart_class at91_usart_class;
 
 int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
