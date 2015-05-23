@@ -37,6 +37,9 @@
 
 #define CPU_ASID_KERNEL 0
 
+vm_offset_t dcache_wb_pou_checked(vm_offset_t, vm_size_t);
+vm_offset_t icache_inv_pou_checked(vm_offset_t, vm_size_t);
+
 /*
  * Macros to generate CP15 (system control processor) read/write functions.
  */
@@ -295,7 +298,7 @@ icache_sync(vm_offset_t sva, vm_size_t size)
 	vm_offset_t eva = sva + size;
 
 	dsb();
-	for (va = sva; va < eva; va += arm_dcache_align) {
+	for (va = sva; va < eva; va += cpuinfo.dcache_line_size) {
 #if __ARM_ARCH >= 7 && defined SMP
 		_CP15_DCCMVAU(va);
 #else
@@ -325,6 +328,19 @@ icache_inv_all(void)
 	isb();
 }
 
+/* Invalidate branch predictor buffer */
+static __inline void
+bpb_inv_all(void)
+{
+#if __ARM_ARCH >= 7 && defined SMP
+	_CP15_BPIALLIS();
+#else
+	_CP15_BPIALL();
+#endif
+	dsb();
+	isb();
+}
+
 /* Write back D-cache to PoU */
 static __inline void
 dcache_wb_pou(vm_offset_t sva, vm_size_t size)
@@ -333,7 +349,7 @@ dcache_wb_pou(vm_offset_t sva, vm_size_t size)
 	vm_offset_t eva = sva + size;
 
 	dsb();
-	for (va = sva; va < eva; va += arm_dcache_align) {
+	for (va = sva; va < eva; va += cpuinfo.dcache_line_size) {
 #if __ARM_ARCH >= 7 && defined SMP
 		_CP15_DCCMVAU(va);
 #else
@@ -351,7 +367,7 @@ dcache_inv_poc(vm_offset_t sva, vm_paddr_t pa, vm_size_t size)
 	vm_offset_t eva = sva + size;
 
 	/* invalidate L1 first */
-	for (va = sva; va < eva; va += arm_dcache_align) {
+	for (va = sva; va < eva; va += cpuinfo.dcache_line_size) {
 		_CP15_DCIMVAC(va);
 	}
 	dsb();
@@ -361,7 +377,7 @@ dcache_inv_poc(vm_offset_t sva, vm_paddr_t pa, vm_size_t size)
 	dsb();
 
 	/* then L1 again */
-	for (va = sva; va < eva; va += arm_dcache_align) {
+	for (va = sva; va < eva; va += cpuinfo.dcache_line_size) {
 		_CP15_DCIMVAC(va);
 	}
 	dsb();
@@ -376,7 +392,7 @@ dcache_wb_poc(vm_offset_t sva, vm_paddr_t pa, vm_size_t size)
 
 	dsb();
 
-	for (va = sva; va < eva; va += arm_dcache_align) {
+	for (va = sva; va < eva; va += cpuinfo.dcache_line_size) {
 		_CP15_DCCMVAC(va);
 	}
 	dsb();
@@ -394,7 +410,7 @@ dcache_wbinv_poc(vm_offset_t sva, vm_paddr_t pa, vm_size_t size)
 	dsb();
 
 	/* write back L1 first */
-	for (va = sva; va < eva; va += arm_dcache_align) {
+	for (va = sva; va < eva; va += cpuinfo.dcache_line_size) {
 		_CP15_DCCMVAC(va);
 	}
 	dsb();
@@ -403,7 +419,7 @@ dcache_wbinv_poc(vm_offset_t sva, vm_paddr_t pa, vm_size_t size)
 	cpu_l2cache_wbinv_range(pa, size);
 
 	/* then invalidate L1 */
-	for (va = sva; va < eva; va += arm_dcache_align) {
+	for (va = sva; va < eva; va += cpuinfo.dcache_line_size) {
 		_CP15_DCIMVAC(va);
 	}
 	dsb();

@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/proc.h>
 #include <machine/cpufunc.h>
+#include <machine/cpuinfo.h>
 #include <machine/pte.h>
 #include <machine/intr.h>
 #include <machine/sysarch.h>
@@ -146,3 +147,8 @@ ASSYM(MAXCOMLEN, MAXCOMLEN);
 ASSYM(MAXCPU, MAXCPU);
 ASSYM(NIRQ, NIRQ);
 ASSYM(PCPU_SIZE, sizeof(struct pcpu));
+
+ASSYM(DCACHE_LINE_SIZE, offsetof(struct cpuinfo, dcache_line_size));
+ASSYM(DCACHE_LINE_MASK, offsetof(struct cpuinfo, dcache_line_mask));
+ASSYM(ICACHE_LINE_SIZE, offsetof(struct cpuinfo, icache_line_size));
+ASSYM(ICACHE_LINE_MASK, offsetof(struct cpuinfo, icache_line_mask));
