@@ -58,9 +58,13 @@ cpuinfo_init(void)
 			/* ARMv4T CPU */
 			cpuinfo.architecture = 1;
 			cpuinfo.revision = (cpuinfo.midr >> 16) & 0x7F;
-		} 
+		} else {
+			/* ARM new id scheme */
+			cpuinfo.architecture = (cpuinfo.midr >> 16) & 0x0F;
+			cpuinfo.revision = (cpuinfo.midr >> 20) & 0x0F;
+		}
 	} else {
-		/* must be new id scheme */
+		/* non ARM -> must be new id scheme */
 		cpuinfo.architecture = (cpuinfo.midr >> 16) & 0x0F;
 		cpuinfo.revision = (cpuinfo.midr >> 20) & 0x0F;
 	}	
