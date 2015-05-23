@@ -80,8 +80,8 @@ db_breakpoint_t	db_taken_bkpt = 0;
 bool
 db_stop_at_pc(bool *is_breakpoint)
 {
-	register db_addr_t	pc;
-	register db_breakpoint_t bkpt;
+	db_addr_t	pc;
+	db_breakpoint_t bkpt;
 
 	pc = PC_REGS();
 #ifdef SOFTWARE_SSTEP
@@ -149,7 +149,7 @@ db_stop_at_pc(bool *is_breakpoint)
 		(!inst_return(ins) || --db_call_depth != 0)) {
 		if (db_sstep_print) {
 		    if (inst_call(ins) || inst_return(ins)) {
-			register int i;
+			int i;
 
 			db_printf("[after %6d]     ", db_inst_count);
 			for (i = db_call_depth; --i > 0; )
@@ -181,7 +181,7 @@ db_stop_at_pc(bool *is_breakpoint)
 void
 db_restart_at_pc(bool watchpt)
 {
-	register db_addr_t	pc = PC_REGS();
+	db_addr_t	pc = PC_REGS();
 
 	if ((db_run_mode == STEP_COUNT) ||
 	    (db_run_mode == STEP_RETURN) ||
