@@ -868,12 +868,9 @@ thread_suspend_check(int return_instead)
 			return (ERESTART);
 
 		/*
-		 * Ignore suspend requests for stop signals if they
-		 * are deferred.
+		 * Ignore suspend requests if they are deferred.
 		 */
-		if ((P_SHOULDSTOP(p) == P_STOPPED_SIG ||
-		    (p->p_flag & P_TOTAL_STOP) != 0) &&
-		    (td->td_flags & TDF_SBDRY) != 0) {
+		if ((td->td_flags & TDF_SBDRY) != 0) {
 			KASSERT(return_instead,
 			    ("TDF_SBDRY set for unsafe thread_suspend_check"));
 			return (0);
