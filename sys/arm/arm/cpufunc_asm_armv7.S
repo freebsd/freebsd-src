@@ -41,6 +41,12 @@ __FBSDID("$FreeBSD$");
 	.word	_C_LABEL(arm_cache_loc)
 .Lcache_type:
 	.word	_C_LABEL(arm_cache_type)
+.Larmv7_dcache_line_size:
+	.word	_C_LABEL(arm_dcache_min_line_size)
+.Larmv7_icache_line_size:
+	.word	_C_LABEL(arm_icache_min_line_size)
+.Larmv7_idcache_line_size:
+	.word	_C_LABEL(arm_idcache_min_line_size)
 .Lway_mask:
 	.word	0x3ff
 .Lmax_index:
@@ -176,14 +182,9 @@ ENTRY(armv7_idcache_wbinv_all)
 	RET
 END(armv7_idcache_wbinv_all)
 
-/* XXX Temporary set it to 32 for MV cores, however this value should be
- * get from Cache Type register
- */
-.Larmv7_line_size:
-	.word	32
-
 ENTRY(armv7_dcache_wb_range)
-	ldr	ip, .Larmv7_line_size
+	ldr	ip, .Larmv7_dcache_line_size
+	ldr	ip, [ip]
 	sub	r3, ip, #1
 	and	r2, r0, r3
 	add	r1, r1, r2
@@ -198,7 +199,8 @@ ENTRY(armv7_dcache_wb_range)
 END(armv7_dcache_wb_range)
 
 ENTRY(armv7_dcache_wbinv_range)
-	ldr	ip, .Larmv7_line_size
+	ldr     ip, .Larmv7_dcache_line_size
+	ldr     ip, [ip]
 	sub     r3, ip, #1
 	and     r2, r0, r3
 	add     r1, r1, r2
@@ -217,7 +219,8 @@ END(armv7_dcache_wbinv_range)
  * must use wb-inv of the entire cache.
  */
 ENTRY(armv7_dcache_inv_range)
-	ldr	ip, .Larmv7_line_size
+	ldr     ip, .Larmv7_dcache_line_size
+	ldr     ip, [ip]
 	sub     r3, ip, #1
 	and     r2, r0, r3
 	add     r1, r1, r2
@@ -232,7 +235,8 @@ ENTRY(armv7_dcache_inv_range)
 END(armv7_dcache_inv_range)
 
 ENTRY(armv7_idcache_wbinv_range)
-	ldr	ip, .Larmv7_line_size
+	ldr     ip, .Larmv7_idcache_line_size
+	ldr     ip, [ip]
 	sub     r3, ip, #1
 	and     r2, r0, r3
 	add     r1, r1, r2
@@ -260,7 +264,8 @@ ENTRY_NP(armv7_icache_sync_all)
 END(armv7_icache_sync_all)
 
 ENTRY_NP(armv7_icache_sync_range)
-	ldr	ip, .Larmv7_line_size
+	ldr	ip, .Larmv7_icache_line_size
+	ldr	ip, [ip]
 .Larmv7_sync_next:
 	mcr	CP15_ICIMVAU(r0)
 	mcr	CP15_DCCMVAC(r0)
