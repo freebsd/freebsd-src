@@ -370,6 +370,54 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
 }
 
 int
+ofw_bus_reg_to_rl(device_t dev, phandle_t node, pcell_t acells, pcell_t scells,
+    struct resource_list *rl)
+{
+	uint64_t phys, size;
+	ssize_t i, j, rid, nreg, ret;
+	uint32_t *reg;
+	char *name;
+
+	/*
+	 * This may be just redundant when having ofw_bus_devinfo
+	 * but makes this routine independent of it.
+	 */
+	ret = OF_getencprop_alloc(node, "name", sizeof(*name), (void **)&name);
+	if (ret == -1)
+		name = NULL;
+
+	ret = OF_getencprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
+	nreg = (ret == -1) ? 0 : ret;
+
+	if (nreg % (acells + scells) != 0) {
+		if (bootverbose)
+			device_printf(dev, "Malformed reg property on <%s>\n",
+			    (name == NULL) ? "unknown" : name);
+		nreg = 0;
+	}
+
+	for (i = 0, rid = 0; i < nreg; i += acells + scells, rid++) {
+		phys = size = 0;
+		for (j = 0; j < acells; j++) {
+			phys <<= 32;
+			phys |= reg[i + j];
+		}
+		for (j = 0; j < scells; j++) {
+			size <<= 32;
+			size |= reg[i + acells + j];
+		}
+		/* Skip the dummy reg property of glue devices like ssm(4). */
+		if (size != 0)
+			resource_list_add(rl, SYS_RES_MEMORY, rid,
+			    phys, phys + size - 1, size);
+	}
+	free(name, M_OFWPROP);
+	free(reg, M_OFWPROP);
+
+	return (0);
+}
+
+int
 ofw_bus_intr_to_rl(device_t dev, phandle_t node, struct resource_list *rl)
 {
 	phandle_t iparent;
