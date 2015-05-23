@@ -318,6 +318,9 @@
 #define	CPU_CT_S		(1U << 24)		/* split cache */
 #define	CPU_CT_CTYPE(x)		(((x) >> 25) & 0xf)	/* cache type */
 #define	CPU_CT_FORMAT(x)	((x) >> 29)
+/* Cache type register definitions for ARM v7 */
+#define	CPU_CT_IMINLINE(x)	((x) & 0xf)		/* I$ min line size */
+#define	CPU_CT_DMINLINE(x)	(((x) >> 16) & 0xf)	/* D$ min line size */
 
 #define	CPU_CT_CTYPE_WT		0	/* write-through */
 #define	CPU_CT_CTYPE_WB1	1	/* write-back, clean w/ read */
