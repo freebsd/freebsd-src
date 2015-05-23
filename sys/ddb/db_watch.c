@@ -69,7 +69,7 @@ static void		db_set_watchpoint(vm_map_t map, db_addr_t addr,
 static db_watchpoint_t
 db_watchpoint_alloc(void)
 {
-	register db_watchpoint_t	watch;
+	db_watchpoint_t	watch;
 
 	if ((watch = db_free_watchpoints) != 0) {
 	    db_free_watchpoints = watch->link;
@@ -95,7 +95,7 @@ db_watchpoint_free(db_watchpoint_t watch)
 static void
 db_set_watchpoint(vm_map_t map, db_addr_t addr, vm_size_t size)
 {
-	register db_watchpoint_t	watch;
+	db_watchpoint_t	watch;
 
 	if (map == NULL) {
 	    db_printf("No map.\n");
@@ -135,8 +135,8 @@ db_set_watchpoint(vm_map_t map, db_addr_t addr, vm_size_t size)
 static void
 db_delete_watchpoint(vm_map_t map, db_addr_t addr)
 {
-	register db_watchpoint_t	watch;
-	register db_watchpoint_t	*prev;
+	db_watchpoint_t	watch;
+	db_watchpoint_t	*prev;
 
 	for (prev = &db_watchpoint_list;
 	     (watch = *prev) != 0;
@@ -155,7 +155,7 @@ db_delete_watchpoint(vm_map_t map, db_addr_t addr)
 static void
 db_list_watchpoints(void)
 {
-	register db_watchpoint_t	watch;
+	db_watchpoint_t	watch;
 
 	if (db_watchpoint_list == 0) {
 	    db_printf("No watchpoints set\n");
@@ -220,7 +220,7 @@ DB_SHOW_COMMAND(watches, db_listwatch_cmd)
 void
 db_set_watchpoints(void)
 {
-	register db_watchpoint_t	watch;
+	db_watchpoint_t	watch;
 
 	if (!db_watchpoints_inserted) {
 	    for (watch = db_watchpoint_list;
@@ -245,7 +245,7 @@ db_clear_watchpoints(void)
 static bool
 db_find_watchpoint(vm_map_t map, db_addr_t addr, db_regs_t regs)
 {
-	register db_watchpoint_t watch;
+	db_watchpoint_t watch;
 	db_watchpoint_t found = 0;
 
 	for (watch = db_watchpoint_list;

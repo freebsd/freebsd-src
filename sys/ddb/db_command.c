@@ -311,7 +311,7 @@ db_cmd_search(char *name, struct command_table *table, struct command **cmdp)
 static void
 db_cmd_list(struct command_table *table)
 {
-	register struct command	*cmd;
+	struct command	*cmd;
 
 	LIST_FOREACH(cmd, table, next) {
 		db_printf("%-16s", cmd->name);

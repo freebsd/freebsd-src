@@ -46,12 +46,10 @@ void
 db_write_cmd(db_expr_t address, bool have_addr, db_expr_t count,
     char * modif)
 {
-	register
 	db_addr_t	addr;
-	register
 	db_expr_t	old_value;
 	db_expr_t	new_value;
-	register int	size;
+	int		size;
 	bool		wrote_one = false;
 
 	addr = (db_addr_t) address;
