@@ -66,11 +66,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 ENTRY(armv7_setttb)
-	stmdb   sp!, {r0, lr}
- 	bl      _C_LABEL(armv7_idcache_wbinv_all) /* clean the D cache */
- 	ldmia   sp!, {r0, lr}
  	dsb
-				
 	orr 	r0, r0, #PT_ATTR
  	mcr	CP15_TTBR0(r0)
 	isb

@@ -582,8 +582,8 @@ atomic_load_64(volatile uint64_t *p)
 
 	/*
 	 * The only way to atomically load 64 bits is with LDREXD which puts the
-	 * exclusive monitor into the open state, so reset it with CLREX because
-	 * we don't actually need to store anything.
+	 * exclusive monitor into the exclusive state, so reset it to open state
+	 * with CLREX because we don't actually need to store anything.
 	 */
 	__asm __volatile(
 		"1:          \n"
