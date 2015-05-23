@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
+#include <dev/uart/uart_cpu_fdt.h>
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_dev_ns8250.h>
 
@@ -130,7 +131,7 @@ static kobj_method_t ti8250_methods[] = {
 	KOBJMETHOD_END
 };
 
-struct uart_class uart_ti8250_class = {
+static struct uart_class uart_ti8250_class = {
 	"ti8250",
 	ti8250_methods,
 	sizeof(struct ti8250_softc),
@@ -138,4 +139,8 @@ struct uart_class uart_ti8250_class = {
 	.uc_range = 0x88,
 	.uc_rclk = 48000000
 };
-
+static struct ofw_compat_data compat_data[] = {
+	{"ti,ns16550",		(uintptr_t)&uart_ti8250_class},
+	{NULL,			(uintptr_t)NULL},
+};
+UART_FDT_CLASS_AND_DEVICE(compat_data);

@@ -39,10 +39,10 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/samsung/s3c2xx0/s3c2xx0var.h>
 
+extern struct uart_class uart_s3c2410_class;
+
 bus_space_tag_t uart_bus_space_io;
 bus_space_tag_t uart_bus_space_mem;
-
-extern struct uart_ops uart_s3c2410_ops;
 
 vm_offset_t s3c2410_uart_vaddr;
 unsigned int s3c2410_pclk;
