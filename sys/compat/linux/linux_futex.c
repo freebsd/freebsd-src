@@ -184,9 +184,6 @@ LIN_SDT_PROBE_DEFINE2(futex, release_futexes, entry, "struct thread *",
 LIN_SDT_PROBE_DEFINE1(futex, release_futexes, copyin_error, "int");
 LIN_SDT_PROBE_DEFINE0(futex, release_futexes, return);
 
-static MALLOC_DEFINE(M_FUTEX, "futex", "Linux futexes");
-static MALLOC_DEFINE(M_FUTEX_WP, "futex wp", "Linux futexes wp");
-
 struct futex;
 
 struct waiting_proc {

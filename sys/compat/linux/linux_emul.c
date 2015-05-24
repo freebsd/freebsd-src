@@ -98,7 +98,7 @@ linux_proc_init(struct thread *td, struct thread *newtd, int flags)
 
 			em->em_tid = newtd->td_proc->p_pid;
 
-			pem = malloc(sizeof(*pem), M_TEMP, M_WAITOK | M_ZERO);
+			pem = malloc(sizeof(*pem), M_LINUX, M_WAITOK | M_ZERO);
 			sx_init(&pem->pem_sx, "lpemlk");
 			newtd->td_proc->p_emuldata = pem;
 		}
@@ -134,7 +134,7 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 	p->p_emuldata = NULL;
 
 	sx_destroy(&pem->pem_sx);
-	free(pem, M_TEMP);
+	free(pem, M_LINUX);
 }
 
 int 
@@ -181,7 +181,7 @@ linux_common_execve(struct thread *td, struct image_args *eargs)
 		PROC_UNLOCK(p);
 
 		free(em, M_TEMP);
-		free(pem, M_TEMP);
+		free(pem, M_LINUX);
 	}
 	return (0);
 }
