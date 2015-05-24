@@ -471,8 +471,9 @@ leave1:
 /*
  * Wait for a filter to be triggered on the epoll file descriptor.
  */
-int
-linux_epoll_wait(struct thread *td, struct linux_epoll_wait_args *args)
+static int
+linux_epoll_wait_common(struct thread *td, int epfd, struct epoll_event *events,
+    int maxevents, int timeout, sigset_t *uset)
 {
 	struct file *epfp;
 	struct timespec ts, *tsp;
@@ -483,33 +484,49 @@ linux_epoll_wait(struct thread *td, struct linux_epoll_wait_args *args)
 					NULL};
 	int error;
 
-	if (args->maxevents <= 0 || args->maxevents > LINUX_MAX_EVENTS)
+	if (maxevents <= 0 || maxevents > LINUX_MAX_EVENTS)
 		return (EINVAL);
 
-	error = fget(td, args->epfd,
+	if (uset != NULL) {
+		error = kern_sigprocmask(td, SIG_SETMASK, uset,
+		    &td->td_oldsigmask, 0);
+		if (error != 0)
+			return (error);
+		td->td_pflags |= TDP_OLDMASK;
+		/*
+		 * Make sure that ast() is called on return to
+		 * usermode and TDP_OLDMASK is cleared, restoring old
+		 * sigmask.
+		 */
+		thread_lock(td);
+		td->td_flags |= TDF_ASTPENDING;
+		thread_unlock(td);
+	}
+
+	error = fget(td, epfd,
 	    cap_rights_init(&rights, CAP_KQUEUE_EVENT), &epfp);
 	if (error != 0)
 		return (error);
 
-	coargs.leventlist = args->events;
+	coargs.leventlist = events;
 	coargs.p = td->td_proc;
 	coargs.count = 0;
 	coargs.error = 0;
 
-	if (args->timeout != -1) {
-		if (args->timeout < 0) {
+	if (timeout != -1) {
+		if (timeout < 0) {
 			error = EINVAL;
 			goto leave;
 		}
 		/* Convert from milliseconds to timespec. */
-		ts.tv_sec = args->timeout / 1000;
-		ts.tv_nsec = (args->timeout % 1000) * 1000000;
+		ts.tv_sec = timeout / 1000;
+		ts.tv_nsec = (timeout % 1000) * 1000000;
 		tsp = &ts;
 	} else {
 		tsp = NULL;
 	}
 
-	error = kern_kevent_fp(td, epfp, 0, args->maxevents, &k_ops, tsp);
+	error = kern_kevent_fp(td, epfp, 0, maxevents, &k_ops, tsp);
 	if (error == 0 && coargs.error != 0)
 		error = coargs.error;
 
@@ -522,6 +539,33 @@ linux_epoll_wait(struct thread *td, struct linux_epoll_wait_args *args)
 leave:
 	fdrop(epfp, td);
 	return (error);
+}
+
+int
+linux_epoll_wait(struct thread *td, struct linux_epoll_wait_args *args)
+{
+
+	return (linux_epoll_wait_common(td, args->epfd, args->events,
+	    args->maxevents, args->timeout, NULL));
+}
+
+int
+linux_epoll_pwait(struct thread *td, struct linux_epoll_pwait_args *args)
+{
+	sigset_t mask, *pmask;
+	l_sigset_t lmask;
+	int error;
+
+	if (args->mask != NULL) {
+		error = copyin(args->mask, &lmask, sizeof(l_sigset_t));
+		if (error != 0)
+			return (error);
+		linux_to_bsd_sigset(&lmask, &mask);
+		pmask = &mask;
+	} else
+		pmask = NULL;
+	return (linux_epoll_wait_common(td, args->epfd, args->events,
+	    args->maxevents, args->timeout, pmask));
 }
 
 static int
