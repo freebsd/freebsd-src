@@ -1092,8 +1092,6 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 		error = ENOBUFS;
 		cmsg = malloc(CMSG_HDRSZ, M_LINUX, M_WAITOK|M_ZERO);
 		control = m_get(M_WAITOK, MT_CONTROL);
-		if (control == NULL)
-			goto bad;
 
 		do {
 			error = copyin(ptr_cmsg, &linux_cmsg,
@@ -1165,6 +1163,7 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	error = linux_sendit(td, s, &msg, flags, control, UIO_USERSPACE);
 
 bad:
+	m_freem(control);
 	free(iov, M_IOV);
 	if (cmsg)
 		free(cmsg, M_LINUX);
