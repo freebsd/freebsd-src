@@ -138,6 +138,9 @@ struct l_pselect6arg {
 	l_size_t	ss_len;
 };
 
+static int	linux_utimensat_nsec_valid(l_long);
+
+
 int
 linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 {
@@ -824,6 +827,17 @@ linux_utimes(struct thread *td, struct linux_utimes_args *args)
 	return (error);
 }
 
+static int
+linux_utimensat_nsec_valid(l_long nsec)
+{
+
+	if (nsec == LINUX_UTIME_OMIT || nsec == LINUX_UTIME_NOW)
+		return (0);
+	if (nsec >= 0 && nsec <= 999999999)
+		return (0);
+	return (1);
+}
+
 int 
 linux_utimensat(struct thread *td, struct linux_utimensat_args *args)
 {
@@ -847,8 +861,8 @@ linux_utimensat(struct thread *td, struct linux_utimensat_args *args)
 		if (error != 0)
 			return (error);
 
-		if (l_times[0].tv_nsec > 999999999 ||
-			l_times[1].tv_nsec > 999999999)
+		if (linux_utimensat_nsec_valid(l_times[0].tv_nsec) != 0 ||
+		    linux_utimensat_nsec_valid(l_times[1].tv_nsec) != 0)
 			return (EINVAL);
 
 		times[0].tv_sec = l_times[0].tv_sec;
