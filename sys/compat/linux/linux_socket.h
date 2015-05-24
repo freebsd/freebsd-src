@@ -54,7 +54,8 @@
 /* Socket-level control message types */
 
 #define LINUX_SCM_RIGHTS	0x01
-#define LINUX_SCM_CREDENTIALS   0x02
+#define LINUX_SCM_CREDENTIALS	0x02
+#define LINUX_SCM_TIMESTAMP	0x1D
 
 struct l_msghdr {
 	l_uintptr_t	msg_name;
