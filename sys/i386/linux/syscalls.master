@@ -283,8 +283,8 @@
 				    l_int policy); }
 160	AUE_SCHED_GET_PRIORITY_MIN	STD { int linux_sched_get_priority_min( \
 				    l_int policy); }
-161	AUE_SCHED_RR_GET_INTERVAL	NOPROTO	{ int sched_rr_get_interval(l_pid_t pid, \
-				    struct l_timespec *interval); }
+161	AUE_SCHED_RR_GET_INTERVAL	STD	{ int linux_sched_rr_get_interval( \
+				    l_pid_t pid, struct l_timespec *interval); }
 162	AUE_NULL	STD	{ int linux_nanosleep( \
 				    const struct l_timespec *rqtp, \
 				    struct l_timespec *rmtp); }
