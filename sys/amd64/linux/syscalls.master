@@ -450,7 +450,7 @@
 268	AUE_FCHMODAT	STD	{ int linux_fchmodat(l_int dfd, const char *filename, \
 				    l_mode_t mode); }
 269	AUE_FACCESSAT	STD	{ int linux_faccessat(l_int dfd, const char *filename, \
-				    l_int amode, l_int flag); }
+				    l_int amode); }
 270	AUE_SELECT	STD	{ int linux_pselect6(l_int nfds,			\
 				    l_fd_set *readfds, l_fd_set *writefds, l_fd_set *exceptfds,	\
 				    struct l_timespec *tsp, l_uintptr_t *sig); }
