@@ -77,7 +77,7 @@ options 	DDB			# Enable the kernel debugger
 #options 	DIAGNOSTIC
 
 # NFS server support
-#options	NFSD
+#options 	NFSD
 
 # NFS root from boopt/dhcp
 #options 	BOOTP

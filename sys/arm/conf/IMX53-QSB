@@ -34,5 +34,5 @@ options 	HZ=250			# 4ms scheduling quantum
 #options 	ROOTDEVNAME=\"ufs:ada0s2a\"
 
 # Flattened Device Tree
-options         FDT_DTB_STATIC
-makeoptions     FDT_DTS_FILE=imx53-qsb.dts
+options 	FDT_DTB_STATIC
+makeoptions	FDT_DTS_FILE=imx53-qsb.dts

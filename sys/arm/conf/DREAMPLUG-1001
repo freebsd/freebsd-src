@@ -58,22 +58,22 @@ options 	FDT_DTB_STATIC
 # Misc pseudo devices
 device		bpf			# Required for DHCP
 device  	faith			# IPv6-to-IPv4 relaying (translation)
-device  	firmware		# firmware(9) required for USB wlan
-device  	gif			# IPv6 and IPv4 tunneling
+device		firmware		# firmware(9) required for USB wlan
+device		gif			# IPv6 and IPv4 tunneling
 device		loop			# Network loopback
-device  	md			# Memory/malloc disk
+device		md			# Memory/malloc disk
 device		pty			# BSD-style compatibility pseudo ttys
 device		random			# Entropy device
-device  	tun			# Packet tunnel.
+device		tun			# Packet tunnel.
 device		ether			# Required for all ethernet devices
-device  	vlan			# 802.1Q VLAN support
+device		vlan			# 802.1Q VLAN support
 device		wlan			# 802.11 WLAN support
 
 # cam support for umass and ahci
 device		scbus
 device		pass
 device		da
-device 		cd
+device		cd
 
 # Serial ports
 device		uart
@@ -85,18 +85,18 @@ device		e1000phy
 
 # USB
 options 	USB_HOST_ALIGN=32	# Align DMA to cacheline
-#options	USB_DEBUG       	# Compile in USB debug support
-device  	usb  			# Basic usb support			
-device  	ehci 			# USB host controller
-device  	umass			# Mass storage
-device  	uhid 			# Human-interface devices
-device  	rum  			# Ralink Technology RT2501USB wireless NICs
-device  	uath 			# Atheros AR5523 wireless NICs
-device  	ural 			# Ralink Technology RT2500USB wireless NICs
-device  	zyd  			# ZyDAS zb1211/zb1211b wireless NICs
-device  	urtw 			# Realtek RTL8187B/L USB
-device  	upgt 			# Conexant/Intersil PrismGT SoftMAC USB
-device  	u3g  			# USB-based 3G modems (Option, Huawei, Sierra)
+#options 	USB_DEBUG       	# Compile in USB debug support
+device		usb  			# Basic usb support			
+device		ehci 			# USB host controller
+device		umass			# Mass storage
+device		uhid 			# Human-interface devices
+device		rum  			# Ralink Technology RT2501USB wireless NICs
+device		uath 			# Atheros AR5523 wireless NICs
+device		ural 			# Ralink Technology RT2500USB wireless NICs
+device		zyd  			# ZyDAS zb1211/zb1211b wireless NICs
+device		urtw 			# Realtek RTL8187B/L USB
+device		upgt 			# Conexant/Intersil PrismGT SoftMAC USB
+device		u3g  			# USB-based 3G modems (Option, Huawei, Sierra)
 
 # I2C (TWSI)
 device		iic
@@ -107,48 +107,48 @@ device		mvs
 device		ahci
 
 # Sound
-device 		sound
-device 		snd_uaudio
+device		sound
+device		snd_uaudio
 
 #crypto
-device  	cesa			# Marvell security engine
-device  	crypto
-device  	cryptodev
+device		cesa			# Marvell security engine
+device		crypto
+device		cryptodev
 
 # IPSec
-device  	enc
-options  	IPSEC
-options  	IPSEC_NAT_T
-options  	TCP_SIGNATURE		# include support for RFC 2385
+device		enc
+options 	IPSEC
+options 	IPSEC_NAT_T
+options 	TCP_SIGNATURE		# include support for RFC 2385
 
 # IPFW
-options  	IPFIREWALL
-options  	IPFIREWALL_DEFAULT_TO_ACCEPT
-options  	IPFIREWALL_VERBOSE
-options  	IPFIREWALL_VERBOSE_LIMIT=100
-options  	IPFIREWALL_NAT
-options  	LIBALIAS
-options  	DUMMYNET
-options  	IPDIVERT
+options 	IPFIREWALL
+options 	IPFIREWALL_DEFAULT_TO_ACCEPT
+options 	IPFIREWALL_VERBOSE
+options 	IPFIREWALL_VERBOSE_LIMIT=100
+options 	IPFIREWALL_NAT
+options 	LIBALIAS
+options 	DUMMYNET
+options 	IPDIVERT
 
 #PF 
-device  	pf
-device  	pflog
-device  	pfsync
+device		pf
+device		pflog
+device		pfsync
 
 # ALTQ, required for PF
-options  	ALTQ			# Basic ALTQ support
-options  	ALTQ_CBQ		# Class Based Queueing
-options  	ALTQ_RED		# Random Early Detection
-options  	ALTQ_RIO		# RED In/Out
-options  	ALTQ_HFSC		# Hierarchical Packet Scheduler
-options  	ALTQ_CDNR		# Traffic conditioner
-options  	ALTQ_PRIQ		# Priority Queueing
-options  	ALTQ_NOPCC		# Required if the TSC is unusable
+options 	ALTQ			# Basic ALTQ support
+options 	ALTQ_CBQ		# Class Based Queueing
+options 	ALTQ_RED		# Random Early Detection
+options 	ALTQ_RIO		# RED In/Out
+options 	ALTQ_HFSC		# Hierarchical Packet Scheduler
+options 	ALTQ_CDNR		# Traffic conditioner
+options 	ALTQ_PRIQ		# Priority Queueing
+options 	ALTQ_NOPCC		# Required if the TSC is unusable
 #options 	ALTQ_DEBUG
 
 # Debugging
-makeoptions 	DEBUG=-g		# Build kernel with gdb(1) debug symbols
+makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 options 	BREAK_TO_DEBUGGER
 options 	ALT_BREAK_TO_DEBUGGER
 options 	DDB
@@ -179,7 +179,7 @@ options 	ROOTDEVNAME=\"ufs:/dev/da1s1a\"
 # create a kernel config file that looks like this:
 #
 # include DREAMPLUG-1001
-# nomakeoptions FDT_DTS_FILE
+# nomakeoptions	FDT_DTS_FILE
 # makeoptions	FDT_DTS_FILE=dreamplug-1001N.dts
 # device 	nand
 

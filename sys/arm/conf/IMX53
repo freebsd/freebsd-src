@@ -170,5 +170,5 @@ options 	FDT			# Configure using FDT/DTB data
 #device		sc
 #device		vt
 #device		kbdmux
-#options         SC_DFLT_FONT		# compile font in
-#makeoptions     SC_DFLT_FONT=cp437
+#options 	SC_DFLT_FONT		# compile font in
+#makeoptions	SC_DFLT_FONT=cp437
