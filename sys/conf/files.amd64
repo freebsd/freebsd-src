@@ -509,6 +509,7 @@ compat/linux/linux_uid16.c	optional	compat_linux32
 compat/linux/linux_util.c	optional	compat_linux32
 compat/linux/linux_vdso.c	optional	compat_linux32
 compat/linux/linux_common.c	optional	compat_linux32
+compat/linux/linux_event.c	optional	compat_linux32
 dev/amr/amr_linux.c		optional	compat_linux32 amr
 dev/mfi/mfi_linux.c		optional	compat_linux32 mfi
 #
