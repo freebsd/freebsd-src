@@ -628,10 +628,8 @@ linux_tkill(struct thread *td, struct linux_tkill_args *args)
 	if (!LINUX_SIG_VALID(args->sig))
 		return (EINVAL);
 
-	if (args->sig > 0 && args->sig <= LINUX_SIGTBLSZ)
-		sig = linux_to_bsd_signal[_SIG_IDX(args->sig)];
-	else
-		sig = args->sig;
+
+	sig = BSD_TO_LINUX_SIGNAL(args->sig);
 
 	tdt = linux_tdfind(td, args->tid, -1);
 	if (tdt == NULL)
@@ -788,10 +786,7 @@ linux_rt_sigqueueinfo(struct thread *td, struct linux_rt_sigqueueinfo_args *args
 	if (linfo.lsi_code >= 0)
 		return (EPERM);
 
-	if (args->sig > 0 && args->sig <= LINUX_SIGTBLSZ)
-		sig = linux_to_bsd_signal[_SIG_IDX(args->sig)];
-	else
-		sig = args->sig;
+	sig = BSD_TO_LINUX_SIGNAL(args->sig);
 
 	error = ESRCH;
 	if ((p = pfind(args->pid)) != NULL ||
