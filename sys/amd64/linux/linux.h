@@ -82,6 +82,7 @@ typedef l_long		l_time_t;
 typedef l_int		l_timer_t;
 typedef l_int		l_mqd_t;
 typedef l_size_t	l_socklen_t;
+typedef	l_ulong		l_fd_mask;
 
 typedef struct {
 	l_int		val[2];
