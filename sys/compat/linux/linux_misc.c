@@ -824,6 +824,87 @@ linux_utimes(struct thread *td, struct linux_utimes_args *args)
 	return (error);
 }
 
+int 
+linux_utimensat(struct thread *td, struct linux_utimensat_args *args)
+{
+	struct l_timespec l_times[2];
+	struct timespec times[2], *timesp = NULL;
+	char *path = NULL;
+	int error, dfd, flags = 0;
+
+	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
+
+#ifdef DEBUG
+	if (ldebug(utimensat))
+		printf(ARGS(utimensat, "%d, *"), dfd);
+#endif
+
+	if (args->flags & ~LINUX_AT_SYMLINK_NOFOLLOW)
+		return (EINVAL);
+
+	if (args->times != NULL) {
+		error = copyin(args->times, l_times, sizeof(l_times));
+		if (error != 0)
+			return (error);
+
+		if (l_times[0].tv_nsec > 999999999 ||
+			l_times[1].tv_nsec > 999999999)
+			return (EINVAL);
+
+		times[0].tv_sec = l_times[0].tv_sec;
+		switch (l_times[0].tv_nsec)
+		{
+		case LINUX_UTIME_OMIT:
+			times[0].tv_nsec = UTIME_OMIT;
+			break;
+		case LINUX_UTIME_NOW:
+			times[0].tv_nsec = UTIME_NOW;
+			break;
+		default:
+			times[0].tv_nsec = l_times[0].tv_nsec;
+		}
+
+		times[1].tv_sec = l_times[1].tv_sec;
+		switch (l_times[1].tv_nsec)
+		{
+		case LINUX_UTIME_OMIT:
+			times[1].tv_nsec = UTIME_OMIT;
+			break;
+		case LINUX_UTIME_NOW:
+			times[1].tv_nsec = UTIME_NOW;
+			break;
+		default:
+			times[1].tv_nsec = l_times[1].tv_nsec;
+			break;
+		}
+		timesp = times;
+	}
+
+	if (times[0].tv_nsec == UTIME_OMIT && times[1].tv_nsec == UTIME_OMIT)
+		/* This breaks POSIX, but is what the Linux kernel does
+		 * _on purpose_ (documented in the man page for utimensat(2)),
+		 * so we must follow that behaviour. */
+		return (0);
+
+	if (args->pathname != NULL)
+		LCONVPATHEXIST_AT(td, args->pathname, &path, dfd);
+	else if (args->flags != 0)
+		return (EINVAL);
+
+	if (args->flags & LINUX_AT_SYMLINK_NOFOLLOW)
+		flags |= AT_SYMLINK_NOFOLLOW;
+
+	if (path == NULL)
+		error = kern_futimens(td, dfd, timesp, UIO_SYSSPACE);
+	else {
+		error = kern_utimensat(td, dfd, path, UIO_SYSSPACE, timesp,
+	    		UIO_SYSSPACE, flags);
+		LFREEPATH(path);
+	}
+
+	return (error);
+}
+
 int
 linux_futimesat(struct thread *td, struct linux_futimesat_args *args)
 {

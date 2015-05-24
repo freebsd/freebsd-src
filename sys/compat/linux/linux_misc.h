@@ -121,6 +121,9 @@ struct l_new_utsname {
 #define	LINUX_CLOCK_REALTIME_HR		4
 #define	LINUX_CLOCK_MONOTONIC_HR	5
 
+#define LINUX_UTIME_NOW			0x3FFFFFFF
+#define LINUX_UTIME_OMIT		0x3FFFFFFE
+
 extern int stclohz;
 
 #define	LINUX_WNOHANG		0x00000001
