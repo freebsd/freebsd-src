@@ -780,6 +780,7 @@ struct l_iovec32 {
 
 int linux32_copyiniov(struct l_iovec32 *iovp32, l_ulong iovcnt,
 			    struct iovec **iovp, int error);
+int linux_copyout_rusage(struct rusage *ru, void *uaddr);
 
 /* robust futexes */
 struct linux_robust_list {
