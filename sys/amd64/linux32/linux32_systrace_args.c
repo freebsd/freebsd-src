@@ -2192,7 +2192,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_fallocate */
 	case 324: {
-		*n_args = 0;
+		struct linux_fallocate_args *p = params;
+		iarg[0] = p->fd; /* l_int */
+		iarg[1] = p->mode; /* l_int */
+		iarg[2] = p->offset; /* l_loff_t */
+		iarg[3] = p->len; /* l_loff_t */
+		*n_args = 4;
 		break;
 	}
 	/* linux_timerfd_settime */
@@ -5598,6 +5603,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_fallocate */
 	case 324:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "l_loff_t";
+			break;
+		case 3:
+			p = "l_loff_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_timerfd_settime */
 	case 325:
@@ -6956,6 +6977,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_fallocate */
 	case 324:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_timerfd_settime */
 	case 325:
 	/* linux_timerfd_gettime */
