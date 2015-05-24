@@ -583,3 +583,5 @@
 346	AUE_NULL	STD	{ int linux_setns(void); }
 347	AUE_NULL	STD	{ int linux_process_vm_readv(void); }
 348	AUE_NULL	STD	{ int linux_process_vm_writev(void); }
+; please, keep this line at the end.
+349	AUE_NULL	UNIMPL	nosys

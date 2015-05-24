@@ -890,7 +890,8 @@ linux_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	sa->args[5] = frame->tf_ebp;	/* Unconfirmed */
 
 	if (sa->code >= p->p_sysent->sv_size)
-		sa->callp = &p->p_sysent->sv_table[0];
+		/* nosys */
+		sa->callp = &p->p_sysent->sv_table[LINUX_SYS_MAXSYSCALL];
  	else
  		sa->callp = &p->p_sysent->sv_table[sa->code];
 	sa->narg = sa->callp->sy_narg;
