@@ -64,7 +64,6 @@ DUMMY(sysfs);
 DUMMY(vm86);
 DUMMY(query_module);
 DUMMY(nfsservctl);
-DUMMY(rt_sigqueueinfo);
 DUMMY(sendfile);		/* different semantics */
 DUMMY(setfsuid);
 DUMMY(setfsgid);
