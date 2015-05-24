@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 1, 2008
+.Dd March 11, 2015
 .Dt UCOM 4
 .Os
 .Sh NAME
@@ -63,11 +63,34 @@ This means that normal programs such as
 or
 .Xr ppp 8
 can be used to access the device.
+.Sh Pulse Per Second (PPS) Timing Interface
+The
+.Nm
+driver can capture PPS timing information as defined in RFC 2783.
+The API, accessed via
+.Xr ioctl 8 ,
+is available on the tty device.
+To use the PPS capture feature with
+.Xr ntpd 8 ,
+symlink the tty device to
+.Va /dev/pps0.
 .Pp
 The
-.Va portno
-locater can be used to decide which port to use for devices that have
-multiple external ports.
+.Va hw.usb.ucom.pps_mode
+sysctl configures the PPS capture mode.
+It can be set in
+.Xr loader.conf 5
+or
+.Xr sysctl.conf 5 .
+The following capture modes are available:
+.Bl -tag -compact -offset "mmmm" -width "mmmm"
+.It 0
+Capture disabled (default).
+.It 1
+Capture pulses on the CTS line.
+.It 2
+Capture pulses on the DCD line.
+.El
 .Sh FILES
 .Bl -tag -width ".Pa /dev/cuaU?"
 .It Pa /dev/cuaU?
