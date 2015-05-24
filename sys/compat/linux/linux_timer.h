@@ -115,5 +115,6 @@ void native_to_linux_timespec(struct l_timespec *,
 				     struct timespec *);
 int linux_to_native_timespec(struct timespec *,
 				     struct l_timespec *);
+int linux_to_native_clockid(clockid_t *, clockid_t);
 
 #endif	/* _LINUX_TIMER_H */
