@@ -31,6 +31,10 @@
 #ifndef _LINUX_MIB_H_
 #define _LINUX_MIB_H_
 
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_compat_linux);
+#endif
+
 void	linux_osd_jail_register(void);
 void	linux_osd_jail_deregister(void);
 

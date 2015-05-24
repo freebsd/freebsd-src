@@ -69,7 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
-#include <net/vnet.h>
 
 #include <dev/usb/usb_ioctl.h>
 
@@ -2107,34 +2106,6 @@ linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
  * Criteria for interface name translation
  */
 #define IFP_IS_ETH(ifp) (ifp->if_type == IFT_ETHER)
-
-/*
- * Interface function used by linprocfs (at the time of writing). It's not
- * used by the Linuxulator itself.
- */
-int
-linux_ifname(struct ifnet *ifp, char *buffer, size_t buflen)
-{
-	struct ifnet *ifscan;
-	int ethno;
-
-	IFNET_RLOCK_ASSERT();
-
-	/* Short-circuit non ethernet interfaces */
-	if (!IFP_IS_ETH(ifp))
-		return (strlcpy(buffer, ifp->if_xname, buflen));
-
-	/* Determine the (relative) unit number for ethernet interfaces */
-	ethno = 0;
-	TAILQ_FOREACH(ifscan, &V_ifnet, if_link) {
-		if (ifscan == ifp)
-			return (snprintf(buffer, buflen, "eth%d", ethno));
-		if (IFP_IS_ETH(ifscan))
-			ethno++;
-	}
-
-	return (0);
-}
 
 /*
  * Translate a Linux interface name to a FreeBSD interface name,

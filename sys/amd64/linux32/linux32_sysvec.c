@@ -87,8 +87,6 @@ __FBSDID("$FreeBSD$");
 
 MODULE_VERSION(linux, 1);
 
-MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
-
 #define	AUXARGS_ENTRY_32(pos, id, val)	\
 	do {				\
 		suword32(pos++, id);	\
@@ -120,7 +118,6 @@ extern char _binary_linux32_locore_o_end;
 extern struct sysent linux_sysent[LINUX_SYS_MAXSYSCALL];
 
 SET_DECLARE(linux_ioctl_handler_set, struct linux_ioctl_handler);
-SET_DECLARE(linux_device_handler_set, struct linux_device_handler);
 
 static int	elf_linux_fixup(register_t **stack_base,
 		    struct image_params *iparams);
@@ -976,6 +973,13 @@ static u_long	linux32_maxvmem = LINUX32_MAXVMEM;
 SYSCTL_ULONG(_compat_linux32, OID_AUTO, maxvmem, CTLFLAG_RW,
     &linux32_maxvmem, 0, "");
 
+#if defined(DEBUG)
+SYSCTL_PROC(_compat_linux32, OID_AUTO, debug,
+            CTLTYPE_STRING | CTLFLAG_RW,
+            0, 0, linux_sysctl_debug, "A",
+            "Linux debugging control");
+#endif
+
 static void
 linux32_fixlimit(struct rlimit *rl, int which)
 {
@@ -1152,7 +1156,6 @@ linux_elf_modevent(module_t mod, int type, void *data)
 	Elf32_Brandinfo **brandinfo;
 	int error;
 	struct linux_ioctl_handler **lihp;
-	struct linux_device_handler **ldhp;
 
 	error = 0;
 
@@ -1165,8 +1168,6 @@ linux_elf_modevent(module_t mod, int type, void *data)
 		if (error == 0) {
 			SET_FOREACH(lihp, linux_ioctl_handler_set)
 				linux_ioctl_register_handler(*lihp);
-			SET_FOREACH(ldhp, linux_device_handler_set)
-				linux_device_register_handler(*ldhp);
 			LIST_INIT(&futex_list);
 			mtx_init(&futex_mtx, "ftllk", NULL, MTX_DEF);
 			linux_exit_tag = EVENTHANDLER_REGISTER(process_exit,
@@ -1175,7 +1176,6 @@ linux_elf_modevent(module_t mod, int type, void *data)
 			    linux_proc_exec, NULL, 1000);
 			linux_thread_dtor_tag = EVENTHANDLER_REGISTER(thread_dtor,
 			    linux_thread_dtor, NULL, EVENTHANDLER_PRI_ANY);
-			linux_osd_jail_register();
 			stclohz = (stathz ? stathz : hz);
 			if (bootverbose)
 				printf("Linux ELF exec handler installed\n");
@@ -1196,13 +1196,10 @@ linux_elf_modevent(module_t mod, int type, void *data)
 		if (error == 0) {
 			SET_FOREACH(lihp, linux_ioctl_handler_set)
 				linux_ioctl_unregister_handler(*lihp);
-			SET_FOREACH(ldhp, linux_device_handler_set)
-				linux_device_unregister_handler(*ldhp);
 			mtx_destroy(&futex_mtx);
 			EVENTHANDLER_DEREGISTER(process_exit, linux_exit_tag);
 			EVENTHANDLER_DEREGISTER(process_exec, linux_exec_tag);
 			EVENTHANDLER_DEREGISTER(thread_dtor, linux_thread_dtor_tag);
-			linux_osd_jail_deregister();
 			if (bootverbose)
 				printf("Linux ELF exec handler removed\n");
 		} else
@@ -1221,3 +1218,4 @@ static moduledata_t linux_elf_mod = {
 };
 
 DECLARE_MODULE_TIED(linuxelf, linux_elf_mod, SI_SUB_EXEC, SI_ORDER_ANY);
+MODULE_DEPEND(linuxelf, linux_common, 1, 1, 1);

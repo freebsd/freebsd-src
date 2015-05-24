@@ -196,6 +196,7 @@ SUBDIR=	\
 	${_linprocfs} \
 	${_linsysfs} \
 	${_linux} \
+	${_linux_common} \
 	${_linuxapi} \
 	lmc \
 	lpt \
@@ -632,6 +633,7 @@ _sfxge=		sfxge
 
 .if ${MK_BHYVE} != "no" || defined(ALL_MODULES)
 _vmm=		vmm
+_linux_common=	linux_common
 .endif
 .endif
 
