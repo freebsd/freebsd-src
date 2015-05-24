@@ -2240,7 +2240,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[1] = (intptr_t) p->events; /* struct epoll_event * */
 		iarg[2] = p->maxevents; /* l_int */
 		iarg[3] = p->timeout; /* l_int */
-		uarg[4] = (intptr_t) p->mask; /* l_osigset_t * */
+		uarg[4] = (intptr_t) p->mask; /* l_sigset_t * */
 		*n_args = 5;
 		break;
 	}
@@ -5812,7 +5812,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_int";
 			break;
 		case 4:
-			p = "l_osigset_t *";
+			p = "l_sigset_t *";
 			break;
 		default:
 			break;
