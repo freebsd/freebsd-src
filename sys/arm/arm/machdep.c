@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/cons.h>
 #include <sys/cpu.h>
+#include <sys/efi.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/kdb.h>
@@ -71,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/ptrace.h>
+#include <sys/reboot.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
@@ -1102,6 +1104,113 @@ set_stackptrs(int cpu)
 }
 #endif
 
+#ifdef EFI
+#define efi_next_descriptor(ptr, size) \
+	((struct efi_md *)(((uint8_t *) ptr) + size))
+
+static void
+add_efi_map_entries(struct efi_map_header *efihdr, struct mem_region *mr,
+    int *mrcnt, uint32_t *memsize)
+{
+	struct efi_md *map, *p;
+	const char *type;
+	size_t efisz, memory_size;
+	int ndesc, i, j;
+
+	static const char *types[] = {
+		"Reserved",
+		"LoaderCode",
+		"LoaderData",
+		"BootServicesCode",
+		"BootServicesData",
+		"RuntimeServicesCode",
+		"RuntimeServicesData",
+		"ConventionalMemory",
+		"UnusableMemory",
+		"ACPIReclaimMemory",
+		"ACPIMemoryNVS",
+		"MemoryMappedIO",
+		"MemoryMappedIOPortSpace",
+		"PalCode"
+	};
+
+	*mrcnt = 0;
+	*memsize = 0;
+
+	/*
+	 * Memory map data provided by UEFI via the GetMemoryMap
+	 * Boot Services API.
+	 */
+	efisz = roundup2(sizeof(struct efi_map_header), 0x10);
+	map = (struct efi_md *)((uint8_t *)efihdr + efisz);
+
+	if (efihdr->descriptor_size == 0)
+		return;
+	ndesc = efihdr->memory_size / efihdr->descriptor_size;
+
+	if (boothowto & RB_VERBOSE)
+		printf("%23s %12s %12s %8s %4s\n",
+		    "Type", "Physical", "Virtual", "#Pages", "Attr");
+
+	memory_size = 0;
+	for (i = 0, j = 0, p = map; i < ndesc; i++,
+	    p = efi_next_descriptor(p, efihdr->descriptor_size)) {
+		if (boothowto & RB_VERBOSE) {
+			if (p->md_type <= EFI_MD_TYPE_PALCODE)
+				type = types[p->md_type];
+			else
+				type = "<INVALID>";
+			printf("%23s %012llx %12p %08llx ", type, p->md_phys,
+			    p->md_virt, p->md_pages);
+			if (p->md_attr & EFI_MD_ATTR_UC)
+				printf("UC ");
+			if (p->md_attr & EFI_MD_ATTR_WC)
+				printf("WC ");
+			if (p->md_attr & EFI_MD_ATTR_WT)
+				printf("WT ");
+			if (p->md_attr & EFI_MD_ATTR_WB)
+				printf("WB ");
+			if (p->md_attr & EFI_MD_ATTR_UCE)
+				printf("UCE ");
+			if (p->md_attr & EFI_MD_ATTR_WP)
+				printf("WP ");
+			if (p->md_attr & EFI_MD_ATTR_RP)
+				printf("RP ");
+			if (p->md_attr & EFI_MD_ATTR_XP)
+				printf("XP ");
+			if (p->md_attr & EFI_MD_ATTR_RT)
+				printf("RUNTIME");
+			printf("\n");
+		}
+
+		switch (p->md_type) {
+		case EFI_MD_TYPE_CODE:
+		case EFI_MD_TYPE_DATA:
+		case EFI_MD_TYPE_BS_CODE:
+		case EFI_MD_TYPE_BS_DATA:
+		case EFI_MD_TYPE_FREE:
+			/*
+			 * We're allowed to use any entry with these types.
+			 */
+			break;
+		default:
+			continue;
+		}
+
+		j++;
+		if (j >= FDT_MEM_REGIONS)
+			break;
+
+		mr[j].mr_start = p->md_phys;
+		mr[j].mr_size = p->md_pages * PAGE_SIZE;
+		memory_size += mr[j].mr_size;
+	}
+
+	*mrcnt = j;
+	*memsize = memory_size;
+}
+#endif /* EFI */
+
 #ifdef FDT
 static char *
 kenv_next(char *cp)
@@ -1413,6 +1522,9 @@ initarm(struct arm_boot_params *abp)
 	char *env;
 	void *kmdp;
 	int err_devmap, mem_regions_sz;
+#ifdef EFI
+	struct efi_map_header *efihdr;
+#endif
 
 	/* get last allocated physical address */
 	arm_physmem_kernaddr = abp->abp_physaddr;
@@ -1445,9 +1557,20 @@ initarm(struct arm_boot_params *abp)
 	if (OF_init((void *)dtbp) != 0)
 		panic("OF_init failed with the found device tree");
 
-	/* Grab physical memory regions information from device tree. */
-	if (fdt_get_mem_regions(mem_regions, &mem_regions_sz, &memsize) != 0)
-		panic("Cannot get physical memory regions");
+#ifdef EFI
+	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
+	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
+	if (efihdr != NULL) {
+		add_efi_map_entries(efihdr, mem_regions, &mem_regions_sz,
+		   &memsize);
+	} else
+#endif
+	{
+		/* Grab physical memory regions information from device tree. */
+		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz,
+		    &memsize) != 0)
+			panic("Cannot get physical memory regions");
+	}
 	arm_physmem_hardware_regions(mem_regions, mem_regions_sz);
 
 	/* Grab reserved memory regions information from device tree. */

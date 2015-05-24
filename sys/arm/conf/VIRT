@@ -67,3 +67,6 @@ device		random			# Entropy device
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
 
+# Extensible Firmware Interface
+options 	EFI
+
