@@ -562,7 +562,10 @@
 338	AUE_NULL	STD	{ int linux_fanotify_init(void); }
 339	AUE_NULL	STD	{ int linux_fanotify_mark(void); }
 ; linux 2.6.36:
-340	AUE_NULL	STD	{ int linux_prlimit64(void); }
+340	AUE_NULL	STD	{ int linux_prlimit64(l_pid_t pid,	\
+				    l_uint resource,			\
+				    struct rlimit *new,			\
+				    struct rlimit *old); }
 ; later:
 341	AUE_NULL	STD	{ int linux_name_to_handle_at(void); }
 342	AUE_NULL	STD	{ int linux_open_by_handle_at(void); }
