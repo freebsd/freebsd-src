@@ -96,6 +96,11 @@ __FBSDID("$FreeBSD$");
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, ucom, CTLFLAG_RW, 0, "USB ucom");
 
+static int ucom_pps_mode;
+
+SYSCTL_INT(_hw_usb_ucom, OID_AUTO, pps_mode, CTLFLAG_RWTUN,
+    &ucom_pps_mode, 0, "pulse capturing mode - 0/1/2 - disabled/CTS/DCD");
+
 #ifdef USB_DEBUG
 static int ucom_debug = 0;
 
@@ -411,6 +416,11 @@ ucom_attach_tty(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 	tty_makedev(tp, NULL, "%s", buf);
 
 	sc->sc_tty = tp;
+
+	sc->sc_pps.ppscap = PPS_CAPTUREBOTH;
+	sc->sc_pps.driver_abi = PPS_ABI_VERSION;
+	sc->sc_pps.driver_mtx = sc->sc_mtx;
+	pps_init_abi(&sc->sc_pps);
 
 	DPRINTF("ttycreate: %s\n", buf);
 
@@ -861,6 +871,8 @@ ucom_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 		} else {
 			error = ENOIOCTL;
 		}
+		if (error == ENOIOCTL)
+			error = pps_ioctl(cmd, data, &sc->sc_pps);
 		break;
 	}
 	return (error);
@@ -1064,7 +1076,7 @@ ucom_cfg_status_change(struct usb_proc_msg *_task)
 	struct tty *tp;
 	uint8_t new_msr;
 	uint8_t new_lsr;
-	uint8_t onoff;
+	uint8_t msr_delta;
 	uint8_t lsr_delta;
 
 	tp = sc->sc_tty;
@@ -1088,15 +1100,42 @@ ucom_cfg_status_change(struct usb_proc_msg *_task)
 		/* TTY device closed */
 		return;
 	}
-	onoff = ((sc->sc_msr ^ new_msr) & SER_DCD);
+	msr_delta = (sc->sc_msr ^ new_msr);
 	lsr_delta = (sc->sc_lsr ^ new_lsr);
 
 	sc->sc_msr = new_msr;
 	sc->sc_lsr = new_lsr;
 
-	if (onoff) {
+	/*
+	 * Time pulse counting support. Note that both CTS and DCD are
+	 * active-low signals. The status bit is high to indicate that
+	 * the signal on the line is low, which corresponds to a PPS
+	 * clear event.
+	 */
+	switch(ucom_pps_mode) {
+	case 1:
+		if ((sc->sc_pps.ppsparam.mode & PPS_CAPTUREBOTH) &&
+		    (msr_delta & SER_CTS)) {
+			pps_capture(&sc->sc_pps);
+			pps_event(&sc->sc_pps, (sc->sc_msr & SER_CTS) ?
+			    PPS_CAPTURECLEAR : PPS_CAPTUREASSERT);
+		}
+		break;
+	case 2:
+		if ((sc->sc_pps.ppsparam.mode & PPS_CAPTUREBOTH) &&
+		    (msr_delta & SER_DCD)) {
+			pps_capture(&sc->sc_pps);
+			pps_event(&sc->sc_pps, (sc->sc_msr & SER_DCD) ?
+			    PPS_CAPTURECLEAR : PPS_CAPTUREASSERT);
+		}
+		break;
+	default:
+		break;
+	}
 
-		onoff = (sc->sc_msr & SER_DCD) ? 1 : 0;
+	if (msr_delta & SER_DCD) {
+
+		int onoff = (sc->sc_msr & SER_DCD) ? 1 : 0;
 
 		DPRINTF("DCD changed to %d\n", onoff);
 
