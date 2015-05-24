@@ -282,6 +282,17 @@
 		};
 	};
 
+	leds {
+		compatible = "gpio-leds";
+
+		sys_led {
+			gpios = <&gpioao 2>;	/* gpioao_2 sys_led */
+			label = "sys_led";
+
+			default-state = "on";
+		};
+	};
+
 	chosen {
 		stdin = "uart0";
 		stdout = "uart0";
