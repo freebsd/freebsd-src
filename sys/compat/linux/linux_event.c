@@ -258,6 +258,8 @@ epoll_to_kevent(struct thread *td, struct file *epfp,
 		*kev_flags |= EV_ONESHOT;
 	if ((levents & LINUX_EPOLLET) != 0)
 		*kev_flags |= EV_CLEAR;
+	if ((levents & LINUX_EPOLLERR) != 0)
+		*kev_flags |= EV_ERROR;
 
 	/* flags related to what event is registered */
 	if ((levents & LINUX_EPOLL_EVRD) != 0) {
@@ -299,8 +301,10 @@ static void
 kevent_to_epoll(struct kevent *kevent, struct epoll_event *l_event)
 {
 
-	if ((kevent->flags & EV_ERROR) != 0)
+	if ((kevent->flags & EV_ERROR) != 0) {
+		l_event->events = LINUX_EPOLLERR;
 		return;
+	}
 
 	switch (kevent->filter) {
 	case EVFILT_READ:
