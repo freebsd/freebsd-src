@@ -328,9 +328,29 @@ __MAKE_CONF?=/etc/make.conf
 .endif
 
 # Setup anything for the FreeBSD source build, if we're building
-# inside the source tree. Needs to be after make.conf, but before
-# local stuff.
+# inside the source tree. Needs to be after make.conf
 .sinclude <src.sys.mk>
+
+# Some options we need now
+__DEFAULT_NO_OPTIONS+= \
+	AUTO_OBJ \
+	META_MODE \
+	META_FILES \
+	STAGING
+
+.include <bsd.mkopt.mk>
+
+.if ${MK_AUTO_OBJ} == "yes"
+# This needs to be done early - before .PATH is computed
+.sinclude <auto.obj.mk>
+.endif
+.if ${MK_META_MODE} == "yes"
+.sinclude <meta.sys.mk>
+.elif ${MK_META_FILES} == "yes"
+.MAKE.MODE= meta verbose
+.else
+MK_STAGING= no
+.endif
 
 .if defined(__MAKE_SHELL) && !empty(__MAKE_SHELL)
 SHELL=	${__MAKE_SHELL}
