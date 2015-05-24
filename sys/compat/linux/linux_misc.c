@@ -886,26 +886,20 @@ linux_common_wait(struct thread *td, int pid, int *status,
 int
 linux_waitpid(struct thread *td, struct linux_waitpid_args *args)
 {
-	int options;
- 
+	struct linux_wait4_args wait4_args;
+
 #ifdef DEBUG
 	if (ldebug(waitpid))
 		printf(ARGS(waitpid, "%d, %p, %d"),
 		    args->pid, (void *)args->status, args->options);
 #endif
-	/*
-	 * this is necessary because the test in kern_wait doesn't work
-	 * because we mess with the options here
-	 */
-	if (args->options & ~(WUNTRACED | WNOHANG | WCONTINUED | __WCLONE))
-		return (EINVAL);
-   
-	options = (args->options & (WNOHANG | WUNTRACED));
-	/* WLINUXCLONE should be equal to __WCLONE, but we make sure */
-	if (args->options & __WCLONE)
-		options |= WLINUXCLONE;
 
-	return (linux_common_wait(td, args->pid, args->status, options, NULL));
+	wait4_args.pid = args->pid;
+	wait4_args.status = args->status;
+	wait4_args.options = args->options;
+	wait4_args.rusage = NULL;
+
+	return (linux_wait4(td, &wait4_args));
 }
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
@@ -921,11 +915,12 @@ linux_wait4(struct thread *td, struct linux_wait4_args *args)
 		    args->pid, (void *)args->status, args->options,
 		    (void *)args->rusage);
 #endif
+	if (args->options & ~(LINUX_WUNTRACED | LINUX_WNOHANG |
+	    LINUX_WCONTINUED | __WCLONE | __WNOTHREAD | __WALL))
+		return (EINVAL);
 
-	options = (args->options & (WNOHANG | WUNTRACED));
-	/* WLINUXCLONE should be equal to __WCLONE, but we make sure */
-	if (args->options & __WCLONE)
-		options |= WLINUXCLONE;
+	options = WEXITED;
+	linux_to_bsd_waitopts(args->options, &options);
 
 	if (args->rusage != NULL)
 		rup = &ru;
