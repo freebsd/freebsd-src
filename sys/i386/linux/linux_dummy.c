@@ -80,7 +80,6 @@ DUMMY(mbind);
 DUMMY(get_mempolicy);
 DUMMY(set_mempolicy);
 DUMMY(kexec_load);
-DUMMY(waitid);
 /* linux 2.6.11: */
 DUMMY(add_key);
 DUMMY(request_key);
