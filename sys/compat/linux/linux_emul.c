@@ -42,8 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
-#include <sys/sysproto.h>
-#include <sys/unistd.h>
 
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_misc.h>
@@ -86,6 +84,7 @@ linux_proc_init(struct thread *td, struct thread *newtd, int flags)
 {
 	struct linux_emuldata *em;
 	struct linux_pemuldata *pem;
+	struct epoll_emuldata *emd;
 
 	if (newtd != NULL) {
 		/* non-exec call */
@@ -93,8 +92,13 @@ linux_proc_init(struct thread *td, struct thread *newtd, int flags)
 		em->pdeath_signal = 0;
 		em->robust_futexes = NULL;
 		if (flags & LINUX_CLONE_THREAD) {
+			LINUX_CTR1(proc_init, "thread newtd(%d)",
+			    newtd->td_tid);
+
 			em->em_tid = newtd->td_tid;
 		} else {
+			LINUX_CTR1(proc_init, "fork newtd(%d)",
+			    newtd->td_proc->p_pid);
 
 			em->em_tid = newtd->td_proc->p_pid;
 
@@ -105,12 +109,24 @@ linux_proc_init(struct thread *td, struct thread *newtd, int flags)
 		newtd->td_emuldata = em;
 	} else {
 		/* exec */
+		LINUX_CTR1(proc_init, "exec newtd(%d)",
+		    td->td_proc->p_pid);
 
 		/* lookup the old one */
 		em = em_find(td);
 		KASSERT(em != NULL, ("proc_init: emuldata not found in exec case.\n"));
 
 		em->em_tid = td->td_proc->p_pid;
+
+		 /* epoll should be destroyed in a case of exec. */
+		pem = pem_find(td->td_proc);
+		KASSERT(pem != NULL, ("proc_exit: proc emuldata not found.\n"));
+
+		if (pem->epoll != NULL) {
+			emd = pem->epoll;
+			pem->epoll = NULL;
+			free(emd, M_EPOLL);
+		}
 	}
 
 	em->child_clear_tid = NULL;
@@ -121,6 +137,7 @@ void
 linux_proc_exit(void *arg __unused, struct proc *p)
 {
 	struct linux_pemuldata *pem;
+	struct epoll_emuldata *emd;
 	struct thread *td = curthread;
 
 	if (__predict_false(SV_CURPROC_ABI() != SV_ABI_LINUX))
@@ -133,6 +150,12 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 
 	p->p_emuldata = NULL;
 
+	if (pem->epoll != NULL) {
+		emd = pem->epoll;
+		pem->epoll = NULL;
+		free(emd, M_EPOLL);
+	}
+
 	sx_destroy(&pem->pem_sx);
 	free(pem, M_LINUX);
 }
@@ -141,6 +164,7 @@ int
 linux_common_execve(struct thread *td, struct image_args *eargs)
 {
 	struct linux_pemuldata *pem;
+	struct epoll_emuldata *emd;
 	struct linux_emuldata *em;
 	struct proc *p;
 	int error;
@@ -180,6 +204,12 @@ linux_common_execve(struct thread *td, struct image_args *eargs)
 		p->p_emuldata = NULL;
 		PROC_UNLOCK(p);
 
+		if (pem->epoll != NULL) {
+			emd = pem->epoll;
+			pem->epoll = NULL;
+			free(emd, M_EPOLL);
+		}
+
 		free(em, M_TEMP);
 		free(pem, M_LINUX);
 	}
@@ -197,6 +227,7 @@ linux_proc_exec(void *arg __unused, struct proc *p, struct image_params *imgp)
 	 */
 	if (__predict_false((imgp->sysent->sv_flags & SV_ABI_MASK) ==
 	    SV_ABI_LINUX)) {
+
 		if (SV_PROC_ABI(p) == SV_ABI_LINUX)
 			linux_proc_init(td, NULL, 0);
 		else

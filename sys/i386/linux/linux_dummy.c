@@ -70,9 +70,6 @@ DUMMY(setfsgid);
 DUMMY(pivot_root);
 DUMMY(mincore);
 DUMMY(lookup_dcookie);
-DUMMY(epoll_create);
-DUMMY(epoll_ctl);
-DUMMY(epoll_wait);
 DUMMY(remap_file_pages);
 DUMMY(fstatfs64);
 DUMMY(mbind);
@@ -116,7 +113,6 @@ DUMMY(timerfd_gettime);
 /* linux 2.6.27: */
 DUMMY(signalfd4);
 DUMMY(eventfd2);
-DUMMY(epoll_create1);
 DUMMY(inotify_init1);
 /* linux 2.6.30: */
 DUMMY(preadv);
