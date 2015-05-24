@@ -23,10 +23,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
-#ifdef FFCLOCK
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#endif
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
@@ -1462,6 +1460,17 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, choice, CTLTYPE_STRING | CTLFLAG_RD,
  * RFC 2783 PPS-API implementation.
  */
 
+/*
+ *  Return true if the driver is aware of the abi version extensions in the
+ *  pps_state structure, and it supports at least the given abi version number.
+ */
+static inline int
+abi_aware(struct pps_state *pps, int vers)
+{
+
+	return ((pps->kcmode & KCMODE_ABIFLAG) && pps->driver_abi >= vers);
+}
+
 static int
 pps_fetch(struct pps_fetch_args *fapi, struct pps_state *pps)
 {
@@ -1491,7 +1500,17 @@ pps_fetch(struct pps_fetch_args *fapi, struct pps_state *pps)
 		cseq = pps->ppsinfo.clear_sequence;
 		while (aseq == pps->ppsinfo.assert_sequence &&
 		    cseq == pps->ppsinfo.clear_sequence) {
-			err = tsleep(pps, PCATCH, "ppsfch", timo);
+			if (abi_aware(pps, 1) && pps->driver_mtx != NULL) {
+				if (pps->flags & PPSFLAG_MTX_SPIN) {
+					err = msleep_spin(pps, pps->driver_mtx,
+					    "ppsfch", timo);
+				} else {
+					err = msleep(pps, pps->driver_mtx, PCATCH,
+					    "ppsfch", timo);
+				}
+			} else {
+				err = tsleep(pps, PCATCH, "ppsfch", timo);
+			}
 			if (err == EWOULDBLOCK && fapi->timeout.tv_sec == -1) {
 				continue;
 			} else if (err != 0) {
@@ -1581,7 +1600,8 @@ pps_ioctl(u_long cmd, caddr_t data, struct pps_state *pps)
 			return (EINVAL);
 		if (kapi->edge & ~pps->ppscap)
 			return (EINVAL);
-		pps->kcmode = kapi->edge;
+		pps->kcmode = (kapi->edge & KCMODE_EDGEMASK) |
+		    (pps->kcmode & KCMODE_ABIFLAG);
 		return (0);
 #else
 		return (EOPNOTSUPP);
@@ -1602,6 +1622,18 @@ pps_init(struct pps_state *pps)
 #ifdef FFCLOCK
 	pps->ppscap |= PPS_TSCLK_MASK;
 #endif
+	pps->kcmode &= ~KCMODE_ABIFLAG;
+}
+
+void
+pps_init_abi(struct pps_state *pps)
+{
+
+	pps_init(pps);
+	if (pps->driver_abi > 0) {
+		pps->kcmode |= KCMODE_ABIFLAG;
+		pps->kernel_abi = PPS_ABI_VERSION;
+	}
 }
 
 void
