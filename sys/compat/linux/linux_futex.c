@@ -246,12 +246,28 @@ struct mtx futex_mtx;			/* protects the futex list */
 					 * wp_list to prevent double wakeup.
 					 */
 
+static void futex_put(struct futex *, struct waiting_proc *);
+static int futex_get0(uint32_t *, struct futex **f, uint32_t);
+static int futex_get(uint32_t *, struct waiting_proc **, struct futex **,
+    uint32_t);
+static int futex_sleep(struct futex *, struct waiting_proc *, int);
+static int futex_wake(struct futex *, int, uint32_t);
+static int futex_requeue(struct futex *, int, struct futex *, int);
+static int futex_wait(struct futex *, struct waiting_proc *, int,
+    uint32_t);
+static int futex_atomic_op(struct thread *, int, uint32_t *);
+static int handle_futex_death(struct linux_emuldata *, uint32_t *,
+    unsigned int);
+static int fetch_robust_entry(struct linux_robust_list **,
+    struct linux_robust_list **, unsigned int *);
+
 /* support.s */
 int futex_xchgl(int oparg, uint32_t *uaddr, int *oldval);
 int futex_addl(int oparg, uint32_t *uaddr, int *oldval);
 int futex_orl(int oparg, uint32_t *uaddr, int *oldval);
 int futex_andl(int oparg, uint32_t *uaddr, int *oldval);
 int futex_xorl(int oparg, uint32_t *uaddr, int *oldval);
+
 
 static void
 futex_put(struct futex *f, struct waiting_proc *wp)
