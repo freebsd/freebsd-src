@@ -43,7 +43,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/errno.h>
 #include <sys/event.h>
+#include <sys/poll.h>
 #include <sys/proc.h>
+#include <sys/selinfo.h>
 #include <sys/sx.h>
 #include <sys/syscallsubr.h>
 #include <sys/timespec.h>
@@ -113,6 +115,57 @@ struct epoll_copyout_args {
 	uint32_t		count;
 	int			error;
 };
+
+/* eventfd */
+typedef uint64_t	eventfd_t;
+
+static fo_rdwr_t	eventfd_read;
+static fo_rdwr_t	eventfd_write;
+static fo_truncate_t	eventfd_truncate;
+static fo_ioctl_t	eventfd_ioctl;
+static fo_poll_t	eventfd_poll;
+static fo_kqfilter_t	eventfd_kqfilter;
+static fo_stat_t	eventfd_stat;
+static fo_close_t	eventfd_close;
+
+static struct fileops eventfdops = {
+	.fo_read = eventfd_read,
+	.fo_write = eventfd_write,
+	.fo_truncate = eventfd_truncate,
+	.fo_ioctl = eventfd_ioctl,
+	.fo_poll = eventfd_poll,
+	.fo_kqfilter = eventfd_kqfilter,
+	.fo_stat = eventfd_stat,
+	.fo_close = eventfd_close,
+	.fo_chmod = invfo_chmod,
+	.fo_chown = invfo_chown,
+	.fo_sendfile = invfo_sendfile,
+	.fo_flags = DFLAG_PASSABLE
+};
+
+static void	filt_eventfddetach(struct knote *kn);
+static int	filt_eventfdread(struct knote *kn, long hint);
+static int	filt_eventfdwrite(struct knote *kn, long hint);
+
+static struct filterops eventfd_rfiltops = {
+	.f_isfd = 1,
+	.f_detach = filt_eventfddetach,
+	.f_event = filt_eventfdread
+};
+static struct filterops eventfd_wfiltops = {
+	.f_isfd = 1,
+	.f_detach = filt_eventfddetach,
+	.f_event = filt_eventfdwrite
+};
+
+struct eventfd {
+	eventfd_t	efd_count;
+	uint32_t	efd_flags;
+	struct selinfo	efd_sel;
+	struct mtx	efd_lock;
+};
+
+static int	eventfd_create(struct thread *td, uint32_t initval, int flags);
 
 
 static void
@@ -497,4 +550,281 @@ epoll_delete_all_events(struct thread *td, struct file *epfp, int fd)
 
 	/* report any errors we got */
 	return (error1 == 0 ? error2 : error1);
+}
+
+static int
+eventfd_create(struct thread *td, uint32_t initval, int flags)
+{
+	struct filedesc *fdp;
+	struct eventfd *efd;
+	struct file *fp;
+	int fflags, fd, error;
+
+	fflags = 0;
+	if ((flags & LINUX_O_CLOEXEC) != 0)
+		fflags |= O_CLOEXEC;
+
+	fdp = td->td_proc->p_fd;
+	error = falloc(td, &fp, &fd, fflags);
+	if (error)
+		return (error);
+
+	efd = malloc(sizeof(*efd), M_EPOLL, M_WAITOK | M_ZERO);
+	efd->efd_flags = flags;
+	efd->efd_count = initval;
+	mtx_init(&efd->efd_lock, "eventfd", NULL, MTX_DEF);
+
+	knlist_init_mtx(&efd->efd_sel.si_note, &efd->efd_lock);
+
+	fflags = FREAD | FWRITE; 
+	if ((flags & LINUX_O_NONBLOCK) != 0)
+		fflags |= FNONBLOCK;
+
+	finit(fp, fflags, DTYPE_LINUXEFD, efd, &eventfdops);
+	fdrop(fp, td);
+
+	td->td_retval[0] = fd;
+	return (error);
+}
+
+int
+linux_eventfd(struct thread *td, struct linux_eventfd_args *args)
+{
+
+	return (eventfd_create(td, args->initval, 0));
+}
+
+int
+linux_eventfd2(struct thread *td, struct linux_eventfd2_args *args)
+{
+
+	if ((args->flags & ~(LINUX_O_CLOEXEC|LINUX_O_NONBLOCK|LINUX_EFD_SEMAPHORE)) != 0)
+		return (EINVAL);
+
+	return (eventfd_create(td, args->initval, args->flags));
+}
+
+static int
+eventfd_close(struct file *fp, struct thread *td)
+{
+	struct eventfd *efd;
+
+	efd = fp->f_data;
+	if (fp->f_type != DTYPE_LINUXEFD || efd == NULL)
+		return (EBADF);
+
+	seldrain(&efd->efd_sel);
+	knlist_destroy(&efd->efd_sel.si_note);
+
+	fp->f_ops = &badfileops;
+	mtx_destroy(&efd->efd_lock);
+	free(efd, M_EPOLL);
+
+	return (0);
+}
+
+static int
+eventfd_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
+	int flags, struct thread *td)
+{
+	struct eventfd *efd;
+	eventfd_t count;
+	int error;
+
+	efd = fp->f_data;
+	if (fp->f_type != DTYPE_LINUXEFD || efd == NULL)
+		return (EBADF);
+
+	if (uio->uio_resid < sizeof(eventfd_t))
+		return (EINVAL);
+
+	error = 0;
+	mtx_lock(&efd->efd_lock);
+retry:
+	if (efd->efd_count == 0) {
+		if ((efd->efd_flags & LINUX_O_NONBLOCK) != 0) {
+			mtx_unlock(&efd->efd_lock);
+			return (EAGAIN);
+		}
+		error = mtx_sleep(&efd->efd_count, &efd->efd_lock, PCATCH, "lefdrd", 0);
+		if (error == 0)
+			goto retry;
+	}
+	if (error == 0) {
+		if ((efd->efd_flags & LINUX_EFD_SEMAPHORE) != 0) {
+			count = 1;
+			--efd->efd_count;
+		} else {
+			count = efd->efd_count;
+			efd->efd_count = 0;
+		}
+		KNOTE_LOCKED(&efd->efd_sel.si_note, 0);
+		selwakeup(&efd->efd_sel);
+		wakeup(&efd->efd_count);
+		mtx_unlock(&efd->efd_lock);
+		error = uiomove(&count, sizeof(eventfd_t), uio);
+	} else
+		mtx_unlock(&efd->efd_lock);
+
+	return (error);
+}
+
+static int
+eventfd_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
+	 int flags, struct thread *td)
+{
+	struct eventfd *efd;
+	eventfd_t count;
+	int error;
+
+	efd = fp->f_data;
+	if (fp->f_type != DTYPE_LINUXEFD || efd == NULL)
+		return (EBADF);
+
+	if (uio->uio_resid < sizeof(eventfd_t))
+		return (EINVAL);
+
+	error = uiomove(&count, sizeof(eventfd_t), uio);
+	if (error)
+		return (error);
+	if (count == UINT64_MAX)
+		return (EINVAL);
+
+	mtx_lock(&efd->efd_lock);
+retry:
+	if (UINT64_MAX - efd->efd_count <= count) {
+		if ((efd->efd_flags & LINUX_O_NONBLOCK) != 0) {
+			mtx_unlock(&efd->efd_lock);
+			return (EAGAIN);
+		}
+		error = mtx_sleep(&efd->efd_count, &efd->efd_lock,
+		    PCATCH, "lefdwr", 0);
+		if (error == 0)
+			goto retry;
+	}
+	if (error == 0) {
+		efd->efd_count += count;
+		KNOTE_LOCKED(&efd->efd_sel.si_note, 0);
+		selwakeup(&efd->efd_sel);
+		wakeup(&efd->efd_count);
+	}
+	mtx_unlock(&efd->efd_lock);
+
+	return (error);
+}
+
+static int
+eventfd_poll(struct file *fp, int events, struct ucred *active_cred,
+	struct thread *td)
+{
+	struct eventfd *efd;
+	int revents = 0;
+
+	efd = fp->f_data;
+	if (fp->f_type != DTYPE_LINUXEFD || efd == NULL)
+		return (POLLERR);
+
+	mtx_lock(&efd->efd_lock);
+	if ((events & (POLLIN|POLLRDNORM)) && efd->efd_count > 0)
+		revents |= events & (POLLIN|POLLRDNORM);
+	if ((events & (POLLOUT|POLLWRNORM)) && UINT64_MAX - 1 > efd->efd_count)
+		revents |= events & (POLLOUT|POLLWRNORM);
+	if (revents == 0)
+		selrecord(td, &efd->efd_sel);
+	mtx_unlock(&efd->efd_lock);
+
+	return (revents);
+}
+
+/*ARGSUSED*/
+static int
+eventfd_kqfilter(struct file *fp, struct knote *kn)
+{
+	struct eventfd *efd;
+
+	efd = fp->f_data;
+	if (fp->f_type != DTYPE_LINUXEFD || efd == NULL)
+		return (EINVAL);
+
+	mtx_lock(&efd->efd_lock);
+	switch (kn->kn_filter) {
+	case EVFILT_READ:
+		kn->kn_fop = &eventfd_rfiltops;
+		break;
+	case EVFILT_WRITE:
+		kn->kn_fop = &eventfd_wfiltops;
+		break;
+	default:
+		mtx_unlock(&efd->efd_lock);
+		return (EINVAL);
+	}
+
+	kn->kn_hook = efd;
+	knlist_add(&efd->efd_sel.si_note, kn, 1);
+	mtx_unlock(&efd->efd_lock);
+
+	return (0);
+}
+
+static void
+filt_eventfddetach(struct knote *kn)
+{
+	struct eventfd *efd = kn->kn_hook;
+
+	mtx_lock(&efd->efd_lock);
+	knlist_remove(&efd->efd_sel.si_note, kn, 1);
+	mtx_unlock(&efd->efd_lock);
+}
+
+/*ARGSUSED*/
+static int
+filt_eventfdread(struct knote *kn, long hint)
+{
+	struct eventfd *efd = kn->kn_hook;
+	int ret;
+
+	mtx_assert(&efd->efd_lock, MA_OWNED);
+	ret = (efd->efd_count > 0);
+
+	return (ret);
+}
+
+/*ARGSUSED*/
+static int
+filt_eventfdwrite(struct knote *kn, long hint)
+{
+	struct eventfd *efd = kn->kn_hook;
+	int ret;
+
+	mtx_assert(&efd->efd_lock, MA_OWNED);
+	ret = (UINT64_MAX - 1 > efd->efd_count);
+
+	return (ret);
+}
+
+/*ARGSUSED*/
+static int
+eventfd_truncate(struct file *fp, off_t length, struct ucred *active_cred,
+	struct thread *td)
+{
+
+	return (ENXIO);
+}
+
+/*ARGSUSED*/
+static int
+eventfd_ioctl(struct file *fp, u_long cmd, void *data,
+	struct ucred *active_cred, struct thread *td)
+{
+
+	return (ENXIO);
+}
+
+/*ARGSUSED*/
+static int
+eventfd_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
+	struct thread *td)
+{
+
+	return (ENXIO);
 }
