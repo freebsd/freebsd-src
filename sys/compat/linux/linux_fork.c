@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sdt.h>
 #include <sys/sx.h>
 #include <sys/unistd.h>
+#include <sys/wait.h>
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
@@ -296,4 +297,17 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	}
 
 	return (0);
+}
+
+int
+linux_exit(struct thread *td, struct linux_exit_args *args)
+{
+
+#ifdef DEBUG
+	if (ldebug(exit))
+		printf(ARGS(exit, "%d"), args->rval);
+#endif
+
+	exit1(td, W_EXITCODE(args->rval, 0));
+		/* NOTREACHED */
 }
