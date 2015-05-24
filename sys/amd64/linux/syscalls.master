@@ -456,7 +456,8 @@
 270	AUE_SELECT	STD	{ int linux_pselect6(l_int nfds,			\
 				    l_fd_set *readfds, l_fd_set *writefds, l_fd_set *exceptfds,	\
 				    struct l_timespec *tsp, l_uintptr_t *sig); }
-271	AUE_NULL	STD	{ int linux_ppoll(void); }
+271	AUE_POLL	STD	{ int linux_ppoll(struct pollfd *fds, uint32_t nfds,	\
+				    struct l_timespec *tsp, l_sigset_t *sset, l_size_t ssize); }
 272	AUE_NULL	STD	{ int linux_unshare(void); }
 273	AUE_NULL	STD	{ int linux_set_robust_list(struct linux_robust_list_head *head, \
 				    l_size_t len); }

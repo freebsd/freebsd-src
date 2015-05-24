@@ -2209,6 +2209,59 @@ linux_pselect6(struct thread *td, struct linux_pselect6_args *args)
 	return (error);
 }
 
+int
+linux_ppoll(struct thread *td, struct linux_ppoll_args *args)
+{
+	struct timespec ts0, ts1;
+	struct l_timespec lts;
+	struct timespec uts, *tsp;
+	l_sigset_t l_ss;
+	sigset_t *ssp;
+	sigset_t ss;
+	int error;
+
+	if (args->sset != NULL) {
+		if (args->ssize != sizeof(l_ss))
+			return (EINVAL);
+		error = copyin(args->sset, &l_ss, sizeof(l_ss));
+		if (error)
+			return (error);
+		linux_to_bsd_sigset(&l_ss, &ss);
+		ssp = &ss;
+	} else
+		ssp = NULL;
+	if (args->tsp != NULL) {
+		error = copyin(args->tsp, &lts, sizeof(lts));
+		if (error)
+			return (error);
+		uts.tv_sec = lts.tv_sec;
+		uts.tv_nsec = lts.tv_nsec;
+
+		nanotime(&ts0);
+		tsp = &uts;
+	} else
+		tsp = NULL;
+
+	error = kern_poll(td, args->fds, args->nfds, tsp, ssp);
+
+	if (error == 0 && args->tsp != NULL) {
+		if (td->td_retval[0]) {
+			nanotime(&ts1);
+			timespecsub(&ts1, &ts0);
+			timespecsub(&uts, &ts1);
+			if (uts.tv_sec < 0)
+				timespecclear(&uts);
+		} else
+			timespecclear(&uts);
+
+		lts.tv_sec = uts.tv_sec;
+		lts.tv_nsec = uts.tv_nsec;
+		error = copyout(&lts, args->tsp, sizeof(lts));
+	}
+
+	return (error);
+}
+
 #if defined(DEBUG) || defined(KTR)
 /* XXX: can be removed when every ldebug(...) and KTR stuff are removed. */
 

@@ -88,7 +88,6 @@ DUMMY(inotify_add_watch);
 DUMMY(inotify_rm_watch);
 /* linux 2.6.16: */
 DUMMY(migrate_pages);
-DUMMY(ppoll);
 DUMMY(unshare);
 /* linux 2.6.17: */
 DUMMY(splice);
