@@ -1386,6 +1386,52 @@ linprocfs_douuid(PFS_FILL_ARGS)
 	return(0);
 }
 
+/*
+ * Filler function for proc/pid/auxv
+ */
+static int
+linprocfs_doauxv(PFS_FILL_ARGS)
+{
+	struct sbuf *asb;
+	off_t buflen, resid;
+	int error;
+
+	/*
+	 * Mimic linux behavior and pass only processes with usermode
+	 * address space as valid. Return zero silently otherwise.
+	 */
+	if (p->p_vmspace == &vmspace0)
+		return (0);
+
+	if (uio->uio_resid == 0)
+		return (0);
+	if (uio->uio_offset < 0 || uio->uio_resid < 0)
+		return (EINVAL);
+
+	asb = sbuf_new_auto();
+	if (asb == NULL)
+		return (ENOMEM);
+	error = proc_getauxv(td, p, asb);
+	if (error == 0)
+		error = sbuf_finish(asb);
+
+	resid = sbuf_len(asb) - uio->uio_offset;
+	if (resid > uio->uio_resid)
+		buflen = uio->uio_resid;
+	else
+		buflen = resid;
+	if (buflen > IOSIZE_MAX)
+		return (EINVAL);
+	if (buflen > MAXPHYS)
+		buflen = MAXPHYS;
+	if (resid <= 0)
+		return (0);
+
+	if (error == 0)
+		error = uiomove(sbuf_data(asb) + uio->uio_offset, buflen, uio);
+	sbuf_delete(asb);
+	return (error);
+}
 
 /*
  * Constructor
@@ -1461,6 +1507,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_link(dir, "fd", &linprocfs_dofdescfs,
 	    NULL, NULL, NULL, 0);
+	pfs_create_file(dir, "auxv", &linprocfs_doauxv,
+	    NULL, &procfs_candebug, NULL, PFS_RD|PFS_RAWRD);
 
 	/* /proc/scsi/... */
 	dir = pfs_create_dir(root, "scsi", NULL, NULL, NULL, 0);
