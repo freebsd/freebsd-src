@@ -99,6 +99,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #endif /* __i386__ || __amd64__ */
 
+#include <compat/linux/linux.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_util.h>
@@ -742,6 +743,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	segsz_t lsize;
 	struct thread *td2;
 	struct sigacts *ps;
+	l_sigset_t siglist, sigignore, sigcatch;
 	int i;
 
 	sx_slock(&proctree_lock);
@@ -833,28 +835,24 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 
 	/*
 	 * Signal masks
-	 *
-	 * We support up to 128 signals, while Linux supports 32,
-	 * but we only define 32 (the same 32 as Linux, to boot), so
-	 * just show the lower 32 bits of each mask. XXX hack.
-	 *
-	 * NB: on certain platforms (Sparc at least) Linux actually
-	 * supports 64 signals, but this code is a long way from
-	 * running on anything but i386, so ignore that for now.
 	 */
 	PROC_LOCK(p);
-	sbuf_printf(sb, "SigPnd:\t%08x\n",	p->p_siglist.__bits[0]);
-	/*
-	 * I can't seem to find out where the signal mask is in
-	 * relation to struct proc, so SigBlk is left unimplemented.
-	 */
-	sbuf_printf(sb, "SigBlk:\t%08x\n",	0); /* XXX */
+	bsd_to_linux_sigset(&p->p_siglist, &siglist);
 	ps = p->p_sigacts;
 	mtx_lock(&ps->ps_mtx);
-	sbuf_printf(sb, "SigIgn:\t%08x\n",	ps->ps_sigignore.__bits[0]);
-	sbuf_printf(sb, "SigCgt:\t%08x\n",	ps->ps_sigcatch.__bits[0]);
+	bsd_to_linux_sigset(&ps->ps_sigignore, &sigignore);
+	bsd_to_linux_sigset(&ps->ps_sigcatch, &sigcatch);
 	mtx_unlock(&ps->ps_mtx);
 	PROC_UNLOCK(p);
+
+	sbuf_printf(sb, "SigPnd:\t%016jx\n",	siglist.__mask);
+	/*
+	 * XXX. SigBlk - target thread's signal mask, td_sigmask.
+	 * To implement SigBlk pseudofs should support proc/tid dir entries.
+	 */
+	sbuf_printf(sb, "SigBlk:\t%016x\n",	0);
+	sbuf_printf(sb, "SigIgn:\t%016jx\n",	sigignore.__mask);
+	sbuf_printf(sb, "SigCgt:\t%016jx\n",	sigcatch.__mask);
 
 	/*
 	 * Linux also prints the capability masks, but we don't have
