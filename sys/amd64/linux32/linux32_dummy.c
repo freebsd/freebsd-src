@@ -118,7 +118,6 @@ DUMMY(pwritev);
 DUMMY(rt_tsigqueueinfo);
 DUMMY(perf_event_open);
 /* linux 2.6.33: */
-DUMMY(recvmmsg);
 DUMMY(fanotify_init);
 DUMMY(fanotify_mark);
 /* later: */
@@ -126,7 +125,6 @@ DUMMY(name_to_handle_at);
 DUMMY(open_by_handle_at);
 DUMMY(clock_adjtime);
 DUMMY(syncfs);
-DUMMY(sendmmsg);
 DUMMY(setns);
 DUMMY(process_vm_readv);
 DUMMY(process_vm_writev);
