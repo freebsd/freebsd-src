@@ -653,7 +653,7 @@ int
 linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 {
 	int clockrt, nrwake, op_ret, ret;
-	struct linux_emuldata *em;
+	struct linux_pemuldata *pem;
 	struct waiting_proc *wp;
 	struct futex *f, *f2;
 	struct l_timespec timeout;
@@ -973,12 +973,12 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		 * Glibc versions prior to 2.3.3 fall back to FUTEX_WAKE when
 		 * FUTEX_REQUEUE returned EINVAL.
 		 */
-		em = em_find(td);
-		if ((em->flags & LINUX_XDEPR_REQUEUEOP) == 0) {
+		pem = pem_find(td->td_proc);
+		if ((pem->flags & LINUX_XDEPR_REQUEUEOP) == 0) {
 			linux_msg(td,
 				  "linux_sys_futex: "
 				  "unsupported futex_requeue op\n");
-			em->flags |= LINUX_XDEPR_REQUEUEOP;
+			pem->flags |= LINUX_XDEPR_REQUEUEOP;
 			LIN_SDT_PROBE0(futex, linux_sys_futex,
 			    deprecated_requeue);
 		}
