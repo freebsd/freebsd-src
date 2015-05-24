@@ -1390,6 +1390,9 @@ fcntl_common(struct thread *td, struct linux_fcntl_args *args)
 		fdrop(fp, td);
 
 		return (kern_fcntl(td, args->fd, F_SETOWN, args->arg));
+
+	case LINUX_F_DUPFD_CLOEXEC:
+		return (kern_fcntl(td, args->fd, F_DUPFD_CLOEXEC, args->arg));
 	}
 
 	return (EINVAL);
