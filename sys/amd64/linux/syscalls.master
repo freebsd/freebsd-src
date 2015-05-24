@@ -502,7 +502,7 @@
 303	AUE_NULL	STD	{ int linux_name_to_handle_at(void); }
 304	AUE_NULL	STD	{ int linux_open_by_handle_at(void); }
 305	AUE_NULL	STD	{ int linux_clock_adjtime(void); }
-306	AUE_NULL	STD	{ int linux_syncfs(void); }
+306	AUE_SYNC	STD	{ int linux_syncfs(l_int fd); }
 307	AUE_NULL	STD	{ int linux_sendmmsg(l_int s,			\
 				    struct l_mmsghdr *msg, l_uint vlen,		\
 				    l_uint flags); }
