@@ -99,29 +99,6 @@ static int	linux_mmap_common(struct thread *td, l_uintptr_t addr,
 		    l_size_t len, l_int prot, l_int flags, l_int fd,
 		    l_loff_t pos);
 
-int
-linux_to_bsd_sigaltstack(int lsa)
-{
-	int bsa = 0;
-
-	if (lsa & LINUX_SS_DISABLE)
-		bsa |= SS_DISABLE;
-	if (lsa & LINUX_SS_ONSTACK)
-		bsa |= SS_ONSTACK;
-	return (bsa);
-}
-
-int
-bsd_to_linux_sigaltstack(int bsa)
-{
-	int lsa = 0;
-
-	if (bsa & SS_DISABLE)
-		lsa |= LINUX_SS_DISABLE;
-	if (bsa & SS_ONSTACK)
-		lsa |= LINUX_SS_ONSTACK;
-	return (lsa);
-}
 
 int
 linux_execve(struct thread *td, struct linux_execve_args *args)
