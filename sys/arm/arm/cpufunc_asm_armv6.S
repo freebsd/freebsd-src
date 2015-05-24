@@ -37,7 +37,7 @@
 /*
  * $FreeBSD$
  */
- 
+
 #include <machine/asm.h>
 
 	.arch	armv6
@@ -69,7 +69,7 @@ ENTRY(armv6_dcache_wb_range)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
 END(armv6_dcache_wb_range)
-	
+
 /* LINTSTUB: void armv6_dcache_wbinv_range(vaddr_t, vsize_t); */
 ENTRY(armv6_dcache_wbinv_range)
 	add	r1, r1, r0
@@ -78,7 +78,7 @@ ENTRY(armv6_dcache_wbinv_range)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
 END(armv6_dcache_wbinv_range)
-	
+
 /*
  * Note, we must not invalidate everything.  If the range is too big we
  * must use wb-inv of the entire cache.

@@ -143,7 +143,7 @@ ENTRY(cpu_throw)
 
 	GET_PCPU(r7, r9)
 	ldr	r7, [r5, #(TD_PCB)]		/* r7 = new thread's PCB */
-  
+
 	/* Switch to lwp0 context */
 
 	ldr	r9, .Lcpufuncs
@@ -277,14 +277,14 @@ ENTRY(cpu_switch)
 	ldr	r9, [r1, #(TD_MD + MD_RAS_END)]
 	str	r9, [r3, #8]
 #else
-	/* 
-	 * Set new tp.  No need to store the old one first, userland can't 
+	/*
+	 * Set new tp.  No need to store the old one first, userland can't
 	 * change it directly on armv6.
 	 */
 	ldr	r9, [r1, #(TD_MD + MD_TP)]
 	mcr p15, 0, r9, c13, c0, 3
 #endif
-	
+
 	/* Get the user structure for the new process in r9 */
 	ldr	r9, [r1, #(TD_PCB)]
 
@@ -407,7 +407,7 @@ ENTRY(cpu_switch)
 	cmp	r4, r6
 	beq	1b
 #endif
-	
+
 	/* XXXSCW: Safe to re-enable FIQs here */
 
 	/* rem: r9 = new PCB */
@@ -794,7 +794,7 @@ END(cpu_switch)
 ENTRY(savectx)
 	stmfd	sp!, {lr}
 	sub	sp, sp, #4
-	
+
 	/* Store all the registers in the thread's pcb */
 	add	r3, r0, #(PCB_R4)
 	stmia	r3, {r4-r12, sp, lr, pc}

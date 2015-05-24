@@ -414,7 +414,7 @@ arm_tmr_attach(device_t dev)
 		if (!arm_tmr_freq_varies)
 			tc_err = attach_tc(sc);
 		else if (bootverbose)
-			device_printf(sc->dev, 
+			device_printf(sc->dev,
 			    "not using variable-frequency device as timecounter");
 		sc->memrid++;
 		sc->irqrid++;
@@ -488,7 +488,7 @@ arm_tmr_change_frequency(uint64_t newfreq)
  *	@usec: number of microseconds to delay by
  *
  *	This function is called all over the kernel and is suppose to provide a
- *	consistent delay.  This function may also be called before the console 
+ *	consistent delay.  This function may also be called before the console
  *	is setup so no printf's can be called here.
  *
  *	RETURNS:

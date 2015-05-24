@@ -107,7 +107,7 @@ vfp_init(void)
 	coproc = get_coprocessorACR();
 	coproc |= COPROC10 | COPROC11;
 	set_coprocessorACR(coproc);
-	
+
 	fpsid = fmrx(fpsid);		/* read the vfp system id */
 	fpexc = fmrx(fpexc);		/* read the vfp exception reg */
 

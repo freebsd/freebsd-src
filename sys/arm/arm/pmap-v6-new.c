@@ -2194,7 +2194,7 @@ pmap_release(pmap_t pmap)
 	    pmap->pm_stats.resident_count));
 	KASSERT(pt2tab_user_is_empty(pmap->pm_pt2tab),
 	    ("%s: has allocated user PT2(s)", __func__));
-	KASSERT(CPU_EMPTY(&pmap->pm_active), 
+	KASSERT(CPU_EMPTY(&pmap->pm_active),
 	    ("%s: pmap %p is active on some CPU(s)", __func__, pmap));
 
 	mtx_lock_spin(&allpmaps_lock);
@@ -5958,7 +5958,7 @@ pmap_kenter_device(vm_offset_t va, vm_size_t size, vm_paddr_t pa)
 {
 	vm_offset_t sva;
 
-	KASSERT((size & PAGE_MASK) == 0, 
+	KASSERT((size & PAGE_MASK) == 0,
 	    ("%s: device mapping not page-sized", __func__));
 
 	sva = va;
@@ -5976,7 +5976,7 @@ pmap_kremove_device(vm_offset_t va, vm_size_t size)
 {
 	vm_offset_t sva;
 
-	KASSERT((size & PAGE_MASK) == 0, 
+	KASSERT((size & PAGE_MASK) == 0,
 	    ("%s: device mapping not page-sized", __func__));
 
 	sva = va;

@@ -50,11 +50,11 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Define this if you need to disable PL310 for debugging purpose
- * Spec: 
+ * Spec:
  * http://infocenter.arm.com/help/topic/com.arm.doc.ddi0246e/DDI0246E_l2c310_r3p1_trm.pdf
  */
 
-/* 
+/*
  * Hardcode errata for now
  * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0246b/pr01s02s02.html
  */
@@ -137,7 +137,7 @@ pl310_set_ram_latency(struct pl310_softc *sc, uint32_t which_reg,
 {
 	uint32_t v;
 
-	KASSERT(which_reg == PL310_TAG_RAM_CTRL || 
+	KASSERT(which_reg == PL310_TAG_RAM_CTRL ||
 	    which_reg == PL310_DATA_RAM_CTRL,
 	    ("bad pl310 ram latency register address"));
 
@@ -191,7 +191,7 @@ pl310_wait_background_op(uint32_t off, uint32_t mask)
 
 /**
  *	pl310_cache_sync - performs a cache sync operation
- * 
+ *
  *	According to the TRM:
  *
  *  "Before writing to any other register you must perform an explicit
@@ -231,7 +231,7 @@ pl310_wbinv_all(void)
 
 		for (i = 0; i < g_ways_assoc; i++) {
 			for (j = 0; j < g_way_size / g_l2cache_line_size; j++) {
-				pl310_write4(pl310_softc, 
+				pl310_write4(pl310_softc,
 				    PL310_CLEAN_INV_LINE_IDX,
 				    (i << 28 | j << 5));
 			}
@@ -278,8 +278,8 @@ pl310_wbinv_range(vm_paddr_t start, vm_size_t size)
 	while (size > 0) {
 #ifdef PL310_ERRATA_588369
 		if (pl310_softc->sc_rtl_revision <= CACHE_ID_RELEASE_r1p0) {
-			/* 
-			 * Errata 588369 says that clean + inv may keep the 
+			/*
+			 * Errata 588369 says that clean + inv may keep the
 			 * cache line if it was clean, the recommanded
 			 * workaround is to clean then invalidate the cache
 			 * line, with write-back and cache linefill disabled.
@@ -402,10 +402,10 @@ pl310_config_intr(void *arg)
 	    pl310_filter, NULL, sc, &sc->sc_irq_h);
 
 	/* Cache Line Eviction for Counter 0 */
-	pl310_write4(sc, PL310_EVENT_COUNTER0_CONF, 
+	pl310_write4(sc, PL310_EVENT_COUNTER0_CONF,
 	    EVENT_COUNTER_CONF_INCR | EVENT_COUNTER_CONF_CO);
 	/* Data Read Request for Counter 1 */
-	pl310_write4(sc, PL310_EVENT_COUNTER1_CONF, 
+	pl310_write4(sc, PL310_EVENT_COUNTER1_CONF,
 	    EVENT_COUNTER_CONF_INCR | EVENT_COUNTER_CONF_DRREQ);
 
 	/* Enable and clear pending interrupts */
@@ -413,9 +413,9 @@ pl310_config_intr(void *arg)
 	pl310_write4(sc, PL310_INTR_MASK, INTR_MASK_ALL);
 
 	/* Enable counters and reset C0 and C1 */
-	pl310_write4(sc, PL310_EVENT_COUNTER_CTRL, 
-	    EVENT_COUNTER_CTRL_ENABLED | 
-	    EVENT_COUNTER_CTRL_C0_RESET | 
+	pl310_write4(sc, PL310_EVENT_COUNTER_CTRL,
+	    EVENT_COUNTER_CTRL_ENABLED |
+	    EVENT_COUNTER_CTRL_C0_RESET |
 	    EVENT_COUNTER_CTRL_C1_RESET);
 
 	config_intrhook_disestablish(sc->sc_ich);
@@ -426,7 +426,7 @@ pl310_config_intr(void *arg)
 static int
 pl310_probe(device_t dev)
 {
-	
+
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
@@ -444,7 +444,7 @@ pl310_attach(device_t dev)
 
 	sc->sc_dev = dev;
 	rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 
+	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (sc->sc_mem_res == NULL)
 		panic("%s: Cannot map registers", device_get_name(dev));
@@ -501,7 +501,7 @@ pl310_attach(device_t dev)
 		pl310_write4(pl310_softc, PL310_INV_WAY, 0xffff);
 		pl310_wait_background_op(PL310_INV_WAY, 0xffff);
 		platform_pl310_write_ctrl(sc, CTRL_ENABLED);
-		device_printf(dev, "L2 Cache enabled: %uKB/%dB %d ways\n", 
+		device_printf(dev, "L2 Cache enabled: %uKB/%dB %d ways\n",
 		    (g_l2cache_size / 1024), g_l2cache_line_size, g_ways_assoc);
 		if (bootverbose)
 			pl310_print_config(sc);
