@@ -55,6 +55,22 @@
 #define LINUX_SCM_RIGHTS	0x01
 #define LINUX_SCM_CREDENTIALS   0x02
 
+struct l_msghdr {
+	l_uintptr_t	msg_name;
+	l_int		msg_namelen;
+	l_uintptr_t	msg_iov;
+	l_size_t	msg_iovlen;
+	l_uintptr_t	msg_control;
+	l_size_t	msg_controllen;
+	l_uint		msg_flags;
+};
+
+struct l_cmsghdr {
+	l_size_t	cmsg_len;
+	l_int		cmsg_level;
+	l_int		cmsg_type;
+};
+
 /* Ancilliary data object information macros */
 
 #define LINUX_CMSG_ALIGN(len)	roundup2(len, sizeof(l_ulong))
