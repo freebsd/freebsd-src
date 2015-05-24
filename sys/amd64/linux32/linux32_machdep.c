@@ -72,6 +72,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_util.h>
 #include <compat/linux/linux_emul.h>
 
+static void	bsd_to_linux_rusage(struct rusage *ru, struct l_rusage *lru);
+
 struct l_old_select_argv {
 	l_int		nfds;
 	l_uintptr_t	readfds;
@@ -130,6 +132,16 @@ bsd_to_linux_rusage(struct rusage *ru, struct l_rusage *lru)
 	lru->ru_nsignals = ru->ru_nsignals;
 	lru->ru_nvcsw = ru->ru_nvcsw;
 	lru->ru_nivcsw = ru->ru_nivcsw;
+}
+
+int
+linux_copyout_rusage(struct rusage *ru, void *uaddr)
+{
+	struct l_rusage lru;
+
+	bsd_to_linux_rusage(ru, &lru);
+
+	return (copyout(&lru, uaddr, sizeof(struct l_rusage)));
 }
 
 int
@@ -908,17 +920,14 @@ linux_settimeofday(struct thread *td, struct linux_settimeofday_args *uap)
 int
 linux_getrusage(struct thread *td, struct linux_getrusage_args *uap)
 {
-	struct l_rusage s32;
 	struct rusage s;
 	int error;
 
 	error = kern_getrusage(td, uap->who, &s);
 	if (error != 0)
 		return (error);
-	if (uap->rusage != NULL) {
-		bsd_to_linux_rusage(&s, &s32);
-		error = copyout(&s32, uap->rusage, sizeof(s32));
-	}
+	if (uap->rusage != NULL)
+		error = linux_copyout_rusage(&s, uap->rusage);
 	return (error);
 }
 
@@ -1023,38 +1032,4 @@ linux_set_thread_area(struct thread *td,
 	update_gdt_gsbase(td, info.base_addr);
 
 	return (0);
-}
-
-int
-linux_wait4(struct thread *td, struct linux_wait4_args *args)
-{
-	int error, options;
-	struct rusage ru, *rup;
-	struct l_rusage lru;
-
-#ifdef DEBUG
-	if (ldebug(wait4))
-		printf(ARGS(wait4, "%d, %p, %d, %p"),
-		    args->pid, (void *)args->status, args->options,
-		    (void *)args->rusage);
-#endif
-
-	options = (args->options & (WNOHANG | WUNTRACED));
-	/* WLINUXCLONE should be equal to __WCLONE, but we make sure */
-	if (args->options & __WCLONE)
-		options |= WLINUXCLONE;
-
-	if (args->rusage != NULL)
-		rup = &ru;
-	else
-		rup = NULL;
-	error = linux_common_wait(td, args->pid, args->status, options, rup);
-	if (error)
-		return (error);
-	if (args->rusage != NULL) {
-		bsd_to_linux_rusage(rup, &lru);
-		error = copyout(&lru, args->rusage, sizeof(lru));
-	}
-
-	return (error);
 }

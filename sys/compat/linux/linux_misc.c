@@ -886,6 +886,35 @@ linux_waitpid(struct thread *td, struct linux_waitpid_args *args)
 	return (linux_common_wait(td, args->pid, args->status, options, NULL));
 }
 
+int
+linux_wait4(struct thread *td, struct linux_wait4_args *args)
+{
+	int error, options;
+	struct rusage ru, *rup;
+
+#ifdef DEBUG
+	if (ldebug(wait4))
+		printf(ARGS(wait4, "%d, %p, %d, %p"),
+		    args->pid, (void *)args->status, args->options,
+		    (void *)args->rusage);
+#endif
+
+	options = (args->options & (WNOHANG | WUNTRACED));
+	/* WLINUXCLONE should be equal to __WCLONE, but we make sure */
+	if (args->options & __WCLONE)
+		options |= WLINUXCLONE;
+
+	if (args->rusage != NULL)
+		rup = &ru;
+	else
+		rup = NULL;
+	error = linux_common_wait(td, args->pid, args->status, options, rup);
+	if (error != 0)
+		return (error);
+	if (args->rusage != NULL)
+		error = linux_copyout_rusage(&ru, args->rusage);
+	return (error);
+}
 
 int
 linux_mknod(struct thread *td, struct linux_mknod_args *args)
