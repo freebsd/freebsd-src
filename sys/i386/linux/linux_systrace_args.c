@@ -1962,7 +1962,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_waitid */
 	case 284: {
-		*n_args = 0;
+		struct linux_waitid_args *p = params;
+		iarg[0] = p->idtype; /* int */
+		iarg[1] = p->id; /* l_pid_t */
+		uarg[2] = (intptr_t) p->info; /* l_siginfo_t * */
+		iarg[3] = p->options; /* int */
+		uarg[4] = (intptr_t) p->rusage; /* void * */
+		*n_args = 5;
 		break;
 	}
 	/* linux_add_key */
@@ -5299,6 +5305,25 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_waitid */
 	case 284:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "l_pid_t";
+			break;
+		case 2:
+			p = "l_siginfo_t *";
+			break;
+		case 3:
+			p = "int";
+			break;
+		case 4:
+			p = "void *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_add_key */
 	case 286:
@@ -6847,6 +6872,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 283:
 	/* linux_waitid */
 	case 284:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_add_key */
 	case 286:
 	/* linux_request_key */
