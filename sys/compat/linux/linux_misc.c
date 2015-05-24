@@ -1873,6 +1873,78 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 	return (error);
 }
 
+int
+linux_sched_setparam(struct thread *td,
+    struct linux_sched_setparam_args *uap)
+{
+	struct sched_param sched_param;
+	struct thread *tdt;
+	struct proc *p;
+	int error;
+
+#ifdef DEBUG
+	if (ldebug(sched_setparam))
+		printf(ARGS(sched_setparam, "%d, *"), uap->pid);
+#endif
+
+	error = copyin(uap->param, &sched_param, sizeof(sched_param));
+	if (error)
+		return (error);
+
+	if (uap->pid == 0) {
+		tdt = td;
+		p = tdt->td_proc;
+		PROC_LOCK(p);
+	} else {
+		p = pfind(uap->pid);
+		if (p == NULL)
+			return (ESRCH);
+		/*
+		 * XXX. Scheduling parameters are in fact per-thread
+		 * attributes in Linux. Temporarily use the first
+		 * thread in proc. The same for get_param().
+		 */
+		tdt = FIRST_THREAD_IN_PROC(p);
+	}
+
+	error = kern_sched_setparam(td, tdt, &sched_param);
+	PROC_UNLOCK(p);
+	return (error);
+}
+
+int
+linux_sched_getparam(struct thread *td,
+    struct linux_sched_getparam_args *uap)
+{
+	struct sched_param sched_param;
+	struct thread *tdt;
+	struct proc *p;
+	int error;
+
+#ifdef DEBUG
+	if (ldebug(sched_getparam))
+		printf(ARGS(sched_getparam, "%d, *"), uap->pid);
+#endif
+
+	if (uap->pid == 0) {
+		tdt = td;
+		p = tdt->td_proc;
+		PROC_LOCK(p);
+	} else {
+		p = pfind(uap->pid);
+		if (p == NULL)
+			return (ESRCH);
+		tdt = FIRST_THREAD_IN_PROC(p);
+	}
+
+	error = kern_sched_getparam(td, tdt, &sched_param);
+	PROC_UNLOCK(p);
+	if (error == 0)
+		error = copyout(&sched_param, uap->param,
+		    sizeof(sched_param));
+	return (error);
+}
+
 /*
  * Get affinity of a process.
  */
