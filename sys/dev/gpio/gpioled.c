@@ -166,8 +166,10 @@ static int
 gpioled_attach(device_t dev)
 {
 	struct gpioled_softc *sc;
+	int state;
 #ifdef FDT
 	phandle_t node;
+	char *default_state;
 	char *name;
 #else
 	const char *name;
@@ -177,10 +179,29 @@ gpioled_attach(device_t dev)
 	sc->sc_dev = dev;
 	sc->sc_busdev = device_get_parent(dev);
 	GPIOLED_LOCK_INIT(sc);
+
+	state = 0;
+
 #ifdef FDT
-	name = NULL;
 	if ((node = ofw_bus_get_node(dev)) == -1)
 		return (ENXIO);
+
+	if (OF_getprop_alloc(node, "default-state",
+	    sizeof(char), (void **)&default_state) != -1) {
+		if (strcasecmp(default_state, "on") == 0)
+			state = 1;
+		else if (strcasecmp(default_state, "off") == 0)
+			state = 0;
+		else if (strcasecmp(default_state, "keep") == 0)
+			state = -1;
+		else {
+			device_printf(dev,
+			    "unknown value for default-state in FDT\n");
+		}
+		free(default_state, M_OFWPROP);
+	}
+
+	name = NULL;
 	if (OF_getprop_alloc(node, "label", 1, (void **)&name) == -1)
 		OF_getprop_alloc(node, "name", 1, (void **)&name);
 #else
@@ -189,8 +210,8 @@ gpioled_attach(device_t dev)
 		name = NULL;
 #endif
 
-	sc->sc_leddev = led_create(gpioled_control, sc, name ? name :
-	    device_get_nameunit(dev));
+	sc->sc_leddev = led_create_state(gpioled_control, sc, name ? name :
+	    device_get_nameunit(dev), state);
 #ifdef FDT
 	if (name != NULL)
 		free(name, M_OFWPROP);
