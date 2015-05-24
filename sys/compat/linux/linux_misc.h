@@ -130,6 +130,7 @@ extern int stclohz;
 #define	LINUX_P_PID		1
 #define	LINUX_P_PGID		2
 
+#define	LINUX_RLIM_INFINITY	(~0UL)
 
 int linux_common_wait(struct thread *td, int pid, int *status,
 			int options, struct rusage *ru);
