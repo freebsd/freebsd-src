@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 
 #define FDT_COMPAT_LEN	255
 #define FDT_TYPE_LEN	64
-#define FDT_NAME_LEN	32
 
 #define FDT_REG_CELLS	4
 
@@ -307,22 +306,6 @@ fdt_find_compatible(phandle_t start, const char *compat, int strict)
 					continue;
 			return (child);
 		}
-	return (0);
-}
-
-phandle_t
-fdt_find_child(phandle_t start, const char *child_name)
-{
-	char name[FDT_NAME_LEN];
-	phandle_t child;
-
-	for (child = OF_child(start); child != 0; child = OF_peer(child)) {
-		if (OF_getprop(child, "name", name, sizeof(name)) <= 0)
-			continue;
-		if (strcmp(name, child_name) == 0)
-			return (child);
-	}
-
 	return (0);
 }
 

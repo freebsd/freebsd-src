@@ -503,6 +503,28 @@ ofw_bus_intr_to_rl(device_t dev, phandle_t node,
 }
 
 phandle_t
+ofw_bus_find_child(phandle_t start, const char *child_name)
+{
+	char *name;
+	int ret;
+	phandle_t child;
+
+	for (child = OF_child(start); child != 0; child = OF_peer(child)) {
+		ret = OF_getencprop_alloc(child, "name", sizeof(*name), (void **)&name);
+		if (ret == -1)
+			continue;
+		if (strcmp(name, child_name) == 0) {
+			free(name, M_OFWPROP);
+			return (child);
+		}
+
+		free(name, M_OFWPROP);
+	}
+
+	return (0);
+}
+
+phandle_t
 ofw_bus_find_compatible(phandle_t node, const char *onecompat)
 {
 	phandle_t child, ret;
