@@ -158,14 +158,6 @@ TARGET_MACHINE= host
 OBJTOP := ${HOST_OBJTOP}
 .endif
 
-# if you want objdirs make them automatic
-# we need .OBJDIR made before we start populating .PATH
-.if ${MKOBJDIRS:Uno} == "auto" || defined(WITH_AUTO_OBJ)
-WITH_AUTO_OBJ= yes
-MKOBJDIRS=auto
-.include <auto.obj.mk>
-.endif
-
 # the logic in bsd.own.mk forces this dance
 .ifndef WITHOUT_META_MODE
 WITH_META_MODE= yes
