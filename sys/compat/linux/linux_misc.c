@@ -874,6 +874,8 @@ linux_common_wait(struct thread *td, int pid, int *status,
 		else if (WIFSTOPPED(tmpstat))
 			tmpstat = (tmpstat & 0xffff00ff) |
 			    (BSD_TO_LINUX_SIGNAL(WSTOPSIG(tmpstat)) << 8);
+		else if (WIFCONTINUED(tmpstat))
+			tmpstat = 0xffff;
 		error = copyout(&tmpstat, status, sizeof(int));
 	}
 
