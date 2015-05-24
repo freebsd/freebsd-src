@@ -130,6 +130,7 @@ static boolean_t linux32_trans_osrel(const Elf_Note *note, int32_t *osrel);
 
 static eventhandler_tag linux_exit_tag;
 static eventhandler_tag linux_exec_tag;
+static eventhandler_tag linux_thread_dtor_tag;
 
 /*
  * Linux syscalls return negative errno's, we do positive and map them
@@ -1037,6 +1038,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_shared_page_base = LINUX32_SHAREDPAGE,
 	.sv_shared_page_len = PAGE_SIZE,
 	.sv_schedtail	= linux_schedtail,
+	.sv_thread_detach = linux_thread_detach,
 };
 INIT_SYSENTVEC(elf_sysvec, &elf_linux_sysvec);
 
@@ -1125,14 +1127,14 @@ linux_elf_modevent(module_t mod, int type, void *data)
 				linux_ioctl_register_handler(*lihp);
 			SET_FOREACH(ldhp, linux_device_handler_set)
 				linux_device_register_handler(*ldhp);
-			mtx_init(&emul_lock, "emuldata lock", NULL, MTX_DEF);
-			sx_init(&emul_shared_lock, "emuldata->shared lock");
 			LIST_INIT(&futex_list);
 			mtx_init(&futex_mtx, "ftllk", NULL, MTX_DEF);
 			linux_exit_tag = EVENTHANDLER_REGISTER(process_exit,
 			    linux_proc_exit, NULL, 1000);
 			linux_exec_tag = EVENTHANDLER_REGISTER(process_exec,
 			    linux_proc_exec, NULL, 1000);
+			linux_thread_dtor_tag = EVENTHANDLER_REGISTER(thread_dtor,
+			    linux_thread_dtor, NULL, EVENTHANDLER_PRI_ANY);
 			linux_szplatform = roundup(strlen(linux_platform) + 1,
 			    sizeof(char *));
 			linux_osd_jail_register();
@@ -1158,11 +1160,10 @@ linux_elf_modevent(module_t mod, int type, void *data)
 				linux_ioctl_unregister_handler(*lihp);
 			SET_FOREACH(ldhp, linux_device_handler_set)
 				linux_device_unregister_handler(*ldhp);
-			mtx_destroy(&emul_lock);
-			sx_destroy(&emul_shared_lock);
 			mtx_destroy(&futex_mtx);
 			EVENTHANDLER_DEREGISTER(process_exit, linux_exit_tag);
 			EVENTHANDLER_DEREGISTER(process_exec, linux_exec_tag);
+			EVENTHANDLER_DEREGISTER(thread_dtor, linux_thread_dtor_tag);
 			linux_osd_jail_deregister();
 			if (bootverbose)
 				printf("Linux ELF exec handler removed\n");
