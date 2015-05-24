@@ -245,7 +245,7 @@ void
 board_set_serial(uint64_t serial)
 {
 
-	snprintf(board_serial, sizeof(board_serial)-1, 
+	snprintf(board_serial, sizeof(board_serial)-1,
 		    "%016jx", serial);
 }
 
@@ -297,7 +297,7 @@ sendsig(catcher, ksi, mask)
 
 	/* make room on the stack */
 	fp--;
-	
+
 	/* make the stack aligned */
 	fp = (struct sigframe *)STACKALIGN(fp);
 	/* Populate the siginfo frame. */
@@ -328,7 +328,7 @@ sendsig(catcher, ksi, mask)
 	 * trampoline version numbers are coordinated with machine-
 	 * dependent code in libc.
 	 */
-	
+
 	tf->tf_r0 = sig;
 	tf->tf_r1 = (register_t)&fp->sf_si;
 	tf->tf_r2 = (register_t)&fp->sf_uc;
@@ -430,7 +430,7 @@ cpu_startup(void *dummy)
 	/*
 	 * Display the RAM layout.
 	 */
-	printf("real memory  = %ju (%ju MB)\n", 
+	printf("real memory  = %ju (%ju MB)\n",
 	    (uintmax_t)arm32_ptob(realmem),
 	    (uintmax_t)arm32_ptob(realmem) / mbyte);
 	printf("avail memory = %ju (%ju MB)\n",
@@ -492,7 +492,7 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 void
 cpu_idle(int busy)
 {
-	
+
 	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d", busy, curcpu);
 	spinlock_enter();
 #ifndef NO_EVENTTIMERS
@@ -562,14 +562,14 @@ int
 set_regs(struct thread *td, struct reg *regs)
 {
 	struct trapframe *tf = td->td_frame;
-	
+
 	bcopy(regs->r, &tf->tf_r0, sizeof(regs->r));
 	tf->tf_usr_sp = regs->r_sp;
 	tf->tf_usr_lr = regs->r_lr;
 	tf->tf_pc = regs->r_pc;
 	tf->tf_spsr &=  ~PSR_FLAGS;
 	tf->tf_spsr |= regs->r_cpsr & PSR_FLAGS;
-	return (0);								
+	return (0);
 }
 
 int
@@ -633,7 +633,7 @@ ptrace_single_step(struct thread *td)
 {
 	struct proc *p;
 	int error;
-	
+
 	/* TODO: This needs to be updated for Thumb-2 */
 	if ((td->td_frame->tf_spsr & PSR_T) != 0)
 		return (EINVAL);
@@ -812,7 +812,7 @@ sys_sigreturn(td, uap)
 {
 	ucontext_t uc;
 	int spsr;
-	
+
 	if (uap == NULL)
 		return (EFAULT);
 	if (copyin(uap->sigcntxp, &uc, sizeof(uc)))
@@ -1186,7 +1186,7 @@ initarm(struct arm_boot_params *abp)
 
 	/* Grab reserved memory regions information from device tree. */
 	if (fdt_get_reserved_regions(mem_regions, &mem_regions_sz) == 0)
-		arm_physmem_exclude_regions(mem_regions, mem_regions_sz, 
+		arm_physmem_exclude_regions(mem_regions, mem_regions_sz,
 		    EXFLAG_NODUMP | EXFLAG_NOALLOC);
 
 	/* Platform-specific initialisation */
@@ -1392,7 +1392,7 @@ initarm(struct arm_boot_params *abp)
 	 *
 	 * Prepare the list of physical memory available to the vm subsystem.
 	 */
-	arm_physmem_exclude_region(abp->abp_physaddr, 
+	arm_physmem_exclude_region(abp->abp_physaddr,
 	    (virtual_avail - KERNVIRTADDR), EXFLAG_NOALLOC);
 	arm_physmem_init_kernel_globals();
 

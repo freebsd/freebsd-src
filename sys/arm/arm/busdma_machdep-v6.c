@@ -160,7 +160,7 @@ SYSCTL_UINT(_hw_busdma, OID_AUTO, maps_dmamem, CTLFLAG_RD, &maps_dmamem, 0,
    "Number of active maps for bus_dmamem_alloc buffers");
 SYSCTL_UINT(_hw_busdma, OID_AUTO, maps_coherent, CTLFLAG_RD, &maps_coherent, 0,
    "Number of active maps with BUS_DMA_COHERENT flag set");
-SYSCTL_COUNTER_U64(_hw_busdma, OID_AUTO, maploads_total, CTLFLAG_RD, 
+SYSCTL_COUNTER_U64(_hw_busdma, OID_AUTO, maploads_total, CTLFLAG_RD,
     &maploads_total, "Number of load operations performed");
 SYSCTL_COUNTER_U64(_hw_busdma, OID_AUTO, maploads_bounced, CTLFLAG_RD,
     &maploads_bounced, "Number of load operations that used bounce buffers");
@@ -230,14 +230,14 @@ busdma_init(void *dummy)
 	uma_flags = 0;
 
 	/* Create a cache of buffers in standard (cacheable) memory. */
-	standard_allocator = busdma_bufalloc_create("buffer", 
+	standard_allocator = busdma_bufalloc_create("buffer",
 	    arm_dcache_align,	/* minimum_alignment */
-	    NULL,		/* uma_alloc func */ 
+	    NULL,		/* uma_alloc func */
 	    NULL,		/* uma_free func */
 	    uma_flags);		/* uma_zcreate_flags */
 
 #ifdef INVARIANTS
-	/* 
+	/*
 	 * Force UMA zone to allocate service structures like
 	 * slabs using own allocator. uma_debug code performs
 	 * atomic ops on uma_slab_t fields and safety of this
@@ -251,8 +251,8 @@ busdma_init(void *dummy)
 	 */
 	coherent_allocator = busdma_bufalloc_create("coherent",
 	    arm_dcache_align,	/* minimum_alignment */
-	    busdma_bufalloc_alloc_uncacheable, 
-	    busdma_bufalloc_free_uncacheable, 
+	    busdma_bufalloc_alloc_uncacheable,
+	    busdma_bufalloc_free_uncacheable,
 	    uma_flags);	/* uma_zcreate_flags */
 }
 
@@ -343,7 +343,7 @@ cacheline_bounce(bus_dmamap_t map, bus_addr_t addr, bus_size_t size)
  * address spaces.
  */
 static __inline int
-might_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t addr, 
+might_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t addr,
     bus_size_t size)
 {
 
@@ -364,7 +364,7 @@ might_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t addr,
  * the DMA needs to bounce, otherwise any DMA within the zone bounces.
  */
 static int
-must_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t paddr, 
+must_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t paddr,
     bus_size_t size)
 {
 
@@ -387,11 +387,11 @@ must_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t paddr,
 	 */
 	while (dmat != NULL && exclusion_bounce(dmat)) {
 		if ((paddr >= dmat->lowaddr && paddr <= dmat->highaddr) &&
-		    (dmat->filter == NULL || 
+		    (dmat->filter == NULL ||
 		    dmat->filter(dmat->filterarg, paddr) != 0))
 			return (1);
 		dmat = dmat->parent;
-	} 
+	}
 
 	return (0);
 }
@@ -554,7 +554,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		 * number of pages in a transfer.
 		 */
 		maxsize = roundup2(maxsize, PAGE_SIZE) + PAGE_SIZE;
-		
+
 		if ((error = alloc_bounce_zone(newtag)) != 0) {
 			free(newtag, M_DEVBUF);
 			return (error);
@@ -630,7 +630,7 @@ static int allocate_bz_and_pages(bus_dma_tag_t dmat, bus_dmamap_t mapp)
 	struct bounce_zone *bz;
 	int maxpages;
 	int error;
-		
+
 	if (dmat->bounce_zone == NULL)
 		if ((error = alloc_bounce_zone(dmat)) != 0)
 			return (error);
@@ -651,13 +651,13 @@ static int allocate_bz_and_pages(bus_dma_tag_t dmat, bus_dmamap_t mapp)
 	if ((dmat->flags & BUS_DMA_MIN_ALLOC_COMP) == 0 ||
 	    (bz->map_count > 0 && bz->total_bpages < maxpages)) {
 		int pages;
-		
+
 		pages = atop(roundup2(dmat->maxsize, PAGE_SIZE)) + 1;
 		pages = MIN(maxpages - bz->total_bpages, pages);
 		pages = MAX(pages, 2);
 		if (alloc_bounce_pages(dmat, pages) < pages)
 			return (ENOMEM);
-		
+
 		if ((dmat->flags & BUS_DMA_MIN_ALLOC_COMP) == 0)
 			dmat->flags |= BUS_DMA_MIN_ALLOC_COMP;
 	}
@@ -676,7 +676,7 @@ allocate_map(bus_dma_tag_t dmat, int mflags)
 	 * variable-sized array of sync_list structures.  Following that
 	 * we allocate enough extra space to hold the array of bus_dma_segments.
 	 */
-	KASSERT(dmat->nsegments <= MAX_DMA_SEGMENTS, 
+	KASSERT(dmat->nsegments <= MAX_DMA_SEGMENTS,
 	   ("cannot allocate %u dma segments (max is %u)",
 	    dmat->nsegments, MAX_DMA_SEGMENTS));
 	segsize = sizeof(struct bus_dma_segment) * dmat->nsegments;
@@ -931,7 +931,7 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
 			else
 				paddr = pmap_extract(map->pmap, vaddr);
 			if (must_bounce(dmat, map, paddr,
-			    min(vendaddr - vaddr, (PAGE_SIZE - ((vm_offset_t)vaddr & 
+			    min(vendaddr - vaddr, (PAGE_SIZE - ((vm_offset_t)vaddr &
 			    PAGE_MASK)))) != 0) {
 				map->pagesneeded++;
 			}
@@ -1267,7 +1267,7 @@ _bus_dmamap_fix_user(vm_offset_t buf, bus_size_t len,
 	bus_addr_t curaddr;
 	vm_offset_t va;
 
-	/* 
+	/*
 	 * each synclist entry is contained within a single page.
 	 * this would be needed if BUS_DMASYNC_POSTxxxx was implemented
 	 */
@@ -1339,7 +1339,7 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 				cpu_dcache_wb_range((vm_offset_t)bpage->vaddr,
 				    bpage->datacount);
 				l2cache_wb_range((vm_offset_t)bpage->vaddr,
-				    (vm_offset_t)bpage->busaddr, 
+				    (vm_offset_t)bpage->busaddr,
 				    bpage->datacount);
 				bpage = STAILQ_NEXT(bpage, links);
 			}
@@ -1387,10 +1387,10 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 				startv = bpage->vaddr &~ arm_dcache_align_mask;
 				startp = bpage->busaddr &~ arm_dcache_align_mask;
 				len = bpage->datacount;
-				
+
 				if (startv != bpage->vaddr)
 					len += bpage->vaddr & arm_dcache_align_mask;
-				if (len & arm_dcache_align_mask) 
+				if (len & arm_dcache_align_mask)
 					len = (len -
 					    (len & arm_dcache_align_mask)) +
 					    arm_dcache_align;
@@ -1473,7 +1473,7 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 					    sl->busaddr, 1);
 				}
 				cpu_dcache_inv_range(sl->vaddr, sl->datacount);
-				l2cache_inv_range(sl->vaddr, sl->busaddr, 
+				l2cache_inv_range(sl->vaddr, sl->busaddr,
 				    sl->datacount);
 				sl++;
 			}
@@ -1485,7 +1485,7 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 		case BUS_DMASYNC_POSTREAD:
 		case BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE:
 			while (sl != end) {
-				l2cache_inv_range(sl->vaddr, sl->busaddr, 
+				l2cache_inv_range(sl->vaddr, sl->busaddr,
 				    sl->datacount);
 				cpu_dcache_inv_range(sl->vaddr, sl->datacount);
 				sl++;
