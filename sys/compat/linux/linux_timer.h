@@ -56,6 +56,23 @@
 #define	LINUX_CLOCK_SGI_CYCLE			10
 #define	LINUX_CLOCK_TAI				11
 
+#define	LINUX_CPUCLOCK_PERTHREAD_MASK		4
+#define	LINUX_CPUCLOCK_MASK			3
+#define	LINUX_CPUCLOCK_WHICH(clock)		\
+	((clock) & (clockid_t) LINUX_CPUCLOCK_MASK)
+#define	LINUX_CPUCLOCK_PROF			0
+#define	LINUX_CPUCLOCK_VIRT			1
+#define	LINUX_CPUCLOCK_SCHED			2
+#define	LINUX_CPUCLOCK_MAX			3
+#define	LINUX_CLOCKFD				LINUX_CPUCLOCK_MAX
+#define	LINUX_CLOCKFD_MASK			\
+	(LINUX_CPUCLOCK_PERTHREAD_MASK|LINUX_CPUCLOCK_MASK)
+
+#define	LINUX_CPUCLOCK_ID(clock)		((pid_t) ~((clock) >> 3))
+#define	LINUX_CPUCLOCK_PERTHREAD(clock)		\
+	(((clock) & (clockid_t) LINUX_CPUCLOCK_PERTHREAD_MASK) != 0)
+
+
 #define	L_SIGEV_SIGNAL				0
 #define	L_SIGEV_NONE				1
 #define	L_SIGEV_THREAD				2
