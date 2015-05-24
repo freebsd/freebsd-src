@@ -104,4 +104,7 @@ int ofw_bus_has_prop(device_t, const char *);
 /* Helper to search for a child with a given compat prop */
 phandle_t ofw_bus_find_compatible(phandle_t, const char *);
 
+/* Helper to search for a child with a given name */
+phandle_t ofw_bus_find_child(phandle_t, const char *);
+
 #endif /* !_DEV_OFW_OFW_BUS_SUBR_H_ */
