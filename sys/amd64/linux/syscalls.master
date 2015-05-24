@@ -506,3 +506,5 @@
 310	AUE_NULL	STD	{ int linux_process_vm_writev(void); }
 311	AUE_NULL	STD	{ int linux_kcmp(void); }
 312	AUE_NULL	STD	{ int linux_finit_module(void); }
+; please, keep this line at the end.
+313	AUE_NULL	UNIMPL	nosys
