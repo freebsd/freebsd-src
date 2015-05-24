@@ -3596,9 +3596,16 @@ linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 	sx_sunlock(&linux_ioctl_sx);
 	fdrop(fp, td);
 
-	linux_msg(td, "ioctl fd=%d, cmd=0x%x ('%c',%d) is not implemented",
-	    args->fd, (int)(args->cmd & 0xffff),
-	    (int)(args->cmd & 0xff00) >> 8, (int)(args->cmd & 0xff));
+	switch (args->cmd & 0xffff) {
+	case LINUX_BTRFS_IOC_CLONE:
+		return (ENOTSUP);
+
+	default:
+		linux_msg(td, "ioctl fd=%d, cmd=0x%x ('%c',%d) is not implemented",
+		    args->fd, (int)(args->cmd & 0xffff),
+		    (int)(args->cmd & 0xff00) >> 8, (int)(args->cmd & 0xff));
+		break;
+	}
 
 	return (EINVAL);
 }
