@@ -71,6 +71,8 @@ extern const char *linux_platform;
 					 * differ from AT_PLATFORM.
 					 */
 #define	LINUX_AT_EXECFN		31	/* filename of program */
+#define	LINUX_AT_SYSINFO	32	/* vsyscall */
+#define	LINUX_AT_SYSINFO_EHDR	33	/* vdso header */
 
 /* Linux sets the i387 to extended precision. */
 #if defined(__i386__) || defined(__amd64__)

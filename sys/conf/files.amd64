@@ -20,6 +20,18 @@ linux32_assym.h			optional	compat_linux32		\
 	no-obj no-implicit-rule before-depend				\
 	clean		"linux32_assym.h"
 #
+linux32_locore.o	optional	compat_linux32		\
+	dependency 	"linux32_assym.h $S/amd64/linux32/linux32_locore.s"	\
+	compile-with	"${CC} -x assembler-with-cpp -DLOCORE -m32 -shared -s -pipe -I. -I$S -Werror -Wall -fno-common -nostdinc -nostdlib -Wl,-T$S/amd64/linux32/linux32_vdso.lds.s -Wl,-soname=linux32_vdso.so,--eh-frame-hdr,-fPIC,-warn-common ${.IMPSRC} -o ${.TARGET}" \
+	no-obj no-implicit-rule						\
+	clean		"linux32_locore.o"
+#
+linux32_vdso.so		optional	compat_linux32			\
+	dependency 	"linux32_locore.o"				\
+	compile-with	"${OBJCOPY} --input binary --output elf64-x86-64-freebsd --binary-architecture i386 linux32_locore.o ${.TARGET}" \
+	no-implicit-rule						\
+	clean		"linux32_vdso.so"
+#
 ia32_genassym.o			standard				\
 	dependency 	"$S/compat/ia32/ia32_genassym.c"		\
 	compile-with	"${CC} ${CFLAGS:N-fno-common} -c ${.IMPSRC}"	\
@@ -473,8 +485,6 @@ compat/linsysfs/linsysfs.c	optional	linsysfs
 # Linux/i386 binary support
 #
 amd64/linux32/linux32_dummy.c	optional	compat_linux32
-amd64/linux32/linux32_locore.s	optional	compat_linux32		\
-	dependency 	"linux32_assym.h"
 amd64/linux32/linux32_machdep.c	optional	compat_linux32
 amd64/linux32/linux32_support.s	optional	compat_linux32		\
 	dependency 	"linux32_assym.h"
@@ -497,6 +507,7 @@ compat/linux/linux_time.c	optional	compat_linux32
 compat/linux/linux_timer.c	optional	compat_linux32
 compat/linux/linux_uid16.c	optional	compat_linux32
 compat/linux/linux_util.c	optional	compat_linux32
+compat/linux/linux_vdso.c	optional	compat_linux32
 dev/amr/amr_linux.c		optional	compat_linux32 amr
 dev/mfi/mfi_linux.c		optional	compat_linux32 mfi
 #
