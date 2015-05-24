@@ -1206,7 +1206,7 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 	ngrp = args->gidsetsize;
 	if (ngrp < 0 || ngrp >= ngroups_max + 1)
 		return (EINVAL);
-	linux_gidset = malloc(ngrp * sizeof(*linux_gidset), M_TEMP, M_WAITOK);
+	linux_gidset = malloc(ngrp * sizeof(*linux_gidset), M_LINUX, M_WAITOK);
 	error = copyin(args->grouplist, linux_gidset, ngrp * sizeof(l_gid_t));
 	if (error)
 		goto out;
@@ -1245,7 +1245,7 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 	crfree(oldcred);
 	error = 0;
 out:
-	free(linux_gidset, M_TEMP);
+	free(linux_gidset, M_LINUX);
 	return (error);
 }
 
@@ -1277,14 +1277,14 @@ linux_getgroups(struct thread *td, struct linux_getgroups_args *args)
 
 	ngrp = 0;
 	linux_gidset = malloc(bsd_gidsetsz * sizeof(*linux_gidset),
-	    M_TEMP, M_WAITOK);
+	    M_LINUX, M_WAITOK);
 	while (ngrp < bsd_gidsetsz) {
 		linux_gidset[ngrp] = bsd_gidset[ngrp + 1];
 		ngrp++;
 	}
 
 	error = copyout(linux_gidset, args->grouplist, ngrp * sizeof(l_gid_t));
-	free(linux_gidset, M_TEMP);
+	free(linux_gidset, M_LINUX);
 	if (error)
 		return (error);
 
