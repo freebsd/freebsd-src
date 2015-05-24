@@ -2323,7 +2323,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_prlimit64 */
 	case 340: {
-		*n_args = 0;
+		struct linux_prlimit64_args *p = params;
+		iarg[0] = p->pid; /* l_pid_t */
+		iarg[1] = p->resource; /* l_uint */
+		uarg[2] = (intptr_t) p->new; /* struct rlimit * */
+		uarg[3] = (intptr_t) p->old; /* struct rlimit * */
+		*n_args = 4;
 		break;
 	}
 	/* linux_name_to_handle_at */
@@ -5755,6 +5760,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_prlimit64 */
 	case 340:
+		switch(ndx) {
+		case 0:
+			p = "l_pid_t";
+			break;
+		case 1:
+			p = "l_uint";
+			break;
+		case 2:
+			p = "struct rlimit *";
+			break;
+		case 3:
+			p = "struct rlimit *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_name_to_handle_at */
 	case 341:
@@ -7073,6 +7094,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 339:
 	/* linux_prlimit64 */
 	case 340:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_name_to_handle_at */
 	case 341:
 	/* linux_open_by_handle_at */
