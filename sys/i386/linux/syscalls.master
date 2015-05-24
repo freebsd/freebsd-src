@@ -541,7 +541,8 @@
 319	AUE_NULL	STD	{ int linux_epoll_pwait(l_int epfd, struct epoll_event *events, \
 					l_int maxevents, l_int timeout, l_osigset_t *mask); }
 ; linux 2.6.22:
-320	AUE_NULL	STD	{ int linux_utimensat(void); }
+320	AUE_FUTIMESAT	STD	{ int linux_utimensat(l_int dfd, const char *pathname, \
+					const struct l_timespec *times, l_int flags); }
 321	AUE_NULL	STD	{ int linux_signalfd(void); }
 322	AUE_NULL	STD	{ int linux_timerfd_create(void); }
 323	AUE_NULL	STD	{ int linux_eventfd(l_uint initval); }

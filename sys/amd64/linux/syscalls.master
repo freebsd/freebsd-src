@@ -468,7 +468,8 @@
 277	AUE_NULL	STD	{ int linux_sync_file_range(void); }
 278	AUE_NULL	STD	{ int linux_vmsplice(void); }
 279	AUE_NULL	STD	{ int linux_move_pages(void); }
-280	AUE_NULL	STD	{ int linux_utimensat(void); }
+280	AUE_FUTIMESAT	STD	{ int linux_utimensat(l_int dfd, const char *pathname, \
+					const struct l_timespec *times, l_int flags); }
 281     AUE_NULL        STD     { int linux_epoll_pwait(l_int epfd, struct epoll_event *events, \
                                         l_int maxevents, l_int timeout, l_sigset_t *mask); }
 282	AUE_NULL	STD	{ int linux_signalfd(void); }

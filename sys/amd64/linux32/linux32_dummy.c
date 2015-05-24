@@ -104,7 +104,6 @@ DUMMY(move_pages);
 DUMMY(getcpu);
 DUMMY(epoll_pwait);
 /* linux 2.6.22: */
-DUMMY(utimensat);
 DUMMY(signalfd);
 DUMMY(timerfd_create);
 /* linux 2.6.25: */
