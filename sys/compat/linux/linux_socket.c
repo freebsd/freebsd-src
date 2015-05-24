@@ -483,6 +483,8 @@ bsd_to_linux_cmsg_type(int cmsg_type)
 		return (LINUX_SCM_RIGHTS);
 	case SCM_CREDS:
 		return (LINUX_SCM_CREDENTIALS);
+	case SCM_TIMESTAMP:
+		return (LINUX_SCM_TIMESTAMP);
 	}
 	return (-1);
 }
@@ -1221,6 +1223,8 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	struct iovec *iov, *uiov;
 	struct mbuf *control = NULL;
 	struct mbuf **controlp;
+	struct timeval *ftmvl;
+	l_timeval ltmvl;
 	caddr_t outbuf;
 	void *data;
 	int error, i, fd, fds, *fdp;
@@ -1330,6 +1334,18 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 				linux_ucred.gid = cmcred->cmcred_gid;
 				data = &linux_ucred;
 				datalen = sizeof(linux_ucred);
+				break;
+
+			case SCM_TIMESTAMP:
+				if (datalen != sizeof(struct timeval)) {
+					error = EMSGSIZE;
+					goto bad;
+				}
+				ftmvl = (struct timeval *)data;
+				ltmvl.tv_sec = ftmvl->tv_sec;
+				ltmvl.tv_usec = ftmvl->tv_usec;
+				data = &ltmvl;
+				datalen = sizeof(ltmvl);
 				break;
 			}
 
