@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/capability.h>
 #include <sys/types.h>
+#include <sys/user.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/errno.h>
@@ -127,6 +128,7 @@ static fo_poll_t	eventfd_poll;
 static fo_kqfilter_t	eventfd_kqfilter;
 static fo_stat_t	eventfd_stat;
 static fo_close_t	eventfd_close;
+static fo_fill_kinfo_t	eventfd_fill_kinfo;
 
 static struct fileops eventfdops = {
 	.fo_read = eventfd_read,
@@ -140,6 +142,7 @@ static struct fileops eventfdops = {
 	.fo_chmod = invfo_chmod,
 	.fo_chown = invfo_chown,
 	.fo_sendfile = invfo_sendfile,
+	.fo_fill_kinfo = eventfd_fill_kinfo,
 	.fo_flags = DFLAG_PASSABLE
 };
 
@@ -827,4 +830,13 @@ eventfd_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
 {
 
 	return (ENXIO);
+}
+
+/*ARGSUSED*/
+static int
+eventfd_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
+{
+
+	kif->kf_type = KF_TYPE_UNKNOWN;
+	return (0);
 }
