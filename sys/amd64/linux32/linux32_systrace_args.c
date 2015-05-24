@@ -2325,7 +2325,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_syncfs */
 	case 344: {
-		*n_args = 0;
+		struct linux_syncfs_args *p = params;
+		iarg[0] = p->fd; /* l_int */
+		*n_args = 1;
 		break;
 	}
 	/* linux_sendmmsg */
@@ -5786,6 +5788,13 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_syncfs */
 	case 344:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_sendmmsg */
 	case 345:
@@ -7108,6 +7117,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 343:
 	/* linux_syncfs */
 	case 344:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_sendmmsg */
 	case 345:
 		if (ndx == 0 || ndx == 1)
