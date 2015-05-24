@@ -1977,8 +1977,6 @@ linux_ioctl_sound(struct thread *td, struct linux_ioctl_args *args)
  * Console related ioctls
  */
 
-#define ISSIGVALID(sig)		((sig) > 0 && (sig) < NSIG)
-
 static int
 linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
 {
@@ -2061,8 +2059,16 @@ linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
 		struct vt_mode mode;
 		if ((error = copyin((void *)args->arg, &mode, sizeof(mode))))
 			break;
-		if (!ISSIGVALID(mode.frsig) && ISSIGVALID(mode.acqsig))
-			mode.frsig = mode.acqsig;
+		if (LINUX_SIG_VALID(mode.relsig))
+			mode.relsig = linux_to_bsd_signal(mode.relsig);
+		else
+			mode.relsig = 0;
+		if (LINUX_SIG_VALID(mode.acqsig))
+			mode.acqsig = linux_to_bsd_signal(mode.acqsig);
+		else
+			mode.acqsig = 0;
+		/* XXX. Linux ignores frsig and set it to 0. */
+		mode.frsig = 0;
 		if ((error = copyout(&mode, (void *)args->arg, sizeof(mode))))
 			break;
 		args->cmd = VT_SETMODE;
