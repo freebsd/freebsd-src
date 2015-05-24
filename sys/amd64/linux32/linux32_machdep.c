@@ -925,22 +925,6 @@ linux_getrusage(struct thread *td, struct linux_getrusage_args *uap)
 }
 
 int
-linux_sched_rr_get_interval(struct thread *td,
-    struct linux_sched_rr_get_interval_args *uap)
-{
-	struct timespec ts;
-	struct l_timespec ts32;
-	int error;
-
-	error = kern_sched_rr_get_interval(td, uap->pid, &ts);
-	if (error != 0)
-		return (error);
-	ts32.tv_sec = ts.tv_sec;
-	ts32.tv_nsec = ts.tv_nsec;
-	return (copyout(&ts32, uap->interval, sizeof(ts32)));
-}
-
-int
 linux_set_thread_area(struct thread *td,
     struct linux_set_thread_area_args *args)
 {
