@@ -466,7 +466,9 @@
 281	AUE_NULL	STD	{ int linux_mq_notify(void); }
 282	AUE_NULL	STD	{ int linux_mq_getsetattr(void); }
 283	AUE_NULL	STD	{ int linux_kexec_load(void); }
-284	AUE_NULL	STD	{ int linux_waitid(void); }
+284	AUE_WAIT6	STD	{ int linux_waitid(int idtype, l_pid_t id, \
+				    l_siginfo_t *info, int options, \
+				    struct l_rusage *rusage); }
 285	AUE_NULL	UNIMPL
 ; linux 2.6.11:
 286	AUE_NULL	STD	{ int linux_add_key(void); }

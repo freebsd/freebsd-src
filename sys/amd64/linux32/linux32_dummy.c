@@ -84,7 +84,6 @@ DUMMY(mq_timedreceive);
 DUMMY(mq_notify);
 DUMMY(mq_getsetattr);
 DUMMY(kexec_load);
-DUMMY(waitid);
 /* linux 2.6.11: */
 DUMMY(add_key);
 DUMMY(request_key);

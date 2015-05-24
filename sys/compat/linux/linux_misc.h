@@ -125,6 +125,12 @@ extern int stclohz;
 #define	__WALL			0x40000000
 #define	__WCLONE		0x80000000
 
+/* Linux waitid idtype  */
+#define	LINUX_P_ALL		0
+#define	LINUX_P_PID		1
+#define	LINUX_P_PGID		2
+
+
 int linux_common_wait(struct thread *td, int pid, int *status,
 			int options, struct rusage *ru);
 void linux_to_bsd_waitopts(int options, int *bsdopts);

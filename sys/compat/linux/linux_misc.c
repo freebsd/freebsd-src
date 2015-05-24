@@ -917,6 +917,68 @@ linux_wait4(struct thread *td, struct linux_wait4_args *args)
 }
 
 int
+linux_waitid(struct thread *td, struct linux_waitid_args *args)
+{
+	int status, options, sig;
+	struct __wrusage wru;
+	siginfo_t siginfo;
+	l_siginfo_t lsi;
+	idtype_t idtype;
+	struct proc *p;
+	int error;
+
+	options = 0;
+	linux_to_bsd_waitopts(args->options, &options);
+
+	if (options & ~(WNOHANG | WNOWAIT | WEXITED | WUNTRACED | WCONTINUED))
+		return (EINVAL);
+	if (!(options & (WEXITED | WUNTRACED | WCONTINUED)))
+		return (EINVAL);
+
+	switch (args->idtype) {
+	case LINUX_P_ALL:
+		idtype = P_ALL;
+		break;
+	case LINUX_P_PID:
+		if (args->id <= 0)
+			return (EINVAL);
+		idtype = P_PID;
+		break;
+	case LINUX_P_PGID:
+		if (args->id <= 0)
+			return (EINVAL);
+		idtype = P_PGID;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	error = kern_wait6(td, idtype, args->id, &status, options,
+	    &wru, &siginfo);
+	if (error != 0)
+		return (error);
+	if (args->rusage != NULL) {
+		error = linux_copyout_rusage(&wru.wru_children,
+		    args->rusage);
+		if (error != 0)
+			return (error);
+	}
+	if (args->info != NULL) {
+		p = td->td_proc;
+		if (td->td_retval[0] == 0)
+			bzero(&lsi, sizeof(lsi));
+		else {
+			sig = BSD_TO_LINUX_SIGNAL(siginfo.si_signo);
+			siginfo_to_lsiginfo(&siginfo, &lsi, sig);
+		}
+		error = copyout(&lsi, args->info, sizeof(lsi));
+	}
+	td->td_retval[0] = 0;
+
+	return (error);
+}
+
+int
 linux_mknod(struct thread *td, struct linux_mknod_args *args)
 {
 	char *path;
