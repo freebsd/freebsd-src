@@ -539,7 +539,8 @@
 327	AUE_NULL	STD	{ int linux_signalfd4(void); }
 328	AUE_NULL	STD	{ int linux_eventfd2(void); }
 329	AUE_NULL	STD	{ int linux_epoll_create1(void); }
-330	AUE_NULL	STD	{ int linux_dup3(void); }
+330	AUE_NULL	STD	{ int linux_dup3(l_int oldfd,		\
+					l_int newfd, l_int flags); }
 331	AUE_NULL	STD	{ int linux_pipe2(l_int *pipefds, l_int flags); }
 332	AUE_NULL	STD	{ int linux_inotify_init1(void); }
 ; linux 2.6.30:
