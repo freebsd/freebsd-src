@@ -627,4 +627,34 @@ linux_fstatat64(struct thread *td, struct linux_fstatat64_args *args)
 	return (error);
 }
 
+#else /* __amd64__ && !COMPAT_LINUX32 */
+
+int
+linux_newfstatat(struct thread *td, struct linux_newfstatat_args *args)
+{
+	char *path;
+	int error, dfd, flag;
+	struct stat buf;
+
+	if (args->flag & ~LINUX_AT_SYMLINK_NOFOLLOW)
+		return (EINVAL);
+	flag = (args->flag & LINUX_AT_SYMLINK_NOFOLLOW) ?
+	    AT_SYMLINK_NOFOLLOW : 0;
+
+	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
+	LCONVPATHEXIST_AT(td, args->pathname, &path, dfd);
+
+#ifdef DEBUG
+	if (ldebug(newfstatat))
+		printf(ARGS(newfstatat, "%i, %s, %i"), args->dfd, path, args->flag);
+#endif
+
+	error = linux_kern_statat(td, flag, dfd, path, UIO_SYSSPACE, &buf);
+	if (error == 0)
+		error = newstat_copyout(&buf, args->statbuf);
+	LFREEPATH(path);
+
+	return (error);
+}
+
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
