@@ -122,7 +122,6 @@ DUMMY(timerfd_gettime);
 DUMMY(signalfd4);
 DUMMY(eventfd2);
 DUMMY(epoll_create1);
-DUMMY(dup3);
 DUMMY(inotify_init1);
 /* linux 2.6.30: */
 DUMMY(preadv);

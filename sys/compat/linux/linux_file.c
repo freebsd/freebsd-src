@@ -1608,3 +1608,22 @@ linux_pipe2(struct thread *td, struct linux_pipe2_args *args)
 	/* XXX: Close descriptors on error. */
 	return (copyout(fildes, args->pipefds, sizeof(fildes)));
 }
+
+int
+linux_dup3(struct thread *td, struct linux_dup3_args *args)
+{
+	int cmd;
+	intptr_t newfd;
+
+	if (args->oldfd == args->newfd)
+		return (EINVAL);
+	if ((args->flags & ~LINUX_O_CLOEXEC) != 0)
+		return (EINVAL);
+	if (args->flags & LINUX_O_CLOEXEC)
+		cmd = F_DUP2FD_CLOEXEC;
+	else
+		cmd = F_DUP2FD;
+
+	newfd = args->newfd;
+	return (kern_fcntl(td, args->oldfd, cmd, newfd));
+}
