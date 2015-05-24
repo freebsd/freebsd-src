@@ -139,6 +139,8 @@ _WF1(_CP15_ICIMVAU, CP15_ICIMVAU(%0))		/* Instruction cache invalidate */
 
 /* Various control registers */
 
+_RF0(cp15_cpacr_get, CP15_CPACR(%0))
+_WF1(cp15_cpacr_set, CP15_CPACR(%0))
 _RF0(cp15_dfsr_get, CP15_DFSR(%0))
 _RF0(cp15_ifsr_get, CP15_IFSR(%0))
 _WF1(cp15_prrr_set, CP15_PRRR(%0))
@@ -149,8 +151,10 @@ _RF0(cp15_dfar_get, CP15_DFAR(%0))
 _RF0(cp15_ifar_get, CP15_IFAR(%0))
 _RF0(cp15_l2ctlr_get, CP15_L2CTLR(%0))
 #endif
-#if __ARM_ARCH >= 6
+/* ARMv6+ and XScale */
 _RF0(cp15_actlr_get, CP15_ACTLR(%0))
+_WF1(cp15_actlr_set, CP15_ACTLR(%0))
+#if __ARM_ARCH >= 6
 _WF1(cp15_ats1cpr_set, CP15_ATS1CPR(%0));
 _RF0(cp15_par_get, CP15_PAR);
 _RF0(cp15_sctlr_get, CP15_SCTLR(%0))
@@ -163,7 +167,10 @@ _RF0(cp15_tcmtr_get, CP15_TCMTR(%0))
 _RF0(cp15_tlbtr_get, CP15_TLBTR(%0))
 _RF0(cp15_mpidr_get, CP15_MPIDR(%0))
 _RF0(cp15_revidr_get, CP15_REVIDR(%0))
+_RF0(cp15_ccsidr_get, CP15_CCSIDR(%0))
+_RF0(cp15_clidr_get, CP15_CLIDR(%0))
 _RF0(cp15_aidr_get, CP15_AIDR(%0))
+_WF1(cp15_csselr_set, CP15_CSSELR(%0))
 _RF0(cp15_id_pfr0_get, CP15_ID_PFR0(%0))
 _RF0(cp15_id_pfr1_get, CP15_ID_PFR1(%0))
 _RF0(cp15_id_dfr0_get, CP15_ID_DFR0(%0))
@@ -183,6 +190,10 @@ _RF0(cp15_cbar_get, CP15_CBAR(%0))
 /* Performance Monitor registers */
 
 #if __ARM_ARCH == 6 && defined(CPU_ARM1176)
+_RF0(cp15_pmuserenr_get, CP15_PMUSERENR(%0))
+_WF1(cp15_pmuserenr_set, CP15_PMUSERENR(%0))
+_RF0(cp15_pmcr_get, CP15_PMCR(%0))
+_WF1(cp15_pmcr_set, CP15_PMCR(%0))
 _RF0(cp15_pmccntr_get, CP15_PMCCNTR(%0))
 _WF1(cp15_pmccntr_set, CP15_PMCCNTR(%0))
 #elif __ARM_ARCH > 6

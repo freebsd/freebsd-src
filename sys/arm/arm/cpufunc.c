@@ -1116,37 +1116,20 @@ cpu_scc_setup_ccnt(void)
  * you want!
  */
 #ifdef _PMC_USER_READ_WRITE_
-#if defined(CPU_ARM1176)
-	/* Use the Secure User and Non-secure Access Validation Control Register
-	 * to allow userland access
-	 */
-	__asm volatile ("mcr	p15, 0, %0, c15, c9, 0\n\t"
-			:
-			: "r"(0x00000001));
-#else
 	/* Set PMUSERENR[0] to allow userland access */
-	__asm volatile ("mcr	p15, 0, %0, c9, c14, 0\n\t"
-			:
-			: "r"(0x00000001));
-#endif
+	cp15_pmuserenr_set(1);
 #endif
 #if defined(CPU_ARM1176)
 	/* Set PMCR[2,0] to enable counters and reset CCNT */
-	__asm volatile ("mcr	p15, 0, %0, c15, c12, 0\n\t"
-			:
-			: "r"(0x00000005));
+	cp15_pmcr_set(5);
 #else
 	/* Set up the PMCCNTR register as a cyclecounter:
 	 * Set PMINTENCLR to 0xFFFFFFFF to block interrupts
 	 * Set PMCR[2,0] to enable counters and reset CCNT
 	 * Set PMCNTENSET to 0x80000000 to enable CCNT */
-	__asm volatile ("mcr	p15, 0, %0, c9, c14, 2\n\t"
-			"mcr	p15, 0, %1, c9, c12, 0\n\t"
-			"mcr	p15, 0, %2, c9, c12, 1\n\t"
-			:
-			: "r"(0xFFFFFFFF),
-			  "r"(0x00000005),
-			  "r"(0x80000000));
+	cp15_pminten_clr(0xFFFFFFFF);
+	cp15_pmcr_set(5);
+	cp15_pmcnten_set(0x80000000);
 #endif
 }
 #endif
@@ -1214,19 +1197,18 @@ arm11x6_setup(void)
 	__asm volatile ("mcr\tp15, 0, %0, c7, c7, 0" : : "r"(sbz));
 
 	/* Allow detection code to find the VFP if it's fitted.  */
-	__asm volatile ("mcr\tp15, 0, %0, c1, c0, 2" : : "r" (0x0fffffff));
+	cp15_cpacr_set(0x0fffffff);
 
 	/* Set the control register */
 	ctrl = cpuctrl;
 	cpu_control(~cpuctrl_wax, cpuctrl);
 
-	__asm volatile ("mrc	p15, 0, %0, c1, c0, 1\n\t"
-			"and	%1, %0, %2\n\t"
-			"orr	%1, %1, %3\n\t"
-			"teq	%0, %1\n\t"
-			"mcrne	p15, 0, %1, c1, c0, 1\n\t"
-			: "=r"(tmp), "=r"(tmp2) :
-			  "r"(auxctrl_wax), "r"(auxctrl));
+	tmp = cp15_actlr_get();
+	tmp2 = tmp;
+	tmp &= auxctrl_wax;
+	tmp |= auxctrl;
+	if (tmp != tmp2)
+		cp15_actlr_set(tmp);
 
 	/* And again. */
 	cpu_idcache_wbinv_all();
