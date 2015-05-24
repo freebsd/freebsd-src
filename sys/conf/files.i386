@@ -100,6 +100,7 @@ compat/linux/linux_timer.c	optional compat_linux
 compat/linux/linux_uid16.c	optional compat_linux
 compat/linux/linux_util.c	optional compat_linux
 compat/linux/linux_vdso.c	optional compat_linux
+compat/linux/linux.c		optional compat_linux
 compat/ndis/kern_ndis.c		optional ndisapi pci
 compat/ndis/kern_windrv.c	optional ndisapi pci
 compat/ndis/subr_hal.c		optional ndisapi pci
