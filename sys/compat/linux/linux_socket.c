@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
 #endif
+#include <compat/linux/linux_file.h>
 #include <compat/linux/linux_socket.h>
 #include <compat/linux/linux_util.h>
 
