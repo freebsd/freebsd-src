@@ -95,9 +95,6 @@ __FBSDID("$FreeBSD$");
 
 CTASSERT(LINUX_IFNAMSIZ == IFNAMSIZ);
 
-FEATURE(linuxulator_v4l, "V4L ioctl wrapper support in the linuxulator");
-FEATURE(linuxulator_v4l2, "V4L2 ioctl wrapper support in the linuxulator");
-
 static linux_ioctl_function_t linux_ioctl_cdrom;
 static linux_ioctl_function_t linux_ioctl_vfat;
 static linux_ioctl_function_t linux_ioctl_console;
