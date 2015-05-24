@@ -994,7 +994,8 @@ linux_mknod(struct thread *td, struct linux_mknod_args *args)
 
 #ifdef DEBUG
 	if (ldebug(mknod))
-		printf(ARGS(mknod, "%s, %d, %d"), path, args->mode, args->dev);
+		printf(ARGS(mknod, "%s, %d, %ju"), path, args->mode,
+		    (uintmax_t)args->dev);
 #endif
 
 	switch (args->mode & S_IFMT) {
@@ -1845,8 +1846,9 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 
 #ifdef DEBUG
 	if (ldebug(prctl))
-		printf(ARGS(prctl, "%d, %d, %d, %d, %d"), args->option,
-		    args->arg2, args->arg3, args->arg4, args->arg5);
+		printf(ARGS(prctl, "%d, %ju, %ju, %ju, %ju"), args->option,
+		    (uintmax_t)args->arg2, (uintmax_t)args->arg3,
+		    (uintmax_t)args->arg4, (uintmax_t)args->arg5);
 #endif
 
 	switch (args->option) {
