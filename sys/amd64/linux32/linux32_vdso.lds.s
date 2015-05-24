@@ -60,6 +60,7 @@ VERSION
 		linux32_vsyscall;
 		linux32_sigcode;
 		linux32_rt_sigcode;
+		linux_platform;
 	local: *;
 	};
 }
