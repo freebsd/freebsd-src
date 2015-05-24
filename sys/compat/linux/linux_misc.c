@@ -871,10 +871,10 @@ linux_common_wait(struct thread *td, int pid, int *status,
 		tmpstat &= 0xffff;
 		if (WIFSIGNALED(tmpstat))
 			tmpstat = (tmpstat & 0xffffff80) |
-			    BSD_TO_LINUX_SIGNAL(WTERMSIG(tmpstat));
+			    bsd_to_linux_signal(WTERMSIG(tmpstat));
 		else if (WIFSTOPPED(tmpstat))
 			tmpstat = (tmpstat & 0xffff00ff) |
-			    (BSD_TO_LINUX_SIGNAL(WSTOPSIG(tmpstat)) << 8);
+			    (bsd_to_linux_signal(WSTOPSIG(tmpstat)) << 8);
 		else if (WIFCONTINUED(tmpstat))
 			tmpstat = 0xffff;
 		error = copyout(&tmpstat, status, sizeof(int));
@@ -987,7 +987,7 @@ linux_waitid(struct thread *td, struct linux_waitid_args *args)
 		if (td->td_retval[0] == 0)
 			bzero(&lsi, sizeof(lsi));
 		else {
-			sig = BSD_TO_LINUX_SIGNAL(siginfo.si_signo);
+			sig = bsd_to_linux_signal(siginfo.si_signo);
 			siginfo_to_lsiginfo(&siginfo, &lsi, sig);
 		}
 		error = copyout(&lsi, args->info, sizeof(lsi));
