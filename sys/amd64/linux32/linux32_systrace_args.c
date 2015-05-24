@@ -2067,8 +2067,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->dfd; /* l_int */
 		uarg[1] = (intptr_t) p->filename; /* const char * */
 		iarg[2] = p->amode; /* l_int */
-		iarg[3] = p->flag; /* int */
-		*n_args = 4;
+		*n_args = 3;
 		break;
 	}
 	/* linux_pselect6 */
@@ -5384,9 +5383,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 2:
 			p = "l_int";
-			break;
-		case 3:
-			p = "int";
 			break;
 		default:
 			break;
