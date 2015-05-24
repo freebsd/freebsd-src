@@ -265,7 +265,7 @@ linux_schedtail(struct thread *td)
 	child_set_tid = em->child_set_tid;
 
 	if (child_set_tid != NULL) {
-		error = copyout(&em->em_tid, (int *)child_set_tid,
+		error = copyout(&em->em_tid, child_set_tid,
 		    sizeof(em->em_tid));
 		LINUX_CTR4(clone, "schedtail(%d) %p stored %d error %d",
 		    td->td_tid, child_set_tid, em->em_tid, error);
