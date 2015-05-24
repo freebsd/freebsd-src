@@ -879,7 +879,6 @@ linux_copyout_strings(struct image_params *imgp)
 
 	/*
 	 * Calculate string base and vector table pointers.
-	 * Also deal with signal trampoline code for this exec type.
 	 */
 	arginfo = (struct linux32_ps_strings *)LINUX32_PS_STRINGS;
 	destp =	(caddr_t)arginfo - SPARE_USRSPACE -
