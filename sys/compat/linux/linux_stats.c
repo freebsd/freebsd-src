@@ -496,7 +496,7 @@ linux_ustat(struct thread *td, struct linux_ustat_args *args)
 {
 #ifdef DEBUG
 	if (ldebug(ustat))
-		printf(ARGS(ustat, "%d, *"), args->dev);
+		printf(ARGS(ustat, "%ju, *"), (uintmax_t)args->dev);
 #endif
 
 	return (EOPNOTSUPP);
