@@ -72,9 +72,12 @@ extern const char *linux_kplatform;
 #define	LINUX_AT_BASE_PLATFORM	24	/* string identifying real platform, may
 					 * differ from AT_PLATFORM.
 					 */
+#define	LINUX_AT_RANDOM		25	/* address of random bytes */
 #define	LINUX_AT_EXECFN		31	/* filename of program */
 #define	LINUX_AT_SYSINFO	32	/* vsyscall */
 #define	LINUX_AT_SYSINFO_EHDR	33	/* vdso header */
+
+#define	LINUX_AT_RANDOM_LEN	16	/* size of random bytes */
 
 /* Linux sets the i387 to extended precision. */
 #if defined(__i386__) || defined(__amd64__)

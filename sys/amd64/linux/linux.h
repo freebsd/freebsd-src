@@ -100,7 +100,7 @@ typedef struct {
 #define	LINUX_NAME_MAX		255
 #define	LINUX_CTL_MAXNAME	10
 
-#define LINUX_AT_COUNT		17	/* Count of used aux entry types. */
+#define LINUX_AT_COUNT		19	/* Count of used aux entry types. */
 
 struct l___sysctl_args
 {

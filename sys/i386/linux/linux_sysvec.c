@@ -298,6 +298,9 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	AUXARGS_ENTRY(pos, AT_GID, imgp->proc->p_ucred->cr_rgid);
 	AUXARGS_ENTRY(pos, AT_EGID, imgp->proc->p_ucred->cr_svgid);
 	AUXARGS_ENTRY(pos, LINUX_AT_PLATFORM, PTROUT(uplatform));
+	AUXARGS_ENTRY(pos, LINUX_AT_RANDOM, imgp->canary);
+	if (imgp->execpathp != 0)
+		AUXARGS_ENTRY(pos, LINUX_AT_EXECFN, imgp->execpathp);
 	if (args->execfd != -1)
 		AUXARGS_ENTRY(pos, AT_EXECFD, args->execfd);
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
@@ -321,14 +324,22 @@ linux_copyout_strings(struct image_params *imgp)
 	char *stringp, *destp;
 	register_t *stack_base;
 	struct ps_strings *arginfo;
+	char canary[LINUX_AT_RANDOM_LEN];
+	size_t execpath_len;
 	struct proc *p;
 
 	/*
 	 * Calculate string base and vector table pointers.
 	 */
 	p = imgp->proc;
+	if (imgp->execpath != NULL && imgp->auxargs != NULL)
+		execpath_len = strlen(imgp->execpath) + 1;
+	else
+		execpath_len = 0;
 	arginfo = (struct ps_strings *)p->p_sysent->sv_psstrings;
 	destp = (caddr_t)arginfo - SPARE_USRSPACE - linux_szplatform -
+	    roundup(sizeof(canary), sizeof(char *)) -
+	    roundup(execpath_len, sizeof(char *)) -
 	    roundup((ARG_MAX - imgp->args->stringspace), sizeof(char *));
 
 	/*
@@ -336,6 +347,21 @@ linux_copyout_strings(struct image_params *imgp)
 	 */
 	copyout(linux_kplatform, ((caddr_t)arginfo - linux_szplatform),
 	    linux_szplatform);
+
+	if (execpath_len != 0) {
+		imgp->execpathp = (uintptr_t)arginfo -
+		linux_szplatform - execpath_len;
+		copyout(imgp->execpath, (void *)imgp->execpathp, execpath_len);
+	}
+
+	/*
+	 * Prepare the canary for SSP.
+	 */
+	arc4rand(canary, sizeof(canary), 0);
+	imgp->canary = (uintptr_t)arginfo - linux_szplatform -
+	    roundup(execpath_len, sizeof(char *)) -
+	    roundup(sizeof(canary), sizeof(char *));
+	copyout(canary, (void *)imgp->canary, sizeof(canary));
 
 	/*
 	 * If we have a valid auxargs ptr, prepare some room
