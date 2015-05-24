@@ -745,6 +745,12 @@
 #define	FBSD_LUSB_MIN			0xffdd
 
 /*
+ * Linux btrfs clone operation
+ */
+#define LINUX_BTRFS_IOC_CLONE		0x9409 /* 0x40049409 */
+
+
+/*
  * Pluggable ioctl handlers
  */
 struct linux_ioctl_args;
