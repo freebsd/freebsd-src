@@ -162,12 +162,6 @@ create_thread(struct thread *td, mcontext_t *ctx,
 
 	p = td->td_proc;
 
-	/* Have race condition but it is cheap. */
-	if (p->p_numthreads >= max_threads_per_proc) {
-		++max_threads_hits;
-		return (EPROCLIM);
-	}
-
 	if (rtp != NULL) {
 		switch(rtp->type) {
 		case RTP_PRIO_REALTIME:
@@ -197,11 +191,9 @@ create_thread(struct thread *td, mcontext_t *ctx,
 #endif
 
 	/* Initialize our td */
-	newtd = thread_alloc(0);
-	if (newtd == NULL) {
-		error = ENOMEM;
+	error = kern_thr_alloc(p, 0, &newtd);
+	if (error)
 		goto fail;
-	}
 
 	cpu_set_upcall(newtd, td);
 
@@ -565,4 +557,21 @@ sys_thr_set_name(struct thread *td, struct thr_set_name_args *uap)
 #endif
 	PROC_UNLOCK(p);
 	return (error);
+}
+
+int
+kern_thr_alloc(struct proc *p, int pages, struct thread **ntd)
+{
+
+	/* Have race condition but it is cheap. */
+	if (p->p_numthreads >= max_threads_per_proc) {
+		++max_threads_hits;
+		return (EPROCLIM);
+	}
+
+	*ntd = thread_alloc(pages);
+	if (*ntd == NULL)
+		return (ENOMEM);
+
+	return (0);
 }
