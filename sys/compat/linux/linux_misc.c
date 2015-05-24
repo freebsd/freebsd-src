@@ -116,6 +116,12 @@ struct l_sysinfo {
 	l_uint		mem_unit;
 	char		_f[20-2*sizeof(l_long)-sizeof(l_int)];	/* padding */
 };
+
+struct l_pselect6arg {
+	l_uintptr_t	ss;
+	l_size_t	ss_len;
+};
+
 int
 linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 {
@@ -2104,6 +2110,84 @@ linux_prlimit64(struct thread *td, struct linux_prlimit64_args *args)
 
  out:
 	PRELE(p);
+	return (error);
+}
+
+int
+linux_pselect6(struct thread *td, struct linux_pselect6_args *args)
+{
+	struct timeval utv, tv0, tv1, *tvp;
+	struct l_pselect6arg lpse6;
+	struct l_timespec lts;
+	struct timespec uts;
+	l_sigset_t l_ss;
+	sigset_t *ssp;
+	sigset_t ss;
+	int error;
+
+	ssp = NULL;
+	if (args->sig != NULL) {
+		error = copyin(args->sig, &lpse6, sizeof(lpse6));
+		if (error != 0)
+			return (error);
+		if (lpse6.ss_len != sizeof(l_ss))
+			return (EINVAL);
+		if (lpse6.ss != 0) {
+			error = copyin(PTRIN(lpse6.ss), &l_ss,
+			    sizeof(l_ss));
+			if (error != 0)
+				return (error);
+			linux_to_bsd_sigset(&l_ss, &ss);
+			ssp = &ss;
+		}
+	}
+
+	/*
+	 * Currently glibc changes nanosecond number to microsecond.
+	 * This mean losing precision but for now it is hardly seen.
+	 */
+	if (args->tsp != NULL) {
+		error = copyin(args->tsp, &lts, sizeof(lts));
+		if (error != 0)
+			return (error);
+		uts.tv_sec = lts.tv_sec;
+		uts.tv_nsec = lts.tv_nsec;
+
+		TIMESPEC_TO_TIMEVAL(&utv, &uts);
+		if (itimerfix(&utv))
+			return (EINVAL);
+
+		microtime(&tv0);
+		tvp = &utv;
+	} else
+		tvp = NULL;
+
+	error = kern_pselect(td, args->nfds, args->readfds, args->writefds,
+	    args->exceptfds, tvp, ssp, sizeof(l_int) * 8);
+
+	if (error == 0 && args->tsp != NULL) {
+		if (td->td_retval[0] != 0) {
+			/*
+			 * Compute how much time was left of the timeout,
+			 * by subtracting the current time and the time
+			 * before we started the call, and subtracting
+			 * that result from the user-supplied value.
+			 */
+
+			microtime(&tv1);
+			timevalsub(&tv1, &tv0);
+			timevalsub(&utv, &tv1);
+			if (utv.tv_sec < 0)
+				timevalclear(&utv);
+		} else
+			timevalclear(&utv);
+
+		TIMEVAL_TO_TIMESPEC(&utv, &uts);
+		lts.tv_sec = uts.tv_sec;
+		lts.tv_nsec = uts.tv_nsec;
+		error = copyout(&lts, args->tsp, sizeof(lts));
+	}
+
 	return (error);
 }
 
