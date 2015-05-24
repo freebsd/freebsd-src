@@ -63,37 +63,29 @@ static driver_t uart_fdt_driver = {
 	sizeof(struct uart_softc),
 };
 
-static int
+int
 uart_fdt_get_clock(phandle_t node, pcell_t *cell)
 {
-	pcell_t clock;
 
-	/*
-	 * clock-frequency is a FreeBSD-specific hack. Make its presence optional.
-	 */
-	if ((OF_getprop(node, "clock-frequency", &clock,
-	    sizeof(clock))) <= 0)
-		clock = 0;
-
-	if (clock == 0)
+	/* clock-frequency is a FreeBSD-only extention. */
+	if ((OF_getencprop(node, "clock-frequency", cell,
+	    sizeof(*cell))) <= 0) {
 		/* Try to retrieve parent 'bus-frequency' */
 		/* XXX this should go to simple-bus fixup or so */
-		if ((OF_getprop(OF_parent(node), "bus-frequency", &clock,
-		    sizeof(clock))) <= 0)
-			clock = 0;
+		if ((OF_getencprop(OF_parent(node), "bus-frequency", cell,
+		    sizeof(*cell))) <= 0)
+			*cell = 0;
+	}
 
-	*cell = fdt32_to_cpu(clock);
 	return (0);
 }
 
-static int
+int
 uart_fdt_get_shift(phandle_t node, pcell_t *cell)
 {
-	pcell_t shift;
 
-	if ((OF_getprop(node, "reg-shift", &shift, sizeof(shift))) <= 0)
-		shift = 0;
-	*cell = fdt32_to_cpu(shift);
+	if ((OF_getencprop(node, "reg-shift", cell, sizeof(*cell))) <= 0)
+		*cell = 0;
 	return (0);
 }
 
