@@ -754,6 +754,32 @@ siginfo_to_lsiginfo(const siginfo_t *si, l_siginfo_t *lsi, l_int sig)
 	}
 }
 
+int
+linux_to_bsd_sigaltstack(int lsa)
+{
+	int bsa = 0;
+
+	if (lsa & LINUX_SS_DISABLE)
+		bsa |= SS_DISABLE;
+	/*
+	 * Linux ignores SS_ONSTACK flag for ss
+	 * parameter while FreeBSD prohibits it.
+	 */
+	return (bsa);
+}
+
+int
+bsd_to_linux_sigaltstack(int bsa)
+{
+	int lsa = 0;
+
+	if (bsa & SS_DISABLE)
+		lsa |= LINUX_SS_DISABLE;
+	if (bsa & SS_ONSTACK)
+		lsa |= LINUX_SS_ONSTACK;
+	return (lsa);
+}
+
 void
 lsiginfo_to_ksiginfo(const l_siginfo_t *lsi, ksiginfo_t *ksi, int sig)
 {
