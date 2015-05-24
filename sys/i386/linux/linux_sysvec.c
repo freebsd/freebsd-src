@@ -118,7 +118,7 @@ static void	linux_vdso_install(void *param);
 static void	linux_vdso_deinstall(void *param);
 
 static int linux_szplatform;
-const char *linux_platform;
+const char *linux_kplatform;
 
 static eventhandler_tag linux_exit_tag;
 static eventhandler_tag linux_exec_tag;
@@ -330,7 +330,7 @@ linux_copyout_strings(struct image_params *imgp)
 	/*
 	 * install LINUX_PLATFORM
 	 */
-	copyout(linux_platform, ((caddr_t)arginfo - linux_szplatform),
+	copyout(linux_kplatform, ((caddr_t)arginfo - linux_szplatform),
 	    linux_szplatform);
 
 	/*
@@ -1153,8 +1153,8 @@ linux_elf_modevent(module_t mod, int type, void *data)
 			      NULL, 1000);
 			linux_thread_dtor_tag = EVENTHANDLER_REGISTER(thread_dtor,
 			    linux_thread_dtor, NULL, EVENTHANDLER_PRI_ANY);
-			linux_get_machine(&linux_platform);
-			linux_szplatform = roundup(strlen(linux_platform) + 1,
+			linux_get_machine(&linux_kplatform);
+			linux_szplatform = roundup(strlen(linux_kplatform) + 1,
 			    sizeof(char *));
 			linux_osd_jail_register();
 			stclohz = (stathz ? stathz : hz);
