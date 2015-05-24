@@ -61,7 +61,6 @@ DUMMY(bdflush);
 DUMMY(sysfs);
 DUMMY(query_module);
 DUMMY(nfsservctl);
-DUMMY(rt_sigqueueinfo);
 DUMMY(sendfile);
 DUMMY(setfsuid);
 DUMMY(setfsgid);

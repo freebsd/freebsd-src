@@ -51,6 +51,7 @@ void bsd_to_linux_sigset(sigset_t *, l_sigset_t *);
 int linux_do_sigaction(struct thread *, int, l_sigaction_t *, l_sigaction_t *);
 void ksiginfo_to_lsiginfo(const ksiginfo_t *ksi, l_siginfo_t *lsi, l_int sig);
 void siginfo_to_lsiginfo(const siginfo_t *si, l_siginfo_t *lsi, l_int sig);
+void lsiginfo_to_ksiginfo(const l_siginfo_t *lsi, ksiginfo_t *ksi, int sig);
 
 #define LINUX_SIG_VALID(sig)	((sig) <= LINUX_NSIG && (sig) > 0)
 
