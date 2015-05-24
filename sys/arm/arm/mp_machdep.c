@@ -222,7 +222,7 @@ init_secondary(int cpu)
 	end = IPI_IRQ_START;
 #endif
 #endif
-				
+
 	for (int i = start; i <= end; i++)
 		arm_unmask_irq(i);
 	enable_interrupts(PSR_I);
@@ -344,7 +344,7 @@ release_aps(void *dummy __unused)
 		/*
 		 * IPI handler
 		 */
-		/* 
+		/*
 		 * Use 0xdeadbeef as the argument value for irq 0,
 		 * if we used 0, the intr code will give the trap frame
 		 * pointer instead.

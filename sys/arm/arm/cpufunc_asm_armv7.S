@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 #define PT_OUTER_WT	(2 << 3)
 #define PT_OUTER_WB	(3 << 3)
 #define PT_OUTER_WBWA	(1 << 3)
-	
+
 #ifdef SMP
 #define PT_ATTR	(PT_S|PT_INNER_WBWA|PT_OUTER_WBWA|PT_NOS)
 #else
