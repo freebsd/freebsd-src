@@ -88,6 +88,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_file.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_signal.h>
+#include <compat/linux/linux_timer.h>
 #include <compat/linux/linux_util.h>
 #include <compat/linux/linux_sysproto.h>
 #include <compat/linux/linux_emul.h>
@@ -2168,8 +2169,9 @@ linux_pselect6(struct thread *td, struct linux_pselect6_args *args)
 		error = copyin(args->tsp, &lts, sizeof(lts));
 		if (error != 0)
 			return (error);
-		uts.tv_sec = lts.tv_sec;
-		uts.tv_nsec = lts.tv_nsec;
+		error = linux_to_native_timespec(&uts, &lts);
+		if (error != 0)
+			return (error);
 
 		TIMESPEC_TO_TIMEVAL(&utv, &uts);
 		if (itimerfix(&utv))
@@ -2201,8 +2203,8 @@ linux_pselect6(struct thread *td, struct linux_pselect6_args *args)
 			timevalclear(&utv);
 
 		TIMEVAL_TO_TIMESPEC(&utv, &uts);
-		lts.tv_sec = uts.tv_sec;
-		lts.tv_nsec = uts.tv_nsec;
+
+		native_to_linux_timespec(&lts, &uts);
 		error = copyout(&lts, args->tsp, sizeof(lts));
 	}
 
@@ -2234,8 +2236,9 @@ linux_ppoll(struct thread *td, struct linux_ppoll_args *args)
 		error = copyin(args->tsp, &lts, sizeof(lts));
 		if (error)
 			return (error);
-		uts.tv_sec = lts.tv_sec;
-		uts.tv_nsec = lts.tv_nsec;
+		error = linux_to_native_timespec(&uts, &lts);
+		if (error != 0)
+			return (error);
 
 		nanotime(&ts0);
 		tsp = &uts;
@@ -2254,8 +2257,7 @@ linux_ppoll(struct thread *td, struct linux_ppoll_args *args)
 		} else
 			timespecclear(&uts);
 
-		lts.tv_sec = uts.tv_sec;
-		lts.tv_nsec = uts.tv_nsec;
+		native_to_linux_timespec(&lts, &uts);
 		error = copyout(&lts, args->tsp, sizeof(lts));
 	}
 
@@ -2343,8 +2345,7 @@ linux_sched_rr_get_interval(struct thread *td,
 	PROC_UNLOCK(tdt->td_proc);
 	if (error != 0)
 		return (error);
-	lts.tv_sec = ts.tv_sec;
-	lts.tv_nsec = ts.tv_nsec;
+	native_to_linux_timespec(&lts, &ts);
 	return (copyout(&lts, uap->interval, sizeof(lts)));
 }
 

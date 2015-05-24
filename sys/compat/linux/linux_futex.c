@@ -65,6 +65,7 @@ __KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $")
 #include <compat/linux/linux_dtrace.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_futex.h>
+#include <compat/linux/linux_timer.h>
 #include <compat/linux/linux_util.h>
 
 /* DTrace init */
@@ -669,7 +670,8 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 	struct linux_pemuldata *pem;
 	struct waiting_proc *wp;
 	struct futex *f, *f2;
-	struct l_timespec timeout;
+	struct l_timespec ltimeout;
+	struct timespec timeout;
 	struct timeval utv, ctv;
 	int timeout_hz;
 	int error;
@@ -713,6 +715,38 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		LINUX_CTR3(sys_futex, "WAIT uaddr %p val 0x%x bitset 0x%x",
 		    args->uaddr, args->val, args->val3);
 
+		if (args->timeout != NULL) {
+			error = copyin(args->timeout, &ltimeout, sizeof(ltimeout));
+			if (error) {
+				LIN_SDT_PROBE1(futex, linux_sys_futex, copyin_error,
+				    error);
+				LIN_SDT_PROBE1(futex, linux_sys_futex, return, error);
+				return (error);
+			}
+			error = linux_to_native_timespec(&timeout, &ltimeout);
+			if (error)
+				return (error);
+			TIMESPEC_TO_TIMEVAL(&utv, &timeout);
+			error = itimerfix(&utv);
+			if (error) {
+				LIN_SDT_PROBE1(futex, linux_sys_futex, itimerfix_error,
+				    error);
+				LIN_SDT_PROBE1(futex, linux_sys_futex, return, error);
+				return (error);
+			}
+			if (clockrt) {
+				microtime(&ctv);
+				timevalsub(&utv, &ctv);
+			} else if (args->op == LINUX_FUTEX_WAIT_BITSET) {
+				microuptime(&ctv);
+				timevalsub(&utv, &ctv);
+			}
+			if (utv.tv_sec < 0)
+				timevalclear(&utv);
+			timeout_hz = tvtohz(&utv);
+		} else
+			timeout_hz = 0;
+
 		error = futex_get(args->uaddr, &wp, &f,
 		    flags | FUTEX_CREATE_WP);
 		if (error) {
@@ -744,37 +778,6 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 			    EWOULDBLOCK);
 			return (EWOULDBLOCK);
 		}
-
-		if (args->timeout != NULL) {
-			error = copyin(args->timeout, &timeout, sizeof(timeout));
-			if (error) {
-				LIN_SDT_PROBE1(futex, linux_sys_futex, copyin_error,
-				    error);
-				LIN_SDT_PROBE1(futex, linux_sys_futex, return, error);
-				futex_put(f, wp);
-				return (error);
-			}
-			TIMESPEC_TO_TIMEVAL(&utv, &timeout);
-			error = itimerfix(&utv);
-			if (error) {
-				LIN_SDT_PROBE1(futex, linux_sys_futex, itimerfix_error,
-				    error);
-				LIN_SDT_PROBE1(futex, linux_sys_futex, return, error);
-				futex_put(f, wp);
-				return (error);
-			}
-			if (clockrt) {
-				microtime(&ctv);
-				timevalsub(&utv, &ctv);
-			} else if (args->op == LINUX_FUTEX_WAIT_BITSET) {
-				microuptime(&ctv);
-				timevalsub(&utv, &ctv);
-			}
-			if (utv.tv_sec < 0)
-				timevalclear(&utv);
-			timeout_hz = tvtohz(&utv);
-		} else
-			timeout_hz = 0;
 
 		error = futex_wait(f, wp, timeout_hz, args->val3);
 		break;

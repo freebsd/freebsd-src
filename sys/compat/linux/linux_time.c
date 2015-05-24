@@ -119,13 +119,10 @@ LIN_SDT_PROBE_DEFINE1(time, linux_clock_nanosleep, unsupported_flags, "int");
 LIN_SDT_PROBE_DEFINE1(time, linux_clock_nanosleep, unsupported_clockid, "int");
 LIN_SDT_PROBE_DEFINE1(time, linux_clock_nanosleep, return, "int");
 
-static void native_to_linux_timespec(struct l_timespec *,
-				     struct timespec *);
-static int linux_to_native_timespec(struct timespec *,
-				     struct l_timespec *);
 static int linux_to_native_clockid(clockid_t *, clockid_t);
 
-static void
+
+void
 native_to_linux_timespec(struct l_timespec *ltp, struct timespec *ntp)
 {
 
@@ -137,7 +134,7 @@ native_to_linux_timespec(struct l_timespec *ltp, struct timespec *ntp)
 	LIN_SDT_PROBE0(time, native_to_linux_timespec, return);
 }
 
-static int
+int
 linux_to_native_timespec(struct timespec *ntp, struct l_timespec *ltp)
 {
 
