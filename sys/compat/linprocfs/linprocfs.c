@@ -982,6 +982,9 @@ linprocfs_doprocenviron(PFS_FILL_ARGS)
 	return (ret);
 }
 
+static char l32_map_str[] = "%08lx-%08lx %s%s%s%s %08lx %02x:%02x %lu%s%s\n";
+static char l64_map_str[] = "%016lx-%016lx %s%s%s%s %08lx %02x:%02x %lu%s%s\n";
+
 /*
  * Filler function for proc/pid/maps
  */
@@ -997,6 +1000,7 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 	vm_prot_t e_prot;
 	unsigned int last_timestamp;
 	char *name = "", *freename = NULL;
+	const char *l_map_str;
 	ino_t ino;
 	int ref_count, shadow_count, flags;
 	int error;
@@ -1069,8 +1073,11 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		 * format:
 		 *  start, end, access, offset, major, minor, inode, name.
 		 */
-		error = sbuf_printf(sb,
-		    "%08lx-%08lx %s%s%s%s %08lx %02x:%02x %lu%s%s\n",
+		if (SV_CURPROC_FLAG(SV_LP64))
+			l_map_str = l64_map_str;
+		else
+			l_map_str = l32_map_str;
+		error = sbuf_printf(sb, l_map_str,
 		    (u_long)e_start, (u_long)e_end,
 		    (e_prot & VM_PROT_READ)?"r":"-",
 		    (e_prot & VM_PROT_WRITE)?"w":"-",
