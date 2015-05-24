@@ -72,9 +72,14 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <compat/linux/linux_file.h>
 #include <compat/linux/linux_socket.h>
+#include <compat/linux/linux_timer.h>
 #include <compat/linux/linux_util.h>
 
 static int linux_to_bsd_domain(int);
+static int linux_sendmsg_common(struct thread *, l_int, struct l_msghdr *,
+					l_uint);
+static int linux_recvmsg_common(struct thread *, l_int, struct l_msghdr *,
+					l_uint, struct msghdr *);
 
 /*
  * Reads a linux sockaddr and does any necessary translation.
@@ -1073,8 +1078,9 @@ linux_recvfrom(struct thread *td, struct linux_recvfrom_args *args)
 	return (error);
 }
 
-int
-linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
+static int
+linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
+    l_uint flags)
 {
 	struct cmsghdr *cmsg;
 	struct cmsgcred cmcred;
@@ -1090,8 +1096,8 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 	void *data;
 	int error;
 
-	error = copyin(PTRIN(args->msg), &linux_msg, sizeof(linux_msg));
-	if (error)
+	error = copyin(msghdr, &linux_msg, sizeof(linux_msg));
+	if (error != 0)
 		return (error);
 
 	/*
@@ -1105,7 +1111,7 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 		linux_msg.msg_control = PTROUT(NULL);
 
 	error = linux_to_bsd_msghdr(&msg, &linux_msg);
-	if (error)
+	if (error != 0)
 		return (error);
 
 #ifdef COMPAT_LINUX32
@@ -1114,21 +1120,21 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 #else
 	error = copyiniov(msg.msg_iov, msg.msg_iovlen, &iov, EMSGSIZE);
 #endif
-	if (error)
+	if (error != 0)
 		return (error);
 
 	control = NULL;
 	cmsg = NULL;
 
 	if ((ptr_cmsg = LINUX_CMSG_FIRSTHDR(&linux_msg)) != NULL) {
-		error = kern_getsockname(td, args->s, &sa, &datalen);
-		if (error)
+		error = kern_getsockname(td, s, &sa, &datalen);
+		if (error != 0)
 			goto bad;
 		sa_family = sa->sa_family;
 		free(sa, M_SONAME);
 
 		error = ENOBUFS;
-		cmsg = malloc(CMSG_HDRSZ, M_LINUX, M_WAITOK | M_ZERO);
+		cmsg = malloc(CMSG_HDRSZ, M_LINUX, M_WAITOK|M_ZERO);
 		control = m_get(M_WAITOK, MT_CONTROL);
 		if (control == NULL)
 			goto bad;
@@ -1136,7 +1142,7 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 		do {
 			error = copyin(ptr_cmsg, &linux_cmsg,
 			    sizeof(struct l_cmsghdr));
-			if (error)
+			if (error != 0)
 				goto bad;
 
 			error = EINVAL;
@@ -1200,8 +1206,7 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 
 	msg.msg_iov = iov;
 	msg.msg_flags = 0;
-	error = linux_sendit(td, args->s, &msg, args->flags, control,
-	    UIO_USERSPACE);
+	error = linux_sendit(td, s, &msg, flags, control, UIO_USERSPACE);
 
 bad:
 	free(iov, M_IOV);
@@ -1211,11 +1216,49 @@ bad:
 }
 
 int
-linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
+linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
+{
+
+	return (linux_sendmsg_common(td, args->s, PTRIN(args->msg),
+	    args->flags));
+}
+
+int
+linux_sendmmsg(struct thread *td, struct linux_sendmmsg_args *args)
+{
+	struct l_mmsghdr *msg;
+	l_uint retval;
+	int error, datagrams;
+
+	if (args->vlen > UIO_MAXIOV)
+		args->vlen = UIO_MAXIOV;
+
+	msg = PTRIN(args->msg);
+	datagrams = 0;
+	while (datagrams < args->vlen) {
+		error = linux_sendmsg_common(td, args->s, &msg->msg_hdr,
+		    args->flags);
+		if (error != 0)
+			break;
+
+		retval = td->td_retval[0];
+		error = copyout(&retval, &msg->msg_len, sizeof(msg->msg_len));
+		if (error != 0)
+			break;
+		++msg;
+		++datagrams;
+	}
+	if (error == 0)
+		td->td_retval[0] = datagrams;
+	return (error);
+}
+
+static int
+linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
+    l_uint flags, struct msghdr *msg)
 {
 	struct cmsghdr *cm;
 	struct cmsgcred *cmcred;
-	struct msghdr msg;
 	struct l_cmsghdr *linux_cmsg = NULL;
 	struct l_ucred linux_ucred;
 	socklen_t datalen, outlen;
@@ -1227,51 +1270,51 @@ linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 	void *data;
 	int error, i, fd, fds, *fdp;
 
-	error = copyin(PTRIN(args->msg), &linux_msg, sizeof(linux_msg));
-	if (error)
+	error = copyin(msghdr, &linux_msg, sizeof(linux_msg));
+	if (error != 0)
 		return (error);
 
-	error = linux_to_bsd_msghdr(&msg, &linux_msg);
-	if (error)
+	error = linux_to_bsd_msghdr(msg, &linux_msg);
+	if (error != 0)
 		return (error);
 
 #ifdef COMPAT_LINUX32
-	error = linux32_copyiniov(PTRIN(msg.msg_iov), msg.msg_iovlen,
+	error = linux32_copyiniov(PTRIN(msg->msg_iov), msg->msg_iovlen,
 	    &iov, EMSGSIZE);
 #else
-	error = copyiniov(msg.msg_iov, msg.msg_iovlen, &iov, EMSGSIZE);
+	error = copyiniov(msg->msg_iov, msg->msg_iovlen, &iov, EMSGSIZE);
 #endif
-	if (error)
+	if (error != 0)
 		return (error);
 
-	if (msg.msg_name) {
-		error = linux_to_bsd_sockaddr((struct sockaddr *)msg.msg_name,
-		    msg.msg_namelen);
-		if (error)
+	if (msg->msg_name) {
+		error = linux_to_bsd_sockaddr((struct sockaddr *)msg->msg_name,
+		    msg->msg_namelen);
+		if (error != 0)
 			goto bad;
 	}
 
-	uiov = msg.msg_iov;
-	msg.msg_iov = iov;
-	controlp = (msg.msg_control != NULL) ? &control : NULL;
-	error = kern_recvit(td, args->s, &msg, UIO_USERSPACE, controlp);
-	msg.msg_iov = uiov;
-	if (error)
+	uiov = msg->msg_iov;
+	msg->msg_iov = iov;
+	controlp = (msg->msg_control != NULL) ? &control : NULL;
+	error = kern_recvit(td, s, msg, UIO_USERSPACE, controlp);
+	msg->msg_iov = uiov;
+	if (error != 0)
 		goto bad;
 
-	error = bsd_to_linux_msghdr(&msg, &linux_msg);
-	if (error)
+	error = bsd_to_linux_msghdr(msg, &linux_msg);
+	if (error != 0)
 		goto bad;
 
 	if (linux_msg.msg_name) {
 		error = bsd_to_linux_sockaddr((struct sockaddr *)
 		    PTRIN(linux_msg.msg_name));
-		if (error)
+		if (error != 0)
 			goto bad;
 	}
 	if (linux_msg.msg_name && linux_msg.msg_namelen > 2) {
 		error = linux_sa_put(PTRIN(linux_msg.msg_name));
-		if (error)
+		if (error != 0)
 			goto bad;
 	}
 
@@ -1281,10 +1324,10 @@ linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 	if (control) {
 		linux_cmsg = malloc(L_CMSG_HDRSZ, M_LINUX, M_WAITOK | M_ZERO);
 
-		msg.msg_control = mtod(control, struct cmsghdr *);
-		msg.msg_controllen = control->m_len;
+		msg->msg_control = mtod(control, struct cmsghdr *);
+		msg->msg_controllen = control->m_len;
 
-		cm = CMSG_FIRSTHDR(&msg);
+		cm = CMSG_FIRSTHDR(msg);
 
 		while (cm != NULL) {
 			linux_cmsg->cmsg_type =
@@ -1304,7 +1347,7 @@ linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 			switch (cm->cmsg_type)
 			{
 			case SCM_RIGHTS:
-				if (args->flags & LINUX_MSG_CMSG_CLOEXEC) {
+				if (flags & LINUX_MSG_CMSG_CLOEXEC) {
 					fds = datalen / sizeof(int);
 					fdp = data;
 					for (i = 0; i < fds; i++) {
@@ -1361,19 +1404,88 @@ linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 			outbuf += LINUX_CMSG_ALIGN(datalen);
 			outlen += LINUX_CMSG_LEN(datalen);
 
-			cm = CMSG_NXTHDR(&msg, cm);
+			cm = CMSG_NXTHDR(msg, cm);
 		}
 	}
 
 out:
 	linux_msg.msg_controllen = outlen;
-	error = copyout(&linux_msg, PTRIN(args->msg), sizeof(linux_msg));
+	error = copyout(&linux_msg, msghdr, sizeof(linux_msg));
 
 bad:
 	free(iov, M_IOV);
 	m_freem(control);
 	free(linux_cmsg, M_LINUX);
 
+	return (error);
+}
+
+int
+linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
+{
+	struct msghdr bsd_msg;
+
+	return (linux_recvmsg_common(td, args->s, PTRIN(args->msg),
+	    args->flags, &bsd_msg));
+}
+
+int
+linux_recvmmsg(struct thread *td, struct linux_recvmmsg_args *args)
+{
+	struct l_mmsghdr *msg;
+	struct msghdr bsd_msg;
+	struct l_timespec lts;
+	struct timespec ts, tts;
+	l_uint retval;
+	int error, datagrams;
+
+	if (args->timeout) {
+		error = copyin(args->timeout, &lts, sizeof(struct l_timespec));
+		if (error != 0)
+			return (error);
+		error = linux_to_native_timespec(&ts, &lts);
+		if (error != 0)
+			return (error);
+		getnanotime(&tts);
+		timespecadd(&tts, &ts);
+	}
+
+	msg = PTRIN(args->msg);
+	datagrams = 0;
+	while (datagrams < args->vlen) {
+		error = linux_recvmsg_common(td, args->s, &msg->msg_hdr,
+		    args->flags & ~LINUX_MSG_WAITFORONE, &bsd_msg);
+		if (error != 0)
+			break;
+
+		retval = td->td_retval[0];
+		error = copyout(&retval, &msg->msg_len, sizeof(msg->msg_len));
+		if (error != 0)
+			break;
+		++msg;
+		++datagrams;
+
+		/*
+		 * MSG_WAITFORONE turns on MSG_DONTWAIT after one packet.
+		 */
+		if (args->flags & LINUX_MSG_WAITFORONE)
+			args->flags |= LINUX_MSG_DONTWAIT;
+
+		/*
+		 * See BUGS section of recvmmsg(2).
+		 */
+		if (args->timeout) {
+			getnanotime(&ts);
+			timespecsub(&ts, &tts);
+			if (!timespecisset(&ts) || ts.tv_sec > 0)
+				break;
+		}
+		/* Out of band data, return right away. */
+		if (bsd_msg.msg_flags & MSG_OOB)
+			break;
+	}
+	if (error == 0)
+		td->td_retval[0] = datagrams;
 	return (error);
 }
 
@@ -1555,7 +1667,8 @@ static const unsigned char lxs_args[] = {
 	LINUX_AL(6) /* recvfrom */,	LINUX_AL(2) /* shutdown */,
 	LINUX_AL(5) /* setsockopt */,	LINUX_AL(5) /* getsockopt */,
 	LINUX_AL(3) /* sendmsg */,	LINUX_AL(3) /* recvmsg */,
-	LINUX_AL(4) /* accept4 */
+	LINUX_AL(4) /* accept4 */,	LINUX_AL(5) /* recvmmsg */,
+	LINUX_AL(4) /* sendmmsg */
 };
 
 #define	LINUX_AL_SIZE	sizeof(lxs_args) / sizeof(lxs_args[0]) - 1
@@ -1611,6 +1724,10 @@ linux_socketcall(struct thread *td, struct linux_socketcall_args *args)
 		return (linux_recvmsg(td, arg));
 	case LINUX_ACCEPT4:
 		return (linux_accept4(td, arg));
+	case LINUX_RECVMMSG:
+		return (linux_recvmmsg(td, arg));
+	case LINUX_SENDMMSG:
+		return (linux_sendmmsg(td, arg));
 	}
 
 	uprintf("LINUX: 'socket' typ=%d not implemented\n", args->what);
