@@ -49,23 +49,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <compat/linux/linux_timer.h>
 
-static int
-linux_convert_l_clockid(clockid_t *clock_id)
-{
-
-	switch (*clock_id) {
-	case LINUX_CLOCK_REALTIME:
-		*clock_id = CLOCK_REALTIME;
-		break;
-	case LINUX_CLOCK_MONOTONIC:
-		*clock_id = CLOCK_MONOTONIC;
-		break;
-	default:
-		return (EINVAL);
-	}
-
-	return (0);
-}
 
 static int
 linux_convert_l_sigevent(struct l_sigevent *l_sig, struct sigevent *sig)
@@ -106,6 +89,7 @@ linux_timer_create(struct thread *td, struct linux_timer_create_args *uap)
 {
 	struct l_sigevent l_ev;
 	struct sigevent ev, *evp;
+	clockid_t nwhich;
 	int error, id;
 
 	if (uap->evp == NULL) {
@@ -119,10 +103,10 @@ linux_timer_create(struct thread *td, struct linux_timer_create_args *uap)
 			return (error);
 		evp = &ev;
 	}
-	error = linux_convert_l_clockid(&uap->clock_id);
+	error = linux_to_native_clockid(&nwhich, uap->clock_id);
 	if (error != 0)
 		return (error);
-	error = kern_ktimer_create(td, uap->clock_id, evp, &id, -1);
+	error = kern_ktimer_create(td, nwhich, evp, &id, -1);
 	if (error == 0) {
 		error = copyout(&id, uap->timerid, sizeof(int));
 		if (error != 0)
@@ -179,4 +163,3 @@ linux_timer_delete(struct thread *td, struct linux_timer_delete_args *uap)
 
 	return (kern_ktimer_delete(td, uap->timerid));
 }
-
