@@ -472,14 +472,14 @@
                                         l_int maxevents, l_int timeout, l_sigset_t *mask); }
 282	AUE_NULL	STD	{ int linux_signalfd(void); }
 283	AUE_NULL	STD	{ int linux_timerfd(void); }
-284	AUE_NULL	STD	{ int linux_eventfd(void); }
+284	AUE_NULL	STD	{ int linux_eventfd(l_uint initval); }
 285	AUE_NULL	STD	{ int linux_fallocate(void); }
 286	AUE_NULL	STD	{ int linux_timerfd_settime(void); }
 287	AUE_NULL	STD	{ int linux_timerfd_gettime(void); }
 288	AUE_ACCEPT	STD	{ int linux_accept4(l_int s, l_uintptr_t addr, \
 				    l_uintptr_t namelen, int flags); }
 289	AUE_NULL	STD	{ int linux_signalfd4(void); }
-290	AUE_NULL	STD	{ int linux_eventfd2(void); }
+290	AUE_NULL	STD	{ int linux_eventfd2(l_uint initval, l_int flags); }
 291	AUE_NULL	STD	{ int linux_epoll_create1(l_int flags); }
 292	AUE_NULL	STD	{ int linux_dup3(l_int oldfd,		\
 				    l_int newfd, l_int flags); }
