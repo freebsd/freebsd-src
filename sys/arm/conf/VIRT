@@ -24,8 +24,9 @@ include 	"std.armv6"
 include 	"../qemu/std.virt"
 
 options 	HZ=100
-options 	SCHED_4BSD		# 4BSD scheduler
+options 	SCHED_ULE		# 4BSD scheduler
 options 	PLATFORM
+options 	SMP			# Enable multiple cores
 
 # Debugging for use in -current
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
