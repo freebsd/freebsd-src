@@ -46,10 +46,6 @@ extern u_char linux_debug_map[];
 			(long)td->td_proc->p_pid, (long)td->td_tid
 #define	LINUX_DTRACE	linuxulator
 
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_LINUX);
-#endif
-
 #define	LINUX_SHAREDPAGE	(VM_MAXUSER_ADDRESS - PAGE_SIZE)
 #define	LINUX_USRSTACK		LINUX_SHAREDPAGE
 
