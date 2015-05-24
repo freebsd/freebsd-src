@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_emul.h>
+#include <compat/linux/linux_futex.h>
 #include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_util.h>
 
@@ -403,4 +404,64 @@ linux_exit(struct thread *td, struct linux_exit_args *args)
 	kern_thr_exit(td);
 	exit1(td, W_EXITCODE(args->rval, 0));
 		/* NOTREACHED */
+}
+
+int
+linux_set_tid_address(struct thread *td, struct linux_set_tid_address_args *args)
+{
+	struct linux_emuldata *em;
+
+	em = em_find(td);
+	KASSERT(em != NULL, ("set_tid_address: emuldata not found.\n"));
+
+	em->child_clear_tid = args->tidptr;
+
+	td->td_retval[0] = em->em_tid;
+
+	LINUX_CTR3(set_tid_address, "tidptr(%d) %p, returns %d",
+	    em->em_tid, args->tidptr, td->td_retval[0]);
+
+	return (0);
+}
+
+void
+linux_thread_detach(struct thread *td)
+{
+	struct linux_sys_futex_args cup;
+	struct linux_emuldata *em;
+	int *child_clear_tid;
+	int error;
+
+	em = em_find(td);
+	KASSERT(em != NULL, ("thread_detach: emuldata not found.\n"));
+
+	LINUX_CTR1(exit, "thread detach(%d)", em->em_tid);
+
+	release_futexes(td, em);
+
+	child_clear_tid = em->child_clear_tid;
+
+	if (child_clear_tid != NULL) {
+
+		LINUX_CTR2(exit, "thread detach(%d) %p",
+		    em->em_tid, child_clear_tid);
+	
+		error = suword32(child_clear_tid, 0);
+		if (error != 0)
+			return;
+
+		cup.uaddr = child_clear_tid;
+		cup.op = LINUX_FUTEX_WAKE;
+		cup.val = 1;		/* wake one */
+		cup.timeout = NULL;
+		cup.uaddr2 = NULL;
+		cup.val3 = 0;
+		error = linux_sys_futex(td, &cup);
+		/*
+		 * this cannot happen at the moment and if this happens it
+		 * probably means there is a user space bug
+		 */
+		if (error != 0)
+			linux_msg(td, "futex stuff in thread_detach failed.");
+	}
 }

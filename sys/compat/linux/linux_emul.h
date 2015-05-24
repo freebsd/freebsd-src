@@ -41,17 +41,13 @@ struct linux_emuldata {
 	int    *child_clear_tid;/* in clone(): Child's TID to clear on exit */
 
 	int	pdeath_signal;		/* parent death signal */
-	int	flags;			/* different emuldata flags */
+	int	flags;			/* thread emuldata flags */
 	int	em_tid;			/* thread id */
 
 	struct	linux_robust_list_head	*robust_futexes;
 };
 
 struct linux_emuldata	*em_find(struct thread *);
-
-/* emuldata flags */
-#define	LINUX_XDEPR_REQUEUEOP	0x00000001	/* uses deprecated
-						   futex REQUEUE op*/
 
 void	linux_proc_init(struct thread *, struct thread *, int);
 void	linux_proc_exit(void *, struct proc *);
@@ -60,5 +56,20 @@ void	linux_proc_exec(void *, struct proc *, struct image_params *);
 void	linux_thread_dtor(void *arg __unused, struct thread *);
 void	linux_thread_detach(struct thread *);
 int	linux_common_execve(struct thread *, struct image_args *);
+
+/* process emuldata flags */
+#define	LINUX_XDEPR_REQUEUEOP	0x00000001	/* uses deprecated
+						   futex REQUEUE op*/
+struct linux_pemuldata {
+	uint32_t	flags;		/* process emuldata flags */
+	struct sx	pem_sx;		/* lock for this struct */
+};
+
+#define	LINUX_PEM_XLOCK(p)	sx_xlock(&(p)->pem_sx)
+#define	LINUX_PEM_XUNLOCK(p)	sx_xunlock(&(p)->pem_sx)
+#define	LINUX_PEM_SLOCK(p)	sx_slock(&(p)->pem_sx)
+#define	LINUX_PEM_SUNLOCK(p)	sx_sunlock(&(p)->pem_sx)
+
+struct linux_pemuldata	*pem_find(struct proc *);
 
 #endif	/* !_LINUX_EMUL_H_ */
