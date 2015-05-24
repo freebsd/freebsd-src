@@ -682,7 +682,6 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 	switch (newstate) {
 	case XenbusStateInitialising:
 	case XenbusStateInitialised:
-	case XenbusStateConnected:
 	case XenbusStateUnknown:
 	case XenbusStateClosed:
 	case XenbusStateReconfigured:
@@ -694,12 +693,14 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 		if (network_connect(sc) != 0)
 			break;
 		xenbus_set_state(dev, XenbusStateConnected);
-#ifdef INET
-		netfront_send_fake_arp(dev, sc);
-#endif
 		break;
 	case XenbusStateClosing:
 		xenbus_set_state(dev, XenbusStateClosed);
+		break;
+	case XenbusStateConnected:
+#ifdef INET
+		netfront_send_fake_arp(dev, sc);
+#endif
 		break;
 	}
 }
@@ -879,12 +880,11 @@ refill:
 		if (sc->copying_receiver == 0) {
 			gnttab_grant_foreign_transfer_ref(ref,
 			    otherend_id, pfn);
-			sc->rx_pfn_array[nr_flips] = PFNTOMFN(pfn);
+			sc->rx_pfn_array[nr_flips] = pfn;
 			if (!xen_feature(XENFEAT_auto_translated_physmap)) {
 				/* Remove this page before passing
 				 * back to Xen.
 				 */
-				set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
 				MULTI_update_va_mapping(&sc->rx_mcl[i],
 				    vaddr, 0, 0);
 			}
@@ -892,7 +892,7 @@ refill:
 		} else {
 			gnttab_grant_foreign_access_ref(ref,
 			    otherend_id,
-			    PFNTOMFN(pfn), 0);
+			    pfn, 0);
 		}
 		req->id = id;
 		req->gref = ref;
@@ -907,7 +907,6 @@ refill:
 	 * We may have allocated buffers which have entries outstanding
 	 * in the page * update queue -- make sure we flush those first!
 	 */
-	PT_UPDATES_FLUSH();
 	if (nr_flips != 0) {
 #ifdef notyet
 		/* Tell the ballon driver what is going on. */
@@ -1361,8 +1360,6 @@ xennet_get_responses(struct netfront_info *np,
 				mmu->ptr = ((vm_paddr_t)mfn << PAGE_SHIFT) |
 				    MMU_MACHPHYS_UPDATE;
 				mmu->val = pfn;
-
-				set_phys_to_machine(pfn, mfn);
 			}
 			pages_flipped++;
 		} else {
@@ -1927,7 +1924,7 @@ network_connect(struct netfront_info *np)
 		} else {
 			gnttab_grant_foreign_access_ref(ref,
 			    xenbus_get_otherend_id(np->xbdev),
-			    PFNTOMFN(pfn), 0);
+			    pfn, 0);
 		}
 		req->gref = ref;
 		req->id   = requeue_idx;
@@ -2095,7 +2092,7 @@ create_netdev(device_t dev)
 	ifp->if_hw_tsomaxsegsize = PAGE_SIZE;
 	
     	ether_ifattach(ifp, np->mac);
-    	callout_init(&np->xn_stat_ch, CALLOUT_MPSAFE);
+    	callout_init(&np->xn_stat_ch, 1);
 	netfront_carrier_off(np);
 
 	return (0);

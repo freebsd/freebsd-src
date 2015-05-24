@@ -597,19 +597,21 @@ restart:
 	/* Pass stack buffer by default */
 	ta_buf_m = ta_buf;
 	error = prepare_batch_buffer(ch, ta, tei, count, OP_ADD, &ta_buf_m);
-	if (error != 0)
-		goto cleanup;
 
 	IPFW_UH_WLOCK(ch);
+	del_toperation_state(ch, &ts);
 	/* Drop reference we've used in first search */
 	tc->no.refcnt--;
+
+	/* Check prepare_batch_buffer() error */
+	if (error != 0)
+		goto cleanup;
 
 	/*
 	 * Check if table swap has happened.
 	 * (so table algo might be changed).
 	 * Restart operation to achieve consistent behavior.
 	 */
-	del_toperation_state(ch, &ts);
 	if (ts.modified != 0)
 		goto restart;
 
@@ -3398,6 +3400,11 @@ ref_rule_objects(struct ip_fw_chain *ch, struct ip_fw *rule,
 	}
 
 	IPFW_UH_WUNLOCK(ch);
+
+	found = pidx - oib;
+	KASSERT(found == ci->object_opcodes,
+	    ("refcount inconsistency: found: %d total: %d",
+	    found, ci->object_opcodes));
 
 	/* Perform auto-creation for non-existing objects */
 	if (numnew != 0)

@@ -1647,7 +1647,6 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 				return EINVAL;
 			if (cmdlen != F_INSN_SIZE(ipfw_insn_nat))
  				goto bad_size;		
-			ci->object_opcodes++;
  			goto check_action;
 		case O_FORWARD_MAC: /* XXX not implemented yet */
 		case O_CHECK_STATE:
@@ -2211,7 +2210,7 @@ create_objects_compat(struct ip_fw_chain *ch, ipfw_insn *cmd,
 		return (error);
 	}
 
-	return (error);
+	return (0);
 }
 
 /*
@@ -2847,7 +2846,7 @@ compare_sh(const void *_a, const void *_b)
  * Returns pointer to handler or NULL.
  */
 static struct ipfw_sopt_handler *
-find_sh(uint16_t code, uint8_t version, void *handler)
+find_sh(uint16_t code, uint8_t version, sopt_handler_f *handler)
 {
 	struct ipfw_sopt_handler *sh, h;
 

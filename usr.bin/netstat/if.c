@@ -315,7 +315,7 @@ intpr(int interval, void (*pfunc)(char *), int af)
 
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
 		bool network = false, link = false;
-		char *name;
+		char *name, *xname, buf[IFNAMSIZ+1];
 
 		if (interface != NULL && strcmp(ifa->ifa_name, interface) != 0)
 			continue;
@@ -341,10 +341,20 @@ intpr(int interval, void (*pfunc)(char *), int af)
 
 		xo_open_instance("interface");
 
+		if ((ifa->ifa_flags & IFF_UP) == 0) {
+			xname = stpcpy(buf, name);
+			*xname++ = '*';
+			*xname = '\0';
+			xname = buf;
+		} else
+			xname = name;
+
 		if (Wflag)
-			xo_emit("{tk:name/%-7.7s}", name);
+			xo_emit("{etk:name/%s}{e:flags/0x%x}{d:/%7.7s}",
+			    name, ifa->ifa_flags, xname);
 		else
-			xo_emit("{tk:name/%-5.5s}", name);
+			xo_emit("{etk:name/%s}{e:flags/0x%x}{d:/%5.5s}",
+			    name, ifa->ifa_flags, xname);
 
 #define IFA_MTU(ifa)	(((struct if_data *)(ifa)->ifa_data)->ifi_mtu)
 		show_stat("lu", 6, "mtu", IFA_MTU(ifa), IFA_MTU(ifa));

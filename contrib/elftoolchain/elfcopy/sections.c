@@ -34,7 +34,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: sections.c 3174 2015-03-27 17:13:41Z emaste $");
+ELFTC_VCSID("$Id: sections.c 3185 2015-04-11 08:56:34Z kaiwang27 $");
 
 static void	add_gnu_debuglink(struct elfcopy *ecp);
 static uint32_t calc_crc32(const char *p, size_t len, uint32_t crc);
@@ -1222,6 +1222,14 @@ update_shdr(struct elfcopy *ecp, int update_link)
 		if ((s->type == SHT_REL || s->type == SHT_RELA) &&
 		    osh.sh_info != 0)
 			osh.sh_info = ecp->secndx[osh.sh_info];
+
+		/*
+		 * sh_info of SHT_GROUP section needs to point to the correct
+		 * string in the symbol table.
+		 */
+		if (s->type == SHT_GROUP && (ecp->flags & SYMTAB_EXIST) &&
+		    (ecp->flags & SYMTAB_INTACT) == 0)
+			osh.sh_info = ecp->symndx[osh.sh_info];
 
 		if (!gelf_update_shdr(s->os, &osh))
 			errx(EXIT_FAILURE, "gelf_update_shdr() failed: %s",

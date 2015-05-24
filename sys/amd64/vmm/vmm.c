@@ -1256,10 +1256,13 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	mem_region_read_t mread;
 	mem_region_write_t mwrite;
 	enum vm_cpu_mode cpu_mode;
-	int cs_d, error, length;
+	int cs_d, error, fault;
 
 	vcpu = &vm->vcpu[vcpuid];
 	vme = &vcpu->exitinfo;
+
+	KASSERT(vme->inst_length == 0, ("%s: invalid inst_length %d",
+	    __func__, vme->inst_length));
 
 	gla = vme->u.inst_emul.gla;
 	gpa = vme->u.inst_emul.gpa;
@@ -1273,37 +1276,31 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 
 	/* Fetch, decode and emulate the faulting instruction */
 	if (vie->num_valid == 0) {
-		/*
-		 * If the instruction length is not known then assume a
-		 * maximum size instruction.
-		 */
-		length = vme->inst_length ? vme->inst_length : VIE_INST_SIZE;
 		error = vmm_fetch_instruction(vm, vcpuid, paging, vme->rip +
-		    cs_base, length, vie);
+		    cs_base, VIE_INST_SIZE, vie, &fault);
 	} else {
 		/*
 		 * The instruction bytes have already been copied into 'vie'
 		 */
-		error = 0;
+		error = fault = 0;
 	}
-	if (error == 1)
-		return (0);		/* Resume guest to handle page fault */
-	else if (error == -1)
-		return (EFAULT);
-	else if (error != 0)
-		panic("%s: vmm_fetch_instruction error %d", __func__, error);
+	if (error || fault)
+		return (error);
 
-	if (vmm_decode_instruction(vm, vcpuid, gla, cpu_mode, cs_d, vie) != 0)
-		return (EFAULT);
+	if (vmm_decode_instruction(vm, vcpuid, gla, cpu_mode, cs_d, vie) != 0) {
+		VCPU_CTR1(vm, vcpuid, "Error decoding instruction at %#lx",
+		    vme->rip + cs_base);
+		*retu = true;	    /* dump instruction bytes in userspace */
+		return (0);
+	}
 
 	/*
-	 * If the instruction length was not specified then update it now
-	 * along with 'nextrip'.
+	 * Update 'nextrip' based on the length of the emulated instruction.
 	 */
-	if (vme->inst_length == 0) {
-		vme->inst_length = vie->num_processed;
-		vcpu->nextrip += vie->num_processed;
-	}
+	vme->inst_length = vie->num_processed;
+	vcpu->nextrip += vie->num_processed;
+	VCPU_CTR1(vm, vcpuid, "nextrip updated to %#lx after instruction "
+	    "decoding", vcpu->nextrip);
  
 	/* return to userland unless this is an in-kernel emulated device */
 	if (gpa >= DEFAULT_APIC_BASE && gpa < DEFAULT_APIC_BASE + PAGE_SIZE) {
@@ -1788,6 +1785,7 @@ vm_inject_exception(struct vm *vm, int vcpuid, int vector, int errcode_valid,
     uint32_t errcode, int restart_instruction)
 {
 	struct vcpu *vcpu;
+	uint64_t regval;
 	int error;
 
 	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
@@ -1810,6 +1808,16 @@ vm_inject_exception(struct vm *vm, int vcpuid, int vector, int errcode_valid,
 		VCPU_CTR2(vm, vcpuid, "Unable to inject exception %d due to "
 		    "pending exception %d", vector, vcpu->exc_vector);
 		return (EBUSY);
+	}
+
+	if (errcode_valid) {
+		/*
+		 * Exceptions don't deliver an error code in real mode.
+		 */
+		error = vm_get_register(vm, vcpuid, VM_REG_GUEST_CR0, &regval);
+		KASSERT(!error, ("%s: error %d getting CR0", __func__, error));
+		if (!(regval & CR0_PE))
+			errcode_valid = 0;
 	}
 
 	/*
@@ -2319,7 +2327,7 @@ vm_copy_teardown(struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo,
 int
 vm_copy_setup(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
     uint64_t gla, size_t len, int prot, struct vm_copyinfo *copyinfo,
-    int num_copyinfo)
+    int num_copyinfo, int *fault)
 {
 	int error, idx, nused;
 	size_t n, off, remaining;
@@ -2332,8 +2340,8 @@ vm_copy_setup(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
 	remaining = len;
 	while (remaining > 0) {
 		KASSERT(nused < num_copyinfo, ("insufficient vm_copyinfo"));
-		error = vm_gla2gpa(vm, vcpuid, paging, gla, prot, &gpa);
-		if (error)
+		error = vm_gla2gpa(vm, vcpuid, paging, gla, prot, &gpa, fault);
+		if (error || *fault)
 			return (error);
 		off = gpa & PAGE_MASK;
 		n = min(remaining, PAGE_SIZE - off);
@@ -2355,8 +2363,9 @@ vm_copy_setup(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
 
 	if (idx != nused) {
 		vm_copy_teardown(vm, vcpuid, copyinfo, num_copyinfo);
-		return (-1);
+		return (EFAULT);
 	} else {
+		*fault = 0;
 		return (0);
 	}
 }

@@ -8,7 +8,7 @@
 # and the main list to avoid needing a SUBDIR_DEPEND line on every library
 # naming just these few items.
 
-SUBDIR_ORDERED=	${_csu} \
+SUBDIR_ORDERED=	csu \
 	.WAIT \
 	libc \
 	libc_nonshared \
@@ -65,7 +65,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libldns} \
 	liblzma \
 	${_libmagic} \
-	libmandoc \
 	libmemstat \
 	libmd \
 	${_libmilter} \
@@ -155,16 +154,6 @@ SUBDIR_DEPEND_libtacplus= libmd
 SUBDIR_DEPEND_libulog= libmd
 SUBDIR_DEPEND_libunbound= ${_libldns}
 SUBDIR_DEPEND_liblzma= ${_libthr}
-
-.if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
-_csu=csu/${MACHINE_ARCH}-elf
-.elif exists(${.CURDIR}/csu/${MACHINE_ARCH})
-_csu=csu/${MACHINE_ARCH}
-.elif exists(${.CURDIR}/csu/${MACHINE_CPUARCH}/Makefile)
-_csu=csu/${MACHINE_CPUARCH}
-.else
-_csu=csu
-.endif
 
 # NB: keep these sorted by MK_* knobs
 

@@ -10,10 +10,6 @@ SUBDIR=	\
 SUBDIR+=sendmail
 .endif
 
-.if ${MK_TESTS} != "no"
-SUBDIR+=tests
-.endif
-
 BIN1=	crontab \
 	devd.conf \
 	devfs.conf \
@@ -53,10 +49,6 @@ BIN1=	crontab \
 	sysctl.conf \
 	syslog.conf \
 	termcap.small
-
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "powerpc64"
-BIN1+=	libmap32.conf
-.endif
 
 .if exists(${.CURDIR}/etc.${MACHINE}/ttys)
 BIN1+=	etc.${MACHINE}/ttys

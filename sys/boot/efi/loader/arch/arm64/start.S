@@ -156,7 +156,7 @@ _start:
 	adr	x0, ImageBase
 	adr	x1, _DYNAMIC
 
-	bl	_reloc
+	bl	self_reloc
 
 	ldp	x0, x1, [sp], #16
 

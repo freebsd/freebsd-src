@@ -944,17 +944,18 @@ signal_cb(evutil_socket_t fd, short event, void *arg)
 }
 
 static void
-test_simplesignal(void)
+test_simplesignal_impl(int find_reorder)
 {
 	struct event ev;
 	struct itimerval itv;
 
-	setup_test("Simple signal: ");
 	evsignal_set(&ev, SIGALRM, signal_cb, &ev);
 	evsignal_add(&ev, NULL);
 	/* find bugs in which operations are re-ordered */
-	evsignal_del(&ev);
-	evsignal_add(&ev, NULL);
+	if (find_reorder) {
+		evsignal_del(&ev);
+		evsignal_add(&ev, NULL);
+	}
 
 	memset(&itv, 0, sizeof(itv));
 	itv.it_value.tv_sec = 0;
@@ -968,6 +969,20 @@ test_simplesignal(void)
 		test_ok = 0;
 
 	cleanup_test();
+}
+
+static void
+test_simplestsignal(void)
+{
+	setup_test("Simplest one signal: ");
+	test_simplesignal_impl(0);
+}
+
+static void
+test_simplesignal(void)
+{
+	setup_test("Simple signal: ");
+	test_simplesignal_impl(1);
 }
 
 static void
@@ -1658,7 +1673,7 @@ static void
 test_active_later(void *ptr)
 {
 	struct basic_test_data *data = ptr;
-	struct event *ev1, *ev2;
+	struct event *ev1 = NULL, *ev2 = NULL;
 	struct event ev3, ev4;
 	struct timeval qsec = {0, 100000};
 	ev1 = event_new(data->base, data->pair[0], EV_READ|EV_PERSIST, read_and_drain_cb, NULL);
@@ -1693,10 +1708,15 @@ test_active_later(void *ptr)
 	 * it. */
 	event_active_later_(&ev3, EV_READ);
 	event_base_assert_ok_(data->base);
+
+end:
+	if (ev1)
+		event_free(ev1);
+	if (ev2)
+		event_free(ev2);
+
 	event_base_free(data->base);
 	data->base = NULL;
-end:
-	;
 }
 
 
@@ -2281,7 +2301,7 @@ evtag_fuzz(void *ptr)
 
 	for (j = 0; j < 100; j++) {
 		for (i = 0; i < (int)sizeof(buffer); i++)
-			buffer[i] = rand();
+			buffer[i] = test_weakrand();
 		evbuffer_drain(tmp, -1);
 		evbuffer_add(tmp, buffer, sizeof(buffer));
 
@@ -3294,6 +3314,7 @@ struct testcase_t evtag_testcases[] = {
 
 struct testcase_t signal_testcases[] = {
 #ifndef _WIN32
+	LEGACY(simplestsignal, TT_ISOLATED),
 	LEGACY(simplesignal, TT_ISOLATED),
 	LEGACY(multiplesignal, TT_ISOLATED),
 	LEGACY(immediatesignal, TT_ISOLATED),

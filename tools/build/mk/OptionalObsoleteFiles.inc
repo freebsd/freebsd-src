@@ -781,6 +781,10 @@ OLD_FILES+=usr/share/dtrace/toolkit/hotkernel
 OLD_FILES+=usr/share/dtrace/toolkit/hotuser
 OLD_FILES+=usr/share/dtrace/toolkit/opensnoop
 OLD_FILES+=usr/share/dtrace/toolkit/procsystime
+OLD_FILES+=usr/share/dtrace/tcpconn
+OLD_FILES+=usr/share/dtrace/tcpstate
+OLD_FILES+=usr/share/dtrace/tcptrack
+OLD_FILES+=usr/share/dtrace/udptrack
 OLD_FILES+=usr/share/man/man1/dtrace.1.gz
 OLD_DIRS+=usr/lib/dtrace
 OLD_DIRS+=usr/lib32/dtrace
@@ -1004,15 +1008,11 @@ OLD_DIRS+=usr/include/fs/cuse
 .if ${MK_CXX} == no
 OLD_FILES+=usr/bin/CC
 OLD_FILES+=usr/bin/c++
+.if ${MK_ELFTOOLCHAIN_TOOLS} == no
 OLD_FILES+=usr/bin/c++filt
+.endif
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/libexec/cc1plus
-.if ${MK_GCC} == no
-OLD_FILES+=usr/bin/gperf
-OLD_FILES+=usr/share/info/gperf.info.gz
-OLD_FILES+=usr/share/man/man1/gperf.1.gz
-OLD_FILES+=usr/share/man/man1/gperf.7.gz
-.endif
 .endif
 
 .if ${MK_FMTREE} == no
@@ -1720,11 +1720,14 @@ OLD_FILES+=usr/share/man/man8/unstr.8.gz
 .endif
 
 .if ${MK_GCC} == no
+.if ${MK_ELFTOOLCHAIN_TOOLS} == no
 OLD_FILES+=usr/bin/c++filt
+.endif
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/bin/gcc
 OLD_FILES+=usr/bin/gcov
 OLD_FILES+=usr/bin/gcpp
+OLD_FILES+=usr/bin/gperf
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/include/gcc/4.2/__wmmintrin_aes.h
 OLD_FILES+=usr/include/gcc/4.2/__wmmintrin_pclmul.h
@@ -1744,16 +1747,25 @@ OLD_FILES+=usr/include/gcc/4.2/altivec.h
 OLD_FILES+=usr/include/gcc/4.2/ppc-asm.h
 OLD_FILES+=usr/include/gcc/4.2/spe.h
 .endif
+OLD_FILES+=usr/include/omp.h
+OLD_FILES+=usr/lib/libgcov.a
+OLD_FILES+=usr/lib/libgomp.a
+OLD_FILES+=usr/lib/libgomp.so
+OLD_LIBS+=usr/lib/libgomp.so.1
+OLD_FILES+=usr/lib/libgomp_p.a
 OLD_FILES+=usr/libexec/cc1
 OLD_FILES+=usr/libexec/cc1plus
 OLD_FILES+=usr/share/info/cpp.info.gz
 OLD_FILES+=usr/share/info/cppinternals.info.gz
 OLD_FILES+=usr/share/info/gcc.info.gz
 OLD_FILES+=usr/share/info/gccint.info.gz
+OLD_FILES+=usr/share/info/gperf.info.gz
 OLD_FILES+=usr/share/man/man1/g++.1.gz
 OLD_FILES+=usr/share/man/man1/gcc.1.gz
 OLD_FILES+=usr/share/man/man1/gcov.1.gz
 OLD_FILES+=usr/share/man/man1/gcpp.1.gz
+OLD_FILES+=usr/share/man/man1/gperf.1.gz
+OLD_FILES+=usr/share/man/man1/gperf.7.gz
 .endif
 
 .if ${MK_GCOV} == no
@@ -1835,7 +1847,6 @@ OLD_FILES+=usr/bin/post-grohtml
 OLD_FILES+=usr/bin/pre-grohtml
 OLD_FILES+=usr/bin/psroff
 OLD_FILES+=usr/bin/refer
-OLD_FILES+=usr/bin/soelim
 OLD_FILES+=usr/bin/tbl
 OLD_FILES+=usr/bin/tfmtodit
 OLD_FILES+=usr/bin/troff
@@ -2242,7 +2253,6 @@ OLD_FILES+=usr/share/man/man1/pfbtops.1.gz
 OLD_FILES+=usr/share/man/man1/pic.1.gz
 OLD_FILES+=usr/share/man/man1/psroff.1.gz
 OLD_FILES+=usr/share/man/man1/refer.1.gz
-OLD_FILES+=usr/share/man/man1/soelim.1.gz
 OLD_FILES+=usr/share/man/man1/tbl.1.gz
 OLD_FILES+=usr/share/man/man1/tfmtodit.1.gz
 OLD_FILES+=usr/share/man/man1/troff.1.gz

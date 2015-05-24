@@ -29,11 +29,15 @@
 #ifndef MACHINE_CPU_V6_H
 #define MACHINE_CPU_V6_H
 
+/* There are no user serviceable parts here, they may change without notice */
+#ifndef _KERNEL
+#error Only include this file in the kernel
+#else
+
 #include "machine/atomic.h"
 #include "machine/cpufunc.h"
 #include "machine/cpuinfo.h"
 #include "machine/sysreg.h"
-
 
 #define CPU_ASID_KERNEL 0
 
@@ -143,6 +147,13 @@ _RF0(cp15_ttbr_get, CP15_TTBR0(%0))
 _RF0(cp15_dfar_get, CP15_DFAR(%0))
 #if __ARM_ARCH >= 7
 _RF0(cp15_ifar_get, CP15_IFAR(%0))
+_RF0(cp15_l2ctlr_get, CP15_L2CTLR(%0))
+#endif
+#if __ARM_ARCH >= 6
+_RF0(cp15_actlr_get, CP15_ACTLR(%0))
+_WF1(cp15_ats1cpr_set, CP15_ATS1CPR(%0));
+_RF0(cp15_par_get, CP15_PAR);
+_RF0(cp15_sctlr_get, CP15_SCTLR(%0))
 #endif
 
 /*CPU id registers */
@@ -269,24 +280,29 @@ tlb_flush_all_ng_local(void)
 
 /* Flush single TLB entry (even global). */
 static __inline void
-tlb_flush_local(vm_offset_t sva)
+tlb_flush_local(vm_offset_t va)
 {
 
+	KASSERT((va & PAGE_MASK) == 0, ("%s: va %#x not aligned", __func__, va));
+
 	dsb();
-	_CP15_TLBIMVA((sva & ~PAGE_MASK ) | CPU_ASID_KERNEL);
+	_CP15_TLBIMVA(va | CPU_ASID_KERNEL);
 	dsb();
 }
 
 /* Flush range of TLB entries (even global). */
 static __inline void
-tlb_flush_range_local(vm_offset_t sva, vm_size_t size)
+tlb_flush_range_local(vm_offset_t va, vm_size_t size)
 {
-	vm_offset_t va;
-	vm_offset_t eva = sva + size;
+	vm_offset_t eva = va + size;
+
+	KASSERT((va & PAGE_MASK) == 0, ("%s: va %#x not aligned", __func__, va));
+	KASSERT((size & PAGE_MASK) == 0, ("%s: size %#x not aligned", __func__,
+	    size));
 
 	dsb();
-	for (va = sva; va < eva; va += PAGE_SIZE)
-		_CP15_TLBIMVA((va & ~PAGE_MASK ) | CPU_ASID_KERNEL);
+	for (; va < eva; va += PAGE_SIZE)
+		_CP15_TLBIMVA(va | CPU_ASID_KERNEL);
 	dsb();
 }
 
@@ -312,22 +328,27 @@ tlb_flush_all_ng(void)
 }
 
 static __inline void
-tlb_flush(vm_offset_t sva)
+tlb_flush(vm_offset_t va)
 {
 
+	KASSERT((va & PAGE_MASK) == 0, ("%s: va %#x not aligned", __func__, va));
+
 	dsb();
-	_CP15_TLBIMVAAIS(sva);
+	_CP15_TLBIMVAAIS(va);
 	dsb();
 }
 
 static __inline void
-tlb_flush_range(vm_offset_t sva,  vm_size_t size)
+tlb_flush_range(vm_offset_t va,  vm_size_t size)
 {
-	vm_offset_t va;
-	vm_offset_t eva = sva + size;
+	vm_offset_t eva = va + size;
+
+	KASSERT((va & PAGE_MASK) == 0, ("%s: va %#x not aligned", __func__, va));
+	KASSERT((size & PAGE_MASK) == 0, ("%s: size %#x not aligned", __func__,
+	    size));
 
 	dsb();
-	for (va = sva; va < eva; va += PAGE_SIZE)
+	for (; va < eva; va += PAGE_SIZE)
 		_CP15_TLBIMVAAIS(va);
 	dsb();
 }
@@ -335,8 +356,8 @@ tlb_flush_range(vm_offset_t sva,  vm_size_t size)
 
 #define tlb_flush_all() 		tlb_flush_all_local()
 #define tlb_flush_all_ng() 		tlb_flush_all_ng_local()
-#define tlb_flush(sva) 			tlb_flush_local(sva)
-#define tlb_flush_range(sva, size) 	tlb_flush_range_local(sva, size)
+#define tlb_flush(va) 			tlb_flush_local(va)
+#define tlb_flush_range(va, size) 	tlb_flush_range_local(va, size)
 
 #endif /* SMP */
 
@@ -346,13 +367,13 @@ tlb_flush_range(vm_offset_t sva,  vm_size_t size)
 
 /*  Sync I and D caches to PoU */
 static __inline void
-icache_sync(vm_offset_t sva, vm_size_t size)
+icache_sync(vm_offset_t va, vm_size_t size)
 {
-	vm_offset_t va;
-	vm_offset_t eva = sva + size;
+	vm_offset_t eva = va + size;
 
 	dsb();
-	for (va = sva; va < eva; va += cpuinfo.dcache_line_size) {
+	va &= ~cpuinfo.dcache_line_mask;
+	for ( ; va < eva; va += cpuinfo.dcache_line_size) {
 #if __ARM_ARCH >= 7 && defined SMP
 		_CP15_DCCMVAU(va);
 #else
@@ -397,13 +418,13 @@ bpb_inv_all(void)
 
 /* Write back D-cache to PoU */
 static __inline void
-dcache_wb_pou(vm_offset_t sva, vm_size_t size)
+dcache_wb_pou(vm_offset_t va, vm_size_t size)
 {
-	vm_offset_t va;
-	vm_offset_t eva = sva + size;
+	vm_offset_t eva = va + size;
 
 	dsb();
-	for (va = sva; va < eva; va += cpuinfo.dcache_line_size) {
+	va &= ~cpuinfo.dcache_line_mask;
+	for ( ; va < eva; va += cpuinfo.dcache_line_size) {
 #if __ARM_ARCH >= 7 && defined SMP
 		_CP15_DCCMVAU(va);
 #else
@@ -413,40 +434,46 @@ dcache_wb_pou(vm_offset_t sva, vm_size_t size)
 	dsb();
 }
 
-/* Invalidate D-cache to PoC */
+/*
+ * Invalidate D-cache to PoC
+ *
+ * Caches are invalidated from outermost to innermost as fresh cachelines
+ * flow in this direction. In given range, if there was no dirty cacheline
+ * in any cache before, no stale cacheline should remain in them after this
+ * operation finishes.
+ */
 static __inline void
-dcache_inv_poc(vm_offset_t sva, vm_paddr_t pa, vm_size_t size)
+dcache_inv_poc(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
 {
-	vm_offset_t va;
-	vm_offset_t eva = sva + size;
+	vm_offset_t eva = va + size;
 
-	/* invalidate L1 first */
-	for (va = sva; va < eva; va += cpuinfo.dcache_line_size) {
-		_CP15_DCIMVAC(va);
-	}
 	dsb();
+	/* invalidate L2 first */
+	cpu_l2cache_inv_range(pa, size);
 
-	/* then L2 */
- 	cpu_l2cache_inv_range(pa, size);
-	dsb();
-
-	/* then L1 again */
-	for (va = sva; va < eva; va += cpuinfo.dcache_line_size) {
+	/* then L1 */
+	va &= ~cpuinfo.dcache_line_mask;
+	for ( ; va < eva; va += cpuinfo.dcache_line_size) {
 		_CP15_DCIMVAC(va);
 	}
 	dsb();
 }
 
-/* Write back D-cache to PoC */
+/*
+ * Write back D-cache to PoC
+ *
+ * Caches are written back from innermost to outermost as dirty cachelines
+ * flow in this direction. In given range, no dirty cacheline should remain
+ * in any cache after this operation finishes.
+ */
 static __inline void
-dcache_wb_poc(vm_offset_t sva, vm_paddr_t pa, vm_size_t size)
+dcache_wb_poc(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
 {
-	vm_offset_t va;
-	vm_offset_t eva = sva + size;
+	vm_offset_t eva = va + size;
 
 	dsb();
-
-	for (va = sva; va < eva; va += cpuinfo.dcache_line_size) {
+	va &= ~cpuinfo.dcache_line_mask;
+	for ( ; va < eva; va += cpuinfo.dcache_line_size) {
 		_CP15_DCCMVAC(va);
 	}
 	dsb();
@@ -462,9 +489,9 @@ dcache_wbinv_poc(vm_offset_t sva, vm_paddr_t pa, vm_size_t size)
 	vm_offset_t eva = sva + size;
 
 	dsb();
-
 	/* write back L1 first */
-	for (va = sva; va < eva; va += cpuinfo.dcache_line_size) {
+	va = sva & ~cpuinfo.dcache_line_mask;
+	for ( ; va < eva; va += cpuinfo.dcache_line_size) {
 		_CP15_DCCMVAC(va);
 	}
 	dsb();
@@ -473,7 +500,8 @@ dcache_wbinv_poc(vm_offset_t sva, vm_paddr_t pa, vm_size_t size)
 	cpu_l2cache_wbinv_range(pa, size);
 
 	/* then invalidate L1 */
-	for (va = sva; va < eva; va += cpuinfo.dcache_line_size) {
+	va = sva & ~cpuinfo.dcache_line_mask;
+	for ( ; va < eva; va += cpuinfo.dcache_line_size) {
 		_CP15_DCIMVAC(va);
 	}
 	dsb();
@@ -491,5 +519,7 @@ cp15_ttbr_set(uint32_t reg)
 	isb();
 	tlb_flush_all_ng_local();
 }
+
+#endif /* _KERNEL */
 
 #endif /* !MACHINE_CPU_V6_H */

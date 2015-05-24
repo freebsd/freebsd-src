@@ -181,8 +181,10 @@ aml8726_usb_phy_attach(device_t dev)
 		sc->pwr_en[i].pin = prop[i * 3 + 1];
 		sc->pwr_en[i].pol = prop[i * 3 + 2];
 
-		if (sc->pwr_en[i].dev == NULL)
+		if (sc->pwr_en[i].dev == NULL) {
 			err = 1;
+			break;
+		}
 	}
 
 	free(prop, M_OFWPROP);

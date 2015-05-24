@@ -30,6 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <assert.h>
 #include <netdb.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,6 +68,8 @@ static struct hostent *
 hostent_unpack(const nvlist_t *nvl, struct hostent *hp)
 {
 	unsigned int ii, nitems;
+	char nvlname[64];
+	int n;
 
 	hostent_free(hp);
 
@@ -81,8 +84,10 @@ hostent_unpack(const nvlist_t *nvl, struct hostent *hp)
 	if (hp->h_aliases == NULL)
 		goto fail;
 	for (ii = 0; ii < nitems; ii++) {
+		n = snprintf(nvlname, sizeof(nvlname), "alias%u", ii);
+		assert(n > 0 && n < (int)sizeof(nvlname));
 		hp->h_aliases[ii] =
-		    strdup(nvlist_getf_string(nvl, "alias%u", ii));
+		    strdup(nvlist_get_string(nvl, nvlname));
 		if (hp->h_aliases[ii] == NULL)
 			goto fail;
 	}
@@ -96,7 +101,9 @@ hostent_unpack(const nvlist_t *nvl, struct hostent *hp)
 		hp->h_addr_list[ii] = malloc(hp->h_length);
 		if (hp->h_addr_list[ii] == NULL)
 			goto fail;
-		bcopy(nvlist_getf_binary(nvl, NULL, "addr%u", ii),
+		n = snprintf(nvlname, sizeof(nvlname), "addr%u", ii);
+		assert(n > 0 && n < (int)sizeof(nvlname));
+		bcopy(nvlist_get_binary(nvl, nvlname, NULL),
 		    hp->h_addr_list[ii], hp->h_length);
 	}
 	hp->h_addr_list[ii] = NULL;
@@ -125,7 +132,7 @@ cap_gethostbyname2(cap_channel_t *chan, const char *name, int type)
 	nvlist_add_string(nvl, "cmd", "gethostbyname");
 	nvlist_add_number(nvl, "family", (uint64_t)type);
 	nvlist_add_string(nvl, "name", name);
-	nvl = cap_xfer_nvlist(chan, nvl);
+	nvl = cap_xfer_nvlist(chan, nvl, 0);
 	if (nvl == NULL) {
 		h_errno = NO_RECOVERY;
 		return (NULL);
@@ -152,7 +159,7 @@ cap_gethostbyaddr(cap_channel_t *chan, const void *addr, socklen_t len,
 	nvlist_add_string(nvl, "cmd", "gethostbyaddr");
 	nvlist_add_binary(nvl, "addr", addr, (size_t)len);
 	nvlist_add_number(nvl, "family", (uint64_t)type);
-	nvl = cap_xfer_nvlist(chan, nvl);
+	nvl = cap_xfer_nvlist(chan, nvl, 0);
 	if (nvl == NULL) {
 		h_errno = NO_RECOVERY;
 		return (NULL);
@@ -208,8 +215,9 @@ cap_getaddrinfo(cap_channel_t *chan, const char *hostname, const char *servname,
 	struct addrinfo *firstai, *prevai, *curai;
 	unsigned int ii;
 	const nvlist_t *nvlai;
+	char nvlname[64];
 	nvlist_t *nvl;
-	int error;
+	int error, n;
 
 	nvl = nvlist_create(0);
 	nvlist_add_string(nvl, "cmd", "getaddrinfo");
@@ -225,7 +233,7 @@ cap_getaddrinfo(cap_channel_t *chan, const char *hostname, const char *servname,
 		nvlist_add_number(nvl, "hints.ai_protocol",
 		    (uint64_t)hints->ai_protocol);
 	}
-	nvl = cap_xfer_nvlist(chan, nvl);
+	nvl = cap_xfer_nvlist(chan, nvl, 0);
 	if (nvl == NULL)
 		return (EAI_MEMORY);
 	if (nvlist_get_number(nvl, "error") != 0) {
@@ -237,9 +245,11 @@ cap_getaddrinfo(cap_channel_t *chan, const char *hostname, const char *servname,
 	nvlai = NULL;
 	firstai = prevai = curai = NULL;
 	for (ii = 0; ; ii++) {
-		if (!nvlist_existsf_nvlist(nvl, "res%u", ii))
+		n = snprintf(nvlname, sizeof(nvlname), "res%u", ii);
+		assert(n > 0 && n < (int)sizeof(nvlname));
+		if (!nvlist_exists_nvlist(nvl, nvlname))
 			break;
-		nvlai = nvlist_getf_nvlist(nvl, "res%u", ii);
+		nvlai = nvlist_get_nvlist(nvl, nvlname);
 		curai = addrinfo_unpack(nvlai);
 		if (curai == NULL)
 			break;
@@ -273,7 +283,7 @@ cap_getnameinfo(cap_channel_t *chan, const struct sockaddr *sa, socklen_t salen,
 	nvlist_add_number(nvl, "servlen", (uint64_t)servlen);
 	nvlist_add_binary(nvl, "sa", sa, (size_t)salen);
 	nvlist_add_number(nvl, "flags", (uint64_t)flags);
-	nvl = cap_xfer_nvlist(chan, nvl);
+	nvl = cap_xfer_nvlist(chan, nvl, 0);
 	if (nvl == NULL)
 		return (EAI_MEMORY);
 	if (nvlist_get_number(nvl, "error") != 0) {
@@ -314,6 +324,8 @@ cap_dns_type_limit(cap_channel_t *chan, const char * const *types,
 {
 	nvlist_t *limits;
 	unsigned int i;
+	char nvlname[64];
+	int n;
 
 	if (cap_limit_get(chan, &limits) < 0)
 		return (-1);
@@ -321,8 +333,11 @@ cap_dns_type_limit(cap_channel_t *chan, const char * const *types,
 		limits = nvlist_create(0);
 	else
 		limit_remove(limits, "type");
-	for (i = 0; i < ntypes; i++)
-		nvlist_addf_string(limits, types[i], "type%u", i);
+	for (i = 0; i < ntypes; i++) {
+		n = snprintf(nvlname, sizeof(nvlname), "type%u", i);
+		assert(n > 0 && n < (int)sizeof(nvlname));
+		nvlist_add_string(limits, nvlname, types[i]);
+	}
 	return (cap_limit_set(chan, limits));
 }
 
@@ -332,6 +347,8 @@ cap_dns_family_limit(cap_channel_t *chan, const int *families,
 {
 	nvlist_t *limits;
 	unsigned int i;
+	char nvlname[64];
+	int n;
 
 	if (cap_limit_get(chan, &limits) < 0)
 		return (-1);
@@ -340,8 +357,9 @@ cap_dns_family_limit(cap_channel_t *chan, const int *families,
 	else
 		limit_remove(limits, "family");
 	for (i = 0; i < nfamilies; i++) {
-		nvlist_addf_number(limits, (uint64_t)families[i],
-		    "family%u", i);
+		n = snprintf(nvlname, sizeof(nvlname), "family%u", i);
+		assert(n > 0 && n < (int)sizeof(nvlname));
+		nvlist_add_number(limits, nvlname, (uint64_t)families[i]);
 	}
 	return (cap_limit_set(chan, limits));
 }

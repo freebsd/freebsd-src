@@ -1542,7 +1542,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		tcp_timer_activate(tp, TT_KEEP, TP_KEEPIDLE(tp));
 
 	/*
-	 * Unscale the window into a 32-bit value.
+	 * Scale up the window into a 32-bit value.
 	 * For the SYN_SENT state the scale is zero.
 	 */
 	tiwin = th->th_win << tp->snd_scale;

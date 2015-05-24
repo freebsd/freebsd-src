@@ -2166,104 +2166,6 @@ pmap_pinit(pmap_t pmap)
 	return (1);
 }
 
-#ifdef SMP
-/*
- *  Deal with a SMP shootdown of other users of the pmap that we are
- *  trying to dispose of.  This can be a bit hairy.
- */
-static cpuset_t *lazymask;
-static ttb_entry_t lazyttb;
-static volatile u_int lazywait;
-
-void
-pmap_lazyfix_action(void)
-{
-
-#ifdef COUNT_IPIS
-	(*ipi_lazypmap_counts[PCPU_GET(cpuid)])++;
-#endif
-	spinlock_enter();
-	if (cp15_ttbr_get() == lazyttb) {
-		cp15_ttbr_set(curthread->td_pcb->pcb_pagedir);
-	}
-	CPU_CLR_ATOMIC(PCPU_GET(cpuid), lazymask);
-	atomic_store_rel_int(&lazywait, 1);
-	spinlock_exit();
-
-}
-
-static void
-pmap_lazyfix_self(u_int cpuid)
-{
-
-	spinlock_enter();
-	if (cp15_ttbr_get() == lazyttb) {
-		cp15_ttbr_set(curthread->td_pcb->pcb_pagedir);
-	}
-	CPU_CLR_ATOMIC(cpuid, lazymask);
-	spinlock_exit();
-}
-
-static void
-pmap_lazyfix(pmap_t pmap)
-{
-	cpuset_t mymask, mask;
-	u_int cpuid, spins;
-	int lsb;
-
-	mask = pmap->pm_active;
-	while (!CPU_EMPTY(&mask)) {
-		spins = 50000000;
-
-		/* Find least significant set bit. */
-		lsb = CPU_FFS(&mask);
-		MPASS(lsb != 0);
-		lsb--;
-		CPU_SETOF(lsb, &mask);
-		mtx_lock_spin(&smp_ipi_mtx);
-
-		lazyttb = pmap_ttb_get(pmap);
-		cpuid = PCPU_GET(cpuid);
-
-		/* Use a cpuset just for having an easy check. */
-		CPU_SETOF(cpuid, &mymask);
-		if (!CPU_CMP(&mask, &mymask)) {
-			lazymask = &pmap->pm_active;
-			pmap_lazyfix_self(cpuid);
-		} else {
-			atomic_store_rel_int((u_int *)&lazymask,
-			    (u_int)&pmap->pm_active);
-			atomic_store_rel_int(&lazywait, 0);
-			ipi_selected(mask, IPI_LAZYPMAP);
-			while (lazywait == 0) {
-				if (--spins == 0)
-					break;
-			}
-		}
-		mtx_unlock_spin(&smp_ipi_mtx);
-		if (spins == 0)
-			printf("%s: spun for 50000000\n", __func__);
-		mask = pmap->pm_active;
-	}
-}
-#else	/* SMP */
-/*
- *  Cleaning up on uniprocessor is easy.  For various reasons, we're
- *  unlikely to have to even execute this code, including the fact
- *  that the cleanup is deferred until the parent does a wait(2), which
- *  means that another userland process has run.
- */
-static void
-pmap_lazyfix(pmap_t pmap)
-{
-
-	if (!CPU_EMPTY(&pmap->pm_active)) {
-		cp15_ttbr_set(curthread->td_pcb->pcb_pagedir);
-		CPU_ZERO(&pmap->pm_active);
-	}
-}
-#endif	/* SMP */
-
 #ifdef INVARIANTS
 static boolean_t
 pt2tab_user_is_empty(pt2_entry_t *tab)
@@ -2292,8 +2194,9 @@ pmap_release(pmap_t pmap)
 	    pmap->pm_stats.resident_count));
 	KASSERT(pt2tab_user_is_empty(pmap->pm_pt2tab),
 	    ("%s: has allocated user PT2(s)", __func__));
+	KASSERT(CPU_EMPTY(&pmap->pm_active), 
+	    ("%s: pmap %p is active on some CPU(s)", __func__, pmap));
 
-	pmap_lazyfix(pmap);
 	mtx_lock_spin(&allpmaps_lock);
 	LIST_REMOVE(pmap, pm_list);
 	mtx_unlock_spin(&allpmaps_lock);
@@ -6094,13 +5997,13 @@ pmap_set_pcb_pagedir(pmap_t pmap, struct pcb *pcb)
 
 
 /*
- *  Clean L1 data cache range on a single page, which is not mapped yet.
+ *  Clean L1 data cache range by physical address.
+ *  The range must be within a single page.
  */
 static void
 pmap_dcache_wb_pou(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 {
 	struct sysmaps *sysmaps;
-	vm_offset_t va;
 
 	KASSERT(((pa & PAGE_MASK) + size) <= PAGE_SIZE,
 	    ("%s: not on single page", __func__));
@@ -6111,9 +6014,8 @@ pmap_dcache_wb_pou(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 	if (*sysmaps->CMAP3)
 		panic("%s: CMAP3 busy", __func__);
 	pte2_store(sysmaps->CMAP3, PTE2_KERN_NG(pa, PTE2_AP_KRW, ma));
-	va = (vm_offset_t)sysmaps->CADDR3;
-	tlb_flush_local(va);
-	dcache_wb_pou(va, size);
+	tlb_flush_local((vm_offset_t)sysmaps->CADDR3);
+	dcache_wb_pou((vm_offset_t)sysmaps->CADDR3 + (pa & PAGE_MASK), size);
 	pte2_clear(sysmaps->CMAP3);
 	sched_unpin();
 	mtx_unlock(&sysmaps->lock);

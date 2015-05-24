@@ -148,6 +148,10 @@ nexus_attach(device_t dev)
 	if (rman_init(&mem_rman) || rman_manage_region(&mem_rman, 0, ~0))
 		panic("nexus_probe mem_rman");
 
+	/* Add the ofwbus device */
+	/* ARM64TODO: Alternatively add acpi */
+	nexus_add_child(dev, 10, "ofwbus", 0);
+
 	/*
 	 * First, deal with the children we know about already
 	 */
@@ -208,12 +212,12 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		break;
 
 	default:
-		return (0);
+		return (NULL);
 	}
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
 	if (rv == 0)
-		return (0);
+		return (NULL);
 
 	rman_set_rid(rv, *rid);
 	rman_set_bushandle(rv, rman_get_start(rv));
@@ -221,7 +225,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	if (needactivate) {
 		if (bus_activate_resource(child, type, *rid, rv)) {
 			rman_release_resource(rv);
-			return (0);
+			return (NULL);
 		}
 	}
 

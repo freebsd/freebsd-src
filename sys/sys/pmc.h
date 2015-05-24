@@ -73,7 +73,6 @@
 #define	__PMC_CPUS()						\
 	__PMC_CPU(AMD_K7,	0x00,	"AMD K7")		\
 	__PMC_CPU(AMD_K8,	0x01,	"AMD K8")		\
-	__PMC_CPU(ARMV7,	0x500,	"ARMv7")		\
 	__PMC_CPU(INTEL_P5,	0x80,	"Intel Pentium")	\
 	__PMC_CPU(INTEL_P6,	0x81,	"Intel Pentium Pro")	\
 	__PMC_CPU(INTEL_CL,	0x82,	"Intel Celeron")	\
@@ -105,7 +104,10 @@
 	__PMC_CPU(PPC_E500,     0x340,  "PowerPC e500 Core")	\
 	__PMC_CPU(PPC_MPC85XX,  0x340,  "Freescale PowerPC MPC85XX")	\
 	__PMC_CPU(PPC_970,      0x380,  "IBM PowerPC 970")	\
-	__PMC_CPU(GENERIC, 	0x400,  "Generic")
+	__PMC_CPU(GENERIC, 	0x400,  "Generic")		\
+	__PMC_CPU(ARMV7,	0x500,	"ARMv7")		\
+	__PMC_CPU(ARMV8_CORTEX_A53,	0x600,	"ARMv8 Cortex A53")	\
+	__PMC_CPU(ARMV8_CORTEX_A57,	0x601,	"ARMv8 Cortex A57")
 
 enum pmc_cputype {
 #undef	__PMC_CPU
@@ -121,29 +123,30 @@ enum pmc_cputype {
  */
 
 #define	__PMC_CLASSES()							\
-	__PMC_CLASS(TSC)	/* CPU Timestamp counter */		\
-	__PMC_CLASS(K7)		/* AMD K7 performance counters */	\
-	__PMC_CLASS(K8)		/* AMD K8 performance counters */	\
-	__PMC_CLASS(P5)		/* Intel Pentium counters */		\
-	__PMC_CLASS(P6)		/* Intel Pentium Pro counters */	\
-	__PMC_CLASS(P4)		/* Intel Pentium-IV counters */		\
-	__PMC_CLASS(IAF)	/* Intel Core2/Atom, fixed function */	\
-	__PMC_CLASS(IAP)	/* Intel Core...Atom, programmable */	\
-	__PMC_CLASS(UCF)	/* Intel Uncore fixed function */	\
-	__PMC_CLASS(UCP)	/* Intel Uncore programmable */		\
-	__PMC_CLASS(XSCALE)	/* Intel XScale counters */		\
-	__PMC_CLASS(ARMV7)	/* ARMv7 */				\
-	__PMC_CLASS(MIPS24K)	/* MIPS 24K */				\
-	__PMC_CLASS(OCTEON)	/* Cavium Octeon */			\
-	__PMC_CLASS(MIPS74K)	/* MIPS 74K */				\
-	__PMC_CLASS(PPC7450)	/* Motorola MPC7450 class */		\
-	__PMC_CLASS(PPC970)	/* IBM PowerPC 970 class */		\
-	__PMC_CLASS(E500)	/* Freescale e500 class */		\
-	__PMC_CLASS(SOFT)	/* Software events */
+	__PMC_CLASS(TSC,	0x000,	"CPU Timestamp counter")	\
+	__PMC_CLASS(K7,		0x100,	"AMD K7 performance counters")	\
+	__PMC_CLASS(K8,		0x101,	"AMD K8 performance counters")	\
+	__PMC_CLASS(P5,		0x102,	"Intel Pentium counters")	\
+	__PMC_CLASS(P6,		0x103,	"Intel Pentium Pro counters")	\
+	__PMC_CLASS(P4,		0x104,	"Intel Pentium-IV counters")	\
+	__PMC_CLASS(IAF,	0x105,	"Intel Core2/Atom, fixed function") \
+	__PMC_CLASS(IAP,	0x106,	"Intel Core...Atom, programmable") \
+	__PMC_CLASS(UCF,	0x107,	"Intel Uncore fixed function")	\
+	__PMC_CLASS(UCP,	0x108,	"Intel Uncore programmable")	\
+	__PMC_CLASS(XSCALE,	0x200,	"Intel XScale counters")	\
+	__PMC_CLASS(ARMV7,	0x201,	"ARMv7")			\
+	__PMC_CLASS(ARMV8,	0x202,	"ARMv8")			\
+	__PMC_CLASS(MIPS24K,	0x300,	"MIPS 24K")			\
+	__PMC_CLASS(OCTEON,	0x301,	"Cavium Octeon")		\
+	__PMC_CLASS(MIPS74K,	0x302,	"MIPS 74K")			\
+	__PMC_CLASS(PPC7450,	0x400,	"Motorola MPC7450 class")	\
+	__PMC_CLASS(PPC970,	0x401,	"IBM PowerPC 970 class")	\
+	__PMC_CLASS(E500,	0x402,	"Freescale e500 class")		\
+	__PMC_CLASS(SOFT,	0x8000,	"Software events")
 
 enum pmc_class {
 #undef  __PMC_CLASS
-#define	__PMC_CLASS(N)	PMC_CLASS_##N ,
+#define	__PMC_CLASS(S,V,D)	PMC_CLASS_##S = V,
 	__PMC_CLASSES()
 };
 
@@ -998,7 +1001,8 @@ extern struct pmc_cpu **pmc_pcpu;
 /* driver statistics */
 extern struct pmc_op_getdriverstats pmc_stats;
 
-#if	defined(DEBUG)
+#if	defined(HWPMC_DEBUG)
+#include <sys/ktr.h>
 
 /* debug flags, major flag groups */
 struct pmc_debugflags {
@@ -1015,14 +1019,42 @@ struct pmc_debugflags {
 
 extern struct pmc_debugflags pmc_debugflags;
 
+#define	KTR_PMC			KTR_SUBSYS
+
 #define	PMC_DEBUG_STRSIZE		128
 #define	PMC_DEBUG_DEFAULT_FLAGS		{ 0, 0, 0, 0, 0, 0, 0, 0 }
 
-#define	PMCDBG(M,N,L,F,...) do {					\
+#define	PMCDBG0(M, N, L, F) do {					\
 	if (pmc_debugflags.pdb_ ## M & (1 << PMC_DEBUG_MIN_ ## N))	\
-		printf(#M ":" #N ":" #L  ": " F "\n", __VA_ARGS__);	\
+		CTR0(KTR_PMC, #M ":" #N ":" #L  ": " F);		\
 } while (0)
-
+#define	PMCDBG1(M, N, L, F, p1) do {					\
+	if (pmc_debugflags.pdb_ ## M & (1 << PMC_DEBUG_MIN_ ## N))	\
+		CTR1(KTR_PMC, #M ":" #N ":" #L  ": " F, p1);		\
+} while (0)
+#define	PMCDBG2(M, N, L, F, p1, p2) do {				\
+	if (pmc_debugflags.pdb_ ## M & (1 << PMC_DEBUG_MIN_ ## N))	\
+		CTR2(KTR_PMC, #M ":" #N ":" #L  ": " F, p1, p2);	\
+} while (0)
+#define	PMCDBG3(M, N, L, F, p1, p2, p3) do {				\
+	if (pmc_debugflags.pdb_ ## M & (1 << PMC_DEBUG_MIN_ ## N))	\
+		CTR3(KTR_PMC, #M ":" #N ":" #L  ": " F, p1, p2, p3);	\
+} while (0)
+#define	PMCDBG4(M, N, L, F, p1, p2, p3, p4) do {			\
+	if (pmc_debugflags.pdb_ ## M & (1 << PMC_DEBUG_MIN_ ## N))	\
+		CTR4(KTR_PMC, #M ":" #N ":" #L  ": " F, p1, p2, p3, p4);\
+} while (0)
+#define	PMCDBG5(M, N, L, F, p1, p2, p3, p4, p5) do {			\
+	if (pmc_debugflags.pdb_ ## M & (1 << PMC_DEBUG_MIN_ ## N))	\
+		CTR5(KTR_PMC, #M ":" #N ":" #L  ": " F, p1, p2, p3, p4,	\
+		    p5);						\
+} while (0)
+#define	PMCDBG6(M, N, L, F, p1, p2, p3, p4, p5, p6) do {		\
+	if (pmc_debugflags.pdb_ ## M & (1 << PMC_DEBUG_MIN_ ## N))	\
+		CTR6(KTR_PMC, #M ":" #N ":" #L  ": " F, p1, p2, p3, p4,	\
+		    p5, p6);						\
+} while (0)
+	
 /* Major numbers */
 #define	PMC_DEBUG_MAJ_CPU		0 /* cpu switches */
 #define	PMC_DEBUG_MAJ_CSW		1 /* context switches */
@@ -1088,7 +1120,13 @@ extern struct pmc_debugflags pmc_debugflags;
 #define	PMC_DEBUG_MIN_CLO	       12 /* close */
 
 #else
-#define	PMCDBG(M,N,L,F,...)		/* nothing */
+#define	PMCDBG0(M, N, L, F)		/* nothing */
+#define	PMCDBG1(M, N, L, F, p1)
+#define	PMCDBG2(M, N, L, F, p1, p2)
+#define	PMCDBG3(M, N, L, F, p1, p2, p3)
+#define	PMCDBG4(M, N, L, F, p1, p2, p3, p4)
+#define	PMCDBG5(M, N, L, F, p1, p2, p3, p4, p5)
+#define	PMCDBG6(M, N, L, F, p1, p2, p3, p4, p5, p6)
 #endif
 
 /* declare a dedicated memory pool */

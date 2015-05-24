@@ -28,7 +28,7 @@
 .\"	@(#)nfsd.8	8.4 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd January 1, 2015
+.Dd April 25, 2015
 .Dt NFSD 8
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 server
 .Sh SYNOPSIS
 .Nm
-.Op Fl arduteo
+.Op Fl ardute
 .Op Fl n Ar num_servers
 .Op Fl h Ar bindip
 .Op Fl Fl maxthreads Ar max_threads
@@ -112,10 +112,7 @@ Serve
 .Tn UDP NFS
 clients.
 .It Fl e
-Enable NFSv4 support.
-It is enabled by default; this option should be considered deprecated.
-.It Fl o
-Disable NFSv4 support.
+Ignored; included for backward compatibility.
 .El
 .Pp
 For example,

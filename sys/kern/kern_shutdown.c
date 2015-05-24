@@ -700,10 +700,8 @@ vpanic(const char *fmt, va_list ap)
 	}
 
 	/*
-	 * We set stop_scheduler here and not in the block above,
-	 * because we want to ensure that if panic has been called and
-	 * stop_scheduler_on_panic is true, then stop_scheduler will
-	 * always be set.  Even if panic has been entered from kdb.
+	 * Ensure that the scheduler is stopped while panicking, even if panic
+	 * has been entered from kdb.
 	 */
 	td->td_stopsched = 1;
 #endif
@@ -875,16 +873,16 @@ mkdumpheader(struct kerneldumpheader *kdh, char *magic, uint32_t archver,
 {
 
 	bzero(kdh, sizeof(*kdh));
-	strncpy(kdh->magic, magic, sizeof(kdh->magic));
-	strncpy(kdh->architecture, MACHINE_ARCH, sizeof(kdh->architecture));
+	strlcpy(kdh->magic, magic, sizeof(kdh->magic));
+	strlcpy(kdh->architecture, MACHINE_ARCH, sizeof(kdh->architecture));
 	kdh->version = htod32(KERNELDUMPVERSION);
 	kdh->architectureversion = htod32(archver);
 	kdh->dumplength = htod64(dumplen);
 	kdh->dumptime = htod64(time_second);
 	kdh->blocksize = htod32(blksz);
-	strncpy(kdh->hostname, prison0.pr_hostname, sizeof(kdh->hostname));
-	strncpy(kdh->versionstring, version, sizeof(kdh->versionstring));
+	strlcpy(kdh->hostname, prison0.pr_hostname, sizeof(kdh->hostname));
+	strlcpy(kdh->versionstring, version, sizeof(kdh->versionstring));
 	if (panicstr != NULL)
-		strncpy(kdh->panicstring, panicstr, sizeof(kdh->panicstring));
+		strlcpy(kdh->panicstring, panicstr, sizeof(kdh->panicstring));
 	kdh->parity = kerneldump_parity(kdh);
 }

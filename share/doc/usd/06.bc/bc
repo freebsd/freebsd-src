@@ -36,12 +36,13 @@
 .\"	@(#)bc	6.2 (Berkeley) 4/17/91
 .\"
 .if n \{\
-.po 5n
-.ll 70n
+.nr PO 5n
+.nr LL 70n
 .\}
 .EH 'USD:6-%''BC \- An Arbitrary Precision Desk-Calculator Language'
 .OH 'BC \- An Arbitrary Precision Desk-Calculator Language''USD:6-%'
 .\".RP
+.ND
 .TL
 BC \- An Arbitrary Precision Desk-Calculator Language
 .AU

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2015
+.Dd May 8, 2015
 .Dt PMCSTAT 8
 .Os
 .Sh NAME
@@ -279,8 +279,9 @@ Set the pathname of the kernel directory to argument
 This directory specifies where
 .Nm
 should look for the kernel and its modules.
-The default is
-.Pa /boot/kernel .
+The default is to use the path of the running kernel obtained from the
+.Va kern.bootfile
+sysctl.
 .It Fl l Ar secs
 Set system-wide performance measurement duration for
 .Ar secs

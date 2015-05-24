@@ -558,7 +558,7 @@ ndis_attach(dev)
 	InitializeListHead(&sc->ndis_shlist);
 	InitializeListHead(&sc->ndisusb_tasklist);
 	InitializeListHead(&sc->ndisusb_xferdonelist);
-	callout_init(&sc->ndis_stat_callout, CALLOUT_MPSAFE);
+	callout_init(&sc->ndis_stat_callout, 1);
 
 	if (sc->ndis_iftype == PCMCIABus) {
 		error = ndis_alloc_amem(sc);
@@ -734,7 +734,7 @@ ndis_attach(dev)
 		uint32_t		arg;
 		int			r;
 
-		callout_init(&sc->ndis_scan_callout, CALLOUT_MPSAFE);
+		callout_init(&sc->ndis_scan_callout, 1);
 
 		ifp->if_ioctl = ndis_ioctl_80211;
 		ic->ic_ifp = ifp;
@@ -3316,7 +3316,7 @@ done:
 		DPRINTF(("scan: bssid %s chan %dMHz (%d/%d) rssi %d\n",
 		    ether_sprintf(wb->nwbx_macaddr), freq, sp.bchan, chanflag,
 		    rssi));
-		ieee80211_add_scan(vap, &sp, &wh, 0, rssi, noise);
+		ieee80211_add_scan(vap, ic->ic_curchan, &sp, &wh, 0, rssi, noise);
 		wb = (ndis_wlan_bssid_ex *)((char *)wb + wb->nwbx_len);
 	}
 	free(bl, M_DEVBUF);

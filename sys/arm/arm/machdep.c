@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 
+#include <machine/acle-compat.h>
 #include <machine/armreg.h>
 #include <machine/atags.h>
 #include <machine/cpu.h>
@@ -114,7 +115,57 @@ __FBSDID("$FreeBSD$");
 
 #ifdef DDB
 #include <ddb/ddb.h>
-#endif
+
+#if __ARM_ARCH >= 6
+#include <machine/cpu-v6.h>
+
+DB_SHOW_COMMAND(cp15, db_show_cp15)
+{
+	u_int reg;
+
+	reg = cp15_midr_get();
+	db_printf("Cpu ID: 0x%08x\n", reg);
+	reg = cp15_ctr_get();
+	db_printf("Current Cache Lvl ID: 0x%08x\n",reg);
+
+	reg = cp15_sctlr_get();
+	db_printf("Ctrl: 0x%08x\n",reg);
+	reg = cp15_actlr_get();
+	db_printf("Aux Ctrl: 0x%08x\n",reg);
+
+	reg = cp15_id_pfr0_get();
+	db_printf("Processor Feat 0: 0x%08x\n", reg);
+	reg = cp15_id_pfr1_get();
+	db_printf("Processor Feat 1: 0x%08x\n", reg);
+	reg = cp15_id_dfr0_get();
+	db_printf("Debug Feat 0: 0x%08x\n", reg);
+	reg = cp15_id_afr0_get();
+	db_printf("Auxiliary Feat 0: 0x%08x\n", reg);
+	reg = cp15_id_mmfr0_get();
+	db_printf("Memory Model Feat 0: 0x%08x\n", reg);
+	reg = cp15_id_mmfr1_get();
+	db_printf("Memory Model Feat 1: 0x%08x\n", reg);
+	reg = cp15_id_mmfr2_get();
+	db_printf("Memory Model Feat 2: 0x%08x\n", reg);
+	reg = cp15_id_mmfr3_get();
+	db_printf("Memory Model Feat 3: 0x%08x\n", reg);
+	reg = cp15_ttbr_get();
+	db_printf("TTB0: 0x%08x\n", reg);
+}
+
+DB_SHOW_COMMAND(vtop, db_show_vtop)
+{
+	u_int reg;
+
+	if (have_addr) {
+		cp15_ats1cpr_set(addr);
+		reg = cp15_par_get();
+		db_printf("Physical address reg: 0x%08x\n",reg);
+	} else
+		db_printf("show vtop <virt_addr>\n");
+}
+#endif /* __ARM_ARCH >= 6 */
+#endif /* DDB */
 
 #ifdef DEBUG
 #define	debugf(fmt, args...) printf(fmt, ##args)
@@ -287,6 +338,13 @@ sendsig(catcher, ksi, mask)
 	tf->tf_pc = (register_t)catcher;
 	tf->tf_usr_sp = (register_t)fp;
 	tf->tf_usr_lr = (register_t)(PS_STRINGS - *(p->p_sysent->sv_szsigcode));
+	/* Set the mode to enter in the signal handler */
+#if __ARM_ARCH >= 7
+	if ((register_t)catcher & 1)
+		tf->tf_spsr |= PSR_T;
+	else
+		tf->tf_spsr &= ~PSR_T;
+#endif
 
 	CTR3(KTR_SIG, "sendsig: return td=%p pc=%#x sp=%#x", td, tf->tf_usr_lr,
 	    tf->tf_usr_sp);
@@ -576,6 +634,10 @@ ptrace_single_step(struct thread *td)
 	struct proc *p;
 	int error;
 	
+	/* TODO: This needs to be updated for Thumb-2 */
+	if ((td->td_frame->tf_spsr & PSR_T) != 0)
+		return (EINVAL);
+
 	KASSERT(td->td_md.md_ptrace_instr == 0,
 	 ("Didn't clear single step"));
 	p = td->td_proc;
@@ -598,6 +660,10 @@ int
 ptrace_clear_single_step(struct thread *td)
 {
 	struct proc *p;
+
+	/* TODO: This needs to be updated for Thumb-2 */
+	if ((td->td_frame->tf_spsr & PSR_T) != 0)
+		return (EINVAL);
 
 	if (td->td_md.md_ptrace_instr) {
 		p = td->td_proc;
@@ -953,7 +1019,6 @@ freebsd_parse_boot_param(struct arm_boot_params *abp)
 	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
 	db_fetch_ksymtab(ksym_start, ksym_end);
 #endif
-	preload_addr_relocate = KERNVIRTADDR - abp->abp_physaddr;
 	return lastaddr;
 }
 #endif
@@ -1055,7 +1120,6 @@ kenv_next(char *cp)
 static void
 print_kenv(void)
 {
-	int len;
 	char *cp;
 
 	debugf("loader passed (static) kenv:\n");
@@ -1065,7 +1129,6 @@ print_kenv(void)
 	}
 	debugf(" kern_envp = 0x%08x\n", (uint32_t)kern_envp);
 
-	len = 0;
 	for (cp = kern_envp; cp != NULL; cp = kenv_next(cp))
 		debugf(" %x %s\n", (uint32_t)cp, cp);
 }

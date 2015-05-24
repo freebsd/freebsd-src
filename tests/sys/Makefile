@@ -15,6 +15,7 @@ TESTS_SUBDIRS+=		opencrypto
 TESTS_SUBDIRS+=		posixshm
 TESTS_SUBDIRS+=		socket
 TESTS_SUBDIRS+=		vfs
+TESTS_SUBDIRS+=		vm
 
 # Items not integrated into kyua runs by default
 SUBDIR+=		pjdfstest

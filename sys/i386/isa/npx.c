@@ -69,10 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/ucontext.h>
 
 #include <machine/intr_machdep.h>
-#ifdef XEN
-#include <xen/xen-os.h>
-#include <xen/hypervisor.h>
-#endif
 
 #ifdef DEV_ISA
 #include <isa/isavar.h>
@@ -157,13 +153,8 @@ void	xsaveopt(char *addr, uint64_t mask);
 
 #endif	/* __GNUCLIKE_ASM && !lint */
 
-#ifdef XEN
-#define	start_emulating()	(HYPERVISOR_fpu_taskswitch(1))
-#define	stop_emulating()	(HYPERVISOR_fpu_taskswitch(0))
-#else
 #define	start_emulating()	load_cr0(rcr0() | CR0_TS)
 #define	stop_emulating()	clts()
-#endif
 
 #ifdef CPU_ENABLE_SSE
 #define GET_FPU_CW(thread) \

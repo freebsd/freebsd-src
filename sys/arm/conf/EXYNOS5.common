@@ -20,6 +20,7 @@
 
 makeoptions	WERROR="-Werror"
 
+include 	"std.armv6"
 options 	HZ=100
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
@@ -83,6 +84,9 @@ options 	ROOTDEVNAME=\"ufs:/dev/da0\"
 device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
 device		dwmmc
+
+# Interrupt controller
+device		gic
 
 # Pseudo devices
 

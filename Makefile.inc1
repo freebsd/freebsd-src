@@ -1263,7 +1263,8 @@ _gperf=		gnu/usr.bin/gperf
 .endif
 
 .if ${MK_GROFF} != "no"
-_groff=		gnu/usr.bin/groff
+_groff=		gnu/usr.bin/groff \
+		usr.bin/soelim
 .endif
 
 .if ${MK_VT} != "no"
@@ -1296,7 +1297,9 @@ _cat=		bin/cat
 _lex=		usr.bin/lex
 .endif
 
-.if ${BOOTSTRAPPING} < 1001507
+# r277259 crunchide: Correct 64-bit section header offset
+# r281674 crunchide: always include both 32- and 64-bit ELF support
+.if ${BOOTSTRAPPING} < 1100071
 _crunch=	usr.sbin/crunch
 .endif
 
@@ -1359,6 +1362,9 @@ _kerberos5_bootstrap_tools= \
 
 .ORDER: ${_kerberos5_bootstrap_tools:C/^/${_bt}-/g}
 .endif
+
+# Rebuild up-to-date libmd for xinstall
+${_bt}-usr.bin/xinstall: ${_bt}-lib/libmd
 
 bootstrap-tools: .PHONY
 
@@ -1462,11 +1468,6 @@ kernel-tools: .MAKE
 _btxld=		usr.sbin/btxld
 .endif
 .endif
-.if ${TARGET_ARCH} != ${MACHINE_ARCH}
-.if ${MK_RESCUE} != "no"
-_crunchide=	usr.sbin/crunch/crunchide
-.endif
-.endif
 
 # If we're given an XAS, don't build binutils.
 .if ${XAS:M/*} == ""
@@ -1501,6 +1502,9 @@ _clang_libs=	lib/clang
 _cc=		gnu/usr.bin/cc
 .endif
 .endif
+.if ${MK_USB} != "no"
+_usb_tools=	sys/boot/usb/tools
+.endif
 
 cross-tools: .MAKE
 .for _tool in \
@@ -1511,7 +1515,7 @@ cross-tools: .MAKE
     ${_cc} \
     ${_btxld} \
     ${_crunchide} \
-    sys/boot/usb/tools
+    ${_usb_tools}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool} && \
 		${MAKE} DIRPRFX=${_tool}/ obj && \
@@ -1522,7 +1526,8 @@ cross-tools: .MAKE
 
 NXBENV=		MAKEOBJDIRPREFIX=${OBJTREE}/nxb \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
-		VERSION="${VERSION}"
+		VERSION="${VERSION}" \
+		PATH=${PATH}:${OBJTREE}/gperf_for_gcc/usr/bin
 NXBMAKE=	${NXBENV} ${MAKE} \
 		TBLGEN=${OBJTREE}/nxb-bin/usr/bin/tblgen \
 		CLANG_TBLGEN=${OBJTREE}/nxb-bin/usr/bin/clang-tblgen \
@@ -1535,7 +1540,21 @@ NXBMAKE=	${NXBENV} ${MAKE} \
 		MK_CLANG_EXTRAS=no MK_CLANG_FULL=no \
 		MK_LLDB=no
 
+# native-xtools is the current target for qemu-user cross builds of ports
+# via poudriere and the imgact_binmisc kernel module.
+# For non-clang enabled targets that are still using the in tree gcc
+# we must build a gperf binary for one instance of its Makefiles.  On
+# clang-enabled systems, the gperf binary is obsolete.
 native-xtools: .MAKE
+.if ${MK_GCC_BOOTSTRAP} != "no"
+	mkdir -p ${OBJTREE}/gperf_for_gcc/usr/bin
+	${_+_}@${ECHODIR} "===> ${_gperf} (obj,depend,all,install)"; \
+	cd ${.CURDIR}/${_gperf} && \
+	${NXBMAKE} DIRPRFX=${_gperf}/ obj && \
+	${NXBMAKE} DIRPRFX=${_gperf}/ depend && \
+	${NXBMAKE} DIRPRFX=${_gperf}/ all && \
+	${NXBMAKE} DIRPRFX=${_gperf}/ DESTDIR=${OBJTREE}/gperf_for_gcc install
+.endif
 	mkdir -p ${OBJTREE}/nxb-bin/bin
 	mkdir -p ${OBJTREE}/nxb-bin/sbin
 	mkdir -p ${OBJTREE}/nxb-bin/usr
@@ -1641,13 +1660,7 @@ _prereq_libs= gnu/lib/libssp/libssp_nonshared gnu/lib/libgcc lib/libcompiler_rt
 # all shared libraries for ELF.
 #
 _startup_libs=	gnu/lib/csu
-.if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH}-elf)
-_startup_libs+=	lib/csu/${MACHINE_ARCH}-elf
-.elif exists(${.CURDIR}/lib/csu/${MACHINE_ARCH})
-_startup_libs+=	lib/csu/${MACHINE_ARCH}
-.else
-_startup_libs+=	lib/csu/${MACHINE_CPUARCH}
-.endif
+_startup_libs+=	lib/csu
 _startup_libs+=	gnu/lib/libgcc
 _startup_libs+=	lib/libcompiler_rt
 _startup_libs+=	lib/libc
@@ -1666,7 +1679,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_kerberos5_lib_libhdb} \
 		${_kerberos5_lib_libheimbase} \
 		${_kerberos5_lib_libheimntlm} \
-		${_kerberos5_lib_libheimsqlite} \
+		${_libsqlite3} \
 		${_kerberos5_lib_libheimipcc} \
 		${_kerberos5_lib_libhx509} ${_kerberos5_lib_libkrb5} \
 		${_kerberos5_lib_libroken} \
@@ -1742,6 +1755,13 @@ _cddl_lib= cddl/lib
 cddl/lib/libzfs_core__L: cddl/lib/libnvpair__L
 cddl/lib/libzfs__L: lib/libgeom__L
 cddl/lib/libctf__L: lib/libz__L
+# cddl/lib/libdtrace requires lib/libproc and lib/librtld_db; it's only built
+# on select architectures though (see cddl/lib/Makefile)
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386" || \
+	${MACHINE_CPUARCH} == "mips" || ${MACHINE_CPUARCH} == "powerpc" || \
+	${MACHINE_CPUARCH} == "arm"
+_prebuild_libs+=	lib/libproc lib/librtld_db
+.endif
 .endif
 
 .if ${MK_CRYPT} != "no"
@@ -1773,7 +1793,7 @@ _secure_lib=	secure/lib
 kerberos5/lib/libasn1__L: lib/libcom_err__L kerberos5/lib/libroken__L
 kerberos5/lib/libhdb__L: kerberos5/lib/libasn1__L lib/libcom_err__L \
     kerberos5/lib/libkrb5__L kerberos5/lib/libroken__L \
-    kerberos5/lib/libwind__L kerberos5/lib/libheimsqlite__L 
+    kerberos5/lib/libwind__L lib/libsqlite3__L
 kerberos5/lib/libheimntlm__L: secure/lib/libcrypto__L kerberos5/lib/libkrb5__L \
     kerberos5/lib/libroken__L lib/libcom_err__L
 kerberos5/lib/libhx509__L: kerberos5/lib/libasn1__L lib/libcom_err__L \
@@ -1786,7 +1806,7 @@ kerberos5/lib/libroken__L: lib/libcrypt__L
 kerberos5/lib/libwind__L: kerberos5/lib/libroken__L lib/libcom_err__L
 kerberos5/lib/libheimbase__L: lib/libthr__L
 kerberos5/lib/libheimipcc__L: kerberos5/lib/libroken__L kerberos5/lib/libheimbase__L lib/libthr__L
-kerberos5/lib/libheimsqlite__L: lib/libthr__L
+lib/libsqlite3__L: lib/libthr__L
 .endif
 
 .if ${MK_GSSAPI} != "no"
@@ -1802,7 +1822,7 @@ _kerberos5_lib_libkrb5= kerberos5/lib/libkrb5
 _kerberos5_lib_libhx509= kerberos5/lib/libhx509
 _kerberos5_lib_libroken= kerberos5/lib/libroken
 _kerberos5_lib_libheimntlm= kerberos5/lib/libheimntlm
-_kerberos5_lib_libheimsqlite= kerberos5/lib/libheimsqlite
+_libsqlite3= lib/libsqlite3
 _kerberos5_lib_libheimipcc= kerberos5/lib/libheimipcc
 _kerberos5_lib_libwind= kerberos5/lib/libwind
 _libcom_err= lib/libcom_err
@@ -1814,6 +1834,16 @@ _lib_libypclnt=	lib/libypclnt
 
 .if ${MK_OPENSSL} == "no"
 lib/libradius__L: lib/libmd__L
+.endif
+
+lib/libproc__L: \
+    ${_cddl_lib_libctf:D${_cddl_lib_libctf}__L} lib/libelf__L lib/librtld_db__L lib/libutil__L
+.if ${MK_CXX} != "no"
+.if ${MK_LIBCPLUSPLUS} != "no"
+lib/libproc__L: lib/libcxxrt__L
+.else # This implies MK_GNUCXX != "no"; see lib/libproc
+lib/libproc__L: gnu/lib/libsupc++__L
+.endif
 .endif
 
 gnu/lib/libdialog__L: lib/msun__L lib/ncurses/ncursesw__L

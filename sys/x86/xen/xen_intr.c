@@ -1,7 +1,7 @@
 /******************************************************************************
  * xen_intr.c
  *
- * Xen event and interrupt services for x86 PV and HVM guests.
+ * Xen event and interrupt services for x86 HVM guests.
  *
  * Copyright (c) 2002-2005, K A Fraser
  * Copyright (c) 2005, Intel Corporation <xiaofeng.ling@intel.com>
@@ -864,10 +864,8 @@ xen_intr_assign_cpu(struct intsrc *base_isrc, u_int apic_id)
 	u_int to_cpu, vcpu_id;
 	int error, masked;
 
-#ifdef XENHVM
 	if (xen_vector_callback_enabled == 0)
 		return (EOPNOTSUPP);
-#endif
 
 	to_cpu = apic_cpuid(apic_id);
 	vcpu_id = pcpu_find(to_cpu)->pc_vcpu_id;

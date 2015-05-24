@@ -452,6 +452,7 @@ vendor GLOBESPAN	0x0915	Globespan
 vendor CONCORDCAMERA	0x0919	Concord Camera
 vendor GARMIN		0x091e	Garmin International
 vendor GOHUBS		0x0921	GoHubs
+vendor DYMO		0x0922	DYMO
 vendor XEROX		0x0924	Xerox
 vendor BIOMETRIC	0x0929	American Biometric Company
 vendor TOSHIBA		0x0930	Toshiba
@@ -1694,6 +1695,9 @@ product DRESDENELEKTRONIK WIRELESSHANDHELDTERMINAL  0x0004 Wireless Handheld Ter
 product DRESDENELEKTRONIK DE_RFNODE                 0x001c deRFnode
 product DRESDENELEKTRONIK LEVELSHIFTERSTICKLOWCOST  0x0022 Levelshifter Stick Low Cost
 
+/* DYMO */
+product DYMO LABELMANAGERPNP	0x1001	DYMO LabelManager PnP
+
 /* Dynastream Innovations */
 product DYNASTREAM ANTDEVBOARD	0x1003	ANT dev board
 product DYNASTREAM ANT2USB	0x1004	ANT2USB
@@ -1872,6 +1876,7 @@ product FREECOM HDD		0xfc05	Classic SL Hard Drive
 product FSC E5400		0x1009	PrismGT USB 2.0 WLAN
 
 /* Future Technology Devices products */
+product FTDI SCX8_USB_PHOENIX	0x5259  SCx8 USB Phoenix interface
 product FTDI SERIAL_8U100AX	0x8372	8U100AX Serial
 product FTDI SERIAL_8U232AM	0x6001	8U232AM Serial
 product FTDI SERIAL_8U232AM4	0x6004	8U232AM Serial
@@ -3755,6 +3760,7 @@ product REALTEK RTL8188CU_1	0x817a	RTL8188CU
 product REALTEK RTL8188CU_2	0x817b	RTL8188CU
 product REALTEK RTL8187		0x8187	RTL8187 Wireless Adapter
 product REALTEK RTL8187B_0	0x8189	RTL8187B Wireless Adapter
+product REALTEK RTL8188CU_3	0x8191	RTL8188CU
 product REALTEK RTL8196EU	0x8196	RTL8196EU
 product REALTEK RTL8187B_1	0x8197	RTL8187B Wireless Adapter
 product REALTEK RTL8187B_2	0x8198	RTL8187B Wireless Adapter
@@ -4028,6 +4034,7 @@ product SIERRA C22		0x6891	C22
 product SIERRA E6892		0x6892	E6892
 product SIERRA E6893		0x6893	E6893
 product SIERRA MC8700		0x68A3	MC8700
+product SIERRA MC7354		0x6820	MC7354
 product SIERRA AIRCARD875	0x6820	Aircard 875 HSDPA
 product SIERRA AC313U		0x68aa	Sierra Wireless AirCard 313U
 product SIERRA TRUINSTALL	0x0fff	Aircard Tru Installer

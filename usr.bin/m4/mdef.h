@@ -1,4 +1,4 @@
-/*	$OpenBSD: mdef.h,v 1.31 2011/09/27 07:24:02 espie Exp $	*/
+/*	$OpenBSD: mdef.h,v 1.32 2014/12/21 09:33:12 espie Exp $	*/
 /*	$NetBSD: mdef.h,v 1.7 1996/01/13 23:25:27 pk Exp $	*/
 
 /*
@@ -164,6 +164,10 @@ struct input_file {
 	int		c;
 };
 
+#define STORAGE_STRSPACE 0
+#define STORAGE_MACRO 1
+#define STORAGE_OTHER 2
+
 #define CURRENT_NAME	(infile[ilevel].name)
 #define CURRENT_LINE	(infile[ilevel].lineno)
 /*
@@ -179,7 +183,7 @@ struct input_file {
 		if (++sp == (int)STACKMAX)	\
 			enlarge_stack();\
 		mstack[sp].sfra = (x);	\
-		sstack[sp] = 0; \
+		sstack[sp] = STORAGE_OTHER; \
 	} while (0)
 
 #define pushs(x)			\
@@ -187,7 +191,7 @@ struct input_file {
 		if (++sp == (int)STACKMAX)	\
 			enlarge_stack();\
 		mstack[sp].sstr = (x);	\
-		sstack[sp] = 1; \
+		sstack[sp] = STORAGE_STRSPACE; \
 	} while (0)
 
 #define pushs1(x)			\
@@ -195,8 +199,17 @@ struct input_file {
 		if (++sp == (int)STACKMAX)	\
 			enlarge_stack();\
 		mstack[sp].sstr = (x);	\
-		sstack[sp] = 0; \
+		sstack[sp] = STORAGE_OTHER; \
 	} while (0)
+
+#define pushdef(p)			\
+	do {				\
+		if (++sp == (int)STACKMAX)	\
+			enlarge_stack();\
+		mstack[sp].sstr = macro_getdef(p)->defn;\
+		sstack[sp] = STORAGE_MACRO; \
+	} while (0)
+		
 
 /*
  *	    .				   .

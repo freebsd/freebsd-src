@@ -66,12 +66,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 
-#ifdef XEN
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
-#endif
-
 #define	KTDSTATE(td)							\
 	(((td)->td_inhibitors & TDI_SLEEPING) != 0 ? "sleep"  :		\
 	((td)->td_inhibitors & TDI_SUSPENDED) != 0 ? "suspended" :	\
@@ -475,9 +469,6 @@ mi_switch(int flags, struct thread *newtd)
 		    "lockname:\"%s\"", td->td_lockname);
 #endif
 	SDT_PROBE0(sched, , , preempt);
-#ifdef XEN
-	PT_UPDATES_FLUSH();
-#endif
 	sched_switch(td, newtd, flags);
 	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(td), "running",
 	    "prio:%d", td->td_priority);
@@ -565,7 +556,7 @@ loadav(void *arg)
 static void
 synch_setup(void *dummy)
 {
-	callout_init(&loadav_callout, CALLOUT_MPSAFE);
+	callout_init(&loadav_callout, 1);
 
 	/* Kick off timeout driven events by calling first time. */
 	loadav(NULL);

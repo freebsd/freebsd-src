@@ -617,7 +617,6 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			if (foffset < 0 ||
 			    (flp->l_start > 0 &&
 			     foffset > OFF_MAX - flp->l_start)) {
-				FILEDESC_SUNLOCK(fdp);
 				error = EOVERFLOW;
 				fdrop(fp, td);
 				break;
@@ -731,7 +730,6 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			    foffset > OFF_MAX - flp->l_start) ||
 			    (flp->l_start < 0 &&
 			     foffset < OFF_MIN - flp->l_start)) {
-				FILEDESC_SUNLOCK(fdp);
 				error = EOVERFLOW;
 				fdrop(fp, td);
 				break;
@@ -857,13 +855,15 @@ do_dup(struct thread *td, int flags, int old, int new)
 			 * the limit on the size of the file descriptor table.
 			 */
 #ifdef RACCT
-			PROC_LOCK(p);
-			error = racct_set(p, RACCT_NOFILE, new + 1);
-			PROC_UNLOCK(p);
-			if (error != 0) {
-				FILEDESC_XUNLOCK(fdp);
-				fdrop(fp, td);
-				return (EMFILE);
+			if (racct_enable) {
+				PROC_LOCK(p);
+				error = racct_set(p, RACCT_NOFILE, new + 1);
+				PROC_UNLOCK(p);
+				if (error != 0) {
+					FILEDESC_XUNLOCK(fdp);
+					fdrop(fp, td);
+					return (EMFILE);
+				}
 			}
 #endif
 			fdgrowtable_exp(fdp, new + 1);
@@ -1631,11 +1631,13 @@ fdalloc(struct thread *td, int minfd, int *result)
 	if (fd >= fdp->fd_nfiles) {
 		allocfd = min(fd * 2, maxfd);
 #ifdef RACCT
-		PROC_LOCK(p);
-		error = racct_set(p, RACCT_NOFILE, allocfd);
-		PROC_UNLOCK(p);
-		if (error != 0)
-			return (EMFILE);
+		if (racct_enable) {
+			PROC_LOCK(p);
+			error = racct_set(p, RACCT_NOFILE, allocfd);
+			PROC_UNLOCK(p);
+			if (error != 0)
+				return (EMFILE);
+		}
 #endif
 		/*
 		 * fd is already equal to first free descriptor >= minfd, so
@@ -2042,9 +2044,11 @@ fdescfree(struct thread *td)
 	MPASS(fdp != NULL);
 
 #ifdef RACCT
-	PROC_LOCK(td->td_proc);
-	racct_set(td->td_proc, RACCT_NOFILE, 0);
-	PROC_UNLOCK(td->td_proc);
+	if (racct_enable) {
+		PROC_LOCK(td->td_proc);
+		racct_set(td->td_proc, RACCT_NOFILE, 0);
+		PROC_UNLOCK(td->td_proc);
+	}
 #endif
 
 	if (td->td_proc->p_fdtol != NULL)

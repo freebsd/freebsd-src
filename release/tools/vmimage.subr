@@ -23,20 +23,21 @@ write_partition_layout() {
 
 	case "${TARGET}:${TARGET_ARCH}" in
 		amd64:amd64 | i386:i386)
-			mkimg -s gpt -b ${BOOTFILES}/i386/pmbr/pmbr \
+			mkimg -s gpt -f ${VMFORMAT} \
+				-b ${BOOTFILES}/i386/pmbr/pmbr \
 				-p freebsd-boot/bootfs:=${BOOTFILES}/i386/gptboot/gptboot \
 				${SWAPOPT} \
 				-p freebsd-ufs/rootfs:=${VMBASE} \
 				-o ${VMIMAGE}
 			;;
 		arm64:aarch64)
-			mkimg -s mbr \
+			mkimg -s mbr -f ${VMFORMAT} \
 				-p efi:=${BOOTFILES}/efi/boot1/boot1.efifat \
 				-p freebsd:=${VMBASE} \
 				-o ${VMIMAGE}
 			;;
 		powerpc:powerpc*)
-			mkimg -s apm \
+			mkimg -s apm -f ${VMFORMAT} \
 				-p apple-boot/bootfs:=${BOOTFILES}/powerpc/boot1.chrp/boot1.hfs \
 				${SWAPOPT} \
 				-p freebsd-ufs/rootfs:=${VMBASE} \
@@ -181,8 +182,10 @@ vm_extra_install_ports() {
 }
 
 vm_extra_pre_umount() {
-	# Prototype.  When overridden, installs additional ports within the
-	# virtual machine environment.
+	# Prototype.  When overridden, performs additional tasks within the
+	# virtual machine environment prior to unmounting the filesystem.
+	# Note: When overriding this function, removing resolv.conf in the
+	# disk image must be included.
 
 	rm -f ${DESTDIR}/etc/resolv.conf
 	return 0

@@ -165,6 +165,9 @@ struct value
     /* The BFD section associated with this value.  */
     asection *bfd_section;
 
+    /* If value is a variable, is it initialized or not.  */
+    int initialized;
+
     /* Actual contents of the value.  For use of this value; setting
        it uses the stuff above.  Not valid if lazy is nonzero.
        Target byte-order.  We force it to be aligned properly for any

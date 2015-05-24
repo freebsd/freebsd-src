@@ -137,6 +137,7 @@ static const STRUCT_USB_HOST_ID urtwn_devs[] = {
 	URTWN_DEV(REALTEK,	RTL8188CU_0),
 	URTWN_DEV(REALTEK,	RTL8188CU_1),
 	URTWN_DEV(REALTEK,	RTL8188CU_2),
+	URTWN_DEV(REALTEK,	RTL8188CU_3),
 	URTWN_DEV(REALTEK,	RTL8188CU_COMBO),
 	URTWN_DEV(REALTEK,	RTL8188CUS),
 	URTWN_DEV(REALTEK,	RTL8188RU_1),
@@ -145,7 +146,6 @@ static const STRUCT_USB_HOST_ID urtwn_devs[] = {
 	URTWN_DEV(REALTEK,	RTL8191CU),
 	URTWN_DEV(REALTEK,	RTL8192CE),
 	URTWN_DEV(REALTEK,	RTL8192CU),
-	URTWN_DEV(REALTEK, 	RTL8188CU_0),
 	URTWN_DEV(SITECOMEU,	RTL8188CU_1),
 	URTWN_DEV(SITECOMEU,	RTL8188CU_2),
 	URTWN_DEV(SITECOMEU,	RTL8192CU),
@@ -1195,7 +1195,7 @@ urtwn_efuse_read(struct urtwn_softc *sc)
 	uint8_t *rom = (uint8_t *)&sc->rom;
 	uint16_t addr = 0;
 	uint32_t reg;
-	uint8_t off, msk, vol;
+	uint8_t off, msk;
 	int i;
 
 	urtwn_efuse_switch_power(sc);
@@ -1228,18 +1228,15 @@ urtwn_efuse_read(struct urtwn_softc *sc)
 		printf("\n");
 	}
 #endif
-	/* Disable LDO 2.5V. */
-	vol = urtwn_read_1(sc, R92C_EFUSE_TEST + 3);
-	urtwn_write_1(sc, R92C_EFUSE_TEST + 3, vol & ~(0x80));
-
+	urtwn_write_1(sc, R92C_EFUSE_ACCESS, R92C_EFUSE_ACCESS_OFF);
 }
+
 static void
 urtwn_efuse_switch_power(struct urtwn_softc *sc)
 {
 	uint32_t reg;
 
-	if (sc->chip & URTWN_CHIP_88E)
-		urtwn_write_1(sc, R92C_EFUSE_ACCESS, R92C_EFUSE_ACCESS_ON);
+	urtwn_write_1(sc, R92C_EFUSE_ACCESS, R92C_EFUSE_ACCESS_ON);
 
 	reg = urtwn_read_2(sc, R92C_SYS_ISO_CTRL);
 	if (!(reg & R92C_SYS_ISO_CTRL_PWC_EV12V)) {
@@ -1256,16 +1253,6 @@ urtwn_efuse_switch_power(struct urtwn_softc *sc)
 	    (R92C_SYS_CLKR_LOADER_EN | R92C_SYS_CLKR_ANA8M)) {
 		urtwn_write_2(sc, R92C_SYS_CLKR,
 		    reg | R92C_SYS_CLKR_LOADER_EN | R92C_SYS_CLKR_ANA8M);
-	}
-
-	if (!(sc->chip & URTWN_CHIP_88E)) {
-		uint8_t vol;
-
-		/* Enable LDO 2.5V. */
-		vol = urtwn_read_1(sc, R92C_EFUSE_TEST + 3);
-		vol &= 0x0f;
-		vol |= 0x30;
-		urtwn_write_1(sc, R92C_EFUSE_TEST + 3, (vol | 0x80));
 	}
 }
 
@@ -1905,10 +1892,7 @@ urtwn_tx_start(struct urtwn_softc *sc, struct ieee80211_node *ni,
 		txd->txdw4 |= htole32(SM(R92C_TXDW4_RTSRATE, 8));
 		txd->txdw5 |= htole32(0x0001ff00);
 		/* Send data at OFDM54. */
-		if (sc->chip & URTWN_CHIP_88E)
-			txd->txdw5 |= htole32(0x13 & 0x3f);
-		else
-			txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, 11));
+		txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, 11));
 	} else {
 		txd->txdw1 |= htole32(
 		    SM(R92C_TXDW1_MACID, 0) |
@@ -2578,7 +2562,6 @@ urtwn_r88e_dma_init(struct urtwn_softc *sc)
 		return (EIO);
 
 	/* Set number of pages for normal priority queue. */
-	urtwn_write_2(sc, R92C_RQPN_NPQ, 0);
 	urtwn_write_2(sc, R92C_RQPN_NPQ, 0x000d);
 	urtwn_write_4(sc, R92C_RQPN, 0x808e000d);
 
@@ -3365,6 +3348,7 @@ urtwn_init_locked(void *arg)
 
 	urtwn_rxfilter_init(sc);
 
+	/* Set response rate. */
 	reg = urtwn_read_4(sc, R92C_RRSR);
 	reg = RW(reg, R92C_RRSR_RATE_BITMAP, R92C_RRSR_RATE_CCK_ONLY_1M);
 	urtwn_write_4(sc, R92C_RRSR, reg);
@@ -3397,16 +3381,17 @@ urtwn_init_locked(void *arg)
 	urtwn_write_1(sc, R92C_TRXDMA_CTRL,
 	    urtwn_read_1(sc, R92C_TRXDMA_CTRL) |
 	    R92C_TRXDMA_CTRL_RXDMA_AGG_EN);
-	urtwn_write_1(sc, R92C_USB_SPECIAL_OPTION,
-	    urtwn_read_1(sc, R92C_USB_SPECIAL_OPTION) |
-	    R92C_USB_SPECIAL_OPTION_AGG_EN);
 	urtwn_write_1(sc, R92C_RXDMA_AGG_PG_TH, 48);
 	if (sc->chip & URTWN_CHIP_88E)
 		urtwn_write_1(sc, R92C_RXDMA_AGG_PG_TH + 1, 4);
-	else
+	else {
 		urtwn_write_1(sc, R92C_USB_DMA_AGG_TO, 4);
-	urtwn_write_1(sc, R92C_USB_AGG_TH, 8);
-	urtwn_write_1(sc, R92C_USB_AGG_TO, 6);
+		urtwn_write_1(sc, R92C_USB_SPECIAL_OPTION,
+		    urtwn_read_1(sc, R92C_USB_SPECIAL_OPTION) |
+		    R92C_USB_SPECIAL_OPTION_AGG_EN);
+		urtwn_write_1(sc, R92C_USB_AGG_TH, 8);
+		urtwn_write_1(sc, R92C_USB_AGG_TO, 6);
+	}
 
 	/* Initialize beacon parameters. */
 	urtwn_write_2(sc, R92C_BCN_CTRL, 0x1010);
