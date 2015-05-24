@@ -430,9 +430,11 @@
 251	AUE_NULL	UNIMPL
 252	AUE_EXIT	STD	{ int linux_exit_group(int error_code); }
 253	AUE_NULL	STD	{ int linux_lookup_dcookie(void); }
-254	AUE_NULL	STD	{ int linux_epoll_create(void); }
-255	AUE_NULL	STD	{ int linux_epoll_ctl(void); }
-256	AUE_NULL	STD	{ int linux_epoll_wait(void); }
+254	AUE_NULL	STD	{ int linux_epoll_create(l_int size); }
+255	AUE_NULL	STD	{ int linux_epoll_ctl(l_int epfd, l_int op, l_int fd, \
+					struct epoll_event *event); }
+256	AUE_NULL	STD	{ int linux_epoll_wait(l_int epfd, struct epoll_event *events, \
+					l_int maxevents, l_int timeout); }
 257	AUE_NULL	STD	{ int linux_remap_file_pages(void); }
 258	AUE_NULL	STD	{ int linux_set_tid_address(int *tidptr); }
 259	AUE_NULL	STD	{ int linux_timer_create(clockid_t clock_id, \
@@ -527,7 +529,8 @@
 317	AUE_NULL	STD	{ int linux_move_pages(void); }
 ; linux 2.6.19:
 318	AUE_NULL	STD	{ int linux_getcpu(void); }
-319	AUE_NULL	STD	{ int linux_epoll_pwait(void); }
+319     AUE_NULL        STD     { int linux_epoll_pwait(l_int epfd, struct epoll_event *events, \
+                                        l_int maxevents, l_int timeout, l_osigset_t *mask); }
 ; linux 2.6.22:
 320	AUE_NULL	STD	{ int linux_utimensat(void); }
 321	AUE_NULL	STD	{ int linux_signalfd(void); }
@@ -541,7 +544,7 @@
 ; linux 2.6.27:
 327	AUE_NULL	STD	{ int linux_signalfd4(void); }
 328	AUE_NULL	STD	{ int linux_eventfd2(void); }
-329	AUE_NULL	STD	{ int linux_epoll_create1(void); }
+329	AUE_NULL	STD	{ int linux_epoll_create1(l_int flags); }
 330	AUE_NULL	STD	{ int linux_dup3(l_int oldfd,		\
 					l_int newfd, l_int flags); }
 331	AUE_NULL	STD	{ int linux_pipe2(l_int *pipefds, l_int flags); }
