@@ -119,7 +119,7 @@ struct ksig {
 	u_long code;
 };
 struct data_abort {
-	int (*func)(struct trapframe *, u_int, u_int, struct thread *, 
+	int (*func)(struct trapframe *, u_int, u_int, struct thread *,
 	    struct ksig *);
 	const char *desc;
 };
