@@ -61,6 +61,7 @@ int	linux_common_execve(struct thread *, struct image_args *);
 #define	LINUX_XDEPR_REQUEUEOP	0x00000001	/* uses deprecated
 						   futex REQUEUE op*/
 #define	LINUX_XUNSUP_EPOLL	0x00000002	/* unsupported epoll events */
+#define	LINUX_XUNSUP_FUTEXPIOP	0x00000004	/* uses unsupported pi futex */
 
 struct linux_pemuldata {
 	uint32_t	flags;		/* process emuldata flags */
