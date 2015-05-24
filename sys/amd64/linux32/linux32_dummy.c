@@ -124,7 +124,6 @@ DUMMY(fanotify_mark);
 DUMMY(name_to_handle_at);
 DUMMY(open_by_handle_at);
 DUMMY(clock_adjtime);
-DUMMY(syncfs);
 DUMMY(setns);
 DUMMY(process_vm_readv);
 DUMMY(process_vm_writev);

@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 
 #include <sys/param.h>
+#include <sys/capsicum.h>
 #include <sys/dirent.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
@@ -653,3 +654,43 @@ linux_newfstatat(struct thread *td, struct linux_newfstatat_args *args)
 }
 
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
+
+int
+linux_syncfs(struct thread *td, struct linux_syncfs_args *args)
+{
+	cap_rights_t rights;
+	struct mount *mp;
+	struct vnode *vp;
+	int error, save;
+
+	error = fgetvp(td, args->fd, cap_rights_init(&rights, CAP_FSYNC), &vp);
+	if (error != 0)
+		/*
+		 * Linux syncfs() returns only EBADF, however fgetvp()
+		 * can return EINVAL in case of file descriptor does
+		 * not represent a vnode. XXX.
+		 */
+		return (error);
+
+	mp = vp->v_mount;
+	mtx_lock(&mountlist_mtx);
+	error = vfs_busy(mp, MBF_MNTLSTLOCK);
+	if (error != 0) {
+		/* See comment above. */
+		mtx_unlock(&mountlist_mtx);
+		goto out;
+	}
+	if ((mp->mnt_flag & MNT_RDONLY) == 0 &&
+	    vn_start_write(NULL, &mp, V_NOWAIT) == 0) {
+		save = curthread_pflags_set(TDP_SYNCIO);
+		vfs_msync(mp, MNT_NOWAIT);
+		VFS_SYNC(mp, MNT_NOWAIT);
+		curthread_pflags_restore(save);
+		vn_finished_write(mp);
+	}
+	vfs_unbusy(mp);
+
+ out:
+	vrele(vp);
+	return (error);
+}
