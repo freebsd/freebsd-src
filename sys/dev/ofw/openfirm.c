@@ -154,16 +154,16 @@ xrefinfo_init(void *unsed)
 SYSINIT(xrefinfo, SI_SUB_KMEM, SI_ORDER_ANY, xrefinfo_init, NULL);
 
 static struct xrefinfo *
-xrefinfo_find(phandle_t phandle, int find_by)
+xrefinfo_find(uintptr_t key, int find_by)
 {
 	struct xrefinfo *rv, *xi;
 
 	rv = NULL;
 	mtx_lock(&xreflist_lock);
 	SLIST_FOREACH(xi, &xreflist, next_entry) {
-		if ((find_by == FIND_BY_XREF && phandle == xi->xref) ||
-		    (find_by == FIND_BY_NODE && phandle == xi->node) ||
-		    (find_by == FIND_BY_DEV && phandle == (uintptr_t)xi->dev)) {
+		if ((find_by == FIND_BY_XREF && (phandle_t)key == xi->xref) ||
+		    (find_by == FIND_BY_NODE && (phandle_t)key == xi->node) ||
+		    (find_by == FIND_BY_DEV && key == (uintptr_t)xi->dev)) {
 			rv = xi;
 			break;
 		}
