@@ -328,7 +328,6 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 
 	PROC_LOCK(p);
 	p->p_flag |= P_HADTHREADS;
-	newtd->td_sigmask = td->td_sigmask;
 	bcopy(p->p_comm, newtd->td_name, sizeof(newtd->td_name));
 
 	if (args->flags & LINUX_CLONE_PARENT)
