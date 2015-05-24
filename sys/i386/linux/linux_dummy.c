@@ -103,8 +103,6 @@ DUMMY(epoll_pwait);
 DUMMY(utimensat);
 DUMMY(signalfd);
 DUMMY(timerfd_create);
-/* linux 2.6.23: */
-DUMMY(fallocate);
 /* linux 2.6.25: */
 DUMMY(timerfd_settime);
 DUMMY(timerfd_gettime);

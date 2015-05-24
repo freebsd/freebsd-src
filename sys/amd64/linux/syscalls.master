@@ -474,7 +474,8 @@
 282	AUE_NULL	STD	{ int linux_signalfd(void); }
 283	AUE_NULL	STD	{ int linux_timerfd(void); }
 284	AUE_NULL	STD	{ int linux_eventfd(l_uint initval); }
-285	AUE_NULL	STD	{ int linux_fallocate(void); }
+285	AUE_NULL	STD	{ int linux_fallocate(l_int fd, l_int mode, \
+				    l_loff_t offset, l_loff_t len); }
 286	AUE_NULL	STD	{ int linux_timerfd_settime(void); }
 287	AUE_NULL	STD	{ int linux_timerfd_gettime(void); }
 288	AUE_ACCEPT	STD	{ int linux_accept4(l_int s, l_uintptr_t addr, \

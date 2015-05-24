@@ -1636,3 +1636,18 @@ linux_dup3(struct thread *td, struct linux_dup3_args *args)
 	newfd = args->newfd;
 	return (kern_fcntl(td, args->oldfd, cmd, newfd));
 }
+
+int
+linux_fallocate(struct thread *td, struct linux_fallocate_args *args)
+{
+
+	/*
+	 * We emulate only posix_fallocate system call for which
+	 * mode should be 0.
+	 */
+	if (args->mode != 0)
+		return (ENOSYS);
+
+	return (kern_posix_fallocate(td, args->fd, args->offset,
+	    args->len));
+}
