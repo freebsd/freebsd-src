@@ -307,9 +307,6 @@ int
 sys_thr_exit(struct thread *td, struct thr_exit_args *uap)
     /* long *state */
 {
-	struct proc *p;
-
-	p = td->td_proc;
 
 	/* Signal userland that it can free the stack. */
 	if ((void *)uap->state != NULL) {
@@ -317,8 +314,17 @@ sys_thr_exit(struct thread *td, struct thr_exit_args *uap)
 		kern_umtx_wake(td, uap->state, INT_MAX, 0);
 	}
 
-	rw_wlock(&tidhash_lock);
+	return (kern_thr_exit(td));
+}
 
+int
+kern_thr_exit(struct thread *td)
+{
+	struct proc *p;
+
+	p = td->td_proc;
+
+	rw_wlock(&tidhash_lock);
 	PROC_LOCK(p);
 
 	if (p->p_numthreads != 1) {
