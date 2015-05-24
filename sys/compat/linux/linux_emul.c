@@ -147,6 +147,9 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 	if (__predict_false(SV_CURPROC_ABI() != SV_ABI_LINUX))
 		return;
 
+	LINUX_CTR3(proc_exit, "thread(%d) proc(%d) p %p",
+	    td->td_tid, p->p_pid, p);
+
 	pem = pem_find(p);
 	if (pem == NULL)
 		return;	
@@ -249,7 +252,7 @@ linux_thread_dtor(void *arg __unused, struct thread *td)
 		return;
 	td->td_emuldata = NULL;
 
-	LINUX_CTR1(exit, "thread dtor(%d)", em->em_tid);
+	LINUX_CTR1(thread_dtor, "thread(%d)", em->em_tid);
 
 	free(em, M_TEMP);
 }
@@ -271,8 +274,8 @@ linux_schedtail(struct thread *td)
 	if (child_set_tid != NULL) {
 		error = copyout(&em->em_tid, child_set_tid,
 		    sizeof(em->em_tid));
-		LINUX_CTR4(clone, "schedtail(%d) %p stored %d error %d",
+		LINUX_CTR4(schedtail, "thread(%d) %p stored %d error %d",
 		    td->td_tid, child_set_tid, em->em_tid, error);
 	} else
-		LINUX_CTR1(clone, "schedtail(%d)", em->em_tid);
+		LINUX_CTR1(schedtail, "thread(%d)", em->em_tid);
 }

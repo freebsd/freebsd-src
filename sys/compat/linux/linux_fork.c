@@ -274,7 +274,7 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 	}
 #endif
 
-	LINUX_CTR4(clone, "thread(%d) flags %x ptid %p ctid %p",
+	LINUX_CTR4(clone_thread, "thread(%d) flags %x ptid %p ctid %p",
 	    td->td_tid, (unsigned)args->flags,
 	    args->parent_tidptr, args->child_tidptr);
 
@@ -351,7 +351,7 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 		(int)newtd->td_tid, args->stack);
 #endif
 
-	LINUX_CTR2(clone, "thread(%d) successful clone to %d",
+	LINUX_CTR2(clone_thread, "thread(%d) successful clone to %d",
 	    td->td_tid, newtd->td_tid);
 
 	if (args->flags & LINUX_CLONE_PARENT_SETTID) {
@@ -434,7 +434,7 @@ linux_thread_detach(struct thread *td)
 	em = em_find(td);
 	KASSERT(em != NULL, ("thread_detach: emuldata not found.\n"));
 
-	LINUX_CTR1(exit, "thread detach(%d)", em->em_tid);
+	LINUX_CTR1(thread_detach, "thread(%d)", em->em_tid);
 
 	release_futexes(td, em);
 
@@ -442,7 +442,7 @@ linux_thread_detach(struct thread *td)
 
 	if (child_clear_tid != NULL) {
 
-		LINUX_CTR2(exit, "thread detach(%d) %p",
+		LINUX_CTR2(thread_detach, "thread(%d) %p",
 		    em->em_tid, child_clear_tid);
 	
 		error = suword32(child_clear_tid, 0);
