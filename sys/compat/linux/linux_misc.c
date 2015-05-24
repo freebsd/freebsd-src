@@ -2034,6 +2034,79 @@ linux_sched_setaffinity(struct thread *td,
 	return (sys_cpuset_setaffinity(td, &csa));
 }
 
+struct linux_rlimit64 {
+	uint64_t	rlim_cur;
+	uint64_t	rlim_max;
+};
+
+int
+linux_prlimit64(struct thread *td, struct linux_prlimit64_args *args)
+{
+	struct rlimit rlim, nrlim;
+	struct linux_rlimit64 lrlim;
+	struct proc *p;
+	u_int which;
+	int flags;
+	int error;
+
+#ifdef DEBUG
+	if (ldebug(prlimit64))
+		printf(ARGS(prlimit64, "%d, %d, %p, %p"), args->pid,
+		    args->resource, (void *)args->new, (void *)args->old);
+#endif
+
+	if (args->resource >= LINUX_RLIM_NLIMITS)
+		return (EINVAL);
+
+	which = linux_to_bsd_resource[args->resource];
+	if (which == -1)
+		return (EINVAL);
+
+	if (args->new != NULL) {
+		/*
+		 * Note. Unlike FreeBSD where rlim is signed 64-bit Linux
+		 * rlim is unsigned 64-bit. FreeBSD treats negative limits
+		 * as INFINITY so we do not need a conversion even.
+		 */
+		error = copyin(args->new, &nrlim, sizeof(nrlim));
+		if (error != 0)
+			return (error);
+	}
+
+	flags = PGET_HOLD | PGET_NOTWEXIT;
+	if (args->new != NULL)
+		flags |= PGET_CANDEBUG;
+	else
+		flags |= PGET_CANSEE;
+	error = pget(args->pid, flags, &p);
+	if (error != 0)
+		return (error);
+
+	if (args->old != NULL) {
+		PROC_LOCK(p);
+		lim_rlimit(p, which, &rlim);
+		PROC_UNLOCK(p);
+		if (rlim.rlim_cur == RLIM_INFINITY)
+			lrlim.rlim_cur = LINUX_RLIM_INFINITY;
+		else
+			lrlim.rlim_cur = rlim.rlim_cur;
+		if (rlim.rlim_max == RLIM_INFINITY)
+			lrlim.rlim_max = LINUX_RLIM_INFINITY;
+		else
+			lrlim.rlim_max = rlim.rlim_max;
+		error = copyout(&lrlim, args->old, sizeof(lrlim));
+		if (error != 0)
+			goto out;
+	}
+
+	if (args->new != NULL)
+		error = kern_proc_setrlimit(td, p, which, &nrlim);
+
+ out:
+	PRELE(p);
+	return (error);
+}
+
 int
 linux_sched_rr_get_interval(struct thread *td,
     struct linux_sched_rr_get_interval_args *uap)

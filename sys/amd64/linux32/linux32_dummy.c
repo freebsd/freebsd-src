@@ -133,8 +133,6 @@ DUMMY(perf_event_open);
 DUMMY(recvmmsg);
 DUMMY(fanotify_init);
 DUMMY(fanotify_mark);
-/* linux 2.6.36: */
-DUMMY(prlimit64);
 /* later: */
 DUMMY(name_to_handle_at);
 DUMMY(open_by_handle_at);
