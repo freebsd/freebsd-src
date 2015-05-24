@@ -270,7 +270,7 @@ linux_thread_detach(struct thread *td)
 
 		cup.uaddr = child_clear_tid;
 		cup.op = LINUX_FUTEX_WAKE;
-		cup.val = 0x7fffffff;	/* Awake everyone */
+		cup.val = 1;		/* wake one */
 		cup.timeout = NULL;
 		cup.uaddr2 = NULL;
 		cup.val3 = 0;
