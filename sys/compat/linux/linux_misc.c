@@ -2197,6 +2197,63 @@ linux_pselect6(struct thread *td, struct linux_pselect6_args *args)
 	return (error);
 }
 
+#if defined(DEBUG) || defined(KTR)
+/* XXX: can be removed when every ldebug(...) and KTR stuff are removed. */
+
+u_char linux_debug_map[howmany(LINUX_SYS_MAXSYSCALL, sizeof(u_char))];
+
+static int
+linux_debug(int syscall, int toggle, int global)
+{
+
+	if (global) {
+		char c = toggle ? 0 : 0xff;
+
+		memset(linux_debug_map, c, sizeof(linux_debug_map));
+		return (0);
+	}
+	if (syscall < 0 || syscall >= LINUX_SYS_MAXSYSCALL)
+		return (EINVAL);
+	if (toggle)
+		clrbit(linux_debug_map, syscall);
+	else
+		setbit(linux_debug_map, syscall);
+	return (0);
+}
+
+/*
+ * Usage: sysctl linux.debug=<syscall_nr>.<0/1>
+ *
+ *    E.g.: sysctl linux.debug=21.0
+ *
+ * As a special case, syscall "all" will apply to all syscalls globally.
+ */
+#define LINUX_MAX_DEBUGSTR	16
+int
+linux_sysctl_debug(SYSCTL_HANDLER_ARGS)
+{
+	char value[LINUX_MAX_DEBUGSTR], *p;
+	int error, sysc, toggle;
+	int global = 0;
+
+	value[0] = '\0';
+	error = sysctl_handle_string(oidp, value, LINUX_MAX_DEBUGSTR, req);
+	if (error || req->newptr == NULL)
+		return (error);
+	for (p = value; *p != '\0' && *p != '.'; p++);
+	if (*p == '\0')
+		return (EINVAL);
+	*p++ = '\0';
+	sysc = strtol(value, NULL, 0);
+	toggle = strtol(p, NULL, 0);
+	if (strcmp(value, "all") == 0)
+		global = 1;
+	error = linux_debug(sysc, toggle, global);
+	return (error);
+}
+
+#endif /* DEBUG || KTR */
+
 int
 linux_sched_rr_get_interval(struct thread *td,
     struct linux_sched_rr_get_interval_args *uap)
