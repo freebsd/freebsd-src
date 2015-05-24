@@ -60,6 +60,7 @@ static int	linux_do_tkill(struct thread *td, struct thread *tdt,
 static void	sicode_to_lsicode(int si_code, int *lsi_code);
 
 
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 void
 linux_to_bsd_sigset(l_sigset_t *lss, sigset_t *bss)
 {
@@ -93,6 +94,7 @@ bsd_to_linux_sigset(sigset_t *bss, l_sigset_t *lss)
 		}
 	}
 }
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 static void
 linux_to_bsd_sigaction(l_sigaction_t *lsa, struct sigaction *bsa)
@@ -177,7 +179,7 @@ linux_do_sigaction(struct thread *td, int linux_sig, l_sigaction_t *linux_nsa,
 	return (0);
 }
 
-
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 int
 linux_signal(struct thread *td, struct linux_signal_args *args)
 {
@@ -199,6 +201,7 @@ linux_signal(struct thread *td, struct linux_signal_args *args)
 
 	return (error);
 }
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 int
 linux_rt_sigaction(struct thread *td, struct linux_rt_sigaction_args *args)
@@ -268,6 +271,7 @@ linux_do_sigprocmask(struct thread *td, int how, l_sigset_t *new,
 	return (error);
 }
 
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 int
 linux_sigprocmask(struct thread *td, struct linux_sigprocmask_args *args)
 {
@@ -299,6 +303,7 @@ linux_sigprocmask(struct thread *td, struct linux_sigprocmask_args *args)
 
 	return (error);
 }
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 int
 linux_rt_sigprocmask(struct thread *td, struct linux_rt_sigprocmask_args *args)
@@ -333,6 +338,7 @@ linux_rt_sigprocmask(struct thread *td, struct linux_rt_sigprocmask_args *args)
 	return (error);
 }
 
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 int
 linux_sgetmask(struct thread *td, struct linux_sgetmask_args *args)
 {
@@ -376,9 +382,6 @@ linux_ssetmask(struct thread *td, struct linux_ssetmask_args *args)
 	return (0);
 }
 
-/*
- * MPSAFE
- */
 int
 linux_sigpending(struct thread *td, struct linux_sigpending_args *args)
 {
@@ -401,6 +404,7 @@ linux_sigpending(struct thread *td, struct linux_sigpending_args *args)
 	mask = lset.__bits[0];
 	return (copyout(&mask, args->mask, sizeof(mask)));
 }
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 /*
  * MPSAFE
