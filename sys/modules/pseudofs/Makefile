@@ -23,4 +23,10 @@ EXPORT_SYMS=	pfs_mount	\
 		pfs_enable	\
 		pfs_destroy
 
+.if !defined(KERNBUILDDIR)
+.if defined(PSEUDOFS_TRACE)
+CFLAGS+=-DPSEUDOFS_TRACE
+.endif
+.endif
+
 .include <bsd.kmod.mk>
