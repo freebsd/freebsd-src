@@ -196,21 +196,20 @@ struct execve_args {
 #endif
 
 int
-sys_execve(td, uap)
-	struct thread *td;
-	struct execve_args /* {
-		char *fname;
-		char **argv;
-		char **envv;
-	} */ *uap;
+sys_execve(struct thread *td, struct execve_args *uap)
 {
-	int error;
 	struct image_args args;
+	struct vmspace *oldvmspace;
+	int error;
 
+	error = pre_execve(td, &oldvmspace);
+	if (error != 0)
+		return (error);
 	error = exec_copyin_args(&args, uap->fname, UIO_USERSPACE,
 	    uap->argv, uap->envv);
 	if (error == 0)
 		error = kern_execve(td, &args, NULL);
+	post_execve(td, error, oldvmspace);
 	return (error);
 }
 
@@ -224,15 +223,20 @@ struct fexecve_args {
 int
 sys_fexecve(struct thread *td, struct fexecve_args *uap)
 {
-	int error;
 	struct image_args args;
+	struct vmspace *oldvmspace;
+	int error;
 
+	error = pre_execve(td, &oldvmspace);
+	if (error != 0)
+		return (error);
 	error = exec_copyin_args(&args, NULL, UIO_SYSSPACE,
 	    uap->argv, uap->envv);
 	if (error == 0) {
 		args.fd = uap->fd;
 		error = kern_execve(td, &args, NULL);
 	}
+	post_execve(td, error, oldvmspace);
 	return (error);
 }
 
@@ -246,65 +250,56 @@ struct __mac_execve_args {
 #endif
 
 int
-sys___mac_execve(td, uap)
-	struct thread *td;
-	struct __mac_execve_args /* {
-		char *fname;
-		char **argv;
-		char **envv;
-		struct mac *mac_p;
-	} */ *uap;
+sys___mac_execve(struct thread *td, struct __mac_execve_args *uap)
 {
 #ifdef MAC
-	int error;
 	struct image_args args;
+	struct vmspace *oldvmspace;
+	int error;
 
+	error = pre_execve(td, &oldvmspace);
+	if (error != 0)
+		return (error);
 	error = exec_copyin_args(&args, uap->fname, UIO_USERSPACE,
 	    uap->argv, uap->envv);
 	if (error == 0)
 		error = kern_execve(td, &args, uap->mac_p);
+	post_execve(td, error, oldvmspace);
 	return (error);
 #else
 	return (ENOSYS);
 #endif
 }
 
-/*
- * XXX: kern_execve has the astonishing property of not always returning to
- * the caller.  If sufficiently bad things happen during the call to
- * do_execve(), it can end up calling exit1(); as a result, callers must
- * avoid doing anything which they might need to undo (e.g., allocating
- * memory).
- */
 int
-kern_execve(td, args, mac_p)
-	struct thread *td;
-	struct image_args *args;
-	struct mac *mac_p;
+pre_execve(struct thread *td, struct vmspace **oldvmspace)
 {
-	struct proc *p = td->td_proc;
-	struct vmspace *oldvmspace;
+	struct proc *p;
 	int error;
 
-	AUDIT_ARG_ARGV(args->begin_argv, args->argc,
-	    args->begin_envv - args->begin_argv);
-	AUDIT_ARG_ENVV(args->begin_envv, args->envc,
-	    args->endp - args->begin_envv);
-	if (p->p_flag & P_HADTHREADS) {
+	KASSERT(td == curthread, ("non-current thread %p", td));
+	error = 0;
+	p = td->td_proc;
+	if ((p->p_flag & P_HADTHREADS) != 0) {
 		PROC_LOCK(p);
-		if (thread_single(p, SINGLE_BOUNDARY)) {
-			PROC_UNLOCK(p);
-	       		exec_free_args(args);
-			return (ERESTART);	/* Try again later. */
-		}
+		if (thread_single(p, SINGLE_BOUNDARY) != 0)
+			error = ERESTART;
 		PROC_UNLOCK(p);
 	}
+	KASSERT(error != 0 || (td->td_pflags & TDP_EXECVMSPC) == 0,
+	    ("nested execve"));
+	*oldvmspace = p->p_vmspace;
+	return (error);
+}
 
-	KASSERT((td->td_pflags & TDP_EXECVMSPC) == 0, ("nested execve"));
-	oldvmspace = td->td_proc->p_vmspace;
-	error = do_execve(td, args, mac_p);
+void
+post_execve(struct thread *td, int error, struct vmspace *oldvmspace)
+{
+	struct proc *p;
 
-	if (p->p_flag & P_HADTHREADS) {
+	KASSERT(td == curthread, ("non-current thread %p", td));
+	p = td->td_proc;
+	if ((p->p_flag & P_HADTHREADS) != 0) {
 		PROC_LOCK(p);
 		/*
 		 * If success, we upgrade to SINGLE_EXIT state to
@@ -317,13 +312,29 @@ kern_execve(td, args, mac_p)
 		PROC_UNLOCK(p);
 	}
 	if ((td->td_pflags & TDP_EXECVMSPC) != 0) {
-		KASSERT(td->td_proc->p_vmspace != oldvmspace,
+		KASSERT(p->p_vmspace != oldvmspace,
 		    ("oldvmspace still used"));
 		vmspace_free(oldvmspace);
 		td->td_pflags &= ~TDP_EXECVMSPC;
 	}
+}
 
-	return (error);
+/*
+ * XXX: kern_execve has the astonishing property of not always returning to
+ * the caller.  If sufficiently bad things happen during the call to
+ * do_execve(), it can end up calling exit1(); as a result, callers must
+ * avoid doing anything which they might need to undo (e.g., allocating
+ * memory).
+ */
+int
+kern_execve(struct thread *td, struct image_args *args, struct mac *mac_p)
+{
+
+	AUDIT_ARG_ARGV(args->begin_argv, args->argc,
+	    args->begin_envv - args->begin_argv);
+	AUDIT_ARG_ENVV(args->begin_envv, args->envc,
+	    args->endp - args->begin_envv);
+	return (do_execve(td, args, mac_p));
 }
 
 /*

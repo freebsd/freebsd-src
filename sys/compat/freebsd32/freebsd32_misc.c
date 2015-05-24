@@ -400,12 +400,17 @@ int
 freebsd32_execve(struct thread *td, struct freebsd32_execve_args *uap)
 {
 	struct image_args eargs;
+	struct vmspace *oldvmspace;
 	int error;
 
+	error = pre_execve(td, &oldvmspace);
+	if (error != 0)
+		return (error);
 	error = freebsd32_exec_copyin_args(&eargs, uap->fname, UIO_USERSPACE,
 	    uap->argv, uap->envv);
 	if (error == 0)
 		error = kern_execve(td, &eargs, NULL);
+	post_execve(td, error, oldvmspace);
 	return (error);
 }
 
@@ -413,14 +418,19 @@ int
 freebsd32_fexecve(struct thread *td, struct freebsd32_fexecve_args *uap)
 {
 	struct image_args eargs;
+	struct vmspace *oldvmspace;
 	int error;
 
+	error = pre_execve(td, &oldvmspace);
+	if (error != 0)
+		return (error);
 	error = freebsd32_exec_copyin_args(&eargs, NULL, UIO_SYSSPACE,
 	    uap->argv, uap->envv);
 	if (error == 0) {
 		eargs.fd = uap->fd;
 		error = kern_execve(td, &eargs, NULL);
 	}
+	post_execve(td, error, oldvmspace);
 	return (error);
 }
 
