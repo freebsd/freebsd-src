@@ -5,6 +5,12 @@
 
 #include <amd64/linux32/linux32_syscall.h>	/* system call numbers */
 
+.data
+
+	.globl linux_platform
+linux_platform:
+	.asciz "i686"
+
 .text
 .code32
 
