@@ -792,7 +792,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->pid; /* l_pid_t */
 		uarg[1] = (intptr_t) p->status; /* l_int * */
 		iarg[2] = p->options; /* l_int */
-		uarg[3] = (intptr_t) p->rusage; /* struct l_rusage * */
+		uarg[3] = (intptr_t) p->rusage; /* void * */
 		*n_args = 4;
 		break;
 	}
@@ -3548,7 +3548,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_int";
 			break;
 		case 3:
-			p = "struct l_rusage *";
+			p = "void *";
 			break;
 		default:
 			break;
