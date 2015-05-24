@@ -2008,3 +2008,22 @@ linux_tdfind(struct thread *td, lwpid_t tid, pid_t pid)
 
 	return (tdt);
 }
+
+void
+linux_to_bsd_waitopts(int options, int *bsdopts)
+{
+
+	if (options & LINUX_WNOHANG)
+		*bsdopts |= WNOHANG;
+	if (options & LINUX_WUNTRACED)
+		*bsdopts |= WUNTRACED;
+	if (options & LINUX_WEXITED)
+		*bsdopts |= WEXITED;
+	if (options & LINUX_WCONTINUED)
+		*bsdopts |= WCONTINUED;
+	if (options & LINUX_WNOWAIT)
+		*bsdopts |= WNOWAIT;
+
+	if (options & __WCLONE)
+		*bsdopts |= WLINUXCLONE;
+}

@@ -113,10 +113,21 @@ struct l_new_utsname {
 
 extern int stclohz;
 
-#define __WCLONE 0x80000000
+#define	LINUX_WNOHANG		0x00000001
+#define	LINUX_WUNTRACED		0x00000002
+#define	LINUX_WSTOPPED		LINUX_WUNTRACED
+#define	LINUX_WEXITED		0x00000004
+#define	LINUX_WCONTINUED	0x00000008
+#define	LINUX_WNOWAIT		0x01000000
+
+
+#define	__WNOTHREAD		0x20000000
+#define	__WALL			0x40000000
+#define	__WCLONE		0x80000000
 
 int linux_common_wait(struct thread *td, int pid, int *status,
 			int options, struct rusage *ru);
+void linux_to_bsd_waitopts(int options, int *bsdopts);
 int linux_set_upcall_kse(struct thread *td, register_t stack);
 int linux_set_cloned_tls(struct thread *td, void *desc);
 struct thread	*linux_tdfind(struct thread *, lwpid_t, pid_t);
