@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_util.h>
 #include <compat/linux/linux_file.h>
 
-#define	LINUX_SHMFS_MAGIC 0x01021994
 
 static void
 translate_vnhook_major_minor(struct vnode *vp, struct stat *sb)
@@ -352,6 +351,7 @@ struct l_statfs {
 #define	LINUX_PROC_SUPER_MAGIC	0x9fa0L
 #define	LINUX_UFS_SUPER_MAGIC	0x00011954L	/* XXX - UFS_MAGIC in Linux */
 #define LINUX_DEVFS_SUPER_MAGIC	0x1373L
+#define	LINUX_SHMFS_MAGIC	0x01021994
 
 static long
 bsd_to_linux_ftype(const char *fstypename)
@@ -369,6 +369,7 @@ bsd_to_linux_ftype(const char *fstypename)
 		{"hpfs",    LINUX_HPFS_SUPER_MAGIC},
 		{"coda",    LINUX_CODA_SUPER_MAGIC},
 		{"devfs",   LINUX_DEVFS_SUPER_MAGIC},
+		{"tmpfs",   LINUX_SHMFS_MAGIC},
 		{NULL,      0L}};
 
 	for (i = 0; b2l_tbl[i].bsd_name != NULL; i++)
@@ -400,7 +401,7 @@ linux_statfs(struct thread *td, struct linux_statfs_args *args)
 	struct l_statfs linux_statfs;
 	struct statfs bsd_statfs;
 	char *path;
-	int error, dev_shm;
+	int error;
 
 	LCONVPATHEXIST(td, args->path, &path);
 
@@ -408,17 +409,11 @@ linux_statfs(struct thread *td, struct linux_statfs_args *args)
 	if (ldebug(statfs))
 		printf(ARGS(statfs, "%s, *"), path);
 #endif
-	dev_shm = 0;
 	error = kern_statfs(td, path, UIO_SYSSPACE, &bsd_statfs);
-	if (strncmp(path, "/dev/shm", sizeof("/dev/shm") - 1) == 0)
-		dev_shm = (path[8] == '\0'
-		    || (path[8] == '/' && path[9] == '\0'));
 	LFREEPATH(path);
 	if (error)
 		return (error);
 	bsd_to_linux_statfs(&bsd_statfs, &linux_statfs);
-	if (dev_shm)
-		linux_statfs.f_type = LINUX_SHMFS_MAGIC;
 	return copyout(&linux_statfs, args->buf, sizeof(linux_statfs));
 }
 
