@@ -609,7 +609,7 @@ linux_sendto_hdrincl(struct thread *td, struct linux_sendto_args *linux_args)
 	    linux_args->len > IP_MAXPACKET)
 		return (EINVAL);
 
-	packet = (struct ip *)malloc(linux_args->len, M_TEMP, M_WAITOK);
+	packet = (struct ip *)malloc(linux_args->len, M_LINUX, M_WAITOK);
 
 	/* Make kernel copy of the packet to be sent */
 	if ((error = copyin(PTRIN(linux_args->msg), packet,
@@ -632,7 +632,7 @@ linux_sendto_hdrincl(struct thread *td, struct linux_sendto_args *linux_args)
 	error = linux_sendit(td, linux_args->s, &msg, linux_args->flags,
 	    NULL, UIO_SYSSPACE);
 goout:
-	free(packet, M_TEMP);
+	free(packet, M_LINUX);
 	return (error);
 }
 
@@ -1119,7 +1119,7 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 		free(sa, M_SONAME);
 
 		error = ENOBUFS;
-		cmsg = malloc(CMSG_HDRSZ, M_TEMP, M_WAITOK | M_ZERO);
+		cmsg = malloc(CMSG_HDRSZ, M_LINUX, M_WAITOK | M_ZERO);
 		control = m_get(M_WAITOK, MT_CONTROL);
 		if (control == NULL)
 			goto bad;
@@ -1197,7 +1197,7 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 bad:
 	free(iov, M_IOV);
 	if (cmsg)
-		free(cmsg, M_TEMP);
+		free(cmsg, M_LINUX);
 	return (error);
 }
 
@@ -1270,7 +1270,7 @@ linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 	outlen = 0;
 
 	if (control) {
-		linux_cmsg = malloc(L_CMSG_HDRSZ, M_TEMP, M_WAITOK | M_ZERO);
+		linux_cmsg = malloc(L_CMSG_HDRSZ, M_LINUX, M_WAITOK | M_ZERO);
 
 		msg.msg_control = mtod(control, struct cmsghdr *);
 		msg.msg_controllen = control->m_len;
@@ -1363,7 +1363,7 @@ out:
 bad:
 	free(iov, M_IOV);
 	m_freem(control);
-	free(linux_cmsg, M_TEMP);
+	free(linux_cmsg, M_LINUX);
 
 	return (error);
 }

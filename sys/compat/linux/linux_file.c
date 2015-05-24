@@ -369,8 +369,8 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 
 	buflen = max(LINUX_DIRBLKSIZ, nbytes);
 	buflen = min(buflen, MAXBSIZE);
-	buf = malloc(buflen, M_TEMP, M_WAITOK);
-	lbuf = malloc(LINUX_MAXRECLEN, M_TEMP, M_WAITOK | M_ZERO);
+	buf = malloc(buflen, M_LINUX, M_WAITOK);
+	lbuf = malloc(LINUX_MAXRECLEN, M_LINUX, M_WAITOK | M_ZERO);
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 
 	aiov.iov_base = buf;
@@ -521,8 +521,8 @@ out:
 	VOP_UNLOCK(vp, 0);
 	foffset_unlock(fp, off, 0);
 	fdrop(fp, td);
-	free(buf, M_TEMP);
-	free(lbuf, M_TEMP);
+	free(buf, M_LINUX);
+	free(lbuf, M_LINUX);
 	return (error);
 }
 
