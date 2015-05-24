@@ -419,12 +419,6 @@ freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		sfp = (struct sigframe32 *)((vm_offset_t)(td->td_frame->sp - 
 		    sizeof(struct sigframe32)) & ~(sizeof(__int64_t) - 1));
 
-	/* Translate the signal if appropriate */
-	if (p->p_sysent->sv_sigtbl) {
-		if (sig <= p->p_sysent->sv_sigsize)
-			sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
-	}
-
 	/* Build the argument list for the signal handler. */
 	td->td_frame->a0 = sig;
 	td->td_frame->a2 = (register_t)(intptr_t)&sfp->sf_uc;
