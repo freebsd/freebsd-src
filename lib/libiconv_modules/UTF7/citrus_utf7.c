@@ -154,21 +154,17 @@ _citrus_UTF7_mbtoutf16(_UTF7EncodingInfo * __restrict ei,
     uint16_t * __restrict u16, char ** __restrict s, size_t n,
     _UTF7State * __restrict psenc, size_t * __restrict nresult)
 {
-	_UTF7State sv;
 	char *s0;
 	int done, i, len;
 
+	*nresult = 0;
 	s0 = *s;
-	sv = *psenc;
 
 	for (i = 0, done = 0; done == 0; i++) {
 		if (i == psenc->chlen) {
 			if (n-- < 1) {
 				*nresult = (size_t)-2;
 				*s = s0;
-				sv.chlen = psenc->chlen;
-				memcpy(sv.ch, psenc->ch, sizeof(sv.ch));
-				*psenc = sv;
 				return (0);
 			}
 			psenc->ch[psenc->chlen++] = *s0++;
