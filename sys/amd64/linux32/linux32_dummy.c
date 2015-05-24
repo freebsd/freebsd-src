@@ -102,7 +102,6 @@ DUMMY(vmsplice);
 DUMMY(move_pages);
 /* linux 2.6.19: */
 DUMMY(getcpu);
-DUMMY(epoll_pwait);
 /* linux 2.6.22: */
 DUMMY(signalfd);
 DUMMY(timerfd_create);
