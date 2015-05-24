@@ -106,8 +106,8 @@ device		pass			# Passthrough device (direct ATA/SCSI access)
 # Comment following lines for headless setup
 device		sc
 device		kbdmux
-options         SC_DFLT_FONT    	# compile font in
-makeoptions     SC_DFLT_FONT=cp437
+options 	SC_DFLT_FONT    	# compile font in
+makeoptions	SC_DFLT_FONT=cp437
 
 options 	KDB
 options 	DDB			# Enable the kernel debugger

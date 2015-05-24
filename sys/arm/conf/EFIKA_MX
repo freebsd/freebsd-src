@@ -22,7 +22,7 @@ ident		EFIKA_MX
 
 include 	"../freescale/imx/std.imx51"
 
-makeoptions 	WITHOUT_MODULES="ahc"
+makeoptions	WITHOUT_MODULES="ahc"
 
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
@@ -187,7 +187,7 @@ makeoptions	FDT_DTS_FILE=efikamx.dts
 # Uncomment following lines for framebuffer/syscons support
 device		sc
 device		kbdmux
-options         SC_DFLT_FONT		# compile font in
-makeoptions     SC_DFLT_FONT=cp437
+options 	SC_DFLT_FONT		# compile font in
+makeoptions	SC_DFLT_FONT=cp437
 device		ukbd			# Allow keyboard like HIDs to control console
 device		ums

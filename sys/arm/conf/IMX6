@@ -98,7 +98,7 @@ device		miibus			# Required for ethernet
 device	 	bpf			# Berkeley packet filter (required for DHCP)
 
 # General-purpose input/output
-device  	gpio
+device		gpio
 
 # Serial (COM) ports
 device		uart			# Multi-uart driver

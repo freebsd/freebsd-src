@@ -133,5 +133,5 @@ device		nand			# NAND interface on CS3
 #makeoptions	FDT_DTS_FILE=hl201.dts
 
 options 	EARLY_PRINTF
-options  	SOCDEV_PA=0xfc000000
+options 	SOCDEV_PA=0xfc000000
 options 	SOCDEV_VA=0xdc000000
