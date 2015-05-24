@@ -148,15 +148,8 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 	free(newpath, M_TEMP);
 	if (error == 0)
 		error = kern_execve(td, &eargs, NULL);
-	if (error == 0) {
-	   	/* linux process can exec fbsd one, dont attempt
-		 * to create emuldata for such process using
-		 * linux_proc_init, this leads to a panic on KASSERT
-		 * because such process has p->p_emuldata == NULL
-		 */
-		if (SV_PROC_ABI(td->td_proc) == SV_ABI_LINUX)
-   			error = linux_proc_init(td, 0, 0);
-	}
+	if (error == 0)
+		error = linux_common_execve(td, &eargs);
 	post_execve(td, error, oldvmspace);
 	return (error);
 }
@@ -368,8 +361,14 @@ int
 linux_set_upcall_kse(struct thread *td, register_t stack)
 {
 
-	td->td_frame->tf_esp = stack;
+	if (stack)
+		td->td_frame->tf_esp = stack;
 
+	/*
+	 * The newly created Linux thread returns
+	 * to the user space by the same path that a parent do.
+	 */
+	td->td_frame->tf_eax = 0;
 	return (0);
 }
 

@@ -123,5 +123,6 @@ int linux_common_wait(struct thread *td, int pid, int *status,
 			int options, struct rusage *ru);
 int linux_set_upcall_kse(struct thread *td, register_t stack);
 int linux_set_cloned_tls(struct thread *td, void *desc);
+struct thread	*linux_tdfind(struct thread *, lwpid_t, pid_t);
 
 #endif	/* _LINUX_MISC_H_ */

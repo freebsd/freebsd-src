@@ -70,10 +70,6 @@ __KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $")
 /* DTrace init */
 LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
 
-/* Linuxulator-global DTrace probes */
-LIN_SDT_PROBE_DECLARE(locks, emul_lock, locked);
-LIN_SDT_PROBE_DECLARE(locks, emul_lock, unlock);
-
 /**
  * Futex part for the special DTrace module "locks".
  */
@@ -174,8 +170,8 @@ LIN_SDT_PROBE_DEFINE2(futex, linux_get_robust_list, entry, "struct thread *",
     "struct linux_get_robust_list_args *");
 LIN_SDT_PROBE_DEFINE1(futex, linux_get_robust_list, copyout_error, "int");
 LIN_SDT_PROBE_DEFINE1(futex, linux_get_robust_list, return, "int");
-LIN_SDT_PROBE_DEFINE3(futex, handle_futex_death, entry, "struct proc *",
-    "uint32_t *", "unsigned int");
+LIN_SDT_PROBE_DEFINE3(futex, handle_futex_death, entry,
+    "struct linux_emuldata *", "uint32_t *", "unsigned int");
 LIN_SDT_PROBE_DEFINE1(futex, handle_futex_death, copyin_error, "int");
 LIN_SDT_PROBE_DEFINE1(futex, handle_futex_death, return, "int");
 LIN_SDT_PROBE_DEFINE3(futex, fetch_robust_entry, entry,
@@ -183,7 +179,8 @@ LIN_SDT_PROBE_DEFINE3(futex, fetch_robust_entry, entry,
     "unsigned int *");
 LIN_SDT_PROBE_DEFINE1(futex, fetch_robust_entry, copyin_error, "int");
 LIN_SDT_PROBE_DEFINE1(futex, fetch_robust_entry, return, "int");
-LIN_SDT_PROBE_DEFINE1(futex, release_futexes, entry, "struct proc *");
+LIN_SDT_PROBE_DEFINE2(futex, release_futexes, entry, "struct thread *",
+    "struct linux_emuldata *");
 LIN_SDT_PROBE_DEFINE1(futex, release_futexes, copyin_error, "int");
 LIN_SDT_PROBE_DEFINE0(futex, release_futexes, return);
 
@@ -976,7 +973,7 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		 * Glibc versions prior to 2.3.3 fall back to FUTEX_WAKE when
 		 * FUTEX_REQUEUE returned EINVAL.
 		 */
-		em = em_find(td->td_proc, EMUL_DONTLOCK);
+		em = em_find(td);
 		if ((em->flags & LINUX_XDEPR_REQUEUEOP) == 0) {
 			linux_msg(td,
 				  "linux_sys_futex: "
@@ -1035,9 +1032,8 @@ linux_set_robust_list(struct thread *td, struct linux_set_robust_list_args *args
 		return (EINVAL);
 	}
 
-	em = em_find(td->td_proc, EMUL_DOLOCK);
+	em = em_find(td);
 	em->robust_futexes = args->head;
-	EMUL_UNLOCK(&emul_lock);
 
 	LIN_SDT_PROBE1(futex, linux_set_robust_list, return, 0);
 	return (0);
@@ -1049,29 +1045,30 @@ linux_get_robust_list(struct thread *td, struct linux_get_robust_list_args *args
 	struct linux_emuldata *em;
 	struct linux_robust_list_head *head;
 	l_size_t len = sizeof(struct linux_robust_list_head);
+	struct thread *td2;
 	int error = 0;
 
 	LIN_SDT_PROBE2(futex, linux_get_robust_list, entry, td, args);
 
 	if (!args->pid) {
-		em = em_find(td->td_proc, EMUL_DONTLOCK);
+		em = em_find(td);
+		KASSERT(em != NULL, ("get_robust_list: emuldata notfound.\n"));
 		head = em->robust_futexes;
 	} else {
-		struct proc *p;
-
-		p = pfind(args->pid);
-		if (p == NULL) {
+		td2 = tdfind(args->pid, -1);
+		if (td2 == NULL) {
 			LIN_SDT_PROBE1(futex, linux_get_robust_list, return,
 			    ESRCH);
 			return (ESRCH);
 		}
 
-		em = em_find(p, EMUL_DONTLOCK);
+		em = em_find(td2);
+		KASSERT(em != NULL, ("get_robust_list: emuldata notfound.\n"));
 		/* XXX: ptrace? */
 		if (priv_check(td, PRIV_CRED_SETUID) ||
 		    priv_check(td, PRIV_CRED_SETEUID) ||
-		    p_candebug(td, p)) {
-			PROC_UNLOCK(p);
+		    p_candebug(td, td2->td_proc)) {
+			PROC_UNLOCK(td2->td_proc);
 
 			LIN_SDT_PROBE1(futex, linux_get_robust_list, return,
 			    EPERM);
@@ -1079,7 +1076,7 @@ linux_get_robust_list(struct thread *td, struct linux_get_robust_list_args *args
 		}
 		head = em->robust_futexes;
 
-		PROC_UNLOCK(p);
+		PROC_UNLOCK(td2->td_proc);
 	}
 
 	error = copyout(&len, args->len, sizeof(l_size_t));
@@ -1101,13 +1098,14 @@ linux_get_robust_list(struct thread *td, struct linux_get_robust_list_args *args
 }
 
 static int
-handle_futex_death(struct proc *p, uint32_t *uaddr, unsigned int pi)
+handle_futex_death(struct linux_emuldata *em, uint32_t *uaddr,
+    unsigned int pi)
 {
 	uint32_t uval, nval, mval;
 	struct futex *f;
 	int error;
 
-	LIN_SDT_PROBE3(futex, handle_futex_death, entry, p, uaddr, pi);
+	LIN_SDT_PROBE3(futex, handle_futex_death, entry, em, uaddr, pi);
 
 retry:
 	error = copyin(uaddr, &uval, 4);
@@ -1116,7 +1114,7 @@ retry:
 		LIN_SDT_PROBE1(futex, handle_futex_death, return, EFAULT);
 		return (EFAULT);
 	}
-	if ((uval & FUTEX_TID_MASK) == p->p_pid) {
+	if ((uval & FUTEX_TID_MASK) == em->em_tid) {
 		mval = (uval & FUTEX_WAITERS) | FUTEX_OWNER_DIED;
 		nval = casuword32(uaddr, uval, mval);
 
@@ -1173,18 +1171,16 @@ fetch_robust_entry(struct linux_robust_list **entry,
 
 /* This walks the list of robust futexes releasing them. */
 void
-release_futexes(struct proc *p)
+release_futexes(struct thread *td, struct linux_emuldata *em)
 {
 	struct linux_robust_list_head *head = NULL;
 	struct linux_robust_list *entry, *next_entry, *pending;
 	unsigned int limit = 2048, pi, next_pi, pip;
-	struct linux_emuldata *em;
 	l_long futex_offset;
 	int rc, error;
 
-	LIN_SDT_PROBE1(futex, release_futexes, entry, p);
+	LIN_SDT_PROBE2(futex, release_futexes, entry, td, em);
 
-	em = em_find(p, EMUL_DONTLOCK);
 	head = em->robust_futexes;
 
 	if (head == NULL) {
@@ -1214,7 +1210,7 @@ release_futexes(struct proc *p)
 		rc = fetch_robust_entry(&next_entry, PTRIN(&entry->next), &next_pi);
 
 		if (entry != pending)
-			if (handle_futex_death(p,
+			if (handle_futex_death(em,
 			    (uint32_t *)((caddr_t)entry + futex_offset), pi)) {
 				LIN_SDT_PROBE0(futex, release_futexes, return);
 				return;
@@ -1234,7 +1230,7 @@ release_futexes(struct proc *p)
 	}
 
 	if (pending)
-		handle_futex_death(p, (uint32_t *)((caddr_t)pending + futex_offset), pip);
+		handle_futex_death(em, (uint32_t *)((caddr_t)pending + futex_offset), pip);
 
 	LIN_SDT_PROBE0(futex, release_futexes, return);
 }

@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
-#include <sys/sdt.h>
 #include <sys/signalvar.h>
 #include <sys/stat.h>
 #include <sys/syscallsubr.h>
@@ -84,7 +83,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux_proto.h>
 #endif
 
-#include <compat/linux/linux_dtrace.h>
 #include <compat/linux/linux_file.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_signal.h>
@@ -92,17 +90,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_sysproto.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_misc.h>
-
-/* DTrace init */
-LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
-
-/* Linuxulator-global DTrace probes */
-LIN_SDT_PROBE_DECLARE(locks, emul_lock, locked);
-LIN_SDT_PROBE_DECLARE(locks, emul_lock, unlock);
-LIN_SDT_PROBE_DECLARE(locks, emul_shared_rlock, locked);
-LIN_SDT_PROBE_DECLARE(locks, emul_shared_rlock, unlock);
-LIN_SDT_PROBE_DECLARE(locks, emul_shared_wlock, locked);
-LIN_SDT_PROBE_DECLARE(locks, emul_shared_wlock, unlock);
 
 int stclohz;				/* Statistics clock frequency */
 
@@ -1297,7 +1284,9 @@ int
 linux_sched_setscheduler(struct thread *td,
     struct linux_sched_setscheduler_args *args)
 {
-	struct sched_setscheduler_args bsd;
+	struct sched_param sched_param;
+	struct thread *tdt;
+	int error, policy;
 
 #ifdef DEBUG
 	if (ldebug(sched_setscheduler))
@@ -1307,39 +1296,51 @@ linux_sched_setscheduler(struct thread *td,
 
 	switch (args->policy) {
 	case LINUX_SCHED_OTHER:
-		bsd.policy = SCHED_OTHER;
+		policy = SCHED_OTHER;
 		break;
 	case LINUX_SCHED_FIFO:
-		bsd.policy = SCHED_FIFO;
+		policy = SCHED_FIFO;
 		break;
 	case LINUX_SCHED_RR:
-		bsd.policy = SCHED_RR;
+		policy = SCHED_RR;
 		break;
 	default:
 		return (EINVAL);
 	}
 
-	bsd.pid = args->pid;
-	bsd.param = (struct sched_param *)args->param;
-	return (sys_sched_setscheduler(td, &bsd));
+	error = copyin(args->param, &sched_param, sizeof(sched_param));
+	if (error)
+		return (error);
+
+	tdt = linux_tdfind(td, args->pid, -1);
+	if (tdt == NULL)
+		return (ESRCH);
+
+	error = kern_sched_setscheduler(td, tdt, policy, &sched_param);
+	PROC_UNLOCK(tdt->td_proc);
+	return (error);
 }
 
 int
 linux_sched_getscheduler(struct thread *td,
     struct linux_sched_getscheduler_args *args)
 {
-	struct sched_getscheduler_args bsd;
-	int error;
+	struct thread *tdt;
+	int error, policy;
 
 #ifdef DEBUG
 	if (ldebug(sched_getscheduler))
 		printf(ARGS(sched_getscheduler, "%d"), args->pid);
 #endif
 
-	bsd.pid = args->pid;
-	error = sys_sched_getscheduler(td, &bsd);
+	tdt = linux_tdfind(td, args->pid, -1);
+	if (tdt == NULL)
+		return (ESRCH);
 
-	switch (td->td_retval[0]) {
+	error = kern_sched_getscheduler(td, tdt, &policy);
+	PROC_UNLOCK(tdt->td_proc);
+
+	switch (policy) {
 	case SCHED_OTHER:
 		td->td_retval[0] = LINUX_SCHED_OTHER;
 		break;
@@ -1350,7 +1351,6 @@ linux_sched_getscheduler(struct thread *td,
 		td->td_retval[0] = LINUX_SCHED_RR;
 		break;
 	}
-
 	return (error);
 }
 
@@ -1476,20 +1476,12 @@ linux_reboot(struct thread *td, struct linux_reboot_args *args)
 int
 linux_getpid(struct thread *td, struct linux_getpid_args *args)
 {
-	struct linux_emuldata *em;
 
 #ifdef DEBUG
 	if (ldebug(getpid))
 		printf(ARGS(getpid, ""));
 #endif
-
-	if (linux_use26(td)) {
-		em = em_find(td->td_proc, EMUL_DONTLOCK);
-		KASSERT(em != NULL, ("getpid: emuldata not found.\n"));
-		td->td_retval[0] = em->shared->group_pid;
-	} else {
-		td->td_retval[0] = td->td_proc->p_pid;
-	}
+	td->td_retval[0] = td->td_proc->p_pid;
 
 	return (0);
 }
@@ -1497,13 +1489,18 @@ linux_getpid(struct thread *td, struct linux_getpid_args *args)
 int
 linux_gettid(struct thread *td, struct linux_gettid_args *args)
 {
+	struct linux_emuldata *em;
 
 #ifdef DEBUG
 	if (ldebug(gettid))
 		printf(ARGS(gettid, ""));
 #endif
 
-	td->td_retval[0] = td->td_proc->p_pid;
+	em = em_find(td);
+	KASSERT(em != NULL, ("gettid: emuldata not found.\n"));
+
+	td->td_retval[0] = em->em_tid;
+
 	return (0);
 }
 
@@ -1511,50 +1508,15 @@ linux_gettid(struct thread *td, struct linux_gettid_args *args)
 int
 linux_getppid(struct thread *td, struct linux_getppid_args *args)
 {
-	struct linux_emuldata *em;
-	struct proc *p, *pp;
 
 #ifdef DEBUG
 	if (ldebug(getppid))
 		printf(ARGS(getppid, ""));
 #endif
 
-	if (!linux_use26(td)) {
-		PROC_LOCK(td->td_proc);
-		td->td_retval[0] = td->td_proc->p_pptr->p_pid;
-		PROC_UNLOCK(td->td_proc);
-		return (0);
-	}
-
-	em = em_find(td->td_proc, EMUL_DONTLOCK);
-
-	KASSERT(em != NULL, ("getppid: process emuldata not found.\n"));
-
-	/* find the group leader */
-	p = pfind(em->shared->group_pid);
-
-	if (p == NULL) {
-#ifdef DEBUG
-	   	printf(LMSG("parent process not found.\n"));
-#endif
-		return (0);
-	}
-
-	pp = p->p_pptr;		/* switch to parent */
-	PROC_LOCK(pp);
-	PROC_UNLOCK(p);
-
-	/* if its also linux process */
-	if (pp->p_sysent == &elf_linux_sysvec) {
-		em = em_find(pp, EMUL_DONTLOCK);
-		KASSERT(em != NULL, ("getppid: parent emuldata not found.\n"));
-
-		td->td_retval[0] = em->shared->group_pid;
-	} else
-		td->td_retval[0] = pp->p_pid;
-
-	PROC_UNLOCK(pp);
-
+	PROC_LOCK(td->td_proc);
+	td->td_retval[0] = td->td_proc->p_pptr->p_pid;
+	PROC_UNLOCK(td->td_proc);
 	return (0);
 }
 
@@ -1659,22 +1621,14 @@ linux_setdomainname(struct thread *td, struct linux_setdomainname_args *args)
 int
 linux_exit_group(struct thread *td, struct linux_exit_group_args *args)
 {
-	struct linux_emuldata *em;
 
 #ifdef DEBUG
 	if (ldebug(exit_group))
 		printf(ARGS(exit_group, "%i"), args->error_code);
 #endif
 
-	em = em_find(td->td_proc, EMUL_DONTLOCK);
-	if (em->shared->refs > 1) {
-		EMUL_SHARED_WLOCK(&emul_shared_lock);
-		em->shared->flags |= EMUL_SHARED_HASXSTAT;
-		em->shared->xstat = W_EXITCODE(args->error_code, 0);
-		EMUL_SHARED_WUNLOCK(&emul_shared_lock);
-		if (linux_use26(td))
-			linux_kill_threads(td, SIGKILL);
-	}
+	LINUX_CTR2(exit_group, "thread(%d) (%d)", td->td_tid,
+	    args->error_code);
 
 	/*
 	 * XXX: we should send a signal to the parent if
@@ -1682,8 +1636,7 @@ linux_exit_group(struct thread *td, struct linux_exit_group_args *args)
 	 * as it doesnt occur often.
 	 */
 	exit1(td, W_EXITCODE(args->error_code, 0));
-
-	return (0);
+		/* NOTREACHED */
 }
 
 #define _LINUX_CAPABILITY_VERSION  0x19980330
@@ -1799,16 +1752,14 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 	case LINUX_PR_SET_PDEATHSIG:
 		if (!LINUX_SIG_VALID(args->arg2))
 			return (EINVAL);
-		em = em_find(p, EMUL_DOLOCK);
+		em = em_find(td);
 		KASSERT(em != NULL, ("prctl: emuldata not found.\n"));
 		em->pdeath_signal = args->arg2;
-		EMUL_UNLOCK(&emul_lock);
 		break;
 	case LINUX_PR_GET_PDEATHSIG:
-		em = em_find(p, EMUL_DOLOCK);
+		em = em_find(td);
 		KASSERT(em != NULL, ("prctl: emuldata not found.\n"));
 		pdeath_signal = em->pdeath_signal;
-		EMUL_UNLOCK(&emul_lock);
 		error = copyout(&pdeath_signal,
 		    (void *)(register_t)args->arg2,
 		    sizeof(pdeath_signal));
@@ -1879,7 +1830,6 @@ linux_sched_setparam(struct thread *td,
 {
 	struct sched_param sched_param;
 	struct thread *tdt;
-	struct proc *p;
 	int error;
 
 #ifdef DEBUG
@@ -1891,24 +1841,12 @@ linux_sched_setparam(struct thread *td,
 	if (error)
 		return (error);
 
-	if (uap->pid == 0) {
-		tdt = td;
-		p = tdt->td_proc;
-		PROC_LOCK(p);
-	} else {
-		p = pfind(uap->pid);
-		if (p == NULL)
-			return (ESRCH);
-		/*
-		 * XXX. Scheduling parameters are in fact per-thread
-		 * attributes in Linux. Temporarily use the first
-		 * thread in proc. The same for get_param().
-		 */
-		tdt = FIRST_THREAD_IN_PROC(p);
-	}
+	tdt = linux_tdfind(td, uap->pid, -1);
+	if (tdt == NULL)
+		return (ESRCH);
 
 	error = kern_sched_setparam(td, tdt, &sched_param);
-	PROC_UNLOCK(p);
+	PROC_UNLOCK(tdt->td_proc);
 	return (error);
 }
 
@@ -1918,7 +1856,6 @@ linux_sched_getparam(struct thread *td,
 {
 	struct sched_param sched_param;
 	struct thread *tdt;
-	struct proc *p;
 	int error;
 
 #ifdef DEBUG
@@ -1926,19 +1863,12 @@ linux_sched_getparam(struct thread *td,
 		printf(ARGS(sched_getparam, "%d, *"), uap->pid);
 #endif
 
-	if (uap->pid == 0) {
-		tdt = td;
-		p = tdt->td_proc;
-		PROC_LOCK(p);
-	} else {
-		p = pfind(uap->pid);
-		if (p == NULL)
-			return (ESRCH);
-		tdt = FIRST_THREAD_IN_PROC(p);
-	}
+	tdt = linux_tdfind(td, uap->pid, -1);
+	if (tdt == NULL)
+		return (ESRCH);
 
 	error = kern_sched_getparam(td, tdt, &sched_param);
-	PROC_UNLOCK(p);
+	PROC_UNLOCK(tdt->td_proc);
 	if (error == 0)
 		error = copyout(&sched_param, uap->param,
 		    sizeof(sched_param));
@@ -1953,6 +1883,7 @@ linux_sched_getaffinity(struct thread *td,
     struct linux_sched_getaffinity_args *args)
 {
 	int error;
+	struct thread *tdt;
 	struct cpuset_getaffinity_args cga;
 
 #ifdef DEBUG
@@ -1963,9 +1894,14 @@ linux_sched_getaffinity(struct thread *td,
 	if (args->len < sizeof(cpuset_t))
 		return (EINVAL);
 
+	tdt = linux_tdfind(td, args->pid, -1);
+	if (tdt == NULL)
+		return (ESRCH);
+
+	PROC_UNLOCK(tdt->td_proc);
 	cga.level = CPU_LEVEL_WHICH;
-	cga.which = CPU_WHICH_PID;
-	cga.id = args->pid;
+	cga.which = CPU_WHICH_TID;
+	cga.id = tdt->td_tid;
 	cga.cpusetsize = sizeof(cpuset_t);
 	cga.mask = (cpuset_t *) args->user_mask_ptr;
 
@@ -1983,6 +1919,7 @@ linux_sched_setaffinity(struct thread *td,
     struct linux_sched_setaffinity_args *args)
 {
 	struct cpuset_setaffinity_args csa;
+	struct thread *tdt;
 
 #ifdef DEBUG
 	if (ldebug(sched_setaffinity))
@@ -1992,9 +1929,14 @@ linux_sched_setaffinity(struct thread *td,
 	if (args->len < sizeof(cpuset_t))
 		return (EINVAL);
 
+	tdt = linux_tdfind(td, args->pid, -1);
+	if (tdt == NULL)
+		return (ESRCH);
+
+	PROC_UNLOCK(tdt->td_proc);
 	csa.level = CPU_LEVEL_WHICH;
-	csa.which = CPU_WHICH_PID;
-	csa.id = args->pid;
+	csa.which = CPU_WHICH_TID;
+	csa.id = tdt->td_tid;
 	csa.cpusetsize = sizeof(cpuset_t);
 	csa.mask = (cpuset_t *) args->user_mask_ptr;
 
@@ -2008,25 +1950,61 @@ linux_sched_rr_get_interval(struct thread *td,
 	struct timespec ts;
 	struct l_timespec lts;
 	struct thread *tdt;
-	struct proc *p;
 	int error;
 
-	if (uap->pid == 0) {
-		tdt = td;
-		p = tdt->td_proc;
-		PROC_LOCK(p);
-	} else {
-		p = pfind(uap->pid);
-		if (p == NULL)
-			return (ESRCH);
-		tdt = FIRST_THREAD_IN_PROC(p);
-	}
+	tdt = linux_tdfind(td, uap->pid, -1);
+	if (tdt == NULL)
+		return (ESRCH);
 
 	error = kern_sched_rr_get_interval_td(td, tdt, &ts);
-	PROC_UNLOCK(p);
+	PROC_UNLOCK(tdt->td_proc);
 	if (error != 0)
 		return (error);
 	lts.tv_sec = ts.tv_sec;
 	lts.tv_nsec = ts.tv_nsec;
 	return (copyout(&lts, uap->interval, sizeof(lts)));
+}
+
+/*
+ * In case when the Linux thread is the initial thread in
+ * the thread group thread id is equal to the process id.
+ * Glibc depends on this magic (assert in pthread_getattr_np.c).
+ */
+struct thread *
+linux_tdfind(struct thread *td, lwpid_t tid, pid_t pid)
+{
+	struct linux_emuldata *em;
+	struct thread *tdt;
+	struct proc *p;
+
+	tdt = NULL;
+	if (tid == 0 || tid == td->td_tid) {
+		tdt = td;
+		PROC_LOCK(tdt->td_proc);
+	} else if (tid > PID_MAX)
+		tdt = tdfind(tid, pid);
+	else {
+		/*
+		 * Initial thread where the tid equal to the pid.
+		 */
+		p = pfind(tid);
+		if (p != NULL) {
+			if (SV_PROC_ABI(p) != SV_ABI_LINUX) {
+				/*
+				 * p is not a Linuxulator process.
+				 */
+				PROC_UNLOCK(p);
+				return (NULL);
+			}
+			FOREACH_THREAD_IN_PROC(p, tdt) {
+				em = em_find(tdt);
+				if (tid == em->em_tid)
+					return (tdt);
+			}
+			PROC_UNLOCK(p);
+		}
+		return (NULL);
+	}
+
+	return (tdt);
 }
