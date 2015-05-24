@@ -550,6 +550,16 @@ union l_semun {
 	void		*__pad;
 };
 
+struct l_ipc_perm {
+	l_key_t		key;
+	l_uid16_t	uid;
+	l_gid16_t	gid;
+	l_uid16_t	cuid;
+	l_gid16_t	cgid;
+	l_ushort	mode;
+	l_ushort	seq;
+};
+
 /*
  * Socket defines
  */
