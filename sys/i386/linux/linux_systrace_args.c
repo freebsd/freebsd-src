@@ -2255,7 +2255,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_eventfd */
 	case 323: {
-		*n_args = 0;
+		struct linux_eventfd_args *p = params;
+		iarg[0] = p->initval; /* l_uint */
+		*n_args = 1;
 		break;
 	}
 	/* linux_fallocate */
@@ -2280,7 +2282,10 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_eventfd2 */
 	case 328: {
-		*n_args = 0;
+		struct linux_eventfd2_args *p = params;
+		iarg[0] = p->initval; /* l_uint */
+		iarg[1] = p->flags; /* l_int */
+		*n_args = 2;
 		break;
 	}
 	/* linux_epoll_create1 */
@@ -5789,6 +5794,13 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_eventfd */
 	case 323:
+		switch(ndx) {
+		case 0:
+			p = "l_uint";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_fallocate */
 	case 324:
@@ -5804,6 +5816,16 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_eventfd2 */
 	case 328:
+		switch(ndx) {
+		case 0:
+			p = "l_uint";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_epoll_create1 */
 	case 329:
@@ -7179,6 +7201,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 322:
 	/* linux_eventfd */
 	case 323:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_fallocate */
 	case 324:
 	/* linux_timerfd_settime */
@@ -7189,6 +7214,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 327:
 	/* linux_eventfd2 */
 	case 328:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_epoll_create1 */
 	case 329:
 		if (ndx == 0 || ndx == 1)
