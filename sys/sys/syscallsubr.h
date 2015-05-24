@@ -171,6 +171,8 @@ int	kern_rmdirat(struct thread *td, int fd, char *path,
 	    enum uio_seg pathseg);
 int	kern_sched_rr_get_interval(struct thread *td, pid_t pid,
 	    struct timespec *ts);
+int	kern_sched_rr_get_interval_td(struct thread *td, struct thread *targettd,
+	    struct timespec *ts);
 int	kern_semctl(struct thread *td, int semid, int semnum, int cmd,
 	    union semun *arg, register_t *rval);
 int	kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
