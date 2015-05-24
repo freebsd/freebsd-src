@@ -713,6 +713,27 @@ out:
 	return (err);
 }
 
+uint32_t
+pll4_configure_output(uint32_t mfi, uint32_t mfn, uint32_t mfd)
+{
+	int reg;
+
+	/*
+	 * Audio PLL (PLL4).
+	 * PLL output frequency = Fref * (DIV_SELECT + NUM/DENOM)
+	 */
+
+	reg = (IMX6_ANALOG_CCM_PLL_AUDIO_ENABLE);
+	reg &= ~(IMX6_ANALOG_CCM_PLL_AUDIO_DIV_SELECT_MASK << \
+		IMX6_ANALOG_CCM_PLL_AUDIO_DIV_SELECT_SHIFT);
+	reg |= (mfi << IMX6_ANALOG_CCM_PLL_AUDIO_DIV_SELECT_SHIFT);
+	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_AUDIO, reg);
+	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_AUDIO_NUM, mfn);
+	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_AUDIO_DENOM, mfd);
+
+	return (0);
+}
+
 static int
 imx6_anatop_probe(device_t dev)
 {
