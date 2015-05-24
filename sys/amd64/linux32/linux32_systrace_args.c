@@ -1234,7 +1234,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_rt_sigqueueinfo */
 	case 178: {
-		*n_args = 0;
+		struct linux_rt_sigqueueinfo_args *p = params;
+		iarg[0] = p->pid; /* l_pid_t */
+		iarg[1] = p->sig; /* l_int */
+		uarg[2] = (intptr_t) p->info; /* l_siginfo_t * */
+		*n_args = 3;
 		break;
 	}
 	/* linux_rt_sigsuspend */
@@ -4167,6 +4171,19 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_rt_sigqueueinfo */
 	case 178:
+		switch(ndx) {
+		case 0:
+			p = "l_pid_t";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "l_siginfo_t *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_rt_sigsuspend */
 	case 179:
@@ -6245,6 +6262,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_rt_sigqueueinfo */
 	case 178:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_rt_sigsuspend */
 	case 179:
 		if (ndx == 0 || ndx == 1)
