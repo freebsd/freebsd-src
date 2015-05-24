@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
+#include <sys/sdt.h>
 #include <sys/signalvar.h>
 #include <sys/stat.h>
 #include <sys/syscallsubr.h>
@@ -83,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux_proto.h>
 #endif
 
+#include <compat/linux/linux_dtrace.h>
 #include <compat/linux/linux_file.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_signal.h>
@@ -90,6 +92,19 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_sysproto.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_misc.h>
+
+/**
+ * Special DTrace provider for the linuxulator.
+ *
+ * In this file we define the provider for the entire linuxulator. All
+ * modules (= files of the linuxulator) use it.
+ *
+ * We define a different name depending on the emulated bitsize, see
+ * ../../<ARCH>/linux{,32}/linux.h, e.g.:
+ *      native bitsize          = linuxulator
+ *      amd64, 32bit emulation  = linuxulator32
+ */
+LIN_SDT_PROVIDER_DEFINE(LINUX_DTRACE);
 
 int stclohz;				/* Statistics clock frequency */
 
