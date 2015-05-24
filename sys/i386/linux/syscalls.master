@@ -320,7 +320,8 @@
 				    l_siginfo_t *ptr, \
 				    struct l_timeval *timeout, \
 				    l_size_t sigsetsize); }
-178	AUE_NULL	STD	{ int linux_rt_sigqueueinfo(void); }
+178	AUE_NULL	STD	{ int linux_rt_sigqueueinfo(l_pid_t pid, l_int sig, \
+				    l_siginfo_t *info); }
 179	AUE_NULL	STD	{ int linux_rt_sigsuspend( \
 				    l_sigset_t *newset, \
 				    l_size_t sigsetsize); }
