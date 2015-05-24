@@ -946,32 +946,15 @@ linprocfs_doproccmdline(PFS_FILL_ARGS)
 static int
 linprocfs_doprocenviron(PFS_FILL_ARGS)
 {
-	int ret;
-
-	PROC_LOCK(p);
-	if ((ret = p_candebug(td, p)) != 0) {
-		PROC_UNLOCK(p);
-		return (ret);
-	}
 
 	/*
 	 * Mimic linux behavior and pass only processes with usermode
 	 * address space as valid.  Return zero silently otherwize.
 	 */
-	if (p->p_vmspace == &vmspace0) {
-		PROC_UNLOCK(p);
+	if (p->p_vmspace == &vmspace0)
 		return (0);
-	}
 
-	if ((p->p_flag & P_SYSTEM) != 0) {
-		PROC_UNLOCK(p);
-		return (0);
-	}
-
-	PROC_UNLOCK(p);
-
-	ret = proc_getenvv(td, p, sb);
-	return (ret);
+	return (proc_getenvv(td, p, sb));
 }
 
 static char l32_map_str[] = "%08lx-%08lx %s%s%s%s %08lx %02x:%02x %lu%s%s\n";
@@ -1488,7 +1471,7 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_link(dir, "cwd", &linprocfs_doproccwd,
 	    NULL, NULL, NULL, 0);
 	pfs_create_file(dir, "environ", &linprocfs_doprocenviron,
-	    NULL, NULL, NULL, PFS_RD);
+	    NULL, &procfs_candebug, NULL, PFS_RD);
 	pfs_create_link(dir, "exe", &procfs_doprocfile,
 	    NULL, &procfs_notsystem, NULL, 0);
 	pfs_create_file(dir, "maps", &linprocfs_doprocmaps,
