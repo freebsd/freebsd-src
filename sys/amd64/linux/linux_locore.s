@@ -58,7 +58,7 @@ NON_GPROF_ENTRY(__vdso_getcpu)
 .weak getcpu
 .set getcpu, __vdso_getcpu
 
-
+#if 0
 	.section .note.Linux, "a",@note
 	.long 2f - 1f		/* namesz */
 	.balign 4
@@ -73,3 +73,4 @@ NON_GPROF_ENTRY(__vdso_getcpu)
 4:
 	.balign 4
 	.previous
+#endif

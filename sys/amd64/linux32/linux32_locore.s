@@ -55,7 +55,7 @@ NON_GPROF_ENTRY(linux32_vsyscall)
 	ret
 .endvsyscall:
 
-
+#if 0
 	.section .note.Linux, "a",@note
 	.long 2f - 1f		/* namesz */
 	.balign 4
@@ -70,7 +70,7 @@ NON_GPROF_ENTRY(linux32_vsyscall)
 4:
 	.balign 4
 	.previous
-
+#endif
 
 #define do_cfa_expr(offset)                                             \
 	.byte 0x0f;			/* DW_CFA_def_cfa_expression */ \
