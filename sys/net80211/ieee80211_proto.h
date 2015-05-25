@@ -68,6 +68,9 @@ void	ieee80211_syncflag_ext(struct ieee80211vap *, int flag);
 #define	IEEE80211_R_C_RSSI	0x0000010	/* per-chain RSSI value valid */
 #define	IEEE80211_R_C_EVM	0x0000020	/* per-chain EVM valid */
 #define	IEEE80211_R_C_HT40	0x0000040	/* RX'ed packet is 40mhz, pilots 4,5 valid */
+#define	IEEE80211_R_FREQ	0x0000080	/* Freq value populated, MHz */
+#define	IEEE80211_R_IEEE	0x0000100	/* IEEE value populated */
+#define	IEEE80211_R_BAND	0x0000200	/* Frequency band populated */
 
 struct ieee80211_rx_stats {
 	uint32_t r_flags;		/* IEEE80211_R_* flags */
@@ -80,10 +83,12 @@ struct ieee80211_rx_stats {
 	uint8_t rssi;			/* global RSSI */
 	uint8_t evm[IEEE80211_MAX_CHAINS][IEEE80211_MAX_EVM_PILOTS];
 					/* per-chain, per-pilot EVM values */
+	uint16_t c_freq;
+	uint8_t c_ieee;
 };
 
 #define	ieee80211_input(ni, m, rssi, nf) \
-	((ni)->ni_vap->iv_input(ni, m, rssi, nf))
+	((ni)->ni_vap->iv_input(ni, m, NULL, rssi, nf))
 int	ieee80211_input_all(struct ieee80211com *, struct mbuf *, int, int);
 
 int	ieee80211_input_mimo(struct ieee80211_node *, struct mbuf *,

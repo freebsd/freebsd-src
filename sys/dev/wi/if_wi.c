@@ -127,7 +127,8 @@ static int  wi_newstate_sta(struct ieee80211vap *, enum ieee80211_state, int);
 static int  wi_newstate_hostap(struct ieee80211vap *, enum ieee80211_state,
 		int);
 static void wi_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
-		int subtype, int rssi, int nf);
+		int subtype, const struct ieee80211_rx_stats *rxs,
+		int rssi, int nf);
 static int  wi_reset(struct wi_softc *);
 static void wi_watchdog(void *);
 static int  wi_ioctl(struct ifnet *, u_long, caddr_t);
@@ -804,7 +805,7 @@ wi_scan_end(struct ieee80211com *ic)
 
 static void
 wi_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
-	int subtype, int rssi, int nf)
+	int subtype, const struct ieee80211_rx_stats *rxs, int rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 
@@ -815,7 +816,7 @@ wi_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 		/* NB: filter frames that trigger state changes */
 		return;
 	}
-	WI_VAP(vap)->wv_recv_mgmt(ni, m, subtype, rssi, nf);
+	WI_VAP(vap)->wv_recv_mgmt(ni, m, subtype, rxs, rssi, nf);
 }
 
 static int
