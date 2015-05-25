@@ -133,7 +133,7 @@ static	void	malo_tx_cleanupq(struct malo_softc *, struct malo_txq *);
 static	void	malo_start(struct ifnet *);
 static	void	malo_watchdog(void *);
 static	int	malo_ioctl(struct ifnet *, u_long, caddr_t);
-static	void	malo_updateslot(struct ifnet *);
+static	void	malo_updateslot(struct ieee80211com *);
 static	int	malo_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static	void	malo_scan_start(struct ieee80211com *);
 static	void	malo_scan_end(struct ieee80211com *);
@@ -1766,15 +1766,14 @@ malo_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
  * like slot time and preamble.
  */
 static void
-malo_updateslot(struct ifnet *ifp)
+malo_updateslot(struct ieee80211com *ic)
 {
-	struct malo_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct malo_softc *sc = ic->ic_softc;
 	struct malo_hal *mh = sc->malo_mh;
 	int error;
 	
 	/* NB: can be called early; suppress needless cmds */
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	if ((ic->ic_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
 	DPRINTF(sc, MALO_DEBUG_RESET,

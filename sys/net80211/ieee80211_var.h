@@ -258,11 +258,11 @@ struct ieee80211com {
 				    struct mbuf *,
 				    const struct ieee80211_bpf_params *);
 	/* update device state for 802.11 slot time change */
-	void			(*ic_updateslot)(struct ifnet *);
+	void			(*ic_updateslot)(struct ieee80211com *);
 	/* handle multicast state changes */
-	void			(*ic_update_mcast)(struct ifnet *);
+	void			(*ic_update_mcast)(struct ieee80211com *);
 	/* handle promiscuous mode changes */
-	void			(*ic_update_promisc)(struct ifnet *);
+	void			(*ic_update_promisc)(struct ieee80211com *);
 	/* new station association callback/notification */
 	void			(*ic_newassoc)(struct ieee80211_node *, int);
 	/* TDMA update notification */

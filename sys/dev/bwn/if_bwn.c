@@ -181,8 +181,8 @@ static void	bwn_addchannels(struct ieee80211_channel [], int, int *,
 		    const struct bwn_channelinfo *, int);
 static int	bwn_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		    const struct ieee80211_bpf_params *);
-static void	bwn_updateslot(struct ifnet *);
-static void	bwn_update_promisc(struct ifnet *);
+static void	bwn_updateslot(struct ieee80211com *);
+static void	bwn_update_promisc(struct ieee80211com *);
 static void	bwn_wme_init(struct bwn_mac *);
 static int	bwn_wme_update(struct ieee80211com *);
 static void	bwn_wme_clear(struct bwn_softc *);
@@ -1252,7 +1252,7 @@ bwn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFFLAGS:
 		startall = 0;
 		if (IS_RUNNING(ifp)) {
-			bwn_update_promisc(ifp);
+			bwn_update_promisc(ic);
 		} else if (ifp->if_flags & IFF_UP) {
 			if ((sc->sc_flags & BWN_FLAG_INVALID) == 0) {
 				bwn_init(sc);
@@ -2772,14 +2772,13 @@ bwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
  * like slot time and preamble.
  */
 static void
-bwn_updateslot(struct ifnet *ifp)
+bwn_updateslot(struct ieee80211com *ic)
 {
-	struct bwn_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct bwn_softc *sc = ic->ic_softc;
 	struct bwn_mac *mac;
 
 	BWN_LOCK(sc);
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+	if (ic->ic_ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		mac = (struct bwn_mac *)sc->sc_curmac;
 		bwn_set_slot_time(mac,
 		    (ic->ic_flags & IEEE80211_F_SHSLOT) ? 9 : 20);
@@ -2795,15 +2794,15 @@ bwn_updateslot(struct ifnet *ifp)
  * mode when operating in hostap mode to do ACS).
  */
 static void
-bwn_update_promisc(struct ifnet *ifp)
+bwn_update_promisc(struct ieee80211com *ic)
 {
-	struct bwn_softc *sc = ifp->if_softc;
+	struct bwn_softc *sc = ic->ic_softc;
 	struct bwn_mac *mac = sc->sc_curmac;
 
 	BWN_LOCK(sc);
 	mac = sc->sc_curmac;
 	if (mac != NULL && mac->mac_status >= BWN_MAC_STATUS_INITED) {
-		if (ifp->if_flags & IFF_PROMISC)
+		if (ic->ic_ifp->if_flags & IFF_PROMISC)
 			sc->sc_filters |= BWN_MACCTL_PROMISC;
 		else
 			sc->sc_filters &= ~BWN_MACCTL_PROMISC;

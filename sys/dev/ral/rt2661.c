@@ -147,9 +147,9 @@ static void		rt2661_set_bssid(struct rt2661_softc *,
 			    const uint8_t *);
 static void		rt2661_set_macaddr(struct rt2661_softc *,
 			   const uint8_t *);
-static void		rt2661_update_promisc(struct ifnet *);
+static void		rt2661_update_promisc(struct ieee80211com *);
 static int		rt2661_wme_update(struct ieee80211com *) __unused;
-static void		rt2661_update_slot(struct ifnet *);
+static void		rt2661_update_slot(struct ieee80211com *);
 static const char	*rt2661_get_rf(int);
 static void		rt2661_read_eeprom(struct rt2661_softc *,
 			    uint8_t macaddr[IEEE80211_ADDR_LEN]);
@@ -1736,7 +1736,7 @@ rt2661_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				rt2661_init_locked(sc);
 				startall = 1;
 			} else
-				rt2661_update_promisc(ifp);
+				rt2661_update_promisc(ic);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				rt2661_stop_locked(sc);
@@ -2080,21 +2080,21 @@ rt2661_set_macaddr(struct rt2661_softc *sc, const uint8_t *addr)
 }
 
 static void
-rt2661_update_promisc(struct ifnet *ifp)
+rt2661_update_promisc(struct ieee80211com *ic)
 {
-	struct rt2661_softc *sc = ifp->if_softc;
+	struct rt2661_softc *sc = ic->ic_softc;
 	uint32_t tmp;
 
 	tmp = RAL_READ(sc, RT2661_TXRX_CSR0);
 
 	tmp &= ~RT2661_DROP_NOT_TO_ME;
-	if (!(ifp->if_flags & IFF_PROMISC))
+	if (!(ic->ic_ifp->if_flags & IFF_PROMISC))
 		tmp |= RT2661_DROP_NOT_TO_ME;
 
 	RAL_WRITE(sc, RT2661_TXRX_CSR0, tmp);
 
-	DPRINTF(sc, "%s promiscuous mode\n", (ifp->if_flags & IFF_PROMISC) ?
-	    "entering" : "leaving");
+	DPRINTF(sc, "%s promiscuous mode\n",
+	    (ic->ic_ifp->if_flags & IFF_PROMISC) ?  "entering" : "leaving");
 }
 
 /*
@@ -2144,10 +2144,9 @@ rt2661_wme_update(struct ieee80211com *ic)
 }
 
 static void
-rt2661_update_slot(struct ifnet *ifp)
+rt2661_update_slot(struct ieee80211com *ic)
 {
-	struct rt2661_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct rt2661_softc *sc = ic->ic_softc;
 	uint8_t slottime;
 	uint32_t tmp;
 

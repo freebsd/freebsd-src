@@ -142,7 +142,7 @@ static struct ieee80211vap *upgt_vap_create(struct ieee80211com *,
 		    const uint8_t [IEEE80211_ADDR_LEN],
 		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	upgt_vap_delete(struct ieee80211vap *);
-static void	upgt_update_mcast(struct ifnet *);
+static void	upgt_update_mcast(struct ieee80211com *);
 static uint8_t	upgt_rx_rate(struct upgt_softc *, const int);
 static void	upgt_set_multi(void *);
 static void	upgt_stop(struct upgt_softc *);
@@ -1115,9 +1115,9 @@ upgt_vap_delete(struct ieee80211vap *vap)
 }
 
 static void
-upgt_update_mcast(struct ifnet *ifp)
+upgt_update_mcast(struct ieee80211com *ic)
 {
-	struct upgt_softc *sc = ifp->if_softc;
+	struct upgt_softc *sc = ic->ic_softc;
 
 	upgt_set_multi(sc);
 }

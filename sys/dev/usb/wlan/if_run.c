@@ -439,12 +439,12 @@ static void	run_set_basicrates(struct run_softc *);
 static void	run_set_leds(struct run_softc *, uint16_t);
 static void	run_set_bssid(struct run_softc *, const uint8_t *);
 static void	run_set_macaddr(struct run_softc *, const uint8_t *);
-static void	run_updateslot(struct ifnet *);
+static void	run_updateslot(struct ieee80211com *);
 static void	run_updateslot_cb(void *);
-static void	run_update_mcast(struct ifnet *);
+static void	run_update_mcast(struct ieee80211com *);
 static int8_t	run_rssi2dbm(struct run_softc *, uint8_t, uint8_t);
-static void	run_update_promisc_locked(struct ifnet *);
-static void	run_update_promisc(struct ifnet *);
+static void	run_update_promisc_locked(struct run_softc *);
+static void	run_update_promisc(struct ieee80211com *);
 static void	run_rt5390_bbp_init(struct run_softc *);
 static int	run_bbp_init(struct run_softc *);
 static int	run_rt3070_rf_init(struct run_softc *);
@@ -2139,7 +2139,7 @@ run_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				IEEE80211_LOCK(ic);
 				return (-1);
 			}
-			run_updateslot(ic->ic_ifp);
+			run_updateslot(ic);
 			run_enable_mrr(sc);
 			run_set_txpreamble(sc);
 			run_set_basicrates(sc);
@@ -3787,7 +3787,7 @@ run_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				startall = 1;
 				run_init_locked(sc);
 			} else
-				run_update_promisc_locked(ifp);
+				run_update_promisc_locked(sc);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    (ic->ic_nrunning == 0 || sc->rvp_cnt <= 1)) {
@@ -4903,7 +4903,7 @@ run_update_beacon(struct ieee80211vap *vap, int item)
 
 	switch (item) {
 	case IEEE80211_BEACON_ERP:
-		run_updateslot(ic->ic_ifp);
+		run_updateslot(ic);
 		break;
 	case IEEE80211_BEACON_HTINFO:
 		run_updateprot(ic);
@@ -5064,33 +5064,32 @@ run_reset_livelock(struct run_softc *sc)
 }
 
 static void
-run_update_promisc_locked(struct ifnet *ifp)
+run_update_promisc_locked(struct run_softc *sc)
 {
-	struct run_softc *sc = ifp->if_softc;
         uint32_t tmp;
 
 	run_read(sc, RT2860_RX_FILTR_CFG, &tmp);
 
 	tmp |= RT2860_DROP_UC_NOME;
-        if (ifp->if_flags & IFF_PROMISC)
+        if (sc->sc_ifp->if_flags & IFF_PROMISC)
 		tmp &= ~RT2860_DROP_UC_NOME;
 
 	run_write(sc, RT2860_RX_FILTR_CFG, tmp);
 
-        DPRINTF("%s promiscuous mode\n", (ifp->if_flags & IFF_PROMISC) ?
+        DPRINTF("%s promiscuous mode\n", (sc->sc_ifp->if_flags & IFF_PROMISC) ?
             "entering" : "leaving");
 }
 
 static void
-run_update_promisc(struct ifnet *ifp)
+run_update_promisc(struct ieee80211com *ic)
 {
-	struct run_softc *sc = ifp->if_softc;
+	struct run_softc *sc = ic->ic_softc;
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	if ((ic->ic_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
 	RUN_LOCK(sc);
-	run_update_promisc_locked(ifp);
+	run_update_promisc_locked(sc);
 	RUN_UNLOCK(sc);
 }
 
@@ -5213,16 +5212,15 @@ run_set_macaddr(struct run_softc *sc, const uint8_t *addr)
 }
 
 static void
-run_updateslot(struct ifnet *ifp)
+run_updateslot(struct ieee80211com *ic)
 {
-	struct run_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct run_softc *sc = ic->ic_softc;
 	uint32_t i;
 
 	i = RUN_CMDQ_GET(&sc->cmdq_store);
 	DPRINTF("cmdq_store=%d\n", i);
 	sc->cmdq[i].func = run_updateslot_cb;
-	sc->cmdq[i].arg0 = ifp;
+	sc->cmdq[i].arg0 = ic->ic_ifp;
 	ieee80211_runtask(ic, &sc->cmdq_task);
 
 	return;
@@ -5244,10 +5242,11 @@ run_updateslot_cb(void *arg)
 }
 
 static void
-run_update_mcast(struct ifnet *ifp)
+run_update_mcast(struct ieee80211com *ic)
 {
+
 	/* h/w filter supports getting everything or nothing */
-	ifp->if_flags |= IFF_ALLMULTI;
+	ic->ic_ifp->if_flags |= IFF_ALLMULTI;
 }
 
 static int8_t
