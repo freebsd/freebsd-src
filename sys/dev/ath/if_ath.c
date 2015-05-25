@@ -592,6 +592,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		goto bad;
 	}
 	ic = ifp->if_l2com;
+	ic->ic_softc = sc;
 	ic->ic_name = device_get_nameunit(sc->sc_dev);
 
 	/* set these up early for if_printf use */
