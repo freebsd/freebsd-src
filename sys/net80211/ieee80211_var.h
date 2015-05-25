@@ -117,6 +117,7 @@ struct ieee80211_frame;
 
 struct ieee80211com {
 	struct ifnet		*ic_ifp;	/* associated device */
+	const char		*ic_name;	/* usually device name */
 	ieee80211_com_lock_t	ic_comlock;	/* state update lock */
 	ieee80211_tx_lock_t	ic_txlock;	/* ic/vap TX lock */
 	TAILQ_HEAD(, ieee80211vap) ic_vaps;	/* list of vap instances */

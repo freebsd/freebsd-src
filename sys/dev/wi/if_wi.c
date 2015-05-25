@@ -344,6 +344,7 @@ wi_attach(device_t dev)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;
+	ic->ic_name = device_get_nameunit(dev);
 	ic->ic_phytype = IEEE80211_T_DS;
 	ic->ic_opmode = IEEE80211_M_STA;
 	ic->ic_caps = IEEE80211_C_STA
