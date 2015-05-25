@@ -22,12 +22,11 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Portions Copyright 2011 Martin Matuska
- * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2014, Joyent, Inc. All rights reserved.
  * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
- * Copyright (c) 2014, Nexenta Systems, Inc. All rights reserved.
  */
 
 /*
@@ -5110,6 +5109,7 @@ zfs_ioc_smb_acl(zfs_cmd_t *zc)
 static int
 zfs_ioc_hold(const char *pool, nvlist_t *args, nvlist_t *errlist)
 {
+	nvpair_t *pair;
 	nvlist_t *holds;
 	int cleanup_fd = -1;
 	int error;
@@ -5118,6 +5118,19 @@ zfs_ioc_hold(const char *pool, nvlist_t *args, nvlist_t *errlist)
 	error = nvlist_lookup_nvlist(args, "holds", &holds);
 	if (error != 0)
 		return (SET_ERROR(EINVAL));
+
+	/* make sure the user didn't pass us any invalid (empty) tags */
+	for (pair = nvlist_next_nvpair(holds, NULL); pair != NULL;
+	    pair = nvlist_next_nvpair(holds, pair)) {
+		char *htag;
+
+		error = nvpair_value_string(pair, &htag);
+		if (error != 0)
+			return (SET_ERROR(error));
+
+		if (strlen(htag) == 0)
+			return (SET_ERROR(EINVAL));
+	}
 
 	if (nvlist_lookup_int32(args, "cleanup_fd", &cleanup_fd) == 0) {
 		error = zfs_onexit_fd_hold(cleanup_fd, &minor);
