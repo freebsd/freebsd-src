@@ -34,8 +34,6 @@
 
 #include "assym.s"
 
-	.globl	calltrap
-	.type	calltrap,@function
 	ENTRY(dtrace_invop_start)
 
 	pushl	%eax			/* push %eax -- may be return value */
