@@ -85,9 +85,10 @@ static void	mesh_transmit_to_gate(struct ieee80211vap *, struct mbuf *,
 		    struct ieee80211_mesh_route *);
 static void	mesh_forward(struct ieee80211vap *, struct mbuf *,
 		    const struct ieee80211_meshcntl *);
-static int	mesh_input(struct ieee80211_node *, struct mbuf *, int, int);
+static int	mesh_input(struct ieee80211_node *, struct mbuf *,
+		    const struct ieee80211_rx_stats *rxs, int, int);
 static void	mesh_recv_mgmt(struct ieee80211_node *, struct mbuf *, int,
-		    int, int);
+		    const struct ieee80211_rx_stats *rxs, int, int);
 static void	mesh_recv_ctl(struct ieee80211_node *, struct mbuf *, int);
 static void	mesh_peer_timeout_setup(struct ieee80211_node *);
 static void	mesh_peer_timeout_backoff(struct ieee80211_node *);
@@ -1532,7 +1533,8 @@ mesh_recv_group_data(struct ieee80211vap *vap, struct mbuf *m,
 }
 
 static int
-mesh_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
+mesh_input(struct ieee80211_node *ni, struct mbuf *m,
+    const struct ieee80211_rx_stats *rxs, int rssi, int nf)
 {
 #define	HAS_SEQ(type)	((type & 0x4) == 0)
 #define	MC01(mc)	((const struct ieee80211_meshcntl_ae01 *)mc)
@@ -1831,7 +1833,7 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			vap->iv_stats.is_rx_mgtdiscard++; /* XXX */
 			goto out;
 		}
-		vap->iv_recv_mgmt(ni, m, subtype, rssi, nf);
+		vap->iv_recv_mgmt(ni, m, subtype, rxs, rssi, nf);
 		goto out;
 	case IEEE80211_FC0_TYPE_CTL:
 		vap->iv_stats.is_rx_ctl++;
@@ -1859,11 +1861,12 @@ out:
 
 static void
 mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
-    int rssi, int nf)
+    const struct ieee80211_rx_stats *rxs, int rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_mesh_state *ms = vap->iv_mesh;
 	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211_channel *rxchan = ic->ic_curchan;
 	struct ieee80211_frame *wh;
 	struct ieee80211_mesh_route *rt;
 	uint8_t *frm, *efrm;
@@ -1876,11 +1879,17 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 	case IEEE80211_FC0_SUBTYPE_BEACON:
 	{
 		struct ieee80211_scanparams scan;
+		struct ieee80211_channel *c;
 		/*
 		 * We process beacon/probe response
 		 * frames to discover neighbors.
 		 */
-		if (ieee80211_parse_beacon(ni, m0, &scan) != 0)
+		if (rxs != NULL) {
+			c = ieee80211_lookup_channel_rxstatus(vap, rxs);
+			if (c != NULL)
+				rxchan = c;
+		}
+		if (ieee80211_parse_beacon(ni, m0, rxchan, &scan) != 0)
 			return;
 		/*
 		 * Count frame now that we know it's to be processed.
@@ -1906,7 +1915,7 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 				ieee80211_probe_curchan(vap, 1);
 				ic->ic_flags_ext &= ~IEEE80211_FEXT_PROBECHAN;
 			}
-			ieee80211_add_scan(vap, ic->ic_curchan, &scan, wh,
+			ieee80211_add_scan(vap, rxchan, &scan, wh,
 			    subtype, rssi, nf);
 			return;
 		}

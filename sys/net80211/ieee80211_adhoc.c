@@ -70,11 +70,12 @@ __FBSDID("$FreeBSD$");
 
 static	void adhoc_vattach(struct ieee80211vap *);
 static	int adhoc_newstate(struct ieee80211vap *, enum ieee80211_state, int);
-static int adhoc_input(struct ieee80211_node *, struct mbuf *, int, int);
+static int adhoc_input(struct ieee80211_node *, struct mbuf *,
+	    const struct ieee80211_rx_stats *, int, int);
 static void adhoc_recv_mgmt(struct ieee80211_node *, struct mbuf *,
-	int subtype, int, int);
+	int subtype, const struct ieee80211_rx_stats *, int, int);
 static void ahdemo_recv_mgmt(struct ieee80211_node *, struct mbuf *,
-	int subtype, int, int);
+	    int subtype, const struct ieee80211_rx_stats *rxs, int, int);
 static void adhoc_recv_ctl(struct ieee80211_node *, struct mbuf *, int subtype);
 
 void
@@ -289,7 +290,8 @@ doprint(struct ieee80211vap *vap, int subtype)
  * by the 802.11 layer.
  */
 static int
-adhoc_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
+adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
+    const struct ieee80211_rx_stats *rxs, int rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
@@ -642,7 +644,7 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			vap->iv_stats.is_rx_mgtdiscard++; /* XXX */
 			goto out;
 		}
-		vap->iv_recv_mgmt(ni, m, subtype, rssi, nf);
+		vap->iv_recv_mgmt(ni, m, subtype, rxs, rssi, nf);
 		goto out;
 
 	case IEEE80211_FC0_TYPE_CTL:
@@ -687,10 +689,11 @@ is11bclient(const uint8_t *rates, const uint8_t *xrates)
 
 static void
 adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
-	int subtype, int rssi, int nf)
+	int subtype, const struct ieee80211_rx_stats *rxs, int rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211_channel *rxchan = ic->ic_curchan;
 	struct ieee80211_frame *wh;
 	uint8_t *frm, *efrm, *sfrm;
 	uint8_t *ssid, *rates, *xrates;
@@ -705,11 +708,17 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	case IEEE80211_FC0_SUBTYPE_PROBE_RESP:
 	case IEEE80211_FC0_SUBTYPE_BEACON: {
 		struct ieee80211_scanparams scan;
+		struct ieee80211_channel *c;
 		/*
 		 * We process beacon/probe response
 		 * frames to discover neighbors.
 		 */ 
-		if (ieee80211_parse_beacon(ni, m0, &scan) != 0)
+		if (rxs != NULL) {
+			c = ieee80211_lookup_channel_rxstatus(vap, rxs);
+			if (c != NULL)
+				rxchan = c;
+		}
+		if (ieee80211_parse_beacon(ni, m0, rxchan, &scan) != 0)
 			return;
 		/*
 		 * Count frame now that we know it's to be processed.
@@ -735,7 +744,7 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				ieee80211_probe_curchan(vap, 1);
 				ic->ic_flags_ext &= ~IEEE80211_FEXT_PROBECHAN;
 			}
-			ieee80211_add_scan(vap, ic->ic_curchan, &scan, wh,
+			ieee80211_add_scan(vap, rxchan, &scan, wh,
 			    subtype, rssi, nf);
 			return;
 		}
@@ -911,7 +920,7 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 
 static void
 ahdemo_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
-	int subtype, int rssi, int nf)
+	int subtype, const struct ieee80211_rx_stats *rxs, int rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
@@ -922,7 +931,7 @@ ahdemo_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	 * a site-survey.
 	 */
 	if (ic->ic_flags & IEEE80211_F_SCAN)
-		adhoc_recv_mgmt(ni, m0, subtype, rssi, nf);
+		adhoc_recv_mgmt(ni, m0, subtype, rxs, rssi, nf);
 	else {
 		wh = mtod(m0, struct ieee80211_frame *);
 		switch (subtype) {
