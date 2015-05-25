@@ -2536,8 +2536,7 @@ iwn_setregdomain(struct ieee80211com *ic, struct ieee80211_regdomain *rd,
 
 		channel = iwn_find_eeprom_channel(sc, c);
 		if (channel == NULL) {
-			if_printf(ic->ic_ifp,
-			    "%s: invalid channel %u freq %u/0x%x\n",
+			ic_printf(ic, "%s: invalid channel %u freq %u/0x%x\n",
 			    __func__, c->ic_ieee, c->ic_freq, c->ic_flags);
 			return EINVAL;
 		}
@@ -4905,7 +4904,7 @@ iwn_watchdog(void *arg)
 
 	if (sc->sc_tx_timer > 0) {
 		if (--sc->sc_tx_timer == 0) {
-			if_printf(ifp, "device timeout\n");
+			ic_printf(ic, "device timeout\n");
 			ieee80211_runtask(ic, &sc->sc_reinit_task);
 			return;
 		}
