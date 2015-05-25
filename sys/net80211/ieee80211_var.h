@@ -502,13 +502,8 @@ struct ieee80211vap {
 	int			(*iv_newstate)(struct ieee80211vap *,
 				    enum ieee80211_state, int);
 	/* 802.3 output method for raw frame xmit */
-#if __FreeBSD_version >= 1000031
 	int			(*iv_output)(struct ifnet *, struct mbuf *,
 				    const struct sockaddr *, struct route *);
-#else
-	int			(*iv_output)(struct ifnet *, struct mbuf *,
-				    struct sockaddr *, struct route *);
-#endif
 	uint64_t		iv_spare[6];
 };
 MALLOC_DECLARE(M_80211_VAP);
