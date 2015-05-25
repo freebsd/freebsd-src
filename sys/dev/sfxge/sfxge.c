@@ -1,30 +1,34 @@
 /*-
- * Copyright (c) 2010-2011 Solarflare Communications, Inc.
+ * Copyright (c) 2010-2015 Solarflare Communications Inc.
  * All rights reserved.
  *
  * This software was developed in part by Philip Paeps under contract for
  * Solarflare Communications, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  */
 
 #include <sys/cdefs.h>
@@ -42,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
+#include <sys/priv.h>
 #include <sys/syslog.h>
 
 #include <dev/pci/pcireg.h>
@@ -57,6 +62,7 @@ __FBSDID("$FreeBSD$");
 
 #include "sfxge.h"
 #include "sfxge_rx.h"
+#include "sfxge_ioc.h"
 #include "sfxge_version.h"
 
 #define	SFXGE_CAP (IFCAP_VLAN_MTU | IFCAP_VLAN_HWCSUM |			\
@@ -93,6 +99,83 @@ static void
 sfxge_reset(void *arg, int npending);
 
 static int
+sfxge_estimate_rsrc_limits(struct sfxge_softc *sc)
+{
+	efx_drv_limits_t limits;
+	int rc;
+	unsigned int evq_max;
+	uint32_t evq_allocated;
+	uint32_t rxq_allocated;
+	uint32_t txq_allocated;
+
+	/*
+	 * Limit the number of event queues to:
+	 *  - number of CPUs
+	 *  - hardwire maximum RSS channels
+	 *  - administratively specified maximum RSS channels
+	 */
+	evq_max = MIN(mp_ncpus, EFX_MAXRSS);
+	if (sc->max_rss_channels > 0)
+		evq_max = MIN(evq_max, sc->max_rss_channels);
+
+	memset(&limits, 0, sizeof(limits));
+
+	limits.edl_min_evq_count = 1;
+	limits.edl_max_evq_count = evq_max;
+	limits.edl_min_txq_count = SFXGE_TXQ_NTYPES;
+	limits.edl_max_txq_count = evq_max + SFXGE_TXQ_NTYPES - 1;
+	limits.edl_min_rxq_count = 1;
+	limits.edl_max_rxq_count = evq_max;
+
+	efx_nic_set_drv_limits(sc->enp, &limits);
+
+	if ((rc = efx_nic_init(sc->enp)) != 0)
+		return (rc);
+
+	rc = efx_nic_get_vi_pool(sc->enp, &evq_allocated, &rxq_allocated,
+				 &txq_allocated);
+	if (rc != 0) {
+		efx_nic_fini(sc->enp);
+		return (rc);
+	}
+
+	KASSERT(txq_allocated >= SFXGE_TXQ_NTYPES,
+		("txq_allocated < SFXGE_TXQ_NTYPES"));
+
+	sc->evq_max = MIN(evq_allocated, evq_max);
+	sc->evq_max = MIN(rxq_allocated, sc->evq_max);
+	sc->evq_max = MIN(txq_allocated - (SFXGE_TXQ_NTYPES - 1),
+			  sc->evq_max);
+
+	KASSERT(sc->evq_max <= evq_max,
+		("allocated more than maximum requested"));
+
+	/*
+	 * NIC is kept initialized in the case of success to be able to
+	 * initialize port to find out media types.
+	 */
+	return (0);
+}
+
+static int
+sfxge_set_drv_limits(struct sfxge_softc *sc)
+{
+	efx_drv_limits_t limits;
+
+	memset(&limits, 0, sizeof(limits));
+
+	/* Limits are strict since take into account initial estimation */
+	limits.edl_min_evq_count = limits.edl_max_evq_count =
+	    sc->intr.n_alloc;
+	limits.edl_min_txq_count = limits.edl_max_txq_count =
+	    sc->intr.n_alloc + SFXGE_TXQ_NTYPES - 1;
+	limits.edl_min_rxq_count = limits.edl_max_rxq_count =
+	    sc->intr.n_alloc;
+
+	return (efx_nic_set_drv_limits(sc->enp, &limits));
+}
+
+static int
 sfxge_start(struct sfxge_softc *sc)
 {
 	int rc;
@@ -107,6 +190,10 @@ sfxge_start(struct sfxge_softc *sc)
 		goto fail;
 	}
 
+	/* Set required resource limits */
+	if ((rc = sfxge_set_drv_limits(sc)) != 0)
+		goto fail;
+
 	if ((rc = efx_nic_init(sc->enp)) != 0)
 		goto fail;
 
@@ -118,16 +205,16 @@ sfxge_start(struct sfxge_softc *sc)
 	if ((rc = sfxge_ev_start(sc)) != 0)
 		goto fail3;
 
+	/* Fire up the port. */
+	if ((rc = sfxge_port_start(sc)) != 0)
+		goto fail4;
+
 	/* Start the receiver side. */
 	if ((rc = sfxge_rx_start(sc)) != 0)
-		goto fail4;
+		goto fail5;
 
 	/* Start the transmitter side. */
 	if ((rc = sfxge_tx_start(sc)) != 0)
-		goto fail5;
-
-	/* Fire up the port. */
-	if ((rc = sfxge_port_start(sc)) != 0)
 		goto fail6;
 
 	sc->init_state = SFXGE_STARTED;
@@ -139,10 +226,10 @@ sfxge_start(struct sfxge_softc *sc)
 	return (0);
 
 fail6:
-	sfxge_tx_stop(sc);
+	sfxge_rx_stop(sc);
 
 fail5:
-	sfxge_rx_stop(sc);
+	sfxge_port_stop(sc);
 
 fail4:
 	sfxge_ev_stop(sc);
@@ -181,14 +268,14 @@ sfxge_stop(struct sfxge_softc *sc)
 
 	sc->init_state = SFXGE_REGISTERED;
 
-	/* Stop the port. */
-	sfxge_port_stop(sc);
-
 	/* Stop the transmitter. */
 	sfxge_tx_stop(sc);
 
 	/* Stop the receiver. */
 	sfxge_rx_stop(sc);
+
+	/* Stop the port. */
+	sfxge_port_stop(sc);
 
 	/* Stop processing events. */
 	sfxge_ev_stop(sc);
@@ -201,11 +288,73 @@ sfxge_stop(struct sfxge_softc *sc)
 	sc->ifnet->if_drv_flags &= ~IFF_DRV_RUNNING;
 }
 
+
+static int
+sfxge_vpd_ioctl(struct sfxge_softc *sc, sfxge_ioc_t *ioc)
+{
+	efx_vpd_value_t value;
+	int rc = 0;
+
+	switch (ioc->u.vpd.op) {
+	case SFXGE_VPD_OP_GET_KEYWORD:
+		value.evv_tag = ioc->u.vpd.tag;
+		value.evv_keyword = ioc->u.vpd.keyword;
+		rc = efx_vpd_get(sc->enp, sc->vpd_data, sc->vpd_size, &value);
+		if (rc != 0)
+			break;
+		ioc->u.vpd.len = MIN(ioc->u.vpd.len, value.evv_length);
+		if (ioc->u.vpd.payload != 0) {
+			rc = copyout(value.evv_value, ioc->u.vpd.payload,
+				     ioc->u.vpd.len);
+		}
+		break;
+	case SFXGE_VPD_OP_SET_KEYWORD:
+		if (ioc->u.vpd.len > sizeof(value.evv_value))
+			return (EINVAL);
+		value.evv_tag = ioc->u.vpd.tag;
+		value.evv_keyword = ioc->u.vpd.keyword;
+		value.evv_length = ioc->u.vpd.len;
+		rc = copyin(ioc->u.vpd.payload, value.evv_value, value.evv_length);
+		if (rc != 0)
+			break;
+		rc = efx_vpd_set(sc->enp, sc->vpd_data, sc->vpd_size, &value);
+		if (rc != 0)
+			break;
+		rc = efx_vpd_verify(sc->enp, sc->vpd_data, sc->vpd_size);
+		if (rc != 0)
+			break;
+		rc = efx_vpd_write(sc->enp, sc->vpd_data, sc->vpd_size);
+		break;
+	default:
+		rc = EOPNOTSUPP;
+		break;
+	}
+
+	return (rc);
+}
+
+static int
+sfxge_private_ioctl(struct sfxge_softc *sc, sfxge_ioc_t *ioc)
+{
+	switch (ioc->op) {
+	case SFXGE_MCDI_IOC:
+		return (sfxge_mcdi_ioctl(sc, ioc));
+	case SFXGE_NVRAM_IOC:
+		return (sfxge_nvram_ioctl(sc, ioc));
+	case SFXGE_VPD_IOC:
+		return (sfxge_vpd_ioctl(sc, ioc));
+	default:
+		return (EOPNOTSUPP);
+	}
+}
+
+
 static int
 sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 {
 	struct sfxge_softc *sc;
 	struct ifreq *ifr;
+	sfxge_ioc_t ioc;
 	int error;
 
 	ifr = (struct ifreq *)data;
@@ -274,7 +423,8 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 		 * can't (yet) disable.
 		 */
 		KASSERT((reqcap & ~ifp->if_capabilities) == 0,
-		    ("Unsupported capabilities %x requested %x vs %x",
+		    ("Unsupported capabilities 0x%x requested 0x%x vs "
+		     "supported 0x%x",
 		     reqcap & ~ifp->if_capabilities,
 		     reqcap , ifp->if_capabilities));
 		if (capchg_mask & SFXGE_CAP_FIXED) {
@@ -337,6 +487,18 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 	case SIOCGIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &sc->media, command);
 		break;
+	case SIOCGPRIVATE_0:
+		error = priv_check(curthread, PRIV_DRIVER);
+		if (error != 0)
+			break;
+		error = copyin(ifr->ifr_data, &ioc, sizeof(ioc));
+		if (error != 0)
+			return (error);
+		error = sfxge_private_ioctl(sc, &ioc);
+		if (error == 0) {
+			error = copyout(&ioc, ifr->ifr_data, sizeof(ioc));
+		}
+		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
 	}
@@ -382,6 +544,10 @@ sfxge_ifnet_init(struct ifnet *ifp, struct sfxge_softc *sc)
 	ifp->if_capenable |= IFCAP_LRO;
 #endif
 
+	if (encp->enc_hw_tx_insert_vlan_enabled) {
+		ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING;
+		ifp->if_capenable |= IFCAP_VLAN_HWTAGGING;
+	}
 	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_IP | CSUM_TSO |
 			   CSUM_TCP_IPV6 | CSUM_UDP_IPV6;
 
@@ -392,6 +558,7 @@ sfxge_ifnet_init(struct ifnet *ifp, struct sfxge_softc *sc)
 
 	ifp->if_get_counter = sfxge_get_counter;
 
+	DBGPRINT(sc->dev, "ifmedia_init");
 	if ((rc = sfxge_port_ifmedia_init(sc)) != 0)
 		goto fail;
 
@@ -475,16 +642,20 @@ sfxge_create(struct sfxge_softc *sc)
 	(void) pci_enable_busmaster(dev);
 
 	/* Initialize DMA mappings. */
+	DBGPRINT(sc->dev, "dma_init...");
 	if ((error = sfxge_dma_init(sc)) != 0)
 		goto fail;
 
 	/* Map the device registers. */
+	DBGPRINT(sc->dev, "bar_init...");
 	if ((error = sfxge_bar_init(sc)) != 0)
 		goto fail;
 
 	error = efx_family(pci_get_vendor(dev), pci_get_device(dev),
 	    &sc->family);
 	KASSERT(error == 0, ("Family should be filtered by sfxge_probe()"));
+
+	DBGPRINT(sc->dev, "nic_create...");
 
 	/* Create the common code nic object. */
 	SFXGE_EFSYS_LOCK_INIT(&sc->enp_lock,
@@ -495,7 +666,8 @@ sfxge_create(struct sfxge_softc *sc)
 	sc->enp = enp;
 
 	if (!ISP2(sfxge_rx_ring_entries) ||
-	    !(sfxge_rx_ring_entries & EFX_RXQ_NDESCS_MASK)) {
+	    (sfxge_rx_ring_entries < EFX_RXQ_MINNDESCS) ||
+	    (sfxge_rx_ring_entries > EFX_RXQ_MAXNDESCS)) {
 		log(LOG_ERR, "%s=%d must be power of 2 from %u to %u",
 		    SFXGE_PARAM_RX_RING, sfxge_rx_ring_entries,
 		    EFX_RXQ_MINNDESCS, EFX_RXQ_MAXNDESCS);
@@ -505,20 +677,23 @@ sfxge_create(struct sfxge_softc *sc)
 	sc->rxq_entries = sfxge_rx_ring_entries;
 
 	if (!ISP2(sfxge_tx_ring_entries) ||
-	    !(sfxge_tx_ring_entries & EFX_TXQ_NDESCS_MASK)) {
+	    (sfxge_tx_ring_entries < EFX_TXQ_MINNDESCS) ||
+	    (sfxge_tx_ring_entries > EFX_TXQ_MAXNDESCS(efx_nic_cfg_get(enp)))) {
 		log(LOG_ERR, "%s=%d must be power of 2 from %u to %u",
 		    SFXGE_PARAM_TX_RING, sfxge_tx_ring_entries,
-		    EFX_TXQ_MINNDESCS, EFX_TXQ_MAXNDESCS);
+		    EFX_TXQ_MINNDESCS, EFX_TXQ_MAXNDESCS(efx_nic_cfg_get(enp)));
 		error = EINVAL;
 		goto fail_tx_ring_entries;
 	}
 	sc->txq_entries = sfxge_tx_ring_entries;
 
 	/* Initialize MCDI to talk to the microcontroller. */
+	DBGPRINT(sc->dev, "mcdi_init...");
 	if ((error = sfxge_mcdi_init(sc)) != 0)
 		goto fail4;
 
 	/* Probe the NIC and build the configuration data area. */
+	DBGPRINT(sc->dev, "nic_probe...");
 	if ((error = efx_nic_probe(enp)) != 0)
 		goto fail5;
 
@@ -528,56 +703,84 @@ sfxge_create(struct sfxge_softc *sc)
 			  SFXGE_VERSION_STRING, 0,
 			  "Driver version");
 
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+			OID_AUTO, "phy_type", CTLFLAG_RD,
+			NULL, efx_nic_cfg_get(enp)->enc_phy_type,
+			"PHY type");
+
 	/* Initialize the NVRAM. */
+	DBGPRINT(sc->dev, "nvram_init...");
 	if ((error = efx_nvram_init(enp)) != 0)
 		goto fail6;
 
 	/* Initialize the VPD. */
+	DBGPRINT(sc->dev, "vpd_init...");
 	if ((error = efx_vpd_init(enp)) != 0)
 		goto fail7;
 
+	efx_mcdi_new_epoch(enp);
+
 	/* Reset the NIC. */
+	DBGPRINT(sc->dev, "nic_reset...");
 	if ((error = efx_nic_reset(enp)) != 0)
 		goto fail8;
 
 	/* Initialize buffer table allocation. */
 	sc->buffer_table_next = 0;
 
-	/* Set up interrupts. */
-	if ((error = sfxge_intr_init(sc)) != 0)
+	/*
+	 * Guarantee minimum and estimate maximum number of event queues
+	 * to take it into account when MSI-X interrupts are allocated.
+	 * It initializes NIC and keeps it initialized on success.
+	 */
+	if ((error = sfxge_estimate_rsrc_limits(sc)) != 0)
 		goto fail8;
 
+	/* Set up interrupts. */
+	DBGPRINT(sc->dev, "intr_init...");
+	if ((error = sfxge_intr_init(sc)) != 0)
+		goto fail9;
+
 	/* Initialize event processing state. */
+	DBGPRINT(sc->dev, "ev_init...");
 	if ((error = sfxge_ev_init(sc)) != 0)
 		goto fail11;
 
-	/* Initialize receive state. */
-	if ((error = sfxge_rx_init(sc)) != 0)
+	/* Initialize port state. */
+	DBGPRINT(sc->dev, "port_init...");
+	if ((error = sfxge_port_init(sc)) != 0)
 		goto fail12;
 
-	/* Initialize transmit state. */
-	if ((error = sfxge_tx_init(sc)) != 0)
+	/* Initialize receive state. */
+	DBGPRINT(sc->dev, "rx_init...");
+	if ((error = sfxge_rx_init(sc)) != 0)
 		goto fail13;
 
-	/* Initialize port state. */
-	if ((error = sfxge_port_init(sc)) != 0)
+	/* Initialize transmit state. */
+	DBGPRINT(sc->dev, "tx_init...");
+	if ((error = sfxge_tx_init(sc)) != 0)
 		goto fail14;
 
 	sc->init_state = SFXGE_INITIALIZED;
 
+	DBGPRINT(sc->dev, "success");
 	return (0);
 
 fail14:
-	sfxge_tx_fini(sc);
+	sfxge_rx_fini(sc);
 
 fail13:
-	sfxge_rx_fini(sc);
+	sfxge_port_fini(sc);
 
 fail12:
 	sfxge_ev_fini(sc);
 
 fail11:
 	sfxge_intr_fini(sc);
+
+fail9:
+	efx_nic_fini(sc->enp);
 
 fail8:
 	efx_vpd_fini(enp);
@@ -603,6 +806,7 @@ fail3:
 	(void) pci_disable_busmaster(sc->dev);
 
 fail:
+	DBGPRINT(sc->dev, "failed %d", error);
 	sc->dev = NULL;
 	SFXGE_ADAPTER_LOCK_DESTROY(sc);
 	return (error);
@@ -613,14 +817,14 @@ sfxge_destroy(struct sfxge_softc *sc)
 {
 	efx_nic_t *enp;
 
-	/* Clean up port state. */
-	sfxge_port_fini(sc);
-
 	/* Clean up transmit state. */
 	sfxge_tx_fini(sc);
 
 	/* Clean up receive state. */
 	sfxge_rx_fini(sc);
+
+	/* Clean up port state. */
+	sfxge_port_fini(sc);
 
 	/* Clean up event processing state. */
 	sfxge_ev_fini(sc);
@@ -750,6 +954,7 @@ sfxge_reset(void *arg, int npending)
 {
 	struct sfxge_softc *sc;
 	int rc;
+	unsigned attempt;
 
 	(void)npending;
 
@@ -762,10 +967,15 @@ sfxge_reset(void *arg, int npending)
 
 	sfxge_stop(sc);
 	efx_nic_reset(sc->enp);
-	if ((rc = sfxge_start(sc)) != 0)
-		device_printf(sc->dev,
-			      "reset failed (%d); interface is now stopped\n",
-			      rc);
+	for (attempt = 0; attempt < 3; ++attempt) {
+		if ((rc = sfxge_start(sc)) == 0)
+			goto done;
+
+		device_printf(sc->dev, "start on reset failed (%d)\n", rc);
+		DELAY(100000);
+	}
+
+	device_printf(sc->dev, "reset failed; interface is now stopped\n");
 
 done:
 	SFXGE_ADAPTER_UNLOCK(sc);
@@ -797,29 +1007,42 @@ sfxge_attach(device_t dev)
 	sc->ifnet = ifp;
 
 	/* Initialize hardware. */
+	DBGPRINT(sc->dev, "create nic");
 	if ((error = sfxge_create(sc)) != 0)
 		goto fail2;
 
 	/* Create the ifnet for the port. */
+	DBGPRINT(sc->dev, "init ifnet");
 	if ((error = sfxge_ifnet_init(ifp, sc)) != 0)
 		goto fail3;
 
+	DBGPRINT(sc->dev, "init vpd");
 	if ((error = sfxge_vpd_init(sc)) != 0)
 		goto fail4;
 
+	/*
+	 * NIC is initialized inside sfxge_create() and kept inialized
+	 * to be able to initialize port to discover media types in
+	 * sfxge_ifnet_init().
+	 */
+	efx_nic_fini(sc->enp);
+
 	sc->init_state = SFXGE_REGISTERED;
 
+	DBGPRINT(sc->dev, "success");
 	return (0);
 
 fail4:
 	sfxge_ifnet_fini(ifp);
 fail3:
+	efx_nic_fini(sc->enp);
 	sfxge_destroy(sc);
 
 fail2:
 	if_free(sc->ifnet);
 
 fail:
+	DBGPRINT(sc->dev, "failed %d", error);
 	return (error);
 }
 
@@ -852,13 +1075,25 @@ sfxge_probe(device_t dev)
 	pci_vendor_id = pci_get_vendor(dev);
 	pci_device_id = pci_get_device(dev);
 
+	DBGPRINT(dev, "PCI ID %04x:%04x", pci_vendor_id, pci_device_id);
 	rc = efx_family(pci_vendor_id, pci_device_id, &family);
-	if (rc != 0)
+	if (rc != 0) {
+		DBGPRINT(dev, "efx_family fail %d", rc);
 		return (ENXIO);
+	}
 
-	KASSERT(family == EFX_FAMILY_SIENA, ("impossible controller family"));
-	device_set_desc(dev, "Solarflare SFC9000 family");
-	return (0);
+	if (family == EFX_FAMILY_SIENA) {
+		device_set_desc(dev, "Solarflare SFC9000 family");
+		return (0);
+	}
+
+	if (family == EFX_FAMILY_HUNTINGTON) {
+		device_set_desc(dev, "Solarflare SFC9100 family");
+		return (0);
+	}
+
+	DBGPRINT(dev, "impossible controller family %d", family);
+	return (ENXIO);
 }
 
 static device_method_t sfxge_methods[] = {

@@ -304,37 +304,52 @@ dev/qlxgbe/ql_isr.c		optional	qlxgbe pci
 dev/qlxgbe/ql_misc.c		optional	qlxgbe pci
 dev/qlxgbe/ql_os.c		optional	qlxgbe pci
 dev/qlxgbe/ql_reset.c		optional	qlxgbe pci
-dev/sfxge/common/efx_bootcfg.c	optional sfxge inet pci
-dev/sfxge/common/efx_ev.c	optional sfxge inet pci
-dev/sfxge/common/efx_filter.c	optional sfxge inet pci
-dev/sfxge/common/efx_intr.c	optional sfxge inet pci
-dev/sfxge/common/efx_mac.c	optional sfxge inet pci
-dev/sfxge/common/efx_mcdi.c	optional sfxge inet pci
-dev/sfxge/common/efx_mon.c	optional sfxge inet pci
-dev/sfxge/common/efx_nic.c	optional sfxge inet pci
-dev/sfxge/common/efx_nvram.c	optional sfxge inet pci
-dev/sfxge/common/efx_phy.c	optional sfxge inet pci
-dev/sfxge/common/efx_port.c	optional sfxge inet pci
-dev/sfxge/common/efx_rx.c	optional sfxge inet pci
-dev/sfxge/common/efx_sram.c	optional sfxge inet pci
-dev/sfxge/common/efx_tx.c	optional sfxge inet pci
-dev/sfxge/common/efx_vpd.c	optional sfxge inet pci
-dev/sfxge/common/efx_wol.c	optional sfxge inet pci
-dev/sfxge/common/siena_mac.c	optional sfxge inet pci
-dev/sfxge/common/siena_mon.c	optional sfxge inet pci
-dev/sfxge/common/siena_nic.c	optional sfxge inet pci
-dev/sfxge/common/siena_nvram.c	optional sfxge inet pci
-dev/sfxge/common/siena_phy.c	optional sfxge inet pci
-dev/sfxge/common/siena_sram.c	optional sfxge inet pci
-dev/sfxge/common/siena_vpd.c	optional sfxge inet pci
-dev/sfxge/sfxge.c		optional sfxge inet pci
-dev/sfxge/sfxge_dma.c		optional sfxge inet pci
-dev/sfxge/sfxge_ev.c		optional sfxge inet pci
-dev/sfxge/sfxge_intr.c		optional sfxge inet pci
-dev/sfxge/sfxge_mcdi.c		optional sfxge inet pci
-dev/sfxge/sfxge_port.c		optional sfxge inet pci
-dev/sfxge/sfxge_rx.c		optional sfxge inet pci
-dev/sfxge/sfxge_tx.c		optional sfxge inet pci
+dev/sfxge/common/efx_bootcfg.c	optional	sfxge pci
+dev/sfxge/common/efx_crc32.c	optional	sfxge pci
+dev/sfxge/common/efx_ev.c	optional	sfxge pci
+dev/sfxge/common/efx_filter.c	optional	sfxge pci
+dev/sfxge/common/efx_hash.c	optional	sfxge pci
+dev/sfxge/common/efx_intr.c	optional	sfxge pci
+dev/sfxge/common/efx_mac.c	optional	sfxge pci
+dev/sfxge/common/efx_mcdi.c	optional	sfxge pci
+dev/sfxge/common/efx_mon.c	optional	sfxge pci
+dev/sfxge/common/efx_nic.c	optional	sfxge pci
+dev/sfxge/common/efx_nvram.c	optional	sfxge pci
+dev/sfxge/common/efx_phy.c	optional	sfxge pci
+dev/sfxge/common/efx_port.c	optional	sfxge pci
+dev/sfxge/common/efx_rx.c	optional	sfxge pci
+dev/sfxge/common/efx_sram.c	optional	sfxge pci
+dev/sfxge/common/efx_tx.c	optional	sfxge pci
+dev/sfxge/common/efx_vpd.c	optional	sfxge pci
+dev/sfxge/common/efx_wol.c	optional	sfxge pci
+dev/sfxge/common/hunt_ev.c	optional	sfxge pci
+dev/sfxge/common/hunt_filter.c	optional	sfxge pci
+dev/sfxge/common/hunt_intr.c	optional	sfxge pci
+dev/sfxge/common/hunt_mac.c	optional	sfxge pci
+dev/sfxge/common/hunt_mcdi.c	optional	sfxge pci
+dev/sfxge/common/hunt_nic.c	optional	sfxge pci
+dev/sfxge/common/hunt_nvram.c	optional	sfxge pci
+dev/sfxge/common/hunt_phy.c	optional	sfxge pci
+dev/sfxge/common/hunt_rx.c	optional	sfxge pci
+dev/sfxge/common/hunt_sram.c	optional	sfxge pci
+dev/sfxge/common/hunt_tx.c	optional	sfxge pci
+dev/sfxge/common/hunt_vpd.c	optional	sfxge pci
+dev/sfxge/common/siena_mac.c	optional	sfxge pci
+dev/sfxge/common/siena_mcdi.c	optional	sfxge pci
+dev/sfxge/common/siena_nic.c	optional	sfxge pci
+dev/sfxge/common/siena_nvram.c	optional	sfxge pci
+dev/sfxge/common/siena_phy.c	optional	sfxge pci
+dev/sfxge/common/siena_sram.c	optional	sfxge pci
+dev/sfxge/common/siena_vpd.c	optional	sfxge pci
+dev/sfxge/sfxge.c		optional	sfxge pci
+dev/sfxge/sfxge_dma.c		optional	sfxge pci
+dev/sfxge/sfxge_ev.c		optional	sfxge pci
+dev/sfxge/sfxge_intr.c		optional	sfxge pci
+dev/sfxge/sfxge_mcdi.c		optional	sfxge pci
+dev/sfxge/sfxge_nvram.c		optional	sfxge pci
+dev/sfxge/sfxge_port.c		optional	sfxge pci
+dev/sfxge/sfxge_rx.c		optional	sfxge pci
+dev/sfxge/sfxge_tx.c		optional	sfxge pci
 dev/sio/sio.c			optional	sio
 dev/sio/sio_isa.c		optional	sio isa
 dev/sio/sio_pccard.c		optional	sio pccard

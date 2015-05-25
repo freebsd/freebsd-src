@@ -1,26 +1,31 @@
 /*-
- * Copyright 2009 Solarflare Communications Inc.  All rights reserved.
+ * Copyright (c) 2009-2015 Solarflare Communications Inc.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  */
 
 #include <sys/cdefs.h>
@@ -54,7 +59,7 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_FALCON
 
-static efx_vpd_ops_t	__cs	__efx_vpd_falcon_ops = {
+static efx_vpd_ops_t	__efx_vpd_falcon_ops = {
 	NULL,			/* evpdo_init */
 	falcon_vpd_size,	/* evpdo_size */
 	falcon_vpd_read,	/* evpdo_read */
@@ -71,7 +76,7 @@ static efx_vpd_ops_t	__cs	__efx_vpd_falcon_ops = {
 
 #if EFSYS_OPT_SIENA
 
-static efx_vpd_ops_t	__cs	__efx_vpd_siena_ops = {
+static efx_vpd_ops_t	__efx_vpd_siena_ops = {
 	siena_vpd_init,		/* evpdo_init */
 	siena_vpd_size,		/* evpdo_size */
 	siena_vpd_read,		/* evpdo_read */
@@ -85,6 +90,23 @@ static efx_vpd_ops_t	__cs	__efx_vpd_siena_ops = {
 };
 
 #endif	/* EFSYS_OPT_SIENA */
+
+#if EFSYS_OPT_HUNTINGTON
+
+static efx_vpd_ops_t	__efx_vpd_hunt_ops = {
+	hunt_vpd_init,		/* evpdo_init */
+	hunt_vpd_size,		/* evpdo_size */
+	hunt_vpd_read,		/* evpdo_read */
+	hunt_vpd_verify,	/* evpdo_verify */
+	hunt_vpd_reinit,	/* evpdo_reinit */
+	hunt_vpd_get,		/* evpdo_get */
+	hunt_vpd_set,		/* evpdo_set */
+	hunt_vpd_next,		/* evpdo_next */
+	hunt_vpd_write,		/* evpdo_write */
+	hunt_vpd_fini,		/* evpdo_fini */
+};
+
+#endif	/* EFSYS_OPT_HUNTINGTON */
 
 	__checkReturn		int
 efx_vpd_init(
@@ -109,6 +131,12 @@ efx_vpd_init(
 		evpdop = (efx_vpd_ops_t *)&__efx_vpd_siena_ops;
 		break;
 #endif	/* EFSYS_OPT_SIENA */
+
+#if EFSYS_OPT_HUNTINGTON
+	case EFX_FAMILY_HUNTINGTON:
+		evpdop = (efx_vpd_ops_t *)&__efx_vpd_hunt_ops;
+		break;
+#endif	/* EFSYS_OPT_HUNTINGTON */
 
 	default:
 		EFSYS_ASSERT(0);
@@ -566,14 +594,14 @@ fail1:
 	return (rc);
 }
 
-static	uint8_t	__cs	__efx_vpd_blank_pid[] = {
+static	uint8_t	__efx_vpd_blank_pid[] = {
 	/* Large resource type ID length 1 */
 	0x82, 0x01, 0x00,
 	/* Product name ' ' */
 	0x32,
 };
 
-static uint8_t __cs	__efx_vpd_blank_r[] = {
+static uint8_t __efx_vpd_blank_r[] = {
 	/* Large resource type VPD-R length 4 */
 	0x90, 0x04, 0x00,
 	/* RV keyword length 1 */
@@ -584,7 +612,7 @@ static uint8_t __cs	__efx_vpd_blank_r[] = {
 
 	__checkReturn		int
 efx_vpd_hunk_reinit(
-	__in			caddr_t data,
+	__in_bcount(size)	caddr_t data,
 	__in			size_t size,
 	__in			boolean_t wantpid)
 {

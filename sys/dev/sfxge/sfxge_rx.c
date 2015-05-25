@@ -1,30 +1,34 @@
 /*-
- * Copyright (c) 2010-2011 Solarflare Communications, Inc.
+ * Copyright (c) 2010-2015 Solarflare Communications Inc.
  * All rights reserved.
  *
  * This software was developed in part by Philip Paeps under contract for
  * Solarflare Communications, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  */
 
 #include <sys/cdefs.h>
@@ -35,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 #include <sys/limits.h>
 #include <sys/syslog.h>
 
@@ -256,7 +261,7 @@ sfxge_rx_qfill(struct sfxge_rxq *rxq, unsigned int target, boolean_t retrying)
 		return;
 
 	batch = 0;
-	mblksize = sc->rx_buffer_size;
+	mblksize = sc->rx_buffer_size - sc->rx_buffer_align;
 	while (ntodo-- > 0) {
 		unsigned int id;
 		struct sfxge_rx_sw_desc *rx_desc;
@@ -271,6 +276,12 @@ sfxge_rx_qfill(struct sfxge_rxq *rxq, unsigned int target, boolean_t retrying)
 		m = rx_desc->mbuf = sfxge_rx_alloc_mbuf(sc);
 		if (m == NULL)
 			break;
+
+		/* m_len specifies length of area to be mapped for DMA */
+		m->m_len  = mblksize;
+		m->m_data = (caddr_t)P2ROUNDUP((uintptr_t)m->m_data, CACHE_LINE_SIZE);
+		m->m_data += sc->rx_buffer_align;
+
 		sfxge_map_mbuf_fast(rxq->mem.esm_tag, rxq->mem.esm_map, m, &seg);
 		addr[batch++] = seg.ds_addr;
 
@@ -295,7 +306,15 @@ sfxge_rx_qfill(struct sfxge_rxq *rxq, unsigned int target, boolean_t retrying)
 	bus_dmamap_sync(rxq->mem.esm_tag, rxq->mem.esm_map,
 			BUS_DMASYNC_PREWRITE);
 
-	efx_rx_qpush(rxq->common, rxq->added);
+	efx_rx_qpush(rxq->common, rxq->added, &rxq->pushed);
+
+	/* The queue could still be empty if no descriptors were actually
+	 * pushed, in which case there will be no event to cause the next
+	 * refill, so we must schedule a refill ourselves.
+	 */
+	if(rxq->pushed == rxq->completed) {
+		sfxge_rx_schedule_refill(rxq, retrying);
+	}
 }
 
 void
@@ -332,8 +351,10 @@ sfxge_rx_deliver(struct sfxge_softc *sc, struct sfxge_rx_sw_desc *rx_desc)
 		csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 
 	if (flags & (EFX_PKT_IPV4 | EFX_PKT_IPV6)) {
-		m->m_pkthdr.flowid = EFX_RX_HASH_VALUE(EFX_RX_HASHALG_TOEPLITZ,
-						       mtod(m, uint8_t *));
+		m->m_pkthdr.flowid =
+			efx_psuedo_hdr_hash_get(sc->enp,
+						EFX_RX_HASHALG_TOEPLITZ,
+						mtod(m, uint8_t *));
 		/* The hash covers a 4-tuple for TCP only */
 		M_HASHTYPE_SET(m,
 		    (flags & EFX_PKT_IPV4) ?
@@ -666,8 +687,9 @@ sfxge_lro(struct sfxge_rxq *rxq, struct sfxge_rx_sw_desc *rx_buf)
 	unsigned bucket;
 
 	/* Get the hardware hash */
-	conn_hash = EFX_RX_HASH_VALUE(EFX_RX_HASHALG_TOEPLITZ,
-				      mtod(m, uint8_t *));
+	conn_hash = efx_psuedo_hdr_hash_get(sc->enp,
+					    EFX_RX_HASHALG_TOEPLITZ,
+					    mtod(m, uint8_t *));
 
 	eh = (struct ether_header *)(m->m_data + sc->rx_prefix_size);
 	if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
@@ -824,6 +846,17 @@ sfxge_rx_qcomplete(struct sfxge_rxq *rxq, boolean_t eop)
 		if (rx_desc->flags & (EFX_ADDR_MISMATCH | EFX_DISCARD))
 			goto discard;
 
+		/* Read the length from the psuedo header if required */
+		if (rx_desc->flags & EFX_PKT_PREFIX_LEN) {
+			uint16_t tmp_size;
+			int rc;
+			rc = efx_psuedo_hdr_pkt_length_get(sc->enp, 
+							   mtod(m, uint8_t *),
+							   &tmp_size);
+			KASSERT(rc == 0, ("cannot get packet length: %d", rc));
+			rx_desc->size = (int)tmp_size + sc->rx_prefix_size;
+		}
+
 		prefetch_read_many(mtod(m, caddr_t));
 
 		switch (rx_desc->flags & (EFX_PKT_IPV4 | EFX_PKT_IPV6)) {
@@ -908,6 +941,9 @@ sfxge_rx_qstop(struct sfxge_softc *sc, unsigned int index)
 	struct sfxge_rxq *rxq;
 	struct sfxge_evq *evq;
 	unsigned int count;
+	unsigned int retry = 3;
+
+	SFXGE_ADAPTER_LOCK_ASSERT_OWNED(sc);
 
 	rxq = sc->rxq[index];
 	evq = sc->evq[index];
@@ -921,30 +957,43 @@ sfxge_rx_qstop(struct sfxge_softc *sc, unsigned int index)
 
 	callout_stop(&rxq->refill_callout);
 
-again:
-	rxq->flush_state = SFXGE_FLUSH_PENDING;
+	while (rxq->flush_state != SFXGE_FLUSH_DONE && retry != 0) {
+		rxq->flush_state = SFXGE_FLUSH_PENDING;
 
-	/* Flush the receive queue */
-	efx_rx_qflush(rxq->common);
+		SFXGE_EVQ_UNLOCK(evq);
 
-	SFXGE_EVQ_UNLOCK(evq);
-
-	count = 0;
-	do {
-		/* Spin for 100 ms */
-		DELAY(100000);
-
-		if (rxq->flush_state != SFXGE_FLUSH_PENDING)
+		/* Flush the receive queue */
+		if (efx_rx_qflush(rxq->common) != 0) {
+			SFXGE_EVQ_LOCK(evq);
+			rxq->flush_state = SFXGE_FLUSH_FAILED;
 			break;
+		}
 
-	} while (++count < 20);
+		count = 0;
+		do {
+			/* Spin for 100 ms */
+			DELAY(100000);
 
-	SFXGE_EVQ_LOCK(evq);
+			if (rxq->flush_state != SFXGE_FLUSH_PENDING)
+				break;
 
-	if (rxq->flush_state == SFXGE_FLUSH_FAILED)
-		goto again;
+		} while (++count < 20);
 
-	rxq->flush_state = SFXGE_FLUSH_DONE;
+		SFXGE_EVQ_LOCK(evq);
+
+		if (rxq->flush_state == SFXGE_FLUSH_PENDING) {
+			/* Flush timeout - neither done nor failed */
+			log(LOG_ERR, "%s: Cannot flush Rx queue %u\n",
+			    device_get_nameunit(sc->dev), index);
+			rxq->flush_state = SFXGE_FLUSH_DONE;
+		}
+		retry--;
+	}
+	if (rxq->flush_state == SFXGE_FLUSH_FAILED) {
+		log(LOG_ERR, "%s: Flushing Rx queue %u failed\n",
+		    device_get_nameunit(sc->dev), index);
+		rxq->flush_state = SFXGE_FLUSH_DONE;
+	}
 
 	rxq->pending = rxq->added;
 	sfxge_rx_qcomplete(rxq, B_TRUE);
@@ -953,6 +1002,7 @@ again:
 	    ("rxq->completed != rxq->pending"));
 
 	rxq->added = 0;
+	rxq->pushed = 0;
 	rxq->pending = 0;
 	rxq->completed = 0;
 	rxq->loopback = 0;
@@ -973,6 +1023,8 @@ sfxge_rx_qstart(struct sfxge_softc *sc, unsigned int index)
 	efsys_mem_t *esmp;
 	struct sfxge_evq *evq;
 	int rc;
+
+	SFXGE_ADAPTER_LOCK_ASSERT_OWNED(sc);
 
 	rxq = sc->rxq[index];
 	esmp = &rxq->mem;
@@ -1000,6 +1052,7 @@ sfxge_rx_qstart(struct sfxge_softc *sc, unsigned int index)
 	efx_rx_qenable(rxq->common);
 
 	rxq->init_state = SFXGE_RXQ_STARTED;
+	rxq->flush_state = SFXGE_FLUSH_REQUIRED;
 
 	/* Try to fill the queue from the pool. */
 	sfxge_rx_qfill(rxq, EFX_RXQ_LIMIT(sc->rxq_entries), B_FALSE);
@@ -1019,6 +1072,8 @@ sfxge_rx_stop(struct sfxge_softc *sc)
 {
 	int index;
 
+	efx_mac_filter_default_rxq_clear(sc->enp);
+
 	/* Stop the receive queue(s) */
 	index = sc->rxq_count;
 	while (--index >= 0)
@@ -1034,6 +1089,8 @@ int
 sfxge_rx_start(struct sfxge_softc *sc)
 {
 	struct sfxge_intr *intr;
+	const efx_nic_cfg_t *encp;
+	size_t hdrlen, align, reserved;
 	int index;
 	int rc;
 
@@ -1043,17 +1100,35 @@ sfxge_rx_start(struct sfxge_softc *sc)
 	if ((rc = efx_rx_init(sc->enp)) != 0)
 		return (rc);
 
-	/* Calculate the receive packet buffer size. */
-	sc->rx_prefix_size = EFX_RX_PREFIX_SIZE;
-	sc->rx_buffer_size = (EFX_MAC_PDU(sc->ifnet->if_mtu) +
-			      sc->rx_prefix_size);
+	encp = efx_nic_cfg_get(sc->enp);
+	sc->rx_buffer_size = EFX_MAC_PDU(sc->ifnet->if_mtu);
+
+	/* Calculate the receive packet buffer size. */	
+	sc->rx_prefix_size = encp->enc_rx_prefix_size;
+
+	/* Ensure IP headers are 32bit aligned */
+	hdrlen = sc->rx_prefix_size + sizeof (struct ether_header);
+	sc->rx_buffer_align = P2ROUNDUP(hdrlen, 4) - hdrlen;
+
+	sc->rx_buffer_size += sc->rx_buffer_align;
+
+	/* Align end of packet buffer for RX DMA end padding */
+	align = MAX(1, encp->enc_rx_buf_align_end);
+	EFSYS_ASSERT(ISP2(align));
+	sc->rx_buffer_size = P2ROUNDUP(sc->rx_buffer_size, align);
+
+	/* 
+	 * Standard mbuf zones only guarantee pointer-size alignment;
+	 * we need extra space to align to the cache line
+	 */
+	reserved = sc->rx_buffer_size + CACHE_LINE_SIZE;
 
 	/* Select zone for packet buffers */
-	if (sc->rx_buffer_size <= MCLBYTES)
+	if (reserved <= MCLBYTES)
 		sc->rx_buffer_zone = zone_clust;
-	else if (sc->rx_buffer_size <= MJUMPAGESIZE)
+	else if (reserved <= MJUMPAGESIZE)
 		sc->rx_buffer_zone = zone_jumbop;
-	else if (sc->rx_buffer_size <= MJUM9BYTES)
+	else if (reserved <= MJUM9BYTES)
 		sc->rx_buffer_zone = zone_jumbo9;
 	else
 		sc->rx_buffer_zone = zone_jumbo16;
@@ -1070,8 +1145,8 @@ sfxge_rx_start(struct sfxge_softc *sc)
 	    (1 << EFX_RX_HASH_IPV4) | (1 << EFX_RX_HASH_TCPIPV4) |
 	    (1 << EFX_RX_HASH_IPV6) | (1 << EFX_RX_HASH_TCPIPV6), B_TRUE);
 
-	if ((rc = efx_rx_scale_toeplitz_ipv4_key_set(sc->enp, toep_key,
-	    sizeof(toep_key))) != 0)
+	if ((rc = efx_rx_scale_key_set(sc->enp, toep_key,
+				       sizeof(toep_key))) != 0)
 		goto fail;
 
 	/* Start the receive queue(s). */
@@ -1080,8 +1155,14 @@ sfxge_rx_start(struct sfxge_softc *sc)
 			goto fail2;
 	}
 
+	rc = efx_mac_filter_default_rxq_set(sc->enp, sc->rxq[0]->common,
+					    sc->intr.n_alloc > 1);
+	if (rc != 0)
+		goto fail3;
+
 	return (0);
 
+fail3:
 fail2:
 	while (--index >= 0)
 		sfxge_rx_qstop(sc, index);

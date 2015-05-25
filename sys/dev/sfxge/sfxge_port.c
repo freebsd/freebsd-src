@@ -1,30 +1,34 @@
 /*-
- * Copyright (c) 2010-2011 Solarflare Communications, Inc.
+ * Copyright (c) 2010-2015 Solarflare Communications Inc.
  * All rights reserved.
  *
  * This software was developed in part by Philip Paeps under contract for
  * Solarflare Communications, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  */
 
 #include <sys/cdefs.h>
@@ -69,10 +73,6 @@ sfxge_mac_stat_update(struct sfxge_softc *sc)
 	 * up to 10ms for it to finish (typically takes <500us) */
 	for (count = 0; count < 100; ++count) {
 		EFSYS_PROBE1(wait, unsigned int, count);
-
-		/* Synchronize the DMA memory for reading */
-		bus_dmamap_sync(esmp->esm_tag, esmp->esm_map,
-		    BUS_DMASYNC_POSTREAD);
 
 		/* Try to update the cached counters */
 		if ((rc = efx_mac_stats_update(sc->enp, esmp,
@@ -294,6 +294,7 @@ static const uint64_t sfxge_link_baudrate[EFX_LINK_NMODES] = {
 	[EFX_LINK_1000HDX]	= IF_Gbps(1),
 	[EFX_LINK_1000FDX]	= IF_Gbps(1),
 	[EFX_LINK_10000FDX]	= IF_Gbps(10),
+	[EFX_LINK_40000FDX]	= IF_Gbps(40),
 };
 
 void
@@ -342,42 +343,68 @@ done:
 }
 
 static int
-sfxge_mac_filter_set_locked(struct sfxge_softc *sc)
+sfxge_mac_multicast_list_set(struct sfxge_softc *sc)
 {
-	unsigned int bucket[EFX_MAC_HASH_BITS];
 	struct ifnet *ifp = sc->ifnet;
+	struct sfxge_port *port = &sc->port;
+	uint8_t *mcast_addr = port->mcast_addrs;
 	struct ifmultiaddr *ifma;
 	struct sockaddr_dl *sa;
-	efx_nic_t *enp = sc->enp;
-	unsigned int index;
+	int rc = 0;
+
+	mtx_assert(&port->lock, MA_OWNED);
+
+	port->mcast_count = 0;
+	if_maddr_rlock(ifp);
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		if (ifma->ifma_addr->sa_family == AF_LINK) {
+			if (port->mcast_count == EFX_MAC_MULTICAST_LIST_MAX) {
+				device_printf(sc->dev,
+				    "Too many multicast addresses\n");
+				rc = EINVAL;
+				break;
+			}
+
+			sa = (struct sockaddr_dl *)ifma->ifma_addr;
+			memcpy(mcast_addr, LLADDR(sa), EFX_MAC_ADDR_LEN);
+			mcast_addr += EFX_MAC_ADDR_LEN;
+			++port->mcast_count;
+		}
+	}
+	if_maddr_runlock(ifp);
+
+	if (rc == 0) {
+		rc = efx_mac_multicast_list_set(sc->enp, port->mcast_addrs,
+						port->mcast_count);
+		if (rc != 0)
+			device_printf(sc->dev,
+			    "Cannot set multicast address list\n");
+	}
+
+	return (rc);
+}
+
+static int
+sfxge_mac_filter_set_locked(struct sfxge_softc *sc)
+{
+	struct ifnet *ifp = sc->ifnet;
+	struct sfxge_port *port = &sc->port;
+	boolean_t all_mulcst;
 	int rc;
 
-	/* Set promisc-unicast and broadcast filter bits */
-	if ((rc = efx_mac_filter_set(enp, !!(ifp->if_flags & IFF_PROMISC),
-				     B_TRUE)) != 0)
-		return (rc);
+	mtx_assert(&port->lock, MA_OWNED);
 
-	/* Set multicast hash filter */
-	if (ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI)) {
-		for (index = 0; index < EFX_MAC_HASH_BITS; index++)
-			bucket[index] = 1;
-	} else {
-		/* Broadcast frames also go through the multicast
-		 * filter, and the broadcast address hashes to
-		 * 0xff. */
-		bucket[0xff] = 1;
+	all_mulcst = !!(ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI));
 
-		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-			if (ifma->ifma_addr->sa_family == AF_LINK) {
-				sa = (struct sockaddr_dl *)ifma->ifma_addr;
-				index = ether_crc32_le(LLADDR(sa), 6) & 0xff;
-				bucket[index] = 1;
-			}
-		}
-		if_maddr_runlock(ifp);
-	}
-	return (efx_mac_hash_set(enp, bucket));
+	rc = sfxge_mac_multicast_list_set(sc);
+	/* Fallback to all multicast if cannot set multicast list */
+	if (rc != 0)
+		all_mulcst = B_TRUE;
+
+	rc = efx_mac_filter_set(sc->enp, !!(ifp->if_flags & IFF_PROMISC),
+				(port->mcast_count > 0), all_mulcst, B_TRUE);
+
+	return (rc);
 }
 
 int
@@ -431,7 +458,9 @@ sfxge_port_stop(struct sfxge_softc *sc)
 	port->link_mode = EFX_LINK_UNKNOWN;
 
 	/* Destroy the common code port object. */
-	efx_port_fini(sc->enp);
+	efx_port_fini(enp);
+
+	efx_filter_fini(enp);
 
 	SFXGE_PORT_UNLOCK(port);
 }
@@ -455,6 +484,10 @@ sfxge_port_start(struct sfxge_softc *sc)
 	KASSERT(port->init_state == SFXGE_PORT_INITIALIZED,
 	    ("port not initialized"));
 
+	/* Initialise the required filtering */
+	if ((rc = efx_filter_init(enp)) != 0)
+		goto fail_filter_init;
+
 	/* Initialize the port object in the common code. */
 	if ((rc = efx_port_init(sc->enp)) != 0)
 		goto fail;
@@ -466,7 +499,7 @@ sfxge_port_start(struct sfxge_softc *sc)
 
 	if ((rc = efx_mac_fcntl_set(enp, sfxge_port_wanted_fc(sc), B_TRUE))
 	    != 0)
-		goto fail2;
+		goto fail3;
 
 	/* Set the unicast address */
 	if_addr_rlock(ifp);
@@ -474,24 +507,24 @@ sfxge_port_start(struct sfxge_softc *sc)
 	      mac_addr, sizeof(mac_addr));
 	if_addr_runlock(ifp);
 	if ((rc = efx_mac_addr_set(enp, mac_addr)) != 0)
-		goto fail;
+		goto fail4;
 
 	sfxge_mac_filter_set_locked(sc);
 
 	/* Update MAC stats by DMA every second */
 	if ((rc = efx_mac_stats_periodic(enp, &port->mac_stats.dma_buf,
-	    1000, B_FALSE)) != 0)
-		goto fail2;
+					 1000, B_FALSE)) != 0)
+		goto fail6;
 
 	if ((rc = efx_mac_drain(enp, B_FALSE)) != 0)
-		goto fail3;
+		goto fail8;
 
 	if ((rc = sfxge_phy_cap_mask(sc, sc->media.ifm_cur->ifm_media,
 				     &phy_cap_mask)) != 0)
-		goto fail4;
+		goto fail9;
 
 	if ((rc = efx_phy_adv_cap_set(sc->enp, phy_cap_mask)) != 0)
-		goto fail5;
+		goto fail10;
 
 	port->init_state = SFXGE_PORT_STARTED;
 
@@ -501,15 +534,20 @@ sfxge_port_start(struct sfxge_softc *sc)
 
 	return (0);
 
-fail5:
-fail4:
+fail10:
+fail9:
 	(void)efx_mac_drain(enp, B_TRUE);
+fail8:
+	(void)efx_mac_stats_periodic(enp, &port->mac_stats.dma_buf, 0, B_FALSE);
+fail6:
+fail4:
 fail3:
-	(void)efx_mac_stats_periodic(enp, &port->mac_stats.dma_buf,
-	    0, B_FALSE);
+
 fail2:
-	efx_port_fini(sc->enp);
+	efx_port_fini(enp);
 fail:
+	efx_filter_fini(enp);
+fail_filter_init:
 	SFXGE_PORT_UNLOCK(port);
 
 	return (rc);
@@ -652,12 +690,14 @@ sfxge_port_init(struct sfxge_softc *sc)
 
 	SFXGE_PORT_LOCK_INIT(port, device_get_nameunit(sc->dev));
 
+	DBGPRINT(sc->dev, "alloc PHY stats");
 	port->phy_stats.decode_buf = malloc(EFX_PHY_NSTATS * sizeof(uint32_t),
 					    M_SFXGE, M_WAITOK | M_ZERO);
 	if ((rc = sfxge_dma_alloc(sc, EFX_PHY_STATS_SIZE, phy_stats_buf)) != 0)
 		goto fail;
 	sfxge_phy_stat_init(sc);
 
+	DBGPRINT(sc->dev, "init sysctl");
 	sysctl_ctx = device_get_sysctl_ctx(sc->dev);
 	sysctl_tree = device_get_sysctl_tree(sc->dev);
 
@@ -673,6 +713,7 @@ sfxge_port_init(struct sfxge_softc *sc)
 	    sfxge_port_link_fc_handler, "IU", "link flow control mode");
 #endif
 
+	DBGPRINT(sc->dev, "alloc MAC stats");
 	port->mac_stats.decode_buf = malloc(EFX_MAC_NSTATS * sizeof(uint64_t),
 					    M_SFXGE, M_WAITOK | M_ZERO);
 	if ((rc = sfxge_dma_alloc(sc, EFX_MAC_STATS_SIZE, mac_stats_buf)) != 0)
@@ -681,6 +722,7 @@ sfxge_port_init(struct sfxge_softc *sc)
 
 	port->init_state = SFXGE_PORT_INITIALIZED;
 
+	DBGPRINT(sc->dev, "success");
 	return (0);
 
 fail2:
@@ -690,6 +732,7 @@ fail:
 	free(port->phy_stats.decode_buf, M_SFXGE);
 	SFXGE_PORT_LOCK_DESTROY(port);
 	port->sc = NULL;
+	DBGPRINT(sc->dev, "failed %d", rc);
 	return (rc);
 }
 
@@ -703,6 +746,11 @@ static const int sfxge_link_mode[EFX_PHY_MEDIA_NTYPES][EFX_LINK_NMODES] = {
 	[EFX_PHY_MEDIA_XFP] = {
 		/* Don't know the module type, but assume SR for now. */
 		[EFX_LINK_10000FDX]	= IFM_ETHER | IFM_FDX | IFM_10G_SR,
+	},
+	[EFX_PHY_MEDIA_QSFP_PLUS] = {
+		/* Don't know the module type, but assume SR for now. */
+		[EFX_LINK_10000FDX]	= IFM_ETHER | IFM_FDX | IFM_10G_SR,
+		[EFX_LINK_40000FDX]	= IFM_ETHER | IFM_FDX | IFM_40G_CR4,
 	},
 	[EFX_PHY_MEDIA_SFP_PLUS] = {
 		/* Don't know the module type, but assume SX/SR for now. */
@@ -763,6 +811,8 @@ sfxge_link_mode_to_phy_cap(efx_link_mode_t mode)
 		return (EFX_PHY_CAP_1000FDX);
 	case EFX_LINK_10000FDX:
 		return (EFX_PHY_CAP_10000FDX);
+	case EFX_LINK_40000FDX:
+		return (EFX_PHY_CAP_40000FDX);
 	default:
 		EFSYS_ASSERT(B_FALSE);
 		return (EFX_PHY_CAP_INVALID);
@@ -868,9 +918,13 @@ int sfxge_port_ifmedia_init(struct sfxge_softc *sc)
 	int mode_ifm, best_mode_ifm = 0;
 	int rc;
 
-	/* We need port state to initialise the ifmedia list. */
-	if ((rc = efx_nic_init(sc->enp)) != 0)
-		goto out;
+	/*
+	 * We need port state to initialise the ifmedia list.
+	 * It requires initialized NIC what is already done in
+	 * sfxge_create() when resources are estimated.
+	 */
+	if ((rc = efx_filter_init(sc->enp)) != 0)
+		goto out1;
 	if ((rc = efx_port_init(sc->enp)) != 0)
 		goto out2;
 
@@ -940,7 +994,7 @@ int sfxge_port_ifmedia_init(struct sfxge_softc *sc)
 	/* Now discard port state until interface is started. */
 	efx_port_fini(sc->enp);
 out2:
-	efx_nic_fini(sc->enp);
-out:
+	efx_filter_fini(sc->enp);
+out1:
 	return (rc);
 }

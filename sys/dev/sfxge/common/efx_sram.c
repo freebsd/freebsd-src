@@ -1,26 +1,31 @@
 /*-
- * Copyright 2007-2009 Solarflare Communications Inc.  All rights reserved.
+ * Copyright (c) 2007-2015 Solarflare Communications Inc.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  */
 
 #include <sys/cdefs.h>
@@ -49,6 +54,21 @@ efx_sram_buf_tbl_set(
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NIC);
+
+#if EFSYS_OPT_HUNTINGTON
+	if (enp->en_family == EFX_FAMILY_HUNTINGTON) {
+		/*
+		 * FIXME: the efx_sram_buf_tbl_*() functionality needs to be
+		 * pulled inside the Falcon/Siena queue create/destroy code,
+		 * and then the original functions can be removed (see bug30834
+		 * comment #1).  But, for now, we just ensure that they are
+		 * no-ops for Huntington, to allow bringing up existing drivers
+		 * without modification.
+		 */
+
+		return (0);
+	}
+#endif	/* EFSYS_OPT_HUNTINGTON */
 
 	if (stop >= EFX_BUF_TBL_SIZE) {
 		rc = EFBIG;
@@ -156,6 +176,21 @@ efx_sram_buf_tbl_clear(
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NIC);
 
+#if EFSYS_OPT_HUNTINGTON
+	if (enp->en_family == EFX_FAMILY_HUNTINGTON) {
+		/*
+		 * FIXME: the efx_sram_buf_tbl_*() functionality needs to be
+		 * pulled inside the Falcon/Siena queue create/destroy code,
+		 * and then the original functions can be removed (see bug30834
+		 * comment #1).  But, for now, we just ensure that they are
+		 * no-ops for Huntington, to allow bringing up existing drivers
+		 * without modification.
+		 */
+
+		return;
+	}
+#endif	/* EFSYS_OPT_HUNTINGTON */
+
 	EFSYS_ASSERT3U(stop, <, EFX_BUF_TBL_SIZE);
 
 	EFSYS_PROBE2(buf, uint32_t, start, uint32_t, stop - 1);
@@ -262,7 +297,7 @@ efx_sram_bit_sweep_set(
 	}
 }
 
-efx_sram_pattern_fn_t	__cs __efx_sram_pattern_fns[] = {
+efx_sram_pattern_fn_t	__efx_sram_pattern_fns[] = {
 	efx_sram_byte_increment_set,
 	efx_sram_all_the_same_set,
 	efx_sram_bit_alternate_set,
