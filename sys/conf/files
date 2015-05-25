@@ -2156,37 +2156,6 @@ dev/sdhci/sdhci.c		optional sdhci
 dev/sdhci/sdhci_if.m		optional sdhci
 dev/sdhci/sdhci_pci.c		optional sdhci pci
 dev/sf/if_sf.c			optional sf pci
-dev/sfxge/common/efx_bootcfg.c	optional sfxge pci
-dev/sfxge/common/efx_ev.c	optional sfxge pci
-dev/sfxge/common/efx_filter.c	optional sfxge pci
-dev/sfxge/common/efx_intr.c	optional sfxge pci
-dev/sfxge/common/efx_mac.c	optional sfxge pci
-dev/sfxge/common/efx_mcdi.c	optional sfxge pci
-dev/sfxge/common/efx_mon.c	optional sfxge pci
-dev/sfxge/common/efx_nic.c	optional sfxge pci
-dev/sfxge/common/efx_nvram.c	optional sfxge pci
-dev/sfxge/common/efx_phy.c	optional sfxge pci
-dev/sfxge/common/efx_port.c	optional sfxge pci
-dev/sfxge/common/efx_rx.c	optional sfxge pci
-dev/sfxge/common/efx_sram.c	optional sfxge pci
-dev/sfxge/common/efx_tx.c	optional sfxge pci
-dev/sfxge/common/efx_vpd.c	optional sfxge pci
-dev/sfxge/common/efx_wol.c	optional sfxge pci
-dev/sfxge/common/siena_mac.c	optional sfxge pci
-dev/sfxge/common/siena_mon.c	optional sfxge pci
-dev/sfxge/common/siena_nic.c	optional sfxge pci
-dev/sfxge/common/siena_nvram.c	optional sfxge pci
-dev/sfxge/common/siena_phy.c	optional sfxge pci
-dev/sfxge/common/siena_sram.c	optional sfxge pci
-dev/sfxge/common/siena_vpd.c	optional sfxge pci
-dev/sfxge/sfxge.c		optional sfxge pci
-dev/sfxge/sfxge_dma.c		optional sfxge pci
-dev/sfxge/sfxge_ev.c		optional sfxge pci
-dev/sfxge/sfxge_intr.c		optional sfxge pci
-dev/sfxge/sfxge_mcdi.c		optional sfxge pci
-dev/sfxge/sfxge_port.c		optional sfxge pci
-dev/sfxge/sfxge_rx.c		optional sfxge pci
-dev/sfxge/sfxge_tx.c		optional sfxge pci
 dev/sge/if_sge.c		optional sge pci
 dev/si/si.c			optional si
 dev/si/si2_z280.c		optional si
