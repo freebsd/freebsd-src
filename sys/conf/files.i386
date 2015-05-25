@@ -27,7 +27,7 @@ linux_locore.o			optional	compat_linux		\
 #
 linux_vdso.so			optional	compat_linux		\
 	dependency 	"linux_locore.o"				\
-	compile-with	"${OBJCOPY} --input binary --output elf32-i386-freebsd --binary-architecture i386 linux_locore.o ${.TARGET}" \
+	compile-with	"${OBJCOPY} --input-target binary --output-target elf32-i386-freebsd --binary-architecture i386 linux_locore.o ${.TARGET}" \
 	no-implicit-rule						\
 	clean		"linux_vdso.so"
 #
