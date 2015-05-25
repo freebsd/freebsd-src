@@ -35,8 +35,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-
 #include <sys/socket.h>
+
+#include <machine/stdarg.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -267,7 +268,20 @@ static void
 null_update_chw(struct ieee80211com *ic)
 {
 
-	if_printf(ic->ic_ifp, "%s: need callback\n", __func__);
+	ic_printf(ic, "%s: need callback\n", __func__);
+}
+
+int
+ic_printf(struct ieee80211com *ic, const char * fmt, ...)
+{ 
+	va_list ap;
+	int retval;
+
+	retval = printf("%s: ", ic->ic_name);
+	va_start(ap, fmt);
+	retval += vprintf(fmt, ap);
+	va_end(ap);  
+	return (retval);
 }
 
 /*
@@ -284,8 +298,8 @@ ieee80211_ifattach(struct ieee80211com *ic,
 
 	KASSERT(ifp->if_type == IFT_IEEE80211, ("if_type %d", ifp->if_type));
 
-	IEEE80211_LOCK_INIT(ic, ifp->if_xname);
-	IEEE80211_TX_LOCK_INIT(ic, ifp->if_xname);
+	IEEE80211_LOCK_INIT(ic, ic->ic_name);
+	IEEE80211_TX_LOCK_INIT(ic, ic->ic_name);
 	TAILQ_INIT(&ic->ic_vaps);
 
 	/* Create a taskqueue for all state changes */
@@ -427,7 +441,7 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 
 	ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		if_printf(ic->ic_ifp, "%s: unable to allocate ifnet\n",
+		ic_printf(ic, "%s: unable to allocate ifnet\n",
 		    __func__);
 		return ENOMEM;
 	}
@@ -551,7 +565,7 @@ ieee80211_vap_attach(struct ieee80211vap *vap,
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE,
 	    "%s: %s parent %s flags 0x%x flags_ext 0x%x\n",
 	    __func__, ieee80211_opmode_name[vap->iv_opmode],
-	    ic->ic_ifp->if_xname, vap->iv_flags, vap->iv_flags_ext);
+	    ic->ic_name, vap->iv_flags, vap->iv_flags_ext);
 
 	/*
 	 * Do late attach work that cannot happen until after
@@ -608,7 +622,7 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE, "%s: %s parent %s\n",
 	    __func__, ieee80211_opmode_name[vap->iv_opmode],
-	    ic->ic_ifp->if_xname);
+	    ic->ic_name);
 
 	/* NB: bpfdetach is called by ether_ifdetach and claims all taps */
 	ether_ifdetach(ifp);
@@ -900,7 +914,7 @@ int
 ieee80211_chan2ieee(struct ieee80211com *ic, const struct ieee80211_channel *c)
 {
 	if (c == NULL) {
-		if_printf(ic->ic_ifp, "invalid channel (NULL)\n");
+		ic_printf(ic, "invalid channel (NULL)\n");
 		return 0;		/* XXX */
 	}
 	return (c == IEEE80211_CHAN_ANYC ?  IEEE80211_CHAN_ANY : c->ic_ieee);
@@ -1169,7 +1183,6 @@ ieee80211_get_suprates(struct ieee80211com *ic, const struct ieee80211_channel *
 void
 ieee80211_announce(struct ieee80211com *ic)
 {
-	struct ifnet *ifp = ic->ic_ifp;
 	int i, rate, mword;
 	enum ieee80211_phymode mode;
 	const struct ieee80211_rateset *rs;
@@ -1178,7 +1191,7 @@ ieee80211_announce(struct ieee80211com *ic)
 	for (mode = IEEE80211_MODE_AUTO+1; mode < IEEE80211_MODE_11NA; mode++) {
 		if (isclr(ic->ic_modecaps, mode))
 			continue;
-		if_printf(ifp, "%s rates: ", ieee80211_phymode_name[mode]);
+		ic_printf(ic, "%s rates: ", ieee80211_phymode_name[mode]);
 		rs = &ic->ic_sup_rates[mode];
 		for (i = 0; i < rs->rs_nrates; i++) {
 			mword = ieee80211_rate2media(ic, rs->rs_rates[i], mode);

@@ -1908,11 +1908,10 @@ ieee80211_node_table_init(struct ieee80211com *ic,
 	struct ieee80211_node_table *nt,
 	const char *name, int inact, int keyixmax)
 {
-	struct ifnet *ifp = ic->ic_ifp;
 
 	nt->nt_ic = ic;
-	IEEE80211_NODE_LOCK_INIT(nt, ifp->if_xname);
-	IEEE80211_NODE_ITERATE_LOCK_INIT(nt, ifp->if_xname);
+	IEEE80211_NODE_LOCK_INIT(nt, ic->ic_name);
+	IEEE80211_NODE_ITERATE_LOCK_INIT(nt, ic->ic_name);
 	TAILQ_INIT(&nt->nt_node);
 	nt->nt_name = name;
 	nt->nt_scangen = 1;
@@ -1923,7 +1922,7 @@ ieee80211_node_table_init(struct ieee80211com *ic,
 			keyixmax * sizeof(struct ieee80211_node *),
 			M_80211_NODE, M_NOWAIT | M_ZERO);
 		if (nt->nt_keyixmap == NULL)
-			if_printf(ic->ic_ifp,
+			ic_printf(ic,
 			    "Cannot allocate key index map with %u entries\n",
 			    keyixmax);
 	} else
@@ -2256,8 +2255,8 @@ ieee80211_iterate_nt(struct ieee80211_node_table *nt,
 	TAILQ_FOREACH(ni, &nt->nt_node, ni_list) {
 		if (i >= max_aid) {
 			ret = E2BIG;
-			if_printf(nt->nt_ic->ic_ifp,
-			    "Node array overflow: max=%u", max_aid);
+			ic_printf(nt->nt_ic, "Node array overflow: max=%u",
+			    max_aid);
 			break;
 		}
 		ni_arr[i] = ieee80211_ref_node(ni);
