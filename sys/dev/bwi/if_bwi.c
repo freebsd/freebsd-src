@@ -507,6 +507,7 @@ bwi_attach(struct bwi_softc *sc)
 	ieee80211_init_channels(ic, NULL, &bands);
 
 	ic->ic_ifp = ifp;
+	ic->ic_name = device_get_nameunit(dev);
 	ic->ic_caps = IEEE80211_C_STA |
 		      IEEE80211_C_SHSLOT |
 		      IEEE80211_C_SHPREAMBLE |

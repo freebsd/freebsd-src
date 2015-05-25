@@ -355,6 +355,7 @@ rsu_attach(device_t self)
 	ifp->if_hwassist = CSUM_TCP;
 
 	ic->ic_ifp = ifp;
+	ic->ic_name = device_get_nameunit(self);
 	ic->ic_phytype = IEEE80211_T_OFDM;	/* Not only, but not used. */
 	ic->ic_opmode = IEEE80211_M_STA;	/* Default to BSS mode. */
 
