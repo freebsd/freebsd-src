@@ -107,8 +107,8 @@ ieee80211_swscan_attach(struct ieee80211com *ic)
 {
 	struct scan_state *ss;
 
-	ss = (struct scan_state *) malloc(sizeof(struct scan_state),
-		M_80211_SCAN, M_NOWAIT | M_ZERO);
+	ss = (struct scan_state *) IEEE80211_MALLOC(sizeof(struct scan_state),
+		M_80211_SCAN, IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (ss == NULL) {
 		ic->ic_scan = NULL;
 		return;
@@ -155,7 +155,7 @@ ieee80211_swscan_detach(struct ieee80211com *ic)
 			ss->ss_ops = NULL;
 		}
 		ic->ic_scan = NULL;
-		free(SCAN_PRIVATE(ss), M_80211_SCAN);
+		IEEE80211_FREE(SCAN_PRIVATE(ss), M_80211_SCAN);
 	}
 }
 

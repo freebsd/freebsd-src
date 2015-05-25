@@ -82,7 +82,8 @@ wlan_alloc(u_char type, struct ifnet *ifp)
 {
 	struct ieee80211com *ic;
 
-	ic = malloc(sizeof(struct ieee80211com), M_80211_COM, M_WAITOK|M_ZERO);
+	ic = IEEE80211_MALLOC(sizeof(struct ieee80211com), M_80211_COM,
+	    IEEE80211_M_WAITOK | IEEE80211_M_ZERO);
 	ic->ic_ifp = ifp;
 
 	return (ic);
@@ -91,7 +92,7 @@ wlan_alloc(u_char type, struct ifnet *ifp)
 static void
 wlan_free(void *ic, u_char type)
 {
-	free(ic, M_80211_COM);
+	IEEE80211_FREE(ic, M_80211_COM);
 }
 
 static int
@@ -244,8 +245,8 @@ ieee80211_sysctl_vattach(struct ieee80211vap *vap)
 	struct sysctl_oid *oid;
 	char num[14];			/* sufficient for 32 bits */
 
-	ctx = (struct sysctl_ctx_list *) malloc(sizeof(struct sysctl_ctx_list),
-		M_DEVBUF, M_NOWAIT | M_ZERO);
+	ctx = (struct sysctl_ctx_list *) IEEE80211_MALLOC(sizeof(struct sysctl_ctx_list),
+		M_DEVBUF, IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (ctx == NULL) {
 		if_printf(ifp, "%s: cannot allocate sysctl context!\n",
 			__func__);
@@ -320,7 +321,7 @@ ieee80211_sysctl_vdetach(struct ieee80211vap *vap)
 
 	if (vap->iv_sysctl != NULL) {
 		sysctl_ctx_free(vap->iv_sysctl);
-		free(vap->iv_sysctl, M_DEVBUF);
+		IEEE80211_FREE(vap->iv_sysctl, M_DEVBUF);
 		vap->iv_sysctl = NULL;
 	}
 }
