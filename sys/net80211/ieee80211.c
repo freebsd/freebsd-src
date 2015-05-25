@@ -1005,6 +1005,75 @@ ieee80211_find_channel_byieee(struct ieee80211com *ic, int ieee, int flags)
 	return NULL;
 }
 
+/*
+ * Lookup a channel suitable for the given rx status.
+ *
+ * This is used to find a channel for a frame (eg beacon, probe
+ * response) based purely on the received PHY information.
+ *
+ * For now it tries to do it based on R_FREQ / R_IEEE.
+ * This is enough for 11bg and 11a (and thus 11ng/11na)
+ * but it will not be enough for GSM, PSB channels and the
+ * like.  It also doesn't know about legacy-turbog and
+ * legacy-turbo modes, which some offload NICs actually
+ * support in weird ways.
+ *
+ * Takes the ic and rxstatus; returns the channel or NULL
+ * if not found.
+ *
+ * XXX TODO: Add support for that when the need arises.
+ */
+struct ieee80211_channel *
+ieee80211_lookup_channel_rxstatus(struct ieee80211vap *vap,
+    const struct ieee80211_rx_stats *rxs)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+	uint32_t flags;
+	struct ieee80211_channel *c;
+
+	if (rxs == NULL)
+		return (NULL);
+
+	/*
+	 * Strictly speaking we only use freq for now,
+	 * however later on we may wish to just store
+	 * the ieee for verification.
+	 */
+	if ((rxs->r_flags & IEEE80211_R_FREQ) == 0)
+		return (NULL);
+	if ((rxs->r_flags & IEEE80211_R_IEEE) == 0)
+		return (NULL);
+
+	/*
+	 * If the rx status contains a valid ieee/freq, then
+	 * ensure we populate the correct channel information
+	 * in rxchan before passing it up to the scan infrastructure.
+	 * Offload NICs will pass up beacons from all channels
+	 * during background scans.
+	 */
+
+	/* Determine a band */
+	/* XXX should be done by the driver? */
+	if (rxs->c_freq < 3000) {
+		flags = IEEE80211_CHAN_B;
+	} else {
+		flags = IEEE80211_CHAN_A;
+	}
+
+	/* Channel lookup */
+	c = ieee80211_find_channel(ic, rxs->c_freq, flags);
+
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_INPUT,
+	    "%s: freq=%d, ieee=%d, flags=0x%08x; c=%p\n",
+	    __func__,
+	    (int) rxs->c_freq,
+	    (int) rxs->c_ieee,
+	    flags,
+	    c);
+
+	return (c);
+}
+
 static void
 addmedia(struct ifmedia *media, int caps, int addsta, int mode, int mword)
 {
