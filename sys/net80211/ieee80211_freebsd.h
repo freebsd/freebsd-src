@@ -596,4 +596,19 @@ struct ieee80211_bpf_params {
 	uint8_t		ibp_try3;	/* series 4 try count */
 	uint8_t		ibp_rate3;	/* series 4 IEEE tx rate */
 };
+
+/*
+ * Malloc API.  Other BSD operating systems have slightly
+ * different malloc/free namings (eg DragonflyBSD.)
+ */
+#define	IEEE80211_MALLOC	malloc
+#define	IEEE80211_FREE		free
+
+/* XXX TODO: get rid of WAITOK, fix all the users of it? */
+#define	IEEE80211_M_NOWAIT	M_NOWAIT
+#define	IEEE80211_M_WAITOK	M_WAITOK
+#define	IEEE80211_M_ZERO	M_ZERO
+
+/* XXX TODO: the type fields */
+
 #endif /* _NET80211_IEEE80211_FREEBSD_H_ */

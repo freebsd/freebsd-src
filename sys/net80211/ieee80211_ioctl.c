@@ -323,14 +323,15 @@ ieee80211_ioctl_getscanresults(struct ieee80211vap *vap,
 
 		space = req.space;
 		/* XXX M_WAITOK after driver lock released */
-		p = malloc(space, M_TEMP, M_NOWAIT | M_ZERO);
+		p = IEEE80211_MALLOC(space, M_TEMP,
+		    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 		if (p == NULL)
 			return ENOMEM;
 		req.sr = p;
 		ieee80211_scan_iterate(vap, get_scan_result, &req);
 		ireq->i_len = space - req.space;
 		error = copyout(p, ireq->i_data, ireq->i_len);
-		free(p, M_TEMP);
+		IEEE80211_FREE(p, M_TEMP);
 	} else
 		ireq->i_len = 0;
 
@@ -473,7 +474,8 @@ getstainfo_common(struct ieee80211vap *vap, struct ieee80211req *ireq,
 	if (req.space > 0) {
 		space = req.space;
 		/* XXX M_WAITOK after driver lock released */
-		p = malloc(space, M_TEMP, M_NOWAIT | M_ZERO);
+		p = IEEE80211_MALLOC(space, M_TEMP,
+		    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 		if (p == NULL) {
 			error = ENOMEM;
 			goto bad;
@@ -485,7 +487,7 @@ getstainfo_common(struct ieee80211vap *vap, struct ieee80211req *ireq,
 			get_sta_info(&req, ni);
 		ireq->i_len = space - req.space;
 		error = copyout(p, (uint8_t *) ireq->i_data+off, ireq->i_len);
-		free(p, M_TEMP);
+		IEEE80211_FREE(p, M_TEMP);
 	} else
 		ireq->i_len = 0;
 bad:
@@ -697,7 +699,8 @@ ieee80211_ioctl_getdevcaps(struct ieee80211com *ic,
 	if (maxchans > 2048)
 		maxchans = 2048;
 	dc = (struct ieee80211_devcaps_req *)
-	    malloc(IEEE80211_DEVCAPS_SIZE(maxchans), M_TEMP, M_NOWAIT | M_ZERO);
+	    IEEE80211_MALLOC(IEEE80211_DEVCAPS_SIZE(maxchans), M_TEMP,
+	    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (dc == NULL)
 		return ENOMEM;
 	dc->dc_drivercaps = ic->ic_caps;
@@ -709,7 +712,7 @@ ieee80211_ioctl_getdevcaps(struct ieee80211com *ic,
 	    ("nchans %d maxchans %d", ci->ic_nchans, maxchans));
 	ieee80211_sort_channels(ci->ic_chans, ci->ic_nchans);
 	error = copyout(dc, ireq->i_data, IEEE80211_DEVCAPS_SPACE(dc));
-	free(dc, M_TEMP);
+	IEEE80211_FREE(dc, M_TEMP);
 	return error;
 }
 
@@ -1666,13 +1669,13 @@ ieee80211_ioctl_setchanlist(struct ieee80211vap *vap, struct ieee80211req *ireq)
 
 	if (ireq->i_len > sizeof(ic->ic_chan_active))
 		ireq->i_len = sizeof(ic->ic_chan_active);
-	list = malloc(ireq->i_len + IEEE80211_CHAN_BYTES, M_TEMP,
-	    M_NOWAIT | M_ZERO);
+	list = IEEE80211_MALLOC(ireq->i_len + IEEE80211_CHAN_BYTES, M_TEMP,
+	    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (list == NULL)
 		return ENOMEM;
 	error = copyin(ireq->i_data, list, ireq->i_len);
 	if (error) {
-		free(list, M_TEMP);
+		IEEE80211_FREE(list, M_TEMP);
 		return error;
 	}
 	nchan = 0;
@@ -1691,7 +1694,7 @@ ieee80211_ioctl_setchanlist(struct ieee80211vap *vap, struct ieee80211req *ireq)
 		}
 	}
 	if (nchan == 0) {
-		free(list, M_TEMP);
+		IEEE80211_FREE(list, M_TEMP);
 		return EINVAL;
 	}
 	if (ic->ic_bsschan != IEEE80211_CHAN_ANYC &&	/* XXX */
@@ -1699,7 +1702,7 @@ ieee80211_ioctl_setchanlist(struct ieee80211vap *vap, struct ieee80211req *ireq)
 		ic->ic_bsschan = IEEE80211_CHAN_ANYC;
 	memcpy(ic->ic_chan_active, chanlist, IEEE80211_CHAN_BYTES);
 	ieee80211_scan_flush(vap);
-	free(list, M_TEMP);
+	IEEE80211_FREE(list, M_TEMP);
 	return ENETRESET;
 }
 
@@ -2112,7 +2115,8 @@ ieee80211_ioctl_setregdomain(struct ieee80211vap *vap,
 		return EINVAL;
 	}
 	reg = (struct ieee80211_regdomain_req *)
-	    malloc(IEEE80211_REGDOMAIN_SIZE(nchans), M_TEMP, M_NOWAIT);
+	    IEEE80211_MALLOC(IEEE80211_REGDOMAIN_SIZE(nchans), M_TEMP,
+	      IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (reg == NULL) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_IOCTL,
 		    "%s: no memory, nchans %d\n", __func__, nchans);
@@ -2129,7 +2133,7 @@ ieee80211_ioctl_setregdomain(struct ieee80211vap *vap,
 		} else
 			error = ieee80211_setregdomain(vap, reg);
 	}
-	free(reg, M_TEMP);
+	IEEE80211_FREE(reg, M_TEMP);
 
 	return (error == 0 ? ENETRESET : error);
 }
@@ -2246,7 +2250,7 @@ setappie(struct ieee80211_appie **aie, const struct ieee80211req *ireq)
 	if (ireq->i_len == 0) {		/* delete any existing ie */
 		if (app != NULL) {
 			*aie = NULL;	/* XXX racey */
-			free(app, M_80211_NODE_IE);
+			IEEE80211_FREE(app, M_80211_NODE_IE);
 		}
 		return 0;
 	}
@@ -2260,20 +2264,21 @@ setappie(struct ieee80211_appie **aie, const struct ieee80211req *ireq)
 	 *
 	 * XXX bad bad bad
 	 */
-	napp = (struct ieee80211_appie *) malloc(
-	    sizeof(struct ieee80211_appie) + ireq->i_len, M_80211_NODE_IE, M_NOWAIT);
+	napp = (struct ieee80211_appie *) IEEE80211_MALLOC(
+	    sizeof(struct ieee80211_appie) + ireq->i_len, M_80211_NODE_IE,
+	    IEEE80211_M_NOWAIT);
 	if (napp == NULL)
 		return ENOMEM;
 	/* XXX holding ic lock */
 	error = copyin(ireq->i_data, napp->ie_data, ireq->i_len);
 	if (error) {
-		free(napp, M_80211_NODE_IE);
+		IEEE80211_FREE(napp, M_80211_NODE_IE);
 		return error;
 	}
 	napp->ie_len = ireq->i_len;
 	*aie = napp;
 	if (app != NULL)
-		free(app, M_80211_NODE_IE);
+		IEEE80211_FREE(app, M_80211_NODE_IE);
 	return 0;
 }
 

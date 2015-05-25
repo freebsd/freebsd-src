@@ -268,8 +268,8 @@ hwmp_vattach(struct ieee80211vap *vap)
 	KASSERT(vap->iv_opmode == IEEE80211_M_MBSS,
 	    ("not a mesh vap, opmode %d", vap->iv_opmode));
 
-	hs = malloc(sizeof(struct ieee80211_hwmp_state), M_80211_VAP,
-	    M_NOWAIT | M_ZERO);
+	hs = IEEE80211_MALLOC(sizeof(struct ieee80211_hwmp_state), M_80211_VAP,
+	    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (hs == NULL) {
 		printf("%s: couldn't alloc HWMP state\n", __func__);
 		return;
@@ -285,7 +285,7 @@ hwmp_vdetach(struct ieee80211vap *vap)
 	struct ieee80211_hwmp_state *hs = vap->iv_hwmp;
 
 	callout_drain(&hs->hs_roottimer);
-	free(vap->iv_hwmp, M_80211_VAP);
+	IEEE80211_FREE(vap->iv_hwmp, M_80211_VAP);
 	vap->iv_hwmp = NULL;
 } 
 
@@ -429,9 +429,10 @@ hwmp_recv_action_meshpath(struct ieee80211_node *ni,
 				vap->iv_stats.is_rx_mgtdiscard++;
 				break;
 			}
-			preq = malloc(sizeof(*preq) +
+			preq = IEEE80211_MALLOC(sizeof(*preq) +
 			    (ndest - 1) * sizeof(*preq->preq_targets),
-			    M_80211_MESH_PREQ, M_NOWAIT | M_ZERO);
+			    M_80211_MESH_PREQ,
+			    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 			KASSERT(preq != NULL, ("preq == NULL"));
 
 			preq->preq_ie = *iefrm_t++;
@@ -464,7 +465,7 @@ hwmp_recv_action_meshpath(struct ieee80211_node *ni,
 			}
 
 			hwmp_recv_preq(vap, ni, wh, preq);
-			free(preq, M_80211_MESH_PREQ);
+			IEEE80211_FREE(preq, M_80211_MESH_PREQ);
 			found++;
 			break;
 		}
@@ -476,8 +477,9 @@ hwmp_recv_action_meshpath(struct ieee80211_node *ni,
 				vap->iv_stats.is_rx_mgtdiscard++;
 				break;
 			}
-			prep = malloc(sizeof(*prep),
-			    M_80211_MESH_PREP, M_NOWAIT | M_ZERO);
+			prep = IEEE80211_MALLOC(sizeof(*prep),
+			    M_80211_MESH_PREP,
+			    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 			KASSERT(prep != NULL, ("prep == NULL"));
 
 			prep->prep_ie = *iefrm_t++;
@@ -501,7 +503,7 @@ hwmp_recv_action_meshpath(struct ieee80211_node *ni,
 			prep->prep_origseq = LE_READ_4(iefrm_t); iefrm_t += 4;
 
 			hwmp_recv_prep(vap, ni, wh, prep);
-			free(prep, M_80211_MESH_PREP);
+			IEEE80211_FREE(prep, M_80211_MESH_PREP);
 			found++;
 			break;
 		}
@@ -515,9 +517,10 @@ hwmp_recv_action_meshpath(struct ieee80211_node *ni,
 				vap->iv_stats.is_rx_mgtdiscard++;
 				break;
 			}
-			perr = malloc(sizeof(*perr) +
+			perr = IEEE80211_MALLOC(sizeof(*perr) +
 			    (ndest - 1) * sizeof(*perr->perr_dests),
-			    M_80211_MESH_PERR, M_NOWAIT | M_ZERO);
+			    M_80211_MESH_PERR,
+			    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 			KASSERT(perr != NULL, ("perr == NULL"));
 
 			perr->perr_ie = *iefrm_t++;
@@ -546,7 +549,7 @@ hwmp_recv_action_meshpath(struct ieee80211_node *ni,
 			}
 
 			hwmp_recv_perr(vap, ni, wh, perr);
-			free(perr, M_80211_MESH_PERR);
+			IEEE80211_FREE(perr, M_80211_MESH_PERR);
 			found++;
 			break;
 		}
@@ -1556,8 +1559,8 @@ hwmp_recv_perr(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	 */
 	if (ms->ms_flags & IEEE80211_MESHFLAGS_FWD) {
 		forward = 1;
-		pperr = malloc(sizeof(*perr) + 31*sizeof(*perr->perr_dests),
-		    M_80211_MESH_PERR, M_NOWAIT); /* XXX: magic number, 32 err dests */
+		pperr = IEEE80211_MALLOC(sizeof(*perr) + 31*sizeof(*perr->perr_dests),
+		    M_80211_MESH_PERR, IEEE80211_M_NOWAIT); /* XXX: magic number, 32 err dests */
 	}
 
 	/*
@@ -1632,7 +1635,7 @@ hwmp_recv_perr(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	}
 done:
 	if (pperr != NULL)
-		free(pperr, M_80211_MESH_PERR);
+		IEEE80211_FREE(pperr, M_80211_MESH_PERR);
 }
 #undef	PERR_DFLAGS
 #undef	PERR_DADDR

@@ -250,7 +250,7 @@ ieee80211_proto_vdetach(struct ieee80211vap *vap)
 {
 #define	FREEAPPIE(ie) do { \
 	if (ie != NULL) \
-		free(ie, M_80211_NODE_IE); \
+		IEEE80211_FREE(ie, M_80211_NODE_IE); \
 } while (0)
 	/*
 	 * Detach operating mode module.
