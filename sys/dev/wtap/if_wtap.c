@@ -702,14 +702,14 @@ wtap_wme_update(struct ieee80211com *ic)
 }
 
 static void
-wtap_update_mcast(struct ifnet *ifp)
+wtap_update_mcast(struct ieee80211com *ic)
 {
 
 	DWTAP_PRINTF("%s\n", __func__);
 }
 
 static void
-wtap_update_promisc(struct ifnet *ifp)
+wtap_update_promisc(struct ieee80211com *ic)
 {
 
 	DWTAP_PRINTF("%s\n", __func__);
@@ -829,9 +829,6 @@ wtap_attach(struct wtap_softc *sc, const uint8_t *macaddr)
 
 	/* override default methods */
 	ic->ic_newassoc = wtap_newassoc;
-#if 0
-	ic->ic_updateslot = myath_updateslot;
-#endif
 	ic->ic_wme.wme_update = wtap_wme_update;
 	ic->ic_vap_create = wtap_vap_create;
 	ic->ic_vap_delete = wtap_vap_delete;

@@ -290,8 +290,8 @@ static int	uath_raw_xmit(struct ieee80211_node *, struct mbuf *,
 static void	uath_scan_start(struct ieee80211com *);
 static void	uath_scan_end(struct ieee80211com *);
 static void	uath_set_channel(struct ieee80211com *);
-static void	uath_update_mcast(struct ifnet *);
-static void	uath_update_promisc(struct ifnet *);
+static void	uath_update_mcast(struct ieee80211com *);
+static void	uath_update_promisc(struct ieee80211com *);
 static int	uath_config(struct uath_softc *, uint32_t, uint32_t);
 static int	uath_config_multi(struct uath_softc *, uint32_t, const void *,
 		    int);
@@ -1927,13 +1927,13 @@ uath_set_rxmulti_filter(struct uath_softc *sc)
 	return (0);
 }
 static void
-uath_update_mcast(struct ifnet *ifp)
+uath_update_mcast(struct ieee80211com *ic)
 {
-	struct uath_softc *sc = ifp->if_softc;
+	struct uath_softc *sc = ic->ic_softc;
 
 	UATH_LOCK(sc);
 	if ((sc->sc_flags & UATH_FLAG_INVALID) ||
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+	    (ic->ic_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		UATH_UNLOCK(sc);
 		return;
 	}
@@ -1947,13 +1947,13 @@ uath_update_mcast(struct ifnet *ifp)
 }
 
 static void
-uath_update_promisc(struct ifnet *ifp)
+uath_update_promisc(struct ieee80211com *ic)
 {
-	struct uath_softc *sc = ifp->if_softc;
+	struct uath_softc *sc = ic->ic_softc;
 
 	UATH_LOCK(sc);
 	if ((sc->sc_flags & UATH_FLAG_INVALID) ||
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+	    (ic->ic_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		UATH_UNLOCK(sc);
 		return;
 	}

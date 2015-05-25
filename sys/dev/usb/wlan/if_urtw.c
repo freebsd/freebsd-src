@@ -663,7 +663,7 @@ static int		urtw_raw_xmit(struct ieee80211_node *, struct mbuf *,
 static void		urtw_scan_start(struct ieee80211com *);
 static void		urtw_scan_end(struct ieee80211com *);
 static void		urtw_set_channel(struct ieee80211com *);
-static void		urtw_update_mcast(struct ifnet *);
+static void		urtw_update_mcast(struct ieee80211com *);
 static int		urtw_tx_start(struct urtw_softc *,
 			    struct ieee80211_node *, struct mbuf *,
 			    struct urtw_data *, int);
@@ -758,7 +758,7 @@ static struct urtw_data *
 			urtw_getbuf(struct urtw_softc *sc);
 static int		urtw_compute_txtime(uint16_t, uint16_t, uint8_t,
 			    uint8_t);
-static void		urtw_updateslot(struct ifnet *);
+static void		urtw_updateslot(struct ieee80211com *);
 static void		urtw_updateslottask(void *, int);
 static void		urtw_sysctl_node(struct urtw_softc *);
 
@@ -1663,7 +1663,7 @@ fail:
 }
 
 static void
-urtw_update_mcast(struct ifnet *ifp)
+urtw_update_mcast(struct ieee80211com *ic)
 {
 
 	/* XXX do nothing?  */
@@ -4367,10 +4367,9 @@ urtw_compute_txtime(uint16_t framelen, uint16_t rate,
  * slot time based on the current setting.
  */
 static void
-urtw_updateslot(struct ifnet *ifp)
+urtw_updateslot(struct ieee80211com *ic)
 {
-	struct urtw_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct urtw_softc *sc = ic->ic_softc;
 
 	ieee80211_runtask(ic, &sc->sc_updateslot_task);
 }

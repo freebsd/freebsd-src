@@ -201,8 +201,8 @@ static void		rum_enable_tsf(struct rum_softc *);
 static void		rum_update_slot(struct ifnet *);
 static void		rum_set_bssid(struct rum_softc *, const uint8_t *);
 static void		rum_set_macaddr(struct rum_softc *, const uint8_t *);
-static void		rum_update_mcast(struct ifnet *);
-static void		rum_update_promisc(struct ifnet *);
+static void		rum_update_mcast(struct ieee80211com *);
+static void		rum_update_promisc(struct ieee80211com *);
 static void		rum_setpromisc(struct rum_softc *);
 static const char	*rum_get_rf(int);
 static void		rum_read_eeprom(struct rum_softc *);
@@ -1843,11 +1843,11 @@ rum_setpromisc(struct rum_softc *sc)
 }
 
 static void
-rum_update_promisc(struct ifnet *ifp)
+rum_update_promisc(struct ieee80211com *ic)
 {
-	struct rum_softc *sc = ifp->if_softc;
+	struct rum_softc *sc = ic->ic_softc;
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	if ((ic->ic_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
 	RUM_LOCK(sc);
@@ -1856,12 +1856,12 @@ rum_update_promisc(struct ifnet *ifp)
 }
 
 static void
-rum_update_mcast(struct ifnet *ifp)
+rum_update_mcast(struct ieee80211com *ic)
 {
 	static int warning_printed;
 
 	if (warning_printed == 0) {
-		if_printf(ifp, "need to implement %s\n", __func__);
+		ic_printf(ic, "need to implement %s\n", __func__);
 		warning_printed = 1;
 	}
 }
