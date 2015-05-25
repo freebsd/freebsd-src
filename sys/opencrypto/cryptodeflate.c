@@ -105,8 +105,8 @@ deflate_global(data, size, decomp, out)
 	bufh = bufp = malloc(sizeof(*bufp) + (size_t)(size * i),
 	    M_CRYPTO_DATA, M_NOWAIT);
 	if (bufp == NULL) {
-		SDT_PROBE3(opencrypto, deflate, deflate_global, bad,
-		    decomp, 0, __LINE__);
+		SDT_PROBE5(opencrypto, deflate, deflate_global, bad,
+		    decomp, 0, __LINE__, 0, 0);
 		goto bad2;
 	}
 	bufp->next = NULL;
@@ -125,8 +125,8 @@ deflate_global(data, size, decomp, out)
 	    deflateInit2(&zbuf, Z_DEFAULT_COMPRESSION, Z_METHOD,
 		    window_deflate, Z_MEMLEVEL, Z_DEFAULT_STRATEGY);
 	if (error != Z_OK) {
-		SDT_PROBE3(opencrypto, deflate, deflate_global, bad,
-		    decomp, error, __LINE__);
+		SDT_PROBE5(opencrypto, deflate, deflate_global, bad,
+		    decomp, error, __LINE__, 0, 0);
 		goto bad;
 	}
 
@@ -165,8 +165,8 @@ deflate_global(data, size, decomp, out)
 			p = malloc(sizeof(*p) + (size_t)(size * i),
 			    M_CRYPTO_DATA, M_NOWAIT);
 			if (p == NULL) {
-				SDT_PROBE3(opencrypto, deflate, deflate_global,
-				    bad, decomp, 0, __LINE__);
+				SDT_PROBE5(opencrypto, deflate, deflate_global,
+				    bad, decomp, 0, __LINE__, 0, 0);
 				goto bad;
 			}
 			p->next = NULL;
@@ -195,8 +195,8 @@ deflate_global(data, size, decomp, out)
 
 	*out = malloc(result, M_CRYPTO_DATA, M_NOWAIT);
 	if (*out == NULL) {
-		SDT_PROBE3(opencrypto, deflate, deflate_global, bad,
-		    decomp, 0, __LINE__);
+		SDT_PROBE5(opencrypto, deflate, deflate_global, bad,
+		    decomp, 0, __LINE__, 0, 0);
 		goto bad;
 	}
 	if (decomp)
