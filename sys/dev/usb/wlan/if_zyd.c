@@ -147,7 +147,7 @@ static int	zyd_set_bssid(struct zyd_softc *, const uint8_t *);
 static int	zyd_switch_radio(struct zyd_softc *, int);
 static int	zyd_set_led(struct zyd_softc *, int, int);
 static void	zyd_set_multi(struct zyd_softc *);
-static void	zyd_update_mcast(struct ifnet *);
+static void	zyd_update_mcast(struct ieee80211com *);
 static int	zyd_set_rxfilter(struct zyd_softc *);
 static void	zyd_set_chan(struct zyd_softc *, struct ieee80211_channel *);
 static int	zyd_set_beacon_interval(struct zyd_softc *, int);
@@ -2046,11 +2046,11 @@ fail:
 }
 
 static void
-zyd_update_mcast(struct ifnet *ifp)
+zyd_update_mcast(struct ieee80211com *ic)
 {
-	struct zyd_softc *sc = ifp->if_softc;
+	struct zyd_softc *sc = ic->ic_softc;
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	if ((ic->ic_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
 	ZYD_LOCK(sc);

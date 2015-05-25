@@ -224,15 +224,17 @@ ieee80211_chan_init(struct ieee80211com *ic)
 }
 
 static void
-null_update_mcast(struct ifnet *ifp)
+null_update_mcast(struct ieee80211com *ic)
 {
-	if_printf(ifp, "need multicast update callback\n");
+
+	ic_printf(ic, "need multicast update callback\n");
 }
 
 static void
-null_update_promisc(struct ifnet *ifp)
+null_update_promisc(struct ieee80211com *ic)
 {
-	if_printf(ifp, "need promiscuous mode update callback\n");
+
+	ic_printf(ic, "need promiscuous mode update callback\n");
 }
 
 static int
