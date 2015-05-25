@@ -276,6 +276,7 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;
+	ic->ic_name = device_get_nameunit(sc->malo_dev);
 	/* XXX not right but it's not used anywhere important */
 	ic->ic_phytype = IEEE80211_T_OFDM;
 	ic->ic_opmode = IEEE80211_M_STA;

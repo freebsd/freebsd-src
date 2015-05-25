@@ -797,6 +797,7 @@ wtap_attach(struct wtap_softc *sc, const uint8_t *macaddr)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;
+	ic->ic_name = sc->name;
 	ic->ic_phytype = IEEE80211_T_DS;
 	ic->ic_opmode = IEEE80211_M_MBSS;
 	ic->ic_caps = IEEE80211_C_MBSS;
