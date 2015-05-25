@@ -468,9 +468,13 @@ struct ieee80211vap {
 	void			(*iv_opdetach)(struct ieee80211vap *);
 	/* receive processing */
 	int			(*iv_input)(struct ieee80211_node *,
-				    struct mbuf *, int, int);
+				    struct mbuf *,
+				    const struct ieee80211_rx_stats *,
+				    int, int);
 	void			(*iv_recv_mgmt)(struct ieee80211_node *,
-				    struct mbuf *, int, int, int);
+				    struct mbuf *, int,
+				    const struct ieee80211_rx_stats *,
+				    int, int);
 	void			(*iv_recv_ctl)(struct ieee80211_node *,
 				    struct mbuf *, int);
 	void			(*iv_deliver_data)(struct ieee80211vap *,
@@ -710,6 +714,8 @@ struct ieee80211_channel *ieee80211_find_channel(struct ieee80211com *,
 		int freq, int flags);
 struct ieee80211_channel *ieee80211_find_channel_byieee(struct ieee80211com *,
 		int ieee, int flags);
+struct ieee80211_channel *ieee80211_lookup_channel_rxstatus(struct ieee80211vap *,
+		const struct ieee80211_rx_stats *);
 int	ieee80211_setmode(struct ieee80211com *, enum ieee80211_phymode);
 enum ieee80211_phymode ieee80211_chan2mode(const struct ieee80211_channel *);
 uint32_t ieee80211_mac_hash(const struct ieee80211com *,
