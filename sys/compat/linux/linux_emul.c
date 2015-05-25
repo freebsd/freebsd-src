@@ -172,27 +172,19 @@ linux_common_execve(struct thread *td, struct image_args *eargs)
 {
 	struct linux_pemuldata *pem;
 	struct epoll_emuldata *emd;
+	struct vmspace *oldvmspace;
 	struct linux_emuldata *em;
 	struct proc *p;
 	int error;
 
 	p = td->td_proc;
 
-	/*
-	 * Unlike FreeBSD abort all other threads before
-	 * proceeding exec.
-	 */
-	PROC_LOCK(p);
-	/* See exit1() comments. */
-	thread_suspend_check(0);
-	while (p->p_flag & P_HADTHREADS) {
-		if (!thread_single(p, SINGLE_EXIT))
-			break;
-		thread_suspend_check(0);
-	}
-	PROC_UNLOCK(p);
+	error = pre_execve(td, &oldvmspace);
+	if (error != 0)
+		return (error);
 
 	error = kern_execve(td, eargs, NULL);
+	post_execve(td, error, oldvmspace);
 	if (error != 0)
 		return (error);
 
