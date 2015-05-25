@@ -650,7 +650,7 @@ ieee80211_set_shortslottime(struct ieee80211com *ic, int onoff)
 		ic->ic_flags &= ~IEEE80211_F_SHSLOT;
 	/* notify driver */
 	if (ic->ic_updateslot != NULL)
-		ic->ic_updateslot(ic->ic_ifp);
+		ic->ic_updateslot(ic);
 }
 
 /*
@@ -1164,18 +1164,16 @@ static void
 update_mcast(void *arg, int npending)
 {
 	struct ieee80211com *ic = arg;
-	struct ifnet *parent = ic->ic_ifp;
 
-	ic->ic_update_mcast(parent);
+	ic->ic_update_mcast(ic);
 }
 
 static void
 update_promisc(void *arg, int npending)
 {
 	struct ieee80211com *ic = arg;
-	struct ifnet *parent = ic->ic_ifp;
 
-	ic->ic_update_promisc(parent);
+	ic->ic_update_promisc(ic);
 }
 
 static void

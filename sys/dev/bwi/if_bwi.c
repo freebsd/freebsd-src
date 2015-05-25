@@ -113,7 +113,7 @@ static void	bwi_scan_start(struct ieee80211com *);
 static void	bwi_set_channel(struct ieee80211com *);
 static void	bwi_scan_end(struct ieee80211com *);
 static int	bwi_newstate(struct ieee80211vap *, enum ieee80211_state, int);
-static void	bwi_updateslot(struct ifnet *);
+static void	bwi_updateslot(struct ieee80211com *);
 static int	bwi_media_change(struct ifnet *);
 
 static void	bwi_calibrate(void *);
@@ -3735,14 +3735,13 @@ bwi_set_bssid(struct bwi_softc *sc, const uint8_t *bssid)
 }
 
 static void
-bwi_updateslot(struct ifnet *ifp)
+bwi_updateslot(struct ieee80211com *ic)
 {
-	struct bwi_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct bwi_softc *sc = ic->ic_softc;
 	struct bwi_mac *mac;
 
 	BWI_LOCK(sc);
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+	if (ic->ic_ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		DPRINTF(sc, BWI_DBG_80211, "%s\n", __func__);
 
 		KASSERT(sc->sc_cur_regwin->rw_type == BWI_REGWIN_T_MAC,

@@ -266,7 +266,7 @@ static void		urtwn_set_channel(struct ieee80211com *);
 static void		urtwn_set_chan(struct urtwn_softc *,
 		    	    struct ieee80211_channel *,
 			    struct ieee80211_channel *);
-static void		urtwn_update_mcast(struct ifnet *);
+static void		urtwn_update_mcast(struct ieee80211com *);
 static void		urtwn_iq_calib(struct urtwn_softc *);
 static void		urtwn_lc_calib(struct urtwn_softc *);
 static void		urtwn_init(void *);
@@ -3147,7 +3147,7 @@ urtwn_set_channel(struct ieee80211com *ic)
 }
 
 static void
-urtwn_update_mcast(struct ifnet *ifp)
+urtwn_update_mcast(struct ieee80211com *ic)
 {
 	/* XXX do nothing?  */
 }
