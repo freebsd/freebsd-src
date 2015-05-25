@@ -245,15 +245,9 @@ null_transmit(struct ifnet *ifp, struct mbuf *m)
 	return EACCES;		/* XXX EIO/EPERM? */
 }
 
-#if __FreeBSD_version >= 1000031
 static int
 null_output(struct ifnet *ifp, struct mbuf *m,
 	const struct sockaddr *dst, struct route *ro)
-#else
-static int
-null_output(struct ifnet *ifp, struct mbuf *m,
-	struct sockaddr *dst, struct route *ro)
-#endif
 {
 	if_printf(ifp, "discard raw packet\n");
 	return null_transmit(ifp, m);

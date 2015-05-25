@@ -234,21 +234,9 @@ struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 #define	M_FF		M_PROTO6		/* fast frame */
 #define	M_TXCB		M_PROTO7		/* do tx complete callback */
 #define	M_AMPDU_MPDU	M_PROTO8		/* ok for A-MPDU aggregation */
-
-/*
- * FreeBSD-HEAD from 1000046 retired M_*FRAG* flags and turned them
- * into header flags instead.  So, we use the new protocol-specific
- * flags.
- *
- * Earlier FreeBSD versions overload M_FRAG, M_FIRSTFRAG and M_LASTFRAG.
- *
- * XXX TODO: rename these fields so there are no namespace clashes!
- */
-#if __FreeBSD_version >= 1000046
 #define	M_FRAG		M_PROTO9		/* frame fragmentation */
 #define	M_FIRSTFRAG	M_PROTO10		/* first frame fragment */
 #define	M_LASTFRAG	M_PROTO11		/* last frame fragment */
-#endif
 
 #define	M_80211_TX \
 	(M_ENCAP|M_EAPOL|M_PWR_SAV|M_MORE_DATA|M_FF|M_TXCB| \
@@ -262,18 +250,10 @@ struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 #endif
 #define	M_80211_RX	(M_AMPDU|M_WEP|M_AMPDU_MPDU)
 
-#if __FreeBSD_version >= 1000046
 #define	IEEE80211_MBUF_TX_FLAG_BITS \
 	M_FLAG_BITS \
 	"\15M_ENCAP\17M_EAPOL\20M_PWR_SAV\21M_MORE_DATA\22M_FF\23M_TXCB" \
 	"\24M_AMPDU_MPDU\25M_FRAG\26M_FIRSTFRAG\27M_LASTFRAG"
-#else
-/* There aren't any flag bits available for versions before this */
-/* XXX TODO: implement M_FLAG_BITS for this! */
-#define	IEEE80211_MBUF_TX_FLAG_BITS \
-	"\15M_ENCAP\17M_EAPOL\20M_PWR_SAV\21M_MORE_DATA\22M_FF\23M_TXCB" \
-	"\24M_AMPDU_MPDU"
-#endif
 
 #define	IEEE80211_MBUF_RX_FLAG_BITS \
 	M_FLAG_BITS \

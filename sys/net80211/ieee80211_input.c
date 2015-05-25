@@ -253,9 +253,7 @@ ieee80211_deliver_data(struct ieee80211vap *vap,
 
 	/* clear driver/net80211 flags before passing up */
 	m->m_flags &= ~(M_MCAST | M_BCAST);
-#if __FreeBSD_version >= 1000046
 	m_clrprotoflags(m);
-#endif
 
 	/* NB: see hostap_deliver_data, this path doesn't handle hostap */
 	KASSERT(vap->iv_opmode != IEEE80211_M_HOSTAP, ("gack, hostap"));

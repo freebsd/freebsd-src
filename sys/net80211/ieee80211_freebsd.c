@@ -66,10 +66,8 @@ SYSCTL_INT(_net_wlan, OID_AUTO, debug, CTLFLAG_RW, &ieee80211_debug,
 
 static MALLOC_DEFINE(M_80211_COM, "80211com", "802.11 com state");
 
-#if __FreeBSD_version >= 1000020
 static const char wlanname[] = "wlan";
 static struct if_clone *wlan_cloner;
-#endif
 
 /*
  * Allocate/free com structure in conjunction with ifnet;
@@ -136,18 +134,10 @@ wlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 		if_printf(ifp, "TDMA not supported\n");
 		return EOPNOTSUPP;
 	}
-#if __FreeBSD_version >= 1000020
 	vap = ic->ic_vap_create(ic, wlanname, unit,
 			cp.icp_opmode, cp.icp_flags, cp.icp_bssid,
 			cp.icp_flags & IEEE80211_CLONE_MACADDR ?
 			    cp.icp_macaddr : (const uint8_t *)IF_LLADDR(ifp));
-#else
-	vap = ic->ic_vap_create(ic, ifc->ifc_name, unit,
-			cp.icp_opmode, cp.icp_flags, cp.icp_bssid,
-			cp.icp_flags & IEEE80211_CLONE_MACADDR ?
-			    cp.icp_macaddr : (const uint8_t *)IF_LLADDR(ifp));
-
-#endif
 
 	return (vap == NULL ? EIO : 0);
 }
@@ -161,19 +151,11 @@ wlan_clone_destroy(struct ifnet *ifp)
 	ic->ic_vap_delete(vap);
 }
 
-#if __FreeBSD_version < 1000020
-IFC_SIMPLE_DECLARE(wlan, 0);
-#endif
-
 void
 ieee80211_vap_destroy(struct ieee80211vap *vap)
 {
 	CURVNET_SET(vap->iv_ifp->if_vnet);
-#if __FreeBSD_version >= 1000020
 	if_clone_destroyif(wlan_cloner, vap->iv_ifp);
-#else
-	if_clone_destroyif(&wlan_cloner, vap->iv_ifp);
-#endif
 	CURVNET_RESTORE();
 }
 
@@ -891,21 +873,13 @@ wlan_modevent(module_t mod, int type, void *unused)
 		    bpf_track, 0, EVENTHANDLER_PRI_ANY);
 		wlan_ifllevent = EVENTHANDLER_REGISTER(iflladdr_event,
 		    wlan_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
-#if __FreeBSD_version >= 1000020
 		wlan_cloner = if_clone_simple(wlanname, wlan_clone_create,
 		    wlan_clone_destroy, 0);
-#else
-		if_clone_attach(&wlan_cloner);
-#endif
 		if_register_com_alloc(IFT_IEEE80211, wlan_alloc, wlan_free);
 		return 0;
 	case MOD_UNLOAD:
 		if_deregister_com_alloc(IFT_IEEE80211);
-#if __FreeBSD_version >= 1000020
 		if_clone_detach(wlan_cloner);
-#else
-		if_clone_detach(&wlan_cloner);
-#endif
 		EVENTHANDLER_DEREGISTER(bpf_track, wlan_bpfevent);
 		EVENTHANDLER_DEREGISTER(iflladdr_event, wlan_ifllevent);
 		return 0;
@@ -914,11 +888,7 @@ wlan_modevent(module_t mod, int type, void *unused)
 }
 
 static moduledata_t wlan_mod = {
-#if __FreeBSD_version >= 1000020
 	wlanname,
-#else
-	"wlan",
-#endif
 	wlan_modevent,
 	0
 };
