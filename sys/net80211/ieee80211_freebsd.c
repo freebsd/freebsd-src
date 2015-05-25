@@ -694,8 +694,9 @@ void
 ieee80211_notify_csa(struct ieee80211com *ic,
 	const struct ieee80211_channel *c, int mode, int count)
 {
-	struct ifnet *ifp = ic->ic_ifp;
 	struct ieee80211_csa_event iev;
+	struct ieee80211vap *vap;
+	struct ifnet *ifp;
 
 	memset(&iev, 0, sizeof(iev));
 	iev.iev_flags = c->ic_flags;
@@ -703,42 +704,53 @@ ieee80211_notify_csa(struct ieee80211com *ic,
 	iev.iev_ieee = c->ic_ieee;
 	iev.iev_mode = mode;
 	iev.iev_count = count;
-	CURVNET_SET(ifp->if_vnet);
-	rt_ieee80211msg(ifp, RTM_IEEE80211_CSA, &iev, sizeof(iev));
-	CURVNET_RESTORE();
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
+		ifp = vap->iv_ifp;
+		CURVNET_SET(ifp->if_vnet);
+		rt_ieee80211msg(ifp, RTM_IEEE80211_CSA, &iev, sizeof(iev));
+		CURVNET_RESTORE();
+	}
 }
 
 void
 ieee80211_notify_radar(struct ieee80211com *ic,
 	const struct ieee80211_channel *c)
 {
-	struct ifnet *ifp = ic->ic_ifp;
 	struct ieee80211_radar_event iev;
+	struct ieee80211vap *vap;
+	struct ifnet *ifp;
 
 	memset(&iev, 0, sizeof(iev));
 	iev.iev_flags = c->ic_flags;
 	iev.iev_freq = c->ic_freq;
 	iev.iev_ieee = c->ic_ieee;
-	CURVNET_SET(ifp->if_vnet);
-	rt_ieee80211msg(ifp, RTM_IEEE80211_RADAR, &iev, sizeof(iev));
-	CURVNET_RESTORE();
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
+		ifp = vap->iv_ifp;
+		CURVNET_SET(ifp->if_vnet);
+		rt_ieee80211msg(ifp, RTM_IEEE80211_RADAR, &iev, sizeof(iev));
+		CURVNET_RESTORE();
+	}
 }
 
 void
 ieee80211_notify_cac(struct ieee80211com *ic,
 	const struct ieee80211_channel *c, enum ieee80211_notify_cac_event type)
 {
-	struct ifnet *ifp = ic->ic_ifp;
 	struct ieee80211_cac_event iev;
+	struct ieee80211vap *vap;
+	struct ifnet *ifp;
 
 	memset(&iev, 0, sizeof(iev));
 	iev.iev_flags = c->ic_flags;
 	iev.iev_freq = c->ic_freq;
 	iev.iev_ieee = c->ic_ieee;
 	iev.iev_type = type;
-	CURVNET_SET(ifp->if_vnet);
-	rt_ieee80211msg(ifp, RTM_IEEE80211_CAC, &iev, sizeof(iev));
-	CURVNET_RESTORE();
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
+		ifp = vap->iv_ifp;
+		CURVNET_SET(ifp->if_vnet);
+		rt_ieee80211msg(ifp, RTM_IEEE80211_CAC, &iev, sizeof(iev));
+		CURVNET_RESTORE();
+	}
 }
 
 void
@@ -782,14 +794,18 @@ ieee80211_notify_country(struct ieee80211vap *vap,
 void
 ieee80211_notify_radio(struct ieee80211com *ic, int state)
 {
-	struct ifnet *ifp = ic->ic_ifp;
 	struct ieee80211_radio_event iev;
+	struct ieee80211vap *vap;
+	struct ifnet *ifp;
 
 	memset(&iev, 0, sizeof(iev));
 	iev.iev_state = state;
-	CURVNET_SET(ifp->if_vnet);
-	rt_ieee80211msg(ifp, RTM_IEEE80211_RADIO, &iev, sizeof(iev));
-	CURVNET_RESTORE();
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
+		ifp = vap->iv_ifp;
+		CURVNET_SET(ifp->if_vnet);
+		rt_ieee80211msg(ifp, RTM_IEEE80211_RADIO, &iev, sizeof(iev));
+		CURVNET_RESTORE();
+	}
 }
 
 void
