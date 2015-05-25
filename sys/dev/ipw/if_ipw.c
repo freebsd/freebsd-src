@@ -752,11 +752,8 @@ ipw_release(struct ipw_softc *sc)
 	}
 
 	if (sc->tbd_dmat != NULL) {
-		if (sc->stbd_list != NULL) {
-			bus_dmamap_unload(sc->tbd_dmat, sc->tbd_map);
-			bus_dmamem_free(sc->tbd_dmat, sc->tbd_list,
-			    sc->tbd_map);
-		}
+		bus_dmamap_unload(sc->tbd_dmat, sc->tbd_map);
+		bus_dmamem_free(sc->tbd_dmat, sc->tbd_list, sc->tbd_map);
 		bus_dma_tag_destroy(sc->tbd_dmat);
 	}
 
