@@ -77,6 +77,8 @@ LIBUBOOT_FDT=	${.OBJDIR}/../../uboot/fdt/libuboot_fdt.a
 LIBFDT=		${.OBJDIR}/../../fdt/libfdt.a
 .endif
 
+CFLAGS+=	-DNETIF_OPEN_CLOSE_ONCE
+
 .if ${MK_FORTH} != "no"
 # Enable BootForth
 BOOT_FORTH=	yes

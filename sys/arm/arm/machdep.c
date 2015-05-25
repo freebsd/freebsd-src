@@ -939,7 +939,6 @@ freebsd_parse_boot_param(struct arm_boot_params *abp)
 	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
 	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
 #endif
-	preload_addr_relocate = KERNVIRTADDR - abp->abp_physaddr;
 	return lastaddr;
 }
 #endif
