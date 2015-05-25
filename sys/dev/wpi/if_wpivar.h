@@ -133,7 +133,9 @@ struct wpi_vap {
 	int			(*wv_newstate)(struct ieee80211vap *,
 				    enum ieee80211_state, int);
 	void			(*wv_recv_mgmt)(struct ieee80211_node *,
-				    struct mbuf *, int, int, int);
+				    struct mbuf *, int,
+				    const struct ieee80211_rx_stats *,
+				    int, int);
 };
 #define	WPI_VAP(vap)	((struct wpi_vap *)(vap))
 

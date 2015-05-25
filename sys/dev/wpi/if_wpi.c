@@ -177,8 +177,9 @@ static int	wpi_add_node_entry_adhoc(struct wpi_softc *);
 static struct ieee80211_node *wpi_node_alloc(struct ieee80211vap *,
 		    const uint8_t mac[IEEE80211_ADDR_LEN]);
 static void	wpi_node_free(struct ieee80211_node *);
-static void	wpi_recv_mgmt(struct ieee80211_node *, struct mbuf *, int, int,
-		    int);
+static void	wpi_recv_mgmt(struct ieee80211_node *, struct mbuf *, int,
+		    const struct ieee80211_rx_stats *,
+		    int, int);
 static void	wpi_restore_node(void *, struct ieee80211_node *);
 static void	wpi_restore_node_table(struct wpi_softc *, struct wpi_vap *);
 static int	wpi_newstate(struct ieee80211vap *, enum ieee80211_state, int);
@@ -1693,15 +1694,16 @@ wpi_check_bss_filter(struct wpi_softc *sc)
 }
 
 static void
-wpi_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m, int subtype, int rssi,
-    int nf)
+wpi_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m, int subtype,
+    const struct ieee80211_rx_stats *rxs,
+    int rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct wpi_softc *sc = vap->iv_ic->ic_ifp->if_softc;
 	struct wpi_vap *wvp = WPI_VAP(vap);
 	uint64_t ni_tstamp, rx_tstamp;
 
-	wvp->wv_recv_mgmt(ni, m, subtype, rssi, nf);
+	wvp->wv_recv_mgmt(ni, m, subtype, rxs, rssi, nf);
 
 	if (vap->iv_opmode == IEEE80211_M_IBSS &&
 	    vap->iv_state == IEEE80211_S_RUN &&
