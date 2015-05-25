@@ -113,9 +113,8 @@ static int
 null_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	const struct ieee80211_bpf_params *params)
 {
-	struct ifnet *ifp = ni->ni_ic->ic_ifp;
 
-	if_printf(ifp, "missing ic_raw_xmit callback, drop frame\n");
+	ic_printf(ni->ni_ic, "missing ic_raw_xmit callback, drop frame\n");
 	m_freem(m);
 	return ENETDOWN;
 }
