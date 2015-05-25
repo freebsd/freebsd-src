@@ -619,6 +619,33 @@ static SDValue performSELECTCombine(SDNode *N, SelectionDAG &DAG,
   return SDValue();
 }
 
+static SDValue performCMovFPCombine(SDNode *N, SelectionDAG &DAG,
+                                    TargetLowering::DAGCombinerInfo &DCI,
+                                    const MipsSubtarget &Subtarget) {
+  if (DCI.isBeforeLegalizeOps())
+    return SDValue();
+
+  SDValue ValueIfTrue = N->getOperand(0), ValueIfFalse = N->getOperand(2);
+
+  ConstantSDNode *FalseC = dyn_cast<ConstantSDNode>(ValueIfFalse);
+  if (!FalseC || FalseC->getZExtValue())
+    return SDValue();
+
+  // Since RHS (False) is 0, we swap the order of the True/False operands
+  // (obviously also inverting the condition) so that we can
+  // take advantage of conditional moves using the $0 register.
+  // Example:
+  //   return (a != 0) ? x : 0;
+  //     load $reg, x
+  //     movz $reg, $0, a
+  unsigned Opc = (N->getOpcode() == MipsISD::CMovFP_T) ? MipsISD::CMovFP_F :
+                                                         MipsISD::CMovFP_T;
+
+  SDValue FCC = N->getOperand(1), Glue = N->getOperand(3);
+  return DAG.getNode(Opc, SDLoc(N), ValueIfFalse.getValueType(),
+                     ValueIfFalse, FCC, ValueIfTrue, Glue);
+}
+
 static SDValue performANDCombine(SDNode *N, SelectionDAG &DAG,
                                  TargetLowering::DAGCombinerInfo &DCI,
                                  const MipsSubtarget &Subtarget) {
@@ -752,6 +779,9 @@ SDValue  MipsTargetLowering::PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI)
     return performDivRemCombine(N, DAG, DCI, Subtarget);
   case ISD::SELECT:
     return performSELECTCombine(N, DAG, DCI, Subtarget);
+  case MipsISD::CMovFP_F:
+  case MipsISD::CMovFP_T:
+    return performCMovFPCombine(N, DAG, DCI, Subtarget);
   case ISD::AND:
     return performANDCombine(N, DAG, DCI, Subtarget);
   case ISD::OR:
@@ -2039,7 +2069,7 @@ SDValue MipsTargetLowering::lowerShiftLeftParts(SDValue Op,
   SDValue Or = DAG.getNode(ISD::OR, DL, VT, ShiftLeftHi, ShiftRightLo);
   SDValue ShiftLeftLo = DAG.getNode(ISD::SHL, DL, VT, Lo, Shamt);
   SDValue Cond = DAG.getNode(ISD::AND, DL, MVT::i32, Shamt,
-                             DAG.getConstant(0x20, MVT::i32));
+                             DAG.getConstant(VT.getSizeInBits(), MVT::i32));
   Lo = DAG.getNode(ISD::SELECT, DL, VT, Cond,
                    DAG.getConstant(0, VT), ShiftLeftLo);
   Hi = DAG.getNode(ISD::SELECT, DL, VT, Cond, ShiftLeftLo, Or);
@@ -2078,11 +2108,12 @@ SDValue MipsTargetLowering::lowerShiftRightParts(SDValue Op, SelectionDAG &DAG,
   SDValue ShiftRightHi = DAG.getNode(IsSRA ? ISD::SRA : ISD::SRL,
                                      DL, VT, Hi, Shamt);
   SDValue Cond = DAG.getNode(ISD::AND, DL, MVT::i32, Shamt,
-                             DAG.getConstant(0x20, MVT::i32));
-  SDValue Shift31 = DAG.getNode(ISD::SRA, DL, VT, Hi, DAG.getConstant(31, VT));
+                             DAG.getConstant(VT.getSizeInBits(), MVT::i32));
+  SDValue Ext = DAG.getNode(ISD::SRA, DL, VT, Hi,
+                            DAG.getConstant(VT.getSizeInBits() - 1, VT));
   Lo = DAG.getNode(ISD::SELECT, DL, VT, Cond, ShiftRightHi, Or);
   Hi = DAG.getNode(ISD::SELECT, DL, VT, Cond,
-                   IsSRA ? Shift31 : DAG.getConstant(0, VT), ShiftRightHi);
+                   IsSRA ? Ext : DAG.getConstant(0, VT), ShiftRightHi);
 
   SDValue Ops[2] = {Lo, Hi};
   return DAG.getMergeValues(Ops, DL);
@@ -2902,13 +2933,16 @@ MipsTargetLowering::LowerFormalArguments(SDValue Chain,
 
   for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
     CCValAssign &VA = ArgLocs[i];
-    std::advance(FuncArg, Ins[i].OrigArgIndex - CurArgIdx);
-    CurArgIdx = Ins[i].OrigArgIndex;
+    if (Ins[i].isOrigArg()) {
+      std::advance(FuncArg, Ins[i].getOrigArgIndex() - CurArgIdx);
+      CurArgIdx = Ins[i].getOrigArgIndex();
+    }
     EVT ValVT = VA.getValVT();
     ISD::ArgFlagsTy Flags = Ins[i].Flags;
     bool IsRegLoc = VA.isRegLoc();
 
     if (Flags.isByVal()) {
+      assert(Ins[i].isOrigArg() && "Byval arguments cannot be implicit");
       unsigned FirstByValReg, LastByValReg;
       unsigned ByValIdx = CCInfo.getInRegsParamsProcessed();
       CCInfo.getInRegsParamInfo(ByValIdx, FirstByValReg, LastByValReg);
@@ -3027,6 +3061,15 @@ MipsTargetLowering::CanLowerReturn(CallingConv::ID CallConv,
   SmallVector<CCValAssign, 16> RVLocs;
   MipsCCState CCInfo(CallConv, IsVarArg, MF, RVLocs, Context);
   return CCInfo.CheckReturn(Outs, RetCC_Mips);
+}
+
+bool
+MipsTargetLowering::shouldSignExtendTypeInLibCall(EVT Type, bool IsSigned) const {
+  if (Subtarget.hasMips3() && Subtarget.abiUsesSoftFloat()) {
+    if (Type == MVT::i32)
+      return true;
+  }
+  return IsSigned;
 }
 
 SDValue
