@@ -3481,9 +3481,7 @@ zfs_unmount_snap(const char *snapname)
 #ifdef illumos
 	(void) dounmount(vfsp, MS_FORCE, kcred);
 #else
-	mtx_lock(&Giant);	/* dounmount() */
 	(void) dounmount(vfsp, MS_FORCE, curthread);
-	mtx_unlock(&Giant);	/* dounmount() */
 #endif
 	return (0);
 }
