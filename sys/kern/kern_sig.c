@@ -2478,6 +2478,8 @@ ptracestop(struct thread *td, int sig)
 
 	td->td_dbgflags |= TDB_XSIG;
 	td->td_xsig = sig;
+	CTR4(KTR_PTRACE, "ptracestop: tid %d (pid %d) flags %#x sig %d",
+	    td->td_tid, p->p_pid, td->td_dbgflags, sig);
 	PROC_SLOCK(p);
 	while ((p->p_flag & P_TRACED) && (td->td_dbgflags & TDB_XSIG)) {
 		if (p->p_flag & P_SINGLE_EXIT) {
