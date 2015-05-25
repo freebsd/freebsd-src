@@ -16,7 +16,7 @@ SUBDIR+= libssp
 SUBDIR+= tests
 .endif
 
-.if ${MK_GDB} != "no"
+.if ${MK_GDB} != "no" || ${MK_NTP} != "no"
 SUBDIR+=	libreadline
 .endif
 
