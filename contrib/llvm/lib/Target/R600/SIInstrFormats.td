@@ -38,6 +38,7 @@ class InstSI <dag outs, dag ins, string asm, list<dag> pattern> :
   field bits<1> DS = 0;
   field bits<1> MIMG = 0;
   field bits<1> FLAT = 0;
+  field bits<1> WQM = 0;
 
   // These need to be kept in sync with the enum in SIInstrFlags.
   let TSFlags{0} = VM_CNT;
@@ -64,6 +65,7 @@ class InstSI <dag outs, dag ins, string asm, list<dag> pattern> :
   let TSFlags{17} = DS;
   let TSFlags{18} = MIMG;
   let TSFlags{19} = FLAT;
+  let TSFlags{20} = WQM;
 
   // Most instructions require adjustments after selection to satisfy
   // operand requirements.
@@ -295,16 +297,30 @@ class VOP1e <bits<8> op> : Enc32 {
 }
 
 class VOP2e <bits<6> op> : Enc32 {
+  bits<8> vdst;
+  bits<9> src0;
+  bits<8> src1;
 
-  bits<8> VDST;
-  bits<9> SRC0;
-  bits<8> VSRC1;
-
-  let Inst{8-0} = SRC0;
-  let Inst{16-9} = VSRC1;
-  let Inst{24-17} = VDST;
+  let Inst{8-0} = src0;
+  let Inst{16-9} = src1;
+  let Inst{24-17} = vdst;
   let Inst{30-25} = op;
   let Inst{31} = 0x0; //encoding
+}
+
+class VOP2_MADKe <bits<6> op> : Enc64 {
+
+  bits<8>  vdst;
+  bits<9>  src0;
+  bits<8>  vsrc1;
+  bits<32> src2;
+
+  let Inst{8-0} = src0;
+  let Inst{16-9} = vsrc1;
+  let Inst{24-17} = vdst;
+  let Inst{30-25} = op;
+  let Inst{31} = 0x0; // encoding
+  let Inst{63-32} = src2;
 }
 
 class VOP3e <bits<9> op> : Enc64 {
@@ -554,9 +570,6 @@ class VOP1 <bits<8> op, dag outs, dag ins, string asm, list<dag> pattern> :
 class VOP2 <bits<6> op, dag outs, dag ins, string asm, list<dag> pattern> :
     VOP2Common <outs, ins, asm, pattern>, VOP2e<op>;
 
-class VOP3b <bits<9> op, dag outs, dag ins, string asm, list<dag> pattern> :
-    VOP3Common <outs, ins, asm, pattern>, VOP3be<op>;
-
 class VOPC <bits<8> op, dag ins, string asm, list<dag> pattern> :
     VOPCCommon <ins, asm, pattern>, VOPCe <op>;
 
@@ -584,9 +597,6 @@ class DS <dag outs, dag ins, string asm, list<dag> pattern> :
   let DisableEncoding = "$m0";
   let SchedRW = [WriteLDS];
 }
-
-class DS_si <bits<8> op, dag outs, dag ins, string asm, list<dag> pattern> :
-    DS <outs, ins, asm, pattern>, DSe<op>;
 
 class MUBUF <dag outs, dag ins, string asm, list<dag> pattern> :
     InstSI<outs, ins, asm, pattern> {

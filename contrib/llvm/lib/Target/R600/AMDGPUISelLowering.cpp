@@ -141,9 +141,6 @@ AMDGPUTargetLowering::AMDGPUTargetLowering(TargetMachine &TM) :
   setOperationAction(ISD::STORE, MVT::v2f32, Promote);
   AddPromotedToType(ISD::STORE, MVT::v2f32, MVT::v2i32);
 
-  setOperationAction(ISD::STORE, MVT::i64, Promote);
-  AddPromotedToType(ISD::STORE, MVT::i64, MVT::v2i32);
-
   setOperationAction(ISD::STORE, MVT::v4f32, Promote);
   AddPromotedToType(ISD::STORE, MVT::v4f32, MVT::v4i32);
 
@@ -162,9 +159,6 @@ AMDGPUTargetLowering::AMDGPUTargetLowering(TargetMachine &TM) :
   // Custom lowering of vector stores is required for local address space
   // stores.
   setOperationAction(ISD::STORE, MVT::v4i32, Custom);
-  // XXX: Native v2i32 local address space stores are possible, but not
-  // currently implemented.
-  setOperationAction(ISD::STORE, MVT::v2i32, Custom);
 
   setTruncStoreAction(MVT::v2i32, MVT::v2i16, Custom);
   setTruncStoreAction(MVT::v2i32, MVT::v2i8, Custom);
@@ -832,11 +826,9 @@ SDValue AMDGPUTargetLowering::LowerGlobalAddress(AMDGPUMachineFunction* MFI,
 SDValue AMDGPUTargetLowering::LowerCONCAT_VECTORS(SDValue Op,
                                                   SelectionDAG &DAG) const {
   SmallVector<SDValue, 8> Args;
-  SDValue A = Op.getOperand(0);
-  SDValue B = Op.getOperand(1);
 
-  DAG.ExtractVectorElements(A, Args);
-  DAG.ExtractVectorElements(B, Args);
+  for (const SDUse &U : Op->ops())
+    DAG.ExtractVectorElements(U.get(), Args);
 
   return DAG.getNode(ISD::BUILD_VECTOR, SDLoc(Op), Op.getValueType(), Args);
 }
@@ -881,9 +873,6 @@ SDValue AMDGPUTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
       return LowerIntrinsicIABS(Op, DAG);
     case AMDGPUIntrinsic::AMDGPU_lrp:
       return LowerIntrinsicLRP(Op, DAG);
-    case AMDGPUIntrinsic::AMDGPU_fract:
-    case AMDGPUIntrinsic::AMDIL_fraction: // Legacy name.
-      return DAG.getNode(AMDGPUISD::FRACT, DL, VT, Op.getOperand(1));
 
     case AMDGPUIntrinsic::AMDGPU_clamp:
     case AMDGPUIntrinsic::AMDIL_clamp: // Legacy name.
@@ -913,10 +902,9 @@ SDValue AMDGPUTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
     }
 
     case Intrinsic::AMDGPU_div_fmas:
-      // FIXME: Dropping bool parameter. Work is needed to support the implicit
-      // read from VCC.
       return DAG.getNode(AMDGPUISD::DIV_FMAS, DL, VT,
-                         Op.getOperand(1), Op.getOperand(2), Op.getOperand(3));
+                         Op.getOperand(1), Op.getOperand(2), Op.getOperand(3),
+                         Op.getOperand(4));
 
     case Intrinsic::AMDGPU_div_fixup:
       return DAG.getNode(AMDGPUISD::DIV_FIXUP, DL, VT,

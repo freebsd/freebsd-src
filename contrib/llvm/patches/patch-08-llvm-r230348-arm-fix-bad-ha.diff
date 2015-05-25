@@ -67,7 +67,7 @@ Index: lib/CodeGen/SelectionDAG/SelectionDAGBuilder.cpp
      }
    }
  
-@@ -7696,11 +7696,8 @@ void SelectionDAGISel::LowerArguments(const Functi
+@@ -7697,11 +7697,8 @@ void SelectionDAGISel::LowerArguments(const Functi
        }
        if (F.getAttributes().hasAttribute(Idx, Attribute::Nest))
          Flags.setNest();
@@ -80,7 +80,7 @@ Index: lib/CodeGen/SelectionDAG/SelectionDAGBuilder.cpp
        Flags.setOrigAlign(OriginalAlignment);
  
        MVT RegisterVT = TLI->getRegisterType(*CurDAG->getContext(), VT);
-@@ -7715,6 +7712,8 @@ void SelectionDAGISel::LowerArguments(const Functi
+@@ -7716,6 +7713,8 @@ void SelectionDAGISel::LowerArguments(const Functi
            MyFlags.Flags.setOrigAlign(1);
          Ins.push_back(MyFlags);
        }
@@ -287,7 +287,7 @@ Index: lib/Target/ARM/ARMISelLowering.cpp
 ===================================================================
 --- lib/Target/ARM/ARMISelLowering.cpp
 +++ lib/Target/ARM/ARMISelLowering.cpp
-@@ -11280,7 +11280,9 @@ static bool isHomogeneousAggregate(Type *Ty, HABas
+@@ -11285,7 +11285,9 @@ static bool isHomogeneousAggregate(Type *Ty, HABas
    return (Members > 0 && Members <= 4);
  }
  
@@ -298,7 +298,7 @@ Index: lib/Target/ARM/ARMISelLowering.cpp
  bool ARMTargetLowering::functionArgumentNeedsConsecutiveRegisters(
      Type *Ty, CallingConv::ID CallConv, bool isVarArg) const {
    if (getEffectiveCallingConv(CallConv, isVarArg) !=
-@@ -11289,7 +11291,9 @@ bool ARMTargetLowering::functionArgumentNeedsConse
+@@ -11294,7 +11296,9 @@ bool ARMTargetLowering::functionArgumentNeedsConse
  
    HABaseType Base = HA_UNKNOWN;
    uint64_t Members = 0;

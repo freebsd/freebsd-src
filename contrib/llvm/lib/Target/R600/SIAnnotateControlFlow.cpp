@@ -83,7 +83,7 @@ class SIAnnotateControlFlow : public FunctionPass {
 
   void insertElse(BranchInst *Term);
 
-  Value *handleLoopCondition(Value *Cond, PHINode *Broken);
+  Value *handleLoopCondition(Value *Cond, PHINode *Broken, llvm::Loop *L);
 
   void handleLoop(BranchInst *Term);
 
@@ -207,8 +207,17 @@ void SIAnnotateControlFlow::insertElse(BranchInst *Term) {
 }
 
 /// \brief Recursively handle the condition leading to a loop
-Value *SIAnnotateControlFlow::handleLoopCondition(Value *Cond, PHINode *Broken) {
-  if (PHINode *Phi = dyn_cast<PHINode>(Cond)) {
+Value *SIAnnotateControlFlow::handleLoopCondition(Value *Cond, PHINode *Broken,
+                                                  llvm::Loop *L) {
+
+  // Only search through PHI nodes which are inside the loop.  If we try this
+  // with PHI nodes that are outside of the loop, we end up inserting new PHI
+  // nodes outside of the loop which depend on values defined inside the loop.
+  // This will break the module with
+  // 'Instruction does not dominate all users!' errors.
+  PHINode *Phi = nullptr;
+  if ((Phi = dyn_cast<PHINode>(Cond)) && L->contains(Phi)) {
+
     BasicBlock *Parent = Phi->getParent();
     PHINode *NewPhi = PHINode::Create(Int64, 0, "", &Parent->front());
     Value *Ret = NewPhi;
@@ -223,7 +232,7 @@ Value *SIAnnotateControlFlow::handleLoopCondition(Value *Cond, PHINode *Broken) 
       }
 
       Phi->setIncomingValue(i, BoolFalse);
-      Value *PhiArg = handleLoopCondition(Incoming, Broken);
+      Value *PhiArg = handleLoopCondition(Incoming, Broken, L);
       NewPhi->addIncoming(PhiArg, From);
     }
 
@@ -253,7 +262,12 @@ Value *SIAnnotateControlFlow::handleLoopCondition(Value *Cond, PHINode *Broken) 
 
   } else if (Instruction *Inst = dyn_cast<Instruction>(Cond)) {
     BasicBlock *Parent = Inst->getParent();
-    TerminatorInst *Insert = Parent->getTerminator();
+    Instruction *Insert;
+    if (L->contains(Inst)) {
+      Insert = Parent->getTerminator();
+    } else {
+      Insert = L->getHeader()->getFirstNonPHIOrDbgOrLifetime();
+    }
     Value *Args[] = { Cond, Broken };
     return CallInst::Create(IfBreak, Args, "", Insert);
 
@@ -265,14 +279,15 @@ Value *SIAnnotateControlFlow::handleLoopCondition(Value *Cond, PHINode *Broken) 
 
 /// \brief Handle a back edge (loop)
 void SIAnnotateControlFlow::handleLoop(BranchInst *Term) {
+  BasicBlock *BB = Term->getParent();
+  llvm::Loop *L = LI->getLoopFor(BB);
   BasicBlock *Target = Term->getSuccessor(1);
   PHINode *Broken = PHINode::Create(Int64, 0, "", &Target->front());
 
   Value *Cond = Term->getCondition();
   Term->setCondition(BoolTrue);
-  Value *Arg = handleLoopCondition(Cond, Broken);
+  Value *Arg = handleLoopCondition(Cond, Broken, L);
 
-  BasicBlock *BB = Term->getParent();
   for (pred_iterator PI = pred_begin(Target), PE = pred_end(Target);
        PI != PE; ++PI) {
 
