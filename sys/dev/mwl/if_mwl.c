@@ -413,6 +413,7 @@ mwl_attach(uint16_t devid, struct mwl_softc *sc)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;
+	ic->ic_softc = sc;
 	ic->ic_name = device_get_nameunit(sc->sc_dev);
 	/* XXX not right but it's not used anywhere important */
 	ic->ic_phytype = IEEE80211_T_OFDM;
