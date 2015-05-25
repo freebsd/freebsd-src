@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150525:
+	Clang and llvm have been upgraded to 3.6.1 release.  Please see the
+	20141231 entry below for information about prerequisites and upgrading,
+	if you are not already using 3.5.0 or higher.
+
 20150521:
 	TI platform code switched to using vendor DTS files and this update
 	may break existing systems running on Beaglebone, Beaglebone Black,
