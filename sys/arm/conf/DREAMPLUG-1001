@@ -53,7 +53,6 @@ options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 
 # Debugging for use in -current
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-options 	BREAK_TO_DEBUGGER
 options 	ALT_BREAK_TO_DEBUGGER
 options 	KDB			# Enable kernel debugger support
 options 	DDB			# Enable the kernel debugger
