@@ -1950,7 +1950,7 @@ ieee80211_add_countryie(uint8_t *frm, struct ieee80211com *ic)
 		 * re-calculation.
 		 */
 		if (ic->ic_countryie != NULL)
-			free(ic->ic_countryie, M_80211_NODE_IE);
+			IEEE80211_FREE(ic->ic_countryie, M_80211_NODE_IE);
 		ic->ic_countryie = ieee80211_alloc_countryie(ic);
 		if (ic->ic_countryie == NULL)
 			return frm;
