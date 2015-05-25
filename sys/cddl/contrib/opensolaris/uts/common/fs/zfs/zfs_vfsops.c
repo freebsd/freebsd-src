@@ -1224,9 +1224,6 @@ zfs_domount(vfs_t *vfsp, char *osname)
 	}
 
 	vfs_mountedfrom(vfsp, osname);
-	/* Grab extra reference. */
-	VERIFY(VFS_ROOT(vfsp, LK_EXCLUSIVE, &vp) == 0);
-	VOP_UNLOCK(vp, 0);
 
 	if (!zfsvfs->z_issnap)
 		zfsctl_create(zfsvfs);
@@ -1804,7 +1801,7 @@ zfs_root(vfs_t *vfsp, int flags, vnode_t **vpp)
 	znode_t *rootzp;
 	int error;
 
-	ZFS_ENTER_NOERROR(zfsvfs);
+	ZFS_ENTER(zfsvfs);
 
 	error = zfs_zget(zfsvfs, zfsvfs->z_root, &rootzp);
 	if (error == 0)
@@ -1979,7 +1976,7 @@ zfs_umount(vfs_t *vfsp, int fflag)
 	/*
 	 * Flush all the files.
 	 */
-	ret = vflush(vfsp, 1, (fflag & MS_FORCE) ? FORCECLOSE : 0, td);
+	ret = vflush(vfsp, 0, (fflag & MS_FORCE) ? FORCECLOSE : 0, td);
 	if (ret != 0) {
 		if (!zfsvfs->z_issnap) {
 			zfsctl_create(zfsvfs);
