@@ -21,10 +21,12 @@ CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include \
 	-I${.CURDIR}/../../../contrib/ntp/sntp/libopts \
 	-I${.CURDIR}/../
 
-LIBADD+=	edit md ntp opts m pthread
+LIBADD+=	edit ntp opts m pthread
 
 .if ${MK_OPENSSL} != "no"
-LIBADD+=	ssl crypto
+LIBADD+=	crypto
+.else
+LIBADD+=	md
 .endif
 
 CFLAGS+=	-DHAVE_LIBEDIT -DHAVE_READLINE_READLINE_H \

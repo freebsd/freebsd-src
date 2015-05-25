@@ -9,7 +9,7 @@
 /* #undef ADJTIME_IS_ACCURATE */
 
 /* Support NTP Autokey protocol? */
-#define AUTOKEY 1
+/* #define AUTOKEY 1 */
 
 /* why not HAVE_P_S? */
 /* #undef CALL_PTHREAD_SETCONCURRENCY */
@@ -1578,7 +1578,7 @@ typedef unsigned int	uintptr_t;
 #define USE_FSETOWNCTTY 1
 
 /* Use OpenSSL's crypto random functions */
-#define USE_OPENSSL_CRYPTO_RAND 1
+/* #define USE_OPENSSL_CRYPTO_RAND 1 */
 
 /* OK to use snprintb()? */
 /* #undef USE_SNPRINTB */
