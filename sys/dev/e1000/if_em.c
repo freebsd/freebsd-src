@@ -1620,6 +1620,9 @@ em_msix_link(void *arg)
 	++adapter->link_irq;
 	reg_icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
 
+	if (reg_icr & E1000_ICR_RXO)
+		adapter->rx_overruns++;
+
 	if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
 		adapter->hw.mac.get_link_status = 1;
 		em_handle_link(adapter, 0);
