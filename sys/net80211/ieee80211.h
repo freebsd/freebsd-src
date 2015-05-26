@@ -816,7 +816,7 @@ struct ieee80211_csa_ie {
 #define	IEEE80211_RATE_BASIC		0x80
 #define	IEEE80211_RATE_VAL		0x7f
 
-/* EPR information element flags */
+/* ERP information element flags */
 #define	IEEE80211_ERP_NON_ERP_PRESENT	0x01
 #define	IEEE80211_ERP_USE_PROTECTION	0x02
 #define	IEEE80211_ERP_LONG_PREAMBLE	0x04
