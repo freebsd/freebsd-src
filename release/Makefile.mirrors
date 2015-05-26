@@ -30,24 +30,26 @@ EMBEDDED=		1
 .if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT"
 SNAPSHOT=		1
 TLD?=			${FTPDIR}/snapshots
-. for _D in /usr/bin /usr/local/bin
-.  for _S in svnversion svnliteversion
-.   if exists(${_D}/${_S})
+. if !defined(SVNREVISION) || empty(SVNREVISION)
+.  for _D in /usr/bin /usr/local/bin
+.   for _S in svnversion svnliteversion
+.    if exists(${_D}/${_S})
 SVNVERSION?=		${_D}/${_S}
-.   endif
+.    endif
+.   endfor
 .  endfor
-. endfor
-. if exists(${.CURDIR}/${.OBJDIR}/dist/base/bin/sh)
-BUILDDATE!=		cd ${.CURDIR} && date -j -f '%s' $$(stat -f "%c" ${.OBJDIR}/dist/base/bin/sh) +%Y%m%d
-. else
-BUILDDATE!=		date +%Y%m%d
-. endif
-. if exists(${SVNVERSION}) && !empty(SVNVERSION)
+.  if exists(${SVNVERSION}) && !empty(SVNVERSION)
 SVNREVISION!=		${SVNVERSION} ${WORLDDIR}/Makefile
-_SNAP_SUFFIX:=		-r${SVNREVISION}-${BUILDDATE}
-. else
-_SNAP_SUFFIX:=		-${BUILDDATE}
+.  endif
+. endif # !defined(SVNERVISION)
+. if !defined(BUILDDATE) || empty(BUILDDATE)
+.  if exists(${.CURDIR}/${.OBJDIR}/dist/base/bin/sh)
+BUILDDATE!=		cd ${.CURDIR} && date -j -f '%s' $$(stat -f "%c" ${.OBJDIR}/dist/base/bin/sh) +%Y%m%d
+.  else
+BUILDDATE!=		date +%Y%m%d
+.  endif
 . endif
+_SNAP_SUFFIX:=		-r${SVNREVISION}-${BUILDDATE}
 .else
 # release
 SNAPSHOT=
