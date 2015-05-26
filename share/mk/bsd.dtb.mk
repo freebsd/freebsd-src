@@ -12,4 +12,6 @@ SYSDIR=	${_dir}
 .error Unable to locate the kernel source tree. Set SYSDIR to override.
 .endif
 
-.include "${SYSDIR}/conf/kmod.mk"
+.include "${SYSDIR}/conf/dtb.mk"
+
+.include <bsd.sys.mk>

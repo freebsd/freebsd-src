@@ -23,7 +23,7 @@ all: buildincludes
 ${group}OWN?=	${BINOWN}
 ${group}GRP?=	${BINGRP}
 ${group}MODE?=	${NOBINMODE}
-${group}DIR?=	${INCLUDEDIR}
+${group}DIR?=	${INCLUDEDIR}${PRIVATELIB:D/private/${LIB}}
 STAGE_SETS+=	${group}
 STAGE_DIR.${group}= ${STAGE_OBJTOP}${${group}DIR}
 STAGE_SYMLINKS_DIR.${group}= ${STAGE_OBJTOP}

@@ -4,6 +4,14 @@
 
 .include <bsd.init.mk>
 
+.if defined(LIB_CXX)
+LIB=	${LIB_CXX}
+_LD=	${CXX}
+.else
+_LD=	${CC}
+.endif
+
+LIB_PRIVATE=	${PRIVATELIB:Dprivate}
 # Set up the variables controlling shared libraries.  After this section,
 # SHLIB_NAME will be defined only if we are to create a shared library.
 # SHLIB_LINK will be defined only if we are to create a link to it.
@@ -16,7 +24,7 @@
 SHLIB=		${LIB}
 .endif
 .if !defined(SHLIB_NAME) && defined(SHLIB) && defined(SHLIB_MAJOR)
-SHLIB_NAME=	lib${SHLIB}.so.${SHLIB_MAJOR}
+SHLIB_NAME=	lib${LIB_PRIVATE}${SHLIB}.so.${SHLIB_MAJOR}
 .endif
 .if defined(SHLIB_NAME) && !empty(SHLIB_NAME:M*.so.*)
 SHLIB_LINK?=	${SHLIB_NAME:R}
@@ -123,13 +131,8 @@ all: beforebuild .WAIT
 beforebuild: objwarn
 .endif
 
-.if defined(PRIVATELIB)
-_LIBDIR:=${LIBPRIVATEDIR}
-_SHLIBDIR:=${LIBPRIVATEDIR}
-.else
 _LIBDIR:=${LIBDIR}
 _SHLIBDIR:=${SHLIBDIR}
-.endif
 
 .if defined(SHLIB_NAME)
 .if ${MK_DEBUG_FILES} != "no"
@@ -157,44 +160,32 @@ ${SHLIB_NAME_FULL}:	${VERSION_MAP}
 LDFLAGS+=	-Wl,--version-script=${VERSION_MAP}
 .endif
 
-.if defined(USEPRIVATELIB)
-LDFLAGS+= -rpath ${LIBPRIVATEDIR}
-.endif
-
 .if defined(LIB) && !empty(LIB) || defined(SHLIB_NAME)
 OBJS+=		${SRCS:N*.h:R:S/$/.o/}
 NOPATH_FILES+=	${OBJS}
 .endif
 
 .if defined(LIB) && !empty(LIB)
-_LIBS=		lib${LIB}.a
+_LIBS=		lib${LIB_PRIVATE}${LIB}.a
 
-lib${LIB}.a: ${OBJS} ${STATICOBJS}
+lib${LIB_PRIVATE}${LIB}.a: ${OBJS} ${STATICOBJS}
 	@${ECHO} building static ${LIB} library
 	@rm -f ${.TARGET}
-.if !defined(NM)
-	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
-.else
 	@${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
-.endif
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
 .if !defined(INTERNALLIB)
 
 .if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
-_LIBS+=		lib${LIB}_p.a
+_LIBS+=		lib${LIB_PRIVATE}${LIB}_p.a
 POBJS+=		${OBJS:.o=.po} ${STATICOBJS:.o=.po}
 NOPATH_FILES+=	${POBJS}
 
-lib${LIB}_p.a: ${POBJS}
+lib${LIB_PRIVATE}${LIB}_p.a: ${POBJS}
 	@${ECHO} building profiled ${LIB} library
 	@rm -f ${.TARGET}
-.if !defined(NM)
-	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${POBJS} | tsort -q` ${ARADD}
-.else
 	@${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${POBJS} | tsort -q` ${ARADD}
-.endif
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
@@ -209,7 +200,12 @@ _LIBS+=		${SHLIB_NAME}
 
 SOLINKOPTS=	-shared -Wl,-x
 .if !defined(ALLOW_SHARED_TEXTREL)
-SOLINKOPTS+=	-Wl,--fatal-warnings -Wl,--warn-shared-textrel
+.if defined(LD_FATAL_WARNINGS) && ${LD_FATAL_WARNINGS} == "no"
+SOLINKOPTS+=	-Wl,--no-fatal-warnings
+.else
+SOLINKOPTS+=	-Wl,--fatal-warnings
+.endif
+SOLINKOPTS+=	-Wl,--warn-shared-textrel
 .endif
 
 .if target(beforelinking)
@@ -252,15 +248,9 @@ ${SHLIB_NAME_FULL}: ${SOBJS}
 .if defined(SHLIB_LINK) && !commands(${SHLIB_LINK:R}.ld)
 	@${INSTALL_SYMLINK} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
-.if !defined(NM)
-	@${CC} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
-	    -o ${.TARGET} -Wl,-soname,${SONAME} \
-	    `lorder ${SOBJS} | tsort -q` ${LDADD}
-.else
-	@${CC} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
+	${_LD} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
 	    `NM='${NM}' lorder ${SOBJS} | tsort -q` ${LDADD}
-.endif
 .if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS}
 .endif
@@ -277,9 +267,9 @@ ${SHLIB_NAME}.debug: ${SHLIB_NAME_FULL}
 .endif #defined(SHLIB_NAME)
 
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
-_LIBS+=		lib${LIB}_pic.a
+_LIBS+=		lib${LIB_PRIVATE}${LIB}_pic.a
 
-lib${LIB}_pic.a: ${SOBJS}
+lib${LIB_PRIVATE}${LIB}_pic.a: ${SOBJS}
 	@${ECHO} building special pic ${LIB} library
 	@rm -f ${.TARGET}
 	@${AR} ${ARFLAGS} ${.TARGET} ${SOBJS} ${ARADD}
@@ -317,7 +307,7 @@ _EXTRADEPEND:
 	mv $$TMP ${DEPENDFILE}
 .if !defined(NO_EXTRADEPEND) && defined(SHLIB_NAME)
 .if defined(DPADD) && !empty(DPADD)
-	echo ${SHLIB_NAME}: ${DPADD} >> ${DEPENDFILE}
+	echo ${SHLIB_NAME_FULL}: ${DPADD} >> ${DEPENDFILE}
 .endif
 .endif
 
@@ -343,13 +333,13 @@ _SHLINSTALLFLAGS:=	${_SHLINSTALLFLAGS${ie}}
 realinstall: _libinstall
 .ORDER: beforeinstall _libinstall
 _libinstall:
-.if defined(LIB) && !empty(LIB) && ${MK_INSTALLLIB} != "no" && !defined(PRIVATELIB)
+.if defined(LIB) && !empty(LIB) && ${MK_INSTALLLIB} != "no"
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${_LIBDIR}
+	    ${_INSTALLFLAGS} lib${LIB_PRIVATE}${LIB}.a ${DESTDIR}${_LIBDIR}
 .endif
-.if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB) && !defined(PRIVATELIB)
+.if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} lib${LIB}_p.a ${DESTDIR}${_LIBDIR}
+	    ${_INSTALLFLAGS} lib${LIB_PRIVATE}${LIB}_p.a ${DESTDIR}${_LIBDIR}
 .endif
 .if defined(SHLIB_NAME)
 	${INSTALL} ${STRIP} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
@@ -363,7 +353,7 @@ _libinstall:
 	    ${_INSTALLFLAGS} \
 	    ${SHLIB_NAME}.debug ${DESTDIR}${DEBUGFILEDIR}
 .endif
-.if defined(SHLIB_LINK) && !defined(PRIVATELIB)
+.if defined(SHLIB_LINK)
 .if commands(${SHLIB_LINK:R}.ld)
 	${INSTALL} -S -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${SHLIB_LINK:R}.ld \
@@ -382,7 +372,7 @@ _libinstall:
 .endif # SHLIB_LDSCRIPT
 .endif # SHLIB_LINK
 .endif # SHIB_NAME
-.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no" && !defined(PRIVATELIB)
+.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${_LIBDIR}
 .endif

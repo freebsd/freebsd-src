@@ -35,7 +35,7 @@ __<bsd.subdir.mk>__:
 .include <bsd.init.mk>
 
 .if defined(.PARSEDIR) && !defined(NEED_SUBDIR)
-.if ${.MAKE.LEVEL} == 0 && ${.MAKE.MODE:Mmeta*} != "" && !empty(SUBDIR) && !(make(clean*) || make(destroy*))
+.if ${.MAKE.LEVEL} == 0 && ${MK_META_MODE} == "yes" && !empty(SUBDIR) && !(make(clean*) || make(destroy*))
 .include <meta.subdir.mk>
 # ignore this
 _SUBDIR:
