@@ -16,7 +16,9 @@
 
 RELEASEDIR?=		/R
 FTPDIR?=		${RELEASEDIR}/ftp-stage
+.if exists(${RELEASEDIR})
 STAGE_TARGETS?=		iso-images-stage
+.endif
 
 .if (defined(EMBEDDED_TARGET) && !empty(EMBEDDED_TARGET)) || (defined(EMBEDDEDBUILD) && !empty(EMBEDDEDBUILD))
 . if ${TARGET} == "arm" || ${EMBEDDED_TARGET} == "arm"
