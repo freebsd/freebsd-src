@@ -85,8 +85,6 @@ remove-old-bits:
 iso-images-stage:
 	mkdir -p ${ISO_DIR}
 	mkdir -p ${TLD}/ISO-IMAGES/${REVISION}
-.if exists(${RELEASEDIR})
-	@# Assume we have images to copy.
 . if defined(SNAPSHOT) && !empty(SNAPSHOT)
 	cd ${RELEASEDIR} && rm -f CHECKSUM.*
 .  for IMAGE in ${IMAGES}
@@ -206,7 +204,6 @@ iso-images-stage:
 		ln -s ${TARGET_ARCH}/${REVISION}-${BRANCH} \
 			${REVISION}-${BRANCH}
 . endif
-.endif # no RELEASEDIR
 
 vm-images-stage:
 	mkdir -p ${VM_DIR}
