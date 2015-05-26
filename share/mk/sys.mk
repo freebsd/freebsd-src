@@ -62,12 +62,18 @@ CFLAGS		+=	-fno-strict-aliasing
 .endif
 PO_CFLAGS	?=	${CFLAGS}
 
+# cp(1) is used to copy source files to ${.OBJDIR}, make sure it can handle
+# read-only files as non-root by passing -f.
+CP		?=	cp -f
+
+CPP		?=	cpp
+
 # C Type Format data is required for DTrace
 CTFFLAGS	?=	-L VERSION
 
 CTFCONVERT	?=	ctfconvert
 CTFMERGE	?=	ctfmerge
-DTRACE		?=	dtrace
+
 .if defined(CFLAGS) && (${CFLAGS:M-g} != "")
 CTFFLAGS	+=	-g
 .endif
@@ -76,7 +82,8 @@ CXX		?=	c++
 CXXFLAGS	?=	${CFLAGS:N-std=*:N-Wnested-externs:N-W*-prototypes:N-Wno-pointer-sign:N-Wold-style-definition}
 PO_CXXFLAGS	?=	${CXXFLAGS}
 
-CPP		?=	cpp
+DTRACE		?=	dtrace
+DTRACEFLAGS	?=	-C -x nolibs
 
 .if empty(.MAKEFLAGS:M-s)
 ECHO		?=	echo
@@ -237,21 +244,21 @@ YFLAGS		?=	-d
 	${CTFCONVERT_CMD}
 
 .c.o:
-	${CC} ${CFLAGS} -c ${.IMPSRC}
+	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .cc .cpp .cxx .C:
 	${CXX} ${CXXFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
 
 .cc.o .cpp.o .cxx.o .C.o:
-	${CXX} ${CXXFLAGS} -c ${.IMPSRC}
+	${CXX} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .m.o:
-	${OBJC} ${OBJCFLAGS} -c ${.IMPSRC}
+	${OBJC} ${OBJCFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .p.o:
-	${PC} ${PFLAGS} -c ${.IMPSRC}
+	${PC} ${PFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .e .r .F .f:
@@ -259,14 +266,15 @@ YFLAGS		?=	-d
 	    -o ${.TARGET}
 
 .e.o .r.o .F.o .f.o:
-	${FC} ${RFLAGS} ${EFLAGS} ${FFLAGS} -c ${.IMPSRC}
+	${FC} ${RFLAGS} ${EFLAGS} ${FFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .S.o:
-	${CC} ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC}
+	${CC} ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .asm.o:
-	${CC} -x assembler-with-cpp ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC}
+	${CC} -x assembler-with-cpp ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} \
+	    -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .s.o:
@@ -317,6 +325,21 @@ YFLAGS		?=	-d
 	rm -f ${.PREFIX}.tmp.c
 	${CTFCONVERT_CMD}
 
+
+# Some options we need now
+__DEFAULT_NO_OPTIONS= \
+	DIRDEPS_CACHE \
+	META_MODE \
+	META_FILES \
+
+
+__DEFAULT_DEPENDENT_OPTIONS= \
+	AUTO_OBJ/META_MODE \
+	STAGING/META_MODE \
+	SYSROOT/META_MODE
+
+.include <bsd.mkopt.mk>
+
 # Set any local definitions first. Place this early, but it needs
 # MACHINE_CPUARCH to be defined.
 .sinclude <local.sys.mk>
@@ -331,25 +354,14 @@ __MAKE_CONF?=/etc/make.conf
 # inside the source tree. Needs to be after make.conf
 .sinclude <src.sys.mk>
 
-# Some options we need now
-__DEFAULT_NO_OPTIONS+= \
-	AUTO_OBJ \
-	META_MODE \
-	META_FILES \
-	STAGING
-
-.include <bsd.mkopt.mk>
-
+.if ${MK_META_MODE} == "yes"
+.sinclude <meta.sys.mk>
+.elif ${MK_META_FILES} == "yes" && ${.MAKEFLAGS:U:M-B} == ""
+.MAKE.MODE= meta verbose
+.endif
 .if ${MK_AUTO_OBJ} == "yes"
 # This needs to be done early - before .PATH is computed
 .sinclude <auto.obj.mk>
-.endif
-.if ${MK_META_MODE} == "yes"
-.sinclude <meta.sys.mk>
-.elif ${MK_META_FILES} == "yes"
-.MAKE.MODE= meta verbose
-.else
-MK_STAGING= no
 .endif
 
 .if defined(__MAKE_SHELL) && !empty(__MAKE_SHELL)
