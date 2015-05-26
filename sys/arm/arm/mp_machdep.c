@@ -185,8 +185,11 @@ init_secondary(int cpu)
 	atomic_add_rel_32(&mp_naps, 1);
 
 	/* Spin until the BSP releases the APs */
-	while (!aps_ready)
-		;
+	while (!atomic_load_acq_int(&aps_ready)) {
+#if __ARM_ARCH >= 7
+		__asm __volatile("wfe");
+#endif
+	}
 
 	/* Initialize curthread */
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
@@ -219,7 +222,7 @@ init_secondary(int cpu)
 	end = IPI_IRQ_START;
 #endif
 #endif
-				
+
 	for (int i = start; i <= end; i++)
 		arm_unmask_irq(i);
 	enable_interrupts(PSR_I);
@@ -341,7 +344,7 @@ release_aps(void *dummy __unused)
 		/*
 		 * IPI handler
 		 */
-		/* 
+		/*
 		 * Use 0xdeadbeef as the argument value for irq 0,
 		 * if we used 0, the intr code will give the trap frame
 		 * pointer instead.
@@ -353,6 +356,10 @@ release_aps(void *dummy __unused)
 		arm_unmask_irq(i);
 	}
 	atomic_store_rel_int(&aps_ready, 1);
+	/* Wake the other threads up */
+#if __ARM_ARCH >= 7
+	armv7_sev();
+#endif
 
 	printf("Release APs\n");
 

@@ -286,6 +286,8 @@ ipw_attach(device_t dev)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;
+	ic->ic_softc = sc;
+	ic->ic_name = device_get_nameunit(dev);
 	ic->ic_opmode = IEEE80211_M_STA;
 	ic->ic_phytype = IEEE80211_T_DS;
 
@@ -751,11 +753,8 @@ ipw_release(struct ipw_softc *sc)
 	}
 
 	if (sc->tbd_dmat != NULL) {
-		if (sc->stbd_list != NULL) {
-			bus_dmamap_unload(sc->tbd_dmat, sc->tbd_map);
-			bus_dmamem_free(sc->tbd_dmat, sc->tbd_list,
-			    sc->tbd_map);
-		}
+		bus_dmamap_unload(sc->tbd_dmat, sc->tbd_map);
+		bus_dmamem_free(sc->tbd_dmat, sc->tbd_list, sc->tbd_map);
 		bus_dma_tag_destroy(sc->tbd_dmat);
 	}
 

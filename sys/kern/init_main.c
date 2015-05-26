@@ -411,6 +411,7 @@ struct sysentvec null_sysvec = {
 	.sv_fetch_syscall_args = null_fetch_syscall_args,
 	.sv_syscallnames = NULL,
 	.sv_schedtail	= NULL,
+	.sv_thread_detach = NULL,
 };
 
 /*
@@ -506,7 +507,7 @@ proc0_init(void *dummy __unused)
 
 	callout_init_mtx(&p->p_itcallout, &p->p_mtx, 0);
 	callout_init_mtx(&p->p_limco, &p->p_mtx, 0);
-	callout_init(&td->td_slpcallout, CALLOUT_MPSAFE);
+	callout_init(&td->td_slpcallout, 1);
 
 	/* Create credentials. */
 	newcred = crget();

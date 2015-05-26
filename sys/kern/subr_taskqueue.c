@@ -323,17 +323,16 @@ taskqueue_drain_tq_queue(struct taskqueue *queue)
 		return;
 
 	/*
-	 * Enqueue our barrier with the lowest possible priority
-	 * so we are inserted after all current tasks.
+	 * Enqueue our barrier after all current tasks, but with
+	 * the highest priority so that newly queued tasks cannot
+	 * pass it.  Because of the high priority, we can not use
+	 * taskqueue_enqueue_locked directly (which drops the lock
+	 * anyway) so just insert it at tail while we have the
+	 * queue lock.
 	 */
-	TASK_INIT(&t_barrier, 0, taskqueue_task_nop_fn, &t_barrier);
-	taskqueue_enqueue_locked(queue, &t_barrier);
-
-	/*
- 	 * Raise the barrier's priority so newly queued tasks cannot
- 	 * pass it.
- 	 */
-	t_barrier.ta_priority = USHRT_MAX;
+	TASK_INIT(&t_barrier, USHRT_MAX, taskqueue_task_nop_fn, &t_barrier);
+	STAILQ_INSERT_TAIL(&queue->tq_queue, &t_barrier, ta_link);
+	t_barrier.ta_pending = 1;
 
 	/*
 	 * Once the barrier has executed, all previously queued tasks

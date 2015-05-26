@@ -31,7 +31,7 @@ options 	SMP			# Enable multiple cores
 
 # Debugging
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
-options 	BREAK_TO_DEBUGGER
+options 	ALT_BREAK_TO_DEBUGGER
 options 	KDB
 options 	DDB			#Enable the kernel debugger
 

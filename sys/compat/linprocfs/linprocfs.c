@@ -39,8 +39,6 @@
  *	@(#)procfs_status.c	8.4 (Berkeley) 6/15/94
  */
 
-#include "opt_compat.h"
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -69,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
+#include <sys/sysent.h>
 #include <sys/systm.h>
 #include <sys/time.h>
 #include <sys/tty.h>
@@ -80,7 +79,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
-#include <net/vnet.h>
+#include <net/if_types.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -100,11 +99,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #endif /* __i386__ || __amd64__ */
 
-#ifdef COMPAT_FREEBSD32
-#include <compat/freebsd32/freebsd32_util.h>
-#endif
-
-#include <compat/linux/linux_ioctl.h>
+#include <compat/linux/linux.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_util.h>
@@ -748,6 +743,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	segsz_t lsize;
 	struct thread *td2;
 	struct sigacts *ps;
+	l_sigset_t siglist, sigignore, sigcatch;
 	int i;
 
 	sx_slock(&proctree_lock);
@@ -839,28 +835,24 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 
 	/*
 	 * Signal masks
-	 *
-	 * We support up to 128 signals, while Linux supports 32,
-	 * but we only define 32 (the same 32 as Linux, to boot), so
-	 * just show the lower 32 bits of each mask. XXX hack.
-	 *
-	 * NB: on certain platforms (Sparc at least) Linux actually
-	 * supports 64 signals, but this code is a long way from
-	 * running on anything but i386, so ignore that for now.
 	 */
 	PROC_LOCK(p);
-	sbuf_printf(sb, "SigPnd:\t%08x\n",	p->p_siglist.__bits[0]);
-	/*
-	 * I can't seem to find out where the signal mask is in
-	 * relation to struct proc, so SigBlk is left unimplemented.
-	 */
-	sbuf_printf(sb, "SigBlk:\t%08x\n",	0); /* XXX */
+	bsd_to_linux_sigset(&p->p_siglist, &siglist);
 	ps = p->p_sigacts;
 	mtx_lock(&ps->ps_mtx);
-	sbuf_printf(sb, "SigIgn:\t%08x\n",	ps->ps_sigignore.__bits[0]);
-	sbuf_printf(sb, "SigCgt:\t%08x\n",	ps->ps_sigcatch.__bits[0]);
+	bsd_to_linux_sigset(&ps->ps_sigignore, &sigignore);
+	bsd_to_linux_sigset(&ps->ps_sigcatch, &sigcatch);
 	mtx_unlock(&ps->ps_mtx);
 	PROC_UNLOCK(p);
+
+	sbuf_printf(sb, "SigPnd:\t%016jx\n",	siglist.__mask);
+	/*
+	 * XXX. SigBlk - target thread's signal mask, td_sigmask.
+	 * To implement SigBlk pseudofs should support proc/tid dir entries.
+	 */
+	sbuf_printf(sb, "SigBlk:\t%016x\n",	0);
+	sbuf_printf(sb, "SigIgn:\t%016jx\n",	sigignore.__mask);
+	sbuf_printf(sb, "SigCgt:\t%016jx\n",	sigcatch.__mask);
 
 	/*
 	 * Linux also prints the capability masks, but we don't have
@@ -954,33 +946,21 @@ linprocfs_doproccmdline(PFS_FILL_ARGS)
 static int
 linprocfs_doprocenviron(PFS_FILL_ARGS)
 {
-	int ret;
-
-	PROC_LOCK(p);
-	if ((ret = p_candebug(td, p)) != 0) {
-		PROC_UNLOCK(p);
-		return (ret);
-	}
 
 	/*
 	 * Mimic linux behavior and pass only processes with usermode
 	 * address space as valid.  Return zero silently otherwize.
 	 */
-	if (p->p_vmspace == &vmspace0) {
-		PROC_UNLOCK(p);
+	if (p->p_vmspace == &vmspace0)
 		return (0);
-	}
 
-	if ((p->p_flag & P_SYSTEM) != 0) {
-		PROC_UNLOCK(p);
-		return (0);
-	}
-
-	PROC_UNLOCK(p);
-
-	ret = proc_getenvv(td, p, sb);
-	return (ret);
+	return (proc_getenvv(td, p, sb));
 }
+
+static char l32_map_str[] = "%08lx-%08lx %s%s%s%s %08lx %02x:%02x %lu%s%s\n";
+static char l64_map_str[] = "%016lx-%016lx %s%s%s%s %08lx %02x:%02x %lu%s%s\n";
+static char vdso_str[] = "      [vdso]";
+static char stack_str[] = "      [stack]";
 
 /*
  * Filler function for proc/pid/maps
@@ -997,6 +977,7 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 	vm_prot_t e_prot;
 	unsigned int last_timestamp;
 	char *name = "", *freename = NULL;
+	const char *l_map_str;
 	ino_t ino;
 	int ref_count, shadow_count, flags;
 	int error;
@@ -1016,6 +997,11 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 	vm = vmspace_acquire_ref(p);
 	if (vm == NULL)
 		return (ESRCH);
+
+	if (SV_CURPROC_FLAG(SV_LP64))
+		l_map_str = l64_map_str;
+	else
+		l_map_str = l32_map_str;
 	map = &vm->vm_map;
 	vm_map_lock_read(map);
 	for (entry = map->header.next; entry != &map->header;
@@ -1058,6 +1044,11 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 				VOP_GETATTR(vp, &vat, td->td_ucred);
 				ino = vat.va_fileid;
 				vput(vp);
+			} else if (SV_PROC_ABI(p) == SV_ABI_LINUX) {
+				if (e_start == p->p_sysent->sv_shared_page_base)
+					name = vdso_str;
+				if (e_end == p->p_sysent->sv_usrstack)
+					name = stack_str;
 			}
 		} else {
 			flags = 0;
@@ -1069,8 +1060,7 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		 * format:
 		 *  start, end, access, offset, major, minor, inode, name.
 		 */
-		error = sbuf_printf(sb,
-		    "%08lx-%08lx %s%s%s%s %08lx %02x:%02x %lu%s%s\n",
+		error = sbuf_printf(sb, l_map_str,
 		    (u_long)e_start, (u_long)e_end,
 		    (e_prot & VM_PROT_READ)?"r":"-",
 		    (e_prot & VM_PROT_WRITE)?"w":"-",
@@ -1104,6 +1094,35 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 	vmspace_free(vm);
 
 	return (error);
+}
+
+/*
+ * Criteria for interface name translation
+ */
+#define IFP_IS_ETH(ifp) (ifp->if_type == IFT_ETHER)
+
+static int
+linux_ifname(struct ifnet *ifp, char *buffer, size_t buflen)
+{
+	struct ifnet *ifscan;
+	int ethno;
+
+	IFNET_RLOCK_ASSERT();
+
+	/* Short-circuit non ethernet interfaces */
+	if (!IFP_IS_ETH(ifp))
+		return (strlcpy(buffer, ifp->if_xname, buflen));
+
+	/* Determine the (relative) unit number for ethernet interfaces */
+	ethno = 0;
+	TAILQ_FOREACH(ifscan, &V_ifnet, if_link) {
+		if (ifscan == ifp)
+			return (snprintf(buffer, buflen, "eth%d", ethno));
+		if (IFP_IS_ETH(ifscan))
+			ethno++;
+	}
+
+	return (0);
 }
 
 /*
@@ -1254,8 +1273,6 @@ linprocfs_doscsiscsi(PFS_FILL_ARGS)
 	return (0);
 }
 
-extern struct cdevsw *cdevsw[];
-
 /*
  * Filler function for proc/devices
  */
@@ -1350,6 +1367,52 @@ linprocfs_douuid(PFS_FILL_ARGS)
 	return(0);
 }
 
+/*
+ * Filler function for proc/pid/auxv
+ */
+static int
+linprocfs_doauxv(PFS_FILL_ARGS)
+{
+	struct sbuf *asb;
+	off_t buflen, resid;
+	int error;
+
+	/*
+	 * Mimic linux behavior and pass only processes with usermode
+	 * address space as valid. Return zero silently otherwise.
+	 */
+	if (p->p_vmspace == &vmspace0)
+		return (0);
+
+	if (uio->uio_resid == 0)
+		return (0);
+	if (uio->uio_offset < 0 || uio->uio_resid < 0)
+		return (EINVAL);
+
+	asb = sbuf_new_auto();
+	if (asb == NULL)
+		return (ENOMEM);
+	error = proc_getauxv(td, p, asb);
+	if (error == 0)
+		error = sbuf_finish(asb);
+
+	resid = sbuf_len(asb) - uio->uio_offset;
+	if (resid > uio->uio_resid)
+		buflen = uio->uio_resid;
+	else
+		buflen = resid;
+	if (buflen > IOSIZE_MAX)
+		return (EINVAL);
+	if (buflen > MAXPHYS)
+		buflen = MAXPHYS;
+	if (resid <= 0)
+		return (0);
+
+	if (error == 0)
+		error = uiomove(sbuf_data(asb) + uio->uio_offset, buflen, uio);
+	sbuf_delete(asb);
+	return (error);
+}
 
 /*
  * Constructor
@@ -1408,7 +1471,7 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_link(dir, "cwd", &linprocfs_doproccwd,
 	    NULL, NULL, NULL, 0);
 	pfs_create_file(dir, "environ", &linprocfs_doprocenviron,
-	    NULL, NULL, NULL, PFS_RD);
+	    NULL, &procfs_candebug, NULL, PFS_RD);
 	pfs_create_link(dir, "exe", &procfs_doprocfile,
 	    NULL, &procfs_notsystem, NULL, 0);
 	pfs_create_file(dir, "maps", &linprocfs_doprocmaps,
@@ -1425,6 +1488,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_link(dir, "fd", &linprocfs_dofdescfs,
 	    NULL, NULL, NULL, 0);
+	pfs_create_file(dir, "auxv", &linprocfs_doauxv,
+	    NULL, &procfs_candebug, NULL, PFS_RD|PFS_RAWRD);
 
 	/* /proc/scsi/... */
 	dir = pfs_create_dir(root, "scsi", NULL, NULL, NULL, 0);
@@ -1470,7 +1535,11 @@ linprocfs_uninit(PFS_INIT_ARGS)
 }
 
 PSEUDOFS(linprocfs, 1, 0);
+#if defined(__amd64__)
+MODULE_DEPEND(linprocfs, linux_common, 1, 1, 1);
+#else
 MODULE_DEPEND(linprocfs, linux, 1, 1, 1);
+#endif
 MODULE_DEPEND(linprocfs, procfs, 1, 1, 1);
 MODULE_DEPEND(linprocfs, sysvmsg, 1, 1, 1);
 MODULE_DEPEND(linprocfs, sysvsem, 1, 1, 1);

@@ -99,35 +99,11 @@ static int	linux_mmap_common(struct thread *td, l_uintptr_t addr,
 		    l_size_t len, l_int prot, l_int flags, l_int fd,
 		    l_loff_t pos);
 
-int
-linux_to_bsd_sigaltstack(int lsa)
-{
-	int bsa = 0;
-
-	if (lsa & LINUX_SS_DISABLE)
-		bsa |= SS_DISABLE;
-	if (lsa & LINUX_SS_ONSTACK)
-		bsa |= SS_ONSTACK;
-	return (bsa);
-}
-
-int
-bsd_to_linux_sigaltstack(int bsa)
-{
-	int lsa = 0;
-
-	if (bsa & SS_DISABLE)
-		lsa |= LINUX_SS_DISABLE;
-	if (bsa & SS_ONSTACK)
-		lsa |= LINUX_SS_ONSTACK;
-	return (lsa);
-}
 
 int
 linux_execve(struct thread *td, struct linux_execve_args *args)
 {
 	struct image_args eargs;
-	struct vmspace *oldvmspace;
 	char *newpath;
 	int error;
 
@@ -138,26 +114,11 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 		printf(ARGS(execve, "%s"), newpath);
 #endif
 
-	error = pre_execve(td, &oldvmspace);
-	if (error != 0) {
-		free(newpath, M_TEMP);
-		return (error);
-	}
 	error = exec_copyin_args(&eargs, newpath, UIO_SYSSPACE,
 	    args->argp, args->envp);
 	free(newpath, M_TEMP);
 	if (error == 0)
-		error = kern_execve(td, &eargs, NULL);
-	if (error == 0) {
-	   	/* linux process can exec fbsd one, dont attempt
-		 * to create emuldata for such process using
-		 * linux_proc_init, this leads to a panic on KASSERT
-		 * because such process has p->p_emuldata == NULL
-		 */
-		if (SV_PROC_ABI(td->td_proc) == SV_ABI_LINUX)
-   			error = linux_proc_init(td, 0, 0);
-	}
-	post_execve(td, error, oldvmspace);
+		error = linux_common_execve(td, &eargs);
 	return (error);
 }
 
@@ -368,8 +329,14 @@ int
 linux_set_upcall_kse(struct thread *td, register_t stack)
 {
 
-	td->td_frame->tf_esp = stack;
+	if (stack)
+		td->td_frame->tf_esp = stack;
 
+	/*
+	 * The newly created Linux thread returns
+	 * to the user space by the same path that a parent do.
+	 */
+	td->td_frame->tf_eax = 0;
 	return (0);
 }
 
@@ -710,7 +677,7 @@ linux_sigaction(struct thread *td, struct linux_sigaction_args *args)
 		act.lsa_flags = osa.lsa_flags;
 		act.lsa_restorer = osa.lsa_restorer;
 		LINUX_SIGEMPTYSET(act.lsa_mask);
-		act.lsa_mask.__bits[0] = osa.lsa_mask;
+		act.lsa_mask.__mask = osa.lsa_mask;
 	}
 
 	error = linux_do_sigaction(td, args->sig, args->nsa ? &act : NULL,
@@ -720,7 +687,7 @@ linux_sigaction(struct thread *td, struct linux_sigaction_args *args)
 		osa.lsa_handler = oact.lsa_handler;
 		osa.lsa_flags = oact.lsa_flags;
 		osa.lsa_restorer = oact.lsa_restorer;
-		osa.lsa_mask = oact.lsa_mask.__bits[0];
+		osa.lsa_mask = oact.lsa_mask.__mask;
 		error = copyout(&osa, args->osa, sizeof(l_osigaction_t));
 	}
 
@@ -744,7 +711,7 @@ linux_sigsuspend(struct thread *td, struct linux_sigsuspend_args *args)
 #endif
 
 	LINUX_SIGEMPTYSET(mask);
-	mask.__bits[0] = args->mask;
+	mask.__mask = args->mask;
 	linux_to_bsd_sigset(&mask, &sigmask);
 	return (kern_sigsuspend(td, sigmask));
 }
@@ -1047,35 +1014,4 @@ linux_mq_getsetattr(struct thread *td, struct linux_mq_getsetattr_args *args)
 #else
 	return (ENOSYS);
 #endif
-}
-
-int
-linux_wait4(struct thread *td, struct linux_wait4_args *args)
-{
-	int error, options;
-	struct rusage ru, *rup;
-
-#ifdef DEBUG
-	if (ldebug(wait4))
-		printf(ARGS(wait4, "%d, %p, %d, %p"),
-		    args->pid, (void *)args->status, args->options,
-		    (void *)args->rusage);
-#endif
-
-	options = (args->options & (WNOHANG | WUNTRACED));
-	/* WLINUXCLONE should be equal to __WCLONE, but we make sure */
-	if (args->options & __WCLONE)
-		options |= WLINUXCLONE;
-
-	if (args->rusage != NULL)
-		rup = &ru;
-	else
-		rup = NULL;
-	error = linux_common_wait(td, args->pid, args->status, options, rup);
-	if (error)
-		return (error);
-	if (args->rusage != NULL)
-		error = copyout(&ru, args->rusage, sizeof(ru));
-
-	return (error);
 }

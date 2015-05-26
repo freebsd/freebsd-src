@@ -1036,7 +1036,7 @@ pmap_grow_direct_page_cache()
 {
 
 #ifdef __mips_n64
-	vm_pageout_grow_cache(3, 0, MIPS_XKPHYS_LARGEST_PHYS);
+	VM_WAIT;
 #else
 	vm_pageout_grow_cache(3, 0, MIPS_KSEG0_LARGEST_PHYS);
 #endif

@@ -1473,7 +1473,7 @@ storvsc_action(struct cam_sim *sim, union ccb *ccb)
 		}
 
 		if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
-			callout_init(&reqp->callout, CALLOUT_MPSAFE);
+			callout_init(&reqp->callout, 1);
 			callout_reset_sbt(&reqp->callout,
 			    SBT_1MS * ccb->ccb_h.timeout, 0,
 			    storvsc_timeout, reqp, 0);

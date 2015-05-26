@@ -445,7 +445,8 @@ acpi_ibm_attach(device_t dev)
 
 	/* Hook up light to led(4) */
 	if (sc->light_set_supported)
-		sc->led_dev = led_create_state(ibm_led, sc, "thinklight", sc->light_val);
+		sc->led_dev = led_create_state(ibm_led, sc, "thinklight",
+		    (sc->light_val ? 1 : 0));
 
 	return (0);
 }

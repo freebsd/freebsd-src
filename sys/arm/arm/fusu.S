@@ -70,11 +70,11 @@ EENTRY_NP(casuword32)
 	adr	r4, .Lcasuwordfault
 	str	r4, [r3, #PCB_ONFAULT]
 #if __ARM_ARCH >= 6
-1:    
+1:
 	cmp     r0, #KERNBASE
 	mvnhs   r0, #0
 	bhs     2f
-	
+
 	ldrex   r5, [r0]
 	cmp     r5, r1
 	movne   r0, r5
@@ -106,7 +106,7 @@ END(casuword)
 	str	r0, [r3, #PCB_ONFAULT]
 	mvn	r0, #0x00000000
 	ldmfd	sp!, {r4, r5}
-	RET	
+	RET
 
 /*
  * fuword(caddr_t uaddr);

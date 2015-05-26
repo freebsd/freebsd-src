@@ -154,8 +154,8 @@ static void	rt2860_set_leds(struct rt2860_softc *, uint16_t);
 static void	rt2860_set_gp_timer(struct rt2860_softc *, int);
 static void	rt2860_set_bssid(struct rt2860_softc *, const uint8_t *);
 static void	rt2860_set_macaddr(struct rt2860_softc *, const uint8_t *);
-static void	rt2860_update_promisc(struct ifnet *);
-static void	rt2860_updateslot(struct ifnet *);
+static void	rt2860_update_promisc(struct ieee80211com *);
+static void	rt2860_updateslot(struct ieee80211com *);
 static void	rt2860_updateprot(struct ifnet *);
 static int	rt2860_updateedca(struct ieee80211com *);
 #ifdef HW_CRYPTO
@@ -315,6 +315,8 @@ rt2860_attach(device_t dev, int id)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;
+	ic->ic_softc = sc;
+	ic->ic_name = device_get_nameunit(dev);
 	ic->ic_opmode = IEEE80211_M_STA;
 	ic->ic_phytype = IEEE80211_T_OFDM; /* not only, but not used */
 
@@ -2051,7 +2053,7 @@ rt2860_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				rt2860_init_locked(sc);
 				startall = 1;
 			} else
-				rt2860_update_promisc(ifp);
+				rt2860_update_promisc(ic);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				rt2860_stop_locked(sc);
@@ -3099,10 +3101,9 @@ rt2860_set_macaddr(struct rt2860_softc *sc, const uint8_t *addr)
 }
 
 static void
-rt2860_updateslot(struct ifnet *ifp)
+rt2860_updateslot(struct ieee80211com *ic)
 {
-	struct rt2860_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct rt2860_softc *sc = ic->ic_softc;
 	uint32_t tmp;
 
 	tmp = RAL_READ(sc, RT2860_BKOFF_SLOT_CFG);
@@ -3137,14 +3138,14 @@ rt2860_updateprot(struct ifnet *ifp)
 }
 
 static void
-rt2860_update_promisc(struct ifnet *ifp)
+rt2860_update_promisc(struct ieee80211com *ic)
 {
-	struct rt2860_softc *sc = ifp->if_softc;
+	struct rt2860_softc *sc = ic->ic_softc;
 	uint32_t tmp;
 
 	tmp = RAL_READ(sc, RT2860_RX_FILTR_CFG);
 	tmp &= ~RT2860_DROP_NOT_MYBSS;
-	if (!(ifp->if_flags & IFF_PROMISC))
+	if (!(ic->ic_ifp->if_flags & IFF_PROMISC))
 		tmp |= RT2860_DROP_NOT_MYBSS;
 	RAL_WRITE(sc, RT2860_RX_FILTR_CFG, tmp);
 }

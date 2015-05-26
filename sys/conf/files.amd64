@@ -20,6 +20,18 @@ linux32_assym.h			optional	compat_linux32		\
 	no-obj no-implicit-rule before-depend				\
 	clean		"linux32_assym.h"
 #
+linux32_locore.o	optional	compat_linux32		\
+	dependency 	"linux32_assym.h $S/amd64/linux32/linux32_locore.s"	\
+	compile-with	"${CC} -x assembler-with-cpp -DLOCORE -m32 -shared -s -pipe -I. -I$S -Werror -Wall -fno-common -nostdinc -nostdlib -Wl,-T$S/amd64/linux32/linux32_vdso.lds.s -Wl,-soname=linux32_vdso.so,--eh-frame-hdr,-fPIC,-warn-common ${.IMPSRC} -o ${.TARGET}" \
+	no-obj no-implicit-rule						\
+	clean		"linux32_locore.o"
+#
+linux32_vdso.so		optional	compat_linux32			\
+	dependency 	"linux32_locore.o"				\
+	compile-with	"${OBJCOPY} --input-target binary --output-target elf64-x86-64-freebsd --binary-architecture i386 linux32_locore.o ${.TARGET}" \
+	no-implicit-rule						\
+	clean		"linux32_vdso.so"
+#
 ia32_genassym.o			standard				\
 	dependency 	"$S/compat/ia32/ia32_genassym.c"		\
 	compile-with	"${CC} ${CFLAGS:N-fno-common} -c ${.IMPSRC}"	\
@@ -292,37 +304,52 @@ dev/qlxgbe/ql_isr.c		optional	qlxgbe pci
 dev/qlxgbe/ql_misc.c		optional	qlxgbe pci
 dev/qlxgbe/ql_os.c		optional	qlxgbe pci
 dev/qlxgbe/ql_reset.c		optional	qlxgbe pci
-dev/sfxge/common/efx_bootcfg.c	optional sfxge inet pci
-dev/sfxge/common/efx_ev.c	optional sfxge inet pci
-dev/sfxge/common/efx_filter.c	optional sfxge inet pci
-dev/sfxge/common/efx_intr.c	optional sfxge inet pci
-dev/sfxge/common/efx_mac.c	optional sfxge inet pci
-dev/sfxge/common/efx_mcdi.c	optional sfxge inet pci
-dev/sfxge/common/efx_mon.c	optional sfxge inet pci
-dev/sfxge/common/efx_nic.c	optional sfxge inet pci
-dev/sfxge/common/efx_nvram.c	optional sfxge inet pci
-dev/sfxge/common/efx_phy.c	optional sfxge inet pci
-dev/sfxge/common/efx_port.c	optional sfxge inet pci
-dev/sfxge/common/efx_rx.c	optional sfxge inet pci
-dev/sfxge/common/efx_sram.c	optional sfxge inet pci
-dev/sfxge/common/efx_tx.c	optional sfxge inet pci
-dev/sfxge/common/efx_vpd.c	optional sfxge inet pci
-dev/sfxge/common/efx_wol.c	optional sfxge inet pci
-dev/sfxge/common/siena_mac.c	optional sfxge inet pci
-dev/sfxge/common/siena_mon.c	optional sfxge inet pci
-dev/sfxge/common/siena_nic.c	optional sfxge inet pci
-dev/sfxge/common/siena_nvram.c	optional sfxge inet pci
-dev/sfxge/common/siena_phy.c	optional sfxge inet pci
-dev/sfxge/common/siena_sram.c	optional sfxge inet pci
-dev/sfxge/common/siena_vpd.c	optional sfxge inet pci
-dev/sfxge/sfxge.c		optional sfxge inet pci
-dev/sfxge/sfxge_dma.c		optional sfxge inet pci
-dev/sfxge/sfxge_ev.c		optional sfxge inet pci
-dev/sfxge/sfxge_intr.c		optional sfxge inet pci
-dev/sfxge/sfxge_mcdi.c		optional sfxge inet pci
-dev/sfxge/sfxge_port.c		optional sfxge inet pci
-dev/sfxge/sfxge_rx.c		optional sfxge inet pci
-dev/sfxge/sfxge_tx.c		optional sfxge inet pci
+dev/sfxge/common/efx_bootcfg.c	optional	sfxge pci
+dev/sfxge/common/efx_crc32.c	optional	sfxge pci
+dev/sfxge/common/efx_ev.c	optional	sfxge pci
+dev/sfxge/common/efx_filter.c	optional	sfxge pci
+dev/sfxge/common/efx_hash.c	optional	sfxge pci
+dev/sfxge/common/efx_intr.c	optional	sfxge pci
+dev/sfxge/common/efx_mac.c	optional	sfxge pci
+dev/sfxge/common/efx_mcdi.c	optional	sfxge pci
+dev/sfxge/common/efx_mon.c	optional	sfxge pci
+dev/sfxge/common/efx_nic.c	optional	sfxge pci
+dev/sfxge/common/efx_nvram.c	optional	sfxge pci
+dev/sfxge/common/efx_phy.c	optional	sfxge pci
+dev/sfxge/common/efx_port.c	optional	sfxge pci
+dev/sfxge/common/efx_rx.c	optional	sfxge pci
+dev/sfxge/common/efx_sram.c	optional	sfxge pci
+dev/sfxge/common/efx_tx.c	optional	sfxge pci
+dev/sfxge/common/efx_vpd.c	optional	sfxge pci
+dev/sfxge/common/efx_wol.c	optional	sfxge pci
+dev/sfxge/common/hunt_ev.c	optional	sfxge pci
+dev/sfxge/common/hunt_filter.c	optional	sfxge pci
+dev/sfxge/common/hunt_intr.c	optional	sfxge pci
+dev/sfxge/common/hunt_mac.c	optional	sfxge pci
+dev/sfxge/common/hunt_mcdi.c	optional	sfxge pci
+dev/sfxge/common/hunt_nic.c	optional	sfxge pci
+dev/sfxge/common/hunt_nvram.c	optional	sfxge pci
+dev/sfxge/common/hunt_phy.c	optional	sfxge pci
+dev/sfxge/common/hunt_rx.c	optional	sfxge pci
+dev/sfxge/common/hunt_sram.c	optional	sfxge pci
+dev/sfxge/common/hunt_tx.c	optional	sfxge pci
+dev/sfxge/common/hunt_vpd.c	optional	sfxge pci
+dev/sfxge/common/siena_mac.c	optional	sfxge pci
+dev/sfxge/common/siena_mcdi.c	optional	sfxge pci
+dev/sfxge/common/siena_nic.c	optional	sfxge pci
+dev/sfxge/common/siena_nvram.c	optional	sfxge pci
+dev/sfxge/common/siena_phy.c	optional	sfxge pci
+dev/sfxge/common/siena_sram.c	optional	sfxge pci
+dev/sfxge/common/siena_vpd.c	optional	sfxge pci
+dev/sfxge/sfxge.c		optional	sfxge pci
+dev/sfxge/sfxge_dma.c		optional	sfxge pci
+dev/sfxge/sfxge_ev.c		optional	sfxge pci
+dev/sfxge/sfxge_intr.c		optional	sfxge pci
+dev/sfxge/sfxge_mcdi.c		optional	sfxge pci
+dev/sfxge/sfxge_nvram.c		optional	sfxge pci
+dev/sfxge/sfxge_port.c		optional	sfxge pci
+dev/sfxge/sfxge_rx.c		optional	sfxge pci
+dev/sfxge/sfxge_tx.c		optional	sfxge pci
 dev/sio/sio.c			optional	sio
 dev/sio/sio_isa.c		optional	sio isa
 dev/sio/sio_pccard.c		optional	sio pccard
@@ -473,8 +500,6 @@ compat/linsysfs/linsysfs.c	optional	linsysfs
 # Linux/i386 binary support
 #
 amd64/linux32/linux32_dummy.c	optional	compat_linux32
-amd64/linux32/linux32_locore.s	optional	compat_linux32		\
-	dependency 	"linux32_assym.h"
 amd64/linux32/linux32_machdep.c	optional	compat_linux32
 amd64/linux32/linux32_support.s	optional	compat_linux32		\
 	dependency 	"linux32_assym.h"
@@ -497,6 +522,10 @@ compat/linux/linux_time.c	optional	compat_linux32
 compat/linux/linux_timer.c	optional	compat_linux32
 compat/linux/linux_uid16.c	optional	compat_linux32
 compat/linux/linux_util.c	optional	compat_linux32
+compat/linux/linux_vdso.c	optional	compat_linux32
+compat/linux/linux_common.c	optional	compat_linux32
+compat/linux/linux_event.c	optional	compat_linux32
+compat/linux/linux.c		optional	compat_linux32
 dev/amr/amr_linux.c		optional	compat_linux32 amr
 dev/mfi/mfi_linux.c		optional	compat_linux32 mfi
 #
