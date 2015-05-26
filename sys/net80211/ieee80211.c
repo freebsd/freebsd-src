@@ -95,6 +95,7 @@ static	void ieee80211com_media_status(struct ifnet *, struct ifmediareq *);
 static	int ieee80211com_media_change(struct ifnet *);
 static	int media_status(enum ieee80211_opmode,
 		const struct ieee80211_channel *);
+static uint64_t ieee80211_get_counter(struct ifnet *, ift_counter);
 
 MALLOC_DEFINE(M_80211_VAP, "80211vap", "802.11 vap state");
 
@@ -303,6 +304,8 @@ ieee80211_ifattach(struct ieee80211com *ic,
 	    taskqueue_thread_enqueue, &ic->ic_tq);
 	taskqueue_start_threads(&ic->ic_tq, 1, PI_NET, "%s net80211 taskq",
 	    ic->ic_name);
+	ic->ic_ierrors = counter_u64_alloc(M_WAITOK);
+	ic->ic_oerrors = counter_u64_alloc(M_WAITOK);
 	/*
 	 * Fill in 802.11 available channel set, mark all
 	 * available channels as active, and pick a default
@@ -401,6 +404,8 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 
 	/* XXX VNET needed? */
 	ifmedia_removeall(&ic->ic_media);
+	counter_u64_free(ic->ic_ierrors);
+	counter_u64_free(ic->ic_oerrors);
 
 	taskqueue_free(ic->ic_tq);
 	IEEE80211_TX_LOCK_DESTROY(ic);
@@ -420,6 +425,31 @@ static int
 default_reset(struct ieee80211vap *vap, u_long cmd)
 {
 	return ENETRESET;
+}
+
+/*
+ * Add underlying device errors to vap errors.
+ */
+static uint64_t
+ieee80211_get_counter(struct ifnet *ifp, ift_counter cnt)
+{
+	struct ieee80211vap *vap = ifp->if_softc;
+	struct ieee80211com *ic = vap->iv_ic;
+	uint64_t rv;
+
+	rv = if_get_counter_default(ifp, cnt);
+	switch (cnt) {
+	case IFCOUNTER_OERRORS:
+		rv += counter_u64_fetch(ic->ic_oerrors);
+		break;
+	case IFCOUNTER_IERRORS:
+		rv += counter_u64_fetch(ic->ic_ierrors);
+		break;
+	default:
+		break;
+	}
+
+	return (rv);
 }
 
 /*
@@ -448,6 +478,7 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	ifp->if_qflush = ieee80211_vap_qflush;
 	ifp->if_ioctl = ieee80211_ioctl;
 	ifp->if_init = ieee80211_init;
+	ifp->if_get_counter = ieee80211_get_counter;
 
 	vap->iv_ifp = ifp;
 	vap->iv_ic = ic;
