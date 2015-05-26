@@ -162,14 +162,6 @@ static const struct ieee80211_mesh_proto_metric mesh_metric_airtime = {
 static struct ieee80211_mesh_proto_path		mesh_proto_paths[4];
 static struct ieee80211_mesh_proto_metric	mesh_proto_metrics[4];
 
-#define	RT_ENTRY_LOCK(rt)	mtx_lock(&(rt)->rt_lock)
-#define	RT_ENTRY_LOCK_ASSERT(rt) mtx_assert(&(rt)->rt_lock, MA_OWNED)
-#define	RT_ENTRY_UNLOCK(rt)	mtx_unlock(&(rt)->rt_lock)
-
-#define	MESH_RT_LOCK(ms)	mtx_lock(&(ms)->ms_rt_lock)
-#define	MESH_RT_LOCK_ASSERT(ms)	mtx_assert(&(ms)->ms_rt_lock, MA_OWNED)
-#define	MESH_RT_UNLOCK(ms)	mtx_unlock(&(ms)->ms_rt_lock)
-
 MALLOC_DEFINE(M_80211_MESH_PREQ, "80211preq", "802.11 MESH Path Request frame");
 MALLOC_DEFINE(M_80211_MESH_PREP, "80211prep", "802.11 MESH Path Reply frame");
 MALLOC_DEFINE(M_80211_MESH_PERR, "80211perr", "802.11 MESH Path Error frame");
@@ -218,7 +210,7 @@ mesh_rt_add_locked(struct ieee80211vap *vap,
 		rt->rt_vap = vap;
 		IEEE80211_ADDR_COPY(rt->rt_dest, dest);
 		rt->rt_priv = (void *)ALIGN(&rt[1]);
-		mtx_init(&rt->rt_lock, "MBSS_RT", "802.11s route entry", MTX_DEF);
+		MESH_RT_ENTRY_LOCK_INIT(rt, "MBSS_RT");
 		callout_init(&rt->rt_discovery, 1);
 		rt->rt_updtime = ticks;	/* create time */
 		TAILQ_INSERT_TAIL(&ms->ms_routes, rt, rt_next);
@@ -271,11 +263,11 @@ ieee80211_mesh_rt_update(struct ieee80211_mesh_route *rt, int new_lifetime)
 	KASSERT(rt != NULL, ("route is NULL"));
 
 	now = ticks;
-	RT_ENTRY_LOCK(rt);
+	MESH_RT_ENTRY_LOCK(rt);
 
 	/* dont clobber a proxy entry gated by us */
 	if (rt->rt_flags & IEEE80211_MESHRT_FLAGS_PROXY && rt->rt_nhops == 0) {
-		RT_ENTRY_UNLOCK(rt);
+		MESH_RT_ENTRY_UNLOCK(rt);
 		return rt->rt_lifetime;
 	}
 
@@ -296,7 +288,7 @@ ieee80211_mesh_rt_update(struct ieee80211_mesh_route *rt, int new_lifetime)
 			new_lifetime, rt->rt_lifetime);
 	}
 	lifetime = rt->rt_lifetime;
-	RT_ENTRY_UNLOCK(rt);
+	MESH_RT_ENTRY_UNLOCK(rt);
 
 	return lifetime;
 }
@@ -358,9 +350,9 @@ mesh_rt_del(struct ieee80211_mesh_state *ms, struct ieee80211_mesh_route *rt)
 	 * Grab the lock before destroying it, to be sure no one else
 	 * is holding the route.
 	 */
-	RT_ENTRY_LOCK(rt);
+	MESH_RT_ENTRY_LOCK(rt);
 	callout_drain(&rt->rt_discovery);
-	mtx_destroy(&rt->rt_lock);
+	MESH_RT_ENTRY_LOCK_DESTROY(rt);
 	IEEE80211_FREE(rt, M_80211_MESH_RT);
 }
 
@@ -653,7 +645,7 @@ mesh_vdetach(struct ieee80211vap *vap)
 	ieee80211_iterate_nodes(&vap->iv_ic->ic_sta, mesh_vdetach_peers,
 	    NULL);
 	ieee80211_mesh_rt_flush(vap);
-	mtx_destroy(&ms->ms_rt_lock);
+	MESH_RT_LOCK_DESTROY(ms);
 	ms->ms_ppath->mpp_vdetach(vap);
 	IEEE80211_FREE(vap->iv_mesh, M_80211_VAP);
 	vap->iv_mesh = NULL;
@@ -680,7 +672,7 @@ mesh_vattach(struct ieee80211vap *vap)
 	ms->ms_ttl = IEEE80211_MESH_DEFAULT_TTL;
 	TAILQ_INIT(&ms->ms_known_gates);
 	TAILQ_INIT(&ms->ms_routes);
-	mtx_init(&ms->ms_rt_lock, "MBSS", "802.11s routing table", MTX_DEF);
+	MESH_RT_LOCK_INIT(ms, "MBSS");
 	callout_init(&ms->ms_cleantimer, 1);
 	callout_init(&ms->ms_gatetimer, 1);
 	ms->ms_gateseq = 0;

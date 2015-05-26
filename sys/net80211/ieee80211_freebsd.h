@@ -184,6 +184,27 @@ typedef struct mtx ieee80211_scan_table_lock_t;
 #define	IEEE80211_SCAN_TABLE_UNLOCK(_st)	mtx_unlock(&(_st)->st_lock)
 
 /*
+ * Mesh node/routing definitions.
+ */
+typedef struct mtx ieee80211_rte_lock_t;
+#define	MESH_RT_ENTRY_LOCK_INIT(_rt, _name) \
+	mtx_init(&(rt)->rt_lock, _name, "802.11s route entry", MTX_DEF)
+#define	MESH_RT_ENTRY_LOCK_DESTROY(_rt) \
+	mtx_destroy(&(_rt)->rt_lock)
+#define	MESH_RT_ENTRY_LOCK(rt)	mtx_lock(&(rt)->rt_lock)
+#define	MESH_RT_ENTRY_LOCK_ASSERT(rt) mtx_assert(&(rt)->rt_lock, MA_OWNED)
+#define	MESH_RT_ENTRY_UNLOCK(rt)	mtx_unlock(&(rt)->rt_lock)
+
+typedef struct mtx ieee80211_rt_lock_t;
+#define	MESH_RT_LOCK(ms)	mtx_lock(&(ms)->ms_rt_lock)
+#define	MESH_RT_LOCK_ASSERT(ms)	mtx_assert(&(ms)->ms_rt_lock, MA_OWNED)
+#define	MESH_RT_UNLOCK(ms)	mtx_unlock(&(ms)->ms_rt_lock)
+#define	MESH_RT_LOCK_INIT(ms, name) \
+	mtx_init(&(ms)->ms_rt_lock, name, "802.11s routing table", MTX_DEF)
+#define	MESH_RT_LOCK_DESTROY(ms) \
+	mtx_destroy(&(ms)->ms_rt_lock)
+
+/*
  * Node reference counting definitions.
  *
  * ieee80211_node_initref	initialize the reference count to 1
