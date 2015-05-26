@@ -1486,7 +1486,12 @@ main(int argc, char **argv)
 	if (RFileName == NULL && VFileName == NULL) {
 		static const unsigned long cmds[] = { BIOCGSTATS };
 
-		cap_rights_init(&rights, CAP_IOCTL, CAP_READ);
+		/*
+		 * The various libpcap devices use a combination of
+		 * read (bpf), ioctl (bpf, netmap), poll (netmap).
+		 * Grant the relevant access rights, sorted by name.
+		 */
+		cap_rights_init(&rights, CAP_EVENT, CAP_IOCTL, CAP_READ);
 		if (cap_rights_limit(pcap_fileno(pd), &rights) < 0 &&
 		    errno != ENOSYS) {
 			error("unable to limit pcap descriptor");
