@@ -42,9 +42,9 @@ memmem(const void *l, size_t l_len, const void *s, size_t s_len)
 	const char *cl = (const char *)l;
 	const char *cs = (const char *)s;
 
-	/* we need something to compare */
-	if (l_len == 0 || s_len == 0)
-		return NULL;
+	/* empty "s" matches the beginning of "l" */
+	if (s_len == 0)
+		return (void *)cl;
 
 	/* "s" must be smaller or equal to "l" */
 	if (l_len < s_len)
