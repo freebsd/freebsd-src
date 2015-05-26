@@ -9,11 +9,20 @@ GENDIRDEPS_FILTER+= \
 	Ntools/*
 
 .if ${RELDIR:Mtargets*} == ""
+.if ${RELDIR:Nusr.bin/clang/*:Ngnu/usr.bin/cc/*:Nlib/clang*} != ""
+GENDIRDEPS_FILTER.host+= \
+	Nusr.bin/clang/* \
+	Ngnu/usr.bin/cc/* \
+
+.endif
 GENDIRDEPS_FILTER+= \
 	Nusr.bin/clang/clang.host \
 	Ngnu/usr.bin/cc* \
+	Ngnu/usr.bin/binutils*.host \
 
 .endif
+
+GENDIRDEPS_FILTER+= ${GENDIRDEPS_FILTER.${MACHINE}:U}
 
 # gendirdeps.mk will turn _{VAR} into ${VAR} which keeps this simple
 # order of this list matters!
