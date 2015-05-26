@@ -85,16 +85,16 @@ remove-old-bits:
 iso-images-stage:
 	mkdir -p ${ISO_DIR}
 	mkdir -p ${TLD}/ISO-IMAGES/${REVISION}
-. if defined(SNAPSHOT) && !empty(SNAPSHOT)
+.if defined(SNAPSHOT) && !empty(SNAPSHOT)
 	cd ${RELEASEDIR} && rm -f CHECKSUM.*
-.  for IMAGE in ${IMAGES}
-.   if defined(EMBEDDED) && !empty(EMBEDDED)
-.    if defined(OLDNAME) && !empty(OLDNAME)
+. for IMAGE in ${IMAGES}
+.  if defined(EMBEDDED) && !empty(EMBEDDED)
+.   if defined(OLDNAME) && !empty(OLDNAME)
 	@# arm/armv6 IMX6 -> WANDBOARD, for example.
 	cd ${RELEASEDIR} && \
 		mv ${OSRELEASE}-${OLDNAME}.${IMAGE}.xz \
 		${OSRELEASE}-${BOARDNAME}.${IMAGE}.xz
-.    endif
+.   endif
 	cd ${RELEASEDIR} && \
 		mv ${OSRELEASE}-${BOARDNAME}.${IMAGE}.xz \
 		${OSRELEASE}-${BOARDNAME}-${SNAP_SUFFIX}.${IMAGE}.xz
@@ -103,8 +103,8 @@ iso-images-stage:
 	cd ${TLD}/ISO-IMAGES/${REVISION} && \
 		ln -s \
 		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${BOARDNAME}-${SNAP_SUFFIX}.${IMAGE}.xz
-.   endif # not embedded
-.    if exists(${RELEASEDIR}/${OSRELEASE}-${IMAGE})
+.  endif # not embedded
+.   if exists(${RELEASEDIR}/${OSRELEASE}-${IMAGE})
 	cd ${RELEASEDIR} && \
 		mv ${OSRELEASE}-${IMAGE} \
 		${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}
@@ -113,8 +113,8 @@ iso-images-stage:
 	cd ${TLD}/ISO-IMAGES/${REVISION} && \
 		ln -s \
 		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}
-.    endif
-.    if exists(${RELEASEDIR}/${OSRELEASE}-${IMAGE}.xz)
+.   endif
+.   if exists(${RELEASEDIR}/${OSRELEASE}-${IMAGE}.xz)
 	cd ${RELEASEDIR} && \
 		mv ${OSRELEASE}-${IMAGE}.xz \
 		${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}.xz
@@ -123,11 +123,11 @@ iso-images-stage:
 	cd ${TLD}/ISO-IMAGES/${REVISION} && \
 		ln -s \
 		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}.xz
-.    endif
-.  endfor # images loop
+.   endif
+. endfor # images loop
 	cd ${RELEASEDIR} && rm -f CHECKSUM.*
-.  for CHECKSUM in ${CHECKSUM_FILES}
-.   if defined(EMBEDDED) && !empty(EMBEDDED)
+. for CHECKSUM in ${CHECKSUM_FILES}
+.  if defined(EMBEDDED) && !empty(EMBEDDED)
 	cd ${RELEASEDIR} && ${CHECKSUM:tl} ${OSRELEASE}* > \
 		CHECKSUM.${CHECKSUM}-${OSRELEASE}-${BOARDNAME}-${SNAP_SUFFIX}
 	cp -p ${RELEASEDIR}/CHECKSUM.${CHECKSUM}-${OSRELEASE}-${BOARDNAME}-${SNAP_SUFFIX} \
@@ -135,7 +135,7 @@ iso-images-stage:
 	cd ${TLD}/ISO-IMAGES/${REVISION} && \
 		ln -s \
 		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/CHECKSUM.${CHECKSUM}-${OSRELEASE}-${BOARDNAME}-${SNAP_SUFFIX}
-.   else # not embedded
+.  else # not embedded
 	cd ${RELEASEDIR} && ${CHECKSUM:tl} ${OSRELEASE}* > \
 		CHECKSUM.${CHECKSUM}-${OSRELEASE}-${SNAP_SUFFIX}
 	cp -p ${RELEASEDIR}/CHECKSUM.${CHECKSUM}-${OSRELEASE}-${SNAP_SUFFIX} \
@@ -143,42 +143,42 @@ iso-images-stage:
 	cd ${TLD}/ISO-IMAGES/${REVISION} && \
 		ln -s \
 		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/CHECKSUM.${CHECKSUM}-${OSRELEASE}-${SNAP_SUFFIX}
-.   endif #
-.  endfor # checksum files
-. else # not snapshot
-.  for IMAGE in ${IMAGES}
-.   if defined(EMBEDDED) && !empty(EMBEDDED)
-.    if defined(OLDNAME) && !empty(OLDNAME)
+.  endif #
+. endfor # checksum files
+.else # not snapshot
+. for IMAGE in ${IMAGES}
+.  if defined(EMBEDDED) && !empty(EMBEDDED)
+.   if defined(OLDNAME) && !empty(OLDNAME)
 	@# arm/armv6 IMX6 -> WANDBOARD, for example.
 	cd ${RELEASEDIR} && \
 		mv ${OSRELEASE}-${OLDNAME}.${IMAGE}.xz \
 		${OSRELEASE}-${BOARDNAME}.${IMAGE}.xz
-.    endif
+.   endif
 	cp -p ${RELEASEDIR}/${OSRELEASE}-${BOARDNAME}.${IMAGE}.xz \
 		${ISO_DIR}/${OSRELEASE}-${BOARDNAME}.${IMAGE}.xz
 	cd ${TLD}/ISO-IMAGES/${REVISION} && \
 		ln -s \
 		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${BOARDNAME}.${IMAGE}.xz
-.   endif # not embedded
-.    if exists(${RELEASEDIR}/${OSRELEASE}-${IMAGE})
+.  endif # not embedded
+.   if exists(${RELEASEDIR}/${OSRELEASE}-${IMAGE})
 	cd ${RELEASEDIR} && \
 	cp -p ${RELEASEDIR}/${OSRELEASE}-${IMAGE} \
 		${ISO_DIR}/${OSRELEASE}-${IMAGE}
 	cd ${TLD}/ISO-IMAGES/${REVISION} && \
 		ln -s \
 		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${IMAGE}
-.    endif
-.    if exists(${RELEASEDIR}/${OSRELEASE}-${IMAGE}.xz)
+.   endif
+.   if exists(${RELEASEDIR}/${OSRELEASE}-${IMAGE}.xz)
 	cp -p ${RELEASEDIR}/${OSRELEASE}-${IMAGE}.xz \
 		${ISO_DIR}/${OSRELEASE}-${IMAGE}.xz
 	cd ${TLD}/ISO-IMAGES/${REVISION} && \
 		ln -s \
 		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${IMAGE}.xz
-.    endif
-.  endfor # images loop
+.   endif
+. endfor # images loop
 	cd ${RELEASEDIR} && rm -f CHECKSUM.*
-.  for CHECKSUM in ${CHECKSUM_FILES}
-.   if defined(EMBEDDED) && !empty(EMBEDDED)
+. for CHECKSUM in ${CHECKSUM_FILES}
+.  if defined(EMBEDDED) && !empty(EMBEDDED)
 	cd ${RELEASEDIR} && ${CHECKSUM:tl} ${OSRELEASE}* > \
 		CHECKSUM.${CHECKSUM}-${OSRELEASE}-${BOARDNAME}
 	cp -p ${RELEASEDIR}/CHECKSUM.${CHECKSUM}-${OSRELEASE}-${BOARDNAME} \
@@ -186,7 +186,7 @@ iso-images-stage:
 	cd ${TLD}/ISO-IMAGES/${REVISION} && \
 		ln -s \
 		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/CHECKSUM.${CHECKSUM}-${OSRELEASE}-${BOARDNAME}
-.   else # not embedded
+.  else # not embedded
 	cd ${RELEASEDIR} && ${CHECKSUM:tl} ${OSRELEASE}* > \
 		CHECKSUM.${CHECKSUM}-${OSRELEASE}
 	cp -p ${RELEASEDIR}/CHECKSUM.${CHECKSUM}-${OSRELEASE} \
@@ -194,16 +194,16 @@ iso-images-stage:
 	cd ${TLD}/ISO-IMAGES/${REVISION} && \
 		ln -s \
 		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/CHECKSUM.${CHECKSUM}-${OSRELEASE}
-.   endif
-.  endfor # checksum files
-. endif # release
-. if exists(${RELEASEDIR}/ftp)
+.  endif
+. endfor # checksum files
+.endif # release
+.if exists(${RELEASEDIR}/ftp)
 	mkdir -p ${FTP_DIR}
 	cp -p ${RELEASEDIR}/ftp/*.txz ${RELEASEDIR}/ftp/MANIFEST ${FTP_DIR}
 	cd ${TLD}/${TARGET} && \
 		ln -s ${TARGET_ARCH}/${REVISION}-${BRANCH} \
 			${REVISION}-${BRANCH}
-. endif
+.endif
 
 vm-images-stage:
 	mkdir -p ${VM_DIR}
