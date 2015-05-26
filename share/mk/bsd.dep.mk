@@ -121,28 +121,25 @@ ${_YC:R}.o: ${_YC}
 .endfor
 
 # DTrace probe definitions
-# libelf is currently needed for drti.o
 .if ${SRCS:M*.d}
-LDADD+=		-lelf
-DPADD+=		${LIBELF}
 CFLAGS+=	-I${.OBJDIR}
 .endif
 .for _DSRC in ${SRCS:M*.d:N*/*}
 .for _D in ${_DSRC:R}
 DHDRS+=	${_D}.h
 ${_D}.h: ${_DSRC}
-	${DTRACE} -xnolibs -h -s ${.ALLSRC}
+	${DTRACE} ${DTRACEFLAGS} -h -s ${.ALLSRC}
 SRCS:=	${SRCS:S/^${_DSRC}$//}
 OBJS+=	${_D}.o
 CLEANFILES+= ${_D}.h ${_D}.o
 ${_D}.o: ${_DSRC} ${OBJS:S/^${_D}.o$//}
-	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${.ALLSRC}
+	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC}
 .if defined(LIB)
 CLEANFILES+= ${_D}.So ${_D}.po
 ${_D}.So: ${_DSRC} ${SOBJS:S/^${_D}.So$//}
-	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${.ALLSRC}
+	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC}
 ${_D}.po: ${_DSRC} ${POBJS:S/^${_D}.po$//}
-	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${.ALLSRC}
+	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC}
 .endif
 .endfor
 .endfor

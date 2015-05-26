@@ -38,7 +38,7 @@
 # MANBUILDCAT	create preformatted manual pages in addition to normal
 #		pages. [not set]
 #
-# MROFF_CMD	command and flags to create preformatted pages
+# MANDOC_CMD	command and flags to create preformatted pages
 #
 # +++ targets +++
 #
@@ -54,7 +54,7 @@ MINSTALL?=	${INSTALL} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
 
 CATDIR=		${MANDIR:H:S/$/\/cat/}
 CATEXT=		.cat
-MROFF_CMD?=	groff -Tascii -mtty-char -man -t
+MANDOC_CMD?=	mandoc -Tascii
 
 MCOMPRESS_CMD?=	${COMPRESS_CMD}
 MCOMPRESS_EXT?=	${COMPRESS_EXT}
@@ -100,7 +100,7 @@ ${__target}: ${__page}
 .for __target in ${__page:T:S/$/${CATEXT}${FILTEXTENSION}/g}
 _manpages: ${__target}
 ${__target}: ${__page}
-	${MANFILTER} < ${.ALLSRC} | ${MROFF_CMD} > ${.TARGET}
+	${MANFILTER} < ${.ALLSRC} | ${MANDOC_CMD} > ${.TARGET}
 .endfor
 .endif
 .endfor
@@ -113,7 +113,7 @@ CLEANFILES+=	${MAN:T:S/$/${CATEXT}/g}
 .for __target in ${__page:T:S/$/${CATEXT}/g}
 _manpages: ${__target}
 ${__target}: ${__page}
-	${MROFF_CMD} ${.ALLSRC} > ${.TARGET}
+	${MANDOC_CMD} ${.ALLSRC} > ${.TARGET}
 .endfor
 .endfor
 .else
@@ -144,9 +144,9 @@ ${__target}: ${__page}
 _manpages: ${__target}
 ${__target}: ${__page}
 .if defined(MANFILTER)
-	${MANFILTER} < ${.ALLSRC} | ${MROFF_CMD} | ${MCOMPRESS_CMD} > ${.TARGET}
+	${MANFILTER} < ${.ALLSRC} | ${MANDOC_CMD} | ${MCOMPRESS_CMD} > ${.TARGET}
 .else
-	${MROFF_CMD} ${.ALLSRC} | ${MCOMPRESS_CMD} > ${.TARGET}
+	${MANDOC_CMD} ${.ALLSRC} | ${MCOMPRESS_CMD} > ${.TARGET}
 .endif
 .endfor
 .endif
@@ -239,9 +239,9 @@ manlint:
 manlint: ${__page}lint
 ${__page}lint: ${__page}
 .if defined(MANFILTER)
-	${MANFILTER} < ${.ALLSRC} | ${MROFF_CMD} -ww -z
+	${MANFILTER} < ${.ALLSRC} | ${MANDOC_CMD} -Tlint
 .else
-	${MROFF_CMD} -ww -z ${.ALLSRC}
+	${MANDOC_CMD} -Tlint ${.ALLSRC}
 .endif
 .endfor
 .endif

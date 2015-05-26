@@ -2,18 +2,22 @@
 
 # Setup variables for the compiler
 #
-# COMPILTER_TYPE is the major type of compiler. Currently gcc and clang support
-# automatic detetion. Other compiler types can be shoe-horned in, but require explicit
-# setting of the compiler type. The compiler type can also be set explicitly if, say,
-# you install gcc as clang...
+# COMPILER_TYPE is the major type of compiler. Currently gcc and clang support
+# automatic detection. Other compiler types can be shoe-horned in, but require
+# explicit setting of the compiler type. The compiler type can also be set
+# explicitly if, say, you install gcc as clang...
 #
-# COMPILER_VERSION is a numeric constant equal to major * 10000 + minor * 100 + tiny. It
-# too can be overriden on the command line. When testing it, be sure to make sure that you
-# are limiting the test to a specific compiler. Testing against 30300 for gcc likely isn't
-# what you wanted (since versions of gcc prior to 4.2 likely have no prayer of working).
+# COMPILER_VERSION is a numeric constant equal to:
+#     major * 10000 + minor * 100 + tiny
+# It too can be overriden on the command line. When testing it, be sure to
+# make sure that you are limiting the test to a specific compiler. Testing
+# against 30300 for gcc likely isn't  what you wanted (since versions of gcc
+# prior to 4.2 likely have no prayer of working).
 #
-# COMPILER_FEATURES will contain one or more of the following, based on compiler support
-# for that feature: c++11 (supports full (or nearly full) C++11 programming environment).
+# COMPILER_FEATURES will contain one or more of the following, based on
+# compiler support for that feature:
+#
+# - c++11 : supports full (or nearly full) C++11 programming environment.
 #
 # This file may be included multiple times, but only has effect the first time.
 #
@@ -24,9 +28,8 @@ __<bsd.compiler.mk>__:
 .if ${MACHINE} == "common"
 COMPILER_TYPE= none
 COMPILER_VERSION= 0
-.else
+.elif !defined(COMPILER_TYPE) || !defined(COMPILER_VERSION)
 _v!=	${CC} --version 2>/dev/null || echo 0.0.0
-.endif
 
 .if !defined(COMPILER_TYPE)
 . if ${CC:T:M*gcc*}
@@ -47,6 +50,7 @@ COMPILER_TYPE:=	clang
 COMPILER_VERSION!=echo ${_v:M[1-9].[0-9]*} | awk -F. '{print $$1 * 10000 + $$2 * 100 + $$3;}'
 .endif
 .undef _v
+.endif
 
 .if ${COMPILER_TYPE} == "clang" || \
 	(${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 40800)

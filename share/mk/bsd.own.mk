@@ -142,7 +142,7 @@ USER!=	id -un
 .endif
 _gid!=	id -g
 _gn!=	id -gn
-.for x in BIN CONF DOC INFO KMOD LIB MAN NLS SHARE
+.for x in BIN CONF DOC DTB INFO KMOD LIB MAN NLS SHARE
 $xOWN=	${USER}
 $xGRP=	${_gn}
 .endfor
@@ -165,6 +165,10 @@ KMODDIR?=	/boot/kernel
 KMODOWN?=	${BINOWN}
 KMODGRP?=	${BINGRP}
 KMODMODE?=	${BINMODE}
+DTBDIR?=	/boot/dtb
+DTBOWN?=	root
+DTBGRP?=	wheel
+DTBMODE?=	444
 
 LIBDIR?=	/usr/lib
 LIBCOMPATDIR?=	/usr/lib/compat
@@ -230,6 +234,15 @@ STRIP?=		-s
 
 COMPRESS_CMD?=	gzip -cn
 COMPRESS_EXT?=	.gz
+
+# Set XZ_THREADS to 1 to disable multi-threading.
+XZ_THREADS?=	0
+
+.if !empty(XZ_THREADS)
+XZ_CMD?=	xz -T ${XZ_THREADS}
+.else
+XZ_CMD?=	xz
+.endif
 
 # Pointer to the top directory into which tests are installed.  Should not be
 # overriden by Makefiles, but the user may choose to set this in src.conf(5).
