@@ -97,6 +97,8 @@ UPDATE_DEPENDFILE = no
 # for example the result of running configure
 # just make sure this is not empty
 META_FILE_FILTER ?= N.meta
+# never consider these
+META_FILE_FILTER += Ndirdeps.cache*
 
 .if !empty(DPADD)
 # if we have any non-libs in DPADD, 
