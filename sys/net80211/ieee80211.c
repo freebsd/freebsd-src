@@ -302,7 +302,7 @@ ieee80211_ifattach(struct ieee80211com *ic,
 	ic->ic_tq = taskqueue_create("ic_taskq", M_WAITOK | M_ZERO,
 	    taskqueue_thread_enqueue, &ic->ic_tq);
 	taskqueue_start_threads(&ic->ic_tq, 1, PI_NET, "%s net80211 taskq",
-	    ifp->if_xname);
+	    ic->ic_name);
 	/*
 	 * Fill in 802.11 available channel set, mark all
 	 * available channels as active, and pick a default
@@ -617,8 +617,7 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	CURVNET_SET(ifp->if_vnet);
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE, "%s: %s parent %s\n",
-	    __func__, ieee80211_opmode_name[vap->iv_opmode],
-	    ic->ic_name);
+	    __func__, ieee80211_opmode_name[vap->iv_opmode], ic->ic_name);
 
 	/* NB: bpfdetach is called by ether_ifdetach and claims all taps */
 	ether_ifdetach(ifp);
