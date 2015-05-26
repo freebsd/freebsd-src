@@ -135,6 +135,9 @@ struct ieee80211com {
 	struct task		ic_bmiss_task;	/* deferred beacon miss hndlr */
 	struct task		ic_chw_task;	/* deferred HT CHW update */
 
+	counter_u64_t		ic_ierrors;	/* input errors */
+	counter_u64_t		ic_oerrors;	/* output errors */
+
 	uint32_t		ic_flags;	/* state flags */
 	uint32_t		ic_flags_ext;	/* extended state flags */
 	uint32_t		ic_flags_ht;	/* HT state flags */
