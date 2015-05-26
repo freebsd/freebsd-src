@@ -183,6 +183,13 @@ typedef struct mtx ieee80211_scan_table_lock_t;
 #define	IEEE80211_SCAN_TABLE_LOCK(_st)		mtx_lock(&(_st)->st_lock)
 #define	IEEE80211_SCAN_TABLE_UNLOCK(_st)	mtx_unlock(&(_st)->st_lock)
 
+typedef struct mtx ieee80211_scan_iter_lock_t;
+#define	IEEE80211_SCAN_ITER_LOCK_INIT(_st, _name) \
+	mtx_init(&(_st)->st_scanlock, _name, "802.11 scangen", MTX_DEF)
+#define	IEEE80211_SCAN_ITER_LOCK_DESTROY(_st)	mtx_destroy(&(_st)->st_scanlock)
+#define	IEEE80211_SCAN_ITER_LOCK(_st)		mtx_lock(&(_st)->st_scanlock)
+#define	IEEE80211_SCAN_ITER_UNLOCK(_st)	mtx_unlock(&(_st)->st_scanlock)
+
 /*
  * Mesh node/routing definitions.
  */
