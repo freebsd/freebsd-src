@@ -1755,13 +1755,13 @@ _cddl_lib= cddl/lib
 cddl/lib/libzfs_core__L: cddl/lib/libnvpair__L
 cddl/lib/libzfs__L: lib/libgeom__L
 cddl/lib/libctf__L: lib/libz__L
+.endif
 # cddl/lib/libdtrace requires lib/libproc and lib/librtld_db; it's only built
 # on select architectures though (see cddl/lib/Makefile)
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386" || \
 	${MACHINE_CPUARCH} == "mips" || ${MACHINE_CPUARCH} == "powerpc" || \
 	${MACHINE_CPUARCH} == "arm"
 _prebuild_libs+=	lib/libproc lib/librtld_db
-.endif
 .endif
 
 .if ${MK_CRYPT} != "no"
