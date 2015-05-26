@@ -82,7 +82,7 @@ const int ieee80211_opcap[IEEE80211_OPMODE_MAX] = {
 #endif
 };
 
-static const uint8_t ieee80211broadcastaddr[IEEE80211_ADDR_LEN] =
+const uint8_t ieee80211broadcastaddr[IEEE80211_ADDR_LEN] =
 	{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 static	void ieee80211_syncflag_locked(struct ieee80211com *ic, int flag);
