@@ -76,23 +76,13 @@ TUNABLE_INT("hw.bcm2835.sdhci.pio_mode", &bcm2835_sdhci_pio_mode);
 
 struct bcm_sdhci_softc {
 	device_t		sc_dev;
-	struct mtx		sc_mtx;
 	struct resource *	sc_mem_res;
 	struct resource *	sc_irq_res;
 	bus_space_tag_t		sc_bst;
 	bus_space_handle_t	sc_bsh;
 	void *			sc_intrhand;
 	struct mmc_request *	sc_req;
-	struct mmc_data *	sc_data;
-	uint32_t		sc_flags;
-#define	LPC_SD_FLAGS_IGNORECRC		(1 << 0)
-	int			sc_xfer_direction;
-#define	DIRECTION_READ		0
-#define	DIRECTION_WRITE		1
-	int			sc_xfer_done;
-	int			sc_bus_busy;
 	struct sdhci_slot	sc_slot;
-	int			sc_dma_inuse;
 	int			sc_dma_ch;
 	bus_dma_tag_t		sc_dma_tag;
 	bus_dmamap_t		sc_dma_map;
@@ -112,11 +102,6 @@ static void bcm_sdhci_intr(void *);
 
 static int bcm_sdhci_get_ro(device_t, device_t);
 static void bcm_sdhci_dma_intr(int ch, void *arg);
-
-#define	bcm_sdhci_lock(_sc)						\
-    mtx_lock(&_sc->sc_mtx);
-#define	bcm_sdhci_unlock(_sc)						\
-    mtx_unlock(&_sc->sc_mtx);
 
 static void
 bcm_sdhci_dmacb(void *arg, bus_dma_segment_t *segs, int nseg, int err)
@@ -186,8 +171,6 @@ bcm_sdhci_attach(device_t dev)
 
 	if (bootverbose)
 		device_printf(dev, "SDHCI frequency: %dMHz\n", default_freq);
-
-	mtx_init(&sc->sc_mtx, "bcm sdhci", "sdhci", MTX_DEF);
 
 	rid = 0;
 	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
@@ -277,7 +260,6 @@ fail:
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
 	if (sc->sc_mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
-	mtx_destroy(&sc->sc_mtx);
 
 	return (err);
 }
