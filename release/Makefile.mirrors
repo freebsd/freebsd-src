@@ -107,7 +107,7 @@ iso-images-stage:
 .    if exists(${RELEASEDIR}/${OSRELEASE}-${IMAGE})
 	cd ${RELEASEDIR} && \
 		mv ${OSRELEASE}-${IMAGE} \
-		${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE} || true
+		${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}
 	cp -p ${RELEASEDIR}/${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE} \
 		${ISO_DIR}/${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}
 	cd ${TLD}/ISO-IMAGES/${REVISION} && \
@@ -117,7 +117,7 @@ iso-images-stage:
 .    if exists(${RELEASEDIR}/${OSRELEASE}-${IMAGE}.xz)
 	cd ${RELEASEDIR} && \
 		mv ${OSRELEASE}-${IMAGE}.xz \
-		${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}.xz || true
+		${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}.xz
 	cp -p ${RELEASEDIR}/${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}.xz \
 		${ISO_DIR}/${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}.xz
 	cd ${TLD}/ISO-IMAGES/${REVISION} && \
