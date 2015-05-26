@@ -35,6 +35,7 @@ _need_host_libs= \
 	lib/libc++ \
 	lib/libcxxrt \
 	lib/libdwarf \
+	lib/libmd \
 
 N_host_libs:= ${cd ${SRCTOP} && echo lib/lib*:L:sh:${_need_host_libs:${M_ListToSkip}}:${M_ListToSkip}}
 DIRDEPS_FILTER.host = \
@@ -44,6 +45,7 @@ DIRDEPS_FILTER.host = \
 	Nlib/[mn]* \
 	Ngnu/lib/csu* \
 	Ngnu/lib/lib[a-r]* \
+	Nusr.bin/xinstall* \
 
 
 DIRDEPS_FILTER+= \
@@ -81,9 +83,11 @@ DIRDEPS += \
 DIRDEPS+= lib/clang/include
 .endif
 
+.if ${MK_STAGING} == "yes"
 # we need targets/pseudo/stage to prep the stage tree
 .if ${DEP_RELDIR} != "targets/pseudo/stage"
 DIRDEPS += targets/pseudo/stage
+.endif
 .endif
 
 CSU_DIR.i386 = csu/i386-elf

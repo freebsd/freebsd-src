@@ -16,12 +16,15 @@
 CFLAGS_LAST+= --sysroot=${SYSROOT}
 CXXFLAGS_LAST+= --sysroot=${SYSROOT}
 LDADD+= --sysroot=${SYSROOT}
+.elif ${MK_STAGING} == "yes"
+CFLAGS+= -I${STAGE_INCLUDEDIR}
+LDADD+= -L${STAGE_LIBDIR}
+.endif
 .if ${MACHINE} == "host"
 # we cheat?
 LDADD+= -B/usr/lib
 CFLAGS_LAST+= -I/usr/include
 CXXFLAGS_LAST+= -I/usr/include
-.endif
 .endif
 
 .if ${MACHINE} == "host"
