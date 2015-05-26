@@ -41,7 +41,7 @@ SVNVERSION?=		${_D}/${_S}
 .  if exists(${SVNVERSION}) && !empty(SVNVERSION)
 SVNREVISION!=		${SVNVERSION} ${WORLDDIR}/Makefile
 .  endif
-. endif # !defined(SVNERVISION)
+. endif # !defined(SVNREVISION)
 . if !defined(BUILDDATE) || empty(BUILDDATE)
 .  if exists(${.CURDIR}/${.OBJDIR}/dist/base/bin/sh)
 BUILDDATE!=		cd ${.CURDIR} && date -j -f '%s' $$(stat -f "%c" ${.OBJDIR}/dist/base/bin/sh) +%Y%m%d
