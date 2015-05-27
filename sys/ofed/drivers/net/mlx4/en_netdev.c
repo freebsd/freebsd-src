@@ -1967,6 +1967,29 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 		mutex_unlock(&mdev->state_lock);
 		VLAN_CAPABILITIES(dev);
 		break;
+	case SIOCGI2C: {
+		struct ifi2creq i2c;
+
+		error = copyin(ifr->ifr_data, &i2c, sizeof(i2c));
+		if (error)
+			break;
+		if (i2c.len > sizeof(i2c.data)) {
+			error = EINVAL;
+			break;
+		}
+		/*
+		 * Note that we ignore i2c.addr here. The driver hardcodes
+		 * the address to 0x50, while standard expects it to be 0xA0.
+		 */
+		error = mlx4_get_module_info(mdev->dev, priv->port,
+		    i2c.offset, i2c.len, i2c.data);
+		if (error < 0) {
+			error = -error;
+			break;
+		}
+		error = copyout(&i2c, ifr->ifr_data, sizeof(i2c));
+		break;
+	}
 	default:
 		error = ether_ioctl(dev, command, data);
 		break;
