@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 8, 2015
+.Dd May 27, 2015
 .Dt PMCSTAT 8
 .Os
 .Sh NAME
@@ -246,8 +246,8 @@ Argument
 .Ar cpu-spec
 is a comma separated list of CPU numbers, or the literal
 .Sq *
-denoting all unhalted CPUs.
-The default is to allocate system mode PMCs on all unhalted
+denoting all available CPUs.
+The default is to allocate system mode PMCs on all available
 CPUs.
 .It Fl d
 Toggle between process mode PMCs measuring events for the target
