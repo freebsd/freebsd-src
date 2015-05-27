@@ -1,26 +1,31 @@
 /*-
- * Copyright 2009 Solarflare Communications Inc.  All rights reserved.
+ * Copyright (c) 2009-2015 Solarflare Communications Inc.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  *
  * $FreeBSD$
  */
@@ -36,10 +41,15 @@
 extern "C" {
 #endif
 
-/* Number of retries attempted for init code */
-#define	EFX_MCDI_REQ_RETRY_INIT 2
+/*
+ * A reboot/assertion causes the MCDI status word to be set after the
+ * command word is set or a REBOOT event is sent. If we notice a reboot
+ * via these mechanisms then wait 10ms for the status word to be set.
+ */
+#define	EFX_MCDI_STATUS_SLEEP_US	10000
 
 struct efx_mcdi_req_s {
+	boolean_t	emr_quiet;
 	/* Inputs: Command #, input buffer and length */
 	unsigned int	emr_cmd;
 	uint8_t		*emr_in_buf;
@@ -52,19 +62,25 @@ struct efx_mcdi_req_s {
 };
 
 typedef struct efx_mcdi_iface_s {
-	const efx_mcdi_transport_t *emi_mtp;
 	unsigned int		emi_port;
 	unsigned int		emi_seq;
 	efx_mcdi_req_t		*emi_pending_req;
 	boolean_t		emi_ev_cpl;
+	boolean_t		emi_new_epoch;
 	int			emi_aborted;
 	uint32_t		emi_poll_cnt;
+	uint32_t		emi_mc_reboot_status;
 } efx_mcdi_iface_t;
 
 extern			void
 efx_mcdi_execute(
 	__in		efx_nic_t *enp,
-	__in		efx_mcdi_req_t *emrp);
+	__inout		efx_mcdi_req_t *emrp);
+
+extern			void
+efx_mcdi_execute_quiet(
+	__in		efx_nic_t *enp,
+	__inout		efx_mcdi_req_t *emrp);
 
 extern			void
 efx_mcdi_ev_cpl(
@@ -76,6 +92,16 @@ efx_mcdi_ev_cpl(
 extern			void
 efx_mcdi_ev_death(
 	__in		efx_nic_t *enp,
+	__in		int rc);
+
+extern	__checkReturn	int
+efx_mcdi_request_errcode(
+	__in		unsigned int err);
+
+extern			void
+efx_mcdi_raise_exception(
+	__in		efx_nic_t *enp,
+	__in_opt	efx_mcdi_req_t *emrp,
 	__in		int rc);
 
 typedef enum efx_mcdi_boot_e {
@@ -91,6 +117,86 @@ efx_mcdi_version(
 	__out_opt		uint32_t *buildp,
 	__out_opt		efx_mcdi_boot_t *statusp);
 
+extern	__checkReturn		int
+efx_mcdi_read_assertion(
+	__in			efx_nic_t *enp);
+
+extern	__checkReturn		int
+efx_mcdi_exit_assertion_handler(
+	__in			efx_nic_t *enp);
+
+extern	__checkReturn		int
+efx_mcdi_drv_attach(
+	__in			efx_nic_t *enp,
+	__in			boolean_t attach);
+
+extern	__checkReturn		int
+efx_mcdi_get_board_cfg(
+	__in			efx_nic_t *enp,
+	__out_opt		uint32_t *board_typep,
+	__out_opt		efx_dword_t *capabilitiesp,
+	__out_ecount_opt(6)	uint8_t mac_addrp[6]);
+
+extern	__checkReturn		int
+efx_mcdi_get_phy_cfg(
+	__in			efx_nic_t *enp);
+
+extern	__checkReturn		int
+efx_mcdi_firmware_update_supported(
+	__in			efx_nic_t *enp,
+	__out			boolean_t *supportedp);
+
+extern	__checkReturn		int
+efx_mcdi_macaddr_change_supported(
+	__in			efx_nic_t *enp,
+	__out			boolean_t *supportedp);
+
+#if EFSYS_OPT_BIST
+#if EFSYS_OPT_HUNTINGTON
+extern	__checkReturn		int
+efx_mcdi_bist_enable_offline(
+	__in			efx_nic_t *enp);
+#endif /* EFSYS_OPT_HUNTINGTON */
+extern	__checkReturn		int
+efx_mcdi_bist_start(
+	__in			efx_nic_t *enp,
+	__in			efx_bist_type_t type);
+#endif /* EFSYS_OPT_BIST */
+
+extern	__checkReturn		int
+efx_mcdi_get_resource_limits(
+	__in			efx_nic_t *enp,
+	__out_opt		uint32_t *nevqp,
+	__out_opt		uint32_t *nrxqp,
+	__out_opt		uint32_t *ntxqp);
+
+extern	__checkReturn	int
+efx_mcdi_log_ctrl(
+	__in		efx_nic_t *enp);
+
+extern	__checkReturn	int
+efx_mcdi_mac_stats_clear(
+	__in		efx_nic_t *enp);
+
+extern	__checkReturn	int
+efx_mcdi_mac_stats_upload(
+	__in		efx_nic_t *enp,
+	__in		efsys_mem_t *esmp);
+
+extern	__checkReturn	int
+efx_mcdi_mac_stats_periodic(
+	__in		efx_nic_t *enp,
+	__in		efsys_mem_t *esmp,
+	__in		uint16_t period,
+	__in		boolean_t events);
+
+
+#if EFSYS_OPT_LOOPBACK
+extern	__checkReturn	int
+efx_mcdi_get_loopback_modes(
+	__in		efx_nic_t *enp);
+#endif /* EFSYS_OPT_LOOPBACK */
+
 #define	MCDI_IN(_emr, _type, _ofst)					\
 	((_type *)((_emr).emr_in_buf + (_ofst)))
 
@@ -101,9 +207,17 @@ efx_mcdi_version(
 	EFX_POPULATE_BYTE_1(*MCDI_IN2(_emr, efx_byte_t, _ofst),		\
 		EFX_BYTE_0, _value)
 
+#define	MCDI_IN_SET_WORD(_emr, _ofst, _value)				\
+	EFX_POPULATE_WORD_1(*MCDI_IN2(_emr, efx_word_t, _ofst),		\
+		EFX_WORD_0, _value)
+
 #define	MCDI_IN_SET_DWORD(_emr, _ofst, _value)				\
 	EFX_POPULATE_DWORD_1(*MCDI_IN2(_emr, efx_dword_t, _ofst),	\
 		EFX_DWORD_0, _value)
+
+#define	MCDI_IN_SET_DWORD_FIELD(_emr, _ofst, _field, _value)		\
+	EFX_SET_DWORD_FIELD(*MCDI_IN2(_emr, efx_dword_t, _ofst),	\
+		MC_CMD_ ## _field, _value)
 
 #define	MCDI_IN_POPULATE_DWORD_1(_emr, _ofst, _field1, _value1)		\
 	EFX_POPULATE_DWORD_1(*MCDI_IN2(_emr, efx_dword_t, _ofst),	\
@@ -154,7 +268,7 @@ efx_mcdi_version(
 #define	MCDI_IN_POPULATE_DWORD_7(_emr, _ofst, _field1, _value1,		\
 		_field2, _value2, _field3, _value3, _field4, _value4,	\
 		_field5, _value5, _field6, _value6, _field7, _value7)	\
-	EFX_POPULATE_DWORD_7(MCDI_IN2(_emr, efx_dword_t, _ofst),	\
+	EFX_POPULATE_DWORD_7(*MCDI_IN2(_emr, efx_dword_t, _ofst),	\
 		MC_CMD_ ## _field1, _value1,				\
 		MC_CMD_ ## _field2, _value2,				\
 		MC_CMD_ ## _field3, _value3,				\
@@ -233,7 +347,7 @@ efx_mcdi_version(
 #define	MCDI_EV_FIELD(_eqp, _field)					\
 	EFX_QWORD_FIELD(*_eqp, MCDI_EVENT_ ## _field)
 
-#define MCDI_CMD_DWORD_FIELD(_edp, _field)				\
+#define	MCDI_CMD_DWORD_FIELD(_edp, _field)				\
 	EFX_DWORD_FIELD(*_edp, MC_CMD_ ## _field)
 
 #ifdef	__cplusplus

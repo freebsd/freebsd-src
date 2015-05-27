@@ -1,26 +1,31 @@
 /*-
- * Copyright 2007-2009 Solarflare Communications Inc.  All rights reserved.
+ * Copyright (c) 2007-2015 Solarflare Communications Inc.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  */
 
 #include <sys/cdefs.h>
@@ -44,17 +49,22 @@ __FBSDID("$FreeBSD$");
 #include "max6647.h"
 #endif
 
+#if EFSYS_OPT_MON_MCDI
+#include "mcdi_mon.h"
+#endif
+
 #if EFSYS_OPT_NAMES
 
-static const char	__cs * __cs __efx_mon_name[] = {
+static const char	*__efx_mon_name[] = {
 	"",
 	"nullmon",
 	"lm87",
 	"max6647",
-	"sfx90x0"
+	"sfx90x0",
+	"sfx91x0"
 };
 
-		const char __cs *
+		const char *
 efx_mon_name(
 	__in	efx_nic_t *enp)
 {
@@ -70,47 +80,46 @@ efx_mon_name(
 #endif	/* EFSYS_OPT_NAMES */
 
 #if EFSYS_OPT_MON_NULL
-static efx_mon_ops_t	__cs __efx_mon_null_ops = {
+static efx_mon_ops_t	__efx_mon_null_ops = {
 	nullmon_reset,			/* emo_reset */
 	nullmon_reconfigure,		/* emo_reconfigure */
 #if EFSYS_OPT_MON_STATS
-	nullmon_stats_update		/* emo_stat_update */
+	nullmon_stats_update		/* emo_stats_update */
 #endif	/* EFSYS_OPT_MON_STATS */
 };
 #endif
 
 #if EFSYS_OPT_MON_LM87
-static efx_mon_ops_t	__cs __efx_mon_lm87_ops = {
+static efx_mon_ops_t	__efx_mon_lm87_ops = {
 	lm87_reset,			/* emo_reset */
 	lm87_reconfigure,		/* emo_reconfigure */
 #if EFSYS_OPT_MON_STATS
-	lm87_stats_update		/* emo_stat_update */
+	lm87_stats_update		/* emo_stats_update */
 #endif	/* EFSYS_OPT_MON_STATS */
 };
 #endif
 
 #if EFSYS_OPT_MON_MAX6647
-static efx_mon_ops_t	__cs __efx_mon_max6647_ops = {
+static efx_mon_ops_t	__efx_mon_max6647_ops = {
 	max6647_reset,			/* emo_reset */
 	max6647_reconfigure,		/* emo_reconfigure */
 #if EFSYS_OPT_MON_STATS
-	max6647_stats_update		/* emo_stat_update */
+	max6647_stats_update		/* emo_stats_update */
 #endif	/* EFSYS_OPT_MON_STATS */
 };
 #endif
 
-#if EFSYS_OPT_MON_SIENA
-static efx_mon_ops_t	__cs __efx_mon_siena_ops = {
-	siena_mon_reset,		/* emo_reset */
-	siena_mon_reconfigure,		/* emo_reconfigure */
+#if EFSYS_OPT_MON_MCDI
+static efx_mon_ops_t	__efx_mon_mcdi_ops = {
+	NULL,				/* emo_reset */
+	NULL,				/* emo_reconfigure */
 #if EFSYS_OPT_MON_STATS
-	siena_mon_stats_update		/* emo_stat_update */
+	mcdi_mon_stats_update		/* emo_stats_update */
 #endif	/* EFSYS_OPT_MON_STATS */
 };
 #endif
 
-
-static efx_mon_ops_t	__cs * __cs __efx_mon_ops[] = {
+static efx_mon_ops_t	*__efx_mon_ops[] = {
 	NULL,
 #if EFSYS_OPT_MON_NULL
 	&__efx_mon_null_ops,
@@ -127,8 +136,13 @@ static efx_mon_ops_t	__cs * __cs __efx_mon_ops[] = {
 #else
 	NULL,
 #endif
-#if EFSYS_OPT_MON_SIENA
-	&__efx_mon_siena_ops
+#if EFSYS_OPT_MON_MCDI
+	&__efx_mon_mcdi_ops,
+#else
+	NULL,
+#endif
+#if EFSYS_OPT_MON_MCDI
+	&__efx_mon_mcdi_ops
 #else
 	NULL
 #endif
@@ -162,11 +176,15 @@ efx_mon_init(
 		goto fail2;
 	}
 
-	if ((rc = emop->emo_reset(enp)) != 0)
-		goto fail3;
+	if (emop->emo_reset != NULL) {
+		if ((rc = emop->emo_reset(enp)) != 0)
+			goto fail3;
+	}
 
-	if ((rc = emop->emo_reconfigure(enp)) != 0)
-		goto fail4;
+	if (emop->emo_reconfigure != NULL) {
+		if ((rc = emop->emo_reconfigure(enp)) != 0)
+			goto fail4;
+	}
 
 	emp->em_emop = emop;
 	return (0);
@@ -174,7 +192,8 @@ efx_mon_init(
 fail4:
 	EFSYS_PROBE(fail5);
 
-	(void) emop->emo_reset(enp);
+	if (emop->emo_reset != NULL)
+		(void) emop->emo_reset(enp);
 
 fail3:
 	EFSYS_PROBE(fail4);
@@ -195,8 +214,8 @@ fail1:
 
 #if EFSYS_OPT_NAMES
 
-/* START MKCONFIG GENERATED MonitorStatNamesBlock 89ff37f1d74ad8b3 */
-static const char 	__cs * __cs __mon_stat_name[] = {
+/* START MKCONFIG GENERATED MonitorStatNamesBlock b9328f15438c4d01 */
+static const char 	*__mon_stat_name[] = {
 	"value_2_5v",
 	"value_vccp1",
 	"value_vcc",
@@ -227,11 +246,50 @@ static const char 	__cs * __cs __mon_stat_name[] = {
 	"vaoe_in",
 	"iaoe",
 	"iaoe_in",
+	"nic_power",
+	"0_9v",
+	"i0_9v",
+	"i1_2v",
+	"0_9v_adc",
+	"controller_temperature2",
+	"vreg_temperature",
+	"vreg_0_9v_temperature",
+	"vreg_1_2v_temperature",
+	"int_vptat",
+	"controller_internal_adc_temperature",
+	"ext_vptat",
+	"controller_external_adc_temperature",
+	"ambient_temperature",
+	"airflow",
+	"vdd08d_vss08d_csr",
+	"vdd08d_vss08d_csr_extadc",
+	"hotpoint_temperature",
+	"phy_power_switch_port0",
+	"phy_power_switch_port1",
+	"mum_vcc",
+	"0v9_a",
+	"i0v9_a",
+	"0v9_a_temp",
+	"0v9_b",
+	"i0v9_b",
+	"0v9_b_temp",
+	"ccom_avreg_1v2_supply",
+	"ccom_avreg_1v2_supply_ext_adc",
+	"ccom_avreg_1v8_supply",
+	"ccom_avreg_1v8_supply_ext_adc",
+	"controller_master_vptat",
+	"controller_master_internal_temp",
+	"controller_master_vptat_ext_adc",
+	"controller_master_internal_temp_ext_adc",
+	"controller_slave_vptat",
+	"controller_slave_internal_temp",
+	"controller_slave_vptat_ext_adc",
+	"controller_slave_internal_temp_ext_adc",
 };
 
 /* END MKCONFIG GENERATED MonitorStatNamesBlock */
 
-extern					const char __cs *
+extern					const char *
 efx_mon_stat_name(
 	__in				efx_nic_t *enp,
 	__in				efx_mon_stat_t id)
@@ -276,9 +334,11 @@ efx_mon_fini(
 
 	emp->em_emop = NULL;
 
-	rc = emop->emo_reset(enp);
-	if (rc != 0)
-		EFSYS_PROBE1(fail1, int, rc);
+	if (emop->emo_reset != NULL) {
+		rc = emop->emo_reset(enp);
+		if (rc != 0)
+			EFSYS_PROBE1(fail1, int, rc);
+	}
 
 	emp->em_type = EFX_MON_INVALID;
 

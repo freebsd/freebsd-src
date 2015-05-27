@@ -13,3 +13,6 @@ kern/kern_clocksource.c			standard
 arm/arm/generic_timer.c			standard
 arm/qemu/virt_common.c			standard
 arm/qemu/virt_machdep.c			standard
+arm/qemu/virt_mp.c			optional	smp
+
+dev/ofw/ofw_cpu.c			standard

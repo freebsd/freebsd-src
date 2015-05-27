@@ -354,7 +354,6 @@ static struct printranges {
 static void
 ht_rateprint(struct ieee80211com *ic, enum ieee80211_phymode mode, int ratetype)
 {
-	struct ifnet *ifp = ic->ic_ifp;
 	int minrate, maxrate;
 	struct printranges *range;
 
@@ -369,12 +368,12 @@ ht_rateprint(struct ieee80211com *ic, enum ieee80211_phymode mode, int ratetype)
 		minrate = ht_getrate(ic, range->minmcs, mode, ratetype);
 		maxrate = ht_getrate(ic, range->maxmcs, mode, ratetype);
 		if (range->maxmcs) {
-			if_printf(ifp, "MCS %d-%d: %d%sMbps - %d%sMbps\n",
+			ic_printf(ic, "MCS %d-%d: %d%sMbps - %d%sMbps\n",
 			    range->minmcs, range->maxmcs,
 			    minrate/2, ((minrate & 0x1) != 0 ? ".5" : ""),
 			    maxrate/2, ((maxrate & 0x1) != 0 ? ".5" : ""));
 		} else {
-			if_printf(ifp, "MCS %d: %d%sMbps\n", range->minmcs,
+			ic_printf(ic, "MCS %d: %d%sMbps\n", range->minmcs,
 			    minrate/2, ((minrate & 0x1) != 0 ? ".5" : ""));
 		}
 	}
@@ -383,22 +382,21 @@ ht_rateprint(struct ieee80211com *ic, enum ieee80211_phymode mode, int ratetype)
 static void
 ht_announce(struct ieee80211com *ic, enum ieee80211_phymode mode)
 {
-	struct ifnet *ifp = ic->ic_ifp;
 	const char *modestr = ieee80211_phymode_name[mode];
 
-	if_printf(ifp, "%s MCS 20MHz\n", modestr);
+	ic_printf(ic, "%s MCS 20MHz\n", modestr);
 	ht_rateprint(ic, mode, 0);
 	if (ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI20) {
-		if_printf(ifp, "%s MCS 20MHz SGI\n", modestr);
+		ic_printf(ic, "%s MCS 20MHz SGI\n", modestr);
 		ht_rateprint(ic, mode, 1);
 	}
 	if (ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) {
-		if_printf(ifp, "%s MCS 40MHz:\n", modestr);
+		ic_printf(ic, "%s MCS 40MHz:\n", modestr);
 		ht_rateprint(ic, mode, 2);
 	}
 	if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) &&
 	    (ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI40)) {
-		if_printf(ifp, "%s MCS 40MHz SGI:\n", modestr);
+		ic_printf(ic, "%s MCS 40MHz SGI:\n", modestr);
 		ht_rateprint(ic, mode, 3);
 	}
 }
@@ -406,11 +404,10 @@ ht_announce(struct ieee80211com *ic, enum ieee80211_phymode mode)
 void
 ieee80211_ht_announce(struct ieee80211com *ic)
 {
-	struct ifnet *ifp = ic->ic_ifp;
 
 	if (isset(ic->ic_modecaps, IEEE80211_MODE_11NA) ||
 	    isset(ic->ic_modecaps, IEEE80211_MODE_11NG))
-		if_printf(ifp, "%dT%dR\n", ic->ic_txstream, ic->ic_rxstream);
+		ic_printf(ic, "%dT%dR\n", ic->ic_txstream, ic->ic_rxstream);
 	if (isset(ic->ic_modecaps, IEEE80211_MODE_11NA))
 		ht_announce(ic, IEEE80211_MODE_11NA);
 	if (isset(ic->ic_modecaps, IEEE80211_MODE_11NG))

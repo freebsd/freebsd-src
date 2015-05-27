@@ -2315,19 +2315,6 @@ decode_moffset(struct vie *vie)
 }
 
 /*
- * Verify that all the bytes in the instruction buffer were consumed.
- */
-static int
-verify_inst_length(struct vie *vie)
-{
-
-	if (vie->num_processed)
-		return (0);
-	else
-		return (-1);
-}
-
-/*
  * Verify that the 'guest linear address' provided as collateral of the nested
  * page table fault matches with our instruction decoding.
  */
@@ -2406,9 +2393,6 @@ vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla,
 		return (-1);
 
 	if (decode_moffset(vie))
-		return (-1);
-
-	if (verify_inst_length(vie))
 		return (-1);
 
 	if ((vie->op.op_flags & VIE_OP_F_NO_GLA_VERIFICATION) == 0) {

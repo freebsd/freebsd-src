@@ -38,7 +38,6 @@
  * Created      : 16/05/95
  */
 
-	
 #include "assym.s"
 #include <machine/asm.h>
 #include <machine/armreg.h>

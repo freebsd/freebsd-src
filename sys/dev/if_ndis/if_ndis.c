@@ -159,8 +159,8 @@ static void ndis_tick		(void *);
 static void ndis_ticktask	(device_object *, void *);
 static int ndis_raw_xmit	(struct ieee80211_node *, struct mbuf *,
 	const struct ieee80211_bpf_params *);
-static void ndis_update_mcast	(struct ifnet *ifp);
-static void ndis_update_promisc	(struct ifnet *ifp);
+static void ndis_update_mcast	(struct ieee80211com *);
+static void ndis_update_promisc	(struct ieee80211com *);
 static void ndis_start		(struct ifnet *);
 static void ndis_starttask	(device_object *, void *);
 static void ndis_resettask	(device_object *, void *);
@@ -738,6 +738,8 @@ ndis_attach(dev)
 
 		ifp->if_ioctl = ndis_ioctl_80211;
 		ic->ic_ifp = ifp;
+		ic->ic_softc = sc;
+		ic->ic_name = device_get_nameunit(dev);
 		ic->ic_opmode = IEEE80211_M_STA;
 	        ic->ic_phytype = IEEE80211_T_DS;
 		ic->ic_caps = IEEE80211_C_8023ENCAP |
@@ -1771,15 +1773,15 @@ ndis_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 }
 
 static void
-ndis_update_mcast(struct ifnet *ifp)
+ndis_update_mcast(struct ieee80211com *ic)
 {
-       struct ndis_softc       *sc = ifp->if_softc;
+       struct ndis_softc *sc = ic->ic_softc;
 
        ndis_setmulti(sc);
 }
 
 static void
-ndis_update_promisc(struct ifnet *ifp)
+ndis_update_promisc(struct ieee80211com *ic)
 {
        /* not supported */
 }

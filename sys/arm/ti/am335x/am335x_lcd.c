@@ -273,7 +273,7 @@ am335x_read_timing(device_t dev, phandle_t node, struct panel_info *panel)
 	int error;
 	phandle_t timings_node, timing_node, native;
 
-	timings_node = fdt_find_child(node, "display-timings");
+	timings_node = ofw_bus_find_child(node, "display-timings");
 	if (timings_node == 0) {
 		device_printf(dev, "no \"display-timings\" node\n");
 		return (-1);
@@ -346,7 +346,7 @@ am335x_read_panel_info(device_t dev, phandle_t node, struct panel_info *panel)
 	int error;
 	phandle_t panel_info_node;
 
-	panel_info_node = fdt_find_child(node, "panel-info");
+	panel_info_node = ofw_bus_find_child(node, "panel-info");
 	if (panel_info_node == 0)
 		return (-1);
 
